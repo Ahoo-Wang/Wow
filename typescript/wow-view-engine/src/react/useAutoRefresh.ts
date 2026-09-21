@@ -11,7 +11,13 @@
  * limitations under the License.
  */
 
-import { useCallback, useMemo } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import type { RuntimeLimits, ViewConfig } from '../model/index.js';
 import { refreshIntervalOf, type ViewRuntime } from '../runtime/index.js';
 import { useViewRuntime } from './useViewEngine.js';
@@ -20,12 +26,21 @@ import { useViewRuntime } from './useViewEngine.js';
  * The ladder an interval control offers from, before the limits cut it and
  * the interval in force is folded in.
  *
- * Ten seconds is the shortest anything on a wall needs, an hour the longest
- * that still reads as "this keeps itself up to date"; the rungs between are
- * the ones a person asks for by name. Every one of them divides into whole
- * seconds, minutes or hours, so each has a label nobody has to decode.
+ * Three rungs, and deliberately few. Half a minute is the shortest cadence a
+ * person reads as "live" without the screen redrawing under their hands, five
+ * minutes the longest before "keeps itself up to date" stops being the reason
+ * anyone opened this view; a quarter of an hour and an hour were rungs nobody
+ * picked and everybody had to read past. A ladder is a menu, and a menu with
+ * seven answers to a question asked twice a year costs more to skim than the
+ * two answers it leaves out are worth. Every rung divides into whole seconds
+ * or minutes, so each has a label nobody has to decode — and a view already
+ * saved at some other number keeps its own rung (see {@link useAutoRefresh}),
+ * so shortening the ladder strands nobody.
  */
-const REFRESH_INTERVALS = [10, 30, 60, 300, 900, 1800, 3600];
+const REFRESH_INTERVALS = [30, 60, 300];
+
+/** How often the countdown redraws while a timer is armed. */
+const TICK_MS = 1000;
 
 /** Stable identity for "no runtime, nothing on offer". */
 const NO_INTERVALS: readonly number[] = [];
@@ -123,6 +138,26 @@ export interface RefreshController {
   now(): void;
   /** True while a query of this view is in flight. */
   loading: boolean;
+  /**
+   * When the next automatic refresh is due, on the runtime's clock, or `null`
+   * while no timer is armed — the interval is off, or the runtime is holding
+   * the timer for one of its four reasons.
+   *
+   * It is the runtime's `nextRefreshAt`, handed on as it stands. A control
+   * counts down to it; it does not count for itself, because a second clock
+   * beside the timer's is a second opinion about when the data will move.
+   */
+  dueAt: number | null;
+  /**
+   * Whole seconds from now until {@link dueAt}, read against the runtime's
+   * own clock, or `null` when nothing is armed. Never negative: a timer that
+   * is late is at zero, not behind.
+   *
+   * A function rather than a number, because it answers "now", and the
+   * controller is built once per render while a countdown asks once a second.
+   * {@link useRefreshCountdown} is what asks.
+   */
+  remaining(): number | null;
 }
 
 /**
@@ -176,5 +211,74 @@ export function useAutoRefresh(
     ),
     now: useCallback(() => runtime?.refresh(), [runtime]),
     loading: state?.query.status === 'loading',
+    dueAt: state?.nextRefreshAt ?? null,
+    // Stable per runtime, so a ticker can depend on it without restarting on
+    // every render of the surface around it. It reads the snapshot at call
+    // time rather than the one this render closed over, because a countdown
+    // asks between renders.
+    remaining: useCallback(() => {
+      if (!runtime) return null;
+      const due = runtime.getSnapshot().nextRefreshAt;
+      if (due === null) return null;
+      const left = due - runtime.environment.now().getTime();
+      return Math.max(0, Math.ceil(left / 1000));
+    }, [runtime]),
+  };
+}
+
+/**
+ * Whole seconds until the next automatic refresh, redrawn once a second.
+ *
+ * The ticker is a pulse, not a measurement: every reading comes from the
+ * runtime's due time against the runtime's clock, so a tick that arrives
+ * late, early or not at all changes when the number is redrawn and never
+ * what it says. It runs only while a timer is armed — no interval, or a
+ * runtime holding its timer, means no ticker — and only while the component
+ * asking is mounted, which is the control that draws the count and not the
+ * workbench around it: a view re-rendering its whole result once a second to
+ * move one digit is the cost this hook exists to keep out of the table.
+ */
+export function useRefreshCountdown(refresh: RefreshController): number | null {
+  const { dueAt, remaining } = refresh;
+  // Read once as the store is built, so the control never paints one frame
+  // of the cadence on its way to the count.
+  const ticker = useState(() =>
+    countdownStore(dueAt === null ? null : remaining()),
+  )[0];
+  useEffect(() => {
+    ticker.set(dueAt === null ? null : remaining());
+    if (dueAt === null) return;
+    const tick = setInterval(() => ticker.set(remaining()), TICK_MS);
+    return () => clearInterval(tick);
+  }, [dueAt, remaining, ticker]);
+  return useSyncExternalStore(ticker.subscribe, ticker.get, ticker.get);
+}
+
+/**
+ * The seconds left, as a store the ticker writes and React reads.
+ *
+ * A reading is made by a timer, which belongs in an effect, and shown on
+ * screen, which needs a render. `setState` from an effect body is the
+ * cascading-render pattern `react-hooks` refuses; a store the effect writes
+ * and `useSyncExternalStore` subscribes to is the shape it points at instead
+ * — the same one `useOpenView` keeps its refusals in, and the one every
+ * runtime in this package already has.
+ */
+function countdownStore(initial: number | null) {
+  let seconds = initial;
+  const listeners = new Set<() => void>();
+  return {
+    get: (): number | null => seconds,
+    set(next: number | null): void {
+      if (seconds === next) return;
+      seconds = next;
+      for (const listener of [...listeners]) listener();
+    },
+    subscribe(listener: () => void): () => void {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
   };
 }

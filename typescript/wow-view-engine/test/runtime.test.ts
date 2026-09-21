@@ -34,6 +34,7 @@ import {
   ordersDefinition,
   recordConfig,
   requireRecordConfig,
+  NOW,
   ROWS,
   testEnvironment,
   testSource,
@@ -841,6 +842,105 @@ describe('DataViewRuntime auto refresh', () => {
     runtime.apply();
     await flush();
     expect(clock.timers).toBe(0);
+  });
+
+  /**
+   * The due time is the timer's own, published so a control can count down
+   * to it instead of starting a second clock beside it. It is read off the
+   * environment, which is what keeps a countdown and a refresh from
+   * disagreeing about when the data moves.
+   */
+  it('publishes when the next refresh is due, on the injected clock', async () => {
+    const { runtime, clock } = harness({ config: refreshing });
+    expect(runtime.getSnapshot().nextRefreshAt).toBeNull();
+
+    runtime.apply();
+    await flush();
+
+    expect(runtime.getSnapshot().nextRefreshAt).toBe(NOW.getTime() + 30_000);
+
+    // And it moves with the timer: the refresh fires, the next one is armed
+    // from where the answer landed.
+    clock.advance(30_000);
+    await flush();
+    expect(runtime.getSnapshot().nextRefreshAt).toBe(
+      NOW.getTime() + 30_000 + 30_000,
+    );
+  });
+
+  /**
+   * Every reason the timer is held is a reason there is nothing to count to:
+   * one field, so a control cannot show a countdown to a refresh that is not
+   * scheduled. A request in flight is one of them, and the next due time is
+   * only known once it lands.
+   */
+  it('has nothing due while the timer is held, and again once it is armed', async () => {
+    const gate = deferred<{ total: number; list: typeof ROWS }>();
+    const paged = vi.fn(() => gate.promise);
+    const { runtime, clock } = harness({
+      config: refreshing,
+      source: testSource({ paged }),
+    });
+
+    runtime.apply();
+    expect(runtime.getSnapshot().nextRefreshAt).toBeNull();
+
+    gate.resolve({ total: ROWS.length, list: ROWS });
+    await flush();
+    expect(runtime.getSnapshot().nextRefreshAt).toBe(NOW.getTime() + 30_000);
+
+    // The other three hold it the same way, and each one clears the due time
+    // rather than freezing it at a number nothing is counting to.
+    runtime.setEditing(true);
+    expect(runtime.getSnapshot().nextRefreshAt).toBeNull();
+    runtime.setEditing(false);
+    expect(runtime.getSnapshot().nextRefreshAt).toBe(NOW.getTime() + 30_000);
+
+    clock.setVisible(false);
+    expect(runtime.getSnapshot().nextRefreshAt).toBeNull();
+    clock.setVisible(true);
+    expect(runtime.getSnapshot().nextRefreshAt).toBe(NOW.getTime() + 30_000);
+
+    runtime.edit({ pageSize: 0 });
+    expect(runtime.getSnapshot().nextRefreshAt).toBeNull();
+  });
+
+  /**
+   * Hiding the page is no state change of this runtime's own, so nothing but
+   * this tells a subscriber the countdown it is drawing has stopped.
+   */
+  it('notifies when visibility moves the due time', async () => {
+    const { runtime, clock } = harness({ config: refreshing });
+    runtime.apply();
+    await flush();
+    const listener = vi.fn();
+    runtime.subscribe(listener);
+
+    clock.setVisible(false);
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(runtime.getSnapshot().nextRefreshAt).toBeNull();
+
+    clock.setVisible(true);
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+
+  /**
+   * A refresh by hand makes the data fresh now, so the wait starts again
+   * from now: the runtime re-arms on the answer rather than letting the old
+   * timer fire seconds after the user pressed the button themselves.
+   */
+  it('restarts the wait after a refresh the user asked for', async () => {
+    const { runtime, clock } = harness({ config: refreshing });
+    runtime.apply();
+    await flush();
+
+    clock.advance(20_000);
+    runtime.refresh();
+    await flush();
+
+    expect(runtime.getSnapshot().nextRefreshAt).toBe(
+      NOW.getTime() + 20_000 + 30_000,
+    );
   });
 });
 

@@ -123,10 +123,14 @@ export function refreshController(
     interval: null,
     chosen: null,
     unsound: false,
-    intervals: [10, 30, 60, 300, 900, 1800, 3600],
+    intervals: [30, 60, 300],
     setInterval: () => {},
     now: () => {},
     loading: false,
+    // Nothing armed, so nothing counts down; the suites that assert the
+    // countdown hand over a due time and a clock to read it against.
+    dueAt: null,
+    remaining: () => null,
     ...overrides,
   };
 }

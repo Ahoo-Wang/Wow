@@ -173,14 +173,20 @@ useDashboard(runtime): DashboardController
 
 ```ts
 useAutoRefresh(runtime): RefreshController
-RefreshController { interval; chosen; intervals; unsound; setInterval(interval); now(); loading }
+RefreshController {
+  interval; chosen; intervals; unsound; setInterval(interval); now(); loading;
+  dueAt; remaining()
+}
+useRefreshCountdown(refresh): number | null   // 每秒重画的剩余整秒
 ```
 
 - 两个数，一个成员的两个时刻，不是两份状态。`interval` 是 **`applied`** 的 `refresh.interval`——**正在生效**的那一档，计时器读的就是它，所以凭据只能说它（与 `AppliedBar` 读 `result.own` 同一条理由）；`chosen` 是 **草稿** 的那一档——「这个视图被设成什么」「`Save` 会写下什么」，菜单勾的是它，与布局、每页条数读草稿一致；
 - 选中即 `edit` 加 `apply`，所以两者通常相等；**只有草稿被准入拒绝、`apply` 落不下去时**才分开，此时 `applied` 那一档仍然是真的（把刷新关掉也一样：什么都没关掉）。合成一个数就会让按钮挂着一个没有东西在跑的节奏。控制器里**没有**与配置并行的第二份状态：那会让配置、计时器与屏幕各说一个数；
-- `intervals` 是裁剪后的档位（升序）：梯子 ∩「内核会跑的数」——**整数**且落在 `[minRefreshInterval, maxRefreshInterval]` 内，因为 `validateRefresh` 拒绝小数与越界是同一件事——再并进 `chosen`（同样要跑得起来，否则菜单里没有一项勾得上）。不允许的档位不出现而不是禁用（D4）；`interval` 也照这条读：`applied` 里一个跑不起来的数报 `null`，不冒充节奏；
+- `intervals` 是裁剪后的档位（升序）：梯子 ∩「内核会跑的数」——**整数**且落在 `[minRefreshInterval, maxRefreshInterval]` 内，因为 `validateRefresh` 拒绝小数与越界是同一件事——再并进 `chosen`（同样要跑得起来，否则菜单里没有一项勾得上）。不允许的档位不出现而不是禁用（D4）；`interval` 也照这条读：`applied` 里一个跑不起来的数报 `null`，不冒充节奏。梯子本身只有**三档：30 秒、1 分钟、5 分钟**——半分钟是屏幕不在手底下乱跳的前提下还读得出「实时」的最短一档，五分钟是再长就说不上「自己保持最新」的那一档；一刻钟与一小时没人选、人人要读过去，一个一年问两次的问题不值得摆七个答案。已经保存成别的数的视图照旧并进自己那一档（上一条），所以收窄梯子不会把谁钉住；
 - `unsound` 是「准入对这个成员有话说」（`issues` 里路径以 `refresh` 开头的任意一条：缺失、不是对象、小数、越界）。它存在只为一件事——控件据此知道自己**还有事可做**：「关闭」写下的 `{ interval: null }` 是这几种拒绝的通用修法，梯子空时若连菜单都收起来，用户就被钉在一份 Apply 与 Save 都过不去、却没有控件能修的配置上。判断读 `issues` 而不在这里重算，免得控件与内核对同一份配置给出两种结论；
-- `now()` 就是 `runtime.refresh()`，一次性的那一下；`loading` 是本视图查询在途。没有开着的视图时全部是空操作，因为工作台在视图还在打开时就已经画出了这个控件。（见 test/refreshControl.test.tsx「useAutoRefresh」）
+- `now()` 就是 `runtime.refresh()`，一次性的那一下；`loading` 是本视图查询在途。没有开着的视图时全部是空操作，因为工作台在视图还在打开时就已经画出了这个控件；
+- `dueAt` 就是 runtime 的 `nextRefreshAt`，原样转手：**倒数的是计时器自己的那个数**，控制器不另算一份。`remaining()` 是「此刻到 `dueAt` 还有几整秒」，按 `runtime.environment.now()` 读，最小为 0（迟到的计时器是 0，不是负数）。它是函数而不是数，因为它答的是「现在」，而控制器一次渲染只建一次、倒计时每秒问一次；它按 runtime 记忆，所以依赖它的定时器不会每次渲染重来；
+- `useRefreshCountdown(refresh)` 是那只每秒重画的钟摆，**由画倒计时的那个控件调用**，不是由工作台调用：一张表为了走一位数字每秒重渲一次是这个 hook 存在的理由。它只在 `dueAt` 非空时起跳，卸载即停；每一次读数都来自 `dueAt` 与注入的时钟，所以跳晚了、跳早了、没跳，都只影响什么时候重画，不影响它说了什么。（见 test/refreshControl.test.tsx「useAutoRefresh」与「RefreshControl」）
 
 ## useWorkbench
 

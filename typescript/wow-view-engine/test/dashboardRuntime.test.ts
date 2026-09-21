@@ -40,6 +40,7 @@ import {
 import {
   analysisConfig,
   dashboardConfig,
+  NOW,
   ordersDefinition,
   overviewDefinition,
   recordConfig,
@@ -926,6 +927,56 @@ describe('DashboardViewRuntime refreshing', () => {
     expect(board.clock.timers).toBe(0);
     runtime.setEditing(false);
     expect(board.clock.timers).toBe(1);
+  });
+
+  /**
+   * The board's one timer publishes its due time as a data view's does, so
+   * the countdown in the title bar counts to the timer the panels are
+   * holding up rather than to one of its own.
+   */
+  it('publishes when the whole board is next due', async () => {
+    const board = await harness();
+    const runtime = await board.open(
+      boundConfig({ refresh: { interval: 60 } }),
+    );
+
+    expect(runtime.getSnapshot().nextRefreshAt).toBe(NOW.getTime() + 60_000);
+
+    board.clock.setVisible(false);
+    expect(runtime.getSnapshot().nextRefreshAt).toBeNull();
+    board.clock.setVisible(true);
+    expect(runtime.getSnapshot().nextRefreshAt).toBe(NOW.getTime() + 60_000);
+
+    board.clock.advance(60_000);
+    await flush();
+    expect(runtime.getSnapshot().nextRefreshAt).toBe(
+      NOW.getTime() + 60_000 + 60_000,
+    );
+  });
+
+  /**
+   * A panel's query is not a state change of the dashboard, and the grid is
+   * deliberately not re-rendered for one — but the due time moving is the
+   * one thing about a panel's query the board above it has to hear, or the
+   * countdown goes on counting to a timer that is no longer armed.
+   */
+  it('notifies when a panel query moves the due time, and no more often', async () => {
+    const board = await harness();
+    const runtime = await board.open(
+      boundConfig({ refresh: { interval: 60 } }),
+    );
+    const listener = vi.fn();
+    runtime.subscribe(listener);
+
+    board.clock.advance(60_000);
+    await flush();
+
+    // Out and back: nothing due while the panels query, due again once they
+    // have all answered.
+    expect(listener).toHaveBeenCalledTimes(2);
+    expect(runtime.getSnapshot().nextRefreshAt).toBe(
+      NOW.getTime() + 60_000 + 60_000,
+    );
   });
 
   it('refreshes on demand as well', async () => {

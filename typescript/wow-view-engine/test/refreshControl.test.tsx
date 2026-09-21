@@ -35,7 +35,7 @@ import type {
   ViewSource,
 } from '../src/index.js';
 import type { RecordViewRuntime, ViewRuntime } from '../src/runtime/index.js';
-import { useAutoRefresh } from '../src/react/index.js';
+import { useAutoRefresh, type RefreshController } from '../src/react/index.js';
 import {
   AnalysisWorkbench,
   DashboardWorkbench,
@@ -58,7 +58,10 @@ import {
 } from './fixtures.js';
 import { refreshController } from './fixtures/ui.js';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 /**
  * Auto refresh had a contract and no way in: the interval was saved with the
@@ -89,6 +92,50 @@ const every = (seconds: number): string =>
           '{count}',
           String(seconds),
         );
+
+/**
+ * What is **left** of the interval, as the key writes it: floored to the
+ * largest whole unit, so the fifth minute reads "4 min" for all of itself.
+ */
+const left = (seconds: number): string =>
+  seconds >= 3600
+    ? defaultMessages['label.refresh.hours'].replace(
+        '{count}',
+        String(Math.floor(seconds / 3600)),
+      )
+    : seconds >= 60
+      ? defaultMessages['label.refresh.minutes'].replace(
+          '{count}',
+          String(Math.floor(seconds / 60)),
+        )
+      : defaultMessages['label.refresh.seconds'].replace(
+          '{count}',
+          String(seconds),
+        );
+
+/** The text on the key, which is the countdown while one is running. */
+const reading = (container: HTMLElement): string | undefined =>
+  container.querySelector('[data-slot="refresh-cadence"]')?.textContent ??
+  undefined;
+
+/**
+ * A view whose timer is armed, counting on the same fake clock the ticker
+ * runs on — which is what a runtime hands a control: a due time, and a
+ * reading of it taken against the clock that timer runs on.
+ */
+function counting(
+  interval: number,
+  overrides: Partial<RefreshController> = {},
+): RefreshController {
+  const dueAt = Date.now() + interval * 1000;
+  return refreshController({
+    interval,
+    chosen: interval,
+    dueAt,
+    remaining: () => Math.max(0, Math.ceil((dueAt - Date.now()) / 1000)),
+    ...overrides,
+  });
+}
 
 const orders: ViewInstance = {
   id: 'orders-1',
@@ -143,9 +190,10 @@ describe('useAutoRefresh', () => {
       useAutoRefresh(recordRuntime(engine) as ViewRuntime),
     );
 
-    // Absent, not disabled: the kernel refuses 10 and 30 under these limits,
-    // and an option that can only be pressed to be told no teaches nothing.
-    expect(result.current.intervals).toEqual([60, 300, 900]);
+    // Absent, not disabled: the kernel refuses 30 under these limits, and an
+    // option that can only be pressed to be told no teaches nothing. 900 is
+    // off the ladder itself, which the limits have nothing to do with.
+    expect(result.current.intervals).toEqual([60, 300]);
   });
 
   /**
@@ -166,7 +214,7 @@ describe('useAutoRefresh', () => {
         ) as ViewRuntime,
       ),
     );
-    expect(folded.result.current.intervals).toEqual([30, 45, 60, 300, 900]);
+    expect(folded.result.current.intervals).toEqual([30, 45, 60, 300]);
 
     const refused = renderHook(() =>
       useAutoRefresh(
@@ -176,7 +224,7 @@ describe('useAutoRefresh', () => {
         ) as ViewRuntime,
       ),
     );
-    expect(refused.result.current.intervals).toEqual([30, 60, 300, 900]);
+    expect(refused.result.current.intervals).toEqual([30, 60, 300]);
     // It is still what the view is *set* to, and a save would write it —
     // but it is not in force and never will be, because the same bounds
     // that keep it off the ladder had admission refuse the config.
@@ -286,6 +334,46 @@ describe('useAutoRefresh', () => {
       expect(runtime.getSnapshot().query.status).toBe('success'),
     );
     expect(clock.timers).toBe(0);
+  });
+
+  /**
+   * The countdown's two members: when the runtime's timer is due, handed on
+   * as it stands, and how long that is on the runtime's own clock. A control
+   * that asked the system clock instead would drift away from the timer it
+   * claims to be counting to the moment a host injected a clock of its own.
+   */
+  it('hands on the due time, and reads what is left on the runtime clock', async () => {
+    const clock = testEnvironment();
+    const engine = engineWith({ environment: clock.environment });
+    const runtime = recordRuntime(
+      engine,
+      recordConfig({ refresh: { interval: 30 } }),
+    );
+    const { result } = renderHook(() => useAutoRefresh(runtime as ViewRuntime));
+
+    // Nothing has run, so nothing is armed and there is nothing to count to.
+    expect(result.current.dueAt).toBeNull();
+    expect(result.current.remaining()).toBeNull();
+
+    act(() => runtime.apply());
+    await waitFor(() =>
+      expect(runtime.getSnapshot().query.status).toBe('success'),
+    );
+
+    expect(result.current.dueAt).toBe(runtime.getSnapshot().nextRefreshAt);
+    expect(result.current.remaining()).toBe(30);
+
+    // The clock moves, the due time does not, and the reading follows the
+    // clock: it is read at the moment it is asked, not at the last render.
+    act(() => clock.advance(10_000));
+    expect(result.current.remaining()).toBe(20);
+
+    act(() => result.current.setInterval(null));
+    await waitFor(() =>
+      expect(runtime.getSnapshot().query.status).toBe('success'),
+    );
+    expect(result.current.dueAt).toBeNull();
+    expect(result.current.remaining()).toBeNull();
   });
 
   /**
@@ -410,6 +498,119 @@ describe('RefreshControl', () => {
     expect(
       container.querySelector('[data-slot="refresh-cadence"]')!.textContent,
     ).toBe(every(300));
+    expect(
+      screen
+        .getByRole('button', { name: new RegExp(REFRESH) })
+        .getAttribute('aria-description'),
+    ).toBe(
+      defaultMessages['label.refresh.on'].replace('{interval}', every(300)),
+    );
+  });
+
+  /**
+   * The key counts down to the next refresh rather than repeating the
+   * cadence the menu already carries: the question a person asks of a screen
+   * that moves by itself is *when*, and "30s" answered it only once a
+   * minute by accident.
+   */
+  it('ticks down to the next refresh and starts again when it lands', () => {
+    vi.useFakeTimers();
+    const { container, rerender } = render(
+      <RefreshControl refresh={counting(30)} />,
+    );
+
+    expect(reading(container)).toBe(left(30));
+    act(() => vi.advanceTimersByTime(1_000));
+    expect(reading(container)).toBe(left(29));
+    act(() => vi.advanceTimersByTime(4_000));
+    expect(reading(container)).toBe(left(25));
+
+    // The refresh fires: the runtime clears the due time and the query goes
+    // out. Zero, not blank — the count reached it, and the spinner beside
+    // it says which zero this is.
+    rerender(
+      <RefreshControl
+        refresh={refreshController({ interval: 30, chosen: 30, loading: true })}
+      />,
+    );
+    expect(reading(container)).toBe(left(0));
+
+    // It lands, the runtime arms the next one, and the count starts over.
+    rerender(<RefreshControl refresh={counting(30)} />);
+    expect(reading(container)).toBe(left(30));
+  });
+
+  /**
+   * The largest whole unit, floored: "5 min" is the truth only at the top of
+   * the fifth minute, and under a minute the seconds count themselves out.
+   * `mm:ss` would ask to be read precisely, and nobody is timing anything.
+   */
+  it('reads a long interval in the largest unit it still fills', () => {
+    vi.useFakeTimers();
+    const { container } = render(<RefreshControl refresh={counting(300)} />);
+
+    expect(reading(container)).toBe(left(300));
+    act(() => vi.advanceTimersByTime(1_000));
+    expect(reading(container)).toBe(left(299));
+    expect(reading(container)).toBe('4 min');
+    act(() => vi.advanceTimersByTime(240_000));
+    expect(reading(container)).toBe('59s');
+  });
+
+  /**
+   * A ticker is a cost, and it is paid only where there is something to
+   * count: no timer armed, no interval at all, or the control gone from the
+   * screen.
+   */
+  it('runs no ticker with nothing due, and stops the one it runs on unmount', () => {
+    vi.useFakeTimers();
+
+    // Refresh off altogether. Counted rather than spied: a spy on a global
+    // timer is restored *after* the fake clock is uninstalled, which hands
+    // the fake back to every suite that follows.
+    const off = render(<RefreshControl refresh={refreshController()} />);
+    expect(vi.getTimerCount()).toBe(0);
+    off.unmount();
+
+    // An interval in force whose timer the runtime is holding — a hidden
+    // page, an editor with focus — is a cadence with nothing due, and
+    // nothing to count to either.
+    const held = render(
+      <RefreshControl refresh={refreshController({ interval: 30 })} />,
+    );
+    expect(vi.getTimerCount()).toBe(0);
+    // And the key says the cadence, which stays true while the clock on it
+    // is paused; a frozen "7s" would be a countdown that stopped counting.
+    expect(reading(held.container)).toBe(left(30));
+    held.unmount();
+
+    const running = render(<RefreshControl refresh={counting(30)} />);
+    expect(vi.getTimerCount()).toBe(1);
+    running.unmount();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  /**
+   * Two things about the box the count sits in: it is as wide as the widest
+   * reading this interval can produce, so the buttons beside it do not walk
+   * across the bar once a second, and a screen reader is told none of it —
+   * the cadence reaches it once, as a sentence, through `aria-description`.
+   */
+  it('reserves the width of the widest reading and announces none of it', () => {
+    vi.useFakeTimers();
+    const { container } = render(<RefreshControl refresh={counting(300)} />);
+    const box = container.querySelector('[data-slot="refresh-countdown"]')!;
+
+    expect(box.getAttribute('aria-hidden')).toBe('true');
+    // One per unit band the countdown passes through: the longest seconds
+    // reading, and the longest minutes one.
+    expect(
+      [...box.querySelectorAll('.invisible')].map(span => span.textContent),
+    ).toEqual([left(59), left(300)]);
+    // The count itself is in the same cell as the reserved ones, so the box
+    // never resizes while it ticks.
+    const count = box.querySelector('[data-slot="refresh-cadence"]')!;
+    expect(count.className).toContain('col-start-1');
     expect(
       screen
         .getByRole('button', { name: new RegExp(REFRESH) })
@@ -674,7 +875,7 @@ describe('every workbench offers the interval', () => {
     };
     const engine = engineWith({ instances: [board] });
     const user = userEvent.setup();
-    render(
+    const { container } = render(
       <ViewSurface>
         <DashboardWorkbench
           engine={engine}
@@ -697,6 +898,13 @@ describe('every workbench offers the interval', () => {
       expect(engine.openRuntimes()[0].getSnapshot().draft.refresh).toEqual({
         interval: 300,
       }),
+    );
+    // And it counts down to the board's own timer, which is armed once every
+    // panel has answered: the same control, reading the one runtime that
+    // times this screen. (A second may pass while the panels land, so the
+    // reading is the top of the count or the one below it.)
+    await waitFor(() =>
+      expect([left(300), left(299)]).toContain(reading(container)),
     );
   });
 

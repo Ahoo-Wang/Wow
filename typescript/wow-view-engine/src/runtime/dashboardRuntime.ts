@@ -131,10 +131,10 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
   readonly definition: DashboardDefinition;
   readonly kinds: FieldKindRegistry;
   readonly limits: RuntimeLimits;
+  readonly environment: RuntimeEnvironment;
 
   private readonly listeners = new Set<() => void>();
   private readonly options: DashboardRuntimeOptions;
-  private readonly environment: RuntimeEnvironment;
   private readonly unwatchVisibility: () => void;
   /** Resolved references by instance id; `null` once known to be unreadable. */
   private readonly references = new Map<string, PanelReference | null>();
@@ -181,11 +181,12 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
       selection: [],
       write: null,
       editing: false,
+      nextRefreshAt: null,
       panels: [],
       resolving: false,
     };
     this.unwatchVisibility = options.environment.visibility.subscribe(() =>
-      this.syncTimer(),
+      this.retime(),
     );
     this.load(options.config, true);
   }
@@ -569,7 +570,7 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     // panel's issues follow its child. The UI subscribes to each child
     // itself for everything else and is not notified from here.
     const unsubscribe = runtime.subscribe(() => {
-      this.syncTimer();
+      this.retime();
       this.refreshPanelIssues(panel.id);
     });
     this.children.set(panel.id, { runtime, unsubscribe, index, own });
@@ -614,6 +615,21 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
   }
 
   /**
+   * Re-syncs the timer for something that is no state change of the dashboard
+   * itself — the page hidden or shown, a panel's query starting or landing —
+   * and notifies only when the due time actually moved. That is at most twice
+   * a round however many panels there are, which is what keeps the grid from
+   * re-rendering on every panel request while the countdown in the title bar
+   * still answers to the timer the panels hold up.
+   */
+  private retime(): void {
+    const before = this.state;
+    this.syncTimer();
+    if (this.state === before) return;
+    for (const listener of [...this.listeners]) listener();
+  }
+
+  /**
    * One timer for the whole dashboard, held for the same four reasons a data
    * view holds its own, with "a request in flight" meaning any panel's.
    */
@@ -626,6 +642,9 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     if (this.timer !== undefined && this.timerDelay === delay) return;
     this.stopTimer();
     this.timerDelay = delay;
+    // Published with the timer, from the clock it runs on: the board's one
+    // countdown counts to the board's one timer.
+    this.setDueAt(this.environment.now().getTime() + delay);
     this.timer = this.environment.setTimeout(() => {
       this.timer = undefined;
       this.timerDelay = null;
@@ -653,7 +672,14 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     return false;
   }
 
+  /** As a data view's: written into the snapshot, notified by the caller. */
+  private setDueAt(at: number | null): void {
+    if (this.state.nextRefreshAt === at) return;
+    this.state = { ...this.state, nextRefreshAt: at };
+  }
+
   private stopTimer(): void {
+    this.setDueAt(null);
     if (this.timer === undefined) return;
     this.environment.clearTimeout(this.timer);
     this.timer = undefined;

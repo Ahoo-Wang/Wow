@@ -2845,17 +2845,42 @@ export const AutoRefresh: Story = {
     const cadence = () =>
       canvasElement.querySelector<HTMLElement>('[data-slot="refresh-cadence"]');
     const seconds = say('label.refresh.seconds', { count: 30 });
+    /** The number on the key, whatever second of the count it is. */
+    const count = () => Number(cadence()?.textContent?.replace(/\D/g, ''));
 
     // The saved view already refreshes itself, so the credential is on the
-    // button before anything is pressed: it says which cadence, not only
-    // that there is one.
-    await expect(cadence()).toHaveTextContent(seconds);
+    // button before anything is pressed — and it is counting down to the
+    // next refresh rather than repeating the cadence the menu holds.
+    await waitFor(() => expect(count()).toBeGreaterThan(0));
+    const started = count();
+    await expect(started).toBeLessThanOrEqual(30);
+    // Real seconds, ticking: this is the one thing jsdom cannot show, since
+    // a second there is whatever the test says it is.
+    await waitFor(() => expect(count()).toBeLessThan(started), {
+      timeout: 4_000,
+    });
+    // The sentence a screen reader gets is the **cadence**, not the count:
+    // a number that changes every second must not be read out every second,
+    // which is why the count itself is `aria-hidden`.
     await expect(
       canvasElement.querySelector('[data-slot="refresh-now"]'),
     ).toHaveAttribute(
       'aria-description',
       say('label.refresh.on', { interval: seconds }),
     );
+    await expect(
+      canvasElement.querySelector('[data-slot="refresh-countdown"]'),
+    ).toHaveAttribute('aria-hidden', 'true');
+    // The box is as wide as the widest reading this interval can produce, so
+    // "10s" → "9s" never walks the `▾` beside it across the bar.
+    const box = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="refresh-countdown"]',
+    )!;
+    const width = box.getBoundingClientRect().width;
+    await waitFor(() => expect(count()).toBeLessThan(started - 1), {
+      timeout: 4_000,
+    });
+    await expect(box.getBoundingClientRect().width).toBe(width);
 
     const chevron = canvasElement.querySelector<HTMLElement>(
       '[data-slot="refresh-interval"]',
@@ -2885,7 +2910,13 @@ export const AutoRefresh: Story = {
     await userEvent.click(
       within(menu).getByRole('menuitemradio', { name: minutes }),
     );
-    await waitFor(() => expect(cadence()).toHaveTextContent(minutes));
+    // Counting down from the new interval — the fifth minute reads "4 min"
+    // for all but its first second, so either is the right answer here.
+    await waitFor(() =>
+      expect([minutes, say('label.refresh.minutes', { count: 4 })]).toContain(
+        cadence()?.textContent,
+      ),
+    );
     await expect(canvas.getByText(zhCN['label.header.unsaved'])).toBeVisible();
 
     // And off again, from the keyboard: the chevron opens on Enter and hands
@@ -2903,7 +2934,7 @@ export const AutoRefresh: Story = {
 };
 
 /** The intervals the default limits admit, as the menu lists them. */
-const LADDER = [10, 30, 60, 300, 900, 1800, 3600];
+const LADDER = [30, 60, 300];
 
 /** One interval as the control writes it: "30s", "5 min", "1 h". */
 const cadenceOf = (seconds: number): string =>

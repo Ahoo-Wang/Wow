@@ -131,6 +131,17 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
    * neither apart — see `ViewResult.own`.
    */
   readonly scopeFilter: FilterTree | null;
+  /**
+   * The host this view runs against: its clock, its timers, its visibility.
+   *
+   * Read rather than only written because `nextRefreshAt` is a reading of
+   * *this* clock and means nothing against another one. A countdown that
+   * asked the system clock would drift away from the timer it claims to be
+   * counting to the moment a test, a demo or a server-rendered page injected
+   * a clock of its own — which is the whole reason the environment exists.
+   * `ViewEngine` already hands the same object out for its time zone.
+   */
+  readonly environment: RuntimeEnvironment;
   dispose(): void;
   /** True once disposed: every command is a no-op from then on. */
   readonly disposed: boolean;
@@ -248,6 +259,18 @@ export interface ViewRuntimeState<C> {
   selection: RecordKey[];
   write: WriteState | null;
   editing: boolean;
+  /**
+   * When the next automatic refresh is due, on the environment's clock, or
+   * `null` while no timer is armed — no interval in force, or one of the four
+   * reasons the runtime holds it.
+   *
+   * It is the timer's own due time rather than a second opinion about it: set
+   * where the timer is armed, cleared where it is stopped. A control counting
+   * down to the next refresh reads this against `environment.now()`, so what
+   * it says and what will happen cannot come apart; a countdown run off a
+   * clock of its own would.
+   */
+  nextRefreshAt: number | null;
 }
 
 export interface ViewRuntimeOptions<C extends DataViewConfig> {
@@ -336,11 +359,11 @@ export class DataViewRuntime<
   readonly definition: DefinitionFor<C>;
   readonly kinds: FieldKindRegistry;
   readonly limits: RuntimeLimits;
+  readonly environment: RuntimeEnvironment;
 
   private readonly listeners = new Set<() => void>();
   private readonly context: KernelContext;
   private readonly runner: RequestRunner;
-  private readonly environment: RuntimeEnvironment;
   private readonly unwatchVisibility: () => void;
   private readonly autoRefresh: boolean;
 
@@ -400,9 +423,10 @@ export class DataViewRuntime<
       selection: [],
       write: null,
       editing: false,
+      nextRefreshAt: null,
     };
     this.unwatchVisibility = options.environment.visibility.subscribe(() =>
-      this.syncTimer(),
+      this.retime(),
     );
   }
 
@@ -704,6 +728,21 @@ export class DataViewRuntime<
   }
 
   /**
+   * Re-syncs the timer for something that is not a state change of this
+   * runtime's own — the page being hidden or shown — and notifies only if the
+   * due time moved. Visibility does not change `draft`, `applied` or the
+   * query, so there would be nothing to tell a subscriber about without it,
+   * and a countdown on screen would go on counting to a timer that is no
+   * longer armed.
+   */
+  private retime(): void {
+    const before = this.state;
+    this.syncTimer();
+    if (this.state === before) return;
+    for (const listener of [...this.listeners]) listener();
+  }
+
+  /**
    * Auto-refresh. One timer per runtime, however many components watch it, and
    * four reasons to hold it: an invalid draft, an editor with focus, a hidden
    * page, and a request already in flight.
@@ -717,11 +756,24 @@ export class DataViewRuntime<
     if (this.timer !== undefined && this.timerDelay === delay) return;
     this.stopTimer();
     this.timerDelay = delay;
+    // Published with the timer, from the clock the timer runs on, so the
+    // countdown and the refresh answer to one number.
+    this.setDueAt(this.environment.now().getTime() + delay);
     this.timer = this.environment.setTimeout(() => {
       this.timer = undefined;
       this.timerDelay = null;
       this.refresh();
     }, delay);
+  }
+
+  /**
+   * Writes the due time into the snapshot without notifying: every caller is
+   * either inside `setState`, which notifies after it, or `retime`, which
+   * notifies for it.
+   */
+  private setDueAt(at: number | null): void {
+    if (this.state.nextRefreshAt === at) return;
+    this.state = { ...this.state, nextRefreshAt: at };
   }
 
   private refreshDelay(): number | null {
@@ -740,6 +792,7 @@ export class DataViewRuntime<
   }
 
   private stopTimer(): void {
+    this.setDueAt(null);
     if (this.timer === undefined) return;
     this.environment.clearTimeout(this.timer);
     this.timer = undefined;

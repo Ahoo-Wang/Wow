@@ -23,6 +23,7 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
   setEditing(active: boolean): void; // 编辑器获得／失去输入焦点时调用，暂停自动刷新
   setScopeFilter(tree: FilterTree | null): Issue[]; // 外层注入的附加条件，AND 到已应用筛选；不改 draft／saved
   readonly scopeFilter: FilterTree | null; // 当前生效的注入条件（最后一次被准入的那棵）；筛选摘要据此把"宿主的条件"与"视图自己的条件"分开呈现
+  readonly environment: RuntimeEnvironment; // 这个视图跑在哪个宿主上；nextRefreshAt 是这只钟上的读数，倒计时必须问同一只钟
   dispose(): void; // 最后一次通知订阅者后清空监听
 }
 
@@ -73,6 +74,7 @@ export interface ViewRuntimeState<C> {
   selection: RecordKey[]; // 只覆盖当前结果；范围变化即清空，见下
   write: WriteState | null; // 最近一次写入的待处理结局，见 management.md「冲突与未知结果」
   editing: boolean; // 由 setEditing 维护，用于暂停自动刷新
+  nextRefreshAt: number | null; // 下一次自动刷新的到期时刻（environment.now() 的毫秒）；没有武装计时器时为 null，见「自动刷新」
 }
 
 /** 写入的非成功结局；成功直接推进 saved 并清空该字段。 */
@@ -138,6 +140,8 @@ export class ViewWriteError extends Error {
 
 间隔的入口是刷新按钮的 `▾`（`RefreshControl`，三种视图各有一处，见 [ui/README.md#刷新是一个拆分按钮](ui/README.md#刷新是一个拆分按钮)）：选中即 `edit({ refresh: { interval } })` 加 `apply`，因为这里读的是 `applied`。界面不添第四条之外的暂停理由。计时与可见性都来自注入的 `RuntimeEnvironment`（见下方[环境](#环境)），runtime 不触碰 DOM。计时器随 `dispose` 释放。多个 React 组件观察同一 runtime 不会产生多个计时器。（见 test/runtime.test.ts「DataViewRuntime auto refresh」）
 
+**到期时刻随计时器一起公布**：`state.nextRefreshAt` 在武装计时器的同一处写入（`environment.now() + delay`），停表的同一处清空，因此它不是关于计时器的第二种说法，而就是计时器自己的那个数。四条暂停理由任意一条成立时它是 `null`——「正在倒数」与「表停了」在屏幕上必须分得开，冻在某个秒数上的倒计时是在说谎。可见性变化与（仪表盘上）面板查询的起落都不是 runtime 自身的状态变更，本来不通知订阅者；只有在它们**移动了到期时刻**时才补一次通知（每轮至多两次，与面板数量无关），否则屏幕上的倒计时会继续数向一个已经不存在的计时器。手动 `refresh()` 不需要特别处理就会重排：请求在途时计时器停，落地后按新的 `now()` 重新武装——刚拿到的数据不该在三秒后又被刷一次。倒数由 `useRefreshCountdown` 在控件里每秒重画（见 [react.md](react.md)），读的始终是这个数与 `environment.now()`，界面不另起时钟。（见 test/runtime.test.ts「publishes when the next refresh is due」与 test/dashboardRuntime.test.ts「publishes when the whole board is next due」）
+
 ## 导出
 
 `RecordViewRuntime.exportRows(options)` 按**已应用**口径（`applied` 合并作用域之后的那一份，也就是产生屏幕上这些行的那份配置）在后台把结果分页拉完，交还行本身；序列化与下载在别处（[kernels.md](kernels.md) 的 `serializeCsv`、[ui/record.md#导出](ui/record.md#导出)）。
@@ -160,7 +164,7 @@ export class ViewWriteError extends Error {
 - 宿主经 `panelRuntime` 驱动子 runtime（`edit`／`apply`）改变其 issues 时，面板的 `issues` 随子 runtime 的通知重建，不等下一次 Dashboard 同步。
 - 作用域条件不进入子 runtime 的 `draft` 或 `saved`，面板因此不会变脏，也不会把 Dashboard 条件保存回被引用实例，执行的有效配置记录在 `result.config`。（见 test/dashboardRuntime.test.ts「DashboardViewRuntime scope filter」）
 - 每个面板独立 loading / error / result，Dashboard 不汇总成单一状态。
-- 自动刷新由 DashboardRuntime 按自身 `refresh.interval` 统一计时并触发全部数据面板的 `refresh()`；被引用实例自身的 `refresh` 配置在 Dashboard 内忽略，避免两层计时器。（见 test/dashboardRuntime.test.ts「DashboardViewRuntime refreshing」）
+- 自动刷新由 DashboardRuntime 按自身 `refresh.interval` 统一计时并触发全部数据面板的 `refresh()`；被引用实例自身的 `refresh` 配置在 Dashboard 内忽略，避免两层计时器。`nextRefreshAt` 同样是这一只计时器的到期时刻（「在途」问的是面板），标题栏那处倒计时因此数的就是整块板子的下一次刷新。（见 test/dashboardRuntime.test.ts「DashboardViewRuntime refreshing」）
 - 布局编辑是普通 `edit({ panels })`。
 
 ## ViewEngine

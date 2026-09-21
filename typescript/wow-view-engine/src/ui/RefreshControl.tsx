@@ -12,7 +12,7 @@
  */
 
 import { ChevronDownIcon, RefreshCwIcon } from 'lucide-react';
-import type { RefreshController } from '../react/index.js';
+import { useRefreshCountdown, type RefreshController } from '../react/index.js';
 import { Button } from './components/button.js';
 import { ButtonGroup } from './components/button-group.js';
 import {
@@ -83,6 +83,13 @@ export interface RefreshControlProps {
  *
  * The UI invents no reason of its own for the timer to stop: the four the
  * runtime holds it for (`docs/design/runtime.md`) are the whole list.
+ *
+ * What the cadence says while the timer runs is the time **left** of it, and
+ * it ticks: the runtime publishes when the next refresh is due, and the
+ * control counts to that one number rather than keeping a clock of its own.
+ * A cadence that only ever said "30s" answered a question nobody had — how
+ * often, which the menu already says — while the question a person actually
+ * asks of a screen that moves by itself is *when*.
  */
 export function RefreshControl({
   refresh,
@@ -92,6 +99,9 @@ export function RefreshControl({
 }: RefreshControlProps) {
   const messages = useViewMessages();
   const { interval, chosen, intervals, unsound } = refresh;
+  // Ticks only while the runtime has a timer armed, and only for as long as
+  // this control is mounted.
+  const countdown = useRefreshCountdown(refresh);
   // The credential answers to the interval in force, never to the picked
   // one: while a refused draft holds `apply` back the two differ, and what
   // the button claims is happening had better be what is happening.
@@ -103,6 +113,16 @@ export function RefreshControl({
   // way out of an interval that is running, the other the way out of a
   // `refresh` member admission refuses, which `Off` is what repairs.
   const choosable = intervals.length > 0 || interval !== null || unsound;
+  // The count while a timer is armed; zero while the refresh it counted down
+  // to is the request in flight — the spinner beside it says which zero this
+  // is, and blanking the text instead would move the buttons next to it at
+  // the one moment the user is watching this spot. When the runtime is
+  // holding the timer for one of its other three reasons — an editor with
+  // focus, a hidden page, a refused draft — there is no due time to count to
+  // and no refresh under way, so it falls back to the cadence itself: the
+  // view still refreshes every 30s, the clock on it is merely paused, and a
+  // frozen "7s" would be a countdown that stopped counting.
+  const reading = countdown ?? (refresh.loading ? 0 : null);
 
   return (
     <ButtonGroup
@@ -136,15 +156,37 @@ export function RefreshControl({
         {/* No word on the button (D12): a function is its icon, and the
             only text a control here carries is the state it reports — the
             cadence, when an interval is running. */}
-        {cadence !== null && (
+        {interval !== null && (
           <span
-            data-slot="refresh-cadence"
-            // Not a dot: the dot is "edited, not applied", and this is not
-            // that. A number says which cadence as well as that there is
-            // one, which a mark alone never could.
-            className="text-muted-foreground text-xs tabular-nums"
+            data-slot="refresh-countdown"
+            // One grid cell holding the reading and, invisibly, the widest
+            // reading this interval can produce. `tabular-nums` keeps two
+            // digits the same width as two other digits; nothing but a
+            // reserved box keeps "10s" the same width as "9s", or "1 min"
+            // the same width as "59s" — and a button that changes width
+            // once a second walks the controls beside it across the bar.
+            className="text-muted-foreground grid text-xs tabular-nums"
+            // A screen reader is told the cadence once, as a sentence, by
+            // the button's `aria-description`. A number that changes every
+            // second would be read out every second, which is the opposite
+            // of being told what this button does.
+            aria-hidden
           >
-            {cadence}
+            {widestReadings(interval, messages).map(text => (
+              <span key={text} className="invisible col-start-1 row-start-1">
+                {text}
+              </span>
+            ))}
+            {/* Not a dot: the dot is "edited, not applied", and this is not
+                that. A number says which cadence as well as that there is
+                one, which a mark alone never could. Right-aligned, so the
+                unit word stays put while the digits in front of it shrink. */}
+            <span
+              data-slot="refresh-cadence"
+              className="col-start-1 row-start-1 justify-self-end"
+            >
+              {reading === null ? cadence : remainingLabel(reading, messages)}
+            </span>
           </span>
         )}
       </Button>
@@ -227,4 +269,49 @@ export function refreshIntervalLabel(
   if (seconds >= 60 && seconds % 60 === 0)
     return messages.label('label.refresh.minutes', { count: seconds / 60 });
   return messages.label('label.refresh.seconds', { count: seconds });
+}
+
+/**
+ * What is left of the interval, as a person says it: under a minute in
+ * seconds, under an hour in whole minutes, otherwise in whole hours.
+ *
+ * Rounded **down** at every band, so "4 min" is the truth for the whole of
+ * the fifth minute rather than "5 min" being a promise the timer keeps
+ * breaking; the last band counts the seconds out to one, and zero is the
+ * refresh itself. `mm:ss` was the other candidate and is rejected: a stopwatch
+ * face asks to be read precisely, and nobody is timing anything here — the
+ * reason this number is on screen is to say roughly how long until the
+ * numbers under it move.
+ */
+export function remainingLabel(
+  seconds: number,
+  messages: MessageFormatters,
+): string {
+  if (seconds >= 3600)
+    return messages.label('label.refresh.hours', {
+      count: Math.floor(seconds / 3600),
+    });
+  if (seconds >= 60)
+    return messages.label('label.refresh.minutes', {
+      count: Math.floor(seconds / 60),
+    });
+  return messages.label('label.refresh.seconds', { count: seconds });
+}
+
+/**
+ * The widest reading a countdown from this interval can show, one per unit
+ * band it passes through — at most three strings, whatever the interval.
+ *
+ * They are rendered invisibly under the live one rather than turned into a
+ * `ch` width, because the unit words are the catalogue's: "min" and "秒" are
+ * not the same width, and neither is a width a digit count can predict.
+ */
+function widestReadings(
+  interval: number,
+  messages: MessageFormatters,
+): string[] {
+  const bands = [Math.min(interval, 59)];
+  if (interval >= 60) bands.push(Math.min(interval, 3599));
+  if (interval >= 3600) bands.push(interval);
+  return [...new Set(bands.map(seconds => remainingLabel(seconds, messages)))];
 }
