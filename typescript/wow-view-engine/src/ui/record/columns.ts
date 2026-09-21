@@ -299,13 +299,25 @@ export function pinnedSlots(
   const chrome = (key: string, kind: 'select' | 'actions'): PinnedSlot[] => [
     { key, kind, fixed: false },
   ];
+  // The order the cap lets pins go in: the outermost first — the host's
+  // action column, then the columns pinned right from the outside in, then
+  // the selection column, then the columns pinned left from the key out —
+  // and the table's own last column after all of them. D13 makes the first
+  // and last drawn columns the table's frame; the cap (D17-4) takes what
+  // the layout and the config added before it takes the frame, and it
+  // never takes the key. The end column is not held for good like the key:
+  // a wide last column on a narrow port would otherwise eat the middle by
+  // itself, and a frame round nothing readable is worth less than the rows.
+  const right = held.filter(isPinned('right')).reverse();
+  const end = right.filter(column => column.end === true);
   return [
     ...(layout.actions ? chrome(ACTIONS_COLUMN, 'actions') : []),
-    ...held.filter(isPinned('right')).reverse().map(slot),
+    ...right.filter(column => column.end !== true).map(slot),
     ...(layout.selectable && held.some(isPinned('left'))
       ? chrome(SELECT_COLUMN, 'select')
       : []),
     ...held.filter(isPinned('left')).map(slot),
+    ...end.map(slot),
   ];
 }
 

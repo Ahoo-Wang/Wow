@@ -147,13 +147,18 @@ export function SortableHeader({
               })}`
         }
         className={cn(
-          // The button's own horizontal padding is pulled straight back out.
-          // A header cell already pads its content (`px-2`), and a control
-          // that pads it again starts the column's name 10px inside the
-          // values under it — a column that does not line up with itself.
-          // What the padding buys is kept: the ghost hover fill reaches past
-          // the label rather than hugging it.
-          '-mx-2.5 max-w-full',
+          // The button's own horizontal padding is pulled straight back out —
+          // by exactly the cell's `px-2`, not a pixel more. A header cell
+          // already pads its content, and a control that pads it again
+          // starts the column's name inside the values under it — a column
+          // that does not line up with itself. Pulling out more than the
+          // cell gives (`-mx-2.5` once did) made the last button overhang
+          // its cell by 2px, and a table that fits its port then scrolled
+          // by those 2px: a scrollbar on every table, and the pin cap
+          // (D17-4) reading a fitting table as one that overflows. What the
+          // padding buys is kept: the ghost hover fill reaches past the
+          // label rather than hugging it.
+          '-mx-2 max-w-full',
           // The label keeps the column's edge; the marks follow it inward.
           numeric && 'ml-auto flex-row-reverse',
         )}

@@ -76,6 +76,11 @@ export interface ColumnSettingRow {
    * it cannot.
    */
   fixed: boolean;
+  /**
+   * The row key. It is `fixed` too, but it is the one column the settings
+   * never offer to hide: a row without it is a row nobody can read (D13).
+   */
+  primary: boolean;
   /** Summary functions the field declares; empty when it offers none. */
   functions: readonly SummaryFunction[];
   /** The function the config summarises this column with, if any. */
@@ -182,6 +187,7 @@ export function columnSettingRows(
       placed: false,
       pinned: 'right',
       fixed: true,
+      primary: false,
       functions: [],
       summary: null,
       movable: false,
@@ -212,6 +218,7 @@ function broken(
     field,
     label: field,
     region: 'middle',
+    primary: false,
     // A broken column can be switched off like any other — and unlike any
     // other, switching it off takes it out of the config rather than hiding
     // it, because a column the definition dropped has nowhere to come back
@@ -295,6 +302,7 @@ function row(
     placed,
     pinned,
     fixed,
+    primary: field.name === input.rowKey,
     functions: field.summary ?? [],
     summary: input.summaryOf(field.name),
     // A place in the order is what there is to drag, and a switched-off
@@ -425,21 +433,6 @@ export function movableIndex(
 ): number {
   const region = regionOf(rows, field);
   return region === null ? -1 : movableFields(rows, region).indexOf(field);
-}
-
-/**
- * How many columns the table is showing that can actually render; the last
- * one of those may not be hidden.
- *
- * A broken column does not count. The rule exists so a table is never left
- * with nothing in it, and a column the definition dropped puts nothing in
- * it either — counting it would guard the one row whose whole purpose is to
- * be switched off.
- */
-export function visibleCount(rows: readonly ColumnSettingRow[]): number {
-  return rows.filter(
-    entry => entry.visible && !entry.broken && entry.field !== ACTIONS_COLUMN,
-  ).length;
 }
 
 /** The pin state after one press: unpinned, then left, then right again. */

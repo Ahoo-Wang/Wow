@@ -63,11 +63,11 @@ const PIN_LABEL = {
  * The sentence a row draws under itself, per reason, and whether it is
  * drawn or only read out.
  *
- * `unknown` and `last-visible` are on screen: the first is what tells a
+ * `unknown` and `primary-required` are on screen: the first is what tells a
  * reader that this row is not like the others — the grey it used to be
  * drawn in was the only difference, which is no difference at all to anyone
- * who cannot tell those two greys apart — and the second names the one
- * checkbox that has just refused. `hidden` is read out only: every switched
+ * who cannot tell those two greys apart — and the second says why the one
+ * checkbox that is never offered is off. `hidden` is read out only: every switched
  * off column would draw it, so a panel with five of them would say the same
  * sentence five times, while its controls already show that they are off.
  */
@@ -77,7 +77,9 @@ const NOTES = {
   // not a column at all, so "this column is not in the data" would name
   // something the reader cannot find in the table either way.
   'summary-unknown': { key: 'label.columns.summary-unknown', shown: true },
-  'last-visible': { key: 'label.columns.last-visible', shown: true },
+  // The key's checkbox is off for good, and the sentence says why once,
+  // on the one row that carries it.
+  'primary-required': { key: 'label.columns.primary-required', shown: true },
   hidden: { key: 'label.columns.hidden', shown: false },
 } as const;
 
@@ -85,10 +87,14 @@ type NoteKind = keyof typeof NOTES;
 
 export interface ColumnRowProps {
   row: ColumnSettingRow;
-  /** How many columns the table shows; the last one may not be hidden. */
-  shownCount: number;
   onToggle(): void;
   onPin(): void;
+  /**
+   * Whether the cap (D17-4) is not drawing this row's pin right now. The
+   * config still holds it and the switch still says so; the row adds that
+   * it is let go, or the screen shows a pin with no edge under it.
+   */
+  released?: boolean;
   onSummary(fn: SummaryFunction | null): void;
   /** Moves the row one place, from the arrow keys on its handle. */
   onMove(step: -1 | 1): void;
@@ -115,9 +121,9 @@ export interface ColumnRowProps {
  */
 export function ColumnRow({
   row,
-  shownCount,
   onToggle,
   onPin,
+  released = false,
   onSummary,
   onMove,
   dragging,
@@ -134,14 +140,6 @@ export function ColumnRow({
     row.summaryOnly ? 'label.columns.keep-summary' : 'label.columns.show',
     { field: label },
   );
-  // The table has to keep one column: hiding the last one leaves a result
-  // with nothing in it and no way back except the picker that emptied it.
-  // The guard keeps a table from being left with nothing in it. A broken
-  // column puts nothing in it either, so it is never the last one worth
-  // keeping — guarding it would lock the one control that repairs it. The
-  // action column is refused for being the host's rather than for being the
-  // last, so the sentence about the last one is not its.
-  const last = row.visible && !row.broken && !actions && shownCount <= 1;
   // Why the pin and the summary on this row are refused, when they are —
   // the one reason both share, since both want a column that is shown and
   // can render. The handle takes it too when it is refused, which is when
@@ -154,9 +152,14 @@ export function ColumnRow({
     : row.visible
       ? null
       : 'hidden';
-  const note: NoteKind | null = refused ?? (last ? 'last-visible' : null);
+  const note: NoteKind | null =
+    refused ?? (row.primary ? 'primary-required' : null);
   const pinned = columnPin(row.pinned);
-  const pinState = messages.label(PIN_LABEL[pinned ?? 'none']);
+  const pinState = released
+    ? `${messages.label(PIN_LABEL[pinned ?? 'none'])} · ${messages.label(
+        'label.columns.pin-released',
+      )}`
+    : messages.label(PIN_LABEL[pinned ?? 'none']);
   // What the select may be set to: what the field declares, plus whatever
   // the config already says if the definition has stopped declaring it. A
   // field that lost its summary capabilities leaves a config the kernel
@@ -214,12 +217,15 @@ export function ColumnRow({
 
         <Checkbox
           checked={row.visible}
-          disabled={actions || last}
+          // The key stays: it is what says which record a row is (D13), so
+          // the projection never draws a table without it and the settings
+          // never offer to.
+          disabled={actions || row.primary}
           aria-label={toggleLabel}
           // The checkbox on a broken row is enabled and is the repair, so it
           // takes the same sentence for the opposite reason: not why it is
           // refused, but why it is the one control worth pressing here.
-          aria-describedby={row.broken || last ? noteId : undefined}
+          aria-describedby={row.broken || row.primary ? noteId : undefined}
           onCheckedChange={onToggle}
         />
       </ItemMedia>
@@ -298,6 +304,7 @@ export function ColumnRow({
           variant="ghost"
           size="icon-xs"
           disabled={row.fixed || !row.visible || row.broken}
+          data-released={released || undefined}
           aria-describedby={refused ? noteId : undefined}
           onClick={onPin}
         >
@@ -306,8 +313,10 @@ export function ColumnRow({
             className={cn(
               'text-muted-foreground',
               // Pinned is a filled pin in the row's own ink; unpinned is the
-              // outline, quiet.
+              // outline, quiet. A pin the cap let go is filled — the config
+              // holds it — and faded, because the table is not drawing it.
               pinned !== null && 'fill-current text-foreground',
+              released && 'opacity-50',
             )}
           />
         </IconButton>

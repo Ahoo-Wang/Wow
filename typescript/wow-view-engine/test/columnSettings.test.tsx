@@ -37,7 +37,6 @@ import {
   movableFields,
   nextPin,
   reorderColumns,
-  visibleCount,
 } from '../src/ui/columns/rows.js';
 import { columnDragAccessibility } from '../src/ui/columns/announce.js';
 import { defaultMessages } from '../src/ui/messages.js';
@@ -130,7 +129,6 @@ describe('the column settings model', () => {
     // drag — and neither shown column has one either, because a table of
     // two columns is a row key and an end (D13).
     expect(movableFields(rows)).toEqual([]);
-    expect(visibleCount(rows)).toBe(2);
   });
 
   it('holds the row key on the left and the actions on the right', () => {
@@ -239,8 +237,6 @@ describe('the column settings model', () => {
         movable: true,
       });
       expect(movableFields(rows)).toEqual(['amount', 'warehouse']);
-      // Two shown columns and the key: the guard counts what is drawn.
-      expect(visibleCount(rows)).toBe(3);
     });
 
     /**
@@ -397,26 +393,68 @@ describe('the column settings popover', () => {
   });
 
   /**
-   * Hiding the last column leaves a result with nothing in it and no way
-   * back except the control that emptied it, so the checkbox is refused and
-   * says why — on its own row, where the reader is looking, rather than in
-   * a paragraph at the top of the panel that names no column at all.
+   * The row key is the one column a reader cannot do without, so its
+   * checkbox is refused and says why — on its own row, where the reader is
+   * looking, rather than in a paragraph at the top of the panel that names
+   * no column at all.
    */
-  it('refuses to hide the last column, and says why on that row', async () => {
+  it('keeps the row key shown, and says why on that row', async () => {
     const user = userEvent.setup();
-    const table = open({ columnFields: ['id'] });
+    const table = open({ columnFields: ['id', 'amount'] });
 
     await user.click(screen.getByRole('button', { name: /Columns/ }));
-    const only = screen.getByRole('checkbox', { name: 'Show Order' });
+    const key = screen.getByRole('checkbox', { name: 'Show Order' });
 
     // Base UI's checkbox is a span in the accessibility tree, so "refused"
     // is `aria-disabled` rather than the attribute a native input carries.
-    expect(only.getAttribute('aria-disabled')).toBe('true');
-    expect(describing(only).textContent).toContain(
-      defaultMessages['label.columns.last-visible'],
+    // The key is the one column the projection always draws (D13), so the
+    // settings never offer to hide it — before, they did, and the table
+    // then had no left edge while the panel still listed it as pinned left.
+    expect(key.getAttribute('aria-disabled')).toBe('true');
+    expect(describing(key).textContent).toContain(
+      defaultMessages['label.columns.primary-required'],
     );
-    expect(fieldOf(describing(only))).toBe('id');
+    expect(fieldOf(describing(key))).toBe('id');
+    expect(
+      screen
+        .getByRole('checkbox', { name: 'Show Amount' })
+        .getAttribute('aria-disabled'),
+    ).not.toBe('true');
     expect(table.setColumns).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The cap (D17-4) may stop drawing a pin the config holds. The switch
+   * still says "pinned" — that is the config — and the row adds that the
+   * pin is let go, or the screen shows a pin with no edge under it.
+   */
+  it('marks a pin the cap let go, beside the switch that still holds it', async () => {
+    const user = userEvent.setup();
+    open(
+      {
+        columnFields: ['id', 'amount'],
+        pinnedOf: f => (f === 'amount' ? 'right' : null),
+      },
+      {
+        released: {
+          fields: new Set(['amount']),
+          select: false,
+          actions: false,
+        },
+      },
+    );
+
+    await user.click(screen.getByRole('button', { name: /Columns/ }));
+    const pin = screen.getByRole('button', {
+      name: `Pinning of Amount: Pinned right · ${defaultMessages['label.columns.pin-released']}`,
+    });
+
+    expect(pin.hasAttribute('data-released')).toBe(true);
+    expect(
+      screen
+        .getByRole('button', { name: /Pinning of Order/ })
+        .hasAttribute('data-released'),
+    ).toBe(false);
   });
 
   /**
@@ -556,7 +594,7 @@ describe('the column settings popover', () => {
    * nothing reads it. Its checkbox is refused for the other reason — a
    * table keeps one column.
    */
-  it('holds the only column on the right, and lets neither control move', async () => {
+  it('holds the only configured column as the end, and still lets it go', async () => {
     const user = userEvent.setup();
     const table = open({
       columnFields: ['amount'],
@@ -564,18 +602,20 @@ describe('the column settings popover', () => {
     });
 
     await user.click(screen.getByRole('button', { name: /Columns/ }));
-    expect(
-      screen
-        .getByRole('checkbox', { name: 'Show Amount' })
-        .getAttribute('aria-disabled'),
-    ).toBe('true');
-
+    // One configured column is the table's end (D13): the frame holds it,
+    // so its pin cannot move. It can be switched off all the same — the
+    // row key is drawn regardless, so the table is never left empty.
     const pin = screen.getByRole('button', {
       name: 'Pinning of Amount: Pinned right',
     });
     expect(pin.hasAttribute('disabled')).toBe(true);
     await user.click(pin);
     expect(table.setPinned).not.toHaveBeenCalled();
+
+    const shown = screen.getByRole('checkbox', { name: 'Show Amount' });
+    expect(shown.getAttribute('aria-disabled')).not.toBe('true');
+    await user.click(shown);
+    expect(table.setColumns).toHaveBeenCalledWith([]);
   });
 
   it('cycles the pin of a column that may move', async () => {

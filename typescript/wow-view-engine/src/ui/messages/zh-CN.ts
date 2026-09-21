@@ -161,7 +161,8 @@ export const zhCN: ViewMessages = {
   'label.columns.picked': '已拾起 {field}',
   'label.columns.cancelled': '移动已取消，{field} 保持原位',
   'label.columns.show': '显示 {field}',
-  'label.columns.last-visible': '表格至少需要保留一列。',
+  'label.columns.primary-required':
+    '主键列始终显示：它说明每一行是哪一条记录。',
   'label.columns.hidden': '先把这一列显示出来，才能固定或加汇总。',
   'label.columns.unknown': '这一列已不在这份数据里，取消勾选即可移除。',
   'label.columns.summary-unknown':
@@ -173,6 +174,7 @@ export const zhCN: ViewMessages = {
   'label.columns.pin.none': '不固定',
   'label.columns.pin.left': '固定在左侧',
   'label.columns.pin.right': '固定在右侧',
+  'label.columns.pin-released': '栏太窄，暂时未冻结',
   'label.sort.title': '排序',
   'label.sort.hint': '先按第一个字段排序，相同时再按下一个。',
   'label.sort.unsorted': '这些行没有指定顺序。',

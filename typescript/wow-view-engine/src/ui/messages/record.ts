@@ -119,7 +119,8 @@ export const recordMessages = {
   'label.columns.picked': '{field} picked up',
   'label.columns.cancelled': 'Move cancelled; {field} stayed where it was',
   'label.columns.show': 'Show {field}',
-  'label.columns.last-visible': 'A table needs at least one column.',
+  'label.columns.primary-required':
+    'The row key is always shown: it says which record a row is.',
   // Ordering is no longer on the list: a switched-off column keeps its
   // place in the table's order, so its handle works like any other row's.
   // What it has no place for is a pin (it is held nowhere) or a summary
@@ -144,6 +145,8 @@ export const recordMessages = {
   'label.columns.pin.none': 'Not pinned',
   'label.columns.pin.left': 'Pinned left',
   'label.columns.pin.right': 'Pinned right',
+  // Said after the pin state while the cap has let this pin go (D17-4).
+  'label.columns.pin-released': 'let go while the area is too narrow',
 
   // The sort editor behind the toolbar's button. It says the direction in
   // one word, because it labels a row of a list rather than a button whose

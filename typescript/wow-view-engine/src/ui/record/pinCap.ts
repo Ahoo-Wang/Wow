@@ -44,6 +44,10 @@ export interface ReleasedPins {
   actions: boolean;
 }
 
+export function isReleased(released: ReleasedPins): boolean {
+  return released.select || released.actions || released.fields.size > 0;
+}
+
 /** Nothing released — what a table that fits, or one nobody measured, gets. */
 export const NO_RELEASE: ReleasedPins = {
   fields: new Set(),
@@ -89,12 +93,21 @@ export interface PinPort {
  * a pure function of what was measured and cannot oscillate: releasing a pin
  * never changes what the next measurement reads.
  */
+/**
+ * How much wider than its port a table may be and still count as fitting.
+ * `scrollWidth` is an integer rounded up from fractional cell widths, so a
+ * table that fits to the sub-pixel can report itself a pixel too wide; a
+ * pixel is nothing for a pin to give back.
+ */
+const FITS_WITHIN = 1;
+
 export function capPins(
   slots: readonly PinnedSlot[],
   widths: ReadonlyMap<string, number>,
   port: PinPort,
 ): ReleasedPins {
-  if (!(port.visible > 0) || port.content <= port.visible) return NO_RELEASE;
+  if (!(port.visible > 0) || port.content <= port.visible + FITS_WITHIN)
+    return NO_RELEASE;
   const room = port.visible * CAP;
   let held = slots.reduce((sum, slot) => sum + (widths.get(slot.key) ?? 0), 0);
   if (held <= room) return NO_RELEASE;

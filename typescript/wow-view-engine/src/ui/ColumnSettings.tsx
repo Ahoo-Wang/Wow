@@ -31,6 +31,7 @@ import {
 } from './components/popover.js';
 import { PopoverContent, TooltipContent } from './popups.js';
 import { Tooltip, TooltipTrigger } from './components/tooltip.js';
+import { NO_RELEASE, type ReleasedPins } from './record/pinCap.js';
 import { ColumnRow, SortableColumnRow } from './columns/ColumnRow.js';
 import { columnDragAccessibility } from './columns/announce.js';
 import {
@@ -42,7 +43,6 @@ import {
   renderedCount,
   renderedIndex,
   reorderColumns,
-  visibleCount,
   REGIONS,
   type ColumnRegion,
   type ColumnSettingRow,
@@ -89,6 +89,8 @@ export interface ColumnSettingsProps {
   rowKey?: string;
   /** Whether the table carries the host's action column. */
   actions?: boolean;
+  /** Pins the table's cap is not drawing right now (D17-4); see `ColumnRow`. */
+  released?: ReleasedPins;
 }
 
 /**
@@ -106,6 +108,7 @@ export function ColumnSettings({
   fields,
   rowKey,
   actions = false,
+  released = NO_RELEASE,
 }: ColumnSettingsProps) {
   const messages = useViewMessages();
   const { say: announce, region: announcement } = useAnnouncer(
@@ -135,11 +138,9 @@ export function ColumnSettings({
       table.summaryOf,
     ],
   );
-  const shown = visibleCount(rows);
   // What the reader is looking at: the columns the table actually draws —
   // the action column included, a broken one not, since `projectRecord`
-  // leaves that out. `shown` counts the configured ones instead, because
-  // the rule it serves is "a table keeps one column of its own".
+  // leaves that out.
   const onScreen = renderedCount(rows);
   /** Commits one move and says where the column landed, for both inputs. */
   const moveTo = useCallback(
@@ -228,8 +229,8 @@ export function ColumnSettings({
               key={region}
               region={region}
               rows={rows}
-              shown={shown}
               table={table}
+              released={released}
               onMove={moveTo}
             />
           ))}
@@ -247,14 +248,14 @@ export function ColumnSettings({
 function Region({
   region,
   rows,
-  shown,
   table,
+  released,
   onMove,
 }: {
   region: ColumnRegion;
   rows: readonly ColumnSettingRow[];
-  shown: number;
   table: RecordTableController;
+  released: ReleasedPins;
   onMove(field: string, toIndex: number): void;
 }) {
   const messages = useViewMessages();
@@ -285,7 +286,6 @@ function Region({
         {own.map(row => {
           const shared = {
             row,
-            shownCount: shown,
             // A row that is only a summary is not in the column list, so
             // its checkbox writes the summary away and leaves the columns
             // exactly as they are (D17-9).
@@ -295,6 +295,7 @@ function Region({
                 : table.setColumns(toggled(rows, row)),
             onPin: () =>
               table.setPinned(row.field, nextPin(columnPin(row.pinned))),
+            released: released.fields.has(row.field),
             onSummary: (fn: SummaryFunction | null) =>
               table.setSummary(row.field, fn),
             onMove: (step: -1 | 1) =>

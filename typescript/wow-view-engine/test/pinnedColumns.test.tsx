@@ -16,6 +16,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { RecordColumnView } from '../src/index.js';
 import type { RecordTableController } from '../src/react/index.js';
 import { RecordTable } from '../src/ui/index.js';
+import {
+  ACTIONS_COLUMN,
+  pinnedSlots,
+  SELECT_COLUMN,
+} from '../src/ui/record/columns.js';
 
 afterEach(cleanup);
 
@@ -340,6 +345,60 @@ describe('the pinned group against a narrow port', () => {
       id: 'left',
       actions: 'right',
     });
+  });
+
+  /**
+   * `scrollWidth` is an integer rounded up from fractional cell widths, so
+   * a table that fits to the sub-pixel can report itself a pixel too wide —
+   * and a header button that once overhung its cell by 2px made every table
+   * do so. A pixel is nothing for a pin to give back.
+   */
+  it('keeps every pin on a table a pixel wider than its port', () => {
+    port = 286;
+    measured(287);
+    const { container } = render(
+      <RecordTable
+        table={controller([key(), column('amount')])}
+        rowActions={() => <button />}
+      />,
+    );
+
+    expect(pins(container)).toEqual({
+      select: 'left',
+      id: 'left',
+      actions: 'right',
+    });
+  });
+
+  /**
+   * D13 makes the first and last drawn columns the table's frame; the cap
+   * takes what the layout and the config added before it takes the frame,
+   * and never the key. So the end column goes last — after the host's
+   * column, the config's right pins, the selection column and the left pins
+   * beside the key.
+   */
+  it("lets the table's own last column go after every other pin", () => {
+    const end: RecordColumnView = { ...column('note', 'right'), end: true };
+    const columns = [
+      key(),
+      column('warehouse', 'left'),
+      column('amount', 'right'),
+      end,
+    ];
+    const names = (slots: readonly { key: string; fixed: boolean }[]) =>
+      slots.map(slot => `${slot.key}${slot.fixed ? '!' : ''}`);
+
+    // Without a host action column the end column is the table's right
+    // frame: it goes last, after the pins the config and the layout added,
+    // and the key never goes at all.
+    expect(
+      names(pinnedSlots(columns, { selectable: true, actions: false })),
+    ).toEqual(['amount', SELECT_COLUMN, 'id!', 'warehouse', 'note']);
+    // With one, the action column is the frame instead and the end column
+    // is not held: there is nothing of it for the cap to let go.
+    expect(
+      names(pinnedSlots(columns, { selectable: true, actions: true })),
+    ).toEqual([ACTIONS_COLUMN, 'amount', SELECT_COLUMN, 'id!', 'warehouse']);
   });
 
   it('keeps the key pinned even where it alone is more than half', () => {

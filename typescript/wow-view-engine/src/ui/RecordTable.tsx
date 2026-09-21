@@ -12,7 +12,7 @@
  */
 
 import type * as React from 'react';
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { cn } from 'cn';
 import type { RecordData, RecordKey } from '../model/index.js';
 import type {
@@ -42,7 +42,7 @@ import {
   tablePins,
   usePinnedOffsets,
 } from './record/columns.js';
-import { usePinnedCap } from './record/pinCap.js';
+import { usePinnedCap, type ReleasedPins } from './record/pinCap.js';
 import { cellText } from './display.js';
 import { cellValue } from './record/cells.js';
 import { EmptyResult } from './record/EmptyResult.js';
@@ -68,6 +68,13 @@ export interface RecordTableProps {
    * checkboxes that lead nowhere.
    */
   selectable?: boolean;
+  /**
+   * Told whenever the cap (D17-4) lets a pin go or gives it back, so the
+   * column settings can say which pins are not drawn right now: the config
+   * still holds them, and a switch that shows "pinned" over a column with
+   * no edge is a state the screen fails to reflect.
+   */
+  onReleasedPins?(released: ReleasedPins): void;
   /**
    * What a host offers on one row, as a pinned last column.
    *
@@ -154,6 +161,7 @@ export function RecordTable({
   emptyDescription,
   hasConditions = false,
   onEmptyAction,
+  onReleasedPins,
 }: RecordTableProps) {
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
@@ -175,6 +183,7 @@ export function RecordTable({
   // pins are let go, the config untouched (D17-4).
   const slots = useMemo(() => pinnedSlots(columns, layout), [columns, layout]);
   const released = usePinnedCap(port, element, slots);
+  useEffect(() => onReleasedPins?.(released), [onReleasedPins, released]);
   const pins = useMemo(
     () => tablePins(columns, layout, released),
     [columns, layout, released],

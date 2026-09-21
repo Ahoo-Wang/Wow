@@ -30,6 +30,7 @@ import { ToggleGroup, ToggleGroupItem } from './components/toggle-group.js';
 import { Tooltip, TooltipTrigger } from './components/tooltip.js';
 import { TooltipContent } from './popups.js';
 import { ColumnSettings } from './ColumnSettings.js';
+import type { ReleasedPins } from './record/pinCap.js';
 import { ExportDialog, type ExportOffer } from './ExportDialog.js';
 import { SortSettings } from './SortSettings.js';
 import { SPACE, TEXT_UI } from './layout.js';
@@ -55,6 +56,8 @@ export interface ResultToolbarProps {
    * the left, where the table shows it, and let nothing past it.
    */
   rowKey?: string;
+  /** Pins the table's cap is not drawing right now (D17-4). */
+  released?: ReleasedPins;
   /**
    * Whether the table carries the host's action column, so the settings can
    * show where it sits — pinned right and not the user's to move.
@@ -144,6 +147,7 @@ export function ResultToolbar({
   fields,
   fieldGroups,
   rowKey,
+  released,
   hasRowActions = false,
   bulkActions,
   exporter,
@@ -278,6 +282,7 @@ export function ResultToolbar({
             table={table}
             fields={fields}
             {...(rowKey === undefined ? {} : { rowKey })}
+            {...(released ? { released } : {})}
             actions={hasRowActions}
           />
           <SortSettings

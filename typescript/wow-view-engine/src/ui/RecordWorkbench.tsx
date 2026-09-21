@@ -33,6 +33,7 @@ import { FilterModes, filterModeLabel } from './filter/FilterModes.js';
 import { RecordCards } from './RecordCards.js';
 import { RecordPagination } from './RecordPagination.js';
 import { RecordTable } from './RecordTable.js';
+import { NO_RELEASE, type ReleasedPins } from './record/pinCap.js';
 import { ResultToolbar } from './ResultToolbar.js';
 import { RowActions } from './RowActions.js';
 import { QueryStrip } from './StatusStrip.js';
@@ -152,6 +153,9 @@ export function RecordWorkbench({
   // of one view — so switching views falls back to the shell's default
   // exactly as it did when the shell alone held it.
   const runtimeId = runtime?.id ?? null;
+  // What the table's cap (D17-4) is not drawing right now, so the column
+  // settings can say so beside the switch that still says "pinned".
+  const [released, setReleased] = useState<ReleasedPins>(NO_RELEASE);
   const [fold, setFold] = useState<{ id: string | null; open: boolean } | null>(
     null,
   );
@@ -287,6 +291,8 @@ export function RecordWorkbench({
               fields={fields}
               fieldGroups={record.definition.fieldGroups}
               rowKey={record.definition.record?.rowKey}
+              // Cards draw no pins, so nothing is let go under them.
+              released={table.layout === 'table' ? released : NO_RELEASE}
               // The settings show the action column only when there is one:
               // a host that hands over no row slot has no column to place.
               hasRowActions={row !== undefined}
@@ -316,6 +322,7 @@ export function RecordWorkbench({
                 rowActions={bindRow(row, record, table.refresh)}
                 hasConditions={hasConditions}
                 onEmptyAction={emptyAction}
+                onReleasedPins={setReleased}
               />
             )}
 
