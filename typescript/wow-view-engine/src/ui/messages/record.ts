@@ -86,9 +86,15 @@ export const recordMessages = {
   // The column settings. The two areas a column cannot leave are named by
   // the same words as the pin states, because they are the same fact: a
   // column is in the left area precisely because it is held on the left.
+  //
+  // The three sentences below each belong to one row and are drawn on it —
+  // which column is gone, which checkbox is refused, which controls wait for
+  // the column to be shown — rather than collected into a paragraph at the
+  // top, where a reader has to work out which of them is about the row in
+  // front of them. What is left at the top is the one thing no row can say:
+  // that this list *is* the table's column order.
   'label.columns.title': 'Column settings',
-  'label.columns.hint':
-    'Drag a handle to reorder columns within one area. The key column stays on the left and actions stay on the right.',
+  'label.columns.hint': 'The table draws its columns in the order listed here.',
   'label.columns.instructions':
     'Press the arrow keys to move a column one place. Press space to pick it up, the arrow keys to move it, space again to drop it and escape to cancel.',
   'label.columns.drag': 'Reorder {field}',
@@ -98,9 +104,12 @@ export const recordMessages = {
   'label.columns.show': 'Show {field}',
   'label.columns.last-visible': 'A table needs at least one column.',
   'label.columns.hidden':
-    'A column has to be shown before it can be pinned or summarised.',
+    'Show this column before ordering, pinning or summarising it.',
+  // Said on the row itself, next to a marked icon: naming a colour would
+  // make the colour the index, which is the very thing a reader who cannot
+  // tell these two greys apart has no access to.
   'label.columns.unknown':
-    'A column shown in grey is not in this data any more; switch it off to take it out.',
+    'This column is not in the data any more; switch it off to take it out.',
   'label.columns.summary': 'Summary under {field}',
   'label.columns.pin': 'Pinning of {field}: {state}',
   'label.columns.pin.none': 'Not pinned',

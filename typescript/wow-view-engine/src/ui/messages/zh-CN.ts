@@ -124,8 +124,7 @@ export const zhCN: ViewMessages = {
   'label.summary.fn.COUNT': '计数',
   'label.summary.unavailable': '—',
   'label.columns.title': '列设置',
-  'label.columns.hint':
-    '拖动手柄调整同一区域内的列顺序。主键固定在左侧，操作固定在右侧。',
+  'label.columns.hint': '表格按这里列出的顺序绘制各列。',
   'label.columns.instructions':
     '按方向键可将一列移动一位；按空格键拾起，方向键移动，再按空格键放下，按 Esc 取消。',
   'label.columns.drag': '调整 {field} 的顺序',
@@ -134,8 +133,8 @@ export const zhCN: ViewMessages = {
   'label.columns.cancelled': '移动已取消，{field} 保持原位',
   'label.columns.show': '显示 {field}',
   'label.columns.last-visible': '表格至少需要保留一列。',
-  'label.columns.hidden': '先把列显示出来，才能固定它或给它加汇总。',
-  'label.columns.unknown': '灰色的列已不在这份数据里，取消勾选即可移除。',
+  'label.columns.hidden': '先把这一列显示出来，才能调整顺序、固定或加汇总。',
+  'label.columns.unknown': '这一列已不在这份数据里，取消勾选即可移除。',
   'label.columns.summary': '{field} 的汇总',
   'label.columns.pin': '{field} 的固定方式：{state}',
   'label.columns.pin.none': '不固定',

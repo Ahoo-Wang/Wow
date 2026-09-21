@@ -82,6 +82,20 @@ function listed(): string[] {
   );
 }
 
+/** The element a control names as its description. */
+function describing(control: Element): HTMLElement {
+  return document.getElementById(control.getAttribute('aria-describedby')!)!;
+}
+
+/** The column a piece of the panel belongs to, or null when it is loose. */
+function fieldOf(element: Element): string | null {
+  return (
+    element
+      .closest('[data-slot="column-setting"]')
+      ?.getAttribute('data-field') ?? null
+  );
+}
+
 describe('the column settings model', () => {
   const input = {
     fields: FIELDS,
@@ -220,9 +234,10 @@ describe('the column settings popover', () => {
   /**
    * Hiding the last column leaves a result with nothing in it and no way
    * back except the control that emptied it, so the checkbox is refused and
-   * the popover says why rather than leaving a control that does nothing.
+   * says why — on its own row, where the reader is looking, rather than in
+   * a paragraph at the top of the panel that names no column at all.
    */
-  it('refuses to hide the last column, and says why', async () => {
+  it('refuses to hide the last column, and says why on that row', async () => {
     const user = userEvent.setup();
     const table = open({ columnFields: ['id'] });
 
@@ -232,10 +247,10 @@ describe('the column settings popover', () => {
     // Base UI's checkbox is a span in the accessibility tree, so "refused"
     // is `aria-disabled` rather than the attribute a native input carries.
     expect(only.getAttribute('aria-disabled')).toBe('true');
-    expect(
-      document.getElementById(only.getAttribute('aria-describedby')!)!
-        .textContent,
-    ).toContain(defaultMessages['label.columns.last-visible']);
+    expect(describing(only).textContent).toContain(
+      defaultMessages['label.columns.last-visible'],
+    );
+    expect(fieldOf(describing(only))).toBe('id');
     expect(table.setColumns).not.toHaveBeenCalled();
   });
 
@@ -243,7 +258,7 @@ describe('the column settings popover', () => {
    * `setPinned` maps the columns the draft holds and `config.summaries` is
    * only shown under a column that is there, so both controls on a hidden
    * field would write nothing a reader could see — repeatedly, and
-   * silently. They say they cannot instead, and the popover says why.
+   * silently. They say they cannot instead, and their own row says why.
    */
   it('refuses to pin or summarise a column that is switched off', async () => {
     const user = userEvent.setup();
@@ -259,13 +274,34 @@ describe('the column settings popover', () => {
 
     expect(pin.hasAttribute('disabled')).toBe(true);
     expect(summary.hasAttribute('disabled')).toBe(true);
+    expect(describing(pin).textContent).toContain(
+      defaultMessages['label.columns.hidden'],
+    );
+    expect(fieldOf(describing(pin))).toBe('amount');
+    // The same sentence serves the handle, which is refused for the same
+    // reason: a column with no place in the config has no order to drag.
     expect(
-      document.getElementById(pin.getAttribute('aria-describedby')!)!
-        .textContent,
-    ).toContain(defaultMessages['label.columns.hidden']);
+      screen
+        .getByRole('button', { name: 'Reorder Amount' })
+        .getAttribute('aria-describedby'),
+    ).toBe(describing(pin).id);
 
     await user.click(pin);
     expect(table.setPinned).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Every rule about one column now lives on that column, so the top of the
+   * panel is one sentence — the only one no row can say for itself.
+   */
+  it('keeps the panel top to the one rule that is not any row’s', async () => {
+    const user = userEvent.setup();
+    open({ columnFields: ['id'] });
+
+    await user.click(screen.getByRole('button', { name: /Columns/ }));
+    expect(
+      document.querySelector('[data-slot="popover-description"]')!.textContent,
+    ).toBe(defaultMessages['label.columns.hint']);
   });
 
   it('offers a summary only where the field declares one', async () => {
@@ -519,6 +555,40 @@ describe('a column the definition dropped', () => {
 
     await user.click(screen.getByRole('checkbox', { name: 'Show gone' }));
     expect(table.setColumns).toHaveBeenCalledWith(['id', 'amount']);
+  });
+
+  /**
+   * What sets this row apart has to be something other than its colour.
+   * The grey it is drawn in used to be the whole of it — `oklch(0.556)`
+   * against `oklch(0.145)`, no icon, no word, no title — which is no
+   * difference at all to a reader who cannot tell those two apart, and
+   * information carried by colour alone is WCAG 1.4.1. So the row says it,
+   * in words that are drawn and not only announced, and the checkbox that
+   * repairs the config points at that sentence rather than at a paragraph
+   * elsewhere in the panel.
+   */
+  it('marks itself in words, on the row, not by its colour', async () => {
+    const user = userEvent.setup();
+    openDropped(['id', 'gone', 'amount']);
+
+    await user.click(screen.getByRole('button', { name: /Columns/ }));
+    const row = document.querySelector<HTMLElement>('[data-field="gone"]')!;
+
+    const note = within(row).getByText(
+      defaultMessages['label.columns.unknown'],
+    );
+    // Drawn, not read out only: a sentence nobody can see would leave the
+    // row looking exactly like the ones above it again.
+    expect(note.className).not.toContain('sr-only');
+    // And an icon beside it, so the row is marked before it is read.
+    expect(note.querySelector('svg')).toBeTruthy();
+
+    for (const control of [
+      screen.getByRole('checkbox', { name: 'Show gone' }),
+      within(row).getByRole('button', { name: 'Reorder gone' }),
+      within(row).getByRole('button', { name: /^Pinning of gone/ }),
+    ])
+      expect(control.getAttribute('aria-describedby')).toBe(note.id);
   });
 
   /**

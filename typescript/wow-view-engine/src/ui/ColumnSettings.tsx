@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useCallback, useId, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { DragDropProvider } from '@dnd-kit/react';
 import { Accessibility } from '@dnd-kit/dom';
 import { Columns3Icon } from 'lucide-react';
@@ -93,7 +93,6 @@ export function ColumnSettings({
   actions = false,
 }: ColumnSettingsProps) {
   const messages = useViewMessages();
-  const hintId = useId();
   const [announcement, setAnnouncement] = useState('');
 
   const rows = useMemo(
@@ -121,9 +120,6 @@ export function ColumnSettings({
   // leaves that out. `shown` counts the configured ones instead, because
   // the rule it serves is "a table keeps one column of its own".
   const onScreen = renderedCount(rows);
-  const anyHidden = rows.some(row => !row.visible);
-  const anyBroken = rows.some(row => row.broken);
-
   /** Commits one move and says where the column landed, for both inputs. */
   const moveTo = useCallback(
     (field: string, toIndex: number) => {
@@ -156,11 +152,16 @@ export function ColumnSettings({
       <PopoverContent align="end" className="w-96">
         <PopoverHeader>
           <PopoverTitle>{messages.label('label.columns.title')}</PopoverTitle>
-          <PopoverDescription id={hintId}>
+          {/* One sentence, and the only one no row can say for itself.
+              Every rule about a particular column — the last one that may
+              not be hidden, a column that has to be shown before it can be
+              ordered, pinned or summarised, a column the data no longer has
+              — is written on that column's own row, where the control it
+              governs is. Five of them collected here was a paragraph, and a
+              paragraph is something a reader has to match against the row
+              in front of them. */}
+          <PopoverDescription>
             {messages.label('label.columns.hint')}
-            {shown <= 1 && ` ${messages.label('label.columns.last-visible')}`}
-            {anyHidden && ` ${messages.label('label.columns.hidden')}`}
-            {anyBroken && ` ${messages.label('label.columns.unknown')}`}
           </PopoverDescription>
         </PopoverHeader>
 
@@ -189,7 +190,6 @@ export function ColumnSettings({
               region={region}
               rows={rows}
               shown={shown}
-              hintId={hintId}
               table={table}
               onMove={moveTo}
             />
@@ -216,14 +216,12 @@ function Region({
   region,
   rows,
   shown,
-  hintId,
   table,
   onMove,
 }: {
   region: ColumnRegion;
   rows: readonly ColumnSettingRow[];
   shown: number;
-  hintId: string;
   table: RecordTableController;
   onMove(field: string, toIndex: number): void;
 }) {
@@ -242,7 +240,6 @@ function Region({
         const shared = {
           row,
           shownCount: shown,
-          hintId,
           onToggle: () => table.setColumns(toggled(table.columnFields, row)),
           onPin: () =>
             table.setPinned(row.field, nextPin(columnPin(row.pinned))),
