@@ -188,6 +188,12 @@ function cardField(field: FieldDefinition): RecordCardField {
   };
 }
 
+/** How {@link RecordTableController.toggleSort} treats the other columns. */
+export interface ToggleSortOptions {
+  /** Make the cycled field the whole sort rather than joining it. */
+  exclusive?: boolean;
+}
+
 export interface RecordTableController {
   /** Columns of the result on screen, which follow the executed config. */
   columns: RecordColumnView[];
@@ -215,8 +221,17 @@ export interface RecordTableController {
 
   sort: RecordSort[];
   sortOf(field: string): SortDirection | null;
-  /** Ascending, then descending, then off. Applies at once, like a table does. */
-  toggleSort(field: string): void;
+  /**
+   * Ascending, then descending, then off. Applies at once, like a table does.
+   *
+   * By default the field joins the sort — a new one at the end, an existing
+   * one in its place — so several columns may order the rows. With
+   * `exclusive` the cycled field is the whole sort: what a plain click on a
+   * header means, where Shift is what adds. Both are one `edit` and one
+   * `apply`; imitating exclusivity with the additive form would spend one
+   * query per column being cleared.
+   */
+  toggleSort(field: string, options?: ToggleSortOptions): void;
   /**
    * Replaces the whole sort, in priority order, and applies at once.
    *
@@ -386,20 +401,29 @@ export function useRecordTable(
   );
 
   const toggleSort = useCallback(
-    (field: string) => {
+    (field: string, options?: ToggleSortOptions) => {
       if (!runtime) return;
       const current = recordSort(runtime.getSnapshot().draft.sort);
       const at = current.findIndex(entry => entry.field === field);
-      // A new field joins at the end; an existing one keeps its place, because
-      // the order of `sort` is the priority between columns.
-      const next: RecordSort[] =
-        at < 0
-          ? [...current, { field, direction: 'ASC' }]
-          : current[at].direction === 'ASC'
-            ? current.map((entry, index) =>
-                index === at ? { field, direction: 'DESC' } : entry,
-              )
-            : current.filter((_entry, index) => index !== at);
+      // The same cycle either way: off → ascending → descending → off.
+      const turned: SortDirection | null =
+        at < 0 ? 'ASC' : current[at].direction === 'ASC' ? 'DESC' : null;
+      let next: RecordSort[];
+      if (options?.exclusive) {
+        // This column alone, wherever it stood: a plain click says "order
+        // the rows by this", not "also by this".
+        next = turned === null ? [] : [{ field, direction: turned }];
+      } else if (at < 0) {
+        // A new field joins at the end; an existing one keeps its place,
+        // because the order of `sort` is the priority between columns.
+        next = [...current, { field, direction: 'ASC' }];
+      } else if (turned === null) {
+        next = current.filter((_entry, index) => index !== at);
+      } else {
+        next = current.map((entry, index) =>
+          index === at ? { field, direction: turned } : entry,
+        );
+      }
       runtime.edit({ sort: next });
       runtime.apply();
     },

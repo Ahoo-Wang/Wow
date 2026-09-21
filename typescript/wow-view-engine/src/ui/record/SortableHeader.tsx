@@ -34,7 +34,11 @@ export interface SortableHeaderProps {
    * show its own place in the sort rather than only its direction.
    */
   sort: readonly RecordSort[];
-  onToggle(field: string): void;
+  /**
+   * Cycles a column's sort. A plain click is `exclusive` — order the rows
+   * by this column alone; Shift, Ctrl or ⌘ held makes it join the others.
+   */
+  onToggle(field: string, options?: { exclusive?: boolean }): void;
   /**
    * Commits a width in pixels, or `null` to let the column size itself
    * again. Left out, the header's edge is a line rather than a handle — an
@@ -146,7 +150,27 @@ export function SortableHeader({
           // The label keeps the column's edge; the marks follow it inward.
           numeric && 'ml-auto flex-row-reverse',
         )}
-        onClick={() => onToggle(column.field)}
+        // A plain click sorts by this column alone — what a table header
+        // means everywhere else — and a modifier adds the column to the sort
+        // instead, the other way round from the additive default of
+        // `toggleSort`. Keyboard: Shift+Enter or Shift+Space. Browsers put
+        // the held modifiers on a button's activation click, but not every
+        // environment does, so the keys are read where they are pressed and
+        // the activation that would follow is stood down.
+        aria-description={messages.label('label.sort.additive')}
+        onClick={event =>
+          onToggle(column.field, { exclusive: !additive(event) })
+        }
+        onKeyDown={event => {
+          if (!additive(event)) return;
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          onToggle(column.field, { exclusive: false });
+        }}
+        onKeyUp={event => {
+          // Space activates on release; the press above already answered.
+          if (event.key === ' ' && additive(event)) event.preventDefault();
+        }}
       >
         {label}
         <SortMark direction={direction} />
@@ -196,4 +220,13 @@ function SortMark({ direction }: { direction: SortDirection | null }) {
       className="text-muted-foreground/60 size-3.5"
     />
   );
+}
+
+/** Whether the modifier that turns a click into "also sort by this" is held. */
+function additive(event: {
+  shiftKey: boolean;
+  metaKey: boolean;
+  ctrlKey: boolean;
+}): boolean {
+  return event.shiftKey || event.metaKey || event.ctrlKey;
 }

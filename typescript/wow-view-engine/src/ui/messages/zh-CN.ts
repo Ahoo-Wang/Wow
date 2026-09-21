@@ -139,6 +139,7 @@ export const zhCN: ViewMessages = {
   'label.sort.descending': '按{field}降序排序',
   'label.sort.none': '取消按{field}排序',
   'label.sort.at': '第 {position} 个排序条件，共 {count} 个',
+  'label.sort.additive': '按住 Shift 追加排序',
   'label.summary.total': '总计',
   'label.summary.scope.page': '本页',
   'label.summary.scope.total': '全部',

@@ -72,7 +72,6 @@
 
 - **不是列的字段上的汇总够不着**——为什么：列设置的行来自「配置里的列 + 定义里还能当列的字段」，所以 `config.summaries` 里一条指向既不是列、定义也不再声明的字段时，`validateSummaries` 报 `record.field.unknown`、查询与保存都被挡住，而面板里没有任何一行能把它取消——正是"报了错却够不着"那一类（[ui/record.md](ui/record.md)）。本包的界面写不出这种配置，手写或旧版本迁移过来的可以。判据：想清楚它属于列设置还是属于一条"清掉读不出的设置"的通用出口（先在 [decisions.md](decisions.md) 给结论）；若归列设置，则 `columnSettingRows` 的 broken 行也覆盖只被 `summaries` 提到的字段，且它的勾选框取消时只删汇总、不动列；`test/columnSettings.test.tsx` 覆盖。落点：`src/ui/columns/rows.ts`、[ui/record.md](ui/record.md)。
 - **隐藏字段排不了序**——为什么：配置只记已显示的列，所以列设置里隐藏的那几行没有顺序可拖，勾上之后一律落在中间区末尾；想把一个字段放到第三列，得先勾上再拖一次。判据：想清楚"隐藏字段的位置"要不要进配置（这是一个模型问题，先在 [decisions.md](decisions.md) 里给结论），若要，则 `table.columns` 增加 `hidden?: true` 一类的表达，`projectRecord` 跳过它们，列设置对隐藏行照常开放拖拽。落点：[model.md](model.md)、`src/record/project.ts`、`src/ui/columns/rows.ts`。
-- **平击表头独占排序（Shift 追加）**——为什么：legacy 的表头是「点击排序，按住 Shift 添加排序」，即平击只按这一列排、Shift 才追加；`useRecordTable.toggleSort(field)` 无条件把新字段追加在 `sort` 末尾，控制器没有第二个入口，`RecordTable` 于是只能实现"每次点击都追加"这一半，Shift 没有可绑的语义。用现有接口模拟独占要对其余每个已排序列反复 `toggleSort`（升序列要两次），而每次 `toggleSort` 都是一次 `edit` + `apply`，即一次真实查询被随后的请求取代——为一次点击打三五个会被中止的请求，不能算实现。判据：`useRecordTable` 增加一次落下整份排序的成员（`setSort(sort: RecordSort[])`，或 `toggleSort(field, { additive?: boolean })`），`RecordTable` 平击走独占、Shift／Meta 走追加，键盘等价物随之给出（Shift+Enter，或表头菜单里的一项）；`test/recordTable.test.tsx`「sorting from the headers」补上两条路径，`ui/record.md#表头排序` 与 `react.md#userecordtable` 同步。落点：`src/react/useRecordTable.ts`、`src/ui/record/SortableHeader.tsx`、[ui/record.md#表头排序](ui/record.md#表头排序)。
 
 ## 小修
 

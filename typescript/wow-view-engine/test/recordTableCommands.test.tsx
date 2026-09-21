@@ -532,6 +532,41 @@ describe('setSummary', () => {
  * iterable list of well-formed entries — and dropping what cannot be read is
  * the repair, since the first change writes the sound list back.
  */
+describe('toggleSort, exclusive', () => {
+  /**
+   * A plain click on a header means "order the rows by this": the cycled
+   * column is the whole sort, whatever else was sorted, in one write.
+   */
+  it('makes the cycled column the whole sort', async () => {
+    const result = await openTable();
+
+    act(() => result.current.table.toggleSort('amount'));
+    act(() => result.current.table.toggleSort('id'));
+    expect(result.current.table.sort).toEqual([
+      { field: 'amount', direction: 'ASC' },
+      { field: 'id', direction: 'ASC' },
+    ]);
+
+    // The column keeps cycling from where it stood — id was ascending, so
+    // it turns descending — and the others are dropped.
+    act(() => result.current.table.toggleSort('id', { exclusive: true }));
+    expect(result.current.table.sort).toEqual([
+      { field: 'id', direction: 'DESC' },
+    ]);
+
+    // A fresh column starts ascending, alone.
+    act(() => result.current.table.toggleSort('amount', { exclusive: true }));
+    expect(result.current.table.sort).toEqual([
+      { field: 'amount', direction: 'ASC' },
+    ]);
+
+    // And off is off.
+    act(() => result.current.table.toggleSort('amount', { exclusive: true }));
+    act(() => result.current.table.toggleSort('amount', { exclusive: true }));
+    expect(result.current.table.sort).toEqual([]);
+  });
+});
+
 describe('the shapes a store can hold', () => {
   const broken = {
     sort: 'amount',

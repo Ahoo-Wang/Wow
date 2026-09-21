@@ -803,6 +803,50 @@ describe('sorting from the headers', () => {
     await userEvent.keyboard(' ');
     expect(toggled).toEqual(['amount', 'amount', 'amount']);
   });
+
+  /**
+   * A plain click orders the rows by this column alone; a modifier adds the
+   * column to the sort. The keyboard walks the same handler, because a
+   * button's activation click carries the modifiers held with it.
+   */
+  it('sorts by the column alone on a plain click, and adds it with Shift', async () => {
+    const calls: Array<[string, boolean | undefined]> = [];
+    const table = sorted([{ field: 'status', direction: 'ASC' }]);
+    const { container } = render(
+      <RecordTable
+        table={{
+          ...table,
+          toggleSort: (f, options) => calls.push([f, options?.exclusive]),
+        }}
+      />,
+    );
+
+    const button = header(container, 'amount').querySelector('button')!;
+    // The way to add is said on the button, since nothing else shows it.
+    expect(button.getAttribute('aria-description')).toBe(
+      'Hold Shift to add to the sort',
+    );
+
+    // One user, so the Shift held on the keyboard is on the pointer too.
+    const user = userEvent.setup();
+    await user.click(button);
+    await user.keyboard('{Shift>}');
+    await user.click(button);
+    await user.keyboard('{/Shift}');
+
+    button.focus();
+    await user.keyboard('{Enter}');
+    await user.keyboard('{Shift>}{Enter}{/Shift}');
+    await user.keyboard('{Shift>} {/Shift}');
+
+    expect(calls).toEqual([
+      ['amount', true],
+      ['amount', false],
+      ['amount', true],
+      ['amount', false],
+      ['amount', false],
+    ]);
+  });
 });
 
 /** A status is one of a known set, and reads as one. */

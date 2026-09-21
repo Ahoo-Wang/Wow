@@ -84,7 +84,7 @@ useRecordTable(runtime): RecordTableController
 - layouts 为定义允许的布局，selectedRows 为当前结果中被选中的行（结果顺序），pageSizes 为可供选择的每页条数（标准档位按 runtime.limits.maxPageSize 裁剪，并并入当前值）。（见 test/reactHooks.test.tsx「useRecordTable」）
 - `hasResult`——这个视图**是否曾经拿到过结果**（`state.result != null`），哪怕它已经过期。它不是 `rows.length > 0`，也不是 `status === 'success'`：失败的刷新会留住它替换不掉的行并转为 `error`，匹配零行的成功结果则根本没有行。表格靠它区分"结果是空的"与"从来没有结果"——后者连列都没有，画出来是一格空表头加一个选不中任何东西的「选择全部行」（见 [ui/record.md](ui/record.md)）。
 
-改动配置的命令一律是一次 `edit` 加一次 `apply`，与既有的 `toggleSort`／`setColumns` 同一条路径：表格画的是内核按**执行时**的配置投影出来的列与行，不重跑就看不到改动（筛选则等提交）。列设置与排序控件（[ui/record.md](ui/record.md)）所需的那几条：
+改动配置的命令一律是一次 `edit` 加一次 `apply`，与既有的 `toggleSort`（`toggleSort(field, { exclusive })`：默认追加，`exclusive` 时这一列就是整份排序——表头平击走它，Shift 追加走默认）／`setColumns` 同一条路径：表格画的是内核按**执行时**的配置投影出来的列与行，不重跑就看不到改动（筛选则等提交）。列设置与排序控件（[ui/record.md](ui/record.md)）所需的那几条：
 
 - `setColumnOrder(fields)`——按给定顺序重排草稿的列。不是列的名字忽略，重复的名字只算一次（否则会落成同一字段的两列，`validateRecord` 随即拒绝），**没被点到名的列保留在末尾**：只了解表格一部分的控件（列设置的一个区域）不该因为没提到其余部分就把它们删掉；每一列按原样搬运，宽度与固定不会在下次保存时丢失；
 - `setLayout(layout)`——表格还是卡片。两种布局画的是同一份结果，所以平时只 `edit` 不 `apply`；但保存的布局已不在定义允许之列时，`apply` 在打开时就被拒、`refresh` 在有东西被准入之前是空操作，此时这个切换如果只 `edit`，屏幕修好了也还是空的——所以**什么都没跑过时**（`result === null` 且查询 `idle`）它顺带 `apply` 一次；

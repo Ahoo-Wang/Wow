@@ -113,8 +113,9 @@ export const WithData: Story = {
     // The number beside it is not a set, and wears no pill.
     await expect(badgeIn(table, '金额')).toBeNull();
 
-    // The saved view orders by amount; clicking another sortable header adds
-    // it, and each header then says where it sits in that order.
+    // The saved view orders by amount; Shift-clicking another sortable
+    // header adds it (a plain click would sort by it alone), and each header
+    // then says where it sits in that order.
     await expect(headerOf(table, '金额')).toHaveAttribute(
       'aria-sort',
       'descending',
@@ -128,7 +129,7 @@ export const WithData: Story = {
     // ordered by, and there is one of those.
     await expect(headerOf(table, '订单号')).not.toHaveAttribute('aria-sort');
 
-    await userEvent.click(headerOf(table, '订单号').querySelector('button')!);
+    await addSort(table, '订单号');
     await waitFor(() => expect(positionOf(table, '订单号')).toBe('2'));
     // Amount still decides, so it keeps the attribute and the first place;
     // the column that breaks its ties says where it sits in its own name.
@@ -1652,7 +1653,7 @@ async function dirtyTheDraft(canvasElement: HTMLElement): Promise<void> {
   await waitFor(() =>
     expect(readColumn(table, '订单号')).toEqual(PENDING_BY_AMOUNT),
   );
-  await userEvent.click(headerOf(table, '订单号').querySelector('button')!);
+  await addSort(table, '订单号');
   await waitFor(() =>
     expect(positionOf(canvas.getByRole('table'), '订单号')).toBe('2'),
   );
@@ -1757,6 +1758,19 @@ const LAYOUT_SLOTS = [
 ];
 
 /** One column header, found by the label it shows. */
+/**
+ * Adds a column to the sort from its header: Shift held while clicking. A
+ * plain click sorts by the column alone, so this is the gesture that stacks
+ * one. One `setup()` instance, so the Shift the keyboard holds is on the
+ * pointer too — the direct API keeps no state between calls.
+ */
+async function addSort(table: HTMLElement, label: string): Promise<void> {
+  const user = userEvent.setup();
+  await user.keyboard('{Shift>}');
+  await user.click(headerOf(table, label).querySelector('button')!);
+  await user.keyboard('{/Shift}');
+}
+
 function headerOf(table: HTMLElement, label: string): HTMLTableCellElement {
   const found = [
     ...table.querySelectorAll<HTMLTableCellElement>('thead th'),

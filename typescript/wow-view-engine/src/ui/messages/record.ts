@@ -74,6 +74,9 @@ export const recordMessages = {
   'label.sort.descending': 'Sort by {field}, descending',
   'label.sort.none': 'Stop sorting by {field}',
   'label.sort.at': 'sort {position} of {count}',
+  // Said as the header button's description: the plain click sorts by this
+  // column alone, and the way to add a column is otherwise invisible.
+  'label.sort.additive': 'Hold Shift to add to the sort',
 
   // A summary's scope belongs on screen: `all` comes from its own query over
   // everything the conditions match, `page` only from the rows in front of
