@@ -32,6 +32,7 @@ import type {
 } from '../model/index.js';
 import type { RecordTableController } from '../react/index.js';
 import { Button } from './components/button.js';
+import { IconButton } from './IconButton.js';
 import {
   Popover,
   PopoverDescription,
@@ -334,9 +335,13 @@ function SortEntry({
       data-dragging={isDragging ? '' : undefined}
       className="flex items-center gap-1.5 rounded-md data-dragging:bg-muted"
     >
-      <Button
+      <IconButton
         ref={handleRef}
         type="button"
+        label={messages.label('label.sort.drag', { field: label })}
+        // Not while the entry is in the air — see `ColumnRow`, which carries
+        // the same handle for the same reason.
+        silent={isDragging}
         variant="ghost"
         size="icon-xs"
         className="cursor-grab"
@@ -344,7 +349,6 @@ function SortEntry({
         // can only put it back where it is says it can do something it
         // cannot.
         disabled={total < 2}
-        aria-label={messages.label('label.sort.drag', { field: label })}
         onKeyDown={(event: KeyboardEvent) => {
           // While the library is carrying the entry the arrows are its: two
           // handlers on one press would move it twice.
@@ -356,7 +360,7 @@ function SortEntry({
         }}
       >
         <GripVerticalIcon />
-      </Button>
+      </IconButton>
       <span className="text-muted-foreground w-4 text-center text-xs">
         {index + 1}
       </span>
@@ -371,15 +375,15 @@ function SortEntry({
         <DirectionMark direction={direction} />
         {messages.label(DIRECTION_LABEL[direction])}
       </Button>
-      <Button
+      <IconButton
         type="button"
+        label={messages.label('label.sort.none', { field: label })}
         variant="ghost"
         size="icon-xs"
-        aria-label={messages.label('label.sort.none', { field: label })}
         onClick={onRemove}
       >
         <XIcon />
-      </Button>
+      </IconButton>
     </li>
   );
 }

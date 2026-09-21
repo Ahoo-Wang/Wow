@@ -34,6 +34,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from './components/empty.js';
+import { IconButton } from './IconButton.js';
 import { KIND_ICON } from './kinds.js';
 import { SPACE } from './layout.js';
 import { useViewMessages } from './MessagesProvider.js';
@@ -154,26 +155,26 @@ export function ViewList({
             {title || messages.label('label.view.list')}
           </h2>
           {onManage && (
-            <Button
+            <IconButton
+              label={messages.label('label.manage.open')}
               variant="ghost"
               size="icon-sm"
-              aria-label={messages.label('label.manage.open')}
               onClick={onManage}
             >
               <Settings2Icon />
-            </Button>
+            </IconButton>
           )}
           {onCollapse && (
-            <Button
+            <IconButton
               ref={collapseRef}
+              label={messages.label('label.workbench.collapse-sidebar')}
               variant="ghost"
               size="icon-sm"
-              aria-label={messages.label('label.workbench.collapse-sidebar')}
               aria-expanded
               onClick={onCollapse}
             >
               <PanelLeftCloseIcon />
-            </Button>
+            </IconButton>
           )}
         </div>
       </div>

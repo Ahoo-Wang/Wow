@@ -32,9 +32,9 @@ import {
 import { Field, FieldContent, FieldLabel } from './components/field.js';
 import { Progress } from './components/progress.js';
 import { RadioGroup, RadioGroupItem } from './components/radio-group.js';
-import { Tooltip, TooltipTrigger } from './components/tooltip.js';
-import { DialogContent, TooltipContent } from './popups.js';
+import { DialogContent } from './popups.js';
 import { summaryText } from './display.js';
+import { IconTooltip } from './IconButton.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 
@@ -129,20 +129,17 @@ export function ExportDialog(props: ExportDialogProps) {
         } else close();
       }}
     >
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <DialogTrigger
-              data-control="export"
-              aria-label={messages.label('label.export.title')}
-              render={<Button variant="outline" size="icon-sm" />}
-            />
-          }
-        >
-          <DownloadIcon />
-        </TooltipTrigger>
-        <TooltipContent>{messages.label('label.export.title')}</TooltipContent>
-      </Tooltip>
+      <IconTooltip
+        label={messages.label('label.export.title')}
+        render={
+          <DialogTrigger
+            data-control="export"
+            render={<Button variant="outline" size="icon-sm" />}
+          />
+        }
+      >
+        <DownloadIcon />
+      </IconTooltip>
 
       <DialogContent data-slot="export-dialog" initialFocus={primary}>
         <DialogHeader>

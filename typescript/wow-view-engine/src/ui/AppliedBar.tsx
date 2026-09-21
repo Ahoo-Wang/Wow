@@ -17,6 +17,7 @@ import type { FilterSummaryItem } from '../filter/index.js';
 import type { FilterEditorController } from '../react/index.js';
 import { Badge } from './components/badge.js';
 import { summaryText } from './display.js';
+import { IconTooltip } from './IconButton.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { FOCUS_RING } from './layout.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
@@ -107,33 +108,45 @@ export function AppliedBar({
         >
           {say(item)}
           {!readOnly && (
-            <button
-              type="button"
-              aria-label={messages.label('label.filter.unset-of', {
+            // A chip's ✕ is not a `Button` — it wears the badge's own
+            // geometry rather than a variant — so the tooltip is wrapped
+            // round the element there is, which is what `IconTooltip` is
+            // for. The name is the whole condition, so the label that says
+            // what this removes is worth showing to a pointer as well.
+            <IconTooltip
+              label={messages.label('label.filter.unset-of', {
                 condition: say(item),
               })}
-              disabled={disabled}
-              // Dimmed until pointed at, but never while focused: a focus
-              // outline at 60% is a focus outline that fails its own contrast.
-              className={cn(
-                '-mr-1 rounded-full opacity-60 hover:opacity-100 focus-visible:opacity-100',
-                FOCUS_RING,
-              )}
-              onClick={() => {
-                // A summary path interleaves the `children` key with each
-                // index; the editor addresses nodes by the indexes alone.
-                filter.clearValue(
-                  item.path.filter(
-                    (segment): segment is number => typeof segment === 'number',
-                  ),
-                );
-                filter.submit();
-              }}
+              render={
+                <button
+                  type="button"
+                  disabled={disabled}
+                  // Dimmed until pointed at, but never while focused: a
+                  // focus outline at 60% is a focus outline that fails its
+                  // own contrast.
+                  className={cn(
+                    '-mr-1 rounded-full opacity-60 hover:opacity-100 focus-visible:opacity-100',
+                    FOCUS_RING,
+                  )}
+                  onClick={() => {
+                    // A summary path interleaves the `children` key with
+                    // each index; the editor addresses nodes by the indexes
+                    // alone.
+                    filter.clearValue(
+                      item.path.filter(
+                        (segment): segment is number =>
+                          typeof segment === 'number',
+                      ),
+                    );
+                    filter.submit();
+                  }}
+                />
+              }
             >
               {/* Sized like every other inline icon; Lucide's default 24px
                   stretched the badge to 30px where its neighbours are 20. */}
               <XIcon className="size-3.5" />
-            </button>
+            </IconTooltip>
           )}
         </Badge>
       ))}

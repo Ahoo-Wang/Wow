@@ -29,7 +29,7 @@ import {
   treeController,
   type FilterTreeController,
 } from '../../react/index.js';
-import { Button } from '../components/button.js';
+import { IconButton } from '../IconButton.js';
 import {
   Select,
   SelectGroup,
@@ -155,15 +155,15 @@ export function ConditionPill({
   );
 
   const remove = (
-    <Button
+    <IconButton
+      label={messages.label('label.filter.remove-of', { field: label })}
       variant="ghost"
       size="icon-sm"
-      aria-label={messages.label('label.filter.remove-of', { field: label })}
       disabled={disabled}
       onClick={() => filter.remove(path)}
     >
       <XIcon />
-    </Button>
+    </IconButton>
   );
 
   if (holdsTree)

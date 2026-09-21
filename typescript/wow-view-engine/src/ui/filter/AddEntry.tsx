@@ -16,6 +16,7 @@ import type { FilterGroupOperator } from '../../model/index.js';
 import type { FilterPath } from '../../filter/index.js';
 import type { FilterTreeController } from '../../react/index.js';
 import { Button } from '../components/button.js';
+import { IconTooltip } from '../IconButton.js';
 import { ButtonGroup } from '../components/button-group.js';
 import {
   DropdownMenu,
@@ -69,18 +70,18 @@ export function AddEntry({
     <ButtonGroup>
       {picker}
       <DropdownMenu>
-        <DropdownMenuTrigger
+        <IconTooltip
+          label={messages.label('label.filter.add-group')}
           render={
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={disabled}
-              aria-label={messages.label('label.filter.add-group')}
+            <DropdownMenuTrigger
+              render={
+                <Button variant="outline" size="sm" disabled={disabled} />
+              }
             />
           }
         >
           <ChevronDownIcon />
-        </DropdownMenuTrigger>
+        </IconTooltip>
         <DropdownMenuContent align="start">
           {(['and', 'or', 'nor'] as const).map(op => (
             <DropdownMenuItem

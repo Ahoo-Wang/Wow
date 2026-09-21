@@ -206,6 +206,7 @@ src/
       FilterActions.tsx             — Clear and Apply, with the blocked count
       inputs/                       — One file per `EditorDescriptor.input`, plus shared.tsx
     ViewList.tsx, ViewSurface.tsx, EmbeddedView.tsx
+    IconButton.tsx                — An icon-only control and the tooltip saying its name; the one place the two are paired
     dragAnnounce.ts               — What a screen reader hears while a row is dragged; the column settings and the manager share it
     kinds.ts                      — The icon each kind and audience wears, shared by list and header
     describeConfig.ts             — One config in a sentence, for a conflict's side-by-side

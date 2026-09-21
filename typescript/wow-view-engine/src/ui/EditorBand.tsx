@@ -15,6 +15,7 @@ import type { ReactNode } from 'react';
 import { cn } from 'cn';
 import { ChevronDownIcon, SlidersHorizontalIcon } from 'lucide-react';
 import { Button } from './components/button.js';
+import { IconTooltip } from './IconButton.js';
 import { ButtonGroup } from './components/button-group.js';
 import {
   DropdownMenu,
@@ -134,17 +135,16 @@ export function EditorBandToggle({
 
       {modes && (
         <DropdownMenu>
-          <DropdownMenuTrigger
+          <IconTooltip
+            label={messages.label('label.workbench.editor-modes')}
             render={
-              <Button
-                variant="outline"
-                size="sm"
-                aria-label={messages.label('label.workbench.editor-modes')}
+              <DropdownMenuTrigger
+                render={<Button variant="outline" size="sm" />}
               />
             }
           >
             <ChevronDownIcon />
-          </DropdownMenuTrigger>
+          </IconTooltip>
           <DropdownMenuContent align="end">{modes}</DropdownMenuContent>
         </DropdownMenu>
       )}

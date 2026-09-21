@@ -14,7 +14,7 @@
 import { useId } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import type { RecordTableController } from '../react/index.js';
-import { Button } from './components/button.js';
+import { IconButton } from './IconButton.js';
 import {
   Select,
   SelectGroup,
@@ -170,25 +170,25 @@ export function RecordPagination({ table }: RecordPaginationProps) {
         {!onePage && (
           <div className="flex items-center gap-1">
             {paged && (
-              <Button
+              <IconButton
+                label={messages.label('label.toolbar.previous')}
                 variant="outline"
                 size="icon-sm"
-                aria-label={messages.label('label.toolbar.previous')}
                 disabled={paging.index <= 1}
                 onClick={table.previous}
               >
                 <ChevronLeftIcon />
-              </Button>
+              </IconButton>
             )}
-            <Button
+            <IconButton
+              label={messages.label('label.toolbar.next')}
               variant="outline"
               size="icon-sm"
-              aria-label={messages.label('label.toolbar.next')}
               disabled={!table.hasNext}
               onClick={table.next}
             >
               <ChevronRightIcon />
-            </Button>
+            </IconButton>
           </div>
         )}
       </div>

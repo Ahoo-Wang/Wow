@@ -14,6 +14,7 @@
 import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { Maximize2Icon, Minimize2Icon } from 'lucide-react';
 import { Button } from './components/button.js';
+import { IconButton } from './IconButton.js';
 import { useViewMessages } from './MessagesProvider.js';
 
 /** Whether a surface fills the screen, and the one way to change it. */
@@ -482,6 +483,11 @@ export interface ViewExpandToggleProps {
  * `aria-keyshortcuts` is how the Escape route is discoverable without
  * spending a tooltip on it — and it is announced only while there is
  * something for the key to do.
+ *
+ * The name is the one the state asks for, and the tooltip is the same
+ * string: a pointer hovering this while the view fills the screen reads
+ * "Exit full screen", which is what pressing it does now — not what it did
+ * before it was pressed.
  */
 export function ViewExpandToggle({ expansion, ref }: ViewExpandToggleProps) {
   const messages = useViewMessages();
@@ -490,18 +496,18 @@ export function ViewExpandToggle({ expansion, ref }: ViewExpandToggleProps) {
     expanded ? 'label.workbench.collapse-view' : 'label.workbench.expand-view',
   );
   return (
-    <Button
+    <IconButton
       ref={ref}
+      label={label}
       data-slot="view-expand"
       variant="outline"
       size="icon-sm"
-      aria-label={label}
       aria-expanded={expanded}
       aria-keyshortcuts={expanded ? 'Escape' : undefined}
       onClick={expansion.toggle}
     >
       {expanded ? <Minimize2Icon /> : <Maximize2Icon />}
-    </Button>
+    </IconButton>
   );
 }
 

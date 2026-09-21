@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from './components/dropdown-menu.js';
 import { Spinner } from './components/spinner.js';
+import { IconButton, IconTooltip } from './IconButton.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import { DropdownMenuContent } from './popups.js';
 
@@ -129,11 +130,15 @@ export function RefreshControl({
       data-slot="refresh-control"
       aria-label={messages.label('label.toolbar.freshness')}
     >
-      <Button
+      {/* The tooltip stays on while the cadence is showing. The text beside
+          the icon is the state the button reports, not what pressing it
+          does — "30s" never says "Refresh" — so the name is still the only
+          place the action is written. */}
+      <IconButton
+        label={messages.label('label.toolbar.refresh')}
         variant={variant}
         size="sm"
         data-slot="refresh-now"
-        aria-label={messages.label('label.toolbar.refresh')}
         onClick={refresh.now}
         disabled={busy || refresh.loading}
         // Said as well as drawn: the cadence beside the word is a fragment,
@@ -189,25 +194,30 @@ export function RefreshControl({
             </span>
           </span>
         )}
-      </Button>
+      </IconButton>
 
       {choosable && (
         <DropdownMenu>
-          <DropdownMenuTrigger
+          <IconTooltip
+            label={messages.label('label.refresh.auto')}
             render={
-              <Button
-                variant={variant}
-                size="icon-sm"
-                data-slot="refresh-interval"
-                // Not disabled while a query runs: an interval is a decision
-                // about the next hour, and the runtime already replaces an
-                // in-flight request when the applied config moves under it.
-                aria-label={messages.label('label.refresh.auto')}
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant={variant}
+                    size="icon-sm"
+                    data-slot="refresh-interval"
+                    // Not disabled while a query runs: an interval is a
+                    // decision about the next hour, and the runtime already
+                    // replaces an in-flight request when the applied config
+                    // moves under it.
+                  />
+                }
               />
             }
           >
             <ChevronDownIcon />
-          </DropdownMenuTrigger>
+          </IconTooltip>
           <DropdownMenuContent align="end">
             <DropdownMenuRadioGroup
               // The picked one, which is the editor's value — like the

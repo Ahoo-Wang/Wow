@@ -32,7 +32,7 @@ import type { ViewInstance, ViewPreferences } from '../model/index.js';
 import type { WriteState } from '../runtime/index.js';
 import type { ViewListState, ViewManagerController } from '../react/index.js';
 import { Badge } from './components/badge.js';
-import { Button } from './components/button.js';
+import { IconButton } from './IconButton.js';
 import { ButtonGroup } from './components/button-group.js';
 import { Input } from './components/input.js';
 import { DeleteDialog } from './DeleteDialog.js';
@@ -134,9 +134,15 @@ export function ViewManagerRow({
             than about where it sits. It is a list-wide permission, so either
             every row has one or none does, and the rows stay aligned. */}
         {manager.can.reorder && (
-          <Button
+          <IconButton
             ref={handleRef}
             type="button"
+            label={messages.label('label.manage.drag', {
+              title: item.title,
+            })}
+            // Not while the row is in the air — see `ColumnRow`, which
+            // carries the same handle for the same reason.
+            silent={dragging}
             variant="ghost"
             size="icon-sm"
             className="shrink-0 cursor-grab"
@@ -144,9 +150,6 @@ export function ViewManagerRow({
             // flight or this row's title is being edited, the row is busy
             // with something else and comes back as soon as it is done.
             disabled={busy || renaming !== null}
-            aria-label={messages.label('label.manage.drag', {
-              title: item.title,
-            })}
             onKeyDown={(event: KeyboardEvent) => {
               // While the library is carrying the row the arrows are its:
               // two handlers on one press would move the row twice.
@@ -158,7 +161,7 @@ export function ViewManagerRow({
             }}
           >
             <GripVerticalIcon />
-          </Button>
+          </IconButton>
         )}
 
         <Kind className="text-muted-foreground size-4 shrink-0" aria-hidden />
@@ -211,23 +214,23 @@ export function ViewManagerRow({
         >
           {renaming !== null ? (
             <ButtonGroup>
-              <Button
+              <IconButton
+                label={messages.label('label.manage.rename-confirm')}
                 variant="ghost"
                 size="icon-sm"
-                aria-label={messages.label('label.manage.rename-confirm')}
                 disabled={blocked}
                 onClick={confirmRename}
               >
                 <CheckIcon />
-              </Button>
-              <Button
+              </IconButton>
+              <IconButton
+                label={messages.label('label.manage.rename-cancel')}
                 variant="ghost"
                 size="icon-sm"
-                aria-label={messages.label('label.manage.rename-cancel')}
                 onClick={() => setRenaming(null)}
               >
                 <XIcon />
-              </Button>
+              </IconButton>
             </ButtonGroup>
           ) : (
             <>
@@ -236,14 +239,14 @@ export function ViewManagerRow({
                   aria-label={messages.label('label.manage.view-group')}
                 >
                   {manager.can.setDefault && (
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={messages.label(
+                    <IconButton
+                      label={messages.label(
                         isDefault
                           ? 'label.manage.unset-default'
                           : 'label.manage.set-default',
                       )}
+                      variant="ghost"
+                      size="icon-sm"
                       // It presses in and out, so it says which it is: the
                       // name tells a reader what the press would do, and
                       // this tells them what pressing it already did.
@@ -262,29 +265,29 @@ export function ViewManagerRow({
                         data-default={isDefault || undefined}
                         className={isDefault ? 'fill-current' : undefined}
                       />
-                    </Button>
+                    </IconButton>
                   )}
                   {can.rename && (
-                    <Button
+                    <IconButton
+                      label={messages.label('label.manage.rename')}
                       variant="ghost"
                       size="icon-sm"
-                      aria-label={messages.label('label.manage.rename')}
                       disabled={busy}
                       onClick={() => setRenaming(item.title)}
                     >
                       <PencilIcon />
-                    </Button>
+                    </IconButton>
                   )}
                   {can.delete && (
-                    <Button
+                    <IconButton
+                      label={messages.label('label.manage.delete')}
                       variant="ghost"
                       size="icon-sm"
-                      aria-label={messages.label('label.manage.delete')}
                       disabled={busy}
                       onClick={() => setDeleting(true)}
                     >
                       <TrashIcon />
-                    </Button>
+                    </IconButton>
                   )}
                 </ButtonGroup>
               )}

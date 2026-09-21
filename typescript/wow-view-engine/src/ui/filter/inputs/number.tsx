@@ -16,7 +16,7 @@ import { PlusIcon, XIcon } from 'lucide-react';
 import { isFiniteNumber } from '../../../filter/index.js';
 import type { FilterValue } from '../../../model/index.js';
 import { Badge } from '../../components/badge.js';
-import { Button } from '../../components/button.js';
+import { IconButton } from '../../IconButton.js';
 import { Input } from '../../components/input.js';
 import { useViewMessages } from '../../MessagesProvider.js';
 import { isPlainEnter } from '../enter.js';
@@ -202,18 +202,18 @@ function NumberListValue({ value, onChange, label, disabled }: ValueProps) {
       {values.map(entryValue => (
         <Badge key={entryValue} variant="secondary" className="gap-0.5 pr-0.5">
           {entryValue}
-          <Button
+          <IconButton
+            label={messages.label('label.filter.remove-value', {
+              value: String(entryValue),
+            })}
             variant="ghost"
             size="icon-sm"
             className="size-4"
-            aria-label={messages.label('label.filter.remove-value', {
-              value: String(entryValue),
-            })}
             disabled={disabled}
             onClick={() => onChange(values.filter(kept => kept !== entryValue))}
           >
             <XIcon />
-          </Button>
+          </IconButton>
         </Badge>
       ))}
       <Input
@@ -245,17 +245,17 @@ function NumberListValue({ value, onChange, label, disabled }: ValueProps) {
           add();
         }}
       />
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        aria-label={messages.label('label.filter.add-value-of', {
+      <IconButton
+        label={messages.label('label.filter.add-value-of', {
           field: label,
         })}
+        variant="ghost"
+        size="icon-sm"
         disabled={disabled}
         onClick={add}
       >
         <PlusIcon />
-      </Button>
+      </IconButton>
     </div>
   );
 }

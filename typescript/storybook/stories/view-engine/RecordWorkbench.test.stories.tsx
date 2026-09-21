@@ -2971,7 +2971,10 @@ const POPUP_KINDS: readonly {
   {
     name: 'menu',
     slot: 'dropdown-menu-content',
-    trigger: '[data-slot="dropdown-menu-trigger"]',
+    // Found by what it does rather than by its slot: every icon-only trigger
+    // on this bar is wrapped in a tooltip now, and the outer trigger's
+    // `data-slot` replaces the menu's own on the one element they share.
+    trigger: '[aria-haspopup="menu"]',
   },
   {
     name: 'select',
@@ -3738,5 +3741,126 @@ export const ExportFailedWindow: Story = {
     await expect(
       canvasElement.querySelector('[data-slot="status-strip"]'),
     ).toBeNull();
+  },
+};
+
+/**
+ * D12 puts every function into an icon button, so hovering one is how a
+ * pointer learns what it is. The name the reader hears and the label the
+ * pointer sees are one string (`src/ui/IconButton.tsx`), and this asks the
+ * question a jsdom suite cannot: is it actually on screen, and does it say
+ * what the button says *now* rather than what it said before it was pressed?
+ */
+export const IconButtonsSayTheirNameOnHover: Story = {
+  ...DisplayWithData,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    const doc = canvasElement.ownerDocument;
+
+    const toggle = canvas.getByRole('button', {
+      name: zhCN['label.workbench.expand-view'],
+    });
+    await userEvent.hover(toggle);
+    await waitFor(() =>
+      // One message, two channels: the tooltip is the accessible name said
+      // out loud to a pointer, never a second wording of it.
+      expect(tooltipOn(doc)?.textContent).toBe(
+        toggle.getAttribute('aria-label'),
+      ),
+    );
+    await expect(tooltipOn(doc)).toHaveTextContent(
+      zhCN['label.workbench.expand-view'],
+    );
+
+    // The label follows the state. It is the same button — what pressing it
+    // does has changed, so what it is called changes with it.
+    await userEvent.click(toggle);
+    await waitFor(() =>
+      expect(toggle).toHaveAttribute('aria-expanded', 'true'),
+    );
+    await userEvent.unhover(toggle);
+    await waitFor(() => expect(tooltipOn(doc)).toBeNull());
+    await userEvent.hover(toggle);
+    await waitFor(() =>
+      expect(tooltipOn(doc)?.textContent).toBe(
+        zhCN['label.workbench.collapse-view'],
+      ),
+    );
+
+    // Back out the way it came, so the story leaves the screen as it found
+    // it — `FillTheScreen` is where the Escape route is held to account.
+    await userEvent.click(toggle);
+    await waitFor(() =>
+      expect(toggle).toHaveAttribute('aria-expanded', 'false'),
+    );
+  },
+};
+
+/**
+ * The tooltip that is showing, if one is.
+ *
+ * Base UI leaves the popup in the document while it animates away, so
+ * "showing" is the `data-open` on it rather than its presence — otherwise
+ * "no tooltip here" would be true only after the fade.
+ */
+function tooltipOn(doc: Document): HTMLElement | null {
+  return doc.querySelector<HTMLElement>(
+    '[data-slot="tooltip-content"][data-open]',
+  );
+}
+
+/** Whether two boxes share any of the screen. */
+function overlapping(one: HTMLElement, other: HTMLElement): boolean {
+  const a = one.getBoundingClientRect();
+  const b = other.getBoundingClientRect();
+  return (
+    a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
+  );
+}
+
+/**
+ * A tooltip round a menu's trigger must not fight the menu.
+ *
+ * The two hang off one button and the pointer that opened the menu is still
+ * sitting on it, which is the one arrangement where a tooltip can end up
+ * over the thing it was meant to explain. What is held here is the part the
+ * user can see: whether the label is still up or not, every option is the
+ * thing a click at its middle reaches, and nothing black is lying over the
+ * list. Whether Base UI keeps the tooltip shut after the click or lets the
+ * resting pointer bring it back is its own business, and it does both
+ * depending on how the press is timed — the label sits above the button,
+ * where the menu is not, so neither way costs the user anything.
+ */
+export const AMenuIsNotCoveredByItsOwnTooltip: Story = {
+  ...DisplayWithData,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    const doc = canvasElement.ownerDocument;
+    const body = within(doc.body);
+    const chevron = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="refresh-interval"]',
+    )!;
+
+    await userEvent.hover(chevron);
+    await waitFor(() =>
+      expect(tooltipOn(doc)).toHaveTextContent(zhCN['label.refresh.auto']),
+    );
+
+    await userEvent.click(chevron);
+    const menu = await body.findByRole('menu');
+    await userEvent.hover(chevron);
+    // A beat for the tooltip to do whatever it is going to do: with the
+    // provider's zero delay, anything it has in mind has happened by now.
+    await new Promise(settle => setTimeout(settle, 200));
+
+    const tip = tooltipOn(doc);
+    if (tip) await expect(overlapping(tip, menu)).toBe(false);
+    for (const item of within(menu).getAllByRole('menuitemradio'))
+      await expect(inFrontOf(item)).toBe(true);
+
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(body.queryByRole('menu')).toBeNull());
   },
 };

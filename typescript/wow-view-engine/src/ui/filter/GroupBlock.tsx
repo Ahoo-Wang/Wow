@@ -19,7 +19,7 @@ import {
   type FilterPath,
 } from '../../filter/index.js';
 import type { FilterTreeController } from '../../react/index.js';
-import { Button } from '../components/button.js';
+import { IconButton } from '../IconButton.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { AddEntry } from './AddEntry.js';
 import { ChoiceValue } from './inputs/shared.js';
@@ -95,15 +95,15 @@ export function GroupBlock({
         />
 
         {nested && (
-          <Button
+          <IconButton
+            label={messages.label('label.filter.remove-group')}
             variant="ghost"
             size="icon-sm"
-            aria-label={messages.label('label.filter.remove-group')}
             disabled={disabled}
             onClick={() => filter.remove(path)}
           >
             <XIcon />
-          </Button>
+          </IconButton>
         )}
       </div>
 

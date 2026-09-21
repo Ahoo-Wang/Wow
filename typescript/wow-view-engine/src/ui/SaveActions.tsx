@@ -25,8 +25,8 @@ import type { SaveCommands } from '../react/index.js';
 import { cn } from './lib/utils.js';
 import { Badge } from './components/badge.js';
 import { Button } from './components/button.js';
+import { IconButton, IconTooltip } from './IconButton.js';
 import { ButtonGroup } from './components/button-group.js';
-import { Tooltip, TooltipTrigger } from './components/tooltip.js';
 import {
   DropdownMenu,
   DropdownMenuItem,
@@ -34,7 +34,7 @@ import {
 } from './components/dropdown-menu.js';
 import { Spinner } from './components/spinner.js';
 import { useViewMessages } from './MessagesProvider.js';
-import { DropdownMenuContent, TooltipContent } from './popups.js';
+import { DropdownMenuContent } from './popups.js';
 import { SaveAsDialog } from './SaveAsDialog.js';
 
 /**
@@ -174,24 +174,29 @@ export function SaveActions({
 
         {menuSaveAs && (
           <DropdownMenu>
-            <DropdownMenuTrigger
+            <IconTooltip
+              label={messages.label('label.header.more')}
               render={
-                <Button
-                  variant="outline"
-                  size="icon-sm"
-                  // Nothing in the menu may run while a write is in flight:
-                  // reverting mid-save would leave the old config as a dirty
-                  // draft over a baseline that has just become the new one.
-                  // Nor while an outcome is unsettled: Retry or Keep mine is
-                  // still to land, and a revert taken first would be undone
-                  // by the write the user is about to choose.
-                  disabled={stopped}
-                  aria-label={messages.label('label.header.more')}
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      size="icon-sm"
+                      // Nothing in the menu may run while a write is in
+                      // flight: reverting mid-save would leave the old config
+                      // as a dirty draft over a baseline that has just become
+                      // the new one. Nor while an outcome is unsettled: Retry
+                      // or Keep mine is still to land, and a revert taken
+                      // first would be undone by the write the user is about
+                      // to choose.
+                      disabled={stopped}
+                    />
+                  }
                 />
               }
             >
               <ChevronDownIcon />
-            </DropdownMenuTrigger>
+            </IconTooltip>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => setCopying(true)}>
                 <CopyIcon />
@@ -308,31 +313,22 @@ export function UnsavedMark({ commands }: { commands: SaveCommands }) {
     >
       {messages.label('label.header.unsaved')}
       {commands.can.revert && (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-xs"
-                data-slot="view-revert"
-                aria-label={revert}
-                // Taking the edits back while the same edits are being
-                // written would leave what was reverted from as the baseline
-                // and what was reverted to as a dirty draft over it. An
-                // unsettled outcome is the same story one step earlier:
-                // Retry or Keep mine has yet to land.
-                disabled={
-                  commands.state.pending || isUnsettled(commands.state.write)
-                }
-                onClick={commands.revert}
-              />
-            }
-          >
-            <RotateCcwIcon />
-          </TooltipTrigger>
-          <TooltipContent>{revert}</TooltipContent>
-        </Tooltip>
+        <IconButton
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          data-slot="view-revert"
+          label={revert}
+          // Taking the edits back while the same edits are being written
+          // would leave what was reverted from as the baseline and what was
+          // reverted to as a dirty draft over it. An unsettled outcome is
+          // the same story one step earlier: Retry or Keep mine has yet to
+          // land.
+          disabled={commands.state.pending || isUnsettled(commands.state.write)}
+          onClick={commands.revert}
+        >
+          <RotateCcwIcon />
+        </IconButton>
       )}
     </Badge>
   );

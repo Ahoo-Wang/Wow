@@ -23,6 +23,7 @@ import { FileQuestionMarkIcon, PanelLeftOpenIcon } from 'lucide-react';
 import type { Issue, ViewKind } from '../model/index.js';
 import type { WorkbenchController } from '../react/index.js';
 import { Button } from './components/button.js';
+import { IconButton } from './IconButton.js';
 import {
   Empty,
   EmptyContent,
@@ -447,16 +448,16 @@ export function WorkbenchShell({
       // what painted Save over the view controls before.
       className={cn('flex grow items-center', SPACE.WITHIN)}
     >
-      <Button
+      <IconButton
         ref={expandRef}
+        label={messages.label('label.workbench.expand-sidebar')}
         variant="ghost"
         size="icon-sm"
-        aria-label={messages.label('label.workbench.expand-sidebar')}
         aria-expanded={false}
         onClick={() => toggleSidebar(true)}
       >
         <PanelLeftOpenIcon />
-      </Button>
+      </IconButton>
       {title && (
         // The first thing to go when the row runs out of room: the view's own
         // name outranks the name of everything it is one of.

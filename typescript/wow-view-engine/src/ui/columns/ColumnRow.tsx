@@ -16,7 +16,7 @@ import { useSortable } from '@dnd-kit/react/sortable';
 import { OptimisticSortingPlugin } from '@dnd-kit/dom/sortable';
 import { CircleSlashIcon, GripVerticalIcon, PinIcon } from 'lucide-react';
 import { columnPin, type SummaryFunction } from '../../model/index.js';
-import { Button } from '../components/button.js';
+import { IconButton } from '../IconButton.js';
 import { Checkbox } from '../components/checkbox.js';
 import {
   Select,
@@ -156,14 +156,19 @@ export function ColumnRow({
       className="flex flex-col rounded-md px-1 py-0.5 data-broken:text-muted-foreground data-dragging:bg-muted"
     >
       <div className="flex items-center gap-1.5">
-        <Button
+        <IconButton
           ref={handleRef}
           type="button"
+          label={messages.label('label.columns.drag', { field: label })}
+          // Not while the row is in the air: the tooltip would follow the
+          // pointer across the list it is meant to be dropping into. Focus
+          // still opens it, which is where the name earns its keep — the
+          // arrow keys this handle answers are written nowhere else.
+          silent={dragging}
           variant="ghost"
           size="icon-xs"
           className="cursor-grab"
           disabled={!row.movable}
-          aria-label={messages.label('label.columns.drag', { field: label })}
           aria-describedby={refused ? noteId : undefined}
           onKeyDown={(event: KeyboardEvent) => {
             // While the library is carrying the row the arrows are its: two
@@ -176,7 +181,7 @@ export function ColumnRow({
           }}
         >
           <GripVerticalIcon />
-        </Button>
+        </IconButton>
 
         <Checkbox
           checked={row.visible}
@@ -243,16 +248,16 @@ export function ColumnRow({
           than doing nothing — and the summary select goes the same way, for
           the same reason. A broken column answers neither: its one control
           is the checkbox that takes it out. */}
-        <Button
+        <IconButton
           type="button"
+          label={messages.label('label.columns.pin', {
+            field: label,
+            state: pinState,
+          })}
           variant="ghost"
           size="icon-xs"
           disabled={row.fixed || !row.visible || row.broken}
           aria-describedby={refused ? noteId : undefined}
-          aria-label={messages.label('label.columns.pin', {
-            field: label,
-            state: pinState,
-          })}
           onClick={onPin}
         >
           <PinIcon
@@ -263,7 +268,7 @@ export function ColumnRow({
                 : 'fill-current text-foreground'
             }
           />
-        </Button>
+        </IconButton>
       </div>
 
       {note && (

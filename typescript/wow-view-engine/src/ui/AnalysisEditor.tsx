@@ -23,6 +23,7 @@ import type {
   AnalysisFieldOption,
 } from '../react/index.js';
 import { Button } from './components/button.js';
+import { IconButton } from './IconButton.js';
 import { Checkbox } from './components/checkbox.js';
 import {
   DropdownMenu,
@@ -347,17 +348,17 @@ function GroupRow({
           </SelectGroup>
         </SelectContent>
       </Select>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        aria-label={messages.label('label.analysis.remove-group', {
+      <IconButton
+        label={messages.label('label.analysis.remove-group', {
           alias: group.alias,
         })}
+        variant="ghost"
+        size="icon-sm"
         disabled={disabled}
         onClick={() => analysis.removeGroup(index)}
       >
         <XIcon />
-      </Button>
+      </IconButton>
     </Field>
   );
 }
@@ -423,17 +424,17 @@ function MetricRow({
           </SelectContent>
         </Select>
       )}
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        aria-label={messages.label('label.analysis.remove-metric', {
+      <IconButton
+        label={messages.label('label.analysis.remove-metric', {
           alias: metric.alias,
         })}
+        variant="ghost"
+        size="icon-sm"
         disabled={disabled || analysis.metrics.length <= 1}
         onClick={() => analysis.removeMetric(index)}
       >
         <XIcon />
-      </Button>
+      </IconButton>
     </Field>
   );
 }
