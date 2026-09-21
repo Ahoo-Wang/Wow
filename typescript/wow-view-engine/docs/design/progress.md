@@ -20,6 +20,6 @@
 
 ## 暂停点与下一步
 
-1. **验证项目级 shadcn skill**：新会话已证明同名的项目级 skill 永远解析到全局副本，于是全局的 `~/.claude/skills/shadcn` 已删除，只留仓库的 `.claude/skills/shadcn`（preamble 带 `-c "$(git rev-parse --show-toplevel)/packages/view-engine"`；`AGENTS.md` 规定不得再全局安装）；再开一个新会话确认 `Skill(shadcn)` 解析到仓库副本。
+1. ~~验证项目级 shadcn skill~~ **已验证**（2026-09-21，新会话）：`Skill(shadcn)` 解析到仓库的 `.claude/skills/shadcn`，preamble 带 `-c` 的 `shadcn info` 返回 base-nova / base / neutral / lucide，cwd 落在 `packages/view-engine`；全局副本已删除，`AGENTS.md` 规定不得再全局安装（同名全局副本会遮蔽仓库副本）。
 2. **Wow 存储后端**（`ViewStore` 的宿主服务）是否开始，等用户决定；设计入口在 [management.md](management.md) 的 `ViewStore` 一节。
 3. 搁置待议的产品问题仍在 [decisions.md#搁置待议](decisions.md#搁置待议)。
