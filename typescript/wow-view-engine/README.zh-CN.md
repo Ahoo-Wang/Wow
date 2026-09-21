@@ -215,6 +215,33 @@ export function OrdersPage() {
 }
 ```
 
+#### 宿主自己的 chrome：`fve-tokens`
+
+样式表的每一条规则都在构建时被收进样式边界，所以 `Card`、`Button`、`Separator`，连 `grid`、`gap-4` 这样的排版 utility，都只在边界里才画得出来。边界有两个，其中只有一个是 surface：
+
+|                           | `.fve-root`                                       | `.fve-tokens`                                                    |
+| ------------------------- | ------------------------------------------------- | ---------------------------------------------------------------- |
+| 谁渲染                    | `ViewSurface`，以及各工作台与 `EmbeddedView`      | 你自己的 DOM                                                     |
+| token、utility、preflight | 有                                                | 有                                                               |
+| 涂底色与文字色            | 涂                                                | **不涂**——想要本包那张底，自己写 `bg-background text-foreground` |
+| 明暗                      | 祖先上的 `.dark`，或 `theme` 用 `data-theme` 钉住 | 只认祖先上的 `.dark`                                             |
+| 措辞、语言、时区、tooltip | 有，走 `ViewSurface` 的 props                     | 没有                                                             |
+
+把 `fve-tokens` 戴在包住自己 chrome 的那个元素上，视图照旧是它自己的那块面：
+
+```tsx
+<div className="fve-tokens flex flex-col gap-4">
+  <Card>……用本包原语搭的页头……</Card>
+  <EmbeddedView engine={engine} instanceId={id} theme="light" />
+</div>
+```
+
+`fve-tokens` 判断明暗只读一样东西：祖先上的 `.dark` class，和各个面读的是同一个——放在 `<html>` 上、放在应用外壳上都行，你的应用本来放在哪儿就放哪儿。它**不读**自己身上的 `data-theme`：钉模式是 surface 的事。它还会把凡是归某块面管的元素原样交还给那块面，所以上面那个钉成亮色的视图，在暗色页面里 token 与 utility 一路都是亮的。
+
+preflight 同样在边界里生效：这片区域内你自己的标题、列表与按钮，会像在视图里一样被重置。这是换取本包原语的代价，也正是这个类该戴在用到原语的那块 chrome 上、而不是整页上的原因。
+
+**面不嵌套。** 根套根不受支持：CSS 没有「最近祖先」选择器，内层面把 token 重新声明在自己身上，`dark:` 工具类认的却仍是外层那个根——钉成相反模式时就是浅色 token 配深色 utility，屏幕上画不出来。需要第二层的时候，戴 `fve-tokens`，不要再套一块面。
+
 ### 3b. 或者自行组合 UI
 
 ```tsx
@@ -295,7 +322,7 @@ const view = projectRecord(orders, config, page);
 | `@ahoo-wang/fetcher-view-engine` | 模型类型、纯内核（`validate*` / `compile*` / `project*`）、运行时、`ViewStore`、`MemoryViewStore`                                                                                                                                                                                                                                                                                     |
 | `/react`                         | `useViewEngine`、`useOpenView`、`useViewRuntime`、`useViewList`、`useViewManager`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useDashboard`、`useSaveCommands`、`RecordActionSlots`                                                                                                                                                                                   |
 | `/ui`                            | `RecordWorkbench`、`AnalysisWorkbench`、`DashboardWorkbench`、`ViewHeader`、`SaveActions`、`ViewManager`、`useLeaveGuard`、`EditorBand`、`FilterPanel`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisEditor`、`AnalysisChart`、`DashboardGrid`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`EmbeddedView` |
-| `/styles.css`                    | 主题。显式导入；任何 JS 入口都不会引入 CSS，产物也不会在 `.fve-root` 之外绘制任何东西（preflight 与工具类在构建时收进根内），`scripts/verify-package.mjs` 在每次构建时核对这两点。                                                                                                                                                                                                    |
+| `/styles.css`                    | 主题。显式导入；任何 JS 入口都不会引入 CSS，产物也不会在 `.fve-root`／`.fve-tokens` 两个样式边界之外绘制任何东西（preflight 与工具类在构建时收进边界内），`scripts/verify-package.mjs` 在每次构建时核对这两点。                                                                                                                                                                       |
 
 ## 持久化
 

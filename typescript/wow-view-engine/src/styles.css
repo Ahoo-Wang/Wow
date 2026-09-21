@@ -24,8 +24,21 @@
  * Tailwind's preflight and utilities are global as written — preflight resets
  * `*`, `html`, headings, lists and buttons on the whole page, and a utility is
  * a bare class a host may share. `scripts/scope-utilities.mjs` pins every rule
- * to the root at build time, and `scripts/verify-package.mjs` holds the built
- * stylesheet to it: no rule sits outside the root.
+ * to the two boundaries at build time, and `scripts/verify-package.mjs` holds
+ * the built stylesheet to it: no rule sits outside them.
+ *
+ * There are two boundaries, and only one of them is a surface:
+ *
+ * - `.fve-root` — what `ViewSurface` renders. Tokens, utilities, the base
+ *   rules, the page it paints (`--background` / `--foreground`), and a mode it
+ *   can pin with `data-theme`. Roots do not nest.
+ * - `.fve-tokens` — a style boundary a host puts on its own chrome so the
+ *   primitives and the utilities paint there too (D17-10). Same tokens, same
+ *   utilities, same preflight; **no `data-theme`, and no paint** — the host
+ *   keeps its own background and its own text colour, and reaches for
+ *   `bg-background text-foreground` itself if it wants ours. It follows a
+ *   `.dark` ancestor and nothing else: it cannot pin a mode, because pinning
+ *   is what a surface is for.
  */
 
 /* Tailwind v4 resolves string imports itself; url() would leave them to the browser. */
@@ -51,8 +64,17 @@
  * `scripts/verify-package.mjs` checks the built stylesheet for exactly that.
  * A surface follows its host through a `.dark` class on any ancestor, or pins
  * itself with `data-theme` — which is what `ViewSurface`'s `theme` sets.
+ *
+ * The tokens boundary follows the same `.dark`, and that is all it reads: it
+ * has no `data-theme` of its own. Its descendants are every element inside it
+ * *except* the ones a surface answers for (`:not(.fve-root, .fve-root *)`),
+ * which is what lets a view pinned to the opposite mode sit inside a host's
+ * chrome: the two entries above already cover a surface and everything under
+ * it, each according to its own mode, so a boundary that also claimed them
+ * would paint a light-pinned view with dark utilities. That is precisely the
+ * failure nesting two roots has, and the reason this class exists.
  */
-@custom-variant dark (&:where(.fve-root[data-theme='dark'], .fve-root[data-theme='dark'] *, .dark .fve-root:not([data-theme='light']), .dark .fve-root:not([data-theme='light']) *));
+@custom-variant dark (&:where(.fve-root[data-theme='dark'], .fve-root[data-theme='dark'] *, .dark .fve-root:not([data-theme='light']), .dark .fve-root:not([data-theme='light']) *, .dark .fve-tokens, .dark .fve-tokens :not(.fve-root, .fve-root *)));
 
 @theme inline {
   /*
@@ -106,7 +128,15 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-.fve-root {
+/*
+ * The tokens, declared once for both boundaries: a host's chrome gets exactly
+ * what a surface gets, down to `color-scheme`, so a `Card` in the host's own
+ * header is the same card it would be inside a view. What the tokens boundary
+ * does *not* get is the paint below — `--background` and `--foreground` are
+ * values it offers, not a background it imposes.
+ */
+.fve-root,
+.fve-tokens {
   color-scheme: light;
 
   --background: var(--fve-background, oklch(1 0 0deg));
@@ -289,9 +319,10 @@
  * sidebar's view items are — `Toggle`, and the calendar's weekday row), and
  * `Badge` carries `text-xs`. Both are worn by dozens of call sites that
  * pass no class of their own, so the theme says it once here instead.
- * `.fve-root` prefixes the selector, so `scripts/scope-utilities.mjs`
+ * A boundary class prefixes the selector, so `scripts/scope-utilities.mjs`
  * leaves it alone and the extra class is what outranks Tailwind's own
- * single-class utility.
+ * single-class utility. Both boundaries are named: the type scale is a
+ * property of the controls, and the host's chrome draws the same ones.
  *
  * What upstream draws smaller *inside* something — a menu's or a select's
  * group label, a shortcut hint, the chart container's tick text — keeps its
@@ -299,7 +330,9 @@
  * beside one of these.
  */
 .fve-root .text-\[0\.8rem\],
-.fve-root [data-slot='badge'] {
+.fve-root [data-slot='badge'],
+.fve-tokens .text-\[0\.8rem\],
+.fve-tokens [data-slot='badge'] {
   font-size: var(--text-ui);
 }
 
@@ -322,6 +355,9 @@
  */
 .fve-root
   [data-slot='toggle-group'][data-size='sm'][data-spacing='0']
+  > [data-slot='toggle-group-item']:first-child,
+.fve-tokens
+  [data-slot='toggle-group'][data-size='sm'][data-spacing='0']
   > [data-slot='toggle-group-item']:first-child {
   border-start-start-radius: min(var(--radius-md), 12px);
   border-end-start-radius: min(var(--radius-md), 12px);
@@ -329,13 +365,17 @@
 
 .fve-root
   [data-slot='toggle-group'][data-size='sm'][data-spacing='0']
+  > [data-slot='toggle-group-item']:last-child,
+.fve-tokens
+  [data-slot='toggle-group'][data-size='sm'][data-spacing='0']
   > [data-slot='toggle-group-item']:last-child {
   border-start-end-radius: min(var(--radius-md), 12px);
   border-end-end-radius: min(var(--radius-md), 12px);
 }
 
 .dark .fve-root:not([data-theme='light']),
-.fve-root[data-theme='dark'] {
+.fve-root[data-theme='dark'],
+.dark .fve-tokens {
   color-scheme: dark;
 
   --background: var(--fve-dark-background, oklch(0.145 0 0deg));
@@ -422,13 +462,24 @@
 }
 
 @layer base {
+  /*
+   * A `border` utility with no colour would draw in `currentColor`, so the
+   * default belongs to both boundaries: the host's chrome uses the same
+   * `Card` and the same `Separator`, and a hairline in the text colour is
+   * not a hairline.
+   */
   .fve-root,
   .fve-root *,
   .fve-root *::before,
-  .fve-root *::after {
+  .fve-root *::after,
+  .fve-tokens,
+  .fve-tokens *,
+  .fve-tokens *::before,
+  .fve-tokens *::after {
     @apply border-border outline-ring/50;
   }
 
+  /* The surface paints its page; the tokens boundary paints nothing. */
   .fve-root {
     @apply bg-background text-foreground;
   }

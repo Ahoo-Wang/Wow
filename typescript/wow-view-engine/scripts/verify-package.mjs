@@ -21,8 +21,9 @@
 //    use the kernels and the runtime.
 // 3. No JavaScript entry pulls in the stylesheet, so importing the package
 //    never puts CSS in a host page that did not ask for it.
-// 4. The stylesheet holds no rule outside `.fve-root` at all, so a host that
-//    does import it keeps its own page and its own variables.
+// 4. The stylesheet holds no rule outside the two style boundaries at all, so
+//    a host that does import it keeps its own page and its own variables, and
+//    every scope it does carry names both of them.
 // 5. The `dark:` utilities and the dark tokens turn on the same roots, so no
 //    host can end up with the utilities of one mode over the other's tokens.
 // 6. Every token defers to a host-level `--fve-*` variable, so a host can
@@ -77,12 +78,24 @@ assert.ok(jsEntries.length >= 3, 'Expected the root, /react and /ui entries');
 const styles = manifest.exports['./styles.css'];
 assert.equal(typeof styles, 'string', './styles.css must be a single target');
 const stylesheet = readFileSync(new URL(styles, packageRoot), 'utf8');
-assert.ok(
-  stylesheet.includes('.fve-root'),
-  'The theme must hang off the .fve-root boundary',
-);
 
-// 4. No rule sits outside the root — custom properties included.
+/**
+ * The two style boundaries, spelled out here rather than imported from
+ * `scripts/scope-utilities.mjs`: this file is what fails when one of them goes
+ * missing, and a check that reads its expectations from the thing it checks
+ * would pass a stylesheet that had quietly lost a boundary. `.fve-root` is the
+ * surface `ViewSurface` renders; `.fve-tokens` is the boundary a host puts on
+ * its own chrome, which carries the tokens and the utilities and nothing of a
+ * surface — no paint, no `data-theme` (D17-10).
+ */
+const BOUNDARIES = ['.fve-root', '.fve-tokens'];
+for (const boundary of BOUNDARIES)
+  assert.ok(
+    stylesheet.includes(boundary),
+    `The theme must hang off the ${boundary} boundary`,
+  );
+
+// 4. No rule sits outside the boundaries — custom properties included.
 //
 // Tailwind's preflight would reset `*`, `html`, headings, lists and buttons on
 // the whole host page, and its utilities are bare classes a host may share;
@@ -95,12 +108,12 @@ assert.ok(
 // defaults on `*` are scoped to the root like everything else. Only
 // `@property` registrations stay global, and they have no selector at all.
 const leaks = styleRules(stylesheet).filter(
-  ({ selector }) => !selector.includes('.fve-root'),
+  ({ selector }) => !BOUNDARIES.some(boundary => selector.includes(boundary)),
 );
 assert.deepEqual(
   leaks.map(({ selector }) => selector),
   [],
-  'The stylesheet has rules outside .fve-root',
+  'The stylesheet has rules outside the style boundaries',
 );
 const globalRoots = styleRules(stylesheet).flatMap(({ selector }) =>
   selectorList(selector).filter(part => part === ':root' || part === ':host'),
@@ -108,7 +121,42 @@ const globalRoots = styleRules(stylesheet).flatMap(({ selector }) =>
 assert.deepEqual(
   globalRoots,
   [],
-  "The stylesheet still carries a :root or :host selector; Tailwind's theme variables must live on .fve-root",
+  "The stylesheet still carries a :root or :host selector; Tailwind's theme variables must live on the boundaries",
+);
+
+// 4b. And every scope it pins a rule to names both boundaries.
+//
+// `scripts/scope-utilities.mjs` gives each rule the same subject —
+// `:where(.fve-root, .fve-root *, .fve-tokens, .fve-tokens *)` — and the dark
+// variant names both in its own way. Lose one of them at either end and a
+// whole boundary silently stops painting: a host's chrome with no utilities,
+// or a surface with no theme. A scope that names one boundary must name the
+// other, whatever else it says.
+const partial = styleRules(stylesheet).filter(({ selector }) =>
+  whereArguments(selector).some(scope => {
+    const parts = selectorList(scope);
+    const named = BOUNDARIES.filter(boundary =>
+      parts.some(part => part.includes(boundary)),
+    );
+    return named.length > 0 && named.length < BOUNDARIES.length;
+  }),
+);
+assert.deepEqual(
+  partial.map(({ selector }) => selector),
+  [],
+  `The stylesheet scopes rules to one boundary and not the other; every scope must name ${BOUNDARIES.join(' and ')}`,
+);
+const fullyScoped = styleRules(stylesheet).filter(({ selector }) =>
+  whereArguments(selector).some(scope => {
+    const parts = selectorList(scope);
+    return BOUNDARIES.every(
+      boundary => parts.includes(boundary) && parts.includes(`${boundary} *`),
+    );
+  }),
+);
+assert.ok(
+  fullyScoped.length > 0,
+  'No rule carries the scope the build pins them to; scope-utilities did not run',
 );
 
 // 5. Light and dark are one decision, spelled the same way twice.
@@ -129,8 +177,8 @@ assert.ok(darkTokens, 'The stylesheet sets no dark tokens');
 const tokenSelectors = selectorList(darkTokens.selector);
 assert.equal(
   tokenSelectors.length,
-  2,
-  'The dark tokens should name a pinned root and one following a .dark host',
+  3,
+  'The dark tokens should name a pinned root, a root following a .dark host, and the tokens boundary under one',
 );
 
 // A compiled utility carries the variant on its subject, as in
@@ -141,15 +189,29 @@ const darkUtility = styleRules(stylesheet).find(({ selector }) =>
   selector.startsWith('.dark\\:'),
 );
 assert.ok(darkUtility, 'The stylesheet compiled no dark: utility to check');
-const variantSelectors = selectorList(whereArgument(darkUtility.selector));
+const variantSelectors = selectorList(whereArguments(darkUtility.selector)[0]);
 assert.deepEqual(
   variantSelectors.map(unquoted).sort(),
   tokenSelectors
-    .flatMap(selector => [selector, `${selector} *`])
+    .flatMap(selector => [selector, `${selector} ${descendants(selector)}`])
     .map(unquoted)
     .sort(),
   'The dark: variant and the dark tokens must name the same roots',
 );
+
+/**
+ * What a dark root hands its `dark:` utilities to: everything inside it —
+ * except, under the tokens boundary, an element a surface answers for. The
+ * two surface entries already cover a surface and its contents, each by its
+ * own mode, so a host's chrome that also claimed them would paint a view
+ * pinned to light with dark utilities. That is the failure nested roots have,
+ * and not having it is why `.fve-tokens` exists (D17-10).
+ */
+function descendants(selector) {
+  return selector.includes('.fve-tokens')
+    ? ':not(.fve-root, .fve-root *)'
+    : '*';
+}
 
 // 6. Every token is an indirection through a host-level variable.
 //
@@ -174,9 +236,15 @@ const SIDEBAR_TOKENS = [
 
 const lightTokens = styleRules(stylesheet).find(
   ({ selector, declarations }) =>
-    selector === '.fve-root' &&
+    !selector.includes('data-theme') &&
+    !selector.includes('.dark ') &&
     declarations.includes('color-scheme') &&
     declarations.includes('--background'),
+);
+assert.deepEqual(
+  lightTokens && selectorList(lightTokens.selector),
+  BOUNDARIES,
+  'The light tokens must be declared on both boundaries, in one block',
 );
 assert.ok(lightTokens, 'The stylesheet sets no light tokens');
 for (const [mode, rule, prefix] of [
@@ -223,27 +291,34 @@ function selectorList(selectors) {
 }
 
 /**
- * The argument of the first `:where()` in a selector, read to the parenthesis
- * that closes it — the argument holds a `:not()` of its own.
+ * The argument of every outermost `:where()` in a selector, each read to the
+ * parenthesis that closes it — an argument holds a `:not()` of its own, and a
+ * scoped `dark:` utility carries two of these one after the other.
  */
-function whereArgument(selector) {
-  const opens = selector.indexOf(':where(');
-  assert.ok(opens >= 0, `${selector} has no :where()`);
-  const from = opens + ':where('.length;
-  let depth = 1;
-  for (let at = from; at < selector.length; at += 1) {
-    if (selector[at] === '(') depth += 1;
-    else if (selector[at] === ')') {
-      depth -= 1;
-      if (depth === 0) return selector.slice(from, at);
+function whereArguments(selector) {
+  const args = [];
+  let at = selector.indexOf(':where(');
+  while (at >= 0) {
+    const from = at + ':where('.length;
+    let depth = 1;
+    let end = from;
+    for (; end < selector.length && depth > 0; end += 1) {
+      if (selector[end] === '(') depth += 1;
+      else if (selector[end] === ')') depth -= 1;
     }
+    assert.equal(depth, 0, `${selector} has an unbalanced :where()`);
+    args.push(selector.slice(from, end - 1));
+    at = selector.indexOf(':where(', end);
   }
-  return assert.fail(`${selector} has an unbalanced :where()`);
+  return args;
 }
 
-/** The minifier drops the quotes in `[data-theme='dark']`; ignore them. */
+/**
+ * The minifier drops the quotes in `[data-theme='dark']` and the space after a
+ * comma inside `:not()`; neither changes what a selector matches.
+ */
 function unquoted(selector) {
-  return selector.replace(/['"]/g, '');
+  return selector.replace(/['"]/g, '').replace(/,\s*/g, ', ');
 }
 
 /**
@@ -341,5 +416,5 @@ for (const { specifier, resolved } of jsEntries) {
 }
 
 console.log(
-  `${targets.size} entries resolve and import, the root entry's types need no DOM lib, ${visited.size} runtime modules import no CSS, the stylesheet holds no rule outside .fve-root and no :root selector at all, its dark: utilities turn on the same ${tokenSelectors.length} roots as its dark tokens, and its ${lightTokens.tokens.length} light and ${darkTokens.tokens.length} dark tokens all defer to --fve-* host variables.`,
+  `${targets.size} entries resolve and import, the root entry's types need no DOM lib, ${visited.size} runtime modules import no CSS, the stylesheet holds no rule outside ${BOUNDARIES.join(' / ')} and no :root selector at all, ${fullyScoped.length} of its rules carry the scope naming both boundaries and none names only one, its dark: utilities turn on the same ${tokenSelectors.length} roots as its dark tokens, and its ${lightTokens.tokens.length} light and ${darkTokens.tokens.length} dark tokens all defer to --fve-* host variables.`,
 );

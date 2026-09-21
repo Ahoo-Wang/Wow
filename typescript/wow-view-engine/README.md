@@ -217,6 +217,33 @@ Popups — menus, lists, popovers, tooltips and dialogs — are portalled to `<b
 }
 ```
 
+#### The host's own chrome: `fve-tokens`
+
+Every rule of the stylesheet is scoped at build time, so `Card`, `Button`, `Separator` and even the layout utilities (`grid`, `gap-4`) paint inside a style boundary and nowhere else. There are two boundaries, and only one of them is a surface:
+
+|                                       | `.fve-root`                                                  | `.fve-tokens`                                                            |
+| ------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| Rendered by                           | `ViewSurface`, and every workbench and `EmbeddedView`        | your own markup                                                          |
+| Tokens, utilities, preflight          | yes                                                          | yes                                                                      |
+| Paints a background and a text colour | yes                                                          | **no** — write `bg-background text-foreground` yourself if you want ours |
+| Light or dark                         | a `.dark` ancestor, or `theme` pinning one with `data-theme` | a `.dark` ancestor, and nothing else                                     |
+| Wording, locale, time zone, tooltips  | yes, through `ViewSurface`'s props                           | no                                                                       |
+
+Put `fve-tokens` on the element that wraps your own chrome, and keep the view inside it as its own surface:
+
+```tsx
+<div className="fve-tokens flex flex-col gap-4">
+  <Card>…your header, built from this package's primitives…</Card>
+  <EmbeddedView engine={engine} instanceId={id} theme="light" />
+</div>
+```
+
+`fve-tokens` reads exactly one thing for the mode: a `.dark` class on an ancestor, the same one the surfaces follow — set it on `<html>`, on your app shell, wherever your application already keeps it. It reads no `data-theme` of its own: pinning a mode is what a surface is for. And it hands every element a surface answers for back to that surface, so the view above stays light inside a dark page, tokens and utilities together.
+
+Preflight applies inside the boundary too: your own headings, lists and buttons in that region are reset the same way they would be inside a view. That is the price of the primitives, and it is why the class goes on the chrome that uses them rather than on the whole page.
+
+**Surfaces do not nest.** A root inside a root is unsupported: CSS has no nearest-ancestor selector, so an inner surface pinned to the opposite mode redeclares its own tokens but still takes the outer root's `dark:` utilities — light tokens under dark utilities, which nothing can render. Reach for `fve-tokens` instead of a second surface.
+
 ### 3b. Or compose your own UI
 
 ```tsx
@@ -297,7 +324,7 @@ Details in [docs/design/management.md](docs/design/management.md).
 | `@ahoo-wang/fetcher-view-engine` | Model types, pure kernels (`validate*` / `compile*` / `project*`), runtime, `ViewStore`, `MemoryViewStore`                                                                                                                                                                                                                                                                            |
 | `/react`                         | `useViewEngine`, `useOpenView`, `useViewRuntime`, `useViewList`, `useViewManager`, `useFilterEditor`, `useRecordTable`, `useAnalysisEditor`, `useDashboard`, `useSaveCommands`, `RecordActionSlots`                                                                                                                                                                                   |
 | `/ui`                            | `RecordWorkbench`, `AnalysisWorkbench`, `DashboardWorkbench`, `ViewHeader`, `SaveActions`, `ViewManager`, `useLeaveGuard`, `EditorBand`, `FilterPanel`, `StatusStrip`, `AppliedBar`, `ResultToolbar`, `RowActions`, `RecordTable`, `RecordCards`, `RecordPagination`, `AnalysisEditor`, `AnalysisChart`, `DashboardGrid`, `MarkdownPanel`, `ImagePanel`, `LinksPanel`, `EmbeddedView` |
-| `/styles.css`                    | The theme. Import it explicitly; no JavaScript entry imports CSS, and nothing in it paints outside `.fve-root` (preflight and utilities are scoped at build time), both checked by `scripts/verify-package.mjs` on every build.                                                                                                                                                       |
+| `/styles.css`                    | The theme. Import it explicitly; no JavaScript entry imports CSS, and nothing in it paints outside the two style boundaries `.fve-root` and `.fve-tokens` (preflight and utilities are scoped at build time), both checked by `scripts/verify-package.mjs` on every build.                                                                                                            |
 
 ## Persistence
 

@@ -15,12 +15,11 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { FilterTree, ViewEngine } from '@ahoo-wang/fetcher-view-engine';
 import {
   EmbeddedView,
-  ViewSurface,
   useViewExpansion,
 } from '@ahoo-wang/fetcher-view-engine/ui';
 // View Engine's own primitives, so the mock host page is composed rather than
-// hand-styled. They only paint inside a `.fve-root`, which is why the page
-// below is a `ViewSurface` of its own — see `HostPage`.
+// hand-styled. They paint inside either of the theme's two style boundaries,
+// and the page below takes the one that is not a surface — see `HostPage`.
 import { Badge } from '@/ui/components/badge';
 import { Button } from '@/ui/components/button';
 import {
@@ -95,16 +94,17 @@ interface HostPageProps {
  * `.fve-root`。面一铺开，这颗按钮就**在面的下面**：`ViewSurface` 于是把自己
  * 那颗 `view-exit` 亮出来，Esc 也还管用。
  *
- * **这张页面为什么自己也是一块 `ViewSurface`**：本包的样式表每一条规则都被
- * `scope-utilities.mjs` 钉在 `:where(.fve-root, .fve-root *)` 里（Storybook
- * 跑的是同一个插件），所以 `Card`、`Button`、`Separator` 这些 vendored 组件
- * **只有在一块 `.fve-root` 里面才画得出来**——连 `grid`、`gap-4` 这样的排版
- * utility 也一样。要用本包的原语搭这张假页面，它就得有自己的根。
+ * **这张页面为什么戴着 `fve-tokens`**：本包的样式表每一条规则都被
+ * `scope-utilities.mjs` 钉在两个边界里（Storybook 跑的是同一个插件），所以
+ * `Card`、`Button`、`Separator` 这些 vendored 组件——连 `grid`、`gap-4` 这样的
+ * 排版 utility——**只有在一个边界里面才画得出来**。宿主要用本包的原语搭自己的
+ * chrome，戴的就是 `fve-tokens`：它只给 token 与 utility 作用域，不是 surface
+ * ——不钉 `data-theme`、也不涂底（底色是这张假页面自己用 `bg-background`
+ * 涂的，真宿主当然用自己的），跟着祖先上的 `.dark` 走（D17-10）。
  *
- * 代价是这里真的套了两层 `.fve-root`（宿主一层、`EmbeddedView` 自己一层），
- * 而 [ui/README.md] 写的是「surfaces do not nest」。两层都不钉 `theme`，跟着
- * 同一份级联走，所以这一屏是对的；但**宿主拿本包的原语画自己的 chrome 再把视
- * 图嵌进去**这条路，眼下只能这么走。`docs/design/todo.md` 里记了一条。
+ * 于是这里没有两层 `.fve-root`：面不嵌套，嵌进去的 `EmbeddedView` 是这一屏上
+ * 唯一的那块根，哪怕它把自己钉成相反的模式也照样成立——`dark:` 工具类在边界
+ * 里把面连同面里的一切原样交还给面自己。
  */
 function HostPage({
   engine,
@@ -118,11 +118,9 @@ function HostPage({
   const toggle = useRef<HTMLButtonElement>(null);
   const expansion = useViewExpansion(surface, toggle);
   return (
-    <ViewSurface
+    <div
       data-host-page
-      messages={HOST_LANGUAGE.messages}
-      locale={HOST_LANGUAGE.locale}
-      className="gap-4 rounded-xl border p-4"
+      className="fve-tokens bg-background text-foreground flex min-h-0 flex-col gap-4 rounded-xl border p-4"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 flex-col gap-0.5">
@@ -209,7 +207,7 @@ function HostPage({
       <p className="text-muted-foreground text-xs">
         数据来自运单中心 · 每 5 分钟同步一次
       </p>
-    </ViewSurface>
+    </div>
   );
 }
 

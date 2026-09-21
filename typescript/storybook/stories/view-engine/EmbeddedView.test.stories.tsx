@@ -46,9 +46,10 @@ const hostToggle = (canvasElement: HTMLElement) =>
 /**
  * The embed's own surface.
  *
- * The mock host page is a `ViewSurface` too — the package's primitives only
- * paint inside a `.fve-root` — so `[data-slot="view-surface"]` alone would
- * answer the host's, which is the one that must stay *behind*.
+ * The mock host page wears `fve-tokens` rather than a second root (D17-10),
+ * so the embed is the only surface on screen — and it is still found by the
+ * class the story put on it, because what must fill the screen is *this*
+ * embed rather than whichever surface happens to come first.
  */
 const surfaceOf = (canvasElement: HTMLElement) =>
   canvasElement.querySelector<HTMLElement>('.host-embed')!;

@@ -45,10 +45,21 @@ export interface ViewSurfaceProps extends React.ComponentProps<'div'> {
  * nothing about the page around it, and an embedded view can pin its own
  * theme while the rest of the application follows the host.
  *
- * Surfaces do not nest: every workbench and `EmbeddedView` renders one root.
- * Nesting a surface pinned to the opposite mode inside another is not
- * supported — the `dark:` utilities follow the outer root, since CSS has no
- * nearest-ancestor selector.
+ * Surfaces do not nest: every workbench and `EmbeddedView` renders one root,
+ * and a root inside a root is unsupported. CSS has no nearest-ancestor
+ * selector, so the inner root's mode reaches only its own tokens — it
+ * redeclares them on itself — while the `dark:` utilities still resolve
+ * against the outer root, and an inner surface pinned to the opposite mode is
+ * served light tokens under dark utilities (`test/styleBoundary.test.tsx`
+ * pins the values).
+ *
+ * A host that wants this package's primitives in its *own* chrome therefore
+ * does not wrap that chrome in a second surface: it puts the `fve-tokens`
+ * class on it (D17-10). That boundary carries the tokens, the utilities and
+ * the preflight, and nothing of a surface — no paint, no `data-theme`, no
+ * pinned mode; it follows a `.dark` ancestor exactly as the surfaces do, and
+ * hands every element a surface answers for back to that surface, so a view
+ * pinned to the other mode inside it stays that mode throughout.
  */
 /**
  * The mode a surface is actually in, for what renders outside it. A popup is

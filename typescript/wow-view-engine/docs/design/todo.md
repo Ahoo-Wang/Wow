@@ -72,19 +72,6 @@
   不放掉冻结；浏览器故事在 420 档量「中间可视宽 ÷ 结果区可视宽」有下
   限，`test/recordTable.test.tsx` 钉住放掉冻结时 `data-pin` 的变化。落点：
   `src/ui/RecordTable.tsx`、`src/record/project.ts`、[ui/record.md](ui/record.md)。
-- **宿主拿本包的原语画自己的 chrome，就得套两层 `.fve-root`**——为什么：
-  `scripts/scope-utilities.mjs` 把样式表每一条规则都钉在
-  `:where(.fve-root, .fve-root *)` 里（`verify-package.mjs` 还守着这一条），所以
-  `Card`／`Button`／`Separator` 乃至 `grid`、`gap-4` 这些排版 utility **只有在一
-  块 `.fve-root` 里面才画得出来**。宿主想用这些原语搭自己的页面、再把
-  `EmbeddedView` 嵌进去，就只能让自己的页面也成为一块 `.fve-root`——
-  `EmbeddedView.stories.tsx` 的假宿主页正是这么写的，于是真的套了两层，而
-  [ui/README.md](ui/README.md) 写的是「surfaces do not nest」。两层都不钉 `theme`
-  时跟着同一份级联走，看上去是对的；一旦内层钉了相反的模式，`dark:` utility 认的
-  是外层那个根，就会错。判据：**D17-10 已定：给出一个不是 surface 的样式边界类 `fve-tokens`**（只挂 token 与
-  utility 作用域、不带 `data-theme`），`.fve-root` 不支持嵌套并在 ui/README.md 明写；`test/popups.test.tsx`
-  或新增的一条套件钉住嵌套时 `useSurfaceTheme` 与 `dark:` 的实际取值。落点：
-  `src/ui/ViewSurface.tsx`、[ui/README.md](ui/README.md)、[decisions.md](decisions.md)。
 
 ## 功能（legacy 形态）
 
