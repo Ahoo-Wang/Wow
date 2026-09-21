@@ -41,16 +41,7 @@ import { ViewSwitcher } from './ViewSwitcher.js';
 import { ResultBlock } from './workbench/ResultBlock.js';
 import { Unopenable } from './workbench/Unopenable.js';
 import { filled, useEditorFold } from './workbench/useEditorFold.js';
-
-/**
- * The width below which the list stops being *beside* the view.
- *
- * It is Tailwind's `md`, written as the number the stylesheet uses, because
- * this is the same threshold the surface changes direction at: above it the
- * shell is a row and the column stands next to the work area; below it the
- * shell is a column and the list is a block on top of the result.
- */
-const NARROW = 768;
+import { useSidebarFold } from './workbench/useSidebarFold.js';
 
 export interface WorkbenchShellProps {
   workbench: WorkbenchController;
@@ -127,11 +118,13 @@ export interface WorkbenchShellProps {
    * it. It is view state and nothing else: never saved, never asked about by
    * the leave guard.
    *
-   * Left out, the shell decides from the room it was actually given: a
-   * column narrower than `md` opens folded, because below that width the
-   * list is not beside the view but stacked on top of it, and 204px of
-   * navigation above the first row is the worst trade a phone can make. A
-   * host that says `true` or `false` is obeyed at every width — it knows
+   * Left out, the shell decides from the room it was actually given and
+   * keeps deciding as that room changes (`useSidebarFold`): a column
+   * narrower than `md` folds, because below that width the list is not
+   * beside the view but stacked on top of it, and 204px of navigation above
+   * the first row is the worst trade a phone can make. Once the user has
+   * pressed the fold themselves, their answer stands. A host that says
+   * `true` or `false` is obeyed at every width and never measured — it knows
    * something about its page that a measurement does not.
    */
   defaultSidebarOpen?: boolean;
@@ -243,12 +236,6 @@ export function WorkbenchShell({
   // any reason to exist.
   const describesResult = hasResult ?? state?.result != null;
 
-  // The fold as the *page* has it — the one a host sets and is told about.
-  // What is actually on screen is derived from it below, because a screen
-  // filled by the view has a fold of its own.
-  const [pageSidebarOpen, setPageSidebarOpen] = useState(
-    defaultSidebarOpen ?? true,
-  );
   // One dialog behind two ways in — the sidebar's gear and the switcher's
   // last item — so the state is here rather than inside either of them.
   const [managing, setManaging] = useState(false);
@@ -318,7 +305,16 @@ export function WorkbenchShell({
   // fill's answer has to be let go.
   const expanded = expansion.expanded;
   const [inFill, setInFill] = useState(false);
-  const sidebarOpen = expanded ? inFill : pageSidebarOpen;
+  // The fold as the *page* has it — the one a host sets and is told about,
+  // and the one the surface's own width answers for until a press settles
+  // it. What is actually on screen is derived from it, because a screen
+  // filled by the view has a fold of its own.
+  const page = useSidebarFold(
+    surfaceRef,
+    defaultSidebarOpen,
+    onSidebarOpenChange,
+  );
+  const sidebarOpen = expanded ? inFill : page.open;
   const fill = {
     expanded,
     toggle: () => {
@@ -334,11 +330,11 @@ export function WorkbenchShell({
   // value answers the question actually being asked: did this change?
   const shown = useRef(sidebarOpen);
   // And *why* it changed. The fold now moves for three reasons — a button,
-  // a measurement on arrival, the screen being filled — and only the first
+  // the room the surface has, the screen being filled — and only the first
   // is a press. Focus follows a press because the press took its own button
   // off the screen; it must not follow the other two, which would take the
-  // keyboard out of whatever the user was doing, on arrival or on the way
-  // into a filled screen.
+  // keyboard out of whatever the user was doing — on arrival, on the way
+  // into a filled screen, or in the middle of dragging a window.
   const pressed = useRef(false);
   useLayoutEffect(() => {
     if (shown.current === sidebarOpen) return;
@@ -352,29 +348,6 @@ export function WorkbenchShell({
     // document would be reaching past both of them.
     (sidebarOpen ? collapseRef : expandRef).current?.focus();
   }, [sidebarOpen]);
-
-  // The room this workbench was actually given, measured once on arrival.
-  //
-  // Below `md` the list is not beside the view but stacked over it, so a
-  // column that narrow opens folded. It is the *surface's* width that
-  // answers, not the viewport's: a 360px panel on a wide page is the same
-  // phone-shaped column, which is the lesson `ViewHeader` already learned
-  // when its viewport `sm:` showed a full definition title beside a view
-  // name truncated to one character.
-  //
-  // A width of 0 is jsdom, a detached tree, or a host that has not laid this
-  // out yet, all saying nothing at all — and nothing is not a reason to
-  // fold. A host that passed the boolean is obeyed at every width: it knows
-  // something about its page that a measurement does not.
-  const measured = useRef(false);
-  useLayoutEffect(() => {
-    if (measured.current || defaultSidebarOpen !== undefined) return;
-    measured.current = true;
-    const width = surfaceRef.current?.getBoundingClientRect().width ?? 0;
-    if (width === 0 || width >= NARROW) return;
-    setPageSidebarOpen(false);
-    onSidebarOpenChange?.(false);
-  }, [defaultSidebarOpen, onSidebarOpenChange]);
 
   // Spent on the opening the copy produced: the id is in the dependencies
   // because it is what changes when the new view finally opens, and the
@@ -390,10 +363,14 @@ export function WorkbenchShell({
     pressed.current = true;
     // While the screen is filled the answer is the fill's, and it lasts as
     // long as the fill does: a user who wants the list back inside one gets
-    // it, and the next fill still starts without it.
-    if (expanded) setInFill(next);
-    else setPageSidebarOpen(next);
-    onSidebarOpenChange?.(next);
+    // it, and the next fill still starts without it. That press says nothing
+    // about the page's own fold, so it does not end the measurement either —
+    // which is why the two folds report to the host separately, each about
+    // the answer it holds.
+    if (expanded) {
+      setInFill(next);
+      onSidebarOpenChange?.(next);
+    } else page.set(next);
   };
 
   const folded = editorLabel !== undefined && editor != null;

@@ -349,6 +349,20 @@ describe('the sidebar as a host sets it', () => {
   });
 });
 
+/** A `ResizeObserver` that reports what it was given and fires on demand. */
+class ResizeSpy {
+  readonly observed: Element[] = [];
+  constructor(private readonly callback: ResizeObserverCallback) {}
+  observe(node: Element): void {
+    this.observed.push(node);
+  }
+  unobserve(): void {}
+  disconnect(): void {}
+  resize(): void {
+    this.callback([], this as unknown as ResizeObserver);
+  }
+}
+
 /**
  * What the shell decides for itself when the host says nothing.
  *
@@ -370,6 +384,33 @@ describe('the sidebar the shell decides', () => {
     vi
       .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
       .mockReturnValue({ width } as DOMRect);
+
+  /**
+   * The surface's own observer, and the handle that fires it.
+   *
+   * Every stub that was ever constructed is kept, because the shell rebuilds
+   * its observer on each render — the one that matters is the last one still
+   * watching the surface.
+   */
+  function watchingSurface(): () => void {
+    const spies: ResizeSpy[] = [];
+    vi.stubGlobal(
+      'ResizeObserver',
+      class extends ResizeSpy {
+        constructor(callback: ResizeObserverCallback) {
+          super(callback);
+          spies.push(this);
+        }
+      },
+    );
+    return () => {
+      const surface = block('view-surface')!;
+      const watching = spies.filter(spy => spy.observed.includes(surface));
+      act(() => watching[watching.length - 1]!.resize());
+    };
+  }
+
+  afterEach(() => vi.unstubAllGlobals());
 
   it('opens folded in a column narrower than md', async () => {
     laidOutAt(375);
@@ -421,5 +462,61 @@ describe('the sidebar the shell decides', () => {
     // A notification and not a decision: the host asked to be told whenever
     // this changes, and this is a change.
     expect(changed).toHaveBeenCalledExactlyOnceWith(false);
+  });
+
+  it('follows the width both ways, not only on arrival', async () => {
+    const rect = laidOutAt(1280);
+    const resize = watchingSurface();
+    const changed = vi.fn();
+    await open({ onSidebarOpenChange: changed });
+    expect(block('view-sidebar')).not.toBeNull();
+
+    // A window dragged narrow is the same phone-shaped column as one that
+    // opened narrow: the list was beside the view and now would be stacked
+    // on top of it, eating 235px above the first row.
+    rect.mockReturnValue({ width: 608 } as DOMRect);
+    resize();
+    expect(block('view-sidebar')).toBeNull();
+
+    // And back, because the room it was folded for is there again.
+    rect.mockReturnValue({ width: 1280 } as DOMRect);
+    resize();
+    expect(block('view-sidebar')).not.toBeNull();
+
+    rect.mockReturnValue({ width: 608 } as DOMRect);
+    resize();
+    expect(block('view-sidebar')).toBeNull();
+
+    // The host mirroring the fold hears every one of those, and nothing in
+    // between: a change is reported once, when it happens.
+    expect(changed.mock.calls).toEqual([[false], [true], [false]]);
+    // Nothing was pressed, so the keyboard stayed where the user left it.
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it('leaves the fold alone once the user has pressed it', async () => {
+    const rect = laidOutAt(1280);
+    const resize = watchingSurface();
+    const user = await open();
+
+    await user.click(screen.getByRole('button', { name: COLLAPSE }));
+    expect(block('view-sidebar')).toBeNull();
+
+    // Narrow and wide again. The measurement agreed with the press on the
+    // way down and would disagree on the way back up — and it is the press
+    // that stands: undoing what the user explicitly asked for, under their
+    // hands, on every drag of the window, is worse than a list that is
+    // folded in a column with room for it.
+    rect.mockReturnValue({ width: 608 } as DOMRect);
+    resize();
+    rect.mockReturnValue({ width: 1280 } as DOMRect);
+    resize();
+    expect(block('view-sidebar')).toBeNull();
+
+    // The same the other way: a list called back in a narrow column stays.
+    await user.click(screen.getByRole('button', { name: EXPAND }));
+    rect.mockReturnValue({ width: 608 } as DOMRect);
+    resize();
+    expect(block('view-sidebar')).not.toBeNull();
   });
 });

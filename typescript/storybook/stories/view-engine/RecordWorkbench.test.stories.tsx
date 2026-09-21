@@ -2297,6 +2297,65 @@ export const TheListFoldsItselfAwayWhereItCannotFit: Story = {
 };
 
 /**
+ * The same rule after arrival: the fold follows the column it is given, in
+ * both directions, and stops following once the user has answered for
+ * themselves.
+ *
+ * jsdom lays nothing out, so the unit test drives a fake observer over a
+ * faked width; this is the one place a real `ResizeObserver` on a real box
+ * is weighed. The width is the host's, as a host's is — a split pane dragged
+ * narrower, a panel opened beside the page, a window resized — and the
+ * workbench is told nothing but the box it ends up in.
+ */
+export const TheListFollowsTheColumnItIsGiven: Story = {
+  ...DisplayNarrowTitleBar,
+  // Wide enough to open with the list beside the view; the play is what
+  // takes the room away and gives it back.
+  args: { ...DisplayNarrowTitleBar.args, narrowWidth: 1000 },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    const sidebar = () =>
+      canvasElement.querySelector('[data-slot="view-sidebar"]');
+    const host =
+      canvasElement.querySelector<HTMLElement>('[data-narrow-host]')!;
+    const resizeTo = async (width: number) => {
+      host.style.width = `${width}px`;
+      await expect(host.getBoundingClientRect().width).toBe(width);
+      // A `ResizeObserver` reports on the frame after the box changed, so
+      // the answer is never the one on screen at this instant.
+      await new Promise(settle => setTimeout(settle, 200));
+    };
+
+    await expect(host.getBoundingClientRect().width).toBe(1000);
+    await expect(sidebar()).not.toBeNull();
+
+    // Dragged below `md`: the list would no longer be *beside* the view but
+    // stacked over it, which is the whole reason a narrow column folds.
+    await resizeTo(608);
+    await expect(sidebar()).toBeNull();
+
+    // And back, because the room it was folded for is there again.
+    await resizeTo(1000);
+    await expect(sidebar()).not.toBeNull();
+
+    // Then the user answers, and the measurement stops answering: folded by
+    // hand in a column with room to spare, it stays folded through a trip
+    // down to 608 and back. Undoing that under their hands, once per drag,
+    // is worse than a list folded where it would have fitted.
+    await userEvent.click(
+      canvas.getByRole('button', {
+        name: zhCN['label.workbench.collapse-sidebar'],
+      }),
+    );
+    await expect(sidebar()).toBeNull();
+    await resizeTo(608);
+    await resizeTo(1000);
+    await expect(sidebar()).toBeNull();
+  },
+};
+
+/**
  * Filling the screen gives the rows the room, and the list is the first
  * thing that is not the rows.
  */
@@ -4535,7 +4594,11 @@ export const NarrowColumnHoldsTheWidth: Story = {
  */
 export const ToolbarWrapsAsGroups: Story = {
   ...DisplayNarrowTitleBar,
-  args: { ...DisplayNarrowTitleBar.args, withActions: true },
+  // The list is folded by the host, not by the shell's own measurement: the
+  // widths below are the *toolbar's* subject, and a shell that follows the
+  // column would put a 224px list back at 768 and take it away again a
+  // frame later, so every number here would be measuring the sidebar.
+  args: { ...DisplayNarrowTitleBar.args, withActions: true, collapsed: true },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByRole('table');
