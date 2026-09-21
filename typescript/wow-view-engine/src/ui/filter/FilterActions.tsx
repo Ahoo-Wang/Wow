@@ -15,6 +15,8 @@ import { FilterIcon, Undo2Icon } from 'lucide-react';
 import type { FilterEditorController } from '../../react/index.js';
 import { Button } from '../components/button.js';
 import { useViewMessages } from '../MessagesProvider.js';
+import { TEXT_UI } from '../layout.js';
+import { cn } from 'cn';
 
 /**
  * The ways an edit can end, and the count that stands in the way of one.
@@ -44,7 +46,7 @@ export function FilterActions({
       {filter.blocked > 0 && (
         // Apply is refused and the pills say where; this says how many,
         // beside the button that will not move until they are gone.
-        <span className="text-destructive text-xs">
+        <span className={cn('text-destructive', TEXT_UI)}>
           {messages.label('label.filter.blocked', {
             count: filter.blocked,
           })}

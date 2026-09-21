@@ -19,7 +19,7 @@ import { Badge } from './components/badge.js';
 import { summaryText } from './display.js';
 import { IconTooltip } from './IconButton.js';
 import { useViewMessages } from './MessagesProvider.js';
-import { FOCUS_RING } from './layout.js';
+import { FOCUS_RING, TEXT_UI } from './layout.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 
 export interface AppliedBarProps {
@@ -77,7 +77,7 @@ export function AppliedBar({
       data-slot="applied-bar"
       role="region"
       aria-label={messages.label('label.applied.title')}
-      className={cn('flex flex-wrap items-center gap-1 text-xs', className)}
+      className={cn('flex flex-wrap items-center gap-1', TEXT_UI, className)}
     >
       <span className="text-muted-foreground shrink-0">
         {messages.label('label.applied.title')}

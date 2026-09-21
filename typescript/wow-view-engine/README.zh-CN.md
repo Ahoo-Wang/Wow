@@ -199,10 +199,11 @@ export function OrdersPage() {
 | `chart-4`                   | 图表第 4 槽，黄            | `#eda100`                       | `#c98500`                       |
 | `chart-5`                   | 图表第 5 槽，品红          | `#e87ba4`                       | `#d55181`                       |
 | `radius`                    | 圆角基准，其余档位由它换算 | `0.625rem`                      | —                               |
+| `text-ui`                   | 正文之下唯一的那一档字号   | `0.8125rem`                     | —                               |
 
 五个 `sidebar*` 用的是 shadcn 自己的命名，指的是工作台放视图列表的那条导航列——已经在给 shadcn 侧栏配主题的宿主，用同一组词就能配这一条。只声明这条列真正画到的那五个。列里当前打开的那一项是 `background` 叠在 `sidebar` 上，悬停是 `sidebar-accent`，三者因此必须互相分得开：其中两个解析成同一档灰，这份列表就没有「你在这里」了。
 
-`radius` 是暗色块唯一不重新声明的 token，因此 `--fve-radius` 对明暗两态同时生效，也就没有 `--fve-dark-radius`。
+`radius` 与 `text-ui` 是暗色块不重新声明的两个 token——长度在明暗两态里是同一个长度——因此 `--fve-radius` 与 `--fve-text-ui` 对两态同时生效，也就没有对应的 `--fve-dark-` 那一半。`text-ui` 是正文之下唯一的那一档：分组标签、列头、徽章、分页与所有 `sm` 控件都用它，宿主改一处，这些一起动。
 
 根默认涂 `--background`，因此嵌入在宿主卡片里的视图会露出自己的底色矩形；若想让宿主自己的底色透出来，把 `--fve-background` 设为 `transparent`（钉住暗色的视图再设 `--fve-dark-background`），根就不再在组件后面涂任何底色，而组件仍保留各自的卡片、弹层与输入框底色。
 

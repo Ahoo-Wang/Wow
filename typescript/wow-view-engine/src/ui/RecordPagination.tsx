@@ -24,6 +24,8 @@ import {
 } from './components/select.js';
 import { SelectContent } from './popups.js';
 import { useViewMessages } from './MessagesProvider.js';
+import { TEXT_UI } from './layout.js';
+import { cn } from 'cn';
 
 export interface RecordPaginationProps {
   table: RecordTableController;
@@ -120,7 +122,10 @@ export function RecordPagination({ table }: RecordPaginationProps) {
       // Chinese "共 4 条记录" broke mid-word. The sentence keeps itself
       // whole, the controls take the line below it, and `ml-auto` keeps
       // them at the end of whichever line they land on.
-      className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-2 text-xs"
+      className={cn(
+        'text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-2',
+        TEXT_UI,
+      )}
     >
       <span className="whitespace-nowrap">{count}</span>
 

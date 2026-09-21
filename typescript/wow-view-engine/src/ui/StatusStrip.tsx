@@ -22,6 +22,7 @@ import {
   CollapsibleTrigger,
 } from './components/collapsible.js';
 import { useViewMessages } from './MessagesProvider.js';
+import { TEXT_UI } from './layout.js';
 
 /** How loud the strip is, which decides its colour and how it is announced. */
 export type StatusTone = 'warning' | 'error' | 'info';
@@ -115,7 +116,7 @@ export function StatusStrip({
       </div>
       {lines.length > 0 && (
         <CollapsibleContent>
-          <ul className="mt-1 list-disc pl-6 text-xs">
+          <ul className={cn('mt-1 list-disc pl-6', TEXT_UI)}>
             {lines.map((line, index) => (
               // Two findings can read the same after `dedupeIssues` has had
               // its say — a caller may not have used it — so the index is the

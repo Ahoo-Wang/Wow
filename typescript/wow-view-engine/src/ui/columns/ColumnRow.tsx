@@ -28,6 +28,8 @@ import {
 import { SelectContent } from '../popups.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { ACTIONS_COLUMN, type ColumnSettingRow } from './rows.js';
+import { TEXT_UI } from '../layout.js';
+import { cn } from 'cn';
 
 /** The value the summary select carries for "summarise nothing". */
 const NO_SUMMARY = 'none';
@@ -278,7 +280,7 @@ export function ColumnRow({
           data-note={note}
           className={
             NOTES[note].shown
-              ? 'flex items-start gap-1 pl-8 text-xs text-muted-foreground'
+              ? cn('text-muted-foreground flex items-start gap-1 pl-8', TEXT_UI)
               : 'sr-only'
           }
         >

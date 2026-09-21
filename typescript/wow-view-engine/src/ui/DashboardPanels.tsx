@@ -18,6 +18,8 @@ import { ExternalLinkIcon, ImageOffIcon } from 'lucide-react';
 import type { DashboardContentPanel } from '../model/index.js';
 import { isSafeContentUrl } from '../dashboard/index.js';
 import { useViewMessages } from './MessagesProvider.js';
+import { TEXT_UI } from './layout.js';
+import { cn } from 'cn';
 
 export interface ContentPanelProps {
   panel: DashboardContentPanel;
@@ -120,7 +122,10 @@ export function ImagePanel({
     return (
       <div
         data-slot="image-panel-placeholder"
-        className="text-muted-foreground flex h-full flex-col items-center justify-center gap-2 text-xs"
+        className={cn(
+          'text-muted-foreground flex h-full flex-col items-center justify-center gap-2',
+          TEXT_UI,
+        )}
       >
         <ImageOffIcon className="size-6" aria-hidden />
         <span>{alt ?? messages.label('label.image.failed')}</span>
@@ -176,7 +181,9 @@ export function LinksPanel({ items }: LinksPanelProps) {
             <span className="text-muted-foreground text-sm">{item.label}</span>
           )}
           {item.description && (
-            <p className="text-muted-foreground text-xs">{item.description}</p>
+            <p className={cn('text-muted-foreground', TEXT_UI)}>
+              {item.description}
+            </p>
           )}
         </li>
       ))}

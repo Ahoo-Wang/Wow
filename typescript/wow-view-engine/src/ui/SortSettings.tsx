@@ -56,6 +56,8 @@ import {
 } from './sort/drag.js';
 import type { MessageKey } from './messages.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
+import { TEXT_UI } from './layout.js';
+import { cn } from 'cn';
 
 /**
  * Wording per direction. A stored config is untrusted data — `validateShape`
@@ -361,7 +363,7 @@ function SortEntry({
       >
         <GripVerticalIcon />
       </IconButton>
-      <span className="text-muted-foreground w-4 text-center text-xs">
+      <span className={cn('text-muted-foreground w-4 text-center', TEXT_UI)}>
         {index + 1}
       </span>
       <span className="flex-1 truncate">{label}</span>

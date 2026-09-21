@@ -12,6 +12,28 @@
  */
 
 /**
+ * The one size under the body text: 13px, from `--text-ui` in `styles.css`.
+ *
+ * There used to be two of them within 0.8px of each other — `text-xs` (12)
+ * on the group labels, column headers, badges, pagination and the toolbar's
+ * hint, and the registry's `sm` control size (`text-[0.8rem]`, 12.8) on the
+ * sidebar's view items and every small button. Two sizes that close are not
+ * a rank, they are one size drawn twice; and 12.8px lands off the pixel
+ * grid, which is why 中文 at that size looked blurry. Both became this, so
+ * the surface has three rungs — 13 / 14 (`text-sm`) / 16 — and the step
+ * between two of them is visible.
+ *
+ * The line height comes with it: the class replaced (`text-xs`) carried one,
+ * and a font size on its own would have left each label with whatever its
+ * parent happened to say.
+ *
+ * `text-xs` stays where the text is genuinely a rank below this one — the
+ * labels drawn *inside* a chart, where density is the point, and the
+ * `AND`/`OR` code a menu item wears in front of the sentence it stands for.
+ */
+export const TEXT_UI = 'text-[length:var(--text-ui)] leading-[1.125rem]';
+
+/**
  * The four distances this package puts between things, and the one surface
  * it draws them on.
  *

@@ -201,10 +201,11 @@ Every token reads a host-level variable with the built-in value as its fallback:
 | `chart-4`                   | Chart slot 4, yellow                 | `#eda100`                       | `#c98500`                       |
 | `chart-5`                   | Chart slot 5, magenta                | `#e87ba4`                       | `#d55181`                       |
 | `radius`                    | Corner radius, the rest scale off it | `0.625rem`                      | —                               |
+| `text-ui`                   | The one size under the body text     | `0.8125rem`                     | —                               |
 
 The five `sidebar*` tokens are shadcn's own names for the navigation column the workbench puts its view list in, so a host that already themes a shadcn sidebar themes this one with the same words. Only the five the column paints with are declared. The open view in that column is `background` on top of `sidebar`, and `sidebar-accent` is the hover, so the three have to stay apart from one another: a set where two of them resolve to the same grey is a list with no "you are here".
 
-`radius` is the one token the dark block does not redeclare, so `--fve-radius` sets it in both modes and there is no `--fve-dark-radius`.
+`radius` and `text-ui` are the two tokens the dark block does not redeclare — a length is a length in either mode — so `--fve-radius` and `--fve-text-ui` set them for both and there is no `--fve-dark-` half. `text-ui` is the one step under the body size: the group labels, column headers, badges, pagination and every `sm` control are set in it, so a host that scales it moves them together.
 
 The root paints `--background`, so an embedded view shows its own rectangle inside a host card; to let the host's own surface show through instead, set `--fve-background: transparent` (and `--fve-dark-background` for a surface pinned to dark), and the root then paints nothing behind the components, which keep their own card, popover and input colours.
 

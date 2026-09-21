@@ -1056,13 +1056,7 @@ describe('FilterPanel tree editing', () => {
 
       // Nesting left the field list when that list became a set of ticks: a
       // list of fields has no room for an entry that is not a field.
-      // The panel's own row and the root block each carry one; either does.
-      await waitFor(() =>
-        expect(
-          screen.getAllByRole('button', { name: 'Add a group' }).length,
-        ).toBeGreaterThan(0),
-      );
-      const nest = screen.getAllByRole('button', { name: 'Add a group' })[0];
+      const nest = await screen.findByRole('button', { name: 'Add a group' });
       const picker = await openPicker('Add in this group');
       expect(within(picker).queryByText('Group')).toBeNull();
       fireEvent.keyDown(picker, { key: 'Escape' });
@@ -1084,6 +1078,56 @@ describe('FilterPanel tree editing', () => {
           { op: 'or', children: [] },
         ]),
       );
+    });
+
+    it('gives the root group one way in, not two', async () => {
+      const harness = panel(false, ordersDefinition());
+      act(() => harness.filter().setMode('advanced'));
+
+      // The root is a group block in advanced mode, and a group block
+      // carries its own "Add in this group / Add a group". The panel's own
+      // pair below it did the same two things a second time, so one screen
+      // held four entries into one group.
+      const root = screen.getByRole('region', { name: 'Filter' });
+      await waitFor(() =>
+        expect(
+          within(root).getAllByRole('button', { name: /^Add/ }),
+        ).toHaveLength(2),
+      );
+      expect(
+        within(root).getByRole('button', { name: 'Add in this group' }),
+      ).toBeDefined();
+      expect(
+        within(root).getByRole('button', { name: 'Add a group' }),
+      ).toBeDefined();
+      // And the way out keeps its own place on the right of the row under
+      // the tree (D12 Ⅱ), which is now all that row carries.
+      const actions = document.querySelector(
+        '[data-slot="filter-actions"]',
+      ) as HTMLElement;
+      expect(
+        within(actions).queryByRole('button', { name: /^Add/ }),
+      ).toBeNull();
+      expect(
+        within(actions).getByRole('button', { name: /Apply/ }),
+      ).toBeDefined();
+    });
+
+    it('keeps the single way in where the panel is the only way in', () => {
+      panel();
+
+      // Simple mode has no group block to carry one, so the row under the
+      // conditions keeps the field picker it has always had — and only it,
+      // since a group it cannot draw is a group it must not offer.
+      const actions = document.querySelector(
+        '[data-slot="filter-actions"]',
+      ) as HTMLElement;
+      expect(
+        within(actions).getAllByRole('button', { name: /^Add/ }),
+      ).toHaveLength(1);
+      expect(
+        within(actions).getByRole('button', { name: 'Add' }),
+      ).toBeDefined();
     });
 
     it('offers no way to nest a group where groups are not shown', () => {

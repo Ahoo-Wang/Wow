@@ -1844,6 +1844,67 @@ function listItem(canvasElement: HTMLElement, title: string): HTMLElement {
   return found;
 }
 
+/** What one element's text is actually set in, as the browser resolved it. */
+const sizeOf = (node: Element) => getComputedStyle(node).fontSize;
+
+/**
+ * Three rungs of type, not four.
+ *
+ * One screen used to carry 12, 12.8, 14 and 16px. The middle pair is the
+ * problem: 0.8px is not a rank, so a sidebar view item (12.8, the registry's
+ * `sm` control size) and the group label right above it (12, `text-xs`) read
+ * as one size drawn badly rather than as two; and 12.8px lands off the pixel
+ * grid, which is what made 中文 at that size look blurry. Both are now the
+ * one step under the body size — `--text-ui`, 13px — so the scale is
+ * 13 / 14 / 16 and every gap in it is one the eye can name.
+ *
+ * Measured rather than asserted in a class name, because the whole point is
+ * what the cascade resolves: the sidebar item takes its size from a vendored
+ * `Button`, which the theme reaches through the utility it names.
+ */
+export const TypeScaleIsThreeRungs: Story = {
+  ...DisplayWithData,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+
+    // The pair that was 0.8px apart, now one rung.
+    const item = listItem(canvasElement, '待出库订单');
+    const heading = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="view-group-heading"]',
+    )!;
+    await expect(sizeOf(item)).toBe('13px');
+    await expect(sizeOf(heading)).toBe('13px');
+
+    // And everything else on that rung: the column headers, the enum
+    // badges in the cells, the pagination line.
+    const head = table.querySelector<HTMLElement>('thead th')!;
+    const badge = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="badge"]',
+    )!;
+    const pagination = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="record-pagination"]',
+    )!;
+    for (const node of [head, badge, pagination])
+      await expect(sizeOf(node)).toBe('13px');
+
+    // The two rungs above it, so what is asserted is a scale and not one
+    // number: the rows are the body size, the definition's name is the h1.
+    const cell = table.querySelector<HTMLElement>('tbody td')!;
+    const title = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="view-list-title"]',
+    )!;
+    await expect(sizeOf(cell)).toBe('14px');
+    await expect(sizeOf(title)).toBe('16px');
+
+    // Nothing anywhere on the screen is still set in the step that went.
+    const stray = [...canvasElement.querySelectorAll('*')].filter(
+      node => sizeOf(node) === '12.8px',
+    );
+    await expect(stray).toHaveLength(0);
+  },
+};
+
 /**
  * The sidebar is a navigation column, and the three states on it are three
  * colours.

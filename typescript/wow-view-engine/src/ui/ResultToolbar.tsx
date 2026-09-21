@@ -32,9 +32,10 @@ import { TooltipContent } from './popups.js';
 import { ColumnSettings } from './ColumnSettings.js';
 import { ExportDialog, type ExportOffer } from './ExportDialog.js';
 import { SortSettings } from './SortSettings.js';
-import { SEGMENTED, SPACE } from './layout.js';
+import { SEGMENTED, SPACE, TEXT_UI } from './layout.js';
 import type { MessageKey } from './messages.js';
 import { useViewMessages } from './MessagesProvider.js';
+import { cn } from 'cn';
 
 export interface ResultToolbarProps {
   table: RecordTableController;
@@ -157,7 +158,7 @@ export function ResultToolbar({
       {!selected && bulkActions && (
         <span
           data-slot="toolbar-hint"
-          className="text-muted-foreground text-xs"
+          className={cn('text-muted-foreground', TEXT_UI)}
         >
           {messages.label('label.toolbar.hint')}
         </span>

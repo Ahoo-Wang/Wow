@@ -36,7 +36,7 @@ import {
 } from './components/empty.js';
 import { IconButton } from './IconButton.js';
 import { KIND_ICON } from './kinds.js';
-import { SPACE } from './layout.js';
+import { SPACE, TEXT_UI } from './layout.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { Skeleton } from './components/skeleton.js';
 import { Tooltip, TooltipTrigger } from './components/tooltip.js';
@@ -292,7 +292,7 @@ function ViewGroup({
       <h2
         id={labelId}
         data-slot="view-group-heading"
-        className="text-sidebar-foreground/70 px-1.5 text-xs font-medium"
+        className={cn('text-sidebar-foreground/70 px-1.5 font-medium', TEXT_UI)}
       >
         {messages.label(`label.scope.group.${audience}`)}
       </h2>
@@ -368,7 +368,10 @@ function ViewListItem({
             render={
               <span
                 data-slot="view-system-tag"
-                className="text-sidebar-foreground/70 shrink-0 text-xs font-normal"
+                className={cn(
+                  'text-sidebar-foreground/70 shrink-0 font-normal',
+                  TEXT_UI,
+                )}
               >
                 {messages.label('label.scope.tag.system')}
               </span>

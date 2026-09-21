@@ -38,6 +38,8 @@ import {
   ViewManagerOutcome,
   ViewManagerRow,
 } from './ViewManagerRow.js';
+import { TEXT_UI } from './layout.js';
+import { cn } from 'cn';
 
 export interface ViewManagerProps {
   manager: ViewManagerController;
@@ -147,7 +149,7 @@ export function ViewManager({
           data-audience={group.audience}
           className="flex flex-col gap-1"
         >
-          <span className="text-muted-foreground px-1 text-xs">
+          <span className={cn('text-muted-foreground px-1', TEXT_UI)}>
             {messages.label(`label.scope.group.${group.audience}`)}
           </span>
           {group.items.map((item, index) => {

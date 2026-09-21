@@ -187,6 +187,48 @@
   --chart-4: var(--fve-chart-4, #eda100);
   --chart-5: var(--fve-chart-5, #e87ba4);
   --radius: var(--fve-radius, 0.625rem);
+
+  /*
+   * The one step under the body size — 13px, and there is only one of it.
+   *
+   * The surface used to hold four sizes at once: 16 (headings), 14
+   * (`text-sm`, the body), 12.8 (`text-[0.8rem]`, which is what the
+   * registry's `sm` control size is — the sidebar's view items, every small
+   * button) and 12 (`text-xs`, the group labels, the column headers, the
+   * badges). The last two are 0.8px apart: too close to read as a rank, so
+   * a sidebar item and the group label above it looked like one size drawn
+   * badly rather than two; and 12.8px is off the pixel grid, which is what
+   * made 中文 at that size render blurry. One step of 13px replaces both, and
+   * the scale is three rungs — 13 / 14 / 16 — each a step the eye can name.
+   *
+   * It is a length rather than a colour, so the dark block does not
+   * redeclare it, exactly as `radius` does not. `ui/layout.ts` exports
+   * `TEXT_UI`, the class our own labels wear; the rule below is for the
+   * vendored controls, which cannot be asked at the call site.
+   */
+  --text-ui: var(--fve-text-ui, 0.8125rem);
+}
+
+/*
+ * The two small sizes the registry draws itself, pinned to that step.
+ *
+ * `ui/components/**` is upstream's and is never edited here: its `sm`
+ * variants carry a literal `text-[0.8rem]` (`Button` — which is what the
+ * sidebar's view items are — `Toggle`, and the calendar's weekday row), and
+ * `Badge` carries `text-xs`. Both are worn by dozens of call sites that
+ * pass no class of their own, so the theme says it once here instead.
+ * `.fve-root` prefixes the selector, so `scripts/scope-utilities.mjs`
+ * leaves it alone and the extra class is what outranks Tailwind's own
+ * single-class utility.
+ *
+ * What upstream draws smaller *inside* something — a menu's or a select's
+ * group label, a shortcut hint, the chart container's tick text — keeps its
+ * 12px: it is a rank below the chrome around it, and it is never read
+ * beside one of these.
+ */
+.fve-root .text-\[0\.8rem\],
+.fve-root [data-slot='badge'] {
+  font-size: var(--text-ui);
 }
 
 .dark .fve-root:not([data-theme='light']),

@@ -151,26 +151,38 @@ export function FilterPanel({
       )}
 
       {/* The way in and the way out, under what they act on: a field to add
-          on the left, and on the right the pair that ends an edit. */}
-      <div
-        data-slot="filter-actions"
-        className="flex flex-wrap items-center gap-2"
-      >
-        <AddEntry
-          filter={filter}
-          parent={[]}
-          disabled={disabled}
-          groups={advanced}
-        />
+          on the left, and on the right the pair that ends an edit (D12 Ⅱ).
 
-        {submit && (
-          <FilterActions
-            filter={filter}
-            disabled={disabled}
-            overBudget={overBudget}
-          />
-        )}
-      </div>
+          The field on the left is simple mode's. Advanced mode draws the
+          root as a group block, and a group block already carries its own
+          way in — so a second pair here made four entries for one group
+          ("Add in this group / Add a group / Add / Add a group"), two of
+          which did exactly what the other two did. One group, one set: the
+          root's lives in the root's frame, directly above this row, and
+          what is left here is the way out. */}
+      {(!advanced || submit) && (
+        <div
+          data-slot="filter-actions"
+          className="flex flex-wrap items-center gap-2"
+        >
+          {!advanced && (
+            <AddEntry
+              filter={filter}
+              parent={[]}
+              disabled={disabled}
+              groups={false}
+            />
+          )}
+
+          {submit && (
+            <FilterActions
+              filter={filter}
+              disabled={disabled}
+              overBudget={overBudget}
+            />
+          )}
+        </div>
+      )}
     </section>
   );
 }

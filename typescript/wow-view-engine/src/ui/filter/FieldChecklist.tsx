@@ -33,6 +33,8 @@ import {
 } from '../components/popover.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { PopoverContent } from '../popups.js';
+import { TEXT_UI } from '../layout.js';
+import { cn } from 'cn';
 
 /**
  * The fields of a group, as a list to tick rather than a menu to pick from.
@@ -183,7 +185,10 @@ function FieldColumns({
   return (
     <div role="group" aria-labelledby={title ? labelId : undefined}>
       {title !== undefined && (
-        <span id={labelId} className="text-muted-foreground px-1 text-xs">
+        <span
+          id={labelId}
+          className={cn('text-muted-foreground px-1', TEXT_UI)}
+        >
           {title}
         </span>
       )}

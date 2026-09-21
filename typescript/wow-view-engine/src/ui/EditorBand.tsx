@@ -23,6 +23,7 @@ import {
 } from './components/dropdown-menu.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { DropdownMenuContent } from './popups.js';
+import { TEXT_UI } from './layout.js';
 
 export interface EditorBandProps {
   /** The id the header's toggle points `aria-controls` at. */
@@ -123,7 +124,7 @@ export function EditorBandToggle({
           <span className="hidden sm:inline">· {modeLabel}</span>
         )}
         {pending > 0 && (
-          <span className="flex items-center gap-1 text-xs font-normal">
+          <span className={cn('flex items-center gap-1 font-normal', TEXT_UI)}>
             <span
               aria-hidden="true"
               className="bg-primary size-1.5 rounded-full"

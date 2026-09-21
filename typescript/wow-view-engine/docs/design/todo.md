@@ -58,14 +58,11 @@
 ### 打磨
 
 - **选中／悬停行上枚举徽章消失**——为什么：`secondary` 徽章底色 = 行选中 `bg-muted` = `oklch(0.97)`，**1.00:1**（暗色 0.269 同样 1.00）——几个状态共用一档 3% 灰，叠在一起就归零。判据：单元格徽章带 `border-border`（带语气的徽章由 #1580 改成实底，已不受影响）；浏览器故事量选中行上的徽章与行底 ≥1.5:1。落点：`src/ui/record/cells.tsx`。（侧栏那一半已由 L1 做掉：当前项白底 + 左侧 2px `primary` 条 + 中等字重，悬停走 `--sidebar-accent`。）
-- **高级模式根分组有两套「添加」**——为什么：`Add in this group / Add a group / Add / Add a group` 四个入口挤在一屏。判据：根分组只留一套（分组块自己的那套），`test/filterPanel.test.tsx` 断言高级模式下"添加"入口的数量。落点：`src/ui/FilterPanel.tsx`、`src/ui/filter/GroupBlock.tsx`、[ui/README.md](ui/README.md)。
 - **列设置的分区眼睛看不见**——为什么：三个分区只有 `aria-label`，屏幕上没有分区标题，钉到右侧的列于是只是"掉到底下"。判据：列设置每个分区有可见标题（与 `aria-label` 同一个词）；`test/columnSettings.test.tsx` 一条。落点：`src/ui/ColumnSettings.tsx`。
 - **表头排序按钮两枚箭头相隔 40px**——为什么：`↕ 金额 ↓` 一个在名字前一个在名字后。判据：只留一枚跟在列名内侧的箭头，`test/recordTable.test.tsx`「sorting from the headers」随之更新。落点：`src/ui/record/SortableHeader.tsx`、[ui/record.md#表头排序](ui/record.md#表头排序)。
 - **没有多列夹具，"20 列 50 行"验不了**——为什么：故事里最多五列，`PinnedEdges` 里 `创建时间` 已被右钉列裁成 `7:10:0|`。判据：`stories/view-engine/fixtures.ts` 加一个 12 列以上的定义与一条故事，逐屏过一遍后把量到的记回这里。落点：`stories/view-engine/`。
 
 ### 视觉
-
-- **字号阶梯里 12.8 与 12 挨得太近**——为什么：一屏 12 / 12.8 / 14 / 16 四档，12.8（shadcn 的 `sm` 按钮）与 12 只差 0.8px，侧栏视图名 12.8 压在 12 的分组标签上，中文在 12.8 渲染发虚。判据：`sm` 按钮与侧栏项统一到 13 或 12（在调用处或 `styles.css` 的 token 上，不改 vendored 文件），四档变三档；浏览器故事量侧栏项字号。落点：`src/styles.css`、`src/ui/layout.ts`。
 
 ## 功能（legacy 形态）
 

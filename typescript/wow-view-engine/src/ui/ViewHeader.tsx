@@ -30,6 +30,7 @@ import { Tooltip, TooltipTrigger } from './components/tooltip.js';
 import { TooltipContent } from './popups.js';
 import { SaveActions, UnsavedMark } from './SaveActions.js';
 import { WriteOutcome } from './WriteOutcome.js';
+import { TEXT_UI } from './layout.js';
 
 /**
  * What a title bar reads off the open view. It names the four facts rather
@@ -262,7 +263,10 @@ export function ViewHeader({
           <span
             data-slot="view-audience"
             data-scope={scopeKey}
-            className="text-muted-foreground @max-md/header:sr-only shrink-0 text-xs"
+            className={cn(
+              'text-muted-foreground @max-md/header:sr-only shrink-0',
+              TEXT_UI,
+            )}
           >
             <Audience aria-hidden className="mr-1 inline size-3 align-[-1px]" />
             {messages.label(`label.scope.tag.${scopeKey}`)}

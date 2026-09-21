@@ -17,6 +17,8 @@ import { RotateCcwIcon, TriangleAlertIcon } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './components/alert.js';
 import { Button } from './components/button.js';
 import { useViewMessages } from './MessagesProvider.js';
+import { TEXT_UI } from './layout.js';
+import { cn } from 'cn';
 
 /**
  * The parts of a view a render can fail in, each behind a boundary of its
@@ -134,7 +136,10 @@ function RenderFailed({
         data-slot="render-failed"
         data-boundary={name}
         title={detail}
-        className="text-destructive inline-flex items-center gap-1 text-xs"
+        className={cn(
+          'text-destructive inline-flex items-center gap-1',
+          TEXT_UI,
+        )}
       >
         <TriangleAlertIcon className="size-4" aria-hidden />
         {messages.label('label.render.failed')}

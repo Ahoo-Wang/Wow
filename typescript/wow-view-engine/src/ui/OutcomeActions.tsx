@@ -16,6 +16,8 @@ import type { Issue } from '../model/index.js';
 import type { WriteState } from '../runtime/index.js';
 import { Button } from './components/button.js';
 import { useViewMessages } from './MessagesProvider.js';
+import { TEXT_UI } from './layout.js';
+import { cn } from 'cn';
 
 /**
  * Where an outcome is being reported, which is the only thing the two callers
@@ -235,11 +237,11 @@ function OutcomeLine({
     return (
       <p
         role={tone}
-        className={
-          tone === 'alert'
-            ? 'text-destructive flex flex-wrap items-center gap-2 text-xs'
-            : 'text-warning flex flex-wrap items-center gap-2 text-xs'
-        }
+        className={cn(
+          'flex flex-wrap items-center gap-2',
+          TEXT_UI,
+          tone === 'alert' ? 'text-destructive' : 'text-warning',
+        )}
       >
         {children}
       </p>

@@ -26,6 +26,8 @@ import { Spinner } from './components/spinner.js';
 import { IconButton, IconTooltip } from './IconButton.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import { DropdownMenuContent } from './popups.js';
+import { TEXT_UI } from './layout.js';
+import { cn } from 'cn';
 
 /** The value the radio group carries for "no automatic refresh". */
 const OFF = 'off';
@@ -170,7 +172,7 @@ export function RefreshControl({
             // reserved box keeps "10s" the same width as "9s", or "1 min"
             // the same width as "59s" — and a button that changes width
             // once a second walks the controls beside it across the bar.
-            className="text-muted-foreground grid text-xs tabular-nums"
+            className={cn('text-muted-foreground grid tabular-nums', TEXT_UI)}
             // A screen reader is told the cadence once, as a sentence, by
             // the button's `aria-description`. A number that changes every
             // second would be read out every second, which is the opposite

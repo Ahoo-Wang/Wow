@@ -28,6 +28,7 @@ import {
   columnWidth,
   type ColumnPin,
 } from './columns.js';
+import { TEXT_UI } from '../layout.js';
 
 /**
  * The quiet half of a summary row — the scope, and each function's name.
@@ -37,7 +38,7 @@ import {
  * rows are drawn on: small grey-on-grey text is exactly where a palette
  * meant for one background fails on another.
  */
-const QUIET = 'text-foreground/70 block text-xs font-normal';
+const QUIET = `text-foreground/70 block font-normal ${TEXT_UI}`;
 
 export interface SummaryRowsProps {
   /**

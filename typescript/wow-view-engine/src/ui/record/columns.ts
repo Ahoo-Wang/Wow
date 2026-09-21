@@ -14,6 +14,7 @@
 import { useLayoutEffect, type CSSProperties, type RefObject } from 'react';
 import type { RecordColumnView } from '../../record/index.js';
 import { cn } from '../lib/utils.js';
+import { TEXT_UI } from '../layout.js';
 
 /**
  * Where a pinned column sits while the middle of the table scrolls.
@@ -211,7 +212,7 @@ export const ROW_HOVER = `hover:${HOVER} has-aria-expanded:${HOVER}`;
  * it is quieter than the values under it; the header row carries the
  * emphasis instead, as a layer with its own edge.
  */
-export const HEAD_CELL = 'text-muted-foreground text-xs font-medium';
+export const HEAD_CELL = `text-muted-foreground font-medium ${TEXT_UI}`;
 
 /** Numbers line up on their last digit, in the cells and in the header. */
 export const NUMERIC_CELL = 'text-right tabular-nums';

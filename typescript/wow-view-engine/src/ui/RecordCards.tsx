@@ -34,6 +34,7 @@ import { cellValue } from './record/cells.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 import { cn } from 'cn';
+import { TEXT_UI } from './layout.js';
 
 export interface RecordCardsProps {
   table: RecordTableController;
@@ -106,7 +107,7 @@ export function RecordCards({
             )}
             {card.fields.map(field => (
               <div key={field.field} className="flex items-baseline gap-2">
-                <span className="text-muted-foreground text-xs">
+                <span className={cn('text-muted-foreground', TEXT_UI)}>
                   {field.label}
                 </span>
                 <span className="truncate text-sm">
