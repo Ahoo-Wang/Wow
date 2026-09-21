@@ -67,6 +67,11 @@
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-info: var(--info);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -107,6 +112,28 @@
   --muted-foreground: var(--fve-muted-foreground, oklch(0.556 0 0deg));
   --accent: var(--fve-accent, oklch(0.97 0 0deg));
   --accent-foreground: var(--fve-accent-foreground, oklch(0.205 0 0deg));
+
+  /*
+   * The navigation column's own ground, under shadcn's own token names so a
+   * host that already themes a shadcn sidebar themes this one with the same
+   * words. Only the five the column actually paints with are declared — a
+   * token nothing reads is a contract nothing keeps.
+   *
+   * The three greys have to stay apart from each other *and* from the work
+   * area, which is the whole reason the column exists: the ground is the
+   * `muted` step, the open view is `--background` on top of it, and hover is
+   * a step *darker* than the ground rather than lighter, so it can never be
+   * mistaken for the open one. The registry's own `0.985` sidebar measures
+   * 1.03:1 against a white work area — a grey nobody can see is not a grey.
+   */
+  --sidebar: var(--fve-sidebar, oklch(0.97 0 0deg));
+  --sidebar-foreground: var(--fve-sidebar-foreground, oklch(0.145 0 0deg));
+  --sidebar-accent: var(--fve-sidebar-accent, oklch(0.922 0 0deg));
+  --sidebar-accent-foreground: var(
+    --fve-sidebar-accent-foreground,
+    oklch(0.205 0 0deg)
+  );
+  --sidebar-border: var(--fve-sidebar-border, oklch(0.898 0 0deg));
   --destructive: var(--fve-destructive, oklch(0.577 0.245 27.325deg));
 
   /*
@@ -183,6 +210,23 @@
   --muted-foreground: var(--fve-dark-muted-foreground, oklch(0.708 0 0deg));
   --accent: var(--fve-dark-accent, oklch(0.269 0 0deg));
   --accent-foreground: var(--fve-dark-accent-foreground, oklch(0.985 0 0deg));
+
+  /*
+   * The dark half of the same three steps, and they run the other way: the
+   * dark work area is the *darkest* surface here, so the column is a step
+   * lighter than it and hover is a step lighter again. The open view is
+   * still `--background`, which is now darker than the ground rather than
+   * lighter — what the eye reads is "not the same as the rest", and the 2px
+   * `primary` bar beside it says which way.
+   */
+  --sidebar: var(--fve-dark-sidebar, oklch(0.205 0 0deg));
+  --sidebar-foreground: var(--fve-dark-sidebar-foreground, oklch(0.985 0 0deg));
+  --sidebar-accent: var(--fve-dark-sidebar-accent, oklch(0.279 0 0deg));
+  --sidebar-accent-foreground: var(
+    --fve-dark-sidebar-accent-foreground,
+    oklch(0.985 0 0deg)
+  );
+  --sidebar-border: var(--fve-dark-sidebar-border, oklch(1 0 0deg / 20%));
   --destructive: var(--fve-dark-destructive, oklch(0.704 0.191 22.216deg));
   --success: var(--fve-dark-success, oklch(0.792 0.209 151.711deg));
   --warning: var(--fve-dark-warning, oklch(0.828 0.189 84.429deg));

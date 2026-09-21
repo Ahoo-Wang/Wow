@@ -41,7 +41,8 @@ export interface AnalysisWorkbenchProps {
   /**
    * The sidebar this workbench opens on. It is view state and nothing else —
    * never saved, never asked about by the leave guard — so a host sets where
-   * it starts and the shell owns it from there.
+   * it starts and the shell owns it from there. Left out, a column narrower
+   * than `md` opens folded and a wider one opens with the list beside it.
    */
   defaultSidebarOpen?: boolean;
   /** Told whenever the sidebar opens or closes, for a host that mirrors it. */

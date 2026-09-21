@@ -306,6 +306,6 @@ export const NarrowColumn: Story = {
     await expect(title.scrollWidth, 'title clipped').toBeGreaterThan(
       title.clientWidth,
     );
-    host.style.width = '360px';
+    host.style.width = '375px';
   },
 };

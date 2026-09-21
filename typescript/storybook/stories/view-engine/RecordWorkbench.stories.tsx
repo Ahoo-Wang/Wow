@@ -270,10 +270,11 @@ function RecordWorkbenchDemo({
           messages={english ? undefined : HOST_LANGUAGE.messages}
           locale={english ? 'en-US' : HOST_LANGUAGE.locale}
           theme={theme}
-          // A narrow column is a column with no room for a 224px sidebar
-          // beside it, so it opens the way a phone does: the list folded
-          // away and the whole width given to the view.
-          defaultSidebarOpen={!collapsed && !narrowHost}
+          // Left to the shell everywhere but the one story that is *about*
+          // the fold: a column narrower than `md` opens folded on its own
+          // now, so the narrow host proves that rule rather than being
+          // handed the answer.
+          defaultSidebarOpen={collapsed ? false : undefined}
         />
       )}
     </StoryEngine>
@@ -285,7 +286,7 @@ function RecordWorkbenchDemo({
   // page beside it rather than clipped where it can be measured.
   if (narrowHost)
     return (
-      <div data-narrow-host style={{ width: 360, overflow: 'hidden' }}>
+      <div data-narrow-host style={{ width: 375, overflow: 'hidden' }}>
         {workbench}
       </div>
     );
@@ -684,8 +685,9 @@ export const PopupsOverRaisedHostLayer: Story = {
 };
 
 /**
- * 窄栏里的标题栏：一根 360px 宽的柱子——手机、分屏、宿主的侧边面板都是这个
- * 宽度——装一个名字长得放不下的视图。
+ * 窄栏里的标题栏：一根 375px 宽的柱子——手机、分屏、宿主的侧边面板都是这个
+ * 宽度——装一个名字长得放不下的视图。侧栏没人交代过收起，是外壳自己量出来
+ * 的：窄于 `md` 的一栏里，列表不在视图旁边而是堆在它上面（D12／L1）。
  *
  * 标题栏读作两组：左边「这是哪个视图」（种类、受众、名字、保存命令），右边
  * 「我在怎么看它」（筛选带的开合、铺满屏幕、宿主自己的按钮）。窄到两组并排

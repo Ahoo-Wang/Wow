@@ -253,8 +253,8 @@ describe('the manage button on the view list', () => {
     await manage(engine);
 
     const dialog = screen.getByRole('dialog');
-    expect(dialog.textContent).toContain('Personal');
-    expect(dialog.textContent).toContain('Shared');
+    expect(dialog.textContent).toContain('My views');
+    expect(dialog.textContent).toContain('Shared views');
     // A system view is a shared view, tagged with where it came from.
     expect(row('All orders').textContent).toContain('system');
   });

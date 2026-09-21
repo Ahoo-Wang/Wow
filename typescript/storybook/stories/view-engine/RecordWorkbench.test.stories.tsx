@@ -1653,6 +1653,283 @@ function slots(canvasElement: HTMLElement): string[] {
     .filter(slot => LAYOUT_SLOTS.includes(slot));
 }
 
+/** What one element is actually painted, as the browser resolved it. */
+const paintOf = (node: Element) => getComputedStyle(node).backgroundColor;
+
+/** One view's row in the sidebar, by the name it shows. */
+function listItem(canvasElement: HTMLElement, title: string): HTMLElement {
+  const found = [
+    ...canvasElement.querySelectorAll<HTMLElement>(
+      '[data-slot="view-list"] [data-slot="view-group"] button',
+    ),
+  ].find(item => item.textContent?.includes(title));
+  if (!found) throw new Error(`The list has no view called "${title}".`);
+  return found;
+}
+
+/**
+ * The sidebar is a navigation column, and the three states on it are three
+ * colours.
+ *
+ * This is the measurement the design could not be argued into: four states
+ * used to share one 3% grey — a hovered row, the open row, a selected table
+ * row and a pressed segment — so the list had no "you are here" at all, and
+ * the column itself was the same white as the work area beside it. The
+ * ratios are tiny on purpose; what is asserted is that they are not *one*,
+ * which is what a token collapse looks like from here.
+ *
+ * The bar down the open row's leading edge is the other half: a mark of a
+ * different kind, which no theming can turn into the fill beside it.
+ */
+export const SidebarIsANavigationColumn: Story = {
+  ...DisplayWithData,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+
+    const column = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="view-list"]',
+    )!;
+    // The work area paints nothing of its own: what shows through `main` is
+    // the surface's `--background`, which is the colour to compare against.
+    const work = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="view-surface"]',
+    )!;
+    const ground = paintOf(column);
+
+    // The column has a ground of its own, and the work area is not it.
+    await expect(ground).not.toBe('rgba(0, 0, 0, 0)');
+    await expect(paintOf(work)).not.toBe('rgba(0, 0, 0, 0)');
+    await expect(ground).not.toBe(paintOf(work));
+    // And an edge between the two, drawn once.
+    await expect(
+      parseFloat(getComputedStyle(column).borderRightWidth),
+    ).toBeGreaterThan(0);
+
+    // Two columns, two heads, one line under both. The sidebar's header is
+    // ruled off at exactly the height the title bar is, so the screen reads
+    // as one page in two columns rather than as two pages side by side.
+    const listHead = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="view-list-header"]',
+    )!;
+    const titleBar = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="view-header-block"]',
+    )!;
+    await expect(
+      parseFloat(getComputedStyle(listHead).borderBottomWidth),
+    ).toBeGreaterThan(0);
+    await expect(
+      Math.abs(
+        listHead.getBoundingClientRect().bottom -
+          titleBar.getBoundingClientRect().bottom,
+      ),
+    ).toBeLessThanOrEqual(1);
+
+    // The open view: the work area's own ground on top of the column's, plus
+    // the bar. Neither is another step of the same grey.
+    const current = listItem(canvasElement, '待出库订单');
+    await expect(current.getAttribute('aria-current')).toBe('true');
+    await expect(paintOf(current)).toBe(paintOf(work));
+    await expect(paintOf(current)).not.toBe(ground);
+    await expect(getComputedStyle(current).boxShadow).toContain('inset');
+    await expect(getComputedStyle(current).fontWeight).toBe('500');
+
+    // A row that is not open carries no fill of its own, so what shows is
+    // the column. Hovering it is a third colour: distinguishable from the
+    // ground it sits on *and* from the open row beside it, which is the pair
+    // that used to be identical.
+    const other = listItem(canvasElement, '我盯的大额单');
+    await expect(paintOf(other)).toBe('rgba(0, 0, 0, 0)');
+    await expect(other.className).toContain('hover:bg-sidebar-accent');
+    // Painted rather than hovered: the runner's pointer events do not put a
+    // real `:hover` on the element, and what broke before was never the
+    // pseudo-class — it was the two tokens resolving to one grey. So the
+    // token is put on the page the way the hover would put it, in the
+    // column's own cascade, and read back in the same form as the rest.
+    const hovered = await waitFor(() => {
+      const probe = column.appendChild(document.createElement('div'));
+      probe.style.backgroundColor = 'var(--sidebar-accent)';
+      const painted = paintOf(probe);
+      probe.remove();
+      return painted;
+    });
+    await expect(hovered).not.toBe(ground);
+    await expect(hovered).not.toBe(paintOf(current));
+
+    // The kind icon is on every row, because one definition holds record and
+    // analysis views together and the name alone does not say which is which.
+    await expect(other.querySelector('svg')).not.toBeNull();
+    // And where a view came from is a word after its name rather than a
+    // badge at the row's end — the end belongs to the star.
+    const system = listItem(canvasElement, '全部订单');
+    await expect(
+      system.querySelector('[data-slot="view-system-tag"]'),
+    ).not.toBeNull();
+    await expect(system.querySelector('[data-slot="badge"]')).toBeNull();
+  },
+};
+
+/**
+ * The star on the view that opens first, read off the preference the manager
+ * writes.
+ *
+ * Two screens showing the same fact is only worth having while they cannot
+ * disagree, so this sets the default where it is set — in the manager — and
+ * then looks for it where it is read: on the row in the list.
+ */
+export const DefaultViewWearsTheStar: Story = {
+  ...DisplayManageViews,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+
+    // Nothing opens first until someone says so, so nothing wears a star.
+    await expect(
+      canvasElement.querySelector('[data-slot="view-default-star"]'),
+    ).toBeNull();
+
+    await userEvent.click(
+      canvas.getByRole('button', {
+        name: zhCN['label.manage.open'],
+      }),
+    );
+    const dialog = await within(document.body).findByRole('dialog');
+    const managed = [
+      ...dialog.querySelectorAll<HTMLElement>('[data-slot="view-manager-row"]'),
+    ].find(row => row.textContent?.includes('我盯的大额单'))!;
+    await userEvent.click(
+      within(managed).getByRole('button', {
+        name: zhCN['label.manage.set-default'],
+      }),
+    );
+    await waitFor(() =>
+      expect(managed).toHaveTextContent(zhCN['label.manage.default']),
+    );
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() =>
+      expect(document.body.querySelector('[role="dialog"]')).toBeNull(),
+    );
+
+    // The same preference, on the row in the list: filled, in the primary
+    // colour, and at the row's end.
+    const starred = listItem(canvasElement, '我盯的大额单');
+    const star = starred.querySelector<HTMLElement>(
+      '[data-slot="view-default-star"]',
+    )!;
+    await expect(star).not.toBeNull();
+    // Filled and in the primary colour, so it reads as a mark rather than as
+    // one more outline among the icons.
+    await expect(star.classList).toContain('fill-current');
+    await expect(getComputedStyle(star).color).not.toBe(
+      getComputedStyle(starred).color,
+    );
+    // One star and no more: the fact is about one view.
+    await expect(
+      canvasElement.querySelectorAll('[data-slot="view-default-star"]'),
+    ).toHaveLength(1);
+    // And a reader hears it rather than only seeing it.
+    await expect(starred.textContent).toContain(zhCN['label.manage.default']);
+  },
+};
+
+/**
+ * The fold the shell decides for itself, and the one filling the screen asks
+ * for.
+ *
+ * A 375px column has no room for a 224px list beside it — below `md` the
+ * list is not beside the view at all but stacked over it, and the table
+ * started 204px down. Filling the screen is the same argument made by the
+ * user: the gesture is about the rows, and navigation is the first thing
+ * that is not the rows.
+ */
+export const TheListFoldsItselfAwayWhereItCannotFit: Story = {
+  ...DisplayNarrowTitleBar,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    const sidebar = () =>
+      canvasElement.querySelector('[data-slot="view-sidebar"]');
+    const host =
+      canvasElement.querySelector<HTMLElement>('[data-narrow-host]')!;
+
+    // Nobody passed `defaultSidebarOpen`: the shell measured the column it
+    // was given and folded the list for it.
+    await expect(host.getBoundingClientRect().width).toBe(375);
+    await expect(sidebar()).toBeNull();
+    // Which is what the fold buys: the rows start at the top of the column
+    // rather than under 204px of navigation.
+    await expect(
+      table.getBoundingClientRect().top -
+        canvasElement
+          .querySelector('[data-slot="view-surface"]')!
+          .getBoundingClientRect().top,
+    ).toBeLessThan(260);
+
+    // The list is still reachable, as one control in the title bar.
+    const switcher = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="view-switcher"]',
+    )!;
+    await expect(switcher).not.toBeNull();
+    // Sized to what it says and reading from its beginning — not a 470px
+    // pill with a short name floating in the middle of it.
+    await expect(getComputedStyle(switcher).justifyContent).toBe('flex-start');
+    const label = switcher.querySelector<HTMLElement>('span')!;
+    await expect(
+      switcher.getBoundingClientRect().right -
+        label.getBoundingClientRect().right,
+    ).toBeLessThan(40);
+    // And the right-hand group still ends the bar, on whichever line it is.
+    const header = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="view-header"]',
+    )!;
+    const controls = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="view-controls"]',
+    )!;
+    await expect(
+      Math.abs(
+        controls.getBoundingClientRect().right -
+          header.getBoundingClientRect().right,
+      ),
+    ).toBeLessThanOrEqual(1);
+  },
+};
+
+/**
+ * Filling the screen gives the rows the room, and the list is the first
+ * thing that is not the rows.
+ */
+export const FillingTheScreenFoldsTheList: Story = {
+  ...DisplayWithData,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    const sidebar = () =>
+      canvasElement.querySelector('[data-slot="view-sidebar"]');
+    await expect(sidebar()).not.toBeNull();
+
+    await userEvent.click(
+      canvas.getByRole('button', {
+        name: zhCN['label.workbench.expand-view'],
+      }),
+    );
+    await waitFor(() => expect(sidebar()).toBeNull());
+    // Not lost, only folded: the switcher is the list while it is away.
+    await expect(
+      canvas.getByRole('button', {
+        name: zhCN['label.workbench.switch-view'],
+      }),
+    ).toBeVisible();
+
+    // And leaving reads the page's own answer again.
+    await userEvent.click(
+      canvas.getByRole('button', {
+        name: zhCN['label.workbench.collapse-view'],
+      }),
+    );
+    await waitFor(() => expect(sidebar()).not.toBeNull());
+  },
+};
+
 /**
  * The sidebar folded away, and the list still reachable.
  *
@@ -2949,10 +3226,6 @@ export const NarrowColumnHoldsTheWidth: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByRole('table');
-    const host =
-      canvasElement.querySelector<HTMLElement>('[data-narrow-host]')!;
-    // The phone this is about, rather than the 360px the story opens at.
-    host.style.width = '375px';
 
     // The conditions have to be on screen to overflow: the band is folded on
     // a saved view, and the grid that pinned its tracks is inside it.
@@ -3067,6 +3340,6 @@ export const ToolbarWrapsAsGroups: Story = {
       ).toBeLessThanOrEqual(2);
       await expect(rightGroupEndsTheBar(canvasElement)).toBeLessThanOrEqual(1);
     }
-    host.style.width = '360px';
+    host.style.width = '375px';
   },
 };

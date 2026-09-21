@@ -22,8 +22,12 @@
 export const scopeMessages = {
   'label.scope.only-me': 'Only me',
   'label.scope.everyone': 'Everyone',
-  'label.scope.group.personal': 'Personal',
-  'label.scope.group.shared': 'Shared',
+  // The two headings that divide the navigation column (D12). They name what
+  // is under them — views — rather than the audience in the abstract: a lone
+  // "Personal" above a list of names reads as a property of the heading, and
+  // the same two words have to serve as the switcher's menu sections too.
+  'label.scope.group.personal': 'My views',
+  'label.scope.group.shared': 'Shared views',
   'label.scope.system': 'Shipped with the definition',
   'label.scope.tag.system': 'system',
   'label.scope.tag.personal': 'personal',

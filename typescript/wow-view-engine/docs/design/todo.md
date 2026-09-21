@@ -19,7 +19,6 @@
 
 结构在 [decisions.md#d12](decisions.md#d12-一屏七块每块只回答一个问题) 定了，对比页第 17 版是定稿。每条的判据除下面写的，还有共同的一份：`test/accessibility.test.tsx` 过 axe；jsdom 钉结构（哪些槽位、什么条件下存在）、浏览器故事钉几何与层叠色；中英文案齐全；`docs/design/ui/README.md` 对应节同步；全门绿。
 
-- **L1 侧栏**——为什么：现在的侧栏没有层次（分组是两个灰字、当前项只是一格 3% 灰、`system` 徽章漂在右边、标题行两颗图标没有归属、折起后的切换器是一颗 470px 的居中胶囊；铺满时 375 上侧栏堆在上方占 204px）。判据：侧栏灰底（复用 shadcn `--sidebar` 一组 token，两个主题都有），头部只有定义名 + 新建／管理／折叠三个图标按钮；两组用可见的分区标题（我的视图／共享视图），系统视图在共享组带灰字 `system`；每项种类图标；默认视图在项上实心 ★（与管理器里那颗同一份状态）；当前项白底 + 左侧 2px `primary` 条 + 中等字重，悬停项与当前项可分辨（浏览器故事量）；折起时切换器按内容定宽、左对齐，`view-controls` 右对齐；窄于 `md` 默认折起，铺满屏幕时折起、退出时还原（`test/viewExpansion.test.tsx`）。落点：`src/ui/ViewList.tsx`、`src/ui/ViewSwitcher.tsx`、`src/ui/WorkbenchShell.tsx`（折起规则）、`src/styles.css`、[management.md](management.md)、[ui/README.md](ui/README.md)。
 - **L5 导出**——为什么：导出是记录视图最常用的功能之一，现在没有。判据：工具栏右端一个图标菜单按钮，三个条目各带条数：**选中**（有选中时才出现）、**本页**、**所有（按当前筛选）**；"所有"按当前已应用条件在后台分页拉全量，不受屏幕分页限制，超过阈值（`RuntimeLimits` 新增 `exportMax`，默认 10000）先提示条数再导；导出的列与顺序是列设置里可见的列，值按单元格读法（枚举用标签、日期按 `ViewSurface` 时区、数字按 `numberFormat`）；格式先 CSV（UTF-8 带 BOM），文件名 `<视图名>-<日期>.csv`；导出中有进度与取消，失败在状态行报出；序列化在 headless 层（`src/record/export.ts`，值格式化由调用方注入）、下载在 `/ui`；`test/` 覆盖三种口径、阈值提示、取消；故事一条可手动导出。落点：`src/model/limits.ts`、`src/record/export.ts`、`src/react/useRecordExport.ts`、`src/ui/ExportMenu.tsx`、`src/ui/ResultToolbar.tsx`、[ui/record.md](ui/record.md)、[react.md](react.md)。
 
 ## 重构（小步，每步一个 PR，零行为变化）
@@ -61,7 +60,7 @@
 
 ### 打磨
 
-- **选中／悬停行上枚举徽章消失；侧栏悬停项与当前项同色**——为什么：`secondary` 徽章底色 = 行选中 `bg-muted` = `oklch(0.97)`，**1.00:1**（暗色 0.269 同样 1.00）；侧栏当前项 `secondary`(0.97) = 悬停 `accent`(0.97)。四个状态（分段按下 1.09、行悬停 1.04、行选中 1.09、侧栏当前 1.09）共用一档 3% 灰，叠在一起就归零。判据：单元格徽章带 `border-border`（带语气的徽章由 #1580 改成实底，已不受影响）；侧栏当前项 `font-medium` + 左侧 2px `primary` 条；浏览器故事量选中行上的徽章与行底 ≥1.5:1、当前项与悬停项可分辨。落点：`src/ui/record/cells.tsx`、`src/ui/ViewList.tsx`、[ui/README.md](ui/README.md)。
+- **选中／悬停行上枚举徽章消失**——为什么：`secondary` 徽章底色 = 行选中 `bg-muted` = `oklch(0.97)`，**1.00:1**（暗色 0.269 同样 1.00）——几个状态共用一档 3% 灰，叠在一起就归零。判据：单元格徽章带 `border-border`（带语气的徽章由 #1580 改成实底，已不受影响）；浏览器故事量选中行上的徽章与行底 ≥1.5:1。落点：`src/ui/record/cells.tsx`。（侧栏那一半已由 L1 做掉：当前项白底 + 左侧 2px `primary` 条 + 中等字重，悬停走 `--sidebar-accent`。）
 - **高级模式根分组有两套「添加」**——为什么：`Add in this group / Add a group / Add / Add a group` 四个入口挤在一屏。判据：根分组只留一套（分组块自己的那套），`test/filterPanel.test.tsx` 断言高级模式下"添加"入口的数量。落点：`src/ui/FilterPanel.tsx`、`src/ui/filter/GroupBlock.tsx`、[ui/README.md](ui/README.md)。
 - **zh-CN 的几句措辞**——为什么：「状态 是其中之一 待出库」拗口，口径「所有」与「本页」并列时不对仗。（`locale` 那一半已做：故事整册跑 `zh-CN`。）不涉 Q3。判据：`IN` 改「属于」，`total` 改「全部」；`test/messages.test.tsx` 与故事随之更新。落点：`src/ui/messages/zh-CN.ts`、`stories/view-engine/`。
 - **列设置的分区眼睛看不见**——为什么：三个分区只有 `aria-label`，屏幕上没有分区标题，钉到右侧的列于是只是"掉到底下"。判据：列设置每个分区有可见标题（与 `aria-label` 同一个词）；`test/columnSettings.test.tsx` 一条。落点：`src/ui/ColumnSettings.tsx`。

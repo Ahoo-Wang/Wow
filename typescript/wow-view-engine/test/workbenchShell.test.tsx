@@ -338,3 +338,78 @@ describe('the sidebar as a host sets it', () => {
     await waitFor(() => expect(block('view-sidebar')).toBeNull());
   });
 });
+
+/**
+ * What the shell decides for itself when the host says nothing.
+ *
+ * Below `md` the list is not beside the view but stacked over it, so a
+ * column that narrow opens folded — and it is the surface's own width that
+ * answers, not the viewport's, because a 360px panel on a wide page is the
+ * same phone-shaped column.
+ */
+describe('the sidebar the shell decides', () => {
+  /**
+   * The width the surface reports for the rest of this test.
+   *
+   * jsdom lays nothing out and answers 0 to every measurement, so the one
+   * number this rule reads is the one thing a test here has to supply. It is
+   * put on the prototype because the surface is not in the document until
+   * `render` has run, and taken off again by `restoreAllMocks`.
+   */
+  const laidOutAt = (width: number) =>
+    vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockReturnValue({ width } as DOMRect);
+
+  it('opens folded in a column narrower than md', async () => {
+    laidOutAt(375);
+    await open();
+
+    expect(block('view-sidebar')).toBeNull();
+    // And the way to it is where it always is while the list is away.
+    expect(screen.getByRole('button', { name: EXPAND })).toBeDefined();
+  });
+
+  it('opens with the list beside the view from md up', async () => {
+    laidOutAt(1024);
+    await open();
+
+    expect(block('view-sidebar')).not.toBeNull();
+  });
+
+  it('takes a width of zero as no answer rather than as narrow', async () => {
+    // jsdom's own answer, and a detached or unlaid-out host's: nothing at
+    // all. Nothing is not a reason to fold a list away.
+    await open();
+
+    expect(block('view-sidebar')).not.toBeNull();
+  });
+
+  it('obeys a host that said so, however narrow the column', async () => {
+    laidOutAt(375);
+    await open({ defaultSidebarOpen: true });
+
+    // The host knows something about its page that a measurement does not.
+    expect(block('view-sidebar')).not.toBeNull();
+  });
+
+  it('takes no focus when it folds itself on arrival', async () => {
+    laidOutAt(375);
+    await open();
+
+    // Nothing was pressed, so nothing follows a press. A page that moved the
+    // keyboard onto its own button as it loaded would take the cursor out of
+    // whatever the host's page was doing.
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it('tells a host that mirrors the fold, even when it folded itself', async () => {
+    laidOutAt(375);
+    const changed = vi.fn();
+    await open({ onSidebarOpenChange: changed });
+
+    // A notification and not a decision: the host asked to be told whenever
+    // this changes, and this is a change.
+    expect(changed).toHaveBeenCalledExactlyOnceWith(false);
+  });
+});

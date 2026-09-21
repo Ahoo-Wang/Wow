@@ -1355,8 +1355,10 @@ describe('managing views from the workbench', () => {
       resolveSource: () => testSource(),
     });
     render(<RecordWorkbench engine={engine} definitionId="orders" />);
+    // A regex, because this one *is* the default: its row carries the star,
+    // and the star says so in a word rather than only in a picture.
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Mine' }).ariaCurrent).toBe(
+      expect(screen.getByRole('button', { name: /Mine/ }).ariaCurrent).toBe(
         'true',
       ),
     );
@@ -1370,7 +1372,7 @@ describe('managing views from the workbench', () => {
         screen.getByRole('button', { name: /All orders/ }).ariaCurrent,
       ).toBe('true'),
     );
-    expect(screen.queryByRole('button', { name: 'Mine' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Mine/ })).toBeNull();
     expect(screen.getAllByRole('row')).toHaveLength(3);
   });
 

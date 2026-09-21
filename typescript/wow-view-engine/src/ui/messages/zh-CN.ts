@@ -363,8 +363,8 @@ export const zhCN: ViewMessages = {
   // 视图给谁看。
   'label.scope.only-me': '仅自己',
   'label.scope.everyone': '所有人',
-  'label.scope.group.personal': '个人',
-  'label.scope.group.shared': '共享',
+  'label.scope.group.personal': '我的视图',
+  'label.scope.group.shared': '共享视图',
   'label.scope.system': '随定义一起提供',
   'label.scope.tag.system': '系统',
   'label.scope.tag.personal': '个人',

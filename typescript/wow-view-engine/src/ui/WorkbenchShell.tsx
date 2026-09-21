@@ -31,7 +31,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from './components/empty.js';
-import { Separator } from './components/separator.js';
 import { Skeleton } from './components/skeleton.js';
 import { AppliedBar } from './AppliedBar.js';
 import { EditorBand, EditorBandToggle } from './EditorBand.js';
@@ -47,6 +46,16 @@ import { ViewList } from './ViewList.js';
 import { ViewManager } from './ViewManager.js';
 import { ViewSurface } from './ViewSurface.js';
 import { ViewSwitcher } from './ViewSwitcher.js';
+
+/**
+ * The width below which the list stops being *beside* the view.
+ *
+ * It is Tailwind's `md`, written as the number the stylesheet uses, because
+ * this is the same threshold the surface changes direction at: above it the
+ * shell is a row and the column stands next to the work area; below it the
+ * shell is a column and the list is a block on top of the result.
+ */
+const NARROW = 768;
 
 export interface WorkbenchShellProps {
   workbench: WorkbenchController;
@@ -122,6 +131,13 @@ export interface WorkbenchShellProps {
    * is a change in one place rather than in the layout of every part beside
    * it. It is view state and nothing else: never saved, never asked about by
    * the leave guard.
+   *
+   * Left out, the shell decides from the room it was actually given: a
+   * column narrower than `md` opens folded, because below that width the
+   * list is not beside the view but stacked on top of it, and 204px of
+   * navigation above the first row is the worst trade a phone can make. A
+   * host that says `true` or `false` is obeyed at every width — it knows
+   * something about its page that a measurement does not.
    */
   defaultSidebarOpen?: boolean;
   /** Told whenever the sidebar opens or closes, for a host that mirrors it. */
@@ -204,7 +220,7 @@ export function WorkbenchShell({
   editorPending = 0,
   strips,
   result,
-  defaultSidebarOpen = true,
+  defaultSidebarOpen,
   onSidebarOpenChange,
   expandable = true,
   hasResult,
@@ -224,7 +240,12 @@ export function WorkbenchShell({
   // any reason to exist.
   const describesResult = hasResult ?? state?.result != null;
 
-  const [sidebarOpen, setSidebarOpen] = useState(defaultSidebarOpen);
+  // The fold as the *page* has it — the one a host sets and is told about.
+  // What is actually on screen is derived from it below, because a screen
+  // filled by the view has a fold of its own.
+  const [pageSidebarOpen, setPageSidebarOpen] = useState(
+    defaultSidebarOpen ?? true,
+  );
   // One dialog behind two ways in — the sidebar's gear and the switcher's
   // last item — so the state is here rather than inside either of them.
   const [managing, setManaging] = useState(false);
@@ -264,15 +285,54 @@ export function WorkbenchShell({
     expandViewRef,
     expandable && open,
   );
+  // Filling the screen is a screen of its own, and the list is folded for
+  // it: filling is a gesture about the *result* — "give the rows the room" —
+  // and a 224px column of navigation is the first thing that is not the
+  // result. On a phone it is worse than that, because below `md` the list is
+  // not even beside the rows: it stacks above them and the table starts
+  // 204px down, which is the fewest rows a filled screen has ever bought.
+  //
+  // So the fold is two answers rather than one, and which is in force is
+  // **derived** from whether the screen is filled. Nothing is remembered and
+  // nothing is put back: leaving reads the page's answer again because it is
+  // still there. The alternative — one boolean, folded and restored by an
+  // effect watching the expansion — is a cascading render for a value the
+  // render can simply work out, and it was also two rules pretending to be
+  // one.
+  //
+  // `inFill` starts folded on every fill, which is what `fill.toggle` below
+  // is for: pressing that button is the only way *into* a fill (Escape and
+  // switching views only end one), so it is the one place the previous
+  // fill's answer has to be let go.
+  const expanded = expansion.expanded;
+  const [inFill, setInFill] = useState(false);
+  const sidebarOpen = expanded ? inFill : pageSidebarOpen;
+  const fill = {
+    expanded,
+    toggle: () => {
+      setInFill(false);
+      expansion.toggle();
+    },
+  };
+
   // The state the last run saw, not "has this run before". StrictMode does
   // setup, cleanup, setup on mount, so a "first run" flag is already spent
   // by the second setup and the effect would take focus off the host's page
   // on arrival — which is the one thing it must never do. Comparing the
   // value answers the question actually being asked: did this change?
   const shown = useRef(sidebarOpen);
+  // And *why* it changed. The fold now moves for three reasons — a button,
+  // a measurement on arrival, the screen being filled — and only the first
+  // is a press. Focus follows a press because the press took its own button
+  // off the screen; it must not follow the other two, which would take the
+  // keyboard out of whatever the user was doing, on arrival or on the way
+  // into a filled screen.
+  const pressed = useRef(false);
   useLayoutEffect(() => {
     if (shown.current === sidebarOpen) return;
     shown.current = sidebarOpen;
+    if (!pressed.current) return;
+    pressed.current = false;
     // Collapsing and expanding each take away the button that was just
     // pressed, so focus moves to the one that undoes it. Both are held as
     // refs rather than found again by selector: the buttons live in two
@@ -280,6 +340,29 @@ export function WorkbenchShell({
     // document would be reaching past both of them.
     (sidebarOpen ? collapseRef : expandRef).current?.focus();
   }, [sidebarOpen]);
+
+  // The room this workbench was actually given, measured once on arrival.
+  //
+  // Below `md` the list is not beside the view but stacked over it, so a
+  // column that narrow opens folded. It is the *surface's* width that
+  // answers, not the viewport's: a 360px panel on a wide page is the same
+  // phone-shaped column, which is the lesson `ViewHeader` already learned
+  // when its viewport `sm:` showed a full definition title beside a view
+  // name truncated to one character.
+  //
+  // A width of 0 is jsdom, a detached tree, or a host that has not laid this
+  // out yet, all saying nothing at all — and nothing is not a reason to
+  // fold. A host that passed the boolean is obeyed at every width: it knows
+  // something about its page that a measurement does not.
+  const measured = useRef(false);
+  useLayoutEffect(() => {
+    if (measured.current || defaultSidebarOpen !== undefined) return;
+    measured.current = true;
+    const width = surfaceRef.current?.getBoundingClientRect().width ?? 0;
+    if (width === 0 || width >= NARROW) return;
+    setPageSidebarOpen(false);
+    onSidebarOpenChange?.(false);
+  }, [defaultSidebarOpen, onSidebarOpenChange]);
 
   // Spent on the opening the copy produced: the id is in the dependencies
   // because it is what changes when the new view finally opens, and the
@@ -292,7 +375,12 @@ export function WorkbenchShell({
   }, [open, openedId]);
 
   const toggleSidebar = (next: boolean) => {
-    setSidebarOpen(next);
+    pressed.current = true;
+    // While the screen is filled the answer is the fill's, and it lasts as
+    // long as the fill does: a user who wants the list back inside one gets
+    // it, and the next fill still starts without it.
+    if (expanded) setInFill(next);
+    else setPageSidebarOpen(next);
     onSidebarOpenChange?.(next);
   };
 
@@ -390,28 +478,29 @@ export function WorkbenchShell({
       className="gap-0 md:flex-row"
     >
       {sidebarOpen && (
-        <>
-          <aside
-            data-slot="view-sidebar"
-            className={cn('flex w-56 shrink-0 flex-col p-3', SPACE.GROUPS)}
-          >
-            <ViewList
-              list={list}
-              title={title}
-              currentId={state?.saved?.id ?? null}
-              onOpen={workbench.choose}
-              // Only when something on the list can actually be managed: a
-              // reader with no write permission at all would otherwise get a
-              // button whose only lesson is that it leads to a dialog of
-              // read-only rows.
-              onManage={canManage ? () => setManaging(true) : undefined}
-              onCollapse={() => toggleSidebar(false)}
-              collapseRef={collapseRef}
-            />
-          </aside>
-
-          <Separator orientation="vertical" className="hidden md:block" />
-        </>
+        // Bare: the ground, the padding and the rule that divides the two
+        // columns are the list's own (D12), so an `aside` that also painted
+        // them would be a second opinion about where the column ends. The
+        // `Separator` that used to stand here went with them — one edge,
+        // drawn once, by whichever part the edge belongs to.
+        <aside
+          data-slot="view-sidebar"
+          className="flex w-full shrink-0 flex-col md:w-56"
+        >
+          <ViewList
+            list={list}
+            title={title}
+            currentId={state?.saved?.id ?? null}
+            onOpen={workbench.choose}
+            // Only when something on the list can actually be managed: a
+            // reader with no write permission at all would otherwise get a
+            // button whose only lesson is that it leads to a dialog of
+            // read-only rows.
+            onManage={canManage ? () => setManaging(true) : undefined}
+            onCollapse={() => toggleSidebar(false)}
+            collapseRef={collapseRef}
+          />
+        </aside>
       )}
 
       <main
@@ -497,7 +586,7 @@ export function WorkbenchShell({
                       )}
                       {expandable && (
                         <ViewExpandToggle
-                          expansion={expansion}
+                          expansion={fill}
                           ref={expandViewRef}
                         />
                       )}

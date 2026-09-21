@@ -132,7 +132,11 @@ describe('ViewList on its own', () => {
     );
 
     const [personal, shared] = screen.getAllByRole('group');
-    expect(within(personal).getByText('Personal')).toBeDefined();
+    // The two groups are headings and not captions: they are what divides
+    // the column, so they are readable as such.
+    expect(
+      within(personal).getByRole('heading', { name: 'My views' }),
+    ).toBeDefined();
     expect(
       within(personal)
         .getAllByRole('button')
@@ -140,7 +144,9 @@ describe('ViewList on its own', () => {
     ).toEqual(['Mine']);
     // A system view is a shared view, so it sits in that group rather than
     // in a third one — the tag is what says where it came from.
-    expect(within(shared).getByText('Shared')).toBeDefined();
+    expect(
+      within(shared).getByRole('heading', { name: 'Shared views' }),
+    ).toBeDefined();
     expect(within(shared).getByRole('button', { name: /Ours/ })).toBeDefined();
     const tags = screen.getAllByText('system');
     expect(tags).toHaveLength(1);
@@ -160,7 +166,9 @@ describe('ViewList on its own', () => {
 
     const groups = screen.getAllByRole('group');
     expect(groups).toHaveLength(1);
-    expect(within(groups[0]).getByText('Shared')).toBeDefined();
+    expect(
+      within(groups[0]).getByRole('heading', { name: 'Shared views' }),
+    ).toBeDefined();
   });
 
   it('tells a record view from an analysis view by its icon', () => {
@@ -213,5 +221,88 @@ describe('ViewList on its own', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Ours/ }));
     expect(opened).toHaveBeenCalledWith('b');
+  });
+
+  it('is a navigation column and not a list on the work area', () => {
+    // The ground and the rule are the list's own, so a host that composes it
+    // into its own frame gets the column rather than a bare list on white.
+    const { container } = render(
+      <ViewSurface>
+        <ViewList
+          list={listState({ items: [summary()] })}
+          currentId={null}
+          onOpen={() => {}}
+        />
+      </ViewSurface>,
+    );
+
+    const nav = container.querySelector('[data-slot="view-list"]')!;
+    expect(nav.className).toContain('bg-sidebar');
+    expect(nav.className).toContain('text-sidebar-foreground');
+    expect(nav.className).toContain('border-sidebar-border');
+  });
+
+  it('marks the open view with a bar rather than with another grey', () => {
+    // Four states used to share one 3% grey, so the open view and a hovered
+    // one painted the same colour. A bar is a different kind of mark, and no
+    // theme can collapse it into the fill beside it.
+    render(
+      <ViewSurface>
+        <ViewList
+          list={listState({
+            items: [
+              summary({ id: 'a', title: 'Mine' }),
+              summary({ id: 'b', title: 'Ours', scope: 'shared' }),
+            ],
+          })}
+          currentId="a"
+          onOpen={() => {}}
+        />
+      </ViewSurface>,
+    );
+
+    const current = screen.getByRole('button', { name: /Mine/ });
+    expect(current.className).toContain(
+      'shadow-[inset_2px_0_0_var(--primary)]',
+    );
+    expect(current.className).toContain('bg-background');
+    expect(current.className).toContain('font-medium');
+    // And hover is the column's own step, not the ghost variant's `muted` —
+    // on this ground that one *is* the ground.
+    const other = screen.getByRole('button', { name: /Ours/ });
+    expect(other.className).toContain('hover:bg-sidebar-accent');
+    expect(other.className).not.toContain('shadow-[inset');
+  });
+
+  it('stars the view that opens first, in a word as well as a picture', () => {
+    render(
+      <ViewSurface>
+        <ViewList
+          list={listState({
+            items: [
+              summary({ id: 'a', title: 'Mine' }),
+              summary({ id: 'b', title: 'Ours', scope: 'shared' }),
+            ],
+            // The manager's star reads this same preference, so the two
+            // screens cannot disagree about which view opens first.
+            preferences: { order: [], defaultInstanceId: 'b', revision: '1' },
+          })}
+          currentId="a"
+          onOpen={() => {}}
+        />
+      </ViewSurface>,
+    );
+
+    const starred = screen.getByRole('button', { name: /Ours/ });
+    expect(
+      starred.querySelector('[data-slot="view-default-star"]'),
+    ).not.toBeNull();
+    // A picture of a fact is not the fact: a reader hears it too.
+    expect(starred.textContent).toContain('Default');
+    expect(
+      screen
+        .getByRole('button', { name: /Mine/ })
+        .querySelector('[data-slot="view-default-star"]'),
+    ).toBeNull();
   });
 });

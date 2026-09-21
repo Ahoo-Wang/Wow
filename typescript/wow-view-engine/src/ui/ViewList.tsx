@@ -12,7 +12,13 @@
  */
 
 import { useId, type RefObject } from 'react';
-import { LayersIcon, PanelLeftCloseIcon, Settings2Icon } from 'lucide-react';
+import { cn } from 'cn';
+import {
+  LayersIcon,
+  PanelLeftCloseIcon,
+  Settings2Icon,
+  StarIcon,
+} from 'lucide-react';
 import {
   audienceOf,
   isSystemScope,
@@ -20,7 +26,6 @@ import {
   type ViewInstanceSummary,
 } from '../model/index.js';
 import type { ViewListState } from '../react/index.js';
-import { Badge } from './components/badge.js';
 import { Button } from './components/button.js';
 import {
   Empty,
@@ -29,7 +34,8 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from './components/empty.js';
-import { AUDIENCE_ICON, KIND_ICON } from './kinds.js';
+import { KIND_ICON } from './kinds.js';
+import { SPACE } from './layout.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { Skeleton } from './components/skeleton.js';
 import { Tooltip, TooltipTrigger } from './components/tooltip.js';
@@ -78,11 +84,18 @@ const GROUPS: readonly ViewAudience[] = ['personal', 'shared'];
  * The views of one definition, grouped by who they are for, in the user's
  * own order within each group.
  *
+ * It is a **navigation column and not a panel**: it paints its own grey
+ * ground and rules itself off from the work area, so a glance says which
+ * side of the screen is the list and which side is the view. Everything
+ * inside then has one ground to stand out from — the open view is the work
+ * area's own white on it, hover is a step the other way, and neither can be
+ * read as the other.
+ *
  * Three facts share one row and none of them repeats another: the icon says
  * which kind of view it is, because one data definition holds record and
- * analysis views together; the group says who it is for; and the tag says it
- * came with the definition. A system view is a shared view — that is
- * `audienceOf`'s answer, not a third group.
+ * analysis views together; the group heading says who it is for; and the
+ * grey word after the name says it came with the definition. A system view is
+ * a shared view — that is `audienceOf`'s answer, not a third group.
  *
  * A system view is always here even when the store is unreachable, because it
  * travels with the definition rather than with the data.
@@ -102,45 +115,74 @@ export function ViewList({
     <nav
       data-slot="view-list"
       aria-labelledby={headingId}
-      className="flex min-w-0 flex-col gap-3"
+      // The ground and the rule are the column's own rather than the
+      // `aside`'s around it, so a host that composes `ViewList` into its own
+      // frame gets the navigation column and not a bare list on white.
+      //
+      // The rule follows the layout: the surface is a column below `md` and
+      // a row from there up, so the edge between list and work area is the
+      // bottom one until the two stand side by side.
+      className="bg-sidebar text-sidebar-foreground border-sidebar-border flex min-w-0 flex-1 flex-col border-b md:border-r md:border-b-0"
     >
-      {/* The heading is its own row: the title, and whatever acts on the
-          list as a whole sits beside it rather than among the views. */}
+      {/* The heading is its own row: the definition's name, and whatever acts
+          on the list as a whole sits beside it rather than among the views.
+
+          It is ruled off, and the rule lands on the same line as the title
+          bar's: the two columns each have a head, and two heads that end at
+          two different heights read as two pages side by side. The geometry
+          is therefore copied rather than guessed — `WorkbenchShell`'s `main`
+          opens with `p-4`, and its `view-header-block` is a `min-h-10` row
+          over `pb-3` and a border, so this is the same four numbers in the
+          same order. `RecordWorkbench.test.stories.tsx` measures the two
+          bottoms against each other.
+
+          D12 puts a third button here — "new view" — and there is nothing
+          headless behind it: `useWorkbench` offers `save`, `saveAs`, `rename`
+          and `delete`, and none of them makes a blank view. A control with no
+          command is a promise, so by D4 it is absent rather than disabled,
+          and it arrives with the command that answers it. */}
       <div
         data-slot="view-list-header"
-        className="flex min-w-0 items-center gap-1"
+        className="border-sidebar-border border-b px-3 pt-4 pb-3"
       >
-        <h2
-          id={headingId}
-          data-slot="view-list-title"
-          className="min-w-0 flex-1 truncate px-1.5 text-sm font-medium"
-        >
-          {title || messages.label('label.view.list')}
-        </h2>
-        {onManage && (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={messages.label('label.manage.open')}
-            onClick={onManage}
+        <div className="flex min-h-10 min-w-0 items-center gap-1">
+          <h2
+            id={headingId}
+            data-slot="view-list-title"
+            className="min-w-0 flex-1 truncate px-1.5 text-sm font-medium"
           >
-            <Settings2Icon />
-          </Button>
-        )}
-        {onCollapse && (
-          <Button
-            ref={collapseRef}
-            variant="ghost"
-            size="icon-sm"
-            aria-label={messages.label('label.workbench.collapse-sidebar')}
-            aria-expanded
-            onClick={onCollapse}
-          >
-            <PanelLeftCloseIcon />
-          </Button>
-        )}
+            {title || messages.label('label.view.list')}
+          </h2>
+          {onManage && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={messages.label('label.manage.open')}
+              onClick={onManage}
+            >
+              <Settings2Icon />
+            </Button>
+          )}
+          {onCollapse && (
+            <Button
+              ref={collapseRef}
+              variant="ghost"
+              size="icon-sm"
+              aria-label={messages.label('label.workbench.collapse-sidebar')}
+              aria-expanded
+              onClick={onCollapse}
+            >
+              <PanelLeftCloseIcon />
+            </Button>
+          )}
+        </div>
       </div>
-      <ViewListBody list={list} currentId={currentId} onOpen={onOpen} />
+      <div
+        data-slot="view-list-body"
+        className={cn('flex min-w-0 flex-col p-3', SPACE.ROWS)}
+      >
+        <ViewListBody list={list} currentId={currentId} onOpen={onOpen} />
+      </div>
     </nav>
   );
 }
@@ -193,6 +235,7 @@ function ViewListBody({
             audience={audience}
             items={items}
             currentId={currentId}
+            defaultId={list.preferences?.defaultInstanceId ?? null}
             onOpen={onOpen}
           />
         );
@@ -201,20 +244,31 @@ function ViewListBody({
   );
 }
 
+/**
+ * One audience's views, under a heading that can be read.
+ *
+ * The heading is a heading and not a caption beside an icon: it is the one
+ * thing that divides the column, and a grey word with a padlock next to it
+ * read as another row rather than as the line above a set of them. The icon
+ * is gone for the same reason — the words already say who the group is for,
+ * and a second glyph column beside the kind icons said it twice.
+ */
 function ViewGroup({
   audience,
   items,
   currentId,
+  defaultId,
   onOpen,
 }: {
   audience: ViewAudience;
   items: ViewInstanceSummary[];
   currentId: string | null;
+  /** The view that opens first, which wears the star. */
+  defaultId: string | null;
   onOpen(instanceId: string): void;
 }) {
   const messages = useViewMessages();
   const labelId = useId();
-  const Icon = AUDIENCE_ICON[audience];
   return (
     <div
       data-slot="view-group"
@@ -222,18 +276,25 @@ function ViewGroup({
       aria-labelledby={labelId}
       className="flex flex-col gap-1"
     >
-      <span
+      {/* Not `muted-foreground`: that grey was picked to clear 4.5:1 on
+          *white*, and on the column's ground it measures 4.34:1 — a rule the
+          column's own ground would quietly break for every secondary word on
+          it. `sidebar-foreground/70` is the registry's own recipe for this,
+          and it moves with whatever ground a host sets: 5.5:1 here, 7.1:1 in
+          dark, 5.1:1 on a hovered row and 5.8:1 on the open one. */}
+      <h3
         id={labelId}
-        className="text-muted-foreground flex items-center gap-1 px-1.5 text-xs"
+        data-slot="view-group-heading"
+        className="text-sidebar-foreground/70 px-1.5 text-xs font-medium"
       >
-        <Icon className="size-3" aria-hidden />
         {messages.label(`label.scope.group.${audience}`)}
-      </span>
+      </h3>
       {items.map(item => (
         <ViewListItem
           key={item.id}
           item={item}
           current={item.id === currentId}
+          isDefault={item.id === defaultId}
           onOpen={onOpen}
         />
       ))}
@@ -241,23 +302,46 @@ function ViewGroup({
   );
 }
 
+/**
+ * One view in the column.
+ *
+ * The open one is the work area's own ground with a 2px bar of `primary`
+ * down its leading edge — not another step of grey. Four states used to
+ * share one 3% grey, so the open view and a hovered one painted the same
+ * colour and the list had no "you are here" at all; a bar is a different
+ * *kind* of mark, and no amount of theming can collapse it into the fill
+ * beside it. Hover is a step of the column's own scale in the other
+ * direction, which is why it overrides the ghost variant's `muted` — on this
+ * ground that one is the ground.
+ *
+ * The star is the manager's star, read off the same preference, so the two
+ * screens cannot disagree about which view opens first. It is drawn rather
+ * than pressed: setting the default is the manager's job, and a list whose
+ * rows both open a view and change a preference has two meanings per click.
+ */
 function ViewListItem({
   item,
   current,
+  isDefault,
   onOpen,
 }: {
   item: ViewInstanceSummary;
   current: boolean;
+  isDefault: boolean;
   onOpen(instanceId: string): void;
 }) {
   const Icon = KIND_ICON[item.kind];
   const messages = useViewMessages();
   return (
     <Button
-      variant={current ? 'secondary' : 'ghost'}
+      variant="ghost"
       size="sm"
       aria-current={current}
-      className="justify-start"
+      className={cn(
+        'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground justify-start',
+        current &&
+          'bg-background text-foreground hover:bg-background hover:text-foreground font-medium shadow-[inset_2px_0_0_var(--primary)]',
+      )}
       onClick={() => onOpen(item.id)}
     >
       <Tooltip>
@@ -267,19 +351,40 @@ function ViewListItem({
         </TooltipContent>
       </Tooltip>
       <span className="truncate">{item.title}</span>
+      {/* Where the view came from, said as a word after its name rather than
+          as a badge floating at the row's end: a badge there competes with
+          the star for the one place a row has, and this fact is a footnote
+          to the name, not a second column. */}
       {isSystemScope(item.scope) && (
         <Tooltip>
           <TooltipTrigger
             render={
-              <Badge variant="secondary" className="ml-auto">
+              <span
+                data-slot="view-system-tag"
+                className="text-sidebar-foreground/70 shrink-0 text-xs font-normal"
+              >
                 {messages.label('label.scope.tag.system')}
-              </Badge>
+              </span>
             }
           />
           <TooltipContent>
             {messages.label('label.scope.system')}
           </TooltipContent>
         </Tooltip>
+      )}
+      {isDefault && (
+        <>
+          <StarIcon
+            data-slot="view-default-star"
+            className="text-primary ml-auto size-3.5 fill-current"
+            aria-hidden
+          />
+          {/* The star is a picture of a fact, so the fact is also a word:
+              a reader hears "Mine, Default" rather than nothing at all. */}
+          <span className="sr-only">
+            {messages.label('label.manage.default')}
+          </span>
+        </>
       )}
     </Button>
   );

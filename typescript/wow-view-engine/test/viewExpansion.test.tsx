@@ -95,6 +95,7 @@ afterEach(() => {
 const FILL = defaultMessages['label.workbench.expand-view'];
 const LEAVE = defaultMessages['label.workbench.collapse-view'];
 const COLLAPSE_SIDEBAR = defaultMessages['label.workbench.collapse-sidebar'];
+const EXPAND_SIDEBAR = defaultMessages['label.workbench.expand-sidebar'];
 const SWITCH = defaultMessages['label.workbench.switch-view'];
 const FILTER = new RegExp(defaultMessages['label.filter.panel']);
 
@@ -566,7 +567,8 @@ describe('the keyboard', () => {
 
   it('leaves the key to a menu that is in front of it', async () => {
     const user = await expanded();
-    await user.click(screen.getByRole('button', { name: COLLAPSE_SIDEBAR }));
+    // Filling the screen already folded the list away, so the switcher is
+    // the menu that is in front.
     await user.click(screen.getByRole('button', { name: SWITCH }));
     await screen.findByRole('menu');
 
@@ -872,7 +874,12 @@ describe('the states a view can be expanded in', () => {
   it('belongs to this opening and ends when another view is opened', async () => {
     const user = await expanded();
 
-    await user.click(screen.getByRole('button', { name: /Ours/ }));
+    // Through the switcher: the list is folded while the screen is filled,
+    // and the switcher is what stands in for it.
+    await user.click(screen.getByRole('button', { name: SWITCH }));
+    await user.click(
+      await screen.findByRole('menuitemradio', { name: /Ours/ }),
+    );
     await waitFor(() =>
       expect(
         document.querySelector('[data-slot="view-title"]')!.textContent,
@@ -884,6 +891,84 @@ describe('the states a view can be expanded in', () => {
     // same rule the editor's fold lives by.
     expect(isExpanded()).toBe(false);
     expect(held()).toEqual(FREE);
+  });
+});
+
+/**
+ * Filling the screen is a gesture about the result, so the first thing that
+ * is not the result gets out of the way.
+ *
+ * A 224px column of navigation is what the rows were meant to get, and on a
+ * phone the list is not even beside them — it stacks above and the table
+ * starts 204px down, which is the fewest rows a filled screen has ever
+ * bought. Leaving puts back what was there, because the fold was this
+ * gesture's and not the user's.
+ */
+describe('the list while the screen is filled', () => {
+  const sidebar = () => document.querySelector('[data-slot="view-sidebar"]');
+
+  it('folds the list away, and puts it back on the way out', async () => {
+    const user = await open();
+    expect(sidebar()).not.toBeNull();
+
+    await user.click(screen.getByRole('button', { name: FILL }));
+    expect(sidebar()).toBeNull();
+    // The switcher is what stands in for the list, so nothing is out of
+    // reach while it is away.
+    expect(screen.getByRole('button', { name: SWITCH })).toBeDefined();
+
+    await user.click(screen.getByRole('button', { name: LEAVE }));
+    expect(sidebar()).not.toBeNull();
+  });
+
+  it('leaves a list that was already folded folded', async () => {
+    const user = await open();
+    await user.click(screen.getByRole('button', { name: COLLAPSE_SIDEBAR }));
+    expect(sidebar()).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: FILL }));
+    await user.click(screen.getByRole('button', { name: LEAVE }));
+
+    // Nothing to restore: leaving puts back the fold this gesture made, not
+    // one the user made before it.
+    expect(sidebar()).toBeNull();
+  });
+
+  it('lets the list back inside a fill, for that fill alone', async () => {
+    const user = await open();
+    await user.click(screen.getByRole('button', { name: FILL }));
+    expect(sidebar()).toBeNull();
+
+    // The button is not dead while the screen is filled: a user who wants
+    // the list back gets it.
+    await user.click(screen.getByRole('button', { name: EXPAND_SIDEBAR }));
+    expect(sidebar()).not.toBeNull();
+
+    // Leaving reads the page's own answer again — the fill's answer was the
+    // fill's — and the next fill starts without the list, as the first did.
+    await user.click(screen.getByRole('button', { name: LEAVE }));
+    expect(sidebar()).not.toBeNull();
+    await user.click(screen.getByRole('button', { name: FILL }));
+    expect(sidebar()).toBeNull();
+  });
+
+  it('takes no focus on the way in or out', async () => {
+    const user = await open();
+    const fill = screen.getByRole('button', { name: FILL });
+
+    await user.click(fill);
+    // The fold moved, and the keyboard did not: nothing was pressed but the
+    // control that fills the screen, and it is still the one under the
+    // cursor. A shell that ran the sidebar's own focus rule here would send
+    // the keyboard to a button the user never asked for.
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: LEAVE }),
+    );
+
+    await user.click(screen.getByRole('button', { name: LEAVE }));
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: FILL }),
+    );
   });
 });
 

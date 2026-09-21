@@ -160,6 +160,18 @@ assert.deepEqual(
 // portalled out of it alike, in follow-the-host and pinned modes alike, with
 // no selector to scope and no load order to win. A token left as a literal
 // would quietly ignore the host, so both blocks are read token by token.
+// The navigation column's ground, under shadcn's own names. They are named
+// here rather than counted, because the point is not "some sidebar tokens
+// exist" but that both modes carry *the same* five: a column themed in light
+// and unthemed in dark is the one failure a host cannot see from one screen.
+const SIDEBAR_TOKENS = [
+  '--sidebar',
+  '--sidebar-foreground',
+  '--sidebar-accent',
+  '--sidebar-accent-foreground',
+  '--sidebar-border',
+];
+
 const lightTokens = styleRules(stylesheet).find(
   ({ selector, declarations }) =>
     selector === '.fve-root' &&
@@ -187,8 +199,8 @@ for (const [mode, rule, prefix] of [
     rule.tokens
       .map(([property]) => property)
       .filter(property => property.startsWith('--sidebar')),
-    [],
-    `The ${mode} tokens still set sidebar properties, which nothing in this package uses`,
+    SIDEBAR_TOKENS,
+    `The ${mode} tokens must carry exactly the sidebar group the navigation column paints with, in one order`,
   );
 }
 
