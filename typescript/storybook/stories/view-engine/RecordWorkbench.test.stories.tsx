@@ -1137,6 +1137,98 @@ export const TableSettingsPointerDrag: Story = {
 };
 
 /**
+ * A column switched off keeps its place, and comes back to it (D17-8).
+ *
+ * The whole of the member is that one round trip: untick a column in the
+ * middle of the table, tick it again, and it is the same table. Before it,
+ * the entry was deleted from `table.columns`, so the column came back at
+ * the far end and had to be dragged home — and the config that was saved in
+ * between had simply lost it.
+ *
+ * It walks all three places the answer has to be the same in: the panel
+ * (the row stays in its slot, unticked), the table (the column goes and
+ * comes back where it was) and the store (the saved config carries the
+ * switch rather than a shorter list).
+ */
+export const HiddenColumnKeepsItsPlace: Story = {
+  ...DisplayTableSettings,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    await waitFor(() =>
+      expect(readHeaders(table)).toEqual(['订单号', '仓库', '状态', '金额']),
+    );
+
+    // The view's own columns, in the order the panel lists them. The
+    // definition offers more fields than this view shows, and those are
+    // listed after them — the place being checked here is the place among
+    // the columns the table has.
+    const own = ['id', 'warehouse', 'status', 'amount'];
+    const columnRows = () =>
+      [...document.querySelectorAll('[data-slot="column-setting"]')]
+        .map(row => row.getAttribute('data-field'))
+        .filter(field => field !== null && own.includes(field));
+    const open = async () =>
+      userEvent.click(
+        canvasElement.querySelector<HTMLElement>('[data-control="columns"]')!,
+      );
+    const checkbox = () =>
+      within(document.body).getByRole('checkbox', {
+        name: say('label.columns.show', { field: '仓库' }),
+      });
+
+    await open();
+    await userEvent.click(checkbox());
+
+    // Off in the table, still second in the panel — with a handle that
+    // works, because a place in the order is exactly what it kept.
+    await waitFor(() =>
+      expect(readHeaders(canvas.getByRole('table'))).toEqual([
+        '订单号',
+        '状态',
+        '金额',
+      ]),
+    );
+    expect(columnRows()).toEqual(own);
+    await expect(
+      within(document.body).getByRole('button', {
+        name: say('label.columns.drag', { field: '仓库' }),
+      }),
+    ).toBeEnabled();
+    await userEvent.keyboard('{Escape}');
+
+    // And what a save writes is the switch, in place — not a list with one
+    // column missing, which is what made the place impossible to keep.
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.save.save'] }),
+    );
+    await waitFor(async () => {
+      const saved = await tableSettingsStore.current!.get('orders-pending');
+      expect((saved.config as RecordViewConfig).table.columns).toEqual([
+        { field: 'id', pinned: 'left' },
+        { field: 'warehouse', hidden: true },
+        { field: 'status' },
+        { field: 'amount' },
+      ]);
+    });
+
+    // Back on, and back in its own slot: second, between the key column and
+    // 状态, rather than at the end of the table.
+    await open();
+    await userEvent.click(checkbox());
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() =>
+      expect(readHeaders(canvas.getByRole('table'))).toEqual([
+        '订单号',
+        '仓库',
+        '状态',
+        '金额',
+      ]),
+    );
+  },
+};
+
+/**
  * The sort popover, put in order the way a mouse puts it in order.
  *
  * Which field comes first is the whole of what that list says, and until it

@@ -17,6 +17,7 @@ import {
   type PagedList,
 } from '@ahoo-wang/fetcher-wow';
 import {
+  columnHidden,
   columnPin,
   type DataViewDefinition,
   type FieldDefinition,
@@ -158,7 +159,8 @@ export function columnOrder<T extends ColumnPlacement>(
  * while something scrolls under it.
  *
  * `columns` is what the table really draws — a field the definition dropped
- * is not one of them — so the answer is the last column on screen and not
+ * is not one of them, and neither is one the config switched off (`hidden`)
+ * — so the answer is the last column on screen and not
  * the last entry of a config that may name columns nobody can render. The
  * host's row-action column is outside this: it is a render slot rather than
  * a projected column, and it is held on the right by `ui/record/columns.ts`
@@ -197,12 +199,16 @@ export function projectRecord(
     );
 
   const byName = new Map(definition.fields.map(field => [field.name, field]));
-  // Unknown fields drop out before the layout runs, so the column the areas
-  // end on is the one really drawn last — which is the one the right edge
-  // holds, whatever the config asked for.
+  // Unknown fields and switched-off ones drop out before the layout runs, so
+  // the column the areas end on is the one really drawn last — which is the
+  // one the right edge holds, whatever the config asked for. A hidden column
+  // keeps its entry in the config, and therefore its place in the order, but
+  // the table never draws it and the export never writes it.
   const placed = columnOrder(
     config.table.columns.flatMap(column => {
-      const field = byName.get(column.field);
+      const field = columnHidden(column.hidden)
+        ? undefined
+        : byName.get(column.field);
       return field
         ? [
             {

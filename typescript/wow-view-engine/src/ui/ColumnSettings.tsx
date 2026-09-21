@@ -34,6 +34,7 @@ import { Tooltip, TooltipTrigger } from './components/tooltip.js';
 import { ColumnRow, SortableColumnRow } from './columns/ColumnRow.js';
 import { columnDragAccessibility } from './columns/announce.js';
 import {
+  ACTIONS_COLUMN,
   columnSettingRows,
   movableIndex,
   nextPin,
@@ -116,6 +117,7 @@ export function ColumnSettings({
         actions,
         summaryFields: table.summaryFields,
         pinnedOf: table.pinnedOf,
+        hiddenOf: table.hiddenOf,
         summaryOf: table.summaryOf,
       }),
     [
@@ -123,6 +125,7 @@ export function ColumnSettings({
       fields,
       rowKey,
       table.columnFields,
+      table.hiddenOf,
       table.pinnedOf,
       table.summaryFields,
       table.summaryOf,
@@ -180,7 +183,7 @@ export function ColumnSettings({
           {/* One sentence, and the only one no row can say for itself.
               Every rule about a particular column — the last one that may
               not be hidden, a column that has to be shown before it can be
-              ordered, pinned or summarised, a column the data no longer has
+              pinned or summarised, a column the data no longer has
               — is written on that column's own row, where the control it
               governs is. Five of them collected here was a paragraph, and a
               paragraph is something a reader has to match against the row
@@ -285,7 +288,7 @@ function Region({
             onToggle: () =>
               row.summaryOnly
                 ? table.setSummary(row.field, null)
-                : table.setColumns(toggled(table.columnFields, row)),
+                : table.setColumns(toggled(rows, row)),
             onPin: () =>
               table.setPinned(row.field, nextPin(columnPin(row.pinned))),
             onSummary: (fn: SummaryFunction | null) =>
@@ -327,11 +330,32 @@ function reordered(
   ];
 }
 
-/** The shown columns after this row's checkbox is flipped. */
-function toggled(columns: readonly string[], row: ColumnSettingRow): string[] {
-  return row.visible
-    ? columns.filter(field => field !== row.field)
-    : [...columns, row.field];
+/**
+ * The columns the table shows after this row's checkbox is flipped, in the
+ * order the panel lists them.
+ *
+ * Read off the rows rather than off the config's field names, because those
+ * two are no longer the same list: a switched-off column is still in the
+ * config — that is what keeps its place — and a field the config has never
+ * mentioned is listed here and in no config at all. What the controller is
+ * told is which columns are shown; where each one sits is its own answer
+ * (`setColumns`).
+ */
+function toggled(
+  rows: readonly ColumnSettingRow[],
+  row: ColumnSettingRow,
+): string[] {
+  return rows
+    .filter(
+      entry =>
+        entry.field !== ACTIONS_COLUMN &&
+        // A summary-only row is shown and is not a column (D17-9): naming
+        // it here would add the column nobody asked for, which is the very
+        // thing its own checkbox exists to avoid.
+        !entry.summaryOnly &&
+        (entry.field === row.field ? !row.visible : entry.visible),
+    )
+    .map(entry => entry.field);
 }
 
 function labelOf(rows: readonly ColumnSettingRow[], field: string): string {

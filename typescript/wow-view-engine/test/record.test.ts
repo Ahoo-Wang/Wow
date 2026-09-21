@@ -834,6 +834,111 @@ describe('projectRecord', () => {
   });
 
   /**
+   * A column the user switched off keeps its entry — that is its place in
+   * the order, which is the whole point of the member (D17-8) — and the
+   * table simply does not draw it. So it is not a column, not a cell in an
+   * export, and not the end the right edge holds.
+   */
+  describe('a column switched off', () => {
+    const hidden = config({
+      table: {
+        columns: [
+          { field: 'id' },
+          { field: 'amount', hidden: true },
+          { field: 'warehouse' },
+        ],
+      },
+    });
+
+    it('is left out of the columns, and the rest keep their order', () => {
+      const view = projectRecord(definition(), hidden, { total: 0, list: [] });
+
+      expect(view.columns.map(column => column.field)).toEqual([
+        'id',
+        'warehouse',
+      ]);
+      // The config still says where it will come back to.
+      expect(hidden.table.columns.map(column => column.field)).toEqual([
+        'id',
+        'amount',
+        'warehouse',
+      ]);
+    });
+
+    /** D13's last column is the last one *drawn*. */
+    it('is never the end the table is held by', () => {
+      const view = projectRecord(definition(), hidden, { total: 0, list: [] });
+
+      expect(view.columns.map(column => column.pinned)).toEqual([
+        'left',
+        'right',
+      ]);
+      expect(view.columns[1]).toMatchObject({ field: 'warehouse', end: true });
+    });
+
+    /** It is a column like any other while it is off; only `hidden` moves. */
+    it('is admitted, and so is a config that never heard of the member', () => {
+      expect(
+        codes(validateRecord(definition(), hidden, builtinFieldKinds)),
+      ).toEqual([]);
+      expect(
+        codes(validateRecord(definition(), config(), builtinFieldKinds)),
+      ).toEqual([]);
+    });
+
+    /** And the rules that are about the entry itself still reach it. */
+    it('is still refused when it names a field that is not there', () => {
+      const issues = validateRecord(
+        definition(),
+        config({
+          table: {
+            columns: [
+              { field: 'id' },
+              { field: 'gone', hidden: true },
+              { field: 'id', hidden: true },
+            ],
+          },
+        }),
+        builtinFieldKinds,
+      );
+
+      expect(codes(issues)).toEqual([
+        'record.field.unknown',
+        'record.column.duplicate',
+      ]);
+    });
+
+    /**
+     * One checkbox writes this member and it has one value. Anything else
+     * reads as shown rather than as a guess, and is reported so that the
+     * checkbox which writes it properly is known to be the repair — the
+     * treatment `pinned` and `width` get, for the same reason.
+     */
+    it('reports a switch that is not how a column is switched off', () => {
+      const config_ = config({
+        table: {
+          columns: [
+            { field: 'id' },
+            { field: 'amount', hidden: 'yes' },
+            { field: 'warehouse' },
+          ],
+        },
+      } as unknown as Partial<RecordViewConfig>);
+
+      const issues = validateRecord(definition(), config_, builtinFieldKinds);
+      expect(codes(issues)).toEqual(['record.column.hidden-invalid']);
+      expect(issues[0].path).toEqual(['table', 'columns', 1, 'hidden']);
+
+      // Read as shown in the meantime, so the column is on screen and the
+      // checkbox that repairs it is the one the user is looking at.
+      expect(
+        projectRecord(definition(), config_, { total: 0, list: [] }).columns
+          .length,
+      ).toBe(3);
+    });
+  });
+
+  /**
    * A column the definition no longer offers is not drawn, so it is not the
    * end either: the end is the last column actually on screen.
    */

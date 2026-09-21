@@ -31,6 +31,7 @@
  */
 
 import {
+  columnHidden,
   columnPin,
   SUMMARY_FUNCTIONS,
   type RecordColumn,
@@ -97,7 +98,12 @@ export function wasSound(raw: unknown, read: readonly unknown[]): boolean {
   return Array.isArray(raw) && raw.length === read.length;
 }
 
-/** Columns as the draft holds them, with a width and a pinning it can use. */
+/**
+ * Columns as the draft holds them, with a width, a pinning and a visibility
+ * it can use. A column switched off keeps its entry and therefore its place
+ * in the order, so it is read like any other — only `hidden` says the table
+ * does not draw it, and anything but `true` under that name reads as shown.
+ */
 export function recordColumns(value: unknown): RecordColumn[] {
   return entries(value).map(entry => {
     const pinned = columnPin(entry.pinned);
@@ -105,6 +111,7 @@ export function recordColumns(value: unknown): RecordColumn[] {
       field: entry.field as string,
       ...(typeof entry.width === 'number' ? { width: entry.width } : {}),
       ...(pinned === null ? {} : { pinned }),
+      ...(columnHidden(entry.hidden) ? { hidden: true as const } : {}),
     };
   });
 }

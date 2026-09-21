@@ -113,22 +113,31 @@ export function PlainRecordWorkbench({
         </button>
       </section>
 
+      {/* `setColumns` is told which columns are shown, and the draft's
+          columns include the ones switched off — a hidden column keeps its
+          entry, which is what keeps its place — so what is toggled here is
+          the shown list rather than the whole of `columnFields`. */}
       <section aria-label="columns">
-        {filter.fields.map(field => (
-          <button
-            key={field.name}
-            type="button"
-            onClick={() =>
-              table.setColumns(
-                table.columnFields.includes(field.name)
-                  ? table.columnFields.filter(name => name !== field.name)
-                  : [...table.columnFields, field.name],
-              )
-            }
-          >
-            Toggle column {field.label}
-          </button>
-        ))}
+        {filter.fields.map(field => {
+          const shown = table.columnFields.filter(
+            name => !table.hiddenOf(name),
+          );
+          return (
+            <button
+              key={field.name}
+              type="button"
+              onClick={() =>
+                table.setColumns(
+                  shown.includes(field.name)
+                    ? shown.filter(name => name !== field.name)
+                    : [...shown, field.name],
+                )
+              }
+            >
+              Toggle column {field.label}
+            </button>
+          );
+        })}
       </section>
 
       <table>
