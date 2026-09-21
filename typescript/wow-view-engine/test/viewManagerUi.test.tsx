@@ -41,6 +41,7 @@ import { manageDragAccessibility, managerDrop } from '../src/ui/manage/drag.js';
 import { ViewList } from '../src/ui/ViewList.js';
 import { ViewManager } from '../src/ui/ViewManager.js';
 import { ViewSurface } from '../src/ui/ViewSurface.js';
+import { RecordWorkbench } from '../src/ui/RecordWorkbench.js';
 import { formattersFor } from './fixtures/columns.js';
 import {
   deferred,
@@ -48,6 +49,7 @@ import {
   recordConfig,
   testSource,
 } from './fixtures.js';
+import { mine, setup as workbenchSetup } from './fixtures/ui.js';
 
 afterEach(cleanup);
 
@@ -1131,6 +1133,286 @@ describe('what a drag of a view says out loud', () => {
   it('carries the instructions a reader is given on the handle', () => {
     expect(accessibility.screenReaderInstructions.draggable).toBe(
       defaultMessages['label.manage.instructions'],
+    );
+  });
+});
+
+/**
+ * Renaming, deleting, reordering and the default view happen in the sidebar's
+ * manager rather than beside the save button — they are about the list, not
+ * about the view on screen. What the workbench still owes is to follow: the
+ * view it has open may be the one that just went.
+ */
+describe('managing views from the workbench', () => {
+  /** One row of the manager, by the title it shows. */
+  function row(title: string): HTMLElement {
+    const found = Array.from(
+      document.querySelectorAll('[data-slot="view-manager-row"]'),
+    ).find(
+      candidate =>
+        candidate.textContent?.includes(title) ||
+        Array.from(candidate.querySelectorAll('input')).some(field =>
+          field.value.includes(title),
+        ),
+    );
+    if (!found) throw new Error(`no row for ${title}`);
+    return found as HTMLElement;
+  }
+
+  /**
+   * The manager is a modal: everything behind it is inert, the sidebar
+   * included. A test that looks at what the workbench did has to shut it.
+   */
+  function close() {
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+  }
+
+  /** Opens the manager from the sidebar and waits for it to draw. */
+  async function manage() {
+    fireEvent.click(screen.getByRole('button', { name: 'Manage views' }));
+    await screen.findByRole('dialog');
+  }
+
+  /** The manager's delete, through its confirmation. */
+  async function remove(title: string) {
+    await manage();
+    fireEvent.click(within(row(title)).getByRole('button', { name: 'Delete' }));
+    const confirm = (await screen.findByText('Delete this view?')).closest(
+      '[role="alertdialog"]',
+    ) as HTMLElement;
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Delete' }));
+  }
+
+  it('moves on to the next view once the open default is deleted', async () => {
+    // No explicit instance and the personal view is the default: the id the
+    // workbench opened came from the list, so a delete has nothing to unpin.
+    // The engine disposed the runtime with the instance; what is on screen
+    // must follow, and the list must stop offering the view.
+    const store = new MemoryViewStore({
+      instances: [mine],
+      preferences: {
+        orders: { order: [], defaultInstanceId: 'orders-1', revision: '0' },
+      },
+    });
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store,
+      resolveSource: () => testSource(),
+    });
+    render(<RecordWorkbench engine={engine} definitionId="orders" />);
+    // A regex, because this one *is* the default: its row carries the star,
+    // and the star says so in a word rather than only in a picture.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Mine/ }).ariaCurrent).toBe(
+        'true',
+      ),
+    );
+
+    await remove('Mine');
+    close();
+
+    // The system view is what is left, and it is the one open now.
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: /All orders/ }).ariaCurrent,
+      ).toBe('true'),
+    );
+    expect(screen.queryByRole('button', { name: /Mine/ })).toBeNull();
+    expect(screen.getAllByRole('row')).toHaveLength(3);
+  });
+
+  /**
+   * The view the workbench was *pinned* to, rather than riding on: nothing
+   * reloads the pin, so the workbench has to notice that reopening it now
+   * answers "no such view" and let go of its own accord.
+   */
+  it('lets the pinned view go when the manager deletes it', async () => {
+    const other: ViewInstance = { ...mine, id: 'orders-2', title: 'Other' };
+    const store = new MemoryViewStore({ instances: [mine, other] });
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store,
+      resolveSource: () => testSource(),
+    });
+    render(
+      <RecordWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+      />,
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Mine' }).ariaCurrent).toBe(
+        'true',
+      ),
+    );
+
+    await remove('Mine');
+    close();
+
+    await waitFor(
+      () => expect(screen.queryByRole('button', { name: 'Mine' })).toBeNull(),
+      { timeout: 3000 },
+    );
+    // The pin is gone, so the list's default is what is open.
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: /All orders/ }).ariaCurrent,
+      ).toBe('true'),
+    );
+  });
+
+  it('shows the empty state once the last view is deleted', async () => {
+    const store = new MemoryViewStore({ instances: [mine] });
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition({ views: [] })],
+      store,
+      resolveSource: () => testSource(),
+    });
+    render(<RecordWorkbench engine={engine} definitionId="orders" />);
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+
+    await remove('Mine');
+
+    // The runtime goes at once — disposal notifies — and the list a moment
+    // later, once it has reloaded without the deleted view.
+    await waitFor(() => expect(screen.queryByRole('table')).toBeNull());
+    expect(await screen.findByText('No view yet')).toBeDefined();
+    expect(screen.queryByRole('button', { name: 'Mine' })).toBeNull();
+  });
+
+  it('lets go of the view once a recovered delete lands', async () => {
+    const { engine, store } = workbenchSetup();
+    render(
+      <RecordWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+      />,
+    );
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+    vi.spyOn(store, 'delete').mockRejectedValueOnce(new Error('socket closed'));
+
+    await remove('Mine');
+
+    // The row that raised the write is the one that says what became of it.
+    // Read out of the dialog rather than off the page: the workbench behind
+    // it still shows the open view's own outcome, and the manager now keeps
+    // a live region for what a move says out loud.
+    const outcome = (
+      await within(screen.getByRole('dialog')).findByText(/never came back/)
+    ).closest('[role="status"]') as HTMLElement;
+
+    fireEvent.click(within(outcome).getByRole('button', { name: 'Retry' }));
+    close();
+
+    // The store has it now; the workbench follows: the view stops rendering
+    // and the list drops the entry once its reload lands.
+    await waitFor(
+      () => {
+        expect(screen.queryByRole('table')).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Mine' })).toBeNull();
+      },
+      { timeout: 3000 },
+    );
+  });
+
+  it('keeps the view open when a delete conflict ends in a reload', async () => {
+    // Another view is the default, so a pin dropped on the reload would
+    // reopen that one instead: nothing here says the user left this view.
+    const other: ViewInstance = { ...mine, id: 'other-1', title: 'Other' };
+    const store = new MemoryViewStore({ instances: [other, mine] });
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store,
+      resolveSource: () => testSource(),
+    });
+    render(
+      <RecordWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+      />,
+    );
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+    // The server moved on; taking their version adopts the existing
+    // instance, it does not delete it.
+    const moved = await store.save(
+      'orders-1',
+      recordConfig({ pageSize: 30 }),
+      '1',
+      { requestId: 'other' },
+    );
+    vi.spyOn(store, 'delete').mockImplementationOnce(() =>
+      Promise.reject(new ViewStoreError('CONFLICT', 'moved', moved)),
+    );
+
+    await remove('Mine');
+
+    const outcome = await screen.findByRole('alert');
+    fireEvent.click(
+      within(outcome).getByRole('button', { name: 'Reload list' }),
+    );
+
+    // The dialog is in the way of the sidebar; close it and look.
+    close();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Mine' }).ariaCurrent).toBe(
+        'true',
+      ),
+    );
+    expect(screen.getByRole('table')).toBeDefined();
+  });
+
+  it('keeps unsaved edits across a rename of the default view', async () => {
+    // The default has to be the personal view: the first list entry is the
+    // code-declared system view, which nobody may rename.
+    const store = new MemoryViewStore({
+      instances: [mine],
+      preferences: {
+        orders: { order: [], defaultInstanceId: 'orders-1', revision: '0' },
+      },
+    });
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store,
+      resolveSource: () => testSource(),
+    });
+    // No explicit instance: the workbench rides on the default view, so
+    // nothing is pinned and a list reload must not close the runtime.
+    render(<RecordWorkbench engine={engine} definitionId="orders" />);
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+
+    fireEvent.click(screen.getByRole('button', { name: /Columns/ }));
+    fireEvent.click(
+      await screen.findByRole('checkbox', { name: 'Show Warehouse' }),
+    );
+    // The header count includes the select-all column.
+    await waitFor(() =>
+      expect(screen.getAllByRole('columnheader')).toHaveLength(4),
+    );
+    // The column menu stays open after a checkbox pick; close it before the
+    // next click, which the open menu would swallow.
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+
+    await manage();
+    fireEvent.click(
+      within(row('Mine')).getByRole('button', { name: 'Rename' }),
+    );
+    fireEvent.change(within(row('Mine')).getByLabelText('Title'), {
+      target: { value: 'Renamed' },
+    });
+    fireEvent.click(
+      within(row('Renamed')).getByRole('button', { name: 'Save the title' }),
+    );
+
+    // The rename refreshed the list; the unsaved column edit survived it.
+    await waitFor(async () =>
+      expect((await store.get('orders-1')).title).toBe('Renamed'),
+    );
+    close();
+    await waitFor(() =>
+      expect(screen.getAllByRole('columnheader')).toHaveLength(4),
     );
   });
 });

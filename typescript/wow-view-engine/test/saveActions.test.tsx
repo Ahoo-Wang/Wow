@@ -42,17 +42,9 @@ import {
   recordConfig,
   testSource,
 } from './fixtures.js';
+import { mine, setup as workbenchSetup } from './fixtures/ui.js';
 
 afterEach(cleanup);
-
-const mine: ViewInstance = {
-  id: 'orders-1',
-  definitionId: 'orders',
-  title: 'Mine',
-  scope: 'personal',
-  revision: '1',
-  config: recordConfig(),
-};
 
 function permitting(
   overrides: Partial<ViewPermissions> = {},
@@ -842,5 +834,212 @@ describe('WriteOutcome', () => {
     await clickWhenEnabled('Retry');
 
     await waitFor(() => expect(onRenamed).toHaveBeenCalledWith(renamed));
+  });
+});
+
+/**
+ * The same commands seen from the workbench they are used in: the button
+ * group sits in a real header, over a view that was opened, saved and left.
+ * They moved here from `recordWorkbench.test.tsx`, where they were about
+ * saving rather than about the workbench.
+ */
+describe('save actions', () => {
+  async function open() {
+    const harness = workbenchSetup();
+    render(
+      <RecordWorkbench
+        engine={harness.engine}
+        definitionId="orders"
+        instanceId="orders-1"
+      />,
+    );
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+    return harness;
+  }
+
+  /**
+   * Save as lives in the split button's menu whenever saving in place is also
+   * allowed: one button says the thing to do now, the menu holds the rest.
+   */
+  async function openSaveAs() {
+    fireEvent.click(screen.getByRole('button', { name: 'More view actions' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Save as' }));
+    return screen.findByRole('dialog');
+  }
+
+  /** An edit the toolbar can make, so the draft has something to save. */
+  async function dropAColumn() {
+    fireEvent.click(screen.getByRole('button', { name: /Columns/ }));
+    fireEvent.click(
+      await screen.findByRole('checkbox', { name: 'Show Warehouse' }),
+    );
+    await waitFor(() =>
+      expect(screen.getAllByRole('columnheader')).toHaveLength(4),
+    );
+    // The column menu stays open after a pick; close it before the next
+    // click, which the open menu would swallow.
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+  }
+
+  it('has nothing to save until the view is edited', async () => {
+    await open();
+
+    const save = screen.getByRole('button', { name: 'Save' });
+    expect(save.hasAttribute('disabled')).toBe(true);
+
+    await dropAColumn();
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Save' }).hasAttribute('disabled'),
+      ).toBe(false),
+    );
+  });
+
+  it('saves the open view in place', async () => {
+    const { store } = await open();
+    await dropAColumn();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(async () =>
+      expect((await store.get('orders-1')).revision).toBe('2'),
+    );
+    // The landing is said once, on the button that was pressed and to a
+    // screen reader, which does not re-read a control it already announced.
+    expect(await screen.findByRole('status')).toBeDefined();
+    expect(screen.getByRole('status').textContent).toBe('View saved');
+  });
+
+  it('takes the edits back to the last saved config', async () => {
+    await open();
+    await dropAColumn();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Revert' }));
+
+    await waitFor(() =>
+      expect(screen.getAllByRole('columnheader')).toHaveLength(3),
+    );
+  });
+
+  it('saves a copy under a new title', async () => {
+    const { store } = await open();
+
+    const dialog = await openSaveAs();
+    fireEvent.change(within(dialog).getByLabelText('Title'), {
+      target: { value: 'Pending only' },
+    });
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Create view' }),
+    );
+
+    await waitFor(async () =>
+      expect((await store.list('orders')).map(item => item.title)).toContain(
+        'Pending only',
+      ),
+    );
+  });
+
+  it('opens on a copy of the title it was asked from', async () => {
+    await open();
+
+    const dialog = await openSaveAs();
+    expect(
+      (within(dialog).getByLabelText('Title') as HTMLInputElement).value,
+    ).toBe('Mine copy');
+  });
+
+  it('saves a copy everyone can see', async () => {
+    const { store } = await open();
+
+    const dialog = await openSaveAs();
+    fireEvent.change(within(dialog).getByLabelText('Title'), {
+      target: { value: 'Ours' },
+    });
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Everyone' }));
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Create view' }),
+    );
+
+    await waitFor(async () =>
+      expect(
+        (await store.list('orders')).find(item => item.title === 'Ours')?.scope,
+      ).toBe('shared'),
+    );
+  });
+
+  /**
+   * Save as defaulted to "Only me" whatever the store allowed, so a user who
+   * may only publish shared views pressed Save and was refused by the engine
+   * for a scope the dialog had picked on their behalf. The option stays on
+   * offer — disabled, and saying why — because a scope that simply vanished
+   * reads as one this view cannot have rather than one this user cannot make.
+   */
+  it('offers only the audience the user may create in', async () => {
+    const store = new MemoryViewStore({
+      instances: [mine],
+      permissions: () => ({
+        createPersonal: false,
+        createShared: true,
+        reorder: true,
+        setDefault: true,
+        instance: () => ({ save: true, rename: true, delete: true }),
+      }),
+    });
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store,
+      resolveSource: () => testSource(),
+    });
+    render(
+      <RecordWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+      />,
+    );
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+
+    const dialog = await openSaveAs();
+    const onlyMe = within(dialog).getByRole('radio', { name: 'Only me' });
+    expect(onlyMe.getAttribute('aria-disabled')).toBe('true');
+    expect(dialog.textContent).toContain('(no permission to create)');
+    expect(
+      within(dialog).getByRole('radio', { name: 'Everyone' }).ariaChecked,
+    ).toBe('true');
+
+    fireEvent.change(within(dialog).getByLabelText('Title'), {
+      target: { value: 'Ours' },
+    });
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Create view' }),
+    );
+
+    await waitFor(async () =>
+      expect(
+        (await store.list('orders')).find(item => item.title === 'Ours')?.scope,
+      ).toBe('shared'),
+    );
+  });
+
+  /**
+   * A system view is nobody's to write to, so there is no button group at
+   * all — only the copy that is the one thing that can be done with it.
+   */
+  it('offers only a copy of a view nobody may write to', async () => {
+    const { engine } = workbenchSetup();
+    render(
+      <RecordWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId={systemInstanceId('orders', 'all')}
+      />,
+    );
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+
+    expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'More view actions' }),
+    ).toBeNull();
+    expect(screen.getByRole('button', { name: 'Save as' })).toBeDefined();
   });
 });
