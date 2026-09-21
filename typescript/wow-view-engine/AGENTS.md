@@ -126,7 +126,18 @@ src/
     defaults.ts                   — defaultRecordConfig
     index.ts
   analysis/                     — Analysis kernel — imports model and filter
-    validate.ts                   — validateAnalysis — aliases, limits, capabilities
+    validate.ts                   — validateAnalysis — the order the rule sets run in
+    validateShape.ts              — The skeleton every other rule reads through
+    validateAliases.ts            — Alias syntax, the reserved prefix, duplicates
+    validateElements.ts           — Declared element paths and their gate filters
+    validateGroups.ts             — Group kinds, date units, dense, blank keys
+    validateMetrics.ts            — One rule set per metric type, filters included
+    validateHaving.ts             — Having: declared, grouped, over known metrics
+    validateSort.ts               — Sort and table columns, over known aliases
+    validateLimits.ts             — Declared limits under Wow's own ceilings
+    budget.ts                     — Depth and node budgets of a walked tree
+    expressions.ts                — Aggregate and derived expression walks
+    queryFilter.ts                — A filter in metric or element position
     validateChart.ts              — Chart rules; groups must all be consumed
     compile.ts                    — compileAnalysis → AggregationQuery
     project.ts                    — projectAnalysis — table columns and rows

@@ -136,6 +136,8 @@ mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboa
 
 ## Analysis 内核的规则
 
+规则按族分文件，`analysis/validate.ts` 只说它们跑的顺序：骨架 `validateShape.ts`、元素域 `validateElements.ts`、分组 `validateGroups.ts`、指标 `validateMetrics.ts`、别名 `validateAliases.ts`、having `validateHaving.ts`、排序与表列 `validateSort.ts`、上限 `validateLimits.ts`、图表 `validateChart.ts`；被它们共用的是预算 `budget.ts`（深度与节点数）、表达式走查 `expressions.ts` 与查询内筛选 `queryFilter.ts`（指标位与元素位）。加一条分析规则，先看它属于哪一族。
+
 `validateAnalysis` 的规则：
 
 - 别名在 groups 与 metrics 之间唯一，且必须是单段（不含 `.`）、不以保留前缀 `__wow` 开头，并且必须匹配 Wow 的查询字段单段语法（否则报 `analysis.alias.invalid`），与 Wow 的 `aggregationAlias` 一致；

@@ -46,8 +46,6 @@ const withMargin = lines => Math.ceil((lines * 1.1) / 10) * 10;
  * 拆到阈值以内后，连同那一条一起删掉。
  */
 const maxLinesWaivers = [
-  // 骨架、预算、别名、元素域、指标、having、排序七套规则一个文件 —— todo.md「R8」
-  { file: 'src/analysis/validate.ts', lines: 701 },
   // 抽走 writeLedger 之后仍是注册表 + 打开/创建 + 偏好缓存 —— todo.md「R9」
   { file: 'src/runtime/viewEngine.ts', lines: 635 },
 ];
