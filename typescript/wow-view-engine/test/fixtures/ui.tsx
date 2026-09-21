@@ -23,16 +23,14 @@ import type {
   RecordTableController,
   RefreshController,
 } from '../../src/react/index.js';
-import { ordersDefinition, recordConfig, testSource } from '../fixtures.js';
+import {
+  mine,
+  ordersDefinition,
+  recordConfig,
+  testSource,
+} from '../fixtures.js';
 
-export const mine: ViewInstance = {
-  id: 'orders-1',
-  definitionId: 'orders',
-  title: 'Mine',
-  scope: 'personal',
-  revision: '1',
-  config: recordConfig(),
-};
+export { mine };
 
 /**
  * A simple-mode config holding a tree only the advanced editor can show. It

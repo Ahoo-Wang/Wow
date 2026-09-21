@@ -17,7 +17,7 @@ useViewEngine(options): ViewEngine
 useViewRuntime(runtime): ViewRuntimeState | null
 ```
 
-- useSyncExternalStore。（见 test/reactHooks.test.tsx「useViewRuntime」）
+- useSyncExternalStore。（见 test/useViewEngine.test.tsx「useViewRuntime」）
 
 ## useOpenView
 
@@ -28,7 +28,7 @@ useOpenView(engine, instanceId, scopeFilter?): { runtime | null; loading; error;
 - 拥有所开 runtime：换 id 或卸载即释放；
 - runtime 在其下被释放（如实例被删除）时不再交出，按同一 id 重新打开，得到新 runtime 或 not_found；
 - 注入的 scopeFilter 被拒时，`setScopeFilter` 返回的 error 级 Issue 由 `scopeIssues` 交出，宿主据此提示；
-- warning 不算拒绝，条件照常生效，warning 留在 runtime 的 `issues` 里由 UI 按 warning 呈现——否则旧的、更宽的条件仍在运行却无人知晓。（见 test/reactHooks.test.tsx「useOpenView」）
+- warning 不算拒绝，条件照常生效，warning 留在 runtime 的 `issues` 里由 UI 按 warning 呈现——否则旧的、更宽的条件仍在运行却无人知晓。（见 test/useViewEngine.test.tsx「useOpenView」）
 
 ## useViewList
 
@@ -40,7 +40,7 @@ useViewList(engine, definitionId, options?: { kind }): { items; all; preferences
 - useViewManager 因此管的是过滤后的可见列表，而 move 提交的是 `all`（未过滤的完整顺序）里对调两项的结果，未列出的种类因此各守其位；
 - `all` 是未经 kind 过滤、同序的全部摘要，供 moveTo 在完整顺序里落子；
 - reload 可带 `{ without?: id }`：重载期间把该 id 从留存的摘要里去掉，`preferences.defaultInstanceId` 命中它也读作 null，答案落地即恢复由 store 说了算——重载只刷新不清空，否则刚删掉的那一行会继续被列出、继续被当作默认视图，骑在默认视图上的工作台就会去重开一个刚被释放的 runtime（瞬时 not_found）；
-- `useViewManager.delete` 自动带上被删的 id，宿主绕过它直接用 engine 删除时同样要带。（见 test/reactHooks.test.tsx「useViewList」「narrowed to one kind」）
+- `useViewManager.delete` 自动带上被删的 id，宿主绕过它直接用 engine 删除时同样要带。（见 test/useViewList.test.tsx「useViewList」「narrowed to one kind」）
 
 ## useFilterEditor
 
@@ -61,7 +61,7 @@ useFilterEditor(runtime): FilterController
 - 超预算同样按路径认领（根路径或 `['children', …]`，与 issues 同一组），分析的指标／元素筛选与仪表盘面板筛选报的是同样的 code、只是重定址到 `['metrics', …]`／`['elements', …]`／`['panels', …]`，只看 code 会让根编辑器为一棵它不画的树关掉 pending；
 - 比较本身是迭代加计数的，过深或成环的草稿返回 false 而不是爆栈；
 - blocked 是落在条件上的 error 条数——包括编辑器画不出 pill 的那些（畸形节点），它们同样阻塞 Apply，只是由状态条而不是 pill 报出；
-- unmarked 与 blocked 成对：blocked 数的是 pill 上那些（外加画不出 pill 的），unmarked 给出的是**没有一处标记**的那些——畸形节点、分组自身的 error，以及配置里条件以外的 error（掉了的列、不再受理的页大小）。两者合起来把"拦住视图的每一条 error"交代完，各说一次、互不重复：pill 一份，编辑器上方的状态条一份。判断由 `filter/marks.ts` 的 `unmarkedErrors(issues, tree)` 做，它只问树——哪些路径解析得到一条渲染得出的条件（谓词内部的条件也算）——所以它属于内核而不属于编辑器；unmarked 走的是整份 `state.issues` 而不是被本树收窄过的 `issues`。（见 test/reactHooks.test.tsx「useFilterEditor」「useFilterEditor pending and applied」「useFilterEditor under a host scope filter」与 test/statusStrip.test.tsx「ErrorStrip」）
+- unmarked 与 blocked 成对：blocked 数的是 pill 上那些（外加画不出 pill 的），unmarked 给出的是**没有一处标记**的那些——畸形节点、分组自身的 error，以及配置里条件以外的 error（掉了的列、不再受理的页大小）。两者合起来把"拦住视图的每一条 error"交代完，各说一次、互不重复：pill 一份，编辑器上方的状态条一份。判断由 `filter/marks.ts` 的 `unmarkedErrors(issues, tree)` 做，它只问树——哪些路径解析得到一条渲染得出的条件（谓词内部的条件也算）——所以它属于内核而不属于编辑器；unmarked 走的是整份 `state.issues` 而不是被本树收窄过的 `issues`。（见 test/useFilterEditor.test.tsx「useFilterEditor」「useFilterEditor pending and applied」「useFilterEditor under a host scope filter」与 test/statusStrip.test.tsx「ErrorStrip」）
 
 ## 控制器是边界
 
@@ -81,7 +81,7 @@ useRecordTable(runtime): RecordTableController
 
 - 列语义、排序、列宽列序、选择、分页；
 - 无 TanStack 类型；
-- layouts 为定义允许的布局，selectedRows 为当前结果中被选中的行（结果顺序），pageSizes 为可供选择的每页条数（标准档位按 runtime.limits.maxPageSize 裁剪，并并入当前值）。（见 test/reactHooks.test.tsx「useRecordTable」）
+- layouts 为定义允许的布局，selectedRows 为当前结果中被选中的行（结果顺序），pageSizes 为可供选择的每页条数（标准档位按 runtime.limits.maxPageSize 裁剪，并并入当前值）。（见 test/useRecordTable.test.tsx「useRecordTable」）
 - `hasResult`——这个视图**是否曾经拿到过结果**（`state.result != null`），哪怕它已经过期。它不是 `rows.length > 0`，也不是 `status === 'success'`：失败的刷新会留住它替换不掉的行并转为 `error`，匹配零行的成功结果则根本没有行。表格靠它区分"结果是空的"与"从来没有结果"——后者连列都没有，画出来是一格空表头加一个选不中任何东西的「选择全部行」（见 [ui/record.md](ui/record.md)）。
 
 改动配置的命令一律是一次 `edit` 加一次 `apply`，与既有的 `toggleSort`（`toggleSort(field, { exclusive })`：默认追加，`exclusive` 时这一列就是整份排序——表头平击走它，Shift 追加走默认）／`setColumns` 同一条路径：表格画的是内核按**执行时**的配置投影出来的列与行，不重跑就看不到改动（筛选则等提交）。列设置与排序控件（[ui/record.md](ui/record.md)）所需的那几条：
@@ -130,7 +130,7 @@ useSaveCommands(engine, runtime): { save; saveAs; rename; delete; revert; retry;
 - 只有 create／save 的重试与覆盖两者皆真；
 - state 另有 hasErrors（只说草稿自身有没有 error，不说任何结局，因此调用方可以自行决定拦住哪一种未结清的写入）；
 - abandon(write?) 可按传入的 WriteState 以 handle 寻址——冲突里"另存一份"之后该写入已不再由 runtime 报告，engine 却仍在其 map 里记着它；
-- 结局词汇取自 `src/react/writes.ts`（见下），`blocked` 里"结局挡不挡新意图"这一项即 `blocksNewIntent`；命令走 `manager/queue.ts` 的队列、以 runtime 打标，因此同一视图至多一个写入在途，换视图即另起一条队列。（见 test/reactHooks.test.tsx「useSaveCommands」）
+- 结局词汇取自 `src/react/writes.ts`（见下），`blocked` 里"结局挡不挡新意图"这一项即 `blocksNewIntent`；命令走 `manager/queue.ts` 的队列、以 runtime 打标，因此同一视图至多一个写入在途，换视图即另起一条队列。（见 test/useSaveCommands.test.tsx「useSaveCommands」）
 
 ## useViewManager
 

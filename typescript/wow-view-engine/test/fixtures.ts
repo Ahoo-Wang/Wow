@@ -148,6 +148,20 @@ export function recordConfig(
   };
 }
 
+/**
+ * The view a suite opens: one saved, personal record view of `orders`. The
+ * hook suites and the UI suites both start from it, so it lives here rather
+ * than once in each.
+ */
+export const mine: ViewInstance = {
+  id: 'orders-1',
+  definitionId: 'orders',
+  title: 'Mine',
+  scope: 'personal',
+  revision: '1',
+  config: recordConfig(),
+};
+
 export function analysisConfig(
   overrides: Partial<AnalysisViewConfig> = {},
 ): AnalysisViewConfig {

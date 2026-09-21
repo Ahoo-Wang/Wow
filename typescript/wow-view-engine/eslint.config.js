@@ -50,8 +50,6 @@ const maxLinesWaivers = [
   { file: 'src/analysis/validate.ts', lines: 701 },
   // 抽走 writeLedger 之后仍是注册表 + 打开/创建 + 偏好缓存 —— todo.md「R9」
   { file: 'src/runtime/viewEngine.ts', lines: 635 },
-  // 十一个钩子的套件挤在一个文件里 —— todo.md「R13」
-  { file: 'test/reactHooks.test.tsx', lines: 1766 },
   // 渲染、交互、保存、视图管理、布局五个主题一个文件 —— todo.md「R15」
   { file: 'test/recordWorkbench.test.tsx', lines: 1254 },
   // 编辑器、图表、指标卡三套 UI 一个文件，只超线十二行 —— todo.md「R16」
