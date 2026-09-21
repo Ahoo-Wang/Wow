@@ -120,6 +120,11 @@ export const recordMessages = {
   // tell these two greys apart has no access to.
   'label.columns.unknown':
     'This column is not in the data any more; switch it off to take it out.',
+  // A summary left behind on a field that is not a column: the config is
+  // refused over it, and this row is the only place it can be taken back.
+  'label.columns.summary-unknown':
+    'Only a summary refers to this field, which is not in the data any more; switch it off to take the summary out.',
+  'label.columns.keep-summary': 'Keep the summary of {field}',
   'label.columns.summary': 'Summary under {field}',
   // The header's own edge, which is a control rather than a line: it is
   // named by the column it sizes, because that is the only thing about it a

@@ -114,6 +114,7 @@ export function ColumnSettings({
         columns: table.columnFields,
         ...(rowKey === undefined ? {} : { rowKey }),
         actions,
+        summaryFields: table.summaryFields,
         pinnedOf: table.pinnedOf,
         summaryOf: table.summaryOf,
       }),
@@ -123,6 +124,7 @@ export function ColumnSettings({
       rowKey,
       table.columnFields,
       table.pinnedOf,
+      table.summaryFields,
       table.summaryOf,
     ],
   );
@@ -277,7 +279,13 @@ function Region({
           const shared = {
             row,
             shownCount: shown,
-            onToggle: () => table.setColumns(toggled(table.columnFields, row)),
+            // A row that is only a summary is not in the column list, so
+            // its checkbox writes the summary away and leaves the columns
+            // exactly as they are (D17-9).
+            onToggle: () =>
+              row.summaryOnly
+                ? table.setSummary(row.field, null)
+                : table.setColumns(toggled(table.columnFields, row)),
             onPin: () =>
               table.setPinned(row.field, nextPin(columnPin(row.pinned))),
             onSummary: (fn: SummaryFunction | null) =>

@@ -1189,6 +1189,30 @@ describe('AnalysisWorkbench', () => {
     );
   });
 
+  /**
+   * D17-3. The analysis editor is the filter panel *and* the aggregation
+   * editor, so two submit buttons stand on one screen; they are one
+   * execution — both `submit`s call `runtime.apply()` — so only one of them
+   * is a primary, and it is Apply. Pinned by the variant's class rather than
+   * by colour: jsdom loads no stylesheet, so nothing here is painted.
+   */
+  it('carries one primary button on the screen, and it is Apply', async () => {
+    await open();
+
+    const primary = Array.from(
+      document.querySelectorAll<HTMLElement>('[data-slot="button"]'),
+    ).filter(button => button.classList.contains('bg-primary'));
+
+    expect(primary.map(button => button.textContent?.trim())).toEqual([
+      'Apply',
+    ]);
+    expect(
+      screen
+        .getByRole('button', { name: /Run/ })
+        .classList.contains('border-border'),
+    ).toBe(true);
+  });
+
   it('opens an analysis view and shows its table', async () => {
     await open();
 

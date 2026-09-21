@@ -162,6 +162,9 @@ export const zhCN: ViewMessages = {
   'label.columns.last-visible': '表格至少需要保留一列。',
   'label.columns.hidden': '先把这一列显示出来，才能调整顺序、固定或加汇总。',
   'label.columns.unknown': '这一列已不在这份数据里，取消勾选即可移除。',
+  'label.columns.summary-unknown':
+    '只剩一条汇总指向这个字段，而它已不在这份数据里；取消勾选即可移除这条汇总。',
+  'label.columns.keep-summary': '保留 {field} 的汇总',
   'label.columns.summary': '{field} 的汇总',
   'label.columns.resize': '调整 {field} 宽度',
   'label.columns.pin': '{field} 的固定方式：{state}',
@@ -679,6 +682,8 @@ export const zhCN: ViewMessages = {
   'definition.analysis.limit-invalid': '分析上限必须是正整数。',
   'definition.analysis.no-metric': '分析能力没有给出可以起步的指标。',
   'definition.field.cell-invalid': '{field} 声明了未知的单元格读法：{value}。',
+  'definition.field.editor-removed':
+    '{field} 声明了 editor，这个成员已经没有了，删掉即可。',
   'definition.field.tone-invalid': '{field} 声明了未知的选项语气：{value}。',
   'definition.field.duplicate': '字段 {field} 声明了两次。',
   'definition.fieldGroup.duplicate': '分组 {group} 声明了两次。',

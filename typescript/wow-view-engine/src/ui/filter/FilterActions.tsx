@@ -23,9 +23,12 @@ import { cn } from 'cn';
  * The ways an edit can end, and the count that stands in the way of one.
  *
  * Apply is the one primary button on the screen — submitting is explicit, and
- * nothing in the panel re-runs the query by itself. Discard is the other end
- * of the same decision and appears only when there is an edit to discard, so
- * the row never offers to undo nothing.
+ * nothing in the panel re-runs the query by itself. It keeps that weight even
+ * where a second submit button stands beside it: the analysis editor's Run
+ * calls the same `runtime.apply()`, so it is one execution with two ways in,
+ * and it is drawn `outline` rather than promoted to a second primary
+ * (D17-3). Discard is the other end of the same decision and appears only
+ * when there is an edit to discard, so the row never offers to undo nothing.
  */
 export function FilterActions({
   filter,

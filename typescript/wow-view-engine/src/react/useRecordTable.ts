@@ -296,6 +296,15 @@ export interface RecordTableController {
   /** The function the draft summarises a column with, if any. */
   summaryOf(field: string): SummaryFunction | null;
   /**
+   * Every field the draft's summaries name, in the order they name them and
+   * without a repeat.
+   *
+   * It is not the column list: a config may summarise a field that is not a
+   * column and that the definition no longer declares, and the settings can
+   * only offer the way out of such a summary if they are told it is there.
+   */
+  summaryFields: string[];
+  /**
    * Replaces whatever a column summarised with one function, or with none.
    *
    * A config may carry several functions for one field and the table shows
@@ -650,6 +659,10 @@ export function useRecordTable(
     summaryOf: useCallback(
       (field: string) =>
         summaries.find(entry => entry.field === field)?.fn ?? null,
+      [summaries],
+    ),
+    summaryFields: useMemo(
+      () => [...new Set(summaries.map(entry => entry.field))],
       [summaries],
     ),
     setSummary: useCallback(

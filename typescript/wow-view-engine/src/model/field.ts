@@ -233,8 +233,6 @@ export interface FieldDefinition {
   summary?: SummaryFunction[];
   /** How the cell reads; defaults to the kind's own renderer. */
   cell?: FieldCellId;
-  /** Filter editor key; defaults to the one implied by kind, operator and value. */
-  editor?: string;
   /**
    * For an array of objects, what each of its elements holds.
    *

@@ -215,6 +215,24 @@ function validateFields(
         }),
       );
 
+    // `FieldDefinition.editor` is gone (D17-11). It was declared and never
+    // read: `FilterValueEditor` picks its input from the kind, the operator
+    // and the value shape, so a field that named an editor got exactly the
+    // control it would have got anyway — a member that looks like a
+    // contract and keeps none. A definition that still writes it is a
+    // warning rather than a refusal: nothing about that release stops
+    // working, and refusing would take an application down over a line it
+    // only has to delete.
+    if ('editor' in field)
+      issues.push(
+        issue(
+          'definition.field.editor-removed',
+          [...at, 'editor'],
+          { field: field.name },
+          'warning',
+        ),
+      );
+
     // A tone names a theme token; one nothing maps to would leave the badge
     // neutral, which is the one thing declaring a tone was meant to change.
     (field.options ?? []).forEach((option, position) => {

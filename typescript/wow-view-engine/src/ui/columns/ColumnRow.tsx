@@ -66,6 +66,10 @@ const PIN_LABEL = {
  */
 const NOTES = {
   unknown: { key: 'label.columns.unknown', shown: true },
+  // The same leftover said in the words that are true of it: this one is
+  // not a column at all, so "this column is not in the data" would name
+  // something the reader cannot find in the table either way.
+  'summary-unknown': { key: 'label.columns.summary-unknown', shown: true },
   'last-visible': { key: 'label.columns.last-visible', shown: true },
   hidden: { key: 'label.columns.hidden', shown: false },
 } as const;
@@ -117,6 +121,12 @@ export function ColumnRow({
   const noteId = useId();
   const actions = row.field === ACTIONS_COLUMN;
   const label = actions ? messages.label('label.toolbar.actions') : row.label;
+  // On a summary-only row the checkbox does not show or hide a column —
+  // there is no column — so it is named after the one thing it holds.
+  const toggleLabel = messages.label(
+    row.summaryOnly ? 'label.columns.keep-summary' : 'label.columns.show',
+    { field: label },
+  );
   // The table has to keep one column: hiding the last one leaves a result
   // with nothing in it and no way back except the picker that emptied it.
   // The guard keeps a table from being left with nothing in it. A broken
@@ -129,7 +139,9 @@ export function ColumnRow({
   // they are — the one reason all three share, since all three want a
   // column that is shown and can render.
   const refused: NoteKind | null = row.broken
-    ? 'unknown'
+    ? row.summaryOnly
+      ? 'summary-unknown'
+      : 'unknown'
     : row.visible
       ? null
       : 'hidden';
@@ -189,7 +201,7 @@ export function ColumnRow({
         <Checkbox
           checked={row.visible}
           disabled={actions || last}
-          aria-label={messages.label('label.columns.show', { field: label })}
+          aria-label={toggleLabel}
           // The checkbox on a broken row is enabled and is the repair, so it
           // takes the same sentence for the opposite reason: not why it is
           // refused, but why it is the one control worth pressing here.

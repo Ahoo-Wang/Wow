@@ -37,6 +37,7 @@ import {
   type AnalysisViewConfig,
   type ChartSpec,
   type DashboardViewConfig,
+  type FieldDefinition,
   type FilterOperatorName,
   type RecordViewConfig,
   type ViewConfig,
@@ -300,6 +301,27 @@ describe('definitions are code', () => {
     if (orders.kind !== 'data') throw new Error('unreachable');
     expect(orders.record?.paging).toBe('paged');
     expect(orders.views?.[0].id).not.toContain(SYSTEM_INSTANCE_ID_SEPARATOR);
+  });
+
+  /**
+   * D17-11. A field declares what it is, not which control draws it: the
+   * filter editor is picked from the kind, the operator and the value
+   * shape, and `FieldDefinition.editor` — declared, never read — named an
+   * editor the field would have got anyway. It is gone, so writing it is
+   * now a type error; an old definition that still does is a warning at
+   * admission rather than a refusal (`test/definition.test.ts`).
+   */
+  it('declares no filter editor key on a field', () => {
+    const amount: FieldDefinition = {
+      name: 'amount',
+      label: 'Amount',
+      kind: 'number',
+      summary: ['SUM'],
+      // @ts-expect-error `editor` was removed from FieldDefinition (D17-11).
+      editor: 'number-range',
+    };
+
+    expect(amount.kind).toBe('number');
   });
 
   it('marks a code-declared system view instance with the code revision', () => {

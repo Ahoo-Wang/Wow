@@ -23,6 +23,7 @@ import {
   MemoryViewStore,
   validateDefinition,
   ViewEngine,
+  type FieldDefinition,
   type Issue,
   type ViewDefinition,
 } from '../src/index.js';
@@ -193,6 +194,42 @@ describe('validateDefinition fields', () => {
       'definition.field.duplicate',
       'definition.field.kind-unregistered',
     ]);
+  });
+
+  /**
+   * D17-11. `FieldDefinition.editor` is gone — it was declared and never
+   * read — so a definition written against an older release still carries
+   * it. That is a line to delete, not a release to take down: nothing about
+   * it stops working, the field gets the same control it always got, and
+   * refusing would close an application over a member that did nothing.
+   */
+  it('warns about a field that still declares the removed editor key', () => {
+    const found = issues(
+      ordersDefinition({
+        fields: [
+          { name: 'id', label: 'Order', kind: 'string' },
+          // Written the way an older definition wrote it; the member is no
+          // longer on the type, so it arrives here as data.
+          {
+            name: 'amount',
+            label: 'Amount',
+            kind: 'number',
+            editor: 'number-range',
+          } as FieldDefinition,
+        ],
+        record: undefined,
+        analysis: undefined,
+        views: [],
+      }),
+    );
+
+    expect(found.map(issue => issue.code)).toEqual([
+      'definition.field.editor-removed',
+    ]);
+    expect(found[0].severity).toBe('warning');
+    expect(found[0].path).toEqual(['fields', 1, 'editor']);
+    // A warning does not close the definition: it still opens.
+    expect(isUsableDefinition(found)).toBe(true);
   });
 });
 

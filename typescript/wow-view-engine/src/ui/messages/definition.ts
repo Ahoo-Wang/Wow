@@ -38,6 +38,8 @@ export const definitionMessages = {
     'The analysis capability offers no metric to start from.',
   'definition.field.cell-invalid':
     '{field} declares an unknown cell renderer: {value}.',
+  'definition.field.editor-removed':
+    '{field} declares an editor, which no longer exists; delete the member.',
   'definition.field.tone-invalid':
     '{field} declares an unknown option tone: {value}.',
   'definition.field.duplicate': 'The field {field} is declared twice.',

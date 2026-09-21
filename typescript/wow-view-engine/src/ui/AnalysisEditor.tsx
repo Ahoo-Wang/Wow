@@ -167,7 +167,22 @@ export function AnalysisEditor({ analysis, disabled }: AnalysisEditorProps) {
           }}
         />
 
-        <Button size="sm" disabled={disabled} onClick={analysis.submit}>
+        {/*
+          Run is `outline`, not the screen's primary (D17-3). An analysis
+          editor is the filter panel *and* this, so two filled buttons sat
+          42px apart, the same weight, and neither said which one ran the
+          query. They do not run two things: `useAnalysisEditor.submit` and
+          `useFilterEditor.submit` both call `runtime.apply()`, so this is
+          one execution with two ways in, and the one primary on the screen
+          is the panel's Apply. Only the weight changes here — what the
+          button does is untouched.
+        */}
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={disabled}
+          onClick={analysis.submit}
+        >
           <PlayIcon data-icon="inline-start" />
           {messages.label('label.analysis.run')}
         </Button>

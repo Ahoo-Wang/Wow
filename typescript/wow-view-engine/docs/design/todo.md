@@ -42,8 +42,6 @@
 
 这一组来自 2026-09-20 在 Storybook 上对合并后的 `main`（ddeda440）逐屏过的一遍，条件按九项走：默认、展开筛选、空、加载、失败、窄屏、暗色、中文、长标题与多列；三个工作台加视图管理器、另存对话框，以及各自铺满屏幕的样子，每屏都跑了 axe。**先看后改这条对下面每一条同样成立**——每条都记了当时量到的数，改之前先自己再看一眼那一屏，数会随别的改动变，条目不会自己失效。量出来是缺陷而不是难看的，不在这一组里：它们分别记在[全局功能（外壳）](#全局功能外壳)与[小修](#小修)。
 
-- **Analysis 一屏上有两个 primary**——为什么：量到 Apply（宽 71）与 Run（宽 60）都是 `rgb(23,23,23)`，上下只差 42px，两个都是不带 variant 的 `<Button>`。[版式](ui/README.md#版式三块一套间距一种选项控件)是一屏一个 primary，筛选面板那一节更直接："Apply 是同屏唯一的 primary 按钮"。Analysis 的条件块是筛选面板**加上**分析编辑器，于是两个提交按钮叠在一起、分量一样、离得比一组控件还近，看不出按哪一个会跑查询。判据：这一屏只留一个 primary，另一个降成 `outline`；**D17-3 已定：一次执行，Apply 留 primary，Run 降为 `outline`，不改提交语义**——现状是 `useFilterEditor.submit` 与 `useAnalysisEditor.submit` 都调同一个 `runtime.apply()`，就是一次执行，这一条只动分量，不要顺手改提交语义；`test/analysisUi.test.tsx` 按 variant／class 钉住同屏只有一个 primary（jsdom 不套样式表，量不到颜色）。落点：`src/ui/AnalysisEditor.tsx`、`src/ui/filter/FilterActions.tsx`、[ui/README.md](ui/README.md)、[ui/analysis.md](ui/analysis.md)。
-
 ## 打磨（第二轮：2026-09-21 的评审）
 
 这一组来自 2026-09-21 对 `main`（d987fb99，#1573／#1574 之后）做的一次以用户体验为目标的评审：Storybook 里 Record 工作台全部 17 个故事各跑 1280（亮／暗）、768、375 三档，另按真实任务走了一遍（打开 → 读结果 → 加条件 → 应用 → 保存 → 另存 → 切视图 → 管理器改名／排序／设默认／删除 → 列／排序／每页条数 → 选行 + 批量 → 铺满 → 查询失败恢复 → zh-CN → 窄宿主）。数字来自 `getComputedStyle`／`getBoundingClientRect`，对比度按 WCAG 公式由 oklch 换算。**先看后改**对这一组同样成立。评审时 #1575–#1578 还是开着的 PR，它们管的不重复记。评审中量出来是**缺陷**而不是难看的，记在最前面。
@@ -106,12 +104,9 @@
   或新增的一条套件钉住嵌套时 `useSurfaceTheme` 与 `dark:` 的实际取值。落点：
   `src/ui/ViewSurface.tsx`、[ui/README.md](ui/README.md)、[decisions.md](decisions.md)。
 
-- **删除 `FieldDefinition.editor`（D17-11）**——为什么：声明了却全树无人读，看起来像合同却不是。判据：从 `src/model/field.ts` 删除该成员与 [model.md](model.md) 里的说明，`validateDefinition` 对带着它的旧定义报一条 warning（`definition.field.editor-removed`，中英）而不是拒绝；`test/model*`／`test/validateDefinition*` 各一条。落点：`src/model/`、`src/runtime/validateDefinition.ts`、[model.md](model.md)。
-
 ## 功能（legacy 形态）
 
-- **不是列的字段上的汇总够不着**——为什么：列设置的行来自「配置里的列 + 定义里还能当列的字段」，所以 `config.summaries` 里一条指向既不是列、定义也不再声明的字段时，`validateSummaries` 报 `record.field.unknown`、查询与保存都被挡住，而面板里没有任何一行能把它取消——正是"报了错却够不着"那一类（[ui/record.md](ui/record.md)）。本包的界面写不出这种配置，手写或旧版本迁移过来的可以。判据：**D17-9 已定：归列设置**—— `columnSettingRows` 的 broken 行也覆盖只被 `summaries` 提到的字段，且它的勾选框取消时只删汇总、不动列；`test/columnSettings.test.tsx` 覆盖。落点：`src/ui/columns/rows.ts`、[ui/record.md](ui/record.md)。
-- **隐藏字段排不了序**——为什么：配置只记已显示的列，所以列设置里隐藏的那几行没有顺序可拖，勾上之后一律落在中间区末尾；想把一个字段放到第三列，得先勾上再拖一次。判据：**D17-8 已定：进配置**——`table.columns[]` 增加 `hidden?: true`（旧配置没有的一律视为显示），`projectRecord` 跳过它们，列设置对隐藏行照常开放拖拽。落点：[model.md](model.md)、`src/record/project.ts`、`src/ui/columns/rows.ts`。
+- **隐藏字段排不了序**——为什么：配置只记已显示的列，所以列设置里隐藏的那几行没有顺序可拖，勾上之后一律落在中间区末尾；想把一个字段放到第三列，得先勾上再拖一次。判据：想清楚"隐藏字段的位置"要不要进配置（这是一个模型问题，先在 [decisions.md](decisions.md) 里给结论），若要，则 `table.columns` 增加 `hidden?: true` 一类的表达，`projectRecord` 跳过它们，列设置对隐藏行照常开放拖拽。落点：[model.md](model.md)、`src/record/project.ts`、`src/ui/columns/rows.ts`。
 
 ## 小修
 

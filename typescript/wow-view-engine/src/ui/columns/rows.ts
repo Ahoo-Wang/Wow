@@ -80,6 +80,15 @@ export interface ColumnSettingRow {
    * controls but its checkbox, which is the repair.
    */
   broken: boolean;
+  /**
+   * True for a broken row that is not a column at all: nothing but
+   * `config.summaries` names the field (D17-9).
+   *
+   * It is `visible` because the setting it stands for is in force, but it is
+   * in no table order and in no column list — unticking it takes the summary
+   * out and touches no column.
+   */
+  summaryOnly: boolean;
 }
 
 export type ColumnPin = 'left' | 'right';
@@ -93,6 +102,8 @@ export interface ColumnSettingInput {
   rowKey?: string;
   /** Whether the table carries the host's action column. */
   actions: boolean;
+  /** Every field `config.summaries` names, in the order it names them. */
+  summaryFields: readonly string[];
   pinnedOf(field: string): ColumnPin | null;
   summaryOf(field: string): SummaryFunction | null;
 }
@@ -127,11 +138,20 @@ export function columnSettingRows(
     const field = byName.get(name);
     return [field ? row(field, true, input, end) : broken(name, input)];
   });
+  // A summary may name a field that is neither a column nor something the
+  // definition still declares. `validateSummaries` refuses the config over
+  // it, which blocks the query and the save, and until this row existed
+  // nothing on screen could take it back: the settings list columns, and
+  // this is not one (D17-9). Listed next to the broken columns, because it
+  // is the same kind of leftover and wears the same repair.
+  const orphans = [...new Set(input.summaryFields)]
+    .filter(name => !seen.has(name) && !byName.has(name))
+    .map(name => broken(name, input, true));
   const hidden = candidates
     .filter(field => !seen.has(field.name))
     .map(field => row(field, false, input, end));
 
-  const rows = [...shown, ...hidden];
+  const rows = [...shown, ...orphans, ...hidden];
   if (!input.actions) return rows;
   return [
     ...rows,
@@ -146,6 +166,7 @@ export function columnSettingRows(
       summary: null,
       movable: false,
       broken: false,
+      summaryOnly: false,
     },
   ];
 }
@@ -158,8 +179,15 @@ export function columnSettingRows(
  * summarising a column that cannot render are all answers to a question
  * nobody asked. Hiding it is the repair, and `setColumns` takes its summary
  * with it.
+ *
+ * `summaryOnly` is the same row for a field that is not a column either —
+ * only a summary names it — where the checkbox removes that summary alone.
  */
-function broken(field: string, input: ColumnSettingInput): ColumnSettingRow {
+function broken(
+  field: string,
+  input: ColumnSettingInput,
+  summaryOnly = false,
+): ColumnSettingRow {
   return {
     field,
     label: field,
@@ -171,6 +199,7 @@ function broken(field: string, input: ColumnSettingInput): ColumnSettingRow {
     summary: input.summaryOf(field),
     movable: false,
     broken: true,
+    summaryOnly,
   };
 }
 
@@ -236,6 +265,7 @@ function row(
     summary: input.summaryOf(field.name),
     movable: visible && !fixed,
     broken: false,
+    summaryOnly: false,
   };
 }
 
@@ -324,7 +354,13 @@ export function reorderColumns(
   });
 }
 
-/** The shown config columns of one area, in the order they are listed. */
+/**
+ * The shown config columns of one area, in the order they are listed.
+ *
+ * A summary-only row is shown and is not one of them: it is not in
+ * `table.columns`, and letting it into an order that is written straight
+ * back would turn a leftover summary into a column the user never added.
+ */
 function shownOf(
   rows: readonly ColumnSettingRow[],
   region: ColumnRegion,
@@ -334,6 +370,7 @@ function shownOf(
       entry =>
         entry.region === region &&
         entry.visible &&
+        !entry.summaryOnly &&
         entry.field !== ACTIONS_COLUMN,
     )
     .map(entry => entry.field);

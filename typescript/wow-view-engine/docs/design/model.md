@@ -44,7 +44,6 @@ export interface FieldDefinition {
   searchMode?: 'TERMS' | 'PHRASE'; // 按词还是按短语，缺省 TERMS
   summary?: SummaryFunction[]; // 允许的汇总函数
   cell?: FieldCellId; // 这一列怎么读，缺省按 kind；闭合取值，准入拒绝未知值
-  editor?: string; // 筛选编辑器键，缺省由 kind、operator 与 value.type 推出
   // 数组字段的元素持有什么。它属于字段本身：items 就是那个数组，这些是它装的东西。
   // 声明在别处就得用路径字符串回指，而路径可以指向不存在的字段——那一整类悬空引用
   // 在这里根本写不出来。元素名字自成作用域，可与根字段重名，引用一律写 `field.element`。
@@ -287,7 +286,7 @@ export type DashboardContentPanel = DashboardPanelBase &
 **配置模型原则：配置是意图模型，不是协议 DTO，也不是组件树。**
 
 - 保存用户表达的语义，不保存编译结果。"最近 7 天"保存为 `{ type: 'relative', amount: 7, unit: 'day' }`，而不是两个绝对时间；编译在每次执行时依据 `ctx.now` 进行。
-- 组件选择不进配置。编辑器由 `(field.kind, operator, value.type)` 推出；业务想为某字段换编辑器写在 `FieldDefinition.editor`，那是定义。UI 组件改名或重写不影响任何已保存视图。
+- 组件选择不进配置。编辑器由 `(field.kind, operator, value.type)` 推出，**没有第二条路**：`FieldDefinition.editor` 已删除（D17-11）——它声明了却全树无人读，写了它的字段拿到的仍是推出来的那个控件，是一个看着像合同、什么也不担保的成员。想换控件就换 `FieldKind`（`EditorDescriptor`），那是定义的事。旧定义仍然写着它时，`validateDefinition` 报一条 warning（`definition.field.editor-removed`）而不是拒绝：那个发布没有一处因此不工作，只是多了一行该删的字。UI 组件改名或重写不影响任何已保存视图。
 - **`cell` 与 `FieldOption.tone` 是闭合取值，不是自由字符串**：`/ui` 没有渲染器注册表，`RecordTable` 按 `cell` 分派、按 `tone` 挑 variant，所以没人分派的键不会报错，只会悄悄走默认渲染，一列声明成链接的 URL 仍旧是一串点不动的字；一档没人认识的语气则留下中性徽章，而那正是声明语气要改的那一件事。两者都在定义准入处被拒（`definition.field.cell-invalid`／`tone-invalid`，见 [kernels.md#定义准入](kernels.md#定义准入)），与其余能力同一条规矩：引擎给得出的，定义才写得出（D4）。语气闭合还有第二层意思——定义说得出"这是坏消息"，说不出 `#22c55e`：每一档映射到主题已有的 token，宿主改 `--fve-success` 就一并改掉所有穿着它的徽章。
 - 语义变体用值内部的 `type` 判别，由 FieldKind 拥有。它承担组件节点模型中 `component` 字段的作用，但描述的是语义而不是 UI。自定义 kind 自行定义值的形状、校验、编译与编辑器描述，扩展能力与组件节点模型等价。
 - 配置是纯 JSON：其中的枚举一律使用与 Wow 枚举同值的字符串字面量（`${Enum}` 模板字面量类型），编译时映射回枚举。Wow 协议类型只在"本身就是意图、不含字段引用与枚举"时直接复用；`HavingExpression`、`DerivedExpression` 结构可复用但含枚举，故以 `LiteralEnums<>` 派生同构的字面量版本；`AggregationGroup`、`AggregationMetric`、`AggregationExpression`、`AggregationElement`、`FieldSort` 引用字段或筛选，因此有配置层孪生类型。定义是代码，可以直接使用 Wow 枚举。

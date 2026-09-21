@@ -27,7 +27,8 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { FieldDefinition } from '../src/model/index.js';
+import type { FieldDefinition, RecordViewConfig } from '../src/model/index.js';
+import { builtinFieldKinds, validateRecord } from '../src/index.js';
 import type { RecordTableController } from '../src/react/index.js';
 import { ColumnSettings } from '../src/ui/ColumnSettings.js';
 import {
@@ -40,6 +41,7 @@ import {
 } from '../src/ui/columns/rows.js';
 import { columnDragAccessibility } from '../src/ui/columns/announce.js';
 import { defaultMessages } from '../src/ui/messages.js';
+import { ordersDefinition, recordConfig } from './fixtures.js';
 import { formattersFor, tableController } from './fixtures/columns.js';
 
 afterEach(cleanup);
@@ -113,6 +115,7 @@ describe('the column settings model', () => {
     columns: ['amount', 'id'],
     rowKey: 'id',
     actions: false,
+    summaryFields: [] as readonly string[],
     pinnedOf: () => null,
     summaryOf: () => null,
   };
@@ -699,6 +702,109 @@ describe('a column the definition dropped', () => {
 
     await user.click(screen.getByRole('checkbox', { name: 'Show Amount' }));
     expect(table.setColumns).toHaveBeenCalledWith(['id']);
+  });
+});
+
+/**
+ * A summary may name a field that is not a column and that the definition
+ * does not declare either. This package's UI cannot write such a config; a
+ * hand-written one or one migrated from an older release can. The kernel
+ * refuses it, which blocks the query and the save, while the settings listed
+ * columns only — so the one setting at fault was the one nothing on screen
+ * could reach. It is a column setting (D17-9), and it wears the broken row's
+ * shape with the checkbox pointed at the summary instead of the column.
+ */
+describe('a summary on a field that is not a column', () => {
+  function openOrphan(overrides: Partial<RecordTableController> = {}) {
+    const table = tableController({
+      columnFields: ['id', 'amount'],
+      summaryFields: ['gone'],
+      summaryOf: (field: string) =>
+        field === 'gone' ? ('SUM' as const) : null,
+      ...overrides,
+    });
+    render(<ColumnSettings table={table} fields={FIELDS} rowKey="id" />);
+    return table;
+  }
+
+  it('lists it as a broken row, in its own words', async () => {
+    const user = userEvent.setup();
+    openOrphan();
+
+    await user.click(screen.getByRole('button', { name: /Columns/ }));
+    // Listed in the areas the table draws: the row key on the left, the
+    // last column held on the right, and this one in the middle beside the
+    // fields that are switched off.
+    expect(listed()).toEqual(['id', 'gone', 'warehouse', 'amount']);
+
+    const row = document.querySelector<HTMLElement>('[data-field="gone"]')!;
+    expect(row.hasAttribute('data-broken')).toBe(true);
+    // Not the sentence a dropped column wears: this one never was a column,
+    // so "this column is not in the data any more" would name something the
+    // reader cannot find in the settings either.
+    const note = within(row).getByText(
+      defaultMessages['label.columns.summary-unknown'],
+    );
+    expect(note.className).not.toContain('sr-only');
+    expect(
+      screen
+        .getByRole('checkbox', { name: 'Keep the summary of gone' })
+        .getAttribute('aria-describedby'),
+    ).toBe(note.id);
+  });
+
+  it('takes the summary out and leaves every column where it is', async () => {
+    const user = userEvent.setup();
+    const table = openOrphan();
+
+    await user.click(screen.getByRole('button', { name: /Columns/ }));
+    await user.click(
+      screen.getByRole('checkbox', { name: 'Keep the summary of gone' }),
+    );
+
+    expect(table.setSummary).toHaveBeenCalledWith('gone', null);
+    expect(table.setColumns).not.toHaveBeenCalled();
+    expect(table.setColumnOrder).not.toHaveBeenCalled();
+  });
+
+  /** The finding that row exists for, and what pressing it leaves behind. */
+  it('clears the finding the config was being refused over', () => {
+    const codes = (config: RecordViewConfig) =>
+      validateRecord(ordersDefinition(), config, builtinFieldKinds).map(
+        found => found.code,
+      );
+
+    expect(
+      codes(recordConfig({ summaries: [{ field: 'gone', fn: 'SUM' }] })),
+    ).toEqual(['record.field.unknown']);
+    // What `setSummary(field, null)` writes: that field's summaries gone,
+    // and `table.columns` byte for byte what it was.
+    expect(codes(recordConfig({ summaries: [] }))).toEqual([]);
+  });
+
+  /**
+   * A field the definition still declares is already listed — switched off,
+   * with its summary on it — so it is not one of these rows: it can be shown
+   * again, which a field that is not in the data cannot.
+   */
+  it('leaves a summary on a declared field where it already is', async () => {
+    const user = userEvent.setup();
+    openOrphan({
+      summaryFields: ['warehouse'],
+      summaryOf: (field: string) =>
+        field === 'warehouse' ? ('SUM' as const) : null,
+    });
+
+    await user.click(screen.getByRole('button', { name: /Columns/ }));
+    expect(listed()).toEqual(['id', 'warehouse', 'amount']);
+
+    const row = document.querySelector<HTMLElement>(
+      '[data-field="warehouse"]',
+    )!;
+    expect(row.hasAttribute('data-broken')).toBe(false);
+    expect(
+      screen.getByRole('checkbox', { name: 'Show Warehouse' }),
+    ).toBeDefined();
   });
 });
 
