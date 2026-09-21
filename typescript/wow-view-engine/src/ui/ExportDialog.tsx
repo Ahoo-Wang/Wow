@@ -19,6 +19,8 @@ import type {
   RecordExportController,
   RecordExportScope,
 } from '../react/index.js';
+import { LineAlert } from './alerts.js';
+import { AlertTitle } from './components/alert.js';
 import { Button } from './components/button.js';
 import {
   Dialog,
@@ -299,15 +301,15 @@ function ChooseStep({
       </div>
 
       {/* The ceiling, before the button rather than after the download: the
-          press is the consent, so what is consented to is on screen. */}
+          press is the consent, so what is consented to is on screen — and
+          it is the one thing in this window that is a callout rather than a
+          detail of the file, so it is drawn as one. */}
       {overLimit && (
-        <p
-          data-slot="export-over-limit"
-          role="status"
-          className="text-warning text-sm"
-        >
-          {messages.label('label.export.over-limit', { max })}
-        </p>
+        <LineAlert tone="warning" data-slot="export-over-limit">
+          <AlertTitle>
+            {messages.label('label.export.over-limit', { max })}
+          </AlertTitle>
+        </LineAlert>
       )}
     </>
   );

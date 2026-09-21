@@ -54,7 +54,7 @@ import displayMeta, {
   WithActions as DisplayWithActions,
   WithData as DisplayWithData,
 } from './RecordWorkbench.stories.js';
-import { measureBorderContrast } from './contrast.js';
+import { measureBorderContrast, measureTextContrast } from './contrast.js';
 import { tableSettingsStore } from './fixtures.js';
 import { outcomesStore } from './outcomesStore.js';
 import { dragEdgeBy, dragHandleOnto } from './pointerDrag.js';
@@ -3740,6 +3740,91 @@ export const ControlBordersInLightTheme: Story = controlBorders('light');
  * an opacity and carries the `bg-input/30` fill with it.
  */
 export const ControlBordersInDarkTheme: Story = controlBorders('dark');
+
+/**
+ * 状态条在两种主题下都读得出来，而且还是一行高。
+ *
+ * 它是 registry `Alert` 的紧凑变体（`ui/alerts.tsx`），tone 只改文字与边的
+ * 颜色，底色是 `bg-card`——所以"读不读得出来"这一问在两种主题下是两道题：
+ * 亮色下 `--warning` 压在白卡片上，暗色下同一个 token 压在 0.205 的卡片上。
+ * jsdom 不套样式表，这两个数只有真浏览器给得出。一行高是 D1 的约束，这里
+ * 按实测高度守着：一句话、没展开的发现、行尾的按钮，都不该把结果顶下去。
+ */
+const calloutTone = (
+  theme: 'light' | 'dark',
+  base: Story,
+  tone: 'error' | 'warning',
+): Story => ({
+  ...base,
+  args: { ...base.args, theme },
+  play: async ({ canvasElement }) => {
+    // Two stories measuring the same theme would both pass and prove half of
+    // this, so the mode is read off the surface before anything else.
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="view-surface"]'),
+      ).toHaveAttribute('data-theme', theme),
+    );
+
+    // A config that will not run has no table to wait for — the strip saying
+    // so is the thing that arrives.
+    const strip = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        `[data-slot="status-strip"][data-tone="${tone}"]`,
+      );
+      if (!found) throw new Error(`No ${tone} status strip on screen.`);
+      return found;
+    });
+
+    // The sentence, which is the element that carries the tone's colour.
+    const sentence = strip.querySelector<HTMLElement>(
+      '[data-slot="alert-title"]',
+    )!;
+    const { ratio, colors } = measureTextContrast(sentence);
+    await expect(
+      ratio,
+      `${theme} ${tone} — ${colors.text} on ${colors.background}`,
+    ).toBeGreaterThanOrEqual(CALLOUT_TEXT_CONTRAST);
+
+    // D1: one line high. The icon is 16px and the toggle beside it is the
+    // `xs` button (24px), so a line of it clears 24 and nothing above 40 is
+    // still one line.
+    await expect(
+      strip.getBoundingClientRect().height,
+      `${theme} ${tone} — the strip is not one line high`,
+    ).toBeLessThanOrEqual(ONE_LINE_HIGH);
+  },
+});
+
+/**
+ * 正文对比度的下限：WCAG 1.4.3 的 4.5:1。状态条的句子是正文大小的文字，不是
+ * 大字号，也不是装饰。
+ */
+const CALLOUT_TEXT_CONTRAST = 4.5;
+
+/** 一行的上限（px）：16px 的图标、24px 的 `xs` 按钮，加上 4px 的上下内边距。 */
+const ONE_LINE_HIGH = 40;
+
+export const ErrorCalloutInLightTheme: Story = calloutTone(
+  'light',
+  DisplayNeedsFixing,
+  'error',
+);
+export const ErrorCalloutInDarkTheme: Story = calloutTone(
+  'dark',
+  DisplayNeedsFixing,
+  'error',
+);
+export const WarningCalloutInLightTheme: Story = calloutTone(
+  'light',
+  DisplayTotalCoversThisPageOnly,
+  'warning',
+);
+export const WarningCalloutInDarkTheme: Story = calloutTone(
+  'dark',
+  DisplayTotalCoversThisPageOnly,
+  'warning',
+);
 
 /**
  * The nearest ancestor that would trap this element in a stacking context of

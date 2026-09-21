@@ -13,12 +13,16 @@
 
 import type { ErrorInfo, ReactNode } from 'react';
 import { ErrorBoundary, type FallbackProps } from 'react-error-boundary';
-import { RotateCcwIcon, TriangleAlertIcon } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from './components/alert.js';
+import { RotateCcwIcon } from 'lucide-react';
+import { LineAlert, TONE_ICON } from './alerts.js';
+import {
+  Alert,
+  AlertAction,
+  AlertDescription,
+  AlertTitle,
+} from './components/alert.js';
 import { Button } from './components/button.js';
 import { useViewMessages } from './MessagesProvider.js';
-import { TEXT_UI } from './layout.js';
-import { cn } from 'cn';
 
 /**
  * The parts of a view a render can fail in, each behind a boundary of its
@@ -104,6 +108,9 @@ export function RenderBoundary({
   );
 }
 
+/** A failed render is an error, and wears the package's error glyph. */
+const ErrorIcon = TONE_ICON.error;
+
 /**
  * What stands where the part was: a sentence saying so, the error's own
  * words, and the one way back. `role="alert"` is the `Alert` component's,
@@ -131,25 +138,27 @@ function RenderFailed({
 
   if (compact)
     return (
-      <span
-        role="alert"
+      // The same callout as every other one (`ui/alerts.tsx`), in the frame
+      // that carries no frame: it stands in a row of controls, so it takes
+      // only the width of what it says and leaves the line unbroken.
+      <LineAlert
+        tone="error"
+        frame="bare"
         data-slot="render-failed"
         data-boundary={name}
         title={detail}
-        className={cn(
-          'text-destructive inline-flex items-center gap-1',
-          TEXT_UI,
-        )}
+        className="inline-flex w-auto"
       >
-        <TriangleAlertIcon className="size-4" aria-hidden />
-        {messages.label('label.render.failed')}
-        {retry}
-      </span>
+        <AlertTitle>{messages.label('label.render.failed')}</AlertTitle>
+        <AlertAction>{retry}</AlertAction>
+      </LineAlert>
     );
 
   return (
     <Alert variant="destructive" data-slot="render-failed" data-boundary={name}>
-      <TriangleAlertIcon />
+      {/* The error glyph the whole package uses, so the block and the line
+          above do not wear two different faces for one failure. */}
+      <ErrorIcon />
       <AlertTitle>{messages.label('label.render.failed')}</AlertTitle>
       <AlertDescription>
         <p>{messages.label('label.render.failed-hint')}</p>

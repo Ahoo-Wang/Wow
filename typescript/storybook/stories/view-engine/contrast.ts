@@ -48,6 +48,38 @@ export interface BorderContrast {
   colors: { border: string; fill: string; surface: string };
 }
 
+/** What one element's text measured, and against what. */
+export interface TextContrast {
+  /** The ratio a 1.4.3 assertion should read. */
+  ratio: number;
+  /** The two colours as CSS, so a failure says what it saw. */
+  colors: { text: string; background: string };
+}
+
+/**
+ * The text of one element, measured against what is painted behind it.
+ *
+ * A callout carries its tone in its text colour rather than in a fill, so
+ * this is the number that decides whether it is readable — and it is the one
+ * `styles.css` corrects for: `--warning` on a white card and the same token
+ * on a dark one are two different problems. The background is composed the
+ * way the browser paints it, the element's own (possibly transparent) fill
+ * included, so a callout with no background of its own is measured against
+ * the card under it.
+ */
+export function measureTextContrast(element: Element): TextContrast {
+  const style = getComputedStyle(element);
+  const background = composite(
+    layer(style.backgroundColor),
+    surfaceUnder(element.parentElement),
+  );
+  const text = composite(layer(style.color), background);
+  return {
+    ratio: contrastRatio(text, background),
+    colors: { text: css(text), background: css(background) },
+  };
+}
+
 /**
  * The border of one control, measured against what is behind it.
  *

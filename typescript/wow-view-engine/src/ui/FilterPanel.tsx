@@ -14,6 +14,8 @@
 import type { FocusEvent, KeyboardEvent } from 'react';
 import type { FieldOption } from '../model/index.js';
 import type { FilterEditorController } from '../react/index.js';
+import { LineAlert } from './alerts.js';
+import { AlertTitle } from './components/alert.js';
 import { AddEntry } from './filter/AddEntry.js';
 import { isPlainEnter } from './filter/enter.js';
 import { FilterModeToggle } from './filter/FilterModes.js';
@@ -122,12 +124,12 @@ export function FilterPanel({
       )}
 
       {overBudget ? (
-        <p
-          data-slot="filter-too-large"
-          className="text-muted-foreground text-sm"
-        >
-          {messages.label('label.filter.too-large')}
-        </p>
+        // Why the editor is refusing to draw, which is a callout rather than
+        // a caption: `info`, because nothing here is wrong with the tree
+        // that this screen can fix — Clear is still the way out.
+        <LineAlert tone="info" data-slot="filter-too-large">
+          <AlertTitle>{messages.label('label.filter.too-large')}</AlertTitle>
+        </LineAlert>
       ) : advanced ? (
         <GroupBlock
           filter={filter}

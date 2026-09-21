@@ -14,10 +14,10 @@
 import type { ReactNode } from 'react';
 import type { Issue } from '../model/index.js';
 import type { WriteState } from '../runtime/index.js';
+import { LineAlert, type AlertTone } from './alerts.js';
+import { AlertAction, AlertTitle } from './components/alert.js';
 import { Button } from './components/button.js';
 import { useViewMessages } from './MessagesProvider.js';
-import { TEXT_UI } from './layout.js';
-import { cn } from 'cn';
 
 /**
  * Where an outcome is being reported, which is the only thing the two callers
@@ -93,74 +93,78 @@ export function OutcomeActions({
 
   if (state.kind === 'conflict')
     return (
-      <OutcomeLine surface={surface} tone="alert">
-        <OutcomeText>{messages.label('label.write.conflict')}</OutcomeText>
-        {actions.resubmit ? (
-          <Button size={size} disabled={pending} onClick={actions.resubmit}>
-            {messages.label('label.manage.resubmit')}
-          </Button>
-        ) : (
-          <>
-            {actions.reload && (
-              <Button
-                variant="outline"
-                size={size}
-                disabled={pending}
-                onClick={actions.reload}
-              >
-                {messages.label(
-                  // Taking the server's copy is the same move either way, but
-                  // not the same sentence: a row is about the list it sits in,
-                  // which comes back at the stored revision.
-                  surface === 'row'
-                    ? 'label.manage.reload'
-                    : 'label.conflict.theirs',
-                )}
-              </Button>
-            )}
-            {actions.copy && (
-              <Button
-                variant="outline"
-                size={size}
-                disabled={pending}
-                onClick={actions.copy}
-              >
-                {messages.label('label.conflict.copy')}
-              </Button>
-            )}
-            {actions.overwrite && (
-              <Button
-                size={size}
-                disabled={pending}
-                onClick={actions.overwrite}
-              >
-                {messages.label('label.conflict.mine')}
-              </Button>
-            )}
-          </>
-        )}
+      <OutcomeLine surface={surface} tone="error">
+        <AlertTitle>{messages.label('label.write.conflict')}</AlertTitle>
+        <AlertAction>
+          {actions.resubmit ? (
+            <Button size={size} disabled={pending} onClick={actions.resubmit}>
+              {messages.label('label.manage.resubmit')}
+            </Button>
+          ) : (
+            <>
+              {actions.reload && (
+                <Button
+                  variant="outline"
+                  size={size}
+                  disabled={pending}
+                  onClick={actions.reload}
+                >
+                  {messages.label(
+                    // Taking the server's copy is the same move either way,
+                    // but not the same sentence: a row is about the list it
+                    // sits in, which comes back at the stored revision.
+                    surface === 'row'
+                      ? 'label.manage.reload'
+                      : 'label.conflict.theirs',
+                  )}
+                </Button>
+              )}
+              {actions.copy && (
+                <Button
+                  variant="outline"
+                  size={size}
+                  disabled={pending}
+                  onClick={actions.copy}
+                >
+                  {messages.label('label.conflict.copy')}
+                </Button>
+              )}
+              {actions.overwrite && (
+                <Button
+                  size={size}
+                  disabled={pending}
+                  onClick={actions.overwrite}
+                >
+                  {messages.label('label.conflict.mine')}
+                </Button>
+              )}
+            </>
+          )}
+        </AlertAction>
       </OutcomeLine>
     );
 
   if (state.kind === 'unknown')
     return (
-      <OutcomeLine surface={surface} tone="status">
-        <OutcomeText>{messages.label('label.write.unknown')}</OutcomeText>
-        {actions.retry && (
-          <Button size={size} disabled={pending} onClick={actions.retry}>
-            {messages.label('label.unknown.retry')}
-          </Button>
-        )}
-        {actions.leave && (
-          <Button
-            variant="outline"
-            size={size}
-            disabled={pending}
-            onClick={actions.leave}
-          >
-            {messages.label('label.unknown.leave')}
-          </Button>
-        )}
+      <OutcomeLine surface={surface} tone="warning">
+        <AlertTitle>{messages.label('label.write.unknown')}</AlertTitle>
+        <AlertAction>
+          {actions.retry && (
+            <Button size={size} disabled={pending} onClick={actions.retry}>
+              {messages.label('label.unknown.retry')}
+            </Button>
+          )}
+          {actions.leave && (
+            <Button
+              variant="outline"
+              size={size}
+              disabled={pending}
+              onClick={actions.leave}
+            >
+              {messages.label('label.unknown.leave')}
+            </Button>
+          )}
+        </AlertAction>
       </OutcomeLine>
     );
 
@@ -200,70 +204,56 @@ export function RefusalLine({
 }) {
   const messages = useViewMessages();
   return (
-    <OutcomeLine surface={surface} tone="alert">
-      <OutcomeText>
+    <OutcomeLine surface={surface} tone="error">
+      <AlertTitle>
         {messages.issue(issue)}
         {/* The store's own words, where there is room for them. A manager row
             is one line among many in a dialog and carries the sentence only. */}
         {surface === 'view' &&
           issue.params?.reason !== undefined &&
           ` ${String(issue.params.reason)}`}
-      </OutcomeText>
+      </AlertTitle>
       {onDismiss && (
-        <Button
-          variant="outline"
-          size={surface === 'row' ? 'xs' : 'sm'}
-          disabled={disabled}
-          onClick={onDismiss}
-        >
-          {messages.label('label.rejected.dismiss')}
-        </Button>
+        <AlertAction>
+          <Button
+            variant="outline"
+            size={surface === 'row' ? 'xs' : 'sm'}
+            disabled={disabled}
+            onClick={onDismiss}
+          >
+            {messages.label('label.rejected.dismiss')}
+          </Button>
+        </AlertAction>
       )}
     </OutcomeLine>
   );
 }
 
-/** The one line every outcome is drawn as, in the tone its kind calls for. */
+/**
+ * The one line every outcome is drawn as, in the tone its kind calls for.
+ *
+ * Both surfaces are the same callout in two frames (`ui/alerts.tsx`) rather
+ * than two hand-written class strings: the view's is a band of its own under
+ * the title bar, the row's is one line among many inside a dialog and so
+ * wears no frame at all. The tone decides the rest — a conflict and a
+ * refusal interrupt a reader, a write that may yet have landed does not.
+ */
 function OutcomeLine({
   surface,
   tone,
   children,
 }: {
   surface: OutcomeSurface;
-  tone: 'alert' | 'status';
+  tone: AlertTone;
   children: ReactNode;
 }) {
-  if (surface === 'row')
-    return (
-      <p
-        role={tone}
-        className={cn(
-          'flex flex-wrap items-center gap-2',
-          TEXT_UI,
-          tone === 'alert' ? 'text-destructive' : 'text-warning',
-        )}
-      >
-        {children}
-      </p>
-    );
-
   return (
-    <section
+    <LineAlert
+      tone={tone}
+      frame={surface === 'row' ? 'bare' : 'box'}
       data-slot="write-outcome"
-      role={tone}
-      className={cn(
-        'flex flex-wrap items-center gap-2 rounded-md border p-2 text-sm',
-        tone === 'alert'
-          ? 'border-destructive text-destructive'
-          : 'text-warning border-warning',
-      )}
     >
       {children}
-    </section>
+    </LineAlert>
   );
-}
-
-/** The sentence, which takes what room the buttons leave. */
-function OutcomeText({ children }: { children: ReactNode }) {
-  return <span className="min-w-0 flex-1">{children}</span>;
 }

@@ -158,7 +158,13 @@ describe('RenderBoundary', () => {
       </ViewSurface>,
     );
     const alert = screen.getByRole('alert');
-    expect(alert.tagName).toBe('SPAN');
+    // It is the package's one callout (`ui/alerts.tsx`), which is the
+    // registry's `Alert` and therefore a div; what keeps it on the line is
+    // the frame it wears — no border, no block, and only as wide as what it
+    // says, so the controls beside it stay where they were.
+    expect(alert.className).toContain('inline-flex');
+    expect(alert.className).toContain('w-auto');
+    expect(alert.className).toContain('border-0');
     expect(alert.getAttribute('data-boundary')).toBe('actions');
     expect(alert.getAttribute('title')).toBe('blown');
     expect(within(alert).getByRole('button', { name: 'Retry' })).toBeTruthy();

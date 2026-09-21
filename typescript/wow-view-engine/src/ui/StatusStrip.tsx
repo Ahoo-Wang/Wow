@@ -13,9 +13,10 @@
 
 import { useState, type ReactNode } from 'react';
 import { cn } from 'cn';
-import { CircleAlertIcon, InfoIcon, TriangleAlertIcon } from 'lucide-react';
 import type { Issue } from '../model/index.js';
-import { Button, buttonVariants } from './components/button.js';
+import { LineAlert, type AlertTone } from './alerts.js';
+import { AlertAction, AlertTitle } from './components/alert.js';
+import { Button } from './components/button.js';
 import {
   Collapsible,
   CollapsibleContent,
@@ -24,11 +25,9 @@ import {
 import { useViewMessages } from './MessagesProvider.js';
 import { TEXT_UI } from './layout.js';
 
-/** How loud the strip is, which decides its colour and how it is announced. */
-export type StatusTone = 'warning' | 'error' | 'info';
-
 export interface StatusStripProps {
-  tone: StatusTone;
+  /** How loud it is: the colour, the icon and the role come with it. */
+  tone: AlertTone;
   /** The whole of it in one sentence; the strip is one line tall. */
   title: string;
   /**
@@ -42,19 +41,6 @@ export interface StatusStripProps {
   className?: string;
 }
 
-const TONE: Record<StatusTone, string> = {
-  // The theme's own `warning` token; `destructive` has one of its own.
-  warning: 'border-warning text-warning',
-  error: 'border-destructive text-destructive',
-  info: 'border-border text-muted-foreground',
-};
-
-const TONE_ICON: Record<StatusTone, typeof InfoIcon> = {
-  warning: TriangleAlertIcon,
-  error: CircleAlertIcon,
-  info: InfoIcon,
-};
-
 /**
  * Anything the view has to say that is not a row: a warning, a query that
  * failed, a config that needs fixing before it runs.
@@ -62,8 +48,11 @@ const TONE_ICON: Record<StatusTone, typeof InfoIcon> = {
  * It is one line by design. A block-sized alert pushes the result down the
  * page — and the result is still there, since a failed query never clears the
  * table — so a finding that blocks nothing must not hide what does not need
- * hiding. An error is announced as an alert, everything else as a status, so
- * a screen reader interrupts only for what stopped the view.
+ * hiding. That is a decision about height, not about the component: this is
+ * the registry's `Alert` in the line-high variant (`ui/alerts.tsx`), which is
+ * where the tone's colour, its icon and its role are decided for every
+ * callout at once — an error is announced as an alert, everything else as a
+ * status, so a screen reader interrupts only for what stopped the view.
  */
 export function StatusStrip({
   tone,
@@ -74,36 +63,25 @@ export function StatusStrip({
 }: StatusStripProps) {
   const messages = useViewMessages();
   const [open, setOpen] = useState(false);
-  const Icon = TONE_ICON[tone];
   // Read once, so the count the toggle names and the list it opens cannot
   // disagree.
   const lines = details ?? [];
 
   return (
-    <Collapsible
-      data-slot="status-strip"
-      data-tone={tone}
-      role={tone === 'error' ? 'alert' : 'status'}
-      open={open}
-      onOpenChange={next => setOpen(next)}
-      // The border sits on the fold rather than on the row inside it, so the
-      // expanded findings stay within the same frame as the sentence.
-      className={cn(
-        'rounded-md border px-2 py-1 text-sm',
-        TONE[tone],
-        className,
-      )}
-    >
-      <div className="flex items-center gap-2">
-        <Icon aria-hidden="true" className="size-4 shrink-0" />
-        <span className="min-w-0 flex-1">{title}</span>
-        {lines.length > 0 && (
-          <CollapsibleTrigger
-            className={cn(
-              buttonVariants({ variant: 'ghost', size: 'xs' }),
-              'shrink-0 text-current',
-            )}
-          >
+    <LineAlert tone={tone} data-slot="status-strip" className={className}>
+      <AlertTitle>{title}</AlertTitle>
+      {lines.length > 0 && (
+        // `display: contents`: the fold is two things in two places — a
+        // toggle that belongs at the end of the sentence, and a list that
+        // belongs under it — so the box it would otherwise draw around them
+        // has nothing to enclose. Without this the findings open *inside*
+        // the line, in whatever width the toggle happens to occupy.
+        <Collapsible
+          open={open}
+          onOpenChange={next => setOpen(next)}
+          className="contents"
+        >
+          <CollapsibleTrigger render={<Button variant="ghost" size="xs" />}>
             {/* Once they are open, the findings are on screen: "{count} more"
                 would point at them and claim they are still withheld. The
                 open state folds them away again, so it says so. */}
@@ -111,22 +89,22 @@ export function StatusStrip({
               ? messages.label('label.status.less')
               : messages.label('label.status.more', { count: lines.length })}
           </CollapsibleTrigger>
-        )}
-        {action && <div className="shrink-0">{action}</div>}
-      </div>
-      {lines.length > 0 && (
-        <CollapsibleContent>
-          <ul className={cn('mt-1 list-disc pl-6', TEXT_UI)}>
-            {lines.map((line, index) => (
-              // Two findings can read the same after `dedupeIssues` has had
-              // its say — a caller may not have used it — so the index is the
-              // only key that is stable across a re-render.
-              <li key={index}>{line}</li>
-            ))}
-          </ul>
-        </CollapsibleContent>
+          {/* A whole row of its own under the sentence, which is what the
+              line's wrap is for. */}
+          <CollapsibleContent className="w-full">
+            <ul className={cn('list-disc pl-6', TEXT_UI)}>
+              {lines.map((line, index) => (
+                // Two findings can read the same after `dedupeIssues` has had
+                // its say — a caller may not have used it — so the index is
+                // the only key that is stable across a re-render.
+                <li key={index}>{line}</li>
+              ))}
+            </ul>
+          </CollapsibleContent>
+        </Collapsible>
       )}
-    </Collapsible>
+      {action && <AlertAction>{action}</AlertAction>}
+    </LineAlert>
   );
 }
 
@@ -231,12 +209,10 @@ export function QueryStrip({
       className={className}
       action={
         onRetry && (
-          <Button
-            variant="outline"
-            size="xs"
-            className="text-current"
-            onClick={onRetry}
-          >
+          // No colour of its own: `outline` names no text colour, so the
+          // button reads in the tone of the alert around it — which is what
+          // the `text-current` this used to carry was spelling out by hand.
+          <Button variant="outline" size="xs" onClick={onRetry}>
             {messages.label('label.query.retry')}
           </Button>
         )
