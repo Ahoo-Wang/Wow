@@ -1161,8 +1161,7 @@ describe('save actions', () => {
     await open();
     await dropAColumn();
 
-    fireEvent.click(screen.getByRole('button', { name: 'More view actions' }));
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Revert' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Revert' }));
 
     await waitFor(() =>
       expect(screen.getAllByRole('columnheader')).toHaveLength(3),

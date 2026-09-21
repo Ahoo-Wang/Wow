@@ -22,8 +22,11 @@ import {
 import type { ViewInstance } from '../model/index.js';
 import type { WriteAction, WriteState } from '../runtime/index.js';
 import type { SaveCommands } from '../react/index.js';
+import { cn } from './lib/utils.js';
+import { Badge } from './components/badge.js';
 import { Button } from './components/button.js';
 import { ButtonGroup } from './components/button-group.js';
+import { Tooltip, TooltipTrigger } from './components/tooltip.js';
 import {
   DropdownMenu,
   DropdownMenuItem,
@@ -31,7 +34,7 @@ import {
 } from './components/dropdown-menu.js';
 import { Spinner } from './components/spinner.js';
 import { useViewMessages } from './MessagesProvider.js';
-import { DropdownMenuContent } from './popups.js';
+import { DropdownMenuContent, TooltipContent } from './popups.js';
 import { SaveAsDialog } from './SaveAsDialog.js';
 
 /**
@@ -127,16 +130,12 @@ export function SaveActions({
     />
   );
 
-  // Save when it is allowed, else a copy. Neither leaves only the way back.
-  if (!can.save && !can.saveAs)
-    return (
-      <div data-slot="save-actions" className="flex items-center gap-2">
-        {can.revert && <RevertButton commands={commands} />}
-      </div>
-    );
+  // Save when it is allowed, else a copy. Nothing to write means nothing
+  // here: the way back lives on the "edited" mark ({@link UnsavedMark}),
+  // which the header draws whether or not a save is on offer.
+  if (!can.save && !can.saveAs) return null;
 
   const menuSaveAs = can.save && can.saveAs;
-  const menuRevert = can.revert;
   // Spelled out rather than taken from `blocked`, because the outcomes are
   // not one thing. A write in flight stops everything. An unknown outcome
   // must be settled first — the engine refuses the next write anyway. A
@@ -173,7 +172,7 @@ export function SaveActions({
           <PrimaryFace saving={state.pending} saved={saved} writes={can.save} />
         </Button>
 
-        {(menuSaveAs || menuRevert) && (
+        {menuSaveAs && (
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
@@ -194,18 +193,10 @@ export function SaveActions({
               <ChevronDownIcon />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {menuSaveAs && (
-                <DropdownMenuItem onClick={() => setCopying(true)}>
-                  <CopyIcon />
-                  {messages.label('label.save.save-as')}
-                </DropdownMenuItem>
-              )}
-              {menuRevert && (
-                <DropdownMenuItem disabled={stopped} onClick={commands.revert}>
-                  <RotateCcwIcon />
-                  {messages.label('label.save.revert')}
-                </DropdownMenuItem>
-              )}
+              <DropdownMenuItem onClick={() => setCopying(true)}>
+                <CopyIcon />
+                {messages.label('label.save.save-as')}
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         )}
@@ -293,22 +284,56 @@ function isUnsettled(write: WriteState | null): boolean {
   return write?.kind === 'unknown' || write?.kind === 'conflict';
 }
 
-/** The way back, when there is no way forward: put the saved config back. */
-function RevertButton({ commands }: { commands: SaveCommands }) {
+/**
+ * The "edited" mark, with the way back on it.
+ *
+ * Revert used to be the second item of the Save menu — two presses deep,
+ * under a chevron, for the one command that answers the state this mark
+ * announces. The user's call (2026-09-21): the command belongs beside the
+ * fact it undoes. So the mark is the word and, when the saved config can be
+ * put back, one icon button after it, named and tooltipped «Revert»; a
+ * never-saved view has nothing to go back to and shows the word alone
+ * (`ViewHeader` draws that one). The Save menu keeps only Save as.
+ */
+export function UnsavedMark({ commands }: { commands: SaveCommands }) {
   const messages = useViewMessages();
+  const revert = messages.label('label.save.revert');
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      // Taking the edits back while the same edits are being written would
-      // leave what was reverted from as the baseline and what was reverted
-      // to as a dirty draft over it. An unsettled outcome is the same story
-      // one step earlier: Retry or Keep mine has yet to land.
-      disabled={commands.state.pending || isUnsettled(commands.state.write)}
-      onClick={commands.revert}
+    <Badge
+      variant="outline"
+      data-slot="view-unsaved"
+      // The word keeps its own padding; the button after it sits in the
+      // badge's right padding so the pill does not grow a second box.
+      className={cn('shrink-0', commands.can.revert && 'gap-0.5 pr-0.5')}
     >
-      <RotateCcwIcon data-icon="inline-start" />
-      {messages.label('label.save.revert')}
-    </Button>
+      {messages.label('label.header.unsaved')}
+      {commands.can.revert && (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                data-slot="view-revert"
+                aria-label={revert}
+                // Taking the edits back while the same edits are being
+                // written would leave what was reverted from as the baseline
+                // and what was reverted to as a dirty draft over it. An
+                // unsettled outcome is the same story one step earlier:
+                // Retry or Keep mine has yet to land.
+                disabled={
+                  commands.state.pending || isUnsettled(commands.state.write)
+                }
+                onClick={commands.revert}
+              />
+            }
+          >
+            <RotateCcwIcon />
+          </TooltipTrigger>
+          <TooltipContent>{revert}</TooltipContent>
+        </Tooltip>
+      )}
+    </Badge>
   );
 }

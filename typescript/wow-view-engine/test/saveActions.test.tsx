@@ -277,14 +277,28 @@ describe('SaveActions, the split button group', () => {
     );
   });
 
-  it('takes the edits back from the menu', async () => {
+  it('takes the edits back from the button on the "edited" mark', async () => {
     const { runtime } = await open();
+    // Nothing to take back, no mark and no button.
+    expect(screen.queryByRole('button', { name: 'Revert' })).toBeNull();
     editIt(runtime);
 
+    // On the mark itself rather than two presses deep in the Save menu: the
+    // command stands beside the fact it undoes.
+    const mark = await screen.findByText('Edited');
+    const revert = screen.getByRole('button', { name: 'Revert' });
+    expect(mark.closest('[data-slot="view-unsaved"]')).toBe(
+      revert.closest('[data-slot="view-unsaved"]'),
+    );
     fireEvent.click(screen.getByRole('button', { name: 'More view actions' }));
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Revert' }));
+    expect(screen.queryByRole('menuitem', { name: 'Revert' })).toBeNull();
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: 'Escape',
+    });
 
+    fireEvent.click(revert);
     await waitFor(() => expect(runtime.getSnapshot().dirty).toBe(false));
+    expect(screen.queryByRole('button', { name: 'Revert' })).toBeNull();
   });
 
   /**

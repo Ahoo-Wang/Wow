@@ -28,7 +28,7 @@ import { AUDIENCE_ICON, KIND_ICON } from './kinds.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { Tooltip, TooltipTrigger } from './components/tooltip.js';
 import { TooltipContent } from './popups.js';
-import { SaveActions } from './SaveActions.js';
+import { SaveActions, UnsavedMark } from './SaveActions.js';
 import { WriteOutcome } from './WriteOutcome.js';
 
 /**
@@ -275,11 +275,9 @@ export function ViewHeader({
               {messages.label('label.header.new-view')}
             </Badge>
           ) : (
-            state.dirty && (
-              <Badge variant="outline" className="shrink-0">
-                {messages.label('label.header.unsaved')}
-              </Badge>
-            )
+            // With the way back on it: the mark says "edited", and the one
+            // command that answers that stands right after the word.
+            state.dirty && <UnsavedMark commands={commands} />
           )}
 
           <SaveActions
