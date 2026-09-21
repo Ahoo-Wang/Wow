@@ -146,7 +146,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 
 `RecordColumn.width` 一直在模型里、投影也带着它，但在 D13 之前没有任何界面能改它。现在每个数据列的表头右边都是一个手柄（`SortableHeader` 里的 `ColumnResizer`）：
 
-- **手柄是一个 `separator`**：`role="separator"`、`aria-orientation="vertical"`、`aria-valuenow` 为当前宽度、`aria-valuemin` 为下限，名字是「调整 {列} 宽度」（`label.columns.resize`）。它可聚焦，因为 ARIA 里"可聚焦的分隔条"正是这种可拖动的边界；静息时不画线（表头本来就有发丝线，再加一条会读成装饰），**悬停或聚焦时**才在边上落下 2px 的 `--border`／`--ring`；
+- **手柄是一个 `separator`**：`role="separator"`、`aria-orientation="vertical"`、`aria-valuenow` 为当前宽度、`aria-valuemin` 为下限，名字是「调整 {列} 宽度」（`label.columns.resize`）。它可聚焦，因为 ARIA 里"可聚焦的分隔条"正是这种可拖动的边界；**静息时就画一道 1px 的 `--border` 发丝线**，悬停或聚焦时加粗到 2px 并换成 `--ring`。第一版只在悬停时出现，用户 2026-09-21 指出这是错的——本页「可排序但没排序的列带中性的 ↕」那条说的正是同一个道理：用过之后才出现的可供性不是可供性，触屏更是从不悬停；
 - **拖动写 DOM，不写 state**：宽度是浏览器已经知道、React 不知道的那种布局，每次 `pointermove` 走一次 `setState` 会把整份结果——每一行每一格——重渲一遍。所以手势直接把宽度写到**本列的每一个格子**上（表头、数据行、汇总行、骨架行），与 `usePinnedOffsets` 直接写 CSS 变量是同一条理由；**只有松手**才走控制器。格子由 DOM 找：手柄知道自己的 `<th>`，`<th>` 知道自己的 `cellIndex`，表知道自己的行——一列就是每一行在那个下标上的格子；
 - **松手落 `table.setColumnWidth(field, px)`**，与 `setPinned` 同样是一次 `edit` 加一次 `apply`（[react.md#userecordtable](../react.md#userecordtable)）；
 - **键盘等价物**：←／→ 每次 8px，Shift+←／→ 每次 32px，**每一下都提交**；Enter 与双击恢复自适应，落的是 `setColumnWidth(field, null)`——控制器删键而不是置 `undefined`，理由与固定那一条相同。每一步从**当前**宽度算起而不是从 `column.width` 算起：提交过的宽度要等下一份结果才进投影，回读配置会让第二下重复第一下；

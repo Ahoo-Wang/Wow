@@ -85,6 +85,20 @@ function cells(): HTMLTableCellElement[] {
 
 describe('the resize handle', () => {
   /**
+   * The line is there before anyone hovers: an affordance that appears only
+   * after it has been used is not an affordance, and a touch screen never
+   * hovers (the user's call, 2026-09-21). Hover and focus thicken it.
+   */
+  it('draws its line at rest, and thickens it under the pointer or focus', () => {
+    table();
+    const node = handle();
+    expect(node.className).toContain('after:bg-border');
+    expect(node.className).not.toContain('after:bg-transparent');
+    expect(node.className).toContain('hover:after:bg-ring');
+    expect(node.className).toContain('focus-visible:after:bg-ring');
+  });
+
+  /**
    * A separator is what ARIA calls a movable boundary between two regions,
    * and a focusable one carries the value it is set to. The name is the
    * column, because a handle that says only "resize" is a handle a reader

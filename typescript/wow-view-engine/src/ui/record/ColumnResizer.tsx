@@ -183,11 +183,13 @@ export function ColumnResizer({ column, onResize }: ColumnResizerProps) {
       aria-valuenow={column.width ?? MIN_COLUMN_WIDTH}
       tabIndex={0}
       // The hit area is wider than the line, and sits inside the cell so it
-      // can never be clipped by a column that has one; the line itself is
-      // drawn on the boundary and only once the edge has been found — at
-      // rest the header's own hairline is the edge, and a second one beside
-      // it would read as a rule rather than as a control.
-      className="absolute top-0 right-0 z-20 h-full w-2 cursor-col-resize touch-none select-none after:absolute after:inset-y-0 after:right-0 after:w-0.5 after:bg-transparent hover:after:bg-border focus-visible:outline-none focus-visible:after:bg-ring"
+      // can never be clipped by a column that has one. The line is drawn at
+      // rest — a hairline in `--border` on the boundary — and thickens to
+      // `--ring` under the pointer or focus. It used to appear only on
+      // hover, which the user rejected (2026-09-21) and this package's own
+      // rule already forbade: an affordance that shows up only after it has
+      // been used is not an affordance, and a touch screen never hovers.
+      className="absolute top-0 right-0 z-20 h-full w-2 cursor-col-resize touch-none select-none after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-border hover:after:w-0.5 hover:after:bg-ring focus-visible:outline-none focus-visible:after:w-0.5 focus-visible:after:bg-ring"
       onPointerDown={onPointerDown}
       onKeyDown={onKeyDown}
       // The gesture's own "never mind": back to whatever the content asks
