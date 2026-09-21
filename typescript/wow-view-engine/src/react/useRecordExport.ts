@@ -12,24 +12,30 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { issue } from '../filter/index.js';
 import type { Issue, RecordData } from '../model/index.js';
 import { isExportCancelled, type RecordViewRuntime } from '../runtime/index.js';
 import { toIssue } from './issues.js';
 import type { RecordTableController } from './useRecordTable.js';
 
-/** The three readings of "export": what is picked, what is shown, what matches. */
-export type RecordExportScope = 'selected' | 'page' | 'all';
+/**
+ * The two readings of "export": what is picked, and what the conditions
+ * match.
+ *
+ * "This page" used to be a third, and it was an artefact of paging rather
+ * than an intent (D14): on a result that fits one page it is "all" said
+ * twice, and on one that does not it is a slice cut by the sort and the page
+ * size that nobody asked for. A sample is the header's select-all followed
+ * by "selected".
+ */
+export type RecordExportScope = 'selected' | 'all';
 
 export interface RecordExportScopes {
   /**
-   * Rows picked, and **absent** while nothing is picked: a menu offers what
-   * the view can actually do (D4), and "export the 0 selected rows" is an
-   * item that does nothing.
+   * Rows picked, and **absent** while nothing is picked: the dialog offers
+   * what the view can actually do (D4), and "export the 0 selected rows" is
+   * a choice that does nothing.
    */
   selected?: number;
-  /** Rows on screen — the page the last result brought back. */
-  page: number;
   /**
    * Rows the applied conditions match, or `null` when nobody can say: a
    * cursor source reports no total, and neither does a paged one that
@@ -46,15 +52,15 @@ export interface RecordExportProgress {
   total?: number;
 }
 
-/** The question `run('all')` stops to ask: this many rows, against this cap. */
-export interface RecordExportOverLimit {
-  count: number;
-  max: number;
-}
-
-export interface RecordExportRunOptions {
-  /** Answers the over-limit question with "yes, all of it". */
-  force?: boolean;
+/** What one finished export produced, until the next run or `reset()`. */
+export interface RecordExportOutcome {
+  scope: RecordExportScope;
+  /** Rows the file holds. */
+  rows: number;
+  /** The ceiling stopped the fetch short of everything that matched. */
+  capped: boolean;
+  /** How many rows matched in all, where the source reports a total. */
+  total?: number;
 }
 
 export interface RecordExportController {
@@ -62,18 +68,20 @@ export interface RecordExportController {
   /** The scope being exported, or `null` while nothing runs. */
   running: RecordExportScope | null;
   progress: RecordExportProgress | null;
-  /** Set when `run('all')` found more rows than the cap; `force` answers it. */
-  overLimit: RecordExportOverLimit | null;
+  /** The export that finished, so the window can report what it produced. */
+  outcome: RecordExportOutcome | null;
   /**
-   * The one thing this export has to say: the `error` of a failure, or the
-   * `warning` that the ceiling cut the file short where no count could be
-   * checked in advance. Nothing while an export is running or has gone well.
+   * The failure of the last export, as one Issue. Nothing while an export is
+   * running or has gone well — a file cut short by the ceiling is not a
+   * failure, and says so through `outcome.capped`.
    */
   error: Issue | null;
   /** Starts one export; a no-op while another is running. */
-  run(scope: RecordExportScope, options?: RecordExportRunOptions): void;
-  /** Stops the run, or drops the over-limit question unanswered. */
+  run(scope: RecordExportScope): void;
+  /** Stops the run in flight. */
   cancel(): void;
+  /** Forgets the last outcome or failure; it does not stop a run. */
+  reset(): void;
 }
 
 export interface RecordExportOptions {
@@ -94,30 +102,32 @@ export interface RecordExportOptions {
 interface ExportState {
   running: RecordExportScope | null;
   progress: RecordExportProgress | null;
-  overLimit: RecordExportOverLimit | null;
+  outcome: RecordExportOutcome | null;
   error: Issue | null;
 }
 
 const IDLE: ExportState = {
   running: null,
   progress: null,
-  overLimit: null,
+  outcome: null,
   error: null,
 };
 
 /**
- * Exporting the result: the rows that are picked, the page that is shown, or
- * everything the applied conditions match.
+ * Exporting the result: the rows that are picked, or everything the applied
+ * conditions match.
  *
- * The first two are already in hand — they are the result on screen — so they
- * are handed straight over. The third is a query of its own: `exportRows`
+ * The picked rows are already in hand — they are the result on screen — so
+ * they are handed straight over. "All" is a query of its own: `exportRows`
  * pages the source behind the view without touching it, which is why a long
  * export leaves the rows, the paging and the selection exactly as they were.
  *
- * `run('all')` asks before it fetches wherever the count is known and above
- * `limits.exportMax`: a number is the one thing that makes "this will take a
- * while" a decision rather than a surprise. Where no total is known there is
- * nothing to ask, so it runs and says afterwards if the ceiling cut it short.
+ * It asks nothing. The one question there was — "this is more than the cap,
+ * still want it?" — is now part of the window that starts the export (D14):
+ * the count and the ceiling are on screen before the button is pressed, so
+ * pressing it **is** the consent, and a hook that stopped to ask again would
+ * be asking twice. Where no total is known there was never anything to ask,
+ * and `outcome.capped` says afterwards that the ceiling cut the file short.
  */
 export function useRecordExport(
   runtime: RecordViewRuntime | null,
@@ -125,8 +135,13 @@ export function useRecordExport(
   options: RecordExportOptions,
 ): RecordExportController {
   const [state, setState] = useState<ExportState>(IDLE);
-  // The run in flight, readable between renders: `run` refuses a second
-  // export without waiting for a render, and `cancel` reaches this one.
+  // Whether an export is in flight, readable between renders: `run` refuses
+  // a second one without waiting for a render, which a double click on the
+  // window's button would otherwise get — the picked scope fetches nothing,
+  // so `live` below is empty for it and cannot be the gate.
+  const busy = useRef(false);
+  // The fetch in flight, so `cancel` reaches this one and a progress report
+  // from a superseded run is ignored.
   const live = useRef<AbortController | null>(null);
   // Nothing lands after the component has gone, or after the view it was
   // exporting has been left behind.
@@ -141,6 +156,7 @@ export function useRecordExport(
     alive.current = true;
     return () => {
       alive.current = false;
+      busy.current = false;
       live.current?.abort();
       live.current = null;
     };
@@ -149,24 +165,23 @@ export function useRecordExport(
   const paging = table.paging;
   const scopes: RecordExportScopes = {
     ...(table.selection.length > 0 ? { selected: table.selection.length } : {}),
-    page: table.rows.length,
     all: paging?.mode === 'paged' ? (paging.total ?? null) : null,
   };
 
   const settle = useCallback((next: ExportState): void => {
+    busy.current = next.running !== null;
     if (alive.current) setState(next);
   }, []);
 
   /** Serialises and saves, and turns whatever that throws into one Issue. */
   const hand = useCallback(
     async (
-      scope: RecordExportScope,
       rows: readonly RecordData[],
-      capped: Issue | null,
+      outcome: RecordExportOutcome,
     ): Promise<void> => {
       try {
-        await delivery.current(rows, scope);
-        settle({ ...IDLE, error: capped });
+        await delivery.current(rows, outcome.scope);
+        settle({ ...IDLE, outcome });
       } catch (caught) {
         settle({ ...IDLE, error: toIssue(caught, 'export.failed') });
       }
@@ -179,14 +194,13 @@ export function useRecordExport(
       const controller = new AbortController();
       live.current = controller;
       settle({
+        ...IDLE,
         running: 'all',
         progress: {
           scope: 'all',
           fetched: 0,
           ...(total === null ? {} : { total }),
         },
-        overLimit: null,
-        error: null,
       });
       try {
         const result = await runtime.exportRows({
@@ -203,21 +217,15 @@ export function useRecordExport(
             }));
           },
         });
-        await hand(
-          'all',
-          result.rows,
-          result.capped
-            ? issue(
-                'export.capped',
-                [],
-                { count: result.rows.length },
-                'warning',
-              )
-            : null,
-        );
+        await hand(result.rows, {
+          scope: 'all',
+          rows: result.rows.length,
+          capped: result.capped,
+          ...(total === null ? {} : { total }),
+        });
       } catch (caught) {
-        // A cancel is the user's own answer, not a finding: the menu closes
-        // and nothing is said about it.
+        // A cancel is the user's own answer, not a finding: the window
+        // closes and nothing is said about it.
         settle(
           isExportCancelled(caught)
             ? IDLE
@@ -231,32 +239,26 @@ export function useRecordExport(
   );
 
   const run = useCallback(
-    (
-      scope: RecordExportScope,
-      { force = false }: RecordExportRunOptions = {},
-    ) => {
-      if (!runtime || live.current) return;
-      if (scope !== 'all') {
-        const picked = scope === 'selected' ? table.selectedRows : table.rows;
-        // Nothing is in flight for these two — the rows are the result on
-        // screen — so `running` is set only for as long as the delivery takes.
-        setState({ ...IDLE, running: scope });
+    (scope: RecordExportScope) => {
+      if (!runtime || busy.current) return;
+      busy.current = true;
+      if (scope === 'selected') {
+        const picked = table.selectedRows;
+        // Nothing is fetched for this one — the rows are the result on
+        // screen — so `running` is set only for as long as delivery takes.
+        settle({ ...IDLE, running: scope });
         void hand(
-          scope,
           picked.map(row => row.data),
-          null,
+          { scope, rows: picked.length, capped: false },
         );
         return;
       }
-      const max = runtime.limits.exportMax;
-      const total = paging?.mode === 'paged' ? (paging.total ?? null) : null;
-      if (!force && total !== null && total > max) {
-        setState({ ...IDLE, overLimit: { count: total, max } });
-        return;
-      }
-      void fetchAll(runtime, total);
+      void fetchAll(
+        runtime,
+        paging?.mode === 'paged' ? (paging.total ?? null) : null,
+      );
     },
-    [fetchAll, hand, paging, runtime, table.rows, table.selectedRows],
+    [fetchAll, hand, paging, runtime, settle, table.selectedRows],
   );
 
   const cancel = useCallback(() => {
@@ -265,5 +267,12 @@ export function useRecordExport(
     settle(IDLE);
   }, [settle]);
 
-  return { scopes, ...state, run, cancel };
+  // Closing the window forgets what the last run produced, so opening it
+  // again asks rather than reporting an export the user has already read.
+  // Stopping one is `cancel`; this one leaves a run in flight alone.
+  const reset = useCallback(() => {
+    if (!busy.current) settle(IDLE);
+  }, [settle]);
+
+  return { scopes, ...state, run, cancel, reset };
 }

@@ -31,8 +31,8 @@ export * from './DashboardWorkbench.js';
 export * from './describeConfig.js';
 export * from './download.js';
 export * from './EditorBand.js';
-export * from './ExportMenu.js';
 export * from './EmbeddedView.js';
+export * from './ExportDialog.js';
 export * from './FilterPanel.js';
 export * from './messages.js';
 // The catalogues ship beside the formatters so a host can compose one:

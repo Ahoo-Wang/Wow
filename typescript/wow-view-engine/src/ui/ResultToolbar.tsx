@@ -19,7 +19,6 @@ import type {
 } from '../model/index.js';
 import type {
   RecordBulkActionContext,
-  RecordExportController,
   RecordTableController,
 } from '../react/index.js';
 import type { RecordViewRuntime } from '../runtime/index.js';
@@ -31,7 +30,7 @@ import { ToggleGroup, ToggleGroupItem } from './components/toggle-group.js';
 import { Tooltip, TooltipTrigger } from './components/tooltip.js';
 import { TooltipContent } from './popups.js';
 import { ColumnSettings } from './ColumnSettings.js';
-import { ExportMenu } from './ExportMenu.js';
+import { ExportDialog, type ExportOffer } from './ExportDialog.js';
 import { SortSettings } from './SortSettings.js';
 import { SEGMENTED, SPACE } from './layout.js';
 import type { MessageKey } from './messages.js';
@@ -66,12 +65,16 @@ export interface ResultToolbarProps {
    */
   bulkActions?(context: RecordBulkActionContext): React.ReactNode;
   /**
-   * Taking the result away, when the surface offers it. A workbench holds
-   * the controller — the failure it reports belongs in the status line above
-   * the result, not inside a menu — and an embedded view that offers no
-   * export simply passes none, and the button is not there.
+   * Taking the result away, when the surface offers it: the controller plus
+   * the two things only the workbench can say — the conditions the rows came
+   * back under, and what the file will be called. They are here because the
+   * export window says what the file will hold **before** it is made (D14),
+   * and neither of those is readable off a table controller.
+   *
+   * An embedded view that offers no export simply passes none, and the
+   * button is not there.
    */
-  exportControl?: RecordExportController;
+  exporter?: ExportOffer;
   /**
    * The runtime behind the controller. The toolbar reads nothing off it; it
    * only hands it to `bulkActions`, whose actions are commands against the
@@ -128,7 +131,7 @@ export function ResultToolbar({
   rowKey,
   hasRowActions = false,
   bulkActions,
-  exportControl,
+  exporter,
   runtime,
 }: ResultToolbarProps) {
   const messages = useViewMessages();
@@ -258,7 +261,13 @@ export function ResultToolbar({
         {/* Taking the rows away is its own responsibility, so it is its own
             group at the end of the block (D12 Ⅳ): the two above change how
             the result is drawn, this one changes nothing at all. */}
-        {exportControl && <ExportMenu control={exportControl} />}
+        {exporter && (
+          <ExportDialog
+            {...exporter}
+            columns={table.columns}
+            max={runtime.limits.exportMax}
+          />
+        )}
       </div>
     </div>
   );

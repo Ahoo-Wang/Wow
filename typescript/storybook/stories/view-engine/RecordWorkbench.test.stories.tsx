@@ -26,7 +26,10 @@ import displayMeta, {
   DeleteConflicted as DisplayDeleteConflicted,
   EmptyResult as DisplayEmptyResult,
   English as DisplayEnglish,
+  ExportCapped as DisplayExportCapped,
+  ExportFailed as DisplayExportFailed,
   ExportResult as DisplayExportResult,
+  ExportRunning as DisplayExportRunning,
   FillTheScreen as DisplayFillTheScreen,
   FillTheScreenInScaledHost as DisplayFillTheScreenInScaledHost,
   FillTheScreenInTransformedHost as DisplayFillTheScreenInTransformedHost,
@@ -3569,15 +3572,16 @@ export const ToolbarWrapsAsGroups: Story = {
 };
 
 /**
- * The export menu: three readings of "export", each with its own count.
+ * The export window: one button, one window, the whole journey (D14).
  *
  * Nothing is actually exported here. The file itself — its name, its header
  * and every value in it — is asserted in jsdom, where the browser's half is
- * a stub (`test/recordWorkbench.test.tsx`); a real click would hand this
+ * a stub (`test/recordExportUi.test.tsx`); a real click would hand this
  * browser a download for nothing. What only a browser can answer is what the
- * menu says, and that it says it in the language the data is in.
+ * window says at each step, and that it says it in the language the data is
+ * in.
  */
-export const ExportMenuScopes: Story = {
+export const ExportWindow: Story = {
   ...DisplayExportResult,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -3586,40 +3590,153 @@ export const ExportMenuScopes: Story = {
       expect(readColumn(table, '订单号')).toEqual(PENDING_BY_AMOUNT),
     );
 
-    // The picked scope exists only once something is picked (D4), so the
-    // menu is read twice: without a selection, then with one.
+    // No menu anywhere: the toolbar's part in this is the one button.
     await userEvent.click(
       canvasElement.querySelector<HTMLElement>('[data-control="export"]')!,
     );
-    const unpicked = await within(document.body).findByRole('menu');
-    await expect(
-      within(unpicked)
-        .getAllByRole('menuitem')
-        .map(item => item.textContent),
-    ).toEqual([
-      say('label.export.page', { count: 4 }),
-      say('label.export.all', { count: 4 }),
-    ]);
+    const unpicked = await within(document.body).findByRole('dialog');
+    await expect(within(document.body).queryByRole('menu')).toBeNull();
+    // Nothing picked, so there is no choice to draw — only what the file
+    // will hold.
+    await expect(within(unpicked).queryByRole('radio')).toBeNull();
+    await expect(unpicked.textContent).toContain(
+      say('label.export.rows', { count: 4 }),
+    );
+    await expect(unpicked.textContent).toContain(
+      say('label.export.columns', {
+        count: 4,
+        names: ['订单号', '仓库', '状态', '金额'].join(
+          zhCN['label.filter.join'],
+        ),
+      }),
+    );
     await userEvent.keyboard('{Escape}');
+    await waitFor(() =>
+      expect(within(document.body).queryByRole('dialog')).toBeNull(),
+    );
 
+    // The picked scope exists only once something is picked (D4), and it is
+    // the one the window opens on.
     await userEvent.click(
       canvas.getByLabelText(zhCN['label.record.select-all']),
     );
     await userEvent.click(
       canvasElement.querySelector<HTMLElement>('[data-control="export"]')!,
     );
-    const picked = await within(document.body).findByRole('menu');
-
+    const picked = await within(document.body).findByRole('dialog');
     await expect(
       within(picked)
-        .getAllByRole('menuitem')
-        .map(item => item.textContent),
-    ).toEqual([
+        .getAllByRole('radio')
+        .map(radio => radio.getAttribute('aria-checked')),
+    ).toEqual(['true', 'false']);
+    await expect(picked.textContent).toContain(
       say('label.export.selected', { count: 4 }),
-      say('label.export.page', { count: 4 }),
-      // The one scope whose rows are not the ones on screen says so.
+    );
+    // The one scope whose rows are not the ones on screen says so.
+    await expect(picked.textContent).toContain(
       say('label.export.all', { count: 4 }),
-    ]);
+    );
     await userEvent.keyboard('{Escape}');
+  },
+};
+
+/**
+ * The window while the pages come in, and Escape as the answer it is.
+ *
+ * The menu this replaced had to refuse both Escape and a click outside,
+ * because the cancel lived inside it; a window may be dismissed, and being
+ * dismissed *is* the cancel.
+ */
+export const ExportRunningWindow: Story = {
+  ...DisplayExportRunning,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    await userEvent.click(
+      canvasElement.querySelector<HTMLElement>('[data-control="export"]')!,
+    );
+    const dialog = await within(document.body).findByRole('dialog');
+    await userEvent.click(
+      within(dialog).getByRole('button', {
+        name: zhCN['label.export.confirm'],
+      }),
+    );
+
+    const bar = await within(dialog).findByRole('progressbar', {
+      name: zhCN['label.export.running'],
+    });
+    await expect(bar.getAttribute('aria-valuemax')).toBe('4');
+    await expect(within(dialog).getByRole('status').textContent).toBe(
+      say('label.export.progress', { fetched: 0, total: 4 }),
+    );
+
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() =>
+      expect(within(document.body).queryByRole('dialog')).toBeNull(),
+    );
+    // A cancel says nothing: it is the answer the user gave.
+    await expect(
+      canvasElement.querySelector('[data-slot="status-strip"]'),
+    ).toBeNull();
+  },
+};
+
+/**
+ * The ceiling, said before the button and again after the file: the four
+ * orders the saved condition matches, against a ceiling of two.
+ */
+export const ExportCappedWindow: Story = {
+  ...DisplayExportCapped,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    await userEvent.click(
+      canvasElement.querySelector<HTMLElement>('[data-control="export"]')!,
+    );
+    const dialog = await within(document.body).findByRole('dialog');
+
+    await expect(dialog.textContent).toContain(
+      say('label.export.over-limit', { max: 2 }),
+    );
+    await userEvent.click(
+      within(dialog).getByRole('button', {
+        name: zhCN['label.export.confirm'],
+      }),
+    );
+
+    await within(dialog).findByText(say('label.export.done', { count: 2 }));
+    await expect(dialog.textContent).toContain(
+      say('label.export.done-capped', { max: 2, total: 4 }),
+    );
+  },
+};
+
+/**
+ * A failed export, reported where it happened and offered again from there.
+ */
+export const ExportFailedWindow: Story = {
+  ...DisplayExportFailed,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    await userEvent.click(
+      canvasElement.querySelector<HTMLElement>('[data-control="export"]')!,
+    );
+    const dialog = await within(document.body).findByRole('dialog');
+    await userEvent.click(
+      within(dialog).getByRole('button', {
+        name: zhCN['label.export.confirm'],
+      }),
+    );
+
+    await within(dialog).findByText(/导出失败/);
+    // The way out is in the window, not back through the toolbar.
+    await expect(
+      within(dialog).getByRole('button', { name: zhCN['label.export.retry'] }),
+    ).toBeTruthy();
+    // And nothing was said above the rows about it.
+    await expect(
+      canvasElement.querySelector('[data-slot="status-strip"]'),
+    ).toBeNull();
   },
 };

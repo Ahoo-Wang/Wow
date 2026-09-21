@@ -12,7 +12,10 @@
  */
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { MemoryViewStore } from '@ahoo-wang/fetcher-view-engine';
+import {
+  DEFAULT_RUNTIME_LIMITS,
+  MemoryViewStore,
+} from '@ahoo-wang/fetcher-view-engine';
 import type { RecordActionSlots } from '@ahoo-wang/fetcher-view-engine/react';
 import { RecordWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
 // View Engine's own button, so the host's commands sit in its toolbar rather
@@ -24,6 +27,7 @@ import {
   createStoryEngine,
   recordConfig,
   savedViews,
+  storyExportSource,
   tableSettingsStore,
   type SourceBehaviour,
 } from './fixtures.js';
@@ -148,6 +152,7 @@ function RecordWorkbenchDemo({
   theme,
   breakable = false,
   cellFamily = false,
+  exporting,
 }: {
   behaviour?: SourceBehaviour;
   instanceId?: string;
@@ -212,6 +217,12 @@ function RecordWorkbenchDemo({
   breakable?: boolean;
   /** Opens a view whose columns cover all four declared cell readings. */
   cellFamily?: boolean;
+  /**
+   * What the export window has to report: pages slow enough to watch the
+   * bar fill, a ceiling below the result, or a backend that refuses the
+   * export while the view itself keeps answering.
+   */
+  exporting?: 'slow' | 'capped' | 'failing';
 }) {
   const workbench = (
     <StoryEngine
@@ -229,6 +240,19 @@ function RecordWorkbenchDemo({
         return createStoryEngine({
           behaviour,
           ...(store ? { store } : {}),
+          // The export's own pages, where the story is about them: `slow`
+          // and `failing` answer the view normally and treat the export's
+          // whole-page request differently, and `capped` only lowers the
+          // ceiling — six orders against a ceiling of two.
+          ...(exporting === 'capped' ? { limits: { exportMax: 2 } } : {}),
+          ...(exporting === 'slow' || exporting === 'failing'
+            ? {
+                source: storyExportSource(
+                  exporting,
+                  DEFAULT_RUNTIME_LIMITS.maxPageSize,
+                ),
+              }
+            : {}),
           instances: broken
             ? [
                 {
@@ -465,6 +489,7 @@ const meta = {
     writeOutcome: { table: { disable: true } },
     theme: { table: { disable: true } },
     cellFamily: { table: { disable: true } },
+    exporting: { table: { disable: true } },
   },
 } satisfies Meta<typeof RecordWorkbenchDemo>;
 
@@ -561,24 +586,59 @@ export const English: Story = {
 export const TableSettings: Story = { args: { keepStore: true } };
 
 /**
- * 导出：工具栏右端那颗下载图标。
+ * 导出：工具栏右端那颗下载图标，点开是一个窗口，整件事都在这个窗口里（D14）。
  *
- * 菜单里三条，各带条数：勾选了行才有「导出选中」，「导出本页」是屏幕上这一页，
- * 「导出所有」说的是**按当前筛选**的全量——它是唯一一条其行不是眼前这些行的口
- * 径，不说清楚就会被读成"这张表里的全部"。条数是这三条唯一的区别，所以每条都
- * 带着自己的那个数。
+ * **第一步先摆清楚**：有勾选时上面是一组单选——「选中（N）」（默认选它）与
+ * 「所有（N，按当前筛选）」；没勾选就没有单选，只有「所有」。底下四行说的是
+ * 文件里会有什么：多少条、按什么条件（和结果条件带同一套读法）、哪几列（列设
+ * 置里可见的那几列，按表上的顺序）、文件叫什么名字。条数超过 `limits.exportMax`
+ * 时这里多一行警告——**按下「导出」就是同意**，所以同意的是什么得先摆在眼前，
+ * 而不是下载完才说。
  *
- * 点下去拿到的是一个 UTF-8 带 BOM 的 CSV：列与顺序就是列设置里可见的那几列，
- * 每个值按单元格的读法写（枚举用标签、时间按这个界面的时区与语言、数字按
- * `numberFormat`），文件名是 `<视图名>-<日期>.csv`。「所有」在后台按已应用条件
- * 分页拉，拉的时候菜单变成进度加一个取消，屏幕上的行、翻页与勾选都不受影响；
- * 超过上限会先把条数与上限摆出来问一句。
+ * **第二步是同一个窗口**：一条进度条加「已拉取 {fetched} / {total} 条」，只有一
+ * 个「取消」。在途时 Esc 与点遮罩**就是取消**——不是被拒掉：取消是用户自己的
+ * 答复，它可以关窗。「选中」那一路的行本来就在手上，从确认直接到结果。
  *
- * 宿主想留痕的，`RecordWorkbench` 的 `onExported` 会把文件原样交出来。
+ * **第三步还是同一个窗口**：「已导出 N 条」加文件名，被上限截断时多一句「文件只
+ * 含前 N 条（共 M 条匹配）」；失败则是失败那句话加「重试」。所以结果区上方的状态
+ * 行里不再有导出的事——一次旅程一个壳。
+ *
+ * 拿到的是一个 UTF-8 带 BOM 的 CSV：列与顺序就是窗口里列出的那几列，每个值按单元
+ * 格的读法写（枚举用标签、时间按这个界面的时区与语言、数字按 `numberFormat`），
+ * 文件名就是窗口里报的那一个。「所有」在后台按已应用条件分页拉，屏幕上的行、翻页
+ * 与勾选都不受影响。宿主想留痕的，`RecordWorkbench` 的 `onExported` 会把文件原样
+ * 交出来。
  */
 export const ExportResult: Story = {
   name: '导出',
   args: { behaviour: 'data' },
+};
+
+/**
+ * 导出跑起来的样子：后台那一页故意拖慢，进度条与「已拉取 0 / 4 条」停在屏幕
+ * 上。这时候 Esc、遮罩和「取消」是同一个答复——停下来，什么也不说。
+ */
+export const ExportRunning: Story = {
+  name: '导出/进行中',
+  args: { exporting: 'slow' },
+};
+
+/**
+ * 超过上限：把 `limits.exportMax` 压到 2，这个视图匹配的四条就超了。警告在按钮
+ * 之前，导出完窗口再说一遍文件里实际有几条、总共匹配几条。
+ */
+export const ExportCapped: Story = {
+  name: '导出/超上限',
+  args: { exporting: 'capped' },
+};
+
+/**
+ * 导出失败：视图照常出数，只有导出那一次请求被拒。失败那句话就在窗口里，旁边
+ * 是「重试」——不用关掉窗口再从工具栏开一遍。
+ */
+export const ExportFailed: Story = {
+  name: '导出/失败',
+  args: { exporting: 'failing' },
 };
 
 /**

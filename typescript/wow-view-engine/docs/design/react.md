@@ -99,21 +99,23 @@ useRecordTable(runtime): RecordTableController
 
 ```ts
 useRecordExport(runtime, table, { deliver }): {
-  scopes: { selected?: number; page: number; all: number | null };
-  running: 'selected' | 'page' | 'all' | null;
+  scopes: { selected?: number; all: number | null };
+  running: 'selected' | 'all' | null;
   progress: { scope; fetched; total? } | null;
-  overLimit: { count: number; max: number } | null;
+  outcome: { scope; rows: number; capped: boolean; total? } | null;
   error: Issue | null;
-  run(scope, options?: { force?: boolean }): void;
+  run(scope): void;
   cancel(): void;
+  reset(): void;
 }
 ```
 
-- **三种口径各带条数**，条数就是这三项唯一的区别：`selected` 只在有选中时**存在**（D4——"导出选中的 0 条"是一个点了不做事的条目），`page` 是屏幕上这一页的行数，`all` 是分页源报出的总数、报不出时为 `null`（游标源没有总数，与其猜不如不说）；
-- **前两种的行已经在手上**（就是当前结果），直接交给 `deliver`；`all` 走 `runtime.exportRows`（[runtime.md#导出](runtime.md#导出)），因此翻页、选择与屏幕上的行都不受影响；
+- **两种口径各带条数**，条数就是这两项唯一的区别：`selected` 只在有选中时**存在**（D4——"导出选中的 0 条"是一个点了不做事的条目），`all` 是分页源报出的总数、报不出时为 `null`（游标源没有总数，与其猜不如不说）。**没有 `page` 了**：「本页」是分页留下的痕迹而不是一个意图——结果只有一页时它就是「所有」说了两遍，不止一页时它是被排序与每页条数切出来的一刀，谁也没要那一刀；要取样是表头全选加「选中」（D14）；
+- **选中那一路的行已经在手上**（就是当前结果），直接交给 `deliver`；`all` 走 `runtime.exportRows`（[runtime.md#导出](runtime.md#导出)），因此翻页、选择与屏幕上的行都不受影响；
 - **`deliver` 由 `/ui` 注入**：值怎么读、文件怎么交给浏览器都是那一层的答案，钩子只负责把行凑齐。它抛出来的错与拉取失败同样处理——从用户那边看"导出没成功"是一件事而不是两件；
-- **超上限先问**：`run('all')` 在条数已知且大于 `limits.exportMax` 时不发请求，只把 `overLimit` 摆出来（对话框归 UI），`run('all', { force: true })` 是那句"知道了，导出"。条数不知道时没有可问的，那就跑，跑完以 `export.capped`（warning）说明文件被截断；
-- **一次只跑一个**：在途时 `run` 不接第二个，`cancel` 停掉在途的那个、或撤掉还没答的那个问句；取消不报错——它是用户自己的答复。失败经 `react/issues.ts` 成为一条 `export.failed`，由状态行上的同一条 `StatusStrip` 说出来（[ui/record.md#导出](ui/record.md#导出)）。（见 test/useRecordExport.test.tsx）
+- **它不问任何问题**。从前那一句「超过上限了，还导吗」现在是窗口的第一步：条数与上限在按下按钮之前就摆在眼前，按下去**就是**那句同意，钩子再问一遍等于问两次（D14）。因此没有 `overLimit`，也没有 `run(scope, { force })`。条数不知道时本来就没有可问的，跑完由 `outcome.capped` 说明文件被截断；
+- **`outcome` 是这次导出交出了什么**：口径、文件里几行、有没有被上限截断、以及总共匹配多少（源报得出时）。窗口的「已导出 N 条」「文件只含前 {max} 条（共 {total} 条匹配）」都是从它来的——截断不是失败，是被同意过的那份文件，所以它不走 `error`；
+- **一次只跑一个**：在途时 `run` 不接第二个（以一个 ref 把关，因为选中那一路不发请求、没有可当闸门的 controller），`cancel` 停掉在途的那个，`reset` 只是忘掉上一次的结果或失败、不动在途的那个——关窗时用它，好让下次打开是重新问一遍而不是把读过的结果再报一次。取消不报错——它是用户自己的答复。失败经 `react/issues.ts` 成为一条 `export.failed`，由导出窗口自己说出来（[ui/record.md#导出](ui/record.md#导出)），结果区上方的状态行里不再有导出的事。（见 test/useRecordExport.test.tsx）
 
 ## useSaveCommands
 

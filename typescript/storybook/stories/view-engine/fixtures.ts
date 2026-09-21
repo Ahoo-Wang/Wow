@@ -12,6 +12,7 @@
  */
 
 import {
+  DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
   ViewEngine,
   ViewStoreError,
@@ -22,6 +23,7 @@ import {
   type DashboardDefinition,
   type RecordData,
   type RecordViewConfig,
+  type RuntimeLimits,
   type ViewInstance,
   type ViewSource,
   type ViewStore,
@@ -413,6 +415,32 @@ function delay(ms: number): Promise<void> {
 }
 
 /**
+ * The rows behind a source whose **export** behaves differently from the
+ * view: slowly enough to watch the progress bar fill, or not at all.
+ *
+ * An export is the one query that asks for a whole `maxPageSize` page
+ * (`runtime/exportRows.ts`), which is how this tells the two apart — a story
+ * that counted requests instead would be undone by one refresh.
+ */
+export function storyExportSource(
+  behaviour: 'slow' | 'failing',
+  exportPageSize: number,
+): ViewSource {
+  const source = storySource('data');
+  return {
+    ...source,
+    paged: async query => {
+      if (query.pagination?.size !== exportPageSize) return source.paged(query);
+      if (behaviour === 'failing')
+        throw new ViewStoreError('UNAVAILABLE', '仓储服务暂时不可用');
+      // Long enough to read the bar, short enough that nobody waits for it.
+      await delay(1_200);
+      return source.paged(query);
+    },
+  };
+}
+
+/**
  * The store the table-settings story writes into.
  *
  * Its regression play changes the columns, the pinning, a summary and the
@@ -430,6 +458,10 @@ export interface StoryEngineOptions {
   behaviour?: SourceBehaviour;
   instances?: ViewInstance[];
   definitions?: (DataViewDefinition | DashboardDefinition)[];
+  /** A source of the story's own, where `behaviour` has no shape for it. */
+  source?: ViewSource;
+  /** Budgets the story is about, merged over the engine's defaults. */
+  limits?: Partial<RuntimeLimits>;
   /**
    * The store to build on, when a story keeps a handle to it. A regression
    * play that asserts what a save *wrote* has to read the store itself: the
@@ -456,6 +488,9 @@ export function createStoryEngine(
     store:
       options.store ??
       new MemoryViewStore({ instances: options.instances ?? savedViews }),
-    resolveSource: () => storySource(options.behaviour),
+    resolveSource: () => options.source ?? storySource(options.behaviour),
+    ...(options.limits
+      ? { limits: { ...DEFAULT_RUNTIME_LIMITS, ...options.limits } }
+      : {}),
   });
 }

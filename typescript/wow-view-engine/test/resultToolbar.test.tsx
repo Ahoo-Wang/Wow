@@ -21,15 +21,20 @@ import type {
   RecordTableController,
 } from '../src/react/index.js';
 import type { RecordViewRuntime } from '../src/runtime/index.js';
+import type { ExportOffer } from '../src/ui/ExportDialog.js';
 import { ResultToolbar } from '../src/ui/ResultToolbar.js';
 
 afterEach(cleanup);
 
 /**
- * The toolbar reads nothing off the runtime — it only hands it to a bulk
- * action — so a sentinel is enough to prove it hands over the same one.
+ * The toolbar reads one thing off the runtime — the export ceiling the
+ * window puts on screen — and otherwise only hands it to a bulk action, so a
+ * sentinel is enough to prove it hands over the same one.
  */
-const runtime = { id: 'r-1' } as unknown as RecordViewRuntime;
+const runtime = {
+  id: 'r-1',
+  limits: { exportMax: 10000 },
+} as unknown as RecordViewRuntime;
 
 const FIELDS: FieldDefinition[] = [
   { name: 'amount', label: 'Amount', kind: 'number' },
@@ -96,22 +101,35 @@ function tableController(
 }
 
 /**
- * The export as the toolbar sees it: counts and one `run`. The controller is
- * `useRecordExport`'s, and it is stubbed here so the menu is tested for what
- * it draws rather than for what a fetch does — the hook has its own suite.
+ * The export as the toolbar sees it: counts, one `run` and what came of it.
+ * The controller is `useRecordExport`'s, and it is stubbed here so the window
+ * is tested for what it draws rather than for what a fetch does — the hook
+ * has its own suite.
  */
 function exportController(
   overrides: Partial<RecordExportController> = {},
 ): RecordExportController {
   return {
-    scopes: { page: 3, all: 42 },
+    scopes: { all: 42 },
     running: null,
     progress: null,
-    overLimit: null,
+    outcome: null,
     error: null,
     run: () => {},
     cancel: () => {},
+    reset: () => {},
     ...overrides,
+  };
+}
+
+/** The offer as a workbench makes it: the run, the conditions, the name. */
+function exportOffer(
+  overrides: Partial<RecordExportController> = {},
+): ExportOffer {
+  return {
+    control: exportController(overrides),
+    conditions: [],
+    fileName: 'Mine-2026-09-21.csv',
   };
 }
 
@@ -391,10 +409,10 @@ describe('ResultToolbar hint', () => {
 });
 
 /**
- * The export menu (D12 Ⅳ): one bordered icon button at the end of the block,
- * three readings of "export", each with its own count.
+ * The export window (D12 Ⅳ, D14): one bordered icon button at the end of the
+ * block, and one dialog behind it that carries the whole journey.
  */
-describe('ResultToolbar export menu', () => {
+describe('ResultToolbar export', () => {
   it('is not there at all when the surface offers no export', () => {
     render(
       <ResultToolbar
@@ -407,28 +425,62 @@ describe('ResultToolbar export menu', () => {
     expect(screen.queryByRole('button', { name: 'Export' })).toBeNull();
   });
 
-  it('offers this page and everything, and no selection while none is picked', async () => {
+  it('opens a window that says what the file will hold', async () => {
     const user = userEvent.setup();
     render(
       <ResultToolbar
         table={tableController()}
         fields={FIELDS}
         runtime={runtime}
-        exportControl={exportController()}
+        exporter={exportOffer()}
+      />,
+    );
+
+    // No dropdown: the button is the whole of the toolbar's part in it.
+    expect(screen.queryByRole('menu')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Export' }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByRole('heading').textContent).toBe('Export');
+    // How many, under what, which columns, and what it will be called.
+    expect(dialog.textContent).toContain('42 records');
+    expect(dialog.textContent).toContain('Conditions: All records');
+    expect(dialog.textContent).toContain('1 columns: Amount');
+    expect(dialog.textContent).toContain('File: Mine-2026-09-21.csv');
+    // One choice is not a choice: nothing is picked, so there is no radio.
+    expect(within(dialog).queryByRole('radio')).toBeNull();
+  });
+
+  it('names the conditions the rows came back under', async () => {
+    const user = userEvent.setup();
+    render(
+      <ResultToolbar
+        table={tableController()}
+        fields={FIELDS}
+        runtime={runtime}
+        exporter={{
+          ...exportOffer(),
+          conditions: [
+            {
+              path: ['0'],
+              text: 'Warehouse is North',
+              unresolved: false,
+              field: 'warehouse',
+              label: 'Warehouse',
+              kind: 'string',
+              operator: 'EQ',
+              value: { kind: 'text', value: 'North' },
+            },
+          ],
+        }}
       />,
     );
 
     await user.click(screen.getByRole('button', { name: 'Export' }));
-    const menu = await screen.findByRole('menu');
 
-    expect(
-      within(menu)
-        .getAllByRole('menuitem')
-        .map(item => item.textContent),
-    ).toEqual([
-      'Export this page (3)',
-      'Export all (42, under the current conditions)',
-    ]);
+    expect((await screen.findByRole('dialog')).textContent).toContain(
+      'Conditions: Warehouse',
+    );
   });
 
   it('offers the picked rows once there are any, and runs that scope', async () => {
@@ -439,19 +491,52 @@ describe('ResultToolbar export menu', () => {
         table={tableController({ selection: ['o-1', 'o-2'] })}
         fields={FIELDS}
         runtime={runtime}
-        exportControl={exportController({
-          scopes: { selected: 2, page: 3, all: 42 },
-          run,
-        })}
+        exporter={exportOffer({ scopes: { selected: 2, all: 42 }, run })}
       />,
     );
 
     await user.click(screen.getByRole('button', { name: 'Export' }));
-    await user.click(
-      await screen.findByRole('menuitem', { name: 'Export selected (2)' }),
+    const dialog = await screen.findByRole('dialog');
+
+    expect(
+      within(dialog)
+        .getAllByRole('radio')
+        .map(radio => radio.getAttribute('aria-checked')),
+    ).toEqual(['true', 'false']);
+    expect(dialog.textContent).toContain('Selected (2)');
+    expect(dialog.textContent).toContain(
+      'All (42, under the current conditions)',
+    );
+    // The picked rows are the default: they are the narrower answer, and the
+    // one somebody just took the trouble to make.
+    expect(dialog.textContent).toContain('2 records');
+
+    await user.click(within(dialog).getByRole('button', { name: 'Export' }));
+    expect(run).toHaveBeenCalledWith('selected');
+  });
+
+  it('runs whichever scope was picked instead', async () => {
+    const run = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <ResultToolbar
+        table={tableController({ selection: ['o-1', 'o-2'] })}
+        fields={FIELDS}
+        runtime={runtime}
+        exporter={exportOffer({ scopes: { selected: 2, all: 42 }, run })}
+      />,
     );
 
-    expect(run).toHaveBeenCalledWith('selected');
+    await user.click(screen.getByRole('button', { name: 'Export' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(
+      within(dialog).getByRole('radio', {
+        name: 'All (42, under the current conditions)',
+      }),
+    );
+    await user.click(within(dialog).getByRole('button', { name: 'Export' }));
+
+    expect(run).toHaveBeenCalledWith('all');
   });
 
   it('says only that the conditions are in force when nobody reports a total', async () => {
@@ -461,17 +546,35 @@ describe('ResultToolbar export menu', () => {
         table={tableController()}
         fields={FIELDS}
         runtime={runtime}
-        exportControl={exportController({ scopes: { page: 3, all: null } })}
+        exporter={exportOffer({ scopes: { all: null } })}
       />,
     );
 
     await user.click(screen.getByRole('button', { name: 'Export' }));
 
-    expect(
-      await screen.findByRole('menuitem', {
-        name: 'Export all (under the current conditions)',
-      }),
-    ).toBeTruthy();
+    expect((await screen.findByRole('dialog')).textContent).toContain(
+      'Whatever the current conditions match',
+    );
+  });
+
+  it('puts the ceiling before the button rather than after the download', async () => {
+    const user = userEvent.setup();
+    render(
+      <ResultToolbar
+        table={tableController()}
+        fields={FIELDS}
+        runtime={runtime}
+        exporter={exportOffer({ scopes: { all: 42000 } })}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Export' }));
+
+    // Pressing Export is the consent, so what is consented to is on screen —
+    // this replaces the separate question the menu used to ask first.
+    expect((await screen.findByRole('dialog')).textContent).toContain(
+      'That is more than the 10000 one export carries; the file will hold the first 10000.',
+    );
   });
 
   it('shows how far a long export has got, and the way to stop it', async () => {
@@ -482,7 +585,7 @@ describe('ResultToolbar export menu', () => {
         table={tableController()}
         fields={FIELDS}
         runtime={runtime}
-        exportControl={exportController({
+        exporter={exportOffer({
           running: 'all',
           progress: { scope: 'all', fetched: 200, total: 900 },
           cancel,
@@ -490,18 +593,75 @@ describe('ResultToolbar export menu', () => {
       />,
     );
 
-    // No click opened this: a run of its own holds the menu open, since the
-    // cancel is in it and a menu that closed would take the way out with it.
-    const progress = await screen.findByText('200 of 900 fetched');
-    expect(progress).toBeTruthy();
-    expect(screen.getByRole('status', { name: 'Exporting' })).toBeTruthy();
-    expect(screen.queryByRole('menuitem')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Export' }));
+    const dialog = await screen.findByRole('dialog');
 
-    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    const bar = within(dialog).getByRole('progressbar', { name: 'Exporting' });
+    expect(bar.getAttribute('aria-valuenow')).toBe('200');
+    expect(bar.getAttribute('aria-valuemax')).toBe('900');
+    expect(within(dialog).getByRole('status').textContent).toBe(
+      '200 of 900 fetched',
+    );
+
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     expect(cancel).toHaveBeenCalledTimes(1);
   });
 
-  it('puts the count and the ceiling before fetching anything', async () => {
+  it('runs the bar indeterminate while no total is known', async () => {
+    const user = userEvent.setup();
+    render(
+      <ResultToolbar
+        table={tableController()}
+        fields={FIELDS}
+        runtime={runtime}
+        exporter={exportOffer({
+          running: 'all',
+          progress: { scope: 'all', fetched: 200 },
+        })}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Export' }));
+    const dialog = await screen.findByRole('dialog');
+
+    // A bar that filled against a number nobody has would invent the number.
+    expect(
+      within(dialog)
+        .getByRole('progressbar', { name: 'Exporting' })
+        .getAttribute('aria-valuenow'),
+    ).toBeNull();
+    expect(within(dialog).getByRole('status').textContent).toBe('200 fetched');
+  });
+
+  it('reports what the file holds, and what the ceiling left out', async () => {
+    const user = userEvent.setup();
+    render(
+      <ResultToolbar
+        table={tableController()}
+        fields={FIELDS}
+        runtime={runtime}
+        exporter={exportOffer({
+          outcome: { scope: 'all', rows: 10000, capped: true, total: 42000 },
+        })}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Export' }));
+    const dialog = await screen.findByRole('dialog');
+
+    expect(dialog.textContent).toContain('10000 records exported');
+    expect(dialog.textContent).toContain('File: Mine-2026-09-21.csv');
+    expect(dialog.textContent).toContain(
+      'The file holds the first 10000 of the 42000 records that match.',
+    );
+    // By slot rather than by name: the vendored dialog draws its own ✕ with
+    // the same word in it, and both do close the window.
+    expect(
+      dialog.querySelector('[data-slot="export-close"]')?.textContent,
+    ).toBe('Close');
+  });
+
+  it('offers the failure and a way to try it again', async () => {
     const run = vi.fn();
     const user = userEvent.setup();
     render(
@@ -509,45 +669,23 @@ describe('ResultToolbar export menu', () => {
         table={tableController()}
         fields={FIELDS}
         runtime={runtime}
-        exportControl={exportController({
-          overLimit: { count: 42000, max: 10000 },
+        exporter={exportOffer({
+          error: {
+            code: 'export.failed',
+            path: [],
+            params: { reason: 'gateway down' },
+            severity: 'error',
+          },
           run,
         })}
       />,
     );
 
-    const dialog = screen.getByRole('dialog');
-    expect(dialog.textContent).toContain('Export 42000 records?');
-    // What the file will hold, not only how many there are: the ceiling
-    // still applies to the answer.
-    expect(dialog.textContent).toContain('The file will hold the first 10000.');
+    await user.click(screen.getByRole('button', { name: 'Export' }));
+    const dialog = await screen.findByRole('dialog');
 
-    await user.click(
-      screen.getByRole('button', { name: 'Export the first 10000' }),
-    );
-    expect(run).toHaveBeenCalledWith('all', { force: true });
-  });
-
-  it('drops the question when it is dismissed', async () => {
-    const cancel = vi.fn();
-    const run = vi.fn();
-    const user = userEvent.setup();
-    render(
-      <ResultToolbar
-        table={tableController()}
-        fields={FIELDS}
-        runtime={runtime}
-        exportControl={exportController({
-          overLimit: { count: 42000, max: 10000 },
-          cancel,
-          run,
-        })}
-      />,
-    );
-
-    await user.click(screen.getByRole('button', { name: 'Cancel' }));
-
-    expect(cancel).toHaveBeenCalledTimes(1);
-    expect(run).not.toHaveBeenCalled();
+    expect(dialog.textContent).toContain('The export failed. gateway down');
+    await user.click(within(dialog).getByRole('button', { name: 'Try again' }));
+    expect(run).toHaveBeenCalledWith('all');
   });
 });

@@ -35,7 +35,7 @@ import { RecordPagination } from './RecordPagination.js';
 import { RecordTable } from './RecordTable.js';
 import { ResultToolbar } from './ResultToolbar.js';
 import { RowActions } from './RowActions.js';
-import { QueryStrip, StatusStrip } from './StatusStrip.js';
+import { QueryStrip } from './StatusStrip.js';
 import { RefreshControl } from './RefreshControl.js';
 import { useViewMessages } from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
@@ -195,6 +195,10 @@ export function RecordWorkbench({
    * does — an export that said `1789723315014` where the screen said a date
    * would be a second, quieter view of the data.
    */
+  // Named before it exists, because the export window says what the file
+  // will be called before there is a file (D14). `now()` is read on both
+  // sides, so the name on offer is the name that is handed over.
+  const exportName = fileName(title, isoDay(now(), display), 'csv');
   const deliver = useCallback(
     (rows: readonly RecordData[], scope: RecordExportScope) => {
       const text = serializeCsv(rows, columns, (value, column) =>
@@ -206,7 +210,7 @@ export function RecordWorkbench({
     },
     [columns, display, messages, now, onExported, title],
   );
-  const exporter = useRecordExport(record, table, { deliver });
+  const exportControl = useRecordExport(record, table, { deliver });
 
   return (
     <WorkbenchShell
@@ -264,24 +268,16 @@ export function RecordWorkbench({
           <FilterPanel filter={filter} optionsFor={optionsFor} modes={false} />
         )
       }
+      /* An export says nothing here: it has a window of its own, and that
+         window is where it reports what it produced, what the ceiling cut
+         short and what went wrong (D14). A cancel says nothing anywhere —
+         it is the answer the user gave. */
       strips={
-        <>
-          <QueryStrip
-            error={table.error}
-            stale={hasResult}
-            onRetry={table.refresh}
-          />
-          {/* What the export has to say, in the same one line every other
-              finding gets — above the rows it was taken from, where a
-              failed query is already reported. A cancel says nothing: it
-              is the answer the user gave. */}
-          {exporter.error && (
-            <StatusStrip
-              tone={exporter.error.severity === 'error' ? 'error' : 'warning'}
-              title={messages.issue(exporter.error)}
-            />
-          )}
-        </>
+        <QueryStrip
+          error={table.error}
+          stale={hasResult}
+          onRetry={table.refresh}
+        />
       }
       result={
         record && (
@@ -295,7 +291,13 @@ export function RecordWorkbench({
               // a host that hands over no row slot has no column to place.
               hasRowActions={row !== undefined}
               bulkActions={actions?.bulk}
-              exportControl={exporter}
+              exporter={{
+                control: exportControl,
+                // The host's scope narrows the export exactly as it narrows
+                // the rows, so the window names both kinds of condition.
+                conditions: [...filter.applied, ...filter.scoped],
+                fileName: exportName,
+              }}
               runtime={record}
             />
 

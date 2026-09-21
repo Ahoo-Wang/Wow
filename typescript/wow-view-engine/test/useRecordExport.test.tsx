@@ -137,10 +137,12 @@ async function openExport(
 }
 
 describe('useRecordExport scopes', () => {
-  it('counts this page and the whole result, and offers no selection', async () => {
+  it('counts the whole result, and offers no selection', async () => {
     const { result } = await openExport();
 
-    expect(result.current.exporter.scopes).toEqual({ page: 2, all: 2 });
+    // Two scopes, not three: "this page" was an artefact of paging and is
+    // gone with D14 — a sample is select-all plus "selected".
+    expect(result.current.exporter.scopes).toEqual({ all: 2 });
     expect(result.current.exporter.scopes.selected).toBeUndefined();
   });
 
@@ -170,17 +172,6 @@ describe('useRecordExport scopes', () => {
 });
 
 describe('useRecordExport runs', () => {
-  it('hands over the rows on screen for this page', async () => {
-    const { result, delivered } = await openExport();
-
-    act(() => result.current.exporter.run('page'));
-
-    await waitFor(() => expect(delivered).toHaveLength(1));
-    expect(delivered[0].scope).toBe('page');
-    expect(delivered[0].rows).toEqual(ROWS);
-    expect(result.current.exporter.error).toBeNull();
-  });
-
   it('hands over the picked rows, in result order', async () => {
     const { result, delivered } = await openExport();
 
@@ -188,7 +179,20 @@ describe('useRecordExport runs', () => {
     act(() => result.current.exporter.run('selected'));
 
     await waitFor(() => expect(delivered).toHaveLength(1));
+    expect(delivered[0].scope).toBe('selected');
     expect(delivered[0].rows).toEqual([ROWS[1]]);
+    expect(result.current.exporter.error).toBeNull();
+    // The rows were already in hand, so what it produced is reported with
+    // no fetching in between. `delivered` is filled inside `deliver`, which
+    // runs one microtask before the state settles, so the outcome is waited
+    // for rather than read off the render that handed the rows over.
+    await waitFor(() =>
+      expect(result.current.exporter.outcome).toEqual({
+        scope: 'selected',
+        rows: 1,
+        capped: false,
+      }),
+    );
   });
 
   it('pages the source for everything, and reports as it goes', async () => {
@@ -212,6 +216,14 @@ describe('useRecordExport runs', () => {
     await waitFor(() => expect(delivered).toHaveLength(1));
     expect(delivered[0].scope).toBe('all');
     expect(delivered[0].rows).toHaveLength(5);
+    await waitFor(() =>
+      expect(result.current.exporter.outcome).toEqual({
+        scope: 'all',
+        rows: 5,
+        capped: false,
+        total: 5,
+      }),
+    );
     expect(result.current.exporter.running).toBeNull();
     expect(result.current.exporter.progress).toBeNull();
   });
@@ -241,7 +253,7 @@ describe('useRecordExport runs', () => {
 
     act(() => result.current.exporter.run('all'));
     await waitFor(() => expect(result.current.exporter.running).toBe('all'));
-    act(() => result.current.exporter.run('page'));
+    act(() => result.current.exporter.run('selected'));
 
     expect(result.current.exporter.running).toBe('all');
     await act(async () => {
@@ -253,25 +265,7 @@ describe('useRecordExport runs', () => {
 });
 
 describe('useRecordExport limits and failures', () => {
-  it('asks before fetching more rows than the ceiling carries', async () => {
-    const source = testSource({
-      paged: vi.fn(() => Promise.resolve({ total: 40, list: [...ROWS] })),
-    });
-    const { result, delivered } = await openExport({
-      source,
-      limits: { exportMax: 10 },
-    });
-    const fetched = vi.mocked(source.paged).mock.calls.length;
-
-    act(() => result.current.exporter.run('all'));
-
-    expect(result.current.exporter.overLimit).toEqual({ count: 40, max: 10 });
-    expect(delivered).toHaveLength(0);
-    // Nothing is asked of the source until the question is answered.
-    expect(source.paged).toHaveBeenCalledTimes(fetched);
-  });
-
-  it('exports the first rows once the question is answered', async () => {
+  it('exports the first rows and says the ceiling cut the file short', async () => {
     const rows = orders(40);
     const source = testSource({
       paged: vi.fn((query: FilterPagedQuery) => {
@@ -287,35 +281,51 @@ describe('useRecordExport limits and failures', () => {
       limits: { exportMax: 10, maxPageSize: 10 },
     });
 
+    // No question to answer first: the window put the count and the ceiling
+    // on screen, so pressing Export was the consent (D14).
     act(() => result.current.exporter.run('all'));
-    act(() => result.current.exporter.run('all', { force: true }));
 
     await waitFor(() => expect(delivered).toHaveLength(1));
     expect(delivered[0].rows).toHaveLength(10);
-    expect(result.current.exporter.overLimit).toBeNull();
-    // The file is short, and the view says so rather than passing it off as
-    // everything the conditions match.
-    expect(result.current.exporter.error).toMatchObject({
-      code: 'export.capped',
-      severity: 'warning',
-      params: { count: 10 },
-    });
+    // The file is short, and what it produced says so rather than passing it
+    // off as everything the conditions match.
+    await waitFor(() =>
+      expect(result.current.exporter.outcome).toEqual({
+        scope: 'all',
+        rows: 10,
+        capped: true,
+        total: 40,
+      }),
+    );
+    expect(result.current.exporter.error).toBeNull();
   });
 
-  it('drops the question when it is cancelled', async () => {
-    const source = testSource({
-      paged: vi.fn(() => Promise.resolve({ total: 40, list: [...ROWS] })),
-    });
-    const { result, delivered } = await openExport({
-      source,
-      limits: { exportMax: 10 },
-    });
+  it('forgets the last outcome when it is reset, and keeps a run', async () => {
+    const { result } = await openExport();
+
+    act(() => result.current.table.toggle('o-1'));
+    act(() => result.current.exporter.run('selected'));
+    await waitFor(() => expect(result.current.exporter.outcome).not.toBeNull());
+    act(() => result.current.exporter.reset());
+
+    expect(result.current.exporter.outcome).toBeNull();
+    expect(result.current.exporter.error).toBeNull();
+  });
+
+  it('leaves a run in flight alone when it is reset', async () => {
+    const { source, held } = gatedSource();
+    const { result, delivered } = await openExport({ source });
 
     act(() => result.current.exporter.run('all'));
-    act(() => result.current.exporter.cancel());
+    await waitFor(() => expect(result.current.exporter.running).toBe('all'));
+    act(() => result.current.exporter.reset());
 
-    expect(result.current.exporter.overLimit).toBeNull();
-    expect(delivered).toHaveLength(0);
+    // `reset` forgets what an export produced; stopping one is `cancel`.
+    expect(result.current.exporter.running).toBe('all');
+    await act(async () => {
+      held[0]();
+    });
+    await waitFor(() => expect(delivered).toHaveLength(1));
   });
 
   it('stops a run that is cancelled, and says nothing about it', async () => {
@@ -362,7 +372,8 @@ describe('useRecordExport limits and failures', () => {
       },
     });
 
-    act(() => result.current.exporter.run('page'));
+    act(() => result.current.table.toggle('o-1'));
+    act(() => result.current.exporter.run('selected'));
 
     await waitFor(() =>
       expect(result.current.exporter.error).toMatchObject({
@@ -370,6 +381,7 @@ describe('useRecordExport limits and failures', () => {
         params: { reason: 'no file system' },
       }),
     );
+    expect(result.current.exporter.outcome).toBeNull();
   });
 
   it('is inert without a runtime', () => {
@@ -377,7 +389,7 @@ describe('useRecordExport limits and failures', () => {
       useRecordExport(null, useRecordTable(null), { deliver: () => {} }),
     );
 
-    expect(result.current.scopes).toEqual({ page: 0, all: null });
+    expect(result.current.scopes).toEqual({ all: null });
     act(() => result.current.run('all'));
     expect(result.current.running).toBeNull();
   });
