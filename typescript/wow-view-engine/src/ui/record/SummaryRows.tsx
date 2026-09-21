@@ -19,6 +19,8 @@ import type {
 } from '../../record/index.js';
 import { formatNumber } from '../display.js';
 import { useViewMessages } from '../MessagesProvider.js';
+import { Tooltip, TooltipTrigger } from '../components/tooltip.js';
+import { TooltipContent } from '../popups.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
 import { TableCell, TableFooter, TableRow } from '../components/table.js';
 import {
@@ -180,22 +182,31 @@ function SummaryLine({
 function SummaryValue({ cell }: { cell: SummaryCell }) {
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
+  // Which field this number is of, and by which function — the heading says
+  // the field, several rows above, and nothing on screen says the pair. A
+  // `Tooltip` rather than the native `title` this used to be (D16): `title`
+  // is the one affordance a touch user never has.
+  const of = messages.label('label.summary.of', {
+    fn: messages.label(`label.summary.fn.${cell.fn}`),
+    field: cell.label,
+  });
   return (
-    <span
-      className="flex items-baseline justify-end gap-1 whitespace-nowrap"
-      title={messages.label('label.summary.of', {
-        fn: messages.label(`label.summary.fn.${cell.fn}`),
-        field: cell.label,
-      })}
-    >
-      <span className={QUIET}>
-        {messages.label(`label.summary.fn.${cell.fn}`)}
-      </span>
-      <span data-slot="summary-value" className="tabular-nums">
-        {cell.value === null
-          ? messages.label('label.summary.unavailable')
-          : formatNumber(cell.value, cell.numberFormat, display.locale)}
-      </span>
-    </span>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <span className="flex items-baseline justify-end gap-1 whitespace-nowrap" />
+        }
+      >
+        <span className={QUIET}>
+          {messages.label(`label.summary.fn.${cell.fn}`)}
+        </span>
+        <span data-slot="summary-value" className="tabular-nums">
+          {cell.value === null
+            ? messages.label('label.summary.unavailable')
+            : formatNumber(cell.value, cell.numberFormat, display.locale)}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>{of}</TooltipContent>
+    </Tooltip>
   );
 }

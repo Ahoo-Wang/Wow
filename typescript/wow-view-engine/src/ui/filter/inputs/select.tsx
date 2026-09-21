@@ -16,13 +16,13 @@ import {
   Select,
   SelectGroup,
   SelectItem,
-  SelectTrigger,
   SelectValue,
 } from '../../components/select.js';
 import { SelectContent } from '../../popups.js';
 import { DELETION_STATES, isDeletionState } from '../../../filter/index.js';
 import { deletionLabel } from '../../display.js';
 import { useViewMessages } from '../../MessagesProvider.js';
+import { PillSelectTrigger } from '../../variants.js';
 import { ChoiceValue, scalarText, type ValueProps } from './shared.js';
 
 /**
@@ -122,7 +122,7 @@ export function OptionValue({
         onChange(multiple ? chosen : (chosen[0] ?? null));
       }}
     >
-      <SelectTrigger
+      <PillSelectTrigger
         aria-label={label}
         aria-invalid={invalid}
         size="sm"
@@ -135,7 +135,7 @@ export function OptionValue({
          * text and a number field that both said `Not set`.
          */}
         <SelectValue placeholder={messages.label('label.filter.not-set')} />
-      </SelectTrigger>
+      </PillSelectTrigger>
       <SelectContent>
         <SelectGroup>
           {items.map(item => (

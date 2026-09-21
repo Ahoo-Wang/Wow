@@ -11,8 +11,8 @@
  * limitations under the License.
  */
 
-import { Input } from '../../components/input.js';
 import { useViewMessages } from '../../MessagesProvider.js';
+import { PillInput } from '../../variants.js';
 import { ValueChips } from './chips.js';
 import { scalarText, type ValueProps } from './shared.js';
 
@@ -45,7 +45,7 @@ export function TextValue({
     );
 
   return (
-    <Input
+    <PillInput
       aria-label={label}
       aria-invalid={invalid}
       disabled={disabled}

@@ -166,7 +166,10 @@ describe('RenderBoundary', () => {
     expect(alert.className).toContain('w-auto');
     expect(alert.className).toContain('border-0');
     expect(alert.getAttribute('data-boundary')).toBe('actions');
-    expect(alert.getAttribute('title')).toBe('blown');
+    // What went wrong has no room on one line, so it is one hover away —
+    // a `Tooltip` rather than a native `title` (D16), which is the one
+    // affordance a touch user never has.
+    expect(alert.hasAttribute('data-base-ui-tooltip-trigger')).toBe(true);
     expect(within(alert).getByRole('button', { name: 'Retry' })).toBeTruthy();
   });
 

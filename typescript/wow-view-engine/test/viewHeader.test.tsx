@@ -168,8 +168,10 @@ describe('ViewHeader', () => {
   /**
    * The name is the one thing on this row that truncates, and `truncate` is
    * visual only: a screen reader reads the whole of it, a pointer user got
-   * an ellipsis and no way past it. The attribute is what jsdom can hold —
-   * the geometry belongs to the browser story.
+   * an ellipsis and no way past it. It is a `Tooltip` rather than a native
+   * `title` (D16), so the way back is a keyboard's and a touch screen's
+   * too; what jsdom can hold is the trigger's mark on the heading, and the
+   * geometry belongs to the browser story.
    */
   it('carries the whole name it may have to truncate', async () => {
     const long = 'Orders awaiting warehouse confirmation in the EU region';
@@ -185,7 +187,8 @@ describe('ViewHeader', () => {
     render(<Harness engine={engine} runtime={runtime} />);
 
     expect(title().className).toContain('truncate');
-    expect(title().getAttribute('title')).toBe(long);
+    expect(title().hasAttribute('data-base-ui-tooltip-trigger')).toBe(true);
+    expect(title().textContent).toBe(long);
   });
 
   /**

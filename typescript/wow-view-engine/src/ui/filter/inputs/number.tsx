@@ -13,9 +13,9 @@
 
 import { NumberField as NumberFieldPrimitive } from '@base-ui/react';
 import { isFiniteNumber } from '../../../filter/index.js';
-import { Input } from '../../components/input.js';
 import { useViewMessages } from '../../MessagesProvider.js';
 import { useSurfaceDisplay } from '../../ViewSurface.js';
+import { PillInput, type ControlChromeProps } from '../../variants.js';
 import { ValueChips } from './chips.js';
 import type { ValueProps } from './shared.js';
 
@@ -31,6 +31,10 @@ import type { ValueProps } from './shared.js';
  * locale, and carries the `inputmode`, `aria-roledescription` and arrow-key
  * stepping a number field owes (D16). The box itself is the vendored `Input`,
  * rendered through the primitive so it looks like every other field here.
+ *
+ * Chromeless by default, because a condition pill is the field around it
+ * (D12). The analysis editor's row limit is the same control standing on
+ * its own, and asks for the registry's box with `chrome="box"`.
  */
 export function NumberInput({
   value,
@@ -38,8 +42,9 @@ export function NumberInput({
   label,
   disabled,
   invalid,
+  chrome,
   className,
-}: {
+}: ControlChromeProps & {
   /** The number in force, if there is one. */
   value: unknown;
   /** Called only when the text parses; `null` once the field is empty. */
@@ -64,9 +69,10 @@ export function NumberInput({
     >
       <NumberFieldPrimitive.Input
         render={
-          <Input
+          <PillInput
             aria-label={label}
             aria-invalid={invalid}
+            chrome={chrome}
             className={className}
           />
         }

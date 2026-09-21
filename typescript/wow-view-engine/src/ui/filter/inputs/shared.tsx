@@ -16,10 +16,10 @@ import {
   Select,
   SelectGroup,
   SelectItem,
-  SelectTrigger,
   SelectValue,
 } from '../../components/select.js';
 import { SelectContent } from '../../popups.js';
+import { PillSelectTrigger, type ControlChromeProps } from '../../variants.js';
 
 /** What every value control is given: the value in force, and where to put it. */
 export interface ValueProps {
@@ -39,7 +39,14 @@ export interface ValueProps {
   invalid?: boolean;
 }
 
-/** One of a short, fixed list of answers. */
+/**
+ * One of a short, fixed list of answers.
+ *
+ * Inside a condition pill, which is where all but one of these stand, the
+ * pill is the field and the select draws no chrome of its own (D12). The
+ * one outside is the group block's and/or, which has nothing around it to
+ * be that edge and asks for it back with `chrome="box"`.
+ */
 export function ChoiceValue({
   label,
   disabled,
@@ -47,8 +54,9 @@ export function ChoiceValue({
   value,
   items,
   placeholder,
+  chrome,
   onChange,
-}: {
+}: ControlChromeProps & {
   label: string;
   disabled?: boolean;
   invalid?: boolean;
@@ -65,9 +73,14 @@ export function ChoiceValue({
       disabled={disabled}
       onValueChange={next => onChange(String(next))}
     >
-      <SelectTrigger aria-label={label} aria-invalid={invalid} size="sm">
+      <PillSelectTrigger
+        aria-label={label}
+        aria-invalid={invalid}
+        size="sm"
+        chrome={chrome}
+      >
         <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
+      </PillSelectTrigger>
       <SelectContent>
         <SelectGroup>
           {items.map(item => (

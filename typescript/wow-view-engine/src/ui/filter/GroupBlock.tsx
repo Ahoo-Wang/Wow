@@ -77,6 +77,10 @@ export function GroupBlock({
             offer wherever a group is — the kernel admits all three in every
             position — so none of them is ever shown as refused. */}
         <ChoiceValue
+          // The one choice on this panel that is not inside a pill: the
+          // group's own header has nothing around it to be the field's
+          // edge, so this select keeps the registry's.
+          chrome="box"
           value={group.op}
           items={GROUP_OPERATORS.map(op => ({
             value: op,

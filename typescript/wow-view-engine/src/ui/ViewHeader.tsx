@@ -226,33 +226,45 @@ export function ViewHeader({
               what a flex item reports upwards, so an identity group that
               cannot spare 6em now says so, and `flex-wrap` above puts the
               controls on their own line instead. */}
-          <Title
-            ref={titleRef}
-            id={titleId ?? generatedId}
-            // Focusable when focus is *sent* here and never a tab stop: a
-            // view that has just been created is what the user is now
-            // looking at, and its name is where a screen reader should
-            // resume. Tab order is untouched.
-            tabIndex={-1}
-            data-slot="view-title"
-            data-dirty={state.dirty || undefined}
-            // `truncate` is visual only — a screen reader still reads the
-            // whole name, but a pointer user has no way back to it once the
-            // ellipsis lands. `ConditionPill` sets this precedent on the
-            // field name it truncates the same way.
-            title={state.title}
-            className={cn(
-              'truncate font-medium',
-              // `sr-only` sets a width of its own, so the spring is only for
-              // the title that is actually on the line.
-              // `max-w-max` caps the spring at the name's own width, so the
-              // audience and Save stand against it rather than at the end
-              // of the row; `w-0` still keeps the group's wrap arithmetic.
-              namesView ? 'w-0 max-w-max min-w-[6em] grow' : 'sr-only',
-            )}
-          >
-            {state.title}
-          </Title>
+          {/* `truncate` is visual only — a screen reader still reads the
+              whole name, but a pointer user has no way back to it once the
+              ellipsis lands, so the whole of it is one hover away. A
+              `Tooltip` rather than the native `title` this used to be
+              (D16): `title` opens for a mouse and for nothing else, while
+              the heading is focusable and a tap opens this one. The trigger
+              renders the heading itself, so the spring's arithmetic —
+              `w-0 grow` against the group — is untouched: nothing is
+              wrapped around it. */}
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Title
+                  ref={titleRef}
+                  id={titleId ?? generatedId}
+                  // Focusable when focus is *sent* here and never a tab
+                  // stop: a view that has just been created is what the user
+                  // is now looking at, and its name is where a screen reader
+                  // should resume. Tab order is untouched.
+                  tabIndex={-1}
+                  data-slot="view-title"
+                  data-dirty={state.dirty || undefined}
+                  className={cn(
+                    'truncate font-medium',
+                    // `sr-only` sets a width of its own, so the spring is
+                    // only for the title that is actually on the line.
+                    // `max-w-max` caps the spring at the name's own width,
+                    // so the audience and Save stand against it rather than
+                    // at the end of the row; `w-0` still keeps the group's
+                    // wrap arithmetic.
+                    namesView ? 'w-0 max-w-max min-w-[6em] grow' : 'sr-only',
+                  )}
+                />
+              }
+            >
+              {state.title}
+            </TooltipTrigger>
+            <TooltipContent>{state.title}</TooltipContent>
+          </Tooltip>
 
           {/* Who the view is for, said as a word after the name rather than
               as a badge beside it (D12): the name is the thing on this line,

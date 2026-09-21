@@ -160,6 +160,9 @@ export function AnalysisEditor({ analysis, disabled }: AnalysisEditorProps) {
         */}
         <NumberInput
           label={messages.label('label.analysis.row-limit')}
+          // Not in a condition pill: this box stands on the toolbar with
+          // nothing around it to be the field, so it keeps its own edge.
+          chrome="box"
           className="w-24"
           disabled={disabled}
           value={analysis.limit}

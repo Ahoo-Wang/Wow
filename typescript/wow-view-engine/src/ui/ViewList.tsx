@@ -26,7 +26,6 @@ import {
   type ViewInstanceSummary,
 } from '../model/index.js';
 import type { ViewListState } from '../react/index.js';
-import { Button } from './components/button.js';
 import {
   Empty,
   EmptyDescription,
@@ -35,6 +34,7 @@ import {
   EmptyTitle,
 } from './components/empty.js';
 import { IconButton } from './IconButton.js';
+import { SidebarItem } from './variants.js';
 import { KIND_ICON } from './kinds.js';
 import { SPACE, TEXT_UI } from './layout.js';
 import { useViewMessages } from './MessagesProvider.js';
@@ -312,14 +312,11 @@ function ViewGroup({
 /**
  * One view in the column.
  *
- * The open one is the work area's own ground with a 2px bar of `primary`
- * down its leading edge — not another step of grey. Four states used to
- * share one 3% grey, so the open view and a hovered one painted the same
- * colour and the list had no "you are here" at all; a bar is a different
- * *kind* of mark, and no amount of theming can collapse it into the fill
- * beside it. Hover is a step of the column's own scale in the other
- * direction, which is why it overrides the ghost variant's `muted` — on this
- * ground that one is the ground.
+ * What the open one looks like, and why it is a bar rather than another
+ * step of grey, is `SidebarItem`'s (`ui/variants.tsx`): the colours of a
+ * vendored `Button` live in one wrapper beside the component rather than in
+ * a `className` at each call site (D16). This row says *which* view it is
+ * and whether that view is the open one, and nothing about the paint.
  *
  * The star is the manager's star, read off the same preference, so the two
  * screens cannot disagree about which view opens first. It is drawn rather
@@ -340,17 +337,7 @@ function ViewListItem({
   const Icon = KIND_ICON[item.kind];
   const messages = useViewMessages();
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      aria-current={current}
-      className={cn(
-        'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground justify-start',
-        current &&
-          'bg-background text-foreground hover:bg-background hover:text-foreground font-medium shadow-[inset_2px_0_0_var(--primary)]',
-      )}
-      onClick={() => onOpen(item.id)}
-    >
+    <SidebarItem current={current} onClick={() => onOpen(item.id)}>
       {/* The kind, hung off a wrapper rather than off the glyph itself.
           `Button` draws `[&_svg]:pointer-events-none` over everything inside
           it, so an `<svg>` that is a tooltip's trigger receives no pointer
@@ -416,6 +403,6 @@ function ViewListItem({
           </span>
         </>
       )}
-    </Button>
+    </SidebarItem>
   );
 }

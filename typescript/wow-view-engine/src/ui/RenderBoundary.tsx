@@ -23,6 +23,8 @@ import {
 } from './components/alert.js';
 import { Button } from './components/button.js';
 import { useViewMessages } from './MessagesProvider.js';
+import { Tooltip, TooltipTrigger } from './components/tooltip.js';
+import { TooltipContent } from './popups.js';
 
 /**
  * The parts of a view a render can fail in, each behind a boundary of its
@@ -136,8 +138,8 @@ function RenderFailed({
     </Button>
   );
 
-  if (compact)
-    return (
+  if (compact) {
+    const line = (
       // The same callout as every other one (`ui/alerts.tsx`), in the frame
       // that carries no frame: it stands in a row of controls, so it takes
       // only the width of what it says and leaves the line unbroken.
@@ -146,13 +148,27 @@ function RenderFailed({
         frame="bare"
         data-slot="render-failed"
         data-boundary={name}
-        title={detail}
         className="inline-flex w-auto"
       >
         <AlertTitle>{messages.label('label.render.failed')}</AlertTitle>
         <AlertAction>{retry}</AlertAction>
       </LineAlert>
     );
+    // What actually went wrong, for whoever can do something about it —
+    // one line has no room for it, and the block form below gives it a
+    // paragraph. A `Tooltip` rather than the native `title` this used to be
+    // (D16): `title` opens for a mouse and for nothing else. Nothing thrown
+    // that has anything to say, no tooltip: an empty black square says less
+    // than nothing.
+    return detail.length === 0 ? (
+      line
+    ) : (
+      <Tooltip>
+        <TooltipTrigger render={line} />
+        <TooltipContent>{detail}</TooltipContent>
+      </Tooltip>
+    );
+  }
 
   return (
     <Alert variant="destructive" data-slot="render-failed" data-boundary={name}>

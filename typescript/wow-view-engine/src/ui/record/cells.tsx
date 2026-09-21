@@ -12,9 +12,7 @@
  */
 
 import type * as React from 'react';
-import type { FieldTone } from '../../model/index.js';
 import { isSafeContentUrl } from '../../dashboard/index.js';
-import { Badge } from '../components/badge.js';
 import {
   badgeEntries,
   displayValue,
@@ -24,6 +22,7 @@ import {
   type DisplayField,
 } from '../display.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
+import { ToneBadge } from '../variants.js';
 
 /**
  * What a renderer knows about the field a value came from — which is what any
@@ -31,76 +30,6 @@ import type { MessageFormatters } from '../MessagesProvider.js';
  * under the name this side uses for it.
  */
 export type CellField = DisplayField;
-
-/**
- * The variant each tone is drawn with. The colour is never the only
- * difference — the label says which status this is — so this is emphasis on a
- * distinction the words already carry.
- */
-const TONE_VARIANT: Record<FieldTone, 'secondary' | 'destructive'> = {
-  neutral: 'secondary',
-  success: 'secondary',
-  warning: 'secondary',
-  danger: 'destructive',
-};
-
-/**
- * A toned badge is a *filled* status surface with the page's own colour as
- * its text, which is the recipe `styles.css` records for these tokens.
- *
- * Not a tint of it, although that is what the registry's `destructive`
- * variant does and what this tried first: a 10% wash leaves the same hue
- * reading against a surface it has been lightened towards, and axe measured
- * 3.98:1 for destructive, 4.32 for success and 4.37 for warning at the 12px
- * a badge is set in — all of them short of 4.5. The tokens are picked to
- * clear that ratio *against the surface*, so filling with the token and
- * writing in the surface colour is the pairing they were chosen for, and it
- * flips with the theme: light text on a dark fill, dark text on a light one.
- * The ink is each fill's own `-foreground` rather than `text-background`,
- * which was the right value under the wrong name — a host moving
- * `--fve-success` to a pale green got white writing on it and had nothing
- * to move. The defaults are exactly what was written here before.
- *
- * `danger` says the fill twice because the registry's `destructive` variant
- * says its own twice: `bg-destructive/10` *and* `dark:bg-destructive/20`.
- * Only the unprefixed one is replaced by an unprefixed override, so the dark
- * theme kept the 20% wash and a cancelled row measured **1.29:1** against
- * the row it was on — the solid fill this paragraph describes was true in
- * one theme out of two. This is not a hardcoded light/dark pair: it is the
- * same semantic token written at the variant's own specificity, so a host
- * moving `--fve-dark-destructive` still moves it.
- */
-const TONE_CLASS: Partial<Record<FieldTone, string>> = {
-  success: 'bg-success text-success-foreground',
-  warning: 'bg-warning text-warning-foreground',
-  danger: 'bg-destructive dark:bg-destructive text-destructive-foreground',
-};
-
-/**
- * The edge a badge with no tone is drawn with — which is the whole of it.
- *
- * A row is a surface that moves under the badge: `bg-muted` once it is
- * selected, the same shade mixed in while it is hovered. The registry's
- * `secondary` fill *is* that shade, so on a selected row the badge measured
- * **1.00:1** against the row under it, in both themes — it stopped being a
- * badge and became a word. Several states sharing one 3% grey is fine right
- * up until two of them are stacked.
- *
- * `input` rather than `border`, although `border` is what a divider uses:
- * the theme keeps them apart on exactly this question (`styles.css`) —
- * `input` is the edge of a thing rather than a line between things, and it
- * is held at ≥3:1 because an unticked checkbox is *only* its ring. A badge
- * that has lost its fill to the row is in the same position, and `border`
- * is not: measured on the selected row it comes to **1.155:1**, which is
- * the same disappearance one step slower. Nothing moves either way — the
- * registry already draws `border border-transparent` on every badge, so
- * this only gives that line a colour.
- *
- * **A toned badge takes no edge.** It is a filled status surface (see
- * `TONE_CLASS`) and clears the row by its fill alone; a grey hairline
- * around a solid colour reads as a halo, not as an outline.
- */
-const BADGE_EDGE = 'border-input';
 
 /**
  * How wide a `text` cell may grow before it wraps. A table lays out by
@@ -186,21 +115,14 @@ export function cellValue(
 function Badges({ entries }: { entries: readonly BadgeEntry[] }) {
   return (
     <span className="flex flex-wrap items-center gap-1">
-      {entries.map((entry, index) => {
-        const tone = entry.tone ?? 'neutral';
-        return (
-          <Badge
-            key={`${String(entry.value)}-${index}`}
-            // Said on the element as well as drawn, so a host can style a
-            // tone and a test can read one without matching on colour.
-            data-tone={tone}
-            variant={TONE_VARIANT[tone]}
-            className={TONE_CLASS[tone] ?? BADGE_EDGE}
-          >
-            {entry.label}
-          </Badge>
-        );
-      })}
+      {entries.map((entry, index) => (
+        <ToneBadge
+          key={`${String(entry.value)}-${index}`}
+          tone={entry.tone ?? 'neutral'}
+        >
+          {entry.label}
+        </ToneBadge>
+      ))}
     </span>
   );
 }

@@ -34,13 +34,14 @@ import {
   Select,
   SelectGroup,
   SelectItem,
-  SelectTrigger,
   SelectValue,
 } from '../components/select.js';
-import { SelectContent } from '../popups.js';
+import { Tooltip, TooltipTrigger } from '../components/tooltip.js';
+import { SelectContent, TooltipContent } from '../popups.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { FilterValueEditor } from '../FilterValueEditor.js';
 import { PendingDot, PENDING_AT_CORNER } from '../PendingDot.js';
+import { PillSelectTrigger } from '../variants.js';
 import { GroupBlock } from './GroupBlock.js';
 
 /**
@@ -133,16 +134,19 @@ export function ConditionPill({
           filter.updateLeaf(path, { operator: value });
       }}
     >
-      <SelectTrigger
+      {/* One border per condition (D12): the pill is the field, so the
+          select inside it draws none of its own. The variant carries that,
+          not a `className` of colours — `ui/variants.tsx`. */}
+      <PillSelectTrigger
         aria-label={messages.label('label.filter.operator-of', {
           field: label,
         })}
         aria-invalid={invalidOperator || undefined}
         size="sm"
-        className="h-7 w-full border-0 bg-transparent px-1 shadow-none"
+        className="h-7 w-full px-1"
       >
         <SelectValue />
-      </SelectTrigger>
+      </PillSelectTrigger>
       <SelectContent>
         <SelectGroup>
           {operators.map(operator => (
@@ -214,14 +218,29 @@ export function ConditionPill({
       className="border-border bg-muted/40 data-[blank]:border-dashed data-[invalid]:border-destructive data-[warning]:border-warning @[40rem]:data-[wide]:col-span-2 relative flex min-w-0 items-center gap-1 rounded-md border py-0.5 pr-0.5 pl-2 text-sm"
     >
       {pending && <PendingDot named className={PENDING_AT_CORNER} />}
-      <span className="w-16 shrink-0 truncate font-medium" title={label}>
-        {label}
-      </span>
+      {/* The field's name is the one word on this row with a width of its
+          own, so it is the one that truncates. The whole of it is one hover
+          away — a `Tooltip` rather than the native `title` this used to be
+          (D16), because the ellipsis is just as final for a keyboard and a
+          touch user, who never get `title` at all. */}
+      <Tooltip>
+        <TooltipTrigger
+          render={<span className="w-16 shrink-0 truncate font-medium" />}
+        >
+          {label}
+        </TooltipTrigger>
+        <TooltipContent>{label}</TooltipContent>
+      </Tooltip>
       <div className="w-24 shrink-0">{operatorSelect}</div>
       {/* One border per condition (D12): the pill is the field, so the
           value control inside it draws none of its own — like the operator
-          select beside it — and shows focus by the ring alone. */}
-      <div className="min-w-0 flex-1 [&_[data-slot=input]]:border-transparent [&_[data-slot=input]]:bg-transparent [&_[data-slot=input]]:shadow-none [&_[data-slot=select-trigger]]:border-transparent [&_[data-slot=select-trigger]]:bg-transparent [&_[data-slot=select-trigger]]:shadow-none">
+          select beside it — and shows focus by the ring alone. That used to
+          be written here, as `[&_[data-slot=input]]:…` reaching two levels
+          down into whichever vendored components the editor happened to
+          render; it is each control's own variant now (`ui/variants.tsx`),
+          so a registry rename cannot silently give the pill its borders
+          back. */}
+      <div className="min-w-0 flex-1">
         {editor && (
           <FilterValueEditor
             editor={editor}
