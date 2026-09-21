@@ -577,6 +577,17 @@ describe('the default workbenches pass axe', () => {
     ).toBeTruthy();
 
     expect(await violations(document.body)).toEqual([]);
+
+    // And again with the search on, which is a second screen: the refusal
+    // line the input points at, and — with nothing matching — an empty
+    // state where the list was.
+    await user.type(
+      document.querySelector<HTMLElement>('[data-slot="column-search"]')!,
+      'zzz',
+    );
+    expect(document.querySelector('[data-slot="column-none"]')).toBeTruthy();
+
+    expect(await violations(document.body)).toEqual([]);
   });
 
   it('record, with the sort control open', async () => {

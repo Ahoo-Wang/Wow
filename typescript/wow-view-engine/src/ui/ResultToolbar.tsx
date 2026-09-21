@@ -281,6 +281,7 @@ export function ResultToolbar({
           <ColumnSettings
             table={table}
             fields={fields}
+            {...(fieldGroups ? { fieldGroups } : {})}
             {...(rowKey === undefined ? {} : { rowKey })}
             {...(released ? { released } : {})}
             actions={hasRowActions}

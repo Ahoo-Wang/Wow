@@ -112,6 +112,7 @@ export const recordMessages = {
   // that this list *is* the table's column order.
   'label.columns.title': 'Column settings',
   'label.columns.hint': 'The table draws its columns in the order listed here.',
+  'label.columns.filtered': 'Clear the search to reorder columns.',
   'label.columns.instructions':
     'Press the arrow keys to move a column one place. Press space to pick it up, the arrow keys to move it, space again to drop it and escape to cancel.',
   'label.columns.drag': 'Reorder {field}',

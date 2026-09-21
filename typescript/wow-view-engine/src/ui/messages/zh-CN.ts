@@ -154,6 +154,7 @@ export const zhCN: ViewMessages = {
   'label.summary.unavailable': '—',
   'label.columns.title': '列设置',
   'label.columns.hint': '表格按这里列出的顺序绘制各列。',
+  'label.columns.filtered': '清空搜索即可调整列的顺序。',
   'label.columns.instructions':
     '按方向键可将一列移动一位；按空格键拾起，方向键移动，再按空格键放下，按 Esc 取消。',
   'label.columns.drag': '调整 {field} 的顺序',

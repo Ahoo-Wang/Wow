@@ -30,6 +30,17 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 - **拖放用现成的库**（`@dnd-kit/react` + `@dnd-kit/dom`，走 catalog，MIT），不自写：它带指针与键盘传感器、拖动预览与一个 live region。只有可拖的行注册成 sortable item，固定行根本不是放置目标，这就是"列不跨区"在实现上的保证。库的 `OptimisticSortingPlugin` 按 [interaction-primitives 设计](../../../../docs/superpowers/specs/2026-09-13-view-engine-interaction-primitives-design.md) 关掉：它在指针移动时就重排 DOM，恰好让读取落点时的下标失效；落点由 drop 报出的 source／target 两个 id 算出；真指针那一条链路（按下手柄、移到第三行、松手）的回归只能放在浏览器工程里跑——库靠量盒子做碰撞检测，jsdom 里每个盒子都是原点上的 0×0，没有可比的东西——所以它是 `stories/view-engine/RecordWorkbench.test.stories.tsx` 的一条故事，与键盘那条共用同一份夹具，断言表头列序与保存后的 `table.columns`；
 - **键盘**：手柄可聚焦，方向键把这一行在区域内上下移一位；按空格拾起后方向键交给库，两边各有单一播报源（`isDragging` 时本地处理器让路）。库的英文播报换成目录里的句子，落定的结果由设置自己的 live region 说一次——拖的和按方向键的是同一句，不重复朗读。（见 test/columnSettings.test.tsx、test/accessibility.test.tsx「record, with the column settings open」）
 
+### 列设置的目录分组与搜索
+
+一张 20 列的表把这份列表变成另一样东西：一屏装不下、一眼找不着。三条一起答。
+
+- **弹层自己有滚动口**：`ui/popups.tsx` 抄来的那份 Popover 比 registry 多 `max-h-(--available-height)` 与 `overflow-y-auto`（[README.md](README.md#主题弹层与明暗)）——portal 出去的弹层不跟着页面滚，没有滚动口就等于够不到底下那几行。列设置在这之上再加一件：**滚的是列表，不是整个弹层**（调用处写 `overflow-y-hidden`，列表那一层 `min-h-0 flex-1 overflow-y-auto`），否则搜索框会跟着它管的那些行一起滚出视线。1280×900 上量到弹层 5–895、列表 852 撑在 776 的口子里；420×860 上弹层 384px 宽、5–660，滚到底时最后一行「操作」的下沿正落在列表下沿，搜索框一个像素没动；
+- **顶上一个搜索框**，与字段选择器同一个控件、同一套词（`label.field.search` 作 placeholder 与可及名，一条不中时 `label.field.none` 走 `Empty`）。它按**行上那个词**匹配（不是字段名——屏幕上的是词，能翻译的也是词；操作列没有字段名，用的是 `label.toolbar.actions`），不分大小写。**它只少显示几行，别的什么都不改**：三个区域与区内顺序照旧，关掉的列照旧列在它自己那一格（D17-8），面板要数的东西（移动落在第几位、表格眼下画着几列）一律还是按整份列表数。弹层一关就清空，跟字段选择器的过滤同一个道理；
+- **筛选时不能拖，也不能用方向键挪**（2026-09-21 定）：一次移动是相对邻居说的，而搜索拿走的正是那些邻居——放手时落到一个读者看不见的位置，或者听到「移到第 7 位，共 20 位」而屏幕上什么也没变，都是在骗人。所以过滤期间每一行都按「不可拖」画（手柄禁用），输入框底下一句 `label.columns.filtered`「清空搜索即可调整列的顺序。」由输入框的 `aria-describedby` 指着——说清了出路，而不只是说不行。清空即恢复；
+- **目录只嵌在中间区**（2026-09-21 定，用户拍板）：区域仍是第一层（区域就是固定方式），定义的 `fieldGroups` 是中间区里的第二层——左右两区按构造就短（钉在两边的那几列），中间区才是宽定义下的整张表。未被任何分组列出的字段在最前、不带标题，其后按目录顺序各带一个标题（`h4`，比区域标题 `h3` 低一档：同样的字号，不加粗、缩进），空分组不画。`fieldGroups` 由 `ResultToolbar` 从定义透下来，与排序弹层同一条路；
+- **组内仍按表格画的顺序，不按分组自己的 `fields` 顺序**——这是本选择器与另外两个的唯一分歧（[README.md#字段目录与选择器分组](README.md#字段目录与选择器分组)），理由是这份列表本身就是列序。这也正是拖动还能诚实的原因：一次放手提交的是「把这一列放到那一列所在的位置」，按**整个区域**的顺序算（`movableIndex` 读的是整份列表），而每一节的行都是那份顺序的子序列，所以列落在它被放到的那一行旁边，其余各节的列一根没动。每一节各是一个拖放组（`columns-<区域>:<组 id>`），所以一列永远不会被拖出定义给它的那个分组；
+- （见 test/columnSettings.test.tsx「finding a column in a wide list」，以及浏览器故事 `WideTableColumnSettings`／`NarrowHostColumnSettings` 量 1280 与 420 两屏的几何）
+
 ## 导出
 
 工具栏右端的 `ExportDialog`（D12 Ⅳ）：一个带边的图标按钮（`Download`，可及名字 `label.export.title`），**点开是一个窗口，整件事都在这个窗口里**（D14）——没有下拉菜单，也没有第二个对话框。窗口是模态的 shadcn `Dialog`，`role="dialog"` 带标题，四步同一个壳：

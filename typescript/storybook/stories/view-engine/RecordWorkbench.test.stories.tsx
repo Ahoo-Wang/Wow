@@ -3318,6 +3318,145 @@ export const PinnedGroupCapped: Story = {
 };
 
 /**
+ * The column settings on a table wide enough to need them (F-18), in the
+ * browser, because all three halves of the answer are geometry.
+ *
+ * jsdom lays nothing out, so the unit tests can pin which rows are listed
+ * and which controls are refused, but not the three things that were
+ * actually broken: the popup grew past the bottom of the screen with no way
+ * to reach the rest of it, the search line scrolled away with the rows it
+ * governs, and twenty columns read as one undifferentiated list.
+ */
+async function readColumnSettings(canvasElement: HTMLElement) {
+  const canvas = within(canvasElement);
+  await canvas.findByRole('table');
+  await userEvent.click(
+    canvasElement.querySelector<HTMLElement>('[data-control="columns"]')!,
+  );
+  const popup = await waitFor(() => {
+    const node = document.querySelector<HTMLElement>(
+      '[data-slot="popover-content"]',
+    );
+    expect(node).not.toBeNull();
+    return node!;
+  });
+  const list = popup.querySelector<HTMLElement>('[data-slot="column-list"]')!;
+  const search = popup.querySelector<HTMLInputElement>(
+    '[data-slot="column-search"]',
+  )!;
+  const fields = () =>
+    [...list.querySelectorAll<HTMLElement>('[data-slot="column-setting"]')].map(
+      row => row.dataset.field,
+    );
+  const headings = () =>
+    [
+      ...popup.querySelectorAll<HTMLElement>(
+        '[data-slot="column-region-heading"], [data-slot="column-group-heading"]',
+      ),
+    ].map(heading => heading.textContent);
+
+  // It stays on the screen. The popup is portalled to the body, so nothing
+  // else scrolls it: before it had a scroll port of its own, twenty-one rows
+  // simply ran off the bottom edge.
+  const box = popup.getBoundingClientRect();
+  await expect(Math.round(box.top)).toBeGreaterThanOrEqual(0);
+  await expect(Math.round(box.bottom)).toBeLessThanOrEqual(
+    Math.round(window.innerHeight),
+  );
+
+  // And the list is the part that scrolls, not the popup: the title and the
+  // search line stay where they are while the rows go past them.
+  await waitFor(() =>
+    expect(list.scrollHeight).toBeGreaterThan(list.clientHeight),
+  );
+  const searchTop = Math.round(search.getBoundingClientRect().top);
+  list.scrollTop = list.scrollHeight;
+  await expect(list.scrollTop).toBeGreaterThan(0);
+  await expect(Math.round(search.getBoundingClientRect().top)).toBe(searchTop);
+  // The bottom row is reachable, which is the whole complaint.
+  const last = [...list.querySelectorAll<HTMLElement>('li')].at(-1)!;
+  await expect(
+    Math.round(last.getBoundingClientRect().bottom),
+  ).toBeLessThanOrEqual(Math.round(list.getBoundingClientRect().bottom) + 1);
+  list.scrollTop = 0;
+
+  // The areas first, the catalogue inside the middle one, in the order the
+  // definition declares its groups — and the fields no group lists in front
+  // of all of them, under no heading of their own.
+  await expect(headings()).toEqual([
+    zhCN['label.columns.pin.left'],
+    zhCN['label.columns.pin.none'],
+    '收发双方',
+    '运输',
+    '计费',
+    '时间',
+    zhCN['label.columns.pin.right'],
+  ]);
+  const whole = fields();
+  await expect(whole.slice(0, 8)).toEqual([
+    'id',
+    'orderNo',
+    'status',
+    'tags',
+    'signed',
+    'trackingUrl',
+    'note',
+    'customer',
+  ]);
+
+  // A search narrows the rows, and refuses the ordering it is hiding the
+  // neighbours of.
+  await userEvent.type(search, '运费');
+  await waitFor(() => expect(fields()).toEqual(['amount']));
+  await expect(
+    popup.querySelector('[data-slot="column-filtered"]')?.textContent,
+  ).toBe(zhCN['label.columns.filtered']);
+  await expect(
+    within(list)
+      .getByRole('button', {
+        name: say('label.columns.drag', { field: '运费' }),
+      })
+      .hasAttribute('disabled'),
+  ).toBe(true);
+
+  await userEvent.clear(search);
+  await userEvent.type(search, 'zzz');
+  await waitFor(() => expect(fields()).toEqual([]));
+  await expect(
+    popup.querySelector('[data-slot="column-none"]')?.textContent,
+  ).toContain(zhCN['label.field.none']);
+
+  // Cleared, the whole list is back, in the order it was in.
+  await userEvent.clear(search);
+  await waitFor(() => expect(fields()).toEqual(whole));
+  await userEvent.keyboard('{Escape}');
+}
+
+/** Twenty columns in a full-width workbench. */
+export const WideTableColumnSettings: Story = {
+  ...DisplayWideTable,
+  play: async ({ canvasElement }) => {
+    await readColumnSettings(canvasElement);
+  },
+};
+
+/**
+ * The same panel in a 420px column — phone, split screen, a host's side
+ * panel. The popup is portalled to the body and placed against a trigger
+ * near the right edge of a narrow host, which is where a popup that cannot
+ * scroll and one that cannot fit look the same.
+ */
+export const NarrowHostColumnSettings: Story = {
+  ...DisplayPinnedGroupCapped,
+  play: async ({ canvasElement }) => {
+    const host =
+      canvasElement.querySelector<HTMLElement>('[data-narrow-host]')!;
+    await expect(host.getBoundingClientRect().width).toBe(420);
+    await readColumnSettings(canvasElement);
+  },
+};
+
+/**
  * The column names alone, without the sort marks beside them.
  *
  * `readHeaders` reads the whole header cell, and three sorted columns carry

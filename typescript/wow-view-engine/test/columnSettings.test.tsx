@@ -1226,3 +1226,208 @@ describe('what a drag says out loud', () => {
     );
   });
 });
+
+/**
+ * A list one row long per column is a list to search once the definition is
+ * wide, and a list to group once the definition says how its fields group.
+ */
+describe('finding a column in a wide list', () => {
+  /** Six fields and two groups: enough for a middle area worth sectioning. */
+  const WIDE: FieldDefinition[] = [
+    { name: 'id', label: 'Order', kind: 'string' },
+    { name: 'warehouse', label: 'Warehouse', kind: 'string' },
+    { name: 'carrier', label: 'Carrier', kind: 'string' },
+    { name: 'amount', label: 'Amount', kind: 'number' },
+    { name: 'weight', label: 'Weight', kind: 'number' },
+    { name: 'note', label: 'Note', kind: 'string' },
+  ];
+  const GROUPS = [
+    // Declared out of the column order on purpose, and `ship` lists its own
+    // two the other way round: what the panel reads is the catalogue's order
+    // of groups and the table's order of columns inside them.
+    { id: 'ship', label: 'Shipping', fields: ['carrier', 'warehouse'] },
+    { id: 'money', label: 'Money', fields: ['amount'] },
+  ];
+  const COLUMNS = ['id', 'warehouse', 'carrier', 'amount', 'weight', 'note'];
+
+  function openWide(
+    props: Record<string, unknown> = {},
+    overrides: Partial<RecordTableController> = {},
+  ) {
+    const table = tableController({ columnFields: COLUMNS, ...overrides });
+    render(
+      <ColumnSettings table={table} fields={WIDE} rowKey="id" {...props} />,
+    );
+    return table;
+  }
+
+  /** The search line, which is the one text box in the popover. */
+  function search(): HTMLInputElement {
+    return document.querySelector<HTMLInputElement>(
+      '[data-slot="column-search"]',
+    )!;
+  }
+
+  /** Every heading in the popover, in the order they are drawn. */
+  function headings(): string[] {
+    return [
+      ...document.querySelectorAll(
+        '[data-slot="column-region-heading"], [data-slot="column-group-heading"]',
+      ),
+    ].map(heading => heading.textContent!);
+  }
+
+  it('narrows the rows to the words that match, ignoring case', async () => {
+    const user = userEvent.setup();
+    openWide();
+
+    await user.click(screen.getByRole('button', { name: /Columns/ }));
+    await user.type(search(), 'ar');
+
+    // `Warehouse` and `Carrier`, and neither of the two held ends.
+    expect(listed()).toEqual(['warehouse', 'carrier']);
+  });
+
+  /**
+   * A search shows fewer rows and changes nothing else (D17-8): a column
+   * that is switched off is listed where it sits, with its own checkbox,
+   * whether or not the search is on.
+   */
+  it('keeps a hidden column, in its place', async () => {
+    const user = userEvent.setup();
+    openWide({}, { hiddenOf: (field: string) => field === 'carrier' });
+
+    await user.click(screen.getByRole('button', { name: /Columns/ }));
+    const whole = listed();
+    await user.type(search(), 'r');
+    const narrowed = listed();
+
+    expect(narrowed).toContain('carrier');
+    expect(
+      screen.getByRole('checkbox', { name: 'Show Carrier' }).dataset.checked,
+    ).toBeUndefined();
+    // A subsequence of the whole list: nothing moved, some rows are gone.
+    expect(whole.filter(field => narrowed.includes(field))).toEqual(narrowed);
+  });
+
+  /**
+   * The rows a move is relative to are exactly the ones a search takes
+   * away, so ordering is refused while one is on rather than landing a
+   * column somewhere the reader cannot watch it land.
+   */
+  it('refuses the handles while a search is on, and says why', async () => {
+    const user = userEvent.setup();
+    openWide();
+
+    await user.click(screen.getByRole('button', { name: /Columns/ }));
+    expect(
+      screen
+        .getByRole('button', { name: 'Reorder Warehouse' })
+        .hasAttribute('disabled'),
+    ).toBe(false);
+
+    await user.type(search(), 'ware');
+
+    expect(
+      screen
+        .getByRole('button', { name: 'Reorder Warehouse' })
+        .hasAttribute('disabled'),
+    ).toBe(true);
+    const note = document.querySelector('[data-slot="column-filtered"]')!;
+    expect(note.textContent).toBe(defaultMessages['label.columns.filtered']);
+    // Said to whoever is typing, where the refusal is in force.
+    expect(search().getAttribute('aria-describedby')).toBe(note.id);
+  });
+
+  it('says so when nothing matches', async () => {
+    const user = userEvent.setup();
+    openWide();
+
+    await user.click(screen.getByRole('button', { name: /Columns/ }));
+    await user.type(search(), 'zzz');
+
+    expect(listed()).toEqual([]);
+    expect(
+      document.querySelector('[data-slot="column-none"]')!.textContent,
+    ).toContain(defaultMessages['label.field.none']);
+  });
+
+  it('forgets the search when the popover closes', async () => {
+    const user = userEvent.setup();
+    openWide();
+
+    await user.click(screen.getByRole('button', { name: /Columns/ }));
+    await user.type(search(), 'ware');
+    expect(listed()).toEqual(['warehouse']);
+
+    await user.keyboard('{Escape}');
+    await user.click(screen.getByRole('button', { name: /Columns/ }));
+
+    await waitFor(() => expect(search().value).toBe(''));
+    expect(listed()).toEqual(COLUMNS);
+  });
+
+  /**
+   * The areas stay the primary split and the catalogue is a second level
+   * inside the middle one: the two held ends are short by construction, and
+   * a heading over a single row is a heading that says nothing.
+   */
+  it('lists the middle area under the catalogue, ungrouped first', async () => {
+    const user = userEvent.setup();
+    openWide({ fieldGroups: GROUPS });
+
+    await user.click(screen.getByRole('button', { name: /Columns/ }));
+
+    expect(headings()).toEqual([
+      'Pinned left',
+      'Not pinned',
+      'Shipping',
+      'Money',
+      'Pinned right',
+    ]);
+    // `Weight` belongs to no group, so it is in front and under no heading
+    // of its own; inside a group the rows are in the order the table draws
+    // them, not the order the group declares them in.
+    expect(listed()).toEqual([
+      'id',
+      'weight',
+      'warehouse',
+      'carrier',
+      'amount',
+      'note',
+    ]);
+  });
+
+  it('leaves the held ends ungrouped, and a flat definition flat', async () => {
+    const user = userEvent.setup();
+    openWide({ fieldGroups: GROUPS });
+
+    await user.click(screen.getByRole('button', { name: /Columns/ }));
+    const grouped = [
+      ...document.querySelectorAll('[data-slot="column-region"]'),
+    ].map(list => [
+      list.getAttribute('data-region'),
+      list.getAttribute('data-group'),
+    ]);
+
+    // Each section is a list of its own, so it can be a sortable group of
+    // its own: a column is never carried out of the group it belongs to.
+    expect(grouped).toEqual([
+      ['left', null],
+      ['middle', null],
+      ['middle', 'ship'],
+      ['middle', 'money'],
+      ['right', null],
+    ]);
+
+    cleanup();
+    openWide();
+    await user.click(screen.getByRole('button', { name: /Columns/ }));
+    expect(
+      document.querySelectorAll('[data-slot="column-group-heading"]'),
+    ).toHaveLength(0);
+    expect(
+      document.querySelectorAll('[data-slot="column-region"]'),
+    ).toHaveLength(3);
+  });
+});

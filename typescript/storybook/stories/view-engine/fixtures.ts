@@ -667,6 +667,27 @@ export const waybillsDefinition: DataViewDefinition = {
     { name: 'trackingUrl', label: '跟踪链接', kind: 'string', cell: 'link' },
     { name: 'note', label: '备注', kind: 'string', cell: 'text' },
   ],
+  // 21 个字段的目录：四组各管一摊，剩下七个谁也不归——单号、状态、标记、签
+  // 单、链接与备注在列设置里排在最前、不戴标题，其后才是这四组。宽表是目录唯
+  // 一真正有分量的地方：八个字段的定义不分组也找得到，二十个不行。
+  fieldGroups: [
+    {
+      id: 'party',
+      label: '收发双方',
+      fields: ['customer', 'receiver', 'phone', 'destination'],
+    },
+    {
+      id: 'transport',
+      label: '运输',
+      fields: ['warehouse', 'carrier', 'channel', 'priority'],
+    },
+    {
+      id: 'billing',
+      label: '计费',
+      fields: ['pieces', 'weight', 'amount', 'insured'],
+    },
+    { id: 'timing', label: '时间', fields: ['shipDate', 'createdAt'] },
+  ],
   record: { rowKey: 'id', paging: 'paged', layouts: ['table', 'card'] },
 };
 

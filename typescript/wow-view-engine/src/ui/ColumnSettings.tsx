@@ -11,17 +11,24 @@
  * limitations under the License.
  */
 
-import { useCallback, useId, useMemo } from 'react';
+import { useCallback, useId, useMemo, useState } from 'react';
 import { DragDropProvider } from '@dnd-kit/react';
 import { Accessibility } from '@dnd-kit/dom';
-import { Columns3Icon } from 'lucide-react';
+import { Columns3Icon, SearchIcon } from 'lucide-react';
 import {
   columnPin,
   type FieldDefinition,
+  type FieldGroupDefinition,
   type SummaryFunction,
 } from '../model/index.js';
 import type { RecordTableController } from '../react/index.js';
 import { Button } from './components/button.js';
+import { Empty, EmptyDescription, EmptyHeader } from './components/empty.js';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from './components/input-group.js';
 import {
   Popover,
   PopoverDescription,
@@ -39,7 +46,6 @@ import {
   columnSettingRows,
   movableIndex,
   nextPin,
-  regionRows,
   renderedCount,
   renderedIndex,
   reorderColumns,
@@ -47,6 +53,7 @@ import {
   type ColumnRegion,
   type ColumnSettingRow,
 } from './columns/rows.js';
+import { columnSections, matchingRows } from './columns/sections.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { ToolbarItem } from './toolbar.js';
 import { useAnnouncer } from './Announcer.js';
@@ -85,6 +92,11 @@ export interface ColumnSettingsProps {
   table: RecordTableController;
   /** The fields the definition offers, in its order. */
   fields: readonly FieldDefinition[];
+  /**
+   * The picker groups of the definition the fields come from, which the
+   * middle area is listed under.
+   */
+  fieldGroups?: readonly FieldGroupDefinition[];
   /** The field holding each row's identity, when the definition declares one. */
   rowKey?: string;
   /** Whether the table carries the host's action column. */
@@ -106,14 +118,21 @@ export interface ColumnSettingsProps {
 export function ColumnSettings({
   table,
   fields,
+  fieldGroups,
   rowKey,
   actions = false,
   released = NO_RELEASE,
 }: ColumnSettingsProps) {
   const messages = useViewMessages();
+  const noteId = useId();
   const { say: announce, region: announcement } = useAnnouncer(
     'column-announcement',
   );
+  // Cleared when the popover closes rather than kept: a filter that outlives
+  // the opening it was typed in is a list that is missing rows for a reason
+  // the reader has forgotten, and the field picker's own filter resets the
+  // same way.
+  const [query, setQuery] = useState('');
 
   const rows = useMemo(
     () =>
@@ -138,10 +157,39 @@ export function ColumnSettings({
       table.summaryOf,
     ],
   );
+  /**
+   * The word a row wears, which is what a search matches and what a move is
+   * announced by. The action column has none of its own — it is the host's
+   * slot rather than a field — so it wears the name the panel gives it.
+   */
+  const labelFor = useCallback(
+    (row: ColumnSettingRow) =>
+      row.field === ACTIONS_COLUMN
+        ? messages.label('label.toolbar.actions')
+        : row.label,
+    [messages],
+  );
+  const filtering = query.trim() !== '';
+  // The rows on screen. Everything the panel *counts* is still counted over
+  // the whole list below, because a search narrows what is shown and nothing
+  // else: where a move lands is a place among every column the table draws,
+  // not among the ones that happen to match.
+  const listed = useMemo(
+    () => matchingRows(rows, query, labelFor),
+    [labelFor, query, rows],
+  );
   // What the reader is looking at: the columns the table actually draws —
   // the action column included, a broken one not, since `projectRecord`
   // leaves that out.
   const onScreen = renderedCount(rows);
+  /** The word a field wears, for the two voices that name one. */
+  const nameOf = useCallback(
+    (field: string) => {
+      const row = rows.find(entry => entry.field === field);
+      return row ? labelFor(row) : field;
+    },
+    [labelFor, rows],
+  );
   /** Commits one move and says where the column landed, for both inputs. */
   const moveTo = useCallback(
     (field: string, toIndex: number) => {
@@ -153,17 +201,21 @@ export function ColumnSettings({
       // and "first of three" names a place the table does not have.
       announce(
         messages.label('label.columns.moved', {
-          field: labelOf(rows, field),
+          field: nameOf(field),
           index: renderedIndex(reordered(rows, order), field),
           total: onScreen,
         }),
       );
     },
-    [announce, messages, onScreen, rows, table],
+    [announce, messages, nameOf, onScreen, rows, table],
   );
 
   return (
-    <Popover>
+    <Popover
+      onOpenChange={open => {
+        if (!open) setQuery('');
+      }}
+    >
       {/* A bordered icon button with the word in its name and its tooltip
           (D12 Ⅳ): the control reports no state, so it carries no text. */}
       <Tooltip>
@@ -189,7 +241,13 @@ export function ColumnSettings({
           {messages.label('label.toolbar.columns')}
         </TooltipContent>
       </Tooltip>
-      <PopoverContent align="end" className="w-96">
+      {/* The popup's own scroll port is handed to the list below instead:
+          the search line and the title stay put while twenty rows go past
+          them, which is the whole point of having a search line. The `y`
+          axis is named on purpose — `overflow-hidden` would not replace
+          `overflow-y-auto` on merge, and the horizontal axis is the
+          registry's to decide. */}
+      <PopoverContent align="end" className="w-96 overflow-y-hidden">
         <PopoverHeader>
           <PopoverTitle>{messages.label('label.columns.title')}</PopoverTitle>
           {/* One sentence, and the only one no row can say for itself.
@@ -205,36 +263,94 @@ export function ColumnSettings({
           </PopoverDescription>
         </PopoverHeader>
 
-        <DragDropProvider
-          plugins={defaults =>
-            defaults.map(plugin =>
-              plugin === Accessibility
-                ? Accessibility.configure(
-                    columnDragAccessibility(messages, field =>
-                      labelOf(rows, field),
-                    ),
-                  )
-                : plugin,
-            )
-          }
-          onDragEnd={({ operation, canceled }) => {
-            const { source, target } = operation;
-            if (canceled || !source || !target || source.id === target.id)
-              return;
-            moveTo(String(source.id), movableIndex(rows, String(target.id)));
-          }}
+        {/* A list one row long per column is a list to search once it is a
+            wide table's: the same control, the same word and the same empty
+            sentence as the field picker's, so looking for a field is one
+            skill rather than three. */}
+        <InputGroup>
+          <InputGroupAddon>
+            <SearchIcon />
+          </InputGroupAddon>
+          <InputGroupInput
+            data-slot="column-search"
+            type="text"
+            value={query}
+            placeholder={messages.label('label.field.search')}
+            aria-label={messages.label('label.field.search')}
+            aria-describedby={filtering ? noteId : undefined}
+            onChange={event => setQuery(event.target.value)}
+          />
+        </InputGroup>
+
+        {/* Said where it is true, and only then: ordering is what the list
+            cannot mean while it is not showing the neighbours a column
+            would be ordered against. One line about the control above it,
+            the way the sort editor says it has run out of room — not an
+            `Alert`, which is for something that has happened. */}
+        {filtering && (
+          <p
+            id={noteId}
+            data-slot="column-filtered"
+            className="text-muted-foreground"
+          >
+            {messages.label('label.columns.filtered')}
+          </p>
+        )}
+
+        <div
+          data-slot="column-list"
+          className="-mx-2.5 flex min-h-0 flex-1 flex-col overflow-y-auto px-2.5"
         >
-          {REGIONS.map(region => (
-            <Region
-              key={region}
-              region={region}
-              rows={rows}
-              table={table}
-              released={released}
-              onMove={moveTo}
-            />
-          ))}
-        </DragDropProvider>
+          {listed.length === 0 ? (
+            // Nothing matched, which is what `Empty` is for — the same shape
+            // and the same sentence the field picker shows.
+            <Empty data-slot="column-none" className="p-0">
+              <EmptyHeader>
+                <EmptyDescription>
+                  {messages.label('label.field.none')}
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          ) : (
+            <DragDropProvider
+              plugins={defaults =>
+                defaults.map(plugin =>
+                  plugin === Accessibility
+                    ? Accessibility.configure(
+                        columnDragAccessibility(messages, nameOf),
+                      )
+                    : plugin,
+                )
+              }
+              onDragEnd={({ operation, canceled }) => {
+                const { source, target } = operation;
+                if (canceled || !source || !target || source.id === target.id)
+                  return;
+                // Read off the whole list, never off what is on screen: a
+                // place in the order is a place among every column the
+                // config knows.
+                moveTo(
+                  String(source.id),
+                  movableIndex(rows, String(target.id)),
+                );
+              }}
+            >
+              {REGIONS.map(region => (
+                <Region
+                  key={region}
+                  region={region}
+                  rows={listed}
+                  all={rows}
+                  groups={fieldGroups ?? EMPTY_GROUPS}
+                  reorderable={!filtering}
+                  table={table}
+                  released={released}
+                  onMove={moveTo}
+                />
+              ))}
+            </DragDropProvider>
+          )}
+        </div>
 
         {/* One voice for a move the user asked for with the arrow keys; the
             library announces its own pick-up and cancel. */}
@@ -244,24 +360,32 @@ export function ColumnSettings({
   );
 }
 
-/** One area's rows, or nothing at all when the area holds none. */
-function Region({
-  region,
-  rows,
-  table,
-  released,
-  onMove,
-}: {
+/** No groups at all, as one value, so the default is not a new array. */
+const EMPTY_GROUPS: readonly FieldGroupDefinition[] = [];
+
+/** What one area and one section inside it are both drawn from. */
+interface ListProps {
   region: ColumnRegion;
+  /** The rows on screen — what a search left of the area's own. */
   rows: readonly ColumnSettingRow[];
+  /** Every row the panel knows, which is what places are counted over. */
+  all: readonly ColumnSettingRow[];
+  /** Whether the list is showing the order, and can therefore change it. */
+  reorderable: boolean;
   table: RecordTableController;
   released: ReleasedPins;
   onMove(field: string, toIndex: number): void;
-}) {
+}
+
+/** One area's rows, or nothing at all when the area holds none. */
+function Region({
+  groups,
+  ...props
+}: ListProps & { groups: readonly FieldGroupDefinition[] }) {
   const messages = useViewMessages();
   const headingId = useId();
-  const own = regionRows(rows, region);
-  if (own.length === 0) return null;
+  const sections = columnSections(props.rows, props.region, groups);
+  if (sections.length === 0) return null;
 
   return (
     <div data-slot="column-region-group" className="flex flex-col">
@@ -275,24 +399,87 @@ function Region({
         data-slot="column-region-heading"
         className="text-muted-foreground px-2 pt-2 pb-1 text-xs font-medium"
       >
-        {messages.label(REGION_LABEL[region])}
+        {messages.label(REGION_LABEL[props.region])}
       </h3>
+      {sections.map(section => (
+        <Section
+          key={section.group?.id ?? ''}
+          {...props}
+          rows={section.rows}
+          group={section.group}
+          regionHeadingId={headingId}
+        />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * One block of an area: the catalogue group's rows under its label, or the
+ * whole area's under none.
+ *
+ * Each block is a list of its own — named by its group where it has one and
+ * by the area where it does not — and a sortable group of its own, so a
+ * column cannot be carried out of the group the definition put it in. What
+ * a drop *means* is still read off the whole list: `movableIndex` answers
+ * over the area, so a column lands where the row it was dropped on sits,
+ * and the sections the reader is not looking at keep their columns.
+ */
+function Section({
+  region,
+  rows,
+  all,
+  reorderable,
+  table,
+  released,
+  onMove,
+  group,
+  regionHeadingId,
+}: ListProps & {
+  group: FieldGroupDefinition | undefined;
+  regionHeadingId: string;
+}) {
+  const labelId = useId();
+  // Counted inside the block, because that is the list the library is
+  // sorting; what the move *commits* is counted over the area instead.
+  const movable = rows.filter(row => row.movable);
+
+  return (
+    <>
+      {group !== undefined && (
+        // A level under the area's heading and drawn as one: quieter weight
+        // and indented, so the catalogue reads as nested inside the pinning
+        // rather than as a fourth area.
+        <h4
+          id={labelId}
+          data-slot="column-group-heading"
+          className="text-muted-foreground px-2 pt-1.5 pb-0.5 pl-3 text-xs"
+        >
+          {group.label}
+        </h4>
+      )}
       <ul
         data-slot="column-region"
         data-region={region}
-        aria-labelledby={headingId}
+        data-group={group?.id}
+        aria-labelledby={group === undefined ? regionHeadingId : labelId}
         className="flex flex-col"
       >
-        {own.map(row => {
+        {rows.map(row => {
+          // While a search narrows the list nothing is dragged: the rows a
+          // move is relative to are the ones that are not on screen. The
+          // handle says so by being refused rather than by moving a column
+          // somewhere the reader cannot watch it land.
+          const listed = reorderable ? row : { ...row, movable: false };
           const shared = {
-            row,
+            row: listed,
             // A row that is only a summary is not in the column list, so
             // its checkbox writes the summary away and leaves the columns
             // exactly as they are (D17-9).
             onToggle: () =>
               row.summaryOnly
                 ? table.setSummary(row.field, null)
-                : table.setColumns(toggled(rows, row)),
+                : table.setColumns(toggled(all, row)),
             onPin: () =>
               table.setPinned(row.field, nextPin(columnPin(row.pinned))),
             // The action column is the host's, not a field: the cap reports
@@ -304,21 +491,21 @@ function Region({
             onSummary: (fn: SummaryFunction | null) =>
               table.setSummary(row.field, fn),
             onMove: (step: -1 | 1) =>
-              onMove(row.field, movableIndex(rows, row.field) + step),
+              onMove(row.field, movableIndex(all, row.field) + step),
           };
-          return row.movable ? (
+          return listed.movable ? (
             <SortableColumnRow
               key={row.field}
               {...shared}
-              index={movableIndex(rows, row.field)}
-              group={GROUP[row.region]}
+              index={movable.indexOf(row)}
+              group={`${GROUP[row.region]}:${group?.id ?? ''}`}
             />
           ) : (
             <ColumnRow key={row.field} {...shared} />
           );
         })}
       </ul>
-    </div>
+    </>
   );
 }
 
@@ -366,8 +553,4 @@ function toggled(
         (entry.field === row.field ? !row.visible : entry.visible),
     )
     .map(entry => entry.field);
-}
-
-function labelOf(rows: readonly ColumnSettingRow[], field: string): string {
-  return rows.find(row => row.field === field)?.label ?? field;
 }

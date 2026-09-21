@@ -19,6 +19,7 @@ import {
   waitFor,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
 import { useFilterEditor } from '../src/react/index.js';
@@ -390,7 +391,21 @@ describe('an alert dialog themes its backdrop as well as its surface', () => {
  * not how it is opened, and a dialog, a menu and a tooltip are each opened by
  * something different.
  */
-const KINDS = [
+interface PopupKind {
+  name: string;
+  slot: string;
+  /**
+   * Classes the themed copy carries and the registry's own does not, each
+   * one an answer to something this package hit — the reason is written at
+   * the constant in `popups.tsx`. Named here so a deliberate difference
+   * reads as one and everything else still reads as drift.
+   */
+  adds?: readonly string[];
+  vendored: ReactElement;
+  composed: ReactElement;
+}
+
+const KINDS: PopupKind[] = [
   {
     name: 'alert dialog',
     slot: 'alert-dialog-content',
@@ -462,6 +477,10 @@ const KINDS = [
   {
     name: 'popover',
     slot: 'popover-content',
+    // A popover this package opens can be a list as long as the definition
+    // has fields, so it gets the scroll port the select, the menu and the
+    // combobox already have.
+    adds: ['max-h-(--available-height)', 'overflow-y-auto'],
     vendored: (
       <Popover open>
         <VendoredPopoverContent>Fields</VendoredPopoverContent>
@@ -631,7 +650,7 @@ describe('the composed popups keep step with the registry', () => {
 
   it.each(KINDS)(
     'renders a $name the way the registry does',
-    async ({ slot, vendored, composed }) => {
+    async ({ slot, vendored, composed, adds = [] }) => {
       render(vendored);
       const registry = await waitFor(() => popupOf(slot));
       const expected = {
@@ -645,13 +664,21 @@ describe('the composed popups keep step with the registry', () => {
       const ours = await waitFor(() => popupOf(slot));
 
       expect({
-        classes: classesOf(ours),
+        // The declared additions come off before the comparison, so the
+        // rest of the copy is still held to the registry word for word.
+        classes: classesOf(ours).filter(name => !adds.includes(name)),
         html: partsOf(ours),
         positioner: ours.parentElement?.className,
       }).toEqual(expected);
       // And the additions are all there, on the elements that need them.
       expect(ours.classList.contains('fve-root')).toBe(true);
       expect(ours.getAttribute('data-theme')).toBe('light');
+      for (const name of adds) {
+        // Each declared addition is present *and* is an addition: a class
+        // the registry already ships would sit here saying nothing.
+        expect(ours.classList.contains(name)).toBe(true);
+        expect(expected.classes).not.toContain(name);
+      }
     },
   );
 });
