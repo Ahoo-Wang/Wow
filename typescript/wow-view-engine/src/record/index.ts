@@ -17,5 +17,6 @@
  */
 export * from './compile.js';
 export * from './defaults.js';
+export * from './export.js';
 export * from './project.js';
 export * from './validate.js';

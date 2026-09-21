@@ -19,6 +19,7 @@ import type {
 } from '../model/index.js';
 import type {
   RecordBulkActionContext,
+  RecordExportController,
   RecordTableController,
 } from '../react/index.js';
 import type { RecordViewRuntime } from '../runtime/index.js';
@@ -30,6 +31,7 @@ import { ToggleGroup, ToggleGroupItem } from './components/toggle-group.js';
 import { Tooltip, TooltipTrigger } from './components/tooltip.js';
 import { TooltipContent } from './popups.js';
 import { ColumnSettings } from './ColumnSettings.js';
+import { ExportMenu } from './ExportMenu.js';
 import { SortSettings } from './SortSettings.js';
 import { SEGMENTED, SPACE } from './layout.js';
 import type { MessageKey } from './messages.js';
@@ -63,6 +65,13 @@ export interface ResultToolbarProps {
    * toolbar is what knows the selection.
    */
   bulkActions?(context: RecordBulkActionContext): React.ReactNode;
+  /**
+   * Taking the result away, when the surface offers it. A workbench holds
+   * the controller — the failure it reports belongs in the status line above
+   * the result, not inside a menu — and an embedded view that offers no
+   * export simply passes none, and the button is not there.
+   */
+  exportControl?: RecordExportController;
   /**
    * The runtime behind the controller. The toolbar reads nothing off it; it
    * only hands it to `bulkActions`, whose actions are commands against the
@@ -119,6 +128,7 @@ export function ResultToolbar({
   rowKey,
   hasRowActions = false,
   bulkActions,
+  exportControl,
   runtime,
 }: ResultToolbarProps) {
   const messages = useViewMessages();
@@ -244,6 +254,11 @@ export function ResultToolbar({
             {...(fieldGroups ? { fieldGroups } : {})}
           />
         </ButtonGroup>
+
+        {/* Taking the rows away is its own responsibility, so it is its own
+            group at the end of the block (D12 Ⅳ): the two above change how
+            the result is drawn, this one changes nothing at all. */}
+        {exportControl && <ExportMenu control={exportControl} />}
       </div>
     </div>
   );

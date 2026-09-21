@@ -32,6 +32,7 @@ export interface RecordViewRuntime<
 > extends ViewRuntime<RecordViewConfig> {
   page(target: RecordPageTarget<P>): void;
   select(keys: RecordKey[]): void;
+  exportRows(options?: ExportRowsOptions): Promise<ExportedRows>; // 已应用口径的全量行，供导出；见「导出」
 }
 
 /** 打开一个实例得到的判别联合；按 runtime.kind 收窄。 */
@@ -114,7 +115,7 @@ export class ViewWriteError extends Error {
 
 - `result.config` 是产生该结果的配置，不随 draft 变化；UI 用它标注"结果对应的条件"。`result.own` 是同一次执行中**合并作用域之前**的那份自有配置，随 `config` 一起记录：`mergeFilters` 把作用域作为尾随分组追加，`or`／`nor` 的 draft 还会被整棵包成第一个子节点，因此 `config.filter` 上的路径既不指向 draft，也不指向编辑器能删的东西——摘要要给出可点删除的条件，就只能读 `own.filter`，而宿主注入的那部分由 `runtime.scopeFilter` 单独交出、单独呈现且不可删除。
 - 选择绑定当前结果：`page`、`apply` 与解释环境变化清空 `selection`；`refresh` 后按新结果的行键求交集，消失的行自动移出。本轮不支持跨页选择，批量动作只作用于当前结果中仍存在的行。
-- 新的 `apply / refresh / page` 替代同一 runtime 的在途请求，旧响应到达后丢弃。这由 `RequestRunner` 用 per-runtime key 实现，全局并发上限与队列来自 `RuntimeLimits`（`maxConcurrentQueries`、`maxQueuedQueries`、`maxPageSize`、`maxAnalysisRows`、`minRefreshInterval`、`maxRefreshInterval`、`maxFilterDepth`、`maxFilterNodes`、`maxDashboardPanels`）。
+- 新的 `apply / refresh / page` 替代同一 runtime 的在途请求，旧响应到达后丢弃。这由 `RequestRunner` 用 per-runtime key 实现，全局并发上限与队列来自 `RuntimeLimits`（`maxConcurrentQueries`、`maxQueuedQueries`、`maxPageSize`、`maxAnalysisRows`、`minRefreshInterval`、`maxRefreshInterval`、`maxFilterDepth`、`maxFilterNodes`、`maxDashboardPanels`、`exportMax`）。
 - 状态变更同步提交后再通知订阅者；相同状态返回相同对象，子对象引用稳定，以配合 `useSyncExternalStore`。`dispose` 是最后一次通知：订阅者据此读到 `disposed`，`useOpenView` 才能在实例被别处删除时自行重开，而不必等一次碰巧的渲染。
 - runtime 不做持久化。保存是 Engine 的命令，成功后 Engine 调用 `runtime.markSaved(instance)` 推进基线。
 - **`edit` 里值为 `undefined` 的成员是"删掉"，不是"置为 undefined"。** 配置是 JSON：没有这个成员与成员为 `undefined` 是同一份配置，却不是同一个对象，而 `dirty` 是与已保存配置的一次 `dequal`。把最后一条可选列表项删掉的编辑器因此会让视图就此一直"未保存"、离开守卫还会问一句用户早已撤销过的改动。`defaultRecordConfig` 同理：没有汇总时根本不写 `summaries` 这个键，而不是写一个 `undefined`。
@@ -136,6 +137,17 @@ export class ViewWriteError extends Error {
 - 上一次请求仍在途。
 
 间隔的入口是刷新按钮的 `▾`（`RefreshControl`，三种视图各有一处，见 [ui/README.md#刷新是一个拆分按钮](ui/README.md#刷新是一个拆分按钮)）：选中即 `edit({ refresh: { interval } })` 加 `apply`，因为这里读的是 `applied`。界面不添第四条之外的暂停理由。计时与可见性都来自注入的 `RuntimeEnvironment`（见下方[环境](#环境)），runtime 不触碰 DOM。计时器随 `dispose` 释放。多个 React 组件观察同一 runtime 不会产生多个计时器。（见 test/runtime.test.ts「DataViewRuntime auto refresh」）
+
+## 导出
+
+`RecordViewRuntime.exportRows(options)` 按**已应用**口径（`applied` 合并作用域之后的那一份，也就是产生屏幕上这些行的那份配置）在后台把结果分页拉完，交还行本身；序列化与下载在别处（[kernels.md](kernels.md) 的 `serializeCsv`、[ui/record.md#导出](ui/record.md#导出)）。
+
+- **它走在运行时自己的请求线之外**：不占 `RequestRunner` 的槽位、不写 `state.result`、不发通知，既不会被 `apply` 顶掉，也顶不掉屏幕上的查询。导出是"在看这个视图的同时再要一份"，一个因为导出而清空自己的视图是更坏的答案；
+- **每页按 `limits.maxPageSize` 要，而不是按视图的 `pageSize`**：屏幕上一页几行与文件无关，来回次数越少越好，而那个上限正是这个源被准入时的那一个；
+- **`ctx.now` 只读一次**：二十页之间"今天"不能翻篇，否则同一个文件的首尾答的是两个问题；
+- **停在 `options.max ?? limits.exportMax`**，并在结果里以 `capped` 说明文件是截断的；空页当作结果的结束，哪怕源还报着下一页——这也是"源一直回空页"时唯一的出口；
+- **取消用 `AbortSignal`**，每一页各自建一个 `AbortController` 跟着它（`ViewSource` 收的是 controller，组件握的是 signal），取消时 Promise 以 `ExportCancelled` 拒绝，由 `isExportCancelled` 认出来——它是用户的答复，不是要报出来的失败；
+- **进度是 `(fetched, total?)`**：分页源有总数就报，游标源没有总数，那就不报一个没人算得出的数。（见 test/exportRows.test.ts）
 
 ## Dashboard
 

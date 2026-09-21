@@ -40,6 +40,8 @@ export interface DisplayField {
   /** Renderer key; the kind's when the field names none. */
   cell?: string;
   options?: readonly FieldOption[];
+  /** How a number of this field is written, when the field says. */
+  numberFormat?: NumberFormat;
   /** For a date histogram group: its keys are the starts of these buckets. */
   dateUnit?: AnalysisDateUnit;
   /** The zone those buckets were cut in, when the group named one. */
@@ -138,6 +140,25 @@ function readTime(
   return date && { date, timeZone };
 }
 
+/**
+ * One day as `2026-09-20`, on the surface's clock.
+ *
+ * `en-CA` is what writes a date in that order whatever the host's language,
+ * and the calendar is pinned to the Gregorian one: a file named for a Hijri
+ * day would sort beside nothing and name a day the data is not filed under.
+ * It is the zone the surface shows times in, so the day in the file's name is
+ * the day its rows read as.
+ */
+export function isoDay(date: Date, context: DisplayContext): string {
+  return format(date, 'en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    calendar: 'gregory',
+    timeZone: context.timeZone,
+  });
+}
+
 /** A number in the format its field declared; as written when it has none. */
 export function formatNumber(value: number, format?: NumberFormat): string {
   const formatter = format && numberFormatter(format);
@@ -164,6 +185,34 @@ export function valueText(
     return messages.label(value ? 'label.value.yes' : 'label.value.no');
   if (typeof value === 'string') return value;
   return JSON.stringify(value) ?? '';
+}
+
+/**
+ * One cell as text, for somewhere a React node cannot go — a CSV file, a
+ * copied selection, a title attribute.
+ *
+ * It is the same reading `cellValue` draws and deliberately the same code
+ * path: the badges come from `badgeEntries`, the times and enums from
+ * `displayValue`, the numbers and booleans from the rules under them. What it
+ * drops is only what a node carries and a line of text cannot — a badge is
+ * its label, a link is its URL, a clamped paragraph is the whole paragraph.
+ * Several badges read as one comma-separated list, the way the cell reads
+ * out loud.
+ */
+export function cellText(
+  value: unknown,
+  field: DisplayField,
+  messages: MessageFormatters,
+  context: DisplayContext,
+): string {
+  if (value === null || value === undefined) return '';
+  const badges = badgeEntries(value, field);
+  if (badges) return badges.map(entry => entry.label).join(', ');
+  const shown = displayValue(value, field, context);
+  if (shown !== undefined) return shown;
+  if (typeof value === 'number') return formatNumber(value, field.numberFormat);
+  if (typeof value === 'bigint') return value.toString();
+  return valueText(value, messages, field.numberFormat);
 }
 
 /** One badge: the value the record holds, the label and tone it wears. */

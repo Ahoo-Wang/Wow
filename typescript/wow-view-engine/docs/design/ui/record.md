@@ -6,6 +6,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 
 - 工具栏是「批量操作 + 展示设施」（D12 Ⅳ）。**左端**：有选中时先是「已选 N 条 · 清除」再是宿主的 `bulk` 槽位；没选中而宿主交了 `bulk` 槽位时是一句提示（`label.toolbar.hint`，「勾选行以批量处理」）——它说的是这一段将出现什么，所以只在有东西会出现时才说；宿主没有批量动作时左端为空。**右端**按职责两组，组间 8px、组内无缝：`[表格｜卡片]`（布局切换，图标各带名字与 tooltip）、`[列设置][排序]`（表格怎么显示手上这些行）。刷新不在这里：它是框架功能，在标题栏右组（[README.md#工作台骨架](README.md#工作台骨架)），三种工作台一样；
 - **右边两组是一个块，一起换行**。它们包在一个 `ml-auto flex flex-wrap justify-end` 里，而不是和一根 `flex-1` 撑条并排：撑条是最不该被换行绕着走的东西——它自己占满一行的宽度，于是布局切换被单独顶到第一行右端、列／排序掉到第二行左对齐。包成一块之后，它要么一行要么两行，右缘始终就是工具栏的右缘。左边**没有选择、也没有提示时整组不画**：那个 `min-h-8` 占位本是为了「选中第一行时结果不要被顶下去一行」，可右边的组本身就是按钮、任何时候都撑着这 32px，于是它只是 32px 的空白，在窄屏上还能自己占一行。（见回归 story「Record 工作台/回归」的 `ToolbarWrapsAsGroups`）
+- 右端第三组是**导出**（下面那条「导出」），它与前两组的区别正是它自成一组的理由：列设置与排序改的是这些行**怎么画**，导出什么也不改，只是把它们带走；
 - **份量**：功能一律是**带边的图标按钮**（`outline`），图标带名字与 tooltip——裸文字的 `ghost` 读起来像标签不像控件；只有同时报告状态的控件才带文字：排序按钮说的是当前排序（下面那条「按钮上读得出的排序」）。布局切换是一个控件两个档位，按[版式](README.md#版式三块一套间距一种选项控件)的房规用 `SEGMENTED` 在调用处合缝（`ui/components` 是上游源码，不就地改）；同屏唯一的 primary 仍是筛选的 Apply（编辑器折起时是宿主的主按钮）。（见 test/resultToolbar.test.tsx「ResultToolbar grouping and weight」）
 - 列设置是一个 popover，不是一串勾选项：**列显示什么、按什么顺序、固定在哪边、底下汇总什么**是同一个问题——"一行长什么样"——此前却分在三处（勾选列表管显隐，顺序只能改配置，固定与汇总根本没有入口）；
 - 顶部一句说明，其后一行一列：拖动手柄 · 显隐勾选框 · 列名 · （字段声明了 `summary` 时）汇总函数下拉 · 固定开关（固定时图标实心）；
@@ -25,6 +26,17 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 - 固定开关按 不固定 → 左 → 右 → 不固定 循环，写入 `table.columns[].pinned`；取消固定时那个键被**删掉**而不是置为 `undefined`——配置是 JSON，`{ pinned: undefined }` 与没有这个键在 `dequal` 眼里不是一回事，会让一个刚固定又取消的视图在整次打开里一直显示"未保存"；
 - **拖放用现成的库**（`@dnd-kit/react` + `@dnd-kit/dom`，走 catalog，MIT），不自写：它带指针与键盘传感器、拖动预览与一个 live region。只有可拖的行注册成 sortable item，固定行根本不是放置目标，这就是"列不跨区"在实现上的保证。库的 `OptimisticSortingPlugin` 按 [interaction-primitives 设计](../../../../docs/superpowers/specs/2026-09-13-view-engine-interaction-primitives-design.md) 关掉：它在指针移动时就重排 DOM，恰好让读取落点时的下标失效；落点由 drop 报出的 source／target 两个 id 算出；真指针那一条链路（按下手柄、移到第三行、松手）的回归只能放在浏览器工程里跑——库靠量盒子做碰撞检测，jsdom 里每个盒子都是原点上的 0×0，没有可比的东西——所以它是 `stories/view-engine/RecordWorkbench.test.stories.tsx` 的一条故事，与键盘那条共用同一份夹具，断言表头列序与保存后的 `table.columns`；
 - **键盘**：手柄可聚焦，方向键把这一行在区域内上下移一位；按空格拾起后方向键交给库，两边各有单一播报源（`isDragging` 时本地处理器让路）。库的英文播报换成目录里的句子，落定的结果由设置自己的 live region 说一次——拖的和按方向键的是同一句，不重复朗读。（见 test/columnSettings.test.tsx、test/accessibility.test.tsx「record, with the column settings open」）
+
+## 导出
+
+工具栏右端的 `ExportMenu`（D12 Ⅳ）：一个带边的图标按钮（`Download`，可及名字 `label.export.title`），菜单里三条，**各带条数**——「导出选中（N）」（有选中时才有，D4）、「导出本页（N）」、「导出所有（N，按当前筛选）」。
+
+- **「所有」要说「按当前筛选」**：它是唯一一条其行不是屏幕上那些行的口径，不说就会被读成"这张表里的全部"；总数报不出时（游标源）这一条只说条件，不编一个数；
+- **列与值就是表上那一份**：列取 `table.columns`（列设置里可见的列，投影后的顺序），每个值走 `cellText`——与单元格同一条读法（枚举取标签、时间按 `ViewSurface` 的时区与语言、数字按 `numberFormat`）。屏幕上写着日期、文件里写着 `1789723315014`，那是同一份数据的第二个、更安静的版本；
+- **分层**：序列化在内核（`record/export.ts` 的 `serializeCsv`，值格式化由调用方注入，见 [kernels.md#导出序列化](../kernels.md#导出序列化)），拉全量在运行时（[runtime.md#导出](../runtime.md#导出)），口径与状态在 `useRecordExport`（[react.md#userecordexport](../react.md#userecordexport)），**只有下载在 `/ui`**：`ui/download.ts` 的 `downloadFile` 是那三行 DOM（Blob → object URL → 带 `download` 的 `<a>` 点一下 → 立刻 revoke），文件名 `<视图名>-<yyyy-MM-dd>.csv`，日期按同一个时区。宿主要留痕的，`RecordWorkbench` 的 `onExported` 把文件原样交出来；
+- **跑起来以后菜单就是它的窗口**：「所有」这一条点下去不关菜单——要么开始拉全量、菜单变成进度加一个取消，要么停下来问一句、对话框接手。在途时菜单不接受关闭：取消只在这里，关掉它等于把唯一的出口一起关掉；而「选中」「本页」两条的行本来就在手上，它们照常关菜单；
+- **超上限先摆条数**：条数已知且大于 `limits.exportMax` 时先弹对话框，说清匹配多少条、上限多少、**文件里只会有前 N 条**——上限对答应之后的那次导出同样成立，只说"很多"而不说文件会被截断，是在请用户同意另一件事。Esc、遮罩与「取消」都是"不导"，一行也不拉；
+- **失败与截断都在状态行上说**，用的是状态条那一条既有的路径（`StatusStrip`，error 用 `export.failed`，warning 用 `export.capped`），不为导出另起一条 strip；取消什么也不说——它是用户自己的答复。（见 test/resultToolbar.test.tsx「ResultToolbar export menu」、test/recordWorkbench.test.tsx「RecordWorkbench export」，以及故事「Record 工作台/导出」）
 
 ## SortSettings：按钮上读得出的排序
 

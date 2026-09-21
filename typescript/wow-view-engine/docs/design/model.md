@@ -294,6 +294,10 @@ export type DashboardContentPanel = DashboardPanelBase &
 - 编辑器状态不进配置：折叠、当前标签页、未完成的输入、拖动中的临时位置归控制器；节点在编辑期的稳定 key 由控制器分配，不持久化；Issue 用路径定位节点。保存要求配置无 error，因此不存在保存半成品再恢复的问题。
 - 两种缺失要分开：**FieldKind 未注册**时内核没有它的 `validate` 与 `compile`，因此报 error 级 Issue，视图进入待修复，`apply` 被拒绝；**kind 已注册但缺少 React 渲染器**只影响编辑，配置照常校验与编译，UI 以只读方式显示原值并给出 warning。
 
+## `RuntimeLimits.exportMax`
+
+预算大多是"一次请求有多大"，`exportMax`（缺省 10000）是唯一一条"一次命令能带走多少行"：导出按已应用条件在后台分页拉全量，规模由**结果**而不是由屏幕上那一页决定，没有上限就意味着一次点错的导出可以向后端要一百万行、并在浏览器里把它们拼成一个字符串。它与其余预算同一条规矩——由调用方设定、按调用方设定的那份执行（[runtime.md#导出](runtime.md#导出)）：拉取在到达这个数时停下并声明文件是截断的；条数事先知道且超过它时，先把条数与上限摆给用户，答应了也只导出前 `exportMax` 条（[ui/record.md#导出](ui/record.md#导出)）。它不是配置成员，视图里没有任何一处写得出它，所以没有对应的 Issue 码——够不着的东西不报错（[ui/record.md](ui/record.md)）。
+
 ## `ViewConfigBase` 的三个字段
 
 `ViewConfigBase` 的三个字段都是"观察方式"的一部分，所以随视图保存而不是作为个人偏好：

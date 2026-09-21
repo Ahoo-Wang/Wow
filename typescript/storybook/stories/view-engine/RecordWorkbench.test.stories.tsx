@@ -26,6 +26,7 @@ import displayMeta, {
   DeleteConflicted as DisplayDeleteConflicted,
   EmptyResult as DisplayEmptyResult,
   English as DisplayEnglish,
+  ExportResult as DisplayExportResult,
   FillTheScreen as DisplayFillTheScreen,
   FillTheScreenInScaledHost as DisplayFillTheScreenInScaledHost,
   FillTheScreenInTransformedHost as DisplayFillTheScreenInTransformedHost,
@@ -3341,5 +3342,61 @@ export const ToolbarWrapsAsGroups: Story = {
       await expect(rightGroupEndsTheBar(canvasElement)).toBeLessThanOrEqual(1);
     }
     host.style.width = '375px';
+  },
+};
+
+/**
+ * The export menu: three readings of "export", each with its own count.
+ *
+ * Nothing is actually exported here. The file itself — its name, its header
+ * and every value in it — is asserted in jsdom, where the browser's half is
+ * a stub (`test/recordWorkbench.test.tsx`); a real click would hand this
+ * browser a download for nothing. What only a browser can answer is what the
+ * menu says, and that it says it in the language the data is in.
+ */
+export const ExportMenuScopes: Story = {
+  ...DisplayExportResult,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    await waitFor(() =>
+      expect(readColumn(table, '订单号')).toEqual(PENDING_BY_AMOUNT),
+    );
+
+    // The picked scope exists only once something is picked (D4), so the
+    // menu is read twice: without a selection, then with one.
+    await userEvent.click(
+      canvasElement.querySelector<HTMLElement>('[data-control="export"]')!,
+    );
+    const unpicked = await within(document.body).findByRole('menu');
+    await expect(
+      within(unpicked)
+        .getAllByRole('menuitem')
+        .map(item => item.textContent),
+    ).toEqual([
+      say('label.export.page', { count: 4 }),
+      say('label.export.all', { count: 4 }),
+    ]);
+    await userEvent.keyboard('{Escape}');
+
+    await userEvent.click(
+      canvas.getByLabelText(zhCN['label.record.select-all']),
+    );
+    await userEvent.click(
+      canvasElement.querySelector<HTMLElement>('[data-control="export"]')!,
+    );
+    const picked = await within(document.body).findByRole('menu');
+
+    await expect(
+      within(picked)
+        .getAllByRole('menuitem')
+        .map(item => item.textContent),
+    ).toEqual([
+      say('label.export.selected', { count: 4 }),
+      say('label.export.page', { count: 4 }),
+      // The one scope whose rows are not the ones on screen says so.
+      say('label.export.all', { count: 4 }),
+    ]);
+    await userEvent.keyboard('{Escape}');
   },
 };

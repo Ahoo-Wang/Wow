@@ -51,6 +51,11 @@ import {
   type DataViewConfig,
   type KernelContext,
 } from './execute.js';
+import {
+  fetchExportRows,
+  type ExportRowsOptions,
+  type ExportedRows,
+} from './exportRows.js';
 import type { WriteState } from './write.js';
 import type { DashboardRuntime } from './dashboardRuntime.js';
 
@@ -145,6 +150,16 @@ export interface RecordViewRuntime<
 > extends ViewRuntime<RecordViewConfig> {
   page(target: RecordPageTarget<P>): void;
   select(keys: RecordKey[]): void;
+  /**
+   * Every row the **applied** conditions match, paged out behind the screen
+   * for an export — the same filter and sort, without the page on screen.
+   *
+   * It runs beside the view rather than through it: no scheduler slot, no
+   * `apply`, and `state.result` is untouched, so the rows the user is reading
+   * stay exactly as they are while a long export runs. Stopped by
+   * `options.signal`, capped at `limits.exportMax`.
+   */
+  exportRows(options?: ExportRowsOptions): Promise<ExportedRows>;
 }
 
 /** What opening an instance returns; narrow it by `runtime.kind`. */
@@ -472,6 +487,28 @@ export class DataViewRuntime<
     this.pageTarget = target;
     this.setState({ selection: [] });
     this.execute({ keepSelection: false });
+  }
+
+  /**
+   * The applied config's rows, all of them, for an export.
+   *
+   * It reads `applied` merged with the scope — the very config the result on
+   * screen came from — and goes straight to the source: the request runner is
+   * the view's own lane and an export must neither queue behind the view nor
+   * push it aside. Declared on `RecordViewRuntime` alone, and an analysis
+   * runtime, which shares this class, answers that it has no rows to export.
+   */
+  exportRows(options: ExportRowsOptions = {}): Promise<ExportedRows> {
+    const applied: DataViewConfig = this.state.applied;
+    if (this.stopped || applied.kind !== 'record')
+      return Promise.reject(
+        new Error(`View ${this.id} has no record rows to export`),
+      );
+    return fetchExportRows(
+      this.context,
+      this.withScope(applied as C, this.injectedScope) as RecordViewConfig,
+      options,
+    );
   }
 
   select(keys: RecordKey[]): void {

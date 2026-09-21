@@ -94,6 +94,26 @@ useRecordTable(runtime): RecordTableController
 - `maxSortFields`——这个视图一次最多按几个字段排序：游标源取 Wow 的上限，分页源取定义里字段的个数。规则在内核（`record/maxSortFields`），控制器只转交，所以"控件停在哪"与"内核从哪开始拒绝"是同一个数；
 - `setSort(sort)`——整份排序按优先级顺序替换。`toggleSort` 是单列的答案、只能往后追加，而把排序当作一张列表来编辑要能说清谁先谁后、翻转其中一条、删掉其中一条，三件事是同一次写入。（见 test/recordTableCommands.test.tsx）
 
+## useRecordExport
+
+```ts
+useRecordExport(runtime, table, { deliver }): {
+  scopes: { selected?: number; page: number; all: number | null };
+  running: 'selected' | 'page' | 'all' | null;
+  progress: { scope; fetched; total? } | null;
+  overLimit: { count: number; max: number } | null;
+  error: Issue | null;
+  run(scope, options?: { force?: boolean }): void;
+  cancel(): void;
+}
+```
+
+- **三种口径各带条数**，条数就是这三项唯一的区别：`selected` 只在有选中时**存在**（D4——"导出选中的 0 条"是一个点了不做事的条目），`page` 是屏幕上这一页的行数，`all` 是分页源报出的总数、报不出时为 `null`（游标源没有总数，与其猜不如不说）；
+- **前两种的行已经在手上**（就是当前结果），直接交给 `deliver`；`all` 走 `runtime.exportRows`（[runtime.md#导出](runtime.md#导出)），因此翻页、选择与屏幕上的行都不受影响；
+- **`deliver` 由 `/ui` 注入**：值怎么读、文件怎么交给浏览器都是那一层的答案，钩子只负责把行凑齐。它抛出来的错与拉取失败同样处理——从用户那边看"导出没成功"是一件事而不是两件；
+- **超上限先问**：`run('all')` 在条数已知且大于 `limits.exportMax` 时不发请求，只把 `overLimit` 摆出来（对话框归 UI），`run('all', { force: true })` 是那句"知道了，导出"。条数不知道时没有可问的，那就跑，跑完以 `export.capped`（warning）说明文件被截断；
+- **一次只跑一个**：在途时 `run` 不接第二个，`cancel` 停掉在途的那个、或撤掉还没答的那个问句；取消不报错——它是用户自己的答复。失败经 `react/issues.ts` 成为一条 `export.failed`，由状态行上的同一条 `StatusStrip` 说出来（[ui/record.md#导出](ui/record.md#导出)）。（见 test/useRecordExport.test.tsx）
+
 ## useSaveCommands
 
 ```ts

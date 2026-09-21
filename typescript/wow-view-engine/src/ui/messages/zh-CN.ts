@@ -86,6 +86,23 @@ export const zhCN: ViewMessages = {
   'label.toolbar.clear-selection': '清除选择',
   'label.toolbar.actions': '操作',
 
+  // 导出菜单：三种口径各带条数，跑的时候说进度，超上限先问一句。
+  'label.export.title': '导出',
+  'label.export.selected': '导出选中（{count}）',
+  'label.export.page': '导出本页（{count}）',
+  'label.export.all': '导出所有（{count}，按当前筛选）',
+  'label.export.all-unknown': '导出所有（按当前筛选）',
+  'label.export.running': '正在导出',
+  'label.export.progress': '已取 {fetched} / {total} 条',
+  'label.export.progress-unknown': '已取 {fetched} 条',
+  'label.export.cancel': '取消',
+  'label.export.over-limit': '导出 {count} 条记录？',
+  'label.export.over-limit-body':
+    '当前筛选匹配 {count} 条，超过单次导出上限 {max} 条；文件里只会有前 {max} 条。',
+  'label.export.over-limit-confirm': '导出前 {max} 条',
+  'export.failed': '导出失败：{reason}',
+  'export.capped': '文件只到前 {count} 条。',
+
   // 自动刷新：刷新按钮 ▾ 里的间隔菜单，以及开启时按钮上的那处凭据。
   'label.refresh.auto': '自动刷新',
   'label.refresh.off': '关闭',

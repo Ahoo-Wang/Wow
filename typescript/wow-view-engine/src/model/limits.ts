@@ -24,6 +24,17 @@ export interface RuntimeLimits {
   maxPageSize: number;
   /** Upper bound of `AnalysisViewConfig.limit`. */
   maxAnalysisRows: number;
+  /**
+   * Rows one export may carry away, however many the conditions match.
+   *
+   * An export pages the source under the applied conditions with no regard
+   * for the page on screen, so it is the one command here whose cost is the
+   * size of the *result* rather than of a page. The ceiling is what keeps a
+   * mis-aimed export from asking a backend for a million rows and building a
+   * string of them in a browser tab; over it, the count is put to the user
+   * before anything is fetched.
+   */
+  exportMax: number;
   /** Shortest auto-refresh interval, in seconds. */
   minRefreshInterval: number;
   /** Longest auto-refresh interval, in seconds; keeps the timer in range. */
@@ -41,6 +52,7 @@ export const DEFAULT_RUNTIME_LIMITS: Readonly<RuntimeLimits> = Object.freeze({
   maxQueuedQueries: 32,
   maxPageSize: 200,
   maxAnalysisRows: 10_000,
+  exportMax: 10_000,
   minRefreshInterval: 5,
   maxRefreshInterval: 86_400,
   maxFilterDepth: 8,

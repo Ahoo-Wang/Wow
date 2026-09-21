@@ -15,6 +15,7 @@ import { analysisMessages } from './analysis.js';
 import { configMessages } from './config.js';
 import { dashboardMessages } from './dashboard.js';
 import { definitionMessages } from './definition.js';
+import { exportMessages } from './export.js';
 import { filterMessages } from './filter.js';
 import { headerMessages } from './header.js';
 import { manageMessages } from './manage.js';
@@ -44,6 +45,7 @@ export const en = {
   ...headerMessages,
   ...recordMessages,
   ...refreshMessages,
+  ...exportMessages,
   ...filterMessages,
   ...configMessages,
   ...scopeMessages,

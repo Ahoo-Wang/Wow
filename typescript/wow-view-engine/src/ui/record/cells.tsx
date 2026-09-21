@@ -12,7 +12,7 @@
  */
 
 import type * as React from 'react';
-import type { FieldTone, NumberFormat } from '../../model/index.js';
+import type { FieldTone } from '../../model/index.js';
 import { isSafeContentUrl } from '../../dashboard/index.js';
 import { Badge } from '../components/badge.js';
 import {
@@ -25,10 +25,12 @@ import {
 } from '../display.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
 
-/** What a renderer knows about the field a value came from. */
-export interface CellField extends DisplayField {
-  numberFormat?: NumberFormat;
-}
+/**
+ * What a renderer knows about the field a value came from — which is what any
+ * reading of a value needs, `cellText` in a CSV included, so it is that type
+ * under the name this side uses for it.
+ */
+export type CellField = DisplayField;
 
 /**
  * The variant each tone is drawn with. The colour is never the only

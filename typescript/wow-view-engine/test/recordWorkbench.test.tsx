@@ -1735,7 +1735,9 @@ describe('the record workbench layout', () => {
     });
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
 
-    expect(screen.queryByRole('button', { name: /Export/ })).toBeNull();
+    // The host's own button, named by what it would act on — the toolbar's
+    // own export is a different control and is there all along.
+    expect(screen.queryByRole('button', { name: /\d+ selected/ })).toBeNull();
 
     fireEvent.click(screen.getByLabelText('Select all rows'));
 

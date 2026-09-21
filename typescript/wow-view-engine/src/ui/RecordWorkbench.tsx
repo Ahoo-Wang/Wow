@@ -11,19 +11,23 @@
  * limitations under the License.
  */
 
-import { useState, type ReactNode } from 'react';
-import type { FieldOption } from '../model/index.js';
-import type { RecordRow } from '../record/index.js';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import type { FieldOption, RecordData } from '../model/index.js';
+import { serializeCsv, type RecordRow } from '../record/index.js';
 import {
   resultIssues,
   type RecordViewRuntime,
   type ViewEngine,
 } from '../runtime/index.js';
 import {
+  useRecordExport,
   useRecordTable,
   useWorkbench,
   type RecordActionSlots,
+  type RecordExportScope,
 } from '../react/index.js';
+import { cellText, isoDay, type DisplayContext } from './display.js';
+import { downloadFile, fileName } from './download.js';
 import { FilterPanel } from './FilterPanel.js';
 import { FilterModes, filterModeLabel } from './filter/FilterModes.js';
 import { RecordCards } from './RecordCards.js';
@@ -31,7 +35,7 @@ import { RecordPagination } from './RecordPagination.js';
 import { RecordTable } from './RecordTable.js';
 import { ResultToolbar } from './ResultToolbar.js';
 import { RowActions } from './RowActions.js';
-import { QueryStrip } from './StatusStrip.js';
+import { QueryStrip, StatusStrip } from './StatusStrip.js';
 import { RefreshControl } from './RefreshControl.js';
 import { useViewMessages } from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
@@ -81,7 +85,25 @@ export interface RecordWorkbenchProps {
    * the workbench, not to the way of looking somebody saved.
    */
   actions?: RecordActionSlots;
+  /**
+   * Told whenever an export has been handed to the browser — the file's name,
+   * its contents and how many rows of which scope it holds. A host that
+   * audits what leaves the application reads it; nothing here needs it, and
+   * the download happens either way.
+   */
+  onExported?(file: ExportedFile): void;
 }
+
+/** One file an export produced, as it was handed over. */
+export interface ExportedFile {
+  name: string;
+  text: string;
+  scope: RecordExportScope;
+  rows: number;
+}
+
+/** What a CSV is served as; the charset is what makes the BOM readable. */
+const CSV_TYPE = 'text/csv;charset=utf-8';
 
 /**
  * The default Record workbench: the view list, the conditions, the result and
@@ -104,6 +126,7 @@ export function RecordWorkbench({
   expandable,
   onRenderFailure,
   actions,
+  onExported,
 }: RecordWorkbenchProps) {
   // The host's wording, resolved here rather than read off the provider:
   // `ViewSurface` is inside `WorkbenchShell`, so this component is above the
@@ -148,6 +171,42 @@ export function RecordWorkbench({
     filter.clear();
     filter.submit();
   };
+
+  // The language and zone values read in. `useSurfaceDisplay` cannot answer
+  // here — the surface is inside `WorkbenchShell`, below this component — so
+  // the two halves are taken from where the shell itself takes them, and an
+  // exported time is the time the cell above it showed.
+  const timeZone = engine.environment.timeZone;
+  const display = useMemo<DisplayContext>(
+    () => ({
+      ...(locale === undefined ? {} : { locale }),
+      ...(timeZone === undefined ? {} : { timeZone }),
+    }),
+    [locale, timeZone],
+  );
+  const title = state?.title ?? '';
+  const columns = table.columns;
+  const now = engine.environment.now;
+  /**
+   * The rows as a file the browser takes.
+   *
+   * The columns are the ones the table is drawing, in the order it draws
+   * them, and every value goes through the same reading the cell above it
+   * does — an export that said `1789723315014` where the screen said a date
+   * would be a second, quieter view of the data.
+   */
+  const deliver = useCallback(
+    (rows: readonly RecordData[], scope: RecordExportScope) => {
+      const text = serializeCsv(rows, columns, (value, column) =>
+        cellText(value, column, messages, display),
+      );
+      const name = fileName(title, isoDay(now(), display), 'csv');
+      downloadFile({ name, text, type: CSV_TYPE });
+      onExported?.({ name, text, scope, rows: rows.length });
+    },
+    [columns, display, messages, now, onExported, title],
+  );
+  const exporter = useRecordExport(record, table, { deliver });
 
   return (
     <WorkbenchShell
@@ -206,11 +265,23 @@ export function RecordWorkbench({
         )
       }
       strips={
-        <QueryStrip
-          error={table.error}
-          stale={hasResult}
-          onRetry={table.refresh}
-        />
+        <>
+          <QueryStrip
+            error={table.error}
+            stale={hasResult}
+            onRetry={table.refresh}
+          />
+          {/* What the export has to say, in the same one line every other
+              finding gets — above the rows it was taken from, where a
+              failed query is already reported. A cancel says nothing: it
+              is the answer the user gave. */}
+          {exporter.error && (
+            <StatusStrip
+              tone={exporter.error.severity === 'error' ? 'error' : 'warning'}
+              title={messages.issue(exporter.error)}
+            />
+          )}
+        </>
       }
       result={
         record && (
@@ -224,6 +295,7 @@ export function RecordWorkbench({
               // a host that hands over no row slot has no column to place.
               hasRowActions={row !== undefined}
               bulkActions={actions?.bulk}
+              exportControl={exporter}
               runtime={record}
             />
 

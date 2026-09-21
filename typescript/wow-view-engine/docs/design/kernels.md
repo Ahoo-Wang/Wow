@@ -111,6 +111,15 @@ mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboa
 - `sort[].field` 必须存在且 `sortable` 为 true，游标模式下 `sort.length` 不超过 Wow 的 `MAX_CURSOR_SORT_FIELDS`（32）；
 - 每个 `summaries[]` 的函数必须出现在该字段的 `summary` 集合中。（见 test/record.test.ts「validateRecord」「a record config that lost its shape」）
 
+## 导出序列化
+
+`serializeCsv(rows, columns, format)`（`record/export.ts`）是纯函数：表头是给过来的列的标签、顺序就是给过来的顺序（也就是投影后的可见列），每格的值由 `recordValue` 按 Wow 查询路径取出，再交给**调用方注入的** `format(value, column)` 读成文本。
+
+- **格式化注入而不是在这里决定**：枚举的标签、时间的时区、数字的格式都是 `/ui` 的答案（`cellText`），内核没有目录、没有语言、也没有渲染器，读法写在这里就等于第二份读法；
+- 按 RFC 4180 转义：含 `,`、`"`、`\r`、`\n` 的字段加引号、内部引号翻倍，记录以 `CRLF` 结尾（含最后一条），前面加 UTF-8 BOM（`CSV_BOM`）——没有它 Excel 会按机器的 ANSI 代码页读，中文全成乱码；
+- **值原样写，不改写**：以 `=` 开头的值是表格软件可能会去求值的东西，但一个悄悄加上单引号的导出交出的文件，内容已经不是屏幕上说的那份了；
+- 零行时只有表头。`format` 由宿主提供，因此返回值再被强制成字符串：`undefined` 写成 `undefined` 这个词，是表格从没显示过的值。（见 test/recordExport.test.ts）
+
 ## Analysis 内核的规则
 
 `validateAnalysis` 的规则：

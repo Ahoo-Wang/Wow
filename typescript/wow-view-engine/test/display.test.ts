@@ -16,10 +16,13 @@ import type { MessageFormatters } from '../src/ui/index.js';
 import type { FilterSummaryItem } from '../src/index.js';
 import {
   badgeEntries,
+  cellText,
   displayValue,
   formatNumber,
+  isoDay,
   summaryText,
   valueText,
+  type DisplayField,
 } from '../src/ui/display.js';
 import { en } from '../src/ui/messages/en.js';
 import { formatMessage } from '../src/ui/messages.js';
@@ -308,6 +311,86 @@ describe('displayValue', () => {
         { locale: 'en-GB', timeZone: 'Mars/Olympus_Mons' },
       ),
     ).toBe(formatted(INSTANT, 'en-GB', DATE_TIME));
+  });
+});
+
+/**
+ * The same reading a cell has, as a line of text: what a CSV, a title or a
+ * copied selection gets. What a node carries and a line cannot — the pill
+ * around a status, the anchor around a URL — is all that is dropped.
+ */
+describe('cellText', () => {
+  const words: MessageFormatters = {
+    label: key => formatMessage(en, key),
+    issue: () => '',
+    issues: () => '',
+  };
+  const text = (value: unknown, field: DisplayField = {}) =>
+    cellText(value, field, words, { locale: 'en-GB', timeZone: 'UTC' });
+
+  it('says nothing at all about a value the row does not hold', () => {
+    expect(text(null)).toBe('');
+    expect(text(undefined)).toBe('');
+  });
+
+  it('reads a badge as its label, and several as a list', () => {
+    const field = {
+      kind: 'enum',
+      options: [
+        { value: 'PENDING', label: 'Pending' },
+        { value: 'SHIPPED', label: 'Shipped' },
+      ],
+    };
+
+    expect(text('PENDING', field)).toBe('Pending');
+    expect(text(['PENDING', 'SHIPPED'], field)).toBe('Pending, Shipped');
+  });
+
+  it('reads a time in the zone the surface shows it in', () => {
+    expect(text(INSTANT, { kind: 'datetime' })).toBe(
+      formatted(INSTANT, 'en-GB', { ...DATE_TIME, timeZone: 'UTC' }),
+    );
+  });
+
+  it('keeps a number in its format and a boolean in the catalogue words', () => {
+    expect(text(1234.5, { kind: 'number' })).toBe('1234.5');
+    expect(
+      text(1000, {
+        kind: 'number',
+        numberFormat: { style: 'currency', currency: 'CNY', locale: 'en-GB' },
+      }),
+    ).toBe(
+      new Intl.NumberFormat('en-GB', {
+        style: 'currency',
+        currency: 'CNY',
+      }).format(1000),
+    );
+    expect(text(true, { kind: 'boolean' })).toBe(en['label.value.yes']);
+  });
+
+  it('gives a link and a paragraph whole, and anything else as JSON', () => {
+    expect(text('https://example.com/a', { cell: 'link' })).toBe(
+      'https://example.com/a',
+    );
+    expect(text('two\nlines', { cell: 'text' })).toBe('two\nlines');
+    expect(text({ a: 1 })).toBe('{"a":1}');
+    expect(text(9007199254740993n)).toBe('9007199254740993');
+  });
+});
+
+describe('isoDay', () => {
+  it('writes the day in the surface zone, whatever the language', () => {
+    // 17:21 in Shanghai on the 18th is still the 18th; in Los Angeles the
+    // same instant is 02:21 on the 18th — and a zone a day behind shows it.
+    expect(isoDay(new Date(INSTANT), { timeZone: 'Asia/Shanghai' })).toBe(
+      '2026-09-18',
+    );
+    expect(
+      isoDay(new Date(INSTANT), {
+        locale: 'ar-EG-u-nu-arab',
+        timeZone: 'Pacific/Honolulu',
+      }),
+    ).toBe('2026-09-17');
   });
 });
 

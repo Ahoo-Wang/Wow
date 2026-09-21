@@ -19,8 +19,6 @@
 
 结构在 [decisions.md#d12](decisions.md#d12-一屏七块每块只回答一个问题) 定了，对比页第 17 版是定稿。每条的判据除下面写的，还有共同的一份：`test/accessibility.test.tsx` 过 axe；jsdom 钉结构（哪些槽位、什么条件下存在）、浏览器故事钉几何与层叠色；中英文案齐全；`docs/design/ui/README.md` 对应节同步；全门绿。
 
-- **L5 导出**——为什么：导出是记录视图最常用的功能之一，现在没有。判据：工具栏右端一个图标菜单按钮，三个条目各带条数：**选中**（有选中时才出现）、**本页**、**所有（按当前筛选）**；"所有"按当前已应用条件在后台分页拉全量，不受屏幕分页限制，超过阈值（`RuntimeLimits` 新增 `exportMax`，默认 10000）先提示条数再导；导出的列与顺序是列设置里可见的列，值按单元格读法（枚举用标签、日期按 `ViewSurface` 时区、数字按 `numberFormat`）；格式先 CSV（UTF-8 带 BOM），文件名 `<视图名>-<日期>.csv`；导出中有进度与取消，失败在状态行报出；序列化在 headless 层（`src/record/export.ts`，值格式化由调用方注入）、下载在 `/ui`；`test/` 覆盖三种口径、阈值提示、取消；故事一条可手动导出。落点：`src/model/limits.ts`、`src/record/export.ts`、`src/react/useRecordExport.ts`、`src/ui/ExportMenu.tsx`、`src/ui/ResultToolbar.tsx`、[ui/record.md](ui/record.md)、[react.md](react.md)。
-
 ## 重构（小步，每步一个 PR，零行为变化）
 
 ## `max-lines` 存量豁免（拆到阈值以内就删掉 override）

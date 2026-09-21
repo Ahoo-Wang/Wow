@@ -25,6 +25,7 @@ export * from './useAnalysisEditor.js';
 export * from './useAutoRefresh.js';
 export * from './useDashboard.js';
 export * from './useFilterEditor.js';
+export * from './useRecordExport.js';
 export * from './useRecordTable.js';
 export * from './useSaveCommands.js';
 export * from './useViewEngine.js';

@@ -11,12 +11,13 @@
  * limitations under the License.
  */
 
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FieldDefinition } from '../src/model/index.js';
 import type {
   RecordBulkActionContext,
+  RecordExportController,
   RecordTableController,
 } from '../src/react/index.js';
 import type { RecordViewRuntime } from '../src/runtime/index.js';
@@ -89,6 +90,26 @@ function tableController(
     next: () => {},
     previous: () => {},
     refresh: () => {},
+    ...overrides,
+  };
+}
+
+/**
+ * The export as the toolbar sees it: counts and one `run`. The controller is
+ * `useRecordExport`'s, and it is stubbed here so the menu is tested for what
+ * it draws rather than for what a fetch does — the hook has its own suite.
+ */
+function exportController(
+  overrides: Partial<RecordExportController> = {},
+): RecordExportController {
+  return {
+    scopes: { page: 3, all: 42 },
+    running: null,
+    progress: null,
+    overLimit: null,
+    error: null,
+    run: () => {},
+    cancel: () => {},
     ...overrides,
   };
 }
@@ -365,5 +386,167 @@ describe('ResultToolbar hint', () => {
       />,
     );
     expect(container.querySelector('[data-slot="toolbar-hint"]')).toBeNull();
+  });
+});
+
+/**
+ * The export menu (D12 Ⅳ): one bordered icon button at the end of the block,
+ * three readings of "export", each with its own count.
+ */
+describe('ResultToolbar export menu', () => {
+  it('is not there at all when the surface offers no export', () => {
+    render(
+      <ResultToolbar
+        table={tableController()}
+        fields={FIELDS}
+        runtime={runtime}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Export' })).toBeNull();
+  });
+
+  it('offers this page and everything, and no selection while none is picked', async () => {
+    const user = userEvent.setup();
+    render(
+      <ResultToolbar
+        table={tableController()}
+        fields={FIELDS}
+        runtime={runtime}
+        exportControl={exportController()}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Export' }));
+    const menu = await screen.findByRole('menu');
+
+    expect(
+      within(menu)
+        .getAllByRole('menuitem')
+        .map(item => item.textContent),
+    ).toEqual([
+      'Export this page (3)',
+      'Export all (42, under the current conditions)',
+    ]);
+  });
+
+  it('offers the picked rows once there are any, and runs that scope', async () => {
+    const run = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <ResultToolbar
+        table={tableController({ selection: ['o-1', 'o-2'] })}
+        fields={FIELDS}
+        runtime={runtime}
+        exportControl={exportController({
+          scopes: { selected: 2, page: 3, all: 42 },
+          run,
+        })}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Export' }));
+    await user.click(
+      await screen.findByRole('menuitem', { name: 'Export selected (2)' }),
+    );
+
+    expect(run).toHaveBeenCalledWith('selected');
+  });
+
+  it('says only that the conditions are in force when nobody reports a total', async () => {
+    const user = userEvent.setup();
+    render(
+      <ResultToolbar
+        table={tableController()}
+        fields={FIELDS}
+        runtime={runtime}
+        exportControl={exportController({ scopes: { page: 3, all: null } })}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Export' }));
+
+    expect(
+      await screen.findByRole('menuitem', {
+        name: 'Export all (under the current conditions)',
+      }),
+    ).toBeTruthy();
+  });
+
+  it('shows how far a long export has got, and the way to stop it', async () => {
+    const cancel = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <ResultToolbar
+        table={tableController()}
+        fields={FIELDS}
+        runtime={runtime}
+        exportControl={exportController({
+          running: 'all',
+          progress: { scope: 'all', fetched: 200, total: 900 },
+          cancel,
+        })}
+      />,
+    );
+
+    // No click opened this: a run of its own holds the menu open, since the
+    // cancel is in it and a menu that closed would take the way out with it.
+    const progress = await screen.findByText('200 of 900 fetched');
+    expect(progress).toBeTruthy();
+    expect(screen.getByRole('status', { name: 'Exporting' })).toBeTruthy();
+    expect(screen.queryByRole('menuitem')).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(cancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('puts the count and the ceiling before fetching anything', async () => {
+    const run = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <ResultToolbar
+        table={tableController()}
+        fields={FIELDS}
+        runtime={runtime}
+        exportControl={exportController({
+          overLimit: { count: 42000, max: 10000 },
+          run,
+        })}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.textContent).toContain('Export 42000 records?');
+    // What the file will hold, not only how many there are: the ceiling
+    // still applies to the answer.
+    expect(dialog.textContent).toContain('The file will hold the first 10000.');
+
+    await user.click(
+      screen.getByRole('button', { name: 'Export the first 10000' }),
+    );
+    expect(run).toHaveBeenCalledWith('all', { force: true });
+  });
+
+  it('drops the question when it is dismissed', async () => {
+    const cancel = vi.fn();
+    const run = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <ResultToolbar
+        table={tableController()}
+        fields={FIELDS}
+        runtime={runtime}
+        exportControl={exportController({
+          overLimit: { count: 42000, max: 10000 },
+          cancel,
+          run,
+        })}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(run).not.toHaveBeenCalled();
   });
 });
