@@ -24,7 +24,6 @@ import type {
 import type { RecordTableController } from '../react/index.js';
 import { pageSummaries, recordValue } from '../record/index.js';
 import { RowActions } from './RowActions.js';
-import { Badge } from './components/badge.js';
 import { Checkbox } from './components/checkbox.js';
 import {
   Empty,
@@ -34,13 +33,7 @@ import {
   EmptyTitle,
 } from './components/empty.js';
 import { Skeleton } from './components/skeleton.js';
-import {
-  badgeEntries,
-  displayValue,
-  formatNumber,
-  type DisplayContext,
-} from './display.js';
-import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
+import { useViewMessages } from './MessagesProvider.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 import {
   actionCell,
@@ -56,6 +49,7 @@ import {
   usePinnedEdges,
   usePinnedOffsets,
 } from './record/columns.js';
+import { cellValue } from './record/cells.js';
 import { SortableHeader } from './record/SortableHeader.js';
 import { SummaryRows } from './record/SummaryRows.js';
 import {
@@ -69,7 +63,7 @@ import {
 
 export interface RecordTableProps {
   table: RecordTableController;
-  /** Renders one cell; the default formats by the column's declared kind. */
+  /** Renders one cell; the default reads it as the column's `cell` says. */
   renderCell?(cell: RecordCell): React.ReactNode;
   /**
    * Whether rows can be picked. On by default; a surface that offers nothing
@@ -153,7 +147,8 @@ export function RecordTable({
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
   const renderOne =
-    renderCell ?? (found => defaultCell(found, messages, display));
+    renderCell ??
+    (found => cellValue(found.value, found.column, messages, display));
   const allSelected =
     table.rows.length > 0 && table.selection.length === table.rows.length;
   const columns = table.columns;
@@ -356,43 +351,4 @@ function useSummaries(
     if (summaries.scope === 'page') return [summaries];
     return [pageSummaries(summaries.cells, rows), summaries];
   }, [summaries, rows]);
-}
-
-/** Numbers follow the field's declared format; everything else is text. */
-function defaultCell(
-  { column, value }: RecordCell,
-  messages: MessageFormatters,
-  display: DisplayContext,
-): React.ReactNode {
-  if (value === null || value === undefined) return null;
-  // A status is one of a known set, so it reads as a badge rather than as a
-  // word that happens to be capitalised. The neutral variant is the only one
-  // used: the definition says what the choices are, not which of them is
-  // good news, and a table that colours them by guess is a table that calls
-  // `CANCELLED` an error in one application and a normal outcome in the next.
-  const badges = badgeEntries(value, column);
-  if (badges)
-    return (
-      <span className="flex flex-wrap items-center gap-1">
-        {/* Keyed by the value and its place, never by the label: a list may
-            hold the same value twice and two options may be worded alike,
-            and two children under one key is a reconciliation React is free
-            to get wrong. */}
-        {badges.map((badge, index) => (
-          <Badge key={`${String(badge.value)}-${index}`} variant="secondary">
-            {badge.label}
-          </Badge>
-        ))}
-      </span>
-    );
-  // A time, a date or an enum shows as the field says; a number keeps its
-  // format and a boolean its wording below.
-  const shown = displayValue(value, column, display);
-  if (shown !== undefined) return shown;
-  if (typeof value === 'number')
-    return formatNumber(value, column.numberFormat);
-  if (typeof value === 'boolean')
-    return messages.label(value ? 'label.value.yes' : 'label.value.no');
-  if (typeof value === 'string') return value;
-  return JSON.stringify(value);
 }

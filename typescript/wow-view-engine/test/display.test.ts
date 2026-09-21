@@ -376,6 +376,50 @@ describe('badgeEntries', () => {
     expect(badgeEntries(null, STATUS)).toBeUndefined();
     expect(badgeEntries(undefined, STATUS)).toBeUndefined();
   });
+
+  /**
+   * The tone travels with the entry because the caller no longer has the
+   * option it came from: it holds a label, and a label is not a key back.
+   */
+  it('hands over the tone the matching option declares', () => {
+    const toned = {
+      kind: 'enum',
+      options: [
+        { value: 'PENDING', label: 'Pending', tone: 'warning' as const },
+        { value: 'SHIPPED', label: 'Shipped' },
+      ],
+    };
+
+    expect(badgeEntries(['PENDING', 'SHIPPED'], toned)).toEqual([
+      { value: 'PENDING', label: 'Pending', tone: 'warning' },
+      // No tone is not a tone of "none": the key is absent, and the caller
+      // reads that as neutral.
+      { value: 'SHIPPED', label: 'Shipped' },
+    ]);
+  });
+
+  /**
+   * `status` and `tags` were asked for by name, so the question the `enum`
+   * rule answers — is this really one of a set? — has already been answered
+   * by the definition, and a code it stopped naming keeps its pill.
+   */
+  it('badges a declared status or tag list whatever the options say', () => {
+    expect(badgeEntries('LOST', { ...STATUS, cell: 'status' })).toEqual([
+      { value: 'LOST', label: 'LOST' },
+    ]);
+    expect(badgeEntries('LOST', { kind: 'string', cell: 'status' })).toEqual([
+      { value: 'LOST', label: 'LOST' },
+    ]);
+    expect(
+      labelsOf(badgeEntries(['PENDING', 'LOST'], { ...STATUS, cell: 'tags' })),
+    ).toEqual(['Pending', 'LOST']);
+    // An empty list is a list of no badges, not a value to fall back on.
+    expect(badgeEntries([], { kind: 'array', cell: 'tags' })).toEqual([]);
+    // Nothing held is still nothing to show.
+    expect(
+      badgeEntries(null, { kind: 'string', cell: 'status' }),
+    ).toBeUndefined();
+  });
 });
 
 /**

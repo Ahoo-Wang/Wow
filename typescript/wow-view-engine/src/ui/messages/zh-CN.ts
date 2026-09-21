@@ -627,6 +627,8 @@ export const zhCN: ViewMessages = {
   'definition.analysis.field-unknown': '分析能力写了 {field}，定义没有声明它。',
   'definition.analysis.limit-invalid': '分析上限必须是正整数。',
   'definition.analysis.no-metric': '分析能力没有给出可以起步的指标。',
+  'definition.field.cell-invalid': '{field} 声明了未知的单元格读法：{value}。',
+  'definition.field.tone-invalid': '{field} 声明了未知的选项语气：{value}。',
   'definition.field.duplicate': '字段 {field} 声明了两次。',
   'definition.fieldGroup.duplicate': '分组 {group} 声明了两次。',
   'definition.fieldGroup.field-duplicate':

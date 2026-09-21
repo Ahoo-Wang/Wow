@@ -28,6 +28,7 @@ import {
   EmbeddedView,
   formatMessage,
   RecordPagination,
+  RecordTable,
   RecordWorkbench,
   useViewExpansion,
   ViewSurface,
@@ -576,6 +577,68 @@ describe('the default workbenches pass axe', () => {
         <RecordPagination
           table={recordTableController({
             paging: { mode: 'paged', index: 2, total: 42 },
+          })}
+        />
+      </ViewSurface>,
+    );
+
+    expect(await violations(container)).toEqual([]);
+  });
+
+  /**
+   * Every cell reading at once. The link is why this is here: the one
+   * interactive thing a cell can hold has to carry a name, and its name is
+   * the text it shows — there is no label beside a cell to borrow one from.
+   */
+  it('a row holding each of the cell readings', async () => {
+    const { container } = render(
+      <ViewSurface>
+        <RecordTable
+          table={recordTableController({
+            columns: [
+              {
+                field: 'status',
+                label: 'Status',
+                kind: 'enum',
+                cell: 'status',
+                sortable: false,
+                options: [
+                  { value: 'PENDING', label: 'Pending', tone: 'warning' },
+                ],
+              },
+              {
+                field: 'tags',
+                label: 'Tags',
+                kind: 'array',
+                cell: 'tags',
+                sortable: false,
+              },
+              {
+                field: 'track',
+                label: 'Tracking',
+                kind: 'string',
+                cell: 'link',
+                sortable: false,
+              },
+              {
+                field: 'note',
+                label: 'Note',
+                kind: 'string',
+                cell: 'text',
+                sortable: false,
+              },
+            ],
+            rows: [
+              {
+                key: 'o-1',
+                data: {
+                  status: 'PENDING',
+                  tags: ['rush', 'gift'],
+                  track: 'https://example.com/t/1',
+                  note: 'Left with the neighbour.\nSecond attempt tomorrow.',
+                },
+              },
+            ],
           })}
         />
       </ViewSurface>,

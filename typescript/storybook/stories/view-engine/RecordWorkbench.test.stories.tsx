@@ -21,6 +21,7 @@ import type { RecordViewConfig } from '@ahoo-wang/fetcher-view-engine';
 import displayMeta, {
   AutoRefresh as DisplayAutoRefresh,
   CannotOpen as DisplayCannotOpen,
+  CellFamily as DisplayCellFamily,
   CollapsedSidebar as DisplayCollapsedSidebar,
   EmptyResult as DisplayEmptyResult,
   FillTheScreen as DisplayFillTheScreen,
@@ -240,6 +241,75 @@ export const BlockSpacing: Story = {
       '[data-slot="result-block"]',
     )!;
     await expect(getComputedStyle(result).rowGap).toBe('12px');
+  },
+};
+
+/**
+ * Every reading a definition can declare, in a real browser.
+ *
+ * The three that jsdom cannot answer for are here: whether a link really
+ * carries the two attributes that keep the opened document from reaching
+ * back, whether the tone reaches the badge as a variant rather than only as
+ * an attribute, and whether an undeclared column is still exactly what it
+ * always was.
+ */
+export const CellFamily: Story = {
+  ...DisplayCellFamily,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    await waitFor(() => expect(readColumn(table, '订单号')).toHaveLength(6));
+
+    // A status is one badge in the tone its own option declares. The colour
+    // is never the only difference — the label says which status this is.
+    const pending = badgeIn(table, '状态')!;
+    await expect(pending).toHaveTextContent('待出库');
+    await expect(pending).toHaveAttribute('data-tone', 'warning');
+    const cancelled = cellAt(table, '状态', 1).querySelector(
+      '[data-slot="badge"]',
+    )!;
+    await expect(cancelled).toHaveTextContent('已取消');
+    await expect(cancelled).toHaveAttribute('data-tone', 'danger');
+    // Danger is the one tone the registry itself has a variant for.
+    await expect(cancelled).toHaveAttribute('data-variant', 'destructive');
+
+    // A list is one badge per entry, and an entry the options stopped
+    // naming shows the code it came as rather than disappearing.
+    await expect(badgeTexts(cellAt(table, '标记', 0))).toEqual([
+      '加急',
+      '易碎',
+    ]);
+    await expect(badgeTexts(cellAt(table, '标记', 5))).toEqual(['vip']);
+
+    // A URL is a link out of the application, so the document it opens must
+    // not reach back through `window.opener` nor arrive knowing where from.
+    const link = cellAt(table, '运单', 0).querySelector('a')!;
+    await expect(link).toHaveAttribute('target', '_blank');
+    await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    await expect(link).toHaveAccessibleName(
+      'https://example.com/track/SO-1001',
+    );
+    // And a scheme the content rules refuse is text, never a live link.
+    await expect(cellAt(table, '运单', 4).querySelector('a')).toBeNull();
+    await expect(cellAt(table, '运单', 4)).toHaveTextContent(
+      'javascript:alert(1)',
+    );
+
+    // A note is clamped to a few lines with the whole of it one hover away,
+    // which is the one assertion that needs a browser to lay the box out.
+    const note = cellAt(table, '备注', 4).querySelector<HTMLElement>(
+      '[data-slot="cell-text"]',
+    )!;
+    await expect(note).toHaveAttribute('title', note.textContent!);
+    await expect(getComputedStyle(note).webkitLineClamp).toBe('3');
+    await expect(note.scrollHeight).toBeGreaterThan(note.clientHeight);
+
+    // And the column that declared nothing is what it always was: text, with
+    // no pill around it and nothing to click.
+    const key = cellAt(table, '订单号', 0);
+    await expect(key).toHaveTextContent('SO-1001');
+    await expect(key.querySelector('[data-slot="badge"]')).toBeNull();
+    await expect(key.querySelector('a')).toBeNull();
   },
 };
 
@@ -831,6 +901,26 @@ function badgeIn(table: HTMLElement, label: string): HTMLElement | null {
   const row = (table as HTMLTableElement).tBodies[0]?.rows[0];
   const cell = row?.cells[headerOf(table, label).cellIndex];
   return cell?.querySelector<HTMLElement>('[data-slot="badge"]') ?? null;
+}
+
+/** One body cell, by the column's own header and the row's place. */
+function cellAt(
+  table: HTMLElement,
+  label: string,
+  row: number,
+): HTMLTableCellElement {
+  const found = (table as HTMLTableElement).tBodies[0]?.rows[row]?.cells[
+    headerOf(table, label).cellIndex
+  ];
+  if (!found) throw new Error(`Row ${row} has no cell under "${label}".`);
+  return found;
+}
+
+/** What each badge of one cell says, left to right. */
+function badgeTexts(cell: HTMLElement): string[] {
+  return [...cell.querySelectorAll('[data-slot="badge"]')].map(
+    node => node.textContent?.trim() ?? '',
+  );
 }
 
 /** Where a sorted column sits in the order, as its header shows it. */

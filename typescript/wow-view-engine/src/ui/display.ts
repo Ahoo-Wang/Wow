@@ -14,6 +14,7 @@
 import type {
   AnalysisDateUnit,
   FieldOption,
+  FieldTone,
   FilterGroupOperator,
   FilterOperatorName,
   NumberFormat,
@@ -165,38 +166,68 @@ export function valueText(
   return JSON.stringify(value) ?? '';
 }
 
-/** One badge: the value the record holds, and the label it is shown by. */
+/** One badge: the value the record holds, the label and tone it wears. */
 export interface BadgeEntry {
   value: unknown;
   label: string;
+  /** The matching option's tone; absent when no option names this value. */
+  tone?: FieldTone;
 }
 
 /**
- * The badges a status cell wears, or `undefined` when the field is not one.
+ * The badges a cell wears, or `undefined` when it wears none.
  *
- * Two things have to hold. The field's renderer is `enum` and it declares the
- * choices, so a badge means "one of a known set" rather than "some string";
- * and at least one of the values is a choice the definition names, because a
- * pill around a code nobody named only makes the code look deliberate. An
- * array of enum values gets one badge each: joined into a single pill they
- * would read as one status with a comma in its name.
+ * Three readings land here and they differ in what they require, not in what
+ * they produce. `enum` is inferred: the renderer is the kind's own, so a
+ * badge is only justified when the definition declares the choices *and*
+ * names at least one of the values — a pill around a code nobody named only
+ * makes the code look deliberate. `status` and `tags` were asked for by name,
+ * so the definition has already answered that question and a value no option
+ * names still wears its pill, showing the code it came as.
+ *
+ * An array gets one badge per entry whichever reading it is: joined into a
+ * single pill they would read as one status with a comma in its name.
  *
  * Each entry carries the raw value beside its label, because labels are not
  * identities: `FieldOption.label` is free text a definition may repeat, and a
  * list of values may repeat too, so the caller needs something better than
- * the label to tell two badges apart.
+ * the label to tell two badges apart. The tone rides along from the matching
+ * option, since the caller holding a label no longer has the option it came
+ * from.
  */
 export function badgeEntries(
   value: unknown,
   field: DisplayField,
 ): BadgeEntry[] | undefined {
-  if ((field.cell ?? field.kind) !== 'enum') return undefined;
-  if (!field.options || field.options.length === 0) return undefined;
+  const cell = field.cell ?? field.kind;
+  if (cell !== 'enum' && cell !== 'status' && cell !== 'tags') return undefined;
   if (value === null || value === undefined) return undefined;
-  const options = field.options;
+  const options = field.options ?? [];
   const items = Array.isArray(value) ? value : [value];
-  const labels = optionLabels(items, options);
-  return labels?.map((label, index) => ({ value: items[index], label }));
+  if (cell === 'enum') {
+    if (options.length === 0) return undefined;
+    const labels = optionLabels(items, options);
+    return labels?.map((label, index) => badge(items[index], label, options));
+  }
+  return items.map(item =>
+    badge(item, optionOf(item, options)?.label ?? String(item), options),
+  );
+}
+
+function badge(
+  value: unknown,
+  label: string,
+  options: readonly FieldOption[],
+): BadgeEntry {
+  const tone = optionOf(value, options)?.tone;
+  return { value, label, ...(tone ? { tone } : {}) };
+}
+
+function optionOf(
+  value: unknown,
+  options: readonly FieldOption[],
+): FieldOption | undefined {
+  return options.find(option => option.value === value);
 }
 
 /**
@@ -385,8 +416,7 @@ function optionLabels(
   value: unknown,
   options: readonly FieldOption[],
 ): string[] | undefined {
-  const labelOf = (item: unknown) =>
-    options.find(option => option.value === item)?.label;
+  const labelOf = (item: unknown) => optionOf(item, options)?.label;
   const items = Array.isArray(value) ? value : [value];
   return items.some(item => labelOf(item) !== undefined)
     ? items.map(item => labelOf(item) ?? String(item))

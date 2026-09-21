@@ -46,7 +46,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 
 - `RecordTable` 暂不接 TanStack：控制器已经是表格模型，列语义、排序、选择与分页都从它来，再叠一层只是把同一份状态写两遍。等列宽拖拽与列序拖拽真的要做时再引入，那时它提供的才是新能力。
 
-落到文件上：`ui/RecordTable.tsx` 只留结果本身——空态、骨架、行与单元格；表头与排序在 `ui/record/SortableHeader.tsx`，汇总行在 `ui/record/SummaryRows.tsx`，冻结列（含实测偏移）与表头／数字的类名在 `ui/record/columns.ts`。（见 test/recordTable.test.tsx「RecordTable on its own」「RecordCards on its own」「the summary row」「the summary rows」「sorting from the headers」「enum cells」「the table chrome」）
+落到文件上：`ui/RecordTable.tsx` 只留结果本身——空态、骨架与行；一个值怎么读在 `ui/record/cells.tsx`（表格与卡片共用），表头与排序在 `ui/record/SortableHeader.tsx`，汇总行在 `ui/record/SummaryRows.tsx`，冻结列（含实测偏移）与表头／数字的类名在 `ui/record/columns.ts`。（见 test/recordTable.test.tsx「RecordTable on its own」「RecordCards on its own」「the summary row」「the summary rows」「sorting from the headers」「enum cells」「the table chrome」）
 
 ## 两行汇总：本页与所有
 
@@ -64,12 +64,27 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 - 控制器的 `toggleSort` 把新字段**追加**在末尾（`sort` 的顺序就是列间优先级），所以多列排序是天然的：同时排序多于一列时，每个表头带上自己的序号，并把 `label.sort.at`（第几个、共几个）接在可及名字后面——两个箭头只说了按什么排，没说先按哪个。legacy 的「按住 Shift 添加排序」要求平击是**独占**排序，而控制器没有能一次落下整份 `sort` 的成员，见 [todo.md](../todo.md)；
 - 键盘：表头就是一个按钮，Tab 可达，Enter／Space 即一次点击，没有需要按住的修饰键，也就没有要另找的键盘等价物。
 
-## 枚举单元格是徽章
+## 一列怎么读，由定义说了算
 
-- `cell ?? kind` 为 `enum`、且定义声明了 `options` 的字段，单元格渲染为 `Badge`，文字取选项标签（判定在 `ui/display.ts` 的 `badgeEntries`，与 `displayValue` 共用"至少有一个值被选项命名"的规则）；数组值一值一枚，拼成一枚会读成"名字里带逗号的一个状态"；
-- 每枚徽章连**原值**一起交出，React 的 key 用原值加下标而不是标签：`FieldOption.label` 是自由文本、可以重复，数组里的值本身也可以重复，同一个 key 下两个子节点的协调结果是未定义的，React 还会为此告警；
-- 没有 `options`、或者没有一个值被选项命名的，照旧是纯文本——没人命名过的码套上徽章，只会让这个码看起来是有意为之；
-- **颜色不猜**：一律 `secondary` 中性徽章。哪一个状态是好消息属于业务，`FieldOption` 今天只有 `value`／`label`／`group`／`disabled`，要着色就得由定义带出来（见 [todo.md](../todo.md)）。
+一列是状态、是标签组、是外链还是一段话，是**定义**知道而渲染层猜不出来的事。`FieldDefinition.cell` 因此是一个**闭合**取值（[model.md](../model.md)）：六个读法是各 kind 自己的渲染（`string`／`number`／`boolean`／`date`／`datetime`／`enum`，写在这里是为了借用——一个存毫秒时刻的数字声明 `cell: 'date'` 就读成日期），另外四个是没有哪个 kind 蕴含的读法。闭合是因为 `/ui` 没有渲染器注册表：`RecordTable` 按这个值分派，没人分派的键不会报错，只会悄悄走默认渲染——一列声明成链接的 URL 仍旧是一串点不动的字。定义准入因此拒绝未知值（`definition.field.cell-invalid`，见 [kernels.md#定义准入](../kernels.md#定义准入)），这与其余能力是同一条规矩：引擎给得出的，定义才写得出（D4）。
+
+**未声明就是今天的样子，一个字节都不差**——四个新读法都排在默认渲染之前，不改默认渲染本身。
+
+- **`status`**：一枚徽章。与 `enum` 的区别不在画什么，在**凭什么画**：`enum` 是推断出来的（定义声明了 `options`，且至少有一个值被命名，否则没人命名过的码套上徽章只会让它看起来是有意为之），而 `status` 是**点名要的**——那个问题定义已经答过了，所以一个选项不再命名的码照样留着它的徽章，画出它本来的样子；
+- **`tags`**：一个数组一枚一枚地画，有 `options` 就用标签、没有就用原值。拼成一枚会读成"名字里带逗号的一个标签"。空数组画零枚，不退回 `[]` 那样的字面量；普通数组的逗号拼接留给默认渲染（`displayValue` 的选项标签那一条），不声明就不变；
+- **`link`**：字符串且过得了 `isSafeContentUrl` 才是外链，`target="_blank" rel="noopener noreferrer"`——记录里的 URL 是数据不是本应用，打开的文档不能顺着 `window.opener` 摸回来，也不该带着来处。读不出的 scheme 或不是字符串的值**落回纯文本**，绝不退而求其次画成一个能点的链接。这与 `DashboardPanels` 的 markdown 链接是同一条规则、同一个函数；
+- **`text`**：多行文本截到三行（`line-clamp-3`），换行照留（`whitespace-pre-wrap`），整段在 `title` 里一悬停即得。宽度上限 `--fve-record-text-max-w`（默认 `24rem`）：表格按内容布局，一段没有天花板的话会把这一列撑到它最长那条备注那么宽，把别的列挤出屏幕；而只截行数是不够的——一行总得有个地方结束，才会有第二行。
+
+每枚徽章连**原值**一起交出，React 的 key 用原值加下标而不是标签：`FieldOption.label` 是自由文本、可以重复，数组里的值本身也可以重复，同一个 key 下两个子节点的协调结果是未定义的，React 还会为此告警。
+
+**表格与卡片读同一份**：四个读法都落在 `ui/record/cells.tsx` 的 `cellValue` 里，`RecordTable` 的默认单元格与 `RecordCards` 的字段都走它，所以卡片上的状态不会是表格里那一枚徽章底下的一个裸码。（见 test/recordCells.test.tsx，浏览器故事「Record 工作台/单元格读法」与它的回归）
+
+### 徽章的颜色由定义说了算，但只能从主题里挑
+
+- 哪一个状态是好消息属于业务，渲染层猜不得——一个把 `CANCELLED` 画成红色的表格，在下一个应用里就把一条正常结局说成了事故。所以语气写在 `FieldOption.tone` 上（`'neutral' | 'success' | 'warning' | 'danger'`，闭合），`badgeEntries` 连同语气一起交出，`RecordTable` 按它挑 variant；缺省是 `neutral`，也就是今天的 `secondary`；准入拒绝未知语气（`definition.field.tone-invalid`）；
+- **闭合的是语气而不是颜色**：定义说得出"这是坏消息"，说不出 `#22c55e`。每一档映射到主题已有的 token（`--success`／`--warning`／`--destructive`），宿主改 `--fve-success` 就一并改掉所有穿着它的徽章；
+- **一枚有语气的徽章是填色的，字用页面自己的底色**（`bg-success text-background`），不是那个颜色的 10% 淡彩——注册表的 `destructive` variant 就是淡彩，这里最初也照做了，axe 在 12px 上量到 destructive 3.98:1、success 4.32、warning 4.37，三个都够不着 4.5。token 本来就是"在底色上当文字能过 4.5"挑出来的，所以拿 token 填色、拿底色写字，正是它们被挑出来的那一对搭配，而且跟着主题一起翻面：浅色底上是深色块配白字，深色底上是浅色块配深字；
+- **颜色从来不是唯一的区别**：徽章上的字已经说了这是哪一个状态，语气只是给一个本来就写着的区别加重音（WCAG 1.4.1）。`data-tone` 也写在元素上，宿主要另外着色、测试要读一枚徽章的语气，都不必去比颜色。
 
 ## 表格 chrome：层次与冻结列
 

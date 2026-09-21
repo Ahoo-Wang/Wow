@@ -129,13 +129,74 @@ export function fieldAliasSegment(field: string): string {
   return field.replace(/_/g, '__').replace(/\./g, '_');
 }
 
+/**
+ * What a badge says about the value it wraps, beyond naming it.
+ *
+ * Closed, and named after the meaning rather than after a colour: which of a
+ * definition's own statuses is good news is business knowledge the renderer
+ * cannot guess, but which colour good news wears is the theme's, and a
+ * definition that could write `#22c55e` here would be painting into it. Each
+ * tone maps to a token the surface already carries, so a host that restyles
+ * `--fve-success` restyles every badge wearing it.
+ */
+export type FieldTone = 'neutral' | 'success' | 'warning' | 'danger';
+
+export const FIELD_TONES: readonly FieldTone[] = [
+  'neutral',
+  'success',
+  'warning',
+  'danger',
+];
+
 /** A selectable value: static for `enum`, resolved for `reference`. */
 export interface FieldOption {
   value: string | number;
   label: string;
   group?: string;
   disabled?: boolean;
+  /** How a badge for this choice reads; neutral when the option names none. */
+  tone?: FieldTone;
 }
+
+/**
+ * How a cell reads.
+ *
+ * Closed, because `/ui` has no renderer registry: `RecordTable` switches over
+ * this union, so a key nothing switches on would silently fall through to the
+ * default rendering — a URL as a string of characters, an array as a comma
+ * join. Definition admission refuses an unknown one instead, which is the
+ * same rule every capability follows: what the engine offers is what a
+ * definition may ask for.
+ *
+ * Six of them are the kinds' own renderings, writable here so a field may
+ * borrow one: a number holding a millisecond instant reads as a date under
+ * `cell: 'date'`. The other four are readings no kind implies — one badge, a
+ * badge per entry, an external link, a paragraph.
+ */
+export type FieldCellId =
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'date'
+  | 'datetime'
+  | 'enum'
+  | 'status'
+  | 'tags'
+  | 'link'
+  | 'text';
+
+export const FIELD_CELL_IDS: readonly FieldCellId[] = [
+  'string',
+  'number',
+  'boolean',
+  'date',
+  'datetime',
+  'enum',
+  'status',
+  'tags',
+  'link',
+  'text',
+];
 
 /** Row-level aggregations a record view may show under a column. */
 export type SummaryFunction = 'SUM' | 'AVG' | 'MIN' | 'MAX' | 'COUNT';
@@ -170,8 +231,8 @@ export interface FieldDefinition {
   numberFormat?: NumberFormat;
   /** Summary functions this field allows. */
   summary?: SummaryFunction[];
-  /** Cell renderer key; defaults to the kind's renderer. */
-  cell?: string;
+  /** How the cell reads; defaults to the kind's own renderer. */
+  cell?: FieldCellId;
   /** Filter editor key; defaults to the one implied by kind, operator and value. */
   editor?: string;
   /**

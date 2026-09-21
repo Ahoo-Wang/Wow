@@ -73,6 +73,33 @@ const pinnedView = {
 };
 
 /**
+ * Every reading a cell can have, on one screen.
+ *
+ * The definition decides how a column reads, and a column that declares
+ * nothing reads as it always did. Here `状态` is a toned badge, `标记` is one
+ * badge per entry, `运单` is an external link and `备注` is a clamped
+ * paragraph — beside `订单号`, which declares nothing at all. No condition,
+ * so all six orders are on screen and the three tones are too.
+ */
+const cellFamilyView = {
+  ...savedViews[0],
+  title: '单元格读法',
+  config: recordConfig({
+    summaries: [],
+    table: {
+      columns: [
+        { field: 'id' as const, pinned: 'left' as const },
+        { field: 'status' as const },
+        { field: 'tags' as const },
+        { field: 'trackingUrl' as const },
+        { field: 'note' as const },
+      ],
+    },
+    card: { title: 'id', fields: ['status', 'tags', 'trackingUrl', 'note'] },
+  }),
+};
+
+/**
  * A view saved with an interval, so the refresh button opens already wearing
  * its credential — the thing a wall-mounted view exists for.
  */
@@ -108,6 +135,7 @@ function RecordWorkbenchDemo({
   narrowHost = false,
   theme,
   breakable = false,
+  cellFamily = false,
 }: {
   behaviour?: SourceBehaviour;
   instanceId?: string;
@@ -160,6 +188,8 @@ function RecordWorkbenchDemo({
   theme?: 'light' | 'dark';
   /** Fills the row slot with an action that throws once it is pressed. */
   breakable?: boolean;
+  /** Opens a view whose columns cover all four declared cell readings. */
+  cellFamily?: boolean;
 }) {
   const workbench = (
     <StoryEngine
@@ -189,7 +219,9 @@ function RecordWorkbenchDemo({
                   ? [refreshingView]
                   : narrowHost
                     ? [longTitledView]
-                    : savedViews,
+                    : cellFamily
+                      ? [cellFamilyView]
+                      : savedViews,
         });
       }}
     >
@@ -399,6 +431,7 @@ const meta = {
     raisedHost: { table: { disable: true } },
     narrowHost: { table: { disable: true } },
     theme: { table: { disable: true } },
+    cellFamily: { table: { disable: true } },
   },
 } satisfies Meta<typeof RecordWorkbenchDemo>;
 
@@ -426,6 +459,18 @@ export const QueryFailed: Story = { args: { behaviour: 'failing' } };
 export const TotalCoversThisPageOnly: Story = {
   args: { behaviour: 'no-aggregate' },
 };
+
+/**
+ * 一列怎么读，由定义说了算。
+ *
+ * 「状态」是一枚带语气的徽章（待出库=warning、已发运=success、已取消=danger，
+ * 颜色取主题 token，定义不能写任意色值）；「标记」一个数组一枚一枚地画，
+ * 选项没命名过的码原样画出来；「运单」是外链，`target="_blank"` 且
+ * `rel="noopener noreferrer"`，读不出的 scheme（SO-1005 那条）落回纯文本，
+ * 绝不画成能点的链接；「备注」截到三行，整段留在 title 里，换行照留。
+ * 「订单号」什么也没声明，于是和从前一模一样。切到卡片，同一份读法。
+ */
+export const CellFamily: Story = { args: { cellFamily: true } };
 
 /** A saved config the definition outgrew: `apply` is refused until it is fixed. */
 export const NeedsFixing: Story = { args: { broken: true } };

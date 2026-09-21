@@ -16,6 +16,8 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   builtinFieldKinds,
   emptyDashboardConfig,
+  FIELD_CELL_IDS,
+  FIELD_TONES,
   isUsableDefinition,
   isViewCommandError,
   MemoryViewStore,
@@ -625,6 +627,70 @@ describe('ViewEngine and an unusable definition', () => {
           ordersDefinition({
             fields: [
               { name: 'sku', label: 'SKU', kind: 'string', stringComparison },
+            ],
+            record: { rowKey: 'sku', paging: 'paged', layouts: ['table'] },
+            analysis: undefined,
+            views: [],
+          }),
+          builtinFieldKinds,
+        ),
+      ).toEqual([]);
+    }
+  });
+
+  /**
+   * The renderers and the tones are closed sets, for the same reason as every
+   * other capability: `/ui` switches over them, so a key nothing switches on
+   * would not fail — it would quietly draw the default, and a column declared
+   * as a link would stay a string of characters nobody can click.
+   */
+  it('refuses a cell renderer and a tone nothing draws', () => {
+    const found = validateDefinition(
+      ordersDefinition({
+        fields: [
+          { name: 'sku', label: 'SKU', kind: 'string', cell: 'chip' as never },
+          {
+            name: 'status',
+            label: 'Status',
+            kind: 'enum',
+            options: [
+              { value: 'PENDING', label: 'Pending', tone: 'neutral' },
+              { value: 'LOST', label: 'Lost', tone: 'fuchsia' as never },
+            ],
+          },
+        ],
+        record: { rowKey: 'sku', paging: 'paged', layouts: ['table'] },
+        analysis: undefined,
+        views: [],
+      }),
+      builtinFieldKinds,
+    );
+
+    expect(found.map(entry => [entry.code, entry.path])).toEqual([
+      ['definition.field.cell-invalid', ['fields', 0, 'cell']],
+      // At the option that declared it, not at the field: a definition with
+      // eight statuses needs to be told which one to go and fix.
+      ['definition.field.tone-invalid', ['fields', 1, 'options', 1, 'tone']],
+    ]);
+  });
+
+  it('admits every reading and every tone it can draw', () => {
+    for (const cell of FIELD_CELL_IDS) {
+      expect(
+        validateDefinition(
+          ordersDefinition({
+            fields: [
+              {
+                name: 'sku',
+                label: 'SKU',
+                kind: 'string',
+                cell,
+                options: FIELD_TONES.map(tone => ({
+                  value: tone,
+                  label: tone,
+                  tone,
+                })),
+              },
             ],
             record: { rowKey: 'sku', paging: 'paged', layouts: ['table'] },
             analysis: undefined,

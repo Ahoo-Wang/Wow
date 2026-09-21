@@ -36,6 +36,10 @@ export const definitionMessages = {
     'An analysis limit must be a positive whole number.',
   'definition.analysis.no-metric':
     'The analysis capability offers no metric to start from.',
+  'definition.field.cell-invalid':
+    '{field} declares an unknown cell renderer: {value}.',
+  'definition.field.tone-invalid':
+    '{field} declares an unknown option tone: {value}.',
   'definition.field.duplicate': 'The field {field} is declared twice.',
   'definition.fieldGroup.duplicate': 'The group {group} is declared twice.',
   'definition.fieldGroup.field-duplicate':

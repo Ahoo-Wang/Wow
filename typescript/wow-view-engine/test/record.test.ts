@@ -56,7 +56,7 @@ function definition(
         summary: ['SUM', 'AVG'],
         numberFormat: { style: 'currency', currency: 'CNY' },
       },
-      { name: 'warehouse', label: 'Warehouse', kind: 'string', cell: 'badge' },
+      { name: 'warehouse', label: 'Warehouse', kind: 'string', cell: 'status' },
       {
         name: 'createdAt',
         label: 'Created',
@@ -852,7 +852,7 @@ describe('projectRecord', () => {
       config({ table: { columns: [{ field: 'warehouse', width: 120 }] } }),
       { total: 0, list: [] },
     );
-    expect(view.columns[0]).toMatchObject({ cell: 'badge', width: 120 });
+    expect(view.columns[0]).toMatchObject({ cell: 'status', width: 120 });
   });
 
   it('drops a column whose field has disappeared', () => {

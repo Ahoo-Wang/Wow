@@ -13,7 +13,7 @@
 
 每条的判据以这条基线读，**但只取适用的那几项**：一条只补回归的条目不必造文案，一条只看不改的条目没有并发路径。基线是——新出现的行为，其错误、空、权限、并发路径各有定义也有测试；新出现的界面键盘可达并过 axe；新出现的文案中英齐全；新出现的交互有故事既能手动操作也有回归；design 对应页与本页同步；全门绿。哪几项适用，由各条自己的判据说了算。
 
-顺序：**打磨清单（先看后改）→ 筛选三条（日期时刻／IN 多值／软删除）→ ErrorBoundary → 单元格渲染器族 → 列宽・隐藏字段排序・指针拖动回归 → 写入结局故事・视图管理拖动排序**。打磨排在新功能之前：先把已经有的做对，再加没有的。
+顺序：**打磨清单（先看后改）→ 筛选三条（日期时刻／IN 多值／软删除）→ ErrorBoundary → 列宽・隐藏字段排序・指针拖动回归 → 写入结局故事・视图管理拖动排序**。打磨排在新功能之前：先把已经有的做对，再加没有的。
 
 ## 重构（小步，每步一个 PR，零行为变化）
 
@@ -40,13 +40,9 @@
 - **带时刻的日期条件筛不准边界**——为什么：日期条件只有日历，没有 `HH:mm:ss` 控件，`withTime` 于是直接取日历给的那一刻（零点），"今天下午三点之后"写不出来，边界上的记录要么全进要么全不进。判据：`withTime` 为真的字段在日历旁给出时刻输入（与日历同属一个控件，一次提交），未填时刻时的缺省语义**按 [decisions.md](decisions.md) 的 Q10 执行**，不在实现时二选一（它决定哪些记录命中，不是实现细节）；相对日期与预设不受影响；`test/filter*.test.ts` 覆盖边界两侧各一条。落点：`src/ui/filter/`、[ui/README.md](ui/README.md)、[kernels.md](kernels.md)。
 - **软删除条件没了**——为什么：legacy 有 `DELETION` 条件（只看未删除／只看已删除／全都看），现在没有，列表会默不作声地混进已删除记录——这是数据口径的沉默，比少一个筛选项严重。判据：定义能声明这一维（能力决定它存不存在，D4），未声明时界面上没有这个东西；声明了则条件区有一处显式选择；**缺省口径与旧配置缺这一维时的读法按 [decisions.md](decisions.md) 的 Q11 执行**，并要在已应用条上说得出来；`test/` 覆盖三种口径各一条。落点：[model.md](model.md)、`src/filter/`、[kernels.md](kernels.md)。
 
-## 记录视图
-
-- **单元格渲染器族只有默认与枚举徽章**——为什么：legacy 的表格能把一列读成状态、标签组、链接或多行文本，现在除枚举徽章外一律走默认渲染，于是一列 URL 只是一串字，一列字符串数组只是逗号拼接。判据：`FieldDefinition` 能声明单元格的读法（闭合取值，如 `cell?: 'status' | 'tags' | 'link' | 'text'`，定义准入拒绝未知值——能力决定存在，D4），`RecordTable` 按它分派：`status` 走徽章、`tags` 走多枚徽章、`link` 走 `isSafeContentUrl` 守住的外链（`target="_blank" rel="noopener noreferrer"`，与 `DashboardPanels` 的 markdown 链接同一条规则）、`text` 走可截断的多行；未声明时保持今天的默认渲染不变；`test/recordTable.test.tsx` 每族一条，`stories/` 有一屏能看全。落点：`src/model/field.ts`、`src/ui/RecordTable.tsx`、`src/ui/display.ts`、[ui/record.md](ui/record.md)。
-
 ## 打磨（先看后改，不凭想象改）
 
-这一组来自 2026-09-20 在 Storybook 上对合并后的 `main`（ddeda440）逐屏过的一遍，条件按九项走：默认、展开筛选、空、加载、失败、窄屏、暗色、中文、长标题与多列；三个工作台加视图管理器、另存对话框，以及各自铺满屏幕的样子，每屏都跑了 axe。**先看后改这条对下面每一条同样成立**——每条都记了当时量到的数，改之前先自己再看一眼那一屏，数会随别的改动变，条目不会自己失效。量出来是缺陷而不是难看的，不在这一组里：它们分别记在[全局功能（外壳）](#全局功能外壳)、[记录视图](#记录视图)与[小修](#小修)。
+这一组来自 2026-09-20 在 Storybook 上对合并后的 `main`（ddeda440）逐屏过的一遍，条件按九项走：默认、展开筛选、空、加载、失败、窄屏、暗色、中文、长标题与多列；三个工作台加视图管理器、另存对话框，以及各自铺满屏幕的样子，每屏都跑了 axe。**先看后改这条对下面每一条同样成立**——每条都记了当时量到的数，改之前先自己再看一眼那一屏，数会随别的改动变，条目不会自己失效。量出来是缺陷而不是难看的，不在这一组里：它们分别记在[全局功能（外壳）](#全局功能外壳)与[小修](#小修)。
 
 - **Analysis 一屏上有两个 primary**——为什么：量到 Apply（宽 71）与 Run（宽 60）都是 `rgb(23,23,23)`，上下只差 42px，两个都是不带 variant 的 `<Button>`。[版式](ui/README.md#版式三块一套间距一种选项控件)是一屏一个 primary，筛选面板那一节更直接："Apply 是同屏唯一的 primary 按钮"。Analysis 的条件块是筛选面板**加上**分析编辑器，于是两个提交按钮叠在一起、分量一样、离得比一组控件还近，看不出按哪一个会跑查询。判据：这一屏只留一个 primary，另一个降成 `outline`；**哪一个是 primary、两个提交算一次执行还是两次，按 [decisions.md](decisions.md) 的 Q12 执行**——现状是 `useFilterEditor.submit` 与 `useAnalysisEditor.submit` 都调同一个 `runtime.apply()`，就是一次执行，这一条只动分量，不要顺手改提交语义；`test/analysisUi.test.tsx` 按 variant／class 钉住同屏只有一个 primary（jsdom 不套样式表，量不到颜色）。落点：`src/ui/AnalysisEditor.tsx`、`src/ui/filter/FilterActions.tsx`、[ui/README.md](ui/README.md)、[ui/analysis.md](ui/analysis.md)。
 
@@ -97,7 +93,6 @@
 - **视图管理支持拖动排序**——为什么：现在只有上下移动按钮，一行一行点在长列表里不现实；legacy 的 `ListOrder` 是拖动手柄。判据：复用列设置已经引入的拖放库（`@dnd-kit/react` + `@dnd-kit/dom`，已在 catalog 与本包依赖里），管理器每行带手柄，拖动只在同一受众组内生效，落下时按 `move` 的同一条路径提交**整个定义的完整顺序**（未列出的种类保持原位）；键盘可达（保留上下按钮或改用库的键盘传感器），落库失败不乐观回滚而是退回原序并报出；`useViewManager` 需要 `moveTo(id, index)` 之类按位置落子的命令；`test/viewManagerUi.test.tsx` 覆盖拖动与键盘两条路径。落点：`src/ui/ViewManagerRow.tsx`、`src/react/useViewManager.ts`、[management.md#列表偏好与默认视图](management.md#73-列表偏好与默认视图)。
 
 - **平击表头独占排序（Shift 追加）**——为什么：legacy 的表头是「点击排序，按住 Shift 添加排序」，即平击只按这一列排、Shift 才追加；`useRecordTable.toggleSort(field)` 无条件把新字段追加在 `sort` 末尾，控制器没有第二个入口，`RecordTable` 于是只能实现"每次点击都追加"这一半，Shift 没有可绑的语义。用现有接口模拟独占要对其余每个已排序列反复 `toggleSort`（升序列要两次），而每次 `toggleSort` 都是一次 `edit` + `apply`，即一次真实查询被随后的请求取代——为一次点击打三五个会被中止的请求，不能算实现。判据：`useRecordTable` 增加一次落下整份排序的成员（`setSort(sort: RecordSort[])`，或 `toggleSort(field, { additive?: boolean })`），`RecordTable` 平击走独占、Shift／Meta 走追加，键盘等价物随之给出（Shift+Enter，或表头菜单里的一项）；`test/recordTable.test.tsx`「sorting from the headers」补上两条路径，`ui/record.md#表头排序` 与 `react.md#userecordtable` 同步。落点：`src/react/useRecordTable.ts`、`src/ui/record/SortableHeader.tsx`、[ui/record.md#表头排序](ui/record.md#表头排序)。
-- **枚举徽章的颜色要由定义说了算**——为什么：状态单元格已经是徽章，但一律中性 `secondary`——哪一个状态是好消息属于业务，渲染层猜不得；而 legacy 的状态列是有颜色的。判据：`FieldOption` 带上一个闭合的语气字段（如 `tone?: 'neutral' | 'success' | 'warning' | 'danger'`，映射到主题已有的 token，不收任意颜色值），`badgeEntries` 连同语气一起交出，`RecordTable` 按它选 variant；定义准入拒绝未知语气；`test/display.test.ts` 与 `test/recordTable.test.tsx` 各补一条。落点：`src/model/field.ts`、`src/ui/display.ts`、`src/ui/RecordTable.tsx`、[ui/record.md#枚举单元格是徽章](ui/record.md#枚举单元格是徽章)。
 
 ## 小修
 

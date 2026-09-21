@@ -13,6 +13,8 @@
 
 import {
   DEFAULT_RUNTIME_LIMITS,
+  FIELD_CELL_IDS,
+  FIELD_TONES,
   SYSTEM_INSTANCE_ID_SEPARATOR,
   isFieldlessKind,
   isFieldName,
@@ -200,6 +202,31 @@ function validateFields(
           value: String(field.searchMode),
         }),
       );
+
+    // The renderers are a closed set `RecordTable` switches over, so a key
+    // nothing switches on would not fail — it would quietly render the
+    // default, and a column declared as a link would stay a string of
+    // characters nobody can click.
+    if (field.cell !== undefined && !FIELD_CELL_IDS.includes(field.cell))
+      issues.push(
+        issue('definition.field.cell-invalid', [...at, 'cell'], {
+          field: field.name,
+          value: String(field.cell),
+        }),
+      );
+
+    // A tone names a theme token; one nothing maps to would leave the badge
+    // neutral, which is the one thing declaring a tone was meant to change.
+    (field.options ?? []).forEach((option, position) => {
+      if (option.tone !== undefined && !FIELD_TONES.includes(option.tone))
+        issues.push(
+          issue(
+            'definition.field.tone-invalid',
+            [...at, 'options', position, 'tone'],
+            { field: field.name, value: String(option.tone) },
+          ),
+        );
+    });
 
     // A handle is not a path, so searching one would ask the backend for a
     // document field that does not exist. Naming it is as wrong as naming

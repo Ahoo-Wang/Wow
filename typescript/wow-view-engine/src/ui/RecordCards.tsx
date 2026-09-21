@@ -30,6 +30,7 @@ import {
   CardTitle,
 } from './components/card.js';
 import { displayValue, formatNumber, type DisplayContext } from './display.js';
+import { cellValue } from './record/cells.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 import { cn } from 'cn';
@@ -73,12 +74,12 @@ export function RecordCards({
   const display = useSurfaceDisplay();
   const card = table.card;
   // A host's renderer decides for itself; otherwise a value shows as it does
-  // in the field's column.
+  // in the field's column — the same renderer, so a card and the table it
+  // folds out of can never disagree about what a value says.
   const show = (value: unknown, field: RecordCardField) =>
     renderValue
       ? renderValue(value)
-      : (displayValue(value, field, display) ??
-        defaultValue(value, messages, field.numberFormat));
+      : cellValue(value, field, messages, display);
 
   return (
     <div
