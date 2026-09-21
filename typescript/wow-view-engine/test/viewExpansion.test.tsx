@@ -871,7 +871,7 @@ describe('the states a view can be expanded in', () => {
     expect(isExpanded()).toBe(true);
   });
 
-  it('belongs to this opening and ends when another view is opened', async () => {
+  it("survives a switch to another view (Q7): the fill is the workspace's posture", async () => {
     const user = await expanded();
 
     // Through the switcher: the list is folded while the screen is filled,
@@ -886,9 +886,48 @@ describe('the states a view can be expanded in', () => {
       ).toBe('Ours'),
     );
 
-    // Switching releases one runtime and opens another, and the expansion
-    // goes with it rather than surviving into a view nobody expanded — the
-    // same rule the editor's fold lives by.
+    // Switching releases one runtime and opens another — a render with
+    // nothing open and the next view loading — and the fill rides through
+    // it: the user asked for room for the rows, and these are rows too.
+    expect(isExpanded()).toBe(true);
+    expect(held()).toEqual(LOCKED);
+    expect(
+      screen.getByRole('button', { name: LEAVE }).getAttribute('aria-expanded'),
+    ).toBe('true');
+    // And the list stays folded, as it is for every fill.
+    expect(document.querySelector('[data-slot="view-sidebar"]')).toBeNull();
+
+    // Leaving from the view switched to puts the page back as usual.
+    await user.click(screen.getByRole('button', { name: LEAVE }));
+    expect(isExpanded()).toBe(false);
+    expect(held()).toEqual(FREE);
+  });
+
+  it('ends when the view switched to cannot be opened', async () => {
+    // A store that lists «Ours» and then cannot hand it over: the switcher
+    // offers it, the open fails, and no title bar is drawn for it.
+    class Refusing extends MemoryViewStore {
+      override get(id: string): Promise<ViewInstance> {
+        return id === 'ours'
+          ? Promise.reject(new Error('gone'))
+          : super.get(id);
+      }
+    }
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store: new Refusing({ instances: [mine, ours, byWarehouse] }),
+      resolveSource: () => testSource(),
+    });
+    const user = await expanded(engine);
+
+    await user.click(screen.getByRole('button', { name: SWITCH }));
+    await user.click(
+      await screen.findByRole('menuitemradio', { name: /Ours/ }),
+    );
+    await screen.findByRole('alert');
+
+    // No control on screen means no fill: a filled screen with no way out
+    // is the trap the rule exists for, and the page is given back.
     expect(isExpanded()).toBe(false);
     expect(held()).toEqual(FREE);
   });

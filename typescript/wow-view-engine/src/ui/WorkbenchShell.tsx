@@ -288,10 +288,19 @@ export function WorkbenchShell({
   // Passing the condition in rather than hiding the button releases one that
   // is already in force — switching to a view that will not open puts the
   // page back instead of stranding it.
+  //
+  // But a switch that is merely *loading* keeps it (Q7, decided 2026-09-21):
+  // filling the screen is a posture of the workspace, not a state of the
+  // view that happened to be open — the user asked for room for the rows,
+  // and the next view's rows want the same room. The old runtime's release
+  // is one render with nothing open and the next one already on its way;
+  // ending the fill there made every switch a way out nobody had taken.
+  // The title bar is back the moment the view is, and Escape works in
+  // between.
   const expansion = useViewExpansion(
     surfaceRef,
     expandViewRef,
-    expandable && open,
+    expandable && (open || opened.loading),
   );
   // Filling the screen is a screen of its own, and the list is folded for
   // it: filling is a gesture about the *result* — "give the rows the room" —
