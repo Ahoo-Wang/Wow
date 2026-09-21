@@ -24,6 +24,7 @@ import {
   type RecordViewConfig,
   type ViewInstance,
   type ViewSource,
+  type ViewStore,
 } from '@ahoo-wang/fetcher-view-engine';
 import {
   AggregationFunction,
@@ -420,8 +421,12 @@ export interface StoryEngineOptions {
    * play that asserts what a save *wrote* has to read the store itself: the
    * screen shows the draft either way, so asserting the screen would pass
    * just as happily with nothing persisted at all.
+   *
+   * Any `ViewStore`, not only the in-memory one: the write-outcome stories
+   * hand over a store that answers the next write with a conflict, an
+   * unknown result or a refusal (`outcomesStore.ts`).
    */
-  store?: MemoryViewStore;
+  store?: ViewStore;
 }
 
 /**

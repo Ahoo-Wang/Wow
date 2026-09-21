@@ -26,6 +26,11 @@ import {
   tableSettingsStore,
   type SourceBehaviour,
 } from './fixtures.js';
+import {
+  OutcomeViewStore,
+  outcomesStore,
+  type StagedOutcome,
+} from './outcomesStore.js';
 import { StoryEngine, viewEngineScene } from './StoryEngine.js';
 import '@ahoo-wang/fetcher-view-engine/styles.css';
 
@@ -133,6 +138,7 @@ function RecordWorkbenchDemo({
   pinnedColumn = false,
   refreshing = false,
   narrowHost = false,
+  writeOutcome,
   theme,
   breakable = false,
   cellFamily = false,
@@ -182,6 +188,13 @@ function RecordWorkbenchDemo({
    */
   narrowHost?: boolean;
   /**
+   * What the store makes of the next write that can carry it: a conflict, a
+   * result that never comes back, or a flat refusal. One shot — the write
+   * after it behaves normally, which is what lets the way *out* of the
+   * outcome be pressed. Re-mount the story to stage it again.
+   */
+  writeOutcome?: StagedOutcome;
+  /**
    * Pins the surface to one mode, the way a host does when its page is not
    * the one deciding. Left unset the view follows the toolbar's `.dark`.
    */
@@ -194,6 +207,12 @@ function RecordWorkbenchDemo({
   const workbench = (
     <StoryEngine
       create={() => {
+        if (writeOutcome) {
+          const staged = new OutcomeViewStore({ instances: savedViews });
+          staged.stage(writeOutcome);
+          outcomesStore.current = staged;
+          return createStoryEngine({ behaviour, store: staged });
+        }
         const store = keepStore
           ? new MemoryViewStore({ instances: savedViews })
           : undefined;
@@ -430,6 +449,7 @@ const meta = {
     refreshing: { table: { disable: true } },
     raisedHost: { table: { disable: true } },
     narrowHost: { table: { disable: true } },
+    writeOutcome: { table: { disable: true } },
     theme: { table: { disable: true } },
     cellFamily: { table: { disable: true } },
   },
@@ -664,3 +684,79 @@ export const PopupsOverRaisedHostLayer: Story = {
  * 名字一起长出去，溢出只是换了条路。
  */
 export const NarrowTitleBar: Story = { args: { narrowHost: true } };
+
+/**
+ * 保存撞上了别人：**冲突**。
+ *
+ * 手动走一遍：点一下 `订单号` 的表头（排序会立刻应用，标题旁出现「已修改」），
+ * 再按 `Save`。存储在这一次写入之前替别人先落了一份配置——整份五列、每页 50
+ * 条、不排序——于是乐观版本对不上，引擎把结果记成 `kind: 'conflict'`，标题栏
+ * 下面那条带边框的行就是它。
+ *
+ * 三条出路都画在那一行上：**Take theirs** 丢掉草稿改用服务端那份，**Keep
+ * mine** 把自己这份盖上去，**Save my copy** 另存一份、两边都留着。前两条都会
+ * 先把同一个选择再问一遍（`ConflictConfirm`），因为两边都有从按钮上看不见的
+ * 损失——对话框里用 `describeConfig` 把两份配置各说成一句话摆在一起，这里正好
+ * 三处不同：每页多少条、几列、几条排序。
+ *
+ * 冲突只安排了一次：答完之后的写入照常落库，所以「盖上去」是真的盖上去了。
+ */
+export const SaveConflicted: Story = { args: { writeOutcome: 'conflict' } };
+
+/**
+ * 保存发出去了，结果没回来：**未知**。
+ *
+ * 同样先点一下表头再按 `Save`。存储抛 `UNAVAILABLE`——按 management.md 的分类
+ * 这不是失败也不是成功：请求已经出门，服务端可能写了也可能没写。所以那一行只
+ * 给两个按钮：**Retry** 用**同一个** `requestId` 与同一份正文再发一次，交给服
+ * 务端去重；**Abandon** 放下它，草稿仍在，下次保存是一次新的意图。
+ *
+ * 未结清的未知会挡住这个视图上的新写入（`view.write.unknown-pending`），所以
+ * 这两个按钮不是装饰——不答它，`Save` 就一直不听话。
+ */
+export const SaveResultUnknown: Story = { args: { writeOutcome: 'unknown' } };
+
+/**
+ * 服务端看过了，不收：**拒绝**。
+ *
+ * 点表头，按 `Save`。存储抛 `INVALID`，那一行说的是目录里的句子
+ * （`view.write.invalid`），后面跟着存储自己的原话——已打开的视图有地方放这句
+ * 话，管理器的行里只放前半句。
+ *
+ * 拒绝是一个明确答案：什么也没写进去，也就没有可重试、可覆盖的东西，只有
+ * **Dismiss** 把这行拿掉。拿掉不是装饰——引擎还替这次写入留着位置，不结清它，
+ * 这行会在屏幕上待一整个会话。改完再按一次 `Save`，那是一次新的意图，会落库。
+ */
+export const SaveRefused: Story = { args: { writeOutcome: 'rejected' } };
+
+/**
+ * 没打开的那一行也会撞上别人：**管理器行内的结局**。
+ *
+ * 从侧栏齿轮打开「管理视图」，给任意一行按铅笔改个名、按 ✓ 确认。改名同样撞上
+ * 先落的那份配置，于是冲突画在**它自己那一行下面**——一行小字加两个小按钮，而
+ * 不是把整张列表推下去：下面那些行还是真的，一条横幅把它们挤走就是用一个问题
+ * 报告另一个问题。
+ *
+ * 行里的措辞与打开的视图不同：取服务端那份在这里叫 **Reload list**（这一行讲
+ * 的是它所在的那张列表，列表会按存储的版本重新读回来），盖上去仍叫 **Keep
+ * mine**。行里没有「另存」——管理器没有地方放一份副本。
+ */
+export const RenameConflicted: Story = { args: { writeOutcome: 'conflict' } };
+
+/**
+ * 删除撞上冲突，要问第二遍（management.md「冲突与未知结果」）。
+ *
+ * 这里打开的是个人视图「我盯的大额单」，要删的是另一行、共享的「待出库订
+ * 单」——删的不是眼前这个，正是管理器存在的理由。（打开的那个视图筛的是五千以
+ * 上的单子，这份数据里一条也没有，所以下面空着；这一屏看的是对话框。）打开
+ * 「管理视图」，给那一行按垃圾桶，第一个对话框说清代价（共享视图：所有人都会
+ * 失去它），按 `Delete`。
+ *
+ * 删除这时撞上别人刚落的那份：第一次确认说的是**当时那个视图**，而冲突报回来
+ * 的是一个此后变过的视图——它可能已经变成共享的，删掉就连带别人一起。所以行里
+ * 按 **Keep mine** 不会直接删，而是拿着服务端刚回读的那份摘要**再问一遍**，第
+ * 二个对话框按 `Delete` 才真的删。
+ */
+export const DeleteConflicted: Story = {
+  args: { writeOutcome: 'conflict', instanceId: savedViews[2].id },
+};

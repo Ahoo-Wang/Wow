@@ -96,6 +96,8 @@ export interface ViewPreferences {
 
 （见 test/engine.test.ts「ViewEngine write outcomes」与「ViewEngine write re-entrancy」）
 
+`conflict`、`unknown`、`rejected` 这三条路径在 Storybook 里各有一条能上手操作的故事——已打开视图的 `WriteOutcome`、管理器行内的结局、删除冲突的二次确认，夹具存储 `stories/view-engine/outcomesStore.ts` 按需给下一次写入安排结局（冲突由一次抢先落库的真实写入制造，所以远端配置与 revision 都是真的）。
+
 ## 离开保护与导航
 
 `dirty = draft 与 saved.config 不相等`。工作台在已打开的 runtime 之间切换不销毁 runtime，因此不提示。关闭一个 `dirty` 或存在 `unknown` 写入的 runtime 时要求确认；确认离开先结清当前 `WriteState`（`useLeaveGuard(state, { onLeave })`，工作台传 `commands.abandon`）再执行切换——runtime 随即被释放，而 Engine 会继续持有那个 handle，指着一个谁也够不到的 runtime。守卫在工作台里构造，位置在 `ViewSurface` 的 `MessagesProvider` 之外，所以工作台把自己的 `messages` 一并交给它（`useLeaveGuard(state, { messages })`），否则整页都被翻译了只有这个对话框还是英文。导航不取消在途写入：写入完成时 runtime 仍存在则更新它，已销毁则丢弃结果，服务端状态不受影响。不提供跨浏览器刷新的草稿恢复。

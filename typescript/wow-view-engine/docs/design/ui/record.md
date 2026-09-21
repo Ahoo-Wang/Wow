@@ -24,7 +24,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 - **最后一列不许取消**：只剩一列时该勾选框禁用，并在**那一行**上画出 `label.columns.last-visible` 说明原因（勾选框的 `aria-describedby` 指它），而不是留一个点了没反应的勾选框，也不是在面板顶上放一句不点名是哪一列的话；操作列的勾选框另有原因（它根本不是配置里的列），所以那一句不是它的；
 - 汇总下拉只出现在字段声明了 `summary` 的列上，选项是"不汇总"加该字段声明的那几个函数，写入 `config.summaries`。配置里一个字段可以带多个函数（表格照样全画出来），而这个控件一列只给一个：选中一个就替换掉该列原有的；
 - 固定开关按 不固定 → 左 → 右 → 不固定 循环，写入 `table.columns[].pinned`；取消固定时那个键被**删掉**而不是置为 `undefined`——配置是 JSON，`{ pinned: undefined }` 与没有这个键在 `dequal` 眼里不是一回事，会让一个刚固定又取消的视图在整次打开里一直显示"未保存"；
-- **拖放用现成的库**（`@dnd-kit/react` + `@dnd-kit/dom`，走 catalog，MIT），不自写：它带指针与键盘传感器、拖动预览与一个 live region。只有可拖的行注册成 sortable item，固定行根本不是放置目标，这就是"列不跨区"在实现上的保证。库的 `OptimisticSortingPlugin` 按 [interaction-primitives 设计](../../../../docs/superpowers/specs/2026-09-13-view-engine-interaction-primitives-design.md) 关掉：它在指针移动时就重排 DOM，恰好让读取落点时的下标失效；落点由 drop 报出的 source／target 两个 id 算出；
+- **拖放用现成的库**（`@dnd-kit/react` + `@dnd-kit/dom`，走 catalog，MIT），不自写：它带指针与键盘传感器、拖动预览与一个 live region。只有可拖的行注册成 sortable item，固定行根本不是放置目标，这就是"列不跨区"在实现上的保证。库的 `OptimisticSortingPlugin` 按 [interaction-primitives 设计](../../../../docs/superpowers/specs/2026-09-13-view-engine-interaction-primitives-design.md) 关掉：它在指针移动时就重排 DOM，恰好让读取落点时的下标失效；落点由 drop 报出的 source／target 两个 id 算出；真指针那一条链路（按下手柄、移到第三行、松手）的回归只能放在浏览器工程里跑——库靠量盒子做碰撞检测，jsdom 里每个盒子都是原点上的 0×0，没有可比的东西——所以它是 `stories/view-engine/RecordWorkbench.test.stories.tsx` 的一条故事，与键盘那条共用同一份夹具，断言表头列序与保存后的 `table.columns`；
 - **键盘**：手柄可聚焦，方向键把这一行在区域内上下移一位；按空格拾起后方向键交给库，两边各有单一播报源（`isDragging` 时本地处理器让路）。库的英文播报换成目录里的句子，落定的结果由设置自己的 live region 说一次——拖的和按方向键的是同一句，不重复朗读。（见 test/columnSettings.test.tsx、test/accessibility.test.tsx「record, with the column settings open」）
 
 ## SortSettings：按钮上读得出的排序

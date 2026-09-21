@@ -23,6 +23,7 @@ import displayMeta, {
   CannotOpen as DisplayCannotOpen,
   CellFamily as DisplayCellFamily,
   CollapsedSidebar as DisplayCollapsedSidebar,
+  DeleteConflicted as DisplayDeleteConflicted,
   EmptyResult as DisplayEmptyResult,
   FillTheScreen as DisplayFillTheScreen,
   FillTheScreenInScaledHost as DisplayFillTheScreenInScaledHost,
@@ -37,6 +38,10 @@ import displayMeta, {
   RenderFailure as DisplayRenderFailure,
   PopupsOverRaisedHostLayer as DisplayPopupsOverRaisedHostLayer,
   QueryFailed as DisplayQueryFailed,
+  RenameConflicted as DisplayRenameConflicted,
+  SaveConflicted as DisplaySaveConflicted,
+  SaveRefused as DisplaySaveRefused,
+  SaveResultUnknown as DisplaySaveResultUnknown,
   TableSettings as DisplayTableSettings,
   TotalCoversThisPageOnly as DisplayTotalCoversThisPageOnly,
   WithActions as DisplayWithActions,
@@ -44,6 +49,8 @@ import displayMeta, {
 } from './RecordWorkbench.stories.js';
 import { measureBorderContrast } from './contrast.js';
 import { tableSettingsStore } from './fixtures.js';
+import { outcomesStore } from './outcomesStore.js';
+import { dragHandleOnto } from './pointerDrag.js';
 import {
   amountOf,
   readColumn,
@@ -873,6 +880,574 @@ export const TableSettings: Story = {
     });
   },
 };
+
+/**
+ * The same panel, reordered the way a mouse reorders it.
+ *
+ * The keyboard path above commits through `onMove`, and the drop calculation
+ * has unit tests of its own — but "press the handle, move onto the third row,
+ * let go" only ever ran inside the library's own suite. It cannot run in
+ * jsdom: `@dnd-kit/dom` picks the drop target by measuring boxes against each
+ * other, and every box there is 0×0 at the origin. So this one lives in the
+ * browser project, shares the table-settings fixture with the play above, and
+ * asserts both ends of the chain — the order the table draws, and the order
+ * the save wrote.
+ */
+export const TableSettingsPointerDrag: Story = {
+  ...DisplayTableSettings,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    await waitFor(() =>
+      expect(readHeaders(table)).toEqual(['订单号', '仓库', '状态', '金额']),
+    );
+
+    await userEvent.click(
+      canvasElement.querySelector<HTMLElement>('[data-control="columns"]')!,
+    );
+    const popover = within(document.body);
+    const handle = await popover.findByRole('button', {
+      name: say('label.columns.drag', { field: '仓库' }),
+    });
+
+    // The rows a drag moves within: the ones that scroll *and* are shown.
+    // A hidden field has no place in `table.columns` and so no order to
+    // drag — its handle is refused — and the row key is held on the left,
+    // which is a region of its own. Read by what the panel offers rather
+    // than by a list of fields, so a definition that grows another field
+    // does not turn this into a test about the fixture.
+    const draggable = [
+      ...document.querySelectorAll<HTMLElement>(
+        '[data-slot="column-region"][data-region="middle"] [data-slot="column-setting"]',
+      ),
+    ].filter(
+      row => row.querySelector('button')?.hasAttribute('disabled') === false,
+    );
+    await expect(draggable.map(row => row.dataset.field)).toEqual([
+      'warehouse',
+      'status',
+      'amount',
+    ]);
+
+    await dragHandleOnto(handle, draggable[2]);
+
+    // Dropped on the third row, 仓库 takes its place and the two it passed
+    // close up behind it. The table is the witness: the panel's own list
+    // would show the same thing whether or not the controller heard it.
+    await waitFor(() =>
+      expect(readHeaders(canvas.getByRole('table'))).toEqual([
+        '订单号',
+        '状态',
+        '金额',
+        '仓库',
+      ]),
+    );
+
+    await userEvent.keyboard('{Escape}');
+    await userEvent.click(
+      canvas.getByRole('button', { name: defaultMessages['label.save.save'] }),
+    );
+    await waitFor(async () => {
+      const saved = await tableSettingsStore.current!.get('orders-pending');
+      expect(
+        (saved.config as RecordViewConfig).table.columns.map(
+          column => column.field,
+        ),
+      ).toEqual(['id', 'status', 'amount', 'warehouse']);
+    });
+  },
+};
+
+/**
+ * Somebody else saved this view first, and the open view says so.
+ *
+ * The line under the title bar is `WriteOutcome`, and it is the one place
+ * this package puts a decision the user has to make about their own work. So
+ * the regression walks the whole of it: that the three ways out are offered,
+ * that the destructive one is put again with both ways of looking side by
+ * side, and that confirming it really writes.
+ */
+export const SaveConflictKeepsMine: Story = {
+  ...DisplaySaveConflicted,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await dirtyTheDraft(canvasElement);
+    await save(canvas);
+
+    const band = await conflictBand(canvasElement);
+    // Every way out of a conflict, and only the ways out: taking theirs,
+    // keeping a copy, and writing over them.
+    await expect(
+      [...band.querySelectorAll('button')].map(button =>
+        button.textContent?.trim(),
+      ),
+    ).toEqual([
+      defaultMessages['label.conflict.theirs'],
+      defaultMessages['label.conflict.copy'],
+      defaultMessages['label.conflict.mine'],
+    ]);
+
+    await pressWhenEnabled(
+      within(band).getByRole('button', {
+        name: defaultMessages['label.conflict.mine'],
+      }),
+    );
+
+    // Put once more, because the button that offered it cannot show what it
+    // costs: the two configs are summarised beside each other, and here they
+    // differ in three of the four things the summary counts.
+    const dialog = await within(document.body).findByRole('dialog');
+    await expect(dialog).toHaveTextContent(
+      defaultMessages['label.conflict.confirm-mine'],
+    );
+    await expect(dialog).toHaveTextContent(MINE);
+    await expect(dialog).toHaveTextContent(THEIRS);
+
+    await userEvent.click(
+      within(dialog).getByRole('button', {
+        name: defaultMessages['label.conflict.mine'],
+      }),
+    );
+
+    // And the overwrite lands: the stored config is the user's again, at the
+    // revision the conflict reported rather than the stale one.
+    await waitFor(async () => {
+      const saved = await outcomesStore.current!.get('orders-pending');
+      expect(saved.config as RecordViewConfig).toMatchObject({
+        pageSize: 20,
+        table: {
+          columns: [
+            { field: 'id' },
+            { field: 'warehouse' },
+            { field: 'status' },
+            { field: 'amount' },
+          ],
+        },
+      });
+      expect((saved.config as RecordViewConfig).sort).toHaveLength(2);
+    });
+    await waitFor(() =>
+      expect(
+        canvas.queryByText(defaultMessages['label.write.conflict']),
+      ).toBeNull(),
+    );
+  },
+};
+
+/**
+ * The other answer to the same question: the server's copy is adopted and the
+ * draft goes with it.
+ *
+ * Nothing is written — a reload is the one recovery that writes nothing at
+ * all — so what proves it is the draft: the view is holding their config,
+ * and the edit that caused the conflict is gone with it.
+ */
+export const SaveConflictTakesTheirs: Story = {
+  ...DisplaySaveConflicted,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await dirtyTheDraft(canvasElement);
+    await save(canvas);
+
+    const band = await conflictBand(canvasElement);
+    await pressWhenEnabled(
+      within(band).getByRole('button', {
+        name: defaultMessages['label.conflict.theirs'],
+      }),
+    );
+    const dialog = await within(document.body).findByRole('dialog');
+    await expect(dialog).toHaveTextContent(
+      defaultMessages['label.conflict.confirm-theirs'],
+    );
+    await userEvent.click(
+      within(dialog).getByRole('button', {
+        name: defaultMessages['label.conflict.theirs'],
+      }),
+    );
+
+    // The line is settled, and with it the edit that caused it: the draft is
+    // theirs now, so there is nothing unsaved left to mark.
+    await waitFor(() =>
+      expect(
+        canvas.queryByText(defaultMessages['label.write.conflict']),
+      ).toBeNull(),
+    );
+    await expect(
+      canvas.queryByText(defaultMessages['label.header.unsaved']),
+    ).toBeNull();
+
+    // And the draft really is theirs: the column settings read it, and the
+    // one column this view never showed is shown in it. The rows on screen
+    // are still the ones the last query returned — adopting a config is not
+    // running it — which is exactly the split the panel reads across.
+    await userEvent.click(
+      canvasElement.querySelector<HTMLElement>('[data-control="columns"]')!,
+    );
+    await expect(
+      await within(document.body).findByRole('checkbox', {
+        name: say('label.columns.show', { field: '创建时间' }),
+      }),
+    ).toBeChecked();
+
+    // The store never heard from this view at all: it still holds theirs.
+    const saved = await outcomesStore.current!.get('orders-pending');
+    await expect((saved.config as RecordViewConfig).pageSize).toBe(50);
+  },
+};
+
+/**
+ * The request left and nothing came back.
+ *
+ * It is neither a success nor a failure, so the line offers neither an
+ * apology nor an overwrite — only the same request again under the same
+ * `requestId`, for the server to recognise, or a way to stop holding it.
+ */
+export const SaveResultNeverCameBack: Story = {
+  ...DisplaySaveResultUnknown,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await dirtyTheDraft(canvasElement);
+    await save(canvas);
+
+    const band = await outcomeBand(
+      canvasElement,
+      defaultMessages['label.write.unknown'],
+    );
+    await expect(
+      [...band.querySelectorAll('button')].map(button =>
+        button.textContent?.trim(),
+      ),
+    ).toEqual([
+      defaultMessages['label.unknown.retry'],
+      defaultMessages['label.unknown.leave'],
+    ]);
+
+    await pressWhenEnabled(
+      within(band).getByRole('button', {
+        name: defaultMessages['label.unknown.retry'],
+      }),
+    );
+
+    // The replay lands, so the line comes down and the view is saved — the
+    // config the save was carrying, not whatever the draft became since.
+    await waitFor(async () => {
+      const saved = await outcomesStore.current!.get('orders-pending');
+      expect((saved.config as RecordViewConfig).sort).toHaveLength(2);
+    });
+    await waitFor(() =>
+      expect(
+        canvas.queryByText(defaultMessages['label.write.unknown']),
+      ).toBeNull(),
+    );
+  },
+};
+
+/**
+ * The store took a look and refused.
+ *
+ * Nothing was written, so there is nothing to retry or overwrite — the line
+ * says why, in the catalogue's sentence and then the store's own words, and
+ * offers only a way to have done with it. Dismissing is what frees the view:
+ * the engine holds the refused write until somebody settles it.
+ */
+export const SaveRefusedByTheStore: Story = {
+  ...DisplaySaveRefused,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await dirtyTheDraft(canvasElement);
+    await save(canvas);
+
+    const band = await outcomeBand(
+      canvasElement,
+      defaultMessages['view.write.invalid'],
+    );
+    // The catalogue's sentence, and the store's own reason after it: an open
+    // view has room for both, and the reason is the only part that says
+    // *what* was wrong.
+    await expect(band).toHaveTextContent('这个视图由运维托管，不接受修改');
+    await expect(
+      [...band.querySelectorAll('button')].map(button =>
+        button.textContent?.trim(),
+      ),
+    ).toEqual([defaultMessages['label.rejected.dismiss']]);
+
+    await pressWhenEnabled(
+      within(band).getByRole('button', {
+        name: defaultMessages['label.rejected.dismiss'],
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        canvas.queryByText(defaultMessages['view.write.invalid'], {
+          exact: false,
+        }),
+      ).toBeNull(),
+    );
+
+    // A refusal is a definite answer, so the draft is still there and saving
+    // again is a new intent rather than a recovery — and this one lands.
+    await save(canvas);
+    await waitFor(async () => {
+      const saved = await outcomesStore.current!.get('orders-pending');
+      expect((saved.config as RecordViewConfig).sort).toHaveLength(2);
+    });
+  },
+};
+
+/**
+ * A write no open view owns, reported under the row that started it.
+ *
+ * The manager's line is the same component in its smaller clothes, and it
+ * differs in exactly two places: taking the server's copy is about the list
+ * here, so it says so, and there is nowhere to put a copy so no copy is
+ * offered.
+ */
+export const RenameConflictedInTheManager: Story = {
+  ...DisplayRenameConflicted,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await openManager(canvas, '我盯的大额单');
+
+    await userEvent.click(
+      within(managerRow('我盯的大额单')).getByRole('button', {
+        name: defaultMessages['label.manage.rename'],
+      }),
+    );
+    const title = within(managerRow('我盯的大额单')).getByLabelText(
+      defaultMessages['label.save.title'],
+    );
+    await userEvent.clear(title);
+    await userEvent.type(title, '大额单');
+    await userEvent.click(
+      within(managerRow('大额单')).getByRole('button', {
+        name: defaultMessages['label.manage.rename-confirm'],
+      }),
+    );
+
+    const line = await conflictLine('大额单');
+    await expect(
+      [...line.querySelectorAll('button')].map(button =>
+        button.textContent?.trim(),
+      ),
+    ).toContain(defaultMessages['label.manage.reload']);
+    // The list is what comes back, so the row says that rather than "take
+    // theirs"; and a row has nowhere to put a copy, so none is offered.
+    await expect(
+      within(line).queryByRole('button', {
+        name: defaultMessages['label.conflict.theirs'],
+      }),
+    ).toBeNull();
+    await expect(
+      within(line).queryByRole('button', {
+        name: defaultMessages['label.conflict.copy'],
+      }),
+    ).toBeNull();
+
+    await pressWhenEnabled(
+      within(line).getByRole('button', {
+        name: defaultMessages['label.conflict.mine'],
+      }),
+    );
+    await waitFor(async () =>
+      expect((await outcomesStore.current!.get('orders-mine')).title).toBe(
+        '大额单',
+      ),
+    );
+  },
+};
+
+/**
+ * A delete that conflicted is confirmed twice.
+ *
+ * The first confirmation was about the view as the list had it; what the
+ * conflict reports is a view that has changed since. So "Keep mine" on the
+ * line does not delete — it puts the question again with the server's copy in
+ * hand, and only that second answer writes.
+ */
+export const DeleteConflictAsksTwice: Story = {
+  ...DisplayDeleteConflicted,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await openManager(canvas, '待出库订单');
+
+    await userEvent.click(
+      within(managerRow('待出库订单')).getByRole('button', {
+        name: defaultMessages['label.manage.delete'],
+      }),
+    );
+    const first = await deleteDialog();
+    // A shared view is somebody else's too, and the first question says so.
+    await expect(first).toHaveTextContent(
+      defaultMessages['label.delete.shared-consequence'],
+    );
+    await userEvent.click(
+      within(first).getByRole('button', {
+        name: defaultMessages['label.manage.delete'],
+      }),
+    );
+
+    const line = await conflictLine('待出库订单');
+    // The first question is off the screen before the second is asked, which
+    // is what makes "twice" mean anything.
+    await waitFor(() =>
+      expect(
+        within(document.body).queryByText(
+          defaultMessages['label.delete.confirm'],
+        ),
+      ).toBeNull(),
+    );
+
+    await pressWhenEnabled(
+      within(line).getByRole('button', {
+        name: defaultMessages['label.conflict.mine'],
+      }),
+    );
+
+    // Asked again — and nothing has been deleted yet: the destructive answer
+    // belongs to the dialog, not to the line.
+    const second = await deleteDialog();
+    await expect(
+      (await outcomesStore.current!.list('orders')).map(item => item.id),
+    ).toContain('orders-pending');
+
+    await userEvent.click(
+      within(second).getByRole('button', {
+        name: defaultMessages['label.manage.delete'],
+      }),
+    );
+    await waitFor(async () =>
+      expect(
+        (await outcomesStore.current!.list('orders')).map(item => item.id),
+      ).not.toContain('orders-pending'),
+    );
+  },
+};
+
+/** The user's way of looking, as the conflict dialog summarises it. */
+const MINE = say('label.conflict.summary.record', {
+  pageSize: 20,
+  layout: defaultMessages['label.layout.table'],
+  columns: 4,
+  sorts: 2,
+});
+
+/** And the one the store had already taken, from `competingConfig`. */
+const THEIRS = say('label.conflict.summary.record', {
+  pageSize: 50,
+  layout: defaultMessages['label.layout.table'],
+  columns: 5,
+  sorts: 0,
+});
+
+/**
+ * Something for a save to carry: one more sortable column in the order.
+ *
+ * Sorting is an edit that applies at once, so it is the shortest honest way
+ * to a dirty draft — and it is what a reader does by hand before pressing
+ * Save in these scenes.
+ */
+async function dirtyTheDraft(canvasElement: HTMLElement): Promise<void> {
+  const canvas = within(canvasElement);
+  const table = await canvas.findByRole('table');
+  await waitFor(() =>
+    expect(readColumn(table, '订单号')).toEqual(PENDING_BY_AMOUNT),
+  );
+  await userEvent.click(headerOf(table, '订单号').querySelector('button')!);
+  await waitFor(() =>
+    expect(positionOf(canvas.getByRole('table'), '订单号')).toBe('2'),
+  );
+}
+
+/** Presses Save, whatever it is about to come to. */
+async function save(canvas: ReturnType<typeof within>): Promise<void> {
+  await pressWhenEnabled(
+    canvas.getByRole('button', { name: defaultMessages['label.save.save'] }),
+  );
+}
+
+/**
+ * An outcome reaches the screen one render before the command's own progress
+ * clears, and every button answering an outcome is disabled while it is set.
+ * A click in that gap hits a disabled button and is swallowed.
+ */
+async function pressWhenEnabled(button: HTMLElement): Promise<void> {
+  await waitFor(() => expect(button).not.toBeDisabled());
+  await userEvent.click(button);
+}
+
+/** The open view's outcome band, once it says what it came to. */
+async function outcomeBand(
+  canvasElement: HTMLElement,
+  sentence: string,
+): Promise<HTMLElement> {
+  const said = await within(canvasElement).findByText(sentence, {
+    exact: false,
+  });
+  const band = said.closest<HTMLElement>('[data-slot="write-outcome"]');
+  if (!band) throw new Error(`"${sentence}" is not in an outcome band.`);
+  return band;
+}
+
+/** The same band, for the outcome all three stories above start from. */
+function conflictBand(canvasElement: HTMLElement): Promise<HTMLElement> {
+  return outcomeBand(canvasElement, defaultMessages['label.write.conflict']);
+}
+
+/**
+ * Opens the manager from the sidebar's gear and waits for one row of it.
+ *
+ * The dialog fades in over a list the engine is still reading, so the row is
+ * awaited rather than read at once. It is also the only thing worth waiting
+ * for here: one of these scenes opens a view whose conditions match nothing,
+ * so there is no table on the page to wait on instead.
+ */
+async function openManager(
+  canvas: ReturnType<typeof within>,
+  title: string,
+): Promise<HTMLElement> {
+  await userEvent.click(
+    await canvas.findByRole('button', {
+      name: defaultMessages['label.manage.open'],
+    }),
+  );
+  await within(document.body).findByRole('dialog');
+  let found: HTMLElement | null = null;
+  await waitFor(() => {
+    found = managerRow(title);
+  });
+  return found!;
+}
+
+/** One row of the manager, by the title it shows or holds in its input. */
+function managerRow(title: string): HTMLElement {
+  const found = [
+    ...document.querySelectorAll<HTMLElement>('[data-slot="view-manager-row"]'),
+  ].find(
+    candidate =>
+      candidate.textContent?.includes(title) ||
+      [...candidate.querySelectorAll('input')].some(field =>
+        field.value.includes(title),
+      ),
+  );
+  if (!found) throw new Error(`no row for ${title}`);
+  return found;
+}
+
+/** The conflict reported under one manager row, once it appears. */
+async function conflictLine(title: string): Promise<HTMLElement> {
+  await within(document.body).findByText(
+    defaultMessages['label.write.conflict'],
+  );
+  return managerRow(title);
+}
+
+/** Whichever delete confirmation is on screen. */
+async function deleteDialog(): Promise<HTMLElement> {
+  const asked = await within(document.body).findByText(
+    defaultMessages['label.delete.confirm'],
+  );
+  return asked.closest<HTMLElement>('[role="dialog"]')!;
+}
 
 /** The data slots the layout is asserted by, in the order they are drawn. */
 const LAYOUT_SLOTS = [
