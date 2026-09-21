@@ -28,6 +28,33 @@ afterEach(cleanup);
  * when the source gave no total does it fall back to what it can see.
  */
 describe('RecordPagination counts the records', () => {
+  /**
+   * The bar is a landmark with a name of its own (decisions.md D16-5).
+   *
+   * It borrows `@shadcn/pagination`'s frame for exactly this: it used to be
+   * a bare `div`, so the one group of controls that moves a reader through
+   * a result was not findable as anything, and the name it now carries
+   * comes from the catalogue rather than from the registry's hard-coded
+   * English.
+   */
+  it('is a named navigation landmark', () => {
+    render(<RecordPagination table={tableController()} />);
+
+    const bar = screen.getByRole('navigation', { name: 'Pagination' });
+    expect(bar.tagName).toBe('NAV');
+    expect(bar.dataset.slot).toBe('record-pagination');
+  });
+
+  it('takes the landmark name from the catalogue in force', () => {
+    render(
+      <MessagesProvider messages={zhCN}>
+        <RecordPagination table={tableController()} />
+      </MessagesProvider>,
+    );
+
+    expect(screen.getByRole('navigation', { name: '分页' })).toBeTruthy();
+  });
+
   it('says how many there are in all', () => {
     render(<RecordPagination table={tableController()} />);
 

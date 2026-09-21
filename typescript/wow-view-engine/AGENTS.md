@@ -236,6 +236,7 @@ src/
       inputs/                       — One file per `EditorDescriptor.input`, plus shared.tsx
     ViewList.tsx, ViewSurface.tsx, EmbeddedView.tsx
     IconButton.tsx                — An icon-only control and the tooltip saying its name; the one place the two are paired
+    RowItem.tsx                   — One row of a list over the registry's `Item`; the five lists share it
     dragAnnounce.ts               — What a screen reader hears while a row is dragged; the column settings and the manager share it
     kinds.ts                      — The icon each kind and audience wears, shared by list and header
     describeConfig.ts             — One config in a sentence, for a conflict's side-by-side
@@ -247,7 +248,7 @@ src/
       view.ts, manage.ts, analysis.ts, dashboard.ts, status.ts, definition.ts
     display.ts                    — A value as its field shows it: enum labels, dates, bucket keys
     index.ts
-    components/                   — 30 shadcn/ui primitives — vendored, see below
+    components/                   — 32 shadcn/ui primitives — vendored, see below
     lib/utils.ts                  — shadcn cn() helper — vendored
 ```
 

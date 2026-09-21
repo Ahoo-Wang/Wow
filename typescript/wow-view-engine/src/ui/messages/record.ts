@@ -41,6 +41,10 @@ export const recordMessages = {
   'label.toolbar.previous': 'Previous page',
   'label.toolbar.next': 'Next page',
 
+  // The bar itself, which is a landmark: it is the one group of controls
+  // that moves a reader through a result, so it says what it is before it
+  // says anything else.
+  'label.pagination.nav': 'Pagination',
   // The count the bar opens with. A total comes from the query and a cursor
   // view has none, so the two are worded apart: with a total the bar says how
   // many there are, and without one it says only what it can see.

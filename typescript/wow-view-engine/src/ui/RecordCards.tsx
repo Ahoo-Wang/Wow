@@ -29,12 +29,18 @@ import {
   CardHeader,
   CardTitle,
 } from './components/card.js';
+import {
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemTitle,
+} from './components/item.js';
+import { RowItem } from './RowItem.js';
 import { displayValue, formatNumber, type DisplayContext } from './display.js';
 import { cellValue } from './record/cells.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 import { cn } from 'cn';
-import { TEXT_UI } from './layout.js';
 
 export interface RecordCardsProps {
   table: RecordTableController;
@@ -105,16 +111,35 @@ export function RecordCards({
             {card.image && (
               <CardImage src={recordValue(row.data, card.image)} />
             )}
-            {card.fields.map(field => (
-              <div key={field.field} className="flex items-baseline gap-2">
-                <span className={cn('text-muted-foreground', TEXT_UI)}>
-                  {field.label}
-                </span>
-                <span className="truncate text-sm">
-                  {show(recordValue(row.data, field.field), field)}
-                </span>
-              </div>
-            ))}
+            {/* A card is a row folded out, so its body is drawn with the
+                same `Item` recipe the lists are (decisions.md D16-3): one
+                reading per row, the field's name beside the value it
+                belongs to. `role="listitem"` is said out loud because the
+                group says `role="list"` and these rows are `div`s. */}
+            <ItemGroup className="gap-0">
+              {card.fields.map(field => (
+                <RowItem
+                  key={field.field}
+                  role="listitem"
+                  // The field's name is a label, not a sentence: `TEXT_UI`
+                  // under the value's `text-sm`, which is the rung every
+                  // other chrome label in this package sits on.
+                  description="label"
+                  data-slot="card-field"
+                  data-field={field.field}
+                  className="gap-2 px-0 py-0"
+                >
+                  <ItemContent className="min-w-0 flex-row items-baseline gap-2">
+                    <ItemDescription className="shrink-0">
+                      {field.label}
+                    </ItemDescription>
+                    <ItemTitle className="min-w-0">
+                      {show(recordValue(row.data, field.field), field)}
+                    </ItemTitle>
+                  </ItemContent>
+                </RowItem>
+              ))}
+            </ItemGroup>
           </CardContent>
           {/* A card has no column to pin actions to, so they sit under a
               rule at its foot — the same buttons, the same order. */}

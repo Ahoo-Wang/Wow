@@ -122,6 +122,7 @@ export const zhCN: ViewMessages = {
   'label.toolbar.page-of': '第 {index} / {pages} 页',
   'label.toolbar.previous': '上一页',
   'label.toolbar.next': '下一页',
+  'label.pagination.nav': '分页',
   'label.pagination.total': '共 {total} 条记录',
   'label.pagination.on-page': '本页 {count} 条记录',
   'label.pagination.page-size': '每页',

@@ -307,6 +307,52 @@ describe('RecordTable on its own', () => {
 });
 
 describe('RecordCards on its own', () => {
+  /**
+   * A card is a row folded out, so its body is the same `Item` recipe the
+   * lists are drawn with (decisions.md D16-3) — and a list of readings is a
+   * list, which the registry's `ItemGroup` says but its `Item` does not:
+   * the rows are `div`s, so each one has to claim `listitem` itself or the
+   * group announces a list with nothing in it.
+   */
+  it('draws the card body as a list of readings', () => {
+    const { container } = render(
+      <RecordCards
+        table={tableController({
+          card: {
+            title: 'warehouse',
+            fields: [
+              { field: 'amount', label: 'Total' },
+              { field: 'status', label: 'Status' },
+            ],
+          },
+          rows: [{ key: 'o-1', data: { warehouse: 'CN', amount: 10 } }],
+        })}
+      />,
+    );
+
+    const rows = [
+      ...container.querySelectorAll<HTMLElement>('[data-slot="card-field"]'),
+    ];
+    expect(rows.map(row => row.dataset.field)).toEqual(['amount', 'status']);
+    for (const row of rows) {
+      expect(row.dataset.variant).toBe('default');
+      expect(row.getAttribute('role')).toBe('listitem');
+      expect(row.parentElement?.getAttribute('role')).toBe('list');
+      // The field's name is the quiet half and the value is the loud one,
+      // which is what `Item` means by description and title.
+      expect(row.querySelector('[data-slot="item-description"]')).toBeTruthy();
+      expect(row.querySelector('[data-slot="item-title"]')).toBeTruthy();
+      // And the name reads a rung below the value: `TEXT_UI` over the
+      // registry's `text-sm`, asked for with `RowItem`'s `description`
+      // variant so that no typography lands on the vendored component.
+      // The class rather than the size, because jsdom hangs no stylesheet;
+      // the pixels are measured in the browser.
+      expect(row.className).toContain(
+        '[&_[data-slot=item-description]]:text-[length:var(--text-ui)]',
+      );
+    }
+  });
+
   it('reads a nested title field by its path', () => {
     render(
       <RecordCards

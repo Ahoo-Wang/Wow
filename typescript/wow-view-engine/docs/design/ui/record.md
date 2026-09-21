@@ -47,6 +47,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 
 - 打开是一个小编辑器：逐条列出拖动手柄、序号、字段与方向，方向可翻转、条目可移除，底下的字段选择器只列**可排序且尚未用到**的字段，全部用完即禁用。新字段追加在末尾并按升序——它是既有字段的并列打破者，插在别处等于悄悄改变了行主要按什么排；
 - **顺序可拖**：谁先谁后是这份列表唯一在说的事（`label.sort.hint`「先按第一个字段排序，相同时再按下一个」），以前却只能靠"删掉再加回末尾"重建。每条前面是一个手柄（`GripVerticalIcon`），接的是列设置那同一套（`@dnd-kit/react` + `@dnd-kit/dom`，`OptimisticSortingPlugin` 关掉，`Accessibility` 插件的英文句子换成目录里的 `label.sort.*`，落定由编辑器自己的 live region 说一次）。**排序项按位置认身份**（`sort-entry-{i}`）而不是按字段：同一个字段排两次是内核会拒的配置（`record.sort.duplicate`），但编辑器照样把两条都列出来——列出来正是为了能删掉其中一条——两条同名的 id 库分不开。落点算出来的是**整份顺序**，经 `table.setSort([...])` 一次写出去（一次 `edit` 加一次 `apply`，与翻方向、删条目是同一种写），序号跟着新顺序重画，工具栏按钮上的摘要跟着新的第一条走。只有一条时手柄禁用：它同时是第一条和最后一条，一个只能把它放回原处的手柄是在说自己能做一件做不到的事；
+- **每条是一个 `Item`**（D16 裁定三，与列设置行、视图管理行同一个配方）：`ItemMedia` 里是手柄与序号，`ItemContent` 是字段名，`ItemActions` 是方向与移除；
 - **键盘等价**：手柄可聚焦，方向键把这一条上下移一位；按空格拾起后方向键交给库（`isDragging` 时本地处理器让路，两边各有单一播报源）。落点（source／target 两个 id → 新顺序）是 `ui/sort/drag.ts` 里的纯函数，jsdom 不用布局也能测；真指针那一条链路只能放在浏览器工程里跑——库靠量盒子做碰撞检测，jsdom 里每个盒子都是原点上的 0×0——所以它是 `stories/view-engine/RecordWorkbench.test.stories.tsx` 的一条故事，断言表头的 `aria-sort` 与按钮上的摘要；
 - 定义里没有任何 `sortable` 字段时整个控件不渲染：一个只能打开一屏空编辑器的按钮，是一个通向哪儿也不去的按钮；
 - **字段选择器停在内核开始拒绝的地方**：游标源的排序写在游标里，Wow 给它定了上限（`MAX_CURSOR_SORT_FIELDS`），`validateRecord` 一超就报 `record.sort.too-many`、`apply` 不跑——行保持原样，视图却进了错误态，而这是控件自己请用户进去的。上限由内核的 `maxSortFields(definition)` 给出、经控制器的 `maxSortFields` 送到控件，满了就禁用选择器并以 `label.sort.full` 说明；
@@ -61,6 +62,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 - **这道闸门窄到只关它该关的**：刷新失败会留住它替换不掉的那批行并把状态转为 `error`（见 test/recordWorkbench.test.tsx「keeps the rows a failed refresh could not replace」），第一次 `loading` 有自己的骨架行——两者手上都有东西可画，表照画不误。`hasResult` 因此是控制器上一个独立的成员（`state.result != null`），而不是拿 `rows.length` 或 `status` 去猜：一个匹配零行的成功结果也没有行。（见 test/recordTable.test.tsx「a record view with no result」）
 - **空结果给一个出口**（D12 Ⅴ）：`label.record.empty` 下面是一个动作，而且只有一个——「清空条件」（`label.record.empty-clear`）或「添加条件」（`label.record.empty-add`），由**已应用的条件有没有**决定（`RecordWorkbench` 传 `hasConditions` 与 `onEmptyAction`，表自己够不到筛选控制器，也不该去够）。两种情况是两件事：有条件时行是被条件挡掉的，出口是把它们清掉再问一遍——`filter.clear()` 之后必须 `submit()`，只清草稿会让屏幕上这批行仍然是刚被撤掉的那些条件取来的；没有条件时视图已经在显示全部，剩下的只有换个问法，所以按钮把折起来的托盘打开。出口只有一个：需要在两个出口之间选的出口不是出口。`onEmptyAction` 不给就一个都不画——仪表盘面板与 `EmbeddedView` 没有自己的条件编辑器，没地方送人去；
 - **骨架按列名给不等宽条**：知道列的时候，骨架一列一格，每条的宽度是列名的字数（`ch`，夹在 4–16 之间）。三条等宽的灰条只说了"有东西在加载"，一排不等宽的条压在真的表头下面说的是"**这张**表在加载，答案大概长这样"。首次加载没有列（也就没有表头，见下），那时仍是一行一条；
+- **卡片正文是一列 `Item`**（D16 裁定三）：一张卡片就是一行摊开，所以正文每个字段读成一行——`ItemDescription` 是字段名（灰、正常字重），`ItemTitle` 是它的值（中等字重），两者基线对齐；外面是 `ItemGroup`（`role="list"`），每行显式带 `role="listitem"`，因为注册表的 `Item` 是 `div` 而不带这个角色。字段名仍是 `TEXT_UI`（13px），值是 `text-sm`（14px）：标签是次要的那一半，先用字号说出来，颜色与字重再帮腔——注册表的 `ItemDescription` 自己是 `text-sm`，把它拉回 13 走的是 `RowItem` 的 `description="label"` 变体（D16 裁定八：调用处不往 vendored 组件上写排版）；
 - `RecordTable` 的 `selectable` 默认为 true，工作台与 `EmbeddedView` 不受影响；
 - 关掉时汇总行的口径标签（`total`／`page`）没有多出来的格子可占，于是标在首列之上，而不是顶掉首列自己的汇总。
 - **汇总行里那半行安静的字走 `--quiet-foreground`**（口径与每个函数的名字）：它压暗的是 `foreground` 而不是去拿 `muted-foreground`——后者是对着页面底色调的，压在汇总行那层 muted 上只有 4.34:1。从前这是写在类名里的 `text-foreground/70`，现在是明暗各一份的 token，和行悬停、冻结列阴影一样宿主改得动（`--fve-quiet-foreground`／`--fve-dark-quiet-foreground`）。
@@ -166,6 +168,8 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 ## RecordPagination
 
 结果下面的一行，不进工具栏：翻页不留在配置里，用户翻到第几页也不是他看记录的方式。一行从左到右读完——
+
+**外框借 `@shadcn/pagination`，内容一字不动**（[decisions.md#D16](../decisions.md#d16-站在-shadcnbase-ui-肩膀上审计后的八条裁定) 裁定五）。这条从前是一个裸 `div`：全屏上唯一一组「带我去看其余记录」的控件，既不是地标，也没有名字。现在是 `Pagination`（`nav`）+ `PaginationContent`（`ul`）+ `PaginationItem`（`li`），名字来自目录的 `label.pagination.nav`（「分页」），不是注册表写死的那个英文串。**只借外框与语义**：注册表默认的那串页码链接不在这里，也不该在——源要么分页要么游标，页数常常算不出来，而页大小选择器与两个步进按钮才是这里真正有的东西。D12 的取舍（只有一页时一个箭头也不画、游标源不画页码与退路、首次加载整条不画）一条没变，措辞也一字没改。
 
 整行**放得下就一行，放不下就两行**（`flex-wrap`），而让步的从来不是那句话：计数带 `whitespace-nowrap`，控件那组带 `ml-auto`，所以它落在第一行还是第二行都贴着右缘。不换行的那一版在 375 上把「下一页」的右缘顶到 365.6，而卡片在 342 就结束了，同时 `justify-between` 把「4 records in all」压成三行、中文「共 4 条记录」拦腰断开。
 

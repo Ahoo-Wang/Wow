@@ -33,6 +33,13 @@ import type {
 import type { RecordTableController } from '../react/index.js';
 import { Button } from './components/button.js';
 import { Empty, EmptyDescription, EmptyHeader } from './components/empty.js';
+import {
+  ItemActions,
+  ItemContent,
+  ItemMedia,
+  ItemTitle,
+} from './components/item.js';
+import { RowItem } from './RowItem.js';
 import { IconButton } from './IconButton.js';
 import {
   Popover,
@@ -342,63 +349,74 @@ function SortEntry({
       defaults.filter(plugin => plugin !== OptimisticSortingPlugin),
   });
   return (
-    <li
+    <RowItem
+      render={<li />}
       ref={ref}
+      density="dense"
       data-slot="sort-entry"
       data-field={entry.field}
       data-dragging={isDragging ? '' : undefined}
-      className="flex items-center gap-1.5 rounded-md data-dragging:bg-muted"
     >
-      <IconButton
-        ref={handleRef}
-        type="button"
-        label={messages.label('label.sort.drag', { field: label })}
-        // Not while the entry is in the air — see `ColumnRow`, which carries
-        // the same handle for the same reason.
-        silent={isDragging}
-        variant="ghost"
-        size="icon-xs"
-        className="cursor-grab"
-        // A single entry is already first and last at once: a handle that
-        // can only put it back where it is says it can do something it
-        // cannot.
-        disabled={total < 2}
-        onKeyDown={(event: KeyboardEvent) => {
-          // While the library is carrying the entry the arrows are its: two
-          // handlers on one press would move it twice.
-          if (isDragging) return;
-          const step = STEP[event.key];
-          if (!step) return;
-          event.preventDefault();
-          onMove(step);
-        }}
-      >
-        <GripVerticalIcon />
-      </IconButton>
-      <span className={cn('text-muted-foreground w-4 text-center', TEXT_UI)}>
-        {index + 1}
-      </span>
-      <span className="flex-1 truncate">{label}</span>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        aria-label={messages.label('label.sort.direction', { field: label })}
-        onClick={onFlip}
-      >
-        <DirectionMark direction={direction} icon="inline-start" />
-        {messages.label(DIRECTION_LABEL[direction])}
-      </Button>
-      <IconButton
-        type="button"
-        label={messages.label('label.sort.none', { field: label })}
-        variant="ghost"
-        size="icon-xs"
-        onClick={onRemove}
-      >
-        <XIcon />
-      </IconButton>
-    </li>
+      {/* The handle and the place it holds are one group: where this entry
+          sits and how to move it are the same subject. */}
+      <ItemMedia className="gap-1">
+        <IconButton
+          ref={handleRef}
+          type="button"
+          label={messages.label('label.sort.drag', { field: label })}
+          // Not while the entry is in the air — see `ColumnRow`, which
+          // carries the same handle for the same reason.
+          silent={isDragging}
+          variant="ghost"
+          size="icon-xs"
+          className="cursor-grab"
+          // A single entry is already first and last at once: a handle that
+          // can only put it back where it is says it can do something it
+          // cannot.
+          disabled={total < 2}
+          onKeyDown={(event: KeyboardEvent) => {
+            // While the library is carrying the entry the arrows are its:
+            // two handlers on one press would move it twice.
+            if (isDragging) return;
+            const step = STEP[event.key];
+            if (!step) return;
+            event.preventDefault();
+            onMove(step);
+          }}
+        >
+          <GripVerticalIcon />
+        </IconButton>
+        <span className={cn('text-muted-foreground w-4 text-center', TEXT_UI)}>
+          {index + 1}
+        </span>
+      </ItemMedia>
+
+      <ItemContent className="min-w-0">
+        <ItemTitle className="max-w-full">{label}</ItemTitle>
+      </ItemContent>
+
+      <ItemActions className="gap-1">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          aria-label={messages.label('label.sort.direction', { field: label })}
+          onClick={onFlip}
+        >
+          <DirectionMark direction={direction} icon="inline-start" />
+          {messages.label(DIRECTION_LABEL[direction])}
+        </Button>
+        <IconButton
+          type="button"
+          label={messages.label('label.sort.none', { field: label })}
+          variant="ghost"
+          size="icon-xs"
+          onClick={onRemove}
+        >
+          <XIcon />
+        </IconButton>
+      </ItemActions>
+    </RowItem>
   );
 }
 

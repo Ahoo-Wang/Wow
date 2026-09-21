@@ -20,6 +20,13 @@ import { IconButton } from '../IconButton.js';
 import { Checkbox } from '../components/checkbox.js';
 import { FieldDescription } from '../components/field.js';
 import {
+  ItemActions,
+  ItemContent,
+  ItemMedia,
+  ItemTitle,
+} from '../components/item.js';
+import { RowItem } from '../RowItem.js';
+import {
   Select,
   SelectGroup,
   SelectItem,
@@ -161,16 +168,21 @@ export function ColumnRow({
       : row.functions;
 
   return (
-    <li
+    <RowItem
+      render={<li />}
       ref={elementRef}
+      density="dense"
       data-slot="column-setting"
       data-field={row.field}
       data-region={row.region}
       data-broken={row.broken ? '' : undefined}
       data-dragging={dragging ? '' : undefined}
-      className="flex flex-col rounded-md px-1 py-0.5 data-broken:text-muted-foreground data-dragging:bg-muted"
+      // `SPACE.WITHIN` between the handle, the checkbox and the name — they
+      // are one group, the row's subject — and the row's own `SPACE.GROUPS`
+      // before the controls that act on it.
+      className="gap-y-0.5"
     >
-      <div className="flex items-center gap-1.5">
+      <ItemMedia className="gap-1">
         <IconButton
           ref={handleRef}
           type="button"
@@ -208,9 +220,13 @@ export function ColumnRow({
           aria-describedby={row.broken || last ? noteId : undefined}
           onCheckedChange={onToggle}
         />
+      </ItemMedia>
 
-        <span className="flex-1 truncate">{label}</span>
+      <ItemContent className="min-w-0">
+        <ItemTitle className="max-w-full">{label}</ItemTitle>
+      </ItemContent>
 
+      <ItemActions>
         {functions.length > 0 && (
           <Select
             disabled={!row.visible || row.broken}
@@ -291,7 +307,7 @@ export function ColumnRow({
             )}
           />
         </IconButton>
-      </div>
+      </ItemActions>
 
       {note && (
         // The sentence a control on this row is described by, so it is the
@@ -299,16 +315,18 @@ export function ColumnRow({
         // `id` stays: `aria-describedby` is what ties it to whichever of the
         // four controls the reason belongs to, and a description that names
         // its controls cannot be a `FieldLabel` — one label cannot be shared
-        // by four controls, which is why the `<span>` above stays a `<span>`
-        // and each control carries its own `aria-label`.
+        // by four controls, which is why the name above is an `ItemTitle`
+        // rather than a label and each control carries its own `aria-label`.
         <FieldDescription
           id={noteId}
           data-slot="column-note"
           data-note={note}
           className={cn(
             // No `text-muted-foreground`: `FieldDescription` already is it.
+            // `basis-full` puts it on a line of its own: the row is one
+            // wrapping flex container now, not a column with a row in it.
             NOTES[note].shown
-              ? ['flex items-start gap-1 pl-8', TEXT_UI]
+              ? ['flex basis-full items-start gap-1 pl-8', TEXT_UI]
               : 'sr-only',
           )}
         >
@@ -322,7 +340,7 @@ export function ColumnRow({
           {messages.label(NOTES[note].key)}
         </FieldDescription>
       )}
-    </li>
+    </RowItem>
   );
 }
 

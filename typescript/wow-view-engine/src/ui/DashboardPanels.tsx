@@ -24,7 +24,8 @@ import {
   EmptyHeader,
   EmptyMedia,
 } from './components/empty.js';
-import { TEXT_UI } from './layout.js';
+import { ItemContent, ItemDescription, ItemTitle } from './components/item.js';
+import { RowItem } from './RowItem.js';
 import { cn } from 'cn';
 
 export interface ContentPanelProps {
@@ -200,29 +201,54 @@ export interface LinksPanelProps {
   items: readonly { label: string; href: string; description?: string }[];
 }
 
+/**
+ * A list of links, one `Item` per line (decisions.md D16-3).
+ *
+ * A label with a sentence under it is exactly what `Item` draws, so the two
+ * hand-written lines — an `<a>` with its own hover rules and a `<p>` under
+ * it — are `ItemTitle` and `ItemDescription` now.
+ *
+ * **The anchor stays around the label, not around the row.** Making the
+ * whole `Item` the link is the registry's own shape (`[a]:hover:bg-muted`),
+ * and it would grow the target from the words to the line — but a link's
+ * accessible name is the text inside it, so the author's sentence would be
+ * read out as part of the link's name on every one of them. A bigger target
+ * is not worth a name that recites its own description.
+ *
+ * The `<ul>` stays around the rows as well: `ItemGroup` says `role="list"`
+ * over `div`s, and a list of links is a real list.
+ */
 export function LinksPanel({ items }: LinksPanelProps) {
   return (
-    <ul data-slot="links-panel" className="flex flex-col gap-2 overflow-auto">
+    <ul data-slot="links-panel" className="flex flex-col overflow-auto">
       {items.map(item => (
         <li key={`${item.href}:${item.label}`}>
-          {isSafeContentUrl(item.href) ? (
-            <a
-              href={item.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 text-sm underline-offset-4 hover:underline"
-            >
-              {item.label}
-              <ExternalLinkIcon className="size-3" aria-hidden />
-            </a>
-          ) : (
-            <span className="text-muted-foreground text-sm">{item.label}</span>
-          )}
-          {item.description && (
-            <p className={cn('text-muted-foreground', TEXT_UI)}>
-              {item.description}
-            </p>
-          )}
+          <RowItem size="sm" className="px-2 py-1.5">
+            <ItemContent className="min-w-0">
+              <ItemTitle className="max-w-full">
+                {isSafeContentUrl(item.href) ? (
+                  <a
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex min-w-0 items-center gap-1 underline-offset-4 hover:underline"
+                  >
+                    <span className="truncate">{item.label}</span>
+                    <ExternalLinkIcon className="size-3" aria-hidden />
+                  </a>
+                ) : (
+                  // A destination this package refuses costs the link, not
+                  // the words: what is left is a line of quiet text.
+                  <span className="text-muted-foreground truncate">
+                    {item.label}
+                  </span>
+                )}
+              </ItemTitle>
+              {item.description && (
+                <ItemDescription>{item.description}</ItemDescription>
+              )}
+            </ItemContent>
+          </RowItem>
         </li>
       ))}
     </ul>

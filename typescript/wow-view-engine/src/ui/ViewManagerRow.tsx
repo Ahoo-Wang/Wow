@@ -14,7 +14,6 @@
 import { useState, type KeyboardEvent, type RefObject } from 'react';
 import { useSortable } from '@dnd-kit/react/sortable';
 import { OptimisticSortingPlugin } from '@dnd-kit/dom/sortable';
-import { cn } from 'cn';
 import {
   CheckIcon,
   GripVerticalIcon,
@@ -35,31 +34,39 @@ import { Badge } from './components/badge.js';
 import { IconButton } from './IconButton.js';
 import { ButtonGroup } from './components/button-group.js';
 import { Input } from './components/input.js';
+import {
+  ItemActions,
+  ItemContent,
+  ItemFooter,
+  ItemMedia,
+  ItemTitle,
+} from './components/item.js';
+import { RowItem } from './RowItem.js';
 import { DeleteDialog } from './DeleteDialog.js';
 import { KIND_ICON } from './kinds.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { OutcomeActions } from './OutcomeActions.js';
 
 /**
- * The width every row gives its actions, whether or not it has all of them.
+ * How many action cells every row lays out, whatever it carries.
  *
  * A column of icons looks like a column, and a user reads it as one: what
  * sits under "Rename" on the row above must be "Rename" here too. Rows do
- * not all carry the same actions — a system view has no rename and no delete
- * — so with the cluster sized to its contents and pushed right, a system
- * row's one button landed exactly where every other row's "Delete" was: an
- * icon lying about what it does.
+ * not all carry the same actions — a system view has no rename and no
+ * delete — so with the cluster sized to its contents, a system row's one
+ * button landed exactly where every other row's "Delete" was: an icon lying
+ * about what it does.
  *
- * The fix is a slot as wide as the fullest row and contents left-aligned
- * inside it. Re-measured now that the order is dragged rather than clicked:
- * the two arrows and the group between them are gone, so the fullest row is
- * the three `icon-sm` buttons (`size-7`, 28px) of one group — 84px. The
- * absent actions are **not** drawn as disabled buttons to make up the width:
- * what a row offers is what the store will take (decisions.md D4), and a
- * greyed-out Delete on a view that can never be deleted is an offer that was
- * never on the table.
+ * So the cluster is a grid of one cell per action this row *could* carry —
+ * the default, the rename and the delete — with what the row does carry
+ * packed into the leading cells. The width comes out of the buttons that
+ * are there rather than out of a rem figure measured by hand: a fourth
+ * action changes this one number, and nothing else. The absent actions are
+ * **not** drawn as disabled buttons to make up the width: what a row offers
+ * is what the store will take (decisions.md D4), and a greyed-out Delete on
+ * a view that can never be deleted is an offer that was never on the table.
  */
-const ACTION_SLOT = 'w-21';
+const ACTION_CELLS = 'grid grid-cols-3';
 
 export interface ViewManagerRowProps {
   item: ViewInstanceSummary;
@@ -120,80 +127,90 @@ export function ViewManagerRow({
   };
 
   return (
-    <div
-      ref={elementRef}
-      data-slot="view-manager-row"
-      data-dragging={dragging ? '' : undefined}
-      className="data-dragging:bg-muted flex flex-col gap-1 rounded-md"
-    >
-      <div className="flex min-w-0 items-center gap-2">
+    <>
+      <RowItem
+        ref={elementRef}
+        density="dense"
+        data-slot="view-manager-row"
+        data-dragging={dragging ? '' : undefined}
+        // The row and the outcome line that wraps under it are one flex
+        // container, so the two distances are said apart: `SPACE.GROUPS`
+        // between the controls on the row (which `xs` already gives) and
+        // `SPACE.WITHIN` between the row and the line below it.
+        className="gap-y-1"
+      >
         {/* The order is the user's, and it is made by carrying a row rather
             than by clicking it up one step at a time. The handle leads the
             row because that is where a reader looks for one, and because the
-            action slot on the right is about what becomes of the view rather
-            than about where it sits. It is a list-wide permission, so either
-            every row has one or none does, and the rows stay aligned. */}
-        {manager.can.reorder && (
-          <IconButton
-            ref={handleRef}
-            type="button"
-            label={messages.label('label.manage.drag', {
-              title: item.title,
-            })}
-            // Not while the row is in the air — see `ColumnRow`, which
-            // carries the same handle for the same reason.
-            silent={dragging}
-            variant="ghost"
-            size="icon-sm"
-            className="shrink-0 cursor-grab"
-            // Not a permission, so not an absence (D4): while a write is in
-            // flight or this row's title is being edited, the row is busy
-            // with something else and comes back as soon as it is done.
-            disabled={busy || renaming !== null}
-            onKeyDown={(event: KeyboardEvent) => {
-              // While the library is carrying the row the arrows are its:
-              // two handlers on one press would move the row twice.
-              if (dragging) return;
-              const step = STEP[event.key];
-              if (!step) return;
-              event.preventDefault();
-              onMove(step);
-            }}
-          >
-            <GripVerticalIcon />
-          </IconButton>
-        )}
-
-        <Kind className="text-muted-foreground size-4 shrink-0" aria-hidden />
-
-        {renaming === null ? (
-          <span className="min-w-0 flex-1 truncate text-sm">{item.title}</span>
-        ) : (
-          <Input
-            className="h-7 min-w-0 flex-1"
-            aria-label={messages.label('label.save.title')}
-            value={renaming}
-            autoFocus
-            onChange={event => setRenaming(event.target.value)}
-            // A field with one obvious answer takes Enter for it — the ✓
-            // beside it is the same call, not a different one — and Escape
-            // for "never mind". Escape is stopped here rather than allowed
-            // to bubble: the manager is a dialog, `useDismiss` listens for
-            // the key on `document`, and an Escape that got that far closed
-            // the whole manager and took the rename with it. React's
-            // `stopPropagation` stops the native event too, so the key ends
-            // at this input, where it was aimed.
-            onKeyDown={event => {
-              if (event.key === 'Enter') {
+            action cells on the right are about what becomes of the view
+            rather than about where it sits. It is a list-wide permission, so
+            either every row has one or none does, and the rows stay
+            aligned. */}
+        <ItemMedia>
+          {manager.can.reorder && (
+            <IconButton
+              ref={handleRef}
+              type="button"
+              label={messages.label('label.manage.drag', {
+                title: item.title,
+              })}
+              // Not while the row is in the air — see `ColumnRow`, which
+              // carries the same handle for the same reason.
+              silent={dragging}
+              variant="ghost"
+              size="icon-sm"
+              className="cursor-grab"
+              // Not a permission, so not an absence (D4): while a write is
+              // in flight or this row's title is being edited, the row is
+              // busy with something else and comes back as soon as it is
+              // done.
+              disabled={busy || renaming !== null}
+              onKeyDown={(event: KeyboardEvent) => {
+                // While the library is carrying the row the arrows are its:
+                // two handlers on one press would move the row twice.
+                if (dragging) return;
+                const step = STEP[event.key];
+                if (!step) return;
                 event.preventDefault();
-                confirmRename();
-              } else if (event.key === 'Escape') {
-                event.stopPropagation();
-                setRenaming(null);
-              }
-            }}
-          />
-        )}
+                onMove(step);
+              }}
+            >
+              <GripVerticalIcon />
+            </IconButton>
+          )}
+          <Kind className="text-muted-foreground size-4" aria-hidden />
+        </ItemMedia>
+
+        <ItemContent className="min-w-0">
+          {renaming === null ? (
+            <ItemTitle className="max-w-full">{item.title}</ItemTitle>
+          ) : (
+            <Input
+              className="h-7 w-full min-w-0"
+              aria-label={messages.label('label.save.title')}
+              value={renaming}
+              autoFocus
+              onChange={event => setRenaming(event.target.value)}
+              // A field with one obvious answer takes Enter for it — the ✓
+              // beside it is the same call, not a different one — and Escape
+              // for "never mind". Escape is stopped here rather than allowed
+              // to bubble: the manager is a dialog, `useDismiss` listens for
+              // the key on `document`, and an Escape that got that far closed
+              // the whole manager and took the rename with it. React's
+              // `stopPropagation` stops the native event too, so the key ends
+              // at this input, where it was aimed.
+              onKeyDown={event => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  confirmRename();
+                } else if (event.key === 'Escape') {
+                  event.stopPropagation();
+                  setRenaming(null);
+                }
+              }}
+            />
+          )}
+        </ItemContent>
 
         {isSystemScope(item.scope) && (
           <Badge variant="secondary" className="shrink-0">
@@ -208,12 +225,9 @@ export function ViewManagerRow({
 
         {/* One group now that the order left this slot, so there is no
             between for `SPACE.GROUPS` to be. */}
-        <div
-          data-slot="view-manager-actions"
-          className={cn('flex shrink-0 items-center', ACTION_SLOT)}
-        >
+        <ItemActions data-slot="view-manager-actions">
           {renaming !== null ? (
-            <ButtonGroup>
+            <ButtonGroup className={ACTION_CELLS}>
               <IconButton
                 label={messages.label('label.manage.rename-confirm')}
                 variant="ghost"
@@ -236,6 +250,7 @@ export function ViewManagerRow({
             <>
               {(manager.can.setDefault || can.rename || can.delete) && (
                 <ButtonGroup
+                  className={ACTION_CELLS}
                   aria-label={messages.label('label.manage.view-group')}
                 >
                   {manager.can.setDefault && (
@@ -293,20 +308,26 @@ export function ViewManagerRow({
               )}
             </>
           )}
-        </div>
-      </div>
+        </ItemActions>
 
-      {outcome && (
-        <ViewManagerOutcome
-          state={outcome}
-          manager={manager}
-          list={list}
-          outcomeKey={item.id}
-          item={item}
-          dirty={openDirtyId === item.id}
-          returnFocus={returnFocus}
-        />
-      )}
+        {/* The line the row's last write left behind, wrapped underneath it
+            rather than squeezed in beside the actions: `ItemFooter` is the
+            registry's full-width row, and the sentence it holds is as long
+            as it needs to be. */}
+        {outcome && (
+          <ItemFooter className="flex-col items-stretch">
+            <ViewManagerOutcome
+              state={outcome}
+              manager={manager}
+              list={list}
+              outcomeKey={item.id}
+              item={item}
+              dirty={openDirtyId === item.id}
+              returnFocus={returnFocus}
+            />
+          </ItemFooter>
+        )}
+      </RowItem>
 
       <DeleteDialog
         open={deleting}
@@ -319,7 +340,7 @@ export function ViewManagerRow({
           setDeleting(false);
         }}
       />
-    </div>
+    </>
   );
 }
 

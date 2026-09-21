@@ -23,6 +23,11 @@ import {
   SelectValue,
 } from './components/select.js';
 import { SelectContent } from './popups.js';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+} from './components/pagination.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { TEXT_UI } from './layout.js';
 import { cn } from 'cn';
@@ -113,8 +118,16 @@ export function RecordPagination({ table }: RecordPaginationProps) {
     messages.label('label.pagination.page-size-option', { size });
 
   return (
-    <div
+    // The registry's frame and nothing else of it (decisions.md D16-5): a
+    // `nav` with a name, which is what this bar was missing — it used to be
+    // a bare `div`, so the one control cluster that moves a reader through
+    // a result was not a landmark and had nothing to announce itself as.
+    // The numbered links `Pagination` is usually made of are not here and
+    // are not wanted: this source is paged or cursored, and how many pages
+    // there are is often unknowable.
+    <Pagination
       data-slot="record-pagination"
+      aria-label={messages.label('label.pagination.nav')}
       // One line while there is room for one, two when there is not. A row
       // that could not wrap put Next's right edge 24px past the result card
       // it sits in at a phone's width, and `justify-between` squeezed the
@@ -123,57 +136,61 @@ export function RecordPagination({ table }: RecordPaginationProps) {
       // whole, the controls take the line below it, and `ml-auto` keeps
       // them at the end of whichever line they land on.
       className={cn(
-        'text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-2',
+        'text-muted-foreground mx-0 flex-wrap items-center justify-start gap-x-4 gap-y-2',
         TEXT_UI,
       )}
     >
       <span className="whitespace-nowrap">{count}</span>
 
-      <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-        <span id={sizeLabelId}>
-          {messages.label('label.pagination.page-size')}
-        </span>
-        <Select
-          items={sizes.map(size => ({ value: size, label: sizeLabel(size) }))}
-          value={table.pageSize}
-          onValueChange={value => {
-            // Picked out of the offered sizes rather than cast: the list is
-            // what the control was built from.
-            const next = sizes.find(size => size === value);
-            if (next !== undefined) table.setPageSize(next);
-          }}
-        >
-          {/* Named by the words beside it rather than by an `aria-label` of
-              its own, so the control announces what the row already reads —
-              one label, not two that have to be kept in step. */}
-          <SelectTrigger size="sm" aria-labelledby={sizeLabelId}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              {sizes.map(size => (
-                <SelectItem key={size} value={size}>
-                  {sizeLabel(size)}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+      <PaginationContent className="ml-auto flex-wrap justify-end gap-2">
+        <PaginationItem className="flex items-center gap-2">
+          <span id={sizeLabelId}>
+            {messages.label('label.pagination.page-size')}
+          </span>
+          <Select
+            items={sizes.map(size => ({ value: size, label: sizeLabel(size) }))}
+            value={table.pageSize}
+            onValueChange={value => {
+              // Picked out of the offered sizes rather than cast: the list
+              // is what the control was built from.
+              const next = sizes.find(size => size === value);
+              if (next !== undefined) table.setPageSize(next);
+            }}
+          >
+            {/* Named by the words beside it rather than by an `aria-label`
+                of its own, so the control announces what the row already
+                reads — one label, not two that have to be kept in step. */}
+            <SelectTrigger size="sm" aria-labelledby={sizeLabelId}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {sizes.map(size => (
+                  <SelectItem key={size} value={size}>
+                    {sizeLabel(size)}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </PaginationItem>
 
         {/* A cursor source has no page numbers and no way back, so it shows
             neither rather than showing them dead. */}
         {paged && (
-          <span>
+          <PaginationItem>
             {pages === undefined
               ? messages.label('label.toolbar.page', { index: paging.index })
               : messages.label('label.toolbar.page-of', {
                   index: paging.index,
                   pages,
                 })}
-          </span>
+          </PaginationItem>
         )}
         {!onePage && (
-          <div className="flex items-center gap-1">
+          // The two steps are one group, so they sit `SPACE.WITHIN` apart
+          // inside the `SPACE.GROUPS` the list puts between its items.
+          <PaginationItem className="flex items-center gap-1">
             {paged && (
               <IconButton
                 label={messages.label('label.toolbar.previous')}
@@ -194,9 +211,9 @@ export function RecordPagination({ table }: RecordPaginationProps) {
             >
               <ChevronRightIcon />
             </IconButton>
-          </div>
+          </PaginationItem>
         )}
-      </div>
-    </div>
+      </PaginationContent>
+    </Pagination>
   );
 }
