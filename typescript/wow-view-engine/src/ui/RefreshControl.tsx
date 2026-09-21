@@ -113,6 +113,7 @@ export function RefreshControl({
         variant={variant}
         size="sm"
         data-slot="refresh-now"
+        aria-label={messages.label('label.toolbar.refresh')}
         onClick={refresh.now}
         disabled={busy || refresh.loading}
         // Said as well as drawn: the cadence beside the word is a fragment,
@@ -128,14 +129,13 @@ export function RefreshControl({
             English whatever the host's catalogue says, so the name is handed
             to it here, where the component is used. */}
         {refresh.loading ? (
-          <Spinner
-            data-icon="inline-start"
-            aria-label={messages.label('label.status.loading')}
-          />
+          <Spinner aria-label={messages.label('label.status.loading')} />
         ) : (
-          <RefreshCwIcon data-icon="inline-start" />
+          <RefreshCwIcon />
         )}
-        {messages.label('label.toolbar.refresh')}
+        {/* No word on the button (D12): a function is its icon, and the
+            only text a control here carries is the state it reports — the
+            cadence, when an interval is running. */}
         {cadence !== null && (
           <span
             data-slot="refresh-cadence"

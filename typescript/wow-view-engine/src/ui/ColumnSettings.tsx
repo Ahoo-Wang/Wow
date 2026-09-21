@@ -29,7 +29,8 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from './components/popover.js';
-import { PopoverContent } from './popups.js';
+import { PopoverContent, TooltipContent } from './popups.js';
+import { Tooltip, TooltipTrigger } from './components/tooltip.js';
 import { ColumnRow, SortableColumnRow } from './columns/ColumnRow.js';
 import { columnDragAccessibility } from './columns/announce.js';
 import {
@@ -142,13 +143,24 @@ export function ColumnSettings({
 
   return (
     <Popover>
-      <PopoverTrigger
-        data-control="columns"
-        render={<Button variant="ghost" size="sm" />}
-      >
-        <Columns3Icon data-icon="inline-start" />
-        {messages.label('label.toolbar.columns')}
-      </PopoverTrigger>
+      {/* A bordered icon button with the word in its name and its tooltip
+          (D12 Ⅳ): the control reports no state, so it carries no text. */}
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <PopoverTrigger
+              data-control="columns"
+              aria-label={messages.label('label.toolbar.columns')}
+              render={<Button variant="outline" size="icon-sm" />}
+            />
+          }
+        >
+          <Columns3Icon />
+        </TooltipTrigger>
+        <TooltipContent>
+          {messages.label('label.toolbar.columns')}
+        </TooltipContent>
+      </Tooltip>
       <PopoverContent align="end" className="w-96">
         <PopoverHeader>
           <PopoverTitle>{messages.label('label.columns.title')}</PopoverTitle>

@@ -187,7 +187,7 @@ export function OrdersPage() {
 | `info`                 | 中性提示                   | `oklch(0.546 0.245 262.881deg)` | `oklch(0.707 0.165 254.624deg)` |
 | `border`               | 边框与分隔线               | `oklch(0.922 0 0deg)`           | `oklch(1 0 0deg / 20%)`         |
 | `input`                | 输入与控件边框             | `oklch(0.62 0 0deg)`            | `oklch(1 0 0deg / 40%)`         |
-| `ring`                 | 焦点环                     | `oklch(0.62 0 0deg)`            | `oklch(0.556 0 0deg)`           |
+| `ring`                 | 焦点环                     | `oklch(0.62 0 0deg)`            | `oklch(0.66 0 0deg)`            |
 | `chart-1`              | 图表第 1 槽，蓝            | `#2a78d6`                       | `#3987e5`                       |
 | `chart-2`              | 图表第 2 槽，橙            | `#eb6834`                       | `#d95926`                       |
 | `chart-3`              | 图表第 3 槽，青            | `#1baf7a`                       | `#199e70`                       |

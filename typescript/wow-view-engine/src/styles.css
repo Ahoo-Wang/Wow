@@ -202,7 +202,12 @@
    * at another opacity.
    */
   --input: var(--fve-dark-input, oklch(1 0 0deg / 40%));
-  --ring: var(--fve-dark-ring, oklch(0.556 0 0deg));
+  /*
+   * Lifted with the toolbar's functions turning into outline buttons: their
+   * `bg-input/30` wash is lighter than the card, and the ring at 0.556 read
+   * 2.67:1 against it. 0.66 clears 3:1 on the wash, the card and the page.
+   */
+  --ring: var(--fve-dark-ring, oklch(0.66 0 0deg));
   --chart-1: var(--fve-dark-chart-1, #3987e5);
   --chart-2: var(--fve-dark-chart-2, #d95926);
   --chart-3: var(--fve-dark-chart-3, #199e70);

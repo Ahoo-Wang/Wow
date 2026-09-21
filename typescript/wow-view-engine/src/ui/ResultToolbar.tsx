@@ -20,15 +20,16 @@ import type {
 import type {
   RecordBulkActionContext,
   RecordTableController,
-  RefreshController,
 } from '../react/index.js';
 import type { RecordViewRuntime } from '../runtime/index.js';
 import { Badge } from './components/badge.js';
 import { Button } from './components/button.js';
 import { ButtonGroup } from './components/button-group.js';
+import { LayoutGridIcon, Rows3Icon } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from './components/toggle-group.js';
+import { Tooltip, TooltipTrigger } from './components/tooltip.js';
+import { TooltipContent } from './popups.js';
 import { ColumnSettings } from './ColumnSettings.js';
-import { RefreshControl } from './RefreshControl.js';
 import { SortSettings } from './SortSettings.js';
 import { SEGMENTED, SPACE } from './layout.js';
 import type { MessageKey } from './messages.js';
@@ -42,7 +43,6 @@ export interface ResultToolbarProps {
    * the table controller because `refresh.interval` belongs to every kind of
    * view (`ViewConfigBase`), not to a table.
    */
-  refresh: RefreshController;
   /** Fields the definition offers, for the column picker. */
   fields: readonly FieldDefinition[];
   /** The picker groups of the definition the fields come from. */
@@ -77,6 +77,11 @@ const LAYOUT_LABEL: Record<RecordLayout, MessageKey> = {
   card: 'label.layout.cards',
 };
 
+const LAYOUT_ICON: Record<RecordLayout, typeof Rows3Icon> = {
+  table: Rows3Icon,
+  card: LayoutGridIcon,
+};
+
 /**
  * The bar above the result: what is selected on the left, how the result is
  * shown on the right.
@@ -109,7 +114,6 @@ const LAYOUT_LABEL: Record<RecordLayout, MessageKey> = {
  */
 export function ResultToolbar({
   table,
-  refresh,
   fields,
   fieldGroups,
   rowKey,
@@ -133,6 +137,19 @@ export function ResultToolbar({
           nothing that could take a line to itself. Its own contents wrap:
           a count, a way to drop it, and however many bulk actions the host
           brought are more than one narrow line holds. */}
+      {/* Nothing selected but something to select for: the sentence that
+          says how the bulk actions are reached, in the place they will
+          appear. A host that brought no bulk action has nothing to explain,
+          and the left of the bar stays empty (D12 Ⅳ). */}
+      {!selected && bulkActions && (
+        <span
+          data-slot="toolbar-hint"
+          className="text-muted-foreground text-xs"
+        >
+          {messages.label('label.toolbar.hint')}
+        </span>
+      )}
+
       {selected && (
         <div
           data-slot="toolbar-selection"
@@ -187,11 +204,29 @@ export function ResultToolbar({
             aria-label={messages.label('label.toolbar.layout')}
             className={SEGMENTED}
           >
-            {table.layouts.map(layout => (
-              <ToggleGroupItem key={layout} value={layout}>
-                {messages.label(LAYOUT_LABEL[layout])}
-              </ToggleGroupItem>
-            ))}
+            {table.layouts.map(layout => {
+              // An icon with the word in its name and its tooltip (D12): the
+              // switch reports which layout is on by which segment is
+              // pressed, so the word adds nothing a glance does not have.
+              const Icon = LAYOUT_ICON[layout];
+              return (
+                <Tooltip key={layout}>
+                  <TooltipTrigger
+                    render={
+                      <ToggleGroupItem
+                        value={layout}
+                        aria-label={messages.label(LAYOUT_LABEL[layout])}
+                      />
+                    }
+                  >
+                    <Icon />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {messages.label(LAYOUT_LABEL[layout])}
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })}
           </ToggleGroup>
         )}
 
@@ -209,10 +244,6 @@ export function ResultToolbar({
             {...(fieldGroups ? { fieldGroups } : {})}
           />
         </ButtonGroup>
-
-        {/* Freshness: the press that refreshes now, and the interval that
-            keeps doing it. One group, because they are one question. */}
-        <RefreshControl refresh={refresh} busy={table.loading} />
       </div>
     </div>
   );

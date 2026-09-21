@@ -26,6 +26,9 @@ export const recordMessages = {
   // hears what a group is for rather than "group, group".
   'label.toolbar.arrange': 'Table settings',
   'label.toolbar.freshness': 'Freshness',
+  // Where the bulk actions will appear, said before anything is selected:
+  // the left of the toolbar is theirs, and an empty left says nothing.
+  'label.toolbar.hint': 'Select rows to act on them',
   'label.toolbar.selected': '{count} selected',
   'label.toolbar.clear-selection': 'Clear selection',
   'label.toolbar.actions': 'Actions',

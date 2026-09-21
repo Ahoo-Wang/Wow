@@ -21,7 +21,6 @@ import type {
 } from '../src/react/index.js';
 import type { RecordViewRuntime } from '../src/runtime/index.js';
 import { ResultToolbar } from '../src/ui/ResultToolbar.js';
-import { refreshController } from './fixtures/ui.js';
 
 afterEach(cleanup);
 
@@ -98,7 +97,6 @@ describe('ResultToolbar selection side', () => {
   it('shows nothing about a selection there is none of, and no box where it would go', () => {
     const { container } = render(
       <ResultToolbar
-        refresh={refreshController()}
         table={tableController()}
         fields={FIELDS}
         runtime={runtime}
@@ -127,7 +125,6 @@ describe('ResultToolbar selection side', () => {
   it('keeps the three right-hand groups in one block that ends the bar', () => {
     const { container } = render(
       <ResultToolbar
-        refresh={refreshController()}
         table={tableController()}
         fields={FIELDS}
         runtime={runtime}
@@ -142,7 +139,7 @@ describe('ResultToolbar selection side', () => {
     expect(right.className).toContain('justify-end');
     expect(
       [...right.children].map(node => node.getAttribute('aria-label')),
-    ).toEqual(['Layout', 'Table settings', 'Freshness']);
+    ).toEqual(['Layout', 'Table settings']);
   });
 
   /**
@@ -163,7 +160,6 @@ describe('ResultToolbar selection side', () => {
 
     render(
       <ResultToolbar
-        refresh={refreshController()}
         table={table}
         fields={FIELDS}
         runtime={runtime}
@@ -189,7 +185,6 @@ describe('ResultToolbar selection side', () => {
     const user = userEvent.setup();
     render(
       <ResultToolbar
-        refresh={refreshController()}
         table={tableController({ selection: ['o-1'], clearSelection })}
         fields={FIELDS}
         runtime={runtime}
@@ -205,7 +200,6 @@ describe('ResultToolbar layout switcher', () => {
   it('offers nothing when the definition allows one layout', () => {
     render(
       <ResultToolbar
-        refresh={refreshController()}
         table={tableController({ layouts: ['table'] })}
         fields={FIELDS}
         runtime={runtime}
@@ -224,7 +218,6 @@ describe('ResultToolbar layout switcher', () => {
   it('stays when the layout in force is one the definition dropped', () => {
     render(
       <ResultToolbar
-        refresh={refreshController()}
         table={tableController({ layouts: ['table'], layout: 'card' })}
         fields={FIELDS}
         runtime={runtime}
@@ -233,7 +226,9 @@ describe('ResultToolbar layout switcher', () => {
 
     const group = screen.getByLabelText('Layout');
     expect(
-      [...group.querySelectorAll('button')].map(item => item.textContent),
+      [...group.querySelectorAll('button')].map(item =>
+        item.getAttribute('aria-label'),
+      ),
     ).toEqual(['Table']);
     // Nothing is pressed, which is the truth: the layout in force is not one
     // of these.
@@ -244,7 +239,6 @@ describe('ResultToolbar layout switcher', () => {
   it('offers the allowed layouts in the definition order', () => {
     render(
       <ResultToolbar
-        refresh={refreshController()}
         table={tableController({ layouts: ['card', 'table'], layout: 'card' })}
         fields={FIELDS}
         runtime={runtime}
@@ -252,9 +246,14 @@ describe('ResultToolbar layout switcher', () => {
     );
 
     const group = screen.getByLabelText('Layout');
+    // Icons with the word in their name (D12): the switch reports its state
+    // by which segment is pressed.
     expect(
-      [...group.querySelectorAll('button')].map(item => item.textContent),
+      [...group.querySelectorAll('button')].map(item =>
+        item.getAttribute('aria-label'),
+      ),
     ).toEqual(['Cards', 'Table']);
+    expect(group.querySelector('button svg')).not.toBeNull();
   });
 
   it('applies the layout that was picked', async () => {
@@ -262,14 +261,13 @@ describe('ResultToolbar layout switcher', () => {
     const user = userEvent.setup();
     render(
       <ResultToolbar
-        refresh={refreshController()}
         table={tableController({ setLayout })}
         fields={FIELDS}
         runtime={runtime}
       />,
     );
 
-    await user.click(screen.getByText('Cards'));
+    await user.click(screen.getByRole('button', { name: 'Cards' }));
     expect(setLayout).toHaveBeenCalledWith('card');
   });
 });
@@ -284,7 +282,6 @@ describe('ResultToolbar grouping and weight', () => {
   it('groups the controls on the right by what they are for', () => {
     render(
       <ResultToolbar
-        refresh={refreshController()}
         table={tableController()}
         fields={FIELDS}
         runtime={runtime}
@@ -295,105 +292,78 @@ describe('ResultToolbar grouping and weight', () => {
       screen
         .getAllByRole('group')
         .map(group => group.getAttribute('aria-label')),
-    ).toEqual(['Layout', 'Table settings', 'Freshness']);
+    ).toEqual(['Layout', 'Table settings']);
   });
 
   /**
-   * The toolbar sits above the result and must not compete with it. The one
-   * exception is the layout switch, whose single outline is what makes it
-   * read as one control with two positions rather than as two buttons.
+   * Every function on the bar is a bordered icon button (D12 Ⅳ): a bare
+   * word read as a label rather than as a control. Only the sort keeps its
+   * words, because what it says is the sort in force.
    */
-  it('keeps every button ghost but the layout switch', () => {
+  it('draws every function as a bordered button, icons where nothing is reported', () => {
     const { container } = render(
       <ResultToolbar
-        refresh={refreshController()}
         table={tableController()}
         fields={FIELDS}
         runtime={runtime}
       />,
     );
 
-    const toolbar = container.querySelector('[data-slot="result-toolbar"]')!;
-    const outlined = [
-      ...toolbar.querySelectorAll('[data-slot="button"]'),
-    ].filter(button => button.className.includes('border-border'));
-    expect(outlined).toEqual([]);
-    // One border around the pair, no seam between them. The house rule has
-    // one spelling of that — `SEGMENTED` in `ui/layout.ts` — applied at the
-    // call site, because `ui/components` is upstream's.
+    const right = container.querySelector('[data-slot="toolbar-arrangement"]')!;
+    // The layout pair is one bordered control of its own; every other
+    // function is a bordered button.
+    const buttons = [...right.querySelectorAll('button')].filter(
+      button => !button.closest('[data-slot="toggle-group"]'),
+    );
+    expect(buttons.length).toBeGreaterThan(0);
+    for (const button of buttons)
+      expect(button.className).toContain('border-border');
+    // Columns reports nothing, so it is an icon with the word in its name.
+    const columns = screen.getByRole('button', { name: 'Columns' });
+    expect(columns.textContent).toBe('');
+    expect(columns.querySelector('svg')).not.toBeNull();
+    // One border around the layout pair, no seam between them.
     expect(
-      toolbar.querySelector('[data-slot="toggle-group"]')!.className,
+      right.querySelector('[data-slot="toggle-group"]')!.className,
     ).toContain('[&>*+*]:-ml-px');
   });
 });
 
-describe('ResultToolbar columns and refresh', () => {
-  it('adds a field the column settings turn on', async () => {
-    const setColumns = vi.fn();
-    const user = userEvent.setup();
-    render(
-      <ResultToolbar
-        refresh={refreshController()}
-        table={tableController({ setColumns })}
-        fields={FIELDS}
-        runtime={runtime}
-      />,
-    );
-
-    await user.click(screen.getByRole('button', { name: /Columns/ }));
-    await user.click(
-      await screen.findByRole('checkbox', { name: 'Show Warehouse' }),
-    );
-    expect(setColumns).toHaveBeenCalledWith(['amount', 'warehouse']);
-  });
-
+describe('ResultToolbar hint', () => {
   /**
-   * Nothing in this definition can be sorted on, so there is no sort to
-   * offer and no button to open an empty editor with.
+   * The left of the bar is where the bulk actions will appear; before a row
+   * is picked it says so — and says nothing when the host brought no bulk
+   * action, since there would be nothing to reach.
    */
-  it('leaves the sort out when the definition sorts on nothing', () => {
-    render(
+  it('says how the bulk actions are reached, only when there are any', () => {
+    const { container, rerender } = render(
       <ResultToolbar
-        refresh={refreshController()}
         table={tableController()}
         fields={FIELDS}
         runtime={runtime}
+        bulkActions={() => <button>Export</button>}
       />,
     );
-
-    expect(screen.queryByRole('button', { name: /Sort/ })).toBeNull();
-  });
-
-  /**
-   * The freshness group is one control with two halves now, and the
-   * primary half is the one-shot refresh it always was: it runs the view's
-   * own refresh rather than anything the interval menu does.
-   */
-  it('refreshes, and says so while the query is out', async () => {
-    const now = vi.fn();
-    const user = userEvent.setup();
-    const { rerender } = render(
-      <ResultToolbar
-        refresh={refreshController({ now })}
-        table={tableController()}
-        fields={FIELDS}
-        runtime={runtime}
-      />,
-    );
-
-    await user.click(screen.getByRole('button', { name: /Refresh/ }));
-    expect(now).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Select rows to act on them')).toBeTruthy();
 
     rerender(
       <ResultToolbar
-        refresh={refreshController({ now })}
-        table={tableController({ loading: true })}
+        table={tableController({ selection: ['o-1'] })}
+        fields={FIELDS}
+        runtime={runtime}
+        bulkActions={() => <button>Export</button>}
+      />,
+    );
+    expect(screen.queryByText('Select rows to act on them')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Export' })).toBeTruthy();
+
+    rerender(
+      <ResultToolbar
+        table={tableController()}
         fields={FIELDS}
         runtime={runtime}
       />,
     );
-    expect(
-      screen.getByRole('button', { name: /Refresh/ }).hasAttribute('disabled'),
-    ).toBe(true);
+    expect(container.querySelector('[data-slot="toolbar-hint"]')).toBeNull();
   });
 });

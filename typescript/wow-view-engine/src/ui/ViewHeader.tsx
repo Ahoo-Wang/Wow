@@ -181,7 +181,11 @@ export function ViewHeader({
             width where they no longer both fit. */}
         <div
           data-slot="view-identity"
-          className="flex flex-1 items-center gap-2"
+          // `grow`, not `flex-1`: a basis of 0% tells the row this group needs
+          // nothing, so it never wraps and the group is squeezed to its
+          // min-content with Save spilling past the bar. With an `auto` basis
+          // the row wraps the controls at the width where both no longer fit.
+          className="flex grow items-center gap-2"
         >
           {leading}
           {namesView && (
@@ -196,19 +200,6 @@ export function ViewHeader({
               </TooltipContent>
             </Tooltip>
           )}
-
-          {/* Below `@md` the tag is its icon and nothing else. It is not a
-              truncation — a clipped "Shared" is worse than an honest
-              overflow, which is why this badge has always been `shrink-0` —
-              it is the same fact in fewer pixels, and the word stays in the
-              accessible name, so what a screen reader hears never changes
-              with the width of the column. */}
-          <Badge variant="secondary" className="shrink-0">
-            <Audience aria-hidden />
-            <span className="sr-only @md/header:not-sr-only">
-              {messages.label(`label.scope.tag.${scopeKey}`)}
-            </span>
-          </Badge>
 
           {/* Always a heading, because the region around it is named by its
               id — an id that addresses nothing is a broken label. When
@@ -258,6 +249,21 @@ export function ViewHeader({
           >
             {state.title}
           </Title>
+
+          {/* Who the view is for, said as a word after the name rather than
+              as a badge beside it (D12): the name is the thing on this line,
+              and a pill fought it for the eye. Below `@md` the word goes —
+              it stays in the heading's neighbourhood for a screen reader —
+              rather than truncating, which for a two-character audience is
+              the same as lying. */}
+          <span
+            data-slot="view-audience"
+            data-scope={scopeKey}
+            className="text-muted-foreground @max-md/header:sr-only shrink-0 text-xs"
+          >
+            <Audience aria-hidden className="mr-1 inline size-3 align-[-1px]" />
+            {messages.label(`label.scope.tag.${scopeKey}`)}
+          </span>
 
           {/* Two different things, so two different words: one view was never
               saved, the other has been saved and edited since. */}

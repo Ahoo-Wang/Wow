@@ -81,6 +81,7 @@ export const zhCN: ViewMessages = {
   'label.toolbar.refresh': '刷新',
   'label.toolbar.arrange': '表格设置',
   'label.toolbar.freshness': '数据新鲜度',
+  'label.toolbar.hint': '勾选行以批量处理',
   'label.toolbar.selected': '已选 {count} 项',
   'label.toolbar.clear-selection': '清除选择',
   'label.toolbar.actions': '操作',

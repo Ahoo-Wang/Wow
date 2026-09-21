@@ -111,7 +111,9 @@ export function SortSettings({
     <Popover>
       <PopoverTrigger
         data-control="sort"
-        render={<Button variant="ghost" size="sm" />}
+        // Bordered like every other function on the bar (D12 Ⅳ), and the one
+        // that keeps its words: what it says is the sort in force.
+        render={<Button variant="outline" size="sm" />}
       >
         <ArrowDownUpIcon data-icon="inline-start" />
         <SortSummary sort={table.sort} labelOf={labelOf} messages={messages} />

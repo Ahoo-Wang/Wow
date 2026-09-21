@@ -28,7 +28,7 @@ import { Separator } from './components/separator.js';
 import { Skeleton } from './components/skeleton.js';
 import { AppliedBar } from './AppliedBar.js';
 import { EditorBand, EditorBandToggle } from './EditorBand.js';
-import { SPACE, SURFACE } from './layout.js';
+import { SPACE, SURFACE, TRAY } from './layout.js';
 import { LeaveDialog } from './LeaveGuard.js';
 import { ErrorStrip, WarningStrip } from './StatusStrip.js';
 import { useViewMessages } from './MessagesProvider.js';
@@ -505,6 +505,29 @@ export function WorkbenchShell({
               />
             </div>
 
+            {/* The status line (D12 Ⅰ′): what the view reports about itself,
+                under the title bar and only when there is something to say —
+                a config that will not run, a warning that does not block.
+                The last write's outcome is the title bar's own line above.
+                `empty:hidden` keeps the row out of the flow when every strip
+                rendered nothing, so the ruler's 16px does not stack twice. */}
+            <div
+              data-slot="status-line"
+              className={cn('flex flex-col empty:hidden', SPACE.ROWS)}
+            >
+              <ErrorStrip
+                issues={filter.unmarked}
+                title={
+                  kind === 'dashboard'
+                    ? messages.label('label.dashboard.needs-fixing')
+                    : undefined
+                }
+              />
+              {/* Warnings block nothing — the result below is the real one —
+                  so they sit under the errors and never replace it. */}
+              <WarningStrip issues={warnings ?? state.issues} />
+            </div>
+
             {/* The conditions, on a surface of their own. The block exists
                 only where there is something in it: an empty card is the
                 promise of an editor that is not there. */}
@@ -513,7 +536,7 @@ export function WorkbenchShell({
                 <EditorBand
                   id={editorId}
                   open={editorIsOpen.open}
-                  className={cn(SURFACE, SPACE.ROWS)}
+                  className={cn(TRAY, SPACE.ROWS)}
                 >
                   <RenderBoundary
                     name="editor"
@@ -526,7 +549,7 @@ export function WorkbenchShell({
               ) : (
                 <section
                   data-slot="condition-block"
-                  className={cn('flex flex-col', SURFACE, SPACE.ROWS)}
+                  className={cn('flex flex-col', TRAY, SPACE.ROWS)}
                 >
                   <RenderBoundary
                     name="editor"
@@ -538,20 +561,12 @@ export function WorkbenchShell({
                 </section>
               ))}
 
-            {/* Between the blocks rather than inside either: what the view
-                reports is about the whole view, not about its conditions and
-                not about its rows. */}
-            <ErrorStrip
-              issues={filter.unmarked}
-              title={
-                kind === 'dashboard'
-                  ? messages.label('label.dashboard.needs-fixing')
-                  : undefined
-              }
-            />
-            {/* Warnings block nothing — the result below is the real one — so
-                they sit under the errors and never replace it. */}
-            <WarningStrip issues={warnings ?? state.issues} />
+            {/* The applied-conditions band (D12 Ⅲ): what the rows on screen
+                were fetched under, a line of its own between the editor and
+                the result — neither inside the tray, which is the draft, nor
+                inside the result block, which is the rows. It draws nothing
+                until there is a result to describe. */}
+            <AppliedBar filter={filter} hasResult={describesResult} />
 
             {/* The result, and at the top of it the caption that says what
                 it is: the applied bar describes these rows, so it belongs to
@@ -563,7 +578,6 @@ export function WorkbenchShell({
                 block this package's own layout rule forbids. */}
             {(describesResult || filled(strips) || filled(result)) && (
               <ResultBlock surface={resultSurface}>
-                <AppliedBar filter={filter} hasResult={describesResult} />
                 {strips}
                 {/* The host's bulk and row slots render in here, so this is
                     where a throwing one is held: the rows go, the title bar,

@@ -32,6 +32,7 @@ import { RecordTable } from './RecordTable.js';
 import { ResultToolbar } from './ResultToolbar.js';
 import { RowActions } from './RowActions.js';
 import { QueryStrip } from './StatusStrip.js';
+import { RefreshControl } from './RefreshControl.js';
 import { useViewMessages } from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
 import { WorkbenchShell } from './WorkbenchShell.js';
@@ -154,6 +155,15 @@ export function RecordWorkbench({
           />
         )
       }
+      // Freshness is a framework control and lives in the title bar with
+      // the other two (D12 Ⅰ), for every kind of view alike.
+      freshness={
+        <RefreshControl
+          refresh={workbench.refresh}
+          variant="outline"
+          busy={table.loading}
+        />
+      }
       editorLabel={messages.label('label.filter.panel')}
       editorModeLabel={filterModeLabel(filter, messages)}
       editorModes={<FilterModes filter={filter} />}
@@ -177,7 +187,6 @@ export function RecordWorkbench({
           <>
             <ResultToolbar
               table={table}
-              refresh={workbench.refresh}
               fields={fields}
               fieldGroups={record.definition.fieldGroups}
               rowKey={record.definition.record?.rowKey}

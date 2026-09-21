@@ -16,7 +16,6 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { cleanup, render, renderHook, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { refreshController } from './fixtures/ui.js';
 import {
   AggregationFunction,
   AggregationGroupType,
@@ -549,20 +548,19 @@ describe('components write no copy of their own', () => {
 describe('an application rewords what the components write', () => {
   it('a toolbar button', () => {
     render(
-      <MessagesProvider messages={{ 'label.toolbar.refresh': '刷新' }}>
+      <MessagesProvider messages={{ 'label.toolbar.columns': '列' }}>
         <ResultToolbar
           table={tableController()}
-          refresh={refreshController()}
           fields={[]}
           runtime={{ id: 'r-1' } as unknown as RecordViewRuntime}
         />
       </MessagesProvider>,
     );
 
-    expect(screen.getByRole('button', { name: '刷新' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /Refresh/ })).toBeNull();
+    expect(screen.getByRole('button', { name: '列' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Columns/ })).toBeNull();
     // Everything not overridden keeps its default wording.
-    expect(screen.getByRole('button', { name: /Columns/ })).toBeTruthy();
+    expect(screen.getByRole('group', { name: 'Table settings' })).toBeTruthy();
   });
 
   it('an audience group', () => {

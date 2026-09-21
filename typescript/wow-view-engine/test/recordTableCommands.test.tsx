@@ -40,7 +40,6 @@ import {
 import { useOpenView, useRecordTable } from '../src/react/index.js';
 import { ResultToolbar } from '../src/ui/ResultToolbar.js';
 import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
-import { refreshController } from './fixtures/ui.js';
 
 afterEach(cleanup);
 
@@ -465,7 +464,6 @@ describe('the shapes a store can hold', () => {
       render(
         <ResultToolbar
           table={result.current.table}
-          refresh={refreshController()}
           fields={definition().fields}
           runtime={result.current.runtime!}
         />,

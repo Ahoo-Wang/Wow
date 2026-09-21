@@ -12,7 +12,7 @@
  */
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
-import { defaultMessages } from '@ahoo-wang/fetcher-view-engine/ui';
+import { zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 import displayMeta, {
   NarrowTitleBar as DisplayNarrowTitleBar,
 } from './RecordWorkbench.stories.js';
@@ -203,22 +203,14 @@ function walk(host: HTMLElement, from: number, to: number, step = 4): string[] {
  * what it must never do, and what the walk is for, is fit by painting one of
  * its own groups over another.
  *
- * This is the one story in the module that stays on the English catalogue,
- * and not because the wording matters: the walk measures the *widths* the
- * bar's own contents resolve to, so the wording is the fixture. Swapping it
- * for `zhCN` moves every one of those widths, and the Chinese set has a
- * residual window the English set does not reach — at 520–528px the row
- * keeps both groups on one line and squeezes the identity group ~11px
- * instead of wrapping, which puts the save commands 1.9px past its right
- * edge. Nothing is covered and Save is still hit-testable there, so it is
- * the tripwire firing rather than the bug itself; it is written up under
- * 「打磨」 in `docs/design/todo.md` and belongs to `WorkbenchShell`, not to
- * the language these stories run in.
+ * The walk runs on the Chinese catalogue like every other story here: its
+ * widths are the fixture, and the Chinese set once reached a 520–528px window
+ * where the row kept both groups on one line and squeezed the identity
+ * group — closed when that group took an `auto` flex basis (D12 shell PR),
+ * so the bar wraps instead of squeezing.
  */
 export const NarrowColumn: Story = {
   ...DisplayNarrowTitleBar,
-  // The wording is this walk's fixture — see above.
-  args: { ...DisplayNarrowTitleBar.args, english: true },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByRole('table');
@@ -276,7 +268,7 @@ export const NarrowColumn: Story = {
     await waitFor(() =>
       expect(
         canvas.getByRole('button', {
-          name: defaultMessages['label.save.save'],
+          name: zhCN['label.save.save'],
         }),
       ).toBeEnabled(),
     );
@@ -287,7 +279,7 @@ export const NarrowColumn: Story = {
     // list takes 224px of the column before the bar sees any of it.
     await userEvent.click(
       canvas.getByRole('button', {
-        name: defaultMessages['label.workbench.expand-sidebar'],
+        name: zhCN['label.workbench.expand-sidebar'],
       }),
     );
     await waitFor(() =>
@@ -303,8 +295,13 @@ export const NarrowColumn: Story = {
     // out of the column instead of truncating. A `max-w-fit` on the heading
     // could not have delivered this half — it caps growth, it does not stop
     // a nowrap heading asking for its whole text.
+    // Two widths on which the bar is still one line: with the freshness
+    // control in the title bar (D12) the controls wrap to a line of their
+    // own below ~700px here, and on that line the name has the whole width
+    // back — so the comparison is made above the wrap, where the name is
+    // the one thing giving way.
     await expect(widthAt(host, 1000, title), 'title shrinks').toBeGreaterThan(
-      widthAt(host, 680, title),
+      widthAt(host, 900, title),
     );
     await expect(title.scrollWidth, 'title clipped').toBeGreaterThan(
       title.clientWidth,

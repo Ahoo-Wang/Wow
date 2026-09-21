@@ -228,8 +228,8 @@ describe('ViewHeader', () => {
     // than the honest overflow this bar prefers, so it is the icon or the
     // whole of it, never half.
     const tag = within(group('view-identity')).getByText('personal');
-    expect(tag.className).toContain('sr-only');
-    expect(tag.className).toContain('@md/header:not-sr-only');
+    expect(tag.getAttribute('data-slot')).toBe('view-audience');
+    expect(tag.className).toContain('@max-md/header:sr-only');
 
     // Save is the command a narrow screen most needs; below `@md` it is its
     // icon, and its name is still the word.
