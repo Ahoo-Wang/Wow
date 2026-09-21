@@ -18,6 +18,7 @@ import { CircleSlashIcon, GripVerticalIcon, PinIcon } from 'lucide-react';
 import { columnPin, type SummaryFunction } from '../../model/index.js';
 import { IconButton } from '../IconButton.js';
 import { Checkbox } from '../components/checkbox.js';
+import { FieldDescription } from '../components/field.js';
 import {
   Select,
   SelectGroup,
@@ -281,13 +282,21 @@ export function ColumnRow({
       </div>
 
       {note && (
-        <p
+        // The sentence a control on this row is described by, so it is the
+        // field description it has always been in everything but name. The
+        // `id` stays: `aria-describedby` is what ties it to whichever of the
+        // four controls the reason belongs to, and a description that names
+        // its controls cannot be a `FieldLabel` — one label cannot be shared
+        // by four controls, which is why the `<span>` above stays a `<span>`
+        // and each control carries its own `aria-label`.
+        <FieldDescription
           id={noteId}
           data-slot="column-note"
           data-note={note}
           className={cn(
+            // No `text-muted-foreground`: `FieldDescription` already is it.
             NOTES[note].shown
-              ? ['text-muted-foreground flex items-start gap-1 pl-8', TEXT_UI]
+              ? ['flex items-start gap-1 pl-8', TEXT_UI]
               : 'sr-only',
           )}
         >
@@ -299,7 +308,7 @@ export function ColumnRow({
             <CircleSlashIcon aria-hidden className="mt-0.5 size-3 shrink-0" />
           )}
           {messages.label(NOTES[note].key)}
-        </p>
+        </FieldDescription>
       )}
     </li>
   );

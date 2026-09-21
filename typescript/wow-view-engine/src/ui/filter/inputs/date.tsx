@@ -38,6 +38,7 @@ export function DateValue({
   onChange,
   label,
   disabled,
+  invalid,
   range,
   withTime,
 }: ValueProps & { range: boolean; withTime: boolean }) {
@@ -55,6 +56,7 @@ export function DateValue({
       <ChoiceValue
         label={messages.label('label.date.shape-of', { field: label })}
         disabled={disabled}
+        invalid={invalid}
         value={current.type}
         items={DATE_SHAPES.map(shape => ({
           label: messages.label(`label.date.${shape}`),
@@ -75,6 +77,7 @@ export function DateValue({
           onChange={onChange}
           label={label}
           disabled={disabled}
+          invalid={invalid}
           range={range}
           withTime={withTime}
         />
@@ -85,6 +88,7 @@ export function DateValue({
           onChange={onChange}
           label={label}
           disabled={disabled}
+          invalid={invalid}
         />
       )}
       {current.type === 'preset' && (
@@ -93,6 +97,7 @@ export function DateValue({
           onChange={onChange}
           label={label}
           disabled={disabled}
+          invalid={invalid}
         />
       )}
     </div>

@@ -35,6 +35,7 @@ export function NumberInput({
   onNumber,
   label,
   disabled,
+  invalid,
   className,
 }: {
   /** The number in force, if there is one. */
@@ -43,6 +44,8 @@ export function NumberInput({
   onNumber(value: number | null): void;
   label: string;
   disabled?: boolean;
+  /** Whether what this number is part of has been refused. */
+  invalid?: boolean;
   className?: string;
 }) {
   const messages = useViewMessages();
@@ -64,6 +67,7 @@ export function NumberInput({
     <Input
       type="number"
       aria-label={label}
+      aria-invalid={invalid}
       className={className}
       disabled={disabled}
       value={text}
@@ -90,6 +94,7 @@ export function NumberValue({
   onChange,
   label,
   disabled,
+  invalid,
   range,
   multiple,
 }: ValueProps & { range: boolean; multiple: boolean }) {
@@ -102,6 +107,7 @@ export function NumberValue({
         onChange={onChange}
         label={label}
         disabled={disabled}
+        invalid={invalid}
       />
     );
 
@@ -112,6 +118,7 @@ export function NumberValue({
         onChange={onChange}
         label={label}
         disabled={disabled}
+        invalid={invalid}
       />
     );
 
@@ -119,6 +126,7 @@ export function NumberValue({
     <NumberInput
       label={label}
       disabled={disabled}
+      invalid={invalid}
       value={value}
       onNumber={onChange}
     />
@@ -126,7 +134,13 @@ export function NumberValue({
 }
 
 /** The two ends of a `BETWEEN`, either of which may still be blank. */
-function NumberRangeValue({ value, onChange, label, disabled }: ValueProps) {
+function NumberRangeValue({
+  value,
+  onChange,
+  label,
+  disabled,
+  invalid,
+}: ValueProps) {
   const messages = useViewMessages();
   const parts = Array.isArray(value) ? value : [];
   const ends = [numberOrBlank(parts[0]), numberOrBlank(parts[1])];
@@ -141,6 +155,7 @@ function NumberRangeValue({ value, onChange, label, disabled }: ValueProps) {
             { field: label },
           )}
           disabled={disabled}
+          invalid={invalid}
           value={ends[index]}
           onNumber={next => {
             const written = index === 0 ? [next, ends[1]] : [ends[0], next];
@@ -166,7 +181,13 @@ function NumberRangeValue({ value, onChange, label, disabled }: ValueProps) {
  * panel: reaching for it blurs the entry first, and a number the user had just
  * typed would otherwise be dropped by the very click meant to run it.
  */
-function NumberListValue({ value, onChange, label, disabled }: ValueProps) {
+function NumberListValue({
+  value,
+  onChange,
+  label,
+  disabled,
+  invalid,
+}: ValueProps) {
   const messages = useViewMessages();
   // What is being typed belongs to the list it is being typed into, so it is
   // held together with that list and derived rather than stored on its own.
@@ -224,6 +245,7 @@ function NumberListValue({ value, onChange, label, disabled }: ValueProps) {
         aria-label={messages.label('label.filter.new-value-of', {
           field: label,
         })}
+        aria-invalid={invalid}
         className="h-7 w-24"
         disabled={disabled}
         value={entry}

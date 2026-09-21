@@ -31,12 +31,19 @@ import { ChoiceValue, scalarText, type ValueProps } from './shared.js';
  * is what it looked like they had, changed nothing and fired no event. It
  * says `Not set` like every other blank value, rather than a word of its own.
  */
-export function BooleanValue({ value, onChange, label, disabled }: ValueProps) {
+export function BooleanValue({
+  value,
+  onChange,
+  label,
+  disabled,
+  invalid,
+}: ValueProps) {
   const messages = useViewMessages();
   return (
     <ChoiceValue
       label={label}
       disabled={disabled}
+      invalid={invalid}
       value={typeof value === 'boolean' ? String(value) : null}
       placeholder={messages.label('label.filter.not-set')}
       items={[
@@ -55,6 +62,7 @@ export function BooleanValue({ value, onChange, label, disabled }: ValueProps) {
 export function OptionValue({
   label,
   disabled,
+  invalid,
   value,
   multiple,
   options,
@@ -83,7 +91,12 @@ export function OptionValue({
         onChange(multiple ? chosen : (chosen[0] ?? null));
       }}
     >
-      <SelectTrigger aria-label={label} size="sm" className="min-w-40">
+      <SelectTrigger
+        aria-label={label}
+        aria-invalid={invalid}
+        size="sm"
+        className="min-w-40"
+      >
         {/*
          * The placeholder belongs to the value, not to the root: `Select`
          * takes no such prop, so passing it there left a blank enum as an

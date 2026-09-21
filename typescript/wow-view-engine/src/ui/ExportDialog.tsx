@@ -29,7 +29,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from './components/dialog.js';
-import { Field, FieldContent, FieldLabel } from './components/field.js';
+import {
+  Field,
+  FieldContent,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from './components/field.js';
 import { Progress } from './components/progress.js';
 import { RadioGroup, RadioGroupItem } from './components/radio-group.js';
 import { DialogContent } from './popups.js';
@@ -221,25 +227,37 @@ function ChooseStep({
       {/* No radio at all with nothing selected: one choice is not a choice,
           and the count below still says what the file will hold (D4). */}
       {scopes.selected !== undefined && (
-        <RadioGroup
-          aria-label={messages.label('label.export.scope')}
-          data-slot="export-scope"
-          value={scope}
-          onValueChange={value => onScope(value === 'all' ? 'all' : 'selected')}
-        >
-          <ScopeChoice
-            id={`${fieldId}-selected`}
-            value="selected"
-            label={messages.label('label.export.selected', {
-              count: scopes.selected,
-            })}
-          />
-          <ScopeChoice
-            id={`${fieldId}-all`}
-            value="all"
-            label={allLabel(scopes.all, messages)}
-          />
-        </RadioGroup>
+        /* The question the two radios answer is on screen rather than only
+           in an `aria-label`: a group named by an attribute is named for
+           screen readers alone, and everyone else reads two options with
+           nothing above them saying what is being chosen. `FieldSet` +
+           `FieldLegend` is the shadcn shape for a set of radios, and it is
+           what `SaveAsDialog` says with `FieldTitle` one dialog over. */
+        <FieldSet>
+          <FieldLegend variant="label">
+            {messages.label('label.export.scope')}
+          </FieldLegend>
+          <RadioGroup
+            data-slot="export-scope"
+            value={scope}
+            onValueChange={value =>
+              onScope(value === 'all' ? 'all' : 'selected')
+            }
+          >
+            <ScopeChoice
+              id={`${fieldId}-selected`}
+              value="selected"
+              label={messages.label('label.export.selected', {
+                count: scopes.selected,
+              })}
+            />
+            <ScopeChoice
+              id={`${fieldId}-all`}
+              value="all"
+              label={allLabel(scopes.all, messages)}
+            />
+          </RadioGroup>
+        </FieldSet>
       )}
 
       {/* What the file will hold, in the order somebody would check it:

@@ -489,7 +489,6 @@ export const zhCN: ViewMessages = {
   'label.analysis.layout': '分析布局',
   'label.analysis.add-group': '添加分组',
   'label.analysis.add-metric': '添加指标',
-  'label.analysis.show-totals': '显示合计',
   'label.analysis.totals': '合计',
   'label.analysis.row-limit': '行数上限',
   'label.analysis.run': '运行',

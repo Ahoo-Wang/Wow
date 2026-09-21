@@ -33,6 +33,12 @@ export interface FilterValueEditorProps {
   onChange(value: FilterValue): void;
   label: string;
   disabled?: boolean;
+  /**
+   * Whether the condition this value belongs to has been refused, which the
+   * controls carry as `aria-invalid`: the pill's own `data-invalid` is a
+   * border, and a border is not something a screen reader reads out.
+   */
+  invalid?: boolean;
   /** Candidates for a `remote` editor; typed entry without one. */
   options?: FieldOption[];
 }
@@ -56,6 +62,7 @@ export function FilterValueEditor({
   onChange,
   label,
   disabled,
+  invalid,
   options,
 }: FilterValueEditorProps) {
   switch (editor.input) {
@@ -69,6 +76,7 @@ export function FilterValueEditor({
           onChange={onChange}
           label={label}
           disabled={disabled}
+          invalid={invalid}
           range={editor.range === true}
           multiple={editor.multiple === true}
         />
@@ -81,6 +89,7 @@ export function FilterValueEditor({
           onChange={onChange}
           label={label}
           disabled={disabled}
+          invalid={invalid}
         />
       );
 
@@ -89,6 +98,7 @@ export function FilterValueEditor({
         <OptionValue
           label={label}
           disabled={disabled}
+          invalid={invalid}
           value={value}
           multiple={editor.multiple === true}
           options={editor.options ?? []}
@@ -101,6 +111,7 @@ export function FilterValueEditor({
         <RemoteValue
           label={label}
           disabled={disabled}
+          invalid={invalid}
           value={value}
           multiple={editor.multiple === true}
           options={options}
@@ -117,6 +128,7 @@ export function FilterValueEditor({
           onChange={onChange}
           label={label}
           disabled={disabled}
+          invalid={invalid}
           range={editor.input === 'dateRange'}
           withTime={editor.withTime === true}
         />
@@ -129,6 +141,7 @@ export function FilterValueEditor({
           onChange={onChange}
           label={label}
           disabled={disabled}
+          invalid={invalid}
           multiple={editor.multiple === true}
         />
       );

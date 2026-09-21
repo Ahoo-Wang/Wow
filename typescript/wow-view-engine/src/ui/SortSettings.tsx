@@ -32,6 +32,7 @@ import type {
 } from '../model/index.js';
 import type { RecordTableController } from '../react/index.js';
 import { Button } from './components/button.js';
+import { Empty, EmptyDescription, EmptyHeader } from './components/empty.js';
 import { IconButton } from './IconButton.js';
 import {
   Popover,
@@ -173,6 +174,11 @@ export function SortSettings({
           </PopoverDescription>
         </PopoverHeader>
 
+        {/* A ceiling, not an empty state and not a callout: it is one line
+            about the control below it, and it appears exactly when that
+            control has gone quiet. `Alert` is for something that has
+            happened — inside a popover this small it would be a bordered,
+            icon-bearing box taking more room than the list it is about. */}
         {full && (
           <p className="text-muted-foreground">
             {messages.label('label.sort.full', {
@@ -182,9 +188,16 @@ export function SortSettings({
         )}
 
         {table.sort.length === 0 ? (
-          <p className="text-muted-foreground">
-            {messages.label('label.sort.unsorted')}
-          </p>
+          // Nothing here yet, which is what `Empty` is for: the same shape
+          // the result block and the view list use when they have nothing
+          // to show, rather than a third way of saying it.
+          <Empty data-slot="sort-unsorted" className="p-0">
+            <EmptyHeader>
+              <EmptyDescription>
+                {messages.label('label.sort.unsorted')}
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <DragDropProvider
             plugins={defaults =>

@@ -39,11 +39,14 @@ export function RelativeDate({
   onChange,
   label,
   disabled,
+  invalid,
 }: {
   value: RelativeDateTimeValue;
   onChange(value: FilterValue): void;
   label: string;
   disabled?: boolean;
+  /** Whether the condition this window belongs to has been refused. */
+  invalid?: boolean;
 }) {
   const messages = useViewMessages();
   return (
@@ -53,6 +56,7 @@ export function RelativeDate({
           field: label,
         })}
         disabled={disabled}
+        invalid={invalid}
         value={value.direction ?? 'past'}
         items={DATE_DIRECTIONS.map(direction => ({
           label: messages.label(`label.date.${direction}`),
@@ -70,6 +74,7 @@ export function RelativeDate({
       <NumberInput
         label={messages.label('label.date.amount-of', { field: label })}
         disabled={disabled}
+        invalid={invalid}
         className="w-20"
         value={value.amount}
         onNumber={next =>
@@ -83,6 +88,7 @@ export function RelativeDate({
       <ChoiceValue
         label={messages.label('label.date.unit-of', { field: label })}
         disabled={disabled}
+        invalid={invalid}
         value={value.unit}
         // A closed set, so it is named in full rather than rendered as the
         // identifier — which is what left this control in English however
@@ -105,17 +111,21 @@ export function PresetDate({
   onChange,
   label,
   disabled,
+  invalid,
 }: {
   value: PresetDateTimeValue;
   onChange(value: FilterValue): void;
   label: string;
   disabled?: boolean;
+  /** Whether the condition this period belongs to has been refused. */
+  invalid?: boolean;
 }) {
   const messages = useViewMessages();
   return (
     <ChoiceValue
       label={messages.label('label.date.period-of', { field: label })}
       disabled={disabled}
+      invalid={invalid}
       value={value.preset}
       // A closed set too, and fifteen of them: `nextQuarter` is a key, not
       // a period anybody reads.

@@ -651,6 +651,28 @@ describe('FilterPanel tree editing', () => {
     expect(pill().hasAttribute('data-invalid')).toBe(true);
   });
 
+  /**
+   * The border the pill draws is nothing a screen reader reads out, so a
+   * refused condition sounded like a perfectly ordinary one. The mark goes
+   * on the control the code names: a value rule is the value editor's, an
+   * unsupported operator is the select's, and neither is the other's.
+   */
+  it('marks the control an error is about, not only the pill', () => {
+    const { filter } = panel();
+    act(() => filter().addLeaf('amount'));
+    const value = () => screen.getByLabelText('Amount value');
+    const operator = () => screen.getByLabelText('Amount operator');
+
+    act(() => filter().updateLeaf([0], { value: 10 }));
+    expect(value().getAttribute('aria-invalid')).toBeNull();
+    expect(operator().getAttribute('aria-invalid')).toBeNull();
+
+    act(() => filter().updateLeaf([0], { value: 'ten' as never }));
+    expect(value().getAttribute('aria-invalid')).toBe('true');
+    // The operator is the one thing about this condition that is right.
+    expect(operator().getAttribute('aria-invalid')).toBeNull();
+  });
+
   it('renders a condition that holds a tree as a block, like a group', async () => {
     const { filter } = panel(false, withItems());
     act(() => filter().addLeaf('items'));

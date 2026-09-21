@@ -23,6 +23,7 @@ export function TextValue({
   onChange,
   label,
   disabled,
+  invalid,
   multiple,
 }: ValueProps & { multiple: boolean }) {
   const messages = useViewMessages();
@@ -45,6 +46,7 @@ export function TextValue({
   return (
     <Input
       aria-label={label}
+      aria-invalid={invalid}
       disabled={disabled}
       value={text}
       // A condition with no value yet is a normal editing state rather than a

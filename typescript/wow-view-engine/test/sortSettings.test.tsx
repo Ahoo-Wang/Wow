@@ -204,10 +204,13 @@ describe('editing the sort', () => {
   it('says there is no order rather than showing an empty list', async () => {
     await opened();
 
-    expect(
-      await screen.findByText('These rows are in no particular order.'),
-    ).toBeTruthy();
+    const said = await screen.findByText(
+      'These rows are in no particular order.',
+    );
     expect(document.querySelector('[data-slot="sort-entry"]')).toBeNull();
+    // The package's one empty-state shape, not a third way of saying it.
+    expect(said.closest('[data-slot="sort-unsorted"]')).not.toBeNull();
+    expect(said.getAttribute('data-slot')).toBe('empty-description');
   });
 
   it('turns one entry around and leaves the others alone', async () => {

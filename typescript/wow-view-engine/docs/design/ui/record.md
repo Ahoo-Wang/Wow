@@ -51,6 +51,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 - 定义里没有任何 `sortable` 字段时整个控件不渲染：一个只能打开一屏空编辑器的按钮，是一个通向哪儿也不去的按钮；
 - **字段选择器停在内核开始拒绝的地方**：游标源的排序写在游标里，Wow 给它定了上限（`MAX_CURSOR_SORT_FIELDS`），`validateRecord` 一超就报 `record.sort.too-many`、`apply` 不跑——行保持原样，视图却进了错误态，而这是控件自己请用户进去的。上限由内核的 `maxSortFields(definition)` 给出、经控制器的 `maxSortFields` 送到控件，满了就禁用选择器并以 `label.sort.full` 说明；
 - **方向读不出来也不许崩**：配置是不可信数据，`validateShape` 只问排序项要一个 `field`，所以存进来的可能是 `direction: 'up'` 或者干脆没有。`validateSort` 现在把它报成 `record.sort.direction-invalid`（草稿因此停在错误态等人改），渲染这一侧仍然把读不出的方向当升序画——一个渲染要敢依赖校验，前提是它自己也是第二道防线。以前这里是拿 `undefined` 去索引文案表，整个工作台当场白屏，而这本该是一条可修的提示；
+- **没排序是空态，排满了不是**：一条都没有时画 `Empty` + `EmptyDescription`（`label.sort.unsorted`），和结果块、视图列表的空态同一副形制，不另写一段灰字；排到上限那句（`label.sort.full`）仍是一行普通的字——它说的是下面那个选择器为什么禁用，是一条天花板而不是"这里什么都没有"，`Alert` 在这么小的浮层里反而是一个带边框带图标、比它所谈论的列表还大的盒子。
 - 排序仍是"改完一次性应用"，与表头切换同一条路径（`setSort` 是一次 `edit` 加一次 `apply`）——表格画的是上一次成功结果，不重跑就看不到改动。（见 test/sortSettings.test.tsx）
 
 ## RecordTable 与 RecordCards

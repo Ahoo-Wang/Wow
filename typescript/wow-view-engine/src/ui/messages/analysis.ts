@@ -22,7 +22,6 @@ export const analysisMessages = {
   'label.analysis.layout': 'Analysis layout',
   'label.analysis.add-group': 'Add group',
   'label.analysis.add-metric': 'Add metric',
-  'label.analysis.show-totals': 'Show totals',
   'label.analysis.totals': 'Totals',
   'label.analysis.row-limit': 'Row limit',
   'label.analysis.run': 'Run',

@@ -27,6 +27,7 @@ import {
   Field,
   FieldContent,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
   FieldTitle,
@@ -153,7 +154,11 @@ function SaveAsForm({
       </DialogHeader>
 
       <FieldGroup>
-        <Field>
+        {/* Both halves of the pair the forms rule asks for: `aria-invalid`
+            marks the control, `data-invalid` marks the field around it, and
+            without the second the label stayed in its ordinary colour beside
+            a box that had turned. */}
+        <Field data-invalid={named.length === 0 || undefined}>
           <FieldLabel htmlFor={`${fieldId}-title`}>
             {messages.label('label.save.title')}
           </FieldLabel>
@@ -218,11 +223,10 @@ function SaveAsForm({
           </RadioGroup>
         </Field>
 
-        {state.error && (
-          <p role="alert" className="text-destructive text-sm">
-            {messages.issue(state.error)}
-          </p>
-        )}
+        {/* The vendored component already carries `role="alert"`, so the
+            refusal is still announced where it appears, and it renders
+            nothing at all when there is nothing to say. */}
+        {state.error && <FieldError>{messages.issue(state.error)}</FieldError>}
       </FieldGroup>
 
       <DialogFooter>

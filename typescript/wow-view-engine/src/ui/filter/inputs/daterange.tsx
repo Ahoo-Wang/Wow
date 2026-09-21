@@ -37,6 +37,7 @@ export function AbsoluteDate({
   onChange,
   label,
   disabled,
+  invalid,
   range,
   withTime,
 }: {
@@ -44,6 +45,8 @@ export function AbsoluteDate({
   onChange(value: FilterValue): void;
   label: string;
   disabled?: boolean;
+  /** Whether the condition this date belongs to has been refused. */
+  invalid?: boolean;
   range: boolean;
   withTime: boolean;
 }) {
@@ -58,6 +61,7 @@ export function AbsoluteDate({
       <PopoverTrigger
         render={<Button variant="outline" size="sm" disabled={disabled} />}
         aria-label={label}
+        aria-invalid={invalid}
       >
         <CalendarIcon data-icon="inline-start" />
         {formatDate(value.from, withTime, blank, display)}

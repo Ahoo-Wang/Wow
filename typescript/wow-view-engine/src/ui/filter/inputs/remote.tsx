@@ -28,6 +28,7 @@ export function RemoteValue({
   onChange,
   label,
   disabled,
+  invalid,
   multiple,
   options,
 }: ValueProps & { multiple: boolean; options?: FieldOption[] }) {
@@ -35,6 +36,7 @@ export function RemoteValue({
     <OptionValue
       label={label}
       disabled={disabled}
+      invalid={invalid}
       value={value}
       multiple={multiple}
       options={options}
@@ -46,6 +48,7 @@ export function RemoteValue({
       onChange={onChange}
       label={label}
       disabled={disabled}
+      invalid={invalid}
       multiple={multiple}
     />
   );

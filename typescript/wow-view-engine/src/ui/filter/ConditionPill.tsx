@@ -97,6 +97,21 @@ export function ConditionPill({
   );
   const invalid = own.some(found => found.severity === 'error');
   const warned = !invalid && own.some(found => found.severity === 'warning');
+  // Which control is wrong, and not only which pill. `data-invalid` below
+  // is a border, and a border is nothing a screen reader reads: a reader
+  // tabbing into a refused condition heard an ordinary select and an
+  // ordinary box. The code says which one it is about — an operator the
+  // kind does not support is the select's, a value rule is the value
+  // editor's, and a field the definition has dropped is the whole
+  // condition's, so both carry it: there is no control for the field, whose
+  // name is the word at the front of the pill.
+  const errors = own.filter(found => found.severity === 'error');
+  const invalidOperator = errors.some(
+    found => !found.code.startsWith('filter.value.'),
+  );
+  const invalidValue = errors.some(
+    found => !found.code.startsWith('filter.operator.'),
+  );
   const holdsTree = editor?.input === 'predicate';
   // Two inputs need two cells' room; below two columns there is only the one.
   // A list of numbers asks for the same room: its values sit beside the field
@@ -122,6 +137,7 @@ export function ConditionPill({
         aria-label={messages.label('label.filter.operator-of', {
           field: label,
         })}
+        aria-invalid={invalidOperator || undefined}
         size="sm"
         className="h-7 w-full border-0 bg-transparent px-1 shadow-none"
       >
@@ -217,6 +233,7 @@ export function ConditionPill({
               field: label,
             })}
             disabled={disabled}
+            invalid={invalidValue || undefined}
             options={editor.remote ? optionsFor?.(editor.remote) : undefined}
             onChange={value => filter.updateLeaf(path, { value })}
           />

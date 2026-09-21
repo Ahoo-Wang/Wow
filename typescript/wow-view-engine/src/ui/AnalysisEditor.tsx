@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { useId } from 'react';
 import { PlayIcon, PlusIcon, XIcon } from 'lucide-react';
 import type {
   AnalysisGroup,
@@ -61,6 +62,7 @@ export interface AnalysisEditorProps {
  */
 export function AnalysisEditor({ analysis, disabled }: AnalysisEditorProps) {
   const messages = useViewMessages();
+  const editorId = useId();
   const groupable = analysis.fields.filter(field => field.groups.length > 0);
   const measurable = analysis.fields.filter(
     field =>
@@ -132,15 +134,23 @@ export function AnalysisEditor({ analysis, disabled }: AnalysisEditorProps) {
 
         <ChartTypeSelect analysis={analysis} disabled={disabled} />
 
-        <label className="flex items-center gap-2 text-sm">
+        {/* The visible word is the name: an `aria-label` beside it was a
+            second, different wording that a reader heard instead of the one
+            on screen. `Field` carries the pairing, and the checkbox takes
+            its name from the label pointing at it. `w-auto` because a
+            vertical `Field` is full width by default, and this one is one
+            item on a wrapping toolbar row. */}
+        <Field orientation="horizontal" className="w-auto">
           <Checkbox
+            id={`${editorId}-totals`}
             checked={analysis.totals}
             disabled={disabled}
-            aria-label={messages.label('label.analysis.show-totals')}
             onCheckedChange={checked => analysis.setTotals(checked === true)}
           />
-          {messages.label('label.analysis.totals')}
-        </label>
+          <FieldLabel htmlFor={`${editorId}-totals`}>
+            {messages.label('label.analysis.totals')}
+          </FieldLabel>
+        </Field>
 
         {/*
           A limit has no blank: clearing the field leaves the last one in

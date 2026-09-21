@@ -27,12 +27,23 @@ export interface ValueProps {
   onChange(value: FilterValue): void;
   label: string;
   disabled?: boolean;
+  /**
+   * Whether the condition holding this value is refused.
+   *
+   * The pill draws itself invalid from its own `data-invalid`, which is a
+   * border and nothing else: a reader who never sees the border hears a
+   * perfectly ordinary control. Every control a value is typed or picked in
+   * carries the mark, because the value is one answer however many boxes it
+   * takes to say — a range is refused for being inverted, not for either end.
+   */
+  invalid?: boolean;
 }
 
 /** One of a short, fixed list of answers. */
 export function ChoiceValue({
   label,
   disabled,
+  invalid,
   value,
   items,
   placeholder,
@@ -40,6 +51,7 @@ export function ChoiceValue({
 }: {
   label: string;
   disabled?: boolean;
+  invalid?: boolean;
   /** `null` shows the placeholder: nothing has been chosen yet. */
   value: string | null;
   items: { label: string; value: string }[];
@@ -53,7 +65,7 @@ export function ChoiceValue({
       disabled={disabled}
       onValueChange={next => onChange(String(next))}
     >
-      <SelectTrigger aria-label={label} size="sm">
+      <SelectTrigger aria-label={label} aria-invalid={invalid} size="sm">
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>

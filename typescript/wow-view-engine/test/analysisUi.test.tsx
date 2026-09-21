@@ -1134,7 +1134,8 @@ describe('AnalysisEditor defaults', () => {
     fireEvent.change(screen.getByLabelText('Row limit'), {
       target: { value: '25' },
     });
-    fireEvent.click(screen.getByLabelText('Show totals'));
+    // Named by the word beside it rather than by an `aria-label` of its own.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Totals' }));
     fireEvent.click(screen.getByRole('button', { name: /Run/ }));
 
     await waitFor(() => {
