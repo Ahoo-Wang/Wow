@@ -283,6 +283,27 @@ function validateColumns(
         ),
       );
 
+    // A width is a number of pixels, so the only widths that mean anything
+    // are the positive finite ones. Said here because the header's resize
+    // handle writes this member and a store can hold anything: `width: 0`
+    // draws a column nobody can see or grab hold of again, and `NaN` — what
+    // a hand-written `"120px"` becomes on the way in — lands as an inline
+    // style the browser drops, so the column silently keeps its old size
+    // while the config claims otherwise.
+    if (
+      column.width !== undefined &&
+      (typeof column.width !== 'number' ||
+        !Number.isFinite(column.width) ||
+        column.width <= 0)
+    )
+      issues.push(
+        issue(
+          'record.column.width-invalid',
+          ['table', 'columns', index, 'width'],
+          { field: column.field, width: String(column.width) },
+        ),
+      );
+
     const field = fields.get(column.field);
     if (!field)
       return [

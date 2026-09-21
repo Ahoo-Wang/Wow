@@ -52,7 +52,7 @@ import displayMeta, {
 import { measureBorderContrast } from './contrast.js';
 import { tableSettingsStore } from './fixtures.js';
 import { outcomesStore } from './outcomesStore.js';
-import { dragHandleOnto } from './pointerDrag.js';
+import { dragEdgeBy, dragHandleOnto } from './pointerDrag.js';
 import {
   amountOf,
   readColumn,
@@ -1212,6 +1212,67 @@ export const SortEntriesPointerDrag: Story = {
     await expect(button).toHaveTextContent(
       `订单号${zhCN['label.sort.asc']}${say('label.sort.more', { count: 1 })}`,
     );
+  },
+};
+
+/**
+ * A column's width, dragged onto its header's edge.
+ *
+ * It cannot be measured anywhere but here. The gesture reads the header's
+ * box on the way in and writes a width on the way through, and in jsdom
+ * every box is 0×0 — the unit suite drives the same handle with a keyboard
+ * and checks what was written, which is a different question from whether
+ * the column ends up that wide. This one asks the browser: the header is
+ * wider by what the pointer travelled, the rows under it are the same width
+ * as the header (a width on the header alone is a suggestion an auto-laid-out
+ * table sizes straight past), and the number reached the saved config.
+ */
+export const ColumnResize: Story = {
+  ...DisplayTableSettings,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    await waitFor(() =>
+      expect(readHeaders(table)).toEqual(['订单号', '仓库', '状态', '金额']),
+    );
+
+    const edge = canvas.getByRole('separator', {
+      name: say('label.columns.resize', { field: '仓库' }),
+    });
+    const head = edge.closest('th')!;
+    const before = head.getBoundingClientRect().width;
+
+    await dragEdgeBy(edge, 80);
+
+    // The column, not only the cell the handle is in: the header and the
+    // rows under it have to come out the same width, or the "width" is a
+    // header that has parted company with its column.
+    const wanted = Math.round(before + 80);
+    await waitFor(() => {
+      const now = canvas
+        .getByRole('separator', {
+          name: say('label.columns.resize', { field: '仓库' }),
+        })
+        .closest('th')!;
+      const body = canvas.getByRole('table') as HTMLTableElement;
+      const cell = body.tBodies[0].rows[0].cells[now.cellIndex];
+      expect([
+        Math.round(now.getBoundingClientRect().width),
+        Math.round(cell.getBoundingClientRect().width),
+      ]).toEqual([wanted, wanted]);
+    });
+
+    // And the number the release committed is the number a save writes.
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.save.save'] }),
+    );
+    await waitFor(async () => {
+      const saved = await tableSettingsStore.current!.get('orders-pending');
+      const column = (saved.config as RecordViewConfig).table.columns.find(
+        entry => entry.field === 'warehouse',
+      );
+      expect(column?.width).toBe(wanted);
+    });
   },
 };
 

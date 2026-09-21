@@ -156,6 +156,7 @@ export const zhCN: ViewMessages = {
   'label.columns.hidden': '先把这一列显示出来，才能调整顺序、固定或加汇总。',
   'label.columns.unknown': '这一列已不在这份数据里，取消勾选即可移除。',
   'label.columns.summary': '{field} 的汇总',
+  'label.columns.resize': '调整 {field} 宽度',
   'label.columns.pin': '{field} 的固定方式：{state}',
   'label.columns.pin.none': '不固定',
   'label.columns.pin.left': '固定在左侧',
@@ -180,6 +181,7 @@ export const zhCN: ViewMessages = {
   'record.column.duplicate': '列 {field} 列了两次。',
   'record.column.pin-invalid':
     '列 {field} 固定在 {pinned}，那不是左右任何一侧。',
+  'record.column.width-invalid': '列 {field} 的宽度是 {width}，那不是像素数。',
   'record.field.not-a-column': '{field} 是搜索或元数据句柄，不是一行里的内容。',
   'record.field.unknown': '列 {field} 已不存在。',
   'record.layout.unsupported': '这里没有 {layout} 布局。',

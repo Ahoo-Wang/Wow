@@ -104,6 +104,19 @@ function repinned(
 }
 
 /**
+ * One column with its width changed, rebuilt for the same reason
+ * {@link repinned} is: a config is JSON, and a column back at its automatic
+ * width has no `width` key rather than a `width` of `undefined`.
+ */
+function resized(column: RecordColumn, width: number | null): RecordColumn {
+  return {
+    field: column.field,
+    ...(width === null ? {} : { width }),
+    ...(column.pinned === undefined ? {} : { pinned: column.pinned }),
+  };
+}
+
+/**
  * The summaries to write, in the shape the saved config uses for none.
  *
  * `summaries` is optional, so "no summaries" is spelled two ways — an empty
@@ -255,6 +268,16 @@ export interface RecordTableController {
   pinnedOf(field: string): RecordColumnPin | null;
   /** Holds a column on one side of the table, or lets it go. Applies at once. */
   setPinned(field: string, pinned: RecordColumnPin | null): void;
+  /**
+   * Sets one column's width in pixels, or `null` to let it size itself
+   * again. Applies at once, like the other column commands.
+   *
+   * The number is taken as given: how narrow a column may be dragged is a
+   * question about a grab handle rather than about a config, so the table's
+   * own floor lives with the handle. What the kernel refuses is a width that
+   * is not a positive finite number of pixels.
+   */
+  setColumnWidth(field: string, width: number | null): void;
   /** The function the draft summarises a column with, if any. */
   summaryOf(field: string): SummaryFunction | null;
   /**
@@ -579,6 +602,21 @@ export function useRecordTable(
               runtime.getSnapshot().draft.table?.columns,
             ).map(column =>
               column.field === field ? repinned(column, pinned) : column,
+            ),
+          },
+        });
+      },
+      [editAndApply, runtime],
+    ),
+    setColumnWidth: useCallback(
+      (field: string, width: number | null) => {
+        if (!runtime) return;
+        editAndApply({
+          table: {
+            columns: recordColumns(
+              runtime.getSnapshot().draft.table?.columns,
+            ).map(column =>
+              column.field === field ? resized(column, width) : column,
             ),
           },
         });

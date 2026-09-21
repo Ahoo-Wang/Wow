@@ -268,6 +268,101 @@ describe('setPinned', () => {
   });
 });
 
+describe('setColumnWidth', () => {
+  it('writes a width onto one column, and applies at once', async () => {
+    const result = await openTable();
+
+    act(() => result.current.table.setColumnWidth('amount', 180));
+
+    await waitFor(() =>
+      expect(
+        result.current.table.columns.find(column => column.field === 'amount')
+          ?.width,
+      ).toBe(180),
+    );
+    // The result on screen carries it, which is the whole point of applying:
+    // the table draws the columns the kernel projected from the config that
+    // ran, so a width that was only edited would be a width nobody can see.
+    expect(draft(result).table.columns).toEqual([
+      { field: 'id' },
+      { field: 'amount', width: 180 },
+    ]);
+  });
+
+  /**
+   * The same rule `setPinned` follows, for the same reason: a config is
+   * JSON, and `{ width: undefined }` is not the object one without the key
+   * is. A column sized and put back would otherwise read as a difference
+   * against the saved baseline for the rest of the session.
+   */
+  it('deletes the member rather than setting it to undefined', async () => {
+    const result = await openTable();
+    const before = draft(result).table.columns;
+
+    act(() => result.current.table.setColumnWidth('amount', 180));
+    await waitFor(() => expect(draft(result).table.columns[1].width).toBe(180));
+    act(() => result.current.table.setColumnWidth('amount', null));
+
+    await waitFor(() => expect(draft(result).table.columns).toEqual(before));
+    expect(Object.keys(draft(result).table.columns[1])).toEqual(['field']);
+  });
+
+  /** A width is one column's business; the pinning beside it is not. */
+  it('keeps whatever else the column was configured with', async () => {
+    const result = await openTable();
+
+    act(() => result.current.table.setPinned('amount', 'right'));
+    await waitFor(() =>
+      expect(result.current.table.pinnedOf('amount')).toBe('right'),
+    );
+    act(() => result.current.table.setColumnWidth('amount', 96));
+
+    await waitFor(() =>
+      expect(draft(result).table.columns[1]).toEqual({
+        field: 'amount',
+        width: 96,
+        pinned: 'right',
+      }),
+    );
+  });
+
+  it('does nothing to a column the draft does not hold', async () => {
+    const result = await openTable();
+
+    act(() => result.current.table.setColumnWidth('gone', 120));
+
+    await waitFor(() =>
+      expect(result.current.table.columnFields).toEqual(['id', 'amount']),
+    );
+    expect(draft(result).table.columns).toEqual([
+      { field: 'id' },
+      { field: 'amount' },
+    ]);
+  });
+
+  /**
+   * A width that is not a positive finite number of pixels is a finding
+   * rather than a silence: `width: 0` draws a column nobody can see or take
+   * hold of again, and the `NaN` a hand-written `"120px"` becomes lands as
+   * an inline style the browser drops — the column then keeps its old size
+   * while the config claims otherwise.
+   */
+  it('is refused by the kernel when the stored width is not a size', async () => {
+    const result = await openTable(
+      {
+        table: { columns: [{ field: 'id' }, { field: 'amount', width: 0 }] },
+      },
+      {},
+      false,
+    );
+
+    expect(result.current.table.status).toBe('idle');
+    expect(
+      result.current.runtime!.getSnapshot().issues.map(issue => issue.code),
+    ).toContain('record.column.width-invalid');
+  });
+});
+
 describe('setLayout', () => {
   /**
    * Both layouts draw the same result, so switching normally needs no query

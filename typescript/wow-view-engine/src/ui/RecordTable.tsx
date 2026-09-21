@@ -29,15 +29,18 @@ import { useSurfaceDisplay } from './ViewSurface.js';
 import {
   actionCell,
   ACTIONS_COLUMN,
+  CLIPPED_CELL,
   HEAD_CELL,
   NUMERIC_CELL,
   SELECT_CELL,
   SELECT_COLUMN,
   columnPins,
+  columnWidth,
   isNumeric,
   pinsSelect,
   usePinnedOffsets,
 } from './record/columns.js';
+import { cellText } from './display.js';
 import { cellValue } from './record/cells.js';
 import { EmptyResult } from './record/EmptyResult.js';
 import { SkeletonRows } from './record/SkeletonRows.js';
@@ -247,6 +250,7 @@ export function RecordTable({
                   column={column}
                   sort={table.sort}
                   onToggle={table.toggleSort}
+                  onResize={table.setColumnWidth}
                   pin={pins.get(column.field)}
                 />
               ))}
@@ -293,20 +297,30 @@ export function RecordTable({
                 )}
                 {columns.map(column => {
                   const pin = pins.get(column.field);
+                  const value = recordValue(row.data, column.field);
                   return (
                     <TableCell
                       key={column.field}
                       className={cn(
                         isNumeric(column) && NUMERIC_CELL,
+                        // A width the user set is a width they meant, so the
+                        // cell is cut to it — and what was cut is one hover
+                        // away, the way a clamped paragraph already is.
+                        column.width !== undefined && CLIPPED_CELL,
                         pin?.className,
                       )}
-                      style={pin?.style}
+                      style={{ ...columnWidth(column), ...pin?.style }}
+                      title={
+                        column.width === undefined
+                          ? undefined
+                          : cellText(value, column, messages, display)
+                      }
                     >
                       {renderOne({
                         column,
                         row: row.data,
                         key: row.key,
-                        value: recordValue(row.data, column.field),
+                        value,
                       })}
                     </TableCell>
                   );

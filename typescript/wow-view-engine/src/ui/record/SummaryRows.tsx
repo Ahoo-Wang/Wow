@@ -21,7 +21,13 @@ import { formatNumber } from '../display.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
 import { TableCell, TableFooter, TableRow } from '../components/table.js';
-import { actionCell, SELECT_CELL, type ColumnPin } from './columns.js';
+import {
+  actionCell,
+  CLIPPED_CELL,
+  SELECT_CELL,
+  columnWidth,
+  type ColumnPin,
+} from './columns.js';
 
 /**
  * The quiet half of a summary row — the scope, and each function's name.
@@ -143,8 +149,14 @@ function SummaryLine({
         return (
           <TableCell
             key={column.field}
-            className={cn(pin?.className)}
-            style={pin?.style}
+            // The footer is one of the rows a column's width has to hold
+            // against: a summary wider than the width the user set would
+            // push the column back out from underneath the rows.
+            className={cn(
+              column.width !== undefined && CLIPPED_CELL,
+              pin?.className,
+            )}
+            style={{ ...columnWidth(column), ...pin?.style }}
           >
             {!selectable && index === 0 && scope}
             {(byField.get(column.field) ?? []).map(cell => (

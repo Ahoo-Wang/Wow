@@ -188,6 +188,41 @@ export const HEAD_CELL = 'text-muted-foreground text-xs font-medium';
 export const NUMERIC_CELL = 'text-right tabular-nums';
 
 /**
+ * A column that was given a width keeps it: the cell is capped as well as
+ * sized, and what does not fit is cut with an ellipsis rather than pushing
+ * the column back out. Without the cap the width is only a suggestion — an
+ * auto-laid-out table grows a column to its widest cell whatever the header
+ * asked for, so a column dragged narrower would spring back on the next
+ * render.
+ */
+export const CLIPPED_CELL = 'truncate';
+
+/**
+ * The width one column asks for, as every cell of it has to carry it.
+ *
+ * **All three properties, and on the cells.** A `width` on its own is a
+ * suggestion: an auto-laid-out table sizes a column by its content and then
+ * shares out whatever room is left over, so a column asked for 200px comes
+ * out wider on a roomy table and wider still under a long value. The floor
+ * and the ceiling are what make it a width — with `min-width` and
+ * `max-width` equal, the column's minimum and maximum contributions are the
+ * same number and there is nothing left for either step to decide. A `<col>`
+ * cannot say any of this, any more than it can say pinning: it carries a
+ * width the table treats as a hint, and nothing that clips the cell drawn
+ * in it.
+ */
+export function columnWidth(
+  column: RecordColumnView,
+): CSSProperties | undefined {
+  if (column.width === undefined) return undefined;
+  return {
+    width: column.width,
+    minWidth: column.width,
+    maxWidth: column.width,
+  };
+}
+
+/**
  * Whether a column's values are numbers, and so read from the right. The
  * projection resolves `cell` to the kind's own renderer when the field names
  * none, so the renderer key alone answers it.

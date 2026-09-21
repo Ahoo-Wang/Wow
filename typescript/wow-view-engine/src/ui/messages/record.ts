@@ -118,6 +118,10 @@ export const recordMessages = {
   'label.columns.unknown':
     'This column is not in the data any more; switch it off to take it out.',
   'label.columns.summary': 'Summary under {field}',
+  // The header's own edge, which is a control rather than a line: it is
+  // named by the column it sizes, because that is the only thing about it a
+  // reader who cannot see where the pointer is could use.
+  'label.columns.resize': 'Resize {field}',
   'label.columns.pin': 'Pinning of {field}: {state}',
   'label.columns.pin.none': 'Not pinned',
   'label.columns.pin.left': 'Pinned left',
@@ -153,6 +157,8 @@ export const recordMessages = {
   'record.column.duplicate': 'The column {field} is listed twice.',
   'record.column.pin-invalid':
     'The column {field} is held to {pinned}, which is neither side.',
+  'record.column.width-invalid':
+    'The column {field} is {width} wide, which is not a number of pixels.',
   'record.field.not-a-column':
     '{field} is a search or metadata handle, not something a row holds.',
   'record.field.unknown': 'The column {field} no longer exists.',

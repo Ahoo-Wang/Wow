@@ -21,9 +21,11 @@ import { TableHead } from '../components/table.js';
 import {
   HEAD_CELL,
   NUMERIC_CELL,
+  columnWidth,
   isNumeric,
   type ColumnPin,
 } from './columns.js';
+import { ColumnResizer } from './ColumnResizer.js';
 
 export interface SortableHeaderProps {
   column: RecordColumnView;
@@ -33,6 +35,12 @@ export interface SortableHeaderProps {
    */
   sort: readonly RecordSort[];
   onToggle(field: string): void;
+  /**
+   * Commits a width in pixels, or `null` to let the column size itself
+   * again. Left out, the header's edge is a line rather than a handle — an
+   * embedded table whose host has no controller to write to.
+   */
+  onResize?(field: string, width: number | null): void;
   pin?: ColumnPin;
 }
 
@@ -58,15 +66,20 @@ export function SortableHeader({
   column,
   sort,
   onToggle,
+  onResize,
   pin,
 }: SortableHeaderProps) {
   const messages = useViewMessages();
   const at = sort.findIndex(entry => entry.field === column.field);
   const direction = at < 0 ? null : sort[at].direction;
-  const style = {
-    ...(column.width ? { width: column.width } : {}),
-    ...pin?.style,
-  };
+  const style = { ...columnWidth(column), ...pin?.style };
+  // The handle is placed against the cell's own right edge, so the cell has
+  // to be the positioned ancestor. A pinned header already is one — `sticky`
+  // positions it — and two `position` classes on one element is a race
+  // between stylesheet rules rather than a choice.
+  const resizer = onResize && (
+    <ColumnResizer column={column} onResize={onResize} />
+  );
   const label = (
     <span data-slot="column-label" className="truncate">
       {column.label}
@@ -75,7 +88,11 @@ export function SortableHeader({
   // A numeric column reads from the right, header included, or the label
   // points at one edge while the digits under it point at the other.
   const numeric = isNumeric(column);
-  const head = cn(HEAD_CELL, numeric && NUMERIC_CELL, pin?.className);
+  const head = cn(
+    HEAD_CELL,
+    numeric && NUMERIC_CELL,
+    pin?.className ?? 'relative',
+  );
 
   // The header is what the pinned offsets are measured from, so a pinned
   // column says so on its header cell and names the offset it owns.
@@ -90,6 +107,7 @@ export function SortableHeader({
         style={style}
       >
         {label}
+        {resizer}
       </TableHead>
     );
 
@@ -142,6 +160,7 @@ export function SortableHeader({
           </span>
         )}
       </button>
+      {resizer}
     </TableHead>
   );
 }

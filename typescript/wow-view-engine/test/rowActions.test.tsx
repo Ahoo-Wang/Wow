@@ -59,6 +59,7 @@ function tableController(
     setColumnOrder: () => {},
     pinnedOf: () => null,
     setPinned: () => {},
+    setColumnWidth: () => {},
     summaryOf: () => null,
     setSummary: () => {},
     pageSize: 20,

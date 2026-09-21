@@ -91,6 +91,53 @@ export async function dragHandleOnto(
 }
 
 /**
+ * A pointer that takes hold of a column header's edge, walks sideways and
+ * lets go. It answers with the distance actually travelled.
+ *
+ * It belongs to the browser project for the same reason the drag above does,
+ * and a narrower one of its own: the gesture reads the header's box on the
+ * way in and writes a width on the way through, and in jsdom every box is
+ * 0×0 — the drag would start from a width nobody has and end at one nobody
+ * can check. Three of the five rules above still hold here (one user-event
+ * instance, a settled surface, a frame between the moves); the other two are
+ * about a library's collision detection, which has nothing to do with this.
+ * The handle stays pointable throughout — nothing is being carried — so
+ * every event is aimed at it, and the press binds the pointer to it anyway.
+ */
+export async function dragEdgeBy(
+  handle: HTMLElement,
+  by: number,
+  steps = 6,
+): Promise<void> {
+  await settled(handle);
+  const grip = handle.getBoundingClientRect();
+  const from = grip.left + grip.width / 2;
+  const y = grip.top + grip.height / 2;
+  const user = userEvent.setup();
+
+  await user.pointer({
+    keys: '[MouseLeft>]',
+    target: handle,
+    coords: { clientX: from, clientY: y },
+  });
+
+  for (let step = 1; step <= steps; step += 1) {
+    await user.pointer({
+      target: handle,
+      coords: { clientX: from + (by * step) / steps, clientY: y },
+    });
+    await frame();
+  }
+
+  await user.pointer({
+    keys: '[/MouseLeft]',
+    target: handle,
+    coords: { clientX: from + by, clientY: y },
+  });
+  await frame();
+}
+
+/**
  * Waits for the press to have become a drag, and says so when it has not.
  *
  * The press on a handle activates the sensor at once, so on a fast machine

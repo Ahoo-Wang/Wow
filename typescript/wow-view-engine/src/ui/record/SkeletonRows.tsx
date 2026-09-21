@@ -11,9 +11,11 @@
  * limitations under the License.
  */
 
+import { cn } from 'cn';
 import type { RecordColumnView } from '../../record/index.js';
 import { Skeleton } from '../components/skeleton.js';
 import { TableCell, TableRow } from '../components/table.js';
+import { CLIPPED_CELL, columnWidth } from './columns.js';
 
 /** How many rows a running query is drawn as. */
 const ROWS = 3;
@@ -73,7 +75,13 @@ export function SkeletonRows({
         </TableCell>
       )}
       {columns.map(column => (
-        <TableCell key={column.field}>
+        // A column that was given a width keeps it while it reloads, or the
+        // table would shuffle sideways the moment the rows land.
+        <TableCell
+          key={column.field}
+          className={cn(column.width !== undefined && CLIPPED_CELL)}
+          style={columnWidth(column)}
+        >
           <Skeleton className="h-4" style={{ width: barWidth(column.label) }} />
         </TableCell>
       ))}
