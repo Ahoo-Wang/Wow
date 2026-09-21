@@ -85,9 +85,10 @@ export function ConditionPill({
   const field = filter.fields.find(entry => entry.name === leaf.field);
   const label = field?.label ?? leaf.field;
   const operators = filter.operatorsFor(leaf.field).map(operator => ({
-    // The catalogue names the ones worth naming; the rest keep the derived
-    // spelling, which reads well enough for `EQ` and `BETWEEN` and not at all
-    // for `IDS` or `OWNER_ID`.
+    // The catalogue names every `FilterOperator`; the derived spelling is
+    // the fallback for one a host's own kind offers, as it is in the summary
+    // bar. It is a last resort and not a style: `OWNER_ID` derives to
+    // `owner id`, which is the enum with a space in it.
     label: messages.label(
       `label.operator.${operator}`,
       undefined,

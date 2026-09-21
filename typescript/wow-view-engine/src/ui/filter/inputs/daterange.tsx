@@ -68,13 +68,17 @@ export function AbsoluteDate({
             selected={{ from, to }}
             onSelect={selected =>
               onChange(
-                writeValue({
-                  ...value,
-                  from: selected?.from
-                    ? storeDate(selected.from, withTime)
-                    : value.from,
-                  to: selected?.to && storeDate(selected.to, withTime),
-                }),
+                // A calendar with nothing left on it is a blank leaf, not a
+                // condition missing its lower bound: `from` is required, and
+                // keeping the old one would leave the pill asking something
+                // the user has just taken back.
+                selected?.from
+                  ? writeValue({
+                      ...value,
+                      from: storeDate(selected.from, withTime),
+                      to: selected.to && storeDate(selected.to, withTime),
+                    })
+                  : null,
               )
             }
           />
@@ -85,10 +89,12 @@ export function AbsoluteDate({
             selected={from}
             onSelect={selected =>
               onChange(
-                writeValue({
-                  ...value,
-                  from: selected ? storeDate(selected, withTime) : value.from,
-                }),
+                selected
+                  ? writeValue({
+                      ...value,
+                      from: storeDate(selected, withTime),
+                    })
+                  : null,
               )
             }
           />
@@ -123,7 +129,7 @@ function parseDate(text?: string): Date | undefined {
  * midnight to UTC with a `Z`, which the kernel rightly takes as one fixed
  * moment — no zone ever applied, and a range's last day fell off the end.
  */
-export function storeDate(date: Date, withTime: boolean): string {
+function storeDate(date: Date, withTime: boolean): string {
   if (withTime) return date.toISOString();
   const pad = (part: number) => String(part).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;

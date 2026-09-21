@@ -470,7 +470,7 @@ describe('summaryText', () => {
 
   it('reads a predicate out after the operator that holds it', () => {
     expect(say(predicate('and', [sku('A', 0), sku('B', 1)]))).toBe(
-      'Items has an entry where All of SKU eq A, SKU eq B',
+      'Items has an entry where All of SKU is A, SKU is B',
     );
   });
 
@@ -484,13 +484,13 @@ describe('summaryText', () => {
     // "All of X" and "Any of X" say no more than "X"; "None of X" says the
     // opposite of it, so that one is said whatever it holds.
     expect(say(predicate('and', [sku('A', 0)]))).toBe(
-      'Items has an entry where SKU eq A',
+      'Items has an entry where SKU is A',
     );
     expect(say(predicate('or', [sku('A', 0)]))).toBe(
-      'Items has an entry where SKU eq A',
+      'Items has an entry where SKU is A',
     );
     expect(say(predicate('nor', [sku('A', 0)]))).toBe(
-      'Items has an entry where None of SKU eq A',
+      'Items has an entry where None of SKU is A',
     );
   });
 
@@ -511,7 +511,7 @@ describe('summaryText', () => {
         group: 'or',
         items: [sku('C', 0), inner],
       }),
-    ).toBe('Any of SKU eq C, (None of SKU eq A, SKU eq B)');
+    ).toBe('Any of SKU is C, (None of SKU is A, SKU is B)');
   });
 
   it('falls back to the derived spelling for an operator nothing names', () => {
@@ -571,7 +571,7 @@ describe('summaryText', () => {
         value: { kind: 'text', value: '2026-01-01' },
       }),
     ).toBe(
-      `Created gte ${formatted(Date.parse('2026-01-01T00:00:00.000Z'), undefined, { dateStyle: 'medium', timeZone: 'UTC' })}`,
+      `Created at least ${formatted(Date.parse('2026-01-01T00:00:00.000Z'), undefined, { dateStyle: 'medium', timeZone: 'UTC' })}`,
     );
   });
 
@@ -598,8 +598,8 @@ describe('summaryText', () => {
 
     expect(relative('window', 'past')).toBe('Created between last 7 day');
     expect(relative('window', 'future')).toBe('Created between next 7 day');
-    expect(relative('instant', 'past')).toBe('Created lte 7 day ago');
-    expect(relative('instant', 'future')).toBe('Created lte 7 day ahead');
+    expect(relative('instant', 'past')).toBe('Created at most 7 day ago');
+    expect(relative('instant', 'future')).toBe('Created at most 7 day ahead');
   });
 
   it('uses the label a kind resolved rather than resolving it again', () => {

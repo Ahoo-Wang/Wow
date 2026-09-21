@@ -28,7 +28,8 @@ import { ChoiceValue, scalarText, type ValueProps } from './shared.js';
  *
  * A blank leaf used to show "False", so a row the user had only just added
  * read as a condition already narrowing the list — and picking False, which
- * is what it looked like they had, changed nothing and fired no event.
+ * is what it looked like they had, changed nothing and fired no event. It
+ * says `Not set` like every other blank value, rather than a word of its own.
  */
 export function BooleanValue({ value, onChange, label, disabled }: ValueProps) {
   const messages = useViewMessages();
@@ -37,7 +38,7 @@ export function BooleanValue({ value, onChange, label, disabled }: ValueProps) {
       label={label}
       disabled={disabled}
       value={typeof value === 'boolean' ? String(value) : null}
-      placeholder={messages.label('label.filter.choose')}
+      placeholder={messages.label('label.filter.not-set')}
       items={[
         { label: messages.label('label.boolean.true'), value: 'true' },
         { label: messages.label('label.boolean.false'), value: 'false' },
@@ -59,6 +60,7 @@ export function OptionValue({
   options,
   onChange,
 }: ValueProps & { multiple: boolean; options: readonly FieldOption[] }) {
+  const messages = useViewMessages();
   const items = options.map(option => ({
     label: option.label,
     value: String(option.value),
@@ -82,7 +84,13 @@ export function OptionValue({
       }}
     >
       <SelectTrigger aria-label={label} size="sm" className="min-w-40">
-        <SelectValue />
+        {/*
+         * The placeholder belongs to the value, not to the root: `Select`
+         * takes no such prop, so passing it there left a blank enum as an
+         * empty `data-placeholder` span — a box saying nothing, beside a
+         * text and a number field that both said `Not set`.
+         */}
+        <SelectValue placeholder={messages.label('label.filter.not-set')} />
       </SelectTrigger>
       <SelectContent>
         <SelectGroup>

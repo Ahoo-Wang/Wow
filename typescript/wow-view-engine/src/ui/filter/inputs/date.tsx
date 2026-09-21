@@ -15,7 +15,7 @@ import { useState } from 'react';
 import type { FilterValue } from '../../../model/index.js';
 import { writeValue, type DateTimeFilterValue } from '../../../filter/index.js';
 import { useViewMessages } from '../../MessagesProvider.js';
-import { AbsoluteDate, storeDate } from './daterange.js';
+import { AbsoluteDate } from './daterange.js';
 import { PresetDate, RelativeDate } from './relative.js';
 import { ChoiceValue, type ValueProps } from './shared.js';
 
@@ -48,7 +48,7 @@ export function DateValue({
   // the calendar under the user's hands.
   const [shape, setShape] = useState<DateShape>(stored?.type ?? 'absolute');
   if (stored !== null && stored.type !== shape) setShape(stored.type);
-  const current = stored ?? emptyDateValue(shape, withTime);
+  const current = stored ?? blankDateValue(shape);
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -60,9 +60,14 @@ export function DateValue({
           label: messages.label(`label.date.${shape}`),
           value: shape,
         }))}
-        onChange={next =>
-          onChange(writeValue(emptyDateValue(next as DateShape, withTime)))
-        }
+        onChange={next => {
+          const picked = next as DateShape;
+          // `absolute` writes nothing, so the shape has to be remembered
+          // here: the leaf stays blank and would otherwise report the
+          // calendar's own default back on the next render.
+          setShape(picked);
+          onChange(shapeDefault(picked));
+        }}
       />
       {current.type === 'absolute' && (
         <AbsoluteDate
@@ -104,12 +109,26 @@ function readDateValue(value: FilterValue): DateTimeFilterValue | null {
   return null;
 }
 
-function emptyDateValue(
-  shape: DateShape,
-  withTime: boolean,
-): DateTimeFilterValue {
+/**
+ * What a blank leaf's controls stand at. It is drawn, never stored — the
+ * leaf keeps whatever it holds, which for a blank one is nothing.
+ *
+ * `absolute` has no bound, so both ends read the pick placeholder. Seeding it
+ * with the clock put "from this moment on" on screen under a dashed, blank
+ * pill: the kernel refused to compile it, so applying changed no row, while
+ * the condition said it had narrowed the list from now.
+ */
+function blankDateValue(shape: DateShape): DateTimeFilterValue {
   if (shape === 'relative') return { type: 'relative', amount: 7, unit: 'day' };
   if (shape === 'preset') return { type: 'preset', preset: 'today' };
-  // The UI may read the clock; the kernel never does.
-  return { type: 'absolute', from: storeDate(new Date(), withTime) };
+  return { type: 'absolute', from: '' };
+}
+
+/**
+ * What choosing a shape writes. A window and a period are one answer each —
+ * "the last 7 days", "today" — and saying them is the whole condition; a
+ * calendar date is not chosen yet, so `absolute` blanks the leaf and waits.
+ */
+function shapeDefault(shape: DateShape): FilterValue {
+  return shape === 'absolute' ? null : writeValue(blankDateValue(shape));
 }

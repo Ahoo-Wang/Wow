@@ -89,10 +89,10 @@ export const Advanced: Story = {
       // A period, not a range: the operator asks for the window it names.
       '创建时间 between this month',
       // A group says how its conditions combine before it lists them.
-      `Any of 仓库 is any of 华北, 金额 gt ${yuan(20000)}`,
+      `Any of 仓库 is any of 华北, 金额 more than ${yuan(20000)}`,
       // And a predicate reads its own conditions out once, under the one
       // operator it holds them by.
-      '商品行 has an entry where All of SKU eq A-1, 数量 gt 2',
+      '商品行 has an entry where All of SKU is A-1, 数量 more than 2',
     ]);
   },
 };

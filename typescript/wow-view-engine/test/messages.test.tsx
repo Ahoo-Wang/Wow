@@ -195,6 +195,30 @@ describe('the closed enums a control offers', () => {
     expect(missing(keys)).toEqual([]);
   });
 
+  /**
+   * Naming a set is not the same as saying it. Half of these were named with
+   * the derived spelling they already showed, which for a comparison is the
+   * enum in lower case: a condition read `Amount eq Not set`, and the date
+   * select offered `between / gte / lte / is empty` — half sentence, half
+   * code — where zh-CN had read 「等于」／「大于等于」 all along.
+   */
+  it('says every comparison operator in words rather than in the enum', () => {
+    expect(en['label.operator.EQ']).toBe('is');
+    expect(en['label.operator.NE']).toBe('is not');
+    expect(en['label.operator.GT']).toBe('more than');
+    expect(en['label.operator.GTE']).toBe('at least');
+    expect(en['label.operator.LT']).toBe('less than');
+    expect(en['label.operator.LTE']).toBe('at most');
+    expect(en['label.operator.BETWEEN']).toBe('between');
+
+    const words: Record<string, string> = en;
+    const codes = Object.values(FilterOperator).filter(operator =>
+      /^(eq|ne|gte?|lte?)$/.test(words[`label.operator.${operator}`]),
+    );
+
+    expect(codes).toEqual([]);
+  });
+
   it('names every chart type', () => {
     expect(
       missing(CHART_TYPES.map(type => `label.chart.type.${type}`)),
@@ -231,10 +255,14 @@ describe('the closed enums a control offers', () => {
   /**
    * The English half of the same bargain: naming what a component derived
    * must not reword it, or every English test and screenshot moves with it.
+   *
+   * The operators are the exception, and they paid that price once: the
+   * derived spelling of a comparison is the enum in lower case, so a row
+   * read `Amount eq Not set` and the date select offered `gte` beside
+   * `is empty`. They are words now, and the test that follows walks the
+   * whole set for anything still reading as an identifier.
    */
   it('keeps the spelling the editor used to derive', () => {
-    expect(en['label.operator.EQ']).toBe('eq');
-    expect(en['label.operator.BETWEEN']).toBe('between');
     expect(en['label.chart.type.bar']).toBe('bar');
     expect(en['label.group.type.DATE_HISTOGRAM']).toBe('date histogram');
     expect(en['label.metric.function.SUM']).toBe('sum');

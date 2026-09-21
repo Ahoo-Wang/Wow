@@ -19,7 +19,6 @@ export const filterMessages = {
   'label.filter.all-of': 'All of',
   'label.filter.any-of': 'Any of',
   'label.filter.none-of': 'None of',
-  'label.filter.choose': 'Choose',
 
   // The condition builder. The names ending in `-of` are accessible names,
   // which is why they read as a field followed by what the control does: a
@@ -159,14 +158,20 @@ export const filterMessages = {
   // that names only part of a closed set cannot be translated at all, which
   // is what `messages={zhCN}` showed: the operator select still offered `eq`
   // and `between`, because no key existed for a Chinese word to hang on. So
-  // the set is named in full, and the ones that used to be derived keep the
-  // spelling they already showed, which is why some of these read as the
-  // enum rather than as English.
+  // the set is named in full.
+  //
+  // The derived spelling was then kept for the ones that had it, and `eq`,
+  // `ne`, `gte` and `lte` are not English — they are the enum in lower case.
+  // A condition reads `Amount eq Not set`, and the date select offered
+  // `between / gte / lte / is empty`: half sentence, half code, where the
+  // Chinese catalogue had said 「等于」／「大于等于」 all along. Every one of
+  // these is now the phrase the row reads as — field, operator, value — so
+  // `Amount at least 100` is a sentence in both catalogues.
   //
   // `test/messages.test.tsx` walks `FilterOperator` and fails on a gap, so
   // this list cannot drift behind the wow enum.
-  'label.operator.MATCH_ALL': 'match all',
-  'label.operator.MATCH_NONE': 'match none',
+  'label.operator.MATCH_ALL': 'matches every record',
+  'label.operator.MATCH_NONE': 'matches no record',
   'label.operator.ID': 'is',
   'label.operator.IDS': 'is any of',
   'label.operator.AGGREGATE_ID': 'is',
@@ -177,12 +182,15 @@ export const filterMessages = {
   'label.operator.AND': 'and',
   'label.operator.OR': 'or',
   'label.operator.NOR': 'nor',
-  'label.operator.EQ': 'eq',
-  'label.operator.NE': 'ne',
-  'label.operator.GT': 'gt',
-  'label.operator.GTE': 'gte',
-  'label.operator.LT': 'lt',
-  'label.operator.LTE': 'lte',
+  'label.operator.EQ': 'is',
+  'label.operator.NE': 'is not',
+  // A comparison is read off the value beside it, so these say which side of
+  // it the answer lies on rather than naming the symbol: "at least" and "at
+  // most" carry the inclusive edge that `gte`/`lte` only spelled.
+  'label.operator.GT': 'more than',
+  'label.operator.GTE': 'at least',
+  'label.operator.LT': 'less than',
+  'label.operator.LTE': 'at most',
   'label.operator.CONTAINS': 'contains',
   'label.operator.STARTS_WITH': 'starts with',
   'label.operator.ENDS_WITH': 'ends with',
@@ -197,7 +205,7 @@ export const filterMessages = {
   'label.operator.IS_NOT_NULL': 'is not empty',
   'label.operator.EXISTS': 'exists',
   'label.operator.NOT_EXISTS': 'does not exist',
-  'label.operator.DELETION': 'deletion',
+  'label.operator.DELETION': 'deletion state',
   'label.operator.ELEMENT_MATCH': 'has an entry where',
   'label.operator.SEARCH': 'contains',
   'label.operator.TODAY': 'today',

@@ -306,6 +306,37 @@ describe('FilterValueEditor', () => {
     expect(changes).toEqual(['JP']);
   });
 
+  /**
+   * A text and a number field both say `Not set` while they are blank; the
+   * enum said nothing at all — `placeholder` never reached `SelectValue`, so
+   * the trigger was an empty box, and the only ✕ beside it removes the
+   * condition rather than the value it does not have.
+   */
+  it('says a blank enum is not set, and offers nothing to clear', () => {
+    editor({
+      input: 'select',
+      multiple: true,
+      options: [{ value: 'CN', label: 'China' }],
+    });
+
+    const shown = screen
+      .getByLabelText('amount')
+      .querySelector('[data-slot="select-value"]');
+    expect(shown?.textContent).toBe('Not set');
+    // The chevron is the only other control in the box: nothing offers to
+    // clear a value that is not there.
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('says a blank yes-or-no is not set, like every other blank value', () => {
+    editor({ input: 'boolean' });
+
+    const shown = screen
+      .getByLabelText('amount')
+      .querySelector('[data-slot="select-value"]');
+    expect(shown?.textContent).toBe('Not set');
+  });
+
   it('uses the candidates a remote editor was given', async () => {
     const user = userEvent.setup();
     const { changes } = editor(
@@ -460,29 +491,74 @@ describe('FilterValueEditor', () => {
     });
   });
 
-  it('seeds a fresh absolute value in the shape the editor stores', async () => {
-    const relative = {
+  /**
+   * A date condition that has only just been added asks nothing yet, and an
+   * editor that seeded the calendar with `new Date()` said otherwise: the
+   * pill read `between · On a date · 9/20/2026, 9:12:55 PM – Pick a date`
+   * while it was blank and dashed. The kernel refused to compile it, so
+   * applying changed no row — and the screen had claimed the list was
+   * already narrowed to everything from this moment on.
+   */
+  it('does not read the clock for a date nobody has picked', async () => {
+    const day = editor({ input: 'dateRange', range: true, withTime: false });
+
+    const trigger = screen.getByLabelText('amount');
+    expect(trigger.textContent).toContain('Pick a date – Pick a date');
+    expect(trigger.textContent).not.toMatch(/\d/);
+    expect(day.changes).toEqual([]);
+
+    const user = userEvent.setup();
+    await user.click(trigger);
+    await user.click(
+      await screen.findByRole('button', { name: /September 20/ }),
+    );
+
+    expect(last(day.changes)).toEqual({
+      type: 'absolute',
+      from: '2026-09-20',
+      to: '2026-09-20',
+    });
+  });
+
+  /**
+   * The two shapes that are an answer on their own keep their defaults — "the
+   * last 7 days" and "today" are whole conditions. A calendar date is not
+   * one until a day is picked, so choosing that shape blanks the leaf and the
+   * editor remembers the shape itself.
+   */
+  it('blanks the leaf when the calendar shape is chosen', async () => {
+    const user = userEvent.setup();
+    const day = editor({ input: 'date', withTime: true }, {
       type: 'relative',
       amount: 7,
       unit: 'day',
-    } as unknown as FilterValue;
+    } as unknown as FilterValue);
+
+    await user.click(screen.getByLabelText('amount kind'));
+    await user.click(await screen.findByRole('option', { name: 'On a date' }));
+
+    expect(last(day.changes)).toBeNull();
+    expect(screen.getByLabelText('amount kind').textContent).toContain(
+      'On a date',
+    );
+    expect(screen.getByLabelText('amount').textContent).toContain(
+      'Pick a date',
+    );
+  });
+
+  /** Taking the last day back off the calendar is blank, not half a range. */
+  it('blanks the leaf when the calendar is emptied', async () => {
+    const { changes } = editor({ input: 'date', withTime: false }, {
+      type: 'absolute',
+      from: '2026-09-20',
+    } as unknown as FilterValue);
+
     const user = userEvent.setup();
+    await user.click(screen.getByLabelText('amount'));
+    await user.click(
+      await screen.findByRole('button', { name: /September 20/ }),
+    );
 
-    const day = editor({ input: 'date', withTime: false }, relative);
-    await user.click(screen.getByLabelText('amount kind'));
-    await user.click(await screen.findByRole('option', { name: 'On a date' }));
-    expect(last(day.changes)).toMatchObject({
-      type: 'absolute',
-      from: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
-    });
-
-    cleanup();
-    const moment = editor({ input: 'date', withTime: true }, relative);
-    await user.click(screen.getByLabelText('amount kind'));
-    await user.click(await screen.findByRole('option', { name: 'On a date' }));
-    expect(last(moment.changes)).toMatchObject({
-      type: 'absolute',
-      from: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/),
-    });
+    expect(last(changes)).toBeNull();
   });
 });

@@ -175,7 +175,6 @@ export const zhCN: ViewMessages = {
   'label.filter.all-of': '同时满足',
   'label.filter.any-of': '满足任一',
   'label.filter.none-of': '都不满足',
-  'label.filter.choose': '选择',
   'label.filter.panel': '筛选',
   'label.filter.mode': '筛选模式',
   'label.filter.clear': '清空',
