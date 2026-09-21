@@ -32,6 +32,12 @@ export * from './useViewEngine.js';
 export * from './useViewList.js';
 export * from './useViewManager.js';
 export * from './useWorkbench.js';
+// The write-outcome vocabulary, on the entry rather than behind it: a surface
+// that draws the save commands has to know which outcomes the engine is still
+// answering for, and `/ui` is only the first such host. Left unexported, every
+// one of them derives the rule again — which is what this module exists to
+// stop.
+export * from './writes.js';
 export * from './workbench/instanceSync.js';
 export * from './workbench/leaveGuard.js';
 export * from './workbench/releaseDeleted.js';

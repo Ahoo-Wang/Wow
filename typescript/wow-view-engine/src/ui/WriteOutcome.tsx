@@ -28,17 +28,45 @@ import { ConflictConfirm } from './ConflictConfirm.js';
 import { OutcomeActions, RefusalLine } from './OutcomeActions.js';
 import { SaveAsDialog } from './SaveAsDialog.js';
 
-export interface WriteOutcomeProps {
-  commands: SaveCommands;
-  /** The view's title, so a copy out of a conflict can be offered from it. */
-  title: string;
+/**
+ * What a host is told about the writes of one open view.
+ *
+ * Declared here, once, because this is the component that calls them: a
+ * write's outcome is where a save, a rename or a delete is finally reported
+ * from, whether it landed the first time or was recovered afterwards. The
+ * title bar passes the group through, and a component that reports only part
+ * of it picks that part out of this type rather than restating it — a prop a
+ * component never calls is a promise to the host that nothing keeps.
+ */
+export interface ViewWriteCallbacks {
+  /** Called with the instance a save produced, so a host can open it. */
   onSaved?(instance: ViewInstance): void;
-  /** Called for the instance the copy out of a conflict produced. */
+  /**
+   * Called only when a save-as actually created a view — not when a save
+   * landed in place. The two read alike from `onSaved`, and they end
+   * differently: an in-place save leaves the user on the button they
+   * pressed, while a copy closes its dialog, opens another view and has
+   * nowhere to put focus but `<body>`. This is how a host learns which one
+   * happened, and `WorkbenchShell` answers it by sending focus to the new
+   * view's title.
+   */
   onCreated?(instance: ViewInstance): void;
+  /**
+   * Called with the instance a recovered rename produced. Renaming is
+   * started from the view manager, and what became of it is reported here
+   * too, so a host keeps one place to learn what landed.
+   */
   onRenamed?(instance: ViewInstance): void;
+  /** Called when a recovered delete landed: this view is gone. */
   onDeleted?(): void;
   /** Called when a recovered write (retry, overwrite, reload) landed. */
   onRecovered?(action: WriteAction): void;
+}
+
+export interface WriteOutcomeProps extends ViewWriteCallbacks {
+  commands: SaveCommands;
+  /** The view's title, so a copy out of a conflict can be offered from it. */
+  title: string;
 }
 
 /**

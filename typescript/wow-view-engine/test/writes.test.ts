@@ -44,6 +44,7 @@ import {
   settle,
   strandedHandle,
   UNRECOVERED,
+  unsettled,
   UNSENT,
   type SettledWrite,
 } from '../src/react/writes.js';
@@ -183,6 +184,33 @@ describe('savesView', () => {
 
   it('answers no for a write the runtime no longer holds', () => {
     expect(savesView(undefined)).toBe(false);
+  });
+});
+
+describe('unsettled', () => {
+  /**
+   * The coarse question, and the one place it is answered: `/ui`'s save
+   * commands used to spell out the same two kinds, the leave guard a third
+   * spelling of the narrower one, and `manager/outcomes.ts` a fourth. The
+   * rule is here, so a kind that changes meaning changes in one file.
+   */
+  it.each([
+    ['conflict', true],
+    ['unknown', true],
+    ['rejected', false],
+  ] as [WriteState['kind'], boolean][])(
+    'the engine is still answering for a %s: %s',
+    (kind, still) => {
+      expect(unsettled(stateOf(kind))).toBe(still);
+    },
+  );
+
+  it.each([null, undefined])('answers no for nothing at all (%s)', empty => {
+    expect(unsettled(empty)).toBe(false);
+  });
+
+  it.each(KINDS)('is what holdsHandle adds the handle to, for a %s', kind => {
+    expect(holdsHandle(outcomeOf(kind))).toBe(unsettled(stateOf(kind)));
   });
 });
 

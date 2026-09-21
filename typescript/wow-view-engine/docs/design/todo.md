@@ -97,8 +97,6 @@
 
 ### 架构与测试（零行为变化，防腐化）
 
-- **A-02 `SaveActionsProps`**：声明并写了 doc 的 `onRenamed/onDeleted/onRecovered` 组件根本不解构；同组回调透传两遍。判据：删三个 prop，只传给 `WriteOutcome`；抽 `ViewWriteCallbacks`。落点：`src/ui/SaveActions.tsx`。
-- **A-03 `writes.ts` 的「nowhere else」**：写入结局规则在 `SaveActions`、`leaveGuard`、`outcomes.ts` 各重写一次。判据：导出 `unsettled()`，三处改调 `blocksNewIntent`／`holdsHandle`。落点：`src/react/writes.ts`。
 - **A-04 同名不同义**：两个 `ACTIONS_COLUMN`、两个 `ColumnPin`；`AGENTS.md` 的目录树漏了 62 个文件含三个整目录。判据：改名 + 重新生成目录树（脚本化）。落点：`src/ui/record/`、`src/ui/columns/`、`AGENTS.md`。
 - **A-05 三份拖动把手、三份放下守卫**：视图管理／列设置／排序各一份逐字相同的把手与 `STEP`，两份 `DropOperation`。判据：抽 `ui/DragHandle.tsx` 与 `dropped()`，三处改调。落点：`src/ui/`。
 - **A-06 `useFilterEditor`**：同一文件把 `FilterTreeController` 实现了两遍，嵌套编辑器走的是不显眼的那份。判据：`treeController` 加 `current()`，hook 复用它删掉九个重复实现。落点：`src/react/useFilterEditor.ts`。

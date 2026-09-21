@@ -13,6 +13,7 @@
 
 import { useCallback, useState } from 'react';
 import type { WriteState } from '../../runtime/index.js';
+import { blocksNewIntent } from '../writes.js';
 
 /**
  * What the guard reads off the open view. Both facts are losses, and they are
@@ -54,9 +55,18 @@ export interface LeaveGuardOptions {
   onLeave?(): void;
 }
 
-/** Whether anything would be lost by closing this view right now. */
+/**
+ * Whether anything would be lost by closing this view right now.
+ *
+ * The second loss is `blocksNewIntent`'s rule, asked rather than restated: an
+ * `unknown` is the outcome the engine will not let a new write past, and
+ * leaving takes away the retry or the abandon that would settle it. A
+ * `conflict` is not one of these — it is answered by a new intent, which is
+ * exactly what leaving gives up on deliberately, and a `rejected` never left
+ * at all.
+ */
 function costly(state: LeaveGuardState | null): boolean {
-  return state !== null && (state.dirty || state.write?.kind === 'unknown');
+  return state !== null && (state.dirty || blocksNewIntent(state.write));
 }
 
 /**

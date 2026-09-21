@@ -16,11 +16,10 @@ import {
   audienceOf,
   isSystemScope,
   type ViewConfig,
-  type ViewInstance,
   type ViewKind,
 } from '../model/index.js';
 import { cn } from 'cn';
-import type { ViewRuntimeState, WriteAction } from '../runtime/index.js';
+import type { ViewRuntimeState } from '../runtime/index.js';
 import type { SaveCommands } from '../react/index.js';
 import { Badge } from './components/badge.js';
 import { Separator } from './components/separator.js';
@@ -29,7 +28,7 @@ import { useViewMessages } from './MessagesProvider.js';
 import { Tooltip, TooltipTrigger } from './components/tooltip.js';
 import { TooltipContent } from './popups.js';
 import { SaveActions, UnsavedMark } from './SaveActions.js';
-import { WriteOutcome } from './WriteOutcome.js';
+import { WriteOutcome, type ViewWriteCallbacks } from './WriteOutcome.js';
 import { TEXT_UI } from './layout.js';
 
 /**
@@ -42,25 +41,16 @@ export type ViewHeaderState = Pick<
   'title' | 'scope' | 'saved' | 'dirty'
 >;
 
-export interface ViewHeaderProps {
+/**
+ * The bar passes the write callbacks through rather than declaring its own:
+ * they are {@link ViewWriteCallbacks}, and the components underneath here —
+ * the button group and the outcome line — are what call them.
+ */
+export interface ViewHeaderProps extends ViewWriteCallbacks {
   /** Null while no view is open; the bar then renders nothing. */
   state: ViewHeaderState | null;
   kind: ViewKind;
   commands: SaveCommands;
-  onSaved?(instance: ViewInstance): void;
-  /**
-   * Called only when a save-as actually created a view — not when a save
-   * landed in place. The two read alike from `onSaved`, and they end
-   * differently: an in-place save leaves the user on the button they
-   * pressed, while a copy closes its dialog, opens another view and has
-   * nowhere to put focus but `<body>`. This is how a host learns which one
-   * happened, and `WorkbenchShell` answers it by sending focus to the new
-   * view's title.
-   */
-  onCreated?(instance: ViewInstance): void;
-  onRenamed?(instance: ViewInstance): void;
-  onDeleted?(): void;
-  onRecovered?(action: WriteAction): void;
   /** The host's own global actions, rendered left of the save commands. */
   actions?: ReactNode;
   /**
@@ -301,9 +291,6 @@ export function ViewHeader({
             title={state.title}
             onSaved={onSaved}
             onCreated={onCreated}
-            onRenamed={onRenamed}
-            onDeleted={onDeleted}
-            onRecovered={onRecovered}
           />
         </div>
 

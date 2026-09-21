@@ -33,9 +33,14 @@ import {
 import { useSaveCommands, useViewRuntime } from '../src/react/index.js';
 import { MessagesProvider, zhCN } from '../src/ui/index.js';
 import { RecordWorkbench } from '../src/ui/RecordWorkbench.js';
+import type { SaveActionsProps } from '../src/ui/SaveActions.js';
 import { ViewHeader } from '../src/ui/ViewHeader.js';
 import { ViewSurface } from '../src/ui/ViewSurface.js';
-import { WriteOutcome } from '../src/ui/WriteOutcome.js';
+import {
+  WriteOutcome,
+  type ViewWriteCallbacks,
+  type WriteOutcomeProps,
+} from '../src/ui/WriteOutcome.js';
 import {
   deferred,
   ordersDefinition,
@@ -105,7 +110,43 @@ function editIt(runtime: AnyViewRuntime, pageSize = 25) {
   act(() => runtime.edit({ pageSize }));
 }
 
+/** Compile-time key equality: `true` only when both sides name the same set. */
+type SameKeys<A, B> = [A] extends [B]
+  ? [B] extends [A]
+    ? true
+    : false
+  : false;
+
+/** The callbacks of a props type, whatever else it carries. */
+type Callbacks<P> = Extract<keyof P, `on${string}`>;
+
 describe('SaveActions, the split button group', () => {
+  /**
+   * The type promises what the component calls, and nothing more.
+   * `onRenamed`, `onDeleted` and `onRecovered` were declared here, documented
+   * here, and never destructured: a host that wired them to this component
+   * waited for calls that could not come. They belong to
+   * `ViewWriteCallbacks`, which `WriteOutcome` — the component that does call
+   * them — takes whole.
+   *
+   * The annotations are the assertions: putting a prop back on
+   * `SaveActionsProps` that the component never reads, or dropping one of the
+   * group from `WriteOutcomeProps`, makes one of them `false` and fails
+   * `test:type`.
+   */
+  it('promises a host only the two landings it reports', () => {
+    const twoOfTheGroup: SameKeys<
+      Callbacks<SaveActionsProps>,
+      'onSaved' | 'onCreated'
+    > = true;
+    const theWholeGroup: SameKeys<
+      Callbacks<WriteOutcomeProps>,
+      keyof ViewWriteCallbacks
+    > = true;
+
+    expect([twoOfTheGroup, theWholeGroup]).toEqual([true, true]);
+  });
+
   it('has nothing to save until the view is edited', async () => {
     const { runtime } = await open();
 

@@ -26,7 +26,7 @@ import {
   SYSTEM_INSTANCE_ID_SEPARATOR,
 } from '../../model/index.js';
 import type { WriteState } from '../../runtime/index.js';
-import type { SettledWrite } from '../writes.js';
+import { holdsHandle, type SettledWrite } from '../writes.js';
 
 /**
  * The key the order and the default view are recorded under.
@@ -66,13 +66,18 @@ export const NO_OUTCOMES: ReadonlyMap<string, Outcome> = new Map();
  * intent is still the user's to put again: after a reload there is no handle
  * to recover through, and the button offers the write once more rather than
  * a recovery that would answer `false`.
+ *
+ * "No handle to recover through" is `holdsHandle` answering no over a
+ * conflict, asked rather than restated: which outcomes the engine is still
+ * answering for is `writes.ts`'s rule, and a second spelling of it here would
+ * be a second place to fix when it moves.
  */
 export function kept(outcome: Outcome | undefined): boolean {
   return (
     outcome !== undefined &&
-    outcome.handle === null &&
-    outcome.again !== undefined &&
-    outcome.state.kind === 'conflict'
+    outcome.state.kind === 'conflict' &&
+    !holdsHandle(outcome) &&
+    outcome.again !== undefined
   );
 }
 

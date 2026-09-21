@@ -26,7 +26,11 @@
  * while `useViewManager` holds one per row. That difference is in the names —
  * {@link blocksNewIntent} is the runtime's rule, {@link holdsHandle},
  * {@link strandedHandle} and {@link mayReplace} are the keyed slot's — and
- * nowhere else.
+ * nowhere else. {@link unsettled} is what they are both said in terms of, and
+ * what a surface asks when all it needs to know is whether the engine is
+ * still answering for the last write: `/ui`'s save commands disable
+ * themselves by it and the leave guard asks {@link blocksNewIntent}, rather
+ * than either of them listing the kinds again.
  *
  * Everything here is pure and React-free, so each rule is a question a test
  * can put directly.
@@ -140,6 +144,22 @@ export function savesView(action: WriteAction | undefined): boolean {
 }
 
 /**
+ * Whether the engine is still answering for this write.
+ *
+ * A `conflict` and an `unknown` are both unsettled, for two different
+ * reasons: one is waiting for the user to choose which version wins, the
+ * other for a retry or an abandon. A `rejected` is the definite answer — the
+ * store never took it, and there is nothing left outstanding.
+ *
+ * This is the coarse question, and it is not the same as either of the two
+ * below: {@link blocksNewIntent} is narrower (only an `unknown` refuses a new
+ * write from an open runtime), and {@link holdsHandle} adds the handle to it.
+ */
+export function unsettled(state: WriteState | null | undefined): boolean {
+  return state?.kind === 'unknown' || state?.kind === 'conflict';
+}
+
+/**
  * Whether the one outcome an open runtime reports refuses a new write.
  *
  * Only `unknown` does: the request left and nothing came back, so a second
@@ -168,10 +188,11 @@ export function blocksNewIntent(state: WriteState | null | undefined): boolean {
  * outright; a `conflict` it would dispatch over, which is the same problem one
  * step later. A `rejected` outcome is a definite answer with nothing
  * outstanding, so management.md's "correct it and save again" goes through as
- * the new intent it is.
+ * the new intent it is — which is {@link unsettled}, plus the handle that
+ * makes it this key's to answer for.
  */
 export function holdsHandle(outcome: SettledWrite | null | undefined): boolean {
-  return outcome?.handle != null && outcome.state.kind !== 'rejected';
+  return outcome?.handle != null && unsettled(outcome.state);
 }
 
 /**
