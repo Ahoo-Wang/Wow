@@ -22,6 +22,7 @@ export const viewMessages = {
   'label.view.list-failed': 'The list could not be loaded.',
   'label.view.none-hint': 'Save the current conditions to make one.',
   'label.view.unopenable': 'This view could not be opened',
+  'label.view.open-default': 'Open the default view',
   'label.view.needs-fixing': 'This view needs fixing before it runs',
   'label.view.warnings': 'Worth noting',
   // Several of them collapse to one line, so the line has to say how many.

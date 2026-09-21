@@ -137,7 +137,6 @@ export function DashboardWorkbench({
       expandable={expandable}
       onRenderFailure={onRenderFailure}
       hasResult={hasResult}
-      resultSurface={false}
       warnings={warnings}
       // The dashboard's own interval, which is the only one that runs here:
       // `DashboardRuntime` holds one timer for the whole board and ignores

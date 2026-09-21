@@ -17,6 +17,7 @@ import {
   type FieldDefinition,
   type SummaryFunction,
 } from '../../model/index.js';
+import { pinnedEnd, type ColumnPlacement } from '../../record/index.js';
 
 /**
  * The three areas a table draws its columns in, and the settings list them
@@ -56,10 +57,11 @@ export interface ColumnSettingRow {
   visible: boolean;
   pinned: ColumnPin | null;
   /**
-   * True for the two columns whose place is decided by the definition rather
-   * than by the user: the row key and the action column. Their controls are
-   * shown in the state they are in and disabled, because a control that
-   * silently does nothing is worse than one that says it cannot.
+   * True for the columns whose place is decided for the user rather than by
+   * them: the row key, the column the table draws last, and the action
+   * column. Their controls are shown in the state they are in and disabled,
+   * because a control that silently does nothing is worse than one that says
+   * it cannot.
    */
   fixed: boolean;
   /** Summary functions the field declares; empty when it offers none. */
@@ -110,6 +112,11 @@ export function columnSettingRows(
 ): ColumnSettingRow[] {
   const candidates = input.fields.filter(field => !isFieldlessKind(field.kind));
   const byName = new Map(candidates.map(field => [field.name, field]));
+  // The column the table holds against its right edge, found the way the
+  // projection finds it so the panel shows the pinning the table will
+  // actually draw. Over the columns that can be rendered, de-duplicated,
+  // which is exactly the list `projectRecord` lays out.
+  const end = lastColumn(input, byName);
   const seen = new Set<string>();
   // In the order the table shows them, and one row per column: a config
   // that lists a field twice is two columns claiming one identity, and one
@@ -118,11 +125,11 @@ export function columnSettingRows(
     if (seen.has(name)) return [];
     seen.add(name);
     const field = byName.get(name);
-    return [field ? row(field, true, input) : broken(name, input)];
+    return [field ? row(field, true, input, end) : broken(name, input)];
   });
   const hidden = candidates
     .filter(field => !seen.has(field.name))
-    .map(field => row(field, false, input));
+    .map(field => row(field, false, input, end));
 
   const rows = [...shown, ...hidden];
   if (!input.actions) return rows;
@@ -167,18 +174,51 @@ function broken(field: string, input: ColumnSettingInput): ColumnSettingRow {
   };
 }
 
+/**
+ * The column the table draws last, which the projection holds on the right
+ * whatever the config says.
+ *
+ * It is computed over the same list `projectRecord` lays out — the drawn
+ * columns, each without a duplicate, the ones the definition no longer
+ * offers left out — so the panel and the table can never name a different
+ * column as the last one.
+ */
+function lastColumn(
+  input: ColumnSettingInput,
+  byName: ReadonlyMap<string, FieldDefinition>,
+): string | null {
+  const seen = new Set<string>();
+  const drawn = input.columns.flatMap(name => {
+    if (seen.has(name) || !byName.has(name)) return [];
+    seen.add(name);
+    return [
+      {
+        field: name,
+        pinned:
+          name === input.rowKey ? 'left' : columnPin(input.pinnedOf(name)),
+      } satisfies ColumnPlacement,
+    ];
+  });
+  return pinnedEnd(drawn, input.rowKey ?? '');
+}
+
 function row(
   field: FieldDefinition,
   visible: boolean,
   input: ColumnSettingInput,
+  end: string | null,
 ): ColumnSettingRow {
-  const fixed = field.name === input.rowKey;
+  const fixed = field.name === input.rowKey || field.name === end;
   // A fixed column shows the side it is held on rather than what the config
   // happens to say, so the two never disagree on screen. Read through
   // `columnPin` even though the controller already normalises it: the area
   // a row is listed in is computed from this, and an area that is neither
   // of the three is a row that appears nowhere at all.
-  const pinned = fixed ? 'left' : columnPin(input.pinnedOf(field.name));
+  const pinned = fixed
+    ? field.name === input.rowKey
+      ? 'left'
+      : 'right'
+    : columnPin(input.pinnedOf(field.name));
   return {
     field: field.name,
     label: field.label,

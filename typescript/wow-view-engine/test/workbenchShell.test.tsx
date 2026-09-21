@@ -91,24 +91,20 @@ const block = (name: string) =>
   document.querySelector<HTMLElement>(`[data-slot="${name}"]`);
 
 describe('the result block', () => {
-  it('draws the result on a surface, with its caption at the top', async () => {
+  it('draws the result on no card, with its caption at the top', async () => {
     await open();
 
     const result = block('result-block')!;
     // The applied bar is the caption of these rows, so it is inside the
     // block rather than floating above it.
-    expect(result.className).toContain('bg-card');
     expect(result.querySelector('[data-slot="stub-result"]')).not.toBeNull();
-  });
-
-  it('leaves the surface off when the result is already made of cards', async () => {
-    await open({ resultSurface: false });
-
-    // A dashboard's result is a grid of panels, each one a card. A card
-    // around them is a frame around a frame.
-    const result = block('result-block')!;
+    // And the block itself is not a card (D12): a table draws its own
+    // header layer, its own hairlines and its own held edges, so a border
+    // and padding around that is a frame around a frame. It was the
+    // dashboard's opt-out before; now it is nobody's.
     expect(result.className).not.toContain('bg-card');
-    expect(result.querySelector('[data-slot="stub-result"]')).not.toBeNull();
+    expect(result.className).not.toContain('border');
+    expect(result.className).not.toContain('rounded-lg');
   });
 });
 

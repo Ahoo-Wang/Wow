@@ -305,11 +305,12 @@ describe('RecordPagination moving between pages', () => {
   });
 
   /**
-   * Everything fits on one page: the arrows are drawn and both dead, which
-   * says there is nowhere else to be rather than leaving the reader to
-   * wonder where the controls went.
+   * Everything fits on one page, so there are no arrows at all (D12). Two
+   * dead arrows were the honest version of the same fact, and they still
+   * cost two tab stops and a strip of chrome to say "no" — the count and
+   * "Page 1 of 1" beside it already say everything is here.
    */
-  it('deadens both arrows when there is only the one page', () => {
+  it('draws no arrows when there is only the one page', () => {
     render(
       <RecordPagination
         table={tableController({
@@ -321,16 +322,39 @@ describe('RecordPagination moving between pages', () => {
 
     expect(screen.getByText('2 records in all')).toBeTruthy();
     expect(screen.getByText('Page 1 of 1')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Previous page' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Next page' })).toBeNull();
+    // The size control stays: how many rows a page holds is what makes it
+    // one page, and it is the one thing still worth changing here.
+    expect(screen.getByRole('combobox', { name: 'Per page' })).toBeTruthy();
+  });
+
+  /**
+   * And the two it must not be mistaken for. A source that reports no total
+   * cannot tell one page from the first of many, and a reader stranded past
+   * the first page needs the way back whatever the total claims.
+   */
+  it('keeps the arrows where a single page cannot be proved', () => {
+    render(
+      <RecordPagination
+        table={tableController({ paging: { mode: 'paged', index: 1 } })}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Next page' })).toBeTruthy();
+
+    cleanup();
+    render(
+      <RecordPagination
+        table={tableController({
+          rows: [],
+          paging: { mode: 'paged', index: 2, total: 2 },
+          hasNext: false,
+        })}
+      />,
+    );
     expect(
-      screen
-        .getByRole('button', { name: 'Previous page' })
-        .hasAttribute('disabled'),
-    ).toBe(true);
-    expect(
-      screen
-        .getByRole('button', { name: 'Next page' })
-        .hasAttribute('disabled'),
-    ).toBe(true);
+      screen.getByRole('button', { name: 'Previous page' }),
+    ).toHaveProperty('disabled', false);
   });
 
   /**

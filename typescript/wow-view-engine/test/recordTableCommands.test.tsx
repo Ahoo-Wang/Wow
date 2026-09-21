@@ -237,7 +237,14 @@ describe('setPinned', () => {
     const result = await openTable(
       {
         table: {
-          columns: [{ field: 'id' }, { field: 'amount', pinned: 'top' }],
+          // Deliberately not the last column: the projection holds that one
+          // on the right whatever the config says, so nothing it stores
+          // about its pinning is read and nothing about it is reported.
+          columns: [
+            { field: 'id' },
+            { field: 'amount', pinned: 'top' },
+            { field: 'warehouse' },
+          ],
         },
       } as unknown as Partial<RecordViewConfig>,
       {},

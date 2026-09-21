@@ -63,19 +63,13 @@ export interface RecordView {
 }
 
 /**
- * One column as the table renders it.
- *
- * The row key is held on the left whatever the config says. It is the
- * column that says which record a row is, so it is the one column that must
- * stay in view while the rest scrolls sideways — and that is a property of
- * the definition, not a preference: the column settings show its pinning
- * fixed and refuse to change it. Deciding it here rather than in the panel
- * is what makes the two agree, because this is where the table reads it.
+ * One column as the table renders it, with the side it is held on already
+ * decided by {@link columnOrder} and {@link pinnedEnd}.
  */
 function columnView(
   field: FieldDefinition,
   column: RecordColumn,
-  rowKey: string,
+  pinned: RecordColumnPin | null,
 ): RecordColumnView {
   return {
     field: field.name,
@@ -83,14 +77,22 @@ function columnView(
     kind: field.kind,
     cell: field.cell ?? field.kind,
     width: column.width,
-    // Read through `columnPin`, so a stored `'top'` reaches the table as
-    // "not pinned" rather than as a side it would then try to stick to.
-    pinned:
-      field.name === rowKey ? 'left' : (columnPin(column.pinned) ?? undefined),
+    pinned: pinned ?? undefined,
     sortable: field.sortable === true,
     numberFormat: field.numberFormat,
     ...(field.options ? { options: field.options } : {}),
   };
+}
+
+/** A column as the layout rule reads it: its field, and the side it asks for. */
+export interface ColumnPlacement {
+  field: string;
+  /**
+   * What the config asks for, read through `columnPin` so a stored `'top'`
+   * arrives as "not pinned" rather than as a side. The row key's `'left'` is
+   * the definition's rather than the config's.
+   */
+  pinned: RecordColumnPin | null;
 }
 
 /**
@@ -104,17 +106,51 @@ function columnView(
  * key leads the left area because it is the column that says which record a
  * row is. The order inside each area is the config's own; the sort is
  * stable, so nothing else moves.
+ *
+ * It is exported because two other places have to answer "which column does
+ * the table draw last" the same way this one does: `validateRecord`, which
+ * must not report a pinning that column never gets to keep, and the column
+ * settings, which show that pinning fixed.
  */
-function laidOut(
-  columns: readonly RecordColumn[],
+export function columnOrder<T extends ColumnPlacement>(
+  columns: readonly T[],
   rowKey: string,
-): RecordColumn[] {
-  const area = (column: RecordColumn): number => {
-    if (column.field === rowKey) return 0;
-    const pinned = columnPin(column.pinned);
-    return pinned === 'left' ? 1 : pinned === 'right' ? 3 : 2;
-  };
+): T[] {
+  const area = (column: T): number =>
+    column.field === rowKey
+      ? 0
+      : column.pinned === 'left'
+        ? 1
+        : column.pinned === 'right'
+          ? 3
+          : 2;
   return [...columns].sort((left, right) => area(left) - area(right));
+}
+
+/**
+ * The column held against the right edge whatever the config says (D13), or
+ * `null` when the table draws nothing but the row key.
+ *
+ * Both ends of a record table are fixed: the row key on the left, because it
+ * says which record a row is, and the last column on the right, because a
+ * table whose ends drift is a table with no frame. The edge on those two is
+ * what a reader sees the frame by, and it is drawn at rest rather than only
+ * while something scrolls under it.
+ *
+ * `columns` is what the table really draws — a field the definition dropped
+ * is not one of them — so the answer is the last column on screen and not
+ * the last entry of a config that may name columns nobody can render. The
+ * host's row-action column is outside this: it is a render slot rather than
+ * a projected column, and it is held on the right by `ui/record/columns.ts`
+ * already, sitting beyond whichever column this names.
+ */
+export function pinnedEnd(
+  columns: readonly ColumnPlacement[],
+  rowKey: string,
+): string | null {
+  const ordered = columnOrder(columns, rowKey);
+  const last = ordered[ordered.length - 1];
+  return last === undefined || last.field === rowKey ? null : last.field;
 }
 
 function isCursorPage(
@@ -141,10 +177,36 @@ export function projectRecord(
     );
 
   const byName = new Map(definition.fields.map(field => [field.name, field]));
-  const columns = laidOut(config.table.columns, rowKey).flatMap(column => {
-    const field = byName.get(column.field);
-    return field ? [columnView(field, column, rowKey)] : [];
-  });
+  // Unknown fields drop out before the layout runs, so the column the areas
+  // end on is the one really drawn last — which is the one the right edge
+  // holds, whatever the config asked for.
+  const placed = columnOrder(
+    config.table.columns.flatMap(column => {
+      const field = byName.get(column.field);
+      return field
+        ? [
+            {
+              field: field.name,
+              pinned: field.name === rowKey ? 'left' : columnPin(column.pinned),
+              column,
+              definition: field,
+            } satisfies ColumnPlacement & {
+              column: RecordColumn;
+              definition: FieldDefinition;
+            },
+          ]
+        : [];
+    }),
+    rowKey,
+  );
+  const end = placed[placed.length - 1];
+  const columns = placed.map(place =>
+    columnView(
+      place.definition,
+      place.column,
+      place.field === rowKey ? 'left' : place === end ? 'right' : place.pinned,
+    ),
+  );
 
   const rows = page.list.map(data => ({
     key: getPropertyValue<RecordKey>(data, rowKey) as RecordKey,

@@ -18,6 +18,7 @@ import { MemoryViewStore, ViewEngine } from '../src/index.js';
 import type { RecordSort, ViewInstance, ViewSource } from '../src/index.js';
 import type { RecordTableController } from '../src/react/index.js';
 import {
+  defaultMessages,
   RecordCards,
   RecordTable,
   RecordWorkbench,
@@ -213,6 +214,83 @@ describe('RecordTable on its own', () => {
     cleanup();
     render(<RecordTable table={tableController({ rows: [] })} />);
     expect(screen.getByText('Nothing to show')).toBeDefined();
+  });
+
+  /**
+   * The empty result's one way out (D12 Ⅴ). Which of the two it is follows
+   * from what was asked: conditions are why the rows are missing, so the
+   * way out is to clear them; with none the view is already showing
+   * everything there is, and the only thing left is to ask differently.
+   */
+  it('offers one way out of an empty result, and says which', async () => {
+    const user = userEvent.setup();
+    const onEmptyAction = vi.fn();
+    render(
+      <RecordTable
+        table={tableController({ rows: [] })}
+        hasConditions
+        onEmptyAction={onEmptyAction}
+      />,
+    );
+
+    const button = screen.getByRole('button', {
+      name: defaultMessages['label.record.empty-clear'],
+    });
+    expect(
+      screen.queryByRole('button', {
+        name: defaultMessages['label.record.empty-add'],
+      }),
+    ).toBeNull();
+    await user.click(button);
+    expect(onEmptyAction).toHaveBeenCalledTimes(1);
+
+    cleanup();
+    render(
+      <RecordTable
+        table={tableController({ rows: [] })}
+        onEmptyAction={onEmptyAction}
+      />,
+    );
+    expect(
+      screen.getByRole('button', {
+        name: defaultMessages['label.record.empty-add'],
+      }),
+    ).toBeTruthy();
+  });
+
+  /**
+   * A surface with no condition editor of its own — a dashboard panel, an
+   * embedded view — has nowhere to send anybody, and a button that leads
+   * nowhere is worse than no button.
+   */
+  it('offers no way out where the host gave it none', () => {
+    render(<RecordTable table={tableController({ rows: [] })} />);
+
+    expect(screen.getByText('Nothing to show')).toBeDefined();
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  /**
+   * The skeleton is drawn by column where the columns are known, each bar
+   * as wide as the name above it: three equal bars said only "something is
+   * loading", while unequal bars under the real headers say *this* table is
+   * loading and what shape the answer will take.
+   */
+  it('draws the skeleton by column, each bar the width of its name', () => {
+    const { container } = render(
+      <RecordTable table={tableController({ status: 'loading', rows: [] })} />,
+    );
+
+    const row = container.querySelector('tbody tr')!;
+    // The checkbox column and the two data columns, rather than one cell
+    // spanning all three.
+    expect(row.querySelectorAll('td')).toHaveLength(3);
+    const bars = [
+      ...row.querySelectorAll<HTMLElement>('[data-slot="skeleton"]'),
+    ];
+    // "Amount" is six characters and "Warehouse" nine, and the two bars
+    // are that wide — unequal, and in the proportions of the header above.
+    expect(bars.slice(1).map(bar => bar.style.width)).toEqual(['6ch', '9ch']);
   });
 
   it('takes a renderer for the cells', () => {
@@ -506,6 +584,33 @@ describe('the summary rows', () => {
     expect(summaryRow(footer, 'total').textContent).toContain('CN¥900.00');
     expect(footer.textContent).toContain('This page');
     expect(footer.textContent).toContain('All records');
+  });
+
+  /**
+   * Two rows, even where the two numbers agree. The scope is part of the
+   * number rather than a note beside it: twenty rows' average presented as
+   * forty thousand rows' average is the one mistake these rows could make,
+   * and collapsing them whenever they happen to match is how that mistake
+   * gets made on the page where it matters.
+   */
+  it('keeps both scopes apart even when they say the same thing', () => {
+    const { container } = render(
+      <RecordTable
+        table={summaries({
+          summaries: {
+            scope: 'total',
+            cells: [
+              { field: 'amount', label: 'Amount', fn: 'COUNT', value: 2 },
+            ],
+          },
+        })}
+      />,
+    );
+
+    const footer = container.querySelector('tfoot')!;
+    expect(scopes(footer)).toEqual(['page', 'total']);
+    expect(summaryRow(footer, 'page').textContent).toContain('2');
+    expect(summaryRow(footer, 'total').textContent).toContain('2');
   });
 
   it('leaves a column with no summary empty rather than showing a zero', () => {

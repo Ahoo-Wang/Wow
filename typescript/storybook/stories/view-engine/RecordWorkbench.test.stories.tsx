@@ -179,10 +179,29 @@ export const WithData: Story = {
     await expect(paging).toHaveTextContent(
       say('label.pagination.total', { total: 4 }),
     );
-    // Four rows at twenty a page is the whole of it, said as such.
+    // Four rows at twenty a page is the whole of it, said as such — and
+    // with no arrows at all (D12 Ⅶ): two dead ones were the same fact in a
+    // form that still cost two tab stops to read.
     await expect(paging).toHaveTextContent(
       say('label.toolbar.page-of', { index: 1, pages: 1 }),
     );
+    await expect(
+      within(paging).queryByRole('button', {
+        name: zhCN['label.toolbar.next'],
+      }),
+    ).toBeNull();
+    await expect(
+      within(paging).queryByRole('button', {
+        name: zhCN['label.toolbar.previous'],
+      }),
+    ).toBeNull();
+    // The size control stays: how many rows a page holds is what makes it
+    // one page, and it is the one thing still worth changing here.
+    await expect(
+      within(paging).getByRole('combobox', {
+        name: zhCN['label.pagination.page-size'],
+      }),
+    ).toBeVisible();
 
     // Opening the fold brings the editor back, in its own block between the
     // title bar and the result, with the one way out of it.
@@ -633,9 +652,35 @@ export const ManageViews: Story = {
 export const EmptyResult: Story = {
   ...DisplayEmptyResult,
   play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
     await expect(
-      await within(canvasElement).findByText(zhCN['label.record.empty-hint']),
+      await canvas.findByText(zhCN['label.record.empty-hint']),
     ).toBeVisible();
+
+    // One way out, and which one follows from what was asked: this view runs
+    // under a saved condition, so the way out is to clear it.
+    const clear = canvas.getByRole('button', {
+      name: zhCN['label.record.empty-clear'],
+    });
+    await expect(clear).toBeVisible();
+    await expect(
+      canvas.queryByRole('button', { name: zhCN['label.record.empty-add'] }),
+    ).toBeNull();
+
+    // And it applies as well as clears: the band above the rows stops
+    // naming a condition and says "all records" instead, which is the proof
+    // that a query really went out — clearing the draft alone would leave
+    // these rows standing under the condition the button just removed.
+    await userEvent.click(clear);
+    const applied = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="applied-bar"]',
+    )!;
+    await waitFor(() =>
+      expect(applied).toHaveTextContent(zhCN['label.applied.all']),
+    );
+    await expect(applied.querySelectorAll('[data-slot="badge"]')).toHaveLength(
+      0,
+    );
   },
 };
 
@@ -752,9 +797,21 @@ export const NeedsFixing: Story = {
 export const CannotOpen: Story = {
   ...DisplayCannotOpen,
   play: async ({ canvasElement }) => {
-    await expect(
-      await within(canvasElement).findByRole('alert'),
-    ).toHaveTextContent(zhCN['label.view.unopenable']);
+    const canvas = within(canvasElement);
+    const alert = await canvas.findByRole('alert');
+    await expect(alert).toHaveTextContent(zhCN['label.view.unopenable']);
+
+    // The empty state's form rather than a block of red: an icon, what
+    // happened, and one way off the screen.
+    await expect(alert).toHaveAttribute('data-slot', 'view-unopenable');
+    await expect(alert.querySelector('svg')).not.toBeNull();
+    const back = within(alert).getByRole('button', {
+      name: zhCN['label.view.open-default'],
+    });
+
+    await userEvent.click(back);
+    await canvas.findByRole('table');
+    await expect(canvas.queryByRole('alert')).toBeNull();
   },
 };
 
@@ -891,11 +948,25 @@ export const TableSettings: Story = {
       say('label.columns.moved', { field: '状态', index: 2, total: 4 }),
     );
 
-    // Pin 金额, then summarise it as an average rather than a sum.
-    await userEvent.click(
+    // 金额 is the column the table draws last, so it is held on the right
+    // for the user (D13) and its pin says so without offering a way to
+    // change it — the same shape as the key column's, at the other end.
+    await expect(
       popover.getByRole('button', {
         name: say('label.columns.pin', {
           field: '金额',
+          state: zhCN['label.columns.pin.right'],
+        }),
+      }),
+    ).toBeDisabled();
+
+    // Pin 仓库, which is one of the two that scroll, then summarise 金额 as
+    // an average rather than a sum — being held at the end costs a column
+    // its pin and its handle, and nothing else.
+    await userEvent.click(
+      popover.getByRole('button', {
+        name: say('label.columns.pin', {
+          field: '仓库',
           state: zhCN['label.columns.pin.none'],
         }),
       }),
@@ -925,15 +996,16 @@ export const TableSettings: Story = {
     await userEvent.keyboard('{Escape}');
 
     // What is on screen: the areas a table draws in. `订单号` and the newly
-    // pinned `金额` are held on the left — pinning is what moves a column
+    // pinned `仓库` are held on the left — pinning is what moves a column
     // between areas, since `sticky` only fixes an element where it already
-    // is — and the two that scroll follow in the order just set.
+    // is — `状态` scrolls in the middle, and `金额` is held at the right end
+    // whatever the config says.
     await waitFor(() =>
       expect(readHeaders(canvas.getByRole('table'))).toEqual([
         '订单号',
-        '金额',
-        '状态',
         '仓库',
+        '状态',
+        '金额',
       ]),
     );
     await waitFor(() =>
@@ -956,8 +1028,8 @@ export const TableSettings: Story = {
           columns: [
             { field: 'id' },
             { field: 'status' },
-            { field: 'warehouse' },
-            { field: 'amount', pinned: 'left' },
+            { field: 'warehouse', pinned: 'left' },
+            { field: 'amount' },
           ],
         },
         summaries: [{ field: 'amount', fn: 'AVG' }],
@@ -998,10 +1070,11 @@ export const TableSettingsPointerDrag: Story = {
 
     // The rows a drag moves within: the ones that scroll *and* are shown.
     // A hidden field has no place in `table.columns` and so no order to
-    // drag — its handle is refused — and the row key is held on the left,
-    // which is a region of its own. Read by what the panel offers rather
-    // than by a list of fields, so a definition that grows another field
-    // does not turn this into a test about the fixture.
+    // drag — its handle is refused — the row key is held on the left and
+    // `金额` at the right end, and each of those is a region of its own.
+    // Read by what the panel offers rather than by a list of fields, so a
+    // definition that grows another field does not turn this into a test
+    // about the fixture.
     const draggable = [
       ...document.querySelectorAll<HTMLElement>(
         '[data-slot="column-region"][data-region="middle"] [data-slot="column-setting"]',
@@ -1012,20 +1085,19 @@ export const TableSettingsPointerDrag: Story = {
     await expect(draggable.map(row => row.dataset.field)).toEqual([
       'warehouse',
       'status',
-      'amount',
     ]);
 
-    await dragHandleOnto(handle, draggable[2]);
+    await dragHandleOnto(handle, draggable[1]);
 
-    // Dropped on the third row, 仓库 takes its place and the two it passed
-    // close up behind it. The table is the witness: the panel's own list
-    // would show the same thing whether or not the controller heard it.
+    // Dropped on the row below it, 仓库 takes its place and 状态 closes up
+    // behind it. The table is the witness: the panel's own list would show
+    // the same thing whether or not the controller heard it.
     await waitFor(() =>
       expect(readHeaders(canvas.getByRole('table'))).toEqual([
         '订单号',
         '状态',
-        '金额',
         '仓库',
+        '金额',
       ]),
     );
 
@@ -1039,7 +1111,7 @@ export const TableSettingsPointerDrag: Story = {
         (saved.config as RecordViewConfig).table.columns.map(
           column => column.field,
         ),
-      ).toEqual(['id', 'status', 'amount', 'warehouse']);
+      ).toEqual(['id', 'status', 'warehouse', 'amount']);
     });
   },
 };
@@ -2099,13 +2171,14 @@ export const RenderFailure: Story = {
 };
 
 /**
- * 冻结列的边说的是「有行正从我下面经过」，所以它只在那是真的时候才在。
+ * 冻结列的边说的是「这两端钉着」，所以它一直都在（D13）。
  *
- * `usePinnedEdges` 把滚动位置写成表上的两个属性，边界格子经 group 变体读它：
- * 滚动条在起点时左边界没有边、在终点时右边界没有、中间两边都有；两个冻结列之
- * 间永远没有——那道缝下面没有东西经过。表头、数据行、汇总行三层读的是同一份
- * 属性，所以同一列在三层上要么都有边、要么都没有。jsdom 不算布局也不套样式
- * 表，`box-shadow` 的真值只有这里量得到。
+ * 首列（主键）与末列（这里是「创建时间」，宿主的操作列坐在它外侧）各带一道
+ * `--border` 发丝线加一段软阴影，静止时就有，滚到中间、滚到尽头都不变。只有
+ * **边界**格子画边：最后一个左冻结列与第一个右冻结列面对着会滚的中间，两个冻
+ * 结列之间从来没有东西经过；操作列此时不是边界，因为它前面已经有一列钉在右边
+ * 了。表头、数据行、汇总行三层拿的是同一个类名，所以同一列在三层上同起同落。
+ * jsdom 不算布局也不套样式表，`box-shadow` 的真值只有这里量得到。
  */
 export const PinnedEdges: Story = {
   ...DisplayPinnedEdges,
@@ -2115,20 +2188,17 @@ export const PinnedEdges: Story = {
     const area = table.closest<HTMLElement>('[data-slot="record-table"]')!;
     await expect(area).toHaveAttribute('data-scrolls');
 
-    // The premise: two columns frozen left and the actions frozen right, and
-    // a middle that has to scroll — a table that fits has nothing under any
-    // of its columns, so the area is narrowed until it does not.
+    // Two columns frozen left by the config, and the last column frozen
+    // right by the projection whatever the config asked for.
     const inner = headerOf(table, '订单号');
     const left = headerOf(table, '金额');
-    const right = table.querySelector<HTMLTableCellElement>(
+    const end = headerOf(table, '创建时间');
+    const actions = table.querySelector<HTMLTableCellElement>(
       'thead th[data-column="actions"]',
     )!;
     await expect(inner).toHaveAttribute('data-pin', 'left');
     await expect(left).toHaveAttribute('data-pin', 'left');
-    area.style.maxWidth = '420px';
-    await waitFor(() =>
-      expect(area.scrollWidth).toBeGreaterThan(area.clientWidth),
-    );
+    await expect(end).toHaveAttribute('data-pin', 'right');
 
     /** Whether each cell draws an edge, on all three layers of one column. */
     const edged = (head: HTMLTableCellElement) =>
@@ -2143,28 +2213,34 @@ export const PinnedEdges: Story = {
     const edges = () => ({
       inner: edged(inner),
       left: edged(left),
-      right: edged(right),
+      end: edged(end),
+      actions: edged(actions),
     });
     const NONE = [false, false, false];
     const ALL = [true, true, true];
+    const FRAMED = { inner: NONE, left: ALL, end: ALL, actions: NONE };
 
-    // At the start nothing is under the left column and rows are under the
-    // right one; between the two frozen columns there is never anything.
+    // Still, and wide enough that nothing has to scroll: the frame is there
+    // before anything moves, which is the whole of D13.
+    await waitFor(() => expect(edges()).toEqual(FRAMED));
+
+    // Narrowed until the middle really does scroll, and then scrolled from
+    // one end to the other: the same two edges, unchanged throughout.
+    area.style.maxWidth = '420px';
     await waitFor(() =>
-      expect(edges()).toEqual({ inner: NONE, left: NONE, right: ALL }),
+      expect(area.scrollWidth).toBeGreaterThan(area.clientWidth),
     );
+    await waitFor(() => expect(edges()).toEqual(FRAMED));
     area.scrollLeft = 40;
-    await waitFor(() =>
-      expect(edges()).toEqual({ inner: NONE, left: ALL, right: ALL }),
-    );
+    await waitFor(() => expect(edges()).toEqual(FRAMED));
     area.scrollLeft = area.scrollWidth;
-    await waitFor(() =>
-      expect(edges()).toEqual({ inner: NONE, left: ALL, right: NONE }),
-    );
+    await waitFor(() => expect(edges()).toEqual(FRAMED));
     area.scrollLeft = 0;
-    await waitFor(() =>
-      expect(edges()).toEqual({ inner: NONE, left: NONE, right: ALL }),
-    );
+    await waitFor(() => expect(edges()).toEqual(FRAMED));
+
+    // And nothing on the table says where it is scrolled to any more.
+    await expect(table).not.toHaveAttribute('data-scrolled-left');
+    await expect(table).not.toHaveAttribute('data-scrolled-right');
   },
 };
 

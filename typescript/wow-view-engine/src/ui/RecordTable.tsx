@@ -14,7 +14,6 @@
 import type * as React from 'react';
 import { useMemo, useRef } from 'react';
 import { cn } from 'cn';
-import { InboxIcon } from 'lucide-react';
 import type { RecordData, RecordKey } from '../model/index.js';
 import type {
   RecordColumnView,
@@ -25,19 +24,10 @@ import type { RecordTableController } from '../react/index.js';
 import { pageSummaries, recordValue } from '../record/index.js';
 import { RowActions } from './RowActions.js';
 import { Checkbox } from './components/checkbox.js';
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from './components/empty.js';
-import { Skeleton } from './components/skeleton.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 import {
   actionCell,
-  PIN_GROUP,
   ACTIONS_COLUMN,
   HEAD_CELL,
   NUMERIC_CELL,
@@ -46,10 +36,11 @@ import {
   columnPins,
   isNumeric,
   pinsSelect,
-  usePinnedEdges,
   usePinnedOffsets,
 } from './record/columns.js';
 import { cellValue } from './record/cells.js';
+import { EmptyResult } from './record/EmptyResult.js';
+import { SkeletonRows } from './record/SkeletonRows.js';
 import { SortableHeader } from './record/SortableHeader.js';
 import { SummaryRows } from './record/SummaryRows.js';
 import {
@@ -95,6 +86,18 @@ export interface RecordTableProps {
   /** Overrides the catalogue's own wording for an empty result. */
   emptyTitle?: string;
   emptyDescription?: string;
+  /**
+   * Whether the rows were fetched under conditions of the view's own. It is
+   * what the empty state's one way out is: with conditions in force the way
+   * out is to clear them, with none it is to add one.
+   */
+  hasConditions?: boolean;
+  /**
+   * What that way out does. Left out, the empty result offers none — an
+   * embedded view or a dashboard panel has no condition editor of its own to
+   * send anybody to, and a button that leads nowhere is worse than no button.
+   */
+  onEmptyAction?(): void;
 }
 
 export interface RecordCell {
@@ -143,6 +146,8 @@ export function RecordTable({
   scrolls = true,
   emptyTitle,
   emptyDescription,
+  hasConditions = false,
+  onEmptyAction,
 }: RecordTableProps) {
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
@@ -154,7 +159,6 @@ export function RecordTable({
   const columns = table.columns;
   const element = useRef<HTMLTableElement>(null);
   usePinnedOffsets(element);
-  usePinnedEdges(element);
   const pins = useMemo(
     () =>
       columnPins(columns, { selectable, actions: rowActions !== undefined }),
@@ -194,19 +198,12 @@ export function RecordTable({
   // are. It is the table's own to say, because nothing above says it.
   if (table.status === 'success' && table.rows.length === 0) {
     return (
-      <Empty>
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <InboxIcon />
-          </EmptyMedia>
-          <EmptyTitle>
-            {emptyTitle ?? messages.label('label.record.empty')}
-          </EmptyTitle>
-          <EmptyDescription>
-            {emptyDescription ?? messages.label('label.record.empty-hint')}
-          </EmptyDescription>
-        </EmptyHeader>
-      </Empty>
+      <EmptyResult
+        title={emptyTitle}
+        description={emptyDescription}
+        hasConditions={hasConditions}
+        onAction={onEmptyAction}
+      />
     );
   }
 
@@ -220,7 +217,7 @@ export function RecordTable({
       data-scrolls={scrolls ? '' : undefined}
       className={scrolls ? SCROLL_AREA : STATIC_AREA}
     >
-      <Table ref={element} className={PIN_GROUP}>
+      <Table ref={element}>
         {/* A layer rather than a row: it stays while the rows move under it,
             and its edge is heavier than the hairlines between them. */}
         {!firstLoad && (
@@ -266,70 +263,62 @@ export function RecordTable({
           </TableHeader>
         )}
         <TableBody>
-          {table.status === 'loading' && table.rows.length === 0
-            ? Array.from({ length: 3 }, (_unused, index) => (
-                <TableRow key={`skeleton-${index}`}>
-                  <TableCell
-                    colSpan={
-                      columns.length +
-                      (selectable ? 1 : 0) +
-                      (rowActions ? 1 : 0)
-                    }
-                  >
-                    <Skeleton className="h-4 w-full" />
+          {table.status === 'loading' && table.rows.length === 0 ? (
+            <SkeletonRows
+              columns={columns}
+              selectable={selectable}
+              actions={rowActions !== undefined}
+            />
+          ) : (
+            table.rows.map(row => (
+              <TableRow
+                key={String(row.key)}
+                // Three states that have to read apart: at rest the surface
+                // itself, hovered a wash of it, picked a tint that the
+                // hover does not wash out — a row loses its selection to
+                // the pointer passing over it otherwise.
+                className="bg-background data-[state=selected]:bg-muted data-[state=selected]:hover:bg-muted"
+                data-state={table.isSelected(row.key) ? 'selected' : undefined}
+              >
+                {selectable && (
+                  <TableCell className={cn(pinSelect && SELECT_CELL)}>
+                    <Checkbox
+                      aria-label={messages.label('label.record.select', {
+                        key: String(row.key),
+                      })}
+                      checked={table.isSelected(row.key)}
+                      onCheckedChange={() => table.toggle(row.key)}
+                    />
                   </TableCell>
-                </TableRow>
-              ))
-            : table.rows.map(row => (
-                <TableRow
-                  key={String(row.key)}
-                  // Three states that have to read apart: at rest the surface
-                  // itself, hovered a wash of it, picked a tint that the
-                  // hover does not wash out — a row loses its selection to
-                  // the pointer passing over it otherwise.
-                  className="bg-background data-[state=selected]:bg-muted data-[state=selected]:hover:bg-muted"
-                  data-state={
-                    table.isSelected(row.key) ? 'selected' : undefined
-                  }
-                >
-                  {selectable && (
-                    <TableCell className={cn(pinSelect && SELECT_CELL)}>
-                      <Checkbox
-                        aria-label={messages.label('label.record.select', {
-                          key: String(row.key),
-                        })}
-                        checked={table.isSelected(row.key)}
-                        onCheckedChange={() => table.toggle(row.key)}
-                      />
+                )}
+                {columns.map(column => {
+                  const pin = pins.get(column.field);
+                  return (
+                    <TableCell
+                      key={column.field}
+                      className={cn(
+                        isNumeric(column) && NUMERIC_CELL,
+                        pin?.className,
+                      )}
+                      style={pin?.style}
+                    >
+                      {renderOne({
+                        column,
+                        row: row.data,
+                        key: row.key,
+                        value: recordValue(row.data, column.field),
+                      })}
                     </TableCell>
-                  )}
-                  {columns.map(column => {
-                    const pin = pins.get(column.field);
-                    return (
-                      <TableCell
-                        key={column.field}
-                        className={cn(
-                          isNumeric(column) && NUMERIC_CELL,
-                          pin?.className,
-                        )}
-                        style={pin?.style}
-                      >
-                        {renderOne({
-                          column,
-                          row: row.data,
-                          key: row.key,
-                          value: recordValue(row.data, column.field),
-                        })}
-                      </TableCell>
-                    );
-                  })}
-                  {rowActions && (
-                    <TableCell className={actionCell(columns)}>
-                      <RowActions>{rowActions(row)}</RowActions>
-                    </TableCell>
-                  )}
-                </TableRow>
-              ))}
+                  );
+                })}
+                {rowActions && (
+                  <TableCell className={actionCell(columns)}>
+                    <RowActions>{rowActions(row)}</RowActions>
+                  </TableCell>
+                )}
+              </TableRow>
+            ))
+          )}
         </TableBody>
         {summaries.length > 0 && (
           <SummaryRows

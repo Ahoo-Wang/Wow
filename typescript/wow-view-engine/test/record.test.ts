@@ -717,7 +717,10 @@ describe('projectRecord', () => {
         kind: 'number',
         cell: 'number',
         width: undefined,
-        pinned: undefined,
+        // And the last column is held on the right for the same kind of
+        // reason (D13): both ends of the table stay put, so it has a frame
+        // a reader can see rather than two edges that drift.
+        pinned: 'right',
         sortable: false,
         numberFormat: { style: 'currency', currency: 'CNY' },
       },
@@ -770,7 +773,9 @@ describe('projectRecord', () => {
 
   it('reports a pinning that is neither side, and projects it as none', () => {
     const config_ = config({
-      table: { columns: [{ field: 'amount', pinned: 'top' }] },
+      table: {
+        columns: [{ field: 'amount', pinned: 'top' }, { field: 'warehouse' }],
+      },
     } as unknown as Partial<RecordViewConfig>);
 
     const issues = validateRecord(definition(), config_, builtinFieldKinds);
@@ -781,6 +786,64 @@ describe('projectRecord', () => {
       projectRecord(definition(), config_, { total: 0, list: [] }).columns[0]
         .pinned,
     ).toBeUndefined();
+  });
+
+  /**
+   * The other end of the same rule, and the other half of the exemption
+   * above: the table draws `warehouse` last, so it is held on the right
+   * whatever the config asked for — and a pinning nothing on screen can
+   * change is not reported, exactly as the row key's is not.
+   */
+  it('holds the last column on the right, and says nothing about its pinning', () => {
+    const config_ = config({
+      table: {
+        columns: [{ field: 'amount' }, { field: 'warehouse', pinned: 'top' }],
+      },
+    } as unknown as Partial<RecordViewConfig>);
+
+    expect(
+      codes(validateRecord(definition(), config_, builtinFieldKinds)),
+    ).toEqual([]);
+
+    const view = projectRecord(definition(), config_, { total: 0, list: [] });
+    expect(view.columns.map(column => column.pinned)).toEqual([
+      undefined,
+      'right',
+    ]);
+  });
+
+  /**
+   * A table of one column is that column at both ends, and the row key wins:
+   * it is the column that says which record a row is, and an end that is
+   * held on both sides is held on neither.
+   */
+  it('leaves a lone row key on the left rather than making it the end', () => {
+    const view = projectRecord(
+      definition(),
+      config({ table: { columns: [{ field: 'id' }] } }),
+      { total: 0, list: [] },
+    );
+
+    expect(view.columns.map(column => column.pinned)).toEqual(['left']);
+  });
+
+  /**
+   * A column the definition no longer offers is not drawn, so it is not the
+   * end either: the end is the last column actually on screen.
+   */
+  it('passes the end over a column that cannot be drawn', () => {
+    const view = projectRecord(
+      definition(),
+      config({
+        table: {
+          columns: [{ field: 'id' }, { field: 'amount' }, { field: 'gone' }],
+        },
+      }),
+      { total: 0, list: [] },
+    );
+
+    expect(view.columns.map(column => column.field)).toEqual(['id', 'amount']);
+    expect(view.columns[1].pinned).toBe('right');
   });
 
   /**

@@ -116,8 +116,8 @@ describe('RecordTable row actions', () => {
     const head = screen.getByRole('columnheader', { name: 'Actions' });
     expect(head.className).toContain('sticky');
     expect(head.className).toContain('right-0');
-    // Its edge is the scroll-aware one: drawn only while rows pass under it.
-    expect(head.className).toContain('group-data-[scrolled-right]/table:');
+    // And it wears its edge at rest (D13), not only once rows pass under it.
+    expect(head.className).toContain('shadow-[inset_1px_0_0_var(--border)');
 
     expect(screen.getByRole('button', { name: 'act o-1' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'act o-2' })).toBeTruthy();
@@ -127,7 +127,12 @@ describe('RecordTable row actions', () => {
     );
   });
 
-  it('counts the extra column into a loading row', () => {
+  /**
+   * The skeleton is drawn by column where the columns are known, so it is
+   * as wide as the table it stands in for — checkbox, each data column, and
+   * the action column — rather than one bar spanning all of them.
+   */
+  it('gives the loading rows a cell per column, actions included', () => {
     const { container } = render(
       <RecordTable
         table={tableController({ status: 'loading', rows: [] })}
@@ -136,9 +141,9 @@ describe('RecordTable row actions', () => {
     );
 
     // One checkbox column, one data column, one action column.
-    expect(container.querySelector('tbody td')?.getAttribute('colspan')).toBe(
-      '3',
-    );
+    const cells = container.querySelectorAll('tbody tr:first-child td');
+    expect(cells).toHaveLength(3);
+    expect(cells[0].getAttribute('colspan')).toBeNull();
   });
 
   /**

@@ -55,6 +55,10 @@ export const recordMessages = {
   // The record view itself.
   'label.record.empty': 'Nothing to show',
   'label.record.empty-hint': 'No record matches the current conditions.',
+  // The one way out of an empty result, which of the two depending on
+  // whether conditions are what emptied it.
+  'label.record.empty-clear': 'Clear the conditions',
+  'label.record.empty-add': 'Add a condition',
   'label.record.select-all': 'Select all rows',
   'label.record.select': 'Select {key}',
   'label.summary.of': '{fn} of {field}',

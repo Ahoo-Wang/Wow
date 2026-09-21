@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { act, cleanup, render } from '@testing-library/react';
+import { cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { RecordColumnView } from '../src/index.js';
 import type { RecordTableController } from '../src/react/index.js';
@@ -20,14 +20,15 @@ import { RecordTable } from '../src/ui/index.js';
 afterEach(cleanup);
 
 /**
- * The edge of a pinned column is drawn only while rows pass under it. jsdom
- * computes no layout, so what is pinned here is the contract the browser then
- * honours: which cells carry the edge, and which attribute on the table turns
- * it on — the browser story `PinnedEdges` reads the shadow itself.
+ * The edge of a pinned column, which is on at rest as well as while rows
+ * pass under it (D13). jsdom computes no layout and applies no stylesheet,
+ * so what is pinned here is the contract the browser then honours: which
+ * cells carry the edge and which do not. The browser story `PinnedEdges`
+ * reads the shadow itself, still and scrolled.
  */
 describe('the pinned edges', () => {
-  const LEFT_EDGE = 'group-data-[scrolled-left]/table:';
-  const RIGHT_EDGE = 'group-data-[scrolled-right]/table:';
+  const LEFT_EDGE = 'shadow-[inset_-1px_0_0_var(--border)';
+  const RIGHT_EDGE = 'shadow-[inset_1px_0_0_var(--border)';
 
   it('draws the edge on the boundary with the middle, and nowhere else', () => {
     const { container } = render(
@@ -50,11 +51,11 @@ describe('the pinned edges', () => {
       expect(cell.className).not.toContain(LEFT_EDGE);
     for (const cell of cellsOf(container, 'status'))
       expect(cell.className).toContain(RIGHT_EDGE);
-    expect(cellsOf(container, 'warehouse')[0].className).not.toMatch(
-      /scrolled-(left|right)/,
+    expect(cellsOf(container, 'warehouse')[0].className).not.toContain(
+      'shadow-[inset',
     );
-    // The action column sits behind a column the config pinned right, so the
-    // boundary is that column's and the actions draw no seam of their own.
+    // The action column sits behind a column pinned right, so the boundary
+    // is that column's and the actions draw no seam of their own.
     for (const cell of actionCells(container))
       expect(cell.className).not.toContain(RIGHT_EDGE);
   });
@@ -70,107 +71,50 @@ describe('the pinned edges', () => {
       expect(cell.className).toContain(RIGHT_EDGE);
   });
 
-  it('says on the table which side rows have scrolled under', () => {
+  /**
+   * The rule D13 replaced. Tied to the scroll position, the edge said
+   * "something is moving under me right now" — true, and of no use: a table
+   * nobody had scrolled yet, or one that fits and so never scrolls at all,
+   * showed no frame and its held ends read as a layout that had come apart.
+   * Nothing is listened to now and nothing is written on the table.
+   */
+  it('wears its edge before anything has scrolled', () => {
     const { container } = render(
-      <RecordTable table={controller([column('id', 'left')])} />,
+      <RecordTable
+        table={controller([column('id', 'left'), column('warehouse')])}
+      />,
     );
-    const area = container.querySelector<HTMLElement>(
-      '[data-slot="record-table"]',
-    )!;
+
     const table = container.querySelector('table')!;
-    const port = scrollport(area, { width: 300, room: 500 });
-
-    // At the start: nothing under the left column, rows under the right side.
-    act(() => port.scrollTo(0));
-    expect(table.hasAttribute('data-scrolled-left')).toBe(false);
-    expect(table.hasAttribute('data-scrolled-right')).toBe(true);
-
-    act(() => port.scrollTo(40));
-    expect(table.hasAttribute('data-scrolled-left')).toBe(true);
-    expect(table.hasAttribute('data-scrolled-right')).toBe(true);
-
-    act(() => port.scrollTo(200));
-    expect(table.hasAttribute('data-scrolled-left')).toBe(true);
-    expect(table.hasAttribute('data-scrolled-right')).toBe(false);
-
-    act(() => port.scrollTo(0));
-    expect(table.hasAttribute('data-scrolled-left')).toBe(false);
-  });
-
-  it('draws no edge at all while the table fits', () => {
-    const { container } = render(
-      <RecordTable table={controller([column('id', 'left')])} />,
-    );
-    const area = container.querySelector<HTMLElement>(
-      '[data-slot="record-table"]',
-    )!;
-    const table = container.querySelector('table')!;
-    const port = scrollport(area, { width: 300, room: 300 });
-    act(() => port.scrollTo(0));
+    for (const cell of cellsOf(container, 'id'))
+      expect(cell.className).toContain(LEFT_EDGE);
+    // Nothing on the table says where it is scrolled to, and no cell reads
+    // such a thing through a group variant: the edge is not a fact about
+    // scrolling any more.
     expect(table.hasAttribute('data-scrolled-left')).toBe(false);
     expect(table.hasAttribute('data-scrolled-right')).toBe(false);
+    expect(table.className).not.toContain('group/table');
+    expect(container.innerHTML).not.toContain('scrolled-');
   });
 
-  it('reads the box around it when the surface scrolls instead', () => {
+  /**
+   * Header, rows and summaries read the same class, so a held column is
+   * framed from top to bottom rather than in the rows alone.
+   */
+  it('puts the same edge on the header, the rows and the summaries', () => {
     const { container } = render(
-      <div style={{ overflowX: 'auto' }}>
-        <RecordTable
-          table={controller([column('id', 'left')])}
-          scrolls={false}
-        />
-      </div>,
+      <RecordTable
+        table={controller([column('id', 'left'), column('amount', 'right')])}
+      />,
     );
-    const outer = container.firstElementChild as HTMLElement;
-    const table = container.querySelector('table')!;
-    const port = scrollport(outer, { width: 300, room: 500 });
-    act(() => port.scrollTo(40));
-    expect(table.hasAttribute('data-scrolled-left')).toBe(true);
-    expect(table.hasAttribute('data-scrolled-right')).toBe(true);
-  });
 
-  it('stops listening once the table is gone', () => {
-    const { container, unmount } = render(
-      <RecordTable table={controller([column('id', 'left')])} />,
-    );
-    const area = container.querySelector<HTMLElement>(
-      '[data-slot="record-table"]',
-    )!;
-    const table = container.querySelector('table')!;
-    const port = scrollport(area, { width: 300, room: 500 });
-    unmount();
-    act(() => port.scrollTo(40));
-    expect(table.hasAttribute('data-scrolled-left')).toBe(false);
+    expect(cellsOf(container, 'id')).toHaveLength(3);
+    for (const cell of cellsOf(container, 'id'))
+      expect(cell.className).toContain(LEFT_EDGE);
+    for (const cell of cellsOf(container, 'amount'))
+      expect(cell.className).toContain(RIGHT_EDGE);
   });
 });
-
-/**
- * Stands in for the layout jsdom does not compute: a scrollport of a given
- * width whose content is `room` wide, scrolled by dispatching the event the
- * hook listens for.
- */
-function scrollport(
-  node: HTMLElement,
-  { width, room }: { width: number; room: number },
-) {
-  let scrollLeft = 0;
-  Object.defineProperties(node, {
-    clientWidth: { configurable: true, get: () => width },
-    scrollWidth: { configurable: true, get: () => room },
-    scrollLeft: {
-      configurable: true,
-      get: () => scrollLeft,
-      set: (value: number) => {
-        scrollLeft = value;
-      },
-    },
-  });
-  return {
-    scrollTo(left: number) {
-      node.scrollLeft = left;
-      node.dispatchEvent(new Event('scroll'));
-    },
-  };
-}
 
 function column(field: string, pinned?: 'left' | 'right'): RecordColumnView {
   return {

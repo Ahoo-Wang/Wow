@@ -53,6 +53,17 @@ const FIELDS: FieldDefinition[] = [
   { name: 'q', label: 'Search', kind: 'search' },
 ];
 
+/**
+ * A fourth column, for the cases that need two movable ones.
+ *
+ * Both ends of a table are fixed (D13) — the row key on the left, the last
+ * column on the right — so three columns leave exactly one in the middle
+ * and nothing that can be dragged past anything. It is added where it is
+ * needed rather than to `FIELDS`, so every other case keeps the list it was
+ * written against.
+ */
+const NOTE: FieldDefinition = { name: 'note', label: 'Note', kind: 'string' };
+
 function open(overrides: Partial<RecordTableController> = {}, props = {}) {
   const table = tableController({
     columnFields: ['id', 'amount'],
@@ -111,20 +122,30 @@ describe('the column settings model', () => {
 
     expect(rows.map(row => row.field)).toEqual(['amount', 'id', 'warehouse']);
     expect(rows.map(row => row.visible)).toEqual([true, true, false]);
-    // A hidden column has no place in the config, so it has no order to drag.
-    expect(movableFields(rows)).toEqual(['amount']);
+    // A hidden column has no place in the config, so it has no order to
+    // drag — and neither shown column has one either, because a table of
+    // two columns is a row key and an end (D13).
+    expect(movableFields(rows)).toEqual([]);
     expect(visibleCount(rows)).toBe(2);
   });
 
   it('holds the row key on the left and the actions on the right', () => {
     const rows = columnSettingRows({ ...input, actions: true });
 
+    // `amount` is the column the table draws last, so it is listed on the
+    // right and shown fixed there, the way the row key is on the left.
     expect(rows.map(row => row.region)).toEqual([
-      'middle',
+      'right',
       'left',
       'middle',
       'right',
     ]);
+    expect(rows[0]).toMatchObject({
+      field: 'amount',
+      fixed: true,
+      pinned: 'right',
+      movable: false,
+    });
     expect(rows[1]).toMatchObject({ fixed: true, pinned: 'left' });
     expect(rows[3]).toMatchObject({
       field: ACTIONS_COLUMN,
@@ -139,35 +160,38 @@ describe('the column settings model', () => {
    * front, because that is where the table draws it: an order that put the
    * key second would be saved and then quietly contradicted.
    */
+  const movable = {
+    ...input,
+    fields: [...FIELDS, NOTE],
+    columns: ['amount', 'id', 'warehouse', 'note'],
+  };
+
   it('reorders the movable area and leads with the pinned key', () => {
-    const rows = columnSettingRows({
-      ...input,
-      columns: ['amount', 'id', 'warehouse'],
-    });
+    const rows = columnSettingRows(movable);
 
     expect(reorderColumns(rows, 'warehouse', 0)).toEqual([
       'id',
       'warehouse',
       'amount',
+      'note',
     ]);
     expect(reorderColumns(rows, 'amount', 1)).toEqual([
       'id',
       'warehouse',
       'amount',
+      'note',
     ]);
   });
 
   it('refuses a move that would change nothing', () => {
-    const rows = columnSettingRows({
-      ...input,
-      columns: ['amount', 'id', 'warehouse'],
-    });
+    const rows = columnSettingRows(movable);
 
     expect(reorderColumns(rows, 'amount', 0)).toBeNull();
     expect(reorderColumns(rows, 'amount', -1)).toBeNull();
     expect(reorderColumns(rows, 'amount', 2)).toBeNull();
-    // The key is not in the movable area at all.
+    // Neither end is in the movable area at all.
     expect(reorderColumns(rows, 'id', 1)).toBeNull();
+    expect(reorderColumns(rows, 'note', 0)).toBeNull();
     expect(reorderColumns(rows, 'gone', 0)).toBeNull();
   });
 
@@ -185,7 +209,9 @@ describe('the column settings popover', () => {
 
     await user.click(screen.getByRole('button', { name: /Columns/ }));
 
-    expect(listed()).toEqual(['id', 'amount', 'warehouse', ACTIONS_COLUMN]);
+    // `amount` is the last column the table draws, so it is listed on the
+    // right with the actions beyond it rather than in the middle.
+    expect(listed()).toEqual(['id', 'warehouse', 'amount', ACTIONS_COLUMN]);
     expect(
       [...document.querySelectorAll('[data-slot="column-region"]')].map(
         region => region.getAttribute('aria-label'),
@@ -201,12 +227,16 @@ describe('the column settings popover', () => {
 
     await user.click(screen.getByRole('button', { name: /Columns/ }));
 
-    expect(listed()).toEqual(['id', 'amount', 'warehouse']);
+    expect(listed()).toEqual(['id', 'warehouse', 'amount']);
+    // The right area is still there — the last column is held in it — but
+    // nothing of the host's is.
     expect(
-      document.querySelector(
-        '[data-slot="column-region"][data-region="right"]',
-      ),
-    ).toBeNull();
+      [
+        ...document.querySelectorAll(
+          '[data-region="right"] [data-slot="column-setting"]',
+        ),
+      ].map(row => row.getAttribute('data-field')),
+    ).toEqual(['amount']);
   });
 
   /**
@@ -343,7 +373,10 @@ describe('the column settings popover', () => {
    */
   it('draws a pinning it cannot read as none, and cycles from there', async () => {
     const user = userEvent.setup();
+    // Three columns, so `amount` is in the middle: the two ends are held
+    // for the user and read nothing the config stores about their pinning.
     const table = open({
+      columnFields: ['id', 'amount', 'warehouse'],
       pinnedOf: (field: string) => (field === 'amount' ? 'top' : null) as never,
     });
 
@@ -382,12 +415,13 @@ describe('the column settings popover', () => {
   });
 
   /**
-   * The worst case for `record.column.pin-invalid`: the column the value is
-   * about is the only one the table has. Its checkbox is refused — a table
-   * keeps one column — but its pin is not, which is the control the finding
-   * is about.
+   * The only column a table has is the column it draws last, so it is held
+   * on the right (D13): the pin says so and refuses to change, and the
+   * unreadable `pinned` stored on it is not a finding either, because
+   * nothing reads it. Its checkbox is refused for the other reason — a
+   * table keeps one column.
    */
-  it('lets the only column be repinned, though it cannot be hidden', async () => {
+  it('holds the only column on the right, and lets neither control move', async () => {
     const user = userEvent.setup();
     const table = open({
       columnFields: ['amount'],
@@ -401,15 +435,17 @@ describe('the column settings popover', () => {
         .getAttribute('aria-disabled'),
     ).toBe('true');
 
-    await user.click(
-      screen.getByRole('button', { name: 'Pinning of Amount: Not pinned' }),
-    );
-    expect(table.setPinned).toHaveBeenCalledWith('amount', 'left');
+    const pin = screen.getByRole('button', {
+      name: 'Pinning of Amount: Pinned right',
+    });
+    expect(pin.hasAttribute('disabled')).toBe(true);
+    await user.click(pin);
+    expect(table.setPinned).not.toHaveBeenCalled();
   });
 
   it('cycles the pin of a column that may move', async () => {
     const user = userEvent.setup();
-    const table = open();
+    const table = open({ columnFields: ['id', 'amount', 'warehouse'] });
 
     await user.click(screen.getByRole('button', { name: /Columns/ }));
     await user.click(
@@ -538,7 +574,7 @@ describe('a column the definition dropped', () => {
     const table = openDropped(['id', 'gone', 'amount']);
 
     await user.click(screen.getByRole('button', { name: /Columns/ }));
-    expect(listed()).toEqual(['id', 'gone', 'amount', 'warehouse']);
+    expect(listed()).toEqual(['id', 'gone', 'warehouse', 'amount']);
 
     const row = document.querySelector('[data-field="gone"]')!;
     expect(row.hasAttribute('data-broken')).toBe(true);
@@ -614,7 +650,7 @@ describe('a column the definition dropped', () => {
     const table = openDropped(['id', 'amount', 'amount']);
 
     await user.click(screen.getByRole('button', { name: /Columns/ }));
-    expect(listed()).toEqual(['id', 'amount', 'warehouse']);
+    expect(listed()).toEqual(['id', 'warehouse', 'amount']);
 
     await user.click(screen.getByRole('checkbox', { name: 'Show Amount' }));
     expect(table.setColumns).toHaveBeenCalledWith(['id']);
@@ -622,9 +658,30 @@ describe('a column the definition dropped', () => {
 });
 
 describe('moving a column with the keyboard', () => {
+  /**
+   * Four columns, because two of them are the ends: the row key leads and
+   * `note` is held at the back, which leaves `amount` and `warehouse` as
+   * the two the keyboard can move past each other.
+   */
+  function openFour(
+    columnFields: string[] = ['id', 'amount', 'warehouse', 'note'],
+    props = {},
+  ) {
+    const table = tableController({ columnFields });
+    render(
+      <ColumnSettings
+        table={table}
+        fields={[...FIELDS, NOTE]}
+        rowKey="id"
+        {...props}
+      />,
+    );
+    return table;
+  }
+
   async function twoMovable() {
     const user = userEvent.setup();
-    const table = open({ columnFields: ['id', 'amount', 'warehouse'] });
+    const table = openFour();
     await user.click(screen.getByRole('button', { name: /Columns/ }));
     return { user, table };
   }
@@ -641,8 +698,9 @@ describe('moving a column with the keyboard', () => {
       'id',
       'warehouse',
       'amount',
+      'note',
     ]);
-    expect(announced()).toBe('Amount moved to position 3 of 3');
+    expect(announced()).toBe('Amount moved to position 3 of 4');
   });
 
   /**
@@ -657,24 +715,24 @@ describe('moving a column with the keyboard', () => {
    */
   it('leaves a broken column out of the position it announces', async () => {
     const user = userEvent.setup();
-    open({ columnFields: ['id', 'gone', 'amount', 'warehouse'] });
-    await user.click(screen.getByRole('button', { name: /Columns/ }));
-
-    screen.getByRole('button', { name: 'Reorder Amount' }).focus();
-    await user.keyboard('{ArrowDown}');
-
-    expect(announced()).toBe('Amount moved to position 3 of 3');
-  });
-
-  it('counts the action column in the position it announces', async () => {
-    const user = userEvent.setup();
-    open({ columnFields: ['id', 'amount', 'warehouse'] }, { actions: true });
+    openFour(['id', 'gone', 'amount', 'warehouse', 'note']);
     await user.click(screen.getByRole('button', { name: /Columns/ }));
 
     screen.getByRole('button', { name: 'Reorder Amount' }).focus();
     await user.keyboard('{ArrowDown}');
 
     expect(announced()).toBe('Amount moved to position 3 of 4');
+  });
+
+  it('counts the action column in the position it announces', async () => {
+    const user = userEvent.setup();
+    openFour(undefined, { actions: true });
+    await user.click(screen.getByRole('button', { name: /Columns/ }));
+
+    screen.getByRole('button', { name: 'Reorder Amount' }).focus();
+    await user.keyboard('{ArrowDown}');
+
+    expect(announced()).toBe('Amount moved to position 3 of 5');
   });
 
   it('moves the row up', async () => {
@@ -687,6 +745,7 @@ describe('moving a column with the keyboard', () => {
       'id',
       'warehouse',
       'amount',
+      'note',
     ]);
   });
 

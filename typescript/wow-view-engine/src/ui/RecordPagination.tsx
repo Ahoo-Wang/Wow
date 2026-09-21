@@ -78,6 +78,21 @@ export function RecordPagination({ table }: RecordPaginationProps) {
 
   const total = paged ? paging.total : undefined;
 
+  // How many pages there are, where that is knowable: a paged source that
+  // reported a total, divided by a page size that means something.
+  const pages =
+    paged && paging.total !== undefined && table.pageSize > 0
+      ? Math.max(1, Math.ceil(paging.total / table.pageSize))
+      : undefined;
+
+  // Everything fits, so there is nowhere to go and no arrows are drawn (D12).
+  // Two dead arrows were the honest version of the same fact and still cost
+  // two tab stops and a line of chrome to say "no"; absence says it without
+  // asking anybody to read it. Only where the page count is actually known:
+  // a cursor source cannot tell a single page from the first of many, and
+  // the `stranded` guard above keeps the way back on any page but the first.
+  const onePage = pages === 1 && paged && paging.index <= 1;
+
   // A total is what the reader asked about — how much matches, not how much
   // arrived — so it is the sentence whenever the source gave one. A cursor
   // source never gives one, and rather than infer a total from a page that
@@ -144,36 +159,38 @@ export function RecordPagination({ table }: RecordPaginationProps) {
             neither rather than showing them dead. */}
         {paged && (
           <span>
-            {paging.total === undefined || table.pageSize <= 0
+            {pages === undefined
               ? messages.label('label.toolbar.page', { index: paging.index })
               : messages.label('label.toolbar.page-of', {
                   index: paging.index,
-                  pages: Math.max(1, Math.ceil(paging.total / table.pageSize)),
+                  pages,
                 })}
           </span>
         )}
-        <div className="flex items-center gap-1">
-          {paged && (
+        {!onePage && (
+          <div className="flex items-center gap-1">
+            {paged && (
+              <Button
+                variant="outline"
+                size="icon-sm"
+                aria-label={messages.label('label.toolbar.previous')}
+                disabled={paging.index <= 1}
+                onClick={table.previous}
+              >
+                <ChevronLeftIcon />
+              </Button>
+            )}
             <Button
               variant="outline"
               size="icon-sm"
-              aria-label={messages.label('label.toolbar.previous')}
-              disabled={paging.index <= 1}
-              onClick={table.previous}
+              aria-label={messages.label('label.toolbar.next')}
+              disabled={!table.hasNext}
+              onClick={table.next}
             >
-              <ChevronLeftIcon />
+              <ChevronRightIcon />
             </Button>
-          )}
-          <Button
-            variant="outline"
-            size="icon-sm"
-            aria-label={messages.label('label.toolbar.next')}
-            disabled={!table.hasNext}
-            onClick={table.next}
-          >
-            <ChevronRightIcon />
-          </Button>
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

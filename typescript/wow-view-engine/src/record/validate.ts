@@ -29,6 +29,7 @@ import {
   validateViewConfigBase,
   type FieldKindRegistry,
 } from '../filter/index.js';
+import { pinnedEnd, type ColumnPlacement } from './project.js';
 
 export interface ValidateRecordOptions {
   limits?: RuntimeLimits;
@@ -223,6 +224,25 @@ function validateColumns(
   fields: ReadonlyMap<string, FieldDefinition>,
 ): Issue[] {
   const seen = new Set<string>();
+  // The other column whose pinning the config has no say in: the one the
+  // table draws last. Found the way the projection finds it, over the
+  // columns that can actually be drawn, so the two never disagree about
+  // which column that is.
+  const end = pinnedEnd(
+    config.table.columns.flatMap(column => {
+      const field = fields.get(column.field);
+      return field && !isFieldlessKind(field.kind)
+        ? [
+            {
+              field: column.field,
+              pinned:
+                column.field === rowKey ? 'left' : columnPin(column.pinned),
+            } satisfies ColumnPlacement,
+          ]
+        : [];
+    }),
+    rowKey,
+  );
   return config.table.columns.flatMap((column, index) => {
     const at: IssuePath = ['table', 'columns', index, 'field'];
     const issues: Issue[] = [];
@@ -239,14 +259,16 @@ function validateColumns(
     // finding the user can fix; left unsaid it reached the settings popover
     // as a key into a wording table and took the workbench down.
     //
-    // Except on the row key, whose pinning the config has no opinion about:
-    // `projectRecord` holds it on the left whatever is stored, and the
-    // settings show that fixed and disabled. Reporting a value nothing on
-    // screen decides would block the query and the save over something no
-    // control can change — the trap in `ui/record.md`, sprung by the check
-    // meant to avoid one. What the config cannot say cannot be wrong.
+    // Except on the two ends, whose pinning the config has no opinion about:
+    // `projectRecord` holds the row key on the left and the last column on
+    // the right whatever is stored, and the settings show both fixed and
+    // disabled. Reporting a value nothing on screen decides would block the
+    // query and the save over something no control can change — the trap in
+    // `ui/record.md`, sprung by the check meant to avoid one. What the
+    // config cannot say cannot be wrong.
     if (
       column.field !== rowKey &&
+      column.field !== end &&
       column.pinned !== undefined &&
       columnPin(column.pinned) === null
     )

@@ -36,13 +36,6 @@ export const SPACE = {
 } as const;
 
 /**
- * A block of the main column: the conditions, the result. The title bar is
- * not one of these — it is a banner, ruled off rather than boxed, because a
- * card around the thing that names the page is a card around the page.
- */
-export const SURFACE = 'rounded-lg border border-border bg-card p-3';
-
-/**
  * The filter tray (decisions.md D12): a wash of the muted colour and no
  * border. The conditions inside it are the bordered things; a border around
  * a row of bordered pills was the box-in-box the layout was rebuilt to lose.

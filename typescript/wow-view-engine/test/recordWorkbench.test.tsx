@@ -415,6 +415,36 @@ describe('RecordWorkbench', () => {
       ).toBeNull();
     });
 
+    /**
+     * "Could not be opened" is a normal thing for a link, a bookmark or a
+     * deleted view to lead to, and the page around it is working — so it
+     * wears the empty state's form rather than a block of red, and offers
+     * the one way off the screen: the view the user would have had without
+     * naming this one.
+     */
+    it('offers the default view as the way out of one that cannot open', async () => {
+      render(
+        <RecordWorkbench
+          engine={withBoth()}
+          definitionId="orders"
+          instanceId="orders-chart"
+        />,
+      );
+
+      const back = await screen.findByRole('button', {
+        name: defaultMessages['label.view.open-default'],
+      });
+      // Said as an alert all the same: what was asked for is not on screen,
+      // and a reader who cannot see the page change has to be told.
+      expect(back.closest('[role="alert"]')).not.toBeNull();
+
+      fireEvent.click(back);
+      await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+      expect(
+        screen.queryByText(defaultMessages['label.view.unopenable']),
+      ).toBeNull();
+    });
+
     // A host names the id itself, so the list cannot keep this one out. It
     // opens, and the page says why it is not showing it.
     it('says why an id of the other kind cannot be shown here', async () => {
@@ -850,18 +880,117 @@ describe('RecordWorkbench interaction', () => {
   });
 
   /**
+   * A view whose query matched nothing, which is what the empty state and
+   * its one way out are drawn over. `open` waits for rows, so this waits
+   * for the sentence that stands in their place.
+   */
+  async function openEmpty() {
+    const source = testSource({
+      paged: vi.fn(() => Promise.resolve({ total: 0, list: [] })),
+    });
+    const harness = setup(source);
+    render(
+      <RecordWorkbench
+        engine={harness.engine}
+        definitionId="orders"
+        instanceId="orders-1"
+      />,
+    );
+    await screen.findByText(defaultMessages['label.record.empty']);
+    return source;
+  }
+
+  /**
+   * The empty result's way out, wired to the conditions that emptied it:
+   * clearing the draft alone would leave the rows on screen fetched under
+   * the conditions the button had just taken away, so it applies as well.
+   */
+  it('clears the applied conditions from the empty result', async () => {
+    const source = await openEmpty();
+
+    fireEvent.click(editorToggle());
+    await screen.findByRole('button', { name: /Apply/ });
+    await addConditions(['Warehouse']);
+    const value = await screen.findByLabelText('Warehouse value');
+    fireEvent.change(value, { target: { value: 'CN' } });
+    fireEvent.click(screen.getByRole('button', { name: /Apply/ }));
+    await waitFor(() => {
+      const calls = vi.mocked(source.paged).mock.calls;
+      expect(calls[calls.length - 1][0].filter).toMatchObject({
+        field: 'warehouse',
+      });
+    });
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: defaultMessages['label.record.empty-clear'],
+      }),
+    );
+
+    // Cleared *and* asked again: the rows the button is standing on were
+    // fetched under the conditions it just removed.
+    await waitFor(() => {
+      const calls = vi.mocked(source.paged).mock.calls;
+      expect(calls[calls.length - 1][0].filter).not.toMatchObject({
+        field: 'warehouse',
+      });
+    });
+  });
+
+  /**
+   * And with nothing applied there is nothing to clear, so the way out is
+   * the other one: the question to change is behind a fold that may not
+   * even be on screen, and the button opens it.
+   */
+  it('opens the conditions from an empty result that had none', async () => {
+    await openEmpty();
+    // A saved view opens folded, which is the whole reason this way out
+    // exists: the question to change is not on screen.
+    expect(screen.queryByRole('button', { name: /Apply/ })).toBeNull();
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: defaultMessages['label.record.empty-add'],
+      }),
+    );
+
+    await screen.findByRole('button', { name: /Apply/ });
+  });
+
+  /**
    * Next used to be live on every paged result, so the page after the last
    * one was an ordinary click away — and what came back was an empty table
-   * with no way to tell it from a filter that matched nothing.
+   * with no way to tell it from a filter that matched nothing. It was then
+   * drawn dead; on a result that fits in one page it is not drawn at all
+   * (D12), because the count and "Page 1 of 1" have already said so.
    */
+  it('draws no arrows on a result that fits in one page', async () => {
+    await open();
+
+    expect(screen.queryByRole('button', { name: 'Next page' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Previous page' })).toBeNull();
+  });
+
+  /** And stops there on a result that does not. */
   it('stops Next at the last page', async () => {
-    const { source } = await open();
+    // Forty records, twenty to a page: two pages, so the arrows are drawn
+    // and there is somewhere for Next to go exactly once.
+    const { source } = await open(
+      testSource({
+        paged: vi.fn(() => Promise.resolve({ total: 40, list: [...ROWS] })),
+      }),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Next page' })).toHaveProperty(
+        'disabled',
+        true,
+      ),
+    );
+
     const before = vi.mocked(source.paged).mock.calls.length;
-
-    const next = screen.getByRole('button', { name: 'Next page' });
-    expect(next.hasAttribute('disabled')).toBe(true);
-
-    fireEvent.click(next);
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
     expect(vi.mocked(source.paged).mock.calls).toHaveLength(before);
   });
 

@@ -19,16 +19,23 @@ import {
   type ReactNode,
 } from 'react';
 import { cn } from 'cn';
-import { PanelLeftOpenIcon } from 'lucide-react';
+import { FileQuestionMarkIcon, PanelLeftOpenIcon } from 'lucide-react';
 import type { Issue, ViewKind } from '../model/index.js';
 import type { WorkbenchController } from '../react/index.js';
-import { Alert, AlertDescription, AlertTitle } from './components/alert.js';
 import { Button } from './components/button.js';
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from './components/empty.js';
 import { Separator } from './components/separator.js';
 import { Skeleton } from './components/skeleton.js';
 import { AppliedBar } from './AppliedBar.js';
 import { EditorBand, EditorBandToggle } from './EditorBand.js';
-import { SPACE, SURFACE, TRAY } from './layout.js';
+import { SPACE, TRAY } from './layout.js';
 import { LeaveDialog } from './LeaveGuard.js';
 import { ErrorStrip, WarningStrip } from './StatusStrip.js';
 import { useViewMessages } from './MessagesProvider.js';
@@ -111,13 +118,6 @@ export interface WorkbenchShellProps {
   /** The rows, the chart, the panels — what the page is for. */
   result?: ReactNode;
   /**
-   * Whether the result block is drawn on a surface. True for rows and for a
-   * chart, which are one thing on one card; false for a dashboard, whose
-   * result is already a grid of cards and would otherwise be a card of
-   * cards.
-   */
-  resultSurface?: boolean;
-  /**
    * The sidebar a workbench opens on. One boolean governs it, so collapsing
    * is a change in one place rather than in the layout of every part beside
    * it. It is view state and nothing else: never saved, never asked about by
@@ -158,13 +158,15 @@ export interface WorkbenchShellProps {
  * title bar over it, the findings under that, and the two slots that make one
  * kind different from another.
  *
- * The main column is **three blocks**, not a stack of rows: the title bar as
- * a banner ruled off from what follows, the conditions on a surface, and the
- * result on a surface. The blocks are what make grouping visible — when the
- * space between two blocks is the space between two buttons, nothing reads
- * as belonging to anything — which is why every distance comes from one
- * scale (`layout.ts`) rather than from whatever looked right at each call
- * site.
+ * The main column is **blocks**, not a stack of rows: the title bar as a
+ * banner ruled off from what follows, the status line, the conditions in a
+ * tray, the band of applied conditions, and the result — which sits on no
+ * card at all (D12), because a table draws its own header layer, its own
+ * hairlines and its own held edges, and a border round that is a frame
+ * round a frame. The blocks are what make grouping visible — when the space
+ * between two blocks is the space between two buttons, nothing reads as
+ * belonging to anything — which is why every distance comes from one scale
+ * (`layout.ts`) rather than from whatever looked right at each call site.
  *
  * Within that, the order is by how close each part stands to the result:
  * which view this is, the editor folded out of the way, anything the view has
@@ -202,7 +204,6 @@ export function WorkbenchShell({
   editorPending = 0,
   strips,
   result,
-  resultSurface = true,
   defaultSidebarOpen = true,
   onSidebarOpenChange,
   expandable = true,
@@ -428,10 +429,19 @@ export function WorkbenchShell({
         {!open && collapsed && <div className="flex min-h-10">{collapsed}</div>}
 
         {unopenable && (
-          <Alert variant="destructive">
-            <AlertTitle>{messages.label('label.view.unopenable')}</AlertTitle>
-            <AlertDescription>{messages.issue(unopenable)}</AlertDescription>
-          </Alert>
+          <Unopenable
+            issue={unopenable}
+            // The way back is the view the user would have got without
+            // asking for this one — and only where that is somewhere else,
+            // because an action that re-opens the view that just failed is
+            // a button whose whole effect is to redraw this screen.
+            onDefault={
+              list.defaultInstanceId !== null &&
+              list.defaultInstanceId !== workbench.openId
+                ? () => workbench.choose(list.defaultInstanceId)
+                : undefined
+            }
+          />
         )}
 
         {opened.loading && <Skeleton className="h-8 w-full" />}
@@ -568,16 +578,14 @@ export function WorkbenchShell({
                 until there is a result to describe. */}
             <AppliedBar filter={filter} hasResult={describesResult} />
 
-            {/* The result, and at the top of it the caption that says what
-                it is: the applied bar describes these rows, so it belongs to
-                them rather than floating above the toolbar on its own.
+            {/* The result itself (D12 Ⅴ–Ⅶ).
 
-                Only where one of the three will draw something. An analysis
-                that has not run yet has no result, no caption and no strip,
-                and a bordered card around all three of them is the empty
-                block this package's own layout rule forbids. */}
+                Only where one of the two will draw something. An analysis
+                that has not run yet has no result and no strip, and a block
+                around neither of them is the empty block this package's own
+                layout rule forbids. */}
             {(describesResult || filled(strips) || filled(result)) && (
-              <ResultBlock surface={resultSurface}>
+              <ResultBlock>
                 {strips}
                 {/* The host's bulk and row slots render in here, so this is
                     where a throwing one is held: the rows go, the title bar,
@@ -613,22 +621,66 @@ export function WorkbenchShell({
 }
 
 /**
- * The result and its caption, boxed or not.
+ * A view that could not be opened, with the way off the screen it leaves.
  *
- * A dashboard opts out: every panel it draws is already a card, and a card
- * around a grid of cards is a frame around a frame.
+ * It wears the same form as an empty result — icon, title, what happened,
+ * one action — rather than the red block it used to be. The block said the
+ * application had broken; what has happened is that one view of it is not
+ * there, which is a normal thing for a link, a bookmark or a deleted view to
+ * lead to, and the page around it is working fine. The reason is still said
+ * in full: the `Issue` is the description, so "another kind" and "no longer
+ * exists" stay apart.
+ *
+ * `role="alert"` stays on it. The form is calmer, but the fact is still that
+ * what the user asked for is not on screen, and a reader who cannot see the
+ * page changing needs to be told that as it happens.
  */
-function ResultBlock({
-  surface,
-  children,
+function Unopenable({
+  issue,
+  onDefault,
 }: {
-  surface: boolean;
-  children: ReactNode;
+  issue: Issue;
+  onDefault?(): void;
 }) {
+  const messages = useViewMessages();
+  return (
+    <Empty role="alert" data-slot="view-unopenable">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <FileQuestionMarkIcon />
+        </EmptyMedia>
+        <EmptyTitle>{messages.label('label.view.unopenable')}</EmptyTitle>
+        <EmptyDescription>{messages.issue(issue)}</EmptyDescription>
+      </EmptyHeader>
+      {onDefault && (
+        <EmptyContent>
+          <Button variant="outline" size="sm" onClick={onDefault}>
+            {messages.label('label.view.open-default')}
+          </Button>
+        </EmptyContent>
+      )}
+    </Empty>
+  );
+}
+
+/**
+ * The result and its caption, on no card of their own (D12).
+ *
+ * The card used to be here for every kind but the dashboard, and it was a
+ * frame around a frame in all of them: a table draws its own header layer,
+ * its own hairlines between rows and its own edges on the held columns, so a
+ * border and 12px of padding around that put the first row of data behind
+ * five layers of chrome. Without it the table runs to the block's edge and
+ * the lines on screen are the table's own, which is the only set of lines
+ * that means anything. A dashboard needed the opt-out to avoid a card of
+ * cards; now nobody needs it, and the prop that carried it is gone rather
+ * than left as a default nobody sets.
+ */
+function ResultBlock({ children }: { children: ReactNode }) {
   return (
     <section
       data-slot="result-block"
-      className={cn('flex min-w-0 flex-col', SPACE.ROWS, surface && SURFACE)}
+      className={cn('flex min-w-0 flex-col', SPACE.ROWS)}
     >
       {children}
     </section>

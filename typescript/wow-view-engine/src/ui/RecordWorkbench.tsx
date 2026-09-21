@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { FieldOption } from '../model/index.js';
 import type { RecordRow } from '../record/index.js';
 import {
@@ -121,6 +121,33 @@ export function RecordWorkbench({
   const hasResult = state?.result != null;
   const row = actions?.row;
 
+  // The condition fold, held here only so the empty result can open it.
+  //
+  // It is tagged with the runtime it was set for and handed straight back to
+  // the shell, which is the shell's own rule — a fold belongs to one opening
+  // of one view — so switching views falls back to the shell's default
+  // exactly as it did when the shell alone held it.
+  const runtimeId = runtime?.id ?? null;
+  const [fold, setFold] = useState<{ id: string | null; open: boolean } | null>(
+    null,
+  );
+  const editorOpen = fold?.id === runtimeId ? fold.open : undefined;
+
+  // What the empty result offers. Under conditions it clears them and asks
+  // again — `clear` alone would leave the rows on screen fetched under the
+  // conditions the button just took away — and with none it opens the
+  // editor, because the question to change is behind a fold that may not
+  // even be on screen.
+  const hasConditions = filter.applied.length > 0;
+  const emptyAction = () => {
+    if (!hasConditions) {
+      setFold({ id: runtimeId, open: true });
+      return;
+    }
+    filter.clear();
+    filter.submit();
+  };
+
   return (
     <WorkbenchShell
       workbench={workbench}
@@ -164,6 +191,8 @@ export function RecordWorkbench({
           busy={table.loading}
         />
       }
+      editorOpen={editorOpen}
+      onEditorOpenChange={open => setFold({ id: runtimeId, open })}
       editorLabel={messages.label('label.filter.panel')}
       editorModeLabel={filterModeLabel(filter, messages)}
       editorModes={<FilterModes filter={filter} />}
@@ -206,6 +235,8 @@ export function RecordWorkbench({
               <RecordTable
                 table={table}
                 rowActions={bindRow(row, record, table.refresh)}
+                hasConditions={hasConditions}
+                onEmptyAction={emptyAction}
               />
             )}
 
