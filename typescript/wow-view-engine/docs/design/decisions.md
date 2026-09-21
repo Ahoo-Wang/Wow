@@ -104,7 +104,7 @@
 
 - **日期**：2026-09-21
 - **决定**：`ViewEngine` 增加一个订阅面（`engine.subscribe(listener)`，与 runtime 的 `subscribe` 同形），在**任何**改变某个定义下列表的写入落地时通知——创建、保存（标题／受众变了）、改名、删除，账本里的重试与覆盖同样经此通知——通知带 `{ definitionId, kind, id }`。`useViewList` 订阅它：删除到来时自动 `reload({ without: id })`，其余到来时 `reload()`；`useViewManager.delete` 与宿主直接调 `engine.delete` 因此走同一条路，[react.md#useviewlist](react.md#useviewlist) 里「宿主绕过它直接删除时也要带 `without`」这句合同随之删除。`reload` 仍公开——它是「我知道外面变了」的入口，比如宿主自己的服务端推送。
-- **依据**：合同写在文档里而不在类型里，就会漏：一个宿主用引擎删了实例又没调 `reload`，刚删掉的那一行留在列表上，点进去是「打不开」。引擎是唯一知道每一次写入何时落地的地方，由它说「列表变了」既不重复也不会漏；让每个调用方记得通知，是把引擎的知识摊给所有人再各自复述一遍。先记录、不急着改：这条改的是 `/runtime` 的公开面，与本轮正在做的 UI 打磨互不相干，在 [todo.md](todo.md) 里有实现条目。
+- **依据**：合同写在文档里而不在类型里，就会漏：一个宿主用引擎删了实例又没调 `reload`，刚删掉的那一行留在列表上，点进去是「打不开」。引擎是唯一知道每一次写入何时落地的地方，由它说「列表变了」既不重复也不会漏；让每个调用方记得通知，是把引擎的知识摊给所有人再各自复述一遍。落地后的形状见 [runtime.md#viewengine](runtime.md#viewengine)：通知挂在账本的 `applyEffect` 上，所以重试与覆盖走同一处；删除的正文因此带上 `definitionId`。
 
 ## D16 站在 shadcn／Base UI 肩膀上：审计后的八条裁定
 

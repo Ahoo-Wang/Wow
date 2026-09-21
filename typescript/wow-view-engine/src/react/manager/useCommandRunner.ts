@@ -208,13 +208,14 @@ export function useCommandRunner(
       try {
         await command();
         // It landed: nothing is left to recover, and the list it changed —
-        // the titles, the order, the default — is now a revision behind. A
-        // delete also takes its row with it: the reload keeps what is on hand
-        // on screen until the store answers, so the id goes with the request
-        // rather than being listed, and named as the default, a moment longer
-        // than it exists.
+        // the titles, the order, the default — is now a revision behind.
+        //
+        // A delete is not reloaded from here. The engine has already told the
+        // list, carrying the id that went (D15), and a second plain reload
+        // would take that id back out of the request — leaving the row
+        // listed, and named as the default, until the store answers.
         record(key, null);
-        reload(intent.action === 'delete' ? { without: intent.id } : undefined);
+        if (intent.action !== 'delete') reload();
         return true;
       } catch (caught) {
         // A refusal never left, and it may not displace a handle; see

@@ -19,6 +19,7 @@ import {
 import { issue } from '../filter/index.js';
 import type { ViewStore, WriteContext } from '../store/ViewStore.js';
 import type { ManagedViewRuntime, ViewRuntime } from './viewRuntime.js';
+import type { ViewChange } from './viewChanges.js';
 import {
   ViewCommandError,
   ViewWriteError,
@@ -58,6 +59,12 @@ export interface WriteLedgerHost {
   readPreferences(definitionId: string): Promise<ViewPreferences>;
   /** Open views whose baseline is this instance. */
   holders(id: string): readonly ManagedViewRuntime[];
+  /**
+   * Says that a confirmed write changed what a definition's list holds. It
+   * hangs off the same place the effects do, so a retry and an overwrite
+   * announce what the first attempt would have.
+   */
+  noteChange(change: ViewChange): void;
 }
 
 /**
@@ -194,6 +201,7 @@ export class WriteLedger {
         const instance = result as ViewInstance;
         this.host.noteInstance(instance);
         if (payload.intent === 'first-save') runtime?.markSaved(instance);
+        this.announce('create', instance);
         return;
       }
       case 'save':
@@ -208,11 +216,17 @@ export class WriteLedger {
         runtime?.markSaved(instance);
         for (const holder of this.host.holders(instance.id))
           if (holder !== runtime) holder.moveBaseline(instance);
+        this.announce(payload.action, instance);
         return;
       }
       case 'delete':
         // Preferences keep the id; a later reorder or default cleans it up.
         this.host.dropInstance(payload.id, runtime);
+        this.host.noteChange({
+          definitionId: payload.definitionId,
+          kind: 'delete',
+          id: payload.id,
+        });
         return;
       case 'preferences':
         this.host.notePreferences(
@@ -220,6 +234,18 @@ export class WriteLedger {
           result as ViewPreferences,
         );
     }
+  }
+
+  /** The three actions that hand back an instance say so the same way. */
+  private announce(
+    kind: 'create' | 'save' | 'rename',
+    instance: ViewInstance,
+  ): void {
+    this.host.noteChange({
+      definitionId: instance.definitionId,
+      kind,
+      id: instance.id,
+    });
   }
 
   /** Each action against its own method on the port. */

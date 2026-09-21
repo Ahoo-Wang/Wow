@@ -388,7 +388,12 @@ describe('visibility and issues', () => {
         new ViewWriteError({
           kind: 'rejected',
           requestId: 'r',
-          payload: { action: 'delete', id: 'a', revision: '1' },
+          payload: {
+            action: 'delete',
+            id: 'a',
+            definitionId: 'orders',
+            revision: '1',
+          },
           issue: issue('view.write.forbidden', []),
         }),
         'x',
@@ -400,7 +405,12 @@ describe('visibility and issues', () => {
         new ViewWriteError({
           kind: 'unknown',
           requestId: 'r',
-          payload: { action: 'delete', id: 'a', revision: '1' },
+          payload: {
+            action: 'delete',
+            id: 'a',
+            definitionId: 'orders',
+            revision: '1',
+          },
         }),
         'view.delete.failed',
       ),

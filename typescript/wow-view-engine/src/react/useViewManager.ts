@@ -186,11 +186,11 @@ export function useViewManager(
     (id: string) =>
       run(
         id,
-        { action: 'delete', id, revision: UNSENT },
+        { action: 'delete', id, definitionId, revision: UNSENT },
         'view.delete.failed',
         () => engine.delete(id),
       ),
-    [engine, run],
+    [definitionId, engine, run],
   );
 
   const setDefault = useCallback(

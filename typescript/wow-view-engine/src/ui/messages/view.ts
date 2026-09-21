@@ -41,6 +41,8 @@ export const viewMessages = {
   'runtime.summary.page-only':
     'The totals query failed, so the summary adds up only the rows on this page.',
   'view.abandon.failed': 'That write could not be set aside.',
+  'view.change.notify-failed':
+    'A listener on view changes failed: {reason}. The list may be a revision behind.',
   'view.config.invalid': 'Fix what this view reports before saving it.',
   'view.create.forbidden': 'You may not create views here.',
   'view.definition.invalid':

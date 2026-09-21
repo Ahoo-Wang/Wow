@@ -109,9 +109,10 @@ export interface WorkbenchController {
    */
   onRenamed(instance: ViewInstance): void;
   /**
-   * A delete moves on. The engine let the runtime go with the instance, so
-   * the list is reloaded, the default moves, and the open id follows it — or
-   * empties with the list.
+   * A delete moves on. The engine let the runtime go with the instance, and
+   * it has already told the list which id went (D15), so all that is left
+   * here is to let the pin go: the default moves, and the open id follows it
+   * — or empties with the list.
    */
   onDeleted(): void;
   /** A recovered write may have changed the list; read it again. */
@@ -187,10 +188,11 @@ export function useWorkbench(
     leave,
     onSaved: open,
     onRenamed: open,
-    onDeleted: useCallback(() => {
-      setChosen(null);
-      reload();
-    }, [reload]),
+    // No reload from here: the engine's notification is already out, carrying
+    // the id that went, and a plain reload would take that id back out of the
+    // request — listing the row, and naming it as the default, until the
+    // store answers.
+    onDeleted: useCallback(() => setChosen(null), []),
     onRecovered: useCallback(() => reload(), [reload]),
   };
 }

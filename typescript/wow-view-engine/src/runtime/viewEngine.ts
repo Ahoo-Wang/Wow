@@ -79,6 +79,7 @@ import {
   type WriteLedgerHost,
   type WriteTarget,
 } from './writeLedger.js';
+import { ViewChanges, type ViewChangeListener } from './viewChanges.js';
 
 /** Everything is allowed when a store declares no permissions. */
 const ALLOW_ALL: ViewPermissions = {
@@ -157,6 +158,8 @@ export class ViewEngine {
   private readonly runtimes = new Set<ManagedViewRuntime>();
   /** Every write that left, and every outcome not yet settled. */
   private readonly ledger: WriteLedger;
+  /** Who is told that a definition's list has changed; see `subscribe`. */
+  private readonly changes = new ViewChanges(found => this.report(found));
   private readonly preferencesCache = new Map<string, ViewPreferences>();
   /** `validateDefinition` per registered definition, computed once. */
   private readonly definitionFindings = new Map<string, Issue[]>();
@@ -226,6 +229,18 @@ export class ViewEngine {
     const all = [...declared, ...accepted];
     for (const summary of all) this.summaries.set(summary.id, summary);
     return all;
+  }
+
+  /**
+   * Told whenever a write changes what a definition's list holds — a view
+   * created, saved, renamed or deleted, the ledger's retries and overwrites
+   * included. Returns the way to stop listening.
+   *
+   * The engine is the one place that knows when a write lands, so it says so
+   * rather than leaving every caller to remember (D15).
+   */
+  subscribe(listener: ViewChangeListener): () => void {
+    return this.changes.subscribe(listener);
   }
 
   async preferences(definitionId: string): Promise<ViewPreferences> {
@@ -356,8 +371,13 @@ export class ViewEngine {
   }
 
   async delete(id: string): Promise<void> {
-    const { revision, runtime } = await this.locate(id, 'delete');
-    const payload: WritePayload = { action: 'delete', id, revision };
+    const { definitionId, revision, runtime } = await this.locate(id, 'delete');
+    const payload: WritePayload = {
+      action: 'delete',
+      id,
+      definitionId,
+      revision,
+    };
     await this.ledger.dispatch(payload, runtime);
   }
 
@@ -460,6 +480,9 @@ export class ViewEngine {
     for (const runtime of [...this.runtimes]) runtime.dispose();
     this.runtimes.clear();
     this.runner.cancelAll();
+    // Nothing more will be written through it, so nothing more is announced:
+    // a host that forgot to unsubscribe leaves no listener behind here.
+    this.changes.clear();
   }
 
   private attach(
@@ -649,14 +672,24 @@ export class ViewEngine {
         this.preferencesCache.set(definitionId, preferences),
       readPreferences: definitionId => this.preferences(definitionId),
       holders: id => this.holders(id),
+      noteChange: change => this.changes.emit(change),
     };
   }
 
-  /** The revision a command needs, from an open view, the last list, or the store. */
+  /**
+   * What a command needs about an instance it was given only the id of: the
+   * revision to write against, the definition whose list it belongs to, and
+   * the open view it came through, from an open view, the last list, or the
+   * store.
+   */
   private async locate(
     id: string,
     action: keyof InstancePermissions,
-  ): Promise<{ revision: string; runtime: ManagedViewRuntime | undefined }> {
+  ): Promise<{
+    revision: string;
+    definitionId: string;
+    runtime: ManagedViewRuntime | undefined;
+  }> {
     // A code-declared view is not in any store, and no store write can reach it.
     if (parseSystemInstanceId(id))
       throw new ViewCommandError(
@@ -667,7 +700,11 @@ export class ViewEngine {
     const known = runtime?.getSnapshot().saved ?? this.summaries.get(id);
     const summary = known ?? (await this.store.get(id));
     this.requireInstancePermission(summary, action);
-    return { revision: summary.revision, runtime };
+    return {
+      revision: summary.revision,
+      definitionId: summary.definitionId,
+      runtime,
+    };
   }
 
   /**

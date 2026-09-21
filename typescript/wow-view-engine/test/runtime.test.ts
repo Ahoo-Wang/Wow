@@ -977,7 +977,12 @@ describe('DataViewRuntime lifecycle', () => {
     const write = {
       kind: 'unknown' as const,
       requestId: 'r-1',
-      payload: { action: 'delete' as const, id: 'orders-1', revision: '1' },
+      payload: {
+        action: 'delete' as const,
+        id: 'orders-1',
+        definitionId: 'orders',
+        revision: '1',
+      },
     };
 
     runtime.setWrite(write);

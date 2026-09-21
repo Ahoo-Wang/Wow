@@ -26,6 +26,7 @@ export * from './pending.js';
 export * from './requestRunner.js';
 export * from './source.js';
 export * from './validateDefinition.js';
+export * from './viewChanges.js';
 export * from './viewEngine.js';
 export * from './viewRuntime.js';
 export * from './write.js';

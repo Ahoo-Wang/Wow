@@ -22,6 +22,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   ViewStoreError,
   type ViewInstance,
+  type ViewInstanceSummary,
   type ViewPreferences,
 } from '../src/index.js';
 import { useViewList } from '../src/react/index.js';
@@ -178,6 +179,93 @@ describe('useViewList', () => {
         'orders-chart',
       ]);
       expect(result.current.defaultInstanceId).toBe('orders-chart');
+    });
+  });
+
+  /**
+   * Nobody calls `reload` in these three: the host writes through the engine
+   * and the list hears it (D15). The contract that used to be a sentence in
+   * design/react.md — "pass `without` when you delete around the manager" —
+   * is these tests now.
+   */
+  describe('what the engine says has changed', () => {
+    it('loses the row a host deleted straight through the engine', async () => {
+      const { engine } = engineWith();
+      const { result } = renderHook(() => useViewList(engine, 'orders'));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      expect(result.current.items).toHaveLength(2);
+
+      await act(() => engine.delete('orders-1'));
+
+      await waitFor(() =>
+        expect(result.current.items.map(item => item.id)).toEqual([
+          'system:orders:all',
+        ]),
+      );
+    });
+
+    it('drops it before the store has answered, default and all', async () => {
+      const { engine, store } = engineWith();
+      await store.setPreferences(
+        'orders',
+        {
+          order: ['orders-1', 'system:orders:all'],
+          defaultInstanceId: 'orders-1',
+          revision: '0',
+        },
+        { requestId: 'seed' },
+      );
+      const { result } = renderHook(() => useViewList(engine, 'orders'));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      expect(result.current.defaultInstanceId).toBe('orders-1');
+
+      let release: (value: ViewInstanceSummary[]) => void = () => {};
+      vi.spyOn(store, 'list').mockReturnValueOnce(
+        new Promise<ViewInstanceSummary[]>(resolve => {
+          release = resolve;
+        }),
+      );
+
+      await act(() => engine.delete('orders-1'));
+
+      // The reload is still out, and the row is already gone: a workbench
+      // riding on the default must not reopen what was just disposed.
+      expect(result.current.loading).toBe(true);
+      expect(result.current.items.map(item => item.id)).toEqual([
+        'system:orders:all',
+      ]);
+      expect(result.current.defaultInstanceId).toBe('system:orders:all');
+
+      act(() => release([]));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+    });
+
+    it('reads the list again when a view is renamed', async () => {
+      const { engine } = engineWith();
+      const { result } = renderHook(() => useViewList(engine, 'orders'));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      await act(() => engine.rename('orders-1', 'Renamed'));
+
+      await waitFor(() =>
+        expect(
+          result.current.items.find(item => item.id === 'orders-1')?.title,
+        ).toBe('Renamed'),
+      );
+    });
+
+    it('stops listening once it is unmounted', async () => {
+      const { engine, store } = engineWith();
+      const { result, unmount } = renderHook(() =>
+        useViewList(engine, 'orders'),
+      );
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      const list = vi.spyOn(store, 'list');
+
+      unmount();
+      await engine.delete('orders-1');
+
+      expect(list).not.toHaveBeenCalled();
     });
   });
 

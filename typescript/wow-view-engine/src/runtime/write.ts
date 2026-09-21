@@ -37,7 +37,10 @@ export type WritePayload =
     }
   | { action: 'save'; id: string; revision: string; config: ViewConfig }
   | { action: 'rename'; id: string; revision: string; title: string }
-  | { action: 'delete'; id: string; revision: string };
+  // The definition travels with a delete because nothing else in the body
+  // names it, and the list that loses this row has to be told which one it is
+  // — on the first attempt and on every replay of it.
+  | { action: 'delete'; id: string; definitionId: string; revision: string };
 
 export type WriteAction = WritePayload['action'];
 

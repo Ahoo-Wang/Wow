@@ -46,9 +46,11 @@ export interface ViewListReloadOptions {
    * A reload refreshes rather than blanks, so without this the row deleted a
    * moment ago goes on being listed — and named as the default — until the
    * store answers, and a workbench riding on the default reopens a runtime
-   * that has just been disposed. A host that deletes through the engine
-   * directly passes the id here for the same reason; `useViewManager.delete`
-   * does it for the rows it manages.
+   * that has just been disposed.
+   *
+   * A delete through the engine fills this in by itself: the hook hears the
+   * engine say which id went (D15). What is left for a caller is the delete
+   * the engine never saw — a row removed by the host's own backend.
    */
   without?: string;
 }
@@ -183,6 +185,20 @@ export function useViewList(
         without: options?.without ?? null,
       })),
     [],
+  );
+
+  // Every write the engine confirms is one this list may be a revision
+  // behind — whoever sent it, through the manager, through the open view's
+  // header, or straight through `engine.delete` from the host's own code.
+  // The engine says so; nobody has to remember to (D15). A delete brings the
+  // id it removed, so the row goes now rather than when the store answers.
+  useEffect(
+    () =>
+      engine.subscribe(change => {
+        if (change.definitionId !== definitionId) return;
+        reload(change.kind === 'delete' ? { without: change.id } : undefined);
+      }),
+    [engine, definitionId, reload],
   );
 
   // A reload refreshes; it does not blank. What is on hand for *this*

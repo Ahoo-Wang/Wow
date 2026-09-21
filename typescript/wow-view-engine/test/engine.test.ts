@@ -24,6 +24,7 @@ import {
   ViewEngine,
   ViewStoreError,
   type Issue,
+  type ViewChange,
   type ViewDefinition,
   type ViewInstance,
   type ViewPermissions,
@@ -522,6 +523,153 @@ describe('ViewEngine list commands', () => {
  * both attempts carry the same expectation, so without a guard the second one
  * either invents a conflict or creates a second instance.
  */
+/**
+ * Who is told that a definition's list has changed, and when.
+ *
+ * The engine is the one place that knows when a write lands, so it says so
+ * (D15) rather than leaving the manager, the view header and every host to
+ * remember. `kind` is the write, not the kind of the view.
+ */
+describe('ViewEngine change notifications', () => {
+  function watching(): Harness & { changes: ViewChange[]; stop(): void } {
+    const found = harness();
+    const changes: ViewChange[] = [];
+    const stop = found.engine.subscribe(change => changes.push(change));
+    return { ...found, changes, stop };
+  }
+
+  it('announces the view a first save created', async () => {
+    const { engine, changes } = watching();
+    const runtime = engine.create('orders', {
+      title: 'New',
+      scope: 'personal',
+      config: recordConfig(),
+    });
+
+    const created = await engine.save(runtime);
+
+    expect(changes).toEqual([
+      { definitionId: 'orders', kind: 'create', id: created.id },
+    ]);
+  });
+
+  it('announces a save, which may have moved a title or an audience', async () => {
+    const { engine, changes } = watching();
+    const runtime = await engine.open('orders-1');
+    runtime.edit({ pageSize: 50 });
+
+    await engine.save(runtime);
+
+    expect(changes).toEqual([
+      { definitionId: 'orders', kind: 'save', id: 'orders-1' },
+    ]);
+  });
+
+  it('announces a rename', async () => {
+    const { engine, changes } = watching();
+
+    await engine.rename('orders-1', 'Renamed');
+
+    expect(changes).toEqual([
+      { definitionId: 'orders', kind: 'rename', id: 'orders-1' },
+    ]);
+  });
+
+  it('announces a delete, naming the list the row left', async () => {
+    const { engine, changes } = watching();
+
+    // Never listed and never opened here, which is the host that D15 is
+    // about: the definition comes out of the body of the write rather than
+    // out of a cache that may hold nothing about this id.
+    await engine.delete('orders-1');
+
+    expect(changes).toEqual([
+      { definitionId: 'orders', kind: 'delete', id: 'orders-1' },
+    ]);
+  });
+
+  it('announces the retry the first attempt could not', async () => {
+    const { engine, store, changes } = watching();
+    const runtime = await engine.open('orders-1');
+    runtime.edit({ pageSize: 50 });
+    vi.spyOn(store, 'save').mockRejectedValueOnce(
+      new ViewStoreError('UNAVAILABLE', 'timeout'),
+    );
+
+    await failedWrite(engine.save(runtime));
+    // Nothing landed, so nothing is announced.
+    expect(changes).toEqual([]);
+
+    await engine.retryWrite(runtime);
+
+    expect(changes).toEqual([
+      { definitionId: 'orders', kind: 'save', id: 'orders-1' },
+    ]);
+  });
+
+  it('announces an overwrite, which is a write of its own', async () => {
+    const { engine, store, changes } = watching();
+    const runtime = await engine.open('orders-1');
+    runtime.edit({ pageSize: 99 });
+    await store.save('orders-1', recordConfig({ pageSize: 33 }), '1', {
+      requestId: 'other',
+    });
+    await failedWrite(engine.save(runtime));
+
+    await engine.resolveConflict(runtime, 'overwrite');
+
+    expect(changes).toEqual([
+      { definitionId: 'orders', kind: 'save', id: 'orders-1' },
+    ]);
+  });
+
+  it('says nothing about a preference write', async () => {
+    const { engine, changes } = watching();
+
+    await engine.reorder('orders', ['orders-1']);
+    await engine.setDefault('orders', 'orders-1');
+
+    // The order and the default are not the list, and the caller that wrote
+    // them is holding the answer already.
+    expect(changes).toEqual([]);
+  });
+
+  it('stops at unsubscribe, and lets every listener go on dispose', async () => {
+    const { engine, changes, stop } = watching();
+
+    stop();
+    await engine.rename('orders-1', 'One');
+    expect(changes).toEqual([]);
+
+    const later: ViewChange[] = [];
+    engine.subscribe(change => later.push(change));
+    engine.dispose();
+    await engine.rename('orders-1', 'Two');
+
+    expect(later).toEqual([]);
+  });
+
+  it('contains a listener that throws, and reports it', async () => {
+    const { engine, issues } = harness();
+    const heard: ViewChange[] = [];
+    engine.subscribe(() => {
+      throw new Error('listener is broken');
+    });
+    engine.subscribe(change => heard.push(change));
+
+    // The write landed and it stays landed: an outcome the user is asked to
+    // retry is the one thing a broken listener must not create.
+    await expect(engine.rename('orders-1', 'Renamed')).resolves.toMatchObject({
+      title: 'Renamed',
+    });
+
+    expect(heard).toHaveLength(1);
+    expect(issues).toContainEqual(
+      expect.objectContaining({ code: 'view.change.notify-failed' }),
+    );
+  });
+});
+
 describe('ViewEngine write re-entrancy', () => {
   it('refuses a second save while the first is in flight', async () => {
     const { engine } = harness();

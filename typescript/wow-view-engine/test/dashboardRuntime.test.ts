@@ -1188,7 +1188,12 @@ describe('DashboardViewRuntime saving', () => {
     runtime.setWrite({
       kind: 'unknown',
       requestId: 'req-1',
-      payload: { action: 'delete', id: 'overview-1', revision: 'r1' },
+      payload: {
+        action: 'delete',
+        id: 'overview-1',
+        definitionId: 'overview',
+        revision: 'r1',
+      },
     });
     expect(runtime.getSnapshot().write?.kind).toBe('unknown');
 

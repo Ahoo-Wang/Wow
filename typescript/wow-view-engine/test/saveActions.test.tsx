@@ -773,7 +773,12 @@ describe('WriteOutcome', () => {
         write: {
           kind: 'unknown',
           requestId: 'r1',
-          payload: { action: 'delete', id: 'orders-1', revision: '1' },
+          payload: {
+            action: 'delete',
+            id: 'orders-1',
+            definitionId: 'orders',
+            revision: '1',
+          },
         },
       },
       retry: vi.fn().mockResolvedValue({ landed: true, instance: null }),

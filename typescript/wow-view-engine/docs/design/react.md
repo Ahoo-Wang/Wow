@@ -40,7 +40,7 @@ useViewList(engine, definitionId, options?: { kind }): { items; all; preferences
 - useViewManager 因此管的是过滤后的可见列表，而 move 提交的是 `all`（未过滤的完整顺序）里对调两项的结果，未列出的种类因此各守其位；
 - `all` 是未经 kind 过滤、同序的全部摘要，供 moveTo 在完整顺序里落子；
 - reload 可带 `{ without?: id }`：重载期间把该 id 从留存的摘要里去掉，`preferences.defaultInstanceId` 命中它也读作 null，答案落地即恢复由 store 说了算——重载只刷新不清空，否则刚删掉的那一行会继续被列出、继续被当作默认视图，骑在默认视图上的工作台就会去重开一个刚被释放的 runtime（瞬时 not_found）；
-- `useViewManager.delete` 自动带上被删的 id，宿主绕过它直接用 engine 删除时同样要带。（见 test/useViewList.test.tsx「useViewList」「narrowed to one kind」）
+- 它订阅 `engine.subscribe`（[runtime.md#viewengine](runtime.md#viewengine)）：本定义的通知到来时自动重载，删除那一条自带 `without`，卸载时退订。所以经引擎的创建／保存／改名／删除——无论出自管理器、视图头，还是宿主自己直接调 `engine.delete`——列表都自己跟上，没有哪个调用方需要记得通知（D15）；`reload` 仍然公开，它答的是「我从别处知道外面变了」，比如宿主自己的服务端推送。（见 test/useViewList.test.tsx「useViewList」「narrowed to one kind」）
 
 ## useFilterEditor
 
@@ -209,7 +209,7 @@ WorkbenchController {
 - `leave` 是无对话框的离开守卫（`react/workbench/leaveGuard.ts`）：`asking` / `request(next)` / `confirm()` / `cancel()`。`dirty` 或写入结局为 `unknown` 时才问，`confirm` 先结清（`commands.abandon()`）再走——`next` 会释放这个 runtime，结局就再没有它可依附，handle 会指向一个谁也够不着的 runtime 而 `engine.pendingWrites()` 把它留到会话结束。怎么问是宿主的事，`/ui` 用 `LeaveDialog`；
 - `filter` 是这次打开的筛选编辑器，在这里建一次：外壳画已应用条件条要用它，error 条要用它的 `unmarked`，三个工作台本来也各建一个；
 - `refresh` 是 `useAutoRefresh(runtime)` 的结果，在这里装配而不是在三个工作台里各调一次：`refresh` 在 `ViewConfigBase` 上，三种视图都有，取法也一样；
-- 四个 `on*` 是标题栏结局的工作台语义，已经接好：存下的副本随即打开、改名留在原视图（先 pin 再 reload，否则骑在默认视图上的工作台会关掉 runtime 连草稿一起丢）、删除即移开（pin 清空，列表重读，默认视图顺位接上，或随列表一起空掉）、恢复则重读列表。（见 test/workbench.test.tsx「useWorkbench」）
+- 四个 `on*` 是标题栏结局的工作台语义，已经接好：存下的副本随即打开、改名留在原视图（先 pin 再 reload，否则骑在默认视图上的工作台会关掉 runtime 连草稿一起丢）、删除即移开（只清 pin——列表由引擎的通知带着被删的 id 自己重读，再补一次不带 `without` 的重读反而会把那一行放回去；默认视图顺位接上，或随列表一起空掉）、恢复则重读列表。（见 test/workbench.test.tsx「useWorkbench」）
 
 宿主写自己的标记时调这一个钩子就够，规则一条也不会掉——`examples/PlainRecordWorkbench.tsx` 是那份参照。`test/architecture.test.ts` 禁止 `ui/*Workbench.tsx` 直接 import `useViewList`／`useOpenView`／`useViewManager`／`useLeaveGuard`：绕过去就是把装配重建一遍。
 

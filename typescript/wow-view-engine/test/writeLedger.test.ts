@@ -25,6 +25,7 @@ import {
   WriteLedger,
   type WriteLedgerHost,
 } from '../src/runtime/writeLedger.js';
+import type { ViewChange } from '../src/runtime/viewChanges.js';
 import { recordConfig } from './fixtures.js';
 
 const mine: ViewInstance = {
@@ -86,6 +87,7 @@ interface Harness {
   dropped: string[];
   notedPreferences: ViewPreferences[];
   reloaded: string[];
+  changes: ViewChange[];
 }
 
 function harness(holders: ManagedViewRuntime[] = []): Harness {
@@ -100,6 +102,7 @@ function harness(holders: ManagedViewRuntime[] = []): Harness {
   const dropped: string[] = [];
   const notedPreferences: ViewPreferences[] = [];
   const reloaded: string[] = [];
+  const changes: ViewChange[] = [];
   let sequence = 0;
 
   const host: WriteLedgerHost = {
@@ -113,6 +116,7 @@ function harness(holders: ManagedViewRuntime[] = []): Harness {
       return preferences;
     },
     holders: () => holders,
+    noteChange: change => void changes.push(change),
   };
 
   return {
@@ -122,6 +126,7 @@ function harness(holders: ManagedViewRuntime[] = []): Harness {
     dropped,
     notedPreferences,
     reloaded,
+    changes,
   };
 }
 
@@ -366,7 +371,12 @@ describe('WriteLedger conflicts', () => {
 
     await expectWriteError(
       ledger.dispatch(
-        { action: 'delete', id: mine.id, revision: '1' },
+        {
+          action: 'delete',
+          id: mine.id,
+          definitionId: 'orders',
+          revision: '1',
+        },
         undefined,
       ),
     );
@@ -388,12 +398,17 @@ describe('WriteLedger effects', () => {
   });
 
   it('drops a deleted instance and remembers confirmed preferences', async () => {
-    const { ledger, dropped, notedPreferences } = harness();
+    const { ledger, dropped, notedPreferences, changes } = harness();
     await ledger.dispatch(
-      { action: 'delete', id: mine.id, revision: '1' },
+      { action: 'delete', id: mine.id, definitionId: 'orders', revision: '1' },
       undefined,
     );
     expect(dropped).toEqual([mine.id]);
+    // Nothing else in a delete names the list it changed, which is why the
+    // definition travels in the body.
+    expect(changes).toEqual([
+      { definitionId: 'orders', kind: 'delete', id: mine.id },
+    ]);
 
     await ledger.dispatch(
       { action: 'preferences', definitionId: 'orders', next: preferences },
@@ -416,6 +431,7 @@ describe('WriteLedger effects', () => {
       notePreferences: () => {},
       readPreferences: async () => preferences,
       holders: () => [],
+      noteChange: () => {},
     });
     const input = {
       definitionId: 'orders',

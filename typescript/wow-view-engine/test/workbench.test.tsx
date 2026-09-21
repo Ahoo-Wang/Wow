@@ -381,7 +381,12 @@ describe('useLeaveGuard', () => {
           write: {
             kind: 'unknown',
             requestId: 'r1',
-            payload: { action: 'delete', id: 'orders-1', revision: '1' },
+            payload: {
+              action: 'delete',
+              id: 'orders-1',
+              definitionId: 'orders',
+              revision: '1',
+            },
           },
         }}
       />,
@@ -456,7 +461,12 @@ describe('useLeaveGuard', () => {
           write: {
             kind: 'rejected',
             requestId: 'r1',
-            payload: { action: 'delete', id: 'orders-1', revision: '1' },
+            payload: {
+              action: 'delete',
+              id: 'orders-1',
+              definitionId: 'orders',
+              revision: '1',
+            },
             issue: {
               code: 'view.delete.forbidden',
               path: [],

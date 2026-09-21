@@ -435,6 +435,8 @@ export const zhCN: ViewMessages = {
   'runtime.query.queue-full': '同时查询太多，过一会儿再试。',
   'runtime.summary.page-only': '合计查询失败，表尾只汇总了本页的行。',
   'view.abandon.failed': '无法放弃那次写入。',
+  'view.change.notify-failed':
+    '视图变化的订阅者出错：{reason}。列表可能慢一拍。',
   'view.config.invalid': '先修正这个视图报出的问题，再保存。',
   'view.create.forbidden': '你不能在这里创建视图。',
   'view.definition.invalid': '{id} 定义有 {issues} 个问题，无法打开。',
