@@ -203,6 +203,18 @@ describe('useAnalysisEditor', () => {
   });
 });
 
+/**
+ * Queries that see only what is drawn.
+ *
+ * Every chart renders an `sr-only` table of the same numbers beside it, so a
+ * plain text query finds each value twice; these assertions are about the
+ * drawing. What the reading says is pinned in
+ * `test/analysisChartA11y.test.tsx`.
+ */
+const DRAWN = {
+  ignore: 'script, style, [data-slot="chart-reading"] *',
+} as const;
+
 function chartOf(data: ChartData) {
   return render(
     <ViewSurface>
@@ -256,8 +268,8 @@ describe('AnalysisChart', () => {
       </ViewSurface>,
     );
 
-    expect(within(container).getByText('Failed')).toBeDefined();
-    expect(within(container).queryByText('FAILED')).toBeNull();
+    expect(within(container).getByText('Failed', DRAWN)).toBeDefined();
+    expect(within(container).queryByText('FAILED', DRAWN)).toBeNull();
   });
 
   // The kind of a number or a boolean field has nothing to add, so the axis
@@ -296,8 +308,8 @@ describe('AnalysisChart', () => {
       </ViewSurface>,
     );
 
-    expect(within(container).getByText(amount)).toBeDefined();
-    expect(within(container).getByText('Yes')).toBeDefined();
+    expect(within(container).getByText(amount, DRAWN)).toBeDefined();
+    expect(within(container).getByText('Yes', DRAWN)).toBeDefined();
   });
 
   it('names a pivot series by the value it was split by', () => {
@@ -331,8 +343,8 @@ describe('AnalysisChart', () => {
       </ViewSurface>,
     );
 
-    expect(within(container).getByText('Failed')).toBeDefined();
-    expect(within(container).getByText('Succeeded')).toBeDefined();
+    expect(within(container).getByText('Failed', DRAWN)).toBeDefined();
+    expect(within(container).getByText('Succeeded', DRAWN)).toBeDefined();
   });
 
   // Two values can show alike: two options with one label, or the two 01:00
@@ -371,7 +383,7 @@ describe('AnalysisChart', () => {
       </ViewSurface>,
     );
 
-    expect(within(container).getAllByText('Same')).toHaveLength(4);
+    expect(within(container).getAllByText('Same', DRAWN)).toHaveLength(4);
     expect(
       error.mock.calls.some(call => String(call[0]).includes('same key')),
     ).toBe(false);
@@ -683,8 +695,8 @@ describe('AnalysisChart', () => {
       ],
     });
 
-    expect(screen.getByText('Visited')).toBeDefined();
-    expect(screen.getByText('25%')).toBeDefined();
+    expect(screen.getByText('Visited', DRAWN)).toBeDefined();
+    expect(screen.getByText('25%', DRAWN)).toBeDefined();
   });
 
   it('lays a funnel out horizontally when the spec asks', () => {
@@ -706,7 +718,7 @@ describe('AnalysisChart', () => {
       </ViewSurface>,
     );
 
-    expect(screen.getByText('Visited')).toBeDefined();
+    expect(screen.getByText('Visited', DRAWN)).toBeDefined();
   });
 
   it('draws a metric card with its comparison, target and trend', () => {
@@ -721,8 +733,8 @@ describe('AnalysisChart', () => {
       ],
     });
 
-    expect(screen.getByText('1,200')).toBeDefined();
-    expect(screen.getByText('+200')).toBeDefined();
+    expect(screen.getByText('1,200', DRAWN)).toBeDefined();
+    expect(screen.getByText('+200', DRAWN)).toBeDefined();
   });
 
   /**
@@ -1323,7 +1335,7 @@ describe('AnalysisWorkbench', () => {
         instanceId="orders-1"
       />,
     );
-    expect(await within(container).findByText('China')).toBeDefined();
+    expect(await within(container).findByText('China', DRAWN)).toBeDefined();
 
     act(() => {
       engine.openRuntimes()[0].edit({
@@ -1334,7 +1346,7 @@ describe('AnalysisWorkbench', () => {
       });
     });
 
-    expect(within(container).getByText('China')).toBeDefined();
+    expect(within(container).getByText('China', DRAWN)).toBeDefined();
   });
 
   it('names chart categories as their field names its values', async () => {
@@ -1365,7 +1377,7 @@ describe('AnalysisWorkbench', () => {
       />,
     );
 
-    expect(await within(container).findByText('China')).toBeDefined();
+    expect(await within(container).findByText('China', DRAWN)).toBeDefined();
   });
 
   it('holds the timer while the editor has focus', async () => {
@@ -1431,7 +1443,9 @@ describe('AnalysisWorkbench', () => {
     await open();
 
     await user.click(screen.getByRole('button', { name: 'Chart' }));
-    await waitFor(() => expect(screen.queryByRole('table')).toBeNull());
+    await waitFor(() =>
+      expect(document.querySelector('[data-slot="analysis-table"]')).toBeNull(),
+    );
 
     await user.click(
       screen.getByRole('button', { name: 'Table', pressed: false }),

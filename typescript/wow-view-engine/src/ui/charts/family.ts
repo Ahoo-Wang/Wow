@@ -30,6 +30,14 @@ export interface FamilyProps<D> {
   spec?: ChartSpec;
   className?: string;
   label: CategoryLabel;
+  /**
+   * What is drawn, in one line. Each family puts it on whatever element is
+   * the picture — the `<svg>` for the three chart-library families, the grid
+   * itself for the two hand-drawn ones — as the name of a `role="img"`. The
+   * metric card is the exception: its value is already text, so only its
+   * sparkline is a picture.
+   */
+  name: string;
 }
 
 export function useCategoryLabel(
@@ -51,6 +59,23 @@ export function useCategoryLabel(
       );
     };
   }, [columns, display, messages]);
+}
+
+/**
+ * An alias as its column is titled, `undefined` when this result has no such
+ * column — a name that says "订单数 按 地区" is worth having, one that says
+ * "m0 按 g0" is not, so the caller decides what to do without a title rather
+ * than being handed the alias.
+ */
+export function useColumnLabel(
+  columns: readonly AnalysisColumnView[] | undefined,
+): (alias: string | undefined) => string | undefined {
+  return useMemo(() => {
+    const byAlias = new Map(
+      (columns ?? []).map(column => [column.alias, column.label]),
+    );
+    return alias => (alias === undefined ? undefined : byAlias.get(alias));
+  }, [columns]);
 }
 
 /** A raw group value as a React key or a spec's colour key, never as text. */

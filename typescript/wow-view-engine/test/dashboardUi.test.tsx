@@ -1272,7 +1272,14 @@ describe('DashboardWorkbench', () => {
       />,
     );
 
-    expect(await within(container).findByText('China')).toBeTruthy();
+    // The drawing alone: the `sr-only` reading beside every chart says the
+    // same category again, and what it says is pinned in
+    // `test/analysisChartA11y.test.tsx`.
+    expect(
+      await within(container).findByText('China', {
+        ignore: 'script, style, [data-slot="chart-reading"] *',
+      }),
+    ).toBeTruthy();
   });
 
   it('runs the panels again on demand', async () => {

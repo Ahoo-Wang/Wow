@@ -11,15 +11,19 @@
  * limitations under the License.
  */
 
+import { useMemo } from 'react';
 import type { AnalysisColumnView, ChartData } from '../analysis/index.js';
 import type { ChartSpec } from '../model/index.js';
 import { Cartesian } from './charts/Cartesian.js';
-import { useCategoryLabel } from './charts/family.js';
+import { ChartReadingTable } from './charts/ChartReading.js';
+import { useCategoryLabel, useColumnLabel } from './charts/family.js';
 import { Funnel } from './charts/Funnel.js';
 import { Heatmap } from './charts/Heatmap.js';
 import { MetricCard } from './charts/MetricCard.js';
 import { PieSlices } from './charts/PieSlices.js';
+import { readChart } from './charts/reading.js';
 import { ScatterPoints } from './charts/ScatterPoints.js';
+import { useViewMessages } from './MessagesProvider.js';
 
 export interface AnalysisChartProps {
   data: ChartData;
@@ -40,6 +44,11 @@ export interface AnalysisChartProps {
  * `charts/` only picks marks and colours; a different chart library would
  * replace those files without touching a rule. This one dispatches by family
  * and hands each the same props, the category labeller included.
+ *
+ * It also reads the same projection twice: once as marks, and once as a
+ * table nobody looks at. A drawing is one image with a name, so the numbers
+ * have to be said somewhere, and saying them off `ChartData` — not off the
+ * row projection beside it — is what keeps the two from disagreeing.
  */
 export function AnalysisChart({
   data,
@@ -47,8 +56,27 @@ export function AnalysisChart({
   className,
   columns,
 }: AnalysisChartProps) {
+  const messages = useViewMessages();
   const label = useCategoryLabel(columns);
-  const props = { spec, className, label };
+  const column = useColumnLabel(columns);
+  const reading = useMemo(
+    () => readChart(data, spec, { messages, label, column }),
+    [data, spec, messages, label, column],
+  );
+  const props = { spec, className, label, name: reading.name };
+  return (
+    <>
+      {family(data, props)}
+      <ChartReadingTable reading={reading} />
+    </>
+  );
+}
+
+/** The one renderer this data asked for. */
+function family(
+  data: ChartData,
+  props: Omit<Parameters<typeof Cartesian>[0], 'data'>,
+) {
   switch (data.type) {
     case 'cartesian':
       return <Cartesian data={data} {...props} />;

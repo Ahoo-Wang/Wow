@@ -16,6 +16,7 @@ import type { MetricCardData } from '../../analysis/index.js';
 import { ChartContainer } from '../components/chart.js';
 import { cn } from 'cn';
 import { useViewMessages } from '../MessagesProvider.js';
+import { asImage } from './asImage.js';
 import { formatValue } from './axis.js';
 import type { FamilyProps } from './family.js';
 import { color } from './palette.js';
@@ -35,6 +36,7 @@ export function MetricCard({
   spec,
   className,
   label,
+  name,
 }: FamilyProps<MetricCardData>) {
   const messages = useViewMessages();
   const card = spec?.metric;
@@ -74,6 +76,7 @@ export function MetricCard({
           className="h-16 w-full"
         >
           <LineChart
+            {...asImage(messages.label('label.chart.sparkline', { name }))}
             data={data.trend.map(point => ({
               x: label(spec?.metric?.trend?.x, point.x),
               trend: point.value,

@@ -112,7 +112,12 @@ describe('EmbeddedView', () => {
       <EmbeddedView engine={engine} instanceId="orders-1" />,
     );
 
-    expect(await within(container).findByText('China')).toBeDefined();
+    expect(
+      await within(container).findByText('China', {
+        // The `sr-only` reading beside the chart names the category too.
+        ignore: 'script, style, [data-slot="chart-reading"] *',
+      }),
+    ).toBeDefined();
   });
 
   it('shows the result and none of the workbench chrome', async () => {

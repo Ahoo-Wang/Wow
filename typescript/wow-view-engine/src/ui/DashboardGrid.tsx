@@ -203,7 +203,20 @@ export function DashboardPanel({
           {panel.title ?? panel.id}
         </CardTitle>
       </CardHeader>
-      <CardContent className="min-h-0 flex-1 overflow-auto px-3">
+      <CardContent
+        /*
+          The body scrolls, and a region that scrolls has to be reachable by
+          keyboard. A record panel gets that for free from the controls in its
+          rows; a chart panel has nothing focusable in it at all — the drawing
+          is one `role="img"` now, not the tab stop recharts used to put on
+          its `<svg>` — so the scroll container itself takes the focus, named
+          by the panel it belongs to.
+        */
+        role="group"
+        tabIndex={0}
+        aria-label={panel.title ?? panel.id}
+        className="min-h-0 flex-1 overflow-auto px-3"
+      >
         {/* One boundary per panel: a markdown body or a row that throws
             takes this card's body and leaves the rest of the grid alone. */}
         <RenderBoundary

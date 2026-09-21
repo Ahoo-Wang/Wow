@@ -11,6 +11,30 @@
  * limitations under the License.
  */
 
+import { waitFor } from 'storybook/test';
+
+/**
+ * The result table on screen, once it is there.
+ *
+ * A chart renders an `sr-only` table of its own numbers beside it, so on a
+ * dashboard that holds both a record panel and a chart panel there are two
+ * tables in the accessibility tree and only one a reader looks at. That is
+ * the one these helpers read; what the other one says is pinned in the
+ * package's own `test/analysisChartA11y.test.tsx`.
+ */
+export async function findDataTable(
+  canvasElement: HTMLElement,
+): Promise<HTMLElement> {
+  return waitFor(() => {
+    const found = [
+      ...canvasElement.querySelectorAll<HTMLElement>('table'),
+    ].filter(table => table.closest('[data-slot="chart-reading"]') === null);
+    if (found.length !== 1)
+      throw new Error(`Expected one result table, found ${found.length}.`);
+    return found[0];
+  });
+}
+
 /**
  * One column of a rendered table, found by its header the way a reader finds
  * it, so an assertion names the column rather than its position.

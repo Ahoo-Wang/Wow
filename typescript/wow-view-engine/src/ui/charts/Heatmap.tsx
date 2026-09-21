@@ -25,6 +25,7 @@ export function Heatmap({
   spec,
   className,
   label,
+  name,
 }: FamilyProps<HeatmapData>) {
   const messages = useViewMessages();
   const values = data.cells
@@ -37,6 +38,8 @@ export function Heatmap({
   return (
     <div
       data-slot="heatmap"
+      role="img"
+      aria-label={name}
       className={cn('flex flex-col gap-1 overflow-x-auto', className)}
     >
       {data.ys.map((y, row) => (

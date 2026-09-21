@@ -67,6 +67,22 @@ export const analysisMessages = {
   'label.chart.trend': 'Trend',
   'label.chart.cell': '{y} · {x}: {value}',
 
+  // What a chart says about itself. The drawing is one image with a name —
+  // the marks are a picture, not an application — and the numbers it draws
+  // are read from the table beside it.
+  'label.chart.figure': '{type}: {measures} by {category}',
+  'label.chart.figure.plain': '{type}: {measures}',
+  'label.chart.sparkline': '{name}, over time',
+  'label.chart.reading': '{name}, as a table',
+  'label.chart.column.category': 'Category',
+  'label.chart.column.value': 'Value',
+  'label.chart.column.x': 'X',
+  'label.chart.column.y': 'Y',
+  'label.chart.column.stage': 'Stage',
+  'label.chart.column.conversion': 'Conversion',
+  'label.chart.column.compare': 'Compared with',
+  'label.chart.column.target': 'Target',
+
   // Analysis kernel.
   'analysis.alias.duplicate': 'The name {alias} is used twice.',
   'analysis.alias.invalid': '{alias} is not a usable name.',

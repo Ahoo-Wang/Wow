@@ -23,6 +23,7 @@ import {
 } from '../components/chart.js';
 import { cn } from 'cn';
 import { useViewMessages } from '../MessagesProvider.js';
+import { asImage } from './asImage.js';
 import { labelOf, type FamilyProps } from './family.js';
 import { color, colorOf } from './palette.js';
 
@@ -31,6 +32,7 @@ export function PieSlices({
   spec,
   className,
   label,
+  name,
 }: FamilyProps<PieData>) {
   const messages = useViewMessages();
   // Same rule as the cartesian series: a category value becomes an identifier
@@ -61,7 +63,7 @@ export function PieSlices({
       config={config}
       className={cn('min-h-52 w-full', className)}
     >
-      <PieChart>
+      <PieChart {...asImage(name)}>
         <ChartTooltip content={<ChartTooltipContent nameKey="key" />} />
         <Pie
           data={rows}

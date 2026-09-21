@@ -36,6 +36,7 @@ import {
   type ChartConfig,
 } from '../components/chart.js';
 import { cn } from 'cn';
+import { asImage } from './asImage.js';
 import { axisId, domainOf, tickFormatterOf } from './axis.js';
 import type { FamilyProps } from './family.js';
 import { colorOf } from './palette.js';
@@ -45,6 +46,7 @@ export function Cartesian({
   spec,
   className,
   label,
+  name,
 }: FamilyProps<CartesianData>) {
   // A pivot names its series by raw group values, and the style element
   // interpolates config keys into custom properties: only an identifier is
@@ -125,7 +127,11 @@ export function Cartesian({
       config={config}
       className={cn('min-h-52 w-full', className)}
     >
-      <Chart data={rows} layout={horizontal ? 'vertical' : 'horizontal'}>
+      <Chart
+        data={rows}
+        layout={horizontal ? 'vertical' : 'horizontal'}
+        {...asImage(name)}
+      >
         <CartesianGrid vertical={false} />
         {horizontal ? (
           <>

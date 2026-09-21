@@ -20,7 +20,7 @@ import displayMeta, {
   PanelUnavailable as DisplayPanelUnavailable,
   QueryFailed as DisplayQueryFailed,
 } from './Dashboard.stories.js';
-import { amountOf, readColumn, readTotal } from './readTable.js';
+import { amountOf, findDataTable, readColumn, readTotal } from './readTable.js';
 
 const meta = {
   ...displayMeta,
@@ -39,7 +39,7 @@ export const AllPanels: Story = {
   ...DisplayAllPanels,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const table = await canvas.findByRole('table');
+    const table = await findDataTable(canvasElement);
     // The record panel runs its own view: pending orders, largest first.
     await waitFor(() =>
       expect(readColumn(table, '订单号')).toEqual([
@@ -60,7 +60,7 @@ export const AllPanels: Story = {
 export const GlobalFilter: Story = {
   ...DisplayGlobalFilter,
   play: async ({ canvasElement }) => {
-    const table = await within(canvasElement).findByRole('table');
+    const table = await findDataTable(canvasElement);
     // 华南 reaches both panels through their own warehouse field.
     await waitFor(() =>
       expect(readColumn(table, '订单号')).toEqual(['SO-1005']),

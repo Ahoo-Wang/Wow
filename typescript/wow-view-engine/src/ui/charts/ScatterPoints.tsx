@@ -27,6 +27,7 @@ import {
 } from '../components/chart.js';
 import { cn } from 'cn';
 import { useViewMessages } from '../MessagesProvider.js';
+import { asImage } from './asImage.js';
 import type { FamilyProps } from './family.js';
 import { color } from './palette.js';
 
@@ -35,6 +36,7 @@ export function ScatterPoints({
   spec,
   className,
   label,
+  name,
 }: FamilyProps<ScatterData>) {
   const messages = useViewMessages();
   const rows = data.points.map(point => ({
@@ -54,7 +56,7 @@ export function ScatterPoints({
       }}
       className={cn('min-h-52 w-full', className)}
     >
-      <ScatterChart>
+      <ScatterChart {...asImage(name)}>
         <CartesianGrid />
         <XAxis type="number" dataKey="x" />
         <YAxis type="number" dataKey="y" />

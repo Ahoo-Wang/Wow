@@ -373,7 +373,9 @@ describe('what the screen says about an analysis cut short', () => {
     expect(
       await screen.findByText(said('analysis.result.at-limit', 2)),
     ).toBeDefined();
-    expect(screen.queryByRole('table')).toBeNull();
+    // The chart layout draws no analysis table; the table beside it is the
+    // `sr-only` reading of the very numbers the pie is cut from.
+    expect(document.querySelector('[data-slot="analysis-table"]')).toBeNull();
   });
 
   it('keeps quiet when the grouping came back short of the limit', async () => {

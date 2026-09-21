@@ -20,6 +20,7 @@ export function Funnel({
   spec,
   className,
   label,
+  name,
 }: FamilyProps<FunnelData>) {
   const widest = Math.max(...data.stages.map(stage => stage.value), 1);
   // Stages taken from a group are named by its values, which show as the
@@ -31,6 +32,8 @@ export function Funnel({
   return (
     <div
       data-slot="funnel"
+      role="img"
+      aria-label={name}
       className={cn(
         'gap-2',
         horizontal ? 'flex items-end' : 'flex flex-col',

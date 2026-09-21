@@ -110,6 +110,16 @@ const warehouseTotals: ViewInstance = {
   }),
 };
 
+/** The same aggregation drawn rather than tabulated. */
+const warehouseChart: ViewInstance = {
+  id: 'drawn',
+  definitionId: 'orders',
+  title: 'Drawn',
+  scope: 'shared',
+  revision: '1',
+  config: analysisConfig({ layout: 'chart' }),
+};
+
 const overview: ViewInstance = {
   id: 'overview-1',
   definitionId: 'overview',
@@ -536,6 +546,32 @@ describe('the default workbenches pass axe', () => {
     );
     await waitFor(() => expect(container.querySelector('table')).toBeTruthy());
 
+    expect(await violations(container)).toEqual([]);
+  });
+
+  /**
+   * The chart layout, where the answer is drawn rather than written. The
+   * drawing is one `role="img"` with a name and the numbers are a table
+   * beside it, and both of those are ways to put a figure wrong that the
+   * table layout above never reaches.
+   */
+  it('analysis, drawn as a chart', async () => {
+    const { container } = render(
+      <ViewSurface>
+        <AnalysisWorkbench
+          engine={engineWith([warehouseChart])}
+          definitionId="orders"
+          instanceId="drawn"
+        />
+      </ViewSurface>,
+    );
+    await waitFor(() =>
+      expect(container.querySelector('[role="img"]')).toBeTruthy(),
+    );
+
+    expect(
+      container.querySelector('[data-slot="chart-reading"] table'),
+    ).toBeTruthy();
     expect(await violations(container)).toEqual([]);
   });
 
