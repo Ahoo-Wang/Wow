@@ -434,27 +434,25 @@ export function WorkbenchShell({
   const collapsed = !sidebarOpen && (
     <div
       data-slot="view-collapsed"
-      // The identity group's spring while it is there: with the sidebar
-      // away the view's name is the switcher's label rather than the
-      // heading beside it, so this is the part of the line that may give.
+      // No box of its own: `contents` hands the way back, the definition's
+      // name and the switcher to the identity group as its own items.
       //
-      // It carries `grow` but no longer `min-w-0`. `grow` is how the
-      // leftover room reaches the switcher at all; what the switcher does
-      // with it is its own business, and it now stops at its contents
-      // rather than stretching into a 470px pill. `min-w-0` was safe only
-      // while the switcher could shrink to its icons — now the name keeps a
-      // floor, and a group allowed to be squeezed below what its contents
-      // need is a group that lies to the row above it, which is exactly
-      // what painted Save over the view controls before.
-      //
-      // Not `max-w-max`, though the title has it: the switcher's label is
-      // `w-0` (so a long name does not ask the row for the whole string)
-      // and gets its width only from this group growing, so capping the
-      // group at its max-content pins the switcher at its 6em floor. The
-      // cost is that the audience word and Save stand at the far end of
-      // the group rather than against the name while the list is folded —
-      // an open item in todo.md.
-      className={cn('flex grow items-center', SPACE.WITHIN)}
+      // It used to be a flex box that carried `grow` — the group's spring —
+      // and the switcher grew inside it up to its own label (`w-0 grow
+      // max-w-fit`). With a long name that was fine: the switcher took the
+      // room and the audience word and Save stood right after it. With a
+      // short one the switcher stopped at its label and the box went on
+      // growing, so the audience and Save stood at the far end of an empty
+      // stretch instead of against the name (D12 Ⅰ). Capping the box at
+      // `max-w-max` was no answer: the switcher is `w-0` precisely so a
+      // long name does not ask the row for the whole string, which also
+      // makes its max-content contribution its 6em floor — the cap pinned
+      // it there. As direct items the switcher is the group's spring
+      // itself, grows to its label and no further, the audience and Save
+      // follow it, and whatever is left over lies after Save where nothing
+      // stands. The group's floor is unchanged: it is the sum of its items'
+      // floors either way, and the switcher keeps its own.
+      className="contents"
     >
       <IconButton
         ref={expandRef}

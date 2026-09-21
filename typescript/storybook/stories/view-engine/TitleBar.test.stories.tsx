@@ -94,6 +94,20 @@ const floorOf = (name: HTMLElement) =>
   6 * parseFloat(getComputedStyle(name).fontSize);
 
 /** How wide that element is once the column is this wide. */
+/**
+ * The elements laid out as this group's flex items: its children, except
+ * that a `display: contents` child stands aside and its own children take
+ * its place, and a `display: none` child is not laid out at all.
+ */
+function items(group: Element): Element[] {
+  return [...group.children].flatMap(child => {
+    const display = getComputedStyle(child).display;
+    if (display === 'none') return [];
+    if (display === 'contents') return items(child);
+    return [child];
+  });
+}
+
 function widthAt(host: HTMLElement, width: number, element: Element): number {
   host.style.width = `${width}px`;
   return box(element).width;
@@ -135,8 +149,9 @@ function walk(host: HTMLElement, from: number, to: number, step = 4): string[] {
 
     // A group that reports it fits while its contents do not is the whole of
     // the bug: the row above it believes the report and never wraps.
-    for (const child of identity.children) {
-      if (getComputedStyle(child).display === 'none') continue;
+    // The folded group is `display: contents` — no box of its own, its
+    // items are the group's — so what is walked is what has a box.
+    for (const child of items(identity)) {
       if (!inside(box(child), box(identity)))
         say(`${child.getAttribute('data-slot') ?? child.tagName} spills out`);
     }

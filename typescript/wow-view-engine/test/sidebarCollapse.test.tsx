@@ -175,6 +175,11 @@ describe('collapsing the sidebar', () => {
       '[data-slot="view-collapsed"]',
     )!;
     expect(collapsed.className).not.toContain('min-w-0');
+    // And it has no box of its own: the switcher is the identity group's
+    // spring directly, so with a short name the audience word and Save
+    // stand against it rather than at the far end of a box that grew on.
+    expect(collapsed.className).toContain('contents');
+    expect(collapsed.className).not.toContain('grow');
   });
 
   /**
