@@ -40,6 +40,7 @@ import displayMeta, {
   WithActions as DisplayWithActions,
   WithData as DisplayWithData,
 } from './RecordWorkbench.stories.js';
+import { measureBorderContrast } from './contrast.js';
 import { tableSettingsStore } from './fixtures.js';
 import {
   amountOf,
@@ -1772,6 +1773,109 @@ export const PopupsOverRaisedHostLayer: Story = {
     }
   },
 };
+
+/** What WCAG 1.4.11 asks of the visual information a control is known by. */
+const NON_TEXT_CONTRAST = 3;
+
+/**
+ * The edge every unticked control is made of, measured in the browser.
+ *
+ * A checkbox nobody has ticked is *only* this ring — there is nothing else on
+ * screen to say a control is there — and so are the outlines of an Input and
+ * of a Select trigger. All three draw it with `border-input`, the theme's
+ * `--input`, which is why this is measured rather than argued: a stylesheet
+ * says `oklch(…)` and Tailwind's opacity modifiers say `color-mix(…)`, while
+ * what reaches the eye is the cascaded colour composited over whatever is
+ * behind it. jsdom paints none of that, so this regression lives here.
+ *
+ * The three the theme has to carry are on one screen: the table's select-all
+ * Checkbox, the page-size Select under the rows, and — once a number field is
+ * ticked into the conditions, the way `PickSeveralFields` does it — an Input
+ * with no value in it yet.
+ */
+const controlBorders = (theme: 'light' | 'dark'): Story => ({
+  ...DisplayWithData,
+  args: { ...DisplayWithData.args, theme },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    // Two stories measuring the same theme would both pass and prove half of
+    // this, so the mode is read off the surface before anything else.
+    await expect(
+      canvasElement.querySelector('[data-slot="view-surface"]'),
+    ).toHaveAttribute('data-theme', theme);
+
+    await userEvent.click(
+      canvas.getByRole('button', {
+        name: new RegExp(`^${defaultMessages['label.filter.panel']}`),
+      }),
+    );
+    await userEvent.click(
+      await canvas.findByRole('button', {
+        name: defaultMessages['label.filter.add'],
+      }),
+    );
+    const picker = await within(document.body).findByRole('dialog');
+    await userEvent.click(
+      within(picker).getByRole('checkbox', { name: '金额' }),
+    );
+    // Shut behind itself, so nothing is measured through a popup and axe
+    // judges the page as a user would leave it.
+    await userEvent.click(
+      within(picker).getByRole('button', {
+        name: defaultMessages['label.filter.pick-done'],
+      }),
+    );
+    const band = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="editor-band"]',
+      );
+      if (!found) throw new Error('The editor band has not opened.');
+      return found;
+    });
+
+    // Ticked, a checkbox is a filled square and this stops being the whole
+    // of it; the measurement is about the state that has nothing else.
+    const checkbox = canvas.getByRole('checkbox', {
+      name: defaultMessages['label.record.select-all'],
+    });
+    await expect(checkbox).not.toBeChecked();
+
+    const controls = {
+      checkbox,
+      input: within(band).getByRole('spinbutton'),
+      select: within(paginationBar(canvasElement)).getByRole('combobox', {
+        name: defaultMessages['label.pagination.page-size'],
+      }),
+    };
+
+    // All three are measured before anything is asserted, so a failure says
+    // what every control came to rather than stopping at the first one.
+    const measured = Object.entries(controls).map(([name, control]) => ({
+      name,
+      ...measureBorderContrast(control),
+    }));
+    const report = measured
+      .map(
+        ({ name, ratio, colors }) =>
+          `${name} ${ratio.toFixed(2)}:1 (${colors.border} on ${colors.fill} over ${colors.surface})`,
+      )
+      .join('; ');
+    await expect(
+      Math.min(...measured.map(({ ratio }) => ratio)),
+      `${theme} — ${report}`,
+    ).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
+  },
+});
+
+/** The light theme's `--input`, over the card and the header it sits on. */
+export const ControlBordersInLightTheme: Story = controlBorders('light');
+
+/**
+ * The same controls with the surface pinned dark, where the token is white at
+ * an opacity and carries the `bg-input/30` fill with it.
+ */
+export const ControlBordersInDarkTheme: Story = controlBorders('dark');
 
 /**
  * The nearest ancestor that would trap this element in a stacking context of

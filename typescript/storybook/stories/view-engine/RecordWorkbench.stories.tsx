@@ -105,6 +105,7 @@ function RecordWorkbenchDemo({
   pinnedColumn = false,
   refreshing = false,
   narrowHost = false,
+  theme,
 }: {
   behaviour?: SourceBehaviour;
   instanceId?: string;
@@ -150,6 +151,11 @@ function RecordWorkbenchDemo({
    * rather than on the workbench, because that is where a host puts it.
    */
   narrowHost?: boolean;
+  /**
+   * Pins the surface to one mode, the way a host does when its page is not
+   * the one deciding. Left unset the view follows the toolbar's `.dark`.
+   */
+  theme?: 'light' | 'dark';
 }) {
   const workbench = (
     <StoryEngine
@@ -190,6 +196,7 @@ function RecordWorkbenchDemo({
           instanceId={instanceId ?? savedViews[0].id}
           actions={withActions ? businessActions : undefined}
           messages={localized ? zhCN : undefined}
+          theme={theme}
           // A narrow column is a column with no room for a 224px sidebar
           // beside it, so it opens the way a phone does: the list folded
           // away and the whole width given to the view.
@@ -357,6 +364,7 @@ const meta = {
     refreshing: { table: { disable: true } },
     raisedHost: { table: { disable: true } },
     narrowHost: { table: { disable: true } },
+    theme: { table: { disable: true } },
   },
 } satisfies Meta<typeof RecordWorkbenchDemo>;
 

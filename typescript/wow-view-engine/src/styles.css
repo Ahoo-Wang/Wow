@@ -121,7 +121,19 @@
   --warning: var(--fve-warning, oklch(0.555 0.163 48.998deg));
   --info: var(--fve-info, oklch(0.546 0.245 262.881deg));
   --border: var(--fve-border, oklch(0.922 0 0deg));
-  --input: var(--fve-input, oklch(0.922 0 0deg));
+
+  /*
+   * `input` is the edge of a control, not a divider: an unticked checkbox is
+   * *only* this ring, so WCAG 1.4.11 asks it for 3:1 against the surface
+   * behind it — the registry's own step measured 1.26:1 on a card. This grey
+   * measures 3.64:1 on the card and 3.52:1 on the editor band's tint, and a
+   * host overriding `--fve-input` owes its own theme the same. Held by
+   * `ControlBordersInLightTheme` / `ControlBordersInDarkTheme` in
+   * `stories/view-engine/RecordWorkbench.test.stories.tsx`, which measure the
+   * cascaded colour in a real browser. `border` (dividers) is a separate
+   * question and keeps the registry's value.
+   */
+  --input: var(--fve-input, oklch(0.62 0 0deg));
   --ring: var(--fve-ring, oklch(0.708 0 0deg));
 
   /*
@@ -167,7 +179,14 @@
   --warning: var(--fve-dark-warning, oklch(0.828 0.189 84.429deg));
   --info: var(--fve-dark-info, oklch(0.707 0.165 254.624deg));
   --border: var(--fve-dark-border, oklch(1 0 0deg / 10%));
-  --input: var(--fve-dark-input, oklch(1 0 0deg / 15%));
+
+  /*
+   * The dark half of the same rule: 15% white measured 1.47:1 on the dark
+   * card, and 40% measures 3.29:1 at its worst — against the control's own
+   * `bg-input/30` fill, which this value lifts with it, being the same token
+   * at another opacity.
+   */
+  --input: var(--fve-dark-input, oklch(1 0 0deg / 40%));
   --ring: var(--fve-dark-ring, oklch(0.556 0 0deg));
   --chart-1: var(--fve-dark-chart-1, #3987e5);
   --chart-2: var(--fve-dark-chart-2, #d95926);
