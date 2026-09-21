@@ -151,7 +151,7 @@ function cardTitle(
   const field = card.titleField;
   return (
     (field && displayValue(value, field, display)) ??
-    defaultValue(value, messages, field?.numberFormat) ??
+    defaultValue(value, messages, field?.numberFormat, display.locale) ??
     String(key)
   );
 }
@@ -160,12 +160,13 @@ function defaultValue(
   value: unknown,
   messages: MessageFormatters,
   format?: NumberFormat,
+  locale?: string,
 ): React.ReactNode {
   switch (typeof value) {
     case 'string':
       return value;
     case 'number':
-      return formatNumber(value, format);
+      return formatNumber(value, format, locale);
     case 'bigint':
       return value.toString();
     case 'boolean':

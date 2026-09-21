@@ -719,8 +719,11 @@ describe('projectRecord', () => {
         width: undefined,
         // And the last column is held on the right for the same kind of
         // reason (D13): both ends of the table stay put, so it has a frame
-        // a reader can see rather than two edges that drift.
+        // a reader can see rather than two edges that drift. `end` says it
+        // is held for being last, so a host's action column can take the
+        // place instead.
         pinned: 'right',
+        end: true,
         sortable: false,
         numberFormat: { style: 'currency', currency: 'CNY' },
       },

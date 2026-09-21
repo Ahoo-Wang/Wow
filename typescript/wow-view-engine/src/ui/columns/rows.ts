@@ -187,6 +187,9 @@ function lastColumn(
   input: ColumnSettingInput,
   byName: ReadonlyMap<string, FieldDefinition>,
 ): string | null {
+  // With a row-action column the host's slot is the end, and it is listed
+  // as fixed on its own row; no data column is held for being last then.
+  if (input.actions) return null;
   const seen = new Set<string>();
   const drawn = input.columns.flatMap(name => {
     if (seen.has(name) || !byName.has(name)) return [];

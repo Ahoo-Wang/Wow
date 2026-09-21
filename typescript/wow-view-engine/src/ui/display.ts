@@ -160,8 +160,12 @@ export function isoDay(date: Date, context: DisplayContext): string {
 }
 
 /** A number in the format its field declared; as written when it has none. */
-export function formatNumber(value: number, format?: NumberFormat): string {
-  const formatter = format && numberFormatter(format);
+export function formatNumber(
+  value: number,
+  format?: NumberFormat,
+  locale?: string,
+): string {
+  const formatter = format && numberFormatter(format, locale);
   return formatter ? formatter.format(value) : String(value);
 }
 
@@ -210,7 +214,8 @@ export function cellText(
   if (badges) return badges.map(entry => entry.label).join(', ');
   const shown = displayValue(value, field, context);
   if (shown !== undefined) return shown;
-  if (typeof value === 'number') return formatNumber(value, field.numberFormat);
+  if (typeof value === 'number')
+    return formatNumber(value, field.numberFormat, context.locale);
   if (typeof value === 'bigint') return value.toString();
   return valueText(value, messages, field.numberFormat);
 }
@@ -555,13 +560,22 @@ const numberFormatters = new Map<string, Intl.NumberFormat | null>();
  * the whole table down mid-render. The language gives way first, as a date's
  * does; a format that still fails is dropped, and the number shows unformatted.
  */
-function numberFormatter(format: NumberFormat): Intl.NumberFormat | null {
-  const key = JSON.stringify(format);
+function numberFormatter(
+  format: NumberFormat,
+  surfaceLocale?: string,
+): Intl.NumberFormat | null {
+  // The format's own language first, then the surface's: a definition that
+  // names one has a reason, and a surface in zh-CN showing `CN¥` where the
+  // page around it says 「¥」 is a number formatted for somebody else.
+  const key = JSON.stringify([format, surfaceLocale ?? null]);
   let found = numberFormatters.get(key);
   if (found === undefined) {
     const { locale, ...options } = format;
     found =
-      buildNumber(locale, options) ?? buildNumber(undefined, options) ?? null;
+      buildNumber(locale ?? surfaceLocale, options) ??
+      buildNumber(surfaceLocale, options) ??
+      buildNumber(undefined, options) ??
+      null;
     numberFormatters.set(key, found);
   }
   return found;

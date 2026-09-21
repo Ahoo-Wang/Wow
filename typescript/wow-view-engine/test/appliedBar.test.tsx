@@ -432,7 +432,7 @@ describe('the applied badge in another language', () => {
   it('says the field, the operator and the option in Chinese', () => {
     inChinese([status()]);
 
-    expect(screen.getByText('状态 是其中之一 待出库')).toBeDefined();
+    expect(screen.getByText('状态 属于 待出库')).toBeDefined();
     // And nothing of the English line the kind produced beside it.
     expect(screen.queryByText(/Status IN Pending/)).toBeNull();
   });
@@ -456,7 +456,7 @@ describe('the applied badge in another language', () => {
     ]);
 
     expect(screen.getByText('标签 含有其中任一 加急')).toBeDefined();
-    expect(screen.queryByText(/是其中之一/)).toBeNull();
+    expect(screen.queryByText(/属于/)).toBeNull();
   });
 
   it('names the whole bar in Chinese, remove included', () => {
@@ -464,7 +464,7 @@ describe('the applied badge in another language', () => {
 
     expect(screen.getByRole('region', { name: '正在显示' })).toBeDefined();
     expect(
-      screen.getByRole('button', { name: '清空 状态 是其中之一 待出库' }),
+      screen.getByRole('button', { name: '清空 状态 属于 待出库' }),
     ).toBeDefined();
   });
 
@@ -647,7 +647,7 @@ describe('the applied badge in another language', () => {
     ]);
 
     expect(
-      screen.getByText('满足任一 状态 是其中之一 待出库、金额 介于 1 ~ 9'),
+      screen.getByText('满足任一 状态 属于 待出库、金额 介于 1 ~ 9'),
     ).toBeDefined();
   });
 });

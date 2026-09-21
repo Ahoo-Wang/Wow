@@ -132,19 +132,19 @@ describe('the column settings model', () => {
   it('holds the row key on the left and the actions on the right', () => {
     const rows = columnSettingRows({ ...input, actions: true });
 
-    // `amount` is the column the table draws last, so it is listed on the
-    // right and shown fixed there, the way the row key is on the left.
+    // With a row-action column the host's slot is the end (D13), so no data
+    // column is held for being last: `amount` is an ordinary middle column
+    // again, and the actions row is the one shown fixed on the right.
     expect(rows.map(row => row.region)).toEqual([
-      'right',
+      'middle',
       'left',
       'middle',
       'right',
     ]);
     expect(rows[0]).toMatchObject({
       field: 'amount',
-      fixed: true,
-      pinned: 'right',
-      movable: false,
+      fixed: false,
+      movable: true,
     });
     expect(rows[1]).toMatchObject({ fixed: true, pinned: 'left' });
     expect(rows[3]).toMatchObject({
@@ -209,9 +209,9 @@ describe('the column settings popover', () => {
 
     await user.click(screen.getByRole('button', { name: /Columns/ }));
 
-    // `amount` is the last column the table draws, so it is listed on the
-    // right with the actions beyond it rather than in the middle.
-    expect(listed()).toEqual(['id', 'warehouse', 'amount', ACTIONS_COLUMN]);
+    // The host's action column is the end, so `amount` is a middle column
+    // in config order and only the actions row sits on the right.
+    expect(listed()).toEqual(['id', 'amount', 'warehouse', ACTIONS_COLUMN]);
     expect(
       [...document.querySelectorAll('[data-slot="column-region"]')].map(
         region => region.getAttribute('aria-label'),

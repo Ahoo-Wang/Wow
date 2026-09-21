@@ -38,6 +38,7 @@
 - DATE_HISTOGRAM 的键按单位显示为它起始的年、季度（`2026 Q3`）、月、日或时刻，年、季度、月按公历命名——Wow 按公历切桶，波斯历或伊斯兰历的月份会指向桶并不覆盖的时段——季度序号按阿拉伯数字计算，不受语言数字体系影响。数字仍按 `numberFormat`，布尔仍走措辞——分析表格与图表类目共用 `valueText`，货币分组在坐标轴上也不是裸数字——宿主给了 `renderCell`／`renderValue` 就由宿主决定。语言取 `ViewSurface` 的 `locale`，缺省为运行环境的语言；
 - 工作台的同名属性透传，与 `messages` 是同一个选择，一个管文字，一个管值。时区取 `ViewSurface` 的 `timeZone`，工作台传入引擎的 `environment.timeZone`：相对日期"今天"按它解析，未声明时区的 DATE_HISTOGRAM 按它切桶，界面也按它显示，一行按什么时钟被筛选、被分组，就按什么时钟显示；
 - 分组自己声明了时区的，键按那个时区读。表格、卡片与图表的类目（坐标轴、透视系列、饼图、散点、热力图、分组漏斗的阶段、metric 卡片的趋势）共用这一规则：`RecordColumnView` 带上 `options`，`RecordCardField` 带上 `kind`、`cell`、`options` 与 `numberFormat`，`AnalysisColumnView` 见 [kernels.md#compileanalysis-与-projectanalysis](../kernels.md#compileanalysis-与-projectanalysis)，`AnalysisChart` 经 `AnalysisView.schema` 拿到它们，不受表格选列影响。`numberFormat` 若 Intl 构造不出来（`zh_CN` 这类语言标签、缺币种的货币样式），先放弃语言、再放弃格式，数字按无格式显示，而不是让整张表在渲染中抛错。`spec.colors` 的键仍是内核标出的原值，不随显示文本变。（见 test/display.test.ts「displayValue」）
+- **数字也按界面的语言**：`formatNumber(value, format, locale)` 先取定义里 `numberFormat.locale`，没有就取 `ViewSurface` 的 `locale`——zh-CN 的页面上一个 `CN¥2,450.00` 是给别人格式化的数字，表格、卡片、汇总行三处都传 `display.locale`。
 
 ## 控制器输出合同
 

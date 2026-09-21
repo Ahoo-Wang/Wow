@@ -128,7 +128,8 @@ export function cellValue(
   // format and a boolean its wording below.
   const shown = displayValue(value, field, display);
   if (shown !== undefined) return shown;
-  if (typeof value === 'number') return formatNumber(value, field.numberFormat);
+  if (typeof value === 'number')
+    return formatNumber(value, field.numberFormat, display.locale);
   if (typeof value === 'boolean')
     return messages.label(value ? 'label.value.yes' : 'label.value.no');
   if (typeof value === 'string') return value;

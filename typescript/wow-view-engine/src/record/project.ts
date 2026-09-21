@@ -40,6 +40,13 @@ export interface RecordColumnView {
   cell: string;
   width?: number;
   pinned?: RecordColumnPin;
+  /**
+   * True on the column the layout holds against the right edge because it
+   * is drawn last (D13) — not because the config pinned it. A host that
+   * puts a row-action column after it takes that place, and the table lets
+   * this one go (`ui/record/columns.ts`).
+   */
+  end?: true;
   sortable: boolean;
   numberFormat?: NumberFormat;
   /** An enum's choices, so a cell can show a value by its label. */
@@ -70,6 +77,7 @@ function columnView(
   field: FieldDefinition,
   column: RecordColumn,
   pinned: RecordColumnPin | null,
+  end: boolean,
 ): RecordColumnView {
   return {
     field: field.name,
@@ -78,6 +86,7 @@ function columnView(
     cell: field.cell ?? field.kind,
     width: column.width,
     pinned: pinned ?? undefined,
+    ...(end ? { end: true } : {}),
     sortable: field.sortable === true,
     numberFormat: field.numberFormat,
     ...(field.options ? { options: field.options } : {}),
@@ -205,6 +214,7 @@ export function projectRecord(
       place.definition,
       place.column,
       place.field === rowKey ? 'left' : place === end ? 'right' : place.pinned,
+      place === end && place.field !== rowKey,
     ),
   );
 

@@ -170,7 +170,7 @@ const EDGE_RIGHT =
  * seam between two columns nothing passes between.
  */
 export function actionCell(columns: readonly RecordColumnView[]): string {
-  const edge = !columns.some(isPinned('right'));
+  const edge = !heldColumns(columns, { actions: true }).some(isPinned('right'));
   return `sticky right-0 z-10 w-0 bg-inherit whitespace-nowrap${edge ? ` ${EDGE_RIGHT}` : ''}`;
 }
 
@@ -211,6 +211,7 @@ export function columnPins(
   layout: { selectable: boolean; actions: boolean },
 ): Map<string, ColumnPin> {
   const pins = new Map<string, ColumnPin>();
+  columns = heldColumns(columns, layout);
   // The boundary with the scrolling middle is the last column pinned left
   // and the first pinned right; only those two draw an edge. The selection
   // column is never one — a column pinned left always follows it — and the
@@ -233,6 +234,25 @@ export function columnPins(
   });
 
   return pins;
+}
+
+/**
+ * The columns as the table holds them once the host's row-action column is
+ * counted. The projection holds the last data column against the right edge
+ * because a frame needs its end (D13) — but it cannot see the action slot,
+ * and when there is one *that* is the end: two held columns at one edge,
+ * with a seam between them that nothing ever passes, is a frame with a
+ * doubled side. So the end column lets go and the actions take its place;
+ * a column the config itself pinned right keeps its pin.
+ */
+export function heldColumns(
+  columns: readonly RecordColumnView[],
+  layout: { actions: boolean },
+): readonly RecordColumnView[] {
+  if (!layout.actions) return columns;
+  return columns.map(column =>
+    column.end ? { ...column, pinned: undefined } : column,
+  );
 }
 
 function isPinned(side: 'left' | 'right') {

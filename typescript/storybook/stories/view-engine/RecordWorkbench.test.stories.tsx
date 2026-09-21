@@ -2476,7 +2476,10 @@ export const PinnedEdges: Story = {
     )!;
     await expect(inner).toHaveAttribute('data-pin', 'left');
     await expect(left).toHaveAttribute('data-pin', 'left');
-    await expect(end).toHaveAttribute('data-pin', 'right');
+    // With a row-action column the host's slot is the end (D13): the last
+    // data column lets go, and the actions wear the right edge.
+    await expect(end).not.toHaveAttribute('data-pin');
+    await expect(actions).toHaveAttribute('data-pin', 'right');
 
     /** Whether each cell draws an edge, on all three layers of one column. */
     const edged = (head: HTMLTableCellElement) =>
@@ -2496,7 +2499,7 @@ export const PinnedEdges: Story = {
     });
     const NONE = [false, false, false];
     const ALL = [true, true, true];
-    const FRAMED = { inner: NONE, left: ALL, end: ALL, actions: NONE };
+    const FRAMED = { inner: NONE, left: ALL, end: NONE, actions: ALL };
 
     // Still, and wide enough that nothing has to scroll: the frame is there
     // before anything moves, which is the whole of D13.
@@ -2932,6 +2935,15 @@ const controlBorders = (theme: 'light' | 'dark'): Story => ({
     await userEvent.click(
       within(picker).getByRole('checkbox', { name: '金额' }),
     );
+    // A text input that stands on its own: the picker's search field. The
+    // one inside a condition pill is borderless by design (D12 — the pill
+    // is the field, and draws the one border), so it is not what 1.4.11
+    // asks about; its edge is the pill's.
+    const input = measureBorderContrast(
+      within(picker).getByRole('textbox', {
+        name: zhCN['label.field.search'],
+      }),
+    );
     // Shut behind itself, so nothing is measured through a popup and axe
     // judges the page as a user would leave it.
     await userEvent.click(
@@ -2939,14 +2951,6 @@ const controlBorders = (theme: 'light' | 'dark'): Story => ({
         name: zhCN['label.filter.pick-done'],
       }),
     );
-    const band = await waitFor(() => {
-      const found = canvasElement.querySelector<HTMLElement>(
-        '[data-slot="editor-band"]',
-      );
-      if (!found) throw new Error('The editor band has not opened.');
-      return found;
-    });
-
     // Ticked, a checkbox is a filled square and this stops being the whole
     // of it; the measurement is about the state that has nothing else.
     const checkbox = canvas.getByRole('checkbox', {
@@ -2956,7 +2960,6 @@ const controlBorders = (theme: 'light' | 'dark'): Story => ({
 
     const controls = {
       checkbox,
-      input: within(band).getByRole('spinbutton'),
       select: within(paginationBar(canvasElement)).getByRole('combobox', {
         name: zhCN['label.pagination.page-size'],
       }),
@@ -2964,10 +2967,13 @@ const controlBorders = (theme: 'light' | 'dark'): Story => ({
 
     // All three are measured before anything is asserted, so a failure says
     // what every control came to rather than stopping at the first one.
-    const measured = Object.entries(controls).map(([name, control]) => ({
-      name,
-      ...measureBorderContrast(control),
-    }));
+    const measured = [
+      { name: 'input', ...input },
+      ...Object.entries(controls).map(([name, control]) => ({
+        name,
+        ...measureBorderContrast(control),
+      })),
+    ];
     const report = measured
       .map(
         ({ name, ratio, colors }) =>

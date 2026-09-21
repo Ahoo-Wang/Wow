@@ -584,13 +584,13 @@ export function WorkbenchShell({
                           pending={editorPending}
                         />
                       )}
+                      {freshness}
                       {expandable && (
                         <ViewExpandToggle
                           expansion={fill}
                           ref={expandViewRef}
                         />
                       )}
-                      {freshness}
                     </>
                   )
                 }

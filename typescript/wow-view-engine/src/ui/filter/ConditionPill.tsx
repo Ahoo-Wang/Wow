@@ -217,7 +217,10 @@ export function ConditionPill({
         {label}
       </span>
       <div className="w-24 shrink-0">{operatorSelect}</div>
-      <div className="min-w-0 flex-1">
+      {/* One border per condition (D12): the pill is the field, so the
+          value control inside it draws none of its own — like the operator
+          select beside it — and shows focus by the ring alone. */}
+      <div className="min-w-0 flex-1 [&_[data-slot=input]]:border-transparent [&_[data-slot=input]]:bg-transparent [&_[data-slot=input]]:shadow-none [&_[data-slot=select-trigger]]:border-transparent [&_[data-slot=select-trigger]]:bg-transparent [&_[data-slot=select-trigger]]:shadow-none">
         {editor && (
           <FilterValueEditor
             editor={editor}

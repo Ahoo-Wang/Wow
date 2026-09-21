@@ -98,7 +98,13 @@ export function ExportMenu({ control }: ExportMenuProps) {
             {messages.label('label.export.title')}
           </TooltipContent>
         </Tooltip>
-        <DropdownMenuContent align="end" data-slot="export-menu">
+        <DropdownMenuContent
+          align="end"
+          data-slot="export-menu"
+          // Wide enough for the longest item on one line: a scope that wraps
+          // reads as two items.
+          className="min-w-64"
+        >
           {busy ? (
             <div
               data-slot="export-progress"

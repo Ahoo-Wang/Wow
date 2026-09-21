@@ -19,6 +19,7 @@ import type {
 } from '../../record/index.js';
 import { formatNumber } from '../display.js';
 import { useViewMessages } from '../MessagesProvider.js';
+import { useSurfaceDisplay } from '../ViewSurface.js';
 import { TableCell, TableFooter, TableRow } from '../components/table.js';
 import { actionCell, SELECT_CELL, type ColumnPin } from './columns.js';
 
@@ -167,6 +168,7 @@ function SummaryLine({
  */
 function SummaryValue({ cell }: { cell: SummaryCell }) {
   const messages = useViewMessages();
+  const display = useSurfaceDisplay();
   return (
     <span
       className="flex items-baseline justify-end gap-1 whitespace-nowrap"
@@ -181,7 +183,7 @@ function SummaryValue({ cell }: { cell: SummaryCell }) {
       <span data-slot="summary-value" className="tabular-nums">
         {cell.value === null
           ? messages.label('label.summary.unavailable')
-          : formatNumber(cell.value, cell.numberFormat)}
+          : formatNumber(cell.value, cell.numberFormat, display.locale)}
       </span>
     </span>
   );
