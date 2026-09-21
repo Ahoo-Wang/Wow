@@ -561,26 +561,6 @@ describe('RecordWorkbench', () => {
       expect(JSON.stringify(query.filter)).toContain('CN');
   });
 
-  it('runs nothing when the host condition is not admissible', async () => {
-    const { engine, source } = setup();
-
-    render(
-      <EmbeddedView
-        engine={engine}
-        instanceId="orders-1"
-        scopeFilter={{
-          op: 'and',
-          children: [{ field: 'nope', operator: 'EQ', value: 'x' }],
-        }}
-      />,
-    );
-
-    await waitFor(() => expect(screen.getByText(/needs fixing/i)).toBeTruthy());
-    // Widening to every record would be the worst possible reading of a
-    // condition the definition rejected.
-    expect(vi.mocked(source.paged)).not.toHaveBeenCalled();
-  });
-
   it('reports a saved config the definition no longer admits', async () => {
     const engine = new ViewEngine({
       definitions: [ordersDefinition()],

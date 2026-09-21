@@ -162,27 +162,30 @@ export const ScopeRefused: Story = {
 };
 
 /**
- * The same refusal on the first open, which today says something else.
+ * The same refusal on the first open, in the same words (D17-5).
  *
- * A scope the definition cannot take is merged into the config before the
- * first admission, so what fails is the config — and the line the reader
- * gets names the *view* as the thing to fix, when the view is fine and it is
- * the page's own condition that was refused. This pins what it actually says
- * so that fixing it is a visible change rather than a silent one; the entry
- * is in `docs/design/todo.md`.
+ * A scope the definition cannot take no longer rides into the first
+ * admission as part of the config: what was refused is the *page's* own
+ * condition, and the page is the only one who could change it — the view is
+ * fine, and a host cannot fix somebody else's saved config anyway.
  */
 export const ScopeRefusedOnOpen: Story = {
   ...DisplayScopeRefusedOnOpen,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(
-      await canvas.findByText(zhCN['label.view.needs-fixing']),
+      await canvas.findByText(zhCN['label.scope.refused']),
     ).toBeVisible();
-    await expect(canvas.queryByText(zhCN['label.scope.refused'])).toBeNull();
-    // Nothing runs, so there is nothing to read — which is the other half of
-    // the problem: a refused *narrowing* is supposed to leave the wider
-    // result on screen with a warning over it.
-    await expect(canvas.queryByRole('table')).toBeNull();
+    await expect(
+      canvas.queryByText(zhCN['label.view.needs-fixing']),
+    ).toBeNull();
+    // And the un-narrowed result is on screen under the alert, as it is for
+    // a narrowing refused later: the page not getting the range it asked for
+    // is no reason to withhold what the view does say.
+    const table = await canvas.findByRole('table');
+    await waitFor(() =>
+      expect(readColumn(table, '订单号')).toEqual(PENDING_BY_AMOUNT),
+    );
   },
 };
 

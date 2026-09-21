@@ -236,6 +236,35 @@ describe('useOpenView', () => {
   });
 
   /**
+   * The same on the first open (D17-5). The condition goes in at
+   * construction, where nobody holds a return value, so the refusal is read
+   * off the runtime — and the view runs un-narrowed rather than waiting to
+   * be fixed for something that was never its own.
+   */
+  it('hands back the issues a narrowing refused on open produced', async () => {
+    const source = testSource();
+    const { engine } = engineWith({ source });
+    const refused: FilterTree = {
+      op: 'and',
+      children: [
+        { field: 'nope', operator: `${FilterOperator.EQ}`, value: 'x' },
+      ],
+    };
+
+    const { result } = renderHook(() =>
+      useOpenView(engine, 'orders-1', refused),
+    );
+
+    await waitFor(() =>
+      expect(result.current.scopeIssues.map(found => found.code)).toEqual([
+        'filter.field.unknown',
+      ]),
+    );
+    expect(result.current.runtime?.getSnapshot().issues).toEqual([]);
+    await waitFor(() => expect(source.paged).toHaveBeenCalledTimes(1));
+  });
+
+  /**
    * `setScopeFilter` reports every finding of the merged condition, so a
    * view whose saved config already carried a warning answered an accepted
    * narrowing with that warning, and the hook called it a refusal.

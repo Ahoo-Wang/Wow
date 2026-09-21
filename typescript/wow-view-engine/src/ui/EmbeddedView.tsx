@@ -111,8 +111,11 @@ export function EmbeddedView({
   onRenderFailure,
 }: EmbeddedViewProps) {
   // The condition goes in with the config, not after it: `useOpenView` hands
-  // it to `engine.open`, so the opening query is already scoped and an
-  // inadmissible condition is reported instead of being quietly dropped.
+  // it to `engine.open`, so the opening query is already scoped rather than
+  // going out wide and being narrowed a moment later. One the definition
+  // refuses is reported as a refusal instead of being quietly dropped — and
+  // instead of being read as a defect of the view, which is what it used to
+  // be when it entered the first admission as part of the config.
   const opened = useOpenView(engine, instanceId, scopeFilter);
   const messages = useViewMessages(wording);
   const runtime = opened.runtime;
@@ -135,7 +138,11 @@ export function EmbeddedView({
       {/*
         A refused narrowing leaves the wider result running, which is the one
         outcome this must never show in silence: the page asked for one
-        customer's shipments and would otherwise quietly list everyone's.
+        customer's shipments and would otherwise quietly list everyone's. It
+        reads the same on the first open as on any later one — what was
+        refused is the page's own condition, and the page is who can change
+        it; the view below is whatever its author saved, and still worth
+        showing (D17-5).
       */}
       {opened.scopeIssues.length > 0 && (
         <Alert variant="destructive">

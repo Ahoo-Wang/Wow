@@ -25,6 +25,7 @@ import {
   type FilterTree,
   type ProjectedRecord,
   type RecordData,
+  type RuntimeLimits,
   type ViewInstance,
   type ViewSource,
 } from '../src/index.js';
@@ -59,6 +60,7 @@ function harness(
     source?: ViewSource;
     saved?: ViewInstance | null;
     runner?: RequestRunner;
+    limits?: RuntimeLimits;
     scopeFilter?: FilterTree | null;
   } = {},
 ): Harness {
@@ -73,7 +75,7 @@ function harness(
     scope: 'personal',
     saved: options.saved ?? null,
     kinds: builtinFieldKinds,
-    limits: DEFAULT_RUNTIME_LIMITS,
+    limits: options.limits ?? DEFAULT_RUNTIME_LIMITS,
     environment: clock.environment,
     source,
     runner: options.runner ?? new RequestRunner(),
@@ -492,6 +494,14 @@ describe('DataViewRuntime admission', () => {
     children: [{ field: 'nope', operator: `${FilterOperator.EQ}`, value: 'x' }],
   };
 
+  /** A condition every definition here admits, for the scope that takes. */
+  const warehouseCN: FilterTree = {
+    op: 'and',
+    children: [
+      { field: 'warehouse', operator: `${FilterOperator.EQ}`, value: 'CN' },
+    ],
+  };
+
   it('runs no command on a config that was never admitted', async () => {
     // A stored view whose config the definition now refuses: it waits for a
     // fix, and neither Refresh nor a page turn runs it as it stands.
@@ -548,22 +558,123 @@ describe('DataViewRuntime admission', () => {
     expect(source.paged).toHaveBeenCalledTimes(2);
   });
 
+  /**
+   * A scope in force is part of every later judgement. An edit that
+   * recomputed the issues from the draft alone would let `apply` run a merged
+   * condition admission never saw — here, one over the node budget.
+   */
   it('keeps judging the draft with the injected scope after an edit', async () => {
-    const { runtime, source } = harness({ scopeFilter: unknownField });
-    expect(runtime.getSnapshot().issues.map(found => found.code)).toContain(
-      'filter.field.unknown',
-    );
+    const { runtime, source } = harness({
+      limits: { ...DEFAULT_RUNTIME_LIMITS, maxFilterNodes: 3 },
+      scopeFilter: warehouseCN,
+    });
+    expect(runtime.getSnapshot().issues).toEqual([]);
+    expect(runtime.scopeFilter).toEqual(warehouseCN);
 
-    // An edit of anything used to recompute the issues from the draft alone,
-    // which let `apply` run the merged, inadmissible condition.
-    runtime.edit({ pageSize: 10 });
+    runtime.edit({
+      filter: {
+        op: 'and',
+        children: [
+          { field: 'warehouse', operator: `${FilterOperator.EQ}`, value: 'EU' },
+          { field: 'status', operator: `${FilterOperator.EQ}`, value: 'OPEN' },
+        ],
+      },
+    });
     runtime.apply();
     await flush();
 
+    // Three nodes of its own is within the budget; the two the scope adds
+    // are not, and they are in force whether the editor shows them or not.
     expect(runtime.getSnapshot().issues.map(found => found.code)).toContain(
-      'filter.field.unknown',
+      'filter.tree.too-many-nodes',
     );
     expect(source.paged).not.toHaveBeenCalled();
+  });
+
+  /**
+   * D17-5: a condition the definition cannot take is the host's and not this
+   * view's, so it does not become an error of the config. The view runs as
+   * its author saved it, un-narrowed, and says what did not take.
+   */
+  it('leaves out a scope it refuses and runs the view without it', async () => {
+    const { runtime, source } = harness({ scopeFilter: unknownField });
+
+    expect(runtime.getSnapshot().issues).toEqual([]);
+    expect(runtime.scopeFilter).toBeNull();
+    expect(runtime.refusedScope.map(found => found.code)).toEqual([
+      'filter.field.unknown',
+    ]);
+
+    runtime.apply();
+    await flush();
+
+    expect(source.paged).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(runtime.getSnapshot().result?.config)).not.toContain(
+      'nope',
+    );
+  });
+
+  /**
+   * A view already waiting to be fixed is not fixed by refusing the host's
+   * condition too: only what the condition alone breaks is a refusal.
+   */
+  it('keeps a view own errors out of what it refuses the host', () => {
+    const { runtime } = harness({
+      config: recordConfig({ pageSize: 5000 }),
+      scopeFilter: unknownField,
+    });
+
+    expect(runtime.refusedScope.map(found => found.code)).toEqual([
+      'filter.field.unknown',
+    ]);
+    expect(runtime.getSnapshot().issues.map(found => found.code)).toEqual([
+      'record.pageSize.too-large',
+    ]);
+  });
+
+  /**
+   * The same two apart on a later injection. The scope takes — nothing about
+   * it is refused — and the config it lands on is still the one that has to
+   * be fixed before anything runs.
+   */
+  it('takes a scope onto a config that is waiting to be fixed, and runs nothing', async () => {
+    const { runtime, source } = harness({
+      config: recordConfig({ pageSize: 5000 }),
+    });
+
+    expect(runtime.setScopeFilter(warehouseCN)).toEqual([]);
+    await flush();
+
+    expect(runtime.scopeFilter).toEqual(warehouseCN);
+    expect(source.paged).not.toHaveBeenCalled();
+  });
+
+  it('answers a disposed view with what it last refused', () => {
+    const { runtime } = harness({ scopeFilter: unknownField });
+    runtime.dispose();
+
+    expect(runtime.setScopeFilter(null)).toBe(runtime.refusedScope);
+    expect(runtime.refusedScope).toHaveLength(1);
+  });
+
+  /**
+   * A host that builds its condition in render hands over a new object every
+   * time. The answer it gets back has to be the same object while it says the
+   * same thing, or a screen bound to it never stops re-rendering.
+   */
+  it('keeps the refusal it has while the answer says the same', () => {
+    const { runtime } = harness({ scopeFilter: unknownField });
+    const first = runtime.refusedScope;
+    const listener = vi.fn();
+    runtime.subscribe(listener);
+
+    runtime.setScopeFilter({
+      ...unknownField,
+      children: [...unknownField.children],
+    });
+
+    expect(runtime.refusedScope).toBe(first);
+    expect(listener).not.toHaveBeenCalled();
   });
 
   it('reports a stored filter that lost its shape even under a scope', async () => {
@@ -639,16 +750,42 @@ describe('DataViewRuntime admission', () => {
   });
 
   it('rejudges the draft when the scope is cleared or replaced', async () => {
-    const { runtime, source } = harness({ scopeFilter: unknownField });
+    const { runtime, source } = harness({
+      limits: { ...DEFAULT_RUNTIME_LIMITS, maxFilterNodes: 3 },
+      config: recordConfig({
+        filter: {
+          op: 'and',
+          children: [
+            {
+              field: 'warehouse',
+              operator: `${FilterOperator.EQ}`,
+              value: 'EU',
+            },
+            {
+              field: 'status',
+              operator: `${FilterOperator.EQ}`,
+              value: 'OPEN',
+            },
+          ],
+        },
+      }),
+      scopeFilter: warehouseCN,
+    });
+    // Three of its own plus two: refused, so the draft is judged without it.
+    expect(runtime.refusedScope.map(found => found.code)).toEqual([
+      'filter.tree.too-many-nodes',
+    ]);
+    expect(runtime.getSnapshot().issues).toEqual([]);
 
+    // Clearing it takes the refusal with it: what is asked for is in force.
     expect(runtime.setScopeFilter(null)).toEqual([]);
     await flush();
 
+    expect(runtime.refusedScope).toEqual([]);
     expect(runtime.getSnapshot().issues).toEqual([]);
-    expect(source.paged).toHaveBeenCalledTimes(1);
     runtime.apply();
     await flush();
-    expect(source.paged).toHaveBeenCalledTimes(2);
+    expect(source.paged).toHaveBeenCalledTimes(1);
   });
 
   it('addresses the draft own nodes unchanged when a scope is in force', () => {

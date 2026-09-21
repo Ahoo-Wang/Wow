@@ -792,34 +792,47 @@ describe('DashboardViewRuntime admission', () => {
     expect(board.source.paged).toHaveBeenCalledTimes(1);
   });
 
-  it('judges an injected condition with the config from the start', async () => {
+  /**
+   * A condition this board's own fields cannot take is the host's to fix and
+   * not the board's (D17-5): it is left out, said out loud, and the panels
+   * run on what their author saved rather than on nothing at all.
+   */
+  it('leaves out an injected condition it refuses, and runs without it', async () => {
     const board = await harness();
     const runtime = await board.open(boundConfig(), {
       op: 'and',
       children: [{ field: 'unbound', operator: 'EQ', value: 'x' }],
     });
 
-    expect(codes(runtime.getSnapshot().issues)).toContain(
+    expect(codes(runtime.getSnapshot().issues)).not.toContain(
       'filter.field.unknown',
     );
-    expect(board.source.paged).not.toHaveBeenCalled();
+    expect(codes(runtime.refusedScope)).toContain('filter.field.unknown');
+    expect(runtime.scopeFilter).toBeNull();
+    expect(board.source.paged).toHaveBeenCalledTimes(1);
   });
 
   it('keeps judging the draft with the injected condition after an edit', async () => {
     const board = await harness();
-    const runtime = await board.open(boundConfig(), {
-      op: 'and',
-      children: [{ field: 'unbound', operator: 'EQ', value: 'x' }],
-    });
+    // The board's own filter is empty, so what reaches the panels is the
+    // injected condition alone — and it is admitted, because `region` is
+    // bound.
+    const runtime = await board.open(
+      boundConfig({ filter: { op: 'and', children: [] } }),
+      REGION_FILTER,
+    );
+    expect(runtime.scopeFilter).toEqual(REGION_FILTER);
 
-    runtime.edit({ refresh: { interval: null } });
+    // The binding it rides on is taken away. Only a judgement that still
+    // holds the scope sees that the panel can no longer carry it.
+    runtime.edit({ panels: [panel({ bindings: [] })] });
     runtime.apply();
     await flush();
 
     expect(codes(runtime.getSnapshot().issues)).toContain(
-      'filter.field.unknown',
+      'dashboard.binding.missing',
     );
-    expect(board.source.paged).not.toHaveBeenCalled();
+    expect(board.source.paged).toHaveBeenCalledTimes(1);
   });
 });
 

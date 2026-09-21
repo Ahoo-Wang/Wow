@@ -149,6 +149,7 @@ src/
       references.ts               — PanelReferences: loading what panels point at
       children.ts                 — PanelChildren: one child runtime per data panel
       panels.ts                   — Panel helpers: reading, addressing, comparing
+    scope.ts                      — What an injected scope does to admission: the merge, and what it alone is refused for
     requestRunner.ts              — Scheduling; a newer request supersedes a key
     execute.ts                    — The two execution kinds a runtime drives
     source.ts                     — resolveSource — three QueryApi methods

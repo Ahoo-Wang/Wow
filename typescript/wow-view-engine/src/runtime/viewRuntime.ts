@@ -30,13 +30,14 @@ import {
   type ViewInstance,
   type ViewScope,
 } from '../model/index.js';
+import { issue, type FieldKindRegistry } from '../filter/index.js';
 import {
-  isFilterGroup,
-  isSimpleTree,
-  issue,
-  mergeFilters,
-  type FieldKindRegistry,
-} from '../filter/index.js';
+  NO_REFUSAL,
+  sameRefusal,
+  scopeRefusal,
+  withScopeFilter,
+  withoutScopeModeWarning,
+} from './scope.js';
 import type { RuntimeEnvironment } from './environment.js';
 import {
   isRequestSuperseded,
@@ -118,11 +119,31 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
   refresh(): void;
   /** Called when an editor takes or loses focus; pauses auto-refresh. */
   setEditing(active: boolean): void;
-  /** An outer condition ANDed onto the applied filter; never touches the draft. */
+  /**
+   * An outer condition ANDed onto the applied filter; never touches the draft.
+   *
+   * Returns what the condition was refused for, which is empty when it is in
+   * force. A refusal changes nothing: the scope in force stays in force, the
+   * result on screen stays on screen, and the host is told — the one thing
+   * this view must never do is narrow less than the page asked without
+   * saying so.
+   */
   setScopeFilter(tree: FilterTree | null): Issue[];
   /**
-   * The outer condition in force, as `setScopeFilter` last admitted it, or
-   * `null` while none is injected.
+   * What the scope last asked for was refused for, or empty while what was
+   * asked for is in force.
+   *
+   * A refusal is the host's condition and not the view's defect, so it is not
+   * among `state.issues` and does not stop the view (D17-5): a view opened
+   * under a scope its definition cannot take runs un-narrowed and says this.
+   * Read rather than only returned by `setScopeFilter`, because a scope goes
+   * in at construction as well, and a host that opened one through
+   * `ViewEngine.open` has no return value to read it from.
+   */
+  readonly refusedScope: Issue[];
+  /**
+   * The outer condition in force, as it was last admitted, or `null` while
+   * none is — including a scope that was asked for and refused.
    *
    * It is read rather than only written because the conditions the rows came
    * back under are two things and not one: the view's own, which the editor
@@ -297,34 +318,6 @@ export interface ViewRuntimeOptions<C extends DataViewConfig> {
 const IDLE: ViewQueryState = { status: 'idle' };
 
 /**
- * Findings on a config judged with its scope, read as findings on the config.
- *
- * Two things the merge does must not leak into the issues. The `filterMode`
- * warning judges what the editor can show, which is the config's own tree;
- * the merged tree is never simple, so the warning is dropped when the draft
- * itself is simple. And a root that is not `and` rides in the merged tree
- * as its first child, so a finding at `['children', 0, …]` is a finding at
- * `[…]` of the draft, and is addressed so — every reader of `issues` reads
- * a path against the draft.
- */
-export function withoutScopeModeWarning(
-  issues: Issue[],
-  config: ViewConfig,
-  scope: FilterTree | null,
-): Issue[] {
-  if (!scope || !isFilterGroup(config.filter)) return issues;
-  const nested = config.filter.op !== 'and';
-  const simple = isSimpleTree(config.filter);
-  return issues.flatMap(found => {
-    if (simple && found.code === 'config.filterMode.not-simple') return [];
-    if (nested && found.path[0] === 'children' && found.path[1] === 0)
-      return [{ ...found, path: found.path.slice(2) }];
-    return [found];
-  });
-}
-
-/** An `error` blocks apply and every write; a `warning` only reports. */
-/**
  * The draft with `patch` over it, where a member given as `undefined` is
  * removed rather than set to it.
  *
@@ -341,6 +334,7 @@ function patched<C extends object>(draft: C, patch: Partial<C>): C {
   return next as C;
 }
 
+/** An `error` blocks apply and every write; a `warning` only reports. */
 export function hasError(issues: readonly Issue[]): boolean {
   return issues.some(entry => entry.severity === 'error');
 }
@@ -366,6 +360,9 @@ export class DataViewRuntime<
   private readonly runner: RequestRunner;
   private readonly unwatchVisibility: () => void;
   private readonly autoRefresh: boolean;
+
+  /** See `ViewRuntime.refusedScope`; written here, read by everyone else. */
+  refusedScope: Issue[] = NO_REFUSAL;
 
   private state: ViewRuntimeState<C>;
   private injectedScope: FilterTree | null = null;
@@ -393,7 +390,6 @@ export class DataViewRuntime<
     this.runner = options.runner;
     this.environment = options.environment;
     this.autoRefresh = options.autoRefresh ?? true;
-    this.injectedScope = options.scopeFilter ?? null;
     this.context = {
       definition: options.definition,
       kinds: options.kinds,
@@ -407,8 +403,18 @@ export class DataViewRuntime<
     // An injected condition is in force from the first query, so it is
     // admitted with the config rather than after it. Without this, a host
     // that scopes a view to one customer would have its opening query go
-    // out unscoped, and an inadmissible condition would never be reported.
-    const issues = this.admit(options.config);
+    // out unscoped. What the definition refuses, though, is the host's
+    // condition and not this view's defect, so it is left out rather than
+    // written into the view's issues (D17-5): the view runs un-narrowed and
+    // `refusedScope` says which condition did not take — the same answer a
+    // scope refused later gets, said in the same words.
+    const wanted = options.scopeFilter ?? null;
+    const own = this.admit(options.config, null);
+    const merged = wanted === null ? own : this.admit(options.config, wanted);
+    this.refusedScope = scopeRefusal(own, merged);
+    const refused = this.refusedScope.length > 0;
+    this.injectedScope = refused ? null : wanted;
+    const issues = refused ? own : merged;
     this.appliedAdmitted = !hasError(issues);
     this.state = {
       saved,
@@ -530,7 +536,7 @@ export class DataViewRuntime<
       );
     return fetchExportRows(
       this.context,
-      this.withScope(applied as C, this.injectedScope) as RecordViewConfig,
+      withScopeFilter(applied as C, this.injectedScope) as RecordViewConfig,
       options,
     );
   }
@@ -550,21 +556,27 @@ export class DataViewRuntime<
   }
 
   setScopeFilter(tree: FilterTree | null): Issue[] {
-    if (this.stopped) return [];
+    if (this.stopped) return this.refusedScope;
     // Re-injecting the same condition changes nothing, and a dashboard does
-    // exactly that whenever a layout edit is applied.
-    if (dequal(tree ?? null, this.injectedScope)) return [];
-    const issues = this.admit(this.state.applied, tree);
-    // An injected condition is admitted exactly like a user's own.
-    if (hasError(issues)) return issues;
+    // exactly that whenever a layout edit is applied. What is asked for is
+    // what is in force, so nothing stands refused either.
+    if (dequal(tree ?? null, this.injectedScope))
+      return this.refuse(NO_REFUSAL);
+    const own = this.admit(this.state.applied, null);
+    const merged = this.admit(this.state.applied, tree);
+    // An injected condition is admitted exactly like a user's own — but only
+    // what it alone breaks keeps it out. A view already waiting to be fixed
+    // is not fixed by refusing the host's condition too.
+    if (this.refuse(scopeRefusal(own, merged)).length > 0)
+      return this.refusedScope;
 
     this.injectedScope = tree ?? null;
-    this.appliedAdmitted = true;
+    this.appliedAdmitted = !hasError(merged);
     this.pageTarget = firstPageOf(this.context.definition);
     // The draft is judged with the scope too, so its issues move with it.
     this.setState({ issues: this.admit(this.state.draft), selection: [] });
-    this.execute({ keepSelection: false });
-    return issues;
+    if (this.appliedAdmitted) this.execute({ keepSelection: false });
+    return this.refusedScope;
   }
 
   /** A record or an analysis config means the same thing in every scope. */
@@ -628,18 +640,27 @@ export class DataViewRuntime<
     return saved === null || !dequal(draft, saved.config);
   }
 
+  /**
+   * Records what the scope on hand was refused for, and tells the subscribers
+   * when that answer changed.
+   *
+   * A refusal changes nothing else — no state, no query — so without this a
+   * screen showing it would have to be told by whoever made the injection,
+   * which is how a refusal on open came to say something else entirely. The
+   * previous answer is kept while it says the same thing, so a host that
+   * builds its condition in render is not re-rendered forever.
+   */
+  private refuse(refusal: Issue[]): Issue[] {
+    if (sameRefusal(this.refusedScope, refusal)) return this.refusedScope;
+    this.refusedScope = refusal;
+    for (const listener of [...this.listeners]) listener();
+    return this.refusedScope;
+  }
+
   private resultKeys(): Set<RecordKey> | null {
     const data = this.state.result?.data;
     if (!data || data.kind !== 'record') return null;
     return new Set(data.view.rows.map(row => row.key));
-  }
-
-  /** A config as it would run: the scope filter ANDed after its own. */
-  private withScope(config: C, scope: FilterTree | null): C {
-    // A root that is not a group is admission's to report as it stands;
-    // merging would turn it into a condition, or lose it.
-    if (!scope || !isFilterGroup(config.filter)) return config;
-    return { ...config, filter: mergeFilters(config.filter, scope) };
   }
 
   /**
@@ -652,7 +673,7 @@ export class DataViewRuntime<
     scope: FilterTree | null = this.injectedScope,
   ): Issue[] {
     return withoutScopeModeWarning(
-      validateDataConfig(this.context, this.withScope(config, scope)),
+      validateDataConfig(this.context, withScopeFilter(config, scope)),
       config,
       scope,
     );
@@ -663,7 +684,7 @@ export class DataViewRuntime<
     // config it was merged from. `applied` may move on before the answer
     // arrives, and a summary reading it would describe another question.
     const own = this.state.applied;
-    const config = this.withScope(own, this.injectedScope);
+    const config = withScopeFilter(own, this.injectedScope);
     const requestId = `${this.id}:${(this.requestSeq += 1)}`;
     this.setState({ query: { status: 'loading', requestId } });
 

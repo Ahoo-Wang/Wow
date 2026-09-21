@@ -73,20 +73,6 @@
   不放掉冻结；浏览器故事在 420 档量「中间可视宽 ÷ 结果区可视宽」有下
   限，`test/recordTable.test.tsx` 钉住放掉冻结时 `data-pin` 的变化。落点：
   `src/ui/RecordTable.tsx`、`src/record/project.ts`、[ui/record.md](ui/record.md)。
-- **一开就被拒的宿主收窄，说错了该修的是谁**——为什么：`EmbeddedView` 带着一个定
-  义不认的 `scopeFilter` **第一次打开**时，屏幕上是「这个视图要先修正才能运行」
-  （`label.view.needs-fixing`）外加一片空白；而同一个条件在视图已经跑起来之后换
-  上去，说的才是「页面的作用域条件对这个视图不适用」（`label.scope.refused`）并
-  且**上一次被接受的结果还留在屏幕上**。前一句指认的是视图，可视图好好的，坏的是
-  宿主加上去的那一条；而宿主看着这句话没有任何可做的事——它改不了别人存的视图。
-  路径上的原因是收窄跟着配置一起进第一次准入（`useOpenView` 交给 `engine.open`），
-  于是失败被记成配置级 error 而不是一次被拒的收窄。判据：第一次打开时被拒的收窄
-  与后来被拒的收窄说同一句话，并且和后者一样**把没收窄的那一份结果留在屏幕上**
-  （不能因为页面要的范围没生效就连宽的那份也不给——那正是这条 alert 存在的理
-  由）；`test/embeddedView.test.tsx` 补一条「一开就被拒」与现有那条「后来被拒」
-  对齐，`stories/view-engine/EmbeddedView.test.stories.tsx` 里 `ScopeRefusedOnOpen`
-  钉着的是**现状**，改完要跟着改。落点：`src/react/useViewEngine.ts`、
-  `src/ui/EmbeddedView.tsx`、[ui/README.md](ui/README.md)。
 - **宿主拿本包的原语画自己的 chrome，就得套两层 `.fve-root`**——为什么：
   `scripts/scope-utilities.mjs` 把样式表每一条规则都钉在
   `:where(.fve-root, .fve-root *)` 里（`verify-package.mjs` 还守着这一条），所以

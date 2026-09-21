@@ -26,10 +26,11 @@ import {
   ViewEngine,
   defaultRuntimeEnvironment,
 } from '../src/index.js';
-import type { ViewInstance, FilterTree } from '../src/index.js';
+import type { FilterTree, RecordData, ViewInstance } from '../src/index.js';
 import { EmbeddedView } from '../src/ui/index.js';
 import {
   INSTANT,
+  ROWS,
   ZONE,
   analysisConfig,
   dashboardConfig,
@@ -263,6 +264,163 @@ describe('EmbeddedView', () => {
     );
 
     expect(await screen.findByText(/could not narrow/i)).toBeTruthy();
+  });
+
+  /**
+   * The same refusal on the first open (D17-5). It used to go into the first
+   * admission with the config, so the screen named the *view* as the thing to
+   * fix — a view that was fine — and showed nothing at all, while the very
+   * same condition refused a moment later said it was the page's and left the
+   * result up.
+   */
+  it('says the same when the narrowing it opens with is refused', async () => {
+    const { engine, source } = setup();
+
+    render(
+      <EmbeddedView
+        engine={engine}
+        instanceId="orders-1"
+        scopeFilter={{
+          op: 'and',
+          children: [{ field: 'nope', operator: 'EQ', value: 'x' }],
+        }}
+      />,
+    );
+
+    expect(await screen.findByText(/could not narrow/i)).toBeTruthy();
+    // The view is not what needs fixing, and a host cannot fix somebody
+    // else's saved config anyway.
+    expect(screen.queryByText(/needs fixing/i)).toBeNull();
+    // And the wider result is on screen, as it is for a narrowing refused
+    // later: the page not getting the range it asked for is no reason to
+    // withhold what the view does say — that is what the alert is for.
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+    for (const [query] of vi.mocked(source.paged).mock.calls)
+      expect(JSON.stringify(query.filter)).not.toContain('nope');
+  });
+
+  /**
+   * Refused, accepted, refused again. The middle one is the one that has to
+   * stay in force: a refusal takes nothing away, so the narrowing the view
+   * did accept goes on running under the alert.
+   */
+  it('keeps the narrowing it accepted when a later one is refused', async () => {
+    const { engine, source } = setup();
+    const refused: FilterTree = {
+      op: 'and',
+      children: [{ field: 'nope', operator: 'EQ', value: 'x' }],
+    };
+    const accepted: FilterTree = {
+      op: 'and',
+      children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+    };
+    const embed = (scope: FilterTree) => (
+      <EmbeddedView engine={engine} instanceId="orders-1" scopeFilter={scope} />
+    );
+
+    const { rerender } = render(embed(refused));
+    expect(await screen.findByText(/could not narrow/i)).toBeTruthy();
+
+    rerender(embed(accepted));
+    await waitFor(() =>
+      expect(screen.queryByText(/could not narrow/i)).toBeNull(),
+    );
+    await waitFor(() =>
+      expect(
+        JSON.stringify(vi.mocked(source.paged).mock.lastCall?.[0].filter),
+      ).toContain('CN'),
+    );
+
+    rerender(
+      embed({
+        op: 'and',
+        children: [{ field: 'gone', operator: 'EQ', value: 'y' }],
+      }),
+    );
+    expect(await screen.findByText(/could not narrow/i)).toBeTruthy();
+    expect(engine.openRuntimes()[0].scopeFilter).toEqual(accepted);
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+  });
+
+  /**
+   * Both at once, each said where it belongs: the config's own error takes
+   * the result's place, and the refusal is still the page's to answer for.
+   * Refusing the host's condition is not a way to fix a view.
+   */
+  it('tells a view that must be fixed apart from a narrowing that was refused', async () => {
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      // Blocks on its own: a page size must be positive.
+      store: new MemoryViewStore({
+        instances: [{ ...mine, config: recordConfig({ pageSize: 0 }) }],
+      }),
+      resolveSource: () => testSource(),
+    });
+
+    render(
+      <EmbeddedView
+        engine={engine}
+        instanceId="orders-1"
+        scopeFilter={{
+          op: 'and',
+          children: [{ field: 'nope', operator: 'EQ', value: 'x' }],
+        }}
+      />,
+    );
+
+    expect(await screen.findByText(/could not narrow/i)).toBeTruthy();
+    expect(screen.getByText(/needs fixing/i)).toBeTruthy();
+    expect(screen.queryByRole('row')).toBeNull();
+  });
+
+  /**
+   * A host may narrow again before the first rows are back. The answer to a
+   * question nobody is asking any more must not land on the screen, and the
+   * refusal must not outlive the condition that earned it.
+   */
+  it('keeps up with a host that narrows while the first query is out', async () => {
+    const pending: ((page: { total: number; list: RecordData[] }) => void)[] =
+      [];
+    const source = testSource({
+      paged: vi.fn(
+        () =>
+          new Promise<{ total: number; list: RecordData[] }>(resolve => {
+            pending.push(resolve);
+          }),
+      ),
+    });
+    const { engine } = setup(source);
+    const embed = (scope: FilterTree) => (
+      <EmbeddedView engine={engine} instanceId="orders-1" scopeFilter={scope} />
+    );
+
+    const { rerender } = render(
+      embed({
+        op: 'and',
+        children: [{ field: 'nope', operator: 'EQ', value: 'x' }],
+      }),
+    );
+    expect(await screen.findByText(/could not narrow/i)).toBeTruthy();
+    await waitFor(() => expect(pending).toHaveLength(1));
+
+    rerender(
+      embed({
+        op: 'and',
+        children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+      }),
+    );
+    await waitFor(() => expect(pending).toHaveLength(2));
+    await waitFor(() =>
+      expect(screen.queryByText(/could not narrow/i)).toBeNull(),
+    );
+
+    // The un-narrowed answer comes back last, and answers nothing anyone
+    // asked for now: the narrowed rows are what stays on screen.
+    await act(async () => {
+      pending[1]({ total: 1, list: [{ id: 'narrow', amount: 1 }] });
+      pending[0]({ total: 2, list: [...ROWS] });
+    });
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(2));
   });
 
   it('reports a view it cannot open', async () => {

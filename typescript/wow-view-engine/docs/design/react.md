@@ -27,8 +27,8 @@ useOpenView(engine, instanceId, scopeFilter?): { runtime | null; loading; error;
 
 - 拥有所开 runtime：换 id 或卸载即释放；
 - runtime 在其下被释放（如实例被删除）时不再交出，按同一 id 重新打开，得到新 runtime 或 not_found；
-- 注入的 scopeFilter 被拒时，`setScopeFilter` 返回的 error 级 Issue 由 `scopeIssues` 交出，宿主据此提示；
-- warning 不算拒绝，条件照常生效，warning 留在 runtime 的 `issues` 里由 UI 按 warning 呈现——否则旧的、更宽的条件仍在运行却无人知晓。（见 test/useViewEngine.test.tsx「useOpenView」）
+- 注入的 scopeFilter 被拒时，由 `scopeIssues` 交出被拒的那几条，宿主据此提示；**第一次打开就被拒与后来被拒是同一回事**（D17-5）：被拒的收窄根本不生效，视图照自己的配置跑，屏幕上是**没收窄的那份结果**加一条告警。它读的是 `runtime.refusedScope`（runtime 自己的状态，改变时会通知）而不是某一次注入的返回值——一开就带上的那个条件是在构造里进去的，那里没有谁接得住返回值；
+- warning 不算拒绝，条件照常生效，warning 留在 runtime 的 `issues` 里由 UI 按 warning 呈现——否则旧的、更宽的条件仍在运行却无人知晓。（见 test/useViewEngine.test.tsx「useOpenView」与 test/embeddedView.test.tsx）
 
 ## useViewList
 

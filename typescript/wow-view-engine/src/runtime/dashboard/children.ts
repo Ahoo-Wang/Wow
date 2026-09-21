@@ -98,7 +98,12 @@ export class PanelChildren {
     if (existing) this.drop(panelId);
 
     const runtime = this.create(reference, scope);
-    const refused = runtime.getSnapshot().issues;
+    // A scope a panel's definition refuses is no longer among that child's
+    // issues — it drops what it cannot carry and runs un-narrowed, which is
+    // right for a view a host embedded and wrong for a panel of a board: the
+    // dashboard's condition is the question the panel was put there to answer,
+    // so a panel that cannot carry it shows nothing and says why.
+    const refused = [...runtime.refusedScope, ...runtime.getSnapshot().issues];
     if (hasError(refused)) {
       runtime.dispose();
       return { runtime: null, issues: [...own, ...atPanel(index, refused)] };

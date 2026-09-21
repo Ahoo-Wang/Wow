@@ -25,12 +25,18 @@ import {
   type ViewScope,
 } from '../model/index.js';
 import {
-  isFilterGroup,
   isPlainObject,
   issue,
   mergeFilters,
   type FieldKindRegistry,
 } from '../filter/index.js';
+import {
+  NO_REFUSAL,
+  sameRefusal,
+  scopeRefusal,
+  withScopeFilter,
+  withoutScopeModeWarning,
+} from './scope.js';
 import {
   isViewPanel,
   mapGlobalFilter,
@@ -53,7 +59,6 @@ import type { WriteState } from './write.js';
 import {
   hasError,
   refreshIntervalOf,
-  withoutScopeModeWarning,
   type DataViewRuntime,
   type ManagedViewRuntime,
   type ViewQueryState,
@@ -133,6 +138,9 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
   /** The child runtime of each data panel that runs; see `PanelChildren`. */
   private readonly children: PanelChildren;
 
+  /** See `ViewRuntime.refusedScope`; written here, read by everyone else. */
+  refusedScope: Issue[] = NO_REFUSAL;
+
   private state: DashboardRuntimeState;
   private injectedScope: FilterTree | null;
   private timer: unknown;
@@ -146,7 +154,7 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     this.kinds = options.kinds;
     this.limits = options.limits;
     this.environment = options.environment;
-    this.injectedScope = options.scopeFilter ?? null;
+    this.injectedScope = null;
     // Both talk back only through the runtime's own re-sync: a reference
     // settling re-judges the draft, and a child notifying re-times the board
     // and rebuilds its panel's issues.
@@ -159,16 +167,25 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     });
 
     const saved = options.saved ?? null;
+    // The injected condition is judged with the config from the start, as a
+    // data view does, so a scope the panels cannot carry is never pushed onto
+    // them. What this board's own fields refuse is the host's condition and
+    // not the board's defect (D17-5): it is left out rather than written into
+    // the issues, the panels run un-narrowed, and `refusedScope` says which
+    // condition did not take.
+    const wanted = options.scopeFilter ?? null;
+    const own = this.admit(options.config, options.scope, null);
+    const merged =
+      wanted === null ? own : this.admit(options.config, options.scope, wanted);
+    this.refusedScope = scopeRefusal(own, merged);
+    if (this.refusedScope.length === 0) this.injectedScope = wanted;
     this.state = {
       saved,
       title: options.title,
       scope: options.scope,
       draft: options.config,
       applied: options.config,
-      // The injected condition is judged with the config from the start, as
-      // a data view does, so a scope the panels cannot carry is reported
-      // rather than pushed onto them.
-      issues: this.admit(options.config, options.scope),
+      issues: this.refusedScope.length > 0 ? own : merged,
       dirty: saved === null,
       query: IDLE,
       result: null,
@@ -288,15 +305,21 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
    * every panel, so an embedding host cannot quietly break one.
    */
   setScopeFilter(tree: FilterTree | null): Issue[] {
-    if (this.stopped) return [];
-    if (dequal(tree ?? null, this.injectedScope)) return [];
-    const issues = this.admit(this.state.applied, this.state.scope, tree);
-    if (hasError(issues)) return issues;
+    if (this.stopped) return this.refusedScope;
+    if (dequal(tree ?? null, this.injectedScope))
+      return this.refuse(NO_REFUSAL);
+    const applied = this.state.applied;
+    const own = this.admit(applied, this.state.scope, null);
+    const merged = this.admit(applied, this.state.scope, tree);
+    // Only what the condition alone breaks keeps it out; a board already
+    // waiting to be fixed is not fixed by refusing the host's condition too.
+    if (this.refuse(scopeRefusal(own, merged)).length > 0)
+      return this.refusedScope;
 
     this.injectedScope = tree ?? null;
     // The draft is judged with the scope too, so its issues move with it.
     this.sync({ issues: this.admit(this.state.draft, this.state.scope) });
-    return issues;
+    return this.refusedScope;
   }
 
   /**
@@ -372,11 +395,7 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     scope: ViewScope,
     scopeFilter: FilterTree | null = this.injectedScope,
   ): Issue[] {
-    // A root that is not a group is admission's to report as it stands.
-    const merged =
-      scopeFilter && isFilterGroup(config.filter)
-        ? { ...config, filter: mergeFilters(config.filter, scopeFilter) }
-        : config;
+    const merged = withScopeFilter(config, scopeFilter);
     return withoutScopeModeWarning(
       validateDashboard(merged, scope, this.references.known, this.kinds, {
         limits: this.options.limits,
@@ -406,10 +425,33 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
   /** A reference settled — loaded, unreadable or failed — so the draft is re-judged. */
   private settled(): void {
     if (this.stopped) return;
+    // A reference arriving is where a global field first meets the panel
+    // field it binds to, so it is also where an injected condition can turn
+    // out to be one this board cannot carry. It is refused here on the same
+    // terms as on the way in, rather than becoming an error of the board's.
+    this.dropRefusedScope();
     this.sync({
       issues: this.admit(this.state.draft, this.state.scope),
       resolving: this.references.resolving,
     });
+  }
+
+  /** Lets go of an injected condition the references have now refused. */
+  private dropRefusedScope(): void {
+    if (this.injectedScope === null) return;
+    const applied = this.state.applied;
+    const own = this.admit(applied, this.state.scope, null);
+    const merged = this.admit(applied, this.state.scope);
+    if (this.refuse(scopeRefusal(own, merged)).length > 0)
+      this.injectedScope = null;
+  }
+
+  /** Records a refusal and notifies; see `DataViewRuntime.refuse`. */
+  private refuse(refusal: Issue[]): Issue[] {
+    if (sameRefusal(this.refusedScope, refusal)) return this.refusedScope;
+    this.refusedScope = refusal;
+    for (const listener of [...this.listeners]) listener();
+    return this.refusedScope;
   }
 
   /**
