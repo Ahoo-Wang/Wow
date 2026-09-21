@@ -61,6 +61,7 @@ export interface ViewPreferences {
 ```
 
 - **侧栏呈现。** 列表按受众分两组，个人在前、共享在后；系统视图落在共享组里，并以 `system` 标签标出它随定义而来。一个 data 定义同时承载记录与分析实例，所以每项以种类图标作前缀（记录／分析／仪表盘），种类由摘要的 `kind` 给出。侧栏标题取自 `definition.title`，由工作台传入并作 `nav` 的可访问名。三件事各占一个位置、互不重复：图标说种类，分组说受众，标签说出处。工作台只列出自己所画的那一种：`useViewList(engine, definitionId, { kind })` 先按 `kind` 过滤，再排序、再解析默认视图，因此 Record 工作台的侧栏与默认视图里不会出现分析实例，反之亦然（仪表盘定义只承载仪表盘，不必过滤）；宿主若显式指定了另一种的 `instanceId`，工作台以 `view.open.wrong-kind` 按「打不开」呈现，而不是留下一张空白正文。
+- **行内动作的版式。** 一行的按钮分两组：排序（上移／下移）与处置（设为默认／改名／删除）各是一个 `ButtonGroup`，两组之间是 `SPACE.GROUPS`——把五个塞进同一个组只会把两种职责焊得更紧，[版式](ui/README.md#版式三块一套间距一种选项控件)那条说的是「**同一职责下**的几个动作」。按钮按许可**存在或不存在**而不是置灰（D4），各行因此带着不同的动作；要让同一个动作在每一行落在同一个横坐标，动作簇**左对齐在一个定宽槽位**里（宽度＝五个 `icon-sm` 按钮加一个组间距，148px），而不是把缺席的动作画成禁用按钮来凑满——右对齐的散按钮曾让系统行的「上移」正坐在别的行「设为默认」的位置上。改名进行中的确认／取消占同一个槽位。（见 test/viewManagerUi.test.tsx「ViewManager rows」与 stories/view-engine/RecordWorkbench.test.stories.tsx 的 `ManageViews`）
 - **排序。** 工作台展示顺序为 `order` 中出现且仍存在于列表的 id，按 `order` 排列；其余按服务端返回顺序追加。`reorder(ids)` 提交**整个定义的完整顺序**与偏好 `revision`——store 一个定义只存一份 `order`。工作台按 `kind` 过滤之后只看得见其中一种，所以 `useViewList` 另交出 `all`：与 `items` 同序、未经 `kind` 过滤的全部摘要。`useViewManager.move` 在可见列表里找同受众的相邻项（跨组对调写了偏好却什么都没动），再把这两个 id 在 `all` 的顺序里对调后提交；否则记录工作台调一次序，就会把所有分析实例从 `order` 里抹掉。乐观顺序同时记住提交的完整顺序与对调后的可见顺序，连点两次才不会拿前一次的下标去配另一份列表。
 - **默认视图。** `setDefault(id | null)` 只改 `defaultInstanceId`。有效默认值的解析规则：显式指定的 `instanceId` 优先；否则 `defaultInstanceId` 存在于列表则用它；否则取排序后的第一项，通常就是第一个系统视图；列表为空时显示空态并提供新建。
 - **删除与偏好。** 删除实例不写偏好。读取时忽略已不存在的 id，下一次 `reorder` 或 `setDefault` 写入自然清理。

@@ -194,6 +194,54 @@ export const WithData: Story = {
 };
 
 /**
+ * The ruler between the blocks of the main column, the right way up.
+ *
+ * This workbench handed the shell a `className="gap-2"` and `cn` let it beat
+ * `SPACE.BLOCKS`, so with the conditions out the column measured header →
+ * 8px → editor band → 8px → result while the rows *inside* each block sat
+ * 12px apart: two blocks stood closer together than two buttons do, and
+ * nothing on the screen read as a group. Analysis and Dashboard, on the very
+ * same shell, measured 16px throughout.
+ *
+ * It is measured here rather than in jsdom because what a class is worth in
+ * pixels is the stylesheet's answer, and jsdom lays out nothing: the package's
+ * jsdom suite can pin the class (`test/recordWorkbench.test.tsx`) and no more.
+ * Both steps of the ladder are read, because the bug was never one number on
+ * its own — it was the two of them in the wrong order.
+ */
+export const BlockSpacing: Story = {
+  ...DisplayWithData,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+
+    // Out, so all three blocks of the column are on the page at once.
+    await userEvent.click(
+      canvas.getByRole('button', {
+        name: new RegExp(`^${defaultMessages['label.filter.panel']}`),
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="editor-band"]'),
+      ).not.toBeNull(),
+    );
+
+    const main = canvasElement.querySelector<HTMLElement>('main')!;
+    await expect(canvasElement.querySelectorAll('main')).toHaveLength(1);
+    const column = getComputedStyle(main);
+    await expect(column.rowGap).toBe('16px');
+    await expect(column.gap).toBe('16px');
+
+    // And a block's own rows are the step below it, not above.
+    const result = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="result-block"]',
+    )!;
+    await expect(getComputedStyle(result).rowGap).toBe('12px');
+  },
+};
+
+/**
  * The bar under the rows, on a result that has somewhere to go.
  *
  * It is one row: how many records there are in all on the left, and on the
@@ -351,6 +399,41 @@ export const ManageViews: Story = {
         name: defaultMessages['label.manage.delete'],
       }),
     ).toBeNull();
+
+    // A column of icons looks like a column, so the same action has to sit at
+    // the same x on every row. The cluster used to be sized to its contents
+    // and pushed right, and rows do not all carry the same actions: the
+    // system row's three icons landed under the other rows' last three, so
+    // "Move up" sat exactly where "Set default" sits above it and "Set
+    // default" where "Delete" does. It is left-aligned in a slot as wide as
+    // the fullest row now — and the missing actions are still missing rather
+    // than drawn greyed out, which is why this is worth measuring at all.
+    const drift = new Map<string, number[]>();
+    for (const managed of document.querySelectorAll<HTMLElement>(
+      '[data-slot="view-manager-row"]',
+    ))
+      for (const button of managed.querySelectorAll<HTMLElement>(
+        '[data-slot="view-manager-actions"] button',
+      )) {
+        const name = button.getAttribute('aria-label') ?? '';
+        drift.set(name, [
+          ...(drift.get(name) ?? []),
+          Math.round(button.getBoundingClientRect().x),
+        ]);
+      }
+    // Shared actions only: one row's own button has nothing to line up with.
+    const shared = [...drift].filter(([, xs]) => xs.length > 1);
+    await expect(shared.filter(([, xs]) => new Set(xs).size > 1)).toEqual([]);
+    // And the check is not vacuous: the rows really do differ in what they
+    // carry, which is the only reason any of them could drift.
+    await expect(
+      shared
+        .map(([name]) => name)
+        .includes(defaultMessages['label.manage.move-up']),
+    ).toBe(true);
+    await expect(
+      drift.get(defaultMessages['label.manage.delete'])!.length,
+    ).toBeLessThan(drift.get(defaultMessages['label.manage.move-up'])!.length);
 
     // Renaming happens in the row, and the list follows it.
     await userEvent.click(

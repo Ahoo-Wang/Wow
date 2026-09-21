@@ -46,6 +46,7 @@ import {
   zhCN,
 } from '../src/ui/index.js';
 import type { ViewMessages } from '../src/ui/index.js';
+import { SPACE } from '../src/ui/layout.js';
 import {
   ZONE,
   analysisConfig,
@@ -938,6 +939,31 @@ describe('AnalysisEditor defaults', () => {
     fireEvent.click(screen.getByRole('button', { name: menu }));
     fireEvent.click(await screen.findByRole('menuitem', { name: item }));
   }
+
+  /**
+   * The group and metric rows are rows inside a block, so they take the
+   * ruler's row step.
+   *
+   * Vendored `FieldGroup` carries `gap-5` — 20px, which is not one of the
+   * four steps and is wider than the 16px between two whole blocks, so a
+   * block's own rows stood further apart than the blocks did. The seam is
+   * closed at the call site because `ui/components/**` is upstream's.
+   *
+   * jsdom applies no stylesheet, so what is pinned here is the class the
+   * call site passes; the 12px it resolves to is measured in the browser
+   * project (`stories/view-engine/AnalysisWorkbench.test.stories.tsx`,
+   * `EditorRowSpacing`).
+   */
+  it('puts the ruler’s row step between the editor rows', async () => {
+    await open();
+
+    const editor = screen.getByRole('region', { name: 'Analysis' });
+    const rows = editor.querySelector<HTMLElement>(
+      '[data-slot="field-group"]',
+    )!;
+    expect(rows.classList.contains(SPACE.ROWS)).toBe(true);
+    expect(rows.classList.contains('gap-5')).toBe(false);
+  });
 
   it('starts each group at the shape its capability allows', async () => {
     await open();

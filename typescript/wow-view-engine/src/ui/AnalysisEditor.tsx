@@ -39,7 +39,7 @@ import {
   SelectValue,
 } from './components/select.js';
 import { ToggleGroup, ToggleGroupItem } from './components/toggle-group.js';
-import { SEGMENTED } from './layout.js';
+import { SEGMENTED, SPACE } from './layout.js';
 import { DropdownMenuContent, SelectContent } from './popups.js';
 import { crossesBoundary, leavesEditor } from './FilterPanel.js';
 import { GroupedMenu } from './FieldMenu.js';
@@ -162,8 +162,18 @@ export function AnalysisEditor({ analysis, disabled }: AnalysisEditorProps) {
         </Button>
       </div>
 
+      {/*
+        The group and metric rows are rows inside one block, so they take
+        `SPACE.ROWS`. Vendored `FieldGroup` brings its own `gap-5` — 20px, a
+        step that is not on the four-step ruler at all and is wider than the
+        16px between two whole blocks, which would put a block's own rows
+        further apart than the blocks themselves. `ui/components/**` is
+        upstream's and is not edited by hand, so the seam is closed at the
+        call site, as `SEGMENTED` is; `cn` merges the two `gap-*` and the one
+        passed in wins.
+      */}
       {(analysis.groups.length > 0 || analysis.metrics.length > 0) && (
-        <FieldGroup>
+        <FieldGroup className={SPACE.ROWS}>
           {analysis.groups.map((group, index) => (
             <GroupRow
               key={group.alias}

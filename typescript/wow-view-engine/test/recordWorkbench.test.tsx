@@ -42,6 +42,7 @@ import {
   RecordWorkbench,
 } from '../src/ui/index.js';
 import type { RecordWorkbenchProps } from '../src/ui/index.js';
+import { SPACE } from '../src/ui/layout.js';
 import {
   INSTANT,
   ZONE,
@@ -254,6 +255,37 @@ describe('RecordWorkbench', () => {
     ]);
     // The sidebar carries the definition's own title.
     expect(screen.getByRole('navigation', { name: 'Orders' })).toBeDefined();
+  });
+
+  /**
+   * The main column keeps the shell's own step between its blocks.
+   *
+   * This workbench used to hand `WorkbenchShell` a `className="gap-2"`, and
+   * `cn` let it beat `SPACE.BLOCKS`: the three blocks sat 8px apart while the
+   * rows *inside* each of them sat 12px apart, so the ruler was upside down
+   * and nothing read as a group. Analysis and Dashboard, on the same shell,
+   * measured 16px — it was this one override, not the shell.
+   *
+   * What a class is worth in pixels is a stylesheet's answer and jsdom has
+   * none, so the 16px itself is measured in the browser project
+   * (`stories/view-engine/RecordWorkbench.test.stories.tsx`, `BlockSpacing`).
+   * What is pinned here is the class that decides it.
+   */
+  it('leaves the block spacing to the shell', async () => {
+    const { engine } = setup();
+
+    render(
+      <RecordWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+      />,
+    );
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+
+    const main = document.querySelector<HTMLElement>('main')!;
+    expect(main.classList.contains(SPACE.BLOCKS)).toBe(true);
+    expect(main.classList.contains(SPACE.GROUPS)).toBe(false);
   });
 
   /**

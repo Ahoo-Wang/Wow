@@ -219,3 +219,32 @@ export const ReachesAdvancedMode: Story = {
     );
   },
 };
+
+/**
+ * The step between the editor's group and metric rows, measured.
+ *
+ * `AnalysisEditor` draws them in a vendored `FieldGroup`, which carries its
+ * own `gap-5`: 20px, a step that is on none of the four the package uses,
+ * and wider than the 16px that separates two whole blocks of the main
+ * column — a block's own rows stood further apart than the blocks did.
+ * `ui/components/**` is upstream's and is not edited by hand, so the seam is
+ * closed at the call site.
+ *
+ * jsdom applies no stylesheet and so can only pin the class the call site
+ * passes (`test/analysisUi.test.tsx`); the pixels are this project's to read.
+ */
+export const EditorRowSpacing: Story = {
+  ...DisplayTableWithTotals,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+
+    const editor = canvas.getByRole('region', {
+      name: defaultMessages['label.analysis.editor'],
+    });
+    const rows = editor.querySelector<HTMLElement>(
+      '[data-slot="field-group"]',
+    )!;
+    await expect(getComputedStyle(rows).rowGap).toBe('12px');
+  },
+};

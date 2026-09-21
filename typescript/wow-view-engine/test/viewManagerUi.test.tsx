@@ -410,6 +410,51 @@ describe('ViewManager rows', () => {
     );
   });
 
+  /**
+   * A row's actions are two groups, not one strip of five.
+   *
+   * They used to be five ghost buttons 2px apart — a step that is on none of
+   * the package's four — so two unrelated jobs read as one run of icons:
+   * where the view sits in the list, and what is to become of it. Ordering
+   * and disposition each get a `ButtonGroup` of their own with
+   * `SPACE.GROUPS` between them; putting all five in one group would only
+   * weld the two jobs together more tightly.
+   *
+   * What each row *has* is still decided by what the store would take, which
+   * is why the system row's disposition group is one button rather than
+   * three greyed-out ones.
+   */
+  it('splits a row’s actions into ordering and disposition', async () => {
+    const { engine } = setup();
+    await manage(engine);
+
+    const names = (title: string, group: string) =>
+      within(within(row(title)).getByRole('group', { name: group }))
+        .getAllByRole('button')
+        .map(button => button.getAttribute('aria-label'));
+
+    expect(names('Mine', 'Order in the list')).toEqual([
+      'Move up',
+      'Move down',
+    ]);
+    expect(names('Mine', 'What to do with this view')).toEqual([
+      'Open this one first',
+      'Rename',
+      'Delete',
+    ]);
+
+    // A system view ships with the definition, so the only thing to be done
+    // with it is to choose whether it opens first.
+    expect(names('All orders', 'Order in the list')).toEqual([
+      'Move up',
+      'Move down',
+    ]);
+    expect(names('All orders', 'What to do with this view')).toEqual([
+      'Open this one first',
+    ]);
+    expect(within(row('All orders')).getAllByRole('group')).toHaveLength(2);
+  });
+
   it('offers no write a system view could not take', async () => {
     const { engine } = setup();
     await manage(engine);

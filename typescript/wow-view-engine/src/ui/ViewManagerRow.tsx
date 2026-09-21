@@ -12,6 +12,7 @@
  */
 
 import { useState } from 'react';
+import { cn } from 'cn';
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -31,11 +32,33 @@ import type { WriteState } from '../runtime/index.js';
 import type { ViewListState, ViewManagerController } from '../react/index.js';
 import { Badge } from './components/badge.js';
 import { Button } from './components/button.js';
+import { ButtonGroup } from './components/button-group.js';
 import { Input } from './components/input.js';
 import { DeleteDialog } from './DeleteDialog.js';
 import { KIND_ICON } from './kinds.js';
+import { SPACE } from './layout.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { OutcomeActions } from './OutcomeActions.js';
+
+/**
+ * The width every row gives its actions, whether or not it has all of them.
+ *
+ * A column of icons looks like a column, and a user reads it as one: what
+ * sits under "Move up" on the row above must be "Move up" here too. Rows do
+ * not all carry the same actions — a system view has no rename and no delete
+ * — so with the cluster sized to its contents and pushed right, a system
+ * row's "Move up" landed exactly where every other row's "Set default" was,
+ * and its "Set default" where their "Delete" was. Three icons, all of them
+ * lying about what they do.
+ *
+ * The fix is a slot as wide as the fullest row and contents left-aligned
+ * inside it: five `icon-sm` buttons (`size-7`, 28px) plus the one
+ * `SPACE.GROUPS` between the two groups — 148px. The absent actions are
+ * **not** drawn as disabled buttons to make up the width: what a row offers
+ * is what the store will take (decisions.md D4), and a greyed-out Delete on
+ * a view that can never be deleted is an offer that was never on the table.
+ */
+const ACTION_SLOT = 'w-37';
 
 /**
  * One view in the manager: what it is, what it is called, and the writes it
@@ -94,9 +117,16 @@ export function ViewManagerRow({
           </Badge>
         )}
 
-        <div className="flex shrink-0 items-center gap-0.5">
+        <div
+          data-slot="view-manager-actions"
+          className={cn(
+            'flex shrink-0 items-center',
+            ACTION_SLOT,
+            SPACE.GROUPS,
+          )}
+        >
           {renaming !== null ? (
-            <>
+            <ButtonGroup>
               <Button
                 variant="ghost"
                 size="icon-sm"
@@ -117,11 +147,13 @@ export function ViewManagerRow({
               >
                 <XIcon />
               </Button>
-            </>
+            </ButtonGroup>
           ) : (
             <>
               {manager.can.reorder && (
-                <>
+                <ButtonGroup
+                  aria-label={messages.label('label.manage.order-group')}
+                >
                   <Button
                     variant="ghost"
                     size="icon-sm"
@@ -144,46 +176,52 @@ export function ViewManagerRow({
                   >
                     <ArrowDownIcon />
                   </Button>
-                </>
+                </ButtonGroup>
               )}
-              {manager.can.setDefault && (
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={messages.label(
-                    isDefault
-                      ? 'label.manage.unset-default'
-                      : 'label.manage.set-default',
+              {(manager.can.setDefault || can.rename || can.delete) && (
+                <ButtonGroup
+                  aria-label={messages.label('label.manage.view-group')}
+                >
+                  {manager.can.setDefault && (
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={messages.label(
+                        isDefault
+                          ? 'label.manage.unset-default'
+                          : 'label.manage.set-default',
+                      )}
+                      disabled={busy}
+                      onClick={() =>
+                        void manager.setDefault(isDefault ? null : item.id)
+                      }
+                    >
+                      <StarIcon data-default={isDefault || undefined} />
+                    </Button>
                   )}
-                  disabled={busy}
-                  onClick={() =>
-                    void manager.setDefault(isDefault ? null : item.id)
-                  }
-                >
-                  <StarIcon data-default={isDefault || undefined} />
-                </Button>
-              )}
-              {can.rename && (
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={messages.label('label.manage.rename')}
-                  disabled={busy}
-                  onClick={() => setRenaming(item.title)}
-                >
-                  <PencilIcon />
-                </Button>
-              )}
-              {can.delete && (
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={messages.label('label.manage.delete')}
-                  disabled={busy}
-                  onClick={() => setDeleting(true)}
-                >
-                  <TrashIcon />
-                </Button>
+                  {can.rename && (
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={messages.label('label.manage.rename')}
+                      disabled={busy}
+                      onClick={() => setRenaming(item.title)}
+                    >
+                      <PencilIcon />
+                    </Button>
+                  )}
+                  {can.delete && (
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={messages.label('label.manage.delete')}
+                      disabled={busy}
+                      onClick={() => setDeleting(true)}
+                    >
+                      <TrashIcon />
+                    </Button>
+                  )}
+                </ButtonGroup>
               )}
             </>
           )}

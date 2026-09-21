@@ -124,7 +124,6 @@ export function RecordWorkbench({
       defaultSidebarOpen={defaultSidebarOpen}
       onSidebarOpenChange={onSidebarOpenChange}
       expandable={expandable}
-      className="gap-2"
       // What the config says, plus what this result says about itself: a
       // summary row that had to fall back to the page is a fact about the
       // numbers below, and it outlives the next keystroke because it rides

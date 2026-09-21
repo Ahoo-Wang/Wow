@@ -25,6 +25,11 @@ export const manageMessages = {
   'label.manage.description':
     'Rename, reorder and delete views, and choose which one opens first.',
   'label.manage.default': 'Default',
+  // The two things a row's buttons are for, and the reason there are two
+  // groups rather than one strip of five: where a view sits in the list, and
+  // what is to become of it.
+  'label.manage.order-group': 'Order in the list',
+  'label.manage.view-group': 'What to do with this view',
   'label.manage.set-default': 'Open this one first',
   'label.manage.unset-default': 'Stop opening this one first',
   'label.manage.move-up': 'Move up',

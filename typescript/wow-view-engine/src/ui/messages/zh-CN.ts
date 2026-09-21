@@ -429,6 +429,8 @@ export const zhCN: ViewMessages = {
   'label.manage.heading': '管理视图',
   'label.manage.description': '改名、排序、删除视图，并选择默认打开的视图。',
   'label.manage.default': '默认',
+  'label.manage.order-group': '在列表中的顺序',
+  'label.manage.view-group': '处置这个视图',
   'label.manage.set-default': '设为默认',
   'label.manage.unset-default': '取消默认',
   'label.manage.move-up': '上移',
