@@ -11,9 +11,12 @@
  * limitations under the License.
  */
 
-import { useEffect, useRef, useState } from 'react';
 import { cn } from 'cn';
-import GridLayout, { noCompactor, type Layout } from 'react-grid-layout';
+import GridLayout, {
+  noCompactor,
+  useContainerWidth,
+  type Layout,
+} from 'react-grid-layout';
 import {
   GripVerticalIcon,
   LayoutDashboardIcon,
@@ -36,7 +39,9 @@ import { AnalysisChart } from './AnalysisChart.js';
 import { AnalysisTable } from './AnalysisTable.js';
 import { ContentPanel } from './DashboardPanels.js';
 import { RenderBoundary, type RenderFailureHandler } from './RenderBoundary.js';
+import { IconTooltip } from './IconButton.js';
 import { useViewMessages } from './MessagesProvider.js';
+import { Button } from './components/button.js';
 import { Card, CardContent, CardHeader, CardTitle } from './components/card.js';
 import {
   Empty,
@@ -80,7 +85,12 @@ export function DashboardGrid({
   className,
   onRenderFailure,
 }: DashboardGridProps) {
-  const { ref, width } = useContainerWidth();
+  // The grid needs a pixel width and the container only knows it once it is
+  // on screen, so the measuring is the library's own hook rather than a
+  // second `ResizeObserver` written here: it is the same observer the grid
+  // would have used, it survives an environment without `ResizeObserver`,
+  // and it coalesces a burst of resizes into one frame.
+  const { containerRef, width } = useContainerWidth();
   const messages = useViewMessages();
   const placed = (next: Layout) => {
     if (editable) dashboard.place(next.map(toPlacement));
@@ -108,7 +118,7 @@ export function DashboardGrid({
 
   return (
     <div
-      ref={ref}
+      ref={containerRef}
       data-slot="dashboard-grid"
       className={cn('w-full', className)}
     >
@@ -172,16 +182,29 @@ export function DashboardPanel({
     >
       <CardHeader className="px-3">
         <CardTitle className="flex items-center gap-1 text-sm">
+          {/*
+            The marker went through `title`, which no keyboard and no touch
+            screen ever opens, so what the warning actually said was reachable
+            only by hovering a mouse over a 16px glyph. It is the package's
+            own `IconTooltip` now: the same string names the control and fills
+            the tooltip, focus opens it, and a tap opens it too. The colour
+            sits on the glyph rather than on the button — `text-warning` is
+            what the marker means, and the vendored ghost variant keeps its
+            own hover and focus colours underneath it.
+          */}
           {warned && (
-            <span
-              data-slot="panel-warning"
-              role="img"
-              aria-label={messages.issues(warnings)}
-              title={messages.issues(warnings)}
-              className="text-warning"
+            <IconTooltip
+              label={messages.issues(warnings)}
+              render={
+                <Button
+                  data-slot="panel-warning"
+                  variant="ghost"
+                  size="icon-sm"
+                />
+              }
             >
-              <TriangleAlertIcon className="size-4" />
-            </span>
+              <TriangleAlertIcon className="text-warning" />
+            </IconTooltip>
           )}
           {/*
             Decorative on purpose. Dragging is a pointer gesture with no
@@ -334,27 +357,4 @@ function PanelFailed({ error }: { error: Issue | undefined }) {
       </EmptyHeader>
     </Empty>
   );
-}
-
-/**
- * The grid needs a pixel width, and the container only knows it once it is on
- * screen. `ResizeObserver` is missing in some test and server environments, so
- * the initial width stands rather than the grid failing to render at all.
- */
-function useContainerWidth(initial = 1280) {
-  const ref = useRef<HTMLDivElement | null>(null);
-  const [width, setWidth] = useState(initial);
-
-  useEffect(() => {
-    const node = ref.current;
-    if (!node || typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(entries => {
-      const measured = entries[0]?.contentRect.width ?? 0;
-      if (measured > 0) setWidth(measured);
-    });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
-
-  return { ref, width };
 }

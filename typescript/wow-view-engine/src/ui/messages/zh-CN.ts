@@ -533,6 +533,8 @@ export const zhCN: ViewMessages = {
   'label.chart.column.conversion': '转化率',
   'label.chart.column.compare': '对比值',
   'label.chart.column.target': '目标',
+  'label.chart.target': '距目标',
+  'label.chart.target.reached': '{value}，目标 {target}',
   'analysis.alias.duplicate': '名称 {alias} 用了两次。',
   'analysis.alias.invalid': '{alias} 不是可用的名称。',
   'analysis.alias.not-a-segment': '{alias} 不能带点号。',

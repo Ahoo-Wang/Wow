@@ -434,7 +434,7 @@ describe('DashboardGrid', () => {
     const card = document.querySelector('[data-slot="dashboard-panel"]');
     expect(card?.hasAttribute('data-warning')).toBe(true);
     expect(
-      screen.getByRole('img', {
+      screen.getByRole('button', {
         name: 'These conditions need the advanced editor to be shown in full.',
       }),
     ).toBeTruthy();
@@ -469,7 +469,7 @@ describe('DashboardGrid', () => {
     expect(screen.getByText('This panel is unavailable')).toBeTruthy();
     expect(screen.getByText(/page size must be a positive/)).toBeTruthy();
     expect(
-      screen.getByRole('img', {
+      screen.getByRole('button', {
         name: 'These conditions need the advanced editor to be shown in full.',
       }),
     ).toBeTruthy();
@@ -549,11 +549,16 @@ describe('DashboardGrid', () => {
     it('writes the geometry back once a drag ends', async () => {
       // jsdom lays nothing out, so `offsetParent` is null and the grid would
       // refuse to start a drag; every rect is at the origin, so the drag
-      // starts from (0, 0) whatever the panel's stored position.
+      // starts from (0, 0) whatever the panel's stored position. It also
+      // reports no width, and a column of no width is one a drag can never
+      // cross, so the container is given the 1280px the sums below assume.
       vi.spyOn(HTMLElement.prototype, 'offsetParent', 'get').mockImplementation(
         function (this: HTMLElement) {
           return this.parentElement;
         },
+      );
+      vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(
+        1280,
       );
       const { controller, runtime } = await openDashboard(gapped);
       render(<DashboardGrid dashboard={controller()} editable />);
@@ -659,10 +664,21 @@ describe('DashboardGrid', () => {
       observer => observer.node !== null && !observer.node.closest('table'),
     );
     act(() => grid!.resize(600));
-    // A measurement of zero is what a hidden container reports; it is ignored.
-    act(() => grid!.resize(0));
 
-    expect(item.style.width).not.toBe(initial);
+    // The measuring is `react-grid-layout`'s own `useContainerWidth`, which
+    // coalesces a burst of measurements into one animation frame, so the new
+    // width lands on the next paint rather than on the call itself.
+    await waitFor(() => expect(item.style.width).not.toBe(initial));
+    const measured = item.style.width;
+
+    // A measurement of zero is what a hidden container reports; the panels
+    // keep the last width they could be drawn at. The old hand-written hook
+    // dropped the zero before it reached the grid, the library's passes it
+    // on and the grid declines it — the panels are the same either way.
+    act(() => grid!.resize(0));
+    await act(() => new Promise(resolve => setTimeout(resolve, 20)));
+
+    expect(item.style.width).toBe(measured);
     vi.unstubAllGlobals();
   });
 

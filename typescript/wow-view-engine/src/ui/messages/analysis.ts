@@ -83,6 +83,12 @@ export const analysisMessages = {
   'label.chart.column.compare': 'Compared with',
   'label.chart.column.target': 'Target',
 
+  // The metric card's target bar. The bar is a progressbar, so it says its
+  // own name and reads its position as the two numbers behind it rather than
+  // as the percentage the role would otherwise announce.
+  'label.chart.target': 'Toward target',
+  'label.chart.target.reached': '{value} of {target}',
+
   // Analysis kernel.
   'analysis.alias.duplicate': 'The name {alias} is used twice.',
   'analysis.alias.invalid': '{alias} is not a usable name.',

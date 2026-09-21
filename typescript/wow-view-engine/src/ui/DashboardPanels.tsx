@@ -18,6 +18,12 @@ import { ExternalLinkIcon, ImageOffIcon } from 'lucide-react';
 import type { DashboardContentPanel } from '../model/index.js';
 import { isSafeContentUrl } from '../dashboard/index.js';
 import { useViewMessages } from './MessagesProvider.js';
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+} from './components/empty.js';
 import { TEXT_UI } from './layout.js';
 import { cn } from 'cn';
 
@@ -90,12 +96,39 @@ const MARKDOWN_COMPONENTS = {
   },
 };
 
+/**
+ * The type scale inside a markdown panel — what `react-markdown` renders has
+ * no classes of its own, so someone has to say how a heading and a list look.
+ *
+ * `@tailwindcss/typography` is the obvious reuse and it is declined here, for
+ * reasons rather than for taste:
+ *
+ * - **`prose` is an article column, this is a box the user sized.** The
+ *   plugin clamps to `max-width: 65ch` and scales around a 16–20px body; even
+ *   `prose-sm` gives `h1` about 30px, which is twice the panel's own title
+ *   and taller than a short panel has to spare.
+ * - **Its colours are a gray ramp, not this package's tokens.** Every
+ *   `--tw-prose-*` default is a Tailwind gray, so making it obey
+ *   `--foreground` / `--muted-foreground` / `--primary` means redefining
+ *   sixteen variables in `styles.css` — more theme than the four rules below,
+ *   and a second place where a colour is decided.
+ * - **Most of it is for elements this panel does not draw.** Raw HTML is off,
+ *   so there is no `figure`, no `lead`, no styled table coming.
+ *
+ * So the four rules stay explicit, and they are written down here rather than
+ * inline: the class list is the decision, and `prose-sm` sat in it for months
+ * doing nothing at all, because the plugin it belongs to was never installed.
+ */
+const MARKDOWN_PROSE =
+  'text-sm [&_a]:underline [&_h1]:text-base [&_h1]:font-semibold ' +
+  '[&_h2]:text-sm [&_h2]:font-semibold [&_ul]:list-disc [&_ul]:pl-4';
+
 /** Markdown with raw HTML left off, which is the whole point of using it. */
 export function MarkdownPanel({ content }: MarkdownPanelProps) {
   return (
     <div
       data-slot="markdown-panel"
-      className="prose-sm flex h-full flex-col gap-2 overflow-auto text-sm [&_a]:underline [&_h1]:text-base [&_h1]:font-semibold [&_h2]:text-sm [&_h2]:font-semibold [&_ul]:list-disc [&_ul]:pl-4"
+      className={cn('flex h-full flex-col gap-2 overflow-auto', MARKDOWN_PROSE)}
     >
       <Markdown components={MARKDOWN_COMPONENTS}>{content}</Markdown>
     </div>
@@ -118,18 +151,24 @@ export function ImagePanel({
   const [failed, setFailed] = useState(false);
   const messages = useViewMessages();
 
+  // The same shape every other panel says nothing with: a picture that did
+  // not arrive is an empty state, and `Empty` is what this package draws one
+  // with (`DashboardGrid` already does, twice). There is no title beside the
+  // description, because the `alt` the author wrote is the only wording there
+  // is, and repeating "This image could not be loaded" above it would say the
+  // failure twice.
   if (failed || !isSafeContentUrl(src))
     return (
-      <div
-        data-slot="image-panel-placeholder"
-        className={cn(
-          'text-muted-foreground flex h-full flex-col items-center justify-center gap-2',
-          TEXT_UI,
-        )}
-      >
-        <ImageOffIcon className="size-6" aria-hidden />
-        <span>{alt ?? messages.label('label.image.failed')}</span>
-      </div>
+      <Empty data-slot="image-panel-placeholder" className="h-full p-4">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <ImageOffIcon />
+          </EmptyMedia>
+          <EmptyDescription>
+            {alt ?? messages.label('label.image.failed')}
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     );
 
   const image = (
@@ -140,11 +179,10 @@ export function ImagePanel({
       loading="lazy"
       referrerPolicy="no-referrer"
       onError={() => setFailed(true)}
-      className={
-        fit === 'cover'
-          ? 'h-full w-full object-cover'
-          : 'h-full w-full object-contain'
-      }
+      className={cn(
+        'h-full w-full',
+        fit === 'cover' ? 'object-cover' : 'object-contain',
+      )}
     />
   );
 

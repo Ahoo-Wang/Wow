@@ -14,6 +14,7 @@
 import { Line, LineChart } from 'recharts';
 import type { MetricCardData } from '../../analysis/index.js';
 import { ChartContainer } from '../components/chart.js';
+import { Progress } from '../components/progress.js';
 import { cn } from 'cn';
 import { useViewMessages } from '../MessagesProvider.js';
 import { asImage } from './asImage.js';
@@ -29,6 +30,19 @@ import { color } from './palette.js';
 function formatDelta(delta: number, mode: 'delta' | 'percent' | undefined) {
   const sign = delta > 0 ? '+' : '';
   return `${sign}${formatValue(delta, mode === 'percent' ? 'percent' : undefined)}`;
+}
+
+/**
+ * How much of the target the value has reached, out of a hundred.
+ *
+ * A saved target is whatever a configuration put there, zero included, and a
+ * bar has to be drawable from any of them: nothing to fall short of is either
+ * reached or not, and past the target the bar is full rather than longer than
+ * itself.
+ */
+function reached(value: number, target: number): number {
+  if (target === 0) return value === 0 ? 0 : 100;
+  return Math.max(0, Math.min(100, (value / target) * 100));
 }
 
 export function MetricCard({
@@ -55,15 +69,26 @@ export function MetricCard({
             : formatDelta(data.compare.delta, card?.compare?.mode)}
         </span>
       )}
+      {/*
+        The registry's `Progress`, not a div sized by an inline `width`. A bar
+        that fills is a progressbar, and only the real one carries the role,
+        the value and the bounds — the div said "how far along the target this
+        is" to a pair of eyes and to nothing else. The target itself is the
+        one number the drawing knows and the card does not print, so it is
+        said here as well as in the reading table. The track is raised from
+        the registry's 1px at the call site, as the export progress does; the
+        vendored file stays as it ships.
+      */}
       {data.target !== undefined && data.value !== null && (
-        <div className="bg-muted h-2 w-full overflow-hidden rounded-full">
-          <div
-            className="bg-primary h-full"
-            style={{
-              width: `${Math.min(100, (data.value / data.target) * 100)}%`,
-            }}
-          />
-        </div>
+        <Progress
+          aria-label={messages.label('label.chart.target')}
+          aria-valuetext={messages.label('label.chart.target.reached', {
+            value: formatValue(data.value, card?.format),
+            target: formatValue(data.target, card?.format),
+          })}
+          value={reached(data.value, data.target)}
+          className="[&_[data-slot=progress-track]]:h-2"
+        />
       )}
       {data.trend && data.trend.length > 0 && (
         <ChartContainer

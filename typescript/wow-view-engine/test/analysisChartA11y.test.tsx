@@ -351,6 +351,41 @@ describe('the metric card still says its value out loud', () => {
       card.querySelector('svg.recharts-surface')!.getAttribute('aria-label'),
     ).toBe('metric: Orders, over time');
   });
+
+  /**
+   * The target bar used to be a `div` sized by an inline width: a shape with
+   * no role, no value and no bounds, which said how far along the target the
+   * value was to a pair of eyes and to nothing else.
+   */
+  it('reads the target bar as the two numbers behind it', () => {
+    const { container } = draw(
+      { type: 'metric', value: 8201, target: 9000 },
+      { type: 'metric', metric: { metric: 'orders' } },
+      columns,
+    );
+    const bar = container.querySelector('[role="progressbar"]')!;
+
+    expect(bar.getAttribute('aria-label')).toBe('Toward target');
+    expect(bar.getAttribute('aria-valuetext')).toBe('8,201 of 9,000');
+    // The position is the percentage the role announces; the wording above
+    // is what replaces it.
+    expect(Number(bar.getAttribute('aria-valuenow'))).toBeCloseTo(91.12, 2);
+  });
+
+  /** Nothing to fall short of still has to be drawable. */
+  it('draws a target of zero without dividing by it', () => {
+    const { container } = draw(
+      { type: 'metric', value: 12, target: 0 },
+      { type: 'metric', metric: { metric: 'orders' } },
+      columns,
+    );
+
+    expect(
+      container
+        .querySelector('[role="progressbar"]')!
+        .getAttribute('aria-valuenow'),
+    ).toBe('100');
+  });
 });
 
 describe('the wording is in both catalogues', () => {
