@@ -600,3 +600,131 @@ describe('a calendar day as a bound', () => {
     );
   });
 });
+
+/**
+ * D17-1: a `withTime` field's bound may carry a time of day, and an empty one
+ * is read with **interval** semantics — as a start it is the day's first
+ * millisecond, as an end its last. Both edges are in the surface's zone, like
+ * every other date value, and an old config that stored only a day is read the
+ * same way rather than kept as the instant its string would parse to.
+ *
+ * The boundary is the whole point: a report "through the 31st" that stopped at
+ * the 31st's first instant dropped every record of that day, and one read as
+ * the next midnight swept in the first record of February.
+ */
+describe('a bound with a time of day', () => {
+  // +08:00, so every expectation below also proves the zone was applied:
+  // none of these instants is the string read as UTC.
+  const shanghai = { ...context, timeZone: 'Asia/Shanghai' };
+  const at = (operator: FilterOperatorName, value: Record<string, unknown>) =>
+    compileFilter(
+      fields,
+      tree({
+        field: 'createdAt',
+        operator,
+        value: { type: 'absolute', ...value },
+      }),
+      builtinFieldKinds,
+      shanghai,
+    ) as unknown as { lowerBound: string; upperBound: string; value: string };
+
+  /** The two records on either side of the end of 2026-01-31 in Shanghai. */
+  const lastSecond = Date.parse('2026-01-31T23:59:59+08:00');
+  const nextMidnight = Date.parse('2026-02-01T00:00:00+08:00');
+  /** And the first instant of 2026-01-01 there. */
+  const firstInstant = Date.parse('2026-01-01T00:00:00+08:00');
+
+  it('runs an empty end time through the last millisecond of its day', () => {
+    const { upperBound } = at('BETWEEN', {
+      from: '2026-01-01',
+      to: '2026-01-31',
+    });
+
+    expect(upperBound).toBe('2026-01-31T15:59:59.999Z');
+    // A record at 23:59:59 on the end date is in.
+    expect(Date.parse(upperBound)).toBeGreaterThan(lastSecond);
+    // One at 00:00:00 the next day is out.
+    expect(Date.parse(upperBound)).toBeLessThan(nextMidnight);
+  });
+
+  it('starts an empty start time at the first millisecond of its day', () => {
+    const { lowerBound } = at('BETWEEN', {
+      from: '2026-01-01',
+      to: '2026-01-31',
+    });
+
+    expect(lowerBound).toBe('2025-12-31T16:00:00.000Z');
+    // A record at 00:00:00 on the start date is in; one a millisecond
+    // earlier — the last of the previous day — is out.
+    expect(Date.parse(lowerBound)).toBe(firstInstant);
+    expect(Date.parse(lowerBound)).toBeGreaterThan(firstInstant - 1);
+  });
+
+  it('gives a single bound the same two edges', () => {
+    expect(at('GTE', { from: '2026-01-01' }).value).toBe(
+      '2025-12-31T16:00:00.000Z',
+    );
+    expect(at('LTE', { from: '2026-01-31' }).value).toBe(
+      '2026-01-31T15:59:59.999Z',
+    );
+  });
+
+  /**
+   * What the control stores when a time is typed: a wall-clock string with no
+   * offset, so the zone still applies, and one instant on either edge — the
+   * interval reading is for an empty box, not for a time the user gave.
+   */
+  it('stands an explicit time of day on that instant, either edge', () => {
+    expect(
+      at('BETWEEN', { from: '2026-01-01T09:00:00', to: '2026-01-31T15:30:00' }),
+    ).toMatchObject({
+      lowerBound: '2026-01-01T01:00:00.000Z',
+      upperBound: '2026-01-31T07:30:00.000Z',
+    });
+    expect(at('LTE', { from: '2026-01-31T15:30:00' }).value).toBe(
+      '2026-01-31T07:30:00.000Z',
+    );
+  });
+
+  /**
+   * An old config holding only a day on a `withTime` field is what an emptied
+   * time box writes, and it is read identically: the day, not the midnight its
+   * string parses to. Only the end edge can tell the two apart, which is
+   * exactly where a report loses its last day.
+   */
+  it('reads an old date-only value as an emptied time box, not as midnight', () => {
+    const stored = { from: '2026-01-01', to: '2026-01-31' };
+    const midnight = { from: '2026-01-01T00:00:00', to: '2026-01-31T00:00:00' };
+
+    expect(at('BETWEEN', stored).lowerBound).toBe(
+      at('BETWEEN', midnight).lowerBound,
+    );
+    expect(at('BETWEEN', stored).upperBound).not.toBe(
+      at('BETWEEN', midnight).upperBound,
+    );
+    expect(Date.parse(at('BETWEEN', midnight).upperBound)).toBeLessThan(
+      lastSecond,
+    );
+  });
+
+  /** The summary reads the time back where one was given, and only there. */
+  it('says the time of day when the bound carries one', () => {
+    const said = (value: Record<string, unknown>) =>
+      describeFilter(
+        fields,
+        tree({
+          field: 'createdAt',
+          operator: 'BETWEEN',
+          value: { type: 'absolute', ...value },
+        }),
+        builtinFieldKinds,
+      )[0].text;
+
+    expect(said({ from: '2026-01-01', to: '2026-01-31' })).toBe(
+      'Created 2026-01-01 ~ 2026-01-31',
+    );
+    expect(
+      said({ from: '2026-01-01T09:00:00', to: '2026-01-31T15:30:00' }),
+    ).toBe('Created 2026-01-01T09:00:00 ~ 2026-01-31T15:30:00');
+  });
+});

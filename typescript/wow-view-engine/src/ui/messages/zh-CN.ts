@@ -267,6 +267,11 @@ export const zhCN: ViewMessages = {
   'label.date.amount-of': '{field} 数量',
   'label.date.unit-of': '{field} 单位',
   'label.date.period-of': '{field} 时间段',
+  'label.date.time': '时刻',
+  'label.date.time-from': '起始时刻',
+  'label.date.time-to': '截止时刻',
+  'label.date.time-hint':
+    '留空表示整天：起点算 00:00:00，终点算 23:59:59.999。',
 
   // 同一个"距今多远"，`BETWEEN` 问的是这段区间，`GTE`／`LTE` 比的是那一头的
   // 那一刻；把后者读成"最近 7 天"就是在描述一次没跑过的查询。

@@ -113,6 +113,15 @@ export const filterMessages = {
   'label.date.unit-of': '{field} unit',
   'label.date.period-of': '{field} period',
 
+  // The time of day beside the calendar, on a field that carries one. The
+  // hint is the control's whole point: an empty box is the day itself, read
+  // as an interval, and nobody can guess that from an empty box.
+  'label.date.time': 'Time',
+  'label.date.time-from': 'From time',
+  'label.date.time-to': 'To time',
+  'label.date.time-hint':
+    'Left empty, a day runs from 00:00:00 through 23:59:59.999.',
+
   // The two closed sets the relative-date control offers. Both used to be
   // rendered as the identifier itself — `hour`, `thisWeek` — so the control
   // stayed in English however the catalogue was replaced, exactly as the

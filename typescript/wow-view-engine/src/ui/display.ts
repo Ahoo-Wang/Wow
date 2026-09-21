@@ -92,7 +92,11 @@ export function displayValue(
       return time
         ? format(time.date, context.locale, {
             dateStyle: 'medium',
-            timeStyle: 'medium',
+            // A wall-clock string that names only a day is a day, on a
+            // datetime field as anywhere else: it is how a date condition
+            // says "the whole day" (kernels.md), and printing 12:00:00 AM
+            // beside it states a moment nobody wrote.
+            ...(time.dayOnly ? {} : { timeStyle: 'medium' as const }),
             timeZone: time.timeZone,
           })
         : undefined;
@@ -116,25 +120,29 @@ export function displayValue(
  * wall-clock string is read as if at UTC and shown in UTC, which prints it as
  * written whatever zone is in force: `2026-09-18` stays the 18th in Los
  * Angeles, and `09:30` stays 09:30 in a browser on another clock.
+ *
+ * `dayOnly` says the string carried no time of day, which is a meaning and
+ * not a gap: a bound written as a calendar day stands for the whole of it.
  */
 function readTime(
   value: unknown,
   timeZone: string | undefined,
-): { date: Date; timeZone: string | undefined } | undefined {
+): { date: Date; timeZone: string | undefined; dayOnly?: true } | undefined {
   const wall = typeof value === 'string' ? WALL_CLOCK.exec(value.trim()) : null;
   if (wall) {
-    const [, day, minutes = '00:00', seconds = '00', fraction = ''] = wall;
+    const [, day, hourMinute, seconds = '00', fraction = ''] = wall;
     // A Date holds milliseconds; Java writes up to nine digits.
     const millis = `${fraction}000`.slice(0, 3);
-    const written = `${day}T${minutes}:${seconds}`;
+    const written = `${day}T${hourMinute ?? '00:00'}:${seconds}`;
     const date = new Date(`${written}.${millis}Z`);
     // `Date` rolls a day that does not exist over into the next month, and
     // 24:00 into the next day: `2025-02-29` would show as the 1st of March.
     // What it does not read back as written is left for the caller to print.
-    return !Number.isNaN(date.getTime()) &&
-      date.toISOString().startsWith(written)
-      ? { date, timeZone: 'UTC' }
-      : undefined;
+    if (Number.isNaN(date.getTime()) || !date.toISOString().startsWith(written))
+      return undefined;
+    return hourMinute === undefined
+      ? { date, timeZone: 'UTC', dayOnly: true }
+      : { date, timeZone: 'UTC' };
   }
   const date = toDate(value);
   return date && { date, timeZone };

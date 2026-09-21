@@ -127,13 +127,37 @@ const numberListView: ViewInstance = {
   }),
 };
 
+/**
+ * A condition on a field that carries a time of day (`withTime`): the
+ * calendar has a clock under it, one control and one submission. Both boxes
+ * start empty, which is the whole day — the start edge is read at
+ * `00:00:00.000` and the end edge at `23:59:59.999` (D17-1).
+ */
+const withTimeView: ViewInstance = {
+  ...savedViews[0],
+  id: 'orders-with-time',
+  title: '带时刻的日期',
+  config: recordConfig({
+    filter: {
+      op: 'and',
+      children: [
+        {
+          field: 'createdAt',
+          operator: 'BETWEEN',
+          value: { type: 'absolute', from: '2026-09-15', to: '2026-09-17' },
+        },
+      ],
+    },
+  }),
+};
+
 function FilterPanelDemo({ instanceId }: { instanceId: string }) {
   return (
     <StoryEngine
       create={() =>
         createStoryEngine({
           definitions: [withItems],
-          instances: [richView, simpleView, numberListView],
+          instances: [richView, simpleView, numberListView, withTimeView],
         })
       }
     >
@@ -189,3 +213,11 @@ export const Simple: Story = { args: { instanceId: 'orders-simple' } };
  * 筛选 in the title bar to type a fourth value.
  */
 export const NumberList: Story = { args: { instanceId: 'orders-number-list' } };
+
+/**
+ * A date condition on a field that carries a time of day. Unfold 筛选 and
+ * open the calendar: the clock is under it, in the same popover, and leaving
+ * a box empty keeps that end of the range at the day itself — the first
+ * millisecond as a start, the last as an end.
+ */
+export const WithTime: Story = { args: { instanceId: 'orders-with-time' } };

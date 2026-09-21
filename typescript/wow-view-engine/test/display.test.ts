@@ -110,6 +110,28 @@ describe('displayValue', () => {
     ).toBeUndefined();
   });
 
+  /**
+   * A wall-clock string with no time of day names the whole day — it is how
+   * a `withTime` date condition says "the whole of the 31st" (D17-1), and it
+   * is what a `LocalDate` column holds. Showing 00:00:00 beside it states a
+   * moment nobody wrote, and on a filter badge it said the opposite of the
+   * query that ran: the day's end, not its start.
+   */
+  it('shows a day with no time of day as a day, on a datetime field', () => {
+    const context = { locale: 'en-GB', timeZone: 'Asia/Shanghai' };
+
+    expect(displayValue('2026-01-31', { kind: 'datetime' }, context)).toBe(
+      formatted(Date.UTC(2026, 0, 31), 'en-GB', {
+        dateStyle: 'medium',
+        timeZone: 'UTC',
+      }),
+    );
+    // A time of day is still shown where the value carries one.
+    expect(
+      displayValue('2026-01-31T15:30:00', { kind: 'datetime' }, context),
+    ).toContain('15:30:00');
+  });
+
   // A time on the wrong clock is wrong; one in the runtime's language is
   // only foreign. `zh_CN` is not BCP 47, so Intl refuses it.
   it('keeps the zone when the language is one Intl cannot read', () => {
@@ -595,6 +617,44 @@ describe('summaryText', () => {
         items: [sku('C', 0), inner],
       }),
     ).toBe('Any of SKU is C, (None of SKU is A, SKU is B)');
+  });
+
+  /**
+   * The badge says the time where the condition gave one, and says only the
+   * day where it did not: an empty time box is the whole day (D17-1), so a
+   * badge reading "through 31 Jan 2026, 00:00:00" would describe an end the
+   * query never ran to.
+   */
+  it('says a date condition with its time of day, and without one', () => {
+    const range = (from: string, to: string): FilterSummaryItem => ({
+      path: ['children', 0],
+      text: `${from} ~ ${to}`,
+      unresolved: false,
+      field: 'createdAt',
+      label: 'Created',
+      kind: 'datetime',
+      operator: 'BETWEEN',
+      value: { kind: 'range', from, to },
+    });
+
+    // Written out of Intl rather than typed: the badge reads in the
+    // surface's own language, and a typed string would only ever prove
+    // which machine the suite ran on.
+    const shown = (utc: number, withTime: boolean) =>
+      formatted(utc, undefined, {
+        dateStyle: 'medium',
+        ...(withTime ? { timeStyle: 'medium' as const } : {}),
+        timeZone: 'UTC',
+      });
+
+    expect(say(range('2026-01-01', '2026-01-31'))).toBe(
+      `Created between ${shown(Date.UTC(2026, 0, 1), false)} ~ ` +
+        shown(Date.UTC(2026, 0, 31), false),
+    );
+    expect(say(range('2026-01-01T09:00:00', '2026-01-31T15:30:00'))).toBe(
+      `Created between ${shown(Date.UTC(2026, 0, 1, 9), true)} ~ ` +
+        shown(Date.UTC(2026, 0, 31, 15, 30), true),
+    );
   });
 
   it('falls back to the derived spelling for an operator nothing names', () => {

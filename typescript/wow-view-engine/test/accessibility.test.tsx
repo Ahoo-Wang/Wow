@@ -19,6 +19,7 @@ import axe from 'axe-core';
 import {
   MemoryViewStore,
   ViewEngine,
+  type DataViewDefinition,
   type ViewInstance,
 } from '../src/index.js';
 import {
@@ -98,6 +99,33 @@ const amountsIn: ViewInstance = {
   }),
 };
 
+/**
+ * A calendar condition on a `withTime` field, which draws the clock beside
+ * the calendar: two more controls in a portalled popover, each of which has
+ * a name to get wrong.
+ */
+const createdBetween: ViewInstance = {
+  id: 'created',
+  definitionId: 'orders',
+  title: 'Created',
+  scope: 'shared',
+  revision: '1',
+  config: recordConfig({
+    filter: {
+      op: 'and',
+      children: [
+        {
+          field: 'createdAt',
+          operator: 'BETWEEN',
+          // Wide enough to keep the rows on screen: this case is about the
+          // control's names, and an empty result draws no table to wait for.
+          value: { type: 'absolute', from: '2020-01-01', to: '2030-12-31' },
+        },
+      ],
+    },
+  }),
+};
+
 const warehouseTotals: ViewInstance = {
   id: 'totals',
   definitionId: 'orders',
@@ -148,9 +176,22 @@ const overview: ViewInstance = {
   }),
 };
 
-function engineWith(instances: ViewInstance[]): ViewEngine {
+/** The orders capability plus a field that carries a time of day. */
+function timedOrdersDefinition(): DataViewDefinition {
+  return ordersDefinition({
+    fields: [
+      ...ordersDefinition().fields,
+      { name: 'createdAt', label: 'Created', kind: 'datetime' },
+    ],
+  });
+}
+
+function engineWith(
+  instances: ViewInstance[],
+  definition: DataViewDefinition = ordersDefinition(),
+): ViewEngine {
   return new ViewEngine({
-    definitions: [ordersDefinition(), overviewDefinition()],
+    definitions: [definition, overviewDefinition()],
     store: new MemoryViewStore({ instances }),
     resolveSource: () => testSource(),
   });
@@ -234,12 +275,15 @@ describe('the open view names the region it is drawn in', () => {
  */
 describe('the states behind a click pass axe', () => {
   /** The record workbench, opened on a view with rows on screen. */
-  async function workbench(instance: ViewInstance = pendingOrders) {
+  async function workbench(
+    instance: ViewInstance = pendingOrders,
+    definition?: DataViewDefinition,
+  ) {
     const user = userEvent.setup();
     render(
       <ViewSurface>
         <RecordWorkbench
-          engine={engineWith([instance])}
+          engine={engineWith([instance], definition)}
           definitionId="orders"
           instanceId={instance.id}
         />
@@ -250,8 +294,11 @@ describe('the states behind a click pass axe', () => {
   }
 
   /** The editor unfolded, which is where the condition pills are. */
-  async function openEditor(instance?: ViewInstance) {
-    const user = await workbench(instance);
+  async function openEditor(
+    instance?: ViewInstance,
+    definition?: DataViewDefinition,
+  ) {
+    const user = await workbench(instance, definition);
     // A saved view opens with the editor folded, so the panel is not in the
     // document until the title bar's toggle is pressed.
     await user.click(
@@ -331,6 +378,29 @@ describe('the states behind a click pass axe', () => {
         value: '200',
       }),
     });
+
+    expect(await violations(document.body)).toEqual([]);
+  });
+
+  /**
+   * A date condition on a `withTime` field is one control with two halves:
+   * the calendar, and the clock under it. Both live in the same portalled
+   * popover, and the clock's boxes are named by their own labels rather than
+   * by an `aria-label` the visible word would disagree with.
+   */
+  it('the calendar open on a field that carries a time of day', async () => {
+    const user = await openEditor(createdBetween, timedOrdersDefinition());
+    await user.click(
+      screen.getByRole('button', {
+        name: formatMessage(defaultMessages, 'label.filter.value-of', {
+          field: 'Created',
+        }),
+      }),
+    );
+    await screen.findByLabelText(defaultMessages['label.date.time-from']);
+    expect(
+      screen.getByLabelText(defaultMessages['label.date.time-to']),
+    ).toBeDefined();
 
     expect(await violations(document.body)).toEqual([]);
   });

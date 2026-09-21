@@ -12,6 +12,8 @@
  */
 
 import { CalendarIcon } from 'lucide-react';
+import { useId } from 'react';
+import { cn } from 'cn';
 import type { FilterValue } from '../../../model/index.js';
 import {
   writeValue,
@@ -19,18 +21,29 @@ import {
 } from '../../../filter/index.js';
 import { Button } from '../../components/button.js';
 import { Calendar } from '../../components/calendar.js';
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from '../../components/field.js';
+import { Input } from '../../components/input.js';
 import { Popover, PopoverTrigger } from '../../components/popover.js';
 import { PopoverContent } from '../../popups.js';
+import { SPACE } from '../../layout.js';
 import { useViewMessages } from '../../MessagesProvider.js';
 import { displayValue, type DisplayContext } from '../../display.js';
 import { useSurfaceDisplay } from '../../ViewSurface.js';
 
 /**
- * A day, or the two ends of a span of them, off a calendar.
+ * A day, or the two ends of a span of them, off a calendar — with the time
+ * of day beside it where the field carries one.
  *
  * One component for both because a range is the same calendar with a second
  * bound: `dateRange` picks two, `date` picks one, and the trigger reads back
- * whichever it has.
+ * whichever it has. The time of day belongs to the same control rather than
+ * to a second one: the calendar and the clock are two halves of one bound,
+ * and either of them writes the whole value once (D17-1).
  */
 export function AbsoluteDate({
   value,
@@ -53,8 +66,34 @@ export function AbsoluteDate({
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
   const blank = messages.label('label.date.pick');
-  const from = parseDate(value.from);
-  const to = parseDate(value.to);
+  const from = readBound(value.from, withTime);
+  const to = readBound(value.to, withTime);
+
+  /**
+   * One submission for the whole control: whichever half moved, the leaf is
+   * rewritten from both. A bound with no day is no bound — a calendar with
+   * nothing left on it blanks the leaf rather than leaving the pill asking
+   * something the user has just taken back.
+   */
+  const put = (next: { from?: DayTime; to?: DayTime }) => {
+    const start = next.from ?? from;
+    const end = next.to ?? to;
+    if (start.day === '') {
+      onChange(null);
+      return;
+    }
+    onChange(
+      writeValue(
+        range
+          ? {
+              ...value,
+              from: storeBound(start),
+              to: end.day === '' ? undefined : storeBound(end),
+            }
+          : { ...value, from: storeBound(start) },
+      ),
+    );
+  };
 
   return (
     <Popover>
@@ -67,43 +106,41 @@ export function AbsoluteDate({
         {formatDate(value.from, withTime, blank, display)}
         {range ? ` – ${formatDate(value.to, withTime, blank, display)}` : ''}
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0">
+      {/* Base UI gives a popover `role="dialog"`, and a dialog with no name
+          is one axe reports and a screen reader announces as nothing at all.
+          The control's own name is the right one: the calendar and the clock
+          in here are two halves of that one value. */}
+      <PopoverContent className="w-auto p-0" aria-label={label}>
         {range ? (
           <Calendar
             mode="range"
             autoFocus
-            selected={{ from, to }}
+            selected={{ from: parseDay(from.day), to: parseDay(to.day) }}
             onSelect={selected =>
-              onChange(
-                // A calendar with nothing left on it is a blank leaf, not a
-                // condition missing its lower bound: `from` is required, and
-                // keeping the old one would leave the pill asking something
-                // the user has just taken back.
-                selected?.from
-                  ? writeValue({
-                      ...value,
-                      from: storeDate(selected.from, withTime),
-                      to: selected.to && storeDate(selected.to, withTime),
-                    })
-                  : null,
-              )
+              put({
+                from: { ...from, day: dayOf(selected?.from) },
+                to: { ...to, day: dayOf(selected?.to) },
+              })
             }
           />
         ) : (
           <Calendar
             mode="single"
             autoFocus
-            selected={from}
+            selected={parseDay(from.day)}
             onSelect={selected =>
-              onChange(
-                selected
-                  ? writeValue({
-                      ...value,
-                      from: storeDate(selected, withTime),
-                    })
-                  : null,
-              )
+              put({ from: { ...from, day: dayOf(selected) } })
             }
+          />
+        )}
+        {withTime && (
+          <TimeOfDay
+            range={range}
+            disabled={disabled}
+            from={from}
+            to={to}
+            onFrom={time => put({ from: { ...from, time } })}
+            onTo={time => put({ to: { ...to, time } })}
           />
         )}
       </PopoverContent>
@@ -111,35 +148,172 @@ export function AbsoluteDate({
   );
 }
 
-/** A calendar day as stored: `2026-01-31`, no time of day, no offset. */
-const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
-
 /**
- * A stored bound, as a `Date` for the calendar. A date-only string is the
- * local day it names, read field by field: `new Date('2026-01-31')` reads it
- * as UTC midnight, which west of Greenwich is the evening of the 30th.
+ * The clock half of the control: one box for a single bound, one per end for
+ * a range.
+ *
+ * A native time input is what the registry's own calendar-and-time pattern
+ * uses, and it is the only control that is a clock in every language and on
+ * every keyboard — hours, minutes and seconds as separate spin fields, all
+ * of them reachable with the arrow keys. `step="1"` is what puts the seconds
+ * field there; they are optional in the value, and a time given without them
+ * is stored on the whole second.
+ *
+ * A box is disabled while its own end has no day: a time of day is not a
+ * moment until something says which day it is on, and seeding the day from
+ * the clock is exactly what a blank date condition must not do.
  */
-function parseDate(text?: string): Date | undefined {
-  if (!text) return undefined;
-  const day = DATE_ONLY.exec(text);
-  const parsed = day
-    ? new Date(Number(day[1]), Number(day[2]) - 1, Number(day[3]))
-    : new Date(text);
-  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+function TimeOfDay({
+  range,
+  disabled,
+  from,
+  to,
+  onFrom,
+  onTo,
+}: {
+  range: boolean;
+  disabled?: boolean;
+  from: DayTime;
+  to: DayTime;
+  onFrom(time: string): void;
+  onTo(time: string): void;
+}) {
+  const messages = useViewMessages();
+  const id = useId();
+
+  return (
+    <FieldGroup className={cn('border-t p-3', SPACE.ROWS)}>
+      <Field orientation="horizontal">
+        <FieldLabel htmlFor={`${id}-from`}>
+          {messages.label(range ? 'label.date.time-from' : 'label.date.time')}
+        </FieldLabel>
+        <Input
+          id={`${id}-from`}
+          type="time"
+          step="1"
+          className="w-36"
+          disabled={disabled || from.day === ''}
+          value={from.time}
+          onChange={event => onFrom(readTime(event.target.value))}
+        />
+      </Field>
+      {range && (
+        <Field orientation="horizontal">
+          <FieldLabel htmlFor={`${id}-to`}>
+            {messages.label('label.date.time-to')}
+          </FieldLabel>
+          <Input
+            id={`${id}-to`}
+            type="time"
+            step="1"
+            className="w-36"
+            disabled={disabled || to.day === ''}
+            value={to.time}
+            onChange={event => onTo(readTime(event.target.value))}
+          />
+        </Field>
+      )}
+      {/* What an empty box means is the whole point of the control, and it
+          is not guessable: left empty a bound is the day itself, read as an
+          interval — its first millisecond on the way in, its last on the way
+          out. */}
+      <FieldDescription>
+        {messages.label('label.date.time-hint')}
+      </FieldDescription>
+    </FieldGroup>
+  );
 }
 
 /**
- * A calendar pick, as stored. With a time of day it is a moment and keeps
- * its instant; without one it is the day the user pointed at, stored as
- * `YYYY-MM-DD` from the local calendar fields so the kernel resolves it in
- * the runtime's or the condition's zone. `toISOString()` would pin local
- * midnight to UTC with a `Z`, which the kernel rightly takes as one fixed
- * moment — no zone ever applied, and a range's last day fell off the end.
+ * One bound as the two controls hold it: the calendar day, and the time of
+ * day when the bound names one. An empty `time` is the interval reading —
+ * the whole day — and not midnight.
  */
-function storeDate(date: Date, withTime: boolean): string {
-  if (withTime) return date.toISOString();
-  const pad = (part: number) => String(part).padStart(2, '0');
+interface DayTime {
+  /** `2026-01-31`, or `''` while nothing is picked. */
+  day: string;
+  /** `15:30:00`, or `''` when the bound names only a day. */
+  time: string;
+}
+
+/**
+ * A day and a time with no offset: `2026-01-31`, `2026-01-31T15:30`,
+ * `2026-01-31T15:30:00`. Its dashes sit between the date's fields, never
+ * before a trailing `HH:mm`, so it is never an offset.
+ */
+const WALL_CLOCK = /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2})(?::(\d{2}))?)?$/;
+
+/**
+ * A stored bound as the controls read it.
+ *
+ * A wall-clock string is taken field by field: `new Date('2026-01-31')`
+ * reads it as UTC midnight, which west of Greenwich is the evening of the
+ * 30th. An instant that names its own offset — what this editor used to
+ * store, and what a host's own config may hold — is shown on the local
+ * clock, so the day and the time are the ones the user sees beside it.
+ *
+ * A field that carries no time of day has none whatever its stored string
+ * says: there is no control for it, so keeping one would write it back
+ * invisibly, and a plain date field would come out of this editor asking for
+ * midnight instead of for the day.
+ */
+function readBound(text: string | undefined, withTime: boolean): DayTime {
+  if (!text) return { day: '', time: '' };
+  const wall = WALL_CLOCK.exec(text);
+  const read = wall
+    ? {
+        day: wall[1],
+        time: wall[2] === undefined ? '' : `${wall[2]}:${wall[3] ?? '00'}`,
+      }
+    : instantAt(text);
+  return withTime ? read : { day: read.day, time: '' };
+}
+
+/** An instant that names its own offset, on the local clock. */
+function instantAt(text: string): DayTime {
+  const parsed = new Date(text);
+  if (Number.isNaN(parsed.getTime())) return { day: '', time: '' };
+  return { day: dayOf(parsed), time: timeOf(parsed) };
+}
+
+/**
+ * A bound as stored: the day the user pointed at, and the time beside it
+ * when one was given, both from the local calendar fields and with no
+ * offset. It names a time on a clock rather than a moment, which is what
+ * lets the kernel resolve it in the runtime's or the condition's zone.
+ *
+ * `toISOString()` pinned local midnight to UTC with a `Z`, which the kernel
+ * rightly takes as one fixed moment — no zone ever applied, no interval
+ * reading for an empty time, and a range's last day fell off the end.
+ */
+function storeBound(bound: DayTime): string {
+  return bound.time === '' ? bound.day : `${bound.day}T${bound.time}`;
+}
+
+/** What the native control gives back: nothing, `HH:mm`, or `HH:mm:ss`. */
+function readTime(raw: string): string {
+  if (raw === '') return '';
+  return raw.length === 5 ? `${raw}:00` : raw;
+}
+
+/** A stored day as the `Date` the calendar selects by. */
+function parseDay(day: string): Date | undefined {
+  if (day === '') return undefined;
+  const [year, month, date] = day.split('-').map(Number);
+  return new Date(year, month - 1, date);
+}
+
+function dayOf(date?: Date): string {
+  if (!date) return '';
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function timeOf(date: Date): string {
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+function pad(part: number): string {
+  return String(part).padStart(2, '0');
 }
 
 /**

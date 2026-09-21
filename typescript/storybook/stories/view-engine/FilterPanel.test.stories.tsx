@@ -11,12 +11,13 @@
  * limitations under the License.
  */
 import type { StoryObj } from '@storybook/react-vite';
-import { expect, userEvent, waitFor, within } from 'storybook/test';
+import { expect, fireEvent, userEvent, waitFor, within } from 'storybook/test';
 import { formatMessage, zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 import displayMeta, {
   Advanced as DisplayAdvanced,
   NumberList as DisplayNumberList,
   Simple as DisplaySimple,
+  WithTime as DisplayWithTime,
 } from './FilterPanel.stories.js';
 import { amountOf, readColumn, readTotal } from './readTable.js';
 
@@ -104,6 +105,92 @@ export const Advanced: Story = {
         `${zhCN['label.filter.all-of']} SKU ${zhCN['label.operator.EQ']} A-1` +
         `${JOIN}数量 ${zhCN['label.operator.GT']} 2`,
     ]);
+  },
+};
+
+/**
+ * A `withTime` field's condition carries a time of day, in the same control
+ * as the calendar and with one submission (D17-1). The box starts empty,
+ * which is the day itself — read at `00:00:00.000` as a start and at
+ * `23:59:59.999` as an end — and the summary says the time only where one
+ * was given, so the badge never claims a boundary the query did not run to.
+ *
+ * Only a real browser can drive a native time input, which is why this lives
+ * here and not in jsdom.
+ */
+export const WithTime: Story = {
+  ...DisplayWithTime,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      await canvas.findByRole('button', {
+        name: new RegExp(`^${zhCN['label.filter.panel']}`),
+      }),
+    );
+
+    // The calendar and its clock are one control, opened from the pill.
+    const trigger = await canvas.findByLabelText(
+      formatMessage(zhCN, 'label.filter.value-of', { field: '创建时间' }),
+    );
+    await userEvent.click(trigger);
+
+    const popup = within(document.body);
+    const from = await popup.findByLabelText(zhCN['label.date.time-from']);
+    // Both boxes are empty to begin with: that is the whole day, not
+    // midnight, and it is what the hint under them says.
+    await expect(from).toHaveValue('');
+    await expect(popup.getByLabelText(zhCN['label.date.time-to'])).toHaveValue(
+      '',
+    );
+
+    // Reachable and editable from the keyboard: the box takes focus, and
+    // the value is then set the way the browser's own spin fields set it.
+    // Synthetic keystrokes do not drive a native time input's segments —
+    // they are untrusted, so Chromium ignores them — which is why this
+    // changes the value rather than typing six digits into it.
+    await userEvent.click(from);
+    await expect(from).toHaveFocus();
+    fireEvent.change(from, { target: { value: '15:30:00' } });
+    await waitFor(() => expect(from).toHaveValue('15:30:00'));
+    await userEvent.keyboard('{Escape}');
+
+    // The trigger reads the bound back with the time on the start edge and
+    // without one on the end, through the surface's own formatter: a
+    // wall-clock string names a time on a clock rather than a moment, so it
+    // is shown as written whatever zone the browser is in.
+    const shown = (utc: number, withTime: boolean) =>
+      new Intl.DateTimeFormat('zh-CN', {
+        dateStyle: 'medium',
+        ...(withTime ? { timeStyle: 'medium' as const } : {}),
+        timeZone: 'UTC',
+      }).format(utc);
+    await waitFor(() =>
+      expect(trigger.textContent).toBe(
+        `${shown(Date.UTC(2026, 8, 15, 15, 30), true)} – ` +
+          shown(Date.UTC(2026, 8, 17), false),
+      ),
+    );
+
+    await userEvent.click(
+      await canvas.findByRole('button', { name: zhCN['label.filter.apply'] }),
+    );
+
+    // And the applied badge says the same: a bound with a time of day says
+    // it, one without stays a day.
+    const applied = canvas.getByRole('region', {
+      name: zhCN['label.applied.title'],
+    });
+    await waitFor(() =>
+      expect(
+        [...applied.querySelectorAll('[data-slot="badge"]')].map(badge =>
+          badge.textContent?.trim(),
+        ),
+      ).toEqual([
+        `创建时间 ${zhCN['label.operator.BETWEEN']} ` +
+          `${shown(Date.UTC(2026, 8, 15, 15, 30), true)} ~ ` +
+          shown(Date.UTC(2026, 8, 17), false),
+      ]),
+    );
   },
 };
 
