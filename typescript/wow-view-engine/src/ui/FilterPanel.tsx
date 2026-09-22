@@ -87,6 +87,28 @@ export function FilterPanel({
         found.code === 'filter.tree.too-many-nodes'),
   );
 
+  // Simple mode with nothing in it draws nothing at all — not an empty
+  // scroll port, which is a block promising content it does not have.
+  const tree = advanced ? (
+    <GroupBlock
+      filter={filter}
+      group={filter.tree}
+      path={[]}
+      disabled={disabled}
+      optionsFor={optionsFor}
+      isPending={filter.isPending}
+    />
+  ) : filter.count > 0 ? (
+    <ConditionStrip
+      filter={filter}
+      group={filter.tree}
+      path={[]}
+      disabled={disabled}
+      optionsFor={optionsFor}
+      isPending={filter.isPending}
+    />
+  ) : null;
+
   return (
     <section
       data-slot="filter-panel"
@@ -130,25 +152,27 @@ export function FilterPanel({
         <LineAlert tone="info" data-slot="filter-too-large">
           <AlertTitle>{messages.label('label.filter.too-large')}</AlertTitle>
         </LineAlert>
-      ) : advanced ? (
-        <GroupBlock
-          filter={filter}
-          group={filter.tree}
-          path={[]}
-          disabled={disabled}
-          optionsFor={optionsFor}
-          isPending={filter.isPending}
-        />
       ) : (
-        filter.count > 0 && (
-          <ConditionStrip
-            filter={filter}
-            group={filter.tree}
-            path={[]}
-            disabled={disabled}
-            optionsFor={optionsFor}
-            isPending={filter.isPending}
-          />
+        tree !== null && (
+          // The conditions scroll; the tray does not grow without end.
+          //
+          // A filter of seven conditions in advanced mode drew a 758px tray,
+          // which on an 800×900 screen put the result toolbar 74px below the
+          // fold: the rows the conditions are about were not on the screen
+          // the conditions were being written on. The tray is what the user
+          // reads to *change* the query and the result is what they read to
+          // *see* it, so the one that is a means gives way to the one that
+          // is the end — capped here rather than folded, because folding
+          // hides conditions that are in force, and "which conditions am I
+          // looking at" is the question this block exists to answer.
+          //
+          // 40vh is the largest cap that leaves the other 60% to the title
+          // bar, the applied conditions and the first rows of the result:
+          // measured at 800×900 it holds the whole tray, its actions row
+          // included, inside 424px and puts the toolbar at 640px.
+          <div data-slot="filter-tree" className="max-h-[40vh] overflow-y-auto">
+            {tree}
+          </div>
         )
       )}
 

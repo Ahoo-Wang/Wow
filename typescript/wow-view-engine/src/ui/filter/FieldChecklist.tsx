@@ -11,9 +11,8 @@
  * limitations under the License.
  */
 
-import { useId, useState } from 'react';
-import { Combobox as ComboboxPrimitive } from '@base-ui/react';
-import { PlusIcon } from 'lucide-react';
+import { useId, useRef, useState } from 'react';
+import { PlusIcon, SearchIcon } from 'lucide-react';
 import type { FieldDefinition } from '../../model/index.js';
 import {
   fieldGroups,
@@ -24,28 +23,32 @@ import {
 } from '../../filter/index.js';
 import type { FilterTreeController } from '../../react/index.js';
 import { Button } from '../components/button.js';
+import { Checkbox } from '../components/checkbox.js';
+import { Empty, EmptyDescription, EmptyHeader } from '../components/empty.js';
 import {
-  Combobox,
-  ComboboxCollection,
-  ComboboxEmpty,
-  ComboboxGroup,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxLabel,
-  ComboboxList,
-} from '../components/combobox.js';
+  Field,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from '../components/field.js';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '../components/input-group.js';
+import {
+  Popover,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from '../components/popover.js';
 import { useViewMessages } from '../MessagesProvider.js';
-import { ComboboxContent } from '../popups.js';
-
-/** One section of the catalogue as the list draws it: a heading and its fields. */
-interface FieldSection {
-  /** The group's label, or the empty string for the ungrouped fields in front. */
-  value: string;
-  items: FieldDefinition[];
-}
+import { PopoverContent } from '../popups.js';
 
 /**
- * The fields of a group, as a list to tick rather than a menu to pick from.
+ * The fields of a group, as a grid of checkboxes to tick rather than a menu
+ * to pick from.
  *
  * Building a filter is choosing several fields, and a menu that closed on
  * each one made that four round trips for four conditions. The list stays
@@ -56,18 +59,25 @@ interface FieldSection {
  * the tick is the condition's existence, and a user who unticks one is
  * asking for it to go.
  *
- * It is Base UI's `Combobox` in `multiple` mode with the input inside the
- * popup — "a searchable list the user ticks several things in without it
- * closing" is exactly that primitive's brief, and it brings what the
- * hand-written checklist never had: arrow keys and typeahead over the list,
- * `aria-activedescendant`, a filter that follows the label, grouping, and an
- * empty state, each of which was either missing or re-implemented here
- * before (D16). What stays this file's own is the meaning of a tick.
+ * **Every field wears a visible checkbox**, and the grid runs in two columns
+ * wherever the popup is wide enough. D16 had replaced that grid with a Base
+ * UI `Combobox multiple` for the list keyboard model it brought for free;
+ * measured on a definition with 21 fields, what it cost was worse than what
+ * it bought — one column showed 7 of them at a time, and the unticked ones
+ * carried no mark at all next to the ticked ones' ✓, so the list read as a
+ * menu of single picks. The user ruled on 2026-09-21 that the grid comes
+ * back, and D16 records the exception. What this round kept from the
+ * combobox is the part that earned its place on a wide definition: the
+ * search line at the top (it narrows every group at once and drops the ones
+ * left empty), the grouping, and the empty sentence.
  *
- * The catalogue is laid out exactly as every other field picker lays it out
- * — ungrouped fields first and without a heading, then each declared group —
- * so a field is found in the same place whether it is being added as a
- * condition, a column or a grouping.
+ * Each field is the registry's `Checkbox` inside a `Field` — one tab stop,
+ * Space to toggle, its own label — and each catalogue group is a `FieldSet`
+ * under its `FieldLegend`, which is the registry's own part for a set of
+ * related checkboxes. The catalogue is laid out exactly as every other field
+ * picker lays it out — ungrouped fields first and without a heading, then
+ * each declared group — so a field is found in the same place whether it is
+ * being added as a condition, a column or a grouping.
  */
 export function FieldChecklist({
   filter,
@@ -83,7 +93,9 @@ export function FieldChecklist({
 }) {
   const messages = useViewMessages();
   const [open, setOpen] = useState(false);
-  const titleId = useId();
+  const [query, setQuery] = useState('');
+  const search = useRef<HTMLInputElement>(null);
+  const ids = useId();
 
   // Everything the group could hold, in catalogue order: what may still be
   // added, plus what is already there. `fieldsFor` answers only the first
@@ -100,77 +112,91 @@ export function FieldChecklist({
   const candidates = filter.fields.filter(
     field => addable.has(field.name) || held.has(field.name),
   );
-  const sections: FieldSection[] = fieldGroups(
-    candidates,
-    filter.fieldGroups,
-    field => field.name,
-  ).map(entry => ({ value: entry.group?.label ?? '', items: entry.items }));
-  const ticked = candidates.filter(field => held.has(field.name));
+  // The search narrows the fields, never the catalogue: a group with nothing
+  // left to show is dropped rather than left as a heading over a gap.
+  const needle = query.trim().toLocaleLowerCase();
+  const listed =
+    needle === ''
+      ? candidates
+      : candidates.filter(field =>
+          field.label.toLocaleLowerCase().includes(needle),
+        );
+  const sections = fieldGroups(listed, filter.fieldGroups, field => field.name);
 
-  // One press changes one field, so the difference between what the list
-  // reports and what the group holds is one addition or one removal. The
-  // tree is the source of truth: the list re-reads it on the next render
-  // rather than keeping a selection of its own.
-  const onValueChange = (next: readonly FieldDefinition[]) => {
-    const chosen = new Set(next.map(field => field.name));
-    const added = next.find(field => !held.has(field.name));
-    if (added) {
-      filter.addLeaf(added.name, parent);
+  // One box changes one field, and the tree is the source of truth: the grid
+  // re-reads it on the next render rather than keeping a selection of its own.
+  const toggle = (field: FieldDefinition, ticked: boolean) => {
+    if (ticked) {
+      filter.addLeaf(field.name, parent);
       return;
     }
-    const removed = ticked.find(field => !chosen.has(field.name));
-    const at = removed && held.get(removed.name);
+    const at = held.get(field.name);
     if (at !== undefined) filter.remove([...parent, at]);
   };
 
+  const grid = (fields: readonly FieldDefinition[]) => (
+    // Two columns where there is room for two, one where there is not, and
+    // the question is asked of the popup rather than of the window: this
+    // list is the same width in a 420px browser as in a narrow host, and it
+    // is the popup that knows which it is. `gap-2` is one class rather than
+    // `gap-x`/`gap-y`, so that it replaces the registry's own `gap-5`
+    // outright instead of racing it in the stylesheet.
+    <FieldGroup className="grid grid-cols-1 gap-2 @md/checklist:grid-cols-2">
+      {fields.map(field => (
+        <Field key={field.name} orientation="horizontal" className="min-w-0">
+          <Checkbox
+            id={`${ids}-${field.name}`}
+            disabled={disabled}
+            checked={held.has(field.name)}
+            onCheckedChange={ticked => toggle(field, ticked === true)}
+          />
+          {/* `font-normal` is the registry's own composition for a checkbox
+              field (shadcn `FieldSet` example), and it is load-bearing here:
+              the legends above are `font-medium`, and a list whose items
+              weigh the same as the headings has no headings. */}
+          <FieldLabel
+            htmlFor={`${ids}-${field.name}`}
+            className="min-w-0 font-normal"
+          >
+            <span className="truncate">{field.label}</span>
+          </FieldLabel>
+        </Field>
+      ))}
+    </FieldGroup>
+  );
+
   return (
-    <Combobox
-      multiple
-      items={sections}
-      value={ticked}
-      onValueChange={onValueChange}
-      isItemEqualToValue={(item, value) => item.name === value.name}
-      itemToStringLabel={field => field.label}
+    <Popover
       open={open}
-      onOpenChange={(next, details) => {
-        // Ticking a field is not leaving the list: the popup stays open on
-        // an item press, and closes on Escape, outside, or Done.
-        if (!next && details.reason === 'item-press') {
-          details.cancel();
-          return;
-        }
+      onOpenChange={next => {
         setOpen(next);
+        // What was typed belongs to the visit, not to the view: a picker
+        // opened again starts on the whole catalogue.
+        if (!next) setQuery('');
       }}
-      onInputValueChange={(_value, details) => {
-        // Nor does a tick wipe what was typed: the filter survives the press
-        // and resets when the popup closes, as the primitive has it.
-        if (details.isItemPress) details.cancel();
-      }}
-      disabled={disabled}
     >
-      {/* The primitive's trigger rather than the vendored `ComboboxTrigger`:
-          that one is a select-like field with a chevron, and this is the
-          "add" button the tray already had — an icon, a word, no chevron. */}
-      <ComboboxPrimitive.Trigger
-        aria-label={label}
+      {/* The trigger is the "add" button the tray already had — an icon, a
+          word, no chevron — so it is the primitive's trigger rendering a
+          plain `Button` rather than a select-like field. */}
+      <PopoverTrigger
+        disabled={disabled}
         render={<Button variant="outline" size="sm" disabled={disabled} />}
       >
         <PlusIcon data-icon="inline-start" />
         {label}
-      </ComboboxPrimitive.Trigger>
-      <ComboboxContent
+      </PopoverTrigger>
+      <PopoverContent
         align="start"
-        aria-label={messages.label('label.filter.pick-fields')}
-        className="flex w-(--available-width) max-w-100 flex-col"
+        // The popup's own scroll port is handed to the grid below instead:
+        // the title and the search line stay put while the fields go past
+        // them, which is the whole point of having a search line.
+        className="@container/checklist w-(--available-width) max-w-140 overflow-y-hidden"
+        initialFocus={search}
       >
-        <div className="flex items-center gap-2 px-3 pt-3 pb-1">
-          <span
-            id={titleId}
-            data-slot="field-checklist-title"
-            className="flex-1 truncate text-sm font-medium"
-          >
+        <PopoverHeader className="flex-row items-center gap-2">
+          <PopoverTitle className="flex-1 truncate">
             {messages.label('label.filter.pick-fields')}
-          </span>
+          </PopoverTitle>
           {/* The way out is a button rather than only the Escape key: the
               list stays open on purpose, so it has to say when it is done.
               Base UI puts focus back on the trigger either way. */}
@@ -182,42 +208,65 @@ export function FieldChecklist({
           >
             {messages.label('label.filter.pick-done')}
           </Button>
-        </div>
+        </PopoverHeader>
 
-        {/* In a box of its own rather than as the popup's direct child: the
-            registry tints an input that sits directly in a combobox popup
-            (`border-input/30`, `bg-input/30`) into a quiet search line, and
-            that edge measures under the 3:1 this package holds text inputs
-            to (WCAG 1.4.11, `styles.css` on `--input`). One level down the
-            input keeps its ordinary border. Layout only; no colour is set. */}
-        <div className="px-3 pb-2">
-          <ComboboxInput
-            showTrigger={false}
+        {/* The same control, the same word and the same empty sentence as
+            the column settings' list, so looking for a field is one skill
+            rather than two. */}
+        <InputGroup>
+          <InputGroupAddon>
+            <SearchIcon />
+          </InputGroupAddon>
+          <InputGroupInput
+            ref={search}
+            data-slot="field-checklist-search"
+            type="text"
+            value={query}
             placeholder={messages.label('label.field.search')}
             aria-label={messages.label('label.field.search')}
+            onChange={event => setQuery(event.target.value)}
           />
-        </div>
+        </InputGroup>
 
-        <ComboboxEmpty>{messages.label('label.field.none')}</ComboboxEmpty>
-        {/* The listbox is named by the title above it: an ARIA input field
-            without a name is what axe flagged in the browser story. */}
-        <ComboboxList data-slot="field-checklist" aria-labelledby={titleId}>
-          {(section: FieldSection) => (
-            <ComboboxGroup key={section.value} items={section.items}>
-              {section.value !== '' && (
-                <ComboboxLabel>{section.value}</ComboboxLabel>
-              )}
-              <ComboboxCollection>
-                {(field: FieldDefinition) => (
-                  <ComboboxItem key={field.name} value={field}>
-                    <span className="truncate">{field.label}</span>
-                  </ComboboxItem>
-                )}
-              </ComboboxCollection>
-            </ComboboxGroup>
+        {/* The scroll port sits 10px wider and 8px taller than its content
+            and pads that back, so that the clipping edge is the popup's own
+            padding edge rather than a line drawn through the rows. The
+            vertical half is not cosmetic: the registry gives each checkbox a
+            hit area 8px taller than its box, and a port fitted to the rows
+            overflows by those 8px — a 15px scrollbar on a list of eight
+            fields that fit. */}
+        <div
+          data-slot="field-checklist"
+          className="-mx-2.5 -my-2 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-2.5 py-2"
+        >
+          {sections.length === 0 ? (
+            <Empty data-slot="field-checklist-none" className="p-0">
+              <EmptyHeader>
+                <EmptyDescription>
+                  {messages.label('label.field.none')}
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          ) : (
+            sections.map(section =>
+              // The fields in no group lead, with no heading over them:
+              // a `FieldSet` here would be a named set that has no name.
+              section.group === undefined ? (
+                <div key="" data-slot="field-checklist-ungrouped">
+                  {grid(section.items)}
+                </div>
+              ) : (
+                <FieldSet key={section.group.id}>
+                  <FieldLegend variant="label">
+                    {section.group.label}
+                  </FieldLegend>
+                  {grid(section.items)}
+                </FieldSet>
+              ),
+            )
           )}
-        </ComboboxList>
-      </ComboboxContent>
-    </Combobox>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

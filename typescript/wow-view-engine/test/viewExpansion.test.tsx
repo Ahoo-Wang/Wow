@@ -623,12 +623,14 @@ describe('the keyboard', () => {
     const user = await expanded();
     await user.click(screen.getByRole('button', { name: FILTER }));
     await user.click(
-      screen.getByRole('combobox', {
+      screen.getByRole('button', {
         name: defaultMessages['label.filter.add'],
       }),
     );
     const picker = await screen.findByRole('dialog');
-    await user.click(within(picker).getByRole('option', { name: 'Warehouse' }));
+    await user.click(
+      within(picker).getByRole('checkbox', { name: 'Warehouse' }),
+    );
 
     await user.keyboard('{Escape}');
 

@@ -78,12 +78,12 @@ function editorToggle(): HTMLElement {
  * that stays open while several fields are ticked, and Done is the way out.
  */
 async function addConditions(fields: string[]): Promise<void> {
-  fireEvent.click(screen.getByRole('combobox', { name: 'Add' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Add' }));
   const picker = await screen.findByRole('dialog', {
     name: 'Choose filter fields',
   });
   for (const field of fields)
-    fireEvent.click(within(picker).getByRole('option', { name: field }));
+    fireEvent.click(within(picker).getByRole('checkbox', { name: field }));
   fireEvent.click(within(picker).getByRole('button', { name: 'Done' }));
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
 }
@@ -1124,7 +1124,7 @@ describe('the record workbench layout', () => {
     // Folded is unmounted, not hidden: a fold that kept the draft's inputs
     // on the page would keep them in the tab order too.
     expect(document.querySelector('[data-slot="editor-band"]')).toBeNull();
-    expect(screen.queryByRole('combobox', { name: 'Add' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Add' })).toBeNull();
   });
 
   /**
@@ -1152,7 +1152,7 @@ describe('the record workbench layout', () => {
 
     const band = await screen.findByRole('button', { name: /^Filter/ });
     expect(band.getAttribute('aria-expanded')).toBe('true');
-    expect(screen.getByRole('combobox', { name: 'Add' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Add' })).toBeDefined();
     // And it says so beside the title, where the save button would otherwise
     // have to be read to find out.
     expect(screen.getByText('Not saved yet')).toBeDefined();

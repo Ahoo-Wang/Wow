@@ -147,10 +147,10 @@ export const DeletionReading: Story = {
       }),
     );
     await userEvent.click(
-      canvas.getByRole('combobox', { name: zhCN['label.filter.add'] }),
+      canvas.getByRole('button', { name: zhCN['label.filter.add'] }),
     );
     await userEvent.click(
-      await body.findByRole('option', { name: '删除状态' }),
+      await body.findByRole('checkbox', { name: '删除状态' }),
     );
     await userEvent.click(
       body.getByRole('button', { name: zhCN['label.filter.pick-done'] }),
