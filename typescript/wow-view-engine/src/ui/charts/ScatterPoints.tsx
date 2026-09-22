@@ -28,6 +28,8 @@ import {
 import { cn } from 'cn';
 import { useViewMessages } from '../MessagesProvider.js';
 import { asImage } from './asImage.js';
+import type { MouseEvent as ReactMouseEvent } from 'react';
+import { pointAnchor } from '../analysis/DrillMenu.js';
 import type { FamilyProps } from './family.js';
 import { color } from './palette.js';
 import { TooltipValue } from './TooltipValue.js';
@@ -38,6 +40,7 @@ export function ScatterPoints({
   className,
   label,
   name,
+  onPick,
 }: FamilyProps<ScatterData>) {
   const messages = useViewMessages();
   const rows = data.points.map(point => ({
@@ -91,7 +94,23 @@ export function ScatterPoints({
             />
           }
         />
-        <Scatter data={rows} fill="var(--color-points)" />
+        <Scatter
+          data={rows}
+          fill="var(--color-points)"
+          className={onPick ? 'cursor-pointer' : undefined}
+          onClick={
+            onPick &&
+            ((_: unknown, index: number, event: ReactMouseEvent) => {
+              const point = data.points[index];
+              const category = spec?.scatter?.category;
+              if (!point || category === undefined) return;
+              onPick(
+                { [category]: point.category },
+                pointAnchor(event.nativeEvent),
+              );
+            })
+          }
+        />
       </ScatterChart>
     </ChartContainer>
   );

@@ -26,6 +26,7 @@ export function Heatmap({
   className,
   label,
   name,
+  onPick,
 }: FamilyProps<HeatmapData>) {
   const messages = useViewMessages();
   const values = data.cells
@@ -62,11 +63,27 @@ export function Heatmap({
                       ? messages.label('label.summary.unavailable')
                       : label(spec?.heatmap?.value, cell),
                 })}
-                className="bg-primary size-8 shrink-0 rounded-sm"
+                className={cn(
+                  'bg-primary size-8 shrink-0 rounded-sm',
+                  onPick && cell !== null && 'cursor-pointer',
+                )}
                 style={{
                   opacity:
                     cell === null ? 0.06 : 0.15 + ((cell - min) / span) * 0.85,
                 }}
+                // An empty cell is no group of the result: nothing fell in it.
+                onClick={
+                  onPick && cell !== null && spec?.heatmap
+                    ? event =>
+                        onPick(
+                          {
+                            [spec.heatmap!.x]: x,
+                            [spec.heatmap!.y]: y,
+                          },
+                          event.currentTarget,
+                        )
+                    : undefined
+                }
               />
             );
           })}

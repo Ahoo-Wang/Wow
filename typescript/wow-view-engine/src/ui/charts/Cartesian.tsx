@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useMemo } from 'react';
+import { useMemo, type MouseEvent as ReactMouseEvent } from 'react';
 import {
   Area,
   AreaChart,
@@ -38,6 +38,7 @@ import {
 import { cn } from 'cn';
 import { asImage } from './asImage.js';
 import { axisId, domainOf, tickFormatterOf } from './axis.js';
+import { pointAnchor } from '../analysis/DrillMenu.js';
 import type { FamilyProps } from './family.js';
 import { colorOf } from './palette.js';
 import { TooltipValue } from './TooltipValue.js';
@@ -49,6 +50,7 @@ export function Cartesian({
   label,
   column,
   name,
+  onPick,
 }: FamilyProps<CartesianData>) {
   // A pivot names its series by raw group values, and the style element
   // interpolates config keys into custom properties: only an identifier is
@@ -218,6 +220,24 @@ export function Cartesian({
             configured,
             data.chart,
             onNumericAxis(configured?.axis),
+            // The group a bar stands for: its category, and the split value
+            // when the series is one — named by the aliases the spec put on
+            // the axes, which is what the kernel reads a row by.
+            onPick &&
+              ((index: number, event: MouseEvent) => {
+                const point = data.points[index];
+                if (!point || !spec?.cartesian) return;
+                const { x, splitBy } = spec.cartesian;
+                onPick(
+                  {
+                    [x]: point.x,
+                    ...(splitBy === undefined
+                      ? {}
+                      : { [splitBy]: series.value }),
+                  },
+                  pointAnchor(event),
+                );
+              }),
           );
         })}
         {referenceLines.map(line => (
@@ -241,6 +261,8 @@ function mark(
   chart: CartesianData['chart'],
   /** The numeric axis this series is measured against. */
   axis: { xAxisId: 'left' | 'right' } | { yAxisId: 'left' | 'right' },
+  /** A press on the mark at this index; only bars take one. */
+  onPress?: (index: number, event: MouseEvent) => void,
 ) {
   const kind = chart === 'combo' ? (series?.type ?? 'bar') : chart;
   const fill = `var(--color-${key})`;
@@ -276,6 +298,12 @@ function mark(
       fill={fill}
       stackId={series?.stack}
       radius={2}
+      className={onPress ? 'cursor-pointer' : undefined}
+      onClick={
+        onPress &&
+        ((_: unknown, index: number, event: ReactMouseEvent) =>
+          onPress(index, event.nativeEvent))
+      }
     />
   );
 }

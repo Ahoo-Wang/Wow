@@ -42,6 +42,7 @@ function AnalysisWorkbenchDemo({
   chart = 'bar',
   series = 'amount',
   pinned = false,
+  records = false,
   limit,
 }: {
   behaviour?: SourceBehaviour;
@@ -51,6 +52,11 @@ function AnalysisWorkbenchDemo({
   series?: 'amount' | 'both';
   /** Whether the spec pins 华南 and the amount series to colours of their own. */
   pinned?: boolean;
+  /**
+   * 这个工作台是不是也列记录视图。列了，追问菜单才有「查看这些记录」——
+   * 下钻开出来的是一个记录视图，只在 record 也在 `kinds` 里时开得出来。
+   */
+  records?: boolean;
   /**
    * A row limit the four warehouses can actually hit. Ordering the result
    * makes which rows survive the cut a decision rather than an accident.
@@ -121,7 +127,7 @@ function AnalysisWorkbenchDemo({
           definitionId="orders"
           instanceId={savedViews[1].id}
           {...HOST_LANGUAGE}
-          kinds={['analysis']}
+          kinds={records ? ['record', 'analysis'] : ['analysis']}
         />
       )}
     </StoryEngine>
@@ -153,9 +159,11 @@ const meta = {
     chart: 'bar',
     series: 'amount',
     pinned: false,
+    records: false,
   },
   argTypes: {
     limit: { table: { disable: true } },
+    records: { control: 'boolean' },
     behaviour: {
       control: 'inline-radio',
       options: ['data', 'empty', 'slow', 'failing'],
@@ -173,6 +181,16 @@ type Story = StoryObj<typeof meta>;
 
 /** The default: a bar chart of one metric across four warehouses. */
 export const BarChart: Story = { args: { layout: 'chart', chart: 'bar' } };
+
+/**
+ * 追问（D20 Ⅳ）：按下一根柱子——或表格布局里的一行——弹出三项，
+ * 「查看这些记录」「再按…拆一层」「只看这一组」。这个工作台同时列着记录视图，
+ * 所以第一项在：它在同一个工作台里开出一个未保存的记录视图，标题栏下多一条
+ * 「返回／来自」。另外两项改的是当前这个分析视图。
+ */
+export const FollowUps: Story = {
+  args: { layout: 'chart', chart: 'bar', records: true },
+};
 
 /**
  * Two metrics on one chart: a series each, the count on a right-hand axis,

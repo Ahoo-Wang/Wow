@@ -40,6 +40,13 @@ export const viewMessages = {
   // the conditions the drill added follow as the applied bar's badges.
   'label.origin.back': 'Back to {title}',
   'label.origin.from': 'From {title}',
+  // The follow-up menu on one group of an analysis result (D20 追问): the
+  // records behind it, the same question by another dimension, or the
+  // range narrowed to it.
+  'label.drill.menu': 'This group',
+  'label.drill.records': 'See these records',
+  'label.drill.split': 'Split by',
+  'label.drill.focus': 'Only this group',
 
   // Runtime and commands.
   'runtime.kind.not-declared': '{definition} does not offer a {kind} view.',

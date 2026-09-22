@@ -18,13 +18,14 @@ import displayMeta, {
   CutShort as DisplayCutShort,
   CutShortTable as DisplayCutShortTable,
   EmptyResult as DisplayEmptyResult,
+  FollowUps as DisplayFollowUps,
   PieChart as DisplayPieChart,
   PinnedCategoryColor as DisplayPinnedCategoryColor,
   QueryFailed as DisplayQueryFailed,
   TableWithTotals as DisplayTableWithTotals,
   TwoMetrics as DisplayTwoMetrics,
 } from './AnalysisWorkbench.stories.js';
-import { amountOf, readColumn, readTotal } from './readTable.js';
+import { amountOf, findDataTable, readColumn, readTotal } from './readTable.js';
 
 const meta = {
   ...displayMeta,
@@ -82,6 +83,210 @@ export const BarChart: Story = {
     // same labeller; synthesised pointer events do not open a recharts
     // tooltip, so what it says is pinned in the package
     // (test/analysisChart.test.tsx) and looked at in a browser by hand.
+  },
+};
+
+/** 追问菜单本身：它弹在文档上，不在画布里。 */
+const drillMenu = () =>
+  waitFor(() => {
+    const found = document.body.querySelector<HTMLElement>(
+      '[data-slot="drill-menu"]',
+    );
+    if (!found) throw new Error('追问菜单没有弹出来');
+    return found;
+  });
+
+/** 下钻出来的视图头上那条「返回／来自」。 */
+const originBar = () =>
+  waitFor(() => {
+    const found = document.body.querySelector<HTMLElement>(
+      '[data-slot="origin-bar"]',
+    );
+    if (!found) throw new Error('没有「来自」那一条');
+    return found;
+  });
+
+const FROM = formatMessage(zhCN, 'label.origin.from', {
+  title: '仓库金额分布',
+});
+const BACK = formatMessage(zhCN, 'label.origin.back', {
+  title: '仓库金额分布',
+});
+
+/**
+ * 追问（D20 Ⅳ）：按下一根柱子，弹出这一组的三项。
+ *
+ * 菜单没有自己的触发控件——按下去的那根柱子就是触发——所以它是真的被那根柱子
+ * 的点击打开的，而不是被某个按钮打开的；标题是这一组的条件，用的是「正在显示」
+ * 那条用的同一套词。
+ *
+ * 「查看这些记录」在同一个工作台里开出一个未保存的记录视图：标题栏下多一条
+ * 「返回 仓库金额分布 · 来自 仓库金额分布 · 仓库 属于 华南」，下面是华南那两单。
+ * 按「返回」回到原来那次聚合结果——图还在，没有重跑。
+ */
+export const FollowUpToRecords: Story = {
+  ...DisplayFollowUps,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
+
+    // 第三根是华南：结果按仓库分的四组，顺序就是画上去的顺序。
+    await userEvent.click(bars(canvasElement)[2]);
+
+    const menu = await drillMenu();
+    await expect(
+      within(menu).getByText(`仓库 ${zhCN['label.operator.IN']} 华南`),
+    ).toBeVisible();
+    await expect(
+      within(menu)
+        .getAllByRole('menuitem')
+        .map(item => item.textContent),
+    ).toEqual([
+      zhCN['label.drill.records'],
+      zhCN['label.drill.split'],
+      zhCN['label.drill.focus'],
+    ]);
+
+    await userEvent.click(
+      within(menu).getByRole('menuitem', {
+        name: zhCN['label.drill.records'],
+      }),
+    );
+
+    const line = await originBar();
+    await expect(within(line).getByText(FROM)).toBeVisible();
+    await expect(
+      within(line).getByRole('button', { name: BACK }),
+    ).toBeVisible();
+    await expect(
+      [...line.querySelectorAll('[data-slot="origin-condition"]')].map(
+        badge => badge.textContent,
+      ),
+    ).toEqual([`仓库 ${zhCN['label.operator.IN']} 华南`]);
+
+    // 记录视图，不是聚合：华南的两单，按明细列出来。
+    const table = await findDataTable(canvasElement);
+    await waitFor(() =>
+      expect(readColumn(table, '订单号')).toEqual(['SO-1004', 'SO-1005']),
+    );
+
+    await userEvent.click(within(line).getByRole('button', { name: BACK }));
+
+    await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
+    await expect(
+      canvas.getByRole('heading', { level: 2, name: '仓库金额分布' }),
+    ).toBeVisible();
+    await expect(
+      document.body.querySelector('[data-slot="origin-bar"]'),
+    ).toBeNull();
+  },
+};
+
+/**
+ * 同一个菜单，从一枚扇区上弹出来——图表家族换了，手势没换。
+ *
+ * 这个工作台只列分析视图，所以没有「查看这些记录」：下钻开出来的是记录视图，
+ * 开不出来的地方就不摆这一项。「只看这一组」改的是当前这个视图：条件进范围、
+ * 立刻重跑，「正在显示」那条随即说出它。
+ */
+export const FollowUpFocus: Story = {
+  ...DisplayPieChart,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() => expect(slices(canvasElement)).toHaveLength(3));
+
+    await userEvent.click(
+      canvasElement.querySelectorAll('.recharts-pie-sector path')[0],
+    );
+
+    const menu = await drillMenu();
+    await expect(
+      within(menu)
+        .getAllByRole('menuitem')
+        .map(item => item.textContent),
+    ).toEqual([zhCN['label.drill.split'], zhCN['label.drill.focus']]);
+
+    await userEvent.click(
+      within(menu).getByRole('menuitem', { name: zhCN['label.drill.focus'] }),
+    );
+
+    // 范围里多了这一组，图上只剩它自己。
+    const applied = canvas.getByRole('region', {
+      name: zhCN['label.applied.title'],
+    });
+    await waitFor(() =>
+      expect(
+        within(applied).getByText(`仓库 ${zhCN['label.operator.IN']} 华南`),
+      ).toBeVisible(),
+    );
+    await waitFor(() =>
+      expect(slices(canvasElement).map(slice => slice.name)).toEqual(['华南']),
+    );
+  },
+};
+
+/**
+ * 「再按…拆一层」是一层子菜单，而子菜单在真浏览器里是**悬停**展开的（点一下
+ * 反而是在开与关之间来回）——这是只有真指针验得了的一条，jsdom 里点开与悬停
+ * 展开是同一回事。
+ *
+ * 拆完之后是同一个问题换一个维度问：范围收到这一组，维度换成状态，上一维度
+ * 的名字从排序、表列与图表槽位里一并退场（`analysis/drill.ts` 的 `splitBy`）。
+ */
+export const FollowUpSplit: Story = {
+  ...DisplayFollowUps,
+  args: { ...DisplayFollowUps.args, layout: 'table' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await findDataTable(canvasElement);
+    await waitFor(() =>
+      expect(readColumn(table, '仓库')).toEqual([
+        '华东',
+        '华北',
+        '华南',
+        '西南',
+      ]),
+    );
+
+    // 表格布局是键盘走的那条路（F10）：行能聚焦，回车弹出同一个菜单。
+    const row =
+      canvasElement.querySelectorAll<HTMLElement>('tr[data-pickable]')[2];
+    await expect(row).toHaveAttribute('aria-haspopup', 'menu');
+    row.focus();
+    await userEvent.keyboard('{Enter}');
+
+    const menu = await drillMenu();
+    await userEvent.hover(
+      within(menu).getByRole('menuitem', { name: zhCN['label.drill.split'] }),
+    );
+    // 已经分了的那一维不在里面：按它再拆一层拆不出东西来。
+    const split = await waitFor(() => {
+      const found = document.body.querySelector<HTMLElement>(
+        '[data-slot="dropdown-menu-sub-content"]',
+      );
+      if (!found) throw new Error('子菜单没有展开');
+      return found;
+    });
+    await expect(
+      within(split)
+        .getAllByRole('menuitem')
+        .map(item => item.textContent),
+    ).toEqual(['状态']);
+
+    await userEvent.click(
+      within(split).getByRole('menuitem', { name: '状态' }),
+    );
+
+    const after = await findDataTable(canvasElement);
+    await waitFor(() =>
+      expect(readColumn(after, '状态')).toEqual(['已发运', '待出库']),
+    );
+    const applied = canvas.getByRole('region', {
+      name: zhCN['label.applied.title'],
+    });
+    await expect(
+      within(applied).getByText(`仓库 ${zhCN['label.operator.IN']} 华南`),
+    ).toBeVisible();
   },
 };
 

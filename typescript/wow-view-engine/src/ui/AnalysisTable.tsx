@@ -16,6 +16,7 @@ import { useViewMessages } from './MessagesProvider.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 import type { AnalysisView } from '../analysis/index.js';
 import { AnalysisEmpty } from './analysis/EmptyResult.js';
+import type { OnPick } from './charts/family.js';
 import {
   Table,
   TableBody,
@@ -28,13 +29,19 @@ import {
 
 export interface AnalysisTableProps {
   view: AnalysisView;
+  /**
+   * Makes the rows pressable: a row opens the follow-up menu on the group
+   * it is. This is the keyboard's path to the menu the chart's marks open
+   * with a pointer (F10): a row takes focus and opens on Enter or Space.
+   */
+  onPick?: OnPick;
 }
 
 /**
  * The aggregation as a table: groups first, then metrics, with the totals row
  * from its own ungrouped query rather than from summing what is on screen.
  */
-export function AnalysisTable({ view }: AnalysisTableProps) {
+export function AnalysisTable({ view, onPick }: AnalysisTableProps) {
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
   // A group key or an ANY shows as its field's values do; the rest, and
@@ -70,7 +77,25 @@ export function AnalysisTable({ view }: AnalysisTableProps) {
         </TableHeader>
         <TableBody>
           {view.rows.map((row, index) => (
-            <TableRow key={index}>
+            <TableRow
+              key={index}
+              data-pickable={onPick ? '' : undefined}
+              tabIndex={onPick ? 0 : undefined}
+              aria-haspopup={onPick ? 'menu' : undefined}
+              className={onPick ? 'cursor-pointer' : undefined}
+              onClick={
+                onPick ? event => onPick(row, event.currentTarget) : undefined
+              }
+              onKeyDown={
+                onPick
+                  ? event => {
+                      if (event.key !== 'Enter' && event.key !== ' ') return;
+                      event.preventDefault();
+                      onPick(row, event.currentTarget);
+                    }
+                  : undefined
+              }
+            >
               {view.columns.map(column => (
                 <TableCell key={column.alias}>
                   {show(row[column.alias], column)}

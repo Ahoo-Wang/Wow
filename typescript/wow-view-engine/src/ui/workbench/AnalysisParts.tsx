@@ -11,8 +11,15 @@
  * limitations under the License.
  */
 
-import { useEffect, useRef } from 'react';
-import type { AnalysisView } from '../../analysis/index.js';
+import { useEffect, useRef, useState } from 'react';
+import {
+  drillConditions,
+  focusOn,
+  groupFor,
+  splitBy,
+  type AnalysisView,
+} from '../../analysis/index.js';
+import { describeFilter } from '../../filter/index.js';
 import type { AnalysisViewConfig, FieldOption } from '../../model/index.js';
 import type { ViewRuntime } from '../../runtime/index.js';
 import {
@@ -22,6 +29,7 @@ import {
 import { AnalysisChart } from '../AnalysisChart.js';
 import { AnalysisEditor } from '../AnalysisEditor.js';
 import { AnalysisTable } from '../AnalysisTable.js';
+import { DrillMenu, type Pick } from '../analysis/DrillMenu.js';
 import { AnalysisEmpty } from '../analysis/EmptyResult.js';
 import { useAnnouncer } from '../Announcer.js';
 import { FilterPanel } from '../FilterPanel.js';
@@ -78,6 +86,71 @@ export function AnalysisParts({
   const layout = shaped?.layout ?? analysis.layout;
   const chart = shaped?.chart ?? analysis.chart;
 
+  // The group the user pressed, on the chart or in the table, and the menu
+  // over it (D20 追问). Its conditions come from the config the result was
+  // shaped by — the row is a row of that result — and are described by the
+  // origin's fields, in the applied bar's words.
+  const [pick, setPick] = useState<Pick | null>(null);
+  const conditions =
+    pick && shaped && runtime
+      ? drillConditions(shaped, runtime.fields, runtime.kinds, pick.row, {
+          timeZone: runtime.environment.timeZone,
+        })
+      : null;
+  const described =
+    conditions && runtime
+      ? describeFilter(
+          runtime.fields,
+          { op: 'and', children: conditions },
+          runtime.kinds,
+        )
+      : [];
+  // Only a group a condition can say is worth a menu: an analysis over
+  // expanded elements has rows no root condition selects, so its marks and
+  // rows are not pressable at all.
+  const pickable =
+    shaped !== undefined &&
+    !(shaped.elements && shaped.elements.length > 0) &&
+    runtime !== null;
+  const onPick = pickable
+    ? (row: Pick['row'], anchor: Pick['anchor']) => setPick({ row, anchor })
+    : undefined;
+  // The dimensions the group can be split by: groupable fields the result
+  // on screen is not already grouped by. Read off the config that shaped it
+  // rather than off the draft, for the same reason the conditions are: the
+  // group pressed is a group of that result, not of what is being edited.
+  const grouped = new Set((shaped?.groups ?? []).map(group => group.field));
+  const splits = analysis.fields
+    .filter(option => option.groups.length > 0 && !grouped.has(option.field))
+    .map(option => ({ field: option.field, label: option.label }));
+  const close = () => setPick(null);
+  const records = () => {
+    if (conditions) workbench.drill(conditions);
+    close();
+  };
+  const focus = () => {
+    if (conditions && shaped && runtime) {
+      runtime.edit(focusOn(shaped, conditions));
+      runtime.apply();
+    }
+    close();
+  };
+  const split = (name: string) => {
+    const field = runtime?.fields.find(entry => entry.name === name);
+    const option = analysis.fields.find(entry => entry.field === name);
+    if (conditions && shaped && runtime && field && option) {
+      runtime.edit(
+        splitBy(
+          shaped,
+          conditions,
+          groupFor(field, option, runtime.kinds.get(field.kind)),
+        ),
+      );
+      runtime.apply();
+    }
+    close();
+  };
+
   // The one live region of this surface: a query that lands is a change of
   // the numbers on screen, and a reader who cannot see them has to be told
   // — as the record view's rows are (`record/queryAnnouncement.ts`).
@@ -118,9 +191,22 @@ export function AnalysisParts({
             data={view.chart}
             spec={chart}
             columns={view.schema ?? view.columns}
+            onPick={onPick}
           />
         ) : (
-          <AnalysisTable view={view} />
+          <AnalysisTable view={view} onPick={onPick} />
+        )}
+        {pickable && (
+          <DrillMenu
+            pick={conditions ? pick : null}
+            onClose={close}
+            conditions={described}
+            canDrill={workbench.canDrill}
+            splits={splits}
+            onRecords={records}
+            onSplit={split}
+            onFocus={focus}
+          />
         )}
         {/* Last in the block, where nothing about it can be reached by a
             pointer or a tab: it draws nothing and is read, not seen. */}

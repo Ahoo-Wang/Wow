@@ -16,9 +16,16 @@ import {
   bucketRange,
   drillConditions,
   drillFilter,
+  focusOn,
+  groupFor,
+  splitBy,
 } from '../src/analysis/index.js';
 import { builtinFieldKinds } from '../src/filter/index.js';
-import type { FieldDefinition, FilterTree } from '../src/model/index.js';
+import type {
+  AnalysisGroup,
+  FieldDefinition,
+  FilterTree,
+} from '../src/model/index.js';
 import { analysisConfig } from './fixtures.js';
 
 const SHANGHAI = 'Asia/Shanghai';
@@ -300,6 +307,153 @@ describe('drillFilter', () => {
     expect(drillFilter(applied, added)).toEqual({
       op: 'and',
       children: [applied, ...added],
+    });
+  });
+});
+
+const ROW = [{ field: 'warehouse', operator: 'EQ', value: 'CN' } as const];
+
+describe('focusOn', () => {
+  it('adds the row to the range and leaves everything else alone', () => {
+    const config = analysisConfig({
+      filter: {
+        op: 'and',
+        children: [{ field: 'status', operator: 'IN', value: ['PENDING'] }],
+      },
+    });
+
+    expect(focusOn(config, ROW)).toEqual({
+      filter: {
+        op: 'and',
+        children: [
+          { field: 'status', operator: 'IN', value: ['PENDING'] },
+          ...ROW,
+        ],
+      },
+      // A row's conditions flatten into the simple tree they were added to.
+      filterMode: 'simple',
+    });
+  });
+
+  it('keeps an advanced range advanced, because the row nests under it', () => {
+    const config = analysisConfig({
+      filterMode: 'advanced',
+      filter: {
+        op: 'or',
+        children: [
+          { field: 'status', operator: 'IN', value: ['PENDING'] },
+          { field: 'status', operator: 'IN', value: ['SHIPPED'] },
+        ],
+      },
+    });
+
+    expect(focusOn(config, ROW).filterMode).toBe('advanced');
+  });
+});
+
+describe('splitBy', () => {
+  const status: AnalysisGroup = {
+    type: 'TERMS',
+    field: 'status',
+    alias: 'status_group',
+  };
+
+  /**
+   * The same question, of this one group, by another dimension: the range
+   * narrows to the row and the dimension replaces the one the row is of —
+   * "warehouse CN, by status", never "warehouse and status".
+   */
+  it('replaces the dimensions and narrows the range to the row', () => {
+    const patch = splitBy(analysisConfig(), ROW, status);
+
+    expect(patch.groups).toEqual([status]);
+    expect(patch.filter).toEqual({ op: 'and', children: [...ROW] });
+  });
+
+  /**
+   * Sort entries name aliases, table columns name aliases, and a chart's
+   * slots name them too: the alias the old dimension carried is gone, so a
+   * patch that kept any of the three would be refused by `validateAnalysis`
+   * the moment it ran.
+   */
+  it('lets go of what named the dimension that is gone', () => {
+    const config = analysisConfig({
+      sort: [{ alias: 'warehouse', direction: 'DESC' }],
+      table: { columns: [{ alias: 'warehouse' }], totals: true },
+    });
+
+    const patch = splitBy(config, ROW, status);
+
+    expect(patch.sort).toEqual([]);
+    // The table's own settings stay; only its columns are re-chosen.
+    expect(patch.table).toEqual({ columns: [], totals: true });
+    // The chart's family is re-fitted to the dimension now in force.
+    expect(patch.chart).toEqual({
+      type: 'bar',
+      cartesian: { x: 'status_group', series: [{ metric: 'orders' }] },
+    });
+  });
+});
+
+describe('groupFor', () => {
+  const warehouse: FieldDefinition = {
+    name: 'warehouse',
+    label: 'Warehouse',
+    kind: 'string',
+  };
+  const createdAt: FieldDefinition = {
+    name: 'createdAt',
+    label: 'Created',
+    kind: 'datetime',
+  };
+  const amount: FieldDefinition = {
+    name: 'amount',
+    label: 'Amount',
+    kind: 'number',
+  };
+
+  /**
+   * The dimension a field becomes when a group is split by it, under the
+   * alias the editor's own picker would have given it: a split reads as if
+   * the user had chosen the field there, which is what makes it savable.
+   */
+  it('groups by value where the capability offers it, sentinel and all', () => {
+    expect(
+      groupFor(
+        warehouse,
+        { groups: ['TERMS', 'DATE_HISTOGRAM'], dateUnits: [] },
+        builtinFieldKinds.get('string'),
+      ),
+    ).toEqual({
+      type: 'TERMS',
+      field: 'warehouse',
+      alias: 'warehouse_group',
+      // One string per record, so the records with none have a bucket.
+      missingKey: '(empty)',
+    });
+  });
+
+  it('buckets a date by the finest unit the capability offers', () => {
+    expect(
+      groupFor(createdAt, { groups: ['DATE_HISTOGRAM'], dateUnits: ['MONTH'] }),
+    ).toEqual({
+      type: 'DATE_HISTOGRAM',
+      field: 'createdAt',
+      alias: 'createdAt_group',
+      unit: 'MONTH',
+    });
+    // A capability that names the group but no unit still has to bucket.
+    expect(
+      groupFor(createdAt, { groups: ['DATE_HISTOGRAM'], dateUnits: [] }),
+    ).toMatchObject({ unit: 'DAY' });
+  });
+
+  it('falls back to a band of values', () => {
+    expect(groupFor(amount, { groups: ['HISTOGRAM'], dateUnits: [] })).toEqual({
+      type: 'HISTOGRAM',
+      field: 'amount',
+      alias: 'amount_group',
+      interval: 1,
     });
   });
 });

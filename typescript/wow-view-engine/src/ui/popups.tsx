@@ -360,9 +360,16 @@ export function DropdownMenuContent({
   alignOffset = 0,
   side = 'bottom',
   sideOffset = 4,
+  anchor,
   className,
   ...props
-}: React.ComponentProps<typeof VendoredDropdownMenuContent>) {
+}: React.ComponentProps<typeof VendoredDropdownMenuContent> & {
+  /**
+   * What the menu is placed against when it has no trigger of its own: a
+   * chart mark or a table row that was pressed, as an element or a point.
+   */
+  anchor?: MenuPrimitive.Positioner.Props['anchor'];
+}) {
   return (
     <MenuPrimitive.Portal>
       <MenuPrimitive.Positioner
@@ -372,6 +379,7 @@ export function DropdownMenuContent({
         alignOffset={alignOffset}
         side={side}
         sideOffset={sideOffset}
+        anchor={anchor}
       >
         <MenuPrimitive.Popup
           data-slot="dropdown-menu-content"

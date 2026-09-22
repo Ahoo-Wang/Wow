@@ -24,6 +24,7 @@ import {
 import { cn } from 'cn';
 import { useViewMessages } from '../MessagesProvider.js';
 import { asImage } from './asImage.js';
+import { pointAnchor } from '../analysis/DrillMenu.js';
 import { labelOf, type FamilyProps } from './family.js';
 import { color, colorOf } from './palette.js';
 import { TooltipValue } from './TooltipValue.js';
@@ -34,6 +35,7 @@ export function PieSlices({
   className,
   label,
   name,
+  onPick,
 }: FamilyProps<PieData>) {
   const messages = useViewMessages();
   // Same rule as the cartesian series: a category value becomes an identifier
@@ -85,6 +87,19 @@ export function PieSlices({
           dataKey="value"
           nameKey="key"
           innerRadius={spec?.pie?.donut === true ? '55%' : 0}
+          className={onPick ? 'cursor-pointer' : undefined}
+          // The merged remainder is not a group of the result: it stands
+          // for several, and no one condition selects them.
+          onClick={
+            onPick &&
+            ((_, index, event) => {
+              const slice = data.slices[index];
+              const category = spec?.pie?.category;
+              if (!slice || slice.other === true || category === undefined)
+                return;
+              onPick({ [category]: slice.category }, pointAnchor(event));
+            })
+          }
         >
           {rows.map(row => (
             <Cell key={row.key} fill={row.color} />

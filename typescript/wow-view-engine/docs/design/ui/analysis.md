@@ -36,6 +36,15 @@
 - **指标卡的值本来就是文字**，所以它整张卡不是图：值与带符号的比较照旧是可见文本，只有进度条背后的目标、比较的原值与趋势的每个点进 `sr-only` 表——那三样只有画出来的部分知道。（见 test/analysisChartA11y.test.tsx 与 test/accessibility.test.tsx「analysis, drawn as a chart」）
 - **那根进度条就是注册表的 `Progress`**，不是一个靠内联 `width` 撑长度的 `div`：会填充的条本来就是 progressbar，角色、当前值与上下界只有真的那个才带得上。它以 `label.chart.target` 为名，`aria-valuetext` 用 `label.chart.target.reached` 把位置读成背后那两个数（`{value} of {target}`），而不是角色默认要念的那个百分比；目标为 0 时不做除法——没有可差的距离，要么到了要么没到。轨道高度在调用处抬到 2px（与导出进度同一个写法），`ui/components/**` 是上游的，不手改。（见 test/analysisChartA11y.test.tsx「the metric card still says its value out loud」）
 
+## 追问：点一组弹三项
+
+- **手势是"按下这一组"，而不是"按下某个按钮"。** 指针按在标记上——柱子（`charts/Cartesian.tsx`，挂在 recharts 的 `<Bar>` 上）、扇区（`PieSlices.tsx`）、热力图格子（`Heatmap.tsx`）、散点（`ScatterPoints.tsx`）——键盘按在表格的行上（`AnalysisTable.tsx`：行 `tabIndex=0`、`aria-haspopup="menu"`、`data-pickable`，Enter 或空格弹出同一个菜单）。四个家族与表格交出的都是同一个 `onPick(row, anchor)`（`charts/family.ts`），所以一个菜单服务所有布局；
+- **键盘那条路是表格布局，不是图旁边那张 `sr-only` 表（F10）。** 画出来的部分整块是一张 `role="img"` 的图，里面一个可聚焦元素都没有（[图表怎么被读出来](#图表怎么被读出来)），而 `ChartReadingTable` 是读屏用的替代文本，本来就摆在指针与 Tab 都够不到的地方——把它做成可操作的，等于把"读得到"和"点得动"混成一件事。两种布局回答的是同一个问题，所以键盘的入口是切到表格：那里一行就是一组；
+- **三项**（`ui/analysis/DrillMenu.tsx`）：**查看这些记录**（`workbench.drill(conditions)`，在同一个工作台里开出未保存的记录视图，带「来自」那一条，见 [react.md](../react.md) 的「持有的视图」；`canDrill` 为假时这一项不在——不是禁用，是不画）、**再按…拆一层**（一层子菜单，列出能分组、当前结果又还没按它分的字段；选中即 `splitBy` 后 `apply`）、**只看这一组**（`focusOn` 后 `apply`）。后两项改的是当前这个分析视图的配置，所以它们和手改编辑器一样会变脏、可撤、可保存；
+- **菜单的标题就是这一组的条件**，由 `drillConditions` 交出、`describeFilter` 描述、`summaryText` 说出来——与「正在显示」那条用的是同一套词，所以"我点的是哪一组"和"现在筛的是什么"读起来是一句话的两半。标题写在菜单组**里面**：它标的就是组里这几项，读屏进到组里先听见条件；
+- **贴着按下去的那个东西弹**：标记交出自己的元素，柱子、扇区与散点交出按下的那个点（`pointAnchor`），`ui/popups.tsx` 的 `DropdownMenuContent` 因此多一个 `anchor`。菜单**没有**自己的触发控件，但 Base UI 把菜单在浮动树里的节点挂在 Trigger 上，没有 Trigger 的根会把自己的子菜单当成兄弟菜单、一展开就把自己关掉——所以 `DrillMenu` 画一个谁也够不到的 Trigger 只为占住那个节点，焦点去哪儿由 `finalFocus` 说了算：关掉菜单，键盘回到按下的那一行；
+- **展开了 elements 的分析不可按**（`pickable` 为假）：它的一行是最内层元素的一组，根文档上没有哪条条件选得出来，`drillConditions` 也交不出条件——于是标记与行根本不带这个手势，而不是弹一个三项都不灵的菜单。（见 test/drillMenu.test.tsx「the follow-up menu on one group」与 stories/view-engine 的 `FollowUpToRecords`／`FollowUpFocus`／`FollowUpSplit`）
+
 ## 刷新落在标题栏
 
 - 分析工作台没有结果工具栏——它的结果是一张表或一张图，不是一排控件——所以刷新那个拆分按钮落在标题栏右组的视图级控件里（`WorkbenchShell` 的 `freshness` 槽），规则与措辞与 Record 的那一个完全相同，见 [README.md#刷新是一个拆分按钮](README.md#刷新是一个拆分按钮)。`QueryStrip` 上的「重试」是失败后的出口，与它不是一回事：一个是出错了再来一次，一个是没出错也每隔一段时间来一次。（见 test/refreshControl.test.tsx「every workbench offers the interval」）

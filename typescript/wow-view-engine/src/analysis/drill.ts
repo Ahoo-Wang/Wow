@@ -14,6 +14,7 @@
 import type {
   AnalysisDateUnit,
   AnalysisGroup,
+  AnalysisGroupType,
   AnalysisViewConfig,
   FieldDefinition,
   FilterLeaf,
@@ -24,8 +25,11 @@ import type {
 import {
   isSimpleTree,
   readInstant,
+  type FieldKind,
   type FieldKindRegistry,
 } from '../filter/index.js';
+import { fitChartSlots } from './chartSlots.js';
+import { aliasOf, termsGroup } from './defaults.js';
 
 /**
  * One group of an aggregation result, turned back into the conditions that
@@ -282,4 +286,70 @@ export function drillFilter(
   return isSimpleTree(applied)
     ? { op: 'and', children: [...applied.children, ...conditions] }
     : { op: 'and', children: [applied, ...conditions] };
+}
+
+/**
+ * The two follow-up questions that stay in the analysis view (D20 追问):
+ * "only this group" narrows the range to the row, "split by" narrows it and
+ * asks the same question by another dimension. Both are edits to the view's
+ * own config, so they land as a patch the runtime applies — undoable,
+ * savable, and marked as a change like any other.
+ */
+export function focusOn(
+  config: AnalysisViewConfig,
+  conditions: readonly FilterNode[],
+): Pick<AnalysisViewConfig, 'filter' | 'filterMode'> {
+  const filter = drillFilter(config.filter, conditions);
+  return {
+    filter,
+    // A row's conditions flatten into a simple tree; only an already
+    // advanced range stays one.
+    filterMode: isSimpleTree(filter) ? config.filterMode : 'advanced',
+  };
+}
+
+export function splitBy(
+  config: AnalysisViewConfig,
+  conditions: readonly FilterNode[],
+  group: AnalysisGroup,
+): Pick<
+  AnalysisViewConfig,
+  'filter' | 'filterMode' | 'groups' | 'sort' | 'table' | 'chart'
+> {
+  const groups = [group];
+  return {
+    ...focusOn(config, conditions),
+    groups,
+    // The sort named the dimensions that are gone; the table's columns and
+    // the chart's slots follow the new shape.
+    sort: [],
+    table: { ...config.table, columns: [] },
+    chart: fitChartSlots(config.chart, groups, config.metrics),
+  };
+}
+
+/**
+ * The dimension a field becomes when a group is split by it: by value where
+ * the field offers it, by the finest date unit it offers, else by a unit
+ * band. The alias is the one the defaults use, so the split reads as if the
+ * user had picked the field in the editor.
+ */
+export function groupFor(
+  field: FieldDefinition,
+  offered: {
+    groups: readonly AnalysisGroupType[];
+    dateUnits: readonly AnalysisDateUnit[];
+  },
+  kind?: Pick<FieldKind, 'singleString'>,
+): AnalysisGroup {
+  const alias = aliasOf(field.name, 'group');
+  if (offered.groups.includes('TERMS')) return termsGroup(field, alias, kind);
+  if (offered.groups.includes('DATE_HISTOGRAM'))
+    return {
+      type: 'DATE_HISTOGRAM',
+      field: field.name,
+      alias,
+      unit: offered.dateUnits[0] ?? 'DAY',
+    };
+  return { type: 'HISTOGRAM', field: field.name, alias, interval: 1 };
 }

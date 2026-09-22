@@ -16,7 +16,7 @@ import type { AnalysisColumnView, ChartData } from '../analysis/index.js';
 import type { ChartSpec } from '../model/index.js';
 import { Cartesian } from './charts/Cartesian.js';
 import { ChartReadingTable } from './charts/ChartReading.js';
-import { useColumnTitle, useValueLabel } from './charts/family.js';
+import { useColumnTitle, useValueLabel, type OnPick } from './charts/family.js';
 import { Funnel } from './charts/Funnel.js';
 import { Heatmap } from './charts/Heatmap.js';
 import { MetricCard } from './charts/MetricCard.js';
@@ -35,6 +35,13 @@ export interface AnalysisChartProps {
    * enum by its label, a date bucket as its day or its month.
    */
   columns?: readonly AnalysisColumnView[];
+  /**
+   * Makes the marks pressable: a bar, a slice, a cell or a point opens the
+   * follow-up menu on the group it stands for. The reading table beside the
+   * chart is not: the keyboard's path to the same menu is the table layout,
+   * where a row is a row (F10).
+   */
+  onPick?: OnPick;
 }
 
 /**
@@ -55,6 +62,7 @@ export function AnalysisChart({
   spec,
   className,
   columns,
+  onPick,
 }: AnalysisChartProps) {
   const messages = useViewMessages();
   const label = useValueLabel(columns);
@@ -63,7 +71,14 @@ export function AnalysisChart({
     () => readChart(data, spec, { messages, label, column }),
     [data, spec, messages, label, column],
   );
-  const props = { spec, className, label, column, name: reading.name };
+  const props = {
+    spec,
+    className,
+    label,
+    column,
+    name: reading.name,
+    onPick,
+  };
   return (
     <>
       {family(data, props)}

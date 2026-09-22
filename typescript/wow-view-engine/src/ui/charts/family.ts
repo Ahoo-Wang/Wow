@@ -13,7 +13,7 @@
 
 import { useMemo } from 'react';
 import type { AnalysisColumnView } from '../../analysis/index.js';
-import type { ChartSpec } from '../../model/index.js';
+import type { ChartSpec, RecordData } from '../../model/index.js';
 import { columnTitle, displayValue, valueText } from '../display.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
@@ -29,10 +29,21 @@ import { useSurfaceDisplay } from '../ViewSurface.js';
 export type ValueLabel = (alias: string | undefined, value: unknown) => string;
 
 /** What `AnalysisChart` hands whichever family the data asked for. */
+/**
+ * Told which group of the result a mark stands for when it is pressed, and
+ * where — the mark's element, or the point pressed — so the follow-up menu
+ * opens against it. Left out, marks are not pressable.
+ */
+export type OnPick = (
+  row: RecordData,
+  anchor: Element | { getBoundingClientRect(): DOMRect },
+) => void;
+
 export interface FamilyProps<D> {
   data: D;
   spec?: ChartSpec;
   className?: string;
+  onPick?: OnPick;
   label: ValueLabel;
   /** An alias as its column is titled; `undefined` when no column holds it. */
   column: ColumnTitle;
