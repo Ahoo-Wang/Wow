@@ -129,8 +129,9 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
   setEditing(active: boolean): void;
   /**
    * Whether the draft runs on its own a moment after its question changes
-   * (`autoApply.ts`); the range still waits for `apply`. Off by default:
-   * the workbench switches it on from the user's preference.
+   * (`autoApply.ts`); which members are the question is declared per kind
+   * by the model (`autoRunMembers`), and the range still waits for `apply`.
+   * Off by default: the workbench switches it on from the user's preference.
    */
   setAutoApply(on: boolean): void;
   /**

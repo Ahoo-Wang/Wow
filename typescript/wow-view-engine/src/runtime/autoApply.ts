@@ -11,19 +11,28 @@
  * limitations under the License.
  */
 
-import type { Issue, ViewConfig } from '../model/index.js';
-import { comparePending } from './pending.js';
+import { dequal } from 'dequal';
+import {
+  autoRunMembers,
+  presentationMembers,
+  type Issue,
+  type ViewConfig,
+} from '../model/index.js';
 import { hasError } from './runtimeStore.js';
 
 /**
- * 「改了就跑」 (D20; todo 批 7): an analysis whose question changed runs
- * again on its own, a moment after the last edit, so the analyst reads
- * the answer rather than pressing for it. Three things hold it:
+ * 「改了就跑」 (D20; todo 批 7): a question that changed runs again on its
+ * own, a moment after the last edit, so the analyst reads the answer rather
+ * than pressing for it. Which members are the question is the model's to
+ * say, beside the types they are members of (`autoRunMembers`): a kind with
+ * none declared never runs on its own, and the runtime carries no rule of
+ * any one kind. Three things hold a draft back:
  *
  * - the draft is refused — a question that cannot run is not run;
- * - the **range** changed — the conditions still wait for Apply (D20), and
- *   while they wait nothing else runs either, because Apply runs the whole
- *   draft and a half-applied draft would say two things at once;
+ * - a member outside the question changed — the **range** above all, whose
+ *   conditions still wait for Apply (D20); and while they wait nothing else
+ *   runs either, because Apply runs the whole draft and a half-applied draft
+ *   would say two things at once;
  * - the view has it switched off (`ViewPreferences.autoRun`), in which case
  *   Apply is the one way to run.
  *
@@ -42,6 +51,23 @@ export interface AutoApplyState {
 /** Whether the draft is one the runtime should run on its own now. */
 export function autoApplyDue(state: AutoApplyState): boolean {
   if (!state.autoApply || hasError(state.issues)) return false;
-  const report = comparePending(state.draft, state.applied, state.issues);
-  return report.pending && !report.conditions;
+  const changed = changedMembers(state.draft, state.applied);
+  if (changed.length === 0) return false;
+  const question = autoRunMembers(state.draft.kind);
+  return changed.every(member => question.includes(member));
+}
+
+/**
+ * The members the draft says differently from the applied config, leaving
+ * out the ones that only draw the result (`presentationMembers`): those
+ * redraw without asking the source, so they neither run nor hold a run.
+ */
+function changedMembers(draft: ViewConfig, applied: ViewConfig): string[] {
+  const was: Record<string, unknown> = { ...applied };
+  const now: Record<string, unknown> = { ...draft };
+  const presentation = presentationMembers(draft.kind);
+  return [...new Set([...Object.keys(now), ...Object.keys(was)])].filter(
+    member =>
+      !presentation.includes(member) && !dequal(now[member], was[member]),
+  );
 }

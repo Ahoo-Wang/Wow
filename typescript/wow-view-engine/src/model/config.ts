@@ -12,6 +12,7 @@
  */
 
 import {
+  ANALYSIS_AUTO_RUN_MEMBERS,
   ANALYSIS_PRESENTATION_MEMBERS,
   type AnalysisViewConfig,
 } from './analysis.js';
@@ -93,4 +94,24 @@ const BY_KIND: Record<ViewKind, readonly string[]> = {
  */
 export function presentationMembers(kind: ViewKind): readonly string[] {
   return BY_KIND[kind] ?? BASE_PRESENTATION_MEMBERS;
+}
+
+const AUTO_RUN_BY_KIND: Record<ViewKind, readonly string[]> = {
+  record: [],
+  analysis: ANALYSIS_AUTO_RUN_MEMBERS,
+  dashboard: [],
+};
+
+/**
+ * Which members of one kind's config run again on their own a moment after
+ * they change (「改了就跑」, D20) — declared beside the type each is a member
+ * of, like `presentationMembers`, so the runtime carries no rule of any one
+ * kind and a kind that runs nothing on its own declares nothing.
+ *
+ * Only an analysis has any: its question. A record view's edits — a sort, a
+ * page size — are cheap to apply and wait for the press as they always did;
+ * a dashboard edits its layout, not a question.
+ */
+export function autoRunMembers(kind: ViewKind): readonly string[] {
+  return AUTO_RUN_BY_KIND[kind] ?? [];
 }

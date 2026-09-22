@@ -21,12 +21,16 @@ import {
   MemoryViewStore,
   RequestRunner,
   ViewEngine,
+  autoRunMembers,
   type AnalysisViewConfig,
   type ViewSource,
 } from '../src/index.js';
 import {
   analysisConfig,
+  dashboardConfig,
+  overviewDefinition,
   ordersDefinition,
+  recordConfig,
   testEnvironment,
   testSource,
 } from './fixtures.js';
@@ -144,6 +148,63 @@ describe('改了就跑: the analysis runs again on its own', () => {
     runtime.dispose();
   });
 
+  it('runs nothing of a kind whose model declares no question', () => {
+    // Which members run on their own is declared beside the config types
+    // (`autoRunMembers`); a record view declares none, so the switch on
+    // arms nothing, and its edits wait for the press as they always did.
+    expect(autoRunMembers('record')).toEqual([]);
+    const clock = testEnvironment();
+    const source = testSource();
+    const runtime = new DataViewRuntime({
+      id: 'record-1',
+      definition: ordersDefinition(),
+      config: recordConfig(),
+      title: 'Orders',
+      scope: 'personal',
+      saved: null,
+      kinds: builtinFieldKinds,
+      limits: DEFAULT_RUNTIME_LIMITS,
+      environment: clock.environment,
+      source,
+      runner: new RequestRunner(),
+    });
+    runtime.apply();
+    runtime.setAutoApply(true);
+    const before = vi.mocked(source.paged).mock.calls.length;
+
+    runtime.edit({ pageSize: 5 });
+    clock.advance(AUTO_APPLY_DELAY_MS * 2);
+
+    expect(vi.mocked(source.paged).mock.calls.length).toBe(before);
+    expect(clock.timers).toBe(0);
+    expect(runtime.getSnapshot().autoApply).toBe(true);
+    runtime.dispose();
+  });
+
+  it('is a preference a dashboard keeps too, and arms nothing with', async () => {
+    const store = new MemoryViewStore({ instances: [] });
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition(), overviewDefinition()],
+      store,
+      resolveSource: () => testSource(),
+    });
+    const instance = await store.create(
+      {
+        definitionId: 'overview',
+        title: 'Overview',
+        scope: 'personal',
+        config: dashboardConfig(),
+      },
+      { requestId: 'r' },
+    );
+    const runtime = await engine.open(instance.id);
+    expect(runtime.getSnapshot().autoApply).toBe(false);
+    runtime.setAutoApply(true);
+    expect(runtime.getSnapshot().autoApply).toBe(true);
+    expect(autoRunMembers('dashboard')).toEqual([]);
+    runtime.dispose();
+  });
+
   it('reads whether a draft is due from what changed', () => {
     const applied = analysisConfig();
     const due = (draft: AnalysisViewConfig, autoApply = true) =>
@@ -153,6 +214,27 @@ describe('改了就跑: the analysis runs again on its own', () => {
     // A layout is presentation: nothing to run.
     expect(due(analysisConfig({ layout: 'chart' }))).toBe(false);
     expect(due(analysisConfig(topFive()), false)).toBe(false);
+    // A question member and the range together: the range holds it all.
+    expect(
+      due(
+        analysisConfig({
+          ...topFive(),
+          filter: {
+            op: 'and',
+            children: [{ field: 'warehouse', operator: 'EQ', value: 'SH' }],
+          },
+        }),
+      ),
+    ).toBe(false);
+    // A record draft is never due: its kind declares no question.
+    expect(
+      autoApplyDue({
+        draft: recordConfig({ pageSize: 5 }),
+        applied: recordConfig(),
+        issues: [],
+        autoApply: true,
+      }),
+    ).toBe(false);
     expect(
       autoApplyDue({
         draft: analysisConfig(topFive()),

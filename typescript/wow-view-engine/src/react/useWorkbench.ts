@@ -346,11 +346,11 @@ export function useWorkbench(
   const runtime = held ? held.runtime : wrongKind ? null : byId.runtime;
   const state: ViewRuntimeState<ViewConfig> | null = useViewRuntime(runtime);
   const autoRun = list.preferences?.autoRun ?? true;
-  // Only an analysis runs on its own: a record view's edits — a sort, a
-  // page size — are cheap to apply and wait for the press as they always
-  // did. The preference is read whenever it or the open view changes.
+  // The preference reaches every runtime alike; which members run on their
+  // own is the model's to say per kind (`autoRunMembers`), and a kind that
+  // declares none never does. Read whenever it or the open view changes.
   useEffect(() => {
-    if (runtime?.kind === 'analysis') runtime.setAutoApply(autoRun);
+    runtime?.setAutoApply(autoRun);
   }, [runtime, autoRun]);
   const filter = useFilterEditor(runtime);
   const refresh = useAutoRefresh(runtime);

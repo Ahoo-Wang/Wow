@@ -171,3 +171,21 @@ export const ANALYSIS_PRESENTATION_MEMBERS = [
   'layout',
   'chart',
 ] as const satisfies readonly (keyof AnalysisViewConfig)[];
+
+/**
+ * The members that make up the *question*, which runs again on its own a
+ * moment after it changes (「改了就跑」, D20): what is counted, by what, kept
+ * by what, in what order and how many. The range (`filter`) is not among
+ * them — the conditions wait for Apply, and while they wait nothing else
+ * runs either (`runtime/autoApply.ts`). Nor is a presentation member: it
+ * never asks the source. `autoRunMembers` in `config.ts` reads this per kind.
+ */
+export const ANALYSIS_AUTO_RUN_MEMBERS = [
+  'elements',
+  'groups',
+  'metrics',
+  'having',
+  'sort',
+  'limit',
+  'table',
+] as const satisfies readonly (keyof AnalysisViewConfig)[];

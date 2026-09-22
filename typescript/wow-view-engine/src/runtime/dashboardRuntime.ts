@@ -303,8 +303,15 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     this.children.refresh();
   }
 
-  /** A dashboard edits its layout, not a question; nothing runs on its own. */
-  setAutoApply(): void {}
+  /**
+   * The preference is the user's and is kept like any other; what it may run
+   * is the model's to say, and it declares no dashboard member that runs on
+   * its own (`autoRunMembers`), so the switch arms nothing here.
+   */
+  setAutoApply(on: boolean): void {
+    if (this.disposed || this.state.autoApply === on) return;
+    this.store.setState({ autoApply: on });
+  }
 
   setEditing(active: boolean): void {
     if (this.disposed || this.state.editing === active) return;

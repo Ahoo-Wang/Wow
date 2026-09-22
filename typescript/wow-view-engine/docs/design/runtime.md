@@ -21,7 +21,7 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
   revert(): void; // draft 回到 saved.config，重算 issues／dirty；与 applied 不同且无 error 时再 apply；未保存过为空操作
   refresh(): void; // 重跑 applied
   setEditing(active: boolean): void; // 编辑器获得／失去输入焦点时调用，暂停自动刷新
-  setAutoApply(on: boolean): void; // 改了就跑：问题变了就自己 apply，见下；范围照旧等应用。Dashboard 上是空操作
+  setAutoApply(on: boolean): void; // 改了就跑：问题变了就自己 apply，见下；哪些成员是「问题」由模型按种类声明（`autoRunMembers`），记录与仪表盘没声明任何一个，所以那里只记偏好、不上弦
   setScopeFilter(tree: FilterTree | null): Issue[]; // 外层注入的附加条件，AND 到已应用筛选；不改 draft／saved；返回被拒的那几条，生效时为空
   readonly refusedScope: Issue[]; // 当前要求的那个注入条件因何被拒；生效时为空。被拒不阻塞视图，见下「被拒的是条件，不是视图」
   readonly scopeFilter: FilterTree | null; // 当前生效的注入条件（最后一次被准入的那棵）；筛选摘要据此把"宿主的条件"与"视图自己的条件"分开呈现
@@ -156,7 +156,7 @@ export class ViewWriteError extends Error {
 
 - **开关关着**（`state.autoApply` 为 false）。这是用户的偏好而不是视图的配置，工作台从 `ViewPreferences.autoRun` 推给 runtime（见 [management.md#列表偏好与默认视图](management.md#列表偏好与默认视图)）；runtime 自己缺省是关的，没人推它就不会有谁的屏幕莫名其妙动起来。关着时应用是唯一的跑法；
 - **草稿被准入拒绝**（`issues` 含 error）。一份跑不起来的问题不该被自动拿去跑——那只会把一条错误在屏幕上循环播放一遍；
-- **改的是范围**（`comparePending` 报 `conditions`）。条件照旧等应用（D20），**而且在它等着的时候别的也不跑**：应用跑的是整份草稿，条件与问题一起提升，半份草稿跑出来的结果会同时说两件事——行是新问题的，口径是旧条件的。所以「维度改了 + 条件也改了」这一份草稿整个等着那一下按键。
+- **改的不只是问题**（`autoApplyDue`：改过的成员里有一个不在 `autoRunMembers(kind)` 里）。哪些成员算「问题」——展开、维度、指标、只保留、排序、前 N 组、合计行——由模型在 `ANALYSIS_AUTO_RUN_MEMBERS` 里声明在类型旁边（[model.md#配置](model.md)），runtime 不认得任何一种视图的规则；记录视图与仪表盘一个都没声明，开关对它们只是被记住的偏好。范围不在其中：条件照旧等应用（D20），**而且在它等着的时候别的也不跑**：应用跑的是整份草稿，条件与问题一起提升，半份草稿跑出来的结果会同时说两件事——行是新问题的，口径是旧条件的。所以「维度改了 + 条件也改了」这一份草稿整个等着那一下按键。
 
 **一个 runtime 一只计时器**（`runtime/refreshTimer.ts` 的 `RefreshTimer`，与自动刷新那只各是各的）：每次 `edit` 都停表再武装，所以那 300 毫秒是从**最后一次**编辑数起——加一个时间维度、紧接着改它的粒度，是一次查询而不是两次。`apply`、`revert`、关掉开关与 `dispose` 各自停表。300 毫秒是「手停下来了」与「屏幕没反应」之间的那一档：更短会把一串连着的编辑各发一次查询，更长就读成卡了。
 

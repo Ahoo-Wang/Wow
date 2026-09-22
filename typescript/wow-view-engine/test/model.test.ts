@@ -33,6 +33,7 @@ import {
   VIEW_SCOPES,
   audienceOf,
   isSystemScope,
+  autoRunMembers,
   presentationMembers,
   toSummary,
   type AnalysisViewConfig,
@@ -284,6 +285,46 @@ describe('configs stay plain JSON', () => {
     expect(presentationMembers('dashboard')).not.toContain('layout');
     // `table` is not among them: its totals row is a query of its own.
     expect(presentationMembers('analysis')).not.toContain('table');
+  });
+
+  /**
+   * The members that run again on their own a moment after they change
+   * (「改了就跑」, D20), declared per kind beside the config types so the
+   * runtime carries no rule of any one kind: an analysis's question, and
+   * nothing of a record view or a dashboard.
+   */
+  it('names the question members that run on their own, per kind', () => {
+    expect(autoRunMembers('analysis')).toEqual([
+      'elements',
+      'groups',
+      'metrics',
+      'having',
+      'sort',
+      'limit',
+      'table',
+    ]);
+    // The range waits for Apply (D20); a presentation member never runs.
+    for (const member of ['filter', 'filterMode', 'layout', 'chart'])
+      expect(autoRunMembers('analysis')).not.toContain(member);
+    for (const member of autoRunMembers('analysis'))
+      expect(presentationMembers('analysis')).not.toContain(member);
+    expect(autoRunMembers('record')).toEqual([]);
+    expect(autoRunMembers('dashboard')).toEqual([]);
+    expect(autoRunMembers('unknown' as ViewKind)).toEqual([]);
+    // Every name is one the config has — including the optional members.
+    const full = Object.keys(
+      analysisConfig({
+        elements: [],
+        having: {
+          type: 'CONDITION',
+          metric: 'orders',
+          operator: 'GT',
+          value: 1,
+        },
+      }),
+    );
+    for (const member of autoRunMembers('analysis'))
+      expect(full).toContain(member);
   });
 
   it('narrows a config union by its kind', () => {
