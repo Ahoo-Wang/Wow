@@ -19,7 +19,12 @@ import {
   walkFilter,
   type FilterPath,
 } from '../filter/index.js';
-import type { FilterTree, Issue, ViewConfig } from '../model/index.js';
+import {
+  presentationMembers,
+  type FilterTree,
+  type Issue,
+  type ViewConfig,
+} from '../model/index.js';
 
 /**
  * What the draft says that the applied config does not (D17-6).
@@ -91,17 +96,14 @@ export function comparePending(
   const was: Record<string, unknown> = { ...applied };
   const now: Record<string, unknown> = { ...draft };
   const keys = new Set([...Object.keys(now), ...Object.keys(was)]);
+  // The dot says "the rows on screen do not answer the config you see", and
+  // a member that never reaches the query cannot make that true. Which
+  // members those are is the model's to declare, beside the types they are
+  // members of (`presentationMembers`); read here they were string
+  // comparisons that no `satisfies` could hold to the config.
+  const presentation = presentationMembers(draft.kind);
   for (const key of keys) {
-    // The dot says "the rows on screen do not answer the config you see".
-    // A member that never reaches the query cannot make that true: the
-    // editor's simple/advanced mode, and a record view's table-or-cards
-    // layout, both draw the same result — switching them is complete the
-    // moment it is done, and a dot that asked for an Apply with nothing
-    // to run would teach the user to press buttons that change nothing.
-    // (An analysis layout is not one of these: the kernel shapes a chart
-    // only for the layout that ran, so `setLayout` there applies at once.)
-    if (key === 'filterMode' || (key === 'layout' && draft.kind === 'record'))
-      continue;
+    if (presentation.includes(key)) continue;
     const before = was[key];
     const after = now[key];
     if (key === 'filter') {

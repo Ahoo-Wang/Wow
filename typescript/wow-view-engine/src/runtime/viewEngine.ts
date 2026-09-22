@@ -66,6 +66,7 @@ import { toIssue } from './issues.js';
 import { PermissionGuard } from './permissions.js';
 import { PreferenceCache, resolveDefault } from './preferences.js';
 import { OpenRuntimes } from './openRuntimes.js';
+import { SummaryCache } from './summaries.js';
 import { RuntimeFactory, type RuntimeIdentity } from './runtimeFactory.js';
 
 export interface ViewEngineOptions {
@@ -124,10 +125,11 @@ export interface CreateInput<C extends ViewConfig> {
  *
  * What the commands stand on lives beside this file, one concern each: the
  * definition registry (`definitions.ts`), the permission checks
- * (`permissions.ts`), the preference cache (`preferences.ts`), the open views
- * (`openRuntimes.ts`), how one runtime is assembled (`runtimeFactory.ts`) and
- * the write ledger (`writeLedger.ts`). What is left here is the command
- * surface itself: admission, then one dispatch.
+ * (`permissions.ts`), the preference cache (`preferences.ts`), the summary
+ * cache (`summaries.ts`), the open views (`openRuntimes.ts`), how one runtime
+ * is assembled (`runtimeFactory.ts`) and the write ledger
+ * (`writeLedger.ts`). What is left here is the command surface itself:
+ * admission, then one dispatch.
  *
  * Every write goes through one path, so the default UI and a hand-built one
  * behave the same, and every non-success outcome lands in the same three
@@ -156,7 +158,8 @@ export class ViewEngine {
   private readonly ledger: WriteLedger;
   /** Who is told that a definition's list has changed; see `subscribe`. */
   private readonly changes = new ViewChanges(found => this.report(found));
-  private readonly summaries = new Map<string, ViewInstanceSummary>();
+  /** The last summary seen of each instance; see `summaries.ts`. */
+  private readonly summaries = new SummaryCache();
 
   constructor(options: ViewEngineOptions) {
     this.options = options;
@@ -241,7 +244,7 @@ export class ViewEngine {
       return false;
     });
     const items = [...declared, ...accepted];
-    for (const summary of items) this.summaries.set(summary.id, summary);
+    this.summaries.noteAll(items);
     return { items, failed };
   }
 
@@ -533,10 +536,9 @@ export class ViewEngine {
     return {
       store: this.store,
       newId: this.options.newId,
-      noteInstance: instance =>
-        this.summaries.set(instance.id, toSummary(instance)),
+      noteInstance: instance => this.summaries.note(instance),
       dropInstance: (id, owner) => {
-        this.summaries.delete(id);
+        this.summaries.drop(id);
         for (const holder of this.runtimes.holders(id, owner))
           this.runtimes.forget(holder);
       },

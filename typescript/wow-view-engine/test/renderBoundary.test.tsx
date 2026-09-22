@@ -108,7 +108,9 @@ describe('RenderBoundary', () => {
         </RenderBoundary>
       </ViewSurface>,
     );
-    await userEvent.click(within(alert).getByRole('button', { name: 'Retry' }));
+    await userEvent.click(
+      within(alert).getByRole('button', { name: 'Try again' }),
+    );
     expect(screen.queryByRole('alert')).toBeNull();
     expect(screen.getByText('drawn')).toBeTruthy();
   });
@@ -122,7 +124,7 @@ describe('RenderBoundary', () => {
         </RenderBoundary>
       </ViewSurface>,
     );
-    await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(screen.getByRole('alert').getAttribute('data-boundary')).toBe(
       'editor',
     );
@@ -174,7 +176,9 @@ describe('RenderBoundary', () => {
     // a `Tooltip` rather than a native `title` (D16), which is the one
     // affordance a touch user never has.
     expect(alert.hasAttribute('data-base-ui-tooltip-trigger')).toBe(true);
-    expect(within(alert).getByRole('button', { name: 'Retry' })).toBeTruthy();
+    expect(
+      within(alert).getByRole('button', { name: 'Try again' }),
+    ).toBeTruthy();
   });
 
   it('speaks the host catalogue', () => {
@@ -242,7 +246,9 @@ describe('the workbench boundaries', () => {
         onRenderFailure={f => failures.push(f)}
       />,
     );
-    await userEvent.click(within(alert).getByRole('button', { name: 'Retry' }));
+    await userEvent.click(
+      within(alert).getByRole('button', { name: 'Try again' }),
+    );
     await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
     expect(screen.getByRole('button', { name: 'act o-1' })).toBeTruthy();
     expect(screen.queryByRole('alert')).toBeNull();
@@ -334,7 +340,9 @@ describe('the dashboard panel boundaries', () => {
     const alert = screen.getByRole('alert');
     expect(alert.getAttribute('data-boundary')).toBe('panel');
     expect(alert.closest('[data-slot="dashboard-panel"]')).not.toBeNull();
-    expect(within(alert).getByRole('button', { name: 'Retry' })).toBeTruthy();
+    expect(
+      within(alert).getByRole('button', { name: 'Try again' }),
+    ).toBeTruthy();
     expect(failures).toEqual([
       expect.objectContaining({ boundary: 'panel', panelId: 'boom' }),
     ]);

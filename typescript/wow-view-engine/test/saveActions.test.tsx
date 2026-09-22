@@ -760,11 +760,13 @@ describe('WriteOutcome', () => {
 
     const held = deferred<ViewInstance>();
     vi.spyOn(store, 'save').mockReturnValueOnce(held.promise);
-    await clickWhenEnabled('Retry');
+    await clickWhenEnabled('Try again');
 
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: 'Retry' }).hasAttribute('disabled'),
+        screen
+          .getByRole('button', { name: 'Try again' })
+          .hasAttribute('disabled'),
       ).toBe(true),
     );
     expect(
@@ -819,7 +821,7 @@ describe('WriteOutcome', () => {
     // Snapshot before the click: the helper awaits the button, and a memory
     // store lands the retried write within the same tick as the press.
     const retried = landed(store);
-    await clickWhenEnabled('Retry');
+    await clickWhenEnabled('Try again');
     await retried;
     expect((await store.get('orders-1')).revision).toBe('2');
   });
@@ -918,7 +920,7 @@ describe('WriteOutcome', () => {
       </ViewSurface>,
     );
 
-    await clickWhenEnabled('Retry');
+    await clickWhenEnabled('Try again');
 
     await waitFor(() => expect(onDeleted).toHaveBeenCalled());
     expect(onRecovered).toHaveBeenCalledWith('delete');
@@ -959,7 +961,7 @@ describe('WriteOutcome', () => {
       </ViewSurface>,
     );
 
-    await clickWhenEnabled('Retry');
+    await clickWhenEnabled('Try again');
 
     await waitFor(() => expect(onRenamed).toHaveBeenCalledWith(renamed));
   });

@@ -98,7 +98,7 @@ export const recordMessages = {
   // Said rather than swallowed: the clipboard is not available outside a
   // secure context and a user may refuse it, and a button that goes quiet
   // reads as one that worked. The value stays selectable text either way.
-  'label.copy-failed': 'Could not copy',
+  'label.copy-failed': 'Could not copy — select the value and copy it',
 
   'label.summary.of': '{fn} of {field}',
   'label.value.yes': 'Yes',
@@ -121,9 +121,14 @@ export const recordMessages = {
   // everything the conditions match, `page` only from the rows in front of
   // you, and the two are not interchangeable. `label.summary.total` is the
   // analysis table's totals row and stays its own wording.
+  //
+  // The scope is the other label's twin — "This page" against everything —
+  // so it says rows, where `label.applied.all` says records: one names the
+  // two halves of a footer, the other says what the conditions let through
+  // (user ruling 2026-09-22, Ⅱ).
   'label.summary.total': 'Total',
   'label.summary.scope.page': 'This page',
-  'label.summary.scope.total': 'All records',
+  'label.summary.scope.total': 'All rows',
   'label.summary.fn.none': 'No summary',
   'label.summary.fn.SUM': 'Sum',
   'label.summary.fn.AVG': 'Average',

@@ -78,7 +78,7 @@ export const saveMessages = {
   // it is given up and nobody can retry or overwrite it afterwards. The
   // engine calls that `abandonWrite`, and so should the word on the button.
   'label.unknown.leave': 'Abandon',
-  'label.unknown.retry': 'Retry',
+  'label.unknown.retry': 'Try again',
   // A refusal never reached the store, so there is nothing to recover — only
   // a line to take down once it has been read, which is what frees the view
   // to be written again.

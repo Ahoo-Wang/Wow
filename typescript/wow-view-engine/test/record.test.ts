@@ -758,8 +758,10 @@ describe('projectRecord', () => {
     const view = projectRecord(
       definition(),
       config({
+        // `pinned: false` is a value only a store can hold: the member is
+        // written or left out (B8).
         table: { columns: [{ field: 'id', pinned: false }] },
-      }),
+      } as unknown as Partial<RecordViewConfig>),
       { total: 0, list: [] },
     );
 
@@ -821,7 +823,12 @@ describe('projectRecord', () => {
     ]);
   });
 
-  /** `pinned: false` is a pinning — the one that says "no". */
+  /**
+   * `pinned: false` is a pinning — the one that says "no". No writer here
+   * writes it, which is what `pinned?: true` says (B8), but a stored config
+   * may hold it and it means what leaving the member out means, so it is
+   * admitted rather than reported.
+   */
   it('admits a pinning written out as false', () => {
     expect(
       codes(
@@ -831,7 +838,7 @@ describe('projectRecord', () => {
             table: {
               columns: [{ field: 'id' }, { field: 'amount', pinned: false }],
             },
-          }),
+          } as unknown as Partial<RecordViewConfig>),
           builtinFieldKinds,
         ),
       ),

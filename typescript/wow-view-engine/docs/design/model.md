@@ -147,15 +147,17 @@ export interface RecordViewConfig extends ViewConfigBase {
     // （旧配置）读作显示；除 true 外的任何值都读作显示，另由 validateColumns 报
     // record.column.hidden-invalid。
     //
-    // pinned 是一个布尔：true 即固定在左侧（D19）。固定没有"侧"——右边那一
-    // 列是宿主的操作列，没有行操作时是投影画在最后的那一列（D13），两者都不
-    // 是配置说得上的。取消固定删键而不是写 false；读法与 hidden 同一套
-    // （columnPinned()，只有 true 算固定），读不出的值当作不固定，另由
-    // validateColumns 报 record.column.pin-invalid——两端也报。
+    // pinned 与 hidden 同一种成员：写就写 true，取消固定删键而不是写 false，
+    // 所以类型也写成 `pinned?: true`（B8）——true 即固定在左侧（D19）。固定
+    // 没有"侧"——右边那一列是宿主的操作列，没有行操作时是投影画在最后的那一
+    // 列（D13），两者都不是配置说得上的。读法与 hidden 同一套（columnPinned()，
+    // 只有 true 算固定），读不出的值当作不固定，另由 validateColumns 报
+    // record.column.pin-invalid——两端也报；存量配置里的 false 说的正是"不固
+    // 定"，照旧收下不报。
     columns: {
       field: string;
       width?: number;
-      pinned?: boolean;
+      pinned?: true;
       hidden?: true;
     }[];
   };

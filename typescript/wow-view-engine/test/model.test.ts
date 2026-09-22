@@ -33,6 +33,7 @@ import {
   VIEW_SCOPES,
   audienceOf,
   isSystemScope,
+  presentationMembers,
   toSummary,
   type AnalysisViewConfig,
   type ChartSpec,
@@ -44,7 +45,9 @@ import {
   type ViewConfigBase,
   type ViewDefinition,
   type ViewInstance,
+  type ViewKind,
 } from '../src/index.js';
+import { analysisConfig, dashboardConfig, recordConfig } from './fixtures.js';
 
 const filterBase: Pick<ViewConfigBase, 'filter' | 'filterMode'> = {
   filter: { op: 'and', children: [] },
@@ -240,6 +243,41 @@ describe('configs stay plain JSON', () => {
     const dataPanels = dashboard.panels.filter(panel => panel.kind === 'view');
     expect(dataPanels).toHaveLength(1);
     expect(dataPanels[0].bindings[0].panelField).toBe('warehouse');
+  });
+
+  /**
+   * The members that only draw the result the query already returned, which
+   * `comparePending` skips so that switching them raises no "changed, not
+   * applied" dot. They used to be string comparisons inside that function
+   * (A6); declared beside the config types, the `satisfies` on each list
+   * refuses a member the config does not have — and this walks the other
+   * way, so a list naming a member that has since been renamed fails here.
+   */
+  it('names presentation-only members the config actually has', () => {
+    const members: Record<ViewKind, readonly string[]> = {
+      record: Object.keys(recordConfig()),
+      analysis: Object.keys(analysisConfig()),
+      dashboard: Object.keys(dashboardConfig()),
+    };
+
+    for (const kind of VIEW_KINDS) {
+      expect(
+        presentationMembers(kind).filter(
+          member => !members[kind].includes(member),
+        ),
+      ).toEqual([]);
+    }
+  });
+
+  it('counts the editor mode as presentation for every kind', () => {
+    // The one member all three share: the condition builder shows the same
+    // tree either way, so the mode never reaches a query.
+    for (const kind of VIEW_KINDS)
+      expect(presentationMembers(kind)).toContain('filterMode');
+    // And the one that differs: a record view draws the rows it has as a
+    // table or as cards, while an analysis chart is shaped by the query.
+    expect(presentationMembers('record')).toContain('layout');
+    expect(presentationMembers('analysis')).not.toContain('layout');
   });
 
   it('narrows a config union by its kind', () => {

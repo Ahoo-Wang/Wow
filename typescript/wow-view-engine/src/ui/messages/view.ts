@@ -22,9 +22,13 @@ export const viewMessages = {
   'label.view.list-failed': 'The list could not be loaded.',
   'label.view.none-hint': 'Make one to start looking at the data.',
   // The command and the name it opens under: one is a verb on a button, the
-  // other a title in a heading, and the two catalogues word them apart.
+  // other a title in a heading, and the two catalogues word them apart. The
+  // title says the view has no name yet rather than repeating the button —
+  // it is what the title bar, the first save's dialog and the list all read,
+  // and "New view" there said the command, not the thing (user ruling
+  // 2026-09-22, Ⅱ).
   'label.view.new': 'New view',
-  'label.view.new-title': 'New view',
+  'label.view.new-title': 'Untitled view',
   'label.view.unopenable': 'This view could not be opened',
   'label.view.open-default': 'Open the default view',
   'label.view.needs-fixing': 'This view needs fixing before it runs',
@@ -52,6 +56,13 @@ export const viewMessages = {
     'The {id} definition has {issues} problem(s) and cannot be opened.',
   'view.definition.not-found': 'No definition named {id}.',
   'view.delete.failed': 'This view could not be deleted.',
+  // One per action the permission guard refuses (`view.<action>.forbidden`,
+  // `runtime/permissions.ts`). They used to have no entry at all, so the
+  // code itself reached the screen; each says which command was refused and
+  // what is left to do about it, since the store's answer is not the user's
+  // to change (B1).
+  'view.delete.forbidden':
+    'You may not delete this view; ask whoever owns it to remove it.',
   'view.list.failed': 'The list of views could not be loaded.',
   'view.list.reserved-id':
     'The stored view {id} uses a reserved id and was skipped.',
@@ -67,11 +78,15 @@ export const viewMessages = {
     'Your view preferences could not be loaded; the views are in the server’s order.',
   'view.preferences.reorder-forbidden': 'You may not reorder views.',
   'view.rename.failed': 'This view could not be renamed.',
+  'view.rename.forbidden':
+    'You may not rename this view; save a copy of your own instead.',
   'view.resolve.failed': 'That conflict could not be resolved.',
   'view.retry.failed': 'That write could not be retried.',
   'view.runtime.not-owned': 'This view is not open here any more.',
   'view.save-as.failed': 'This view could not be saved as a copy.',
   'view.save.failed': 'This view could not be saved.',
+  'view.save.forbidden':
+    'You may not save changes to this view; save a copy of your own instead.',
   'view.system.read-only': 'A built-in view cannot be changed ({action}).',
   'view.title.empty': 'A view needs a title.',
   'view.write.conflict-unreadable':

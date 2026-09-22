@@ -153,7 +153,7 @@ describe('the summary row', () => {
     // rows on screen off as everything the conditions match.
     expect(scopes(footer)).toEqual(['page']);
     expect(footer.textContent).toContain('This page');
-    expect(footer.textContent).not.toContain('All records');
+    expect(footer.textContent).not.toContain('All rows');
   });
 });
 
@@ -200,7 +200,7 @@ describe('the summary rows', () => {
     expect(summaryRow(footer, 'page').textContent).toContain('CN¥10.00');
     expect(summaryRow(footer, 'total').textContent).toContain('CN¥900.00');
     expect(footer.textContent).toContain('This page');
-    expect(footer.textContent).toContain('All records');
+    expect(footer.textContent).toContain('All rows');
   });
 
   /**

@@ -95,7 +95,7 @@ src/
   model/                      — Types and constants only; imports nothing
     analysis.ts               — Wow aggregation enums as stored literals
     chart.ts                  — ChartSpec — one sub-object per chart family, every reference a group or metric alias; `CHART_TYPES`, `CHART_FAMILY`
-    config.ts                 — ViewConfig — what each view kind stores
+    config.ts                 — ViewConfig — what each view kind stores, and which of its members only draw the result (`presentationMembers`)
     dashboard.ts              — Dashboard config, global fields, bindings
     definition.ts             — ViewDefinition, FieldDefinition, capabilities
     field.ts                  — FieldKindId
@@ -177,8 +177,8 @@ src/
     issues.ts                 — `toIssue`: one Issue for whatever a command threw
     listeners.ts              — `listenerSet`: the subscribe / notify half every store in this package has
     openRuntimes.ts           — The views one engine has open, and who holds an instance
-    pending.ts                — `comparePending`: what the draft says that the applied config does not (D17-6)
-    permissions.ts            — What a command is allowed to do; a system view is read-only
+    pending.ts                — `comparePending`: what the draft says that the applied config does not (D17-6), presentation members excepted
+    permissions.ts            — What a command is allowed to do; `instanceAbilities`, the one reading of "a system view is read-only", which the manager's buttons ask as well
     preferences.ts            — The preference cache, the list order and the default view
     refreshTimer.ts           — The one auto-refresh timer both runtimes arm; `refreshIntervalOf`, `refreshDelayOf`
     requestRunner.ts          — Scheduling; a newer request supersedes a key
@@ -186,6 +186,7 @@ src/
     runtimeStore.ts           — The store both runtimes are made of: the state, its listeners, the refresh timer's bookkeeping, dirty-against-saved; `hasError`
     scope.ts                  — What an injected scope does to admission: the merge, and what it alone is refused for
     source.ts                 — resolveSource — three QueryApi methods
+    summaries.ts              — The instance-summary cache: noted on listing and on a confirmed write, dropped on delete, read before the store
     validateDefinition.ts     — Definition admission; needs all three kernels
     viewChanges.ts            — The change notifications a list of views subscribes to (D15)
     viewEngine.ts             — ViewEngine — the command surface: admission, then one dispatch
@@ -223,7 +224,7 @@ src/
     writes.ts                 — One write-outcome vocabulary, shared by the save commands and the manager
     index.ts                  — The `/react` entry: hooks and headless controllers over the runtime
     manager/                  — What `useViewManager` composes
-      abilities.ts            — Which manager buttons exist, from permissions and the rows on screen
+      abilities.ts            — Which manager buttons exist, from `instanceAbilities` and the rows on screen
       order.ts                — Where a row goes when it moves, within its audience group
       outcomes.ts             — One outcome per row, and what a row's slot accepts
       queue.ts                — One write at a time, in click order, per set of inputs
@@ -287,7 +288,7 @@ src/
     alerts.tsx                — `LineAlert`: one callout one line high, tone deciding colour, icon and role
     describeConfig.ts         — One config in a sentence, for a conflict's side-by-side
     display.ts                — A value as its field shows it: enum labels, dates, bucket keys; `summaryFunctionKey` names a summary in its column's vocabulary
-    download.ts               — Hands a file to the browser; the whole of the DOM the export needs
+    download.ts               — Hands a file to the browser; the whole of the DOM the export needs, and the name it is handed under
     dragAnnounce.ts           — What a screen reader hears while a row is dragged; the column settings and the manager share it
     dragDrop.ts               — `dropped()`: what makes a finished drag a drop at all, before any list adds its own rule
     features.ts               — `WorkbenchFeatures`: which of the workbench's own controls exist (D18 XI)

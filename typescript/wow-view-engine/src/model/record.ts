@@ -81,11 +81,14 @@ export interface RecordColumn {
   field: string;
   width?: number;
   /**
-   * `true` on a column held against the table's left edge (D19). Unpinning
-   * deletes the member rather than writing `false`, the way `hidden` does,
-   * so a column back where it started is the same JSON it started as.
+   * Present, and only ever `true`, on a column held against the table's left
+   * edge (D19). Unpinning deletes the member rather than writing `false`,
+   * the way `hidden` does, so a column back where it started is the same
+   * JSON it started as — and the type says so, rather than admitting a
+   * `false` no writer here writes (B8). A stored one still reads as "not
+   * pinned" (`columnPinned`), because a config is untrusted data.
    */
-  pinned?: boolean;
+  pinned?: true;
   /** Present, and only ever `true`, on a column the table does not draw. */
   hidden?: true;
 }
@@ -121,3 +124,16 @@ export interface RecordViewConfig extends ViewConfigBase {
   table: RecordTableSpec;
   card: RecordCardSpec;
 }
+
+/**
+ * The record members that only draw the result, on top of the base's
+ * (`PRESENTATION_MEMBERS` in `config.ts` joins the two).
+ *
+ * Table or cards is one of them: both layouts draw the very same rows from
+ * the very same query, and both are stored side by side, so switching is
+ * complete the moment it is done. An analysis layout is *not* one — the
+ * kernel shapes a chart only for the layout that ran.
+ */
+export const RECORD_PRESENTATION_MEMBERS = [
+  'layout',
+] as const satisfies readonly (keyof RecordViewConfig)[];

@@ -841,7 +841,7 @@ describe('managing views from the workbench', () => {
       await within(screen.getByRole('dialog')).findByText(/never came back/)
     ).closest('[role="status"]') as HTMLElement;
 
-    fireEvent.click(within(outcome).getByRole('button', { name: 'Retry' }));
+    fireEvent.click(within(outcome).getByRole('button', { name: 'Try again' }));
     close();
 
     // The store has it now; the workbench follows: the view stops rendering

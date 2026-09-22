@@ -180,7 +180,7 @@ describe('ViewManager outcomes', () => {
     fireEvent.click(within(confirm).getByRole('button', { name: 'Delete' }));
 
     await screen.findByText('The result never came back');
-    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
 
     await landed(store);
     expect((await store.list('orders')).map(item => item.id)).not.toContain(
@@ -263,11 +263,13 @@ describe('ViewManager outcomes', () => {
 
     const held = deferred<ViewInstance>();
     vi.spyOn(store, 'rename').mockReturnValueOnce(held.promise);
-    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
 
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: 'Retry' }).hasAttribute('disabled'),
+        screen
+          .getByRole('button', { name: 'Try again' })
+          .hasAttribute('disabled'),
       ).toBe(true),
     );
     expect(
@@ -342,8 +344,8 @@ describe('ViewManager outcomes', () => {
     );
 
     expect(row('Mine').textContent).toContain('A view needs a title.');
-    expect(within(row('Mine')).queryByRole('button', { name: 'Retry' })).toBe(
-      null,
-    );
+    expect(
+      within(row('Mine')).queryByRole('button', { name: 'Try again' }),
+    ).toBe(null);
   });
 });

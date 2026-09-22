@@ -61,7 +61,7 @@
     "dayjs": "catalog:",
     "dequal": "catalog:",
     "lucide-react": "catalog:",
-    "react-day-picker": "^10.0.1",
+    "react-day-picker": "catalog:",
     "react-error-boundary": "catalog:",
     "react-grid-layout": "catalog:",
     "react-markdown": "catalog:",

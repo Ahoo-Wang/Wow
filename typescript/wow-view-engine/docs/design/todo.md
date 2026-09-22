@@ -21,6 +21,8 @@
 
 ## 重构（小步，每步一个 PR，零行为变化）
 
+- **`RecordCardSpec.columns` 改名 `perRow`**（评审 B9）。**为什么**：这一行里 `columns` 说的是"每行几张卡片"，而全包其余地方的 `columns` 都是表格的列——一词两义，读 `card.columns` 的人先得想一下它是哪一个。文案早已说对了（`label.card.columns` = 「每行几张」/ "Cards per row"）。**做完的判据**：`model/record.ts` 的成员叫 `perRow`，`react/useRecordTable.ts` 的 `RecordCardView` 与它对齐，`ui/CardSettings.tsx`、`ui/RecordCards.tsx`、测试、故事、本页与 [model.md](model.md)、[ui/record.md](ui/record.md) 一并跟上；全门绿。**落点**：`src/model/record.ts`（`RecordCardSpec.columns`）、`src/react/useRecordTable.ts:70`（`RecordCardView.columns`）与 `:506`（`cardSpec.columns` 读到视图上）、`src/ui/CardSettings.tsx`、`src/ui/RecordCards.tsx:150`、`test/cardSettings.test.tsx:95`、`test/recordCards.test.tsx:417`。评审批次 S 没做这一条：改名必须一次改完才编译得过，而 `useRecordTable.ts` 当时归另一个批次所有。
+
 ## `max-lines` 存量豁免（拆到阈值以内就删掉 override）
 
 绊线已落地：`src` 上限 500 代码行、`test` 上限 1200，只数代码行（跳过空行与注释）；vendored 的 `ui/components`、`ui/lib` 与纯文案目录 `ui/messages/` 不在管辖内。

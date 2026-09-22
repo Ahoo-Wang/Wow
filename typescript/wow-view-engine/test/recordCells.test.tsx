@@ -60,6 +60,13 @@ const badges = (container: HTMLElement) => [
   ...container.querySelectorAll<HTMLElement>('[data-slot="badge"]'),
 ];
 
+/**
+ * `label.copy-failed`. The sentence says what is left to do rather than only
+ * that something went wrong: the value stays selectable text, and that is
+ * the whole of the recovery (U2).
+ */
+const COPY_FAILED = 'Could not copy — select the value and copy it';
+
 const STATUSES: FieldOption[] = [
   { value: 'PENDING', label: 'Pending', tone: 'warning' },
   { value: 'SHIPPED', label: 'Shipped', tone: 'success' },
@@ -339,8 +346,8 @@ describe('a copyable cell', () => {
       fireEvent.click(button('Copy SO-1001'));
     });
 
-    expect(button('Could not copy')).toBeDefined();
-    expect(said(container)).toBe('Could not copy');
+    expect(button(COPY_FAILED)).toBeDefined();
+    expect(said(container)).toBe(COPY_FAILED);
     // The one thing that has to survive a refusal: the value itself, as
     // text a user can select by hand.
     expect(screen.getByText('SO-1001')).toBeDefined();
@@ -355,7 +362,7 @@ describe('a copyable cell', () => {
       fireEvent.click(button('Copy SO-1001'));
     });
 
-    expect(button('Could not copy')).toBeDefined();
+    expect(button(COPY_FAILED)).toBeDefined();
   });
 
   it('offers nothing where there is nothing to take away', () => {

@@ -16,8 +16,9 @@
  * the store handed out and from the rows actually on screen.
  */
 
-import { isSystemScope, type ViewInstanceSummary } from '../../model/index.js';
+import type { ViewInstanceSummary } from '../../model/index.js';
 import type { ViewPermissions } from '../../store/ViewStore.js';
+import { instanceAbilities } from '../../runtime/permissions.js';
 
 /** What may be done to one row. `save` is not among them: nothing here edits a config. */
 export interface ManagedInstanceAbilities {
@@ -38,21 +39,20 @@ export interface ViewManagerAbilities {
   anything: boolean;
 }
 
-const NO_INSTANCE_WRITES: ManagedInstanceAbilities = {
-  rename: false,
-  delete: false,
-};
-
 export function abilitiesOf(
   items: readonly ViewInstanceSummary[],
   permissions: ViewPermissions,
 ): ViewManagerAbilities {
   const instance = (id: string): ManagedInstanceAbilities => {
-    // A system view ships with the definition, so no store write reaches it
-    // whatever the permissions answer for its id.
-    const summary = items.find(item => item.id === id);
-    if (summary && isSystemScope(summary.scope)) return NO_INSTANCE_WRITES;
-    const granted = permissions.instance(id);
+    // Asked of `instanceAbilities`, which is where "a system view ships with
+    // the definition, so no store write reaches it" is decided — the same
+    // reading the permission guard refuses by, so a button exists exactly
+    // where the command would be allowed (D4). Deciding it here as well is
+    // how a Rename came to be offered on a row the guard then refused.
+    const granted = instanceAbilities(
+      { id, scope: items.find(item => item.id === id)?.scope },
+      permissions,
+    );
     return { rename: granted.rename, delete: granted.delete };
   };
   return {

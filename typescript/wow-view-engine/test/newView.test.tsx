@@ -106,7 +106,7 @@ describe('a new view, from the work area to the list', () => {
     // On screen at once, marked as never saved, with the conditions open:
     // a view with nothing in it yet is a view about to be shaped.
     expect(
-      await screen.findByRole('heading', { level: 2, name: 'New view' }),
+      await screen.findByRole('heading', { level: 2, name: 'Untitled view' }),
     ).toBeDefined();
     expect(screen.getByText('Not saved yet')).toBeDefined();
     expect(await screen.findByRole('button', { name: /Apply/ })).toBeDefined();
@@ -122,7 +122,7 @@ describe('a new view, from the work area to the list', () => {
       name: 'Save this view',
     });
     const title = within(dialog).getByRole('textbox', { name: 'Title' });
-    expect((title as HTMLInputElement).value).toBe('New view');
+    expect((title as HTMLInputElement).value).toBe('Untitled view');
     fireEvent.change(title, { target: { value: 'Big ones' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
 
@@ -157,7 +157,7 @@ describe('a new view, from the work area to the list', () => {
     fireEvent.click(item);
 
     expect(
-      await screen.findByRole('heading', { level: 2, name: 'New view' }),
+      await screen.findByRole('heading', { level: 2, name: 'Untitled view' }),
     ).toBeDefined();
   });
 

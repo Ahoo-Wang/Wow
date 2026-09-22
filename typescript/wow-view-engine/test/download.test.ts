@@ -34,6 +34,30 @@ describe('fileName', () => {
     expect(fileName('  ', '2026-09-20', 'csv')).toBe('2026-09-20.csv');
     expect(fileName('///', '2026-09-20', 'csv')).toBe('2026-09-20.csv');
   });
+
+  /**
+   * A title is free text, so it can be longer than a file name may be. The
+   * day and the extension are what the name cannot lose — they are what
+   * tells two exports of the same view apart — so the title is what gives
+   * way, and it gives way at a known length rather than wherever the
+   * browser or the file system happens to cut (B12).
+   */
+  it('caps the title, and keeps the day and the extension whole', () => {
+    const name = fileName('待'.repeat(200), '2026-09-20', 'csv');
+
+    expect(name).toBe(`${'待'.repeat(80)}-2026-09-20.csv`);
+    expect(name.endsWith('-2026-09-20.csv')).toBe(true);
+  });
+
+  it('does not leave the gap the cut landed in', () => {
+    // 80 characters that end in a space once the slash is replaced: the
+    // name would otherwise read `… -2026-09-20.csv`.
+    const title = `${'a'.repeat(79)}/word`;
+
+    expect(fileName(title, '2026-09-20', 'csv')).toBe(
+      `${'a'.repeat(79)}-2026-09-20.csv`,
+    );
+  });
 });
 
 describe('downloadFile', () => {

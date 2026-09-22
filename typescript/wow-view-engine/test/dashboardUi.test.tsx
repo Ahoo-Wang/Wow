@@ -281,7 +281,7 @@ describe('DashboardGrid', () => {
     const rows = [...footer.querySelectorAll('tr')];
     expect(rows.map(row => row.dataset.scope)).toEqual(['page', 'total']);
     expect(footer.textContent).toContain('This page');
-    expect(footer.textContent).toContain('All records');
+    expect(footer.textContent).toContain('All rows');
     expect(footer.textContent).toContain('30');
     // One cell per column on each row plus the filler that takes the
     // leftover width: the footer stays aligned with the header, and the

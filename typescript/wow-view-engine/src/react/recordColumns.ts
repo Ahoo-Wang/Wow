@@ -54,7 +54,7 @@ export function recordColumn(
   return {
     field,
     ...(members.width == null ? {} : { width: members.width }),
-    ...(members.pinned ? { pinned: true } : {}),
+    ...(members.pinned ? { pinned: true as const } : {}),
     ...(members.hidden ? { hidden: true as const } : {}),
   };
 }

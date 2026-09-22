@@ -240,7 +240,9 @@ function validateColumns(
     // is said here so the toggle that writes the member properly is known
     // to be the repair — the treatment `width` and `hidden` get, for the
     // same reason. Left unsaid it reached the settings popover as a key
-    // into a wording table and took the workbench down.
+    // into a wording table and took the workbench down. A stored `false` is
+    // the one value still admitted: the type writes the member or leaves it
+    // out (B8), and `false` says what leaving it out says.
     if (column.pinned !== undefined && typeof column.pinned !== 'boolean')
       issues.push(
         issue(
@@ -341,7 +343,7 @@ function validateSummaries(
     const issues: Issue[] = [];
     // One cell per field and function: the pair is what `summaryAlias` names,
     // and two cells sharing an alias would read back the same one number.
-    const cell = `${summary.field} ${summary.fn}`;
+    const cell = `${summary.field}\u0000${summary.fn}`;
     if (seen.has(cell))
       issues.push(
         issue('record.summary.duplicate', path, {

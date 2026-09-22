@@ -25,7 +25,9 @@ import {
   CHART_TYPES,
   DATE_TIME_PRESETS,
   RELATIVE_DATE_UNITS,
+  VIEW_STORE_ERROR_CODES,
 } from '../src/index.js';
+import { INSTANCE_ACTIONS } from '../src/runtime/permissions.js';
 import type { FilterValue, ViewInstanceSummary } from '../src/index.js';
 import type { RecordViewRuntime } from '../src/runtime/index.js';
 import type {
@@ -51,12 +53,44 @@ afterEach(cleanup);
 
 const src = join(dirname(fileURLToPath(import.meta.url)), '../src');
 
-/** Every issue code raised anywhere in the package, as written in the source. */
-function raisedCodes(): string[] {
+/**
+ * What a substitution inside a code template stands for.
+ *
+ * A code is not always written out: `view.${action}.forbidden` is three
+ * codes, and each of them reaches the screen as a key unless the catalogue
+ * names it — which is exactly how `view.save.forbidden`,
+ * `view.rename.forbidden` and `view.delete.forbidden` came to be missing
+ * while `view.create.forbidden` sat beside them (B1). So every value a
+ * substitution can take is listed here and spliced into the template's
+ * literal parts, the way `askedFor()` collects the prefix half.
+ *
+ * The sets are the source's own, imported rather than retyped: a member
+ * added to either fails this suite before its code reaches anyone.
+ * `label.*` templates are left to `askedFor()` — those are keys the source
+ * asks the catalogue for, not codes it raises.
+ */
+const TEMPLATED: Record<string, readonly string[]> = {
+  action: INSTANCE_ACTIONS,
+  'error.code.toLowerCase()': VIEW_STORE_ERROR_CODES.map(code =>
+    code.toLowerCase(),
+  ),
+};
+
+/**
+ * Every issue code raised anywhere in the package: written out, or built
+ * from a template over one of the closed sets above. `unresolved` names a
+ * template this file has no set for — a code nobody can check, which is
+ * the same gap in a newer place.
+ */
+function raisedCodes(): { codes: string[]; unresolved: string[] } {
   const codes = new Set<string>();
+  const unresolved = new Set<string>();
   // Codes carry camelCase segments (chart.splitBy, analysis.distinctCount),
   // so the class must not stop at lowercase.
   const pattern = /issue\(\s*['`]([A-Za-z][A-Za-z0-9.-]*)['`]/g;
+  // A dotted head, one substitution, and whatever literal follows it. The
+  // head may not be `label.`, which is the other direction's business.
+  const template = /`(?!label\.)([a-z][\w.-]*\.)\$\{([^}`]+)\}([\w.-]*)`/g;
 
   const walk = (directory: string): void => {
     for (const entry of readdirSync(directory)) {
@@ -68,11 +102,21 @@ function raisedCodes(): string[] {
       if (!path.endsWith('.ts') && !path.endsWith('.tsx')) continue;
       const source = readFileSync(path, 'utf8');
       for (const match of source.matchAll(pattern)) codes.add(match[1]);
+      for (const [whole, prefix, substitution, suffix] of source.matchAll(
+        template,
+      )) {
+        const values = TEMPLATED[substitution.trim()];
+        if (!values) {
+          unresolved.add(whole);
+          continue;
+        }
+        for (const value of values) codes.add(`${prefix}${value}${suffix}`);
+      }
     }
   };
 
   walk(src);
-  return [...codes].sort();
+  return { codes: [...codes].sort(), unresolved: [...unresolved].sort() };
 }
 
 /**
@@ -108,9 +152,18 @@ describe('the message catalogue', () => {
   it('covers every issue code the package can raise', () => {
     // Without this the code itself reaches the screen, which is how
     // `record.summary.unsupported` ended up in a screenshot.
-    const missing = raisedCodes().filter(code => !(code in defaultMessages));
+    const missing = raisedCodes().codes.filter(
+      code => !(code in defaultMessages),
+    );
 
     expect(missing).toEqual([]);
+  });
+
+  it('can expand every code the source builds from a template', () => {
+    // A template this file cannot expand is a code nobody checks: the
+    // assertion above would pass over it in silence, which is the gap it
+    // exists to close.
+    expect(raisedCodes().unresolved).toEqual([]);
   });
 
   it('holds no key the source never asks for', () => {

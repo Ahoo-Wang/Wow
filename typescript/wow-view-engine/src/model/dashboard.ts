@@ -91,3 +91,11 @@ export interface DashboardViewConfig extends ViewConfigBase {
   fields: DashboardField[];
   panels: DashboardPanel[];
 }
+
+/**
+ * A dashboard config has no presentation-only member of its own: every one
+ * of `fields` and `panels` reaches the panels' queries or what they draw
+ * from them (`PRESENTATION_MEMBERS` in `config.ts`).
+ */
+export const DASHBOARD_PRESENTATION_MEMBERS =
+  [] as const satisfies readonly (keyof DashboardViewConfig)[];

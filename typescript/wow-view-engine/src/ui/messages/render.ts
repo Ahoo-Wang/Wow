@@ -21,6 +21,6 @@ export const renderMessages = {
   // The rest of the view is still there and still works: the failure is
   // contained to the block the sentence is in, which is the whole point.
   'label.render.failed-hint':
-    'The rest of the view still works. Retry draws this part again.',
-  'label.render.retry': 'Retry',
+    'The rest of the view still works. Try again to draw this part.',
+  'label.render.retry': 'Try again',
 } as const satisfies Record<string, string>;

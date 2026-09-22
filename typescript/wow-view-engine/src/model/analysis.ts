@@ -144,3 +144,13 @@ export interface AnalysisViewConfig extends ViewConfigBase {
   table: AnalysisTableSpec;
   chart: ChartSpec;
 }
+
+/**
+ * An analysis config has no presentation-only member, and `layout` is the
+ * one worth saying so about: the kernel shapes a chart for the layout that
+ * ran, so switching between table and chart reaches the query and `setLayout`
+ * applies at once. The empty list is the statement (`PRESENTATION_MEMBERS`
+ * in `config.ts`).
+ */
+export const ANALYSIS_PRESENTATION_MEMBERS =
+  [] as const satisfies readonly (keyof AnalysisViewConfig)[];
