@@ -30,6 +30,10 @@
  * a callout has enough of its own to say (the tone's icon, the role it is
  * announced with) to be a file rather than an export here.
  *
+ * The result frame's slot recipes are here for the same reason, one step
+ * out: they are the chrome one of this package's own frames gives what a
+ * *kind* puts inside it, and the frame is shared by three kinds.
+ *
  * One kind of class does not belong here: a *layout* class at a call site —
  * a width, a gap, a `justify-start` — is what `className` is for and stays
  * where it is used.
@@ -423,4 +427,60 @@ export function SidebarItem({
       {...props}
     />
   );
+}
+
+/**
+ * The frame round a result, and the padding it gives the two parts the
+ * shell itself puts in it (D12 Ⅳ–Ⅶ).
+ *
+ * The frame has no padding, no ground and no row gap of its own: the rows
+ * have to run to its edge, so the space inside belongs to each part — the
+ * toolbar is its first row, ruled off; a callout landing under that keeps
+ * the frame's own 12px. Those two are `WorkbenchShell`'s own slots
+ * (`toolbar`, `strips`), named the same whichever kind is open, so they
+ * stay with the frame.
+ *
+ * What does **not** stay with it is one kind's furniture. Until the
+ * 2026-09-22 review all five recipes sat in `ResultBlock` as descendant
+ * selectors, and three of them named slots only a record view has —
+ * `record-pagination`, `record-empty`, `record-cards`. D18-1 merges the
+ * record and analysis workbenches behind one shell in phase 2 and that
+ * shell is meant to grow no `if` per kind, so those three moved out to
+ * `RESULT_SLOTS` below and each kind now hands the frame the recipes its
+ * own `result` slot needs (`ResultBlock.slots`).
+ */
+export const resultFrameChrome =
+  'border-border overflow-hidden rounded-lg border ' +
+  '[&>[data-slot=result-toolbar]]:border-border [&>[data-slot=result-toolbar]]:border-b [&>[data-slot=result-toolbar]]:px-3 [&>[data-slot=result-toolbar]]:py-2 ' +
+  '[&>[data-slot=status-strip]]:m-3';
+
+/**
+ * What a kind's own parts wear inside that frame, one recipe per part.
+ *
+ * Each is a literal class string rather than a part composed with a slot
+ * name, because Tailwind reads the source: a variant built at runtime is a
+ * variant no stylesheet has.
+ */
+const RESULT_SLOTS = {
+  /**
+   * The frame's last row — ruled off above and on its own grey, so how
+   * many rows there are and how to reach the next of them read as the
+   * frame's footer rather than as one more row of the result. Today the
+   * only caption is the record view's pagination; a kind that grows
+   * another names it here, beside this one.
+   */
+  caption:
+    '[&>[data-slot=record-pagination]]:border-border [&>[data-slot=record-pagination]]:bg-muted/40 [&>[data-slot=record-pagination]]:border-t [&>[data-slot=record-pagination]]:px-3 [&>[data-slot=record-pagination]]:py-2',
+  /** A query that matched nothing, in air of its own rather than to the edge. */
+  empty: '[&>[data-slot=record-empty]]:my-6',
+  /** Cards keep the frame's padding; a table is what runs to the edge. */
+  cards: '[&>[data-slot=record-cards]]:p-3',
+} as const;
+
+/** One part of a kind's result, by the job it does inside the frame. */
+export type ResultSlot = keyof typeof RESULT_SLOTS;
+
+/** One kind's slot recipe, for `ResultBlock.slots`. */
+export function resultSlots(...slots: readonly ResultSlot[]): string {
+  return slots.map(slot => RESULT_SLOTS[slot]).join(' ');
 }

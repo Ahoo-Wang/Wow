@@ -166,6 +166,13 @@ export const WithData: Story = {
     // the rows are where they were.
     await expect(readColumn(table, '订单号')).toEqual(PENDING_BY_AMOUNT);
 
+    // There are rows, so there is something to take away: Export is at the
+    // end of the bar (U4 is the other half of this — with no result it is
+    // not there at all, see `QueryFailed`).
+    await expect(
+      canvas.getByRole('button', { name: zhCN['label.export.title'] }),
+    ).toBeVisible();
+
     // The page reads from what the view is down to the rows and their
     // paging. A saved view opens folded, and folding unmounts the band
     // rather than hiding it, so it is not in this list yet.
@@ -1248,6 +1255,19 @@ export const QueryFailed: Story = {
       canvas.getByRole('button', { name: /^待出库订单/ }),
     ).toHaveAttribute('aria-current', 'true');
 
+    // And nothing in the bar above offers to take rows away that are not
+    // there (U4, user 2026-09-22): the frame stands because the strip is
+    // what it holds, but Export over no result opened a window onto an
+    // empty file. A control that cannot apply is absent, not disabled
+    // (P-17) — the two that say how the result is drawn stay, because the
+    // view is still a view and still worth setting up.
+    await expect(
+      canvas.queryByRole('button', { name: zhCN['label.export.title'] }),
+    ).toBeNull();
+    await expect(
+      canvas.getByRole('button', { name: zhCN['label.toolbar.columns'] }),
+    ).toBeVisible();
+
     // And it is as wide as the room it was given, margins deducted. The
     // registry's `Alert` is `w-full` — a length, 100% of the containing
     // block with nothing taken off for the `m-3` the frame gives this strip
@@ -1417,8 +1437,8 @@ export const NewView: Story = {
   ...DisplayNoViews,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    // "No view yet" is said twice — the sidebar and the work area — so the
-    // work area is found by its slot rather than by its words.
+    // The sentence names both rooms — the sidebar's line and the work
+    // area's title — so the work area is found by its slot, not its words.
     const workArea = await waitFor(() => {
       const found = canvasElement.querySelector<HTMLElement>(
         '[data-slot="view-none"]',
@@ -1432,6 +1452,19 @@ export const NewView: Story = {
     await expect(
       within(sidebar).getByRole('button', { name: zhCN['label.view.new'] }),
     ).toBeVisible();
+    // And the sidebar draws that one control and no more: where the views
+    // would be there is a line and nothing to press (user, 2026-09-22) —
+    // the state is stated in full once, in the room the view will fill.
+    const body = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="view-list-body"]',
+    )!;
+    await expect(
+      body.querySelector('[data-slot="view-list-empty"]'),
+    ).toHaveTextContent(zhCN['label.view.none']);
+    await expect(within(body).queryByRole('button')).toBeNull();
+    await expect(
+      within(body).queryByText(zhCN['label.view.none-hint']),
+    ).toBeNull();
 
     await userEvent.click(
       within(workArea).getByRole('button', { name: zhCN['label.view.new'] }),

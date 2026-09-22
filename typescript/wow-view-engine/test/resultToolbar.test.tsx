@@ -444,6 +444,49 @@ describe('ResultToolbar export', () => {
     expect(screen.queryByRole('button', { name: 'Export' })).toBeNull();
   });
 
+  it('is not there while there is no result to export', () => {
+    // A query that failed before anything came back keeps the block — the
+    // failure strip is what it holds — and the bar above that used to carry
+    // an Export that made an empty file. A control that cannot apply does
+    // not exist rather than sitting disabled (P-17, U4).
+    render(
+      <ResultToolbar
+        table={tableController({
+          hasResult: false,
+          rows: [],
+          status: 'error',
+          error: { code: 'view.query.failed', severity: 'error', path: [] },
+        })}
+        fields={FIELDS}
+        runtime={runtime}
+        exporter={exportOffer()}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Export' })).toBeNull();
+    // The rest of the bar is untouched: how the result is drawn is still
+    // this view's to set, and the settings are what fix a view that fails.
+    expect(screen.getByRole('button', { name: 'Columns' })).toBeDefined();
+  });
+
+  it('stays once a result has landed, even if a refresh then failed', () => {
+    // The rows a failed refresh could not replace are still on screen and
+    // still exportable, so `hasResult` is the question rather than `status`.
+    render(
+      <ResultToolbar
+        table={tableController({
+          status: 'error',
+          error: { code: 'view.query.failed', severity: 'error', path: [] },
+        })}
+        fields={FIELDS}
+        runtime={runtime}
+        exporter={exportOffer()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Export' })).toBeDefined();
+  });
+
   it('opens a window that says what the file will hold', async () => {
     const user = userEvent.setup();
     render(

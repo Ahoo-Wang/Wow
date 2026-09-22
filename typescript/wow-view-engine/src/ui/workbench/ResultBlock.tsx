@@ -14,6 +14,7 @@
 import type { ReactNode } from 'react';
 import { cn } from 'cn';
 import { SPACE } from '../layout.js';
+import { resultFrameChrome } from '../variants.js';
 
 export interface ResultBlockContents {
   /** Whether the block would be the framed one. */
@@ -58,6 +59,17 @@ export function resultBlockShown({
 /**
  * The result and its caption, on no card of their own (D12).
  *
+ * **The frame knows the four parts it holds, not what they are made of** —
+ * a toolbar first, the strips under it, the kind's result, and the caption
+ * row that ends it. It used to style five children by descendant selector,
+ * three of them slots only a record view has, so the frame all three kinds
+ * share carried one kind's furniture by name; D18-1 puts the record and
+ * analysis workbenches behind one shell in phase 2, and that shell is meant
+ * to grow no `if` per kind. What stays here is the chrome of the two slots
+ * the shell itself fills (`ui/variants.tsx`'s `resultFrameChrome` — the
+ * toolbar as the first row, a callout's margin); the rest each kind hands
+ * in through `slots`, as the recipe `resultSlots()` gave it.
+ *
  * The card used to be here for every kind but the dashboard, and it was a
  * frame around a frame in all of them: a table draws its own header layer,
  * its own hairlines between rows and its own edges on the held columns, so a
@@ -70,9 +82,17 @@ export function resultBlockShown({
  */
 export function ResultBlock({
   framed,
+  slots,
   children,
 }: {
   framed: boolean;
+  /**
+   * What this kind's own parts wear inside the frame, from
+   * `resultSlots()`. Nothing given is a frame that dresses only the two
+   * slots the shell fills — which is the whole of an analysis view's, and
+   * of the skeleton that stands in for one that is opening.
+   */
+  slots?: string;
   children: ReactNode;
 }) {
   return (
@@ -81,16 +101,11 @@ export function ResultBlock({
       data-framed={framed || undefined}
       className={cn(
         'flex min-w-0 flex-col',
-        framed
-          ? // One frame round the result and nothing else (D12): the toolbar
-            // is its top row and the pagination its bottom row, ruled off;
-            // the rows run to its edge; what else lands in it — a query
-            // strip, an empty state, cards — keeps a margin of its own.
-            'border-border overflow-hidden rounded-lg border ' +
-              '[&>[data-slot=result-toolbar]]:border-border [&>[data-slot=result-toolbar]]:border-b [&>[data-slot=result-toolbar]]:px-3 [&>[data-slot=result-toolbar]]:py-2 ' +
-              '[&>[data-slot=record-pagination]]:border-border [&>[data-slot=record-pagination]]:bg-muted/40 [&>[data-slot=record-pagination]]:border-t [&>[data-slot=record-pagination]]:px-3 [&>[data-slot=record-pagination]]:py-2 ' +
-              '[&>[data-slot=status-strip]]:m-3 [&>[data-slot=record-empty]]:my-6 [&>[data-slot=record-cards]]:p-3'
-          : SPACE.ROWS,
+        // One frame round the result and nothing else (D12): the toolbar is
+        // its top row and the caption its bottom row, ruled off; the rows
+        // run to its edge; what else lands in it — a query strip, an empty
+        // state, cards — keeps a margin of its own.
+        framed ? cn(resultFrameChrome, slots) : SPACE.ROWS,
       )}
     >
       {children}

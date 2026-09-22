@@ -73,9 +73,21 @@ describe('ViewList on its own', () => {
     expect(container.querySelectorAll('[data-slot="skeleton"]').length).toBe(3);
   });
 
-  it('explains an empty list, and says so when it failed', () => {
-    render(<ViewList list={listState()} currentId={null} onOpen={() => {}} />);
-    expect(screen.getByText('No view yet')).toBeDefined();
+  it('says an empty list is empty in one line, and says so when it failed', () => {
+    const { container } = render(
+      <ViewList list={listState()} currentId={null} onOpen={() => {}} />,
+    );
+    // One quiet line where the views would be, with nothing to press: the
+    // sentence, the hint and the button are the work area's (user,
+    // 2026-09-22) — one question, answered in one place.
+    const body = container.querySelector<HTMLElement>(
+      '[data-slot="view-list-body"]',
+    )!;
+    expect(
+      body.querySelector('[data-slot="view-list-empty"]')?.textContent,
+    ).toBe('No view yet');
+    expect(within(body).queryByRole('button')).toBeNull();
+    expect(within(body).queryByText(/Make one to start/)).toBeNull();
 
     cleanup();
     const onRetry = vi.fn();
@@ -89,8 +101,14 @@ describe('ViewList on its own', () => {
         onRetry={onRetry}
       />,
     );
-    // The reason in the issue's own words, and the way to ask again.
+    // A list that could not be read does not claim there are no views: the
+    // reason in the issue's own words, and the way to ask again. It is the
+    // same line the short list wears, and the only place that offers one.
     expect(screen.getByText(/could not be loaded/)).toBeDefined();
+    expect(screen.queryByText('No view yet')).toBeNull();
+    expect(
+      document.querySelector('[data-slot="view-list-failed"]'),
+    ).not.toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Reload list' }));
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
@@ -131,14 +149,22 @@ describe('ViewList on its own', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'New view' }));
     expect(onCreate).toHaveBeenCalledTimes(1);
-    // The empty state points at it; the button is the work area's.
-    expect(screen.getByText(/Make one to start/)).toBeDefined();
+    // The `+` in the heading is the whole of the offer this column makes:
+    // the empty line under it neither repeats the hint nor grows a second
+    // button, whether or not the command is there.
+    expect(screen.getByRole('button', { name: 'New view' })).toBe(
+      screen
+        .getByRole('navigation')
+        .querySelector('[data-slot="view-list-header"] button'),
+    );
+    expect(screen.queryByText(/Make one to start/)).toBeNull();
 
     cleanup();
     render(<ViewList list={listState()} currentId={null} onOpen={() => {}} />);
     expect(screen.queryByRole('button', { name: 'New view' })).toBeNull();
     // Nothing to do about it, so nothing is suggested.
     expect(screen.queryByText(/Make one to start/)).toBeNull();
+    expect(screen.getByText('No view yet')).toBeDefined();
   });
 
   it('is named by the definition, and falls back when none is given', () => {

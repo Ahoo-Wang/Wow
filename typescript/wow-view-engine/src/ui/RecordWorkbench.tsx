@@ -50,6 +50,7 @@ import { RefreshControl } from './RefreshControl.js';
 import { useViewMessages } from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
 import { featuresOf, type WorkbenchFeatures } from './features.js';
+import { resultSlots } from './variants.js';
 import { WorkbenchShell } from './WorkbenchShell.js';
 import { RenderSlot, type RenderFailureHandler } from './RenderBoundary.js';
 
@@ -173,6 +174,18 @@ export interface ExportedFile {
 
 /** What a CSV is served as; the charset is what makes the BOM readable. */
 const CSV_TYPE = 'text/csv;charset=utf-8';
+
+/**
+ * What this kind puts inside the result frame, and how the frame dresses
+ * each of them: the pagination row is its caption, a query that matched
+ * nothing stands in air of its own, and the cards keep the frame's padding
+ * where the table runs to its edge.
+ *
+ * It is stated here rather than in `ResultBlock` because these are a
+ * *record* view's parts: the frame is shared by three kinds, and one shared
+ * frame that names one kind's slots is the `if` D18-1 means to do without.
+ */
+const RESULT_SLOTS = resultSlots('caption', 'empty', 'cards');
 
 /**
  * The default Record workbench: the view list, the conditions, the result and
@@ -331,6 +344,7 @@ export function RecordWorkbench({
       onSidebarOpenChange={onSidebarOpenChange}
       expandable={expandable}
       manage={shown.manage}
+      resultSlots={RESULT_SLOTS}
       onRenderFailure={onRenderFailure}
       // What the config says, plus what this result says about itself: a
       // summary row that had to fall back to the page is a fact about the

@@ -28,11 +28,14 @@ import { useViewMessages } from '../MessagesProvider.js';
  *
  * It used to be nothing at all — a title bar with no title, a body with no
  * body — which read as a page that had failed to load rather than as a page
- * with nothing in it yet. The sentence is the same one the sidebar says; the
- * button is here and not there because this is the room the view will fill,
- * and the sidebar already has its `+` forty pixels above its own sentence.
- * Without the command the state is the sentence alone (D4): a reader who
- * may not create is told there is nothing, not told to make something.
+ * with nothing in it yet. **This is the one place the state is stated in
+ * full** (user, 2026-09-22): the sentence, why or what next, and the button.
+ * The sidebar used to draw the same three things forty pixels under its own
+ * `+`; it now says one quiet line where the list would be, and the offer is
+ * here, because this is the room the view will fill. Both still press the
+ * same `create` command. Without that command the state is the sentence
+ * alone (D4): a reader who may not create is told there is nothing, not told
+ * to make something.
  */
 export function NoViews({
   failed,

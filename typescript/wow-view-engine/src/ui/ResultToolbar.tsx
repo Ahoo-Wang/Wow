@@ -76,6 +76,11 @@ export interface ResultToolbarProps {
    *
    * An embedded view that offers no export simply passes none, and the
    * button is not there.
+   *
+   * The button also waits for something to export (`table.hasResult`): a
+   * query that failed leaves the frame standing — the strip in it is about
+   * the rows — and Export in that bar was a control over nothing, which
+   * P-17 answers by absence rather than by a disabled button (D4).
    */
   exporter?: ExportOffer;
   /**
@@ -342,8 +347,17 @@ export function ResultToolbar({
 
         {/* Taking the rows away is its own responsibility, so it is its own
             group at the end of the block (D12 Ⅳ): the two above change how
-            the result is drawn, this one changes nothing at all. */}
-        {exporter && (
+            the result is drawn, this one changes nothing at all.
+
+            And it exists only while there are rows to take: a first query
+            that failed keeps the frame — the failure strip is what the
+            block holds — and the bar above it used to keep an Export that
+            opened a window over no result and made an empty file. A
+            control that cannot apply does not exist rather than sitting
+            disabled (P-17, user 2026-09-22); once a result has landed it
+            stays, because a refresh that failed keeps the rows it could
+            not replace and those rows are still exportable. */}
+        {exporter && table.hasResult && (
           <ExportDialog
             {...exporter}
             columns={table.columns}

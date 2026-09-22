@@ -184,6 +184,15 @@ export interface WorkbenchShellProps {
    */
   resultFramed?: boolean;
   /**
+   * What this kind's own parts wear inside that frame, from `resultSlots()`
+   * (`ui/variants.tsx`). The shell dresses the two slots it fills itself —
+   * the toolbar as the frame's first row, a strip's margin — and carries
+   * this through untouched: which of a kind's parts is the caption row and
+   * which keeps the frame's padding is the kind's to say, not the shell's
+   * (D18-1 — one shell, no `if` per kind).
+   */
+  resultSlots?: string;
+  /**
    * Where a render failure caught by one of the shell's boundaries goes —
    * the host's own action slot, the editor or the result. The part shows a
    * recoverable error state in place either way; this is how the host
@@ -256,6 +265,7 @@ export function WorkbenchShell({
   warnings,
   onRenderFailure,
   resultFramed = true,
+  resultSlots,
   className,
 }: WorkbenchShellProps) {
   const messages = useViewMessages(wording);
@@ -788,7 +798,7 @@ export function WorkbenchShell({
               strips: filled(strips),
               result: filled(result),
             }) && (
-              <ResultBlock framed={resultFramed}>
+              <ResultBlock framed={resultFramed} slots={resultSlots}>
                 {/* The host's bulk slot renders in the toolbar and its row
                     slot in the rows, so both are held: a throwing one takes
                     the bar or the rows, and the title bar, the editor and

@@ -69,16 +69,29 @@ describe('a new view, from the work area to the list', () => {
 
     await waitFor(() => workArea());
     expect(within(workArea()).getByText('No view yet')).toBeDefined();
+    expect(within(workArea()).getByText(/Make one to start/)).toBeDefined();
     expect(
       within(workArea()).getByRole('button', { name: 'New view' }),
     ).toBeDefined();
-    // The sidebar's own sentence and its `+`: the same command, twice on
-    // screen because the two are different rooms.
+
+    // The sidebar says the same fact in one quiet line and nothing else
+    // (user, 2026-09-22): the `+` in its heading is the only way in it
+    // draws, so the state is not stated twice in two rooms.
     const sidebar = screen.getByRole('navigation', { name: 'Orders' });
+    const body = sidebar.querySelector<HTMLElement>(
+      '[data-slot="view-list-body"]',
+    )!;
     expect(
-      within(sidebar).getByRole('button', { name: 'New view' }),
+      body.querySelector('[data-slot="view-list-empty"]')?.textContent,
+    ).toBe('No view yet');
+    expect(within(body).queryByRole('button')).toBeNull();
+    expect(within(body).queryByText(/Make one to start/)).toBeNull();
+    // And the `+` is still there, on the same command as the work area's.
+    expect(
+      within(
+        sidebar.querySelector<HTMLElement>('[data-slot="view-list-header"]')!,
+      ).getByRole('button', { name: 'New view' }),
     ).toBeDefined();
-    expect(within(sidebar).getByText(/Make one to start/)).toBeDefined();
   });
 
   it('opens it unsaved with its editor out, then names it on the first save', async () => {
@@ -156,5 +169,10 @@ describe('a new view, from the work area to the list', () => {
     expect(within(workArea()).getByText('No view yet')).toBeDefined();
     expect(screen.queryByRole('button', { name: 'New view' })).toBeNull();
     expect(screen.queryByText(/Make one to start/)).toBeNull();
+    // The sidebar's line says there are none either way: it is the count,
+    // not an offer, so nothing about it turns on the permission.
+    expect(
+      document.querySelector('[data-slot="view-list-empty"]')?.textContent,
+    ).toBe('No view yet');
   });
 });

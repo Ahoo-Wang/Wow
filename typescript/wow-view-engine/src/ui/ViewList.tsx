@@ -14,7 +14,6 @@
 import { useId, type RefObject } from 'react';
 import { cn } from 'cn';
 import {
-  LayersIcon,
   PanelLeftCloseIcon,
   PlusIcon,
   Settings2Icon,
@@ -28,14 +27,6 @@ import {
   type ViewInstanceSummary,
 } from '../model/index.js';
 import type { ViewListState } from '../react/index.js';
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from './components/empty.js';
 import { AlertAction, AlertTitle } from './components/alert.js';
 import { Button } from './components/button.js';
 import { LineAlert } from './alerts.js';
@@ -61,8 +52,9 @@ export interface ViewListProps {
   onOpen(instanceId: string): void;
   /**
    * Makes a view from nothing. Given one, the heading grows the `+` D12
-   * puts there, and the empty state points at it; left out — no permission,
-   * or nothing behind it — neither exists (D4).
+   * puts there; left out — no permission, or nothing behind it — it does
+   * not exist (D4). The empty line below it says nothing about creating:
+   * the offer is made once, in the room the new view will fill.
    */
   onCreate?(): void;
   /**
@@ -213,7 +205,6 @@ export function ViewList({
         <ViewListBody
           list={list}
           currentId={currentId}
-          creatable={onCreate !== undefined}
           onOpen={onOpen}
           onRetry={onRetry}
         />
@@ -225,14 +216,11 @@ export function ViewList({
 function ViewListBody({
   list,
   currentId,
-  creatable,
   onOpen,
   onRetry,
 }: {
   list: ViewListState;
   currentId: string | null;
-  /** Whether a new view is on offer, which is what the empty state says. */
-  creatable: boolean;
   onOpen(instanceId: string): void;
   onRetry?(): void;
 }) {
@@ -243,6 +231,18 @@ function ViewListBody({
       {messages.label('label.manage.reload')}
     </Button>
   );
+  /**
+   * Why the list is short, or why it is not here at all — one line, the
+   * store's own reason in the issue's words, with the way to ask again at
+   * its end. A warning rather than an error: nothing on screen is broken,
+   * something is missing.
+   */
+  const failed = list.error && (
+    <LineAlert tone="warning" frame="bare" data-slot="view-list-failed">
+      <AlertTitle>{messages.issue(list.error)}</AlertTitle>
+      {retry && <AlertAction>{retry}</AlertAction>}
+    </LineAlert>
+  );
   if (list.loading)
     return (
       <div className="flex flex-col gap-2">
@@ -252,48 +252,38 @@ function ViewListBody({
       </div>
     );
 
+  /* Where the views would be, one line and nothing else (user, 2026-09-22).
+     It used to be the work area's empty state a second time — the same icon,
+     the same sentence, the same hint about making one — in a 224px column
+     forty pixels under the `+` that makes one. One question is answered in
+     one place: **this** column says how many views there are, and the room
+     the view will fill (`workbench/NoViews.tsx`) is where the sentence and
+     the button belong, because that is the room being offered. No button
+     here, then, and no second copy of the hint that points at one.
+
+     A failure is a different question and keeps its own answer: a list that
+     could not be read does not say there are no views, it says it could not
+     be read, and it is the only place the way to ask again can stand. */
   if (list.items.length === 0)
     return (
-      <Empty>
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <LayersIcon />
-          </EmptyMedia>
-          <EmptyTitle>{messages.label('label.view.none')}</EmptyTitle>
-          {/* Why, or what next — and nothing where there is neither: a
-              reader who may not create is told there are none, not told to
-              make one. The way to make one is the `+` above and the button
-              on the work area, so this is a sentence and not a third
-              button. A failure says its own reason — the issue's sentence
-              names the store's answer — rather than one line for every
-              way a list can fail. */}
-          {(list.error || creatable) && (
-            // `sidebar-foreground/70` for the reason the group heading
-            // gives: `muted-foreground` clears 4.5:1 on white and measures
-            // 4.34:1 on this column's ground.
-            <EmptyDescription className="text-sidebar-foreground/70">
-              {list.error
-                ? messages.issue(list.error)
-                : messages.label('label.view.none-hint')}
-            </EmptyDescription>
-          )}
-        </EmptyHeader>
-        {list.error && retry && <EmptyContent>{retry}</EmptyContent>}
-      </Empty>
+      failed || (
+        // `sidebar-foreground/70` for the reason the group heading gives:
+        // `muted-foreground` clears 4.5:1 on white and measures 4.34:1 on
+        // this column's ground.
+        <p
+          data-slot="view-list-empty"
+          className={cn('text-sidebar-foreground/70 px-1.5', TEXT_UI)}
+        >
+          {messages.label('label.view.none')}
+        </p>
+      )
     );
 
   return (
     <>
-      {/* The store's failure beside the views that are still here — the
-          declared ones — so a list that is short says it is short rather
-          than looking complete. A warning, not an error: nothing on screen
-          is broken, something is missing. */}
-      {list.error && (
-        <LineAlert tone="warning" frame="bare" data-slot="view-list-failed">
-          <AlertTitle>{messages.issue(list.error)}</AlertTitle>
-          {retry && <AlertAction>{retry}</AlertAction>}
-        </LineAlert>
-      )}
+      {/* Beside the views that are still here — the declared ones — so a
+          list that is short says it is short rather than looking complete. */}
+      {failed}
       {VIEW_AUDIENCES.map(audience => {
         const items = list.items.filter(
           item => audienceOf(item.scope) === audience,
