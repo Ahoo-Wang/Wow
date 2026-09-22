@@ -164,6 +164,14 @@ export interface HeldView {
 export interface WorkbenchController {
   /** The kinds this workbench draws, as it was given them. */
   kinds: readonly ViewKind[];
+  /**
+   * 「改了就跑」 (D20): whether an analysis runs again on its own as its
+   * question is edited — the user's preference for this definition, on
+   * when unsaid, pushed onto the open analysis view. The range still waits
+   * for Apply either way.
+   */
+  autoRun: boolean;
+  setAutoRun(on: boolean): Promise<void>;
   /** The views of this definition, of those kinds, in the user's order. */
   list: ViewListState;
   manager: ViewManagerController;
@@ -337,6 +345,13 @@ export function useWorkbench(
   const wrongKind = held ? null : kindMismatch(byId.runtime, kinds);
   const runtime = held ? held.runtime : wrongKind ? null : byId.runtime;
   const state: ViewRuntimeState<ViewConfig> | null = useViewRuntime(runtime);
+  const autoRun = list.preferences?.autoRun ?? true;
+  // Only an analysis runs on its own: a record view's edits — a sort, a
+  // page size — are cheap to apply and wait for the press as they always
+  // did. The preference is read whenever it or the open view changes.
+  useEffect(() => {
+    if (runtime?.kind === 'analysis') runtime.setAutoApply(autoRun);
+  }, [runtime, autoRun]);
   const filter = useFilterEditor(runtime);
   const refresh = useAutoRefresh(runtime);
   const commands = useSaveCommands(engine, runtime);
@@ -504,6 +519,14 @@ export function useWorkbench(
 
   return {
     kinds,
+    autoRun,
+    setAutoRun: useCallback(
+      async (on: boolean) => {
+        await engine.setAutoRun(definitionId, on);
+        reload();
+      },
+      [engine, definitionId, reload],
+    ),
     list,
     manager,
     openId,

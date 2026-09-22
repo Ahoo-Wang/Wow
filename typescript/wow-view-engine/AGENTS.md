@@ -190,6 +190,7 @@ src/
     permissions.ts            — What a command is allowed to do; `instanceAbilities`, the one reading of "a system view is read-only", which the manager's buttons ask as well
     preferences.ts            — The preference cache, the list order and the default view
     refreshTimer.ts           — The one auto-refresh timer both runtimes arm; `refreshIntervalOf`, `refreshDelayOf`
+    autoApply.ts              — 「改了就跑」: whether the draft is due to run on its own (`autoApplyDue`) and the delay that merges a burst of edits into one query
     requestRunner.ts          — Scheduling; a newer request supersedes a key
     runtimeFactory.ts         — How one runtime is assembled, `open` and `create` alike
     runtimeStore.ts           — The store both runtimes are made of: the state, its listeners, the refresh timer's bookkeeping, dirty-against-saved; `hasError`

@@ -440,6 +440,20 @@ export class ViewEngine {
   }
 
   /**
+   * Whether this user's analyses of the definition run again on their own as
+   * they are edited (D20 改了就跑). A personal preference like the order and
+   * the default, kept beside them; no permission gates it, because it
+   * changes nothing anyone else sees.
+   */
+  async setAutoRun(
+    definitionId: string,
+    autoRun: boolean,
+  ): Promise<ViewPreferences> {
+    const current = await this.preferenceCache.current(definitionId);
+    return this.writePreferences(definitionId, { ...current, autoRun });
+  }
+
+  /**
    * The effective default: an explicit id, else the stored one when it still
    * exists, else the first of the ordered list, which is usually the first
    * system view.

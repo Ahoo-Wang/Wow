@@ -47,6 +47,7 @@ import { isFieldlessKind, isSingleStringField } from '../model/index.js';
 import { questionEditing, type QuestionEditing } from './analysisEditing.js';
 import type { FieldKindRegistry } from '../filter/index.js';
 import {
+  autoApplyDue,
   comparePending,
   type OptionSource,
   type ViewRuntime,
@@ -107,6 +108,13 @@ export interface AnalysisEditorController extends QuestionEditing {
   /** The picker groups the definition declares. */
   fieldGroups: readonly FieldGroupDefinition[];
   countable: boolean;
+  /**
+   * True while the rows on screen answer an older question than the draft
+   * and the runtime is about to run the draft on its own (`autoApplyDue`):
+   * the result is drawn faded rather than cleared, because the new one is
+   * moments away and a blank in between reads as a failure.
+   */
+  stale: boolean;
   /** Whether 「只保留」 exists here: the capability declares `having`. */
   havingAllowed: boolean;
   /** Whether a formula or a derived metric may be written: `expressions`. */
@@ -408,6 +416,7 @@ export function useAnalysisEditor(
     fields,
     fieldGroups: definition?.fieldGroups ?? EMPTY_GROUPS,
     countable: capability?.count === true,
+    stale: state ? autoApplyDue(state) : false,
     havingAllowed: capability?.having === true,
     expressionsAllowed: capability?.expressions === true,
     having: havingRows(config?.having),

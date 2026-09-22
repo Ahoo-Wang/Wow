@@ -102,5 +102,10 @@ export interface ViewPreferences {
   /** Explicitly ordered instance ids; unlisted ones follow in server order. */
   order: string[];
   defaultInstanceId: string | null;
+  /**
+   * Whether an analysis runs again on its own as its question is edited
+   * (D20 改了就跑); on when unsaid. The range still waits for Apply.
+   */
+  autoRun?: boolean;
   revision: string;
 }

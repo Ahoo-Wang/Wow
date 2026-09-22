@@ -628,6 +628,7 @@ export const zhCN: ViewMessages = {
   'label.analysis.approximate': '近似值',
   'label.analysis.any-note': '任一值：每次查询返回的不保证是同一个。',
   'label.analysis.visualize': '可视化',
+  'label.analysis.auto-run': '改了就跑',
   'label.chart.picker': '可视化',
   'label.chart.picker-back': '返回视图列表',
   'label.chart.recommended': '推荐',

@@ -220,3 +220,166 @@ export const SortedByTwo: Story = {
     );
   },
 };
+
+/**
+ * 「改了就跑」（D20，todo 批 7）：托盘里改一下问题，没人按应用，表自己重画。
+ *
+ * jsdom 那边钉的是**什么时候**跑——一次编辑之后那 300 毫秒、一串编辑并成一次
+ * 查询、范围改了就一直等着（`packages/view-engine/test/autoRun.test.tsx` 的
+ * 「改了就跑: an analysis runs as it is edited」，走的是测试时钟）。这里钉的是
+ * 走完一遍之后**屏幕上真的变了**：多了一列状态，中途那一下结果是**淡着**的而
+ * 不是空的，跑完点也没了；把开关关掉，同样一次编辑就停在那儿等应用。
+ *
+ * 故事的存储每次挂载新建（`StoryEngine`），所以这里写下的 `autoRun: false`
+ * 不会漏给下一个故事，末尾不必再收拾一遍。
+ */
+
+/** 「成本 的 合计」：关掉开关之后那次编辑要带出来的那一列。 */
+const COST_HEADER = formatMessage(zhCN, 'label.summary.of', {
+  field: '成本',
+  fn: zhCN['label.summary.fn.SUM'],
+});
+
+/** The tray's auto-run checkbox, wherever the actions footer puts it. */
+function autoRunSwitch(canvasElement: HTMLElement): HTMLElement {
+  return within(
+    canvasElement.querySelector<HTMLElement>('[data-slot="auto-run"]')!,
+  ).getByRole('checkbox');
+}
+
+/** 结果淡着的那一下，被真的画出来了没有。 */
+interface Fade {
+  /** 那个时刻的属性在不在。 */
+  marked: boolean;
+  /** 那个时刻这块东西画得有多淡；1 就是根本没淡。 */
+  opacity: number;
+  /** 这块东西有没有自己的盒子——没有盒子，`opacity` 就只是个计算值。 */
+  painted: boolean;
+}
+
+/**
+ * Watches for the result being drawn faded from this moment on.
+ *
+ * The fade lasts as long as one auto-run takes, so it is sampled every frame
+ * rather than looked at twice. What it records is not the attribute but **what the
+ * browser did with it**: the element's own box, and the least opacity it was
+ * ever painted at — the fade eases in, so the frame the attribute lands on
+ * still reads 1. Only a real browser answers this, and it is the one thing
+ * jsdom cannot: a wrapper that generates no box (`display: contents`)
+ * computes the very same 0.6 and paints nothing at all.
+ */
+function watchFading(canvasElement: HTMLElement): {
+  read(): Fade;
+  stop(): void;
+} {
+  const fade: Fade = { marked: false, opacity: 1, painted: false };
+  let running = true;
+  const look = () => {
+    const stale = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="analysis-result"][data-stale]',
+    );
+    if (stale) {
+      fade.marked = true;
+      fade.opacity = Math.min(
+        fade.opacity,
+        Number(getComputedStyle(stale).opacity),
+      );
+      if (stale.getBoundingClientRect().height > 0) fade.painted = true;
+    }
+    if (running) requestAnimationFrame(look);
+  };
+  look();
+  return {
+    read: () => ({ ...fade }),
+    stop: () => {
+      running = false;
+    },
+  };
+}
+
+export const RunsAsEdited: Story = {
+  ...DisplayTableWithTotals,
+  args: { ...DisplayTableWithTotals.args, allColumns: true },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await findDataTable(canvasElement);
+    await waitFor(() => expect(groupRows(table)).toBe(4));
+    await expect(readHeaders(table)).not.toContain('状态');
+
+    const opened = await openTray(canvasElement);
+    await expect(autoRunSwitch(canvasElement)).toBeChecked();
+
+    // 加一个维度，然后什么也不按。
+    const faded = watchFading(canvasElement);
+    await userEvent.click(
+      within(opened).getByRole('button', {
+        name: zhCN['label.analysis.add-group'],
+      }),
+    );
+    await userEvent.click(
+      await screen.findByRole('menuitem', { name: '状态' }),
+    );
+
+    await waitFor(async () =>
+      expect(readHeaders(await findDataTable(canvasElement))).toContain('状态'),
+    );
+    // 四个仓库按状态再切一刀，组比原来多。
+    await expect(groupRows(await findDataTable(canvasElement))).toBeGreaterThan(
+      4,
+    );
+    // 等的那一下，上一份答案留在屏幕上、**真的**淡着——不只是带了个属性，
+    // 而是浏览器为它画了一个盒子、并把那个盒子画淡了；跑完就不淡了，点也没了。
+    faded.stop();
+    await expect(faded.read().marked).toBe(true);
+    await expect(faded.read().painted).toBe(true);
+    await expect(faded.read().opacity).toBeLessThan(1);
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector(
+          '[data-slot="analysis-result"][data-stale]',
+        ),
+      ).toBeNull(),
+    );
+    await expect(
+      applyButton(canvasElement).querySelector('[data-slot="pending-dot"]'),
+    ).toBeNull();
+
+    // 关掉开关：这是这个用户对这个定义的偏好，写完列表重读，勾自然落下。
+    await userEvent.click(autoRunSwitch(canvasElement));
+    await waitFor(() => expect(autoRunSwitch(canvasElement)).not.toBeChecked());
+
+    const stillFading = watchFading(canvasElement);
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.analysis.add-metric'] }),
+    );
+    await userEvent.click(
+      await screen.findByRole('menuitem', { name: '成本' }),
+    );
+
+    // 编辑落进了托盘——卡片在那儿——而结果一次也没淡过：没有哪一次自动运行
+    // 在路上，那一列因此也还没有。
+    await waitFor(() =>
+      expect(
+        [...canvasElement.querySelectorAll('[data-slot="card-name"]')].map(
+          name => name.textContent,
+        ),
+      ).toContain('成本'),
+    );
+    stillFading.stop();
+    await expect(stillFading.read().marked).toBe(false);
+    await expect(readHeaders(await findDataTable(canvasElement))).not.toContain(
+      COST_HEADER,
+    );
+    await expect(
+      applyButton(canvasElement).querySelector('[data-slot="pending-dot"]'),
+    ).not.toBeNull();
+
+    // 按下去才跑。
+    await userEvent.click(applyButton(canvasElement));
+    await waitFor(async () =>
+      expect(readHeaders(await findDataTable(canvasElement))).toContain(
+        COST_HEADER,
+      ),
+    );
+  },
+};

@@ -24,6 +24,7 @@ export * from './execute.js';
 export * from './issues.js';
 export * from './exportRows.js';
 export * from './listeners.js';
+export * from './autoApply.js';
 export * from './pending.js';
 export * from './refreshTimer.js';
 export * from './requestRunner.js';

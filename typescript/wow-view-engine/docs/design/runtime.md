@@ -21,6 +21,7 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
   revert(): void; // draft 回到 saved.config，重算 issues／dirty；与 applied 不同且无 error 时再 apply；未保存过为空操作
   refresh(): void; // 重跑 applied
   setEditing(active: boolean): void; // 编辑器获得／失去输入焦点时调用，暂停自动刷新
+  setAutoApply(on: boolean): void; // 改了就跑：问题变了就自己 apply，见下；范围照旧等应用。Dashboard 上是空操作
   setScopeFilter(tree: FilterTree | null): Issue[]; // 外层注入的附加条件，AND 到已应用筛选；不改 draft／saved；返回被拒的那几条，生效时为空
   readonly refusedScope: Issue[]; // 当前要求的那个注入条件因何被拒；生效时为空。被拒不阻塞视图，见下「被拒的是条件，不是视图」
   readonly scopeFilter: FilterTree | null; // 当前生效的注入条件（最后一次被准入的那棵）；筛选摘要据此把"宿主的条件"与"视图自己的条件"分开呈现
@@ -75,6 +76,7 @@ export interface ViewRuntimeState<C> {
   selection: RecordKey[]; // 只覆盖当前结果；范围变化即清空，见下
   write: WriteState | null; // 最近一次写入的待处理结局，见 management.md「冲突与未知结果」
   editing: boolean; // 由 setEditing 维护，用于暂停自动刷新
+  autoApply: boolean; // 改了就跑：问题一变就自己再跑一次，见「改了就跑」；缺省关，由工作台按用户偏好打开
   nextRefreshAt: number | null; // 下一次自动刷新的到期时刻（environment.now() 的毫秒）；没有武装计时器时为 null，见「自动刷新」
 }
 
@@ -146,6 +148,20 @@ export class ViewWriteError extends Error {
 
 **计时器只有一份实现**（`runtime/refreshTimer.ts` 的 `RefreshTimer`）：数据视图与仪表盘各持一只，武装、复用同一延迟、停表都在它里面；「四条暂停理由」由 `RuntimeStore` 读（`refreshDelayOf(interval, held)`），其中三条（draft 有 error、编辑器有焦点、页面不可见）它自己就能读出来，第四条「上一次请求仍在途」要问持有它的 runtime——在途的是谁的请求只有 runtime 知道：数据视图是自己那一个，仪表盘是任意一块面板的，而仪表盘里的那份数据视图干脆一直按住（整块板只有一只钟）。到期时刻由 store 公布——从前两处逐字相同的拷贝就是靠这两步收掉的。**到期时刻随计时器一起公布**：`state.nextRefreshAt` 在武装计时器的同一处写入（`environment.now() + delay`），停表的同一处清空，因此它不是关于计时器的第二种说法，而就是计时器自己的那个数。四条暂停理由任意一条成立时它是 `null`——「正在倒数」与「表停了」在屏幕上必须分得开，冻在某个秒数上的倒计时是在说谎。可见性变化与（仪表盘上）面板查询的起落都不是 runtime 自身的状态变更，本来不通知订阅者；只有在它们**移动了到期时刻**时才补一次通知（每轮至多两次，与面板数量无关），否则屏幕上的倒计时会继续数向一个已经不存在的计时器。手动 `refresh()` 不需要特别处理就会重排：请求在途时计时器停，落地后按新的 `now()` 重新武装——刚拿到的数据不该在三秒后又被刷一次。倒数由 `useRefreshCountdown` 在控件里每秒重画（见 [react.md](react.md)），读的始终是这个数与 `environment.now()`，界面不另起时钟。（见 test/runtime.test.ts「publishes when the next refresh is due」与 test/dashboardRuntime.test.ts「publishes when the whole board is next due」）
 
+## 改了就跑
+
+自动刷新答的是「这份数据过时了」，「改了就跑」（D20；todo 批 7）答的是另一件事——**问题变了**。分析师在托盘里加一个维度、换一种汇总、改一下前 N 组，屏幕上那张表立刻就与它上面那句话对不上了；让他再把手伸到底下按一次应用，是让他为自己刚说过的话付一次手续费。所以问题一变，一小会儿之后它自己跑（`runtime/autoApply.ts` 的 `autoApplyDue(state)` 与 `AUTO_APPLY_DELAY_MS = 300`）。
+
+**三条按住它的理由**，缺一它就该跑：
+
+- **开关关着**（`state.autoApply` 为 false）。这是用户的偏好而不是视图的配置，工作台从 `ViewPreferences.autoRun` 推给 runtime（见 [management.md#列表偏好与默认视图](management.md#列表偏好与默认视图)）；runtime 自己缺省是关的，没人推它就不会有谁的屏幕莫名其妙动起来。关着时应用是唯一的跑法；
+- **草稿被准入拒绝**（`issues` 含 error）。一份跑不起来的问题不该被自动拿去跑——那只会把一条错误在屏幕上循环播放一遍；
+- **改的是范围**（`comparePending` 报 `conditions`）。条件照旧等应用（D20），**而且在它等着的时候别的也不跑**：应用跑的是整份草稿，条件与问题一起提升，半份草稿跑出来的结果会同时说两件事——行是新问题的，口径是旧条件的。所以「维度改了 + 条件也改了」这一份草稿整个等着那一下按键。
+
+**一个 runtime 一只计时器**（`runtime/refreshTimer.ts` 的 `RefreshTimer`，与自动刷新那只各是各的）：每次 `edit` 都停表再武装，所以那 300 毫秒是从**最后一次**编辑数起——加一个时间维度、紧接着改它的粒度，是一次查询而不是两次。`apply`、`revert`、关掉开关与 `dispose` 各自停表。300 毫秒是「手停下来了」与「屏幕没反应」之间的那一档：更短会把一串连着的编辑各发一次查询，更长就读成卡了。
+
+跑之前那一下，屏幕上的行答的是上一个问题：它们**淡着留在那儿**，不清空——下一个答案只有几百毫秒远，中间闪一次白读起来是出了错。界面这一半是 `AnalysisParts` 的 `data-slot="analysis-result"` 加 `data-stale`，读的是 `useAnalysisEditor.stale`（见 [react.md#useanalysiseditor-与-usedashboard](react.md#useanalysiseditor-与-usedashboard) 与 [ui/analysis.md#托盘范围--维度--指标一个应用](ui/analysis.md#托盘范围--维度--指标一个应用)）。（见 test/autoApply.test.ts「改了就跑: the analysis runs again on its own」「the auto-run preference」与 test/autoRun.test.tsx「改了就跑: an analysis runs as it is edited」「改了就跑: the tray’s switch」）
+
 ## 导出
 
 `RecordViewRuntime.exportRows(options)` 按**已应用**口径（`applied` 合并作用域之后的那一份，也就是产生屏幕上这些行的那份配置）在后台把结果分页拉完，交还行本身；序列化与下载在别处（[kernels.md](kernels.md) 的 `serializeCsv`、[ui/record.md#导出](ui/record.md#导出)）。
@@ -207,6 +223,7 @@ export interface ViewEngine {
     definitionId: string,
     instanceId: string | null,
   ): Promise<ViewPreferences>;
+  setAutoRun(definitionId: string, autoRun: boolean): Promise<ViewPreferences>; // 改了就跑，与排序、默认视图同住一份偏好；不问许可
   resolveDefault(summaries, preferences, explicit?): string | null; // management.md「列表、偏好与默认视图」的解析规则
   retryWrite(target: ViewRuntime | WriteHandle): Promise<ViewInstance | void>; // 复用原 requestId 与原正文重放；创建意图返回新实例
   abandonWrite(target: ViewRuntime | WriteHandle): void; // 清除写入状态，草稿保留

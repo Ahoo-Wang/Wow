@@ -38,6 +38,8 @@ import {
 } from './scope.js';
 import type { RuntimeEnvironment } from './environment.js';
 import { hasError, RuntimeStore } from './runtimeStore.js';
+import { AUTO_APPLY_DELAY_MS, autoApplyDue } from './autoApply.js';
+import { RefreshTimer } from './refreshTimer.js';
 import {
   isRequestSuperseded,
   RequestQueueFullError,
@@ -125,6 +127,12 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
   refresh(): void;
   /** Called when an editor takes or loses focus; pauses auto-refresh. */
   setEditing(active: boolean): void;
+  /**
+   * Whether the draft runs on its own a moment after its question changes
+   * (`autoApply.ts`); the range still waits for `apply`. Off by default:
+   * the workbench switches it on from the user's preference.
+   */
+  setAutoApply(on: boolean): void;
   /**
    * An outer condition ANDed onto the applied filter; never touches the draft.
    *
@@ -286,6 +294,8 @@ export interface ViewRuntimeState<C> {
   selection: RecordKey[];
   write: WriteState | null;
   editing: boolean;
+  /** See `ViewRuntime.setAutoApply`. */
+  autoApply: boolean;
   /**
    * When the next automatic refresh is due, on the environment's clock, or
    * `null` while no timer is armed — no interval in force, or one of the four
@@ -386,6 +396,8 @@ export class DataViewRuntime<
   private readonly runner: RequestRunner;
   private readonly resolveOptions: ((key: string) => OptionSource) | undefined;
   private readonly autoRefresh: boolean;
+  /** The one timer behind 「改了就跑」, stopped whenever nothing is due. */
+  private readonly autoTimer: RefreshTimer;
 
   private injectedScope: FilterTree | null = null;
   /**
@@ -410,6 +422,7 @@ export class DataViewRuntime<
     this.runner = options.runner;
     this.environment = options.environment;
     this.autoRefresh = options.autoRefresh ?? true;
+    this.autoTimer = new RefreshTimer(options.environment, () => this.apply());
     this.context = {
       definition: options.definition,
       kinds: options.kinds,
@@ -450,6 +463,7 @@ export class DataViewRuntime<
         selection: [],
         write: null,
         editing: false,
+        autoApply: false,
         nextRefreshAt: null,
       },
       environment: options.environment,
@@ -507,6 +521,7 @@ export class DataViewRuntime<
       issues: this.admit(draft),
       dirty: this.store.isDirty(draft, this.state.saved),
     });
+    this.syncAutoApply();
   }
 
   apply(): void {
@@ -514,12 +529,34 @@ export class DataViewRuntime<
     this.appliedAdmitted = true;
     this.pageTarget = firstPageOf(this.context.definition);
     this.store.setState({ applied: this.state.draft, selection: [] });
+    this.autoTimer.stop();
     this.execute({ keepSelection: false });
   }
 
   /** Discards the edits and re-runs what was saved; see `RuntimeStore.revert`. */
   revert(): void {
     this.store.revert();
+    this.syncAutoApply();
+  }
+
+  setAutoApply(on: boolean): void {
+    if (this.disposed || this.state.autoApply === on) return;
+    this.store.setState({ autoApply: on });
+    this.syncAutoApply();
+  }
+
+  /**
+   * Arms the auto-apply timer while the draft is due to run on its own and
+   * stops it otherwise. Re-arming on every edit is what merges a burst of
+   * edits into one query: the timer restarts from the last one.
+   */
+  private syncAutoApply(): void {
+    if (this.disposed || !autoApplyDue(this.state)) {
+      this.autoTimer.stop();
+      return;
+    }
+    this.autoTimer.stop();
+    this.autoTimer.sync(AUTO_APPLY_DELAY_MS);
   }
 
   /**
@@ -651,6 +688,7 @@ export class DataViewRuntime<
   }
 
   dispose(): void {
+    this.autoTimer.stop();
     this.store.dispose();
   }
 

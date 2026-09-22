@@ -190,6 +190,7 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
         selection: [],
         write: null,
         editing: false,
+        autoApply: false,
         nextRefreshAt: null,
         panels: [],
         resolving: false,
@@ -301,6 +302,9 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     if (this.disposed) return;
     this.children.refresh();
   }
+
+  /** A dashboard edits its layout, not a question; nothing runs on its own. */
+  setAutoApply(): void {}
 
   setEditing(active: boolean): void {
     if (this.disposed || this.state.editing === active) return;

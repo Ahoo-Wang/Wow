@@ -11,12 +11,15 @@
  * limitations under the License.
  */
 
+import { useId } from 'react';
 import type { FieldOption } from '../../model/index.js';
 import type {
   AnalysisEditorController,
   FilterEditorController,
 } from '../../react/index.js';
 import { cn } from 'cn';
+import { Checkbox } from '../components/checkbox.js';
+import { Field, FieldLabel } from '../components/field.js';
 import { crossesBoundary, leavesEditor } from '../FilterPanel.js';
 import { FilterActions } from '../filter/FilterActions.js';
 import { SPACE } from '../layout.js';
@@ -31,6 +34,8 @@ export interface TrayProps {
   analysis: AnalysisEditorController;
   optionsFor?(remote: string): FieldOption[] | undefined;
   disabled?: boolean;
+  /** 「改了就跑」: the preference and the way to change it (`WorkbenchController`). */
+  autoRun?: { on: boolean; set(on: boolean): void };
 }
 
 /**
@@ -46,8 +51,15 @@ export interface TrayProps {
  * chart, and which chart — is not in here: it is the result's, on its
  * toolbar and in the visualization panel (D20).
  */
-export function Tray({ filter, analysis, optionsFor, disabled }: TrayProps) {
+export function Tray({
+  filter,
+  analysis,
+  optionsFor,
+  disabled,
+  autoRun,
+}: TrayProps) {
   const messages = useViewMessages();
+  const autoRunId = useId();
   return (
     <section
       data-slot="analysis-tray"
@@ -84,7 +96,30 @@ export function Tray({ filter, analysis, optionsFor, disabled }: TrayProps) {
           empties the range, Apply runs the whole draft, and the dot says
           the draft holds something the last run did not — whichever slot
           it is in. */}
-      <div data-slot="analysis-tray-actions" className="flex justify-end">
+      <div
+        data-slot="analysis-tray-actions"
+        className="flex flex-wrap items-center justify-end gap-3"
+      >
+        {/* 「改了就跑」 (D20): the question runs on its own a moment after
+            it changes; the range still waits for Apply. A preference of the
+            user's, not of the view, so it is not in the config. */}
+        {autoRun && (
+          <Field
+            orientation="horizontal"
+            className="mr-auto w-auto"
+            data-slot="auto-run"
+          >
+            <Checkbox
+              id={autoRunId}
+              checked={autoRun.on}
+              disabled={disabled}
+              onCheckedChange={checked => autoRun.set(checked === true)}
+            />
+            <FieldLabel htmlFor={autoRunId}>
+              {messages.label('label.analysis.auto-run')}
+            </FieldLabel>
+          </Field>
+        )}
         <FilterActions
           filter={filter}
           disabled={disabled}

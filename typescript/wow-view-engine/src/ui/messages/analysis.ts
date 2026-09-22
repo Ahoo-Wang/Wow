@@ -108,6 +108,8 @@ export const analysisMessages = {
   // The visualization panel (D20 屏 I): the way in from the result's
   // toolbar, its title, the way back, and why a tile is greyed.
   'label.analysis.visualize': 'Visualize',
+  // 「改了就跑」 (D20): the switch on the tray's footer.
+  'label.analysis.auto-run': 'Run as I change the question',
   'label.chart.picker': 'Visualization',
   'label.chart.picker-back': 'Back to the views',
   'label.chart.recommended': 'Recommended',

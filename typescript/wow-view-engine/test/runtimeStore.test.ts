@@ -53,6 +53,7 @@ function initialState(overrides: Partial<State> = {}): State {
     selection: [],
     write: null,
     editing: false,
+    autoApply: false,
     nextRefreshAt: null,
     ...overrides,
   };
