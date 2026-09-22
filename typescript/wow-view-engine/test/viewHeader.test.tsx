@@ -11,7 +11,14 @@
  * limitations under the License.
  */
 
-import { act, cleanup, render, screen, within } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -437,5 +444,72 @@ describe('ViewHeader', () => {
     expect(header().querySelectorAll('[data-slot="separator"]')).toHaveLength(
       0,
     );
+  });
+});
+
+/**
+ * ↺ throws a whole draft away and there is no way to put one back — the
+ * runtime restores the *saved* config and nothing else — so it is the same
+ * loss the leave guard stops to ask about, and it is asked the same way.
+ */
+describe('ViewHeader, taking the edits back', () => {
+  /** One open view, edited, with the mark and its ↺ on the bar. */
+  async function edited(): Promise<AnyViewRuntime> {
+    const { engine } = setup();
+    const runtime = await engine.open('orders-1');
+    render(<Harness engine={engine} runtime={runtime} />);
+    act(() => runtime.edit({ pageSize: 25 }));
+    await screen.findByText('Edited');
+    return runtime;
+  }
+
+  /** The question, wherever the portal put it. */
+  const question = () => screen.findByRole('alertdialog');
+
+  it('asks before the draft goes, and keeps it while the answer is open', async () => {
+    const runtime = await edited();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Revert' }));
+
+    const dialog = await question();
+    expect(within(dialog).getByRole('heading').textContent).toBe(
+      'Go back to the saved version?',
+    );
+    expect(dialog.textContent).toContain('Unsaved changes will be lost.');
+    // Nothing has happened yet: the draft is still the draft.
+    expect(runtime.getSnapshot().dirty).toBe(true);
+  });
+
+  it('keeps the edits when the answer is to keep editing', async () => {
+    const runtime = await edited();
+    const revert = screen.getByRole('button', { name: 'Revert' });
+
+    await userEvent.click(revert);
+    await userEvent.click(
+      within(await question()).getByRole('button', { name: 'Keep editing' }),
+    );
+
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(runtime.getSnapshot().dirty).toBe(true);
+    // The way back is where it was, and so is focus: the mark never left.
+    expect(screen.getByRole('button', { name: 'Revert' })).toBe(revert);
+  });
+
+  it('takes the edits back once, and lands focus on the view', async () => {
+    const runtime = await edited();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Revert' }));
+    await userEvent.click(
+      within(await question()).getByRole('button', { name: 'Revert' }),
+    );
+
+    await waitFor(() => expect(runtime.getSnapshot().dirty).toBe(false));
+    // The mark is gone with the edits, and with it the button the dialog
+    // would have handed focus back to. Asked of the bar rather than of the
+    // document: the dialog's own answer is still on its way out.
+    expect(
+      within(header()).queryByRole('button', { name: 'Revert' }),
+    ).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(title()));
   });
 });

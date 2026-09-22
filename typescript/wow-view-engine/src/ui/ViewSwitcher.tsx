@@ -142,7 +142,22 @@ export function ViewSwitcher({
             // is told is exactly this `min-width` — so it has to be the
             // label's 6em plus the icon, the two gaps, the chevron and the
             // padding around them, which is what the `calc` says.
-            className="w-0 min-w-[calc(6em+3.25rem)] max-w-fit grow justify-start"
+            //
+            // `text-sm` is the second half of the collapsed path's two
+            // levels, and it is a *size* rather than a colour or a shape,
+            // so it belongs in `className` (D16-8). The registry's `sm`
+            // button is set at `text-[0.8rem]`, which this package pins to
+            // the 13px rung of its own scale — the rung of a sidebar item
+            // and a group label. That is right for a control in a row of
+            // controls and wrong for this one: with the list folded away
+            // the switcher *is* the view's name, and at 13 it read a whole
+            // step below the 14 the definition's title was at, so the two
+            // halves of "Orders / Pending" came out one and a half levels
+            // apart instead of two. 14/500 under the title's 16/600 is the
+            // same pair the sidebar shows when it is open. `cn` drops the
+            // vendored size along with it, so the pinning rule in
+            // `styles.css` no longer matches this button.
+            className="w-0 min-w-[calc(6em+3.25rem)] max-w-fit grow justify-start text-sm"
           />
         }
       >

@@ -67,6 +67,9 @@ export const zhCN: ViewMessages = {
   'label.leave.consequence': '未保存的修改会丢失。',
   'label.leave.stay': '留下',
   'label.leave.leave': '离开',
+  'label.revert.heading': '回到已保存的那一份？',
+  'label.revert.consequence': '未保存的修改会丢失。',
+  'label.revert.keep': '继续编辑',
 
   // 标题栏与它下面的编辑带。
   'label.header.new-view': '尚未保存',

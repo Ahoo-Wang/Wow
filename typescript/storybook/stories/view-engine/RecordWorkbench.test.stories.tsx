@@ -5107,3 +5107,166 @@ export const ATruncatedColumnNameIsOneHoverAway: Story = {
     await userEvent.unhover(name);
   },
 };
+
+/**
+ * 这块面的动效让给 `prefers-reduced-motion: reduce`，而会说话的那两种动画不让。
+ *
+ * 屏幕上会动的东西没有一件是调用处写的：弹层由 vendored 组件带着
+ * `data-open:animate-in zoom-in-95 slide-in-from-top-2` 进场，对话框带着遮罩
+ * 淡入，按钮、徽章与行普遍带 `transition-all`——评审当时量到菜单弹层
+ * `animation-name: enter`、`animation-duration: 0.1s`，中途 `transform` 缩在
+ * 0.986、`opacity` 0.727。所以让步只能在主题里做一次（`styles.css`，与两处
+ * vendored 字号钉在同一个地方、同一个理由），而不是去改三百处 class。
+ *
+ * **reduce 不等于 remove**：spinner 说的是「还在写／还在查」，skeleton 的脉动
+ * 说的是「屏幕上这些还不是数据」；停掉它们是把「进行中」画成「卡住了」，所以
+ * 这两个 slot 被排除在外。
+ *
+ * 媒体查询本身在故事里开不动（Playwright 的 `reducedMotion` 只在测试进程里有，
+ * 浏览器矩阵也不是每种都给得出），所以这里量的是**规则本身**：它在不在、作用
+ * 域有没有同时点到两个边界、屏幕上真实的弹层匹不匹配它、被排除的那两个 slot
+ * 匹不匹配，以及它此刻要削掉的是多长的一段动画。
+ */
+export const ReducedMotionIsHonoured: Story = {
+  ...DisplayWithData,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    const doc = canvasElement.ownerDocument;
+    const surface = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="view-surface"]',
+    )!;
+
+    // 本包发的那一条：条件是 reduce，作用域点到两个边界。宿主页面与 vendored
+    // 的 `.shimmer` 各有各的一条，按边界认出自己这条。
+    const reduced = [...doc.styleSheets]
+      .flatMap(sheet => {
+        try {
+          return [...sheet.cssRules];
+        } catch {
+          return [];
+        }
+      })
+      .filter(
+        (rule): rule is CSSMediaRule =>
+          rule instanceof CSSMediaRule &&
+          rule.conditionText.includes('prefers-reduced-motion'),
+      )
+      .flatMap(media => [...media.cssRules])
+      .filter(
+        (rule): rule is CSSStyleRule =>
+          rule instanceof CSSStyleRule &&
+          // 两个边界**本身**各是它的一个选择器分支，而不是某个类恰好落在边界
+          // 里——vendored 的 `.shimmer` 也有一条 reduce 规则，作用域同样点到
+          // 两个边界，说的却只是它自己那一个类。
+          ['.fve-root', '.fve-tokens'].every(boundary =>
+            rule.selectorText.split(',').some(part => part.trim() === boundary),
+          ),
+      );
+    // 一条，或者同一条被加载了不止一次（dev 的 HMR 与测试进程各挂一份），所以
+    // 数的是「有」而不是「恰好一份」，而每一份都得说同一件事。
+    await expect(reduced.length, '包级的 reduce 规则').toBeGreaterThan(0);
+    const rule = reduced[0];
+
+    // 削到察觉不到，而不是削到零：Base UI 的弹层靠自己退场动画结束的那一下
+    // 卸载，时长拿掉就没有那一下了。
+    const declared = (one: CSSStyleRule, property: string) => [
+      one.style.getPropertyValue(property),
+      one.style.getPropertyPriority(property),
+    ];
+    for (const one of reduced) {
+      await expect(declared(one, 'animation-duration')).toEqual([
+        '0.01ms',
+        'important',
+      ]);
+      await expect(declared(one, 'transition-duration')).toEqual([
+        '0.01ms',
+        'important',
+      ]);
+    }
+
+    // 真实的弹层：它匹配这条规则，而它此刻的动画正是规则要削的那 100ms。
+    await userEvent.click(
+      canvasElement.querySelector<HTMLElement>(
+        '[data-slot="refresh-interval"]',
+      )!,
+    );
+    const menu = await within(doc.body).findByRole('menu');
+    const popup = menu.closest<HTMLElement>(
+      '[data-slot="dropdown-menu-content"]',
+    )!;
+    await expect(popup.matches(rule.selectorText)).toBe(true);
+    await expect(getComputedStyle(popup).animationDuration).toBe('0.1s');
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() =>
+      expect(within(doc.body).queryByRole('menu')).toBeNull(),
+    );
+
+    // 会说话的那两种不让。这一屏已经查完、也没在写，spinner 与 skeleton 都不
+    // 在场（它们分别是 `RefreshControl` 与 `ViewList` 的在途状态），所以问的是
+    // 选择器本身：探针戴上上游给它们的 slot，放进这块面里问一句再拿走。
+    const excludes = (slot: string) => {
+      const probe = doc.createElement('div');
+      probe.dataset.slot = slot;
+      surface.append(probe);
+      const matched = probe.matches(rule.selectorText);
+      probe.remove();
+      return matched;
+    };
+    await expect({
+      spinner: excludes('spinner'),
+      skeleton: excludes('skeleton'),
+      badge: excludes('badge'),
+    }).toEqual({ spinner: false, skeleton: false, badge: true });
+  },
+};
+
+/**
+ * 没有底色的徽章靠边活着，所以那圈边是 `--input`。
+ *
+ * 主题把两个 token 分在这条线上：`--border` 是**东西之间**的线，可以淡；
+ * `--input` 是**边就是那个东西**的那一档，两个主题都钉在 ≥3:1，因为一个没勾
+ * 的复选框除了那圈边什么都没有。没有底色的徽章是同一种情形——把边拿掉就没有
+ * 徽章了，只剩一个词——而 registry 给它的是 `border-border`：量在标题栏上是
+ * **1.26:1**（暗色 1.77:1）。表内那几枚有语气的徽章早就换过了
+ * （`ui/variants.tsx` 的 `neutral`），这一条是剩下的那些。
+ *
+ * 钉的那一枚正是最难够着的一枚：「已修改」这颗徽章上的 `data-slot` 被调用处
+ * 写成了 `view-unsaved`（`useRender` 的 state 拗不过调用处的 prop），所以
+ * `styles.css` 里那条规则问的是 `group/badge` 与 `data-variant`——两样都是
+ * registry 自己写在每一枚徽章上的。
+ */
+const outlineBadgeEdges = (theme: 'light' | 'dark'): Story => ({
+  ...DisplayWithData,
+  args: { ...DisplayWithData.args, theme },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    await expect(
+      canvasElement.querySelector('[data-slot="view-surface"]'),
+    ).toHaveAttribute('data-theme', theme);
+
+    // 改一下，好让「已修改」那枚徽章上台。
+    await userEvent.click(canvas.getAllByRole('button', { name: /订单号/ })[0]);
+    const mark = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="view-unsaved"]',
+      );
+      if (!found) throw new Error('the "edited" mark did not appear');
+      return found;
+    });
+
+    // registry 自己的两样东西：徽章的组名与它的 variant。
+    await expect(mark.getAttribute('data-variant')).toBe('outline');
+    await expect(mark.getAttribute('class')).toContain('group/badge');
+
+    const { ratio, colors } = measureBorderContrast(mark);
+    await expect(
+      ratio,
+      `${theme} — ${colors.border} on ${colors.surface}`,
+    ).toBeGreaterThanOrEqual(3);
+  },
+});
+
+export const OutlineBadgeEdgesInLightTheme: Story = outlineBadgeEdges('light');
+export const OutlineBadgeEdgesInDarkTheme: Story = outlineBadgeEdges('dark');

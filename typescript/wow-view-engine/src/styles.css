@@ -337,6 +337,41 @@
 }
 
 /*
+ * An outline badge is its edge, so its edge is `--input`.
+ *
+ * The theme keeps two tokens apart on exactly this question: `--border` is a
+ * line *between* things and may be quiet, `--input` is the edge that *is* a
+ * thing and is held at ≥3:1 in both themes, because an unticked checkbox is
+ * nothing but its ring. A badge with no fill is the same case — take the
+ * outline away and there is no badge, only a word — and the registry paints
+ * it `border-border`: measured on the title bar, **1.26:1** in the light
+ * theme and 1.77:1 in the dark one. The toned badges in the table made this
+ * move already (`ui/variants.tsx`, `neutral`); this is the rest of them —
+ * "Not saved yet" and "Edited" beside the view's name, the applied
+ * conditions the page put in force, a system view's tag in the manager.
+ *
+ * Said here rather than in a wrapper beside the component, which is what
+ * D16-8 asks for when only *some* call sites want a correction. This one is
+ * unconditional: every outline badge on this surface is its edge, including
+ * the ones a host draws with our `Badge` inside `fve-tokens`, so the theme
+ * says it once — the same reason the two font sizes above are pinned here,
+ * and `ui/components/**` is upstream's either way.
+ *
+ * What a badge is asked by is `group/badge` and `data-variant`, both the
+ * registry's own and both on every badge it renders. Not `data-slot`: that
+ * one is `useRender` *state*, which a call site's own prop replaces — the
+ * "edited" mark says `data-slot="view-unsaved"` and a rule that asked for
+ * `[data-slot='badge']` walked straight past the most common outline badge
+ * on the screen. The class hook carries the same exposure to a registry
+ * rename as the `text-[0.8rem]` pin above, and `test/popups.test.tsx`-style
+ * drift is what `shadcn add --diff` is read for.
+ */
+.fve-root .group\/badge[data-variant='outline'],
+.fve-tokens .group\/badge[data-variant='outline'] {
+  border-color: var(--input);
+}
+
+/*
  * A joined toggle group rounds like the controls it stands beside.
  *
  * `ToggleGroup spacing={0}` is the registry's own segmented control — no
@@ -482,6 +517,49 @@
   /* The surface paints its page; the tokens boundary paints nothing. */
   .fve-root {
     @apply bg-background text-foreground;
+  }
+}
+
+/*
+ * A user who has asked their system for less motion gets less of it here.
+ *
+ * Everything that moves on this surface moves because a vendored component
+ * says so: every popup zooms and slides in (`data-open:animate-in
+ * zoom-in-95 slide-in-from-top-2`, 100ms), every dialog zooms with a fading
+ * backdrop, and `transition-all` is on every button, badge and row. None of
+ * it is worn at a call site, so the concession is made once here rather
+ * than asked of 300 class lists — the same reason the two vendored font
+ * sizes are pinned above, and `ui/components/**` is upstream's either way.
+ *
+ * **Reduce is not remove.** Two animations on this surface carry meaning
+ * rather than decorate: the spinner says a write or a query is still in
+ * flight, and the skeleton's pulse says what is on screen is not data yet.
+ * Stopping those turns "working" into "hung", so they are excluded by the
+ * slot upstream puts on them; a looping indicator is what
+ * `prefers-reduced-motion` guidance leaves alone.
+ *
+ * Not zero: a Base UI popup unmounts on the end of its own exit animation,
+ * so the duration is cut to something imperceptible rather than taken away.
+ * `!important` because what it overrides is a utility class of the same
+ * specificity that comes later in the sheet.
+ *
+ * Both boundaries, like every other scope in this file: the host's chrome
+ * draws the same buttons and the same popups, and a concession made on one
+ * side of the pair and not the other is half a concession.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .fve-root,
+  .fve-root *:not([data-slot='spinner'], [data-slot='skeleton']),
+  .fve-root *::before,
+  .fve-root *::after,
+  .fve-tokens,
+  .fve-tokens *:not([data-slot='spinner'], [data-slot='skeleton']),
+  .fve-tokens *::before,
+  .fve-tokens *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
   }
 }
 

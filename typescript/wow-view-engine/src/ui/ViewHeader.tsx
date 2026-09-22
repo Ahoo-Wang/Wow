@@ -11,7 +11,14 @@
  * limitations under the License.
  */
 
-import { useId, type ReactNode, type RefObject } from 'react';
+import {
+  useCallback,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 import {
   audienceOf,
   isSystemScope,
@@ -22,11 +29,19 @@ import { cn } from 'cn';
 import type { ViewRuntimeState } from '../runtime/index.js';
 import type { SaveCommands } from '../react/index.js';
 import { Badge } from './components/badge.js';
-import { Separator } from './components/separator.js';
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './components/alert-dialog.js';
+import { DestructiveAction, SectionDivider } from './variants.js';
 import { AUDIENCE_ICON, KIND_ICON } from './kinds.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { Tooltip, TooltipTrigger } from './components/tooltip.js';
-import { TooltipContent } from './popups.js';
+import { AlertDialogContent, TooltipContent } from './popups.js';
 import { SaveActions, UnsavedMark } from './SaveActions.js';
 import { WriteOutcome, type ViewWriteCallbacks } from './WriteOutcome.js';
 import { TEXT_UI } from './layout.js';
@@ -126,6 +141,23 @@ export function ViewHeader({
 }: ViewHeaderProps) {
   const messages = useViewMessages();
   const generatedId = useId();
+  // Whether the question in front of ↺ is on screen. It is this bar's and
+  // not the mark's: `UnsavedMark` draws the command, and what a command
+  // costs is decided where the view is, next to the leave guard that asks
+  // the same thing about the same draft.
+  const [asking, setAsking] = useState(false);
+  // Where focus lands once the draft is gone: ↺ is inside the "edited" mark,
+  // and reverting takes the mark off the bar, so the button the dialog would
+  // return to no longer exists and focus would fall to `<body>`. The view's
+  // own name is what is left of where the user was.
+  const heading = useRef<HTMLHeadingElement | null>(null);
+  const holdTitle = useCallback(
+    (node: HTMLHeadingElement | null) => {
+      heading.current = node;
+      if (titleRef) titleRef.current = node;
+    },
+    [titleRef],
+  );
   if (!state) return null;
 
   // Preflight leaves a heading at the size and weight of the text around it,
@@ -229,7 +261,7 @@ export function ViewHeader({
             <TooltipTrigger
               render={
                 <Title
-                  ref={titleRef}
+                  ref={holdTitle}
                   id={titleId ?? generatedId}
                   // Focusable when focus is *sent* here and never a tab
                   // stop: a view that has just been created is what the user
@@ -283,7 +315,20 @@ export function ViewHeader({
           ) : (
             // With the way back on it: the mark says "edited", and the one
             // command that answers that stands right after the word.
-            state.dirty && <UnsavedMark commands={commands} />
+            //
+            // The mark is handed the commands with a question in front of
+            // the one that throws the draft away. ↺ is not undoable — the
+            // runtime has no way to put an arbitrary draft back, only the
+            // saved one — and losing a whole draft to a single press of a
+            // 24px icon is the same loss the leave guard already stops to
+            // ask about. So it is asked, in the same words and the same
+            // shape; a dialog would be friction over an action that could
+            // be taken back, and this one cannot.
+            state.dirty && (
+              <UnsavedMark
+                commands={{ ...commands, revert: () => setAsking(true) }}
+              />
+            )
           )}
 
           <SaveActions
@@ -309,12 +354,22 @@ export function ViewHeader({
           className="ml-auto flex shrink-0 items-center gap-2"
         >
           {trailing}
-          {trailing && actions && (
-            <Separator orientation="vertical" className="h-4" />
-          )}
+          {/* The line between two authorships — this package's controls and
+              the host's own actions — and the only divider here that has to
+              be seen at all. It is `SectionDivider` rather than a `Separator`
+              with a colour written on it (D16-8); what it measured before
+              and why it is what it is now are recorded there. */}
+          {trailing && actions && <SectionDivider />}
           {actions}
         </div>
       </div>
+
+      <RevertDialog
+        open={asking}
+        onOpenChange={setAsking}
+        onConfirm={commands.revert}
+        landing={heading}
+      />
 
       <WriteOutcome
         commands={commands}
@@ -326,5 +381,86 @@ export function ViewHeader({
         onRecovered={onRecovered}
       />
     </div>
+  );
+}
+
+interface RevertDialogProps {
+  open: boolean;
+  onOpenChange(open: boolean): void;
+  /** Puts the saved config back; only the confirming answer calls it. */
+  onConfirm(): void;
+  /**
+   * Where focus goes once the edits are gone. The button that opened this is
+   * inside the "edited" mark, and the mark is what reverting takes off the
+   * bar — so on the way out there is nothing to give focus back to, and the
+   * view's own heading is the nearest thing to where the user was standing.
+   */
+  landing: RefObject<HTMLHeadingElement | null>;
+}
+
+/**
+ * The question in front of ↺.
+ *
+ * It is the leave guard's question about the same draft, so it is the leave
+ * guard's shape: an `AlertDialog` (the edits are lost for good, so an
+ * outside click must not be an answer), one sentence for what it costs, the
+ * answer that stays first and the destructive one last, named after the
+ * command it carries out rather than after the dialog.
+ *
+ * Asked rather than undone, because there is no undo to offer: a runtime can
+ * put the *saved* config back and nothing else, so an "Undone · Undo" strip
+ * would need a way to restore an arbitrary draft that does not exist. A
+ * dialog in front of an action that could be taken back is friction; in
+ * front of one that cannot, it is the only place the user gets to decide.
+ */
+function RevertDialog({
+  open,
+  onOpenChange,
+  onConfirm,
+  landing,
+}: RevertDialogProps) {
+  const messages = useViewMessages();
+  // Which answer closed it. Base UI returns focus to whatever opened the
+  // dialog, which is right for "Keep editing" — ↺ is still there — and
+  // impossible for the other answer, which unmounts it.
+  const took = useRef(false);
+  return (
+    <AlertDialog
+      open={open}
+      onOpenChange={next => {
+        if (next) took.current = false;
+        onOpenChange(next);
+      }}
+    >
+      <AlertDialogContent
+        finalFocus={() => (took.current ? landing.current : true)}
+      >
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            {messages.label('label.revert.heading')}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {messages.label('label.revert.consequence')}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>
+            {messages.label('label.revert.keep')}
+          </AlertDialogCancel>
+          <DestructiveAction
+            // The registry's action button is a plain `Button` — only
+            // Cancel is a `Close` — so the answer that goes through says so
+            // itself.
+            onClick={() => {
+              took.current = true;
+              onConfirm();
+              onOpenChange(false);
+            }}
+          >
+            {messages.label('label.save.revert')}
+          </DestructiveAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

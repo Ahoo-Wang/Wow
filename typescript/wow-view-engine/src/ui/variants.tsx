@@ -21,13 +21,13 @@
  * component** holding a cva of its own. The vendored cva stays untouched and
  * is still composed — the wrapper picks the registry variant its case starts
  * from and adds one layer over it — and the call site passes a variant
- * rather than a colour. Four cases live here: a badge that has to read as a
- * status, the answer that carries out a destructive command, the controls
- * inside a condition pill, which draw no chrome of their own, and the open
- * view in the sidebar. The fifth is `ui/alerts.tsx`, where `LineAlert` does
- * the same thing to `Alert`; a callout has enough of its own to say (the
- * tone's icon, the role it is announced with) to be a file rather than an
- * export here.
+ * rather than a colour. Five cases live here: a badge that has to read as a
+ * status, the answer that carries out a destructive command, the one divider
+ * that has to be seen, the controls inside a condition pill, which draw no
+ * chrome of their own, and the open view in the sidebar. The one that is not
+ * here is `ui/alerts.tsx`, where `LineAlert` does the same thing to `Alert`;
+ * a callout has enough of its own to say (the tone's icon, the role it is
+ * announced with) to be a file rather than an export here.
  *
  * One kind of class does not belong here: a *layout* class at a call site —
  * a width, a gap, a `justify-start` — is what `className` is for and stays
@@ -43,6 +43,7 @@ import { Badge } from './components/badge.js';
 import { Button } from './components/button.js';
 import { Input } from './components/input.js';
 import { SelectTrigger } from './components/select.js';
+import { Separator } from './components/separator.js';
 
 /**
  * The registry variant each tone starts from.
@@ -188,6 +189,41 @@ export function DestructiveAction({
     <AlertDialogAction
       variant="destructive"
       className={cn(destructiveActionVariants(), className)}
+      {...props}
+    />
+  );
+}
+
+/**
+ * The one divider on this surface that has to be seen.
+ *
+ * Every other line here separates things of the same kind — rows from rows,
+ * a menu's groups from each other — and may be as quiet as `--border` is: a
+ * hairline that is *nearly* invisible still reads as "these are one list".
+ * The line at the end of the title bar divides two **authorships**: this
+ * package's view-level controls on one side, the host's own actions on the
+ * other. That boundary is the whole of what it says, and at 1×16px of
+ * `--border` it measured **1.26:1** against the bar it stands on — it took
+ * the space and made the promise without anybody being able to see it. A
+ * divider nobody can see is not a quieter divider; it is no divider, with
+ * the gap still spent.
+ *
+ * So it is `--input`, the theme's "this edge *is* the thing" rung, held at
+ * ≥3:1 in both themes (`styles.css`), and 20px in a 40px row rather than 16
+ * — a line has to stand next to the controls it parts, not hide between
+ * them. Spacing instead of a line was the other way out and is not taken:
+ * this row's ruler has one step inside a group (8px) and the bar wraps at
+ * narrow widths, so a 16px gap reads as the start of a wrap rather than as
+ * a boundary.
+ */
+export function SectionDivider({
+  className,
+  ...props
+}: React.ComponentProps<typeof Separator>) {
+  return (
+    <Separator
+      orientation="vertical"
+      className={cn('bg-input h-5', className)}
       {...props}
     />
   );

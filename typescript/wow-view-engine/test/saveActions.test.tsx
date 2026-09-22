@@ -364,9 +364,18 @@ describe('SaveActions, the split button group', () => {
       key: 'Escape',
     });
 
+    // The press asks before it throws the draft away — the same question
+    // the leave guard asks about the same edits, drawn by `ViewHeader`
+    // (test/viewHeader.test.tsx «taking the edits back»). What this suite
+    // holds is that the button on the mark is wired to the command.
     fireEvent.click(revert);
+    const asked = await screen.findByRole('alertdialog');
+    fireEvent.click(within(asked).getByRole('button', { name: 'Revert' }));
+
     await waitFor(() => expect(runtime.getSnapshot().dirty).toBe(false));
-    expect(screen.queryByRole('button', { name: 'Revert' })).toBeNull();
+    // The mark goes with the edits, and the button on it goes with the mark.
+    expect(screen.queryByText('Edited')).toBeNull();
+    expect(document.querySelector('[data-slot="view-unsaved"]')).toBeNull();
   });
 
   /**
@@ -430,8 +439,13 @@ describe('SaveActions, the split button group', () => {
     expect(screen.getByRole('button', { name: 'Revert' })).toBeDefined();
 
     fireEvent.click(screen.getByRole('button', { name: 'Revert' }));
+    fireEvent.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Revert',
+      }),
+    );
     await waitFor(() => expect(runtime.getSnapshot().dirty).toBe(false));
-    expect(screen.queryByRole('button', { name: 'Revert' })).toBeNull();
+    expect(document.querySelector('[data-slot="view-unsaved"]')).toBeNull();
   });
 });
 
@@ -1027,6 +1041,13 @@ describe('save actions', () => {
     await dropAColumn();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Revert' }));
+    // Asked first: the press loses the whole draft, and nothing puts one
+    // back (test/viewHeader.test.tsx «taking the edits back»).
+    fireEvent.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Revert',
+      }),
+    );
 
     await waitFor(() =>
       expect(screen.getAllByRole('columnheader')).toHaveLength(3),

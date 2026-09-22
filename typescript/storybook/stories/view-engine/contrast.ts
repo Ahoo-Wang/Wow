@@ -80,6 +80,32 @@ export function measureTextContrast(element: Element): TextContrast {
   };
 }
 
+/** What one element's own fill measured, and against what. */
+export interface FillContrast {
+  /** The ratio an assertion should read. */
+  ratio: number;
+  /** The two colours as CSS, so a failure says what it saw. */
+  colors: { fill: string; surface: string };
+}
+
+/**
+ * One element's own fill, measured against the surface it is painted on.
+ *
+ * A `Separator` is a line drawn as a *background* rather than as a border,
+ * so `measureBorderContrast` has nothing to read on it — and a divider that
+ * cannot be told from the page it is on is not a divider. The fill is
+ * composed the way the browser paints it, so a half-transparent token is
+ * measured as what reaches the eye.
+ */
+export function measureFillContrast(element: Element): FillContrast {
+  const surface = surfaceUnder(element.parentElement);
+  const fill = paintedSurface(element);
+  return {
+    ratio: contrastRatio(fill, surface),
+    colors: { fill: css(fill), surface: css(surface) },
+  };
+}
+
 /** What two stacked surfaces came to, and what the lower one was dimmed by. */
 export interface LayerSeparation {
   /**

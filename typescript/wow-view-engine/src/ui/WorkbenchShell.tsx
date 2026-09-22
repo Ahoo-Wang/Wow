@@ -465,9 +465,14 @@ export function WorkbenchShell({
         // itself (`@container/header` in `ViewHeader`); `@2xl` was so
         // eager that most embeddings never saw the name at all.
         <>
+          {/* `text-base`, the same 16/600 the sidebar's heading wears when
+              the list is open: folding the list away moves this `h1`, it
+              does not demote it. At `text-sm` it was 14 over a 13px
+              switcher — two heading levels squashed into one and a half,
+              and the page's own name set smaller than the view it holds. */}
           <h1
             data-slot="definition-title"
-            className="hidden min-w-0 truncate text-sm font-semibold @md/header:block"
+            className="hidden min-w-0 truncate text-base font-semibold @md/header:block"
           >
             {title}
           </h1>

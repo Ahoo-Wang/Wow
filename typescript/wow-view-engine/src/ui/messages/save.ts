@@ -90,4 +90,11 @@ export const saveMessages = {
   'label.leave.consequence': 'Unsaved changes will be lost.',
   'label.leave.stay': 'Stay',
   'label.leave.leave': 'Leave',
+
+  // Reverting loses exactly what leaving loses, so it is asked in the same
+  // words: a question naming what goes back, one sentence for the cost, the
+  // answer that stays and the answer named after the command it carries out.
+  'label.revert.heading': 'Go back to the saved version?',
+  'label.revert.consequence': 'Unsaved changes will be lost.',
+  'label.revert.keep': 'Keep editing',
 } as const satisfies Record<string, string>;
