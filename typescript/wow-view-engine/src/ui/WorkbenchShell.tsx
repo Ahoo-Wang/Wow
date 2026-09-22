@@ -140,6 +140,12 @@ export interface WorkbenchShellProps {
    */
   expandable?: boolean;
   /**
+   * Whether the view manager is on offer at all (D18 XI). On by default;
+   * off, neither the sidebar's gear nor the switcher's item exists. What
+   * the user may do inside it is the store's permissions, read separately.
+   */
+  manage?: boolean;
+  /**
    * Whether the result below was ever asked for; the applied bar renders
    * nothing until it was. The open view's own result when left out — a
    * dashboard has none of its own and answers from its panels instead.
@@ -219,6 +225,7 @@ export function WorkbenchShell({
   defaultSidebarOpen,
   onSidebarOpenChange,
   expandable = true,
+  manage = true,
   hasResult,
   warnings,
   onRenderFailure,
@@ -240,7 +247,7 @@ export function WorkbenchShell({
   // One dialog behind two ways in — the sidebar's gear and the switcher's
   // last item — so the state is here rather than inside either of them.
   const [managing, setManaging] = useState(false);
-  const canManage = manager.can.anything;
+  const canManage = manage && manager.can.anything;
   // One command behind three ways in — the sidebar's `+`, the switcher's
   // item and the empty work area's button — and none of the three exists
   // without it (D4).

@@ -82,7 +82,7 @@ useRecordTable(runtime): RecordTableController
 
 - 列语义、排序、列宽列序、选择、分页；
 - 无 TanStack 类型；
-- layouts 为定义允许的布局，selectedRows 为当前结果中被选中的行（结果顺序），pageSizes 为可供选择的每页条数（标准档位按 runtime.limits.maxPageSize 裁剪，并并入当前值）。（见 test/useRecordTable.test.tsx「useRecordTable」）
+- layouts 为定义允许的布局，selectedRows 为当前结果中被选中的行（结果顺序），pageSizes（梯子来自 `runtime.limits.pageSizes`，按 `maxPageSize` 裁短并折进当前每页数；自动刷新的梯子同理来自 `limits.refreshIntervals`）为可供选择的每页条数（标准档位按 runtime.limits.maxPageSize 裁剪，并并入当前值）。（见 test/useRecordTable.test.tsx「useRecordTable」）
 - `hasResult`——这个视图**是否曾经拿到过结果**（`state.result != null`），哪怕它已经过期。它不是 `rows.length > 0`，也不是 `status === 'success'`：失败的刷新会留住它替换不掉的行并转为 `error`，匹配零行的成功结果则根本没有行。表格靠它区分"结果是空的"与"从来没有结果"——后者连列都没有，画出来是一格空表头加一个选不中任何东西的「选择全部行」（见 [ui/record.md](ui/record.md)）。
 
 改动配置的命令一律是一次 `edit` 加一次 `apply`，与既有的 `toggleSort`（`toggleSort(field, { exclusive })`：默认追加，`exclusive` 时这一列就是整份排序——表头平击走它，Shift 追加走默认）／`setColumns` 同一条路径：表格画的是内核按**执行时**的配置投影出来的列与行，不重跑就看不到改动（筛选则等提交）。列设置与排序控件（[ui/record.md](ui/record.md)）所需的那几条：

@@ -22,6 +22,7 @@ import {
   builtinFieldKinds,
   compileRecord,
   compileSummaries,
+  DEFAULT_RUNTIME_LIMITS,
   defaultRecordConfig,
   FIRST_PAGE,
   maxSortFields,
@@ -88,6 +89,17 @@ const codes = (issues: Issue[]) =>
   issues.filter(i => i.severity === 'error').map(i => i.code);
 
 describe('defaultRecordConfig', () => {
+  /** How many columns a first view shows is the engine's to say, not a constant's. */
+  it("takes the first view's column count from the limits", () => {
+    const built = defaultRecordConfig(definition(), {
+      ...DEFAULT_RUNTIME_LIMITS,
+      defaultColumns: 2,
+      defaultPageSize: 25,
+    });
+    expect(built.table.columns).toHaveLength(2);
+    expect(built.pageSize).toBe(25);
+  });
+
   it('builds a complete config from the declared capability', () => {
     const built = defaultRecordConfig(definition());
     expect(built).toMatchObject({

@@ -45,6 +45,40 @@ export interface RuntimeLimits {
   maxFilterNodes: number;
   /** Panels of one dashboard, checked before any child runtime is created. */
   maxDashboardPanels: number;
+
+  // What the controls offer and what a new view starts from. These are the
+  // product's presentation choices rather than budgets — a ladder of page
+  // sizes, a ladder of refresh cadences, how many columns a first view
+  // shows — and they used to be module constants that a host could only
+  // change by shipping a build. They sit beside the budgets because the
+  // budgets cut them (a rung above `maxPageSize` is never offered), and
+  // because one object handed to the engine is one place to look.
+
+  /**
+   * The page sizes a control offers from, before `maxPageSize` cuts them and
+   * the size a view is saved at is folded in.
+   */
+  pageSizes: readonly number[];
+  /**
+   * The auto-refresh cadences a control offers from, in seconds, before the
+   * two interval bounds cut them and the interval in force is folded in.
+   *
+   * Three rungs by default, and deliberately few. Half a minute is the
+   * shortest cadence a person reads as "live" without the screen redrawing
+   * under their hands, five minutes the longest before "keeps itself up to
+   * date" stops being the reason anyone opened this view; a quarter of an
+   * hour and an hour were rungs nobody picked and everybody had to read
+   * past. Every rung divides into whole seconds or minutes, so each has a
+   * label nobody has to decode — and a view already saved at some other
+   * number keeps its own rung, so shortening the ladder strands nobody.
+   */
+  refreshIntervals: readonly number[];
+  /** The page size a new record view starts at, unless its definition says. */
+  defaultPageSize: number;
+  /** Columns a new record view shows; more is noise in a first view. */
+  defaultColumns: number;
+  /** Fields on a new record view's cards, the title aside. */
+  defaultCardFields: number;
 }
 
 export const DEFAULT_RUNTIME_LIMITS: Readonly<RuntimeLimits> = Object.freeze({
@@ -58,6 +92,11 @@ export const DEFAULT_RUNTIME_LIMITS: Readonly<RuntimeLimits> = Object.freeze({
   maxFilterDepth: 8,
   maxFilterNodes: 256,
   maxDashboardPanels: 24,
+  pageSizes: Object.freeze([10, 20, 50, 100]),
+  refreshIntervals: Object.freeze([30, 60, 300]),
+  defaultPageSize: 20,
+  defaultColumns: 8,
+  defaultCardFields: 4,
 });
 
 /**

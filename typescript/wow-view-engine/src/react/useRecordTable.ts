@@ -368,12 +368,6 @@ export interface RecordTableController {
   refresh(): void;
 }
 
-/**
- * The ladder a page-size control offers from, before the limits cut it and
- * the current size is folded in.
- */
-const PAGE_SIZES = [10, 20, 50, 100];
-
 /** Stable identities for "no runtime yet", so memo dependencies stay still. */
 const NO_SORT: RecordSort[] = [];
 const NO_COLUMNS: RecordColumn[] = [];
@@ -725,8 +719,11 @@ export function useRecordTable(
     ),
     pageSize,
     pageSizes: useMemo(() => {
+      // The ladder is the engine's (`RuntimeLimits.pageSizes`): a product
+      // that wants 15/30/60 hands it in with the budgets rather than
+      // shipping a build.
       const max = runtime?.limits.maxPageSize;
-      const offered = PAGE_SIZES.filter(
+      const offered = (runtime?.limits.pageSizes ?? []).filter(
         size => max === undefined || size <= max,
       );
       // The saved size joins whatever it is: a view saved at 500 under an

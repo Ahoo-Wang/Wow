@@ -118,6 +118,24 @@ describe('useRecordTable', () => {
     expect(result.current.pageSizes).toEqual([10, 20, 50]);
   });
 
+  /** The ladder is the engine's: a product hands its own in with the budgets. */
+  it('offers the page sizes the limits name', async () => {
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store: new MemoryViewStore({ instances: [mine] }),
+      resolveSource: () => testSource(),
+      limits: { ...DEFAULT_RUNTIME_LIMITS, pageSizes: [15, 30, 60] },
+    });
+    const { result } = renderHook(() => {
+      const opened = useOpenView(engine, 'orders-1');
+      return useRecordTable(opened.runtime as RecordViewRuntime | null);
+    });
+    await waitFor(() => expect(result.current.status).toBe('success'));
+
+    // The saved size (20) is folded in beside the product's own rungs.
+    expect(result.current.pageSizes).toEqual([15, 20, 30, 60]);
+  });
+
   /** Whatever it is: a select whose value is not an item of it shows nothing. */
   it('folds the size in force into the ladder', async () => {
     const engine = new ViewEngine({

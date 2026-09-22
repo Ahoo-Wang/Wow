@@ -34,6 +34,7 @@ import { ColumnSettings } from './ColumnSettings.js';
 import type { ReleasedPins } from './record/pinCap.js';
 import { ExportDialog, type ExportOffer } from './ExportDialog.js';
 import { SortSettings } from './SortSettings.js';
+import { featuresOf, type WorkbenchFeatures } from './features.js';
 import { SPACE, TEXT_UI } from './layout.js';
 import { Toolbar, ToolbarItem } from './toolbar.js';
 import type { MessageKey } from './messages.js';
@@ -81,6 +82,13 @@ export interface ResultToolbarProps {
    * button is not there.
    */
   exporter?: ExportOffer;
+  /**
+   * Which of the toolbar's own controls are there at all (D18 XI). Every one
+   * by default; one turned off is absent, not disabled. The export button
+   * follows `exporter` rather than this — a surface that offers no export
+   * passes none.
+   */
+  features?: WorkbenchFeatures;
   /**
    * The runtime behind the controller. The toolbar reads nothing off it; it
    * only hands it to `bulkActions`, whose actions are commands against the
@@ -152,10 +160,12 @@ export function ResultToolbar({
   hasRowActions = false,
   bulkActions,
   exporter,
+  features,
   runtime,
 }: ResultToolbarProps) {
   const messages = useViewMessages();
   const selected = table.selection.length > 0;
+  const shown = featuresOf(features);
 
   return (
     <Toolbar
@@ -236,70 +246,76 @@ export function ResultToolbar({
           two positions rather than two bordered buttons that happen to sit
           together: the registry's own joined group — no gap, square inner
           corners, one shared seam — asked for by the prop it is on. */}
-        {(table.layouts.length >= 2 ||
-          !table.layouts.includes(table.layout)) && (
-          <ToggleGroup
-            value={[table.layout]}
-            onValueChange={value => {
-              // Matched against the allowed layouts rather than cast: the
-              // group is built from them, so anything else is not a layout.
-              const next = table.layouts.find(layout => layout === value[0]);
-              if (next) table.setLayout(next);
-            }}
-            variant="outline"
-            size="sm"
-            spacing={0}
-            aria-label={messages.label('label.toolbar.layout')}
-          >
-            {table.layouts.map(layout => {
-              // An icon with the word in its name and its tooltip (D12): the
-              // switch reports which layout is on by which segment is
-              // pressed, so the word adds nothing a glance does not have.
-              const Icon = LAYOUT_ICON[layout];
-              return (
-                <Tooltip key={layout}>
-                  <TooltipTrigger
-                    render={
-                      <ToggleGroupItem
-                        value={layout}
-                        aria-label={messages.label(LAYOUT_LABEL[layout])}
-                      />
-                    }
-                  >
-                    <Icon />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {messages.label(LAYOUT_LABEL[layout])}
-                  </TooltipContent>
-                </Tooltip>
-              );
-            })}
-          </ToggleGroup>
-        )}
+        {shown.layouts &&
+          (table.layouts.length >= 2 ||
+            !table.layouts.includes(table.layout)) && (
+            <ToggleGroup
+              value={[table.layout]}
+              onValueChange={value => {
+                // Matched against the allowed layouts rather than cast: the
+                // group is built from them, so anything else is not a layout.
+                const next = table.layouts.find(layout => layout === value[0]);
+                if (next) table.setLayout(next);
+              }}
+              variant="outline"
+              size="sm"
+              spacing={0}
+              aria-label={messages.label('label.toolbar.layout')}
+            >
+              {table.layouts.map(layout => {
+                // An icon with the word in its name and its tooltip (D12): the
+                // switch reports which layout is on by which segment is
+                // pressed, so the word adds nothing a glance does not have.
+                const Icon = LAYOUT_ICON[layout];
+                return (
+                  <Tooltip key={layout}>
+                    <TooltipTrigger
+                      render={
+                        <ToggleGroupItem
+                          value={layout}
+                          aria-label={messages.label(LAYOUT_LABEL[layout])}
+                        />
+                      }
+                    >
+                      <Icon />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {messages.label(LAYOUT_LABEL[layout])}
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </ToggleGroup>
+          )}
 
         {/* How the result shows what it has: one responsibility, one group.
             The first button answers for whichever layout is showing (D18
             VI): what a row looks like under the table, what a card shows
             under the cards — one place, one question, two answers. */}
-        <ButtonGroup aria-label={messages.label('label.toolbar.arrange')}>
-          {table.layout === 'card' ? (
-            <CardSettings table={table} fields={fields} />
-          ) : (
-            <ColumnSettings
-              table={table}
-              fields={fields}
-              {...(fieldGroups ? { fieldGroups } : {})}
-              {...(rowKey === undefined ? {} : { rowKey })}
-              {...(released ? { released } : {})}
-              actions={hasRowActions}
-            />
-          )}
-          <SortSettings
-            table={table}
-            fields={fields}
-            {...(fieldGroups ? { fieldGroups } : {})}
-          />
-        </ButtonGroup>
+        {(shown.columns || shown.sort) && (
+          <ButtonGroup aria-label={messages.label('label.toolbar.arrange')}>
+            {shown.columns &&
+              (table.layout === 'card' ? (
+                <CardSettings table={table} fields={fields} />
+              ) : (
+                <ColumnSettings
+                  table={table}
+                  fields={fields}
+                  {...(fieldGroups ? { fieldGroups } : {})}
+                  {...(rowKey === undefined ? {} : { rowKey })}
+                  {...(released ? { released } : {})}
+                  actions={hasRowActions}
+                />
+              ))}
+            {shown.sort && (
+              <SortSettings
+                table={table}
+                fields={fields}
+                {...(fieldGroups ? { fieldGroups } : {})}
+              />
+            )}
+          </ButtonGroup>
+        )}
 
         {/* Taking the rows away is its own responsibility, so it is its own
             group at the end of the block (D12 Ⅳ): the two above change how

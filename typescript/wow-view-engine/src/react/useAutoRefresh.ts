@@ -22,22 +22,9 @@ import type { RuntimeLimits, ViewConfig } from '../model/index.js';
 import { refreshIntervalOf, type ViewRuntime } from '../runtime/index.js';
 import { useViewRuntime } from './useViewEngine.js';
 
-/**
- * The ladder an interval control offers from, before the limits cut it and
- * the interval in force is folded in.
- *
- * Three rungs, and deliberately few. Half a minute is the shortest cadence a
- * person reads as "live" without the screen redrawing under their hands, five
- * minutes the longest before "keeps itself up to date" stops being the reason
- * anyone opened this view; a quarter of an hour and an hour were rungs nobody
- * picked and everybody had to read past. A ladder is a menu, and a menu with
- * seven answers to a question asked twice a year costs more to skim than the
- * two answers it leaves out are worth. Every rung divides into whole seconds
- * or minutes, so each has a label nobody has to decode — and a view already
- * saved at some other number keeps its own rung (see {@link useAutoRefresh}),
- * so shortening the ladder strands nobody.
- */
-const REFRESH_INTERVALS = [30, 60, 300];
+// The ladder itself is the engine's (`RuntimeLimits.refreshIntervals`, with
+// the reasoning for its three rungs); this hook only cuts it to the bounds
+// and folds in the interval a view is saved at.
 
 /** How often the countdown redraws while a timer is armed. */
 const TICK_MS = 1000;
@@ -195,7 +182,7 @@ export function useAutoRefresh(
       // and the way out of it is a rung that works or Off, not the number
       // that broke. The ladder answers to the draft rather than to what is
       // in force, because the ladder is what the menu marks.
-      const offered = REFRESH_INTERVALS.filter(seconds =>
+      const offered = limits.refreshIntervals.filter(seconds =>
         runnable(seconds, limits),
       );
       if (runnable(chosen, limits)) offered.push(chosen);

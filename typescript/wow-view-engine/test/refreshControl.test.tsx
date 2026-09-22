@@ -196,6 +196,15 @@ describe('useAutoRefresh', () => {
     expect(result.current.intervals).toEqual([60, 300]);
   });
 
+  /** The ladder is the engine's: a product hands its own rungs in with the budgets. */
+  it('offers the cadences the limits name', () => {
+    const engine = engineWith({ limits: { refreshIntervals: [10, 20] } });
+    const { result } = renderHook(() =>
+      useAutoRefresh(recordRuntime(engine, recordConfig()) as ViewRuntime),
+    );
+    expect(result.current.intervals).toEqual([10, 20]);
+  });
+
   /**
    * A view saved at an interval off the ladder still has to offer the rung
    * it is sitting on — and one the limits now refuse does not join it,

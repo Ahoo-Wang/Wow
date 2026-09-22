@@ -46,6 +46,7 @@ import { QueryStrip } from './StatusStrip.js';
 import { RefreshControl } from './RefreshControl.js';
 import { useViewMessages } from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
+import { featuresOf, type WorkbenchFeatures } from './features.js';
 import { WorkbenchShell } from './WorkbenchShell.js';
 import { RenderSlot, type RenderFailureHandler } from './RenderBoundary.js';
 
@@ -100,6 +101,19 @@ export interface RecordWorkbenchProps {
    * has nothing to gain from a second way to say so.
    */
   expandable?: boolean;
+  /**
+   * Which of the workbench's own controls are on screen (D18 XI): export,
+   * the layout switch, column settings, sort settings, the view manager.
+   * All on by default; one turned off is absent, not disabled.
+   */
+  features?: WorkbenchFeatures;
+  /**
+   * What the empty result's one button does. Left out, the workbench's own
+   * answer: clear the conditions in force, or open the editor when there
+   * are none. A function is the host's answer instead; `null` is no button
+   * — the sentence alone.
+   */
+  emptyAction?: (() => void) | null;
   /**
    * Told of a render failure one of the workbench's boundaries caught — the
    * host's action slots, the editor, the result, a panel. The part shows a
@@ -185,6 +199,8 @@ export function RecordWorkbench({
   emptyDescription,
   onExported,
   template,
+  features,
+  emptyAction: hostEmptyAction,
 }: RecordWorkbenchProps) {
   // The host's wording, resolved here rather than read off the provider:
   // `ViewSurface` is inside `WorkbenchShell`, so this component is above the
@@ -242,6 +258,7 @@ export function RecordWorkbench({
   // editor, because the question to change is behind a fold that may not
   // even be on screen.
   const hasConditions = filter.applied.length > 0;
+  const shown = featuresOf(features);
   const emptyAction = () => {
     if (!hasConditions) {
       setFold({ id: runtimeId, open: true });
@@ -250,6 +267,10 @@ export function RecordWorkbench({
     filter.clear();
     filter.submit();
   };
+  // The host's word over the workbench's: a function replaces the answer,
+  // `null` takes the button away and leaves the sentence.
+  const onEmptyAction =
+    hostEmptyAction === null ? undefined : (hostEmptyAction ?? emptyAction);
 
   // The language and zone values read in. `useSurfaceDisplay` cannot answer
   // here — the surface is inside `WorkbenchShell`, below this component — so
@@ -307,6 +328,7 @@ export function RecordWorkbench({
       defaultSidebarOpen={defaultSidebarOpen}
       onSidebarOpenChange={onSidebarOpenChange}
       expandable={expandable}
+      manage={shown.manage}
       onRenderFailure={onRenderFailure}
       // What the config says, plus what this result says about itself: a
       // summary row that had to fall back to the page is a fact about the
@@ -376,17 +398,22 @@ export function RecordWorkbench({
               // a host that hands over no row slot has no column to place.
               hasRowActions={row !== undefined}
               bulkActions={actions?.bulk}
-              exporter={{
-                control: exportControl,
-                // The host's scope narrows the export exactly as it narrows
-                // the rows, so the window names both kinds of condition.
-                conditions: [
-                  ...filter.applied,
-                  ...filter.scoped,
-                  ...filter.implied,
-                ],
-                nameFile,
-              }}
+              features={features}
+              exporter={
+                shown.export
+                  ? {
+                      control: exportControl,
+                      // The host's scope narrows the export exactly as it narrows
+                      // the rows, so the window names both kinds of condition.
+                      conditions: [
+                        ...filter.applied,
+                        ...filter.scoped,
+                        ...filter.implied,
+                      ],
+                      nameFile,
+                    }
+                  : undefined
+              }
               runtime={record}
             />
 
@@ -399,7 +426,7 @@ export function RecordWorkbench({
                 emptyDescription={emptyDescription}
                 rowActions={bindRow(row, record, table.refresh)}
                 hasConditions={hasConditions}
-                onEmptyAction={emptyAction}
+                onEmptyAction={onEmptyAction}
               />
             ) : (
               <RecordTable
@@ -410,7 +437,7 @@ export function RecordWorkbench({
                 emptyDescription={emptyDescription}
                 rowActions={bindRow(row, record, table.refresh)}
                 hasConditions={hasConditions}
-                onEmptyAction={emptyAction}
+                onEmptyAction={onEmptyAction}
                 onReleasedPins={setReleased}
               />
             )}

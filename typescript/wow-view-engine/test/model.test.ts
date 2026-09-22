@@ -86,10 +86,20 @@ describe('model constants', () => {
     expect(maxRefreshInterval * 1000).toBeLessThan(MAX_TIMER_DELAY_MS);
   });
 
-  it('gives every budget a positive integer default', () => {
+  it('gives every budget a positive integer default, and every ladder ascending rungs', () => {
     for (const [name, value] of Object.entries(DEFAULT_RUNTIME_LIMITS)) {
-      expect(Number.isInteger(value), name).toBe(true);
-      expect(value, name).toBeGreaterThan(0);
+      // A ladder is the product's rungs (page sizes, refresh cadences):
+      // positive whole numbers, in the order a menu lists them.
+      const rungs = Array.isArray(value) ? value : [value];
+      expect(rungs.length, name).toBeGreaterThan(0);
+      for (const rung of rungs) {
+        expect(Number.isInteger(rung), name).toBe(true);
+        expect(rung, name).toBeGreaterThan(0);
+      }
+      expect(
+        [...rungs].sort((a, b) => a - b),
+        name,
+      ).toEqual(rungs);
     }
   });
 

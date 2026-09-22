@@ -22,11 +22,6 @@ import {
 } from '../model/index.js';
 import { emptyFilter } from '../filter/index.js';
 
-/** Columns and card fields beyond this are noise in a first view. */
-const DEFAULT_COLUMNS = 8;
-const DEFAULT_CARD_FIELDS = 4;
-const DEFAULT_PAGE_SIZE = 20;
-
 export function recordCapabilityOf(
   definition: ViewDefinition,
 ): RecordCapability | undefined {
@@ -55,7 +50,7 @@ export function defaultRecordConfig(
     .map(field => field.name);
   const defaults = capability.defaults ?? {};
   const pageSize = Math.min(
-    defaults.pageSize ?? DEFAULT_PAGE_SIZE,
+    defaults.pageSize ?? limits.defaultPageSize,
     limits.maxPageSize,
   );
 
@@ -72,13 +67,13 @@ export function defaultRecordConfig(
     ...(defaults.summaries ? { summaries: defaults.summaries } : {}),
     layout: defaults.layout ?? capability.layouts[0],
     table: defaults.table ?? {
-      columns: names.slice(0, DEFAULT_COLUMNS).map(field => ({ field })),
+      columns: names.slice(0, limits.defaultColumns).map(field => ({ field })),
     },
     card: defaults.card ?? {
       title: capability.rowKey,
       fields: names
         .filter(name => name !== capability.rowKey)
-        .slice(0, DEFAULT_CARD_FIELDS),
+        .slice(0, limits.defaultCardFields),
     },
   };
 }

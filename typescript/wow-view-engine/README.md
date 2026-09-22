@@ -301,6 +301,9 @@ function OrderCell({ cell }: { cell: RecordCell }) {
   renderCell={cell => <OrderCell cell={cell} />}
   selectable={false}
   emptyTitle="Nothing is waiting to ship"
+  // Every control is there by default; one turned off is absent, not
+  // disabled. What a user may do is the store's permissions, separately.
+  features={{ export: false }}
 />;
 ```
 

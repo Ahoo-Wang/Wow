@@ -23,6 +23,7 @@ import { RefreshControl } from './RefreshControl.js';
 import { QueryStrip } from './StatusStrip.js';
 import type { ViewMessages } from './messages.js';
 import { useViewMessages } from './MessagesProvider.js';
+import { featuresOf, type WorkbenchFeatures } from './features.js';
 import { WorkbenchShell } from './WorkbenchShell.js';
 import type { RenderFailureHandler } from './RenderBoundary.js';
 
@@ -76,6 +77,12 @@ export interface AnalysisWorkbenchProps {
    */
   expandable?: boolean;
   /**
+   * Which of the workbench's own controls are on screen (D18 XI). Only
+   * `manage` applies here — the view manager's gear and switcher item; the
+   * others name record-view controls.
+   */
+  features?: Pick<WorkbenchFeatures, 'manage'>;
+  /**
    * Told of a render failure one of the workbench's boundaries caught — the
    * host's action slots, the editor, the result, a panel. The part shows a
    * recoverable error state in place regardless; this is the host's copy.
@@ -104,6 +111,7 @@ export function AnalysisWorkbench({
   expandable,
   onRenderFailure,
   template,
+  features,
 }: AnalysisWorkbenchProps) {
   const messages = useViewMessages(wording);
   const workbench = useWorkbench(engine, definitionId, {
@@ -139,6 +147,7 @@ export function AnalysisWorkbench({
       defaultSidebarOpen={defaultSidebarOpen}
       onSidebarOpenChange={onSidebarOpenChange}
       expandable={expandable}
+      manage={featuresOf(features).manage}
       onRenderFailure={onRenderFailure}
       // This workbench has no result toolbar to put it in — the analysis
       // result is a table or a chart, not a bar of controls — so the

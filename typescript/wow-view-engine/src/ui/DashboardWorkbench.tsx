@@ -24,6 +24,7 @@ import { RefreshControl } from './RefreshControl.js';
 import { FilterModes, filterModeLabel } from './filter/FilterModes.js';
 import { useViewMessages } from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
+import { featuresOf, type WorkbenchFeatures } from './features.js';
 import { WorkbenchShell } from './WorkbenchShell.js';
 import type { RenderFailureHandler } from './RenderBoundary.js';
 
@@ -79,6 +80,12 @@ export interface DashboardWorkbenchProps {
    */
   expandable?: boolean;
   /**
+   * Which of the workbench's own controls are on screen (D18 XI). Only
+   * `manage` applies here — the view manager's gear and switcher item; the
+   * others name record-view controls.
+   */
+  features?: Pick<WorkbenchFeatures, 'manage'>;
+  /**
    * Told of a render failure one of the workbench's boundaries caught — the
    * host's action slots, the editor, the result, a panel. The part shows a
    * recoverable error state in place regardless; this is the host's copy.
@@ -111,6 +118,7 @@ export function DashboardWorkbench({
   expandable,
   onRenderFailure,
   template,
+  features,
 }: DashboardWorkbenchProps) {
   const messages = useViewMessages(wording);
   const workbench = useWorkbench(engine, definitionId, {
@@ -166,6 +174,7 @@ export function DashboardWorkbench({
       defaultSidebarOpen={defaultSidebarOpen}
       onSidebarOpenChange={onSidebarOpenChange}
       expandable={expandable}
+      manage={featuresOf(features).manage}
       onRenderFailure={onRenderFailure}
       // A grid of cards is not framed again.
       resultFramed={false}
