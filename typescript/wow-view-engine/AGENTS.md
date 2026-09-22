@@ -369,6 +369,7 @@ src/
       cells.tsx               — `cellValue`/`cellText`: one value as its field reads it, for table, cards and CSV
       columns.ts              — Pinned columns: `tablePins`, `pinnedSlots`, `heldColumns`; `ACTIONS_COLUMN` is the table's action column key
       headerRoving.ts         — `useRovingHeader`: one Tab stop per header row, arrows between columns, Alt+arrows resize (P-02)
+      fitViewport.ts          — `useViewportFit`: the scroll port ends where the viewport does, so the summaries and the pagination row stay in view (P-22)
       pinCap.ts               — The pin cap (D17-4): which pins to let go on a narrow port; `ReleasedPins`
       queryAnnouncement.ts    — What a query says about itself to a screen reader
       useSummaries.ts         — The two summary scopes from the one the runtime executed; table and cards share it

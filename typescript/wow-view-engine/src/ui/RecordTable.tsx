@@ -39,6 +39,7 @@ import {
   usePinnedOffsets,
 } from './record/columns.js';
 import { usePinnedCap, type ReleasedPins } from './record/pinCap.js';
+import { useViewportFit } from './record/fitViewport.js';
 import { cellText } from './display.js';
 import { cellValue } from './record/cells.js';
 import { EmptyResult } from './record/EmptyResult.js';
@@ -126,7 +127,7 @@ export interface RecordCell {
  * the inner one, which never scrolls.
  */
 const SCROLL_AREA =
-  'relative max-h-[var(--fve-record-table-max-h,70vh)] overflow-auto [&>[data-slot=table-container]]:overflow-visible';
+  'relative max-h-[var(--fve-record-table-max-h,var(--fve-record-table-fit,70vh))] overflow-auto [&>[data-slot=table-container]]:overflow-visible';
 
 /**
  * And the same table where something around it scrolls instead.
@@ -181,6 +182,8 @@ export function RecordTable({
   // pins are let go, the config untouched (D17-4).
   const slots = useMemo(() => pinnedSlots(columns, layout), [columns, layout]);
   const released = usePinnedCap(port, element, slots);
+  // The port ends where the viewport does (P-22); a host's own cap wins.
+  const fit = useViewportFit(port, scrolls);
   useEffect(() => onReleasedPins?.(released), [onReleasedPins, released]);
   const pins = useMemo(
     () => tablePins(columns, layout, released),
@@ -238,6 +241,11 @@ export function RecordTable({
       // and must not hand it to the one holding on against a panel.
       data-scrolls={scrolls ? '' : undefined}
       className={scrolls ? SCROLL_AREA : STATIC_AREA}
+      style={
+        scrolls && fit !== null
+          ? ({ '--fve-record-table-fit': `${fit}px` } as React.CSSProperties)
+          : undefined
+      }
     >
       <Table ref={element} className={TABLE_CELLS}>
         {/* A layer rather than a row: it stays while the rows move under it,

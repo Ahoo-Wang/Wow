@@ -72,7 +72,6 @@
 
 - **P-13 打开视图时**：整页只有一条 `h-8` 骨架。判据：标题栏 + 结果块骨架，结构与打开后一致。落点：`src/ui/WorkbenchShell.tsx`。
 - **P-21 表头与数据的层级、语气色对比度**（用户 2026-09-22 评审）：表头与数据行同为白底，只靠一根 2px 线和灰字分开；「待出库」这类 warning 语气徽章是白字压在 L≈0.55 的橙底上，12px 下对比度在 AA 边缘。判据：表头改成与汇总层同一档的 `bg-muted` 灰带、字用 `text-foreground` 中等字重（灰带上的 muted 字会跌破 4.5:1），首尾两条灰带把数据行夹在中间；语气徽章改用 shadcn 的「软」配方（淡底 + 深字，`bg-{tone}/15 text-{tone}` 一类）或把浅色主题的 `--warning` 压到 L≈0.50，真浏览器量过对比度再定，三种语气一起改；暗色饱和度仍归 Ⅻ（阶段 5）。落点：`src/ui/record/columns.ts`（`HEAD_CELL`）、`src/ui/RecordTable.tsx`、`src/ui/variants.tsx`（`ToneBadge`）、`src/styles.css`、[ui/record.md](ui/record.md)。
-- **P-22 汇总行常驻可见**（用户 2026-09-22 评审）：页脚已是 `sticky bottom-0`，但滚动口的高度是固定的 `70vh`：表格在页面里起得越低，滚动口的底就越可能落在窗口之外，本页／所有两行跟着不见，要滚整页才看得到。判据：滚动口的上限改成「到视窗底为止」——量滚动口顶在视窗里的位置，`max-height = 视窗高 − 顶 − 分页行高`，窗口尺寸变化时重算（ResizeObserver／resize），`--fve-record-table-max-h` 保留为宿主覆盖；`scrolls={false}` 的宿主页滚模式下 sticky 对着窗口本就成立，不动。结果：只要行数超过可见高度，两行汇总与分页行就一直在窗口底部。落点：`src/ui/RecordTable.tsx`（`SCROLL_AREA`）、[ui/record.md#表格-chrome层次与冻结列](ui/record.md#表格-chrome层次与冻结列)。
 
 ### 架构与测试（零行为变化，防腐化）
 

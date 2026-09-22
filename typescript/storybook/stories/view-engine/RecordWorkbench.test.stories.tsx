@@ -544,6 +544,52 @@ export const ColumnsKeepTheirWidthAndRowsFillTheFrame: Story = {
 };
 
 /**
+ * P-22: the table's scroll port ends where the viewport does, so the two
+ * summary rows and the pagination row are in view whenever there are more
+ * rows than room — no matter how much title bar, tray and toolbar stand
+ * above the table. Fifty rows in a wide view, and the frame's bottom edge is
+ * the window's.
+ */
+export const SummariesStayInView: Story = {
+  ...DisplayWideTable,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    await waitFor(() =>
+      expect(table.querySelectorAll('tbody tr').length).toBeGreaterThan(10),
+    );
+
+    const port = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="record-table"]',
+    )!;
+    const frame = port.closest<HTMLElement>('[data-slot="result-block"]')!;
+    // More rows than room: the port really scrolls.
+    await waitFor(() =>
+      expect(port.scrollHeight).toBeGreaterThan(port.clientHeight + 1),
+    );
+    // The frame ends at the window's bottom edge, give or take a pixel, so
+    // nothing of it is below the fold.
+    await waitFor(() =>
+      expect(
+        Math.abs(frame.getBoundingClientRect().bottom - window.innerHeight),
+      ).toBeLessThanOrEqual(2),
+    );
+    // Both summary rows and the pagination row are inside the window.
+    for (const row of table.querySelectorAll<HTMLElement>('tfoot tr')) {
+      const rect = row.getBoundingClientRect();
+      await expect(rect.bottom).toBeLessThanOrEqual(window.innerHeight);
+      await expect(rect.top).toBeGreaterThanOrEqual(0);
+    }
+    const pagination = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="record-pagination"]',
+    )!;
+    await expect(pagination.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+      window.innerHeight,
+    );
+  },
+};
+
+/**
  * The host's three slots, each where it belongs: over the view, over a
  * selection, and on one row. The middle one exists only while rows are picked.
  */
