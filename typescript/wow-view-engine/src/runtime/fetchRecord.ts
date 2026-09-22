@@ -85,11 +85,18 @@ export async function fetchRecord(
   return page.list[0] ?? null;
 }
 
-/** The query without a projection: a detail is every field, not the page's. */
-function whole<Q extends object>(query: Q): Q {
-  return 'projection' in query
-    ? (without(query as Q & { projection?: unknown }, 'projection') as Q)
-    : query;
+/**
+ * The query for one whole record: no projection, since a detail is every
+ * field and not the page's; and no sort. `compileRecord` ends every page on
+ * the row key so a tie cannot repeat a row across pages — a query for one
+ * key has one row and no tie, and a sort would only be work for the source.
+ */
+function whole<Q extends { sort?: unknown }>(query: Q): Q {
+  const bare =
+    'projection' in query
+      ? (without(query as Q & { projection?: unknown }, 'projection') as Q)
+      : query;
+  return { ...bare, sort: [] };
 }
 
 /** The controller a source takes, following the caller's signal. */
