@@ -343,7 +343,7 @@ describe('ViewEngine creating and saving', () => {
     expect(state.query.status).toBe('success');
   });
 
-  it('refuses an empty title and a scope the user may not create', () => {
+  it('refuses an empty title, and a scope the user may not create only when it is saved (H1)', async () => {
     const { engine } = harness({
       permissions: () => permissions({ createShared: false }),
     });
@@ -356,9 +356,17 @@ describe('ViewEngine creating and saving', () => {
     expect(() => engine.create('orders', input)).toThrowError(
       /view command refused/i,
     );
-    expect(() =>
-      engine.create('orders', { ...input, title: 'New', scope: 'shared' }),
-    ).toThrowError(/view command refused/i);
+    // Making the view asks no permission — nothing is written, and a reader
+    // drills into records under a scope they could never save to. The first
+    // save is where the store is asked, and where it is refused.
+    const unsaved = engine.create('orders', {
+      ...input,
+      title: 'New',
+      scope: 'shared',
+    });
+    await expect(engine.save(unsaved)).rejects.toThrowError(
+      /view command refused/i,
+    );
   });
 
   it('creates on first save and overwrites afterwards', async () => {

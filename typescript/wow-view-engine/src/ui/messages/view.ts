@@ -35,6 +35,11 @@ export const viewMessages = {
   // Several of them collapse to one line, so the line has to say how many.
   'label.view.warnings-count': '{count} things worth noting',
   'label.view.none': 'No view yet',
+  // The line under the title bar of a view opened from another (D20): the
+  // way back, and where this one came from. `{title}` is the origin's name;
+  // the conditions the drill added follow as the applied bar's badges.
+  'label.origin.back': 'Back to {title}',
+  'label.origin.from': 'From {title}',
 
   // Runtime and commands.
   'runtime.kind.not-declared': '{definition} does not offer a {kind} view.',

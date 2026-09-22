@@ -42,6 +42,7 @@ import { ViewSurface } from './ViewSurface.js';
 import { ViewSwitcher } from './ViewSwitcher.js';
 import type { NewViewCommand } from './workbench/NewView.js';
 import { NoViews } from './workbench/NoViews.js';
+import { OriginBar } from './workbench/OriginBar.js';
 import { OpeningSkeleton } from './workbench/OpeningSkeleton.js';
 import { ResultBlock, resultBlockShown } from './workbench/ResultBlock.js';
 import { Unopenable } from './workbench/Unopenable.js';
@@ -662,6 +663,17 @@ export function WorkbenchShell({
                   onRecovered={workbench.onRecovered}
                 />
               </div>
+
+              {/* Where this view came from, when it was opened out of another
+                (D20): the way back and the origin's name, under the title
+                bar and before anything the view says about itself. The
+                workbench holds it; no kind's parts know it exists. */}
+              {workbench.held?.origin && (
+                <OriginBar
+                  origin={workbench.held.origin}
+                  onBack={workbench.back}
+                />
+              )}
 
               {/* The status line (D12 Ⅰ′): what the view reports about itself,
                 under the title bar and only when there is something to say —

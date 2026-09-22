@@ -13,11 +13,16 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
+  FilterNode,
+  FilterTree,
   Issue,
+  RecordViewConfig,
   ViewConfig,
   ViewInstance,
   ViewKind,
 } from '../model/index.js';
+import { drillFilter } from '../analysis/index.js';
+import { defaultRecordConfig } from '../record/index.js';
 import type {
   AnyViewRuntime,
   ViewEngine,
@@ -86,19 +91,63 @@ export interface WorkbenchOptions {
    * first save, and the config it starts from. Left out, the workbench
    * offers no new view — the engine refuses a view with no title, and the
    * title is wording, which this layer does not carry. `/ui` passes its
-   * catalogue's word; a host's own template goes in `config`.
+   * catalogue's word; a host's own template goes in `templates`. A drilled
+   * view opens under the same name, so without this there is no drilling
+   * either.
    */
   newView?: NewViewOptions;
+  /**
+   * Takes over drilling (H5): given, the workbench builds the record view a
+   * row would open and hands it here instead of holding it — a host that
+   * wants the records on a page of its own opens them there. `canDrill` is
+   * unchanged by it; the gesture exists exactly when there is something to
+   * drill into.
+   */
+  onDrilldown?(target: DrillTarget): void;
 }
 
 /**
- * A view made from nothing: the runtime, and the draft it opened with. The
- * draft is kept so the leave guard can tell an untouched new view — which
- * costs nothing to let go — from one the user has already shaped.
+ * Where a held view came from: the view it was drilled out of, and the
+ * conditions the drill added. It is the workbench's fact, not the view's —
+ * the "from" line under the title bar reads it, and going back is the
+ * workbench's command — so it lives beside the held view rather than in its
+ * config, which is what a save would keep.
  */
-interface FreshView {
+export interface ViewOrigin {
+  /** The view drilled from, still open with the result it was drilled on. */
+  runtime: AnyViewRuntime;
+  title: string;
+  /** What the drill added to the origin's conditions: the row's own. */
+  conditions: readonly FilterNode[];
+}
+
+/** What a drill would open, as offered to a host that takes drilling over. */
+export interface DrillTarget {
+  definitionId: string;
+  origin: ViewOrigin;
+  /** The record view: the origin's filter plus the row's, default columns. */
+  config: RecordViewConfig;
+  /** The origin's injected scope, which the drilled view inherits (H4). */
+  scopeFilter: FilterTree | null;
+}
+
+/**
+ * A view the workbench holds rather than opens by id: made from nothing, or
+ * drilled out of another. The draft it opened with is kept so the leave
+ * guard can tell an untouched one — which costs nothing to let go — from one
+ * the user has already shaped.
+ */
+export interface HeldView {
   runtime: AnyViewRuntime;
   draft: ViewConfig;
+  /** Null for a view made from nothing; a drilled view knows its origin. */
+  origin: ViewOrigin | null;
+  /**
+   * The held view the origin itself was, when it was one: drilling out of an
+   * unsaved analysis view must not let that view go, so going back puts it
+   * back as it was held.
+   */
+  from: HeldView | null;
 }
 
 /**
@@ -106,11 +155,11 @@ interface FreshView {
  * are, which one is open, what it says, and what happens when the user moves
  * to another.
  *
- * The three default workbenches differ in their editor and their result and
- * in nothing else, so the shell around those two is assembled once here. A
- * host that writes its own markup calls this and loses none of the rules —
- * the wrong-kind report, the released pin, the leave guard and the header's
- * four outcomes are all in the controller rather than in the components.
+ * The default workbenches differ in their editor and their result and in
+ * nothing else, so the shell around those two is assembled once here. A host
+ * that writes its own markup calls this and loses none of the rules — the
+ * wrong-kind report, the released pin, the leave guard and the header's four
+ * outcomes are all in the controller rather than in the components.
  */
 export interface WorkbenchController {
   /** The kinds this workbench draws, as it was given them. */
@@ -138,6 +187,34 @@ export interface WorkbenchController {
    * workbench hears nothing until that save lands.
    */
   create(kind: ViewKind): void;
+  /**
+   * The view the workbench holds instead of opening by id, if any: one made
+   * from nothing, or one drilled out of another. Its `origin` is what the
+   * "from" line reads.
+   */
+  held: HeldView | null;
+  /**
+   * Whether a row of the open analysis view can open the records behind it
+   * (H2): the workbench draws record views, the definition has them, and a
+   * new view has a name to open under. The drill gesture exists on this and
+   * on nothing else.
+   */
+  canDrill: boolean;
+  /**
+   * Opens the records behind one row of the open analysis view: an unsaved
+   * record view under the origin's conditions plus `conditions`, held with
+   * its origin so the way back is on screen (D20). The origin stays open
+   * with the result it was drilled on, so going back shows that result
+   * rather than running it again. Through the leave guard, like any switch.
+   * Does nothing while `canDrill` is false.
+   */
+  drill(conditions: readonly FilterNode[]): void;
+  /**
+   * Returns to the held view's origin, through the leave guard: an untouched
+   * drilled view goes without a question, one the user shaped is asked
+   * about. Does nothing while nothing held has an origin.
+   */
+  back(): void;
   opened: OpenViewState;
   /** Null while the view is unopenable or still loading. */
   runtime: AnyViewRuntime | null;
@@ -203,7 +280,8 @@ export function useWorkbench(
   definitionId: string,
   options: WorkbenchOptions,
 ): WorkbenchController {
-  const { instanceId, onInstanceChange, guardUnload, newView } = options;
+  const { instanceId, onInstanceChange, guardUnload, newView, onDrilldown } =
+    options;
   // Held by what they say: a host writes the array inline, so the object is
   // new every render while the kinds in it are not.
   const kindsKey = options.kinds.join(' ');
@@ -214,33 +292,50 @@ export function useWorkbench(
   const [chosen, setChosen] = useState<string | null>(instanceId ?? null);
   const openId = chosen ?? list.defaultInstanceId;
 
-  // A view made from nothing is opened by this hook and not by an id, so it
-  // is held here beside the pin. While one is open, nothing is opened by id
-  // — the pin stays what it was and comes back into force once the new view
-  // is saved or let go. The ref is what the release reads: closing a runtime
-  // belongs to the moment it is replaced, not to a render.
-  const [fresh, setFresh] = useState<FreshView | null>(null);
-  const freshRef = useRef<FreshView | null>(null);
+  // A view the workbench holds is opened by this hook and not by an id, so
+  // it is kept here beside the pin. While one made from nothing is open,
+  // nothing is opened by id — the pin stays what it was and comes back into
+  // force once the view is saved or let go. A drilled view is different: its
+  // origin is the view opened by id, and it stays open underneath with the
+  // result it was drilled on, which is what going back shows.
+  //
+  // The ref is what the release reads: closing a runtime belongs to the
+  // moment it is replaced, not to a render.
+  const [held, setHeld] = useState<HeldView | null>(null);
+  const heldRef = useRef<HeldView | null>(null);
   const hold = useCallback(
-    (next: FreshView | null) => {
-      const previous = freshRef.current;
-      freshRef.current = next;
-      setFresh(next);
-      if (previous) engine.close(previous.runtime);
+    (next: HeldView | null) => {
+      const previous = heldRef.current;
+      heldRef.current = next;
+      setHeld(next);
+      // The one runtime that must not go with the view it drew is the origin
+      // a drill is keeping: it comes back as it was held.
+      if (previous && previous !== next?.from) engine.close(previous.runtime);
     },
     [engine],
   );
   // On the way out only. A cleanup keyed on the view itself would close it
   // under StrictMode's rehearsal of the unmount, with nothing to open it
   // again — the view was made by a press, not by an effect.
-  useEffect(() => () => hold(null), [hold]);
+  useEffect(
+    () => () => {
+      // Every held view in the chain: a drilled view over the unsaved view
+      // it came from is two runtimes to let go.
+      for (let view = heldRef.current; view; view = view.from)
+        engine.close(view.runtime);
+      heldRef.current = null;
+    },
+    [engine],
+  );
 
-  const byId = useOpenView(engine, fresh ? null : openId);
-  const opened: OpenViewState = fresh
-    ? { runtime: fresh.runtime, loading: false, error: null, scopeIssues: [] }
+  // A view made from nothing releases the one opened by id; a drilled view
+  // keeps it, because it is the origin.
+  const byId = useOpenView(engine, held && !held.origin ? null : openId);
+  const opened: OpenViewState = held
+    ? { runtime: held.runtime, loading: false, error: null, scopeIssues: [] }
     : byId;
-  const wrongKind = fresh ? null : kindMismatch(byId.runtime, kinds);
-  const runtime = fresh ? fresh.runtime : wrongKind ? null : byId.runtime;
+  const wrongKind = held ? null : kindMismatch(byId.runtime, kinds);
+  const runtime = held ? held.runtime : wrongKind ? null : byId.runtime;
   const state: ViewRuntimeState<ViewConfig> | null = useViewRuntime(runtime);
   const filter = useFilterEditor(runtime);
   const refresh = useAutoRefresh(runtime);
@@ -249,10 +344,10 @@ export function useWorkbench(
   const leave = useLeaveGuard(
     state
       ? {
-          // A new view counts as dirty from the start — losing it loses
+          // A held view counts as dirty from the start — losing it loses
           // everything — but one nobody has touched yet holds nothing worth
           // a question: the draft is the config it opened with.
-          dirty: fresh ? state.draft !== fresh.draft : state.dirty,
+          dirty: held ? state.draft !== held.draft : state.dirty,
           write: state.write,
         }
       : null,
@@ -314,17 +409,91 @@ export function useWorkbench(
           scope: blank.scope,
           config: blank.config,
         }) as unknown as AnyViewRuntime;
-        hold({ runtime: made, draft: made.getSnapshot().draft });
+        hold({
+          runtime: made,
+          draft: made.getSnapshot().draft,
+          origin: null,
+          from: null,
+        });
       });
     },
     [blanks, title, request, engine, definitionId, hold],
   );
 
+  // Drilling needs a record view to open, a place to draw it, and a name.
+  // Not a permission: the drilled view is looked at, not written (H1).
+  const canDrill =
+    runtime?.kind === 'analysis' &&
+    kinds.includes('record') &&
+    definition?.kind === 'data' &&
+    definition.record !== undefined &&
+    title !== undefined;
+  const drill = useCallback(
+    (conditions: readonly FilterNode[]) => {
+      if (
+        !canDrill ||
+        !runtime ||
+        !state ||
+        !definition ||
+        definition.kind !== 'data' ||
+        title === undefined
+      )
+        return;
+      // Under what ran, not what is being typed: the row came from the
+      // applied conditions, and the origin's scope is inherited as it is —
+      // the page's narrowing is not the view's to widen (H4).
+      const config: RecordViewConfig = {
+        ...defaultRecordConfig(definition, engine.limits),
+        filter: drillFilter(state.applied.filter, conditions),
+      };
+      const scopeFilter = runtime.scopeFilter;
+      const origin: ViewOrigin = { runtime, title: state.title, conditions };
+      if (onDrilldown) {
+        onDrilldown({ definitionId, origin, config, scopeFilter });
+        return;
+      }
+      request(() => {
+        const made = engine.create(definitionId, {
+          title,
+          scope: 'personal',
+          config,
+          scopeFilter,
+        }) as unknown as AnyViewRuntime;
+        hold({
+          runtime: made,
+          draft: made.getSnapshot().draft,
+          origin,
+          from: heldRef.current,
+        });
+      });
+    },
+    [
+      canDrill,
+      runtime,
+      state,
+      definition,
+      title,
+      engine,
+      definitionId,
+      onDrilldown,
+      request,
+      hold,
+    ],
+  );
+  const back = useCallback(() => {
+    const current = heldRef.current;
+    if (!current?.origin) return;
+    // The origin was either held itself — put back as it was — or opened by
+    // id, which never closed: letting the drilled view go shows it again,
+    // with the result it kept.
+    request(() => hold(current.from));
+  }, [request, hold]);
+
   const reload = list.reload;
   const open = useCallback(
     (instance: ViewInstance) => {
       // What the store took is what the screen shows from here, opened by
-      // its id like any other view; a new view that was just saved is let
+      // its id like any other view; a held view that was just saved is let
       // go for the instance it became.
       hold(null);
       setChosen(instance.id);
@@ -341,6 +510,10 @@ export function useWorkbench(
     choose,
     creatable,
     create,
+    held,
+    canDrill,
+    drill,
+    back,
     opened,
     runtime,
     state,

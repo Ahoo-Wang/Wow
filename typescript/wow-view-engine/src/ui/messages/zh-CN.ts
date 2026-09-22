@@ -488,6 +488,8 @@ export const zhCN: ViewMessages = {
   'label.view.needs-fixing': '这个视图要先修正才能运行',
   'label.view.warnings-count': '{count} 项值得留意',
   'label.view.none': '还没有视图',
+  'label.origin.back': '返回 {title}',
+  'label.origin.from': '来自 {title}',
   'runtime.kind.not-declared': '{definition} 不提供 {kind} 视图。',
   'runtime.options.unresolved': '{source} 没有配置候选来源。',
   'runtime.query.failed': '数据源回答：{reason}',

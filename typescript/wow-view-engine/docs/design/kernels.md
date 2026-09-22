@@ -143,6 +143,8 @@ mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboa
 
 ## Analysis 内核的规则
 
+**分桶的反向映射**（`analysis/drill.ts`，K1／K6）：`drillConditions(config, fields, kinds, row, ctx)` 把结果的一行还原成选出它背后记录的条件——TERMS 是一个值（kind 有 `EQ` 用 `EQ`，否则用它的「其中之一」：枚举 `IN [v]`、引用 `IN { items: [{ id, label }] }`；空桶与 `missingKey` 哨兵一律 `IS_NULL`），HISTOGRAM 是半开区间 `GTE key` + `LT key+interval`，DATE_HISTOGRAM 是 `bucketRange(unit, start, timeZone)` 给出的 `[start, 下一桶起)` 写成 `BETWEEN`、上界减 1ms（给日期加 `LT` 会波及所有日期编辑器；一毫秒比一个控件便宜）。桶在分组自己的 `timeZone`、没有则 `ctx.timeZone` 里推进：日历单位按该时区的挂钟走（跨夏令时的那一天按日历长），时钟单位按长度走。展开了 elements 的分析交不出条件（分组是最内层元素的字段，记录视图看的是根文档）——返回 `null`，`canDrill` 因此为假；这是线索。`drillFilter(applied, conditions)`：分析视图已应用的树是简单树就平铺成一个「都满足」组（记录视图因此以简单模式打开），否则嵌套。内核只交出条件（K6），开什么视图、带什么列由 `react/useWorkbench.ts` 与 `defaultRecordConfig` 合成，因为 `analysis` 与 `record` 互不引用。（见 test/analysisDrill.test.ts「bucketRange」「drillConditions」「drillFilter」）
+
 规则按族分文件，`analysis/validate.ts` 只说它们跑的顺序：骨架 `validateShape.ts`、元素域 `validateElements.ts`、分组 `validateGroups.ts`、指标 `validateMetrics.ts`、别名 `validateAliases.ts`、having `validateHaving.ts`、排序与表列 `validateSort.ts`、上限 `validateLimits.ts`、图表 `validateChart.ts`；被它们共用的是预算 `budget.ts`（深度与节点数）、表达式走查 `expressions.ts` 与查询内筛选 `queryFilter.ts`（指标位与元素位）。加一条分析规则，先看它属于哪一族。
 
 `validateAnalysis` 的规则：

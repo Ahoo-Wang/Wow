@@ -201,9 +201,9 @@ useRefreshCountdown(refresh): number | null   // 每秒重画的剩余整秒
 ## useWorkbench
 
 ```ts
-useWorkbench(engine, definitionId, { kinds, instanceId?, onInstanceChange?, guardUnload?, newView? }): WorkbenchController
+useWorkbench(engine, definitionId, { kinds, instanceId?, onInstanceChange?, guardUnload?, newView?, onDrilldown? }): WorkbenchController
 WorkbenchController {
-  kinds; list; manager; openId; choose(id); creatable; create(kind); opened; runtime; state; unopenable;
+  kinds; list; manager; openId; choose(id); creatable; create(kind); held; canDrill; drill(conditions); back(); opened; runtime; state; unopenable;
   commands; filter; refresh; leave; onSaved; onRenamed; onDeleted; onRecovered
 }
 ```
@@ -225,6 +225,7 @@ WorkbenchController {
 - `filter` 是这次打开的筛选编辑器，在这里建一次：外壳画已应用条件条要用它，error 条要用它的 `unmarked`，三个工作台本来也各建一个；
 - `refresh` 是 `useAutoRefresh(runtime)` 的结果，在这里装配而不是在三个工作台里各调一次：`refresh` 在 `ViewConfigBase` 上，三种视图都有，取法也一样；
 - `create(kind)` 从零做一个那种视图，经离开守卫；`creatable` 是哪几种做得成的全部依据（定义有这一种、用户可在某受众创建、`newView.title` 给了名字），按 `kinds` 的顺序；控件按它存在或不存在——一种是一颗按钮，几种是一张菜单（todo 批 3），没有就没有控件。`newView.templates` 按种类给宿主自己的第一份配置，种类不符的模板当作没给。新视图的 runtime 由钩子自己拿着（`opened` 就是它，此时不按 id 开任何东西），没改过就切走不问，第一次保存走 `commands.saveAs` 后按存下的 id 重开——细节在 [management.md#列表偏好与默认视图](management.md#列表偏好与默认视图)。`SaveCommandState.isNew` 说的是这个视图从没存过，UI 据此把主按钮换成问名字与受众的那张表；
+- **持有的视图**（`held: HeldView | null`）：工作台不按 id 开、而是自己拿着的那个视图——从零做的，或从另一个视图**下钻**出来的（D20 追问的「查看这些记录」）。`drill(conditions)` 只在 `canDrill` 时有效（开着的是分析视图、`kinds` 含 record、定义有 record 能力、`newView.title` 给了名字——**不是许可**：下钻出的视图只看不写，`engine.create` 不再问许可，第一次保存才问，H1）：用 `defaultRecordConfig` 加上「已应用的条件 + 这一行的条件」（`analysis/drill.ts` 的 `drillFilter`，简单树平铺、否则嵌套）建一个未保存的记录视图，`scopeFilter` 原样继承来源（H4），连同 `origin { runtime, title, conditions }` 一起持有；来源 runtime **不关**——按 id 开着的那个继续开着（`useOpenView` 在有 origin 时不放手），从零做的那个记在 `held.from` 里——所以 `back()` 回到的是原来那次结果，不重跑；`back()` 与 `choose` 一样经离开守卫，没动过的下钻视图直接走。宿主给了 `onDrilldown(target)` 就把 `{ definitionId, origin, config, scopeFilter }` 交给它、自己什么也不持有（H5）。「来自」条由外壳直接读 `held.origin` 画（`ui/workbench/OriginBar.tsx`），任何一种视图的注入件都不知道它。（见 test/workbenchDrill.test.tsx「drilling from an analysis view」、test/originBar.test.tsx「the origin bar」）
 - 四个 `on*` 是标题栏结局的工作台语义，已经接好：存下的副本随即打开、改名留在原视图（先 pin 再 reload，否则骑在默认视图上的工作台会关掉 runtime 连草稿一起丢）、删除即移开（只清 pin——列表由引擎的通知带着被删的 id 自己重读，再补一次不带 `without` 的重读反而会把那一行放回去；默认视图顺位接上，或随列表一起空掉）、恢复则重读列表。（见 test/workbench.test.tsx「useWorkbench」）
 
 宿主写自己的标记时调这一个钩子就够，规则一条也不会掉——`examples/PlainRecordWorkbench.tsx` 是那份参照。`test/architecture.test.ts` 禁止 `ui/*Workbench.tsx` 直接 import `useViewList`／`useOpenView`／`useViewManager`／`useLeaveGuard`：绕过去就是把装配重建一遍。

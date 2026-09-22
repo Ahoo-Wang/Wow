@@ -117,6 +117,12 @@ export interface CreateInput<C extends ViewConfig> {
   /** A user creates for an audience; only a definition declares a system view. */
   scope: ViewAudience;
   config: C;
+  /**
+   * The host's injected condition, as `open` takes it: a view made from an
+   * open one — a drill-through — inherits the scope its origin ran under,
+   * so it never shows a row the page around it was narrowed away from.
+   */
+  scopeFilter?: FilterTree | null;
 }
 
 /**
@@ -299,6 +305,11 @@ export class ViewEngine {
    * An unsaved view. It carries a complete config from the start, produced by
    * `defaultRecordConfig`, `defaultAnalysisConfig` or `emptyDashboardConfig`,
    * and executes at once so the user sees data rather than an empty frame.
+   *
+   * No permission is asked here: nothing is written until the first save,
+   * and `save` asks then. A reader who may create nothing still drills from
+   * a chart into the records behind a bar — a view that is only looked at
+   * costs the store nothing (H1).
    */
   create<C extends ViewConfig>(
     definitionId: string,
@@ -306,13 +317,17 @@ export class ViewEngine {
   ): RuntimeFor<C> {
     const definition = this.registry.require(definitionId);
     this.requireTitle(input.title);
-    this.guard.requireCreate(definitionId, input.scope);
 
-    const runtime = this.build(definition, input.config, {
-      title: input.title,
-      scope: input.scope,
-      saved: null,
-    });
+    const runtime = this.build(
+      definition,
+      input.config,
+      {
+        title: input.title,
+        scope: input.scope,
+        saved: null,
+      },
+      input.scopeFilter ?? null,
+    );
     runtime.apply();
     // The conditional type cannot be proven from a union member; what makes it
     // true is `build` rejecting a config the definition does not declare.

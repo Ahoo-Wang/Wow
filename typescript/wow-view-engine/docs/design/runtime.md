@@ -190,8 +190,13 @@ export interface ViewEngine {
   ): Promise<AnyViewRuntime>; // store.get → validate → runtime；按 runtime.kind 收窄；scopeFilter 从首次查询起生效并与配置一起准入，被拒则不生效、记在 refusedScope 上
   create<C extends ViewConfig>(
     definitionId: string,
-    input: { title: string; scope: 'personal' | 'shared'; config: C },
-  ): RuntimeFor<C>; // 未保存的新视图；config 必填，由 default*Config / emptyDashboardConfig 生成
+    input: {
+      title: string;
+      scope: 'personal' | 'shared';
+      config: C;
+      scopeFilter?: FilterTree | null;
+    },
+  ): RuntimeFor<C>; // 未保存的新视图；config 必填，由 default*Config / emptyDashboardConfig 生成；不问许可——什么都还没写，第一次 save 才问（H1）；scopeFilter 同 open，下钻出的视图借此继承来源的作用域（H4）
   save(runtime: ViewRuntime): Promise<ViewInstance>; // saved ? store.save : store.create
   saveAs(runtime, input: { title; scope }): Promise<ViewInstance>;
   rename(id: string, title: string): Promise<ViewInstance>;

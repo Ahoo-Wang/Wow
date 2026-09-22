@@ -148,6 +148,7 @@ src/
     chart.ts                  — Chart-shaped projection for the renderers
     chartSlots.ts             — `fitChartSlots`: the family sub-object of the current chart type, filled from the groups and metrics in force
     compile.ts                — compileAnalysis → AggregationQuery
+    drill.ts                  — One result row back into the conditions that select its records: `bucketRange` (the inverse of date bucketing, K1) and `drillConditions`; hands out conditions only (K6)
     defaults.ts               — defaultAnalysisConfig — the first metric the capability can express; `aliasOf`, `termsGroup`, `DEFAULT_MISSING_KEY`
     expressions.ts            — Aggregate and derived expression walks
     metricFormat.ts           — `metricFormat`/`metricFunctionOf`: how an aggregate's number prints, which is not how its field's values print
@@ -393,6 +394,7 @@ src/
       NewView.tsx             — The "new view" command drawn as a press or as a menu of the kinds, in the sidebar, the empty work area and the switcher (D20 Ⅱ)
       NoViews.tsx             — The work area when the definition has no view of these kinds yet
       OpeningSkeleton.tsx     — The shape of the page that is opening: title-bar and result-block skeletons, one status sentence (P-13)
+      OriginBar.tsx           — The "from" line under the title bar of a drilled view: the way back, the origin's name and the conditions the drill added (D20)
       RecordParts.tsx         — What makes a record view a record view: the condition band, the toolbar, the rows and the paging, handed to the shell as slots
       ResultBlock.tsx         — The result and its caption on the one bordered frame (D12)
       parts.ts                — `WorkbenchParts`, the slice of the shell's slots a kind fills, and the render prop it fills them through
