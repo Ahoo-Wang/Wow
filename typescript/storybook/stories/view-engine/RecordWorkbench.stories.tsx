@@ -37,6 +37,7 @@ import { ScenarioFrame } from '../shared/ScenarioFrame.js';
 import {
   HOST_LANGUAGE,
   createStoryEngine,
+  orderLinesDefinition,
   ordersDefinition,
   overviewDefinition,
   recordConfig,
@@ -132,6 +133,28 @@ const cellFamilyView = {
 };
 
 /**
+ * An array of objects in a column: each order's lines by their SKU, and its
+ * parcels — which name no title — as how many there are. Neither is ever
+ * the JSON of what it holds.
+ */
+const elementsView = {
+  ...savedViews[0],
+  title: '按元素读',
+  config: recordConfig({
+    summaries: [],
+    table: {
+      columns: [
+        { field: 'id' as const, pinned: true },
+        { field: 'status' as const },
+        { field: 'lines' as const },
+        { field: 'parcels' as const },
+      ],
+    },
+    card: { title: 'id', fields: ['status', 'lines', 'parcels'] },
+  }),
+};
+
+/**
  * 一列时刻的最早与最晚（2026-09-22 用户裁定）。
  *
  * 汇总不只是数字：一列时刻有最早、有最晚。页脚把这两格按**这一列画单元格的
@@ -216,6 +239,7 @@ function RecordWorkbenchDemo({
   theme,
   breakable = false,
   cellFamily = false,
+  elements = false,
   dated = false,
   exporting,
   wide = false,
@@ -305,6 +329,11 @@ function RecordWorkbenchDemo({
   /** Opens a view whose columns cover all four declared cell readings. */
   cellFamily?: boolean;
   /**
+   * Opens the orders with their lines and parcels, two arrays of objects:
+   * one read by its elements' title, one counted.
+   */
+  elements?: boolean;
+  /**
    * Opens a view that summarises a date column, so the footer carries the
    * earliest and the latest order beside a sum of money.
    */
@@ -358,6 +387,12 @@ function RecordWorkbenchDemo({
                 overviewDefinition,
               ],
               instances: [],
+              behaviour,
+            });
+          if (elements)
+            return createStoryEngine({
+              definitions: [orderLinesDefinition, overviewDefinition],
+              instances: [elementsView],
               behaviour,
             });
           if (wide)
@@ -703,6 +738,7 @@ const meta = {
     writeOutcome: { table: { disable: true } },
     theme: { table: { disable: true } },
     cellFamily: { table: { disable: true } },
+    elements: { table: { disable: true } },
     exporting: { table: { disable: true } },
     wide: { table: { disable: true } },
   },
@@ -746,6 +782,17 @@ export const TotalCoversThisPageOnly: Story = {
  * 约 1.5 秒后复原。切到卡片，同一份读法。
  */
 export const CellFamily: Story = { args: { cellFamily: true } };
+
+/**
+ * 按元素读的一列：对象数组在单元格里是它的一个个元素，而不是一段 JSON。
+ *
+ * 「明细」声明了以货号为元素的标题，于是一格是一枚一枚的货号；一单五条明细
+ * 的那一行只画前两枚、第三个位置写「+3」——表格一行就是一行，整张清单悬停
+ * 即得，读屏器听到的是被收起的那三个货号本身。「包裹」没有声明标题，于是一格
+ * 只说它装了几项（「2 项」），空的那单什么也不说。切到卡片，五条明细全部
+ * 画出、折行。
+ */
+export const ElementColumns: Story = { args: { elements: true } };
 
 /**
  * 一列时刻的最早与最晚。

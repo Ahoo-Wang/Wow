@@ -75,6 +75,49 @@ export interface RecordColumnView {
   numberFormat?: NumberFormat;
   /** An enum's choices, so a cell can show a value by its label. */
   options?: readonly FieldOption[];
+  /** For an array of objects, what each element is read by. */
+  elementTitle?: ElementTitleView;
+}
+
+/**
+ * The element field an array of objects is read by, one element at a time
+ * (`FieldDefinition.elementTitle`), resolved to what reading it takes: where
+ * it sits within an element, and how it reads.
+ *
+ * It rides on the column rather than being looked up by the renderer because
+ * the renderer holds a result and not a definition — the same reason the
+ * column carries its options.
+ */
+export interface ElementTitleView {
+  /** Its name within one element, e.g. `name` in `body[].name`. */
+  name: string;
+  kind: string;
+  /** Renderer key; the kind's default when the field names none. */
+  cell: string;
+  options?: readonly FieldOption[];
+  numberFormat?: NumberFormat;
+}
+
+/**
+ * The title an array of objects declares, as a cell reads it, or `undefined`
+ * when it declares none — admission has already refused a name its elements
+ * do not declare, so a missing one here is a definition that chose to count.
+ */
+export function elementTitleView(
+  field: FieldDefinition,
+): ElementTitleView | undefined {
+  if (field.elementTitle === undefined) return undefined;
+  const title = field.elements?.find(
+    element => element.name === field.elementTitle,
+  );
+  if (!title) return undefined;
+  return {
+    name: title.name,
+    kind: title.kind,
+    cell: title.cell ?? title.kind,
+    ...(title.options ? { options: title.options } : {}),
+    ...(title.numberFormat ? { numberFormat: title.numberFormat } : {}),
+  };
 }
 
 export interface RecordRow {
@@ -98,6 +141,8 @@ export interface RecordCardField {
   cell?: string;
   options?: readonly FieldOption[];
   numberFormat?: NumberFormat;
+  /** For an array of objects, what each element is read by. */
+  elementTitle?: ElementTitleView;
 }
 
 /**
@@ -128,7 +173,12 @@ export interface RecordView {
   paging: RecordPaging;
 }
 
-function cardField(field: FieldDefinition): RecordCardField {
+/**
+ * A declared field as a value of it reads outside a table — on a card, and
+ * in the detail of one record (`detailSections`), which is a card holding
+ * every field.
+ */
+export function cardField(field: FieldDefinition): RecordCardField {
   return {
     field: field.name,
     label: field.label,
@@ -136,6 +186,7 @@ function cardField(field: FieldDefinition): RecordCardField {
     cell: field.cell ?? field.kind,
     ...(field.options ? { options: field.options } : {}),
     ...(field.numberFormat ? { numberFormat: field.numberFormat } : {}),
+    ...elementTitleOf(field),
   };
 }
 
@@ -182,7 +233,15 @@ function columnView(
     sortable: field.sortable === true,
     numberFormat: field.numberFormat,
     ...(field.options ? { options: field.options } : {}),
+    ...elementTitleOf(field),
   };
+}
+
+function elementTitleOf(field: FieldDefinition): {
+  elementTitle?: ElementTitleView;
+} {
+  const elementTitle = elementTitleView(field);
+  return elementTitle ? { elementTitle } : {};
 }
 
 /** A column as the layout rule reads it: its field, and whether it is pinned. */

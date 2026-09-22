@@ -25,6 +25,7 @@ import displayMeta, {
   CollapsedSidebar as DisplayCollapsedSidebar,
   DeleteConflicted as DisplayDeleteConflicted,
   EarliestAndLatest as DisplayEarliestAndLatest,
+  ElementColumns as DisplayElementColumns,
   EmptyResult as DisplayEmptyResult,
   English as DisplayEnglish,
   ExportCapped as DisplayExportCapped,
@@ -388,6 +389,70 @@ export const CellFamily: Story = {
     await expect(copy).toHaveAccessibleName(
       say('label.copy-of', { value: 'SO-1001' }),
     );
+  },
+};
+
+/**
+ * An array of objects reads as its elements in a real table: each order's
+ * lines by their SKU, one line high, the fifth line of a five-line order
+ * counted rather than drawn, and the parcels — which name no title — as how
+ * many there are. Nowhere a brace: the JSON these cells used to hold is what
+ * pushed a real event stream's table off the screen.
+ */
+export const ElementColumns: Story = {
+  ...DisplayElementColumns,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    await waitFor(() => expect(readColumn(table, '订单号')).toHaveLength(6));
+    const row = (id: string) =>
+      readColumn(table, '订单号').findIndex(text => text.startsWith(id));
+
+    await expect(badgeTexts(cellAt(table, '明细', row('SO-1001')))).toEqual([
+      'TEA-01',
+      'CUP-12',
+    ]);
+    // Three lines are three badges: an event stream of three reads whole.
+    await expect(badgeTexts(cellAt(table, '明细', row('SO-1003')))).toEqual([
+      'CARD-07',
+      'TEA-01',
+      'BOX-02',
+    ]);
+
+    // Five are the first two and a count, on one line, with the whole list
+    // one hover away and the hidden three read out rather than drawn.
+    const five = cellAt(table, '明细', row('SO-1004'));
+    await expect(badgeTexts(five)).toEqual(['CUP-12', 'PLATE-05']);
+    const more = five.querySelector('[data-slot="cell-elements-more"]')!;
+    await expect(more).toHaveTextContent('+3');
+    await expect(more).toHaveAttribute('aria-hidden', 'true');
+    const list = five.querySelector<HTMLElement>(
+      '[data-slot="cell-elements"]',
+    )!;
+    await expect(list).toHaveAttribute(
+      'title',
+      'CUP-12、PLATE-05、BOWL-04、SPOON-09、TRAY-01',
+    );
+    await expect(getComputedStyle(list).flexWrap).toBe('nowrap');
+    await expect(five).toHaveTextContent(/BOWL-04、SPOON-09、TRAY-01/);
+
+    // A table row is one line: the five-line order's row is as tall as the
+    // one-line order's.
+    const height = (id: string) =>
+      (table as HTMLTableElement).tBodies[0].rows[
+        row(id)
+      ].getBoundingClientRect().height;
+    await expect(height('SO-1004')).toBe(height('SO-1006'));
+
+    // No title declared: counted, and an empty list says nothing at all.
+    await expect(cellAt(table, '包裹', row('SO-1005'))).toHaveTextContent(
+      '3 项',
+    );
+    await expect(cellAt(table, '包裹', row('SO-1001'))).toHaveTextContent(
+      '1 项',
+    );
+    await expect(cellAt(table, '包裹', row('SO-1002'))).toHaveTextContent('');
+    await expect(table.textContent).not.toMatch(/[{}]/);
   },
 };
 

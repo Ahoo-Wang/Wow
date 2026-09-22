@@ -50,6 +50,12 @@ export interface FieldDefinition {
   // 声明在别处就得用路径字符串回指，而路径可以指向不存在的字段——那一整类悬空引用
   // 在这里根本写不出来。元素名字自成作用域，可与根字段重名，引用一律写 `field.element`。
   elements?: FieldDefinition[];
+  // 数组对象字段的元素**以哪个元素字段为标题**：单元格把数组读成它的一个个元素，
+  // 每个元素按这个字段、照这个字段的读法读（enum → 选项标签与语气的徽章，string → 文字）。
+  // 必须是 elements 里声明过、且自己持有值的字段（不是无字段种类、也不是又一层对象数组），
+  // 否则准入报 definition.field.element-title-unknown／element-title-not-a-value。
+  // 不声明时单元格说它装了几项（「3 项」），绝不写出 JSON。见下文「数组对象在单元格里」。
+  elementTitle?: string;
 }
 
 export type FieldCellId =
@@ -128,6 +134,19 @@ export interface AggregationFieldCapability {
   percentile?: boolean;
 }
 ```
+
+### 数组对象在单元格里：按元素的标题读
+
+真实的 Wow 事件流（`execution_failed/event`，178 万条）把一次流里的事件放在数组 `body` 里，每个元素带 `name`、`bodyType`、`revision` 和载荷 `body[].body`。一列 `body` 从前把整个数组写成 JSON——堆栈一并在内——把表格撑到屏幕外很远，而运维要问的那一件事（这一步是「准备重试」还是「重试失败」）哪儿也读不到；定义也绕不过去：服务拒绝 `body.0.name`（`Unknown logical field`）。订单明细、地址列表……凡是 Wow 聚合里装着对象数组的地方都是同一个形状。
+
+所以对象数组是一种**读法**，由定义说：`elementTitle` 点名元素里哪个字段是一个元素的**标题**。取名与卡片的 `card.title` 同一个词、同一个意思——那个说出「这是哪一个」的值；引擎挑不出它（事件按 `name` 读，明细按 `sku` 读，哪个成员说出元素**是什么**是业务知识），所以由定义声明，并且只能指向元素里声明过、自己持有值的字段（准入见 [kernels.md#定义准入](kernels.md#定义准入)）。
+
+- **声明了**：数组读成它的元素，每个元素一枚徽章，徽章上是标题字段**自己的读法**——enum 的选项标签与语气、string 的文字、时刻按表面的时区。一个元素一枚，与 `tags` 一个值一枚同理：拼成一枚会读成名字里带逗号的一个东西。标题为空的元素仍是一个元素，读作「未命名」而不从计数里消失。一个对象值（不是数组）就是它那一个元素。
+- **不声明**：数组说它装了几项（「3 项」／"3 items"），对象说它有几个字段（「2 个字段」）。这句话是真的、短的，也是不知道元素是什么时能说的全部；原始 JSON 从来不是运维要的东西。空数组、空对象什么也不装，读作空，如同空的 `tags` 画零枚。
+- **标量数组**（`['a','b']`）照每个值的读法、以目录的列表分隔符连成一行，同样不再是 `["a","b"]`。
+- **一行文本**（CSV、`title`）：各元素的标题以目录的列表分隔符（中文「、」、英文 ", "）连起来；徽章与标量列表也用这同一个分隔符。
+
+表格一行放几枚、卡片怎么折，见 [ui/record.md#数组对象的一列](ui/record.md#数组对象的一列)。投影不必另加什么：列显示时它的数组路径本来就在 `recordProjection` 里，元素整个带回来，标题在其中；列隐藏时不取。（见 test/display.test.ts「cellText of an array of objects」、test/recordCells.test.tsx「an array of objects」、test/recordProjection.test.tsx、test/definition.test.ts）
 
 ### 软删除是定义声明的一维（D17-2）
 

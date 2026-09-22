@@ -275,9 +275,47 @@ function validateFields(
       issues.push(
         ...validateFields(field.elements, kinds, [...at, 'elements']),
       );
+
+    issues.push(...validateElementTitle(field, kinds, [...at, 'elementTitle']));
   });
 
   return issues;
+}
+
+/**
+ * `elementTitle` is what a cell reads each element of the array by, so a
+ * name the elements do not declare would not fail — every element would
+ * read as untitled, and the column would say nothing where the definition
+ * meant it to say which step each event was. A title has to be a value an
+ * element holds: a handle names no member of the element, and a further
+ * array of objects is a list, not a name.
+ */
+function validateElementTitle(
+  field: FieldDefinition,
+  kinds: FieldKindRegistry,
+  at: IssuePath,
+): Issue[] {
+  const title = field.elementTitle;
+  if (title === undefined) return [];
+  const found = (field.elements ?? []).find(element => element.name === title);
+  if (!found)
+    return [
+      issue('definition.field.element-title-unknown', at, {
+        field: field.name,
+        title,
+      }),
+    ];
+  if (
+    isFieldlessKind(found.kind, kinds.get(found.kind)) ||
+    found.elements !== undefined
+  )
+    return [
+      issue('definition.field.element-title-not-a-value', at, {
+        field: field.name,
+        title: found.name,
+      }),
+    ];
+  return [];
 }
 
 /**

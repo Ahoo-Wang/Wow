@@ -20,6 +20,7 @@ import {
   csvCellText,
   displayValue,
   formatNumber,
+  heldReading,
   isoDay,
   valueText,
   type DisplayField,
@@ -27,7 +28,8 @@ import {
 } from '../src/ui/display.js';
 import { summaryText } from '../src/ui/summary.js';
 import { en } from '../src/ui/messages/en.js';
-import { formatMessage } from '../src/ui/messages.js';
+import { zhCN } from '../src/ui/messages/zh-CN.js';
+import { formatMessage, type ViewMessages } from '../src/ui/messages.js';
 
 /**
  * Expected text comes from the same Intl call, not a literal: the ICU data a
@@ -430,13 +432,85 @@ describe('cellText', () => {
     expect(text(true, { kind: 'boolean' })).toBe(en['label.value.yes']);
   });
 
-  it('gives a link and a paragraph whole, and anything else as JSON', () => {
+  it('gives a link and a paragraph whole, and never writes JSON', () => {
     expect(text('https://example.com/a', { cell: 'link' })).toBe(
       'https://example.com/a',
     );
     expect(text('two\nlines', { cell: 'text' })).toBe('two\nlines');
-    expect(text({ a: 1 })).toBe('{"a":1}');
+    expect(text(['a', 'b'])).toBe('a, b');
     expect(text(9007199254740993n)).toBe('9007199254740993');
+  });
+});
+
+/**
+ * An array of objects in a line of text — a CSV, a title — reads as the cell
+ * does: its elements' titles, or how many it holds. Joined by the
+ * catalogue's separator, so a Chinese file lists 「准备重试、重试失败」.
+ */
+describe('cellText of an array of objects', () => {
+  const words = (catalogue: ViewMessages): MessageFormatters => ({
+    label: (key, params) => formatMessage(catalogue, key, params),
+    issue: () => '',
+    issues: () => '',
+  });
+  const context = { locale: 'zh-CN', timeZone: 'UTC' };
+  const body: DisplayField = {
+    kind: 'elementMatch',
+    elementTitle: {
+      name: 'name',
+      kind: 'enum',
+      options: [
+        { value: 'RETRY_PREPARED', label: '准备重试', tone: 'warning' },
+        { value: 'RETRY_FAILED', label: '重试失败', tone: 'danger' },
+      ],
+    },
+  };
+  const events = [
+    { name: 'RETRY_PREPARED', body: { stackTrace: 'at Retry.kt:42' } },
+    { name: 'RETRY_FAILED', body: { stackTrace: 'at Retry.kt:42' } },
+    { name: 'UNLISTED' },
+  ];
+
+  it('lists every title, joined the catalogue way, in the CSV too', () => {
+    expect(cellText(events, body, words(zhCN), context)).toBe(
+      '准备重试、重试失败、UNLISTED',
+    );
+    expect(csvCellText(events, body, words(en), context)).toBe(
+      '准备重试, 重试失败, UNLISTED',
+    );
+  });
+
+  it('reads a title by a path within the element, and an object as one element', () => {
+    const lines: DisplayField = {
+      elementTitle: { name: 'sku.code', kind: 'string' },
+    };
+    expect(
+      cellText([{ sku: { code: 'A-1' } }], lines, words(en), context),
+    ).toBe('A-1');
+    expect(cellText({ sku: { code: 'B-2' } }, lines, words(en), context)).toBe(
+      'B-2',
+    );
+  });
+
+  it('counts what it holds without a title, never writing its JSON', () => {
+    expect(cellText(events, {}, words(zhCN), context)).toBe('3 项');
+    expect(cellText([events[0]], {}, words(en), context)).toBe('1 item');
+    expect(cellText({ a: 1, b: 2 }, {}, words(zhCN), context)).toBe('2 个字段');
+    expect(cellText({ a: 1 }, {}, words(en), context)).toBe('1 field');
+    expect(cellText([], body, words(en), context)).toBe('');
+    expect(cellText({}, {}, words(en), context)).toBe('');
+  });
+
+  it('hands each element over with its title field’s tone', () => {
+    expect(heldReading(events, body, words(en), context)).toEqual({
+      elements: [
+        { value: 'RETRY_PREPARED', label: '准备重试', tone: 'warning' },
+        { value: 'RETRY_FAILED', label: '重试失败', tone: 'danger' },
+        { value: 'UNLISTED', label: 'UNLISTED' },
+      ],
+    });
+    expect(heldReading(['a'], {}, words(en), context)).toBeUndefined();
+    expect(heldReading('a', body, words(en), context)).toBeUndefined();
   });
 });
 

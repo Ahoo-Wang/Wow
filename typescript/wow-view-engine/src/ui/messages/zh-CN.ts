@@ -166,6 +166,12 @@ export const zhCN: ViewMessages = {
   'label.summary.of': '{field} 的 {fn}',
   'label.value.yes': '是',
   'label.value.no': '否',
+  'label.value.items': '{count} 项',
+  'label.value.items-one': '1 项',
+  'label.value.fields': '{count} 个字段',
+  'label.value.fields-one': '1 个字段',
+  'label.value.untitled': '未命名',
+  'label.value.more': '+{count}',
   'label.sort.ascending': '按{field}升序排序',
   'label.sort.descending': '按{field}降序排序',
   'label.sort.none': '取消按{field}排序',
@@ -951,6 +957,10 @@ export const zhCN: ViewMessages = {
   'definition.analysis.limit-invalid': '分析上限必须是正整数。',
   'definition.analysis.no-metric': '分析能力没有给出可以起步的指标。',
   'definition.field.cell-invalid': '{field} 声明了未知的单元格读法：{value}。',
+  'definition.field.element-title-unknown':
+    '{field} 以 {title} 作为元素的标题，但它的元素没有声明这个字段。',
+  'definition.field.element-title-not-a-value':
+    '{field} 以 {title} 作为元素的标题，但它不持有可读的值。',
   'definition.field.editor-removed':
     '{field} 声明了 editor，这个成员已经没有了，删掉即可。',
   'definition.field.temporal-invalid':

@@ -14,6 +14,7 @@
 import {
   isDateCell,
   type AnalysisDateUnit,
+  type RecordData,
   type FieldOption,
   type FieldTone,
   type NumberFormat,
@@ -21,6 +22,7 @@ import {
 } from '../model/index.js';
 import { readInstant } from '../filter/index.js';
 import { wordReferences, type MetricFunction } from '../analysis/index.js';
+import { recordValue } from '../record/index.js';
 import type { MessageKey } from './messages.js';
 import type { MessageFormatters } from './MessagesProvider.js';
 
@@ -44,6 +46,17 @@ export interface DisplayField {
   dateUnit?: AnalysisDateUnit;
   /** The zone those buckets were cut in, when the group named one. */
   timeZone?: string;
+  /**
+   * For an array of objects, the element field each element is read by and
+   * its name within the element (`FieldDefinition.elementTitle`).
+   */
+  elementTitle?: ElementTitleField;
+}
+
+/** The element field an array of objects is read by, one element each. */
+export interface ElementTitleField extends DisplayField {
+  /** Its name within one element. */
+  name: string;
 }
 
 /**
@@ -260,8 +273,9 @@ export function valueText(
  * `displayValue`, the numbers and booleans from the rules under them. What it
  * drops is only what a node carries and a line of text cannot — a badge is
  * its label, a link is its URL, a clamped paragraph is the whole paragraph.
- * Several badges read as one comma-separated list, the way the cell reads
- * out loud.
+ * Several badges, several elements or several plain values read as one list
+ * joined by the catalogue's separator, the way the cell reads out loud; an
+ * array of objects or an object reads as `heldReading` says.
  */
 export function cellText(
   value: unknown,
@@ -270,14 +284,120 @@ export function cellText(
   context: DisplayContext,
 ): string {
   if (value === null || value === undefined) return '';
+  const held = heldReading(value, field, messages, context);
+  if (held)
+    return 'text' in held ? held.text : labelsOf(held.elements, messages);
   const badges = badgeEntries(value, field);
-  if (badges) return badges.map(entry => entry.label).join(', ');
+  if (badges) return labelsOf(badges, messages);
+  // A list of plain values, one reading each: an enum's labels, a list of
+  // dates each in the surface's zone — never `["a","b"]`.
+  if (Array.isArray(value))
+    return value
+      .map(item => cellText(item, field, messages, context))
+      .join(messages.label('label.filter.join'));
   const shown = displayValue(value, field, context);
   if (shown !== undefined) return shown;
   if (typeof value === 'number')
     return formatNumber(value, field.numberFormat, context.locale);
   if (typeof value === 'bigint') return value.toString();
   return valueText(value, messages, field.numberFormat, context.locale);
+}
+
+/**
+ * Several readings as one line, joined by the catalogue's list separator —
+ * 「、」 in Chinese, ", " in English — the one every read-out list in this
+ * package is joined by.
+ */
+export function labelsOf(
+  entries: readonly BadgeEntry[],
+  messages: MessageFormatters,
+): string {
+  return entries
+    .map(entry => entry.label)
+    .join(messages.label('label.filter.join'));
+}
+
+/**
+ * What a value holding structure reads as: an array of objects, or an
+ * object. `undefined` for anything else — a scalar, or a list of scalars —
+ * which the readings after it answer.
+ *
+ * **Never as JSON.** On the Wow event stream the events of one stream sit in
+ * an array `body` of objects, each carrying its payload; written out, one
+ * cell held a stack trace and pushed the table far off the screen, while
+ * saying nothing an operator asked — which step was this? So:
+ *
+ * - with an element title declared, the array reads as **its elements**,
+ *   each by that field and the way that field reads (`elements`): an enum
+ *   element field wears its option's label and tone, a string its text. One
+ *   entry per element, as a list of tags is one badge per tag: joined into
+ *   one they would read as one name with a comma in it. An element whose
+ *   title is empty is still an element, and reads as untitled rather than
+ *   dropping out of the count;
+ * - without one, it reads as **how many** it holds — 「3 项」 — which is true,
+ *   short, and all that can be said without knowing what an element is;
+ * - an object that is not an array reads as how many fields it holds, for
+ *   the same reason, unless the field names a title, when it is the one
+ *   element it is.
+ *
+ * An empty array or object holds nothing and reads as nothing, as an empty
+ * list of tags draws no badge.
+ */
+export function heldReading(
+  value: unknown,
+  field: DisplayField,
+  messages: MessageFormatters,
+  context: DisplayContext,
+): { elements: BadgeEntry[] } | { text: string } | undefined {
+  const title = field.elementTitle;
+  if (Array.isArray(value)) {
+    if (title)
+      return {
+        elements: value.map(element =>
+          elementEntry(element, title, messages, context),
+        ),
+      };
+    if (!value.some(isStructured)) return undefined;
+    return { text: countText(value.length, 'items', messages) };
+  }
+  if (!isStructured(value)) return undefined;
+  if (title)
+    return { elements: [elementEntry(value, title, messages, context)] };
+  return { text: countText(Object.keys(value).length, 'fields', messages) };
+}
+
+/** One element, by its title field: that field's label and, for a single choice, its tone. */
+function elementEntry(
+  element: unknown,
+  title: ElementTitleField,
+  messages: MessageFormatters,
+  context: DisplayContext,
+): BadgeEntry {
+  const value = isStructured(element)
+    ? recordValue(element as RecordData, title.name)
+    : undefined;
+  const label =
+    cellText(value, title, messages, context) ||
+    messages.label('label.value.untitled');
+  const badges = badgeEntries(value, title);
+  const tone = badges?.length === 1 ? badges[0].tone : undefined;
+  return { value, label, ...(tone ? { tone } : {}) };
+}
+
+function countText(
+  count: number,
+  noun: 'items' | 'fields',
+  messages: MessageFormatters,
+): string {
+  if (count === 0) return '';
+  return count === 1
+    ? messages.label(`label.value.${noun}-one`)
+    : messages.label(`label.value.${noun}`, { count });
+}
+
+/** An object a reader would otherwise see as JSON: a record, or a list. */
+function isStructured(value: unknown): value is object {
+  return typeof value === 'object' && value !== null;
 }
 
 /**

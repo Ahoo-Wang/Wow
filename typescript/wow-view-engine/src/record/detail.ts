@@ -11,11 +11,8 @@
  * limitations under the License.
  */
 
-import {
-  isFieldlessKind,
-  type DataViewDefinition,
-  type FieldDefinition,
-} from '../model/index.js';
+import { isFieldlessKind, type DataViewDefinition } from '../model/index.js';
+import { cardField, type RecordCardField } from './project.js';
 
 /** One titled part of a record's detail: the fields a group gathers. */
 export interface DetailSection {
@@ -23,7 +20,11 @@ export interface DetailSection {
   id: string | null;
   /** The group's label; `null` where the fields gathered no group. */
   label: string | null;
-  fields: FieldDefinition[];
+  /**
+   * Its fields, resolved the way a card's are — a detail is a card that
+   * holds every field — so a value reads there as it does on the card.
+   */
+  fields: RecordCardField[];
 }
 
 /**
@@ -51,12 +52,13 @@ export function detailSections(
       const field = byName.get(name);
       if (!field || placed.has(name)) return [];
       placed.add(name);
-      return [field];
+      return [cardField(field)];
     });
     if (fields.length > 0)
       sections.push({ id: group.id, label: group.label, fields });
   }
   const rest = valued.filter(field => !placed.has(field.name));
-  if (rest.length > 0) sections.push({ id: null, label: null, fields: rest });
+  if (rest.length > 0)
+    sections.push({ id: null, label: null, fields: rest.map(cardField) });
   return sections;
 }

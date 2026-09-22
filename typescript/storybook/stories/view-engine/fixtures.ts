@@ -213,6 +213,40 @@ export const expandableOrdersDefinition: DataViewDefinition = {
   },
 };
 
+/**
+ * 同一份订单，外加两个装着对象的数组：明细（`lines`）与包裹（`parcels`）。
+ *
+ * 真实的 Wow 聚合里这是常态——事件流的 `body`、订单的明细、收货地址——而一列
+ * 落在这种字段上从前写出整段 JSON。明细声明了 `elementTitle: 'sku'`，于是一格
+ * 读成一枚一枚的货号；包裹没有声明，于是一格只说它装了几项。只有「按元素读」
+ * 那个故事用它：多两个字段，筛选面板就多两项，好几个故事正数着那里有几个。
+ */
+export const orderLinesDefinition: DataViewDefinition = {
+  ...ordersDefinition,
+  fields: [
+    ...ordersDefinition.fields,
+    {
+      name: 'lines',
+      label: '明细',
+      kind: 'elementMatch',
+      elementTitle: 'sku',
+      elements: [
+        { name: 'sku', label: '货号', kind: 'string' },
+        { name: 'qty', label: '数量', kind: 'number' },
+      ],
+    },
+    {
+      name: 'parcels',
+      label: '包裹',
+      kind: 'elementMatch',
+      elements: [
+        { name: 'no', label: '包裹号', kind: 'string' },
+        { name: 'weight', label: '重量', kind: 'number' },
+      ],
+    },
+  ],
+};
+
 /** Dashboards own no data; the definition is only their catalogue entry. */
 export const overviewDefinition: DashboardDefinition = {
   id: 'overview',
@@ -223,6 +257,11 @@ export const overviewDefinition: DashboardDefinition = {
 export const ORDERS: RecordData[] = [
   {
     id: 'SO-1001',
+    lines: [
+      { sku: 'TEA-01', qty: 2 },
+      { sku: 'CUP-12', qty: 6 },
+    ],
+    parcels: [{ no: 'P-1001-1', weight: 1.2 }],
     warehouse: 'CN-EAST',
     status: 'PENDING',
     customer: 'c-03',
@@ -235,6 +274,8 @@ export const ORDERS: RecordData[] = [
   },
   {
     id: 'SO-1002',
+    lines: [{ sku: 'VASE-03', qty: 1 }],
+    parcels: [],
     warehouse: 'CN-EAST',
     // 已取消：一个"坏消息"的状态，好让语气三档在同一屏上齐。
     status: 'CANCELLED',
@@ -247,6 +288,12 @@ export const ORDERS: RecordData[] = [
   },
   {
     id: 'SO-1003',
+    lines: [
+      { sku: 'CARD-07', qty: 1 },
+      { sku: 'TEA-01', qty: 1 },
+      { sku: 'BOX-02', qty: 1 },
+    ],
+    parcels: [{ no: 'P-1003-1', weight: 0.4 }],
     warehouse: 'CN-NORTH',
     status: 'PENDING',
     customer: 'c-03',
@@ -259,6 +306,17 @@ export const ORDERS: RecordData[] = [
   },
   {
     id: 'SO-1004',
+    lines: [
+      { sku: 'CUP-12', qty: 12 },
+      { sku: 'PLATE-05', qty: 6 },
+      { sku: 'BOWL-04', qty: 6 },
+      { sku: 'SPOON-09', qty: 12 },
+      { sku: 'TRAY-01', qty: 1 },
+    ],
+    parcels: [
+      { no: 'P-1004-1', weight: 3.1 },
+      { no: 'P-1004-2', weight: 2.8 },
+    ],
     warehouse: 'CN-SOUTH',
     status: 'SHIPPED',
     customer: 'c-07',
@@ -271,6 +329,15 @@ export const ORDERS: RecordData[] = [
   },
   {
     id: 'SO-1005',
+    lines: [
+      { sku: 'GLASS-06', qty: 4 },
+      { sku: 'GLASS-08', qty: 4 },
+    ],
+    parcels: [
+      { no: 'P-1005-1', weight: 2.2 },
+      { no: 'P-1005-2', weight: 2.0 },
+      { no: 'P-1005-3', weight: 0.6 },
+    ],
     warehouse: 'CN-SOUTH',
     status: 'PENDING',
     customer: 'c-02',
@@ -284,6 +351,8 @@ export const ORDERS: RecordData[] = [
   },
   {
     id: 'SO-1006',
+    lines: [{ sku: 'TEA-01', qty: 1 }],
+    parcels: [{ no: 'P-1006-1', weight: 0.3 }],
     warehouse: 'CN-WEST',
     status: 'PENDING',
     customer: 'c-11',
@@ -300,6 +369,8 @@ export const ORDERS: RecordData[] = [
   // asks for «deleted included» (D17-2).
   {
     id: 'SO-1007',
+    lines: [{ sku: 'TEA-01', qty: 1 }],
+    parcels: [],
     warehouse: 'CN-EAST',
     status: 'PENDING',
     customer: 'c-03',

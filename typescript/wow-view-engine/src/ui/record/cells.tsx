@@ -20,6 +20,8 @@ import {
   cellText,
   displayValue,
   formatNumber,
+  heldReading,
+  labelsOf,
   type BadgeEntry,
   type DisplayContext,
   type DisplayField,
@@ -67,8 +69,10 @@ export type CellSurface = 'table' | 'card' | 'detail';
  * disagree with the column it was folded out of. What the field declares
  * decides: `status` and `tags` wear badges, `link` is a guarded external
  * link, `text` is a paragraph as long as the surface allows, `copyable` is
- * the value with the means to take it away, and a field that declares
- * nothing falls through to the kind's own rendering — a date in the
+ * the value with the means to take it away, an array of objects is its
+ * elements by the title the field names (or how many it holds, never its
+ * JSON), and a field that declares nothing falls through to the kind's own
+ * rendering — a date in the
  * surface's zone, a number in its format, a boolean in the catalogue's
  * words.
  */
@@ -80,6 +84,16 @@ export function cellValue(
   surface: CellSurface,
 ): React.ReactNode {
   if (value === null || value === undefined) return null;
+
+  // An array of objects, or an object: its elements by their title, or how
+  // many it holds — never its JSON (`heldReading`).
+  const held = heldReading(value, field, messages, display);
+  if (held) {
+    if ('text' in held) return held.text === '' ? null : held.text;
+    return (
+      <Elements entries={held.elements} surface={surface} messages={messages} />
+    );
+  }
 
   const badges = badgeEntries(value, field);
   if (badges) return <Badges entries={badges} surface={surface} />;
@@ -158,6 +172,10 @@ export function cellValue(
     );
   }
 
+  // A list of plain values reads as one line, each value as the field reads
+  // it — the same line the CSV writes.
+  if (Array.isArray(value)) return cellText(value, field, messages, display);
+
   // A time, a date or an enum shows as the field says; a number keeps its
   // format and a boolean its wording below.
   const shown = displayValue(value, field, display);
@@ -168,7 +186,9 @@ export function cellValue(
     return messages.label(value ? 'label.value.yes' : 'label.value.no');
   if (typeof value === 'string') return value;
   if (typeof value === 'bigint') return value.toString();
-  return JSON.stringify(value);
+  // Structure was read above, so what is left — a function, a symbol — is
+  // nothing a record holds and nothing a reader could use.
+  return null;
 }
 
 /**
@@ -197,7 +217,9 @@ function Badges({
     <span
       className={cn(
         'flex items-center gap-1',
-        surface === 'card' && 'flex-wrap',
+        // A card and the detail have the room downwards; a table row does
+        // not.
+        surface !== 'table' && 'flex-wrap',
       )}
     >
       {entries.map((entry, index) => (
@@ -217,4 +239,72 @@ const LONG_VALUE = 120;
 
 function isLong(value: string): boolean {
   return value.length > LONG_VALUE || value.includes('\n');
+}
+
+/**
+ * How many things a table cell of elements shows before it counts the rest:
+ * three, of which the last is the count once there are more than three.
+ *
+ * A table cell is one line (「表格里一行就是一行」), and unlike a list of tags
+ * an array of objects has no ceiling — an order can hold forty lines — so
+ * the column cannot simply be as wide as its content. Three is what a
+ * glance takes in, and it is enough for the case this reading exists for:
+ * an event stream holds one to three events, so a stream reads whole. Past
+ * three, the first two are shown and the third place says `+k`: showing
+ * three and `+1` would spend the room of the one element it hides on
+ * saying it is hidden.
+ *
+ * Nothing is lost: the whole list is the cell's `title`, a screen reader
+ * hears every element (the hidden ones are read, not drawn), the CSV writes
+ * them all, and a card — which has the room downwards — wraps them all.
+ */
+const TABLE_ELEMENTS = 3;
+
+/**
+ * The elements of an array of objects, each by its title, as badges: the
+ * title field's tone where it is a single choice that names one, neutral
+ * otherwise. Keyed by place, since two elements may well share a title.
+ */
+function Elements({
+  entries,
+  surface,
+  messages,
+}: {
+  entries: readonly BadgeEntry[];
+  surface: CellSurface;
+  messages: MessageFormatters;
+}) {
+  if (entries.length === 0) return null;
+  const folds = surface === 'table' && entries.length > TABLE_ELEMENTS;
+  const shown = folds ? entries.slice(0, TABLE_ELEMENTS - 1) : entries;
+  const rest = entries.slice(shown.length);
+  return (
+    <span
+      data-slot="cell-elements"
+      data-count={entries.length}
+      className={cn(
+        'flex items-center gap-1',
+        // A card and the detail have the room downwards; a table row does
+        // not.
+        surface !== 'table' && 'flex-wrap',
+      )}
+      title={folds ? labelsOf(entries, messages) : undefined}
+    >
+      {shown.map((entry, index) => (
+        <ToneBadge key={index} tone={entry.tone ?? 'neutral'}>
+          {entry.label}
+        </ToneBadge>
+      ))}
+      {rest.length > 0 && (
+        <>
+          {/* The count is for the eye; a reader hears the elements it
+              stands for, since a bare "+2" says nothing about them. */}
+          <span data-slot="cell-elements-more" aria-hidden>
+            {messages.label('label.value.more', { count: rest.length })}
+          </span>
+          <span className="sr-only">{labelsOf(rest, messages)}</span>
+        </>
+      )}
+    </span>
+  );
 }

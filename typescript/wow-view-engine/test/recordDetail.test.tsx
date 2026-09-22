@@ -97,7 +97,7 @@ describe('detailSections', () => {
     expect(
       sections.map(section => [
         section.label,
-        section.fields.map(field => field.name),
+        section.fields.map(field => field.field),
       ]),
     ).toEqual([
       ['The order', ['id', 'status']],
@@ -113,6 +113,30 @@ describe('detailSections', () => {
 function dataRows(): HTMLElement[] {
   return screen.getAllByRole('row').slice(1);
 }
+
+describe('detailSections, read the way a card reads', () => {
+  it('resolves an array of objects to the element title it is read by', () => {
+    const [section] = detailSections({
+      fields: [
+        {
+          name: 'lines',
+          label: 'Lines',
+          kind: 'elementMatch',
+          elementTitle: 'sku',
+          elements: [
+            { name: 'sku', label: 'SKU', kind: 'string' },
+            { name: 'qty', label: 'Qty', kind: 'number' },
+          ],
+        },
+      ],
+    });
+    expect(section!.fields[0]).toMatchObject({
+      field: 'lines',
+      label: 'Lines',
+      elementTitle: { name: 'sku', kind: 'string' },
+    });
+  });
+});
 
 describe('a record read whole', () => {
   it('opens from a press on the row, with what the page had, then the whole record', async () => {

@@ -418,6 +418,22 @@ export interface FieldDefinition {
    */
   elements?: FieldDefinition[];
   /**
+   * For an array of objects, the element field that names one element — the
+   * name it has within `elements`. A cell reads the array as its elements,
+   * each by this field and the way this field reads: an enum's label and
+   * tone as a badge, a string as its text.
+   *
+   * Called a title because it is one, in the same sense as a card's title
+   * (`RecordCardSpec.title`): the one value that says which thing this is.
+   * The engine cannot pick it — an event history is read by `name`, an
+   * order line by `sku`, and which member says what an element *is* is
+   * business knowledge — and without it an array of objects reads as how
+   * many elements it holds, never as the JSON of them. Admission refuses a
+   * name `elements` does not declare, and an element field that holds no
+   * value of its own (a handle, or a further array of objects).
+   */
+  elementTitle?: string;
+  /**
    * How `CONTAINS`, `STARTS_WITH` and `ENDS_WITH` compare text on this field.
    *
    * The default is case-insensitive, because somebody filtering a list by

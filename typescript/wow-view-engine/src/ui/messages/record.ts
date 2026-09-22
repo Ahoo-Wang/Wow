@@ -116,6 +116,17 @@ export const recordMessages = {
   'label.summary.of': '{fn} of {field}',
   'label.value.yes': 'Yes',
   'label.value.no': 'No',
+  // What an array of objects or an object holds, when the definition names
+  // no element title to read it by: counted, never written out as JSON.
+  // The catalogue has no plural rule, so the one is its own key.
+  'label.value.items': '{count} items',
+  'label.value.items-one': '1 item',
+  'label.value.fields': '{count} fields',
+  'label.value.fields-one': '1 field',
+  // An element whose title field is empty: still an element, still counted.
+  'label.value.untitled': 'Untitled',
+  // How many elements a table cell leaves to its title and the card.
+  'label.value.more': '+{count}',
 
   // Sorting from the headers. The name says what a click does rather than
   // what the column is called, because that is what the button is for; the

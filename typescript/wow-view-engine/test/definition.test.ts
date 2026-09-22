@@ -900,6 +900,70 @@ describe('ViewEngine and an unusable definition', () => {
     ]);
   });
 
+  /**
+   * `elementTitle` is what a cell reads each element by, so a name the
+   * elements do not declare would not fail — every element would read as
+   * untitled. And a title has to hold a value: a handle names no member of
+   * the element, and a further array of objects is a list, not a name.
+   */
+  it('admits an element title only where the elements declare a value by it', () => {
+    const body = (elementTitle: string, elements?: FieldDefinition[]) => ({
+      name: 'body',
+      label: 'Events',
+      kind: 'elementMatch',
+      elementTitle,
+      ...(elements ? { elements } : {}),
+    });
+    const events: FieldDefinition[] = [
+      { name: 'name', label: 'Event', kind: 'string' },
+      { name: 'text', label: 'Text', kind: 'search' },
+      {
+        name: 'lines',
+        label: 'Lines',
+        kind: 'array',
+        elements: [{ name: 'sku', label: 'SKU', kind: 'string' }],
+      },
+    ];
+    const found = (field: FieldDefinition) =>
+      validateDefinition(
+        ordersDefinition({
+          fields: [
+            { name: 'sku', label: 'SKU', kind: 'string', sortable: true },
+            field,
+          ],
+          record: { rowKey: 'sku', paging: 'paged', layouts: ['table'] },
+          analysis: undefined,
+          views: [],
+        }),
+        builtinFieldKinds,
+      ).map(entry => [entry.code, entry.path, entry.params]);
+
+    expect(found(body('name', events))).toEqual([]);
+    expect(found(body('missing', events))).toEqual([
+      [
+        'definition.field.element-title-unknown',
+        ['fields', 1, 'elementTitle'],
+        { field: 'body', title: 'missing' },
+      ],
+    ]);
+    // A field holding no elements has nothing to title.
+    expect(found(body('name'))).toEqual([
+      [
+        'definition.field.element-title-unknown',
+        ['fields', 1, 'elementTitle'],
+        { field: 'body', title: 'name' },
+      ],
+    ]);
+    for (const title of ['text', 'lines'])
+      expect(found(body(title, events))).toEqual([
+        [
+          'definition.field.element-title-not-a-value',
+          ['fields', 1, 'elementTitle'],
+          { field: 'body', title },
+        ],
+      ]);
+  });
+
   it('admits every reading and every tone it can draw', () => {
     for (const cell of FIELD_CELL_IDS) {
       expect(

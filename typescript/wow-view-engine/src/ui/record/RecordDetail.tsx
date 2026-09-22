@@ -119,7 +119,7 @@ export function RecordDetail({ detail, actions }: RecordDetailProps) {
                   </h3>
                   <dl className="grid grid-cols-[minmax(6rem,max-content)_minmax(0,1fr)] gap-x-4 gap-y-2">
                     {section.fields.map(field => {
-                      const value = recordValue(record, field.name);
+                      const value = recordValue(record, field.field);
                       const shown =
                         value === undefined && detail.loading ? (
                           <Skeleton className="h-4 w-24" />
@@ -133,7 +133,7 @@ export function RecordDetail({ detail, actions }: RecordDetailProps) {
                           ) ?? '—')
                         );
                       return (
-                        <div key={field.name} className="contents">
+                        <div key={field.field} className="contents">
                           <dt className="text-muted-foreground">
                             {field.label}
                           </dt>

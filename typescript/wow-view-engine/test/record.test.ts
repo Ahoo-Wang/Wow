@@ -712,6 +712,40 @@ describe('projectRecord', () => {
     expect(view.columns[0]).toMatchObject({ field: 'warehouse', options });
   });
 
+  /**
+   * The renderer holds a result, not a definition, so the column carries
+   * how an array of objects is read: the title element field, resolved to
+   * its name within the element and its reading. A definition naming none
+   * carries none, and the cell counts.
+   */
+  it("carries an array's element title on its column, for a cell to read by", () => {
+    const tones = [{ value: 'RETRY_FAILED', label: 'Retry failed' }];
+    const body = (elementTitle?: string) => ({
+      name: 'body',
+      label: 'Events',
+      kind: 'elementMatch',
+      ...(elementTitle ? { elementTitle } : {}),
+      elements: [
+        { name: 'name', label: 'Event', kind: 'enum', options: tones },
+        { name: 'revision', label: 'Revision', kind: 'number' },
+      ],
+    });
+    const column = (elementTitle?: string) =>
+      projectRecord(
+        definition({ fields: [...definition().fields, body(elementTitle)] }),
+        config({ table: { columns: [{ field: 'body' }] } }),
+        { total: 0, list: [] },
+      ).columns[0];
+
+    expect(column('name').elementTitle).toEqual({
+      name: 'name',
+      kind: 'enum',
+      cell: 'enum',
+      options: tones,
+    });
+    expect(column()).not.toHaveProperty('elementTitle');
+  });
+
   it('resolves column semantics and the row key', () => {
     const view = projectRecord(definition(), config(), {
       total: 2,

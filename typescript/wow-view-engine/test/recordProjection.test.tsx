@@ -181,6 +181,56 @@ describe('recordProjection', () => {
     expect(include(definition(), cfg)).toEqual(['state.id', 'state.error']);
   });
 
+  /**
+   * A column over an array of objects reads each element's title, so the
+   * page must bring the array: asked for by its own path, the elements come
+   * whole, their titles among them. The array of a hidden column is not
+   * fetched, however heavy or light its elements.
+   */
+  it('asks for an array of objects by its path when its column shows', () => {
+    const events: DataViewDefinition = {
+      id: 'events',
+      title: 'Events',
+      kind: 'data',
+      source: 'events',
+      fields: [
+        { name: 'aggregateId', label: 'Aggregate', kind: 'string' },
+        { name: 'version', label: 'Version', kind: 'number' },
+        {
+          name: 'body',
+          label: 'Events',
+          kind: 'elementMatch',
+          elementTitle: 'name',
+          elements: [
+            { name: 'name', label: 'Event', kind: 'string' },
+            { name: 'body', label: 'Payload', kind: 'string' },
+          ],
+        },
+      ],
+      record: { rowKey: 'aggregateId', paging: 'paged', layouts: ['table'] },
+    };
+    const shown = (hidden?: true) =>
+      recordConfig({
+        table: {
+          columns: [
+            { field: 'version' },
+            { field: 'body', ...(hidden ? { hidden } : {}) },
+          ],
+        },
+        card: { title: 'aggregateId', fields: [] },
+      });
+
+    expect(recordProjection(events, shown()).include).toEqual([
+      'aggregateId',
+      'version',
+      'body',
+    ]);
+    expect(recordProjection(events, shown(true)).include).toEqual([
+      'aggregateId',
+      'version',
+    ]);
+  });
+
   it('refuses a definition that declares no record capability', () => {
     expect(() =>
       recordProjection({ ...definition(), record: undefined }, config()),
@@ -320,5 +370,69 @@ describe('the query a view runs', () => {
     expect(asked(vi.mocked(source.paged))).toEqual({
       include: ['state.id', 'state.status', 'eventTime'],
     });
+  });
+});
+
+/**
+ * A card is a row folded out, so a card field over an array of objects
+ * carries the same element title its column does — the card reads the
+ * elements as the table does, wrapped rather than counted away.
+ */
+describe('an array of objects on a card', () => {
+  it('carries its element title to the card field, as to the column', async () => {
+    const events: DataViewDefinition = {
+      id: 'events',
+      title: 'Events',
+      kind: 'data',
+      source: 'events',
+      fields: [
+        {
+          name: 'aggregateId',
+          label: 'Aggregate',
+          kind: 'string',
+          sortable: true,
+        },
+        {
+          name: 'body',
+          label: 'Events',
+          kind: 'elementMatch',
+          elementTitle: 'name',
+          elements: [{ name: 'name', label: 'Event', kind: 'string' }],
+        },
+      ],
+      record: {
+        rowKey: 'aggregateId',
+        paging: 'paged',
+        layouts: ['table', 'card'],
+      },
+    };
+    const engine = new ViewEngine({
+      definitions: [events],
+      store: new MemoryViewStore({
+        instances: [
+          {
+            id: 'stream',
+            definitionId: 'events',
+            title: 'Stream',
+            scope: 'personal',
+            revision: '1',
+            config: recordConfig({
+              table: { columns: [{ field: 'body' }] },
+              card: { title: 'aggregateId', fields: ['body'] },
+            }),
+          },
+        ],
+      }),
+      resolveSource: () => testSource(),
+    });
+    const { result } = renderHook(() => {
+      const opened = useOpenView(engine, 'stream');
+      return useRecordTable(opened.runtime as RecordViewRuntime | null);
+    });
+    await waitFor(() => expect(result.current.status).toBe('success'));
+
+    const title = { name: 'name', kind: 'string', cell: 'string' };
+    expect(result.current.card.fields[0].elementTitle).toEqual(title);
+    expect(result.current.columns[0].elementTitle).toEqual(title);
   });
 });
