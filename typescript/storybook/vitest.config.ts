@@ -41,6 +41,9 @@ export default defineConfig({
         ],
         test: {
           name: 'storybook',
+          setupFiles: [
+            path.join(currentDirectory, '.storybook/vitest.setup.ts'),
+          ],
           browser: {
             enabled: true,
             fileParallelism: false,
