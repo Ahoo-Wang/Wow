@@ -153,6 +153,12 @@ function slot(
  * pivoted into a series per value. A pivot draws exactly one metric, so the
  * series list narrows to one the moment a second group appears and opens back
  * up to every metric when it goes.
+ *
+ * Between those two moments the series list is the analyst's (D20 屏 J): a
+ * list that still names metrics the shape has is kept exactly as it stands,
+ * because this function runs again on every redraw and a list re-derived
+ * there is a series the options panel cannot remove — pressed, it came
+ * straight back.
  */
 function cartesian(
   spec: CartesianSpec | undefined,
@@ -165,10 +171,21 @@ function cartesian(
   const previous = new Map(
     (spec?.series ?? []).map(series => [series.metric, series]),
   );
+  // What the spec draws now, minus any metric the shape no longer has. The
+  // pivot that narrowed it is the one thing that reopens it: that narrowing
+  // was the shape's doing, not a choice anyone made.
+  const named =
+    spec?.splitBy === undefined
+      ? (spec?.series ?? [])
+          .map(series => series.metric)
+          .filter(metric => shape.metrics.includes(metric))
+      : [];
   const drawn =
-    splitBy === undefined
-      ? shape.metrics
-      : [slot(spec?.series?.[0]?.metric, shape.metrics)];
+    splitBy !== undefined
+      ? [slot(spec?.series?.[0]?.metric, shape.metrics)]
+      : named.length > 0
+        ? named
+        : shape.metrics;
   const series = drawn.map(metric =>
     oneSeries(previous.get(metric), metric, type),
   );
@@ -265,15 +282,24 @@ function funnel(spec: FunnelSpec | undefined, shape: Shape): FunnelSpec {
       : { orientation: spec.orientation }),
   };
   if (shape.groups.length === 0) {
-    const labelled = new Map(
+    // The stages stay in the order the spec puts them in — that order is
+    // the analyst's, set by hand on the options page, and this runs again
+    // on every redraw — with any metric the list does not name yet added at
+    // the end, where it can be moved from.
+    const named =
       spec?.stages.from === 'metrics'
-        ? spec.stages.items.map(item => [item.metric, item])
-        : [],
-    );
+        ? spec.stages.items.filter(item => shape.metrics.includes(item.metric))
+        : [];
+    const taken = new Set(named.map(item => item.metric));
     return {
       stages: {
         from: 'metrics',
-        items: shape.metrics.map(metric => labelled.get(metric) ?? { metric }),
+        items: [
+          ...named,
+          ...shape.metrics
+            .filter(metric => !taken.has(metric))
+            .map(metric => ({ metric })),
+        ],
       },
       ...rest,
     };

@@ -20,7 +20,9 @@ import {
   groupFor,
   shapeChart,
   splitBy,
+  withStagesFrom,
   type AnalysisView,
+  type Picked,
 } from '../../analysis/index.js';
 import { describeFilter } from '../../filter/index.js';
 import type { AnalysisViewConfig, FieldOption } from '../../model/index.js';
@@ -32,7 +34,8 @@ import {
 import { AnalysisChart } from '../AnalysisChart.js';
 import { AnalysisTable } from '../AnalysisTable.js';
 import { AnalysisToolbar } from '../analysis/AnalysisToolbar.js';
-import { ChartPicker, type Picked } from '../analysis/ChartPicker.js';
+import { ChartOptions } from '../analysis/ChartOptions.js';
+import { ChartPicker } from '../analysis/ChartPicker.js';
 import { Tray } from '../analysis/Tray.js';
 import { Button } from '../components/button.js';
 import { DrillMenu, type Pick } from '../analysis/DrillMenu.js';
@@ -123,9 +126,10 @@ export function AnalysisParts({
     [view, shaped, chart],
   );
 
-  // The visualization panel (D20 屏 I): open from the result's toolbar, it
-  // takes the sidebar column; the tiles fit the shape that ran.
-  const [visualizing, setVisualizing] = useState(false);
+  // The visualization panel (D20 屏 I／J): open from the result's toolbar,
+  // it takes the sidebar column, first as the chart types, then as the
+  // chosen type's options; both fit the shape that ran.
+  const [panel, setPanel] = useState<'picker' | 'options' | null>(null);
   const fits = useMemo(
     () =>
       fitCharts({
@@ -141,7 +145,15 @@ export function AnalysisParts({
       return;
     }
     analysis.setLayout('chart');
-    analysis.setChartType(next);
+    if (!shaped || !view) return;
+    // Fitted to the rows on screen, and a funnel of a group's values given
+    // the order they came in, so a type picked draws at once.
+    analysis.updateChart(
+      withStagesFrom(
+        fitChartSlots({ ...chart, type: next }, shaped.groups, shaped.metrics),
+        view.rows,
+      ),
+    );
   };
 
   // The group the user pressed, on the chart or in the table, and the menu
@@ -271,18 +283,36 @@ export function AnalysisParts({
       <AnalysisToolbar
         analysis={analysis}
         view={view}
-        visualizing={visualizing}
-        onVisualize={setVisualizing}
+        visualizing={panel !== null}
+        onVisualize={open => setPanel(open ? 'picker' : null)}
       />
     ),
-    panel: visualizing && (
-      <ChartPicker
-        fits={fits}
-        picked={picked}
-        onPick={choose}
-        onBack={() => setVisualizing(false)}
-      />
-    ),
+    panel:
+      panel === 'picker' ? (
+        <ChartPicker
+          fits={fits}
+          picked={picked}
+          onPick={choose}
+          onOptions={() => setPanel('options')}
+          onBack={() => setPanel(null)}
+        />
+      ) : panel === 'options' && view ? (
+        <ChartOptions
+          picked={picked}
+          chart={chart}
+          groups={shaped?.groups ?? []}
+          metrics={shaped?.metrics ?? []}
+          columns={view.schema ?? view.columns}
+          rows={view.rows}
+          totals={analysis.totals}
+          onTotals={on => {
+            analysis.setTotals(on);
+            analysis.submit();
+          }}
+          onChange={next => analysis.updateChart(next)}
+          onBack={() => setPanel('picker')}
+        />
+      ) : null,
     result: view && (
       <>
         {/* A grouping nothing fell into is one sentence whichever layout is

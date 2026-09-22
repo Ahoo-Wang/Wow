@@ -35,6 +35,13 @@ export function Heatmap({
   const max = values.length > 0 ? Math.max(...values) : 0;
   const min = values.length > 0 ? Math.min(...values) : 0;
   const span = max - min || 1;
+  // How far up the scale a cell sits, 0 to 1. A log scale spreads the low
+  // end out, for a matrix where one cell dwarfs the rest.
+  const along = (cell: number) =>
+    spec?.heatmap?.scale === 'log'
+      ? Math.log1p(cell - min) / Math.log1p(span)
+      : (cell - min) / span;
+  const labelled = spec?.labels === true;
 
   return (
     <div
@@ -64,13 +71,9 @@ export function Heatmap({
                       : label(spec?.heatmap?.value, cell),
                 })}
                 className={cn(
-                  'bg-primary size-8 shrink-0 rounded-sm',
+                  'relative size-8 shrink-0',
                   onPick && cell !== null && 'cursor-pointer',
                 )}
-                style={{
-                  opacity:
-                    cell === null ? 0.06 : 0.15 + ((cell - min) / span) * 0.85,
-                }}
                 // An empty cell is no group of the result: nothing fell in it.
                 onClick={
                   onPick && cell !== null && spec?.heatmap
@@ -84,7 +87,24 @@ export function Heatmap({
                         )
                     : undefined
                 }
-              />
+              >
+                {/* The wash is a layer of its own, so a value written over
+                    the cell does not fade with it. */}
+                <div
+                  className="bg-primary absolute inset-0 rounded-sm"
+                  style={{
+                    opacity: cell === null ? 0.06 : 0.15 + along(cell) * 0.85,
+                  }}
+                />
+                {labelled && cell !== null && (
+                  <span
+                    data-slot="heatmap-label"
+                    className="text-foreground absolute inset-0 flex items-center justify-center truncate px-0.5 text-[10px] leading-none"
+                  >
+                    {label(spec?.heatmap?.value, cell)}
+                  </span>
+                )}
+              </div>
             );
           })}
         </div>

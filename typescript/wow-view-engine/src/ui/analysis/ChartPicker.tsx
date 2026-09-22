@@ -14,6 +14,7 @@
 import { useRef } from 'react';
 import {
   ArrowLeftIcon,
+  Settings2Icon,
   ChartAreaIcon,
   ChartColumnIcon,
   ChartLineIcon,
@@ -25,7 +26,11 @@ import {
   SquareSigmaIcon,
   TableIcon,
 } from 'lucide-react';
-import { CHART_PICKER_ORDER, type ChartFit } from '../../analysis/index.js';
+import {
+  CHART_PICKER_ORDER,
+  type ChartFit,
+  type Picked,
+} from '../../analysis/index.js';
 import type { ChartType } from '../../model/index.js';
 import { cn } from 'cn';
 import { IconButton } from '../IconButton.js';
@@ -46,14 +51,15 @@ const ICON: Record<ChartType | 'table', typeof TableIcon> = {
   table: TableIcon,
 };
 
-/** What the picker shows as chosen: a chart type, or the table. */
-export type Picked = ChartType | 'table';
+export type { Picked };
 
 export interface ChartPickerProps {
   /** How each type fits the result on hand (`fitCharts`). */
   fits: Record<ChartType, ChartFit>;
   picked: Picked;
   onPick(picked: Picked): void;
+  /** Opens the chosen type's options: the panel's second level. */
+  onOptions(): void;
   /** Closes the panel: the way back to the view list. */
   onBack(): void;
 }
@@ -74,11 +80,14 @@ export interface ChartPickerProps {
  * out of reach rather than only that it is. It is `aria-disabled` and not
  * `disabled` for that reason: `disabled` takes an element out of the
  * accessible tree's reach in some readers, reason and all.
+ * The chosen tile wears the gear that opens its options (D20 屏 J),
+ * beside the tile rather than inside it — a button holds no button.
  */
 export function ChartPicker({
   fits,
   picked,
   onPick,
+  onOptions,
   onBack,
 }: ChartPickerProps) {
   const messages = useViewMessages();
@@ -120,7 +129,7 @@ export function ChartPicker({
       <div
         role="radiogroup"
         aria-label={messages.label('label.chart.picker')}
-        className="grid grid-cols-3 gap-2"
+        className="grid grid-cols-3 gap-2 *:min-w-0 [&>div>button]:w-full"
       >
         {tiles.map(({ value, fit }, index) => {
           const Icon = ICON[value];
@@ -131,42 +140,55 @@ export function ChartPicker({
           );
           const reason = fit.reason && messages.label(fit.reason);
           return (
-            <ChartTile
-              key={value}
-              ref={node => {
-                if (node) refs.current.set(value, node);
-                else refs.current.delete(value);
-              }}
-              role="radio"
-              aria-checked={picked === value}
-              aria-disabled={!fit.available || undefined}
-              aria-label={reason ? `${name}. ${reason}` : name}
-              data-chart-type={value}
-              data-recommended={fit.recommended || undefined}
-              tabIndex={picked === value ? 0 : -1}
-              onClick={() => {
-                if (fit.available) onPick(value);
-              }}
-              onKeyDown={event => {
-                if (event.key === 'ArrowRight' || event.key === 'ArrowDown')
-                  move(index, 1);
-                else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp')
-                  move(index, -1);
-                else if (event.key === ' ' || event.key === 'Enter') {
-                  event.preventDefault();
+            <div key={value} className="relative flex">
+              <ChartTile
+                ref={node => {
+                  if (node) refs.current.set(value, node);
+                  else refs.current.delete(value);
+                }}
+                role="radio"
+                aria-checked={picked === value}
+                aria-disabled={!fit.available || undefined}
+                aria-label={reason ? `${name}. ${reason}` : name}
+                data-chart-type={value}
+                data-recommended={fit.recommended || undefined}
+                tabIndex={picked === value ? 0 : -1}
+                onClick={() => {
                   if (fit.available) onPick(value);
-                }
-              }}
-            >
-              <Icon aria-hidden className="size-5" />
-              <span>{name}</span>
-              {fit.recommended && (
-                <span data-slot="chart-recommended">
-                  {messages.label('label.chart.recommended')}
-                </span>
+                }}
+                onKeyDown={event => {
+                  if (event.key === 'ArrowRight' || event.key === 'ArrowDown')
+                    move(index, 1);
+                  else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp')
+                    move(index, -1);
+                  else if (event.key === ' ' || event.key === 'Enter') {
+                    event.preventDefault();
+                    if (fit.available) onPick(value);
+                  }
+                }}
+              >
+                <Icon aria-hidden className="size-5" />
+                <span>{name}</span>
+                {fit.recommended && (
+                  <span data-slot="chart-recommended">
+                    {messages.label('label.chart.recommended')}
+                  </span>
+                )}
+                {reason && <span data-slot="chart-reason">{reason}</span>}
+              </ChartTile>
+              {picked === value && (
+                <IconButton
+                  label={messages.label('label.chart.options-of', { name })}
+                  variant="ghost"
+                  size="icon-xs"
+                  className="absolute top-0.5 right-0.5"
+                  data-slot="chart-options-open"
+                  onClick={onOptions}
+                >
+                  <Settings2Icon />
+                </IconButton>
               )}
-              {reason && <span data-slot="chart-reason">{reason}</span>}
-            </ChartTile>
+            </div>
           );
         })}
       </div>

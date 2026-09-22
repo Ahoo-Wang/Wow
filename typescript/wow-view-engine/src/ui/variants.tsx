@@ -628,7 +628,7 @@ export function ChartTile({
         'aria-disabled:text-muted-foreground aria-disabled:cursor-not-allowed aria-disabled:opacity-60',
         'focus-visible:ring-ring/50 outline-none focus-visible:ring-[3px]',
         '[&_[data-slot=chart-reason]]:text-muted-foreground [&_[data-slot=chart-reason]]:text-[11px] [&_[data-slot=chart-reason]]:leading-tight',
-        '[&_[data-slot=chart-recommended]]:bg-primary [&_[data-slot=chart-recommended]]:text-primary-foreground [&_[data-slot=chart-recommended]]:absolute [&_[data-slot=chart-recommended]]:-top-2 [&_[data-slot=chart-recommended]]:right-1 [&_[data-slot=chart-recommended]]:rounded-full [&_[data-slot=chart-recommended]]:px-1.5 [&_[data-slot=chart-recommended]]:text-[10px]',
+        '[&_[data-slot=chart-recommended]]:bg-primary [&_[data-slot=chart-recommended]]:text-primary-foreground [&_[data-slot=chart-recommended]]:absolute [&_[data-slot=chart-recommended]]:-top-2 [&_[data-slot=chart-recommended]]:left-1 [&_[data-slot=chart-recommended]]:rounded-full [&_[data-slot=chart-recommended]]:px-1.5 [&_[data-slot=chart-recommended]]:text-[10px]',
         TEXT_UI,
         className,
       )}

@@ -149,6 +149,7 @@ src/
     chartSlots.ts             — `fitChartSlots`: the family sub-object of the current chart type, filled from the groups and metrics in force
     compile.ts                — compileAnalysis → AggregationQuery
     fitCharts.ts              — Which chart types can draw a result of this shape and which it reads best as (K3, Q6): the capability says which exist, this says which are greyed and why
+    chartOptions.ts           — The rules behind the visualization panel's second level: which pages a type has, a slot swap, one-choice stacking and smoothing, and a funnel's stage order from the rows (D20 屏 J)
     drill.ts                  — One result row back into the conditions that select its records: `bucketRange` (the inverse of date bucketing, K1), `drillConditions`, and the two follow-ups that stay in the view, `focusOn` and `splitBy`; hands out conditions and config patches only (K6)
     defaults.ts               — defaultAnalysisConfig — the first metric the capability can express; `aliasOf`, `termsGroup`, `DEFAULT_MISSING_KEY`
     expressions.ts            — Aggregate and derived expression walks
@@ -305,6 +306,11 @@ src/
     analysis/                 — What the analysis view is made of
       AnalysisToolbar.tsx     — The result's first row: the reading (dimensions · metrics) and how the result is looked at — table or chart, chart type, totals row
       ChartPicker.tsx         — The visualization panel's first level: the chart types as tiles in the sidebar column, greyed with a reason, the recommended one marked, the table among them (D20 屏 I)
+      ChartOptions.tsx        — The visualization panel's second level: the chosen type's options on the data, display and axes pages (D20 屏 J)
+      DataTab.tsx             — The options' data page: each family's slots, position slots listing dimensions and measure slots listing metrics; a funnel's stages reordered by hand
+      DisplayTab.tsx          — The options' display page: legend and value labels, then each family's own settings; the table's totals row
+      AxesTab.tsx             — The options' axes page, cartesian only: title, bounds and number format of each numeric axis
+      optionControls.tsx      — The few controls the options pages are built of: slot select, check, choice, number and text fields, and a titled section
       CompactSelect.tsx       — The one select a tray card carries: a named choice among a few words
       DimensionCard.tsx       — The dimensions slot and its cards: field, and the control its type asks for (granularity, band width)
       DrillMenu.tsx           — The follow-up menu on one group of a result: the records behind it, split by another dimension, only this group (D20 追问); anchored to the mark or row pressed
@@ -326,6 +332,7 @@ src/
       asImage.ts              — What every chart family spreads onto its drawing: a named image
       axis.ts                 — Value format, axis domain and ticks
       family.ts               — `FamilyProps`, the value labeller and the column titler
+      legend.ts               — Where a legend goes as the chart library takes it, from the spec's `legend` and the family's own default
       palette.ts              — Slot colours and the spec's overrides
       reading.ts              — A chart as text: its name and the numbers it draws
     columns/
@@ -333,7 +340,7 @@ src/
       drag.ts                 — What the settings make of a drag: `columnDrop` refuses one across the areas, plus what a reader hears
       rows.ts                 — The column settings' model: rows, the two areas (D19), order
       sections.ts             — Rows of one area by catalogue group; the search over them
-    components/               — 32 shadcn/ui primitives — vendored, see below
+    components/               — 33 shadcn/ui primitives — vendored, see below
     filter/                   — What the panel is made of
       AddEntry.tsx            — The field picker a group is added to from
       ConditionPill.tsx       — One condition; the element-match block; `PendingDot`

@@ -138,6 +138,34 @@ describe('fitChartSlots', () => {
     expect(issuesOf(back, [WAREHOUSE], [COUNT, TOTAL])).toEqual([]);
   });
 
+  /**
+   * The series list is a slot the analyst fills too, and this function runs
+   * again on every redraw: a list re-derived here is a series the options
+   * panel cannot remove — pressed, it came straight back (D20 屏 J).
+   */
+  it('keeps the series the chart names, and fills the list only when it is empty', () => {
+    const one: ChartSpec = {
+      type: 'bar',
+      cartesian: { x: 'wh', series: [{ metric: 'total', axis: 'right' }] },
+    };
+    expect(
+      fitChartSlots(one, [WAREHOUSE], [COUNT, TOTAL]).cartesian?.series,
+    ).toEqual([{ metric: 'total', axis: 'right' }]);
+
+    // A metric that left takes its series with it, and a list with nothing
+    // left in it fills again rather than drawing nothing at all.
+    expect(
+      fitChartSlots(one, [WAREHOUSE], [COUNT, AVERAGE]).cartesian?.series,
+    ).toEqual([{ metric: 'orders' }, { metric: 'average' }]);
+    expect(
+      fitChartSlots(
+        { type: 'bar', cartesian: { x: 'wh', series: [] } },
+        [WAREHOUSE],
+        [COUNT, TOTAL],
+      ).cartesian?.series,
+    ).toEqual([{ metric: 'orders' }, { metric: 'total' }]);
+  });
+
   it('keeps a slot the user chose while it still names something', () => {
     const chosen: ChartSpec = {
       type: 'bar',
@@ -266,6 +294,24 @@ describe('fitChartSlots', () => {
     expect(fitChartSlots(staged, [WAREHOUSE], [COUNT]).funnel).toEqual(
       staged.funnel,
     );
+
+    // Metric stages are a hand-made order too, so the list the spec holds
+    // stands and a metric it has never named joins at the end.
+    const ordered: ChartSpec = {
+      type: 'funnel',
+      funnel: {
+        stages: {
+          from: 'metrics',
+          items: [{ metric: 'total' }, { metric: 'orders' }],
+        },
+      },
+    };
+    expect(
+      fitChartSlots(ordered, [], [COUNT, TOTAL, AVERAGE]).funnel?.stages,
+    ).toEqual({
+      from: 'metrics',
+      items: [{ metric: 'total' }, { metric: 'orders' }, { metric: 'average' }],
+    });
   });
 
   it('carries every other family over untouched', () => {

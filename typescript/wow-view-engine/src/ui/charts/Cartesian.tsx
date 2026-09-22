@@ -19,6 +19,7 @@ import {
   BarChart,
   CartesianGrid,
   ComposedChart,
+  LabelList,
   Line,
   LineChart,
   ReferenceLine,
@@ -38,6 +39,7 @@ import {
 import { cn } from 'cn';
 import { asImage } from './asImage.js';
 import { axisId, domainOf, tickFormatterOf } from './axis.js';
+import { legendPlacement } from './legend.js';
 import { pointAnchor } from '../analysis/DrillMenu.js';
 import type { FamilyProps } from './family.js';
 import { colorOf } from './palette.js';
@@ -131,6 +133,26 @@ export function Cartesian({
     )?.metric;
   const ticksOf = (axis: typeof left, side: 'left' | 'right') =>
     tickFormatterOf(axis) ?? ((value: number) => label(metricOn(side), value));
+  // An axis title, written along the axis; the category axis has none.
+  const titleOf = (
+    axis: typeof left,
+    side: 'left' | 'right',
+  ): AxisTitle | undefined =>
+    axis?.label === undefined
+      ? undefined
+      : horizontal
+        ? {
+            value: axis.label,
+            position: side === 'left' ? 'insideBottom' : 'insideTop',
+          }
+        : {
+            value: axis.label,
+            angle: side === 'left' ? -90 : 90,
+            position: side === 'left' ? 'insideLeft' : 'insideRight',
+          };
+  // Value labels read as the series' own column reads, like the ticks.
+  const labelled = spec?.labels === true;
+  const legend = legendPlacement(spec?.legend, data.series.length > 1);
   // A tooltip row names a series and shows one of its numbers, so the number
   // is read through that series' own metric.
   const byKey = new Map(
@@ -163,6 +185,7 @@ export function Cartesian({
               xAxisId="left"
               domain={domainOf(left)}
               tickFormatter={ticksOf(left, 'left')}
+              label={titleOf(left, 'left')}
             />
             {hasRight && (
               <XAxis
@@ -171,6 +194,7 @@ export function Cartesian({
                 orientation="top"
                 domain={domainOf(right)}
                 tickFormatter={ticksOf(right, 'right')}
+                label={titleOf(right, 'right')}
               />
             )}
             <YAxis type="category" dataKey="x" width={96} />
@@ -184,6 +208,7 @@ export function Cartesian({
               axisLine={false}
               domain={domainOf(left)}
               tickFormatter={ticksOf(left, 'left')}
+              label={titleOf(left, 'left')}
             />
             {hasRight && (
               <YAxis
@@ -193,6 +218,7 @@ export function Cartesian({
                 axisLine={false}
                 domain={domainOf(right)}
                 tickFormatter={ticksOf(right, 'right')}
+                label={titleOf(right, 'right')}
               />
             )}
           </>
@@ -210,8 +236,11 @@ export function Cartesian({
             />
           }
         />
-        {data.series.length > 1 && (
-          <ChartLegend content={<ChartLegendContent />} />
+        {legend && (
+          <ChartLegend
+            {...legend.props}
+            content={<ChartLegendContent className={legend.className} />}
+          />
         )}
         {data.series.map(series => {
           const configured = bySeries.get(series.metric);
@@ -220,6 +249,9 @@ export function Cartesian({
             configured,
             data.chart,
             onNumericAxis(configured?.axis),
+            labelled
+              ? (value: number) => label(series.metric, value)
+              : undefined,
             // The group a bar stands for: its category, and the split value
             // when the series is one — named by the aliases the spec put on
             // the axes, which is what the kernel reads a row by.
@@ -254,6 +286,13 @@ export function Cartesian({
   );
 }
 
+/** An axis title as the chart library places it: along the axis, inside. */
+interface AxisTitle {
+  value: string;
+  angle?: number;
+  position: 'insideLeft' | 'insideRight' | 'insideBottom' | 'insideTop';
+}
+
 /** One drawn series; `combo` takes its mark from the saved spec. */
 function mark(
   key: string,
@@ -261,11 +300,23 @@ function mark(
   chart: CartesianData['chart'],
   /** The numeric axis this series is measured against. */
   axis: { xAxisId: 'left' | 'right' } | { yAxisId: 'left' | 'right' },
+  /** Writes each value over its mark, as its column reads; none when off. */
+  valueLabel?: (value: number) => string,
   /** A press on the mark at this index; only bars take one. */
   onPress?: (index: number, event: MouseEvent) => void,
 ) {
   const kind = chart === 'combo' ? (series?.type ?? 'bar') : chart;
   const fill = `var(--color-${key})`;
+  const labels = valueLabel && (
+    <LabelList
+      dataKey={key}
+      position="top"
+      className="fill-foreground text-xs"
+      formatter={(value: unknown) =>
+        typeof value === 'number' ? valueLabel(value) : ''
+      }
+    />
+  );
   if (kind === 'line')
     return (
       <Line
@@ -275,7 +326,9 @@ function mark(
         stroke={fill}
         dot={false}
         type={series?.smooth === true ? 'monotone' : 'linear'}
-      />
+      >
+        {labels}
+      </Line>
     );
   if (kind === 'area')
     return (
@@ -288,7 +341,9 @@ function mark(
         fillOpacity={0.2}
         stackId={series?.stack}
         type={series?.smooth === true ? 'monotone' : 'linear'}
-      />
+      >
+        {labels}
+      </Area>
     );
   return (
     <Bar
@@ -304,6 +359,8 @@ function mark(
         ((_: unknown, index: number, event: ReactMouseEvent) =>
           onPress(index, event.nativeEvent))
       }
-    />
+    >
+      {labels}
+    </Bar>
   );
 }

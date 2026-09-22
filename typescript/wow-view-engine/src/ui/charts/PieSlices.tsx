@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { Cell, Pie, PieChart } from 'recharts';
+import { Cell, LabelList, Pie, PieChart } from 'recharts';
 import type { PieData } from '../../analysis/index.js';
 import {
   ChartContainer,
@@ -24,6 +24,7 @@ import {
 import { cn } from 'cn';
 import { useViewMessages } from '../MessagesProvider.js';
 import { asImage } from './asImage.js';
+import { legendPlacement } from './legend.js';
 import { pointAnchor } from '../analysis/DrillMenu.js';
 import { labelOf, type FamilyProps } from './family.js';
 import { color, colorOf } from './palette.js';
@@ -60,6 +61,8 @@ export function PieSlices({
   const config = Object.fromEntries(
     rows.map(row => [row.key, { label: row.name, color: row.color }]),
   ) satisfies ChartConfig;
+  // A pie without its legend is unreadable, so "auto" is a legend.
+  const legend = legendPlacement(spec?.legend, true);
 
   return (
     <ChartContainer
@@ -104,8 +107,26 @@ export function PieSlices({
           {rows.map(row => (
             <Cell key={row.key} fill={row.color} />
           ))}
+          {spec?.labels === true && (
+            <LabelList
+              dataKey="value"
+              position="outside"
+              className="fill-foreground text-xs"
+              stroke="none"
+              formatter={(value: unknown) =>
+                typeof value === 'number' ? label(spec?.pie?.value, value) : ''
+              }
+            />
+          )}
         </Pie>
-        <ChartLegend content={<ChartLegendContent nameKey="key" />} />
+        {legend && (
+          <ChartLegend
+            {...legend.props}
+            content={
+              <ChartLegendContent nameKey="key" className={legend.className} />
+            }
+          />
+        )}
       </PieChart>
     </ChartContainer>
   );

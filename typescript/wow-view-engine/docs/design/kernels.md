@@ -197,11 +197,14 @@ mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboa
 
 表格不经过这里：它画得了任何形态，所以它在列出图型的地方是一张永远可选的卡片，而不是一条规则。（见 test/fitCharts.test.ts「fitCharts」与 test/chartPicker.test.tsx「the visualization panel」）
 
+可视化面板第二层上那些"改一个设置不许弄坏另一个"的规则同样是内核的，不在组件里：`analysis/chartOptions.ts`（D20 屏 J）。`optionTabs` 说一个图型有哪几页；`placed` 让两个槽对调而不是重复（选中另一个槽正拿着的别名时）；`without` 是"取消一项"的写法；`isStacked`／`withStacked` 与 `isSmooth`／`withSmooth` 把堆叠与平滑当作整张图的一个选择，全体加入或全体退出；`moved` 排阶段；`stageValues`／`withStagesFrom`／`withStageOrder` 让按分组值分阶段的漏斗一被选中就有顺序可画——业务顺序内核不知道，但"结果行来的顺序"总好过空白。它们都是纯函数，不用 DOM 就能钉住；面板怎么用它们见 [ui/analysis.md#可视化的第二层选中图型的选项三个页签](ui/analysis.md#可视化的第二层选中图型的选项三个页签)。（见 test/chartOptions.test.ts「chartOptions」）
+
 ### 图表的槽跟着形态走：`fitChartSlots`
 
 图表按别名寻址自己的行，所以它不是一份能熬过「问题换了形状」的设置。从前换一个图型只改 `chart.type`、不建家族子对象，于是 `chart.family.missing`、图消失；加减一个维度之后图表仍念着旧别名，于是 `chart.group.unconsumed`／`chart.group.unknown`。两件事是同一个问题——哪个别名坐哪个槽——所以只有一个答案，图型、维度、指标任一改动都过它，`defaultAnalysisConfig` 的第一张图也过它：
 
 - **用户选过的槽只要还指着存在的东西就保留**，只有别名没了、或新形态放不下的槽才重填；其余家族的子对象原样带着，换走再换回来还是那一套设置；
+- **列表类的槽也是"用户选过的槽"。** 笛卡尔家族的 `series` 与按指标分阶段的漏斗的 `items` 从前每次都按当前指标从头排一遍，而这个函数在每次重画时都要跑——于是可视化面板上「移除系列」按下去又长回来、阶段下移一格又弹回原位，两个按得动却不生效的控件。现在 `series` 只有两种时候重填：列表空了（或它点的指标全没了），以及**拆分维度刚刚离开**——收成一个系列那一次是形态逼的，不是谁选的，所以维度走了它就该开回去；漏斗的 `items` 按 spec 自己的顺序排，没被点到的指标补在末尾（那里够得着上移），而不是把手排的顺序抹掉；
 - **形态放不下时图型跟着动，而不是把配置变红**：除了指标卡与按指标分阶段的漏斗，每个家族都要靠维度寻址，所以没有任何维度时只有指标卡画得出来；而指标卡是一个数，所以有一个它画不成迷你趋势的维度时它就不是指标卡了（趋势要恰好一个时间维度，且主数可加——无合计行时主数就是各桶之和）。删掉最后一个维度改的是问题不是图，用户没有放弃过哪个选择；
 - **不替形态编东西**：一个维度的热力图、一个指标的散点、以及阶段没人命名过的漏斗都不可表达，槽留空，于是 `validateChart` 说的是缺哪个槽而不是整个家族不在。这些是用户对着装不下它的形态选的图型；「某个形态提供哪些图型」是另一个问题，在列出它们的地方回答（阶段 5）；
 - 维度或指标的改动同样带走指向消失别名的 `sort` 与 `table.columns`，没有维度时 `sort` 清空（Wow 拒绝对无分组聚合排序，而它本来就只有一行）——这一步在 `react/useAnalysisEditor.ts` 的 `reshape` 里，它是「一次编辑要捎上什么」的那一处。（见 test/analysisChartSlots.test.ts「fitChartSlots」与 test/analysisUi.test.tsx「re-fits the chart and the sort when the shape changes」）
