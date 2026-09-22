@@ -25,7 +25,7 @@ import { NO_RELEASE, type PinnedSlot, type ReleasedPins } from './pinCap.js';
  * `<col>` cannot carry position, and a header that stays while its cells
  * leave is worse than no pinning at all.
  */
-export interface ColumnPin {
+export interface PinPlacement {
   /** Which edge it is held against. */
   side: 'left' | 'right';
   /** The column's place in the result, which names its measured offset. */
@@ -289,7 +289,7 @@ export function isNumeric(column: RecordColumnView): boolean {
 /** What the table holds against its two edges, once the cap has had its say. */
 export interface TablePins {
   /** The pin each data column draws, by field; absent means it scrolls. */
-  columns: ReadonlyMap<string, ColumnPin>;
+  columns: ReadonlyMap<string, PinPlacement>;
   /** Whether the selection column is held against the left edge. */
   select: boolean;
   /** Whether the host's action column is held against the right edge. */
@@ -361,7 +361,7 @@ export function tablePins(
   layout: { selectable: boolean; actions: boolean },
   released: ReleasedPins = NO_RELEASE,
 ): TablePins {
-  const pins = new Map<string, ColumnPin>();
+  const pins = new Map<string, PinPlacement>();
   columns = heldColumns(columns, layout).map(column =>
     released.fields.has(column.field)
       ? { ...column, pinned: undefined }
@@ -426,7 +426,7 @@ function pin(
   index: number,
   offsets: readonly string[],
   edge: boolean,
-): ColumnPin {
+): PinPlacement {
   const declared =
     offsets.length === 0 ? '0px' : `calc(${offsets.join(' + ')})`;
   return {

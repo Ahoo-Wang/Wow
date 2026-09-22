@@ -25,7 +25,7 @@ import {
   NUMERIC_CELL,
   columnWidth,
   isNumeric,
-  type ColumnPin,
+  type PinPlacement,
 } from './columns.js';
 import { ColumnResizer } from './ColumnResizer.js';
 
@@ -47,7 +47,7 @@ export interface SortableHeaderProps {
    * embedded table whose host has no controller to write to.
    */
   onResize?(field: string, width: number | null): void;
-  pin?: ColumnPin;
+  pin?: PinPlacement;
 }
 
 /**

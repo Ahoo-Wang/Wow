@@ -47,7 +47,7 @@ import {
 import { columnDragAccessibility } from './columns/announce.js';
 import { dropped } from './dragDrop.js';
 import {
-  ACTIONS_COLUMN,
+  ACTIONS_ROW,
   columnSettingRows,
   movableIndex,
   nextPin,
@@ -169,7 +169,7 @@ export function ColumnSettings({
    */
   const labelFor = useCallback(
     (row: ColumnSettingRow) =>
-      row.field === ACTIONS_COLUMN
+      row.field === ACTIONS_ROW
         ? messages.label('label.toolbar.actions')
         : row.label,
     [messages],
@@ -510,7 +510,7 @@ function Section({
             // The action column is the host's, not a field: the cap reports
             // it on its own flag, and its row is marked like any other.
             released:
-              row.field === ACTIONS_COLUMN
+              row.field === ACTIONS_ROW
                 ? released.actions
                 : released.fields.has(row.field),
             onSummary: (fn: SummaryFunction | null) =>
@@ -570,7 +570,7 @@ function toggled(
   return rows
     .filter(
       entry =>
-        entry.field !== ACTIONS_COLUMN &&
+        entry.field !== ACTIONS_ROW &&
         // A summary-only row is shown and is not a column (D17-9): naming
         // it here would add the column nobody asked for, which is the very
         // thing its own checkbox exists to avoid.

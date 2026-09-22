@@ -16,6 +16,7 @@ import {
   isFieldlessKind,
   type FieldDefinition,
   type SummaryFunction,
+  type RecordColumnPin,
 } from '../../model/index.js';
 import { pinnedEnd, type ColumnPlacement } from '../../record/index.js';
 
@@ -45,11 +46,11 @@ export const REGIONS: readonly ColumnRegion[] = ['left', 'middle', 'right'];
  * cannot occur in a field name (`FIELD_NAME_PATTERN`), so the sentinel can
  * never collide with one.
  */
-export const ACTIONS_COLUMN = '\u0000actions';
+export const ACTIONS_ROW = '\u0000actions';
 
 /** One line of the column settings, with everything its controls need. */
 export interface ColumnSettingRow {
-  /** The field's name, or {@link ACTIONS_COLUMN} for the action column. */
+  /** The field's name, or {@link ACTIONS_ROW} for the row that stands in for the action column. */
   field: string;
   label: string;
   region: ColumnRegion;
@@ -67,7 +68,7 @@ export interface ColumnSettingRow {
    * until then there is nothing to drag it between.
    */
   placed: boolean;
-  pinned: ColumnPin | null;
+  pinned: RecordColumnPin | null;
   /**
    * True for the columns whose place is decided for the user rather than by
    * them: the row key, the column the table draws last, and the action
@@ -108,8 +109,6 @@ export interface ColumnSettingRow {
   summaryOnly: boolean;
 }
 
-export type ColumnPin = 'left' | 'right';
-
 export interface ColumnSettingInput {
   /** The definition's fields, in its order. */
   fields: readonly FieldDefinition[];
@@ -121,7 +120,7 @@ export interface ColumnSettingInput {
   actions: boolean;
   /** Every field `config.summaries` names, in the order it names them. */
   summaryFields: readonly string[];
-  pinnedOf(field: string): ColumnPin | null;
+  pinnedOf(field: string): RecordColumnPin | null;
   /** Whether the config has this column switched off. */
   hiddenOf(field: string): boolean;
   summaryOf(field: string): SummaryFunction | null;
@@ -180,7 +179,7 @@ export function columnSettingRows(
   return [
     ...rows,
     {
-      field: ACTIONS_COLUMN,
+      field: ACTIONS_ROW,
       label: '',
       region: 'right',
       visible: true,
@@ -419,9 +418,7 @@ function placedOf(
   return rows
     .filter(
       entry =>
-        entry.region === region &&
-        entry.placed &&
-        entry.field !== ACTIONS_COLUMN,
+        entry.region === region && entry.placed && entry.field !== ACTIONS_ROW,
     )
     .map(entry => entry.field);
 }
@@ -436,7 +433,9 @@ export function movableIndex(
 }
 
 /** The pin state after one press: unpinned, then left, then right again. */
-export function nextPin(pinned: ColumnPin | null): ColumnPin | null {
+export function nextPin(
+  pinned: RecordColumnPin | null,
+): RecordColumnPin | null {
   if (pinned === null) return 'left';
   return pinned === 'left' ? 'right' : null;
 }

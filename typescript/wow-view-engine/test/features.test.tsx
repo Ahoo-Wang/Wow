@@ -135,12 +135,13 @@ describe("the empty result's action", () => {
         emptyAction={null}
       />,
     );
+    // A new engine opens the view again, so the empty result is awaited:
+    // the sentence stays, and the button does not come back with it.
     await waitFor(() =>
-      expect(screen.queryByRole('button', { name: /condition/ })).toBeNull(),
+      expect(
+        document.querySelector('[data-slot="empty-title"]')?.textContent,
+      ).toBe('Nothing to show'),
     );
-    // The sentence stays (drawn once, and announced once more).
-    expect(
-      document.querySelector('[data-slot="empty-title"]')?.textContent,
-    ).toBe('Nothing to show');
+    expect(screen.queryByRole('button', { name: /condition/ })).toBeNull();
   });
 });

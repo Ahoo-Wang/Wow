@@ -41,7 +41,7 @@ import {
 } from '../components/select.js';
 import { SelectContent } from '../popups.js';
 import { useViewMessages } from '../MessagesProvider.js';
-import { ACTIONS_COLUMN, type ColumnSettingRow } from './rows.js';
+import { ACTIONS_ROW, type ColumnSettingRow } from './rows.js';
 import { TEXT_UI } from '../layout.js';
 import { cn } from 'cn';
 
@@ -176,7 +176,7 @@ export function ColumnRow({
 }: ColumnRowProps) {
   const messages = useViewMessages();
   const noteId = useId();
-  const actions = row.field === ACTIONS_COLUMN;
+  const actions = row.field === ACTIONS_ROW;
   const label = actions ? messages.label('label.toolbar.actions') : row.label;
   // On a summary-only row the checkbox does not show or hide a column —
   // there is no column — so it is named after the one thing it holds.

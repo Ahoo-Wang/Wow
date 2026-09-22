@@ -33,7 +33,7 @@ import type { RecordTableController } from '../src/react/index.js';
 import { ColumnSettings } from '../src/ui/ColumnSettings.js';
 import { MessagesProvider } from '../src/ui/MessagesProvider.js';
 import {
-  ACTIONS_COLUMN,
+  ACTIONS_ROW,
   columnSettingRows,
   movableFields,
   nextPin,
@@ -162,7 +162,7 @@ describe('the column settings model', () => {
     });
     expect(rows[1]).toMatchObject({ fixed: true, pinned: 'left' });
     expect(rows[3]).toMatchObject({
-      field: ACTIONS_COLUMN,
+      field: ACTIONS_ROW,
       fixed: true,
       pinned: 'right',
       movable: false,
@@ -309,7 +309,7 @@ describe('the column settings popover', () => {
 
     // The host's action column is the end, so `amount` is a middle column
     // in config order and only the actions row sits on the right.
-    expect(listed()).toEqual(['id', 'amount', 'warehouse', ACTIONS_COLUMN]);
+    expect(listed()).toEqual(['id', 'amount', 'warehouse', ACTIONS_ROW]);
     // The search handle is not something a row holds, so it is not offered.
     expect(screen.queryByRole('checkbox', { name: 'Show Search' })).toBeNull();
   });
@@ -767,7 +767,7 @@ describe('the area a column is listed in', () => {
       'left:id',
       'middle:warehouse',
       'right:amount',
-      `right:${ACTIONS_COLUMN}`,
+      `right:${ACTIONS_ROW}`,
     ]);
   });
 
