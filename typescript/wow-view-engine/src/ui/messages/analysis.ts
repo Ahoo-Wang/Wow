@@ -69,6 +69,10 @@ export const analysisMessages = {
   'label.analysis.operand-number': 'A number',
   'label.analysis.operand-value': 'Number in {name}',
   'label.analysis.operator': 'Operation of {name}',
+  // A stored expression deeper than one operation: the card shows what it
+  // says and leaves it alone, rather than drawing nothing at all.
+  'label.analysis.expression-unreadable':
+    'This metric is written with an expression the card cannot show.',
   // 「只保留」: the groups kept, as rows of one comparison each.
   'label.analysis.having': 'Keep only…',
   'label.analysis.having-title': 'Keep only the groups where',
@@ -82,8 +86,8 @@ export const analysisMessages = {
   'label.analysis.remove-having': 'Remove this condition',
   'label.analysis.having-note': 'Groups without a value are not kept.',
   'label.analysis.having-unreadable':
-    'This view keeps groups by a rule the tray cannot show.',
-  'label.analysis.clear-having': 'Clear it',
+    'This view keeps groups by a rule this editor cannot show.',
+  'label.analysis.clear-having': 'Clear',
   'label.having.op.GT': 'more than',
   'label.having.op.GTE': 'at least',
   'label.having.op.LT': 'less than',
@@ -153,8 +157,8 @@ export const analysisMessages = {
   'label.chart.axis.right': 'Right axis',
   'label.chart.slot.category': 'Slices by',
   'label.chart.slot.value': 'Value',
-  'label.chart.slot.rows': 'Rows',
-  'label.chart.slot.columns': 'Columns',
+  'label.chart.slot.rows': 'Vertical dimension',
+  'label.chart.slot.columns': 'Horizontal dimension',
   'label.chart.slot.point': 'One point per',
   'label.chart.slot.x-metric': 'Across',
   'label.chart.slot.y-metric': 'Up',
@@ -163,6 +167,11 @@ export const analysisMessages = {
   'label.chart.slot.stages': 'Stages',
   'label.chart.stage-name': 'Name of the stage {name}',
   'label.chart.slot.stage-of': 'Stages are the values of',
+  // The two numbers a metric card carries beside its headline. The
+  // reading table heads the same two with `label.chart.column.*`; a
+  // control is asked for, a heading is read, so each has its own words.
+  'label.chart.compare-with': 'Compared with',
+  'label.chart.target-value': 'Target value',
   'label.chart.slot.stage-order': 'Stage order',
   'label.chart.move-up': 'Move {name} up',
   'label.chart.move-down': 'Move {name} down',
@@ -188,9 +197,10 @@ export const analysisMessages = {
   'label.chart.remove-reference-line': 'Remove reference line',
   'label.chart.reference-axis': 'Axis of the reference line',
   'label.chart.reference-label': 'Caption',
+  'label.chart.reference-value': 'Value of the reference line',
   'label.chart.donut': 'Donut',
   'label.chart.max-slices': 'Slices at most',
-  'label.chart.max-slices.hint': 'The rest merge into "Other".',
+  'label.chart.max-slices.hint': 'The rest merge into “Other”.',
   'label.chart.scale': 'Colour scale',
   'label.chart.scale.linear': 'Linear',
   'label.chart.scale.log': 'Logarithmic',
@@ -224,7 +234,8 @@ export const analysisMessages = {
   'label.analysis.display-name': 'Display name for {name}',
   'label.analysis.missing-bucket': 'Missing values as their own group',
   'label.analysis.dense': 'Fill in empty periods',
-  'label.analysis.dense-alone': 'Fill in empty periods (only dimension)',
+  'label.analysis.dense-alone':
+    'Fill in empty periods (needs to be the only dimension)',
   'label.analysis.remove-group': 'Remove dimension {name}',
   'label.analysis.function-of': 'Summary for {name}',
   'label.analysis.remove-metric': 'Remove metric {name}',
@@ -290,8 +301,12 @@ export const analysisMessages = {
   'analysis.any.undeclared': '{field} cannot be shown as a sample value.',
   'analysis.capability.missing':
     '{definition} does not offer an analysis view any more.',
-  'analysis.column.duplicate': 'The column {alias} is listed twice.',
-  'analysis.column.unknown-alias': 'The column {alias} is not in this result.',
+  // A validation message names a group or a metric by its alias: the
+  // kernel raises it, and the display name is composed in the catalogue
+  // (`columnTitle`), which no headless rule can reach. So the alias stands,
+  // and the sentence says nothing about columns or rows.
+  'analysis.column.duplicate': 'This result lists {alias} twice.',
+  'analysis.column.unknown-alias': 'There is no {alias} in this result.',
   'analysis.config.malformed': 'This analysis has no usable shape.',
   'analysis.constant.not-finite': 'A constant must be a finite number.',
   'analysis.count.undeclared': 'This dataset does not offer a record count.',
@@ -365,9 +380,10 @@ export const analysisMessages = {
     'Showing the first {limit} groups; there may be more.',
   'analysis.sort.duplicate': 'The sort already orders by {alias}.',
   'analysis.sort.requires-group': 'Sorting needs at least one dimension.',
-  'analysis.sort.too-many': 'A result sorts on at most {max} columns.',
+  'analysis.sort.too-many':
+    'A result sorts by at most {max} dimensions and metrics.',
   'analysis.sort.unknown-alias':
-    'Sorting refers to {alias}, which is not shown.',
+    'The sort orders by {alias}, which this result does not have.',
 
   // Charts.
   'chart.combo.series-type-missing':
@@ -381,7 +397,8 @@ export const analysisMessages = {
     'A funnel staged by metrics can carry no dimension.',
   'chart.funnel.too-few-stages': 'A funnel needs at least two stages.',
   'chart.group.unconsumed': 'The chart does not use every dimension: {groups}.',
-  'chart.group.unknown': '{alias} is not a dimension of this analysis.',
+  'chart.group.unknown':
+    'The chart uses {alias}, which is not a dimension of this analysis.',
   'chart.heatmap.same-axes': 'A heatmap needs two different axes.',
   'chart.metric.needs-no-group': 'A metric card can carry no dimension.',
   'chart.metric.trend-alias-mismatch':

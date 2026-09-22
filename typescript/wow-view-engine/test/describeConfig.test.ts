@@ -60,7 +60,7 @@ describe('describeConfig', () => {
 
   it('counts what an analysis config decides', () => {
     expect(describeConfig(analysisConfig({ limit: 25 }), wording())).toBe(
-      '1 groups · 1 metrics · up to 25 rows',
+      '1 dimensions · 1 metrics · top 25 groups',
     );
   });
 

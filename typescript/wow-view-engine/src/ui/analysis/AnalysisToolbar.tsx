@@ -58,14 +58,18 @@ export function AnalysisToolbar({
   const messages = useViewMessages();
   const id = useId();
   const columns = view.schema ?? view.columns;
+  // The separator is the catalogue's, as it is wherever this package lists
+  // names in a sentence (`charts/reading.ts`): 「、」 in Chinese, ", " in
+  // English.
+  const join = messages.label('label.filter.join');
   const dimensions = columns
     .filter(column => column.role === 'group')
     .map(column => column.label)
-    .join('、');
+    .join(join);
   const metrics = columns
     .filter(column => column.role === 'metric')
     .map(column => columnTitle(column, messages))
-    .join('、');
+    .join(join);
   const reading =
     dimensions === ''
       ? messages.label('label.analysis.reading-flat', { metrics })

@@ -151,6 +151,18 @@ function draft(engine: ViewEngine): AnalysisViewConfig {
 const label = (key: keyof typeof defaultMessages, name: string) =>
   formatMessage(defaultMessages, key, { name });
 
+/**
+ * How a metric is *referred to* away from its own title: the summary and
+ * what it is of, in the catalogue's order — the same sentence the result
+ * column is headed with. The card's own title says only the left half,
+ * because the summary control sits beside it.
+ */
+const summed = (of: string) =>
+  formatMessage(defaultMessages, 'label.summary.of', {
+    field: of,
+    fn: defaultMessages['label.summary.fn.SUM'],
+  });
+
 /** Picks an item out of one of the tray's two "+ Add …" menus. */
 async function add(menu: string, item: string) {
   fireEvent.click(screen.getByRole('button', { name: menu }));
@@ -413,6 +425,66 @@ describe('a metric written as a formula', () => {
   });
 });
 
+/**
+ * A formula a config holds that is deeper than one operation. The card
+ * edits one operation over two operands and offers no nesting, so the
+ * operand that is itself an operation has no control to sit in: it is
+ * shown as its own words and left alone, with one line saying why. The
+ * card used to draw nothing there, which read as a formula over a single
+ * operand — a defect, not a limit.
+ */
+describe('a formula deeper than the card edits', () => {
+  it('shows the nested operand as text, and says it cannot be edited', async () => {
+    await open({
+      metrics: [
+        { alias: 'orders', type: 'COUNT' },
+        {
+          alias: 'margin',
+          type: 'NUMERIC',
+          function: 'SUM',
+          expression: {
+            type: 'BINARY',
+            operator: 'SUBTRACT',
+            left: {
+              type: 'BINARY',
+              operator: 'MULTIPLY',
+              left: { type: 'FIELD', field: 'amount' },
+              right: { type: 'CONSTANT', value: 2 },
+            },
+            right: { type: 'FIELD', field: 'cost' },
+          },
+        },
+      ],
+    });
+
+    const card = await waitFor(() => {
+      const found = metricCards()[1];
+      if (!found) throw new Error('the formula card is not on the tray');
+      return found;
+    });
+
+    // The left operand as its author would say it, in place of the select.
+    expect(
+      within(card).getByText('Amount × 2', {
+        selector: '[data-slot="operand-text"]',
+      }),
+    ).toBeDefined();
+    expect(
+      within(card).getByText(
+        defaultMessages['label.analysis.expression-unreadable'],
+      ),
+    ).toBeDefined();
+
+    // The half that *is* one operand still edits: the operation, the right
+    // side and the summary are all there.
+    expect(
+      within(card).getByLabelText(
+        label('label.analysis.operand-right', '(Amount × 2) − Cost'),
+      ),
+    ).toBeDefined();
+  });
+});
+
 describe('a metric derived from other metrics', () => {
   /**
    * Wow's rule, said by the control rather than by an error: a derived
@@ -454,7 +526,7 @@ describe('a metric derived from other metrics', () => {
       ),
     ).toEqual([
       defaultMessages['label.analysis.row-count'],
-      'Amount',
+      summed('Amount'),
       defaultMessages['label.analysis.operand-number'],
     ]);
   });
@@ -550,8 +622,9 @@ describe('ordering the groups', () => {
    */
   it('orders by several aliases, in the priority the editor lists them', async () => {
     const user = userEvent.setup();
-    // The sample value carries a name of its own, so the two metrics over
-    // the same field are two entries a reader can tell apart.
+    // The sort lists a metric the way the result column heads it — 「Sum of
+    // Amount」 — so two summaries of one field are two entries a reader can
+    // tell apart; the sample value carries a name of its own on top of that.
     const { engine, source } = await open({
       metrics: [
         { alias: 'orders', type: 'COUNT' },
@@ -582,7 +655,9 @@ describe('ordering the groups', () => {
         name: defaultMessages['label.sort.add'],
       }),
     );
-    await user.click(await screen.findByRole('menuitem', { name: 'Amount' }));
+    await user.click(
+      await screen.findByRole('menuitem', { name: summed('Amount') }),
+    );
     await waitFor(() =>
       expect(draft(engine).sort).toEqual([
         { alias: 'amount', direction: 'ASC' },

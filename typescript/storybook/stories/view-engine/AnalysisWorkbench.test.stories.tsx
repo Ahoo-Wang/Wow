@@ -39,7 +39,12 @@ export default meta;
 
 type Story = StoryObj<typeof displayMeta>;
 
-/** 「金额 的 合计」: the two parts a metric header is composed of (D20). */
+/**
+ * 「金额 的 合计」: the two parts a metric header is composed of (D20), and
+ * the same sentence anything that *names* that metric says — the funnel,
+ * the menu, the removal — since none of them has the summary control
+ * beside it the way the card's own title does.
+ */
 const AMOUNT_HEADER = formatMessage(zhCN, 'label.summary.of', {
   field: '金额',
   fn: zhCN['label.summary.fn.SUM'],
@@ -846,7 +851,7 @@ export const MetricCondition: Story = {
     const funnel = () =>
       canvas.getByRole('button', {
         name: formatMessage(zhCN, 'label.analysis.condition-of', {
-          name: '金额',
+          name: AMOUNT_HEADER,
         }),
       });
     await expect(funnel()).toHaveAttribute('aria-pressed', 'false');
@@ -865,7 +870,7 @@ export const MetricCondition: Story = {
     // 条件用的就是范围那一套手势：字段清单勾一个，完成，再选值。
     await userEvent.click(
       within(block).getByRole('button', {
-        name: `金额 ${zhCN['label.filter.add-here']}`,
+        name: `${AMOUNT_HEADER} ${zhCN['label.filter.add-here']}`,
       }),
     );
     const picker = await screen.findByRole('dialog', {
@@ -926,7 +931,7 @@ export const MetricCondition: Story = {
  * 展开（D20 屏 G）：一条链，计数单位跟着最内层走。
  *
  * 展开改的是「数的是什么」：展开到明细项，一行就是一个明细项，而仓库是订单
- * 的字段——在明细项里它什么也不指，所以那个维度跟着这一步离开。「再展开」只
+ * 的字段——在明细项里它什么也不指，所以那个维度跟着这一步离开。「展开：…」只
  * 给声明出来的下一步，收起一层连里面的一起带走。故事的数据源不求值
  * `elements`（`rowSource.ts` 明着拒绝），所以这一趟到托盘为止，不按「应用」；
  * 查询里带出去的是什么，由 test/elementsSlot.test.tsx 与

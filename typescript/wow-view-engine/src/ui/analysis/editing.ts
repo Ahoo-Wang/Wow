@@ -17,7 +17,9 @@ import {
   expressionText,
   freeAlias,
   isFormula,
+  metricFunctionOf,
 } from '../../analysis/index.js';
+import { columnTitle } from '../display.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
 
 export { freeAlias };
@@ -37,6 +39,12 @@ import type {
  * field starts as, and the shape a choice on a card turns it into. Pure, so
  * the cards stay markup and the tests read the rules straight.
  */
+
+/**
+ * What naming a metric reads: the fields its formula or summary is over,
+ * and the other metrics a derived one refers to.
+ */
+export type MetricNaming = Pick<AnalysisEditorController, 'fields' | 'metrics'>;
 
 /** Every alias in use, which is the set an addition must stay clear of. */
 export function aliasesOf(analysis: AnalysisEditorController): string[] {
@@ -162,16 +170,43 @@ export function fieldOfMetric(metric: AnalysisMetric): string {
  * derived metric said as its author would, a field's label otherwise.
  */
 export function metricName(
-  analysis: AnalysisEditorController,
+  analysis: MetricNaming,
   metric: AnalysisMetric,
   messages: MessageFormatters,
 ): string {
   return metric.label ?? metricFallbackName(analysis, metric, messages);
 }
 
+/**
+ * What a metric is called *away from its own card* — in「只保留」, in the
+ * sort, as an operand of a derived metric, and in any label that names one.
+ *
+ * The card's own title says the bare field name, because the summary
+ * combobox sits right beside it and says the rest. Everywhere else there is
+ * no such neighbour, so 「金额 的 合计」 and 「金额 的 平均」 would read as one
+ * name. This composes the summary in exactly the way the result column and
+ * the chart slots do — `columnTitle` over the same label and the same
+ * function — so a metric reads the same word wherever it is mentioned.
+ */
+export function metricReference(
+  analysis: MetricNaming,
+  metric: AnalysisMetric,
+  messages: MessageFormatters,
+): string {
+  return columnTitle(
+    metric.label === undefined
+      ? {
+          label: metricFallbackName(analysis, metric, messages),
+          fn: metricFunctionOf(metric),
+        }
+      : { label: metric.label, named: true },
+    messages,
+  );
+}
+
 /** The name a metric falls back to without one of its own. */
 export function metricFallbackName(
-  analysis: AnalysisEditorController,
+  analysis: MetricNaming,
   metric: AnalysisMetric,
   messages: MessageFormatters,
 ): string {

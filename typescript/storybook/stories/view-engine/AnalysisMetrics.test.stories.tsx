@@ -69,11 +69,15 @@ const groupRows = (table: HTMLElement) =>
   (table as HTMLTableElement).tBodies[0]?.rows.length ?? 0;
 
 /**
- * 指标在托盘与排序编辑器里就叫它测量的那个字段——「金额」——汇总方式是
- * 它旁边那个控件说的；「金额 的 合计」是结果表的**列头**，两个部分在那里
- * 才合成一句（`columnTitle`）。
+ * 指标卡片上写的是它测量的那个字段——「金额」——汇总方式由旁边那个控件说；
+ * 一旦在别处**提到**这个指标（「只保留」、排序、派生指标的操作数），旁边
+ * 没有那个控件，于是提到它的地方和结果表的列头说同一句话：「金额 的 合计」
+ * （`columnTitle` / `metricReference`）。
  */
-const AMOUNT_METRIC = '金额';
+const AMOUNT_METRIC = formatMessage(zhCN, 'label.summary.of', {
+  field: '金额',
+  fn: zhCN['label.summary.fn.SUM'],
+});
 
 /** 「金额 − 成本 的 合计」: a formula's own words, then how it was summarised. */
 const MARGIN_HEADER = formatMessage(zhCN, 'label.summary.of', {

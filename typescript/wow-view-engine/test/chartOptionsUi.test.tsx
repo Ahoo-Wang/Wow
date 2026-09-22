@@ -553,9 +553,12 @@ describe('the chart options’ display page', () => {
       null,
     );
 
-    fireEvent.change(within(card).getByLabelText('Value'), {
-      target: { value: '25' },
-    });
+    fireEvent.change(
+      within(card).getByLabelText('Value of the reference line'),
+      {
+        target: { value: '25' },
+      },
+    );
     fireEvent.change(within(card).getByLabelText('Caption'), {
       target: { value: 'Target' },
     });
@@ -665,7 +668,7 @@ describe('the chart options’ display page', () => {
     await user.click(gear('metric'));
     await user.click(within(panel()!).getByRole('tab', { name: 'Display' }));
 
-    fireEvent.change(within(panel()!).getByLabelText('Target'), {
+    fireEvent.change(within(panel()!).getByLabelText('Target value'), {
       target: { value: '10' },
     });
     await waitFor(() => expect(draft().chart.metric?.target).toBe(10));

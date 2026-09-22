@@ -165,6 +165,17 @@ const label = (
   params: Record<string, string>,
 ) => formatMessage(defaultMessages, key, params);
 
+/**
+ * How the amount metric is *referred to*: the card's title says 「Amount」,
+ * because the summary control sits beside it, and every accessible name on
+ * the card says the whole of it — the sentence the result column is headed
+ * with — so two summaries of one field are two different names.
+ */
+const AMOUNT = formatMessage(defaultMessages, 'label.summary.of', {
+  field: 'Amount',
+  fn: defaultMessages['label.summary.fn.SUM'],
+});
+
 /** The funnel of the card called `name`. */
 const funnel = (name: string) =>
   screen.getByRole('button', {
@@ -244,7 +255,7 @@ describe('a metric’s own conditions', () => {
   it('opens from the funnel, and starts the condition empty', async () => {
     const { engine } = await open();
 
-    const button = funnel('Amount');
+    const button = funnel(AMOUNT);
     expect(button.getAttribute('aria-pressed')).toBe('false');
     expect(button.hasAttribute('data-held')).toBe(false);
 
@@ -256,7 +267,7 @@ describe('a metric’s own conditions', () => {
       }),
     );
     const opened = await screen.findByRole('group', {
-      name: label('label.analysis.condition-of', { name: 'Amount' }),
+      name: label('label.analysis.condition-of', { name: AMOUNT }),
     });
     expect(opened.getAttribute('data-slot')).toBe('card-conditions');
     expect(opened.textContent).toContain(
@@ -264,8 +275,8 @@ describe('a metric’s own conditions', () => {
     );
     // The card the block belongs to is the one whose funnel was pressed.
     expect(metricCards()[1]!.contains(opened)).toBe(true);
-    expect(funnel('Amount').getAttribute('aria-pressed')).toBe('true');
-    expect(funnel('Amount').hasAttribute('data-held')).toBe(true);
+    expect(funnel(AMOUNT).getAttribute('aria-pressed')).toBe('true');
+    expect(funnel(AMOUNT).hasAttribute('data-held')).toBe(true);
   });
 
   /**
@@ -277,12 +288,12 @@ describe('a metric’s own conditions', () => {
    */
   it('offers the scope’s scalar fields, and nothing without one value', async () => {
     await open();
-    fireEvent.click(funnel('Amount'));
+    fireEvent.click(funnel(AMOUNT));
     await screen.findByRole('group', {
-      name: label('label.analysis.condition-of', { name: 'Amount' }),
+      name: label('label.analysis.condition-of', { name: AMOUNT }),
     });
 
-    const picker = await openPicker('Amount');
+    const picker = await openPicker(AMOUNT);
 
     for (const field of ['Order', 'Warehouse', 'Status', 'Amount'])
       expect(
@@ -302,8 +313,8 @@ describe('a metric’s own conditions', () => {
    */
   it('sends the metric’s own filter with the query', async () => {
     const { source } = await open();
-    fireEvent.click(funnel('Amount'));
-    await addCondition('Amount', 'Status');
+    fireEvent.click(funnel(AMOUNT));
+    await addCondition(AMOUNT, 'Status');
     await chooseValue('Status', 'Paid');
 
     const before = asked(source);
@@ -331,9 +342,9 @@ describe('a metric’s own conditions', () => {
    */
   it('waits for an unfinished condition, and says where it is', async () => {
     const { source } = await open();
-    fireEvent.click(funnel('Amount'));
+    fireEvent.click(funnel(AMOUNT));
 
-    await addCondition('Amount', 'Status');
+    await addCondition(AMOUNT, 'Status');
 
     const pill = await waitFor(() => {
       const found = within(block()!).getByRole('group', {
@@ -363,8 +374,8 @@ describe('a metric’s own conditions', () => {
    */
   it('takes the condition away altogether, and closes', async () => {
     const { engine } = await open();
-    fireEvent.click(funnel('Amount'));
-    await addCondition('Amount', 'Status');
+    fireEvent.click(funnel(AMOUNT));
+    await addCondition(AMOUNT, 'Status');
 
     fireEvent.click(
       within(block()!).getByRole('button', {
@@ -374,7 +385,7 @@ describe('a metric’s own conditions', () => {
 
     await waitFor(() => expect(block()).toBeNull());
     expect('filter' in (draft(engine).metrics[1] as object)).toBe(false);
-    expect(funnel('Amount').hasAttribute('data-held')).toBe(false);
+    expect(funnel(AMOUNT).hasAttribute('data-held')).toBe(false);
   });
 
   /**
@@ -409,7 +420,7 @@ describe('a metric’s own conditions', () => {
     });
     expect(line.textContent).toContain('Status');
     expect(line.textContent).toContain('Paid');
-    expect(funnel('Amount').hasAttribute('data-held')).toBe(true);
+    expect(funnel(AMOUNT).hasAttribute('data-held')).toBe(true);
     // The count next to it carries none, so it wears no line.
     expect(
       metricCards()[0]!.querySelector('[data-slot="metric-condition-line"]'),
@@ -418,7 +429,10 @@ describe('a metric’s own conditions', () => {
 
   /**
    * Two numbers over the same field under two conditions is the question
-   * the funnel exists for, and a second card is how it is asked. The copy
+   * the funnel exists for, and a second card is how it is asked. The menu
+   * item names the metric the way the result column does (「Sum of
+   * Amount」), since it is a reference and no summary control is beside it.
+   * The copy
    * takes a free alias — the alias is what the query and the chart name —
    * and no display name: two cards called the same thing is the very
    * ambiguity a name is there to resolve.
@@ -428,12 +442,12 @@ describe('a metric’s own conditions', () => {
 
     fireEvent.click(
       screen.getByRole('button', {
-        name: label('label.analysis.card-menu', { name: 'Amount' }),
+        name: label('label.analysis.card-menu', { name: AMOUNT }),
       }),
     );
     fireEvent.click(
       await screen.findByRole('menuitem', {
-        name: label('label.analysis.copy-with-condition', { name: 'Amount' }),
+        name: label('label.analysis.copy-with-condition', { name: AMOUNT }),
       }),
     );
 

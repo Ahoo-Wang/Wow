@@ -45,7 +45,7 @@ export const viewMessages = {
   // range narrowed to it.
   'label.drill.menu': 'This group',
   'label.drill.records': 'See these records',
-  'label.drill.split': 'Split by',
+  'label.drill.split': 'Split this group by…',
   'label.drill.focus': 'Only this group',
 
   // Runtime and commands.

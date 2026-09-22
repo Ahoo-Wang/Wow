@@ -27,7 +27,7 @@ import { TEXT_UI } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { EditorCard } from '../variants.js';
 import { CompactSelect } from './CompactSelect.js';
-import { metricName } from './editing.js';
+import { metricReference } from './editing.js';
 
 /**
  * 「只保留」 (D20 屏 B; Wow `having`): which groups the result keeps, as
@@ -62,7 +62,7 @@ export function HavingRows({
     .filter(metric => metric.type !== 'ANY')
     .map(metric => ({
       value: metric.alias,
-      label: metricName(analysis, metric, messages),
+      label: metricReference(analysis, metric, messages),
     }));
   const operators = HAVING_OPERATORS.map(operator => ({
     value: operator,

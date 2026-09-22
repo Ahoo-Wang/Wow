@@ -45,6 +45,7 @@ import {
   fieldOfMetric,
   freeAlias,
   metricFallbackName,
+  metricReference,
   metricOfSummary,
   summaryChoices,
   summaryOf,
@@ -214,6 +215,13 @@ function MetricCard({
   // the name the analyst gave, else what the field composes (D20 显示名).
   const fallback = metricFallbackName(analysis, metric, messages);
   const name = metric.label ?? fallback;
+  // The title says the bare field, because the summary sits next to it and
+  // says the rest — and so do the controls that *are* the summary and its
+  // operands, whose own value is the other half ("Summary for Amount",
+  // reading "Sum"). What names the card among the others has no such
+  // neighbour — two cards over one field would both be «金额» — so it says
+  // the summary too, in the words the result column is headed with.
+  const reference = metricReference(analysis, metric, messages);
   const choices = field ? summaryChoices(field) : [];
   const choice = summaryOf(metric);
   // The menu picks one of six, so «任一值» carries its caveat in the item
@@ -233,7 +241,9 @@ function MetricCard({
         name={fallback}
         given={metric.label}
         renaming={renaming}
-        label={messages.label('label.analysis.display-name', { name })}
+        label={messages.label('label.analysis.display-name', {
+          name: reference,
+        })}
         onRename={label => analysis.renameMetric(index, label)}
         onDone={done}
       />
@@ -285,7 +295,9 @@ function MetricCard({
       )}
       {metric.type !== 'DERIVED' && (
         <ConditionButton
-          label={messages.label('label.analysis.condition-of', { name })}
+          label={messages.label('label.analysis.condition-of', {
+            name: reference,
+          })}
           open={conditioning}
           held={held}
           disabled={disabled}
@@ -298,20 +310,22 @@ function MetricCard({
       )}
       <CardMenu
         ref={menu}
-        name={name}
+        name={reference}
         disabled={disabled}
         onRename={() => setRenaming(true)}
       >
         {metric.type !== 'DERIVED' && (
           <DropdownMenuItem onClick={onDuplicate}>
             {messages.label('label.analysis.copy-with-condition', {
-              name: metric.label ?? name,
+              name: reference,
             })}
           </DropdownMenuItem>
         )}
       </CardMenu>
       <IconButton
-        label={messages.label('label.analysis.remove-metric', { name })}
+        label={messages.label('label.analysis.remove-metric', {
+          name: reference,
+        })}
         variant="ghost"
         size="icon-xs"
         disabled={disabled || analysis.metrics.length <= 1}
@@ -333,7 +347,7 @@ function MetricCard({
           analysis={analysis}
           metric={metric}
           index={index}
-          name={metric.label ?? name}
+          name={reference}
           disabled={disabled}
           optionsFor={optionsFor}
           onClose={() => onConditioning(false)}

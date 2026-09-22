@@ -173,7 +173,7 @@ function CartesianDisplay({ chart, onChange }: OptionsPageProps) {
               />
             )}
             <NumberInput
-              label={messages.label('label.chart.slot.value')}
+              label={messages.label('label.chart.reference-value')}
               chrome="box"
               className="w-20"
               value={line.value}
@@ -340,7 +340,7 @@ function MetricDisplay({ chart, onChange }: OptionsPageProps) {
   return (
     <>
       <NumberField
-        label={messages.label('label.chart.column.target')}
+        label={messages.label('label.chart.target-value')}
         value={spec.target}
         onChange={target =>
           onChange({

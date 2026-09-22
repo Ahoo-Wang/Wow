@@ -424,7 +424,7 @@ function MetricData({ chart, shape, onChange }: OptionsPageProps) {
         }
       />
       <OptionalSlotSelect
-        label={messages.label('label.chart.column.compare')}
+        label={messages.label('label.chart.compare-with')}
         none={messages.label('label.chart.slot.none')}
         items={others}
         value={spec.compare?.metric}

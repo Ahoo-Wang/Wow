@@ -32,7 +32,7 @@ import {
  * The expansion slot (D20 屏 G): the chain of arrays the analysis counts
  * inside, outermost first — 订单 → 明细项 → 批次 — one card a level, each
  * with its own gate on the entries it lets through. The chain is the one
- * the capability declares, so 「再展开」 offers the next step and nothing
+ * the capability declares, so 「展开：…」 offers the next step and nothing
  * else; a level taken out takes every level inside it. The footer says
  * what is being counted, because after an expansion it is no longer the
  * record. The slot exists only where the capability declares a chain.

@@ -17,7 +17,7 @@ import { NumberInput } from '../FilterValueEditor.js';
 import { TEXT_UI } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { SortSettings } from '../SortSettings.js';
-import { metricName } from './editing.js';
+import { metricReference } from './editing.js';
 
 /**
  * What the first N groups are the first N of: the sort, and the N, on one
@@ -49,7 +49,7 @@ export function SortRow({
     })),
     ...analysis.metrics.map(metric => ({
       name: metric.alias,
-      label: metricName(analysis, metric, messages),
+      label: metricReference(analysis, metric, messages),
       kind: 'number',
       sortable: true,
     })),

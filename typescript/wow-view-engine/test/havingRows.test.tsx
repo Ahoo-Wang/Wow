@@ -33,11 +33,25 @@ import {
   type ViewInstance,
   type ViewSource,
 } from '../src/index.js';
-import { DataWorkbench, defaultMessages } from '../src/ui/index.js';
+import {
+  DataWorkbench,
+  defaultMessages,
+  formatMessage,
+} from '../src/ui/index.js';
 import { analysisConfig, ordersDefinition, testSource } from './fixtures.js';
 import { openTray } from './fixtures/workbench.js';
 
 afterEach(cleanup);
+
+/**
+ * A metric is *referred to* here, not titled: 「只保留」 names one where no
+ * summary control stands beside it, so it says the same sentence the result
+ * column is headed with — two summaries of one field stay two choices.
+ */
+const AMOUNT_SUM = formatMessage(defaultMessages, 'label.summary.of', {
+  field: 'Amount',
+  fn: defaultMessages['label.summary.fn.SUM'],
+});
 
 /**
  * 「只保留」 (D20 屏 B; Wow `having`): which of the grouped rows the result
@@ -310,7 +324,7 @@ describe('keeping only some of the groups', () => {
 
     expect(
       (await screen.findAllByRole('option')).map(option => option.textContent),
-    ).toEqual([defaultMessages['label.analysis.row-count'], 'Amount']);
+    ).toEqual([defaultMessages['label.analysis.row-count'], AMOUNT_SUM]);
   });
 
   /**
@@ -359,7 +373,7 @@ describe('keeping only some of the groups', () => {
         defaultMessages['label.analysis.having-metric'],
       ),
     );
-    await user.click(await screen.findByRole('option', { name: 'Amount' }));
+    await user.click(await screen.findByRole('option', { name: AMOUNT_SUM }));
 
     await waitFor(() =>
       expect(draft(engine).having).toEqual({

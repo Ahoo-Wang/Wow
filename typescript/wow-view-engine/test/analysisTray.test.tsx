@@ -175,6 +175,17 @@ function draft(engine: ViewEngine): AnalysisViewConfig {
 
 const APPLY = defaultMessages['label.filter.apply'];
 
+/**
+ * How a metric is *referred to*: what names the card among the others says
+ * the summary as well as the field, in the words the result column is
+ * headed with, so two summaries of one field are two different names.
+ */
+const summarised = (field: string, fn: string) =>
+  formatMessage(defaultMessages, 'label.summary.of', {
+    field,
+    fn: defaultMessages[`label.summary.fn.${fn}` as const],
+  });
+
 function applyButton(): HTMLElement {
   return within(
     document.querySelector<HTMLElement>('[data-slot="analysis-tray-actions"]')!,
@@ -572,11 +583,15 @@ describe('the tray’s metric cards', () => {
     // A field that declares only a distinct count, and one that declares
     // only a sample value, start as exactly that.
     await add('Add metric', 'Customer');
-    await screen.findByRole('button', { name: 'Remove metric Customer' });
+    await screen.findByRole('button', {
+      name: `Remove metric ${summarised('Customer', 'DISTINCT_COUNT')}`,
+    });
     expect(metrics()[2]).toMatchObject({ type: 'DISTINCT_COUNT' });
 
     await add('Add metric', 'Note');
-    await screen.findByRole('button', { name: 'Remove metric Note' });
+    await screen.findByRole('button', {
+      name: `Remove metric ${summarised('Note', 'ANY')}`,
+    });
     expect(metrics()[3]).toMatchObject({ type: 'ANY', field: 'note' });
     expect(engine.openRuntimes()[0].getSnapshot().issues).toEqual([]);
   });
@@ -598,7 +613,9 @@ describe('the tray’s metric cards', () => {
     expect(notes()).toEqual([]);
 
     await add('Add metric', 'Note');
-    await screen.findByRole('button', { name: 'Remove metric Note' });
+    await screen.findByRole('button', {
+      name: `Remove metric ${summarised('Note', 'ANY')}`,
+    });
 
     expect(notes()).toEqual([
       'Any value: it may differ from one run to the next.',
@@ -667,11 +684,15 @@ describe('the tray’s metric cards', () => {
     );
 
     fireEvent.click(
-      screen.getByRole('button', { name: 'Remove metric Amount' }),
+      screen.getByRole('button', {
+        name: `Remove metric ${summarised('Amount', 'AVG')}`,
+      }),
     );
     await waitFor(() =>
       expect(
-        screen.queryByRole('button', { name: 'Remove metric Amount' }),
+        screen.queryByRole('button', {
+          name: `Remove metric ${summarised('Amount', 'AVG')}`,
+        }),
       ).toBeNull(),
     );
 
@@ -698,7 +719,9 @@ describe('the tray’s metric cards', () => {
   it('names a new row by the first free alias, not by the row count', async () => {
     await open();
     const removals = () =>
-      screen.queryAllByRole('button', { name: 'Remove metric Amount' });
+      screen.queryAllByRole('button', {
+        name: `Remove metric ${summarised('Amount', 'SUM')}`,
+      });
 
     await add('Add metric', 'Amount');
     await add('Add metric', 'Amount');

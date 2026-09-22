@@ -14,6 +14,8 @@
 import {
   EXPRESSION_OPERATORS,
   OPERATOR_SIGN,
+  derivedText,
+  expressionText,
   isFormula,
 } from '../../analysis/index.js';
 import type {
@@ -27,7 +29,7 @@ import type { AnalysisEditorController } from '../../react/index.js';
 import { NumberInput } from '../FilterValueEditor.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { CompactSelect } from './CompactSelect.js';
-import { metricName } from './editing.js';
+import { metricReference } from './editing.js';
 
 /** The word the operand select shows for "a number typed here". */
 const NUMBER = '#number';
@@ -48,6 +50,7 @@ function BinaryEditor<E extends { type: string }>({
   disabled,
   operand,
   read,
+  text,
   onChange,
 }: {
   name: string;
@@ -61,6 +64,8 @@ function BinaryEditor<E extends { type: string }>({
   operand(pick: string | number): E;
   /** Reads an operand back: a pick's value, a number, or null for a nested one. */
   read(operand: E): string | number | null;
+  /** A nested operand said as its author would, since no control holds it. */
+  text(operand: E): string;
   onChange(left: E, operator: AnalysisExpressionOperator, right: E): void;
 }) {
   const messages = useViewMessages();
@@ -74,7 +79,16 @@ function BinaryEditor<E extends { type: string }>({
     write: (next: E) => void,
   ) => {
     const current = read(value);
-    if (current === null) return null;
+    // An operand deeper than one operation has no control here. Drawing
+    // nothing left the card half-written and the other half editable, which
+    // read as a formula over one operand; the text stands in its place, and
+    // the note below says why it cannot be touched.
+    if (current === null)
+      return (
+        <span data-slot="operand-text" className="text-muted-foreground">
+          {text(value)}
+        </span>
+      );
     const label = messages.label(
       which === 'left'
         ? 'label.analysis.operand-left'
@@ -119,6 +133,14 @@ function BinaryEditor<E extends { type: string }>({
         onChange={op => onChange(left, op, right)}
       />
       {side('right', right, next => onChange(left, operator, next))}
+      {(read(left) === null || read(right) === null) && (
+        <span
+          data-slot="expression-unreadable"
+          className="text-muted-foreground w-full"
+        >
+          {messages.label('label.analysis.expression-unreadable')}
+        </span>
+      )}
     </>
   );
 }
@@ -169,6 +191,14 @@ export function FormulaControls({
               ? operand.value
               : null
         }
+        text={operand =>
+          expressionText(
+            operand,
+            field =>
+              analysis.fields.find(entry => entry.field === field)?.label ??
+              field,
+          )
+        }
         onChange={(left, operator, right) =>
           analysis.updateMetric(index, {
             expression: { type: 'BINARY', operator, left, right },
@@ -211,7 +241,7 @@ export function DerivedControls({
     .filter(entry => entry.type !== 'ANY')
     .map(entry => ({
       value: entry.alias,
-      label: metricName(analysis, entry, messages),
+      label: metricReference(analysis, entry, messages),
     }));
   return (
     <BinaryEditor<AnalysisDerivedExpression>
@@ -232,6 +262,16 @@ export function DerivedControls({
           : operand.type === 'CONSTANT'
             ? operand.value
             : null
+      }
+      text={operand =>
+        derivedText(operand, alias => {
+          const referenced = analysis.metrics.find(
+            entry => entry.alias === alias,
+          );
+          return referenced
+            ? metricReference(analysis, referenced, messages)
+            : alias;
+        })
       }
       onChange={(left, operator, right) =>
         analysis.updateMetric(index, {
