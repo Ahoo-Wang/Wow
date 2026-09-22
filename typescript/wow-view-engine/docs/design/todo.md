@@ -79,7 +79,6 @@
 - **P-13 打开视图时**：整页只有一条 `h-8` 骨架。判据：标题栏 + 结果块骨架，结构与打开后一致。落点：`src/ui/WorkbenchShell.tsx`。
 - **P-14 分页**（拍板 Ⅷ）：只能一页页翻。判据：总数已知时给页码输入。落点：`src/ui/RecordPagination.tsx`。
 - **P-15 筛选／取反**（拍板 Ⅶ）：简单模式写不出「不在这段时间内」。判据：pill 上的取反开关，写成 `nor`。落点：`src/ui/filter/ConditionPill.tsx`、`src/filter/`、[ui/README.md#filterpanel-的布局](ui/README.md#filterpanel-的布局)。
-- **P-19 文案**：文档引文与目录不一致（「新视图」vs「尚未保存」、「N 条」vs「N 项」）；`label.refresh.on` 多一个空格。判据：统一量词、修目录。落点：`src/ui/messages/`。
 
 ### 架构与测试（零行为变化，防腐化）
 

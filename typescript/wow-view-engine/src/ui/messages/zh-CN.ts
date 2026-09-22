@@ -97,7 +97,9 @@ export const zhCN: ViewMessages = {
   'label.toolbar.arrange': '表格设置',
   'label.toolbar.freshness': '数据新鲜度',
   'label.toolbar.hint': '勾选行以批量处理',
-  'label.toolbar.selected': '已选 {count} 项',
+  // 量词：记录数一律「条」（已选、共 N 条记录、导出 N 条），配置项、条件与
+  // 检查发现一律「项」（N 项未应用、N 项待修正、还有 N 项）。
+  'label.toolbar.selected': '已选 {count} 条',
   'label.toolbar.clear-selection': '清除选择',
   'label.toolbar.actions': '操作',
 
@@ -130,7 +132,7 @@ export const zhCN: ViewMessages = {
   'label.refresh.seconds': '{count} 秒',
   'label.refresh.minutes': '{count} 分钟',
   'label.refresh.hours': '{count} 小时',
-  'label.refresh.on': '这个视图每 {interval} 自己刷新一次。',
+  'label.refresh.on': '这个视图每 {interval}自动刷新一次。',
   'label.refresh.panels':
     '整个仪表盘共用一个计时器；被引用视图自己保存的间隔在这里不生效。',
   'label.toolbar.page': '第 {index} 页',
@@ -465,7 +467,7 @@ export const zhCN: ViewMessages = {
   'label.view.open-default': '回到默认视图',
   'label.view.needs-fixing': '这个视图要先修正才能运行',
   'label.view.warnings': '值得留意',
-  'label.view.warnings-count': '{count} 处值得留意',
+  'label.view.warnings-count': '{count} 项值得留意',
   'label.view.none': '还没有视图',
   'runtime.kind.not-declared': '{definition} 不提供 {kind} 视图。',
   'runtime.options.unresolved': '{source} 没有配置候选来源。',
@@ -717,7 +719,7 @@ export const zhCN: ViewMessages = {
     '只能显示 http、https、mailto 和相对链接。',
 
   // 视图自己要说的话：哪里失败了，屏幕上留着的又是什么，此刻有没有东西在跑。
-  'label.status.more': '还有 {count} 条',
+  'label.status.more': '还有 {count} 项',
   'label.status.less': '收起',
   'label.status.loading': '加载中',
   'label.status.querying': '正在查询',
