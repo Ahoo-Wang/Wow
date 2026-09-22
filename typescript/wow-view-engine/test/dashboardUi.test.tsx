@@ -1178,9 +1178,12 @@ describe('DashboardWorkbench', () => {
       // error, and a personal copy of it is exactly the way out.
       const { store } = workbench(board('shared'));
       await screen.findByRole('button', { name: 'More view actions' });
+      // One finding, so the strip says it outright rather than heading it.
       expect(
         (await screen.findAllByRole('alert')).some(alert =>
-          (alert.textContent ?? '').includes('needs fixing'),
+          (alert.textContent ?? '').includes(
+            'A shared dashboard cannot show a personal view',
+          ),
         ),
       ).toBe(true);
 
@@ -1353,15 +1356,14 @@ describe('DashboardWorkbench', () => {
       />,
     );
 
-    // The strip is a line: it says the dashboard needs fixing, and unfolds
-    // into what exactly, rather than pushing the panels down the page.
+    // The strip is a line, and one finding is that line: said outright
+    // rather than headed and folded away behind a count of one (F-14).
     await waitFor(() =>
-      expect(screen.getByRole('alert').textContent).toContain('needs fixing'),
+      expect(screen.getByRole('alert').textContent).toContain(
+        'not a field is not a usable field name.',
+      ),
     );
-    fireEvent.click(screen.getByRole('button', { name: '1 more' }));
-    expect(screen.getByRole('alert').textContent).toContain(
-      'not a field is not a usable field name.',
-    );
+    expect(screen.queryByRole('button', { name: '1 more' })).toBeNull();
     // Nothing ran: an error blocks the apply that would have created panels.
     expect(source.paged).not.toHaveBeenCalled();
   });

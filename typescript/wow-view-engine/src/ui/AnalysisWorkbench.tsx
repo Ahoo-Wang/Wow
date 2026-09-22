@@ -171,12 +171,18 @@ export function AnalysisWorkbench({
           <AnalysisEditor analysis={analysis} />
         </>
       }
+      /* Only where it will draw: the shell reads the slot to decide whether
+         there is a result block at all, and an element that renders null
+         still counts as something in it (`filled`). */
       strips={
-        <QueryStrip
-          error={state?.query.status === 'error' ? state.query.error : null}
-          stale={state?.result != null}
-          onRetry={() => runtime?.refresh()}
-        />
+        state?.query.status === 'error' &&
+        state.query.error !== undefined && (
+          <QueryStrip
+            error={state.query.error}
+            stale={state.result != null}
+            onRetry={() => runtime?.refresh()}
+          />
+        )
       }
       result={
         view &&

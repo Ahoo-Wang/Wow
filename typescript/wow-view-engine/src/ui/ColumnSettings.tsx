@@ -11,7 +11,13 @@
  * limitations under the License.
  */
 
-import { useCallback, useId, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useId,
+  useMemo,
+  useState,
+  type ReactElement,
+} from 'react';
 import { DragDropProvider } from '@dnd-kit/react';
 import { Accessibility } from '@dnd-kit/dom';
 import { Columns3Icon, SearchIcon } from 'lucide-react';
@@ -108,6 +114,18 @@ export interface ColumnSettingsProps {
   actions?: boolean;
   /** Pins the table's cap is not drawing right now (D17-4); see `ColumnRow`. */
   released?: ReleasedPins;
+  /**
+   * The control that opens it. Left out, the toolbar's bordered icon button
+   * with the panel's name in its tooltip (D12 Ⅳ).
+   *
+   * The error strip passes a worded button instead, and it passes one
+   * because in the state that strip is read in there is no toolbar to be an
+   * icon in: a config the definition refuses never ran, so there is no
+   * result and so no result block (F-14). The panel is the same panel; only
+   * the way in is different, and an icon alone at the end of a sentence
+   * names nothing.
+   */
+  trigger?: ReactElement<Record<string, unknown>>;
 }
 
 /**
@@ -127,6 +145,7 @@ export function ColumnSettings({
   rowKey,
   actions = false,
   released = NO_RELEASE,
+  trigger,
 }: ColumnSettingsProps) {
   const messages = useViewMessages();
   const noteId = useId();
@@ -242,31 +261,38 @@ export function ColumnSettings({
         if (!open) setQuery('');
       }}
     >
-      {/* A bordered icon button with the word in its name and its tooltip
-          (D12 Ⅳ): the control reports no state, so it carries no text. */}
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            // A toolbar item where a toolbar is around it, an ordinary
-            // button anywhere else: the bar owns the roving focus order and
-            // this is one of the stops in it.
-            <ToolbarItem
-              render={
-                <PopoverTrigger
-                  data-control="columns"
-                  aria-label={messages.label('label.toolbar.columns')}
-                  render={<Button variant="outline" size="icon-sm" />}
-                />
-              }
-            />
-          }
-        >
-          <Columns3Icon />
-        </TooltipTrigger>
-        <TooltipContent>
-          {messages.label('label.toolbar.columns')}
-        </TooltipContent>
-      </Tooltip>
+      {/* The caller's own control, where it gave one: it already says what
+          it opens in words, so it wears neither the icon nor the tooltip
+          that stand in for them. */}
+      {trigger ? (
+        <PopoverTrigger data-control="columns" render={trigger} />
+      ) : (
+        /* A bordered icon button with the word in its name and its tooltip
+           (D12 Ⅳ): the control reports no state, so it carries no text. */
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              // A toolbar item where a toolbar is around it, an ordinary
+              // button anywhere else: the bar owns the roving focus order
+              // and this is one of the stops in it.
+              <ToolbarItem
+                render={
+                  <PopoverTrigger
+                    data-control="columns"
+                    aria-label={messages.label('label.toolbar.columns')}
+                    render={<Button variant="outline" size="icon-sm" />}
+                  />
+                }
+              />
+            }
+          >
+            <Columns3Icon />
+          </TooltipTrigger>
+          <TooltipContent>
+            {messages.label('label.toolbar.columns')}
+          </TooltipContent>
+        </Tooltip>
+      )}
       {/* The popup's own scroll port is handed to the list below instead:
           the search line and the title stay put while twenty rows go past
           them, which is the whole point of having a search line. The `y`

@@ -15,6 +15,46 @@ import type { ReactNode } from 'react';
 import { cn } from 'cn';
 import { SPACE } from '../layout.js';
 
+export interface ResultBlockContents {
+  /** Whether the block would be the framed one. */
+  framed: boolean;
+  /** Whether a result is on screen for it to hold. */
+  hasResult: boolean;
+  /** Whether a request is on its way, which the rows are drawn loading for. */
+  pending: boolean;
+  /** Whether the strips slot will actually draw something. */
+  strips: boolean;
+  /** Whether the kind's own result slot will actually draw something. */
+  result: boolean;
+}
+
+/**
+ * Whether there is a result block at all.
+ *
+ * A frame is a frame **round a result**, so it waits for one: a config the
+ * definition refuses never ran, so there is no result and nothing on its
+ * way, and the frame drawn round the toolbar alone was an empty result —
+ * ruled off, captioned, and with Export still pressable over nothing
+ * (F-14). What the reader is owed in that state is the error above it and
+ * the way to fix it, which is where both now are. A query that failed keeps
+ * the frame: the strip is what the block holds, and it is about the rows.
+ *
+ * An unframed block draws no frame and so has no empty frame to avoid: it
+ * is the kind's own stack, and a dashboard's grid of panels is its result
+ * whether a panel has answered yet or not — an editable board with nothing
+ * on it is where panels are added from.
+ */
+export function resultBlockShown({
+  framed,
+  hasResult,
+  pending,
+  strips,
+  result,
+}: ResultBlockContents): boolean {
+  if (hasResult || pending || strips) return true;
+  return !framed && result;
+}
+
 /**
  * The result and its caption, on no card of their own (D12).
  *

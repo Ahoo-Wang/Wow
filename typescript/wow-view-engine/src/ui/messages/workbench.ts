@@ -37,6 +37,9 @@ export const workbenchMessages = {
   // screen reader; "Switch view" over a blank button would name a view that
   // is not there and offer to leave it.
   'label.workbench.choose-view': 'Choose a view',
+  // Said once, by the live region beside the opening skeleton. The shape on
+  // screen is what the page will look like; this is what it means.
+  'label.workbench.opening': 'Opening the view',
   // The chevron beside the editor's toggle. "Options" rather than "modes":
   // the filter puts its two modes in there, another editor may put something
   // else, and the name has to fit whatever the editor offers.

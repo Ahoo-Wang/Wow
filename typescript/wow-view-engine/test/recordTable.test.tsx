@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
@@ -917,9 +917,37 @@ describe('a record view with no result', () => {
 
     // `apply` was refused, so the query never ran and never will until the
     // config is fixed: status stays idle, and there is nothing on the way.
-    await screen.findByText('This view needs fixing before it runs');
+    // The one finding, said outright, with the way out at the end of it —
+    // and no result block at all around a toolbar with nothing under it.
+    const strip = await screen.findByRole('alert');
+    expect(strip.textContent).toContain(
+      'The column removedColumn no longer exists.',
+    );
+    expect(
+      within(strip).getByRole('button', { name: 'Open column settings' }),
+    ).toBeTruthy();
     expect(screen.queryByRole('table')).toBeNull();
     expect(selectAll()).toBeNull();
+    expect(document.querySelector('[data-slot="result-block"]')).toBeNull();
+  });
+
+  it('opens the column settings from the strip, where the toolbar is not', async () => {
+    const user = userEvent.setup();
+    workbench({
+      ...mine,
+      config: recordConfig({
+        table: { columns: [{ field: 'removedColumn' }] },
+      }),
+    });
+
+    const strip = await screen.findByRole('alert');
+    await user.click(
+      within(strip).getByRole('button', { name: 'Open column settings' }),
+    );
+
+    // The panel the toolbar's button opens, opened from the one line on
+    // screen that says why there is no toolbar.
+    expect(await screen.findByText('Column settings')).toBeTruthy();
   });
 
   it('keeps the skeleton while the first query is still running', async () => {

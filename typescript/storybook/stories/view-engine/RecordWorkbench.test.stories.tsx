@@ -40,6 +40,7 @@ import displayMeta, {
   NarrowTitleBar as DisplayNarrowTitleBar,
   NeedsFixing as DisplayNeedsFixing,
   NoViews as DisplayNoViews,
+  Opening as DisplayOpening,
   Paged as DisplayPaged,
   PinnedEdges as DisplayPinnedEdges,
   PinnedGroupCapped as DisplayPinnedGroupCapped,
@@ -1145,6 +1146,18 @@ export const QueryFailed: Story = {
     await expect(
       canvas.getByRole('button', { name: /^待出库订单/ }),
     ).toHaveAttribute('aria-current', 'true');
+
+    // And it is as wide as the room it was given, margins deducted. The
+    // registry's `Alert` is `w-full` — a length, 100% of the containing
+    // block with nothing taken off for the `m-3` the frame gives this strip
+    // — so its right edge used to run out under the border (F-14). Only a
+    // real browser lays this out.
+    const frame = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="result-block"]',
+    )!;
+    await expect(alert.getBoundingClientRect().right).toBeLessThanOrEqual(
+      frame.getBoundingClientRect().right,
+    );
   },
 };
 
@@ -1199,21 +1212,95 @@ export const NeedsFixing: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const alert = await canvas.findByRole('alert');
-    await expect(alert).toHaveTextContent(zhCN['label.view.needs-fixing']);
-    // The findings fold behind a count so the result keeps its room.
-    await userEvent.click(within(alert).getByRole('button', { name: /1/ }));
+    // One finding is the line itself (F-14): said outright, with no heading
+    // over it and no fold under it. "这个视图需要修复才能运行 · 还有 1 项"
+    // was a heading with one thing beneath it, and the one thing it hid was
+    // the only sentence that said what to fix.
     await expect(alert).toHaveTextContent('removedColumn');
+    await expect(alert).not.toHaveTextContent(zhCN['label.view.needs-fixing']);
+    await expect(within(alert).queryByRole('button', { name: /1/ })).toBeNull();
+
     // A config the definition refuses is never run, so there is no result —
-    // and with no result there are no columns either. What used to be drawn
-    // was a header of one empty cell over no rows, with a tab-reachable
-    // "Select all rows" in it that selected nothing: the strip above already
-    // says what is wrong, and the table has nothing of its own to add.
+    // and with no result there is no result block either. What used to be
+    // drawn was a frame around a toolbar with a pressable Export in it, over
+    // nothing at all.
     await expect(canvas.queryByRole('table')).toBeNull();
     await expect(
-      canvas.queryByRole('checkbox', {
-        name: zhCN['label.record.select-all'],
-      }),
+      canvasElement.querySelector('[data-slot="result-block"]'),
     ).toBeNull();
+    await expect(
+      canvas.queryByRole('button', { name: zhCN['label.export.title'] }),
+    ).toBeNull();
+
+    // So the way to fix it is on this line: the same panel the toolbar's
+    // button opens, opened from the only thing on screen that says why
+    // there is no toolbar.
+    await userEvent.click(
+      within(alert).getByRole('button', {
+        name: zhCN['label.status.open-columns'],
+      }),
+    );
+    await within(document.body).findByText(zhCN['label.columns.title']);
+    await waitFor(() =>
+      expect(
+        document.body.querySelectorAll('[data-slot="column-setting"]').length,
+      ).toBeGreaterThan(0),
+    );
+
+    // Left closed behind it: the panel is a layer over the page, and a
+    // story that walks off leaving one open hands the next one a popup.
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() =>
+      expect(
+        within(document.body).queryByText(zhCN['label.columns.title']),
+      ).toBeNull(),
+    );
+  },
+};
+
+/**
+ * 打开视图时屏幕上的那一块（P-13）：形状与打开后一致——标题栏、带边的结果块、
+ * 工具栏那一行、底下几行行——而不是一条说"有东西在加载"的灰条。
+ */
+export const Opening: Story = {
+  ...DisplayOpening,
+  play: async ({ canvasElement }) => {
+    const shape = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="opening-skeleton"]',
+      );
+      if (!found) throw new Error('no opening skeleton');
+      return found;
+    });
+
+    await expect(shape).toHaveAttribute('aria-busy', 'true');
+    // Said once, by a live region of its own: `aria-busy` on a live region
+    // holds its announcements back, and this one never turns false.
+    await expect(within(shape).getByRole('status')).toHaveTextContent(
+      zhCN['label.workbench.opening'],
+    );
+
+    await expect(
+      shape.querySelector('[data-slot="view-header-skeleton"]'),
+    ).not.toBeNull();
+    const result = shape.querySelector<HTMLElement>(
+      '[data-slot="result-block"]',
+    );
+    await expect(result).toHaveAttribute('data-framed', 'true');
+    await expect(result!.firstElementChild).toHaveAttribute(
+      'data-slot',
+      'result-toolbar',
+    );
+    await expect(
+      result!.querySelectorAll(
+        '[data-slot="result-rows-skeleton"] [data-slot="skeleton"]',
+      ).length,
+    ).toBe(3);
+
+    // The shape of an answer is not an answer: nothing in it is read out,
+    // and nothing in it can be pressed.
+    await expect(canvasElement.querySelector('table')).toBeNull();
+    await expect(shape.querySelector('button')).toBeNull();
   },
 };
 

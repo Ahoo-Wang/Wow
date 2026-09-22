@@ -11,7 +11,13 @@
  * limitations under the License.
  */
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FilterTree, FilterValue, Issue } from '../src/index.js';
 import { Button } from '../src/ui/components/button.js';
@@ -295,8 +301,85 @@ describe('ErrorStrip', () => {
 
     render(<ErrorStrip issues={marked} />);
     const strip = screen.getByRole('alert');
-    expect(strip.className).toContain('border-destructive');
+    expect(strip.dataset.tone).toBe('error');
+    // The one that is left is said outright, not headed and folded away.
+    expect(strip.textContent).toContain('record.column.unknown');
+  });
+
+  /**
+   * One finding is its own sentence (F-14). "This view needs fixing" over a
+   * fold reading "1 more" was a heading with one thing under it, and the one
+   * thing it hid was the only sentence that said what to fix.
+   */
+  it('says a single error outright, with no fold over it', () => {
+    render(
+      <ErrorStrip
+        issues={[
+          {
+            code: 'record.pageSize.not-positive',
+            severity: 'error',
+            path: ['pageSize'],
+          },
+        ]}
+      />,
+    );
+
+    const strip = screen.getByRole('alert');
+    expect(strip.textContent).toContain(
+      'The page size must be a positive number.',
+    );
+    expect(strip.textContent).not.toContain('needs fixing');
+    expect(within(strip).queryByRole('button', { name: '1 more' })).toBeNull();
+  });
+
+  /** Two of them are a count over a fold; the line has room for one. */
+  it('heads several errors and folds them behind the count', () => {
+    render(
+      <ErrorStrip
+        issues={[
+          {
+            code: 'record.pageSize.not-positive',
+            severity: 'error',
+            path: ['pageSize'],
+          },
+          {
+            code: 'record.pageSize.too-large',
+            severity: 'error',
+            path: ['pageSize'],
+            params: { max: 100 },
+          },
+        ]}
+      />,
+    );
+
+    const strip = screen.getByRole('alert');
     expect(strip.textContent).toContain('needs fixing');
+    fireEvent.click(within(strip).getByRole('button', { name: '2 more' }));
+    expect(strip.textContent).toContain(
+      'The page size must be a positive number.',
+    );
+    expect(strip.textContent).toContain('The page size cannot exceed 100.');
+  });
+
+  /** The way out of it, which only the surface around it knows. */
+  it('carries the action it was handed at the end of the line', () => {
+    render(
+      <ErrorStrip
+        issues={[
+          {
+            code: 'record.pageSize.not-positive',
+            severity: 'error',
+            path: ['pageSize'],
+          },
+        ]}
+        action={<Button>Open column settings</Button>}
+      />,
+    );
+
+    const strip = screen.getByRole('alert');
+    expect(
+      within(strip).getByRole('button', { name: 'Open column settings' }),
+    ).toBeTruthy();
   });
 
   it('says nothing when every error is marked elsewhere', () => {

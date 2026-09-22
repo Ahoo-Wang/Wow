@@ -602,7 +602,11 @@ describe('RecordWorkbench', () => {
     render(<EmbeddedView engine={engine} instanceId="orders-1" />);
 
     // Not an empty table, and not a skeleton that never resolves.
-    await waitFor(() => expect(screen.getByText(/needs fixing/i)).toBeTruthy());
+    await waitFor(() =>
+      expect(
+        screen.getByText('The page size must be a positive number.'),
+      ).toBeTruthy(),
+    );
   });
 
   it('honours the card layout the view was saved with', async () => {

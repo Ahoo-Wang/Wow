@@ -31,6 +31,8 @@ import {
   type RecordExportScope,
 } from '../react/index.js';
 import { useAnnouncer } from './Announcer.js';
+import { Button } from './components/button.js';
+import { ColumnSettings } from './ColumnSettings.js';
 import { cellText, isoDay, type DisplayContext } from './display.js';
 import { downloadFile, fileName } from './download.js';
 import { useQueryAnnouncement } from './record/queryAnnouncement.js';
@@ -377,46 +379,83 @@ export function RecordWorkbench({
          window is where it reports what it produced, what the ceiling cut
          short and what went wrong (D14). A cancel says nothing anywhere —
          it is the answer the user gave. */
+      /* Only where it will draw: the shell reads the slot to decide whether
+         there is a result block at all, and an element that renders null
+         still counts as something in it (`filled`). */
       strips={
-        <QueryStrip
-          error={table.error}
-          stale={hasResult}
-          onRetry={table.refresh}
-        />
+        table.error != null && (
+          <QueryStrip
+            error={table.error}
+            stale={hasResult}
+            onRetry={table.refresh}
+          />
+        )
+      }
+      /* The way out of a config that will not run. It is the same panel
+         the toolbar's button opens — and it is offered here because the
+         state this line is read in is exactly the state there is no
+         toolbar in: nothing ran, so there is no result and no result
+         block (F-14). Offered under both layouts, because what the
+         finding is about is the view's columns and the card settings do
+         not hold them. */
+      errorAction={
+        record &&
+        shown.columns && (
+          <ColumnSettings
+            table={table}
+            fields={fields}
+            {...(record.definition.fieldGroups
+              ? { fieldGroups: record.definition.fieldGroups }
+              : {})}
+            {...(record.definition.record?.rowKey === undefined
+              ? {}
+              : { rowKey: record.definition.record.rowKey })}
+            actions={row !== undefined}
+            trigger={
+              <Button variant="outline" size="xs">
+                {messages.label('label.status.open-columns')}
+              </Button>
+            }
+          />
+        )
+      }
+      toolbar={
+        record && (
+          <ResultToolbar
+            table={table}
+            fields={fields}
+            fieldGroups={record.definition.fieldGroups}
+            rowKey={record.definition.record?.rowKey}
+            // Cards draw no pins, so nothing is let go under them.
+            released={table.layout === 'table' ? released : NO_RELEASE}
+            // The settings show the action column only when there is one:
+            // a host that hands over no row slot has no column to place.
+            hasRowActions={row !== undefined}
+            bulkActions={actions?.bulk}
+            features={features}
+            exporter={
+              shown.export
+                ? {
+                    control: exportControl,
+                    // The host's scope narrows the export exactly as it
+                    // narrows the rows, so the window names both kinds of
+                    // condition.
+                    conditions: [
+                      ...filter.applied,
+                      ...filter.scoped,
+                      ...filter.implied,
+                    ],
+                    nameFile,
+                  }
+                : undefined
+            }
+            runtime={record}
+          />
+        )
       }
       result={
         record && (
           <>
-            <ResultToolbar
-              table={table}
-              fields={fields}
-              fieldGroups={record.definition.fieldGroups}
-              rowKey={record.definition.record?.rowKey}
-              // Cards draw no pins, so nothing is let go under them.
-              released={table.layout === 'table' ? released : NO_RELEASE}
-              // The settings show the action column only when there is one:
-              // a host that hands over no row slot has no column to place.
-              hasRowActions={row !== undefined}
-              bulkActions={actions?.bulk}
-              features={features}
-              exporter={
-                shown.export
-                  ? {
-                      control: exportControl,
-                      // The host's scope narrows the export exactly as it narrows
-                      // the rows, so the window names both kinds of condition.
-                      conditions: [
-                        ...filter.applied,
-                        ...filter.scoped,
-                        ...filter.implied,
-                      ],
-                      nameFile,
-                    }
-                  : undefined
-              }
-              runtime={record}
-            />
-
             {table.layout === 'card' ? (
               <RecordCards
                 table={table}

@@ -120,6 +120,31 @@ function fieldOf(element: Element): string | null {
   );
 }
 
+/**
+ * The same panel behind a control the caller drew (F-14). The error strip
+ * needs a worded way in because the state it is read in has no toolbar for
+ * an icon to sit in: nothing ran, so there is no result block.
+ */
+describe('the control that opens it', () => {
+  it('is a named icon button in a toolbar, and whatever it is given elsewhere', async () => {
+    const user = userEvent.setup();
+    open({}, { trigger: <button type="button">Open column settings</button> });
+
+    // The icon button is gone with its tooltip: the caller's control says
+    // in words what it opens, so neither is left to stand in for them.
+    expect(screen.queryByRole('button', { name: /^Columns/ })).toBeNull();
+    const trigger = screen.getByRole('button', {
+      name: 'Open column settings',
+    });
+    expect(trigger.dataset.control).toBe('columns');
+
+    await user.click(trigger);
+    // The same panel, with the same rows in it.
+    expect(await screen.findByText('Column settings')).toBeTruthy();
+    expect(listed()).toEqual(['id', 'warehouse', 'amount']);
+  });
+});
+
 describe('the column settings model', () => {
   const input = {
     fields: FIELDS,

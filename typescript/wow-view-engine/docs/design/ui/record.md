@@ -69,10 +69,17 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 - **没排序是空态，排满了不是**：一条都没有时画 `Empty` + `EmptyDescription`（`label.sort.unsorted`），和结果块、视图列表的空态同一副形制，不另写一段灰字；排到上限那句（`label.sort.full`）仍是一行普通的字——它说的是下面那个选择器为什么禁用，是一条天花板而不是"这里什么都没有"，`Alert` 在这么小的浮层里反而是一个带边框带图标、比它所谈论的列表还大的盒子。
 - 排序仍是"改完一次性应用"，与表头切换同一条路径（`setSort` 是一次 `edit` 加一次 `apply`）——表格画的是上一次成功结果，不重跑就看不到改动。（见 test/sortSettings.test.tsx）
 
+## 结果块：有结果才有，工具栏是第一行
+
+- **没有结果、也没有在途的查询时，这一块整块不画**（F-14）：那一圈边是**结果**的边，而配置跑不起来的视图从来没跑过，于是框里只剩一条工具栏——一圈空外框裹着一排控件，「导出」还按得下去，按下去是一个空文件。判据写成 `ui/workbench/ResultBlock.tsx` 的 `resultBlockShown`：有结果、有在途、或者 `strips` 槽真会画东西（查询失败那一条），才有这一块。这时读者该看到的是状态行上那一条错与它行尾的出路（下一条）。不带边的那一种不受这条管（仪表盘，`resultFramed={false}`）：它没有框可空，面板网格本身就是它的结果，一块面板都还没答话的可编辑看板正是加面板的地方；
+- **工具栏是这一块的第一行**（D12 Ⅳ），失败条在它**之下**。所以 `WorkbenchShell` 有 `toolbar` 与 `strips` 两个槽，而不是让 Record 把工具栏塞进 `result` 的头上：红条压在工具栏之上读起来像一条盖住整个视图的横幅，而它说的只是底下这批行的事。两个槽各在一道 `RenderBoundary`（都叫 `result`）里，中间的 `strips` 不在任何一道里面——宿主的批量按钮抛出来时该倒的是那一栏或那些行，查询失败那一句无论如何都得读得到；
+- **只有一条 error 就直接说，并给一条出路**（F-14）：`ErrorStrip` 与 `WarningStrip` 同一条规矩——一条发现就是那一行本身，两条起才加标题和「还有 N 项」的折叠。「这个视图需要修复才能运行 · 还有 1 项」是一个标题底下只装一件东西，而被折起来的正是唯一说得出要修什么的那句话。行尾的动作由 surface 给（`ErrorStrip` 的 `action` 槽）：Record 给的是「打开列设置」（`label.status.open-columns`），点开的就是工具栏那颗按钮打开的那一块——`ColumnSettings` 的 `trigger` prop 换掉它平时的图标按钮，因为这一行上没有工具栏可以当图标的落点，而这正是没有结果块的那个状态。两种布局都给：这句话说的是视图的列，而卡片设置里没有列；
+- **callout 宽按容器**：`LineAlert` 用 `w-auto` 覆掉 registry `Alert` 的 `w-full`——`w-full` 是一个长度、不扣外边距，而结果块里的失败条带着 `m-3`，于是右缘被挤出边框 24px。同一处还去掉暗色下行尾按钮的自有底色（`outline` 的 `dark:bg-input/30`）：tone 的字色是按 callout 的底量过的，按钮再往下垫一层就把这对颜色垫到 4.37:1（见回归 story `ErrorCalloutInDarkTheme`）。（见 test/workbenchShell.test.tsx「the result block exists only where there is a result」「the order inside the block」、test/statusStrip.test.tsx「ErrorStrip」、test/recordTable.test.tsx「a record view with no result」，以及回归 story `NeedsFixing`）
+
 ## RecordTable 与 RecordCards
 
 - **没有结果、也没有在途的查询时，表根本不画**：列来自结果，所以一个从未拿到结果的视图连列都没有——画出来是一格空表头压在零行之上，格子里还留着一个 Tab 可达、名叫「选择全部行」的复选框：它选不中任何东西，点下去 `aria-checked` 也不动，既没有 `aria-disabled` 说明自己不能用。这一格比空白更糟，所以 `RecordTable` 在 `hasResult` 为假且状态不是 `loading` 时返回 `null`；
-- **两种"没有行"是两句话，读者对它们的反应不一样**：查询失败由 `QueryStrip` 说（「查询失败」，行尾带重试），配置跑不起来由 `ErrorStrip` 说（「这个视图需要修复才能运行」），两句都在表之上，不由表再说一遍——这与 `AnalysisWorkbench` 的做法是同一条（它的结果槽位以 `view &&` 把关，没有结果就什么也不画）；**查询跑完、什么也没匹配上**才是表自己的那句话（`label.record.empty`「没有可显示的内容」），因为上面没有任何一条会说它；
+- **两种"没有行"是两句话，读者对它们的反应不一样**：查询失败由 `QueryStrip` 说（「查询失败」，行尾带重试），配置跑不起来由 `ErrorStrip` 说（只有一条时就是那一条发现本身，两条起才是「这个视图需要修复才能运行」，见上面「结果块」），两句都在表之上，不由表再说一遍——这与 `AnalysisWorkbench` 的做法是同一条（它的结果槽位以 `view &&` 把关，没有结果就什么也不画）；**查询跑完、什么也没匹配上**才是表自己的那句话（`label.record.empty`「没有可显示的内容」），因为上面没有任何一条会说它；
 - **这道闸门窄到只关它该关的**：刷新失败会留住它替换不掉的那批行并把状态转为 `error`（见 test/recordWorkbench.test.tsx「keeps the rows a failed refresh could not replace」），第一次 `loading` 有自己的骨架行——两者手上都有东西可画，表照画不误。`hasResult` 因此是控制器上一个独立的成员（`state.result != null`），而不是拿 `rows.length` 或 `status` 去猜：一个匹配零行的成功结果也没有行。（见 test/recordTable.test.tsx「a record view with no result」）
 - **空结果给一个出口**（D12 Ⅴ）：`label.record.empty` 下面是一个动作，而且只有一个——「清空条件」（`label.record.empty-clear`）或「添加条件」（`label.record.empty-add`），由**已应用的条件有没有**决定（`RecordWorkbench` 传 `hasConditions` 与 `onEmptyAction`，表自己够不到筛选控制器，也不该去够）。两种情况是两件事：有条件时行是被条件挡掉的，出口是把它们清掉再问一遍——`filter.clear()` 之后必须 `submit()`，只清草稿会让屏幕上这批行仍然是刚被撤掉的那些条件取来的；没有条件时视图已经在显示全部，剩下的只有换个问法，所以按钮把折起来的托盘打开。出口只有一个：需要在两个出口之间选的出口不是出口。`onEmptyAction` 不给就一个都不画——仪表盘面板与 `EmbeddedView` 没有自己的条件编辑器，没地方送人去；
 - **骨架按列名给不等宽条**：知道列的时候，骨架一列一格，每条的宽度是列名的字数（`ch`，夹在 4–16 之间）。三条等宽的灰条只说了"有东西在加载"，一排不等宽的条压在真的表头下面说的是"**这张**表在加载，答案大概长这样"。首次加载没有列（也就没有表头，见下），那时仍是一行一条；

@@ -369,7 +369,10 @@ describe('EmbeddedView', () => {
     );
 
     expect(await screen.findByText(/could not narrow/i)).toBeTruthy();
-    expect(screen.getByText(/needs fixing/i)).toBeTruthy();
+    // The view's one error, said outright rather than headed (F-14).
+    expect(
+      screen.getByText('The page size must be a positive number.'),
+    ).toBeTruthy();
     expect(screen.queryByRole('row')).toBeNull();
   });
 
@@ -483,7 +486,9 @@ describe('EmbeddedView', () => {
     render(<EmbeddedView engine={engine} instanceId="orders-1" />);
 
     await waitFor(() =>
-      expect(screen.getByRole('alert').textContent).toContain('needs fixing'),
+      expect(screen.getByRole('alert').textContent).toContain(
+        'The page size must be a positive number.',
+      ),
     );
     expect(screen.getByRole('status').textContent).toContain('advanced editor');
     expect(screen.queryByRole('row')).toBeNull();

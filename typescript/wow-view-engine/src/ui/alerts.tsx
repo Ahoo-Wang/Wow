@@ -53,6 +53,16 @@ export const TONE_ICON: Record<AlertTone, typeof InfoIcon> = {
 const lineAlertVariants = cva(
   [
     'flex flex-wrap items-center gap-2 rounded-md px-2 py-1',
+    // The width is the container's, not 100% of it. The registry's `Alert`
+    // is `w-full`, which is a length — 100% of the containing block, margins
+    // not deducted — and every callout here is laid out by a flex column
+    // that would have stretched it to exactly the right width on its own.
+    // The two disagree the moment the callout has a margin: the query strip
+    // inside the framed result block carries `m-3`, so `w-full` made it 24px
+    // wider than the room it was given and its right edge ran out under the
+    // frame (F-14). `w-auto` hands the question back to the layout, which is
+    // the only thing that knows about the margins.
+    'w-auto',
     // The icon is nudged down half a step to meet the first line of a block;
     // centred on a row, that only leaves it sitting low. It must not shrink
     // either — in a grid cell nothing asked it to.
@@ -64,6 +74,16 @@ const lineAlertVariants = cva(
     'has-data-[slot=alert-action]:pr-2',
     '[&>[data-slot=alert-action]]:static [&>[data-slot=alert-action]]:flex',
     '[&>[data-slot=alert-action]]:items-center [&>[data-slot=alert-action]]:gap-2',
+    // A control on this line takes no fill of its own in the dark theme.
+    // The tone's text colour was measured against the callout's surface,
+    // and `outline` carries `dark:bg-input/30` — which lightens that
+    // surface under the words until the pair stops reading: #ff6467 over
+    // the blend measured 4.37:1 against 1.4.3's 4.5 (the story
+    // `ErrorCalloutInDarkTheme` is where that was caught). The border and
+    // the hover are the button's own; only the resting fill goes, and it is
+    // written here rather than at each call site because there is one
+    // callout recipe (D16 ruling 8) and this is a fact about it.
+    'dark:[&>[data-slot=alert-action]_button]:bg-transparent',
   ],
   {
     variants: {

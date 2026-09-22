@@ -736,6 +736,10 @@ export const zhCN: ViewMessages = {
   'label.status.less': '收起',
   'label.status.loading': '加载中',
   'label.status.querying': '正在查询',
+  // 只有一条 error 时直接说出来，行尾给一条出路：记录视图自己的错几乎都是
+  // 列的事（定义里没有的列、钉不了的列），修它的地方就是工具栏那颗按钮打开
+  // 的那一块。说的是打开哪一块，不是替读者决定怎么改。
+  'label.status.open-columns': '打开列设置',
   'label.query.failed': '查询失败',
   'label.query.stale': '显示的是上一次成功的结果',
   'label.query.retry': '重试',
@@ -792,6 +796,9 @@ export const zhCN: ViewMessages = {
   // 背后没有视图时的同一个控件：它这时就是标签本身，看到的和读屏念到的是同
   // 一句；空按钮上写「切换视图」，等于给一个并不存在的视图提议离开。
   'label.workbench.choose-view': '选择视图',
+  // 打开视图时那块骨架旁边的播报，只说一次：屏幕上的形状说的是页面将长成
+  // 什么样，这一句说的是它的意思。
+  'label.workbench.opening': '正在打开视图',
   'label.workbench.editor-modes': '编辑器选项',
 
   // 宿主自己的批量命令做完之后那一条。量词跟着它作用的那份选择走

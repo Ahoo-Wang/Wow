@@ -377,6 +377,7 @@ src/
       drag.ts                 — What the sort editor makes of a drag: which entry a drop moves where, the order that comes out of it, and what
     workbench/                — The shell's private parts: `ResultBlock`, `Unopenable`, `useEditorFold` + `filled`
       NoViews.tsx             — The work area when the definition has no view of this kind yet
+      OpeningSkeleton.tsx     — The shape of the page that is opening: title-bar and result-block skeletons, one status sentence (P-13)
       ResultBlock.tsx         — The result and its caption on the one bordered frame (D12)
       Unopenable.tsx          — The work area when the chosen view cannot be opened
       useEditorFold.ts        — The editor's fold, per opening; `filled`

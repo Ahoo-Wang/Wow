@@ -224,6 +224,14 @@ export function QueryStrip({
 export interface ErrorStripProps extends IssueStripProps {
   /** What the line says; a dashboard names itself rather than "this view". */
   title?: string;
+  /**
+   * The way out of it, at the end of the line. A finding that stops the
+   * view is worth nothing to a reader who cannot see where to go and fix
+   * it, and the surface is the only one that knows where that is — a record
+   * view's is the column settings, which the toolbar would have opened if
+   * there were a result for a toolbar to sit over.
+   */
+  action?: ReactNode;
 }
 
 /**
@@ -236,18 +244,35 @@ export interface ErrorStripProps extends IssueStripProps {
  * the ones no pill carries; an embed, which has no editor and so marks nothing
  * anywhere, hands over all of them.
  */
-export function ErrorStrip({ issues, title, className }: ErrorStripProps) {
+export function ErrorStrip({
+  issues,
+  title,
+  action,
+  className,
+}: ErrorStripProps) {
   const messages = useViewMessages();
   const errors = dedupeIssues(
     issues.filter(found => found.severity === 'error'),
   );
   if (errors.length === 0) return null;
+  const sentences = errors.map(found => messages.issue(found));
+  // One finding is its own sentence, the same way a single warning is.
+  // "This view needs fixing" over a fold reading "1 more" was a heading
+  // with one thing under it, and the one thing it hid was the only
+  // sentence that said *what* to fix — so the reader had to press a button
+  // to be told, and nothing at all was gained by the press (F-14).
+  const alone = sentences.length === 1;
   return (
     <StatusStrip
       tone="error"
-      title={title ?? messages.label('label.view.needs-fixing')}
-      details={errors.map(found => messages.issue(found))}
+      title={
+        alone
+          ? sentences[0]
+          : (title ?? messages.label('label.view.needs-fixing'))
+      }
+      details={alone ? undefined : sentences}
       className={className}
+      action={action}
     />
   );
 }

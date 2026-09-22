@@ -28,6 +28,12 @@ export const statusMessages = {
   // surface it started on. The spinner beside the refresh control says the
   // same thing to whoever can see it; this is the other channel.
   'label.status.querying': 'Running the query',
+  // The way out of the one error the strip says outright: the columns are
+  // what a record view's own findings are nearly always about — a column
+  // the definition no longer has, one pinned where it may not be — and the
+  // panel that fixes them is the one the toolbar opens. It names the panel
+  // rather than the fix, because the fix is the reader's to choose.
+  'label.status.open-columns': 'Open column settings',
   'label.query.failed': 'The query failed',
   // A failed query does not clear the table: what is on screen is the last
   // result that did come back, and saying so is the only way to know.

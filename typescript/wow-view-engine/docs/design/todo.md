@@ -66,11 +66,8 @@
 
 ### 缺陷（先做）
 
-- **F-14 状态行与结果块**：配置跑不起来时画一圈空外框只装工具栏且导出仍可按；只有一条 error 也折叠成「还有 1 条」且无修法出口；失败条右缘被裁 22px；失败时红条在工具栏之上，与 D12「工具栏是第一行」矛盾。判据：无结果且无在途时不画结果块；单条 error 直接说 + 「打开列设置」动作；`LineAlert` 宽按容器；strips 槽顺序改为工具栏在上。落点：`src/ui/workbench/ResultBlock.tsx`、`src/ui/alerts.tsx`、[ui/record.md](ui/record.md)。
-
 ### 打磨
 
-- **P-13 打开视图时**：整页只有一条 `h-8` 骨架。判据：标题栏 + 结果块骨架，结构与打开后一致。落点：`src/ui/WorkbenchShell.tsx`。
 - **P-21 表头与数据的层级、语气色对比度**（用户 2026-09-22 评审）：表头与数据行同为白底，只靠一根 2px 线和灰字分开；「待出库」这类 warning 语气徽章是白字压在 L≈0.55 的橙底上，12px 下对比度在 AA 边缘。判据：表头改成与汇总层同一档的 `bg-muted` 灰带、字用 `text-foreground` 中等字重（灰带上的 muted 字会跌破 4.5:1），首尾两条灰带把数据行夹在中间；语气徽章改用 shadcn 的「软」配方（淡底 + 深字，`bg-{tone}/15 text-{tone}` 一类）或把浅色主题的 `--warning` 压到 L≈0.50，真浏览器量过对比度再定，三种语气一起改；暗色饱和度仍归 Ⅻ（阶段 5）。落点：`src/ui/record/columns.ts`（`HEAD_CELL`）、`src/ui/RecordTable.tsx`、`src/ui/variants.tsx`（`ToneBadge`）、`src/styles.css`、[ui/record.md](ui/record.md)。
 
 ### 架构与测试（零行为变化，防腐化）

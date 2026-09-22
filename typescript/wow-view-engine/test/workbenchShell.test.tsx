@@ -12,7 +12,14 @@
  */
 
 import { StrictMode } from 'react';
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
@@ -115,6 +122,151 @@ describe('the result block', () => {
     const grid = block('result-block')!;
     expect(grid.dataset.framed).toBeUndefined();
     expect(grid.className).not.toContain('border');
+  });
+});
+
+/**
+ * A frame is a frame round a result (F-14). A config the definition refuses
+ * never ran, so there is nothing for a frame to be round — and what stood
+ * there was an empty one holding a toolbar whose Export was still pressable.
+ */
+describe('the result block exists only where there is a result', () => {
+  /** The shell settled on its view, whatever it decided to draw under it. */
+  async function opened(props: Partial<WorkbenchShellProps>) {
+    render(<Shell engine={engineWith()} {...props} />);
+    await waitFor(() => expect(block('view-header-block')).not.toBeNull());
+  }
+
+  it('draws no block at all for a config that never ran', async () => {
+    await opened({ hasResult: false, resultPending: false });
+
+    expect(block('result-block')).toBeNull();
+    expect(screen.queryByText('rows')).toBeNull();
+  });
+
+  it('draws one while a request is on its way', async () => {
+    await opened({ hasResult: false, resultPending: true });
+
+    expect(block('result-block')).not.toBeNull();
+    expect(screen.getByText('rows')).toBeTruthy();
+  });
+
+  it('draws one for a strip with no rows under it', async () => {
+    await opened({
+      hasResult: false,
+      resultPending: false,
+      strips: <div data-slot="stub-strip">the query failed</div>,
+    });
+
+    // A query that failed has something to say about the rows that are not
+    // there, and the strip is the block's own line.
+    expect(block('result-block')).not.toBeNull();
+    expect(screen.getByText('the query failed')).toBeTruthy();
+  });
+
+  it('keeps an unframed block, which has no frame to be empty', async () => {
+    await opened({
+      resultFramed: false,
+      hasResult: false,
+      resultPending: false,
+    });
+
+    // The dashboard's grid is its result whether a panel has answered yet
+    // or not, and an editable board with nothing on it is where panels are
+    // added from.
+    expect(block('result-block')).not.toBeNull();
+    expect(screen.getByText('rows')).toBeTruthy();
+  });
+});
+
+/** D12 IV: the toolbar is the block's first row, whatever else it holds. */
+describe('the order inside the block', () => {
+  it('puts the toolbar above the failure strip', async () => {
+    await open({
+      toolbar: <div data-slot="stub-toolbar">toolbar</div>,
+      strips: <div data-slot="stub-strip">the query failed</div>,
+    });
+
+    expect(
+      [...block('result-block')!.children].map(child =>
+        child.getAttribute('data-slot'),
+      ),
+    ).toEqual(['stub-toolbar', 'stub-strip', 'stub-result']);
+  });
+});
+
+/**
+ * P-13: what stands there while a view opens is the shape of the page that
+ * is coming, not one bar saying that something is.
+ */
+describe('opening a view', () => {
+  /** An engine whose store never answers, so the open never settles. */
+  function neverOpens(): ViewEngine {
+    const store = new MemoryViewStore({ instances: [saved] });
+    store.get = () => new Promise<ViewInstance>(() => {});
+    return new ViewEngine({
+      definitions: [ordersDefinition()],
+      store,
+      resolveSource: () => testSource(),
+    });
+  }
+
+  async function skeleton(
+    props: Partial<WorkbenchShellProps> = {},
+  ): Promise<HTMLElement> {
+    render(<Shell engine={neverOpens()} {...props} />);
+    await waitFor(() => expect(block('opening-skeleton')).not.toBeNull());
+    return block('opening-skeleton')!;
+  }
+
+  it('draws the title bar and the framed result the view will have', async () => {
+    const shape = await skeleton();
+
+    expect(shape.getAttribute('aria-busy')).toBe('true');
+    // Said once, by a live region of its own: `aria-busy` on a live region
+    // holds its announcements back, and this one never turns false.
+    expect(within(shape).getByRole('status').textContent).toBe(
+      defaultMessages['label.workbench.opening'],
+    );
+
+    expect(
+      shape.querySelector('[data-slot="view-header-skeleton"]'),
+    ).not.toBeNull();
+    const result = shape.querySelector<HTMLElement>(
+      '[data-slot="result-block"]',
+    )!;
+    expect(result.dataset.framed).toBe('true');
+    // The toolbar is the first row of the frame here too, and the rows
+    // under it are rows.
+    expect(result.firstElementChild?.getAttribute('data-slot')).toBe(
+      'result-toolbar',
+    );
+    expect(
+      result.querySelectorAll(
+        '[data-slot="result-rows-skeleton"] [data-slot="skeleton"]',
+      ),
+    ).toHaveLength(3);
+    // The shape of an answer is not an answer: nothing in it is read out.
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it('leaves the title bar out where the collapsed row already stands there', async () => {
+    const shape = await skeleton({
+      defaultSidebarOpen: false,
+      resultFramed: false,
+    });
+
+    // The shell draws the way back and the switcher in that place while the
+    // list is folded away; a second bar under it would be two title bars.
+    expect(screen.getByRole('button', { name: EXPAND })).toBeTruthy();
+    expect(
+      shape.querySelector('[data-slot="view-header-skeleton"]'),
+    ).toBeNull();
+    // And a dashboard's skeleton frames nothing, as its result does not.
+    expect(
+      shape.querySelector<HTMLElement>('[data-slot="result-block"]')!.dataset
+        .framed,
+    ).toBeUndefined();
   });
 });
 

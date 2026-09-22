@@ -16,6 +16,7 @@ import {
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
   type RecordKey,
+  type ViewInstance,
 } from '@ahoo-wang/fetcher-view-engine';
 import {
   useBulkCommand,
@@ -182,6 +183,18 @@ const longTitledView = {
   title: '全部订单 · 华东仓 · 待出库 · 按金额倒序 · 2026 年第三季度复核清单',
 };
 
+/**
+ * A store that never answers `get`, so the view never finishes opening.
+ *
+ * It is the one screen the opening skeleton is on (P-13), and a real one:
+ * a cold service, a slow link, a store behind a gateway that is thinking.
+ */
+class NeverOpensStore extends MemoryViewStore {
+  override get(): Promise<ViewInstance> {
+    return new Promise(() => {});
+  }
+}
+
 function RecordWorkbenchDemo({
   behaviour = 'data',
   instanceId,
@@ -206,8 +219,11 @@ function RecordWorkbenchDemo({
   exporting,
   wide = false,
   noViews = false,
+  opening = false,
 }: {
   behaviour?: SourceBehaviour;
+  /** Holds the view open-but-not-opened, to show the opening skeleton. */
+  opening?: boolean;
   /**
    * A definition with no view yet — no system view declared, nothing in the
    * store — which is the screen a host meets on its first day. The only
@@ -325,6 +341,10 @@ function RecordWorkbenchDemo({
       )}
       <StoryEngine
         create={() => {
+          if (opening)
+            return createStoryEngine({
+              store: new NeverOpensStore({ instances: savedViews }),
+            });
           if (noViews)
             return createStoryEngine({
               definitions: [
@@ -645,6 +665,7 @@ const meta = {
       options: ['data', 'empty', 'slow', 'failing', 'no-aggregate'],
     },
     broken: { table: { disable: true } },
+    opening: { table: { disable: true } },
     paged: { table: { disable: true } },
     instanceId: { table: { disable: true } },
     withActions: { table: { disable: true } },
@@ -715,6 +736,13 @@ export const EarliestAndLatest: Story = { args: { dated: true } };
 
 /** A saved config the definition outgrew: `apply` is refused until it is fixed. */
 export const NeedsFixing: Story = { args: { broken: true } };
+
+/**
+ * 打开视图的那一刻（P-13）：标题栏一块、结果块一块——工具栏一行、几行行，
+ * 该有边的地方有边。从前这里只有一条 `h-8` 的灰条，它说的是"有东西在加载"，
+ * 而不是"正在来的那一页长这样"，于是视图一到就是整页换一个形状。
+ */
+export const Opening: Story = { args: { opening: true } };
 
 /** No saved view under this id, reported instead of an empty frame. */
 export const CannotOpen: Story = { args: { instanceId: 'deleted' } };

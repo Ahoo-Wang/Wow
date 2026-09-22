@@ -1533,11 +1533,11 @@ describe('a stored condition the editor cannot draw', () => {
     await openBroken();
 
     const strip = screen.getByRole('alert');
-    expect(strip.textContent).toContain('needs fixing');
-    fireEvent.click(within(strip).getByRole('button', { name: '1 more' }));
+    // One finding, one sentence, said outright and with no fold over it
+    // (F-14): the well-formed condition beside it is fine.
     expect(strip.textContent).toContain('This condition could not be read.');
-    // One finding, one sentence: the well-formed condition beside it is fine.
-    expect(within(strip).queryByRole('button', { name: '2 more' })).toBeNull();
+    expect(strip.textContent).not.toContain('needs fixing');
+    expect(within(strip).queryByRole('button', { name: '1 more' })).toBeNull();
   });
 
   it('refuses to apply while it is there', async () => {

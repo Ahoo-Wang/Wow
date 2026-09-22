@@ -23,7 +23,6 @@ import { PanelLeftOpenIcon } from 'lucide-react';
 import type { Issue, ViewKind } from '../model/index.js';
 import type { WorkbenchController } from '../react/index.js';
 import { IconButton } from './IconButton.js';
-import { Skeleton } from './components/skeleton.js';
 import { AppliedBar } from './AppliedBar.js';
 import { EditorBand, EditorBandToggle, EditorFold } from './EditorBand.js';
 import { SPACE, TRAY } from './layout.js';
@@ -39,7 +38,8 @@ import { ViewManager } from './ViewManager.js';
 import { ViewSurface } from './ViewSurface.js';
 import { ViewSwitcher } from './ViewSwitcher.js';
 import { NoViews } from './workbench/NoViews.js';
-import { ResultBlock } from './workbench/ResultBlock.js';
+import { OpeningSkeleton } from './workbench/OpeningSkeleton.js';
+import { ResultBlock, resultBlockShown } from './workbench/ResultBlock.js';
 import { Unopenable } from './workbench/Unopenable.js';
 import { filled, useEditorFold } from './workbench/useEditorFold.js';
 import { useSidebarFold } from './workbench/useSidebarFold.js';
@@ -109,10 +109,25 @@ export interface WorkbenchShellProps {
    * "edited, not applied" survives the editor being folded away.
    */
   editorPending?: number;
+  /**
+   * The result block's first row (D12 Ⅳ): what may be done to the result
+   * and how it is shown. It is its own slot rather than the head of
+   * `result` because the failure strip goes between the two — the toolbar
+   * is the block's first row whatever else the block holds, and a red line
+   * above it read as a banner over the whole view rather than as something
+   * the rows below had to say.
+   */
+  toolbar?: ReactNode;
   /** Strips only one kind has, under the two every kind shows. */
   strips?: ReactNode;
   /** The rows, the chart, the panels — what the page is for. */
   result?: ReactNode;
+  /**
+   * The way out of an error the status line reports, at the end of its
+   * line. A record view offers its column settings; the other two have
+   * nowhere of their own to send a reader yet.
+   */
+  errorAction?: ReactNode;
   /**
    * The sidebar a workbench opens on. One boolean governs it, so collapsing
    * is a change in one place rather than in the layout of every part beside
@@ -151,6 +166,12 @@ export interface WorkbenchShellProps {
    * dashboard has none of its own and answers from its panels instead.
    */
   hasResult?: boolean;
+  /**
+   * Whether a request is on its way, which is the other reason a result
+   * block exists before there is a result: the rows are drawn loading in
+   * it. The open view's own query when left out.
+   */
+  resultPending?: boolean;
   /** The warnings to show; every one the view reports when left out. */
   warnings?: readonly Issue[];
   /**
@@ -220,13 +241,16 @@ export function WorkbenchShell({
   defaultEditorOpen,
   onEditorOpenChange,
   editorPending = 0,
+  toolbar,
   strips,
   result,
+  errorAction,
   defaultSidebarOpen,
   onSidebarOpenChange,
   expandable = true,
   manage = true,
   hasResult,
+  resultPending,
   warnings,
   onRenderFailure,
   resultFramed = true,
@@ -243,6 +267,9 @@ export function WorkbenchShell({
   // nothing without one, which is also half of whether the result block has
   // any reason to exist.
   const describesResult = hasResult ?? state?.result != null;
+  // The other half of it: a block with a request in it holds the rows the
+  // request will fill, drawn loading.
+  const pending = resultPending ?? state?.query.status === 'loading';
 
   // One dialog behind two ways in — the sidebar's gear and the switcher's
   // last item — so the state is here rather than inside either of them.
@@ -579,7 +606,12 @@ export function WorkbenchShell({
           />
         )}
 
-        {opened.loading && <Skeleton className="h-8 w-full" />}
+        {/* The shape of the page that is coming, not a bar saying something
+            is (P-13). Its title bar is left out where the collapsed row
+            above already stands in that place. */}
+        {opened.loading && (
+          <OpeningSkeleton framed={resultFramed} header={!collapsed} />
+        )}
 
         {none && <NoViews failed={list.error !== null} onCreate={create} />}
 
@@ -681,6 +713,7 @@ export function WorkbenchShell({
                       ? messages.label('label.dashboard.needs-fixing')
                       : undefined
                   }
+                  action={errorAction}
                 />
                 {/* Warnings block nothing — the result below is the real one —
                   so they sit under the errors and never replace it. Failed
@@ -739,18 +772,36 @@ export function WorkbenchShell({
                 until there is a result to describe. */}
             <AppliedBar filter={filter} hasResult={describesResult} />
 
-            {/* The result itself (D12 Ⅴ–Ⅶ).
+            {/* The result itself (D12 Ⅳ–Ⅶ).
 
-                Only where one of the two will draw something. An analysis
-                that has not run yet has no result and no strip, and a block
-                around neither of them is the empty block this package's own
-                layout rule forbids. */}
-            {(describesResult || filled(strips) || filled(result)) && (
+                Only where there is a result to frame, one on its way, or
+                something to say about the last one (`resultBlockShown`): a
+                block around none of those is the empty block this package's
+                own layout rule forbids, and for a config that will not run
+                it was a frame around a toolbar. */}
+            {resultBlockShown({
+              framed: resultFramed,
+              hasResult: describesResult,
+              pending,
+              strips: filled(strips),
+              result: filled(result),
+            }) && (
               <ResultBlock framed={resultFramed}>
+                {/* The host's bulk slot renders in the toolbar and its row
+                    slot in the rows, so both are held: a throwing one takes
+                    the bar or the rows, and the title bar, the editor and
+                    the draft stay. Two boundaries rather than one so that
+                    the half that still works still draws — and the strip
+                    between them is neither's, because a query that failed
+                    has to be readable whatever the host's buttons did. */}
+                <RenderBoundary
+                  name="result"
+                  resetKeys={resetKeys}
+                  onFailure={onRenderFailure}
+                >
+                  {toolbar}
+                </RenderBoundary>
                 {strips}
-                {/* The host's bulk and row slots render in here, so this is
-                    where a throwing one is held: the rows go, the title bar,
-                    the editor and the draft stay. */}
                 <RenderBoundary
                   name="result"
                   resetKeys={resetKeys}
