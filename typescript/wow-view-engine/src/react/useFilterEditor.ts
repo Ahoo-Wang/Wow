@@ -230,15 +230,10 @@ export function useFilterEditor(
   // this filter's, exactly as `issues` below reads it.
   const overBudget = filterOverBudget(state?.issues ?? EMPTY_ISSUES);
 
-  const byName = useMemo(
-    () => new Map(fields.map(field => [field.name, field])),
-    [fields],
-  );
-
   /**
    * Edits compose within one event: `edit` is synchronous, so each action
    * reads the tree the runtime holds now rather than the one its render
-   * closed over. Adding a group and then a leaf inside it works.
+   * closed over — which is what `current` is for.
    */
   const change = useCallback(
     (update: (current: FilterTree) => FilterTree) => {
@@ -248,78 +243,40 @@ export function useFilterEditor(
     [runtime],
   );
 
-  const addLeaf = useCallback(
-    (field: string, parent: FilterPath = ROOT) => {
-      const definition = byName.get(field);
-      const kind = definition && kinds?.get(definition.kind);
-      if (!definition || !kind) return;
-      // A field may narrow its kind's operators, and the kind's default is
-      // not always one of them; starting outside the allowed set would make
-      // every new condition invalid on arrival.
-      const allowed = operatorsOf(definition, kind);
-      const operator = allowed.includes(kind.defaultOperator)
-        ? kind.defaultOperator
-        : allowed[0];
-      if (!operator) return;
-
-      const leaf: FilterNode = {
-        field,
-        operator,
-        // The kind decides what an untouched value looks like for its operator.
-        value: kind.emptyValue(operator, definition) as FilterLeaf['value'],
-      };
-      change(current => insertAt(current, parent, leaf));
-    },
-    [byName, kinds, change],
-  );
-
-  const updateLeaf = useCallback(
-    (path: FilterPath, patch: Partial<FilterLeaf>) => {
-      change(current =>
-        updateAt(current, path, node => {
-          if ('children' in node) return node;
-          const next = { ...node, ...patch };
-          return reseedValue(node, next, patch, byName, kinds);
-        }),
-      );
-    },
-    [byName, kinds, change],
-  );
-
-  const addGroup = useCallback(
-    (op: FilterGroupOperator, parent: FilterPath = ROOT) => {
-      change(current => insertAt(current, parent, { op, children: [] }));
-    },
-    [change],
-  );
-
-  const updateGroup = useCallback(
-    (path: FilterPath, op: FilterGroupOperator) => {
-      // `updateAt` leaves the root alone by design, so the root's operator is
-      // written directly: a tree may be one big OR.
-      if (path.length === 0) {
-        change(current => (current.op === op ? current : { ...current, op }));
-        return;
-      }
-      change(current =>
-        updateAt(current, path, node =>
-          'children' in node ? { ...node, op } : node,
-        ),
-      );
-    },
-    [change],
-  );
-
   // `validateFilter` addresses a node by its path (`[0]`, `[1, 0]`), so the
   // code is what says an Issue belongs to the filter at all — and the path
   // is what says it belongs to *this* filter: an element's or a dashboard
   // panel's own filter is validated in its own scope and re-pathed under
   // ['elements', …] or ['panels', …], which would otherwise mark top-level
   // conditions as invalid.
-  const issues = (state?.issues ?? []).filter(
-    found =>
-      found.code.startsWith('config.filterMode.') ||
-      (found.code.startsWith('filter.') && isOwnFilterPath(found)),
+  const issues = useMemo(
+    () =>
+      (state?.issues ?? EMPTY_ISSUES).filter(
+        found =>
+          found.code.startsWith('config.filterMode.') ||
+          (found.code.startsWith('filter.') && isOwnFilterPath(found)),
+      ),
+    [state],
+  );
+  const fieldGroups =
+    runtime?.definition.kind === 'data'
+      ? (runtime.definition.fieldGroups ?? EMPTY_GROUPS)
+      : EMPTY_GROUPS;
+  // The editing itself is `treeController`, bound to the runtime: it is the
+  // same controller a nested editor runs over a leaf's value, so the nine
+  // actions live once. What this hook adds is the view around the tree.
+  const base = useMemo(
+    () =>
+      treeController({
+        tree,
+        fields,
+        fieldGroups,
+        kinds,
+        issues,
+        current: () => runtime?.getSnapshot().draft.filter ?? tree,
+        onChange: next => runtime?.edit({ filter: next }),
+      }),
+    [tree, fields, fieldGroups, kinds, issues, runtime],
   );
 
   // What "not applied yet" is measured against is the tree `apply` promoted,
@@ -348,15 +305,8 @@ export function useFilterEditor(
   );
 
   return {
-    tree,
+    ...base,
     mode: state?.draft.filterMode ?? 'simple',
-    fields,
-    fieldGroups:
-      runtime?.definition.kind === 'data'
-        ? (runtime.definition.fieldGroups ?? EMPTY_GROUPS)
-        : EMPTY_GROUPS,
-    kinds,
-    issues,
     // The result's own config, which was admitted before it ran and is
     // therefore within budget by construction — an over-budget draft blocked
     // apply, so it is not what produced these rows and does not silence what
@@ -418,23 +368,6 @@ export function useFilterEditor(
       (mode: FilterMode) => runtime?.edit({ filterMode: mode }),
       [runtime],
     ),
-    addLeaf,
-    fieldsFor: useCallback(
-      (parent: FilterPath = ROOT) => addableFields(tree, fields, parent),
-      [tree, fields],
-    ),
-    clearValue: useCallback(
-      (path: FilterPath) =>
-        change(current => blankAt(current, path, byName, kinds)),
-      [change, byName, kinds],
-    ),
-    updateLeaf,
-    addGroup,
-    updateGroup,
-    remove: useCallback(
-      (path: FilterPath) => change(current => removeAt(current, path)),
-      [change],
-    ),
     clear: useCallback(() => change(clearFilter), [change]),
     submit: useCallback(() => runtime?.apply(), [runtime]),
     // Read off the snapshot rather than off `inForce`, for the same reason
@@ -446,26 +379,6 @@ export function useFilterEditor(
     }, [runtime]),
     focus: useCallback(() => runtime?.setEditing(true), [runtime]),
     blur: useCallback(() => runtime?.setEditing(false), [runtime]),
-    operatorsFor: useCallback(
-      (field: string) => {
-        const definition = byName.get(field);
-        const kind = definition && kinds?.get(definition.kind);
-        return definition && kind ? operatorsOf(definition, kind) : [];
-      },
-      [byName, kinds],
-    ),
-    editorFor: useCallback(
-      (path: FilterPath) => {
-        const node = nodeAt(tree, path);
-        if (!node || 'children' in node) return null;
-        const definition = byName.get(node.field);
-        const kind = definition && kinds?.get(definition.kind);
-        return kind && definition
-          ? kind.editor(node.operator, definition, node.value)
-          : null;
-      },
-      [byName, kinds, tree],
-    ),
   };
 }
 
@@ -560,6 +473,14 @@ export interface TreeControllerInput {
   kinds: FieldKindRegistry | undefined;
   /** Issues already rebased onto this tree. */
   issues: Issue[];
+  /**
+   * The tree an action reads at the moment it runs, where that is not the
+   * `tree` it was built over: an editor bound to a runtime reads the draft
+   * the runtime holds at the click, so two edits in one event compose —
+   * adding a group and then a leaf inside it works. Left out, actions read
+   * `tree`, which is what a nested editor over a leaf's value wants.
+   */
+  current?(): FilterTree;
   onChange(tree: FilterTree): void;
 }
 
@@ -613,7 +534,7 @@ export function treeController(
   const { tree, fields, kinds, issues, onChange } = input;
   const byName = new Map(fields.map(field => [field.name, field]));
   const change = (update: (current: FilterTree) => FilterTree) =>
-    onChange(update(tree));
+    onChange(update(input.current?.() ?? tree));
 
   return {
     tree,

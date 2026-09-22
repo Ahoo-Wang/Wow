@@ -809,6 +809,37 @@ describe('treeController', () => {
     expect(own.tree().children).toEqual([]);
   });
 
+  /**
+   * What binds it to a runtime: an action reads the tree `current` gives at
+   * the moment it runs, not the one the controller was built over, so two
+   * actions in one event compose — which is the whole of what the hook adds
+   * to the controller, and why it no longer keeps a copy of these methods.
+   */
+  it('reads the tree current gives at the moment of the action', () => {
+    let held: FilterTree = { op: 'and', children: [] };
+    const bound = treeController({
+      tree: { op: 'and', children: [] },
+      fields,
+      kinds: builtinFieldKinds,
+      issues: [],
+      current: () => held,
+      onChange: next => {
+        held = next;
+      },
+    });
+
+    bound.addGroup('or');
+    bound.addLeaf('qty', [0]);
+
+    // The second action landed inside the group the first one made, though
+    // the controller's own `tree` never moved.
+    expect(held.children[0]).toMatchObject({
+      op: 'or',
+      children: [{ field: 'qty' }],
+    });
+    expect(bound.tree.children).toEqual([]);
+  });
+
   it('nests a group and changes how it combines', () => {
     const own = controller();
 

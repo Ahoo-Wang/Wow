@@ -48,7 +48,7 @@ useViewList(engine, definitionId, options?: { kind }): { items; all; preferences
 useFilterEditor(runtime): FilterController
 ```
 
-- 按路径增删改、模式、清空、提交；
+- 按路径增删改、模式、清空、提交。**树的编辑本身只有一份**：`treeController`（同文件）绑到 runtime 就是这个钩子——`current()` 让每个动作读点击那一刻 runtime 手里的草稿（所以一次事件里先加分组再往里加条件是成立的），`onChange` 写回 `edit({ filter })`；嵌套编辑器（元素匹配）把同一个控制器绑在一片叶子的值上。从前钩子把九个方法逐字重写了一遍，嵌套走的反而是不显眼的那份（A-06，2026-09-21 收口）；
 - `discard()` 把草稿筛选退回 `state.applied.filter`，是一次 **`edit` 而没有 `apply`**：屏幕上的结果本来就是在 `applied` 下取回来的，把这棵树放回去，查询与行原样不动——再跑一次只是花一个请求去拿已经在那儿的答案。做完 `pending` 归 false，因为两棵树又一致了，这正是它的意思；
 - `discard()` 不是 `commands.revert`。revert 管的是**存下来的配置**：它丢掉这个视图一切未保存的编辑，把库里那份重新变成草稿。`discard()` 只丢掉**没应用的那些条件**，既不碰存下来的配置，也不碰列、排序与分页；
 - Enter 提交排除 IME、修饰键、内部弹层与本身就吃 Enter 的控件，由 UI 层处理（[ui/README.md#filterpanel-的布局](ui/README.md#filterpanel-的布局)）；
