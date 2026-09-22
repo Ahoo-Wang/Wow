@@ -13,7 +13,7 @@
 
 import { useMemo } from 'react';
 import type { AnalysisColumnView } from '../../analysis/index.js';
-import type { ChartSpec, RecordData } from '../../model/index.js';
+import type { ChartSpec, FunnelStages, RecordData } from '../../model/index.js';
 import { columnTitle, displayValue, valueText } from '../display.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
@@ -110,4 +110,28 @@ export function labelOf(value: unknown): string {
   if (typeof value === 'number' || typeof value === 'boolean')
     return value.toString();
   return JSON.stringify(value) ?? '';
+}
+
+/**
+ * What one funnel stage is called, wherever the funnel is read — the drawing
+ * and the table under it say the same words.
+ *
+ * A stage taken from a dimension is one of that dimension's values and reads
+ * as its column shows it. A stage that is a metric wears the name the
+ * analyst gave it (`items[i].label`, typed on the options' data page); with
+ * none given the projection falls back to the metric's alias — which names
+ * the query and nothing a reader recognises — so the column's title stands
+ * in, exactly as every slot on the panel is named by its column.
+ */
+export function stageName(
+  stages: FunnelStages | undefined,
+  index: number,
+  /** The stage as the projection labelled it. */
+  projected: string,
+  label: ValueLabel,
+  column: ColumnTitle,
+): string {
+  if (stages?.from === 'group') return label(stages.category, projected);
+  const item = stages?.items[index];
+  return item?.label ?? column(item?.metric) ?? projected;
 }

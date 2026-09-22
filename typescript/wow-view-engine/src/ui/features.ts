@@ -29,6 +29,14 @@ export interface WorkbenchFeatures {
   columns?: boolean;
   /** The sort settings. Record views only. */
   sort?: boolean;
+  /**
+   * The visualization panel and the 「可视化」 button that opens it (D20 屏
+   * I／J). Analysis views only: off, the result is read as the saved layout
+   * says — a table, or the chart already in the config — and there is no way
+   * into the panel, because a panel nobody can reach is a panel that does
+   * not exist.
+   */
+  visualization?: boolean;
   /** The view manager — its gear in the sidebar and its item in the switcher. */
   manage?: boolean;
 }
@@ -39,6 +47,7 @@ export const ALL_FEATURES: Readonly<Required<WorkbenchFeatures>> = {
   layouts: true,
   columns: true,
   sort: true,
+  visualization: true,
   manage: true,
 };
 

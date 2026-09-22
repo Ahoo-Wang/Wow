@@ -27,17 +27,19 @@ export interface Announcer {
 /**
  * One live region for one surface, and the sentence to put in it.
  *
- * Three surfaces here move a row by a keyboard shortcut of their own — the
- * column settings, the sort editor and the view manager — and each had its
- * own `role="status" aria-live="polite"` block, written out three times. The
+ * Four surfaces here move a row by a keyboard shortcut of their own — the
+ * column settings, the sort editor, the view manager and the visualization
+ * panel's series list — and the first three each had their own
+ * `role="status" aria-live="polite"` block, written out three times. The
  * region is not the interesting part of any of them: the wording is
- * (`dragAnnounce.ts`, `columns/drag.ts`, `manage/drag.ts`), and the
- * caller hands that over already formatted.
+ * (`dragAnnounce.ts`, `columns/drag.ts`, `manage/drag.ts`,
+ * `analysis/SeriesList.tsx`), and the caller hands that over already
+ * formatted.
  *
  * Why there is a region at all, next to a drag library that owns one:
  * `@dnd-kit`'s `Accessibility` plugin announces what the plugin itself
- * drives — pick up, drop, cancel — and all three surfaces also offer a
- * one-press arrow move that never reaches its `KeyboardSensor`. That move is
+ * drives — pick up, drop, cancel — and every one of those surfaces also
+ * offers a one-press arrow move that never reaches its `KeyboardSensor`. That move is
  * what this says. **One per surface** is the rule the shared hook exists to
  * keep: two polite regions on one screen are two voices reading over each
  * other, and a reader is given no way to tell which answered the key.

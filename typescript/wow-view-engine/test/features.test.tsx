@@ -20,11 +20,31 @@ import {
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
-import { DataWorkbench } from '../src/ui/index.js';
-import { ordersDefinition, testSource } from './fixtures.js';
+import { DataWorkbench, type WorkbenchFeatures } from '../src/ui/index.js';
+import { analysisConfig, ordersDefinition, testSource } from './fixtures.js';
 import { mine } from './fixtures/ui.js';
 
 afterEach(cleanup);
+
+/** The same definition with one saved analysis view open on a chart. */
+function analysisEngine() {
+  return new ViewEngine({
+    definitions: [ordersDefinition()],
+    store: new MemoryViewStore({
+      instances: [
+        {
+          id: 'orders-2',
+          definitionId: 'orders',
+          title: 'By warehouse',
+          scope: 'personal',
+          revision: '1',
+          config: analysisConfig({ layout: 'chart' }),
+        },
+      ],
+    }),
+    resolveSource: () => testSource(),
+  });
+}
 
 function engineWith(rows = true) {
   return new ViewEngine({
@@ -39,11 +59,12 @@ function engineWith(rows = true) {
   });
 }
 
-const OFF = {
+const OFF: Required<WorkbenchFeatures> = {
   export: false,
   layouts: false,
   columns: false,
   sort: false,
+  visualization: false,
   manage: false,
 };
 
@@ -107,6 +128,45 @@ describe('workbench features', () => {
       await screen.findByRole('menuitem', { name: 'New view' }),
     ).toBeDefined();
     expect(screen.queryByRole('menuitem', { name: 'Manage views' })).toBeNull();
+  });
+
+  /**
+   * The analysis view's own feature (D20 屏 I／J). It is the panel and the
+   * one way into it at once: a host that switched it off has a result read
+   * as the saved config says, and no control anywhere that offers to change
+   * that — because a panel nobody can reach is a panel that does not exist.
+   */
+  it('opens the visualization panel by default and drops it when switched off', async () => {
+    const { rerender } = render(
+      <DataWorkbench
+        engine={analysisEngine()}
+        definitionId="orders"
+        instanceId="orders-2"
+        kinds={['analysis']}
+      />,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Visualize' }));
+    expect(await screen.findByRole('radio', { name: 'bar' })).toBeDefined();
+
+    rerender(
+      <DataWorkbench
+        engine={analysisEngine()}
+        definitionId="orders"
+        instanceId="orders-2"
+        kinds={['analysis']}
+        features={{ visualization: false }}
+      />,
+    );
+    // The result is still read — the layout switch beside it is not this
+    // feature — but nothing offers to draw it another way.
+    await waitFor(() =>
+      expect(
+        screen.getByRole('group', { name: 'Show result as' }),
+      ).toBeDefined(),
+    );
+    expect(screen.queryByRole('button', { name: 'Visualize' })).toBeNull();
+    expect(document.querySelector('[data-slot="chart-picker"]')).toBeNull();
+    expect(document.querySelector('[data-slot="view-panel"]')).toBeNull();
   });
 });
 

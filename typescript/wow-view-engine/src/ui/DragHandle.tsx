@@ -58,14 +58,15 @@ export interface DragHandleProps {
  * The handle a sortable row is carried by, and the arrow keys that move it
  * without a pointer.
  *
- * The three sortable lists in this package — the column settings, the sort
+ * Three sortable lists in this package — the column settings, the sort
  * editor and the view manager — used to write this button out three times,
  * word for word, down to which arrow keys it answers and the reason the
  * tooltip goes quiet mid-drag. One of them would have grown a fourth key or
  * a different name and nobody would have noticed, because there was nothing
- * for the other two to be compared against. It is one component now; what
- * still differs per list is the name, the reason it is off, and the size of
- * the buttons beside it.
+ * for the other two to be compared against. It is one component now — which
+ * is what let the visualization panel's series list become the fourth
+ * without writing any of it again; what still differs per list is the name,
+ * the reason it is off, and the size of the buttons beside it.
  *
  * **Silent while the row is in the air.** The tooltip would otherwise follow
  * the pointer across the list it is meant to be dropping into, saying

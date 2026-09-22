@@ -92,9 +92,10 @@ export interface DataWorkbenchProps {
   expandable?: boolean;
   /**
    * Which of the workbench's own controls are on screen (D18 XI): export,
-   * the layout switch, column settings, sort settings, the view manager.
-   * All on by default; one turned off is absent, not disabled. The first
-   * four name record-view controls; `manage` applies to every kind.
+   * the layout switch, column settings, sort settings, the visualization
+   * panel, the view manager. All on by default; one turned off is absent,
+   * not disabled. The first four name record-view controls, `visualization`
+   * the analysis view's, and `manage` applies to every kind.
    */
   features?: WorkbenchFeatures;
   /**
@@ -180,6 +181,7 @@ export function DataWorkbench({
           runtime={runtime?.kind === 'analysis' ? runtime : null}
           messages={wording}
           optionsFor={optionsFor}
+          features={features}
         >
           {analysisParts => (
             <WorkbenchShell

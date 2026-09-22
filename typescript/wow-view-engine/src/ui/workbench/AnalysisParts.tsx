@@ -41,6 +41,7 @@ import { Button } from '../components/button.js';
 import { DrillMenu, type Pick } from '../analysis/DrillMenu.js';
 import { AnalysisEmpty } from '../analysis/EmptyResult.js';
 import { useAnnouncer } from '../Announcer.js';
+import { featuresOf, type WorkbenchFeatures } from '../features.js';
 import type { ViewMessages } from '../messages.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { NO_PARTS, type RenderParts } from './parts.js';
@@ -52,6 +53,12 @@ export interface AnalysisPartsProps {
   /** Wording, merged over what is already in force: where a host translates. */
   messages?: ViewMessages;
   optionsFor?(remote: string): FieldOption[] | undefined;
+  /**
+   * Which of the workbench's own controls are on screen (D18 XI). One name
+   * here is the analysis view's — `visualization`; the rest belong to the
+   * record view and are passed through untouched.
+   */
+  features?: WorkbenchFeatures;
   children: RenderParts;
 }
 
@@ -70,9 +77,11 @@ export function AnalysisParts({
   runtime,
   messages: wording,
   optionsFor,
+  features,
   children,
 }: AnalysisPartsProps) {
   const messages = useViewMessages(wording);
+  const shown = featuresOf(features);
   const { filter, state } = workbench;
   const analysis = useAnalysisEditor(runtime);
 
@@ -130,6 +139,10 @@ export function AnalysisParts({
   // it takes the sidebar column, first as the chart types, then as the
   // chosen type's options; both fit the shape that ran.
   const [panel, setPanel] = useState<'picker' | 'options' | null>(null);
+  // A host that switched the panel off has no panel, whatever this state
+  // says: the one way in is the toolbar's button, which is gone with it, and
+  // an absent feature is absent rather than merely unreachable.
+  const level = shown.visualization ? panel : null;
   const fits = useMemo(
     () =>
       fitCharts({
@@ -283,12 +296,16 @@ export function AnalysisParts({
       <AnalysisToolbar
         analysis={analysis}
         view={view}
-        visualizing={panel !== null}
-        onVisualize={open => setPanel(open ? 'picker' : null)}
+        visualizing={level !== null}
+        {...(shown.visualization
+          ? {
+              onVisualize: (open: boolean) => setPanel(open ? 'picker' : null),
+            }
+          : {})}
       />
     ),
     panel:
-      panel === 'picker' ? (
+      level === 'picker' ? (
         <ChartPicker
           fits={fits}
           picked={picked}
@@ -296,7 +313,7 @@ export function AnalysisParts({
           onOptions={() => setPanel('options')}
           onBack={() => setPanel(null)}
         />
-      ) : panel === 'options' && view ? (
+      ) : level === 'options' && view ? (
         <ChartOptions
           picked={picked}
           chart={chart}

@@ -13,20 +13,21 @@
 
 import type { FunnelData } from '../../analysis/index.js';
 import { cn } from 'cn';
-import type { FamilyProps } from './family.js';
+import { stageName, type FamilyProps } from './family.js';
 
 export function Funnel({
   data,
   spec,
   className,
   label,
+  column,
   name,
 }: FamilyProps<FunnelData>) {
   const widest = Math.max(...data.stages.map(stage => stage.value), 1);
   // Stages taken from a group are named by its values, which show as the
-  // group's column does; metric stages carry the labels they were given.
+  // group's column does; metric stages carry the labels they were given,
+  // and fall back to the metric's column title (`stageName`).
   const stages = spec?.funnel?.stages;
-  const category = stages?.from === 'group' ? stages.category : undefined;
   // Which metric a stage measures: one for the whole funnel when the stages
   // are values of a dimension, one per stage when each is its own metric.
   const measured = (index: number) =>
@@ -57,9 +58,7 @@ export function Funnel({
           )}
         >
           <span className="text-muted-foreground w-28 shrink-0 truncate text-xs">
-            {category === undefined
-              ? stage.label
-              : label(category, stage.label)}
+            {stageName(stages, index, stage.label, label, column)}
           </span>
           <div
             className="bg-primary/80 flex h-7 items-center justify-end rounded-sm px-2"

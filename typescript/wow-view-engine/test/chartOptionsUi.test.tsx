@@ -38,7 +38,13 @@ import {
   type ViewSource,
 } from '../src/index.js';
 import { DataWorkbench } from '../src/ui/index.js';
+import { defaultMessages } from '../src/ui/messages.js';
+import {
+  seriesDragAccessibility,
+  seriesDrop,
+} from '../src/ui/analysis/SeriesList.js';
 import { ordersDefinition, testSource } from './fixtures.js';
+import { formattersFor } from './fixtures/columns.js';
 
 afterEach(cleanup);
 
@@ -205,10 +211,10 @@ async function choose(
 /** What a named select shows as chosen. */
 const chosen = (label: string) => screen.getByLabelText(label).textContent;
 
-/** The series cards in the order they are drawn, by the name each wears. */
+/** The series rows in the order they are drawn, by the name each wears. */
 const seriesNames = () =>
   [...panel()!.querySelectorAll('[data-slot="series-card"]')].map(
-    card => card.querySelector('span')?.textContent,
+    row => row.querySelector('[data-slot="item-title"]')?.textContent,
   );
 
 describe('the chart options', () => {
@@ -340,6 +346,84 @@ describe('the chart options', () => {
       expect(seriesNames()).toEqual(['Sum of Amount', 'Record count']),
     );
     expect(queries()).toBe(ran);
+  });
+
+  /**
+   * Which series comes first is read off a stack from the bottom up and off
+   * a legend from its first entry, so the order is a setting. The pointer
+   * path is a browser story — `@dnd-kit/dom` picks its target by measuring,
+   * and in jsdom every box is 0×0 at the origin — and the keyboard path is
+   * the same move made without one.
+   */
+  it('carries a series into another place, and says where it landed', async () => {
+    const { user, draft, queries } = await open({
+      type: 'bar',
+      cartesian: {
+        x: 'warehouse',
+        series: [{ metric: 'orders' }, { metric: 'total', axis: 'right' }],
+      },
+    });
+    await user.click(gear('bar'));
+    const ran = queries();
+
+    within(panel()!)
+      .getByRole('button', { name: 'Reorder Record count' })
+      .focus();
+    await user.keyboard('{ArrowDown}');
+
+    await waitFor(() =>
+      expect(seriesNames()).toEqual(['Sum of Amount', 'Record count']),
+    );
+    // The order is the whole of the change: the axis the second series was
+    // measured on travels with it.
+    expect(draft().chart.cartesian?.series).toEqual([
+      { metric: 'total', axis: 'right' },
+      { metric: 'orders' },
+    ]);
+    expect(
+      document.querySelector('[data-slot="series-announcement"]')!.textContent,
+    ).toBe('Record count moved to position 2 of 2');
+    // A redraw of the rows on hand, like every other chart option.
+    expect(queries()).toBe(ran);
+  });
+
+  it('writes nothing when a series is carried past the end', async () => {
+    const { user, draft } = await open({
+      type: 'bar',
+      cartesian: {
+        x: 'warehouse',
+        series: [{ metric: 'orders' }, { metric: 'total' }],
+      },
+    });
+    await user.click(gear('bar'));
+
+    within(panel()!)
+      .getByRole('button', { name: 'Reorder Record count' })
+      .focus();
+    await user.keyboard('{ArrowUp}');
+
+    expect(draft().chart.cartesian?.series).toEqual([
+      { metric: 'orders' },
+      { metric: 'total' },
+    ]);
+    expect(
+      document.querySelector('[data-slot="series-announcement"]')!.textContent,
+    ).toBe('');
+  });
+
+  /** A chart of one series is first and last at once: nothing to reorder. */
+  it('refuses the handle while one series is all there is', async () => {
+    const { user } = await open({
+      type: 'bar',
+      cartesian: { x: 'warehouse', series: [{ metric: 'orders' }] },
+    });
+    await user.click(gear('bar'));
+
+    expect(
+      within(panel()!)
+        .getByRole('button', { name: 'Reorder Record count' })
+        .hasAttribute('disabled'),
+    ).toBe(true);
   });
 
   it('swaps the two dimension slots when one is chosen for the other', async () => {
@@ -755,6 +839,30 @@ describe('the chart options of the other families', () => {
     );
     await waitFor(() => expect(stages()).toEqual(['total', 'orders']));
 
+    // A stage is a step of a business — 「下单」 — and the metric's column
+    // title says what was measured, which is rarely the same sentence. The
+    // name is typed where it is drawn, and an emptied box takes it back.
+    const box = within(panel()!).getByRole('textbox', {
+      name: 'Name of the stage Record count',
+    });
+    await user.type(box, 'Placed');
+    await waitFor(() =>
+      expect(draft().chart.funnel?.stages).toMatchObject({
+        items: [{ metric: 'total' }, { metric: 'orders', label: 'Placed' }],
+      }),
+    );
+    // The buttons on the card name the stage as the analyst renamed it.
+    expect(
+      within(panel()!).getByRole('button', { name: 'Move Placed up' }),
+    ).toBeDefined();
+
+    await user.clear(box);
+    await waitFor(() =>
+      expect(
+        (draft().chart.funnel?.stages as { items: object[] }).items[1],
+      ).toEqual({ metric: 'orders' }),
+    );
+
     // Metric stages are each their own count already, so there is nothing
     // to accumulate and no such box.
     await user.click(within(panel()!).getByRole('tab', { name: 'Display' }));
@@ -935,6 +1043,79 @@ describe('what the chart options change on screen', () => {
       expect(
         screen.getByRole('table').querySelector('tfoot')?.textContent,
       ).toContain('40'),
+    );
+  });
+});
+
+/**
+ * The drop, read off the two ids it reports: `@dnd-kit/dom` picks its target
+ * by measuring boxes, and in jsdom every box is 0×0 at the origin — so the
+ * gesture itself is a browser story, and what it means is tested here.
+ */
+describe('what a drop on the series list means', () => {
+  const SERIES = [
+    { metric: 'orders' },
+    { metric: 'total' },
+    { metric: 'average' },
+  ];
+  const drop = (source: string, target: string, canceled?: boolean) =>
+    seriesDrop(
+      SERIES,
+      { source: { id: source }, target: { id: target } },
+      canceled,
+    );
+
+  it('is the move between the two metrics it names', () => {
+    expect(drop('average', 'orders')).toEqual({ from: 2, to: 0 });
+  });
+
+  it('is nothing when the drag was given up, or ended where it began', () => {
+    expect(drop('average', 'orders', true)).toBeNull();
+    expect(drop('total', 'total')).toBeNull();
+    expect(seriesDrop(SERIES, { source: { id: 'total' } }, false)).toBeNull();
+    expect(seriesDrop(SERIES, { target: { id: 'total' } }, false)).toBeNull();
+  });
+
+  /**
+   * This list is not the only draggable thing the page holds, and an id from
+   * somewhere else names no series this chart draws.
+   */
+  it('is nothing when an id names no series of this chart', () => {
+    expect(drop('warehouse', 'orders')).toBeNull();
+    expect(drop('orders', 'warehouse')).toBeNull();
+  });
+});
+
+/**
+ * The library's own sentences are built from the ids it carries — here the
+ * metric each series draws — so every one of them is said in the
+ * catalogue's words, with the alias turned back into the column title a
+ * reader is looking at.
+ */
+describe('what a series drag says out loud', () => {
+  const accessibility = seriesDragAccessibility(
+    formattersFor(defaultMessages),
+    alias => (alias === 'total' ? 'Sum of Amount' : alias),
+  );
+  const carrying = { operation: { source: { id: 'total' } } };
+
+  it('names the series in the reader’s own words', () => {
+    expect(accessibility.announcements.dragstart(carrying)).toBe(
+      'Sum of Amount picked up',
+    );
+  });
+
+  /** A completed drop is announced by the list, so it says nothing here. */
+  it('speaks only when a series drag is given up', () => {
+    expect(accessibility.announcements.dragend(carrying)).toBeUndefined();
+    expect(
+      accessibility.announcements.dragend({ ...carrying, canceled: true }),
+    ).toBe('Move cancelled; Sum of Amount stayed where it was');
+  });
+
+  it('carries the instructions a reader is given on the handle', () => {
+    expect(accessibility.screenReaderInstructions.draggable).toBe(
+      defaultMessages['label.chart.series-instructions'],
     );
   });
 });

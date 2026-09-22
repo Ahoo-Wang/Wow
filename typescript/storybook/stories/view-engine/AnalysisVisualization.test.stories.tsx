@@ -16,6 +16,7 @@ import { formatMessage, zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 import displayMeta, {
   TwoMetrics as DisplayTwoMetrics,
 } from './AnalysisWorkbench.stories.js';
+import { dragHandleOnto } from './pointerDrag.js';
 
 const meta = {
   ...displayMeta,
@@ -46,6 +47,68 @@ const arcsPerSlice = () =>
   [...document.querySelectorAll('.recharts-pie-sector path')].map(
     path => (path.getAttribute('d')?.match(/A/g) ?? []).length,
   );
+
+/** The series rows in the order the data page lists them. */
+const seriesOrder = () =>
+  [...panel()!.querySelectorAll('[data-slot="series-card"]')].map(row =>
+    row.getAttribute('data-metric'),
+  );
+
+/** The legend entries in the order the chart draws them. */
+const legendOrder = () => {
+  const legend = document.querySelector('.recharts-legend-wrapper > div');
+  return legend ? [...legend.children].map(item => item.textContent) : [];
+};
+
+/**
+ * A series carried into another place with the pointer (D20 屏 J).
+ *
+ * Which series comes first is a setting — a stack is read from the bottom up
+ * and a legend from its first entry — and the whole of what it changes is
+ * the order of `cartesian.series`. jsdom can pin the move the arrow keys
+ * make (`packages/view-engine/test/chartOptionsUi.test.tsx`), but not the
+ * gesture: `@dnd-kit/dom` picks its drop target by *measuring*, and in jsdom
+ * every box is 0×0 at the origin. Here the boxes are real, so this is the
+ * one place the pointer path is exercised at all — and the proof is the
+ * drawing, not the config: the legend comes back in the new order.
+ */
+export const SeriesOrder: Story = {
+  ...DisplayTwoMetrics,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(document.body);
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelectorAll('.recharts-bar-rectangle'),
+      ).toHaveLength(8),
+    );
+    const drawn = legendOrder();
+    await expect(drawn).toHaveLength(2);
+
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.analysis.visualize'] }),
+    );
+    await userEvent.click(body.getByRole('button', { name: optionsOf('bar') }));
+    await waitFor(() => expect(panel()).not.toBeNull());
+    const order = seriesOrder();
+    await expect(order).toEqual(['amount', 'orders']);
+
+    // The handle leads its row, and the drop is onto the row below it.
+    const rows = [...panel()!.querySelectorAll('[data-slot="series-card"]')];
+    await dragHandleOnto(
+      rows[0]!.querySelector('button')!,
+      rows[1]! as HTMLElement,
+    );
+
+    await waitFor(() => expect(seriesOrder()).toEqual(['orders', 'amount']));
+    // Only the order moved: each series kept the axis it is measured on,
+    // and the chart still draws both.
+    await waitFor(() => expect(legendOrder()).toEqual([...drawn].reverse()));
+    await expect(
+      canvasElement.querySelectorAll('.recharts-bar-rectangle'),
+    ).toHaveLength(8);
+  },
+};
 
 /**
  * The visualization panel's two levels, walked (D20 屏 I／J).

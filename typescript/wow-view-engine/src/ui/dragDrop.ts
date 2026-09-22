@@ -30,13 +30,15 @@ export interface Drop {
 }
 
 /**
- * The drop this was, or null — the one guard the three sortable lists share.
+ * The drop this was, or null — the one guard every sortable list here
+ * shares.
  *
  * A drag that was given up is not a drop, and neither is one that ended on
  * the row it started from: both would spend a write — a query, a revision —
  * to put the list back in the order it is already in. Everything past that
  * is the list's own business: which entry a position names, whether the two
- * rows are in the same audience.
+ * rows are in the same audience, whether both aliases name a series this
+ * chart draws.
  *
  * The ids come back as strings because that is what the lists read them as:
  * the library types them `string | number`, and a numeric id compared

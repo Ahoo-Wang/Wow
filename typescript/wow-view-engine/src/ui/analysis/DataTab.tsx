@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { ArrowDownIcon, ArrowUpIcon, PlusIcon, XIcon } from 'lucide-react';
+import { ArrowDownIcon, ArrowUpIcon, XIcon } from 'lucide-react';
 import {
   moved,
   placed,
@@ -20,26 +20,17 @@ import {
 } from '../../analysis/index.js';
 import {
   CHART_FAMILY,
-  type CartesianSeries,
-  type CartesianSpec,
   type FunnelSpec,
   type MetricCardSpec,
 } from '../../model/index.js';
 import { without } from '../../model/index.js';
-import { Button } from '../components/button.js';
-import {
-  DropdownMenu,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '../components/dropdown-menu.js';
 import { IconButton } from '../IconButton.js';
 import { useViewMessages } from '../MessagesProvider.js';
-import { DropdownMenuContent } from '../popups.js';
 import { EditorCard } from '../variants.js';
-import { CompactSelect } from './CompactSelect.js';
+import { SeriesList } from './SeriesList.js';
 import {
   ChoiceField,
+  NameField,
   OptionalSlotSelect,
   OptionsSection,
   SlotSelect,
@@ -77,19 +68,7 @@ function CartesianData({ chart, shape, onChange }: OptionsPageProps) {
   const messages = useViewMessages();
   const spec = chart.cartesian;
   if (!spec) return null;
-  const update = (next: CartesianSpec) =>
-    onChange({ ...chart, cartesian: next });
-  const drawn = new Set(spec.series.map(series => series.metric));
-  const undrawn = shape.metrics.filter(metric => !drawn.has(metric.value));
-  const nameOf = (alias: string) =>
-    shape.metrics.find(metric => metric.value === alias)?.label ?? alias;
-  const patch = (index: number, change: Partial<CartesianSeries>) =>
-    update({
-      ...spec,
-      series: spec.series.map((series, at) =>
-        at === index ? { ...series, ...change } : series,
-      ),
-    });
+  const update = (next: typeof spec) => onChange({ ...chart, cartesian: next });
   return (
     <>
       <SlotSelect
@@ -106,98 +85,12 @@ function CartesianData({ chart, shape, onChange }: OptionsPageProps) {
           onChange={alias => update(placed(spec, 'splitBy', 'x', alias))}
         />
       )}
-      <OptionsSection
-        name="series"
-        title={messages.label('label.chart.slot.series')}
-      >
-        {spec.series.map((series, index) => {
-          const name = nameOf(series.metric);
-          return (
-            <EditorCard
-              key={series.metric}
-              data-slot="series-card"
-              data-metric={series.metric}
-            >
-              <span className="truncate font-medium">{name}</span>
-              {chart.type === 'combo' && (
-                <CompactSelect
-                  label={messages.label('label.chart.mark-of', { name })}
-                  items={(['bar', 'line', 'area'] as const).map(mark => ({
-                    value: mark,
-                    label: messages.label(`label.chart.mark.${mark}`),
-                  }))}
-                  value={series.type ?? 'bar'}
-                  onChange={type => patch(index, { type })}
-                />
-              )}
-              <CompactSelect
-                label={messages.label('label.chart.axis-of', { name })}
-                items={(['left', 'right'] as const).map(axis => ({
-                  value: axis,
-                  label: messages.label(`label.chart.axis.${axis}`),
-                }))}
-                value={series.axis ?? 'left'}
-                onChange={axis => patch(index, { axis })}
-              />
-              <IconButton
-                label={messages.label('label.chart.remove-series', { name })}
-                variant="ghost"
-                size="icon-xs"
-                className="ml-auto"
-                disabled={spec.series.length <= 1}
-                onClick={() =>
-                  update({
-                    ...spec,
-                    series: spec.series.filter((_series, at) => at !== index),
-                  })
-                }
-              >
-                <XIcon />
-              </IconButton>
-            </EditorCard>
-          );
-        })}
-        {/* A split chart draws one metric: the pivot is its series. */}
-        {spec.splitBy === undefined && (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={undrawn.length === 0}
-                  className="self-start"
-                />
-              }
-            >
-              <PlusIcon data-icon="inline-start" />
-              {messages.label('label.chart.add-series')}
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuGroup>
-                {undrawn.map(metric => (
-                  <DropdownMenuItem
-                    key={metric.value}
-                    onClick={() =>
-                      update({
-                        ...spec,
-                        series: [
-                          ...spec.series,
-                          chart.type === 'combo'
-                            ? { metric: metric.value, type: 'bar' }
-                            : { metric: metric.value },
-                        ],
-                      })
-                    }
-                  >
-                    {metric.label}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      </OptionsSection>
+      <SeriesList
+        type={chart.type}
+        spec={spec}
+        metrics={shape.metrics}
+        onChange={update}
+      />
     </>
   );
 }
@@ -325,11 +218,35 @@ function FunnelData({ chart, shape, rows, label, onChange }: OptionsPageProps) {
           name:
             shape.metrics.find(metric => metric.value === item.metric)?.label ??
             item.metric,
+          given: item.label,
         }))}
         onMove={(index, step) =>
           update({
             ...spec,
             stages: { from: 'metrics', items: moved(items, index, step) },
+          })
+        }
+        /**
+         * What the stage is called on the drawing. A metric's column title
+         * names what was measured — 「金额 的 合计」 — and a funnel's stage
+         * names a step of a business — 「下单」 — which is rarely the same
+         * sentence and is knowledge only the analyst has. An emptied box
+         * takes the name back rather than storing a blank, so the drawing
+         * falls to the column title again.
+         */
+        onName={(index, given) =>
+          update({
+            ...spec,
+            stages: {
+              from: 'metrics',
+              items: items.map((item, at) =>
+                at !== index
+                  ? item
+                  : given === undefined
+                    ? without(item, 'label')
+                    : { ...item, label: given },
+              ),
+            },
           })
         }
       />
@@ -384,64 +301,91 @@ function FunnelData({ chart, shape, rows, label, onChange }: OptionsPageProps) {
   );
 }
 
+/**
+ * The stages in the order they are drawn in.
+ *
+ * A stage that comes from a metric also carries a name of its own
+ * ({@link onName}), written in a box that is always there rather than
+ * behind a menu the way a tray card's name is (`CardMenu.tsx` `CardName`):
+ * this panel is a page of boxes and selects — an axis title, a reference
+ * line's caption — and a stage's name is one more of them, while a tray
+ * card's name is its *heading* and the card has no room left for a box. A
+ * fourth icon per stage, opening a menu of one item, would cost a tab stop
+ * per stage to say what the box says by standing there.
+ */
 function StageList({
   title,
   stages,
   onMove,
+  onName,
   onRemove,
 }: {
   title: string;
-  stages: { key: string; name: string }[];
+  /** `name` is what the stage is called by default; `given`, what was typed. */
+  stages: { key: string; name: string; given?: string }[];
   onMove(index: number, step: -1 | 1): void;
+  /** Names a stage, or takes the name back on an emptied box. */
+  onName?(index: number, given: string | undefined): void;
   onRemove?(index: number): void;
 }) {
   const messages = useViewMessages();
   return (
     <OptionsSection name="stages" title={title}>
       <ol className="flex flex-col gap-2">
-        {stages.map((stage, index) => (
-          <li key={stage.key}>
-            <EditorCard data-slot="stage-card" data-stage={stage.key}>
-              <span className="truncate font-medium">{stage.name}</span>
-              <IconButton
-                label={messages.label('label.chart.move-up', {
-                  name: stage.name,
-                })}
-                variant="ghost"
-                size="icon-xs"
-                className="ml-auto"
-                disabled={index === 0}
-                onClick={() => onMove(index, -1)}
-              >
-                <ArrowUpIcon />
-              </IconButton>
-              <IconButton
-                label={messages.label('label.chart.move-down', {
-                  name: stage.name,
-                })}
-                variant="ghost"
-                size="icon-xs"
-                disabled={index === stages.length - 1}
-                onClick={() => onMove(index, 1)}
-              >
-                <ArrowDownIcon />
-              </IconButton>
-              {onRemove && (
+        {stages.map((stage, index) => {
+          // The buttons name the stage as it reads on screen: once it has
+          // been given a name, that is the stage as far as the analyst is
+          // concerned.
+          const name = stage.given ?? stage.name;
+          return (
+            <li key={stage.key}>
+              <EditorCard data-slot="stage-card" data-stage={stage.key}>
+                {onName ? (
+                  <NameField
+                    label={messages.label('label.chart.stage-name', {
+                      name: stage.name,
+                    })}
+                    placeholder={stage.name}
+                    value={stage.given}
+                    onChange={given => onName(index, given)}
+                  />
+                ) : (
+                  <span className="truncate font-medium">{name}</span>
+                )}
                 <IconButton
-                  label={messages.label('label.chart.remove-stage', {
-                    name: stage.name,
-                  })}
+                  label={messages.label('label.chart.move-up', { name })}
                   variant="ghost"
                   size="icon-xs"
-                  disabled={stages.length <= 2}
-                  onClick={() => onRemove(index)}
+                  className="ml-auto"
+                  disabled={index === 0}
+                  onClick={() => onMove(index, -1)}
                 >
-                  <XIcon />
+                  <ArrowUpIcon />
                 </IconButton>
-              )}
-            </EditorCard>
-          </li>
-        ))}
+                <IconButton
+                  label={messages.label('label.chart.move-down', { name })}
+                  variant="ghost"
+                  size="icon-xs"
+                  disabled={index === stages.length - 1}
+                  onClick={() => onMove(index, 1)}
+                >
+                  <ArrowDownIcon />
+                </IconButton>
+                {onRemove && (
+                  <IconButton
+                    label={messages.label('label.chart.remove-stage', { name })}
+                    variant="ghost"
+                    size="icon-xs"
+                    disabled={stages.length <= 2}
+                    onClick={() => onRemove(index)}
+                  >
+                    <XIcon />
+                  </IconButton>
+                )}
+              </EditorCard>
+            </li>
+          );
+        })}
       </ol>
     </OptionsSection>
   );

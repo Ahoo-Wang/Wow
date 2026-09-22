@@ -28,9 +28,14 @@ export interface AnalysisToolbarProps {
   analysis: AnalysisEditorController;
   /** The result on screen, which the reading names. */
   view: AnalysisView;
-  /** Whether the visualization panel is open, and the press that opens or closes it. */
-  visualizing: boolean;
-  onVisualize(open: boolean): void;
+  /**
+   * Whether the visualization panel is open, and the press that opens or
+   * closes it. Left out where the host switched the panel off
+   * (`WorkbenchFeatures.visualization`): the button is then not on the bar
+   * at all, as every feature turned off is absent rather than disabled (D4).
+   */
+  visualizing?: boolean;
+  onVisualize?(open: boolean): void;
   disabled?: boolean;
 }
 
@@ -100,17 +105,19 @@ export function AnalysisToolbar({
             {messages.label('label.layout.chart')}
           </ToggleGroupItem>
         </ToggleGroup>
-        <Button
-          variant="outline"
-          size="sm"
-          aria-pressed={visualizing}
-          data-slot="visualize"
-          disabled={disabled}
-          onClick={() => onVisualize(!visualizing)}
-        >
-          <ChartColumnIcon data-icon="inline-start" />
-          {messages.label('label.analysis.visualize')}
-        </Button>
+        {onVisualize && (
+          <Button
+            variant="outline"
+            size="sm"
+            aria-pressed={visualizing === true}
+            data-slot="visualize"
+            disabled={disabled}
+            onClick={() => onVisualize(visualizing !== true)}
+          >
+            <ChartColumnIcon data-icon="inline-start" />
+            {messages.label('label.analysis.visualize')}
+          </Button>
+        )}
         {analysis.layout === 'table' && (
           <Field orientation="horizontal" className="w-auto">
             <Checkbox

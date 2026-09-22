@@ -47,6 +47,7 @@ function AnalysisWorkbenchDemo({
   records = false,
   expandable = false,
   allColumns = false,
+  visualization = true,
   limit,
 }: {
   behaviour?: SourceBehaviour;
@@ -72,6 +73,11 @@ function AnalysisWorkbenchDemo({
    * 但它也让「加一条指标」在屏幕上什么也不发生。
    */
   allColumns?: boolean;
+  /**
+   * 宿主让不让配图（`WorkbenchFeatures.visualization`）。关掉之后结果工具栏上
+   * 的「可视化」按钮与左侧栏那块面板一起不在——关掉的功能是不存在，而不是置灰。
+   */
+  visualization?: boolean;
   /**
    * A row limit the four warehouses can actually hit. Ordering the result
    * makes which rows survive the cut a decision rather than an accident.
@@ -146,6 +152,7 @@ function AnalysisWorkbenchDemo({
           instanceId={savedViews[1].id}
           {...HOST_LANGUAGE}
           kinds={records ? ['record', 'analysis'] : ['analysis']}
+          features={{ visualization }}
         />
       )}
     </StoryEngine>
@@ -180,6 +187,7 @@ const meta = {
     records: false,
     expandable: false,
     allColumns: false,
+    visualization: true,
   },
   argTypes: {
     limit: { table: { disable: true } },
@@ -194,6 +202,7 @@ const meta = {
     chart: { control: 'inline-radio', options: ['bar', 'line', 'pie'] },
     series: { control: 'inline-radio', options: ['amount', 'both'] },
     pinned: { control: 'boolean' },
+    visualization: { control: 'boolean' },
   },
 } satisfies Meta<typeof AnalysisWorkbenchDemo>;
 
@@ -220,6 +229,14 @@ export const FollowUps: Story = {
  */
 export const TwoMetrics: Story = {
   args: { layout: 'chart', chart: 'bar', series: 'both' },
+};
+
+/**
+ * 宿主关掉了可视化（D18 Ⅺ）：结果照它保存的样子画，工具栏上没有「可视化」
+ * 按钮，左侧栏也没有那块面板——关掉的功能不存在，而不是置灰。
+ */
+export const NoVisualization: Story = {
+  args: { layout: 'chart', chart: 'bar', visualization: false },
 };
 
 /** The same result as rows, with the totals row from its own ungrouped query. */

@@ -31,8 +31,9 @@ export interface DragWording {
 
 /**
  * What a screen reader hears while something is being dragged — the column
- * settings and the view manager are the two lists that are, and they share
- * this because the sentences differ only in the words.
+ * settings, the sort editor, the view manager and the panel's series list
+ * are the lists that are, and they share this because the sentences differ
+ * only in the words.
  *
  * The library ships English sentences built from the ids it is carrying,
  * which here are field names and instance ids: "Picked up draggable item

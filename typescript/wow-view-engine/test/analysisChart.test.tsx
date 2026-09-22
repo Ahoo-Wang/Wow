@@ -579,6 +579,55 @@ describe('AnalysisChart', () => {
     expect(screen.getByText('25%', DRAWN)).toBeDefined();
   });
 
+  /**
+   * A metric stage with no name of its own used to be drawn as its alias —
+   * `orders`, which names the query and nothing a reader recognises. The
+   * name the analyst typed wins; with none typed the metric's column title
+   * stands in, exactly as every slot on the options panel is named.
+   */
+  it('names a metric stage by its column until the analyst names it', () => {
+    const spec = {
+      type: 'funnel',
+      funnel: {
+        stages: {
+          from: 'metrics',
+          items: [{ metric: 'orders' }, { metric: 'orders', label: 'Bought' }],
+        },
+      },
+    } as const;
+    const { rerender } = render(
+      <ViewSurface>
+        <AnalysisChart
+          data={{
+            type: 'funnel',
+            stages: [
+              { label: 'orders', value: 9 },
+              { label: 'Bought', value: 3 },
+            ],
+          }}
+          spec={spec}
+          columns={statuses}
+        />
+      </ViewSurface>,
+    );
+
+    expect(screen.getByText('Orders', DRAWN)).toBeDefined();
+    expect(screen.getByText('Bought', DRAWN)).toBeDefined();
+    expect(screen.queryByText('orders', DRAWN)).toBeNull();
+
+    // No column for the alias either: the projection's own label is all
+    // there is, and an alias on screen beats a blank stage.
+    rerender(
+      <ViewSurface>
+        <AnalysisChart
+          data={{ type: 'funnel', stages: [{ label: 'orders', value: 9 }] }}
+          spec={spec}
+        />
+      </ViewSurface>,
+    );
+    expect(screen.getByText('orders', DRAWN)).toBeDefined();
+  });
+
   it('lays a funnel out horizontally when the spec asks', () => {
     render(
       <ViewSurface>

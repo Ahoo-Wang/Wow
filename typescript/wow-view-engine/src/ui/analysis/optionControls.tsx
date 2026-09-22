@@ -221,6 +221,43 @@ export function TextField({
   );
 }
 
+/**
+ * A name typed where the name is drawn: a box with no label above it,
+ * wearing what the thing would be called as its placeholder.
+ *
+ * {@link TextField} is the shape a setting of its own takes — a label over a
+ * box, on its own line. A name is not a setting beside the thing it names;
+ * it *is* the thing's first line, and a label over every stage of a funnel
+ * would repeat one word down the whole list. So the label is the box's
+ * accessible name and nothing on screen, and the default is the placeholder,
+ * which is also what an emptied box goes back to saying.
+ */
+export function NameField({
+  label,
+  placeholder,
+  value,
+  onChange,
+}: {
+  label: string;
+  /** What it is called when nothing has been typed. */
+  placeholder: string;
+  value: string | undefined;
+  onChange(value: string | undefined): void;
+}) {
+  return (
+    <PillInput
+      aria-label={label}
+      chrome="box"
+      className="h-7 min-w-0 flex-1"
+      placeholder={placeholder}
+      value={value ?? ''}
+      onChange={event =>
+        onChange(event.target.value === '' ? undefined : event.target.value)
+      }
+    />
+  );
+}
+
 /** A titled run of settings on one page. */
 export function OptionsSection({
   name,
@@ -239,9 +276,16 @@ export function OptionsSection({
       aria-label={title}
       className={cn('flex flex-col gap-3', className)}
     >
-      {title && (
-        <h5 className="text-muted-foreground font-semibold">{title}</h5>
-      )}
+      {/* **`h3`, and not grey.** The panel's own title is the `h2` above
+          (`ChartOptions`), so a section under it is the next level down —
+          `h5` skipped two, which axe's `heading-order` reads as a level
+          gone missing and a reader hears as a section that belongs to
+          nothing. And `text-muted-foreground` lands at 4.34:1 on this
+          panel's ground — under the 4.5:1 axe asks of 13px text, the same
+          call `SortSettings` records for the same grey. It stays secondary
+          by being a short bold line over the controls it names, not by
+          being paler. */}
+      {title && <h3 className="font-semibold">{title}</h3>}
       {children}
     </section>
   );

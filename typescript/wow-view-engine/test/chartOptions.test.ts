@@ -16,6 +16,7 @@ import {
   isSmooth,
   isStacked,
   moved,
+  movedTo,
   optionTabs,
   placed,
   stageValues,
@@ -103,6 +104,19 @@ describe('chartOptions', () => {
     expect(moved(['a', 'b', 'c'], 0, -1)).toEqual(['a', 'b', 'c']);
     expect(moved(['a', 'b', 'c'], 2, 1)).toEqual(['a', 'b', 'c']);
     expect(moved(['a', 'b', 'c'], 5, 1)).toEqual(['a', 'b', 'c']);
+  });
+
+  /**
+   * A drop names the place it landed on, which may be any of them — the one
+   * step an arrow key makes is that move with the two places next to each
+   * other, so both inputs end up here.
+   */
+  it('takes a list item out and puts it back at the place asked for', () => {
+    expect(movedTo(['a', 'b', 'c'], 2, 0)).toEqual(['c', 'a', 'b']);
+    expect(movedTo(['a', 'b', 'c'], 0, 2)).toEqual(['b', 'c', 'a']);
+    expect(movedTo(['a', 'b', 'c'], 1, 1)).toEqual(['a', 'b', 'c']);
+    expect(movedTo(['a', 'b', 'c'], 0, 3)).toEqual(['a', 'b', 'c']);
+    expect(movedTo(['a', 'b', 'c'], -1, 0)).toEqual(['a', 'b', 'c']);
   });
 
   it('lists a group’s text values once each in the order the rows came', () => {
