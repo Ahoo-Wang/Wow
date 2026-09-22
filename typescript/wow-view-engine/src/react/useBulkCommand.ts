@@ -13,6 +13,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RecordKey } from '../model/index.js';
+import { sourceReason } from '../runtime/index.js';
 import type { RecordBulkActionContext } from './actions.js';
 
 /**
@@ -112,8 +113,12 @@ export function useBulkCommand(
       running.current = true;
       setPending(true);
       setOutcome(null);
-      void command(keys).then(finish, (error: unknown) =>
-        finish({ succeeded: [], failed: keys, reason: messageOf(error) }),
+      void command(keys).then(finish, async (error: unknown) =>
+        finish({
+          succeeded: [],
+          failed: keys,
+          reason: await sourceReason(error),
+        }),
       );
     },
     [command],
@@ -127,6 +132,3 @@ export function useBulkCommand(
  * A thrown command is every record failing, and the throw's own words are
  * the reason: a command that cannot report per record has still reported.
  */
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}

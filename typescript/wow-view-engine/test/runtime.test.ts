@@ -286,6 +286,33 @@ describe('DataViewRuntime execution', () => {
     expect(state.result).toBeNull();
   });
 
+  it('reports what the service said when it refused the query', async () => {
+    const refused = Object.assign(
+      new Error('Request failed with status code 400 for http://svc/paged'),
+      {
+        exchange: {
+          response: { status: 400 },
+          extractResult: () =>
+            Promise.resolve({
+              errorCode: 'IllegalArgument',
+              errorMsg: 'HTTP page window[12000] must not exceed 10000.',
+            }),
+        },
+      },
+    );
+    const { runtime } = harness({
+      source: testSource({ paged: vi.fn(() => Promise.reject(refused)) }),
+    });
+
+    runtime.apply();
+    await flush();
+
+    expect(runtime.getSnapshot().query.error).toMatchObject({
+      code: 'runtime.query.failed',
+      params: { reason: 'HTTP page window[12000] must not exceed 10000.' },
+    });
+  });
+
   it('reports a full queue as its own issue', async () => {
     const { runtime } = harness({
       runner: new RequestRunner({

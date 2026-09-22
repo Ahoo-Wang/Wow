@@ -13,7 +13,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Issue, RecordData } from '../model/index.js';
-import { isExportCancelled, type RecordViewRuntime } from '../runtime/index.js';
+import {
+  isExportCancelled,
+  sourceIssue,
+  type RecordViewRuntime,
+} from '../runtime/index.js';
 import { toIssue } from './issues.js';
 import type { RecordTableController } from './useRecordTable.js';
 
@@ -249,7 +253,7 @@ export function useRecordExport(
         settle(
           isExportCancelled(caught)
             ? IDLE
-            : { ...IDLE, error: toIssue(caught, 'export.failed') },
+            : { ...IDLE, error: await sourceIssue(caught, 'export.failed') },
         );
       } finally {
         if (live.current === controller) live.current = null;

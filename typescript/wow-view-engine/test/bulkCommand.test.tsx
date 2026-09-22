@@ -16,6 +16,7 @@ import {
   cleanup,
   render,
   renderHook,
+  waitFor,
   screen,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -162,6 +163,29 @@ describe('useBulkCommand', () => {
       reason: 'the service is down',
     });
     expect(picked.clearSelection).not.toHaveBeenCalled();
+  });
+
+  it('reads a refused command by what the service said', async () => {
+    const held = deferred();
+    const { result } = renderHook(() => useBulkCommand(held.command));
+
+    act(() => result.current.run(selection(['a'])));
+    await held.reject(
+      Object.assign(new Error('Request failed with status code 400'), {
+        exchange: {
+          response: { status: 400 },
+          extractResult: () =>
+            Promise.resolve({
+              errorCode: 'IllegalState',
+              errorMsg: 'Retry threshold reached.',
+            }),
+        },
+      }),
+    );
+
+    await waitFor(() =>
+      expect(result.current.outcome?.reason).toBe('Retry threshold reached.'),
+    );
   });
 
   it('reads a thrown non-error as its own text', async () => {

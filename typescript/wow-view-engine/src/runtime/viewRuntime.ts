@@ -39,6 +39,7 @@ import {
 import type { RuntimeEnvironment } from './environment.js';
 import { hasError, RuntimeStore } from './runtimeStore.js';
 import { AUTO_APPLY_DELAY_MS, autoApplyDue } from './autoApply.js';
+import { sourceReason } from './sourceReason.js';
 import { RefreshTimer } from './refreshTimer.js';
 import {
   isRequestSuperseded,
@@ -768,8 +769,12 @@ export class DataViewRuntime<
   private onFailure(requestId: string, error: unknown): void {
     // A superseded request is the normal outcome of typing; it is not an error.
     if (isRequestSuperseded(error) || !this.isCurrent(requestId)) return;
-    this.store.setState({
-      query: { status: 'error', error: queryIssue(error), requestId },
+    // The source's own reason may take reading the body it answered with
+    // (`sourceReason`); the query stays in flight until it is read, and a
+    // newer request that started meanwhile wins.
+    void queryIssue(error).then(error => {
+      if (!this.isCurrent(requestId)) return;
+      this.store.setState({ query: { status: 'error', error, requestId } });
     });
   }
 
@@ -779,10 +784,10 @@ export class DataViewRuntime<
 }
 
 /** Turns a failed execution into the Issue the UI reports. */
-function queryIssue(error: unknown): Issue {
+async function queryIssue(error: unknown): Promise<Issue> {
   if (error instanceof RequestQueueFullError)
     return issue('runtime.query.queue-full', []);
   return issue('runtime.query.failed', [], {
-    reason: error instanceof Error ? error.message : String(error),
+    reason: await sourceReason(error),
   });
 }

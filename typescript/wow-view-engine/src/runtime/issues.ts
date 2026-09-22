@@ -13,6 +13,7 @@
 
 import { issue } from '../filter/index.js';
 import { isViewStoreError, type Issue } from '../model/index.js';
+import { sourceReason } from './sourceReason.js';
 import { isViewCommandError, isViewWriteError } from './write.js';
 
 /**
@@ -25,6 +26,27 @@ import { isViewCommandError, isViewWriteError } from './write.js';
  * answer with a reason in it, not an exception (see `ViewEngine.list`).
  */
 export function toIssue(error: unknown, code: string): Issue {
+  return commandIssue(error, code) ?? messageIssue(error, code);
+}
+
+/**
+ * `toIssue` for a failure that may have come from a source: a query or an
+ * export over the host's data. What the engine's own commands and stores
+ * say is read as `toIssue` reads it; anything else is asked for the
+ * source's own reason (`sourceReason`), which may take reading a body.
+ */
+export async function sourceIssue(
+  error: unknown,
+  code: string,
+): Promise<Issue> {
+  return (
+    commandIssue(error, code) ??
+    issue(code, [], { reason: await sourceReason(error) })
+  );
+}
+
+/** The issue an engine command or store failure already names, if it is one. */
+function commandIssue(error: unknown, code: string): Issue | null {
   if (isViewCommandError(error)) return error.issue;
   if (isViewWriteError(error))
     return error.state.kind === 'rejected'
@@ -34,6 +56,10 @@ export function toIssue(error: unknown, code: string): Issue {
     return issue(`${code}.${error.code.toLowerCase()}`, [], {
       reason: error.message,
     });
+  return null;
+}
+
+function messageIssue(error: unknown, code: string): Issue {
   return issue(code, [], {
     reason: error instanceof Error ? error.message : String(error),
   });
