@@ -21,6 +21,8 @@ import { FilterOperator } from '@ahoo-wang/fetcher-wow';
 import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,
+  conditionOf,
+  conditions,
   emptyFilter,
   isEmptyFilter,
   insertAt,
@@ -30,6 +32,7 @@ import {
   negateAt,
   nodeAt,
   removeAt,
+  removeConditionAt,
   sameFilterNode,
   sameFilterTree,
   updateAt,
@@ -82,6 +85,79 @@ describe('isSimpleTree', () => {
     expect(negateAt(tree(tree()), [0])).toEqual(tree(tree()));
     expect(negateAt(tree(leaf), [4])).toEqual(tree(leaf));
     expect(negateAt(tree(leaf), [])).toEqual(tree(leaf));
+  });
+});
+
+/**
+ * A3: the wrapper D18-7 stores a negation as is the kernel's to know. The
+ * picker, the pill and the condition strip ask what a node says and where
+ * the condition sits, and never read `children[0]` themselves.
+ */
+describe('reading a condition', () => {
+  const leaf: FilterLeaf = { field: 'id', operator: 'EQ', value: 'A' };
+  const other: FilterLeaf = { field: 'amount', operator: 'GT', value: 1 };
+  const negated: FilterTree = { op: 'nor', children: [leaf] };
+
+  it('answers the condition a node asks, wrapper or no wrapper', () => {
+    expect(conditionOf(leaf)).toBe(leaf);
+    expect(conditionOf(negated)).toBe(leaf);
+
+    // Not one condition: a group of several, an empty group, a `nor` over a
+    // group, and everything a store may hand over that is no node at all.
+    expect(conditionOf(tree(leaf, other))).toBeNull();
+    expect(conditionOf(tree())).toBeNull();
+    expect(conditionOf({ op: 'nor', children: [tree(leaf)] })).toBeNull();
+    expect(conditionOf(null)).toBeNull();
+    expect(conditionOf(7)).toBeNull();
+  });
+
+  it("gives each condition of a group with the leaf's own path", () => {
+    const group = tree(leaf, negated, other);
+
+    expect(conditions(group)).toEqual([
+      { leaf, index: 0, path: [0], negated: false },
+      { leaf, index: 1, path: [1, 0], negated: true },
+      { leaf: other, index: 2, path: [2], negated: false },
+    ]);
+
+    // `at` is the group's own path, so the paths are the tree's.
+    expect(conditions(group, [3, 1]).map(found => found.path)).toEqual([
+      [3, 1, 0],
+      [3, 1, 1, 0],
+      [3, 1, 2],
+    ]);
+  });
+
+  it('leaves out what is not one condition, indexes saying where', () => {
+    const group = tree(tree(leaf, other), null as never, other);
+
+    expect(conditions(group)).toEqual([
+      { leaf: other, index: 2, path: [2], negated: false },
+    ]);
+    // Anything but a group asks nothing.
+    expect(conditions(leaf)).toEqual([]);
+    expect(conditions(undefined)).toEqual([]);
+  });
+
+  it('removes a negated condition by its leaf path, wrapper and all', () => {
+    expect(removeConditionAt(tree(negated, other), [0, 0])).toEqual(
+      tree(other),
+    );
+    // A condition on its own, and a nested group, go exactly as named.
+    expect(removeConditionAt(tree(leaf, other), [0])).toEqual(tree(other));
+    expect(removeConditionAt(tree(tree(leaf), other), [0])).toEqual(
+      tree(other),
+    );
+    // A leaf inside a group that is not a negation keeps that group.
+    expect(removeConditionAt(tree(tree(leaf, other)), [0, 0])).toEqual(
+      tree(tree(other)),
+    );
+    // The root is no wrapper to unwrap: a root `nor` of one keeps its shape
+    // and loses the leaf, which is what the advanced editor draws.
+    expect(removeConditionAt({ op: 'nor', children: [leaf] }, [0])).toEqual({
+      op: 'nor',
+      children: [],
+    });
   });
 });
 

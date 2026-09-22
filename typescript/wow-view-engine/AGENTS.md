@@ -116,7 +116,7 @@ src/
     issuePath.ts              — How an issue path reads against a tree: whose tree it is, and which node
     marks.ts                  — unmarkedErrors — the errors no condition pill can carry
     time.ts                   — Relative and preset values resolved at compile time
-    tree.ts                   — Tree node predicates; trees arrive untrusted
+    tree.ts                   — Tree node predicates, and what a node says as a condition (`conditionOf`, `conditions`, `removeConditionAt`: the negation wrapper is known here and nowhere else); trees arrive untrusted
     validate.ts               — validateDashboard — panels, bindings, content
     values.ts                 — Value shapes of the built-in kinds
     index.ts                  — The filter kernel: pure functions over a stored tree, plus the `FieldKind` registry that makes field types the

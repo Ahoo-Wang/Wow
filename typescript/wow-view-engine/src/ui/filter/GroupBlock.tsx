@@ -19,9 +19,9 @@ import {
   type FilterGroup,
 } from '../../model/index.js';
 import {
+  conditions,
   isFilterGroup,
-  isNegation,
-  isFilterNode,
+  isFilterLeaf,
   type FilterPath,
 } from '../../filter/index.js';
 import type { FilterTreeController } from '../../react/index.js';
@@ -172,6 +172,15 @@ export function ConditionStrip({
   negatable?: boolean;
 }) {
   if (group.children.length === 0) return null;
+  // Which children simple mode draws as a pressed pill rather than as the
+  // group they are stored as, by the kernel's reading and at the paths it
+  // gives: the strip knows that a negated condition is one pill, not where
+  // its leaf sits. Advanced mode asks for none of them and draws the tree.
+  const negated = new Map(
+    (negatable ? conditions(group, path) : [])
+      .filter(condition => condition.negated)
+      .map(condition => [condition.index, condition] as const),
+  );
   return (
     <div
       data-slot="filter-conditions"
@@ -183,15 +192,17 @@ export function ConditionStrip({
       // not — which is the same layout everywhere it used to be right.
       className="@container grid grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] gap-1.5"
     >
-      {group.children.map((child, index) =>
+      {group.children.map((child, index) => {
+        const pressed = negated.get(index);
         // The same reading of a node admission and the walk use: a leaf
-        // carrying a stray `children` of the wrong shape is still a leaf.
-        !isFilterNode(child) ? null : negatable && isNegation(child) ? (
+        // carrying a stray `children` of the wrong shape is still a leaf,
+        // and an entry that is neither is drawn by nobody.
+        return pressed ? (
           <ConditionPill
-            key={`${child.children[0].field}-${index}`}
+            key={`${pressed.leaf.field}-${index}`}
             filter={filter}
-            leaf={child.children[0]}
-            path={[...path, index, 0]}
+            leaf={pressed.leaf}
+            path={pressed.path}
             disabled={disabled}
             optionsFor={optionsFor}
             isPending={isPending}
@@ -210,7 +221,7 @@ export function ConditionStrip({
               isPending={isPending}
             />
           </div>
-        ) : (
+        ) : isFilterLeaf(child) ? (
           <ConditionPill
             key={`${child.field}-${index}`}
             filter={filter}
@@ -221,8 +232,8 @@ export function ConditionStrip({
             isPending={isPending}
             negatable={negatable}
           />
-        ),
-      )}
+        ) : null;
+      })}
     </div>
   );
 }

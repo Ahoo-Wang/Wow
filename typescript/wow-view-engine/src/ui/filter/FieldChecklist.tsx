@@ -15,10 +15,8 @@ import { useId, useRef, useState } from 'react';
 import { PlusIcon, SearchIcon } from 'lucide-react';
 import type { FieldDefinition } from '../../model/index.js';
 import {
+  conditions,
   fieldGroups,
-  isFilterGroup,
-  isFilterLeaf,
-  isNegation,
   nodeAt,
   type FilterPath,
 } from '../../filter/index.js';
@@ -101,19 +99,13 @@ export function FieldChecklist({
   // Everything the group could hold, in catalogue order: what may still be
   // added, plus what is already there. `fieldsFor` answers only the first
   // half, and a list that dropped the second could never untick anything.
-  const group = nodeAt(filter.tree, parent);
+  // A negated condition is one of the group's conditions like any other,
+  // and the kernel hands over the path that takes the whole of it out —
+  // wrapper and all — so this list never asks how one is stored.
   const held = new Map(
-    isFilterGroup(group)
-      ? group.children.flatMap((child, index) =>
-          // A negated condition is held at its wrapper's index: unticking
-          // the field removes the wrapper and the condition with it.
-          isFilterLeaf(child)
-            ? [[child.field, index] as const]
-            : isNegation(child)
-              ? [[child.children[0].field, index] as const]
-              : [],
-        )
-      : [],
+    conditions(nodeAt(filter.tree, parent), parent).map(
+      condition => [condition.leaf.field, condition.path] as const,
+    ),
   );
   const addable = new Set(filter.fieldsFor(parent).map(field => field.name));
   const candidates = filter.fields.filter(
@@ -138,7 +130,7 @@ export function FieldChecklist({
       return;
     }
     const at = held.get(field.name);
-    if (at !== undefined) filter.remove([...parent, at]);
+    if (at) filter.remove(at);
   };
 
   const grid = (fields: readonly FieldDefinition[]) => (

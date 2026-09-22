@@ -12,6 +12,9 @@ validateFilter(fields: FieldDefinition[], tree: FilterTree, kinds: FieldKindRegi
 isSimpleTree(tree: FilterTree): boolean                  // filterMode 'simple' 的准入判断：一个 AND 组，子节点是叶子或取反
 isNegation(node: unknown): boolean                       // 取反：只含一片叶子的 nor 分组（D18-7）
 negateAt(tree, path: FilterPath): FilterTree              // 给 path 处的叶子包一层 nor，已包着的则拆掉
+conditionOf(node: unknown): FilterLeaf | null            // 这个节点问的那一条：叶子本身，或取反里那片叶子；不是单条（多子节点分组、坏节点）则 null
+conditions(group: unknown, at?: FilterPath): GroupCondition[]   // 一个分组里读作单条的子节点，依次给 { leaf, index, path, negated }；path 是叶子自己的（取反的在包装里一层），at 传分组自己的路径即得整棵树的路径
+removeConditionAt(tree, path: FilterPath): FilterTree     // 按叶子路径删这一条，取反的连它那层 nor 一起删；path 指别的（嵌套分组、独立叶子）就删它自己
 compileFilter(fields, tree, kinds, ctx: { now: Date; timeZone: string }): FilterExpression
 clearFilter(tree): FilterTree
 describeFilter(fields, tree, kinds): FilterSummaryItem[]     // 已应用条件的摘要：结构化的部件 + 英文兜底句

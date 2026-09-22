@@ -96,9 +96,10 @@ export function ConditionPill({
    */
   negatable?: boolean;
   /**
-   * True when this condition sits alone in a `nor` group of its own — then
-   * `path` is the leaf's inside that wrapper, and removing the condition
-   * removes the wrapper with it.
+   * True when this condition is held as "not this". The pill says so and
+   * offers to undo it; what the tree stores it as is the kernel's, and
+   * `path` is this condition's path either way — `remove` takes out the
+   * whole of it without this component knowing there is a wrapper.
    */
   negated?: boolean;
 }) {
@@ -198,7 +199,7 @@ export function ConditionPill({
       variant="ghost"
       size="icon-sm"
       disabled={disabled}
-      onClick={() => filter.remove(negated ? path.slice(0, -1) : path)}
+      onClick={() => filter.remove(path)}
     >
       <XIcon />
     </IconButton>

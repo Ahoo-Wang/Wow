@@ -212,6 +212,69 @@ export function isNegation(
 }
 
 /**
+ * The condition a node asks: the leaf itself, or the one inside a negation.
+ * `null` for anything that is not one condition — a group of several, an
+ * empty one, a malformed entry.
+ *
+ * It is the kernel's answer to "what does this say", so that the wrapper
+ * D18-7 stores a negation as stays the kernel's to know: a caller that
+ * wants the field, the operator or the value asks this rather than reaching
+ * into `children[0]` and spelling the shape a second time.
+ */
+export function conditionOf(node: unknown): FilterLeaf | null {
+  if (isFilterLeaf(node)) return node;
+  return isNegation(node) ? node.children[0] : null;
+}
+
+/** One condition of a group: what it says, where it sits, and how. */
+export interface GroupCondition {
+  /** The condition itself, wrapper or no wrapper. */
+  leaf: FilterLeaf;
+  /** Which child of the group holds it. */
+  index: number;
+  /**
+   * The leaf's own path — inside the wrapper when it has one, which is the
+   * path the pill holds either way, and the one `negateAt` and a
+   * controller's `remove` both take.
+   */
+  path: FilterPath;
+  /** Whether the group holds it as "not this". */
+  negated: boolean;
+}
+
+/**
+ * The children of a group that each read as one condition, in order, with
+ * the leaf's path and whether it is negated. A nested group of several
+ * conditions is not one of them, and neither is a malformed entry, so the
+ * indexes it yields may have gaps — the caller that draws every child in
+ * order keys by `index` rather than counting.
+ *
+ * `at` is the group's own path, so the paths come out addressed from the
+ * root and can be handed straight to an editor. This is what the picker,
+ * the condition strip and `fieldsFor` read: none of them has to know that a
+ * negated condition is stored one level down.
+ */
+export function conditions(
+  group: unknown,
+  at: FilterPath = [],
+): GroupCondition[] {
+  if (!isFilterGroup(group)) return [];
+  const found: GroupCondition[] = [];
+  group.children.forEach((child, index) => {
+    const leaf = conditionOf(child);
+    if (!leaf) return;
+    const negated = !isFilterLeaf(child);
+    found.push({
+      leaf,
+      index,
+      path: negated ? [...at, index, 0] : [...at, index],
+      negated,
+    });
+  });
+  return found;
+}
+
+/**
  * `simple` mode shows one AND group of conditions, each on its own or
  * negated. Anything else needs the advanced editor, which is why the mode
  * travels with the saved config.
@@ -220,7 +283,7 @@ export function isSimpleTree(tree: FilterTree): boolean {
   return (
     isFilterGroup(tree) &&
     tree.op === 'and' &&
-    tree.children.every(child => isFilterLeaf(child) || isNegation(child))
+    tree.children.every(child => conditionOf(child) !== null)
   );
 }
 
@@ -234,11 +297,38 @@ export function isSimpleTree(tree: FilterTree): boolean {
 export function negateAt(tree: FilterTree, path: FilterPath): FilterTree {
   const leaf = nodeAt(tree, path);
   if (path.length === 0 || !isFilterLeaf(leaf)) return tree;
-  const above = path.slice(0, -1);
-  const parent = above.length === 0 ? tree : nodeAt(tree, above);
-  if (above.length > 0 && isNegation(parent))
-    return updateAt(tree, above, () => leaf);
+  const wrapper = negationAround(tree, path);
+  if (wrapper) return updateAt(tree, wrapper, () => leaf);
   return updateAt(tree, path, () => ({ op: 'nor', children: [leaf] }));
+}
+
+/**
+ * The tree without the condition at `path`, and without the negation around
+ * it when it has one: an editor holds a negated condition by its leaf's
+ * path, so removing it takes the wrapper along rather than leaving an empty
+ * `nor` group behind that says nothing and cannot be edited.
+ *
+ * `path` naming anything else — a nested group, a leaf standing on its own —
+ * removes exactly that, so this is the one removal an editor needs.
+ */
+export function removeConditionAt(
+  tree: FilterTree,
+  path: FilterPath,
+): FilterTree {
+  return removeAt(tree, negationAround(tree, path) ?? path);
+}
+
+/**
+ * The path of the negation `path` sits inside, or `null` when it sits in
+ * none. The root is never one: a root `nor` of one condition has no simple
+ * reading and no pill, and unwrapping it would leave no tree at all.
+ */
+function negationAround(tree: FilterTree, path: FilterPath): FilterPath | null {
+  if (path.length < 2) return null;
+  const above = path.slice(0, -1);
+  return isNegation(nodeAt(tree, above)) && isFilterLeaf(nodeAt(tree, path))
+    ? above
+    : null;
 }
 
 export interface TreeVisit {

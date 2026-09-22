@@ -25,17 +25,17 @@ import type {
 } from '../model/index.js';
 import {
   clearFilter,
+  conditions,
   countLeaves,
   describeFilter,
   impliedDeletion,
   insertAt,
-  isNegation,
   isRootFilterIssue,
   isSimpleTree,
   negateAt,
   nodeAt,
   operatorsOf,
-  removeAt,
+  removeConditionAt,
   sameFilterNode,
   unmarkedErrors,
   updateAt,
@@ -44,7 +44,6 @@ import {
   type FilterPath,
   type FilterSummaryItem,
   isFilterGroup,
-  isFilterLeaf,
 } from '../filter/index.js';
 import {
   comparePending,
@@ -463,6 +462,12 @@ export interface FilterTreeController {
    * mode's switch (D18-7); advanced mode has the group operator for it.
    */
   negate(path: FilterPath): void;
+  /**
+   * Takes out whatever `path` names — and the negation around it, when the
+   * path is that of a leaf alone in one. A caller holds a condition by its
+   * leaf's path whether or not it is negated, so this is the only removal
+   * either kind of pill needs (`removeConditionAt`).
+   */
   remove(path: FilterPath): void;
   operatorsFor(field: string): FilterOperatorName[];
   editorFor(path: FilterPath): EditorDescriptor | null;
@@ -526,18 +531,11 @@ function addableFields(
   parent: FilterPath,
   kinds: FieldKindRegistry | undefined,
 ): FieldDefinition[] {
-  const group = nodeAt(tree, parent);
-  // A negated condition is still this group's condition on its field.
+  // A negated condition is still this group's condition on its field, which
+  // is why the kernel's `conditions` is asked rather than the children read:
+  // the wrapper it is stored in is the kernel's to know.
   const used = new Set(
-    isFilterGroup(group)
-      ? group.children.flatMap(child =>
-          isFilterLeaf(child)
-            ? [child.field]
-            : isNegation(child)
-              ? [child.children[0].field]
-              : [],
-        )
-      : [],
+    conditions(nodeAt(tree, parent)).map(condition => condition.leaf.field),
   );
   // A field whose kind the registry does not know is left out, because
   // `addLeaf` refuses it: there is no default operator to seed and no empty
@@ -620,7 +618,7 @@ export function treeController(
       change(current => negateAt(current, path));
     },
     remove(path) {
-      change(current => removeAt(current, path));
+      change(current => removeConditionAt(current, path));
     },
     operatorsFor(field) {
       const definition = byName.get(field);
