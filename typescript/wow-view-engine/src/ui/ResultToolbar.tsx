@@ -62,11 +62,6 @@ export interface ResultToolbarProps {
   /** Pins the table's cap is not drawing right now (D17-4). */
   released?: ReleasedPins;
   /**
-   * Whether the table carries the host's action column, so the settings can
-   * show where it sits — pinned right and not the user's to move.
-   */
-  hasRowActions?: boolean;
-  /**
    * What the host offers for the rows that are selected. It is a render
    * function rather than a node, because it acts on the selection and the
    * toolbar is what knows the selection.
@@ -158,7 +153,6 @@ export function ResultToolbar({
   fieldGroups,
   rowKey,
   released,
-  hasRowActions = false,
   bulkActions,
   exporter,
   features,
@@ -334,7 +328,6 @@ export function ResultToolbar({
                   {...(fieldGroups ? { fieldGroups } : {})}
                   {...(rowKey === undefined ? {} : { rowKey })}
                   {...(released ? { released } : {})}
-                  actions={hasRowActions}
                 />
               ))}
             {shown.sort && (

@@ -12,46 +12,39 @@
  */
 
 import {
-  columnPin,
+  columnPinned,
   isFieldlessKind,
   summaryFunctionsOf,
   type FieldDefinition,
   type SummaryFunction,
-  type RecordColumnPin,
 } from '../../model/index.js';
-import { pinnedEnd, type ColumnPlacement } from '../../record/index.js';
 
 /**
- * The three areas a table draws its columns in, and the settings list them
- * in: what is held on the left, what scrolls, what is held on the right.
+ * The two areas a table draws its columns in, and the settings list them
+ * in: what is held against the left edge, and what scrolls.
  *
- * An area *is* the pinning. `projectRecord` lays the columns out this way,
- * because `sticky` fixes an element where it already is — a column pinned
- * right that is drawn in the middle scrolls away like any other, and the
- * pinning is not a promise a stylesheet can keep on its own. A row moves
- * between areas by being pinned, and is dragged only inside the one it is
- * in: an order that crossed an area would be written to the config and then
- * laid out differently by the table.
+ * An area *is* the pinning, and a pinning is one yes-or-no (D19).
+ * `projectRecord` lays the columns out this way, because `sticky` fixes an
+ * element where it already is — a column pinned in the middle of the table
+ * scrolls away like any other, and the pinning is not a promise a
+ * stylesheet can keep on its own. A row moves between the areas by being
+ * pinned, and is dragged only inside the one it is in: an order that
+ * crossed an area would be written to the config and then laid out
+ * differently by the table.
+ *
+ * There is no third area, because the table's right edge is not a pinning
+ * anybody chose: it holds the host's action column, or — where there is
+ * none — whichever column happens to be drawn last (D13). Neither of those
+ * is a row in this list.
  */
-export type ColumnRegion = 'left' | 'middle' | 'right';
+export type ColumnRegion = 'pinned' | 'scrolling';
 
 /** The areas in the order a table draws them. */
-export const REGIONS: readonly ColumnRegion[] = ['left', 'middle', 'right'];
-
-/**
- * The action column's stand-in.
- *
- * It is not a field and it is not in the config — the host hands over a
- * render function — but it is a column on screen, so the settings show where
- * it sits rather than pretending the table ends at the last field. `\0`
- * cannot occur in a field name (`FIELD_NAME_PATTERN`), so the sentinel can
- * never collide with one.
- */
-export const ACTIONS_ROW = '\u0000actions';
+export const REGIONS: readonly ColumnRegion[] = ['pinned', 'scrolling'];
 
 /** One line of the column settings, with everything its controls need. */
 export interface ColumnSettingRow {
-  /** The field's name, or {@link ACTIONS_ROW} for the row that stands in for the action column. */
+  /** The field's name. */
   field: string;
   label: string;
   region: ColumnRegion;
@@ -69,18 +62,15 @@ export interface ColumnSettingRow {
    * until then there is nothing to drag it between.
    */
   placed: boolean;
-  pinned: RecordColumnPin | null;
+  /** Whether the config holds this column against the left edge. */
+  pinned: boolean;
   /**
-   * True for the columns whose place is decided for the user rather than by
-   * them: the row key, the column the table draws last, and the action
-   * column. Their controls are shown in the state they are in and disabled,
-   * because a control that silently does nothing is worse than one that says
-   * it cannot.
-   */
-  fixed: boolean;
-  /**
-   * The row key. It is `fixed` too, but it is the one column the settings
-   * never offer to hide: a row without it is a row nobody can read (D13).
+   * The row key — the one column whose place is decided for the user rather
+   * than by them, and so the one row whose checkbox and pin toggle are
+   * shown in the state they are in and disabled: a row without the key is a
+   * row nobody can read (D13), and the key leads the held area for the same
+   * reason. A control that silently does nothing is worse than one that
+   * says it cannot.
    */
   primary: boolean;
   /**
@@ -129,11 +119,9 @@ export interface ColumnSettingInput {
   columns: readonly string[];
   /** The field holding each row's identity, when the definition declares one. */
   rowKey?: string;
-  /** Whether the table carries the host's action column. */
-  actions: boolean;
   /** Every field `config.summaries` names, in the order it names them. */
   summaryFields: readonly string[];
-  pinnedOf(field: string): RecordColumnPin | null;
+  pinnedOf(field: string): boolean;
   /** Whether the config has this column switched off. */
   hiddenOf(field: string): boolean;
   summaryOf(field: string): SummaryFunction | null;
@@ -159,11 +147,6 @@ export function columnSettingRows(
 ): ColumnSettingRow[] {
   const candidates = input.fields.filter(field => !isFieldlessKind(field.kind));
   const byName = new Map(candidates.map(field => [field.name, field]));
-  // The column the table holds against its right edge, found the way the
-  // projection finds it so the panel shows the pinning the table will
-  // actually draw. Over the columns that can be rendered, de-duplicated,
-  // which is exactly the list `projectRecord` lays out.
-  const end = lastColumn(input, byName);
   const seen = new Set<string>();
   // In the order the table shows them, and one row per column: a config
   // that lists a field twice is two columns claiming one identity, and one
@@ -172,7 +155,7 @@ export function columnSettingRows(
     if (seen.has(name)) return [];
     seen.add(name);
     const field = byName.get(name);
-    return [field ? row(field, true, input, end) : broken(name, input)];
+    return [field ? row(field, true, input) : broken(name, input)];
   });
   // A summary may name a field that is neither a column nor something the
   // definition still declares. `validateSummaries` refuses the config over
@@ -185,28 +168,14 @@ export function columnSettingRows(
     .map(name => broken(name, input, true));
   const unplaced = candidates
     .filter(field => !seen.has(field.name))
-    .map(field => row(field, false, input, end));
+    .map(field => row(field, false, input));
 
-  const rows = [...placed, ...orphans, ...unplaced];
-  if (!input.actions) return rows;
-  return [
-    ...rows,
-    {
-      field: ACTIONS_ROW,
-      label: '',
-      region: 'right',
-      visible: true,
-      placed: false,
-      pinned: 'right',
-      fixed: true,
-      primary: false,
-      functions: [],
-      summary: null,
-      movable: false,
-      broken: false,
-      summaryOnly: false,
-    },
-  ];
+  // The host's action column is **not** listed. It is a render slot rather
+  // than a column the config names, it is always last and always held
+  // against the right edge (D13), and none of that is part of "how do I
+  // want to look at this" (D19) — so its row carried four controls nobody
+  // could press, which is noise rather than an explanation.
+  return [...placed, ...orphans, ...unplaced];
 }
 
 /**
@@ -229,7 +198,7 @@ function broken(
   return {
     field,
     label: field,
-    region: 'middle',
+    region: 'scrolling',
     primary: false,
     // A broken column can be switched off like any other — and unlike any
     // other, switching it off takes it out of the config rather than hiding
@@ -239,8 +208,7 @@ function broken(
     // `placed` is what keeps it out of the one the panel writes back.
     visible: summaryOnly || !input.hiddenOf(field),
     placed: !summaryOnly,
-    pinned: null,
-    fixed: false,
+    pinned: false,
     functions: [],
     summary: input.summaryOf(field),
     movable: false,
@@ -249,79 +217,46 @@ function broken(
   };
 }
 
-/**
- * The column the table draws last, which the projection holds on the right
- * whatever the config says.
- *
- * It is computed over the same list `projectRecord` lays out — the drawn
- * columns, each without a duplicate, the ones the definition no longer
- * offers and the ones the config switched off left out — so the panel and
- * the table can never name a different column as the last one. D13's "last
- * drawn column" is the last **visible** one: a hidden column is drawn
- * nowhere, so it is never the end the table holds.
- */
-function lastColumn(
-  input: ColumnSettingInput,
-  byName: ReadonlyMap<string, FieldDefinition>,
-): string | null {
-  // With a row-action column the host's slot is the end, and it is listed
-  // as fixed on its own row; no data column is held for being last then.
-  if (input.actions) return null;
-  const seen = new Set<string>();
-  const drawn = input.columns.flatMap(name => {
-    if (seen.has(name) || !byName.has(name) || input.hiddenOf(name)) return [];
-    seen.add(name);
-    return [
-      {
-        field: name,
-        pinned:
-          name === input.rowKey ? 'left' : columnPin(input.pinnedOf(name)),
-      } satisfies ColumnPlacement,
-    ];
-  });
-  return pinnedEnd(drawn, input.rowKey ?? '');
-}
-
 function row(
   field: FieldDefinition,
   placed: boolean,
   input: ColumnSettingInput,
-  end: string | null,
 ): ColumnSettingRow {
   const visible = placed && !input.hiddenOf(field.name);
-  const fixed = field.name === input.rowKey || field.name === end;
-  // A fixed column shows the side it is held on rather than what the config
-  // happens to say, so the two never disagree on screen. Read through
-  // `columnPin` even though the controller already normalises it: the area
-  // a row is listed in is computed from this, and an area that is neither
-  // of the three is a row that appears nowhere at all.
-  const pinned = fixed
-    ? field.name === input.rowKey
-      ? 'left'
-      : 'right'
-    : columnPin(input.pinnedOf(field.name));
+  const primary = field.name === input.rowKey;
+  // The key shows the pinning it is held by rather than what the config
+  // happens to say, so the two never disagree on screen. The rest is read
+  // through `columnPinned` even though the controller already normalises
+  // it: the area a row is listed in is computed from this, and the panel is
+  // the second line of defence for a config that stored `pinned: 'left'`.
+  //
+  // A field with no place in the config is held nowhere, the key included:
+  // the table is not drawing it at all, so a pin toggle reading "pinned"
+  // over a row listed among the scrolling ones would be two answers to one
+  // question.
+  const pinned =
+    placed && (primary || columnPinned(input.pinnedOf(field.name)));
   return {
     field: field.name,
     label: field.label,
     // An area is a pinning, and a column switched off keeps the one it
     // had: hiding a column clears nothing, so it is listed in the area it
-    // will come back to rather than falling into the middle and then
-    // jumping sideways the moment it is switched on again. A field with no
-    // place in the config has no pinning either, so it is listed in the
-    // middle, which is where it joins the table.
-    region: placed ? (pinned ?? 'middle') : 'middle',
+    // will come back to rather than falling in among the scrolling ones and
+    // then jumping sideways the moment it is switched on again. A field with
+    // no place in the config has no pinning either, so it is listed among
+    // the scrolling ones, which is where it joins the table.
+    region: pinned ? 'pinned' : 'scrolling',
     visible,
     placed,
     pinned,
-    fixed,
-    primary: field.name === input.rowKey,
+    primary,
     functions: summaryFunctionsOf(field),
     cell: field.cell ?? field.kind,
     summary: input.summaryOf(field.name),
     // A place in the order is what there is to drag, and a switched-off
     // column has one — which is the whole of "a hidden field cannot be
     // ordered" going away.
-    movable: placed && !fixed,
+    movable: placed && !primary,
     broken: false,
     summaryOnly: false,
   };
@@ -364,7 +299,8 @@ function rendered(rows: readonly ColumnSettingRow[]): ColumnSettingRow[] {
 /**
  * How many columns the table draws, which is what a position is counted
  * against. A broken column is not one of them — `projectRecord` leaves it
- * out — while the host's action column is.
+ * out — and neither is the host's action column, which is a render slot
+ * this list does not carry a row for (D19).
  */
 export function renderedCount(rows: readonly ColumnSettingRow[]): number {
   return rendered(rows).length;
@@ -383,9 +319,10 @@ export function renderedIndex(
  * changes nothing — the end of an area, an unknown field, a drop on the row
  * it started from.
  *
- * The move happens inside the row's own area, and the answer covers every
- * column the config knows — the switched-off ones among them — with the
- * areas in the order the table draws them. That is the order
+ * The move happens inside the row's own area — a column joins the other one
+ * by being pinned, never by being carried there (`columnDrop`) — and the
+ * answer covers every column the config knows, the switched-off ones among
+ * them, with the areas in the order the table draws them. That is the order
  * `projectRecord` lays out, so what is saved and what is drawn are the same
  * list rather than two that agree by luck, and a hidden column comes out of
  * it with the place it will come back to. A row that cannot be dragged —
@@ -430,10 +367,7 @@ function placedOf(
   region: ColumnRegion,
 ): string[] {
   return rows
-    .filter(
-      entry =>
-        entry.region === region && entry.placed && entry.field !== ACTIONS_ROW,
-    )
+    .filter(entry => entry.region === region && entry.placed)
     .map(entry => entry.field);
 }
 
@@ -444,12 +378,4 @@ export function movableIndex(
 ): number {
   const region = regionOf(rows, field);
   return region === null ? -1 : movableFields(rows, region).indexOf(field);
-}
-
-/** The pin state after one press: unpinned, then left, then right again. */
-export function nextPin(
-  pinned: RecordColumnPin | null,
-): RecordColumnPin | null {
-  if (pinned === null) return 'left';
-  return pinned === 'left' ? 'right' : null;
 }

@@ -27,12 +27,7 @@ import type {
   SummaryFunction,
   ViewInstance,
 } from '../model/index.js';
-import {
-  columnHidden,
-  columnPin,
-  isFieldlessKind,
-  type RecordColumnPin,
-} from '../model/index.js';
+import { columnHidden, columnPinned, isFieldlessKind } from '../model/index.js';
 import {
   recordColumns,
   recordSort,
@@ -41,9 +36,6 @@ import {
 } from './recordDraft.js';
 import { repinned, resized, withColumnsShown } from './recordColumns.js';
 import { maxSortFields } from '../record/index.js';
-// The side a column is held on, named once in the model and offered here so
-// a control can talk about pinning without importing the kernel's types.
-export type { RecordColumnPin };
 import type {
   RecordColumnView,
   RecordPaging,
@@ -296,10 +288,15 @@ export interface RecordTableController {
    * table names it along with the rest.
    */
   setColumnOrder(fields: string[]): void;
-  /** Which side the draft holds a column on, or null when it is unpinned. */
-  pinnedOf(field: string): RecordColumnPin | null;
-  /** Holds a column on one side of the table, or lets it go. Applies at once. */
-  setPinned(field: string, pinned: RecordColumnPin | null): void;
+  /** Whether the draft holds this column against the table's left edge. */
+  pinnedOf(field: string): boolean;
+  /**
+   * Holds a column against the left edge, or lets it go. Applies at once.
+   *
+   * There is one end to pin to (D19): the right edge is the host's action
+   * column, which is a render slot rather than anything a config names.
+   */
+  setPinned(field: string, pinned: boolean): void;
   /**
    * Sets one column's width in pixels, or `null` to let it size itself
    * again. Applies at once, like the other column commands.
@@ -655,15 +652,17 @@ export function useRecordTable(
       },
       [editAndApply, runtime],
     ),
-    // Read through `columnPin`, so the type this declares is true even of a
-    // config that came out of a store saying `pinned: 'top'`.
+    // Read through `columnPinned`, so the type this declares is true even of
+    // a config that came out of a store saying `pinned: 'left'`.
     pinnedOf: useCallback(
       (field: string) =>
-        columnPin(tableColumns.find(column => column.field === field)?.pinned),
+        columnPinned(
+          tableColumns.find(column => column.field === field)?.pinned,
+        ),
       [tableColumns],
     ),
     setPinned: useCallback(
-      (field: string, pinned: RecordColumnPin | null) => {
+      (field: string, pinned: boolean) => {
         if (!runtime) return;
         editAndApply({
           table: {

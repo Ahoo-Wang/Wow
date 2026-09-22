@@ -33,13 +33,12 @@ import type { RecordTableController } from '../src/react/index.js';
 import { ColumnSettings } from '../src/ui/ColumnSettings.js';
 import { MessagesProvider } from '../src/ui/MessagesProvider.js';
 import {
-  ACTIONS_ROW,
   columnSettingRows,
   movableFields,
-  nextPin,
+  regionOf,
   reorderColumns,
 } from '../src/ui/columns/rows.js';
-import { columnDragAccessibility } from '../src/ui/columns/announce.js';
+import { columnDragAccessibility, columnDrop } from '../src/ui/columns/drag.js';
 import { defaultMessages } from '../src/ui/messages.js';
 import { ordersDefinition, recordConfig } from './fixtures.js';
 import { formattersFor, tableController } from './fixtures/columns.js';
@@ -56,13 +55,12 @@ const FIELDS: FieldDefinition[] = [
 ];
 
 /**
- * A fourth column, for the cases that need two movable ones.
+ * A fourth column, for the cases that want a third movable one.
  *
- * Both ends of a table are fixed (D13) — the row key on the left, the last
- * column on the right — so three columns leave exactly one in the middle
- * and nothing that can be dragged past anything. It is added where it is
- * needed rather than to `FIELDS`, so every other case keeps the list it was
- * written against.
+ * The row key is the one row whose place is not the user's (D13), so
+ * `FIELDS` leaves two columns to drag past each other. It is added where a
+ * case wants more rather than to `FIELDS`, so every other case keeps the
+ * list it was written against.
  */
 const NOTE: FieldDefinition = { name: 'note', label: 'Note', kind: 'string' };
 
@@ -141,7 +139,7 @@ describe('the control that opens it', () => {
     await user.click(trigger);
     // The same panel, with the same rows in it.
     expect(await screen.findByText('Column settings')).toBeTruthy();
-    expect(listed()).toEqual(['id', 'warehouse', 'amount']);
+    expect(listed()).toEqual(['id', 'amount', 'warehouse']);
   });
 });
 
@@ -150,9 +148,8 @@ describe('the column settings model', () => {
     fields: FIELDS,
     columns: ['amount', 'id'],
     rowKey: 'id',
-    actions: false,
     summaryFields: [] as readonly string[],
-    pinnedOf: () => null,
+    pinnedOf: () => false,
     hiddenOf: () => false,
     summaryOf: () => null,
   };
@@ -162,34 +159,35 @@ describe('the column settings model', () => {
 
     expect(rows.map(row => row.field)).toEqual(['amount', 'id', 'warehouse']);
     expect(rows.map(row => row.visible)).toEqual([true, true, false]);
-    // A hidden column has no place in the config, so it has no order to
-    // drag — and neither shown column has one either, because a table of
-    // two columns is a row key and an end (D13).
-    expect(movableFields(rows)).toEqual([]);
+    // A field with no place in the config has no order to drag, and the row
+    // key's place is not the user's (D13) — which leaves the one column
+    // that is neither.
+    expect(movableFields(rows)).toEqual(['amount']);
   });
 
-  it('holds the row key on the left and the actions on the right', () => {
-    const rows = columnSettingRows({ ...input, actions: true });
+  /**
+   * The row key leads the held area, and the host's action column is not a
+   * row at all (D19): it is a render slot rather than something the config
+   * names, and a row whose four controls nobody can press is noise.
+   */
+  it('holds the row key in the held area, and lists no action row', () => {
+    const rows = columnSettingRows(input);
 
-    // With a row-action column the host's slot is the end (D13), so no data
-    // column is held for being last: `amount` is an ordinary middle column
-    // again, and the actions row is the one shown fixed on the right.
     expect(rows.map(row => row.region)).toEqual([
-      'middle',
-      'left',
-      'middle',
-      'right',
+      'scrolling',
+      'pinned',
+      'scrolling',
     ]);
     expect(rows[0]).toMatchObject({
       field: 'amount',
-      fixed: false,
+      pinned: false,
+      primary: false,
       movable: true,
     });
-    expect(rows[1]).toMatchObject({ fixed: true, pinned: 'left' });
-    expect(rows[3]).toMatchObject({
-      field: ACTIONS_ROW,
-      fixed: true,
-      pinned: 'right',
+    expect(rows[1]).toMatchObject({
+      field: 'id',
+      pinned: true,
+      primary: true,
       movable: false,
     });
   });
@@ -227,17 +225,10 @@ describe('the column settings model', () => {
 
     expect(reorderColumns(rows, 'amount', 0)).toBeNull();
     expect(reorderColumns(rows, 'amount', -1)).toBeNull();
-    expect(reorderColumns(rows, 'amount', 2)).toBeNull();
-    // Neither end is in the movable area at all.
+    expect(reorderColumns(rows, 'amount', 3)).toBeNull();
+    // The row key is not in the movable list at all.
     expect(reorderColumns(rows, 'id', 1)).toBeNull();
-    expect(reorderColumns(rows, 'note', 0)).toBeNull();
     expect(reorderColumns(rows, 'gone', 0)).toBeNull();
-  });
-
-  it('cycles a pin through both sides and off again', () => {
-    expect(nextPin(null)).toBe('left');
-    expect(nextPin('left')).toBe('right');
-    expect(nextPin('right')).toBeNull();
   });
 
   /**
@@ -270,41 +261,25 @@ describe('the column settings model', () => {
       expect(rows.map(row => row.placed)).toEqual([true, true, true, true]);
       expect(rows[1]).toMatchObject({
         field: 'amount',
-        region: 'middle',
+        region: 'scrolling',
         movable: true,
       });
-      expect(movableFields(rows)).toEqual(['amount', 'warehouse']);
+      expect(movableFields(rows)).toEqual(['amount', 'warehouse', 'note']);
     });
 
     /**
      * Hiding a column clears nothing, so it is listed in the area it will
-     * come back to. Listed in the middle instead, it would jump sideways
-     * the moment it was switched on again — and the order the panel
-     * commits would have written it into the wrong area first.
+     * come back to. Listed among the scrolling ones instead, it would jump
+     * sideways the moment it was switched on again — and the order the
+     * panel commits would have written it into the wrong area first.
      */
     it('is listed in the area its pinning asks for', () => {
       const rows = columnSettingRows({
         ...withHidden,
-        pinnedOf: (field: string) => (field === 'amount' ? 'left' : null),
+        pinnedOf: (field: string) => field === 'amount',
       });
 
-      expect(rows[1]).toMatchObject({ field: 'amount', region: 'left' });
-    });
-
-    /** D13's last column is the last *drawn* one, not the last entry. */
-    it('is never the column the table holds at its end', () => {
-      const rows = columnSettingRows({
-        ...input,
-        columns: ['id', 'warehouse', 'amount'],
-        hiddenOf: (field: string) => field === 'amount',
-      });
-
-      expect(rows.map(row => [row.field, row.fixed, row.region])).toEqual([
-        ['id', true, 'left'],
-        // The last column the table draws, held on the right for being it.
-        ['warehouse', true, 'right'],
-        ['amount', false, 'middle'],
-      ]);
+      expect(rows[1]).toMatchObject({ field: 'amount', region: 'pinned' });
     });
 
     /**
@@ -326,15 +301,17 @@ describe('the column settings model', () => {
 });
 
 describe('the column settings popover', () => {
-  it('lists every column that can be one, in their areas', async () => {
+  it('lists every column that can be one, and no action row', async () => {
     const user = userEvent.setup();
     open({}, { actions: true });
 
     await user.click(screen.getByRole('button', { name: /Columns/ }));
 
-    // The host's action column is the end, so `amount` is a middle column
-    // in config order and only the actions row sits on the right.
-    expect(listed()).toEqual(['id', 'amount', 'warehouse', ACTIONS_ROW]);
+    // The key leads the held area; everything else is listed in config
+    // order among the scrolling ones. The host's action column is not here
+    // at all (D19) — it is a render slot, and `actions` is not even a prop.
+    expect(listed()).toEqual(['id', 'amount', 'warehouse']);
+    expect(screen.queryByRole('checkbox', { name: /Actions/ })).toBeNull();
     // The search handle is not something a row holds, so it is not offered.
     expect(screen.queryByRole('checkbox', { name: 'Show Search' })).toBeNull();
   });
@@ -343,15 +320,15 @@ describe('the column settings popover', () => {
    * Each area is a heading somebody can see, and the same words are its
    * accessible name because they are the same node.
    *
-   * Three `aria-label`s and nothing on the screen was what made a column
-   * pinned to the right read as having fallen to the bottom of the list:
-   * the rows moved and nothing said where they had moved to. The words are
-   * the three pin states, the same ones a row's own pin control cycles
-   * through, so the area and the control agree.
+   * `aria-label`s and nothing on the screen was what made a column that had
+   * just been pinned read as having jumped to the top of the list: the rows
+   * moved and nothing said where they had moved to. The words are the two
+   * pin states, the same ones a row's own toggle switches between, so the
+   * area and the control agree.
    */
   it('heads each area with the pinning it is, seen and said alike', async () => {
     const user = userEvent.setup();
-    open({}, { actions: true });
+    open();
 
     await user.click(screen.getByRole('button', { name: /Columns/ }));
 
@@ -366,14 +343,9 @@ describe('the column settings popover', () => {
     expect(headings.map(heading => heading.textContent)).toEqual([
       'Pinned left',
       'Not pinned',
-      'Pinned right',
     ]);
     // Drawn as a heading, not as a grey line that only looks like one.
-    expect(headings.map(heading => heading.tagName)).toEqual([
-      'H3',
-      'H3',
-      'H3',
-    ]);
+    expect(headings.map(heading => heading.tagName)).toEqual(['H3', 'H3']);
     // And the list takes its name from that heading rather than repeating
     // the word in an attribute nobody can check against what is drawn.
     expect(
@@ -383,28 +355,9 @@ describe('the column settings popover', () => {
       false,
     );
     expect(regions.map(region => region.dataset.region)).toEqual([
-      'left',
-      'middle',
-      'right',
+      'pinned',
+      'scrolling',
     ]);
-  });
-
-  it('leaves the action column out when the host offers no row actions', async () => {
-    const user = userEvent.setup();
-    open();
-
-    await user.click(screen.getByRole('button', { name: /Columns/ }));
-
-    expect(listed()).toEqual(['id', 'warehouse', 'amount']);
-    // The right area is still there — the last column is held in it — but
-    // nothing of the host's is.
-    expect(
-      [
-        ...document.querySelectorAll(
-          '[data-region="right"] [data-slot="column-setting"]',
-        ),
-      ].map(row => row.getAttribute('data-field')),
-    ).toEqual(['amount']);
   });
 
   /**
@@ -470,7 +423,7 @@ describe('the column settings popover', () => {
     open(
       {
         columnFields: ['id', 'amount'],
-        pinnedOf: f => (f === 'amount' ? 'right' : null),
+        pinnedOf: f => f === 'amount',
       },
       {
         released: {
@@ -483,35 +436,18 @@ describe('the column settings popover', () => {
 
     await user.click(screen.getByRole('button', { name: /Columns/ }));
     const pin = screen.getByRole('button', {
-      name: `Pinning of Amount: Pinned right · ${defaultMessages['label.columns.pin-released']}`,
+      name: `Pin Amount · ${defaultMessages['label.columns.pin-released']}`,
     });
 
+    // The config still holds the pin, which is what `aria-pressed` reports;
+    // the clause in the name is the part the state cannot say.
+    expect(pin.getAttribute('aria-pressed')).toBe('true');
     expect(pin.hasAttribute('data-released')).toBe(true);
     expect(
       screen
-        .getByRole('button', { name: /Pinning of Order/ })
+        .getByRole('button', { name: 'Pin Order' })
         .hasAttribute('data-released'),
     ).toBe(false);
-  });
-
-  it('marks the action column too when the cap let its pin go', async () => {
-    const user = userEvent.setup();
-    open(
-      {},
-      {
-        actions: true,
-        released: { fields: new Set(), select: false, actions: true },
-      },
-    );
-
-    await user.click(screen.getByRole('button', { name: /Columns/ }));
-    expect(
-      screen
-        .getByRole('button', {
-          name: `Pinning of Actions: Pinned right · ${defaultMessages['label.columns.pin-released']}`,
-        })
-        .hasAttribute('data-released'),
-    ).toBe(true);
   });
 
   /**
@@ -525,9 +461,7 @@ describe('the column settings popover', () => {
     const table = open({ columnFields: ['id'] });
 
     await user.click(screen.getByRole('button', { name: /Columns/ }));
-    const pin = screen.getByRole('button', {
-      name: 'Pinning of Amount: Not pinned',
-    });
+    const pin = screen.getByRole('button', { name: 'Pin Amount' });
     const summary = screen.getByRole('combobox', {
       name: 'Summary under Amount',
     });
@@ -641,26 +575,25 @@ describe('the column settings popover', () => {
   });
 
   /**
-   * A stored `pinned: 'top'` used to be a key the catalogue has never heard
-   * of, so the popover handed `undefined` to `messages.label` and took the
-   * workbench down. `validateRecord` reports it; the row draws it as "not
-   * pinned" and the toggle carries on from there.
+   * A stored `pinned: 'left'` used to be a key the catalogue has never
+   * heard of, so the popover handed `undefined` to `messages.label` and
+   * took the workbench down. `validateRecord` reports it; the row draws it
+   * as "not pinned" and the toggle carries on from there.
    */
-  it('draws a pinning it cannot read as none, and cycles from there', async () => {
+  it('draws a pinning it cannot read as none, and pins from there', async () => {
     const user = userEvent.setup();
-    // Three columns, so `amount` is in the middle: the two ends are held
-    // for the user and read nothing the config stores about their pinning.
     const table = open({
       columnFields: ['id', 'amount', 'warehouse'],
-      pinnedOf: (field: string) => (field === 'amount' ? 'top' : null) as never,
+      pinnedOf: (field: string) =>
+        (field === 'amount' ? 'left' : null) as never,
     });
 
     await user.click(screen.getByRole('button', { name: /Columns/ }));
-    await user.click(
-      screen.getByRole('button', { name: 'Pinning of Amount: Not pinned' }),
-    );
+    const pin = screen.getByRole('button', { name: 'Pin Amount' });
+    expect(pin.getAttribute('aria-pressed')).toBe('false');
 
-    expect(table.setPinned).toHaveBeenCalledWith('amount', 'left');
+    await user.click(pin);
+    expect(table.setPinned).toHaveBeenCalledWith('amount', true);
   });
 
   /**
@@ -690,29 +623,21 @@ describe('the column settings popover', () => {
   });
 
   /**
-   * The only column a table has is the column it draws last, so it is held
-   * on the right (D13): the pin says so and refuses to change, and the
-   * unreadable `pinned` stored on it is not a finding either, because
-   * nothing reads it. Its checkbox is refused for the other reason — a
-   * table keeps one column.
+   * The table holds whichever column it draws last against the right edge
+   * (D13), and that is the frame rather than a setting (D19) — so the only
+   * configured column wears the controls every other column wears, its pin
+   * toggle included. Its checkbox lets it go too: the row key is drawn
+   * regardless, so the table is never left empty.
    */
-  it('holds the only configured column as the end, and still lets it go', async () => {
+  it('gives the only configured column the same controls as any other', async () => {
     const user = userEvent.setup();
-    const table = open({
-      columnFields: ['amount'],
-      pinnedOf: (field: string) => (field === 'amount' ? 'top' : null) as never,
-    });
+    const table = open({ columnFields: ['amount'] });
 
     await user.click(screen.getByRole('button', { name: /Columns/ }));
-    // One configured column is the table's end (D13): the frame holds it,
-    // so its pin cannot move. It can be switched off all the same — the
-    // row key is drawn regardless, so the table is never left empty.
-    const pin = screen.getByRole('button', {
-      name: 'Pinning of Amount: Pinned right',
-    });
-    expect(pin.hasAttribute('disabled')).toBe(true);
+    const pin = screen.getByRole('button', { name: 'Pin Amount' });
+    expect(pin.hasAttribute('disabled')).toBe(false);
     await user.click(pin);
-    expect(table.setPinned).not.toHaveBeenCalled();
+    expect(table.setPinned).toHaveBeenCalledWith('amount', true);
 
     const shown = screen.getByRole('checkbox', { name: 'Show Amount' });
     expect(shown.getAttribute('aria-disabled')).not.toBe('true');
@@ -720,32 +645,48 @@ describe('the column settings popover', () => {
     expect(table.setColumns).toHaveBeenCalledWith([]);
   });
 
-  it('cycles the pin of a column that may move', async () => {
+  /**
+   * Two states, so the state is the platform's own (`aria-pressed`) and the
+   * name is the plain "Pin Amount" a toggle button wears. It carried the
+   * state before — "Pinning of Amount: Pinned left" — because the control
+   * cycled through three, and "pressed" cannot say which of two edges a
+   * column is held at. There is one edge to pin to now (D19).
+   */
+  it('pins and unpins a column from one two-state toggle', async () => {
     const user = userEvent.setup();
     const table = open({ columnFields: ['id', 'amount', 'warehouse'] });
 
     await user.click(screen.getByRole('button', { name: /Columns/ }));
-    await user.click(
-      screen.getByRole('button', { name: 'Pinning of Amount: Not pinned' }),
-    );
+    const pin = screen.getByRole('button', { name: 'Pin Amount' });
+    expect(pin.getAttribute('aria-pressed')).toBe('false');
 
-    expect(table.setPinned).toHaveBeenCalledWith('amount', 'left');
+    await user.click(pin);
+    expect(table.setPinned).toHaveBeenCalledWith('amount', true);
+
+    cleanup();
+    const pinned = open({
+      columnFields: ['id', 'amount', 'warehouse'],
+      pinnedOf: (field: string) => field === 'amount',
+    });
+    await user.click(screen.getByRole('button', { name: /Columns/ }));
+    const on = screen.getByRole('button', { name: 'Pin Amount' });
+    expect(on.getAttribute('aria-pressed')).toBe('true');
+
+    await user.click(on);
+    expect(pinned.setPinned).toHaveBeenCalledWith('amount', false);
   });
 
   /**
-   * The toggle's name *is* its state, so pressing it rewrites the name of
-   * the control under the cursor and reports nothing: a reader would have
-   * to go back and read the button again, which is what the press was
-   * supposed to save them.
+   * `aria-pressed` reports the toggle's new state and nothing else, so the
+   * panel's one live region names the column and the edge it is now held
+   * against — which is the news, and what a bare "pressed" leaves out.
    */
-  it('says where a column landed when its pinning is cycled', async () => {
+  it('says where a column landed when its pinning changes', async () => {
     const user = userEvent.setup();
     open({ columnFields: ['id', 'amount', 'warehouse'] });
 
     await user.click(screen.getByRole('button', { name: /Columns/ }));
-    await user.click(
-      screen.getByRole('button', { name: 'Pinning of Amount: Not pinned' }),
-    );
+    await user.click(screen.getByRole('button', { name: 'Pin Amount' }));
 
     expect(announced()).toBe('Amount is now pinned left');
   });
@@ -755,46 +696,38 @@ describe('the column settings popover', () => {
     open(
       {
         columnFields: ['id', 'amount', 'warehouse'],
-        pinnedOf: (field: string) => (field === 'amount' ? 'left' : null),
+        pinnedOf: (field: string) => field === 'amount',
       },
       {},
-      { 'label.columns.pinned.right': '{field} 已固定到右侧' },
+      { 'label.columns.pinned.none': '{field} 已取消固定' },
     );
 
     await user.click(screen.getByRole('button', { name: /Columns/ }));
-    await user.click(
-      screen.getByRole('button', { name: 'Pinning of Amount: Pinned left' }),
-    );
+    await user.click(screen.getByRole('button', { name: 'Pin Amount' }));
 
-    // Left is the first stop of the cycle, so the next press is the right.
-    expect(announced()).toBe('Amount 已固定到右侧');
+    expect(announced()).toBe('Amount 已取消固定');
   });
 
   /**
-   * The two columns the definition places show the state they are in and
-   * refuse to change it: a pin toggle that silently does nothing is worse
+   * The one column the definition places shows the state it is in and
+   * refuses to change it: a pin toggle that silently does nothing is worse
    * than one that says it cannot.
    */
-  it('shows the fixed columns’ pinning and refuses to change it', async () => {
+  it('shows the row key’s pinning and refuses to change it', async () => {
     const user = userEvent.setup();
-    open({}, { actions: true });
+    const table = open();
 
     await user.click(screen.getByRole('button', { name: /Columns/ }));
 
-    for (const name of [
-      'Pinning of Order: Pinned left',
-      'Pinning of Actions: Pinned right',
-      'Reorder Order',
-      'Reorder Actions',
-    ])
+    const pin = screen.getByRole('button', { name: 'Pin Order' });
+    expect(pin.getAttribute('aria-pressed')).toBe('true');
+    for (const name of ['Pin Order', 'Reorder Order'])
       expect(
         screen.getByRole('button', { name }).hasAttribute('disabled'),
       ).toBe(true);
-    expect(
-      screen
-        .getByRole('checkbox', { name: 'Show Actions' })
-        .getAttribute('aria-disabled'),
-    ).toBe('true');
+
+    await user.click(pin);
+    expect(table.setPinned).not.toHaveBeenCalled();
   });
 });
 
@@ -807,24 +740,22 @@ describe('the column settings popover', () => {
 /**
  * An area is the pinning: `projectRecord` lays the columns out that way,
  * because `sticky` fixes an element where it already is and a column pinned
- * right that is drawn in the middle would scroll away like any other. The
- * panel lists them the same way, so the two never say different things.
+ * in the middle of the table would scroll away like any other. The panel
+ * lists them the same way, so the two never say different things.
  */
 describe('the area a column is listed in', () => {
-  function openPinned(pinnedOf: (field: string) => 'left' | 'right' | null) {
+  function openPinned(pinnedOf: (field: string) => boolean) {
     const table = tableController({
       columnFields: ['id', 'warehouse', 'amount'],
       pinnedOf,
     });
-    render(
-      <ColumnSettings table={table} fields={FIELDS} rowKey="id" actions />,
-    );
+    render(<ColumnSettings table={table} fields={FIELDS} rowKey="id" />);
     return table;
   }
 
-  it('follows the pinning, and puts a right pin at the end', async () => {
+  it('follows the pinning, and leads the held area with the key', async () => {
     const user = userEvent.setup();
-    openPinned(field => (field === 'amount' ? 'right' : null));
+    openPinned(field => field === 'amount');
 
     await user.click(screen.getByRole('button', { name: /Columns/ }));
 
@@ -833,25 +764,21 @@ describe('the area a column is listed in', () => {
         row =>
           `${row.getAttribute('data-region')}:${row.getAttribute('data-field')}`,
       ),
-    ).toEqual([
-      'left:id',
-      'middle:warehouse',
-      'right:amount',
-      `right:${ACTIONS_ROW}`,
-    ]);
+    ).toEqual(['pinned:id', 'pinned:amount', 'scrolling:warehouse']);
   });
 
   /**
    * A field the config has never mentioned has no place in the table and no
-   * pinning either — the middle is where it joins when it is switched on.
-   * (A column that *is* in the config keeps the area it was pinned to while
-   * it is switched off; see "a column switched off" above.)
+   * pinning either — the scrolling area is where it joins when it is
+   * switched on, whatever a stale `pinned` says about it. (A column that
+   * *is* in the config keeps the area it was pinned to while it is switched
+   * off; see "a column switched off" above.)
    */
-  it('lists a field that is not a column in the middle', async () => {
+  it('lists a field that is not a column among the scrolling ones', async () => {
     const user = userEvent.setup();
     const table = tableController({
       columnFields: ['id', 'amount'],
-      pinnedOf: (field: string) => (field === 'warehouse' ? 'right' : null),
+      pinnedOf: (field: string) => field === 'warehouse',
     });
     render(<ColumnSettings table={table} fields={FIELDS} rowKey="id" />);
 
@@ -861,24 +788,56 @@ describe('the area a column is listed in', () => {
       document
         .querySelector('[data-field="warehouse"]')!
         .getAttribute('data-region'),
-    ).toBe('middle');
+    ).toBe('scrolling');
   });
 
   /**
    * A drag stays inside its area, and the order that is committed is the
-   * order the table lays out: left, middle, right.
+   * order the table lays out: what is held, then what scrolls.
    */
   it('reorders inside one area and commits the whole layout', async () => {
     const user = userEvent.setup();
-    const table = openPinned(field =>
-      field === 'amount' ? 'right' : field === 'warehouse' ? 'left' : null,
-    );
+    const table = openPinned(field => field === 'warehouse');
 
     await user.click(screen.getByRole('button', { name: /Columns/ }));
     screen.getByRole('button', { name: 'Reorder Warehouse' }).focus();
-    // The row key is fixed and keeps its slot; there is nowhere to go.
+    // The key keeps its slot at the head of the held area; there is nowhere
+    // for the one column beside it to go.
     await user.keyboard('{ArrowUp}');
     expect(table.setColumnOrder).not.toHaveBeenCalled();
+  });
+
+  /**
+   * And a drop that crossed the areas is not a drop this panel takes: the
+   * place it names is a place in the *other* area's order, so committed as
+   * one it would move the column somewhere inside its own area that nobody
+   * pointed at. A column joins the other area by being pinned.
+   */
+  it('refuses a drop that crossed from one area into the other', () => {
+    const rows = columnSettingRows({
+      fields: FIELDS,
+      columns: ['id', 'warehouse', 'amount'],
+      rowKey: 'id',
+      summaryFields: [],
+      pinnedOf: (field: string) => field === 'warehouse',
+      hiddenOf: () => false,
+      summaryOf: () => null,
+    });
+    const drop = (source: string, target: string) =>
+      columnDrop({ source: { id: source }, target: { id: target } }, false, f =>
+        regionOf(rows, f),
+      );
+
+    expect(drop('warehouse', 'amount')).toBeNull();
+    expect(drop('amount', 'warehouse')).toBeNull();
+    // A row that is in no area at all is in nobody's order either.
+    expect(drop('gone', 'amount')).toBeNull();
+    expect(drop('amount', 'gone')).toBeNull();
+    // Inside one area it is the drop the shared guard already made of it.
+    expect(drop('id', 'warehouse')).toEqual({
+      source: 'id',
+      target: 'warehouse',
+    });
   });
 });
 
@@ -886,8 +845,8 @@ describe('the area a column is listed in', () => {
  * A column switched off is still a column: it keeps its entry in the
  * config, so the panel lists it where it sits, drags it like any other row
  * and puts it back there when it is switched on again (D17-8). Before this
- * it fell to the end of the middle area with the fields that had never been
- * columns, and coming back meant dragging it into place a second time.
+ * it fell to the end of the scrolling area with the fields that had never
+ * been columns, and coming back meant dragging it into place a second time.
  */
 describe('a column the user switched off', () => {
   function openHidden(hidden: string) {
@@ -945,7 +904,7 @@ describe('a column the user switched off', () => {
 
     await user.click(screen.getByRole('button', { name: /Columns/ }));
     const pin = screen.getByRole('button', {
-      name: 'Pinning of Amount: Not pinned',
+      name: 'Pin Amount',
     });
     expect(pin.hasAttribute('disabled')).toBe(true);
     expect(describing(pin).textContent).toContain(
@@ -1000,7 +959,7 @@ describe('a column the definition dropped', () => {
     const table = openDropped(['id', 'gone', 'amount']);
 
     await user.click(screen.getByRole('button', { name: /Columns/ }));
-    expect(listed()).toEqual(['id', 'gone', 'warehouse', 'amount']);
+    expect(listed()).toEqual(['id', 'gone', 'amount', 'warehouse']);
 
     const row = document.querySelector('[data-field="gone"]')!;
     expect(row.hasAttribute('data-broken')).toBe(true);
@@ -1011,7 +970,7 @@ describe('a column the definition dropped', () => {
     ).toBe(true);
     expect(
       within(row as HTMLElement)
-        .getByRole('button', { name: /^Pinning of gone/ })
+        .getByRole('button', { name: /^Pin gone/ })
         .hasAttribute('disabled'),
     ).toBe(true);
 
@@ -1048,7 +1007,7 @@ describe('a column the definition dropped', () => {
     for (const control of [
       screen.getByRole('checkbox', { name: 'Show gone' }),
       within(row).getByRole('button', { name: 'Reorder gone' }),
-      within(row).getByRole('button', { name: /^Pinning of gone/ }),
+      within(row).getByRole('button', { name: /^Pin gone/ }),
     ])
       expect(control.getAttribute('aria-describedby')).toBe(note.id);
   });
@@ -1076,7 +1035,7 @@ describe('a column the definition dropped', () => {
     const table = openDropped(['id', 'amount', 'amount']);
 
     await user.click(screen.getByRole('button', { name: /Columns/ }));
-    expect(listed()).toEqual(['id', 'warehouse', 'amount']);
+    expect(listed()).toEqual(['id', 'amount', 'warehouse']);
 
     await user.click(screen.getByRole('checkbox', { name: 'Show Amount' }));
     expect(table.setColumns).toHaveBeenCalledWith(['id']);
@@ -1110,10 +1069,10 @@ describe('a summary on a field that is not a column', () => {
     openOrphan();
 
     await user.click(screen.getByRole('button', { name: /Columns/ }));
-    // Listed in the areas the table draws: the row key on the left, the
-    // last column held on the right, and this one in the middle beside the
-    // fields that are switched off.
-    expect(listed()).toEqual(['id', 'gone', 'warehouse', 'amount']);
+    // Listed in the areas the table draws: the row key in the held one, and
+    // this row among the scrolling ones beside the leftovers and the fields
+    // that are switched off.
+    expect(listed()).toEqual(['id', 'amount', 'gone', 'warehouse']);
 
     const row = document.querySelector<HTMLElement>('[data-field="gone"]')!;
     expect(row.hasAttribute('data-broken')).toBe(true);
@@ -1174,7 +1133,7 @@ describe('a summary on a field that is not a column', () => {
     });
 
     await user.click(screen.getByRole('button', { name: /Columns/ }));
-    expect(listed()).toEqual(['id', 'warehouse', 'amount']);
+    expect(listed()).toEqual(['id', 'amount', 'warehouse']);
 
     const row = document.querySelector<HTMLElement>(
       '[data-field="warehouse"]',
@@ -1188,9 +1147,9 @@ describe('a summary on a field that is not a column', () => {
 
 describe('moving a column with the keyboard', () => {
   /**
-   * Four columns, because two of them are the ends: the row key leads and
-   * `note` is held at the back, which leaves `amount` and `warehouse` as
-   * the two the keyboard can move past each other.
+   * Four columns: the row key leads the held area and is not the user's to
+   * move, which leaves three in the scrolling one for the keyboard to move
+   * past each other.
    */
   function openFour(
     columnFields: string[] = ['id', 'amount', 'warehouse', 'note'],
@@ -1233,11 +1192,6 @@ describe('moving a column with the keyboard', () => {
   });
 
   /**
-   * Counted over what the reader is looking at. The action column is on
-   * screen and is not in the config, so counting configured columns alone
-   * said "of 3" to someone looking at four.
-   */
-  /**
    * Counted over the columns the table draws. A broken one is not drawn —
    * `projectRecord` leaves it out — so counting it told someone looking at
    * two columns that a row had landed "2 of 3".
@@ -1251,17 +1205,6 @@ describe('moving a column with the keyboard', () => {
     await user.keyboard('{ArrowDown}');
 
     expect(announced()).toBe('Amount moved to position 3 of 4');
-  });
-
-  it('counts the action column in the position it announces', async () => {
-    const user = userEvent.setup();
-    openFour(undefined, { actions: true });
-    await user.click(screen.getByRole('button', { name: /Columns/ }));
-
-    screen.getByRole('button', { name: 'Reorder Amount' }).focus();
-    await user.keyboard('{ArrowDown}');
-
-    expect(announced()).toBe('Amount moved to position 3 of 5');
   });
 
   it('moves the row up', async () => {
@@ -1352,7 +1295,7 @@ describe('what a drag says out loud', () => {
  * wide, and a list to group once the definition says how its fields group.
  */
 describe('finding a column in a wide list', () => {
-  /** Six fields and two groups: enough for a middle area worth sectioning. */
+  /** Six fields and two groups: a scrolling area worth sectioning. */
   const WIDE: FieldDefinition[] = [
     { name: 'id', label: 'Order', kind: 'string' },
     { name: 'warehouse', label: 'Warehouse', kind: 'string' },
@@ -1489,10 +1432,10 @@ describe('finding a column in a wide list', () => {
 
   /**
    * The areas stay the primary split and the catalogue is a second level
-   * inside the middle one: the two held ends are short by construction, and
-   * a heading over a single row is a heading that says nothing.
+   * inside the scrolling one: the held area is short by construction, and a
+   * heading over a single row is a heading that says nothing.
    */
-  it('lists the middle area under the catalogue, ungrouped first', async () => {
+  it('lists the scrolling area under the catalogue, ungrouped first', async () => {
     const user = userEvent.setup();
     openWide({ fieldGroups: GROUPS });
 
@@ -1503,22 +1446,21 @@ describe('finding a column in a wide list', () => {
       'Not pinned',
       'Shipping',
       'Money',
-      'Pinned right',
     ]);
-    // `Weight` belongs to no group, so it is in front and under no heading
-    // of its own; inside a group the rows are in the order the table draws
-    // them, not the order the group declares them in.
+    // `Weight` and `Note` belong to no group, so they are in front and under
+    // no heading of their own; inside a group the rows are in the order the
+    // table draws them, not the order the group declares them in.
     expect(listed()).toEqual([
       'id',
       'weight',
+      'note',
       'warehouse',
       'carrier',
       'amount',
-      'note',
     ]);
   });
 
-  it('leaves the held ends ungrouped, and a flat definition flat', async () => {
+  it('leaves the held area ungrouped, and a flat definition flat', async () => {
     const user = userEvent.setup();
     openWide({ fieldGroups: GROUPS });
 
@@ -1533,11 +1475,10 @@ describe('finding a column in a wide list', () => {
     // Each section is a list of its own, so it can be a sortable group of
     // its own: a column is never carried out of the group it belongs to.
     expect(grouped).toEqual([
-      ['left', null],
-      ['middle', null],
-      ['middle', 'ship'],
-      ['middle', 'money'],
-      ['right', null],
+      ['pinned', null],
+      ['scrolling', null],
+      ['scrolling', 'ship'],
+      ['scrolling', 'money'],
     ]);
 
     cleanup();
@@ -1548,6 +1489,6 @@ describe('finding a column in a wide list', () => {
     ).toHaveLength(0);
     expect(
       document.querySelectorAll('[data-slot="column-region"]'),
-    ).toHaveLength(3);
+    ).toHaveLength(2);
   });
 });

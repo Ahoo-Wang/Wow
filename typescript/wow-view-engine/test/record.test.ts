@@ -737,11 +737,10 @@ describe('projectRecord', () => {
         width: undefined,
         // And the last column is held on the right for the same kind of
         // reason (D13): both ends of the table stay put, so it has a frame
-        // a reader can see rather than two edges that drift. `end` says it
-        // is held for being last, so a host's action column can take the
-        // place instead.
+        // a reader can see rather than two edges that drift. That is the
+        // only pinning the right side has (D19), so a host's action column
+        // can simply take the place (`ui/record/columns.ts`).
         pinned: 'right',
-        end: true,
         sortable: false,
         numberFormat: { style: 'currency', currency: 'CNY' },
       },
@@ -759,7 +758,7 @@ describe('projectRecord', () => {
     const view = projectRecord(
       definition(),
       config({
-        table: { columns: [{ field: 'id', pinned: 'right' }] },
+        table: { columns: [{ field: 'id', pinned: false }] },
       }),
       { total: 0, list: [] },
     );
@@ -768,60 +767,16 @@ describe('projectRecord', () => {
   });
 
   /**
-   * `end` means "held right for being last", so a host's action column can
-   * take that place. A column the config pinned right is the last one too —
-   * the right area comes last — but it is held because the config says so,
-   * and it keeps that pin beside the action column. Before, it carried
-   * `end` all the same, and the moment a host added row actions every right
-   * pin vanished from the table while the settings went on saying "pinned".
+   * A pinning is one yes-or-no (D19), so a stored `'left'`, `'top'` or `3`
+   * is not one: the projection says "not pinned" rather than a side it would
+   * then try to stick the column to, and the finding names the value so the
+   * toggle that writes the member properly is known to be the repair — the
+   * treatment `width` and `hidden` get, for the same reason.
    */
-  it('keeps a right pin the config asked for off the end flag', () => {
-    const view = projectRecord(
-      definition(),
-      config({
-        table: {
-          columns: [{ field: 'id' }, { field: 'warehouse', pinned: 'right' }],
-        },
-      }),
-      { total: 0, list: [] },
-    );
-
-    expect(view.columns[1]).toMatchObject({
-      field: 'warehouse',
-      pinned: 'right',
-    });
-    expect(view.columns[1]).not.toHaveProperty('end');
-  });
-
-  /**
-   * A column pinned nowhere in particular is a finding the user can fix,
-   * and a projection that says "not pinned" in the meantime — never a side
-   * the table would then try to stick it to.
-   */
-  /**
-   * Except on the row key, whose pinning the config has no opinion about:
-   * the projection holds it left whatever is stored and the settings show
-   * that fixed and disabled, so reporting the value would block the query
-   * and the save over something no control on screen can change.
-   */
-  it('says nothing about the row key\u2019s own pinning', () => {
-    const issues = validateRecord(
-      definition(),
-      config({
-        table: {
-          columns: [{ field: 'id', pinned: 'top' }, { field: 'amount' }],
-        },
-      } as unknown as Partial<RecordViewConfig>),
-      builtinFieldKinds,
-    );
-
-    expect(codes(issues)).toEqual([]);
-  });
-
-  it('reports a pinning that is neither side, and projects it as none', () => {
+  it('reports a pinning that is not a yes-or-no, and projects it as none', () => {
     const config_ = config({
       table: {
-        columns: [{ field: 'amount', pinned: 'top' }, { field: 'warehouse' }],
+        columns: [{ field: 'amount', pinned: 'left' }, { field: 'warehouse' }],
       },
     } as unknown as Partial<RecordViewConfig>);
 
@@ -836,27 +791,51 @@ describe('projectRecord', () => {
   });
 
   /**
-   * The other end of the same rule, and the other half of the exemption
-   * above: the table draws `warehouse` last, so it is held on the right
-   * whatever the config asked for — and a pinning nothing on screen can
-   * change is not reported, exactly as the row key's is not.
+   * The two ends included. Their *pinning* is none of the config's business
+   * — the row key is held left and the last column right whatever is stored
+   * — but whether the member can be read is a question about the member,
+   * and a config the draft cannot read is one the next edit of any column
+   * quietly repairs (`recordColumns`). Nothing on screen has to be able to
+   * change a value for it to be worth saying that it cannot be read.
    */
-  it('holds the last column on the right, and says nothing about its pinning', () => {
+  it('reports an unreadable pinning on the two ends as well', () => {
     const config_ = config({
       table: {
-        columns: [{ field: 'amount' }, { field: 'warehouse', pinned: 'top' }],
+        columns: [
+          { field: 'id', pinned: 'right' },
+          { field: 'amount' },
+          { field: 'warehouse', pinned: 0 },
+        ],
       },
     } as unknown as Partial<RecordViewConfig>);
 
     expect(
       codes(validateRecord(definition(), config_, builtinFieldKinds)),
-    ).toEqual([]);
+    ).toEqual(['record.column.pin-invalid', 'record.column.pin-invalid']);
 
     const view = projectRecord(definition(), config_, { total: 0, list: [] });
     expect(view.columns.map(column => column.pinned)).toEqual([
+      'left',
       undefined,
       'right',
     ]);
+  });
+
+  /** `pinned: false` is a pinning — the one that says "no". */
+  it('admits a pinning written out as false', () => {
+    expect(
+      codes(
+        validateRecord(
+          definition(),
+          config({
+            table: {
+              columns: [{ field: 'id' }, { field: 'amount', pinned: false }],
+            },
+          }),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual([]);
   });
 
   /**
@@ -914,7 +893,7 @@ describe('projectRecord', () => {
         'left',
         'right',
       ]);
-      expect(view.columns[1]).toMatchObject({ field: 'warehouse', end: true });
+      expect(view.columns[1]).toMatchObject({ field: 'warehouse' });
     });
 
     /** It is a column like any other while it is off; only `hidden` moves. */
@@ -1026,21 +1005,21 @@ describe('projectRecord', () => {
   });
 
   /**
-   * `sticky` fixes an element where it already is, so a column pinned right
-   * that is drawn in the middle scrolls away like any other: laying the
-   * areas out is part of the same rule as pinning them, and it lives where
-   * the table reads both.
+   * `sticky` fixes an element where it already is, so a column pinned in the
+   * middle of the table scrolls away like any other: laying the areas out is
+   * part of the same rule as pinning them, and it lives where the table
+   * reads both.
    */
-  it('lays the columns out in the three areas a table draws', () => {
+  it('lays the columns out in the two areas a table draws', () => {
     const view = projectRecord(
       definition(),
       config({
         table: {
           columns: [
-            { field: 'amount', pinned: 'right' },
+            { field: 'amount' },
             { field: 'warehouse' },
             { field: 'id' },
-            { field: 'createdAt', pinned: 'left' },
+            { field: 'createdAt', pinned: true },
           ],
         },
       }),
@@ -1050,15 +1029,35 @@ describe('projectRecord', () => {
     expect(view.columns.map(column => column.field)).toEqual([
       'id',
       'createdAt',
-      'warehouse',
       'amount',
+      'warehouse',
     ]);
+    // The key leads the held area, the pinned column follows it, and the
+    // right edge holds whatever is drawn last (D13).
     expect(view.columns.map(column => column.pinned)).toEqual([
       'left',
       'left',
       undefined,
       'right',
     ]);
+  });
+
+  /**
+   * A table whose every column is pinned has no last unheld column, and
+   * needs none: nothing scrolls out from under a frame.
+   */
+  it('holds nothing on the right when every column is pinned', () => {
+    const view = projectRecord(
+      definition(),
+      config({
+        table: {
+          columns: [{ field: 'id' }, { field: 'amount', pinned: true }],
+        },
+      }),
+      { total: 0, list: [] },
+    );
+
+    expect(view.columns.map(column => column.pinned)).toEqual(['left', 'left']);
   });
 
   it('uses the renderer key a field declares', () => {

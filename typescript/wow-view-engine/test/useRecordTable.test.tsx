@@ -74,7 +74,7 @@ describe('useRecordTable', () => {
       selectedRows: [],
     });
     expect(result.current.sortOf('id')).toBeNull();
-    expect(result.current.pinnedOf('id')).toBeNull();
+    expect(result.current.pinnedOf('id')).toBe(false);
     expect(result.current.summaryOf('amount')).toBeNull();
     expect(result.current.isSelected('o-1')).toBe(false);
     expect(() => {
@@ -85,7 +85,7 @@ describe('useRecordTable', () => {
       result.current.clearSelection();
       result.current.setColumns(['id']);
       result.current.setColumnOrder(['id']);
-      result.current.setPinned('id', 'left');
+      result.current.setPinned('id', true);
       result.current.setSummary('amount', 'SUM');
       result.current.setLayout('card');
       result.current.setPageSize(10);
@@ -393,7 +393,7 @@ describe('useRecordTable', () => {
           config: recordConfig({
             table: {
               columns: [
-                { field: 'id', width: 120, pinned: 'left' },
+                { field: 'id', width: 120, pinned: true },
                 { field: 'amount' },
               ],
             },

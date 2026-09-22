@@ -94,8 +94,8 @@ const pinnedView = {
   config: recordConfig({
     table: {
       columns: [
-        { field: 'id' as const, pinned: 'left' as const },
-        { field: 'amount' as const, pinned: 'left' as const },
+        { field: 'id' as const, pinned: true },
+        { field: 'amount' as const, pinned: true },
         { field: 'warehouse' as const },
         { field: 'status' as const },
         { field: 'createdAt' as const },
@@ -120,7 +120,7 @@ const cellFamilyView = {
     summaries: [],
     table: {
       columns: [
-        { field: 'id' as const, pinned: 'left' as const },
+        { field: 'id' as const, pinned: true },
         { field: 'status' as const },
         { field: 'tags' as const },
         { field: 'trackingUrl' as const },
@@ -150,7 +150,7 @@ const datedView = {
     ],
     table: {
       columns: [
-        { field: 'id' as const, pinned: 'left' as const },
+        { field: 'id' as const, pinned: true },
         { field: 'warehouse' as const },
         { field: 'status' as const },
         { field: 'amount' as const },

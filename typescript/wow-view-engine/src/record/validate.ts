@@ -13,8 +13,6 @@
 
 import { MAX_CURSOR_SORT_FIELDS } from '@ahoo-wang/fetcher-wow';
 import {
-  columnHidden,
-  columnPin,
   DEFAULT_RUNTIME_LIMITS,
   isFieldlessKind,
   summaryFunctionsOf,
@@ -31,7 +29,6 @@ import {
   validateViewConfigBase,
   type FieldKindRegistry,
 } from '../filter/index.js';
-import { pinnedEnd, type ColumnPlacement } from './project.js';
 
 export interface ValidateRecordOptions {
   limits?: RuntimeLimits;
@@ -80,7 +77,7 @@ export function validateRecord(
 
   issues.push(...validatePageSize(config, limits));
   issues.push(...validateSort(config, definition, byName));
-  issues.push(...validateColumns(config, capability.rowKey, byName));
+  issues.push(...validateColumns(config, byName));
   issues.push(...validateCard(config, byName));
   issues.push(...validateSummaries(config, byName));
 
@@ -222,31 +219,9 @@ function validateSort(
 
 function validateColumns(
   config: RecordViewConfig,
-  rowKey: string,
   fields: ReadonlyMap<string, FieldDefinition>,
 ): Issue[] {
   const seen = new Set<string>();
-  // The other column whose pinning the config has no say in: the one the
-  // table draws last. Found the way the projection finds it, over the
-  // columns that can actually be drawn, so the two never disagree about
-  // which column that is.
-  const end = pinnedEnd(
-    config.table.columns.flatMap(column => {
-      const field = columnHidden(column.hidden)
-        ? undefined
-        : fields.get(column.field);
-      return field && !isFieldlessKind(field.kind)
-        ? [
-            {
-              field: column.field,
-              pinned:
-                column.field === rowKey ? 'left' : columnPin(column.pinned),
-            } satisfies ColumnPlacement,
-          ]
-        : [];
-    }),
-    rowKey,
-  );
   return config.table.columns.flatMap((column, index) => {
     const at: IssuePath = ['table', 'columns', index, 'field'];
     const issues: Issue[] = [];
@@ -259,23 +234,14 @@ function validateColumns(
     seen.add(column.field);
 
     // The shape check asks a column for a `field` and nothing else, so a
-    // stored column may be pinned `'top'`, or to `''`. Said here it is a
-    // finding the user can fix; left unsaid it reached the settings popover
-    // as a key into a wording table and took the workbench down.
-    //
-    // Except on the two ends, whose pinning the config has no opinion about:
-    // `projectRecord` holds the row key on the left and the last column on
-    // the right whatever is stored, and the settings show both fixed and
-    // disabled. Reporting a value nothing on screen decides would block the
-    // query and the save over something no control can change — the trap in
-    // `ui/record.md`, sprung by the check meant to avoid one. What the
-    // config cannot say cannot be wrong.
-    if (
-      column.field !== rowKey &&
-      column.field !== end &&
-      column.pinned !== undefined &&
-      columnPin(column.pinned) === null
-    )
+    // stored column may say it is pinned `'left'`, `'top'` or `3`. A
+    // pinning is one yes-or-no now (D19), so every one of those is simply
+    // not a pinning: read through `columnPinned` the column scrolls, and it
+    // is said here so the toggle that writes the member properly is known
+    // to be the repair — the treatment `width` and `hidden` get, for the
+    // same reason. Left unsaid it reached the settings popover as a key
+    // into a wording table and took the workbench down.
+    if (column.pinned !== undefined && typeof column.pinned !== 'boolean')
       issues.push(
         issue(
           'record.column.pin-invalid',

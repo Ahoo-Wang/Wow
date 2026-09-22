@@ -60,7 +60,7 @@ function tableController(
     hiddenOf: () => false,
     setColumns: () => {},
     setColumnOrder: () => {},
-    pinnedOf: () => null,
+    pinnedOf: () => false,
     setPinned: () => {},
     setColumnWidth: () => {},
     summaryOf: () => null,

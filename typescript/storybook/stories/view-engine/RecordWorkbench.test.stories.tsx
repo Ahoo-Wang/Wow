@@ -1533,16 +1533,30 @@ export const TableSettings: Story = {
     );
     const popover = within(document.body);
 
-    // The key column is held on the left and says so without offering a way
-    // to change it; the rest of the list is the order the table is in.
+    // Two region headings and no row for the host's actions: a column is
+    // pinned to the left or not at all (D19), and the right edge is the
+    // engine's frame rather than anything a reader sets here.
     await expect(
-      popover.getByRole('button', {
-        name: say('label.columns.pin', {
-          field: '订单号',
-          state: zhCN['label.columns.pin.left'],
+      popover
+        .getAllByRole('heading', { level: 3 })
+        .map(heading => heading.textContent),
+    ).toEqual([zhCN['label.columns.pin.left'], zhCN['label.columns.pin.none']]);
+    await expect(
+      popover.queryByRole('checkbox', {
+        name: say('label.columns.show', {
+          field: zhCN['label.toolbar.actions'],
         }),
       }),
-    ).toBeDisabled();
+    ).toBeNull();
+
+    // The key column is held and says so — `aria-pressed`, on a toggle that
+    // is refused because the projection decides this one. The rest of the
+    // list is the order the table is in.
+    const key = popover.getByRole('button', {
+      name: say('label.columns.pin', { field: '订单号' }),
+    });
+    await expect(key).toBeDisabled();
+    await expect(key).toHaveAttribute('aria-pressed', 'true');
 
     // Reorder by keyboard: 状态 up one place, past 仓库.
     const handle = popover.getByRole('button', {
@@ -1556,29 +1570,33 @@ export const TableSettings: Story = {
       say('label.columns.moved', { field: '状态', index: 2, total: 4 }),
     );
 
-    // 金额 is the column the table draws last, so it is held on the right
-    // for the user (D13) and its pin says so without offering a way to
-    // change it — the same shape as the key column's, at the other end.
-    await expect(
-      popover.getByRole('button', {
-        name: say('label.columns.pin', {
-          field: '金额',
-          state: zhCN['label.columns.pin.right'],
-        }),
-      }),
-    ).toBeDisabled();
+    // 金额 is the column the table draws last, so the table holds it
+    // against the right edge (D13) — and that is the frame rather than a
+    // setting (D19), so its row wears the same live toggle as any other.
+    const last = popover.getByRole('button', {
+      name: say('label.columns.pin', { field: '金额' }),
+    });
+    await expect(last).toBeEnabled();
+    await expect(last).toHaveAttribute('aria-pressed', 'false');
 
-    // Pin 仓库, which is one of the two that scroll, then summarise 金额 as
-    // an average rather than a sum — being held at the end costs a column
-    // its pin and its handle, and nothing else.
-    await userEvent.click(
-      popover.getByRole('button', {
-        name: say('label.columns.pin', {
-          field: '仓库',
-          state: zhCN['label.columns.pin.none'],
-        }),
-      }),
+    // Pin 仓库, which is one of the three that scroll, then summarise 金额
+    // as an average rather than a sum.
+    const pinName = say('label.columns.pin', { field: '仓库' });
+    await userEvent.click(popover.getByRole('button', { name: pinName }));
+    // The press is reported as the toggle's own state, and said in the
+    // panel's live region — which is where the column and the edge are
+    // named, because "pressed" names neither. Read back off the panel
+    // rather than off the node that was pressed: the row moves to the
+    // other area's list, so React mounts it again there.
+    await waitFor(() =>
+      expect(popover.getByRole('button', { name: pinName })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      ),
     );
+    await expect(
+      document.querySelector('[data-slot="column-announcement"]'),
+    ).toHaveTextContent(say('label.columns.pinned.left', { field: '仓库' }));
     await userEvent.click(
       popover.getByRole('combobox', {
         name: say('label.columns.summary', { field: '金额' }),
@@ -1605,9 +1623,9 @@ export const TableSettings: Story = {
 
     // What is on screen: the areas a table draws in. `订单号` and the newly
     // pinned `仓库` are held on the left — pinning is what moves a column
-    // between areas, since `sticky` only fixes an element where it already
-    // is — `状态` scrolls in the middle, and `金额` is held at the right end
-    // whatever the config says.
+    // between the areas, since `sticky` only fixes an element where it
+    // already is — `状态` scrolls, and `金额` is held at the right end for
+    // being drawn last.
     await waitFor(() =>
       expect(readHeaders(canvas.getByRole('table'))).toEqual([
         '订单号',
@@ -1636,7 +1654,7 @@ export const TableSettings: Story = {
           columns: [
             { field: 'id' },
             { field: 'status' },
-            { field: 'warehouse', pinned: 'left' },
+            { field: 'warehouse', pinned: true },
             { field: 'amount' },
           ],
         },
@@ -1678,14 +1696,13 @@ export const TableSettingsPointerDrag: Story = {
 
     // The rows a drag moves within: the ones that scroll *and* are shown.
     // A hidden field has no place in `table.columns` and so no order to
-    // drag — its handle is refused — the row key is held on the left and
-    // `金额` at the right end, and each of those is a region of its own.
-    // Read by what the panel offers rather than by a list of fields, so a
-    // definition that grows another field does not turn this into a test
-    // about the fixture.
+    // drag — its handle is refused — and the row key is held in the other
+    // area, which is a sortable list of its own. Read by what the panel
+    // offers rather than by a list of fields, so a definition that grows
+    // another field does not turn this into a test about the fixture.
     const draggable = [
       ...document.querySelectorAll<HTMLElement>(
-        '[data-slot="column-region"][data-region="middle"] [data-slot="column-setting"]',
+        '[data-slot="column-region"][data-region="scrolling"] [data-slot="column-setting"]',
       ),
     ].filter(
       row => row.querySelector('button')?.hasAttribute('disabled') === false,
@@ -1693,6 +1710,7 @@ export const TableSettingsPointerDrag: Story = {
     await expect(draggable.map(row => row.dataset.field)).toEqual([
       'warehouse',
       'status',
+      'amount',
     ]);
 
     await dragHandleOnto(handle, draggable[1]);
@@ -1793,7 +1811,7 @@ export const HiddenColumnKeepsItsPlace: Story = {
     await waitFor(async () => {
       const saved = await tableSettingsStore.current!.get('orders-pending');
       expect((saved.config as RecordViewConfig).table.columns).toEqual([
-        { field: 'id', pinned: 'left' },
+        { field: 'id', pinned: true },
         { field: 'warehouse', hidden: true },
         { field: 'status' },
         { field: 'amount' },
@@ -3282,15 +3300,17 @@ export const QueryAnnouncedInTheResult: Story = {
       `金额${say('label.sort.more', { count: 1 })}`,
     );
 
-    // The other control whose name is its own state: pressing the pin
-    // rewrites the name under the cursor, so the panel says what changed.
+    // A toggle whose own state a reader hears as one word, so the panel
+    // says which column and which edge as well.
     await userEvent.click(
       canvasElement.querySelector<HTMLElement>('[data-control="columns"]')!,
     );
     const body = within(document.body);
     await body.findByText(zhCN['label.columns.title']);
     await userEvent.click(
-      body.getByRole('button', { name: /^仓库 的固定方式/ }),
+      body.getByRole('button', {
+        name: say('label.columns.pin', { field: '仓库' }),
+      }),
     );
     await waitFor(() =>
       expect(
@@ -4145,9 +4165,9 @@ async function readColumnSettings(canvasElement: HTMLElement) {
   ).toBeLessThanOrEqual(Math.round(list.getBoundingClientRect().bottom) + 1);
   list.scrollTop = 0;
 
-  // The areas first, the catalogue inside the middle one, in the order the
-  // definition declares its groups — and the fields no group lists in front
-  // of all of them, under no heading of their own.
+  // The two areas first (D19), the catalogue inside the scrolling one, in
+  // the order the definition declares its groups — and the fields no group
+  // lists in front of all of them, under no heading of their own.
   await expect(headings()).toEqual([
     zhCN['label.columns.pin.left'],
     zhCN['label.columns.pin.none'],
@@ -4155,7 +4175,6 @@ async function readColumnSettings(canvasElement: HTMLElement) {
     '运输',
     '计费',
     '时间',
-    zhCN['label.columns.pin.right'],
   ]);
   const whole = fields();
   await expect(whole.slice(0, 8)).toEqual([

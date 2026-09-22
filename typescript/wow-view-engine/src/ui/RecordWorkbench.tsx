@@ -410,7 +410,6 @@ export function RecordWorkbench({
             {...(record.definition.record?.rowKey === undefined
               ? {}
               : { rowKey: record.definition.record.rowKey })}
-            actions={row !== undefined}
             trigger={
               <Button variant="outline" size="xs">
                 {messages.label('label.status.open-columns')}
@@ -428,9 +427,6 @@ export function RecordWorkbench({
             rowKey={record.definition.record?.rowKey}
             // Cards draw no pins, so nothing is let go under them.
             released={table.layout === 'table' ? released : NO_RELEASE}
-            // The settings show the action column only when there is one:
-            // a host that hands over no row slot has no column to place.
-            hasRowActions={row !== undefined}
             bulkActions={actions?.bulk}
             features={features}
             exporter={

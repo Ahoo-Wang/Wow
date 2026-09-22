@@ -165,7 +165,6 @@ describe('projectAnalysis', () => {
         label: 'Warehouse',
         role: 'group',
         width: undefined,
-        pinned: undefined,
         numberFormat: undefined,
         // A group column holds the field's values, so it says how they show.
         kind: 'string',
@@ -176,7 +175,6 @@ describe('projectAnalysis', () => {
         label: 'orders',
         role: 'metric',
         width: undefined,
-        pinned: undefined,
         numberFormat: undefined,
       },
     ]);

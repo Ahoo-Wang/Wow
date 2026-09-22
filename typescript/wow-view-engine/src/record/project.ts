@@ -18,14 +18,13 @@ import {
 } from '@ahoo-wang/fetcher-wow';
 import {
   columnHidden,
-  columnPin,
+  columnPinned,
   isDateCell,
   type DataViewDefinition,
   type FieldDefinition,
   type FieldOption,
   type NumberFormat,
   type RecordColumn,
-  type RecordColumnPin,
   type RecordData,
   type RecordKey,
   type RecordViewConfig,
@@ -33,6 +32,16 @@ import {
 } from '../model/index.js';
 import { readInstant } from '../filter/index.js';
 import { summaryAlias } from './compile.js';
+
+/**
+ * Which edge the table holds a column against.
+ *
+ * It is the layout's answer and never the config's: a user pins a column to
+ * the left or not at all (D19), and the right edge belongs to the table's
+ * own frame — the column drawn last, or the host's action column where
+ * there is one, which the projection cannot see (`ui/record/columns.ts`).
+ */
+export type ColumnEdge = 'left' | 'right';
 
 /** A column as the table should render it, with its semantics resolved. */
 export interface RecordColumnView {
@@ -42,14 +51,13 @@ export interface RecordColumnView {
   /** Renderer key; the kind's default when the field names none. */
   cell: string;
   width?: number;
-  pinned?: RecordColumnPin;
   /**
-   * True on the column the layout holds against the right edge because it
-   * is drawn last (D13) — not because the config pinned it. A host that
-   * puts a row-action column after it takes that place, and the table lets
-   * this one go (`ui/record/columns.ts`).
+   * Which edge holds this column, when one does. `'right'` is the column
+   * the layout holds because it is drawn **last** (D13) and never a pin the
+   * config asked for — a host that puts a row-action column after it takes
+   * that place, and the table lets this one go (`ui/record/columns.ts`).
    */
-  end?: true;
+  pinned?: ColumnEdge;
   /**
    * True on the definition's row key: the column that says which record a
    * row is, which is why it leads the left area and is pinned there
@@ -84,13 +92,13 @@ export interface RecordView {
 }
 
 /**
- * One column as the table renders it, with the side it is held on already
- * decided by {@link columnOrder} and {@link pinnedEnd}.
+ * One column as the table renders it, with the edge it is held against
+ * already decided by {@link columnOrder}.
  */
 function columnView(
   field: FieldDefinition,
   column: RecordColumn,
-  place: { pinned: RecordColumnPin | null; end: boolean; primary: boolean },
+  place: { pinned?: ColumnEdge; primary: boolean },
 ): RecordColumnView {
   return {
     field: field.name,
@@ -98,8 +106,7 @@ function columnView(
     kind: field.kind,
     cell: field.cell ?? field.kind,
     width: column.width,
-    pinned: place.pinned ?? undefined,
-    ...(place.end ? { end: true } : {}),
+    ...(place.pinned ? { pinned: place.pinned } : {}),
     ...(place.primary ? { primary: true } : {}),
     sortable: field.sortable === true,
     numberFormat: field.numberFormat,
@@ -107,74 +114,41 @@ function columnView(
   };
 }
 
-/** A column as the layout rule reads it: its field, and the side it asks for. */
-export interface ColumnPlacement {
+/** A column as the layout rule reads it: its field, and whether it is pinned. */
+interface ColumnPlacement {
   field: string;
   /**
-   * What the config asks for, read through `columnPin` so a stored `'top'`
-   * arrives as "not pinned" rather than as a side. The row key's `'left'` is
-   * the definition's rather than the config's.
+   * What the config asks for, read through `columnPinned` so a stored
+   * `'left'` or `'top'` arrives as "not pinned" rather than as a pinning.
+   * The row key's is the definition's rather than the config's.
    */
-  pinned: RecordColumnPin | null;
+  pinned: boolean;
 }
 
 /**
- * The columns in the three areas a table draws them in: what is held on the
- * left, what scrolls, what is held on the right.
+ * The columns in the two areas a table draws them in: what is held against
+ * the left edge, and what scrolls.
  *
- * `sticky` fixes an element where it already is, so a column pinned right
- * that is drawn in the middle simply scrolls away like any other — the
- * pinning is not a promise a stylesheet can keep on its own. Laying the
- * areas out is therefore part of the same rule as pinning them, and the row
- * key leads the left area because it is the column that says which record a
- * row is. The order inside each area is the config's own; the sort is
- * stable, so nothing else moves.
+ * `sticky` fixes an element where it already is, so a column pinned in the
+ * middle of the table simply scrolls away like any other — the pinning is
+ * not a promise a stylesheet can keep on its own. Laying the areas out is
+ * therefore part of the same rule as pinning them, and the row key leads
+ * the held area because it is the column that says which record a row is.
+ * The order inside each area is the config's own; the sort is stable, so
+ * nothing else moves.
  *
- * It is exported because two other places have to answer "which column does
- * the table draw last" the same way this one does: `validateRecord`, which
- * must not report a pinning that column never gets to keep, and the column
- * settings, which show that pinning fixed.
+ * There is no area on the right, because there is no pinning on the right
+ * (D19): the right edge holds the column that happens to be drawn last, and
+ * a column pinned there by hand would have to be moved to the end first —
+ * which is an order the user did not ask for.
  */
-export function columnOrder<T extends ColumnPlacement>(
+function columnOrder<T extends ColumnPlacement>(
   columns: readonly T[],
   rowKey: string,
 ): T[] {
   const area = (column: T): number =>
-    column.field === rowKey
-      ? 0
-      : column.pinned === 'left'
-        ? 1
-        : column.pinned === 'right'
-          ? 3
-          : 2;
+    column.field === rowKey ? 0 : column.pinned ? 1 : 2;
   return [...columns].sort((left, right) => area(left) - area(right));
-}
-
-/**
- * The column held against the right edge whatever the config says (D13), or
- * `null` when the table draws nothing but the row key.
- *
- * Both ends of a record table are fixed: the row key on the left, because it
- * says which record a row is, and the last column on the right, because a
- * table whose ends drift is a table with no frame. The edge on those two is
- * what a reader sees the frame by, and it is drawn at rest rather than only
- * while something scrolls under it.
- *
- * `columns` is what the table really draws — a field the definition dropped
- * is not one of them, and neither is one the config switched off (`hidden`)
- * — so the answer is the last column on screen and not
- * the last entry of a config that may name columns nobody can render. The
- * host's row-action column is outside this: it is a render slot rather than
- * a projected column, and it is held on the right by `ui/record/columns.ts`
- * already, sitting beyond whichever column this names.
- */
-export function pinnedEnd(
-  columns: readonly ColumnPlacement[],
-  rowKey: string,
-): string | null {
-  const ordered = columnOrder(columns, rowKey);
-  const last = ordered[ordered.length - 1];
-  return last === undefined || last.field === rowKey ? null : last.field;
 }
 
 function isCursorPage(
@@ -215,7 +189,8 @@ export function projectRecord(
         ? [
             {
               field: field.name,
-              pinned: field.name === rowKey ? 'left' : columnPin(column.pinned),
+              pinned:
+                field.name === rowKey ? true : columnPinned(column.pinned),
               column,
               definition: field,
             } satisfies ColumnPlacement & {
@@ -228,20 +203,22 @@ export function projectRecord(
     rowKey,
   );
   const end = placed[placed.length - 1];
-  const columns = placed.map(place => {
-    const primary = place.field === rowKey;
-    // `end` marks the column held right only because it is drawn last — a
-    // column the config pinned right and that happens to be last is held
-    // because the config says so, and keeps that pin beside a host's action
-    // column too (`ui/record/columns.ts`). Any column pinned right is the
-    // last one, so without this every right pin would vanish the moment a
-    // host adds row actions, while the settings went on saying "pinned".
-    return columnView(place.definition, place.column, {
-      pinned: primary ? 'left' : place === end ? 'right' : place.pinned,
-      end: place === end && !primary && place.pinned !== 'right',
-      primary,
-    });
-  });
+  const columns = placed.map(place =>
+    // The right edge holds the column drawn **last** (D13), and that is the
+    // only pinning there is on that side (D19) — so a `'right'` here always
+    // means "because it is the end", and the table hands the place over to
+    // a host's action column when there is one (`ui/record/columns.ts`).
+    // A table whose every column is pinned has no last unheld column and
+    // needs none: nothing scrolls out from under a frame.
+    columnView(place.definition, place.column, {
+      ...(place.pinned
+        ? { pinned: 'left' as const }
+        : place === end
+          ? { pinned: 'right' as const }
+          : {}),
+      primary: place.field === rowKey,
+    }),
+  );
 
   const rows = page.list.map(data => ({
     key: getPropertyValue<RecordKey>(data, rowKey) as RecordKey,

@@ -110,7 +110,16 @@ export interface AnalysisSort {
 export interface AnalysisColumn {
   alias: string;
   width?: number;
-  pinned?: 'left' | 'right';
+  /**
+   * `true` on a column held against the table's left edge — the same word,
+   * and the same one value, as a record column's (D19): a pinning has no
+   * side, because the right edge belongs to whatever a table draws last.
+   *
+   * The analysis table does not freeze columns yet, so nothing reads this
+   * and `projectAnalysis` does not carry it: a projected column holds what
+   * the renderer uses, and this is a setting waiting for one.
+   */
+  pinned?: boolean;
 }
 
 export interface AnalysisTableSpec {

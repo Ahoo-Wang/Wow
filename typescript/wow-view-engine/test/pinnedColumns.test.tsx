@@ -45,12 +45,11 @@ describe('the pinned edges', () => {
           column('warehouse'),
           column('status', 'right'),
         ])}
-        rowActions={() => <button />}
       />,
     );
-    // The last column pinned left and the first pinned right face the
-    // scrolling middle; the column before the last one faces another frozen
-    // column, and nothing ever passes between the two.
+    // The last column pinned left and the one the table holds on the right
+    // face the scrolling middle; the column before the last pinned one
+    // faces another frozen column, and nothing ever passes between the two.
     for (const cell of cellsOf(container, 'amount'))
       expect(cell.className).toContain(LEFT_EDGE);
     for (const cell of cellsOf(container, 'id'))
@@ -60,21 +59,31 @@ describe('the pinned edges', () => {
     expect(cellsOf(container, 'warehouse')[0].className).not.toContain(
       'shadow-[inset',
     );
-    // The action column sits behind a column pinned right, so the boundary
-    // is that column's and the actions draw no seam of their own.
-    for (const cell of actionCells(container))
-      expect(cell.className).not.toContain(RIGHT_EDGE);
   });
 
-  it('gives the right edge to the actions when no column is pinned there', () => {
+  /**
+   * The action column is the only column ever held on the right while the
+   * host gives one (D19), so it carries that edge outright: the table's own
+   * last column lets go rather than leaving a seam between two held columns
+   * that nothing passes between.
+   */
+  it('gives the right edge to the actions, and the last column lets go', () => {
     const { container } = render(
       <RecordTable
-        table={controller([column('id', 'left'), column('warehouse')])}
+        table={controller([
+          column('id', 'left'),
+          column('warehouse'),
+          column('status', 'right'),
+        ])}
         rowActions={() => <button />}
       />,
     );
     for (const cell of actionCells(container))
       expect(cell.className).toContain(RIGHT_EDGE);
+    for (const cell of cellsOf(container, 'status')) {
+      expect(cell.className).not.toContain('sticky');
+      expect(cell.className).not.toContain(RIGHT_EDGE);
+    }
   });
 
   /**
@@ -425,34 +434,28 @@ describe('the pinned group against a narrow port', () => {
     vi.unstubAllGlobals();
   });
 
-  it('lets a config-pinned column go before the ones beside the key', () => {
-    port = 500;
+  it('lets a config-pinned column go before the key, and never the key', () => {
+    port = 300;
     widths.status = 90;
-    widths.amount = 70;
     measured();
     const { container } = render(
       <RecordTable
-        table={controller([
-          key(),
-          column('status', 'left'),
-          column('amount', 'right'),
-        ])}
+        table={controller([key(), column('status', 'left'), column('amount')])}
         rowActions={() => <button />}
       />,
     );
 
-    // 392 against 500 is over the half by 142: the actions go, then the
-    // column held on the right — outermost first — and that is enough. The
-    // left block, which is the key and what sits beside it, is untouched.
-    expect(headerOf(container, 'amount').getAttribute('data-pin')).toBe(null);
-    expect(headerOf(container, 'status').getAttribute('data-pin')).toBe('left');
+    // 322 against 300 is over the half by 172: the actions go, then the
+    // checkbox — outermost first — and then the one column the user pinned
+    // themselves. The key is left holding the frame on its own.
+    expect(headerOf(container, 'status').getAttribute('data-pin')).toBe(null);
     expect(pins(container)).toEqual({
-      select: 'left',
+      select: null,
       id: 'left',
       actions: null,
     });
     // The column that let go scrolls with the middle, every cell of it.
-    for (const cell of cellsOf(container, 'amount'))
+    for (const cell of cellsOf(container, 'status'))
       expect(cell.className).not.toContain('sticky');
   });
 
@@ -502,47 +505,46 @@ describe('the pinned group against a narrow port', () => {
   /**
    * D13 makes the first and last drawn columns the table's frame; the cap
    * takes what the layout and the config added before it takes the frame,
-   * and never the key. So the end column goes last — after the host's
-   * column, the config's right pins, the selection column and the left pins
-   * beside the key.
+   * and never the key. So the last column goes last — after the host's
+   * column, the selection column and the columns pinned beside the key.
    */
   it("lets the table's own last column go after every other pin", () => {
-    const end: RecordColumnView = { ...column('note', 'right'), end: true };
     const columns = [
       key(),
       column('warehouse', 'left'),
-      column('amount', 'right'),
-      end,
+      column('note', 'right'),
     ];
     const names = (slots: readonly { key: string; fixed: boolean }[]) =>
       slots.map(slot => `${slot.key}${slot.fixed ? '!' : ''}`);
 
-    // Without a host action column the end column is the table's right
-    // frame: it goes last, after the pins the config and the layout added,
+    // Without a host action column the last column is the table's right
+    // frame: it goes last, after the pins the layout and the user added,
     // and the key never goes at all.
     expect(
       names(pinnedSlots(columns, { selectable: true, actions: false })),
-    ).toEqual(['amount', SELECT_COLUMN, 'id!', 'warehouse', 'note']);
-    // With one, the action column is the frame instead and the end column
+    ).toEqual([SELECT_COLUMN, 'id!', 'warehouse', 'note']);
+    // With one, the action column is the frame instead and the last column
     // is not held: there is nothing of it for the cap to let go.
     expect(
       names(pinnedSlots(columns, { selectable: true, actions: true })),
-    ).toEqual([ACTIONS_COLUMN, 'amount', SELECT_COLUMN, 'id!', 'warehouse']);
+    ).toEqual([ACTIONS_COLUMN, SELECT_COLUMN, 'id!', 'warehouse']);
   });
 
-  it("holds a right pin the config asked for beside the host's actions", () => {
-    // Only the projection's own end pin (`end: true`) gives way to the
-    // action column; a pin the config wrote stays, next to it.
-    const held = tablePins([key(), column('amount', 'right')], {
-      selectable: false,
-      actions: true,
-    });
-    const letGo = tablePins(
-      [key(), { ...column('amount', 'right'), end: true }],
-      { selectable: false, actions: true },
-    );
+  /**
+   * The right edge is the action column's whenever the host gives one
+   * (D19), so nothing else is held there: the table's own last column hands
+   * the place over rather than sitting beside it behind a seam.
+   */
+  it("gives the right-hand pin up to the host's actions", () => {
+    const columns = [key(), column('amount', 'right')];
+    const held = tablePins(columns, { selectable: false, actions: false });
+    const letGo = tablePins(columns, { selectable: false, actions: true });
 
     expect(held.columns.get('amount')?.side).toBe('right');
+    // Held against the edge itself: nothing is ever pinned outside it.
+    expect(held.columns.get('amount')?.style).toEqual({
+      right: 'var(--fve-pin-right-1, 0px)',
+    });
     expect(letGo.columns.has('amount')).toBe(false);
   });
 
@@ -632,7 +634,7 @@ function controller(
     setPinned: () => {},
     setSummary: () => {},
     setLayout: () => {},
-    pinnedOf: () => null,
+    pinnedOf: () => false,
     summaryOf: () => null,
     goTo: () => {},
     next: () => {},

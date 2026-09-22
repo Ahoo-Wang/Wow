@@ -144,10 +144,16 @@ export interface RecordViewConfig extends ViewConfigBase {
     // 置（D17-8）：再打开时回到原处而不是排到末尾，关着也照样能拖。缺这个成员
     // （旧配置）读作显示；除 true 外的任何值都读作显示，另由 validateColumns 报
     // record.column.hidden-invalid。
+    //
+    // pinned 是一个布尔：true 即固定在左侧（D19）。固定没有"侧"——右边那一
+    // 列是宿主的操作列，没有行操作时是投影画在最后的那一列（D13），两者都不
+    // 是配置说得上的。取消固定删键而不是写 false；读法与 hidden 同一套
+    // （columnPinned()，只有 true 算固定），读不出的值当作不固定，另由
+    // validateColumns 报 record.column.pin-invalid——两端也报。
     columns: {
       field: string;
       width?: number;
-      pinned?: 'left' | 'right';
+      pinned?: boolean;
       hidden?: true;
     }[];
   };
@@ -173,7 +179,10 @@ export interface AnalysisViewConfig extends ViewConfigBase {
 }
 
 export interface AnalysisTableSpec {
-  columns: { alias: string; width?: number; pinned?: 'left' | 'right' }[]; // 缺省为全部 group + metric
+  // pinned 与记录表是同一个词、同一个取值：一个布尔，true 即固定在左侧
+  // （D19；右边那一列从来不是配置说得上的）。分析表目前不冻结列，所以
+  // projectAnalysis 不带它出去——投影里只放渲染真的会读的东西。
+  columns: { alias: string; width?: number; pinned?: boolean }[]; // 缺省为全部 group + metric
   totals?: boolean; // 合计行；开启时执行一次无分组聚合，不由分组行推导
 }
 

@@ -44,14 +44,6 @@ export interface PinPlacement {
 const SELECT_WIDTH = '2.5rem';
 
 /**
- * How much room the action column takes, until it has been measured: its
- * width is the host's own buttons, so there is nothing in the config to read
- * it from. A host that renders the table where it cannot be measured sets
- * the variable.
- */
-const ACTIONS_WIDTH = 'var(--fve-record-actions-width, 6rem)';
-
-/**
  * Marks the two columns that are not a field, so the header can be measured
  * by what each cell is rather than by counting from the ends.
  */
@@ -170,20 +162,17 @@ const EDGE_RIGHT =
 /**
  * The action column stays put while the rest scrolls sideways, which is the
  * only reason it can be the last one: on a wide table, actions that scroll
- * away are actions nobody finds. It carries the right edge unless a column
- * the projection pinned right sits before it — then that column is the
- * boundary with the scrolling middle, and an edge here as well would draw a
- * seam between two columns nothing passes between.
+ * away are actions nobody finds. It is the only column ever held against
+ * the right edge while the host gives one (D19), so it carries that edge
+ * outright — `heldColumns` has already let the table's own last column go.
  */
 export function actionCell(pins: TablePins): string {
   const base = 'w-0 bg-inherit whitespace-nowrap';
-  // Let go by the cap on a narrow port: the buttons scroll with their row.
-  // The right edge goes with them unless a column the config pinned right
-  // is still holding it — a frame's end is worth less than a middle nobody
-  // can read (D17-4).
+  // Let go by the cap on a narrow port: the buttons scroll with their row,
+  // and the right edge goes with them — a frame's end is worth less than a
+  // middle nobody can read (D17-4).
   if (!pins.actions) return base;
-  const edge = ![...pins.columns.values()].some(pin => pin.side === 'right');
-  return `sticky right-0 z-10 ${base}${edge ? ` ${EDGE_RIGHT}` : ''}`;
+  return `sticky right-0 z-10 ${base} ${EDGE_RIGHT}`;
 }
 
 /** The selection column, pinned along with the columns it sits beside. */
@@ -369,29 +358,28 @@ export function pinnedSlots(
     { key, kind, fixed: false },
   ];
   // The order the cap lets pins go in: the outermost first — the host's
-  // action column, then the columns pinned right from the outside in, then
-  // the selection column, then the columns pinned left from the key out —
-  // and the table's own last column after all of them. D13 makes the first
-  // and last drawn columns the table's frame; the cap (D17-4) takes what
-  // the layout and the config added before it takes the frame, and it
-  // never takes the key. The end column is not held for good like the key:
-  // a wide last column on a narrow port would otherwise eat the middle by
-  // itself, and a frame round nothing readable is worth less than the rows.
-  const right = held.filter(isPinned('right')).reverse();
-  const end = right.filter(column => column.end === true);
+  // action column, then the selection column, then the columns pinned left
+  // from the key out — and the table's own last column after all of them.
+  // D13 makes the first and last drawn columns the table's frame; the cap
+  // (D17-4) takes what the layout and the config added before it takes the
+  // frame, and it never takes the key. The last column is not held for good
+  // like the key: a wide one on a narrow port would otherwise eat the
+  // middle by itself, and a frame round nothing readable is worth less than
+  // the rows. It is the whole of the right side — there is no pinning there
+  // for a config to ask for (D19) — and it is not there at all beside a
+  // host's action column, which has taken its place already.
   return [
     ...(layout.actions ? chrome(ACTIONS_COLUMN, 'actions') : []),
-    ...right.filter(column => column.end !== true).map(slot),
     ...(layout.selectable && held.some(isPinned('left'))
       ? chrome(SELECT_COLUMN, 'select')
       : []),
     ...held.filter(isPinned('left')).map(slot),
-    ...end.map(slot),
+    ...held.filter(isPinned('right')).map(slot),
   ];
 }
 
 /**
- * Each column's pin, by field, for the columns the config pinned — and
+ * Each column's pin, by field, for the columns the layout holds — and
  * whether the two chrome columns are held along with them.
  *
  * The offset is the measured one the effect above writes, with the config's
@@ -421,12 +409,10 @@ export function tablePins(
   const select =
     layout.selectable && !released.select && columns.some(isPinned('left'));
   const actions = layout.actions && !released.actions;
-  // The boundary with the scrolling middle is the last column pinned left
-  // and the first pinned right; only those two draw an edge. The selection
-  // column is never one — a column pinned left always follows it — and the
-  // action column is the right boundary only when no column is pinned there.
+  // The boundary with the scrolling middle is the last column pinned left;
+  // only it draws an edge on that side. The selection column is never one —
+  // a column pinned left always follows it.
   const lastLeft = [...columns].reverse().find(isPinned('left'));
-  const firstRight = columns.find(isPinned('right'));
 
   // A chrome column the cap let go holds nothing, so it is nothing for the
   // columns beside it to clear either.
@@ -437,12 +423,13 @@ export function tablePins(
     if (column.width !== undefined) left.push(`${column.width}px`);
   });
 
-  const right: string[] = actions ? [ACTIONS_WIDTH] : [];
-  [...columns.entries()].reverse().forEach(([index, column]) => {
-    if (column.pinned !== 'right') return;
-    pins.set(column.field, pin('right', index, right, column === firstRight));
-    if (column.width !== undefined) right.push(`${column.width}px`);
-  });
+  // One column at most on the right, held against the edge itself: it is
+  // the one the table draws last (D13), it is the only pinning that side
+  // has (D19), and beside a host's action column it is not held at all —
+  // `heldColumns` gave the place away. So there is never anything for it to
+  // clear, and it always draws the boundary with the scrolling middle.
+  const end = columns.findIndex(isPinned('right'));
+  if (end >= 0) pins.set(columns[end].field, pin('right', end, [], true));
 
   return { columns: pins, select, actions };
 }
@@ -453,8 +440,11 @@ export function tablePins(
  * because a frame needs its end (D13) — but it cannot see the action slot,
  * and when there is one *that* is the end: two held columns at one edge,
  * with a seam between them that nothing ever passes, is a frame with a
- * doubled side. So the end column lets go and the actions take its place;
- * a column the config itself pinned right keeps its pin.
+ * doubled side. So the last column lets go and the actions take its place.
+ *
+ * Every right-hand pin is that one column (D19), so this is the whole of
+ * the right side: with an action column the table holds nothing of its own
+ * there, which is what lets everything downstream stop asking.
  */
 function heldColumns(
   columns: readonly RecordColumnView[],
@@ -462,7 +452,7 @@ function heldColumns(
 ): readonly RecordColumnView[] {
   if (!layout.actions) return columns;
   return columns.map(column =>
-    column.end ? { ...column, pinned: undefined } : column,
+    column.pinned === 'right' ? { ...column, pinned: undefined } : column,
   );
 }
 

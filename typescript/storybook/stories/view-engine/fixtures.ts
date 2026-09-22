@@ -248,7 +248,7 @@ export function recordConfig(
       columns: [
         // The row key stays put while the middle scrolls, which is what the
         // pin is for; the host's action column does the same on the far side.
-        { field: 'id', pinned: 'left' },
+        { field: 'id', pinned: true },
         { field: 'warehouse' },
         { field: 'status' },
         { field: 'amount' },
@@ -897,7 +897,7 @@ export function waybillConfig(
     ],
     table: {
       columns: [
-        { field: 'id', pinned: 'left' },
+        { field: 'id', pinned: true },
         { field: 'orderNo' },
         { field: 'customer' },
         { field: 'receiver' },

@@ -33,11 +33,11 @@ export interface ColumnSection {
  * where there is a catalogue, and as one unheaded block where there is not.
  *
  * The areas stay the primary split: an area *is* a pinning, and a column
- * joins another one by being pinned rather than by being listed elsewhere.
- * The catalogue is a second level **inside the middle area only**, because
- * the two held areas are short by construction — a handful of columns held
- * against each edge — while the middle one is the whole table on a wide
- * definition, and that is the list a reader gets lost in.
+ * joins the other one by being pinned rather than by being listed
+ * elsewhere. The catalogue is a second level **inside the scrolling area
+ * only**, because the held area is short by construction — a handful of
+ * columns against the left edge — while the scrolling one is the whole
+ * table on a wide definition, and that is the list a reader gets lost in.
  *
  * Laid out the way every other field picker lays the catalogue out (see
  * `fieldGroups`): the fields no group lists first and without a heading,
@@ -61,7 +61,7 @@ export function columnSections(
 ): ColumnSection[] {
   const own = regionRows(rows, region);
   if (own.length === 0) return [];
-  if (region !== 'middle' || groups.length === 0)
+  if (region !== 'scrolling' || groups.length === 0)
     return [{ group: undefined, rows: own }];
   const at = new Map(own.map((row, index) => [row.field, index]));
   return fieldGroups(own, groups, row => row.field).map(entry => ({
@@ -78,8 +78,8 @@ export function columnSections(
  *
  * Matched on the word the row wears rather than on the field name — that is
  * what the reader is looking at, and it is the only one of the two a
- * definition translates. The action column wears a word of its own and no
- * field name at all, so the label is passed in rather than read off the row.
+ * definition translates. Every row carries one: a broken column has no
+ * label to show, so it wears its own field name.
  *
  * What it does **not** do is change the list: the rows it keeps are in the
  * order they came in, hidden columns among them, so a search can neither
@@ -91,9 +91,8 @@ export function columnSections(
 export function matchingRows(
   rows: readonly ColumnSettingRow[],
   query: string,
-  labelOf: (row: ColumnSettingRow) => string,
 ): ColumnSettingRow[] {
   const needle = query.trim().toLocaleLowerCase();
   if (needle === '') return [...rows];
-  return rows.filter(row => labelOf(row).toLocaleLowerCase().includes(needle));
+  return rows.filter(row => row.label.toLocaleLowerCase().includes(needle));
 }

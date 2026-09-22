@@ -650,9 +650,9 @@ describe('the table chrome', () => {
   });
 
   it('pins a column on each side and leaves the middle to scroll', () => {
-    const { container } = render(
-      <RecordTable table={pinned()} rowActions={() => <button />} />,
-    );
+    // No row actions: with one, the host's slot is the whole of the right
+    // side and the table's own last column lets go (D19).
+    const { container } = render(<RecordTable table={pinned()} />);
 
     // Every cell of a pinned column, header and body alike: a header that
     // stays while its cells leave is worse than no pinning at all.
@@ -664,10 +664,9 @@ describe('the table chrome', () => {
     }
     for (const cell of cellsOf(container, 'status')) {
       expect(cell.className).toContain('sticky');
-      // And it clears the action column, whose width is the host's to say.
-      expect(cell.style.right).toBe(
-        'var(--fve-pin-right-2, calc(var(--fve-record-actions-width, 6rem)))',
-      );
+      // Held against the edge itself: it is the one column the right side
+      // has, so there is never anything out there for it to clear.
+      expect(cell.style.right).toBe('var(--fve-pin-right-2, 0px)');
     }
     // The selection column is pinned along with them, or the pinned column
     // would scroll over the checkboxes.
@@ -784,9 +783,11 @@ describe('the table chrome', () => {
     // as `w-10` asks; the second clears both.
     expect(table.style.getPropertyValue('--fve-pin-left-0')).toBe('77px');
     expect(table.style.getPropertyValue('--fve-pin-left-1')).toBe('177px');
-    // And the right-hand side clears the host's buttons by their own width
-    // rather than by the variable that stands in for them.
-    expect(table.style.getPropertyValue('--fve-pin-right-2')).toBe('48px');
+    // And nothing is published for the right, because nothing is held
+    // there: the host's action column is that whole side (D19), so the
+    // table's own last column let go before any offset was added up.
+    expect(table.style.getPropertyValue('--fve-pin-right-2')).toBe('');
+    expect(cellsOf(container, 'amount')[0].className).not.toContain('sticky');
     // Every cell of the column reads the same offset, header to footer.
     for (const cell of cellsOf(container, 'status'))
       expect(cell.style.left).toBe(

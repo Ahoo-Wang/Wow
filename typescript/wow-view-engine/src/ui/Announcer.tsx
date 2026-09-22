@@ -31,7 +31,7 @@ export interface Announcer {
  * column settings, the sort editor and the view manager — and each had its
  * own `role="status" aria-live="polite"` block, written out three times. The
  * region is not the interesting part of any of them: the wording is
- * (`dragAnnounce.ts`, `columns/announce.ts`, `manage/drag.ts`), and the
+ * (`dragAnnounce.ts`, `columns/drag.ts`, `manage/drag.ts`), and the
  * caller hands that over already formatted.
  *
  * Why there is a region at all, next to a drag library that owns one:

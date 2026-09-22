@@ -64,7 +64,7 @@ export function competingConfig(): RecordViewConfig {
     sort: [],
     table: {
       columns: [
-        { field: 'id', pinned: 'left' },
+        { field: 'id', pinned: true },
         { field: 'warehouse' },
         { field: 'status' },
         { field: 'amount' },

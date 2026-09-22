@@ -137,7 +137,7 @@ describe('setColumnOrder', () => {
     const result = await openTable({
       table: {
         columns: [
-          { field: 'id', pinned: 'left' },
+          { field: 'id', pinned: true },
           { field: 'amount', width: 120 },
         ],
       },
@@ -148,7 +148,7 @@ describe('setColumnOrder', () => {
     await waitFor(() =>
       expect(draft(result).table.columns).toEqual([
         { field: 'amount', width: 120 },
-        { field: 'id', pinned: 'left' },
+        { field: 'id', pinned: true },
       ]),
     );
   });
@@ -190,18 +190,18 @@ describe('setColumnOrder', () => {
 });
 
 describe('setPinned', () => {
-  it('holds a column on a side and lets it go again', async () => {
+  it('holds a column against the left edge and lets it go again', async () => {
     const result = await openTable();
 
-    act(() => result.current.table.setPinned('amount', 'right'));
+    act(() => result.current.table.setPinned('amount', true));
     await waitFor(() =>
-      expect(result.current.table.pinnedOf('amount')).toBe('right'),
+      expect(result.current.table.pinnedOf('amount')).toBe(true),
     );
-    expect(result.current.table.pinnedOf('id')).toBeNull();
+    expect(result.current.table.pinnedOf('id')).toBe(false);
 
-    act(() => result.current.table.setPinned('amount', null));
+    act(() => result.current.table.setPinned('amount', false));
     await waitFor(() =>
-      expect(result.current.table.pinnedOf('amount')).toBeNull(),
+      expect(result.current.table.pinnedOf('amount')).toBe(false),
     );
   });
 
@@ -215,11 +215,11 @@ describe('setPinned', () => {
     const result = await openTable();
     const before = draft(result).table.columns;
 
-    act(() => result.current.table.setPinned('amount', 'left'));
+    act(() => result.current.table.setPinned('amount', true));
     await waitFor(() =>
-      expect(result.current.table.pinnedOf('amount')).toBe('left'),
+      expect(result.current.table.pinnedOf('amount')).toBe(true),
     );
-    act(() => result.current.table.setPinned('amount', null));
+    act(() => result.current.table.setPinned('amount', false));
 
     await waitFor(() => expect(draft(result).table.columns).toEqual(before));
     expect(Object.keys(draft(result).table.columns[1]).includes('pinned')).toBe(
@@ -228,21 +228,18 @@ describe('setPinned', () => {
   });
 
   /**
-   * A stored pinning of `'top'` is not a side. Read raw it became a key the
-   * catalogue has never heard of and took the settings popover — and the
-   * workbench around it — down; read through `columnPin` the controller's
-   * declared type is true of it.
+   * A pinning is one yes-or-no (D19), so a stored `'left'` is not one. Read
+   * raw it became a key the catalogue has never heard of and took the
+   * settings popover — and the workbench around it — down; read through
+   * `columnPinned` the controller's declared type is true of it.
    */
-  it('reports a pinning that is neither side as none at all', async () => {
+  it('reports a pinning that is not a yes-or-no as no pinning', async () => {
     const result = await openTable(
       {
         table: {
-          // Deliberately not the last column: the projection holds that one
-          // on the right whatever the config says, so nothing it stores
-          // about its pinning is read and nothing about it is reported.
           columns: [
             { field: 'id' },
-            { field: 'amount', pinned: 'top' },
+            { field: 'amount', pinned: 'left' },
             { field: 'warehouse' },
           ],
         },
@@ -251,7 +248,7 @@ describe('setPinned', () => {
       false,
     );
 
-    expect(result.current.table.pinnedOf('amount')).toBeNull();
+    expect(result.current.table.pinnedOf('amount')).toBe(false);
     // And it is a finding rather than a silence: the view waits to be fixed.
     expect(result.current.table.status).toBe('idle');
   });
@@ -259,12 +256,12 @@ describe('setPinned', () => {
   it('does nothing to a column the draft does not hold', async () => {
     const result = await openTable();
 
-    act(() => result.current.table.setPinned('gone', 'left'));
+    act(() => result.current.table.setPinned('gone', true));
 
     await waitFor(() =>
       expect(result.current.table.columnFields).toEqual(['id', 'amount']),
     );
-    expect(result.current.table.pinnedOf('gone')).toBeNull();
+    expect(result.current.table.pinnedOf('gone')).toBe(false);
   });
 });
 
@@ -311,9 +308,9 @@ describe('setColumnWidth', () => {
   it('keeps whatever else the column was configured with', async () => {
     const result = await openTable();
 
-    act(() => result.current.table.setPinned('amount', 'right'));
+    act(() => result.current.table.setPinned('amount', true));
     await waitFor(() =>
-      expect(result.current.table.pinnedOf('amount')).toBe('right'),
+      expect(result.current.table.pinnedOf('amount')).toBe(true),
     );
     act(() => result.current.table.setColumnWidth('amount', 96));
 
@@ -321,7 +318,7 @@ describe('setColumnWidth', () => {
       expect(draft(result).table.columns[1]).toEqual({
         field: 'amount',
         width: 96,
-        pinned: 'right',
+        pinned: true,
       }),
     );
   });
@@ -515,7 +512,7 @@ describe('switching a column off', () => {
       table: {
         columns: [
           { field: 'id' },
-          { field: 'amount', width: 180, pinned: 'left' },
+          { field: 'amount', width: 180, pinned: true },
           { field: 'warehouse' },
         ],
       },
@@ -527,7 +524,7 @@ describe('switching a column off', () => {
       expect(draft(result).table.columns[1]).toEqual({
         field: 'amount',
         width: 180,
-        pinned: 'left',
+        pinned: true,
         hidden: true,
       }),
     );
@@ -750,7 +747,7 @@ describe('the shapes a store can hold', () => {
     expect(table.columnFields).toEqual(['amount']);
     expect(table.sortOf('amount')).toBeNull();
     expect(table.summaryOf('amount')).toBeNull();
-    expect(table.pinnedOf('amount')).toBeNull();
+    expect(table.pinnedOf('amount')).toBe(false);
     // And the view waits to be fixed rather than pretending to be fine.
     expect(table.status).toBe('idle');
   });
@@ -784,7 +781,7 @@ describe('the shapes a store can hold', () => {
       act(() => result.current.table.toggleSort('amount'));
       act(() => result.current.table.setColumns(['amount']));
       act(() => result.current.table.setColumnOrder(['amount']));
-      act(() => result.current.table.setPinned('amount', 'left'));
+      act(() => result.current.table.setPinned('amount', true));
       act(() => result.current.table.setSummary('amount', 'SUM'));
     }).not.toThrow();
   });
@@ -799,13 +796,13 @@ describe('the shapes a store can hold', () => {
   it('writes the sound lists back with the first change of any kind', async () => {
     const result = await openTable(broken, {}, false);
 
-    act(() => result.current.table.setPinned('amount', 'left'));
+    act(() => result.current.table.setPinned('amount', true));
 
     await waitFor(() => expect(result.current.table.status).toBe('success'));
     expect(draft(result).sort).toEqual([]);
     expect(draft(result).summaries).toEqual([]);
     expect(draft(result).table.columns).toEqual([
-      { field: 'amount', pinned: 'left' },
+      { field: 'amount', pinned: true },
     ]);
   });
 

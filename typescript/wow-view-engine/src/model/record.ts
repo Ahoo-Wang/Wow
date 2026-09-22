@@ -41,30 +41,23 @@ export interface RecordSort {
 }
 
 /**
- * The side a column is held on. A pinned column does not move with the rest
- * when the table scrolls sideways, and it never leaves its side.
- */
-export type RecordColumnPin = 'left' | 'right';
-
-export const RECORD_COLUMN_PINS: readonly RecordColumnPin[] = ['left', 'right'];
-
-/**
- * A stored pinning, or `null` for anything that is not one.
+ * Whether a stored column is held against the table's left edge. Anything
+ * but `true` lets it scroll with the rest.
  *
- * Configs arrive from a store, so `pinned` may be `'top'`, `''` or a number.
- * Read through here it becomes a side or nothing; read raw it became a key
- * into a wording table, and `undefined` from that lookup took the settings
- * popover — and the workbench around it — down with it. `validateRecord`
- * reports the bad value separately, so it is fixable rather than silent.
+ * A pinning has one value and not a side (D19): the left is the only end a
+ * user pins to, and the right one is the action column's, which is the
+ * host's slot rather than anything a config can name. Configs arrive from a
+ * store, so `pinned` may be `'left'`, `'top'` or a number — read through
+ * here every one of them reads as "not pinned", and `validateRecord`
+ * reports the value separately so it is fixable rather than silent.
  */
-export function columnPin(value: unknown): RecordColumnPin | null {
-  return RECORD_COLUMN_PINS.includes(value as RecordColumnPin)
-    ? (value as RecordColumnPin)
-    : null;
+export function columnPinned(value: unknown): boolean {
+  return value === true;
 }
 
 /**
- * Whether a stored column is switched off. Anything but `true` shows it.
+ * Whether a stored column is switched off. Anything but `true` shows it —
+ * the same reading {@link columnPinned} gives the other flag.
  *
  * `hidden` is the newer member, so most configs do not carry it at all and
  * a config from a store may carry anything under that name. Read through
@@ -87,7 +80,12 @@ export function columnHidden(value: unknown): boolean {
 export interface RecordColumn {
   field: string;
   width?: number;
-  pinned?: RecordColumnPin;
+  /**
+   * `true` on a column held against the table's left edge (D19). Unpinning
+   * deletes the member rather than writing `false`, the way `hidden` does,
+   * so a column back where it started is the same JSON it started as.
+   */
+  pinned?: boolean;
   /** Present, and only ever `true`, on a column the table does not draw. */
   hidden?: true;
 }

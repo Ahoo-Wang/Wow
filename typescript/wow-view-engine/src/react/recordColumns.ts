@@ -27,17 +27,14 @@
  * rather than inferred from three call sites.
  */
 
-import type { RecordColumn, RecordColumnPin } from '../model/index.js';
+import type { RecordColumn } from '../model/index.js';
 
-/** One column held on one side of the table, or let go. */
-export function repinned(
-  column: RecordColumn,
-  pinned: RecordColumnPin | null,
-): RecordColumn {
+/** One column held against the table's left edge, or let go (D19). */
+export function repinned(column: RecordColumn, pinned: boolean): RecordColumn {
   return {
     field: column.field,
     ...(column.width === undefined ? {} : { width: column.width }),
-    ...(pinned === null ? {} : { pinned }),
+    ...(pinned ? { pinned: true } : {}),
     ...(column.hidden ? { hidden: column.hidden } : {}),
   };
 }
@@ -50,7 +47,7 @@ export function resized(
   return {
     field: column.field,
     ...(width === null ? {} : { width }),
-    ...(column.pinned === undefined ? {} : { pinned: column.pinned }),
+    ...(column.pinned ? { pinned: true } : {}),
     ...(column.hidden ? { hidden: column.hidden } : {}),
   };
 }
@@ -65,7 +62,7 @@ export function shown(column: RecordColumn, visible: boolean): RecordColumn {
   return {
     field: column.field,
     ...(column.width === undefined ? {} : { width: column.width }),
-    ...(column.pinned === undefined ? {} : { pinned: column.pinned }),
+    ...(column.pinned ? { pinned: true } : {}),
     ...(visible ? {} : { hidden: true as const }),
   };
 }

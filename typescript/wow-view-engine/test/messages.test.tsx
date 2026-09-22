@@ -676,7 +676,7 @@ function tableController(): RecordTableController {
     hiddenOf: () => false,
     setColumns: () => {},
     setColumnOrder: () => {},
-    pinnedOf: () => null,
+    pinnedOf: () => false,
     setPinned: () => {},
     setColumnWidth: () => {},
     summaryOf: () => null,

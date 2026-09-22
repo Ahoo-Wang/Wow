@@ -15,11 +15,7 @@ import { useId } from 'react';
 import { useSortable } from '@dnd-kit/react/sortable';
 import { OptimisticSortingPlugin } from '@dnd-kit/dom/sortable';
 import { CircleSlashIcon, PinIcon } from 'lucide-react';
-import {
-  columnPin,
-  type RecordColumnPin,
-  type SummaryFunction,
-} from '../../model/index.js';
+import type { SummaryFunction } from '../../model/index.js';
 import { summaryFunctionKey } from '../display.js';
 import { DragHandle } from '../DragHandle.js';
 import { IconButton } from '../IconButton.js';
@@ -42,7 +38,7 @@ import {
 } from '../components/select.js';
 import { SelectContent } from '../popups.js';
 import { useViewMessages } from '../MessagesProvider.js';
-import { ACTIONS_ROW, type ColumnSettingRow } from './rows.js';
+import type { ColumnSettingRow } from './rows.js';
 import { TEXT_UI } from '../layout.js';
 import { cn } from 'cn';
 
@@ -50,58 +46,35 @@ import { cn } from 'cn';
 const NO_SUMMARY = 'none';
 
 /**
- * Wording per pin state.
+ * What the pin toggle changed, per state it lands in.
  *
- * Read through `columnPin` rather than indexed with whatever the row holds:
- * a stored `pinned: 'top'` used to reach this as a key the catalogue has
- * never heard of, hand `undefined` to `messages.label`, and take the
- * workbench down from inside a popover. `validateRecord` reports the value
- * so it can be fixed; this renders it as "not pinned" in the meantime,
- * because a render may lean on validation only while it is also the second
- * line of defence.
- */
-const PIN_LABEL = {
-  left: 'label.columns.pin.left',
-  right: 'label.columns.pin.right',
-  none: 'label.columns.pin.none',
-} as const;
-
-/**
- * What the pin button changed, per state it lands in.
- *
- * A second set beside {@link PIN_LABEL} rather than the same one: the name
- * of the control states where the column *is* held ("Pinning of Amount:
- * Pinned left") and reads as a heading over a control, while an
- * announcement reports a change that has already happened and has to say so
- * in its own right — a live region that suddenly says "Pinned left" names
- * neither the column nor the fact that anything moved. Named for all three
- * states, `none` included, because a set the catalogue only half names is a
- * set that cannot be translated.
+ * Its own wording rather than the two words the areas are headed with
+ * (`label.columns.pin.left` / `pin.none`, in `ColumnSettings`): a heading
+ * names a list, while an announcement reports a change that has already
+ * happened and has to say so in its own right — a live region that suddenly
+ * says "Pinned left" names neither the column nor the fact that anything
+ * moved.
  */
 const PIN_ANNOUNCEMENT = {
-  left: 'label.columns.pinned.left',
-  right: 'label.columns.pinned.right',
-  none: 'label.columns.pinned.none',
+  on: 'label.columns.pinned.left',
+  off: 'label.columns.pinned.none',
 } as const;
 
 /**
- * What a reader hears once a column has been pinned, unpinned or moved to
- * the other side.
+ * What a reader hears once a column has been pinned or let go.
  *
- * The pin toggle's accessible name *is* its state, so pressing it changes
- * the name of the control under the cursor and says nothing: a reader is
- * told the new name only if they go back and read the button again, which
- * is the one thing a press is supposed to save them. The wording lives here,
- * with the control and the rest of its words; the voice is the panel's one
- * live region (`ColumnSettings`), which is also where the next state is
- * decided, so neither `nextPin` nor the announcement is written twice.
+ * `aria-pressed` reports the toggle's new state, and a reader hears it the
+ * moment they press — but only as one word ("pressed"), which names neither
+ * the column nor the edge it is now held against. So the panel's one live
+ * region says the sentence as well (`ColumnSettings`), which is also where
+ * the next state is decided, so the wording is written once.
  */
 export function pinAnnouncement(
   messages: MessageFormatters,
   field: string,
-  pinned: RecordColumnPin | null,
+  pinned: boolean,
 ): string {
-  return messages.label(PIN_ANNOUNCEMENT[pinned ?? 'none'], { field });
+  return messages.label(PIN_ANNOUNCEMENT[pinned ? 'on' : 'off'], { field });
 }
 
 /**
@@ -152,12 +125,13 @@ export interface ColumnRowProps {
 /**
  * One column in the settings: drag handle, visibility, name, summary, pin.
  *
- * The two columns the definition places — the row key and the host's action
- * column — show their state and disable their controls rather than leaving
- * them out: a row that is missing its pin toggle reads as an oversight,
- * while one that shows a pin it cannot change says who decides. Neither
- * carries a sentence about itself: the pin toggle's own name says which
- * side it is held on, and the area it is listed in is named too.
+ * The one column the definition places — the row key — shows its state and
+ * disables its controls rather than leaving them out: a row that is missing
+ * its pin toggle reads as an oversight, while one that shows a pin it
+ * cannot change says who decides. It carries no sentence about the pin: the
+ * toggle's own name says that it is held, and the area it is listed in says
+ * so again. The host's action column is not a row here at all (D19) — it is
+ * a render slot rather than something a config names.
  *
  * Every other reason a control here is refused is written on the row that
  * owns it. A rule belongs to the thing it governs — collected at the top of
@@ -177,8 +151,7 @@ export function ColumnRow({
 }: ColumnRowProps) {
   const messages = useViewMessages();
   const noteId = useId();
-  const actions = row.field === ACTIONS_ROW;
-  const label = actions ? messages.label('label.toolbar.actions') : row.label;
+  const label = row.label;
   // On a summary-only row the checkbox does not show or hide a column —
   // there is no column — so it is named after the one thing it holds.
   const toggleLabel = messages.label(
@@ -199,12 +172,14 @@ export function ColumnRow({
       : 'hidden';
   const note: NoteKind | null =
     refused ?? (row.primary ? 'primary-required' : null);
-  const pinned = columnPin(row.pinned);
-  const pinState = released
-    ? `${messages.label(PIN_LABEL[pinned ?? 'none'])} · ${messages.label(
-        'label.columns.pin-released',
-      )}`
-    : messages.label(PIN_LABEL[pinned ?? 'none']);
+  const pinned = row.pinned;
+  // The toggle's name: what it holds, and — while the cap has let this pin
+  // go — that the table is not drawing it. Whether it is on is
+  // `aria-pressed`, so the name says it no more.
+  const pinName = messages.label('label.columns.pin', { field: label });
+  const pinLabel = released
+    ? `${pinName} · ${messages.label('label.columns.pin-released')}`
+    : pinName;
   // What the select may be set to: what the field declares, plus whatever
   // the config already says if the definition has stopped declaring it. A
   // field that lost its summary capabilities leaves a config the kernel
@@ -247,7 +222,7 @@ export function ColumnRow({
           // The key stays: it is what says which record a row is (D13), so
           // the projection never draws a table without it and the settings
           // never offer to.
-          disabled={actions || row.primary}
+          disabled={row.primary}
           aria-label={toggleLabel}
           // The checkbox on a broken row is enabled and is the repair, so it
           // takes the same sentence for the opposite reason: not why it is
@@ -319,33 +294,34 @@ export function ColumnRow({
           a switched-off column keeps its place in the order, so it has an
           order to drag. A broken column answers none of the three: its one
           control is the checkbox that takes it out. */}
-        {/* The state travels in the name — "Pinning of Amount: Pinned
-            left" — and not as `aria-pressed`, which has two values where
-            this control cycles through three (`nextPin`: none → left →
-            right). "Pressed" would say that the column is held without
-            saying which end it is held at, which is less than the name
-            already says, and saying both would be the same fact twice. */}
+        {/* Two states, so the state is `aria-pressed` and the name is the
+            plain "Pin Amount" a toggle button wears (D12 Ⅳ). It used to
+            carry the state instead — "Pinning of Amount: Pinned left" —
+            because the control cycled through three, and "pressed" cannot
+            say which of two edges a column is held at. There is one edge to
+            pin to now (D19), so the platform's own state fits it exactly,
+            and a reader hears the change on the press rather than having to
+            read the name again. What `aria-pressed` cannot say is that the
+            cap is not drawing this pin right now (D17-4), so that clause
+            stays in the name where it is the whole of the news. */}
         <IconButton
           type="button"
-          label={messages.label('label.columns.pin', {
-            field: label,
-            state: pinState,
-          })}
+          label={pinLabel}
           variant="ghost"
           size="icon-xs"
-          disabled={row.fixed || !row.visible || row.broken}
+          aria-pressed={pinned}
+          disabled={row.primary || !row.visible || row.broken}
           data-released={released || undefined}
           aria-describedby={refused ? noteId : undefined}
           onClick={onPin}
         >
           <PinIcon
-            data-pinned={pinned ?? undefined}
             className={cn(
               'text-muted-foreground',
               // Pinned is a filled pin in the row's own ink; unpinned is the
               // outline, quiet. A pin the cap let go is filled — the config
               // holds it — and faded, because the table is not drawing it.
-              pinned !== null && 'fill-current text-foreground',
+              pinned && 'fill-current text-foreground',
               released && 'opacity-50',
             )}
           />

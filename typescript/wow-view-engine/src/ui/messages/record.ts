@@ -169,19 +169,20 @@ export const recordMessages = {
   // named by the column it sizes, because that is the only thing about it a
   // reader who cannot see where the pointer is could use.
   'label.columns.resize': 'Resize {field}',
-  'label.columns.pin': 'Pinning of {field}: {state}',
+  // The pin toggle's name — what it holds, not whether it is on, which is
+  // `aria-pressed` now that there are two states rather than three (D19).
+  'label.columns.pin': 'Pin {field}',
+  // The two areas' headings, which are the two pin states said as the words
+  // the toggle's announcement uses.
   'label.columns.pin.none': 'Not pinned',
   'label.columns.pin.left': 'Pinned left',
-  'label.columns.pin.right': 'Pinned right',
-  // Said after the pin state while the cap has let this pin go (D17-4).
+  // Said after the toggle's name while the cap has let this pin go (D17-4).
   'label.columns.pin-released': 'let go while the area is too narrow',
-  // What the press did, said out loud after it: the toggle's own name is
-  // where the column is held, so pressing it rewrites the name under the
-  // cursor and reports nothing. All three states are named — a half-named
-  // set cannot be translated.
+  // What the press did, said out loud after it: "pressed" names neither the
+  // column nor the edge it is now held against. Both states are named — a
+  // half-named set cannot be translated.
   'label.columns.pinned.none': '{field} is no longer pinned',
   'label.columns.pinned.left': '{field} is now pinned left',
-  'label.columns.pinned.right': '{field} is now pinned right',
 
   // The sort editor behind the toolbar's button. It says the direction in
   // one word, because it labels a row of a list rather than a button whose
@@ -218,7 +219,7 @@ export const recordMessages = {
   'record.column.hidden-invalid':
     'The column {field} is switched off as {hidden}, which is not how a column is switched off.',
   'record.column.pin-invalid':
-    'The column {field} is held to {pinned}, which is neither side.',
+    'The column {field} is pinned as {pinned}, which is not how a column is pinned.',
   'record.column.width-invalid':
     'The column {field} is {width} wide, which is not a number of pixels.',
   'record.field.not-a-column':

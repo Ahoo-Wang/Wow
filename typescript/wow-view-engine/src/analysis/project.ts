@@ -31,7 +31,6 @@ export interface AnalysisColumnView {
   label: string;
   role: 'group' | 'metric';
   width?: number;
-  pinned?: 'left' | 'right';
   numberFormat?: NumberFormat;
   /**
    * For a group, or an `ANY` whose value is one of the field's: the field's
@@ -196,8 +195,11 @@ export function projectAnalysis(
         alias,
         label: field?.label ?? source ?? alias,
         role,
+        // The width, and not the pinning beside it: the analysis table
+        // draws a declared width and freezes nothing (D19), so carrying a
+        // `pinned` nobody reads would be a projected member that promises
+        // a layout no renderer performs.
         width: declaredColumn?.width,
-        pinned: declaredColumn?.pinned,
         numberFormat: field?.numberFormat,
         ...(field && valued.has(alias) ? valueOf(field) : {}),
         ...bucketOf(groups.get(alias)),

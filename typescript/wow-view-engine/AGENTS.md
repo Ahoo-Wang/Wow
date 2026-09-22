@@ -103,7 +103,7 @@ src/
     issue.ts                  — Issue — how every kernel reports a problem
     json.ts                   — JsonValue — configs are plain JSON
     limits.ts                 — RuntimeLimits: admission and scheduling budgets
-    record.ts                 — RecordData — one row from the source
+    record.ts                 — RecordData, RecordColumn, and how an untrusted `pinned` / `hidden` reads
     storeError.ts             — ViewStoreError
     index.ts                  — Types and constants only: the three facts of `docs/design/README.md` say definitions are code, configs are dat
   filter/                     — What the panel is made of
@@ -137,8 +137,8 @@ src/
     compile.ts                — compileAnalysis → AggregationQuery
     defaults.ts               — emptyDashboardConfig
     export.ts                 — `serializeCsv`: rows as a CSV, values read the UI's way
-    project.ts                — projectAnalysis — table columns and rows
-    validate.ts               — validateDashboard — panels, bindings, content
+    project.ts                — projectRecord — the columns a table draws, the edge each is held against (`ColumnEdge`), the rows
+    validate.ts               — validateRecord — columns, sort, card and summaries against the definition
     index.ts                  — The record kernel: a definition and a config in, a Wow query or a rendered view out
   analysis/                   — Analysis kernel — imports model and filter
     budget.ts                 — Depth and node budgets of a walked tree
@@ -237,7 +237,7 @@ src/
     AppliedBar.tsx            — The conditions the rows on screen were fetched under
     BulkOutcome.tsx           — `BulkOutcomeStrip`: what a host's bulk command did to the records it was handed
     CardSettings.tsx          — The card layout's settings behind the column settings' button (D18 VI)
-    ColumnSettings.tsx        — Which columns show, in which order, pinned where, summarised how — one sortable group per area
+    ColumnSettings.tsx        — Which columns show, in which order, pinned or not, summarised how — one sortable group per area (D19)
     ConflictConfirm.tsx       — The same choice, put once more with both configs on the table
     DashboardArrange.tsx      — Placing a panel without a pointer: the two named handles, and the menu
     DashboardGrid.tsx         — The panels, placed
@@ -307,9 +307,9 @@ src/
       palette.ts              — Slot colours and the spec's overrides
       reading.ts              — A chart as text: its name and the numbers it draws
     columns/
-      ColumnRow.tsx           — One row of the column settings: checkbox, pin, summary, handle
-      announce.ts             — What a screen reader hears while a column is dragged
-      rows.ts                 — The column settings' model: rows, areas, order; `ACTIONS_ROW` is the settings row for the action column
+      ColumnRow.tsx           — One row of the column settings: checkbox, two-state pin toggle, summary, handle
+      drag.ts                 — What the settings make of a drag: `columnDrop` refuses one across the areas, plus what a reader hears
+      rows.ts                 — The column settings' model: rows, the two areas (D19), order
       sections.ts             — Rows of one area by catalogue group; the search over them
     components/               — 32 shadcn/ui primitives — vendored, see below
     filter/                   — What the panel is made of
@@ -367,7 +367,7 @@ src/
       SortableHeader.tsx      — One column header: the sort button, its place in the sort, the resizer
       SummaryRows.tsx         — The table footer: one row per summary scope; `SummaryValue`
       cells.tsx               — `cellValue`/`cellText`: one value as its field reads it, for table, cards and CSV
-      columns.ts              — The table's own chrome classes and pinned columns: `BAND` (the grey both ends share), `HEAD_CELL`, `ROW_HOVER`, `tablePins`, `pinnedSlots`, `heldColumns`; `ACTIONS_COLUMN` is the table's action column key
+      columns.ts              — The table's own chrome classes and pinned columns: `BAND` (the grey both ends share), `HEAD_CELL`, `ROW_HOVER`, `tablePins`, `pinnedSlots`, `heldColumns`; `ACTIONS_COLUMN` is the one column ever held on the right (D19)
       headerRoving.ts         — `useRovingHeader`: one Tab stop per header row, arrows between columns, Alt+arrows resize (P-02)
       fitViewport.ts          — `useViewportFit`: the scroll port ends where the viewport does, so the summaries and the pagination row stay in view (P-22)
       pinCap.ts               — The pin cap (D17-4): which pins to let go on a narrow port; `ReleasedPins`

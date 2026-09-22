@@ -21,11 +21,10 @@ import {
 import { DragDropProvider } from '@dnd-kit/react';
 import { Accessibility } from '@dnd-kit/dom';
 import { Columns3Icon, SearchIcon } from 'lucide-react';
-import {
-  columnPin,
-  type FieldDefinition,
-  type FieldGroupDefinition,
-  type SummaryFunction,
+import type {
+  FieldDefinition,
+  FieldGroupDefinition,
+  SummaryFunction,
 } from '../model/index.js';
 import type { RecordTableController } from '../react/index.js';
 import { Button } from './components/button.js';
@@ -50,13 +49,11 @@ import {
   pinAnnouncement,
   SortableColumnRow,
 } from './columns/ColumnRow.js';
-import { columnDragAccessibility } from './columns/announce.js';
-import { dropped } from './dragDrop.js';
+import { columnDragAccessibility, columnDrop } from './columns/drag.js';
 import {
-  ACTIONS_ROW,
   columnSettingRows,
   movableIndex,
-  nextPin,
+  regionOf,
   renderedCount,
   renderedIndex,
   reorderColumns,
@@ -70,33 +67,31 @@ import { ToolbarItem } from './toolbar.js';
 import { useAnnouncer } from './Announcer.js';
 
 /**
- * One sortable group per area, so a drag cannot cross one: what is held on
- * the left, what scrolls and what is held on the right are three lists, and
- * a column joins another of them by being pinned rather than by being
- * dragged there.
+ * One sortable group per area, so a drag cannot cross one: what is held
+ * against the left edge and what scrolls are two lists, and a column joins
+ * the other one by being pinned rather than by being dragged there — which
+ * is also what makes a drop into the other area a pinning (D19).
  */
 const GROUP: Record<ColumnRegion, string> = {
-  left: 'columns-left',
-  middle: 'columns-middle',
-  right: 'columns-right',
+  pinned: 'columns-pinned',
+  scrolling: 'columns-scrolling',
 };
 
 /**
  * Each area's heading — which is also its accessible name, because they are
  * the same node.
  *
- * The three words are the three pin states, the same ones a row's own pin
- * control cycles through (`nextPin`): an area *is* a pinning, so naming it
- * with that word makes the list and the control say the same thing. The
- * middle one used to be `label.columns.title` — the popover's own name — and
- * as an invisible `aria-label` that only went unnoticed; said out loud under
- * a heading already reading "Column settings" it would be the title twice
- * and the area not at all.
+ * The two words are the two pin states, the same ones a row's own pin
+ * toggle switches between: an area *is* a pinning, so naming it with that
+ * word makes the list and the control say the same thing. The scrolling one
+ * used to be `label.columns.title` — the popover's own name — and as an
+ * invisible `aria-label` that only went unnoticed; said out loud under a
+ * heading already reading "Column settings" it would be the title twice and
+ * the area not at all.
  */
 const REGION_LABEL = {
-  left: 'label.columns.pin.left',
-  middle: 'label.columns.pin.none',
-  right: 'label.columns.pin.right',
+  pinned: 'label.columns.pin.left',
+  scrolling: 'label.columns.pin.none',
 } as const;
 
 export interface ColumnSettingsProps {
@@ -105,13 +100,11 @@ export interface ColumnSettingsProps {
   fields: readonly FieldDefinition[];
   /**
    * The picker groups of the definition the fields come from, which the
-   * middle area is listed under.
+   * scrolling area is listed under.
    */
   fieldGroups?: readonly FieldGroupDefinition[];
   /** The field holding each row's identity, when the definition declares one. */
   rowKey?: string;
-  /** Whether the table carries the host's action column. */
-  actions?: boolean;
   /** Pins the table's cap is not drawing right now (D17-4); see `ColumnRow`. */
   released?: ReleasedPins;
   /**
@@ -135,15 +128,16 @@ export interface ColumnSettingsProps {
  * All four are one question — "what does a row look like" — and they were
  * three controls in three places before this: a checklist for visibility,
  * the config for the order, and nothing at all for pinning or summaries. A
- * column keeps to its area: the row key is held on the left, the host's
- * actions on the right, and what is between them orders freely.
+ * column keeps to its area: the row key leads the held one, and everything
+ * else orders freely inside whichever area it is pinned to. The host's
+ * action column is in neither — it is a render slot, always last and always
+ * held against the right edge, and none of that is a setting (D19).
  */
 export function ColumnSettings({
   table,
   fields,
   fieldGroups,
   rowKey,
-  actions = false,
   released = NO_RELEASE,
   trigger,
 }: ColumnSettingsProps) {
@@ -164,14 +158,12 @@ export function ColumnSettings({
         fields,
         columns: table.columnFields,
         ...(rowKey === undefined ? {} : { rowKey }),
-        actions,
         summaryFields: table.summaryFields,
         pinnedOf: table.pinnedOf,
         hiddenOf: table.hiddenOf,
         summaryOf: table.summaryOf,
       }),
     [
-      actions,
       fields,
       rowKey,
       table.columnFields,
@@ -181,38 +173,22 @@ export function ColumnSettings({
       table.summaryOf,
     ],
   );
-  /**
-   * The word a row wears, which is what a search matches and what a move is
-   * announced by. The action column has none of its own — it is the host's
-   * slot rather than a field — so it wears the name the panel gives it.
-   */
-  const labelFor = useCallback(
-    (row: ColumnSettingRow) =>
-      row.field === ACTIONS_ROW
-        ? messages.label('label.toolbar.actions')
-        : row.label,
-    [messages],
-  );
   const filtering = query.trim() !== '';
   // The rows on screen. Everything the panel *counts* is still counted over
   // the whole list below, because a search narrows what is shown and nothing
   // else: where a move lands is a place among every column the table draws,
   // not among the ones that happen to match.
-  const listed = useMemo(
-    () => matchingRows(rows, query, labelFor),
-    [labelFor, query, rows],
-  );
-  // What the reader is looking at: the columns the table actually draws —
-  // the action column included, a broken one not, since `projectRecord`
-  // leaves that out.
+  const listed = useMemo(() => matchingRows(rows, query), [query, rows]);
+  // What the reader is looking at: the columns of this list the table
+  // actually draws. A broken one is not one of them — `projectRecord`
+  // leaves it out — and neither is the host's action column, which this
+  // list does not carry a row for (D19).
   const onScreen = renderedCount(rows);
   /** The word a field wears, for the two voices that name one. */
   const nameOf = useCallback(
-    (field: string) => {
-      const row = rows.find(entry => entry.field === field);
-      return row ? labelFor(row) : field;
-    },
-    [labelFor, rows],
+    (field: string) =>
+      rows.find(entry => entry.field === field)?.label ?? field,
+    [rows],
   );
   /** Commits one move and says where the column landed, for both inputs. */
   const moveTo = useCallback(
@@ -234,23 +210,19 @@ export function ColumnSettings({
     [announce, messages, nameOf, onScreen, rows, table],
   );
   /**
-   * Cycles one column's pinning and says what it did.
+   * Flips one column's pinning and says what it did.
    *
-   * The pin toggle is the one control in this panel whose accessible name
-   * *is* its state ("Pinning of Amount: Pinned left"), so a press rewrites
-   * the name under the cursor and tells a reader nothing at all — they
-   * would have to go back and read the button again, which is the one
-   * thing pressing it was meant to save them. Said here rather than in the
-   * row: this is where the next state is decided, and where the panel's one
-   * voice is.
+   * `aria-pressed` reports the toggle's own new state, and what it cannot
+   * report is which column and which edge — so the panel's one live region
+   * says the sentence too. Said here rather than in the row: this is where
+   * the next state is decided, and where the panel's one voice is.
    */
   const pinTo = useCallback(
     (field: string) => {
       const row = rows.find(entry => entry.field === field);
       if (!row) return;
-      const pinned = nextPin(columnPin(row.pinned));
-      table.setPinned(field, pinned);
-      announce(pinAnnouncement(messages, row.label, pinned));
+      table.setPinned(field, !row.pinned);
+      announce(pinAnnouncement(messages, row.label, !row.pinned));
     },
     [announce, messages, rows, table],
   );
@@ -375,7 +347,9 @@ export function ColumnSettings({
                 )
               }
               onDragEnd={({ operation, canceled }) => {
-                const drop = dropped(operation, canceled);
+                const drop = columnDrop(operation, canceled, field =>
+                  regionOf(rows, field),
+                );
                 if (!drop) return;
                 // Read off the whole list, never off what is on screen: a
                 // place in the order is a place among every column the
@@ -440,9 +414,9 @@ function Region({
 
   return (
     <div data-slot="column-region-group" className="flex flex-col">
-      {/* Said, and now also drawn. The areas were three `aria-label`s and
-          nothing on the screen, so a column pinned right did not read as
-          held at the edge — it read as having fallen to the bottom of the
+      {/* Said, and now also drawn. The areas were `aria-label`s and nothing
+          on the screen, so a column that had just been pinned did not read
+          as held at the edge — it read as having jumped to the top of the
           list. One level under the popover's own title, and styled like the
           sidebar's group labels: a heading of a list, not of the panel. */}
       <h3
@@ -533,12 +507,7 @@ function Section({
                 ? table.setSummary(row.field, null)
                 : table.setColumns(toggled(all, row)),
             onPin: () => onPin(row.field),
-            // The action column is the host's, not a field: the cap reports
-            // it on its own flag, and its row is marked like any other.
-            released:
-              row.field === ACTIONS_ROW
-                ? released.actions
-                : released.fields.has(row.field),
+            released: released.fields.has(row.field),
             onSummary: (fn: SummaryFunction | null) =>
               table.setSummary(row.field, fn),
             onMove: (step: -1 | 1) =>
@@ -596,7 +565,6 @@ function toggled(
   return rows
     .filter(
       entry =>
-        entry.field !== ACTIONS_ROW &&
         // A summary-only row is shown and is not a column (D17-9): naming
         // it here would add the column nobody asked for, which is the very
         // thing its own checkbox exists to avoid.

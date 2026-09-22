@@ -32,7 +32,7 @@
 
 import {
   columnHidden,
-  columnPin,
+  columnPinned,
   SUMMARY_FUNCTIONS,
   type RecordColumn,
   type RecordSort,
@@ -103,15 +103,14 @@ export function wasSound(raw: unknown, read: readonly unknown[]): boolean {
  * it can use. A column switched off keeps its entry and therefore its place
  * in the order, so it is read like any other — only `hidden` says the table
  * does not draw it, and anything but `true` under that name reads as shown.
+ * A pinning is read the same way (`columnPinned`): it is one yes-or-no
+ * (D19), so a stored `'left'` or `'top'` is a column that scrolls.
  */
 export function recordColumns(value: unknown): RecordColumn[] {
-  return entries(value).map(entry => {
-    const pinned = columnPin(entry.pinned);
-    return {
-      field: entry.field as string,
-      ...(typeof entry.width === 'number' ? { width: entry.width } : {}),
-      ...(pinned === null ? {} : { pinned }),
-      ...(columnHidden(entry.hidden) ? { hidden: true as const } : {}),
-    };
-  });
+  return entries(value).map(entry => ({
+    field: entry.field as string,
+    ...(typeof entry.width === 'number' ? { width: entry.width } : {}),
+    ...(columnPinned(entry.pinned) ? { pinned: true } : {}),
+    ...(columnHidden(entry.hidden) ? { hidden: true as const } : {}),
+  }));
 }
