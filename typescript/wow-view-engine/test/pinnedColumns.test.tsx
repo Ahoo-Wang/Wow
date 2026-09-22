@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { act, cleanup, render } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { RecordColumnView } from '../src/index.js';
 import type { RecordTableController } from '../src/react/index.js';
@@ -159,6 +159,134 @@ describe('the pinned edges', () => {
       expect(cell.className).toContain(LEFT_EDGE);
     for (const cell of cellsOf(container, 'amount'))
       expect(cell.className).toContain(RIGHT_EDGE);
+  });
+});
+
+/**
+ * Where the surplus width goes (P-11).
+ *
+ * The registry's table is `w-full` and an auto layout hands the surplus to
+ * the columns in proportion: in a 1300px result area the four-column fixture
+ * drew `金额` 446px wide around `¥2,450.00`. A trailing cell asking for all
+ * the width takes it instead, so the columns come out at what their own
+ * content asks for while the row still reaches the frame.
+ *
+ * jsdom lays nothing out, so what is asserted here is the structure — which
+ * rows carry the cell, that it is last, and that nothing is told about it;
+ * the browser story `ColumnsKeepTheirWidthAndRowsFillTheFrame` measures the
+ * widths themselves.
+ */
+describe('where the surplus width goes', () => {
+  const fillers = (container: HTMLElement) => [
+    ...container.querySelectorAll<HTMLElement>('[data-column="filler"]'),
+  ];
+
+  it('ends every row with a cell that takes what the columns did not', () => {
+    const { container } = render(
+      <RecordTable
+        table={controller([column('id', 'left'), column('amount')])}
+        rowActions={() => <button />}
+      />,
+    );
+
+    // One in the header, one in the body row, one in each summary row.
+    const rows = [...container.querySelectorAll('tr')];
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      const cells = [...(row as HTMLTableRowElement).cells];
+      const last = cells[cells.length - 1];
+      expect(last.dataset.column).toBe('filler');
+      // Last, so nothing that counts cells by index has to step over it.
+      expect(cells.filter(cell => cell.dataset.column === 'filler')).toEqual([
+        last,
+      ]);
+    }
+  });
+
+  it('takes the width and adds nothing else to the row', () => {
+    const { container } = render(
+      <RecordTable
+        table={controller([column('id', 'left'), column('amount')])}
+      />,
+    );
+
+    for (const cell of fillers(container)) {
+      expect(cell.className).toContain('w-full');
+      // The registry pads every cell; this one holds nothing to pad.
+      expect(cell.className).toContain('px-0');
+      expect(cell.textContent).toBe('');
+      // Never held against an edge, so it draws no edge either.
+      expect(cell.dataset.pin).toBeUndefined();
+      expect(cell.className).not.toContain('sticky');
+    }
+  });
+
+  /**
+   * Drawn, not announced: a column with no name and no values is not a
+   * column, and this file's first-load header refuses a blank `<th>` for the
+   * same reason. `getAllByRole` is the check that matters — it reads the
+   * accessible grid, which is what a screen reader walks.
+   */
+  it('is not one more column to anybody reading the table', () => {
+    const { container } = render(
+      <RecordTable
+        table={controller([column('id', 'left'), column('amount')])}
+      />,
+    );
+
+    for (const cell of fillers(container))
+      expect(cell.getAttribute('aria-hidden')).toBe('true');
+    expect(
+      screen.getAllByRole('columnheader').map(head => head.textContent),
+    ).toHaveLength(3); // select, id, amount — and no fourth
+  });
+
+  /**
+   * The cap weighs what is held against what the port can show. The filler
+   * is neither: it *is* the width the columns did not need, so counting it
+   * would be counting the empty half of the table.
+   */
+  it('is not a slot the cap can weigh or watch', () => {
+    const { container } = render(
+      <RecordTable
+        table={controller([column('id', 'left'), column('amount')])}
+      />,
+    );
+
+    const head = container.querySelector<HTMLElement>(
+      'thead [data-column="filler"]',
+    )!;
+    expect(head.dataset.field).toBeUndefined();
+    expect(
+      pinnedSlots([column('id', 'left'), column('amount')], {
+        selectable: true,
+        actions: true,
+      }).map(slot => slot.key),
+    ).not.toContain('filler');
+  });
+
+  /**
+   * And the header keeps its name while it does. The sort button carries the
+   * registry's `max-w-full`, which is the cell's *content* box, while the
+   * button pulls that padding back out with `-mx-2`: capped at the content
+   * box it is 16px short of what it needs and `订单号` came out as `订…` —
+   * one hover away in the header's tooltip, which is the way back from a
+   * column too narrow for its name and not from one that had the room.
+   * The ceiling is the cell's padding box — where the negative margins reach
+   * and no further, so a narrowed column still clips rather than spills.
+   */
+  it('lets a header button reach the padding box of its cell', () => {
+    const { container } = render(
+      <RecordTable
+        table={controller([column('id', 'left'), column('amount')])}
+      />,
+    );
+
+    // Every column header; the filler at the end holds no button.
+    for (const cell of container.querySelectorAll(
+      'thead th:not([data-column="filler"])',
+    ))
+      expect(cell.className).toContain('[&>button]:max-w-[calc(100%+1rem)]');
   });
 });
 

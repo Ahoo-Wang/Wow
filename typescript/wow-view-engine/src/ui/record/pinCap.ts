@@ -12,6 +12,7 @@
  */
 
 import { useLayoutEffect, useState, type RefObject } from 'react';
+import { FILLER_COLUMN } from './Filler.js';
 
 /**
  * One column the table holds against an edge, as the cap weighs it.
@@ -179,6 +180,11 @@ function portOf(node: HTMLElement | null): PinPort {
  * Read by what each cell *is* rather than by its pinning: a column the cap
  * has already let go carries no `data-pin` any more, and it is exactly the
  * one whose width has to be weighed again for the pin to come back.
+ *
+ * The trailing filler is left out. It is not a column — it holds whatever
+ * width the real ones did not need — so weighing it would be weighing the
+ * empty half of the table, and watching it would be watching a box that
+ * changes size every time one of the others does.
  */
 function headCells(
   table: HTMLTableElement | null,
@@ -189,7 +195,7 @@ function headCells(
     'thead tr:first-child>th',
   )) {
     const key = cell.dataset.column ?? cell.dataset.field;
-    if (key !== undefined) cells.set(key, cell);
+    if (key !== undefined && key !== FILLER_COLUMN) cells.set(key, cell);
   }
   return cells;
 }

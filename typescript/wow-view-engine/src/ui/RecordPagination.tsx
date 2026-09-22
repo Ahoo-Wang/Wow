@@ -11,10 +11,11 @@
  * limitations under the License.
  */
 
-import { useId } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import type { RecordTableController } from '../react/index.js';
 import { IconButton } from './IconButton.js';
+import { Input } from './components/input.js';
 import {
   Select,
   SelectGroup,
@@ -178,13 +179,27 @@ export function RecordPagination({ table }: RecordPaginationProps) {
         {/* A cursor source has no page numbers and no way back, so it shows
             neither rather than showing them dead. */}
         {paged && (
-          <PaginationItem>
+          <PaginationItem className="flex items-center gap-2">
             {pages === undefined
               ? messages.label('label.toolbar.page', { index: paging.index })
               : messages.label('label.toolbar.page-of', {
                   index: paging.index,
                   pages,
                 })}
+            {/* Only where there is an M to aim at (ruling Ⅷ). A cursor source
+                cannot say how many pages there are, so a box asking for one
+                would be asking for a number nobody — the runtime included —
+                could check. And it is drawn on exactly the pages the two
+                steps are (D12 Ⅶ): where everything fits there is nowhere to
+                go, and a box whose only admissible answer is the page
+                already on screen is a control that does nothing. */}
+            {pages !== undefined && !onePage && (
+              <PageInput
+                index={paging.index}
+                pages={pages}
+                onGoTo={table.goTo}
+              />
+            )}
           </PaginationItem>
         )}
         {!onePage && (
@@ -215,5 +230,93 @@ export function RecordPagination({ table }: RecordPaginationProps) {
         )}
       </PaginationContent>
     </Pagination>
+  );
+}
+
+interface PageInputProps {
+  /** The page the rows on screen came from. */
+  index: number;
+  /** How many there are — the ceiling, and the reason this box exists. */
+  pages: number;
+  onGoTo(page: number): void;
+}
+
+/**
+ * The page a reader means, said outright (D18 ruling Ⅷ).
+ *
+ * Paging was one step at a time and nothing else, so page 17 of 40 cost
+ * sixteen queries and sixteen waits. Where the source reported a total there
+ * has always been an M to check a number against, and `goTo` on the
+ * controller has always been able to ask for it; what was missing was
+ * somewhere to say it.
+ *
+ * **It sits beside the sentence rather than inside it.** `第 1 / 4 页` is
+ * where the reader already looks for the page they are on, and splitting it
+ * around a box would leave a screen reader reading half a sentence, an
+ * unnamed control and then the other half. So the sentence stays whole and
+ * says where the rows came from, and the box — named `跳到第…页` — says
+ * where to go. It carries the landed page until it is typed in, which is
+ * what makes the two read apart while an answer is pending: the sentence is
+ * the page that ran, the box is the page asked for.
+ *
+ * **Committed on Enter or on leaving, never on a keystroke.** Every commit
+ * is a query, and `4` is one keystroke on the way to `40`.
+ */
+function PageInput({ index, pages, onGoTo }: PageInputProps) {
+  const messages = useViewMessages();
+  // What is half-typed is the browser's to keep, not React's: every
+  // keystroke through `setState` would re-render the bar for a draft nobody
+  // has asked for yet, and the value only ever has to be *read* — on Enter,
+  // on leaving, and nowhere else. Same reason the pinned offsets and a
+  // column being dragged are written straight to the DOM.
+  const box = useRef<HTMLInputElement>(null);
+
+  // Whatever the box held, the page that landed is the truth about where the
+  // reader is: a refresh, a size change or the two steps all move it, and a
+  // box left saying `7` beside `第 2 / 4 页` would be the one thing on this
+  // bar that is not about the rows on screen.
+  useEffect(() => {
+    if (box.current) box.current.value = String(index);
+  }, [index]);
+
+  const commit = () => {
+    const node = box.current;
+    if (!node) return;
+    const typed = node.value.trim();
+    // Only digits are a page. `` / `abc` / `1.5` / `-2` are not asking for
+    // one, so the box goes back to saying where the reader is rather than
+    // guessing what they meant — `Number('')` is 0, and a blank box that
+    // silently jumped to the first page would be the worst of the guesses.
+    if (!/^\d+$/.test(typed)) {
+      node.value = String(index);
+      return;
+    }
+    // Clamped rather than refused: past the end the reader wants the end.
+    const page = Math.min(pages, Math.max(1, Number(typed)));
+    node.value = String(page);
+    if (page !== index) onGoTo(page);
+  };
+
+  return (
+    <Input
+      ref={box}
+      aria-label={messages.label('label.pagination.go-to')}
+      // Digits on a phone, without `type="number"`: that one brings a
+      // spinner this bar has no room for, and hands back an empty string
+      // for `1e3` rather than something to refuse.
+      inputMode="numeric"
+      // Wide enough for the pages there are and no wider — a box for four
+      // digits beside a four-page result reads as a field, not as a number.
+      className="w-14 text-center"
+      defaultValue={String(index)}
+      onBlur={commit}
+      onKeyDown={event => {
+        if (event.key !== 'Enter') return;
+        // The bar sits inside whatever the host wrapped it in; Enter here
+        // means this box and not a form somewhere above it.
+        event.preventDefault();
+        commit();
+      }}
+    />
   );
 }

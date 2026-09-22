@@ -145,9 +145,10 @@ describe('RecordTable row actions', () => {
       />,
     );
 
-    // One checkbox column, one data column, one action column.
+    // One checkbox column, one data column, one action column, and the
+    // filler that takes the leftover width.
     const cells = container.querySelectorAll('tbody tr:first-child td');
-    expect(cells).toHaveLength(3);
+    expect(cells).toHaveLength(4);
     expect(cells[0].getAttribute('colspan')).toBeNull();
   });
 
@@ -169,9 +170,11 @@ describe('RecordTable row actions', () => {
     );
 
     const [header] = screen.getAllByRole('rowgroup');
+    // The header's accessible columns plus the filler, which is hidden
+    // from the accessible grid but present in every row.
     const footerCells = document.querySelectorAll('tfoot td');
     expect(footerCells).toHaveLength(
-      within(header).getAllByRole('columnheader').length,
+      within(header).getAllByRole('columnheader').length + 1,
     );
     expect(footerCells[footerCells.length - 1].textContent).toBe('');
   });

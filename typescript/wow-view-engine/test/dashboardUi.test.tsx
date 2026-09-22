@@ -311,10 +311,11 @@ describe('DashboardGrid', () => {
     expect(footer.textContent).toContain('This page');
     expect(footer.textContent).toContain('All records');
     expect(footer.textContent).toContain('30');
-    // One cell per column on each row: the footer stays aligned with the
-    // header, and the scope label rides above the first column's own number
-    // rather than taking a cell the row does not have.
-    for (const row of rows) expect(row.querySelectorAll('td')).toHaveLength(2);
+    // One cell per column on each row plus the filler that takes the
+    // leftover width: the footer stays aligned with the header, and the
+    // scope label rides above the first column's own number rather than
+    // taking a cell the row does not have.
+    for (const row of rows) expect(row.querySelectorAll('td')).toHaveLength(3);
     expect(rows[0].cells[0].textContent).toContain('This page');
   });
 

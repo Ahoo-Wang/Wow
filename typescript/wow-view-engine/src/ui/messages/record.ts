@@ -74,6 +74,10 @@ export const recordMessages = {
   // `每页` + `20 条`, never `每页 20`.
   'label.pagination.page-size': 'Per page',
   'label.pagination.page-size-option': '{size} per page',
+  // The box beside the page sentence, where the total is known (ruling Ⅷ).
+  // It names what typing in it does rather than what it holds: the sentence
+  // next to it already says which page the rows came from.
+  'label.pagination.go-to': 'Go to page',
 
   // The record view itself.
   'label.record.empty': 'Nothing to show',

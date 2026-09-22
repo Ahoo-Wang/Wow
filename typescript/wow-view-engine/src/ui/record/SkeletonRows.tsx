@@ -16,6 +16,7 @@ import type { RecordColumnView } from '../../record/index.js';
 import { Skeleton } from '../components/skeleton.js';
 import { TableCell, TableRow } from '../components/table.js';
 import { CLIPPED_CELL, columnWidth } from './columns.js';
+import { FillerCell } from './Filler.js';
 
 /** How many rows a running query is drawn as. */
 const ROWS = 3;
@@ -90,6 +91,12 @@ export function SkeletonRows({
           <Skeleton className="h-4 w-12" />
         </TableCell>
       )}
+      {/* The same last cell the real rows carry, so the bars come out at the
+          widths the columns will have rather than sharing the surplus out
+          among them and shuffling sideways when the rows land. The
+          column-less branch above has none: there the one cell already spans
+          the row, and a filler beside it would squeeze its bar to nothing. */}
+      <FillerCell />
     </TableRow>
   ));
 }

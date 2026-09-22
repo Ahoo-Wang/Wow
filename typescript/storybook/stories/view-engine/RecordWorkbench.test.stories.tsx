@@ -432,6 +432,114 @@ export const Paged: Story = {
     await expect(paginationBar(canvasElement)).toHaveTextContent(
       say('label.toolbar.page-of', { index: 1, pages: 3 }),
     );
+
+    // And the page said outright rather than stepped to (D18 ruling Ⅷ). The
+    // box carries the page that landed, so typing over it is a jump from
+    // where the reader is; past the end it is clamped rather than refused.
+    const goTo = within(paginationBar(canvasElement)).getByRole('textbox', {
+      name: zhCN['label.pagination.go-to'],
+    });
+    await expect(goTo).toHaveValue('1');
+    await userEvent.clear(goTo);
+    await userEvent.type(goTo, '3{Enter}');
+    await waitFor(() =>
+      expect(readColumn(table, '订单号')).toEqual(['SO-1005', 'SO-1006']),
+    );
+    await expect(paginationBar(canvasElement)).toHaveTextContent(
+      say('label.toolbar.page-of', { index: 3, pages: 3 }),
+    );
+
+    const past = within(paginationBar(canvasElement)).getByRole('textbox', {
+      name: zhCN['label.pagination.go-to'],
+    });
+    await userEvent.clear(past);
+    await userEvent.type(past, '99{Enter}');
+    await expect(past).toHaveValue('3');
+    await expect(paginationBar(canvasElement)).toHaveTextContent(
+      say('label.toolbar.page-of', { index: 3, pages: 3 }),
+    );
+  },
+};
+
+/**
+ * 列各占自己要的宽度，行照样通到框边（P-11）。
+ *
+ * 注册表的表是 `w-full`，自动布局把富余按比例分给各列：1300px 的结果区里，
+ * 四列表把「金额」画成 446px，里面是一句 `¥2,450.00`——一眼从订单号扫到
+ * 金额要横穿大半个屏幕。现在富余归末尾那一格空格子，各列落回自己内容要的
+ * 宽度，而行（发丝线、悬停底色、两条汇总行）仍然与端口同宽。宿主宽度写死
+ * 成 1300px（`narrowHost` 那个定宽壳子，这里给的是一个宽数——场景框自己
+ * 限宽 1040px，量的是布局不是画面），量四件事：没有一列是那 446px、每一行
+ * 都通到端口右缘、D13 右边那道线还在最后一个数据列上、列名一个字也没被
+ * 截掉。
+ */
+export const ColumnsKeepTheirWidthAndRowsFillTheFrame: Story = {
+  ...DisplayWithData,
+  args: { ...DisplayWithData.args, narrowHost: true, narrowWidth: 1300 },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    await waitFor(() =>
+      expect(readColumn(table, '订单号')).toEqual(PENDING_BY_AMOUNT),
+    );
+
+    const port = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="record-table"]',
+    )!;
+    // The result area is wide and nothing scrolls sideways in it.
+    await expect(port.clientWidth).toBeGreaterThan(800);
+    await expect(port.scrollWidth).toBeLessThanOrEqual(port.clientWidth + 1);
+
+    const heads = [
+      ...table.querySelectorAll<HTMLElement>('thead tr:first-child>th'),
+    ];
+    const filler = heads[heads.length - 1]!;
+    await expect(filler.dataset.column).toBe('filler');
+
+    // No real column is a sea of empty: the widest is nowhere near the 446px
+    // the same fixture drew when the surplus was shared out among them.
+    const columns = heads.slice(0, -1);
+    const widest = Math.max(
+      ...columns.map(head => head.getBoundingClientRect().width),
+    );
+    await expect(widest).toBeLessThan(200);
+    // And the surplus is real: it went somewhere, and that somewhere is the
+    // cell nobody is told about.
+    await expect(filler.getBoundingClientRect().width).toBeGreaterThan(400);
+
+    // Every row reaches the frame — the header, a body row and both summary
+    // rows — so a hairline, a hover band and the muted footer are whole.
+    const edge = port.getBoundingClientRect().right;
+    for (const row of table.querySelectorAll<HTMLElement>('tr'))
+      await expect(Math.round(row.getBoundingClientRect().right)).toBe(
+        Math.round(edge),
+      );
+
+    // D13's right edge stays on the last *data* column, which is where the
+    // columns end; past it there is nothing rather than more table.
+    const amount = columns[columns.length - 1]!;
+    await expect(amount.dataset.pin).toBe('right');
+    await expect(getComputedStyle(amount).boxShadow).toContain('inset');
+    await expect(
+      Math.round(
+        filler.getBoundingClientRect().left -
+          amount.getBoundingClientRect().right,
+      ),
+    ).toBe(0);
+
+    // And the names survive it. The sort button carries `max-w-full`, which
+    // is the cell's content box, while it pulls that padding back out with
+    // `-mx-2`: capped there it was 16px short and `订单号` read `订…` — a
+    // name the tooltip could give back, from a column that had the room.
+    for (const head of columns) {
+      const label = head.querySelector<HTMLElement>(
+        '[data-slot="column-label"]',
+      );
+      if (!label) continue;
+      await expect(label.scrollWidth).toBeLessThanOrEqual(
+        Math.ceil(label.getBoundingClientRect().width),
+      );
+    }
   },
 };
 
@@ -5364,26 +5472,51 @@ export const AMenuIsNotCoveredByItsOwnTooltip: Story = {
  * else, and these headers are buttons a keyboard reaches. Only a real
  * browser truncates, so the pixels are checked here and the structure in
  * jsdom (`test/recordTable.test.tsx`).
+ *
+ * **Those three names now fit** (P-11): the sort button was capped at the
+ * cell's content box while its negative margins reach the padding box, so
+ * every header was 16px short of the room its own cell had. What is left is
+ * the case the tooltip is actually for — a column the *user* narrowed, down
+ * to the 48px floor the handle stops at, where the name cannot fit however
+ * the cell is measured. So the premise is made rather than found.
  */
 export const ATruncatedColumnNameIsOneHoverAway: Story = {
   ...DisplayWideTable,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const table = await canvas.findByRole('table');
+    const nameOf = (label: HTMLElement) =>
+      label.closest('th')!.getAttribute('data-field');
+    const labelFor = (field: string) =>
+      table.querySelector<HTMLElement>(
+        `thead th[data-field="${field}"] [data-slot="column-label"]`,
+      )!;
+
+    // Nothing is cut before a reader asks for it to be: every header holds
+    // its own name at the width the columns settle on (P-11).
     const labels = [
       ...table.querySelectorAll<HTMLElement>(
         'thead [data-slot="column-label"]',
       ),
     ];
+    await expect(
+      labels.filter(label => label.scrollWidth > label.offsetWidth).map(nameOf),
+    ).toEqual([]);
 
-    // The premise: at least one name on this header is drawn in less room
-    // than it asks for.
-    const clipped = labels.filter(
-      label => label.scrollWidth > label.offsetWidth,
+    // Now take one down to the floor, which is the reader's own doing and
+    // the one width at which a name has nowhere to go.
+    const edge = canvas.getByRole('separator', {
+      name: say('label.columns.resize', { field: '订单号' }),
+    });
+    const head = edge.closest('th')!;
+    await dragEdgeBy(edge, 48 - head.getBoundingClientRect().width);
+    await waitFor(() =>
+      expect(labelFor('orderNo').scrollWidth).toBeGreaterThan(
+        labelFor('orderNo').offsetWidth,
+      ),
     );
-    await expect(clipped.length).toBeGreaterThan(0);
 
-    const name = clipped[0];
+    const name = labelFor('orderNo');
     const whole = name.textContent?.trim();
     // Cut on screen and whole in the DOM, which is what a reader hears.
     await expect(name.scrollWidth).toBeGreaterThan(name.offsetWidth);

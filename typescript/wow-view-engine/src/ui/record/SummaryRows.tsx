@@ -30,6 +30,7 @@ import {
   columnWidth,
   type TablePins,
 } from './columns.js';
+import { FillerCell } from './Filler.js';
 import { TEXT_UI } from '../layout.js';
 
 /**
@@ -169,6 +170,9 @@ function SummaryLine({
       {/* Nothing to summarise about actions, but the row still has to be
           as wide as the ones above it. */}
       {actions && <TableCell className={actionCell(pins)} />}
+      {/* And the same last cell every other row carries, so the muted
+          footer band ends where the rows above it end. */}
+      <FillerCell />
     </TableRow>
   );
 }

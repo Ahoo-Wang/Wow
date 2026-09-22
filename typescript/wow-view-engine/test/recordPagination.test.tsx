@@ -428,9 +428,9 @@ describe('RecordPagination moving between pages', () => {
   });
 
   /**
-   * The bar is walked in the order it reads: the size first, then the two
-   * steps out of the page. Nothing before the size control takes focus,
-   * because the count is a sentence and not a control.
+   * The bar is walked in the order it reads: the size first, then the page
+   * to jump to, then the two steps out of this one. Nothing before the size
+   * control takes focus, because the count is a sentence and not a control.
    */
   it('takes focus in the order it is read', async () => {
     const user = userEvent.setup();
@@ -448,11 +448,184 @@ describe('RecordPagination moving between pages', () => {
     );
     await user.tab();
     expect(document.activeElement).toBe(
+      screen.getByRole('textbox', { name: 'Go to page' }),
+    );
+    await user.tab();
+    expect(document.activeElement).toBe(
       screen.getByRole('button', { name: 'Previous page' }),
     );
     await user.tab();
     expect(document.activeElement).toBe(
       screen.getByRole('button', { name: 'Next page' }),
     );
+  });
+});
+
+/**
+ * Page 17 of 40, said outright rather than stepped to (D18 ruling Ⅷ).
+ *
+ * The box exists only where there is an M to check an answer against, and
+ * only where the two steps are drawn at all: a result that fits on one page
+ * has nowhere to send anybody.
+ */
+describe('RecordPagination jumping to a page', () => {
+  const paged = (overrides = {}) =>
+    tableController({
+      paging: { mode: 'paged', index: 2, total: 42 },
+      ...overrides,
+    });
+
+  it('is a named box beside the page it is on', () => {
+    render(<RecordPagination table={paged()} />);
+
+    const box = screen.getByRole('textbox', { name: 'Go to page' });
+    expect(box.getAttribute('inputmode')).toBe('numeric');
+    // The sentence says where the rows came from; the box says where to go,
+    // and starts from where the reader is.
+    expect(screen.getByText('Page 2 of 3')).toBeTruthy();
+    expect((box as HTMLInputElement).value).toBe('2');
+  });
+
+  it('is named by the catalogue in force', () => {
+    render(
+      <MessagesProvider messages={zhCN}>
+        <RecordPagination table={paged()} />
+      </MessagesProvider>,
+    );
+
+    expect(screen.getByRole('textbox', { name: '跳到第…页' })).toBeTruthy();
+  });
+
+  it('goes to the page that was typed, on Enter', async () => {
+    const goTo = vi.fn();
+    const user = userEvent.setup();
+    render(<RecordPagination table={paged({ goTo })} />);
+
+    const box = screen.getByRole('textbox', { name: 'Go to page' });
+    await user.clear(box);
+    await user.type(box, '3{Enter}');
+    expect(goTo).toHaveBeenCalledWith(3);
+  });
+
+  it('goes to the page that was typed, on leaving the box', async () => {
+    const goTo = vi.fn();
+    const user = userEvent.setup();
+    render(<RecordPagination table={paged({ goTo })} />);
+
+    const box = screen.getByRole('textbox', { name: 'Go to page' });
+    await user.clear(box);
+    await user.type(box, '1');
+    await user.tab();
+    expect(goTo).toHaveBeenCalledWith(1);
+  });
+
+  /** Past the end the reader means the end, so it is clamped, not refused. */
+  it('clamps to the pages there are', async () => {
+    const goTo = vi.fn();
+    const user = userEvent.setup();
+    render(<RecordPagination table={paged({ goTo })} />);
+
+    const box = screen.getByRole('textbox', { name: 'Go to page' });
+    await user.clear(box);
+    await user.type(box, '99{Enter}');
+    expect(goTo).toHaveBeenCalledWith(3);
+    expect((box as HTMLInputElement).value).toBe('3');
+
+    await user.clear(box);
+    await user.type(box, '0{Enter}');
+    expect(goTo).toHaveBeenLastCalledWith(1);
+  });
+
+  /**
+   * Anything that is not a page number is not a question, so the box goes
+   * back to saying where the reader is rather than guessing. A blank box is
+   * the one that matters: `Number('')` is 0, and a clamp alone would read an
+   * emptied box as "take me to the first page".
+   */
+  it.each(['', 'abc', '1.5', '-2', '1e3'])(
+    'ignores %o and says where the reader is',
+    async typed => {
+      const goTo = vi.fn();
+      const user = userEvent.setup();
+      render(<RecordPagination table={paged({ goTo })} />);
+
+      const box = screen.getByRole('textbox', { name: 'Go to page' });
+      await user.clear(box);
+      if (typed !== '') await user.type(box, typed);
+      await user.tab();
+      expect(goTo).not.toHaveBeenCalled();
+      expect((box as HTMLInputElement).value).toBe('2');
+    },
+  );
+
+  /** The page already on screen costs a query and answers nothing. */
+  it('does not ask again for the page it is on', async () => {
+    const goTo = vi.fn();
+    const user = userEvent.setup();
+    render(<RecordPagination table={paged({ goTo })} />);
+
+    const box = screen.getByRole('textbox', { name: 'Go to page' });
+    await user.click(box);
+    await user.tab();
+    expect(goTo).not.toHaveBeenCalled();
+  });
+
+  /** A cursor source has no M, so there is nothing to check an answer by. */
+  it('is not drawn for a source that reports no total', () => {
+    render(
+      <RecordPagination
+        table={tableController({ paging: { mode: 'cursor', nextCursor: 'c' } })}
+      />,
+    );
+
+    expect(screen.queryByRole('textbox', { name: 'Go to page' })).toBeNull();
+  });
+
+  it('is not drawn for a paged source that reports no total', () => {
+    render(
+      <RecordPagination
+        table={tableController({ paging: { mode: 'paged', index: 1 } })}
+      />,
+    );
+
+    expect(screen.getByText('Page 1')).toBeTruthy();
+    expect(screen.queryByRole('textbox', { name: 'Go to page' })).toBeNull();
+  });
+
+  /** Everything fits: no steps are drawn (D12 Ⅶ), and no box either. */
+  it('is not drawn when there is only the one page', () => {
+    render(
+      <RecordPagination
+        table={tableController({
+          paging: { mode: 'paged', index: 1, total: 4 },
+          hasNext: false,
+        })}
+      />,
+    );
+
+    expect(screen.queryByRole('textbox', { name: 'Go to page' })).toBeNull();
+  });
+
+  /** A page that landed is the truth about where the reader is. */
+  it('follows the page that landed', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<RecordPagination table={paged()} />);
+
+    const box = screen.getByRole('textbox', { name: 'Go to page' });
+    await user.clear(box);
+    await user.type(box, '3');
+    expect((box as HTMLInputElement).value).toBe('3');
+
+    rerender(
+      <RecordPagination
+        table={tableController({
+          paging: { mode: 'paged', index: 1, total: 42 },
+        })}
+      />,
+    );
+    expect(
+      (screen.getByRole('textbox', { name: 'Go to page' }) as HTMLInputElement)
+        .value,
+    ).toBe('1');
   });
 });

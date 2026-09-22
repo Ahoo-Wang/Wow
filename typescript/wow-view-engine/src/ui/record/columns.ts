@@ -213,11 +213,31 @@ export const TABLE_CELLS =
 export const ROW_HOVER = 'hover:bg-row-hover has-aria-expanded:bg-row-hover';
 
 /**
+ * The sort button may be as wide as the cell it sits in — all of it.
+ *
+ * The registry's button carries `max-w-full`, and `full` is the cell's
+ * *content* box; the button then pulls the cell's own `px-2` back out with
+ * `-mx-2`, so its margin box is allowed to be that 1rem wider. Capped at the
+ * content box it is short by exactly those 16px and the label ellipses —
+ * `订单号` came out as `订…` the moment the column stopped being given
+ * surplus width ({@link TABLE_FIT}). A cut name is one hover away in the
+ * header's tooltip, but a hover is the way back from a column that has no
+ * room for its name — not from one that has the room and is not given it,
+ * and not on a touch screen. The ceiling is the cell's padding box, which
+ * is where the negative margins reach and not one pixel further: a column
+ * dragged narrower still clips its own name rather than spilling it over
+ * its neighbour, and the last column's button still ends inside its cell —
+ * a button that overhung by 2px once made every table report itself wider
+ * than its port.
+ */
+const HEAD_BUTTON = '[&>button]:max-w-[calc(100%+1rem)]';
+
+/**
  * A column header is metadata about the column rather than content in it, so
  * it is quieter than the values under it; the header row carries the
  * emphasis instead, as a layer with its own edge.
  */
-export const HEAD_CELL = `text-muted-foreground font-medium ${TEXT_UI}`;
+export const HEAD_CELL = `text-muted-foreground font-medium ${TEXT_UI} ${HEAD_BUTTON}`;
 
 /** Numbers line up on their last digit, in the cells and in the header. */
 export const NUMERIC_CELL = 'text-right tabular-nums';

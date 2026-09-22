@@ -42,6 +42,7 @@ import { usePinnedCap, type ReleasedPins } from './record/pinCap.js';
 import { cellText } from './display.js';
 import { cellValue } from './record/cells.js';
 import { EmptyResult } from './record/EmptyResult.js';
+import { FillerCell, FillerHead } from './record/Filler.js';
 import { SkeletonRows } from './record/SkeletonRows.js';
 import { SortableHeader } from './record/SortableHeader.js';
 import { SummaryRows } from './record/SummaryRows.js';
@@ -281,6 +282,7 @@ export function RecordTable({
                   {messages.label('label.toolbar.actions')}
                 </TableHead>
               )}
+              <FillerHead />
             </TableRow>
           </TableHeader>
         )}
@@ -354,6 +356,7 @@ export function RecordTable({
                     <RowActions>{rowActions(row)}</RowActions>
                   </TableCell>
                 )}
+                <FillerCell />
               </TableRow>
             ))
           )}

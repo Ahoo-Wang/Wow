@@ -287,9 +287,10 @@ describe('RecordTable on its own', () => {
     );
 
     const row = container.querySelector('tbody tr')!;
-    // The checkbox column and the two data columns, rather than one cell
+    // The checkbox column, the two data columns and the filler that takes
+    // the leftover width, rather than one cell
     // spanning all three.
-    expect(row.querySelectorAll('td')).toHaveLength(3);
+    expect(row.querySelectorAll('td')).toHaveLength(4);
     const bars = [
       ...row.querySelectorAll<HTMLElement>('[data-slot="skeleton"]'),
     ];
@@ -711,8 +712,9 @@ describe('the summary rows', () => {
     );
 
     const row = summaryRow(container.querySelector('tfoot')!, 'page');
-    // One cell per column and no more, with the label inside the first.
-    expect(row.cells).toHaveLength(2);
+    // One cell per column plus the filler, with the label inside the first.
+    expect(row.cells).toHaveLength(3);
+    expect(row.cells[2].dataset.column).toBe('filler');
     expect(row.cells[0].textContent).toContain('This page');
     expect(row.cells[0].textContent).toContain('CN¥10.00');
   });
@@ -723,8 +725,8 @@ describe('the summary rows', () => {
     );
 
     const row = summaryRow(container.querySelector('tfoot')!, 'page');
-    // Selection, two columns, actions.
-    expect(row.cells).toHaveLength(4);
+    // Selection, two columns, actions, and the filler after them all.
+    expect(row.cells).toHaveLength(5);
   });
 });
 

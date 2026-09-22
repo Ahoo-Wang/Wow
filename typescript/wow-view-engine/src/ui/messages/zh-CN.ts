@@ -144,6 +144,7 @@ export const zhCN: ViewMessages = {
   'label.pagination.on-page': '本页 {count} 条记录',
   'label.pagination.page-size': '每页',
   'label.pagination.page-size-option': '{size} 条',
+  'label.pagination.go-to': '跳到第…页',
   'label.record.empty': '没有可显示的内容',
   'label.record.empty-hint': '没有记录符合当前条件。',
   'label.record.empty-clear': '清空条件',
