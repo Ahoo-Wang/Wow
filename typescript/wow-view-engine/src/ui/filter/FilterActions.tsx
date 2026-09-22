@@ -34,9 +34,16 @@ export function FilterActions({
   filter,
   disabled,
   overBudget,
+  pending = filter.pending,
 }: {
   filter: FilterEditorController;
   disabled?: boolean;
+  /**
+   * Whether the draft holds something the last run did not. The filter's
+   * own reading by default; an editor that runs more than the filter — the
+   * analysis tray — says so for the whole draft.
+   */
+  pending?: boolean;
   /**
    * Whether the stored tree broke the depth or node budget. Such a tree may
    * hold no leaf at all — deep groups — and clearing it is then the only way
@@ -81,14 +88,14 @@ export function FilterActions({
       </Button>
       <Button
         size="sm"
-        data-pending={filter.pending || undefined}
+        data-pending={pending || undefined}
         disabled={disabled || filter.blocked > 0}
         onClick={filter.submit}
       >
         {/* The same dot the pills wear, in the one colour that shows on a
             filled primary button. It names nothing: the pills it summarises
             carry the wording. */}
-        {filter.pending && <PendingDot tone="on-primary" />}
+        {pending && <PendingDot tone="on-primary" />}
         <FilterIcon data-icon="inline-start" />
         {messages.label('label.filter.apply')}
       </Button>

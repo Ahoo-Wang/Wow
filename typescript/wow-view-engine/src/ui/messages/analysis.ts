@@ -26,12 +26,37 @@ export const analysisMessages = {
   'label.analysis.row-count': 'Record count',
 
   'label.analysis.editor': 'Analysis',
+  // The tray's slots, in the analyst's order (D20): the range, the array
+  // fields to expand, the dimensions and the metrics — each named, each
+  // with a plain-words hint of the question it answers.
+  'label.analysis.slot.range': 'Range',
+  'label.analysis.slot.dimensions': 'Dimensions',
+  'label.analysis.slot.metrics': 'Metrics',
+  'label.analysis.hint.dimensions': 'compare by what',
+  'label.analysis.hint.metrics': 'which numbers',
+  'label.analysis.conditions-mode': 'Conditions: {mode}',
+  'label.analysis.granularity': 'Granularity',
+  // A date dimension's granularity, as Wow names the units.
+  'label.date-unit.YEAR': 'By year',
+  'label.date-unit.QUARTER': 'By quarter',
+  'label.date-unit.MONTH': 'By month',
+  'label.date-unit.WEEK': 'By week',
+  'label.date-unit.DAY': 'By day',
+  'label.date-unit.HOUR': 'By hour',
+  'label.date-unit.MINUTE': 'By minute',
+  'label.date-unit.SECOND': 'By second',
+  'label.analysis.interval': 'Band width',
+  'label.analysis.percentile': 'Percentile',
+  'label.analysis.sort': 'Sort',
+  'label.analysis.sort-none': 'Not sorted',
+  'label.analysis.open-editor': 'Open analysis',
+  'label.analysis.reading': 'By {dimensions} · {metrics}',
+  'label.analysis.reading-flat': '{metrics}',
   'label.analysis.layout': 'Show result as',
   'label.analysis.add-group': 'Add dimension',
   'label.analysis.add-metric': 'Add metric',
   'label.analysis.totals': 'Totals row',
   'label.analysis.row-limit': 'Top N groups',
-  'label.analysis.run': 'Run',
   'label.analysis.chart-type': 'Chart type',
   // `{name}` is the field's display name, never its alias: a control that
   // says "Remove dimension amount_1" names the query, not the column.

@@ -408,12 +408,14 @@ describe('DataWorkbench', () => {
       expect(sidebar.getByRole('button', { name: /^Mine/ })).toBeDefined();
       fireEvent.click(sidebar.getByRole('button', { name: /By warehouse/ }));
 
-      // The analysis view opens in the same workbench: its editor and its
+      // The analysis view opens in the same workbench: its tray and its
       // table replace the record view's, and the frame stays.
       expect(
         await screen.findByRole('heading', { level: 2, name: 'By warehouse' }),
       ).toBeDefined();
-      expect(await screen.findByRole('button', { name: /Run/ })).toBeDefined();
+      expect(
+        await screen.findByRole('button', { name: /^Analysis/ }),
+      ).toBeDefined();
     });
 
     it('lists only the kind a host narrows it to (D9)', async () => {
@@ -503,7 +505,10 @@ describe('DataWorkbench', () => {
     render(<EmbeddedView engine={engine} instanceId="orders-1" />);
 
     await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
-    expect(screen.queryByRole('button', { name: /Run/ })).toBeNull();
+    // No tray and no handle for one: an embedded view is its author's
+    // question, read as it was saved.
+    expect(document.querySelector('[data-slot="analysis-tray"]')).toBeNull();
+    expect(document.querySelector('[data-slot="editor-toggle"]')).toBeNull();
   });
 
   it('shows a dashboard as its grid of panels', async () => {

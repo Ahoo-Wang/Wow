@@ -39,6 +39,7 @@ import {
   ROWS,
   testSource,
 } from './fixtures.js';
+import { openTray } from './fixtures/workbench.js';
 
 /**
  * D12: a function is an icon button, and an icon button says its name on
@@ -278,10 +279,11 @@ describe('every icon-only button says its name on hover', () => {
         />
       </ViewSurface>,
     );
-    // The editor is the fold this workbench opens with, so its rows — a
-    // grouping and a metric, each with a ✕ — are on screen with the result.
+    // A saved view opens folded (D20), so the tray is opened by hand: its
+    // cards — a dimension and a metric, each with a ✕ — are what this
+    // workbench draws that no other does.
     await waitFor(() => expect(screen.getByRole('table')).toBeDefined());
-    expect(screen.getByRole('region', { name: 'Analysis' })).toBeDefined();
+    expect(await openTray()).toBeDefined();
     expect(silent()).toEqual([]);
   });
 

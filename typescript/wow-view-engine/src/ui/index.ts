@@ -23,7 +23,6 @@
 // host drawing its own notice above a view can wear the same face.
 export * from './alerts.js';
 export * from './AnalysisChart.js';
-export * from './AnalysisEditor.js';
 export * from './AnalysisTable.js';
 export * from './AppliedBar.js';
 export * from './BulkOutcome.js';

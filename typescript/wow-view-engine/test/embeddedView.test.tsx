@@ -176,7 +176,10 @@ describe('EmbeddedView', () => {
     render(<EmbeddedView engine={engine} instanceId="orders-1" />);
 
     await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
-    expect(screen.queryByRole('button', { name: /Run/ })).toBeNull();
+    // No tray and no handle for one: an embedded view is its author's
+    // question, read as it was saved.
+    expect(document.querySelector('[data-slot="analysis-tray"]')).toBeNull();
+    expect(document.querySelector('[data-slot="editor-toggle"]')).toBeNull();
   });
 
   it('shows a dashboard as its grid of panels', async () => {

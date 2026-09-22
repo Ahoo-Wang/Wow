@@ -24,6 +24,30 @@ export function editorToggle(): HTMLElement {
 }
 
 /**
+ * The same handle over the analysis view's tray (D20). It carries no mode,
+ * so its name is the content — "Analysis", and the pending count beside it
+ * once the draft says something the last run did not. Addressed through the
+ * group it is the trigger of, so a name that grows does not lose it.
+ */
+export function analysisToggle(): HTMLElement {
+  return within(
+    document.querySelector<HTMLElement>('[data-slot="editor-toggle"]')!,
+  ).getByRole('button');
+}
+
+/** Presses the analysis tray open and answers the tray itself. */
+export async function openTray(): Promise<HTMLElement> {
+  fireEvent.click(await waitFor(analysisToggle));
+  return await waitFor(() => {
+    const tray = document.querySelector<HTMLElement>(
+      '[data-slot="analysis-tray"]',
+    );
+    expect(tray).not.toBeNull();
+    return tray!;
+  });
+}
+
+/**
  * Conditions added the way a user adds them: the field picker is a checklist
  * that stays open while several fields are ticked, and Done is the way out.
  */

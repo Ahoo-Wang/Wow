@@ -1,12 +1,31 @@
 # UI 层：Analysis 视图
 
-分析编辑器、分析表格与图表。三种视图共用的骨架、状态条、值显示与 `FilterPanel` 见 [README.md](README.md)；图表规格见 [model-shapes.md#图表规格](../model-shapes.md#图表规格)，图表校验与整形见 [kernels.md#图表规则](../kernels.md#图表规则)。
+分析托盘、分析表格与图表。三种视图共用的骨架、状态条、值显示与 `FilterPanel` 见 [README.md](README.md)；图表规格见 [model-shapes.md#图表规格](../model-shapes.md#图表规格)，图表校验与整形见 [kernels.md#图表规则](../kernels.md#图表规则)。
+
+## 托盘：范围 → 维度 | 指标，一个应用
+
+分析视图的编辑器是 `ui/analysis/Tray.tsx`（D20 屏 B），位置与形态跟记录视图的筛选面板**完全一样**：折在标题栏「分析」按钮后面，已保存的视图打开时折起、新建的展开，折起时按钮上带「改过没应用」的点（`editorPending`，由 `filter.pendingCount` 与 `analysis.pending` 合成）。结果才是视图的意思，而一个已保存的分析是作者已经决定过的问题——它不该每次打开都先占掉半屏。
+
+- **托盘只装问题，怎么看是结果的事**（D20）。槽按分析师的步骤排，每一个是一个有名字的 `section`（`EditorSlot`，`data-slot="analysis-slot-*"`）：`RangeSlot` 独占第一行——它就是记录视图那块 `FilterPanel`，`submit={false} modes={false}`，只是换了个标题「范围」；下一行是 `DimensionCard` 的「维度 · 按什么比」与 `MetricCard` 的「指标 · 看什么数」两列，窄屏纵向堆叠。**表格｜图表、图型与合计行不在这里**：它们答的是「我怎么看这个结果」，落在结果第一行的 `AnalysisToolbar` 上（下一节）；
+- **没有「简单／高级」两套托盘**（结清 Q2）。更多能力按定义声明长出来，不长出第二套界面。唯一保留的简单／高级是**条件树的语法**（记录视图已有的 `filterMode`），标在范围槽标题右端的一颗 ghost 菜单「条件：简单 ▾」里（`data-slot="conditions-mode"`，装的就是 `FilterModes`）——它管范围，也管将来每个指标自己的条件，所以它属于条件而不属于面板。没有它，`defaultAnalysisConfig` 从 simple 起步的分析视图**永远表达不出 OR、NOR 与嵌套组**，那是少了一种能力，不是少了一个控件；
+- **一个应用，跑整份草稿**（D17-3）。托盘底下是 `FilterActions`，`pending={filter.pending || analysis.pending}`：清空与一颗「应用」。**没有「运行」了**——范围的条件与问题本来就是一份配置，`useAnalysisEditor.submit` 与 `useFilterEditor.submit` 调的是同一个 `runtime.apply()`，两个入口只是逼着屏幕把其中一个降成 `outline`。降级解决不了「哪个按钮跑查询」这个问题，删掉一个才解决。那颗点因此也只有一处：无论改动落在哪个槽，应用上带点，托盘折起时点在标题栏按钮上；
+- **维度卡片**：字段显示名，加上它的类型要的那个控件——字段能被切两种以上时才画类型选择（`label.analysis.grouping-of`），只能切一种就只写那个词（一个改不了的选择不教人任何事，还白占一个 tab 位）；`DATE_HISTOGRAM` 多一个粒度选择（`label.date-unit.*`），`HISTOGRAM` 多一个区间宽度数字框；末尾一颗移除。「+ 添加维度」只列定义声明为可分组的字段，所以点不出一份跑不起来的查询；
+- **指标卡片**：字段显示名加一个「汇总方式」选择——Wow 测量一个字段的六种方式（函数、去重计数、百分位、任一值）在卡片上是**一张单子**（D20 汇总方式），记录数自己一张卡、不带字段。百分位多一个数字框（Wow 的开区间，100 不是百分位、0 不是），最后一条指标的移除按钮禁用（聚合查询至少要一个指标）；
+- **`replaceMetric` 而不是 `updateMetric`**：换汇总方式是**换指标类型**——合计变成去重计数、再变成任一值——`updateMetric` 那种 patch 会把上一形态的 `function` 或 `expression` 留在对象里让准入绊倒。卡片按 `metricOfSummary` 造一个完整的指标整只换掉（别名留着：它是查询的名字，图表与排序都指着它）。`updateMetric` 只用于同一形态里的一个数，比如百分位那个数；
+- **排序与前 N 组**（`SortRow.tsx`，`data-slot="analysis-sort"`）落在指标槽底部：「前 N 组」只有挨着「按什么排」才读得懂。没有维度就整行不画——Wow 拒绝对无分组聚合排序，而它本来就只有一行；
+- **跑不起来的配置从状态行回到托盘**：`errorAction` 是一颗「打开分析」（`label.analysis.open-editor`），因为发现是关于托盘的，而托盘可能正折着（F11）。
+- 纯规则都在 `ui/analysis/editing.ts`（`freeAlias`、`defaultGroup`、`groupOfType`、`summaryOf`、`summaryChoices`、`metricOfSummary`、`defaultMetric`、`fieldOfMetric`），卡片因此只剩标记。（见 test/analysisTray.test.tsx「the analysis tray」「opens a saved view folded, and the toggle opens the tray」「lays the slots out as range, then dimensions beside metrics」「carries one primary button on the screen, and it is Apply」「marks Apply while any slot holds something that has not run」「reaches the condition grammar from the range slot’s heading」「opens the tray from a config that will not run」「the tray’s dimension cards」「the tray’s metric cards」「swaps the whole metric when the summary changes」与 stories/view-engine 的 `TrayFolds`、`TrayEdits`）
+
+## 结果第一行：读法与看法
+
+- **结果的第一行是 `AnalysisToolbar`**（`data-slot="result-toolbar"`，D12 Ⅳ）。左边一句「按 仓库 · 记录数、金额 的 合计」（`label.analysis.reading`，无维度时 `label.analysis.reading-flat`，`data-slot="analysis-reading"`）——下面这些数是什么，按**产生这个结果的那份配置**（`view.schema ?? view.columns`）读出来，不是按正在编辑的草稿；右边是怎么看它：表格｜图表、图型、合计行；
+- **这一行改了就跑**，不等托盘的应用：内核只为跑过的那份配置整形图表（`projectAnalysis` 只在 `layout === 'chart'` 时整形），所以换布局本来就是一次新执行而不是重绘。`setLayout` 自己就带 apply，因此工具栏**不**再给它套一层 `submit()`——套了就是同一个问题发两遍；图型与合计行则是 `change(); analysis.submit()`。（见 test/analysisTray.test.tsx「the analysis result toolbar」「reads the result out as dimensions and metrics」与 test/analysisUi.test.tsx「draws the layout the result was shaped by, not the draft」）
 
 ## AnalysisChart 与 shapeChart
 
 - **布局与图表配置读的是同一处：产生当前结果的那份配置（`ViewResult.config`），不是正在编辑的草稿。** 类目按别名找列取标签，草稿的别名在 Run 之前可能已指向别的列；而布局从前读草稿、图表配置读结果，于是草稿刚切到 chart、结果还是按 table 整形的那一刻，工作台要一张根本没整形过的图，什么也画不出来——一处说了算就不会自相矛盾。图表只画内核已经整形好的数据：透视、合并"其他"、漏斗累计与转化率、热力图矩阵、比较值都在 `shapeChart` 里完成，`AnalysisChart` 只选标记与配色，换一个图表库不触碰任何规则。`AnalysisChart` 按 `spec.colors` 给系列或分类上色，其余按 `--chart-1..5` 顺序取用；
 - 五档色相在亮暗两种模式下各自校过分离度与对比度。热力图与漏斗自绘，用图表库画它们的成本高于收益。`projectAnalysis` 只在 `layout === 'chart'` 时整形图表，因此切换 Table／Chart 是一次新的执行而不是重绘，`useAnalysisEditor.setLayout` 据此直接 apply；
-- 其余改动等 Run，等着的时候 Run 带着筛选面板的 Apply 上那颗点（`data-pending`，`useAnalysisEditor.pending`，基准是整份配置，见 [ui/README.md#三态各有一处凭据](README.md#三态各有一处凭据)），被拒的 Run 同样算没应用。**Run 是 `outline`，不是 primary**（D17-3）：分析的编辑带是筛选面板**加上**分析编辑器，两个提交按钮叠在一屏上，而 `useAnalysisEditor.submit` 与 `useFilterEditor.submit` 调的是同一个 `runtime.apply()`——一次执行的两个入口，所以同屏唯一的 primary 是 Apply（[版式](README.md#版式三块一套间距一种选项控件)），这一条只动分量、不动提交语义。（见 test/analysisChart.test.tsx「AnalysisChart」、test/analysisUi.test.tsx「useAnalysisEditor」「carries one primary button on the screen, and it is Apply」与 test/analysisChart.test.ts「shapeChart」）
+- 托盘里的改动等「应用」，等着的时候那颗点在应用按钮上（`data-pending`，`filter.pending || analysis.pending`，基准是整份配置，见 [ui/README.md#三态各有一处凭据](README.md#三态各有一处凭据)），被拒的应用同样算没应用。**同屏唯一的 primary 就是它**（D17-3，[版式](README.md#版式三块一套间距一种选项控件)）：范围与问题是一份配置、一次 `runtime.apply()`，所以只有一颗按钮跑查询。（见 test/analysisChart.test.tsx「AnalysisChart」、test/analysisUi.test.tsx「useAnalysisEditor」、test/analysisTray.test.tsx「carries one primary button on the screen, and it is Apply」与 test/analysisChart.test.ts「shapeChart」）
 
 ### 一个家族一个文件
 
@@ -47,7 +66,7 @@
 
 ## 刷新落在标题栏
 
-- 分析工作台没有结果工具栏——它的结果是一张表或一张图，不是一排控件——所以刷新那个拆分按钮落在标题栏右组的视图级控件里（`WorkbenchShell` 的 `freshness` 槽），规则与措辞与 Record 的那一个完全相同，见 [README.md#刷新是一个拆分按钮](README.md#刷新是一个拆分按钮)。`QueryStrip` 上的「重试」是失败后的出口，与它不是一回事：一个是出错了再来一次，一个是没出错也每隔一段时间来一次。（见 test/refreshControl.test.tsx「every workbench offers the interval」）
+- 刷新那个拆分按钮落在标题栏右组的视图级控件里（`WorkbenchShell` 的 `freshness` 槽）——它问的是「这一屏多久自己更新一次」，属于视图而不属于结果，所以它与结果工具栏上那几个「我怎么看这个结果」不在一处。规则与措辞与 Record 的那一个完全相同，见 [README.md#刷新是一个拆分按钮](README.md#刷新是一个拆分按钮)。`QueryStrip` 上的「重试」是失败后的出口，与它不是一回事：一个是出错了再来一次，一个是没出错也每隔一段时间来一次。（见 test/refreshControl.test.tsx「every workbench offers the interval」）
 
 ## 被截断的分组要说出来
 

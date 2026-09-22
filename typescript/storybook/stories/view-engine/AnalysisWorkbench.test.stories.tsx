@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 import type { StoryObj } from '@storybook/react-vite';
-import { expect, userEvent, waitFor, within } from 'storybook/test';
+import { expect, screen, userEvent, waitFor, within } from 'storybook/test';
 import { formatMessage, zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 import displayMeta, {
   BarChart as DisplayBarChart,
@@ -420,33 +420,172 @@ export const QueryFailed: Story = {
   },
 };
 
+/** The tray's handle in the title bar; the one button of its group. */
+function trayToggle(canvasElement: HTMLElement): HTMLElement {
+  return within(
+    canvasElement.querySelector<HTMLElement>('[data-slot="editor-toggle"]')!,
+  ).getByRole('button');
+}
+
+const tray = (canvasElement: HTMLElement) =>
+  canvasElement.querySelector<HTMLElement>('[data-slot="analysis-tray"]');
+
+/** Presses the tray open and answers it. */
+async function openTray(canvasElement: HTMLElement): Promise<HTMLElement> {
+  await userEvent.click(trayToggle(canvasElement));
+  await waitFor(() => expect(tray(canvasElement)).not.toBeNull());
+  return tray(canvasElement)!;
+}
+
+/**
+ * The tray folds where the record view's filter panel folds (D20, Q2
+ * settled): a saved view opens folded, the title bar's 「分析」 opens it, and
+ * what is inside is the question — range, dimensions, metrics — under one
+ * Apply. Nothing about *how* the result is looked at is in there.
+ */
+export const TrayFolds: Story = {
+  ...DisplayTableWithTotals,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+
+    await expect(tray(canvasElement)).toBeNull();
+    await expect(trayToggle(canvasElement)).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+
+    const opened = await openTray(canvasElement);
+
+    await expect(
+      [...opened.querySelectorAll('[data-slot^="analysis-slot-"]')].map(slot =>
+        slot.getAttribute('data-slot'),
+      ),
+    ).toEqual([
+      'analysis-slot-range',
+      'analysis-slot-dimensions',
+      'analysis-slot-metrics',
+    ]);
+    for (const name of [
+      zhCN['label.analysis.slot.range'],
+      zhCN['label.analysis.slot.dimensions'],
+      zhCN['label.analysis.slot.metrics'],
+    ])
+      await expect(canvas.getByRole('region', { name })).toBeVisible();
+
+    // One primary on the screen, and it is Apply (D17-3): there is no Run
+    // any more, because the range and the question are one execution. The
+    // fill is what "primary" comes to, so it is read off the pixels here
+    // and nothing else on screen may share it.
+    const apply = within(
+      canvasElement.querySelector<HTMLElement>(
+        '[data-slot="analysis-tray-actions"]',
+      )!,
+    ).getByRole('button', { name: zhCN['label.filter.apply'] });
+    const fill = getComputedStyle(apply).backgroundColor;
+    const sharing = [
+      ...canvasElement.querySelectorAll<HTMLElement>('[data-slot="button"]'),
+    ].filter(button => getComputedStyle(button).backgroundColor === fill);
+    await expect(sharing.map(button => button.textContent?.trim())).toEqual([
+      zhCN['label.filter.apply'],
+    ]);
+  },
+};
+
+/**
+ * The tray edited: a dimension out of the menu, a metric's summary changed,
+ * the toggle wearing the dot while the draft has not run, and one Apply that
+ * runs everything and changes the reading on the result's first row.
+ */
+export const TrayEdits: Story = {
+  ...DisplayTableWithTotals,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    const reading = () =>
+      canvasElement.querySelector<HTMLElement>('[data-slot="analysis-reading"]')
+        ?.textContent;
+    const before = reading();
+
+    const opened = await openTray(canvasElement);
+    await expect(
+      opened.querySelectorAll('[data-slot="dimension-card"]'),
+    ).toHaveLength(1);
+
+    // A dimension from the menu of groupable fields.
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.analysis.add-group'] }),
+    );
+    await userEvent.click(
+      await screen.findByRole('menuitem', { name: '状态' }),
+    );
+    await waitFor(() =>
+      expect(
+        tray(canvasElement)!.querySelectorAll('[data-slot="dimension-card"]'),
+      ).toHaveLength(2),
+    );
+
+    // A metric's summary: one list of the ways Wow can measure the field.
+    const summary = canvas.getByLabelText(
+      formatMessage(zhCN, 'label.analysis.function-of', { name: '金额' }),
+    );
+    await userEvent.click(summary);
+    await userEvent.click(
+      await screen.findByRole('option', { name: zhCN['label.summary.fn.AVG'] }),
+    );
+    await waitFor(() => expect(summary).toHaveTextContent('平均'));
+
+    // Edited, not run: the dot is on the one button that runs it.
+    const apply = within(
+      canvasElement.querySelector<HTMLElement>(
+        '[data-slot="analysis-tray-actions"]',
+      )!,
+    ).getByRole('button', { name: zhCN['label.filter.apply'] });
+    await expect(apply).toHaveAttribute('data-pending');
+
+    await userEvent.click(apply);
+    await waitFor(() => expect(apply).not.toHaveAttribute('data-pending'));
+    // The reading is the result's, so it only moves once the query lands.
+    await waitFor(() => expect(reading()).not.toBe(before));
+  },
+};
+
 /**
  * An analysis view can still reach advanced mode.
  *
- * The mode moved into the title bar's fold for the two workbenches whose
- * only editor is the condition panel. This one's editor is that panel *and*
- * the aggregation editor, so it has no such fold and the panel keeps its own
- * control. Without it, `defaultAnalysisConfig` starting at simple would mean
- * an analysis view could never express OR, NOR or a nested group at all —
- * which is a capability lost, not a tidier screen.
+ * There is no simple/advanced *tray* (D20): capability grows out of the
+ * slots. The one simple/advanced left is the grammar of the condition tree,
+ * and it is stated where the conditions are — a ghost menu in the range
+ * slot's heading. Without it, `defaultAnalysisConfig` starting at simple
+ * would mean an analysis view could never express OR, NOR or a nested group
+ * at all — a capability lost, not a tidier screen.
  */
 export const ReachesAdvancedMode: Story = {
   ...DisplayTableWithTotals,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByRole('table');
+    await openTray(canvasElement);
 
-    const panel = canvas.getByRole('region', {
-      name: zhCN['label.filter.panel'],
-    });
+    const range = () =>
+      canvas.getByRole('region', {
+        name: zhCN['label.analysis.slot.range'],
+      });
     await expect(
-      within(panel).queryByRole('group', {
+      within(range()).queryByRole('group', {
         name: zhCN['label.filter.all-conditions'],
       }),
     ).toBeNull();
 
     await userEvent.click(
-      within(panel).getByRole('button', {
+      within(range()).getByRole('button', {
+        name: formatMessage(zhCN, 'label.analysis.conditions-mode', {
+          mode: zhCN['label.filter.simple'],
+        }),
+      }),
+    );
+    await userEvent.click(
+      await screen.findByRole('menuitemradio', {
         name: zhCN['label.filter.advanced'],
       }),
     );
@@ -454,11 +593,7 @@ export const ReachesAdvancedMode: Story = {
     // Advanced draws the root as a group, which is what carries the operator.
     await waitFor(() =>
       expect(
-        within(
-          canvas.getByRole('region', {
-            name: zhCN['label.filter.panel'],
-          }),
-        ).getByRole('group', {
+        within(range()).getByRole('group', {
           name: zhCN['label.filter.all-conditions'],
         }),
       ).toBeVisible(),
@@ -467,30 +602,30 @@ export const ReachesAdvancedMode: Story = {
 };
 
 /**
- * The step between the editor's group and metric rows, measured.
- *
- * `AnalysisEditor` draws them in a vendored `FieldGroup`, which carries its
- * own `gap-5`: 20px, a step that is on none of the four the package uses,
- * and wider than the 16px that separates two whole blocks of the main
- * column — a block's own rows stood further apart than the blocks did.
- * `ui/components/**` is upstream's and is not edited by hand, so the seam is
- * closed at the call site.
+ * The steps between the tray's parts, measured.
  *
  * jsdom applies no stylesheet and so can only pin the class the call site
- * passes (`test/analysisUi.test.tsx`); the pixels are this project's to read.
+ * passes (`test/analysisTray.test.tsx`); the pixels are this project's to
+ * read. The ruler (`ui/README.md`): a slot's cards stand 8px apart, the
+ * slots 12px, and the two columns are two blocks at 16px.
  */
 export const EditorRowSpacing: Story = {
   ...DisplayTableWithTotals,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByRole('table');
+    const opened = await openTray(canvasElement);
 
-    const editor = canvas.getByRole('region', {
-      name: zhCN['label.analysis.editor'],
-    });
-    const rows = editor.querySelector<HTMLElement>(
-      '[data-slot="field-group"]',
-    )!;
-    await expect(getComputedStyle(rows).rowGap).toBe('12px');
+    await expect(getComputedStyle(opened).rowGap).toBe('12px');
+    await expect(
+      getComputedStyle(opened.querySelector<HTMLElement>('.grid')!).columnGap,
+    ).toBe('16px');
+    await expect(
+      getComputedStyle(
+        opened.querySelector<HTMLElement>(
+          '[data-slot="analysis-slot-metrics"]',
+        )!,
+      ).rowGap,
+    ).toBe('8px');
   },
 };

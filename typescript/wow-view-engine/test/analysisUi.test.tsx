@@ -12,11 +12,6 @@
  */
 
 import {
-  AggregationDateUnit,
-  AggregationFunction,
-  AggregationGroupType,
-} from '@ahoo-wang/fetcher-wow';
-import {
   act,
   cleanup,
   fireEvent,
@@ -38,9 +33,7 @@ import {
   type ViewSource,
 } from '../src/index.js';
 import { useAnalysisEditor, useOpenView } from '../src/react/index.js';
-import { DataWorkbench, defaultMessages, zhCN } from '../src/ui/index.js';
-import type { ViewMessages } from '../src/ui/index.js';
-import { SPACE } from '../src/ui/layout.js';
+import { DataWorkbench, defaultMessages } from '../src/ui/index.js';
 import {
   DRAWN,
   ZONE,
@@ -50,6 +43,7 @@ import {
   ordersDefinition,
   testSource,
 } from './fixtures.js';
+import { openTray } from './fixtures/workbench.js';
 import { landed, tracked } from './fixtures/writes.js';
 
 afterEach(cleanup);
@@ -243,11 +237,11 @@ describe('useAnalysisEditor', () => {
   });
 
   /**
-   * Everything in this editor waits for Run, and until then the table and
+   * Everything in the tray waits for Apply, and until then the table and
    * the chart answer the previous configuration. D17-6: that is "changed,
    * not applied", read off the whole draft against what ran.
    */
-  it('reports the draft as pending until Run', async () => {
+  it('reports the draft as pending until it is applied', async () => {
     const result = await editor();
     const analysis = () => result.current.analysis;
     expect(analysis().pending).toBe(false);
@@ -283,294 +277,6 @@ describe('useAnalysisEditor', () => {
   });
 });
 
-/** A capability that declares one of everything, so every default is reachable. */
-function richDefinition() {
-  return ordersDefinition({
-    fields: [
-      { name: 'id', label: 'Order', kind: 'string' },
-      { name: 'warehouse', label: 'Warehouse', kind: 'string' },
-      { name: 'createdAt', label: 'Created', kind: 'datetime' },
-      { name: 'amount', label: 'Amount', kind: 'number' },
-      { name: 'customer', label: 'Customer', kind: 'string' },
-      { name: 'note', label: 'Note', kind: 'string' },
-    ],
-    analysis: {
-      count: true,
-      fields: [
-        {
-          field: 'warehouse',
-          groups: [AggregationGroupType.TERMS],
-          functions: [],
-        },
-        {
-          field: 'createdAt',
-          groups: [AggregationGroupType.DATE_HISTOGRAM],
-          functions: [],
-          dateUnits: [AggregationDateUnit.MONTH],
-        },
-        {
-          field: 'amount',
-          groups: [AggregationGroupType.HISTOGRAM],
-          functions: [AggregationFunction.SUM, AggregationFunction.AVG],
-        },
-        {
-          field: 'customer',
-          groups: [],
-          functions: [],
-          distinctCount: true,
-        },
-        { field: 'note', groups: [], functions: [], any: true },
-      ],
-    },
-  });
-}
-
-describe('AnalysisEditor defaults', () => {
-  async function open(messages?: ViewMessages) {
-    const store = tracked(new MemoryViewStore({ instances: [analysisView] }));
-    const engine = new ViewEngine({
-      definitions: [richDefinition()],
-      store,
-      resolveSource: () => testSource(),
-    });
-    render(
-      <DataWorkbench
-        engine={engine}
-        definitionId="orders"
-        instanceId="orders-1"
-        messages={messages}
-        kinds={['analysis']}
-      />,
-    );
-    await waitFor(() => expect(screen.getByRole('table')).toBeDefined());
-  }
-
-  async function add(menu: RegExp, item: string) {
-    fireEvent.click(screen.getByRole('button', { name: menu }));
-    fireEvent.click(await screen.findByRole('menuitem', { name: item }));
-  }
-
-  /** The Run button wears the dot the filter panel's Apply wears (D17-6). */
-  it('marks Run while the draft has not run', async () => {
-    await open();
-    const run = () =>
-      screen.getByRole('button', {
-        name: defaultMessages['label.analysis.run'],
-      });
-    expect(run().hasAttribute('data-pending')).toBe(false);
-
-    fireEvent.click(
-      screen.getByRole('checkbox', {
-        name: defaultMessages['label.analysis.totals'],
-      }),
-    );
-    expect(run().hasAttribute('data-pending')).toBe(true);
-    expect(run().querySelector('[data-slot="pending-dot"]')).not.toBeNull();
-
-    fireEvent.click(run());
-    await waitFor(() => expect(run().hasAttribute('data-pending')).toBe(false));
-  });
-
-  /**
-   * The group and metric rows are rows inside a block, so they take the
-   * ruler's row step.
-   *
-   * Vendored `FieldGroup` carries `gap-5` — 20px, which is not one of the
-   * four steps and is wider than the 16px between two whole blocks, so a
-   * block's own rows stood further apart than the blocks did. The seam is
-   * closed at the call site because `ui/components/**` is upstream's.
-   *
-   * jsdom applies no stylesheet, so what is pinned here is the class the
-   * call site passes; the 12px it resolves to is measured in the browser
-   * project (`stories/view-engine/DataWorkbench.test.stories.tsx`,
-   * `EditorRowSpacing`).
-   */
-  it('puts the ruler’s row step between the editor rows', async () => {
-    await open();
-
-    const editor = screen.getByRole('region', { name: 'Analysis' });
-    const rows = editor.querySelector<HTMLElement>(
-      '[data-slot="field-group"]',
-    )!;
-    expect(rows.classList.contains(SPACE.ROWS)).toBe(true);
-    expect(rows.classList.contains('gap-5')).toBe(false);
-  });
-
-  it('starts each group at the shape its capability allows', async () => {
-    await open();
-
-    await add(/Add dimension/, 'Created');
-    expect(
-      (await screen.findByLabelText('Dimension settings for Created'))
-        .textContent,
-    ).toContain('By time unit');
-
-    await add(/Add dimension/, 'Amount');
-    expect(
-      (await screen.findByLabelText('Dimension settings for Amount'))
-        .textContent,
-    ).toContain('By number range');
-  });
-
-  /**
-   * The editor used to label these three controls with the identifier itself
-   * — `bar`, `terms`, `sum` — so a host that handed over `zhCN` still got an
-   * English analysis editor. They read the catalogue now, which is the only
-   * place a translation can come from. The names are the field's display
-   * name, never its alias (D20): `amount_1` names the query.
-   */
-  it('translates the chart type, the dimension and the summary with zhCN', async () => {
-    await open(zhCN);
-
-    expect(screen.getByLabelText('图型').textContent).toContain('柱状图');
-    expect(screen.getByLabelText('Warehouse 的维度设置').textContent).toContain(
-      '按值',
-    );
-
-    await add(/添加指标/, 'Amount');
-    expect(
-      (await screen.findByLabelText('Amount 的汇总方式')).textContent,
-    ).toContain('合计');
-  });
-
-  it('picks the metric shape each field can support', async () => {
-    await open();
-
-    // A field with functions gets a NUMERIC metric, which is the only shape
-    // that offers a function to choose.
-    await add(/Add metric/, 'Amount');
-    expect(await screen.findByLabelText('Summary for Amount')).toBeDefined();
-
-    await add(/Add metric/, 'Customer');
-    await screen.findByRole('button', { name: 'Remove metric Customer' });
-    expect(screen.queryByLabelText('Summary for Customer')).toBeNull();
-
-    await add(/Add metric/, 'Note');
-    await screen.findByRole('button', { name: 'Remove metric Note' });
-    expect(screen.queryByLabelText('Summary for Note')).toBeNull();
-  });
-
-  it('adds the record count when the definition allows counting', async () => {
-    await open();
-
-    await add(/Add metric/, 'Record count');
-
-    // Named by what it counts, not by the alias the query carries.
-    expect(
-      await screen.findAllByRole('button', {
-        name: 'Remove metric Record count',
-      }),
-    ).toHaveLength(2);
-  });
-
-  it('changes a metric summary and removes rows again', async () => {
-    const user = userEvent.setup();
-    await open();
-
-    await add(/Add metric/, 'Amount');
-    await user.click(await screen.findByLabelText('Summary for Amount'));
-    await user.click(await screen.findByRole('option', { name: 'Average' }));
-    await waitFor(() =>
-      expect(screen.getByLabelText('Summary for Amount').textContent).toContain(
-        'Average',
-      ),
-    );
-
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Remove metric Amount' }),
-    );
-    await waitFor(() =>
-      expect(
-        screen.queryByRole('button', { name: 'Remove metric Amount' }),
-      ).toBeNull(),
-    );
-
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Remove dimension Warehouse' }),
-    );
-    await waitFor(() =>
-      expect(
-        screen.queryByRole('button', { name: 'Remove dimension Warehouse' }),
-      ).toBeNull(),
-    );
-  });
-
-  /**
-   * Numbering by the row count reused a name the moment a row was removed:
-   * two metrics called `amount_2`, which React saw as one key and validation
-   * reported as a duplicate alias.
-   *
-   * The alias is no longer on screen — a control is named by the field's
-   * display name (D20) — so the collision is asked for where it would land:
-   * two metrics of one field are two rows, and running them reports nothing
-   * about a name used twice.
-   */
-  it('names a new row by the first free alias, not by the row count', async () => {
-    await open();
-    const removals = () =>
-      screen.queryAllByRole('button', { name: 'Remove metric Amount' });
-
-    await add(/Add metric/, 'Amount');
-    await add(/Add metric/, 'Amount');
-    await waitFor(() => expect(removals()).toHaveLength(2));
-
-    fireEvent.click(removals()[0]);
-    await waitFor(() => expect(removals()).toHaveLength(1));
-
-    // The freed name comes back rather than colliding with the kept row's.
-    await add(/Add metric/, 'Amount');
-    await waitFor(() => expect(removals()).toHaveLength(2));
-
-    fireEvent.click(screen.getByRole('button', { name: /Run/ }));
-    await waitFor(() => expect(screen.queryByText(/is used twice/)).toBeNull());
-  });
-
-  it('refuses to remove the only metric', async () => {
-    await open();
-
-    expect(
-      (
-        screen.getByRole('button', {
-          name: 'Remove metric Record count',
-        }) as HTMLButtonElement
-      ).disabled,
-    ).toBe(true);
-  });
-
-  it('takes a row limit and a totals request', async () => {
-    const source = testSource();
-    const store = tracked(new MemoryViewStore({ instances: [analysisView] }));
-    const engine = new ViewEngine({
-      definitions: [richDefinition()],
-      store,
-      resolveSource: () => source,
-    });
-    render(
-      <DataWorkbench
-        engine={engine}
-        definitionId="orders"
-        instanceId="orders-1"
-        kinds={['analysis']}
-      />,
-    );
-    await waitFor(() => expect(screen.getByRole('table')).toBeDefined());
-
-    fireEvent.change(screen.getByLabelText('Top N groups'), {
-      target: { value: '25' },
-    });
-    // Named by the word beside it rather than by an `aria-label` of its own.
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Totals row' }));
-    fireEvent.click(screen.getByRole('button', { name: /Run/ }));
-
-    await waitFor(() => {
-      const calls = vi.mocked(source.aggregate).mock.calls;
-      // Totals run their own ungrouped query, which carries no limit.
-      expect(calls.some(call => call[0].limit === 25)).toBe(true);
-      expect(calls.some(call => call[0].limit === undefined)).toBe(true);
-    });
-  });
-});
-
 describe('DataWorkbench', () => {
   async function open(source: ViewSource = testSource()) {
     const harness = setup(source);
@@ -584,6 +290,15 @@ describe('DataWorkbench', () => {
     );
     await waitFor(() => expect(screen.getByRole('table')).toBeDefined());
     return harness;
+  }
+
+  /** The tray's one submit: Apply runs the range and the question together. */
+  function apply(): HTMLElement {
+    return within(
+      document.querySelector<HTMLElement>(
+        '[data-slot="analysis-tray-actions"]',
+      )!,
+    ).getByRole('button', { name: defaultMessages['label.filter.apply'] });
   }
 
   /**
@@ -619,6 +334,10 @@ describe('DataWorkbench', () => {
    * one that produced the result on screen. Taken from the draft, a layout
    * switched before its query answered asked for a chart of a result shaped
    * as a table, and there was nothing to draw.
+   *
+   * The switch lives on the result's toolbar now and applies at once (D20),
+   * which does not close the gap: a query takes time, and what is on screen
+   * until it lands is still the table the last query was shaped as.
    */
   it('draws the layout the result was shaped by, not the draft', async () => {
     const pending = deferred<Record<string, unknown>[]>();
@@ -666,67 +385,15 @@ describe('DataWorkbench', () => {
     );
   });
 
-  /**
-   * The analysis editor is the condition panel *and* the aggregation
-   * editor, so there is no one fold to hang the mode on — the panel keeps
-   * its own. Without it an analysis view could never reach OR, NOR or a
-   * nested group, because `defaultAnalysisConfig` starts at simple.
-   */
-  it('reaches advanced mode from the panel, which keeps the control', async () => {
-    await open();
-
-    const panel = screen.getByRole('region', { name: 'Filter' });
-    expect(
-      within(panel).queryByRole('group', { name: 'All conditions' }),
-    ).toBeNull();
-
-    fireEvent.click(within(panel).getByRole('button', { name: 'Advanced' }));
-
-    // Advanced draws the root as a group, which is what carries the
-    // operator an analysis view would otherwise have no way to set.
-    await waitFor(() =>
-      expect(
-        within(screen.getByRole('region', { name: 'Filter' })).getByRole(
-          'group',
-          { name: 'All conditions' },
-        ),
-      ).toBeDefined(),
-    );
-  });
-
-  /**
-   * D17-3. The analysis editor is the filter panel *and* the aggregation
-   * editor, so two submit buttons stand on one screen; they are one
-   * execution — both `submit`s call `runtime.apply()` — so only one of them
-   * is a primary, and it is Apply.
-   *
-   * **Surviving class assertions.** Emphasis is a fill and nothing else —
-   * there is no state on a button that says "this one is the primary", and
-   * a `variant` is not reflected on the element — so the variant's class is
-   * the only witness jsdom has. What the fills come to is measured in the
-   * browser.
-   */
-  it('carries one primary button on the screen, and it is Apply', async () => {
-    await open();
-
-    const primary = Array.from(
-      document.querySelectorAll<HTMLElement>('[data-slot="button"]'),
-    ).filter(button => button.classList.contains('bg-primary'));
-
-    expect(primary.map(button => button.textContent?.trim())).toEqual([
-      'Apply',
-    ]);
-    expect(
-      screen
-        .getByRole('button', { name: /Run/ })
-        .classList.contains('border-border'),
-    ).toBe(true);
-  });
-
   it('opens an analysis view and shows its table', async () => {
     await open();
 
-    expect(screen.getByRole('button', { name: /Run/ })).toBeDefined();
+    // The tray is folded away — a saved view's author has already decided
+    // what it asks — so what says this is an analysis view is its result.
+    expect(document.querySelector('[data-slot="analysis-tray"]')).toBeNull();
+    expect(
+      document.querySelector('[data-slot="analysis-reading"]')?.textContent,
+    ).toBe('By Warehouse · Record count');
     expect(
       screen.getByRole('columnheader', { name: 'Warehouse' }),
     ).toBeDefined();
@@ -926,19 +593,19 @@ describe('DataWorkbench', () => {
 
   it('holds the timer while the editor has focus', async () => {
     const { engine } = await open();
+    await openTray();
     const runtime = engine.openRuntimes()[0];
     const limit = screen.getByLabelText('Top N groups');
-    const run = screen.getByRole('button', { name: /Run/ });
 
     fireEvent.focus(limit, { relatedTarget: null });
     expect(runtime.getSnapshot().editing).toBe(true);
 
-    // Between two controls of the editor: still editing.
-    fireEvent.blur(limit, { relatedTarget: run });
-    fireEvent.focus(run, { relatedTarget: limit });
+    // Between two controls of the tray: still editing.
+    fireEvent.blur(limit, { relatedTarget: apply() });
+    fireEvent.focus(apply(), { relatedTarget: limit });
     expect(runtime.getSnapshot().editing).toBe(true);
 
-    fireEvent.blur(run, { relatedTarget: document.body });
+    fireEvent.blur(apply(), { relatedTarget: document.body });
     expect(runtime.getSnapshot().editing).toBe(false);
   });
 
@@ -953,18 +620,14 @@ describe('DataWorkbench', () => {
         kinds={['analysis']}
       />,
     );
+    await openTray();
     const limit = (await screen.findByLabelText(
       'Top N groups',
     )) as HTMLInputElement;
 
     // The result is still coming; the inputs are not frozen for it.
     expect(limit.disabled).toBe(false);
-    expect(
-      screen.getByRole('button', { name: /Run/ }).hasAttribute('disabled'),
-    ).toBe(false);
-    expect(
-      screen.getByRole('button', { name: /Apply/ }).hasAttribute('disabled'),
-    ).toBe(false);
+    expect(apply().hasAttribute('disabled')).toBe(false);
 
     waiting.resolve([{ warehouse: 'CN', orders: 2, amount_sum: 30 }]);
     await waitFor(() => expect(screen.getByRole('table')).toBeDefined());
@@ -972,12 +635,13 @@ describe('DataWorkbench', () => {
 
   it('adds a metric from what the capability offers', async () => {
     const { source } = await open();
+    await openTray();
 
     fireEvent.click(screen.getByRole('button', { name: /Add metric/ }));
     fireEvent.click(
       await screen.findByRole('menuitem', { name: 'Record count' }),
     );
-    fireEvent.click(screen.getByRole('button', { name: /Run/ }));
+    fireEvent.click(apply());
 
     await waitFor(() => {
       const calls = vi.mocked(source.aggregate).mock.calls;
@@ -1009,8 +673,9 @@ describe('DataWorkbench', () => {
           .mockRejectedValue(new Error('gateway down')),
       }),
     );
+    await openTray();
 
-    fireEvent.click(screen.getByRole('button', { name: /Run/ }));
+    fireEvent.click(apply());
 
     await waitFor(() =>
       expect(

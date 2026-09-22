@@ -175,9 +175,10 @@ useAnalysisEditor(runtime): AnalysisController
 useDashboard(runtime): DashboardController
 ```
 
+- `AnalysisController` 改一条指标有**两个**动作，差别是形态变不变：`updateMetric(index, patch)` 打补丁，只用在同一形态里换一个数（百分位那个数）；`replaceMetric(index, metric)` 整只换掉，用在**换汇总方式**——合计变成去重计数、再变成任一值，那是换指标类型，补丁会把上一形态的 `function` 或 `expression` 留在对象里让准入绊倒。别名由调用处带进新指标：它是查询的名字，图表与排序都指着它。维度那边同理，`groupOfType` 造一个完整的维度交给 `updateGroup`；
 - `DashboardController.loading` 是「任一面板的查询在途」，由控制器自己订阅各个子 runtime 得来：仪表盘不跑自己的查询（`state.query` 恒为 `idle`），而子 runtime 的查询变化**不会**通知仪表盘的订阅者——那是有意的，否则每个面板每次请求都要让整张栅格重渲染——所以栅格之外还要知道这件事的控件（刷新按钮）只能由这里代为订阅。它与 `DashboardViewRuntime` 自己的计时器开火前问的是同一件事。
 
-两者的界面规则见 [ui/analysis.md](ui/analysis.md) 与 [ui/dashboard.md](ui/dashboard.md)。
+两者的界面规则见 [ui/analysis.md](ui/analysis.md) 与 [ui/dashboard.md](ui/dashboard.md)。（见 test/analysisTray.test.tsx「swaps the whole metric when the summary changes」）
 
 ## useAutoRefresh
 

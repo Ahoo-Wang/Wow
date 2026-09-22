@@ -27,12 +27,13 @@ import {
   type WorkbenchController,
 } from '../../react/index.js';
 import { AnalysisChart } from '../AnalysisChart.js';
-import { AnalysisEditor } from '../AnalysisEditor.js';
 import { AnalysisTable } from '../AnalysisTable.js';
+import { AnalysisToolbar } from '../analysis/AnalysisToolbar.js';
+import { Tray } from '../analysis/Tray.js';
+import { Button } from '../components/button.js';
 import { DrillMenu, type Pick } from '../analysis/DrillMenu.js';
 import { AnalysisEmpty } from '../analysis/EmptyResult.js';
 import { useAnnouncer } from '../Announcer.js';
-import { FilterPanel } from '../FilterPanel.js';
 import type { ViewMessages } from '../messages.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { NO_PARTS, type RenderParts } from './parts.js';
@@ -168,15 +169,49 @@ export function AnalysisParts({
     say(sentence);
   }, [say, sentence]);
 
+  // The tray's fold, held here only so a config that will not run can open
+  // it from the status line (F11). Tagged with the runtime it was set for
+  // and handed to the shell, which owns the fold otherwise.
+  const runtimeId = runtime?.id ?? null;
+  const [fold, setFold] = useState<{ id: string | null; open: boolean } | null>(
+    null,
+  );
+
   if (!runtime) return children(NO_PARTS);
   return children({
+    // The tray folds under the title bar's "Analysis" button, exactly where
+    // the record view's "Filter" folds (D20): a saved view opens folded,
+    // a new one opens out.
+    editorLabel: messages.label('label.analysis.editor'),
+    editorOpen: fold?.id === runtimeId ? fold.open : undefined,
+    onEditorOpenChange: open => setFold({ id: runtimeId, open }),
+    // Edited, not run — whichever slot holds the change: the toggle wears
+    // the dot while the tray is folded away.
+    //
+    // `filter.pendingCount` is already the count over the *whole* config
+    // (`comparePending(draft, applied)`), dimensions and metrics included,
+    // so nothing is added for the question's half: adding `analysis.pending`
+    // on top said "3 not applied" for the one dimension that had been added,
+    // and a count nobody can match to what they did is worse than no count.
+    editorPending: filter.pendingCount,
     /* Not frozen while a query runs: editing never re-queries, and a refresh
        that lands mid-edit must not take the inputs away. */
     editor: (
-      <>
-        <FilterPanel filter={filter} optionsFor={optionsFor} />
-        <AnalysisEditor analysis={analysis} />
-      </>
+      <Tray filter={filter} analysis={analysis} optionsFor={optionsFor} />
+    ),
+    // The way out of a config that will not run: the tray, which is where
+    // the finding is about (F11).
+    errorAction: (
+      <Button
+        variant="outline"
+        size="xs"
+        onClick={() => setFold({ id: runtimeId, open: true })}
+      >
+        {messages.label('label.analysis.open-editor')}
+      </Button>
+    ),
+    toolbar: view && view.rows.length > 0 && (
+      <AnalysisToolbar analysis={analysis} view={view} />
     ),
     result: view && (
       <>

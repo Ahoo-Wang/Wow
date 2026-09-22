@@ -47,7 +47,7 @@ pnpm --filter @ahoo-wang/fetcher-view-engine lint:check
 
 - Vitest in the **jsdom** environment, with `clearMocks` and `restoreMocks`
 - **No `globals: true`** — unlike the other packages here, import `describe`, `it`, `expect`, `vi` from `vitest` explicitly
-- Test files live in `test/` at the package root, named by subject rather than mirroring `src/` one-to-one. Fixtures shared by several suites sit beside them: `test/fixtures.ts` for definitions, configs and sources, `test/fixtures/ui.tsx` for what the UI suites open — every `RecordTableController` a suite renders is built from its `recordTableController` / `twoColumnTable` with only what that suite varies passed in, so no suite re-declares the forty members and none reaches for `as unknown as`, `test/fixtures/manager.tsx` for the view-manager harness two suites share, `test/fixtures/workbench.ts` for the gestures the record-workbench suites share, `test/fixtures/dashboard.ts` for the dashboard the grid and the workbench suites both open, `test/fixtures/writes.ts` for `tracked`/`landed` (a suite waits for the write a gesture caused, then reads the store once — never polls it), `test/fixtures/{analysis,columns,filter,hooks}.ts` for the rest
+- Test files live in `test/` at the package root, named by subject rather than mirroring `src/` one-to-one. Fixtures shared by several suites sit beside them: `test/fixtures.ts` for definitions, configs and sources, `test/fixtures/ui.tsx` for what the UI suites open — every `RecordTableController` a suite renders is built from its `recordTableController` / `twoColumnTable` with only what that suite varies passed in, so no suite re-declares the forty members and none reaches for `as unknown as`, `test/fixtures/manager.tsx` for the view-manager harness two suites share, `test/fixtures/workbench.ts` for the gestures the workbench suites share (the filter fold's handle and its field picker, the analysis tray's handle and `openTray`), `test/fixtures/dashboard.ts` for the dashboard the grid and the workbench suites both open, `test/fixtures/writes.ts` for `tracked`/`landed` (a suite waits for the write a gesture caused, then reads the store once — never polls it), `test/fixtures/{analysis,columns,filter,hooks}.ts` for the rest
 - `@` resolves to `src/`
 - **Coverage thresholds are enforced**: statements 95, branches 91, functions 97, lines 96. `src/ui/components/**`, `src/ui/lib/**` and `src/styles.ts` are excluded — they are vendored from the shadcn registry and are upstream's to test
 - **A jsdom suite asserts what a class _means_, not how it is spelled** (A-09). A `className` assertion proves nothing about the screen — jsdom loads no stylesheet and lays nothing out — and it turns red wholesale the moment a colour or a recipe moves into a `cva`. So state is said **on the element** and read back from there: `data-pin` / `data-pin-edge` / `data-pin-index` / `data-sticky` / `data-overflowing` for the table's sticky chrome, `data-tone` for a toned badge, alert or destructive answer, `aria-current`, `aria-pressed`, `data-default`, `data-released`, `data-scrolls`, `data-invalid`, a role, an accessible name, a `title`, or an inline style jsdom really computes. Where a component writes no such attribute and the class is the only witness, **add the attribute** rather than keep the assertion. Three files are the deliberate homes of the remaining class assertions, because in each the class string _is_ the contract: `test/pinnedColumns.test.tsx` ("the sticky chrome recipe") for `ui/record/sticky.ts`, `test/variants.test.tsx` for the cva wrappers of D16-8, and `test/popups.test.tsx` for our copy of each popup's registry markup. Elsewhere a surviving assertion is marked **surviving class assertion** with its reason — a pure declaration with no state behind it (a length, a grid template, a border model, `sr-only`, a `:hover` fill), whose pixels a browser story measures instead
@@ -239,7 +239,6 @@ src/
       releaseDeleted.ts       — Lets a workbench's pinned id go once the view is deleted
   ui/                         — Default look; may import every layer
     AnalysisChart.tsx         — Dispatches by chart family; nothing else
-    AnalysisEditor.tsx        — What to group by, what to measure, and how to draw it
     AnalysisTable.tsx         — The aggregation as a table: groups first, then metrics, with the totals row from its own ungrouped query rather than from summing what is on screen
     Announcer.tsx             — `useAnnouncer`: one live region per surface, handed back rather than rendered by the caller
     AppliedBar.tsx            — The conditions the rows on screen were fetched under
@@ -303,8 +302,16 @@ src/
     variants.tsx              — The colours, edges and shapes a vendored component does not ship, in one place (D16-8); `TableDataRow` holds a record row's three states
     index.ts                  — The `/ui` entry: the default look, built on shadcn/ui with Base UI primitives
     analysis/                 — What the analysis view is made of
+      AnalysisToolbar.tsx     — The result's first row: the reading (dimensions · metrics) and how the result is looked at — table or chart, chart type, totals row
+      CompactSelect.tsx       — The one select a tray card carries: a named choice among a few words
+      DimensionCard.tsx       — The dimensions slot and its cards: field, and the control its type asks for (granularity, band width)
       DrillMenu.tsx           — The follow-up menu on one group of a result: the records behind it, split by another dimension, only this group (D20 追问); anchored to the mark or row pressed
       EmptyResult.tsx         — An aggregation that matched no group, one sentence for both layouts
+      MetricCard.tsx          — The metrics slot and its cards: field and summary (the six ways Wow measures a field as one list), a percentile's number, the record count
+      RangeSlot.tsx           — The tray's first slot: the condition panel under a heading that holds the tree's simple/advanced switch
+      SortRow.tsx             — The bottom of the metrics slot: what the first N groups are the first N of
+      Tray.tsx                — The analysis view's editor: range → dimensions | metrics, one Apply for the whole draft (D20)
+      editing.ts              — What the tray builds when a field is picked: default dimension and metric, the summary choice a card shows and the metric it swaps in
     charts/                   — One file per family, plus what they share
       Cartesian.tsx           — Which axis carries the numbers
       ChartReading.tsx        — The chart's numbers as a table, for whoever cannot see the marks

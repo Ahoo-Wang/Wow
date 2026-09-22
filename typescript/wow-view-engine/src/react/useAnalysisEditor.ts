@@ -78,6 +78,13 @@ export interface AnalysisEditorController {
   removeGroup(index: number): void;
   addMetric(metric: AnalysisMetric): void;
   updateMetric(index: number, patch: Partial<AnalysisMetric>): void;
+  /**
+   * Puts a whole metric in a row's place. A change of summary is a change
+   * of type — a sum becomes a distinct count — and a patch over the old
+   * shape would leave its `function` or `expression` behind for admission
+   * to trip over; the card builds the new metric and swaps it in.
+   */
+  replaceMetric(index: number, metric: AnalysisMetric): void;
   /** Refuses the last metric: an aggregation query needs at least one. */
   removeMetric(index: number): void;
   setSort(sort: AnalysisSort[]): void;
@@ -273,6 +280,16 @@ export function useAnalysisEditor(
           groups: current.groups,
           metrics: current.metrics.map((metric, at) =>
             at === index ? ({ ...metric, ...patch } as AnalysisMetric) : metric,
+          ) as AnalysisViewConfig['metrics'],
+        })),
+      [reshape],
+    ),
+    replaceMetric: useCallback(
+      (index: number, metric: AnalysisMetric) =>
+        reshape(current => ({
+          groups: current.groups,
+          metrics: current.metrics.map((entry, at) =>
+            at === index ? metric : entry,
           ) as AnalysisViewConfig['metrics'],
         })),
       [reshape],

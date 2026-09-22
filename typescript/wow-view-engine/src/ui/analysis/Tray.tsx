@@ -1,0 +1,85 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import type { FieldOption } from '../../model/index.js';
+import type {
+  AnalysisEditorController,
+  FilterEditorController,
+} from '../../react/index.js';
+import { cn } from 'cn';
+import { crossesBoundary, leavesEditor } from '../FilterPanel.js';
+import { FilterActions } from '../filter/FilterActions.js';
+import { SPACE } from '../layout.js';
+import { useViewMessages } from '../MessagesProvider.js';
+import { DimensionSlot } from './DimensionCard.js';
+import { MetricSlot } from './MetricCard.js';
+import { RangeSlot } from './RangeSlot.js';
+
+export interface TrayProps {
+  filter: FilterEditorController;
+  analysis: AnalysisEditorController;
+  optionsFor?(remote: string): FieldOption[] | undefined;
+  disabled?: boolean;
+}
+
+/**
+ * The analysis view's editor: the question itself, in the analyst's order
+ * (D20) — the range, then the dimensions beside the metrics. Each slot is a
+ * named `section`; the range takes the first row because it is the record
+ * view's own condition panel, applied as it is there, and the other two
+ * share the row below. Narrow, the slots stack.
+ *
+ * One footer runs the whole draft: the range's conditions and the question
+ * are one config, and `runtime.apply` runs it once, so the one primary on
+ * the screen is Apply (D17-3). How the result is looked at — table or
+ * chart, and which chart — is not in here: it is the result's, on its
+ * toolbar and in the visualization panel (D20).
+ */
+export function Tray({ filter, analysis, optionsFor, disabled }: TrayProps) {
+  const messages = useViewMessages();
+  return (
+    <section
+      data-slot="analysis-tray"
+      aria-label={messages.label('label.analysis.editor')}
+      className={cn('flex flex-col', SPACE.ROWS)}
+      // Auto-refresh holds while a control in here has focus, as in the
+      // filter panel; a move between two controls inside is neither.
+      onFocus={event => {
+        if (crossesBoundary(event)) analysis.focus();
+      }}
+      onBlur={event => {
+        if (leavesEditor(event)) analysis.blur();
+      }}
+    >
+      <RangeSlot filter={filter} optionsFor={optionsFor} disabled={disabled} />
+      <div className={cn('grid grid-cols-1 md:grid-cols-2', SPACE.BLOCKS)}>
+        <DimensionSlot analysis={analysis} disabled={disabled} />
+        <MetricSlot analysis={analysis} disabled={disabled} />
+      </div>
+      {/* The pair that runs the query, once for everything above: Clear
+          empties the range, Apply runs the whole draft, and the dot says
+          the draft holds something the last run did not — whichever slot
+          it is in. */}
+      <div data-slot="analysis-tray-actions" className="flex justify-end">
+        <FilterActions
+          filter={filter}
+          disabled={disabled}
+          overBudget={false}
+          pending={filter.pending || analysis.pending}
+        />
+      </div>
+    </section>
+  );
+}

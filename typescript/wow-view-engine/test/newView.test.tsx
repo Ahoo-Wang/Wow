@@ -168,8 +168,10 @@ describe('a new view, from the work area to the list', () => {
     expect(
       await screen.findByRole('heading', { level: 2, name: 'Untitled view' }),
     ).toBeDefined();
-    // An analysis view: its editor runs, it does not apply.
-    expect(await screen.findByRole('button', { name: /Run/ })).toBeDefined();
+    // An analysis view: a new one opens with its tray out (D20).
+    expect(
+      await screen.findByRole('region', { name: 'Analysis' }),
+    ).toBeDefined();
   });
 
   it('makes the one kind straight away when the workbench draws only that kind', async () => {

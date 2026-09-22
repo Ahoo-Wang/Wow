@@ -52,6 +52,7 @@ import { Input } from './components/input.js';
 import { SelectTrigger } from './components/select.js';
 import { Separator } from './components/separator.js';
 import { TableRow } from './components/table.js';
+import { SPACE, TEXT_UI } from './layout.js';
 
 /**
  * The registry variant each tone starts from.
@@ -536,4 +537,73 @@ export type ResultSlot = keyof typeof RESULT_SLOTS;
 /** One kind's slot recipe, for `ResultBlock.slots`. */
 export function resultSlots(...slots: readonly ResultSlot[]): string {
   return slots.map(slot => RESULT_SLOTS[slot]).join(' ');
+}
+
+/**
+ * One slot of the analysis tray (D20): a named `section` with a small
+ * heading — the slot's name, a plain-words hint of the question it answers,
+ * and room at the end for a control that belongs to the heading. The cards
+ * inside stack; the slot never draws a box of its own, because the tray is
+ * the one surface and a box in a box is a frame around a frame.
+ */
+export function EditorSlot({
+  name,
+  title,
+  hint,
+  aside,
+  className,
+  children,
+}: {
+  name: string;
+  title: string;
+  hint?: string;
+  aside?: React.ReactNode;
+  className?: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <section
+      data-slot={`analysis-slot-${name}`}
+      aria-label={title}
+      className={cn('flex min-w-0 flex-col', SPACE.GROUPS, className)}
+    >
+      {/* `h3`, under the view's own `h2`: the slot names a section of the
+          page, and a reader jumping by heading must not find a level
+          skipped (axe `heading-order`). It is small because it is a label,
+          not because it is deep. */}
+      <h3
+        className={cn(
+          'text-muted-foreground flex items-center gap-2 font-semibold',
+          TEXT_UI,
+        )}
+      >
+        <span className="text-foreground">{title}</span>
+        {hint && <span className="font-normal">· {hint}</span>}
+        {aside && <span className="ml-auto font-normal">{aside}</span>}
+      </h3>
+      {children}
+    </section>
+  );
+}
+
+/**
+ * One card in a slot — a dimension, a metric: a bordered row on the page's
+ * ground, so it stands off the tray's tint, its controls in a line and the
+ * remove control pushed to the end.
+ */
+export function EditorCard({
+  className,
+  ...props
+}: React.ComponentProps<'div'>) {
+  return (
+    <div
+      data-slot="editor-card"
+      className={cn(
+        'bg-background border-border flex min-w-0 flex-wrap items-center gap-2 rounded-md border px-2 py-1',
+        TEXT_UI,
+        className,
+      )}
+      {...props}
+    />
+  );
 }
