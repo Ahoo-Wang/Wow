@@ -441,7 +441,7 @@ describe('element scope', () => {
         filter: {
           op: 'ELEMENT_MATCH',
           field: 'tags',
-          predicate: { op: 'EQ', field: 'tags.name', value: 'red' },
+          predicate: { op: 'EQ', field: 'name', value: 'red' },
         },
       },
     ]);

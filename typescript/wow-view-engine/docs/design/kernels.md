@@ -101,6 +101,7 @@ mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboa
 
 - 判断由 `isBlankLeafValue` 统一做：缺省认 `null`、`''` 与空数组；
 - 值形状自成一体的 kind 用可选的 `isBlank({ value, operator, field, kinds })` 自述，它**替代**而不是补充缺省规则，所以同时也从 `''` 或 `[]` 起步的 kind（metadata 各 kind）必须一并认出这些形状，纯空白字符串同样算未填写。持有树的 kind（`elementMatch`）的空白就是其谓词的空白：谓词里没有任何有效叶子——没有条件，或每条条件本身仍未填写——即为空白，由 `isBlankFilter` 按与外层同一条规则判定；
+- **`elementMatch` 的谓词编译时字段从数组内部起名**：Wow 读 `ELEMENT_MATCH` 谓词里的字段是相对元素的（`sku`，不是 `items.sku`——那会被当成 `items.items.sku` 去找），而配置从根写全名，所以编译前把谓词按容器前缀改写一遍，再对元素自己的字段声明编译；元素的元素由它自己那次编译再剥一层。校验、描述与空白判定仍按全名，那是条件面向用户的写法。（见 test/elementMatch.test.ts「compiles a predicate onto the array, its fields named from inside it」）
 - 字段未知、kind 未注册或操作符不受支持的叶子不算空白，否则会藏掉 `validateFilter` 该报的问题。不需要输入的操作符（`IS_NULL` 一类，kind 把其编辑器声明为 `none`）永远不算未填写，否则条件会被当成空值丢掉。（见 test/filter.test.ts「unfinished conditions」）
 
 ## FieldKind 与时钟

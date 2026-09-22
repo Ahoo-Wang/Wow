@@ -45,6 +45,12 @@ const fields: FieldDefinition[] = [
     elements: [
       { name: 'sku', label: 'SKU', kind: 'string' },
       { name: 'qty', label: 'Qty', kind: 'number' },
+      {
+        name: 'tags',
+        label: 'Tags',
+        kind: 'elementMatch',
+        elements: [{ name: 'name', label: 'Name', kind: 'string' }],
+      },
     ],
   },
   { name: 'bare', label: 'Bare', kind: 'elementMatch' },
@@ -80,6 +86,7 @@ describe('element fields', () => {
     expect(elementFields(fields[1]).map(field => field.name)).toEqual([
       'items.sku',
       'items.qty',
+      'items.tags',
     ]);
   });
 
@@ -89,7 +96,13 @@ describe('element fields', () => {
 });
 
 describe('the elementMatch kind', () => {
-  it('compiles a predicate onto the array', () => {
+  /**
+   * Wow reads a predicate's fields relative to the element — `sku`, not
+   * `items.sku`, which it would look up as `items.items.sku` and never find
+   * — while the config names them from the root. An element of an element
+   * is re-addressed by its own compile in turn.
+   */
+  it('compiles a predicate onto the array, its fields named from inside it', () => {
     expect(
       compile(
         outer(
@@ -97,6 +110,15 @@ describe('the elementMatch kind', () => {
           predicate(
             { field: 'items.sku', operator: 'EQ', value: 'A' },
             { field: 'items.qty', operator: 'GT', value: 2 },
+            {
+              field: 'items.tags',
+              operator: 'ELEMENT_MATCH',
+              value: predicate({
+                field: 'items.tags.name',
+                operator: 'EQ',
+                value: 'gift',
+              }) as never,
+            },
           ) as never,
         ),
       ),
@@ -106,8 +128,13 @@ describe('the elementMatch kind', () => {
       predicate: {
         op: FilterOperator.AND,
         operands: [
-          { op: FilterOperator.EQ, field: 'items.sku', value: 'A' },
-          { op: FilterOperator.GT, field: 'items.qty', value: 2 },
+          { op: FilterOperator.EQ, field: 'sku', value: 'A' },
+          { op: FilterOperator.GT, field: 'qty', value: 2 },
+          {
+            op: FilterOperator.ELEMENT_MATCH,
+            field: 'tags',
+            predicate: { op: FilterOperator.EQ, field: 'name', value: 'gift' },
+          },
         ],
       },
     });

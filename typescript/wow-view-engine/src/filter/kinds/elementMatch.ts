@@ -19,7 +19,9 @@ import {
 import {
   isFieldlessKind,
   type FieldDefinition,
+  type FilterNode,
   type FilterTree,
+  type FilterValue,
   type Issue,
 } from '../../model/index.js';
 import { compileFilter, type FilterCompileContext } from '../compile.js';
@@ -144,10 +146,16 @@ export const elementMatchFieldKind: FieldKind = {
     if (presence) return presence;
     if (leaf.operator === 'IS_EMPTY') return filter.isEmpty(field.name);
 
+    // Wow reads a predicate's fields relative to the element — `quantity`,
+    // not `items.quantity`, which it would look up as `items.items.quantity`
+    // and never find. The config names them from outside, so the tree is
+    // re-addressed from inside the array before it is compiled, against the
+    // element's own declarations; an element of an element is re-addressed
+    // again by its own compile.
     const context: FilterCompileContext = { now, timeZone };
     const predicate = compileFilter(
-      elementFields(field),
-      readValue<FilterTree>(leaf.value),
+      field.elements ?? [],
+      insideElement(field.name, readValue<FilterTree>(leaf.value)),
       kinds,
       context,
     );
@@ -254,6 +262,33 @@ function rootFilters(
     );
   }
   return issues;
+}
+
+/**
+ * The predicate as the element sees it: every field the config wrote as
+ * `array.field` becomes `field`, at every depth — a nested element match's
+ * own predicate included, since its leaves were written from the root too.
+ */
+function insideElement(array: string, tree: FilterTree): FilterTree {
+  const prefix = `${array}.`;
+  const relative = (name: string) =>
+    name.startsWith(prefix) ? name.slice(prefix.length) : name;
+  const visit = (node: FilterNode): FilterNode => {
+    if (isFilterGroup(node))
+      return { ...node, children: node.children.map(visit) };
+    return {
+      ...node,
+      field: relative(node.field),
+      value: isTree(node.value)
+        ? (visitTree(node.value) as unknown as FilterValue)
+        : node.value,
+    };
+  };
+  const visitTree = (inner: FilterTree): FilterTree => ({
+    ...inner,
+    children: inner.children.map(visit),
+  });
+  return visitTree(tree);
 }
 
 function isTree(value: unknown): value is FilterTree {

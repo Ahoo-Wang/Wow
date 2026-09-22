@@ -39,5 +39,4 @@
 
 - 加了维度之后，钉住的 `table.columns` 不会自动多出那一列——表格分不出新组（同一个仓库出现两行）。新维度是否自动进列表要产品口径；分组→列的正向映射在 `reshape` 里只删不加。
 - 三个以上维度时 cartesian 只消费横轴与拆分两个，第三个报 `chart.group.unconsumed`；`fitCharts` 却仍把柱状图列为可用。多维要么进透视表（Q8），要么 `fitCharts` 说「最多两个维度」。
-- 筛选内核的 `elementMatch` 谓词把容器前缀带进了字段（`tags.name`），Wow 会读成 `tags.tags.name`（批 K 代理发现）。
 - 透视表（Q8）；精确的 M（Q7）；分析表冻结列；STDDEV／VARIANCE 与去重计数在 ES 上的近似提示按后端能力声明。
