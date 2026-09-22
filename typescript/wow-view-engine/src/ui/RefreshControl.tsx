@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { useId } from 'react';
 import { ChevronDownIcon, RefreshCwIcon } from 'lucide-react';
 import { useRefreshCountdown, type RefreshController } from '../react/index.js';
 import { Button } from './components/button.js';
@@ -126,6 +127,7 @@ export function RefreshControl({
   // view still refreshes every 30s, the clock on it is merely paused, and a
   // frozen "7s" would be a countdown that stopped counting.
   const reading = countdown ?? (refresh.loading ? 0 : null);
+  const cadenceId = useId();
 
   return (
     <ButtonGroup
@@ -145,12 +147,10 @@ export function RefreshControl({
         disabled={busy || refresh.loading}
         // Said as well as drawn: the cadence beside the word is a fragment,
         // and a screen reader reaching the button gets the sentence it
-        // stands for rather than two words in a row.
-        aria-description={
-          cadence === null
-            ? undefined
-            : messages.label('label.refresh.on', { interval: cadence })
-        }
+        // stands for rather than two words in a row — through
+        // `aria-describedby`, which every reader has, rather than the draft
+        // `aria-description` only Chromium implements.
+        aria-describedby={cadence === null ? undefined : cadenceId}
       >
         {/* The vendored spinner announces itself as `status "Loading"` in
             English whatever the host's catalogue says, so the name is handed
@@ -174,7 +174,7 @@ export function RefreshControl({
             // once a second walks the controls beside it across the bar.
             className={cn('text-muted-foreground grid tabular-nums', TEXT_UI)}
             // A screen reader is told the cadence once, as a sentence, by
-            // the button's `aria-description`. A number that changes every
+            // the button's description. A number that changes every
             // second would be read out every second, which is the opposite
             // of being told what this button does.
             aria-hidden
@@ -197,6 +197,15 @@ export function RefreshControl({
           </span>
         )}
       </IconButton>
+      {/* The sentence the button points at, drawn nowhere and written only
+          while an interval runs — the one time the button addresses it.
+          No `data-slot`, so the group's joined-edge rules, which pick their
+          members by that attribute, pass over it. */}
+      {cadence !== null && (
+        <span id={cadenceId} className="sr-only">
+          {messages.label('label.refresh.on', { interval: cadence })}
+        </span>
+      )}
 
       {choosable && (
         <DropdownMenu>

@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { useId } from 'react';
 import type { FilterMode } from '../../model/index.js';
 import type { FilterEditorController } from '../../react/index.js';
 import {
@@ -57,6 +58,7 @@ function effective(filter: FilterEditorController): {
 export function FilterModes({ filter }: { filter: FilterEditorController }) {
   const messages = useViewMessages();
   const { mode, locked } = effective(filter);
+  const reasonId = useId();
 
   return (
     <DropdownMenuRadioGroup
@@ -77,15 +79,17 @@ export function FilterModes({ filter }: { filter: FilterEditorController }) {
         // The reason travels with the item rather than sitting under the
         // menu as a line of prose: a screen reader announces a disabled
         // option and then has nowhere to go looking for why.
-        aria-description={
-          locked ? messages.label('config.filterMode.not-simple') : undefined
-        }
+        aria-describedby={locked ? reasonId : undefined}
       >
         {messages.label('label.filter.simple')}
       </DropdownMenuRadioItem>
       <DropdownMenuRadioItem value="advanced" closeOnClick>
         {messages.label('label.filter.advanced')}
       </DropdownMenuRadioItem>
+      {/* The reason itself, drawn nowhere: inside the popup, so it is in
+          the document exactly while the item pointing at it is, and only
+          while simple is locked — the one time anything points at it. */}
+      {locked && <NotSimpleReason id={reasonId} />}
     </DropdownMenuRadioGroup>
   );
 }
@@ -112,36 +116,56 @@ export function FilterModeToggle({
 }) {
   const messages = useViewMessages();
   const { mode, locked } = effective(filter);
+  const reasonId = useId();
 
   return (
-    <ToggleGroup
-      value={[mode]}
-      onValueChange={(value: string[]) => {
-        const next = value[0];
-        if (next === 'simple' || next === 'advanced') filter.setMode(next);
-      }}
-      variant="outline"
-      size="sm"
-      spacing={0}
-      disabled={disabled}
-      aria-label={messages.label('label.filter.mode')}
-    >
-      <ToggleGroupItem
-        value="simple"
-        disabled={locked}
-        // The reason travels with the control rather than sitting beside it
-        // as a line of prose: a screen reader announces a disabled option
-        // and then has nowhere to go looking for why.
-        aria-description={
-          locked ? messages.label('config.filterMode.not-simple') : undefined
-        }
+    <>
+      <ToggleGroup
+        value={[mode]}
+        onValueChange={(value: string[]) => {
+          const next = value[0];
+          if (next === 'simple' || next === 'advanced') filter.setMode(next);
+        }}
+        variant="outline"
+        size="sm"
+        spacing={0}
+        disabled={disabled}
+        aria-label={messages.label('label.filter.mode')}
       >
-        {messages.label('label.filter.simple')}
-      </ToggleGroupItem>
-      <ToggleGroupItem value="advanced">
-        {messages.label('label.filter.advanced')}
-      </ToggleGroupItem>
-    </ToggleGroup>
+        <ToggleGroupItem
+          value="simple"
+          disabled={locked}
+          // The reason travels with the control rather than sitting beside it
+          // as a line of prose: a screen reader announces a disabled option
+          // and then has nowhere to go looking for why.
+          aria-describedby={locked ? reasonId : undefined}
+        >
+          {messages.label('label.filter.simple')}
+        </ToggleGroupItem>
+        <ToggleGroupItem value="advanced">
+          {messages.label('label.filter.advanced')}
+        </ToggleGroupItem>
+      </ToggleGroup>
+      {/* Beside the group rather than in it: the items find their joined
+          edges with `:first` and `:last`, and a span after the last one
+          would take its rounded corner away. */}
+      {locked && <NotSimpleReason id={reasonId} />}
+    </>
+  );
+}
+
+/**
+ * Why simple is not on offer, for the item that cannot be picked to point
+ * at: a description is text somewhere on the page, and a `sr-only` span is
+ * all "somewhere" needs to be. `aria-describedby` rather than the draft
+ * `aria-description`, which only Chromium implements.
+ */
+function NotSimpleReason({ id }: { id: string }) {
+  const messages = useViewMessages();
+  return (
+    <span id={id} className="sr-only">
+      {messages.label('config.filterMode.not-simple')}
+    </span>
   );
 }
 

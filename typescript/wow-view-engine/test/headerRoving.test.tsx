@@ -91,6 +91,7 @@ function headersWithoutResize() {
               column={column}
               sort={[]}
               onToggle={() => {}}
+              additiveId="additive"
             />
           ))}
         </tr>

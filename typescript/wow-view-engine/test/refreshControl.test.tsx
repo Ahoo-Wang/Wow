@@ -55,7 +55,7 @@ import {
   testEnvironment,
   testSource,
 } from './fixtures.js';
-import { refreshController } from './fixtures/ui.js';
+import { describedText, refreshController } from './fixtures/ui.js';
 
 afterEach(() => {
   cleanup();
@@ -500,6 +500,12 @@ describe('RefreshControl', () => {
       <RefreshControl refresh={refreshController()} />,
     );
     expect(container.querySelector('[data-slot="refresh-cadence"]')).toBeNull();
+    // No interval, no sentence — and no id pointing where nothing is.
+    expect(
+      screen
+        .getByRole('button', { name: new RegExp(REFRESH) })
+        .hasAttribute('aria-describedby'),
+    ).toBe(false);
 
     rerender(<RefreshControl refresh={refreshController({ interval: 300 })} />);
 
@@ -507,9 +513,7 @@ describe('RefreshControl', () => {
       container.querySelector('[data-slot="refresh-cadence"]')!.textContent,
     ).toBe(every(300));
     expect(
-      screen
-        .getByRole('button', { name: new RegExp(REFRESH) })
-        .getAttribute('aria-description'),
+      describedText(screen.getByRole('button', { name: new RegExp(REFRESH) })),
     ).toBe(
       defaultMessages['label.refresh.on'].replace('{interval}', every(300)),
     );
@@ -602,7 +606,8 @@ describe('RefreshControl', () => {
    * Two things about the box the count sits in: it is as wide as the widest
    * reading this interval can produce, so the buttons beside it do not walk
    * across the bar once a second, and a screen reader is told none of it —
-   * the cadence reaches it once, as a sentence, through `aria-description`.
+   * the cadence reaches it once, as a sentence, through the button's
+   * description.
    */
   it('reserves the width of the widest reading and announces none of it', () => {
     vi.useFakeTimers();
@@ -622,9 +627,7 @@ describe('RefreshControl', () => {
     // in is layout, and nothing about the control's state.
     expect(count.className).toContain('col-start-1');
     expect(
-      screen
-        .getByRole('button', { name: new RegExp(REFRESH) })
-        .getAttribute('aria-description'),
+      describedText(screen.getByRole('button', { name: new RegExp(REFRESH) })),
     ).toBe(
       defaultMessages['label.refresh.on'].replace('{interval}', every(300)),
     );
@@ -825,9 +828,9 @@ describe('every workbench offers the interval', () => {
 
     await waitFor(() =>
       expect(
-        screen
-          .getByRole('button', { name: new RegExp(REFRESH) })
-          .getAttribute('aria-description'),
+        describedText(
+          screen.getByRole('button', { name: new RegExp(REFRESH) }),
+        ),
       ).toBe(
         defaultMessages['label.refresh.on'].replace('{interval}', every(30)),
       ),

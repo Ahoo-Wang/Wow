@@ -45,7 +45,7 @@ import {
 } from '../src/ui/index.js';
 import type { FilterPanelProps, ViewMessages } from '../src/ui/index.js';
 import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
-import { mine, mixed, setup } from './fixtures/ui.js';
+import { describedText, mine, mixed, setup } from './fixtures/ui.js';
 
 afterEach(cleanup);
 
@@ -1290,6 +1290,25 @@ describe('FilterPanel tree editing', () => {
       ).toBeDefined();
     });
 
+    it("says on the panel's own toggle why simple is not on offer", async () => {
+      const harness = panel(false, ordersDefinition());
+      const simple = () => screen.getByRole('button', { name: 'Simple' });
+      // A tree the simple editor can draw: both ways are on offer, and the
+      // item points at no reason, because there is none to give.
+      expect(simple().hasAttribute('aria-describedby')).toBe(false);
+
+      act(() => harness.filter().setMode('advanced'));
+      act(() => harness.filter().addGroup('or'));
+
+      // A group the simple editor cannot draw: simple is refused, and the
+      // reason is said on the item a reader reaches — through an id that
+      // is there, not the draft `aria-description` one engine reads.
+      await waitFor(() => expect(simple().hasAttribute('disabled')).toBe(true));
+      expect(describedText(simple())).toBe(
+        'These conditions need the advanced editor to be shown in full.',
+      );
+    });
+
     it('keeps the single way in where the panel is the only way in', () => {
       panel();
 
@@ -1377,6 +1396,11 @@ describe('the mode the condition editor is in', () => {
       name: 'Simple',
     });
     expect(simple.getAttribute('aria-disabled')).toBe('true');
+    // Said on the item itself: a reader hears the option is unavailable and
+    // then has nowhere else to look for why.
+    expect(describedText(simple)).toBe(
+      'These conditions need the advanced editor to be shown in full.',
+    );
     expect(
       screen.getByRole('menuitemradio', { name: 'Advanced' }).ariaChecked,
     ).toBe('true');
@@ -1392,6 +1416,8 @@ describe('the mode the condition editor is in', () => {
       name: 'Simple',
     });
     expect(simple.getAttribute('aria-disabled')).not.toBe('true');
+    // Nothing refused, so nothing to explain, and no id left dangling.
+    expect(simple.hasAttribute('aria-describedby')).toBe(false);
     expect(simple.ariaChecked).toBe('true');
   });
 });

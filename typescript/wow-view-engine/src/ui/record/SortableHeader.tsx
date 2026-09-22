@@ -44,6 +44,13 @@ export interface SortableHeaderProps {
    */
   onResize?(field: string, width: number | null): void;
   pin?: StickyPin;
+  /**
+   * The id of the sentence saying how to add a column to the sort rather
+   * than replace it. One sentence serves the whole header row, so the table
+   * writes it once and every sortable header points at it; a column that
+   * cannot be sorted has no button and points at nothing.
+   */
+  additiveId: string;
 }
 
 /**
@@ -70,6 +77,7 @@ export function SortableHeader({
   onToggle,
   onResize,
   pin,
+  additiveId,
 }: SortableHeaderProps) {
   const messages = useViewMessages();
   // One stop for the whole header row, and Alt+←/→ on whichever column it is
@@ -192,8 +200,11 @@ export function SortableHeader({
         // `toggleSort`. Keyboard: Shift+Enter or Shift+Space. Browsers put
         // the held modifiers on a button's activation click, but not every
         // environment does, so the keys are read where they are pressed and
-        // the activation that would follow is stood down.
-        aria-description={messages.label('label.sort.additive')}
+        // the activation that would follow is stood down. The rule is said
+        // as a description because nothing on screen says it, and through
+        // `aria-describedby` because the draft `aria-description` reaches
+        // Chromium's readers and nobody else's.
+        aria-describedby={additiveId}
         onClick={event =>
           onToggle(column.field, { exclusive: !additive(event) })
         }

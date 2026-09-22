@@ -4577,8 +4577,7 @@ export const AutoRefresh: Story = {
     // which is why the count itself is `aria-hidden`.
     await expect(
       canvasElement.querySelector('[data-slot="refresh-now"]'),
-    ).toHaveAttribute(
-      'aria-description',
+    ).toHaveAccessibleDescription(
       say('label.refresh.on', { interval: seconds }),
     );
     await expect(

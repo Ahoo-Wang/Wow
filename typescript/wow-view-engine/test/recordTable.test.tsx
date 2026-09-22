@@ -30,7 +30,7 @@ import {
   recordConfig,
   testSource,
 } from './fixtures.js';
-import { mine, twoColumnTable } from './fixtures/ui.js';
+import { describedText, mine, twoColumnTable } from './fixtures/ui.js';
 
 afterEach(cleanup);
 
@@ -457,9 +457,7 @@ describe('sorting from the headers', () => {
 
     const button = header(container, 'amount').querySelector('button')!;
     // The way to add is said on the button, since nothing else shows it.
-    expect(button.getAttribute('aria-description')).toBe(
-      'Hold Shift to add to the sort',
-    );
+    expect(describedText(button)).toBe('Hold Shift to add to the sort');
 
     // One user, so the Shift held on the keyboard is on the pointer too.
     const user = userEvent.setup();

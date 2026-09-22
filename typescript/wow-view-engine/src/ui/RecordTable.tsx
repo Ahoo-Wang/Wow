@@ -12,7 +12,7 @@
  */
 
 import type * as React from 'react';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useId, useMemo, useRef } from 'react';
 import { cn } from 'cn';
 import type { RecordData, RecordKey } from '../model/index.js';
 import type { RecordColumnView, RecordRow } from '../record/index.js';
@@ -178,6 +178,7 @@ export function RecordTable({
   const columns = table.columns;
   const element = useRef<HTMLTableElement>(null);
   const port = useRef<HTMLDivElement>(null);
+  const additiveId = useId();
   const layout = useMemo(
     () => ({ selectable, actions: rowActions !== undefined }),
     [selectable, rowActions],
@@ -300,6 +301,7 @@ export function RecordTable({
                   onToggle={table.toggleSort}
                   onResize={table.setColumnWidth}
                   pin={pins.columns.get(column.field)}
+                  additiveId={additiveId}
                 />
               ))}
               {rowActions && (
@@ -401,6 +403,16 @@ export function RecordTable({
           />
         )}
       </Table>
+      {/* How to add a column to the sort, said once for every sortable
+          header and drawn nowhere. Outside the table rather than in each
+          header cell: text inside a `<th>` is part of the column's header,
+          and a reader would say it again beside every value under it. Only
+          while a sortable header is there to point at it. */}
+      {!firstLoad && columns.some(column => column.sortable) && (
+        <span id={additiveId} className="sr-only">
+          {messages.label('label.sort.additive')}
+        </span>
+      )}
     </div>
   );
 }
