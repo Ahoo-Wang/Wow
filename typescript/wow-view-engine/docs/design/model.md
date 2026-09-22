@@ -165,7 +165,7 @@ export interface RecordViewConfig extends ViewConfigBase {
     title: string; // 作为卡片标题的字段
     fields: string[]; // 卡片正文字段
     image?: string; // 可选的图片字段
-    columns?: 1 | 2 | 3 | 4; // 每行卡片数
+    perRow?: 1 | 2 | 3 | 4; // 每行几张卡（不叫 columns：全包其余的 columns 都是表格的列，评审 B9）
   };
 }
 

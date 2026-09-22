@@ -71,7 +71,8 @@ export interface RecordCardView {
   fields: RecordCardField[];
   /** Field holding an image URL, when the config asks for one. */
   image?: string;
-  columns?: 1 | 2 | 3 | 4;
+  /** How many cards stand in one row; see `RecordCardSpec.perRow`. */
+  perRow?: 1 | 2 | 3 | 4;
 }
 
 /**
@@ -431,7 +432,7 @@ export function useRecordTable(
         return field ? [cardField(field)] : [];
       }),
       ...(cardSpec.image === undefined ? {} : { image: cardSpec.image }),
-      ...(cardSpec.columns === undefined ? {} : { columns: cardSpec.columns }),
+      ...(cardSpec.perRow === undefined ? {} : { perRow: cardSpec.perRow }),
     };
   }, [cardSpec, fields]);
 

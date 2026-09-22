@@ -229,15 +229,15 @@ export function CardSettings({ table, fields }: CardSettingsProps) {
             </Select>
           </Field>
 
-          <Field data-slot="card-columns">
+          <Field data-slot="card-per-row">
             <FieldTitle id={`${ids}-columns`}>
-              {messages.label('label.card.columns')}
+              {messages.label('label.card.per-row')}
             </FieldTitle>
             <ToggleGroup
-              value={[String(spec.columns ?? 3)]}
+              value={[String(spec.perRow ?? 3)]}
               onValueChange={value => {
                 const next = PER_ROW.find(count => String(count) === value[0]);
-                if (next) patch({ columns: next });
+                if (next) patch({ perRow: next });
               }}
               variant="outline"
               size="sm"
@@ -248,7 +248,7 @@ export function CardSettings({ table, fields }: CardSettingsProps) {
                 <ToggleGroupItem
                   key={count}
                   value={String(count)}
-                  aria-label={messages.label('label.card.columns-option', {
+                  aria-label={messages.label('label.card.per-row-option', {
                     count,
                   })}
                 >

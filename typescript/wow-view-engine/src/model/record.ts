@@ -108,7 +108,12 @@ export interface RecordCardSpec {
   /** Fields shown in the card body. */
   fields: string[];
   image?: string;
-  columns?: 1 | 2 | 3 | 4;
+  /**
+   * How many cards stand in one row. `perRow`, not `columns`: everywhere
+   * else in this package a column is a column of the table, and one word
+   * that meant two things was the review's B9 (2026-09-22).
+   */
+  perRow?: 1 | 2 | 3 | 4;
 }
 
 /**

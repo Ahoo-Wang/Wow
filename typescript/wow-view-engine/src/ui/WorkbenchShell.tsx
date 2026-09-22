@@ -756,19 +756,3 @@ export function WorkbenchShell({
     </ViewSurface>
   );
 }
-
-/**
- * A view that could not be opened, with the way off the screen it leaves.
- *
- * It wears the same form as an empty result — icon, title, what happened,
- * one action — rather than the red block it used to be. The block said the
- * application had broken; what has happened is that one view of it is not
- * there, which is a normal thing for a link, a bookmark or a deleted view to
- * lead to, and the page around it is working fine. The reason is still said
- * in full: the `Issue` is the description, so "another kind" and "no longer
- * exists" stay apart.
- *
- * `role="alert"` stays on it. The form is calmer, but the fact is still that
- * what the user asked for is not on screen, and a reader who cannot see the
- * page changing needs to be told that as it happens.
- */

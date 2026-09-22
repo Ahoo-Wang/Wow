@@ -147,7 +147,7 @@ export function RecordCards({
     <>
       <div
         data-slot="record-cards"
-        className={cn('grid gap-3 p-3', GRID[card.columns ?? 3])}
+        className={cn('grid gap-3 p-3', GRID[card.perRow ?? 3])}
       >
         {table.rows.map(row => (
           <Card key={String(row.key)}>

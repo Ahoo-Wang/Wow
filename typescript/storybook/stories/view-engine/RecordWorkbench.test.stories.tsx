@@ -1200,7 +1200,7 @@ export const CardsAreSetUpFromTheSameButton: Story = {
     // Two in a row, said as pressed, and the grid follows.
     await userEvent.click(
       await within(dialog).findByRole('button', {
-        name: formatMessage(zhCN, 'label.card.columns-option', { count: 2 }),
+        name: formatMessage(zhCN, 'label.card.per-row-option', { count: 2 }),
       }),
     );
     await waitFor(() =>

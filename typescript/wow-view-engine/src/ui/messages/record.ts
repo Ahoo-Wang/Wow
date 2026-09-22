@@ -28,8 +28,8 @@ export const recordMessages = {
   'label.card.image-field': 'Image',
   'label.card.no-image': 'No image',
   'label.card.fields': 'Body',
-  'label.card.columns': 'Cards per row',
-  'label.card.columns-option': '{count} per row',
+  'label.card.per-row': 'Cards per row',
+  'label.card.per-row-option': '{count} per row',
 
   // The record toolbar. The bar itself has a name because it is one stop
   // with the arrows inside it: a reader that lands there is told what it

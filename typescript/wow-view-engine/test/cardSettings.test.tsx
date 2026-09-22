@@ -92,7 +92,7 @@ describe('CardSettings', () => {
     const three = within(dialog).getByRole('button', { name: '3 per row' });
     expect(three.getAttribute('aria-pressed')).toBe('true');
     fireEvent.click(within(dialog).getByRole('button', { name: '2 per row' }));
-    expect(table.setCard).toHaveBeenLastCalledWith({ columns: 2 });
+    expect(table.setCard).toHaveBeenLastCalledWith({ perRow: 2 });
   });
 
   it('names the title and image selects by their labels', async () => {

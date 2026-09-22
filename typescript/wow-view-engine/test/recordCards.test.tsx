@@ -415,7 +415,7 @@ describe('RecordCards on its own', () => {
             title: 'warehouse',
             fields: [{ field: 'amount', label: 'Total' }],
             image: 'photo',
-            columns: 2,
+            perRow: 2,
           },
           rows: [
             { key: 'o-1', data: { warehouse: 'CN', amount: 10, photo: '/a' } },
