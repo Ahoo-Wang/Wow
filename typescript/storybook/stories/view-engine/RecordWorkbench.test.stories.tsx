@@ -365,12 +365,83 @@ export const CellFamily: Story = {
     await expect(getComputedStyle(note).webkitLineClamp).toBe('3');
     await expect(note.scrollHeight).toBeGreaterThan(note.clientHeight);
 
-    // And the column that declared nothing is what it always was: text, with
-    // no pill around it and nothing to click.
+    // And the copyable column is the text it always was — no pill around it
+    // and nothing to click — with one button beside it, named after the
+    // value it would take away. What that button does is the next story.
     const key = cellAt(table, '订单号', 0);
     await expect(key).toHaveTextContent('SO-1001');
     await expect(key.querySelector('[data-slot="badge"]')).toBeNull();
     await expect(key.querySelector('a')).toBeNull();
+    const copy = key.querySelector<HTMLElement>('[data-slot="cell-copy"]')!;
+    await expect(copy).toHaveAccessibleName(
+      say('label.copy-of', { value: 'SO-1001' }),
+    );
+  },
+};
+
+/**
+ * Taking a document number away, in a real browser (user request
+ * 2026-09-22).
+ *
+ * jsdom can be told what `navigator.clipboard` is; only a browser has one.
+ * So the button is pressed here and the clipboard is asked what it now
+ * holds. That read is the part a browser may refuse — `clipboard-read` is a
+ * permission of its own, and Chromium grants it to the story context but
+ * nothing promises it will — so it is wrapped: what has to hold either way
+ * is that the button answered, in the words the catalogue gives it, and then
+ * stood down again.
+ */
+export const CopyADocumentNumber: Story = {
+  ...DisplayCellFamily,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    await waitFor(() => expect(readColumn(table, '订单号')).toHaveLength(6));
+
+    const key = cellAt(table, '订单号', 0);
+    const copy = key.querySelector<HTMLElement>('[data-slot="cell-copy"]')!;
+    // Resting invisible, which is only true where there is a pointer to
+    // reveal it with: the runner reports `(hover: hover)`, so the utility
+    // that hides it is in force here and the one that would show it hangs
+    // off the groups the row and the cell carry. The reveal itself cannot be
+    // driven from a play — the runner's pointer events put no real `:hover`
+    // on an element (see 「侧栏当前行」 below) — so what is measured is that
+    // the button is hidden *without being taken away*: laid out, in the tab
+    // order, and one keyboard focus from showing itself.
+    await expect(getComputedStyle(copy).opacity).toBe('0');
+    await expect(getComputedStyle(copy).display).not.toBe('none');
+    await expect(copy.tabIndex).toBeGreaterThanOrEqual(0);
+    await expect(key.parentElement!.className).toContain('group/row');
+    await expect(
+      key.querySelector('[data-slot="cell-copyable"]')!.className,
+    ).toContain('group/copyable');
+
+    await userEvent.click(copy);
+
+    // The tick, and the word said to whoever cannot see it.
+    const copied = say('label.copied', {});
+    await waitFor(() => expect(copy).toHaveAccessibleName(copied));
+    await expect(
+      canvasElement.querySelector('[data-slot="cell-copy-announcement"]'),
+    ).toHaveTextContent(copied);
+
+    try {
+      await waitFor(async () =>
+        expect(await navigator.clipboard.readText()).toBe('SO-1001'),
+      );
+    } catch {
+      // Reading the clipboard was refused, which is the browser's right:
+      // the state above is then all this play can pin, and it is pinned.
+    }
+
+    // And the answer stands down again, so the row stops claiming it.
+    await waitFor(
+      () =>
+        expect(copy).toHaveAccessibleName(
+          say('label.copy-of', { value: 'SO-1001' }),
+        ),
+      { timeout: 4_000 },
+    );
   },
 };
 

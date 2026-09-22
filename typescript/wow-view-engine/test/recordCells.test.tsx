@@ -20,8 +20,14 @@
  * drifting apart.
  */
 
-import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FieldOption, RecordData } from '../src/index.js';
 import type { RecordColumnView } from '../src/record/index.js';
 import { RecordCards, RecordTable } from '../src/ui/index.js';
@@ -235,6 +241,180 @@ describe('a text cell', () => {
 
     expect(container.querySelector('[data-slot="cell-text"]')).toBeNull();
     expect(screen.getByText('7')).toBeDefined();
+  });
+});
+
+/**
+ * A document number is something a user came to the page to take away, so
+ * the cell that holds one carries the means to (user request 2026-09-22).
+ *
+ * The button is named after the value rather than after the column, because
+ * a table of fifty rows would otherwise be a table of fifty buttons with one
+ * name; and what it hands over is the one-line reading the CSV takes, so the
+ * clipboard never comes back with something the screen did not say.
+ */
+describe('a copyable cell', () => {
+  /** What the browser offers, or does not: the API is secure-context only. */
+  function clipboard(writeText?: (text: string) => Promise<void>) {
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: writeText === undefined ? undefined : { writeText },
+    });
+  }
+
+  afterEach(() => {
+    vi.useRealTimers();
+    clipboard();
+  });
+
+  const copyable = (value: unknown = 'SO-1001') =>
+    oneCell({ cell: 'copyable' }, value);
+
+  const button = (name: string) => screen.getByRole('button', { name });
+  const said = (container: HTMLElement) =>
+    container.querySelector('[data-slot="cell-copy-announcement"]')
+      ?.textContent ?? null;
+
+  it('is named after the value and writes it to the clipboard', async () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    clipboard(writeText);
+    render(<RecordTable table={copyable()} />);
+
+    // The value is still the value: the button stands beside it, and the
+    // text stays selectable whatever the clipboard does.
+    expect(screen.getByText('SO-1001')).toBeDefined();
+    await act(async () => {
+      fireEvent.click(button('Copy SO-1001'));
+    });
+
+    expect(writeText).toHaveBeenCalledWith('SO-1001');
+  });
+
+  it('flips to Copied, says so, and offers again', async () => {
+    vi.useFakeTimers();
+    clipboard(() => Promise.resolve());
+    const { container } = render(<RecordTable table={copyable()} />);
+
+    // Nothing settled yet, so there is no region for a reader to walk past.
+    expect(said(container)).toBeNull();
+    await act(async () => {
+      fireEvent.click(button('Copy SO-1001'));
+    });
+
+    expect(button('Copied')).toBeDefined();
+    // The word appears on the control the user just pressed, which a screen
+    // reader does not re-read, so it is said as well as shown.
+    expect(said(container)).toBe('Copied');
+
+    // A second press restarts the answer rather than letting the first
+    // press's timer take the tick away mid-sentence.
+    await act(async () => {
+      vi.advanceTimersByTime(1_000);
+      fireEvent.click(button('Copied'));
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(1_000);
+    });
+
+    expect(button('Copied')).toBeDefined();
+
+    // A tick is an answer to a press, not a state of the record: it stands
+    // long enough to be read and then the button offers again.
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+    });
+
+    expect(button('Copy SO-1001')).toBeDefined();
+    expect(said(container)).toBeNull();
+  });
+
+  it('says so when the clipboard refuses', async () => {
+    clipboard(() => Promise.reject(new Error('denied')));
+    const { container } = render(<RecordTable table={copyable()} />);
+
+    await act(async () => {
+      fireEvent.click(button('Copy SO-1001'));
+    });
+
+    expect(button('Could not copy')).toBeDefined();
+    expect(said(container)).toBe('Could not copy');
+    // The one thing that has to survive a refusal: the value itself, as
+    // text a user can select by hand.
+    expect(screen.getByText('SO-1001')).toBeDefined();
+  });
+
+  /** No `clipboard` at all — an application served over plain HTTP. */
+  it('says the same where there is no clipboard API', async () => {
+    clipboard();
+    render(<RecordTable table={copyable()} />);
+
+    await act(async () => {
+      fireEvent.click(button('Copy SO-1001'));
+    });
+
+    expect(button('Could not copy')).toBeDefined();
+  });
+
+  it('offers nothing where there is nothing to take away', () => {
+    const { container } = render(<RecordTable table={copyable('')} />);
+
+    expect(container.querySelector('[data-slot="cell-copy"]')).toBeNull();
+    expect(container.querySelector('[data-slot="cell-copyable"]')).toBeNull();
+  });
+
+  /**
+   * The reveal hangs off the row and off the cell, and it hides by opacity:
+   * a button taken out of the layout is a button taken out of the tab order,
+   * and the keyboard is the one way in with no hover at all.
+   */
+  it('is revealed by hover and by its own focus, never removed', () => {
+    clipboard(() => Promise.resolve());
+    const { container } = render(<RecordTable table={copyable()} />);
+
+    const copy = container.querySelector<HTMLElement>(
+      '[data-slot="cell-copy"]',
+    )!;
+    expect(copy.className).toContain('group-hover/row:opacity-100');
+    expect(copy.className).toContain('group-hover/copyable:opacity-100');
+    expect(copy.className).toContain('focus-visible:opacity-100');
+    expect(copy.className).not.toContain('hidden');
+    // The hiding is what the hover query guards, not the showing: Tailwind
+    // wraps `group-hover` in `(hover: hover)` too, so hiding outside it
+    // would hide the button on a touch screen for good.
+    expect(copy.className).toContain('[@media(hover:hover)]:opacity-0');
+    expect(container.querySelector('tbody tr')?.className).toContain(
+      'group/row',
+    );
+  });
+
+  it('is the same button on a card', async () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    clipboard(writeText);
+    const { container } = render(
+      <RecordCards
+        table={recordTableController({
+          card: {
+            title: 'id',
+            fields: [
+              { field: 'no', label: 'Order', kind: 'string', cell: 'copyable' },
+            ],
+          },
+          rows: [{ key: 'r-1', data: { id: 'r-1', no: 'SO-1001' } }],
+        })}
+      />,
+    );
+
+    // The card field row is the row the reveal asks about, exactly as a
+    // table row is.
+    expect(
+      container.querySelector('[data-slot="card-field"][data-field="no"]')
+        ?.className,
+    ).toContain('group/row');
+    await act(async () => {
+      fireEvent.click(button('Copy SO-1001'));
+    });
+
+    expect(writeText).toHaveBeenCalledWith('SO-1001');
   });
 });
 

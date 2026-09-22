@@ -239,6 +239,7 @@ src/
     CardSettings.tsx          — The card layout's settings behind the column settings' button (D18 VI)
     ColumnSettings.tsx        — Which columns show, in which order, pinned or not, summarised how — one sortable group per area (D19)
     ConflictConfirm.tsx       — The same choice, put once more with both configs on the table
+    CopyButton.tsx            — A value's own copy button: the clipboard, the tick, and the two words a press comes back with
     DashboardArrange.tsx      — Placing a panel without a pointer: the two named handles, and the menu
     DashboardGrid.tsx         — The panels, placed
     DashboardPanels.tsx       — The static panels: a note, a picture, a list of links

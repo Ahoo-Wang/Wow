@@ -192,7 +192,10 @@ export function RecordCards({
                     description="label"
                     data-slot="card-field"
                     data-field={field.field}
-                    className="gap-2 px-0 py-0"
+                    // `group/row` for the same reason the table's rows carry
+                    // it: a card field is the row a cell asks about when it
+                    // only offers something under the pointer (`CopyButton`).
+                    className="group/row gap-2 px-0 py-0"
                   >
                     <ItemContent className="min-w-0 flex-row items-baseline gap-2">
                       <ItemDescription className="shrink-0">

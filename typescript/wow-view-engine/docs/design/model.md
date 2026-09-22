@@ -59,11 +59,13 @@ export type FieldCellId =
   | 'date'
   | 'datetime'
   | 'enum'
-  // 没有哪个 kind 蕴含的四个读法：一枚徽章、一枚一枚的标签、外链、多行文本
+  // 没有哪个 kind 蕴含的五个读法：一枚徽章、一枚一枚的标签、外链、多行文本、
+  // 带一颗复制按钮的值
   | 'status'
   | 'tags'
   | 'link'
-  | 'text';
+  | 'text'
+  | 'copyable';
 
 export interface FieldOption {
   value: string | number;

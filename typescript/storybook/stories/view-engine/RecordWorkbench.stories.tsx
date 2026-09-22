@@ -107,11 +107,11 @@ const pinnedView = {
 /**
  * Every reading a cell can have, on one screen.
  *
- * The definition decides how a column reads, and a column that declares
- * nothing reads as it always did. Here `状态` is a toned badge, `标记` is one
- * badge per entry, `运单` is an external link and `备注` is a clamped
- * paragraph — beside `订单号`, which declares nothing at all. No condition,
- * so all six orders are on screen and the three tones are too.
+ * The definition decides how a column reads. Here `状态` is a toned badge,
+ * `标记` is one badge per entry, `运单` is an external link, `备注` is a
+ * clamped paragraph and `订单号` is copyable — the same text it always was,
+ * with a button beside it. No condition, so all six orders are on screen and
+ * the three tones are too.
  */
 const cellFamilyView = {
   ...savedViews[0],
@@ -718,7 +718,9 @@ export const TotalCoversThisPageOnly: Story = {
  * 选项没命名过的码原样画出来；「运单」是外链，`target="_blank"` 且
  * `rel="noopener noreferrer"`，读不出的 scheme（SO-1005 那条）落回纯文本，
  * 绝不画成能点的链接；「备注」截到三行，整段留在 title 里，换行照留。
- * 「订单号」什么也没声明，于是和从前一模一样。切到卡片，同一份读法。
+ * 「订单号」是 `copyable`：字一个没变，旁边多一颗复制按钮——指针划到这一行
+ * 才现身，键盘 Tab 到它则始终现身，按下去图标翻成对勾、名字改说「已复制」，
+ * 约 1.5 秒后复原。切到卡片，同一份读法。
  */
 export const CellFamily: Story = { args: { cellFamily: true } };
 

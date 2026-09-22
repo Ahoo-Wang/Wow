@@ -67,7 +67,16 @@ export const ordersDefinition: DataViewDefinition = {
   kind: 'data',
   source: 'orders',
   fields: [
-    { name: 'id', label: '订单号', kind: 'string', sortable: true },
+    // 订单号是拿去粘到别处的东西——发给客户、贴进工单、在另一个系统里查，
+    // 所以这一列声明 `cell: 'copyable'`：读法与从前一模一样，旁边多一颗
+    // 悬停才现身、键盘永远够得到的复制按钮（用户 2026-09-22 提出）。
+    {
+      name: 'id',
+      label: '订单号',
+      kind: 'string',
+      cell: 'copyable',
+      sortable: true,
+    },
     {
       name: 'warehouse',
       label: '仓库',

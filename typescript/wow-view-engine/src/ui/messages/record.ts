@@ -88,6 +88,18 @@ export const recordMessages = {
   'label.record.empty-add': 'Add a condition',
   'label.record.select-all': 'Select all rows',
   'label.record.select': 'Select {key}',
+
+  // A copyable cell's own button, and the two words a press can come back
+  // with. The name carries the value because a table full of these buttons
+  // is a table full of one name otherwise: what a reader needs to hear is
+  // which document number this one would take away.
+  'label.copy-of': 'Copy {value}',
+  'label.copied': 'Copied',
+  // Said rather than swallowed: the clipboard is not available outside a
+  // secure context and a user may refuse it, and a button that goes quiet
+  // reads as one that worked. The value stays selectable text either way.
+  'label.copy-failed': 'Could not copy',
+
   'label.summary.of': '{fn} of {field}',
   'label.value.yes': 'Yes',
   'label.value.no': 'No',

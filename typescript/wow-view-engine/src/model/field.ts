@@ -178,8 +178,9 @@ export interface FieldOption {
  *
  * Six of them are the kinds' own renderings, writable here so a field may
  * borrow one: a number holding a millisecond instant reads as a date under
- * `cell: 'date'`. The other four are readings no kind implies — one badge, a
- * badge per entry, an external link, a paragraph.
+ * `cell: 'date'`. The other five are readings no kind implies — one badge, a
+ * badge per entry, an external link, a paragraph, and a value with the means
+ * to take it away.
  */
 export type FieldCellId =
   | 'string'
@@ -191,7 +192,8 @@ export type FieldCellId =
   | 'status'
   | 'tags'
   | 'link'
-  | 'text';
+  | 'text'
+  | 'copyable';
 
 export const FIELD_CELL_IDS: readonly FieldCellId[] = [
   'string',
@@ -204,6 +206,7 @@ export const FIELD_CELL_IDS: readonly FieldCellId[] = [
   'tags',
   'link',
   'text',
+  'copyable',
 ];
 
 /**

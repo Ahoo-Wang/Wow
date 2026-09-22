@@ -13,8 +13,10 @@
 
 import type * as React from 'react';
 import { isSafeContentUrl } from '../../dashboard/index.js';
+import { CopyButton } from '../CopyButton.js';
 import {
   badgeEntries,
+  cellText,
   displayValue,
   formatNumber,
   type BadgeEntry,
@@ -46,9 +48,10 @@ const TEXT_CELL = 'max-w-[var(--fve-record-text-max-w,24rem)]';
  * The table and the cards both come through here, so a card can never
  * disagree with the column it was folded out of. What the field declares
  * decides: `status` and `tags` wear badges, `link` is a guarded external
- * link, `text` is a clamped paragraph, and a field that declares nothing
- * falls through to the kind's own rendering — a date in the surface's zone, a
- * number in its format, a boolean in the catalogue's words.
+ * link, `text` is a clamped paragraph, `copyable` is the value with the means
+ * to take it away, and a field that declares nothing falls through to the
+ * kind's own rendering — a date in the surface's zone, a number in its
+ * format, a boolean in the catalogue's words.
  */
 export function cellValue(
   value: unknown,
@@ -91,6 +94,28 @@ export function cellValue(
         {value}
       </span>
     );
+
+  if (cell === 'copyable') {
+    // What is copied is what is read: the same one-line reading the CSV and
+    // the title attribute take, so the clipboard never comes back with
+    // something the screen did not say.
+    const text = cellText(value, field, messages, display);
+    // Nothing to take away, so nothing to offer. A blank cell with a button
+    // in it is a button that copies the empty string.
+    if (text === '') return null;
+    return (
+      <span
+        data-slot="cell-copyable"
+        // The cell is a group of its own so that a host drawing this
+        // reading in its own markup still has something to hover; the row
+        // is the other group, and the table provides that one.
+        className="group/copyable inline-flex items-center gap-1"
+      >
+        {text}
+        <CopyButton value={text} className="shrink-0" />
+      </span>
+    );
+  }
 
   // A time, a date or an enum shows as the field says; a number keeps its
   // format and a boolean its wording below.

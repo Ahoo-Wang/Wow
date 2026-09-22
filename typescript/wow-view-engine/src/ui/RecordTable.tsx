@@ -321,6 +321,10 @@ export function RecordTable({
                 // cells inherit it, and a wash over a scrolling column is
                 // a window onto it.
                 className={cn(
+                  // Named `row`, because a cell that only offers something
+                  // while the pointer is on the row has to be able to ask
+                  // about the row and not about itself (`CopyButton`).
+                  'group/row',
                   'bg-background data-[state=selected]:bg-muted data-[state=selected]:hover:bg-muted',
                   ROW_HOVER,
                 )}
