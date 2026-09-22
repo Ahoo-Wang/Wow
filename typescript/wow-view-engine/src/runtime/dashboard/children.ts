@@ -13,7 +13,8 @@
 
 import type { FilterTree, Issue } from '../../model/index.js';
 import type { PanelReference } from '../../dashboard/index.js';
-import { hasError, type DataViewRuntime } from '../viewRuntime.js';
+import type { DataViewRuntime } from '../viewRuntime.js';
+import { hasError } from '../runtimeStore.js';
 import { atPanel, panelIssues } from './panels.js';
 
 /** Builds the child runtime of one data panel, with its scope already in force. */

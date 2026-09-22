@@ -27,6 +27,7 @@ export * from './listeners.js';
 export * from './pending.js';
 export * from './refreshTimer.js';
 export * from './requestRunner.js';
+export * from './runtimeStore.js';
 export * from './source.js';
 export * from './validateDefinition.js';
 export * from './viewChanges.js';

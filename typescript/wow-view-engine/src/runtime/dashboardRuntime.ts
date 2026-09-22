@@ -31,7 +31,6 @@ import {
 } from '../filter/index.js';
 import {
   NO_REFUSAL,
-  sameRefusal,
   scopeRefusal,
   withScopeFilter,
   withoutScopeModeWarning,
@@ -42,7 +41,7 @@ import {
   validateDashboard,
 } from '../dashboard/index.js';
 import type { RuntimeEnvironment } from './environment.js';
-import { listenerSet } from './listeners.js';
+import { hasError, RuntimeStore } from './runtimeStore.js';
 import type { OptionSource } from './source.js';
 import {
   PanelChildren,
@@ -57,19 +56,13 @@ import {
 } from './dashboard/panels.js';
 import { PanelReferences, type PanelResolver } from './dashboard/references.js';
 import type { WriteState } from './write.js';
-import {
-  hasError,
-  type DataViewRuntime,
-  type ManagedViewRuntime,
-  type ViewQueryState,
-  type ViewRuntime,
-  type ViewRuntimeState,
+import type {
+  DataViewRuntime,
+  ManagedViewRuntime,
+  ViewQueryState,
+  ViewRuntime,
+  ViewRuntimeState,
 } from './viewRuntime.js';
-import {
-  RefreshTimer,
-  refreshDelayOf,
-  refreshIntervalOf,
-} from './refreshTimer.js';
 
 export type { PanelResolver } from './dashboard/references.js';
 export type { PanelRuntimeFactory } from './dashboard/children.js';
@@ -128,6 +121,10 @@ const IDLE: ViewQueryState = { status: 'idle' };
  * because one slow or broken panel must not decide what the others show. And
  * the timer lives here rather than in the children: a referenced view's own
  * refresh interval is ignored inside a dashboard, so there is one clock.
+ *
+ * The store half of it — the snapshot, the subscribers, that one timer and
+ * dirty-against-saved — is the `RuntimeStore` a data view holds as well; what
+ * is left here is composition.
  */
 export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewConfig> {
   readonly id: string;
@@ -137,21 +134,14 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
   readonly limits: RuntimeLimits;
   readonly environment: RuntimeEnvironment;
 
-  private readonly listeners = listenerSet();
+  private readonly store: RuntimeStore<DashboardRuntimeState>;
   private readonly options: DashboardRuntimeOptions;
-  private readonly unwatchVisibility: () => void;
   /** What the panels point at, as far as it is known; see `PanelReferences`. */
   private readonly references: PanelReferences;
   /** The child runtime of each data panel that runs; see `PanelChildren`. */
   private readonly children: PanelChildren;
 
-  /** See `ViewRuntime.refusedScope`; written here, read by everyone else. */
-  refusedScope: Issue[] = NO_REFUSAL;
-
-  private state: DashboardRuntimeState;
   private injectedScope: FilterTree | null;
-  private readonly timer: RefreshTimer;
-  private stopped = false;
 
   constructor(options: DashboardRuntimeOptions) {
     this.options = options;
@@ -160,7 +150,6 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     this.kinds = options.kinds;
     this.limits = options.limits;
     this.environment = options.environment;
-    this.timer = new RefreshTimer(options.environment, () => this.refresh());
     this.injectedScope = null;
     // Both talk back only through the runtime's own re-sync: a reference
     // settling re-judges the draft, and a child notifying re-times the board
@@ -169,7 +158,7 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
       this.settled(),
     );
     this.children = new PanelChildren(options.createPanelRuntime, panelId => {
-      this.retime();
+      this.store.retime();
       this.refreshPanelIssues(panelId);
     });
 
@@ -184,33 +173,54 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     const own = this.admit(options.config, options.scope, null);
     const merged =
       wanted === null ? own : this.admit(options.config, options.scope, wanted);
-    this.refusedScope = scopeRefusal(own, merged);
-    if (this.refusedScope.length === 0) this.injectedScope = wanted;
-    this.state = {
-      saved,
-      title: options.title,
-      scope: options.scope,
-      draft: options.config,
-      applied: options.config,
-      issues: this.refusedScope.length > 0 ? own : merged,
-      dirty: saved === null,
-      query: IDLE,
-      result: null,
-      selection: [],
-      write: null,
-      editing: false,
-      nextRefreshAt: null,
-      panels: [],
-      resolving: false,
-    };
-    this.unwatchVisibility = options.environment.visibility.subscribe(() =>
-      this.retime(),
-    );
+    const refusedScope = scopeRefusal(own, merged);
+    const refused = refusedScope.length > 0;
+    if (!refused) this.injectedScope = wanted;
+    this.store = new RuntimeStore<DashboardRuntimeState>({
+      state: {
+        saved,
+        title: options.title,
+        scope: options.scope,
+        draft: options.config,
+        applied: options.config,
+        issues: refused ? own : merged,
+        dirty: saved === null,
+        query: IDLE,
+        result: null,
+        selection: [],
+        write: null,
+        editing: false,
+        nextRefreshAt: null,
+        panels: [],
+        resolving: false,
+      },
+      environment: options.environment,
+      refusedScope,
+      admit: draft => this.admit(draft, this.state.scope),
+      apply: () => this.apply(),
+      refresh: () => this.refresh(),
+      // One clock for the whole board, so a request in flight is any panel's.
+      holding: () => this.children.loading(),
+      release: () => this.children.disposeAll(),
+      // A restored draft may name panels this opening has not resolved yet,
+      // so it goes through `load` exactly as an edit does.
+      restored: draft => this.load(draft),
+    });
     this.load(options.config, true);
   }
 
   get disposed(): boolean {
-    return this.stopped;
+    return this.store.disposed;
+  }
+
+  /** See `ViewRuntime.refusedScope`; the store keeps it. */
+  get refusedScope(): Issue[] {
+    return this.store.refusedScope;
+  }
+
+  /** The snapshot the store holds; every command reads it and patches it back. */
+  private get state(): DashboardRuntimeState {
+    return this.store.state;
   }
 
   /** A dashboard declares its own filter fields; there is no definition to ask. */
@@ -235,11 +245,11 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
   }
 
   getSnapshot(): DashboardRuntimeState {
-    return this.state;
+    return this.store.getSnapshot();
   }
 
   subscribe(listener: () => void): () => void {
-    return this.listeners.subscribe(listener);
+    return this.store.subscribe(listener);
   }
 
   optionSource(remote: string): OptionSource | null {
@@ -257,12 +267,12 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
   }
 
   edit(patch: Partial<DashboardViewConfig>): void {
-    if (this.stopped) return;
+    if (this.disposed) return;
     const draft = { ...this.state.draft, ...patch };
-    this.setState({
+    this.store.setState({
       draft,
       issues: this.admit(draft, this.state.scope),
-      dirty: this.isDirty(draft, this.state.saved),
+      dirty: this.store.isDirty(draft, this.state.saved),
     });
     // New panels need their references before the draft can be judged fully.
     this.load(draft);
@@ -270,26 +280,15 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
 
   /** Promotes the draft and brings the panels in line with it. */
   apply(): void {
-    if (this.stopped || hasError(this.state.issues)) return;
+    if (this.disposed || hasError(this.state.issues)) return;
     // Promotion and the panels that follow from it commit together, so a
     // subscriber is notified once and never sees the two disagree.
     this.sync({ applied: this.state.draft });
   }
 
-  /**
-   * Discards the edits and re-runs what was saved; see `ViewRuntime.revert`.
-   * The restored draft may name panels this opening has not resolved yet, so
-   * it goes through `load` exactly as an edit does.
-   */
+  /** Discards the edits and re-runs what was saved; see `RuntimeStore.revert`. */
   revert(): void {
-    const saved = this.state.saved;
-    if (this.stopped || saved === null) return;
-    const draft = saved.config as DashboardViewConfig;
-    const issues = this.admit(draft, this.state.scope);
-    const ran = this.state.applied;
-    this.setState({ draft, issues, dirty: this.isDirty(draft, saved) });
-    this.load(draft);
-    if (!dequal(ran, draft) && !hasError(issues)) this.apply();
+    this.store.revert();
   }
 
   /**
@@ -299,13 +298,13 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
    * does not block it: the children that exist are the ones `sync` admitted.
    */
   refresh(): void {
-    if (this.stopped) return;
+    if (this.disposed) return;
     this.children.refresh();
   }
 
   setEditing(active: boolean): void {
-    if (this.stopped || this.state.editing === active) return;
-    this.setState({ editing: active });
+    if (this.disposed || this.state.editing === active) return;
+    this.store.setState({ editing: active });
   }
 
   /**
@@ -314,15 +313,15 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
    * every panel, so an embedding host cannot quietly break one.
    */
   setScopeFilter(tree: FilterTree | null): Issue[] {
-    if (this.stopped) return this.refusedScope;
+    if (this.disposed) return this.refusedScope;
     if (dequal(tree ?? null, this.injectedScope))
-      return this.refuse(NO_REFUSAL);
+      return this.store.refuse(NO_REFUSAL);
     const applied = this.state.applied;
     const own = this.admit(applied, this.state.scope, null);
     const merged = this.admit(applied, this.state.scope, tree);
     // Only what the condition alone breaks keeps it out; a board already
     // waiting to be fixed is not fixed by refusing the host's condition too.
-    if (this.refuse(scopeRefusal(own, merged)).length > 0)
+    if (this.store.refuse(scopeRefusal(own, merged)).length > 0)
       return this.refusedScope;
 
     this.injectedScope = tree ?? null;
@@ -343,25 +342,25 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
   }
 
   markSaved(instance: ViewInstance): void {
-    if (this.stopped) return;
+    if (this.disposed) return;
     this.moveBaseline(instance);
-    this.setState({ write: null });
+    this.store.setState({ write: null });
   }
 
   moveBaseline(instance: ViewInstance): void {
-    if (this.stopped) return;
-    this.setState({
+    if (this.disposed) return;
+    this.store.setState({
       saved: instance,
       title: instance.title,
       scope: instance.scope,
-      dirty: this.isDirty(this.state.draft, instance),
+      dirty: this.store.isDirty(this.state.draft, instance),
     });
   }
 
   adoptSaved(instance: ViewInstance): void {
-    if (this.stopped) return;
+    if (this.disposed) return;
     const draft = instance.config as DashboardViewConfig;
-    this.setState({
+    this.store.setState({
       saved: instance,
       title: instance.title,
       scope: instance.scope,
@@ -374,19 +373,12 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
   }
 
   setWrite(write: WriteState | null): void {
-    if (this.stopped) return;
-    this.setState({ write });
+    if (this.disposed) return;
+    this.store.setState({ write });
   }
 
   dispose(): void {
-    if (this.stopped) return;
-    this.stopped = true;
-    this.stopTimer();
-    this.unwatchVisibility();
-    this.children.disposeAll();
-    // The last notification, so a subscriber reading `disposed` sees it now.
-    this.notify();
-    this.listeners.clear();
+    this.store.dispose();
   }
 
   /** The child runtime of one panel, for a host that drives a panel itself. */
@@ -414,13 +406,6 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     );
   }
 
-  private isDirty(
-    draft: DashboardViewConfig,
-    saved: ViewInstance | null,
-  ): boolean {
-    return saved === null || !dequal(draft, saved.config);
-  }
-
   /**
    * Starts loading the references a config needs; each one re-judges the
    * draft as it settles (`settled`). `awaited` says whether anyone waits on
@@ -428,12 +413,12 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
    */
   private load(config: DashboardViewConfig, awaited = false): void {
     if (this.references.load(config, awaited))
-      this.setState({ resolving: true });
+      this.store.setState({ resolving: true });
   }
 
   /** A reference settled — loaded, unreadable or failed — so the draft is re-judged. */
   private settled(): void {
-    if (this.stopped) return;
+    if (this.disposed) return;
     // A reference arriving is where a global field first meets the panel
     // field it binds to, so it is also where an injected condition can turn
     // out to be one this board cannot carry. It is refused here on the same
@@ -451,16 +436,8 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     const applied = this.state.applied;
     const own = this.admit(applied, this.state.scope, null);
     const merged = this.admit(applied, this.state.scope);
-    if (this.refuse(scopeRefusal(own, merged)).length > 0)
+    if (this.store.refuse(scopeRefusal(own, merged)).length > 0)
       this.injectedScope = null;
-  }
-
-  /** Records a refusal and notifies; see `DataViewRuntime.refuse`. */
-  private refuse(refusal: Issue[]): Issue[] {
-    if (sameRefusal(this.refusedScope, refusal)) return this.refusedScope;
-    this.refusedScope = refusal;
-    this.notify();
-    return this.refusedScope;
   }
 
   /**
@@ -468,7 +445,7 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
    * panel that can run, none for the rest, and the current scope in each.
    */
   private sync(patch: Partial<DashboardRuntimeState> = {}): void {
-    if (this.stopped) return;
+    if (this.disposed) return;
     const applied = patch.applied ?? this.state.applied;
     const issues = this.admit(applied, this.state.scope);
     const panels: DashboardPanelState[] = [];
@@ -498,7 +475,7 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
 
     // A re-sync that changes nothing keeps the previous array, so a grid
     // bound with `useSyncExternalStore` does not re-render on every apply.
-    this.setState({
+    this.store.setState({
       ...patch,
       panels: samePanels(this.state.panels, panels)
         ? this.state.panels
@@ -561,62 +538,6 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     if (dequal(issues, current.issues)) return;
     const panels = [...this.state.panels];
     panels[at] = { ...current, issues };
-    this.setState({ panels });
-  }
-
-  private setState(patch: Partial<DashboardRuntimeState>): void {
-    this.state = { ...this.state, ...patch };
-    this.syncTimer();
-    // Commit first, notify second: a listener always reads the new snapshot.
-    this.notify();
-  }
-
-  private notify(): void {
-    this.listeners.emit();
-  }
-
-  /**
-   * Re-syncs the timer for something that is no state change of the dashboard
-   * itself — the page hidden or shown, a panel's query starting or landing —
-   * and notifies only when the due time actually moved. That is at most twice
-   * a round however many panels there are, which is what keeps the grid from
-   * re-rendering on every panel request while the countdown in the title bar
-   * still answers to the timer the panels hold up.
-   */
-  private retime(): void {
-    const before = this.state;
-    this.syncTimer();
-    if (this.state === before) return;
-    this.notify();
-  }
-
-  /**
-   * One timer for the whole dashboard, held for the same four reasons a data
-   * view holds its own, with "a request in flight" meaning any panel's. As a
-   * data view's: the due time is written into the snapshot, notified by the
-   * caller.
-   */
-  private syncTimer(): void {
-    const held =
-      this.stopped ||
-      this.state.editing ||
-      this.children.loading() ||
-      hasError(this.state.issues) ||
-      !this.environment.visibility.isVisible();
-    this.setDueAt(
-      this.timer.sync(
-        refreshDelayOf(refreshIntervalOf(this.state.applied), held),
-      ),
-    );
-  }
-
-  private setDueAt(at: number | null): void {
-    if (this.state.nextRefreshAt === at) return;
-    this.state = { ...this.state, nextRefreshAt: at };
-  }
-
-  private stopTimer(): void {
-    this.timer.stop();
-    this.setDueAt(null);
+    this.store.setState({ panels });
   }
 }

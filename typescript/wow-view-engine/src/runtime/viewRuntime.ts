@@ -32,13 +32,12 @@ import {
 import { issue, type FieldKindRegistry } from '../filter/index.js';
 import {
   NO_REFUSAL,
-  sameRefusal,
   scopeRefusal,
   withScopeFilter,
   withoutScopeModeWarning,
 } from './scope.js';
 import type { RuntimeEnvironment } from './environment.js';
-import { listenerSet } from './listeners.js';
+import { hasError, RuntimeStore } from './runtimeStore.js';
 import {
   isRequestSuperseded,
   RequestQueueFullError,
@@ -59,11 +58,6 @@ import {
 } from './exportRows.js';
 import type { WriteState } from './write.js';
 import type { DashboardRuntime } from './dashboardRuntime.js';
-import {
-  RefreshTimer,
-  refreshDelayOf,
-  refreshIntervalOf,
-} from './refreshTimer.js';
 
 /**
  * One open view. A small store with `subscribe` and `getSnapshot`, so React
@@ -367,16 +361,15 @@ function patched<C extends object>(draft: C, patch: Partial<C>): C {
   return next as C;
 }
 
-/** An `error` blocks apply and every write; a `warning` only reports. */
-export function hasError(issues: readonly Issue[]): boolean {
-  return issues.some(entry => entry.severity === 'error');
-}
-
 /**
  * The runtime of a Record or an Analysis view.
  *
  * It owns no persistence: saving is a command of `ViewEngine`, which calls
  * `markSaved` once the store has confirmed it.
+ *
+ * The store half of it — the snapshot, the subscribers, the refresh timer and
+ * dirty-against-saved — is `RuntimeStore`, which the dashboard runtime holds
+ * one of as well; what is left here is what it means to be a data view.
  */
 export class DataViewRuntime<
   C extends DataViewConfig = DataViewConfig,
@@ -388,17 +381,12 @@ export class DataViewRuntime<
   readonly limits: RuntimeLimits;
   readonly environment: RuntimeEnvironment;
 
-  private readonly listeners = listenerSet();
+  private readonly store: RuntimeStore<ViewRuntimeState<C>>;
   private readonly context: KernelContext;
   private readonly runner: RequestRunner;
   private readonly resolveOptions: ((key: string) => OptionSource) | undefined;
-  private readonly unwatchVisibility: () => void;
   private readonly autoRefresh: boolean;
 
-  /** See `ViewRuntime.refusedScope`; written here, read by everyone else. */
-  refusedScope: Issue[] = NO_REFUSAL;
-
-  private state: ViewRuntimeState<C>;
   private injectedScope: FilterTree | null = null;
   /**
    * Whether `applied` merged with the scope passed admission. `apply` and
@@ -409,8 +397,6 @@ export class DataViewRuntime<
   private appliedAdmitted: boolean;
   private pageTarget: RecordPageTarget | undefined;
   private requestSeq = 0;
-  private readonly timer: RefreshTimer;
-  private stopped = false;
 
   constructor(options: ViewRuntimeOptions<C>) {
     this.id = options.id;
@@ -445,34 +431,51 @@ export class DataViewRuntime<
     const wanted = options.scopeFilter ?? null;
     const own = this.admit(options.config, null);
     const merged = wanted === null ? own : this.admit(options.config, wanted);
-    this.refusedScope = scopeRefusal(own, merged);
-    const refused = this.refusedScope.length > 0;
+    const refusedScope = scopeRefusal(own, merged);
+    const refused = refusedScope.length > 0;
     this.injectedScope = refused ? null : wanted;
     const issues = refused ? own : merged;
     this.appliedAdmitted = !hasError(issues);
-    this.state = {
-      saved,
-      title: options.title,
-      scope: options.scope,
-      draft: options.config,
-      applied: options.config,
-      issues,
-      dirty: saved === null,
-      query: IDLE,
-      result: null,
-      selection: [],
-      write: null,
-      editing: false,
-      nextRefreshAt: null,
-    };
-    this.timer = new RefreshTimer(options.environment, () => this.refresh());
-    this.unwatchVisibility = options.environment.visibility.subscribe(() =>
-      this.retime(),
-    );
+    this.store = new RuntimeStore<ViewRuntimeState<C>>({
+      state: {
+        saved,
+        title: options.title,
+        scope: options.scope,
+        draft: options.config,
+        applied: options.config,
+        issues,
+        dirty: saved === null,
+        query: IDLE,
+        result: null,
+        selection: [],
+        write: null,
+        editing: false,
+        nextRefreshAt: null,
+      },
+      environment: options.environment,
+      refusedScope,
+      admit: draft => this.admit(draft),
+      apply: () => this.apply(),
+      refresh: () => this.refresh(),
+      // A panel inside a dashboard is timed by the board, so it holds its own
+      // timer for good; otherwise it is held while its one request is in flight.
+      holding: () => !this.autoRefresh || this.state.query.status === 'loading',
+      release: () => this.runner.cancel(this.id),
+    });
   }
 
   get disposed(): boolean {
-    return this.stopped;
+    return this.store.disposed;
+  }
+
+  /** See `ViewRuntime.refusedScope`; the store keeps it. */
+  get refusedScope(): Issue[] {
+    return this.store.refusedScope;
+  }
+
+  /** The snapshot the store holds; every command reads it and patches it back. */
+  private get state(): ViewRuntimeState<C> {
+    return this.store.state;
   }
 
   get fields(): readonly FieldDefinition[] {
@@ -485,11 +488,11 @@ export class DataViewRuntime<
   }
 
   getSnapshot(): ViewRuntimeState<C> {
-    return this.state;
+    return this.store.getSnapshot();
   }
 
   subscribe(listener: () => void): () => void {
-    return this.listeners.subscribe(listener);
+    return this.store.subscribe(listener);
   }
 
   optionSource(remote: string): OptionSource | null {
@@ -497,41 +500,26 @@ export class DataViewRuntime<
   }
 
   edit(patch: Partial<C>): void {
-    if (this.stopped) return;
+    if (this.disposed) return;
     const draft = patched(this.state.draft, patch);
-    this.setState({
+    this.store.setState({
       draft,
       issues: this.admit(draft),
-      dirty: this.isDirty(draft, this.state.saved),
+      dirty: this.store.isDirty(draft, this.state.saved),
     });
   }
 
   apply(): void {
-    if (this.stopped || hasError(this.state.issues)) return;
+    if (this.disposed || hasError(this.state.issues)) return;
     this.appliedAdmitted = true;
     this.pageTarget = firstPageOf(this.context.definition);
-    this.setState({ applied: this.state.draft, selection: [] });
+    this.store.setState({ applied: this.state.draft, selection: [] });
     this.execute({ keepSelection: false });
   }
 
-  /**
-   * Discards the edits and re-runs what was saved.
-   *
-   * It re-applies rather than only restoring the draft, because the results
-   * on screen may already answer a question the user has just taken back —
-   * leaving them there would show the reverted config's rows under the saved
-   * config's name. A draft the store's own config cannot pass admission for
-   * is restored all the same and left for the user to fix, since refusing
-   * would strand them on edits they asked to be rid of.
-   */
+  /** Discards the edits and re-runs what was saved; see `RuntimeStore.revert`. */
   revert(): void {
-    const saved = this.state.saved;
-    if (this.stopped || saved === null) return;
-    const draft = saved.config as C;
-    const issues = this.admit(draft);
-    const ran = this.state.applied;
-    this.setState({ draft, issues, dirty: this.isDirty(draft, saved) });
-    if (!dequal(ran, draft) && !hasError(issues)) this.apply();
+    this.store.revert();
   }
 
   /**
@@ -543,16 +531,16 @@ export class DataViewRuntime<
    * for exactly this.
    */
   refresh(): void {
-    if (this.stopped || !this.appliedAdmitted) return;
+    if (this.disposed || !this.appliedAdmitted) return;
     // A refresh returns to the first page; the selection keeps whatever rows survive.
     this.pageTarget = firstPageOf(this.context.definition);
     this.execute({ keepSelection: true });
   }
 
   page(target: RecordPageTarget): void {
-    if (this.stopped || !this.appliedAdmitted) return;
+    if (this.disposed || !this.appliedAdmitted) return;
     this.pageTarget = target;
-    this.setState({ selection: [] });
+    this.store.setState({ selection: [] });
     this.execute({ keepSelection: false });
   }
 
@@ -567,7 +555,7 @@ export class DataViewRuntime<
    */
   exportRows(options: ExportRowsOptions = {}): Promise<ExportedRows> {
     const applied: DataViewConfig = this.state.applied;
-    if (this.stopped || applied.kind !== 'record')
+    if (this.disposed || applied.kind !== 'record')
       return Promise.reject(
         new Error(`View ${this.id} has no record rows to export`),
       );
@@ -579,39 +567,42 @@ export class DataViewRuntime<
   }
 
   select(keys: RecordKey[]): void {
-    if (this.stopped) return;
+    if (this.disposed) return;
     const available = this.resultKeys();
     const selection = available
       ? keys.filter(key => available.has(key))
       : [...keys];
-    this.setState({ selection });
+    this.store.setState({ selection });
   }
 
   setEditing(active: boolean): void {
-    if (this.stopped || this.state.editing === active) return;
-    this.setState({ editing: active });
+    if (this.disposed || this.state.editing === active) return;
+    this.store.setState({ editing: active });
   }
 
   setScopeFilter(tree: FilterTree | null): Issue[] {
-    if (this.stopped) return this.refusedScope;
+    if (this.disposed) return this.refusedScope;
     // Re-injecting the same condition changes nothing, and a dashboard does
     // exactly that whenever a layout edit is applied. What is asked for is
     // what is in force, so nothing stands refused either.
     if (dequal(tree ?? null, this.injectedScope))
-      return this.refuse(NO_REFUSAL);
+      return this.store.refuse(NO_REFUSAL);
     const own = this.admit(this.state.applied, null);
     const merged = this.admit(this.state.applied, tree);
     // An injected condition is admitted exactly like a user's own — but only
     // what it alone breaks keeps it out. A view already waiting to be fixed
     // is not fixed by refusing the host's condition too.
-    if (this.refuse(scopeRefusal(own, merged)).length > 0)
+    if (this.store.refuse(scopeRefusal(own, merged)).length > 0)
       return this.refusedScope;
 
     this.injectedScope = tree ?? null;
     this.appliedAdmitted = !hasError(merged);
     this.pageTarget = firstPageOf(this.context.definition);
     // The draft is judged with the scope too, so its issues move with it.
-    this.setState({ issues: this.admit(this.state.draft), selection: [] });
+    this.store.setState({
+      issues: this.admit(this.state.draft),
+      selection: [],
+    });
     if (this.appliedAdmitted) this.execute({ keepSelection: false });
     return this.refusedScope;
   }
@@ -623,26 +614,26 @@ export class DataViewRuntime<
 
   /** Called by `ViewEngine` once a write has been confirmed by the store. */
   markSaved(instance: ViewInstance): void {
-    if (this.stopped) return;
+    if (this.disposed) return;
     this.moveBaseline(instance);
-    this.setState({ write: null });
+    this.store.setState({ write: null });
   }
 
   moveBaseline(instance: ViewInstance): void {
-    if (this.stopped) return;
-    this.setState({
+    if (this.disposed) return;
+    this.store.setState({
       saved: instance,
       title: instance.title,
       scope: instance.scope,
-      dirty: this.isDirty(this.state.draft, instance),
+      dirty: this.store.isDirty(this.state.draft, instance),
     });
   }
 
   /** Replaces the draft with the store's state, used by "reload" on a conflict. */
   adoptSaved(instance: ViewInstance): void {
-    if (this.stopped) return;
+    if (this.disposed) return;
     const draft = instance.config as C;
-    this.setState({
+    this.store.setState({
       saved: instance,
       title: instance.title,
       scope: instance.scope,
@@ -655,43 +646,12 @@ export class DataViewRuntime<
 
   /** Called by `ViewEngine` with the outcome of a write it dispatched. */
   setWrite(write: WriteState | null): void {
-    if (this.stopped) return;
-    this.setState({ write });
+    if (this.disposed) return;
+    this.store.setState({ write });
   }
 
   dispose(): void {
-    if (this.stopped) return;
-    this.stopped = true;
-    this.stopTimer();
-    this.unwatchVisibility();
-    this.runner.cancel(this.id);
-    // The last notification: a subscriber that reads `disposed` sees it now
-    // rather than on some later render it happens to get.
-    this.notify();
-    this.listeners.clear();
-  }
-
-  private isDirty(draft: C, saved: ViewInstance | null): boolean {
-    // A view that was never saved has nothing to compare against, and closing
-    // it would lose everything, so it counts as dirty from the start.
-    return saved === null || !dequal(draft, saved.config);
-  }
-
-  /**
-   * Records what the scope on hand was refused for, and tells the subscribers
-   * when that answer changed.
-   *
-   * A refusal changes nothing else — no state, no query — so without this a
-   * screen showing it would have to be told by whoever made the injection,
-   * which is how a refusal on open came to say something else entirely. The
-   * previous answer is kept while it says the same thing, so a host that
-   * builds its condition in render is not re-rendered forever.
-   */
-  private refuse(refusal: Issue[]): Issue[] {
-    if (sameRefusal(this.refusedScope, refusal)) return this.refusedScope;
-    this.refusedScope = refusal;
-    this.notify();
-    return this.refusedScope;
+    this.store.dispose();
   }
 
   private resultKeys(): Set<RecordKey> | null {
@@ -723,7 +683,7 @@ export class DataViewRuntime<
     const own = this.state.applied;
     const config = withScopeFilter(own, this.injectedScope);
     const requestId = `${this.id}:${(this.requestSeq += 1)}`;
-    this.setState({ query: { status: 'loading', requestId } });
+    this.store.setState({ query: { status: 'loading', requestId } });
 
     this.runner
       .run(this.id, controller =>
@@ -749,7 +709,7 @@ export class DataViewRuntime<
     const selection = keepSelection
       ? this.retainSelection(data)
       : this.state.selection;
-    this.setState({
+    this.store.setState({
       query: { status: 'success', requestId },
       result,
       ...(selection === this.state.selection ? {} : { selection }),
@@ -769,70 +729,13 @@ export class DataViewRuntime<
   private onFailure(requestId: string, error: unknown): void {
     // A superseded request is the normal outcome of typing; it is not an error.
     if (isRequestSuperseded(error) || !this.isCurrent(requestId)) return;
-    this.setState({
+    this.store.setState({
       query: { status: 'error', error: queryIssue(error), requestId },
     });
   }
 
   private isCurrent(requestId: string): boolean {
-    return !this.stopped && this.state.query.requestId === requestId;
-  }
-
-  private setState(patch: Partial<ViewRuntimeState<C>>): void {
-    this.state = { ...this.state, ...patch };
-    this.syncTimer();
-    // Commit first, notify second: a listener always reads the new snapshot.
-    this.notify();
-  }
-
-  private notify(): void {
-    this.listeners.emit();
-  }
-
-  /**
-   * Re-syncs the timer for something that is not a state change of this
-   * runtime's own — the page being hidden or shown — and notifies only if the
-   * due time moved. Visibility does not change `draft`, `applied` or the
-   * query, so there would be nothing to tell a subscriber about without it,
-   * and a countdown on screen would go on counting to a timer that is no
-   * longer armed.
-   */
-  private retime(): void {
-    const before = this.state;
-    this.syncTimer();
-    if (this.state === before) return;
-    this.notify();
-  }
-
-  /**
-   * Auto-refresh: the four reasons to hold the timer are this runtime's
-   * reading; arming is `RefreshTimer`'s. The due time is written into the
-   * snapshot without notifying — every caller is either inside `setState`,
-   * which notifies after it, or `retime`, which notifies for it.
-   */
-  private syncTimer(): void {
-    const held =
-      this.stopped ||
-      !this.autoRefresh ||
-      this.state.editing ||
-      this.state.query.status === 'loading' ||
-      hasError(this.state.issues) ||
-      !this.environment.visibility.isVisible();
-    this.setDueAt(
-      this.timer.sync(
-        refreshDelayOf(refreshIntervalOf(this.state.applied), held),
-      ),
-    );
-  }
-
-  private setDueAt(at: number | null): void {
-    if (this.state.nextRefreshAt === at) return;
-    this.state = { ...this.state, nextRefreshAt: at };
-  }
-
-  private stopTimer(): void {
-    this.timer.stop();
-    this.setDueAt(null);
+    return !this.disposed && this.state.query.requestId === requestId;
   }
 }
 

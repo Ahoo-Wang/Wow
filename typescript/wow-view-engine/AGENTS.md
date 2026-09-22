@@ -169,7 +169,7 @@ src/
     validate.ts               — validateDashboard — panels, bindings, content
     index.ts                  — The dashboard kernel: admission, panel binding resolution and the global filter merge
   runtime/                    — Stateful layer; never imports react or ui
-    dashboardRuntime.ts       — `DashboardViewRuntime`: N child runtimes and one global filter, on one clock
+    dashboardRuntime.ts       — `DashboardViewRuntime`: N child runtimes and one global filter, on one clock, over one `RuntimeStore`
     definitions.ts            — The definition registry: judged once, refused at the point of use
     environment.ts            — `RuntimeEnvironment` and the `VisibilitySource` port; `ALWAYS_VISIBLE`, `defaultRuntimeEnvironment`
     execute.ts                — The two execution kinds a runtime drives
@@ -183,12 +183,13 @@ src/
     refreshTimer.ts           — The one auto-refresh timer both runtimes arm; `refreshIntervalOf`, `refreshDelayOf`
     requestRunner.ts          — Scheduling; a newer request supersedes a key
     runtimeFactory.ts         — How one runtime is assembled, `open` and `create` alike
+    runtimeStore.ts           — The store both runtimes are made of: the state, its listeners, the refresh timer's bookkeeping, dirty-against-saved; `hasError`
     scope.ts                  — What an injected scope does to admission: the merge, and what it alone is refused for
     source.ts                 — resolveSource — three QueryApi methods
     validateDefinition.ts     — Definition admission; needs all three kernels
     viewChanges.ts            — The change notifications a list of views subscribes to (D15)
     viewEngine.ts             — ViewEngine — the command surface: admission, then one dispatch
-    viewRuntime.ts            — One open view; subscribe / getSnapshot store; `hasResult`, the one reading of "a result ever arrived"
+    viewRuntime.ts            — One open view over one `RuntimeStore`: the `ViewRuntime` contract, admission and execution; `hasResult`, the one reading of "a result ever arrived"
     write.ts                  — Write bodies, retry and overwrite replay
     writeLedger.ts            — The write ledger: outcomes by requestId, retry, conflicts
     index.ts                  — Transient state: what is open, what is in flight, what came back

@@ -1,6 +1,6 @@
 # 运行时
 
-一个打开的视图对应一个 `ViewRuntime`，它是带 `subscribe / getSnapshot` 的小 store。订阅与通知那一半由 `runtime/listeners.ts` 的 `listenerSet` 出：两个 runtime、列表变化通知与 React 那边的倒数读数共用一份，两条规则（提交状态之后再通知、遍历监听者集合的副本，好让监听者在自己那一下里退订）因此只写一处。
+一个打开的视图对应一个 `ViewRuntime`，它是带 `subscribe / getSnapshot` 的小 store。**store 那一半只有一份实现**（`runtime/runtimeStore.ts` 的 `RuntimeStore`）：它持有 `draft`／`applied`／`result` 这三态所在的那份快照、订阅者、自动刷新计时器的账本，以及「draft 与已保存的那份是否还一样」这一条 `dirty` 判据——数据视图与仪表盘各持一只，两个 runtime 只留各自「是哪种视图」的部分（一次查询，还是 N 块面板）。两处真正不同的地方做成 store 的显式钩子而不是拷贝：`admit`（这个类把配置交给哪一套准入）、`apply`（提升在这里意味着什么）、`holding`（第四条暂停理由里「在途的是谁的请求」）、`release`（dispose 时还要放掉什么）与 `restored`（`revert` 之后仪表盘还要 `load` 一次引用）。订阅与通知那一半再往下由 `runtime/listeners.ts` 的 `listenerSet` 出：`RuntimeStore`、列表变化通知与 React 那边的倒数读数共用一份，两条规则（提交状态之后再通知、遍历监听者集合的副本，好让监听者在自己那一下里退订）因此只写一处。（store 自身的那几条见 test/runtimeStore.test.ts，两个 runtime 各自的规则仍在 test/runtime.test.ts 与 test/dashboardRuntime.test.ts）
 
 ## 状态与命令
 
@@ -143,7 +143,7 @@ export class ViewWriteError extends Error {
 
 间隔的入口是刷新按钮的 `▾`（`RefreshControl`，三种视图各有一处，见 [ui/README.md#刷新是一个拆分按钮](ui/README.md#刷新是一个拆分按钮)）：选中即 `edit({ refresh: { interval } })` 加 `apply`，因为这里读的是 `applied`。界面不添第四条之外的暂停理由。计时与可见性都来自注入的 `RuntimeEnvironment`（见下方[环境](#环境)），runtime 不触碰 DOM。计时器随 `dispose` 释放。多个 React 组件观察同一 runtime 不会产生多个计时器。（见 test/runtime.test.ts「DataViewRuntime auto refresh」）
 
-**计时器只有一份实现**（`runtime/refreshTimer.ts` 的 `RefreshTimer`）：数据视图与仪表盘各持一只，武装、复用同一延迟、停表都在它里面；两个运行时只负责各自的「四条暂停理由」（`refreshDelayOf(interval, held)`）并公布它答回来的到期时刻——从前两处逐字相同的拷贝就是靠这一步收掉的。**到期时刻随计时器一起公布**：`state.nextRefreshAt` 在武装计时器的同一处写入（`environment.now() + delay`），停表的同一处清空，因此它不是关于计时器的第二种说法，而就是计时器自己的那个数。四条暂停理由任意一条成立时它是 `null`——「正在倒数」与「表停了」在屏幕上必须分得开，冻在某个秒数上的倒计时是在说谎。可见性变化与（仪表盘上）面板查询的起落都不是 runtime 自身的状态变更，本来不通知订阅者；只有在它们**移动了到期时刻**时才补一次通知（每轮至多两次，与面板数量无关），否则屏幕上的倒计时会继续数向一个已经不存在的计时器。手动 `refresh()` 不需要特别处理就会重排：请求在途时计时器停，落地后按新的 `now()` 重新武装——刚拿到的数据不该在三秒后又被刷一次。倒数由 `useRefreshCountdown` 在控件里每秒重画（见 [react.md](react.md)），读的始终是这个数与 `environment.now()`，界面不另起时钟。（见 test/runtime.test.ts「publishes when the next refresh is due」与 test/dashboardRuntime.test.ts「publishes when the whole board is next due」）
+**计时器只有一份实现**（`runtime/refreshTimer.ts` 的 `RefreshTimer`）：数据视图与仪表盘各持一只，武装、复用同一延迟、停表都在它里面；「四条暂停理由」由 `RuntimeStore` 读（`refreshDelayOf(interval, held)`），其中三条（draft 有 error、编辑器有焦点、页面不可见）它自己就能读出来，第四条「上一次请求仍在途」要问持有它的 runtime——在途的是谁的请求只有 runtime 知道：数据视图是自己那一个，仪表盘是任意一块面板的，而仪表盘里的那份数据视图干脆一直按住（整块板只有一只钟）。到期时刻由 store 公布——从前两处逐字相同的拷贝就是靠这两步收掉的。**到期时刻随计时器一起公布**：`state.nextRefreshAt` 在武装计时器的同一处写入（`environment.now() + delay`），停表的同一处清空，因此它不是关于计时器的第二种说法，而就是计时器自己的那个数。四条暂停理由任意一条成立时它是 `null`——「正在倒数」与「表停了」在屏幕上必须分得开，冻在某个秒数上的倒计时是在说谎。可见性变化与（仪表盘上）面板查询的起落都不是 runtime 自身的状态变更，本来不通知订阅者；只有在它们**移动了到期时刻**时才补一次通知（每轮至多两次，与面板数量无关），否则屏幕上的倒计时会继续数向一个已经不存在的计时器。手动 `refresh()` 不需要特别处理就会重排：请求在途时计时器停，落地后按新的 `now()` 重新武装——刚拿到的数据不该在三秒后又被刷一次。倒数由 `useRefreshCountdown` 在控件里每秒重画（见 [react.md](react.md)），读的始终是这个数与 `environment.now()`，界面不另起时钟。（见 test/runtime.test.ts「publishes when the next refresh is due」与 test/dashboardRuntime.test.ts「publishes when the whole board is next due」）
 
 ## 导出
 
