@@ -586,8 +586,9 @@ describe('summaryText', () => {
   });
 
   it("drops the group's word for a lone condition, but not under none-of", () => {
-    // "All of X" and "Any of X" say no more than "X"; "None of X" says the
-    // opposite of it, so that one is said whatever it holds.
+    // "All of X" and "Any of X" say no more than "X"; a lone condition
+    // under `nor` is that condition negated — the pill's own switch (D18-7)
+    // — and is said as such rather than as a group of one.
     expect(say(predicate('and', [sku('A', 0)]))).toBe(
       'Items has an entry where SKU is A',
     );
@@ -595,7 +596,7 @@ describe('summaryText', () => {
       'Items has an entry where SKU is A',
     );
     expect(say(predicate('nor', [sku('A', 0)]))).toBe(
-      'Items has an entry where None of SKU is A',
+      'Items has an entry where not SKU is A',
     );
   });
 

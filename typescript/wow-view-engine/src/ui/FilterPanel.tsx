@@ -106,6 +106,7 @@ export function FilterPanel({
       disabled={disabled}
       optionsFor={optionsFor}
       isPending={filter.isPending}
+      negatable
     />
   ) : null;
 

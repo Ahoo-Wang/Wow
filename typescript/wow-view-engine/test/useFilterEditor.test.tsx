@@ -226,6 +226,34 @@ describe('useFilterEditor', () => {
     expect(result.current.filter.tree.children).toEqual([]);
   });
 
+  /**
+   * D18-7: the switch on a pill negates its condition without leaving simple
+   * mode, and the field stays taken — a negated condition on warehouse is
+   * still this group's condition on warehouse.
+   */
+  it('negates a condition and stays in simple mode', async () => {
+    const result = await openEditor();
+
+    act(() => result.current.filter.addLeaf('warehouse'));
+    act(() => result.current.filter.negate([0]));
+
+    expect(result.current.filter.tree.children[0]).toMatchObject({
+      op: 'nor',
+      children: [{ field: 'warehouse' }],
+    });
+    expect(result.current.filter.simple).toBe(true);
+    expect(result.current.filter.count).toBe(1);
+    expect(
+      result.current.filter.fieldsFor().map(field => field.name),
+    ).not.toContain('warehouse');
+
+    // The same switch, by the leaf's path inside its wrapper, undoes it.
+    act(() => result.current.filter.negate([0, 0]));
+    expect(result.current.filter.tree.children[0]).toMatchObject({
+      field: 'warehouse',
+    });
+  });
+
   it('reports the filter issues the validator produced, and only those', async () => {
     const result = await openEditor();
 

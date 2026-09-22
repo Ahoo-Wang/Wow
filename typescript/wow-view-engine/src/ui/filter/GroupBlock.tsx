@@ -15,6 +15,7 @@ import { XIcon } from 'lucide-react';
 import type { FieldOption, FilterGroup } from '../../model/index.js';
 import {
   isFilterGroup,
+  isNegation,
   isFilterNode,
   type FilterPath,
 } from '../../filter/index.js';
@@ -149,6 +150,7 @@ export function ConditionStrip({
   optionsFor,
   scope,
   isPending,
+  negatable,
 }: {
   filter: FilterTreeController;
   group: FilterGroup;
@@ -157,6 +159,13 @@ export function ConditionStrip({
   optionsFor?: (remote: string) => FieldOption[] | undefined;
   scope?: string;
   isPending?: (path: FilterPath) => boolean;
+  /**
+   * Simple mode's strip: every pill offers its negation switch, and a
+   * condition alone in a `nor` group is drawn as that pill, pressed, rather
+   * than as the group it is stored as. Advanced mode leaves this off and
+   * shows the group — the tree as it is, with the operator to change it.
+   */
+  negatable?: boolean;
 }) {
   if (group.children.length === 0) return null;
   return (
@@ -173,7 +182,19 @@ export function ConditionStrip({
       {group.children.map((child, index) =>
         // The same reading of a node admission and the walk use: a leaf
         // carrying a stray `children` of the wrong shape is still a leaf.
-        !isFilterNode(child) ? null : isFilterGroup(child) ? (
+        !isFilterNode(child) ? null : negatable && isNegation(child) ? (
+          <ConditionPill
+            key={`${child.children[0].field}-${index}`}
+            filter={filter}
+            leaf={child.children[0]}
+            path={[...path, index, 0]}
+            disabled={disabled}
+            optionsFor={optionsFor}
+            isPending={isPending}
+            negatable
+            negated
+          />
+        ) : isFilterGroup(child) ? (
           <div key={index} className="col-span-full">
             <GroupBlock
               filter={filter}
@@ -194,6 +215,7 @@ export function ConditionStrip({
             disabled={disabled}
             optionsFor={optionsFor}
             isPending={isPending}
+            negatable={negatable}
           />
         ),
       )}

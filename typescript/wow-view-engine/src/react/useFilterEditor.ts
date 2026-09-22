@@ -29,7 +29,9 @@ import {
   describeFilter,
   impliedDeletion,
   insertAt,
+  isNegation,
   isSimpleTree,
+  negateAt,
   nodeAt,
   operatorsOf,
   removeAt,
@@ -462,6 +464,13 @@ export interface FilterTreeController {
   updateLeaf(path: FilterPath, patch: Partial<FilterLeaf>): void;
   addGroup(op: FilterGroupOperator, parent?: FilterPath): void;
   updateGroup(path: FilterPath, op: FilterGroupOperator): void;
+  /**
+   * Flips the condition at `path` between itself and "not itself": a leaf is
+   * wrapped in a `nor` group of its own, a leaf already alone in one is
+   * unwrapped. `path` is the leaf's, as the pill holds it. This is simple
+   * mode's switch (D18-7); advanced mode has the group operator for it.
+   */
+  negate(path: FilterPath): void;
   remove(path: FilterPath): void;
   operatorsFor(field: string): FilterOperatorName[];
   editorFor(path: FilterPath): EditorDescriptor | null;
@@ -517,9 +526,16 @@ function addableFields(
   kinds: FieldKindRegistry | undefined,
 ): FieldDefinition[] {
   const group = nodeAt(tree, parent);
+  // A negated condition is still this group's condition on its field.
   const used = new Set(
     isFilterGroup(group)
-      ? group.children.filter(isFilterLeaf).map(leaf => leaf.field)
+      ? group.children.flatMap(child =>
+          isFilterLeaf(child)
+            ? [child.field]
+            : isNegation(child)
+              ? [child.children[0].field]
+              : [],
+        )
       : [],
   );
   // A field whose kind the registry does not know is left out, because
@@ -597,6 +613,9 @@ export function treeController(
           'children' in node ? { ...node, op } : node,
         ),
       );
+    },
+    negate(path) {
+      change(current => negateAt(current, path));
     },
     remove(path) {
       change(current => removeAt(current, path));

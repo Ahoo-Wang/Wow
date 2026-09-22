@@ -15,6 +15,7 @@ import { expect, fireEvent, userEvent, waitFor, within } from 'storybook/test';
 import { formatMessage, zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 import displayMeta, {
   Advanced as DisplayAdvanced,
+  Negated as DisplayNegated,
   NumberList as DisplayNumberList,
   Simple as DisplaySimple,
   UnregisteredKind as DisplayUnregisteredKind,
@@ -112,6 +113,87 @@ export const Advanced: Story = {
       `删除状态 ${zhCN['label.operator.DELETION']} ${zhCN['label.deletion.active']} ` +
         zhCN['label.applied.implied'],
     ]);
+  },
+};
+
+/**
+ * D18-7: a negated condition is a `nor` group of one, and simple mode shows
+ * it as the pill with its switch pressed and the word in its sentence. The
+ * bar says the whole condition under 排除; pressing the switch again and
+ * applying is the plain condition, with the rows to match.
+ */
+export const Negated: Story = {
+  ...DisplayNegated,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    const badges = () =>
+      [
+        ...canvas
+          .getByRole('region', { name: zhCN['label.applied.title'] })
+          .querySelectorAll('[data-slot="badge"]'),
+      ].map(badge => badge.textContent?.trim());
+    const status = `状态 ${zhCN['label.operator.IN']} 已取消`;
+
+    // Every order that is not cancelled.
+    await waitFor(() =>
+      expect(readColumn(table, '订单号')).toEqual([
+        'SO-1001',
+        'SO-1003',
+        'SO-1004',
+        'SO-1005',
+        'SO-1006',
+      ]),
+    );
+    await expect(badges()[0]).toBe(
+      formatMessage(zhCN, 'label.filter.not-of', { condition: status }),
+    );
+
+    // The pill: switch pressed, the word in front of the operator.
+    await userEvent.click(
+      await canvas.findByRole('button', {
+        name: new RegExp(`^${zhCN['label.filter.panel']}`),
+      }),
+    );
+    const pill = await canvas.findByRole('group', {
+      name: formatMessage(zhCN, 'label.filter.condition-of', {
+        field: '状态',
+      }),
+    });
+    const negate = within(pill).getByRole('button', {
+      name: formatMessage(zhCN, 'label.filter.negate-of', { field: '状态' }),
+    });
+    await expect(negate).toHaveAttribute('aria-pressed', 'true');
+    await expect(
+      pill.querySelector('[data-slot="filter-negated"]'),
+    ).toHaveTextContent(zhCN['label.filter.negated']);
+
+    // Pressed again, it is the plain condition — and only that row.
+    await userEvent.click(negate);
+    await waitFor(() =>
+      expect(
+        within(
+          canvas.getByRole('group', {
+            name: formatMessage(zhCN, 'label.filter.condition-of', {
+              field: '状态',
+            }),
+          }),
+        ).getByRole('button', {
+          name: formatMessage(zhCN, 'label.filter.negate-of', {
+            field: '状态',
+          }),
+        }),
+      ).toHaveAttribute('aria-pressed', 'false'),
+    );
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.filter.apply'] }),
+    );
+    await waitFor(() =>
+      expect(readColumn(canvas.getByRole('table'), '订单号')).toEqual([
+        'SO-1002',
+      ]),
+    );
+    await expect(badges()[0]).toBe(status);
   },
 };
 

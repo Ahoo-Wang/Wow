@@ -18,6 +18,7 @@ import {
   fieldGroups,
   isFilterGroup,
   isFilterLeaf,
+  isNegation,
   nodeAt,
   type FilterPath,
 } from '../../filter/index.js';
@@ -104,7 +105,13 @@ export function FieldChecklist({
   const held = new Map(
     isFilterGroup(group)
       ? group.children.flatMap((child, index) =>
-          isFilterLeaf(child) ? [[child.field, index] as const] : [],
+          // A negated condition is held at its wrapper's index: unticking
+          // the field removes the wrapper and the condition with it.
+          isFilterLeaf(child)
+            ? [[child.field, index] as const]
+            : isNegation(child)
+              ? [[child.children[0].field, index] as const]
+              : [],
         )
       : [],
   );

@@ -24,8 +24,10 @@ import {
   emptyFilter,
   isEmptyFilter,
   insertAt,
+  isNegation,
   isSimpleTree,
   mergeFilters,
+  negateAt,
   nodeAt,
   removeAt,
   sameFilterNode,
@@ -44,6 +46,42 @@ describe('isSimpleTree', () => {
     ).toBe(true);
     expect(isSimpleTree({ op: 'or', children: [] })).toBe(false);
     expect(isSimpleTree(tree(tree()))).toBe(false);
+  });
+
+  /**
+   * D18-7: a condition is negated by wrapping it in a `nor` group of its
+   * own, which the simple editor draws as the pill with its switch pressed.
+   * A `nor` over two conditions, or over a group, is still the advanced
+   * editor's.
+   */
+  it('admits a negated condition, which is a nor group of one leaf', () => {
+    const leaf: FilterLeaf = { field: 'id', operator: 'EQ', value: 'A' };
+    const negated: FilterTree = { op: 'nor', children: [leaf] };
+
+    expect(isNegation(negated)).toBe(true);
+    expect(isNegation({ op: 'nor', children: [leaf, leaf] })).toBe(false);
+    expect(isNegation({ op: 'nor', children: [tree()] })).toBe(false);
+    expect(isNegation({ op: 'and', children: [leaf] })).toBe(false);
+
+    expect(isSimpleTree(tree(negated, leaf))).toBe(true);
+    expect(isSimpleTree(tree({ op: 'nor', children: [leaf, leaf] }))).toBe(
+      false,
+    );
+  });
+
+  it('negates a condition in place and un-negates it by the same path', () => {
+    const leaf: FilterLeaf = { field: 'id', operator: 'EQ', value: 'A' };
+    const other: FilterLeaf = { field: 'name', operator: 'EQ', value: 'B' };
+
+    const wrapped = negateAt(tree(leaf, other), [0]);
+    expect(wrapped.children).toEqual([{ op: 'nor', children: [leaf] }, other]);
+    // The path the pill now holds is the leaf's inside its wrapper.
+    expect(negateAt(wrapped, [0, 0])).toEqual(tree(leaf, other));
+
+    // Nothing to negate: a group, a path leading nowhere, or the root.
+    expect(negateAt(tree(tree()), [0])).toEqual(tree(tree()));
+    expect(negateAt(tree(leaf), [4])).toEqual(tree(leaf));
+    expect(negateAt(tree(leaf), [])).toEqual(tree(leaf));
   });
 });
 

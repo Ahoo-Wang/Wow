@@ -93,7 +93,9 @@ export function summaryText(
  *
  * One condition under "all of" or "any of" is said plainly: neither word adds
  * anything to a single condition. "None of" is not a joiner but a negation,
- * so it is said whatever it holds.
+ * so it is said whatever it holds — and over one condition it is the pill's
+ * own switch (D18-7), said as that condition's negation rather than as a
+ * group of one.
  */
 function groupText(
   op: FilterGroupOperator,
@@ -106,7 +108,10 @@ function groupText(
       ? `(${summaryText(child, messages, context)})`
       : summaryText(child, messages, context),
   );
-  if (parts.length === 1 && op !== 'nor') return parts[0];
+  if (parts.length === 1)
+    return op === 'nor'
+      ? messages.label('label.filter.not-of', { condition: parts[0] })
+      : parts[0];
   const joined = parts.join(messages.label('label.filter.join'));
   return `${groupWord(op, messages)} ${joined}`;
 }

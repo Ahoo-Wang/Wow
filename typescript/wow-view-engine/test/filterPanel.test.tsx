@@ -670,6 +670,76 @@ describe('FilterPanel tree editing', () => {
     ).toBeDefined();
   });
 
+  /**
+   * D18-7: simple mode cannot write "not within this period" any other way.
+   * The switch sits with the ✕; pressed, the word joins the sentence in front
+   * of the operator and the tree holds the condition in a `nor` of its own —
+   * which the strip still draws as this one pill, not as a group.
+   */
+  it('negates a condition from its pill and says so in the sentence', async () => {
+    const { filter } = panel();
+    act(() => filter().addLeaf('warehouse'));
+
+    const pill = screen.getByRole('group', { name: 'Warehouse condition' });
+    const negate = within(pill).getByRole('button', {
+      name: 'Negate the Warehouse condition',
+    });
+    expect(negate.getAttribute('aria-pressed')).toBe('false');
+    expect(pill.querySelector('[data-slot="filter-negated"]')).toBeNull();
+
+    fireEvent.click(negate);
+
+    await waitFor(() =>
+      expect(filter().tree.children[0]).toMatchObject({
+        op: 'nor',
+        children: [{ field: 'warehouse' }],
+      }),
+    );
+    expect(filter().simple).toBe(true);
+    const negated = screen.getByRole('group', { name: 'Warehouse condition' });
+    expect(negated.hasAttribute('data-negated')).toBe(true);
+    expect(
+      negated.querySelector('[data-slot="filter-negated"]')?.textContent,
+    ).toBe('not');
+    expect(
+      within(negated)
+        .getByRole('button', { name: 'Negate the Warehouse condition' })
+        .getAttribute('aria-pressed'),
+    ).toBe('true');
+    // Still one strip of one pill: no group block appeared around it.
+    expect(
+      document.querySelectorAll('[data-slot="filter-group"]'),
+    ).toHaveLength(0);
+
+    // The value and the operator still edit the condition inside.
+    await choose('Warehouse operator', 'is not');
+    expect(filter().tree.children[0]).toMatchObject({
+      op: 'nor',
+      children: [{ field: 'warehouse', operator: 'NE' }],
+    });
+
+    // ✕ takes the wrapper with the condition.
+    fireEvent.click(
+      within(
+        screen.getByRole('group', { name: 'Warehouse condition' }),
+      ).getByRole('button', { name: 'Remove Warehouse' }),
+    );
+    await waitFor(() => expect(filter().tree.children).toEqual([]));
+  });
+
+  it('keeps a negated field ticked in the picker, and unticks the whole of it', async () => {
+    const { filter } = panel();
+    act(() => filter().addLeaf('warehouse'));
+    act(() => filter().negate([0]));
+
+    const picker = await openPicker();
+    const box = within(picker).getByRole('checkbox', { name: 'Warehouse' });
+    expect(box.getAttribute('aria-checked')).toBe('true');
+
+    fireEvent.click(box);
+    await waitFor(() => expect(filter().tree.children).toEqual([]));
+  });
+
   it('marks a condition blank until it says something, and invalid when wrong', () => {
     const { filter } = panel();
     act(() => filter().addLeaf('amount'));

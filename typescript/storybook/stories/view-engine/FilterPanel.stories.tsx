@@ -121,6 +121,29 @@ const simpleView: ViewInstance = {
 };
 
 /**
+ * A negated condition (D18-7): "not cancelled" is the status condition
+ * wrapped in a `nor` group of its own, which simple mode draws as the pill
+ * with its switch pressed.
+ */
+const negatedView: ViewInstance = {
+  ...savedViews[0],
+  id: 'orders-negated',
+  title: '取反条件',
+  config: recordConfig({
+    filter: {
+      op: 'and',
+      children: [
+        {
+          op: 'nor',
+          children: [{ field: 'status', operator: 'IN', value: ['CANCELLED'] }],
+        },
+        { field: 'amount', operator: 'GTE', value: 100 },
+      ],
+    },
+  }),
+};
+
+/**
  * A numeric `IN`, which takes as many values as the kernel compiles rather
  * than the two a range has ends.
  */
@@ -227,7 +250,13 @@ function FilterPanelDemo({
       create={() =>
         createStoryEngine({
           definitions: [withItems],
-          instances: [richView, simpleView, numberListView, withTimeView],
+          instances: [
+            richView,
+            simpleView,
+            negatedView,
+            numberListView,
+            withTimeView,
+          ],
         })
       }
     >
@@ -285,6 +314,12 @@ export const Advanced: Story = { args: { instanceId: 'orders-rich' } };
 
 /** Simple mode: the root's conditions as one strip, nothing else. */
 export const Simple: Story = { args: { instanceId: 'orders-simple' } };
+
+/**
+ * 简单模式里的取反：展开「筛选」，「状态」那条 pill 的开关是按下的，句子里操作符
+ * 前面多了一个「不」；已应用条把它说成「排除 …」。再按一次开关就是原来的条件。
+ */
+export const Negated: Story = { args: { instanceId: 'orders-negated' } };
 
 /**
  * A numeric `IN` as a list that grows: one chip per value with a remove

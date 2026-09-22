@@ -9,7 +9,9 @@
 ```ts
 // filter
 validateFilter(fields: FieldDefinition[], tree: FilterTree, kinds: FieldKindRegistry): Issue[]   // 取字段表而非整份定义，Dashboard 可传 cfg.fields
-isSimpleTree(tree: FilterTree): boolean                  // filterMode 'simple' 的准入判断
+isSimpleTree(tree: FilterTree): boolean                  // filterMode 'simple' 的准入判断：一个 AND 组，子节点是叶子或取反
+isNegation(node: unknown): boolean                       // 取反：只含一片叶子的 nor 分组（D18-7）
+negateAt(tree, path: FilterPath): FilterTree              // 给 path 处的叶子包一层 nor，已包着的则拆掉
 compileFilter(fields, tree, kinds, ctx: { now: Date; timeZone: string }): FilterExpression
 clearFilter(tree): FilterTree
 describeFilter(fields, tree, kinds): FilterSummaryItem[]     // 已应用条件的摘要：结构化的部件 + 英文兜底句

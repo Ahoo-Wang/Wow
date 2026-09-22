@@ -193,15 +193,52 @@ export function isEmptyFilter(tree: FilterTree): boolean {
 }
 
 /**
- * `simple` mode shows one AND group of leaves. Anything else needs the
- * advanced editor, which is why the mode travels with the saved config.
+ * A group that says "not this": `nor` over exactly one condition.
+ *
+ * It is how a condition is negated (D18-7): the pill's switch wraps the leaf
+ * in a group of its own rather than every kind growing a negated operator,
+ * and the compiler already turns `nor` into the protocol's negation. It is
+ * also the one group shape the simple editor still draws as a pill.
+ */
+export function isNegation(
+  node: unknown,
+): node is FilterGroup & { children: [FilterLeaf] } {
+  return (
+    isFilterGroup(node) &&
+    node.op === 'nor' &&
+    node.children.length === 1 &&
+    isFilterLeaf(node.children[0])
+  );
+}
+
+/**
+ * `simple` mode shows one AND group of conditions, each on its own or
+ * negated. Anything else needs the advanced editor, which is why the mode
+ * travels with the saved config.
  */
 export function isSimpleTree(tree: FilterTree): boolean {
   return (
     isFilterGroup(tree) &&
     tree.op === 'and' &&
-    tree.children.every(isFilterLeaf)
+    tree.children.every(child => isFilterLeaf(child) || isNegation(child))
   );
+}
+
+/**
+ * The tree with the condition at `path` negated — or, when it already sits
+ * alone in a `nor` group, that group replaced by the condition itself.
+ * `path` is the leaf's, inside its wrapper when it has one, which is the
+ * path the pill holds either way. The root is never wrapped: a root that
+ * negates itself has no simple reading and no pill.
+ */
+export function negateAt(tree: FilterTree, path: FilterPath): FilterTree {
+  const leaf = nodeAt(tree, path);
+  if (path.length === 0 || !isFilterLeaf(leaf)) return tree;
+  const above = path.slice(0, -1);
+  const parent = above.length === 0 ? tree : nodeAt(tree, above);
+  if (above.length > 0 && isNegation(parent))
+    return updateAt(tree, above, () => leaf);
+  return updateAt(tree, path, () => ({ op: 'nor', children: [leaf] }));
 }
 
 export interface TreeVisit {

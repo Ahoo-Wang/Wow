@@ -57,6 +57,14 @@ export const filterMessages = {
   // is; the strip above is for findings no pill can carry.
   'label.filter.kind-unregistered':
     "This field's kind ({kind}) has no editor registered.",
+  // Simple mode's negation (D18-7): a switch on the pill wraps the condition
+  // in a `nor` group of its own rather than every kind growing a negated
+  // operator. The switch is named after its field like the row's other
+  // controls; the word is what the pill then reads in its sentence, and the
+  // bar says the whole condition under it.
+  'label.filter.negate-of': 'Negate the {field} condition',
+  'label.filter.negated': 'not',
+  'label.filter.not-of': 'not {condition}',
   'label.filter.group-operator': 'Group operator',
   'label.filter.remove-group': 'Remove group',
   'label.filter.add': 'Add',

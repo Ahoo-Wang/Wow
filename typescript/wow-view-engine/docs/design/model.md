@@ -321,6 +321,6 @@ export type DashboardContentPanel = DashboardPanelBase &
 
 `ViewConfigBase` 的三个字段都是"观察方式"的一部分，所以随视图保存而不是作为个人偏好：
 
-- **`filterMode`。** 高级模式写出的含 OR 或嵌套分组的树无法在简单模式中呈现，重开时必须仍是高级模式。`simple` 只允许"单个 AND 组、子节点全为叶子"的树；`filterMode: 'simple'` 配上不满足的树产生 warning，UI 以高级模式打开，不改配置。这个判断只看配置自己的树：作用域条件以嵌套分组并入执行树后它必然不再是简单树，但那说的不是 draft，runtime 在 draft 本身简单时不报这条 warning。
+- **`filterMode`。** 高级模式写出的含 OR 或嵌套分组的树无法在简单模式中呈现，重开时必须仍是高级模式。`simple` 只允许"单个 AND 组、子节点是叶子或**取反**（只含一片叶子的 `nor` 分组，`isNegation`——D18-7 把否定做成 pill 上的开关而不是每种 kind 的否定操作符）"的树；`filterMode: 'simple'` 配上不满足的树产生 warning，UI 以高级模式打开，不改配置。这个判断只看配置自己的树：作用域条件以嵌套分组并入执行树后它必然不再是简单树，但那说的不是 draft，runtime 在 draft 本身简单时不报这条 warning。
 - **`refresh`。** "每 30 秒刷一次"属于视图本身。`refresh` 缺失、为 `null` 或不是对象报 `config.refresh.missing`；`interval` 不是整数（含缺失与非数字）报 `config.refresh.not-an-integer`。`interval` 为 `null`，或介于 `RuntimeLimits.minRefreshInterval` 与 `maxRefreshInterval` 之间的有限整数；上界保证换算成毫秒后不超过计时器的 32 位上限，否则 Node 会把超长延迟压成约 1ms 而变成紧密轮询。`0`、负数、非有限值、过小或过大的值一律是 error 级 Issue，无论配置来自代码还是从 store 读入，因为运行时只执行通过校验的 `applied`。计时器归运行时，见 [runtime.md#自动刷新](runtime.md#自动刷新)。
 - **布局成对保存。** Record 的 `table` 与 `card`、Analysis 的 `table` 与 `chart` 始终同时持久化，`layout` 只记录当前选择；`chart` 内部再按族保存子对象，跨族切换时控制器保留上一次的子对象。切换布局或图型不会丢失另一套设置。`RecordCapability.layouts` 限制允许的布局，`defaults` 可分别给初值。

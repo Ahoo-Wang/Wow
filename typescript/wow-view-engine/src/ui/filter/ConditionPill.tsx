@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { XIcon } from 'lucide-react';
+import { EqualNotIcon, XIcon } from 'lucide-react';
 import { cn } from 'cn';
 import type {
   FieldOption,
@@ -31,7 +31,9 @@ import {
   treeController,
   type FilterTreeController,
 } from '../../react/index.js';
-import { IconButton } from '../IconButton.js';
+import { IconButton, IconTooltip } from '../IconButton.js';
+import { Badge } from '../components/badge.js';
+import { Toggle } from '../components/toggle.js';
 import {
   Select,
   SelectGroup,
@@ -78,6 +80,8 @@ export function ConditionPill({
   disabled,
   optionsFor,
   isPending,
+  negatable,
+  negated,
 }: {
   filter: FilterTreeController;
   leaf: FilterLeaf;
@@ -85,6 +89,18 @@ export function ConditionPill({
   disabled?: boolean;
   optionsFor?: (remote: string) => FieldOption[] | undefined;
   isPending?: (path: FilterPath) => boolean;
+  /**
+   * Whether the pill offers its negation switch (D18-7). Simple mode's
+   * strip does; advanced mode has the group operator for the same thing,
+   * and a switch beside a "None of" header would say it twice.
+   */
+  negatable?: boolean;
+  /**
+   * True when this condition sits alone in a `nor` group of its own — then
+   * `path` is the leaf's inside that wrapper, and removing the condition
+   * removes the wrapper with it.
+   */
+  negated?: boolean;
 }) {
   const messages = useViewMessages();
   const pending = isPending?.(path) === true;
@@ -182,10 +198,42 @@ export function ConditionPill({
       variant="ghost"
       size="icon-sm"
       disabled={disabled}
-      onClick={() => filter.remove(path)}
+      onClick={() => filter.remove(negated ? path.slice(0, -1) : path)}
     >
       <XIcon />
     </IconButton>
+  );
+
+  // The switch sits with the ✕ at the end, so a condition that is not
+  // negated reads as the plain sentence it is; once pressed, the word joins
+  // the sentence in front of the operator — "Created *not* between …" — and
+  // the switch stays pressed to say where it is undone. The two are one
+  // state: `data-negated` on the pill is what a test and a stylesheet read.
+  const negate = negatable && (
+    <IconTooltip
+      label={messages.label('label.filter.negate-of', { field: label })}
+      render={
+        <Toggle
+          data-slot="filter-negate"
+          size="sm"
+          className="size-7 min-w-7 px-0"
+          pressed={negated === true}
+          disabled={disabled}
+          onPressedChange={() => filter.negate(path)}
+        />
+      }
+    >
+      <EqualNotIcon />
+    </IconTooltip>
+  );
+  const negatedWord = negated && (
+    <Badge
+      data-slot="filter-negated"
+      variant="secondary"
+      className="shrink-0 px-1.5"
+    >
+      {messages.label('label.filter.negated')}
+    </Badge>
   );
 
   // The field's name is the one word on this row with a width of its own, so
@@ -221,10 +269,12 @@ export function ConditionPill({
         // without a runtime still has no editor for the kind.
         data-invalid=""
         data-pending={pending || undefined}
+        data-negated={negated || undefined}
         className={PILL_FRAME}
       >
         {pending && <PendingDot named className={PENDING_AT_CORNER} />}
         {name}
+        {negatedWord}
         {/* The operator as the word the dropdown would have shown, not as a
             dropdown: the kind is what declares which operators a field
             offers, and without it there is no list to choose from. An empty
@@ -254,6 +304,7 @@ export function ConditionPill({
         data-warning={warned || undefined}
         data-blank={blank || undefined}
         data-pending={pending || undefined}
+        data-negated={negated || undefined}
         className="border-border data-[blank]:border-dashed data-[invalid]:border-destructive data-[warning]:border-warning relative col-span-full flex flex-col gap-1 rounded-md border p-2"
       >
         {pending && <PendingDot named className={PENDING_AT_CORNER} />}
@@ -261,7 +312,9 @@ export function ConditionPill({
           <span className="shrink-0 text-sm font-medium whitespace-nowrap">
             {label}
           </span>
+          {negatedWord}
           <div className="w-44 shrink-0">{operatorSelect}</div>
+          {negate}
           {remove}
         </div>
         <NestedPredicate
@@ -286,6 +339,7 @@ export function ConditionPill({
       data-blank={blank || undefined}
       data-wide={wide || undefined}
       data-pending={pending || undefined}
+      data-negated={negated || undefined}
       // `flex-wrap`: the value takes a line of its own where the strip is too
       // narrow to hold the whole sentence on one — see the floor on the value
       // below. Nothing wraps at a strip width the track was designed for.
@@ -293,6 +347,7 @@ export function ConditionPill({
     >
       {pending && <PendingDot named className={PENDING_AT_CORNER} />}
       {name}
+      {negatedWord}
       <div className="w-24 shrink-0">{operatorSelect}</div>
       {/* One border per condition (D12): the pill is the field, so the
           value control inside it draws none of its own — like the operator
@@ -339,6 +394,7 @@ export function ConditionPill({
           />
         )}
       </div>
+      {negate}
       {remove}
     </div>
   );

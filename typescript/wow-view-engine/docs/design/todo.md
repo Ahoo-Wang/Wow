@@ -72,7 +72,6 @@
 ### 打磨
 
 - **P-13 打开视图时**：整页只有一条 `h-8` 骨架。判据：标题栏 + 结果块骨架，结构与打开后一致。落点：`src/ui/WorkbenchShell.tsx`。
-- **P-15 筛选／取反**（拍板 Ⅶ）：简单模式写不出「不在这段时间内」。判据：pill 上的取反开关，写成 `nor`。落点：`src/ui/filter/ConditionPill.tsx`、`src/filter/`、[ui/README.md#filterpanel-的布局](ui/README.md#filterpanel-的布局)。
 
 ### 架构与测试（零行为变化，防腐化）
 
