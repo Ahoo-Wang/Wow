@@ -115,7 +115,7 @@ const CUT_SHORT = zhCN['analysis.result.at-limit'].replace('{limit}', '2');
 async function findStrip(canvas: ReturnType<typeof within>) {
   const strips = await canvas.findAllByRole('status');
   const strip = strips.find(
-    found => found.getAttribute('data-slot') === 'status-strip',
+    (found: HTMLElement) => found.getAttribute('data-slot') === 'status-strip',
   );
   if (!strip) throw new Error('no status strip on the status line');
   return strip;
