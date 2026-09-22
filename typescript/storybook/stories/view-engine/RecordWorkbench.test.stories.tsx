@@ -3817,6 +3817,28 @@ export const PinnedEdges: Story = {
       await waitFor(() => expect(edges()).toEqual(framed()));
     }
 
+    // A column that slid under the frozen header stays under it, handle
+    // and all. The resize handle is `absolute z-20`; in a header cell that
+    // was merely `relative` that 20 competed at the row's level and beat
+    // the pinned cells' 10, so the scrolled column's edge line painted
+    // through the frozen header (user, 2026-09-22). Every point across the
+    // frozen key header — short of its own handle at the right — must
+    // resolve to that header.
+    area.scrollLeft = 60;
+    await waitFor(() => expect(area.scrollLeft).toBe(60));
+    const box = inner.getBoundingClientRect();
+    for (const at of [0.1, 0.3, 0.5, 0.7, 0.85]) {
+      const hit = document.elementFromPoint(
+        box.left + box.width * at,
+        box.top + box.height / 2,
+      );
+      await expect(
+        inner.contains(hit),
+        `at ${at}: ${hit?.tagName} ${(hit as HTMLElement | null)?.dataset.slot ?? ''}`,
+      ).toBe(true);
+    }
+    area.scrollLeft = 0;
+
     // And nothing on the table says where it is scrolled to any more.
     await expect(table).not.toHaveAttribute('data-scrolled-left');
     await expect(table).not.toHaveAttribute('data-scrolled-right');

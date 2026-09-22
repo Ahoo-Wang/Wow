@@ -119,7 +119,12 @@ export function SortableHeader({
   const head = cn(
     HEAD_CELL,
     numeric && NUMERIC_CELL,
-    pin?.className ?? 'relative',
+    // `isolate` scopes the resize handle's z-index to its own cell: the
+    // handle is `absolute z-20`, and inside a cell that is merely `relative`
+    // (no stacking context of its own) that 20 competed at the row's level
+    // and beat the pinned cells' 10 — so a scrolled column's edge line
+    // painted through the frozen header it had slid under (user, 2026-09-22).
+    pin?.className ?? 'relative isolate',
   );
 
   // The header is what the pinned offsets are measured from, so a pinned
