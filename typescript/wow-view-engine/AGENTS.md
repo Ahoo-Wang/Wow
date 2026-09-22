@@ -293,7 +293,7 @@ src/
     ViewManagerRow.tsx        — One managed view: drag handle, rename in place, default, delete
     ViewSurface.tsx           — The boundary every view renders inside: the theme, the wording, the locale and the zone a time reads on
     ViewSwitcher.tsx          — The view list as one control, for when the sidebar is folded away
-    WorkbenchShell.tsx        — The frame the workbenches share, over one `useWorkbench`; draws the refresh, the query strip and the warnings itself
+    WorkbenchShell.tsx        — The frame the workbenches share, over one `useWorkbench`: composes its columns and blocks from `workbench/` and holds the state they share; resolves the refresh, the query strip and the warnings itself
     WriteOutcome.tsx          — The open view's last write, and the three ways out of a conflict
     alerts.tsx                — `LineAlert`: one callout one line high, tone deciding colour, icon and role
     describeConfig.ts         — One config in a sentence, for a conflict's side-by-side
@@ -423,13 +423,17 @@ src/
       drag.ts                 — What the sort editor makes of a drag: which entry a drop moves where, the order that comes out of it, and what a screen reader hears meanwhile
     workbench/                — The shell's private parts, and the parts each kind of view puts into it
       AnalysisParts.tsx       — What makes an analysis view an analysis view: its editor and its table or chart, handed to the shell as slots
+      ConditionBlock.tsx      — The view's editor on a tray of its own: the fold's band when it folds, an open block when it does not, behind one boundary
       NewView.tsx             — The "new view" command drawn as a press or as a menu of the kinds, in the sidebar, the empty work area and the switcher (D20 Ⅱ)
       NoViews.tsx             — The work area when the definition has no view of these kinds yet
       OpeningSkeleton.tsx     — The shape of the page that is opening: title-bar and result-block skeletons, one status sentence (P-13)
       OriginBar.tsx           — The "from" line under the title bar of a drilled view: the way back, the origin's name and the conditions the drill added (D20)
       RecordParts.tsx         — What makes a record view a record view: the condition band, the toolbar, the rows and the paging, handed to the shell as slots
-      ResultBlock.tsx         — The result and its caption on the one bordered frame (D12)
+      ResultBlock.tsx         — The result and its caption on the one bordered frame (D12); `ShellResult` fills it with the toolbar, the strip and the result, each half behind its own boundary
       parts.ts                — `WorkbenchParts`, the slice of the shell's slots a kind fills, and the render prop it fills them through
+      Sidebar.tsx             — The sidebar in its two forms: `SidebarColumn` (the visualization panel or the view list beside the view) and `FoldedSidebar` (the way back, the definition's name and the switcher in the title bar)
+      StatusLine.tsx          — The status line under the title bar: the errors, then the warnings — the view's, its result's, the definition's and failed preferences (D12 Ⅰ′)
+      TitleBar.tsx            — The title bar's ruled-off block: `ViewHeader` with the host's actions behind a boundary and the view-level controls — the editor's toggle, the refresh, filling the screen
       Unopenable.tsx          — The work area when the chosen view cannot be opened
       useEditorFold.ts        — The editor's fold, per opening; `filled`
       useSidebarFold.ts       — The sidebar's fold, following the surface's width until the user presses

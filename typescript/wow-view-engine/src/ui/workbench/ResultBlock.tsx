@@ -14,7 +14,9 @@
 import type { ReactNode } from 'react';
 import { cn } from 'cn';
 import { SPACE } from '../layout.js';
+import { RenderBoundary } from '../RenderBoundary.js';
 import { resultFrameChrome } from '../variants.js';
+import type { WorkbenchShellProps } from '../WorkbenchShell.js';
 
 export interface ResultBlockContents {
   /** Whether the block would be the framed one. */
@@ -110,5 +112,59 @@ export function ResultBlock({
     >
       {children}
     </section>
+  );
+}
+
+export interface ShellResultProps extends Pick<
+  WorkbenchShellProps,
+  'toolbar' | 'result' | 'onRenderFailure'
+> {
+  framed: boolean;
+  /** The kind's slot recipe, as `ResultBlock.slots` takes it. */
+  slots?: string;
+  /** The strip between the toolbar and the rows, as the shell resolved it. */
+  strip: ReactNode;
+  /** What resets both boundaries: the open view. */
+  resetKeys: readonly unknown[];
+}
+
+/**
+ * The result block as the shell fills it: the toolbar, the strip and the
+ * kind's result, in that order.
+ *
+ * The host's bulk slot renders in the toolbar and its row slot in the rows,
+ * so both are held: a throwing one takes the bar or the rows, and the title
+ * bar, the editor and the draft stay. Two boundaries rather than one so that
+ * the half that still works still draws — and the strip between them is
+ * neither's, because a query that failed has to be readable whatever the
+ * host's buttons did.
+ */
+export function ShellResult({
+  framed,
+  slots,
+  toolbar,
+  strip,
+  result,
+  resetKeys,
+  onRenderFailure,
+}: ShellResultProps) {
+  return (
+    <ResultBlock framed={framed} slots={slots}>
+      <RenderBoundary
+        name="result"
+        resetKeys={resetKeys}
+        onFailure={onRenderFailure}
+      >
+        {toolbar}
+      </RenderBoundary>
+      {strip}
+      <RenderBoundary
+        name="result"
+        resetKeys={resetKeys}
+        onFailure={onRenderFailure}
+      >
+        {result}
+      </RenderBoundary>
+    </ResultBlock>
   );
 }

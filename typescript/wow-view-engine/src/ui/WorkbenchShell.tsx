@@ -19,32 +19,28 @@ import {
   type ReactNode,
 } from 'react';
 import { cn } from 'cn';
-import { PanelLeftOpenIcon } from 'lucide-react';
 import type { Issue } from '../model/index.js';
 // Aliased: `hasResult` here is the prop a dashboard overrides it with.
-import { hasResult as viewHasResult, resultIssues } from '../runtime/index.js';
+import { hasResult as viewHasResult } from '../runtime/index.js';
 import type { WorkbenchController } from '../react/index.js';
-import { IconButton } from './IconButton.js';
 import { AppliedBar } from './AppliedBar.js';
-import { EditorBand, EditorBandToggle, EditorFold } from './EditorBand.js';
-import { SPACE, TRAY } from './layout.js';
+import { EditorFold } from './EditorBand.js';
+import { SPACE } from './layout.js';
 import { LeaveDialog } from './LeaveGuard.js';
-import { RefreshControl } from './RefreshControl.js';
-import { ErrorStrip, QueryStrip, WarningStrip } from './StatusStrip.js';
-import { useViewMessages } from './MessagesProvider.js';
-import { RenderBoundary, type RenderFailureHandler } from './RenderBoundary.js';
+import { QueryStrip } from './StatusStrip.js';
+import type { RenderFailureHandler } from './RenderBoundary.js';
 import type { ViewMessages } from './messages.js';
-import { ViewExpandToggle } from './ViewExpansion.js';
-import { ViewHeader } from './ViewHeader.js';
-import { ViewList } from './ViewList.js';
 import { ViewManager } from './ViewManager.js';
 import { ViewSurface } from './ViewSurface.js';
-import { ViewSwitcher } from './ViewSwitcher.js';
+import { ConditionBlock } from './workbench/ConditionBlock.js';
 import type { NewViewCommand } from './workbench/NewView.js';
 import { NoViews } from './workbench/NoViews.js';
 import { OriginBar } from './workbench/OriginBar.js';
 import { OpeningSkeleton } from './workbench/OpeningSkeleton.js';
-import { ResultBlock, resultBlockShown } from './workbench/ResultBlock.js';
+import { resultBlockShown, ShellResult } from './workbench/ResultBlock.js';
+import { FoldedSidebar, SidebarColumn } from './workbench/Sidebar.js';
+import { StatusLine } from './workbench/StatusLine.js';
+import { TitleBar } from './workbench/TitleBar.js';
 import { Unopenable } from './workbench/Unopenable.js';
 import { filled, useEditorFold } from './workbench/useEditorFold.js';
 import { useWorkbenchFolds } from './workbench/useWorkbenchFolds.js';
@@ -256,6 +252,11 @@ export interface WorkbenchShellProps {
  * belong to this screen at this moment — nothing about them is worth saving,
  * and the leave guard has nothing to ask about them — so the shell holds them
  * rather than handing every workbench the same two `useState` calls.
+ *
+ * The shell composes its columns and blocks rather than drawing them: the
+ * sidebar in its two forms, the title bar, the status line, the condition
+ * tray and the filled result block are `workbench/`'s, and what stays here
+ * is the state they share and the order they stand in.
  */
 export function WorkbenchShell({
   workbench,
@@ -291,7 +292,6 @@ export function WorkbenchShell({
   panel,
   className,
 }: WorkbenchShellProps) {
-  const messages = useViewMessages(wording);
   const titleId = useId();
   const editorId = useId();
   const { filter, leave, list, manager, opened, runtime, state, unopenable } =
@@ -317,6 +317,11 @@ export function WorkbenchShell({
   // last item — so the state is here rather than inside either of them.
   const [managing, setManaging] = useState(false);
   const canManage = manage && manager.can.anything;
+  // Only when something on the list can actually be managed: a reader with
+  // no write permission at all would otherwise get a button whose only
+  // lesson is that it leads to a dialog of read-only rows.
+  const onManage = canManage ? () => setManaging(true) : undefined;
+  const currentId = state?.saved?.id ?? null;
   // One command behind three ways in — the sidebar's `+`, the switcher's
   // item and the empty work area's button — and none of the three exists
   // without it (D4). Each draws it as `NewViewControl`: one kind is a
@@ -413,9 +418,6 @@ export function WorkbenchShell({
     if (!open) blurEditor();
   }, [editorIsOpen.open, blurEditor]);
 
-  // The way back to the list, and the list itself as one control. Both exist
-  // only while the sidebar is away — with it on screen, the list *is* the
-  // switcher and the sidebar's heading is the definition's title.
   // Only where it will draw: `resultBlockShown` reads the slot to decide
   // whether there is a result block at all, and an element that renders
   // null still counts as something in it (`filled`).
@@ -430,85 +432,21 @@ export function WorkbenchShell({
           />
         );
 
+  // The way back to the list, and the list itself as one control, in the
+  // title bar while the sidebar is away.
   const collapsed = !sidebarOpen && (
-    <div
-      data-slot="view-collapsed"
-      // No box of its own: `contents` hands the way back, the definition's
-      // name and the switcher to the identity group as its own items.
-      //
-      // It used to be a flex box that carried `grow` — the group's spring —
-      // and the switcher grew inside it up to its own label (`w-0 grow
-      // max-w-fit`). With a long name that was fine: the switcher took the
-      // room and the audience word and Save stood right after it. With a
-      // short one the switcher stopped at its label and the box went on
-      // growing, so the audience and Save stood at the far end of an empty
-      // stretch instead of against the name (D12 Ⅰ). Capping the box at
-      // `max-w-max` was no answer: the switcher is `w-0` precisely so a
-      // long name does not ask the row for the whole string, which also
-      // makes its max-content contribution its 6em floor — the cap pinned
-      // it there. As direct items the switcher is the group's spring
-      // itself, grows to its label and no further, the audience and Save
-      // follow it, and whatever is left over lies after Save where nothing
-      // stands. The group's floor is unchanged: it is the sum of its items'
-      // floors either way, and the switcher keeps its own.
-      className="contents"
-    >
-      <IconButton
-        ref={expandRef}
-        label={messages.label('label.workbench.expand-sidebar')}
-        variant="ghost"
-        size="icon-sm"
-        aria-expanded={false}
-        onClick={() => toggleSidebar(true)}
-      >
-        <PanelLeftOpenIcon />
-      </IconButton>
-      {title && (
-        // With the list folded away this is where the page's name lives, so
-        // it is the `h1` the sidebar's heading was, at the weight of a name
-        // rather than a caption: a muted small word before the switcher
-        // read as a hint, and nothing said it was the parent of the view
-        // beside it. The slash does — the two are a path, "Orders / Pending".
-        //
-        // Still the first thing to go when the row runs out of room: the
-        // view's own name outranks the name of everything it is one of.
-        // "When the row runs out of room" is a fact about the bar, and the
-        // viewport `sm:` this used to ask answered a different question: in
-        // a 360px panel on a wide page it showed "Orders" in full while the
-        // view's own name was down to "全…". `@md/header` asks the bar
-        // itself (`@container/header` in `ViewHeader`); `@2xl` was so
-        // eager that most embeddings never saw the name at all.
-        <>
-          {/* `text-base`, the same 16/600 the sidebar's heading wears when
-              the list is open: folding the list away moves this `h1`, it
-              does not demote it. At `text-sm` it was 14 over a 13px
-              switcher — two heading levels squashed into one and a half,
-              and the page's own name set smaller than the view it holds. */}
-          <h1
-            data-slot="definition-title"
-            className="hidden min-w-0 truncate text-base font-semibold @md/header:block"
-          >
-            {title}
-          </h1>
-          <span
-            aria-hidden
-            data-slot="definition-separator"
-            className="text-muted-foreground hidden select-none @md/header:inline"
-          >
-            /
-          </span>
-        </>
-      )}
-      <ViewSwitcher
-        list={list}
-        kind={kind}
-        currentId={state?.saved?.id ?? null}
-        currentTitle={state?.title ?? ''}
-        onOpen={workbench.choose}
-        create={create}
-        onManage={canManage ? () => setManaging(true) : undefined}
-      />
-    </div>
+    <FoldedSidebar
+      title={title}
+      expandRef={expandRef}
+      onExpand={() => toggleSidebar(true)}
+      list={list}
+      kind={kind}
+      currentId={currentId}
+      currentTitle={state?.title ?? ''}
+      onOpen={workbench.choose}
+      create={create}
+      onManage={onManage}
+    />
   );
 
   return (
@@ -520,41 +458,18 @@ export function WorkbenchShell({
       timeZone={timeZone}
       className="gap-0 md:flex-row"
     >
-      {panel && (
-        <aside
-          data-slot="view-panel"
-          className="bg-sidebar text-sidebar-foreground border-sidebar-border flex w-full shrink-0 flex-col border-b md:w-64 md:border-r md:border-b-0"
-        >
-          {panel}
-        </aside>
-      )}
-      {!panel && sidebarOpen && (
-        // Bare: the ground, the padding and the rule that divides the two
-        // columns are the list's own (D12), so an `aside` that also painted
-        // them would be a second opinion about where the column ends. The
-        // `Separator` that used to stand here went with them — one edge,
-        // drawn once, by whichever part the edge belongs to.
-        <aside
-          data-slot="view-sidebar"
-          className="flex w-full shrink-0 flex-col md:w-56"
-        >
-          <ViewList
-            list={list}
-            title={title}
-            currentId={state?.saved?.id ?? null}
-            onOpen={workbench.choose}
-            create={create}
-            onRetry={list.error ? () => list.reload() : undefined}
-            // Only when something on the list can actually be managed: a
-            // reader with no write permission at all would otherwise get a
-            // button whose only lesson is that it leads to a dialog of
-            // read-only rows.
-            onManage={canManage ? () => setManaging(true) : undefined}
-            onCollapse={() => toggleSidebar(false)}
-            collapseRef={collapseRef}
-          />
-        </aside>
-      )}
+      <SidebarColumn
+        panel={panel}
+        open={sidebarOpen}
+        list={list}
+        title={title}
+        currentId={currentId}
+        onOpen={workbench.choose}
+        create={create}
+        onManage={onManage}
+        onCollapse={() => toggleSidebar(false)}
+        collapseRef={collapseRef}
+      />
 
       <main
         // Only while the title is on screen: an id that addresses nothing is
@@ -614,76 +529,30 @@ export function WorkbenchShell({
               open={editorIsOpen.open}
               onOpenChange={editorIsOpen.set}
             >
-              {/* A banner, ruled off rather than boxed: a card around the thing
-                that names the page is a card around the page. */}
-              <div
-                data-slot="view-header-block"
-                // The rule runs the whole width of the column, under `main`'s own
-                // padding, so it meets the sidebar's edge and the two heads end
-                // on one continuous line rather than two dashes with a gap.
-                className="border-border -mx-4 border-b px-4 pb-3"
-              >
-                <ViewHeader
-                  state={state}
-                  kind={runtime.kind}
-                  commands={workbench.commands}
-                  titleId={titleId}
-                  titleRef={viewTitle}
-                  actions={
-                    actions != null && (
-                      <RenderBoundary
-                        name="actions"
-                        compact
-                        resetKeys={resetKeys}
-                        onFailure={onRenderFailure}
-                      >
-                        {actions}
-                      </RenderBoundary>
-                    )
-                  }
-                  // Something in `leading` already shows the kind and the name,
-                  // so the bar does not show them a second time.
-                  namesView={sidebarOpen}
-                  leading={collapsed || undefined}
-                  trailing={
-                    // All three are answers to *how am I looking at this*,
-                    // which is what this group is, and they read outwards: the
-                    // editor governs what the view asks, filling the screen
-                    // governs the room the answer gets, and the refresh
-                    // governs how often it is renewed.
-                    <>
-                      {folded && (
-                        <EditorBandToggle
-                          label={editorLabel}
-                          modeLabel={editorModeLabel}
-                          modes={editorModes}
-                          pending={editorPending}
-                        />
-                      )}
-                      {freshness ?? (
-                        <RefreshControl
-                          refresh={workbench.refresh}
-                          variant="outline"
-                          busy={querying}
-                        />
-                      )}
-                      {expandable && (
-                        <ViewExpandToggle
-                          expansion={fill}
-                          ref={expandViewRef}
-                        />
-                      )}
-                    </>
-                  }
-                  onSaved={workbench.onSaved}
-                  onCreated={() => {
-                    created.current = true;
-                  }}
-                  onRenamed={workbench.onRenamed}
-                  onDeleted={workbench.onDeleted}
-                  onRecovered={workbench.onRecovered}
-                />
-              </div>
+              <TitleBar
+                workbench={workbench}
+                state={state}
+                kind={runtime.kind}
+                titleId={titleId}
+                titleRef={viewTitle}
+                actions={actions}
+                resetKeys={resetKeys}
+                onRenderFailure={onRenderFailure}
+                namesView={sidebarOpen}
+                leading={collapsed || undefined}
+                editorLabel={folded ? editorLabel : undefined}
+                editorModeLabel={editorModeLabel}
+                editorModes={editorModes}
+                editorPending={editorPending}
+                freshness={freshness}
+                busy={querying}
+                expandable={expandable}
+                fill={fill}
+                expandViewRef={expandViewRef}
+                onCreated={() => {
+                  created.current = true;
+                }}
+              />
 
               {/* Where this view came from, when it was opened out of another
                 (D20): the way back and the origin's name, under the title
@@ -696,79 +565,26 @@ export function WorkbenchShell({
                 />
               )}
 
-              {/* The status line (D12 Ⅰ′): what the view reports about itself,
-                under the title bar and only when there is something to say —
-                a config that will not run, a warning that does not block.
-                The last write's outcome is the title bar's own line above.
-                `empty:hidden` keeps the row out of the flow when every strip
-                rendered nothing, so the ruler's 16px does not stack twice. */}
-              <div
-                data-slot="status-line"
-                className={cn('flex flex-col empty:hidden', SPACE.ROWS)}
-              >
-                <ErrorStrip
-                  // The definition's own findings beside the view's: an
-                  // error in the definition was reported to `onIssue` and to
-                  // nobody on screen (F-05).
-                  issues={[...filter.unmarked, ...workbench.definitionIssues]}
-                  title={
-                    kind === 'dashboard'
-                      ? messages.label('label.dashboard.needs-fixing')
-                      : undefined
-                  }
-                  action={errorAction}
-                />
-                {/* Warnings block nothing — the result below is the real one —
-                  so they sit under the errors and never replace it. Failed
-                  preferences are one: the list still works, in the server's
-                  order, so it is said as a warning and said once. */}
-                <WarningStrip
-                  issues={[
-                    ...(warnings ?? [
-                      ...state.issues,
-                      ...resultIssues(state.result?.data),
-                    ]),
-                    ...workbench.definitionIssues,
-                    ...(list.preferencesError
-                      ? [
-                          {
-                            ...list.preferencesError,
-                            severity: 'warning' as const,
-                          },
-                        ]
-                      : []),
-                  ]}
-                />
-              </div>
+              <StatusLine
+                workbench={workbench}
+                state={state}
+                kind={kind}
+                warnings={warnings}
+                errorAction={errorAction}
+              />
 
               {/* The conditions, on a surface of their own. The block exists
                 only where there is something in it: an empty card is the
                 promise of an editor that is not there. */}
-              {editor != null &&
-                (folded ? (
-                  <EditorBand id={editorId} className={cn(TRAY, SPACE.ROWS)}>
-                    <RenderBoundary
-                      name="editor"
-                      resetKeys={resetKeys}
-                      onFailure={onRenderFailure}
-                    >
-                      {editor}
-                    </RenderBoundary>
-                  </EditorBand>
-                ) : (
-                  <section
-                    data-slot="condition-block"
-                    className={cn('flex flex-col', TRAY, SPACE.ROWS)}
-                  >
-                    <RenderBoundary
-                      name="editor"
-                      resetKeys={resetKeys}
-                      onFailure={onRenderFailure}
-                    >
-                      {editor}
-                    </RenderBoundary>
-                  </section>
-                ))}
+              {editor != null && (
+                <ConditionBlock
+                  editor={editor}
+                  folded={folded}
+                  id={editorId}
+                  resetKeys={resetKeys}
+                  onRenderFailure={onRenderFailure}
+                />
+              )}
             </EditorFold>
 
             {/* The applied-conditions band (D12 Ⅲ): what the rows on screen
@@ -792,30 +608,15 @@ export function WorkbenchShell({
               strips: filled(strip),
               result: filled(result),
             }) && (
-              <ResultBlock framed={resultFramed} slots={resultSlots}>
-                {/* The host's bulk slot renders in the toolbar and its row
-                    slot in the rows, so both are held: a throwing one takes
-                    the bar or the rows, and the title bar, the editor and
-                    the draft stay. Two boundaries rather than one so that
-                    the half that still works still draws — and the strip
-                    between them is neither's, because a query that failed
-                    has to be readable whatever the host's buttons did. */}
-                <RenderBoundary
-                  name="result"
-                  resetKeys={resetKeys}
-                  onFailure={onRenderFailure}
-                >
-                  {toolbar}
-                </RenderBoundary>
-                {strip}
-                <RenderBoundary
-                  name="result"
-                  resetKeys={resetKeys}
-                  onFailure={onRenderFailure}
-                >
-                  {result}
-                </RenderBoundary>
-              </ResultBlock>
+              <ShellResult
+                framed={resultFramed}
+                slots={resultSlots}
+                toolbar={toolbar}
+                strip={strip}
+                result={result}
+                resetKeys={resetKeys}
+                onRenderFailure={onRenderFailure}
+              />
             )}
           </>
         )}
