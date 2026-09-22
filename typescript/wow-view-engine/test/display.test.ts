@@ -20,10 +20,10 @@ import {
   displayValue,
   formatNumber,
   isoDay,
-  summaryText,
   valueText,
   type DisplayField,
 } from '../src/ui/display.js';
+import { summaryText } from '../src/ui/summary.js';
 import { en } from '../src/ui/messages/en.js';
 import { formatMessage } from '../src/ui/messages.js';
 

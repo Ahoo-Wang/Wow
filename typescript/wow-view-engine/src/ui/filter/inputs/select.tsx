@@ -20,7 +20,7 @@ import {
 } from '../../components/select.js';
 import { SelectContent } from '../../popups.js';
 import { DELETION_STATES, isDeletionState } from '../../../filter/index.js';
-import { deletionLabel } from '../../display.js';
+import { deletionLabel } from '../../summary.js';
 import { useViewMessages } from '../../MessagesProvider.js';
 import { PillSelectTrigger } from '../../variants.js';
 import { ChoiceValue, scalarText, type ValueProps } from './shared.js';

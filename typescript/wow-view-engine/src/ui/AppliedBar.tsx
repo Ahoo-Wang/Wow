@@ -16,7 +16,7 @@ import { XIcon } from 'lucide-react';
 import type { FilterSummaryItem } from '../filter/index.js';
 import type { FilterEditorController } from '../react/index.js';
 import { Badge } from './components/badge.js';
-import { summaryText } from './display.js';
+import { summaryText } from './summary.js';
 import { IconButton } from './IconButton.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { TEXT_UI } from './layout.js';

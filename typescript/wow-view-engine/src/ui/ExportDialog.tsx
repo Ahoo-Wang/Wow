@@ -41,7 +41,7 @@ import {
 import { Progress } from './components/progress.js';
 import { RadioGroup, RadioGroupItem } from './components/radio-group.js';
 import { DialogContent } from './popups.js';
-import { summaryText } from './display.js';
+import { summaryText } from './summary.js';
 import { IconTooltip } from './IconButton.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import { useSurfaceDisplay } from './ViewSurface.js';

@@ -250,6 +250,7 @@ src/
       save.ts, header.ts, record.ts, filter.ts, config.ts, scope.ts,
       view.ts, manage.ts, analysis.ts, dashboard.ts, status.ts, definition.ts
     display.ts                    — A value as its field shows it: enum labels, dates, bucket keys
+    summary.ts                    — The applied-conditions bar in words: one `FilterSummaryItem` as a sentence
     index.ts
     components/                   — 32 shadcn/ui primitives — vendored, see below
     lib/utils.ts                  — shadcn cn() helper — vendored
