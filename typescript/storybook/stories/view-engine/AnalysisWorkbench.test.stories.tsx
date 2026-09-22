@@ -349,8 +349,8 @@ export const PinnedCategoryColor: Story = {
   },
 };
 
-/** The sentence the strip says when a result fills its limit exactly. */
-const CUT_SHORT = zhCN['analysis.result.at-limit'].replace('{limit}', '2');
+/** The sentence the strip says when the probe row came back. */
+const CUT_SHORT = zhCN['analysis.result.more-groups'].replace('{limit}', '2');
 
 /** The status-line strip: the one `status` that wears the strip's slot. */
 async function findStrip(canvas: ReturnType<typeof within>) {
@@ -363,10 +363,11 @@ async function findStrip(canvas: ReturnType<typeof within>) {
 }
 
 /**
- * A pie drawn from a grouping that may not be the whole grouping. Two of the
- * four warehouses are on the chart, and each slice's share is of those two —
- * which is exactly the reading a pie invites and exactly the one that is
- * wrong here, so the line above it says the limit was filled.
+ * A pie drawn from part of a grouping. Two of the four warehouses are on the
+ * chart, and each slice's share is of those two — which is exactly the
+ * reading a pie invites and exactly the one that is wrong here. The query
+ * asked for three rows and got three, so the line above it says there are
+ * more groups rather than guessing that there might be.
  */
 export const CutShort: Story = {
   ...DisplayCutShort,

@@ -541,15 +541,25 @@ describe('DashboardViewRuntime child results', () => {
     ]);
   });
 
-  it('carries a child result warning on the panel: an analysis filled its limit', async () => {
+  it('carries a child result warning on the panel: more groups than shown', async () => {
     const board = await harness({
       instances: [pending({ config: analysisConfig({ limit: 1 }) })],
+      // One group asked for, so the query asks for two — and two come back,
+      // which is the probe row saying there is a second group.
+      source: testSource({
+        aggregate: vi.fn(() =>
+          Promise.resolve([
+            { warehouse: 'CN', orders: 2 },
+            { warehouse: 'JP', orders: 1 },
+          ]),
+        ),
+      }),
     });
     const runtime = await board.open(dashboardConfig({ panels: [panel()] }));
     await flush();
 
     const first = runtime.getSnapshot().panels[0];
-    expect(codes(first.issues)).toEqual(['analysis.result.at-limit']);
+    expect(codes(first.issues)).toEqual(['analysis.result.more-groups']);
     expect(first.issues[0].path).toEqual(['panels', 0, 'limit']);
     expect(first.issues[0].severity).toBe('warning');
   });

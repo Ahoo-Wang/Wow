@@ -153,6 +153,12 @@ export function summaryFunctionKey(
  * the alias (`amount_1`) named the machine and the label named them both the
  * same. A count is neither: it counts records rather than summarising a
  * field, so it says so in one word.
+ *
+ * A percentile wears 「≈」 in front of it (D20 口径). Wow computes percentiles
+ * approximately, and a p95 that prints to two decimals beside an exact sum
+ * reads as exact — the sign is one character and travels everywhere the
+ * header does, the chart's axis and legend included. The word behind the sign
+ * is `label.analysis.approximate`, which the header's `title` carries.
  */
 export function columnTitle(
   column: { label: string; fn?: MetricFunction; named?: true },
@@ -164,11 +170,15 @@ export function columnTitle(
   // A derived metric is arithmetic over other metrics: no field stands behind
   // it, so its stored name is all there is to show.
   if (column.fn === 'DERIVED') return column.label;
-  return messages.label('label.summary.of', {
+  const title = messages.label('label.summary.of', {
     field: column.label,
     fn: messages.label(`label.summary.fn.${column.fn}`),
   });
+  return column.fn === 'PERCENTILE' ? `${APPROXIMATELY} ${title}` : title;
 }
+
+/** The one character that says a number is not exact. */
+const APPROXIMATELY = '≈';
 
 /**
  * One day as `2026-09-20`, on the surface's clock.

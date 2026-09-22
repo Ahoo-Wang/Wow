@@ -32,7 +32,7 @@ defaultAnalysisConfig(def, limits?: RuntimeLimits): AnalysisViewConfig   // 按�
 validateAnalysis(def, cfg: AnalysisViewConfig, kinds): Issue[]   // 见下方规则
 compileAnalysis(def, cfg, kinds, ctx): AggregationQuery          // 同构映射；三处 FilterTree 编译为 FilterExpression
 compileAnalysisTotals(def, cfg, kinds, ctx): AggregationQuery | null   // table.totals 为 true 时的无分组聚合，否则 null
-projectAnalysis(def, cfg, result, totals?): AnalysisView          // 表格列与行；图表系列；合计行取自 totals，metric 卡片趋势模式的标题值亦取自 totals；行数恰好等于 cfg.limit 时记 atLimit
+projectAnalysis(def, cfg, result, totals?): AnalysisView          // 表格列与行；图表系列；合计行取自 totals，metric 卡片趋势模式的标题值亦取自 totals；多回来的那一行（探针）丢掉并记 truncated，探不成时退回 atLimit
 fitChartSlots(chart, groups, metrics): ChartSpec          // 当前图型的家族子对象，按现有维度与指标装槽；用户选过且仍有效的槽保留
 metricFormat(metric, field?): NumberFormat | undefined    // 一个聚合值怎么打印（与字段自己的值怎么打印是两回事）
 
@@ -247,7 +247,9 @@ mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboa
 - 合计行来自 `compileAnalysisTotals` 的独立结果，因此 `AVG`、`DISTINCT_COUNT`、百分位等不可加指标也正确；
 - 该查询与主查询共享同一调度预算，失败只使合计行不可用，不影响主结果。图表所需的派生整形也在此完成：`splitBy` 透视、饼图"其他"合并、漏斗累计与转化率、热力图矩阵、metric 卡片的比较值。metric 卡片带 `trend` 时的标题值取自合计行（`projectAnalysis` 的 `totals`），无合计行时按分桶求和；
 - `compare` 与 `target` 在有无 `trend` 时同样生效。
-- **结果行数恰好等于 `limit` 时记下 `AnalysisView.atLimit`**。聚合回答的是至多 `limit` 行，并不告诉调用方它省略了多少，因此"正好填满上限"是唯一可用的信号，而它本身是二义的：刚好这么多组，和被截到这么多组，长得一模一样。所以它只被报成"可能被截断"（运行时的 `analysis.result.at-limit`，见 [runtime.md#规则](runtime.md#规则)），从不被报成事实——但一张看起来完整、每个占比与扇区却都是按前缀算出来的表，是读者自己查不出来的那一种错。没有分组（无分组聚合按定义只答一行，`limit: 1` 于是被每一次成功的查询填满，而没有任何分组可以被截掉）、行数少于上限、配置里没有可用上限（缺失、非正整数、非有限数——准入会拒绝这些，但投影是导出的，宿主可能拿没被准入的配置来投影），以及数据源答得比上限还多（它根本没把上限当天花板，行数因此什么也说明不了）四种情况都不记：不知道被截掉了什么，与知道没被截掉，不是同一回事。（见 test/resultIssues.test.tsx「projectAnalysis row limit」）
+- **分组查询要的是 `limit + 1`，多出来的那一行是探针**（`analysisProbeLimit`，D20 Ⅷ）。聚合回答的是至多 `limit` 行，并不告诉调用方它省略了多少，所以"正好填满上限"曾是唯一可用的信号，而它本身是二义的：刚好这么多组，和被截到这么多组，长得一模一样。多要一行把猜变成问：那一行回来了，就是还有更多组；没回来，就是没有。`compileAnalysisTotals` 不受影响——合计查询本来就不带 `limit`；
+- **探针不越过天花板**：能力声明的 `maxLimit` 与 Wow 自己的 `AGGREGATION_LIMITS.MAX_LIMIT` 取小，越过任何一个的查询是被**拒绝**而不是被回答，拿整份结果换一行探针不划算。因此**配置上限已经顶到天花板时不探**——没有行可要了——这一种保留旧读法：行数填满上限时记下 `AnalysisView.atLimit`，报成"可能被截断"（`analysis.result.at-limit`）。没有分组时也不探：无分组聚合按定义只答一行，`limit: 1` 于是被每一次成功的查询填满，而没有任何分组可以被截掉。上限缺失或不是正整数时原样发出，把拒绝留在它本来在的地方（Wow）——准入会拒绝这些，但编译是导出的，宿主可能拿没被准入的配置来编译；
+- **`projectAnalysis` 把探针行读回来再丢掉**：回来的行数多于 `limit` 就是 `AnalysisView.truncated: true`，否则 `false`；`rows` 永远至多 `limit` 行，图表整形（占比、饼图的"其他"、漏斗）也只看这些行，否则屏幕上会出现一个表里没有的组的份额。`truncated` 与 `atLimit` 不会同时成立：前者是问出来的答案，后者是问不出来时剩下的那点线索。运行时据此报 `analysis.result.more-groups`（事实）或 `analysis.result.at-limit`（可能），见 [runtime.md#规则](runtime.md#规则)。**合计行不受影响**：它来自无分组查询，截没截断都覆盖范围内全部记录，这正是可见几行之和小于合计的原因。（见 test/analysisCompile.test.ts「the probe row」与 test/analysisProject.test.ts「the probe row read back」）
 
 ## Dashboard 内核的规则
 

@@ -467,3 +467,125 @@ describe('a named column', () => {
     expect(view.schema?.[1]).toMatchObject({ fn: 'COUNT' });
   });
 });
+
+/**
+ * The probe row, read back (D20 Ⅷ). The query asked for one row more than the
+ * limit, so a result longer than the limit is more groups existing — a fact,
+ * not the old guess at a table that came back exactly full — and the extra
+ * row is dropped rather than shown.
+ */
+describe('the probe row read back', () => {
+  /** One aggregation row per warehouse, as many as the caller asks for. */
+  const rows = (count: number) =>
+    Array.from({ length: count }, (_unused, index) => ({
+      wh: `W-${index}`,
+      orders: count - index,
+    }));
+
+  const project = (limit: number, count: number, capped?: number) =>
+    projectAnalysis(
+      capped === undefined
+        ? definition()
+        : definition({
+            analysis: { ...capability, limits: { maxLimit: capped } },
+          }),
+      config({ limit, layout: 'table' }),
+      rows(count),
+    );
+
+  it('knows there are more groups when the probe row came back', () => {
+    const view = project(2, 3);
+
+    expect(view.truncated).toBe(true);
+    // The reader asked for two groups and gets two: the third row was a
+    // question, not a group.
+    expect(view.rows).toHaveLength(2);
+    expect(view.atLimit).toBeUndefined();
+  });
+
+  it('knows there are none when it did not', () => {
+    const view = project(2, 2);
+
+    expect(view.truncated).toBe(false);
+    expect(view.rows).toHaveLength(2);
+    expect(view.atLimit).toBeUndefined();
+  });
+
+  it('says nothing about an empty result', () => {
+    const view = project(2, 0);
+
+    expect(view.truncated).toBe(false);
+    expect(view.atLimit).toBeUndefined();
+  });
+
+  /**
+   * On the ceiling nothing could be asked for, so the old ambiguous signal is
+   * all there is and it is still reported as a maybe.
+   */
+  it('falls back to "exactly full" where no probe was possible', () => {
+    const view = project(2, 2, 2);
+
+    expect(view.truncated).toBe(false);
+    expect(view.atLimit).toBe(2);
+    expect(view.rows).toHaveLength(2);
+  });
+
+  it('says nothing on the ceiling when the result came back short', () => {
+    const view = project(3, 2, 3);
+
+    expect(view.truncated).toBe(false);
+    expect(view.atLimit).toBeUndefined();
+  });
+
+  /**
+   * An analysis with no grouping asks one question and gets one row, so a
+   * limit of one is met by every successful answer and cuts nothing short.
+   */
+  it('says nothing about an analysis that has no grouping to cut short', () => {
+    const view = projectAnalysis(
+      definition(),
+      config({ groups: [], sort: [], limit: 1, layout: 'table' }),
+      [{ orders: 6 }],
+    );
+
+    expect(view.rows).toHaveLength(1);
+    expect(view.truncated).toBe(false);
+    expect(view.atLimit).toBeUndefined();
+  });
+
+  /**
+   * `validateAnalysis` refuses each of these, but the projection is exported
+   * and a host may run it over a config nothing admitted. Without a usable
+   * limit there is no probe row to tell from a group, so nothing is claimed
+   * and nothing is dropped.
+   */
+  it.each([
+    ['a limit of zero', 0],
+    ['a fractional limit', 2.5],
+    ['an infinite limit', Number.POSITIVE_INFINITY],
+  ] as const)('says nothing under %s', (_name, limit) => {
+    const view = project(limit, 3);
+
+    expect(view.truncated).toBe(false);
+    expect(view.atLimit).toBeUndefined();
+    expect(view.rows).toHaveLength(3);
+  });
+
+  /**
+   * The chart is shaped from the rows that survive the cut: a pie whose
+   * slices included the probe row would show a share of a group the table
+   * below it does not list.
+   */
+  it('keeps the probe row out of the chart as well', () => {
+    const view = projectAnalysis(
+      definition(),
+      config({ limit: 2, layout: 'chart' }),
+      rows(3),
+    );
+
+    expect(view.chart?.type).toBe('cartesian');
+    expect(
+      view.chart?.type === 'cartesian' ? view.chart.points : [],
+    ).toHaveLength(2);
+  });
+});

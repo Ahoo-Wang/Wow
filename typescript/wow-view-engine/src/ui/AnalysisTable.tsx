@@ -69,6 +69,18 @@ export function AnalysisTable({ view, onPick }: AnalysisTableProps) {
               <TableHead
                 key={column.alias}
                 style={column.width ? { width: column.width } : undefined}
+                // A percentile's 「≈」 is a sign; this is the word behind it.
+                // Wow computes percentiles approximately, and nothing else on
+                // the row says so (D20 口径).
+                {...(column.fn === 'PERCENTILE'
+                  ? {
+                      'data-approximate': '',
+                      title: messages.label('label.analysis.approximate'),
+                      'aria-description': messages.label(
+                        'label.analysis.approximate',
+                      ),
+                    }
+                  : {})}
               >
                 {columnTitle(column, messages)}
               </TableHead>
@@ -106,14 +118,43 @@ export function AnalysisTable({ view, onPick }: AnalysisTableProps) {
         </TableBody>
         {view.totals && (
           <TableFooter>
-            <TableRow>
-              {view.columns.map((column, index) => (
-                <TableCell key={column.alias}>
-                  {index === 0 && column.role === 'group'
-                    ? messages.label('label.summary.total')
-                    : show(view.totals?.[column.alias], column)}
-                </TableCell>
-              ))}
+            <TableRow data-slot="totals-row">
+              {view.columns.map((column, index) => {
+                const heading = index === 0 && column.role === 'group';
+                return (
+                  <TableCell
+                    key={column.alias}
+                    // The word 「合计」 alone invites "the rows above, added
+                    // up", and the two numbers disagree whenever anything was
+                    // left out. The scope is therefore said on the cell that
+                    // carries the word: a `title` for the pointer and
+                    // `aria-description` for the reader.
+                    //
+                    // Not the registry `Tooltip`: it opens on a trigger, and
+                    // a trigger is a control that takes hover *and* focus. A
+                    // totals cell is neither focusable nor pressable, so a
+                    // tooltip here would reach a pointer only — while adding
+                    // a tab stop to every row of the footer to fix that would
+                    // put a control in a table where there is no action to
+                    // take. `title` says the same thing to the same pointer,
+                    // and `aria-description` says it to the reader as part of
+                    // the cell rather than as something to go and open.
+                    {...(heading
+                      ? {
+                          'data-slot': 'totals-heading',
+                          title: messages.label('label.analysis.totals-scope'),
+                          'aria-description': messages.label(
+                            'label.analysis.totals-scope',
+                          ),
+                        }
+                      : {})}
+                  >
+                    {heading
+                      ? messages.label('label.summary.total')
+                      : show(view.totals?.[column.alias], column)}
+                  </TableCell>
+                );
+              })}
             </TableRow>
           </TableFooter>
         )}

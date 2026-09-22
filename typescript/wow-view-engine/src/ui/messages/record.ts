@@ -153,7 +153,15 @@ export const recordMessages = {
   'label.summary.fn.PERCENTILE': 'Percentile',
   // "Any one of them", and the stress is on *any*: the backend returns some
   // value from the group and does not promise the same one twice.
+  //
+  // Two wordings, because the two places have different room. A column header
+  // composes this one through `label.summary.of` — «Any value of Amount» —
+  // and a parenthesis there would be read on every row of the table; the
+  // summary menu picks one choice out of six and is exactly where the caveat
+  // belongs, so the item carries it and the card at rest spells it out
+  // (`label.analysis.any-note`).
   'label.summary.fn.ANY': 'Any value',
+  'label.summary.fn.ANY.item': 'Any value (not stable)',
   'label.summary.unavailable': '—',
 
   // The column settings. The two areas a column cannot leave are named by

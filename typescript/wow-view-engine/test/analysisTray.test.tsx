@@ -510,11 +510,13 @@ describe('the tray’s dimension cards', () => {
       target: { value: '25' },
     });
     fireEvent.click(applyButton());
+    // 26, not 25: the query asks for one row more than the reader wants, so
+    // the answer says whether a 26th group exists (`analysisProbeLimit`).
     await waitFor(() =>
       expect(
         vi
           .mocked(source.aggregate)
-          .mock.calls.some(call => call[0].limit === 25),
+          .mock.calls.some(call => call[0].limit === 26),
       ).toBe(true),
     );
 
@@ -546,7 +548,15 @@ describe('the tray’s metric cards', () => {
     await user.click(summary);
     expect(
       (await screen.findAllByRole('option')).map(option => option.textContent),
-    ).toEqual(['Sum', 'Average', 'Distinct count', 'Percentile', 'Any value']);
+      // «Any value» is the one choice that promises nothing about the value
+      // it returns, and says so where the choice is made.
+    ).toEqual([
+      'Sum',
+      'Average',
+      'Distinct count',
+      'Percentile',
+      'Any value (not stable)',
+    ]);
     await user.keyboard('{Escape}');
 
     // A field that declares only a distinct count, and one that declares
@@ -559,6 +569,30 @@ describe('the tray’s metric cards', () => {
     await screen.findByRole('button', { name: 'Remove metric Note' });
     expect(metrics()[3]).toMatchObject({ type: 'ANY', field: 'note' });
     expect(engine.openRuntimes()[0].getSnapshot().issues).toEqual([]);
+  });
+
+  /**
+   * «Any value» returns some value of the group and promises nothing about
+   * which, so two runs of one analysis may disagree (D20 口径). The card at
+   * rest says so in a sentence — the parenthesis on the menu item is only
+   * read while the menu is open, and by then the choice is being made.
+   */
+  it('says on the card that an any-value metric is not stable', async () => {
+    await open();
+    const notes = () =>
+      [...document.querySelectorAll('[data-slot="metric-note"]')].map(
+        node => node.textContent,
+      );
+
+    // The record count is on the card already and carries no note.
+    expect(notes()).toEqual([]);
+
+    await add('Add metric', 'Note');
+    await screen.findByRole('button', { name: 'Remove metric Note' });
+
+    expect(notes()).toEqual([
+      'Any value: it may differ from one run to the next.',
+    ]);
   });
 
   it('adds the record count when the definition allows counting', async () => {
@@ -599,7 +633,7 @@ describe('the tray’s metric cards', () => {
     await waitFor(() => expect(metric().type).toBe('DISTINCT_COUNT'));
     expect(metric().function).toBeUndefined();
 
-    await choose('Any value');
+    await choose('Any value (not stable)');
     await waitFor(() => expect(metric().type).toBe('ANY'));
     expect(metric().expression).toBeUndefined();
     expect(metric().field).toBe('amount');

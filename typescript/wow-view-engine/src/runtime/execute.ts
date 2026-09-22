@@ -26,6 +26,7 @@ import {
   compileAnalysisTotals,
   projectAnalysis,
   validateAnalysis,
+  type AnalysisView,
 } from '../analysis/index.js';
 import {
   issue,
@@ -204,23 +205,40 @@ async function executeAnalysis(
   ]);
 
   const view = projectAnalysis(definition, config, rows, totals ?? undefined);
-  return {
-    kind: 'analysis',
-    view,
-    // A grouping that filled its limit exactly may go on past the last row
-    // shown, and every share, percentage and slice on the screen is then
-    // computed over a prefix of it. See `AnalysisView.atLimit` for why this
-    // is the only signal available, and why it is said as "may".
-    issues:
-      view.atLimit === undefined
-        ? []
-        : [
-            issue(
-              'analysis.result.at-limit',
-              ['limit'],
-              { limit: view.atLimit },
-              'warning',
-            ),
-          ],
-  };
+  return { kind: 'analysis', view, issues: cutShortIssues(config, view) };
+}
+
+/**
+ * What the screen is told about the groups below the last row.
+ *
+ * A grouping that goes on past the last row shown makes every share,
+ * percentage and slice on the screen a fraction of a prefix — the one thing a
+ * reader cannot check for themselves. The query asked for one row more than
+ * the limit, so this is normally a fact rather than a guess
+ * (`analysis.result.more-groups`); only where no probe was possible is it
+ * still said as a maybe (`analysis.result.at-limit`), and the two are never
+ * both true. See `analysisProbeLimit` and `AnalysisView.truncated`.
+ */
+function cutShortIssues(
+  config: AnalysisViewConfig,
+  view: AnalysisView,
+): Issue[] {
+  if (view.truncated)
+    return [
+      issue(
+        'analysis.result.more-groups',
+        ['limit'],
+        { limit: config.limit },
+        'warning',
+      ),
+    ];
+  if (view.atLimit === undefined) return [];
+  return [
+    issue(
+      'analysis.result.at-limit',
+      ['limit'],
+      { limit: view.atLimit },
+      'warning',
+    ),
+  ];
 }

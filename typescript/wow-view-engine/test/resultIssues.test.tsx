@@ -13,12 +13,16 @@
 
 /**
  * What a result says about itself: a summary row that had to narrow its
- * scope, and a grouping that may have been cut short.
+ * scope, and a grouping with more groups below the last row.
  *
  * Both are numbers that mean something other than what a reader takes them
  * to mean, so both are `warning` Issues carried on the projected result —
  * where they outlive the next keystroke — rather than on `state.issues`,
  * which is admission of the draft and is recomputed from it.
+ *
+ * The projection rule behind the second one — one row more asked for, that
+ * row dropped again — is `test/analysisProject.test.ts`「the probe row read
+ * back」. This file is what the runtime and the screen make of its answer.
  */
 
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
@@ -26,7 +30,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
-  projectAnalysis,
   resultIssues,
   type AnalysisViewConfig,
   type DataViewConfig,
@@ -75,10 +78,17 @@ function noAggregate(): ViewSource {
   });
 }
 
-/** A source that answers every aggregation with `count` grouped rows. */
+/**
+ * A source holding `count` warehouses that answers no more rows than the
+ * query asked for. The limit has to be honoured for the probe row to mean
+ * anything: a source that answers `count` whatever it was asked either
+ * invents a cut that did not happen or hides one that did.
+ */
 function grouped(count: number): ViewSource {
   return testSource({
-    aggregate: vi.fn(() => Promise.resolve(warehouses(count))),
+    aggregate: vi.fn((query: { limit?: number }) =>
+      Promise.resolve(warehouses(count).slice(0, query.limit ?? count)),
+    ),
   });
 }
 
@@ -97,80 +107,6 @@ function engineOver(config: DataViewConfig, source: ViewSource): ViewEngine {
     resolveSource: () => source,
   });
 }
-
-/**
- * The rule lives in the projection: the row count against the config's own
- * limit is all that is known, so it is all that can be reported.
- */
-describe('projectAnalysis row limit', () => {
-  const definition = ordersDefinition();
-  const project = (limit: number | undefined, rows: RecordData[]) =>
-    projectAnalysis(
-      definition,
-      analysisConfig({ limit: limit as number }),
-      rows,
-    );
-
-  it('marks a result that filled its limit exactly', () => {
-    const view = project(3, warehouses(3));
-
-    expect(view.atLimit).toBe(3);
-    expect(view.rows).toHaveLength(3);
-  });
-
-  it('says nothing about a result that came back short of it', () => {
-    expect(project(3, warehouses(2)).atLimit).toBeUndefined();
-  });
-
-  /** An empty grouping under a limit of one is short of it, not at it. */
-  it('says nothing about an empty result', () => {
-    expect(project(1, []).atLimit).toBeUndefined();
-  });
-
-  /** A limit of one that one row filled is as ambiguous as any other. */
-  it('marks a limit of one the result filled', () => {
-    expect(project(1, warehouses(1)).atLimit).toBe(1);
-  });
-
-  /**
-   * An analysis with no groups asks one question and gets one row, so a limit
-   * of one is met by every successful answer. Warning there would put "may
-   * have been cut short" under every metric view that ever ran.
-   */
-  it('says nothing about an analysis that has no grouping to cut short', () => {
-    const view = projectAnalysis(
-      definition,
-      analysisConfig({ groups: [], sort: [], limit: 1 }),
-      [{ orders: 6 }],
-    );
-
-    expect(view.rows).toHaveLength(1);
-    expect(view.atLimit).toBeUndefined();
-  });
-
-  /**
-   * `validateAnalysis` refuses each of these, but the projection is exported
-   * and a host may run it over a config nothing admitted. No usable limit
-   * means nothing is known about what was left out — which is not the same
-   * as knowing nothing was, so nothing is claimed either way.
-   */
-  it.each([
-    ['no limit at all', undefined],
-    ['a limit of zero', 0],
-    ['a fractional limit', 2.5],
-    ['an infinite limit', Number.POSITIVE_INFINITY],
-  ] as const)('says nothing under %s', (_name, limit) => {
-    expect(project(limit, warehouses(2)).atLimit).toBeUndefined();
-  });
-
-  /**
-   * A source that answered past the limit never treated it as a ceiling, so
-   * the count it answered with says nothing about what it left out.
-   */
-  it('says nothing when the source answered past the limit', () => {
-    expect(project(2, warehouses(3)).atLimit).toBeUndefined();
-  });
-});
 
 /** What the runtime records about an execution, beside the view itself. */
 describe('the findings a result carries', () => {
@@ -215,10 +151,74 @@ describe('the findings a result carries', () => {
     expect(data.issues).toEqual([]);
   });
 
-  it('reports an analysis that filled its limit', async () => {
-    const data = await ran(analysisConfig({ limit: 2 }), grouped(2));
+  it('reports an analysis with more groups than it showed', async () => {
+    const data = await ran(analysisConfig({ limit: 2 }), grouped(4));
 
     expect(data.issues).toEqual([
+      {
+        code: 'analysis.result.more-groups',
+        severity: 'warning',
+        path: ['limit'],
+        // The limit the reader set, not the one the query carried: the probe
+        // row is the engine's question and never the reader's.
+        params: { limit: 2 },
+      },
+    ]);
+    expect(data.kind === 'analysis' && data.view.rows).toHaveLength(2);
+  });
+
+  /**
+   * Two warehouses under a limit of two used to raise the warning on the
+   * strength of the count alone. The probe row settles it: the query asked
+   * for three and got two, so there is no third group and nothing to say.
+   */
+  it('reports nothing about a grouping that exactly fits', async () => {
+    expect(
+      (await ran(analysisConfig({ limit: 2 }), grouped(2))).issues,
+    ).toEqual([]);
+  });
+
+  it('reports nothing about an analysis that came back short', async () => {
+    expect(
+      (await ran(analysisConfig({ limit: 100 }), grouped(2))).issues,
+    ).toEqual([]);
+  });
+
+  /**
+   * The one case no probe can reach: the configured limit already sits on the
+   * capability's ceiling, so there is no row left to ask for and "came back
+   * exactly full" is all there is — said as a maybe, as it always was.
+   */
+  it('still says "may" where the limit sits on the ceiling', async () => {
+    const engine = new ViewEngine({
+      definitions: [
+        ordersDefinition({
+          analysis: {
+            ...ordersDefinition().analysis!,
+            limits: { maxLimit: 2 },
+          },
+        }),
+      ],
+      store: new MemoryViewStore({
+        instances: [
+          {
+            id: 'orders-1',
+            definitionId: 'orders',
+            title: 'Mine',
+            scope: 'personal',
+            revision: '1',
+            config: analysisConfig({ limit: 2 }),
+          },
+        ],
+      }),
+      resolveSource: () => grouped(4),
+    });
+    const runtime = await engine.open('orders-1');
+    await waitFor(() =>
+      expect(runtime.getSnapshot().query.status).toBe('success'),
+    );
+
+    expect(runtime.getSnapshot().result?.data?.issues).toEqual([
       {
         code: 'analysis.result.at-limit',
         severity: 'warning',
@@ -226,12 +226,6 @@ describe('the findings a result carries', () => {
         params: { limit: 2 },
       },
     ]);
-  });
-
-  it('reports nothing about an analysis that came back short', async () => {
-    expect(
-      (await ran(analysisConfig({ limit: 100 }), grouped(2))).issues,
-    ).toEqual([]);
   });
 
   /**
@@ -335,6 +329,9 @@ describe('what the screen says about a downgraded total', () => {
 
 /** A truncated grouping is worst as a pie, so both layouts have to say so. */
 describe('what the screen says about an analysis cut short', () => {
+  /** The sentence the strip says, with the reader's own limit in it. */
+  const MORE = said('analysis.result.more-groups', 2);
+
   /** The same result under the two layouts one analysis can be drawn in. */
   function cutShort(layout: 'table' | 'chart'): AnalysisViewConfig {
     return analysisConfig({
@@ -359,20 +356,16 @@ describe('what the screen says about an analysis cut short', () => {
   }
 
   it('says it over the table', async () => {
-    show(cutShort('table'), grouped(2));
+    show(cutShort('table'), grouped(4));
 
-    expect(
-      await screen.findByText(said('analysis.result.at-limit', 2)),
-    ).toBeDefined();
+    expect(await screen.findByText(MORE)).toBeDefined();
     expect(screen.getByRole('table')).toBeDefined();
   });
 
   it('says it over the chart', async () => {
-    show(cutShort('chart'), grouped(2));
+    show(cutShort('chart'), grouped(4));
 
-    expect(
-      await screen.findByText(said('analysis.result.at-limit', 2)),
-    ).toBeDefined();
+    expect(await screen.findByText(MORE)).toBeDefined();
     // The chart layout draws no analysis table; the table beside it is the
     // `sr-only` reading of the very numbers the pie is cut from.
     expect(document.querySelector('[data-slot="analysis-table"]')).toBeNull();
@@ -383,7 +376,21 @@ describe('what the screen says about an analysis cut short', () => {
 
     await waitFor(() => expect(screen.getByRole('table')).toBeDefined());
     expect(
-      screen.queryByText(said('analysis.result.at-limit', 100)),
+      screen.queryByText(said('analysis.result.more-groups', 100)),
+    ).toBeNull();
+  });
+
+  /**
+   * The old heuristic warned here, and it was wrong: four warehouses under a
+   * limit of four are four warehouses. The probe row is what tells the two
+   * apart, and this is the case it was added for.
+   */
+  it('keeps quiet when the grouping exactly fills the limit', async () => {
+    show(analysisConfig({ limit: 4 }), grouped(4));
+
+    await waitFor(() => expect(screen.getByRole('table')).toBeDefined());
+    expect(
+      screen.queryByText(said('analysis.result.more-groups', 4)),
     ).toBeNull();
   });
 
@@ -393,7 +400,7 @@ describe('what the screen says about an analysis cut short', () => {
    * it. Put in `state.issues`, it would have gone on the first keystroke.
    */
   it('stays on screen while the draft is edited under it', async () => {
-    const engine = engineOver(cutShort('table'), grouped(2));
+    const engine = engineOver(cutShort('table'), grouped(4));
     render(
       <DataWorkbench
         engine={engine}
@@ -402,26 +409,23 @@ describe('what the screen says about an analysis cut short', () => {
         kinds={['analysis']}
       />,
     );
-    await screen.findByText(said('analysis.result.at-limit', 2));
+    await screen.findByText(MORE);
 
     act(() => engine.openRuntimes()[0].edit({ limit: 50 }));
 
-    await waitFor(() =>
-      expect(
-        screen.getByText(said('analysis.result.at-limit', 2)),
-      ).toBeDefined(),
-    );
+    await waitFor(() => expect(screen.getByText(MORE)).toBeDefined());
   });
 });
 
-/** Both catalogues name both findings, and neither was left in English. */
-describe('the wording of the two findings', () => {
-  it.each(['runtime.summary.page-only', 'analysis.result.at-limit'] as const)(
-    '%s is worded in both languages',
-    key => {
-      expect(defaultMessages[key]).toBeTruthy();
-      expect(zhCN[key]).toBeTruthy();
-      expect(zhCN[key]).not.toBe(defaultMessages[key]);
-    },
-  );
+/** Both catalogues name every finding, and none was left in English. */
+describe('the wording of the findings', () => {
+  it.each([
+    'runtime.summary.page-only',
+    'analysis.result.more-groups',
+    'analysis.result.at-limit',
+  ] as const)('%s is worded in both languages', key => {
+    expect(defaultMessages[key]).toBeTruthy();
+    expect(zhCN[key]).toBeTruthy();
+    expect(zhCN[key]).not.toBe(defaultMessages[key]);
+  });
 });

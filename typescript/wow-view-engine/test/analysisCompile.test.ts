@@ -18,6 +18,7 @@
  */
 
 import {
+  AGGREGATION_LIMITS,
   AggregationGroupType,
   AggregationMetricType,
   DerivedExpressionType,
@@ -38,6 +39,7 @@ import {
   type FilterValue,
 } from '../src/index.js';
 import {
+  analysisCapability,
   analysisContext as context,
   analysisDefinition as definition,
   analysisKernelConfig as config,
@@ -75,7 +77,8 @@ describe('compileAnalysis', () => {
       ],
       metrics: [{ type: AggregationMetricType.COUNT, alias: 'orders' }],
       sort: [{ field: 'orders', direction: SortDirection.DESC }],
-      limit: 100,
+      // One more than the configured 100: the probe row (D20 Ⅷ).
+      limit: 101,
       having: { metric: 'orders', value: 10 },
     });
   });
@@ -199,6 +202,88 @@ describe('compileAnalysis', () => {
         context,
       ),
     ).toThrow(/no analysis capability/);
+  });
+});
+
+/**
+ * One row more than the reader asked for, so "are there more groups?" is a
+ * question the source answers rather than one the projection guesses at
+ * (D20 Ⅷ). The probe never passes a ceiling, because a query beyond one is
+ * refused rather than answered — and a limit already on the ceiling is
+ * therefore the one case that cannot be probed at all.
+ */
+describe('the probe row', () => {
+  const limitOf = (
+    overrides: Partial<AnalysisViewConfig>,
+    capped?: number,
+  ): number =>
+    compileAnalysis(
+      capped === undefined
+        ? definition()
+        : definition({
+            analysis: { ...analysisCapability, limits: { maxLimit: capped } },
+          }),
+      config(overrides),
+      builtinFieldKinds,
+      context,
+    ).limit as number;
+
+  it('asks for one row more than the configured limit', () => {
+    expect(limitOf({ limit: 25 })).toBe(26);
+  });
+
+  it('stops at the capability’s own ceiling', () => {
+    expect(limitOf({ limit: 9 }, 20)).toBe(10);
+    expect(limitOf({ limit: 19 }, 20)).toBe(20);
+  });
+
+  /**
+   * On the ceiling there is no row left to ask for, so the query is the one
+   * it always was and `projectAnalysis` falls back to "may have been cut
+   * short". Asking for 21 here would trade the whole result for the probe.
+   */
+  it('does not probe a limit that already sits on the ceiling', () => {
+    expect(limitOf({ limit: 20 }, 20)).toBe(20);
+  });
+
+  it('stops at Wow’s own ceiling when the capability declares none', () => {
+    expect(limitOf({ limit: AGGREGATION_LIMITS.MAX_LIMIT })).toBe(
+      AGGREGATION_LIMITS.MAX_LIMIT,
+    );
+  });
+
+  /**
+   * An ungrouped aggregation answers its one row whatever the limit says, so
+   * there is nothing a ceiling could cut and nothing to probe for.
+   */
+  it('leaves an analysis with no grouping alone', () => {
+    expect(limitOf({ groups: [], sort: [], limit: 1 })).toBe(1);
+  });
+
+  /**
+   * `validateAnalysis` refuses these, but compilation is exported and a host
+   * may reach it with a config nothing admitted. Passing the number through
+   * leaves the refusal where it already was, in Wow.
+   */
+  it.each([
+    ['zero', 0],
+    ['a fraction', 2.5],
+    ['infinity', Number.POSITIVE_INFINITY],
+  ] as const)('passes %s through untouched', (_name, limit) => {
+    expect(limitOf({ limit })).toBe(limit);
+  });
+
+  /** The totals query is ungrouped and carries no limit to probe. */
+  it('leaves the totals query without one', () => {
+    const totals = compileAnalysisTotals(
+      definition(),
+      config({ limit: 25, table: { columns: [], totals: true } }),
+      builtinFieldKinds,
+      context,
+    );
+
+    expect(totals).not.toBeNull();
+    expect(totals).not.toHaveProperty('limit');
   });
 });
 

@@ -24,6 +24,7 @@ import type {
 } from '../model/index.js';
 import { analysisScope } from './capability.js';
 import { shapeChart, type ChartData } from './chart.js';
+import { analysisProbeLimit } from './compile.js';
 import {
   metricFormat,
   metricFunctionOf,
@@ -82,21 +83,30 @@ export interface AnalysisView {
    * `projectAnalysis` always sets it; a view built by hand may leave it out.
    */
   schema?: AnalysisColumnView[];
+  /** The groups on screen: at most `limit` of them, the probe row dropped. */
   rows: RecordData[];
   /**
-   * The row limit the result exactly filled, when it did.
+   * Whether groups exist that `rows` does not hold. Known, not guessed: the
+   * query asked Wow for one row more than the limit (`analysisProbeLimit`),
+   * and this says that row came back. It never reaches `rows` — the reader
+   * asked for `limit` groups and gets `limit` groups.
    *
-   * An aggregation answers at most `limit` rows and says nothing about how
-   * many it had to leave out, so "came back with exactly `limit`" is the only
-   * signal there is, and it is ambiguous: a grouping of exactly that size
-   * looks the same as one that was cut down to it. It is reported as "may
-   * have been cut short" for that reason, and never as a fact — but a
-   * complete-looking table whose every share, percentage and pie slice is
-   * computed over a prefix is the one thing a reader cannot find out for
-   * themselves.
+   * It matters because every share, percentage and pie slice on a cut-short
+   * result is computed over a prefix, and a complete-looking table is the one
+   * thing a reader cannot check for themselves.
+   */
+  truncated: boolean;
+  /**
+   * The row limit the result exactly filled **when no probe was possible**.
    *
-   * Absent when fewer rows came back, and when the config carries no usable
-   * limit at all — nothing was cut, or nothing is known to have been.
+   * The configured limit already sits on the ceiling (`analysisProbeLimit`),
+   * so there is no row left to ask for and "came back exactly full" is all
+   * there is — ambiguous, because a grouping of exactly that size looks the
+   * same as one cut down to it. It is reported as "may have been cut short"
+   * for that reason, and never as a fact.
+   *
+   * Absent everywhere else, `truncated` having the answer there: the two are
+   * never both set.
    */
   atLimit?: number;
   /** Present only when `table.totals` asked for it and its query succeeded. */
@@ -243,40 +253,65 @@ export function projectAnalysis(
     ];
   };
 
+  const cut = cutShort(definition, config, result);
+
   return {
     columns: order.flatMap(describe),
     schema: resultSchema(config).flatMap(describe),
-    rows: [...result],
-    ...limitReached(config, result),
+    ...cut,
     ...(totals && totals.length > 0 ? { totals: totals[0] } : {}),
+    // The probe row is not one of the groups the reader asked for, so the
+    // chart is shaped from the rows that survive the cut: a pie's shares and
+    // a "other" tail are over what is on screen and nothing else.
     ...(config.layout === 'chart'
-      ? { chart: shapeChart(config, result, totals?.[0]) }
+      ? { chart: shapeChart(config, cut.rows, totals?.[0]) }
       : {}),
   };
 }
 
 /**
- * Whether the result sat exactly on the limit the query carried — see
- * `AnalysisView.atLimit`.
+ * The rows the reader asked for, and what is known about the ones below them
+ * — see `AnalysisView.truncated` and `AnalysisView.atLimit`.
+ *
+ * The query asked for one row more than the limit, so a result longer than
+ * the limit is the probe coming back: more groups exist, and the extra row is
+ * dropped rather than shown. A result no longer than the limit is the whole
+ * grouping, whatever its length.
+ *
+ * Where the probe was impossible — the configured limit already on the
+ * ceiling — only "exactly full" is left, and that is the one case reported as
+ * a maybe.
  *
  * The limit is read as the untrusted number it is. `validateAnalysis` refuses
  * anything but a positive integer, but this function is exported and a host
  * may project a config nothing admitted; a missing or nonsensical limit means
  * nothing is known about what was left out, which is not the same as knowing
- * nothing was. More rows than the limit means the source ignored it, so the
- * count it answered with was never a ceiling and says nothing either.
+ * nothing was.
  */
-function limitReached(
+function cutShort(
+  definition: DataViewDefinition,
   config: AnalysisViewConfig,
   result: readonly RecordData[],
-): { atLimit?: number } {
+): { rows: RecordData[]; truncated: boolean; atLimit?: number } {
+  const rows = [...result];
   // An analysis with no groups asks one question and gets one row back, so a
   // limit of one is met by every successful answer and cuts nothing short.
   // Only a grouping can lose rows to a ceiling.
-  if (config.groups.length === 0) return {};
+  if (config.groups.length === 0) return { rows, truncated: false };
   const limit = config.limit;
-  if (!Number.isInteger(limit) || limit < 1) return {};
-  return result.length === limit ? { atLimit: limit } : {};
+  if (!Number.isInteger(limit) || limit < 1) return { rows, truncated: false };
+
+  const kept = rows.slice(0, limit);
+  if (analysisProbeLimit(definition, config) > limit)
+    return { rows: kept, truncated: result.length > limit };
+  // No probe: the limit is the ceiling. A source that answered past a ceiling
+  // it cannot have honoured still filled the limit, and the reader still sees
+  // exactly `limit` rows.
+  return {
+    rows: kept,
+    truncated: false,
+    ...(result.length >= limit ? { atLimit: limit } : {}),
+  };
 }
 
 /**

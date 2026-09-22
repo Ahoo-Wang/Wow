@@ -57,6 +57,22 @@ export const analysisMessages = {
   'label.analysis.add-metric': 'Add metric',
   'label.analysis.totals': 'Totals row',
   'label.analysis.row-limit': 'Top N groups',
+  // The three readings D20 asks the screen to say out loud, because each is
+  // a number that means something other than what it looks like.
+  //
+  // The totals row comes from its own ungrouped query, so it covers the whole
+  // range — the groups past the top N and the groups 「只保留」 dropped
+  // included. That is why the rows above it can add up to less than it does
+  // without either number being wrong.
+  'label.analysis.totals-scope': 'Totals = every record in the range',
+  // Wow computes a percentile approximately, so the column says so: 「≈」 in
+  // the header (`columnTitle`) and this word where there is room for one.
+  'label.analysis.approximate': 'Approximate',
+  // «Any value» returns some value of the group and promises nothing about
+  // which; two runs of the same analysis may not agree. The menu item says it
+  // in a parenthesis, the card at rest in a sentence.
+  'label.analysis.any-note':
+    'Any value: it may differ from one run to the next.',
   // The visualization panel (D20 屏 I): the way in from the result's
   // toolbar, its title, the way back, and why a tile is greyed.
   'label.analysis.visualize': 'Visualize',
@@ -283,11 +299,14 @@ export const analysisMessages = {
   'analysis.percentile.out-of-range':
     'A percentile must be between 0 and 100, exclusive.',
   'analysis.percentile.undeclared': '{field} does not offer percentiles.',
-  // Exactly `limit` groups is what a grouping of that size and a larger one
-  // cut down to it both look like, and the source says nothing more — so the
-  // line says what is on screen rather than guessing at what is not.
+  // The query asks for one row more than the limit, so "there are more" is a
+  // fact and says so. The maybe below it is the one case that cannot be
+  // probed: the limit already sits on the ceiling, so no row is left to ask
+  // for and "exactly full" is all there is (see `analysisProbeLimit`).
+  'analysis.result.more-groups':
+    'Showing the first {limit} groups; there are more.',
   'analysis.result.at-limit':
-    'Showing the first {limit} groups, more not listed.',
+    'Showing the first {limit} groups; there may be more.',
   'analysis.sort.duplicate': 'The sort already orders by {alias}.',
   'analysis.sort.requires-group': 'Sorting needs at least one dimension.',
   'analysis.sort.too-many': 'A result sorts on at most {max} columns.',

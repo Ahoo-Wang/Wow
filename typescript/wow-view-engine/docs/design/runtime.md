@@ -129,7 +129,8 @@ export class ViewWriteError extends Error {
 - **只执行准入过的配置。** `apply` 与 `setScopeFilter` 只提升通过准入的口径；打开时 `applied` 若未通过准入，`refresh` 与 `page` 同样是空操作，直到一份修正后的 draft 被 `apply`。否则"待修复"只挡住 `apply` 一个入口，刷新或翻页就会把被拒绝的配置发出去。
 - **结果自身的问题记在结果上，不记在 `issues` 里。** `ProjectedView` 带一份 `issues: readonly Issue[]`，说的是"屏幕上这些数字"而不是"这份配置"。`state.issues` 是 draft 连同作用域的准入结果，每次 `edit` 都重算：把这类发现放进去，用户一敲键盘它就没了，而它描述的那些数字还在屏幕上。它随成功的执行一起推进，随下一次成功的结果一起被换掉，读它的是 `resultIssues(data)` 这一个函数——两个工作台把它并进 `WorkbenchShell` 的 `warnings`，`EmbeddedView` 并进它自己的 warning 条（[ui/README.md#两级-severity-与-statusstrip](ui/README.md#两级-severity-与-statusstrip)）。当下有两条，都是 warning，都不阻塞：
   - **`runtime.summary.page-only`**（路径 `['summaries']`）——汇总查询失败，汇总行退回本页口径。行本身留着，因为本页合计本身有用；`SummaryRow.scope` 说明它答的是 `page` 还是 `total`，这条 Issue 说明为什么退。配置没要汇总时两者都没有，汇总查询成功时是 `scope: 'total'` 且没有 Issue。默默顶替才是这里唯一的错误：读者看到「总计」，会当成全部命中记录的总计，二十行的 AVG 被读成四万行的 AVG。
-  - **`analysis.result.at-limit`**（路径 `['limit']`，参数 `{ limit }`）——分析结果正好填满 `limit` 行。聚合只回答了行数，没说它省略了多少，"恰好等于上限"既可能是刚好这么多组，也可能是被截断的前缀，所以措辞是"**可能**被截断"而不是断言（判据见 [kernels.md#compileanalysis-与-projectanalysis](kernels.md#compileanalysis-与-projectanalysis)）。分析的合计行走自己的无分组查询，因此即使分组被截断它仍覆盖全部——两行加起来小于它们下面的合计，两个数都没错。
+  - **`analysis.result.more-groups`**（路径 `['limit']`，参数 `{ limit }` 是读者设的那个上限，不是查询带的那个）——分析结果之下还有没列出的组。这是问出来的，不是猜的：分组查询要的是 `limit + 1`，多回来的那一行就是答案，随后被丢掉不上屏（判据见 [kernels.md#compileanalysis-与-projectanalysis](kernels.md#compileanalysis-与-projectanalysis)）。分析的合计行走自己的无分组查询，因此即使分组被截断它仍覆盖全部——两行加起来小于它们下面的合计，两个数都没错。
+  - **`analysis.result.at-limit`**（同样的路径与参数）——探不成时的那一种：配置上限已经顶到天花板，多要一行会让查询被拒，于是只剩"恰好填满上限"这个二义信号，措辞相应是"**可能**还有更多"而不是断言。两条不会同时出现。
   - 分析的**合计**查询单独失败不报：分组行仍然完整地回答了它们自己的问题，屏幕上没有哪个数字的含义与它的说法不符，少一行合计而已。（见 test/resultIssues.test.tsx）
 
 ## 自动刷新
@@ -164,7 +165,7 @@ export class ViewWriteError extends Error {
 
 - `dashboard.panels.too-many` 这类路径为 `['panels']`、不属于任何一个面板的 Issue 按 Dashboard 整体的 error 处理，阻止全部面板执行。
 - 子 runtime 拒绝注入的作用域时，该子 runtime 被释放而不是继续跑旧口径，拒绝理由以 `['panels', index, ...]` 为路径记在该面板的 `issues` 里，其余面板不受影响。（见 test/dashboardRuntime.test.ts「DashboardViewRuntime child refusal」）
-- 子 runtime 接受作用域后，它对自身已存配置的 warning 同样重定址到该路径记入面板的 `issues`，面板照常运行；**子 runtime 上一次结果自身的 warning**（`resultIssues`：汇总退回本页 `runtime.summary.page-only`、分析填满上限 `analysis.result.at-limit`）也并入，同样重定址——两个工作台与 `EmbeddedView` 都会说这两条，同一张被截断的饼图放进仪表盘不能就不说了；子 runtime 一通知（结果落地就是一次）面板的 `issues` 就重建，不等下一次 Dashboard 同步（见 test/dashboardRuntime.test.ts「carries a child result warning on the panel」）——从子 runtime 的快照读取，因为 `setScopeFilter` 对未变化的作用域返回空，而布局编辑会以同一作用域重新同步每个面板。
+- 子 runtime 接受作用域后，它对自身已存配置的 warning 同样重定址到该路径记入面板的 `issues`，面板照常运行；**子 runtime 上一次结果自身的 warning**（`resultIssues`：汇总退回本页 `runtime.summary.page-only`、分析还有更多组 `analysis.result.more-groups` 或探不成时的 `analysis.result.at-limit`）也并入，同样重定址——两个工作台与 `EmbeddedView` 都会说这两条，同一张被截断的饼图放进仪表盘不能就不说了；子 runtime 一通知（结果落地就是一次）面板的 `issues` 就重建，不等下一次 Dashboard 同步（见 test/dashboardRuntime.test.ts「carries a child result warning on the panel」）——从子 runtime 的快照读取，因为 `setScopeFilter` 对未变化的作用域返回空，而布局编辑会以同一作用域重新同步每个面板。
 - `validateDashboard` 对映射后筛选的复验与子 runtime 对同一棵合并树的准入会让一个 kind 的 warning 出现两次，同 code 同 params 的只记面板校验的那一条。
 - 宿主经 `panelRuntime` 驱动子 runtime（`edit`／`apply`）改变其 issues 时，面板的 `issues` 随子 runtime 的通知重建，不等下一次 Dashboard 同步。
 - 作用域条件不进入子 runtime 的 `draft` 或 `saved`，面板因此不会变脏，也不会把 Dashboard 条件保存回被引用实例，执行的有效配置记录在 `result.config`。（见 test/dashboardRuntime.test.ts「DashboardViewRuntime scope filter」）

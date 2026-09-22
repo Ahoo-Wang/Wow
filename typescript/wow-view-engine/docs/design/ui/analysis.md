@@ -75,9 +75,19 @@
 
 ## 被截断的分组要说出来
 
-- 结果行数恰好填满 `limit` 时，屏幕上的行只是真实分组的一个前缀，于是这一屏的每个占比、每个百分比、每个扇区都是拿"已显示的部分"当分母算出来的。饼图是最坏的一种：它的全部含义就是"各部分占整体多少"，而整体已经不在图里了；
-- 因此工作台把这条 warning（`analysis.result.at-limit`）交给 `WorkbenchShell` 的 `warnings`，状态条在**表格与图表之上**，两种布局各画各的，这一行是共同的，切换布局不会把它丢掉。措辞是"可能被截断"：聚合只回答了行数，"恰好等于上限"既可能是刚好这么多组，也可能是被截掉的前缀，判据见 [../kernels.md#compileanalysis-与-projectanalysis](../kernels.md#compileanalysis-与-projectanalysis)；
-- 合计行照旧来自自己的无分组查询，所以它仍然覆盖全部——可见的几行加起来小于它们下面的合计，两个数都没错，正是这条 warning 要解释的事。（见 test/resultIssues.test.tsx「what the screen says about an analysis cut short」与 stories/view-engine 的 `CutShort`／`CutShortTable`）
+- 分组没画完时，屏幕上的行只是真实分组的一个前缀，于是这一屏的每个占比、每个百分比、每个扇区都是拿"已显示的部分"当分母算出来的。饼图是最坏的一种：它的全部含义就是"各部分占整体多少"，而整体已经不在图里了。这件事读者自己查不出来——一张被截断的表和一张完整的表长得一模一样；
+- **多要一行比猜一行强**（D20 Ⅷ）。聚合至多回答 `limit` 行，并不说它省略了多少，所以"恰好填满上限"曾经是唯一可用的信号，而它是二义的：刚好这么多组，和被截到这么多组，长得一样。现在引擎发查询时要 `limit + 1`（`analysisProbeLimit`）：那一行回来了就是"还有更多"，没回来就是"没有更多"，二义变成答案。**探针行只回答问题，不上屏**——`projectAnalysis` 把它丢掉，表格、图表与"其他"片都按读者要的那 N 组算，判据见 [../kernels.md#compileanalysis-与-projectanalysis](../kernels.md#compileanalysis-与-projectanalysis)；
+- 于是句子从"可能"变成事实：`analysis.result.more-groups`，「只显示了前 {limit} 组，还有更多未列出」。工作台把这条 warning 交给 `WorkbenchShell` 的 `warnings`，状态条在**表格与图表之上**，两种布局各画各的，这一行是共同的，切换布局不会把它丢掉；
+- **唯一问不出来的那一种**：配置的上限已经顶到天花板（能力声明的 `maxLimit`，或 Wow 自己的 `AGGREGATION_LIMITS.MAX_LIMIT`）时，多要的那一行会让整个查询被拒，探不成。这一种保留旧读法与旧措辞——`analysis.result.at-limit`，「只显示了前 {limit} 组，可能还有更多未列出」——因为那时"恰好填满"确实是全部已知的东西；
+- 合计行照旧来自自己的无分组查询，**所以不管截没截断它都覆盖范围内全部记录**——可见的几行加起来小于它们下面的合计，两个数都没错，正是这条 warning 要解释的事；表头把这句口径写在自己身上（下面「三条口径」）。（见 test/resultIssues.test.tsx「what the screen says about an analysis cut short」、test/analysisProject.test.ts「the probe row read back」与 stories/view-engine 的 `CutShort`／`CutShortTable`）
+
+## 三条口径
+
+D20 定下的三条数据口径，每一条都是"这个数看起来是甲，其实是乙"，所以都由屏幕自己说出来，而不是留给文档：
+
+- **合计 = 范围内全部记录**（`label.analysis.totals-scope`）。合计行来自它自己那次无分组查询，所以它含着前 N 组之外的组、被「只保留」筛掉的组、以及没有维度值的记录。「合计」两个字单摆着会被读成"上面几行加起来"，而只要有东西被漏掉，两个数就对不上。这句口径落在写着「合计」的那一格上（`data-slot="totals-heading"`），`title` 给指针、`aria-description` 给读屏。**没有用注册表的 `Tooltip`**：它要一个 trigger，而 trigger 是个既接 hover 又接 focus 的控件；合计格既不可聚焦也不可按，挂上去只有指针读得到，而为了让键盘读到就得给页脚每一行加一个 Tab 停靠点——在一张没有动作可做的表里放一个控件，比它解决的问题更贵。`title` 对同一个指针说同一句话，`aria-description` 把它作为这一格的一部分说给读屏，不用"去打开"什么；
+- **百分位是近似值**。表头前面一个「≈」（`columnTitle`，见下面「数字按它自己的列读」），`title` 与 `aria-description` 写「近似值」（`label.analysis.approximate`，表头带 `data-approximate`）。Wow 的百分位是近似计算的，而一个印到两位小数、挨着一个精确求和的 p95，读起来就是精确的；
+- **「任一值」不保证每次一样**。汇总方式菜单里那一项写作「任一值（不保证每次一样）」（`label.summary.fn.ANY.item`），指标卡静止时在汇总下面还有一整句（`data-slot="metric-note"`，`label.analysis.any-note`）。两处两套措辞是有意的：表头经 `label.summary.of` 拼的是光秃秃的「任一值」——括号放在表头上，每读一行都要读一遍；而菜单是六选一、正在做决定的地方，警告就该在那里。（见 test/analysisTable.test.tsx「the three readings a result says out loud」与 test/analysisTray.test.tsx「the tray’s metric cards」）
 
 ## 数字按它自己的列读
 
@@ -85,6 +95,7 @@
 - **格式来自 `metricFormat(metric, field)` 而不是字段本身**（[kernels.md#指标的数怎么读](../kernels.md#指标的数怎么读)）：字段的 `numberFormat` 描述的是一个存下来的值，而一个整数字段的平均值不是整数，一个金额字段的去重计数不是钱；
 - **语言也跟着界面走**：`valueText` 收 `DisplayContext.locale`，没有它的时候数字按运行这台机器的语言分组——那是唯一一种没人选过的语言，`zh-CN` 下写作 `CN¥` 而整页写的是 `¥`；
 - **表头是两截拼出来的**（`columnTitle`）：内核交出字段显示名与汇总方式两个部件，中英各按自己的语序拼成「金额 的 平均」／`Average of Amount`（`label.summary.of`，与记录视图的列汇总同一套词）。同一字段的两个汇总方式因此是两个不同的表头，而别名（`amount_1`）从来不是谁起的名字；记录数自己一个词。（见 test/analysisTable.test.tsx「an analysis column header」「an analysis number」与 test/analysisChart.test.tsx「reads a numeric axis through the metric on it」）
+- **百分位表头带「≈」**：`columnTitle` 在 `fn === 'PERCENTILE'` 时在前面加这一个字符，于是它跟着表头走到每一处——图表的坐标轴名、图例、提示里那一行都带着它，因为那些地方读的是同一个 `columnTitle`。一个符号胜过一句话：p95 印到两位小数、挨着一个精确的求和，不写它就读成精确值。符号背后的词在表头的 `title` 与 `aria-description` 上（见上面「三条口径」）；
 - **提示里的那一行是自己画的。** 上游的 `ChartTooltipContent` 把数字写成 `toLocaleString()`，而它给出的唯一钩子 `formatter` 替换的是整行，所以色块、系列名与数值写在 `ui/charts/TooltipValue.tsx`——与 `ui/popups.tsx` 同一条缝，理由也一样：`ui/components/**` 是上游的，不手改。
 
 ## 空结果只有一句话

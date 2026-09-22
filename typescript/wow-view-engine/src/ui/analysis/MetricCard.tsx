@@ -161,8 +161,17 @@ function MetricCard({
   const name = metric.label ?? fallback;
   const choices = field ? summaryChoices(field) : [];
   const choice = summaryOf(metric);
+  // The menu picks one of six, so «任一值» carries its caveat in the item
+  // itself; a column header composes the bare word through `label.summary.of`
+  // and would repeat the parenthesis on every reading of the table.
   const word = (entry: SummaryChoice) =>
-    messages.label(`label.summary.fn.${entry}`, undefined, entry.toLowerCase());
+    entry === 'ANY'
+      ? messages.label('label.summary.fn.ANY.item')
+      : messages.label(
+          `label.summary.fn.${entry}`,
+          undefined,
+          entry.toLowerCase(),
+        );
   return (
     <EditorCard data-slot="metric-card" data-metric={metric.type}>
       <CardName
@@ -216,6 +225,15 @@ function MetricCard({
       >
         <XIcon />
       </IconButton>
+      {/* The caveat in full, under the summary, at rest: the parenthesis on
+          the menu item is only read while the menu is open, and by then the
+          choice is already being made. `w-full` breaks the card's flex row,
+          so the note is a line of its own rather than a third control. */}
+      {metric.type === 'ANY' && (
+        <span data-slot="metric-note" className="text-muted-foreground w-full">
+          {messages.label('label.analysis.any-note')}
+        </span>
+      )}
     </EditorCard>
   );
 }

@@ -216,15 +216,20 @@ export const PinnedCategoryColor: Story = {
 };
 
 /**
- * 四个仓库、上限两行：结果正好填满上限，分组可能还没画完。饼图是最坏的一种
- * ——每个扇区的占比都是拿"已显示的部分"当分母算出来的——所以上方多一条
- * warning，把"可能被截断"说成"可能"，因为聚合只回答了行数，没说它省略了多少。
+ * 四个仓库、上限两行：引擎多要一行（发出去的 `limit` 是 3），第三行回来了，
+ * 于是"还有更多未列出"是问出来的答案而不是猜的——那一行只回答问题，不上屏。
+ * 饼图是最坏的一种：每个扇区的占比都是拿"已显示的部分"当分母算出来的，所以
+ * 上方多一条 warning。
  */
 export const CutShort: Story = {
   args: { layout: 'chart', chart: 'pie', limit: 2 },
 };
 
-/** The same cut, as rows: the table says it too, with the same one line. */
+/**
+ * The same cut, as rows: the table says it too, with the same one line — and
+ * the totals row under it still covers every order, because it comes from its
+ * own ungrouped query. Hover it to read the scope.
+ */
 export const CutShortTable: Story = { args: { layout: 'table', limit: 2 } };
 
 /** An aggregation that matched nothing still has its editor. */
