@@ -41,6 +41,7 @@ import {
   type SummaryFunction,
 } from '../model/index.js';
 import { isPlainObject } from '../filter/index.js';
+import { recordColumn } from './recordColumns.js';
 
 /** Entries of `value` that are objects naming a `field`; none if it is not a list. */
 function entries(value: unknown): Record<string, unknown>[] {
@@ -107,10 +108,11 @@ export function wasSound(raw: unknown, read: readonly unknown[]): boolean {
  * (D19), so a stored `'left'` or `'top'` is a column that scrolls.
  */
 export function recordColumns(value: unknown): RecordColumn[] {
-  return entries(value).map(entry => ({
-    field: entry.field as string,
-    ...(typeof entry.width === 'number' ? { width: entry.width } : {}),
-    ...(columnPinned(entry.pinned) ? { pinned: true } : {}),
-    ...(columnHidden(entry.hidden) ? { hidden: true as const } : {}),
-  }));
+  return entries(value).map(entry =>
+    recordColumn(entry.field as string, {
+      width: typeof entry.width === 'number' ? entry.width : null,
+      pinned: columnPinned(entry.pinned),
+      hidden: columnHidden(entry.hidden),
+    }),
+  );
 }

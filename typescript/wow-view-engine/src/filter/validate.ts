@@ -16,9 +16,9 @@ import {
   type FieldDefinition,
   type IssuePath,
   type FilterGroup,
-  type FilterGroupOperator,
   type FilterTree,
   type Issue,
+  isFilterGroupOperator,
   type RuntimeLimits,
 } from '../model/index.js';
 import {
@@ -34,9 +34,6 @@ import {
   walkFilter,
   walkFilterShape,
 } from './tree.js';
-
-/** The operators a group may carry; a tree from a store may say anything. */
-const GROUP_OPERATORS: readonly FilterGroupOperator[] = ['and', 'or', 'nor'];
 
 export interface ValidateFilterOptions {
   limits?: Pick<RuntimeLimits, 'maxFilterDepth' | 'maxFilterNodes'>;
@@ -85,7 +82,8 @@ export function validateFilter(
 
   for (const { node, path } of walkFilter(tree)) {
     if (isFilterGroup(node)) {
-      if (!GROUP_OPERATORS.includes(node.op))
+      // A tree from a store may carry anything under `op`.
+      if (!isFilterGroupOperator(node.op))
         issues.push(issue('filter.group.unknown-operator', path));
       continue;
     }

@@ -13,7 +13,7 @@
 
 import type { AnalysisView } from '../analysis/index.js';
 import type { AnalysisViewConfig, FieldOption } from '../model/index.js';
-import { resultIssues, type ViewEngine } from '../runtime/index.js';
+import { hasResult, resultIssues, type ViewEngine } from '../runtime/index.js';
 import { useAnalysisEditor, useWorkbench } from '../react/index.js';
 import { AnalysisChart } from './AnalysisChart.js';
 import { AnalysisEditor } from './AnalysisEditor.js';
@@ -179,7 +179,7 @@ export function AnalysisWorkbench({
         state.query.error !== undefined && (
           <QueryStrip
             error={state.query.error}
-            stale={state.result != null}
+            stale={hasResult(state)}
             onRetry={() => runtime?.refresh()}
           />
         )

@@ -12,7 +12,10 @@
  */
 
 import { ChevronDownIcon } from 'lucide-react';
-import type { FilterGroupOperator } from '../../model/index.js';
+import {
+  FILTER_GROUP_OPERATORS,
+  type FilterGroupOperator,
+} from '../../model/index.js';
 import type { FilterPath } from '../../filter/index.js';
 import type { FilterTreeController } from '../../react/index.js';
 import { Button } from '../components/button.js';
@@ -85,7 +88,7 @@ export function AddEntry({
         </IconTooltip>
         <DropdownMenuContent align="start">
           <DropdownMenuGroup>
-            {(['and', 'or', 'nor'] as const).map(op => (
+            {FILTER_GROUP_OPERATORS.map(op => (
               <DropdownMenuItem
                 key={op}
                 onClick={() => filter.addGroup(op, parent)}

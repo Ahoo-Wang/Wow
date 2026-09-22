@@ -34,6 +34,31 @@ export type FilterTree = FilterGroup;
  */
 export type FilterGroupOperator = 'and' | 'or' | 'nor';
 
+/**
+ * The three, in the order a group's select offers them.
+ *
+ * One list, beside the type it spells out: the select in a group's header,
+ * the menu that nests a new group and the admission of a tree from a store
+ * all have to agree on which operators exist, and three copies of
+ * `['and', 'or', 'nor']` is three chances for one of them to be behind.
+ */
+export const FILTER_GROUP_OPERATORS: readonly FilterGroupOperator[] = [
+  'and',
+  'or',
+  'nor',
+];
+
+/**
+ * Whether a value is one of the three. A tree arrives from a store and a
+ * select hands back a string, so both ask here rather than spelling the
+ * list out again as a chain of comparisons.
+ */
+export function isFilterGroupOperator(
+  value: unknown,
+): value is FilterGroupOperator {
+  return FILTER_GROUP_OPERATORS.includes(value as FilterGroupOperator);
+}
+
 export interface FilterGroup {
   op: FilterGroupOperator;
   children: FilterNode[];

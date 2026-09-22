@@ -19,7 +19,11 @@ import {
   useSyncExternalStore,
 } from 'react';
 import type { RuntimeLimits, ViewConfig } from '../model/index.js';
-import { refreshIntervalOf, type ViewRuntime } from '../runtime/index.js';
+import {
+  listenerSet,
+  refreshIntervalOf,
+  type ViewRuntime,
+} from '../runtime/index.js';
 import { useViewRuntime } from './useViewEngine.js';
 
 // The ladder itself is the engine's (`RuntimeLimits.refreshIntervals`, with
@@ -249,23 +253,19 @@ export function useRefreshCountdown(refresh: RefreshController): number | null {
  * cascading-render pattern `react-hooks` refuses; a store the effect writes
  * and `useSyncExternalStore` subscribes to is the shape it points at instead
  * — the same one `useOpenView` keeps its refusals in, and the one every
- * runtime in this package already has.
+ * runtime in this package already has, down to the `listenerSet` that does
+ * the subscribing and the telling.
  */
 function countdownStore(initial: number | null) {
   let seconds = initial;
-  const listeners = new Set<() => void>();
+  const listeners = listenerSet();
   return {
     get: (): number | null => seconds,
     set(next: number | null): void {
       if (seconds === next) return;
       seconds = next;
-      for (const listener of [...listeners]) listener();
+      listeners.emit();
     },
-    subscribe(listener: () => void): () => void {
-      listeners.add(listener);
-      return () => {
-        listeners.delete(listener);
-      };
-    },
+    subscribe: listeners.subscribe,
   };
 }

@@ -16,7 +16,7 @@ import type { FieldOption } from '../../../model/index.js';
 import type { OptionSource } from '../../../runtime/index.js';
 
 /** How long typing may pause before the source is asked. */
-export const SEARCH_DEBOUNCE_MS = 250;
+const SEARCH_DEBOUNCE_MS = 250;
 
 export interface CandidateState {
   /** `idle` until the first search is asked for; `failed` keeps the last page. */

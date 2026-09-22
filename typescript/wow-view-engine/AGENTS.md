@@ -98,7 +98,7 @@ src/
     dashboard.ts              — Dashboard config, global fields, bindings
     definition.ts             — ViewDefinition, FieldDefinition, capabilities
     field.ts                  — FieldKindId
-    filter.ts                 — FilterOperator as stored in a config
+    filter.ts                 — FilterOperator as stored in a config; the three group operators and the reading of one
     instance.ts               — ViewInstance: authorship, scope, permissions
     issue.ts                  — Issue — how every kernel reports a problem
     json.ts                   — JsonValue — configs are plain JSON
@@ -112,6 +112,7 @@ src/
     describe.ts               — describeFilter — the applied-condition summary
     fieldGroups.ts            — Fields as a picker lists them: ungrouped first, then each declared group
     fieldKind.ts              — FieldKind contract and registry (extension point)
+    issuePath.ts              — How an issue path reads against a tree: whose tree it is, and which node
     marks.ts                  — unmarkedErrors — the errors no condition pill can carry
     time.ts                   — Relative and preset values resolved at compile time
     tree.ts                   — Tree node predicates; trees arrive untrusted
@@ -173,6 +174,7 @@ src/
     execute.ts                — The two execution kinds a runtime drives
     exportRows.ts             — Fetching every row the conditions match, page by page, under `exportMax`
     issues.ts                 — `toIssue`: one Issue for whatever a command threw
+    listeners.ts              — `listenerSet`: the subscribe / notify half every store in this package has
     openRuntimes.ts           — The views one engine has open, and who holds an instance
     pending.ts                — `comparePending`: what the draft says that the applied config does not (D17-6)
     permissions.ts            — What a command is allowed to do; a system view is read-only
@@ -185,7 +187,7 @@ src/
     validateDefinition.ts     — Definition admission; needs all three kernels
     viewChanges.ts            — The change notifications a list of views subscribes to (D15)
     viewEngine.ts             — ViewEngine — the command surface: admission, then one dispatch
-    viewRuntime.ts            — One open view; subscribe / getSnapshot store
+    viewRuntime.ts            — One open view; subscribe / getSnapshot store; `hasResult`, the one reading of "a result ever arrived"
     write.ts                  — Write bodies, retry and overwrite replay
     writeLedger.ts            — The write ledger: outcomes by requestId, retry, conflicts
     index.ts                  — Transient state: what is open, what is in flight, what came back
@@ -201,7 +203,7 @@ src/
     actions.ts                — The three action slots a host fills: global, bulk, row
     environment.ts            — Page visibility, so a hidden tab stops polling
     issues.ts                 — Turns a thrown command into one Issue
-    recordColumns.ts          — What the column commands write: one column changed, the whole list with hidden ones marked
+    recordColumns.ts          — `recordColumn`, the one builder of a stored column, and what the column commands write with it
     recordDraft.ts            — The draft's lists as a control may read them; the controller is the boundary
     useAnalysisEditor.ts      — Analysis controller
     useAutoRefresh.ts         — `RefreshController`: refresh now, the cadence ladder cut to the limits, the countdown
@@ -292,7 +294,7 @@ src/
     popups.tsx                — The popups this package renders, themed and on a layer of their own
     summary.ts                — The applied-conditions bar in words: one `FilterSummaryItem` as a sentence
     toolbar.tsx               — Base UI's toolbar primitive: one tab stop with the arrow keys inside
-    variants.tsx              — The colours and edges a vendored component does not ship, in one place (D16-8)
+    variants.tsx              — The colours, edges and shapes a vendored component does not ship, in one place (D16-8)
     index.ts                  — The `/ui` entry: the default look, built on shadcn/ui with Base UI primitives
     charts/                   — One file per family, plus what they share
       Cartesian.tsx           — Which axis carries the numbers
@@ -321,7 +323,7 @@ src/
       FilterModes.tsx         — Simple / advanced, and whether the other mode is reachable
       GroupBlock.tsx          — One group as a framed block, and its strip of conditions
       enter.ts                — `isPlainEnter`: whether a press of Enter is the editor's to act on
-      groupOperators.ts       — The three group operators' wording, shared by select and menu
+      groupOperators.ts       — The group operators' wording, shared by select and menu
       inputs/                 — One file per `EditorDescriptor.input`, plus shared.tsx
         calendar.tsx          — The registry's calendar, speaking the surface's language
         chips.tsx             — A list of typed values as chips (IN / NOT_IN)

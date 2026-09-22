@@ -1,6 +1,6 @@
 # 运行时
 
-一个打开的视图对应一个 `ViewRuntime`，它是带 `subscribe / getSnapshot` 的小 store。
+一个打开的视图对应一个 `ViewRuntime`，它是带 `subscribe / getSnapshot` 的小 store。订阅与通知那一半由 `runtime/listeners.ts` 的 `listenerSet` 出：两个 runtime、列表变化通知与 React 那边的倒数读数共用一份，两条规则（提交状态之后再通知、遍历监听者集合的副本，好让监听者在自己那一下里退订）因此只写一处。
 
 ## 状态与命令
 

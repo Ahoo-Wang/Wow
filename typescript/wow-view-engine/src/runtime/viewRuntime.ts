@@ -38,6 +38,7 @@ import {
   withoutScopeModeWarning,
 } from './scope.js';
 import type { RuntimeEnvironment } from './environment.js';
+import { listenerSet } from './listeners.js';
 import {
   isRequestSuperseded,
   RequestQueueFullError,
@@ -305,6 +306,25 @@ export interface ViewRuntimeState<C> {
   nextRefreshAt: number | null;
 }
 
+/**
+ * Whether this view ever got a result, even one that is now out of date.
+ *
+ * Not `rows.length > 0` and not `status === 'success'`: a failed refresh
+ * keeps the rows it could not replace and turns to `error`, and a successful
+ * result matching zero rows has no rows at all. The table, the applied bar
+ * and the result block all ask the same question of the same member, so they
+ * ask it here — a spelling of `state.result != null` at every call site is
+ * one place each for it to start meaning something else.
+ *
+ * Structural in its argument, because it is asked of whatever holds a
+ * snapshot: a runtime's state, a controller's, or nothing yet.
+ */
+export function hasResult(
+  state: { result: unknown } | null | undefined,
+): boolean {
+  return state?.result != null;
+}
+
 export interface ViewRuntimeOptions<C extends DataViewConfig> {
   id: string;
   definition: DataViewDefinition;
@@ -368,7 +388,7 @@ export class DataViewRuntime<
   readonly limits: RuntimeLimits;
   readonly environment: RuntimeEnvironment;
 
-  private readonly listeners = new Set<() => void>();
+  private readonly listeners = listenerSet();
   private readonly context: KernelContext;
   private readonly runner: RequestRunner;
   private readonly resolveOptions: ((key: string) => OptionSource) | undefined;
@@ -469,10 +489,7 @@ export class DataViewRuntime<
   }
 
   subscribe(listener: () => void): () => void {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
+    return this.listeners.subscribe(listener);
   }
 
   optionSource(remote: string): OptionSource | null {
@@ -521,8 +538,9 @@ export class DataViewRuntime<
    * Re-runs what was applied, which was admitted before it ran. An invalid
    * draft therefore does not block it: the editor may be mid-edit and wrong,
    * while the results on screen answer a question that was legal when asked.
-   * Auto-refresh still pauses on an invalid draft — see `refreshDelay` — but a
-   * user pressing Refresh has asked for exactly this.
+   * Auto-refresh still pauses on an invalid draft — it is one of the reasons
+   * `syncTimer` below holds the timer — but a user pressing Refresh has asked
+   * for exactly this.
    */
   refresh(): void {
     if (this.stopped || !this.appliedAdmitted) return;
@@ -767,9 +785,8 @@ export class DataViewRuntime<
     this.notify();
   }
 
-  /** A copy is walked, so a listener may unsubscribe from inside its call. */
   private notify(): void {
-    for (const listener of [...this.listeners]) listener();
+    this.listeners.emit();
   }
 
   /**

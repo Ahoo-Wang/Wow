@@ -13,13 +13,13 @@
 
 import { cn } from 'cn';
 import { XIcon } from 'lucide-react';
-import type { FilterSummaryItem } from '../filter/index.js';
+import { filterIndexes, type FilterSummaryItem } from '../filter/index.js';
 import type { FilterEditorController } from '../react/index.js';
-import { Badge } from './components/badge.js';
 import { summaryText } from './summary.js';
 import { IconButton } from './IconButton.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { TEXT_UI } from './layout.js';
+import { WrappingBadge } from './variants.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 
 export interface AppliedBarProps {
@@ -94,17 +94,16 @@ export function AppliedBar({
         // operator, so the bar keeps the logic the tree has. Its remove
         // takes the condition out of force — the value goes back to
         // "nothing said yet" and the query runs again — while the field
-        // stays in the editor for the next question.
-        <Badge
+        // stays in the editor for the next question. A read-out can be long,
+        // so every badge in this bar is one that wraps inside it rather than
+        // carrying the bar off the edge of the view.
+        <WrappingBadge
           key={item.path.join('.')}
           // A condition whose field or kind the definition no longer
           // declares is named rather than hidden, and worn plainly: it is
           // still in force, and it is not something to go on building on.
           variant={item.unresolved ? 'outline' : 'secondary'}
           data-unresolved={item.unresolved || undefined}
-          // A group's read-out can be long; it wraps inside the bar rather
-          // than carrying the bar off the edge of the view.
-          className="h-auto max-w-full text-left whitespace-normal"
         >
           {say(item)}
           {!readOnly && (
@@ -130,13 +129,7 @@ export function AppliedBar({
               // pill does not grow a second box round the button.
               className="-mr-1.5 opacity-60 hover:opacity-100 focus-visible:opacity-100"
               onClick={() => {
-                // A summary path interleaves the `children` key with each
-                // index; the editor addresses nodes by the indexes alone.
-                filter.clearValue(
-                  item.path.filter(
-                    (segment): segment is number => typeof segment === 'number',
-                  ),
-                );
+                filter.clearValue(filterIndexes(item.path));
                 filter.submit();
               }}
             >
@@ -149,26 +142,25 @@ export function AppliedBar({
               <XIcon />
             </IconButton>
           )}
-        </Badge>
+        </WrappingBadge>
       ))}
       {/* After the editable ones, and worn differently: the page put these
           in force, and they are nobody's here to take out — so they carry
           no ✕ at all, and say whose they are rather than leaving the reader
           to wonder why one badge in the row cannot be removed. */}
       {scoped.map(item => (
-        <Badge
+        <WrappingBadge
           key={`scoped:${item.path.join('.')}`}
           variant="outline"
           data-scoped
           data-unresolved={item.unresolved || undefined}
-          className="h-auto max-w-full text-left whitespace-normal"
         >
           {say(item)}
           <span className="sr-only">
             {' '}
             {messages.label('label.applied.scoped')}
           </span>
-        </Badge>
+        </WrappingBadge>
       ))}
       {/* Last, the readings nobody wrote and the source applies on its own —
           today, that a declared deletion dimension left blank shows the
@@ -176,18 +168,17 @@ export function AppliedBar({
           no ✕: it is not in the config to take out. Choosing otherwise is
           adding the field and answering it. */}
       {implied.map(item => (
-        <Badge
+        <WrappingBadge
           key={`implied:${item.field ?? ''}`}
           variant="outline"
           data-implied
-          className="h-auto max-w-full text-left whitespace-normal"
         >
           {say(item)}
           <span className="sr-only">
             {' '}
             {messages.label('label.applied.implied')}
           </span>
-        </Badge>
+        </WrappingBadge>
       ))}
     </div>
   );

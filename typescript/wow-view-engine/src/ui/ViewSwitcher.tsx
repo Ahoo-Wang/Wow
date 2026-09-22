@@ -15,7 +15,7 @@ import { ChevronDownIcon, PlusIcon, Settings2Icon } from 'lucide-react';
 import {
   audienceOf,
   isSystemScope,
-  type ViewAudience,
+  VIEW_AUDIENCES,
   type ViewInstanceSummary,
   type ViewKind,
 } from '../model/index.js';
@@ -35,9 +35,6 @@ import {
 import { KIND_ICON } from './kinds.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { DropdownMenuContent } from './popups.js';
-
-/** The order the switcher shows the two groups in, as the sidebar does. */
-const GROUPS: readonly ViewAudience[] = ['personal', 'shared'];
 
 export interface ViewSwitcherProps {
   /** The same list the sidebar draws, already narrowed to this kind. */
@@ -176,7 +173,7 @@ export function ViewSwitcher({
       </DropdownMenuTrigger>
 
       <DropdownMenuContent className="min-w-56">
-        {GROUPS.map(audience => {
+        {VIEW_AUDIENCES.map(audience => {
           const items = list.items.filter(
             item => audienceOf(item.scope) === audience,
           );

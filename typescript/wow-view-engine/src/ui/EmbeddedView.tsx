@@ -15,6 +15,7 @@ import type { Ref, ReactNode } from 'react';
 import type { FilterTree } from '../model/index.js';
 import type { RecordRow } from '../record/index.js';
 import {
+  hasResult,
   resultIssues,
   type DashboardRuntime,
   type ViewEngine,
@@ -240,9 +241,7 @@ function EmbeddedBody({
 function Applied({ runtime }: { runtime: OpenedRuntime }) {
   const state = useViewRuntime(runtime);
   const filter = useFilterEditor(runtime);
-  return (
-    <AppliedBar filter={filter} hasResult={state?.result != null} readOnly />
-  );
+  return <AppliedBar filter={filter} hasResult={hasResult(state)} readOnly />;
 }
 
 function Failed({ runtime }: { runtime: OpenedRuntime }) {
@@ -252,7 +251,7 @@ function Failed({ runtime }: { runtime: OpenedRuntime }) {
   return (
     <QueryStrip
       error={state?.query.status === 'error' ? state.query.error : null}
-      stale={state?.result != null}
+      stale={hasResult(state)}
     />
   );
 }
@@ -264,16 +263,14 @@ function EmbeddedRecord({
   runtime: Extract<OpenedRuntime, { kind: 'record' }>;
   rowActions?(row: RecordRow): ReactNode;
 }) {
-  const state = useViewRuntime(runtime);
   const table = useRecordTable(runtime);
-  const hasResult = state?.result != null;
 
   // A refresh that failed over rows that are still good says so *above* them
   // rather than instead of them, the way the workbenches do: the strip itself
   // promises "the last successful result", and taking the table away would
   // make that line describe an empty frame. Only a failure with nothing
   // behind it replaces the content.
-  if (table.status === 'error' && !hasResult)
+  if (table.status === 'error' && !table.hasResult)
     return <Failed runtime={runtime} />;
   if (table.loading && table.rows.length === 0)
     return <Skeleton className="h-24 w-full" />;

@@ -21,6 +21,8 @@ import {
 import { cn } from 'cn';
 import { PanelLeftOpenIcon } from 'lucide-react';
 import type { Issue, ViewKind } from '../model/index.js';
+// Aliased: `hasResult` here is the prop a dashboard overrides it with.
+import { hasResult as viewHasResult } from '../runtime/index.js';
 import type { WorkbenchController } from '../react/index.js';
 import { IconButton } from './IconButton.js';
 import { AppliedBar } from './AppliedBar.js';
@@ -266,7 +268,7 @@ export function WorkbenchShell({
   // Whether there is a result for the applied bar to describe. It renders
   // nothing without one, which is also half of whether the result block has
   // any reason to exist.
-  const describesResult = hasResult ?? state?.result != null;
+  const describesResult = hasResult ?? viewHasResult(state);
   // The other half of it: a block with a request in it holds the rows the
   // request will fill, drawn loading.
   const pending = resultPending ?? state?.query.status === 'loading';

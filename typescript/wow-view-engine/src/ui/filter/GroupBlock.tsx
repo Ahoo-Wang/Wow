@@ -12,7 +12,12 @@
  */
 
 import { XIcon } from 'lucide-react';
-import type { FieldOption, FilterGroup } from '../../model/index.js';
+import {
+  FILTER_GROUP_OPERATORS,
+  isFilterGroupOperator,
+  type FieldOption,
+  type FilterGroup,
+} from '../../model/index.js';
 import {
   isFilterGroup,
   isNegation,
@@ -24,7 +29,7 @@ import { IconButton } from '../IconButton.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { AddEntry } from './AddEntry.js';
 import { ChoiceValue } from './inputs/shared.js';
-import { GROUP_OPERATOR_LABEL, GROUP_OPERATORS } from './groupOperators.js';
+import { GROUP_OPERATOR_LABEL } from './groupOperators.js';
 import { ConditionPill } from './ConditionPill.js';
 import { PendingDot, PENDING_AT_CORNER } from '../PendingDot.js';
 
@@ -83,14 +88,13 @@ export function GroupBlock({
           // edge, so this select keeps the registry's.
           chrome="box"
           value={group.op}
-          items={GROUP_OPERATORS.map(op => ({
+          items={FILTER_GROUP_OPERATORS.map(op => ({
             value: op,
             label: messages.label(GROUP_OPERATOR_LABEL[op]),
           }))}
           disabled={disabled}
           onChange={next => {
-            if (next === 'and' || next === 'or' || next === 'nor')
-              filter.updateGroup(path, next);
+            if (isFilterGroupOperator(next)) filter.updateGroup(path, next);
           }}
           label={within(
             scope,

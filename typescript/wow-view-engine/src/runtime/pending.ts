@@ -13,6 +13,7 @@
 
 import { dequal } from 'dequal';
 import {
+  isRootFilterIssue,
   nodeAt,
   sameFilterNode,
   walkFilter,
@@ -74,7 +75,7 @@ export function filterOverBudget(issues: readonly Issue[]): boolean {
     found =>
       (found.code === 'filter.tree.too-deep' ||
         found.code === 'filter.tree.too-many-nodes') &&
-      (found.path.length === 0 || found.path[0] === 'children'),
+      isRootFilterIssue(found),
   );
 }
 

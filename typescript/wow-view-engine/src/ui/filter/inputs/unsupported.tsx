@@ -81,7 +81,7 @@ export function UnsupportedValue({
  * that cannot even be printed reads as no value at all rather than as a
  * crashed panel.
  */
-export function rawValueText(value: unknown): string {
+function rawValueText(value: unknown): string {
   if (value === null || value === undefined) return '';
   if (typeof value === 'string') return value;
   if (typeof value === 'number' || typeof value === 'boolean')

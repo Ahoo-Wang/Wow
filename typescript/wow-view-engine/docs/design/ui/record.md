@@ -91,7 +91,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 
 - **`RecordTable` 不接 TanStack（2026-09-21 定，用户拍板）**：这句原本写的是「等列宽拖拽与列序拖拽真的要做时再引入」，两样现在都做了（`ColumnResizer`、列设置拖动），所以要正面回答「换了解决什么」。答案是只解决「列状态有个标准数据结构」这一件，而代价是四件：列状态本来就在视图配置里（`table.columns[].width/pinned`、`sort`）、属于运行时、要存库，TanStack 会成为第二份状态；排序、筛选、分页全在服务端，它只能开 `manual` 当状态容器，最值钱的客户端行模型一样都用不上；它的冻结偏移按声明宽度算，本包列宽由内容决定、选择列与操作列没有声明宽度，实测那段代码不会消失；拖拽预览写 DOM 不写 state、D13 边常在、`aria-sort` 只落主列、操作列接替末端这些规矩它都不带。复用是尽量不是必须，这里的 shadcn Data Table 不符合场景。将来若加客户端分组、展开或虚拟滚动再评估。
 
-落到文件上：`ui/RecordTable.tsx` 只留结果本身——行与它的三层；空态在 `ui/record/EmptyResult.tsx`，骨架行在 `ui/record/SkeletonRows.tsx`，一个值怎么读在 `ui/record/cells.tsx`（表格与卡片共用），表头与排序在 `ui/record/SortableHeader.tsx`，汇总行在 `ui/record/SummaryRows.tsx`，每一行末尾那一格吃富余的空格子在 `ui/record/Filler.tsx`，冻结列（含实测偏移）与表头／数字的类名在 `ui/record/columns.ts`。（见 test/recordTable.test.tsx「RecordTable on its own」「RecordCards on its own」「the summary row」「the summary rows」「sorting from the headers」「enum cells」「the table chrome」）
+落到文件上：`ui/RecordTable.tsx` 只留结果本身——行与它的三层；空态在 `ui/record/EmptyResult.tsx`，骨架行在 `ui/record/SkeletonRows.tsx`，一个值怎么读在 `ui/record/cells.tsx`（表格与卡片共用），表头与排序在 `ui/record/SortableHeader.tsx`，汇总行在 `ui/record/SummaryRows.tsx`，每一行末尾那一格吃富余的空格子在 `ui/record/Filler.tsx`，冻结列（含实测偏移）与表头／数字的类名在 `ui/record/columns.ts`。（见 test/recordTable.test.tsx「RecordTable on its own」「sorting from the headers」「enum cells」「the table chrome」、test/recordCards.test.tsx「RecordCards on its own」、test/recordSummaries.test.tsx「the summary row」「the summary rows」）
 
 ## 两行汇总：本页与所有
 

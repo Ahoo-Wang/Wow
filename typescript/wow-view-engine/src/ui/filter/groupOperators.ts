@@ -27,10 +27,3 @@ export const GROUP_OPERATOR_LABEL: Record<FilterGroupOperator, MessageKey> = {
   or: 'label.filter.any-condition',
   nor: 'label.filter.no-condition',
 };
-
-/** The three, in the order a group's select offers them. */
-export const GROUP_OPERATORS: readonly FilterGroupOperator[] = [
-  'and',
-  'or',
-  'nor',
-];

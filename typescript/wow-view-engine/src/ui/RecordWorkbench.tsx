@@ -19,6 +19,7 @@ import type {
 } from '../model/index.js';
 import { serializeCsv, type RecordRow } from '../record/index.js';
 import {
+  hasResult,
   resultIssues,
   type RecordViewRuntime,
   type ViewEngine,
@@ -236,7 +237,6 @@ export function RecordWorkbench({
   useQueryAnnouncement(table, messages, announce, emptyTitle);
 
   const fields = runtime?.fields ?? [];
-  const hasResult = state?.result != null;
   const row = actions?.row;
 
   // The condition fold, held here only so the empty result can open it.
@@ -386,7 +386,7 @@ export function RecordWorkbench({
         table.error != null && (
           <QueryStrip
             error={table.error}
-            stale={hasResult}
+            stale={hasResult(state)}
             onRetry={table.refresh}
           />
         )

@@ -30,6 +30,7 @@ import {
   impliedDeletion,
   insertAt,
   isNegation,
+  isRootFilterIssue,
   isSimpleTree,
   negateAt,
   nodeAt,
@@ -197,17 +198,6 @@ const NOTHING_PENDING: PendingReport = {
 };
 
 /**
- * True for a finding about the tree this editor draws rather than a nested
- * one. A metric's, an element's or a dashboard panel's filter is validated in
- * its own scope and re-pathed under ['metrics', …], ['elements', …] or
- * ['panels', …]; the root tree's own findings sit at the config root or under
- * ['children', …].
- */
-function isOwnFilterPath(found: Issue): boolean {
-  return found.path.length === 0 || found.path[0] === 'children';
-}
-
-/**
  * Editing of the draft filter tree, addressed by path.
  *
  * It holds no state of its own: every action is an `edit` on the runtime, so
@@ -257,7 +247,7 @@ export function useFilterEditor(
       (state?.issues ?? EMPTY_ISSUES).filter(
         found =>
           found.code.startsWith('config.filterMode.') ||
-          (found.code.startsWith('filter.') && isOwnFilterPath(found)),
+          (found.code.startsWith('filter.') && isRootFilterIssue(found)),
       ),
     [state],
   );

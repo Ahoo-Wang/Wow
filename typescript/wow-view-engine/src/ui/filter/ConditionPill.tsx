@@ -19,10 +19,10 @@ import type {
   FilterOperatorName,
   FilterTree,
   Issue,
-  IssuePath,
 } from '../../model/index.js';
 import {
   elementFields,
+  filterIndexes,
   isBlankLeafValue,
   writeValue,
   type FilterPath,
@@ -127,7 +127,7 @@ export function ConditionPill({
   // An error marks the pill invalid; a warning marks it, in the theme's
   // warning colour, without saying it is wrong — the condition still runs.
   const own = filter.issues.filter(found =>
-    samePath(numericPath(found.path), path),
+    samePath(filterIndexes(found.path), path),
   );
   const invalid = own.some(found => found.severity === 'error');
   const warned = !invalid && own.some(found => found.severity === 'warning');
@@ -495,11 +495,6 @@ function operatorLabel(
     undefined,
     operator.split('_').join(' ').toLowerCase(),
   );
-}
-
-/** The node indexes of an issue path, comparable against a `FilterPath`. */
-function numericPath(path: IssuePath): FilterPath {
-  return path.filter(segment => typeof segment === 'number');
 }
 
 function samePath(a: FilterPath, b: FilterPath): boolean {

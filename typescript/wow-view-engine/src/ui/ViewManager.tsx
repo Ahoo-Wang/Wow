@@ -16,6 +16,7 @@ import { DragDropProvider } from '@dnd-kit/react';
 import { Accessibility } from '@dnd-kit/dom';
 import {
   audienceOf,
+  VIEW_AUDIENCES,
   type ViewAudience,
   type ViewInstanceSummary,
 } from '../model/index.js';
@@ -54,9 +55,6 @@ export interface ViewManagerProps {
    */
   openDirtyId?: string | null;
 }
-
-/** The order the manager shows the two groups in, as the sidebar does. */
-const GROUPS: readonly ViewAudience[] = ['personal', 'shared'];
 
 /**
  * One sortable group per audience, so a drag cannot cross one: a row of the
@@ -106,7 +104,7 @@ export function ViewManager({
   // outlives every row, and it is where a reader would start again anyway.
   const heading = useRef<HTMLHeadingElement>(null);
 
-  const groups: RowGroup[] = GROUPS.map(audience => ({
+  const groups: RowGroup[] = VIEW_AUDIENCES.map(audience => ({
     audience,
     items: list.items.filter(item => audienceOf(item.scope) === audience),
   })).filter(group => group.items.length > 0);

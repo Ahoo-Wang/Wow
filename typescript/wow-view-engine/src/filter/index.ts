@@ -23,6 +23,7 @@ export * from './configBase.js';
 export * from './describe.js';
 export * from './fieldGroups.js';
 export * from './fieldKind.js';
+export * from './issuePath.js';
 export * from './kinds/index.js';
 export * from './marks.js';
 export * from './time.js';

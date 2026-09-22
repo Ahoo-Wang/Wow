@@ -41,6 +41,11 @@ export const VIEW_SCOPES: readonly ViewScope[] = [
 /** Who a view is for. A system view is a shared view; see `ViewScope`. */
 export type ViewAudience = 'personal' | 'shared';
 
+/**
+ * The two, in the order every list of views shows them in: personal above
+ * shared. The sidebar, the switcher's menu and the manager's dialog are three
+ * views of one list, so the order is the model's rather than each of theirs.
+ */
 export const VIEW_AUDIENCES: readonly ViewAudience[] = ['personal', 'shared'];
 
 /** The audience a scope puts a view in: `system` answers `shared`. */

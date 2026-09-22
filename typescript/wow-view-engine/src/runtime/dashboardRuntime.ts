@@ -42,6 +42,7 @@ import {
   validateDashboard,
 } from '../dashboard/index.js';
 import type { RuntimeEnvironment } from './environment.js';
+import { listenerSet } from './listeners.js';
 import type { OptionSource } from './source.js';
 import {
   PanelChildren,
@@ -136,7 +137,7 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
   readonly limits: RuntimeLimits;
   readonly environment: RuntimeEnvironment;
 
-  private readonly listeners = new Set<() => void>();
+  private readonly listeners = listenerSet();
   private readonly options: DashboardRuntimeOptions;
   private readonly unwatchVisibility: () => void;
   /** What the panels point at, as far as it is known; see `PanelReferences`. */
@@ -238,10 +239,7 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
   }
 
   subscribe(listener: () => void): () => void {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
+    return this.listeners.subscribe(listener);
   }
 
   optionSource(remote: string): OptionSource | null {
@@ -573,9 +571,8 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     this.notify();
   }
 
-  /** A copy is walked, so a listener may unsubscribe from inside its call. */
   private notify(): void {
-    for (const listener of [...this.listeners]) listener();
+    this.listeners.emit();
   }
 
   /**

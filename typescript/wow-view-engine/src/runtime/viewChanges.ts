@@ -13,6 +13,7 @@
 
 import { issue } from '../filter/index.js';
 import type { Issue } from '../model/index.js';
+import { listenerSet } from './listeners.js';
 
 /**
  * The write that changed a list — **not** the kind of the view it changed.
@@ -41,7 +42,16 @@ export type ViewChangeListener = (change: ViewChange) => void;
  * runtime's: `subscribe` returns the way to stop listening.
  */
 export class ViewChanges {
-  private readonly listeners = new Set<ViewChangeListener>();
+  /**
+   * A listener that throws is contained: `emit` is called from inside a write
+   * that has just been confirmed, and letting it out would record a write
+   * that landed as an outcome the user is asked to retry.
+   */
+  private readonly listeners = listenerSet<[ViewChange]>(error =>
+    this.report(
+      issue('view.change.notify-failed', [], { reason: reasonOf(error) }),
+    ),
+  );
   private readonly report: (found: Issue) => void;
 
   constructor(report: (found: Issue) => void) {
@@ -49,29 +59,11 @@ export class ViewChanges {
   }
 
   subscribe(listener: ViewChangeListener): () => void {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
+    return this.listeners.subscribe(listener);
   }
 
-  /**
-   * Over a copy, so a listener that unsubscribes while it is being notified
-   * does not decide who else hears this one.
-   *
-   * A listener that throws is contained here: this is called from inside a
-   * write that has just been confirmed, and letting it out would record a
-   * write that landed as an outcome the user is asked to retry.
-   */
   emit(change: ViewChange): void {
-    for (const listener of [...this.listeners])
-      try {
-        listener(change);
-      } catch (error) {
-        this.report(
-          issue('view.change.notify-failed', [], { reason: reasonOf(error) }),
-        );
-      }
+    this.listeners.emit(change);
   }
 
   clear(): void {

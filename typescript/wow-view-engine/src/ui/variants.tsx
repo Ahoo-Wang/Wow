@@ -21,11 +21,12 @@
  * component** holding a cva of its own. The vendored cva stays untouched and
  * is still composed — the wrapper picks the registry variant its case starts
  * from and adds one layer over it — and the call site passes a variant
- * rather than a colour. Five cases live here: a badge that has to read as a
- * status, the answer that carries out a destructive command, the one divider
- * that has to be seen, the controls inside a condition pill, which draw no
- * chrome of their own, and the open view in the sidebar. The one that is not
- * here is `ui/alerts.tsx`, where `LineAlert` does the same thing to `Alert`;
+ * rather than a colour. Six cases live here: a badge that has to read as a
+ * status, a badge that has to hold a sentence, the answer that carries out a
+ * destructive command, the one divider that has to be seen, the controls
+ * inside a condition pill, which draw no chrome of their own, and the open
+ * view in the sidebar. The one that is not here is `ui/alerts.tsx`, where
+ * `LineAlert` does the same thing to `Alert`;
  * a callout has enough of its own to say (the tone's icon, the role it is
  * announced with) to be a file rather than an export here.
  *
@@ -154,6 +155,30 @@ export function ToneBadge({
       data-tone={tone}
       variant={TONE_BASE[tone]}
       className={cn(toneBadgeVariants({ tone }), className)}
+      {...props}
+    />
+  );
+}
+
+/**
+ * A badge holding a sentence rather than a word: it wraps inside its row and
+ * grows downwards instead of carrying the row off the edge of the view.
+ *
+ * The registry's badge is a one-line pill — `h-5`, `whitespace-nowrap`,
+ * centred — which is right for "system" or "3 selected" and wrong for the
+ * applied-condition bar, where one badge reads out a whole group, conditions
+ * joined by its operator. The correction is the vendored component's own
+ * shape and not this or that call site's layout, and it was written out three
+ * times in one file — once per kind of condition the bar wears — so it is one
+ * wrapper here, as the colours are.
+ */
+export function WrappingBadge({
+  className,
+  ...props
+}: React.ComponentProps<typeof Badge>) {
+  return (
+    <Badge
+      className={cn('h-auto max-w-full text-left whitespace-normal', className)}
       {...props}
     />
   );

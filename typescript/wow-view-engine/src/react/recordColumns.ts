@@ -24,19 +24,48 @@
  *
  * They are pure functions of a column list, which is what lets the rule
  * "hiding a column keeps everything else about it" be read in one place
- * rather than inferred from three call sites.
+ * rather than inferred from every call site.
  */
 
 import type { RecordColumn } from '../model/index.js';
 
+/**
+ * One column entry, carrying only the members it has something to say with.
+ *
+ * The one place a `RecordColumn` is built, so the rule above is kept once: a
+ * member that is nothing — no width, not pinned, not hidden — leaves the key
+ * out altogether rather than writing `undefined` under it. The three commands
+ * below and the draft's own reading of a stored list all come through here;
+ * each of them used to spell the three spreads out, and four spellings of
+ * "leave the key out" is four chances for one of them to write
+ * `{ pinned: undefined }` and mark a view unsaved for ever.
+ */
+export function recordColumn(
+  field: string,
+  members: {
+    /** Pixels, or nothing for a column that sizes itself. */
+    width?: number | null;
+    /** Held against the left edge, or nothing for one that scrolls (D19). */
+    pinned?: boolean | null;
+    /** Whether the table leaves it undrawn; only `true` is ever written. */
+    hidden?: boolean;
+  },
+): RecordColumn {
+  return {
+    field,
+    ...(members.width == null ? {} : { width: members.width }),
+    ...(members.pinned ? { pinned: true } : {}),
+    ...(members.hidden ? { hidden: true as const } : {}),
+  };
+}
+
 /** One column held against the table's left edge, or let go (D19). */
 export function repinned(column: RecordColumn, pinned: boolean): RecordColumn {
-  return {
-    field: column.field,
-    ...(column.width === undefined ? {} : { width: column.width }),
-    ...(pinned ? { pinned: true } : {}),
-    ...(column.hidden ? { hidden: column.hidden } : {}),
-  };
+  return recordColumn(column.field, {
+    width: column.width,
+    pinned,
+    hidden: column.hidden,
+  });
 }
 
 /** One column at a fixed pixel width, or back to sizing itself. */
@@ -44,12 +73,11 @@ export function resized(
   column: RecordColumn,
   width: number | null,
 ): RecordColumn {
-  return {
-    field: column.field,
-    ...(width === null ? {} : { width }),
-    ...(column.pinned ? { pinned: true } : {}),
-    ...(column.hidden ? { hidden: column.hidden } : {}),
-  };
+  return recordColumn(column.field, {
+    width,
+    pinned: column.pinned,
+    hidden: column.hidden,
+  });
 }
 
 /**
@@ -59,12 +87,11 @@ export function resized(
  * there.
  */
 export function shown(column: RecordColumn, visible: boolean): RecordColumn {
-  return {
-    field: column.field,
-    ...(column.width === undefined ? {} : { width: column.width }),
-    ...(column.pinned ? { pinned: true } : {}),
-    ...(visible ? {} : { hidden: true as const }),
-  };
+  return recordColumn(column.field, {
+    width: column.width,
+    pinned: column.pinned,
+    hidden: !visible,
+  });
 }
 
 /**

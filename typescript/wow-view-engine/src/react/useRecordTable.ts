@@ -42,10 +42,11 @@ import type {
   RecordRow,
   SummaryRow,
 } from '../record/index.js';
-import type {
-  QueryStatus,
-  RecordViewRuntime,
-  ViewRuntimeState,
+import {
+  hasResult,
+  type QueryStatus,
+  type RecordViewRuntime,
+  type ViewRuntimeState,
 } from '../runtime/index.js';
 import type { RecordViewConfig } from '../model/index.js';
 import { useViewRuntime } from './useViewEngine.js';
@@ -535,7 +536,7 @@ export function useRecordTable(
     status: state?.query.status ?? 'idle',
     error: state?.query.error ?? null,
     loading: state?.query.status === 'loading',
-    hasResult: state?.result != null,
+    hasResult: hasResult(state),
 
     sort,
     sortOf: useCallback(

@@ -27,7 +27,7 @@ export const FILLER_COLUMN = 'filler';
  * from `TABLE_CELLS` like every other cell's, and that is the whole of the
  * border it draws.
  */
-export const FILLER_CELL = 'w-full px-0';
+const FILLER_CELL = 'w-full px-0';
 
 /**
  * The last cell of every row, which is not a column.

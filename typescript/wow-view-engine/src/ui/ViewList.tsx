@@ -23,6 +23,7 @@ import {
 import {
   audienceOf,
   isSystemScope,
+  VIEW_AUDIENCES,
   type ViewAudience,
   type ViewInstanceSummary,
 } from '../model/index.js';
@@ -91,12 +92,6 @@ export interface ViewListProps {
    */
   collapseRef?: RefObject<HTMLButtonElement | null>;
 }
-
-/**
- * The order the sidebar shows the two groups in. It is this component's
- * choice, not the model's, which is why it is written here.
- */
-const GROUPS: readonly ViewAudience[] = ['personal', 'shared'];
 
 /**
  * The views of one definition, grouped by who they are for, in the user's
@@ -299,7 +294,7 @@ function ViewListBody({
           {retry && <AlertAction>{retry}</AlertAction>}
         </LineAlert>
       )}
-      {GROUPS.map(audience => {
+      {VIEW_AUDIENCES.map(audience => {
         const items = list.items.filter(
           item => audienceOf(item.scope) === audience,
         );

@@ -11,12 +11,8 @@
  * limitations under the License.
  */
 
-import type {
-  FilterNode,
-  FilterTree,
-  Issue,
-  IssuePath,
-} from '../model/index.js';
+import type { FilterNode, FilterTree, Issue } from '../model/index.js';
+import { filterIndexes } from './issuePath.js';
 import {
   isFilterGroup,
   isFilterLeaf,
@@ -62,12 +58,7 @@ function isMarked(found: Issue, tree: FilterTree): boolean {
   if (!found.code.startsWith('filter.') || found.path[0] !== 'children')
     return false;
   // Only a condition wears a mark; a group's own findings wear none.
-  return isFilterLeaf(conditionAt(tree, indexesOf(found.path)));
-}
-
-/** The node indexes of an issue path: `['children', 1]` addresses `[1]`. */
-function indexesOf(path: IssuePath): FilterPath {
-  return path.filter((step): step is number => typeof step === 'number');
+  return isFilterLeaf(conditionAt(tree, filterIndexes(found.path)));
 }
 
 /**

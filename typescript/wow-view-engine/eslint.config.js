@@ -90,10 +90,7 @@ export default tseslint.config(
     languageOptions: {
       globals: { ...globals.browser, ...globals.node },
       parserOptions: {
-        // allowDefaultProject 供 reactLint.test.ts 以 lintText 虚拟检查 src/LintProbe.tsx。
-        projectService: {
-          allowDefaultProject: ['src/LintProbe.tsx'],
-        },
+        projectService: true,
         tsconfigRootDir: fileURLToPath(new URL('.', import.meta.url)),
       },
     },
