@@ -16,7 +16,7 @@ import type { AnalysisColumnView, ChartData } from '../analysis/index.js';
 import type { ChartSpec } from '../model/index.js';
 import { Cartesian } from './charts/Cartesian.js';
 import { ChartReadingTable } from './charts/ChartReading.js';
-import { useCategoryLabel, useColumnLabel } from './charts/family.js';
+import { useColumnTitle, useValueLabel } from './charts/family.js';
 import { Funnel } from './charts/Funnel.js';
 import { Heatmap } from './charts/Heatmap.js';
 import { MetricCard } from './charts/MetricCard.js';
@@ -57,13 +57,13 @@ export function AnalysisChart({
   columns,
 }: AnalysisChartProps) {
   const messages = useViewMessages();
-  const label = useCategoryLabel(columns);
-  const column = useColumnLabel(columns);
+  const label = useValueLabel(columns);
+  const column = useColumnTitle(columns);
   const reading = useMemo(
     () => readChart(data, spec, { messages, label, column }),
     [data, spec, messages, label, column],
   );
-  const props = { spec, className, label, name: reading.name };
+  const props = { spec, className, label, column, name: reading.name };
   return (
     <>
       {family(data, props)}

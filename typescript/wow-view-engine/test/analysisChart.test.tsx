@@ -16,6 +16,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AnalysisView, ChartData, ChartSpec } from '../src/index.js';
 import { shapeChart } from '../src/index.js';
 import { AnalysisChart, ViewSurface } from '../src/ui/index.js';
+import { TooltipValue } from '../src/ui/charts/TooltipValue.js';
 import { DRAWN, analysisConfig } from './fixtures.js';
 
 afterEach(cleanup);
@@ -285,6 +286,80 @@ describe('AnalysisChart', () => {
     expect(container.querySelectorAll('.recharts-yAxis')).toHaveLength(2);
     // The bounds the spec pinned, printed the way it asked for.
     expect(screen.getByText('900%')).toBeDefined();
+  });
+
+  /**
+   * F5: the axis carries one column's numbers, so its ticks read as that
+   * column reads. A table showing ¥1,234.00 beside an axis showing 1234 is
+   * two readings of one number, and only one of them is the column's.
+   */
+  it('reads a numeric axis through the metric on it', () => {
+    const money: AnalysisView['columns'] = [
+      { alias: 'warehouse', label: 'Warehouse', role: 'group' },
+      {
+        alias: 'orders',
+        label: 'Amount',
+        role: 'metric',
+        fn: 'SUM',
+        numberFormat: { style: 'currency', currency: 'CNY' },
+      },
+    ];
+    const { container } = render(
+      <ViewSurface locale="zh-CN">
+        <AnalysisChart
+          data={{
+            type: 'cartesian',
+            chart: 'bar',
+            points: [
+              { x: 'CN', values: { orders: 1234 } },
+              { x: 'JP', values: { orders: 800 } },
+            ],
+            series: [{ key: 'orders', label: 'orders', metric: 'orders' }],
+          }}
+          spec={{
+            type: 'bar',
+            cartesian: {
+              x: 'warehouse',
+              series: [{ metric: 'orders' }],
+              // Bounds only, no `format`: jsdom lays nothing out, so the
+              // ticks are the ones the domain pins, and the format under
+              // test is the column's rather than the axis's own.
+              yAxis: { left: { min: 0, max: 2000 } },
+            },
+          }}
+          columns={money}
+        />
+      </ViewSurface>,
+    );
+
+    // A tick the domain pins and no row holds, so it can only be the axis.
+    expect(screen.getByText('¥1,000.00')).toBeDefined();
+    // The reading beside the marks is the same numbers, so the same text.
+    expect(within(container).getAllByText('¥1,234.00').length).toBeGreaterThan(
+      0,
+    );
+  });
+
+  /**
+   * The row a tooltip shows is drawn here rather than by the vendored
+   * content, whose only hook replaces the whole row — see
+   * `ui/charts/TooltipValue.tsx`. What each row reads it through is the
+   * series' own metric, which is the same labeller the ticks and the reading
+   * table go through, asserted above.
+   */
+  it('draws a tooltip row as the swatch, the series and the number', () => {
+    render(
+      <ViewSurface>
+        <TooltipValue color="#0f766e" name="Amount" value="¥1,234.00" />
+      </ViewSurface>,
+    );
+
+    expect(screen.getByText('Amount')).toBeDefined();
+    expect(screen.getByText('¥1,234.00')).toBeDefined();
+    expect(
+      document.querySelector<HTMLElement>('[data-slot="chart-tooltip-swatch"]')
+        ?.style.background,
+    ).toBe('rgb(15, 118, 110)');
   });
 
   it('maps a data-valued series key to a synthetic one before CSS sees it', () => {

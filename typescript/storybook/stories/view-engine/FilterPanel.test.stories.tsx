@@ -32,11 +32,13 @@ const meta = {
 
 /**
  * The amount field's declared format, as the bar itself formats it. The
- * field's `numberFormat` names no language, so this is the host's own —
- * the surface's `locale` reaches the dates, not a format that set its own.
+ * field's `numberFormat` names no language, so it takes the surface's —
+ * `HOST_LANGUAGE.locale`, which writes 「¥」 where the machine's own language
+ * would write `CN¥`. A number in the reader's language is the whole point of
+ * a `locale` prop, and this bar used to be the one place it did not reach.
  */
 const yuan = (value: number) =>
-  new Intl.NumberFormat(undefined, {
+  new Intl.NumberFormat('zh-CN', {
     style: 'currency',
     currency: 'CNY',
   }).format(value);

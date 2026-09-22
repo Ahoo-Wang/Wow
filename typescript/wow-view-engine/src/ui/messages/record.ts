@@ -142,6 +142,18 @@ export const recordMessages = {
   // column speaks is decided by how it reads its cells (`display.ts`).
   'label.summary.fn.date.MIN': 'Earliest',
   'label.summary.fn.date.MAX': 'Latest',
+  // The analysis view's summaries are this same set, not a second one
+  // (D20: one meaning per word). A record column offers the first five; an
+  // analysis metric offers these as well, and both compose their header with
+  // `label.summary.of`, so "Average of Amount" says one thing on either
+  // screen. They live here because `label.summary.*` is one prefix family.
+  'label.summary.fn.STDDEV': 'Standard deviation',
+  'label.summary.fn.VARIANCE': 'Variance',
+  'label.summary.fn.DISTINCT_COUNT': 'Distinct count',
+  'label.summary.fn.PERCENTILE': 'Percentile',
+  // "Any one of them", and the stress is on *any*: the backend returns some
+  // value from the group and does not promise the same one twice.
+  'label.summary.fn.ANY': 'Any value',
   'label.summary.unavailable': '—',
 
   // The column settings. The two areas a column cannot leave are named by

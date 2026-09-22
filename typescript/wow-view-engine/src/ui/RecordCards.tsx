@@ -169,7 +169,7 @@ export function RecordCards({
                     dropped. */}
                 {card.titleField
                   ? (render(cell(row, card.titleField)) ?? String(row.key))
-                  : titleOf(row, card.title, messages)}
+                  : titleOf(row, card.title, messages, display.locale)}
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-1">
@@ -259,10 +259,13 @@ function titleOf(
   row: RecordRow,
   title: string,
   messages: MessageFormatters,
+  locale: string | undefined,
 ): React.ReactNode {
   const text = valueText(
     title ? recordValue(row.data, title) : row.key,
     messages,
+    undefined,
+    locale,
   );
   return text === '' ? String(row.key) : text;
 }

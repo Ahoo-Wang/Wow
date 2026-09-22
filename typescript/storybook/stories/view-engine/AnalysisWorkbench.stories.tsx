@@ -12,6 +12,7 @@
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { SortDirection } from '@ahoo-wang/fetcher-wow';
+import { fitChartSlots } from '@ahoo-wang/fetcher-view-engine';
 import { DataWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
 import { ScenarioFrame } from '../shared/ScenarioFrame.js';
 import {
@@ -56,6 +57,8 @@ function AnalysisWorkbenchDemo({
    */
   limit?: number;
 }) {
+  const { groups, metrics } = analysisConfig();
+  const fitted = fitChartSlots({ type: chart }, groups, metrics);
   const config = analysisConfig({
     layout,
     ...(limit === undefined
@@ -64,17 +67,22 @@ function AnalysisWorkbenchDemo({
           limit,
           sort: [{ alias: 'amount', direction: SortDirection.DESC }],
         }),
+    // The family comes from the same fitting a press of the chart-type
+    // control goes through, and the knobs below only vary what they say they
+    // vary. A story that wrote the sub-object by hand would be a story of a
+    // config no user can reach — and it would have gone on passing while a
+    // real switch left the chart without a family at all.
     chart: {
-      ...(chart === 'pie'
+      ...fitted,
+      ...(fitted.pie
         ? {
-            type: 'pie' as const,
-            // Four warehouses, three slices: the smallest two merge into "other".
-            pie: { category: 'warehouse', value: 'amount', maxSlices: 3 },
+            // Money rather than the count, and four warehouses into three
+            // slices: the smallest two merge into "other".
+            pie: { ...fitted.pie, value: 'amount', maxSlices: 3 },
           }
         : {
-            type: chart,
             cartesian: {
-              x: 'warehouse',
+              ...fitted.cartesian!,
               // Order counts are single digits beside amounts in the
               // thousands, so the second metric is measured on its own axis.
               series:
@@ -137,7 +145,7 @@ const meta = {
       </ScenarioFrame>
     ),
   ],
-  title: 'View Engine/分析视图/Analysis 工作台',
+  title: 'View Engine/分析视图/分析工作台',
   component: AnalysisWorkbenchDemo,
   args: {
     behaviour: 'data',

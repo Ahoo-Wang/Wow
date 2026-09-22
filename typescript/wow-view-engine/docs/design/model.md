@@ -191,10 +191,10 @@ export interface AnalysisViewConfig extends ViewConfigBase {
 }
 
 export interface AnalysisTableSpec {
-  // pinned 与记录表是同一个词、同一个取值：一个布尔，true 即固定在左侧
-  // （D19；右边那一列从来不是配置说得上的）。分析表目前不冻结列，所以
-  // projectAnalysis 不带它出去——投影里只放渲染真的会读的东西。
-  columns: { alias: string; width?: number; pinned?: boolean }[]; // 缺省为全部 group + metric
+  // 没有 pinned：分析表不冻结任何列，所以存下来的那个「固定」是一份没有
+  // 渲染器去兑现、也没有控件去设置的设置——界面许诺了一件屏幕不会做的事。
+  // 将来分析表长出冻结列时，照记录表那一个词、那一个取值来（D19）。
+  columns: { alias: string; width?: number }[]; // 缺省为全部 group + metric
   totals?: boolean; // 合计行；开启时执行一次无分组聚合，不由分组行推导
 }
 

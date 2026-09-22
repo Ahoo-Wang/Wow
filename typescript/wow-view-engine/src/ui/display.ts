@@ -20,6 +20,7 @@ import {
   type SummaryFunction,
 } from '../model/index.js';
 import { readInstant } from '../filter/index.js';
+import type { MetricFunction } from '../analysis/index.js';
 import type { MessageKey } from './messages.js';
 import type { MessageFormatters } from './MessagesProvider.js';
 
@@ -143,6 +144,32 @@ export function summaryFunctionKey(
 }
 
 /**
+ * What an analysis column is called on screen.
+ *
+ * A group is its field. A metric is two words the kernel hands over separately
+ * — the field and the summary — because only a catalogue knows their order:
+ * 「金额 的 平均」 and "Average of Amount" are the same header. Composing it
+ * here is what makes two summaries of one field two different headers, where
+ * the alias (`amount_1`) named the machine and the label named them both the
+ * same. A count is neither: it counts records rather than summarising a
+ * field, so it says so in one word.
+ */
+export function columnTitle(
+  column: { label: string; fn?: MetricFunction },
+  messages: MessageFormatters,
+): string {
+  if (column.fn === undefined) return column.label;
+  if (column.fn === 'COUNT') return messages.label('label.analysis.row-count');
+  // A derived metric is arithmetic over other metrics: no field stands behind
+  // it, so its stored name is all there is to show.
+  if (column.fn === 'DERIVED') return column.label;
+  return messages.label('label.summary.of', {
+    field: column.label,
+    fn: messages.label(`label.summary.fn.${column.fn}`),
+  });
+}
+
+/**
  * One day as `2026-09-20`, on the surface's clock.
  *
  * `en-CA` is what writes a date in that order whatever the host's language,
@@ -173,19 +200,31 @@ export function formatNumber(
 
 /**
  * A value an analysis shows when its field's kind has nothing to add: a number
- * in its format, or grouped the runtime's way without one; a boolean in the
- * catalogue's words; anything else as text. A table cell and a chart category
- * read the same, so a currency group is not a bare number on the axis.
+ * in its format, or grouped the surface's way without one; a boolean in the
+ * catalogue's words; anything else as text. A table cell, a chart axis and a
+ * tooltip read the same, so a currency metric is not a bare number on the axis.
+ *
+ * `locale` is the surface's language, and it is not optional in spirit: a
+ * number left to `toLocaleString()` is grouped for whatever machine the page
+ * happens to run on, which is the one language nobody chose. It stays optional
+ * in the signature because a format may pin its own.
  */
 export function valueText(
   value: unknown,
   messages: MessageFormatters,
   format?: NumberFormat,
+  locale?: string,
 ): string {
   if (value === null || value === undefined) return '';
   if (typeof value === 'number') {
-    const formatter = format && numberFormatter(format);
-    return formatter ? formatter.format(value) : value.toLocaleString();
+    // A number with no usable format is still grouped, and grouped in the
+    // surface's language rather than the machine's — which is what the bare
+    // `toLocaleString()` here could not do. A format Intl refuses to build
+    // gives way to that same plain grouping.
+    const formatter =
+      (format && numberFormatter(format, locale)) ??
+      numberFormatter({}, locale);
+    return formatter ? formatter.format(value) : String(value);
   }
   if (typeof value === 'boolean')
     return messages.label(value ? 'label.value.yes' : 'label.value.no');
@@ -219,7 +258,7 @@ export function cellText(
   if (typeof value === 'number')
     return formatNumber(value, field.numberFormat, context.locale);
   if (typeof value === 'bigint') return value.toString();
-  return valueText(value, messages, field.numberFormat);
+  return valueText(value, messages, field.numberFormat, context.locale);
 }
 
 /** One badge: the value the record holds, the label and tone it wears. */

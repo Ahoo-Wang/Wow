@@ -22,6 +22,7 @@ import {
 import { AnalysisChart } from '../AnalysisChart.js';
 import { AnalysisEditor } from '../AnalysisEditor.js';
 import { AnalysisTable } from '../AnalysisTable.js';
+import { AnalysisEmpty } from '../analysis/EmptyResult.js';
 import { useAnnouncer } from '../Announcer.js';
 import { FilterPanel } from '../FilterPanel.js';
 import type { ViewMessages } from '../messages.js';
@@ -62,11 +63,20 @@ export function AnalysisParts({
   const data = state?.result?.data;
   const view: AnalysisView | null =
     data?.kind === 'analysis' ? data.view : null;
-  // The chart the result was shaped by, not the draft being edited: until
-  // Run, the draft's aliases may name other columns than the ones the
-  // result's categories came from, and a category is named through its column.
-  const shaped = state?.result?.config;
-  const chart = shaped?.kind === 'analysis' ? shaped.chart : analysis.chart;
+  /**
+   * The config the result was shaped by, not the draft being edited.
+   *
+   * Everything the result block reads comes from this one place: the layout
+   * that decides between table and chart, and the chart spec whose aliases
+   * name the result's columns. They used to come from two — the layout from
+   * the draft and the spec from the result — so a draft switched to `chart`
+   * before Run asked for a chart of a result shaped as a table, and there was
+   * nothing to draw. One source cannot disagree with itself.
+   */
+  const applied = state?.result?.config;
+  const shaped = applied?.kind === 'analysis' ? applied : undefined;
+  const layout = shaped?.layout ?? analysis.layout;
+  const chart = shaped?.chart ?? analysis.chart;
 
   // The one live region of this surface: a query that lands is a change of
   // the numbers on screen, and a reader who cannot see them has to be told
@@ -97,7 +107,13 @@ export function AnalysisParts({
     ),
     result: view && (
       <>
-        {analysis.layout === 'chart' && view.chart ? (
+        {/* A grouping nothing fell into is one sentence whichever layout is
+            in force; a chart of no rows is a pair of empty axes, which reads
+            as a drawing that failed rather than as a range that matched
+            nothing. */}
+        {view.rows.length === 0 ? (
+          <AnalysisEmpty />
+        ) : layout === 'chart' && view.chart ? (
           <AnalysisChart
             data={view.chart}
             spec={chart}

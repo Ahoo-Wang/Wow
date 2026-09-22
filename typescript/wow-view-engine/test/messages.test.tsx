@@ -320,14 +320,24 @@ describe('the closed enums a control offers', () => {
     ).toEqual([]);
   });
 
-  it('names every grouping and every aggregation function', () => {
+  /**
+   * The dimension kinds and the summary functions. The functions are one set
+   * with the record view's (D20: one meaning per word), so they are checked
+   * under `label.summary.fn.*` — an analysis metric and a column summary say
+   * the same word for the same computation, and the six Wow functions are
+   * five of that set plus the ones only an analysis offers.
+   */
+  it('names every dimension kind and every aggregation function', () => {
     expect(
       missing([
         ...Object.values(AggregationGroupType).map(
           type => `label.group.type.${type}`,
         ),
         ...Object.values(AggregationFunction).map(
-          fn => `label.metric.function.${fn}`,
+          fn => `label.summary.fn.${fn}`,
+        ),
+        ...['DISTINCT_COUNT', 'PERCENTILE', 'ANY'].map(
+          fn => `label.summary.fn.${fn}`,
         ),
       ]),
     ).toEqual([]);
@@ -349,18 +359,20 @@ describe('the closed enums a control offers', () => {
 
   /**
    * The English half of the same bargain: naming what a component derived
-   * must not reword it, or every English test and screenshot moves with it.
+   * must not reword it *without a reason*, or every English test and
+   * screenshot moves with it.
    *
-   * The operators are the exception, and they paid that price once: the
-   * derived spelling of a comparison is the enum in lower case, so a row
-   * read `Amount eq Not set` and the date select offered `gte` beside
-   * `is empty`. They are words now, and the test that follows walks the
-   * whole set for anything still reading as an identifier.
+   * Two sets have paid that price, both deliberately. The comparison
+   * operators: the derived spelling is the enum in lower case, so a row read
+   * `Amount eq Not set` and the date select offered `gte` beside `is empty`.
+   * And the analysis vocabulary (D20): a dimension is cut `By value`, not by
+   * `terms`, and its summary is `Average`, not `avg` — an analyst's word, in
+   * one set with the record view's summaries.
    */
   it('keeps the spelling the editor used to derive', () => {
     expect(en['label.chart.type.bar']).toBe('bar');
-    expect(en['label.group.type.DATE_HISTOGRAM']).toBe('date histogram');
-    expect(en['label.metric.function.SUM']).toBe('sum');
+    expect(en['label.group.type.DATE_HISTOGRAM']).toBe('By time unit');
+    expect(en['label.summary.fn.SUM']).toBe('Sum');
     // The unit keeps the control's own spelling; the period keeps the one
     // the summary bar already read it out by.
     expect(en['label.relative.unit.day']).toBe('day');

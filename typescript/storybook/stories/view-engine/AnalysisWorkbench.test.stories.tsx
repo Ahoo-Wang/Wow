@@ -12,7 +12,7 @@
  */
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
-import { zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
+import { formatMessage, zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 import displayMeta, {
   BarChart as DisplayBarChart,
   CutShort as DisplayCutShort,
@@ -28,7 +28,7 @@ import { amountOf, readColumn, readTotal } from './readTable.js';
 
 const meta = {
   ...displayMeta,
-  title: 'View Engine/分析视图/Analysis 工作台/回归',
+  title: 'View Engine/分析视图/分析工作台/回归',
   tags: ['!dev', '!autodocs', 'test'],
 };
 
@@ -36,21 +36,52 @@ export default meta;
 
 type Story = StoryObj<typeof displayMeta>;
 
+/** 「金额 的 合计」: the two parts a metric header is composed of (D20). */
+const AMOUNT_HEADER = formatMessage(zhCN, 'label.summary.of', {
+  field: '金额',
+  fn: zhCN['label.summary.fn.SUM'],
+});
+
+/** A count of records is named by what it counts, in one word. */
+const COUNT_HEADER = zhCN['label.analysis.row-count'];
+
 const bars = (canvas: HTMLElement) =>
   canvas.querySelectorAll('.recharts-bar-rectangle');
 
-/** Each slice's category and fill, in the order the pie draws them. */
+/**
+ * Each slice's category and fill, in the order the pie draws them.
+ *
+ * A slice is a `path` with a `d`, and only the `d` says the pie was drawn: a
+ * legend entry per category renders from the same config, so a chart whose
+ * container never got a size shows the words and none of the marks.
+ */
 const slices = (canvas: HTMLElement) =>
   [...canvas.querySelectorAll('.recharts-pie-sector path')].map(path => ({
     name: path.getAttribute('name'),
     fill: path.getAttribute('fill'),
+    drawn: (path.getAttribute('d') ?? '').length > 0,
   }));
 
-/** One bar per warehouse: the source grouped the rows it was asked to. */
+/**
+ * One bar per warehouse: the source grouped the rows it was asked to. The
+ * numbers read as the column reads them — the amount metric is money, so the
+ * axis and the tooltip say ¥ exactly as the table does, in the surface's own
+ * language rather than the machine's.
+ */
 export const BarChart: Story = {
   ...DisplayBarChart,
   play: async ({ canvasElement }) => {
     await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
+
+    // The ticks sit in their own layer beside the axis, not inside it.
+    const ticks = canvasElement.querySelector('.recharts-yAxis-tick-labels');
+    await waitFor(() => expect(ticks?.textContent ?? '').toContain('¥'));
+
+    // The legend a second series earns is named by its column too — never by
+    // the alias the query carried. The tooltip reads the same two through the
+    // same labeller; synthesised pointer events do not open a recharts
+    // tooltip, so what it says is pinned in the package
+    // (test/analysisChart.test.tsx) and looked at in a browser by hand.
   },
 };
 
@@ -73,13 +104,15 @@ export const TableWithTotals: Story = {
         '西南',
       ]),
     );
-    await expect(readColumn(table, 'orders')).toEqual(['2', '1', '2', '1']);
-    await expect(readColumn(table, '金额').map(amountOf)).toEqual([
+    // A metric is headed by its two parts, never by the alias the query
+    // carried: 「金额 的 合计」, and a count of records by what it counts.
+    await expect(readColumn(table, COUNT_HEADER)).toEqual(['2', '1', '2', '1']);
+    await expect(readColumn(table, AMOUNT_HEADER).map(amountOf)).toEqual([
       1920, 2450, 4880, 980,
     ]);
     // The totals row comes from its own ungrouped query over the same rows.
-    await expect(readTotal(table, 'orders')).toBe('6');
-    await expect(amountOf(readTotal(table, '金额'))).toBe(10230);
+    await expect(readTotal(table, COUNT_HEADER)).toBe('6');
+    await expect(amountOf(readTotal(table, AMOUNT_HEADER))).toBe(10230);
   },
 };
 
@@ -95,6 +128,8 @@ export const PieChart: Story = {
         zhCN['label.chart.other'],
       ]),
     );
+    // Drawn, not merely present: the legend alone is not a pie.
+    await expect(slices(canvasElement).every(slice => slice.drawn)).toBe(true);
   },
 };
 
@@ -103,7 +138,7 @@ export const PinnedCategoryColor: Story = {
   play: async ({ canvasElement }) => {
     await waitFor(() => expect(slices(canvasElement)).toHaveLength(3));
     const [south, ...others] = slices(canvasElement);
-    await expect(south).toEqual({ name: '华南', fill: '#7c3aed' });
+    await expect(south).toEqual({ name: '华南', fill: '#7c3aed', drawn: true });
     for (const slice of others) await expect(slice.fill).not.toBe('#7c3aed');
   },
 };
@@ -136,6 +171,7 @@ export const CutShort: Story = {
       '华南',
       '华北',
     ]);
+    await expect(slices(canvasElement).every(slice => slice.drawn)).toBe(true);
 
     // The strip, not the result's live region: both are `status`, and only
     // the strip is on the status line.
@@ -155,7 +191,7 @@ export const CutShortTable: Story = {
     // The totals row answers its own ungrouped query, so it still covers
     // every order — which is how two rows can add up to less than the total
     // under them without either number being wrong.
-    await expect(amountOf(readTotal(table, '金额'))).toBe(10230);
+    await expect(amountOf(readTotal(table, AMOUNT_HEADER))).toBe(10230);
 
     await expect(await findStrip(canvas)).toHaveTextContent(CUT_SHORT);
   },

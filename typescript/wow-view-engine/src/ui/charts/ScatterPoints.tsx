@@ -30,6 +30,7 @@ import { useViewMessages } from '../MessagesProvider.js';
 import { asImage } from './asImage.js';
 import type { FamilyProps } from './family.js';
 import { color } from './palette.js';
+import { TooltipValue } from './TooltipValue.js';
 
 export function ScatterPoints({
   data,
@@ -45,6 +46,13 @@ export function ScatterPoints({
     y: point.y,
     size: point.size ?? 1,
   }));
+  // Both axes carry a metric each, so their ticks and the tooltip read as
+  // those columns read rather than as bare numbers.
+  const measured: Record<string, string | undefined> = {
+    x: spec?.scatter?.x,
+    y: spec?.scatter?.y,
+    size: spec?.scatter?.size,
+  };
 
   return (
     <ChartContainer
@@ -58,10 +66,31 @@ export function ScatterPoints({
     >
       <ScatterChart {...asImage(name)}>
         <CartesianGrid />
-        <XAxis type="number" dataKey="x" />
-        <YAxis type="number" dataKey="y" />
+        <XAxis
+          type="number"
+          dataKey="x"
+          tickFormatter={(value: number) => label(measured.x, value)}
+        />
+        <YAxis
+          type="number"
+          dataKey="y"
+          tickFormatter={(value: number) => label(measured.y, value)}
+        />
         <ZAxis type="number" dataKey="size" range={[40, 260]} />
-        <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
+        <ChartTooltip
+          content={
+            <ChartTooltipContent
+              nameKey="name"
+              formatter={(value, name, item) => (
+                <TooltipValue
+                  color={item.color}
+                  name={name}
+                  value={label(measured[String(item.dataKey)], value)}
+                />
+              )}
+            />
+          }
+        />
         <Scatter data={rows} fill="var(--color-points)" />
       </ScatterChart>
     </ChartContainer>

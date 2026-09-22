@@ -28,12 +28,13 @@ compileSummaries(def, cfg, kinds, ctx): AggregationQuery | null    // 全范围�
 projectSummaries(def, cfg, rows | aggregation): SummaryRow        // scope 是结果的一部分：'total' 来自自己的聚合，'page' 来自屏幕上的行
 
 // analysis
-defaultAnalysisConfig(def): AnalysisViewConfig                  // 按固定优先级从已声明能力挑选指标；有可分组字段时取其一并按指标降序排序，否则分组为空且 `sort` 为空（无分组聚合只有一行，Wow 拒绝对其排序）
+defaultAnalysisConfig(def, limits?: RuntimeLimits): AnalysisViewConfig   // 按固定优先级从已声明能力挑选指标；有可分组字段时取其一并按指标降序排序，否则分组为空且 `sort` 为空（无分组聚合只有一行，Wow 拒绝对其排序）；`limit` 取能力的 `defaultLimit`、能力的 `maxLimit` 与 `limits.maxAnalysisRows` 三者最小值，缺省 `DEFAULT_RUNTIME_LIMITS`
 validateAnalysis(def, cfg: AnalysisViewConfig, kinds): Issue[]   // 见下方规则
 compileAnalysis(def, cfg, kinds, ctx): AggregationQuery          // 同构映射；三处 FilterTree 编译为 FilterExpression
 compileAnalysisTotals(def, cfg, kinds, ctx): AggregationQuery | null   // table.totals 为 true 时的无分组聚合，否则 null
 projectAnalysis(def, cfg, result, totals?): AnalysisView          // 表格列与行；图表系列；合计行取自 totals，metric 卡片趋势模式的标题值亦取自 totals；行数恰好等于 cfg.limit 时记 atLimit
-resultSchema(def, cfg): ResultSchema                     // 结果行校验依据
+fitChartSlots(chart, groups, metrics): ChartSpec          // 当前图型的家族子对象，按现有维度与指标装槽；用户选过且仍有效的槽保留
+metricFormat(metric, field?): NumberFormat | undefined    // 一个聚合值怎么打印（与字段自己的值怎么打印是两回事）
 
 // dashboard
 emptyDashboardConfig(): DashboardViewConfig                     // 无面板、无全局字段的完整初始配置
@@ -178,6 +179,29 @@ mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboa
 - 漏斗至少两个阶段，`metrics` 形态要求分组为空，`group` 形态的 `order` 无重复；
 - `metric` 无 `trend` 时要求分组为空，有 `trend` 时要求恰有一个 DATE_HISTOGRAM 分组且别名等于 `trend.x`，且 `metric` 与 `compare.metric` 必须是可加指标（与 `maxSlices` 同一判据），否则报 `chart.metric.trend-not-additive`。
 
+### 图表的槽跟着形态走：`fitChartSlots`
+
+图表按别名寻址自己的行，所以它不是一份能熬过「问题换了形状」的设置。从前换一个图型只改 `chart.type`、不建家族子对象，于是 `chart.family.missing`、图消失；加减一个维度之后图表仍念着旧别名，于是 `chart.group.unconsumed`／`chart.group.unknown`。两件事是同一个问题——哪个别名坐哪个槽——所以只有一个答案，图型、维度、指标任一改动都过它，`defaultAnalysisConfig` 的第一张图也过它：
+
+- **用户选过的槽只要还指着存在的东西就保留**，只有别名没了、或新形态放不下的槽才重填；其余家族的子对象原样带着，换走再换回来还是那一套设置；
+- **形态放不下时图型跟着动，而不是把配置变红**：除了指标卡与按指标分阶段的漏斗，每个家族都要靠维度寻址，所以没有任何维度时只有指标卡画得出来；而指标卡是一个数，所以有一个它画不成迷你趋势的维度时它就不是指标卡了（趋势要恰好一个时间维度，且主数可加——无合计行时主数就是各桶之和）。删掉最后一个维度改的是问题不是图，用户没有放弃过哪个选择；
+- **不替形态编东西**：一个维度的热力图、一个指标的散点、以及阶段没人命名过的漏斗都不可表达，槽留空，于是 `validateChart` 说的是缺哪个槽而不是整个家族不在。这些是用户对着装不下它的形态选的图型；「某个形态提供哪些图型」是另一个问题，在列出它们的地方回答（阶段 5）；
+- 维度或指标的改动同样带走指向消失别名的 `sort` 与 `table.columns`，没有维度时 `sort` 清空（Wow 拒绝对无分组聚合排序，而它本来就只有一行）——这一步在 `react/useAnalysisEditor.ts` 的 `reshape` 里，它是「一次编辑要捎上什么」的那一处。（见 test/analysisChartSlots.test.ts「fitChartSlots」与 test/analysisUi.test.tsx「re-fits the chart and the sort when the shape changes」）
+
+### 指标的数怎么读：`metricFormat`
+
+字段的 `numberFormat` 描述的是**一个存下来的值**，把它原样套到该字段的每一个聚合上，说出来的是查询从没算过的东西：整数字段的平均值成了整数，金额字段的去重计数成了钱。决定读法的是**这个聚合是什么**：
+
+| 聚合                              | 读法                                      |
+| --------------------------------- | ----------------------------------------- |
+| `COUNT`、`DISTINCT_COUNT`         | 整数，不带任何货币（数的是记录）          |
+| `AVG`、`STDDEV`、`VARIANCE`       | 字段格式 + 两位小数（金额的平均仍是金额） |
+| `SUM`、`MIN`、`MAX`、`PERCENTILE` | 字段格式（它们就是该字段的值）            |
+| `ANY`                             | 字段格式与字段自己的 `cell`／`options`    |
+| `DERIVED`                         | 不属于任何字段，两位小数的普通数          |
+
+`projectAnalysis` 把结果写进 `AnalysisColumnView.numberFormat`，表格、合计行、坐标轴、提示与指标卡因此都按同一份格式打印；列另带 `fn`（这一列是哪一种汇总），供界面把表头拼成「〈字段〉 的 〈汇总方式〉」，同一字段的两个汇总方式于是是两个不同的表头。（见 test/analysisProject.test.ts「metricFormat」）
+
 ### compileAnalysis 与 projectAnalysis
 
 `compileAnalysis` 因同构而退化为映射：
@@ -185,7 +209,7 @@ mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboa
 - 查询级、指标级、元素级三处 `FilterTree` 分别编译为 `FilterExpression`，各按自己的作用域：查询级是根字段（绝对名），第 i 层元素级是该层字段，指标级是最内层元素的字段；
 - **名字按作用域剥前缀**：配置存从根起的全名（`state.orders.lines.sku`），Wow 读的是相对名（`sku`），因此 `compileGroup`／`compileMetric`／`compileExpression` 与两处 `compileFilter` 都先把当前作用域的前缀去掉（`relativeName`／`relativeFields`／`relativeTree`，`analysis/capability.ts`；持有谓词的叶子连它的谓词一起剥，因为谓词的名字也是从根拼出来的）。`elements[].path` 本身已是相对上一层的写法，原样发出。原样发全名的后果不是报错而是错数：Wow 按 `parent.append(field)` 解析，`lines.sku` 在 `lines` 之下成了 `lines.lines.sku`；
 - 未声明时区的 DATE_HISTOGRAM 补上 `ctx.timeZone`，否则 Wow 按 UTC 切桶，东八区的"一天"从早上八点算起；
-- `projectAnalysis` 的结果列为全部 group 别名加全部 metric 别名，`DERIVED` 也是普通列；
+- `projectAnalysis` 的结果列为全部 group 别名加全部 metric 别名，`DERIVED` 也是普通列。这份别名清单是默认列序与 `schema` 的来源，**不导出**：它从前以 `resultSchema` 的名义对外宣称自己是「结果行的校验依据」，而没有任何人校验过结果行——行从 Wow 回来就直接投影，合同因此删掉而不是改写；
 - 分组列与 `ANY` 列带上字段的 `kind`、`cell`、`options`，DATE_HISTOGRAM 列另带 `dateUnit` 与所声明的 `timeZone`，供界面按字段显示（见 [ui/README.md#值按字段显示](ui/README.md#值按字段显示)），其余指标是算出的数，不带；
 - `columns` 按 `table.columns` 挑选，`schema` 以同样的描述覆盖结果里的每个别名——表格可以只显示计数，而图表仍按表格没显示的分组画，类目要经 `schema` 取名；
 - 合计行来自 `compileAnalysisTotals` 的独立结果，因此 `AVG`、`DISTINCT_COUNT`、百分位等不可加指标也正确；

@@ -25,6 +25,7 @@ import {
   type RuntimeLimits,
 } from '../model/index.js';
 import { emptyFilter } from '../filter/index.js';
+import { fitChartSlots } from './chartSlots.js';
 
 const DEFAULT_LIMIT = 100;
 const DEFAULT_PERCENTILE = 95;
@@ -169,15 +170,12 @@ export function defaultAnalysisConfig(
     limit,
     layout: groups.length > 0 ? 'chart' : 'table',
     table: { columns: [] },
-    chart:
-      groups.length > 0
-        ? {
-            type: 'bar',
-            cartesian: {
-              x: groups[0].alias,
-              series: [{ metric: metric.alias }],
-            },
-          }
-        : { type: 'metric', metric: { metric: metric.alias } },
+    // Through the same fitting the editor uses, so the first chart a view has
+    // and every chart it is switched to are filled in by one rule.
+    chart: fitChartSlots(
+      { type: groups.length > 0 ? 'bar' : 'metric' },
+      groups,
+      [metric],
+    ),
   };
 }

@@ -107,19 +107,15 @@ export interface AnalysisSort {
   direction: SortDirection;
 }
 
+/**
+ * One column of the result table. It has no `pinned`: the analysis table
+ * freezes nothing, so a stored pinning was a setting no renderer performed
+ * and no control offered — a promise the screen never kept. When the table
+ * grows frozen columns it will take the record table's word for it (D19).
+ */
 export interface AnalysisColumn {
   alias: string;
   width?: number;
-  /**
-   * `true` on a column held against the table's left edge — the same word,
-   * and the same one value, as a record column's (D19): a pinning has no
-   * side, because the right edge belongs to whatever a table draws last.
-   *
-   * The analysis table does not freeze columns yet, so nothing reads this
-   * and `projectAnalysis` does not carry it: a projected column holds what
-   * the renderer uses, and this is a setting waiting for one.
-   */
-  pinned?: boolean;
 }
 
 export interface AnalysisTableSpec {

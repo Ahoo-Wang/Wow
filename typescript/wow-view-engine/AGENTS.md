@@ -146,9 +146,11 @@ src/
     budget.ts                 — Depth and node budgets of a walked tree
     capability.ts             — The three scopes the element chain makes: the root's, each element's, the innermost one's; and the renaming a scope implies
     chart.ts                  — Chart-shaped projection for the renderers
+    chartSlots.ts             — `fitChartSlots`: the family sub-object of the current chart type, filled from the groups and metrics in force
     compile.ts                — compileAnalysis → AggregationQuery
     defaults.ts               — defaultAnalysisConfig — the first metric the capability can express; `aliasOf`, `termsGroup`, `DEFAULT_MISSING_KEY`
     expressions.ts            — Aggregate and derived expression walks
+    metricFormat.ts           — `metricFormat`/`metricFunctionOf`: how an aggregate's number prints, which is not how its field's values print
     project.ts                — projectAnalysis — table columns and rows
     queryFilter.ts            — A filter in metric or element position, and the scope it may name
     validate.ts               — validateAnalysis — the one entry every per-rule file below is read through
@@ -286,7 +288,7 @@ src/
     WriteOutcome.tsx          — The open view's last write, and the three ways out of a conflict
     alerts.tsx                — `LineAlert`: one callout one line high, tone deciding colour, icon and role
     describeConfig.ts         — One config in a sentence, for a conflict's side-by-side
-    display.ts                — A value as its field shows it: enum labels, dates, bucket keys; `summaryFunctionKey` names a summary in its column's vocabulary
+    display.ts                — A value as its field shows it: enum labels, dates, bucket keys; `summaryFunctionKey` names a summary in its column's vocabulary, `columnTitle` composes an analysis header from its two parts
     download.ts               — Hands a file to the browser; the whole of the DOM the export needs, and the name it is handed under
     dragAnnounce.ts           — What a screen reader hears while a row is dragged; the column settings and the manager share it
     dragDrop.ts               — `dropped()`: what makes a finished drag a drop at all, before any list adds its own rule
@@ -299,6 +301,8 @@ src/
     toolbar.tsx               — Base UI's toolbar primitive: one tab stop with the arrow keys inside
     variants.tsx              — The colours, edges and shapes a vendored component does not ship, in one place (D16-8); `TableDataRow` holds a record row's three states
     index.ts                  — The `/ui` entry: the default look, built on shadcn/ui with Base UI primitives
+    analysis/                 — What the analysis view is made of
+      EmptyResult.tsx         — An aggregation that matched no group, one sentence for both layouts
     charts/                   — One file per family, plus what they share
       Cartesian.tsx           — Which axis carries the numbers
       ChartReading.tsx        — The chart's numbers as a table, for whoever cannot see the marks
@@ -307,9 +311,10 @@ src/
       MetricCard.tsx          — The comparison, signed
       PieSlices.tsx
       ScatterPoints.tsx
+      TooltipValue.tsx        — One measured value inside a tooltip, read as its column reads it
       asImage.ts              — What every chart family spreads onto its drawing: a named image
       axis.ts                 — Value format, axis domain and ticks
-      family.ts               — `FamilyProps` and the category labeller
+      family.ts               — `FamilyProps`, the value labeller and the column titler
       palette.ts              — Slot colours and the spec's overrides
       reading.ts              — A chart as text: its name and the numbers it draws
     columns/

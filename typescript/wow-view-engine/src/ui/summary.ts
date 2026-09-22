@@ -198,7 +198,7 @@ function summaryValue(
       return messages.label(
         `label.relative.${value.bound}.${value.direction}`,
         {
-          amount: valueText(value.amount, messages),
+          amount: valueText(value.amount, messages, undefined, context.locale),
           unit: messages.label(`label.relative.unit.${value.unit}`),
         },
       );
@@ -220,6 +220,6 @@ function asField(
 ): string {
   return (
     displayValue(value, { kind: item.kind, cell: item.cell }, context) ??
-    valueText(value, messages, item.numberFormat)
+    valueText(value, messages, item.numberFormat, context.locale)
   );
 }

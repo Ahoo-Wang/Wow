@@ -283,9 +283,11 @@ describe('every data value in the result appears in the readable text', () => {
     // "in the accessible tree, not on screen", and there is no state to
     // read it back from.
     expect(reading.className).toContain('sr-only');
+    // The series is headed by its column, not by the alias the query
+    // carried: the same title the legend and the tooltip show (D20).
     expect(
       [...reading.querySelectorAll('th[scope="col"]')].map(c => c.textContent),
-    ).toEqual(['Warehouse', 'orders']);
+    ).toEqual(['Warehouse', 'Orders']);
     expect(
       [...reading.querySelectorAll('tbody tr')].map(row =>
         [...row.children].map(cell => cell.textContent),

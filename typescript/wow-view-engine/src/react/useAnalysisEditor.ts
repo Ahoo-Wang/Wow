@@ -26,7 +26,11 @@ import type {
   FieldDefinition,
   Issue,
 } from '../model/index.js';
-import { analysisScope, type AnalysisScope } from '../analysis/index.js';
+import {
+  analysisScope,
+  fitChartSlots,
+  type AnalysisScope,
+} from '../analysis/index.js';
 import { comparePending, type ViewRuntime } from '../runtime/index.js';
 import { useViewRuntime } from './useViewEngine.js';
 
@@ -137,6 +141,51 @@ export function useAnalysisEditor(
     [runtime],
   );
 
+  /**
+   * A change to what is grouped or measured, with everything that names an
+   * alias brought along.
+   *
+   * Groups and metrics are what the rest of the config points at: the chart
+   * addresses its slots by alias, the sort orders by one, the table lists
+   * them. Editing the lists alone left those three naming aliases that were
+   * gone — the chart reported `chart.group.unconsumed` and vanished, and the
+   * sort reported `analysis.sort.unknown-alias` — so the one edit carries all
+   * four. A slot, an ordering or a column the user chose is kept wherever it
+   * still names something; nothing else survives the alias it referred to.
+   */
+  const reshape = useCallback(
+    (
+      update: (
+        current: AnalysisViewConfig,
+      ) => Pick<AnalysisViewConfig, 'groups' | 'metrics'> | undefined,
+    ) =>
+      change(current => {
+        const next = update(current);
+        if (!next) return {};
+        const aliases = new Set([
+          ...next.groups.map(group => group.alias),
+          ...next.metrics.map(metric => metric.alias),
+        ]);
+        return {
+          ...next,
+          chart: fitChartSlots(current.chart, next.groups, next.metrics),
+          // Wow refuses a sort over an ungrouped aggregation, and it has one
+          // row anyway, so losing the last group empties the ordering too.
+          sort:
+            next.groups.length === 0
+              ? []
+              : current.sort.filter(entry => aliases.has(entry.alias)),
+          table: {
+            ...current.table,
+            columns: current.table.columns.filter(column =>
+              aliases.has(column.alias),
+            ),
+          },
+        };
+      }),
+    [change],
+  );
+
   const fields = useMemo<AnalysisFieldOption[]>(() => {
     if (!scope) return [];
     return [...scope.fields.values()].map((field: FieldDefinition) => {
@@ -182,57 +231,66 @@ export function useAnalysisEditor(
 
     addGroup: useCallback(
       (group: AnalysisGroup) =>
-        change(current => ({ groups: [...current.groups, group] })),
-      [change],
+        reshape(current => ({
+          groups: [...current.groups, group],
+          metrics: current.metrics,
+        })),
+      [reshape],
     ),
     updateGroup: useCallback(
       (index: number, patch: Partial<AnalysisGroup>) =>
-        change(current => ({
+        reshape(current => ({
           groups: current.groups.map((group, at) =>
             at === index ? ({ ...group, ...patch } as AnalysisGroup) : group,
           ),
+          metrics: current.metrics,
         })),
-      [change],
+      [reshape],
     ),
     removeGroup: useCallback(
       (index: number) =>
-        change(current => ({
+        reshape(current => ({
           groups: current.groups.filter((_group, at) => at !== index),
+          metrics: current.metrics,
         })),
-      [change],
+      [reshape],
     ),
 
     addMetric: useCallback(
       (metric: AnalysisMetric) =>
-        change(current => ({
+        reshape(current => ({
+          groups: current.groups,
           metrics: [
             ...current.metrics,
             metric,
           ] as AnalysisViewConfig['metrics'],
         })),
-      [change],
+      [reshape],
     ),
     updateMetric: useCallback(
       (index: number, patch: Partial<AnalysisMetric>) =>
-        change(current => ({
+        reshape(current => ({
+          groups: current.groups,
           metrics: current.metrics.map((metric, at) =>
             at === index ? ({ ...metric, ...patch } as AnalysisMetric) : metric,
           ) as AnalysisViewConfig['metrics'],
         })),
-      [change],
+      [reshape],
     ),
     removeMetric: useCallback(
       (index: number) =>
-        change(current => {
+        reshape(current =>
           // An aggregation query without a metric has nothing to return.
-          if (current.metrics.length <= 1) return {};
-          return {
-            metrics: current.metrics.filter(
-              (_metric, at) => at !== index,
-            ) as AnalysisViewConfig['metrics'],
-          };
-        }),
-      [change],
+          current.metrics.length <= 1
+            ? undefined
+            : {
+                groups: current.groups,
+                metrics: current.metrics.filter(
+                  (_metric, at) => at !== index,
+                ) as AnalysisViewConfig['metrics'],
+              },
+        ),
+      [reshape],
     ),
 
     setSort: useCallback((sort: AnalysisSort[]) => edit({ sort }), [edit]),
@@ -249,10 +307,17 @@ export function useAnalysisEditor(
     ),
     setChartType: useCallback(
       (type: ChartType) =>
-        // Every family's sub-object is carried over, so switching type and
-        // back returns to the settings that family had. The spread does all
-        // of it; naming the new family's key copied it onto itself.
-        change(current => ({ chart: { ...current.chart, type } })),
+        // The new type's family sub-object is built from the groups and
+        // metrics in force, because a type without one is `chart.family.missing`
+        // and draws nothing; every other family is carried over, so switching
+        // type and back returns to the settings that family had.
+        change(current => ({
+          chart: fitChartSlots(
+            { ...current.chart, type },
+            current.groups,
+            current.metrics,
+          ),
+        })),
       [change],
     ),
     updateChart: useCallback(

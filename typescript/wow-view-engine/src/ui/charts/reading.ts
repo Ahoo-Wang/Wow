@@ -15,7 +15,7 @@ import type { ChartData } from '../../analysis/index.js';
 import type { ChartSpec, ChartType, ValueFormat } from '../../model/index.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
 import { formatValue } from './axis.js';
-import type { CategoryLabel } from './family.js';
+import type { ValueLabel } from './family.js';
 
 /**
  * A chart as text: a name for the drawing and the same numbers it draws,
@@ -40,8 +40,8 @@ export interface ChartReading {
 /** What a reading needs besides the data: wording and the two labellers. */
 export interface ReadingContext {
   messages: MessageFormatters;
-  /** A category value as its column shows it. */
-  label: CategoryLabel;
+  /** A value as its column shows it, category and measure alike. */
+  label: ValueLabel;
   /** An alias as its column is titled, or the alias itself. */
   column: (alias: string | undefined) => string | undefined;
 }
@@ -93,14 +93,22 @@ function nameOf(
     : ctx.messages.label('label.chart.figure', { ...params, category });
 }
 
-/** A measured number as the chart's own axis would print it. */
+/**
+ * A measured number, read as its own column reads it — the reading table and
+ * the marks beside it are the same numbers, so they are the same text. An
+ * axis that pinned a `ValueFormat` still wins: that is an instruction about
+ * this axis, and a ratio drawn as 25% must not be read out as 0.25.
+ */
 function number(
   value: number | null | undefined,
   ctx: ReadingContext,
   format?: ValueFormat,
+  alias?: string,
 ): string {
-  return value === null || value === undefined
-    ? ctx.messages.label('label.summary.unavailable')
+  if (value === null || value === undefined)
+    return ctx.messages.label('label.summary.unavailable');
+  return format === undefined
+    ? ctx.label(alias, value)
     : formatValue(value, format);
 }
 
@@ -136,14 +144,19 @@ function readCartesian(
       category ?? ctx.messages.label('label.chart.column.category'),
       ...data.series.map(series =>
         series.value === undefined
-          ? series.label
+          ? (ctx.column(series.metric) ?? series.label)
           : ctx.label(cartesian?.splitBy, series.value),
       ),
     ],
     rows: data.points.map(point => [
       ctx.label(cartesian?.x, point.x),
       ...data.series.map(series =>
-        number(point.values[series.key], ctx, formatOf(series.metric)),
+        number(
+          point.values[series.key],
+          ctx,
+          formatOf(series.metric),
+          series.metric,
+        ),
       ),
     ]),
   };
@@ -166,7 +179,7 @@ function readPie(
       slice.other === true
         ? ctx.messages.label('label.chart.other')
         : ctx.label(spec?.pie?.category, slice.category),
-      number(slice.value, ctx),
+      number(slice.value, ctx, undefined, spec?.pie?.value),
     ]),
   };
 }
@@ -196,7 +209,9 @@ function readHeatmap(
     ],
     rows: data.ys.map((value, row) => [
       ctx.label(heatmap?.y, value),
-      ...data.xs.map((_, cell) => number(data.cells[row]?.[cell], ctx)),
+      ...data.xs.map((_, cell) =>
+        number(data.cells[row]?.[cell], ctx, undefined, heatmap?.value),
+      ),
     ]),
   };
 }
@@ -223,9 +238,9 @@ function readScatter(
     ],
     rows: data.points.map(point => [
       ctx.label(scatter?.category, point.category),
-      number(point.x, ctx),
-      number(point.y, ctx),
-      ...(sized ? [number(point.size, ctx)] : []),
+      number(point.x, ctx, undefined, scatter?.x),
+      number(point.y, ctx, undefined, scatter?.y),
+      ...(sized ? [number(point.size, ctx, undefined, scatter?.size)] : []),
     ]),
   };
 }
@@ -238,6 +253,14 @@ function readFunnel(
   const stages = spec?.funnel?.stages;
   const category = stages?.from === 'group' ? stages.category : undefined;
   const converts = data.stages.some(stage => stage.conversion !== undefined);
+  // One metric for the whole funnel when its stages are values of a
+  // dimension; one per stage when each stage is its own metric.
+  const measured = (index: number) =>
+    stages === undefined
+      ? undefined
+      : stages.from === 'group'
+        ? stages.value
+        : stages.items[index]?.metric;
   return {
     name: nameOf(
       ctx,
@@ -252,9 +275,9 @@ function readFunnel(
         ? [ctx.messages.label('label.chart.column.conversion')]
         : []),
     ],
-    rows: data.stages.map(stage => [
+    rows: data.stages.map((stage, index) => [
       category === undefined ? stage.label : ctx.label(category, stage.label),
-      number(stage.value, ctx),
+      number(stage.value, ctx, undefined, measured(index)),
       ...(converts
         ? [
             stage.conversion === undefined
@@ -282,17 +305,17 @@ function readMetric(
   if (data.compare)
     rows.push([
       ctx.messages.label('label.chart.column.compare'),
-      number(data.compare.value, ctx, card?.format),
+      number(data.compare.value, ctx, card?.format, card?.metric),
     ]);
   if (data.target !== undefined)
     rows.push([
       ctx.messages.label('label.chart.column.target'),
-      number(data.target, ctx, card?.format),
+      number(data.target, ctx, card?.format, card?.metric),
     ]);
   for (const point of data.trend ?? [])
     rows.push([
       ctx.label(card?.trend?.x, point.x),
-      number(point.value, ctx, card?.format),
+      number(point.value, ctx, card?.format, card?.metric),
     ]);
   return {
     name: nameOf(ctx, 'metric', [ctx.column(card?.metric)]),

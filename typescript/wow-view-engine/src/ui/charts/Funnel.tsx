@@ -27,6 +27,14 @@ export function Funnel({
   // group's column does; metric stages carry the labels they were given.
   const stages = spec?.funnel?.stages;
   const category = stages?.from === 'group' ? stages.category : undefined;
+  // Which metric a stage measures: one for the whole funnel when the stages
+  // are values of a dimension, one per stage when each is its own metric.
+  const measured = (index: number) =>
+    stages === undefined
+      ? undefined
+      : stages.from === 'group'
+        ? stages.value
+        : stages.items[index]?.metric;
   const horizontal = spec?.funnel?.orientation === 'horizontal';
 
   return (
@@ -40,7 +48,7 @@ export function Funnel({
         className,
       )}
     >
-      {data.stages.map(stage => (
+      {data.stages.map((stage, index) => (
         <div
           key={stage.label}
           className={cn(
@@ -58,7 +66,7 @@ export function Funnel({
             style={{ width: `${Math.max(4, (stage.value / widest) * 100)}%` }}
           >
             <span className="text-primary-foreground text-xs">
-              {stage.value}
+              {label(measured(index), stage.value)}
             </span>
           </div>
           {stage.conversion !== undefined && (

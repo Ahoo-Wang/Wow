@@ -54,13 +54,22 @@ export function MetricCard({
 }: FamilyProps<MetricCardData>) {
   const messages = useViewMessages();
   const card = spec?.metric;
+  /**
+   * The headline number as its own column reads it, so a card of money says
+   * ¥10,230.00 where the table under it says the same. `MetricCardSpec.format`
+   * still wins: it is an instruction about this card.
+   */
+  const show = (value: number) =>
+    card?.format === undefined
+      ? label(card?.metric, value)
+      : formatValue(value, card.format);
   return (
     <div
       data-slot="metric-card"
       className={cn('flex flex-col gap-2', className)}
     >
       <span className="text-3xl font-semibold tabular-nums">
-        {data.value === null ? '—' : formatValue(data.value, card?.format)}
+        {data.value === null ? '—' : show(data.value)}
       </span>
       {data.compare && (
         <span className="text-muted-foreground text-sm">
@@ -83,8 +92,8 @@ export function MetricCard({
         <Progress
           aria-label={messages.label('label.chart.target')}
           aria-valuetext={messages.label('label.chart.target.reached', {
-            value: formatValue(data.value, card?.format),
-            target: formatValue(data.target, card?.format),
+            value: show(data.value),
+            target: show(data.target),
           })}
           value={reached(data.value, data.target)}
           className="[&_[data-slot=progress-track]]:h-2"

@@ -22,8 +22,11 @@ import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,
   compileAnalysis,
+  metricFormat,
+  metricFunctionOf,
   projectAnalysis,
-  resultSchema,
+  type AnalysisFunction,
+  type AnalysisMetric,
 } from '../src/index.js';
 import {
   analysisCapability as capability,
@@ -153,7 +156,6 @@ describe('projectAnalysis', () => {
   ];
 
   it('lists group columns before metric columns', () => {
-    expect(resultSchema(config())).toEqual(['wh', 'orders']);
     const view = projectAnalysis(
       definition(),
       config({ layout: 'table' }),
@@ -174,8 +176,11 @@ describe('projectAnalysis', () => {
         alias: 'orders',
         label: 'orders',
         role: 'metric',
+        // Which summary it is, so the header can say it; a count of records
+        // is a whole number in nobody's currency.
+        fn: 'COUNT',
         width: undefined,
-        numberFormat: undefined,
+        numberFormat: { maximumFractionDigits: 0 },
       },
     ]);
     expect(view.rows).toEqual(rows);
@@ -351,5 +356,78 @@ describe('metric card headline', () => {
     );
     expect(view.totals).toEqual({ orders: 55 });
     expect(view.chart).toMatchObject({ type: 'metric', value: 55 });
+  });
+});
+
+/**
+ * A field's `numberFormat` describes one stored value; an aggregate of that
+ * field is a different number and reads by what the aggregate *is* (K5).
+ * These are the rules the table, the totals row, the axes, the tooltips and
+ * the metric card all print through.
+ */
+describe('metricFormat', () => {
+  const money = { style: 'currency', currency: 'CNY' } as const;
+  const field = { numberFormat: money };
+  const count: AnalysisMetric = { type: 'COUNT', alias: 'm' };
+  const distinct: AnalysisMetric = {
+    type: 'DISTINCT_COUNT',
+    alias: 'm',
+    expression: { type: 'FIELD', field: 'amount' },
+  };
+  const percentile: AnalysisMetric = {
+    type: 'PERCENTILE',
+    alias: 'm',
+    percentile: 95,
+    expression: { type: 'FIELD', field: 'amount' },
+  };
+  const any: AnalysisMetric = { type: 'ANY', alias: 'm', field: 'amount' };
+  const derived: AnalysisMetric = {
+    type: 'DERIVED',
+    alias: 'm',
+    expression: { type: 'METRIC_REF', metric: 'orders' },
+  };
+  const numeric = (fn: AnalysisFunction): AnalysisMetric => ({
+    type: 'NUMERIC',
+    alias: 'm',
+    function: fn,
+    expression: { type: 'FIELD', field: 'amount' },
+  });
+  const TWO = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+
+  it('counts records as whole numbers, in no currency at all', () => {
+    expect(metricFormat(count, field)).toEqual({ maximumFractionDigits: 0 });
+    expect(metricFormat(distinct, field)).toEqual({
+      maximumFractionDigits: 0,
+    });
+  });
+
+  it('gives a computed number two decimals, its currency kept', () => {
+    expect(metricFormat(numeric('AVG'), field)).toEqual({ ...money, ...TWO });
+    // An integer column's average is not an integer, whatever the column is.
+    expect(
+      metricFormat(numeric('AVG'), {
+        numberFormat: { maximumFractionDigits: 0 },
+      }),
+    ).toEqual(TWO);
+    for (const fn of ['STDDEV', 'VARIANCE'] as const)
+      expect(metricFormat(numeric(fn))).toEqual(TWO);
+  });
+
+  it('leaves a value of the field reading as the field does', () => {
+    for (const fn of ['SUM', 'MIN', 'MAX'] as const)
+      expect(metricFormat(numeric(fn), field)).toEqual(money);
+    expect(metricFormat(percentile, field)).toEqual(money);
+    expect(metricFormat(any, field)).toEqual(money);
+    expect(metricFormat(numeric('SUM'))).toBeUndefined();
+  });
+
+  it('gives a derived metric a plain number: it belongs to no field', () => {
+    expect(metricFormat(derived, field)).toEqual(TWO);
+  });
+
+  it('names which summary a metric is, for the header to say', () => {
+    expect(metricFunctionOf(count)).toBe('COUNT');
+    expect(metricFunctionOf(numeric('AVG'))).toBe('AVG');
+    expect(metricFunctionOf(percentile)).toBe('PERCENTILE');
   });
 });

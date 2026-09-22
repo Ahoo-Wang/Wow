@@ -26,6 +26,7 @@ import { useViewMessages } from '../MessagesProvider.js';
 import { asImage } from './asImage.js';
 import { labelOf, type FamilyProps } from './family.js';
 import { color, colorOf } from './palette.js';
+import { TooltipValue } from './TooltipValue.js';
 
 export function PieSlices({
   data,
@@ -64,7 +65,21 @@ export function PieSlices({
       className={cn('min-h-52 w-full', className)}
     >
       <PieChart {...asImage(name)}>
-        <ChartTooltip content={<ChartTooltipContent nameKey="key" />} />
+        <ChartTooltip
+          content={
+            <ChartTooltipContent
+              nameKey="key"
+              formatter={(value, key, item) => (
+                <TooltipValue
+                  color={item.payload?.color}
+                  name={config[String(key)]?.label ?? key}
+                  // A slice measures one metric, so it reads as that column.
+                  value={label(spec?.pie?.value, value)}
+                />
+              )}
+            />
+          }
+        />
         <Pie
           data={rows}
           dataKey="value"

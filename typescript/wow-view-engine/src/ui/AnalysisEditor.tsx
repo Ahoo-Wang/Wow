@@ -340,9 +340,10 @@ function GroupRow({
 }) {
   const messages = useViewMessages();
   const field = analysis.fields.find(entry => entry.field === group.field);
-  // What a definition declares it can group by. The catalogue names every
-  // member of the enum; the derived spelling stays as the fallback because
-  // this list comes from a host's capability data rather than from here.
+  // What a definition declares this dimension can cut by. The catalogue names
+  // every member of the enum; the derived spelling stays as the fallback
+  // because this list comes from a host's capability data rather than from
+  // here.
   const types = (field?.groups ?? []).map(type => ({
     label: messages.label(
       `label.group.type.${type}`,
@@ -351,12 +352,13 @@ function GroupRow({
     ),
     value: type,
   }));
+  // The field's display name, which is what every control in this row is
+  // named after — an alias names the query and nobody chose it.
+  const name = field?.label ?? group.field;
 
   return (
     <Field orientation="horizontal" className="items-center">
-      <FieldLabel className="min-w-28">
-        {field?.label ?? group.field}
-      </FieldLabel>
+      <FieldLabel className="min-w-28">{name}</FieldLabel>
       <Select
         items={types}
         value={group.type}
@@ -367,9 +369,7 @@ function GroupRow({
         }}
       >
         <SelectTrigger
-          aria-label={messages.label('label.analysis.grouping-of', {
-            alias: group.alias,
-          })}
+          aria-label={messages.label('label.analysis.grouping-of', { name })}
           size="sm"
         >
           <SelectValue />
@@ -385,9 +385,7 @@ function GroupRow({
         </SelectContent>
       </Select>
       <IconButton
-        label={messages.label('label.analysis.remove-group', {
-          alias: group.alias,
-        })}
+        label={messages.label('label.analysis.remove-group', { name })}
         variant="ghost"
         size="icon-sm"
         disabled={disabled}
@@ -413,22 +411,24 @@ function MetricRow({
   const messages = useViewMessages();
   const field = fieldOfMetric(metric);
   const option = analysis.fields.find(entry => entry.field === field);
-  const functions = (option?.functions ?? []).map(name => ({
+  // The summary functions are one set with the record view's, so a metric and
+  // a column summary say the same word for the same computation (D20).
+  const functions = (option?.functions ?? []).map(fn => ({
     label: messages.label(
-      `label.metric.function.${name}`,
+      `label.summary.fn.${fn}`,
       undefined,
-      name.toLowerCase(),
+      fn.toLowerCase(),
     ),
-    value: name,
+    value: fn,
   }));
+  const name =
+    metric.type === 'COUNT'
+      ? messages.label('label.analysis.row-count')
+      : (option?.label ?? field);
 
   return (
     <Field orientation="horizontal" className="items-center">
-      <FieldLabel className="min-w-28">
-        {metric.type === 'COUNT'
-          ? messages.label('label.analysis.row-count')
-          : (option?.label ?? field)}
-      </FieldLabel>
+      <FieldLabel className="min-w-28">{name}</FieldLabel>
       {metric.type === 'NUMERIC' && functions.length > 0 && (
         <Select
           items={functions}
@@ -442,18 +442,16 @@ function MetricRow({
           }}
         >
           <SelectTrigger
-            aria-label={messages.label('label.analysis.function-of', {
-              alias: metric.alias,
-            })}
+            aria-label={messages.label('label.analysis.function-of', { name })}
             size="sm"
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
-              {functions.map(name => (
-                <SelectItem key={name.value} value={name.value}>
-                  {name.label}
+              {functions.map(fn => (
+                <SelectItem key={fn.value} value={fn.value}>
+                  {fn.label}
                 </SelectItem>
               ))}
             </SelectGroup>
@@ -461,9 +459,7 @@ function MetricRow({
         </Select>
       )}
       <IconButton
-        label={messages.label('label.analysis.remove-metric', {
-          alias: metric.alias,
-        })}
+        label={messages.label('label.analysis.remove-metric', { name })}
         variant="ghost"
         size="icon-sm"
         disabled={disabled || analysis.metrics.length <= 1}

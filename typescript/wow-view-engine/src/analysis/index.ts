@@ -18,8 +18,10 @@
  */
 export * from './capability.js';
 export * from './chart.js';
+export * from './chartSlots.js';
 export * from './compile.js';
 export * from './defaults.js';
+export * from './metricFormat.js';
 export * from './project.js';
 export * from './validate.js';
 export * from './validateChart.js';

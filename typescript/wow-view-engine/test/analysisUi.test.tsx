@@ -29,9 +29,11 @@ import {
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  CHART_TYPES,
   MemoryViewStore,
   ViewEngine,
   defaultRuntimeEnvironment,
+  type DataViewDefinition,
   type ViewInstance,
   type ViewSource,
 } from '../src/index.js';
@@ -61,10 +63,13 @@ const analysisView: ViewInstance = {
   config: analysisConfig(),
 };
 
-function setup(source: ViewSource = testSource()) {
+function setup(
+  source: ViewSource = testSource(),
+  definition: DataViewDefinition = ordersDefinition(),
+) {
   const store = tracked(new MemoryViewStore({ instances: [analysisView] }));
   const engine = new ViewEngine({
-    definitions: [ordersDefinition()],
+    definitions: [definition],
     store,
     resolveSource: () => source,
   });
@@ -72,8 +77,8 @@ function setup(source: ViewSource = testSource()) {
 }
 
 describe('useAnalysisEditor', () => {
-  async function editor() {
-    const { engine } = setup();
+  async function editor(definition?: DataViewDefinition) {
+    const { engine } = setup(testSource(), definition);
     const { result } = renderHook(() => {
       const opened = useOpenView(engine, 'orders-1');
       return { opened, analysis: useAnalysisEditor(opened.runtime) };
@@ -153,7 +158,12 @@ describe('useAnalysisEditor', () => {
     expect(result.current.analysis.metrics).toHaveLength(1);
   });
 
-  it('records limit, layout, totals and the chart family', async () => {
+  /**
+   * The whole spec, not just its `type`: a switch that changed the one word
+   * and left the family absent reported `chart.family.missing` and drew
+   * nothing, which is the first thing anybody who opened this editor hit.
+   */
+  it('records limit, layout, totals and the chart the type needs', async () => {
     const result = await editor();
 
     act(() => {
@@ -166,11 +176,70 @@ describe('useAnalysisEditor', () => {
     expect(result.current.analysis.limit).toBe(50);
     expect(result.current.analysis.layout).toBe('chart');
     expect(result.current.analysis.totals).toBe(true);
-    expect(result.current.analysis.chart.type).toBe('pie');
+    expect(result.current.analysis.chart).toEqual({
+      type: 'pie',
+      pie: { category: 'warehouse', value: 'orders' },
+      cartesian: { x: 'warehouse', series: [{ metric: 'orders' }] },
+    });
+    expect(result.current.analysis.issues).toEqual([]);
     expect(result.current.analysis.aliases).toEqual({
       groups: ['warehouse'],
       metrics: ['orders'],
     });
+  });
+
+  /** Every type the editor offers, switched into from the same draft. */
+  it('leaves no chart type the editor offers without its family', async () => {
+    const result = await editor();
+
+    for (const type of CHART_TYPES) {
+      act(() => result.current.analysis.setChartType(type));
+      expect(
+        result.current.analysis.issues.map(found => found.code),
+      ).not.toContain('chart.family.missing');
+    }
+  });
+
+  /**
+   * A dimension added or removed used to leave the chart naming aliases that
+   * were gone — `chart.group.unconsumed`, then `chart.group.unknown` — and
+   * the sort naming one too. The one edit carries everything that points at
+   * a dimension or a metric.
+   */
+  it('re-fits the chart and the sort when the shape changes', async () => {
+    // A definition with a second groupable field, so a dimension can be
+    // added at all.
+    const result = await editor(namedOrdersDefinition());
+    const analysis = () => result.current.analysis;
+
+    act(() =>
+      analysis().addGroup({
+        type: 'DATE_HISTOGRAM',
+        field: 'createdAt',
+        alias: 'month',
+        unit: 'MONTH',
+      }),
+    );
+    // Two dimensions: the second is the split, and a pivot draws one metric.
+    expect(analysis().chart.cartesian).toEqual({
+      x: 'warehouse',
+      splitBy: 'month',
+      series: [{ metric: 'orders' }],
+    });
+    expect(analysis().issues).toEqual([]);
+
+    act(() => analysis().removeGroup(1));
+    expect(analysis().chart.cartesian).toEqual({
+      x: 'warehouse',
+      series: [{ metric: 'orders' }],
+    });
+    expect(analysis().issues).toEqual([]);
+
+    // The last dimension leaving takes the ordering with it: Wow refuses a
+    // sort over an ungrouped aggregation, which answers one row anyway.
+    act(() => analysis().removeGroup(0));
+    expect(analysis().sort).toEqual([]);
+    expect(analysis().issues).toEqual([]);
   });
 
   /**
@@ -330,35 +399,38 @@ describe('AnalysisEditor defaults', () => {
   it('starts each group at the shape its capability allows', async () => {
     await open();
 
-    await add(/Add group/, 'Created');
+    await add(/Add dimension/, 'Created');
     expect(
-      (await screen.findByLabelText('createdAt_1 grouping')).textContent,
-    ).toContain('date histogram');
+      (await screen.findByLabelText('Dimension settings for Created'))
+        .textContent,
+    ).toContain('By time unit');
 
-    await add(/Add group/, 'Amount');
+    await add(/Add dimension/, 'Amount');
     expect(
-      (await screen.findByLabelText('amount_1 grouping')).textContent,
-    ).toContain('histogram');
+      (await screen.findByLabelText('Dimension settings for Amount'))
+        .textContent,
+    ).toContain('By number range');
   });
 
   /**
    * The editor used to label these three controls with the identifier itself
    * — `bar`, `terms`, `sum` — so a host that handed over `zhCN` still got an
    * English analysis editor. They read the catalogue now, which is the only
-   * place a translation can come from.
+   * place a translation can come from. The names are the field's display
+   * name, never its alias (D20): `amount_1` names the query.
    */
-  it('translates the chart type, the grouping and the function with zhCN', async () => {
+  it('translates the chart type, the dimension and the summary with zhCN', async () => {
     await open(zhCN);
 
-    expect(screen.getByLabelText('图表类型').textContent).toContain('柱状图');
-    expect(screen.getByLabelText('warehouse 分组方式').textContent).toContain(
-      '按值分组',
+    expect(screen.getByLabelText('图型').textContent).toContain('柱状图');
+    expect(screen.getByLabelText('Warehouse 的维度设置').textContent).toContain(
+      '按值',
     );
 
     await add(/添加指标/, 'Amount');
     expect(
-      (await screen.findByLabelText('amount_1 函数')).textContent,
-    ).toContain('求和');
+      (await screen.findByLabelText('Amount 的汇总方式')).textContent,
+    ).toContain('合计');
   });
 
   it('picks the metric shape each field can support', async () => {
@@ -367,55 +439,58 @@ describe('AnalysisEditor defaults', () => {
     // A field with functions gets a NUMERIC metric, which is the only shape
     // that offers a function to choose.
     await add(/Add metric/, 'Amount');
-    expect(await screen.findByLabelText('amount_1 function')).toBeDefined();
+    expect(await screen.findByLabelText('Summary for Amount')).toBeDefined();
 
     await add(/Add metric/, 'Customer');
-    await screen.findByRole('button', { name: 'Remove metric customer_1' });
-    expect(screen.queryByLabelText('customer_1 function')).toBeNull();
+    await screen.findByRole('button', { name: 'Remove metric Customer' });
+    expect(screen.queryByLabelText('Summary for Customer')).toBeNull();
 
     await add(/Add metric/, 'Note');
-    await screen.findByRole('button', { name: 'Remove metric note_1' });
-    expect(screen.queryByLabelText('note_1 function')).toBeNull();
+    await screen.findByRole('button', { name: 'Remove metric Note' });
+    expect(screen.queryByLabelText('Summary for Note')).toBeNull();
   });
 
-  it('adds the row count when the definition allows counting', async () => {
+  it('adds the record count when the definition allows counting', async () => {
     await open();
 
-    await add(/Add metric/, 'Row count');
+    await add(/Add metric/, 'Record count');
 
+    // Named by what it counts, not by the alias the query carries.
     expect(
-      await screen.findByRole('button', { name: 'Remove metric count_1' }),
-    ).toBeDefined();
+      await screen.findAllByRole('button', {
+        name: 'Remove metric Record count',
+      }),
+    ).toHaveLength(2);
   });
 
-  it('changes a metric function and removes rows again', async () => {
+  it('changes a metric summary and removes rows again', async () => {
     const user = userEvent.setup();
     await open();
 
     await add(/Add metric/, 'Amount');
-    await user.click(await screen.findByLabelText('amount_1 function'));
-    await user.click(await screen.findByRole('option', { name: 'avg' }));
+    await user.click(await screen.findByLabelText('Summary for Amount'));
+    await user.click(await screen.findByRole('option', { name: 'Average' }));
     await waitFor(() =>
-      expect(screen.getByLabelText('amount_1 function').textContent).toContain(
-        'avg',
+      expect(screen.getByLabelText('Summary for Amount').textContent).toContain(
+        'Average',
       ),
     );
 
     fireEvent.click(
-      screen.getByRole('button', { name: 'Remove metric amount_1' }),
+      screen.getByRole('button', { name: 'Remove metric Amount' }),
     );
     await waitFor(() =>
       expect(
-        screen.queryByRole('button', { name: 'Remove metric amount_1' }),
+        screen.queryByRole('button', { name: 'Remove metric Amount' }),
       ).toBeNull(),
     );
 
     fireEvent.click(
-      screen.getByRole('button', { name: 'Remove group warehouse' }),
+      screen.getByRole('button', { name: 'Remove dimension Warehouse' }),
     );
     await waitFor(() =>
       expect(
-        screen.queryByRole('button', { name: 'Remove group warehouse' }),
+        screen.queryByRole('button', { name: 'Remove dimension Warehouse' }),
       ).toBeNull(),
     );
   });
@@ -424,32 +499,30 @@ describe('AnalysisEditor defaults', () => {
    * Numbering by the row count reused a name the moment a row was removed:
    * two metrics called `amount_2`, which React saw as one key and validation
    * reported as a duplicate alias.
+   *
+   * The alias is no longer on screen — a control is named by the field's
+   * display name (D20) — so the collision is asked for where it would land:
+   * two metrics of one field are two rows, and running them reports nothing
+   * about a name used twice.
    */
   it('names a new row by the first free alias, not by the row count', async () => {
     await open();
+    const removals = () =>
+      screen.queryAllByRole('button', { name: 'Remove metric Amount' });
 
     await add(/Add metric/, 'Amount');
-    await screen.findByRole('button', { name: 'Remove metric amount_1' });
     await add(/Add metric/, 'Amount');
-    await screen.findByRole('button', { name: 'Remove metric amount_2' });
+    await waitFor(() => expect(removals()).toHaveLength(2));
 
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Remove metric amount_1' }),
-    );
-    await waitFor(() =>
-      expect(
-        screen.queryByRole('button', { name: 'Remove metric amount_1' }),
-      ).toBeNull(),
-    );
+    fireEvent.click(removals()[0]);
+    await waitFor(() => expect(removals()).toHaveLength(1));
 
-    // The freed name comes back; the kept row keeps its own.
+    // The freed name comes back rather than colliding with the kept row's.
     await add(/Add metric/, 'Amount');
-    expect(
-      await screen.findByRole('button', { name: 'Remove metric amount_1' }),
-    ).toBeDefined();
-    expect(
-      screen.getAllByRole('button', { name: 'Remove metric amount_2' }),
-    ).toHaveLength(1);
+    await waitFor(() => expect(removals()).toHaveLength(2));
+
+    fireEvent.click(screen.getByRole('button', { name: /Run/ }));
+    await waitFor(() => expect(screen.queryByText(/is used twice/)).toBeNull());
   });
 
   it('refuses to remove the only metric', async () => {
@@ -458,7 +531,7 @@ describe('AnalysisEditor defaults', () => {
     expect(
       (
         screen.getByRole('button', {
-          name: 'Remove metric orders',
+          name: 'Remove metric Record count',
         }) as HTMLButtonElement
       ).disabled,
     ).toBe(true);
@@ -482,11 +555,11 @@ describe('AnalysisEditor defaults', () => {
     );
     await waitFor(() => expect(screen.getByRole('table')).toBeDefined());
 
-    fireEvent.change(screen.getByLabelText('Row limit'), {
+    fireEvent.change(screen.getByLabelText('Top N groups'), {
       target: { value: '25' },
     });
     // Named by the word beside it rather than by an `aria-label` of its own.
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Totals' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Totals row' }));
     fireEvent.click(screen.getByRole('button', { name: /Run/ }));
 
     await waitFor(() => {
@@ -512,6 +585,86 @@ describe('DataWorkbench', () => {
     await waitFor(() => expect(screen.getByRole('table')).toBeDefined());
     return harness;
   }
+
+  /**
+   * F12: a chart of no rows is a pair of empty axes, which reads as a drawing
+   * that failed. Both layouts answer the same question, so an aggregation
+   * that matched no group says the same one sentence either way — and the
+   * sentence is about the range, not about the analysis.
+   */
+  it('says that no group matched, chart layout included', async () => {
+    const store = tracked(new MemoryViewStore({ instances: [analysisView] }));
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store,
+      resolveSource: () => testSource({ aggregate: vi.fn(async () => []) }),
+    });
+    render(
+      <DataWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+        kinds={['analysis']}
+      />,
+    );
+
+    expect(
+      await screen.findByText(defaultMessages['label.analysis.empty']),
+    ).toBeDefined();
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  /**
+   * F13: the layout and the chart spec are one reading of one config — the
+   * one that produced the result on screen. Taken from the draft, a layout
+   * switched before its query answered asked for a chart of a result shaped
+   * as a table, and there was nothing to draw.
+   */
+  it('draws the layout the result was shaped by, not the draft', async () => {
+    const pending = deferred<Record<string, unknown>[]>();
+    let call = 0;
+    const source = testSource({
+      aggregate: vi.fn(
+        () =>
+          (call++ === 0
+            ? Promise.resolve([{ warehouse: 'CN', orders: 2 }])
+            : pending.promise) as Promise<Record<string, unknown>[]>,
+      ),
+    });
+    const store = tracked(new MemoryViewStore({ instances: [analysisView] }));
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store,
+      resolveSource: () => source,
+    });
+    render(
+      <DataWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+        kinds={['analysis']}
+      />,
+    );
+    await waitFor(() => expect(screen.getByRole('table')).toBeDefined());
+
+    // The switch applies at once, so the draft says `chart` while the result
+    // on screen is still the table's.
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: defaultMessages['label.layout.chart'],
+      }),
+    );
+    await waitFor(() => expect(source.aggregate).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole('table')).toBeDefined();
+
+    await act(async () => {
+      pending.resolve([{ warehouse: 'CN', orders: 2 }]);
+      await pending.promise;
+    });
+    await waitFor(() =>
+      expect(document.querySelector('[data-slot="chart"]')).not.toBeNull(),
+    );
+  });
 
   /**
    * The analysis editor is the condition panel *and* the aggregation
@@ -774,7 +927,7 @@ describe('DataWorkbench', () => {
   it('holds the timer while the editor has focus', async () => {
     const { engine } = await open();
     const runtime = engine.openRuntimes()[0];
-    const limit = screen.getByLabelText('Row limit');
+    const limit = screen.getByLabelText('Top N groups');
     const run = screen.getByRole('button', { name: /Run/ });
 
     fireEvent.focus(limit, { relatedTarget: null });
@@ -801,7 +954,7 @@ describe('DataWorkbench', () => {
       />,
     );
     const limit = (await screen.findByLabelText(
-      'Row limit',
+      'Top N groups',
     )) as HTMLInputElement;
 
     // The result is still coming; the inputs are not frozen for it.
@@ -821,7 +974,9 @@ describe('DataWorkbench', () => {
     const { source } = await open();
 
     fireEvent.click(screen.getByRole('button', { name: /Add metric/ }));
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Row count' }));
+    fireEvent.click(
+      await screen.findByRole('menuitem', { name: 'Record count' }),
+    );
     fireEvent.click(screen.getByRole('button', { name: /Run/ }));
 
     await waitFor(() => {

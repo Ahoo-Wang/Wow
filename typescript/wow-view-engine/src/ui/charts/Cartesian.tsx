@@ -40,12 +40,14 @@ import { asImage } from './asImage.js';
 import { axisId, domainOf, tickFormatterOf } from './axis.js';
 import type { FamilyProps } from './family.js';
 import { colorOf } from './palette.js';
+import { TooltipValue } from './TooltipValue.js';
 
 export function Cartesian({
   data,
   spec,
   className,
   label,
+  column,
   name,
 }: FamilyProps<CartesianData>) {
   // A pivot names its series by raw group values, and the style element
@@ -78,11 +80,13 @@ export function Cartesian({
         data.series.map((series, index) => [
           safeKeys.get(series.key) ?? series.key,
           {
-            // A pivoted series shows its split value as that field shows it;
-            // an unpivoted one is its metric alias.
+            // A pivoted series shows its split value as that field shows
+            // it; an unpivoted one is its column's title — 「金额 的 合计」,
+            // never the alias `amount`, which names the query. The legend and
+            // the tooltip both read this label.
             label:
               series.value === undefined
-                ? series.label
+                ? (column(series.metric) ?? series.label)
                 : label(spec?.cartesian?.splitBy, series.value),
             // The spec names a pivoted series by its split value as the
             // kernel labels it and an unpivoted one by its metric alias; it
@@ -91,7 +95,7 @@ export function Cartesian({
           },
         ]),
       ),
-    [data, safeKeys, label, spec],
+    [data, safeKeys, label, column, spec],
   );
 
   const horizontal = spec?.cartesian?.orientation === 'horizontal';
@@ -113,6 +117,23 @@ export function Cartesian({
    */
   const onNumericAxis = (axis: 'left' | 'right' | undefined) =>
     horizontal ? { xAxisId: axisId(axis) } : { yAxisId: axisId(axis) };
+  /**
+   * The ticks of a numeric axis read as the metric on it reads: the axis
+   * carries one column's numbers, so a money series puts ¥1,234.00 on the
+   * ticks and in the tooltip, exactly as the table does. An `AxisSpec.format`
+   * still wins, because it is an instruction about this axis.
+   */
+  const metricOn = (side: 'left' | 'right') =>
+    data.series.find(
+      series => axisId(bySeries.get(series.metric)?.axis) === side,
+    )?.metric;
+  const ticksOf = (axis: typeof left, side: 'left' | 'right') =>
+    tickFormatterOf(axis) ?? ((value: number) => label(metricOn(side), value));
+  // A tooltip row names a series and shows one of its numbers, so the number
+  // is read through that series' own metric.
+  const byKey = new Map(
+    data.series.map(series => [safeKeys.get(series.key) ?? series.key, series]),
+  );
   const Chart =
     data.chart === 'line'
       ? LineChart
@@ -139,7 +160,7 @@ export function Cartesian({
               type="number"
               xAxisId="left"
               domain={domainOf(left)}
-              tickFormatter={tickFormatterOf(left)}
+              tickFormatter={ticksOf(left, 'left')}
             />
             {hasRight && (
               <XAxis
@@ -147,7 +168,7 @@ export function Cartesian({
                 xAxisId="right"
                 orientation="top"
                 domain={domainOf(right)}
-                tickFormatter={tickFormatterOf(right)}
+                tickFormatter={ticksOf(right, 'right')}
               />
             )}
             <YAxis type="category" dataKey="x" width={96} />
@@ -160,7 +181,7 @@ export function Cartesian({
               tickLine={false}
               axisLine={false}
               domain={domainOf(left)}
-              tickFormatter={tickFormatterOf(left)}
+              tickFormatter={ticksOf(left, 'left')}
             />
             {hasRight && (
               <YAxis
@@ -169,12 +190,24 @@ export function Cartesian({
                 tickLine={false}
                 axisLine={false}
                 domain={domainOf(right)}
-                tickFormatter={tickFormatterOf(right)}
+                tickFormatter={ticksOf(right, 'right')}
               />
             )}
           </>
         )}
-        <ChartTooltip content={<ChartTooltipContent />} />
+        <ChartTooltip
+          content={
+            <ChartTooltipContent
+              formatter={(value, name, item) => (
+                <TooltipValue
+                  color={item.payload?.fill ?? item.color}
+                  name={config[String(name)]?.label ?? name}
+                  value={label(byKey.get(String(name))?.metric, value)}
+                />
+              )}
+            />
+          }
+        />
         {data.series.length > 1 && (
           <ChartLegend content={<ChartLegendContent />} />
         )}

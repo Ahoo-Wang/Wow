@@ -55,7 +55,12 @@ export function Heatmap({
                 title={messages.label('label.chart.cell', {
                   y: label(spec?.heatmap?.y, y),
                   x: label(spec?.heatmap?.x, x),
-                  value: cell ?? messages.label('label.summary.unavailable'),
+                  // The cell measures one metric, so it reads as that
+                  // column reads — the table and the grid agree.
+                  value:
+                    cell === null
+                      ? messages.label('label.summary.unavailable')
+                      : label(spec?.heatmap?.value, cell),
                 })}
                 className="bg-primary size-8 shrink-0 rounded-sm"
                 style={{

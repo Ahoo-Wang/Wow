@@ -11,17 +11,11 @@
  * limitations under the License.
  */
 
-import { SigmaIcon } from 'lucide-react';
-import { displayValue, valueText } from './display.js';
+import { columnTitle, displayValue, valueText } from './display.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 import type { AnalysisView } from '../analysis/index.js';
-import {
-  Empty,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from './components/empty.js';
+import { AnalysisEmpty } from './analysis/EmptyResult.js';
 import {
   Table,
   TableBody,
@@ -47,19 +41,8 @@ export function AnalysisTable({ view }: AnalysisTableProps) {
   // anything the field's kind has nothing to say about, as before.
   const show = (value: unknown, column: AnalysisView['columns'][number]) =>
     displayValue(value, column, display) ??
-    valueText(value, messages, column.numberFormat);
-  if (view.rows.length === 0) {
-    return (
-      <Empty>
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <SigmaIcon />
-          </EmptyMedia>
-          <EmptyTitle>{messages.label('label.analysis.empty')}</EmptyTitle>
-        </EmptyHeader>
-      </Empty>
-    );
-  }
+    valueText(value, messages, column.numberFormat, display.locale);
+  if (view.rows.length === 0) return <AnalysisEmpty />;
 
   return (
     // No scrollport of its own: the vendored `Table` already renders one
@@ -80,7 +63,7 @@ export function AnalysisTable({ view }: AnalysisTableProps) {
                 key={column.alias}
                 style={column.width ? { width: column.width } : undefined}
               >
-                {column.label}
+                {columnTitle(column, messages)}
               </TableHead>
             ))}
           </TableRow>

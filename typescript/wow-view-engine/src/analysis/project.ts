@@ -24,13 +24,34 @@ import type {
 } from '../model/index.js';
 import { analysisScope } from './capability.js';
 import { shapeChart, type ChartData } from './chart.js';
+import {
+  metricFormat,
+  metricFunctionOf,
+  type MetricFunction,
+} from './metricFormat.js';
 
 /** A column of the result table; groups come first, then metrics. */
 export interface AnalysisColumnView {
   alias: string;
+  /**
+   * The field this column is computed from, as the definition names it. For a
+   * metric it is half a header: the other half is `fn`, and only a catalogue
+   * can put the two in the reader's own order.
+   */
   label: string;
   role: 'group' | 'metric';
+  /**
+   * For a metric: which summary it is, so a header can read 「金额 的 平均」
+   * rather than the alias `amount_1`. Two metrics over one field differ here
+   * and nowhere else, which is exactly why the header cannot be the label.
+   */
+  fn?: MetricFunction;
   width?: number;
+  /**
+   * How this column's numbers print. A group shows values of its field, so it
+   * takes the field's own format; a metric takes `metricFormat`, because what
+   * an aggregate is decides how it reads, not what it was computed from.
+   */
   numberFormat?: NumberFormat;
   /**
    * For a group, or an `ANY` whose value is one of the field's: the field's
@@ -79,8 +100,13 @@ export interface AnalysisView {
   chart?: ChartData;
 }
 
-/** Result columns, which are also the schema a returned row must satisfy. */
-export function resultSchema(config: AnalysisViewConfig): string[] {
+/**
+ * Every alias the result holds, groups first. It is the default column order
+ * and the source of `AnalysisView.schema`, and nothing else: it was once
+ * exported as "what a returned row is validated against", which nothing has
+ * ever done — rows come back from Wow and are projected, never checked.
+ */
+function resultSchema(config: AnalysisViewConfig): string[] {
   return [
     ...config.groups.map(group => group.alias),
     ...config.metrics.map(metric => metric.alias),
@@ -153,6 +179,9 @@ export function projectAnalysis(
       ? config.table.columns.map(column => column.alias)
       : resultSchema(config);
 
+  const byAlias = new Map<string, AnalysisMetric>(
+    config.metrics.map(metric => [metric.alias, metric]),
+  );
   const roles = new Map<string, 'group' | 'metric'>([
     ...config.groups.map(
       group => [group.alias, 'group'] as [string, 'group' | 'metric'],
@@ -190,17 +219,17 @@ export function projectAnalysis(
     const source = sourceField.get(alias);
     const field = source === undefined ? undefined : byName.get(source);
     const declaredColumn = declared.get(alias);
+    const metric = byAlias.get(alias);
     return [
       {
         alias,
         label: field?.label ?? source ?? alias,
         role,
-        // The width, and not the pinning beside it: the analysis table
-        // draws a declared width and freezes nothing (D19), so carrying a
-        // `pinned` nobody reads would be a projected member that promises
-        // a layout no renderer performs.
+        ...(metric ? { fn: metricFunctionOf(metric) } : {}),
         width: declaredColumn?.width,
-        numberFormat: field?.numberFormat,
+        numberFormat: metric
+          ? metricFormat(metric, field)
+          : field?.numberFormat,
         ...(field && valued.has(alias) ? valueOf(field) : {}),
         ...bucketOf(groups.get(alias)),
       },
