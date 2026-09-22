@@ -943,6 +943,10 @@ export const zhCN: ViewMessages = {
   'definition.field.cell-invalid': '{field} 声明了未知的单元格读法：{value}。',
   'definition.field.editor-removed':
     '{field} 声明了 editor，这个成员已经没有了，删掉即可。',
+  'definition.field.temporal-invalid':
+    '{field} 声明的时间存储方式引擎写不出来：{value}。',
+  'definition.field.temporal-misplaced':
+    '{field} 声明了时间存储方式，但它的类型 {kind} 不写时间。',
   'definition.field.tone-invalid': '{field} 声明了未知的选项语气：{value}。',
   'definition.field.duplicate': '字段 {field} 声明了两次。',
   'definition.fieldGroup.duplicate': '分组 {group} 声明了两次。',

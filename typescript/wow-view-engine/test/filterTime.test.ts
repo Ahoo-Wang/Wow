@@ -504,7 +504,13 @@ describe('absolute dates and their zone', () => {
  */
 describe('a calendar day as a bound', () => {
   const dayFields: FieldDefinition[] = [
-    { name: 'orderedOn', label: 'Ordered', kind: 'date' },
+    // ISO text, so each bound reads as the instant it is.
+    {
+      name: 'orderedOn',
+      label: 'Ordered',
+      kind: 'date',
+      temporal: { type: 'date' },
+    },
   ];
   const shanghai = { ...context, timeZone: 'Asia/Shanghai' };
   const compileDay = (

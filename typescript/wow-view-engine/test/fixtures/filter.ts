@@ -33,7 +33,14 @@ export const filterFields: FieldDefinition[] = [
       { value: 'SHIPPED', label: 'Shipped' },
     ],
   },
-  { name: 'createdAt', label: 'Created', kind: 'datetime' },
+  // Kept as ISO 8601 text, so the calendar suites read their bounds as
+  // dates; the epoch default has suites of its own.
+  {
+    name: 'createdAt',
+    label: 'Created',
+    kind: 'datetime',
+    temporal: { type: 'date' },
+  },
   {
     name: 'customer',
     label: 'Customer',

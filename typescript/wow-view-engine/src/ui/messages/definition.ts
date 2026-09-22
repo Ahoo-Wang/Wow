@@ -40,6 +40,10 @@ export const definitionMessages = {
     '{field} declares an unknown cell renderer: {value}.',
   'definition.field.editor-removed':
     '{field} declares an editor, which no longer exists; delete the member.',
+  'definition.field.temporal-invalid':
+    '{field} declares a time storage the engine cannot write: {value}.',
+  'definition.field.temporal-misplaced':
+    '{field} declares a time storage, but its type {kind} writes no time.',
   'definition.field.tone-invalid':
     '{field} declares an unknown option tone: {value}.',
   'definition.field.duplicate': 'The field {field} is declared twice.',

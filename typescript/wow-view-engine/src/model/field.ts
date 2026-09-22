@@ -309,6 +309,71 @@ export function summaryFunctionsOf(
     : declared;
 }
 
+/**
+ * How a time field keeps its time, which is how a condition on it has to
+ * write one — Wow's own `QuerySemanticType` for time, named as Wow names it.
+ *
+ * - `epoch` is Wow's `TEMPORAL_EPOCH`: an integer count of `timeUnit` since
+ *   the epoch, milliseconds when unsaid. Every time a Wow snapshot carries —
+ *   `eventTime`, `firstEventTime`, an aggregate's `@QueryTemporal` longs — is
+ *   one, and Wow's schema validation refuses anything but an integer there.
+ * - `date` is Wow's `TEMPORAL_DATE`: the store's own date type, which a query
+ *   names in ISO 8601 text.
+ *
+ * Wow's third, `TEMPORAL_FORMATTED`, a string under a pattern, is not
+ * modelled: no definition has needed one, and a bound written under the
+ * wrong pattern would be compared as text and match the wrong rows quietly.
+ */
+export type FieldTemporal = EpochTemporal | DateTemporal;
+
+export interface EpochTemporal {
+  type: 'epoch';
+  /** Wow's `timeUnit`; milliseconds when unsaid, as Wow's own default is. */
+  timeUnit?: EpochTimeUnit;
+}
+
+export interface DateTemporal {
+  type: 'date';
+}
+
+/** The units of `TimeUnit` an epoch time is kept in, as Wow spells them. */
+export type EpochTimeUnit = 'MILLISECONDS' | 'SECONDS';
+
+export const EPOCH_TIME_UNITS: readonly EpochTimeUnit[] = [
+  'MILLISECONDS',
+  'SECONDS',
+];
+
+export const TEMPORAL_TYPES: readonly FieldTemporal['type'][] = [
+  'epoch',
+  'date',
+];
+
+/** The kinds whose conditions write a time, and so may declare `temporal`. */
+export const TEMPORAL_FIELD_KIND_IDS: readonly FieldKindId[] = [
+  'date',
+  'datetime',
+];
+
+/**
+ * What a time field that declares nothing is: epoch milliseconds.
+ *
+ * The default is the engine's audience rather than the fixtures' habit. A
+ * Wow snapshot keeps every time as epoch milliseconds, and a definition
+ * written from a Wow query schema should come out right without the author
+ * having to remember one more member on each of them; a store that keeps a
+ * native date is the case that says so.
+ */
+export const DEFAULT_TEMPORAL: Required<EpochTemporal> = {
+  type: 'epoch',
+  timeUnit: 'MILLISECONDS',
+};
+
+/** How this field keeps its time: its declaration, or the default. */
+export function temporalOf(field: FieldDefinition): FieldTemporal {
+  return field.temporal ?? DEFAULT_TEMPORAL;
+}
+
 /** Formatting shared by cells, summaries and chart axes. */
 export type NumberFormat = Intl.NumberFormatOptions & { locale?: string };
 
@@ -333,6 +398,13 @@ export interface FieldDefinition {
   summary?: SummaryFunction[];
   /** How the cell reads; defaults to the kind's own renderer. */
   cell?: FieldCellId;
+  /**
+   * For a `date` or `datetime` field, how the store keeps its time, and so
+   * how a condition's bounds are written: epoch milliseconds when unsaid
+   * (`DEFAULT_TEMPORAL`). Copy it from the field's `semanticType` in the Wow
+   * query schema.
+   */
+  temporal?: FieldTemporal;
   /**
    * For an array of objects, what each of its elements holds.
    *

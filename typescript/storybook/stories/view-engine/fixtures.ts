@@ -139,10 +139,13 @@ export const ordersDefinition: DataViewDefinition = {
     },
     // 一列时刻有最早与最晚，没有合计也没有平均——声明得出来的就只有这两个
     // 加计数，多声明一个也会被准入挡掉（`DATE_SUMMARY_FUNCTIONS`）。
+    // 这批订单的时间存成 ISO 8601 文本，所以声明出来：不声明的时间字段按
+    // Wow 快照的习惯当作纪元毫秒发送（`DEFAULT_TEMPORAL`）。
     {
       name: 'createdAt',
       label: '创建时间',
       kind: 'datetime',
+      temporal: { type: 'date' },
       sortable: true,
       summary: ['MIN', 'MAX'],
     },
@@ -833,8 +836,21 @@ export const waybillsDefinition: DataViewDefinition = {
     },
     { name: 'insured', label: '已保价', kind: 'boolean' },
     { name: 'signed', label: '已签单', kind: 'boolean' },
-    { name: 'shipDate', label: '发运日期', kind: 'date', sortable: true },
-    { name: 'createdAt', label: '创建时间', kind: 'datetime', sortable: true },
+    // 两个时间都存成 ISO 8601 文本，条件照此发送。
+    {
+      name: 'shipDate',
+      label: '发运日期',
+      kind: 'date',
+      temporal: { type: 'date' },
+      sortable: true,
+    },
+    {
+      name: 'createdAt',
+      label: '创建时间',
+      kind: 'datetime',
+      temporal: { type: 'date' },
+      sortable: true,
+    },
     { name: 'trackingUrl', label: '跟踪链接', kind: 'string', cell: 'link' },
     { name: 'note', label: '备注', kind: 'string', cell: 'text' },
   ],

@@ -463,15 +463,17 @@ describe('date kinds', () => {
   });
 
   it('compiles GTE and LTE from the resolved window', () => {
+    // A field that declares no `temporal` keeps epoch milliseconds, as a Wow
+    // snapshot does, so each bound is the integer the store compares with.
     const preset = leaf('GTE', { type: 'preset', preset: 'today' });
     expect(compile(dateTimeFieldKind, preset, def)).toMatchObject({
       op: FilterOperator.GTE,
-      value: '2026-09-16T00:00:00.000Z',
+      value: Date.parse('2026-09-16T00:00:00.000Z'),
     });
     const upper = leaf('LTE', { type: 'preset', preset: 'today' });
     expect(compile(dateTimeFieldKind, upper, def)).toMatchObject({
       op: FilterOperator.LTE,
-      value: '2026-09-16T23:59:59.999Z',
+      value: Date.parse('2026-09-16T23:59:59.999Z'),
     });
     const open = leaf('LTE', {
       type: 'absolute',
@@ -479,7 +481,7 @@ describe('date kinds', () => {
     });
     expect(compile(dateTimeFieldKind, open, def)).toMatchObject({
       op: FilterOperator.LTE,
-      value: '2026-01-01T00:00:00.000Z',
+      value: Date.parse('2026-01-01T00:00:00.000Z'),
     });
   });
 
@@ -488,8 +490,8 @@ describe('date kinds', () => {
     // anyone typed: both operators compare against the instant 7 days away.
     const last = { type: 'relative', amount: 7, unit: 'day' };
     const next = { ...last, direction: 'future' };
-    const weekAgo = '2026-09-09T10:30:00.000Z';
-    const weekAhead = '2026-09-23T10:30:00.000Z';
+    const weekAgo = Date.parse('2026-09-09T10:30:00.000Z');
+    const weekAhead = Date.parse('2026-09-23T10:30:00.000Z');
 
     expect(compile(dateTimeFieldKind, leaf('GTE', last), def)).toMatchObject({
       op: FilterOperator.GTE,

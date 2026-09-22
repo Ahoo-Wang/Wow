@@ -12,7 +12,12 @@
  */
 
 import { filter, type FilterExpression } from '@ahoo-wang/fetcher-wow';
-import type { FieldKindId, FilterOperatorName } from '../../model/index.js';
+import {
+  temporalOf,
+  type FieldKindId,
+  type FieldTemporal,
+  type FilterOperatorName,
+} from '../../model/index.js';
 import type { FilterSummaryValue } from '../describe.js';
 import { issue, readValue, type FieldKind } from '../fieldKind.js';
 import {
@@ -105,6 +110,30 @@ function millisOf(value: unknown): number | undefined {
           ? new Date(EPOCH.test(value) ? Number(value) : value)
           : undefined;
   return date && !Number.isNaN(date.getTime()) ? date.getTime() : undefined;
+}
+
+/**
+ * A resolved bound as the field keeps its time (`FieldDefinition.temporal`).
+ *
+ * The window arithmetic answers in ISO 8601 whatever the field is, because a
+ * zone, a day's end and a preset are calendar questions; only the last step
+ * is the store's. Sent as text to an epoch field, every bound was refused by
+ * Wow's schema validation — the compensation service answered each date
+ * condition with `Filter value does not match [eventTime]` — so an epoch
+ * field is sent the integer it compares against. Text that names no instant
+ * is passed on as it came: the validator has already refused it, and the
+ * compiler stays total.
+ */
+function storedInstant(
+  instant: string,
+  temporal: FieldTemporal,
+): string | number {
+  if (temporal.type === 'date') return instant;
+  const ms = Date.parse(instant);
+  if (Number.isNaN(ms)) return instant;
+  // An inclusive upper bound is the range's last millisecond; its second is
+  // still inside the range, so flooring is right on both edges.
+  return temporal.timeUnit === 'SECONDS' ? Math.floor(ms / 1000) : ms;
 }
 
 /** The window a value names, as a phrase and as parts: for `BETWEEN`. */
@@ -259,6 +288,8 @@ function createDateKind(id: FieldKindId, withTime: boolean): FieldKind {
       if (presence) return presence;
 
       const value = readValue<DateTimeFilterValue>(leaf.value);
+      const temporal = temporalOf(field);
+      const stored = (instant: string) => storedInstant(instant, temporal);
       // A condition's own zone is applied inside; what arrives here is the
       // runtime's, used for everything relative to the evaluation moment.
       // A single bound is asked for by edge, so "on or before the 31st"
@@ -266,17 +297,17 @@ function createDateKind(id: FieldKindId, withTime: boolean): FieldKind {
       if (leaf.operator === 'GTE')
         return filter.gte(
           field.name,
-          resolveDateTimeBound(value, now, timeZone, 'start'),
+          stored(resolveDateTimeBound(value, now, timeZone, 'start')),
         );
       if (leaf.operator === 'LTE')
         return filter.lte(
           field.name,
-          resolveDateTimeBound(value, now, timeZone, 'end'),
+          stored(resolveDateTimeBound(value, now, timeZone, 'end')),
         );
       const range = resolveDateTimeRange(value, now, timeZone);
       return range.to === undefined
-        ? filter.gte(field.name, range.from)
-        : filter.between(field.name, range.from, range.to);
+        ? filter.gte(field.name, stored(range.from))
+        : filter.between(field.name, stored(range.from), stored(range.to));
     },
 
     editor(operator, _field, value) {

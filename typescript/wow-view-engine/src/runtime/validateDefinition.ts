@@ -14,6 +14,7 @@
 import { AGGREGATION_LIMITS } from '@ahoo-wang/fetcher-wow';
 import {
   DEFAULT_RUNTIME_LIMITS,
+  EPOCH_TIME_UNITS,
   FIELD_CELL_IDS,
   FIELD_TONES,
   SYSTEM_INSTANCE_ID_SEPARATOR,
@@ -21,6 +22,8 @@ import {
   isFieldName,
   SEARCH_MODES,
   STRING_COMPARISONS,
+  TEMPORAL_FIELD_KIND_IDS,
+  TEMPORAL_TYPES,
   type AnalysisCapability,
   type DataViewDefinition,
   type FieldDefinition,
@@ -204,6 +207,8 @@ function validateFields(
         }),
       );
 
+    issues.push(...validateTemporal(field, [...at, 'temporal']));
+
     // The renderers are a closed set `RecordTable` switches over, so a key
     // nothing switches on would not fail — it would quietly render the
     // default, and a column declared as a link would stay a string of
@@ -273,6 +278,43 @@ function validateFields(
   });
 
   return issues;
+}
+
+/**
+ * `temporal` decides what every bound of a date condition is sent as, so a
+ * declaration the compiler cannot read would not fail — it would send the
+ * default and be refused by the service on every query, or match nothing.
+ * On a field whose conditions write no time it is a declaration that does
+ * nothing, which is a mistake in code rather than a preference.
+ */
+function validateTemporal(field: FieldDefinition, at: IssuePath): Issue[] {
+  const temporal: unknown = field.temporal;
+  if (temporal === undefined) return [];
+  if (!TEMPORAL_FIELD_KIND_IDS.includes(field.kind))
+    return [
+      issue('definition.field.temporal-misplaced', at, {
+        field: field.name,
+        kind: field.kind,
+      }),
+    ];
+  // A definition is code, but a `temporal` may be built from a fetched schema,
+  // so its shape is read rather than trusted.
+  const declared: { type?: unknown; timeUnit?: unknown } | null =
+    typeof temporal === 'object' ? temporal : null;
+  const known =
+    declared !== null &&
+    TEMPORAL_TYPES.includes(declared.type as never) &&
+    (declared.type !== 'epoch' ||
+      declared.timeUnit === undefined ||
+      EPOCH_TIME_UNITS.includes(declared.timeUnit as never));
+  return known
+    ? []
+    : [
+        issue('definition.field.temporal-invalid', at, {
+          field: field.name,
+          value: JSON.stringify(temporal),
+        }),
+      ];
 }
 
 function validateRecordCapability(definition: DataViewDefinition): Issue[] {

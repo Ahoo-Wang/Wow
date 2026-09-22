@@ -45,6 +45,7 @@ export interface FieldDefinition {
   searchMode?: 'TERMS' | 'PHRASE'; // 按词还是按短语，缺省 TERMS
   summary?: SummaryFunction[]; // 允许的汇总函数；一列时刻（kind 或 cell 为 date／datetime）只认 MIN／MAX／COUNT，声明 SUM／AVG 会被准入按 record.summary.unsupported 拒绝（`summaryFunctionsOf`）
   cell?: FieldCellId; // 这一列怎么读，缺省按 kind；闭合取值，准入拒绝未知值
+  temporal?: FieldTemporal; // date／datetime 字段的时间怎样存，决定条件的边怎样发出；缺省纪元毫秒，见下文
   // 数组字段的元素持有什么。它属于字段本身：items 就是那个数组，这些是它装的东西。
   // 声明在别处就得用路径字符串回指，而路径可以指向不存在的字段——那一整类悬空引用
   // 在这里根本写不出来。元素名字自成作用域，可与根字段重名，引用一律写 `field.element`。
@@ -66,6 +67,11 @@ export type FieldCellId =
   | 'link'
   | 'text'
   | 'copyable';
+
+// Wow 查询 schema 的 semanticType，照 Wow 的名字写：TEMPORAL_EPOCH → epoch，TEMPORAL_DATE → date
+export type FieldTemporal =
+  | { type: 'epoch'; timeUnit?: 'MILLISECONDS' | 'SECONDS' } // 整数；缺省毫秒，与 Wow 的缺省一致
+  | { type: 'date' }; // 存储自己的日期类型，查询里写 ISO 8601 文本
 
 export interface FieldOption {
   value: string | number;
@@ -344,6 +350,12 @@ export type DashboardContentPanel = DashboardPanelBase &
       }
   );
 ```
+
+## 时间字段怎样存
+
+一条日期条件存的是意图（"今天"、"9 月 1 日到 30 日"），发出去的却必须是存储比得了的那个值，而同样是一刻，Wow 的查询 schema 有三种存法（`me.ahoo.wow.api.query.schema.Temporal`）：`TEMPORAL_EPOCH(timeUnit)` 存整数，`TEMPORAL_DATE` 存存储自己的日期类型、查询里写 ISO 8601，`TEMPORAL_FORMATTED(pattern)` 存按格式写的字符串。字段用 `temporal` 声明它是哪一种，照 Wow 的名字写，从 schema 抄过来就对：`{ type: 'epoch', timeUnit: 'MILLISECONDS' }`、`{ type: 'date' }`。`TEMPORAL_FORMATTED` 没有建模——还没有哪份定义用到它，而按错的格式写出的边会被当文本比较、悄悄匹配错的行。编译怎样照它写见 [kernels.md#求出来的那一刻按字段的存法发出](kernels.md#求出来的那一刻按字段的存法发出)。
+
+**不声明时是纪元毫秒**（`DEFAULT_TEMPORAL`，`temporalOf(field)` 是唯一的读法）。引擎的对象是 Wow 数据：快照里的每一个时间——`eventTime`、`firstEventTime`、聚合上 `@QueryTemporal` 标注的 long——都是毫秒，Wow 自己的 `timeUnit` 缺省也是毫秒；照一份 Wow schema 写定义的人不该为了正确而在每个时间字段上多记一个成员。反过来的缺省（ISO 文本）只照顾了故事与测试的夹具，而它在真实服务上的代价是**每一条日期条件都被 400 拒绝**。存成原生日期的那一种由它自己说出来：故事里订单与运单的时间存成 ISO 文本，所以它们的字段写着 `temporal: { type: 'date' }`。两种错法都响亮：Wow 的 schema 校验对类型不符的值一律报 `Filter value does not match`，不会静默地少返回。
 
 ## 配置模型原则
 

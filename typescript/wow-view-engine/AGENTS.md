@@ -98,7 +98,7 @@ src/
     config.ts                 — ViewConfig — what each view kind stores, and which of its members only draw the result (`presentationMembers`)
     dashboard.ts              — Dashboard config, global fields, bindings
     definition.ts             — ViewDefinition, FieldDefinition, capabilities
-    field.ts                  — FieldKindId; what a cell reads as, and which fields hold one string
+    field.ts                  — FieldKindId; what a cell reads as, which fields hold one string, and how a time field is stored (`temporalOf`, epoch milliseconds unless declared)
     filter.ts                 — FilterOperator as stored in a config; the three group operators and the reading of one
     instance.ts               — ViewInstance: authorship, scope, permissions
     issue.ts                  — Issue — how every kernel reports a problem
@@ -123,7 +123,7 @@ src/
     kinds/                    — Built-in FieldKinds
       array.ts                — A field holding many values: `CONTAINS_ALL` and `IS_EMPTY` beside `IN`, closed by `options` or searched through `remote`
       boolean.ts
-      dateTime.ts             — The one instant a single-bound operator compares against, as a phrase; `readInstant`, the kind's own reading of a value, shared by the cells and the record kernel
+      dateTime.ts             — The one instant a single-bound operator compares against, as a phrase, and every bound written the way the field stores time; `readInstant`, the kind's own reading of a value, shared by the cells and the record kernel
       deletion.ts             — The soft-delete dimension as a declared field kind (D17-2); `impliedDeletion`
       elementMatch.ts         — The fields of one element, named as a condition names them
       enum.ts                 — A closed set of values declared by the definition

@@ -58,6 +58,7 @@ mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboa
 - 配置中引用 element 字段一律写成从根起的完整路径（`state.orders.lines.sku`），因此与同名根字段不会混淆，能力查找也有确定归属；发给 Wow 时再按作用域剥成相对名；
 - 反过来，声明按自身作用域写相对名——`elements[].aggregations[].field` 写元素内的名字，路径由 `qualify` 唯一合成，它一律加前缀，不再放过「已经以路径开头」的名字（两种拼写都接受等于没有约定，还会让 `items.sku` 在元素根部和在一个恰好同名的嵌套对象里含义不同）；
 - `elements[].aggregations[].field` 必须是该元素声明过的字段，与根字段的同名检查对齐；
+- `temporal` 只能写在 `date`／`datetime` 字段上（否则 `definition.field.temporal-misplaced`：写在不写时间的字段上是一句什么也不做的声明），且必须是引擎写得出的一种——`{ type: 'epoch', timeUnit?: 'MILLISECONDS' | 'SECONDS' }` 或 `{ type: 'date' }`（否则 `definition.field.temporal-invalid`）。它决定每一条日期条件发出去是什么，读不懂的声明不会报错，只会按缺省发出、然后被服务拒绝或什么也匹配不到；元素字段同样检查；
 - `cell` 必须是 `FieldCellId` 里的一个（`definition.field.cell-invalid`），`options[].tone` 必须是四档语气里的一档（`definition.field.tone-invalid`，Issue 落在那一项选项上而不是字段上，好让一个有八个状态的定义知道该去改哪一个）。两者都是闭合取值：`/ui` 没有渲染器注册表，没人分派的键不会报错，只会悄悄走默认渲染，于是一列声明成链接的 URL 仍旧是一串点不动的字——正是这类沉默让"引擎给得出的，定义才写得出"（D4）在这里也成立；
 - `fieldGroups[]` 的 `id` 与 `label` 非空且 `id` 唯一（`definition.fieldGroup.invalid`／`duplicate`），其 `fields[]` 必须是已声明的根字段，且一个字段不得被两个分组同时列出（`definition.fieldGroup.field-unknown`／`field-duplicate`）；
 - `views[].id` 在定义内唯一，否则按名称查找无法确定使用哪一份能力；
@@ -132,6 +133,14 @@ mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboa
 - **只写了日子的那一条按区间读（D17-1）**：`2026-01-31` 作为起点是 `00:00:00.000`，作为终点是 `23:59:59.999`。`BETWEEN 01-01..01-31` 因此走完 31 号那一整天，`LTE 01-31` 不会把它自己命名的那一天排除在外；写了时刻的（`2026-01-31T15:30:00`）两条边上都是那一刻本身。
 
 带时刻的字段（`withTime`，即 `datetime` kind）在界面上于日历旁给出时刻输入，**未填时刻存下来的就是只有日子的那个字符串**，于是走上面第三条；旧配置里只存了日子的值读法完全相同，不另作一份"保持原状"的读法。相对日期与预设不受这条影响：它们本来就是按 `ctx.now` 求出的一段区间，`BETWEEN` 取整段，`GTE`／`LTE` 取远端那一刻（见[已应用摘要](#已应用摘要是部件不是句子)）。摘要侧同样分得清两者：`describeFilter` 交出的仍是存下来的字符串，带时刻的带着时刻，`/ui` 据此决定显示到日还是显示到秒。（见 test/filterTime.test.ts「a calendar day as a bound」「a bound with a time of day」）
+
+### 求出来的那一刻按字段的存法发出
+
+上面三条回答的是「哪一刻」，答案一律先写成 ISO 8601——时区、一天的末尾、预设都是日历问题，与存储无关。**最后一步才是存储的事**：`date`／`datetime` kind 的 `compile` 把每一条边（`BETWEEN` 的上下界、`GTE`、`LTE`、开区间退成的 `GTE`，绝对、相对、预设一视同仁）按字段的 `temporal`（[model.md#时间字段怎样存](model.md#时间字段怎样存)）写出：`epoch` 写成整数——毫秒是 `Date.parse` 的值，秒向下取整（闭区间上界是区间最后一毫秒，它所在的那一秒仍在区间内，所以两条边都取下整）；`date` 原样发 ISO 文本。解析不出时刻的文本原样放行：校验早已拒绝它，编译保持全函数。
+
+这一步缺席时的样子是在真实的 Wow 补偿服务上量出来的：`eventTime` 在查询 schema 里是 `valueTypes: ["INTEGER"]`、`semanticType: TEMPORAL_EPOCH / MILLISECONDS`，而引擎发的是 `"lowerBound":"2026-09-19T16:00:00.000Z"`，每一条日期条件都被 `QuerySchemaValidation: Filter value does not match [eventTime]` 以 400 拒绝；改发毫秒后，一个绝对日、`lastMonth`、`thisMonth`、`yesterday` 的计数都与同一时区的 `DATE_HISTOGRAM` 桶相等。
+
+这条规则落在 kind 的编译里，所以经由它的路径都自动遵守：元素字段在 `elementMatch` 里按**元素自己的**声明编译；分析追问把 DATE_HISTOGRAM 桶还原成带 `Z` 的 ISO 绝对区间（下文「分桶的反向映射」），编译时同样按字段写成整数。读回来的方向不变：单元格、导出、记录内核的最早／最晚都经 `readInstant`，数字、数字串与 ISO 文本一样读。（见 test/temporal.test.ts）
 
 ## 软删除口径（D17-2）
 
