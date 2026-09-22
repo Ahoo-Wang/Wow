@@ -118,6 +118,13 @@ export const recordMessages = {
   'label.summary.fn.MIN': 'Min',
   'label.summary.fn.MAX': 'Max',
   'label.summary.fn.COUNT': 'Count',
+  // The same two functions over a column of moments. A date has no smallest
+  // and no largest: it has a first and a last, and «Min of Created» reads as
+  // a number that column never held. One word per meaning, so the number
+  // keeps Min and Max and the moment gets its own pair; which of the two a
+  // column speaks is decided by how it reads its cells (`display.ts`).
+  'label.summary.fn.date.MIN': 'Earliest',
+  'label.summary.fn.date.MAX': 'Latest',
   'label.summary.unavailable': '—',
 
   // The column settings. The two areas a column cannot leave are named by

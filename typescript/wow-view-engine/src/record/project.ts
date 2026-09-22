@@ -19,6 +19,7 @@ import {
 import {
   columnHidden,
   columnPin,
+  isDateCell,
   type DataViewDefinition,
   type FieldDefinition,
   type FieldOption,
@@ -30,6 +31,7 @@ import {
   type RecordViewConfig,
   type SummaryFunction,
 } from '../model/index.js';
+import { readInstant } from '../filter/index.js';
 import { summaryAlias } from './compile.js';
 
 /** A column as the table should render it, with its semantics resolved. */
@@ -259,9 +261,22 @@ export interface SummaryCell {
   field: string;
   label: string;
   fn: SummaryFunction;
-  /** Absent when the source returned nothing for this cell. */
-  value: number | null;
+  /** `null` when the source returned nothing for this cell. */
+  value: number | string | null;
   numberFormat?: NumberFormat;
+  /**
+   * How the value reads, when the column does not read it as a number: the
+   * renderer key of the column it stands under.
+   *
+   * Set on the earliest and the latest of a column of moments, which are two
+   * of that column's own cells rather than numbers about it — so the footer
+   * formats them the way the column formats that cell, in the surface's
+   * language and zone, and a day written `2026-09-18` is not shown as the
+   * 17th somewhere else. `COUNT` over the same column is a number of rows
+   * like any other and names no reading; the maths is refused there by
+   * admission. So a cell that names no reading is a number.
+   */
+  cell?: string;
 }
 
 export interface SummaryRow {
@@ -293,12 +308,63 @@ export function recordValue(data: RecordData, field: string): unknown {
   return value;
 }
 
+/**
+ * How a summary of this field reads, for this function — the renderer key
+ * when it is not a number, and nothing when it is.
+ *
+ * Only `MIN` and `MAX` of a column of moments are dates: they are the
+ * earliest and the latest of that column's own cells. A `COUNT` over the
+ * same column counts rows, and `SUM` and `AVG` are not admitted there at
+ * all ({@link summaryFunctionsOf}).
+ */
+function summaryReading(
+  field: FieldDefinition | undefined,
+  fn: SummaryFunction,
+): string | undefined {
+  if (!field || (fn !== 'MIN' && fn !== 'MAX')) return undefined;
+  const cell = field.cell ?? field.kind;
+  return isDateCell(cell) ? cell : undefined;
+}
+
+/**
+ * The earliest or the latest of a column of moments, as the record holds it.
+ *
+ * The ordering is over instants, read by the date kind's own reader, so a
+ * wall-clock day, an ISO instant and an epoch number all sort where they
+ * belong instead of being compared as text. What comes back is the winning
+ * row's own value and not the number the comparison ran on: the footer
+ * formats it the way the column formats that cell, and the day
+ * `2026-09-18` would otherwise arrive there as an instant and be shown as
+ * the 17th on a clock behind UTC.
+ */
+function reduceInstants(
+  rows: readonly RecordData[],
+  field: string,
+  fn: 'MIN' | 'MAX',
+): number | string | null {
+  let best: { at: number; value: number | string } | undefined;
+  for (const row of rows) {
+    const value = recordValue(row, field);
+    // A moment arrives as a string or as a number; anything else is not one
+    // and is left out exactly as a non-number is left out of the maths.
+    if (typeof value !== 'string' && typeof value !== 'number') continue;
+    const instant = readInstant(value);
+    if (!instant) continue;
+    if (!best || (fn === 'MIN' ? instant.ms < best.at : instant.ms > best.at))
+      best = { at: instant.ms, value };
+  }
+  return best?.value ?? null;
+}
+
 function reduceRows(
   rows: readonly RecordData[],
   field: string,
   fn: SummaryFunction,
-): number | null {
+  reading?: string,
+): number | string | null {
   if (fn === 'COUNT') return rows.length;
+  if (reading !== undefined && (fn === 'MIN' || fn === 'MAX'))
+    return reduceInstants(rows, field, fn);
   const numbers = rows
     .map(row => recordValue(row, field))
     .filter((value): value is number => typeof value === 'number');
@@ -332,24 +398,45 @@ export function projectSummaries(
 
   const cells = (config.summaries ?? []).map(summary => {
     const field = byName.get(summary.field);
+    const reading = summaryReading(field, summary.fn);
     const value =
       source.scope === 'page'
-        ? reduceRows(source.rows, summary.field, summary.fn)
-        : readNumber(row, summaryAlias(summary.field, summary.fn));
+        ? reduceRows(source.rows, summary.field, summary.fn, reading)
+        : readAggregated(row, summaryAlias(summary.field, summary.fn), reading);
     return {
       field: summary.field,
       label: field?.label ?? summary.field,
       fn: summary.fn,
       value,
       numberFormat: field?.numberFormat,
+      ...(reading === undefined ? {} : { cell: reading }),
     };
   });
 
   return { scope: source.scope, cells };
 }
 
-function readNumber(row: RecordData | undefined, alias: string): number | null {
+/**
+ * One cell of the aggregation's answer, read back by its alias.
+ *
+ * A date's earliest or latest comes back the way its source keeps it — an
+ * ISO instant from one, epoch milliseconds from another — so it is taken as
+ * it comes, once the date kind's reader confirms it is a moment at all, and
+ * shown by the column's own reading. Everything else is a number or it is
+ * nothing: a cell the source could not answer has to read as missing rather
+ * than as zero.
+ */
+function readAggregated(
+  row: RecordData | undefined,
+  alias: string,
+  reading?: string,
+): number | string | null {
   const value = row?.[alias];
+  if (reading !== undefined)
+    return (typeof value === 'string' || typeof value === 'number') &&
+      readInstant(value) !== undefined
+      ? value
+      : null;
   return typeof value === 'number' ? value : null;
 }
 
@@ -373,7 +460,11 @@ export function pageSummaries(
     scope: 'page',
     cells: cells.map(cell => ({
       ...cell,
-      value: reduceRows(data, cell.field, cell.fn),
+      // The reading travels on the cell, so this scope reduces a date column
+      // to a date exactly as the projection did — two scopes reading one
+      // column two ways is the drift these two functions sit together to
+      // prevent.
+      value: reduceRows(data, cell.field, cell.fn, cell.cell),
     })),
   };
 }

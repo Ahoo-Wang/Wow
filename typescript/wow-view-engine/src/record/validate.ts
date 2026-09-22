@@ -17,6 +17,7 @@ import {
   columnPin,
   DEFAULT_RUNTIME_LIMITS,
   isFieldlessKind,
+  summaryFunctionsOf,
   type DataViewDefinition,
   type FieldDefinition,
   type Issue,
@@ -392,8 +393,11 @@ function validateSummaries(
           field: summary.field,
         }),
       ];
-    // The definition says which aggregations the source actually supports.
-    return field.summary?.includes(summary.fn)
+    // The definition says which aggregations the source actually supports,
+    // and the field's own values say which of those mean anything: a column
+    // of moments offers its earliest and its latest, never their sum
+    // (`summaryFunctionsOf`).
+    return summaryFunctionsOf(field).includes(summary.fn)
       ? issues
       : [
           ...issues,

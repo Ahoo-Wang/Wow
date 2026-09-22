@@ -13,7 +13,7 @@
 
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { RecordCards } from '../src/ui/index.js';
+import { defaultMessages, RecordCards } from '../src/ui/index.js';
 import { ViewSurface } from '../src/ui/ViewSurface.js';
 import { INSTANT, ZONE, inZone } from './fixtures.js';
 import { recordTableController, twoColumnTable } from './fixtures/ui.js';
@@ -93,6 +93,53 @@ describe('RecordCards outside the rows', () => {
       ...(summaries?.querySelectorAll('[data-slot="summary-value"]') ?? []),
     ].map(node => node.textContent);
     expect(values).toEqual(['3', '42']);
+  });
+
+  /**
+   * A card has no column over the number, so the lines say the field
+   * themselves — and a date says it as a date. The cards and the table draw
+   * one `SummaryValue`, which is what makes that true in both places at
+   * once, and switching layout must not turn the earliest order into
+   * thirteen digits.
+   */
+  it('reads a date summary as a date under the cards too', () => {
+    const table = recordTableController({
+      card: {
+        title: 'amount',
+        titleField: { field: 'amount', label: 'Amount', kind: 'number' },
+        fields: [{ field: 'amount', label: 'Amount', kind: 'number' }],
+      },
+      rows: [{ key: 'o-1', data: { amount: 1, createdAt: INSTANT } }],
+      summaries: {
+        scope: 'total',
+        cells: [
+          {
+            field: 'createdAt',
+            label: 'Created',
+            fn: 'MAX',
+            value: INSTANT,
+            cell: 'datetime',
+          },
+        ],
+      },
+    });
+    render(
+      <ViewSurface locale="en-GB" timeZone={ZONE}>
+        <RecordCards table={table} />
+      </ViewSurface>,
+    );
+
+    const summaries = document.querySelector<HTMLElement>(
+      '[data-slot="record-summaries"][data-layout="card"]',
+    );
+    expect(
+      [
+        ...(summaries?.querySelectorAll('[data-slot="summary-value"]') ?? []),
+      ].map(node => node.textContent),
+    ).toEqual([inZone(INSTANT), inZone(INSTANT)]);
+    expect(summaries?.textContent).toContain(
+      defaultMessages['label.summary.fn.date.MAX'],
+    );
   });
 });
 

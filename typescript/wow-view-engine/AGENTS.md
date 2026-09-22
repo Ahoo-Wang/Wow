@@ -121,7 +121,7 @@ src/
     kinds/                    — Built-in FieldKinds
       array.ts                — The English `text` has always read this way
       boolean.ts
-      dateTime.ts             — The one instant a single-bound operator compares against, as a phrase
+      dateTime.ts             — The one instant a single-bound operator compares against, as a phrase; `readInstant`, the kind's own reading of a value, shared by the cells and the record kernel
       deletion.ts             — The soft-delete dimension as a declared field kind (D17-2); `impliedDeletion`
       elementMatch.ts         — The fields of one element, named as a condition names them
       enum.ts                 — A closed set of values declared by the definition
@@ -280,7 +280,7 @@ src/
     WriteOutcome.tsx          — The open view's last write; ConflictConfirm.tsx (mine/theirs)
     alerts.tsx                — `LineAlert`: one callout one line high, tone deciding colour, icon and role
     describeConfig.ts         — One config in a sentence, for a conflict's side-by-side
-    display.ts                — A value as its field shows it: enum labels, dates, bucket keys
+    display.ts                — A value as its field shows it: enum labels, dates, bucket keys; `summaryFunctionKey` names a summary in its column's vocabulary
     download.ts               — Hands a file to the browser; the whole of the DOM the export needs
     dragAnnounce.ts           — What a screen reader hears while a row is dragged; the column settings and the manager share it
     dragDrop.ts               — `dropped()`: what makes a finished drag a drop at all, before any list adds its own rule

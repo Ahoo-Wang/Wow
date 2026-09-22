@@ -555,6 +555,51 @@ describe('the column settings popover', () => {
     expect(table.setSummary).toHaveBeenCalledWith('amount', 'AVG');
   });
 
+  /**
+   * A date column's two summaries, in the words a date takes.
+   *
+   * And only those two: the select has to stop offering exactly where
+   * admission starts refusing (`summaryFunctionsOf`), or a definition that
+   * declares `SUM` on a moment hands the user a pick that blocks the query
+   * and the save over something the panel itself wrote.
+   */
+  it('names a date column’s summaries as dates and leaves out the maths', async () => {
+    const user = userEvent.setup();
+    const dated: FieldDefinition[] = [
+      ...FIELDS,
+      {
+        name: 'createdAt',
+        label: 'Created',
+        kind: 'datetime',
+        summary: ['MIN', 'MAX', 'SUM'],
+      },
+    ];
+    const table = open(
+      { columnFields: ['id', 'amount', 'createdAt'] },
+      { fields: dated },
+    );
+
+    await user.click(screen.getByRole('button', { name: /Columns/ }));
+    await user.click(
+      screen.getByRole('combobox', { name: 'Summary under Created' }),
+    );
+    const offered = (await screen.findAllByRole('option')).map(
+      option => option.textContent,
+    );
+    expect(offered).toEqual([
+      defaultMessages['label.summary.fn.none'],
+      defaultMessages['label.summary.fn.date.MIN'],
+      defaultMessages['label.summary.fn.date.MAX'],
+    ]);
+
+    await user.click(
+      screen.getByRole('option', {
+        name: defaultMessages['label.summary.fn.date.MIN'],
+      }),
+    );
+    expect(table.setSummary).toHaveBeenCalledWith('createdAt', 'MIN');
+  });
+
   it('takes a summary off again', async () => {
     const user = userEvent.setup();
     const table = open({

@@ -344,7 +344,12 @@ describe('RecordWorkbench', () => {
     expect(screen.getByText('仅自己')).toBeDefined();
   });
 
-  // What "today" filters by and what a row shows read the same clock.
+  /**
+   * What "today" filters by and what a row shows read the same clock — the
+   * footer included. A date column's earliest is one of that column's own
+   * cells, so it is drawn the way that cell is drawn: the surface's
+   * language, the engine's zone, and never the instant it was compared as.
+   */
   it("shows times on the clock of the engine's zone, in the language given", async () => {
     const engine = new ViewEngine({
       definitions: [namedOrdersDefinition()],
@@ -353,6 +358,7 @@ describe('RecordWorkbench', () => {
           {
             ...mine,
             config: recordConfig({
+              summaries: [{ field: 'createdAt', fn: 'MIN' }],
               table: { columns: [{ field: 'id' }, { field: 'createdAt' }] },
             }),
           },
@@ -365,6 +371,8 @@ describe('RecordWorkbench', () => {
               total: 1,
               list: [{ id: 'o-1', createdAt: INSTANT }],
             }),
+          // Wow answers MIN on a date with the instant it keeps.
+          aggregate: () => Promise.resolve([{ createdAt_min: INSTANT }]),
         }),
       environment: defaultRuntimeEnvironment({ timeZone: ZONE }),
     });
@@ -378,7 +386,23 @@ describe('RecordWorkbench', () => {
       />,
     );
 
-    expect(await screen.findByText(inZone(INSTANT))).toBeDefined();
+    const footer = await waitFor(() => {
+      const found = document.querySelector<HTMLElement>('tfoot');
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    expect(document.querySelector('tbody')!.textContent).toContain(
+      inZone(INSTANT),
+    );
+    // Both scopes read the column's way, under the word a moment takes.
+    expect(footer.textContent).toContain(
+      defaultMessages['label.summary.fn.date.MIN'],
+    );
+    expect(
+      [...footer.querySelectorAll('[data-slot="summary-value"]')].map(
+        node => node.textContent,
+      ),
+    ).toEqual([inZone(INSTANT), inZone(INSTANT)]);
   });
 
   /**

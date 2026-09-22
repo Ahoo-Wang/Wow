@@ -168,6 +168,8 @@ export const zhCN: ViewMessages = {
   'label.summary.fn.MIN': '最小',
   'label.summary.fn.MAX': '最大',
   'label.summary.fn.COUNT': '计数',
+  'label.summary.fn.date.MIN': '最早',
+  'label.summary.fn.date.MAX': '最晚',
   'label.summary.unavailable': '—',
   'label.columns.title': '列设置',
   'label.columns.hint': '表格按这里列出的顺序绘制各列。',

@@ -20,6 +20,7 @@ import {
   type RecordColumnPin,
   type SummaryFunction,
 } from '../../model/index.js';
+import { summaryFunctionKey } from '../display.js';
 import { DragHandle } from '../DragHandle.js';
 import { IconButton } from '../IconButton.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
@@ -271,7 +272,7 @@ export function ColumnRow({
               },
               ...functions.map(fn => ({
                 value: fn,
-                label: messages.label(`label.summary.fn.${fn}`),
+                label: messages.label(summaryFunctionKey(fn, row.cell)),
               })),
             ]}
             value={row.summary ?? NO_SUMMARY}
@@ -298,7 +299,10 @@ export function ColumnRow({
                 </SelectItem>
                 {functions.map(fn => (
                   <SelectItem key={fn} value={fn}>
-                    {messages.label(`label.summary.fn.${fn}`)}
+                    {/* Named as this column's own values are named: the
+                        earliest of a date column, the smallest of a
+                        number one. */}
+                    {messages.label(summaryFunctionKey(fn, row.cell))}
                   </SelectItem>
                 ))}
               </SelectGroup>

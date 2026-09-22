@@ -11,12 +11,16 @@
  * limitations under the License.
  */
 
-import type {
-  AnalysisDateUnit,
-  FieldOption,
-  FieldTone,
-  NumberFormat,
+import {
+  isDateCell,
+  type AnalysisDateUnit,
+  type FieldOption,
+  type FieldTone,
+  type NumberFormat,
+  type SummaryFunction,
 } from '../model/index.js';
+import { readInstant } from '../filter/index.js';
+import type { MessageKey } from './messages.js';
 import type { MessageFormatters } from './MessagesProvider.js';
 
 /** Where a value is shown: the language, and the zone its times read in. */
@@ -40,17 +44,6 @@ export interface DisplayField {
   /** The zone those buckets were cut in, when the group named one. */
   timeZone?: string;
 }
-
-const EPOCH = /^-?\d+$/;
-
-/**
- * A day, or a day and a time, with no offset: `2026-09-18`, or
- * `2026-09-18T09:30:00` as Java writes a `LocalDateTime`. It names a time on
- * a clock rather than a moment, and the filter kernel reads it on the
- * engine's; shown on any other clock it would move.
- */
-const WALL_CLOCK =
-  /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2})(?::(\d{2})(?:\.(\d+))?)?)?$/;
 
 /**
  * A value as its field shows it, or `undefined` when the field's kind has
@@ -121,24 +114,32 @@ function readTime(
   value: unknown,
   timeZone: string | undefined,
 ): { date: Date; timeZone: string | undefined; dayOnly?: true } | undefined {
-  const wall = typeof value === 'string' ? WALL_CLOCK.exec(value.trim()) : null;
-  if (wall) {
-    const [, day, hourMinute, seconds = '00', fraction = ''] = wall;
-    // A Date holds milliseconds; Java writes up to nine digits.
-    const millis = `${fraction}000`.slice(0, 3);
-    const written = `${day}T${hourMinute ?? '00:00'}:${seconds}`;
-    const date = new Date(`${written}.${millis}Z`);
-    // `Date` rolls a day that does not exist over into the next month, and
-    // 24:00 into the next day: `2025-02-29` would show as the 1st of March.
-    // What it does not read back as written is left for the caller to print.
-    if (Number.isNaN(date.getTime()) || !date.toISOString().startsWith(written))
-      return undefined;
-    return hourMinute === undefined
-      ? { date, timeZone: 'UTC', dayOnly: true }
-      : { date, timeZone: 'UTC' };
-  }
-  const date = toDate(value);
-  return date && { date, timeZone };
+  // The date kind's own reader, so what a cell shows and what the record
+  // kernel calls a column's earliest are the same reading of the same value.
+  const instant = readInstant(value);
+  if (!instant) return undefined;
+  const date = new Date(instant.ms);
+  if (!instant.wallClock) return { date, timeZone };
+  return instant.dayOnly
+    ? { date, timeZone: 'UTC', dayOnly: true }
+    : { date, timeZone: 'UTC' };
+}
+
+/**
+ * What a summary function is called under a column of these values.
+ *
+ * `MIN` of a number is its smallest and `MIN` of a moment is its earliest —
+ * one word each, in the vocabulary of what is being summarised, rather than
+ * one word stretched over both. The reading decides, because the reading is
+ * what the column shows; every other function keeps its one name.
+ */
+export function summaryFunctionKey(
+  fn: SummaryFunction,
+  cell?: string,
+): MessageKey {
+  return (fn === 'MIN' || fn === 'MAX') && isDateCell(cell)
+    ? `label.summary.fn.date.${fn}`
+    : `label.summary.fn.${fn}`;
 }
 
 /**
@@ -307,18 +308,6 @@ function optionLabels(
   return items.some(item => labelOf(item) !== undefined)
     ? items.map(item => labelOf(item) ?? String(item))
     : undefined;
-}
-
-function toDate(value: unknown): Date | undefined {
-  const date =
-    value instanceof Date
-      ? value
-      : typeof value === 'number'
-        ? new Date(value)
-        : typeof value === 'string' && value.trim() !== ''
-          ? new Date(EPOCH.test(value) ? Number(value) : value)
-          : undefined;
-  return date && !Number.isNaN(date.getTime()) ? date : undefined;
 }
 
 /**

@@ -14,6 +14,7 @@
 import {
   columnPin,
   isFieldlessKind,
+  summaryFunctionsOf,
   type FieldDefinition,
   type SummaryFunction,
   type RecordColumnPin,
@@ -82,8 +83,20 @@ export interface ColumnSettingRow {
    * never offer to hide: a row without it is a row nobody can read (D13).
    */
   primary: boolean;
-  /** Summary functions the field declares; empty when it offers none. */
+  /**
+   * Summary functions this column really offers: what the field declares,
+   * less what its values cannot answer (`summaryFunctionsOf`). The select
+   * has to stop offering exactly where admission starts refusing, or a pick
+   * is taken here and then blocks the query and the save.
+   */
   functions: readonly SummaryFunction[];
+  /**
+   * How this column reads its cells — the field's own `cell`, else its
+   * kind's. It is what names the functions in the column's vocabulary: the
+   * earliest of a date column, the smallest of a number one
+   * (`summaryFunctionKey`). Absent on a row that is not a column at all.
+   */
+  cell?: string;
   /** The function the config summarises this column with, if any. */
   summary: SummaryFunction | null;
   /** Whether this row may be dragged or moved with the arrow keys. */
@@ -302,7 +315,8 @@ function row(
     pinned,
     fixed,
     primary: field.name === input.rowKey,
-    functions: field.summary ?? [],
+    functions: summaryFunctionsOf(field),
+    cell: field.cell ?? field.kind,
     summary: input.summaryOf(field.name),
     // A place in the order is what there is to drag, and a switched-off
     // column has one — which is the whole of "a hidden field cannot be

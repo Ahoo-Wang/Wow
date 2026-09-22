@@ -17,7 +17,7 @@ import type {
   SummaryCell,
   SummaryRow,
 } from '../../record/index.js';
-import { formatNumber } from '../display.js';
+import { cellText, summaryFunctionKey } from '../display.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { Tooltip, TooltipTrigger } from '../components/tooltip.js';
 import { TooltipContent } from '../popups.js';
@@ -186,14 +186,14 @@ function SummaryLine({
 export function SummaryValue({ cell }: { cell: SummaryCell }) {
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
+  // In the words the column's own values take: the earliest of a date
+  // column, the smallest of a number one.
+  const fn = messages.label(summaryFunctionKey(cell.fn, cell.cell));
   // Which field this number is of, and by which function — the heading says
   // the field, several rows above, and nothing on screen says the pair. A
   // `Tooltip` rather than the native `title` this used to be (D16): `title`
   // is the one affordance a touch user never has.
-  const of = messages.label('label.summary.of', {
-    fn: messages.label(`label.summary.fn.${cell.fn}`),
-    field: cell.label,
-  });
+  const of = messages.label('label.summary.of', { fn, field: cell.label });
   return (
     <Tooltip>
       <TooltipTrigger
@@ -201,13 +201,22 @@ export function SummaryValue({ cell }: { cell: SummaryCell }) {
           <span className="flex items-baseline justify-end gap-1 whitespace-nowrap" />
         }
       >
-        <span className={QUIET}>
-          {messages.label(`label.summary.fn.${cell.fn}`)}
-        </span>
+        <span className={QUIET}>{fn}</span>
         <span data-slot="summary-value" className="tabular-nums">
           {cell.value === null
             ? messages.label('label.summary.unavailable')
-            : formatNumber(cell.value, cell.numberFormat, display.locale)}
+            : // The same reading the column's cells get, and deliberately
+              // the same code path: a date in the surface's language and
+              // zone, a number in its field's format. `cell.cell` is set
+              // only where the value is not a number (`SummaryCell`), so a
+              // count under a date column is not formatted as a date; the
+              // field's kind is left out here for exactly that reason.
+              cellText(
+                cell.value,
+                { cell: cell.cell, numberFormat: cell.numberFormat },
+                messages,
+                display,
+              )}
         </span>
       </TooltipTrigger>
       <TooltipContent>{of}</TooltipContent>

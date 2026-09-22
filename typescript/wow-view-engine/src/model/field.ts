@@ -206,6 +206,20 @@ export const FIELD_CELL_IDS: readonly FieldCellId[] = [
   'text',
 ];
 
+/**
+ * Whether cells under this reading are moments rather than numbers or words.
+ *
+ * It asks about the **reading** and not about the kind, because the reading
+ * is what the column shows: `cell: 'date'` over a number holding an epoch
+ * instant draws a column of dates, and the summary under it has to be one
+ * too. It takes a plain string, since a reading travels as one — a projected
+ * column's `cell`, a summary cell's — and an application may register a kind
+ * whose id this list has never heard of.
+ */
+export function isDateCell(cell: string | undefined): boolean {
+  return cell === 'date' || cell === 'datetime';
+}
+
 /** Row-level aggregations a record view may show under a column. */
 export type SummaryFunction = 'SUM' | 'AVG' | 'MIN' | 'MAX' | 'COUNT';
 
@@ -216,6 +230,41 @@ export const SUMMARY_FUNCTIONS: readonly SummaryFunction[] = [
   'MAX',
   'COUNT',
 ];
+
+/**
+ * The summaries a column of moments may carry.
+ *
+ * A date has an earliest, a latest and a count; it has no sum and no
+ * average. Adding two instants answers nothing at all, and the mean of two
+ * order times is a moment no order was placed at — a number the aggregation
+ * would happily return and that no reader could use. So the maths is left
+ * out of the set rather than shown and then explained.
+ */
+export const DATE_SUMMARY_FUNCTIONS: readonly SummaryFunction[] = [
+  'MIN',
+  'MAX',
+  'COUNT',
+];
+
+/**
+ * The summaries a field really offers: what it declares, less what its own
+ * values cannot answer.
+ *
+ * One rule, read in both places that need it — admission, which refuses a
+ * summary outside the set (`record.summary.unsupported`), and the column
+ * settings' select, which must stop offering exactly where admission starts
+ * refusing. A definition declaring `SUM` on a date field is a mistake in
+ * code, so it is refused rather than obeyed; declaring `MIN` and `MAX` there
+ * is how a column gets its earliest and its latest.
+ */
+export function summaryFunctionsOf(
+  field: FieldDefinition,
+): readonly SummaryFunction[] {
+  const declared = field.summary ?? [];
+  return isDateCell(field.cell ?? field.kind)
+    ? declared.filter(fn => DATE_SUMMARY_FUNCTIONS.includes(fn))
+    : declared;
+}
 
 /** Formatting shared by cells, summaries and chart axes. */
 export type NumberFormat = Intl.NumberFormatOptions & { locale?: string };

@@ -43,7 +43,7 @@ export interface FieldDefinition {
   stringComparison?: 'CASE_SENSITIVE' | 'CASE_INSENSITIVE'; // CONTAINS／STARTS_WITH／ENDS_WITH 的比较方式，缺省不区分大小写
   searchFields?: string[]; // search 字段查哪些文档字段；缺省交给后端索引
   searchMode?: 'TERMS' | 'PHRASE'; // 按词还是按短语，缺省 TERMS
-  summary?: SummaryFunction[]; // 允许的汇总函数
+  summary?: SummaryFunction[]; // 允许的汇总函数；一列时刻（kind 或 cell 为 date／datetime）只认 MIN／MAX／COUNT，声明 SUM／AVG 会被准入按 record.summary.unsupported 拒绝（`summaryFunctionsOf`）
   cell?: FieldCellId; // 这一列怎么读，缺省按 kind；闭合取值，准入拒绝未知值
   // 数组字段的元素持有什么。它属于字段本身：items 就是那个数组，这些是它装的东西。
   // 声明在别处就得用路径字符串回指，而路径可以指向不存在的字段——那一整类悬空引用

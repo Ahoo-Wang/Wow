@@ -92,6 +92,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 - **只有 `所有` 需要查询**。内核这两半都在：`compileSummaries` 产出全范围的 `AggregationQuery`，`projectSummaries` 按别名读回（见 [kernels.md](../kernels.md)）；`page` 口径不需要往返，因此 `record/project.ts` 的 `pageSummaries(cells, rows)` 用已执行配置给出的那些格子，在屏幕上的行上再算一遍——渲染层手里只有结果，没有配置，而这份算术与 `projectSummaries` 的 `page` 分支是同一份，放在一起才不会分头漂移；
 - **降级只剩本页**。聚合失败时 `runtime/execute.ts` 退回 `scope: 'page'`，于是表里只剩 `本页` 一行——没有的数不编——并在状态条上报一条 warning（`runtime.summary.page-only`）说明为什么只剩它。两处缺一不可：只剩一行而不说，读者未必注意到少了什么；只报 warning 而行上的词不改，那个词仍然在撒谎。（见 test/resultIssues.test.tsx「what the screen says about a downgraded total」）；
 - 一个字段可以配多个函数（`amount` 同时求和与求平均），内核为每个函数投影一格，所以格子按字段分组而不是按字段做键；函数名按目录措辞显示（`label.summary.fn.*`：合计／平均／最小／最大／计数）而不是配置里的 `SUM`，与数值一起右对齐在列的右缘；没有配汇总的列留空，而不是显示 0；某一格算不出来（字符串列求和、聚合没答这一格）显示 `label.summary.unavailable` 的破折号。
+- **一列时刻的最早与最晚**（2026-09-22 用户裁定）：`date`／`datetime` 列（含借了这个读法的 `cell: 'date'`）声明 `summary: ['MIN','MAX']` 后，两格各是这一列自己的一个单元格——`page` 口径按字段种类自己的读法（`readInstant`）比时刻、把胜出那一行的原值留下，`total` 口径把聚合的答复原样读回（ISO 串或毫秒都收）——所以页脚走 `cellText` 与单元格同一条路，在宿主的语言与时区里画那个时刻，而不是十三位毫秒；词也换成时刻的词（`label.summary.fn.date.MIN／MAX`：最早／最晚，不是最小／最大，一词一义），同一列上的 `COUNT` 仍是行数、仍是个数，合计与平均在这类列上被准入拒绝。（见 test/record.test.ts「a date column summarised」、test/recordTable.test.tsx、浏览器故事「Record 工作台/回归」的 `EarliestAndLatest`）
 
 ## 表头排序
 

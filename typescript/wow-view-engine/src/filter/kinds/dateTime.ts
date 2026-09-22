@@ -36,6 +36,77 @@ function isParsableInstant(text: string): boolean {
   return !Number.isNaN(Date.parse(text));
 }
 
+/**
+ * A day, or a day and a time, with no offset: `2026-09-18`, or
+ * `2026-09-18T09:30:00` as Java writes a `LocalDateTime`. It names a time on
+ * a clock rather than a moment, so it is read on the engine's own clock;
+ * read on any other it would move.
+ */
+const WALL_CLOCK =
+  /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2})(?::(\d{2})(?:\.(\d+))?)?)?$/;
+
+/** Epoch milliseconds, which is how Wow keeps a time, written as digits. */
+const EPOCH = /^-?\d+$/;
+
+/** The instant a value of this kind names, and what kind of value said it. */
+export interface DateInstant {
+  /** Milliseconds since the epoch. */
+  ms: number;
+  /**
+   * The value named a time on a clock rather than a moment, so `ms` is it
+   * read at UTC — which is what prints it as written wherever it is shown.
+   */
+  wallClock?: true;
+  /** That wall-clock value carried no time of day, which is a meaning. */
+  dayOnly?: true;
+}
+
+/**
+ * The instant one of this kind's values names, or `undefined` when it names
+ * none.
+ *
+ * This is the kind's own reading of a value, and the one reading in the
+ * package: a cell shows a date through it (`ui/display.ts`), and the record
+ * kernel orders a column's values by it to find its earliest and its latest
+ * (`record/project.ts`). `Date.parse` alone would not do — Wow keeps a time
+ * as epoch milliseconds, which arrives as a number or as a string of digits,
+ * and a wall-clock day has to be read at UTC so the 18th is not the 17th in
+ * Los Angeles. Anything the two agree on they agree on because they ask
+ * here.
+ */
+export function readInstant(value: unknown): DateInstant | undefined {
+  const wall = typeof value === 'string' ? WALL_CLOCK.exec(value.trim()) : null;
+  if (wall) {
+    const [, day, hourMinute, seconds = '00', fraction = ''] = wall;
+    // A Date holds milliseconds; Java writes up to nine digits.
+    const millis = `${fraction}000`.slice(0, 3);
+    const written = `${day}T${hourMinute ?? '00:00'}:${seconds}`;
+    const date = new Date(`${written}.${millis}Z`);
+    // `Date` rolls a day that does not exist over into the next month, and
+    // 24:00 into the next day: `2025-02-29` would read as the 1st of March.
+    // What does not read back as written is not an instant at all.
+    if (Number.isNaN(date.getTime()) || !date.toISOString().startsWith(written))
+      return undefined;
+    return hourMinute === undefined
+      ? { ms: date.getTime(), wallClock: true, dayOnly: true }
+      : { ms: date.getTime(), wallClock: true };
+  }
+  const ms = millisOf(value);
+  return ms === undefined ? undefined : { ms };
+}
+
+function millisOf(value: unknown): number | undefined {
+  const date =
+    value instanceof Date
+      ? value
+      : typeof value === 'number'
+        ? new Date(value)
+        : typeof value === 'string' && value.trim() !== ''
+          ? new Date(EPOCH.test(value) ? Number(value) : value)
+          : undefined;
+  return date && !Number.isNaN(date.getTime()) ? date.getTime() : undefined;
+}
+
 /** The window a value names, as a phrase and as parts: for `BETWEEN`. */
 function describeWindow(value: DateTimeFilterValue): DescribedValue {
   switch (value.type) {

@@ -16,8 +16,20 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
 import type { ViewInstance, ViewSource } from '../src/index.js';
 import type { RecordTableController } from '../src/react/index.js';
-import { RecordTable, RecordWorkbench } from '../src/ui/index.js';
-import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
+import {
+  defaultMessages,
+  RecordTable,
+  RecordWorkbench,
+  ViewSurface,
+} from '../src/ui/index.js';
+import {
+  INSTANT,
+  ZONE,
+  inZone,
+  ordersDefinition,
+  recordConfig,
+  testSource,
+} from './fixtures.js';
 import { mine, twoColumnTable } from './fixtures/ui.js';
 
 afterEach(cleanup);
@@ -216,6 +228,65 @@ describe('the summary rows', () => {
     expect(scopes(footer)).toEqual(['page', 'total']);
     expect(summaryRow(footer, 'page').textContent).toContain('2');
     expect(summaryRow(footer, 'total').textContent).toContain('2');
+  });
+
+  /**
+   * A date column's earliest and latest, in the words and the format of the
+   * column they stand under.
+   *
+   * Two things are being kept here. The value goes through the same reading
+   * a cell of that column goes through — the surface's language and zone —
+   * because a footer showing epoch milliseconds under a column of dates is
+   * the raw-value bug the cells were fixed for. And the function is named in
+   * the vocabulary of what it summarises: the earliest of a moment, not its
+   * smallest.
+   */
+  it('reads a date summary the way the column reads its cells', () => {
+    const { container } = render(
+      <ViewSurface locale="en-GB" timeZone={ZONE}>
+        <RecordTable
+          table={twoColumnTable({
+            columns: [
+              {
+                field: 'createdAt',
+                label: 'Created',
+                kind: 'datetime',
+                cell: 'datetime',
+                sortable: false,
+              },
+            ],
+            rows: [{ key: 'o-1', data: { createdAt: INSTANT } }],
+            summaries: {
+              scope: 'total',
+              cells: [
+                {
+                  field: 'createdAt',
+                  label: 'Created',
+                  fn: 'MIN',
+                  value: INSTANT,
+                  cell: 'datetime',
+                },
+              ],
+            },
+          })}
+        />
+      </ViewSurface>,
+    );
+
+    const footer = container.querySelector('tfoot')!;
+    // Both scopes: the aggregation's own instant, and the rows on screen
+    // reduced to the one instant they hold.
+    for (const scope of ['page', 'total'] as const) {
+      const row = summaryRow(footer, scope);
+      expect(row.textContent).toContain(inZone(INSTANT));
+      expect(row.textContent).toContain(
+        defaultMessages['label.summary.fn.date.MIN'],
+      );
+      expect(row.textContent).not.toContain(String(INSTANT));
+      expect(row.textContent).not.toContain(
+        defaultMessages['label.summary.fn.MIN'],
+      );
+    }
   });
 
   it('leaves a column with no summary empty rather than showing a zero', () => {

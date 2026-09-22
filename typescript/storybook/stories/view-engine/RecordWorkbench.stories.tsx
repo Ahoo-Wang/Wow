@@ -131,6 +131,39 @@ const cellFamilyView = {
 };
 
 /**
+ * 一列时刻的最早与最晚（2026-09-22 用户裁定）。
+ *
+ * 汇总不只是数字：一列时刻有最早、有最晚。页脚把这两格按**这一列画单元格的
+ * 读法**画出来——宿主的语言与时区里的那个时刻，而不是十三位的毫秒数——词也换
+ * 成时刻的词（「最早」「最晚」，不是「最小」「最大」）。金额那一格照旧合计，
+ * 于是同一行里两种读法并排，谁也没有被对方带歪。
+ */
+const datedView = {
+  ...savedViews[0],
+  title: '最早与最晚下单',
+  config: recordConfig({
+    summaries: [
+      { field: 'amount' as const, fn: 'SUM' as const },
+      { field: 'createdAt' as const, fn: 'MIN' as const },
+      { field: 'createdAt' as const, fn: 'MAX' as const },
+    ],
+    table: {
+      columns: [
+        { field: 'id' as const, pinned: 'left' as const },
+        { field: 'warehouse' as const },
+        { field: 'status' as const },
+        { field: 'amount' as const },
+        { field: 'createdAt' as const },
+      ],
+    },
+    card: {
+      title: 'id',
+      fields: ['warehouse', 'status', 'amount', 'createdAt'],
+    },
+  }),
+};
+
+/**
  * A view saved with an interval, so the refresh button opens already wearing
  * its credential — the thing a wall-mounted view exists for.
  */
@@ -169,6 +202,7 @@ function RecordWorkbenchDemo({
   theme,
   breakable = false,
   cellFamily = false,
+  dated = false,
   exporting,
   wide = false,
   noViews = false,
@@ -248,6 +282,11 @@ function RecordWorkbenchDemo({
   breakable?: boolean;
   /** Opens a view whose columns cover all four declared cell readings. */
   cellFamily?: boolean;
+  /**
+   * Opens a view that summarises a date column, so the footer carries the
+   * earliest and the latest order beside a sum of money.
+   */
+  dated?: boolean;
   /**
    * What the export window has to report: pages slow enough to watch the
    * bar fill, a ceiling below the result, or a backend that refuses the
@@ -347,7 +386,9 @@ function RecordWorkbenchDemo({
                       ? [longTitledView]
                       : cellFamily
                         ? [cellFamilyView]
-                        : savedViews,
+                        : dated
+                          ? [datedView]
+                          : savedViews,
           });
         }}
       >
@@ -659,6 +700,18 @@ export const TotalCoversThisPageOnly: Story = {
  * 「订单号」什么也没声明，于是和从前一模一样。切到卡片，同一份读法。
  */
 export const CellFamily: Story = { args: { cellFamily: true } };
+
+/**
+ * 一列时刻的最早与最晚。
+ *
+ * 页脚同一行里两种读法并排：「金额」是合计，一个带货币格式的数；「创建时间」
+ * 是「最早」与「最晚」，两个按这一列画单元格的读法画出来的时刻——宿主的语言
+ * 与时区里的那个日子，而不是十三位毫秒，也不是原样的 ISO 串。函数名也跟着
+ * 换：一列时刻没有「最小」，它有「最早」。两份口径都在——「全部」那一行来自
+ * 它自己那一次聚合，「本页」那一行是屏幕上这几行自己比出来的；这份视图不带
+ * 条件，六单都在一页上，于是两行说的是同一件事，而这正是那两个标签的用处。
+ */
+export const EarliestAndLatest: Story = { args: { dated: true } };
 
 /** A saved config the definition outgrew: `apply` is refused until it is fixed. */
 export const NeedsFixing: Story = { args: { broken: true } };

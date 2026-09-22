@@ -118,7 +118,15 @@ export const ordersDefinition: DataViewDefinition = {
       summary: ['SUM', 'AVG'],
       numberFormat: { style: 'currency', currency: 'CNY' },
     },
-    { name: 'createdAt', label: '创建时间', kind: 'datetime', sortable: true },
+    // 一列时刻有最早与最晚，没有合计也没有平均——声明得出来的就只有这两个
+    // 加计数，多声明一个也会被准入挡掉（`DATE_SUMMARY_FUNCTIONS`）。
+    {
+      name: 'createdAt',
+      label: '创建时间',
+      kind: 'datetime',
+      sortable: true,
+      summary: ['MIN', 'MAX'],
+    },
   ],
   record: { rowKey: 'id', paging: 'paged', layouts: ['table', 'card'] },
   analysis: {

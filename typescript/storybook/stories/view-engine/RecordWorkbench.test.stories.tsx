@@ -24,6 +24,7 @@ import displayMeta, {
   CellFamily as DisplayCellFamily,
   CollapsedSidebar as DisplayCollapsedSidebar,
   DeleteConflicted as DisplayDeleteConflicted,
+  EarliestAndLatest as DisplayEarliestAndLatest,
   EmptyResult as DisplayEmptyResult,
   English as DisplayEnglish,
   ExportCapped as DisplayExportCapped,
@@ -360,6 +361,51 @@ export const CellFamily: Story = {
     await expect(key).toHaveTextContent('SO-1001');
     await expect(key.querySelector('[data-slot="badge"]')).toBeNull();
     await expect(key.querySelector('a')).toBeNull();
+  },
+};
+
+/**
+ * A date column's earliest and latest, in the footer.
+ *
+ * Three things have to hold at once and only a browser shows all three: the
+ * word is the one a moment takes (「最早」, never 「最小」), the value goes
+ * through the same reading the cells above it go through — the surface's
+ * language and the engine's zone, so neither thirteen digits nor a raw ISO
+ * string reaches the screen — and the money in the same row is still a sum
+ * with its currency, so one reading has not swallowed the other.
+ */
+export const EarliestAndLatest: Story = {
+  ...DisplayEarliestAndLatest,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    // No condition, so all six orders are on screen — the seventh is
+    // soft-deleted and a Wow source does not answer it.
+    await waitFor(() => expect(readColumn(table, '订单号')).toHaveLength(6));
+
+    // They were created between these two moments, read as the column reads
+    // a cell: the surface's language, the engine's zone.
+    const shown = (iso: string) =>
+      new Intl.DateTimeFormat('zh-CN', {
+        dateStyle: 'medium',
+        timeStyle: 'medium',
+      }).format(new Date(iso));
+    const earliest = shown('2026-09-15T02:10:00.000Z');
+    const latest = shown('2026-09-17T08:45:00.000Z');
+
+    for (const read of [readTotal, readPage]) {
+      const cell = read(table, '创建时间');
+      await expect(cell).toContain(zhCN['label.summary.fn.date.MIN']);
+      await expect(cell).toContain(zhCN['label.summary.fn.date.MAX']);
+      await expect(cell).toContain(earliest);
+      await expect(cell).toContain(latest);
+      // Not the stored value, and not the number it was compared as.
+      await expect(cell).not.toContain('2026-09-15T02:10');
+      await expect(cell).not.toContain(zhCN['label.summary.fn.MIN']);
+      // The money beside it is unchanged: a sum, in its own format.
+      await expect(amountOf(read(table, '金额'))).toBe(10230);
+      await expect(read(table, '金额')).toContain(zhCN['label.summary.fn.SUM']);
+    }
   },
 };
 

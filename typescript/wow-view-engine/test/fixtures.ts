@@ -114,7 +114,14 @@ export function namedOrdersDefinition(): DataViewDefinition {
             }
           : field,
       ),
-      { name: 'createdAt', label: 'Created', kind: 'datetime' },
+      // A moment carries its earliest and its latest, and no maths: the
+      // summary a date column can be asked for (`DATE_SUMMARY_FUNCTIONS`).
+      {
+        name: 'createdAt',
+        label: 'Created',
+        kind: 'datetime',
+        summary: ['MIN', 'MAX'],
+      },
     ],
     analysis: {
       count: true,
