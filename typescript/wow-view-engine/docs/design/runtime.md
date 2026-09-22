@@ -182,7 +182,7 @@ export interface ViewEngine {
   readonly environment: RuntimeEnvironment; // 时钟、计时器、可见性；由创建方注入
   definitions: ReadonlyMap<string, ViewDefinition>;
   resolveSource(key: string): ViewSource; // 数据来源：QueryApi 的 paged / cursor / aggregate 三个方法，见「环境」
-  resolveOptions(key: string): OptionSource; // FieldDefinition.remote 的候选来源
+  resolveOptions(key: string): OptionSource; // FieldDefinition.remote 的候选来源；运行时以 `optionSource(remote)` 转交给筛选编辑器（宿主没接就是 null，编辑器退回打字）
 
   open(
     instanceId: string,

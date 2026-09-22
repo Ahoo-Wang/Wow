@@ -41,6 +41,7 @@ import type { FieldTone } from '../model/index.js';
 import { AlertDialogAction } from './components/alert-dialog.js';
 import { Badge } from './components/badge.js';
 import { Button } from './components/button.js';
+import { ComboboxChips } from './components/combobox.js';
 import { Input } from './components/input.js';
 import { SelectTrigger } from './components/select.js';
 import { Separator } from './components/separator.js';
@@ -281,6 +282,27 @@ export function PillInput({
  * `chrome="box"` is the group block's and/or, which sits on the group's own
  * header rather than inside a pill and is the only edge it has.
  */
+/**
+ * The chip box of a condition pill: the chosen candidates and the search
+ * box among them, borderless like every other control inside a pill.
+ */
+export function PillChips({
+  chrome,
+  className,
+  ...props
+}: React.ComponentProps<typeof ComboboxChips> & ControlChromeProps) {
+  return (
+    <ComboboxChips
+      className={cn(
+        'min-h-7 px-1 py-0.5',
+        controlChromeVariants({ chrome }),
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
 export function PillSelectTrigger({
   chrome,
   className,

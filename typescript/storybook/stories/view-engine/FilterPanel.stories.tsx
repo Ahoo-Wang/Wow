@@ -144,6 +144,28 @@ const negatedView: ViewInstance = {
 };
 
 /**
+ * A reference condition (F-04): the customers are searched from the host's
+ * `OptionSource`, and the value carries each name beside its id.
+ */
+const referenceView: ViewInstance = {
+  ...savedViews[0],
+  id: 'orders-reference',
+  title: '客户条件',
+  config: recordConfig({
+    filter: {
+      op: 'and',
+      children: [
+        {
+          field: 'customer',
+          operator: 'IN',
+          value: { items: [{ id: 'c-03', label: '晨光食品' }] },
+        },
+      ],
+    },
+  }),
+};
+
+/**
  * A numeric `IN`, which takes as many values as the kernel compiles rather
  * than the two a range has ends.
  */
@@ -254,6 +276,7 @@ function FilterPanelDemo({
             richView,
             simpleView,
             negatedView,
+            referenceView,
             numberListView,
             withTimeView,
           ],
@@ -320,6 +343,13 @@ export const Simple: Story = { args: { instanceId: 'orders-simple' } };
  * 前面多了一个「不」；已应用条把它说成「排除 …」。再按一次开关就是原来的条件。
  */
 export const Negated: Story = { args: { instanceId: 'orders-negated' } };
+
+/**
+ * 引用字段的候选是搜出来的：展开「筛选」，「客户」那条 pill 里已选的客户是一枚
+ * chip，输入框说「输入以搜索」；点进去先列第一页，打字停下才再问源，尾部有「更多」；
+ * 拿掉 chip、再选一个，「应用」后表格随之变。
+ */
+export const Reference: Story = { args: { instanceId: 'orders-reference' } };
 
 /**
  * A numeric `IN` as a list that grows: one chip per value with a remove

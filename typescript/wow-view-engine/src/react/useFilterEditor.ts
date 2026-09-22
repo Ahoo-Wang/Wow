@@ -48,6 +48,7 @@ import {
 import {
   comparePending,
   filterOverBudget,
+  type OptionSource,
   type PendingReport,
   type ViewRuntime,
 } from '../runtime/index.js';
@@ -277,6 +278,7 @@ export function useFilterEditor(
         issues,
         current: () => runtime?.getSnapshot().draft.filter ?? tree,
         onChange: next => runtime?.edit({ filter: next }),
+        optionSource: remote => runtime?.optionSource(remote) ?? null,
       }),
     [tree, fields, fieldGroups, kinds, issues, runtime],
   );
@@ -474,6 +476,13 @@ export interface FilterTreeController {
   remove(path: FilterPath): void;
   operatorsFor(field: string): FilterOperatorName[];
   editorFor(path: FilterPath): EditorDescriptor | null;
+  /**
+   * The remote candidates behind a `remote` editor's key, from the runtime
+   * this editor is bound to; `null` where the host wired none, and absent
+   * on a controller with no runtime at all. A nested editor over a leaf's
+   * value shares its parent's.
+   */
+  optionSource?(remote: string): OptionSource | null;
 }
 
 export interface TreeControllerInput {
@@ -492,6 +501,8 @@ export interface TreeControllerInput {
    */
   current?(): FilterTree;
   onChange(tree: FilterTree): void;
+  /** See `FilterTreeController.optionSource`. */
+  optionSource?(remote: string): OptionSource | null;
 }
 
 /** The tree with the node at `path` set to say nothing; see `clearValue`. */
@@ -568,6 +579,7 @@ export function treeController(
     fieldGroups: input.fieldGroups ?? [],
     kinds,
     issues,
+    ...(input.optionSource ? { optionSource: input.optionSource } : {}),
     fieldsFor(parent = ROOT) {
       return addableFields(tree, fields, parent, kinds);
     },

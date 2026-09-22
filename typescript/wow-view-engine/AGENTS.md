@@ -328,7 +328,8 @@ src/
         daterange.tsx         — A day or a span of days, with the time of day where the field carries one
         number.tsx            — A number, a range of two; Base UI `NumberField`
         relative.tsx          — Which side of now a relative window lies on
-        remote.tsx            — A value the host looks up (`OptionSource`)
+        candidates.ts         — `useCandidates`: a reference field's candidates searched from its `OptionSource` — debounced, aborted on change, paged, with a retry
+        remote.tsx            — A value the host looks up: chips over a searchable `Combobox` (F-04), the host's whole list, or typed ids without either
         select.tsx            — One of a closed set, several of one, or yes/no/either
         shared.tsx            — Whether the condition holding this value is refused
         text.tsx              — Free text

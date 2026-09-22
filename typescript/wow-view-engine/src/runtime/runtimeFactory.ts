@@ -38,7 +38,7 @@ import { issue, type FieldKindRegistry } from '../filter/index.js';
 import { analysisScope } from '../analysis/index.js';
 import type { RuntimeEnvironment } from './environment.js';
 import type { RequestRunner } from './requestRunner.js';
-import type { ViewSource } from './source.js';
+import type { OptionSource, ViewSource } from './source.js';
 import type { DataViewConfig } from './execute.js';
 import { DataViewRuntime, type ManagedViewRuntime } from './viewRuntime.js';
 import {
@@ -65,6 +65,8 @@ export interface RuntimeFactoryHost {
   readonly runner: RequestRunner;
   /** Where a definition's data comes from, by `DataViewDefinition.source`. */
   resolveSource(key: string): ViewSource;
+  /** Remote candidates of `reference` fields; absent when the host wired none. */
+  resolveOptions?(key: string): OptionSource;
   /** One instance, from the definition's code or from the store. */
   readInstance(instanceId: string): Promise<ViewInstance>;
 }
@@ -114,6 +116,7 @@ export class RuntimeFactory {
       environment: this.host.environment,
       source: this.host.resolveSource(definition.source),
       runner: this.host.runner,
+      resolveOptions: this.host.resolveOptions,
       scopeFilter,
     });
   }
@@ -146,6 +149,7 @@ export class RuntimeFactory {
       environment: this.host.environment,
       resolve: this.resolvePanel,
       createPanelRuntime: this.createPanelRuntime,
+      resolveOptions: this.host.resolveOptions,
       scopeFilter,
     });
   }
@@ -183,6 +187,7 @@ export class RuntimeFactory {
         (definition as DataViewDefinition).source,
       ),
       runner: this.host.runner,
+      resolveOptions: this.host.resolveOptions,
       scopeFilter,
       autoRefresh: false,
     });

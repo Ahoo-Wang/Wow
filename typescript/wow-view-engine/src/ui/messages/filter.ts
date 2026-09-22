@@ -105,6 +105,16 @@ export const filterMessages = {
   'label.filter.add-value-of': 'Add {field}',
   'label.filter.add-value': 'Add {value}',
   'label.filter.remove-value': 'Remove {value}',
+  // A reference field's candidates come from the host's source, searched as
+  // the user types (F-04): the box says what to do, the list says whether a
+  // page is on its way, came back empty, or did not come back, and offers
+  // the next page where the source has one.
+  'label.filter.search-candidates': 'Type to search',
+  'label.filter.candidates-loading': 'Searching…',
+  'label.filter.no-candidate': 'No match',
+  'label.filter.more-candidates': 'More',
+  'label.filter.candidates-failed': 'The candidates could not be loaded',
+  'label.filter.candidates-retry': 'Try again',
   // What an empty list's entry box says: the whole gesture, because this is
   // the one control on the panel where a key commits the value and Enter is
   // written nowhere else on screen.

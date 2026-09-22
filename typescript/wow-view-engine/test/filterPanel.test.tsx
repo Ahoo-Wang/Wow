@@ -30,7 +30,12 @@ import {
   ViewEngine,
   withFieldKinds,
 } from '../src/index.js';
-import type { FieldKind, ViewInstance, FilterTree } from '../src/index.js';
+import type {
+  FieldKind,
+  FilterTree,
+  OptionSource,
+  ViewInstance,
+} from '../src/index.js';
 import { useFilterEditor } from '../src/react/index.js';
 import {
   FilterPanel,
@@ -75,11 +80,14 @@ describe('FilterPanel tree editing', () => {
     messages?: ViewMessages,
     /** What the surface around the panel has taken off its hands. */
     props: Partial<FilterPanelProps> = {},
+    /** The host's option sources, for a definition with a reference field. */
+    resolveOptions?: () => OptionSource,
   ): PanelHarness {
     const engine = new ViewEngine({
       definitions: [definition],
       store: new MemoryViewStore({ instances: [mine] }),
       resolveSource: () => testSource(),
+      ...(resolveOptions ? { resolveOptions } : {}),
     });
     const runtime = engine.create('orders', {
       title: 'Scratch',
@@ -738,6 +746,49 @@ describe('FilterPanel tree editing', () => {
 
     fireEvent.click(box);
     await waitFor(() => expect(filter().tree.children).toEqual([]));
+  });
+
+  /**
+   * F-04: a reference field's pill searches the host's source and writes
+   * `{ items: [{ id, label }] }` — the shape the kind admits — so the
+   * condition passes admission and the bar can say the name later without
+   * asking the source again.
+   */
+  it("searches a reference field's candidates and writes the pick as items", async () => {
+    const user = userEvent.setup();
+    const definition = {
+      ...ordersDefinition(),
+      fields: [
+        ...ordersDefinition().fields,
+        {
+          name: 'customer',
+          label: 'Customer',
+          kind: 'reference' as const,
+          remote: 'customers',
+        },
+      ],
+    };
+    const { filter } = panel(false, definition, undefined, {}, () => ({
+      search: () =>
+        Promise.resolve({
+          items: [{ value: 'c-1', label: 'Acme' }],
+          nextCursor: null,
+        }),
+      resolve: () => Promise.resolve([]),
+    }));
+    act(() => filter().addLeaf('customer'));
+
+    await user.click(screen.getByRole('combobox', { name: 'Customer value' }));
+    await user.click(await screen.findByRole('option', { name: 'Acme' }));
+
+    await waitFor(() =>
+      expect(filter().tree.children[0]).toMatchObject({
+        field: 'customer',
+        value: { items: [{ id: 'c-1', label: 'Acme' }] },
+      }),
+    );
+    expect(filter().blocked).toBe(0);
+    expect(screen.getByRole('button', { name: 'Remove Acme' })).toBeDefined();
   });
 
   it('marks a condition blank until it says something, and invalid when wrong', () => {

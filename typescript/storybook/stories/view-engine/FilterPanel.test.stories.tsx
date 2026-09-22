@@ -17,6 +17,7 @@ import displayMeta, {
   Advanced as DisplayAdvanced,
   Negated as DisplayNegated,
   NumberList as DisplayNumberList,
+  Reference as DisplayReference,
   Simple as DisplaySimple,
   UnregisteredKind as DisplayUnregisteredKind,
   WithTime as DisplayWithTime,
@@ -194,6 +195,87 @@ export const Negated: Story = {
       ]),
     );
     await expect(badges()[0]).toBe(status);
+  },
+};
+
+/**
+ * F-04: a reference field's candidates come from the host's source. The saved
+ * view carries the chosen customer's name beside its id, so the pill and the
+ * bar say it without a lookup; the list is asked only once opened, and
+ * again once typing pauses; a pick lands as `{ id, label }` and the rows
+ * follow it.
+ */
+export const Reference: Story = {
+  ...DisplayReference,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(document.body);
+    const table = await canvas.findByRole('table');
+    const badges = () =>
+      [
+        ...canvas
+          .getByRole('region', { name: zhCN['label.applied.title'] })
+          .querySelectorAll('[data-slot="badge"]'),
+      ].map(badge => badge.textContent?.trim());
+
+    // The saved condition, said from the label it carries.
+    await waitFor(() =>
+      expect(readColumn(table, '订单号')).toEqual(['SO-1001', 'SO-1003']),
+    );
+    await expect(badges()[0]).toBe(
+      `客户 ${zhCN['label.operator.IN']} 晨光食品`,
+    );
+
+    await userEvent.click(
+      await canvas.findByRole('button', {
+        name: new RegExp(`^${zhCN['label.filter.panel']}`),
+      }),
+    );
+    const pill = await canvas.findByRole('group', {
+      name: formatMessage(zhCN, 'label.filter.condition-of', {
+        field: '客户',
+      }),
+    });
+    await expect(within(pill).getByText('晨光食品')).toBeVisible();
+
+    // Opening lists the first page; typing narrows it at the source.
+    const input = within(pill).getByRole('combobox', {
+      name: formatMessage(zhCN, 'label.filter.value-of', { field: '客户' }),
+    });
+    await userEvent.click(input);
+    await body.findByRole('option', { name: '宏远贸易' });
+    await expect(
+      body.getByRole('button', { name: zhCN['label.filter.more-candidates'] }),
+    ).toBeVisible();
+    await userEvent.type(input, '物流');
+    await waitFor(() =>
+      expect(body.queryByRole('option', { name: '宏远贸易' })).toBeNull(),
+    );
+    await userEvent.click(
+      await body.findByRole('option', { name: '蓝海物流' }),
+    );
+
+    // Both are chips now; the first is removed by its own button.
+    await expect(within(pill).getByText('蓝海物流')).toBeVisible();
+    await userEvent.click(
+      within(pill).getByRole('button', {
+        name: formatMessage(zhCN, 'label.filter.remove-value', {
+          value: '晨光食品',
+        }),
+      }),
+    );
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.filter.apply'] }),
+    );
+    await waitFor(() =>
+      expect(readColumn(canvas.getByRole('table'), '订单号')).toEqual([
+        'SO-1002',
+        'SO-1005',
+      ]),
+    );
+    await expect(badges()[0]).toBe(
+      `客户 ${zhCN['label.operator.IN']} 蓝海物流`,
+    );
   },
 };
 

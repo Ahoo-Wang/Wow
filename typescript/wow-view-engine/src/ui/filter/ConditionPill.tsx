@@ -390,6 +390,11 @@ export function ConditionPill({
             disabled={disabled}
             invalid={invalidValue || undefined}
             options={editor.remote ? optionsFor?.(editor.remote) : undefined}
+            source={
+              editor.remote
+                ? (filter.optionSource?.(editor.remote) ?? null)
+                : null
+            }
             onChange={value => filter.updateLeaf(path, { value })}
           />
         )}
@@ -435,6 +440,7 @@ function NestedPredicate({
     // so they are rebased here to address the nested tree instead.
     issues: rebase(filter.issues, path),
     onChange: tree => filter.updateLeaf(path, { value: writeValue(tree) }),
+    ...(filter.optionSource ? { optionSource: filter.optionSource } : {}),
   });
 
   return (

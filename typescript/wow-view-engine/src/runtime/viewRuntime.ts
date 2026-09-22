@@ -43,7 +43,7 @@ import {
   RequestQueueFullError,
   type RequestRunner,
 } from './requestRunner.js';
-import type { ProjectedView, ViewSource } from './source.js';
+import type { OptionSource, ProjectedView, ViewSource } from './source.js';
 import {
   executeDataConfig,
   firstPageOf,
@@ -92,6 +92,13 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
    * UI drew, which is the UI's fault and not theirs.
    */
   readonly limits: RuntimeLimits;
+  /**
+   * The remote candidates behind a `reference` field's `remote` key, or
+   * `null` when the host wired no `resolveOptions`. The editor asks here
+   * rather than reaching for the engine: a runtime is what a workbench
+   * holds, and a value editor two levels down has no engine to reach.
+   */
+  optionSource(remote: string): OptionSource | null;
   getSnapshot(): ViewRuntimeState<C>;
   subscribe(listener: () => void): () => void;
   /**
@@ -310,6 +317,8 @@ export interface ViewRuntimeOptions<C extends DataViewConfig> {
   environment: RuntimeEnvironment;
   source: ViewSource;
   runner: RequestRunner;
+  /** See `ViewRuntime.optionSource`. */
+  resolveOptions?(key: string): OptionSource;
   /** An outer condition in force from the first execution on. */
   scopeFilter?: FilterTree | null;
   /**
@@ -362,6 +371,7 @@ export class DataViewRuntime<
   private readonly listeners = new Set<() => void>();
   private readonly context: KernelContext;
   private readonly runner: RequestRunner;
+  private readonly resolveOptions: ((key: string) => OptionSource) | undefined;
   private readonly unwatchVisibility: () => void;
   private readonly autoRefresh: boolean;
 
@@ -390,6 +400,7 @@ export class DataViewRuntime<
     this.definition = options.definition as DefinitionFor<C>;
     this.kinds = options.kinds;
     this.limits = options.limits;
+    this.resolveOptions = options.resolveOptions;
     this.runner = options.runner;
     this.environment = options.environment;
     this.autoRefresh = options.autoRefresh ?? true;
@@ -462,6 +473,10 @@ export class DataViewRuntime<
     return () => {
       this.listeners.delete(listener);
     };
+  }
+
+  optionSource(remote: string): OptionSource | null {
+    return this.resolveOptions ? this.resolveOptions(remote) : null;
   }
 
   edit(patch: Partial<C>): void {

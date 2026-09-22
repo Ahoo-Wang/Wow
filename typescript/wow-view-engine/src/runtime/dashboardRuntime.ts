@@ -42,6 +42,7 @@ import {
   validateDashboard,
 } from '../dashboard/index.js';
 import type { RuntimeEnvironment } from './environment.js';
+import type { OptionSource } from './source.js';
 import {
   PanelChildren,
   type PanelRuntimeFactory,
@@ -108,6 +109,8 @@ export interface DashboardRuntimeOptions {
   environment: RuntimeEnvironment;
   resolve: PanelResolver;
   createPanelRuntime: PanelRuntimeFactory;
+  /** See `ViewRuntime.optionSource`. */
+  resolveOptions?(key: string): OptionSource;
   /** An outer condition in force from the first execution, as for a data view. */
   scopeFilter?: FilterTree | null;
 }
@@ -239,6 +242,11 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     return () => {
       this.listeners.delete(listener);
     };
+  }
+
+  optionSource(remote: string): OptionSource | null {
+    const resolve = this.options.resolveOptions;
+    return resolve ? resolve(remote) : null;
   }
 
   /**

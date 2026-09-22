@@ -16,6 +16,7 @@ import type { EditorDescriptor } from '../filter/index.js';
 import { UnsupportedValue } from './filter/inputs/unsupported.js';
 import { DateValue } from './filter/inputs/date.js';
 import { NumberValue } from './filter/inputs/number.js';
+import type { OptionSource } from '../runtime/index.js';
 import { RemoteValue } from './filter/inputs/remote.js';
 import {
   BooleanValue,
@@ -49,8 +50,13 @@ export interface FilterValueEditorProps {
    * border, and a border is not something a screen reader reads out.
    */
   invalid?: boolean;
-  /** Candidates for a `remote` editor; typed entry without one. */
+  /** Every candidate of a `remote` editor at once, where a host holds the whole list. */
   options?: FieldOption[];
+  /**
+   * The searchable source behind a `remote` editor, from the runtime. With
+   * neither this nor `options`, the value is typed.
+   */
+  source?: OptionSource | null;
 }
 
 /**
@@ -81,6 +87,7 @@ export function FilterValueEditor({
   disabled,
   invalid,
   options,
+  source,
 }: FilterValueEditorProps) {
   switch (editor.input) {
     case 'none':
@@ -143,6 +150,7 @@ export function FilterValueEditor({
           value={value}
           multiple={editor.multiple === true}
           options={options}
+          source={source}
           onChange={onChange}
         />
       );

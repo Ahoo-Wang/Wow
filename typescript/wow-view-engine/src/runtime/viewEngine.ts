@@ -182,6 +182,11 @@ export class ViewEngine {
       environment: this.environment,
       runner: this.runner,
       resolveSource: key => this.resolveSource(key),
+      // Left out rather than a thrower: a runtime asks whether a source
+      // exists, and an editor with no source falls back to typed entry.
+      ...(this.options.resolveOptions
+        ? { resolveOptions: (key: string) => this.resolveOptions(key) }
+        : {}),
       readInstance: id => this.readInstance(id),
     });
   }

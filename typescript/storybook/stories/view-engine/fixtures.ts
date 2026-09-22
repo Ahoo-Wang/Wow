@@ -22,6 +22,7 @@ import {
   type DataViewDefinition,
   type DashboardDefinition,
   type FieldOption,
+  type OptionSource,
   type RecordData,
   type RecordViewConfig,
   type RuntimeLimits,
@@ -104,6 +105,8 @@ export const ordersDefinition: DataViewDefinition = {
       ],
     },
     /** 外链走 `isSafeContentUrl`，与仪表盘的 markdown 链接同一条规则。 */
+    /** 客户是另一份数据里的行：候选由宿主的 `OptionSource` 搜出来，值里带着名字（F-04）。 */
+    { name: 'customer', label: '客户', kind: 'reference', remote: 'customers' },
     { name: 'trackingUrl', label: '运单', kind: 'string', cell: 'link' },
     /** 多行备注截到三行，整段留在 `title` 里。 */
     { name: 'note', label: '备注', kind: 'string', cell: 'text' },
@@ -141,6 +144,7 @@ export const ORDERS: RecordData[] = [
     id: 'SO-1001',
     warehouse: 'CN-EAST',
     status: 'PENDING',
+    customer: 'c-03',
     tags: ['rush', 'fragile'],
     trackingUrl: 'https://example.com/track/SO-1001',
     note: '客户要求下午三点后送达。\n门卫代收需电话确认。',
@@ -152,6 +156,7 @@ export const ORDERS: RecordData[] = [
     warehouse: 'CN-EAST',
     // 已取消：一个"坏消息"的状态，好让语气三档在同一屏上齐。
     status: 'CANCELLED',
+    customer: 'c-02',
     tags: [],
     note: '客户改约下周同一地址，原单作废。',
     amount: 640,
@@ -161,6 +166,7 @@ export const ORDERS: RecordData[] = [
     id: 'SO-1003',
     warehouse: 'CN-NORTH',
     status: 'PENDING',
+    customer: 'c-03',
     tags: ['gift'],
     trackingUrl: 'https://example.com/track/SO-1003',
     note: '随单附贺卡，不放价签。',
@@ -171,6 +177,7 @@ export const ORDERS: RecordData[] = [
     id: 'SO-1004',
     warehouse: 'CN-SOUTH',
     status: 'SHIPPED',
+    customer: 'c-07',
     tags: ['rush'],
     trackingUrl: 'https://example.com/track/SO-1004',
     note: '已交承运商，预计次日达。',
@@ -181,6 +188,7 @@ export const ORDERS: RecordData[] = [
     id: 'SO-1005',
     warehouse: 'CN-SOUTH',
     status: 'PENDING',
+    customer: 'c-02',
     tags: ['fragile', 'gift'],
     // 一条读不出的 URL：落回纯文本，绝不画成能点的链接。
     trackingUrl: 'javascript:alert(1)',
@@ -192,6 +200,7 @@ export const ORDERS: RecordData[] = [
     id: 'SO-1006',
     warehouse: 'CN-WEST',
     status: 'PENDING',
+    customer: 'c-11',
     tags: ['vip'],
     trackingUrl: 'https://example.com/track/SO-1006',
     note: '',
@@ -206,6 +215,7 @@ export const ORDERS: RecordData[] = [
     id: 'SO-1007',
     warehouse: 'CN-EAST',
     status: 'PENDING',
+    customer: 'c-03',
     tags: [],
     note: '重复下单，已作废。',
     amount: 320,
@@ -401,6 +411,67 @@ export type SourceBehaviour =
  * engine sent — filtered, sorted, paged and aggregated — so what a story
  * shows is what those conditions select.
  */
+/** Two dozen customers, as a reference field's source hands them over. */
+export const CUSTOMERS: FieldOption[] = [
+  '宏远贸易',
+  '蓝海物流',
+  '晨光食品',
+  '恒信电子',
+  '云帆科技',
+  '嘉禾农业',
+  '天工机械',
+  '锦绣服饰',
+  '远洋船务',
+  '博雅文化',
+  '瑞丰药业',
+  '星辰能源',
+  '华章印务',
+  '绿野园林',
+  '金桥地产',
+  '四海餐饮',
+  '联创软件',
+  '鼎盛建材',
+  '春华教育',
+  '飞跃汽车',
+  '百川水务',
+  '明珠珠宝',
+  '双鹤医疗',
+  '长风航空',
+].map((label, index) => ({
+  value: `c-${String(index + 1).padStart(2, '0')}`,
+  label,
+}));
+
+/**
+ * The customers, searched: a page of eight at a time, matched on the name
+ * or the id, and a little slow so the list's «searching» state can be seen.
+ */
+export function customerSource(delayMs = 300): OptionSource {
+  const PAGE = 8;
+  return {
+    async search({ query, cursor }, signal) {
+      await delay(delayMs);
+      if (signal?.aborted) throw new Error('aborted');
+      const needle = query.trim().toLowerCase();
+      const matched = CUSTOMERS.filter(
+        option =>
+          needle === '' ||
+          option.label.toLowerCase().includes(needle) ||
+          String(option.value).includes(needle),
+      );
+      const start = Number(cursor ?? 0);
+      const end = start + PAGE;
+      return {
+        items: matched.slice(start, end),
+        nextCursor: end < matched.length ? String(end) : null,
+      };
+    },
+    async resolve(ids) {
+      return CUSTOMERS.filter(option => ids.includes(option.value));
+    },
+  };
+}
+
 export function storySource(behaviour: SourceBehaviour = 'data'): ViewSource {
   return behavingSource(ORDERS, behaviour);
 }
@@ -516,6 +587,7 @@ export function createStoryEngine(
       options.store ??
       new MemoryViewStore({ instances: options.instances ?? savedViews }),
     resolveSource: () => options.source ?? storySource(options.behaviour),
+    resolveOptions: () => customerSource(),
     ...(options.limits
       ? { limits: { ...DEFAULT_RUNTIME_LIMITS, ...options.limits } }
       : {}),

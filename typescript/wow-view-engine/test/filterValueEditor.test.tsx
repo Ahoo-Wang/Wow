@@ -11,11 +11,22 @@
  * limitations under the License.
  */
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { useState } from 'react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { EditorDescriptor, FilterValue } from '../src/index.js';
+import type {
+  EditorDescriptor,
+  FilterValue,
+  OptionSource,
+} from '../src/index.js';
 import { SurfaceCalendar } from '../src/ui/filter/inputs/calendar.js';
 import {
   en,
@@ -60,6 +71,7 @@ describe('FilterValueEditor', () => {
     descriptor: EditorDescriptor,
     initial: FilterValue = null,
     options: typeof CANDIDATES | null = CANDIDATES,
+    source: OptionSource | null = null,
   ): { changes: FilterValue[]; replace(next: FilterValue): void } {
     const changes: FilterValue[] = [];
     // A host like the filter panel feeds the editor the value it emitted —
@@ -78,6 +90,7 @@ describe('FilterValueEditor', () => {
             value={current}
             label="amount"
             options={options ?? undefined}
+            source={source}
             onChange={next => {
               changes.push(next);
               setCurrent(next);
@@ -532,6 +545,120 @@ describe('FilterValueEditor', () => {
     await user.click(await screen.findByRole('option', { name: 'China' }));
 
     expect(changes).toEqual([['CN']]);
+  });
+
+  /**
+   * A searchable source (F-04). What it is asked, and when, is the contract:
+   * nothing until the list opens, one search per pause in typing, every
+   * request carrying a signal that the next query aborts.
+   */
+  function fakeSource(
+    pages: Record<string, { items: typeof CANDIDATES; nextCursor?: string }>,
+    failing: string[] = [],
+  ) {
+    const calls: { query: string; cursor?: string; signal?: AbortSignal }[] =
+      [];
+    const source: OptionSource = {
+      search: ({ query, cursor }, signal) => {
+        calls.push({ query, cursor, signal });
+        if (failing.includes(query)) return Promise.reject(new Error('down'));
+        const page = pages[cursor ? `${query}@${cursor}` : query] ?? {
+          items: [],
+        };
+        return Promise.resolve({
+          items: page.items,
+          nextCursor: page.nextCursor ?? null,
+        });
+      },
+      resolve: () => Promise.resolve([]),
+    };
+    return { source, calls };
+  }
+
+  it("searches a source once typing pauses, and writes what was picked in the value's own shape", async () => {
+    const user = userEvent.setup();
+    const { source, calls } = fakeSource({
+      '': { items: CANDIDATES },
+      ja: { items: [CANDIDATES[1]] },
+    });
+    const { changes } = editor(
+      { input: 'remote', remote: 'warehouses', multiple: true },
+      { items: [] },
+      null,
+      source,
+    );
+    // Nothing asked for a pill that is merely on screen.
+    expect(calls).toHaveLength(0);
+
+    const input = screen.getByLabelText('amount');
+    await user.click(input);
+    await screen.findByRole('option', { name: 'China' });
+    expect(calls.map(call => call.query)).toEqual(['']);
+
+    await user.type(input, 'ja');
+    await waitFor(() => expect(calls[calls.length - 1]?.query).toBe('ja'));
+    // One search for the pause, not one per keystroke; the first was aborted.
+    expect(calls).toHaveLength(2);
+    expect(calls[0].signal?.aborted).toBe(true);
+    await user.click(await screen.findByRole('option', { name: 'Japan' }));
+
+    // A reference value keeps the label beside the id.
+    expect(changes).toEqual([{ items: [{ id: 'JP', label: 'Japan' }] }]);
+    expect(screen.getByRole('button', { name: 'Remove Japan' })).toBeDefined();
+  });
+
+  it('writes plain ids for a value that held plain ids', async () => {
+    const user = userEvent.setup();
+    const { source } = fakeSource({ '': { items: CANDIDATES } });
+    const { changes } = editor(
+      { input: 'remote', remote: 'warehouses', multiple: true },
+      ['CN'],
+      null,
+      source,
+    );
+
+    await user.click(screen.getByLabelText('amount'));
+    await user.click(await screen.findByRole('option', { name: 'Japan' }));
+
+    expect(changes).toEqual([['CN', 'JP']]);
+  });
+
+  it('offers the next page while the source has one, and says when a page failed', async () => {
+    const user = userEvent.setup();
+    const { source, calls } = fakeSource(
+      {
+        '': { items: [CANDIDATES[0]], nextCursor: '1' },
+        '@1': { items: [CANDIDATES[1]] },
+      },
+      ['x'],
+    );
+    editor(
+      { input: 'remote', remote: 'warehouses', multiple: true },
+      { items: [] },
+      null,
+      source,
+    );
+
+    await user.click(screen.getByLabelText('amount'));
+    await screen.findByRole('option', { name: 'China' });
+    expect(screen.queryByRole('option', { name: 'Japan' })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'More' }));
+    await screen.findByRole('option', { name: 'Japan' });
+    expect(calls[calls.length - 1]).toMatchObject({ query: '', cursor: '1' });
+    expect(screen.queryByRole('button', { name: 'More' })).toBeNull();
+
+    // A failed search keeps the page that was listed and offers a retry.
+    await user.type(screen.getByLabelText('amount'), 'x');
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('The candidates could not be loaded');
+    expect(screen.getByRole('option', { name: 'China' })).toBeDefined();
+    expect(screen.queryByText('No match')).toBeNull();
+
+    await user.click(within(alert).getByRole('button', { name: 'Try again' }));
+    await waitFor(() =>
+      expect(calls.filter(call => call.query === 'x')).toHaveLength(2),
+    );
   });
 
   it('falls back to typed entry when no remote candidates are given', () => {
