@@ -255,6 +255,7 @@ RecordActionSlots { global?; bulk?; row? }
 
 - 三层业务动作的 render 槽位（react/actions.ts），由宿主传给工作台；
 - 动作是代码，不进配置也不进 ViewInstance。
+- 动作拿到的行（`row.data`、`rows[].data`）**只有这一页要回来的字段**：行键、可见列、卡片字段、排序与汇总字段（[kernels.md#一页要哪些字段](kernels.md#一页要哪些字段)）。动作要读别的——补偿控制台的行菜单读 `state.status`、`state.isRetryable`、`state.isBelowRetryThreshold`、`state.recoverable`——就在定义的 `record.rowFields` 里写出来。
 - 槽位里抛错由 `/ui` 的渲染边界接住（[ui/README.md#渲染边界](ui/README.md#渲染边界)）：只毁掉它所在的那一块，并经 `onRenderFailure` 交还宿主。
 
 ## useBulkCommand

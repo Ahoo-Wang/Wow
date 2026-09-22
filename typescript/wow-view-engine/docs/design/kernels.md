@@ -22,7 +22,8 @@ describeFilter(fields, tree, kinds): FilterSummaryItem[]     // 已应用条件�
 // record
 defaultRecordConfig(def): RecordViewConfig                      // 按 RecordCapability.defaults 补全的完整初始配置
 validateRecord(def, cfg: RecordViewConfig, kinds): Issue[]   // 见下方规则
-compileRecord(def, cfg, kinds, ctx, page: RecordPageTarget): FilterPagedQuery | CursorQuery   // 按 RecordCapability.paging 判别；首次查询为 { index: 1 } 或 { cursor: null }（Wow 页码从 1 开始）
+compileRecord(def, cfg, kinds, ctx, page: RecordPageTarget): FilterPagedQuery | CursorQuery   // 按 RecordCapability.paging 判别；首次查询为 { index: 1 } 或 { cursor: null }（Wow 页码从 1 开始）；两种都带 recordProjection 的 projection
+recordProjection(def, cfg): Projection                         // { include }：这一页要向数据源要的字段，见「一页要哪些字段」
 projectRecord(def, cfg, page: PagedList<RecordData> | CursorPage<RecordData>): RecordView   // 列语义、行、行键；paging 为 { mode: 'paged'; index; total? } | { mode: 'cursor'; nextCursor: string | null }
 compileSummaries(def, cfg, kinds, ctx): AggregationQuery | null    // 全范围汇总
 projectSummaries(def, cfg, rows | aggregation): SummaryRow        // scope 是结果的一部分：'total' 来自自己的聚合，'page' 来自屏幕上的行
@@ -60,6 +61,7 @@ mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboa
 - `cell` 必须是 `FieldCellId` 里的一个（`definition.field.cell-invalid`），`options[].tone` 必须是四档语气里的一档（`definition.field.tone-invalid`，Issue 落在那一项选项上而不是字段上，好让一个有八个状态的定义知道该去改哪一个）。两者都是闭合取值：`/ui` 没有渲染器注册表，没人分派的键不会报错，只会悄悄走默认渲染，于是一列声明成链接的 URL 仍旧是一串点不动的字——正是这类沉默让"引擎给得出的，定义才写得出"（D4）在这里也成立；
 - `fieldGroups[]` 的 `id` 与 `label` 非空且 `id` 唯一（`definition.fieldGroup.invalid`／`duplicate`），其 `fields[]` 必须是已声明的根字段，且一个字段不得被两个分组同时列出（`definition.fieldGroup.field-unknown`／`field-duplicate`）；
 - `views[].id` 在定义内唯一，否则按名称查找无法确定使用哪一份能力；
+- `RecordCapability.rowFields` 的每一项都必须是已声明、且行里真有值的字段（不是搜索／元数据这类无字段种类），否则报 `definition.record.row-field-unknown`／`row-field-not-a-path`：它每一页都要被要回来，一个要不回来的名字只会让读它的动作永远读到 `undefined`；
 - `RecordCapability.layouts` 非空且 `rowKey` 指向已声明字段，`AnalysisCapability.fields[].field` 同样必须存在，使各 `default*Config` 对任何被接受的定义都能返回合法完整配置；
 - `AnalysisCapability.elements` 是一条链，按链自根向内走：第一层是根上一个声明了 `elements` 的字段，第 i 层必须是第 i−1 层元素里声明了 `elements` 的字段，否则报 `definition.analysis.element-undeclared`——并列的两个根数组就是在这里被拒的，那是一条断链而不是两条链；层数不得超过 Wow 的 `AGGREGATION_LIMITS.MAX_ELEMENTS`（5），否则报 `definition.analysis.elements-too-many`：再深的一层任何配置都展开不到；
 - 每个 `views[].config.kind` 必须与所属定义的能力匹配：`kind: 'data'` 只接受 `record`／`analysis` 且对应能力已声明，`kind: 'dashboard'` 只接受 `dashboard`，否则报 error（系统视图不可覆盖，不能交付一个只能待修复的只读视图）；
@@ -145,6 +147,20 @@ mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboa
 - `pageSize` 为不超过 `RuntimeLimits.maxPageSize` 的正整数；
 - `sort[].field` 必须存在且 `sortable` 为 true，游标模式下 `sort.length` 不超过 Wow 的 `MAX_CURSOR_SORT_FIELDS`（32）；
 - 每个 `summaries[]` 的函数必须出现在该字段的 `summary` 集合中。（见 test/record.test.ts「validateRecord」「a record config that lost its shape」）
+
+## 一页要哪些字段
+
+一份 Wow 快照是整份文档，而文档里装的远比任何人看的多：一条执行失败带着它自己的异常栈，每行几 KB。对补偿服务实测（2026-09-22，`execution_failed` 65 万条，100 行一页，按 `eventTime` 倒序）：**整份要 808 KB、约 2.9 s；只要视图显示的字段 46 KB、约 1.6 s**（只算表格列是 28 KB）。所以记录查询不再要整份文档，`compileRecord` 两种分页都带 `projection: { include }`，由 `recordProjection(def, cfg)` 从**执行时的配置**算出：
+
+- **行键**——一行是谁：选择、行的 React key、每一个动作都读它；
+- **表格的可见列**，以及定义提供卡片布局时**卡片的标题、图片与正文字段**。两种布局都要，不管当前是哪一种：表格／卡片是展示成员（`RECORD_PRESENTATION_MEMBERS`），两种布局画的是同一次查询的同一批行，切换当下即完成、不跑查询；只要当前布局的字段，切过去的那一刻卡片就是空的，得等第二次查询。多要的只是卡片那几个字段（默认 `defaultCardFields` 个），省下的仍是整份文档；
+- **排序字段**：Wow 自己的后端会为游标补上排序值，但 `ViewSource` 是谁都能实现的端口，按最后一行算下一页游标的数据源要在行里找得到它们；
+- **除 `COUNT` 外每个汇总的字段**：「本页」那一行是屏幕上的行加起来（`pageSummaries`），全范围聚合失败时汇总行也退回它；`COUNT` 数的是行，不读值。全范围那一份走自己的聚合查询，不需要行里的字段；
+- **`RecordCapability.rowFields`**：宿主自己的代码要从行上读、而视图未必显示的字段——行动作按 `state.isRetryable` 决定给不给「重试」、批量动作、自定义单元格。它写在定义里、写一次，准入时逐项对照已声明字段（[定义准入](#定义准入)）。**没有"有动作就整份要"这种隐含规则**：整份文档正是那 808 KB 的来源；宿主读了没声明的字段，读到的就是 `undefined`，这是要在定义里补一行的信号。
+
+隐藏的列不画、不导出，所以也不要；把它重新勾上是一次 `edit` 加 `apply`（`setColumns`），带回这一列的那次查询同时带回它的值。卡片设置（`setCard`）同理。导出（`runtime/exportRows.ts`）走同一个 `compileRecord`、同一份已应用配置，所以导出的就是用户选的那几列——宿主自己的 `deliver` 拿到的行也只有这些字段。
+
+只要定义声明过、且行里真有值的路径：配置来自存储，不可信；无字段种类的名字是句柄不是路径，要了也不会回来；行键总是路径。一条路径的祖先已经在要的时候丢掉它——祖先会把它带回来，而 MongoDB 把两者同时出现当作路径冲突拒绝。嵌套路径原样写（`state.error.errorCode`），Wow 返回的是只含这些叶子的嵌套对象，`recordValue` 照常按段读。（见 test/recordProjection.test.tsx「recordProjection」「compileRecord carries the projection」「RecordCapability.rowFields admission」「the query a view runs」）
 
 ## 导出序列化
 

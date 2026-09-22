@@ -115,6 +115,20 @@ export interface RecordCapability {
   /** Decides whether the runtime calls `source.paged` or `source.cursor`. */
   paging: PagingMode;
   layouts: RecordLayout[];
+  /**
+   * Fields every fetched row carries whatever the view shows, because the
+   * host's own code reads them: a row action that offers "retry" only while
+   * `state.isRetryable`, a bulk action, a custom cell.
+   *
+   * A page asks its source for the fields the view shows and no more
+   * (`recordProjection`), so a row handed to an action holds its row key,
+   * its visible columns, its card fields and its sort — not the document.
+   * What the host reads beyond that is said here, once, beside the fields it
+   * names: each must be a declared field a row holds, which admission checks.
+   * There is no "fetch everything when there are actions": the document is
+   * what made a page of failed executions 808 KB.
+   */
+  rowFields?: string[];
   defaults?: Partial<RecordViewConfig>;
 }
 

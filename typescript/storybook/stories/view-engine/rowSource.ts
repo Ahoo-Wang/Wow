@@ -61,7 +61,7 @@ export function rowSource(rows: readonly RecordData[]): ViewSource {
       const start = (index - 1) * size;
       return {
         total: matched.length,
-        list: matched.slice(start, start + size),
+        list: matched.slice(start, start + size).map(projected(query)),
       };
     },
     cursor: async query => {
@@ -70,12 +70,55 @@ export function rowSource(rows: readonly RecordData[]): ViewSource {
       const start = Number(query.cursor ?? 0);
       const end = start + (query.size ?? matched.length);
       return {
-        list: matched.slice(start, end),
+        list: matched.slice(start, end).map(projected(query)),
         nextCursor: end < matched.length ? String(end) : null,
       };
     },
     aggregate: async query => summarise(rows, query),
   };
+}
+
+/**
+ * A row as the service answers it: only the paths the query's projection
+ * includes, when it has one. A source that answered whole rows regardless
+ * would let a story pass that reads a field no one asked for — the very
+ * thing `rowFields` exists to say.
+ */
+function projected(query: { projection?: { include?: readonly string[] } }) {
+  const include = query.projection?.include;
+  if (!include || include.length === 0) return (row: RecordData) => row;
+  return (row: RecordData): RecordData => {
+    const picked: RecordData = {};
+    for (const path of include) {
+      const value = readPath(row, path);
+      if (value !== undefined) writePath(picked, path, value);
+    }
+    return picked;
+  };
+}
+
+function readPath(row: RecordData, path: string): unknown {
+  return path
+    .split('.')
+    .reduce<unknown>(
+      (at, key) =>
+        at !== null && typeof at === 'object'
+          ? (at as Record<string, unknown>)[key]
+          : undefined,
+      row,
+    );
+}
+
+function writePath(row: RecordData, path: string, value: unknown): void {
+  const keys = path.split('.');
+  let at: Record<string, unknown> = row;
+  for (const key of keys.slice(0, -1)) {
+    const next = at[key];
+    at[key] =
+      next !== null && typeof next === 'object' ? next : ({} as RecordData);
+    at = at[key] as Record<string, unknown>;
+  }
+  at[keys[keys.length - 1]] = value;
 }
 
 function select(

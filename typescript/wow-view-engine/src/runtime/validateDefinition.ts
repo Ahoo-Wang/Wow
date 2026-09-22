@@ -295,6 +295,23 @@ function validateRecordCapability(definition: DataViewDefinition): Issue[] {
       }),
     );
 
+  // What the host's code reads off a row is fetched on every page, so a
+  // name that is no path into a row would be asked for and never arrive —
+  // and the action reading it would quietly see `undefined` forever.
+  const byName = new Map(definition.fields.map(field => [field.name, field]));
+  (capability.rowFields ?? []).forEach((name, index) => {
+    const field = byName.get(name);
+    const at: IssuePath = ['record', 'rowFields', index];
+    if (!field)
+      issues.push(
+        issue('definition.record.row-field-unknown', at, { field: name }),
+      );
+    else if (isFieldlessKind(field.kind))
+      issues.push(
+        issue('definition.record.row-field-not-a-path', at, { field: name }),
+      );
+  });
+
   return issues;
 }
 

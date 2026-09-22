@@ -58,6 +58,10 @@ export const definitionMessages = {
   'definition.record.layouts-empty': 'The record capability offers no layout.',
   'definition.record.row-key-unknown':
     'The row key {field} is not a declared field.',
+  'definition.record.row-field-unknown':
+    'The row field {field} is not a declared field.',
+  'definition.record.row-field-not-a-path':
+    'The row field {field} is a search or metadata handle, not a value a row holds.',
   'definition.view.id-duplicate': 'Two views share the id {id}.',
   'definition.view.id-separator': 'A view id cannot contain {separator}.',
   'definition.view.kind-mismatch':

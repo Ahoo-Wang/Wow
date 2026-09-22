@@ -25,6 +25,7 @@ import {
   type CommandResult,
 } from '@ahoo-wang/fetcher-wow';
 import {
+  DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
   ViewEngine,
   type AnalysisViewConfig,
@@ -225,6 +226,10 @@ export const executionFailedDefinition: DataViewDefinition = {
       label: '搜索错误',
       kind: 'search',
       searchFields: ['state.error.errorMsg', 'state.error.stackTrace'],
+      // An operator pastes a piece of an error — 「Connection prematurely
+      // closed」 — and means those words together; the service's term mode
+      // matches any one of them (twice as many rows, half of them wrong).
+      searchMode: 'PHRASE',
     },
     {
       name: 'state.id',
@@ -410,7 +415,19 @@ export const executionFailedDefinition: DataViewDefinition = {
       sortable: true,
     },
   ],
-  record: { rowKey: 'state.id', paging: 'paged', layouts: ['table', 'card'] },
+  record: {
+    rowKey: 'state.id',
+    paging: 'paged',
+    layouts: ['table', 'card'],
+    // What the row commands read to decide what an execution takes — they
+    // are not columns, and a page asks only for the fields it shows.
+    rowFields: [
+      'state.status',
+      'state.isRetryable',
+      'state.isBelowRetryThreshold',
+      'state.recoverable',
+    ],
+  },
   // What the schema lets the service aggregate: AGGREGATE_TERMS groups by
   // value, AGGREGATE_NUMERIC bands and sums, AGGREGATE_TEMPORAL buckets by
   // date — and a date is a number too, so its earliest and latest are metrics.
@@ -418,6 +435,8 @@ export const executionFailedDefinition: DataViewDefinition = {
     count: true,
     having: true,
     expressions: true,
+    // The service refuses an aggregation asking for more than 1,000 groups.
+    limits: { maxLimit: 1000 },
     fields: [
       ...[
         'state.status',
@@ -566,6 +585,9 @@ export function createCompensationEngine(fetcher: Fetcher): ViewEngine {
   const source = new SnapshotQueryClient({ basePath: AGGREGATE, fetcher });
   return new ViewEngine({
     definitions: [executionFailedDefinition],
+    // The service pages at most 100 rows at a time; an export pages at the
+    // runtime's largest size, so that is the largest this source takes.
+    limits: { ...DEFAULT_RUNTIME_LIMITS, maxPageSize: 100 },
     store: new MemoryViewStore({ instances: [] }),
     resolveSource: () => source,
   });

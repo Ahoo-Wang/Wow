@@ -471,13 +471,13 @@ An unknown key falls back along the dots and then to the key itself, so a gap sh
 
 ## Extension points
 
-| Axis        | Mechanism                                                                                                                                                                          |
-| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Field type  | Register a `FieldKind` (operators, validation, `compile` to `FilterExpression`, editor descriptor); register the matching React editor and cell in `/ui` under the same id         |
-| Data source | `resolveSource(key)` returns a Wow query client                                                                                                                                    |
-| Persistence | Implement `ViewStore`                                                                                                                                                              |
-| Actions     | Pass `actions` to a workbench — `global`, `bulk` and `row` render functions. They are code, so they are handed over rather than named in a config, and nothing about them is saved |
-| Appearance  | CSS variables and theme files; replace components by composing `/react` hooks                                                                                                      |
+| Axis        | Mechanism                                                                                                                                                                                                                                                                                                                     |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Field type  | Register a `FieldKind` (operators, validation, `compile` to `FilterExpression`, editor descriptor); register the matching React editor and cell in `/ui` under the same id                                                                                                                                                    |
+| Data source | `resolveSource(key)` returns a Wow query client                                                                                                                                                                                                                                                                               |
+| Persistence | Implement `ViewStore`                                                                                                                                                                                                                                                                                                         |
+| Actions     | Pass `actions` to a workbench — `global`, `bulk` and `row` render functions. They are code, so they are handed over rather than named in a config, and nothing about them is saved. A page fetches only the fields its view shows, so a field an action reads beyond those is declared in the definition's `record.rowFields` |
+| Appearance  | CSS variables and theme files; replace components by composing `/react` hooks                                                                                                                                                                                                                                                 |
 
 Built-in kinds: `string`, `number`, `boolean`, `date`, `datetime`, `enum`, `reference`.
 

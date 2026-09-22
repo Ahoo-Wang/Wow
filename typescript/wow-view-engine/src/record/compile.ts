@@ -19,9 +19,12 @@ import {
   type CursorQuery,
   type FieldSort,
   type FilterPagedQuery,
+  type Projection,
 } from '@ahoo-wang/fetcher-wow';
 import {
+  columnHidden,
   fieldAliasSegment,
+  isFieldlessKind,
   type DataViewDefinition,
   type RecordPageTarget,
   type RecordViewConfig,
@@ -50,6 +53,81 @@ function compileSort(config: RecordViewConfig): FieldSort[] {
 }
 
 /**
+ * The fields a page of this view asks its source for: what the view shows,
+ * and what reads a row besides.
+ *
+ * A Wow snapshot is the whole document, and a document can carry far more
+ * than anyone looks at — a failed execution holds its stack trace, several
+ * KB of it, on every row. Against the compensation service a page of 100
+ * failed executions measured 808 KB and 2.9 s asked for whole, and 46 KB and
+ * 1.6 s asked for what its view shows. So a page names its fields:
+ *
+ * - the row key, which is what a row *is* — selection, the row's React key
+ *   and every action read it;
+ * - the table's visible columns, and the card's title, image and body when
+ *   the definition offers cards. Both layouts, whichever is current: table
+ *   or cards is a presentation member (`RECORD_PRESENTATION_MEMBERS`), so
+ *   switching draws the same rows from the same query at once, and a card
+ *   switched to must not come up blank waiting for a second one;
+ * - the sort, so a source that works the next cursor out of the last row
+ *   finds its values there — Wow's own backend adds them itself, but
+ *   `ViewSource` is a port anyone implements;
+ * - every summary but `COUNT`: the page scope is the rows on screen added
+ *   up (`pageSummaries`), and it is also what the row falls back to when
+ *   the totals' own aggregation fails. `COUNT` counts rows and reads none;
+ * - `RecordCapability.rowFields`: what the host's own code reads off a row
+ *   — a row or bulk action, a custom cell — that the view need not show.
+ *
+ * A hidden column is not drawn and not exported, so it is not fetched
+ * either: switching it back on edits the config and applies it, and the
+ * query that brings the column also brings its values.
+ *
+ * Only paths the definition declares are asked for — the config comes from
+ * a store — and a field-less kind's name is a handle, not a path, so it is
+ * left out; the row key is always a path. A path under another one asked
+ * for is dropped: the ancestor brings it, and MongoDB refuses the two
+ * together as a path collision.
+ */
+export function recordProjection(
+  definition: DataViewDefinition,
+  config: RecordViewConfig,
+): Projection {
+  const capability = definition.record;
+  if (!capability)
+    throw new Error(
+      `Definition ${definition.id} declares no record capability`,
+    );
+  const paths = new Set(
+    definition.fields
+      .filter(field => !isFieldlessKind(field.kind))
+      .map(field => field.name),
+  );
+  const asked: string[] = [capability.rowKey];
+  for (const column of config.table.columns)
+    if (!columnHidden(column.hidden)) asked.push(column.field);
+  if (capability.layouts.includes('card')) {
+    asked.push(config.card.title);
+    if (config.card.image !== undefined) asked.push(config.card.image);
+    asked.push(...config.card.fields);
+  }
+  for (const sort of config.sort) asked.push(sort.field);
+  for (const summary of config.summaries ?? [])
+    if (summary.fn !== 'COUNT') asked.push(summary.field);
+  asked.push(...(capability.rowFields ?? []));
+
+  const include = [
+    ...new Set(
+      asked.filter(field => field === capability.rowKey || paths.has(field)),
+    ),
+  ];
+  return {
+    include: include.filter(
+      field => !include.some(other => field.startsWith(`${other}.`)),
+    ),
+  };
+}
+
+/**
  * Compiles the applied config into the query its source understands. Which of
  * the two it is comes from the definition, not from the config: paging is a
  * property of the backing query API.
@@ -73,6 +151,7 @@ export function compileRecord(
     context,
   );
   const sort = compileSort(config);
+  const projection = recordProjection(definition, config);
 
   // The mode decides, and the target must agree with it. Reading the mode off
   // the target instead would let a cursor target quietly turn a paged source
@@ -85,6 +164,7 @@ export function compileRecord(
       );
     return {
       filter: compiled,
+      projection,
       sort,
       size: config.pageSize,
       cursor: page.cursor,
@@ -96,6 +176,7 @@ export function compileRecord(
     );
   return {
     filter: compiled,
+    projection,
     sort,
     pagination: { index: page.index, size: config.pageSize },
   };

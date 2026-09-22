@@ -79,6 +79,9 @@ export interface RecordCapability {
   rowKey: string;
   paging: 'paged' | 'cursor'; // 数据源提供哪种分页；决定 runtime 调用 source.paged 还是 source.cursor
   layouts: ('table' | 'card')[];
+  // 宿主代码要从行上读、视图未必显示的字段（行动作、批量动作、自定义单元格）；
+  // 一页只要视图显示的字段（kernels.md「一页要哪些字段」），这里说的每页都另要
+  rowFields?: string[];
   defaults?: Partial<RecordViewConfig>;
 }
 
