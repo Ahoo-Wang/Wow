@@ -221,6 +221,7 @@ src/
     recordEdits.ts            — What a record command works out before it writes: the sort cycle, the page-size ladder, the spelling of "no summaries", and the repairs a patch carries
     recordDraft.ts            — The draft's lists as a control may read them; the controller is the boundary
     useAnalysisEditor.ts      — Analysis controller
+    useAnalysisResult.ts      — The analysis result as a host draws it: the rows that ran, the chart over them, the picker's fits, and the follow-ups on a pressed group
     analysisEditing.ts        — The edits to the question as plain functions over the draft (`questionEditing`): dimensions, metrics, conditions, copies, formulas, derived metrics, having
     useAutoRefresh.ts         — `RefreshController`: refresh now, the cadence ladder cut to the limits, the countdown
     useBulkCommand.ts         — One business command over the selection: pending, outcome, dismiss

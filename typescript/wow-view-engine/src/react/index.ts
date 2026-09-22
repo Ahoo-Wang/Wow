@@ -22,6 +22,7 @@ export * from './actions.js';
 export * from './environment.js';
 export * from './issues.js';
 export * from './useAnalysisEditor.js';
+export * from './useAnalysisResult.js';
 export * from './useAutoRefresh.js';
 export * from './useBulkCommand.js';
 export * from './useDashboard.js';

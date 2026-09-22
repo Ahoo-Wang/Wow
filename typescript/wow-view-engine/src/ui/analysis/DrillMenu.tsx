@@ -13,8 +13,8 @@
 
 import { CrosshairIcon, ListTreeIcon, TableIcon } from 'lucide-react';
 import { useEffect, useRef } from 'react';
-import type { FilterSummaryItem } from '../../filter/index.js';
 import type { RecordData } from '../../model/index.js';
+import type { FollowUp } from '../../react/index.js';
 import {
   DropdownMenu,
   DropdownMenuGroup,
@@ -38,24 +38,15 @@ export interface Pick {
   anchor: PickAnchor;
 }
 
-/** A dimension the group can be split by: a field not yet grouped on. */
-export interface SplitOption {
-  field: string;
-  label: string;
-}
-
 export interface DrillMenuProps {
   /** The group pressed; null closes the menu. */
   pick: Pick | null;
   onClose(): void;
-  /** The row's conditions, described as the applied bar describes them. */
-  conditions: readonly FilterSummaryItem[];
-  /** Whether the records behind the group can be opened (`canDrill`). */
-  canDrill: boolean;
-  splits: readonly SplitOption[];
-  onRecords(): void;
-  onSplit(field: string): void;
-  onFocus(): void;
+  /**
+   * What the menu offers on that group (`useAnalysisResult`): the group's
+   * conditions and the follow-ups, in order. Null while nothing is pressed.
+   */
+  followUp: FollowUp | null;
 }
 
 /**
@@ -68,16 +59,7 @@ export interface DrillMenuProps {
  * hands over what to anchor to, so one menu serves every layout and every
  * chart family.
  */
-export function DrillMenu({
-  pick,
-  onClose,
-  conditions,
-  canDrill,
-  splits,
-  onRecords,
-  onSplit,
-  onFocus,
-}: DrillMenuProps) {
+export function DrillMenu({ pick, onClose, followUp }: DrillMenuProps) {
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
   // What the keyboard gets back when the menu closes: the row that opened
@@ -118,38 +100,55 @@ export function DrillMenu({
               and a reader entering the group hears the conditions rather than
               nothing. Outside it Base UI has no group to label and throws. */}
           <DropdownMenuLabel data-slot="drill-group">
-            {conditions
+            {(followUp?.conditions ?? [])
               .map(item => summaryText(item, messages, display))
               .join(' · ')}
           </DropdownMenuLabel>
-          {canDrill && (
-            <DropdownMenuItem onClick={onRecords}>
-              <TableIcon />
-              {messages.label('label.drill.records')}
-            </DropdownMenuItem>
-          )}
-          {splits.length > 0 && (
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                <ListTreeIcon />
-                {messages.label('label.drill.split')}
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent>
-                {splits.map(split => (
-                  <DropdownMenuItem
-                    key={split.field}
-                    onClick={() => onSplit(split.field)}
-                  >
-                    {split.label}
+          {followUp?.actions.map(action => {
+            // Every follow-up is run, then the menu goes: it is about a
+            // group of a result that the action is about to replace.
+            const done =
+              <T extends unknown[]>(run: (...args: T) => void) =>
+              (...args: T) => {
+                run(...args);
+                onClose();
+              };
+            switch (action.kind) {
+              case 'records':
+                return (
+                  <DropdownMenuItem key="records" onClick={done(action.run)}>
+                    <TableIcon />
+                    {messages.label('label.drill.records')}
                   </DropdownMenuItem>
-                ))}
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-          )}
-          <DropdownMenuItem onClick={onFocus}>
-            <CrosshairIcon />
-            {messages.label('label.drill.focus')}
-          </DropdownMenuItem>
+                );
+              case 'split':
+                return (
+                  <DropdownMenuSub key="split">
+                    <DropdownMenuSubTrigger>
+                      <ListTreeIcon />
+                      {messages.label('label.drill.split')}
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      {action.options.map(option => (
+                        <DropdownMenuItem
+                          key={option.field}
+                          onClick={done(() => action.run(option.field))}
+                        >
+                          {option.label}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                );
+              case 'focus':
+                return (
+                  <DropdownMenuItem key="focus" onClick={done(action.run)}>
+                    <CrosshairIcon />
+                    {messages.label('label.drill.focus')}
+                  </DropdownMenuItem>
+                );
+            }
+          })}
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>

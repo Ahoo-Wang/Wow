@@ -11,25 +11,12 @@
  * limitations under the License.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  drillConditions,
-  fitChartSlots,
-  fitCharts,
-  focusOn,
-  groupFor,
-  groupableFields,
-  shapeChart,
-  splitBy,
-  withStagesFrom,
-  type AnalysisView,
-  type Picked,
-} from '../../analysis/index.js';
-import { describeFilter } from '../../filter/index.js';
+import { useEffect, useRef, useState } from 'react';
 import type { AnalysisViewConfig, FieldOption } from '../../model/index.js';
 import type { ViewRuntime } from '../../runtime/index.js';
 import {
   useAnalysisEditor,
+  useAnalysisResult,
   type WorkbenchController,
 } from '../../react/index.js';
 import { AnalysisChart } from '../AnalysisChart.js';
@@ -86,55 +73,9 @@ export function AnalysisParts({
   const { filter, state } = workbench;
   const analysis = useAnalysisEditor(runtime);
 
-  const data = state?.result?.data;
-  const view: AnalysisView | null =
-    data?.kind === 'analysis' ? data.view : null;
-  /**
-   * The rows are the config that ran; how they are looked at is the draft.
-   *
-   * The result's rows and columns come from the config the result was
-   * shaped by, and nothing else can name them. The layout and the chart are
-   * presentation (D20, `ANALYSIS_PRESENTATION_MEMBERS`): they are drawn
-   * from those rows as the draft says, so switching to a chart or picking
-   * another type redraws without a run.
-   *
-   * The draft's chart is fitted to the shape that ran **only while the two
-   * shapes differ** — a dimension added in the tray but not yet run is no
-   * column of these rows, and a chart addressing it would draw nothing.
-   * While the draft asks the question the rows answer, the chart is drawn
-   * exactly as it is saved: `fitChartSlots` opens a narrowed slot back up
-   * (one series becomes every metric when the second dimension goes), which
-   * is right when the shape moved under the chart and wrong on every render
-   * of a chart whose author narrowed it on purpose.
-   */
-  const applied = state?.result?.config;
-  const shaped = applied?.kind === 'analysis' ? applied : undefined;
+  const result = useAnalysisResult(runtime, analysis, workbench);
+  const { view, chart, chartData, fits, picked } = result;
   const layout = analysis.layout;
-  const drafted = aliasesOf(analysis.aliases.groups, analysis.aliases.metrics);
-  const ran = shaped
-    ? aliasesOf(
-        shaped.groups.map(group => group.alias),
-        shaped.metrics.map(metric => metric.alias),
-      )
-    : null;
-  const chart = useMemo(
-    () =>
-      shaped && ran !== drafted
-        ? fitChartSlots(analysis.chart, shaped.groups, shaped.metrics)
-        : analysis.chart,
-    [analysis.chart, shaped, ran, drafted],
-  );
-  const chartData = useMemo(
-    () =>
-      view && shaped
-        ? shapeChart(
-            { ...shaped, chart, layout: 'chart' },
-            view.rows,
-            view.totals,
-          )
-        : undefined,
-    [view, shaped, chart],
-  );
 
   // The visualization panel (D20 屏 I／J): open from the result's toolbar,
   // it takes the sidebar column, first as the chart types, then as the
@@ -193,96 +134,15 @@ export function AnalysisParts({
     block.setAttribute('tabindex', '-1');
     block.focus();
   }, [level]);
-  const fits = useMemo(
-    () =>
-      fitCharts({
-        groups: shaped?.groups ?? [],
-        metrics: shaped?.metrics ?? [],
-      }),
-    [shaped],
-  );
-  const picked: Picked = layout === 'table' ? 'table' : chart.type;
-  const choose = (next: Picked) => {
-    if (next === 'table') {
-      analysis.setLayout('table');
-      return;
-    }
-    analysis.setLayout('chart');
-    if (!shaped || !view) return;
-    // Fitted to the rows on screen, and a funnel of a group's values given
-    // the order they came in, so a type picked draws at once.
-    analysis.updateChart(
-      withStagesFrom(
-        fitChartSlots({ ...chart, type: next }, shaped.groups, shaped.metrics),
-        view.rows,
-      ),
-    );
-  };
-
   // The group the user pressed, on the chart or in the table, and the menu
-  // over it (D20 追问). Its conditions come from the config the result was
-  // shaped by — the row is a row of that result — and are described by the
-  // origin's fields, in the applied bar's words.
+  // over it (D20 追问). What the menu offers is the controller's; which row
+  // was pressed, and where, is the screen's.
   const [pick, setPick] = useState<Pick | null>(null);
-  const conditions =
-    pick && shaped && runtime
-      ? drillConditions(shaped, runtime.fields, runtime.kinds, pick.row, {
-          timeZone: runtime.environment.timeZone,
-        })
-      : null;
-  const described =
-    conditions && runtime
-      ? describeFilter(
-          runtime.fields,
-          { op: 'and', children: conditions },
-          runtime.kinds,
-        )
-      : [];
-  // Only a group a condition can say is worth a menu: an analysis over
-  // expanded elements has rows no root condition selects, so its marks and
-  // rows are not pressable at all.
-  const pickable =
-    shaped !== undefined &&
-    !(shaped.elements && shaped.elements.length > 0) &&
-    runtime !== null;
-  const onPick = pickable
+  const followUp = pick ? result.followUp(pick.row) : null;
+  const onPick = result.pickable
     ? (row: Pick['row'], anchor: Pick['anchor']) => setPick({ row, anchor })
     : undefined;
-  // The dimensions the group can be split by: groupable fields the result
-  // on screen is not already grouped by (`groupableFields`, the list the
-  // tray adds a dimension from). Read off the config that shaped it
-  // rather than off the draft, for the same reason the conditions are: the
-  // group pressed is a group of that result, not of what is being edited.
-  const splits = groupableFields(analysis.fields, shaped?.groups ?? []).map(
-    option => ({ field: option.field, label: option.label }),
-  );
   const close = () => setPick(null);
-  const records = () => {
-    if (conditions) workbench.drill(conditions);
-    close();
-  };
-  const focus = () => {
-    if (conditions && shaped && runtime) {
-      runtime.edit(focusOn(shaped, conditions));
-      runtime.apply();
-    }
-    close();
-  };
-  const split = (name: string) => {
-    const field = runtime?.fields.find(entry => entry.name === name);
-    const option = analysis.fields.find(entry => entry.field === name);
-    if (conditions && shaped && runtime && field && option) {
-      runtime.edit(
-        splitBy(
-          shaped,
-          conditions,
-          groupFor(field, option, runtime.kinds.get(field.kind)),
-        ),
-      );
-      runtime.apply();
-    }
-    close();
-  };
 
   // The one live region of this surface: a query that lands is a change of
   // the numbers on screen, and a reader who cannot see them has to be told
@@ -370,7 +230,7 @@ export function AnalysisParts({
           headingRef={heading}
           fits={fits}
           picked={picked}
-          onPick={choose}
+          onPick={result.choose}
           onOptions={() => setPanel('options')}
           onBack={() => setPanel(null)}
         />
@@ -379,8 +239,8 @@ export function AnalysisParts({
           headingRef={heading}
           picked={picked}
           chart={chart}
-          groups={shaped?.groups ?? []}
-          metrics={shaped?.metrics ?? []}
+          groups={result.ran?.groups ?? []}
+          metrics={result.ran?.metrics ?? []}
           columns={view.schema ?? view.columns}
           rows={view.rows}
           totals={analysis.totals}
@@ -425,16 +285,11 @@ export function AnalysisParts({
         ) : (
           <AnalysisTable view={view} onPick={onPick} />
         )}
-        {pickable && (
+        {result.pickable && (
           <DrillMenu
-            pick={conditions ? pick : null}
+            pick={followUp ? pick : null}
             onClose={close}
-            conditions={described}
-            canDrill={workbench.canDrill}
-            splits={splits}
-            onRecords={records}
-            onSplit={split}
-            onFocus={focus}
+            followUp={followUp}
           />
         )}
         {/* Last in the block, where nothing about it can be reached by a
@@ -443,13 +298,4 @@ export function AnalysisParts({
       </div>
     ),
   });
-}
-
-/**
- * One shape as the one string a chart addresses it by: a chart names groups
- * and metrics by alias and by nothing else, so two shapes that spell the
- * same aliases in the same order are one shape as far as its slots go.
- */
-function aliasesOf(groups: readonly string[], metrics: readonly string[]) {
-  return `${groups.join(' ')}${metrics.join(' ')}`;
 }
