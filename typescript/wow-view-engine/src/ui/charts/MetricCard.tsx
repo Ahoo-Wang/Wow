@@ -12,6 +12,7 @@
  */
 
 import { Line, LineChart } from 'recharts';
+import { useChartMotion } from './motion.js';
 import type { MetricCardData } from '../../analysis/index.js';
 import { ChartContainer } from '../components/chart.js';
 import { Progress } from '../components/progress.js';
@@ -52,6 +53,7 @@ export function MetricCard({
   label,
   name,
 }: FamilyProps<MetricCardData>) {
+  const animate = useChartMotion();
   const messages = useViewMessages();
   const card = spec?.metric;
   /**
@@ -116,7 +118,12 @@ export function MetricCard({
               trend: point.value,
             }))}
           >
-            <Line dataKey="trend" stroke="var(--color-trend)" dot={false} />
+            <Line
+              dataKey="trend"
+              stroke="var(--color-trend)"
+              dot={false}
+              isAnimationActive={animate}
+            />
           </LineChart>
         </ChartContainer>
       )}

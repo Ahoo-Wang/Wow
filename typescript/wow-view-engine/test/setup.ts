@@ -58,3 +58,22 @@ const globals = globalThis as Record<string, unknown>;
 
 globals.ResizeObserver ??= ResizeObserverStub;
 globals.IntersectionObserver ??= IntersectionObserverStub;
+
+/**
+ * jsdom has no `matchMedia`. The suites run as a reader who asked for
+ * less motion: a chart's marks then land where they belong at once
+ * (`useChartMotion`) instead of growing over frames that a busy machine
+ * stretches past any timeout — which is what made the value-label test fail
+ * one run in several. A suite about the preference itself stubs its own.
+ */
+globals.matchMedia ??= (query: string): MediaQueryList =>
+  ({
+    matches: query.includes('prefers-reduced-motion: reduce'),
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  }) as MediaQueryList;

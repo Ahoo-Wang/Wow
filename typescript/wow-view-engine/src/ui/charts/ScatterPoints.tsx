@@ -19,6 +19,7 @@ import {
   YAxis,
   ZAxis,
 } from 'recharts';
+import { useChartMotion } from './motion.js';
 import type { ScatterData } from '../../analysis/index.js';
 import {
   ChartContainer,
@@ -42,6 +43,7 @@ export function ScatterPoints({
   name,
   onPick,
 }: FamilyProps<ScatterData>) {
+  const animate = useChartMotion();
   const messages = useViewMessages();
   const rows = data.points.map(point => ({
     name: label(spec?.scatter?.category, point.category),
@@ -97,6 +99,7 @@ export function ScatterPoints({
         <Scatter
           data={rows}
           fill="var(--color-points)"
+          isAnimationActive={animate}
           className={onPick ? 'cursor-pointer' : undefined}
           onClick={
             onPick &&

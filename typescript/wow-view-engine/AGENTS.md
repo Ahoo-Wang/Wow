@@ -351,6 +351,7 @@ src/
       axis.ts                 — Value format, axis domain and ticks
       family.ts               — `FamilyProps`, the value labeller and the column titler
       legend.ts               — Where a legend goes as the chart library takes it, from the spec's `legend` and the family's own default
+      motion.ts               — Whether a chart animates its marks: not when the reader asked for less motion (`useChartMotion`, read live)
       palette.ts              — Slot colours and the spec's overrides
       reading.ts              — A chart as text: its name and the numbers it draws
     columns/

@@ -12,6 +12,7 @@
  */
 
 import { Cell, LabelList, Pie, PieChart } from 'recharts';
+import { useChartMotion } from './motion.js';
 import { groupKeyText, type PieData } from '../../analysis/index.js';
 import {
   ChartContainer,
@@ -38,6 +39,7 @@ export function PieSlices({
   name,
   onPick,
 }: FamilyProps<PieData>) {
+  const animate = useChartMotion();
   const messages = useViewMessages();
   // Same rule as the cartesian series: a category value becomes an identifier
   // before it can reach the style element, and stays a label.
@@ -90,6 +92,7 @@ export function PieSlices({
           data={rows}
           dataKey="value"
           nameKey="key"
+          isAnimationActive={animate}
           innerRadius={spec?.pie?.donut === true ? '55%' : 0}
           className={onPick ? 'cursor-pointer' : undefined}
           // The merged remainder is not a group of the result: it stands

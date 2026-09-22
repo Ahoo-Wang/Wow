@@ -26,6 +26,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { useChartMotion } from './motion.js';
 import type { CartesianData } from '../../analysis/index.js';
 import type { CartesianSeries } from '../../model/index.js';
 import {
@@ -54,6 +55,7 @@ export function Cartesian({
   name,
   onPick,
 }: FamilyProps<CartesianData>) {
+  const animate = useChartMotion();
   // A pivot names its series by raw group values, and the style element
   // interpolates config keys into custom properties: only an identifier is
   // safe there, so every data-valued key is exchanged for a synthetic one
@@ -270,6 +272,7 @@ export function Cartesian({
                   pointAnchor(event),
                 );
               }),
+            animate,
           );
         })}
         {referenceLines.map(line => (
@@ -301,9 +304,11 @@ function mark(
   /** The numeric axis this series is measured against. */
   axis: { xAxisId: 'left' | 'right' } | { yAxisId: 'left' | 'right' },
   /** Writes each value over its mark, as its column reads; none when off. */
-  valueLabel?: (value: number) => string,
+  valueLabel: ((value: number) => string) | undefined,
   /** A press on the mark at this index; only bars take one. */
-  onPress?: (index: number, event: MouseEvent) => void,
+  onPress: ((index: number, event: MouseEvent) => void) | undefined,
+  /** Whether the mark grows into place (`useChartMotion`). */
+  animate: boolean,
 ) {
   const kind = chart === 'combo' ? (series?.type ?? 'bar') : chart;
   const fill = `var(--color-${key})`;
@@ -326,6 +331,7 @@ function mark(
         stroke={fill}
         dot={false}
         type={series?.smooth === true ? 'monotone' : 'linear'}
+        isAnimationActive={animate}
       >
         {labels}
       </Line>
@@ -341,6 +347,7 @@ function mark(
         fillOpacity={0.2}
         stackId={series?.stack}
         type={series?.smooth === true ? 'monotone' : 'linear'}
+        isAnimationActive={animate}
       >
         {labels}
       </Area>
@@ -353,6 +360,7 @@ function mark(
       fill={fill}
       stackId={series?.stack}
       radius={2}
+      isAnimationActive={animate}
       className={onPress ? 'cursor-pointer' : undefined}
       onClick={
         onPress &&

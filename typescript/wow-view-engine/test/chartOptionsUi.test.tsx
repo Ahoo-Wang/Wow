@@ -1030,9 +1030,9 @@ describe('what the chart options change on screen', () => {
       within(panel()!).getByRole('checkbox', { name: 'Value labels' }),
     );
     // One list per mark, each value read as its own column reads it. The
-    // marks animate into place, so the labels land a beat after the spec.
+    // suites ask for less motion, so the marks and their labels land at once.
     await waitFor(() => expect(draft().chart.labels).toBe(true));
-    await waitFor(() => expect(labels()).toHaveLength(2), { timeout: 4000 });
+    await waitFor(() => expect(labels()).toHaveLength(2));
     expect([...labels()].map(list => list.textContent).join('|')).toBe(
       '21|3010',
     );
