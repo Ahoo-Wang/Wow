@@ -32,7 +32,11 @@ import { manageDragAccessibility, managerDrop } from '../src/ui/manage/drag.js';
 import { DataWorkbench } from '../src/ui/DataWorkbench.js';
 import { formattersFor } from './fixtures/columns.js';
 import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
-import { mine, setup as workbenchSetup } from './fixtures/ui.js';
+import {
+  dataColumnHeaders,
+  mine,
+  setup as workbenchSetup,
+} from './fixtures/ui.js';
 import {
   announcement,
   groupsOfRows,
@@ -930,9 +934,7 @@ describe('managing views from the workbench', () => {
       await screen.findByRole('checkbox', { name: 'Show Warehouse' }),
     );
     // The header count includes the select-all column.
-    await waitFor(() =>
-      expect(screen.getAllByRole('columnheader')).toHaveLength(4),
-    );
+    await waitFor(() => expect(dataColumnHeaders()).toHaveLength(4));
     // The column menu stays open after a checkbox pick; close it before the
     // next click, which the open menu would swallow.
     fireEvent.keyDown(document.body, { key: 'Escape' });
@@ -952,8 +954,6 @@ describe('managing views from the workbench', () => {
     await landed(store);
     expect((await store.get('orders-1')).title).toBe('Renamed');
     close();
-    await waitFor(() =>
-      expect(screen.getAllByRole('columnheader')).toHaveLength(4),
-    );
+    await waitFor(() => expect(dataColumnHeaders()).toHaveLength(4));
   });
 });

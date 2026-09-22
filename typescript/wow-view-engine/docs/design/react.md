@@ -102,6 +102,10 @@ useRecordTable(runtime): RecordTableController
 - `maxSortFields`——这个视图一次最多按几个字段排序：游标源取 Wow 的上限，分页源取定义里字段的个数。规则在内核（`record/maxSortFields`），控制器只转交，所以"控件停在哪"与"内核从哪开始拒绝"是同一个数；
 - `setSort(sort)`——整份排序按优先级顺序替换。`toggleSort` 是单列的答案、只能往后追加，而把排序当作一张列表来编辑要能说清谁先谁后、翻转其中一条、删掉其中一条，三件事是同一次写入。（见 test/recordTableCommands.test.tsx）
 
+## useRecordDetail
+
+`useRecordDetail(runtime)` 管一条记录的详情：`open(row)` 立即以这一行在页上的数据打开（`record`，`complete` 为假），同时 `runtime.fetchRecord(key)` 取整条，到了就换上；`loading` 按「这次读取回答的是不是最新的一次结果」推导，而不是在副作用里同步置位；视图每落地一次新结果（`state.result.receivedAt`）就重读一次，被更新的读取或关闭顶掉的旧读取丢弃。失败是 `error`（经 `sourceIssue`，说数据源的原因），记录已不在是 `missing`；`sections` 是 `detailSections(definition)`。界面规则见 [ui/record.md#记录详情把一条读全](ui/record.md#记录详情把一条读全)。
+
 ## useRecordExport
 
 ```ts

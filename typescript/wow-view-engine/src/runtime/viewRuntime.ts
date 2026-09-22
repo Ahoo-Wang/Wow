@@ -21,6 +21,7 @@ import {
   type FilterTree,
   type Issue,
   type PagingMode,
+  type RecordData,
   type RecordKey,
   type RecordPageTarget,
   type RecordViewConfig,
@@ -59,6 +60,7 @@ import {
   type ExportRowsOptions,
   type ExportedRows,
 } from './exportRows.js';
+import { fetchRecord } from './fetchRecord.js';
 import type { WriteState } from './write.js';
 import type { DashboardRuntime } from './dashboardRuntime.js';
 
@@ -208,6 +210,12 @@ export interface RecordViewRuntime<
    * `options.signal`, capped at `limits.exportMax`.
    */
   exportRows(options?: ExportRowsOptions): Promise<ExportedRows>;
+  /**
+   * One record, whole, by its row key — for a detail panel (`fetchRecord`):
+   * every field, within the injected scope and not the page's conditions.
+   * `null` when it is no longer there.
+   */
+  fetchRecord(key: RecordKey, signal?: AbortSignal): Promise<RecordData | null>;
 }
 
 /** What opening an instance returns; narrow it by `runtime.kind`. */
@@ -603,6 +611,18 @@ export class DataViewRuntime<
       withScopeFilter(applied as C, this.injectedScope) as RecordViewConfig,
       options,
     );
+  }
+
+  fetchRecord(
+    key: RecordKey,
+    signal?: AbortSignal,
+  ): Promise<RecordData | null> {
+    const applied: DataViewConfig = this.state.applied;
+    if (this.disposed || applied.kind !== 'record')
+      return Promise.reject(
+        new Error(`View ${this.id} has no records to open`),
+      );
+    return fetchRecord(this.context, applied, this.injectedScope, key, signal);
   }
 
   select(keys: RecordKey[]): void {

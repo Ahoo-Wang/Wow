@@ -123,6 +123,27 @@ export const DataConsole: Story = {
       ]),
     );
 
+    // One execution read whole, from the keyboard: the rows are one Tab
+    // stop, the arrows walk them, and Enter opens the panel beside the list
+    // with what no column holds — the error the service recorded.
+    const rowOf = (id: string) =>
+      canvas.getByRole('button', { name: `${id} 的操作` }).closest('tr')!;
+    rowOf('EF-5').focus();
+    await userEvent.keyboard('{ArrowDown}');
+    await waitFor(() => expect(rowOf('EF-4')).toHaveFocus());
+    await userEvent.keyboard('{Enter}');
+    const detail = await within(document.body).findByRole('dialog');
+    await waitFor(() => expect(detail).toBeVisible());
+    await expect(
+      await within(detail).findByText('Inventory refused.'),
+    ).toBeVisible();
+    // Closed, the reader is back on the row they opened.
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() =>
+      expect(within(document.body).queryByRole('dialog')).toBeNull(),
+    );
+    await waitFor(() => expect(rowOf('EF-4')).toHaveFocus());
+
     // The analysis is a view of the same workbench, not another console.
     await userEvent.click(canvas.getByRole('button', { name: /^按状态分布/ }));
     await waitFor(() =>

@@ -404,6 +404,31 @@ export function PillSelectTrigger({
  * constant away in `record/columns.ts` — a colour on a call site and a
  * recipe in two places.
  */
+/**
+ * The mark on a table row the keyboard is on (the record rows and the
+ * analysis result's rows are each one Tab stop, `roving.ts`).
+ *
+ * Drawn on the row's cells, not the row: a cell paints over its row, and
+ * a pinned cell is a layer of its own, so a row's outline is hidden under
+ * the very cells it is meant to go round — the browser's own is a faint
+ * 1px line nobody sees. Each cell takes the hover fill and an inset edge
+ * above and below, the first and the last close the sides, and together
+ * they read as one ring round the row.
+ */
+export const FOCUS_ROW = cn(
+  'outline-none',
+  'focus-visible:*:bg-row-hover',
+  // The ring's colour at the half strength every focus ring here wears
+  // (`ring-ring/50`), written out: Tailwind reads class names, not code.
+  'focus-visible:*:shadow-[inset_0_2px_0_color-mix(in_oklab,var(--ring)_50%,transparent),inset_0_-2px_0_color-mix(in_oklab,var(--ring)_50%,transparent)]',
+  'focus-visible:*:first:shadow-[inset_2px_2px_0_color-mix(in_oklab,var(--ring)_50%,transparent),inset_0_-2px_0_color-mix(in_oklab,var(--ring)_50%,transparent)]',
+  'focus-visible:*:last:shadow-[inset_-2px_2px_0_color-mix(in_oklab,var(--ring)_50%,transparent),inset_0_-2px_0_color-mix(in_oklab,var(--ring)_50%,transparent)]',
+);
+
+/** The ring on a card the keyboard is on — the one every control wears. */
+export const FOCUS_CARD =
+  'outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50';
+
 const tableDataRowVariants = cva([
   'bg-background',
   'hover:bg-row-hover has-aria-expanded:bg-row-hover',
@@ -422,7 +447,10 @@ export function TableDataRow({
   ...props
 }: React.ComponentProps<typeof TableRow>) {
   return (
-    <TableRow className={cn(tableDataRowVariants(), className)} {...props} />
+    <TableRow
+      className={cn(tableDataRowVariants(), FOCUS_ROW, className)}
+      {...props}
+    />
   );
 }
 
@@ -644,6 +672,28 @@ export function ChartTile({
         '[&_[data-slot=chart-reason]]:text-foreground/70 [&_[data-slot=chart-reason]]:text-xs [&_[data-slot=chart-reason]]:leading-tight',
         '[&_[data-slot=chart-recommended]]:bg-primary [&_[data-slot=chart-recommended]]:text-primary-foreground [&_[data-slot=chart-recommended]]:absolute [&_[data-slot=chart-recommended]]:-top-2 [&_[data-slot=chart-recommended]]:left-1 [&_[data-slot=chart-recommended]]:rounded-full [&_[data-slot=chart-recommended]]:px-1.5 [&_[data-slot=chart-recommended]]:text-[10px]',
         TEXT_UI,
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+/**
+ * A long value read whole — an error message, a stack trace — in a record's
+ * detail. Monospaced and kept as written: a stack trace is lines, and the
+ * author's line breaks are the reading. It scrolls inside itself past a
+ * screenful, so one trace does not push every other field off the panel,
+ * and it can be scrolled from the keyboard because it is focusable.
+ */
+export function LongText({ className, ...props }: React.ComponentProps<'pre'>) {
+  return (
+    <pre
+      data-slot="long-text"
+      tabIndex={0}
+      className={cn(
+        'max-h-80 overflow-auto rounded-md bg-muted/60 p-2 font-mono text-xs leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere] text-foreground',
+        'focus-visible:ring-ring/50 outline-none focus-visible:ring-[3px]',
         className,
       )}
       {...props}

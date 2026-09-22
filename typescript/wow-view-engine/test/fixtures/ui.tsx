@@ -17,7 +17,9 @@
  * answer with.
  */
 
+import { screen } from '@testing-library/react';
 import { MemoryViewStore, ViewEngine } from '../../src/index.js';
+import { ACTIONS_COLUMN } from '../../src/ui/record/columns.js';
 import type { ViewInstance, ViewSource } from '../../src/index.js';
 import type {
   RecordTableController,
@@ -42,6 +44,16 @@ export { mine };
  * is the only engine that implements it, so this package says a description
  * as a span and an id — and a suite asserting one has to follow the ids.
  */
+/**
+ * The table's data column headers: every column header but the action
+ * column, which every record table has once rows open their detail.
+ */
+export function dataColumnHeaders(): HTMLElement[] {
+  return screen
+    .getAllByRole('columnheader')
+    .filter(head => head.getAttribute('data-column') !== ACTIONS_COLUMN);
+}
+
 export function describedText(element: Element): string {
   return (element.getAttribute('aria-describedby') ?? '')
     .split(' ')

@@ -28,6 +28,8 @@
  * otherwise be a stop of its own for the frame before the first effect.
  */
 
+import type { KeyboardEvent } from 'react';
+
 /** Which way the arrows run through a group. */
 export type RovingAxis = 'row' | 'column';
 
@@ -81,4 +83,32 @@ export function rovingDestination(
   if (key === 'Home') return 0;
   if (key === 'End') return count - 1;
   return null;
+}
+
+/**
+ * Moves the stop by the key pressed on a member, and says whether it did.
+ *
+ * A modifier is the browser's or the page's, never the group's: Ctrl+Home
+ * is the top of the document. A group laid out as a grid (the record
+ * cards) runs both ways in reading order, so each axis is asked in turn.
+ */
+export function moveStop(
+  event: KeyboardEvent<HTMLElement>,
+  group: readonly HTMLElement[],
+  ...axes: readonly RovingAxis[]
+): boolean {
+  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey)
+    return false;
+  const at = group.indexOf(event.currentTarget);
+  let to: number | null = null;
+  for (const axis of axes) {
+    to = rovingDestination(event.key, at, group.length, axis);
+    if (to !== null) break;
+  }
+  const next = to === null ? undefined : group[to];
+  if (!next || next === event.currentTarget) return false;
+  event.preventDefault();
+  takeStop(next, group);
+  next.focus();
+  return true;
 }

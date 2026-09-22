@@ -47,7 +47,11 @@ import {
   recordConfig,
   testSource,
 } from './fixtures.js';
-import { mine, setup as workbenchSetup } from './fixtures/ui.js';
+import {
+  dataColumnHeaders,
+  mine,
+  setup as workbenchSetup,
+} from './fixtures/ui.js';
 import { landed, tracked } from './fixtures/writes.js';
 
 afterEach(cleanup);
@@ -1003,9 +1007,7 @@ describe('save actions', () => {
     fireEvent.click(
       await screen.findByRole('checkbox', { name: 'Show Warehouse' }),
     );
-    await waitFor(() =>
-      expect(screen.getAllByRole('columnheader')).toHaveLength(4),
-    );
+    await waitFor(() => expect(dataColumnHeaders()).toHaveLength(4));
     // The column menu stays open after a pick; close it before the next
     // click, which the open menu would swallow.
     fireEvent.keyDown(document.body, { key: 'Escape' });
@@ -1057,9 +1059,7 @@ describe('save actions', () => {
       }),
     );
 
-    await waitFor(() =>
-      expect(screen.getAllByRole('columnheader')).toHaveLength(3),
-    );
+    await waitFor(() => expect(dataColumnHeaders()).toHaveLength(3));
   });
 
   it('saves a copy under a new title', async () => {

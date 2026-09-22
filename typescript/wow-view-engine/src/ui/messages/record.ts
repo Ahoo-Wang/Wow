@@ -93,6 +93,14 @@ export const recordMessages = {
   'label.record.empty-add': 'Add a condition',
   'label.record.select-all': 'Select all rows',
   'label.record.select': 'Select {key}',
+  'label.record.detail': 'Record detail',
+  'label.record.detail.hint':
+    'Enter or Space opens the record; the arrow keys move between records.',
+  'label.record.detail.loading': 'Reading the whole record…',
+  'label.record.detail.missing':
+    'This record is no longer there — it may have been deleted, or it is outside what you can see.',
+  'label.record.detail.partial': 'Showing the fields the list had.',
+  'label.record.detail.other': 'Other',
 
   // A copyable cell's own button, and the two words a press can come back
   // with. The name carries the value because a table full of these buttons

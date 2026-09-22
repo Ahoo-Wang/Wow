@@ -34,7 +34,7 @@ import {
   testSource,
 } from './fixtures.js';
 import { addConditions, editorToggle } from './fixtures/workbench.js';
-import { mine, setup } from './fixtures/ui.js';
+import { dataColumnHeaders, mine, setup } from './fixtures/ui.js';
 
 afterEach(cleanup);
 
@@ -270,9 +270,12 @@ describe('DataWorkbench interaction', () => {
       await screen.findByRole('checkbox', { name: 'Show Amount' }),
     );
 
+    // The data columns lose Amount; the action column (every row opens its
+    // detail from there) stays.
     await waitFor(() =>
-      expect(screen.getAllByRole('columnheader')).toHaveLength(2),
+      expect(screen.queryByRole('columnheader', { name: /Amount/ })).toBeNull(),
     );
+    expect(dataColumnHeaders()).toHaveLength(2);
   });
 
   /**
@@ -602,9 +605,7 @@ describe('the record workbench layout', () => {
     fireEvent.click(
       await screen.findByRole('checkbox', { name: 'Show Warehouse' }),
     );
-    await waitFor(() =>
-      expect(screen.getAllByRole('columnheader')).toHaveLength(4),
-    );
+    await waitFor(() => expect(dataColumnHeaders()).toHaveLength(4));
     fireEvent.keyDown(document.body, { key: 'Escape' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Other' }));

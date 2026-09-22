@@ -97,6 +97,16 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 
 落到文件上：`ui/RecordTable.tsx` 只留结果本身——行与它的三层；空态在 `ui/record/EmptyResult.tsx`，骨架行在 `ui/record/SkeletonRows.tsx`，一个值怎么读在 `ui/record/cells.tsx`（表格与卡片共用），表头与排序在 `ui/record/SortableHeader.tsx`，汇总行在 `ui/record/SummaryRows.tsx`，每一行末尾那一格吃富余的空格子在 `ui/record/Filler.tsx`，冻结列（含实测偏移）与表头／数字的类名在 `ui/record/columns.ts`。（见 test/recordTable.test.tsx「RecordTable on its own」「sorting from the headers」「enum cells」「the table chrome」、test/recordCards.test.tsx「RecordCards on its own」、test/recordSummaries.test.tsx「the summary row」「the summary rows」）
 
+## 记录详情：把一条读全
+
+列表只能给一条记录它的列那么宽：错误信息被截成一行，堆栈根本不在任何一列里。运维要的是「这一条到底怎么了」，所以每一行都能打开成一侧的抽屉（`ui/record/RecordDetail.tsx`，控制器 `useRecordDetail`）。
+
+- **怎么打开**：指针点一行的空白处就开（点复选框、复制、链接、行操作，或是刚选中了一段文字，都不算）；键盘把一页行当作**一个 Tab 停靠**（与分析结果的行同一套 `roving.ts`），↑/↓ 在行间走、Home/End 到两头、Enter 或空格打开，焦点落在行里的复选框或按钮上时按键归那个控件；读屏听到的按键说明整张表只渲染一次，每行 `aria-describedby` 指向它（`record/openRows.ts` 的 `useOpenRows`）。关掉详情，焦点回到打开它的那一行。卡片同样：点卡片，或在卡片组里用方向键按阅读顺序走、Enter 打开。**不加「查看」按钮**：它要么自占一列，要么挤进固定的操作列、把宿主的行操作挤出固定区（操作列固定宽度会越过「不超过可见宽度一半」的上限）——而它要打开的就是这一行本身。（见 test/recordDetail.test.tsx「a record read whole」）
+- **先显示列表已有的，再补全**：打开瞬间就是这一行在页上的字段，完整记录到了再替换（`runtime.fetchRecord`，按行键、叠宿主的作用域、不带页上的条件与投影）——详情是关于这条记录的，不是关于这张列表的，一条重试过的失败已不再满足「失败」，但它的详情照样打得开。视图有新结果落地（例如在详情头部点了「重试」之后刷新）时它自己再读一次，所以详情跟着记录变。
+- **怎么排**：按定义的字段分组、按分组的顺序一节一节列出（`detailSections`），没被分组的字段收在「其他」；全文搜索、删除开关这类不是记录上的值的字段不列。每个值的读法与列一致（同一个 `cellValue`，呈现面是 `detail`），只有长值不同：带换行或超过一行的文字（错误信息、堆栈）整段保留原样、等宽、可在自身里滚动、可复制（`LongText`）。
+- **头部放这一行的操作**：宿主的行操作在抽屉头部再出现一次——读完就要动手，不该先关掉抽屉再去列表里找回这一行。
+- **读不到与已不在**：读取失败说出数据源的原因（`sourceReason`），下面仍是列表里已有的字段；记录已被删除或已在作用域之外，说一句「这条记录已不在了」。（见 test/recordDetail.test.tsx「a record read whole」「detailSections」）
+
 ## 两行汇总：本页与所有
 
 - **两个口径永远各占一行**，哪怕两个数字一模一样：`本页`（`page`）是屏幕上这一页的行加起来，`所有`（`total`）是同一套条件下全范围聚合的答复。二十行的平均数被当成四万行的平均数，是这一行唯一能犯的错，所以口径不是注解而是行的一部分：每行首列一个灰底标签格（有选择列时占选择列，没有则标在首列之上，见上），`data-scope` 同时带在 `<tr>` 上；

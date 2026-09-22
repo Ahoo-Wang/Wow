@@ -355,6 +355,60 @@ export function DialogContent({
   );
 }
 
+/**
+ * A side panel over the workbench — a record's detail — themed like a
+ * dialog: it is one (Base UI's `Dialog`, which the registry's `Sheet` is),
+ * with the same two portalled elements, so both carry the root class, the
+ * surface's mode and the popup layer, and the close button's name comes from
+ * the catalogue. It slides in from the right edge and takes the full height;
+ * on a narrow screen it takes the width, on a wide one a reading column.
+ */
+export function SheetContent({
+  className,
+  children,
+  style,
+  ...props
+}: DialogPrimitive.Popup.Props) {
+  const theme = useSurfaceTheme();
+  const messages = useViewMessages();
+  return (
+    <DialogPortal>
+      <DialogOverlay
+        className="fve-root"
+        style={POPUP_LAYER}
+        data-theme={theme}
+      />
+      <DialogPrimitive.Popup
+        data-slot="sheet-content"
+        {...props}
+        className={withClass(SHEET_POPUP_CLASS, themedClass(className))}
+        style={layered(style)}
+        data-theme={theme}
+      >
+        {children}
+        <DialogClose
+          data-slot="sheet-close"
+          render={
+            <Button
+              variant="ghost"
+              className="absolute top-3 right-3"
+              size="icon-sm"
+            />
+          }
+        >
+          <XIcon />
+          <span className="sr-only">
+            {messages.label('label.dialog.close')}
+          </span>
+        </DialogClose>
+      </DialogPrimitive.Popup>
+    </DialogPortal>
+  );
+}
+
+const SHEET_POPUP_CLASS =
+  'fixed inset-y-0 right-0 flex h-full w-full flex-col gap-4 border-l bg-popover bg-clip-padding text-sm text-popover-foreground shadow-lg transition duration-200 ease-in-out data-ending-style:translate-x-[2.5rem] data-ending-style:opacity-0 data-starting-style:translate-x-[2.5rem] data-starting-style:opacity-0 sm:max-w-xl';
+
 export function DropdownMenuContent({
   align = 'start',
   alignOffset = 0,

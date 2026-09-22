@@ -17,6 +17,7 @@
  */
 export * from './compile.js';
 export * from './defaults.js';
+export * from './detail.js';
 export * from './export.js';
 export * from './paging.js';
 export * from './project.js';

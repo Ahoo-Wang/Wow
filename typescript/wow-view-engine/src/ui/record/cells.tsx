@@ -25,7 +25,7 @@ import {
   type DisplayField,
 } from '../display.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
-import { ToneBadge } from '../variants.js';
+import { LongText, ToneBadge } from '../variants.js';
 
 /**
  * What a renderer knows about the field a value came from — which is what any
@@ -58,7 +58,7 @@ const TEXT_CELL = 'max-w-[var(--fve-record-text-max-w,24rem)]';
  * Nothing else differs, which is the point of there being one function: a
  * card's status is the same badge as the column it was folded out of.
  */
-export type CellSurface = 'table' | 'card';
+export type CellSurface = 'table' | 'card' | 'detail';
 
 /**
  * One value as its field reads it.
@@ -85,6 +85,16 @@ export function cellValue(
   if (badges) return <Badges entries={badges} surface={surface} />;
 
   const cell = field.cell ?? field.kind;
+  // A record's detail reads a long value whole: the message a column cut to
+  // one line, the stack trace no column holds. What makes it long is what it
+  // is — lines, or more than a line's worth — not what the field declares.
+  if (surface === 'detail' && typeof value === 'string' && isLong(value))
+    return (
+      <span data-slot="cell-long" className="group/copyable relative block">
+        <LongText>{value}</LongText>
+        <CopyButton value={value} className="absolute top-1 right-1" />
+      </span>
+    );
   if (cell === 'link' && typeof value === 'string' && isSafeContentUrl(value))
     return (
       <a
@@ -200,4 +210,11 @@ function Badges({
       ))}
     </span>
   );
+}
+
+/** Past this many characters a value is read as a paragraph, not a label. */
+const LONG_VALUE = 120;
+
+function isLong(value: string): boolean {
+  return value.length > LONG_VALUE || value.includes('\n');
 }

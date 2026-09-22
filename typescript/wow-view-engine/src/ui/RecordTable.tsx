@@ -18,6 +18,7 @@ import type { RecordData, RecordKey } from '../model/index.js';
 import type { RecordColumnView, RecordRow } from '../record/index.js';
 import type { RecordTableController } from '../react/index.js';
 import { recordValue } from '../record/index.js';
+import { useOpenRows } from './record/openRows.js';
 import { RowActions } from './RowActions.js';
 import { Checkbox } from './components/checkbox.js';
 import { useViewMessages } from './MessagesProvider.js';
@@ -91,6 +92,12 @@ export interface RecordTableProps {
    */
   rowActions?(row: RecordRow): React.ReactNode;
   /**
+   * Opens a row's detail: a press on the row's own ground, or Enter/Space on
+   * the row the keyboard is on — the rows are one Tab stop with the arrows
+   * inside it (`record/openRows.ts`). Absent, rows are not openable.
+   */
+  onOpen?(row: RecordRow): void;
+  /**
    * Whether the table is its own scroll area. On by default, which is what a
    * workbench wants: the rows scroll under a header that stays.
    *
@@ -161,6 +168,7 @@ export function RecordTable({
   renderCell,
   selectable = true,
   rowActions,
+  onOpen,
   scrolls = true,
   emptyTitle,
   emptyDescription,
@@ -179,8 +187,13 @@ export function RecordTable({
   const element = useRef<HTMLTableElement>(null);
   const port = useRef<HTMLDivElement>(null);
   const additiveId = useId();
+  const body = useRef<HTMLTableSectionElement>(null);
+  const opening = useOpenRows(body, onOpen, 'column');
   const layout = useMemo(
-    () => ({ selectable, actions: rowActions !== undefined }),
+    () => ({
+      selectable,
+      actions: rowActions !== undefined,
+    }),
     [selectable, rowActions],
   );
   // What the table would hold, and what the port has room for it to hold:
@@ -318,7 +331,7 @@ export function RecordTable({
             </TableRow>
           </TableHeader>
         )}
-        <TableBody>
+        <TableBody ref={body}>
           {table.status === 'loading' && table.rows.length === 0 ? (
             <SkeletonRows
               columns={columns}
@@ -336,8 +349,9 @@ export function RecordTable({
                 // Named `row`, because a cell that only offers something
                 // while the pointer is on the row has to be able to ask
                 // about the row and not about itself (`CopyButton`).
-                className="group/row"
+                className={cn('group/row', onOpen && 'cursor-pointer')}
                 data-state={table.isSelected(row.key) ? 'selected' : undefined}
+                {...opening.row(row)}
               >
                 {selectable && (
                   <TableCell {...stickyCell(pins.select)}>
@@ -408,6 +422,11 @@ export function RecordTable({
           header cell: text inside a `<th>` is part of the column's header,
           and a reader would say it again beside every value under it. Only
           while a sortable header is there to point at it. */}
+      {opening.hintId && table.rows.length > 0 && (
+        <span id={opening.hintId} className="sr-only">
+          {messages.label('label.record.detail.hint')}
+        </span>
+      )}
       {!firstLoad && columns.some(column => column.sortable) && (
         <span id={additiveId} className="sr-only">
           {messages.label('label.sort.additive')}

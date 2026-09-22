@@ -12,9 +12,11 @@
  */
 
 import { useId, useLayoutEffect, useRef } from 'react';
+import { cn } from 'cn';
 import { columnTitle, displayValue, valueText } from './display.js';
 import { useViewMessages } from './MessagesProvider.js';
-import { rovingDestination, settleStop, takeStop } from './roving.js';
+import { moveStop, settleStop, takeStop } from './roving.js';
+import { FOCUS_ROW } from './variants.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 import type { AnalysisView } from '../analysis/index.js';
 import { AnalysisEmpty } from './analysis/EmptyResult.js';
@@ -124,7 +126,7 @@ export function AnalysisTable({ view, onPick }: AnalysisTableProps) {
               key={index}
               data-pickable={onPick ? '' : undefined}
               aria-haspopup={onPick ? 'menu' : undefined}
-              className={onPick ? 'cursor-pointer' : undefined}
+              className={cn(onPick && 'cursor-pointer', FOCUS_ROW)}
               onClick={
                 onPick ? event => onPick(row, event.currentTarget) : undefined
               }
@@ -144,27 +146,7 @@ export function AnalysisTable({ view, onPick }: AnalysisTableProps) {
                         onPick(row, event.currentTarget);
                         return;
                       }
-                      // A modifier is the browser's or the page's, never the
-                      // group's: Ctrl+Home is the top of the document.
-                      if (
-                        event.altKey ||
-                        event.ctrlKey ||
-                        event.metaKey ||
-                        event.shiftKey
-                      )
-                        return;
-                      const group = rows();
-                      const to = rovingDestination(
-                        event.key,
-                        group.indexOf(event.currentTarget),
-                        group.length,
-                        'column',
-                      );
-                      const next = to === null ? undefined : group[to];
-                      if (!next || next === event.currentTarget) return;
-                      event.preventDefault();
-                      takeStop(next, group);
-                      next.focus();
+                      moveStop(event, rows(), 'column');
                     }
                   : undefined
               }

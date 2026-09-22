@@ -53,6 +53,7 @@ export const viewMessages = {
   'runtime.options.unresolved':
     'No candidate source is configured for {source}.',
   'runtime.query.failed': 'The source answered: {reason}',
+  'record.detail.failed': 'The whole record could not be read: {reason}',
   'runtime.query.queue-full':
     'Too many queries at once; try again in a moment.',
   // The summary row survived its own query failing, at a narrower scope than

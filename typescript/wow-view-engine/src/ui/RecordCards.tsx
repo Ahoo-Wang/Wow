@@ -12,9 +12,11 @@
  */
 
 import type * as React from 'react';
+import { useRef } from 'react';
 import type { RecordTableController } from '../react/index.js';
 import type { RecordCardField, RecordRow } from '../record/index.js';
 import { recordValue } from '../record/index.js';
+import { useOpenRows } from './record/openRows.js';
 import { RowActions } from './RowActions.js';
 import { Checkbox } from './components/checkbox.js';
 import {
@@ -41,6 +43,7 @@ import { valueText } from './display.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 import { cn } from 'cn';
+import { FOCUS_CARD } from './variants.js';
 
 export interface RecordCardsProps {
   table: RecordTableController;
@@ -62,6 +65,11 @@ export interface RecordCardsProps {
    * runtime is the one that binds the action context.
    */
   rowActions?(row: RecordRow): React.ReactNode;
+  /**
+   * Opens a card's detail: a press on the card, or Enter/Space on the card
+   * the keyboard is on (`record/openRows.ts`).
+   */
+  onOpen?(row: RecordRow): void;
   /** The empty result's wording, when the host has its own. */
   emptyTitle?: string;
   emptyDescription?: string;
@@ -101,6 +109,7 @@ export function RecordCards({
   renderCell,
   selectable = true,
   rowActions,
+  onOpen,
   emptyTitle,
   emptyDescription,
   hasConditions = false,
@@ -110,6 +119,9 @@ export function RecordCards({
   const display = useSurfaceDisplay();
   const card = table.card;
   const summaries = useSummaries(table.summaries, table.rows);
+  // A grid read in reading order: every arrow is the next or the last card.
+  const grid = useRef<HTMLDivElement>(null);
+  const opening = useOpenRows(grid, onOpen, 'row', 'column');
   const render =
     renderCell ??
     (found => cellValue(found.value, found.column, messages, display, 'card'));
@@ -146,11 +158,16 @@ export function RecordCards({
   return (
     <>
       <div
+        ref={grid}
         data-slot="record-cards"
         className={cn('grid gap-3 p-3', GRID[card.perRow ?? 3])}
       >
         {table.rows.map(row => (
-          <Card key={String(row.key)}>
+          <Card
+            key={String(row.key)}
+            className={cn(onOpen && ['cursor-pointer', FOCUS_CARD])}
+            {...opening.row(row)}
+          >
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 {selectable && (
@@ -219,6 +236,11 @@ export function RecordCards({
           </Card>
         ))}
       </div>
+      {opening.hintId && (
+        <span id={opening.hintId} className="sr-only">
+          {messages.label('label.record.detail.hint')}
+        </span>
+      )}
       {summaries.length > 0 && <CardSummaries rows={summaries} />}
     </>
   );

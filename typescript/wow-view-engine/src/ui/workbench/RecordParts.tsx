@@ -17,6 +17,7 @@ import { serializeCsv, type RecordRow } from '../../record/index.js';
 import type { RecordViewRuntime, ViewEngine } from '../../runtime/index.js';
 import {
   useRecordExport,
+  useRecordDetail,
   useRecordTable,
   type RecordActionSlots,
   type RecordExportScope,
@@ -33,6 +34,7 @@ import { FilterModes, filterModeLabel } from '../filter/FilterModes.js';
 import { RecordCards } from '../RecordCards.js';
 import { RecordPagination } from '../RecordPagination.js';
 import { RecordTable, type RecordCell } from '../RecordTable.js';
+import { RecordDetail } from '../record/RecordDetail.js';
 import { NO_RELEASE, type ReleasedPins } from '../record/pinCap.js';
 import { ResultToolbar } from '../ResultToolbar.js';
 import { useViewMessages } from '../MessagesProvider.js';
@@ -168,6 +170,7 @@ export function RecordParts({
   const messages = useViewMessages(wording, locale);
   const { filter, state } = workbench;
   const table = useRecordTable(record);
+  const detail = useRecordDetail(record);
 
   // The one live region of this surface, and the queries it reads back.
   //
@@ -348,6 +351,7 @@ export function RecordParts({
             emptyTitle={emptyTitle}
             emptyDescription={emptyDescription}
             rowActions={bindRow(row, record, table.refresh)}
+            onOpen={detail.open}
             hasConditions={hasConditions}
             onEmptyAction={onEmptyAction}
           />
@@ -359,11 +363,17 @@ export function RecordParts({
             emptyTitle={emptyTitle}
             emptyDescription={emptyDescription}
             rowActions={bindRow(row, record, table.refresh)}
+            onOpen={detail.open}
             hasConditions={hasConditions}
             onEmptyAction={onEmptyAction}
             onReleasedPins={setReleased}
           />
         )}
+
+        <RecordDetail
+          detail={detail}
+          actions={bindRow(row, record, table.refresh)}
+        />
 
         <RecordPagination table={table} />
 

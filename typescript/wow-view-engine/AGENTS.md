@@ -138,6 +138,7 @@ src/
   record/                     — Record kernel — imports model and filter
     compile.ts                — compileRecord → FilterPagedQuery / CursorQuery, carrying `recordProjection` (the fields a page asks for: what the view shows, plus `rowFields`), and compileSummaries → AggregationQuery; `FIRST_PAGE`, `summaryAlias`
     defaults.ts               — defaultRecordConfig — a complete starting config, since `create` takes one rather than inventing it; `recordCapabilityOf`
+    detail.ts                 — `detailSections`: a record's detail laid out by the definition's field groups, the ungrouped fields after, value-less kinds left out
     export.ts                 — `serializeCsv`: rows as a CSV, values read the UI's way
     paging.ts                 — What the pager reads, from what ran: `pagedPaging` (the size that ran, the pages reachable inside the source's `maxWindow`, `hasNext`, `reachable` when the window cuts the total short), `cursorPaging`, `lastPageInWindow`, `clampPage`
     project.ts                — projectRecord — the columns a table draws, the edge each is held against (`ColumnEdge`), the card layout (`RecordCardView`), the rows and their paging
@@ -185,6 +186,7 @@ src/
     environment.ts            — `RuntimeEnvironment` and the `VisibilitySource` port; `ALWAYS_VISIBLE`, `defaultRuntimeEnvironment`
     execute.ts                — The two execution kinds a runtime drives
     exportRows.ts             — Fetching every row the conditions match, page by page, under `exportMax` and the source's paging window (`exportPlan`)
+    fetchRecord.ts            — One record, whole, by its row key within the injected scope — not the page's conditions, no projection
     issues.ts                 — `toIssue`: one Issue for whatever a command threw
     listeners.ts              — `listenerSet`: the subscribe / notify half every store in this package has
     openRuntimes.ts           — The views one engine has open, and who holds an instance
@@ -230,6 +232,7 @@ src/
     useDashboard.ts           — Dashboard panels, geometry and state
     useFilterEditor.ts        — Filter tree editor controller
     useRecordExport.ts        — The export run: scope, progress, the ceiling, delivery
+    useRecordDetail.ts        — One record's detail: open, read whole (`fetchRecord`) and read again when the view's result lands; the page's row until then
     useRecordTable.ts         — Record controller
     useSaveCommands.ts        — Save, save-as, revert, rename, delete
     useViewEngine.ts          — Creates and disposes one engine
@@ -361,7 +364,7 @@ src/
       drag.ts                 — What the settings make of a drag: `columnDrop` refuses one across the areas, plus what a reader hears
       rows.ts                 — The column settings' model: rows, the two areas (D19), order
       sections.ts             — Rows of one area by catalogue group; the search over them
-    components/               — 33 shadcn/ui primitives — vendored, see below
+    components/               — 34 shadcn/ui primitives — vendored, see below
     filter/                   — What the panel is made of
       AddEntry.tsx            — The field picker a group is added to from
       ConditionPill.tsx       — One condition; the element-match block; `PendingDot`
@@ -414,6 +417,8 @@ src/
       Filler.tsx              — The aria-hidden last cell that lets rows fill the frame while columns keep their width (P-11)
       SkeletonCards.tsx       — The cards of a first query still on its way
       SkeletonRows.tsx        — The rows of a first query still on its way, one bar per column
+      openRows.ts             — Rows and cards that open their record: a press on the row's own ground, or Enter/Space in the rows' one Tab stop (`useOpenRows`)
+      RecordDetail.tsx        — The side panel a record opens in: every field under its group, long values whole, the row's commands in its header
       SortableHeader.tsx      — One column header: the sort button, its place in the sort, the resizer
       SummaryRows.tsx         — The table footer: one row per summary scope; `SummaryValue`
       cells.tsx               — `cellValue`/`cellText`: one value as its field reads it, for table, cards and CSV; `CellSurface` decides how many lines it may take, and nothing else

@@ -152,6 +152,14 @@ export const zhCN: ViewMessages = {
   'label.record.empty-add': '添加条件',
   'label.record.select-all': '选择全部行',
   'label.record.select': '选择 {key}',
+  'label.record.detail': '记录详情',
+  'label.record.detail.hint':
+    '按 Enter 或空格打开这条记录，方向键在记录间移动。',
+  'label.record.detail.loading': '正在读取完整记录…',
+  'label.record.detail.missing':
+    '这条记录已不在了——可能已被删除，或已不在你能看到的范围内。',
+  'label.record.detail.partial': '下面是列表里已有的字段。',
+  'label.record.detail.other': '其他',
   'label.copy-of': '复制 {value}',
   'label.copied': '已复制',
   'label.copy-failed': '复制失败，请选中后手动复制',
@@ -499,6 +507,7 @@ export const zhCN: ViewMessages = {
   'runtime.kind.not-declared': '{definition} 不提供 {kind} 视图。',
   'runtime.options.unresolved': '{source} 没有配置候选来源。',
   'runtime.query.failed': '数据源回答：{reason}',
+  'record.detail.failed': '读不到完整记录：{reason}',
   'runtime.query.queue-full': '同时查询太多，过一会儿再试。',
   'runtime.summary.page-only': '合计查询失败，表尾只汇总了本页的行。',
   'view.abandon.failed': '无法放弃那次写入。',
