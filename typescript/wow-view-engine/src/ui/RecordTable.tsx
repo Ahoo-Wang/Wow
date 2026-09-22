@@ -15,13 +15,9 @@ import type * as React from 'react';
 import { useEffect, useMemo, useRef } from 'react';
 import { cn } from 'cn';
 import type { RecordData, RecordKey } from '../model/index.js';
-import type {
-  RecordColumnView,
-  RecordRow,
-  SummaryRow,
-} from '../record/index.js';
+import type { RecordColumnView, RecordRow } from '../record/index.js';
 import type { RecordTableController } from '../react/index.js';
-import { pageSummaries, recordValue } from '../record/index.js';
+import { recordValue } from '../record/index.js';
 import { RowActions } from './RowActions.js';
 import { Checkbox } from './components/checkbox.js';
 import { useViewMessages } from './MessagesProvider.js';
@@ -49,6 +45,7 @@ import { EmptyResult } from './record/EmptyResult.js';
 import { SkeletonRows } from './record/SkeletonRows.js';
 import { SortableHeader } from './record/SortableHeader.js';
 import { SummaryRows } from './record/SummaryRows.js';
+import { useSummaries } from './record/useSummaries.js';
 import {
   Table,
   TableBody,
@@ -373,24 +370,4 @@ export function RecordTable({
       </Table>
     </div>
   );
-}
-
-/**
- * The two scopes, from the one the runtime executed.
- *
- * The totals row is the one that costs a query; the page row is the rows on
- * screen added up, so it is derived here rather than asked for. When the
- * totals query failed the runtime already fell back to the page, and that
- * single row stands on its own — inventing the other one is exactly the
- * mistake the scope labels exist to prevent.
- */
-function useSummaries(
-  summaries: SummaryRow | null,
-  rows: readonly RecordRow[],
-): readonly SummaryRow[] {
-  return useMemo(() => {
-    if (!summaries) return [];
-    if (summaries.scope === 'page') return [summaries];
-    return [pageSummaries(summaries.cells, rows), summaries];
-  }, [summaries, rows]);
 }

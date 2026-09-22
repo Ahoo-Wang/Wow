@@ -299,7 +299,6 @@ function OrderCell({ cell }: { cell: RecordCell }) {
   engine={engine}
   definitionId="orders"
   renderCell={cell => <OrderCell cell={cell} />}
-  renderValue={value => <PlainValue value={value} />}
   selectable={false}
   emptyTitle="Nothing is waiting to ship"
 />;

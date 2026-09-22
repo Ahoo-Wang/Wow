@@ -17,6 +17,7 @@ import type {
   FieldOption,
   Issue,
   NumberFormat,
+  RecordCardSpec,
   RecordColumn,
   RecordKey,
   RecordLayout,
@@ -76,13 +77,17 @@ export interface RecordCardView {
   columns?: 1 | 2 | 3 | 4;
 }
 
+/**
+ * One field of a card. It carries what a column carries about how a value
+ * reads — a card is a row folded out, and `RecordCards` hands a host's
+ * `renderCell` the same `column` for a value on a card as the table does
+ * for the same value — with the parts a card never has (pinning, width,
+ * sorting) left out. `kind` and `cell` are optional for a controller built
+ * by hand; the workbench's always names them.
+ */
 export interface RecordCardField {
   field: string;
   label: string;
-  /**
-   * What the definition says about the field, so a value on a card shows as
-   * it does in the field's column. Optional for a controller built by hand.
-   */
   kind?: string;
   cell?: string;
   options?: readonly FieldOption[];
@@ -172,6 +177,18 @@ export interface RecordTableController {
   columns: RecordColumnView[];
   /** The card layout of the same result; both are saved side by side. */
   card: RecordCardView;
+  /**
+   * The card half of the draft, as the settings edit it — the draft rather
+   * than the result's config, for the reason `columnFields` reads the
+   * draft: a control shows what the user has said, and the result follows.
+   */
+  cardSpec: RecordCardSpec;
+  /**
+   * Changes the card layout — which field titles it, which make its body,
+   * where its image comes from, how many stand in a row — and applies at
+   * once, as `setColumns` does: the cards follow the config that ran.
+   */
+  setCard(patch: Partial<RecordCardSpec>): void;
   rows: RecordRow[];
   paging: RecordPaging | null;
   summaries: SummaryRow | null;
@@ -365,6 +382,7 @@ const NO_SELECTION: RecordKey[] = [];
 const NO_ROWS: RecordRow[] = [];
 const NO_LAYOUTS: RecordLayout[] = [];
 const NO_CARD: RecordCardView = { title: '', fields: [] };
+const NO_CARD_SPEC: RecordCardSpec = { title: '', fields: [] };
 
 /**
  * A record view as a table renders it, with no vendor types in sight.
@@ -510,6 +528,16 @@ export function useRecordTable(
   return {
     columns: view?.columns ?? [],
     card,
+    cardSpec: state?.draft.card ?? NO_CARD_SPEC,
+    setCard: useCallback(
+      (patch: Partial<RecordCardSpec>) => {
+        if (!runtime) return;
+        editAndApply({
+          card: { ...runtime.getSnapshot().draft.card, ...patch },
+        });
+      },
+      [editAndApply, runtime],
+    ),
     rows,
     paging,
     summaries: data?.kind === 'record' ? data.summaries : null,

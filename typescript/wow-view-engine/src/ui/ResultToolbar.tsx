@@ -29,6 +29,7 @@ import { LayoutGridIcon, Rows3Icon } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from './components/toggle-group.js';
 import { Tooltip, TooltipTrigger } from './components/tooltip.js';
 import { TooltipContent } from './popups.js';
+import { CardSettings } from './CardSettings.js';
 import { ColumnSettings } from './ColumnSettings.js';
 import type { ReleasedPins } from './record/pinCap.js';
 import { ExportDialog, type ExportOffer } from './ExportDialog.js';
@@ -276,16 +277,23 @@ export function ResultToolbar({
           </ToggleGroup>
         )}
 
-        {/* How the table shows what it has: one responsibility, one group. */}
+        {/* How the result shows what it has: one responsibility, one group.
+            The first button answers for whichever layout is showing (D18
+            VI): what a row looks like under the table, what a card shows
+            under the cards — one place, one question, two answers. */}
         <ButtonGroup aria-label={messages.label('label.toolbar.arrange')}>
-          <ColumnSettings
-            table={table}
-            fields={fields}
-            {...(fieldGroups ? { fieldGroups } : {})}
-            {...(rowKey === undefined ? {} : { rowKey })}
-            {...(released ? { released } : {})}
-            actions={hasRowActions}
-          />
+          {table.layout === 'card' ? (
+            <CardSettings table={table} fields={fields} />
+          ) : (
+            <ColumnSettings
+              table={table}
+              fields={fields}
+              {...(fieldGroups ? { fieldGroups } : {})}
+              {...(rowKey === undefined ? {} : { rowKey })}
+              {...(released ? { released } : {})}
+              actions={hasRowActions}
+            />
+          )}
           <SortSettings
             table={table}
             fields={fields}

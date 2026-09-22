@@ -123,8 +123,6 @@ export interface RecordWorkbenchProps {
    * the field's number format all keep working.
    */
   renderCell?(cell: RecordCell): ReactNode;
-  /** The same, for the card layout, which lays a value out without a column. */
-  renderValue?(value: unknown): ReactNode;
   /**
    * Whether rows can be picked. On by default; a workbench whose host offers
    * nothing to do with a selection turns it off rather than showing a column
@@ -182,7 +180,6 @@ export function RecordWorkbench({
   onRenderFailure,
   actions,
   renderCell,
-  renderValue,
   selectable,
   emptyTitle,
   emptyDescription,
@@ -396,9 +393,13 @@ export function RecordWorkbench({
             {table.layout === 'card' ? (
               <RecordCards
                 table={table}
-                renderValue={renderValue}
+                renderCell={renderCell}
                 selectable={selectable}
+                emptyTitle={emptyTitle}
+                emptyDescription={emptyDescription}
                 rowActions={bindRow(row, record, table.refresh)}
+                hasConditions={hasConditions}
+                onEmptyAction={emptyAction}
               />
             ) : (
               <RecordTable

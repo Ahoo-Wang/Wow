@@ -18,12 +18,28 @@ export const recordMessages = {
   'label.layout.chart': 'Chart',
   'label.layout.cards': 'Cards',
 
+  // The card settings, behind the same button as the column settings once
+  // the cards are showing. A card is a row folded out, and its four
+  // questions are said in the order a card is read: what names it, what it
+  // shows, its picture, how many stand in a row.
+  'label.card.title': 'Card settings',
+  'label.card.hint': 'Cards take their title, body and image from here.',
+  'label.card.title-field': 'Title',
+  'label.card.image-field': 'Image',
+  'label.card.no-image': 'No image',
+  'label.card.fields': 'Body',
+  'label.card.columns': 'Cards per row',
+  'label.card.columns-option': '{count} per row',
+
   // The record toolbar. The bar itself has a name because it is one stop
   // with the arrows inside it: a reader that lands there is told what it
   // has landed in before it starts moving along it.
   'label.toolbar.title': 'Result toolbar',
   'label.toolbar.layout': 'Layout',
   'label.toolbar.columns': 'Columns',
+  // The same button under the card layout: what a card shows is the
+  // question the column settings answer for a row (D18 VI).
+  'label.toolbar.card': 'Card settings',
   'label.toolbar.refresh': 'Refresh',
   // The two groups on the right of the toolbar, named so a screen reader
   // hears what a group is for rather than "group, group".

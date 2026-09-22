@@ -613,6 +613,8 @@ function tableController(): RecordTableController {
     columns: [],
     rows: [],
     card: { title: '', fields: [] },
+    cardSpec: { title: '', fields: [] },
+    setCard: () => {},
     paging: null,
     summaries: null,
     status: 'success',

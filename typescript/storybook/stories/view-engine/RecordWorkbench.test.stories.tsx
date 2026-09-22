@@ -758,6 +758,85 @@ export const EmptyResult: Story = {
   },
 };
 
+/**
+ * The card layout answers with the table's own furniture (D18 V/VI): the
+ * summaries stay under the cards, and the arrangement button — the same
+ * place in the toolbar — opens the card settings instead of the column
+ * settings. Ticking a body field draws it on every card at once.
+ */
+export const CardsAreSetUpFromTheSameButton: Story = {
+  ...DisplayWithData,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    // The table's footer is on screen before the switch, so the cards are
+    // measured against something that was there.
+    await expect(
+      canvasElement.querySelector('[data-slot="record-summaries"]'),
+    ).not.toBeNull();
+
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.layout.cards'] }),
+    );
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="record-cards"]'),
+      ).not.toBeNull(),
+    );
+    const summaries = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="record-summaries"][data-layout="card"]',
+    );
+    await expect(summaries).not.toBeNull();
+    await expect(summaries).toHaveTextContent(zhCN['label.summary.scope.page']);
+
+    // The same button, now about cards.
+    const arrange = canvasElement.querySelector<HTMLElement>(
+      '[data-control="columns"]',
+    )!;
+    await expect(arrange).toHaveAccessibleName(zhCN['label.toolbar.card']);
+    await userEvent.click(arrange);
+    const dialog = await within(document.body).findByRole('dialog', {
+      name: zhCN['label.card.title'],
+    });
+    const before = canvasElement.querySelectorAll(
+      '[data-slot="card-field"][data-field="createdAt"]',
+    ).length;
+    await expect(before).toBe(0);
+    // Awaited: the popover fades in, and its rows are not in the tree
+    // until it has.
+    await userEvent.click(
+      await within(dialog).findByRole('checkbox', { name: '创建时间' }),
+    );
+    // Every card grows the field, at the end of its body.
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelectorAll(
+          '[data-slot="card-field"][data-field="createdAt"]',
+        ).length,
+      ).toBeGreaterThan(0),
+    );
+    const cards = canvasElement.querySelectorAll(
+      '[data-slot="record-cards"] > *',
+    );
+    await expect(
+      canvasElement.querySelectorAll(
+        '[data-slot="card-field"][data-field="createdAt"]',
+      ),
+    ).toHaveLength(cards.length);
+    // Two in a row, said as pressed, and the grid follows.
+    await userEvent.click(
+      await within(dialog).findByRole('button', {
+        name: formatMessage(zhCN, 'label.card.columns-option', { count: 2 }),
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="record-cards"]'),
+      ).toHaveClass('sm:grid-cols-2'),
+    );
+  },
+};
+
 export const Loading: Story = {
   ...DisplayLoading,
   play: async ({ canvasElement }) => {

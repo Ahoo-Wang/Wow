@@ -79,6 +79,8 @@ function tableController(
       title: 'warehouse',
       fields: [{ field: 'amount', label: 'Amount' }],
     },
+    cardSpec: { title: '', fields: [] },
+    setCard: () => {},
     paging: { mode: 'paged', index: 1, total: 2 },
     summaries: null,
     status: 'success',
@@ -428,7 +430,7 @@ describe('RecordCards on its own', () => {
             },
             rows: [{ key: 'o-1', data: { id: 'o-1', createdAt: INSTANT } }],
           })}
-          renderValue={value => <em>raw {String(value)}</em>}
+          renderCell={cell => <em>raw {String(cell.value)}</em>}
         />
       </ViewSurface>,
     );

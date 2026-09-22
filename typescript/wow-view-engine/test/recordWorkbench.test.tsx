@@ -1507,7 +1507,9 @@ describe('a RecordWorkbench a host draws cells in', () => {
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
-        renderValue={value => <span data-testid="plain">{String(value)}</span>}
+        renderCell={cell => (
+          <span data-testid="plain">{String(cell.value)}</span>
+        )}
       />,
     );
 

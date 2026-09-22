@@ -379,7 +379,7 @@ describe('cards read a value as the table does', () => {
           },
           rows: [{ key: 'r-1', data: { id: 'r-1', status: 'SHIPPED' } }],
         })}
-        renderValue={value => <b>{String(value)}</b>}
+        renderCell={cell => <b>{String(cell.value)}</b>}
       />,
     );
 

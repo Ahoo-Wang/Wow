@@ -36,6 +36,8 @@ function tableController(
       },
     ],
     card: { title: 'amount', fields: [] },
+    cardSpec: { title: '', fields: [] },
+    setCard: () => {},
     rows: [
       { key: 'o-1', data: { amount: 1 } },
       { key: 'o-2', data: { amount: 2 } },

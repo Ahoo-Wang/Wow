@@ -179,7 +179,7 @@ function SummaryLine({
  * cells above. The function is named rather than coded — `SUM` is a token
  * from the config, and a reader is owed a word.
  */
-function SummaryValue({ cell }: { cell: SummaryCell }) {
+export function SummaryValue({ cell }: { cell: SummaryCell }) {
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
   // Which field this number is of, and by which function — the heading says
