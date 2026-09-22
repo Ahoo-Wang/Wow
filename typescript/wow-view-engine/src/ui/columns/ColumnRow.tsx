@@ -11,15 +11,16 @@
  * limitations under the License.
  */
 
-import { useId, type KeyboardEvent } from 'react';
+import { useId } from 'react';
 import { useSortable } from '@dnd-kit/react/sortable';
 import { OptimisticSortingPlugin } from '@dnd-kit/dom/sortable';
-import { CircleSlashIcon, GripVerticalIcon, PinIcon } from 'lucide-react';
+import { CircleSlashIcon, PinIcon } from 'lucide-react';
 import {
   columnPin,
   type RecordColumnPin,
   type SummaryFunction,
 } from '../../model/index.js';
+import { DragHandle } from '../DragHandle.js';
 import { IconButton } from '../IconButton.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
 import { Checkbox } from '../components/checkbox.js';
@@ -231,32 +232,14 @@ export function ColumnRow({
       className="gap-y-0.5"
     >
       <ItemMedia className="gap-1">
-        <IconButton
+        <DragHandle
           ref={handleRef}
-          type="button"
           label={messages.label('label.columns.drag', { field: label })}
-          // Not while the row is in the air: the tooltip would follow the
-          // pointer across the list it is meant to be dropping into. Focus
-          // still opens it, which is where the name earns its keep — the
-          // arrow keys this handle answers are written nowhere else.
-          silent={dragging}
-          variant="ghost"
-          size="icon-xs"
-          className="cursor-grab"
+          dragging={dragging}
           disabled={!row.movable}
-          aria-describedby={refused && !row.movable ? noteId : undefined}
-          onKeyDown={(event: KeyboardEvent) => {
-            // While the library is carrying the row the arrows are its: two
-            // handlers on one press would move the column twice.
-            if (dragging) return;
-            const step = STEP[event.key];
-            if (!step) return;
-            event.preventDefault();
-            onMove(step);
-          }}
-        >
-          <GripVerticalIcon />
-        </IconButton>
+          describedBy={refused && !row.movable ? noteId : undefined}
+          onMove={onMove}
+        />
 
         <Checkbox
           checked={row.visible}
@@ -399,12 +382,6 @@ export function ColumnRow({
     </RowItem>
   );
 }
-
-/** Arrow keys that move a row, and how far. */
-const STEP: Record<string, -1 | 1 | undefined> = {
-  ArrowUp: -1,
-  ArrowDown: 1,
-};
 
 /**
  * A column that can be dragged, wired to the library.

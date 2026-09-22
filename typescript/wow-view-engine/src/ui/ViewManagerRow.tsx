@@ -11,12 +11,11 @@
  * limitations under the License.
  */
 
-import { useState, type KeyboardEvent, type RefObject } from 'react';
+import { useState, type RefObject } from 'react';
 import { useSortable } from '@dnd-kit/react/sortable';
 import { OptimisticSortingPlugin } from '@dnd-kit/dom/sortable';
 import {
   CheckIcon,
-  GripVerticalIcon,
   PencilIcon,
   StarIcon,
   TrashIcon,
@@ -31,6 +30,7 @@ import type { ViewInstance, ViewPreferences } from '../model/index.js';
 import type { WriteState } from '../runtime/index.js';
 import type { ViewListState, ViewManagerController } from '../react/index.js';
 import { Badge } from './components/badge.js';
+import { DragHandle } from './DragHandle.js';
 import { IconButton, IconTooltip } from './IconButton.js';
 import { ButtonGroup } from './components/button-group.js';
 import {
@@ -153,35 +153,22 @@ export function ViewManagerRow({
             aligned. */}
         <ItemMedia>
           {manager.can.reorder && (
-            <IconButton
+            <DragHandle
               ref={handleRef}
-              type="button"
               label={messages.label('label.manage.drag', {
                 title: item.title,
               })}
-              // Not while the row is in the air — see `ColumnRow`, which
-              // carries the same handle for the same reason.
-              silent={dragging}
-              variant="ghost"
+              dragging={dragging}
+              // `icon-sm`, which is what the action cells at the other end
+              // of the row are sized by.
               size="icon-sm"
-              className="cursor-grab"
               // Not a permission, so not an absence (D4): while a write is
               // in flight or this row's title is being edited, the row is
               // busy with something else and comes back as soon as it is
               // done.
               disabled={busy || renaming !== null}
-              onKeyDown={(event: KeyboardEvent) => {
-                // While the library is carrying the row the arrows are its:
-                // two handlers on one press would move the row twice.
-                if (dragging) return;
-                const step = STEP[event.key];
-                if (!step) return;
-                event.preventDefault();
-                onMove(step);
-              }}
-            >
-              <GripVerticalIcon />
-            </IconButton>
+              onMove={onMove}
+            />
           )}
           <Kind className="text-muted-foreground size-4" aria-hidden />
         </ItemMedia>
@@ -369,12 +356,6 @@ export function ViewManagerRow({
     </>
   );
 }
-
-/** Arrow keys that move a row, and how far. */
-const STEP: Record<string, -1 | 1 | undefined> = {
-  ArrowUp: -1,
-  ArrowDown: 1,
-};
 
 /**
  * A row that can be dragged, wired to the library.

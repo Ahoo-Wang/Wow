@@ -45,6 +45,7 @@ import {
   SortableColumnRow,
 } from './columns/ColumnRow.js';
 import { columnDragAccessibility } from './columns/announce.js';
+import { dropped } from './dragDrop.js';
 import {
   ACTIONS_COLUMN,
   columnSettingRows,
@@ -348,16 +349,12 @@ export function ColumnSettings({
                 )
               }
               onDragEnd={({ operation, canceled }) => {
-                const { source, target } = operation;
-                if (canceled || !source || !target || source.id === target.id)
-                  return;
+                const drop = dropped(operation, canceled);
+                if (!drop) return;
                 // Read off the whole list, never off what is on screen: a
                 // place in the order is a place among every column the
                 // config knows.
-                moveTo(
-                  String(source.id),
-                  movableIndex(rows, String(target.id)),
-                );
+                moveTo(drop.source, movableIndex(rows, drop.target));
               }}
             >
               {REGIONS.map(region => (

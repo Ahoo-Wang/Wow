@@ -23,42 +23,31 @@
 
 import type { ViewAudience } from '../../model/index.js';
 import { dragAccessibility } from '../dragAnnounce.js';
+import { dropped, type Drop, type DropOperation } from '../dragDrop.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
-
-/** As much of a finished drag as a drop reads. */
-export interface DropOperation {
-  source?: { id: string | number } | null;
-  target?: { id: string | number } | null;
-}
-
-/** The two rows one drop is between. */
-export interface ManagerDrop {
-  source: string;
-  target: string;
-}
 
 /**
  * The drop this list will take, or null.
  *
- * A drag that was given up is not a drop, and neither is one that ended on
- * the row it started from. The audiences are checked here as well as held
- * apart by the library's groups: both lists draw personal views above shared
- * ones whatever order is stored, so a row carried across that line would
- * store a new order, spend a revision and leave the screen exactly as it was
- * — and there is no index inside a group that could even express it.
+ * What makes a drop a drop at all is the one guard every list here shares
+ * ({@link dropped}). What is added on top is the audiences, checked here as
+ * well as held apart by the library's groups: both lists draw personal views
+ * above shared ones whatever order is stored, so a row carried across that
+ * line would store a new order, spend a revision and leave the screen exactly
+ * as it was — and there is no index inside a group that could even express
+ * it.
  */
 export function managerDrop(
   operation: DropOperation,
   canceled: boolean | undefined,
   audienceOf: (id: string) => ViewAudience | undefined,
-): ManagerDrop | null {
-  const { source, target } = operation;
-  if (canceled || !source || !target || source.id === target.id) return null;
-  const from = String(source.id);
-  const onto = String(target.id);
-  const audience = audienceOf(from);
-  if (audience === undefined || audience !== audienceOf(onto)) return null;
-  return { source: from, target: onto };
+): Drop | null {
+  const drop = dropped(operation, canceled);
+  if (!drop) return null;
+  const audience = audienceOf(drop.source);
+  if (audience === undefined || audience !== audienceOf(drop.target))
+    return null;
+  return drop;
 }
 
 /**

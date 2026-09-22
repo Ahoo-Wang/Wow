@@ -85,7 +85,6 @@
 ### 架构与测试（零行为变化，防腐化）
 
 - **A-04 同名不同义**：两个 `ACTIONS_COLUMN`、两个 `ColumnPin`；`AGENTS.md` 的目录树漏了 62 个文件含三个整目录。判据：改名 + 重新生成目录树（脚本化）。落点：`src/ui/record/`、`src/ui/columns/`、`AGENTS.md`。
-- **A-05 三份拖动把手、三份放下守卫**：视图管理／列设置／排序各一份逐字相同的把手与 `STEP`，两份 `DropOperation`。判据：抽 `ui/DragHandle.tsx` 与 `dropped()`，三处改调。落点：`src/ui/`。
 - **A-07 零行为小收口批次**：三处 `hasResult`、三份 `GROUPS`、三处路径谓词、四次重建 `RecordColumn`、四处 `notify`、三段同样的 Badge、六个只自用的 export、五条过时／说反的注释、死 eslint 配置、三处指向已删测试文件的「见 test/…」。判据：合成一到两个 PR，全程不该有屏幕差异。落点：分散，见审计报告。
 - **A-09 jsdom 里的 className 断言（159 处）**：断言 Tailwind 类名证明不了回归，且会在把颜色搬进 cva 时整片变红；表格上色配方在两个文件重复五次。判据：先把断言改成 `data-slot`／状态／可达名；再抽 `StickyTableLayer` 等封装；文档承认第四落点。顺序不能反。落点：`test/`、`src/ui/record/`。
 - **A-10 覆盖洞与无合同测试**：`RecordCards` 78% 全包最低、`ColumnResizer` 指针拖动整段未覆盖、`useWorkbench.onRecovered` 从未被调用；`ViewSwitcher` 与 `ExportDialog` 没有直接测试。判据：补五处。落点：`test/`。

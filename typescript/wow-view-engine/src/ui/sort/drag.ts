@@ -23,13 +23,8 @@
 
 import type { RecordSort } from '../../model/index.js';
 import { dragAccessibility } from '../dragAnnounce.js';
+import { dropped, type DropOperation } from '../dragDrop.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
-
-/** As much of a finished drag as a drop reads. */
-export interface DropOperation {
-  source?: { id: string | number } | null;
-  target?: { id: string | number } | null;
-}
 
 /** The two places one drop is between, as positions in the sort. */
 export interface SortDrop {
@@ -63,19 +58,21 @@ export function sortEntryIndex(id: string): number | null {
 /**
  * The move this drop is, or null.
  *
- * A drag that was given up is not a drop, and neither is one that ended on
- * the entry it started from: both would spend an `edit` and an `apply` — a
- * query and a revision — to put the rows back in the order they are already
- * in.
+ * Whether there was a drop at all is the one guard every list here shares
+ * ({@link dropped}) — a drag that was given up is not a drop, and neither is
+ * one that ended on the entry it started from: both would spend an `edit` and
+ * an `apply` — a query and a revision — to put the rows back in the order they
+ * are already in. What is added on top is that the two ids have to name places
+ * in this list.
  */
 export function sortDrop(
   operation: DropOperation,
   canceled: boolean | undefined,
 ): SortDrop | null {
-  const { source, target } = operation;
-  if (canceled || !source || !target || source.id === target.id) return null;
-  const from = sortEntryIndex(String(source.id));
-  const to = sortEntryIndex(String(target.id));
+  const drop = dropped(operation, canceled);
+  if (!drop) return null;
+  const from = sortEntryIndex(drop.source);
+  const to = sortEntryIndex(drop.target);
   if (from === null || to === null || from === to) return null;
   return { from, to };
 }

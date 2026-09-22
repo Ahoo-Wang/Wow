@@ -11,7 +11,6 @@
  * limitations under the License.
  */
 
-import type { KeyboardEvent } from 'react';
 import { DragDropProvider } from '@dnd-kit/react';
 import { useSortable } from '@dnd-kit/react/sortable';
 import { Accessibility } from '@dnd-kit/dom';
@@ -20,7 +19,6 @@ import {
   ArrowDownIcon,
   ArrowDownUpIcon,
   ArrowUpIcon,
-  GripVerticalIcon,
   PlusIcon,
   XIcon,
 } from 'lucide-react';
@@ -40,6 +38,7 @@ import {
   ItemTitle,
 } from './components/item.js';
 import { RowItem } from './RowItem.js';
+import { DragHandle } from './DragHandle.js';
 import { IconButton } from './IconButton.js';
 import {
   Popover,
@@ -400,32 +399,16 @@ function SortEntry({
       {/* The handle and the place it holds are one group: where this entry
           sits and how to move it are the same subject. */}
       <ItemMedia className="gap-1">
-        <IconButton
+        <DragHandle
           ref={handleRef}
-          type="button"
           label={messages.label('label.sort.drag', { field: label })}
-          // Not while the entry is in the air — see `ColumnRow`, which
-          // carries the same handle for the same reason.
-          silent={isDragging}
-          variant="ghost"
-          size="icon-xs"
-          className="cursor-grab"
+          dragging={isDragging}
           // A single entry is already first and last at once: a handle that
           // can only put it back where it is says it can do something it
           // cannot.
           disabled={total < 2}
-          onKeyDown={(event: KeyboardEvent) => {
-            // While the library is carrying the entry the arrows are its:
-            // two handlers on one press would move it twice.
-            if (isDragging) return;
-            const step = STEP[event.key];
-            if (!step) return;
-            event.preventDefault();
-            onMove(step);
-          }}
-        >
-          <GripVerticalIcon />
-        </IconButton>
+          onMove={onMove}
+        />
         <span className={cn('text-muted-foreground w-4 text-center', TEXT_UI)}>
           {index + 1}
         </span>
@@ -459,12 +442,6 @@ function SortEntry({
     </RowItem>
   );
 }
-
-/** Arrow keys that move an entry, and how far. */
-const STEP: Record<string, -1 | 1 | undefined> = {
-  ArrowUp: -1,
-  ArrowDown: 1,
-};
 
 /**
  * The sort on the button: the first field and its direction, plus how many

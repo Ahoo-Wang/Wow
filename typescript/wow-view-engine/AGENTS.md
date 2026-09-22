@@ -240,7 +240,9 @@ src/
     ViewList.tsx, ViewSurface.tsx, EmbeddedView.tsx
     IconButton.tsx                — An icon-only control and the tooltip saying its name; the one place the two are paired
     RowItem.tsx                   — One row of a list over the registry's `Item`; the five lists share it
+    DragHandle.tsx                — The handle a sortable row is carried by, and the arrow keys that move it; the three lists share it
     dragAnnounce.ts               — What a screen reader hears while a row is dragged; the column settings and the manager share it
+    dragDrop.ts                   — `dropped()`: what makes a finished drag a drop at all, before any list adds its own rule
     kinds.ts                      — The icon each kind and audience wears, shared by list and header
     describeConfig.ts             — One config in a sentence, for a conflict's side-by-side
     messages.ts, MessagesProvider.tsx   — wording by key, overridable; `MessageKey` is the union
