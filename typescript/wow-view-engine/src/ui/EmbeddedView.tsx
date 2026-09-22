@@ -118,7 +118,7 @@ export function EmbeddedView({
   // instead of being read as a defect of the view, which is what it used to
   // be when it entered the first admission as part of the config.
   const opened = useOpenView(engine, instanceId, scopeFilter);
-  const messages = useViewMessages(wording);
+  const messages = useViewMessages(wording, locale);
   const runtime = opened.runtime;
 
   return (

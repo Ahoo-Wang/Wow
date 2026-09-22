@@ -39,8 +39,9 @@ export const statusMessages = {
   'label.status.open-columns': 'Open column settings',
   'label.query.failed': 'The query failed',
   // A failed query does not clear the table: what is on screen is the last
-  // result that did come back, and saying so is the only way to know.
-  'label.query.stale': 'Showing the last successful result',
+  // result that did come back, and saying so is the only way to know. It is
+  // said on the failure's own line, after the failure (`{error}`).
+  'label.query.stale': '{error} · Showing the last successful result',
   'label.query.retry': 'Try again',
   'label.write.conflict': 'Someone else saved this view first',
   'label.write.unknown': 'The result never came back',

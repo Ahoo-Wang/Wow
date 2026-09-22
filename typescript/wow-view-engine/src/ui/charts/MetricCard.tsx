@@ -18,6 +18,7 @@ import { ChartContainer } from '../components/chart.js';
 import { Progress } from '../components/progress.js';
 import { cn } from 'cn';
 import { useViewMessages } from '../MessagesProvider.js';
+import { useSurfaceDisplay } from '../ViewSurface.js';
 import { asImage } from './asImage.js';
 import { formatValue } from './axis.js';
 import type { FamilyProps } from './family.js';
@@ -28,9 +29,13 @@ import { color } from './palette.js';
  * is a ratio: printing it as it stands turned a quarter more than last week
  * into "+0.25".
  */
-function formatDelta(delta: number, mode: 'delta' | 'percent' | undefined) {
+function formatDelta(
+  delta: number,
+  mode: 'delta' | 'percent' | undefined,
+  locale: string | undefined,
+) {
   const sign = delta > 0 ? '+' : '';
-  return `${sign}${formatValue(delta, mode === 'percent' ? 'percent' : undefined)}`;
+  return `${sign}${formatValue(delta, mode === 'percent' ? 'percent' : undefined, locale)}`;
 }
 
 /**
@@ -55,6 +60,7 @@ export function MetricCard({
 }: FamilyProps<MetricCardData>) {
   const animate = useChartMotion();
   const messages = useViewMessages();
+  const { locale } = useSurfaceDisplay();
   const card = spec?.metric;
   /**
    * The headline number as its own column reads it, so a card of money says
@@ -64,7 +70,7 @@ export function MetricCard({
   const show = (value: number) =>
     card?.format === undefined
       ? label(card?.metric, value)
-      : formatValue(value, card.format);
+      : formatValue(value, card.format, locale);
   return (
     <div
       data-slot="metric-card"
@@ -77,7 +83,7 @@ export function MetricCard({
         <span className="text-muted-foreground text-sm">
           {data.compare.delta === null
             ? '—'
-            : formatDelta(data.compare.delta, card?.compare?.mode)}
+            : formatDelta(data.compare.delta, card?.compare?.mode, locale)}
         </span>
       )}
       {/*

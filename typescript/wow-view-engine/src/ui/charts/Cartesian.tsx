@@ -45,6 +45,7 @@ import { pointAnchor } from '../analysis/DrillMenu.js';
 import type { FamilyProps } from './family.js';
 import { colorOf } from './palette.js';
 import { TooltipValue } from './TooltipValue.js';
+import { useSurfaceDisplay } from '../ViewSurface.js';
 
 export function Cartesian({
   data,
@@ -56,6 +57,7 @@ export function Cartesian({
   onPick,
 }: FamilyProps<CartesianData>) {
   const animate = useChartMotion();
+  const { locale } = useSurfaceDisplay();
   // A pivot names its series by raw group values, and the style element
   // interpolates config keys into custom properties: only an identifier is
   // safe there, so every data-valued key is exchanged for a synthetic one
@@ -134,7 +136,8 @@ export function Cartesian({
       series => axisId(bySeries.get(series.metric)?.axis) === side,
     )?.metric;
   const ticksOf = (axis: typeof left, side: 'left' | 'right') =>
-    tickFormatterOf(axis) ?? ((value: number) => label(metricOn(side), value));
+    tickFormatterOf(axis, locale) ??
+    ((value: number) => label(metricOn(side), value));
   // An axis title, written along the axis; the category axis has none.
   const titleOf = (
     axis: typeof left,

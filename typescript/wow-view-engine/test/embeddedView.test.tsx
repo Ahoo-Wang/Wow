@@ -14,7 +14,6 @@
 import {
   act,
   cleanup,
-  fireEvent,
   render,
   screen,
   waitFor,
@@ -588,12 +587,12 @@ describe('EmbeddedView', () => {
       ),
     );
     // Both at once, the way the workbenches do it: the rows that did come
-    // back are still the real ones, and the strip says so behind its
-    // disclosure rather than over an empty frame.
-    fireEvent.click(screen.getByRole('button', { name: '1 more' }));
+    // back are still the real ones, and the failure's own line says so —
+    // not a fold the reader has to open to learn the rows are old.
     expect(screen.getByRole('alert').textContent).toContain(
-      'Showing the last successful result',
+      'The source answered: down · Showing the last successful result',
     );
+    expect(screen.queryByRole('button', { name: '1 more' })).toBeNull();
     expect(screen.getAllByRole('row')).toHaveLength(3);
   });
 });

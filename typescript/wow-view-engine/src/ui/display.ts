@@ -204,26 +204,38 @@ export function isoDay(date: Date, context: DisplayContext): string {
   });
 }
 
-/** A number in the format its field declared; as written when it has none. */
-export function formatNumber(
-  value: number,
-  format?: NumberFormat,
-  locale?: string,
-): string {
-  const formatter = format && numberFormatter(format, locale);
-  return formatter ? formatter.format(value) : String(value);
-}
-
 /**
- * A value an analysis shows when its field's kind has nothing to add: a number
- * in its format, or grouped the surface's way without one; a boolean in the
- * catalogue's words; anything else as text. A table cell, a chart axis and a
- * tooltip read the same, so a currency metric is not a bare number on the axis.
+ * A number as this surface prints it: in the format its field declared, and
+ * grouped in the surface's language when it declared none.
+ *
+ * It is the one fallback for every number the UI writes — a record cell, a
+ * summary, an analysis cell, a chart's axis, a count inside a sentence — so a
+ * total reads 「534,897」 in the record view and in the analysis view alike,
+ * where the record side used to print 「534897」. A field whose numbers are
+ * names rather than quantities (a year, an employee number) says so with
+ * `numberFormat: { useGrouping: false }`. A format Intl refuses to build gives
+ * way to the same plain grouping.
  *
  * `locale` is the surface's language, and it is not optional in spirit: a
  * number left to `toLocaleString()` is grouped for whatever machine the page
  * happens to run on, which is the one language nobody chose. It stays optional
  * in the signature because a format may pin its own.
+ */
+export function formatNumber(
+  value: number,
+  format?: NumberFormat,
+  locale?: string,
+): string {
+  const formatter =
+    (format && numberFormatter(format, locale)) ?? numberFormatter({}, locale);
+  return formatter ? formatter.format(value) : String(value);
+}
+
+/**
+ * A value an analysis shows when its field's kind has nothing to add: a number
+ * as `formatNumber` prints it; a boolean in the catalogue's words; anything
+ * else as text. A table cell, a chart axis and a tooltip read the same, so a
+ * currency metric is not a bare number on the axis.
  */
 export function valueText(
   value: unknown,
@@ -232,16 +244,7 @@ export function valueText(
   locale?: string,
 ): string {
   if (value === null || value === undefined) return '';
-  if (typeof value === 'number') {
-    // A number with no usable format is still grouped, and grouped in the
-    // surface's language rather than the machine's — which is what the bare
-    // `toLocaleString()` here could not do. A format Intl refuses to build
-    // gives way to that same plain grouping.
-    const formatter =
-      (format && numberFormatter(format, locale)) ??
-      numberFormatter({}, locale);
-    return formatter ? formatter.format(value) : String(value);
-  }
+  if (typeof value === 'number') return formatNumber(value, format, locale);
   if (typeof value === 'boolean')
     return messages.label(value ? 'label.value.yes' : 'label.value.no');
   if (typeof value === 'string') return value;
@@ -275,6 +278,26 @@ export function cellText(
     return formatNumber(value, field.numberFormat, context.locale);
   if (typeof value === 'bigint') return value.toString();
   return valueText(value, messages, field.numberFormat, context.locale);
+}
+
+/**
+ * One cell as a CSV file holds it: the screen's reading (`cellText`), except
+ * a number no format was declared for, which is written as the number it is.
+ *
+ * On screen such a number is grouped for the reader — 534,897 — but a CSV is
+ * read by a spreadsheet, and `534,897` in a CSV is a string no column sums.
+ * A number whose field *declares* a format (a currency, a percentage) keeps
+ * it: the author said how it reads, and the file says the same.
+ */
+export function csvCellText(
+  value: unknown,
+  field: DisplayField,
+  messages: MessageFormatters,
+  context: DisplayContext,
+): string {
+  if (typeof value === 'number' && field.numberFormat === undefined)
+    return Number.isFinite(value) ? String(value) : '';
+  return cellText(value, field, messages, context);
 }
 
 /** One badge: the value the record holds, the label and tone it wears. */

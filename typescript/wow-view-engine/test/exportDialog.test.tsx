@@ -200,10 +200,10 @@ describe('how the export window ends', () => {
       outcome: { scope: 'all', rows: 10000, capped: true },
     });
 
-    expect(dialog.textContent).toContain('10000 records exported');
+    expect(dialog.textContent).toContain('10,000 records exported');
     expect(
       dialog.querySelector('[data-slot="export-capped"]')?.textContent,
-    ).toBe('The file holds the first 10000 records; more match than that.');
+    ).toBe('The file holds the first 10,000 records; more match than that.');
   });
 
   /**

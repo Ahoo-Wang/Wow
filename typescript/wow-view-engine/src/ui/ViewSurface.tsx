@@ -176,7 +176,7 @@ export function ViewSurface({
     >
       <SurfaceThemeContext.Provider value={theme ?? resolved}>
         <SurfaceDisplayContext.Provider value={display}>
-          <MessagesProvider messages={messages}>
+          <MessagesProvider messages={messages} locale={locale}>
             <TooltipProvider>
               {/* Hidden until `useViewExpansion` finds that this surface
                   fills the screen with its control left underneath it; see

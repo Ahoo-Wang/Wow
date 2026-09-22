@@ -25,7 +25,7 @@ import {
 import { useAnnouncer } from '../Announcer.js';
 import { Button } from '../components/button.js';
 import { ColumnSettings } from '../ColumnSettings.js';
-import { cellText, isoDay, type DisplayContext } from '../display.js';
+import { csvCellText, isoDay, type DisplayContext } from '../display.js';
 import { downloadFile, fileName } from '../download.js';
 import { useQueryAnnouncement } from '../record/queryAnnouncement.js';
 import { FilterPanel } from '../FilterPanel.js';
@@ -35,7 +35,6 @@ import { RecordPagination } from '../RecordPagination.js';
 import { RecordTable, type RecordCell } from '../RecordTable.js';
 import { NO_RELEASE, type ReleasedPins } from '../record/pinCap.js';
 import { ResultToolbar } from '../ResultToolbar.js';
-import { RowActions } from '../RowActions.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import type { ViewMessages } from '../messages.js';
 import { featuresOf, type WorkbenchFeatures } from '../features.js';
@@ -166,7 +165,7 @@ export function RecordParts({
   // `ViewSurface` is inside the shell this part is handed to, so this
   // component is above the context and would otherwise name the editor in
   // English on a translated page.
-  const messages = useViewMessages(wording);
+  const messages = useViewMessages(wording, locale);
   const { filter, state } = workbench;
   const table = useRecordTable(record);
 
@@ -256,7 +255,7 @@ export function RecordParts({
   const deliver = useCallback(
     (rows: readonly RecordData[], scope: RecordExportScope, name: string) => {
       const text = serializeCsv(rows, columns, (value, column) =>
-        cellText(value, column, messages, display),
+        csvCellText(value, column, messages, display),
       );
       downloadFile({ name, text, type: CSV_TYPE });
       onExported?.({ name, text, scope, rows: rows.length });
@@ -385,15 +384,17 @@ export function RecordParts({
  * The host's row slot bound to the open view, or nothing at all.
  *
  * The table is handed a function of the row alone — it knows a result, not a
- * runtime — so the binding happens here, where both are in hand, and the
- * host's buttons get their wrapper once rather than from every host.
+ * runtime — so the binding happens here, where both are in hand. The wrapper
+ * is the table's and the cards' to add (`RowActions`), once, the same way an
+ * embed's actions get it; binding it here as well drew two nested
+ * `row-actions` around every row's buttons. The slot still runs inside the
+ * result's render boundary, so a host's action that throws takes the rows
+ * with it and nothing else.
  */
 function bindRow(
   row: RecordActionSlots['row'],
   runtime: RecordViewRuntime,
   refresh: () => void,
 ): ((row: RecordRow) => ReactNode) | undefined {
-  return row
-    ? item => <RowActions>{row({ row: item, runtime, refresh })}</RowActions>
-    : undefined;
+  return row ? item => row({ row: item, runtime, refresh }) : undefined;
 }

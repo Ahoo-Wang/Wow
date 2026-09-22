@@ -596,7 +596,7 @@ describe('ResultToolbar export', () => {
     // Pressing Export is the consent, so what is consented to is on screen —
     // this replaces the separate question the menu used to ask first.
     expect((await screen.findByRole('dialog')).textContent).toContain(
-      'That is more than the 10000 one export carries; the file will hold the first 10000.',
+      'That is more than the 10,000 one export carries; the file will hold the first 10,000.',
     );
   });
 
@@ -672,10 +672,10 @@ describe('ResultToolbar export', () => {
     await user.click(screen.getByRole('button', { name: 'Export' }));
     const dialog = await screen.findByRole('dialog');
 
-    expect(dialog.textContent).toContain('10000 records exported');
+    expect(dialog.textContent).toContain('10,000 records exported');
     expect(dialog.textContent).toContain('File: Mine-2026-09-21.csv');
     expect(dialog.textContent).toContain(
-      'The file holds the first 10000 of the 42000 records that match.',
+      'The file holds the first 10,000 of the 42,000 records that match.',
     );
     // By slot rather than by name: the vendored dialog draws its own ✕ with
     // the same word in it, and both do close the window.

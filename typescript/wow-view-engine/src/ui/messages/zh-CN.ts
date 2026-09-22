@@ -916,7 +916,7 @@ export const zhCN: ViewMessages = {
   // 的那一块。说的是打开哪一块，不是替读者决定怎么改。
   'label.status.open-columns': '打开列设置',
   'label.query.failed': '查询失败',
-  'label.query.stale': '显示的是上一次成功的结果',
+  'label.query.stale': '{error} · 显示的是上一次成功的结果',
   'label.query.retry': '重试',
   'label.write.conflict': '别人先保存了这个视图',
   'label.write.unknown': '结果一直没有回来',

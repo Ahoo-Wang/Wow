@@ -12,17 +12,29 @@
  */
 
 import type { AxisSpec, ValueFormat } from '../../model/index.js';
+import { formatNumber } from '../display.js';
 
 /**
- * A number as the spec asks for it. `percent` is a ratio the kernel produced
- * — `deltaOf` divides — so it is the only one that scales before it prints.
+ * A number as the spec asks for it, in the surface's language — through the
+ * same `formatNumber` every other number goes through, so an axis tick is not
+ * the one number on the page grouped for the machine rather than the reader.
+ * `percent` is a ratio the kernel produced — `deltaOf` divides — and Intl's
+ * percent style is what scales it.
  */
-export function formatValue(value: number, format?: ValueFormat): string {
+export function formatValue(
+  value: number,
+  format: ValueFormat | undefined,
+  locale: string | undefined,
+): string {
   if (format === 'percent')
-    return `${(value * 100).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
+    return formatNumber(
+      value,
+      { style: 'percent', maximumFractionDigits: 1 },
+      locale,
+    );
   if (format === 'compact')
-    return value.toLocaleString(undefined, { notation: 'compact' });
-  return value.toLocaleString();
+    return formatNumber(value, { notation: 'compact' }, locale);
+  return formatNumber(value, undefined, locale);
 }
 
 /** A bound the spec pinned; the other end is left to the data. */
@@ -35,9 +47,12 @@ export function domainOf(axis: AxisSpec | undefined) {
   ];
 }
 
-export function tickFormatterOf(axis: AxisSpec | undefined) {
+export function tickFormatterOf(
+  axis: AxisSpec | undefined,
+  locale: string | undefined,
+) {
   if (!axis?.format) return undefined;
-  return (value: number) => formatValue(value, axis.format);
+  return (value: number) => formatValue(value, axis.format, locale);
 }
 
 /** Which numeric axis a series or a line belongs to; the left one by default. */

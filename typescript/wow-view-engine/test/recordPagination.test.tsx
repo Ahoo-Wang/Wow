@@ -14,7 +14,7 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { MessagesProvider, zhCN } from '../src/ui/index.js';
+import { MessagesProvider, ViewSurface, zhCN } from '../src/ui/index.js';
 import { RecordPagination } from '../src/ui/RecordPagination.js';
 import { recordTableController as tableController } from './fixtures/ui.js';
 
@@ -631,5 +631,90 @@ describe('RecordPagination jumping to a page', () => {
       (screen.getByRole('textbox', { name: 'Go to page' }) as HTMLInputElement)
         .value,
     ).toBe('1');
+  });
+
+  /**
+   * A jump that failed leaves the rows — and `index` — where they were, so
+   * the box has nothing to follow: it went on saying 600 beside a sentence
+   * saying page 1. The failure is the answer to the page asked for, and the
+   * box goes back to the page on screen.
+   */
+  it('goes back to the page on screen when the jump fails', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<RecordPagination table={paged()} />);
+
+    const box = screen.getByRole('textbox', { name: 'Go to page' });
+    await user.clear(box);
+    await user.type(box, '3{Enter}');
+    rerender(<RecordPagination table={paged({ status: 'loading' })} />);
+    expect((box as HTMLInputElement).value).toBe('3');
+
+    rerender(<RecordPagination table={paged({ status: 'error' })} />);
+    expect((box as HTMLInputElement).value).toBe('2');
+    expect(screen.getByText('Page 2 of 3')).toBeTruthy();
+  });
+
+  /** Only a failure resets it: a refresh that lands keeps what is typed. */
+  it('keeps a draft through a refresh that succeeds', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<RecordPagination table={paged()} />);
+
+    const box = screen.getByRole('textbox', { name: 'Go to page' });
+    await user.clear(box);
+    await user.type(box, '3');
+    rerender(<RecordPagination table={paged({ status: 'loading' })} />);
+    rerender(<RecordPagination table={paged({ status: 'success' })} />);
+    expect((box as HTMLInputElement).value).toBe('3');
+  });
+});
+
+/**
+ * The numbers in the bar read as every other number on the surface does —
+ * grouped, in its language — where they used to be `String(n)`: 「共 624082
+ * 条记录」 under a summary reading 「534,897」.
+ */
+describe('RecordPagination groups its numbers', () => {
+  const large = () =>
+    tableController({
+      pageSize: 20,
+      paging: { mode: 'paged', index: 1, total: 624082 },
+    });
+
+  it('groups the total and the page count in English', () => {
+    render(<RecordPagination table={large()} />);
+
+    expect(screen.getByText('624,082 records in all')).toBeTruthy();
+    expect(screen.getByText('Page 1 of 31,205')).toBeTruthy();
+  });
+
+  it('groups them in the language of the wording in force', () => {
+    render(
+      <MessagesProvider messages={zhCN} locale="zh-CN">
+        <RecordPagination table={large()} />
+      </MessagesProvider>,
+    );
+
+    expect(screen.getByText('共 624,082 条记录')).toBeTruthy();
+    expect(screen.getByText('第 1 / 31,205 页')).toBeTruthy();
+  });
+
+  it('groups them the German way on a German surface', () => {
+    render(
+      <MessagesProvider locale="de-DE">
+        <RecordPagination table={large()} />
+      </MessagesProvider>,
+    );
+
+    expect(screen.getByText('624.082 records in all')).toBeTruthy();
+  });
+
+  it("takes the surface's language when it sits inside one", () => {
+    render(
+      <ViewSurface locale="de-DE">
+        <RecordPagination table={large()} />
+      </ViewSurface>,
+    );
+
+    expect(screen.getByText('Page 1 of 31.205')).toBeTruthy();
   });
 });

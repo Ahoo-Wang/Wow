@@ -760,6 +760,36 @@ describe('AnalysisChart', () => {
     expect(screen.getByText('+25%')).toBeDefined();
   });
 
+  /**
+   * A card's own format is still a number the surface prints, so it is
+   * grouped in the surface's language — not in whatever the machine running
+   * the page happens to speak, which is what `toLocaleString()` gave it.
+   */
+  it("prints a card's own format in the surface's language", () => {
+    render(
+      <ViewSurface locale="de-DE">
+        <AnalysisChart
+          data={{
+            type: 'metric',
+            value: 1234567,
+            compare: { value: 1000000, delta: 234567 },
+          }}
+          spec={{
+            type: 'metric',
+            metric: {
+              metric: 'amount',
+              compare: { metric: 'previous', mode: 'delta' },
+              format: 'auto',
+            },
+          }}
+        />
+      </ViewSurface>,
+    );
+
+    expect(screen.getByText('1.234.567')).toBeDefined();
+    expect(screen.getByText('+234.567')).toBeDefined();
+  });
+
   it('says so when a metric has no value at all', () => {
     chartOf({
       type: 'metric',

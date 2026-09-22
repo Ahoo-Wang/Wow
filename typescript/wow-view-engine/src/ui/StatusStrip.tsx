@@ -201,11 +201,17 @@ export function QueryStrip({
 }: QueryStripProps) {
   const messages = useViewMessages();
   if (!error) return null;
+  const failed = messages.issue(error);
   return (
     <StatusStrip
       tone="error"
-      title={messages.issue(error)}
-      details={stale ? [messages.label('label.query.stale')] : undefined}
+      // The rows on screen are not the answer to what was asked, and that is
+      // the one sentence the reader needs beside the failure — so it is part
+      // of the line itself, never folded behind a 「还有 1 项」 toggle where
+      // the rows would be read as current until somebody opened it.
+      title={
+        stale ? messages.label('label.query.stale', { error: failed }) : failed
+      }
       className={className}
       action={
         onRetry && (

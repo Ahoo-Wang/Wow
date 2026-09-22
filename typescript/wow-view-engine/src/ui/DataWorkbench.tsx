@@ -152,7 +152,7 @@ export function DataWorkbench({
   // `ViewSurface` is inside `WorkbenchShell`, so this component is above the
   // context and would otherwise name a new view in English on a translated
   // page.
-  const messages = useViewMessages(wording);
+  const messages = useViewMessages(wording, locale);
   const workbench = useWorkbench(engine, definitionId, {
     kinds,
     instanceId,
@@ -180,6 +180,7 @@ export function DataWorkbench({
           workbench={workbench}
           runtime={runtime?.kind === 'analysis' ? runtime : null}
           messages={wording}
+          locale={locale}
           optionsFor={optionsFor}
           features={features}
         >

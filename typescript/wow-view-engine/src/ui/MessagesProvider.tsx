@@ -24,12 +24,25 @@ import {
 
 const MessagesContext = createContext<ViewMessages>(defaultMessages);
 
+/**
+ * The language a number inside a sentence is grouped in. It travels with the
+ * wording because it is part of it: 「共 624,082 条记录」 is one sentence, and
+ * the digits in it read the way the words around them do.
+ */
+const LocaleContext = createContext<string | undefined>(undefined);
+
 export interface MessagesProviderProps {
   /**
    * Merged over the wording already in force, so an application overrides
    * what it cares to: the defaults, or what an outer provider set.
    */
   messages?: ViewMessages;
+  /**
+   * The language the numbers in that wording are grouped in; the outer
+   * provider's when left out, and the runtime's when none sets one.
+   * `ViewSurface` passes its own `locale` here.
+   */
+  locale?: string;
   children: ReactNode;
 }
 
@@ -44,12 +57,16 @@ export interface MessagesProviderProps {
  */
 export function MessagesProvider({
   messages,
+  locale,
   children,
 }: MessagesProviderProps) {
   const merged = useMerged(useMessages(), messages);
+  const inherited = useContext(LocaleContext);
   return (
     <MessagesContext.Provider value={merged}>
-      {children}
+      <LocaleContext.Provider value={locale ?? inherited}>
+        {children}
+      </LocaleContext.Provider>
     </MessagesContext.Provider>
   );
 }
@@ -88,21 +105,27 @@ export interface MessageFormatters {
 
 /**
  * The formatters for the wording in force here, with `messages` merged over
- * it. A workbench passes the wording it hands its own surface: that surface's
- * provider is below it, so without this the workbench's own alerts would miss
- * the translation every component inside it gets.
+ * it and its numbers grouped in `locale`. A workbench passes the wording and
+ * the language it hands its own surface: that surface's provider is below it,
+ * so without this the workbench's own alerts would miss the translation every
+ * component inside it gets, and count in the machine's language besides.
  */
-export function useViewMessages(messages?: ViewMessages): MessageFormatters {
+export function useViewMessages(
+  messages?: ViewMessages,
+  locale?: string,
+): MessageFormatters {
   const merged = useMerged(useMessages(), messages);
+  const inherited = useContext(LocaleContext);
+  const language = locale ?? inherited;
   return useMemo(
     () => ({
       label: (key, params, fallback) => {
-        const found = formatMessage(merged, key, params);
+        const found = formatMessage(merged, key, params, language);
         return found === key && fallback !== undefined ? fallback : found;
       },
-      issue: found => formatIssue(merged, found),
-      issues: found => formatIssues(merged, found),
+      issue: found => formatIssue(merged, found, language),
+      issues: found => formatIssues(merged, found, language),
     }),
-    [merged],
+    [merged, language],
   );
 }

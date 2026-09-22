@@ -25,7 +25,13 @@ import { dedupeIssues, StatusStrip } from '../src/ui/StatusStrip.js';
 // `unmarkedErrors` is a question about the tree, so it moved to the filter
 // kernel; the strip beside it only renders what it is handed.
 import { unmarkedErrors } from '../src/filter/index.js';
-import { ErrorStrip, WarningStrip } from '../src/ui/index.js';
+import {
+  ErrorStrip,
+  MessagesProvider,
+  QueryStrip,
+  WarningStrip,
+} from '../src/ui/index.js';
+import { zhCN } from '../src/ui/messages/zh-CN.js';
 
 afterEach(cleanup);
 
@@ -473,5 +479,46 @@ describe('ErrorStrip', () => {
     );
 
     expect(kept).toEqual([]);
+  });
+});
+
+describe('QueryStrip', () => {
+  const failure: Issue = {
+    code: 'label.query.failed',
+    severity: 'error',
+    path: [],
+  };
+
+  /**
+   * The rows on screen are not the answer to what was asked: that is the
+   * sentence the reader needs most, so it is on the failure's own line, not
+   * behind a 「还有 1 项」 fold the rows would be read as current under.
+   */
+  it('says on the failure line itself that the rows are the last answer', () => {
+    render(
+      <MessagesProvider messages={zhCN}>
+        <QueryStrip error={failure} stale onRetry={() => {}} />
+      </MessagesProvider>,
+    );
+
+    const line = screen.getByRole('alert');
+    expect(line.textContent).toContain('查询失败 · 显示的是上一次成功的结果');
+    // Nothing is folded: the one thing it had to add is already said.
+    expect(within(line).queryByRole('button', { name: /还有/ })).toBeNull();
+    expect(within(line).getByRole('button', { name: '重试' })).toBeTruthy();
+  });
+
+  it('says the failure alone when nothing came back before it', () => {
+    render(<QueryStrip error={failure} stale={false} />);
+
+    const line = screen.getByRole('alert');
+    expect(line.textContent).toBe('The query failed');
+    expect(within(line).queryAllByRole('button')).toHaveLength(0);
+  });
+
+  it('says nothing while the query has not failed', () => {
+    const { container } = render(<QueryStrip error={null} stale />);
+
+    expect(container.textContent).toBe('');
   });
 });

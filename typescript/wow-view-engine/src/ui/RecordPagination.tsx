@@ -197,6 +197,7 @@ export function RecordPagination({ table }: RecordPaginationProps) {
               <PageInput
                 index={paging.index}
                 pages={pages}
+                failed={table.status === 'error'}
                 onGoTo={table.goTo}
               />
             )}
@@ -238,6 +239,8 @@ interface PageInputProps {
   index: number;
   /** How many there are — the ceiling, and the reason this box exists. */
   pages: number;
+  /** Whether the last query failed, which leaves `index` where it was. */
+  failed: boolean;
   onGoTo(page: number): void;
 }
 
@@ -262,7 +265,7 @@ interface PageInputProps {
  * **Committed on Enter or on leaving, never on a keystroke.** Every commit
  * is a query, and `4` is one keystroke on the way to `40`.
  */
-function PageInput({ index, pages, onGoTo }: PageInputProps) {
+function PageInput({ index, pages, failed, onGoTo }: PageInputProps) {
   const messages = useViewMessages();
   // What is half-typed is the browser's to keep, not React's: every
   // keystroke through `setState` would re-render the bar for a draft nobody
@@ -278,6 +281,15 @@ function PageInput({ index, pages, onGoTo }: PageInputProps) {
   useEffect(() => {
     if (box.current) box.current.value = String(index);
   }, [index]);
+
+  // A jump that failed never moves `index`, so the effect above has nothing
+  // to answer to — and the box went on saying `600` beside 「第 1 / 31,205
+  // 页」 while the rows were page 1's. The failure is the answer to the page
+  // asked for, so the box goes back to the page on screen when it arrives.
+  // Only then: a box being typed in while a refresh succeeds keeps its draft.
+  useEffect(() => {
+    if (failed && box.current) box.current.value = String(index);
+  }, [failed, index]);
 
   const commit = () => {
     const node = box.current;

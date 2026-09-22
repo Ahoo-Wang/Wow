@@ -123,7 +123,7 @@ export function DashboardWorkbench({
   template,
   features,
 }: DashboardWorkbenchProps) {
-  const messages = useViewMessages(wording);
+  const messages = useViewMessages(wording, locale);
   const workbench = useWorkbench(engine, definitionId, {
     kinds: DASHBOARD,
     instanceId,

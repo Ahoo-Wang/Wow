@@ -40,6 +40,12 @@ export interface AnalysisPartsProps {
   runtime: ViewRuntime<AnalysisViewConfig> | null;
   /** Wording, merged over what is already in force: where a host translates. */
   messages?: ViewMessages;
+  /**
+   * The language the surface reads in. The surface is inside the shell this
+   * part is handed to, so the counts this part words itself — 「1,204 组」
+   * — take it from here rather than from the provider.
+   */
+  locale?: string;
   optionsFor?(remote: string): FieldOption[] | undefined;
   /**
    * Which of the workbench's own controls are on screen (D18 XI). One name
@@ -64,11 +70,12 @@ export function AnalysisParts({
   workbench,
   runtime,
   messages: wording,
+  locale,
   optionsFor,
   features,
   children,
 }: AnalysisPartsProps) {
-  const messages = useViewMessages(wording);
+  const messages = useViewMessages(wording, locale);
   const shown = featuresOf(features);
   const { filter, state } = workbench;
   const analysis = useAnalysisEditor(runtime);

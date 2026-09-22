@@ -44,6 +44,8 @@ export interface ReadingContext {
   label: ValueLabel;
   /** An alias as its column is titled, or the alias itself. */
   column: (alias: string | undefined) => string | undefined;
+  /** The surface's language, for a number an axis format prints. */
+  locale: string | undefined;
 }
 
 export function readChart(
@@ -109,7 +111,7 @@ function number(
     return ctx.messages.label('label.summary.unavailable');
   return format === undefined
     ? ctx.label(alias, value)
-    : formatValue(value, format);
+    : formatValue(value, format, ctx.locale);
 }
 
 function readCartesian(
@@ -282,7 +284,7 @@ function readFunnel(
         ? [
             stage.conversion === undefined
               ? ctx.messages.label('label.summary.unavailable')
-              : formatValue(stage.conversion, 'percent'),
+              : formatValue(stage.conversion, 'percent', ctx.locale),
           ]
         : []),
     ]),

@@ -392,6 +392,59 @@ describe('formatting', () => {
     ).toBe('Amount does not offer the AVG summary.');
   });
 
+  /**
+   * A count inside a sentence is a number on the screen like any other:
+   * 「共 624,082 条记录」, not 「共 624082 条记录」 under a summary reading
+   * 「534,897」. A string is somebody's name for something — an id, a key —
+   * and is left as it came.
+   */
+  it('groups a number param in the language asked for, and leaves a string', () => {
+    expect(
+      formatMessage(defaultMessages, 'label.pagination.total', {
+        total: 624082,
+      }),
+    ).toBe(`${(624082).toLocaleString()} records in all`);
+    expect(
+      formatMessage(
+        zhCN,
+        'label.toolbar.page-of',
+        { index: 1, pages: 31205 },
+        'zh-CN',
+      ),
+    ).toBe('第 1 / 31,205 页');
+    expect(
+      formatMessage(
+        defaultMessages,
+        'label.pagination.total',
+        { total: 624082 },
+        'de-DE',
+      ),
+    ).toBe('624.082 records in all');
+    expect(
+      formatMessage(
+        defaultMessages,
+        'view.open.not-found',
+        { id: '20260922' },
+        'en',
+      ),
+    ).toBe('No view named 20260922.');
+  });
+
+  it('groups the numbers of an issue the same way', () => {
+    expect(
+      formatIssue(
+        defaultMessages,
+        {
+          code: 'label.pagination.total',
+          severity: 'error',
+          path: [],
+          params: { total: 12000 },
+        },
+        'en',
+      ),
+    ).toBe('12,000 records in all');
+  });
+
   it('falls back to the key, so a gap is visible rather than blank', () => {
     expect(formatMessage(defaultMessages, 'not.a.key')).toBe('not.a.key');
   });

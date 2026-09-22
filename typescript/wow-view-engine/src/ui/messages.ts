@@ -12,6 +12,7 @@
  */
 
 import type { Issue } from '../model/index.js';
+import { formatNumber } from './display.js';
 import { en } from './messages/en.js';
 
 /**
@@ -43,17 +44,31 @@ export type MessageKey = keyof typeof en;
 /** `{field}` and friends are replaced from `Issue.params`. */
 const PLACEHOLDER = /\{(\w+)\}/g;
 
+/**
+ * One entry with its params filled in.
+ *
+ * A param that is a number is a quantity — a count, a total, a page, a
+ * limit — and it is printed the way every other number on the surface is
+ * (`formatNumber`, in `locale`): 「共 624,082 条记录」 beside a summary that
+ * reads 「534,897」, not 「共 624082 条记录」. A caller whose number is a name
+ * rather than an amount — an id, a year, a row key — hands it over as a
+ * string, and a string is left exactly as it came.
+ */
 export function formatMessage(
   messages: ViewMessages,
   key: string,
   params?: Issue['params'],
+  locale?: string,
 ): string {
   const template = lookup(messages, key);
   if (template === undefined) return key;
   if (!params) return template;
   return template.replace(PLACEHOLDER, (whole, name: string) => {
     const value = params[name];
-    return value === undefined ? whole : String(value);
+    if (value === undefined) return whole;
+    return typeof value === 'number'
+      ? formatNumber(value, undefined, locale)
+      : value;
   });
 }
 
@@ -78,16 +93,21 @@ function lookup(messages: ViewMessages, key: string): string | undefined {
 }
 
 /** One issue as a sentence. */
-export function formatIssue(messages: ViewMessages, issue: Issue): string {
-  return formatMessage(messages, issue.code, issue.params);
+export function formatIssue(
+  messages: ViewMessages,
+  issue: Issue,
+  locale?: string,
+): string {
+  return formatMessage(messages, issue.code, issue.params, locale);
 }
 
 /** Several issues, in order, joined for one alert. */
 export function formatIssues(
   messages: ViewMessages,
   issues: readonly Issue[],
+  locale?: string,
 ): string {
-  return issues.map(found => formatIssue(messages, found)).join(' ');
+  return issues.map(found => formatIssue(messages, found, locale)).join(' ');
 }
 
 /**

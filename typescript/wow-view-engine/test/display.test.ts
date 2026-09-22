@@ -17,6 +17,7 @@ import { metricReferenceText, type FilterSummaryItem } from '../src/index.js';
 import {
   badgeEntries,
   cellText,
+  csvCellText,
   displayValue,
   formatNumber,
   isoDay,
@@ -166,8 +167,11 @@ describe('displayValue', () => {
     expect(formatNumber(1000, { ...currency, locale: 'zh_CN' })).toBe(
       new Intl.NumberFormat(undefined, currency).format(1000),
     );
-    // A currency style with no currency cannot be built at all.
-    expect(formatNumber(1000, { style: 'currency' })).toBe('1000');
+    // A currency style with no currency cannot be built at all, and gives
+    // way to the plain grouping every other number gets.
+    expect(formatNumber(1000, { style: 'currency' })).toBe(
+      (1000).toLocaleString(),
+    );
     expect(valueText(1000, words, { style: 'currency' })).toBe(
       (1000).toLocaleString(),
     );
@@ -342,6 +346,39 @@ describe('displayValue', () => {
  * copied selection gets. What a node carries and a line cannot — the pill
  * around a status, the anchor around a URL — is all that is dropped.
  */
+/**
+ * One number, one reading (review B2). A record cell went through
+ * `formatNumber`, which printed `String(value)` without a format — the record
+ * summary said 「534897」 — while the analysis view grouped the same number
+ * into 「534,897」. Both now come from the one formatter.
+ */
+describe('formatNumber', () => {
+  const words = {} as MessageFormatters;
+
+  it('groups a number with no format, in the language it is handed', () => {
+    expect(formatNumber(534897, undefined, 'en')).toBe('534,897');
+    expect(formatNumber(534897, undefined, 'zh-CN')).toBe('534,897');
+    expect(formatNumber(534897, undefined, 'de-DE')).toBe('534.897');
+    expect(formatNumber(1234.5, undefined, 'en')).toBe('1,234.5');
+  });
+
+  it('reads the same in the record view and the analysis view', () => {
+    const field = { kind: 'number' };
+    for (const locale of ['en', 'zh-CN', 'de-DE']) {
+      const context = { locale };
+      expect(cellText(534897, field, words, context)).toBe(
+        valueText(534897, words, undefined, locale),
+      );
+    }
+  });
+
+  it('leaves a number that names something ungrouped when its field says so', () => {
+    // A year or an employee number is a name, not an amount: the definition
+    // says so, and the grouping is its to turn off.
+    expect(formatNumber(2026, { useGrouping: false }, 'en')).toBe('2026');
+  });
+});
+
 describe('cellText', () => {
   const words: MessageFormatters = {
     label: key => formatMessage(en, key),
@@ -376,7 +413,9 @@ describe('cellText', () => {
   });
 
   it('keeps a number in its format and a boolean in the catalogue words', () => {
-    expect(text(1234.5, { kind: 'number' })).toBe('1234.5');
+    // No format is not "as written": it is grouped in the surface's
+    // language, the same reading an analysis cell gives the same number.
+    expect(text(1234.5, { kind: 'number' })).toBe('1,234.5');
     expect(
       text(1000, {
         kind: 'number',
@@ -398,6 +437,51 @@ describe('cellText', () => {
     expect(text('two\nlines', { cell: 'text' })).toBe('two\nlines');
     expect(text({ a: 1 })).toBe('{"a":1}');
     expect(text(9007199254740993n)).toBe('9007199254740993');
+  });
+});
+
+describe('csvCellText', () => {
+  const context = { locale: 'en-GB', timeZone: 'UTC' };
+  const words: MessageFormatters = {
+    label: key => formatMessage(en, key),
+    issue: () => '',
+    issues: () => '',
+  };
+
+  it('writes a plain number as the number it is, for a spreadsheet to sum', () => {
+    expect(csvCellText(534897, { kind: 'number' }, words, context)).toBe(
+      '534897',
+    );
+    expect(csvCellText(Number.NaN, { kind: 'number' }, words, context)).toBe(
+      '',
+    );
+  });
+
+  it('keeps a format the field declares, and reads everything else as the screen does', () => {
+    expect(
+      csvCellText(
+        1234.5,
+        {
+          kind: 'number',
+          numberFormat: { style: 'currency', currency: 'CNY' },
+        },
+        words,
+        context,
+      ),
+    ).toBe(
+      cellText(
+        1234.5,
+        {
+          kind: 'number',
+          numberFormat: { style: 'currency', currency: 'CNY' },
+        },
+        words,
+        context,
+      ),
+    );
+    expect(csvCellText(true, { kind: 'boolean' }, words, context)).toBe(
+      cellText(true, { kind: 'boolean' }, words, context),
+    );
   });
 });
 

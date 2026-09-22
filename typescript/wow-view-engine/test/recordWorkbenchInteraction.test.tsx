@@ -498,11 +498,14 @@ describe('the record workbench layout', () => {
 
     const strip = await screen.findByRole('alert');
     expect(strip.textContent).toContain('The source answered: gateway down');
-    // The rows are the last ones that came back, and the strip says so
-    // rather than the table emptying itself over a dropped connection.
+    // The rows are the last ones that came back, and the failure's own
+    // line says so rather than the table emptying itself over a dropped
+    // connection — or a fold hiding that the rows are old.
     expect(screen.getAllByRole('row')).toHaveLength(3);
-    fireEvent.click(within(strip).getByRole('button', { name: '1 more' }));
-    expect(strip.textContent).toContain('last successful result');
+    expect(strip.textContent).toContain(
+      'gateway down · Showing the last successful result',
+    );
+    expect(within(strip).queryByRole('button', { name: '1 more' })).toBeNull();
 
     fail = false;
     fireEvent.click(within(strip).getByRole('button', { name: 'Try again' }));
@@ -563,6 +566,15 @@ describe('the record workbench layout', () => {
       .getByRole('button', { name: 'Open o-1' })
       .closest('[data-slot="row-actions"]');
     expect(cell).not.toBeNull();
+    // Wrapped once: the workbench binds the slot to the view and the table
+    // adds the wrapper, and a second one inside the first was two boxes
+    // with one job. One per row, none inside another.
+    expect(document.querySelectorAll('[data-slot="row-actions"]')).toHaveLength(
+      2,
+    );
+    expect(
+      cell?.parentElement?.closest('[data-slot="row-actions"]'),
+    ).toBeNull();
     // The whole column and not the header alone: a header that stays while
     // its cells slide away is worse than no pinning at all.
     expect(cell?.closest('td')?.getAttribute('data-pin')).toBe('right');
@@ -575,6 +587,9 @@ describe('the record workbench layout', () => {
         .getByRole('button', { name: 'Open o-1' })
         .closest('[data-slot="card-footer"]'),
     ).not.toBeNull();
+    expect(document.querySelectorAll('[data-slot="row-actions"]')).toHaveLength(
+      2,
+    );
   });
 
   it('asks before a switch that would lose an unsaved draft', async () => {

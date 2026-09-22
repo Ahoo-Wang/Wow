@@ -24,6 +24,7 @@ import { PieSlices } from './charts/PieSlices.js';
 import { readChart } from './charts/reading.js';
 import { ScatterPoints } from './charts/ScatterPoints.js';
 import { useViewMessages } from './MessagesProvider.js';
+import { useSurfaceDisplay } from './ViewSurface.js';
 
 export interface AnalysisChartProps {
   data: ChartData;
@@ -67,9 +68,10 @@ export function AnalysisChart({
   const messages = useViewMessages();
   const label = useValueLabel(columns);
   const column = useColumnTitle(columns);
+  const { locale } = useSurfaceDisplay();
   const reading = useMemo(
-    () => readChart(data, spec, { messages, label, column }),
-    [data, spec, messages, label, column],
+    () => readChart(data, spec, { messages, label, column, locale }),
+    [data, spec, messages, label, column, locale],
   );
   const props = {
     spec,
