@@ -48,4 +48,30 @@ describe('AGENTS.md', () => {
       .filter(path => !tree.includes(path.split('/').pop() ?? path));
     expect(missing).toEqual([]);
   });
+
+  /**
+   * A description copied from the line above says nothing about the file it
+   * sits on, and it says it convincingly enough that an agent goes looking in
+   * the wrong file rather than reading the tree again (C1). Copies are what
+   * this catches: the three `compile.ts` once all read "compileAnalysis →
+   * AggregationQuery", the three `validate.ts` all read "validateDashboard",
+   * and `ui/messages/` carried `model/`'s descriptions wholesale. A line may
+   * still be left blank — `boolean.ts` needs no sentence — but no two lines
+   * may share one.
+   */
+  it('describes each file in its own words', () => {
+    const byDescription = new Map<string, string[]>();
+    for (const line of tree.split('\n')) {
+      const parsed = /^\s+(\S+)\s+— (.*)$/.exec(line);
+      if (!parsed) continue;
+      const [, name, description] = parsed;
+      const shared = byDescription.get(description) ?? [];
+      shared.push(name);
+      byDescription.set(description, shared);
+    }
+    const copied = [...byDescription]
+      .filter(([, names]) => names.length > 1)
+      .map(([description, names]) => `${names.join(', ')} — ${description}`);
+    expect(copied).toEqual([]);
+  });
 });

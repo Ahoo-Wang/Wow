@@ -75,7 +75,7 @@ src/
 5. `store` 只 import `model`。
 6. `react` 不 import `ui`；`ui` 可以 import 一切。
 
-`model` 到 `store` 六个目录不出现 React、DOM、`window`、`document`。第三方库落点固定：`@ahoo-wang/fetcher-wow` 只在 `model`、`filter`、`record`、`analysis`、`runtime`，且不导入其弃用的 `Condition` 系符号；`@tanstack/react-table`、`recharts`、`react-grid-layout`、`react-markdown`、`@base-ui/react`、`lucide-react` 只在 `ui`。
+`model` 到 `store` 六个目录不出现 React、DOM、`window`、`document`。第三方库落点固定，清单在 `test/architecture.test.ts` 的 `HEADLESS_DEPENDENCIES`，未列出的依赖一律只许在 `ui`：`@ahoo-wang/fetcher-wow` 只在根入口与 `model`、`filter`、`record`、`analysis`、`runtime`（`dashboard`、`store` 都没有），且不导入其弃用的 `Condition` 系符号；`dayjs` 在 `filter`、`record`、`analysis`、`runtime`、`ui`；`dequal` 只在 `runtime`；`culori` 只在 `analysis`。只在 `ui` 的是 `@base-ui/react`、`@dnd-kit/dom`、`@dnd-kit/react`、`class-variance-authority`、`cn`、`lucide-react`、`react-day-picker`、`react-error-boundary`、`react-grid-layout`、`react-markdown`、`recharts`；`react`／`react-dom` 是可选 peer，只在 `react` 与 `ui`。表格库不在其中——D16 裁定 1 否掉了 `@tanstack/react-table`，Record 表格用 registry 的 `Table` 加本包自己的列模型。
 
 包入口：
 

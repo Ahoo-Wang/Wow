@@ -70,7 +70,7 @@ Beyond the six:
 
 - `model` through `store` contain no React, DOM, `window` or `document`
 - `runtime` reaches `store` only as a **type-only import of `store/ViewStore`** — the port, never an implementation
-- Third-party landing spots are fixed: `@ahoo-wang/fetcher-wow` only at the root entry and in `model`, `filter`, `record`, `analysis`, `runtime` (not `dashboard`, not `store`); `dayjs` in `filter`, `record`, `analysis`, `runtime`, `ui`; `dequal` in `runtime` alone; `culori` in `analysis` alone; everything else (`recharts`, `react-grid-layout`, `react-markdown`, `@base-ui/react`, `lucide-react`, …) is **UI-only**. A new React dependency cannot reach a headless layer without being listed explicitly in the test
+- Third-party landing spots are fixed by `HEADLESS_DEPENDENCIES` in `test/architecture.test.ts`, and a dependency the manifest carries but that list does not name is **UI-only**: `@ahoo-wang/fetcher-wow` only at the root entry and in `model`, `filter`, `record`, `analysis`, `runtime` (not `dashboard`, not `store`); `dayjs` in `filter`, `record`, `analysis`, `runtime`, `ui`; `dequal` in `runtime` alone; `culori` in `analysis` alone. UI-only is therefore all the rest — `@base-ui/react`, `@dnd-kit/dom`, `@dnd-kit/react`, `class-variance-authority`, `cn`, `lucide-react`, `react-day-picker`, `react-error-boundary`, `react-grid-layout`, `react-markdown`, `recharts` — while `react` / `react-dom` are optional peers and reach `react` and `ui`. There is no table library: D16-1 declined `@tanstack/react-table`. A new React dependency cannot reach a headless layer without being listed explicitly in the test
 - **Deprecated Wow APIs are banned.** The test derives the deprecated export set from the wow sources themselves and fails on any import of it. Use `FilterExpression` and the `Filter*Query` family — never `Condition`, `PagedQuery`, `ListQuery` or `SingleQuery`
 - Wow must be imported from its root entry, by name, so every binding can be checked
 
@@ -94,7 +94,7 @@ src/
   styles.css                  — Theme; consumers import it explicitly
   model/                      — Types and constants only; imports nothing
     analysis.ts               — Wow aggregation enums as stored literals
-    chart.ts                  — Chart-shaped projection for the renderers
+    chart.ts                  — ChartSpec — one sub-object per chart family, every reference a group or metric alias; `CHART_TYPES`, `CHART_FAMILY`
     config.ts                 — ViewConfig — what each view kind stores
     dashboard.ts              — Dashboard config, global fields, bindings
     definition.ts             — ViewDefinition, FieldDefinition, capabilities
@@ -106,9 +106,9 @@ src/
     limits.ts                 — RuntimeLimits: admission and scheduling budgets
     record.ts                 — RecordData, RecordColumn, and how an untrusted `pinned` / `hidden` reads
     storeError.ts             — ViewStoreError
-    index.ts                  — Types and constants only: the three facts of `docs/design/README.md` say definitions are code, configs are dat
-  filter/                     — What the panel is made of
-    compile.ts                — compileAnalysis → AggregationQuery
+    index.ts                  — Types and constants only: definitions are code and configs are data, so this layer describes both and depends on nothing else
+  filter/                     — Filter kernel — imports model only
+    compile.ts                — compileFilter → FilterExpression; `FilterCompileContext` is the moment and zone a relative condition resolves against
     configBase.ts             — The config part every view kind shares
     describe.ts               — describeFilter — the applied-condition summary
     fieldGroups.ts            — Fields as a picker lists them: ungrouped first, then each declared group
@@ -117,11 +117,11 @@ src/
     marks.ts                  — unmarkedErrors — the errors no condition pill can carry
     time.ts                   — Relative and preset values resolved at compile time
     tree.ts                   — Tree node predicates, and what a node says as a condition (`conditionOf`, `conditions`, `removeConditionAt`: the negation wrapper is known here and nowhere else); trees arrive untrusted
-    validate.ts               — validateDashboard — panels, bindings, content
+    validate.ts               — validateFilter — shape, budgets and kind rules over an untrusted tree; `isBlankFilter`, `isExecutableFilter`
     values.ts                 — Value shapes of the built-in kinds
-    index.ts                  — The filter kernel: pure functions over a stored tree, plus the `FieldKind` registry that makes field types the
+    index.ts                  — The filter kernel: pure functions over a stored tree, plus the `FieldKind` registry that makes field types the one axis an application extends
     kinds/                    — Built-in FieldKinds
-      array.ts                — The English `text` has always read this way
+      array.ts                — A field holding many values: `CONTAINS_ALL` and `IS_EMPTY` beside `IN`, closed by `options` or searched through `remote`
       boolean.ts
       dateTime.ts             — The one instant a single-bound operator compares against, as a phrase; `readInstant`, the kind's own reading of a value, shared by the cells and the record kernel
       deletion.ts             — The soft-delete dimension as a declared field kind (D17-2); `impliedDeletion`
@@ -136,8 +136,8 @@ src/
       string.ts
       index.ts
   record/                     — Record kernel — imports model and filter
-    compile.ts                — compileAnalysis → AggregationQuery
-    defaults.ts               — emptyDashboardConfig
+    compile.ts                — compileRecord → FilterPagedQuery / CursorQuery and compileSummaries → AggregationQuery; `FIRST_PAGE`, `summaryAlias`
+    defaults.ts               — defaultRecordConfig — a complete starting config, since `create` takes one rather than inventing it; `recordCapabilityOf`
     export.ts                 — `serializeCsv`: rows as a CSV, values read the UI's way
     project.ts                — projectRecord — the columns a table draws, the edge each is held against (`ColumnEdge`), the rows
     validate.ts               — validateRecord — columns, sort, card and summaries against the definition
@@ -147,11 +147,11 @@ src/
     capability.ts             — Reachable fields once element paths expand
     chart.ts                  — Chart-shaped projection for the renderers
     compile.ts                — compileAnalysis → AggregationQuery
-    defaults.ts               — emptyDashboardConfig
+    defaults.ts               — defaultAnalysisConfig — the first metric the capability can express; `aliasOf`
     expressions.ts            — Aggregate and derived expression walks
     project.ts                — projectAnalysis — table columns and rows
     queryFilter.ts            — A filter in metric or element position
-    validate.ts               — validateDashboard — panels, bindings, content
+    validate.ts               — validateAnalysis — the one entry every per-rule file below is read through
     validateAliases.ts        — Alias syntax, the reserved prefix, duplicates
     validateChart.ts          — Chart rules; groups must all be consumed
     validateElements.ts       — Declared element paths and their gate filters
@@ -162,16 +162,16 @@ src/
     validateShape.ts          — The skeleton every other rule reads through
     validateSort.ts           — Sort and table columns, over known aliases
     index.ts                  — The analysis kernel
-  dashboard/                  — What the dashboard runtime is made of
+  dashboard/                  — Dashboard kernel — imports model and filter
     defaults.ts               — emptyDashboardConfig
     merge.ts                  — mergeGlobalFilter onto one panel's fields
-    panels.ts                 — Panel helpers: reading, addressing, comparing
+    panels.ts                 — Which panel a stored one is: `isViewPanel`, `isContentPanel`, and `isSafeContentUrl` for what a content panel points at
     validate.ts               — validateDashboard — panels, bindings, content
     index.ts                  — The dashboard kernel: admission, panel binding resolution and the global filter merge
   runtime/                    — Stateful layer; never imports react or ui
-    dashboardRuntime.ts       — Owns one child runtime per data panel
+    dashboardRuntime.ts       — `DashboardViewRuntime`: N child runtimes and one global filter, on one clock
     definitions.ts            — The definition registry: judged once, refused at the point of use
-    environment.ts            — Page visibility, so a hidden tab stops polling
+    environment.ts            — `RuntimeEnvironment` and the `VisibilitySource` port; `ALWAYS_VISIBLE`, `defaultRuntimeEnvironment`
     execute.ts                — The two execution kinds a runtime drives
     exportRows.ts             — Fetching every row the conditions match, page by page, under `exportMax`
     issues.ts                 — `toIssue`: one Issue for whatever a command threw
@@ -202,7 +202,7 @@ src/
     index.ts                  — Persistence is one port with eight methods
   react/                      — Headless hooks and controllers; never imports ui
     actions.ts                — The three action slots a host fills: global, bulk, row
-    environment.ts            — Page visibility, so a hidden tab stops polling
+    environment.ts            — `documentVisibility` / `browserRuntimeEnvironment`: page visibility, so a hidden tab stops polling
     issues.ts                 — Turns a thrown command into one Issue
     recordColumns.ts          — `recordColumn`, the one builder of a stored column, and what the column commands write with it
     recordDraft.ts            — The draft's lists as a control may read them; the controller is the boundary
@@ -226,7 +226,7 @@ src/
       outcomes.ts             — One outcome per row, and what a row's slot accepts
       queue.ts                — One write at a time, in click order, per set of inputs
       useCommandRunner.ts     — The protocol every manager command runs under
-    workbench/                — The shell's private parts: `ResultBlock`, `Unopenable`, `useEditorFold` + `filled`
+    workbench/                — What `useWorkbench` composes: instance sync, the leave guard, a new view, a deleted one let go
       instanceSync.ts         — Keeping the host's `instanceId` and the workbench's open view in agreement
       leaveGuard.ts           — Headless leave protection; `/ui` draws `LeaveDialog` from it
       newView.ts              — What `create` makes: the kind's default config and the audience it goes to
@@ -234,7 +234,7 @@ src/
   ui/                         — Default look; may import every layer
     AnalysisChart.tsx         — Dispatches by chart family; nothing else
     AnalysisEditor.tsx        — What to group by, what to measure, and how to draw it
-    AnalysisTable.tsx         — The aggregation as a table: groups first, then metrics, with the totals row from its own ungrouped query rathe
+    AnalysisTable.tsx         — The aggregation as a table: groups first, then metrics, with the totals row from its own ungrouped query rather than from summing what is on screen
     AnalysisWorkbench.tsx     — Default Analysis workbench
     Announcer.tsx             — `useAnnouncer`: one live region per surface, handed back rather than rendered by the caller
     AppliedBar.tsx            — The conditions the rows on screen were fetched under
@@ -257,19 +257,19 @@ src/
     FilterValueEditor.tsx     — The switch over `EditorDescriptor.input`; the only place that knows the union
     IconButton.tsx            — An icon-only control and the tooltip saying its name; the one place the two are paired
     LeaveGuard.tsx            — `LeaveDialog`: draws the headless guard's question
-    MessagesProvider.tsx      — Merged over the wording already in force, so an application overrides what it cares to: the defaults, or what
+    MessagesProvider.tsx      — `MessagesProvider`: the wording every default component reads, each provider merging over the one above it
     OutcomeActions.tsx        — One outcome as a line and its buttons, shared by the two above and the manager
     PendingDot.tsx            — The "changed, not applied" dot pinned to a pill or a group
-    RecordCards.tsx           — Renders one value of a card; the default reads it as the field says
+    RecordCards.tsx           — The same result as cards, drawn from the card half of the saved config (D18 V)
     RecordPagination.tsx      — How many rows there are and how to reach the next of them
-    RecordTable.tsx           — Whether rows can be picked
+    RecordTable.tsx           — The record view as a table: the columns and rows of the result that ran, never of the draft
     RecordWorkbench.tsx       — Default Record workbench
     RefreshControl.tsx        — Refresh now, and the auto-refresh cadence menu, as one split button
     RenderBoundary.tsx        — The boundary each part of a view renders behind, so one failing leaves the rest standing
     ResultToolbar.tsx         — Selection, bulk slot, layout, columns, refresh
     RowActions.tsx            — The wrapper a host's per-row actions land in
     RowItem.tsx               — One row of a list over the registry's `Item`; the five lists share it
-    SaveActions.tsx           — Split save button group; SaveAsDialog.tsx
+    SaveActions.tsx           — The split save button group: save in place, and the menu of the other ways to save
     SaveAsDialog.tsx          — What the create is: a copy of a saved view, or the first save of one made from nothing
     SortSettings.tsx          — The sort editor: entries in priority order, direction, drag to reorder
     StatusStrip.tsx           — One-line findings: warning, error, failed query (+ `dedupeIssues`)
@@ -278,17 +278,17 @@ src/
     ViewList.tsx              — What this list is a list of — the definition's own title
     ViewManager.tsx           — Rename, delete, reorder and the default view, from the sidebar
     ViewManagerRow.tsx        — One managed view: drag handle, rename in place, default, delete
-    ViewSurface.tsx           — Wording, merged over what is already in force — the defaults, or an outer `MessagesProvider`; this is also whe
+    ViewSurface.tsx           — The boundary every view renders inside: the theme, the wording, the locale and the zone a time reads on
     ViewSwitcher.tsx          — The view list as one control, for when the sidebar is folded away
     WorkbenchShell.tsx        — The frame the three workbenches share, over one `useWorkbench`
-    WriteOutcome.tsx          — The open view's last write; ConflictConfirm.tsx (mine/theirs)
+    WriteOutcome.tsx          — The open view's last write, and the three ways out of a conflict
     alerts.tsx                — `LineAlert`: one callout one line high, tone deciding colour, icon and role
     describeConfig.ts         — One config in a sentence, for a conflict's side-by-side
     display.ts                — A value as its field shows it: enum labels, dates, bucket keys; `summaryFunctionKey` names a summary in its column's vocabulary
     download.ts               — Hands a file to the browser; the whole of the DOM the export needs
     dragAnnounce.ts           — What a screen reader hears while a row is dragged; the column settings and the manager share it
     dragDrop.ts               — `dropped()`: what makes a finished drag a drop at all, before any list adds its own rule
-    features.ts                 — `WorkbenchFeatures`: which of the workbench's own controls exist (D18 XI)
+    features.ts               — `WorkbenchFeatures`: which of the workbench's own controls exist (D18 XI)
     kinds.ts                  — The icon each kind and audience wears, shared by list and header
     layout.ts                 — `TEXT_UI`, `SPACE`: the one small type size and the spacing ruler
     messages.ts               — Wording, by key
@@ -301,7 +301,7 @@ src/
       Cartesian.tsx           — Which axis carries the numbers
       ChartReading.tsx        — The chart's numbers as a table, for whoever cannot see the marks
       Funnel.tsx
-      Heatmap.tsx             — A grid rather than a chart library: a heatmap is cells with a background, and every library's version of that
+      Heatmap.tsx             — A grid rather than a chart library: a heatmap is cells with a background, and every library's version of that costs more than it saves
       MetricCard.tsx          — The comparison, signed
       PieSlices.tsx
       ScatterPoints.tsx
@@ -337,31 +337,31 @@ src/
         select.tsx            — One of a closed set, several of one, or yes/no/either
         shared.tsx            — Whether the condition holding this value is refused
         text.tsx              — Free text
-        unsupported.tsx           — A value no control can hold: the stored value and why it is read-only (F-06)
+        unsupported.tsx       — A value no control can hold: the stored value and why it is read-only (F-06)
     lib/utils.ts              — shadcn cn() helper — vendored
     manage/
-      drag.ts                 — What the manager makes of a drag: which drop it will take, and what a screen reader hears while one is under w
+      drag.ts                 — What the manager makes of a drag: which drop it will take, and what a screen reader hears while one is under way
     messages/                 — the catalogue, one file per prefix family
-      analysis.ts             — Wow aggregation enums as stored literals
+      analysis.ts             — the analysis editor and its charts, with the two kernels behind them
       bulk.ts                 — bulk outcome wording
-      config.ts               — ViewConfig — what each view kind stores
-      dashboard.ts            — Dashboard config, global fields, bindings
-      definition.ts           — ViewDefinition, FieldDefinition, capabilities
+      config.ts               — shared config — the part every view kind stores, so every kind reports it
+      dashboard.ts            — the dashboard grid, its panels, and the dashboard kernel behind them
+      definition.ts           — definition admission, worded for whoever wrote the release
       en.ts                   — the English catalogue: the files below, spread
       export.ts               — the export window
-      filter.ts               — FilterOperator as stored in a config
+      filter.ts               — the condition builder, the applied-condition bar, and the filter kernel
       header.ts               — The title bar and the collapsible editor under it
       manage.ts               — The view manager
-      record.ts               — RecordData — one row from the source
+      record.ts               — the record view: its layouts, toolbar, paging, rows and summaries
       refresh.ts              — auto refresh
       render.ts               — render boundaries
       save.ts                 — The save commands, their dialogs, and what a write settled as
-      scope.ts                — What an injected scope does to admission: the merge, and what it alone is refused for
-      status.ts               — What the view says about itself: what failed, what is still on screen, and whether something is running right
-      view.ts
+      scope.ts                — who a view is for: the audience picker's words and the list's two headings
+      status.ts               — What the view says about itself: what failed, what is still on screen, and whether something is running right now
+      view.ts                 — a view itself: which kind it is, the list it sits in, and the commands
       workbench.ts            — the frame around a view
       zh-CN.ts                — `zhCN`, the same keys in 简体中文
-    record/                   — Record kernel — imports model and filter
+    record/                   — What the record view is made of
       CardSummaries.tsx       — The summary lines under the cards, both scopes (D18 V)
       ColumnResizer.tsx       — The handle a column is dragged wider by, and its keyboard
       EmptyResult.tsx         — A query that matched nothing, with one way out
@@ -380,7 +380,7 @@ src/
       sticky.ts               — The one home of the table's sticky chrome (A-09): `stickyCell`/`stickyHead` (the held cell's recipe plus `data-pin`/`data-pin-edge`/`data-pin-index`), `stickyBand` and `BAND`/`BAND_ROW` (the two bands, `data-sticky`), `OWN_LAYER`, `pinVar`; the boundary's edge is drawn through `in-data-[overflowing]:`, so it answers to the port's word from `overflow.ts` (P-23)
       useSummaries.ts         — The two summary scopes from the one the runtime executed; table and cards share it
     sort/
-      drag.ts                 — What the sort editor makes of a drag: which entry a drop moves where, the order that comes out of it, and what
+      drag.ts                 — What the sort editor makes of a drag: which entry a drop moves where, the order that comes out of it, and what a screen reader hears meanwhile
     workbench/                — The shell's private parts: `ResultBlock`, `Unopenable`, `useEditorFold` + `filled`
       NoViews.tsx             — The work area when the definition has no view of this kind yet
       OpeningSkeleton.tsx     — The shape of the page that is opening: title-bar and result-block skeletons, one status sentence (P-13)
@@ -399,7 +399,7 @@ src/
 - **Configs are data**: what a user saves is a way of looking, not a snapshot. The only persisted objects are `ViewInstance` and personal preferences; consistency is an optimistic version plus an idempotent `requestId`
 - **Runtime state is transient**: drafts, results, paging and selection live only inside one opening. A `ViewRuntime` is a small `subscribe` / `getSnapshot` store and never persists
 - **Four pure kernels**: `filter`, `record`, `analysis`, `dashboard` are synchronous pure functions, all shaped "definition + config in, result or `Issue` out". They never read the clock — relative times resolve against an injected `ctx.now`
-- **`FieldKind` is the main extension point**: operators, validation, compilation and a data-only editor descriptor. Applications register custom kinds in `FieldKindRegistry`. Note that `EditorDescriptor.input` is a **closed union** and `FilterValueEditor` switches over it, so a custom kind picks one of the existing inputs — there is no renderer registry in `/ui` or `/react` today, and an unrecognised shape falls through to a plain text input. `docs/design/extension.md` describes a per-kind renderer registry as intended, not as built
+- **`FieldKind` is the main extension point**: operators, validation, compilation and a data-only editor descriptor. Applications register custom kinds in `FieldKindRegistry`. Note that `EditorDescriptor.input` is a **closed union** — its members are listed as values in `EDITOR_INPUTS` (`filter/fieldKind.ts`) and `FilterValueEditor` switches over them — so a custom kind picks one of the existing inputs; there is no renderer registry in `/ui` or `/react`, and `docs/design/ui/README.md` records, under "FilterPanel 的布局", where one would be cut in. An unrecognised value shape is **refused rather than guessed at** (F-06): `validateFilter` reports `filter.kind.unregistered` for a kind the registry does not hold and `filter.kind.unknown-editor` for one asking an input the engine has no control for, so Apply is blocked; the switch's `default:` draws `ui/filter/inputs/unsupported.tsx` — the stored value, read-only, with the reason — and the field picker leaves such a field out of its list altogether
 - **Untrusted configs**: configs arrive from a store, so validation checks the node shape together with the depth and node budgets on one iterative walk before any kind rule runs, and a malformed node is an Issue at its path rather than a `TypeError`
 - **A blank leaf is not an error**: a field chosen without a value yet is a normal editing state — it is not validated by kind and does not compile
 
@@ -407,7 +407,7 @@ src/
 
 - `@ahoo-wang/fetcher-wow` — query protocol (`FilterExpression`, `FilterPagedQuery`, `CursorQuery`, `AggregationQuery`)
 - `react` / `react-dom` — **optional peer dependencies**; the root entry works without React
-- UI-only: `@base-ui/react`, `recharts`, `react-grid-layout`, `react-markdown`, `react-day-picker`, `lucide-react`, `class-variance-authority`, `cn`
+- UI-only: `@base-ui/react`, `@dnd-kit/dom`, `@dnd-kit/react`, `recharts`, `react-grid-layout`, `react-markdown`, `react-day-picker`, `react-error-boundary`, `lucide-react`, `class-variance-authority`, `cn`
 - Headless: `dayjs` (time), `dequal` (runtime equality), `culori` (colour syntax, `analysis` only — a saved chart colour is validated before it reaches a `<style>` element)
 
 ## Code Style

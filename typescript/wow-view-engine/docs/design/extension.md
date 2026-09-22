@@ -2,13 +2,13 @@
 
 ## 扩展点
 
-| 变化轴   | 机制                                                                                                                                | 落点                                                       |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| 字段类型 | `FieldKind` 包：操作符集、默认操作符、值校验、编译到 `FilterExpression`、编辑器描述（纯数据）                                       | `filter/` 注册表；React 渲染器在 `ui/` 用同一 kind id 注册 |
-| 数据来源 | `resolveSource(key)` 返回 `ViewSource`（`QueryApi` 的 `paged` / `cursor` / `aggregate` 三个方法，见 [runtime.md#环境](runtime.md)） | 应用注入                                                   |
-| 持久化   | 实现 `ViewStore`                                                                                                                    | 业务应用，或官方后端的客户端包                             |
-| 动作槽位 | 宿主向工作台传 render 函数 `global / bulk / row`，动作是代码，不进配置、不进 ViewInstance、不进 Dashboard 面板                      | `react/actions.ts` 的类型；工作台属性                      |
-| 外观     | `:root` 上的 `--fve-<token>`（亮）与 `--fve-dark-<token>`（暗），根与 portal 弹层都读到；组件级替换通过自定义组合 `/react`          | 宿主样式表；预设主题即一份这些变量的赋值文件               |
+| 变化轴   | 机制                                                                                                                                | 落点                                                                                                                                              |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 字段类型 | `FieldKind` 包：操作符集、默认操作符、值校验、编译到 `FilterExpression`、编辑器描述（纯数据）                                       | `filter/` 的 `FieldKindRegistry`；编辑器不是扩展点——`ui/FilterValueEditor.tsx` 对封闭联合 `EDITOR_INPUTS` 做穷尽 switch，没有按 kind 注册的渲染器 |
+| 数据来源 | `resolveSource(key)` 返回 `ViewSource`（`QueryApi` 的 `paged` / `cursor` / `aggregate` 三个方法，见 [runtime.md#环境](runtime.md)） | 应用注入                                                                                                                                          |
+| 持久化   | 实现 `ViewStore`                                                                                                                    | 业务应用，或官方后端的客户端包                                                                                                                    |
+| 动作槽位 | 宿主向工作台传 render 函数 `global / bulk / row`，动作是代码，不进配置、不进 ViewInstance、不进 Dashboard 面板                      | `react/actions.ts` 的类型；工作台属性                                                                                                             |
+| 外观     | `:root` 上的 `--fve-<token>`（亮）与 `--fve-dark-<token>`（暗），根与 portal 弹层都读到；组件级替换通过自定义组合 `/react`          | 宿主样式表；预设主题即一份这些变量的赋值文件                                                                                                      |
 
 ```ts
 export interface FieldKind {
@@ -22,7 +22,7 @@ export interface FieldKind {
   ): Issue[];
   compile(leaf: FilterLeaf, field: FieldDefinition, ctx): FilterExpression;
   /** 由操作符与当前值的语义变体推出编辑器描述；组件名不进入配置。 */
-  editor(operator: FilterOperator, value?: unknown): EditorDescriptor; // input 只能是 EDITOR_INPUTS 里的一个；界面按它分派，没有渲染器注册表 // { input: 'text' | 'number' | 'select' | 'date' | 'daterange' | 'relative' | 'remote'; multiple?; ... }
+  editor(operator: FilterOperator, value?: unknown): EditorDescriptor; // input 只能是 EDITOR_INPUTS 里的一个；界面按它分派，没有渲染器注册表 // { input: 'none' | 'text' | 'number' | 'boolean' | 'deletion' | 'select' | 'remote' | 'date' | 'dateRange' | 'relativeDate' | 'predicate'; multiple?; range?; options?; remote?; withTime? }
   /** 一条已应用条件的部件，以及它们读作的那句英文。 */
   describe(ctx): FieldKindDescription; // { text; operator?; relation?; value: FilterSummaryValue; items?; group? }
 }
@@ -52,7 +52,7 @@ export interface FieldKind {
 - 它存在的理由是语义差别：`items.sku` 与 `items.qty` 两条并列写在顶层，由**任意**元素各满足一条即可；写在元素匹配里则必须由**同一个**元素同时满足。
 - 持有树的 kind 用 `nested(value, field, operator)` 自述——按操作符设限，`IS_EMPTY` 下遗留的谓词不计入——`checkShape` 据此把嵌套树计入**同一份** `maxFilterDepth`／`maxFilterNodes`——预算的存在是为了让 store 送来的树无法耗尽调用栈，每层各给一份额度等于换个方式重新放开。（见 test/elementMatch.test.ts「the budget reaches into a predicate」）
 - `FieldKind` 的四个上下文（blank、validate、compile、describe）因此带上 `kinds`，validate 另带 `limits`：嵌套谓词按**外层的**预算准入，且不重复走一遍骨架检查：持有树的 kind 要用**外层正在用的那份**注册表，自定义 kind 才能在元素谓词里按同样的条件被准入。
-- 自定义 kind 由应用注册到 `FieldKindRegistry`，自行定义值的形状；缺少对应 React 渲染器时 UI 显示不可编辑并给出 Issue，编译不受影响。
+- 自定义 kind 由应用注册到 `FieldKindRegistry`，自行定义值的形状，但**编辑器本身不是扩展点**：`EditorDescriptor.input` 是封闭联合（成员以值的形式列在 `filter/fieldKind.ts` 的 `EDITOR_INPUTS`），`ui/FilterValueEditor.tsx` 对它做穷尽 switch，自定义 kind 只能从现成的 input 里挑一个。要了引擎没有的 `input`，准入就以 `filter.kind.unknown-editor` 拒掉这条条件（`validateFilter`，Apply 被挡），未注册的 kind 同理以 `filter.kind.unregistered` 拒掉；两种情形下 pill 画的是 `ui/filter/inputs/unsupported.tsx` 的只读原值加原因（F-06），不再静默退回文本框。按 kind 注册渲染器将来要从这个 switch 切开，那条缝记在 [ui/README.md#FilterPanel 的布局](ui/README.md#filterpanel-的布局)。（见 test/unregisteredKind.test.tsx「a registered kind that asks for an editor nobody wrote」「is refused by admission rather than drawn as a text box」「a condition on a field whose kind is not registered」）
 
 ## 与 Wow 协议的对应
 
