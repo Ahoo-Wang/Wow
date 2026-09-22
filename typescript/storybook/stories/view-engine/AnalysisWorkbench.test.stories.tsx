@@ -95,6 +95,11 @@ const drillMenu = () =>
       '[data-slot="drill-menu"]',
     );
     if (!found) throw new Error('追问菜单没有弹出来');
+    // 在文档里还不等于看得见：菜单是淡进来的（`data-open:animate-in
+    // fade-in-0`，100ms），弹出的那一帧算出来的 opacity 正好是 0。所以等它淡
+    // 进来为止，下一步问「这一条可见吗」问的才是这一条自己的事，而不是撞上
+    // 动画的第一帧。
+    expect(found).toBeVisible();
     return found;
   });
 
