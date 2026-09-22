@@ -91,6 +91,12 @@ export interface SaveCommandState {
    */
   hasErrors: boolean;
   /**
+   * The view has never been saved. Its first save is a create, which is why
+   * a UI asks for a title and an audience before it rather than writing the
+   * name the view opened under.
+   */
+  isNew: boolean;
+  /**
    * When the last write of this view landed, by the engine's clock. A UI
    * shows a "Saved" moment from it, so it is a timestamp and not a boolean:
    * the same save twice in a row must read as two distinct moments. It is
@@ -401,6 +407,7 @@ export function useSaveCommands(
         blocksNewIntent(state?.write) ||
         issues.some(found => found.severity === 'error'),
       hasErrors: issues.some(found => found.severity === 'error'),
+      isNew: state !== null && state.saved === null,
       lastSavedAt: own.savedAt,
     },
   };

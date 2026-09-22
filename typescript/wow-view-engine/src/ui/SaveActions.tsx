@@ -111,12 +111,19 @@ export function SaveActions({
   // nobody knows yet.
   const stillAnswering = unsettled(state.write);
 
+  // A view made from nothing has no instance to write over: its first save
+  // is a create, so the primary button opens the same form a copy does —
+  // a title and an audience — under a heading that says "save". Which
+  // audiences it offers is the dialog's own question (`can.createPersonal`
+  // / `createShared`); what puts the button here is that at least one is.
+  const first = state.isNew;
   const copy = can.saveAs && (
     <SaveAsDialog
       open={copying}
       onOpenChange={setCopying}
       commands={commands}
       title={title}
+      intent={first ? 'first' : 'copy'}
       onSaved={saved => {
         onSaved?.(saved);
         onCreated?.(saved);
@@ -129,7 +136,13 @@ export function SaveActions({
   // which the header draws whether or not a save is on offer.
   if (!can.save && !can.saveAs) return null;
 
-  const menuSaveAs = can.save && can.saveAs;
+  // Not for a first save: saving *is* creating, and a second way to create
+  // the same view would be the same question asked twice.
+  const menuSaveAs = can.save && can.saveAs && !first;
+  // What the primary button does. A first save asks its two questions
+  // first; a save in place writes; and without a save permission at all
+  // it copies.
+  const saves = can.save && !first;
   // Spelled out rather than taken from `blocked`, because the outcomes are
   // not one thing. A write in flight stops everything. An unknown outcome
   // must be settled first — the engine refuses the next write anyway. A
@@ -156,14 +169,18 @@ export function SaveActions({
           // A save with nothing to save is the one disabled button here: the
           // permission is held, so the button belongs on screen, and the
           // reason it does nothing is the state the user can see.
-          disabled={stopped || blockedDraft || (can.save && !state.dirty)}
+          disabled={stopped || blockedDraft || (saves && !state.dirty)}
           onClick={() => {
-            if (can.save)
+            if (saves)
               void commands.save().then(made => made && onSaved?.(made));
             else setCopying(true);
           }}
         >
-          <PrimaryFace saving={state.pending} saved={saved} writes={can.save} />
+          <PrimaryFace
+            saving={state.pending}
+            saved={saved}
+            writes={saves || first}
+          />
         </Button>
 
         {menuSaveAs && (

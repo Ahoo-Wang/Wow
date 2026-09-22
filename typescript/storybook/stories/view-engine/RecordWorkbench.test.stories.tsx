@@ -38,6 +38,7 @@ import displayMeta, {
   ManageViews as DisplayManageViews,
   NarrowTitleBar as DisplayNarrowTitleBar,
   NeedsFixing as DisplayNeedsFixing,
+  NoViews as DisplayNoViews,
   Paged as DisplayPaged,
   PinnedEdges as DisplayPinnedEdges,
   PinnedGroupCapped as DisplayPinnedGroupCapped,
@@ -862,6 +863,78 @@ export const NeedsFixing: Story = {
         name: zhCN['label.record.select-all'],
       }),
     ).toBeNull();
+  },
+};
+
+/**
+ * From nothing to a listed view: the work area's button opens a view that
+ * is on screen at once, unsaved and with its editor out; the first save
+ * asks the copy's two questions under a "save" heading; what the store took
+ * is then listed in the sidebar and open. Nothing was measured that jsdom
+ * could not measure — this pins that the three entries and the dialog exist
+ * with the real popups and the real catalogue in front of them.
+ */
+export const NewView: Story = {
+  ...DisplayNoViews,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // "No view yet" is said twice — the sidebar and the work area — so the
+    // work area is found by its slot rather than by its words.
+    const workArea = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="view-none"]',
+      );
+      if (!found) throw new Error('no empty work area');
+      return found;
+    });
+    // Three ways in: the work area's button, the sidebar's `+`. The switcher
+    // item is the third, behind a fold this story keeps open.
+    const sidebar = canvas.getByRole('navigation');
+    await expect(
+      within(sidebar).getByRole('button', { name: zhCN['label.view.new'] }),
+    ).toBeVisible();
+
+    await userEvent.click(
+      within(workArea).getByRole('button', { name: zhCN['label.view.new'] }),
+    );
+    await expect(
+      await canvas.findByRole('heading', {
+        level: 2,
+        name: zhCN['label.view.new-title'],
+      }),
+    ).toBeVisible();
+    await expect(canvas.getByText(zhCN['label.header.new-view'])).toBeVisible();
+    // The conditions are out: a view with nothing in it is about to be shaped.
+    await expect(
+      await canvas.findByRole('button', { name: zhCN['label.filter.apply'] }),
+    ).toBeVisible();
+    await canvas.findByRole('table');
+
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.save.save'] }),
+    );
+    const dialog = await within(document.body).findByRole('dialog', {
+      name: zhCN['label.save.first-heading'],
+    });
+    const title = within(dialog).getByRole('textbox', {
+      name: zhCN['label.save.title'],
+    });
+    await expect(title).toHaveValue(zhCN['label.view.new-title']);
+    await userEvent.clear(title);
+    await userEvent.type(title, '大额单');
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: zhCN['label.save.save'] }),
+    );
+
+    await expect(
+      await canvas.findByRole('heading', { level: 2, name: '大额单' }),
+    ).toBeVisible();
+    await expect(
+      await within(sidebar).findByRole('button', { name: /大额单/ }),
+    ).toBeVisible();
+    await expect(
+      canvas.queryByText(zhCN['label.header.new-view']),
+    ).not.toBeInTheDocument();
   },
 };
 

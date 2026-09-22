@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   Issue,
   ViewConfig,
@@ -43,6 +43,7 @@ import {
 } from './useViewManager.js';
 import { useInstanceSync } from './workbench/instanceSync.js';
 import { useLeaveGuard, type LeaveGuard } from './workbench/leaveGuard.js';
+import { blankView, type NewViewOptions } from './workbench/newView.js';
 import { useReleaseDeleted } from './workbench/releaseDeleted.js';
 
 export interface WorkbenchOptions {
@@ -79,6 +80,24 @@ export interface WorkbenchOptions {
    * — or renders it on a server — can say no. See `workbench/leaveGuard.ts`.
    */
   guardUnload?: boolean;
+  /**
+   * What a view made from nothing opens as: the name it carries until its
+   * first save, and the config it starts from. Left out, the workbench
+   * offers no new view — the engine refuses a view with no title, and the
+   * title is wording, which this layer does not carry. `/ui` passes its
+   * catalogue's word; a host's own template goes in `config`.
+   */
+  newView?: NewViewOptions;
+}
+
+/**
+ * A view made from nothing: the runtime, and the draft it opened with. The
+ * draft is kept so the leave guard can tell an untouched new view — which
+ * costs nothing to let go — from one the user has already shaped.
+ */
+interface FreshView {
+  runtime: AnyViewRuntime;
+  draft: ViewConfig;
 }
 
 /**
@@ -100,6 +119,19 @@ export interface WorkbenchController {
   openId: string | null;
   /** Opens another view, through the leave guard. */
   choose(id: string | null): void;
+  /**
+   * Whether a new view is on offer here: the definition has this kind, the
+   * user may create in some audience, and `newView` gave it a name. Every
+   * "new view" control exists on this and on nothing else (D4).
+   */
+  canCreate: boolean;
+  /**
+   * Opens a view made from nothing, through the leave guard. It is unsaved
+   * until its first save, which is a create: the workbench then opens what
+   * the store took, as it does a copy. An unsaved view has no id, so a host
+   * routing the workbench hears nothing until that save lands.
+   */
+  create(): void;
   opened: OpenViewState;
   /** Null while the view is unopenable or still loading. */
   runtime: AnyViewRuntime | null;
@@ -158,28 +190,60 @@ export function useWorkbench(
   definitionId: string,
   options: WorkbenchOptions,
 ): WorkbenchController {
-  const { kind, instanceId, onInstanceChange, guardUnload } = options;
+  const { kind, instanceId, onInstanceChange, guardUnload, newView } = options;
   // Only the views this page can open: the sidebar offers no view the body
   // cannot render, and the effective default is resolved among those alone.
   const list = useViewList(engine, definitionId, { kind });
   const [chosen, setChosen] = useState<string | null>(instanceId ?? null);
   const openId = chosen ?? list.defaultInstanceId;
 
-  const opened = useOpenView(engine, openId);
-  const wrongKind = kindMismatch(opened.runtime, kind);
-  const runtime = wrongKind ? null : opened.runtime;
+  // A view made from nothing is opened by this hook and not by an id, so it
+  // is held here beside the pin. While one is open, nothing is opened by id
+  // — the pin stays what it was and comes back into force once the new view
+  // is saved or let go. The ref is what the release reads: closing a runtime
+  // belongs to the moment it is replaced, not to a render.
+  const [fresh, setFresh] = useState<FreshView | null>(null);
+  const freshRef = useRef<FreshView | null>(null);
+  const hold = useCallback(
+    (next: FreshView | null) => {
+      const previous = freshRef.current;
+      freshRef.current = next;
+      setFresh(next);
+      if (previous) engine.close(previous.runtime);
+    },
+    [engine],
+  );
+  // On the way out only. A cleanup keyed on the view itself would close it
+  // under StrictMode's rehearsal of the unmount, with nothing to open it
+  // again — the view was made by a press, not by an effect.
+  useEffect(() => () => hold(null), [hold]);
+
+  const byId = useOpenView(engine, fresh ? null : openId);
+  const opened: OpenViewState = fresh
+    ? { runtime: fresh.runtime, loading: false, error: null, scopeIssues: [] }
+    : byId;
+  const wrongKind = fresh ? null : kindMismatch(byId.runtime, kind);
+  const runtime = fresh ? fresh.runtime : wrongKind ? null : byId.runtime;
   const state: ViewRuntimeState<ViewConfig> | null = useViewRuntime(runtime);
   const filter = useFilterEditor(runtime);
   const refresh = useAutoRefresh(runtime);
   const commands = useSaveCommands(engine, runtime);
   const manager = useViewManager(engine, definitionId, list);
   const leave = useLeaveGuard(
-    state ? { dirty: state.dirty, write: state.write } : null,
+    state
+      ? {
+          // A new view counts as dirty from the start — losing it loses
+          // everything — but one nobody has touched yet holds nothing worth
+          // a question: the draft is the config it opened with.
+          dirty: fresh ? state.draft !== fresh.draft : state.dirty,
+          write: state.write,
+        }
+      : null,
     // Leaving settles the outcome first, because the runtime it belongs to
     // is about to go.
     { onLeave: () => commands.abandon(), guardUnload },
   );
-  useReleaseDeleted(openId, chosen, opened, setChosen);
+  useReleaseDeleted(openId, chosen, byId, setChosen);
 
   // Read off the guard rather than the guard itself: `request` is the one
   // stable part of it, and the object is new on every render.
@@ -187,8 +251,12 @@ export function useWorkbench(
   const choose = useCallback(
     // Opening another view releases this one's runtime and the draft goes
     // with it, so the switch is asked about before it happens.
-    (id: string | null) => request(() => setChosen(id)),
-    [request],
+    (id: string | null) =>
+      request(() => {
+        hold(null);
+        setChosen(id);
+      }),
+    [request, hold],
   );
   // Which view is open is the one piece of workbench state a host may also
   // hold — a route, a link somebody shares — so the two are kept in
@@ -200,13 +268,43 @@ export function useWorkbench(
     asking: leave.asking,
     onInstanceChange,
   });
+
+  // Decided once per render from what is true now, so the controls that
+  // offer a new view and the command they call cannot disagree.
+  const blank = blankView(
+    engine.definitions.get(definitionId),
+    kind,
+    engine.permissions(definitionId),
+    engine.limits,
+    newView,
+  );
+  const title = newView?.title;
+  const create = useCallback(() => {
+    if (!blank || title === undefined) return;
+    request(() => {
+      // `create` types its answer by the config's kind, which a union of
+      // configs cannot name; what it builds is the runtime `open` would
+      // hand back for the same view.
+      const made = engine.create(definitionId, {
+        title,
+        scope: blank.scope,
+        config: blank.config,
+      }) as unknown as AnyViewRuntime;
+      hold({ runtime: made, draft: made.getSnapshot().draft });
+    });
+  }, [blank, title, request, engine, definitionId, hold]);
+
   const reload = list.reload;
   const open = useCallback(
     (instance: ViewInstance) => {
+      // What the store took is what the screen shows from here, opened by
+      // its id like any other view; a new view that was just saved is let
+      // go for the instance it became.
+      hold(null);
       setChosen(instance.id);
       reload();
     },
-    [reload],
+    [reload, hold],
   );
 
   return {
@@ -214,6 +312,8 @@ export function useWorkbench(
     manager,
     openId,
     choose,
+    canCreate: blank !== null,
+    create,
     opened,
     runtime,
     state,

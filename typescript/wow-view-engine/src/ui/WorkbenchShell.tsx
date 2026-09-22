@@ -38,6 +38,7 @@ import { ViewList } from './ViewList.js';
 import { ViewManager } from './ViewManager.js';
 import { ViewSurface } from './ViewSurface.js';
 import { ViewSwitcher } from './ViewSwitcher.js';
+import { NoViews } from './workbench/NoViews.js';
 import { ResultBlock } from './workbench/ResultBlock.js';
 import { Unopenable } from './workbench/Unopenable.js';
 import { filled, useEditorFold } from './workbench/useEditorFold.js';
@@ -240,6 +241,19 @@ export function WorkbenchShell({
   // last item — so the state is here rather than inside either of them.
   const [managing, setManaging] = useState(false);
   const canManage = manager.can.anything;
+  // One command behind three ways in — the sidebar's `+`, the switcher's
+  // item and the empty work area's button — and none of the three exists
+  // without it (D4).
+  const create = workbench.canCreate ? workbench.create : undefined;
+  // Nothing to open and nothing on its way: the list is in and has no view
+  // of this kind, and no view was made from nothing either. Said in the
+  // work area rather than left blank, because blank reads as broken.
+  const none =
+    !open &&
+    !unopenable &&
+    !opened.loading &&
+    !list.loading &&
+    workbench.openId === null;
 
   const collapseRef = useRef<HTMLButtonElement>(null);
   const expandRef = useRef<HTMLButtonElement>(null);
@@ -472,6 +486,7 @@ export function WorkbenchShell({
         currentId={state?.saved?.id ?? null}
         currentTitle={state?.title ?? ''}
         onOpen={workbench.choose}
+        onCreate={create}
         onManage={canManage ? () => setManaging(true) : undefined}
       />
     </div>
@@ -501,6 +516,7 @@ export function WorkbenchShell({
             title={title}
             currentId={state?.saved?.id ?? null}
             onOpen={workbench.choose}
+            onCreate={create}
             // Only when something on the list can actually be managed: a
             // reader with no write permission at all would otherwise get a
             // button whose only lesson is that it leads to a dialog of
@@ -551,6 +567,8 @@ export function WorkbenchShell({
         )}
 
         {opened.loading && <Skeleton className="h-8 w-full" />}
+
+        {none && <NoViews failed={list.error !== null} onCreate={create} />}
 
         {open && (
           <>

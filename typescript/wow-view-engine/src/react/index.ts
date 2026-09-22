@@ -40,4 +40,5 @@ export * from './useWorkbench.js';
 export * from './writes.js';
 export * from './workbench/instanceSync.js';
 export * from './workbench/leaveGuard.js';
+export * from './workbench/newView.js';
 export * from './workbench/releaseDeleted.js';

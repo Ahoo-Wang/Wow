@@ -147,6 +147,41 @@ describe('SaveActions, the split button group', () => {
     expect([twoOfTheGroup, theWholeGroup]).toEqual([true, true]);
   });
 
+  /**
+   * A view made from nothing has no instance to write over, so its first
+   * save is the create the copy dialog already asks the two questions for:
+   * the title it opens under is the answer on offer, not "{title} copy".
+   */
+  it('asks for a title and an audience on the first save', async () => {
+    const { engine, store } = setup();
+    const runtime = engine.create('orders', {
+      title: 'New view',
+      scope: 'personal',
+      config: recordConfig(),
+    });
+    render(<Harness engine={engine} runtime={runtime} />);
+
+    // Never saved, so nothing to copy either: one button, no menu.
+    expect(
+      screen.queryByRole('button', { name: 'More view actions' }),
+    ).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Save this view',
+    });
+    const title = within(dialog).getByRole('textbox', { name: 'Title' });
+    expect((title as HTMLInputElement).value).toBe('New view');
+    fireEvent.change(title, { target: { value: 'Big ones' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+
+    await waitFor(async () =>
+      expect((await store.list('orders')).map(item => item.title)).toContain(
+        'Big ones',
+      ),
+    );
+  });
+
   it('has nothing to save until the view is edited', async () => {
     const { runtime } = await open();
 

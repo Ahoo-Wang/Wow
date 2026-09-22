@@ -119,6 +119,7 @@ const NOTHING: SaveCommands = {
     dirty: false,
     blocked: false,
     hasErrors: false,
+    isNew: false,
     lastSavedAt: null,
   },
 };

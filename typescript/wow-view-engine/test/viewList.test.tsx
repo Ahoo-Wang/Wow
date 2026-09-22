@@ -75,7 +75,7 @@ describe('ViewList on its own', () => {
 
   it('explains an empty list, and says so when it failed', () => {
     render(<ViewList list={listState()} currentId={null} onOpen={() => {}} />);
-    expect(screen.getByText(/Save the current conditions/)).toBeDefined();
+    expect(screen.getByText('No view yet')).toBeDefined();
 
     cleanup();
     render(
@@ -86,6 +86,28 @@ describe('ViewList on its own', () => {
       />,
     );
     expect(screen.getByText(/could not be loaded/)).toBeDefined();
+  });
+
+  it('offers a new view from the heading only when given the command', () => {
+    const onCreate = vi.fn();
+    render(
+      <ViewList
+        list={listState()}
+        currentId={null}
+        onOpen={() => {}}
+        onCreate={onCreate}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'New view' }));
+    expect(onCreate).toHaveBeenCalledTimes(1);
+    // The empty state points at it; the button is the work area's.
+    expect(screen.getByText(/Make one to start/)).toBeDefined();
+
+    cleanup();
+    render(<ViewList list={listState()} currentId={null} onOpen={() => {}} />);
+    expect(screen.queryByRole('button', { name: 'New view' })).toBeNull();
+    // Nothing to do about it, so nothing is suggested.
+    expect(screen.queryByText(/Make one to start/)).toBeNull();
   });
 
   it('is named by the definition, and falls back when none is given', () => {

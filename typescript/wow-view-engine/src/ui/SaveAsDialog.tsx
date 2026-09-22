@@ -45,6 +45,13 @@ export interface SaveAsDialogProps {
   commands: SaveCommands;
   /** The view being copied; the title field opens on `{title} copy`. */
   title: string;
+  /**
+   * What the create is: a copy of a saved view, or the first save of one
+   * made from nothing. The form is the same — a title and an audience — and
+   * only its words change: a first save opens on the view's own name rather
+   * than on "{title} copy", and its heading says "save" rather than "copy".
+   */
+  intent?: 'copy' | 'first';
   /** Called with the copy once the store took it. */
   onSaved?(instance: ViewInstance): void;
 }
@@ -88,6 +95,7 @@ export function SaveAsDialog({
   onOpenChange,
   commands,
   title,
+  intent = 'copy',
   onSaved,
 }: SaveAsDialogProps) {
   return (
@@ -99,6 +107,7 @@ export function SaveAsDialog({
           key={open ? 'asking' : 'idle'}
           commands={commands}
           title={title}
+          intent={intent}
           onOpenChange={onOpenChange}
           onSaved={onSaved}
         />
@@ -110,6 +119,7 @@ export function SaveAsDialog({
 function SaveAsForm({
   commands,
   title,
+  intent = 'copy',
   onOpenChange,
   onSaved,
 }: Omit<SaveAsDialogProps, 'open'>) {
@@ -122,8 +132,9 @@ function SaveAsForm({
   const [scope, setScope] = useState<ViewAudience>(
     can.createPersonal ? 'personal' : 'shared',
   );
+  const first = intent === 'first';
   const [next, setNext] = useState(() =>
-    messages.label('label.save-as.copy-title', { title }),
+    first ? title : messages.label('label.save-as.copy-title', { title }),
   );
 
   const named = next.trim();
@@ -147,9 +158,17 @@ function SaveAsForm({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>{messages.label('label.save-as.heading')}</DialogTitle>
+        <DialogTitle>
+          {messages.label(
+            first ? 'label.save.first-heading' : 'label.save-as.heading',
+          )}
+        </DialogTitle>
         <DialogDescription>
-          {messages.label('label.save-as.description')}
+          {messages.label(
+            first
+              ? 'label.save.first-description'
+              : 'label.save-as.description',
+          )}
         </DialogDescription>
       </DialogHeader>
 
@@ -242,7 +261,7 @@ function SaveAsForm({
               aria-label={messages.label('label.status.loading')}
             />
           )}
-          {messages.label('label.save-as.submit')}
+          {messages.label(first ? 'label.save.save' : 'label.save-as.submit')}
         </Button>
       </DialogFooter>
     </>

@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-import type { FieldOption, Issue } from '../model/index.js';
+import type {
+  DashboardViewConfig,
+  FieldOption,
+  Issue,
+} from '../model/index.js';
 import type { ViewEngine } from '../runtime/index.js';
 import { useDashboard, useWorkbench } from '../react/index.js';
 import { DashboardGrid } from './DashboardGrid.js';
@@ -44,6 +48,11 @@ export interface DashboardWorkbenchProps {
   onInstanceChange?(id: string | null): void;
   /** Whether panels may be dragged and resized. */
   editable?: boolean;
+  /**
+   * What a new dashboard starts from: an empty one when left out. It opens
+   * unsaved, and the first save asks for its name and audience.
+   */
+  template?: DashboardViewConfig;
   theme?: 'light' | 'dark';
   /** Wording, merged over what is already in force: where a host translates. */
   messages?: ViewMessages;
@@ -101,16 +110,21 @@ export function DashboardWorkbench({
   onSidebarOpenChange,
   expandable,
   onRenderFailure,
+  template,
 }: DashboardWorkbenchProps) {
+  const messages = useViewMessages(wording);
   const workbench = useWorkbench(engine, definitionId, {
     kind: 'dashboard',
     instanceId,
     onInstanceChange,
+    newView: {
+      title: messages.label('label.view.new-title'),
+      ...(template ? { config: template } : {}),
+    },
   });
   const { filter, runtime, state } = workbench;
   const board = runtime?.kind === 'dashboard' ? runtime : null;
   const dashboard = useDashboard(board);
-  const messages = useViewMessages(wording);
 
   const issues = state?.issues ?? [];
   // The panels carry the warnings of what is applied, each in its own frame.

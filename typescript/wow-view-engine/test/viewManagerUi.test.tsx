@@ -1309,7 +1309,8 @@ describe('managing views from the workbench', () => {
     // The runtime goes at once — disposal notifies — and the list a moment
     // later, once it has reloaded without the deleted view.
     await waitFor(() => expect(screen.queryByRole('table')).toBeNull());
-    expect(await screen.findByText('No view yet')).toBeDefined();
+    // Said twice, in the sidebar and in the work area it left empty.
+    expect(await screen.findAllByText('No view yet')).toHaveLength(2);
     expect(screen.queryByRole('button', { name: 'Mine' })).toBeNull();
   });
 

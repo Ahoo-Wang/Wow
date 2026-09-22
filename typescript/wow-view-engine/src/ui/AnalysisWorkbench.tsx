@@ -12,7 +12,7 @@
  */
 
 import type { AnalysisView } from '../analysis/index.js';
-import type { FieldOption } from '../model/index.js';
+import type { AnalysisViewConfig, FieldOption } from '../model/index.js';
 import { resultIssues, type ViewEngine } from '../runtime/index.js';
 import { useAnalysisEditor, useWorkbench } from '../react/index.js';
 import { AnalysisChart } from './AnalysisChart.js';
@@ -22,6 +22,7 @@ import { FilterPanel } from './FilterPanel.js';
 import { RefreshControl } from './RefreshControl.js';
 import { QueryStrip } from './StatusStrip.js';
 import type { ViewMessages } from './messages.js';
+import { useViewMessages } from './MessagesProvider.js';
 import { WorkbenchShell } from './WorkbenchShell.js';
 import type { RenderFailureHandler } from './RenderBoundary.js';
 
@@ -44,6 +45,11 @@ export interface AnalysisWorkbenchProps {
    * link.
    */
   onInstanceChange?(id: string | null): void;
+  /**
+   * What a new view starts from: `defaultAnalysisConfig` when left out. It
+   * opens unsaved, and the first save asks for its name and audience.
+   */
+  template?: AnalysisViewConfig;
   theme?: 'light' | 'dark';
   /** Wording, merged over what is already in force: where a host translates. */
   messages?: ViewMessages;
@@ -97,11 +103,17 @@ export function AnalysisWorkbench({
   onSidebarOpenChange,
   expandable,
   onRenderFailure,
+  template,
 }: AnalysisWorkbenchProps) {
+  const messages = useViewMessages(wording);
   const workbench = useWorkbench(engine, definitionId, {
     kind: 'analysis',
     instanceId,
     onInstanceChange,
+    newView: {
+      title: messages.label('label.view.new-title'),
+      ...(template ? { config: template } : {}),
+    },
   });
   const { filter, runtime, state } = workbench;
   const analysis = useAnalysisEditor(runtime);

@@ -62,11 +62,10 @@
 
 ## 阶段 1 审计（2026-09-21）：布局与记录视图的 review
 
-这一组来自 2026-09-21 对 `main`（#1660 之后）做的阶段 1 审计——三份报告（体验与视觉、功能与宿主集成、架构与测试）合成一张清单，十二个产品拍板已记为 [decisions.md#D18](decisions.md#d18-阶段一审计的十二条裁定2026-09-21)。编号沿用那张清单（F 缺陷、P 打磨、A 架构）；每条的判据以本页开头的基线读，只取适用的几项。**先看后改**对这一组同样成立。已合并的（A-01、F-02、F-03）与已开 PR 的（F-08／09／10／12／13／15／16／17／18）不在这里，进度见 [progress.md](progress.md)。
+这一组来自 2026-09-21 对 `main`（#1660 之后）做的阶段 1 审计——三份报告（体验与视觉、功能与宿主集成、架构与测试）合成一张清单，十二个产品拍板已记为 [decisions.md#D18](decisions.md#d18-阶段一审计的十二条裁定2026-09-21)。编号沿用那张清单（F 缺陷、P 打磨、A 架构）；每条的判据以本页开头的基线读，只取适用的几项。**先看后改**对这一组同样成立。已合并的（A-01、F-01、F-02、F-03）与已开 PR 的（F-08／09／10／12／13／15／16／17／18）不在这里，进度见 [progress.md](progress.md)。
 
 ### 缺陷（先做）
 
-- **F-01 侧栏／新建视图**（拍板 Ⅰ 与 Ⅱ）：整个包没有「新建视图」入口，定义不声明 `views` 且 store 为空时主列整块不渲染。判据：`useWorkbench.create(kind)` 走 `engine.create`；侧栏头 `+`、空态按钮、切换器菜单三处入口；新视图编辑带默认展开；按 `defaultRecordConfig` 起草；样例与故事各一条；入口的形态按阶段 2「记录与分析同一列表切换」的方向设计。落点：`src/react/useWorkbench.ts`、`src/ui/ViewList.tsx`、`src/ui/ViewSwitcher.tsx`、[management.md](management.md)。
 - **F-04 筛选／reference 与远程候选**：`reference` 值是 `{items:[{id,label}]}`，UI 直接交给 `OptionValue`／`TextValue`，选一个候选就把叶子写成数组、Apply 与 Save 双双被挡；已存 label 读不出来；运行时定义好的 `OptionSource`（search／resolve／cursor／AbortSignal）在 UI 里一次都没被调用。判据：`RemoteValue` 做值适配并走 `engine.resolveOptions`：`Combobox multiple` + 防抖搜索 + 加载更多 + 加载／空／失败三态；`optionsFor` 保留为全量近路；`OptionValue` 换 `Combobox multiple`；UI 回归与故事（cursor 源）。落点：`src/ui/filter/inputs/`、`src/ui/FilterValueEditor.tsx`、[ui/README.md#filterpanel-的布局](ui/README.md#filterpanel-的布局)。
 - **F-05 侧栏／列表失败**：store 一抛错，代码声明的系统视图一起丢；保存后重读失败 → 侧栏清空 → 默认视图变 null → runtime 被释放，未保存草稿静默消失且不经离开守卫；失败原因、`preferencesError`、`definitionIssues` 都不显示。判据：`engine.list` 用 allSettled 语义并报 Issue；`useViewList` 失败时保留上一份；空态显示原因 + 重试；偏好与定义错误并入状态行。落点：`src/runtime/viewEngine.ts`、`src/react/useViewList.ts`、[management.md](management.md)。
 - **F-06 筛选／未注册 kind**：红 pill 没有值编辑器、空的操作符下拉、解释句被滤掉；添加列表仍列出该字段；`FilterValueEditor` 的 `default:` 静默退回文本框，与 [extension.md](extension.md) 承诺相反。判据：无 editor 时画只读原值 + `label.filter.kind-unregistered`；`addableFields` 按注册表过滤；`default:` 改为只读 + Issue；文档对齐。落点：`src/ui/filter/`、`src/ui/FilterValueEditor.tsx`、[extension.md](extension.md)。
@@ -77,7 +76,7 @@
 
 - **P-01 标题栏 ↺**：还原整份草稿无确认、无撤销，而同样丢草稿的切视图要弹确认。判据：↺ 走 `AlertDialog`（与离开守卫同形），或还原后留 5 秒「已还原 · 撤销」。落点：`src/ui/ViewHeader.tsx`。
 - **P-02 表头／列宽把手**：每列一个 Tab 站，20 列就是 20 个。判据：把手 `tabindex=-1`，表头 roving 组 + Alt+←/→。落点：`src/ui/record/ColumnResizer.tsx`、`SortableHeader.tsx`。
-- **P-03 字段选择表**：单列、未选项无勾选指示，看起来像单选菜单；文档说两列复选框。判据：未选项画空勾选框，宽处两列。落点：`src/ui/filter/FieldChecklist.tsx`、[ui/README.md#字段目录与选择器分组](ui/README.md#字段目录与选择器分组)。
+- **P-03 字段选择表**（用户 2026-09-21 裁定：**恢复分组复选框**）：现在的拾取器是 `Combobox multiple`——一列带 ✓ 的搜索列表，未选项没有勾选指示，看起来像单选菜单，字段一多就得来回滚；用户明确说不如原来的分组复选框。判据：每个字段一个**可见的复选框**（`Checkbox`），按字段目录分组、每组一个标题，宽处两列（`grid` + 容器查询），键盘照常（Tab 进表、空格勾选、方向键按网格走）；顶部搜索框保留（字段多时它有用），空态与「完成」不变；文档把「D16 之前它是手写的复选框网格」那段改成「按用户裁定回到复选框网格，搜索与分组是这次留下的」。落点：`src/ui/filter/FieldChecklist.tsx`、[ui/README.md#字段目录与选择器分组](ui/README.md#字段目录与选择器分组)、[decisions.md#D16](decisions.md#d16-站在-shadcnbase-ui-肩膀上审计后的八条裁定)（那条裁定要补一句例外）。
 - **P-04 多值录入框**：chips 后的录入框无 placeholder、无 `inputMode`；文档说的「添加按钮」不存在。判据：placeholder + `inputMode=decimal`；文档删掉按钮那半句。落点：`src/ui/filter/inputs/chips.tsx`。
 - **P-05 工具栏左端**：「清除选择」是 ghost，读起来像标签不像按钮。判据：outline，或做成徽章旁的 ✕ 图标按钮。落点：`src/ui/ResultToolbar.tsx`。
 - **P-06 动效**：包级没有 `prefers-reduced-motion`。判据：`styles.css` 两个边界里加一条 reduce 规则；文档改写。落点：`src/styles.css`、[ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)。

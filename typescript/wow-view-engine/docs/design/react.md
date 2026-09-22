@@ -197,9 +197,9 @@ useRefreshCountdown(refresh): number | null   // 每秒重画的剩余整秒
 ## useWorkbench
 
 ```ts
-useWorkbench(engine, definitionId, { kind, instanceId?, onInstanceChange?, guardUnload? }): WorkbenchController
+useWorkbench(engine, definitionId, { kind, instanceId?, onInstanceChange?, guardUnload?, newView? }): WorkbenchController
 WorkbenchController {
-  list; manager; openId; choose(id); opened; runtime; state; unopenable;
+  list; manager; openId; choose(id); canCreate; create(); opened; runtime; state; unopenable;
   commands; filter; refresh; leave; onSaved; onRenamed; onDeleted; onRecovered
 }
 ```
@@ -220,6 +220,7 @@ WorkbenchController {
 - `leave` 是无对话框的离开守卫（`react/workbench/leaveGuard.ts`）：`asking` / `request(next)` / `confirm()` / `cancel()`。`dirty` 或写入结局为 `unknown` 时才问，`confirm` 先结清（`commands.abandon()`）再走——`next` 会释放这个 runtime，结局就再没有它可依附，handle 会指向一个谁也够不着的 runtime 而 `engine.pendingWrites()` 把它留到会话结束。怎么问是宿主的事，`/ui` 用 `LeaveDialog`。**同一条判据也挂在 `beforeunload` 上**（D18 Ⅸ）：关标签、后退、点走一个外链都会带走草稿，而这些路径一次也不经过 `request`——这个包甚至不会知道它发生过。脏或未知时挂上、其余时候一条也不挂（一个每次关闭都要争辩的标签，人会学会按两下），`guardUnload: false` 可以整个关掉，留给把工作台当页面一部分挂着、或在服务端渲染的宿主。处理器不带任何措辞：浏览器十年前就不再显示自定义文案了，能由我们措辞的那一句是 `LeaveDialog`，这一道只是那些到不了它的出口的兜底；嵌入视图不在其列——`EmbeddedView` 没有编辑器、没有草稿，压根不调这个钩子；
 - `filter` 是这次打开的筛选编辑器，在这里建一次：外壳画已应用条件条要用它，error 条要用它的 `unmarked`，三个工作台本来也各建一个；
 - `refresh` 是 `useAutoRefresh(runtime)` 的结果，在这里装配而不是在三个工作台里各调一次：`refresh` 在 `ViewConfigBase` 上，三种视图都有，取法也一样；
+- `create()` 从零做一个视图，经离开守卫；`canCreate` 是它存不存在的全部依据（定义有这一种、用户可在某受众创建、`newView.title` 给了名字），控件按它存在或不存在。新视图的 runtime 由钩子自己拿着（`opened` 就是它，此时不按 id 开任何东西），没改过就切走不问，第一次保存走 `commands.saveAs` 后按存下的 id 重开——细节在 [management.md#列表偏好与默认视图](management.md#列表偏好与默认视图)。`SaveCommandState.isNew` 说的是这个视图从没存过，UI 据此把主按钮换成问名字与受众的那张表；
 - 四个 `on*` 是标题栏结局的工作台语义，已经接好：存下的副本随即打开、改名留在原视图（先 pin 再 reload，否则骑在默认视图上的工作台会关掉 runtime 连草稿一起丢）、删除即移开（只清 pin——列表由引擎的通知带着被删的 id 自己重读，再补一次不带 `without` 的重读反而会把那一行放回去；默认视图顺位接上，或随列表一起空掉）、恢复则重读列表。（见 test/workbench.test.tsx「useWorkbench」）
 
 宿主写自己的标记时调这一个钩子就够，规则一条也不会掉——`examples/PlainRecordWorkbench.tsx` 是那份参照。`test/architecture.test.ts` 禁止 `ui/*Workbench.tsx` 直接 import `useViewList`／`useOpenView`／`useViewManager`／`useLeaveGuard`：绕过去就是把装配重建一遍。

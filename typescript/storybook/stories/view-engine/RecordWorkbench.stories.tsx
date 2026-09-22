@@ -25,6 +25,8 @@ import { ScenarioFrame } from '../shared/ScenarioFrame.js';
 import {
   HOST_LANGUAGE,
   createStoryEngine,
+  ordersDefinition,
+  overviewDefinition,
   recordConfig,
   savedViews,
   savedWaybillViews,
@@ -158,8 +160,15 @@ function RecordWorkbenchDemo({
   cellFamily = false,
   exporting,
   wide = false,
+  noViews = false,
 }: {
   behaviour?: SourceBehaviour;
+  /**
+   * A definition with no view yet — no system view declared, nothing in the
+   * store — which is the screen a host meets on its first day. The only
+   * thing to do on it is to make one.
+   */
+  noViews?: boolean;
   instanceId?: string;
   /** Saves a config the definition no longer accepts, to show "needs fixing". */
   broken?: boolean;
@@ -243,6 +252,15 @@ function RecordWorkbenchDemo({
   const workbench = (
     <StoryEngine
       create={() => {
+        if (noViews)
+          return createStoryEngine({
+            definitions: [
+              { ...ordersDefinition, views: [] },
+              overviewDefinition,
+            ],
+            instances: [],
+            behaviour,
+          });
         if (wide)
           return createStoryEngine({
             definitions: [waybillsDefinition],
@@ -304,7 +322,10 @@ function RecordWorkbenchDemo({
           engine={engine}
           definitionId={wide ? waybillsDefinition.id : 'orders'}
           instanceId={
-            instanceId ?? (wide ? savedWaybillViews[0].id : savedViews[0].id)
+            noViews
+              ? undefined
+              : (instanceId ??
+                (wide ? savedWaybillViews[0].id : savedViews[0].id))
           }
           actions={
             breakable
@@ -564,6 +585,17 @@ export const NeedsFixing: Story = { args: { broken: true } };
 
 /** No saved view under this id, reported instead of an empty frame. */
 export const CannotOpen: Story = { args: { instanceId: 'deleted' } };
+
+/**
+ * 一个还没有任何视图的定义：定义不声明系统视图，store 里也没有。
+ *
+ * 工作区说「还没有视图」并给一颗「新建视图」；侧栏头也有一颗 `+`，列表折起时
+ * 切换器菜单里有同一项——三处通向 `useWorkbench.create` 这一条命令。按下去
+ * 视图立刻以「新视图」打开、标着「尚未保存」、编辑带默认展开；第一次保存问
+ * 名字和给谁看（与另存同一张表），存下的那一个随即列进侧栏并打开。没改过
+ * 的新视图切走时不问；改过才问。
+ */
+export const NoViews: Story = { args: { noViews: true } };
 
 /**
  * 结果不止一页时，表格下面那一行：左边说一共多少条，右边是每页几条、第几页，

@@ -47,6 +47,9 @@ export function PlainRecordWorkbench({
     kind: 'record',
     instanceId,
     onInstanceChange,
+    // The name a new view opens under is wording, so the host supplies it;
+    // without one the workbench offers no new view at all.
+    newView: { title: 'New view' },
   });
   // `state`, `filter` and `commands` are the controller's, already bound to
   // whichever view is open; nothing here re-derives them from the engine.
@@ -57,6 +60,14 @@ export function PlainRecordWorkbench({
   return (
     <div>
       <nav aria-label="views">
+        {/* Absent rather than disabled when there is no permission or no
+            kind to make (`canCreate`); the view opens unsaved, and its first
+            save goes through `commands.saveAs` with a title and audience. */}
+        {workbench.canCreate && (
+          <button type="button" onClick={workbench.create}>
+            New view
+          </button>
+        )}
         {list.items.map(item => (
           <button
             key={item.id}

@@ -12,7 +12,11 @@
  */
 
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
-import type { FieldOption, RecordData } from '../model/index.js';
+import type {
+  FieldOption,
+  RecordData,
+  RecordViewConfig,
+} from '../model/index.js';
 import { serializeCsv, type RecordRow } from '../record/index.js';
 import {
   resultIssues,
@@ -62,6 +66,13 @@ export interface RecordWorkbenchProps {
    * link.
    */
   onInstanceChange?(id: string | null): void;
+  /**
+   * What a new view starts from, for a host with a better first view than
+   * the definition's default columns: `defaultRecordConfig` when left out.
+   * The view still opens unsaved, under the catalogue's "New view", and the
+   * first save asks for its name and audience.
+   */
+  template?: RecordViewConfig;
   theme?: 'light' | 'dark';
   /** Wording, merged over what is already in force: where a host translates. */
   messages?: ViewMessages;
@@ -174,6 +185,7 @@ export function RecordWorkbench({
   emptyTitle,
   emptyDescription,
   onExported,
+  template,
 }: RecordWorkbenchProps) {
   // The host's wording, resolved here rather than read off the provider:
   // `ViewSurface` is inside `WorkbenchShell`, so this component is above the
@@ -184,6 +196,10 @@ export function RecordWorkbench({
     kind: 'record',
     instanceId,
     onInstanceChange,
+    newView: {
+      title: messages.label('label.view.new-title'),
+      ...(template ? { config: template } : {}),
+    },
   });
   const { filter, runtime, state } = workbench;
   const record = runtime?.kind === 'record' ? runtime : null;

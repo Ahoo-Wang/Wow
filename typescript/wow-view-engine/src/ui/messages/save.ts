@@ -50,6 +50,10 @@ export const saveMessages = {
   'label.save-as.description': 'The view you are looking at stays as it is.',
   'label.save-as.copy-title': '{title} copy',
   'label.save-as.submit': 'Create view',
+  // The first save of a view made from nothing: a create, so the same form
+  // asks the same two questions, under a heading that says what this is.
+  'label.save.first-heading': 'Save this view',
+  'label.save.first-description': 'Name it and say who it is for.',
   'label.conflict.choice':
     'Take their version and lose your edits, or write yours over theirs.',
   'label.conflict.theirs': 'Take theirs',

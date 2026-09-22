@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { ChevronDownIcon, Settings2Icon } from 'lucide-react';
+import { ChevronDownIcon, PlusIcon, Settings2Icon } from 'lucide-react';
 import {
   audienceOf,
   isSystemScope,
@@ -60,6 +60,11 @@ export interface ViewSwitcherProps {
   currentTitle: string;
   onOpen(instanceId: string): void;
   /**
+   * Makes a view from nothing: the sidebar's `+`, in the one control that
+   * stands in for the sidebar. Absent when nothing is behind it (D4).
+   */
+  onCreate?(): void;
+  /**
    * Opens the view manager. The item is absent when it is left out, which is
    * how a user with no write permission at all is spared an entry whose only
    * lesson is that it leads to a dialog of read-only rows.
@@ -86,6 +91,7 @@ export function ViewSwitcher({
   currentId,
   currentTitle,
   onOpen,
+  onCreate,
   onManage,
 }: ViewSwitcherProps) {
   const messages = useViewMessages();
@@ -179,16 +185,25 @@ export function ViewSwitcher({
           );
         })}
 
-        {onManage && (
+        {(onCreate || onManage) && (
           <>
-            {/* Managing the list is not choosing from it, so it is set apart
-                rather than added to the end of the views. */}
+            {/* Making a view and managing the list are not choosing from it,
+                so they are set apart rather than added to the end of the
+                views — in the sidebar's order: add first, then manage. */}
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem onClick={onManage}>
-                <Settings2Icon />
-                {messages.label('label.manage.open')}
-              </DropdownMenuItem>
+              {onCreate && (
+                <DropdownMenuItem onClick={onCreate}>
+                  <PlusIcon />
+                  {messages.label('label.view.new')}
+                </DropdownMenuItem>
+              )}
+              {onManage && (
+                <DropdownMenuItem onClick={onManage}>
+                  <Settings2Icon />
+                  {messages.label('label.manage.open')}
+                </DropdownMenuItem>
+              )}
             </DropdownMenuGroup>
           </>
         )}

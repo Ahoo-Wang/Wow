@@ -29,6 +29,7 @@ import {
   ViewStoreError,
   systemInstanceId,
   type ViewInstance,
+  type ViewPermissions,
 } from '../src/index.js';
 import {
   useLeaveGuard,
@@ -36,12 +37,18 @@ import {
   type LeaveGuard,
   type LeaveGuardOptions,
   type LeaveGuardState,
+  type WorkbenchOptions,
 } from '../src/react/index.js';
 import { EmbeddedView } from '../src/ui/EmbeddedView.js';
 import { LeaveDialog } from '../src/ui/LeaveGuard.js';
 import type { ViewMessages } from '../src/ui/messages.js';
 import { ViewSurface } from '../src/ui/ViewSurface.js';
-import { analysisConfig, ordersDefinition, testSource } from './fixtures.js';
+import {
+  analysisConfig,
+  ordersDefinition,
+  recordConfig,
+  testSource,
+} from './fixtures.js';
 import { mine } from './fixtures/ui.js';
 
 afterEach(cleanup);
@@ -70,20 +77,30 @@ const second: ViewInstance = {
   title: 'Theirs',
 };
 
-function engineWith(instances: ViewInstance[]): ViewEngine {
+function engineWith(
+  instances: ViewInstance[],
+  permissions?: () => ViewPermissions,
+): ViewEngine {
   return new ViewEngine({
     definitions: [ordersDefinition()],
-    store: new MemoryViewStore({ instances }),
+    store: new MemoryViewStore({ instances, permissions }),
     resolveSource: () => testSource(),
   });
 }
 
 /** The controller under test, driven straight rather than through markup. */
-function open(engine: ViewEngine, instanceId: string | null = null) {
+function open(
+  engine: ViewEngine,
+  instanceId: string | null = null,
+  options: Partial<WorkbenchOptions> = {},
+) {
   return renderHook(() =>
-    useWorkbench(engine, 'orders', { kind: 'record', instanceId }),
+    useWorkbench(engine, 'orders', { kind: 'record', instanceId, ...options }),
   );
 }
+
+/** A workbench that may make a view from nothing. */
+const NEW_VIEW = { newView: { title: 'New view' } };
 
 describe('useWorkbench', () => {
   it('opens the effective default and lists only its own kind', async () => {
@@ -188,6 +205,160 @@ describe('useWorkbench', () => {
         'A copy',
       ),
     );
+  });
+
+  describe('a view made from nothing', () => {
+    it('opens unsaved, of its own kind, in place of the view that was open', async () => {
+      const engine = engineWith([mine]);
+      const { result } = open(engine, 'orders-1', NEW_VIEW);
+      await waitFor(() => expect(result.current.state?.title).toBe('Mine'));
+      const before = result.current.runtime;
+
+      expect(result.current.canCreate).toBe(true);
+      act(() => {
+        result.current.create();
+      });
+
+      // Made and shown at once — no id to open, nothing to wait for — and
+      // the view it replaced is closed, since it is no longer on screen.
+      expect(result.current.opened.loading).toBe(false);
+      expect(result.current.state?.title).toBe('New view');
+      expect(result.current.state?.saved).toBeNull();
+      expect(result.current.runtime?.kind).toBe('record');
+      expect(result.current.unopenable).toBeNull();
+      expect(before?.disposed).toBe(true);
+      // Unsaved, so it is in no list: the sidebar marks no row as open.
+      expect(result.current.list.items.map(item => item.title)).toEqual([
+        'All orders',
+        'Mine',
+      ]);
+    });
+
+    it('starts from the template the host gave', async () => {
+      const { result } = open(engineWith([mine]), 'orders-1', {
+        newView: { title: 'New view', config: recordConfig({ pageSize: 7 }) },
+      });
+      await waitFor(() => expect(result.current.state?.title).toBe('Mine'));
+
+      act(() => {
+        result.current.create();
+      });
+      expect(result.current.state?.draft).toMatchObject({ pageSize: 7 });
+    });
+
+    it('lets one nobody touched go without asking', async () => {
+      const { result } = open(engineWith([mine]), 'orders-1', NEW_VIEW);
+      await waitFor(() => expect(result.current.state?.title).toBe('Mine'));
+      act(() => {
+        result.current.create();
+      });
+      const fresh = result.current.runtime;
+
+      // Dirty by the runtime's own account — losing it loses everything —
+      // but there is nothing in it yet that the user made.
+      expect(result.current.state?.dirty).toBe(true);
+      act(() => {
+        result.current.choose('orders-1');
+      });
+      expect(result.current.leave.asking).toBe(false);
+      await waitFor(() => expect(result.current.state?.title).toBe('Mine'));
+      expect(fresh?.disposed).toBe(true);
+    });
+
+    it('asks before one the user shaped is lost', async () => {
+      const { result } = open(engineWith([mine]), 'orders-1', NEW_VIEW);
+      await waitFor(() => expect(result.current.state?.title).toBe('Mine'));
+      act(() => {
+        result.current.create();
+      });
+      act(() => {
+        result.current.runtime?.edit({ pageSize: 50 });
+      });
+      await waitFor(() =>
+        expect(result.current.state?.draft).toMatchObject({ pageSize: 50 }),
+      );
+
+      act(() => {
+        result.current.choose('orders-1');
+      });
+      expect(result.current.leave.asking).toBe(true);
+      expect(result.current.state?.title).toBe('New view');
+
+      act(() => {
+        result.current.leave.confirm();
+      });
+      await waitFor(() => expect(result.current.state?.title).toBe('Mine'));
+    });
+
+    it('opens what the store took once it is saved', async () => {
+      const engine = engineWith([mine]);
+      const { result } = open(engine, 'orders-1', NEW_VIEW);
+      await waitFor(() => expect(result.current.state?.title).toBe('Mine'));
+      act(() => {
+        result.current.create();
+      });
+      const fresh = result.current.runtime;
+      if (!fresh) throw new Error('no new view');
+
+      // The first save is a create: the UI asks for a title and an audience
+      // and calls `saveAs`, which is what lands here.
+      const saved = await engine.saveAs(fresh, {
+        title: 'Fresh',
+        scope: 'personal',
+      });
+      act(() => {
+        result.current.onSaved(saved);
+      });
+
+      await waitFor(() =>
+        expect(result.current.state?.saved?.id).toBe(saved.id),
+      );
+      expect(result.current.openId).toBe(saved.id);
+      expect(result.current.state?.title).toBe('Fresh');
+      expect(fresh.disposed).toBe(true);
+      await waitFor(() =>
+        expect(result.current.list.items.map(item => item.title)).toContain(
+          'Fresh',
+        ),
+      );
+    });
+
+    it('is not on offer without a name, a permission, or the kind', async () => {
+      // No title to open it under: this layer has no wording of its own.
+      const unnamed = open(engineWith([mine]), 'orders-1');
+      await waitFor(() => expect(unnamed.result.current.state).not.toBeNull());
+      expect(unnamed.result.current.canCreate).toBe(false);
+      act(() => {
+        unnamed.result.current.create();
+      });
+      expect(unnamed.result.current.state?.title).toBe('Mine');
+
+      // Nowhere to create in.
+      const forbidden = open(
+        engineWith([mine], () => ({
+          createPersonal: false,
+          createShared: false,
+          reorder: true,
+          setDefault: true,
+          instance: () => ({ save: true, rename: true, delete: true }),
+        })),
+        'orders-1',
+        NEW_VIEW,
+      );
+      await waitFor(() =>
+        expect(forbidden.result.current.state).not.toBeNull(),
+      );
+      expect(forbidden.result.current.canCreate).toBe(false);
+
+      // A template of another kind is no template for this page.
+      const mismatched = open(engineWith([mine]), 'orders-1', {
+        newView: { title: 'New view', config: analysisConfig() },
+      });
+      await waitFor(() =>
+        expect(mismatched.result.current.state).not.toBeNull(),
+      );
+      expect(mismatched.result.current.canCreate).toBe(false);
+    });
   });
 
   describe('the leave guard', () => {

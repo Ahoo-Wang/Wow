@@ -16,6 +16,7 @@ import { cn } from 'cn';
 import {
   LayersIcon,
   PanelLeftCloseIcon,
+  PlusIcon,
   Settings2Icon,
   StarIcon,
 } from 'lucide-react';
@@ -53,6 +54,12 @@ export interface ViewListProps {
   title?: string;
   currentId: string | null;
   onOpen(instanceId: string): void;
+  /**
+   * Makes a view from nothing. Given one, the heading grows the `+` D12
+   * puts there, and the empty state points at it; left out — no permission,
+   * or nothing behind it — neither exists (D4).
+   */
+  onCreate?(): void;
   /**
    * Opens the view manager — renaming, deleting, reordering and the default
    * view. Given one, the heading grows a button for it; left out, the list is
@@ -106,6 +113,7 @@ export function ViewList({
   title,
   currentId,
   onOpen,
+  onCreate,
   onManage,
   onCollapse,
   collapseRef,
@@ -137,11 +145,11 @@ export function ViewList({
           same order. `RecordWorkbench.test.stories.tsx` measures the two
           bottoms against each other.
 
-          D12 puts a third button here — "new view" — and there is nothing
-          headless behind it: `useWorkbench` offers `save`, `saveAs`, `rename`
-          and `delete`, and none of them makes a blank view. A control with no
-          command is a promise, so by D4 it is absent rather than disabled,
-          and it arrives with the command that answers it. */}
+          The `+` is D12's third button, and it is here only with a command
+          behind it (`useWorkbench.create`): a control with no command is a
+          promise, so by D4 it is absent rather than disabled. It leads: it
+          is the one action that adds to the list under it, the other two
+          act on the list as it is. */}
       <div
         data-slot="view-list-header"
         className="border-sidebar-border border-b px-3 pt-4 pb-3"
@@ -158,6 +166,16 @@ export function ViewList({
           >
             {title || messages.label('label.view.list')}
           </h1>
+          {onCreate && (
+            <IconButton
+              label={messages.label('label.view.new')}
+              variant="ghost"
+              size="icon-sm"
+              onClick={onCreate}
+            >
+              <PlusIcon />
+            </IconButton>
+          )}
           {onManage && (
             <IconButton
               label={messages.label('label.manage.open')}
@@ -186,7 +204,12 @@ export function ViewList({
         data-slot="view-list-body"
         className={cn('flex min-w-0 flex-col p-3', SPACE.ROWS)}
       >
-        <ViewListBody list={list} currentId={currentId} onOpen={onOpen} />
+        <ViewListBody
+          list={list}
+          currentId={currentId}
+          creatable={onCreate !== undefined}
+          onOpen={onOpen}
+        />
       </div>
     </nav>
   );
@@ -195,10 +218,13 @@ export function ViewList({
 function ViewListBody({
   list,
   currentId,
+  creatable,
   onOpen,
 }: {
   list: ViewListState;
   currentId: string | null;
+  /** Whether a new view is on offer, which is what the empty state says. */
+  creatable: boolean;
   onOpen(instanceId: string): void;
 }) {
   const messages = useViewMessages();
@@ -219,11 +245,21 @@ function ViewListBody({
             <LayersIcon />
           </EmptyMedia>
           <EmptyTitle>{messages.label('label.view.none')}</EmptyTitle>
-          <EmptyDescription>
-            {messages.label(
-              list.error ? 'label.view.list-failed' : 'label.view.none-hint',
-            )}
-          </EmptyDescription>
+          {/* Why, or what next — and nothing where there is neither: a
+              reader who may not create is told there are none, not told to
+              make one. The way to make one is the `+` above and the button
+              on the work area, so this is a sentence and not a third
+              button. */}
+          {(list.error || creatable) && (
+            // `sidebar-foreground/70` for the reason the group heading
+            // gives: `muted-foreground` clears 4.5:1 on white and measures
+            // 4.34:1 on this column's ground.
+            <EmptyDescription className="text-sidebar-foreground/70">
+              {messages.label(
+                list.error ? 'label.view.list-failed' : 'label.view.none-hint',
+              )}
+            </EmptyDescription>
+          )}
         </EmptyHeader>
       </Empty>
     );

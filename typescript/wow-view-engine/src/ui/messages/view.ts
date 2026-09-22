@@ -20,7 +20,11 @@ export const viewMessages = {
   'label.kind.dashboard': 'Dashboard',
   'label.view.list': 'Views',
   'label.view.list-failed': 'The list could not be loaded.',
-  'label.view.none-hint': 'Save the current conditions to make one.',
+  'label.view.none-hint': 'Make one to start looking at the data.',
+  // The command and the name it opens under: one is a verb on a button, the
+  // other a title in a heading, and the two catalogues word them apart.
+  'label.view.new': 'New view',
+  'label.view.new-title': 'New view',
   'label.view.unopenable': 'This view could not be opened',
   'label.view.open-default': 'Open the default view',
   'label.view.needs-fixing': 'This view needs fixing before it runs',
