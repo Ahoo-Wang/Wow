@@ -14,7 +14,12 @@
 import { useId, type ReactNode } from 'react';
 import type { ChartSpec, RecordData } from '../../model/index.js';
 import { Checkbox } from '../components/checkbox.js';
-import { Field, FieldDescription, FieldLabel } from '../components/field.js';
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldLabel,
+} from '../components/field.js';
 import { ToggleGroup, ToggleGroupItem } from '../components/toggle-group.js';
 import { NumberInput } from '../FilterValueEditor.js';
 import { cn } from 'cn';
@@ -35,6 +40,17 @@ export interface OptionsShape {
   /** Metrics that add up across rows: the ones a pie may merge a tail of. */
   additive: ReadonlySet<string>;
 }
+
+/**
+ * What a hint line under a control wears on this panel.
+ *
+ * `FieldDescription` ships `text-muted-foreground`, which lands at 4.34:1 on
+ * the panel's sidebar ground — under the 4.5:1 axe asks of a 14px line, the
+ * same measurement {@link OptionsSection} records for the same grey. A hint
+ * is the sentence that says why a control is the way it is, so it is toned
+ * rather than faded: quieter than the label above it, and still legible.
+ */
+const HINT = 'text-foreground/70';
 
 /** What every options page receives. */
 export interface OptionsPageProps {
@@ -99,30 +115,56 @@ export function OptionalSlotSelect({
   );
 }
 
-/** One yes-or-no setting, named after itself. */
+/**
+ * One yes-or-no setting, named after itself.
+ *
+ * A `hint` is the line under the label that says why the box is the way it
+ * is — above all why it cannot be ticked. A disabled control that says
+ * nothing is the defect: the analyst sees a setting that refuses the press
+ * and is told neither what it would do nor what is missing. The hint is tied
+ * to the box with `aria-describedby`, so a reader hears the reason with the
+ * name rather than having to go looking for the text beside it.
+ */
 export function CheckField({
   label,
+  hint,
   checked,
   disabled,
   onChange,
   'data-slot': slot,
 }: {
   label: string;
+  /** Why the box reads as it does; shown under the label. */
+  hint?: string;
   checked: boolean;
   disabled?: boolean;
   onChange(checked: boolean): void;
   'data-slot'?: string;
 }) {
   const id = useId();
+  const hintId = `${id}-hint`;
+  const box = (
+    <Checkbox
+      id={id}
+      checked={checked}
+      disabled={disabled}
+      aria-describedby={hint ? hintId : undefined}
+      onCheckedChange={next => onChange(next === true)}
+    />
+  );
   return (
     <Field orientation="horizontal" data-slot={slot}>
-      <Checkbox
-        id={id}
-        checked={checked}
-        disabled={disabled}
-        onCheckedChange={next => onChange(next === true)}
-      />
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      {box}
+      {hint ? (
+        <FieldContent>
+          <FieldLabel htmlFor={id}>{label}</FieldLabel>
+          <FieldDescription id={hintId} className={HINT}>
+            {hint}
+          </FieldDescription>
+        </FieldContent>
+      ) : (
+        <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      )}
     </Field>
   );
 }
@@ -191,7 +233,7 @@ export function NumberField({
           else if (min === undefined || next >= min) onChange(next);
         }}
       />
-      {hint && <FieldDescription>{hint}</FieldDescription>}
+      {hint && <FieldDescription className={HINT}>{hint}</FieldDescription>}
     </Field>
   );
 }
@@ -231,6 +273,14 @@ export function TextField({
  * would repeat one word down the whole list. So the label is the box's
  * accessible name and nothing on screen, and the default is the placeholder,
  * which is also what an emptied box goes back to saying.
+ *
+ * **The placeholder here is not a hint, it is the name.** Until the analyst
+ * renames a stage, the placeholder *is* what that stage is called on screen,
+ * so the registry's `placeholder:text-muted-foreground` — 4.34:1 on this
+ * panel's ground, under the 4.5:1 axe asks — would grey out the only word
+ * naming the row. It is overridden to `text-foreground/70`: still quieter
+ * than a typed name, and still readable. The same call `OptionsSection`
+ * records below.
  */
 export function NameField({
   label,
@@ -248,7 +298,7 @@ export function NameField({
     <PillInput
       aria-label={label}
       chrome="box"
-      className="h-7 min-w-0 flex-1"
+      className="placeholder:text-foreground/70 h-7 min-w-0 flex-1"
       placeholder={placeholder}
       value={value ?? ''}
       onChange={event =>

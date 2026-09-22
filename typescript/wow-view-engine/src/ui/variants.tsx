@@ -570,17 +570,22 @@ export function EditorSlot({
       {/* `h3`, under the view's own `h2`: the slot names a section of the
           page, and a reader jumping by heading must not find a level
           skipped (axe `heading-order`). It is small because it is a label,
-          not because it is deep. */}
-      <h3
-        className={cn(
-          'text-muted-foreground flex items-center gap-2 font-semibold',
-          TEXT_UI,
-        )}
+          not because it is deep.
+
+          The `aside` is a **control**, so it sits in the row beside the
+          heading rather than inside it: a heading is the name of what
+          follows, and a menu trigger inside one is read as part of that
+          name — 「范围 条件：简单」 — and is reached by a reader jumping
+          from heading to heading, where nothing is meant to be pressed. */}
+      <div
+        className={cn('text-muted-foreground flex items-center gap-2', TEXT_UI)}
       >
-        <span className="text-foreground">{title}</span>
-        {hint && <span className="font-normal">· {hint}</span>}
-        {aside && <span className="ml-auto font-normal">{aside}</span>}
-      </h3>
+        <h3 className="flex min-w-0 items-center gap-2 font-semibold">
+          <span className="text-foreground">{title}</span>
+          {hint && <span className="font-normal">· {hint}</span>}
+        </h3>
+        {aside && <span className="ml-auto">{aside}</span>}
+      </div>
       {children}
     </section>
   );
@@ -610,9 +615,18 @@ export function EditorCard({
 
 /**
  * One tile of the chart picker (D20 屏 I): an icon over a word on the
- * page's ground, the chosen one ringed, a greyed one dimmed with its reason
- * in small type under it, and the recommended one marked. The colours and
- * states are here so the picker stays markup.
+ * page's ground, the chosen one ringed, an unavailable one framed with its
+ * reason under it, and the recommended one marked. The colours and states
+ * are here so the picker stays markup.
+ *
+ * **Unavailable is said by the frame, not by fading.** The tile used to
+ * wear `opacity-60` over `text-muted-foreground`, which put the reason line
+ * — the one thing such a tile has to say — at 2.20:1 on the panel's ground,
+ * far under the 4.5:1 axe asks of it. So the state is now the dashed border
+ * and the muted fill, which carry no text through them, and the words keep
+ * their own contrast: the same call `optionControls.tsx` records for
+ * `OptionsSection` — secondary is said by weight and by frame, never by
+ * being paler than it can be read.
  */
 export function ChartTile({
   className,
@@ -625,9 +639,9 @@ export function ChartTile({
       className={cn(
         'bg-background border-border text-foreground relative flex flex-col items-center gap-1 rounded-md border px-1 py-2 text-center',
         'aria-checked:ring-primary aria-checked:border-primary aria-checked:ring-1',
-        'aria-disabled:text-muted-foreground aria-disabled:cursor-not-allowed aria-disabled:opacity-60',
+        'aria-disabled:border-dashed aria-disabled:bg-muted/40 aria-disabled:cursor-not-allowed',
         'focus-visible:ring-ring/50 outline-none focus-visible:ring-[3px]',
-        '[&_[data-slot=chart-reason]]:text-muted-foreground [&_[data-slot=chart-reason]]:text-[11px] [&_[data-slot=chart-reason]]:leading-tight',
+        '[&_[data-slot=chart-reason]]:text-foreground/70 [&_[data-slot=chart-reason]]:text-xs [&_[data-slot=chart-reason]]:leading-tight',
         '[&_[data-slot=chart-recommended]]:bg-primary [&_[data-slot=chart-recommended]]:text-primary-foreground [&_[data-slot=chart-recommended]]:absolute [&_[data-slot=chart-recommended]]:-top-2 [&_[data-slot=chart-recommended]]:left-1 [&_[data-slot=chart-recommended]]:rounded-full [&_[data-slot=chart-recommended]]:px-1.5 [&_[data-slot=chart-recommended]]:text-[10px]',
         TEXT_UI,
         className,

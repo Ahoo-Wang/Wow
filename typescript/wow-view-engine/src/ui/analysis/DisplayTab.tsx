@@ -107,13 +107,20 @@ function CartesianDisplay({ chart, onChange }: OptionsPageProps) {
   // A right axis exists once a series sits on it; a line hung on an axis
   // with nothing on it is `chart.referenceLine.empty-axis`.
   const axes = new Set(spec.series.map(series => series.axis ?? 'left'));
+  // One series stacks against nothing, and a split has not made its series
+  // yet — either way the box refuses the press, and a box that refuses
+  // without saying why is the analyst's problem rather than the chart's.
+  const stackedAlone = spec.series.length <= 1 && spec.splitBy === undefined;
   return (
     <>
       <CheckField
         data-slot="chart-stacked"
         label={messages.label('label.chart.stacked')}
+        hint={
+          stackedAlone ? messages.label('label.chart.stacked-alone') : undefined
+        }
         checked={isStacked(spec)}
-        disabled={spec.series.length <= 1 && spec.splitBy === undefined}
+        disabled={stackedAlone}
         onChange={on => update(withStacked(spec, on))}
       />
       <CheckField
@@ -141,9 +148,17 @@ function CartesianDisplay({ chart, onChange }: OptionsPageProps) {
         title={messages.label('label.chart.reference-lines')}
       >
         {lines.map((line, index) => (
+          // Axis, value, caption and remove: four controls named after what
+          // they are rather than after which line they belong to, and a
+          // chart may carry several lines. The card is the group that says
+          // which one a reader is standing in.
           <EditorCard
             key={index}
             data-slot="reference-line-card"
+            role="group"
+            aria-label={messages.label('label.chart.reference-row', {
+              index: index + 1,
+            })}
             className="flex-nowrap"
           >
             {axes.has('right') && (

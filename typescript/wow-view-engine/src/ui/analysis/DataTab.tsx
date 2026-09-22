@@ -350,7 +350,15 @@ function StageList({
                     onChange={given => onName(index, given)}
                   />
                 ) : (
-                  <span className="truncate font-medium">{name}</span>
+                  // Cut off at the card's width; `title` is how a pointer
+                  // reads the rest of it.
+                  <span
+                    data-slot="stage-name"
+                    className="truncate font-medium"
+                    title={name}
+                  >
+                    {name}
+                  </span>
                 )}
                 <IconButton
                   label={messages.label('label.chart.move-up', { name })}

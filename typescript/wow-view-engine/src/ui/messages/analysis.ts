@@ -72,6 +72,9 @@ export const analysisMessages = {
   // 「只保留」: the groups kept, as rows of one comparison each.
   'label.analysis.having': 'Keep only…',
   'label.analysis.having-title': 'Keep only the groups where',
+  // Every row is four controls with the same four names, so the row itself
+  // is a named group and its number is where a reader is.
+  'label.analysis.having-row': 'Keep-only condition {index}',
   'label.analysis.having-keep': 'Keep where',
   'label.analysis.having-metric': 'Metric to keep by',
   'label.analysis.having-operator': 'Comparison',
@@ -176,9 +179,11 @@ export const analysisMessages = {
   'label.chart.legend.none': 'None',
   'label.chart.labels': 'Value labels',
   'label.chart.stacked': 'Stacked',
+  'label.chart.stacked-alone': 'Stacking needs two or more series',
   'label.chart.horizontal': 'Horizontal',
   'label.chart.smooth': 'Smooth lines',
   'label.chart.reference-lines': 'Reference lines',
+  'label.chart.reference-row': 'Reference line {index}',
   'label.chart.add-reference-line': 'Add reference line',
   'label.chart.remove-reference-line': 'Remove reference line',
   'label.chart.reference-axis': 'Axis of the reference line',

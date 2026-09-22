@@ -42,6 +42,7 @@ import {
   testSource,
 } from './fixtures.js';
 import { recordTableController } from './fixtures/ui.js';
+import { openTray } from './fixtures/workbench.js';
 
 /**
  * Axe over the three default workbenches.
@@ -765,5 +766,122 @@ describe('the default workbenches pass axe', () => {
     );
 
     expect(await violations(container)).toEqual([]);
+  });
+});
+
+/**
+ * The analysis view's own open states.
+ *
+ * The cases above only ever reach the analysis view at rest — the tray
+ * folded, the result on screen, nothing opened. Everything the analyst
+ * actually edits an analysis with is behind a press: the tray, a card's
+ * menu, the block of a metric's own conditions, and the two levels of the
+ * visualization panel. Each of those draws controls the folded view never
+ * draws, so each is a place to put a name, a role or a description wrong
+ * that nothing else here would see.
+ *
+ * The gestures are the ones the unit suites use — `test/analysisTray`,
+ * `test/chartPicker`, `test/chartOptionsUi` — reached through the same
+ * `openTray` fixture, so a change to how the tray opens moves them all at
+ * once. Axe runs over the whole document, because a card's menu is
+ * portalled to the body.
+ */
+describe('the analysis view’s open states pass axe', () => {
+  /** The analysis workbench over one saved view, waited for its result. */
+  async function analysis(instance: ViewInstance, ready: string) {
+    const user = userEvent.setup();
+    render(
+      <ViewSurface>
+        <DataWorkbench
+          engine={engineWith([instance])}
+          definitionId="orders"
+          instanceId={instance.id}
+          kinds={['analysis']}
+        />
+      </ViewSurface>,
+    );
+    await waitFor(() => expect(document.querySelector(ready)).not.toBeNull());
+    return user;
+  }
+
+  /** The first element matching a slot, which every gesture below is. */
+  function slot(selector: string): HTMLElement {
+    const found = document.querySelector<HTMLElement>(selector);
+    if (!found) throw new Error(`no ${selector}`);
+    return found;
+  }
+
+  it('the tray expanded, with every slot of the question open', async () => {
+    await analysis(warehouseTotals, 'table');
+    await openTray();
+
+    // The tray is the thing under test: range, dimensions and metrics, each
+    // with a card of its own.
+    expect(slot('[data-slot="analysis-slot-metrics"]')).toBeDefined();
+    expect(await violations(document.body)).toEqual([]);
+  });
+
+  it('a card’s menu open, which is portalled to the body', async () => {
+    const user = await analysis(warehouseTotals, 'table');
+    await openTray();
+
+    await user.click(slot('[data-slot="metric-card"] [data-slot="card-menu"]'));
+
+    await screen.findByRole('menu');
+    expect(await violations(document.body)).toEqual([]);
+  });
+
+  it('the block of a metric’s own conditions open under its card', async () => {
+    const user = await analysis(warehouseTotals, 'table');
+    await openTray();
+
+    await user.click(
+      slot('[data-slot="metric-card"] [data-slot="metric-condition-toggle"]'),
+    );
+
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-slot="card-conditions"]'),
+      ).not.toBeNull(),
+    );
+    expect(await violations(document.body)).toEqual([]);
+  });
+
+  /**
+   * Level one of the visualization panel: the tiles. Each is a radio named
+   * by the word written on it and described by the mark and the reason
+   * beside it, and a greyed one is `aria-disabled` rather than `disabled` —
+   * three ways to break a name that only axe and a reader ever meet.
+   */
+  it('the visualization panel on its first level', async () => {
+    const user = await analysis(warehouseChart, '[role="img"]');
+
+    await user.click(
+      screen.getByRole('button', {
+        name: defaultMessages['label.analysis.visualize'],
+      }),
+    );
+
+    expect(slot('[data-slot="chart-picker"]')).toBeDefined();
+    expect(await violations(document.body)).toEqual([]);
+  });
+
+  /** Level two, on the data page: the slots the chosen type is filled from. */
+  it('the visualization panel on its second level, on the data page', async () => {
+    const user = await analysis(warehouseChart, '[role="img"]');
+
+    await user.click(
+      screen.getByRole('button', {
+        name: defaultMessages['label.analysis.visualize'],
+      }),
+    );
+    await user.click(slot('[data-slot="chart-options-open"]'));
+    const data = await screen.findByRole('tab', {
+      name: defaultMessages['label.chart.tab.data'],
+    });
+    await user.click(data);
+
+    expect(data.getAttribute('aria-selected')).toBe('true');
+    expect(await violations(document.body)).toEqual([]);
   });
 });

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useRef } from 'react';
+import { useId, useRef } from 'react';
 import {
   ArrowLeftIcon,
   Settings2Icon,
@@ -76,10 +76,18 @@ export interface ChartPickerProps {
  * keys move the choice and the focus together over the tiles that can
  * draw, and Space and Enter choose where they stopped. A greyed tile is
  * stepped over — there is nothing to choose — and carries its reason in
- * its own accessible name, so a reader walking the group hears why it is
- * out of reach rather than only that it is. It is `aria-disabled` and not
+ * its **description**, so a reader walking the group hears why it is out of
+ * reach rather than only that it is. It is `aria-disabled` and not
  * `disabled` for that reason: `disabled` takes an element out of the
  * accessible tree's reach in some readers, reason and all.
+ *
+ * **A tile is named by what is written on it.** An `aria-label` would
+ * replace the whole of the tile's content, and the 「推荐」 badge inside it
+ * would then never be read — a mark drawn for everyone that only the sighted
+ * ever got. So the name is the visible name, and `aria-describedby` points
+ * at the badge and the reason where each exists: the reader hears 「柱状图,
+ * 推荐」 and 「热力图, 需要两个维度」, which is what the tile says on screen.
+ *
  * The chosen tile wears the gear that opens its options (D20 屏 J),
  * beside the tile rather than inside it — a button holds no button.
  */
@@ -91,6 +99,9 @@ export function ChartPicker({
   onBack,
 }: ChartPickerProps) {
   const messages = useViewMessages();
+  // One prefix for the picker, suffixed per tile: the ids the tiles' own
+  // spans are addressed by, so the description is the markup on screen.
+  const ids = useId();
   const tiles: { value: Picked; fit: ChartFit }[] = [
     ...CHART_PICKER_ORDER.map(type => ({ value: type, fit: fits[type] })),
     { value: 'table', fit: { available: true } },
@@ -139,6 +150,13 @@ export function ChartPicker({
               : `label.chart.type.${value}`,
           );
           const reason = fit.reason && messages.label(fit.reason);
+          const nameId = `${ids}-name-${value}`;
+          const badgeId = `${ids}-recommended-${value}`;
+          const reasonId = `${ids}-reason-${value}`;
+          const describedBy =
+            [fit.recommended && badgeId, reason && reasonId]
+              .filter(Boolean)
+              .join(' ') || undefined;
           return (
             <div key={value} className="relative flex">
               <ChartTile
@@ -149,7 +167,12 @@ export function ChartPicker({
                 role="radio"
                 aria-checked={picked === value}
                 aria-disabled={!fit.available || undefined}
-                aria-label={reason ? `${name}. ${reason}` : name}
+                // The word on the tile, and nothing else: without this the
+                // name is taken from the whole of the content, badge and
+                // reason included, and the description would only say them
+                // twice.
+                aria-labelledby={nameId}
+                aria-describedby={describedBy}
                 data-chart-type={value}
                 data-recommended={fit.recommended || undefined}
                 tabIndex={picked === value ? 0 : -1}
@@ -168,13 +191,17 @@ export function ChartPicker({
                 }}
               >
                 <Icon aria-hidden className="size-5" />
-                <span>{name}</span>
+                <span id={nameId}>{name}</span>
                 {fit.recommended && (
-                  <span data-slot="chart-recommended">
+                  <span id={badgeId} data-slot="chart-recommended">
                     {messages.label('label.chart.recommended')}
                   </span>
                 )}
-                {reason && <span data-slot="chart-reason">{reason}</span>}
+                {reason && (
+                  <span id={reasonId} data-slot="chart-reason">
+                    {reason}
+                  </span>
+                )}
               </ChartTile>
               {picked === value && (
                 <IconButton

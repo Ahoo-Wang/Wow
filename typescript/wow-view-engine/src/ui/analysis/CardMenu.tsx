@@ -43,7 +43,15 @@ export function CardName({
 }: CardNameProps & { renaming: boolean }) {
   if (!renaming)
     return (
-      <span data-slot="card-name" className="truncate font-medium">
+      // `truncate` cuts the name off at the card's width, and the whole of
+      // it is then nowhere: a pointer has no way to read what was cut. The
+      // reader already hears it — the text node is intact — so `title` is
+      // what the pointer is owed.
+      <span
+        data-slot="card-name"
+        className="truncate font-medium"
+        title={given ?? name}
+      >
         {given ?? name}
       </span>
     );

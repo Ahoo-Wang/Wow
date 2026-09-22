@@ -308,7 +308,11 @@ function SeriesRow({
       </ItemMedia>
 
       <ItemContent className="min-w-0">
-        <ItemTitle className="max-w-full font-medium">{name}</ItemTitle>
+        {/* The row is one line and a long metric name is cut off in it, so
+            the whole of it is on the element for a pointer to read. */}
+        <ItemTitle className="max-w-full font-medium" title={name}>
+          {name}
+        </ItemTitle>
       </ItemContent>
 
       <ItemActions className="gap-1">

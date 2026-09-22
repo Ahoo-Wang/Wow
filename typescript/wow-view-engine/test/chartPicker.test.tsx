@@ -34,6 +34,7 @@ import {
 import { useAnalysisEditor, useOpenView } from '../src/react/index.js';
 import { DataWorkbench, defaultMessages } from '../src/ui/index.js';
 import { analysisConfig, ordersDefinition, testSource } from './fixtures.js';
+import { describedText } from './fixtures/ui.js';
 
 afterEach(cleanup);
 
@@ -172,15 +173,19 @@ describe('the visualization panel', () => {
     expect(tile('pie').hasAttribute('data-recommended')).toBe(false);
 
     // A tile the shape cannot fill is greyed and says what it lacks, in the
-    // analyst's words, under itself and in its own accessible name.
+    // analyst's words, under itself and in its own description.
     const heatmap = tile('heatmap');
     expect(heatmap.getAttribute('aria-disabled')).toBe('true');
     expect(
       heatmap.querySelector('[data-slot="chart-reason"]')?.textContent,
     ).toBe(label('chart.fit.needs-two-dimensions'));
-    expect(heatmap.getAttribute('aria-label')).toContain(
+    expect(describedText(heatmap)).toBe(
       label('chart.fit.needs-two-dimensions'),
     );
+    // And the mark is read as well, which an `aria-label` over the tile
+    // used to swallow: the name is the word on it, the description is
+    // everything the tile adds to that word.
+    expect(describedText(tile('bar'))).toBe(label('label.chart.recommended'));
     // One number is not what a shape with a dimension is.
     expect(tile('metric').getAttribute('aria-disabled')).toBe('true');
     expect(
@@ -318,13 +323,13 @@ describe('the visualization panel', () => {
     const heatmap = tile('heatmap');
     expect(heatmap.hasAttribute('disabled')).toBe(false);
     expect(heatmap.getAttribute('aria-disabled')).toBe('true');
+    // Named by the word written on it, described by why it is out of reach.
     expect(
-      screen.getByRole('radio', {
-        name: `${label('label.chart.type.heatmap')}. ${label(
-          'chart.fit.needs-two-dimensions',
-        )}`,
-      }),
+      screen.getByRole('radio', { name: label('label.chart.type.heatmap') }),
     ).toBe(heatmap);
+    expect(describedText(heatmap)).toBe(
+      label('chart.fit.needs-two-dimensions'),
+    );
     // Still a focusable element, even though the roving tab index leaves
     // the group's one tab stop on the chosen tile.
     heatmap.focus();

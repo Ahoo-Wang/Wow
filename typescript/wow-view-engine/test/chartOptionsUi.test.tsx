@@ -45,6 +45,7 @@ import {
 } from '../src/ui/analysis/SeriesList.js';
 import { ordersDefinition, testSource } from './fixtures.js';
 import { formattersFor } from './fixtures/columns.js';
+import { describedText } from './fixtures/ui.js';
 
 afterEach(cleanup);
 
@@ -301,6 +302,13 @@ describe('the chart options', () => {
     // Every series card is headed by its column — 「金额 的 合计」, never the
     // alias `total`, which names the query.
     expect(seriesNames()).toEqual(['Record count', 'Sum of Amount']);
+    // The row is one line, so a long column title is cut off in it; the
+    // whole of it is on the element for a pointer to read.
+    expect(
+      [...panel()!.querySelectorAll('[data-slot="series-card"]')].map(row =>
+        row.querySelector('[data-slot="item-title"]')?.getAttribute('title'),
+      ),
+    ).toEqual(seriesNames());
 
     // A position slot lists the dimensions, and only those.
     await user.click(screen.getByLabelText('Horizontal axis'));
@@ -507,11 +515,11 @@ describe('the chart options’ display page', () => {
 
     // One series and no split is one run of marks; a stack of one is not a
     // choice, so the box is there and disabled rather than absent.
-    expect(
-      within(panel()!)
-        .getByRole('checkbox', { name: 'Stacked' })
-        .getAttribute('aria-disabled'),
-    ).toBe('true');
+    const box = within(panel()!).getByRole('checkbox', { name: 'Stacked' });
+    expect(box.getAttribute('aria-disabled')).toBe('true');
+    // And it says why: a control that refuses the press without a word is
+    // the analyst wondering what is broken.
+    expect(describedText(box)).toBe('Stacking needs two or more series');
   });
 
   it('adds a reference line, writes its value and takes it away', async () => {
@@ -536,6 +544,10 @@ describe('the chart options’ display page', () => {
     const card = panel()!.querySelector<HTMLElement>(
       '[data-slot="reference-line-card"]',
     )!;
+    // Value, caption and remove are named after what they are, so the row
+    // itself says which line they belong to.
+    expect(card.getAttribute('role')).toBe('group');
+    expect(card.getAttribute('aria-label')).toBe('Reference line 1');
     // One axis, so there is no axis to choose between.
     expect(within(card).queryByLabelText('Axis of the reference line')).toBe(
       null,
@@ -905,6 +917,14 @@ describe('the chart options of the other families', () => {
         card.getAttribute('data-stage'),
       );
     expect(stages()).toEqual(['PENDING', 'SHIPPED', 'PAID']);
+    // A stage read off the rows is not renameable, so it is a line of text
+    // cut off at the card's width — and the whole of it is on the element,
+    // for a pointer to read.
+    expect(
+      [...panel()!.querySelectorAll('[data-slot="stage-name"]')].map(name =>
+        name.getAttribute('title'),
+      ),
+    ).toEqual(['PENDING', 'SHIPPED', 'PAID']);
 
     fireEvent.click(
       within(panel()!).getByRole('button', { name: 'Move PENDING down' }),

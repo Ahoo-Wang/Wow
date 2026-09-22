@@ -15,6 +15,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { AnalysisView } from '../src/index.js';
 import { AnalysisTable, ViewSurface, zhCN } from '../src/ui/index.js';
+import { describedText } from './fixtures/ui.js';
 
 afterEach(cleanup);
 
@@ -260,11 +261,11 @@ describe('the three readings a result says out loud', () => {
 
     expect(document.querySelector('[data-slot="totals-row"]')).not.toBeNull();
     expect(heading().textContent).toBe('Total');
-    // The pointer and the reader get the same sentence, from one key.
+    // The pointer and the reader get the same sentence, from one key. The
+    // reader's half is a described-by span rather than `aria-description`,
+    // which Chromium alone implements.
     expect(heading().title).toBe('Totals = every record in the range');
-    expect(heading().getAttribute('aria-description')).toBe(
-      'Totals = every record in the range',
-    );
+    expect(describedText(heading())).toBe('Totals = every record in the range');
   });
 
   it('says it in the surface language too', () => {
@@ -293,7 +294,7 @@ describe('the three readings a result says out loud', () => {
     ]);
     expect(headers[1].dataset.approximate).toBe('');
     expect(headers[1].title).toBe('Approximate');
-    expect(headers[1].getAttribute('aria-description')).toBe('Approximate');
+    expect(describedText(headers[1])).toBe('Approximate');
     // An exact sum beside it wears neither the sign nor the word.
     expect(headers[2].dataset.approximate).toBeUndefined();
     expect(headers[2].title).toBe('');

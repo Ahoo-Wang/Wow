@@ -34,6 +34,22 @@ import { tracked } from './writes.js';
 export { mine };
 
 /**
+ * What a reader hears after an element's name: the text of everything its
+ * `aria-describedby` addresses, joined the way a reader joins it.
+ *
+ * `aria-description` would be one attribute to read instead, but Chromium
+ * is the only engine that implements it, so this package says a description
+ * as a span and an id — and a suite asserting one has to follow the ids.
+ */
+export function describedText(element: Element): string {
+  return (element.getAttribute('aria-describedby') ?? '')
+    .split(' ')
+    .filter(Boolean)
+    .map(id => element.ownerDocument.getElementById(id)?.textContent ?? '')
+    .join(' ');
+}
+
+/**
  * A simple-mode config holding a tree only the advanced editor can show. It
  * opens, runs and saves; the kernel warns about it, and nothing more.
  */

@@ -346,9 +346,14 @@ describe('the analysis tray', () => {
    * There is no simple/advanced *tray* (D20) — more capability grows out of
    * the slots as the definition declares it. The one simple/advanced left is
    * the grammar of the condition tree, and it is stated where the conditions
-   * are: a ghost menu in the range slot's heading. Without it an analysis
+   * are: a ghost menu in the range slot's heading row. Without it an analysis
    * view could never reach OR, NOR or a nested group, because
    * `defaultAnalysisConfig` starts at simple.
+   *
+   * **Beside the heading, never inside it.** A heading names what follows;
+   * a control inside one is read as part of that name — 「Range Conditions:
+   * Simple」 — and a reader jumping from heading to heading lands on a menu
+   * trigger it never asked for.
    */
   it('reaches the condition grammar from the range slot’s heading', async () => {
     await open();
@@ -364,6 +369,11 @@ describe('the analysis tray', () => {
       ),
       { exact: false },
     );
+    expect(mode.closest('h3')).toBeNull();
+    expect(within(range()).getByRole('heading', { level: 3 }).textContent).toBe(
+      'Range',
+    );
+
     fireEvent.click(mode);
     fireEvent.click(
       await screen.findByRole('menuitemradio', {

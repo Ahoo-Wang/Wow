@@ -261,6 +261,13 @@ describe('a display name', () => {
       expect(draft(engine).groups[0]).toMatchObject({ label: '门店' }),
     );
     expect(cardNames()).toContain('门店');
+    // A card is narrow and a name is cut off in it, so the whole of the
+    // name is on the element for a pointer to read.
+    expect(
+      [...document.querySelectorAll('[data-slot="card-name"]')].map(name =>
+        name.getAttribute('title'),
+      ),
+    ).toEqual(cardNames());
     // The card is known by its new name now, menu and all.
     commit(await renameBox('门店'), '   ');
     await waitFor(() =>

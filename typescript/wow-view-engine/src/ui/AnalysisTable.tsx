@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { useId } from 'react';
 import { columnTitle, displayValue, valueText } from './display.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
@@ -44,6 +45,14 @@ export interface AnalysisTableProps {
 export function AnalysisTable({ view, onPick }: AnalysisTableProps) {
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
+  // `aria-description` is a draft attribute Chromium alone implements, so
+  // the sentence it carried reached one browser and no other. The same
+  // sentence is now a span only a reader meets, addressed by
+  // `aria-describedby` — which every reader has — while `title` goes on
+  // saying it to the pointer.
+  const ids = useId();
+  const approximateId = `${ids}-approximate`;
+  const totalsId = `${ids}-totals`;
   // A group key or an ANY shows as its field's values do; the rest, and
   // anything the field's kind has nothing to say about, as before.
   const show = (value: unknown, column: AnalysisView['columns'][number]) =>
@@ -76,9 +85,7 @@ export function AnalysisTable({ view, onPick }: AnalysisTableProps) {
                   ? {
                       'data-approximate': '',
                       title: messages.label('label.analysis.approximate'),
-                      'aria-description': messages.label(
-                        'label.analysis.approximate',
-                      ),
+                      'aria-describedby': approximateId,
                     }
                   : {})}
               >
@@ -127,8 +134,8 @@ export function AnalysisTable({ view, onPick }: AnalysisTableProps) {
                     // The word 「合计」 alone invites "the rows above, added
                     // up", and the two numbers disagree whenever anything was
                     // left out. The scope is therefore said on the cell that
-                    // carries the word: a `title` for the pointer and
-                    // `aria-description` for the reader.
+                    // carries the word: a `title` for the pointer and a
+                    // described-by span for the reader.
                     //
                     // Not the registry `Tooltip`: it opens on a trigger, and
                     // a trigger is a control that takes hover *and* focus. A
@@ -137,15 +144,13 @@ export function AnalysisTable({ view, onPick }: AnalysisTableProps) {
                     // a tab stop to every row of the footer to fix that would
                     // put a control in a table where there is no action to
                     // take. `title` says the same thing to the same pointer,
-                    // and `aria-description` says it to the reader as part of
+                    // and the description says it to the reader as part of
                     // the cell rather than as something to go and open.
                     {...(heading
                       ? {
                           'data-slot': 'totals-heading',
                           title: messages.label('label.analysis.totals-scope'),
-                          'aria-description': messages.label(
-                            'label.analysis.totals-scope',
-                          ),
+                          'aria-describedby': totalsId,
                         }
                       : {})}
                   >
@@ -159,6 +164,22 @@ export function AnalysisTable({ view, onPick }: AnalysisTableProps) {
           </TableFooter>
         )}
       </Table>
+      {/* The two sentences the cells above point at, said once each and
+          drawn nowhere: a description is text somewhere on the page, and a
+          `sr-only` span is the whole of what "somewhere" has to be. They
+          are written only where something addresses them — an
+          `aria-describedby` reaching an id that is not there is a broken
+          description rather than a missing one. */}
+      {view.columns.some(column => column.fn === 'PERCENTILE') && (
+        <span id={approximateId} className="sr-only">
+          {messages.label('label.analysis.approximate')}
+        </span>
+      )}
+      {view.totals && view.columns[0]?.role === 'group' && (
+        <span id={totalsId} className="sr-only">
+          {messages.label('label.analysis.totals-scope')}
+        </span>
+      )}
     </div>
   );
 }

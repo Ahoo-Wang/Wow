@@ -92,7 +92,18 @@ export function HavingRows({
         </div>
       ) : (
         rows.map((row, index) => (
-          <EditorCard key={index} data-slot="having-row">
+          // Each row carries the same four names — metric, comparison,
+          // value, remove — so on its own a control says which kind of
+          // thing it is and never which row it belongs to. The row is
+          // therefore a named group, numbered as the analyst counts.
+          <EditorCard
+            key={index}
+            data-slot="having-row"
+            role="group"
+            aria-label={messages.label('label.analysis.having-row', {
+              index: index + 1,
+            })}
+          >
             <span className="text-muted-foreground">
               {messages.label('label.analysis.having-keep')}
             </span>

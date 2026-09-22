@@ -248,6 +248,16 @@ describe('keeping only some of the groups', () => {
 
     fireEvent.click(addRow()!);
     await waitFor(() => expect(rows()).toHaveLength(2));
+    // Metric, comparison, value and remove wear the same four names in
+    // every row, so the row itself is the group that says which one it is.
+    expect(rows().map(row => row.getAttribute('role'))).toEqual([
+      'group',
+      'group',
+    ]);
+    expect(rows().map(row => row.getAttribute('aria-label'))).toEqual([
+      'Keep-only condition 1',
+      'Keep-only condition 2',
+    ]);
     type(value(1), '5');
 
     await waitFor(() =>
