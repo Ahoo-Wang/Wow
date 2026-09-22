@@ -86,25 +86,29 @@ function execution(
 }
 
 /**
- * Answers the snapshot queries the console sends to the recorded host, with
- * `rowSource` standing in for the service's store; every other request goes
- * where it went before. The console's own fetcher, clients and engine run
- * unchanged, so what this checks is the console, not a copy of it.
+ * Answers what the console sends to the recorded host — the snapshot
+ * queries, with `rowSource` standing in for the service's store, and the
+ * three compensation commands, which change that store the way the service
+ * does — and lets every other request go where it went before. The console's
+ * own fetcher, clients and engine run unchanged, so what this checks is the
+ * console, not a copy of it. Each install starts from the recorded
+ * executions afresh.
  *
  * Returns the uninstaller, as `beforeEach` expects.
  */
 export function installRecordedCompensationService(): () => void {
   const original = globalThis.fetch;
-  const source = rowSource(RECORDED_EXECUTIONS);
+  const rows = structuredClone(RECORDED_EXECUTIONS);
+  const source = rowSource(rows);
   globalThis.fetch = async (input, init) => {
     const request = new Request(input, init);
     const url = new URL(request.url);
     if (url.origin !== RECORDED_COMPENSATION_HOST) return original(input, init);
-    const answer = await answerSnapshotQuery(
-      source,
-      url.pathname,
-      await request.json(),
-    );
+    const body = await request.json();
+    const answer =
+      request.method === 'PUT'
+        ? answerCommand(rows, url.pathname, body)
+        : await answerSnapshotQuery(source, url.pathname, body);
     return answer === undefined
       ? Response.json(
           { errorCode: 'NotFound', errorMsg: `Not recorded: ${url.pathname}` },
@@ -115,6 +119,46 @@ export function installRecordedCompensationService(): () => void {
   return () => {
     globalThis.fetch = original;
   };
+}
+
+/**
+ * The compensation commands on one recorded execution, with the service's
+ * rules: a retry within the spec needs a retryable execution below its
+ * limit, a forced one only a retryable execution; either prepares it. A
+ * refusal is a command result that says why, as the service answers.
+ */
+function answerCommand(
+  rows: RecordData[],
+  path: string,
+  body: { recoverable?: string },
+): object | undefined {
+  const [, aggregate, id, command] = path.split('/');
+  if (aggregate !== 'execution_failed') return undefined;
+  const state = rows.find(row => row.aggregateId === id)?.state as
+    Record<string, unknown> | undefined;
+  if (!state) return refused('NotFound', `No execution ${id}.`);
+  switch (command) {
+    case 'prepare_compensation':
+      if (state.isRetryable !== true || state.isBelowRetryThreshold !== true)
+        return refused('IllegalState', 'Retry threshold reached.');
+      state.status = 'PREPARED';
+      return SUCCEEDED;
+    case 'force_prepare_compensation':
+      if (state.isRetryable !== true)
+        return refused('IllegalState', 'Not retryable.');
+      state.status = 'PREPARED';
+      return SUCCEEDED;
+    case 'mark_recoverable':
+      state.recoverable = body.recoverable;
+      return SUCCEEDED;
+  }
+  return undefined;
+}
+
+const SUCCEEDED = { errorCode: 'Ok', errorMsg: '' };
+
+function refused(errorCode: string, errorMsg: string) {
+  return { errorCode, errorMsg };
 }
 
 function answerSnapshotQuery(

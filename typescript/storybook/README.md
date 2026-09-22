@@ -23,12 +23,12 @@ View Engine 的故事在 `view-engine/`，按界面分为数据视图、分析�
 
 ## 真实后端
 
-`view-engine/CompensationConsole.stories.tsx` 让 View Engine 直连一个 Wow 补偿服务，用真实数据和真实数据量检验体验：数据视图带重试、强制重试与标记可恢复性等写操作，分析视图做全量分组统计。
+`view-engine/DataConsole.stories.tsx` 是**补偿控制台**，一个数据控制台：一个工作台直连 Wow 补偿服务，用真实数据和真实数据量检验体验。记录视图与分析视图在同一个视图列表里切换；每行带操作列（重试、强制重试、标记可恢复性，按这条执行的状态开放），选中多行时同样的命令成批执行，一条结果条说明做成了几条。字段定义按服务的查询 Schema（`GET /execution_failed/snapshot/schema`）人工对齐，见 `compensation.ts` 里 `executionFailedDefinition` 的说明。
 
 - 服务地址是故事的 `host` 参数，可在 Controls 面板随时切换；初始值取 `STORYBOOK_WOW_COMPENSATION_HOST`，未设置时为 `http://localhost:8080`。
 - 写操作会真实写回服务，只连接测试环境。
 - 真实数据每次都不同，这些故事标记为 `!test`，不进入回归测试；文档页用 `docs.autoMount: false` 只列出场景链接，不挂载示例，因此打开目录不会调用服务。
-- 变的只是数据；定义、系统视图和读取快照的方式是确定的，View Engine 的规则一变就可能让它们失效。`CompensationConsole.test.stories.tsx` 把同一个控制台指向 `compensationService.ts` 里的录制服务，让这类失效在 CI 里失败，而不是等有人打开目录才发现。
+- 变的只是数据；定义、系统视图和读取快照的方式是确定的，View Engine 的规则一变就可能让它们失效。`DataConsole.test.stories.tsx` 把同一个控制台指向 `compensationService.ts` 里的录制服务（它也按服务的规则应答三条补偿命令），让这类失效在 CI 里失败，而不是等有人打开目录才发现。
 
 ## 检查命令
 

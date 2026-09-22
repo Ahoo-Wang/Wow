@@ -50,8 +50,8 @@ const ACTIVE = ['FAILED', 'PREPARED'];
 
 // Wow's names for what the analysis side may group and compute by.
 const { TERMS, HISTOGRAM, DATE_HISTOGRAM } = AggregationGroupType;
-const { SUM, AVG, MAX } = AggregationFunction;
-const { DAY, WEEK, MONTH } = AggregationDateUnit;
+const { SUM, AVG, MIN, MAX } = AggregationFunction;
+const { HOUR, DAY, WEEK, MONTH } = AggregationDateUnit;
 
 const COLUMNS = [
   'state.id',
@@ -135,15 +135,28 @@ function analysisView(
  * different `views` — a workaround from before the list could tell them
  * apart, and one that gave the same failed executions two names.
  */
+/**
+ * `execution_failed` as the service's own query schema describes it
+ * (`GET /execution_failed/snapshot/schema`), converted by hand: every field
+ * here is one the schema lists, with the operators, sorting and aggregation
+ * its capabilities admit, and no more. The schema carries no titles, so the
+ * labels, the grouping and the choice of what an operator needs are this
+ * definition's. Left out on purpose: the four derived duplicates the schema
+ * lists with no capability at all (`state.belowRetryThreshold`,
+ * `state.retryable`, `state.function.empty`, `state.eventId.initialVersion`),
+ * the snapshot's bookkeeping (`version`, `snapshotTime`, `deleted`,
+ * operators, tenant/owner/space) and the binding errors, whose members are
+ * searchable text only.
+ */
 export const executionFailedDefinition: DataViewDefinition = {
   id: EXECUTION_FAILED,
-  title: '执行失败',
+  title: '补偿控制台',
   kind: 'data',
   source: AGGREGATE,
   // The pickers list the fields under these, in this order.
   fieldGroups: [
     { id: 'search', label: '搜索', fields: ['keyword'] },
-    { id: 'identity', label: '标识', fields: ['state.id'] },
+    { id: 'identity', label: '标识', fields: ['state.id', 'state.eventId.id'] },
     {
       id: 'status',
       label: '状态',
@@ -171,12 +184,17 @@ export const executionFailedDefinition: DataViewDefinition = {
         'state.eventId.aggregateId.contextName',
         'state.eventId.aggregateId.aggregateName',
         'state.eventId.aggregateId.aggregateId',
+        'state.eventId.version',
       ],
     },
     {
       id: 'error',
       label: '错误',
-      fields: ['state.error.errorCode', 'state.error.errorMsg'],
+      fields: [
+        'state.error.errorCode',
+        'state.error.errorMsg',
+        'state.error.stackTrace',
+      ],
     },
     {
       id: 'retry',
@@ -184,30 +202,61 @@ export const executionFailedDefinition: DataViewDefinition = {
       fields: [
         'state.retryState.retries',
         'state.retrySpec.maxRetries',
+        'state.retrySpec.minBackoff',
+        'state.retrySpec.executionTimeout',
         'state.retryState.retryAt',
         'state.retryState.nextRetryAt',
         'state.retryState.timeoutAt',
       ],
     },
-    { id: 'time', label: '时间', fields: ['firstEventTime', 'eventTime'] },
+    {
+      id: 'time',
+      label: '时间',
+      fields: ['firstEventTime', 'eventTime', 'state.executeAt'],
+    },
   ],
   fields: [
-    { name: 'keyword', label: '全文搜索', kind: 'search' },
-    { name: 'state.id', label: 'ID', kind: 'string' },
+    // The model's full-text capability, narrowed to the text an operator
+    // searches: what went wrong and where. Both fields are full-text only in
+    // the schema — no exact match, no substring, no sort — so this is the one
+    // way to filter by them.
+    {
+      name: 'keyword',
+      label: '搜索错误',
+      kind: 'search',
+      searchFields: ['state.error.errorMsg', 'state.error.stackTrace'],
+    },
+    {
+      name: 'state.id',
+      label: 'ID',
+      kind: 'string',
+      sortable: true,
+      cell: 'copyable',
+    },
+    {
+      name: 'state.eventId.id',
+      label: '事件 ID',
+      kind: 'string',
+      sortable: true,
+      cell: 'copyable',
+    },
     {
       name: 'state.status',
       label: '状态',
       kind: 'enum',
+      sortable: true,
+      cell: 'status',
       options: [
-        { value: 'FAILED', label: '失败' },
-        { value: 'PREPARED', label: '已准备重试' },
-        { value: 'SUCCEEDED', label: '已成功' },
+        { value: 'FAILED', label: '失败', tone: 'danger' },
+        { value: 'PREPARED', label: '已准备重试', tone: 'warning' },
+        { value: 'SUCCEEDED', label: '已成功', tone: 'success' },
       ],
     },
     {
       name: 'state.recoverable',
       label: '可恢复性',
       kind: 'enum',
+      sortable: true,
       options: [
         { value: 'RECOVERABLE', label: '可恢复' },
         { value: 'UNRECOVERABLE', label: '不可恢复' },
@@ -218,31 +267,37 @@ export const executionFailedDefinition: DataViewDefinition = {
       name: 'state.isRetryable',
       label: '可重试',
       kind: 'boolean',
+      sortable: true,
     },
     {
       name: 'state.isBelowRetryThreshold',
       label: '未达重试上限',
       kind: 'boolean',
+      sortable: true,
     },
     {
       name: 'state.function.contextName',
       label: '处理上下文',
       kind: 'string',
+      sortable: true,
     },
     {
       name: 'state.function.processorName',
       label: '处理器',
       kind: 'string',
+      sortable: true,
     },
     {
       name: 'state.function.name',
       label: '处理函数',
       kind: 'string',
+      sortable: true,
     },
     {
       name: 'state.function.functionKind',
       label: '函数类型',
       kind: 'enum',
+      sortable: true,
       options: [
         { value: 'COMMAND', label: '命令' },
         { value: 'SOURCING', label: '溯源' },
@@ -255,26 +310,48 @@ export const executionFailedDefinition: DataViewDefinition = {
       name: 'state.eventId.aggregateId.contextName',
       label: '事件上下文',
       kind: 'string',
+      sortable: true,
     },
     {
       name: 'state.eventId.aggregateId.aggregateName',
       label: '事件聚合',
       kind: 'string',
+      sortable: true,
     },
     {
       name: 'state.eventId.aggregateId.aggregateId',
       label: '事件聚合 ID',
       kind: 'string',
+      sortable: true,
+      cell: 'copyable',
+    },
+    {
+      name: 'state.eventId.version',
+      label: '事件版本',
+      kind: 'number',
+      sortable: true,
     },
     {
       name: 'state.error.errorCode',
       label: '错误码',
       kind: 'string',
+      sortable: true,
     },
+    // Full-text only in the schema: shown and searched (`keyword`), and
+    // filtered by presence alone.
     {
       name: 'state.error.errorMsg',
       label: '错误信息',
       kind: 'string',
+      cell: 'text',
+      operators: ['IS_NULL', 'IS_NOT_NULL'],
+    },
+    {
+      name: 'state.error.stackTrace',
+      label: '堆栈',
+      kind: 'string',
+      cell: 'text',
+      operators: ['IS_NULL', 'IS_NOT_NULL'],
     },
     {
       name: 'state.retryState.retries',
@@ -287,6 +364,19 @@ export const executionFailedDefinition: DataViewDefinition = {
       name: 'state.retrySpec.maxRetries',
       label: '最大重试次数',
       kind: 'number',
+      sortable: true,
+    },
+    {
+      name: 'state.retrySpec.minBackoff',
+      label: '最小退避（秒）',
+      kind: 'number',
+      sortable: true,
+    },
+    {
+      name: 'state.retrySpec.executionTimeout',
+      label: '执行超时（秒）',
+      kind: 'number',
+      sortable: true,
     },
     {
       name: 'state.retryState.retryAt',
@@ -312,54 +402,64 @@ export const executionFailedDefinition: DataViewDefinition = {
       kind: 'datetime',
       sortable: true,
     },
+    { name: 'eventTime', label: '最近更新', kind: 'datetime', sortable: true },
     {
-      name: 'eventTime',
-      label: '最近更新',
+      name: 'state.executeAt',
+      label: '执行时间',
       kind: 'datetime',
       sortable: true,
     },
   ],
   record: { rowKey: 'state.id', paging: 'paged', layouts: ['table', 'card'] },
+  // What the schema lets the service aggregate: AGGREGATE_TERMS groups by
+  // value, AGGREGATE_NUMERIC bands and sums, AGGREGATE_TEMPORAL buckets by
+  // date — and a date is a number too, so its earliest and latest are metrics.
   analysis: {
     count: true,
+    having: true,
+    expressions: true,
     fields: [
-      { field: 'state.status', groups: [TERMS], functions: [] },
-      { field: 'state.recoverable', groups: [TERMS], functions: [] },
+      ...[
+        'state.status',
+        'state.recoverable',
+        'state.isRetryable',
+        'state.isBelowRetryThreshold',
+        'state.function.functionKind',
+        'state.function.contextName',
+        'state.function.processorName',
+        'state.function.name',
+        'state.eventId.aggregateId.contextName',
+        'state.eventId.aggregateId.aggregateName',
+        'state.error.errorCode',
+      ].map(field => ({ field, groups: [TERMS], functions: [] })),
       {
-        field: 'state.function.functionKind',
-        groups: [TERMS],
+        field: 'state.eventId.aggregateId.aggregateId',
+        groups: [],
         functions: [],
+        distinctCount: true,
       },
-      { field: 'state.function.contextName', groups: [TERMS], functions: [] },
-      {
-        field: 'state.function.processorName',
-        groups: [TERMS],
-        functions: [],
-      },
-      { field: 'state.function.name', groups: [TERMS], functions: [] },
-      {
-        field: 'state.eventId.aggregateId.aggregateName',
-        groups: [TERMS],
-        functions: [],
-      },
-      { field: 'state.error.errorCode', groups: [TERMS], functions: [] },
       {
         field: 'state.retryState.retries',
-        groups: [HISTOGRAM],
-        functions: [SUM, AVG, MAX],
+        groups: [TERMS, HISTOGRAM],
+        functions: [SUM, AVG, MIN, MAX],
+        percentile: true,
       },
       {
-        field: 'firstEventTime',
-        groups: [DATE_HISTOGRAM],
-        functions: [],
-        dateUnits: [DAY, WEEK, MONTH],
+        field: 'state.retrySpec.maxRetries',
+        groups: [TERMS],
+        functions: [AVG, MIN, MAX],
       },
-      {
-        field: 'eventTime',
+      ...[
+        'firstEventTime',
+        'eventTime',
+        'state.executeAt',
+        'state.retryState.nextRetryAt',
+      ].map(field => ({
+        field,
         groups: [DATE_HISTOGRAM],
-        functions: [],
-        dateUnits: [DAY, WEEK, MONTH],
-      },
+        functions: [MIN, MAX],
+        dateUnits: [HOUR, DAY, WEEK, MONTH],
+      })),
     ],
   },
   views: [
