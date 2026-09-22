@@ -148,6 +148,7 @@ src/
     chart.ts                  — Chart-shaped projection for the renderers
     chartSlots.ts             — `fitChartSlots`: the family sub-object of the current chart type, filled from the groups and metrics in force
     compile.ts                — compileAnalysis → AggregationQuery
+    fitCharts.ts              — Which chart types can draw a result of this shape and which it reads best as (K3, Q6): the capability says which exist, this says which are greyed and why
     drill.ts                  — One result row back into the conditions that select its records: `bucketRange` (the inverse of date bucketing, K1), `drillConditions`, and the two follow-ups that stay in the view, `focusOn` and `splitBy`; hands out conditions and config patches only (K6)
     defaults.ts               — defaultAnalysisConfig — the first metric the capability can express; `aliasOf`, `termsGroup`, `DEFAULT_MISSING_KEY`
     expressions.ts            — Aggregate and derived expression walks
@@ -303,6 +304,7 @@ src/
     index.ts                  — The `/ui` entry: the default look, built on shadcn/ui with Base UI primitives
     analysis/                 — What the analysis view is made of
       AnalysisToolbar.tsx     — The result's first row: the reading (dimensions · metrics) and how the result is looked at — table or chart, chart type, totals row
+      ChartPicker.tsx         — The visualization panel's first level: the chart types as tiles in the sidebar column, greyed with a reason, the recommended one marked, the table among them (D20 屏 I)
       CompactSelect.tsx       — The one select a tray card carries: a named choice among a few words
       DimensionCard.tsx       — The dimensions slot and its cards: field, and the control its type asks for (granularity, band width)
       DrillMenu.tsx           — The follow-up menu on one group of a result: the records behind it, split by another dimension, only this group (D20 追问); anchored to the mark or row pressed

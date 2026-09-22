@@ -183,6 +183,19 @@ mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboa
 - 漏斗至少两个阶段，`metrics` 形态要求分组为空，`group` 形态的 `order` 无重复；
 - `metric` 无 `trend` 时要求分组为空，有 `trend` 时要求恰有一个 DATE_HISTOGRAM 分组且别名等于 `trend.x`，且 `metric` 与 `compare.metric` 必须是可加指标（与 `maxSlices` 同一判据），否则报 `chart.metric.trend-not-additive`。
 
+### 哪些图型画得了这个形态：`fitCharts`（K3）
+
+`validateChart` 回答的是「这份配置对不对」，它只在用户选完之后说话；列出图型的地方要在用户选之前就说清「这一个为什么不能选」。同一套规则正着读一遍就是 `fitCharts({ groups, metrics })`，交出每个 `ChartType` 的 `{ available, reason?, recommended? }`（`analysis/fitCharts.ts`，结清 Q6）。**能力决定在不在，形态决定灰不灰**（D4）：定义没声明的图型根本不在列表里，声明了的由这里判灰，`reason` 是文案目录的键（`chart.fit.*`），因为灰掉的卡片要把缺什么写在自己身下：
+
+- 直角坐标系的四个（bar／line／area／combo）各要一个维度当横轴——没有维度就没有轴（`chart.fit.needs-dimension`）；
+- 饼图与按维度分阶段的漏斗要**恰好**一个维度（`chart.fit.needs-one-dimension`），漏斗另有「按指标分阶段」的形态，那一种要零维度加两个以上指标；
+- 热力图要两个维度（`chart.fit.needs-two-dimensions`）；
+- 散点把两个指标画成一个点，所以要一个维度再加两个指标（`chart.fit.needs-two-metrics`）；
+- 指标卡是一个数：没有维度时成立，有**恰好一个时间维度且主数可加**时也成立（那是迷你趋势，判据与 `maxSlices` 同一条），其余写 `chart.fit.needs-no-dimension`；
+- **推荐只有一个，而且只推荐画得出来的那个**：没有维度推指标卡，一个日期维度推折线，其余推柱状；三个维度起不推荐任何一个——那是表格的活。推荐是记号不是动作，不自动换图（D20）。
+
+表格不经过这里：它画得了任何形态，所以它在列出图型的地方是一张永远可选的卡片，而不是一条规则。（见 test/fitCharts.test.ts「fitCharts」与 test/chartPicker.test.tsx「the visualization panel」）
+
 ### 图表的槽跟着形态走：`fitChartSlots`
 
 图表按别名寻址自己的行，所以它不是一份能熬过「问题换了形状」的设置。从前换一个图型只改 `chart.type`、不建家族子对象，于是 `chart.family.missing`、图消失；加减一个维度之后图表仍念着旧别名，于是 `chart.group.unconsumed`／`chart.group.unknown`。两件事是同一个问题——哪个别名坐哪个槽——所以只有一个答案，图型、维度、指标任一改动都过它，`defaultAnalysisConfig` 的第一张图也过它：

@@ -330,25 +330,14 @@ describe('DataWorkbench', () => {
   });
 
   /**
-   * F13: the layout and the chart spec are one reading of one config — the
-   * one that produced the result on screen. Taken from the draft, a layout
-   * switched before its query answered asked for a chart of a result shaped
-   * as a table, and there was nothing to draw.
-   *
-   * The switch lives on the result's toolbar now and applies at once (D20),
-   * which does not close the gap: a query takes time, and what is on screen
-   * until it lands is still the table the last query was shaped as.
+   * F13, read the other way round since D20: the rows on screen are the
+   * config that ran, and how they are looked at is the draft. A layout is
+   * presentation (`ANALYSIS_PRESENTATION_MEMBERS`), so the switch redraws
+   * the same rows as a chart and asks the source nothing.
    */
-  it('draws the layout the result was shaped by, not the draft', async () => {
-    const pending = deferred<Record<string, unknown>[]>();
-    let call = 0;
+  it('redraws the layout from the rows on hand, without a run', async () => {
     const source = testSource({
-      aggregate: vi.fn(
-        () =>
-          (call++ === 0
-            ? Promise.resolve([{ warehouse: 'CN', orders: 2 }])
-            : pending.promise) as Promise<Record<string, unknown>[]>,
-      ),
+      aggregate: vi.fn(() => Promise.resolve([{ warehouse: 'CN', orders: 2 }])),
     });
     const store = tracked(new MemoryViewStore({ instances: [analysisView] }));
     const engine = new ViewEngine({
@@ -365,24 +354,20 @@ describe('DataWorkbench', () => {
       />,
     );
     await waitFor(() => expect(screen.getByRole('table')).toBeDefined());
+    expect(source.aggregate).toHaveBeenCalledTimes(1);
 
-    // The switch applies at once, so the draft says `chart` while the result
-    // on screen is still the table's.
     fireEvent.click(
       screen.getByRole('button', {
         name: defaultMessages['label.layout.chart'],
       }),
     );
-    await waitFor(() => expect(source.aggregate).toHaveBeenCalledTimes(2));
-    expect(screen.getByRole('table')).toBeDefined();
-
-    await act(async () => {
-      pending.resolve([{ warehouse: 'CN', orders: 2 }]);
-      await pending.promise;
-    });
     await waitFor(() =>
       expect(document.querySelector('[data-slot="chart"]')).not.toBeNull(),
     );
+    expect(source.aggregate).toHaveBeenCalledTimes(1);
+    // Nothing waits for a run: the draft differs from what ran only in how
+    // it is looked at.
+    expect(document.querySelector('[data-slot="pending-dot"]')).toBeNull();
   });
 
   it('opens an analysis view and shows its table', async () => {
@@ -521,9 +506,10 @@ describe('DataWorkbench', () => {
     ).toMatchObject({ timeZone: ZONE });
   });
 
-  // Until Run the result on screen is the applied config's, so its categories
-  // are named through the columns that config grouped by, not the draft's.
-  it('names chart categories by the config that ran while the chart is edited', async () => {
+  // A dimension added in the tray but not yet run is no column of the rows
+  // on screen, so the chart is fitted to the config that ran and its
+  // categories are named through that config's columns, not the draft's.
+  it('names chart categories by the config that ran while the question is edited', async () => {
     const engine = new ViewEngine({
       definitions: [namedOrdersDefinition()],
       store: tracked(
@@ -546,10 +532,17 @@ describe('DataWorkbench', () => {
     expect(await within(container).findByText('China', DRAWN)).toBeDefined();
 
     act(() => {
-      engine.openRuntimes()[0].edit({
+      const runtime = engine.openRuntimes()[0];
+      const draft = runtime.getSnapshot().draft;
+      if (draft.kind !== 'analysis') throw new Error('not an analysis');
+      runtime.edit({
+        groups: [
+          ...draft.groups,
+          { type: 'TERMS', field: 'status', alias: 'status_1' },
+        ],
         chart: {
           type: 'bar',
-          cartesian: { x: 'elsewhere', series: [{ metric: 'orders' }] },
+          cartesian: { x: 'status_1', series: [{ metric: 'orders' }] },
         },
       });
     });

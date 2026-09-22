@@ -19,12 +19,12 @@
 ## 结果第一行：读法与看法
 
 - **结果的第一行是 `AnalysisToolbar`**（`data-slot="result-toolbar"`，D12 Ⅳ）。左边一句「按 仓库 · 记录数、金额 的 合计」（`label.analysis.reading`，无维度时 `label.analysis.reading-flat`，`data-slot="analysis-reading"`）——下面这些数是什么，按**产生这个结果的那份配置**（`view.schema ?? view.columns`）读出来，不是按正在编辑的草稿；右边是怎么看它：表格｜图表、图型、合计行；
-- **这一行改了就跑**，不等托盘的应用：内核只为跑过的那份配置整形图表（`projectAnalysis` 只在 `layout === 'chart'` 时整形），所以换布局本来就是一次新执行而不是重绘。`setLayout` 自己就带 apply，因此工具栏**不**再给它套一层 `submit()`——套了就是同一个问题发两遍；图型与合计行则是 `change(); analysis.submit()`。（见 test/analysisTray.test.tsx「the analysis result toolbar」「reads the result out as dimensions and metrics」与 test/analysisUi.test.tsx「draws the layout the result was shaped by, not the draft」）
+- **表格｜图表是重绘，不是重跑**（D20，`ANALYSIS_PRESENTATION_MEMBERS`）：结果的行来自跑过的那份配置，怎么看它来自草稿，所以换布局只是把同一批行画成表或画成图，不发查询、不算待应用；「可视化」在这一行打开左侧栏的图型网格（下一节），托盘里没有它。合计行是一次自己的查询，所以仍是 `change(); analysis.submit()`。（见 test/analysisTray.test.tsx「the analysis result toolbar」「reads the result out as dimensions and metrics」「keeps the way into the visualization beside the layout switch, not in the tray」与 test/analysisUi.test.tsx「redraws the layout from the rows on hand, without a run」）
 
 ## AnalysisChart 与 shapeChart
 
-- **布局与图表配置读的是同一处：产生当前结果的那份配置（`ViewResult.config`），不是正在编辑的草稿。** 类目按别名找列取标签，草稿的别名在 Run 之前可能已指向别的列；而布局从前读草稿、图表配置读结果，于是草稿刚切到 chart、结果还是按 table 整形的那一刻，工作台要一张根本没整形过的图，什么也画不出来——一处说了算就不会自相矛盾。图表只画内核已经整形好的数据：透视、合并"其他"、漏斗累计与转化率、热力图矩阵、比较值都在 `shapeChart` 里完成，`AnalysisChart` 只选标记与配色，换一个图表库不触碰任何规则。`AnalysisChart` 按 `spec.colors` 给系列或分类上色，其余按 `--chart-1..5` 顺序取用；
-- 五档色相在亮暗两种模式下各自校过分离度与对比度。热力图与漏斗自绘，用图表库画它们的成本高于收益。`projectAnalysis` 只在 `layout === 'chart'` 时整形图表，因此切换 Table／Chart 是一次新的执行而不是重绘，`useAnalysisEditor.setLayout` 据此直接 apply；
+- **行与列读的是产生当前结果的那份配置（`ViewResult.config`），怎么看它读的是草稿。** 别名只有那份配置说了算——类目按别名找列取标签，草稿的别名在应用之前可能已指向别的列；而"画成表还是画成图、画成哪种图"是结果的属性而不是问题的一部分（D20），所以它们读草稿，拿同一批行重画。两者的接缝在 `ui/workbench/AnalysisParts.tsx`：**草稿的形态与跑出这批行的形态不一致时**，图表规格先过一遍 `fitChartSlots` 落到跑出来的那个形态上——托盘里刚加、还没应用的那个维度不是这批行的列，指着它的图什么也画不出来；一致时图表**原样**画，因为 `fitChartSlots` 会把作者收窄过的槽重新放开（两个指标只画一条系列的柱状图会变回两条），那在形态挪动时是对的，在每一次重绘里是错的。图表只画内核已经整形好的数据：透视、合并"其他"、漏斗累计与转化率、热力图矩阵、比较值都在 `shapeChart` 里完成，`AnalysisChart` 只选标记与配色，换一个图表库不触碰任何规则。`AnalysisChart` 按 `spec.colors` 给系列或分类上色，其余按 `--chart-1..5` 顺序取用；
+- 五档色相在亮暗两种模式下各自校过分离度与对比度。热力图与漏斗自绘，用图表库画它们的成本高于收益。**布局与图型都是重绘，不是重跑**（D20，见下一节）：工作台拿回来的那批行用 `shapeChart` 按草稿的图表规格现整形，所以 `useAnalysisEditor.setLayout` 与 `setChartType` 只编辑草稿，不 apply；
 - 托盘里的改动等「应用」，等着的时候那颗点在应用按钮上（`data-pending`，`filter.pending || analysis.pending`，基准是整份配置，见 [ui/README.md#三态各有一处凭据](README.md#三态各有一处凭据)），被拒的应用同样算没应用。**同屏唯一的 primary 就是它**（D17-3，[版式](README.md#版式三块一套间距一种选项控件)）：范围与问题是一份配置、一次 `runtime.apply()`，所以只有一颗按钮跑查询。（见 test/analysisChart.test.tsx「AnalysisChart」、test/analysisUi.test.tsx「useAnalysisEditor」、test/analysisTray.test.tsx「carries one primary button on the screen, and it is Apply」与 test/analysisChart.test.ts「shapeChart」）
 
 ### 一个家族一个文件
@@ -86,3 +86,18 @@
 
 - 结果没有任何一组时，表格与图表说同一句 `label.analysis.empty`（`ui/analysis/EmptyResult.tsx`）。图表从前画一对空坐标轴——那读起来是"这张图坏了"，而不是"范围里没有符合条件的组"；
 - 句子说的是**范围**，不是分析：从前的「没有可聚合的内容」读作"你这个分析算不出东西"，而指标好好的，只是没有组落进来。（见 test/analysisTable.test.tsx「says that no group matched」与 test/analysisUi.test.tsx「says that no group matched, chart layout included」）
+
+## 可视化：结果工具栏呼出左侧栏，先选图型
+
+D20 把可视化定为分析的**最后一步**：结果先是表格，确认完数据再谈怎么画。入口因此在结果工具栏右侧（`ui/analysis/AnalysisToolbar.tsx` 的 `data-slot="visualize"`，`aria-pressed` 说它开着没有），而不是在托盘里——托盘只装问题本身，图是结果的属性。
+
+- **面板占左侧栏，不另开一栏**（`WorkbenchShell` 的 `panel` 槽，`data-slot="view-panel"`，[README.md#工作台骨架](README.md)）。视图列表是导航，配图的时候不需要导航；结果区因此一格不移，用户盯着的那张图不会因为开了个面板就跳一下。列表折起与否都画，**面板自带返回**（`label.chart.picker-back`），不靠列表把自己换回来。
+- **第一层是图型网格**（`ui/analysis/ChartPicker.tsx`，`role="radiogroup"`），每格一张卡片（`data-slot="chart-tile"`，`data-chart-type`），三种状态各有各的凭据：
+  - **在不在由能力决定**（D4）：定义没声明的图型根本不在网格里，灰着也不给——一个永远按不动的东西不是选项；
+  - **灰不灰由形态决定，而且写明理由**：`fitCharts` 判（[kernels.md#哪些图型画得了这个形态fitchartsk3](../kernels.md)），灰掉的卡片带 `aria-disabled` 与一行 `data-slot="chart-reason"`，句子同时进它的 `aria-label`（「热力图。要两个维度」），因为"为什么不能选"和"不能选"是两件事，只说后一件等于不说；
+  - **推荐带一个记号**（`data-recommended` 与 `data-slot="chart-recommended"`，文案 `label.chart.recommended`），至多一张卡片有。推荐是记号不是动作：手选之后不再自动换。
+- **表格也是一张卡片**，排在最后。"回到表格"和"换成饼图"于是是同一个手势、同一处控件，而不是一个在工具栏的分段按钮、一个在面板里。
+- **选完只重画，不发查询**：`layout` 与 `chart` 是呈现成员（`ANALYSIS_PRESENTATION_MEMBERS`，[model.md#viewconfigbase-的三个字段](../model.md)），`comparePending` 跳过它们，所以标题栏那颗「改过没应用」的点不为它们亮——按下去什么也不跑的点是在教人按没用的按钮。它们照旧随视图保存。
+- **键盘按 radiogroup 的规矩走**：整组只有一个 Tab 停留点（选中的那张），方向键在**画得出来的**卡片之间同时移动选择与焦点，空格与回车就地选中。灰掉的那几张被方向键跳过——没有什么可选的——但它们用 `aria-disabled` 而不是 `disabled`：`disabled` 在有些读屏里连同那行理由一起从可访问树里拿走，而"为什么不能选"正是它唯一要说的话。
+
+（见 test/chartPicker.test.tsx「the visualization panel」「a layout is a redraw, not a run」与 test/fitCharts.test.ts「fitCharts」；浏览器里的回归是 stories/view-engine 的 `VisualizePanel`）

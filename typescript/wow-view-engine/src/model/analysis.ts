@@ -142,11 +142,14 @@ export interface AnalysisViewConfig extends ViewConfigBase {
 }
 
 /**
- * An analysis config has no presentation-only member, and `layout` is the
- * one worth saying so about: the kernel shapes a chart for the layout that
- * ran, so switching between table and chart reaches the query and `setLayout`
- * applies at once. The empty list is the statement (`PRESENTATION_MEMBERS`
- * in `config.ts`).
+ * How the result is looked at is not part of the question (D20): the layout
+ * and the chart are drawn from the rows that ran, whichever they are, so
+ * changing them redraws without asking the source again and counts as no
+ * pending edit. They are still saved with the view — a saved chart is the
+ * author's — so `dirty` sees them. `table` is not among them: its totals
+ * row is a query of its own.
  */
-export const ANALYSIS_PRESENTATION_MEMBERS =
-  [] as const satisfies readonly (keyof AnalysisViewConfig)[];
+export const ANALYSIS_PRESENTATION_MEMBERS = [
+  'layout',
+  'chart',
+] as const satisfies readonly (keyof AnalysisViewConfig)[];

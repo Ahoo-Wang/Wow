@@ -607,3 +607,32 @@ export function EditorCard({
     />
   );
 }
+
+/**
+ * One tile of the chart picker (D20 屏 I): an icon over a word on the
+ * page's ground, the chosen one ringed, a greyed one dimmed with its reason
+ * in small type under it, and the recommended one marked. The colours and
+ * states are here so the picker stays markup.
+ */
+export function ChartTile({
+  className,
+  ...props
+}: React.ComponentProps<'button'>) {
+  return (
+    <button
+      type="button"
+      data-slot="chart-tile"
+      className={cn(
+        'bg-background border-border text-foreground relative flex flex-col items-center gap-1 rounded-md border px-1 py-2 text-center',
+        'aria-checked:ring-primary aria-checked:border-primary aria-checked:ring-1',
+        'aria-disabled:text-muted-foreground aria-disabled:cursor-not-allowed aria-disabled:opacity-60',
+        'focus-visible:ring-ring/50 outline-none focus-visible:ring-[3px]',
+        '[&_[data-slot=chart-reason]]:text-muted-foreground [&_[data-slot=chart-reason]]:text-[11px] [&_[data-slot=chart-reason]]:leading-tight',
+        '[&_[data-slot=chart-recommended]]:bg-primary [&_[data-slot=chart-recommended]]:text-primary-foreground [&_[data-slot=chart-recommended]]:absolute [&_[data-slot=chart-recommended]]:-top-2 [&_[data-slot=chart-recommended]]:right-1 [&_[data-slot=chart-recommended]]:rounded-full [&_[data-slot=chart-recommended]]:px-1.5 [&_[data-slot=chart-recommended]]:text-[10px]',
+        TEXT_UI,
+        className,
+      )}
+      {...props}
+    />
+  );
+}

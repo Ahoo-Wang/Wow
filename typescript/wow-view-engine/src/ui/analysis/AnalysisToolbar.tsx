@@ -12,9 +12,10 @@
  */
 
 import { useId } from 'react';
+import { ChartColumnIcon } from 'lucide-react';
 import type { AnalysisView } from '../../analysis/index.js';
-import { CHART_TYPES } from '../../model/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
+import { Button } from '../components/button.js';
 import { Checkbox } from '../components/checkbox.js';
 import { Field, FieldLabel } from '../components/field.js';
 import { ToggleGroup, ToggleGroupItem } from '../components/toggle-group.js';
@@ -22,12 +23,14 @@ import { columnTitle } from '../display.js';
 import { SPACE, TEXT_UI } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { Toolbar } from '../toolbar.js';
-import { CompactSelect } from './CompactSelect.js';
 
 export interface AnalysisToolbarProps {
   analysis: AnalysisEditorController;
   /** The result on screen, which the reading names. */
   view: AnalysisView;
+  /** Whether the visualization panel is open, and the press that opens or closes it. */
+  visualizing: boolean;
+  onVisualize(open: boolean): void;
   disabled?: boolean;
 }
 
@@ -36,12 +39,15 @@ export interface AnalysisToolbarProps {
  * numbers below are — the dimensions and the metrics, in one line, as the
  * result was actually shaped; on the right, how they are looked at. Looking
  * is the result's business, not the question's, so the layout switch and
- * the chart type live here rather than in the tray (D20); a change here
- * runs at once, because the kernel shapes a chart only for what ran.
+ * the way into the visualization panel live here rather than in the tray
+ * (D20). Table or chart redraws the same rows; the totals row is a query
+ * of its own and runs at once.
  */
 export function AnalysisToolbar({
   analysis,
   view,
+  visualizing,
+  onVisualize,
   disabled,
 }: AnalysisToolbarProps) {
   const messages = useViewMessages();
@@ -80,9 +86,6 @@ export function AnalysisToolbar({
           value={[analysis.layout]}
           onValueChange={value => {
             const next = value[0];
-            // `setLayout` runs the query itself — the kernel shapes a chart
-            // only for the layout that ran — so this one is not wrapped in
-            // `apply`, which would send the same question twice.
             if (next === 'table' || next === 'chart') analysis.setLayout(next);
           }}
           variant="outline"
@@ -97,18 +100,17 @@ export function AnalysisToolbar({
             {messages.label('label.layout.chart')}
           </ToggleGroupItem>
         </ToggleGroup>
-        {analysis.layout === 'chart' && (
-          <CompactSelect
-            label={messages.label('label.analysis.chart-type')}
-            items={CHART_TYPES.map(type => ({
-              value: type,
-              label: messages.label(`label.chart.type.${type}`),
-            }))}
-            value={analysis.chart.type}
-            disabled={disabled}
-            onChange={type => apply(() => analysis.setChartType(type))}
-          />
-        )}
+        <Button
+          variant="outline"
+          size="sm"
+          aria-pressed={visualizing}
+          data-slot="visualize"
+          disabled={disabled}
+          onClick={() => onVisualize(!visualizing)}
+        >
+          <ChartColumnIcon data-icon="inline-start" />
+          {messages.label('label.analysis.visualize')}
+        </Button>
         {analysis.layout === 'table' && (
           <Field orientation="horizontal" className="w-auto">
             <Checkbox

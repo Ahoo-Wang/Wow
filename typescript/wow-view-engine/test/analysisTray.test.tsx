@@ -742,21 +742,23 @@ describe('the analysis result toolbar', () => {
     });
   });
 
-  it('keeps the chart type beside the layout switch, not in the tray', async () => {
+  it('keeps the way into the visualization beside the layout switch, not in the tray', async () => {
     await open({ config: { layout: 'chart' } });
     const toolbar = document.querySelector<HTMLElement>(
       '[data-slot="result-toolbar"]',
     )!;
 
+    // How the result is looked at is the result's business (D20): the
+    // picker of chart types opens from here, and the tray holds none of it.
     expect(
-      within(toolbar).getByLabelText(
-        defaultMessages['label.analysis.chart-type'],
-      ),
+      within(toolbar).getByRole('button', {
+        name: defaultMessages['label.analysis.visualize'],
+      }),
     ).toBeDefined();
     expect(
-      within(tray()!).queryByLabelText(
-        defaultMessages['label.analysis.chart-type'],
-      ),
+      within(tray()!).queryByRole('button', {
+        name: defaultMessages['label.analysis.visualize'],
+      }),
     ).toBeNull();
   });
 });

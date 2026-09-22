@@ -210,6 +210,18 @@ export interface WorkbenchShellProps {
    * learns of it.
    */
   onRenderFailure?: RenderFailureHandler;
+  /**
+   * What stands in the sidebar column in place of the view list while it is
+   * given: the visualization panel (D20 屏 I). The list is navigation, and
+   * navigation is not needed while a chart is being configured, so the one
+   * column serves both — the panel carries its own way back. It shows
+   * whether or not the list is folded.
+   *
+   * Read as React reads a child, so `open && <Panel />` is the way a part
+   * says "not now": every other slot is filled that way, and a column held
+   * open by a `false` would take the list off the screen for good.
+   */
+  panel?: ReactNode;
   /** Extra classes for the main column. */
   className?: string;
 }
@@ -276,6 +288,7 @@ export function WorkbenchShell({
   onRenderFailure,
   resultFramed = true,
   resultSlots,
+  panel,
   className,
 }: WorkbenchShellProps) {
   const messages = useViewMessages(wording);
@@ -507,7 +520,15 @@ export function WorkbenchShell({
       timeZone={timeZone}
       className="gap-0 md:flex-row"
     >
-      {sidebarOpen && (
+      {panel && (
+        <aside
+          data-slot="view-panel"
+          className="bg-sidebar text-sidebar-foreground border-sidebar-border flex w-full shrink-0 flex-col border-b md:w-64 md:border-r md:border-b-0"
+        >
+          {panel}
+        </aside>
+      )}
+      {!panel && sidebarOpen && (
         // Bare: the ground, the padding and the rule that divides the two
         // columns are the list's own (D12), so an `aside` that also painted
         // them would be a second opinion about where the column ends. The

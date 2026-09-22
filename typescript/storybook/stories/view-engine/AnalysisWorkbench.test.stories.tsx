@@ -25,6 +25,7 @@ import displayMeta, {
   TableWithTotals as DisplayTableWithTotals,
   TwoMetrics as DisplayTwoMetrics,
 } from './AnalysisWorkbench.stories.js';
+import { aggregateCalls } from './fixtures.js';
 import { amountOf, findDataTable, readColumn, readTotal } from './readTable.js';
 
 const meta = {
@@ -627,5 +628,117 @@ export const EditorRowSpacing: Story = {
         )!,
       ).rowGap,
     ).toBe('8px');
+  },
+};
+
+/** One tile of the picker, addressed by the chart type it stands for. */
+const chartTile = (canvas: HTMLElement, type: string) =>
+  canvas.querySelector<HTMLButtonElement>(
+    `[data-slot="chart-tile"][data-chart-type="${type}"]`,
+  )!;
+
+/**
+ * 可视化：结果工具栏呼出左侧栏，先选图型 (D20 屏 I).
+ *
+ * The one thing only a browser can show about this panel is that picking a
+ * type **draws** the new family — jsdom lays nothing out, so a pie there is
+ * a container with no sectors in it. Beside that it holds the two halves of
+ * the gesture that jsdom can only assert one at a time: the column changes
+ * hands, and the source is never asked again, because the layout and the
+ * chart draw the rows that already came back.
+ */
+export const VisualizePanel: Story = {
+  ...DisplayBarChart,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
+    // The list is in the column, and the panel is not.
+    await expect(
+      canvasElement.querySelector('[data-slot="view-sidebar"]'),
+    ).not.toBeNull();
+
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.analysis.visualize'] }),
+    );
+
+    // The panel takes the column the list had: one column, two occupants.
+    const panel = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="view-panel"]',
+    )!;
+    await expect(panel).toBeVisible();
+    await expect(
+      canvasElement.querySelector('[data-slot="view-sidebar"]'),
+    ).toBeNull();
+
+    // Every type the definition declares is a tile, and the table is one too.
+    await expect(
+      [...panel.querySelectorAll('[data-slot="chart-tile"]')].map(tile =>
+        tile.getAttribute('data-chart-type'),
+      ),
+    ).toEqual([
+      'bar',
+      'line',
+      'area',
+      'combo',
+      'pie',
+      'heatmap',
+      'scatter',
+      'funnel',
+      'metric',
+      'table',
+    ]);
+
+    // One dimension that is not a date reads best as bars, and the mark says
+    // so in a word; a shape a type cannot draw greys its tile and writes
+    // what it lacks under it.
+    const bar = chartTile(panel, 'bar');
+    await expect(bar).toHaveAttribute('aria-checked', 'true');
+    await expect(bar).toHaveAttribute('data-recommended');
+    await expect(bar).toHaveTextContent(zhCN['label.chart.recommended']);
+    const heatmap = chartTile(panel, 'heatmap');
+    await expect(heatmap).toHaveAttribute('aria-disabled', 'true');
+    await expect(heatmap).toHaveTextContent(
+      zhCN['chart.fit.needs-two-dimensions'],
+    );
+
+    // A pick is a redraw: the pie is drawn, and no aggregation went out.
+    const before = aggregateCalls.current;
+    await userEvent.click(chartTile(panel, 'pie'));
+    await waitFor(() =>
+      expect(slices(canvasElement).length).toBeGreaterThan(0),
+    );
+    await expect(slices(canvasElement).every(slice => slice.drawn)).toBe(true);
+    await expect(aggregateCalls.current).toBe(before);
+    await expect(chartTile(panel, 'pie')).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    // Nothing is waiting to be applied, so the editor's fold wears no dot.
+    await expect(
+      canvasElement.querySelector(
+        '[data-slot="editor-toggle"] [data-slot="pending-dot"]',
+      ),
+    ).toBeNull();
+
+    // The table is a tile, so "back to the table" is the same one gesture.
+    await userEvent.click(chartTile(panel, 'table'));
+    await canvas.findByRole('table');
+    await expect(slices(canvasElement)).toHaveLength(0);
+    await expect(aggregateCalls.current).toBe(before);
+
+    // And the way back is the panel's own: the list returns to the column.
+    await userEvent.click(
+      within(panel).getByRole('button', {
+        name: zhCN['label.chart.picker-back'],
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="view-sidebar"]'),
+      ).not.toBeNull(),
+    );
+    await expect(
+      canvasElement.querySelector('[data-slot="view-panel"]'),
+    ).toBeNull();
   },
 };

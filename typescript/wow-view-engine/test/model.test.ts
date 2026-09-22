@@ -274,10 +274,16 @@ describe('configs stay plain JSON', () => {
     // tree either way, so the mode never reaches a query.
     for (const kind of VIEW_KINDS)
       expect(presentationMembers(kind)).toContain('filterMode');
-    // And the one that differs: a record view draws the rows it has as a
-    // table or as cards, while an analysis chart is shaped by the query.
+    // How a result is looked at is presentation in both kinds that have a
+    // result: a record view draws the rows it has as a table or as cards,
+    // and an analysis draws the rows it has as a table or as a chart of
+    // whichever type (D20). A dashboard has no layout of its own.
     expect(presentationMembers('record')).toContain('layout');
-    expect(presentationMembers('analysis')).not.toContain('layout');
+    expect(presentationMembers('analysis')).toContain('layout');
+    expect(presentationMembers('analysis')).toContain('chart');
+    expect(presentationMembers('dashboard')).not.toContain('layout');
+    // `table` is not among them: its totals row is a query of its own.
+    expect(presentationMembers('analysis')).not.toContain('table');
   });
 
   it('narrows a config union by its kind', () => {

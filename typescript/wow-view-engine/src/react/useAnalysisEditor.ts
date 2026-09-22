@@ -89,7 +89,7 @@ export interface AnalysisEditorController {
   removeMetric(index: number): void;
   setSort(sort: AnalysisSort[]): void;
   setLimit(limit: number): void;
-  /** Applies at once: the kernel shapes a chart only for the layout that ran. */
+  /** A redraw of the same rows, never a run; nor does it count as pending. */
   setLayout(layout: AnalysisViewConfig['layout']): void;
   setChartType(type: ChartType): void;
   updateChart(patch: Partial<ChartSpec>): void;
@@ -312,15 +312,11 @@ export function useAnalysisEditor(
 
     setSort: useCallback((sort: AnalysisSort[]) => edit({ sort }), [edit]),
     setLimit: useCallback((limit: number) => edit({ limit }), [edit]),
+    // A redraw, not a run: the result's rows are drawn as a table or as a
+    // chart from the same answer (`ANALYSIS_PRESENTATION_MEMBERS`).
     setLayout: useCallback(
-      (layout: AnalysisViewConfig['layout']) => {
-        if (!runtime) return;
-        // `projectAnalysis` shapes a chart only when the config that ran asked
-        // for one, so a layout switch is a new execution rather than a redraw.
-        runtime.edit({ layout });
-        runtime.apply();
-      },
-      [runtime],
+      (layout: AnalysisViewConfig['layout']) => edit({ layout }),
+      [edit],
     ),
     setChartType: useCallback(
       (type: ChartType) =>

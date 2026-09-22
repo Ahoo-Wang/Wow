@@ -57,7 +57,17 @@ export const analysisMessages = {
   'label.analysis.add-metric': 'Add metric',
   'label.analysis.totals': 'Totals row',
   'label.analysis.row-limit': 'Top N groups',
-  'label.analysis.chart-type': 'Chart type',
+  // The visualization panel (D20 屏 I): the way in from the result's
+  // toolbar, its title, the way back, and why a tile is greyed.
+  'label.analysis.visualize': 'Visualize',
+  'label.chart.picker': 'Visualization',
+  'label.chart.picker-back': 'Back to the views',
+  'label.chart.recommended': 'Recommended',
+  'chart.fit.needs-dimension': 'Needs a dimension',
+  'chart.fit.needs-one-dimension': 'Needs exactly one dimension',
+  'chart.fit.needs-two-dimensions': 'Needs two dimensions',
+  'chart.fit.needs-two-metrics': 'Needs two metrics',
+  'chart.fit.needs-no-dimension': 'Not with dimensions',
   // `{name}` is the field's display name, never its alias: a control that
   // says "Remove dimension amount_1" names the query, not the column.
   'label.analysis.grouping-of': 'Dimension settings for {name}',

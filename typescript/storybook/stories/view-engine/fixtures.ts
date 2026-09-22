@@ -494,6 +494,18 @@ export function storySource(behaviour: SourceBehaviour = 'data'): ViewSource {
 }
 
 /**
+ * How many aggregations the sources below have been asked for since the page
+ * loaded, for a play whose point is that a gesture asked for **none**.
+ *
+ * Switching a layout or a chart type redraws the rows that already came back
+ * (`ANALYSIS_PRESENTATION_MEMBERS`, D20), and nothing on screen says whether
+ * a query went out — the same numbers are there either way. A play therefore
+ * reads this before the gesture and after it, never as an absolute: the
+ * counter is the page's, and every story on it adds to the same number.
+ */
+export const aggregateCalls = { current: 0 };
+
+/**
  * The same five behaviours over any set of rows, so a second dataset — the
  * wide one below — reaches every state this one does without a second copy
  * of the rules for what each state means.
@@ -518,10 +530,12 @@ function behavingSource(
   return {
     paged: query => answer(() => source.paged(query)),
     cursor: query => answer(() => source.cursor(query)),
-    aggregate: query =>
-      behaviour === 'no-aggregate'
+    aggregate: query => {
+      aggregateCalls.current += 1;
+      return behaviour === 'no-aggregate'
         ? refuseAggregate()
-        : answer(() => source.aggregate(query)),
+        : answer(() => source.aggregate(query));
+    },
   };
 }
 
