@@ -141,8 +141,12 @@ export function metricFallbackName(
   if (isFormula(metric)) return expressionText(metric.expression, fieldLabel);
   if (metric.type === 'DERIVED')
     return derivedText(metric.expression, alias => {
+      // An operand is a reference to another metric, and says its summary
+      // (「金额 的 合计 ÷ 记录数」), as the derived column's header does.
       const referenced = analysis.metrics.find(entry => entry.alias === alias);
-      return referenced ? metricName(analysis, referenced, messages) : alias;
+      return referenced
+        ? metricReference(analysis, referenced, messages)
+        : alias;
     });
   const field = fieldOfMetric(metric);
   return fieldLabel(field);

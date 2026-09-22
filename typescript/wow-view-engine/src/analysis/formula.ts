@@ -19,6 +19,7 @@ import type {
   AnalysisMetric,
 } from '../model/index.js';
 import { freeAlias } from './defaults.js';
+import type { MetricFunction } from './metricFormat.js';
 
 /**
  * The two metrics an analyst writes rather than picks (D20 屏 B): a
@@ -47,13 +48,39 @@ export const EXPRESSION_OPERATORS = Object.keys(
 ) as readonly AnalysisExpressionOperator[];
 
 /**
- * How a derived metric's text names a reference to the record count. The
- * kernel holds no catalogue, so it cannot say 「记录数」; it says this, and
- * `columnTitle` in the UI puts the catalogue's word in its place. Nothing
- * a definition labels can start with a control character, so the token
- * cannot collide with a field's or a metric's name.
+ * How a derived metric's text names another metric it refers to. The kernel
+ * holds no catalogue, so it cannot say 「金额 的 合计」 or 「记录数」: it writes
+ * the referenced metric's summary and name between control characters, and
+ * `columnTitle` in the UI words each one exactly as that metric's own column
+ * is worded (`wordReferences`) — so an operand reads the same in the
+ * derived column's header, on the derived metric's card, and in the operand
+ * picker beside it. Nothing a definition labels can hold a control
+ * character, so a reference cannot collide with a field's or a metric's
+ * name.
  */
-export const COUNT_NAME_TOKEN = '\u0000count';
+export function metricReferenceText(fn: MetricFunction, label: string): string {
+  return `${OPEN}${fn}${SEPARATOR}${label}${CLOSE}`;
+}
+
+/**
+ * A derived metric's text with every reference `metricReferenceText`
+ * wrote in it replaced by what `word` makes of its summary and name.
+ */
+export function wordReferences(
+  text: string,
+  word: (fn: MetricFunction, label: string) => string,
+): string {
+  const [head = '', ...rest] = text.split(OPEN);
+  return rest.reduce((done, part) => {
+    const end = part.indexOf(CLOSE);
+    const [fn = '', label = ''] = part.slice(0, end).split(SEPARATOR);
+    return done + word(fn as MetricFunction, label) + part.slice(end + 1);
+  }, head);
+}
+
+const OPEN = '\u0000';
+const SEPARATOR = '\u0001';
+const CLOSE = '\u0002';
 
 /** The sign an operator prints as, in every language. */
 export const OPERATOR_SIGN: Readonly<

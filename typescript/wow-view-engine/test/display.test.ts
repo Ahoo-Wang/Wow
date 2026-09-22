@@ -13,7 +13,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { MessageFormatters } from '../src/ui/index.js';
-import { COUNT_NAME_TOKEN, type FilterSummaryItem } from '../src/index.js';
+import { metricReferenceText, type FilterSummaryItem } from '../src/index.js';
 import {
   badgeEntries,
   cellText,
@@ -796,16 +796,31 @@ describe('columnTitle', () => {
     issues: () => '',
   };
 
-  // A derived metric names the record count by the kernel's token, which
-  // holds no catalogue; the title puts the word in its place, wherever it
-  // stands in the text. A formula keeps its summary appended.
-  it('words a derived metric’s reference to the record count', () => {
+  // A derived metric's text marks each metric it refers to, since the
+  // kernel holds no catalogue; the title words each as that metric's own
+  // column is worded, wherever it stands. A formula keeps its summary
+  // appended.
+  it('words a derived metric’s references as their own columns are worded', () => {
     expect(
       columnTitle(
-        { label: `Amount ÷ ${COUNT_NAME_TOKEN}`, fn: 'DERIVED' },
+        {
+          label: `${metricReferenceText('SUM', 'Amount')} ÷ ${metricReferenceText('COUNT', 'orders')}`,
+          fn: 'DERIVED',
+        },
         words,
       ),
-    ).toBe('Amount ÷ Record count');
+    ).toBe('Sum of Amount ÷ Record count');
+    expect(
+      columnTitle(
+        {
+          label: `${metricReferenceText('PERCENTILE', 'Amount')} − 1`,
+          fn: 'DERIVED',
+        },
+        words,
+      ),
+    ).toBe(
+      `≈ ${words.label('label.summary.of', { field: 'Amount', fn: words.label('label.summary.fn.PERCENTILE') })} − 1`,
+    );
     expect(columnTitle({ label: 'Amount − Cost', fn: 'SUM' }, words)).toBe(
       'Sum of Amount − Cost',
     );

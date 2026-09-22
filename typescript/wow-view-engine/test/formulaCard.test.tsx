@@ -500,7 +500,9 @@ describe('a metric derived from other metrics', () => {
       defaultMessages['label.analysis.add-derived'],
     );
 
-    await waitFor(() => expect(cardNames()).toContain('Record count ÷ Amount'));
+    await waitFor(() =>
+      expect(cardNames()).toContain('Record count ÷ Sum of Amount'),
+    );
     expect(draft(engine).metrics[3]).toMatchObject({
       type: 'DERIVED',
       expression: {
@@ -514,14 +516,17 @@ describe('a metric derived from other metrics', () => {
     const card = metricCards()[3];
     expect(
       within(card).queryByRole('button', {
-        name: label('label.analysis.condition-of', 'Record count ÷ Amount'),
+        name: label(
+          'label.analysis.condition-of',
+          'Record count ÷ Sum of Amount',
+        ),
       }),
     ).toBeNull();
 
     expect(
       await optionsOf(
         within(card).getByLabelText(
-          label('label.analysis.operand-left', 'Record count ÷ Amount'),
+          label('label.analysis.operand-left', 'Record count ÷ Sum of Amount'),
         ),
       ),
     ).toEqual([
@@ -544,11 +549,13 @@ describe('a metric derived from other metrics', () => {
       defaultMessages['label.analysis.add-metric'],
       defaultMessages['label.analysis.add-derived'],
     );
-    await waitFor(() => expect(cardNames()).toContain('Record count ÷ Amount'));
+    await waitFor(() =>
+      expect(cardNames()).toContain('Record count ÷ Sum of Amount'),
+    );
 
     await user.click(
       screen.getByLabelText(
-        label('label.analysis.operand-left', 'Record count ÷ Amount'),
+        label('label.analysis.operand-left', 'Record count ÷ Sum of Amount'),
       ),
     );
     await user.click(
@@ -561,15 +568,15 @@ describe('a metric derived from other metrics', () => {
         expression: { left: { type: 'CONSTANT', value: 0 } },
       }),
     );
-    await waitFor(() => expect(cardNames()).toContain('0 ÷ Amount'));
+    await waitFor(() => expect(cardNames()).toContain('0 ÷ Sum of Amount'));
 
     fireEvent.change(
       screen.getByLabelText(
-        label('label.analysis.operand-value', '0 ÷ Amount'),
+        label('label.analysis.operand-value', '0 ÷ Sum of Amount'),
       ),
       { target: { value: '2' } },
     );
-    await waitFor(() => expect(cardNames()).toContain('2 ÷ Amount'));
+    await waitFor(() => expect(cardNames()).toContain('2 ÷ Sum of Amount'));
   });
 
   /**

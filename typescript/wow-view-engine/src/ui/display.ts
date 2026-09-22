@@ -20,7 +20,7 @@ import {
   type SummaryFunction,
 } from '../model/index.js';
 import { readInstant } from '../filter/index.js';
-import { COUNT_NAME_TOKEN, type MetricFunction } from '../analysis/index.js';
+import { wordReferences, type MetricFunction } from '../analysis/index.js';
 import type { MessageKey } from './messages.js';
 import type { MessageFormatters } from './MessagesProvider.js';
 
@@ -165,11 +165,11 @@ export function columnTitle(
   messages: MessageFormatters,
 ): string {
   // A name the analyst gave is the whole title (D20 显示名). A derived
-  // metric's text names the record count by a token the kernel cannot
-  // word; the catalogue's word goes in its place.
-  const label = column.label
-    .split(COUNT_NAME_TOKEN)
-    .join(messages.label('label.analysis.row-count'));
+  // metric's text marks each metric it refers to (`metricReferenceText`);
+  // each is worded as that metric's own column is.
+  const label = wordReferences(column.label, (fn, referenced) =>
+    columnTitle({ label: referenced, fn }, messages),
+  );
   if (column.named || column.fn === undefined) return label;
   if (column.fn === 'COUNT') return messages.label('label.analysis.row-count');
   // A derived metric is arithmetic over other metrics: no field stands behind

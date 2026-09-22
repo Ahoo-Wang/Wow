@@ -31,7 +31,7 @@ import {
   type MetricFunction,
 } from './metricFormat.js';
 import {
-  COUNT_NAME_TOKEN,
+  metricReferenceText,
   derivedText,
   expressionText,
   isFormula,
@@ -361,15 +361,17 @@ function formulaLabel(
   return derivedText(metric.expression, alias => {
     const referenced = byAlias.get(alias);
     if (!referenced) return alias;
+    // A name the analyst gave is the whole name; a derived operand is its own
+    // text, references already marked; anything else is a summary of a field
+    // or a formula, marked for the UI to word as its own column is worded.
+    if (referenced.label !== undefined) return referenced.label;
+    if (referenced.type === 'DERIVED')
+      return formulaLabel(referenced, byName, byAlias) ?? alias;
     const source = sourceFieldOf(referenced);
-    return (
-      referenced.label ??
+    return metricReferenceText(
+      metricFunctionOf(referenced),
       formulaLabel(referenced, byName, byAlias) ??
-      (referenced.type === 'COUNT'
-        ? COUNT_NAME_TOKEN
-        : source === undefined
-          ? alias
-          : fieldLabel(source))
+        (source === undefined ? alias : fieldLabel(source)),
     );
   });
 }

@@ -27,7 +27,7 @@ import {
   projectAnalysis,
   type AnalysisFunction,
   type AnalysisMetric,
-  COUNT_NAME_TOKEN,
+  metricReferenceText,
 } from '../src/index.js';
 import {
   analysisCapability as capability,
@@ -437,7 +437,7 @@ describe('a derived column', () => {
   // A derived metric is titled as its author says it; a reference to the
   // record count is a token here, because the kernel holds no catalogue,
   // and `columnTitle` words it (test/display.test.ts「columnTitle」).
-  it('names the metrics it reads, and the count by its token', () => {
+  it('marks the metrics it reads, each with its summary', () => {
     const base = config();
     const view = projectAnalysis(
       definition(),
@@ -466,7 +466,11 @@ describe('a derived column', () => {
       [],
     );
     const derived = view.schema?.find(column => column.alias === 'avg');
-    expect(derived?.label).toBe(`Amount ÷ ${COUNT_NAME_TOKEN}`);
+    // Each operand is marked with its summary for the UI to word, the
+    // count included: the kernel holds no catalogue.
+    expect(derived?.label).toBe(
+      `${metricReferenceText('SUM', 'Amount')} ÷ ${metricReferenceText('COUNT', base.metrics[0].alias)}`,
+    );
     expect(derived?.fn).toBe('DERIVED');
   });
 });

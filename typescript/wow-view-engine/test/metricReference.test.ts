@@ -143,8 +143,10 @@ describe('metricReference', () => {
         right: { type: 'METRIC_REF', metric: 'orders' },
       },
     };
+    // Its operands are references to other metrics, and say their summary,
+    // as the derived column's header says them.
     expect(metricReference(naming(sum, count, perOrder), perOrder, en_)).toBe(
-      'Amount ÷ Record count',
+      'Sum of Amount ÷ Record count',
     );
   });
 });
