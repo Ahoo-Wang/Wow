@@ -252,6 +252,35 @@ describe('validateDefinition capabilities', () => {
     ]);
   });
 
+  /**
+   * The pager divides the window by a page size to find its last page, so
+   * anything but a whole number of rows above zero would stop it on a page
+   * the source never bounded. A cursor has no pages for a window to bound.
+   */
+  it('takes a paging window only as whole rows, and only for a paged source', () => {
+    const windowed = (maxWindow: unknown, paging: 'paged' | 'cursor') =>
+      codes(
+        ordersDefinition({
+          record: {
+            rowKey: 'id',
+            paging,
+            layouts: ['table'],
+            maxWindow: maxWindow as number,
+          },
+          views: [],
+        }),
+      );
+
+    expect(windowed(10_000, 'paged')).toEqual([]);
+    for (const invalid of [0, -1, 1.5, Number.NaN, '10000'])
+      expect(windowed(invalid, 'paged')).toEqual([
+        'definition.record.max-window-invalid',
+      ]);
+    expect(windowed(10_000, 'cursor')).toEqual([
+      'definition.record.max-window-cursor',
+    ]);
+  });
+
   it('refuses an analysis capability over a field that is not declared', () => {
     expect(
       codes(

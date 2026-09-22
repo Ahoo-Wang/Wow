@@ -53,6 +53,7 @@ export interface RecordPaginationProps {
 export function RecordPagination({ table }: RecordPaginationProps) {
   const messages = useViewMessages();
   const sizeLabelId = useId();
+  const windowId = useId();
   const paging = table.paging;
   const paged = paging?.mode === 'paged';
   // The controller decides what may be offered: the ladder cut to the
@@ -86,12 +87,19 @@ export function RecordPagination({ table }: RecordPaginationProps) {
 
   const total = paged ? paging.total : undefined;
 
-  // How many pages there are, where that is knowable: a paged source that
-  // reported a total, divided by a page size that means something.
-  const pages =
-    paged && paging.total !== undefined && table.pageSize > 0
-      ? Math.max(1, Math.ceil(paging.total / table.pageSize))
-      : undefined;
+  // How many pages the pager can reach, where that is knowable — the
+  // kernel's count, from the size that ran and the source's window. It is
+  // never the total over the draft's page size: while a new size is on its
+  // way, the rows, the page and the total on screen are all the old size's.
+  const pages = paged ? paging.pages : undefined;
+  // The rows those pages hold, when the source's window stops them short of
+  // the total: Wow over Elasticsearch refuses a page past row 10 000, so
+  // "第 1 / 31205 页" offered 31 205 pages and served 500 of them.
+  const reachable = paged ? paging.reachable : undefined;
+
+  // Numbers go to the catalogue as numbers: it groups them the surface's
+  // way (`formatMessage`), as it does every count on screen — 「共 624000
+  // 条记录」 was a number the reader had to count the digits of.
 
   // Everything fits, so there is nowhere to go and no arrows are drawn (D12).
   // Two dead arrows were the honest version of the same fact and still cost
@@ -129,6 +137,9 @@ export function RecordPagination({ table }: RecordPaginationProps) {
     <Pagination
       data-slot="record-pagination"
       aria-label={messages.label('label.pagination.nav')}
+      // The window is part of what this bar is: a reader who lands on it
+      // hears why the pages stop where they do before trying to go further.
+      aria-describedby={reachable === undefined ? undefined : windowId}
       // One line while there is room for one, two when there is not. A row
       // that could not wrap put Next's right edge 24px past the result card
       // it sits in at a phone's width, and `justify-between` squeezed the
@@ -142,6 +153,17 @@ export function RecordPagination({ table }: RecordPaginationProps) {
       )}
     >
       <span className="whitespace-nowrap">{count}</span>
+      {/* One short line, only when the window cuts the pages short of the
+          total — it says where they stop and what to do about the rest. It
+          is not a warning: nothing failed, and the way on is the conditions
+          above, not anything on this bar. */}
+      {reachable !== undefined && (
+        <span id={windowId} data-slot="record-pagination-window">
+          {messages.label('label.pagination.window', {
+            count: reachable,
+          })}
+        </span>
+      )}
 
       <PaginationContent className="ml-auto flex-wrap justify-end gap-2">
         <PaginationItem className="flex items-center gap-2">
@@ -181,7 +203,9 @@ export function RecordPagination({ table }: RecordPaginationProps) {
         {paged && (
           <PaginationItem className="flex items-center gap-2">
             {pages === undefined
-              ? messages.label('label.toolbar.page', { index: paging.index })
+              ? messages.label('label.toolbar.page', {
+                  index: paging.index,
+                })
               : messages.label('label.toolbar.page-of', {
                   index: paging.index,
                   pages,
@@ -197,8 +221,9 @@ export function RecordPagination({ table }: RecordPaginationProps) {
               <PageInput
                 index={paging.index}
                 pages={pages}
-                failed={table.status === 'error'}
+                settled={table.status !== 'loading'}
                 onGoTo={table.goTo}
+                {...(reachable === undefined ? {} : { describedBy: windowId })}
               />
             )}
           </PaginationItem>
@@ -237,11 +262,16 @@ export function RecordPagination({ table }: RecordPaginationProps) {
 interface PageInputProps {
   /** The page the rows on screen came from. */
   index: number;
-  /** How many there are — the ceiling, and the reason this box exists. */
+  /**
+   * How many the pager can reach — the ceiling, and the reason this box
+   * exists. Inside the source's window, where it declares one.
+   */
   pages: number;
-  /** Whether the last query failed, which leaves `index` where it was. */
-  failed: boolean;
+  /** Whether no query is in flight: the page asked for has landed or not. */
+  settled: boolean;
   onGoTo(page: number): void;
+  /** The window's line, when there is one: why the ceiling is where it is. */
+  describedBy?: string;
 }
 
 /**
@@ -265,7 +295,13 @@ interface PageInputProps {
  * **Committed on Enter or on leaving, never on a keystroke.** Every commit
  * is a query, and `4` is one keystroke on the way to `40`.
  */
-function PageInput({ index, pages, failed, onGoTo }: PageInputProps) {
+function PageInput({
+  index,
+  pages,
+  settled,
+  onGoTo,
+  describedBy,
+}: PageInputProps) {
   const messages = useViewMessages();
   // What is half-typed is the browser's to keep, not React's: every
   // keystroke through `setState` would re-render the bar for a draft nobody
@@ -282,14 +318,21 @@ function PageInput({ index, pages, failed, onGoTo }: PageInputProps) {
     if (box.current) box.current.value = String(index);
   }, [index]);
 
-  // A jump that failed never moves `index`, so the effect above has nothing
-  // to answer to — and the box went on saying `600` beside 「第 1 / 31,205
-  // 页」 while the rows were page 1's. The failure is the answer to the page
-  // asked for, so the box goes back to the page on screen when it arrives.
-  // Only then: a box being typed in while a refresh succeeds keeps its draft.
+  // The page this box asked for, until the answer settles. A jump that
+  // failed leaves `index` where it was, so the effect above never ran and
+  // the box went on saying `600` beside `第 1 / 500 页`. Once the query
+  // settles, a box still holding the page it asked for goes back to the page
+  // shown; one the reader has typed over since is theirs, so a refresh
+  // landing mid-keystroke does not take the number out from under them.
+  // While the answer is on its way the two read apart on purpose: the
+  // sentence is the page that ran, the box the page asked for.
+  const asked = useRef<string | null>(null);
   useEffect(() => {
-    if (failed && box.current) box.current.value = String(index);
-  }, [failed, index]);
+    if (!settled) return;
+    const node = box.current;
+    if (node && node.value === asked.current) node.value = String(index);
+    asked.current = null;
+  }, [index, settled]);
 
   const commit = () => {
     const node = box.current;
@@ -306,13 +349,16 @@ function PageInput({ index, pages, failed, onGoTo }: PageInputProps) {
     // Clamped rather than refused: past the end the reader wants the end.
     const page = Math.min(pages, Math.max(1, Number(typed)));
     node.value = String(page);
-    if (page !== index) onGoTo(page);
+    if (page === index) return;
+    asked.current = node.value;
+    onGoTo(page);
   };
 
   return (
     <Input
       ref={box}
       aria-label={messages.label('label.pagination.go-to')}
+      aria-describedby={describedBy}
       // Digits on a phone, without `type="number"`: that one brings a
       // spinner this bar has no room for, and hands back an empty string
       // for `1e3` rather than something to refuse.

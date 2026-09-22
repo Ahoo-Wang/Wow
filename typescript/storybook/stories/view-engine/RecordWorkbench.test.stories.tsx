@@ -42,6 +42,7 @@ import displayMeta, {
   NoViews as DisplayNoViews,
   Opening as DisplayOpening,
   Paged as DisplayPaged,
+  PagedWindow as DisplayPagedWindow,
   PinnedEdges as DisplayPinnedEdges,
   PinnedGroupCapped as DisplayPinnedGroupCapped,
   RenderFailure as DisplayRenderFailure,
@@ -596,6 +597,57 @@ export const Paged: Story = {
     await expect(paginationBar(canvasElement)).toHaveTextContent(
       say('label.toolbar.page-of', { index: 3, pages: 3 }),
     );
+  },
+};
+
+/**
+ * A source with a paging window (Wow over Elasticsearch refuses a page past
+ * row 10 000): six orders two at a time under a window of four. The bar
+ * counts the pages the window lets it reach, stops Next on the last of them,
+ * lands a jump past it on that page, and says in one line why — and the line
+ * is the bar's accessible description, so a screen reader hears it too.
+ */
+export const PagedWindow: Story = {
+  ...DisplayPagedWindow,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    await waitFor(() =>
+      expect(readColumn(table, '订单号')).toEqual(['SO-1001', 'SO-1002']),
+    );
+
+    const bar = paginationBar(canvasElement);
+    // The total is still every order; the pages are the ones within reach.
+    await expect(bar).toHaveTextContent(
+      say('label.pagination.total', { total: 6 }),
+    );
+    await expect(bar).toHaveTextContent(
+      say('label.toolbar.page-of', { index: 1, pages: 2 }),
+    );
+    const line = say('label.pagination.window', { count: 4 });
+    await expect(bar).toHaveTextContent(line);
+    await expect(bar).toHaveAccessibleDescription(line);
+
+    // A jump past the window lands on its last page rather than failing.
+    const goTo = within(bar).getByRole('textbox', {
+      name: zhCN['label.pagination.go-to'],
+    });
+    await userEvent.clear(goTo);
+    await userEvent.type(goTo, '3{Enter}');
+    await waitFor(() =>
+      expect(readColumn(table, '订单号')).toEqual(['SO-1003', 'SO-1004']),
+    );
+    await expect(goTo).toHaveValue('2');
+    await expect(paginationBar(canvasElement)).toHaveTextContent(
+      say('label.toolbar.page-of', { index: 2, pages: 2 }),
+    );
+
+    // And the last reachable page is the last page: Next is spent.
+    await expect(
+      within(paginationBar(canvasElement)).getByRole('button', {
+        name: zhCN['label.toolbar.next'],
+      }),
+    ).toBeDisabled();
   },
 };
 

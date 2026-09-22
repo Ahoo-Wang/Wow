@@ -309,6 +309,89 @@ describe('useRecordTable', () => {
     expect(result.current.table.paging).toMatchObject({ index: 1 });
   });
 
+  /**
+   * Wow over Elasticsearch refuses a page whose `index × size` passes
+   * 10 000, and the pager offered all 31 205 pages of 624 100 rows anyway:
+   * page 600 came back a 400. With the window declared, the pages stop
+   * inside it, and a jump past the last one lands on it instead.
+   */
+  it('stops at the source window, and a jump past it lands on its last page', async () => {
+    const paged = vi.fn(() =>
+      Promise.resolve({ total: 624_100, list: [...ROWS] }),
+    );
+    const { engine } = engineWith({
+      source: testSource({ paged }),
+      definitions: [
+        ordersDefinition({
+          record: {
+            rowKey: 'id',
+            paging: 'paged',
+            layouts: ['table', 'card'],
+            maxWindow: 10_000,
+          },
+        }),
+      ],
+    });
+    const { result } = renderHook(() => {
+      const opened = useOpenView(engine, 'orders-1');
+      return useRecordTable(opened.runtime as RecordViewRuntime | null);
+    });
+    await waitFor(() => expect(result.current.status).toBe('success'));
+
+    expect(result.current.paging).toMatchObject({
+      mode: 'paged',
+      size: 20,
+      pages: 500,
+      reachable: 10_000,
+    });
+
+    act(() => result.current.goTo(600));
+    await waitFor(() =>
+      expect(result.current.paging).toMatchObject({ index: 500 }),
+    );
+    expect(paged).toHaveBeenLastCalledWith(
+      expect.objectContaining({ pagination: { index: 500, size: 20 } }),
+      undefined,
+      expect.any(AbortController),
+    );
+
+    // The last reachable page is the last page: Next asks nothing further.
+    expect(result.current.hasNext).toBe(false);
+    const asked = paged.mock.calls.length;
+    act(() => result.current.next());
+    expect(paged).toHaveBeenCalledTimes(asked);
+  });
+
+  /**
+   * The pages are the result's, not the draft's: while a new page size is
+   * on its way the rows, the page and the total on screen are all the old
+   * size's, and dividing that total by the new size described a result
+   * nobody had seen.
+   */
+  it('counts the pages by the size that ran, not the one on its way', async () => {
+    let answer: (() => void) | undefined;
+    const paged = vi.fn((query: { pagination?: { size: number } }) =>
+      query.pagination?.size === 50
+        ? new Promise<{ total: number; list: typeof ROWS }>(resolve => {
+            answer = () => resolve({ total: 200, list: [...ROWS] });
+          })
+        : Promise.resolve({ total: 200, list: [...ROWS] }),
+    );
+    const result = await openTable(testSource({ paged }));
+    expect(result.current.table.paging).toMatchObject({ size: 20, pages: 10 });
+
+    act(() => result.current.table.setPageSize(50));
+    await waitFor(() => expect(result.current.table.status).toBe('loading'));
+    // The select says what was asked for; the pager, what ran.
+    expect(result.current.table.pageSize).toBe(50);
+    expect(result.current.table.paging).toMatchObject({ size: 20, pages: 10 });
+
+    await act(async () => answer?.());
+    await waitFor(() =>
+      expect(result.current.table.paging).toMatchObject({ size: 50, pages: 4 }),
+    );
+  });
+
   it('follows a cursor when the definition declares one', async () => {
     const { engine } = engineWith();
     const definition = ordersDefinition({
@@ -330,6 +413,7 @@ describe('useRecordTable', () => {
     expect(result.current.paging).toEqual({
       mode: 'cursor',
       nextCursor: 'cursor-2',
+      hasNext: true,
     });
     act(() => result.current.previous());
     act(() => result.current.next());
@@ -357,6 +441,25 @@ describe('useRecordTable', () => {
         { field: 'amount', label: 'Amount', kind: 'number', cell: 'number' },
       ],
     });
+  });
+
+  /**
+   * The column settings need the row key and the picker groups; the
+   * controller hands them on, so the UI never reads the definition for them.
+   */
+  it('hands on the row key and the picker groups', async () => {
+    const groups = [{ id: 'money', label: 'Money', fields: ['amount'] }];
+    const { engine } = engineWith({
+      definitions: [ordersDefinition({ fieldGroups: groups })],
+    });
+    const { result } = renderHook(() => {
+      const opened = useOpenView(engine, 'orders-1');
+      return useRecordTable(opened.runtime as RecordViewRuntime | null);
+    });
+    await waitFor(() => expect(result.current.status).toBe('success'));
+
+    expect(result.current.rowKey).toBe('id');
+    expect(result.current.fieldGroups).toEqual(groups);
   });
 
   it('changes layout, columns and page size', async () => {

@@ -12,13 +12,19 @@
  */
 
 import type { CursorQuery, FilterPagedQuery } from '@ahoo-wang/fetcher-wow';
-import { FIRST_PAGE, compileRecord } from '../record/index.js';
+import {
+  FIRST_PAGE,
+  compileRecord,
+  lastPageInWindow,
+} from '../record/index.js';
 import type { FilterCompileContext } from '../filter/index.js';
 import {
   DEFAULT_RUNTIME_LIMITS,
+  type RecordCapability,
   type RecordData,
   type RecordPageTarget,
   type RecordViewConfig,
+  type RuntimeLimits,
 } from '../model/index.js';
 import type { KernelContext } from './execute.js';
 
@@ -59,6 +65,42 @@ export function isExportCancelled(error: unknown): error is ExportCancelled {
 }
 
 /**
+ * How an export pages its source: the size it asks for, and the most rows it
+ * may carry away.
+ *
+ * The ceiling is `limits.exportMax`, and below it the source's paging window
+ * (`RecordCapability.maxWindow`) where one is declared: a page past the
+ * window is refused outright, so an export that went on asking would fail on
+ * the page after the last one it could have, having fetched every row before
+ * it. The size shrinks to the window when the window is the smaller, and the
+ * ceiling stops at the last whole page inside it — the same count the pager
+ * stops at. `ExportDialog` states this ceiling before anything is fetched.
+ */
+export function exportPlan(
+  limits: Pick<RuntimeLimits, 'exportMax' | 'maxPageSize'>,
+  capability?: Pick<RecordCapability, 'maxWindow'>,
+  asked?: number,
+): { size: number; max: number } {
+  // The ceiling is the one number that ends the fetch loop, so a host that
+  // built its limits by hand and left it out gets the default rather than a
+  // `NaN` that compares false against everything and pages a backend forever.
+  const wanted = asked ?? limits.exportMax;
+  const max = Number.isFinite(wanted)
+    ? Math.floor(wanted)
+    : DEFAULT_RUNTIME_LIMITS.exportMax;
+  const window = capability?.maxWindow;
+  const size = Math.max(
+    1,
+    Math.min(
+      Math.floor(limits.maxPageSize) || DEFAULT_RUNTIME_LIMITS.maxPageSize,
+      window ?? Infinity,
+    ),
+  );
+  const pages = lastPageInWindow(size, window);
+  return { size, max: pages === undefined ? max : Math.min(max, pages * size) };
+}
+
+/**
  * Every row the applied conditions match, paged out of the source behind the
  * screen.
  *
@@ -82,17 +124,7 @@ export async function fetchExportRows(
   options: ExportRowsOptions = {},
 ): Promise<ExportedRows> {
   const { definition, kinds, limits, environment } = context;
-  // The ceiling is the one number that ends this loop, so a host that built
-  // its limits by hand and left it out gets the default rather than a `NaN`
-  // that compares false against everything and pages a backend forever.
-  const asked = options.max ?? limits.exportMax;
-  const max = Number.isFinite(asked)
-    ? Math.floor(asked)
-    : DEFAULT_RUNTIME_LIMITS.exportMax;
-  const size = Math.max(
-    1,
-    Math.floor(limits.maxPageSize) || DEFAULT_RUNTIME_LIMITS.maxPageSize,
-  );
+  const { size, max } = exportPlan(limits, definition.record, options.max);
   const filterContext: FilterCompileContext = {
     now: environment.now(),
     timeZone: environment.timeZone,

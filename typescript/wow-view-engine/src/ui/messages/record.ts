@@ -78,6 +78,11 @@ export const recordMessages = {
   // It names what typing in it does rather than what it holds: the sentence
   // next to it already says which page the rows came from.
   'label.pagination.go-to': 'Go to page',
+  // Said when the source's window (`RecordCapability.maxWindow`) stops the
+  // pages short of the total: how far paging goes, and the way to the rest,
+  // which is the conditions and not this bar.
+  'label.pagination.window':
+    'Only the first {count} records can be paged through; narrow the conditions to see the rest',
 
   // The record view itself.
   'label.record.empty': 'Nothing to show',

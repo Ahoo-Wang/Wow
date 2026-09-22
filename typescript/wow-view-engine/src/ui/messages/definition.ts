@@ -60,6 +60,10 @@ export const definitionMessages = {
   'definition.field.name-invalid': '{field} is not a usable field name.',
   'definition.id.separator': 'A definition id cannot contain {separator}.',
   'definition.record.layouts-empty': 'The record capability offers no layout.',
+  'definition.record.max-window-invalid':
+    'The paging window must be a whole number of rows above zero, not {value}.',
+  'definition.record.max-window-cursor':
+    'A paging window bounds pages, and this source pages by cursor.',
   'definition.record.row-key-unknown':
     'The row key {field} is not a declared field.',
   'definition.record.row-field-unknown':

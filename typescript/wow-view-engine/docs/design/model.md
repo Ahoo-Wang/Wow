@@ -84,6 +84,12 @@ export interface FieldOption {
 export interface RecordCapability {
   rowKey: string;
   paging: 'paged' | 'cursor'; // 数据源提供哪种分页；决定 runtime 调用 source.paged 还是 source.cursor
+  // 分页查询最多能够到的行数：页码 × 每页条数。走搜索引擎的源自己有这道上限——
+  // Wow 走 Elasticsearch 时 index × size 超过 10 000 直接 400（`HTTP page window[12000]
+  // must not exceed 10000`）。声明了，分页条只数得到窗口里的页、停在最后一页并说明原因，
+  // 导出也停在窗口里；不声明即无上限（不给默认值：不是每个源都有窗口）。
+  // 只对 paged 源有意义；准入时须为正整数，游标源声明它报错。
+  maxWindow?: number;
   layouts: ('table' | 'card')[];
   // 宿主代码要从行上读、视图未必显示的字段（行动作、批量动作、自定义单元格）；
   // 一页只要视图显示的字段（kernels.md「一页要哪些字段」），这里说的每页都另要

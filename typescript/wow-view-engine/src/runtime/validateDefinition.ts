@@ -336,6 +336,7 @@ function validateRecordCapability(definition: DataViewDefinition): Issue[] {
         field: capability.rowKey,
       }),
     );
+  issues.push(...validateMaxWindow(capability));
 
   // What the host's code reads off a row is fetched on every page, so a
   // name that is no path into a row would be asked for and never arrive —
@@ -355,6 +356,34 @@ function validateRecordCapability(definition: DataViewDefinition): Issue[] {
   });
 
   return issues;
+}
+
+/**
+ * The paging window: a whole number of rows, and only where there are pages.
+ *
+ * The pager divides it by a page size to find its last page, so a zero, a
+ * fraction or a string would stop it on a page the source never bounded —
+ * or on none at all. A cursor is a position rather than a page, so a window
+ * declared on one bounds nothing, and says the declaration misread its
+ * source.
+ */
+function validateMaxWindow(capability: RecordCapability): Issue[] {
+  const bound: unknown = capability.maxWindow;
+  if (bound === undefined) return [];
+  if (typeof bound !== 'number' || !Number.isInteger(bound) || bound < 1)
+    return [
+      issue('definition.record.max-window-invalid', ['record', 'maxWindow'], {
+        value:
+          typeof bound === 'number' || typeof bound === 'string'
+            ? String(bound)
+            : typeof bound,
+      }),
+    ];
+  if (capability.paging !== 'paged')
+    return [
+      issue('definition.record.max-window-cursor', ['record', 'maxWindow']),
+    ];
+  return [];
 }
 
 function validateAnalysisCapability(definition: DataViewDefinition): Issue[] {

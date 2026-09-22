@@ -97,6 +97,8 @@ useRecordTable(runtime): RecordTableController
 - `pinnedOf(field)` / `setPinned(field, pinned)`——草稿有没有把某列固定在左侧，一个布尔（D19：固定没有"侧"，右边那一列是操作列）。读的时候走 `columnPinned()`，所以存进来的 `'left'` 或 `'top'` 读作"不固定"，签名声明的类型对不可信配置也成立。取消固定时删键而不是写 `false` 或置 `undefined`（理由见 [ui/record.md](ui/record.md)）；
 - `setColumnWidth(field, width)`——某列的像素宽度，`null` 为恢复自适应。与 `setPinned` 同一条路径（`edit` 加 `apply`），同样**删键而不是置 `undefined`**，其余成员（固定）原样留下。数字按给的数写：一列最窄能拖到多少是关于手柄的问题而不是关于配置的问题，所以下限住在 `ColumnResizer` 里（[ui/record.md#列宽拖表头的右边](ui/record.md#列宽拖表头的右边)）；内核拒绝的是**不是正有限数**的宽度（`record.column.width-invalid`）——`width: 0` 画出一列谁也看不见、也再抓不住的列，手写 `"120px"` 进来变成的 `NaN` 则落成一条浏览器直接丢掉的内联样式，列还是老样子而配置声称不是；
 - `summaryOf(field)` / `setSummary(field, fn)`——某列底下汇总用的函数。**删掉最后一条时按已保存配置的写法还原**：`summaries` 是可选成员，"没有汇总"有两种写法（空数组、没有这个成员），而 `dirty` 是与已保存配置的一次相等比较——分不清换了写法和改了内容。加一条又删掉，视图会就此一直显示"未保存"、离开守卫还会问一句用户早就撤销过的改动。`ViewRuntime.edit` 因此把值为 `undefined` 的成员**删掉**而不是置为 `undefined`（配置是 JSON，没有这个成员与成员为 `undefined` 是同一份配置、却不是同一个对象），控制器则按已保存那份的写法作答；配置允许一个字段带多个函数、表格也全画出来，而这条命令写**一个**：控件一列只给一个下拉，设一个就替换掉该列原有的，`null` 则该列不汇总，其余列不受影响；
+- `paging`——分页条读的事实，全部出自内核（`record/paging.ts`）：跑过的那一页与**跑过的那个每页条数**、够得到的页数（声明了 `maxWindow` 时只数窗口里的）、`hasNext`、窗口截短总数时的 `reachable`。`pageSize` 是草稿里的那个，只给每页条数的选择器用；新每页条数还在路上时，分页条仍按旧的那一批算，不拿草稿去除结果的总数。`hasNext` 就是 `paging.hasNext`，`goTo` 越过够得到的最后一页时落在那一页（`clampPage`）；
+- `card`——卡片布局与列一样由内核投影（`projectRecord` 的 `card`），控制器不再自己对着定义解析一遍字段；`rowKey`／`fieldGroups` 由控制器转交，列设置不直接读定义；
 - `maxSortFields`——这个视图一次最多按几个字段排序：游标源取 Wow 的上限，分页源取定义里字段的个数。规则在内核（`record/maxSortFields`），控制器只转交，所以"控件停在哪"与"内核从哪开始拒绝"是同一个数；
 - `setSort(sort)`——整份排序按优先级顺序替换。`toggleSort` 是单列的答案、只能往后追加，而把排序当作一张列表来编辑要能说清谁先谁后、翻转其中一条、删掉其中一条，三件事是同一次写入。（见 test/recordTableCommands.test.tsx）
 

@@ -297,12 +297,8 @@ export function RecordParts({
       <ColumnSettings
         table={table}
         fields={fields}
-        {...(record.definition.fieldGroups
-          ? { fieldGroups: record.definition.fieldGroups }
-          : {})}
-        {...(record.definition.record?.rowKey === undefined
-          ? {}
-          : { rowKey: record.definition.record.rowKey })}
+        fieldGroups={table.fieldGroups}
+        rowKey={table.rowKey}
         trigger={
           <Button variant="outline" size="xs">
             {messages.label('label.status.open-columns')}
@@ -318,8 +314,8 @@ export function RecordParts({
       <ResultToolbar
         table={table}
         fields={fields}
-        fieldGroups={record.definition.fieldGroups}
-        rowKey={record.definition.record?.rowKey}
+        fieldGroups={table.fieldGroups}
+        rowKey={table.rowKey}
         // Cards draw no pins, so nothing is let go under them.
         released={table.layout === 'table' ? released : NO_RELEASE}
         bulkActions={actions?.bulk}

@@ -24,6 +24,7 @@ import {
   type FieldDefinition,
   type FieldOption,
   type NumberFormat,
+  type RecordCardSpec,
   type RecordColumn,
   type RecordData,
   type RecordKey,
@@ -32,6 +33,7 @@ import {
 } from '../model/index.js';
 import { readInstant } from '../filter/index.js';
 import { summaryAlias } from './compile.js';
+import { cursorPaging, pagedPaging, type RecordPaging } from './paging.js';
 
 /**
  * Which edge the table holds a column against.
@@ -81,14 +83,83 @@ export interface RecordRow {
   data: RecordData;
 }
 
-export type RecordPaging =
-  | { mode: 'paged'; index: number; total?: number }
-  | { mode: 'cursor'; nextCursor: string | null };
+/**
+ * One field of a card. It carries what a column carries about how a value
+ * reads — a card is a row folded out, and `RecordCards` hands a host's
+ * `renderCell` the same `column` for a value on a card as the table does
+ * for the same value — with the parts a card never has (pinning, width,
+ * sorting) left out. `kind` and `cell` are optional for a controller built
+ * by hand; the projection always names them.
+ */
+export interface RecordCardField {
+  field: string;
+  label: string;
+  kind?: string;
+  cell?: string;
+  options?: readonly FieldOption[];
+  numberFormat?: NumberFormat;
+}
+
+/**
+ * The card layout of the result, resolved against the definition.
+ *
+ * A card is not a narrow table: the saved config says which field titles it,
+ * which fields make up its body and where its image comes from, and none of
+ * that is derivable from the table's columns.
+ */
+export interface RecordCardView {
+  /** Field whose value titles each card; the row key when it holds none. */
+  title: string;
+  /** How the title's values show, when the definition still has the field. */
+  titleField?: RecordCardField;
+  /** Fields of the card body, in order, with their labels resolved. */
+  fields: RecordCardField[];
+  /** Field holding an image URL, when the config asks for one. */
+  image?: string;
+  /** How many cards stand in one row; see `RecordCardSpec.perRow`. */
+  perRow?: 1 | 2 | 3 | 4;
+}
 
 export interface RecordView {
   columns: RecordColumnView[];
+  /** The same result's card layout; both halves are saved side by side. */
+  card: RecordCardView;
   rows: RecordRow[];
   paging: RecordPaging;
+}
+
+function cardField(field: FieldDefinition): RecordCardField {
+  return {
+    field: field.name,
+    label: field.label,
+    kind: field.kind,
+    cell: field.cell ?? field.kind,
+    ...(field.options ? { options: field.options } : {}),
+    ...(field.numberFormat ? { numberFormat: field.numberFormat } : {}),
+  };
+}
+
+/**
+ * The card half of the config against the definition's fields — the same
+ * field facts a column reads, read in the same place. A field the definition
+ * dropped is left out rather than shown as a blank row; `validateRecord`
+ * reports it separately.
+ */
+function cardView(
+  spec: RecordCardSpec,
+  byName: ReadonlyMap<string, FieldDefinition>,
+): RecordCardView {
+  const titleField = byName.get(spec.title);
+  return {
+    title: spec.title,
+    ...(titleField ? { titleField: cardField(titleField) } : {}),
+    fields: spec.fields.flatMap(name => {
+      const field = byName.get(name);
+      return field ? [cardField(field)] : [];
+    }),
+    ...(spec.image === undefined ? {} : { image: spec.image }),
+    ...(spec.perRow === undefined ? {} : { perRow: spec.perRow }),
+  };
 }
 
 /**
@@ -227,10 +298,18 @@ export function projectRecord(
 
   return {
     columns,
+    card: cardView(config.card, byName),
     rows,
+    // The size is the one this config ran at: the pager divides by it, and
+    // the draft's may already be another one on its way.
     paging: isCursorPage(page)
-      ? { mode: 'cursor', nextCursor: page.nextCursor }
-      : { mode: 'paged', index: pageIndex, total: page.total },
+      ? cursorPaging(page.nextCursor)
+      : pagedPaging({
+          index: pageIndex,
+          size: config.pageSize,
+          total: page.total,
+          maxWindow: definition.record?.maxWindow,
+        }),
   };
 }
 

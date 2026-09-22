@@ -427,6 +427,8 @@ export const executionFailedDefinition: DataViewDefinition = {
       'state.isBelowRetryThreshold',
       'state.recoverable',
     ],
+    // The service refuses a page reaching past its 10,000th row.
+    maxWindow: 10_000,
   },
   // What the schema lets the service aggregate: AGGREGATE_TERMS groups by
   // value, AGGREGATE_NUMERIC bands and sums, AGGREGATE_TEMPORAL buckets by

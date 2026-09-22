@@ -34,6 +34,7 @@ import {
 } from './fixtures.js';
 import { formattersFor } from './fixtures/columns.js';
 import { recordTableController } from './fixtures/ui.js';
+import { cursorPaging } from '../src/record/index.js';
 
 afterEach(cleanup);
 
@@ -140,7 +141,7 @@ describe('what a record query says out loud', () => {
     expect(
       querySentence(
         recordTableController({
-          paging: { mode: 'cursor', nextCursor: 'c-2' },
+          paging: cursorPaging('c-2'),
         }),
         messages,
       ),

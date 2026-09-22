@@ -139,7 +139,8 @@ src/
     compile.ts                — compileRecord → FilterPagedQuery / CursorQuery, carrying `recordProjection` (the fields a page asks for: what the view shows, plus `rowFields`), and compileSummaries → AggregationQuery; `FIRST_PAGE`, `summaryAlias`
     defaults.ts               — defaultRecordConfig — a complete starting config, since `create` takes one rather than inventing it; `recordCapabilityOf`
     export.ts                 — `serializeCsv`: rows as a CSV, values read the UI's way
-    project.ts                — projectRecord — the columns a table draws, the edge each is held against (`ColumnEdge`), the rows
+    paging.ts                 — What the pager reads, from what ran: `pagedPaging` (the size that ran, the pages reachable inside the source's `maxWindow`, `hasNext`, `reachable` when the window cuts the total short), `cursorPaging`, `lastPageInWindow`, `clampPage`
+    project.ts                — projectRecord — the columns a table draws, the edge each is held against (`ColumnEdge`), the card layout (`RecordCardView`), the rows and their paging
     validate.ts               — validateRecord — columns, sort, card and summaries against the definition
     index.ts                  — The record kernel: a definition and a config in, a Wow query or a rendered view out
   analysis/                   — Analysis kernel — imports model and filter
@@ -183,7 +184,7 @@ src/
     definitions.ts            — The definition registry: judged once, refused at the point of use
     environment.ts            — `RuntimeEnvironment` and the `VisibilitySource` port; `ALWAYS_VISIBLE`, `defaultRuntimeEnvironment`
     execute.ts                — The two execution kinds a runtime drives
-    exportRows.ts             — Fetching every row the conditions match, page by page, under `exportMax`
+    exportRows.ts             — Fetching every row the conditions match, page by page, under `exportMax` and the source's paging window (`exportPlan`)
     issues.ts                 — `toIssue`: one Issue for whatever a command threw
     listeners.ts              — `listenerSet`: the subscribe / notify half every store in this package has
     openRuntimes.ts           — The views one engine has open, and who holds an instance

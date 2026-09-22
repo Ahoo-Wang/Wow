@@ -30,6 +30,7 @@ import {
   testSource,
 } from '../fixtures.js';
 import { tracked } from './writes.js';
+import { pagedPaging } from '../../src/record/index.js';
 
 export { mine };
 
@@ -85,11 +86,12 @@ export function recordTableController(
     card: { title: 'amount', fields: [] },
     cardSpec: { title: 'amount', fields: [] },
     setCard: () => {},
+    fieldGroups: [],
     rows: [
       { key: 'o-1', data: { amount: 1 } },
       { key: 'o-2', data: { amount: 2 } },
     ],
-    paging: { mode: 'paged', index: 1, total: 42 },
+    paging: pagedPaging({ index: 1, size: 20, total: 42 }),
     summaries: null,
     status: 'success',
     error: null,
@@ -167,7 +169,8 @@ export function twoColumnTable(
     },
     cardSpec: { title: '', fields: [] },
     setCard: () => {},
-    paging: { mode: 'paged', index: 1, total: 2 },
+    fieldGroups: [],
+    paging: pagedPaging({ index: 1, size: 20, total: 2 }),
     summaries: null,
     status: 'success',
     error: null,

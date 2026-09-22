@@ -145,6 +145,7 @@ export const zhCN: ViewMessages = {
   'label.pagination.page-size': '每页',
   'label.pagination.page-size-option': '{size} 条',
   'label.pagination.go-to': '跳到第…页',
+  'label.pagination.window': '只能翻到前 {count} 条，缩小范围看其余',
   'label.record.empty': '没有可显示的内容',
   'label.record.empty-hint': '没有记录符合当前条件。',
   'label.record.empty-clear': '清空条件',
@@ -961,6 +962,10 @@ export const zhCN: ViewMessages = {
   'definition.field.name-invalid': '{field} 不是可用的字段名。',
   'definition.id.separator': '定义 id 不能带 {separator}。',
   'definition.record.layouts-empty': '记录能力没有给出布局。',
+  'definition.record.max-window-invalid':
+    '分页窗口必须是大于零的整数行数，而不是 {value}。',
+  'definition.record.max-window-cursor':
+    '分页窗口限制的是页码，而这个源按游标翻页。',
   'definition.record.row-key-unknown': '行键 {field} 不是已声明的字段。',
   'definition.record.row-field-unknown': '行字段 {field} 不是已声明的字段。',
   'definition.record.row-field-not-a-path':

@@ -21,6 +21,7 @@ import {
   builtinFieldKinds,
   DataViewRuntime,
   DEFAULT_RUNTIME_LIMITS,
+  exportPlan,
   isExportCancelled,
   RequestRunner,
   type DataViewDefinition,
@@ -162,6 +163,50 @@ describe('exporting every row the applied config matches', () => {
 
     expect(exported.rows).toHaveLength(3);
     expect(exported.capped).toBe(true);
+  });
+
+  /**
+   * A page past the source's paging window is refused outright, so an export
+   * that went on asking would fail after fetching every row before it. It
+   * stops at the last whole page inside the window instead, and says the
+   * file is short.
+   */
+  it('stops at the source paging window, below the limits', async () => {
+    const source = pagedSource(orders(9));
+    const runtime = openRecord({
+      source,
+      definition: ordersDefinition({
+        record: {
+          rowKey: 'id',
+          paging: 'paged',
+          layouts: ['table'],
+          maxWindow: 7,
+        },
+      }),
+    });
+
+    const exported = await runtime.exportRows();
+
+    // Two pages of three stay inside a window of seven; the third would
+    // reach row nine.
+    expect(exported.rows).toHaveLength(6);
+    expect(exported.capped).toBe(true);
+    expect(
+      vi.mocked(source.paged).mock.calls.map(([query]) => query.pagination),
+    ).toEqual([
+      { index: 1, size: 3 },
+      { index: 2, size: 3 },
+    ]);
+  });
+
+  it('shrinks its page to a window smaller than one page', async () => {
+    expect(
+      exportPlan({ exportMax: 100, maxPageSize: 200 }, { maxWindow: 50 }),
+    ).toEqual({ size: 50, max: 50 });
+    expect(exportPlan({ exportMax: 100, maxPageSize: 200 })).toEqual({
+      size: 200,
+      max: 100,
+    });
   });
 
   it('reports what it has after every page', async () => {

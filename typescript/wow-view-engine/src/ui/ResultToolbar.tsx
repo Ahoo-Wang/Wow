@@ -21,7 +21,7 @@ import type {
   RecordBulkActionContext,
   RecordTableController,
 } from '../react/index.js';
-import type { RecordViewRuntime } from '../runtime/index.js';
+import { exportPlan, type RecordViewRuntime } from '../runtime/index.js';
 import { Badge } from './components/badge.js';
 import { Button } from './components/button.js';
 import { ButtonGroup } from './components/button-group.js';
@@ -91,9 +91,9 @@ export interface ResultToolbarProps {
    */
   features?: WorkbenchFeatures;
   /**
-   * The runtime behind the controller. The toolbar reads nothing off it; it
-   * only hands it to `bulkActions`, whose actions are commands against the
-   * view they act in.
+   * The runtime behind the controller. The toolbar reads only the export's
+   * ceiling off it (`exportPlan`); otherwise it hands it to `bulkActions`,
+   * whose actions are commands against the view they act in.
    */
   runtime: RecordViewRuntime;
 }
@@ -361,7 +361,9 @@ export function ResultToolbar({
           <ExportDialog
             {...exporter}
             columns={table.columns}
-            max={runtime.limits.exportMax}
+            // The ceiling the export will really stop at: the limit, and
+            // the source's paging window below it where one is declared.
+            max={exportPlan(runtime.limits, runtime.definition.record).max}
           />
         )}
       </div>

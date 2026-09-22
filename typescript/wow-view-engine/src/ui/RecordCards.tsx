@@ -12,8 +12,8 @@
  */
 
 import type * as React from 'react';
-import type { RecordCardField, RecordTableController } from '../react/index.js';
-import type { RecordRow } from '../record/index.js';
+import type { RecordTableController } from '../react/index.js';
+import type { RecordCardField, RecordRow } from '../record/index.js';
 import { recordValue } from '../record/index.js';
 import { RowActions } from './RowActions.js';
 import { Checkbox } from './components/checkbox.js';

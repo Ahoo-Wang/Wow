@@ -746,7 +746,13 @@ describe('projectRecord', () => {
       },
     ]);
     expect(view.rows.map(row => row.key)).toEqual(['A1', 'A2']);
-    expect(view.paging).toEqual({ mode: 'paged', index: 1, total: 2 });
+    expect(view.paging).toMatchObject({
+      mode: 'paged',
+      index: 1,
+      total: 2,
+      pages: 1,
+      hasNext: false,
+    });
   });
 
   /**
@@ -1090,7 +1096,11 @@ describe('projectRecord', () => {
       list: rows,
       nextCursor: 'c2',
     });
-    expect(view.paging).toEqual({ mode: 'cursor', nextCursor: 'c2' });
+    expect(view.paging).toEqual({
+      mode: 'cursor',
+      nextCursor: 'c2',
+      hasNext: true,
+    });
   });
 
   it('reads a nested row key', () => {

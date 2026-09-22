@@ -17,6 +17,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MessagesProvider, ViewSurface, zhCN } from '../src/ui/index.js';
 import { RecordPagination } from '../src/ui/RecordPagination.js';
 import { recordTableController as tableController } from './fixtures/ui.js';
+import { cursorPaging, pagedPaging } from '../src/record/index.js';
 
 afterEach(cleanup);
 
@@ -96,7 +97,7 @@ describe('RecordPagination counts the records', () => {
     render(
       <RecordPagination
         table={tableController({
-          paging: { mode: 'paged', index: 1 },
+          paging: pagedPaging({ index: 1, size: 20 }),
         })}
       />,
     );
@@ -137,7 +138,7 @@ describe('RecordPagination counts the records', () => {
         table={tableController({
           rows: [],
           hasResult: false,
-          paging: { mode: 'paged', index: 1 },
+          paging: pagedPaging({ index: 1, size: 20 }),
           status: 'loading',
         })}
       />,
@@ -174,7 +175,7 @@ describe('RecordPagination counts the records', () => {
       <RecordPagination
         table={tableController({
           rows: [],
-          paging: { mode: 'paged', index: 3 },
+          paging: pagedPaging({ index: 3, size: 20 }),
           hasNext: false,
         })}
       />,
@@ -192,7 +193,7 @@ describe('RecordPagination counts the records', () => {
       <RecordPagination
         table={tableController({
           rows: [],
-          paging: { mode: 'paged', index: 1, total: 0 },
+          paging: pagedPaging({ index: 1, size: 20, total: 0 }),
         })}
       />,
     );
@@ -298,7 +299,7 @@ describe('RecordPagination moving between pages', () => {
     render(
       <RecordPagination
         table={tableController({
-          paging: { mode: 'paged', index: 2, total: 42 },
+          paging: pagedPaging({ index: 2, size: 20, total: 42 }),
           next,
           previous,
         })}
@@ -316,7 +317,7 @@ describe('RecordPagination moving between pages', () => {
     render(
       <RecordPagination
         table={tableController({
-          paging: { mode: 'paged', index: 3, total: 42 },
+          paging: pagedPaging({ index: 3, size: 20, total: 42 }),
           hasNext: false,
         })}
       />,
@@ -345,7 +346,7 @@ describe('RecordPagination moving between pages', () => {
     render(
       <RecordPagination
         table={tableController({
-          paging: { mode: 'paged', index: 1, total: 2 },
+          paging: pagedPaging({ index: 1, size: 20, total: 2 }),
           hasNext: false,
         })}
       />,
@@ -368,7 +369,7 @@ describe('RecordPagination moving between pages', () => {
   it('keeps the arrows where a single page cannot be proved', () => {
     render(
       <RecordPagination
-        table={tableController({ paging: { mode: 'paged', index: 1 } })}
+        table={tableController({ paging: pagedPaging({ index: 1, size: 20 }) })}
       />,
     );
     expect(screen.getByRole('button', { name: 'Next page' })).toBeTruthy();
@@ -378,7 +379,7 @@ describe('RecordPagination moving between pages', () => {
       <RecordPagination
         table={tableController({
           rows: [],
-          paging: { mode: 'paged', index: 2, total: 2 },
+          paging: pagedPaging({ index: 2, size: 20, total: 2 }),
           hasNext: false,
         })}
       />,
@@ -396,7 +397,7 @@ describe('RecordPagination moving between pages', () => {
     render(
       <RecordPagination
         table={tableController({
-          paging: { mode: 'cursor', nextCursor: 'c-2' },
+          paging: cursorPaging('c-2'),
         })}
       />,
     );
@@ -418,7 +419,7 @@ describe('RecordPagination moving between pages', () => {
     render(
       <RecordPagination
         table={tableController({
-          paging: { mode: 'cursor', nextCursor: null },
+          paging: cursorPaging(null),
           hasNext: false,
         })}
       />,
@@ -441,7 +442,7 @@ describe('RecordPagination moving between pages', () => {
     render(
       <RecordPagination
         table={tableController({
-          paging: { mode: 'paged', index: 2, total: 42 },
+          paging: pagedPaging({ index: 2, size: 20, total: 42 }),
         })}
       />,
     );
@@ -475,7 +476,7 @@ describe('RecordPagination moving between pages', () => {
 describe('RecordPagination jumping to a page', () => {
   const paged = (overrides = {}) =>
     tableController({
-      paging: { mode: 'paged', index: 2, total: 42 },
+      paging: pagedPaging({ index: 2, size: 20, total: 42 }),
       ...overrides,
     });
 
@@ -578,7 +579,7 @@ describe('RecordPagination jumping to a page', () => {
   it('is not drawn for a source that reports no total', () => {
     render(
       <RecordPagination
-        table={tableController({ paging: { mode: 'cursor', nextCursor: 'c' } })}
+        table={tableController({ paging: cursorPaging('c') })}
       />,
     );
 
@@ -588,7 +589,7 @@ describe('RecordPagination jumping to a page', () => {
   it('is not drawn for a paged source that reports no total', () => {
     render(
       <RecordPagination
-        table={tableController({ paging: { mode: 'paged', index: 1 } })}
+        table={tableController({ paging: pagedPaging({ index: 1, size: 20 }) })}
       />,
     );
 
@@ -601,7 +602,7 @@ describe('RecordPagination jumping to a page', () => {
     render(
       <RecordPagination
         table={tableController({
-          paging: { mode: 'paged', index: 1, total: 4 },
+          paging: pagedPaging({ index: 1, size: 20, total: 4 }),
           hasNext: false,
         })}
       />,
@@ -623,7 +624,7 @@ describe('RecordPagination jumping to a page', () => {
     rerender(
       <RecordPagination
         table={tableController({
-          paging: { mode: 'paged', index: 1, total: 42 },
+          paging: pagedPaging({ index: 1, size: 20, total: 42 }),
         })}
       />,
     );
@@ -677,7 +678,7 @@ describe('RecordPagination groups its numbers', () => {
   const large = () =>
     tableController({
       pageSize: 20,
-      paging: { mode: 'paged', index: 1, total: 624082 },
+      paging: pagedPaging({ index: 1, size: 20, total: 624082 }),
     });
 
   it('groups the total and the page count in English', () => {
@@ -716,5 +717,139 @@ describe('RecordPagination groups its numbers', () => {
     );
 
     expect(screen.getByText('Page 1 of 31.205')).toBeTruthy();
+  });
+});
+
+/**
+ * A source that refuses a page past its window (`RecordCapability.maxWindow`)
+ * — Wow over Elasticsearch, at 10 000 rows. The bar used to offer every page
+ * of the total, and page 600 of 31 205 came back a 400.
+ */
+describe('RecordPagination under a source window', () => {
+  const windowed = (index: number, overrides = {}) => {
+    const paging = pagedPaging({
+      index,
+      size: 20,
+      total: 624_100,
+      maxWindow: 10_000,
+    });
+    return tableController({ paging, hasNext: paging.hasNext, ...overrides });
+  };
+
+  it('counts the pages it can reach, and says where they stop', () => {
+    render(<RecordPagination table={windowed(1)} />);
+
+    // Numbers are grouped: nobody should count the digits of a total.
+    expect(screen.getByText('624,100 records in all')).toBeTruthy();
+    expect(screen.getByText('Page 1 of 500')).toBeTruthy();
+    const line = screen.getByText(
+      'Only the first 10,000 records can be paged through; narrow the conditions to see the rest',
+    );
+    expect(line.dataset.slot).toBe('record-pagination-window');
+    // The line is part of what the bar is, and of what the box is for.
+    const bar = screen.getByRole('navigation', { name: 'Pagination' });
+    expect(bar.getAttribute('aria-describedby')).toBe(line.id);
+    expect(
+      screen
+        .getByRole('textbox', { name: 'Go to page' })
+        .getAttribute('aria-describedby'),
+    ).toBe(line.id);
+  });
+
+  it('says it in Chinese with the catalogue in force', () => {
+    render(
+      <MessagesProvider messages={zhCN}>
+        <RecordPagination table={windowed(1)} />
+      </MessagesProvider>,
+    );
+
+    expect(
+      screen.getByText('只能翻到前 10,000 条，缩小范围看其余'),
+    ).toBeTruthy();
+  });
+
+  it('stops Next at the last reachable page', () => {
+    render(<RecordPagination table={windowed(500)} />);
+
+    expect(screen.getByText('Page 500 of 500')).toBeTruthy();
+    expect(
+      screen
+        .getByRole('button', { name: 'Next page' })
+        .hasAttribute('disabled'),
+    ).toBe(true);
+    expect(
+      screen
+        .getByRole('button', { name: 'Previous page' })
+        .hasAttribute('disabled'),
+    ).toBe(false);
+  });
+
+  it('clamps a jump past the window to the last page it can reach', async () => {
+    const goTo = vi.fn();
+    const user = userEvent.setup();
+    render(<RecordPagination table={windowed(1, { goTo })} />);
+
+    const box = screen.getByRole('textbox', { name: 'Go to page' });
+    await user.clear(box);
+    await user.type(box, '600{Enter}');
+    expect(goTo).toHaveBeenCalledWith(500);
+    expect((box as HTMLInputElement).value).toBe('500');
+  });
+
+  it('draws no line where the window covers every page', () => {
+    render(
+      <RecordPagination
+        table={tableController({
+          paging: pagedPaging({
+            index: 1,
+            size: 20,
+            total: 42,
+            maxWindow: 10_000,
+          }),
+        })}
+      />,
+    );
+
+    expect(screen.queryByText(/can be paged through/)).toBeNull();
+    expect(
+      screen
+        .getByRole('navigation', { name: 'Pagination' })
+        .hasAttribute('aria-describedby'),
+    ).toBe(false);
+  });
+
+  /**
+   * A jump that fails leaves the page where it was, so a box that followed
+   * `index` alone kept saying the page asked for beside the page shown. It
+   * holds the page asked for only while the answer is on its way.
+   */
+  it('goes back to the page shown once a jump settles without moving', async () => {
+    const user = userEvent.setup();
+    const at = (overrides = {}) =>
+      tableController({
+        paging: pagedPaging({ index: 1, size: 20, total: 624_100 }),
+        ...overrides,
+      });
+    const { rerender } = render(<RecordPagination table={at()} />);
+
+    const box = () =>
+      screen.getByRole('textbox', { name: 'Go to page' }) as HTMLInputElement;
+    await user.clear(box());
+    await user.type(box(), '600{Enter}');
+    expect(box().value).toBe('600');
+
+    rerender(<RecordPagination table={at({ status: 'loading' })} />);
+    expect(box().value).toBe('600');
+
+    rerender(<RecordPagination table={at({ status: 'error' })} />);
+    expect(box().value).toBe('1');
+
+    // A refresh that settles while the reader is typing leaves their number
+    // alone: only the page the box itself asked for is taken back.
+    await user.clear(box());
+    await user.type(box(), '7');
+    rerender(<RecordPagination table={at({ status: 'loading' })} />);
+    rerender(<RecordPagination table={at({ status: 'success' })} />);
+    expect(box().value).toBe('7');
   });
 });

@@ -13,10 +13,8 @@
 
 import { useCallback, useMemo } from 'react';
 import type {
-  FieldDefinition,
-  FieldOption,
+  FieldGroupDefinition,
   Issue,
-  NumberFormat,
   RecordCardSpec,
   RecordColumn,
   RecordKey,
@@ -40,8 +38,9 @@ import {
   repairing,
   summariesOf,
 } from './recordEdits.js';
-import { maxSortFields } from '../record/index.js';
+import { clampPage, maxSortFields } from '../record/index.js';
 import type {
+  RecordCardView,
   RecordColumnView,
   RecordPaging,
   RecordRow,
@@ -55,54 +54,6 @@ import {
 import type { RecordViewConfig } from '../model/index.js';
 import { useViewRuntime } from './useViewEngine.js';
 
-/**
- * The card layout of the result on screen, resolved against the definition.
- *
- * A card is not a narrow table: the saved config says which field titles it,
- * which fields make up its body and where its image comes from, and none of
- * that is derivable from the table's columns.
- */
-export interface RecordCardView {
-  /** Field whose value titles each card; the row key when it holds none. */
-  title: string;
-  /** How the title's values show, when the definition still has the field. */
-  titleField?: RecordCardField;
-  /** Fields of the card body, in order, with their labels resolved. */
-  fields: RecordCardField[];
-  /** Field holding an image URL, when the config asks for one. */
-  image?: string;
-  /** How many cards stand in one row; see `RecordCardSpec.perRow`. */
-  perRow?: 1 | 2 | 3 | 4;
-}
-
-/**
- * One field of a card. It carries what a column carries about how a value
- * reads — a card is a row folded out, and `RecordCards` hands a host's
- * `renderCell` the same `column` for a value on a card as the table does
- * for the same value — with the parts a card never has (pinning, width,
- * sorting) left out. `kind` and `cell` are optional for a controller built
- * by hand; the workbench's always names them.
- */
-export interface RecordCardField {
-  field: string;
-  label: string;
-  kind?: string;
-  cell?: string;
-  options?: readonly FieldOption[];
-  numberFormat?: NumberFormat;
-}
-
-function cardField(field: FieldDefinition): RecordCardField {
-  return {
-    field: field.name,
-    label: field.label,
-    kind: field.kind,
-    cell: field.cell ?? field.kind,
-    ...(field.options ? { options: field.options } : {}),
-    ...(field.numberFormat ? { numberFormat: field.numberFormat } : {}),
-  };
-}
-
 /** How {@link RecordTableController.toggleSort} treats the other columns. */
 export interface ToggleSortOptions {
   /** Make the cycled field the whole sort rather than joining it. */
@@ -112,8 +63,19 @@ export interface ToggleSortOptions {
 export interface RecordTableController {
   /** Columns of the result on screen, which follow the executed config. */
   columns: RecordColumnView[];
-  /** The card layout of the same result; both are saved side by side. */
+  /**
+   * The card layout of the same result, projected by the kernel beside the
+   * columns; both halves are saved side by side.
+   */
   card: RecordCardView;
+  /**
+   * The field that says which record a row is — the definition's row key,
+   * handed on so a control that lists the columns can hold it in place
+   * without reading the definition itself. Absent before a runtime exists.
+   */
+  rowKey?: string;
+  /** The picker groups the definition declares, for the column settings. */
+  fieldGroups: readonly FieldGroupDefinition[];
   /**
    * The card half of the draft, as the settings edit it — the draft rather
    * than the result's config, for the reason `columnFields` reads the
@@ -127,6 +89,12 @@ export interface RecordTableController {
    */
   setCard(patch: Partial<RecordCardSpec>): void;
   rows: RecordRow[];
+  /**
+   * Where the result stands: the page and size that ran, the pages the
+   * pager can reach and whether a window cuts them short of the total
+   * (`record/paging.ts`). The pager reads these and does no arithmetic of
+   * its own.
+   */
   paging: RecordPaging | null;
   summaries: SummaryRow | null;
   status: QueryStatus;
@@ -296,12 +264,18 @@ export interface RecordTableController {
   toggleAll(): void;
   clearSelection(): void;
 
-  /** Paged sources only; a cursor source has no page numbers to jump to. */
+  /**
+   * Paged sources only; a cursor source has no page numbers to jump to. A
+   * page past the last reachable one lands on that one — past the end, the
+   * reader wants the end, and a page beyond the source's window is one the
+   * source refuses.
+   */
   goTo(index: number): void;
   /**
    * Whether there is a page after this one: the next cursor for a cursor
-   * source, and the total against the page reached for a paged one. A source
-   * that reports no total cannot say, so it is taken as "there may be".
+   * source; for a paged one, the pages it can reach against the page that
+   * ran. A source that reports no total cannot say, so it is taken as
+   * "there may be" — up to its window, where it declares one.
    */
   hasNext: boolean;
   /** No-op at the end, where there is no next page to ask for. */
@@ -318,6 +292,7 @@ const NO_SELECTION: RecordKey[] = [];
 const NO_ROWS: RecordRow[] = [];
 const NO_LAYOUTS: RecordLayout[] = [];
 const NO_CARD: RecordCardView = { title: '', fields: [] };
+const NO_GROUPS: readonly FieldGroupDefinition[] = [];
 const NO_CARD_SPEC: RecordCardSpec = { title: '', fields: [] };
 
 /**
@@ -413,42 +388,19 @@ export function useRecordTable(
   const paging = view?.paging ?? null;
   const pageSize = state?.draft.pageSize ?? 0;
 
-  // Like the columns, the card follows the config that ran rather than the
-  // draft, so a body field appears with the rows it belongs to. Labels come
-  // from the definition; the kernel projects columns, not cards.
-  const cardSpec = state?.result?.config.card ?? null;
-  const fields = runtime?.definition.fields;
-  const card = useMemo<RecordCardView>(() => {
-    if (!cardSpec) return NO_CARD;
-    const byName = new Map((fields ?? []).map(field => [field.name, field]));
-    const titleField = byName.get(cardSpec.title);
-    return {
-      title: cardSpec.title,
-      ...(titleField ? { titleField: cardField(titleField) } : {}),
-      // A field the definition dropped is left out rather than shown as a
-      // blank row; `validateRecord` reports it separately.
-      fields: cardSpec.fields.flatMap(name => {
-        const field = byName.get(name);
-        return field ? [cardField(field)] : [];
-      }),
-      ...(cardSpec.image === undefined ? {} : { image: cardSpec.image }),
-      ...(cardSpec.perRow === undefined ? {} : { perRow: cardSpec.perRow }),
-    };
-  }, [cardSpec, fields]);
-
-  const hasNext =
-    paging === null
-      ? false
-      : paging.mode === 'cursor'
-        ? paging.nextCursor !== null
-        : // A source that returns no total cannot rule the next page out.
-          paging.total === undefined ||
-          pageSize <= 0 ||
-          paging.index * pageSize < paging.total;
+  // The paging facts are the kernel's, worked out from the page and size
+  // that ran; the draft's size may be a different one still on its way.
+  const hasNext = paging?.hasNext ?? false;
+  const definition =
+    runtime?.definition.kind === 'data' ? runtime.definition : undefined;
 
   return {
     columns: view?.columns ?? [],
-    card,
+    // Like the columns, the card follows the config that ran rather than the
+    // draft, so a body field appears with the rows it belongs to.
+    card: view?.card ?? NO_CARD,
+    rowKey: definition?.record?.rowKey,
+    fieldGroups: definition?.fieldGroups ?? NO_GROUPS,
     cardSpec: state?.draft.card ?? NO_CARD_SPEC,
     setCard: useCallback(
       (patch: Partial<RecordCardSpec>) => {
@@ -480,16 +432,10 @@ export function useRecordTable(
     ),
     // The kernel owns the rule; the controller only hands it on, so the
     // ceiling a control stops at is the one `validateRecord` refuses past.
-    maxSortFields:
-      runtime?.definition.kind === 'data'
-        ? maxSortFields(runtime.definition)
-        : 0,
+    maxSortFields: definition ? maxSortFields(definition) : 0,
 
     layout: state?.draft.layout ?? 'table',
-    layouts:
-      runtime?.definition.kind === 'data'
-        ? (runtime.definition.record?.layouts ?? NO_LAYOUTS)
-        : NO_LAYOUTS,
+    layouts: definition?.record?.layouts ?? NO_LAYOUTS,
     setLayout: useCallback(
       (layout: RecordLayout) => {
         if (!runtime) return;
@@ -659,7 +605,7 @@ export function useRecordTable(
     goTo: useCallback(
       (index: number) => {
         if (paging?.mode !== 'paged') return;
-        runtime?.page({ index });
+        runtime?.page({ index: clampPage(paging, index) });
       },
       [runtime, paging],
     ),

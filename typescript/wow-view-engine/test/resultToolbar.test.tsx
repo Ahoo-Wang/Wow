@@ -25,17 +25,20 @@ import type { ExportOffer } from '../src/ui/ExportDialog.js';
 import { MessagesProvider } from '../src/ui/MessagesProvider.js';
 import { ResultToolbar } from '../src/ui/ResultToolbar.js';
 import { recordTableController } from './fixtures/ui.js';
+import { pagedPaging } from '../src/record/index.js';
 
 afterEach(cleanup);
 
 /**
  * The toolbar reads one thing off the runtime — the export ceiling the
- * window puts on screen — and otherwise only hands it to a bulk action, so a
- * sentinel is enough to prove it hands over the same one.
+ * window puts on screen, which is the limit and the source's paging window
+ * under it — and otherwise only hands it to a bulk action, so a sentinel is
+ * enough to prove it hands over the same one.
  */
 const runtime = {
   id: 'r-1',
-  limits: { exportMax: 10000 },
+  limits: { exportMax: 10000, maxPageSize: 200 },
+  definition: { kind: 'data', record: { paging: 'paged' } },
 } as unknown as RecordViewRuntime;
 
 const FIELDS: FieldDefinition[] = [
@@ -57,7 +60,7 @@ function tableController(
       { key: 'o-2', data: { amount: 2 } },
       { key: 'o-3', data: { amount: 3 } },
     ],
-    paging: { mode: 'paged', index: 1, total: 3 },
+    paging: pagedPaging({ index: 1, size: 20, total: 3 }),
     cardSpec: { title: '', fields: [] },
     hasNext: false,
     ...overrides,
@@ -597,6 +600,38 @@ describe('ResultToolbar export', () => {
     // this replaces the separate question the menu used to ask first.
     expect((await screen.findByRole('dialog')).textContent).toContain(
       'That is more than the 10,000 one export carries; the file will hold the first 10,000.',
+    );
+  });
+
+  /**
+   * The source's paging window is a ceiling of its own: a page past it is
+   * refused, so the export stops there, and the window says so before the
+   * button rather than naming a limit the file will never reach.
+   */
+  it('puts the paging window as the ceiling where it is the lower one', async () => {
+    const user = userEvent.setup();
+    const windowed = {
+      ...runtime,
+      limits: { exportMax: 50000, maxPageSize: 300 },
+      definition: {
+        kind: 'data',
+        record: { paging: 'paged', maxWindow: 10000 },
+      },
+    } as unknown as RecordViewRuntime;
+    render(
+      <ResultToolbar
+        table={tableController()}
+        fields={FIELDS}
+        runtime={windowed}
+        exporter={exportOffer({ scopes: { all: 42000 } })}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Export' }));
+
+    // 33 whole pages of 300 fit inside 10 000; the 34th would reach 10 200.
+    expect((await screen.findByRole('dialog')).textContent).toContain(
+      'That is more than the 9,900 one export carries; the file will hold the first 9,900.',
     );
   });
 

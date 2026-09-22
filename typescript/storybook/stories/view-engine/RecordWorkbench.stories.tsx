@@ -200,6 +200,7 @@ function RecordWorkbenchDemo({
   instanceId,
   broken = false,
   paged = false,
+  pagingWindow,
   withActions = false,
   english = false,
   keepStore = false,
@@ -235,6 +236,11 @@ function RecordWorkbenchDemo({
   broken?: boolean;
   /** Saves a page size small enough that the result spans several pages. */
   paged?: boolean;
+  /**
+   * Declares a paging window on the orders (`RecordCapability.maxWindow`),
+   * the way a search-backed source bounds how far its pages reach.
+   */
+  pagingWindow?: number;
   /** Fills the three action slots, the way a business page would. */
   withActions?: boolean;
   /**
@@ -373,6 +379,22 @@ function RecordWorkbenchDemo({
           return createStoryEngine({
             behaviour,
             ...(store ? { store } : {}),
+            ...(pagingWindow === undefined
+              ? {}
+              : {
+                  definitions: [
+                    {
+                      ...ordersDefinition,
+                      record: {
+                        rowKey: 'id',
+                        paging: 'paged' as const,
+                        layouts: ['table' as const, 'card' as const],
+                        maxWindow: pagingWindow,
+                      },
+                    },
+                    overviewDefinition,
+                  ],
+                }),
             // The export's own pages, where the story is about them: `slow`
             // and `failing` answer the view normally and treat the export's
             // whole-page request differently, and `capped` only lowers the
@@ -667,6 +689,7 @@ const meta = {
     broken: { table: { disable: true } },
     opening: { table: { disable: true } },
     paged: { table: { disable: true } },
+    pagingWindow: { table: { disable: true } },
     instanceId: { table: { disable: true } },
     withActions: { table: { disable: true } },
     english: { table: { disable: true } },
@@ -767,6 +790,14 @@ export const NoViews: Story = { args: { noViews: true } };
  * 以及前后两步。翻页不写进配置，改每页条数则是一次编辑，会立刻应用。
  */
 export const Paged: Story = { args: { paged: true } };
+
+/**
+ * 源自己有分页窗口时（`RecordCapability.maxWindow`，Wow 走 Elasticsearch 时是
+ * 一万条）：六单每页两单，窗口四条，于是只翻得到两页。页数按窗口算，最后一页
+ * 的「下一页」按不动，跳页超出就落在最后一页，左边多一句「只能翻到前 4 条，缩
+ * 小范围看其余」——其余的要靠上面的条件缩小，而不是翻页。
+ */
+export const PagedWindow: Story = { args: { paged: true, pagingWindow: 4 } };
 
 /**
  * The host's own commands in the three places they belong: over the view, over

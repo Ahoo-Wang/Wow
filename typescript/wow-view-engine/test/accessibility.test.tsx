@@ -43,6 +43,7 @@ import {
 } from './fixtures.js';
 import { recordTableController } from './fixtures/ui.js';
 import { openTray } from './fixtures/workbench.js';
+import { pagedPaging } from '../src/record/index.js';
 
 /**
  * Axe over the three default workbenches.
@@ -697,7 +698,7 @@ describe('the default workbenches pass axe', () => {
       <ViewSurface>
         <RecordPagination
           table={recordTableController({
-            paging: { mode: 'paged', index: 2, total: 42 },
+            paging: pagedPaging({ index: 2, size: 20, total: 42 }),
           })}
         />
       </ViewSurface>,

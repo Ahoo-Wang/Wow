@@ -30,6 +30,7 @@ import {
   stickyHead,
 } from '../src/ui/record/sticky.js';
 import { recordTableController } from './fixtures/ui.js';
+import { pagedPaging } from '../src/record/index.js';
 
 afterEach(cleanup);
 
@@ -801,7 +802,7 @@ function controller(
     columns,
     rows: [{ key: 'o-1', data }],
     card: { title: columns[0].field, fields: [] },
-    paging: { mode: 'paged', index: 1, total: 1 },
+    paging: pagedPaging({ index: 1, size: 20, total: 1 }),
     summaries: { scope: 'page', cells: [] },
     columnFields: columns.map(entry => entry.field),
     ...overrides,

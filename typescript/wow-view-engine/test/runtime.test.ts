@@ -190,6 +190,7 @@ describe('DataViewRuntime execution', () => {
     expect(recordData(runtime).view.paging).toEqual({
       mode: 'cursor',
       nextCursor: 'cursor-2',
+      hasNext: true,
     });
   });
 
@@ -383,10 +384,11 @@ describe('DataViewRuntime paging and selection', () => {
       expect.any(AbortController),
     );
     expect(runtime.getSnapshot().selection).toEqual([]);
-    expect(recordData(runtime).view.paging).toEqual({
+    expect(recordData(runtime).view.paging).toMatchObject({
       mode: 'paged',
       index: 3,
       total: 2,
+      hasNext: false,
     });
   });
 

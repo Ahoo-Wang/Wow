@@ -19,6 +19,7 @@ import { RecordCards } from '../src/ui/RecordCards.js';
 import { RecordTable } from '../src/ui/RecordTable.js';
 import { RowActions } from '../src/ui/RowActions.js';
 import { recordTableController } from './fixtures/ui.js';
+import { pagedPaging } from '../src/record/index.js';
 
 afterEach(cleanup);
 
@@ -31,7 +32,7 @@ function tableController(
 ): RecordTableController {
   return recordTableController({
     cardSpec: { title: '', fields: [] },
-    paging: { mode: 'paged', index: 1, total: 2 },
+    paging: pagedPaging({ index: 1, size: 20, total: 2 }),
     hasNext: false,
     ...overrides,
   });

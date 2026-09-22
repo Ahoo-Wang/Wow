@@ -114,6 +114,17 @@ export interface RecordCapability {
   rowKey: string;
   /** Decides whether the runtime calls `source.paged` or `source.cursor`. */
   paging: PagingMode;
+  /**
+   * The most rows a paged query may reach: page × size.
+   *
+   * A search-backed source refuses a page whose window runs past a bound of
+   * its own — Wow over Elasticsearch answers 400 once `index × size` passes
+   * 10 000 — so a pager that divides the total by the size offers pages the
+   * source will not serve. Declared, the pager stops at the last page inside
+   * it and says why. Left out, the source has no window. A `paged` source
+   * only: a cursor is a position, and has no window to run past.
+   */
+  maxWindow?: number;
   layouts: RecordLayout[];
   /**
    * Fields every fetched row carries whatever the view shows, because the
