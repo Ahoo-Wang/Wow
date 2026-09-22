@@ -106,24 +106,26 @@ const EDGE = {
 function held(pin: StickyPin): string {
   return cn(
     'sticky z-10 bg-inherit',
-    // Against the port's own edge, which is where the two chrome columns
-    // sit: nothing is ever held outside them, so they need no offset.
-    pin.offset === undefined && (pin.side === 'left' ? 'left-0' : 'right-0'),
+    // Against the port's own edge. On the right that is the only place there
+    // is; on the left it is where the two chrome columns sit, with nothing
+    // outside them to clear.
+    pin.side === 'right' ? 'right-0' : pin.offset === undefined && 'left-0',
     pin.edge && EDGE[pin.side],
   );
 }
 
 /**
- * One column the table holds against an edge, as every layer's cell needs
- * it. `columns.ts` decides which columns get one; this file decides what
- * wearing one looks like.
+ * A column held against the **left** edge: the one side with a chain on it.
+ *
+ * Several columns can be held there — the selection box, then the row key,
+ * then whatever else the config pinned — so each has to stop where the ones
+ * before it end, and each of those places is measured.
  */
-export interface StickyPin {
-  /** Which edge it is held against. */
-  side: PinSide;
+export interface LeftPin {
+  side: 'left';
   /**
    * The column's place in the result, which names its measured offset. The
-   * two chrome columns have none — they sit against the port's own edge.
+   * selection column has none — it sits against the port's own edge.
    */
   index?: number;
   /**
@@ -139,6 +141,31 @@ export interface StickyPin {
    */
   edge: boolean;
 }
+
+/**
+ * The one column held against the **right** edge, which is all that side
+ * ever has (D19): the host's action column, or the table's own last column
+ * where there is none.
+ *
+ * It carries neither an index nor an offset, and the type is why: with one
+ * column there, its place is the edge itself — a flat `right-0` — and there
+ * is no chain for a second column to stop against. The two-sided version of
+ * this interface outlived D19 by a batch, and what it bought was an offset
+ * chain that computed `right: var(--fve-pin-right-N, 0px)` and was `0px`
+ * every time it ran.
+ */
+export interface RightPin {
+  side: 'right';
+  /** Always true: the right side has nothing else on it to face (D19). */
+  edge: boolean;
+}
+
+/**
+ * One column the table holds against an edge, as every layer's cell needs
+ * it. `columns.ts` decides which columns get one; this file decides what
+ * wearing one looks like.
+ */
+export type StickyPin = LeftPin | RightPin;
 
 /** What one cell of the table wears, held or not. */
 export interface StickyCellProps {
@@ -185,15 +212,16 @@ export function stickyCell(
  * The header is what the offsets are measured from: a table with no rows
  * still has a header, and column widths come from the content rather than
  * from the config, so `usePinnedOffsets` adds up these cells and writes the
- * result back as `--fve-pin-{side}-{index}`. The chrome columns take part
- * in that sum without owning a variable — they are against the edge.
+ * result back as `--fve-pin-left-{index}`. The selection column takes part
+ * in that sum without owning a variable — it is against the edge — and the
+ * one column held on the right owns none either, for the same reason.
  */
 export function stickyHead(
   pin: StickyPin | undefined,
   styling: CellStyling = {},
 ): StickyCellProps {
   const cell = stickyCell(pin, styling);
-  if (pin?.index === undefined) return cell;
+  if (pin?.side !== 'left' || pin.index === undefined) return cell;
   return { ...cell, 'data-pin-index': pin.index };
 }
 
@@ -259,12 +287,14 @@ export function stickyBand(at: 'top' | 'bottom'): StickyBandProps {
  * The custom property carrying one held column's measured offset. The cells
  * read it with the config's own arithmetic as the fallback, so they are
  * placed before anything has been measured and corrected after.
+ *
+ * Left only, because the chain is (see {@link RightPin}).
  */
-export function pinVar(side: PinSide, index: number): string {
-  return `--fve-pin-${side}-${index}`;
+export function pinVar(index: number): string {
+  return `--fve-pin-left-${index}`;
 }
 
 function offsetOf(pin: StickyPin): CSSProperties | undefined {
-  if (pin.offset === undefined) return undefined;
-  return pin.side === 'left' ? { left: pin.offset } : { right: pin.offset };
+  if (pin.side !== 'left' || pin.offset === undefined) return undefined;
+  return { left: pin.offset };
 }

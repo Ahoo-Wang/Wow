@@ -21,11 +21,12 @@
  * component** holding a cva of its own. The vendored cva stays untouched and
  * is still composed — the wrapper picks the registry variant its case starts
  * from and adds one layer over it — and the call site passes a variant
- * rather than a colour. Six cases live here: a badge that has to read as a
+ * rather than a colour. Seven cases live here: a badge that has to read as a
  * status, a badge that has to hold a sentence, the answer that carries out a
  * destructive command, the one divider that has to be seen, the controls
- * inside a condition pill, which draw no chrome of their own, and the open
- * view in the sidebar. The one that is not here is `ui/alerts.tsx`, where
+ * inside a condition pill, which draw no chrome of their own, one row of
+ * records in its three states, and the open view in the sidebar. The one
+ * that is not here is `ui/alerts.tsx`, where
  * `LineAlert` does the same thing to `Alert`;
  * a callout has enough of its own to say (the tone's icon, the role it is
  * announced with) to be a file rather than an export here.
@@ -50,6 +51,7 @@ import { ComboboxChips } from './components/combobox.js';
 import { Input } from './components/input.js';
 import { SelectTrigger } from './components/select.js';
 import { Separator } from './components/separator.js';
+import { TableRow } from './components/table.js';
 
 /**
  * The registry variant each tone starts from.
@@ -369,6 +371,57 @@ export function PillSelectTrigger({
       className={cn(controlChromeVariants({ chrome }), className)}
       {...props}
     />
+  );
+}
+
+/**
+ * One row of the record table's body, in the three states it has to be told
+ * apart in: at rest, under the pointer, and picked.
+ *
+ * **Why the registry's own three will not do.** A cell of a held column is
+ * `bg-inherit` — it takes the row's fill, which is what keeps a frozen
+ * column opaque over the columns sliding beneath it (`record/sticky.ts`) —
+ * so every one of a row's three fills has to be opaque. The registry hovers
+ * to `bg-muted/50`, a 50% wash, and through it the reader saw the scrolling
+ * column that the held cell is standing in front of. `--row-hover`
+ * (`styles.css`) is that same shade mixed rather than washed, and
+ * `has-aria-expanded:` is the row whose menu is open, which the registry
+ * washes the same way.
+ *
+ * **And picked has to beat hovered.** The registry stops at
+ * `data-[state=selected]:bg-muted`, which the unqualified `:hover` above
+ * then overrode: a selected row lost its tint to the pointer merely passing
+ * over it, and with it the only mark saying it was in the selection. The
+ * selected hover is said again at the higher specificity, so the pointer
+ * changes nothing about a row that is already picked.
+ *
+ * A `cva` with a base and no axes, like {@link DestructiveAction}'s: the
+ * three states are the element's own `data-state` and `:hover`, not
+ * something a caller chooses, so the call site passes the state and never a
+ * colour (D16-8). Before this, all three fills were a `className` on the
+ * vendored `TableRow` at `RecordTable`'s call site, with the hover a
+ * constant away in `record/columns.ts` — a colour on a call site and a
+ * recipe in two places.
+ */
+const tableDataRowVariants = cva([
+  'bg-background',
+  'hover:bg-row-hover has-aria-expanded:bg-row-hover',
+  'data-[state=selected]:bg-muted data-[state=selected]:hover:bg-muted',
+]);
+
+/**
+ * A row of records, coloured by the state it is in.
+ *
+ * `data-state="selected"` is the whole of what a caller says; the summary
+ * band and the header are not rows of this kind and wear the band's own
+ * grey instead (`record/sticky.ts`).
+ */
+export function TableDataRow({
+  className,
+  ...props
+}: React.ComponentProps<typeof TableRow>) {
+  return (
+    <TableRow className={cn(tableDataRowVariants(), className)} {...props} />
   );
 }
 

@@ -184,6 +184,45 @@ describe('a tags cell', () => {
     expect(badges(container)).toEqual([]);
     expect(container.querySelector('tbody td')?.textContent).toBe('');
   });
+
+  /**
+   * A second tag used to fold onto a second line the moment the column was
+   * narrower than the two of them, which made the row taller than its
+   * neighbours over a column three characters wide. In a table the width
+   * belongs to the content and the height belongs to the row; a card, with
+   * no column to line up with, wraps.
+   */
+  it('keeps the tags side by side in a table and wraps them on a card', () => {
+    const { container } = render(
+      <RecordTable table={tagged(['rush', 'gift'])} />,
+    );
+    const row = badges(container)[0].parentElement!;
+    expect(row.className).not.toContain('flex-wrap');
+
+    cleanup();
+    const card = render(
+      <RecordCards
+        table={recordTableController({
+          card: {
+            title: 'id',
+            fields: [
+              {
+                field: 'tags',
+                label: 'Tags',
+                kind: 'array',
+                cell: 'tags',
+                options: [{ value: 'rush', label: 'Rush' }],
+              },
+            ],
+          },
+          rows: [{ key: 'r-1', data: { id: 'r-1', tags: ['rush'] } }],
+        })}
+      />,
+    );
+    expect(badges(card.container)[0].parentElement!.className).toContain(
+      'flex-wrap',
+    );
+  });
 });
 
 describe('a link cell', () => {
@@ -226,7 +265,7 @@ describe('a link cell', () => {
 describe('a text cell', () => {
   const NOTE = 'First line\nSecond line\nThird line\nFourth line';
 
-  it('clamps the lines, keeps the newlines, and holds the whole of it', () => {
+  it('takes one line in a table, and the whole of it on hover', () => {
     const { container } = render(
       <RecordTable table={oneCell({ cell: 'text' }, NOTE)} />,
     );
@@ -235,13 +274,44 @@ describe('a text cell', () => {
       '[data-slot="cell-text"]',
     )!;
     // **Surviving class assertions**: how many lines of a long value are
-    // kept and whether its own newlines survive are two declarations with
-    // no state behind them, and jsdom lays out no text to count.
-    expect(cell.className).toContain('line-clamp-3');
-    expect(cell.className).toContain('whitespace-pre-wrap');
-    // Clamped on screen, whole on hover: nothing is lost, only folded.
+    // kept is a declaration with no state behind it, and jsdom lays out no
+    // text to count. What it comes to on screen — every row of the wide
+    // table the same height — is measured in `WideTable`.
+    expect(cell.className).toContain('truncate');
+    expect(cell.className).not.toContain('line-clamp-3');
+    // Cut on screen, whole on hover: nothing is lost, only folded.
     expect(cell.getAttribute('title')).toBe(NOTE);
     expect(cell.textContent).toBe(NOTE);
+  });
+
+  /**
+   * A card has no column to line up with and all the room it wants
+   * downwards, so it is the surface that keeps the three lines — and the
+   * author's own newlines with them, since a paragraph folded into one line
+   * is a different paragraph.
+   */
+  it('keeps three lines and the newlines on a card', () => {
+    const { container } = render(
+      <RecordCards
+        table={recordTableController({
+          card: {
+            title: 'id',
+            fields: [
+              { field: 'note', label: 'Note', kind: 'string', cell: 'text' },
+            ],
+          },
+          rows: [{ key: 'r-1', data: { id: 'r-1', note: NOTE } }],
+        })}
+      />,
+    );
+
+    const cell = container.querySelector<HTMLElement>(
+      '[data-slot="cell-text"]',
+    )!;
+    expect(cell.className).toContain('line-clamp-3');
+    expect(cell.className).toContain('whitespace-pre-wrap');
+    expect(cell.className).not.toContain('truncate');
+    expect(cell.getAttribute('title')).toBe(NOTE);
   });
 
   it('leaves a value that is not text to the default rendering', () => {

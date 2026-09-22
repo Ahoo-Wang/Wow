@@ -46,18 +46,20 @@ export * from './describeConfig.js';
  * surface's clock and in its language, numbers in the field's
  * `numberFormat`, booleans in the wording in force.
  *
- * `cellValue` is the node a cell draws (badges, a guarded link, a clamped
- * paragraph); `cellText` is the same reading as one line of text, for a CSV,
- * a copied selection or a `title`; `displayValue` is the kind's own reading
- * alone, `undefined` where the kind has nothing to add and the caller's
- * rendering stands. The two context arguments come from `useViewMessages`
- * and `useSurfaceDisplay`, so a host reads them off the surface it is inside
- * rather than passing a language around.
+ * `cellValue` is the node a cell draws (badges, a guarded link, a paragraph);
+ * `cellText` is the same reading as one line of text, for a CSV, a copied
+ * selection or a `title`; `displayValue` is the kind's own reading alone,
+ * `undefined` where the kind has nothing to add and the caller's rendering
+ * stands. The two context arguments come from `useViewMessages` and
+ * `useSurfaceDisplay`, so a host reads them off the surface it is inside
+ * rather than passing a language around. The last one is the `CellSurface`
+ * it is drawing on — `'table'` or `'card'` — which decides how many lines a
+ * value may take and nothing else.
  *
  * The vendored shadcn primitives underneath are deliberately *not* public:
  * what is promised here is the reading of a value, not the markup around it.
  */
-export { cellValue, type CellField } from './record/cells.js';
+export { cellValue, type CellField, type CellSurface } from './record/cells.js';
 export {
   cellText,
   displayValue,

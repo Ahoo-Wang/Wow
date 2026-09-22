@@ -48,6 +48,7 @@ import {
   ViewSurface,
   zhCN,
 } from '../src/ui/index.js';
+import { recordTableController } from './fixtures/ui.js';
 
 afterEach(cleanup);
 
@@ -703,53 +704,22 @@ describe('an application rewords what the components write', () => {
   });
 });
 
-/** The little a `ResultToolbar` reads off its controller, and nothing more. */
+/**
+ * The little a `ResultToolbar` reads off its controller, and nothing more:
+ * the shared fixture emptied out, since what this suite reads is the
+ * wording of a toolbar over a result with nothing in it.
+ */
 function tableController(): RecordTableController {
-  return {
+  return recordTableController({
     columns: [],
     rows: [],
     card: { title: '', fields: [] },
     cardSpec: { title: '', fields: [] },
-    setCard: () => {},
     paging: null,
-    summaries: null,
-    status: 'success',
-    error: null,
-    loading: false,
-    hasResult: true,
-    sort: [],
-    sortOf: () => null,
-    toggleSort: () => {},
-    setSort: () => {},
-    maxSortFields: 8,
-    layout: 'table',
     layouts: ['table'],
-    setLayout: () => {},
     columnFields: [],
-    hiddenOf: () => false,
-    setColumns: () => {},
-    setColumnOrder: () => {},
-    pinnedOf: () => false,
-    setPinned: () => {},
-    setColumnWidth: () => {},
-    summaryOf: () => null,
-    summaryFields: [],
-    setSummary: () => {},
-    pageSize: 20,
-    pageSizes: [10, 20, 50, 100],
-    setPageSize: () => {},
-    selection: [],
-    selectedRows: [],
-    isSelected: () => false,
-    toggle: () => {},
-    toggleAll: () => {},
-    clearSelection: () => {},
-    goTo: () => {},
     hasNext: false,
-    next: () => {},
-    previous: () => {},
-    refresh: () => {},
-  };
+  });
 }
 
 function listState(items: ViewInstanceSummary[]): ViewListState {

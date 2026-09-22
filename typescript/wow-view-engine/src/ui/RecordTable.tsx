@@ -28,7 +28,6 @@ import {
   CLIPPED_CELL,
   HEAD_CELL,
   NUMERIC_CELL,
-  ROW_HOVER,
   SELECT_COLUMN,
   TABLE_CELLS,
   columnWidth,
@@ -54,6 +53,7 @@ import { SkeletonRows } from './record/SkeletonRows.js';
 import { SortableHeader } from './record/SortableHeader.js';
 import { SummaryRows } from './record/SummaryRows.js';
 import { useSummaries } from './record/useSummaries.js';
+import { TableDataRow } from './variants.js';
 import {
   Table,
   TableBody,
@@ -172,13 +172,12 @@ export function RecordTable({
   const display = useSurfaceDisplay();
   const renderOne =
     renderCell ??
-    (found => cellValue(found.value, found.column, messages, display));
+    (found => cellValue(found.value, found.column, messages, display, 'table'));
   const allSelected =
     table.rows.length > 0 && table.selection.length === table.rows.length;
   const columns = table.columns;
   const element = useRef<HTMLTableElement>(null);
   const port = useRef<HTMLDivElement>(null);
-  usePinnedOffsets(element);
   const layout = useMemo(
     () => ({ selectable, actions: rowActions !== undefined }),
     [selectable, rowActions],
@@ -199,6 +198,10 @@ export function RecordTable({
     () => tablePins(columns, layout, released),
     [columns, layout, released],
   );
+  // Last of the three measurements, and after the pins it is keyed on: what
+  // it publishes is where each held column stops, which is the one of them
+  // that depends on the cap having had its say.
+  usePinnedOffsets(element, pins);
   const summaries = useSummaries(table.summaries, table.rows);
 
   // No result to draw and none on the way. The table is built from the
@@ -322,23 +325,16 @@ export function RecordTable({
             />
           ) : (
             table.rows.map(row => (
-              <TableRow
+              // The three states a row has to be told apart in — at rest,
+              // hovered, picked — are the wrapper's (`ui/variants.tsx`,
+              // D16-8); what is said here is only which of them this row is
+              // in.
+              <TableDataRow
                 key={String(row.key)}
-                // Three states that have to read apart: at rest the surface
-                // itself, hovered a shade of it, picked a tint that the
-                // hover does not wash out — a row loses its selection to
-                // the pointer passing over it otherwise. The hover is the
-                // opaque shade rather than the registry's wash: the pinned
-                // cells inherit it, and a wash over a scrolling column is
-                // a window onto it.
-                className={cn(
-                  // Named `row`, because a cell that only offers something
-                  // while the pointer is on the row has to be able to ask
-                  // about the row and not about itself (`CopyButton`).
-                  'group/row',
-                  'bg-background data-[state=selected]:bg-muted data-[state=selected]:hover:bg-muted',
-                  ROW_HOVER,
-                )}
+                // Named `row`, because a cell that only offers something
+                // while the pointer is on the row has to be able to ask
+                // about the row and not about itself (`CopyButton`).
+                className="group/row"
                 data-state={table.isSelected(row.key) ? 'selected' : undefined}
               >
                 {selectable && (
@@ -391,7 +387,7 @@ export function RecordTable({
                   </TableCell>
                 )}
                 <FillerCell />
-              </TableRow>
+              </TableDataRow>
             ))
           )}
         </TableBody>

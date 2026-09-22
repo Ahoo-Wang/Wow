@@ -363,14 +363,18 @@ export const CellFamily: Story = {
       'javascript:alert(1)',
     );
 
-    // A note is clamped to a few lines with the whole of it one hover away,
-    // which is the one assertion that needs a browser to lay the box out.
+    // A note takes one line in a table, with the whole of it one hover
+    // away — the one assertion that needs a browser to lay the box out.
+    // Three lines are a card's, where there is no column to read down and
+    // a taller row costs nothing (`test/recordCells.test.tsx` holds that
+    // half — it is a class either way, and only this side needs a layout).
     const note = cellAt(table, '备注', 4).querySelector<HTMLElement>(
       '[data-slot="cell-text"]',
     )!;
     await expect(note).toHaveAttribute('title', note.textContent!);
-    await expect(getComputedStyle(note).webkitLineClamp).toBe('3');
-    await expect(note.scrollHeight).toBeGreaterThan(note.clientHeight);
+    await expect(getComputedStyle(note).whiteSpace).toBe('nowrap');
+    await expect(getComputedStyle(note).textOverflow).toBe('ellipsis');
+    await expect(note.scrollWidth).toBeGreaterThan(note.clientWidth);
 
     // And the copyable column is the text it always was — no pill around it
     // and nothing to click — with one button beside it, named after the
@@ -4047,6 +4051,38 @@ export const WideTable: Story = {
     await waitFor(() =>
       expect(area.scrollWidth).toBeGreaterThan(area.clientWidth),
     );
+
+    /**
+     * **Every row is the same height** — one line each, over 20 columns and
+     * 50 rows (U3, user's 2026-09-22 review).
+     *
+     * A table is read down a column, and a row that is two lines tall
+     * wherever a note is long or a second tag appears turns that straight
+     * line into a staircase. Measured here, the 50 rows came in at 41, 61
+     * and 77 pixels: a `text` cell clamped to three lines, and a pair of
+     * tags wrapped by a column three characters wide. Both now take one
+     * line in a table and keep the room they had on a card, so the whole
+     * page is one height (`ui/record/cells.tsx`, `docs/design/ui/record.md`
+     * 「一列怎么读」). Only a browser lays text out, so this assertion can
+     * only live here.
+     */
+    const rows = [...table.querySelectorAll<HTMLTableRowElement>('tbody tr')];
+    await waitFor(() => {
+      const first = rows[0].getBoundingClientRect().height;
+      // A whole pixel of slack and no more: the rows are laid out from the
+      // same font at the same size, and a second line is 20 of them.
+      for (const row of rows)
+        expect(
+          Math.abs(row.getBoundingClientRect().height - first),
+        ).toBeLessThan(1);
+    });
+    // And the note that used to be three lines is still all there, on the
+    // hover — cut on screen, whole in the tooltip.
+    const note = [
+      ...table.querySelectorAll<HTMLElement>('tbody [data-slot="cell-text"]'),
+    ].find(found => found.textContent!.includes('\n'))!;
+    await expect(note).toHaveAttribute('title', note.textContent!);
+    await expect(note.getBoundingClientRect().height).toBeLessThan(24);
 
     const head = (table as HTMLTableElement).tHead!;
     const foot = (table as HTMLTableElement).tFoot!;

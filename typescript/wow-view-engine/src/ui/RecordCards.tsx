@@ -112,7 +112,7 @@ export function RecordCards({
   const summaries = useSummaries(table.summaries, table.rows);
   const render =
     renderCell ??
-    (found => cellValue(found.value, found.column, messages, display));
+    (found => cellValue(found.value, found.column, messages, display, 'card'));
   // The column a card field stands in for: what a host's renderer reads
   // is the same shape the table hands it, with the parts a card never has
   // at their "no" values.

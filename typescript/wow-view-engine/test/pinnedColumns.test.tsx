@@ -19,7 +19,6 @@ import { RecordTable } from '../src/ui/index.js';
 import {
   ACTIONS_COLUMN,
   pinnedSlots,
-  ROW_HOVER,
   SELECT_COLUMN,
   TABLE_CELLS,
   tablePins,
@@ -30,6 +29,7 @@ import {
   stickyCell,
   stickyHead,
 } from '../src/ui/record/sticky.js';
+import { recordTableController } from './fixtures/ui.js';
 
 afterEach(cleanup);
 
@@ -171,29 +171,22 @@ describe('the pinned edges', () => {
   });
 
   /**
-   * A pinned cell inherits its row's colour, so the row's hover has to be
-   * opaque: the registry's `bg-muted/50` is a wash, and a wash over the
-   * column a pinned cell is holding the place of shows that column's text
-   * through it the moment the pointer arrives.
+   * A pinned cell inherits its row's colour, which is why every one of a
+   * row's three fills has to be opaque. That the fills *are* is
+   * `TableDataRow`'s and is asserted where the recipe lives
+   * (`test/variants.test.tsx`); what belongs here is the other end of the
+   * same fact — the cells of a held column take the row's fill rather than
+   * painting one of their own.
    */
-  it('hovers its rows with an opaque shade, not a wash', () => {
+  it('lets its held cells take the row they are in for a colour', () => {
     const { container } = render(
       <RecordTable table={controller([column('id', 'left')])} />,
     );
-    const row = container.querySelector('tbody tr')!;
-    // A **surviving class assertion**. An opaque hover is a colour rather
-    // than a state: no attribute can carry "this fill has no alpha
-    // channel", the hover is a pointer state jsdom has no rendering for,
-    // and the regression being guarded is a *specific* class coming back —
-    // the registry's `bg-muted/50`, which shows the column a held cell
-    // stands in front of straight through it. The opacity itself is
-    // measured in the browser (`PinnedEdges`).
-    expect(row.className).not.toContain('hover:bg-muted/50');
-    expect(row.className).toContain(ROW_HOVER);
-    // And the held cells follow the row, which is the same fact from the
-    // other end: they are `bg-inherit`, asserted once in the recipe below.
     const id = cellsOf(container, 'id');
     expect(id.map(cell => cell.dataset.pin)).toEqual(id.map(() => 'left'));
+    // `bg-inherit` itself is asserted once, in the recipe at the foot of
+    // this file; a row that stopped being opaque is measured in the browser
+    // (`PinnedEdges`).
   });
 
   it('puts the same edge on the header, the rows and the summaries', () => {
@@ -602,15 +595,11 @@ describe('the pinned group against a narrow port', () => {
     const held = tablePins(columns, { selectable: false, actions: false });
     const letGo = tablePins(columns, { selectable: false, actions: true });
 
-    expect(held.columns.get('amount')?.side).toBe('right');
-    // Held against the edge itself: nothing is ever pinned outside it, so
-    // the offset it clears is zero.
-    expect(held.columns.get('amount')?.offset).toBe(
-      'var(--fve-pin-right-1, 0px)',
-    );
-    // And it is the boundary with the scrolling middle, being the whole of
-    // the right side (D19).
-    expect(held.columns.get('amount')?.edge).toBe(true);
+    // Held against the edge itself, and the pin says so by having nothing
+    // else in it: one column at most is on that side (D19), so there is no
+    // place for it to stop short of and no offset to carry (A9). And it is
+    // the boundary with the scrolling middle, being the whole of that side.
+    expect(held.columns.get('amount')).toEqual({ side: 'right', edge: true });
     expect(letGo.columns.has('amount')).toBe(false);
     // The two chrome pins sit against the port's own edge, so neither has
     // an offset at all.
@@ -683,12 +672,7 @@ describe('the sticky chrome recipe', () => {
       offset: '8px',
       edge: true,
     });
-    const right = stickyCell({
-      side: 'right',
-      index: 4,
-      offset: '0px',
-      edge: true,
-    });
+    const right = stickyCell({ side: 'right', edge: true });
 
     // A `--border` hairline where the column ends and a soft `--pin-shadow`
     // saying the table goes on beneath it, pointing the way the rows leave —
@@ -705,12 +689,15 @@ describe('the sticky chrome recipe', () => {
     );
     expect(left['data-pin-edge']).toBe('');
     expect(right['data-pin-edge']).toBe('');
-    expect(right.style).toEqual({ right: '0px' });
+    // The one column on the right is placed by a class and carries no
+    // inline offset at all (A9).
+    expect(right.style).toEqual({});
   });
 
   it('sits against the port edge where nothing was measured', () => {
-    // The two chrome columns: no offset, because there is nothing outside
-    // them to clear, so the place is a class rather than a variable.
+    // The selection column, and every column on the right: no offset,
+    // because there is nothing outside them to clear, so the place is a
+    // class rather than a variable.
     expect(stickyCell({ side: 'left', edge: false }).className).toContain(
       'left-0',
     );
@@ -739,8 +726,9 @@ describe('the sticky chrome recipe', () => {
 
   it('publishes on the header the offset that column owns', () => {
     // `usePinnedOffsets` adds up the header cells and writes the widths back
-    // as `--fve-pin-{side}-{index}`; the chrome columns take part in that
-    // sum without owning a variable of their own.
+    // as `--fve-pin-left-{index}`; the selection column takes part in that
+    // sum without owning a variable of its own, and the one column on the
+    // right owns none either — it is against the edge (A9).
     expect(
       stickyHead({ side: 'left', index: 2, offset: '0px', edge: false })[
         'data-pin-index'
@@ -748,6 +736,9 @@ describe('the sticky chrome recipe', () => {
     ).toBe(2);
     expect(
       stickyHead({ side: 'left', edge: false })['data-pin-index'],
+    ).toBeUndefined();
+    expect(
+      stickyHead({ side: 'right', edge: true })['data-pin-index'],
     ).toBeUndefined();
     expect(stickyHead(undefined)['data-pin-index']).toBeUndefined();
   });
@@ -795,44 +786,26 @@ function column(field: string, pinned?: 'left' | 'right'): RecordColumnView {
   };
 }
 
+/**
+ * A settled table over the columns a case needs, built from the fixture
+ * every UI suite shares so that only what this one varies is written here:
+ * the columns, one row with a value in each of them, and a summary row, so
+ * that all three layers of a held column are on screen at once.
+ */
 function controller(
   columns: RecordColumnView[],
   overrides: Partial<RecordTableController> = {},
 ): RecordTableController {
   const data = Object.fromEntries(columns.map(entry => [entry.field, 'x']));
-  return {
+  return recordTableController({
     columns,
     rows: [{ key: 'o-1', data }],
     card: { title: columns[0].field, fields: [] },
     paging: { mode: 'paged', index: 1, total: 1 },
     summaries: { scope: 'page', cells: [] },
-    status: 'success',
-    hasResult: true,
-    selection: [],
-    sort: [],
-    pageSize: 20,
-    layout: 'table',
     columnFields: columns.map(entry => entry.field),
-    isSelected: () => false,
-    toggle: () => {},
-    toggleAll: () => {},
-    clearSelection: () => {},
-    toggleSort: () => {},
-    setSort: () => {},
-    setPageSize: () => {},
-    setColumns: () => {},
-    setColumnOrder: () => {},
-    setPinned: () => {},
-    setSummary: () => {},
-    setLayout: () => {},
-    pinnedOf: () => false,
-    summaryOf: () => null,
-    goTo: () => {},
-    next: () => {},
-    previous: () => {},
-    refresh: () => {},
     ...overrides,
-  } as unknown as RecordTableController;
+  });
 }
 
 function cellsOf(container: HTMLElement, field: string): HTMLElement[] {

@@ -47,7 +47,7 @@ pnpm --filter @ahoo-wang/fetcher-view-engine lint:check
 
 - Vitest in the **jsdom** environment, with `clearMocks` and `restoreMocks`
 - **No `globals: true`** — unlike the other packages here, import `describe`, `it`, `expect`, `vi` from `vitest` explicitly
-- Test files live in `test/` at the package root, named by subject rather than mirroring `src/` one-to-one. Fixtures shared by several suites sit beside them: `test/fixtures.ts` for definitions, configs and sources, `test/fixtures/ui.tsx` for what the UI suites open, `test/fixtures/manager.tsx` for the view-manager harness two suites share, `test/fixtures/workbench.ts` for the gestures the record-workbench suites share, `test/fixtures/dashboard.ts` for the dashboard the grid and the workbench suites both open, `test/fixtures/writes.ts` for `tracked`/`landed` (a suite waits for the write a gesture caused, then reads the store once — never polls it), `test/fixtures/{analysis,columns,filter,hooks}.ts` for the rest
+- Test files live in `test/` at the package root, named by subject rather than mirroring `src/` one-to-one. Fixtures shared by several suites sit beside them: `test/fixtures.ts` for definitions, configs and sources, `test/fixtures/ui.tsx` for what the UI suites open — every `RecordTableController` a suite renders is built from its `recordTableController` / `twoColumnTable` with only what that suite varies passed in, so no suite re-declares the forty members and none reaches for `as unknown as`, `test/fixtures/manager.tsx` for the view-manager harness two suites share, `test/fixtures/workbench.ts` for the gestures the record-workbench suites share, `test/fixtures/dashboard.ts` for the dashboard the grid and the workbench suites both open, `test/fixtures/writes.ts` for `tracked`/`landed` (a suite waits for the write a gesture caused, then reads the store once — never polls it), `test/fixtures/{analysis,columns,filter,hooks}.ts` for the rest
 - `@` resolves to `src/`
 - **Coverage thresholds are enforced**: statements 95, branches 91, functions 97, lines 96. `src/ui/components/**`, `src/ui/lib/**` and `src/styles.ts` are excluded — they are vendored from the shadcn registry and are upstream's to test
 - **A jsdom suite asserts what a class _means_, not how it is spelled** (A-09). A `className` assertion proves nothing about the screen — jsdom loads no stylesheet and lays nothing out — and it turns red wholesale the moment a colour or a recipe moves into a `cva`. So state is said **on the element** and read back from there: `data-pin` / `data-pin-edge` / `data-pin-index` / `data-sticky` / `data-overflowing` for the table's sticky chrome, `data-tone` for a toned badge, alert or destructive answer, `aria-current`, `aria-pressed`, `data-default`, `data-released`, `data-scrolls`, `data-invalid`, a role, an accessible name, a `title`, or an inline style jsdom really computes. Where a component writes no such attribute and the class is the only witness, **add the attribute** rather than keep the assertion. Three files are the deliberate homes of the remaining class assertions, because in each the class string _is_ the contract: `test/pinnedColumns.test.tsx` ("the sticky chrome recipe") for `ui/record/sticky.ts`, `test/variants.test.tsx` for the cva wrappers of D16-8, and `test/popups.test.tsx` for our copy of each popup's registry markup. Elsewhere a surviving assertion is marked **surviving class assertion** with its reason — a pure declaration with no state behind it (a length, a grid template, a border model, `sr-only`, a `:hover` fill), whose pixels a browser story measures instead
@@ -263,9 +263,9 @@ src/
     MessagesProvider.tsx      — `MessagesProvider`: the wording every default component reads, each provider merging over the one above it
     OutcomeActions.tsx        — One outcome as a line and its buttons, shared by the two above and the manager
     PendingDot.tsx            — The "changed, not applied" dot pinned to a pill or a group
-    RecordCards.tsx           — The same result as cards, drawn from the card half of the saved config (D18 V)
+    RecordCards.tsx           — The same result as cards, drawn from the card half of the saved config (D18 V); a value reads as a card reads it, a note on its own three lines
     RecordPagination.tsx      — How many rows there are and how to reach the next of them
-    RecordTable.tsx           — The record view as a table: the columns and rows of the result that ran, never of the draft
+    RecordTable.tsx           — The record view as a table: the columns and rows of the result that ran, never of the draft; its rows are `TableDataRow`s and a value reads as a table reads it, one line each
     RecordWorkbench.tsx       — Default Record workbench
     RefreshControl.tsx        — Refresh now, and the auto-refresh cadence menu, as one split button
     RenderBoundary.tsx        — The boundary each part of a view renders behind, so one failing leaves the rest standing
@@ -298,7 +298,7 @@ src/
     popups.tsx                — The popups this package renders, themed and on a layer of their own
     summary.ts                — The applied-conditions bar in words: one `FilterSummaryItem` as a sentence
     toolbar.tsx               — Base UI's toolbar primitive: one tab stop with the arrow keys inside
-    variants.tsx              — The colours, edges and shapes a vendored component does not ship, in one place (D16-8)
+    variants.tsx              — The colours, edges and shapes a vendored component does not ship, in one place (D16-8); `TableDataRow` holds a record row's three states
     index.ts                  — The `/ui` entry: the default look, built on shadcn/ui with Base UI primitives
     charts/                   — One file per family, plus what they share
       Cartesian.tsx           — Which axis carries the numbers
@@ -373,14 +373,14 @@ src/
       SkeletonRows.tsx        — The rows of a first query still on its way, one bar per column
       SortableHeader.tsx      — One column header: the sort button, its place in the sort, the resizer
       SummaryRows.tsx         — The table footer: one row per summary scope; `SummaryValue`
-      cells.tsx               — `cellValue`/`cellText`: one value as its field reads it, for table, cards and CSV
-      columns.ts              — Which columns the table holds and what its cells wear otherwise: `tablePins`, `pinnedSlots`, `heldColumns`, `usePinnedOffsets`, `HEAD_CELL`, `ROW_HOVER`, `TABLE_CELLS`, `ACTION_CELL`; `ACTIONS_COLUMN` is the one column ever held on the right (D19)
+      cells.tsx               — `cellValue`/`cellText`: one value as its field reads it, for table, cards and CSV; `CellSurface` decides how many lines it may take, and nothing else
+      columns.ts              — Which columns the table holds and what its cells wear otherwise: `tablePins`, `pinnedSlots`, `heldColumns`, `usePinnedOffsets` (the left offset chain, keyed on the pins), `HEAD_CELL`, `TABLE_CELLS`, `ACTION_CELL`; `ACTIONS_COLUMN` is the one column ever held on the right (D19)
       headerRoving.ts         — `useRovingHeader`: one Tab stop per header row, arrows between columns, Alt+arrows resize (P-02)
       fitViewport.ts          — `useViewportFit`: the scroll port ends where the viewport does, so the summaries and the pagination row stay in view (P-22)
       overflow.ts             — `useOverflowing`: whether the table is wider than its port, said as `data-overflowing`; the held columns' edges answer to it (P-23)
-      pinCap.ts               — The pin cap (D17-4): which pins to let go on a narrow port; `ReleasedPins`
+      pinCap.ts               — The pin cap (D17-4): which pins to let go on a narrow port; `ReleasedPins`; its observer is keyed on the slots, not rebuilt every render
       queryAnnouncement.ts    — What a query says about itself to a screen reader
-      sticky.ts               — The one home of the table's sticky chrome (A-09): `stickyCell`/`stickyHead` (the held cell's recipe plus `data-pin`/`data-pin-edge`/`data-pin-index`), `stickyBand` and `BAND`/`BAND_ROW` (the two bands, `data-sticky`), `OWN_LAYER`, `pinVar`; the boundary's edge is drawn through `in-data-[overflowing]:`, so it answers to the port's word from `overflow.ts` (P-23)
+      sticky.ts               — The one home of the table's sticky chrome (A-09): `stickyCell`/`stickyHead` (the held cell's recipe plus `data-pin`/`data-pin-edge`/`data-pin-index`), `stickyBand` and `BAND`/`BAND_ROW` (the two bands, `data-sticky`), `OWN_LAYER`, `pinVar`; `LeftPin` carries the offset chain and `RightPin` is the one column against the edge itself (A9, D19); the boundary's edge is drawn through `in-data-[overflowing]:`, so it answers to the port's word from `overflow.ts` (P-23)
       useSummaries.ts         — The two summary scopes from the one the runtime executed; table and cards share it
     sort/
       drag.ts                 — What the sort editor makes of a drag: which entry a drop moves where, the order that comes out of it, and what a screen reader hears meanwhile

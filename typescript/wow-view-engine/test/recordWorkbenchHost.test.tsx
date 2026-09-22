@@ -174,7 +174,7 @@ describe('a RecordWorkbench a host draws cells in', () => {
     const messages = useViewMessages();
     const display = useSurfaceDisplay();
     if (cell.column.field !== 'amount')
-      return cellValue(cell.value, cell.column, messages, display);
+      return cellValue(cell.value, cell.column, messages, display, 'table');
     return <span data-testid="lamp">{`${cell.value} ●`}</span>;
   }
 

@@ -682,8 +682,11 @@ describe('the table chrome', () => {
     for (const cell of cellsOf(container, 'status')) {
       expect(cell.dataset.pin).toBe('right');
       // Held against the edge itself: it is the one column the right side
-      // has, so there is never anything out there for it to clear.
-      expect(cell.style.right).toBe('var(--fve-pin-right-2, 0px)');
+      // has (D19), so there is never anything out there for it to clear —
+      // no offset to measure, and a flat `right-0` rather than a variable
+      // that would resolve to zero every time (A9).
+      expect(cell.style.right).toBe('');
+      expect(cell.className).toContain('right-0');
     }
     // The selection column is pinned along with them, or the pinned column
     // would scroll over the checkboxes.
@@ -845,11 +848,14 @@ describe('the table chrome', () => {
     expect(table.style.getPropertyValue('--fve-pin-left-0')).toBe('77px');
 
     // The header cells that feed the offsets, and nothing else: the table
-    // itself can sit still through all of this. (The edges keep an observer
-    // of their own on the scrollport; it is the one watching cells that the
-    // offsets are read from.)
-    const latest = observers.find(spy =>
-      spy.observed.some((node: Element) => node.tagName === 'TH'),
+    // itself can sit still through all of this. (The edges and the pin cap
+    // keep observers of their own on the scrollport, and the cap watches
+    // header cells beside it; the offsets' is the one watching header cells
+    // and nothing else.)
+    const latest = observers.find(
+      spy =>
+        spy.observed.length > 0 &&
+        spy.observed.every((node: Element) => node.tagName === 'TH'),
     )!;
     const watching: Element[] = latest.observed;
     expect(watching.every((node: Element) => node.tagName === 'TH')).toBe(true);

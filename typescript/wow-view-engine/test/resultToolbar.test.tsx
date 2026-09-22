@@ -24,6 +24,7 @@ import type { RecordViewRuntime } from '../src/runtime/index.js';
 import type { ExportOffer } from '../src/ui/ExportDialog.js';
 import { MessagesProvider } from '../src/ui/MessagesProvider.js';
 import { ResultToolbar } from '../src/ui/ResultToolbar.js';
+import { recordTableController } from './fixtures/ui.js';
 
 afterEach(cleanup);
 
@@ -42,67 +43,25 @@ const FIELDS: FieldDefinition[] = [
   { name: 'warehouse', label: 'Warehouse', kind: 'string' },
 ];
 
+/**
+ * A settled table of three rows, built from the fixture every UI suite
+ * shares: what the toolbar reads is the selection and the rows it could be
+ * drawn from, so only those are said here.
+ */
 function tableController(
   overrides: Partial<RecordTableController> = {},
 ): RecordTableController {
-  return {
-    columns: [
-      {
-        field: 'amount',
-        label: 'Amount',
-        kind: 'number',
-        cell: 'number',
-        sortable: false,
-      },
-    ],
-    card: { title: 'amount', fields: [] },
-    cardSpec: { title: '', fields: [] },
-    setCard: () => {},
+  return recordTableController({
     rows: [
       { key: 'o-1', data: { amount: 1 } },
       { key: 'o-2', data: { amount: 2 } },
       { key: 'o-3', data: { amount: 3 } },
     ],
     paging: { mode: 'paged', index: 1, total: 3 },
-    summaries: null,
-    status: 'success',
-    error: null,
-    loading: false,
-    hasResult: true,
-    sort: [],
-    sortOf: () => null,
-    toggleSort: () => {},
-    setSort: () => {},
-    maxSortFields: 8,
-    layout: 'table',
-    layouts: ['table', 'card'],
-    setLayout: () => {},
-    columnFields: ['amount'],
-    hiddenOf: () => false,
-    setColumns: () => {},
-    setColumnOrder: () => {},
-    pinnedOf: () => false,
-    setPinned: () => {},
-    setColumnWidth: () => {},
-    summaryOf: () => null,
-    summaryFields: [],
-    setSummary: () => {},
-    pageSize: 20,
-    pageSizes: [10, 20, 50, 100],
-    setPageSize: () => {},
-    selection: [],
-    selectedRows: [],
-    isSelected: () => false,
-    toggle: () => {},
-    toggleAll: () => {},
-    clearSelection: () => {},
-    goTo: () => {},
+    cardSpec: { title: '', fields: [] },
     hasNext: false,
-    next: () => {},
-    previous: () => {},
-    refresh: () => {},
     ...overrides,
-  };
+  });
 }
 
 /**

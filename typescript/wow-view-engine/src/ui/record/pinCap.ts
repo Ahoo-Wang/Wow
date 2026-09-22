@@ -141,6 +141,15 @@ function capPins(
  * it. What is watched is the port *and* the held cells, so the pins come
  * back as the port widens and go as it narrows — and a column that grows
  * under a loading web font is weighed again as well.
+ *
+ * **Keyed on the slots, not run every render.** With no dependency list this
+ * re-read the header and rebuilt its `ResizeObserver` on every render of the
+ * table, which on the twenty-column fixture is a forced layout per hover,
+ * per row picked, per keystroke in the editor above. What it has to survive
+ * is a column appearing, disappearing or moving, and `slots` is exactly
+ * that: the caller projects it from the columns and the layout, so a new
+ * list is a new set of cells to weigh and to watch, and anything else is the
+ * same table drawn again.
  */
 export function usePinnedCap(
   port: RefObject<HTMLElement | null>,
@@ -161,7 +170,7 @@ export function usePinnedCap(
     const observer = new ResizeObserver(measure);
     for (const node of watched) observer.observe(node);
     return () => observer.disconnect();
-  });
+  }, [port, table, slots]);
   return released;
 }
 

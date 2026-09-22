@@ -18,70 +18,23 @@ import type { RecordTableController } from '../src/react/index.js';
 import { RecordCards } from '../src/ui/RecordCards.js';
 import { RecordTable } from '../src/ui/RecordTable.js';
 import { RowActions } from '../src/ui/RowActions.js';
+import { recordTableController } from './fixtures/ui.js';
 
 afterEach(cleanup);
 
-/** The little a table or a card reads off its controller, and nothing more. */
+/**
+ * The little a table or a card reads off its controller, and nothing more —
+ * the shared fixture, with only the paging its two rows imply.
+ */
 function tableController(
   overrides: Partial<RecordTableController> = {},
 ): RecordTableController {
-  return {
-    columns: [
-      {
-        field: 'amount',
-        label: 'Amount',
-        kind: 'number',
-        cell: 'number',
-        sortable: false,
-      },
-    ],
-    card: { title: 'amount', fields: [] },
+  return recordTableController({
     cardSpec: { title: '', fields: [] },
-    setCard: () => {},
-    rows: [
-      { key: 'o-1', data: { amount: 1 } },
-      { key: 'o-2', data: { amount: 2 } },
-    ],
     paging: { mode: 'paged', index: 1, total: 2 },
-    summaries: null,
-    status: 'success',
-    error: null,
-    loading: false,
-    hasResult: true,
-    sort: [],
-    sortOf: () => null,
-    toggleSort: () => {},
-    setSort: () => {},
-    maxSortFields: 8,
-    layout: 'table',
-    layouts: ['table', 'card'],
-    setLayout: () => {},
-    columnFields: ['amount'],
-    hiddenOf: () => false,
-    setColumns: () => {},
-    setColumnOrder: () => {},
-    pinnedOf: () => false,
-    setPinned: () => {},
-    setColumnWidth: () => {},
-    summaryOf: () => null,
-    summaryFields: [],
-    setSummary: () => {},
-    pageSize: 20,
-    pageSizes: [10, 20, 50, 100],
-    setPageSize: () => {},
-    selection: [],
-    selectedRows: [],
-    isSelected: () => false,
-    toggle: () => {},
-    toggleAll: () => {},
-    clearSelection: () => {},
-    goTo: () => {},
     hasNext: false,
-    next: () => {},
-    previous: () => {},
-    refresh: () => {},
     ...overrides,
-  };
+  });
 }
 
 /** What a host hangs on a row: a button that names the row it acts on. */

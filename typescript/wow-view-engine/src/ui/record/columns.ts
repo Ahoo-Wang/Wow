@@ -15,7 +15,13 @@ import { useLayoutEffect, type CSSProperties, type RefObject } from 'react';
 import type { RecordColumnView } from '../../record/index.js';
 import { TEXT_UI } from '../layout.js';
 import { NO_RELEASE, type PinnedSlot, type ReleasedPins } from './pinCap.js';
-import { pinVar, type PinSide, type StickyPin } from './sticky.js';
+import {
+  pinVar,
+  type LeftPin,
+  type PinSide,
+  type RightPin,
+  type StickyPin,
+} from './sticky.js';
 
 /**
  * The selection column's width as its class asks for it (`w-10`), used until
@@ -54,50 +60,52 @@ export const ACTIONS_COLUMN = 'actions';
  * button that grows changes a column's width inside a table whose own box
  * never moves, and offsets published from the last layout would then hold the
  * pinned columns over their neighbours.
+ *
+ * **Keyed on what is held, not run every render.** With no dependency list
+ * at all this re-measured the header and tore down its `ResizeObserver` on
+ * every render of the table — every hover, every row picked, every keystroke
+ * in the editor above — and each of those measurements is a forced layout on
+ * a table the reader is in the middle of using. What it has to survive is a
+ * column appearing, disappearing or moving, and a pin coming or going with
+ * the cap (D17-4): that is exactly when {@link TablePins} changes, since it
+ * is projected from the columns, the layout and the cap's answer.
  */
 export function usePinnedOffsets(
   table: RefObject<HTMLTableElement | null>,
+  pins: TablePins,
 ): void {
   useLayoutEffect(() => {
     const node = table.current;
     if (!node) return;
     applyPins(node);
     return observeResize(pinCells(node), () => applyPins(node));
-  });
+  }, [table, pins]);
 }
 
 /**
- * Each pinned column stops where the sticky ones before it end. Only they
- * count: a column that scrolls away contributes nothing to stay clear of.
+ * Each column held on the left stops where the ones before it end. Only they
+ * count: a column that scrolls away contributes nothing to stay clear of,
+ * and the one column held on the right is against the edge itself (D19), so
+ * it has no offset to publish and nothing publishes one for it.
+ *
  */
 function applyPins(table: HTMLTableElement): void {
-  const cells = pinCells(table);
-  accumulate(table, cells, 'left');
-  accumulate(table, [...cells].reverse(), 'right');
+  let offset = 0;
+  for (const cell of pinCells(table)) {
+    const index = cell.dataset.pinIndex;
+    if (index !== undefined)
+      table.style.setProperty(pinVar(Number(index)), `${offset}px`);
+    offset += cell.getBoundingClientRect().width;
+  }
 }
 
 /** The header cells the offsets are added up from, in column order. */
 function pinCells(table: HTMLTableElement): HTMLTableCellElement[] {
   return [
     ...table.querySelectorAll<HTMLTableCellElement>(
-      'thead tr:first-child>th[data-pin]',
+      'thead tr:first-child>th[data-pin="left"]',
     ),
   ];
-}
-
-function accumulate(
-  table: HTMLTableElement,
-  cells: readonly HTMLTableCellElement[],
-  side: PinSide,
-): void {
-  let offset = 0;
-  for (const cell of cells) {
-    if (cell.dataset.pin !== side) continue;
-    const index = cell.dataset.pinIndex;
-    if (index !== undefined)
-      table.style.setProperty(pinVar(side, Number(index)), `${offset}px`);
-    offset += cell.getBoundingClientRect().width;
-  }
 }
 
 /** Resize reporting where the platform has it, and nothing where it does not. */
@@ -139,14 +147,6 @@ export const ACTION_CELL = 'w-0 bg-inherit whitespace-nowrap';
  */
 export const TABLE_CELLS =
   'border-separate border-spacing-0 [&_th]:border-b [&_td]:border-b [&_tfoot_tr:last-child_td]:border-b-0';
-
-/**
- * The hovered row's colour, opaque — `--row-hover` in `styles.css`, where
- * the reason it is a mix rather than a wash is written down and where a host
- * can move it. `has-aria-expanded` is the row with a menu open, which the
- * registry washes the same way.
- */
-export const ROW_HOVER = 'hover:bg-row-hover has-aria-expanded:bg-row-hover';
 
 /**
  * The sort button may be as wide as the cell it sits in — all of it.
@@ -260,13 +260,13 @@ export interface TablePins {
    * let it go. It is never a boundary: a column pinned left always follows
    * it.
    */
-  select?: StickyPin;
+  select?: LeftPin;
   /**
    * The host's action column, against the right edge itself. Always the
    * boundary while it is held, because the right side has nothing else on
    * it (D19).
    */
-  actions?: StickyPin;
+  actions?: RightPin;
 }
 
 /**
@@ -318,11 +318,12 @@ export function pinnedSlots(
  * whether the two chrome columns are held along with them.
  *
  * The offset is the measured one the effect above writes, with the config's
- * own arithmetic as the fallback: declared widths added up left to right and
- * then right to left, so a column is placed sensibly before anything has been
- * measured and exactly afterwards. A pinned column with no declared width
- * contributes nothing to that fallback — the one after it would start at the
- * same place until the measurement lands.
+ * own arithmetic as the fallback: declared widths added up from the left
+ * edge, so a column is placed sensibly before anything has been measured and
+ * exactly afterwards. A pinned column with no declared width contributes
+ * nothing to that fallback — the one after it would start at the same place
+ * until the measurement lands. Only the left has a chain: one column at most
+ * is ever held on the right (D19), and its place is the edge.
  *
  * `released` is the cap's answer (D17-4). It is a rendering decision and
  * never an edit: the config still says the column is pinned, and the pin
@@ -361,7 +362,7 @@ export function tablePins(
   const left: string[] = select ? [SELECT_WIDTH] : [];
   columns.forEach((column, index) => {
     if (column.pinned !== 'left') return;
-    pins.set(column.field, pin('left', index, left, column === lastLeft));
+    pins.set(column.field, pin(index, left, column === lastLeft));
     if (column.width !== undefined) left.push(`${column.width}px`);
   });
 
@@ -369,9 +370,10 @@ export function tablePins(
   // the one the table draws last (D13), it is the only pinning that side
   // has (D19), and beside a host's action column it is not held at all —
   // `heldColumns` gave the place away. So there is never anything for it to
-  // clear, and it always draws the boundary with the scrolling middle.
-  const end = columns.findIndex(isPinned('right'));
-  if (end >= 0) pins.set(columns[end].field, pin('right', end, [], true));
+  // clear — no index, no offset, a flat `right-0` — and it always draws the
+  // boundary with the scrolling middle.
+  const end = columns.find(isPinned('right'));
+  if (end) pins.set(end.field, { side: 'right', edge: true });
 
   return {
     columns: pins,
@@ -407,22 +409,25 @@ function isPinned(side: PinSide) {
 }
 
 /**
- * One data column's pin: which edge, where it stops, and whether it is the
+ * One data column's pin on the left: where it stops, and whether it is the
  * one facing the scrolling middle. What wearing it looks like is
  * `sticky.ts`'s — this decides only who wears it.
+ *
+ * Left only, because that is the one side with a chain on it: the right has
+ * a single column against the edge itself (D19), which needs no arithmetic
+ * and gets none.
  */
 function pin(
-  side: PinSide,
   index: number,
   offsets: readonly string[],
   edge: boolean,
-): StickyPin {
+): LeftPin {
   const declared =
     offsets.length === 0 ? '0px' : `calc(${offsets.join(' + ')})`;
   return {
-    side,
+    side: 'left',
     index,
-    offset: `var(${pinVar(side, index)}, ${declared})`,
+    offset: `var(${pinVar(index)}, ${declared})`,
     edge,
   };
 }

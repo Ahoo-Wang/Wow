@@ -12,8 +12,8 @@
  */
 
 /**
- * The three wrappers here that hold what a vendored component's cva does not
- * (`LineAlert` is the fourth, in `ui/alerts.tsx`, and `test/statusStrip` holds
+ * The four wrappers here that hold what a vendored component's cva does not
+ * (`LineAlert` is the fifth, in `ui/alerts.tsx`, and `test/statusStrip` holds
  * that one), and the one rule that put them there (D16-8): `ui/components/**` is
  * upstream source and is never edited by hand, and a call site never carries
  * a component's colours in a `className`.
@@ -39,6 +39,7 @@ import {
   PillInput,
   PillSelectTrigger,
   SidebarItem,
+  TableDataRow,
   ToneBadge,
 } from '../src/ui/variants.js';
 import { Select } from '../src/ui/components/select.js';
@@ -143,5 +144,61 @@ describe('SidebarItem', () => {
     // the ghost variant's `muted` *is* the ground.
     expect(other.className).toContain('hover:bg-sidebar-accent');
     expect(other.className).not.toContain('shadow-[inset');
+  });
+});
+
+/**
+ * The three states of one row of records, which is the one wrapper here
+ * whose colours are load-bearing for something other than reading: a cell of
+ * a held column is `bg-inherit`, so a row's fill is what a frozen column is
+ * painted in as well (`ui/record/sticky.ts`).
+ */
+describe('TableDataRow', () => {
+  const row = () => {
+    const { container } = render(
+      <table>
+        <tbody>
+          <TableDataRow />
+          <TableDataRow data-state="selected" />
+        </tbody>
+      </table>,
+    );
+    return [...container.querySelectorAll('tr')];
+  };
+
+  it('fills a row opaquely at rest and under the pointer', () => {
+    const [rest] = row();
+    // A wash is what the registry hovers to — `bg-muted/50` — and through
+    // it the reader saw the scrolling column the held cell stands in front
+    // of. `--row-hover` is the same shade mixed rather than washed, and the
+    // opacity itself is measured in the browser (`PinnedEdges`).
+    expect(rest.className).toContain('bg-background');
+    expect(rest.className).toContain('hover:bg-row-hover');
+    // The row whose menu is open, which the registry washes the same way.
+    expect(rest.className).toContain('has-aria-expanded:bg-row-hover');
+    expect(rest.className).not.toContain('hover:bg-muted/50');
+    expect(rest.className).not.toContain('has-aria-expanded:bg-muted/50');
+  });
+
+  it('keeps a picked row picked while the pointer is on it', () => {
+    const [, selected] = row();
+    // Said again at the higher specificity, or the unqualified `:hover`
+    // above takes the tint away and with it the only mark saying the row is
+    // in the selection.
+    expect(selected.className).toContain('data-[state=selected]:bg-muted');
+    expect(selected.className).toContain(
+      'data-[state=selected]:hover:bg-muted',
+    );
+  });
+
+  it('leaves the row its own layout classes', () => {
+    const { container } = render(
+      <table>
+        <tbody>
+          <TableDataRow className="group/row" />
+        </tbody>
+      </table>,
+    );
+    expect(container.querySelector('tr')!.className).toContain('group/row');
   });
 });

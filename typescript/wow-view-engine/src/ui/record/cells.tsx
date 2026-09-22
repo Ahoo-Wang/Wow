@@ -12,6 +12,7 @@
  */
 
 import type * as React from 'react';
+import { cn } from 'cn';
 import { isSafeContentUrl } from '../../dashboard/index.js';
 import { CopyButton } from '../CopyButton.js';
 import {
@@ -43,26 +44,45 @@ export type CellField = DisplayField;
 const TEXT_CELL = 'max-w-[var(--fve-record-text-max-w,24rem)]';
 
 /**
+ * Where the reading is drawn, which is the one thing the two surfaces
+ * disagree about: **how many lines a value may take**.
+ *
+ * A table is read down a column — the eye runs a straight line to find the
+ * row it wants — and a row that is two lines tall wherever a note happens to
+ * be long makes that line a staircase. On the twenty-column fixture the rows
+ * measured 41, 61 and 77 pixels, three heights in one table, because a note
+ * clamped to three lines and a pair of tags wrapped to two. A card has no
+ * column to line up with and all the room it wants downwards, so it keeps
+ * the three lines.
+ *
+ * Nothing else differs, which is the point of there being one function: a
+ * card's status is the same badge as the column it was folded out of.
+ */
+export type CellSurface = 'table' | 'card';
+
+/**
  * One value as its field reads it.
  *
  * The table and the cards both come through here, so a card can never
  * disagree with the column it was folded out of. What the field declares
  * decides: `status` and `tags` wear badges, `link` is a guarded external
- * link, `text` is a clamped paragraph, `copyable` is the value with the means
- * to take it away, and a field that declares nothing falls through to the
- * kind's own rendering — a date in the surface's zone, a number in its
- * format, a boolean in the catalogue's words.
+ * link, `text` is a paragraph as long as the surface allows, `copyable` is
+ * the value with the means to take it away, and a field that declares
+ * nothing falls through to the kind's own rendering — a date in the
+ * surface's zone, a number in its format, a boolean in the catalogue's
+ * words.
  */
 export function cellValue(
   value: unknown,
   field: CellField,
   messages: MessageFormatters,
   display: DisplayContext,
+  surface: CellSurface,
 ): React.ReactNode {
   if (value === null || value === undefined) return null;
 
   const badges = badgeEntries(value, field);
-  if (badges) return <Badges entries={badges} />;
+  if (badges) return <Badges entries={badges} surface={surface} />;
 
   const cell = field.cell ?? field.kind;
   if (cell === 'link' && typeof value === 'string' && isSafeContentUrl(value))
@@ -84,11 +104,22 @@ export function cellValue(
     return (
       <span
         data-slot="cell-text"
-        // Clamped rather than truncated: a note is worth three lines in a row
-        // that stays the height of a row, and the whole of it is one hover
-        // away. The newlines the author typed are kept, since a paragraph
-        // folded into one line is a different paragraph.
-        className={`line-clamp-3 whitespace-pre-wrap ${TEXT_CELL}`}
+        className={cn(
+          TEXT_CELL,
+          surface === 'table'
+            ? // One line in a table, so every row is the same height and a
+              // column can be read straight down. `block`, because
+              // `max-width` and an ellipsis need a box and a bare `<span>`
+              // is not one; the newlines the author typed come out as
+              // spaces, which is what a one-line reading of a paragraph is.
+              'block truncate'
+            : // Three lines on a card, where there is no column to line up
+              // with. Clamped rather than truncated, and the author's own
+              // newlines kept: a paragraph folded into one line is a
+              // different paragraph, and here there is room not to fold it.
+              'line-clamp-3 whitespace-pre-wrap',
+        )}
+        // Either way the whole of it is one hover away.
         title={value}
       >
         {value}
@@ -133,13 +164,32 @@ export function cellValue(
 /**
  * The badges of one cell, side by side.
  *
+ * **Side by side and staying there, in a table.** A list of tags wrapped to
+ * a second line the moment the column was narrower than the two badges in
+ * it, which on the twenty-column fixture was most of them: two tags made a
+ * 61px row among 41px ones, and the column that caused it is three
+ * characters wide. A column carrying several tags is a column that has to be
+ * that wide — the width belongs to the content, not to the row's height.
+ * A card wraps, having the room downwards and no column to line up with.
+ *
  * Keyed by the value and its place, never by the label: a list may hold the
  * same value twice and two options may be worded alike, and two children
  * under one key is a reconciliation React is free to get wrong.
  */
-function Badges({ entries }: { entries: readonly BadgeEntry[] }) {
+function Badges({
+  entries,
+  surface,
+}: {
+  entries: readonly BadgeEntry[];
+  surface: CellSurface;
+}) {
   return (
-    <span className="flex flex-wrap items-center gap-1">
+    <span
+      className={cn(
+        'flex items-center gap-1',
+        surface === 'card' && 'flex-wrap',
+      )}
+    >
       {entries.map((entry, index) => (
         <ToneBadge
           key={`${String(entry.value)}-${index}`}
