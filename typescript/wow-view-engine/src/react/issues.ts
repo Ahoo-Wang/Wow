@@ -28,9 +28,9 @@ export { toIssue } from '../runtime/index.js';
  */
 export function kindMismatch(
   runtime: { kind: ViewKind } | null,
-  expected: ViewKind,
+  drawn: readonly ViewKind[],
 ): Issue | null {
-  return runtime && runtime.kind !== expected
+  return runtime && !drawn.includes(runtime.kind)
     ? issue('view.open.wrong-kind', [], { kind: runtime.kind })
     : null;
 }

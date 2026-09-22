@@ -37,15 +37,14 @@ import { useViewMessages } from './MessagesProvider.js';
 import { DropdownMenuContent } from './popups.js';
 
 export interface ViewSwitcherProps {
-  /** The same list the sidebar draws, already narrowed to this kind. */
+  /** The same list the sidebar draws, already narrowed to the kinds drawn. */
   list: ViewListState;
   /**
-   * The kind this workbench draws, which is the face the trigger wears.
-   * Taken from the workbench rather than from the current row so the trigger
-   * still reads while the list is loading — the list is narrowed to this one
-   * kind anyway, so the two can never disagree.
+   * The face the trigger wears: the open view's kind, or the one kind a
+   * workbench draws while nothing is open yet. A workbench of several kinds
+   * with nothing open has no face to show, and the trigger shows none.
    */
-  kind: ViewKind;
+  kind?: ViewKind;
   /** The open view, checked in the menu; null while none is. */
   currentId: string | null;
   /**
@@ -92,7 +91,7 @@ export function ViewSwitcher({
   onManage,
 }: ViewSwitcherProps) {
   const messages = useViewMessages();
-  const Kind = KIND_ICON[kind];
+  const Kind = kind === undefined ? null : KIND_ICON[kind];
   // With no view behind it the trigger used to be an icon, a chevron and a
   // gap where the name would have been — on the "cannot open" screen, where
   // it is the only way anywhere, that reads as a control that is broken too.
@@ -158,7 +157,7 @@ export function ViewSwitcher({
           />
         }
       >
-        <Kind data-icon="inline-start" />
+        {Kind && <Kind data-icon="inline-start" />}
         {/* The same 6em floor `ViewHeader` puts under the heading, here
             keeping the label off the icons beside it once the trigger is at
             its own floor above. */}

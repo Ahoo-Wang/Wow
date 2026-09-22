@@ -24,16 +24,17 @@ import { toIssue } from './issues.js';
 
 export interface ViewListOptions {
   /**
-   * Narrows the list to one kind, before it is ordered and before a default
-   * is resolved from it.
+   * Narrows the list to these kinds, before it is ordered and before a
+   * default is resolved from it.
    *
-   * One data definition holds record and analysis instances together, while a
-   * workbench draws one of the two. Without this the sidebar offers views the
-   * body cannot render, and the effective default may land on one of them —
-   * which is a blank page rather than a view. Left out, every kind is listed,
-   * which is what a dashboard definition wants.
+   * One data definition holds record and analysis instances together, and a
+   * workbench draws the kinds it has parts for — both by default, one when a
+   * host narrows it (D20). Without this the sidebar offers views the body
+   * cannot render, and the effective default may land on one of them — which
+   * is a blank page rather than a view. Left out, every kind is listed, which
+   * is what a dashboard definition wants.
    */
-  kind?: ViewKind;
+  kinds?: readonly ViewKind[];
 }
 
 /** What a caller already knows about the list it is asking to be read again. */
@@ -59,14 +60,14 @@ export interface ViewListState {
   /** Summaries in the order the workbench shows them. */
   items: ViewInstanceSummary[];
   /**
-   * The same summaries before `options.kind` narrowed them, in the same
-   * order. Equal to `items` when no kind was asked for.
+   * The same summaries before `options.kinds` narrowed them, in the same
+   * order. Equal to `items` when no kinds were asked for.
    *
-   * A reorder stores one order for the whole definition, and a record
-   * workbench lists only the record views: submitting the order it can see
-   * would drop every analysis id from `preferences.order`. So a caller that
-   * writes the order reads it from here and moves the two ids it can see
-   * inside it, leaving the kinds it does not draw where they were.
+   * A reorder stores one order for the whole definition, and a narrowed
+   * workbench lists only some kinds: submitting the order it can see would
+   * drop every other id from `preferences.order`. So a caller that writes
+   * the order reads it from here and moves the two ids it can see inside it,
+   * leaving the kinds it does not draw where they were.
    */
   all: ViewInstanceSummary[];
   preferences: ViewPreferences | null;
@@ -126,8 +127,16 @@ export function useViewList(
   options: ViewListOptions = {},
 ): ViewListState {
   // Read off the object rather than kept: a caller writes the options inline,
-  // so the object is new every render and the kind inside it is not.
-  const { kind } = options;
+  // so the object — and the array in it — is new every render while what
+  // they say is not. The kinds are held by what they say.
+  const kindsKey = options.kinds?.join(' ');
+  const kinds = useMemo(
+    () =>
+      kindsKey === undefined
+        ? null
+        : new Set(kindsKey.split(' ') as ViewKind[]),
+    [kindsKey],
+  );
   const [request, setRequest] = useState<ReloadRequest>(FIRST_LOAD);
   const [list, setList] =
     useState<Loaded<ViewInstanceSummary[]>>(NOTHING_LOADED);
@@ -263,8 +272,8 @@ export function useViewList(
   // the default below are resolved among the views the caller can open while
   // `all` keeps the positions of the kinds this caller does not draw.
   const items = useMemo(
-    () => (kind ? all.filter(summary => summary.kind === kind) : all),
-    [all, kind],
+    () => (kinds ? all.filter(summary => kinds.has(summary.kind)) : all),
+    [all, kinds],
   );
 
   return {

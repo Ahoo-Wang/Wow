@@ -238,7 +238,7 @@ src/
     AnalysisChart.tsx         — Dispatches by chart family; nothing else
     AnalysisEditor.tsx        — What to group by, what to measure, and how to draw it
     AnalysisTable.tsx         — The aggregation as a table: groups first, then metrics, with the totals row from its own ungrouped query rather than from summing what is on screen
-    AnalysisWorkbench.tsx     — Default Analysis workbench
+    AnalysisWorkbench.tsx     — Default Analysis workbench: `useWorkbench` + `AnalysisParts` + `WorkbenchShell`, joined
     Announcer.tsx             — `useAnnouncer`: one live region per surface, handed back rather than rendered by the caller
     AppliedBar.tsx            — The conditions the rows on screen were fetched under
     BulkOutcome.tsx           — `BulkOutcomeStrip`: what a host's bulk command did to the records it was handed
@@ -266,7 +266,7 @@ src/
     RecordCards.tsx           — The same result as cards, drawn from the card half of the saved config (D18 V); a value reads as a card reads it, a note on its own three lines
     RecordPagination.tsx      — How many rows there are and how to reach the next of them
     RecordTable.tsx           — The record view as a table: the columns and rows of the result that ran, never of the draft; its rows are `TableDataRow`s and a value reads as a table reads it, one line each
-    RecordWorkbench.tsx       — Default Record workbench
+    RecordWorkbench.tsx       — Default Record workbench: `useWorkbench` + `RecordParts` + `WorkbenchShell`, joined
     RefreshControl.tsx        — Refresh now, and the auto-refresh cadence menu, as one split button
     RenderBoundary.tsx        — The boundary each part of a view renders behind, so one failing leaves the rest standing
     ResultToolbar.tsx         — Selection, bulk slot, layout, columns, refresh
@@ -283,7 +283,7 @@ src/
     ViewManagerRow.tsx        — One managed view: drag handle, rename in place, default, delete
     ViewSurface.tsx           — The boundary every view renders inside: the theme, the wording, the locale and the zone a time reads on
     ViewSwitcher.tsx          — The view list as one control, for when the sidebar is folded away
-    WorkbenchShell.tsx        — The frame the three workbenches share, over one `useWorkbench`
+    WorkbenchShell.tsx        — The frame the workbenches share, over one `useWorkbench`; draws the refresh, the query strip and the warnings itself
     WriteOutcome.tsx          — The open view's last write, and the three ways out of a conflict
     alerts.tsx                — `LineAlert`: one callout one line high, tone deciding colour, icon and role
     describeConfig.ts         — One config in a sentence, for a conflict's side-by-side
@@ -384,10 +384,13 @@ src/
       useSummaries.ts         — The two summary scopes from the one the runtime executed; table and cards share it
     sort/
       drag.ts                 — What the sort editor makes of a drag: which entry a drop moves where, the order that comes out of it, and what a screen reader hears meanwhile
-    workbench/                — The shell's private parts: `ResultBlock`, `Unopenable`, `useEditorFold` + `filled`
+    workbench/                — The shell's private parts, and the parts each kind of view puts into it
+      AnalysisParts.tsx       — What makes an analysis view an analysis view: its editor and its table or chart, handed to the shell as slots
       NoViews.tsx             — The work area when the definition has no view of this kind yet
       OpeningSkeleton.tsx     — The shape of the page that is opening: title-bar and result-block skeletons, one status sentence (P-13)
+      RecordParts.tsx         — What makes a record view a record view: the condition band, the toolbar, the rows and the paging, handed to the shell as slots
       ResultBlock.tsx         — The result and its caption on the one bordered frame (D12)
+      parts.ts                — `WorkbenchParts`, the slice of the shell's slots a kind fills, and the render prop it fills them through
       Unopenable.tsx          — The work area when the chosen view cannot be opened
       useEditorFold.ts        — The editor's fold, per opening; `filled`
       useSidebarFold.ts       — The sidebar's fold, following the surface's width until the user presses

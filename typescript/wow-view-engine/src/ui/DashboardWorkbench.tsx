@@ -103,6 +103,9 @@ export interface DashboardWorkbenchProps {
  * the dashboard, and every panel re-runs with the condition mapped onto its
  * own fields.
  */
+/** The one kind a dashboard workbench draws, held once so the list is not re-narrowed per render. */
+const DASHBOARD = ['dashboard'] as const;
+
 export function DashboardWorkbench({
   engine,
   definitionId,
@@ -122,12 +125,12 @@ export function DashboardWorkbench({
 }: DashboardWorkbenchProps) {
   const messages = useViewMessages(wording);
   const workbench = useWorkbench(engine, definitionId, {
-    kind: 'dashboard',
+    kinds: DASHBOARD,
     instanceId,
     onInstanceChange,
     newView: {
       title: messages.label('label.view.new-title'),
-      ...(template ? { config: template } : {}),
+      ...(template ? { templates: { dashboard: template } } : {}),
     },
   });
   const { filter, runtime, state } = workbench;
@@ -165,7 +168,6 @@ export function DashboardWorkbench({
   return (
     <WorkbenchShell
       workbench={workbench}
-      kind="dashboard"
       title={engine.definitions.get(definitionId)?.title}
       theme={theme}
       messages={wording}
@@ -180,6 +182,9 @@ export function DashboardWorkbench({
       resultFramed={false}
       hasResult={hasResult}
       warnings={warnings}
+      // The panels fail one by one and say so each in its own card; the
+      // dashboard's own query has nothing to report in a strip.
+      strips={null}
       // The dashboard's own interval, which is the only one that runs here:
       // `DashboardRuntime` holds one timer for the whole board and ignores
       // what a referenced view saved for itself, so the menu says which one

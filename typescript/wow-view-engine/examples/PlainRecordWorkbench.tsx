@@ -44,7 +44,7 @@ export function PlainRecordWorkbench({
 }) {
   const [title, setTitle] = useState('Pending shipments');
   const workbench = useWorkbench(engine, definitionId, {
-    kind: 'record',
+    kinds: ['record'],
     instanceId,
     onInstanceChange,
     // The name a new view opens under is wording, so the host supplies it;
@@ -61,10 +61,10 @@ export function PlainRecordWorkbench({
     <div>
       <nav aria-label="views">
         {/* Absent rather than disabled when there is no permission or no
-            kind to make (`canCreate`); the view opens unsaved, and its first
+            kind to make (`creatable`); the view opens unsaved, and its first
             save goes through `commands.saveAs` with a title and audience. */}
-        {workbench.canCreate && (
-          <button type="button" onClick={workbench.create}>
+        {workbench.creatable.includes('record') && (
+          <button type="button" onClick={() => workbench.create('record')}>
             New view
           </button>
         )}

@@ -740,6 +740,7 @@ export const zhCN: ViewMessages = {
   'label.status.less': '收起',
   'label.status.loading': '加载中',
   'label.status.querying': '正在查询',
+  'label.status.groups': '{count} 组',
   // 只有一条 error 时直接说出来，行尾给一条出路：记录视图自己的错几乎都是
   // 列的事（定义里没有的列、钉不了的列），修它的地方就是工具栏那颗按钮打开
   // 的那一块。说的是打开哪一块，不是替读者决定怎么改。

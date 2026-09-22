@@ -27,14 +27,20 @@ import type { ViewPermissions } from '../../store/index.js';
  *
  * The title is required because the engine refuses a view without one, and
  * it is the UI's to word — this layer carries no catalogue — so a workbench
- * that gives none simply offers no new view. The config is the host's
- * template; left out, the kind's own default is built from the definition.
+ * that gives none simply offers no new view. A template is the host's own
+ * first view of one kind; a kind without one starts from the default built
+ * from the definition.
  */
 export interface NewViewOptions {
   /** The name a new view opens under, until the first save names it. */
   title: string;
-  /** What a new view starts from; the kind's own default when left out. */
-  config?: ViewConfig;
+  /**
+   * What a new view of each kind starts from; the kind's own default when
+   * its entry is left out. A template of the wrong kind is refused as no
+   * template: it is a mistake at the call site, and a workbench that then
+   * offered the default instead would hide it.
+   */
+  templates?: Partial<Record<ViewKind, ViewConfig>>;
 }
 
 /** What `create` will hand the engine, or null where no view can be made. */
@@ -96,6 +102,7 @@ export function blankView(
   if (!newView || !definition || !offers(definition, kind)) return null;
   const scope = newViewScope(permissions);
   if (scope === null) return null;
-  const config = newView.config ?? blankConfig(definition, kind, limits);
+  const config =
+    newView.templates?.[kind] ?? blankConfig(definition, kind, limits);
   return config.kind === kind ? { scope, config } : null;
 }

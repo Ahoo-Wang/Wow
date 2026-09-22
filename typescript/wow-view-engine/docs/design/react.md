@@ -33,13 +33,13 @@ useOpenView(engine, instanceId, scopeFilter?): { runtime | null; loading; error;
 ## useViewList
 
 ```ts
-useViewList(engine, definitionId, options?: { kind }): { items; all; preferences; permissions; defaultInstanceId; loading; error; preferencesError; reload }
+useViewList(engine, definitionId, options?: { kinds }): { items; all; preferences; permissions; defaultInstanceId; loading; error; preferencesError; reload }
 // error 是 engine.list 答里的 failed（store 那一半没读到）或整个列表被拒的 Issue；两种情况下 items 都不清空：前者仍有代码声明的系统视图，重读时还留着上一份答案（F-05）
 ```
 
-- 给出 kind 时先按顺序排好再过滤、再解析默认，见 [management.md#列表偏好与默认视图](management.md#列表偏好与默认视图)；
+- 给出 `kinds` 时先按顺序排好再过滤、再解析默认，见 [management.md#列表偏好与默认视图](management.md#列表偏好与默认视图)；数据工作台给的是 `['record', 'analysis']`，宿主收窄成一种就给一种（D20）；数组按内容持有（inline 写也不会每次重算）；
 - useViewManager 因此管的是过滤后的可见列表，而 move 提交的是 `all`（未过滤的完整顺序）里对调两项的结果，未列出的种类因此各守其位；
-- `all` 是未经 kind 过滤、同序的全部摘要，供 moveTo 在完整顺序里落子；
+- `all` 是未经 `kinds` 过滤、同序的全部摘要，供 moveTo 在完整顺序里落子；
 - reload 可带 `{ without?: id }`：重载期间把该 id 从留存的摘要里去掉，`preferences.defaultInstanceId` 命中它也读作 null，答案落地即恢复由 store 说了算——重载只刷新不清空，否则刚删掉的那一行会继续被列出、继续被当作默认视图，骑在默认视图上的工作台就会去重开一个刚被释放的 runtime（瞬时 not_found）；
 - 它订阅 `engine.subscribe`（[runtime.md#viewengine](runtime.md#viewengine)）：本定义的通知到来时自动重载，删除那一条自带 `without`，卸载时退订。所以经引擎的创建／保存／改名／删除——无论出自管理器、视图头，还是宿主自己直接调 `engine.delete`——列表都自己跟上，没有哪个调用方需要记得通知（D15）；`reload` 仍然公开，它答的是「我从别处知道外面变了」，比如宿主自己的服务端推送。（见 test/useViewList.test.tsx「useViewList」「narrowed to one kind」）
 
@@ -201,16 +201,16 @@ useRefreshCountdown(refresh): number | null   // 每秒重画的剩余整秒
 ## useWorkbench
 
 ```ts
-useWorkbench(engine, definitionId, { kind, instanceId?, onInstanceChange?, guardUnload?, newView? }): WorkbenchController
+useWorkbench(engine, definitionId, { kinds, instanceId?, onInstanceChange?, guardUnload?, newView? }): WorkbenchController
 WorkbenchController {
-  list; manager; openId; choose(id); canCreate; create(); opened; runtime; state; unopenable;
+  kinds; list; manager; openId; choose(id); creatable; create(kind); opened; runtime; state; unopenable;
   commands; filter; refresh; leave; onSaved; onRenamed; onDeleted; onRecovered
 }
 ```
 
-一个工作台除了自己的编辑器与结果之外的全部：哪些视图、开着哪个、它说了什么、换一个时会发生什么。三个默认工作台只在编辑器与结果上不同，装配一模一样，所以装配只写这一处。
+一个工作台除了自己的编辑器与结果之外的全部：哪些视图、开着哪个、它说了什么、换一个时会发生什么。默认工作台只在编辑器与结果上不同，装配一模一样，所以装配只写这一处；每种视图的编辑器与结果是一个**注入件**（`ui/workbench/RecordParts.tsx`、`AnalysisParts.tsx`），把自己那一份外壳槽位（`WorkbenchParts`，外壳 props 的 `Pick`）经 render prop 交回，外壳画在它里面。注入件常驻挂载，没开着它那一种视图时交回空槽位——每次切换都先释放一个 runtime 再开下一个，外壳若跟着注入件来去，铺满与侧栏折叠这些「这一屏的姿态」会在中间那一帧丢掉。
 
-- 列表按 `kind` 收窄后再定默认（`useViewList(engine, definitionId, { kind })`）：侧栏不提供这一页画不出的视图，默认视图也只在这些里解析。仪表盘定义本就只有 dashboard 实例，收窄对它是恒等；
+- 列表按 `kinds` 收窄后再定默认（`useViewList(engine, definitionId, { kinds })`）：侧栏不提供这一页画不出的视图，默认视图也只在这些里解析。仪表盘定义本就只有 dashboard 实例，收窄对它是恒等；控制器把 `kinds` 原样交出去，外壳据此在没有视图开着时给切换器一张脸（只画一种时）或不给；
 - `openId` 是"此刻在开的那个"：显式选择（`choose` 写下的 pin），没有则是列表的有效默认。`choose` 一律经离开守卫，因为切换会释放当前 runtime，未保存的草稿只活在里面；
 - **`instanceId` 是受控的**，语义照 input 的 `value`：**不传**（`undefined`）是非受控形态，开着哪个视图由工作台自己拿着，从有效默认开始；**传了**——一个 id，或 `null` 表示"那个有效默认"——就是宿主在说开哪个，此后每一次**变化**都打开它所指的视图。`null` 不是"没传"：传 `null` 的宿主是拿着一个值的，只不过那个值叫"我的默认"；
 - 它**收敛**而不是**渲染**（`react/workbench/instanceSync.ts`）。一个视图不是一个字符串：里面有未保存的草稿，换掉它是一次损失，所以宿主推进来的值和侧栏上的一次点击走同一道离开守卫，不能直接当成渲染结果铺上去。规则只有一条——**后动的那一方说话，另一方跟上**：
@@ -219,12 +219,12 @@ WorkbenchController {
   - 守卫拦下了这次推入、用户选择留下 → 告诉宿主**留下的是哪个**，宿主的 URL 因此不会停在一个没开着的视图上；
   - 两边一致、或守卫的问题还挂在屏幕上 → 什么都不说；说过一次就不再重复，宿主不跟是宿主的事。
 - `onInstanceChange(id)` 报的正是能原样传回 `instanceId` 的那个值——`null` 在出口与入口同义，都指有效默认——所以「一键重开」在浏览器里就是一条可以发出去的链接。两种形态之间中途切换不受支持，和 input 一样：第一个值决定哪一边拿着这个状态。（见 test/workbench.test.tsx「a workbench a host routes」、test/closedLoop.test.tsx「closed loop two」，参照实现 `examples/PlainRecordWorkbench.tsx` 的 `HashRoutedRecordWorkbench`）；
-- 种类不符由 `kindMismatch` 判为 `unopenable`，与"打不开"同一个出口：一个定义同时容纳 record 与 analysis 实例，宿主仍可点名任一个，画不出的那一页要说明白，而不是在标题栏下留一片空白。`unopenable` 为真时 `runtime`／`state` 皆为 null；
+- 种类不在 `kinds` 里由 `kindMismatch` 判为 `unopenable`，与"打不开"同一个出口：一个定义同时容纳 record 与 analysis 实例，宿主仍可点名任一个，画不出的那一页要说明白，而不是在标题栏下留一片空白。`unopenable` 为真时 `runtime`／`state` 皆为 null；
 - pin 指向的视图被删除后由 `react/workbench/releaseDeleted.ts` 放手：引擎随实例释放 runtime，同一 id 再开只会一直答 not_found，页面因此永远走不到还在的那个视图上。只放手**开过**的 id——宿主点名而 store 从来没有的 id 是一个要报出来的错，不是一个要导航离开的状态；
 - `leave` 是无对话框的离开守卫（`react/workbench/leaveGuard.ts`）：`asking` / `request(next)` / `confirm()` / `cancel()`。`dirty` 或写入结局为 `unknown` 时才问，`confirm` 先结清（`commands.abandon()`）再走——`next` 会释放这个 runtime，结局就再没有它可依附，handle 会指向一个谁也够不着的 runtime 而 `engine.pendingWrites()` 把它留到会话结束。怎么问是宿主的事，`/ui` 用 `LeaveDialog`。**同一条判据也挂在 `beforeunload` 上**（D18 Ⅸ）：关标签、后退、点走一个外链都会带走草稿，而这些路径一次也不经过 `request`——这个包甚至不会知道它发生过。脏或未知时挂上、其余时候一条也不挂（一个每次关闭都要争辩的标签，人会学会按两下），`guardUnload: false` 可以整个关掉，留给把工作台当页面一部分挂着、或在服务端渲染的宿主。处理器不带任何措辞：浏览器十年前就不再显示自定义文案了，能由我们措辞的那一句是 `LeaveDialog`，这一道只是那些到不了它的出口的兜底；嵌入视图不在其列——`EmbeddedView` 没有编辑器、没有草稿，压根不调这个钩子；
 - `filter` 是这次打开的筛选编辑器，在这里建一次：外壳画已应用条件条要用它，error 条要用它的 `unmarked`，三个工作台本来也各建一个；
 - `refresh` 是 `useAutoRefresh(runtime)` 的结果，在这里装配而不是在三个工作台里各调一次：`refresh` 在 `ViewConfigBase` 上，三种视图都有，取法也一样；
-- `create()` 从零做一个视图，经离开守卫；`canCreate` 是它存不存在的全部依据（定义有这一种、用户可在某受众创建、`newView.title` 给了名字），控件按它存在或不存在。新视图的 runtime 由钩子自己拿着（`opened` 就是它，此时不按 id 开任何东西），没改过就切走不问，第一次保存走 `commands.saveAs` 后按存下的 id 重开——细节在 [management.md#列表偏好与默认视图](management.md#列表偏好与默认视图)。`SaveCommandState.isNew` 说的是这个视图从没存过，UI 据此把主按钮换成问名字与受众的那张表；
+- `create(kind)` 从零做一个那种视图，经离开守卫；`creatable` 是哪几种做得成的全部依据（定义有这一种、用户可在某受众创建、`newView.title` 给了名字），按 `kinds` 的顺序；控件按它存在或不存在——一种是一颗按钮，几种是一张菜单（todo 批 3），没有就没有控件。`newView.templates` 按种类给宿主自己的第一份配置，种类不符的模板当作没给。新视图的 runtime 由钩子自己拿着（`opened` 就是它，此时不按 id 开任何东西），没改过就切走不问，第一次保存走 `commands.saveAs` 后按存下的 id 重开——细节在 [management.md#列表偏好与默认视图](management.md#列表偏好与默认视图)。`SaveCommandState.isNew` 说的是这个视图从没存过，UI 据此把主按钮换成问名字与受众的那张表；
 - 四个 `on*` 是标题栏结局的工作台语义，已经接好：存下的副本随即打开、改名留在原视图（先 pin 再 reload，否则骑在默认视图上的工作台会关掉 runtime 连草稿一起丢）、删除即移开（只清 pin——列表由引擎的通知带着被删的 id 自己重读，再补一次不带 `without` 的重读反而会把那一行放回去；默认视图顺位接上，或随列表一起空掉）、恢复则重读列表。（见 test/workbench.test.tsx「useWorkbench」）
 
 宿主写自己的标记时调这一个钩子就够，规则一条也不会掉——`examples/PlainRecordWorkbench.tsx` 是那份参照。`test/architecture.test.ts` 禁止 `ui/*Workbench.tsx` 直接 import `useViewList`／`useOpenView`／`useViewManager`／`useLeaveGuard`：绕过去就是把装配重建一遍。

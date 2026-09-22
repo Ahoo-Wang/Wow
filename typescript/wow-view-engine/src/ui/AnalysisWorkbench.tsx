@@ -11,21 +11,16 @@
  * limitations under the License.
  */
 
-import type { AnalysisView } from '../analysis/index.js';
 import type { AnalysisViewConfig, FieldOption } from '../model/index.js';
-import { hasResult, resultIssues, type ViewEngine } from '../runtime/index.js';
-import { useAnalysisEditor, useWorkbench } from '../react/index.js';
-import { AnalysisChart } from './AnalysisChart.js';
-import { AnalysisEditor } from './AnalysisEditor.js';
-import { AnalysisTable } from './AnalysisTable.js';
-import { FilterPanel } from './FilterPanel.js';
-import { RefreshControl } from './RefreshControl.js';
-import { QueryStrip } from './StatusStrip.js';
+import type { ViewEngine } from '../runtime/index.js';
+import { useWorkbench } from '../react/index.js';
 import type { ViewMessages } from './messages.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { featuresOf, type WorkbenchFeatures } from './features.js';
 import { WorkbenchShell } from './WorkbenchShell.js';
 import type { RenderFailureHandler } from './RenderBoundary.js';
+import { AnalysisParts } from './workbench/AnalysisParts.js';
+import type { RenderParts } from './workbench/parts.js';
 
 export interface AnalysisWorkbenchProps {
   engine: ViewEngine;
@@ -90,12 +85,16 @@ export interface AnalysisWorkbenchProps {
   onRenderFailure?: RenderFailureHandler;
 }
 
+/** The one kind this workbench draws, held once so the list is not re-narrowed per render. */
+const ANALYSIS = ['analysis'] as const;
+
 /**
  * The default Analysis workbench: the view list, the conditions, what to
  * aggregate, and the result as a table or a chart.
  *
- * Which of the two is showing is part of the saved config, and both keep
- * their own settings, so switching back and forth loses nothing.
+ * `useWorkbench` finds, opens and leaves the view; `WorkbenchShell` draws the
+ * frame; `AnalysisParts` is what makes an analysis view an analysis view.
+ * This component only joins the three.
  */
 export function AnalysisWorkbench({
   engine,
@@ -115,30 +114,19 @@ export function AnalysisWorkbench({
 }: AnalysisWorkbenchProps) {
   const messages = useViewMessages(wording);
   const workbench = useWorkbench(engine, definitionId, {
-    kind: 'analysis',
+    kinds: ANALYSIS,
     instanceId,
     onInstanceChange,
     newView: {
       title: messages.label('label.view.new-title'),
-      ...(template ? { config: template } : {}),
+      ...(template ? { templates: { analysis: template } } : {}),
     },
   });
-  const { filter, runtime, state } = workbench;
-  const analysis = useAnalysisEditor(runtime);
+  const { runtime } = workbench;
 
-  const data = state?.result?.data;
-  const view: AnalysisView | null =
-    data?.kind === 'analysis' ? data.view : null;
-  // The chart the result was shaped by, not the draft being edited: until
-  // Run, the draft's aliases may name other columns than the ones the
-  // result's categories came from, and a category is named through its column.
-  const shaped = state?.result?.config;
-  const chart = shaped?.kind === 'analysis' ? shaped.chart : analysis.chart;
-
-  return (
+  const frame: RenderParts = parts => (
     <WorkbenchShell
       workbench={workbench}
-      kind="analysis"
       title={engine.definitions.get(definitionId)?.title}
       theme={theme}
       messages={wording}
@@ -149,53 +137,20 @@ export function AnalysisWorkbench({
       expandable={expandable}
       manage={featuresOf(features).manage}
       onRenderFailure={onRenderFailure}
-      // This workbench has no result toolbar to put it in — the analysis
-      // result is a table or a chart, not a bar of controls — so the
-      // refresh sits with the other view-level controls in the title bar.
-      freshness={
-        <RefreshControl refresh={workbench.refresh} variant="outline" />
-      }
-      // A grouping that filled its limit is a fact about this result, so it
-      // is said beside the config's own findings and stays until the next
-      // result replaces it. The strip sits above both layouts, which is why
-      // a truncated pie is labelled as surely as a truncated table.
-      warnings={[
-        ...(state?.issues ?? []),
-        ...resultIssues(state?.result?.data),
-      ]}
-      editor={
-        /* Not frozen while a query runs: editing never re-queries, and a
-           refresh that lands mid-edit must not take the inputs away. */
-        <>
-          <FilterPanel filter={filter} optionsFor={optionsFor} />
-          <AnalysisEditor analysis={analysis} />
-        </>
-      }
-      /* Only where it will draw: the shell reads the slot to decide whether
-         there is a result block at all, and an element that renders null
-         still counts as something in it (`filled`). */
-      strips={
-        state?.query.status === 'error' &&
-        state.query.error !== undefined && (
-          <QueryStrip
-            error={state.query.error}
-            stale={hasResult(state)}
-            onRetry={() => runtime?.refresh()}
-          />
-        )
-      }
-      result={
-        view &&
-        (analysis.layout === 'chart' && view.chart ? (
-          <AnalysisChart
-            data={view.chart}
-            spec={chart}
-            columns={view.schema ?? view.columns}
-          />
-        ) : (
-          <AnalysisTable view={view} />
-        ))
-      }
+      {...parts}
     />
+  );
+
+  // The parts are a component of the runtime, mounted whatever is open, and
+  // the shell is drawn inside them (`workbench/parts.ts`).
+  return (
+    <AnalysisParts
+      workbench={workbench}
+      runtime={runtime?.kind === 'analysis' ? runtime : null}
+      messages={wording}
+      optionsFor={optionsFor}
+    >
+      {frame}
+    </AnalysisParts>
   );
 }

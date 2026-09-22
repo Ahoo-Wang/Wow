@@ -20,16 +20,17 @@ import {
 } from 'react';
 import { cn } from 'cn';
 import { PanelLeftOpenIcon } from 'lucide-react';
-import type { Issue, ViewKind } from '../model/index.js';
+import type { Issue } from '../model/index.js';
 // Aliased: `hasResult` here is the prop a dashboard overrides it with.
-import { hasResult as viewHasResult } from '../runtime/index.js';
+import { hasResult as viewHasResult, resultIssues } from '../runtime/index.js';
 import type { WorkbenchController } from '../react/index.js';
 import { IconButton } from './IconButton.js';
 import { AppliedBar } from './AppliedBar.js';
 import { EditorBand, EditorBandToggle, EditorFold } from './EditorBand.js';
 import { SPACE, TRAY } from './layout.js';
 import { LeaveDialog } from './LeaveGuard.js';
-import { ErrorStrip, WarningStrip } from './StatusStrip.js';
+import { RefreshControl } from './RefreshControl.js';
+import { ErrorStrip, QueryStrip, WarningStrip } from './StatusStrip.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { RenderBoundary, type RenderFailureHandler } from './RenderBoundary.js';
 import type { ViewMessages } from './messages.js';
@@ -48,8 +49,6 @@ import { useWorkbenchFolds } from './workbench/useWorkbenchFolds.js';
 
 export interface WorkbenchShellProps {
   workbench: WorkbenchController;
-  /** The kind being drawn; the title bar and the error strip name it. */
-  kind: ViewKind;
   /** The definition's title, which names the sidebar and the header. */
   title?: string;
   theme?: 'light' | 'dark';
@@ -68,11 +67,10 @@ export interface WorkbenchShellProps {
   /** The host's own global actions, at the end of the right-hand group. */
   actions?: ReactNode;
   /**
-   * How this view is renewed, as the last of the view-level controls. It is
-   * a slot rather than something the shell builds from `workbench.refresh`,
-   * because a Record workbench already carries the same control in its
-   * result toolbar, where the freshness group is, and one view with two
-   * entries to one setting is one entry too many.
+   * How this view is renewed, as the last of the view-level controls. Left
+   * out, the shell draws the refresh control from `workbench.refresh`, busy
+   * while the view's own query runs; a dashboard passes its own, because
+   * its panels are what run and what the note beside the control names.
    */
   freshness?: ReactNode;
   /** The view's own editor, between the title bar and the strips. */
@@ -120,7 +118,12 @@ export interface WorkbenchShellProps {
    * the rows below had to say.
    */
   toolbar?: ReactNode;
-  /** Strips only one kind has, under the two every kind shows. */
+  /**
+   * The strip between the toolbar and the rows. Left out, the shell draws
+   * the query strip from the view's own query — failed, stale or not, retry
+   * — which is what a record and an analysis view both say there; a
+   * dashboard, whose panels fail one by one, passes `null`.
+   */
   strips?: ReactNode;
   /** The rows, the chart, the panels — what the page is for. */
   result?: ReactNode;
@@ -174,7 +177,13 @@ export interface WorkbenchShellProps {
    * it. The open view's own query when left out.
    */
   resultPending?: boolean;
-  /** The warnings to show; every one the view reports when left out. */
+  /**
+   * The warnings to show. Left out, every one the view reports, plus what
+   * this result says about itself (`resultIssues`): a summary row that fell
+   * back to the page, a grouping that filled its limit, are facts about the
+   * numbers below, and they outlive the next keystroke because they ride
+   * with the result rather than with the draft's admission.
+   */
   warnings?: readonly Issue[];
   /**
    * Whether the result is drawn inside one frame — toolbar on top, rows to
@@ -236,7 +245,6 @@ export interface WorkbenchShellProps {
  */
 export function WorkbenchShell({
   workbench,
-  kind,
   title,
   theme,
   messages: wording,
@@ -271,10 +279,17 @@ export function WorkbenchShell({
   const messages = useViewMessages(wording);
   const titleId = useId();
   const editorId = useId();
-  const { filter, leave, list, manager, opened, state, unopenable } = workbench;
+  const { filter, leave, list, manager, opened, runtime, state, unopenable } =
+    workbench;
   // A view that opened and is this page's to draw. Anything else is reported
   // instead of being dressed up as a title bar over an empty body.
-  const open = state !== null && workbench.runtime !== null && !unopenable;
+  const open = state !== null && runtime !== null && !unopenable;
+  // The kind on screen names the title bar's icon and the switcher's face.
+  // Before anything is open, a workbench of one kind still has a face; one
+  // of several shows none until a view says which it is.
+  const kind =
+    runtime?.kind ??
+    (workbench.kinds.length === 1 ? workbench.kinds[0] : undefined);
   // Whether there is a result for the applied bar to describe. It renders
   // nothing without one, which is also half of whether the result block has
   // any reason to exist.
@@ -289,8 +304,12 @@ export function WorkbenchShell({
   const canManage = manage && manager.can.anything;
   // One command behind three ways in — the sidebar's `+`, the switcher's
   // item and the empty work area's button — and none of the three exists
-  // without it (D4).
-  const create = workbench.canCreate ? workbench.create : undefined;
+  // without it (D4). Several creatable kinds are a menu, which is the kind
+  // menu's to draw (todo 批 3); until then the three controls offer the
+  // one kind a workbench can make.
+  const creatable = workbench.creatable;
+  const create =
+    creatable.length === 1 ? () => workbench.create(creatable[0]) : undefined;
   // Nothing to open and nothing on its way: the list is in and has no view
   // of this kind, and no view was made from nothing either. Said in the
   // work area rather than left blank, because blank reads as broken.
@@ -339,7 +358,7 @@ export function WorkbenchShell({
   // Spent on the opening the copy produced: the id is in the dependencies
   // because it is what changes when the new view finally opens, and the
   // header is drawn again with the new title on it.
-  const openedId = workbench.runtime?.id ?? null;
+  const openedId = runtime?.id ?? null;
   useLayoutEffect(() => {
     if (!created.current || !open || openedId === null) return;
     created.current = false;
@@ -349,13 +368,20 @@ export function WorkbenchShell({
   const folded = editorLabel !== undefined && editor != null;
   // A caught failure belongs to the view it happened in: opening another
   // view draws its parts afresh rather than carrying the fallback over.
-  const resetKeys = [workbench.runtime?.id ?? null];
+  const resetKeys = [runtime?.id ?? null];
   const editorIsOpen = useEditorFold({
     controlled: editorOpen,
     fallback: defaultEditorOpen ?? state?.saved === null,
-    runtimeId: workbench.runtime?.id ?? null,
+    runtimeId: runtime?.id ?? null,
     onChange: onEditorOpenChange,
   });
+  // The one query every kind of view has, read once for the two slots that
+  // report it: the query strip under the toolbar, and the busy refresh.
+  const querying = state?.query.status === 'loading';
+  const failed =
+    state?.query.status === 'error' && state.query.error !== undefined
+      ? state.query.error
+      : null;
 
   // Folding the editor away ends the editing state the inputs inside it
   // started. Closing unmounts them, and an unmounted input fires no blur, so
@@ -375,6 +401,20 @@ export function WorkbenchShell({
   // The way back to the list, and the list itself as one control. Both exist
   // only while the sidebar is away — with it on screen, the list *is* the
   // switcher and the sidebar's heading is the definition's title.
+  // Only where it will draw: `resultBlockShown` reads the slot to decide
+  // whether there is a result block at all, and an element that renders
+  // null still counts as something in it (`filled`).
+  const strip =
+    strips !== undefined
+      ? strips
+      : failed && (
+          <QueryStrip
+            error={failed}
+            stale={viewHasResult(state)}
+            onRetry={() => runtime?.refresh()}
+          />
+        );
+
   const collapsed = !sidebarOpen && (
     <div
       data-slot="view-collapsed"
@@ -562,7 +602,7 @@ export function WorkbenchShell({
               >
                 <ViewHeader
                   state={state}
-                  kind={kind}
+                  kind={runtime.kind}
                   commands={workbench.commands}
                   titleId={titleId}
                   titleRef={viewTitle}
@@ -588,25 +628,29 @@ export function WorkbenchShell({
                     // editor governs what the view asks, filling the screen
                     // governs the room the answer gets, and the refresh
                     // governs how often it is renewed.
-                    (folded || expandable || freshness !== undefined) && (
-                      <>
-                        {folded && (
-                          <EditorBandToggle
-                            label={editorLabel}
-                            modeLabel={editorModeLabel}
-                            modes={editorModes}
-                            pending={editorPending}
-                          />
-                        )}
-                        {freshness}
-                        {expandable && (
-                          <ViewExpandToggle
-                            expansion={fill}
-                            ref={expandViewRef}
-                          />
-                        )}
-                      </>
-                    )
+                    <>
+                      {folded && (
+                        <EditorBandToggle
+                          label={editorLabel}
+                          modeLabel={editorModeLabel}
+                          modes={editorModes}
+                          pending={editorPending}
+                        />
+                      )}
+                      {freshness ?? (
+                        <RefreshControl
+                          refresh={workbench.refresh}
+                          variant="outline"
+                          busy={querying}
+                        />
+                      )}
+                      {expandable && (
+                        <ViewExpandToggle
+                          expansion={fill}
+                          ref={expandViewRef}
+                        />
+                      )}
+                    </>
                   }
                   onSaved={workbench.onSaved}
                   onCreated={() => {
@@ -646,7 +690,10 @@ export function WorkbenchShell({
                   order, so it is said as a warning and said once. */}
                 <WarningStrip
                   issues={[
-                    ...(warnings ?? state.issues),
+                    ...(warnings ?? [
+                      ...state.issues,
+                      ...resultIssues(state.result?.data),
+                    ]),
                     ...workbench.definitionIssues,
                     ...(list.preferencesError
                       ? [
@@ -708,7 +755,7 @@ export function WorkbenchShell({
               framed: resultFramed,
               hasResult: describesResult,
               pending,
-              strips: filled(strips),
+              strips: filled(strip),
               result: filled(result),
             }) && (
               <ResultBlock framed={resultFramed} slots={resultSlots}>
@@ -726,7 +773,7 @@ export function WorkbenchShell({
                 >
                   {toolbar}
                 </RenderBoundary>
-                {strips}
+                {strip}
                 <RenderBoundary
                   name="result"
                   resetKeys={resetKeys}

@@ -111,6 +111,16 @@ export const PinnedCategoryColor: Story = {
 /** The sentence the strip says when a result fills its limit exactly. */
 const CUT_SHORT = zhCN['analysis.result.at-limit'].replace('{limit}', '2');
 
+/** The status-line strip: the one `status` that wears the strip's slot. */
+async function findStrip(canvas: ReturnType<typeof within>) {
+  const strips = await canvas.findAllByRole('status');
+  const strip = strips.find(
+    found => found.getAttribute('data-slot') === 'status-strip',
+  );
+  if (!strip) throw new Error('no status strip on the status line');
+  return strip;
+}
+
 /**
  * A pie drawn from a grouping that may not be the whole grouping. Two of the
  * four warehouses are on the chart, and each slice's share is of those two —
@@ -127,8 +137,9 @@ export const CutShort: Story = {
       '华北',
     ]);
 
-    const strip = await canvas.findByRole('status');
-    await expect(strip).toHaveTextContent(CUT_SHORT);
+    // The strip, not the result's live region: both are `status`, and only
+    // the strip is on the status line.
+    await expect(await findStrip(canvas)).toHaveTextContent(CUT_SHORT);
   },
 };
 
@@ -146,9 +157,7 @@ export const CutShortTable: Story = {
     // under them without either number being wrong.
     await expect(amountOf(readTotal(table, '金额'))).toBe(10230);
 
-    await expect(await canvas.findByRole('status')).toHaveTextContent(
-      CUT_SHORT,
-    );
+    await expect(await findStrip(canvas)).toHaveTextContent(CUT_SHORT);
   },
 };
 

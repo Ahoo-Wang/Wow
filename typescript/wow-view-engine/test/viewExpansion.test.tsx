@@ -1440,13 +1440,12 @@ function Shell({
   engine: ViewEngine;
 } & Partial<Parameters<typeof WorkbenchShell>[0]>) {
   const workbench = useWorkbench(engine, 'orders', {
-    kind: 'record',
+    kinds: ['record'],
     instanceId: 'mine',
   });
   return (
     <WorkbenchShell
       workbench={workbench}
-      kind="record"
       title="Orders"
       editorLabel={defaultMessages['label.filter.panel']}
       editor={<div data-slot="stub-editor">conditions</div>}

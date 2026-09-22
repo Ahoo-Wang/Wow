@@ -173,7 +173,7 @@ describe('useViewList', () => {
         { requestId: 'seed' },
       );
       const rendered = renderHook(() =>
-        useViewList(engine, 'orders', kind ? { kind } : undefined),
+        useViewList(engine, 'orders', kind ? { kinds: [kind] } : undefined),
       );
       await waitFor(() => expect(rendered.result.current.loading).toBe(false));
       return rendered.result;

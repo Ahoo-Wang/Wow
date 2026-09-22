@@ -70,14 +70,13 @@ function Shell({
   hold?(workbench: ReturnType<typeof useWorkbench>): void;
 } & Partial<WorkbenchShellProps>) {
   const workbench = useWorkbench(engine, 'orders', {
-    kind: 'record',
+    kinds: ['record'],
     instanceId: 'mine',
   });
   hold?.(workbench);
   return (
     <WorkbenchShell
       workbench={workbench}
-      kind="record"
       title="Orders"
       editor={<div data-slot="stub-editor">conditions</div>}
       result={<div data-slot="stub-result">rows</div>}

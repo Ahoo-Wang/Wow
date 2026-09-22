@@ -104,4 +104,7 @@ export * from './ViewSwitcher.js';
 export * from './ViewManager.js';
 export * from './ViewSurface.js';
 export * from './WorkbenchShell.js';
+export * from './workbench/parts.js';
+export * from './workbench/RecordParts.js';
+export * from './workbench/AnalysisParts.js';
 export * from './WriteOutcome.js';

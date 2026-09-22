@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   Issue,
   ViewConfig,
@@ -48,11 +48,12 @@ import { useReleaseDeleted } from './workbench/releaseDeleted.js';
 
 export interface WorkbenchOptions {
   /**
-   * The one kind this workbench draws. It narrows the list — and with it the
-   * effective default — and it is what an instance of another kind is
-   * measured against.
+   * The kinds this workbench has parts for. They narrow the list — and with
+   * it the effective default — and an instance of any other kind is reported
+   * as unopenable. A data workbench draws record and analysis views in one
+   * list (D20); a host narrows it to one kind by naming only that one (D9).
    */
-  kind: ViewKind;
+  kinds: readonly ViewKind[];
   /**
    * Which view is open, as `value` is on an input: leaving it out is the
    * uncontrolled form and the workbench owns the open view from the effective
@@ -112,7 +113,9 @@ interface FreshView {
  * four outcomes are all in the controller rather than in the components.
  */
 export interface WorkbenchController {
-  /** The views of this definition and kind, in the user's order. */
+  /** The kinds this workbench draws, as it was given them. */
+  kinds: readonly ViewKind[];
+  /** The views of this definition, of those kinds, in the user's order. */
   list: ViewListState;
   manager: ViewManagerController;
   /** What is open now: the explicit choice, or the effective default. */
@@ -120,18 +123,21 @@ export interface WorkbenchController {
   /** Opens another view, through the leave guard. */
   choose(id: string | null): void;
   /**
-   * Whether a new view is on offer here: the definition has this kind, the
-   * user may create in some audience, and `newView` gave it a name. Every
-   * "new view" control exists on this and on nothing else (D4).
+   * The kinds a new view may be made of here, in the order of `kinds`: the
+   * definition has the kind, the user may create in some audience, and
+   * `newView` gave it a name. Every "new view" control exists on this and
+   * on nothing else (D4) — one kind is a button, several are a menu, none is
+   * no control.
    */
-  canCreate: boolean;
+  creatable: readonly ViewKind[];
   /**
-   * Opens a view made from nothing, through the leave guard. It is unsaved
-   * until its first save, which is a create: the workbench then opens what
-   * the store took, as it does a copy. An unsaved view has no id, so a host
-   * routing the workbench hears nothing until that save lands.
+   * Opens a view of that kind made from nothing, through the leave guard;
+   * a kind not in `creatable` does nothing. It is unsaved until its first
+   * save, which is a create: the workbench then opens what the store took,
+   * as it does a copy. An unsaved view has no id, so a host routing the
+   * workbench hears nothing until that save lands.
    */
-  create(): void;
+  create(kind: ViewKind): void;
   opened: OpenViewState;
   /** Null while the view is unopenable or still loading. */
   runtime: AnyViewRuntime | null;
@@ -188,20 +194,23 @@ export interface WorkbenchController {
 /**
  * The shell of one workbench, without any of its look.
  *
- * Nothing here is record-, analysis- or dashboard-shaped: the kind is a
- * parameter, and what differs between the three is the editor and the result
- * they render from `runtime`, not the way a view is found, opened, left or
- * saved.
+ * Nothing here is record-, analysis- or dashboard-shaped: the kinds are a
+ * parameter, and what differs between them is the editor and the result they
+ * render from `runtime`, not the way a view is found, opened, left or saved.
  */
 export function useWorkbench(
   engine: ViewEngine,
   definitionId: string,
   options: WorkbenchOptions,
 ): WorkbenchController {
-  const { kind, instanceId, onInstanceChange, guardUnload, newView } = options;
+  const { instanceId, onInstanceChange, guardUnload, newView } = options;
+  // Held by what they say: a host writes the array inline, so the object is
+  // new every render while the kinds in it are not.
+  const kindsKey = options.kinds.join(' ');
+  const kinds = useMemo(() => kindsKey.split(' ') as ViewKind[], [kindsKey]);
   // Only the views this page can open: the sidebar offers no view the body
   // cannot render, and the effective default is resolved among those alone.
-  const list = useViewList(engine, definitionId, { kind });
+  const list = useViewList(engine, definitionId, { kinds });
   const [chosen, setChosen] = useState<string | null>(instanceId ?? null);
   const openId = chosen ?? list.defaultInstanceId;
 
@@ -230,7 +239,7 @@ export function useWorkbench(
   const opened: OpenViewState = fresh
     ? { runtime: fresh.runtime, loading: false, error: null, scopeIssues: [] }
     : byId;
-  const wrongKind = fresh ? null : kindMismatch(byId.runtime, kind);
+  const wrongKind = fresh ? null : kindMismatch(byId.runtime, kinds);
   const runtime = fresh ? fresh.runtime : wrongKind ? null : byId.runtime;
   const state: ViewRuntimeState<ViewConfig> | null = useViewRuntime(runtime);
   const filter = useFilterEditor(runtime);
@@ -279,28 +288,37 @@ export function useWorkbench(
 
   // Decided once per render from what is true now, so the controls that
   // offer a new view and the command they call cannot disagree.
-  const blank = blankView(
-    engine.definitions.get(definitionId),
-    kind,
-    engine.permissions(definitionId),
-    engine.limits,
-    newView,
+  const definition = engine.definitions.get(definitionId);
+  const permissions = engine.permissions(definitionId);
+  const blanks = kinds.map(
+    kind =>
+      [
+        kind,
+        blankView(definition, kind, permissions, engine.limits, newView),
+      ] as const,
   );
+  const creatable = blanks
+    .filter(([, blank]) => blank !== null)
+    .map(([kind]) => kind);
   const title = newView?.title;
-  const create = useCallback(() => {
-    if (!blank || title === undefined) return;
-    request(() => {
-      // `create` types its answer by the config's kind, which a union of
-      // configs cannot name; what it builds is the runtime `open` would
-      // hand back for the same view.
-      const made = engine.create(definitionId, {
-        title,
-        scope: blank.scope,
-        config: blank.config,
-      }) as unknown as AnyViewRuntime;
-      hold({ runtime: made, draft: made.getSnapshot().draft });
-    });
-  }, [blank, title, request, engine, definitionId, hold]);
+  const create = useCallback(
+    (kind: ViewKind) => {
+      const blank = blanks.find(([made]) => made === kind)?.[1];
+      if (!blank || title === undefined) return;
+      request(() => {
+        // `create` types its answer by the config's kind, which a union of
+        // configs cannot name; what it builds is the runtime `open` would
+        // hand back for the same view.
+        const made = engine.create(definitionId, {
+          title,
+          scope: blank.scope,
+          config: blank.config,
+        }) as unknown as AnyViewRuntime;
+        hold({ runtime: made, draft: made.getSnapshot().draft });
+      });
+    },
+    [blanks, title, request, engine, definitionId, hold],
+  );
 
   const reload = list.reload;
   const open = useCallback(
@@ -316,11 +334,12 @@ export function useWorkbench(
   );
 
   return {
+    kinds,
     list,
     manager,
     openId,
     choose,
-    canCreate: blank !== null,
+    creatable,
     create,
     opened,
     runtime,

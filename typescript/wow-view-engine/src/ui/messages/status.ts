@@ -28,6 +28,9 @@ export const statusMessages = {
   // surface it started on. The spinner beside the refresh control says the
   // same thing to whoever can see it; this is the other channel.
   'label.status.querying': 'Running the query',
+  // What an analysis query landed with; the record view's rows say their
+  // pagination sentence instead.
+  'label.status.groups': '{count} groups',
   // The way out of the one error the strip says outright: the columns are
   // what a record view's own findings are nearly always about — a column
   // the definition no longer has, one pinned where it may not be — and the

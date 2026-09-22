@@ -95,7 +95,11 @@ function open(
   options: Partial<WorkbenchOptions> = {},
 ) {
   return renderHook(() =>
-    useWorkbench(engine, 'orders', { kind: 'record', instanceId, ...options }),
+    useWorkbench(engine, 'orders', {
+      kinds: ['record'],
+      instanceId,
+      ...options,
+    }),
   );
 }
 
@@ -259,9 +263,9 @@ describe('useWorkbench', () => {
       await waitFor(() => expect(result.current.state?.title).toBe('Mine'));
       const before = result.current.runtime;
 
-      expect(result.current.canCreate).toBe(true);
+      expect(result.current.creatable).toEqual(['record']);
       act(() => {
-        result.current.create();
+        result.current.create('record');
       });
 
       // Made and shown at once — no id to open, nothing to wait for — and
@@ -281,12 +285,15 @@ describe('useWorkbench', () => {
 
     it('starts from the template the host gave', async () => {
       const { result } = open(engineWith([mine]), 'orders-1', {
-        newView: { title: 'New view', config: recordConfig({ pageSize: 7 }) },
+        newView: {
+          title: 'New view',
+          templates: { record: recordConfig({ pageSize: 7 }) },
+        },
       });
       await waitFor(() => expect(result.current.state?.title).toBe('Mine'));
 
       act(() => {
-        result.current.create();
+        result.current.create('record');
       });
       expect(result.current.state?.draft).toMatchObject({ pageSize: 7 });
     });
@@ -295,7 +302,7 @@ describe('useWorkbench', () => {
       const { result } = open(engineWith([mine]), 'orders-1', NEW_VIEW);
       await waitFor(() => expect(result.current.state?.title).toBe('Mine'));
       act(() => {
-        result.current.create();
+        result.current.create('record');
       });
       const fresh = result.current.runtime;
 
@@ -314,7 +321,7 @@ describe('useWorkbench', () => {
       const { result } = open(engineWith([mine]), 'orders-1', NEW_VIEW);
       await waitFor(() => expect(result.current.state?.title).toBe('Mine'));
       act(() => {
-        result.current.create();
+        result.current.create('record');
       });
       act(() => {
         result.current.runtime?.edit({ pageSize: 50 });
@@ -340,7 +347,7 @@ describe('useWorkbench', () => {
       const { result } = open(engine, 'orders-1', NEW_VIEW);
       await waitFor(() => expect(result.current.state?.title).toBe('Mine'));
       act(() => {
-        result.current.create();
+        result.current.create('record');
       });
       const fresh = result.current.runtime;
       if (!fresh) throw new Error('no new view');
@@ -372,9 +379,9 @@ describe('useWorkbench', () => {
       // No title to open it under: this layer has no wording of its own.
       const unnamed = open(engineWith([mine]), 'orders-1');
       await waitFor(() => expect(unnamed.result.current.state).not.toBeNull());
-      expect(unnamed.result.current.canCreate).toBe(false);
+      expect(unnamed.result.current.creatable).toEqual([]);
       act(() => {
-        unnamed.result.current.create();
+        unnamed.result.current.create('record');
       });
       expect(unnamed.result.current.state?.title).toBe('Mine');
 
@@ -393,16 +400,19 @@ describe('useWorkbench', () => {
       await waitFor(() =>
         expect(forbidden.result.current.state).not.toBeNull(),
       );
-      expect(forbidden.result.current.canCreate).toBe(false);
+      expect(forbidden.result.current.creatable).toEqual([]);
 
       // A template of another kind is no template for this page.
       const mismatched = open(engineWith([mine]), 'orders-1', {
-        newView: { title: 'New view', config: analysisConfig() },
+        newView: {
+          title: 'New view',
+          templates: { record: analysisConfig() },
+        },
       });
       await waitFor(() =>
         expect(mismatched.result.current.state).not.toBeNull(),
       );
-      expect(mismatched.result.current.canCreate).toBe(false);
+      expect(mismatched.result.current.creatable).toEqual([]);
     });
   });
 
@@ -521,7 +531,7 @@ describe('a workbench a host routes', () => {
     return renderHook(
       ({ id }: { id: string | null }) =>
         useWorkbench(engine, 'orders', {
-          kind: 'record',
+          kinds: ['record'],
           instanceId: id,
           onInstanceChange,
         }),
@@ -689,7 +699,7 @@ describe('a workbench a host routes', () => {
     const engine = engineWith([mine, second]);
     const { result } = renderHook(() =>
       useWorkbench(engine, 'orders', {
-        kind: 'record',
+        kinds: ['record'],
         onInstanceChange: told,
       }),
     );
