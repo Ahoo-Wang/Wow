@@ -110,9 +110,12 @@ export function expressionText(
       } ${expressionText(expression.right, nameOf, true)}`;
       return nested ? `(${text})` : text;
     }
-    default:
-      return '';
   }
+  // No `default`: `AnalysisExpression` is a closed union, so the switch is
+  // exhaustive and this end is unreachable. Add a member and it becomes
+  // reachable, and the declared `string` return makes that a compile error
+  // — which is the guard the old `default: return ''` only looked like,
+  // while quietly putting an empty formula on the screen.
 }
 
 /** A derived metric as its author would say it, naming each metric it reads. */
@@ -132,9 +135,8 @@ export function derivedText(
       } ${derivedText(expression.right, nameOf, true)}`;
       return nested ? `(${text})` : text;
     }
-    default:
-      return '';
   }
+  // Closed union, exhaustive switch, unreachable end — as above.
 }
 
 /** Whether a metric is one the tray's formula card edits: one operation over two operands. */

@@ -127,6 +127,12 @@ export function questionEditing({
       })),
     updateMetric: (index: number, patch: Partial<AnalysisMetric>) =>
       patchMetric(index, metric => ({ ...metric, ...patch }) as AnalysisMetric),
+    /**
+     * Puts a whole metric in a row's place. A change of summary is a change
+     * of type — a sum becomes a distinct count — and a patch over the old
+     * shape would leave its `function` or `expression` behind for admission
+     * to trip over; the card builds the new metric and swaps it in.
+     */
     replaceMetric: (index: number, metric: AnalysisMetric) =>
       patchMetric(index, () => metric),
     renameMetric: (index: number, label: string | undefined) =>
@@ -135,6 +141,11 @@ export function questionEditing({
           ? (without(metric, 'label') as AnalysisMetric)
           : { ...metric, label },
       ),
+    /**
+     * The conditions a metric counts under, or none. An empty tree is kept
+     * while the card is being filled in — validation says it is unfinished
+     * and the query waits — and `undefined` takes the condition away.
+     */
     setMetricFilter: (index: number, filter: FilterTree | undefined) =>
       patchMetric(index, metric =>
         metric.type === 'DERIVED'
@@ -144,9 +155,15 @@ export function questionEditing({
             : { ...metric, filter },
       ),
     /**
-     * A copy of the metric right after it, answered by the copy's alias —
-     * the card's identity — so the slot can open the copy's block; `reshape`
-     * runs synchronously against the live draft, so the alias is in hand.
+     * A second card of the same metric, right after it, with an empty
+     * condition to fill in: 「复制『金额 合计』并加条件」. The copy keeps no
+     * display name — two cards called the same thing is the ambiguity the
+     * name exists to resolve, and the condition it is about to carry is what
+     * resolves it. Answers the copy's alias — the card's identity — so the
+     * slot can open the copy's conditions on the spot: the menu item
+     * promised a condition, and a second identical card with nothing open is
+     * not one. `reshape` runs synchronously against the live draft, so the
+     * alias is in hand. `undefined` where there was nothing to copy.
      */
     duplicateMetric: (index: number): string | undefined => {
       let alias: string | undefined;

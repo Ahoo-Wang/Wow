@@ -149,27 +149,6 @@ export interface AnalysisEditorController extends QuestionEditing {
    * buckets a result already has on it, else the field's first unit.
    */
   dateUnitFor(field: AnalysisFieldOption): AnalysisDateUnit;
-  /**
-   * Puts a whole metric in a row's place. A change of summary is a change
-   * of type — a sum becomes a distinct count — and a patch over the old
-   * shape would leave its `function` or `expression` behind for admission
-   * to trip over; the card builds the new metric and swaps it in.
-   */
-  /**
-   * The conditions a metric counts under, or none. An empty tree is kept
-   * while the card is being filled in — validation says it is unfinished
-   * and the query waits — and `undefined` takes the condition away.
-   */
-  /**
-   * A second card of the same metric, right after it, with an empty
-   * condition to fill in: 「复制『金额 合计』并加条件」. The copy keeps no
-   * display name — two cards called the same thing is the ambiguity the
-   * name exists to resolve, and the condition it is about to carry is what
-   * resolves it. Answers the copy's alias, which is what names the card, so
-   * the slot can open the copy's conditions on the spot: the menu item
-   * promised a condition, and a second identical card with nothing open is
-   * not one. `undefined` where there was nothing to copy.
-   */
   setSort(sort: AnalysisSort[]): void;
   setLimit(limit: number): void;
   /** A redraw of the same rows, never a run; nor does it count as pending. */

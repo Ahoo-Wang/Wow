@@ -191,6 +191,53 @@ describe('withElements', () => {
     expect(rescoped.metrics).toEqual([{ type: 'COUNT', alias: 'n' }]);
   });
 
+  it('asks every metric shape which fields it names', () => {
+    // Each shape says it differently: an any-value metric names its field
+    // outright, a formula names whatever its expression reaches, and a
+    // derived metric names no field at all — it reads other metrics. A
+    // constant on either side names nothing, and must not be mistaken for
+    // something out of scope.
+    const measured = config({
+      metrics: [
+        { type: 'ANY', alias: 'anyWarehouse', field: 'warehouse' },
+        {
+          type: 'NUMERIC',
+          alias: 'half',
+          function: 'SUM',
+          expression: {
+            type: 'BINARY',
+            operator: 'DIVIDE',
+            left: { type: 'FIELD', field: 'amount' },
+            right: { type: 'CONSTANT', value: 2 },
+          },
+        },
+        {
+          type: 'DERIVED',
+          alias: 'twiceHalf',
+          expression: {
+            type: 'BINARY',
+            operator: 'MULTIPLY' as never,
+            left: { type: 'METRIC_REF', metric: 'half' },
+            right: { type: 'CONSTANT', value: 2 },
+          },
+        },
+      ],
+    });
+
+    // Staying at the root: all three still name what they named.
+    expect(withElements(measured, [], chained, chain).metrics).toEqual(
+      measured.metrics,
+    );
+
+    // Inside an item, the warehouse and the amount are the order's, so the
+    // any-value and the formula both leave; the derived metric had nothing
+    // to read once the formula went, so it leaves too, and the item's
+    // question starts again from what an item can be counted by.
+    expect(
+      withElements(measured, expanded([], 'items'), chained, chain).metrics,
+    ).toMatchObject([{ type: 'COUNT' }]);
+  });
+
   it('walks the declared chain one step at a time', () => {
     expect(nextExpansion(['items', 'batches'], [])).toBe('items');
     expect(nextExpansion(['items', 'batches'], [{ path: 'items' }])).toBe(

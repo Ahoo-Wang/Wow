@@ -548,6 +548,102 @@ describe('validateAnalysis', () => {
     ).toEqual(['analysis.count.undeclared']);
   });
 
+  it('refuses a summary the field itself does not declare', () => {
+    // The capability names the summaries a field can carry, one member per
+    // kind (D4): `amount` declares the distinct count, the percentile and
+    // any-value, so taking one away is what a definition that never offered
+    // it looks like. The kernel refuses on the declaration alone and never
+    // probes the backend — a query it sent would come back an error the
+    // analyst could do nothing about.
+    const without = (member: 'distinctCount' | 'percentile' | 'any') =>
+      definition({
+        analysis: {
+          ...capability,
+          fields: capability.fields.map(entry =>
+            entry.field === 'amount' ? { ...entry, [member]: false } : entry,
+          ),
+        },
+      });
+    const refused = (
+      member: 'distinctCount' | 'percentile' | 'any',
+      metric: AnalysisMetric,
+    ) =>
+      codes(
+        validateAnalysis(
+          without(member),
+          config({ metrics: [metric] }),
+          builtinFieldKinds,
+        ),
+      );
+
+    expect(
+      refused('distinctCount', {
+        type: 'DISTINCT_COUNT',
+        alias: 'orders',
+        expression: { type: 'FIELD', field: 'amount' },
+      }),
+    ).toEqual(['analysis.distinctCount.undeclared']);
+
+    expect(
+      refused('percentile', {
+        type: 'PERCENTILE',
+        alias: 'orders',
+        expression: { type: 'FIELD', field: 'amount' },
+        percentile: 95,
+      }),
+    ).toEqual(['analysis.percentile.undeclared']);
+
+    expect(
+      refused('any', { type: 'ANY', alias: 'orders', field: 'amount' }),
+    ).toEqual(['analysis.any.undeclared']);
+
+    // Declared, and the same three metrics are admitted as they stand.
+    for (const metric of [
+      {
+        type: 'DISTINCT_COUNT',
+        alias: 'orders',
+        expression: { type: 'FIELD', field: 'amount' },
+      },
+      {
+        type: 'PERCENTILE',
+        alias: 'orders',
+        expression: { type: 'FIELD', field: 'amount' },
+        percentile: 95,
+      },
+      { type: 'ANY', alias: 'orders', field: 'amount' },
+    ] as AnalysisMetric[])
+      expect(check({ metrics: [metric] })).toEqual([]);
+  });
+
+  it('refuses a derived metric where the capability declares no expressions', () => {
+    // A derived metric is an expression over other metrics, so it needs the
+    // same declaration a formula does — and it is refused for itself, not
+    // for what its operands happen to be: this one reads a plain count.
+    expect(
+      codes(
+        validateAnalysis(
+          definition({ analysis: { ...capability, expressions: false } }),
+          config({
+            metrics: [
+              { type: 'COUNT', alias: 'orders' },
+              {
+                type: 'DERIVED',
+                alias: 'half',
+                expression: {
+                  type: 'BINARY',
+                  operator: 'DIVIDE',
+                  left: { type: 'METRIC_REF', metric: 'orders' },
+                  right: { type: 'CONSTANT', value: 2 },
+                },
+              },
+            ],
+          }),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual(['analysis.expressions.undeclared']);
+  });
+
   it('checks expressions recursively', () => {
     expect(
       check({

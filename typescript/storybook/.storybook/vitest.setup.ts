@@ -21,8 +21,24 @@
  * itself out inside a column that is itself being laid out (the sidebar
  * panel opening, a held view replacing the result) trips it once in a
  * while, and Vitest's browser mode fails whichever story is running on any
- * unhandled error. Nothing in the story went wrong, so the event is stopped
- * before the error catcher sees it. Every other error still fails the story.
+ * unhandled error.
+ *
+ * How this silences it is not the `stopImmediatePropagation` call, whatever
+ * the order below suggests. Vitest's `error-catcher` registers its own
+ * listener as the browser tester boots — before any setup file runs, so
+ * before this one — and then wraps `window.addEventListener` to count the
+ * listeners a test adds. Its own handler reports an unhandled error only
+ * while that count is zero, and falls back to `console.error` otherwise.
+ * Registering this listener at all is therefore what quiets the catcher;
+ * the capture phase and the `stopImmediatePropagation` only keep the event
+ * from reaching anything else on `window`.
+ *
+ * The consequence is worth saying out loud: with this file loaded, no
+ * unhandled `error` event fails a story — the benign one and a real one
+ * alike land in the console. Errors thrown inside a story's own play
+ * function, and unhandled promise rejections, are unaffected: they are not
+ * `error` events on `window`, so the catcher still counts zero listeners
+ * for them and still reports.
  */
 const BENIGN =
   /ResizeObserver loop (limit exceeded|completed with undelivered notifications)/;
@@ -32,7 +48,6 @@ window.addEventListener(
   event => {
     if (BENIGN.test(event.message)) event.stopImmediatePropagation();
   },
-  // Registered on the capture phase and first, so it runs before the
-  // catcher Vitest installs on the same target.
+  // Capture phase, so nothing else on `window` sees the benign event.
   true,
 );

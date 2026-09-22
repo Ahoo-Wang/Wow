@@ -166,6 +166,55 @@ describe('fitChartSlots', () => {
     ).toEqual([{ metric: 'orders' }, { metric: 'total' }]);
   });
 
+  it('lets a reference line go with the axis its series was on', () => {
+    // A line hangs on an axis, and an axis is an axis because a series
+    // measures on it. When the metric that opened the right-hand one
+    // leaves the shape, the line that named it has nothing to hang from —
+    // and a line drawn against an axis nobody can see is a number floating
+    // on the plot.
+    const both: ChartSpec = {
+      type: 'line',
+      cartesian: {
+        x: 'wh',
+        series: [{ metric: 'orders' }, { metric: 'total', axis: 'right' }],
+        referenceLines: [
+          { axis: 'left', value: 100, label: 'target' },
+          { axis: 'right', value: 20 },
+        ],
+      },
+    };
+
+    // Both series still drawn: both lines stay, said as they were said.
+    expect(fitChartSlots(both, [WAREHOUSE], [COUNT, TOTAL]).cartesian).toEqual(
+      both.cartesian,
+    );
+
+    // The total leaves the shape; so does the axis it held, so does its
+    // line. The left one is untouched.
+    expect(fitChartSlots(both, [WAREHOUSE], [COUNT]).cartesian).toEqual({
+      x: 'wh',
+      series: [{ metric: 'orders' }],
+      referenceLines: [{ axis: 'left', value: 100, label: 'target' }],
+    });
+
+    // And when the last line goes, the member goes with it rather than
+    // staying behind as an empty array in the saved config.
+    expect(
+      fitChartSlots(
+        {
+          type: 'line',
+          cartesian: {
+            x: 'wh',
+            series: [{ metric: 'total', axis: 'right' }],
+            referenceLines: [{ axis: 'right', value: 20 }],
+          },
+        },
+        [WAREHOUSE],
+        [COUNT],
+      ).cartesian,
+    ).toEqual({ x: 'wh', series: [{ metric: 'orders' }] });
+  });
+
   it('keeps a slot the user chose while it still names something', () => {
     const chosen: ChartSpec = {
       type: 'bar',

@@ -87,17 +87,36 @@ export function fitCharts(shape: ChartShape): Record<ChartType, ChartFit> {
       'chart.fit.needs-no-dimension',
     ),
   };
+  // The recommendation is drawable by construction, so it is marked
+  // outright: `recommend` answers `metric` only with no dimension, which is
+  // the card's own condition, and `line` or `bar` only with at least one,
+  // which is the cartesian family's. Asking `fits[best].available` first
+  // was a branch nothing could take, and it would have swallowed the day
+  // the two rules stopped agreeing rather than said so. The agreement is a
+  // test instead (test/fitCharts.test.ts「fitCharts」).
   const best = recommend(groups, dated);
-  if (fits[best].available) fits[best] = { ...fits[best], recommended: true };
+  fits[best] = { ...fits[best], recommended: true };
   return fits;
 }
 
 /**
  * What the shape reads best as: a number is a card, a series over time is a
- * line, one dimension is bars, two are bars split by the second. Nothing is
- * recommended for three or more dimensions — that is a table's job.
+ * line, one dimension is bars, two are bars split by the second.
+ *
+ * The return type is narrowed to the three that no shape can grey out, so
+ * recommending a type that needs a shape it may not have is a compile error
+ * rather than a recommendation nobody can act on.
+ *
+ * `kernels.md` also says nothing is recommended from three dimensions up —
+ * that being a table's job — and this answers bars there like anywhere
+ * else. That gap is the same one `docs/design/todo.md` already records for
+ * three dimensions (the third is `chart.group.unconsumed`, yet bars stay
+ * available), and it is that entry's to close, not a silent second rule.
  */
-function recommend(groups: number, dated: boolean): ChartType {
+function recommend(
+  groups: number,
+  dated: boolean,
+): Extract<ChartType, 'metric' | 'line' | 'bar'> {
   if (groups === 0) return 'metric';
   if (dated) return 'line';
   return 'bar';

@@ -279,9 +279,17 @@ export interface WorkbenchController {
 /**
  * The shell of one workbench, without any of its look.
  *
- * Nothing here is record-, analysis- or dashboard-shaped: the kinds are a
- * parameter, and what differs between them is the editor and the result they
- * render from `runtime`, not the way a view is found, opened, left or saved.
+ * The kinds are a parameter: what differs between record, analysis and
+ * dashboard is the editor and the result they render from `runtime`, not the
+ * way a view is found, opened, left or saved.
+ *
+ * One command is the exception, and it is the follow-up seam rather than an
+ * oversight: `drill` opens the records behind one group of an analysis
+ * result (D20 追问). It names both kinds on purpose — `canDrill` asks the
+ * open view to be an `analysis` and `record` to be among the kinds this
+ * workbench lists, and what it opens is a `RecordViewConfig` built from
+ * `defaultRecordConfig` with `drillFilter` over the conditions that ran.
+ * Nothing else here reads a kind.
  */
 export function useWorkbench(
   engine: ViewEngine,

@@ -140,7 +140,7 @@ export class ViewWriteError extends Error {
 `applied.refresh.interval` 非空时由该 runtime 持有唯一计时器，到期调用 `refresh()`。四种情况暂停：
 
 - `issues` 含 error；
-- `editing` 为 true——`useFilterEditor` 与 `useAnalysisEditor` 提供 `focus`／`blur`，默认 `FilterPanel` 与 `AnalysisEditor` 在焦点进入或离开其根元素时调用，内部焦点移动不触发；控件的弹层经 Portal 渲染在根元素之外，焦点进入弹层时根元素内仍有带 `data-popup-open` 的触发器，算作未离开；查询进行中不冻结编辑器；
+- `editing` 为 true——`useFilterEditor` 与 `useAnalysisEditor` 提供 `focus`／`blur`，默认 `FilterPanel` 与分析托盘 `Tray` 在焦点进入或离开其根元素时调用，内部焦点移动不触发；控件的弹层经 Portal 渲染在根元素之外，焦点进入弹层时根元素内仍有带 `data-popup-open` 的触发器，算作未离开；查询进行中不冻结编辑器；
 - 宿主报告页面不可见；
 - 上一次请求仍在途。
 

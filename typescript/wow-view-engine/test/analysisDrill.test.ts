@@ -258,6 +258,52 @@ describe('drillConditions', () => {
     });
   });
 
+  it('says nothing for a bucket key it cannot read back', () => {
+    // The key comes off the result with the row. A band key that is not a
+    // finite number, or a date bucket that is not an instant, cannot be
+    // turned back into the interval it stood for — and a drill that guessed
+    // would open a records view under conditions nobody asked for. One
+    // unreadable group takes the whole row's conditions with it: a
+    // half-written drill is narrower than the row it came from.
+    const band = analysisConfig({
+      groups: [
+        { alias: 'band', field: 'amount', type: 'HISTOGRAM', interval: 500 },
+        { alias: 'warehouse', field: 'warehouse', type: 'TERMS' },
+      ],
+    });
+    for (const key of ['1000', Number.NaN, Number.POSITIVE_INFINITY, null])
+      expect(
+        drillConditions(
+          band,
+          FIELDS,
+          builtinFieldKinds,
+          { band: key, warehouse: 'CN' },
+          context,
+        ),
+      ).toBeNull();
+
+    const month = analysisConfig({
+      groups: [
+        {
+          alias: 'month',
+          field: 'createdAt',
+          type: 'DATE_HISTOGRAM',
+          unit: 'MONTH',
+        },
+      ],
+    });
+    for (const key of ['last month', null, {}])
+      expect(
+        drillConditions(
+          month,
+          FIELDS,
+          builtinFieldKinds,
+          { month: key },
+          context,
+        ),
+      ).toBeNull();
+  });
+
   it('says nothing for an analysis over expanded elements, or an unknown field', () => {
     expect(
       drillConditions(

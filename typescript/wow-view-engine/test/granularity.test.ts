@@ -174,6 +174,50 @@ describe('rangeSpan', () => {
     expect(recommendDateUnit(span, ALL)).toBe('DAY');
   });
 
+  it('reads a strict lower bound from the far end of the day it names', () => {
+    // "After the 15th" starts where the 15th ends; "on or after the 15th"
+    // takes the day whole, so the two differ by exactly that day. Neither
+    // operator is one the built-in date editor offers — an injected scope
+    // filter or a host's own kind writes them — but a span read off the
+    // applied range has to count them all the same.
+    const after = (operator: 'GT' | 'GTE') =>
+      rangeSpan(
+        tree([
+          {
+            field: 'createdAt',
+            operator,
+            value: { type: 'absolute', from: '2026-09-15' },
+          },
+        ]),
+        'createdAt',
+        now,
+        zone,
+      );
+    expect(after('GT')).toBeGreaterThan(0);
+    expect(after('GTE')! - after('GT')!).toBeCloseTo(DAY, -3);
+  });
+
+  it('reads nothing from a date condition that pins neither end', () => {
+    // An equality on a date is a condition, not a window: it says which
+    // records are in, and nothing about where the range starts or stops.
+    // Taken for a bound it would read as a span of zero — a granularity
+    // recommendation off a window nobody drew.
+    expect(
+      rangeSpan(
+        tree([
+          {
+            field: 'createdAt',
+            operator: 'EQ',
+            value: { type: 'absolute', from: '2026-09-15' },
+          },
+        ]),
+        'createdAt',
+        now,
+        zone,
+      ),
+    ).toBeNull();
+  });
+
   it('reads nothing from a range with no condition on the field', () => {
     expect(rangeSpan(tree([]), 'createdAt', now, zone)).toBeNull();
     expect(

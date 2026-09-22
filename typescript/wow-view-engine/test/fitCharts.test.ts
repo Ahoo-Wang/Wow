@@ -13,7 +13,11 @@
 
 import { describe, expect, it } from 'vitest';
 import { fitCharts } from '../src/analysis/index.js';
-import type { AnalysisGroup, AnalysisMetric } from '../src/model/index.js';
+import type {
+  AnalysisGroup,
+  AnalysisMetric,
+  ChartType,
+} from '../src/model/index.js';
 
 const warehouse: AnalysisGroup = {
   type: 'TERMS',
@@ -88,5 +92,35 @@ describe('fitCharts', () => {
       fitCharts({ groups: [warehouse], metrics: [count, average] }).scatter
         .available,
     ).toBe(true);
+  });
+
+  it('never recommends a type the same shape greys out', () => {
+    // `fitCharts` used to ask whether its own recommendation was available
+    // before marking it, a branch no shape could take: `recommend` answers
+    // `metric` only with no dimension, which is the card's own condition,
+    // and `line` or `bar` only with at least one, which is the cartesian
+    // family's. The branch is gone; the rule it stood for is here, where
+    // the day the two stop agreeing it fails out loud instead of silently
+    // leaving every tile unmarked.
+    const shapes: { groups: AnalysisGroup[]; metrics: AnalysisMetric[] }[] = [
+      { groups: [], metrics: [count] },
+      { groups: [], metrics: [average] },
+      { groups: [], metrics: [count, average] },
+      { groups: [warehouse], metrics: [count] },
+      { groups: [warehouse], metrics: [average] },
+      { groups: [month], metrics: [count] },
+      { groups: [month], metrics: [average] },
+      { groups: [warehouse, month], metrics: [count, average] },
+    ];
+    for (const shape of shapes) {
+      const fits = fitCharts(shape);
+      const best = recommended(fits);
+      expect(best).toBeDefined();
+      expect(fits[best as ChartType].available).toBe(true);
+      // And exactly one tile wears it, so the picker has one thing to mark.
+      expect(Object.values(fits).filter(fit => fit.recommended)).toHaveLength(
+        1,
+      );
+    }
   });
 });
