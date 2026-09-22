@@ -199,22 +199,36 @@ export interface AnalysisTableSpec {
 }
 
 // 与 Wow AggregationGroup / AggregationExpression / AggregationMetric 同构；
-// 差别只在字段按定义校验、筛选使用 FilterTree。
-export type AnalysisGroup =
+// 差别只在字段按定义校验、筛选使用 FilterTree，以及多一个显示名。
+
+// 显示名（D20 显示名）：分析师给这一维／这一指标起的名字，列头、图例与结果
+// 那句读法都说它，而不说「字段 + 汇总方式」拼出来的那一句。它是**视图自己
+// 的东西**——compileAnalysis 逐成员拼 Wow 对象，所以它永远发不出去；查询的
+// 键仍然是 alias。给了就得是个词：空白报 analysis.label.blank，不是字符串报
+// analysis.config.malformed；不给就整个键都不在（「取消」写的是删键而不是
+// undefined，配置始终是普通 JSON）。projectAnalysis 把它写成列的 label 并另
+// 带一个 named: true，columnTitle 据此把名字当作整个标题、不再缀「的 合计」。
+export interface AnalysisNamed {
+  label?: string;
+}
+
+export type AnalysisGroup = AnalysisNamed &
   // missingKey 是「没有该值的记录落进哪一组」的哨兵键：不写它，Wow 把这些记录
   // 从结果里**整条丢掉**（不是留成一组空值），所以单值字符串维度缺省带一个
   // DEFAULT_MISSING_KEY（'(empty)'，analysis/defaults.ts）；Wow 只允许单值
   // 字符串字段带它，其余报 analysis.group.missing-key-unsupported。
-  | { type: 'TERMS'; field: string; alias: string; missingKey?: string }
-  | { type: 'HISTOGRAM'; field: string; alias: string; interval: number }
-  | {
-      type: 'DATE_HISTOGRAM';
-      field: string;
-      alias: string;
-      unit: `${AggregationDateUnit}`;
-      timeZone?: string; // 缺省为引擎的 environment.timeZone，与相对日期、界面显示同一时区
-      dense?: boolean;
-    };
+  (
+    | { type: 'TERMS'; field: string; alias: string; missingKey?: string }
+    | { type: 'HISTOGRAM'; field: string; alias: string; interval: number }
+    | {
+        type: 'DATE_HISTOGRAM';
+        field: string;
+        alias: string;
+        unit: `${AggregationDateUnit}`;
+        timeZone?: string; // 缺省为引擎的 environment.timeZone，与相对日期、界面显示同一时区
+        dense?: boolean; // 补齐空的时段；Wow 只允许唯一分组这么做
+      }
+  );
 
 export type AnalysisExpression =
   | { type: 'FIELD'; field: string }
@@ -226,30 +240,32 @@ export type AnalysisExpression =
       right: AnalysisExpression;
     };
 
-export type AnalysisMetric =
-  | { type: 'COUNT'; alias: string; filter?: FilterTree }
-  | {
-      type: 'NUMERIC';
-      alias: string;
-      function: `${AggregationFunction}`;
-      expression: AnalysisExpression;
-      filter?: FilterTree;
-    }
-  | { type: 'ANY'; alias: string; field: string; filter?: FilterTree }
-  | {
-      type: 'DISTINCT_COUNT';
-      alias: string;
-      expression: AnalysisExpression;
-      filter?: FilterTree;
-    }
-  | {
-      type: 'PERCENTILE';
-      alias: string;
-      expression: AnalysisExpression;
-      percentile: number;
-      filter?: FilterTree;
-    }
-  | { type: 'DERIVED'; alias: string; expression: AnalysisDerivedExpression }; // 与 Wow DerivedExpression 同构
+export type AnalysisMetric = AnalysisNamed &
+  (
+    | { type: 'COUNT'; alias: string; filter?: FilterTree }
+    | {
+        type: 'NUMERIC';
+        alias: string;
+        function: `${AggregationFunction}`;
+        expression: AnalysisExpression;
+        filter?: FilterTree;
+      }
+    | { type: 'ANY'; alias: string; field: string; filter?: FilterTree }
+    | {
+        type: 'DISTINCT_COUNT';
+        alias: string;
+        expression: AnalysisExpression;
+        filter?: FilterTree;
+      }
+    | {
+        type: 'PERCENTILE';
+        alias: string;
+        expression: AnalysisExpression;
+        percentile: number;
+        filter?: FilterTree;
+      }
+    | { type: 'DERIVED'; alias: string; expression: AnalysisDerivedExpression } // 与 Wow DerivedExpression 同构
+  );
 ```
 
 ## 查询筛选必须真的筛掉东西

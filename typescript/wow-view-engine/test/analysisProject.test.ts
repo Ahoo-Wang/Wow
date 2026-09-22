@@ -431,3 +431,39 @@ describe('metricFormat', () => {
     expect(metricFunctionOf(percentile)).toBe('PERCENTILE');
   });
 });
+
+describe('a named column', () => {
+  // D20 显示名: the name the analyst gave is the whole title, so a header
+  // does not append the summary to it; how the numbers read is unchanged.
+  it('is titled by its name alone, with its summary kept for the numbers', () => {
+    const base = config();
+    const view = projectAnalysis(
+      definition(),
+      config({
+        groups: [{ ...base.groups[0]!, label: '仓库' }],
+        metrics: [
+          { ...base.metrics[0], label: '单数' },
+          {
+            type: 'NUMERIC',
+            alias: 'total',
+            function: 'SUM',
+            expression: { type: 'FIELD', field: 'amount' },
+          },
+        ],
+        table: { columns: [] },
+      }),
+      [],
+    );
+
+    expect(view.schema?.slice(0, 2).map(column => column.label)).toEqual([
+      '仓库',
+      '单数',
+    ]);
+    expect(view.schema?.map(column => column.named)).toEqual([
+      true,
+      true,
+      undefined,
+    ]);
+    expect(view.schema?.[1]).toMatchObject({ fn: 'COUNT' });
+  });
+});

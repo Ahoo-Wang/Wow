@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { useRef, useState } from 'react';
 import { PlusIcon, XIcon } from 'lucide-react';
 import type { AnalysisGroup } from '../../model/index.js';
 import type {
@@ -20,6 +21,7 @@ import type {
 import { Button } from '../components/button.js';
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../components/dropdown-menu.js';
@@ -29,13 +31,17 @@ import { IconButton } from '../IconButton.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { DropdownMenuContent } from '../popups.js';
 import { EditorCard, EditorSlot } from '../variants.js';
+import { CardMenu, CardName } from './CardMenu.js';
 import { CompactSelect } from './CompactSelect.js';
 import { aliasesOf, defaultGroup, groupOfType } from './editing.js';
 
 /**
  * The dimensions slot: one card per group, in the order they cut the
  * result, and the way to add one. Only fields the capability declares as
- * groupable are offered, so an unrunnable query cannot be built by clicking.
+ * groupable are offered, so an unrunnable query cannot be built by
+ * clicking; a field already cut by is not offered again — cutting by it
+ * twice is a question nobody asks, and the follow-up menu's split leaves it
+ * out for the same reason.
  */
 export function DimensionSlot({
   analysis,
@@ -45,7 +51,10 @@ export function DimensionSlot({
   disabled?: boolean;
 }) {
   const messages = useViewMessages();
-  const groupable = analysis.fields.filter(field => field.groups.length > 0);
+  const grouped = new Set(analysis.groups.map(group => group.field));
+  const groupable = analysis.fields.filter(
+    field => field.groups.length > 0 && !grouped.has(field.field),
+  );
   return (
     <EditorSlot
       name="dimensions"
@@ -84,7 +93,13 @@ export function DimensionSlot({
               <DropdownMenuItem
                 key={field.field}
                 onClick={() =>
-                  analysis.addGroup(defaultGroup(field, aliasesOf(analysis)))
+                  analysis.addGroup(
+                    defaultGroup(
+                      field,
+                      aliasesOf(analysis),
+                      analysis.dateUnitFor(field),
+                    ),
+                  )
                 }
               >
                 {field.label}
@@ -100,7 +115,10 @@ export function DimensionSlot({
 /**
  * One dimension: the field, and the second control its type asks for — a
  * date's granularity, a number's band width, or nothing for "by value". A
- * field that can be cut more than one way gets the type select first.
+ * field that can be cut more than one way gets the type select first. The
+ * card's menu holds its display name and the two choices Wow keeps behind
+ * its bucketing: whether records missing the value make a group of their
+ * own (D20 空值), and whether a time dimension fills in its empty periods.
  */
 function DimensionCard({
   analysis,
@@ -114,10 +132,21 @@ function DimensionCard({
   disabled?: boolean;
 }) {
   const messages = useViewMessages();
+  const [renaming, setRenaming] = useState(false);
+  const menu = useRef<HTMLButtonElement>(null);
+  const done = () => {
+    setRenaming(false);
+    menu.current?.focus();
+  };
   const field = analysis.fields.find(entry => entry.field === group.field);
-  // The field's display name, which is what every control in this card is
-  // named after — an alias names the query and nobody chose it.
-  const name = field?.label ?? group.field;
+  // What the card is called, which is what every control on it is named
+  // after: the name the analyst gave, else the field's display name — an
+  // alias names the query and nobody chose it.
+  const fallback = field?.label ?? group.field;
+  const name = group.label ?? fallback;
+  // Only a time dimension standing alone may fill its empty periods: a
+  // second dimension would multiply the filling out (Wow refuses it).
+  const alone = analysis.groups.length === 1;
   const types = (field?.groups ?? []).map(type => ({
     value: type,
     label: messages.label(
@@ -128,7 +157,14 @@ function DimensionCard({
   }));
   return (
     <EditorCard data-slot="dimension-card" data-field={group.field}>
-      <span className="truncate font-medium">{name}</span>
+      <CardName
+        name={fallback}
+        given={group.label}
+        renaming={renaming}
+        label={messages.label('label.analysis.display-name', { name })}
+        onRename={label => analysis.renameGroup(index, label)}
+        onDone={done}
+      />
       {types.length > 1 ? (
         <CompactSelect
           label={messages.label('label.analysis.grouping-of', { name })}
@@ -176,11 +212,36 @@ function DimensionCard({
           }}
         />
       )}
+      <CardMenu
+        ref={menu}
+        name={name}
+        disabled={disabled}
+        onRename={() => setRenaming(true)}
+      >
+        {group.type === 'TERMS' && field?.missingKey && (
+          <DropdownMenuCheckboxItem
+            checked={group.missingKey !== undefined}
+            onCheckedChange={on => analysis.setMissingBucket(index, on)}
+          >
+            {messages.label('label.analysis.missing-bucket')}
+          </DropdownMenuCheckboxItem>
+        )}
+        {group.type === 'DATE_HISTOGRAM' && (
+          <DropdownMenuCheckboxItem
+            checked={group.dense === true}
+            disabled={!alone}
+            onCheckedChange={on => analysis.setDense(index, on)}
+          >
+            {messages.label(
+              alone ? 'label.analysis.dense' : 'label.analysis.dense-alone',
+            )}
+          </DropdownMenuCheckboxItem>
+        )}
+      </CardMenu>
       <IconButton
         label={messages.label('label.analysis.remove-group', { name })}
         variant="ghost"
         size="icon-xs"
-        className="ml-auto"
         disabled={disabled}
         onClick={() => analysis.removeGroup(index)}
       >

@@ -19,6 +19,7 @@ import {
 } from '../model/index.js';
 import { issue, type FieldKindRegistry } from '../filter/index.js';
 import { unknownOrOutside, type AnalysisScope } from './capability.js';
+import { displayNameIssues } from './validateAliases.js';
 
 export function validateGroups(
   config: AnalysisViewConfig,
@@ -45,7 +46,7 @@ export function validateGroups(
         }),
       ];
 
-    const issues: Issue[] = [];
+    const issues: Issue[] = displayNameIssues(group, path);
     if (group.type === 'HISTOGRAM') {
       if (!Number.isFinite(group.interval) || group.interval <= 0)
         issues.push(

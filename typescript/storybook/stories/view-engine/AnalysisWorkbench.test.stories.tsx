@@ -742,3 +742,73 @@ export const VisualizePanel: Story = {
     ).toBeNull();
   },
 };
+
+/**
+ * 卡片自己的菜单（D20 屏 B）：显示名与空值单独一组。
+ *
+ * 卡片上只放问题本身的那两三个控件，别的都收进一颗按卡片命名的菜单里——
+ * 一张摆着六个控件的卡片读起来是张表单，不是一句话。改完名字，列头、结果
+ * 那句读法与图例都跟着改（`columnTitle`：给了名字，名字就是整个标题，后面
+ * 不再缀「的 合计」）；空值单独一组是分析师的选择，勾上 Wow 才会把缺值的
+ * 记录单独归一组，而不是悄悄把它们丢掉。
+ */
+export const TrayCardMenu: Story = {
+  ...DisplayTableWithTotals,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    await openTray(canvasElement);
+
+    const cardMenu = (name: string) =>
+      canvas.getByRole('button', {
+        name: formatMessage(zhCN, 'label.analysis.card-menu', { name }),
+      });
+
+    // 改显示名：菜单 → 输入框 → 回车。
+    await userEvent.click(cardMenu('仓库'));
+    await userEvent.click(
+      await screen.findByRole('menuitem', {
+        name: zhCN['label.analysis.rename'],
+      }),
+    );
+    const box = await screen.findByLabelText(
+      formatMessage(zhCN, 'label.analysis.display-name', { name: '仓库' }),
+    );
+    await userEvent.clear(box);
+    await userEvent.type(box, '门店{Enter}');
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="card-name"]'),
+      ).toHaveTextContent('门店'),
+    );
+
+    // 名字是问题的一部分，跑过才算数：应用之后列头与读法才改口。
+    const apply = within(
+      canvasElement.querySelector<HTMLElement>(
+        '[data-slot="analysis-tray-actions"]',
+      )!,
+    ).getByRole('button', { name: zhCN['label.filter.apply'] });
+    await userEvent.click(apply);
+    await waitFor(() =>
+      expect(canvas.getByRole('columnheader', { name: '门店' })).toBeVisible(),
+    );
+    await expect(
+      canvasElement.querySelector('[data-slot="analysis-reading"]'),
+    ).toHaveTextContent('门店');
+
+    // 卡片现在按新名字自称，菜单也是——同一张卡上的两个控件不该各叫各的。
+    await userEvent.click(cardMenu('门店'));
+    const missing = () =>
+      screen.getByRole('menuitemcheckbox', {
+        name: zhCN['label.analysis.missing-bucket'],
+      });
+    await waitFor(() =>
+      expect(missing()).toHaveAttribute('aria-checked', 'false'),
+    );
+    await userEvent.click(missing());
+    // 勾选项不关菜单——设置是在读它的地方切换的。
+    await waitFor(() =>
+      expect(missing()).toHaveAttribute('aria-checked', 'true'),
+    );
+  },
+};

@@ -46,6 +46,11 @@ export interface AnalysisColumnView {
    * and nowhere else, which is exactly why the header cannot be the label.
    */
   fn?: MetricFunction;
+  /**
+   * The analyst named this column (`AnalysisNamed.label`): `label` is the
+   * whole title, and `fn` stays only for how the numbers read.
+   */
+  named?: true;
   width?: number;
   /**
    * How this column's numbers print. A group shows values of its field, so it
@@ -220,11 +225,13 @@ export function projectAnalysis(
     const field = source === undefined ? undefined : byName.get(source);
     const declaredColumn = declared.get(alias);
     const metric = byAlias.get(alias);
+    const named = (groups.get(alias) ?? metric)?.label;
     return [
       {
         alias,
-        label: field?.label ?? source ?? alias,
+        label: named ?? field?.label ?? source ?? alias,
         role,
+        ...(named === undefined ? {} : { named: true }),
         ...(metric ? { fn: metricFunctionOf(metric) } : {}),
         width: declaredColumn?.width,
         numberFormat: metric

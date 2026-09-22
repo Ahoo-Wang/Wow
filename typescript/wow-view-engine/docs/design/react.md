@@ -176,9 +176,12 @@ useDashboard(runtime): DashboardController
 ```
 
 - `AnalysisController` 改一条指标有**两个**动作，差别是形态变不变：`updateMetric(index, patch)` 打补丁，只用在同一形态里换一个数（百分位那个数）；`replaceMetric(index, metric)` 整只换掉，用在**换汇总方式**——合计变成去重计数、再变成任一值，那是换指标类型，补丁会把上一形态的 `function` 或 `expression` 留在对象里让准入绊倒。别名由调用处带进新指标：它是查询的名字，图表与排序都指着它。维度那边同理，`groupOfType` 造一个完整的维度交给 `updateGroup`；
+- **取消一个设置写的是删键，不是 `undefined`**：`renameGroup(index, label | undefined)`、`renameMetric(index, label | undefined)`（显示名）、`setMissingBucket(index, on)`（`missingKey: DEFAULT_MISSING_KEY` 或整个键不在）、`setDense(index, on)`（`dense: true` 或整个键不在）都走 `model/json.ts` 的 `without`。配置是普通 JSON，一个挂着 `undefined` 的成员是任何新建配置都不会长成的样子，`comparePending` 的比较也会为它多报一次「改过没应用」；
+- `dateUnitFor(field)` 是**新时间维度从哪个粒度起步**（K4）：先读已应用范围在这个字段上圈出的跨度（`rangeSpan`），没有就读现有结果的桶（`resultSpan`），再没有就是字段的第一个单位；推荐规则本身在内核里（见 [kernels.md#粒度推荐k4](kernels.md#粒度推荐k4)），控制器只负责把「范围优先于结果」这个顺序说清楚。它只播种，手选过的单位永远优先；
+- `AnalysisFieldOption.missingKey` 是「这个字段担得起哨兵桶吗」（`isSingleStringField` 加运行时的 kind 注册表），托盘据此决定那一项出不出现、新维度带不带哨兵；
 - `DashboardController.loading` 是「任一面板的查询在途」，由控制器自己订阅各个子 runtime 得来：仪表盘不跑自己的查询（`state.query` 恒为 `idle`），而子 runtime 的查询变化**不会**通知仪表盘的订阅者——那是有意的，否则每个面板每次请求都要让整张栅格重渲染——所以栅格之外还要知道这件事的控件（刷新按钮）只能由这里代为订阅。它与 `DashboardViewRuntime` 自己的计时器开火前问的是同一件事。
 
-两者的界面规则见 [ui/analysis.md](ui/analysis.md) 与 [ui/dashboard.md](ui/dashboard.md)。（见 test/analysisTray.test.tsx「swaps the whole metric when the summary changes」）
+两者的界面规则见 [ui/analysis.md](ui/analysis.md) 与 [ui/dashboard.md](ui/dashboard.md)。（见 test/analysisTray.test.tsx「swaps the whole metric when the summary changes」与 test/analysisCards.test.tsx「a display name」「the sentinel bucket」「the granularity a new time dimension starts at」）
 
 ## useAutoRefresh
 

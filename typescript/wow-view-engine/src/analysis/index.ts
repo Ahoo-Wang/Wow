@@ -24,6 +24,7 @@ export * from './compile.js';
 export * from './defaults.js';
 export * from './drill.js';
 export * from './fitCharts.js';
+export * from './granularity.js';
 export * from './metricFormat.js';
 export * from './project.js';
 export * from './validate.js';

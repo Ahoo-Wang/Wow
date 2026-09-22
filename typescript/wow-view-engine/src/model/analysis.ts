@@ -36,20 +36,32 @@ export type AnalysisDateUnit = `${AggregationDateUnit}`;
 export type AnalysisExpressionOperator = `${AggregationExpressionOperator}`;
 
 /**
+ * What a dimension or a metric is called on screen (D20 显示名), when the
+ * analyst gave it a name: the column header, the legend and the reading say
+ * this instead of what the field and the summary would compose. It is the
+ * view's — Wow never sees it — and the alias stays the query's key.
+ */
+export interface AnalysisNamed {
+  label?: string;
+}
+
+/**
  * Isomorphic to Wow's `AggregationGroup`: fields are validated against the
  * definition and enums are stored as literals.
  */
-export type AnalysisGroup =
-  | { type: 'TERMS'; field: string; alias: string; missingKey?: string }
-  | { type: 'HISTOGRAM'; field: string; alias: string; interval: number }
-  | {
-      type: 'DATE_HISTOGRAM';
-      field: string;
-      alias: string;
-      unit: AnalysisDateUnit;
-      timeZone?: string;
-      dense?: boolean;
-    };
+export type AnalysisGroup = AnalysisNamed &
+  (
+    | { type: 'TERMS'; field: string; alias: string; missingKey?: string }
+    | { type: 'HISTOGRAM'; field: string; alias: string; interval: number }
+    | {
+        type: 'DATE_HISTOGRAM';
+        field: string;
+        alias: string;
+        unit: AnalysisDateUnit;
+        timeZone?: string;
+        dense?: boolean;
+      }
+  );
 
 /** Isomorphic to Wow's `AggregationExpression`. */
 export type AnalysisExpression =
@@ -66,31 +78,37 @@ export type AnalysisExpression =
  * Isomorphic to Wow's `AggregationMetric`. A metric-level `filter` is what
  * makes a metric-per-stage funnel expressible.
  */
-export type AnalysisMetric =
-  | { type: 'COUNT'; alias: string; filter?: FilterTree }
-  | {
-      type: 'NUMERIC';
-      alias: string;
-      function: AnalysisFunction;
-      expression: AnalysisExpression;
-      filter?: FilterTree;
-    }
-  | { type: 'ANY'; alias: string; field: string; filter?: FilterTree }
-  | {
-      type: 'DISTINCT_COUNT';
-      alias: string;
-      expression: AnalysisExpression;
-      filter?: FilterTree;
-    }
-  | {
-      type: 'PERCENTILE';
-      alias: string;
-      expression: AnalysisExpression;
-      /** Open interval (0, 100), as Wow requires. */
-      percentile: number;
-      filter?: FilterTree;
-    }
-  | { type: 'DERIVED'; alias: string; expression: AnalysisDerivedExpression };
+export type AnalysisMetric = AnalysisNamed &
+  (
+    | { type: 'COUNT'; alias: string; filter?: FilterTree }
+    | {
+        type: 'NUMERIC';
+        alias: string;
+        function: AnalysisFunction;
+        expression: AnalysisExpression;
+        filter?: FilterTree;
+      }
+    | { type: 'ANY'; alias: string; field: string; filter?: FilterTree }
+    | {
+        type: 'DISTINCT_COUNT';
+        alias: string;
+        expression: AnalysisExpression;
+        filter?: FilterTree;
+      }
+    | {
+        type: 'PERCENTILE';
+        alias: string;
+        expression: AnalysisExpression;
+        /** Open interval (0, 100), as Wow requires. */
+        percentile: number;
+        filter?: FilterTree;
+      }
+    | {
+        type: 'DERIVED';
+        alias: string;
+        expression: AnalysisDerivedExpression;
+      }
+  );
 
 /** Wow's having/derived trees only reference aliases and numbers. */
 export type AnalysisHavingExpression = LiteralEnums<HavingExpression>;

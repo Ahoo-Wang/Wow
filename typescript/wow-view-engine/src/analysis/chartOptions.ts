@@ -11,12 +11,13 @@
  * limitations under the License.
  */
 
-import type {
-  CartesianSpec,
-  ChartSpec,
-  ChartType,
-  FunnelSpec,
-  RecordData,
+import {
+  without,
+  type CartesianSpec,
+  type ChartSpec,
+  type ChartType,
+  type FunnelSpec,
+  type RecordData,
 } from '../model/index.js';
 
 /**
@@ -69,16 +70,6 @@ export function placed<S extends object, K extends keyof S>(
 ): S {
   const swapped = spec[other] === alias ? { [other]: spec[at] } : {};
   return { ...spec, [at]: alias, ...swapped };
-}
-
-/** The spec without one optional setting: what "unset" writes. */
-export function without<T extends object, K extends keyof T>(
-  spec: T,
-  key: K,
-): Omit<T, K> {
-  const next = { ...spec };
-  delete next[key];
-  return next;
 }
 
 /** Whether every series is stacked; a lone series is not "stacked". */

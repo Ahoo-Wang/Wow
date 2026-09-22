@@ -17,7 +17,6 @@ import {
   placed,
   stageValues,
   withStageOrder,
-  without,
 } from '../../analysis/index.js';
 import {
   CHART_FAMILY,
@@ -26,6 +25,7 @@ import {
   type FunnelSpec,
   type MetricCardSpec,
 } from '../../model/index.js';
+import { without } from '../../model/index.js';
 import { Button } from '../components/button.js';
 import {
   DropdownMenu,

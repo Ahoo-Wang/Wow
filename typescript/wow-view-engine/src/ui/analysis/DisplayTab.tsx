@@ -17,13 +17,13 @@ import {
   isStacked,
   withSmooth,
   withStacked,
-  without,
 } from '../../analysis/index.js';
 import {
   CHART_FAMILY,
   type CartesianSpec,
   type ReferenceLine,
 } from '../../model/index.js';
+import { without } from '../../model/index.js';
 import { Button } from '../components/button.js';
 import { NumberInput } from '../FilterValueEditor.js';
 import { IconButton } from '../IconButton.js';

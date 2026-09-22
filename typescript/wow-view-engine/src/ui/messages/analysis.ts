@@ -145,6 +145,14 @@ export const analysisMessages = {
   // `{name}` is the field's display name, never its alias: a control that
   // says "Remove dimension amount_1" names the query, not the column.
   'label.analysis.grouping-of': 'Dimension settings for {name}',
+  // The card's own menu (D20 屏 B): a display name for any card, and for a
+  // dimension the two choices Wow keeps behind its bucketing.
+  'label.analysis.card-menu': 'More settings for {name}',
+  'label.analysis.rename': 'Display name…',
+  'label.analysis.display-name': 'Display name for {name}',
+  'label.analysis.missing-bucket': 'Missing values as their own group',
+  'label.analysis.dense': 'Fill in empty periods',
+  'label.analysis.dense-alone': 'Fill in empty periods (only dimension)',
   'label.analysis.remove-group': 'Remove dimension {name}',
   'label.analysis.function-of': 'Summary for {name}',
   'label.analysis.remove-metric': 'Remove metric {name}',
@@ -248,6 +256,7 @@ export const analysisMessages = {
   'analysis.group.missing-key-unsupported':
     '{field} cannot hold a bucket for missing values; only single-valued text fields can.',
   'analysis.group.unit-unsupported': 'The {unit} unit is not available here.',
+  'analysis.label.blank': 'The display name is empty.',
   'analysis.group.unsupported': '{field} offers no {type} dimension.',
   'analysis.groups.too-many': 'Too many dimensions for this dataset.',
   'analysis.having.malformed': 'This result filter has no usable shape.',

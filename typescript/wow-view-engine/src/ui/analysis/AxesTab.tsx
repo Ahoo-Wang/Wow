@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { without } from '../../analysis/index.js';
+import { without } from '../../model/index.js';
 import type { AxisSpec, CartesianSpec } from '../../model/index.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { formatChoices } from './DisplayTab.js';

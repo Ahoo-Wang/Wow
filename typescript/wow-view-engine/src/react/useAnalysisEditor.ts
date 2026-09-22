@@ -28,9 +28,14 @@ import type {
 } from '../model/index.js';
 import {
   analysisScope,
+  DEFAULT_MISSING_KEY,
   fitChartSlots,
+  rangeSpan,
+  recommendDateUnit,
+  resultSpan,
   type AnalysisScope,
 } from '../analysis/index.js';
+import { isSingleStringField, without } from '../model/index.js';
 import { comparePending, type ViewRuntime } from '../runtime/index.js';
 import { useViewRuntime } from './useViewEngine.js';
 
@@ -46,6 +51,8 @@ export interface AnalysisFieldOption {
   distinctCount: boolean;
   percentile: boolean;
   any: boolean;
+  /** Whether a dimension on it may keep records missing the value as a group of their own. */
+  missingKey: boolean;
 }
 
 export interface AnalysisEditorController {
@@ -73,9 +80,21 @@ export interface AnalysisEditorController {
    */
   pending: boolean;
 
+  /**
+   * The granularity a new time dimension on this field starts at (K4): read
+   * off the applied range's conditions on the field, failing that off the
+   * buckets a result already has on it, else the field's first unit.
+   */
+  dateUnitFor(field: AnalysisFieldOption): AnalysisDateUnit;
   addGroup(group: AnalysisGroup): void;
   updateGroup(index: number, patch: Partial<AnalysisGroup>): void;
   removeGroup(index: number): void;
+  /** Names a dimension on screen, or takes the name back with `undefined`. */
+  renameGroup(index: number, label: string | undefined): void;
+  /** Keeps records missing the value as a group of their own, or drops them. */
+  setMissingBucket(index: number, on: boolean): void;
+  /** Fills in the empty periods of a time dimension, or leaves them out. */
+  setDense(index: number, on: boolean): void;
   addMetric(metric: AnalysisMetric): void;
   updateMetric(index: number, patch: Partial<AnalysisMetric>): void;
   /**
@@ -87,6 +106,8 @@ export interface AnalysisEditorController {
   replaceMetric(index: number, metric: AnalysisMetric): void;
   /** Refuses the last metric: an aggregation query needs at least one. */
   removeMetric(index: number): void;
+  /** Names a metric on screen, or takes the name back with `undefined`. */
+  renameMetric(index: number, label: string | undefined): void;
   setSort(sort: AnalysisSort[]): void;
   setLimit(limit: number): void;
   /** A redraw of the same rows, never a run; nor does it count as pending. */
@@ -206,9 +227,36 @@ export function useAnalysisEditor(
         distinctCount: aggregation?.distinctCount === true,
         percentile: aggregation?.percentile === true,
         any: aggregation?.any === true,
+        missingKey: isSingleStringField(field, runtime?.kinds.get(field.kind)),
       };
     });
-  }, [scope]);
+  }, [scope, runtime]);
+
+  const dateUnitFor = useCallback(
+    (field: AnalysisFieldOption): AnalysisDateUnit => {
+      const applied = state?.applied;
+      const result = state?.result;
+      if (!runtime || !applied) return field.dateUnits[0] ?? 'DAY';
+      const { timeZone } = runtime.environment;
+      const span =
+        rangeSpan(
+          applied.filter,
+          field.field,
+          runtime.environment.now(),
+          timeZone,
+        ) ??
+        (result?.config.kind === 'analysis' && result.data.kind === 'analysis'
+          ? resultSpan(
+              result.data.view.rows,
+              result.config.groups,
+              field.field,
+              timeZone,
+            )
+          : null);
+      return recommendDateUnit(span, field.dateUnits);
+    },
+    [runtime, state],
+  );
 
   const groups = config?.groups ?? [];
   const metrics = config?.metrics ?? [];
@@ -232,6 +280,7 @@ export function useAnalysisEditor(
     fields,
     fieldGroups: definition?.fieldGroups ?? EMPTY_GROUPS,
     countable: capability?.count === true,
+    dateUnitFor,
     pending: state
       ? comparePending(state.draft, state.applied, state.issues).pending
       : false,
@@ -258,6 +307,51 @@ export function useAnalysisEditor(
       (index: number) =>
         reshape(current => ({
           groups: current.groups.filter((_group, at) => at !== index),
+          metrics: current.metrics,
+        })),
+      [reshape],
+    ),
+    // The three settings that come and go rather than change: a name taken
+    // back, a sentinel bucket dropped, a fill switched off leave no key
+    // behind, so the config stays what a fresh one would be.
+    renameGroup: useCallback(
+      (index: number, label: string | undefined) =>
+        reshape(current => ({
+          groups: current.groups.map((group, at) =>
+            at !== index
+              ? group
+              : label === undefined
+                ? (without(group, 'label') as AnalysisGroup)
+                : { ...group, label },
+          ),
+          metrics: current.metrics,
+        })),
+      [reshape],
+    ),
+    setMissingBucket: useCallback(
+      (index: number, on: boolean) =>
+        reshape(current => ({
+          groups: current.groups.map((group, at) =>
+            at !== index || group.type !== 'TERMS'
+              ? group
+              : on
+                ? { ...group, missingKey: DEFAULT_MISSING_KEY }
+                : (without(group, 'missingKey') as AnalysisGroup),
+          ),
+          metrics: current.metrics,
+        })),
+      [reshape],
+    ),
+    setDense: useCallback(
+      (index: number, on: boolean) =>
+        reshape(current => ({
+          groups: current.groups.map((group, at) =>
+            at !== index || group.type !== 'DATE_HISTOGRAM'
+              ? group
+              : on
+                ? { ...group, dense: true }
+                : (without(group, 'dense') as AnalysisGroup),
+          ),
           metrics: current.metrics,
         })),
       [reshape],
@@ -290,6 +384,20 @@ export function useAnalysisEditor(
           groups: current.groups,
           metrics: current.metrics.map((entry, at) =>
             at === index ? metric : entry,
+          ) as AnalysisViewConfig['metrics'],
+        })),
+      [reshape],
+    ),
+    renameMetric: useCallback(
+      (index: number, label: string | undefined) =>
+        reshape(current => ({
+          groups: current.groups,
+          metrics: current.metrics.map((metric, at) =>
+            at !== index
+              ? metric
+              : label === undefined
+                ? (without(metric, 'label') as AnalysisMetric)
+                : { ...metric, label },
           ) as AnalysisViewConfig['metrics'],
         })),
       [reshape],

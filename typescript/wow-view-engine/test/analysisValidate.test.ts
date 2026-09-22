@@ -1127,3 +1127,41 @@ describe('a malformed skeleton', () => {
     expect(codes(broken({ metrics: [] }))).toContain('analysis.metrics.empty');
   });
 });
+
+describe('a display name', () => {
+  /**
+   * D20 显示名: a dimension or a metric may be given a name for the screen.
+   * Given, it is a word — a blank one would head a column with nothing.
+   */
+  it('is admitted when given, refused when blank, and never sent to Wow', () => {
+    const base = config();
+    expect(
+      check({
+        groups: [{ ...base.groups[0]!, label: '仓库' }],
+        metrics: [{ ...base.metrics[0], label: '单数' }],
+      }),
+    ).not.toContain('analysis.label.blank');
+    expect(
+      check({
+        groups: [
+          { type: 'TERMS', field: 'warehouse', alias: 'wh', label: '  ' },
+        ],
+      }),
+    ).toContain('analysis.label.blank');
+    expect(
+      check({ metrics: [{ type: 'COUNT', alias: 'n', label: '' }] }),
+    ).toContain('analysis.label.blank');
+    expect(
+      check({
+        groups: [
+          {
+            type: 'TERMS',
+            field: 'warehouse',
+            alias: 'wh',
+            label: 7 as unknown as string,
+          },
+        ],
+      }),
+    ).toContain('analysis.config.malformed');
+  });
+});

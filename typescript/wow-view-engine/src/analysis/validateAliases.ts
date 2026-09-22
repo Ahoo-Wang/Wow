@@ -63,3 +63,19 @@ export function validateAliases(config: AnalysisViewConfig): Issue[] {
   );
   return issues;
 }
+
+/**
+ * A display name is optional, and given it is a word: a blank one would
+ * head a column with nothing, which reads as a header that failed to load.
+ */
+export function displayNameIssues(
+  entry: { label?: unknown },
+  path: IssuePath,
+): Issue[] {
+  if (entry.label === undefined) return [];
+  if (typeof entry.label !== 'string')
+    return [issue('analysis.config.malformed', [...path, 'label'])];
+  if (entry.label.trim() === '')
+    return [issue('analysis.label.blank', [...path, 'label'])];
+  return [];
+}

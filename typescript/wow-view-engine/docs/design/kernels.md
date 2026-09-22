@@ -169,10 +169,21 @@ mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboa
 - `metrics` 不能为空，报 `analysis.metrics.empty`，与 Wow `metrics must not be empty.` 一致；
 - `metrics[].type` 不在六种之内报 `analysis.metric.type-unknown`，`compileMetric` 对此抛错而不发出空洞（定义准入另行检查这些上限与 `defaultLimit` 本身是正整数且 `defaultLimit` 不超过 `maxLimit`）；
 - `TERMS.missingKey` 与 `DATE_HISTOGRAM.timeZone` 若存在则不能为空白字符串，与 Wow 的 `aggregation.terms`／`dateHistogram` 一致；**`missingKey` 只能给单值字符串字段**（Wow 只允许这一种，多值／数字／布尔在 schema 校验处被拒），否则报 `analysis.group.missing-key-unsupported`。判据由 kind 自述 `FieldKind.singleString`（内置里 `string` 与 `enum` 声明它，`reference` 不声明：远端候选的 id 可能是数字），再由字段自己的 `options` 否决——一组数字码是数字字段，不管 kind 叫什么（`isSingleStringField`，`model/field.ts`；见 test/analysisValidate.test.ts「allows a missing-value bucket on single-valued text only」「gives a text dimension a bucket for the records with no value」）；
+- **显示名给了就得是个词**：group 与 metric 的 `label`（`AnalysisNamed`，D20 显示名）不给则罢，给了必须是字符串（否则 `analysis.config.malformed`）且不能是空白（否则 `analysis.label.blank`）——一个空名字顶在列头上什么也没说。它是视图自己的东西，`compileAnalysis` 逐成员拼 Wow 对象，因此永远不会被发出去（见 test/analysisValidate.test.ts「a display name」「is admitted when given, refused when blank, and never sent to Wow」）；
 - `table.columns[].alias` 必须是当前 groups 或 metrics 的别名且不重复。
+
+### 粒度推荐（K4）
+
+新加的时间维度从哪个粒度起步，是 `analysis/granularity.ts` 回答的。从前它起步于字段声明的第一个单位，不管范围有多长：一年的订单按小时切是八千个没人要的桶，一周按月切是一个。**它只决定「起步」**——粒度选择就在卡片上，手选过的单位永远优先，推荐只给新维度播个种。
+
+- `recommendDateUnit(span, offered)`：在字段声明的那些单位里，挑**仍能切出至少 6 个桶的最粗那个**；没有一个切得够就取最细的那个（桶太少总好过没法看），连单位都没声明就取第一个。单位长度按近似值算（月 30.4375 天、季 91.3125 天、年 365.25 天）——它选的是一档粗细，不是一个要对齐到日历的边界；
+- `rangeSpan(filter, field, now, timeZone)`：已应用的范围在这个字段上圈出的毫秒数。**只有树 AND 在一起的叶子算数**——OR／NOR 子树里的条件是一种可能而不是一道边界，整棵跳过；`BETWEEN` 两端都给，`GTE`／`GT` 是下界（`GT` 取那一天的末尾，`GTE` 取开头），`LTE`／`LT` 是上界（`LT` 取开头，`LTE` 取末尾），多个同向的边界取更紧的那个。**只有下界就一直算到现在**（「三月以来」是一段真实的跨度），只有上界则什么也说明不了——数据从哪天开始没人知道——返回 `null`；
+- `resultSpan(rows, groups, field, timeZone)`：已经有结果时退而读结果，从第一个桶的开头到最后一个桶的末尾（末尾由 `bucketRange` 给，与下钻用的是同一个反向映射）。字段上没有时间维度或没有行就 `null`；
+- 两者的顺序在 `react/useAnalysisEditor.ts` 的 `dateUnitFor` 里：范围优先（它是分析师刚刚说的话），其次结果，都没有就是字段的第一个单位。（见 test/granularity.test.ts「recommendDateUnit」「rangeSpan」「resultSpan」与 test/analysisCards.test.tsx「the granularity a new time dimension starts at」）
 
 ### 图表规则
 
+- **系列是作者的**：一张只画两个指标里那一个的笛卡尔图，要熬过其余的每一次编辑——改个显示名、加个维度、旁边添个指标都会各跑一次 `fitChartSlots`，每次都把系列重新铺满，「只看金额」就成了只活一次编辑的选择。所以只有**指标已经没了的系列**才离开，只有**一个都不剩的列表**才重新铺满全部指标（透视时同理：留下的第一个仍是作者选的那个）。（见 test/analysisChartSlots.test.ts「keeps the series the chart names, and fills the list only when it is empty」「pivots on a second dimension and opens back up when it goes」）
 - `chart[族(type)]` 必须存在；
 - `x`、`splitBy`、`category`、heatmap 的 `x`／`y`、`funnel.group.category` 必须是分组别名，`series[].metric`、`value`、scatter 的 `x`／`y`／`size`、`metric`、`compare.metric`、`funnel.metrics.items[].metric` 必须是指标别名；
 - `splitBy` 不等于 `x`，且存在时 `series` 恰有一个指标；

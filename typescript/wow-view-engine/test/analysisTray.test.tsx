@@ -584,7 +584,8 @@ describe('the tray’s metric cards', () => {
   it('swaps the whole metric when the summary changes', async () => {
     const user = userEvent.setup();
     const { engine } = await open();
-    const metric = () => draft(engine).metrics[1] as Record<string, unknown>;
+    const metric = () =>
+      draft(engine).metrics[1] as unknown as Record<string, unknown>;
     const choose = async (word: string) => {
       await user.click(await screen.findByLabelText('Summary for Amount'));
       await user.click(await screen.findByRole('option', { name: word }));

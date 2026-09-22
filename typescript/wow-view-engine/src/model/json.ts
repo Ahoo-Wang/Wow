@@ -25,3 +25,17 @@ export type LiteralEnums<T> = T extends string
   : T extends object
     ? { [K in keyof T]: LiteralEnums<T[K]> }
     : T;
+
+/**
+ * The object without one optional member: what "unset" writes. A config
+ * stays plain JSON, so a setting taken back leaves no `undefined` behind for
+ * a comparison to trip over.
+ */
+export function without<T extends object, K extends keyof T>(
+  value: T,
+  key: K,
+): Omit<T, K> {
+  const next = { ...value };
+  delete next[key];
+  return next;
+}

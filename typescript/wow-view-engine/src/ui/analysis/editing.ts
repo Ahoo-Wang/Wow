@@ -11,7 +11,9 @@
  * limitations under the License.
  */
 
+import { DEFAULT_MISSING_KEY } from '../../analysis/index.js';
 import type {
+  AnalysisDateUnit,
   AnalysisFunction,
   AnalysisGroup,
   AnalysisMetric,
@@ -50,34 +52,50 @@ export function aliasesOf(analysis: AnalysisEditorController): string[] {
   return [...analysis.aliases.groups, ...analysis.aliases.metrics];
 }
 
-/** The dimension a field starts as: the first shape its capability allows. */
+/**
+ * The dimension a field starts as: the first shape its capability allows,
+ * a time dimension at the granularity recommended for the range (K4).
+ */
 export function defaultGroup(
   field: AnalysisFieldOption,
   taken: readonly string[],
+  unit?: AnalysisDateUnit,
 ): AnalysisGroup {
   return groupOfType(
     field,
     field.groups[0] ?? 'TERMS',
     freeAlias(field.field, taken),
+    unit,
   );
 }
 
-/** A dimension of `type` on `field`, whole rather than as a patch. */
+/**
+ * A dimension of `type` on `field`, whole rather than as a patch. A
+ * dimension by value starts with the sentinel bucket wherever the field can
+ * carry one: without it Wow drops every record missing the value, and a
+ * dimension never drops records without saying so (`termsGroup`).
+ */
 export function groupOfType(
   field: AnalysisFieldOption,
   type: string,
   alias: string,
+  unit?: AnalysisDateUnit,
 ): AnalysisGroup {
   if (type === 'DATE_HISTOGRAM')
     return {
       type: 'DATE_HISTOGRAM',
       field: field.field,
       alias,
-      unit: field.dateUnits[0] ?? 'DAY',
+      unit: unit ?? field.dateUnits[0] ?? 'DAY',
     };
   if (type === 'HISTOGRAM')
     return { type: 'HISTOGRAM', field: field.field, alias, interval: 1 };
-  return { type: 'TERMS', field: field.field, alias };
+  return {
+    type: 'TERMS',
+    field: field.field,
+    alias,
+    ...(field.missingKey ? { missingKey: DEFAULT_MISSING_KEY } : {}),
+  };
 }
 
 /**

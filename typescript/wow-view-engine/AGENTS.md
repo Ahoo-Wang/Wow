@@ -151,6 +151,7 @@ src/
     fitCharts.ts              — Which chart types can draw a result of this shape and which it reads best as (K3, Q6): the capability says which exist, this says which are greyed and why
     chartOptions.ts           — The rules behind the visualization panel's second level: which pages a type has, a slot swap, one-choice stacking and smoothing, and a funnel's stage order from the rows (D20 屏 J)
     drill.ts                  — One result row back into the conditions that select its records: `bucketRange` (the inverse of date bucketing, K1), `drillConditions`, and the two follow-ups that stay in the view, `focusOn` and `splitBy`; hands out conditions and config patches only (K6)
+    granularity.ts            — The granularity a new time dimension starts at (K4): `recommendDateUnit` from the applied range's span (`rangeSpan`) or the result's buckets (`resultSpan`)
     defaults.ts               — defaultAnalysisConfig — the first metric the capability can express; `aliasOf`, `termsGroup`, `DEFAULT_MISSING_KEY`
     expressions.ts            — Aggregate and derived expression walks
     metricFormat.ts           — `metricFormat`/`metricFunctionOf`: how an aggregate's number prints, which is not how its field's values print
@@ -312,6 +313,7 @@ src/
       AxesTab.tsx             — The options' axes page, cartesian only: title, bounds and number format of each numeric axis
       optionControls.tsx      — The few controls the options pages are built of: slot select, check, choice, number and text fields, and a titled section
       CompactSelect.tsx       — The one select a tray card carries: a named choice among a few words
+      CardMenu.tsx            — A tray card's name and the way to rename it (`CardName`), and the card's own menu (`CardMenu`): display name, the sentinel bucket, filling empty periods
       DimensionCard.tsx       — The dimensions slot and its cards: field, and the control its type asks for (granularity, band width)
       DrillMenu.tsx           — The follow-up menu on one group of a result: the records behind it, split by another dimension, only this group (D20 追问); anchored to the mark or row pressed
       EmptyResult.tsx         — An aggregation that matched no group, one sentence for both layouts

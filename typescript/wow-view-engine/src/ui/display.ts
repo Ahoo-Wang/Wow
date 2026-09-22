@@ -155,10 +155,11 @@ export function summaryFunctionKey(
  * field, so it says so in one word.
  */
 export function columnTitle(
-  column: { label: string; fn?: MetricFunction },
+  column: { label: string; fn?: MetricFunction; named?: true },
   messages: MessageFormatters,
 ): string {
-  if (column.fn === undefined) return column.label;
+  // A name the analyst gave is the whole title (D20 显示名).
+  if (column.named || column.fn === undefined) return column.label;
   if (column.fn === 'COUNT') return messages.label('label.analysis.row-count');
   // A derived metric is arithmetic over other metrics: no field stands behind
   // it, so its stored name is all there is to show.

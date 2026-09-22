@@ -31,6 +31,7 @@ import {
   budgetedExpressionIssues,
 } from './expressions.js';
 import { queryFilterIssues } from './queryFilter.js';
+import { displayNameIssues } from './validateAliases.js';
 
 export function validateMetrics(
   config: AnalysisViewConfig,
@@ -57,6 +58,7 @@ export function validateMetrics(
   config.metrics.forEach((metric, index) => {
     const path: IssuePath = ['metrics', index];
     const declared = (field: string) => scope.aggregations.get(field);
+    issues.push(...displayNameIssues(metric, path));
 
     // A metric's own filter was compiled and never admitted, so it could name
     // a field that does not exist and reach `compileFilter`, which answers
