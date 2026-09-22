@@ -75,6 +75,35 @@ function raisedCodes(): string[] {
   return [...codes].sort();
 }
 
+/**
+ * Every key the source asks the catalogue for: written out, or built from a
+ * prefix and a member of a closed enum. `src/ui/messages` is left out, since
+ * a catalogue naming its own keys is not a use.
+ */
+function askedFor(): { literal: Set<string>; prefixes: string[] } {
+  const literal = new Set<string>();
+  const prefixes = new Set<string>();
+  const written = /['"`]([A-Za-z][\w-]*(?:\.[\w-]+)+)['"`]/g;
+  const built = /`([A-Za-z][\w.-]*\.)\$\{/g;
+
+  const walk = (directory: string): void => {
+    for (const entry of readdirSync(directory)) {
+      const path = join(directory, entry);
+      if (statSync(path).isDirectory()) {
+        if (entry !== 'messages') walk(path);
+        continue;
+      }
+      if (!path.endsWith('.ts') && !path.endsWith('.tsx')) continue;
+      const source = readFileSync(path, 'utf8');
+      for (const match of source.matchAll(written)) literal.add(match[1]);
+      for (const match of source.matchAll(built)) prefixes.add(match[1]);
+    }
+  };
+
+  walk(src);
+  return { literal, prefixes: [...prefixes] };
+}
+
 describe('the message catalogue', () => {
   it('covers every issue code the package can raise', () => {
     // Without this the code itself reaches the screen, which is how
@@ -82,6 +111,19 @@ describe('the message catalogue', () => {
     const missing = raisedCodes().filter(code => !(code in defaultMessages));
 
     expect(missing).toEqual([]);
+  });
+
+  it('holds no key the source never asks for', () => {
+    // The other direction: a sentence nobody asks for is a sentence nobody
+    // maintains, and three of them were found sitting in the catalogue in
+    // both languages with no way to reach the screen (A-11).
+    const { literal, prefixes } = askedFor();
+    const idle = Object.keys(defaultMessages).filter(
+      key =>
+        !literal.has(key) && !prefixes.some(prefix => key.startsWith(prefix)),
+    );
+
+    expect(idle).toEqual([]);
   });
 
   it('is a sentence, not a key', () => {

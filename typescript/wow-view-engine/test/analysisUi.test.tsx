@@ -48,6 +48,7 @@ import {
   ordersDefinition,
   testSource,
 } from './fixtures.js';
+import { landed, tracked } from './fixtures/writes.js';
 
 afterEach(cleanup);
 
@@ -61,7 +62,7 @@ const analysisView: ViewInstance = {
 };
 
 function setup(source: ViewSource = testSource()) {
-  const store = new MemoryViewStore({ instances: [analysisView] });
+  const store = tracked(new MemoryViewStore({ instances: [analysisView] }));
   const engine = new ViewEngine({
     definitions: [ordersDefinition()],
     store,
@@ -257,7 +258,7 @@ function richDefinition() {
 
 describe('AnalysisEditor defaults', () => {
   async function open(messages?: ViewMessages) {
-    const store = new MemoryViewStore({ instances: [analysisView] });
+    const store = tracked(new MemoryViewStore({ instances: [analysisView] }));
     const engine = new ViewEngine({
       definitions: [richDefinition()],
       store,
@@ -464,7 +465,7 @@ describe('AnalysisEditor defaults', () => {
 
   it('takes a row limit and a totals request', async () => {
     const source = testSource();
-    const store = new MemoryViewStore({ instances: [analysisView] });
+    const store = tracked(new MemoryViewStore({ instances: [analysisView] }));
     const engine = new ViewEngine({
       definitions: [richDefinition()],
       store,
@@ -593,13 +594,12 @@ describe('AnalysisWorkbench', () => {
       within(dialog).getByRole('button', { name: 'Create view' }),
     );
 
-    await waitFor(async () =>
-      expect(
-        (await store.list('orders')).filter(
-          item => item.title === 'Split by size',
-        ),
-      ).toHaveLength(1),
-    );
+    await landed(store);
+    expect(
+      (await store.list('orders')).filter(
+        item => item.title === 'Split by size',
+      ),
+    ).toHaveLength(1);
     // The copy is what is open, and the sidebar says so.
     await waitFor(() =>
       expect(
@@ -644,27 +644,29 @@ describe('AnalysisWorkbench', () => {
     });
     const engine = new ViewEngine({
       definitions: [namedOrdersDefinition()],
-      store: new MemoryViewStore({
-        instances: [
-          {
-            ...analysisView,
-            config: analysisConfig({
-              groups: [
-                {
-                  alias: 'month',
-                  field: 'createdAt',
-                  type: 'DATE_HISTOGRAM',
-                  unit: 'MONTH',
+      store: tracked(
+        new MemoryViewStore({
+          instances: [
+            {
+              ...analysisView,
+              config: analysisConfig({
+                groups: [
+                  {
+                    alias: 'month',
+                    field: 'createdAt',
+                    type: 'DATE_HISTOGRAM',
+                    unit: 'MONTH',
+                  },
+                ],
+                chart: {
+                  type: 'bar',
+                  cartesian: { x: 'month', series: [{ metric: 'orders' }] },
                 },
-              ],
-              chart: {
-                type: 'bar',
-                cartesian: { x: 'month', series: [{ metric: 'orders' }] },
-              },
-            }),
-          },
-        ],
-      }),
+              }),
+            },
+          ],
+        }),
+      ),
       resolveSource: () => source,
       environment: defaultRuntimeEnvironment({ timeZone: ZONE }),
     });
@@ -694,11 +696,13 @@ describe('AnalysisWorkbench', () => {
   it('names chart categories by the config that ran while the chart is edited', async () => {
     const engine = new ViewEngine({
       definitions: [namedOrdersDefinition()],
-      store: new MemoryViewStore({
-        instances: [
-          { ...analysisView, config: analysisConfig({ layout: 'chart' }) },
-        ],
-      }),
+      store: tracked(
+        new MemoryViewStore({
+          instances: [
+            { ...analysisView, config: analysisConfig({ layout: 'chart' }) },
+          ],
+        }),
+      ),
       resolveSource: () => testSource(),
     });
     const { container } = render(
@@ -727,17 +731,19 @@ describe('AnalysisWorkbench', () => {
     // and names its bars through the schema rather than the table's columns.
     const engine = new ViewEngine({
       definitions: [namedOrdersDefinition()],
-      store: new MemoryViewStore({
-        instances: [
-          {
-            ...analysisView,
-            config: analysisConfig({
-              layout: 'chart',
-              table: { columns: [{ alias: 'orders' }] },
-            }),
-          },
-        ],
-      }),
+      store: tracked(
+        new MemoryViewStore({
+          instances: [
+            {
+              ...analysisView,
+              config: analysisConfig({
+                layout: 'chart',
+                table: { columns: [{ alias: 'orders' }] },
+              }),
+            },
+          ],
+        }),
+      ),
       resolveSource: () => testSource(),
     });
 
@@ -865,7 +871,9 @@ describe('deleting the open analysis', () => {
   };
 
   it('moves on to the view that is still there', async () => {
-    const store = new MemoryViewStore({ instances: [analysisView, other] });
+    const store = tracked(
+      new MemoryViewStore({ instances: [analysisView, other] }),
+    );
     const engine = new ViewEngine({
       definitions: [ordersDefinition()],
       store,

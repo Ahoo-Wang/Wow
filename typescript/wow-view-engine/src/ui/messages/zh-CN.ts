@@ -263,7 +263,6 @@ export const zhCN: ViewMessages = {
   'label.filter.remove-group': '删除分组',
   'label.filter.add': '添加',
   'label.filter.add-here': '在这个分组里添加',
-  'label.filter.nested-group': '分组',
   'label.filter.condition-of': '{field} 条件',
   'label.field.none': '没有匹配的字段',
   'label.field.search': '搜索字段',
@@ -473,7 +472,6 @@ export const zhCN: ViewMessages = {
   'label.view.unopenable': '无法打开这个视图',
   'label.view.open-default': '回到默认视图',
   'label.view.needs-fixing': '这个视图要先修正才能运行',
-  'label.view.warnings': '值得留意',
   'label.view.warnings-count': '{count} 项值得留意',
   'label.view.none': '还没有视图',
   'runtime.kind.not-declared': '{definition} 不提供 {kind} 视图。',
@@ -750,7 +748,6 @@ export const zhCN: ViewMessages = {
     '{path} 没有声明名为 {field} 的字段。',
   'definition.analysis.element-undeclared':
     '分析展开了 {path}，它不是存放条目的字段。',
-  'definition.analysis.element-path-invalid': '{path} 不是可用的字段路径。',
   'definition.analysis.field-unknown': '分析能力写了 {field}，定义没有声明它。',
   'definition.analysis.limit-invalid': '分析上限必须是正整数。',
   'definition.analysis.no-metric': '分析能力没有给出可以起步的指标。',

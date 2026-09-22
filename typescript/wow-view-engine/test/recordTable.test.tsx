@@ -11,15 +11,13 @@
  * limitations under the License.
  */
 
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
 import type { RecordSort, ViewInstance, ViewSource } from '../src/index.js';
-import type { RecordTableController } from '../src/react/index.js';
 import {
   defaultMessages,
-  RecordCards,
   RecordTable,
   RecordWorkbench,
   ViewSurface,
@@ -32,7 +30,7 @@ import {
   recordConfig,
   testSource,
 } from './fixtures.js';
-import { mine } from './fixtures/ui.js';
+import { mine, twoColumnTable } from './fixtures/ui.js';
 
 afterEach(cleanup);
 
@@ -50,85 +48,12 @@ class ResizeSpy {
   }
 }
 
-function tableController(
-  overrides: Partial<RecordTableController> = {},
-): RecordTableController {
-  return {
-    columns: [
-      {
-        field: 'amount',
-        label: 'Amount',
-        kind: 'number',
-        cell: 'number',
-        sortable: true,
-        numberFormat: { style: 'currency', currency: 'CNY' },
-      },
-      {
-        field: 'warehouse',
-        label: 'Warehouse',
-        kind: 'string',
-        cell: 'string',
-        sortable: false,
-      },
-    ],
-    rows: [
-      { key: 'o-1', data: { amount: 10, warehouse: 'CN' } },
-      { key: 'o-2', data: { amount: null, warehouse: true } },
-    ],
-    card: {
-      title: 'warehouse',
-      fields: [{ field: 'amount', label: 'Amount' }],
-    },
-    cardSpec: { title: '', fields: [] },
-    setCard: () => {},
-    paging: { mode: 'paged', index: 1, total: 2 },
-    summaries: null,
-    status: 'success',
-    error: null,
-    loading: false,
-    hasResult: true,
-    sort: [],
-    sortOf: () => null,
-    toggleSort: () => {},
-    setSort: () => {},
-    maxSortFields: 8,
-    layout: 'table',
-    layouts: ['table', 'card'],
-    setLayout: () => {},
-    columnFields: ['amount', 'warehouse'],
-    hiddenOf: () => false,
-    setColumns: () => {},
-    setColumnOrder: () => {},
-    pinnedOf: () => null,
-    setPinned: () => {},
-    setColumnWidth: () => {},
-    summaryOf: () => null,
-    summaryFields: [],
-    setSummary: () => {},
-    pageSize: 20,
-    pageSizes: [10, 20, 50, 100],
-    setPageSize: () => {},
-    selection: [],
-    selectedRows: [],
-    isSelected: () => false,
-    toggle: () => {},
-    toggleAll: () => {},
-    clearSelection: () => {},
-    goTo: () => {},
-    hasNext: true,
-    next: () => {},
-    previous: () => {},
-    refresh: () => {},
-    ...overrides,
-  };
-}
-
 describe('RecordTable on its own', () => {
   it('hands a custom cell the null the record holds', () => {
     const seen: unknown[] = [];
     render(
       <RecordTable
-        table={tableController()}
+        table={twoColumnTable()}
         renderCell={cell => {
           if (cell.key === 'o-2' && cell.column.field === 'amount')
             seen.push(cell.value);
@@ -140,7 +65,7 @@ describe('RecordTable on its own', () => {
   });
 
   it('formats each value by what the column declared', () => {
-    render(<RecordTable table={tableController()} />);
+    render(<RecordTable table={twoColumnTable()} />);
 
     expect(screen.getByText('CN¥10.00')).toBeDefined();
     expect(screen.getByText('Yes')).toBeDefined();
@@ -158,7 +83,7 @@ describe('RecordTable on its own', () => {
     render(
       <ViewSurface locale="en-GB" timeZone={ZONE}>
         <RecordTable
-          table={tableController({
+          table={twoColumnTable({
             columns: [
               {
                 field: 'createdAt',
@@ -191,7 +116,7 @@ describe('RecordTable on its own', () => {
   it('still renders a column whose number format Intl refuses', () => {
     render(
       <RecordTable
-        table={tableController({
+        table={twoColumnTable({
           columns: [
             {
               field: 'amount',
@@ -212,12 +137,12 @@ describe('RecordTable on its own', () => {
 
   it('shows skeletons on a first load and an empty state after it', () => {
     render(
-      <RecordTable table={tableController({ status: 'loading', rows: [] })} />,
+      <RecordTable table={twoColumnTable({ status: 'loading', rows: [] })} />,
     );
     expect(screen.getAllByRole('row').length).toBeGreaterThan(1);
 
     cleanup();
-    render(<RecordTable table={tableController({ rows: [] })} />);
+    render(<RecordTable table={twoColumnTable({ rows: [] })} />);
     expect(screen.getByText('Nothing to show')).toBeDefined();
   });
 
@@ -232,7 +157,7 @@ describe('RecordTable on its own', () => {
     const onEmptyAction = vi.fn();
     render(
       <RecordTable
-        table={tableController({ rows: [] })}
+        table={twoColumnTable({ rows: [] })}
         hasConditions
         onEmptyAction={onEmptyAction}
       />,
@@ -252,7 +177,7 @@ describe('RecordTable on its own', () => {
     cleanup();
     render(
       <RecordTable
-        table={tableController({ rows: [] })}
+        table={twoColumnTable({ rows: [] })}
         onEmptyAction={onEmptyAction}
       />,
     );
@@ -269,7 +194,7 @@ describe('RecordTable on its own', () => {
    * nowhere is worse than no button.
    */
   it('offers no way out where the host gave it none', () => {
-    render(<RecordTable table={tableController({ rows: [] })} />);
+    render(<RecordTable table={twoColumnTable({ rows: [] })} />);
 
     expect(screen.getByText('Nothing to show')).toBeDefined();
     expect(screen.queryByRole('button')).toBeNull();
@@ -283,7 +208,7 @@ describe('RecordTable on its own', () => {
    */
   it('draws the skeleton by column, each bar the width of its name', () => {
     const { container } = render(
-      <RecordTable table={tableController({ status: 'loading', rows: [] })} />,
+      <RecordTable table={twoColumnTable({ status: 'loading', rows: [] })} />,
     );
 
     const row = container.querySelector('tbody tr')!;
@@ -302,431 +227,11 @@ describe('RecordTable on its own', () => {
   it('takes a renderer for the cells', () => {
     render(
       <RecordTable
-        table={tableController()}
+        table={twoColumnTable()}
         renderCell={cell => <em>{String(cell.value)}</em>}
       />,
     );
     expect(screen.getByText('10')).toBeDefined();
-  });
-});
-
-describe('RecordCards on its own', () => {
-  /**
-   * A card is a row folded out, so its body is the same `Item` recipe the
-   * lists are drawn with (decisions.md D16-3) — and a list of readings is a
-   * list, which the registry's `ItemGroup` says but its `Item` does not:
-   * the rows are `div`s, so each one has to claim `listitem` itself or the
-   * group announces a list with nothing in it.
-   */
-  it('draws the card body as a list of readings', () => {
-    const { container } = render(
-      <RecordCards
-        table={tableController({
-          card: {
-            title: 'warehouse',
-            fields: [
-              { field: 'amount', label: 'Total' },
-              { field: 'status', label: 'Status' },
-            ],
-          },
-          rows: [{ key: 'o-1', data: { warehouse: 'CN', amount: 10 } }],
-        })}
-      />,
-    );
-
-    const rows = [
-      ...container.querySelectorAll<HTMLElement>('[data-slot="card-field"]'),
-    ];
-    expect(rows.map(row => row.dataset.field)).toEqual(['amount', 'status']);
-    for (const row of rows) {
-      expect(row.dataset.variant).toBe('default');
-      expect(row.getAttribute('role')).toBe('listitem');
-      expect(row.parentElement?.getAttribute('role')).toBe('list');
-      // The field's name is the quiet half and the value is the loud one,
-      // which is what `Item` means by description and title.
-      expect(row.querySelector('[data-slot="item-description"]')).toBeTruthy();
-      expect(row.querySelector('[data-slot="item-title"]')).toBeTruthy();
-      // And the name reads a rung below the value: `TEXT_UI` over the
-      // registry's `text-sm`, asked for with `RowItem`'s `description`
-      // variant so that no typography lands on the vendored component.
-      // The class rather than the size, because jsdom hangs no stylesheet;
-      // the pixels are measured in the browser.
-      expect(row.className).toContain(
-        '[&_[data-slot=item-description]]:text-[length:var(--text-ui)]',
-      );
-    }
-  });
-
-  it('reads a nested title field by its path', () => {
-    render(
-      <RecordCards
-        table={tableController({
-          card: { title: 'customer.name', fields: [] },
-          rows: [{ key: 'o-1', data: { customer: { name: 'Acme' } } }],
-        })}
-      />,
-    );
-    expect(screen.getByText('Acme')).toBeDefined();
-  });
-
-  it('titles a card by the field the card spec names', () => {
-    render(<RecordCards table={tableController()} />);
-
-    const [first, second] = screen.getAllByText(
-      (_text, element) =>
-        (element as HTMLElement | null)?.dataset.slot === 'card-title',
-    );
-    expect(first.textContent).toContain('CN');
-    // The second row's title field is a boolean, which reads as Yes.
-    expect(second.textContent).toContain('Yes');
-  });
-
-  it('shows a card value as its column would', () => {
-    render(
-      <ViewSurface locale="en-GB" timeZone={ZONE}>
-        <RecordCards
-          table={tableController({
-            card: {
-              title: 'status',
-              titleField: {
-                field: 'status',
-                label: 'Status',
-                options: [{ value: 'FAILED', label: 'Failed' }],
-              },
-              fields: [
-                { field: 'createdAt', label: 'Created', kind: 'datetime' },
-                {
-                  field: 'amount',
-                  label: 'Amount',
-                  numberFormat: { style: 'currency', currency: 'CNY' },
-                },
-              ],
-            },
-            rows: [
-              {
-                key: 'o-1',
-                data: { status: 'FAILED', createdAt: INSTANT, amount: 10 },
-              },
-            ],
-          })}
-        />
-      </ViewSurface>,
-    );
-
-    expect(screen.getByText('Failed')).toBeDefined();
-    expect(screen.getByText(inZone(INSTANT))).toBeDefined();
-    expect(screen.getByText('CN¥10.00')).toBeDefined();
-  });
-
-  it("leaves a card's values to the host's renderer when it has one", () => {
-    render(
-      <ViewSurface locale="en-GB" timeZone={ZONE}>
-        <RecordCards
-          table={tableController({
-            card: {
-              title: 'id',
-              fields: [
-                { field: 'createdAt', label: 'Created', kind: 'datetime' },
-              ],
-            },
-            rows: [{ key: 'o-1', data: { id: 'o-1', createdAt: INSTANT } }],
-          })}
-          renderCell={cell => <em>raw {String(cell.value)}</em>}
-        />
-      </ViewSurface>,
-    );
-
-    expect(screen.getByText(`raw ${INSTANT}`)).toBeDefined();
-    expect(screen.queryByText(inZone(INSTANT))).toBeNull();
-  });
-
-  it('falls back to the row key without a title field', () => {
-    render(
-      <RecordCards
-        table={tableController({ card: { title: '', fields: [] } })}
-      />,
-    );
-    expect(screen.getByText('o-1')).toBeDefined();
-  });
-
-  /**
-   * A card is not the table narrowed. Rendering `table.columns` showed the
-   * column list under a title nobody configured, so every card setting a user
-   * saved — which field titles it, what its body holds, its picture — was
-   * stored, validated and then ignored.
-   */
-  it('shows the body fields and the image of the saved card', () => {
-    const { container } = render(
-      <RecordCards
-        table={tableController({
-          card: {
-            title: 'warehouse',
-            fields: [{ field: 'amount', label: 'Total' }],
-            image: 'photo',
-            columns: 2,
-          },
-          rows: [
-            { key: 'o-1', data: { warehouse: 'CN', amount: 10, photo: '/a' } },
-          ],
-        })}
-      />,
-    );
-
-    // The card's own label, not the column's, and none of the other columns.
-    expect(screen.getByText('Total')).toBeDefined();
-    expect(screen.queryByText('Warehouse')).toBeNull();
-    expect(container.querySelector('img')?.getAttribute('src')).toBe('/a');
-    expect(
-      container
-        .querySelector('[data-slot="record-cards"]')
-        ?.className.includes('sm:grid-cols-2'),
-    ).toBe(true);
-  });
-});
-
-describe('the summary row', () => {
-  const withSummary: ViewInstance = {
-    ...mine,
-    config: recordConfig({ summaries: [{ field: 'amount', fn: 'SUM' }] }),
-  };
-
-  function setupSummary(source: ViewSource = testSource()) {
-    const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
-      store: new MemoryViewStore({ instances: [withSummary] }),
-      resolveSource: () => source,
-    });
-    return render(
-      <RecordWorkbench
-        engine={engine}
-        definitionId="orders"
-        instanceId="orders-1"
-      />,
-    );
-  }
-
-  it('shows the total the aggregation returned, beside the page', async () => {
-    const { container } = setupSummary();
-
-    const footer = await waitFor(() => {
-      const found = container.querySelector('tfoot');
-      expect(found).not.toBeNull();
-      return found as HTMLElement;
-    });
-
-    // The aggregation answers for everything the conditions match; the page
-    // is the two rows the source returned, added up without a second query.
-    expect(scopes(footer)).toEqual(['page', 'total']);
-    expect(summaryRow(footer, 'total').textContent).toContain('30');
-    expect(summaryRow(footer, 'page').textContent).toContain('30');
-  });
-
-  /**
-   * A failed summary query costs the summary, not the page. What it must not
-   * cost is the reader's ability to tell the two numbers apart: the sum of the
-   * rows on screen presented as the sum over everything is the one mistake
-   * this row could make.
-   */
-  it('shows every function configured for one field', async () => {
-    const both: ViewInstance = {
-      ...mine,
-      config: recordConfig({
-        summaries: [
-          { field: 'amount', fn: 'SUM' },
-          { field: 'amount', fn: 'AVG' },
-        ],
-      }),
-    };
-    // The shared fixture allows only SUM on `amount`; this view asks for two.
-    const definition = ordersDefinition();
-    const engine = new ViewEngine({
-      definitions: [
-        {
-          ...definition,
-          fields: definition.fields.map(field =>
-            field.name === 'amount'
-              ? { ...field, summary: ['SUM' as const, 'AVG' as const] }
-              : field,
-          ),
-        },
-      ],
-      store: new MemoryViewStore({ instances: [both] }),
-      resolveSource: () => testSource(),
-    });
-    const { container } = render(
-      <RecordWorkbench
-        engine={engine}
-        definitionId="orders"
-        instanceId="orders-1"
-      />,
-    );
-
-    const footer = await waitFor(() => {
-      const found = container.querySelector('tfoot');
-      expect(found).not.toBeNull();
-      return found as HTMLElement;
-    });
-
-    // Keying the cells by field would keep only the last one configured, and
-    // the function is named rather than left as the config's token.
-    expect(footer.textContent).toContain('Sum');
-    expect(footer.textContent).toContain('Average');
-  });
-
-  it('says so when it fell back to the rows on screen', async () => {
-    const { container } = setupSummary(
-      testSource({ aggregate: () => Promise.reject(new Error('down')) }),
-    );
-
-    const footer = await waitFor(() => {
-      const found = container.querySelector('tfoot');
-      expect(found).not.toBeNull();
-      return found as HTMLElement;
-    });
-
-    // The only row left is the page, and it says so rather than passing the
-    // rows on screen off as everything the conditions match.
-    expect(scopes(footer)).toEqual(['page']);
-    expect(footer.textContent).toContain('This page');
-    expect(footer.textContent).not.toContain('All records');
-  });
-});
-
-/**
- * Two scopes, side by side.
- *
- * The page is the rows in front of you and the total is everything the
- * conditions match, and the question a summary is read for — is this page
- * representative — is exactly the difference between them. Only the total
- * costs a query; the page is derived from the rows already on screen.
- */
-describe('the summary rows', () => {
-  const summaries = (
-    overrides: Partial<RecordTableController> = {},
-  ): RecordTableController =>
-    tableController({
-      summaries: {
-        scope: 'total',
-        cells: [
-          {
-            field: 'amount',
-            label: 'Amount',
-            fn: 'SUM',
-            value: 900,
-            numberFormat: { style: 'currency', currency: 'CNY' },
-          },
-        ],
-      },
-      ...overrides,
-    });
-
-  it('renders no footer at all when the config asked for no summaries', () => {
-    const { container } = render(<RecordTable table={tableController()} />);
-    expect(container.querySelector('tfoot')).toBeNull();
-  });
-
-  it('shows this page beside every record the conditions match', () => {
-    const { container } = render(<RecordTable table={summaries()} />);
-
-    const footer = container.querySelector('tfoot')!;
-    expect(scopes(footer)).toEqual(['page', 'total']);
-    // The page adds up the two rows on screen; the total is the aggregation's
-    // own number and is not recomputed from them.
-    expect(summaryRow(footer, 'page').textContent).toContain('CN¥10.00');
-    expect(summaryRow(footer, 'total').textContent).toContain('CN¥900.00');
-    expect(footer.textContent).toContain('This page');
-    expect(footer.textContent).toContain('All records');
-  });
-
-  /**
-   * Two rows, even where the two numbers agree. The scope is part of the
-   * number rather than a note beside it: twenty rows' average presented as
-   * forty thousand rows' average is the one mistake these rows could make,
-   * and collapsing them whenever they happen to match is how that mistake
-   * gets made on the page where it matters.
-   */
-  it('keeps both scopes apart even when they say the same thing', () => {
-    const { container } = render(
-      <RecordTable
-        table={summaries({
-          summaries: {
-            scope: 'total',
-            cells: [
-              { field: 'amount', label: 'Amount', fn: 'COUNT', value: 2 },
-            ],
-          },
-        })}
-      />,
-    );
-
-    const footer = container.querySelector('tfoot')!;
-    expect(scopes(footer)).toEqual(['page', 'total']);
-    expect(summaryRow(footer, 'page').textContent).toContain('2');
-    expect(summaryRow(footer, 'total').textContent).toContain('2');
-  });
-
-  it('leaves a column with no summary empty rather than showing a zero', () => {
-    const { container } = render(<RecordTable table={summaries()} />);
-
-    // Warehouse is summarised by nothing, so its footer cells say nothing.
-    const row = summaryRow(container.querySelector('tfoot')!, 'page');
-    expect(row.cells[2].textContent).toBe('');
-  });
-
-  /**
-   * A summary is only ever configured on a field that allows it, but what a
-   * field holds is the source's business: a column of strings summed is a
-   * number nobody can compute, and a dash says so where a 0 would lie.
-   */
-  it('shows a dash where the rows hold nothing to compute', () => {
-    const { container } = render(
-      <RecordTable
-        table={summaries({
-          summaries: {
-            scope: 'total',
-            cells: [
-              { field: 'warehouse', label: 'Warehouse', fn: 'SUM', value: 12 },
-              { field: 'warehouse', label: 'Warehouse', fn: 'COUNT', value: 7 },
-            ],
-          },
-        })}
-      />,
-    );
-
-    const footer = container.querySelector('tfoot')!;
-    // The page cannot sum two warehouse names, but it can count the rows.
-    expect(summaryRow(footer, 'page').textContent).toContain('—');
-    expect(summaryRow(footer, 'page').textContent).toContain('2');
-    // The aggregation answered both, and its numbers stand as they came.
-    expect(summaryRow(footer, 'total').textContent).toContain('12');
-  });
-
-  /**
-   * Documented rule: with no selection column there is no spare cell, so the
-   * scope labels the first column from above rather than taking its place —
-   * which would hide whatever that column summarises.
-   */
-  it('labels the first column from above when rows cannot be picked', () => {
-    const { container } = render(
-      <RecordTable table={summaries()} selectable={false} />,
-    );
-
-    const row = summaryRow(container.querySelector('tfoot')!, 'page');
-    // One cell per column plus the filler, with the label inside the first.
-    expect(row.cells).toHaveLength(3);
-    expect(row.cells[2].dataset.column).toBe('filler');
-    expect(row.cells[0].textContent).toContain('This page');
-    expect(row.cells[0].textContent).toContain('CN¥10.00');
-  });
-
-  it('keeps the footer as wide as the rows when there is an action column', () => {
-    const { container } = render(
-      <RecordTable table={summaries()} rowActions={() => <button />} />,
-    );
-
-    const row = summaryRow(container.querySelector('tfoot')!, 'page');
-    // Selection, two columns, actions, and the filler after them all.
-    expect(row.cells).toHaveLength(5);
   });
 });
 
@@ -739,7 +244,7 @@ describe('the summary rows', () => {
  */
 describe('sorting from the headers', () => {
   const sorted = (sort: RecordSort[]) =>
-    tableController({
+    twoColumnTable({
       sort,
       columns: [
         {
@@ -975,7 +480,7 @@ describe('enum cells', () => {
     options: { value: string; label: string }[] | undefined,
     value: unknown = 'PENDING',
   ) =>
-    tableController({
+    twoColumnTable({
       columns: [
         {
           field: 'status',
@@ -1064,7 +569,7 @@ describe('enum cells', () => {
  */
 describe('the table chrome', () => {
   const pinned = () =>
-    tableController({
+    twoColumnTable({
       columns: [
         {
           field: 'id',
@@ -1097,7 +602,7 @@ describe('the table chrome', () => {
   it('sticks the header over the rows and the summaries under them', () => {
     const { container } = render(
       <RecordTable
-        table={tableController({
+        table={twoColumnTable({
           summaries: { scope: 'page', cells: [] },
         })}
       />,
@@ -1127,7 +632,7 @@ describe('the table chrome', () => {
     const { container } = render(
       <RecordTable
         scrolls={false}
-        table={tableController({ summaries: { scope: 'page', cells: [] } })}
+        table={twoColumnTable({ summaries: { scope: 'page', cells: [] } })}
       />,
     );
 
@@ -1181,7 +686,7 @@ describe('the table chrome', () => {
     const { container } = render(
       <RecordTable
         selectable={false}
-        table={tableController({
+        table={twoColumnTable({
           columns: [
             {
               field: 'id',
@@ -1239,7 +744,7 @@ describe('the table chrome', () => {
 
     const { container } = render(
       <RecordTable
-        table={tableController({
+        table={twoColumnTable({
           columns: [
             {
               field: 'id',
@@ -1343,7 +848,7 @@ describe('the table chrome', () => {
   });
 
   it('pins nothing but the actions when no column asked for it', () => {
-    const { container } = render(<RecordTable table={tableController()} />);
+    const { container } = render(<RecordTable table={twoColumnTable()} />);
     expect(container.querySelector('thead th')!.className).not.toContain(
       'sticky',
     );
@@ -1468,21 +973,6 @@ describe('a record view with no result', () => {
     expect(selectAll()).toBeNull();
   });
 });
-
-/** The summary rows, by the scope each one carries. */
-function scopes(footer: HTMLElement): string[] {
-  return [...footer.querySelectorAll('tr')].map(
-    row => row.getAttribute('data-scope') ?? '',
-  );
-}
-
-function summaryRow(footer: HTMLElement, scope: string): HTMLTableRowElement {
-  const row = footer.querySelector<HTMLTableRowElement>(
-    `tr[data-scope="${scope}"]`,
-  );
-  if (!row) throw new Error(`no ${scope} summary row`);
-  return row;
-}
 
 function header(container: HTMLElement, field: string): HTMLElement {
   const found = container.querySelector<HTMLElement>(

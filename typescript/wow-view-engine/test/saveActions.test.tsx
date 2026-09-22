@@ -48,6 +48,7 @@ import {
   testSource,
 } from './fixtures.js';
 import { mine, setup as workbenchSetup } from './fixtures/ui.js';
+import { landed, tracked } from './fixtures/writes.js';
 
 afterEach(cleanup);
 
@@ -65,7 +66,9 @@ function permitting(
 }
 
 function setup(permissions = permitting()) {
-  const store = new MemoryViewStore({ instances: [mine], permissions });
+  const store = tracked(
+    new MemoryViewStore({ instances: [mine], permissions }),
+  );
   const engine = new ViewEngine({
     definitions: [ordersDefinition()],
     store,
@@ -175,10 +178,9 @@ describe('SaveActions, the split button group', () => {
     fireEvent.change(title, { target: { value: 'Big ones' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
 
-    await waitFor(async () =>
-      expect((await store.list('orders')).map(item => item.title)).toContain(
-        'Big ones',
-      ),
+    await landed(store);
+    expect((await store.list('orders')).map(item => item.title)).toContain(
+      'Big ones',
     );
   });
 
@@ -201,9 +203,8 @@ describe('SaveActions, the split button group', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
-    await waitFor(async () =>
-      expect((await store.get('orders-1')).revision).toBe('2'),
-    );
+    await landed(store);
+    expect((await store.get('orders-1')).revision).toBe('2');
     // Said on the button, and announced separately: a screen reader does not
     // re-read the control the user has just pressed.
     expect(await screen.findByRole('button', { name: 'Saved' })).toBeDefined();
@@ -340,9 +341,8 @@ describe('SaveActions, the split button group', () => {
     await waitFor(() => expect(save.hasAttribute('disabled')).toBe(false));
     fireEvent.click(save);
 
-    await waitFor(async () =>
-      expect((await store.get('orders-1')).revision).toBe('2'),
-    );
+    await landed(store);
+    expect((await store.get('orders-1')).revision).toBe('2');
   });
 
   it('takes the edits back from the button on the "edited" mark', async () => {
@@ -632,9 +632,8 @@ describe('WriteOutcome', () => {
     const dialog = await screen.findByRole('alertdialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Keep mine' }));
 
-    await waitFor(async () =>
-      expect((await store.get('orders-1')).revision).toBe('3'),
-    );
+    await landed(store);
+    expect((await store.get('orders-1')).revision).toBe('3');
   });
 
   it('lets the conflict be settled by making a copy instead', async () => {
@@ -649,10 +648,9 @@ describe('WriteOutcome', () => {
       within(dialog).getByRole('button', { name: 'Create view' }),
     );
 
-    await waitFor(async () =>
-      expect((await store.list('orders')).map(item => item.title)).toContain(
-        'Mine after all',
-      ),
+    await landed(store);
+    expect((await store.list('orders')).map(item => item.title)).toContain(
+      'Mine after all',
     );
   });
 
@@ -677,10 +675,9 @@ describe('WriteOutcome', () => {
       within(dialog).getByRole('button', { name: 'Create view' }),
     );
 
-    await waitFor(async () =>
-      expect((await store.list('orders')).map(item => item.title)).toContain(
-        'Mine after all',
-      ),
+    await landed(store);
+    expect((await store.list('orders')).map(item => item.title)).toContain(
+      'Mine after all',
     );
     await waitFor(() => expect(runtime.getSnapshot().write).toBeNull());
     expect(engine.pendingWrites().size).toBe(0);
@@ -816,10 +813,12 @@ describe('WriteOutcome', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await screen.findByText('The result never came back');
 
+    // Snapshot before the click: the helper awaits the button, and a memory
+    // store lands the retried write within the same tick as the press.
+    const retried = landed(store);
     await clickWhenEnabled('Retry');
-    await waitFor(async () =>
-      expect((await store.get('orders-1')).revision).toBe('2'),
-    );
+    await retried;
+    expect((await store.get('orders-1')).revision).toBe('2');
   });
 
   it('lets an unknown result be left alone', async () => {
@@ -1027,9 +1026,8 @@ describe('save actions', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
-    await waitFor(async () =>
-      expect((await store.get('orders-1')).revision).toBe('2'),
-    );
+    await landed(store);
+    expect((await store.get('orders-1')).revision).toBe('2');
     // The landing is said once, on the button that was pressed and to a
     // screen reader, which does not re-read a control it already announced.
     // Addressed as the one that is not a live region of its own: the result
@@ -1070,10 +1068,9 @@ describe('save actions', () => {
       within(dialog).getByRole('button', { name: 'Create view' }),
     );
 
-    await waitFor(async () =>
-      expect((await store.list('orders')).map(item => item.title)).toContain(
-        'Pending only',
-      ),
+    await landed(store);
+    expect((await store.list('orders')).map(item => item.title)).toContain(
+      'Pending only',
     );
   });
 
@@ -1098,11 +1095,10 @@ describe('save actions', () => {
       within(dialog).getByRole('button', { name: 'Create view' }),
     );
 
-    await waitFor(async () =>
-      expect(
-        (await store.list('orders')).find(item => item.title === 'Ours')?.scope,
-      ).toBe('shared'),
-    );
+    await landed(store);
+    expect(
+      (await store.list('orders')).find(item => item.title === 'Ours')?.scope,
+    ).toBe('shared');
   });
 
   /**
@@ -1113,16 +1109,18 @@ describe('save actions', () => {
    * reads as one this view cannot have rather than one this user cannot make.
    */
   it('offers only the audience the user may create in', async () => {
-    const store = new MemoryViewStore({
-      instances: [mine],
-      permissions: () => ({
-        createPersonal: false,
-        createShared: true,
-        reorder: true,
-        setDefault: true,
-        instance: () => ({ save: true, rename: true, delete: true }),
+    const store = tracked(
+      new MemoryViewStore({
+        instances: [mine],
+        permissions: () => ({
+          createPersonal: false,
+          createShared: true,
+          reorder: true,
+          setDefault: true,
+          instance: () => ({ save: true, rename: true, delete: true }),
+        }),
       }),
-    });
+    );
     const engine = new ViewEngine({
       definitions: [ordersDefinition()],
       store,
@@ -1152,11 +1150,10 @@ describe('save actions', () => {
       within(dialog).getByRole('button', { name: 'Create view' }),
     );
 
-    await waitFor(async () =>
-      expect(
-        (await store.list('orders')).find(item => item.title === 'Ours')?.scope,
-      ).toBe('shared'),
-    );
+    await landed(store);
+    expect(
+      (await store.list('orders')).find(item => item.title === 'Ours')?.scope,
+    ).toBe('shared');
   });
 
   /**

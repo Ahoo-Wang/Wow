@@ -59,6 +59,7 @@ import {
   testEnvironment,
   testSource,
 } from './fixtures.js';
+import { landed, tracked } from './fixtures/writes.js';
 
 afterEach(cleanup);
 
@@ -109,7 +110,7 @@ async function openDashboard(
   controller: () => DashboardController;
   runtime: DashboardRuntime;
 }> {
-  const store = new MemoryViewStore({ instances });
+  const store = tracked(new MemoryViewStore({ instances }));
   const engine = new ViewEngine({
     definitions: [ordersDefinition(), overviewDefinition()],
     store,
@@ -885,7 +886,9 @@ describe('DashboardWorkbench', () => {
 
   function setup(instance: ViewInstance = overview) {
     const source = testSource();
-    const store = new MemoryViewStore({ instances: [pending, instance] });
+    const store = tracked(
+      new MemoryViewStore({ instances: [pending, instance] }),
+    );
     const engine = new ViewEngine({
       definitions: [ordersDefinition(), overviewDefinition()],
       store,
@@ -942,9 +945,11 @@ describe('DashboardWorkbench', () => {
       id: 'overview-2',
       title: 'Night shift',
     };
-    const store = new MemoryViewStore({
-      instances: [pending, overview, other],
-    });
+    const store = tracked(
+      new MemoryViewStore({
+        instances: [pending, overview, other],
+      }),
+    );
     const engine = new ViewEngine({
       definitions: [ordersDefinition(), overviewDefinition()],
       store,
@@ -1069,10 +1074,9 @@ describe('DashboardWorkbench', () => {
       within(dialog).getByRole('button', { name: 'Create view' }),
     );
 
-    await waitFor(async () =>
-      expect((await store.list('overview')).map(item => item.title)).toContain(
-        'Night shift',
-      ),
+    await landed(store);
+    expect((await store.list('overview')).map(item => item.title)).toContain(
+      'Night shift',
     );
     await waitFor(() =>
       expect(
@@ -1110,9 +1114,11 @@ describe('DashboardWorkbench', () => {
     }
 
     function workbench(instance: ViewInstance) {
-      const store = new MemoryViewStore({
-        instances: [personalPanel, instance],
-      });
+      const store = tracked(
+        new MemoryViewStore({
+          instances: [personalPanel, instance],
+        }),
+      );
       const engine = new ViewEngine({
         definitions: [ordersDefinition(), overviewDefinition()],
         store,
@@ -1187,10 +1193,9 @@ describe('DashboardWorkbench', () => {
         within(dialog).getByRole('button', { name: 'Create view' }),
       );
 
-      await waitFor(async () =>
-        expect(
-          (await store.list('overview')).map(item => item.title),
-        ).toContain('Mine after all'),
+      await landed(store);
+      expect((await store.list('overview')).map(item => item.title)).toContain(
+        'Mine after all',
       );
     });
   });
@@ -1223,15 +1228,19 @@ describe('DashboardWorkbench', () => {
   function named(config: ViewInstance['config']) {
     return new ViewEngine({
       definitions: [namedOrdersDefinition(), overviewDefinition()],
-      store: new MemoryViewStore({
-        instances: [
-          { ...pending, config },
-          {
-            ...overview,
-            config: dashboardConfig({ panels: [panel({ title: 'Pending' })] }),
-          },
-        ],
-      }),
+      store: tracked(
+        new MemoryViewStore({
+          instances: [
+            { ...pending, config },
+            {
+              ...overview,
+              config: dashboardConfig({
+                panels: [panel({ title: 'Pending' })],
+              }),
+            },
+          ],
+        }),
+      ),
       resolveSource: () =>
         testSource({
           paged: () =>
@@ -1471,23 +1480,25 @@ describe('DashboardWorkbench', () => {
         },
         overviewDefinition(),
       ],
-      store: new MemoryViewStore({
-        instances: [
-          pending,
-          {
-            ...overview,
-            config: dashboardConfig({
-              fields: [{ name: 'weight', label: 'Weight', kind: 'rounded' }],
-              panels: [
-                panel({
-                  title: 'Pending',
-                  bindings: [{ globalField: 'weight', panelField: 'mass' }],
-                }),
-              ],
-            }),
-          },
-        ],
-      }),
+      store: tracked(
+        new MemoryViewStore({
+          instances: [
+            pending,
+            {
+              ...overview,
+              config: dashboardConfig({
+                fields: [{ name: 'weight', label: 'Weight', kind: 'rounded' }],
+                panels: [
+                  panel({
+                    title: 'Pending',
+                    bindings: [{ globalField: 'weight', panelField: 'mass' }],
+                  }),
+                ],
+              }),
+            },
+          ],
+        }),
+      ),
       resolveSource: () => testSource(),
       kinds: withFieldKinds(builtinFieldKinds, [rounded]),
     });

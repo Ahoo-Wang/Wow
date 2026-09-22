@@ -29,6 +29,7 @@ import {
   recordConfig,
   testSource,
 } from '../fixtures.js';
+import { tracked } from './writes.js';
 
 export { mine };
 
@@ -115,6 +116,84 @@ export function recordTableController(
 }
 
 /**
+ * A numeric column beside a text one, with a row of blanks: the table the
+ * cell, summary and card suites read, where one column is money and the
+ * other is whatever the source sent.
+ */
+export function twoColumnTable(
+  overrides: Partial<RecordTableController> = {},
+): RecordTableController {
+  return {
+    columns: [
+      {
+        field: 'amount',
+        label: 'Amount',
+        kind: 'number',
+        cell: 'number',
+        sortable: true,
+        numberFormat: { style: 'currency', currency: 'CNY' },
+      },
+      {
+        field: 'warehouse',
+        label: 'Warehouse',
+        kind: 'string',
+        cell: 'string',
+        sortable: false,
+      },
+    ],
+    rows: [
+      { key: 'o-1', data: { amount: 10, warehouse: 'CN' } },
+      { key: 'o-2', data: { amount: null, warehouse: true } },
+    ],
+    card: {
+      title: 'warehouse',
+      fields: [{ field: 'amount', label: 'Amount' }],
+    },
+    cardSpec: { title: '', fields: [] },
+    setCard: () => {},
+    paging: { mode: 'paged', index: 1, total: 2 },
+    summaries: null,
+    status: 'success',
+    error: null,
+    loading: false,
+    hasResult: true,
+    sort: [],
+    sortOf: () => null,
+    toggleSort: () => {},
+    setSort: () => {},
+    maxSortFields: 8,
+    layout: 'table',
+    layouts: ['table', 'card'],
+    setLayout: () => {},
+    columnFields: ['amount', 'warehouse'],
+    hiddenOf: () => false,
+    setColumns: () => {},
+    setColumnOrder: () => {},
+    pinnedOf: () => null,
+    setPinned: () => {},
+    setColumnWidth: () => {},
+    summaryOf: () => null,
+    summaryFields: [],
+    setSummary: () => {},
+    pageSize: 20,
+    pageSizes: [10, 20, 50, 100],
+    setPageSize: () => {},
+    selection: [],
+    selectedRows: [],
+    isSelected: () => false,
+    toggle: () => {},
+    toggleAll: () => {},
+    clearSelection: () => {},
+    goTo: () => {},
+    hasNext: true,
+    next: () => {},
+    previous: () => {},
+    refresh: () => {},
+    ...overrides,
+  };
+}
+
+/**
  * A view that refreshes only when asked, with the default ladder on offer.
  * The suites that assert the interval override `interval` and `setInterval`.
  */
@@ -138,7 +217,7 @@ export function refreshController(
 }
 
 export function setup(source: ViewSource = testSource()) {
-  const store = new MemoryViewStore({ instances: [mine] });
+  const store = tracked(new MemoryViewStore({ instances: [mine] }));
   const engine = new ViewEngine({
     definitions: [ordersDefinition()],
     store,

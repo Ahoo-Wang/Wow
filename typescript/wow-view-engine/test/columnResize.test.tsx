@@ -24,12 +24,21 @@
  * → `ColumnResize`).
  */
 
-import { cleanup, render, screen, within } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { RecordColumnView } from '../src/record/index.js';
 import { RecordTable } from '../src/ui/index.js';
-import { MIN_COLUMN_WIDTH } from '../src/ui/record/ColumnResizer.js';
+import {
+  ColumnResizer,
+  MIN_COLUMN_WIDTH,
+} from '../src/ui/record/ColumnResizer.js';
 import { recordTableController } from './fixtures/ui.js';
 
 afterEach(cleanup);
@@ -269,6 +278,79 @@ describe('the resize handle', () => {
     expect(setColumnWidth).not.toHaveBeenCalled();
   });
 
+  /**
+   * And puts a column that had no width of its own back to automatic, which
+   * is a cleared inline width rather than the floor: the config holds no
+   * number for this column, and a cancelled gesture must not invent one.
+   */
+  it('gives an unsized column back to the content when the pointer is cancelled', async () => {
+    const user = userEvent.setup();
+    const setColumnWidth = table();
+    const edge = handle();
+
+    await user.pointer([
+      { keys: '[MouseLeft>]', target: edge, coords: { clientX: 200, y: 5 } },
+      { target: edge, coords: { clientX: 260, y: 5 } },
+    ]);
+    edge.dispatchEvent(
+      new PointerEvent('pointercancel', { bubbles: true, pointerId: 1 }),
+    );
+
+    for (const cell of cells()) {
+      expect(cell.style.width).toBe('');
+      expect(cell.style.maxWidth).toBe('');
+    }
+    expect(setColumnWidth).not.toHaveBeenCalled();
+  });
+
+  /**
+   * A press that is not the primary button belongs to whatever the platform
+   * does with it — a context menu, a paste — and starts no gesture here. Left
+   * unguarded, a right-click on the edge armed a drag that the matching
+   * `pointerup` never ended, so the next pointer move anywhere in the
+   * document resized the column.
+   */
+  it('starts nothing on a press that is not the primary button', () => {
+    const setColumnWidth = table({ width: 120 });
+    const edge = handle();
+
+    fireEvent.pointerDown(edge, { button: 2, pointerId: 1, clientX: 200 });
+    fireEvent.pointerMove(document, { pointerId: 1, clientX: 260 });
+    fireEvent.pointerUp(document, { pointerId: 1, clientX: 260 });
+
+    for (const cell of cells()) expect(cell.style.width).toBe('120px');
+    expect(setColumnWidth).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The gesture belongs to the pointer that started it. A second finger — or
+   * the stylus the palm is resting beside — moves, lifts and is cancelled
+   * without the drag in flight hearing any of it.
+   */
+  it('hears only the pointer that started the drag', async () => {
+    const user = userEvent.setup();
+    const setColumnWidth = table({ width: 120 });
+    const edge = handle();
+
+    await user.pointer([
+      { keys: '[MouseLeft>]', target: edge, coords: { clientX: 200, y: 5 } },
+      { target: edge, coords: { clientX: 260, y: 5 } },
+    ]);
+
+    // Another pointer's whole life, start to finish, over the same document.
+    fireEvent.pointerMove(edge, { pointerId: 2, clientX: 400 });
+    fireEvent.pointerCancel(edge, { pointerId: 2 });
+    fireEvent.pointerUp(edge, { pointerId: 2, clientX: 400 });
+
+    // The preview is still the first pointer's, and nothing has committed.
+    for (const cell of cells()) expect(cell.style.width).toBe('180px');
+    expect(setColumnWidth).not.toHaveBeenCalled();
+
+    // And the gesture is still live, so its own release still commits.
+    await user.pointer({ keys: '[/MouseLeft]', target: edge });
+    expect(setColumnWidth).toHaveBeenLastCalledWith('amount', 180);
+  });
+
   /** The edge is a control of its own; the header under it is not pressed. */
   it('does not sort the column it is the edge of', async () => {
     const user = userEvent.setup();
@@ -334,5 +416,31 @@ describe('a column that was given a width', () => {
         .getAllByRole('cell')
         .some(cell => cell.className.includes('truncate')),
     ).toBe(false);
+  });
+});
+
+/**
+ * The handle reads the column off the table it is drawn in — the `<th>` it
+ * sits in, that cell's index, and the table's rows. A host that puts one
+ * somewhere else has no such column, and the guards that say so are what keep
+ * a `null` out of `cellIndex` and a `NaN` out of the width.
+ */
+describe('a resize handle with no table around it', () => {
+  it('commits the floor and writes onto nothing', async () => {
+    const user = userEvent.setup();
+    const onResize = vi.fn();
+    render(<ColumnResizer column={AMOUNT} onResize={onResize} />);
+
+    const edge = screen.getByRole('separator', { name: 'Resize Amount' });
+    // No header to measure, so the width it goes on from is the floor.
+    expect(edge.getAttribute('aria-valuenow')).toBe(String(MIN_COLUMN_WIDTH));
+
+    edge.focus();
+    await user.keyboard('{ArrowRight}');
+
+    expect(onResize).toHaveBeenLastCalledWith('amount', MIN_COLUMN_WIDTH + 8);
+    expect(edge.getAttribute('aria-valuenow')).toBe(
+      String(MIN_COLUMN_WIDTH + 8),
+    );
   });
 });

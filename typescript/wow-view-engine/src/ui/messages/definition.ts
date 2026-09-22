@@ -28,8 +28,6 @@ export const definitionMessages = {
     '{path} declares no field named {field}.',
   'definition.analysis.element-undeclared':
     'The analysis expands {path}, which is not a field holding elements.',
-  'definition.analysis.element-path-invalid':
-    '{path} is not a usable field path.',
   'definition.analysis.field-unknown':
     'The analysis capability names {field}, which the definition does not declare.',
   'definition.analysis.limit-invalid':

@@ -184,6 +184,51 @@ describe('useWorkbench', () => {
     expect(result.current.state?.title).toBeDefined();
   });
 
+  /**
+   * A write recovered from the title bar — retried, overwritten, or settled
+   * by adopting what the store had — may have changed the list: the row it
+   * belongs to, the order, or the default. The one thing it never changes is
+   * which view is open, because nothing here landed as an opening. So this is
+   * a reload and nothing else, and the two halves are asserted together: the
+   * list moved, the open view did not.
+   */
+  it('reads the list again when a write is recovered, and opens nothing', async () => {
+    const store = new MemoryViewStore({ instances: [mine] });
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store,
+      resolveSource: () => testSource(),
+    });
+    const { result } = open(engine, 'orders-1');
+    await waitFor(() => expect(result.current.state?.title).toBe('Mine'));
+    const opened = result.current.runtime;
+
+    // What the recovered write did to the store, from this hook's point of
+    // view: somebody else's answer, already landed, not yet read.
+    await store.create(
+      {
+        definitionId: 'orders',
+        title: 'Recovered',
+        scope: 'personal',
+        config: recordConfig(),
+      },
+      { requestId: 'recovered-1' },
+    );
+    expect(result.current.list.items.map(item => item.title)).not.toContain(
+      'Recovered',
+    );
+
+    act(() => result.current.onRecovered('save'));
+
+    await waitFor(() =>
+      expect(result.current.list.items.map(item => item.title)).toContain(
+        'Recovered',
+      ),
+    );
+    expect(result.current.openId).toBe('orders-1');
+    expect(result.current.runtime).toBe(opened);
+  });
+
   /** A saved copy is what the workbench then shows. */
   it('opens the copy a save-as produced', async () => {
     const { result } = open(engineWith([mine]), 'orders-1');
