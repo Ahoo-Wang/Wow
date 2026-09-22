@@ -17,19 +17,8 @@ import {
   type AnalysisMetric,
   type ChartType,
 } from '../model/index.js';
+import { familyOf, type ChartUnfit, type ShapeFacts } from './chartFamilies.js';
 import { isAdditiveMetric } from './validateChart.js';
-
-/**
- * Why a chart type cannot draw the shape on hand, as a catalogue key. Each
- * names what the shape lacks, in the analyst's words, because that is what
- * the greyed tile says under itself (D20 屏 I).
- */
-export type ChartUnfit =
-  | 'chart.fit.needs-dimension'
-  | 'chart.fit.needs-one-dimension'
-  | 'chart.fit.needs-two-dimensions'
-  | 'chart.fit.needs-two-metrics'
-  | 'chart.fit.needs-no-dimension';
 
 export interface ChartFit {
   available: boolean;
@@ -50,74 +39,54 @@ export interface ChartShape {
  * best as (K3). The capability decides which types exist at all (D4); this
  * decides which of them are greyed right now, and why — the answer to Q6.
  *
- * The rules are the ones `validateChart` enforces after the fact, read
- * forward: a cartesian chart needs a dimension for its axis; a pie and a
- * funnel-by-group need exactly one; a heatmap needs two; a scatter plots
- * two metrics against each other; a metric card is one number, so it draws
- * nothing that has dimensions unless the one dimension is a date it can
- * sparkline. A table draws anything.
+ * Each type answers with its family's fit (`CHART_FAMILIES` in
+ * `chartFamilies.ts`), which is `validateChart`'s rules read forward; a
+ * table draws anything and is not among them.
  */
 export function fitCharts(shape: ChartShape): Record<ChartType, ChartFit> {
-  const groups = shape.groups.length;
-  const metrics = shape.metrics.length;
-  const dated = groups === 1 && shape.groups[0]?.type === 'DATE_HISTOGRAM';
-  const additive = shape.metrics.some(isAdditiveMetric);
-  const fit = (ok: boolean, reason: ChartUnfit): ChartFit =>
-    ok ? { available: true } : { available: false, reason };
-
-  const fits: Record<ChartType, ChartFit> = {
-    bar: fit(groups >= 1, 'chart.fit.needs-dimension'),
-    line: fit(groups >= 1, 'chart.fit.needs-dimension'),
-    area: fit(groups >= 1, 'chart.fit.needs-dimension'),
-    combo: fit(groups >= 1, 'chart.fit.needs-dimension'),
-    pie: fit(groups === 1, 'chart.fit.needs-one-dimension'),
-    heatmap: fit(groups === 2, 'chart.fit.needs-two-dimensions'),
-    scatter: fit(
-      groups >= 1 && metrics >= 2,
-      groups >= 1 ? 'chart.fit.needs-two-metrics' : 'chart.fit.needs-dimension',
-    ),
-    funnel: fit(
-      groups === 1 || (groups === 0 && metrics >= 2),
-      groups === 0
-        ? 'chart.fit.needs-two-metrics'
-        : 'chart.fit.needs-one-dimension',
-    ),
-    metric: fit(
-      groups === 0 || (dated && additive),
-      'chart.fit.needs-no-dimension',
-    ),
-  };
-  // The recommendation is drawable by construction, so it is marked
-  // outright: `recommend` answers `metric` only with no dimension, which is
-  // the card's own condition, and `line` or `bar` only with at least one,
-  // which is the cartesian family's. Asking `fits[best].available` first
-  // was a branch nothing could take, and it would have swallowed the day
-  // the two rules stopped agreeing rather than said so. The agreement is a
-  // test instead (test/fitCharts.test.ts「fitCharts」).
-  const best = recommend(groups, dated);
-  fits[best] = { ...fits[best], recommended: true };
+  const facts = shapeFacts(shape);
+  const fits = Object.fromEntries(
+    CHART_TYPES.map(type => {
+      const reason = familyOf(type).unfit(facts);
+      return [
+        type,
+        reason ? { available: false, reason } : { available: true },
+      ];
+    }),
+  ) as Record<ChartType, ChartFit>;
+  const best = recommend(facts);
+  if (best) fits[best] = { ...fits[best], recommended: true };
   return fits;
+}
+
+function shapeFacts(shape: ChartShape): ShapeFacts {
+  const groups = shape.groups.length;
+  return {
+    groups,
+    metrics: shape.metrics.length,
+    dated: groups === 1 && shape.groups[0]?.type === 'DATE_HISTOGRAM',
+    additive: shape.metrics.some(isAdditiveMetric),
+  };
 }
 
 /**
  * What the shape reads best as: a number is a card, a series over time is a
- * line, one dimension is bars, two are bars split by the second.
+ * line, one dimension is bars, two are bars split by the second. Three or
+ * more are a table's job, and nothing is recommended — every chart that
+ * could take them is greyed, and a recommendation nobody can act on is
+ * worse than none.
  *
- * The return type is narrowed to the three that no shape can grey out, so
- * recommending a type that needs a shape it may not have is a compile error
- * rather than a recommendation nobody can act on.
- *
- * `kernels.md` also says nothing is recommended from three dimensions up —
- * that being a table's job — and this answers bars there like anywhere
- * else. That gap is the same one `docs/design/todo.md` already records for
- * three dimensions (the third is `chart.group.unconsumed`, yet bars stay
- * available), and it is that entry's to close, not a silent second rule.
+ * The recommendation is never a greyed tile: the return type is narrowed to
+ * the three whose fit the answer implies (a card with no dimension, the
+ * cartesian family with one or two), and a test holds it to that over every
+ * shape (test/fitCharts.test.ts「fitCharts」).
  */
-function recommend(
-  groups: number,
-  dated: boolean,
-): Extract<ChartType, 'metric' | 'line' | 'bar'> {
+function recommend({
+  groups,
+  dated,
+}: ShapeFacts): Extract<ChartType, 'metric' | 'line' | 'bar'> | null {
   if (groups === 0) return 'metric';
+  if (groups > 2) return null;
   if (dated) return 'line';
   return 'bar';
 }

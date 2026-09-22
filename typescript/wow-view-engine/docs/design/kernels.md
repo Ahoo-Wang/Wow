@@ -215,16 +215,16 @@ D20 屏 G。展开一个数组就是换掉计数单位：`订单 → 明细项` 
 
 ### 哪些图型画得了这个形态：`fitCharts`（K3）
 
-`validateChart` 回答的是「这份配置对不对」，它只在用户选完之后说话；列出图型的地方要在用户选之前就说清「这一个为什么不能选」。同一套规则正着读一遍就是 `fitCharts({ groups, metrics })`，交出每个 `ChartType` 的 `{ available, reason?, recommended? }`（`analysis/fitCharts.ts`，结清 Q6）。**能力决定在不在，形态决定灰不灰**（D4）：定义没声明的图型根本不在列表里，声明了的由这里判灰，`reason` 是文案目录的键（`chart.fit.*`），因为灰掉的卡片要把缺什么写在自己身下：
+`validateChart` 回答的是「这份配置对不对」，它只在用户选完之后说话；列出图型的地方要在用户选之前就说清「这一个为什么不能选」。同一套规则正着读一遍就是 `fitCharts({ groups, metrics })`，交出每个 `ChartType` 的 `{ available, reason?, recommended? }`（`analysis/fitCharts.ts`，结清 Q6）。每个图型答的是它所属**家族**的那一条：规则按家族写在 `analysis/chartFamilies.ts` 的 `CHART_FAMILIES` 里，一个家族一行——选项有哪几页、有没有图例、能不能在图上写数、画得了什么形态都在这一行，加一个家族就是加一行，而不是在几个内核与组件里各添一个 `switch` 分支（阶段 2 审查 E1）。**正着读与事后读是同一条规则**：对每一种形态、每一个图型，「列表里可选」当且仅当「`fitChartSlots` 为它填好的槽能过 `validateChart`」，这由一个遍历形态的测试守着；两边从前分开写，已经漂开过——三个维度时柱状图可选、两个维度时散点可选，选了都报 `chart.group.unconsumed`。**能力决定在不在，形态决定灰不灰**（D4）：定义没声明的图型根本不在列表里，声明了的由这里判灰，`reason` 是文案目录的键（`chart.fit.*`），因为灰掉的卡片要把缺什么写在自己身下：
 
-- 直角坐标系的四个（bar／line／area／combo）各要一个维度当横轴——没有维度就没有轴（`chart.fit.needs-dimension`）；
+- 直角坐标系的四个（bar／line／area／combo）各要一个维度当横轴——没有维度就没有轴（`chart.fit.needs-dimension`）；再多只能拆一层（`splitBy`），所以**最多两个维度**，第三个会让每个点下有几行，平均、去重计数这类指标在投影里加不回去——置灰并写「最多两个维度」（`chart.fit.too-many-dimensions`），而不是悄悄丢掉一个维度（D20，用户 2026-09-22 定）；
 - 饼图与按维度分阶段的漏斗要**恰好**一个维度（`chart.fit.needs-one-dimension`），漏斗另有「按指标分阶段」的形态，那一种要零维度加两个以上指标；
 - 热力图要两个维度（`chart.fit.needs-two-dimensions`）；
-- 散点把两个指标画成一个点，所以要一个维度再加两个指标（`chart.fit.needs-two-metrics`）；
+- 散点把两个指标画成一个点、一个维度值一个点，所以要**恰好**一个维度（多了写 `chart.fit.needs-one-dimension`）再加两个指标（`chart.fit.needs-two-metrics`）；
 - 指标卡是一个数：没有维度时成立，有**恰好一个时间维度且主数可加**时也成立（那是迷你趋势，判据与 `maxSlices` 同一条），其余写 `chart.fit.needs-no-dimension`；
 - **推荐只有一个，而且只推荐画得出来的那个**：没有维度推指标卡，一个日期维度推折线，其余推柱状；三个维度起不推荐任何一个——那是表格的活。推荐是记号不是动作，不自动换图（D20）。
 
-表格不经过这里：它画得了任何形态，所以它在列出图型的地方是一张永远可选的卡片，而不是一条规则。（见 test/fitCharts.test.ts「fitCharts」与 test/chartPicker.test.tsx「the visualization panel」）
+表格不经过这里：它画得了任何形态，所以它在列出图型的地方是一张永远可选的卡片，而不是一条规则。（见 test/fitCharts.test.ts「fitCharts」、test/chartFamilies.test.ts「chartFamilies」与 test/chartPicker.test.tsx「the visualization panel」）
 
 可视化面板第二层上那些"改一个设置不许弄坏另一个"的规则同样是内核的，不在组件里：`analysis/chartOptions.ts`（D20 屏 J）。`optionTabs` 说一个图型有哪几页；`placed` 让两个槽对调而不是重复（选中另一个槽正拿着的别名时）；`without` 是"取消一项"的写法；`isStacked`／`withStacked` 与 `isSmooth`／`withSmooth` 把堆叠与平滑当作整张图的一个选择，全体加入或全体退出；`moved` 排阶段；`stageValues`／`withStagesFrom`／`withStageOrder` 让按分组值分阶段的漏斗一被选中就有顺序可画——业务顺序内核不知道，但"结果行来的顺序"总好过空白。它们都是纯函数，不用 DOM 就能钉住；面板怎么用它们见 [ui/analysis.md#可视化的第二层选中图型的选项三个页签](ui/analysis.md#可视化的第二层选中图型的选项三个页签)。（见 test/chartOptions.test.ts「chartOptions」）
 

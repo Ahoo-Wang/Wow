@@ -13,6 +13,7 @@
 
 import { PlusIcon, XIcon } from 'lucide-react';
 import {
+  CHART_FAMILIES,
   isSmooth,
   isStacked,
   withSmooth,
@@ -54,8 +55,7 @@ export function DisplayTab(props: OptionsPageProps) {
   const messages = useViewMessages();
   const { chart, onChange } = props;
   const family = CHART_FAMILY[chart.type];
-  const legend = family === 'cartesian' || family === 'pie';
-  const labels = legend || family === 'heatmap';
+  const { legend, labels } = CHART_FAMILIES[family];
   return (
     <>
       {legend && (

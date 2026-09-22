@@ -18,6 +18,7 @@
  */
 export * from './capability.js';
 export * from './chart.js';
+export * from './chartFamilies.js';
 export * from './chartOptions.js';
 export * from './chartSlots.js';
 export * from './compile.js';

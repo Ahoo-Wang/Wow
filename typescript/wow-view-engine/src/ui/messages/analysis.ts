@@ -123,6 +123,7 @@ export const analysisMessages = {
   'chart.fit.needs-dimension': 'Needs a dimension',
   'chart.fit.needs-one-dimension': 'Needs exactly one dimension',
   'chart.fit.needs-two-dimensions': 'Needs two dimensions',
+  'chart.fit.too-many-dimensions': 'At most two dimensions',
   'chart.fit.needs-two-metrics': 'Needs two metrics',
   'chart.fit.needs-no-dimension': 'Not with dimensions',
   // The panel's second level (D20 屏 J): the chosen type's options on

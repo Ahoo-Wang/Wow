@@ -639,6 +639,7 @@ export const zhCN: ViewMessages = {
   'chart.fit.needs-dimension': '要一个维度',
   'chart.fit.needs-one-dimension': '只能有一个维度',
   'chart.fit.needs-two-dimensions': '要两个维度',
+  'chart.fit.too-many-dimensions': '最多两个维度',
   'chart.fit.needs-two-metrics': '要两个指标',
   'chart.fit.needs-no-dimension': '有维度时不适用',
   'label.chart.options': '{name}选项',

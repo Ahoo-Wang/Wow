@@ -63,8 +63,18 @@ export const CHART_TYPES: readonly ChartType[] = [
   'metric',
 ];
 
+/**
+ * The families a chart type belongs to, each the name of the sub-object of
+ * `ChartSpec` its types share: four cartesian types draw one kind of spec,
+ * every other type is a family of its own.
+ */
+export type ChartFamily = Extract<
+  keyof ChartSpec,
+  'cartesian' | 'pie' | 'heatmap' | 'scatter' | 'funnel' | 'metric'
+>;
+
 /** Which sub-object each chart type requires. */
-export const CHART_FAMILY: Readonly<Record<ChartType, keyof ChartSpec>> =
+export const CHART_FAMILY: Readonly<Record<ChartType, ChartFamily>> =
   Object.freeze({
     bar: 'cartesian',
     line: 'cartesian',

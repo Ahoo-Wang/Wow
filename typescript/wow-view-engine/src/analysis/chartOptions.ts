@@ -19,6 +19,7 @@ import {
   type FunnelSpec,
   type RecordData,
 } from '../model/index.js';
+import { familyOf, type OptionsTab } from './chartFamilies.js';
 
 /**
  * The rules behind the visualization panel's second level (D20 屏 J): what
@@ -30,30 +31,18 @@ import {
 /** What the panel shows as chosen: a chart type, or the table. */
 export type Picked = ChartType | 'table';
 
-/** The three pages a chart's options are laid out on. */
-export type OptionsTab = 'data' | 'display' | 'axes';
-
 /**
  * Which pages this chart has. Every drawn family has data slots; the
  * cartesian family alone has numeric axes worth a page; a scatter's only
  * choices are which metrics it plots; the table's one option is its totals
  * row, which is a display choice.
  */
-export function optionTabs(picked: Picked): OptionsTab[] {
-  switch (picked) {
-    case 'bar':
-    case 'line':
-    case 'area':
-    case 'combo':
-      return ['data', 'display', 'axes'];
-    case 'scatter':
-      return ['data'];
-    case 'table':
-      return ['display'];
-    default:
-      return ['data', 'display'];
-  }
+export function optionTabs(picked: Picked): readonly OptionsTab[] {
+  return picked === 'table' ? TABLE_TABS : familyOf(picked).tabs;
 }
+
+/** The table's one option is its totals row, a display choice. */
+const TABLE_TABS: readonly OptionsTab[] = ['display'];
 
 /**
  * An alias put in one slot, taken out of the other if it was there: a chart
