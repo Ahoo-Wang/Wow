@@ -1032,8 +1032,13 @@ describe('save actions', () => {
     );
     // The landing is said once, on the button that was pressed and to a
     // screen reader, which does not re-read a control it already announced.
-    expect(await screen.findByRole('status')).toBeDefined();
-    expect(screen.getByRole('status').textContent).toBe('View saved');
+    // Addressed as the one that is not a live region of its own: the result
+    // block carries the workbench's announcer, which is a `status` too.
+    await waitFor(() =>
+      expect(
+        document.querySelector('[role="status"]:not([aria-live])')?.textContent,
+      ).toBe('View saved'),
+    );
   });
 
   it('takes the edits back to the last saved config', async () => {

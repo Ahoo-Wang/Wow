@@ -31,6 +31,7 @@ import type { FieldDefinition, RecordViewConfig } from '../src/model/index.js';
 import { builtinFieldKinds, validateRecord } from '../src/index.js';
 import type { RecordTableController } from '../src/react/index.js';
 import { ColumnSettings } from '../src/ui/ColumnSettings.js';
+import { MessagesProvider } from '../src/ui/MessagesProvider.js';
 import {
   ACTIONS_COLUMN,
   columnSettingRows,
@@ -65,13 +66,24 @@ const FIELDS: FieldDefinition[] = [
  */
 const NOTE: FieldDefinition = { name: 'note', label: 'Note', kind: 'string' };
 
-function open(overrides: Partial<RecordTableController> = {}, props = {}) {
+function open(
+  overrides: Partial<RecordTableController> = {},
+  props = {},
+  messages?: Record<string, string>,
+) {
   const table = tableController({
     columnFields: ['id', 'amount'],
     ...overrides,
   });
+  const panel = (
+    <ColumnSettings table={table} fields={FIELDS} rowKey="id" {...props} />
+  );
   render(
-    <ColumnSettings table={table} fields={FIELDS} rowKey="id" {...props} />,
+    messages === undefined ? (
+      panel
+    ) : (
+      <MessagesProvider messages={messages}>{panel}</MessagesProvider>
+    ),
   );
   return table;
 }
@@ -648,6 +660,44 @@ describe('the column settings popover', () => {
     );
 
     expect(table.setPinned).toHaveBeenCalledWith('amount', 'left');
+  });
+
+  /**
+   * The toggle's name *is* its state, so pressing it rewrites the name of
+   * the control under the cursor and reports nothing: a reader would have
+   * to go back and read the button again, which is what the press was
+   * supposed to save them.
+   */
+  it('says where a column landed when its pinning is cycled', async () => {
+    const user = userEvent.setup();
+    open({ columnFields: ['id', 'amount', 'warehouse'] });
+
+    await user.click(screen.getByRole('button', { name: /Columns/ }));
+    await user.click(
+      screen.getByRole('button', { name: 'Pinning of Amount: Not pinned' }),
+    );
+
+    expect(announced()).toBe('Amount is now pinned left');
+  });
+
+  it('says where it landed in the catalogue in force', async () => {
+    const user = userEvent.setup();
+    open(
+      {
+        columnFields: ['id', 'amount', 'warehouse'],
+        pinnedOf: (field: string) => (field === 'amount' ? 'left' : null),
+      },
+      {},
+      { 'label.columns.pinned.right': '{field} 已固定到右侧' },
+    );
+
+    await user.click(screen.getByRole('button', { name: /Columns/ }));
+    await user.click(
+      screen.getByRole('button', { name: 'Pinning of Amount: Pinned left' }),
+    );
+
+    // Left is the first stop of the cycle, so the next press is the right.
+    expect(announced()).toBe('Amount 已固定到右侧');
   });
 
   /**

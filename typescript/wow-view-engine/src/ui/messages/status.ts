@@ -24,6 +24,10 @@ export const statusMessages = {
   // `aria-label="Loading"`, so every call site hands it this instead — the
   // seam is sewn where the component is used.
   'label.status.loading': 'Loading',
+  // Said out loud when a query starts, by the one live region of the
+  // surface it started on. The spinner beside the refresh control says the
+  // same thing to whoever can see it; this is the other channel.
+  'label.status.querying': 'Running the query',
   'label.query.failed': 'The query failed',
   // A failed query does not clear the table: what is on screen is the last
   // result that did come back, and saying so is the only way to know.

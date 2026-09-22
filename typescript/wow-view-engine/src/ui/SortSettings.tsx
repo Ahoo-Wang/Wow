@@ -88,6 +88,40 @@ function directionOf(direction: SortDirection | undefined): SortDirection {
   return direction === 'DESC' ? 'DESC' : 'ASC';
 }
 
+/**
+ * The name of the toolbar's sort button, or nothing when its own words are
+ * already the whole of it.
+ *
+ * Once something is sorted the button reads the sort back — "Amount",
+ * an arrow, "+1" — and a reader who arrives at it is told a field name and
+ * a direction with no idea what the control in front of them *is*. Nothing
+ * on it says "sort": the word is what it wears only while nothing is
+ * sorted. So a sort in force gives it a name of its own
+ * (`label.sort.button`), which is the visible text with that word in front
+ * of it — the same string said two ways, never two names (D12).
+ *
+ * The count comes after it in the button's own wording, the way
+ * `label.sort.at` is appended in the editor: what is on screen and what is
+ * read out then hold the same three pieces, which is what WCAG 2.5.3 asks
+ * of a name that is not the visible text verbatim.
+ */
+function sortButtonName(
+  sort: readonly RecordSort[],
+  labelOf: (field: string) => string,
+  messages: MessageFormatters,
+): string | undefined {
+  const first = sort[0];
+  if (!first) return undefined;
+  const name = messages.label('label.sort.button', {
+    field: labelOf(first.field),
+    direction: messages.label(DIRECTION_LABEL[directionOf(first.direction)]),
+  });
+  const more = sort.length - 1;
+  return more === 0
+    ? name
+    : `${name} ${messages.label('label.sort.more', { count: more })}`;
+}
+
 export interface SortSettingsProps {
   table: RecordTableController;
   /** The fields the definition offers; only sortable ones are listed. */
@@ -177,6 +211,9 @@ export function SortSettings({
             data-control="sort"
             // Bordered like every other function on the bar (D12 Ⅳ), and the
             // one that keeps its words: what it says is the sort in force.
+            // Which is also why it needs a name once something is sorted —
+            // "Amount, descending" is a sort, and never says so.
+            aria-label={sortButtonName(table.sort, labelOf, messages)}
             render={<Button variant="outline" size="sm" />}
           />
         }
@@ -476,9 +513,11 @@ function SortSummary({
         direction={direction}
         {...(more === 0 ? ({ icon: 'inline-end' } as const) : {})}
       />
-      <span className="sr-only">
-        {messages.label(DIRECTION_LABEL[direction])}
-      </span>
+      {/* The direction used to be spelled out here for a reader, because the
+          arrow is a picture. It is in the button's own name now
+          ({@link sortButtonName}) along with the word "sort" the arrow never
+          said either, and a name is what a reader hears: a second copy in
+          the content would be read by nobody and maintained by everybody. */}
       {more > 0 && (
         // No `text-muted-foreground`: this sits inside the bar's outline
         // button, where that grey lands at 4.34:1 — under the 4.5:1 axe

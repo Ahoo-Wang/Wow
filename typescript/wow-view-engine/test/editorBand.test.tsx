@@ -204,6 +204,32 @@ describe('EditorBandToggle', () => {
     expect(screen.getByText('· Simple')).toBeDefined();
   });
 
+  /**
+   * The combination every Record workbench is in, and the one no case here
+   * used to cover: `RecordWorkbench` always passes a mode, so the name the
+   * mode brought with it overrode the content — and the one credential a
+   * folded editor cannot carry any other way was missing from every reader,
+   * on every Record screen, all of the time.
+   */
+  it('keeps the pending count in the name a mode brings with it', () => {
+    render(<Fold modeLabel="Simple" pending={2} />);
+
+    expect(
+      screen.getByRole('button', { name: 'Filter · Simple · 2 not applied' }),
+    ).toBeDefined();
+    // Seen and heard hold the same three pieces, in the same order.
+    expect(screen.getByText('· Simple')).toBeDefined();
+    expect(screen.getByText('2 not applied')).toBeDefined();
+  });
+
+  it('says nothing about pending in the name when nothing is', () => {
+    render(<Fold modeLabel="Simple" pending={0} />);
+
+    expect(
+      screen.getByRole('button', { name: 'Filter · Simple' }),
+    ).toBeDefined();
+  });
+
   it('leaves the name to the content when there is no mode to say', () => {
     render(<Fold />);
 

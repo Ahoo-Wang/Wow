@@ -40,6 +40,9 @@ export const manageMessages = {
   'label.manage.picked': '{title} picked up',
   'label.manage.cancelled': 'Move cancelled; {title} stayed where it was',
   'label.manage.rename': 'Rename',
+  // The field itself, which is one of many in a list: named after the view
+  // it belongs to, because "Title" is the same answer on every row.
+  'label.manage.rename-of': 'Rename {title}',
   'label.manage.rename-confirm': 'Save the title',
   'label.manage.rename-cancel': 'Keep the title',
   'label.manage.delete': 'Delete',

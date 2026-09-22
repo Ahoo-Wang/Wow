@@ -626,8 +626,10 @@ export const ManageViews: Story = {
         name: zhCN['label.manage.rename'],
       }),
     );
+    // The field is named after the view it renames, which is what tells one
+    // row's field from the next one's.
     const title = within(row('我盯的大额单')).getByLabelText(
-      zhCN['label.save.title'],
+      say('label.manage.rename-of', { title: '我盯的大额单' }),
     );
     await userEvent.clear(title);
     await userEvent.type(title, '大额单');
@@ -838,7 +840,16 @@ export const TotalCoversThisPageOnly: Story = {
 
     // And one line above the result says why it is only a page total. It is
     // a warning, not an alert: nothing was blocked.
-    const strip = await canvas.findByRole('status');
+    // Addressed as the strip rather than as "the status on the page": the
+    // result block carries a live region of its own, which is one too.
+    const strip = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="status-strip"]',
+      );
+      if (!found) throw new Error('no status strip');
+      return found;
+    });
+    await expect(strip).toHaveAttribute('role', 'status');
     await expect(strip).toHaveTextContent(zhCN['runtime.summary.page-only']);
   },
 };
@@ -1429,10 +1440,18 @@ export const SortEntriesPointerDrag: Story = {
       [...PENDING_BY_AMOUNT].sort(),
     );
 
-    // And the button under the popover reads the new first entry back.
+    // And the button under the popover reads the new first entry back — on
+    // screen as the field and the count, and to a reader as the name that
+    // also says what kind of control it is.
     await userEvent.keyboard('{Escape}');
     await expect(button).toHaveTextContent(
-      `订单号${zhCN['label.sort.asc']}${say('label.sort.more', { count: 1 })}`,
+      `订单号${say('label.sort.more', { count: 1 })}`,
+    );
+    await expect(button).toHaveAccessibleName(
+      `${say('label.sort.button', {
+        field: '订单号',
+        direction: zhCN['label.sort.asc'],
+      })} ${say('label.sort.more', { count: 1 })}`,
     );
   },
 };
@@ -1753,7 +1772,7 @@ export const RenameConflictedInTheManager: Story = {
       }),
     );
     const title = within(managerRow('我盯的大额单')).getByLabelText(
-      zhCN['label.save.title'],
+      say('label.manage.rename-of', { title: '我盯的大额单' }),
     );
     await userEvent.clear(title);
     await userEvent.type(title, '大额单');
@@ -2697,12 +2716,25 @@ export const ToolbarAndFoldByKeyboard: Story = {
     );
     await userEvent.keyboard('{Enter}');
     await within(document.body).findByText(zhCN['label.columns.title']);
-    // One live region of this package's own, however many lists the popup
-    // holds. `@dnd-kit` keeps its own beside it (`#dnd-kit-announcement-*`)
-    // and says what the library itself drives — pick up, drop, cancel.
-    await expect(
-      document.querySelectorAll('[aria-live]:not([id^="dnd-kit"])'),
-    ).toHaveLength(1);
+    // One live region per surface, however many lists the popup holds: the
+    // workbench's own sits in the result block and reads its queries back,
+    // and the popover carries one for the arrow keys and the pin toggles
+    // inside it. They answer different presses — a pinned column says where
+    // it landed, the query that press started says it is running — and a
+    // polite region queues rather than interrupts, so the two never read
+    // over each other. `@dnd-kit` keeps a third beside them
+    // (`#dnd-kit-announcement-*`) for what the library itself drives.
+    const regions = (root: ParentNode) =>
+      root.querySelectorAll('[aria-live]:not([id^="dnd-kit"])');
+    await expect(regions(canvasElement)).toHaveLength(1);
+    const popup = await waitFor(() => {
+      const found = document.body.querySelector(
+        '[data-slot="popover-content"]',
+      );
+      if (!found) throw new Error('the popover did not open');
+      return found;
+    });
+    await expect(regions(popup)).toHaveLength(1);
     // Closed again before the story settles, as every play that opens a
     // popup does: axe judges the page as the play leaves it. Twice, because
     // a control reached by the keyboard is showing its own tooltip and that
@@ -2713,6 +2745,110 @@ export const ToolbarAndFoldByKeyboard: Story = {
         document.body.querySelector('[data-slot="tooltip-content"]'),
       ).toBeNull(),
     );
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() =>
+      expect(
+        document.body.querySelector('[data-slot="popover-content"]'),
+      ).toBeNull(),
+    );
+  },
+};
+
+/**
+ * What a query says out loud, in a browser where a live region is read
+ * rather than an attribute in a tree.
+ *
+ * The rows change under a reader who is not looking at them, and until this
+ * every `[aria-live]` on the screen stayed empty from the first press to the
+ * last. What is regressed here is the pair, in order and once each: the
+ * query says it is running, and then says what came back in the sentence the
+ * pagination bar is showing. Sorting is the shortest honest query — it is
+ * one `edit` and one `apply`, the same round trip a condition makes.
+ */
+export const QueryAnnouncedInTheResult: Story = {
+  ...DisplayWithData,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    const region = () => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="record-announcement"]',
+      );
+      if (!found) throw new Error('the result has no live region');
+      return found;
+    };
+    const landed = say('label.pagination.total', { total: 4 });
+
+    // The query that opened the view has already been read back.
+    await waitFor(() => expect(region()).toHaveTextContent(landed));
+
+    // Everything it says from here on, in order and without repeats.
+    const heard: string[] = [];
+    const observer = new MutationObserver(() => {
+      const text = region().textContent?.trim() ?? '';
+      if (text !== '' && heard[heard.length - 1] !== text) heard.push(text);
+    });
+    // `characterData` as well as `childList`: React writes a new sentence
+    // into the text node that is already there, which is not a child list
+    // changing.
+    observer.observe(region(), {
+      characterData: true,
+      childList: true,
+      subtree: true,
+    });
+
+    await addSort(table, '订单号');
+    await waitFor(() => expect(heard).toContain(landed));
+    observer.disconnect();
+
+    // Two sentences for one query, each said once: nothing repeated, and
+    // the running one in between is what makes a second identical result
+    // audible at all.
+    await expect(heard).toEqual([zhCN['label.status.querying'], landed]);
+
+    // And the bar the sentence was taken from says the same thing, which is
+    // the whole reason it is that sentence and not a second wording.
+    await expect(paginationBar(canvasElement)).toHaveTextContent(landed);
+
+    // The button that ran it can now be heard as a sort. On screen it is
+    // the first field, an arrow and a count — 订单号 joined the saved sort
+    // rather than replacing it — and none of that says what the control is.
+    const sortButton = canvasElement.querySelector<HTMLElement>(
+      '[data-control="sort"]',
+    );
+    await waitFor(() =>
+      expect(sortButton).toHaveAccessibleName(
+        `${say('label.sort.button', {
+          field: '金额',
+          direction: zhCN['label.sort.desc'],
+        })} ${say('label.sort.more', { count: 1 })}`,
+      ),
+    );
+    // And the words on it are unchanged by the name it was given.
+    await expect(sortButton).toHaveTextContent(
+      `金额${say('label.sort.more', { count: 1 })}`,
+    );
+
+    // The other control whose name is its own state: pressing the pin
+    // rewrites the name under the cursor, so the panel says what changed.
+    await userEvent.click(
+      canvasElement.querySelector<HTMLElement>('[data-control="columns"]')!,
+    );
+    const body = within(document.body);
+    await body.findByText(zhCN['label.columns.title']);
+    await userEvent.click(
+      body.getByRole('button', { name: /^仓库 的固定方式/ }),
+    );
+    await waitFor(() =>
+      expect(
+        document.body.querySelector('[data-slot="column-announcement"]'),
+      ).toHaveTextContent(/^仓库 已固定/),
+    );
+
+    // Closed before the story settles, as every play that opens a popup
+    // does: axe judges the page as the play leaves it. Twice, because the
+    // control just pressed is showing its own tooltip on top.
+    await userEvent.keyboard('{Escape}');
     await userEvent.keyboard('{Escape}');
     await waitFor(() =>
       expect(

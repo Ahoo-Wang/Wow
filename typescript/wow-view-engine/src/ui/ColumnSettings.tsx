@@ -39,7 +39,11 @@ import {
 import { PopoverContent, TooltipContent } from './popups.js';
 import { Tooltip, TooltipTrigger } from './components/tooltip.js';
 import { NO_RELEASE, type ReleasedPins } from './record/pinCap.js';
-import { ColumnRow, SortableColumnRow } from './columns/ColumnRow.js';
+import {
+  ColumnRow,
+  pinAnnouncement,
+  SortableColumnRow,
+} from './columns/ColumnRow.js';
 import { columnDragAccessibility } from './columns/announce.js';
 import {
   ACTIONS_COLUMN,
@@ -209,6 +213,27 @@ export function ColumnSettings({
     },
     [announce, messages, nameOf, onScreen, rows, table],
   );
+  /**
+   * Cycles one column's pinning and says what it did.
+   *
+   * The pin toggle is the one control in this panel whose accessible name
+   * *is* its state ("Pinning of Amount: Pinned left"), so a press rewrites
+   * the name under the cursor and tells a reader nothing at all — they
+   * would have to go back and read the button again, which is the one
+   * thing pressing it was meant to save them. Said here rather than in the
+   * row: this is where the next state is decided, and where the panel's one
+   * voice is.
+   */
+  const pinTo = useCallback(
+    (field: string) => {
+      const row = rows.find(entry => entry.field === field);
+      if (!row) return;
+      const pinned = nextPin(columnPin(row.pinned));
+      table.setPinned(field, pinned);
+      announce(pinAnnouncement(messages, row.label, pinned));
+    },
+    [announce, messages, rows, table],
+  );
 
   return (
     <Popover
@@ -346,6 +371,7 @@ export function ColumnSettings({
                   table={table}
                   released={released}
                   onMove={moveTo}
+                  onPin={pinTo}
                 />
               ))}
             </DragDropProvider>
@@ -375,6 +401,8 @@ interface ListProps {
   table: RecordTableController;
   released: ReleasedPins;
   onMove(field: string, toIndex: number): void;
+  /** Cycles one column's pinning, and says what that did. */
+  onPin(field: string): void;
 }
 
 /** One area's rows, or nothing at all when the area holds none. */
@@ -433,6 +461,7 @@ function Section({
   table,
   released,
   onMove,
+  onPin,
   group,
   regionHeadingId,
 }: ListProps & {
@@ -480,8 +509,7 @@ function Section({
               row.summaryOnly
                 ? table.setSummary(row.field, null)
                 : table.setColumns(toggled(all, row)),
-            onPin: () =>
-              table.setPinned(row.field, nextPin(columnPin(row.pinned))),
+            onPin: () => onPin(row.field),
             // The action column is the host's, not a field: the cap reports
             // it on its own flag, and its row is marked like any other.
             released:

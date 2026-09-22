@@ -263,6 +263,22 @@ describe('the manage button on the view list', () => {
 });
 
 describe('ViewManager rows', () => {
+  /**
+   * A manager is a list of these fields, and "Title" is the same answer on
+   * every one of them: a reader tabbing down the list was told it as many
+   * times as there are views, and never which view was under the cursor.
+   */
+  it('names the rename field after the view it renames', async () => {
+    const { engine } = setup();
+    await manage(engine);
+
+    fireEvent.click(
+      within(row('Mine')).getByRole('button', { name: 'Rename' }),
+    );
+
+    expect(within(row('Mine')).getByLabelText('Rename Mine')).toBeDefined();
+  });
+
   it('renames a view in place', async () => {
     const { engine, store } = setup();
     await manage(engine);
@@ -270,7 +286,7 @@ describe('ViewManager rows', () => {
     fireEvent.click(
       within(row('Mine')).getByRole('button', { name: 'Rename' }),
     );
-    fireEvent.change(within(row('Mine')).getByLabelText('Title'), {
+    fireEvent.change(within(row('Mine')).getByLabelText(/^Rename /), {
       target: { value: 'Renamed' },
     });
     fireEvent.click(
@@ -289,7 +305,7 @@ describe('ViewManager rows', () => {
     fireEvent.click(
       within(row('Mine')).getByRole('button', { name: 'Rename' }),
     );
-    fireEvent.change(within(row('Mine')).getByLabelText('Title'), {
+    fireEvent.change(within(row('Mine')).getByLabelText(/^Rename /), {
       target: { value: 'Never mind' },
     });
     fireEvent.click(
@@ -315,7 +331,7 @@ describe('ViewManager rows', () => {
     fireEvent.click(
       within(row('Mine')).getByRole('button', { name: 'Rename' }),
     );
-    const field = within(row('Mine')).getByLabelText('Title');
+    const field = within(row('Mine')).getByLabelText(/^Rename /);
     // Whitespace and all: Enter trims what the button trims.
     fireEvent.change(field, { target: { value: '  Renamed  ' } });
     fireEvent.keyDown(field, { key: 'Enter' });
@@ -335,13 +351,13 @@ describe('ViewManager rows', () => {
     // lookup by title could find, which is the whole of what is being tested.
     const target = row('Mine');
     fireEvent.click(within(target).getByRole('button', { name: 'Rename' }));
-    const field = within(target).getByLabelText('Title');
+    const field = within(target).getByLabelText(/^Rename /);
     fireEvent.change(field, { target: { value: '   ' } });
     fireEvent.keyDown(field, { key: 'Enter' });
 
     expect(rename).not.toHaveBeenCalled();
     // And the row is still being renamed, rather than silently dropped.
-    expect(within(target).getByLabelText('Title')).toBeDefined();
+    expect(within(target).getByLabelText(/^Rename /)).toBeDefined();
   });
 
   /**
@@ -356,10 +372,10 @@ describe('ViewManager rows', () => {
     fireEvent.click(
       within(row('Mine')).getByRole('button', { name: 'Rename' }),
     );
-    fireEvent.change(within(row('Mine')).getByLabelText('Title'), {
+    fireEvent.change(within(row('Mine')).getByLabelText(/^Rename /), {
       target: { value: 'Never mind' },
     });
-    fireEvent.keyDown(within(row('Never mind')).getByLabelText('Title'), {
+    fireEvent.keyDown(within(row('Never mind')).getByLabelText(/^Rename /), {
       key: 'Escape',
     });
 
@@ -774,7 +790,7 @@ describe('ViewManager outcomes', () => {
     fireEvent.click(
       within(row('Mine')).getByRole('button', { name: 'Rename' }),
     );
-    fireEvent.change(within(row('Mine')).getByLabelText('Title'), {
+    fireEvent.change(within(row('Mine')).getByLabelText(/^Rename /), {
       target: { value: 'Renamed' },
     });
     fireEvent.click(
@@ -1432,7 +1448,7 @@ describe('managing views from the workbench', () => {
     fireEvent.click(
       within(row('Mine')).getByRole('button', { name: 'Rename' }),
     );
-    fireEvent.change(within(row('Mine')).getByLabelText('Title'), {
+    fireEvent.change(within(row('Mine')).getByLabelText(/^Rename /), {
       target: { value: 'Renamed' },
     });
     fireEvent.click(

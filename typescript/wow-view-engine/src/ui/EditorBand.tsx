@@ -145,13 +145,31 @@ export function EditorBandToggle({
   pending,
 }: EditorBandToggleProps) {
   const messages = useViewMessages();
+  const pendingLabel =
+    pending > 0
+      ? messages.label('label.editor.pending', { count: pending })
+      : null;
+  // The mode is part of the name rather than a second control to find:
+  // "Filter · Simple" answers both "what is this" and "how is it set".
+  //
+  // The count goes in with it, and that is the whole of why this is
+  // assembled rather than left to the content. A name overrides the content
+  // it is put on, so "Filter · Simple" used to *hide* the "2 not applied"
+  // inside the button — and the Record workbench always passes a mode, so
+  // on that screen the one credential a folded editor cannot carry any
+  // other way (D17-6, D2) was missing from every reader, all of the time.
+  // Nothing in the content is dropped: what is heard is what is seen, in
+  // the same order, which is what WCAG 2.5.3 asks of a name.
+  const name = !modeLabel
+    ? undefined
+    : [label, modeLabel, ...(pendingLabel === null ? [] : [pendingLabel])].join(
+        ' · ',
+      );
   return (
     <ButtonGroup data-slot="editor-toggle">
       <CollapsibleTrigger
         render={<Button variant="outline" size="sm" />}
-        // The mode is part of the name rather than a second control to find:
-        // "Filter · Simple" answers both "what is this" and "how is it set".
-        aria-label={modeLabel ? `${label} · ${modeLabel}` : undefined}
+        aria-label={name}
       >
         <SlidersHorizontalIcon data-icon="inline-start" />
         <span className="truncate">{label}</span>
@@ -163,12 +181,12 @@ export function EditorBandToggle({
           // secondary by being smaller rather than by being paler.
           <span className="hidden sm:inline">· {modeLabel}</span>
         )}
-        {pending > 0 && (
+        {pendingLabel !== null && (
           <span className={cn('flex items-center gap-1 font-normal', TEXT_UI)}>
             {/* The same dot the pills wear. It names nothing here: the
                 count right beside it is the wording. */}
             <PendingDot />
-            {messages.label('label.editor.pending', { count: pending })}
+            {pendingLabel}
           </span>
         )}
       </CollapsibleTrigger>

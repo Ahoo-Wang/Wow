@@ -879,7 +879,11 @@ describe('RecordWorkbench interaction', () => {
         instanceId="orders-1"
       />,
     );
-    await screen.findByText(defaultMessages['label.record.empty']);
+    // The empty title, as it is drawn: the live region says the same
+    // sentence out loud, which is two nodes holding this text on purpose.
+    await screen.findByText(defaultMessages['label.record.empty'], {
+      selector: '[data-slot="empty-title"]',
+    });
     return source;
   }
 
@@ -1544,7 +1548,14 @@ describe('a RecordWorkbench a host draws cells in', () => {
       }),
     );
 
-    expect(await screen.findByText('Nothing is waiting to ship')).toBeDefined();
+    // Drawn as the title, and said by the result's live region in the very
+    // same words — two nodes hold it on purpose, so this addresses the one
+    // on screen.
+    expect(
+      await screen.findByText('Nothing is waiting to ship', {
+        selector: '[data-slot="empty-title"]',
+      }),
+    ).toBeDefined();
     expect(
       screen.getByText('Every order has left the warehouse.'),
     ).toBeDefined();

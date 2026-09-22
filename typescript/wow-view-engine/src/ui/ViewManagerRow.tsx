@@ -199,7 +199,15 @@ export function ViewManagerRow({
             // that is not being renamed.
             <InputGroup className="h-7 w-full min-w-0">
               <InputGroupInput
-                aria-label={messages.label('label.save.title')}
+                // Named after the view it renames, not "Title": a manager
+                // is a list of these, and every row's field answered with
+                // the same word — a reader tabbing down it was told "Title"
+                // as many times as there are views and never which one is
+                // under the cursor. The title being edited is the one thing
+                // that tells them apart.
+                aria-label={messages.label('label.manage.rename-of', {
+                  title: item.title,
+                })}
                 value={renaming}
                 autoFocus
                 onChange={event => setRenaming(event.target.value)}

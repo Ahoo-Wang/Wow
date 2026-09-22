@@ -1454,8 +1454,12 @@ describe('a record view with no result', () => {
     );
 
     // The conditions ran and these are the records there are — a different
-    // sentence from a failure, because a user acts differently on each.
-    await screen.findByText('Nothing to show');
+    // sentence from a failure, because a user acts differently on each. It
+    // is drawn here and said out loud by the result's live region, so the
+    // one on screen is addressed by the part that draws it.
+    await screen.findByText('Nothing to show', {
+      selector: '[data-slot="empty-title"]',
+    });
     expect(screen.queryByRole('alert')).toBeNull();
     expect(selectAll()).toBeNull();
   });

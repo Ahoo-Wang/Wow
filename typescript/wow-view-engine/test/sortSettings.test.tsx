@@ -24,6 +24,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FieldDefinition, RecordSort } from '../src/model/index.js';
 import { SortSettings } from '../src/ui/SortSettings.js';
+import { MessagesProvider } from '../src/ui/MessagesProvider.js';
 import { defaultMessages } from '../src/ui/messages.js';
 import {
   reorderSort,
@@ -128,12 +129,17 @@ describe('what the sort button says', () => {
 
   /**
    * The field and the direction in words: an arrow alone is a picture, and a
-   * screen reader reads the button as "Amount" with no idea which way.
+   * screen reader reads the button as "Amount" with no idea which way — or
+   * that a sort is what it is looking at, since the word "Sort" is what the
+   * button wears only while nothing is sorted.
    */
   it('names the field and the direction it is in', () => {
     open([{ field: 'amount', direction: 'DESC' }]);
 
-    expect(trigger().textContent).toBe('AmountDescending');
+    expect(trigger().textContent).toBe('Amount');
+    expect(trigger().getAttribute('aria-label')).toBe(
+      'Sort: Amount Descending',
+    );
   });
 
   /** Several fields do not fit; the first is the one the rows are in. */
@@ -143,7 +149,41 @@ describe('what the sort button says', () => {
       { field: 'id', direction: 'ASC' },
     ]);
 
-    expect(trigger().textContent).toBe('AmountDescending+1');
+    expect(trigger().textContent).toBe('Amount+1');
+    // The count is in the name too: what is heard holds the same three
+    // pieces as what is seen (WCAG 2.5.3).
+    expect(trigger().getAttribute('aria-label')).toBe(
+      'Sort: Amount Descending +1',
+    );
+  });
+
+  /**
+   * Nothing sorted, and the button's own word is already the whole of it —
+   * a second name over "Sort" would be the same word twice.
+   */
+  it('leaves the name to the word it wears while nothing is sorted', () => {
+    open();
+
+    expect(trigger().getAttribute('aria-label')).toBeNull();
+  });
+
+  it('names itself in the catalogue in force', () => {
+    render(
+      <MessagesProvider
+        messages={{ 'label.sort.button': '排序：{field} {direction}' }}
+      >
+        <SortSettings
+          table={tableController({
+            sort: [{ field: 'amount', direction: 'DESC' }],
+          })}
+          fields={FIELDS}
+        />
+      </MessagesProvider>,
+    );
+
+    expect(trigger().getAttribute('aria-label')).toBe(
+      '排序：Amount Descending',
+    );
   });
 
   /**
@@ -334,7 +374,8 @@ describe('editing the sort', () => {
     });
     render(<SortSettings table={table} fields={FIELDS} />);
 
-    expect(trigger().textContent).toBe('AmountAscending');
+    expect(trigger().textContent).toBe('Amount');
+    expect(trigger().getAttribute('aria-label')).toBe('Sort: Amount Ascending');
 
     await user.click(trigger());
     await user.click(

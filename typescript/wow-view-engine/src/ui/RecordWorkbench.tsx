@@ -30,8 +30,10 @@ import {
   type RecordActionSlots,
   type RecordExportScope,
 } from '../react/index.js';
+import { useAnnouncer } from './Announcer.js';
 import { cellText, isoDay, type DisplayContext } from './display.js';
 import { downloadFile, fileName } from './download.js';
+import { useQueryAnnouncement } from './record/queryAnnouncement.js';
 import { FilterPanel } from './FilterPanel.js';
 import { FilterModes, filterModeLabel } from './filter/FilterModes.js';
 import { RecordCards } from './RecordCards.js';
@@ -204,6 +206,19 @@ export function RecordWorkbench({
   const { filter, runtime, state } = workbench;
   const record = runtime?.kind === 'record' ? runtime : null;
   const table = useRecordTable(record);
+
+  // The one live region of this surface, and the queries it reads back.
+  //
+  // It lives with the result rather than in the shell: the result is what a
+  // query changes, and the shell is shared with two other workbenches whose
+  // answers are not rows. One per surface is the rule (`Announcer.tsx`) —
+  // the column settings and the sort editor each carry one of their own, but
+  // only while their popover is open, and neither is on screen at the same
+  // time as a drag of the other.
+  const { say: announce, region: announcement } = useAnnouncer(
+    'record-announcement',
+  );
+  useQueryAnnouncement(table, messages, announce, emptyTitle);
 
   const fields = runtime?.fields ?? [];
   const hasResult = state?.result != null;
@@ -400,6 +415,10 @@ export function RecordWorkbench({
             )}
 
             <RecordPagination table={table} />
+
+            {/* Last in the block, where nothing about it can be reached by
+                a pointer or a tab: it draws nothing and is read, not seen. */}
+            {announcement}
           </>
         )
       }

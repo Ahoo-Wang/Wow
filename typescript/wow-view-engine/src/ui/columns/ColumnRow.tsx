@@ -15,8 +15,13 @@ import { useId, type KeyboardEvent } from 'react';
 import { useSortable } from '@dnd-kit/react/sortable';
 import { OptimisticSortingPlugin } from '@dnd-kit/dom/sortable';
 import { CircleSlashIcon, GripVerticalIcon, PinIcon } from 'lucide-react';
-import { columnPin, type SummaryFunction } from '../../model/index.js';
+import {
+  columnPin,
+  type RecordColumnPin,
+  type SummaryFunction,
+} from '../../model/index.js';
 import { IconButton } from '../IconButton.js';
+import type { MessageFormatters } from '../MessagesProvider.js';
 import { Checkbox } from '../components/checkbox.js';
 import { FieldDescription } from '../components/field.js';
 import {
@@ -58,6 +63,44 @@ const PIN_LABEL = {
   right: 'label.columns.pin.right',
   none: 'label.columns.pin.none',
 } as const;
+
+/**
+ * What the pin button changed, per state it lands in.
+ *
+ * A second set beside {@link PIN_LABEL} rather than the same one: the name
+ * of the control states where the column *is* held ("Pinning of Amount:
+ * Pinned left") and reads as a heading over a control, while an
+ * announcement reports a change that has already happened and has to say so
+ * in its own right — a live region that suddenly says "Pinned left" names
+ * neither the column nor the fact that anything moved. Named for all three
+ * states, `none` included, because a set the catalogue only half names is a
+ * set that cannot be translated.
+ */
+const PIN_ANNOUNCEMENT = {
+  left: 'label.columns.pinned.left',
+  right: 'label.columns.pinned.right',
+  none: 'label.columns.pinned.none',
+} as const;
+
+/**
+ * What a reader hears once a column has been pinned, unpinned or moved to
+ * the other side.
+ *
+ * The pin toggle's accessible name *is* its state, so pressing it changes
+ * the name of the control under the cursor and says nothing: a reader is
+ * told the new name only if they go back and read the button again, which
+ * is the one thing a press is supposed to save them. The wording lives here,
+ * with the control and the rest of its words; the voice is the panel's one
+ * live region (`ColumnSettings`), which is also where the next state is
+ * decided, so neither `nextPin` nor the announcement is written twice.
+ */
+export function pinAnnouncement(
+  messages: MessageFormatters,
+  field: string,
+  pinned: RecordColumnPin | null,
+): string {
+  return messages.label(PIN_ANNOUNCEMENT[pinned ?? 'none'], { field });
+}
 
 /**
  * The sentence a row draws under itself, per reason, and whether it is

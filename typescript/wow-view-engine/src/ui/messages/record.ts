@@ -148,12 +148,23 @@ export const recordMessages = {
   'label.columns.pin.right': 'Pinned right',
   // Said after the pin state while the cap has let this pin go (D17-4).
   'label.columns.pin-released': 'let go while the area is too narrow',
+  // What the press did, said out loud after it: the toggle's own name is
+  // where the column is held, so pressing it rewrites the name under the
+  // cursor and reports nothing. All three states are named — a half-named
+  // set cannot be translated.
+  'label.columns.pinned.none': '{field} is no longer pinned',
+  'label.columns.pinned.left': '{field} is now pinned left',
+  'label.columns.pinned.right': '{field} is now pinned right',
 
   // The sort editor behind the toolbar's button. It says the direction in
   // one word, because it labels a row of a list rather than a button whose
   // whole job is one column; taking a field out of the sort is the header's
   // own `label.sort.none`, which already says exactly that.
   'label.sort.title': 'Sort',
+  // The name of the toolbar's button once something is sorted, where its
+  // words are the sort itself and nothing on it says what it is. Visible
+  // text unchanged: this is the same string said the other way (D12).
+  'label.sort.button': 'Sort: {field} {direction}',
   'label.sort.hint': 'Rows are ordered by the first field, then by the next.',
   'label.sort.unsorted': 'These rows are in no particular order.',
   'label.sort.asc': 'Ascending',
