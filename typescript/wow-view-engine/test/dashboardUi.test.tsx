@@ -275,9 +275,11 @@ describe('DashboardGrid', () => {
       expect(found).not.toBeNull();
       return found!;
     });
-    expect(area.className).not.toContain('overflow-auto');
-    expect(area.className).not.toContain('max-h-');
-    expect(container.querySelector('thead')!.className).toContain('sticky');
+    // Not its own scrollport — the panel is what scrolls — and it says so,
+    // so the workbench around it does not hand it a height.
+    expect(area.hasAttribute('data-scrolls')).toBe(false);
+    // The header still holds: against whatever really scrolls.
+    expect(container.querySelector('thead')!.dataset.sticky).toBe('top');
   });
 
   /**

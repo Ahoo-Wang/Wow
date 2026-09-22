@@ -284,13 +284,11 @@ describe('ViewManager rows', () => {
 
     const dialog = await screen.findByRole('alertdialog');
     const confirm = within(dialog).getByRole('button', { name: 'Delete' });
-    expect(confirm.classList.contains('bg-destructive')).toBe(true);
-    expect(confirm.classList.contains('dark:bg-destructive')).toBe(true);
-    expect(confirm.classList.contains('text-destructive-foreground')).toBe(
-      true,
-    );
-    expect(confirm.classList.contains('bg-destructive/10')).toBe(false);
-    expect(confirm.classList.contains('text-destructive')).toBe(false);
+    // It is the package's one destructive answer (`DestructiveAction`),
+    // which says so on itself; the solid fill that answer wears is asserted
+    // once, where the recipe lives (`test/variants.test.tsx`), and measured
+    // for real by `DeleteActionContrastIn*Theme`.
+    expect(confirm.getAttribute('data-tone')).toBe('danger');
   });
 
   /**
@@ -551,7 +549,9 @@ describe('ViewManager rows', () => {
         .getByRole('button', { name: /opening this one first|Open this one/ })
         .querySelector('svg')!;
 
-    expect(star('Yours').classList.contains('fill-current')).toBe(false);
+    // The picture and the word both answer, and the picture says which it
+    // is on itself: a filled star is `data-default`, not a class list.
+    expect(star('Yours').hasAttribute('data-default')).toBe(false);
     expect(
       within(row('Yours'))
         .getByRole('button', { name: 'Open this one first' })
@@ -565,16 +565,15 @@ describe('ViewManager rows', () => {
     );
 
     await waitFor(() =>
-      expect(star('Yours').classList.contains('fill-current')).toBe(true),
+      expect(star('Yours').hasAttribute('data-default')).toBe(true),
     );
-    expect(star('Yours').getAttribute('data-default')).toBe('true');
     expect(
       within(row('Yours'))
         .getByRole('button', { name: 'Stop opening this one first' })
         .getAttribute('aria-pressed'),
     ).toBe('true');
     // And no other row claims it.
-    expect(star('Mine').classList.contains('fill-current')).toBe(false);
+    expect(star('Mine').hasAttribute('data-default')).toBe(false);
   });
 });
 

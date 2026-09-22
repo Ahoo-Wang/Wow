@@ -313,6 +313,9 @@ describe('FilterPanel tree editing', () => {
     // 320px and the pills hung past the editor band. Clamped to the band,
     // the column is 20rem where there is 20rem and the band's width where
     // there is not.
+    // A **surviving class assertion**: how many condition columns fit is a
+    // grid template, and the number of columns it comes to at a given width
+    // is the browser story's to count.
     expect(conditions.className).toContain('minmax(min(20rem,100%),1fr)');
   });
 

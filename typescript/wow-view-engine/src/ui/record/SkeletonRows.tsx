@@ -16,6 +16,7 @@ import type { RecordColumnView } from '../../record/index.js';
 import { Skeleton } from '../components/skeleton.js';
 import { TableCell, TableRow } from '../components/table.js';
 import { CLIPPED_CELL, columnWidth } from './columns.js';
+import { stickyCell } from './sticky.js';
 import { FillerCell } from './Filler.js';
 
 /** How many rows a running query is drawn as. */
@@ -77,11 +78,16 @@ export function SkeletonRows({
       )}
       {columns.map(column => (
         // A column that was given a width keeps it while it reloads, or the
-        // table would shuffle sideways the moment the rows land.
+        // table would shuffle sideways the moment the rows land. Nothing is
+        // held here — a query that has not answered yet has no result to
+        // freeze a column of — and `stickyCell` is what says so, in the one
+        // place that says the opposite for the layers that do.
         <TableCell
           key={column.field}
-          className={cn(column.width !== undefined && CLIPPED_CELL)}
-          style={columnWidth(column)}
+          {...stickyCell(undefined, {
+            className: cn(column.width !== undefined && CLIPPED_CELL),
+            style: columnWidth(column),
+          })}
         >
           <Skeleton className="h-4" style={{ width: barWidth(column.label) }} />
         </TableCell>

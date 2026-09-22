@@ -230,6 +230,8 @@ describe('FilterValueEditor', () => {
         Node.DOCUMENT_POSITION_PRECEDING,
     ).toBeTruthy();
     for (const end of ['amount from', 'amount to'])
+      // A **surviving class assertion**: the two bounds share the row
+      // evenly, which is a flex basis and not a state.
       expect(screen.getByLabelText(end).className).toContain('flex-1');
   });
 

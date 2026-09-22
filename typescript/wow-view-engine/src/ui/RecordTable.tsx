@@ -23,15 +23,12 @@ import { Checkbox } from './components/checkbox.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 import {
-  actionCell,
+  ACTION_CELL,
   ACTIONS_COLUMN,
-  BAND,
-  BAND_ROW,
   CLIPPED_CELL,
   HEAD_CELL,
   NUMERIC_CELL,
   ROW_HOVER,
-  SELECT_CELL,
   SELECT_COLUMN,
   TABLE_CELLS,
   columnWidth,
@@ -40,6 +37,12 @@ import {
   tablePins,
   usePinnedOffsets,
 } from './record/columns.js';
+import {
+  BAND_ROW,
+  stickyBand,
+  stickyCell,
+  stickyHead,
+} from './record/sticky.js';
 import { usePinnedCap, type ReleasedPins } from './record/pinCap.js';
 import { useViewportFit } from './record/fitViewport.js';
 import { useOverflowing } from './record/overflow.js';
@@ -258,20 +261,21 @@ export function RecordTable({
       <Table ref={element} className={TABLE_CELLS}>
         {/* A band rather than a row: it stays while the rows move under it,
             and it is the same grey as the summary band at the other end, so
-            the two of them bracket the data (`BAND`, P-21). The 2px
+            the two of them bracket the data (`stickyBand`, P-21). The 2px
             rule it used to carry is gone — `[&_tr]:border-b-2` named the
             `<tr>`, and in the separate border model a row has no border to
             paint, so what has always been on screen is the cells' own 1px
             `border-b` from `TABLE_CELLS`. One hairline is what parts the
             summary band from the rows as well, and the fill does the rest. */}
         {!firstLoad && (
-          <TableHeader className={cn(BAND, 'sticky top-0 z-20')}>
+          <TableHeader {...stickyBand('top')}>
             <TableRow className={BAND_ROW}>
               {selectable && (
                 <TableHead
                   data-column={SELECT_COLUMN}
-                  data-pin={pins.select ? 'left' : undefined}
-                  className={cn('w-10', HEAD_CELL, pins.select && SELECT_CELL)}
+                  {...stickyHead(pins.select, {
+                    className: cn('w-10', HEAD_CELL),
+                  })}
                 >
                   <Checkbox
                     aria-label={messages.label('label.record.select-all')}
@@ -298,8 +302,9 @@ export function RecordTable({
               {rowActions && (
                 <TableHead
                   data-column={ACTIONS_COLUMN}
-                  data-pin={pins.actions ? 'right' : undefined}
-                  className={cn(HEAD_CELL, actionCell(pins))}
+                  {...stickyHead(pins.actions, {
+                    className: cn(HEAD_CELL, ACTION_CELL),
+                  })}
                 >
                   {messages.label('label.toolbar.actions')}
                 </TableHead>
@@ -337,7 +342,7 @@ export function RecordTable({
                 data-state={table.isSelected(row.key) ? 'selected' : undefined}
               >
                 {selectable && (
-                  <TableCell className={cn(pins.select && SELECT_CELL)}>
+                  <TableCell {...stickyCell(pins.select)}>
                     <Checkbox
                       aria-label={messages.label('label.record.select', {
                         key: String(row.key),
@@ -353,15 +358,16 @@ export function RecordTable({
                   return (
                     <TableCell
                       key={column.field}
-                      className={cn(
-                        isNumeric(column) && NUMERIC_CELL,
-                        // A width the user set is a width they meant, so the
-                        // cell is cut to it — and what was cut is one hover
-                        // away, the way a clamped paragraph already is.
-                        column.width !== undefined && CLIPPED_CELL,
-                        pin?.className,
-                      )}
-                      style={{ ...columnWidth(column), ...pin?.style }}
+                      {...stickyCell(pin, {
+                        className: cn(
+                          isNumeric(column) && NUMERIC_CELL,
+                          // A width the user set is a width they meant, so
+                          // the cell is cut to it — and what was cut is one
+                          // hover away, the way a clamped paragraph is.
+                          column.width !== undefined && CLIPPED_CELL,
+                        ),
+                        style: columnWidth(column),
+                      })}
                       title={
                         column.width === undefined
                           ? undefined
@@ -378,7 +384,9 @@ export function RecordTable({
                   );
                 })}
                 {rowActions && (
-                  <TableCell className={actionCell(pins)}>
+                  <TableCell
+                    {...stickyCell(pins.actions, { className: ACTION_CELL })}
+                  >
                     <RowActions>{rowActions(row)}</RowActions>
                   </TableCell>
                 )}

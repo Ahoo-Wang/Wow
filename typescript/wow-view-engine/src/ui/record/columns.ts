@@ -13,26 +13,9 @@
 
 import { useLayoutEffect, type CSSProperties, type RefObject } from 'react';
 import type { RecordColumnView } from '../../record/index.js';
-import { cn } from 'cn';
 import { TEXT_UI } from '../layout.js';
 import { NO_RELEASE, type PinnedSlot, type ReleasedPins } from './pinCap.js';
-
-/**
- * Where a pinned column sits while the middle of the table scrolls.
- *
- * The class and the style go on every cell of that column — header, body and
- * summary alike — because a sticky column is sticky one cell at a time: a
- * `<col>` cannot carry position, and a header that stays while its cells
- * leave is worse than no pinning at all.
- */
-export interface PinPlacement {
-  /** Which edge it is held against. */
-  side: 'left' | 'right';
-  /** The column's place in the result, which names its measured offset. */
-  index: number;
-  className: string;
-  style: CSSProperties;
-}
+import { pinVar, type PinSide, type StickyPin } from './sticky.js';
 
 /**
  * The selection column's width as its class asks for it (`w-10`), used until
@@ -49,15 +32,6 @@ const SELECT_WIDTH = '2.5rem';
  */
 export const SELECT_COLUMN = 'select';
 export const ACTIONS_COLUMN = 'actions';
-
-/**
- * The custom property carrying one pinned column's measured offset. The
- * cells read it with the config's own arithmetic as the fallback, so they
- * are placed before anything has been measured and corrected after.
- */
-function pinVar(side: 'left' | 'right', index: number): string {
-  return `--fve-pin-${side}-${index}`;
-}
 
 /**
  * Keeps the pinned columns' offsets equal to what the header really measures.
@@ -114,7 +88,7 @@ function pinCells(table: HTMLTableElement): HTMLTableCellElement[] {
 function accumulate(
   table: HTMLTableElement,
   cells: readonly HTMLTableCellElement[],
-  side: 'left' | 'right',
+  side: PinSide,
 ): void {
   let offset = 0;
   for (const cell of cells) {
@@ -139,49 +113,17 @@ function observeResize(
 }
 
 /**
- * The edge of a pinned column, in the direction the rows scroll away: a
- * `--border` hairline saying where the column ends, and a soft shadow saying
- * the table continues beneath it.
+ * The action column's own cell, whether or not it is held.
  *
- * It is drawn **whenever the middle can scroll**, at rest as much as while
- * rows pass under it (D13, amended 2026-09-22 — P-23). Tied to the scroll
- * position it said "something is moving under me right now", which is a
- * true sentence nobody needed: a table that had not been scrolled showed no
- * frame at all, and its two held columns read as a layout that had come
- * apart. Tied to nothing at all it said too much the other way: on a table
- * that *fits*, the last column's edge cut the row's surplus off it and the
- * filler read as an empty column. So the edge answers to the port's own
- * word — `data-overflowing`, measured by `useOverflowing` — which is
- * exactly "these two ends stay put while the middle moves", true from the
- * moment there is a middle to move.
- *
- * The soft half is `--pin-shadow` and not a literal black: black is a
- * shadow on a white card and nothing at all on a dark one, so the token
- * carries a value per theme (`styles.css` has the measurements).
+ * `w-0` because the buttons are all the width it needs and the surplus
+ * belongs to the trailing filler; `whitespace-nowrap` so a row's actions
+ * stay on one line. The freeze is not in here — it comes from
+ * `TablePins.actions` through `stickyCell`, and the cap takes it away on a
+ * narrow port, at which point the buttons scroll with their row and the
+ * right edge goes with them: a frame's end is worth less than a middle
+ * nobody can read (D17-4).
  */
-const EDGE_LEFT =
-  'in-data-[overflowing]:shadow-[inset_-1px_0_0_var(--border),12px_0_16px_-8px_var(--pin-shadow)]';
-const EDGE_RIGHT =
-  'in-data-[overflowing]:shadow-[inset_1px_0_0_var(--border),-12px_0_16px_-8px_var(--pin-shadow)]';
-
-/**
- * The action column stays put while the rest scrolls sideways, which is the
- * only reason it can be the last one: on a wide table, actions that scroll
- * away are actions nobody finds. It is the only column ever held against
- * the right edge while the host gives one (D19), so it carries that edge
- * outright — `heldColumns` has already let the table's own last column go.
- */
-export function actionCell(pins: TablePins): string {
-  const base = 'w-0 bg-inherit whitespace-nowrap';
-  // Let go by the cap on a narrow port: the buttons scroll with their row,
-  // and the right edge goes with them — a frame's end is worth less than a
-  // middle nobody can read (D17-4).
-  if (!pins.actions) return base;
-  return `sticky right-0 z-10 ${base} ${EDGE_RIGHT}`;
-}
-
-/** The selection column, pinned along with the columns it sits beside. */
-export const SELECT_CELL = 'sticky left-0 z-10 bg-inherit';
+export const ACTION_CELL = 'w-0 bg-inherit whitespace-nowrap';
 
 /**
  * The table's border model, and the hairlines drawn under it.
@@ -249,27 +191,6 @@ const HEAD_BUTTON = '[&>button]:max-w-[calc(100%+1rem)]';
 const HEAD_HOVER = '[&>button]:hover:bg-background';
 
 /**
- * A band at one end of the table: the header at the top, the summaries at
- * the bottom. One constant, because the two of them being **the same grey**
- * is the whole point (P-21) — they bracket the rows, and the data is the
- * only thing left drawn on the page's own ground. Before this the header
- * was `--background` like the rows, parted from them by one hairline and a
- * grey label, and the user's 2026-09-22 review read the first row as part
- * of the header. (`HeaderBand*` measures the two fills and compares them
- * byte for byte.)
- *
- * The colour is on the **row** as well as on the group because a pinned
- * cell takes its fill from the row it is in (`bg-inherit`, see
- * `SELECT_CELL`): a band painted on the `<thead>` alone leaves the held
- * cells transparent, and the columns scrolling under them show through.
- * `hover:` is said again because the registry hovers every `<tr>` to
- * `bg-muted/50`, and neither band is hovered as a row — in the header only
- * the button in it is ({@link HEAD_HOVER}).
- */
-export const BAND = 'bg-muted';
-export const BAND_ROW = 'bg-muted hover:bg-muted';
-
-/**
  * A column header is metadata about the column rather than content in it —
  * but it is not quieter than the values under it: it is the same ink on a
  * grey of its own. `text-muted-foreground` measured **4.34:1** on that grey
@@ -332,11 +253,20 @@ export function isNumeric(column: RecordColumnView): boolean {
 /** What the table holds against its two edges, once the cap has had its say. */
 export interface TablePins {
   /** The pin each data column draws, by field; absent means it scrolls. */
-  columns: ReadonlyMap<string, PinPlacement>;
-  /** Whether the selection column is held against the left edge. */
-  select: boolean;
-  /** Whether the host's action column is held against the right edge. */
-  actions: boolean;
+  columns: ReadonlyMap<string, StickyPin>;
+  /**
+   * The selection column's pin, against the left edge itself — absent where
+   * there is nothing pinned left for it to sit beside, or where the cap has
+   * let it go. It is never a boundary: a column pinned left always follows
+   * it.
+   */
+  select?: StickyPin;
+  /**
+   * The host's action column, against the right edge itself. Always the
+   * boundary while it is held, because the right side has nothing else on
+   * it (D19).
+   */
+  actions?: StickyPin;
 }
 
 /**
@@ -403,17 +333,24 @@ export function tablePins(
   layout: { selectable: boolean; actions: boolean },
   released: ReleasedPins = NO_RELEASE,
 ): TablePins {
-  const pins = new Map<string, PinPlacement>();
+  const pins = new Map<string, StickyPin>();
   columns = heldColumns(columns, layout).map(column =>
     released.fields.has(column.field)
       ? { ...column, pinned: undefined }
       : column,
   );
   // The selection column is held along with the columns beside it, or a
-  // column pinned left would be drawn over it.
-  const select =
-    layout.selectable && !released.select && columns.some(isPinned('left'));
-  const actions = layout.actions && !released.actions;
+  // column pinned left would be drawn over it. Neither chrome column has an
+  // `offset`: they sit against the port's own edge, with nothing outside
+  // them to clear.
+  const select: StickyPin | undefined =
+    layout.selectable && !released.select && columns.some(isPinned('left'))
+      ? { side: 'left', edge: false }
+      : undefined;
+  const actions: StickyPin | undefined =
+    layout.actions && !released.actions
+      ? { side: 'right', edge: true }
+      : undefined;
   // The boundary with the scrolling middle is the last column pinned left;
   // only it draws an edge on that side. The selection column is never one —
   // a column pinned left always follows it.
@@ -436,7 +373,11 @@ export function tablePins(
   const end = columns.findIndex(isPinned('right'));
   if (end >= 0) pins.set(columns[end].field, pin('right', end, [], true));
 
-  return { columns: pins, select, actions };
+  return {
+    columns: pins,
+    ...(select ? { select } : {}),
+    ...(actions ? { actions } : {}),
+  };
 }
 
 /**
@@ -461,28 +402,27 @@ function heldColumns(
   );
 }
 
-function isPinned(side: 'left' | 'right') {
+function isPinned(side: PinSide) {
   return (column: RecordColumnView) => column.pinned === side;
 }
 
+/**
+ * One data column's pin: which edge, where it stops, and whether it is the
+ * one facing the scrolling middle. What wearing it looks like is
+ * `sticky.ts`'s — this decides only who wears it.
+ */
 function pin(
-  side: 'left' | 'right',
+  side: PinSide,
   index: number,
   offsets: readonly string[],
   edge: boolean,
-): PinPlacement {
+): StickyPin {
   const declared =
     offsets.length === 0 ? '0px' : `calc(${offsets.join(' + ')})`;
   return {
     side,
     index,
-    className: cn(
-      'sticky z-10 bg-inherit',
-      edge && (side === 'left' ? EDGE_LEFT : EDGE_RIGHT),
-    ),
-    style:
-      side === 'left'
-        ? { left: `var(${pinVar(side, index)}, ${declared})` }
-        : { right: `var(${pinVar(side, index)}, ${declared})` },
+    offset: `var(${pinVar(side, index)}, ${declared})`,
+    edge,
   };
 }

@@ -619,6 +619,8 @@ describe('RefreshControl', () => {
     // The count itself is in the same cell as the reserved ones, so the box
     // never resizes while it ticks.
     const count = box.querySelector('[data-slot="refresh-cadence"]')!;
+    // A **surviving class assertion**: which grid cell the countdown sits
+    // in is layout, and nothing about the control's state.
     expect(count.className).toContain('col-start-1');
     expect(
       screen

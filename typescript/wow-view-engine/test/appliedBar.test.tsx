@@ -155,6 +155,10 @@ describe('AppliedBar', () => {
     // value cannot be read, but the question it was asked under can.
     const badge = screen.getByText('legacy is');
     expect(badge.hasAttribute('data-unresolved')).toBe(true);
+    // A **surviving class assertion**: worn plainly means the registry's
+    // `outline` badge rather than a toned one, and a variant is not
+    // reflected on the element — the class is the only witness. `ToneBadge`
+    // is what says a tone on itself, and this badge is deliberately not one.
     expect(badge.className).toContain('border-border');
   });
 
@@ -171,6 +175,11 @@ describe('AppliedBar', () => {
     // The vendored `Button` rather than a bare one carrying a hand-copied
     // focus recipe: it sizes its own icon (so nothing asks for a size here)
     // and brings the one focus indicator the whole surface shares.
+    // **Surviving class assertions**: the icon carries no size of its own
+    // (the shadcn rule — the button sizes it), and the focus recipe is the
+    // vendored button's rather than a hand-copied one. Neither is a state
+    // the element could say, and `:focus-visible` is a pseudo-class jsdom
+    // has no rendering for; what they come to is measured in the browser.
     expect(remove.querySelector('svg')!.className.baseVal).not.toContain(
       'size-',
     );
@@ -271,6 +280,7 @@ describe('AppliedBar', () => {
     // worn plainly and offers nothing to press.
     expect(badges[0].hasAttribute('data-scoped')).toBe(false);
     expect(badges[1].hasAttribute('data-scoped')).toBe(true);
+    // Worn plainly — the `outline` badge, as above.
     expect(badges[1].className).toContain('border-border');
     expect(
       screen.queryByRole('button', { name: 'Unset Customer is c-1' }),

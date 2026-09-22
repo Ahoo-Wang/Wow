@@ -346,6 +346,10 @@ describe('an alert dialog themes its backdrop as well as its surface', () => {
       '[data-slot="alert-dialog-overlay"]',
     );
 
+    // **Surviving class assertions**, and this file is their home: the
+    // question it asks throughout is whether our copy of a popup's markup
+    // still carries what the registry's does, which is a question about
+    // class strings and about nothing else.
     expect(backdrop?.classList.contains('bg-black/50')).toBe(true);
     expect(backdrop?.classList.contains('bg-black/10')).toBe(false);
     // And its own card is ringed heavily enough to stand on another card,

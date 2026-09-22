@@ -99,7 +99,6 @@ describe('RowActions', () => {
 
     const slot = container.querySelector('[data-slot="row-actions"]');
     expect(slot).toBeTruthy();
-    expect(slot?.className).toContain('justify-end');
     expect(within(slot as HTMLElement).getByRole('button')).toBeTruthy();
   });
 });
@@ -119,10 +118,17 @@ describe('RecordTable row actions', () => {
     render(<RecordTable table={tableController()} rowActions={rowActions} />);
 
     const head = screen.getByRole('columnheader', { name: 'Actions' });
-    expect(head.className).toContain('sticky');
-    expect(head.className).toContain('right-0');
-    // And it wears its edge at rest (D13), not only once rows pass under it.
-    expect(head.className).toContain('shadow-[inset_1px_0_0_var(--border)');
+    // Held against the right edge itself — there is nothing outside it, so
+    // it names no measured offset — and it is the boundary with the
+    // scrolling middle, decided without anyone scrolling (D13). Whether
+    // that boundary is drawn is the port's word (`data-overflowing`,
+    // P-23), which `test/overflowEdges.test.tsx` holds. Both are said on
+    // the element by the one home of the sticky chrome
+    // (`ui/record/sticky.ts`); the shadow itself is measured by the browser
+    // story `PinnedEdges`.
+    expect(head.dataset.pin).toBe('right');
+    expect(head.style.right).toBe('');
+    expect(head.dataset.pinEdge).toBe('');
 
     expect(screen.getByRole('button', { name: 'act o-1' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'act o-2' })).toBeTruthy();
@@ -188,7 +194,6 @@ describe('RecordCards row actions', () => {
 
     const footers = container.querySelectorAll('[data-slot="card-footer"]');
     expect(footers).toHaveLength(2);
-    expect(footers[0].className).toContain('border-t');
     expect(
       within(footers[0] as HTMLElement).getByRole('button', {
         name: 'act o-1',

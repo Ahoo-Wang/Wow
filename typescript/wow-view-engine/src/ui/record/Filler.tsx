@@ -12,6 +12,7 @@
  */
 
 import { TableCell, TableHead } from '../components/table.js';
+import { stickyCell } from './sticky.js';
 
 /**
  * How the cell that takes the leftover width is found. It lives here rather
@@ -71,7 +72,7 @@ export function FillerHead() {
     <TableHead
       aria-hidden
       data-column={FILLER_COLUMN}
-      className={FILLER_CELL}
+      {...stickyCell(undefined, { className: FILLER_CELL })}
     />
   );
 }
@@ -82,7 +83,7 @@ export function FillerCell() {
     <TableCell
       aria-hidden
       data-column={FILLER_COLUMN}
-      className={FILLER_CELL}
+      {...stickyCell(undefined, { className: FILLER_CELL })}
     />
   );
 }

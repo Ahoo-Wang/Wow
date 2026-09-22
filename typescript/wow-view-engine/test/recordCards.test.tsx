@@ -302,6 +302,7 @@ describe('RecordCards on its own', () => {
       // variant so that no typography lands on the vendored component.
       // The class rather than the size, because jsdom hangs no stylesheet;
       // the pixels are measured in the browser.
+      // A **surviving class assertion**: the card's own grid template.
       expect(row.className).toContain(
         '[&_[data-slot=item-description]]:text-[length:var(--text-ui)]',
       );

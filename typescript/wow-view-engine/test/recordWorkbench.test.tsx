@@ -1299,12 +1299,14 @@ describe('the record workbench layout', () => {
     // The row action is a column of its own, pinned so a wide table cannot
     // scroll it out of reach.
     const head = screen.getByRole('columnheader', { name: 'Actions' });
-    expect(head.className).toContain('sticky');
+    expect(head.dataset.pin).toBe('right');
     const cell = screen
       .getByRole('button', { name: 'Open o-1' })
       .closest('[data-slot="row-actions"]');
     expect(cell).not.toBeNull();
-    expect(cell?.closest('td')?.className).toContain('sticky');
+    // The whole column and not the header alone: a header that stays while
+    // its cells slide away is worse than no pinning at all.
+    expect(cell?.closest('td')?.getAttribute('data-pin')).toBe('right');
 
     // The same buttons follow the rows into the card layout, in a footer.
     fireEvent.click(screen.getByRole('button', { name: 'Cards' }));

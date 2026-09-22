@@ -194,7 +194,8 @@ describe('ViewHeader', () => {
     const runtime = await engine.open('orders-1');
     render(<Harness engine={engine} runtime={runtime} />);
 
-    expect(title().className).toContain('truncate');
+    // The name is its own tooltip trigger, which is the way back from a
+    // clipped title; that it really clips is the browser story's to measure.
     expect(title().hasAttribute('data-base-ui-tooltip-trigger')).toBe(true);
     expect(title().textContent).toBe(long);
   });
@@ -213,6 +214,10 @@ describe('ViewHeader', () => {
     const runtime = await engine.open('orders-1');
     render(<Harness engine={engine} runtime={runtime} />);
 
+    // **Surviving class assertions**: layout at a call site, which is what
+    // `className` is for — there is no state behind a length or a
+    // direction, and jsdom lays nothing out. The pixels are the browser
+    // stories’.
     expect(title().className).toContain('w-0');
     expect(title().className).toContain('grow');
     expect(title().className).toContain('min-w-[6em]');

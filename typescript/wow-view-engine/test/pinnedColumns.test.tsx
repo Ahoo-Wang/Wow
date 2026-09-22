@@ -19,22 +19,45 @@ import { RecordTable } from '../src/ui/index.js';
 import {
   ACTIONS_COLUMN,
   pinnedSlots,
+  ROW_HOVER,
   SELECT_COLUMN,
+  TABLE_CELLS,
   tablePins,
 } from '../src/ui/record/columns.js';
+import {
+  BAND,
+  stickyBand,
+  stickyCell,
+  stickyHead,
+} from '../src/ui/record/sticky.js';
 
 afterEach(cleanup);
 
 /**
- * The edge of a pinned column, which is on at rest as well as while rows
- * pass under it (D13). jsdom computes no layout and applies no stylesheet,
- * so what is pinned here is the contract the browser then honours: which
- * cells carry the edge and which do not. The browser story `PinnedEdges`
- * reads the shadow itself, still and scrolled.
+ * Which held column is the *boundary* with the scrolling middle — the one
+ * that draws the edge, and draws it at rest as much as while rows pass
+ * under it (D13). Whether an edge is drawn at all is a second question and
+ * the port's, not the cell's: on a table that fits there is no middle to
+ * scroll under anything, so the classes read `in-data-[overflowing]:` and
+ * `test/overflowEdges.test.tsx` holds that half (P-23).
+ *
+ * jsdom computes no layout and applies no stylesheet, so what is pinned
+ * here is the contract the browser then honours: which cells say they are
+ * held and which of them is the boundary. The cells say it on themselves —
+ * `data-pin` for the edge they are held against, `data-pin-edge` for the
+ * one facing the middle — so these suites read a state rather than a
+ * spelling, and the one place the spelling is asserted at all is `the
+ * sticky chrome recipe` at the foot of this file. The browser story
+ * `PinnedEdges` reads the shadow itself: absent at rest and wide, there
+ * once the table is narrowed, and unchanged from one end of the scroll to
+ * the other.
  */
 describe('the pinned edges', () => {
-  const LEFT_EDGE = 'shadow-[inset_-1px_0_0_var(--border)';
-  const RIGHT_EDGE = 'shadow-[inset_1px_0_0_var(--border)';
+  /** Which cells of one column draw the boundary with the middle. */
+  const edged = (cells: readonly HTMLElement[]) =>
+    cells.map(cell => cell.hasAttribute('data-pin-edge'));
+  const all = (cells: readonly HTMLElement[]) => cells.map(() => true);
+  const none = (cells: readonly HTMLElement[]) => cells.map(() => false);
 
   it('draws the edge on the boundary with the middle, and nowhere else', () => {
     const { container } = render(
@@ -50,14 +73,24 @@ describe('the pinned edges', () => {
     // The last column pinned left and the one the table holds on the right
     // face the scrolling middle; the column before the last pinned one
     // faces another frozen column, and nothing ever passes between the two.
-    for (const cell of cellsOf(container, 'amount'))
-      expect(cell.className).toContain(LEFT_EDGE);
-    for (const cell of cellsOf(container, 'id'))
-      expect(cell.className).not.toContain(LEFT_EDGE);
-    for (const cell of cellsOf(container, 'status'))
-      expect(cell.className).toContain(RIGHT_EDGE);
-    expect(cellsOf(container, 'warehouse')[0].className).not.toContain(
-      'shadow-[inset',
+    const amount = cellsOf(container, 'amount');
+    expect(edged(amount)).toEqual(all(amount));
+    expect(amount.map(cell => cell.dataset.pin)).toEqual(
+      amount.map(() => 'left'),
+    );
+    const id = cellsOf(container, 'id');
+    expect(edged(id)).toEqual(none(id));
+    expect(id.map(cell => cell.dataset.pin)).toEqual(id.map(() => 'left'));
+    const status = cellsOf(container, 'status');
+    expect(edged(status)).toEqual(all(status));
+    expect(status.map(cell => cell.dataset.pin)).toEqual(
+      status.map(() => 'right'),
+    );
+    // The middle scrolls, so it is neither held nor a boundary.
+    const middle = cellsOf(container, 'warehouse');
+    expect(edged(middle)).toEqual(none(middle));
+    expect(middle.map(cell => cell.dataset.pin)).toEqual(
+      middle.map(() => undefined),
     );
   });
 
@@ -78,22 +111,28 @@ describe('the pinned edges', () => {
         rowActions={() => <button />}
       />,
     );
-    for (const cell of actionCells(container))
-      expect(cell.className).toContain(RIGHT_EDGE);
-    for (const cell of cellsOf(container, 'status')) {
-      expect(cell.className).not.toContain('sticky');
-      expect(cell.className).not.toContain(RIGHT_EDGE);
-    }
+    const actions = actionCells(container);
+    expect(actions.map(cell => cell.dataset.pin)).toEqual(
+      actions.map(() => 'right'),
+    );
+    expect(edged(actions)).toEqual(all(actions));
+    const status = cellsOf(container, 'status');
+    expect(status.map(cell => cell.dataset.pin)).toEqual(
+      status.map(() => undefined),
+    );
+    expect(edged(status)).toEqual(none(status));
   });
 
   /**
-   * The rule D13 replaced. Tied to the scroll position, the edge said
+   * The rule D13 replaced. Tied to the *scroll position*, the edge said
    * "something is moving under me right now" — true, and of no use: a table
-   * nobody had scrolled yet, or one that fits and so never scrolls at all,
-   * showed no frame and its held ends read as a layout that had come apart.
-   * Nothing is listened to now and nothing is written on the table.
+   * nobody had scrolled yet showed no frame, and its held ends read as a
+   * layout that had come apart. So the boundary is decided without anyone
+   * scrolling: nothing is listened to and nothing is written on the table.
+   * (What a fitting table does instead is P-23's, one question further out
+   * — the port's `data-overflowing`, not the scroll offset.)
    */
-  it('wears its edge before anything has scrolled', () => {
+  it('is the boundary before anything has scrolled', () => {
     const { container } = render(
       <RecordTable
         table={controller([column('id', 'left'), column('warehouse')])}
@@ -101,21 +140,16 @@ describe('the pinned edges', () => {
     );
 
     const table = container.querySelector('table')!;
-    for (const cell of cellsOf(container, 'id'))
-      expect(cell.className).toContain(LEFT_EDGE);
+    const id = cellsOf(container, 'id');
+    expect(edged(id)).toEqual(all(id));
     // Nothing on the table says where it is scrolled to, and no cell reads
     // such a thing through a group variant: the edge is not a fact about
     // scrolling any more.
     expect(table.hasAttribute('data-scrolled-left')).toBe(false);
     expect(table.hasAttribute('data-scrolled-right')).toBe(false);
-    expect(table.className).not.toContain('group/table');
     expect(container.innerHTML).not.toContain('scrolled-');
   });
 
-  /**
-   * Header, rows and summaries read the same class, so a held column is
-   * framed from top to bottom rather than in the rows alone.
-   */
   /**
    * Preflight collapses table borders, and in collapsed mode Chromium paints
    * no outer box-shadow on a cell: the edge classes above were computed and
@@ -126,13 +160,14 @@ describe('the pinned edges', () => {
     const { container } = render(
       <RecordTable table={controller([column('id', 'left')])} />,
     );
-    const table = container.querySelector('table')!;
-    expect(table.className).toContain('border-separate');
-    expect(table.className).toContain('border-spacing-0');
-    expect(table.className).toContain('[&_td]:border-b');
-    expect(table.className).toContain('[&_th]:border-b');
-    // The frame's pagination draws the line under the last summary row.
-    expect(table.className).toContain('[&_tfoot_tr:last-child_td]:border-b-0');
+    // A **surviving class assertion**. The border model is not a state
+    // anything could say on an element: it is
+    // three declarations and nothing else, no user gesture reaches it, and
+    // jsdom loads no stylesheet to compute it from. The truth is measured in
+    // the browser instead (`PinnedEdges` asserts the computed
+    // `border-collapse`); what is kept here is the spelling, because the
+    // spelling is what the Chromium defect turns on.
+    expect(container.querySelector('table')!.className).toContain(TABLE_CELLS);
   });
 
   /**
@@ -146,14 +181,19 @@ describe('the pinned edges', () => {
       <RecordTable table={controller([column('id', 'left')])} />,
     );
     const row = container.querySelector('tbody tr')!;
+    // A **surviving class assertion**. An opaque hover is a colour rather
+    // than a state: no attribute can carry "this fill has no alpha
+    // channel", the hover is a pointer state jsdom has no rendering for,
+    // and the regression being guarded is a *specific* class coming back —
+    // the registry's `bg-muted/50`, which shows the column a held cell
+    // stands in front of straight through it. The opacity itself is
+    // measured in the browser (`PinnedEdges`).
     expect(row.className).not.toContain('hover:bg-muted/50');
-    // The mix is a theme token now (`--row-hover`), so a host can move it
-    // and the class says which colour rather than how it was made.
-    expect(row.className).toContain('hover:bg-row-hover');
-    expect(row.className).toContain('has-aria-expanded:bg-row-hover');
-    // And the pinned cell still follows the row.
-    for (const cell of cellsOf(container, 'id'))
-      expect(cell.className).toContain('bg-inherit');
+    expect(row.className).toContain(ROW_HOVER);
+    // And the held cells follow the row, which is the same fact from the
+    // other end: they are `bg-inherit`, asserted once in the recipe below.
+    const id = cellsOf(container, 'id');
+    expect(id.map(cell => cell.dataset.pin)).toEqual(id.map(() => 'left'));
   });
 
   it('puts the same edge on the header, the rows and the summaries', () => {
@@ -163,11 +203,20 @@ describe('the pinned edges', () => {
       />,
     );
 
-    expect(cellsOf(container, 'id')).toHaveLength(3);
-    for (const cell of cellsOf(container, 'id'))
-      expect(cell.className).toContain(LEFT_EDGE);
-    for (const cell of cellsOf(container, 'amount'))
-      expect(cell.className).toContain(RIGHT_EDGE);
+    // Header, one body row, one summary row — and each of the three says it
+    // is held and says it draws the boundary, because all three take the
+    // one recipe `sticky.ts` holds.
+    const id = cellsOf(container, 'id');
+    expect(id).toHaveLength(3);
+    expect(id.map(cell => cell.dataset.pin)).toEqual(['left', 'left', 'left']);
+    expect(edged(id)).toEqual(all(id));
+    const amount = cellsOf(container, 'amount');
+    expect(amount.map(cell => cell.dataset.pin)).toEqual([
+      'right',
+      'right',
+      'right',
+    ]);
+    expect(edged(amount)).toEqual(all(amount));
   });
 });
 
@@ -220,13 +269,20 @@ describe('where the surplus width goes', () => {
     );
 
     for (const cell of fillers(container)) {
+      // A **surviving class assertion**: the width this cell takes is the
+      // whole of what it is, and `w-full` against the
+      // registry's own `px-2` is a pair of declarations rather than a state
+      // — the browser story `ColumnsKeepTheirWidthAndRowsFillTheFrame`
+      // measures what they come to.
       expect(cell.className).toContain('w-full');
       // The registry pads every cell; this one holds nothing to pad.
       expect(cell.className).toContain('px-0');
       expect(cell.textContent).toBe('');
-      // Never held against an edge, so it draws no edge either.
+      // Never held against an edge, so it draws no edge either — and it
+      // says so the way every cell of this table says it, because it is
+      // built by the same `stickyCell`, handed no pin.
       expect(cell.dataset.pin).toBeUndefined();
-      expect(cell.className).not.toContain('sticky');
+      expect(cell.dataset.pinEdge).toBeUndefined();
     }
   });
 
@@ -292,6 +348,12 @@ describe('where the surplus width goes', () => {
     );
 
     // Every column header; the filler at the end holds no button.
+    //
+    // A **surviving class assertion**. The ceiling is a length in a
+    // selector that reaches a child — there is no element
+    // to say it on and no state it depends on — and the 16px it buys is
+    // what the browser story `ColumnsKeepTheirWidthAndRowsFillTheFrame`
+    // measures on the button itself.
     for (const cell of container.querySelectorAll(
       'thead th:not([data-column="filler"])',
     ))
@@ -382,8 +444,8 @@ describe('the pinned group against a narrow port', () => {
     // The whole column, not the header alone: the buttons scroll with their
     // row, and the right edge goes with them.
     for (const cell of actionCells(container)) {
-      expect(cell.className).not.toContain('sticky');
-      expect(cell.className).not.toContain('shadow-[inset');
+      expect(cell.dataset.pin).toBeUndefined();
+      expect(cell.dataset.pinEdge).toBeUndefined();
     }
     // A rendering cap and not an edit: the config still pins what it pinned.
     expect(setPinned).not.toHaveBeenCalled();
@@ -456,7 +518,7 @@ describe('the pinned group against a narrow port', () => {
     });
     // The column that let go scrolls with the middle, every cell of it.
     for (const cell of cellsOf(container, 'status'))
-      expect(cell.className).not.toContain('sticky');
+      expect(cell.dataset.pin).toBeUndefined();
   });
 
   it('keeps every pin where the columns all fit', () => {
@@ -541,11 +603,19 @@ describe('the pinned group against a narrow port', () => {
     const letGo = tablePins(columns, { selectable: false, actions: true });
 
     expect(held.columns.get('amount')?.side).toBe('right');
-    // Held against the edge itself: nothing is ever pinned outside it.
-    expect(held.columns.get('amount')?.style).toEqual({
-      right: 'var(--fve-pin-right-1, 0px)',
-    });
+    // Held against the edge itself: nothing is ever pinned outside it, so
+    // the offset it clears is zero.
+    expect(held.columns.get('amount')?.offset).toBe(
+      'var(--fve-pin-right-1, 0px)',
+    );
+    // And it is the boundary with the scrolling middle, being the whole of
+    // the right side (D19).
+    expect(held.columns.get('amount')?.edge).toBe(true);
     expect(letGo.columns.has('amount')).toBe(false);
+    // The two chrome pins sit against the port's own edge, so neither has
+    // an offset at all.
+    expect(letGo.actions).toEqual({ side: 'right', edge: true });
+    expect(letGo.select).toBeUndefined();
   });
 
   it('keeps the key pinned even where it alone is more than half', () => {
@@ -568,6 +638,127 @@ describe('the pinned group against a narrow port', () => {
       actions: null,
     });
     widths.id = 86;
+  });
+});
+
+/**
+ * The one home of the sticky chrome (A-09).
+ *
+ * The recipe used to be spelled out five times over `RecordTable`,
+ * `columns.ts`, `SummaryRows`, `SkeletonRows` and `Filler` — `sticky z-10
+ * bg-inherit` plus an inset hairline plus an offset, once per layer — and
+ * the suites above asserted the spelling at each of them. It lives in
+ * `ui/record/sticky.ts` now, every layer takes it from there, and the
+ * spelling is asserted **here and nowhere else**: everything above reads
+ * `data-pin` / `data-pin-edge` / `data-sticky` off the cells instead, which
+ * is what those attributes are for.
+ *
+ * This is the exception the rule allows: a class list *is* the contract of a
+ * function whose whole job is to return one, and no attribute could stand
+ * for `bg-inherit`. What the classes come to on screen — the shadow, the
+ * offsets, the opaque fill under a held cell — is measured in the browser
+ * by `PinnedEdges` and `HeaderBandInLightTheme`.
+ */
+describe('the sticky chrome recipe', () => {
+  it('holds a cell against an edge, taking its fill from the row', () => {
+    const cell = stickyCell({
+      side: 'left',
+      index: 0,
+      offset: '8px',
+      edge: false,
+    });
+
+    // `bg-inherit`, so selection and hover do not break across the freeze;
+    // `z-10`, above the columns sliding under it and below the two bands.
+    expect(cell.className).toBe('sticky z-10 bg-inherit');
+    expect(cell.style).toEqual({ left: '8px' });
+    expect(cell['data-pin']).toBe('left');
+    expect(cell['data-pin-edge']).toBeUndefined();
+  });
+
+  it('draws the boundary with the scrolling middle on the side it faces', () => {
+    const left = stickyCell({
+      side: 'left',
+      index: 1,
+      offset: '8px',
+      edge: true,
+    });
+    const right = stickyCell({
+      side: 'right',
+      index: 4,
+      offset: '0px',
+      edge: true,
+    });
+
+    // A `--border` hairline where the column ends and a soft `--pin-shadow`
+    // saying the table goes on beneath it, pointing the way the rows leave —
+    // and drawn only from inside a port that says there is a middle to
+    // scroll (P-23). `in-data-[overflowing]:` is the whole of that
+    // condition, which is why the edge is the one half of this recipe with
+    // no `data-*` of its own to answer it: `data-pin-edge` says "this cell
+    // is the boundary" and the port says whether a boundary is called for.
+    expect(left.className).toContain(
+      'in-data-[overflowing]:shadow-[inset_-1px_0_0_var(--border),12px_0_16px_-8px_var(--pin-shadow)]',
+    );
+    expect(right.className).toContain(
+      'in-data-[overflowing]:shadow-[inset_1px_0_0_var(--border),-12px_0_16px_-8px_var(--pin-shadow)]',
+    );
+    expect(left['data-pin-edge']).toBe('');
+    expect(right['data-pin-edge']).toBe('');
+    expect(right.style).toEqual({ right: '0px' });
+  });
+
+  it('sits against the port edge where nothing was measured', () => {
+    // The two chrome columns: no offset, because there is nothing outside
+    // them to clear, so the place is a class rather than a variable.
+    expect(stickyCell({ side: 'left', edge: false }).className).toContain(
+      'left-0',
+    );
+    expect(stickyCell({ side: 'right', edge: true }).className).toContain(
+      'right-0',
+    );
+    expect(stickyCell({ side: 'left', edge: false }).style).toEqual({});
+  });
+
+  it('keeps the cell its own styling, held or not', () => {
+    const scrolls = stickyCell(undefined, {
+      className: 'truncate',
+      style: { width: 120 },
+    });
+    expect(scrolls.className).toBe('truncate');
+    expect(scrolls.style).toEqual({ width: 120 });
+    expect(scrolls['data-pin']).toBeUndefined();
+
+    const held = stickyCell(
+      { side: 'left', index: 0, offset: '0px', edge: false },
+      { className: 'truncate', style: { width: 120 } },
+    );
+    expect(held.className).toBe('truncate sticky z-10 bg-inherit');
+    expect(held.style).toEqual({ width: 120, left: '0px' });
+  });
+
+  it('publishes on the header the offset that column owns', () => {
+    // `usePinnedOffsets` adds up the header cells and writes the widths back
+    // as `--fve-pin-{side}-{index}`; the chrome columns take part in that
+    // sum without owning a variable of their own.
+    expect(
+      stickyHead({ side: 'left', index: 2, offset: '0px', edge: false })[
+        'data-pin-index'
+      ],
+    ).toBe(2);
+    expect(
+      stickyHead({ side: 'left', edge: false })['data-pin-index'],
+    ).toBeUndefined();
+    expect(stickyHead(undefined)['data-pin-index']).toBeUndefined();
+  });
+
+  it('brackets the rows with two bands of the one grey', () => {
+    // The same `--muted` at both ends is the whole point (P-21), and each
+    // says which end of the scroll port it holds.
+    expect(stickyBand('top').className).toBe(`${BAND} sticky z-20 top-0`);
+    expect(stickyBand('bottom').className).toBe(`${BAND} sticky z-20 bottom-0`);
+    expect(stickyBand('top')['data-sticky']).toBe('top');
+    expect(stickyBand('bottom')['data-sticky']).toBe('bottom');
   });
 });
 

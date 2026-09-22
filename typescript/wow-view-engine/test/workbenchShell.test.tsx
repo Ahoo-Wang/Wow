@@ -108,6 +108,10 @@ describe('the result block', () => {
     // the toolbar, the table and the pagination read as three things that
     // happen to be stacked, and the region has no end.
     expect(result.dataset.framed).toBe('true');
+    // **Surviving class assertions**: layout at a call site, which is what
+    // `className` is for — there is no state behind a length or a
+    // direction, and jsdom lays nothing out. The pixels are the browser
+    // stories’.
     expect(result.className).toContain('rounded-lg');
     expect(result.className).toContain('border');
     // But no padding of its own — the rows go to the edge; what needs a

@@ -227,6 +227,9 @@ describe('a text cell', () => {
     const cell = container.querySelector<HTMLElement>(
       '[data-slot="cell-text"]',
     )!;
+    // **Surviving class assertions**: how many lines of a long value are
+    // kept and whether its own newlines survive are two declarations with
+    // no state behind them, and jsdom lays out no text to count.
     expect(cell.className).toContain('line-clamp-3');
     expect(cell.className).toContain('whitespace-pre-wrap');
     // Clamped on screen, whole on hover: nothing is lost, only folded.
@@ -374,6 +377,11 @@ describe('a copyable cell', () => {
     const copy = container.querySelector<HTMLElement>(
       '[data-slot="cell-copy"]',
     )!;
+    // **Surviving class assertions**: revealing by opacity rather than by
+    // removal is four declarations across two `:hover` groups and a media
+    // query — none of them a state the button could carry, and jsdom has no
+    // pointer to resolve any of them. The negative one is the regression
+    // being guarded: `hidden` would take the button out of the tab order.
     expect(copy.className).toContain('group-hover/row:opacity-100');
     expect(copy.className).toContain('group-hover/copyable:opacity-100');
     expect(copy.className).toContain('focus-visible:opacity-100');

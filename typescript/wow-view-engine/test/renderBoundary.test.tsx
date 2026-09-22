@@ -162,6 +162,10 @@ describe('RenderBoundary', () => {
     // registry's `Alert` and therefore a div; what keeps it on the line is
     // the frame it wears — no border, no block, and only as wide as what it
     // says, so the controls beside it stay where they were.
+    // **Surviving class assertions**: layout at a call site, which is what
+    // `className` is for — there is no state behind a length or a
+    // direction, and jsdom lays nothing out. The pixels are the browser
+    // stories’.
     expect(alert.className).toContain('inline-flex');
     expect(alert.className).toContain('w-auto');
     expect(alert.className).toContain('border-0');

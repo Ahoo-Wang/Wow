@@ -999,7 +999,10 @@ describe('a column the definition dropped', () => {
       defaultMessages['label.columns.unknown'],
     );
     // Drawn, not read out only: a sentence nobody can see would leave the
-    // row looking exactly like the ones above it again.
+    // row looking exactly like the ones above it again. A **surviving class
+    // assertion**, and the robust kind — `sr-only` is the one way to say
+    // "in the accessible tree and not on screen", and jsdom's own
+    // visibility does not see through its clip.
     expect(note.className).not.toContain('sr-only');
     // And an icon beside it, so the row is marked before it is read.
     expect(note.querySelector('svg')).toBeTruthy();

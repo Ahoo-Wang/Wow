@@ -161,6 +161,10 @@ describe('collapsing the sidebar', () => {
     await user.click(screen.getByRole('button', { name: COLLAPSE }));
 
     const trigger = switcher()!;
+    // **Surviving class assertions**: layout at a call site, which is what
+    // `className` is for — there is no state behind a length or a
+    // direction, and jsdom lays nothing out. The pixels are the browser
+    // stories’.
     expect(trigger.className).toContain('max-w-fit');
     expect(trigger.className).toContain('justify-start');
 

@@ -179,6 +179,10 @@ describe('ResultToolbar selection side', () => {
     const right = container.querySelector<HTMLElement>(
       '[data-slot="toolbar-arrangement"]',
     )!;
+    // **Surviving class assertions**: where this group sits and how it
+    // wraps is layout at a call site, which is what `className` is for
+    // (`ui/variants.tsx` says so), and jsdom lays nothing out — there is no
+    // state here for an element to carry.
     expect(right.className).toContain('ml-auto');
     expect(right.className).toContain('flex-wrap');
     expect(right.className).toContain('justify-end');
@@ -361,6 +365,9 @@ describe('ResultToolbar grouping and weight', () => {
       button => !button.closest('[data-slot="toggle-group"]'),
     );
     expect(buttons.length).toBeGreaterThan(0);
+    // A **surviving class assertion**: "bordered rather than filled" is the
+    // registry's `outline` variant and nothing about the button's state, so
+    // there is nothing to read back but the class it resolves to.
     for (const button of buttons)
       expect(button.className).toContain('border-border');
     // Columns reports nothing, so it is an icon with the word in its name.

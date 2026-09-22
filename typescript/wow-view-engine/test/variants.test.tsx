@@ -23,6 +23,14 @@
  * question about the class string and nothing else. What the colours then
  * measure against the surface belongs to the browser stories
  * (`BadgesOnRowsInLightTheme` / `InDarkTheme`).
+ *
+ * This file is also the **one home** for those class strings (A-09). A
+ * wrapper says what it is on the element — `data-tone` on `ToneBadge` and
+ * `DestructiveAction`, `aria-current` on `SidebarItem` — and every other
+ * suite asks that instead: `test/viewList` asks which row is open,
+ * `test/viewManagerUi` asks whether an answer is the destructive one, and
+ * neither names a fill. A colour moving into a different variant therefore
+ * turns this file red and nothing else.
  */
 
 import { cleanup, render, screen } from '@testing-library/react';

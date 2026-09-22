@@ -542,8 +542,13 @@ describe('AnalysisWorkbench', () => {
    * D17-3. The analysis editor is the filter panel *and* the aggregation
    * editor, so two submit buttons stand on one screen; they are one
    * execution — both `submit`s call `runtime.apply()` — so only one of them
-   * is a primary, and it is Apply. Pinned by the variant's class rather than
-   * by colour: jsdom loads no stylesheet, so nothing here is painted.
+   * is a primary, and it is Apply.
+   *
+   * **Surviving class assertions.** Emphasis is a fill and nothing else —
+   * there is no state on a button that says "this one is the primary", and
+   * a `variant` is not reflected on the element — so the variant's class is
+   * the only witness jsdom has. What the fills come to is measured in the
+   * browser.
    */
   it('carries one primary button on the screen, and it is Apply', async () => {
     await open();

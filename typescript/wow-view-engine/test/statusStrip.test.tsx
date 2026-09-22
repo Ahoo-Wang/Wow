@@ -49,16 +49,18 @@ describe('StatusStrip', () => {
     const strip = () =>
       document.querySelector('[data-slot="status-strip"]') as HTMLElement;
 
-    // The theme's own `warning` token, where destructive has one of its own.
+    // Which tone it is, said on the element — the tone decides the colour,
+    // the icon and the role it is announced with, and `LineAlert` holds the
+    // one recipe for all three. `mt-2` is not a colour but the caller's own
+    // class, and that it survives is the contract being checked.
     expect(strip().getAttribute('data-tone')).toBe('warning');
-    expect(strip().className).toContain('border-warning');
     expect(strip().className).toContain('mt-2');
 
     rerender(<StatusStrip tone="error" title="It broke" />);
-    expect(strip().className).toContain('border-destructive');
+    expect(strip().getAttribute('data-tone')).toBe('error');
 
     rerender(<StatusStrip tone="info" title="Stale" />);
-    expect(strip().className).toContain('text-muted-foreground');
+    expect(strip().getAttribute('data-tone')).toBe('info');
   });
 
   it('stays one line when there is nothing behind the sentence', () => {
@@ -204,7 +206,7 @@ describe('WarningStrip', () => {
     // A status, not an alert: a screen reader mentions it without
     // interrupting whatever its user was doing.
     const notice = screen.getByRole('status');
-    expect(notice.className).toContain('border-warning');
+    expect(notice.getAttribute('data-tone')).toBe('warning');
     expect(notice.className).toContain('mt-2');
     // One finding is its own sentence: no count to read, nothing to unfold.
     expect(notice.textContent).toContain('advanced editor');

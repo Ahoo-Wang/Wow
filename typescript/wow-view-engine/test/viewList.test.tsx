@@ -293,6 +293,10 @@ describe('ViewList on its own', () => {
     );
 
     const nav = container.querySelector('[data-slot="view-list"]')!;
+    // A **surviving class assertion**: the column is a *surface* of its own
+    // and the three `sidebar` tokens are the whole of that fact — there is
+    // no state behind them for an element to carry, and jsdom paints
+    // nothing. The ratios are measured by the browser stories.
     expect(nav.className).toContain('bg-sidebar');
     expect(nav.className).toContain('text-sidebar-foreground');
     expect(nav.className).toContain('border-sidebar-border');
@@ -317,17 +321,13 @@ describe('ViewList on its own', () => {
       </ViewSurface>,
     );
 
+    // Which row is the open one, said the way a list says it: `SidebarItem`
+    // carries `aria-current`, and the bar-and-not-another-grey recipe that
+    // draws it is asserted once where it lives (`test/variants.test.tsx`).
     const current = screen.getByRole('button', { name: /Mine/ });
-    expect(current.className).toContain(
-      'shadow-[inset_2px_0_0_var(--primary)]',
-    );
-    expect(current.className).toContain('bg-background');
-    expect(current.className).toContain('font-medium');
-    // And hover is the column's own step, not the ghost variant's `muted` —
-    // on this ground that one *is* the ground.
+    expect(current.getAttribute('aria-current')).toBe('true');
     const other = screen.getByRole('button', { name: /Ours/ });
-    expect(other.className).toContain('hover:bg-sidebar-accent');
-    expect(other.className).not.toContain('shadow-[inset');
+    expect(other.getAttribute('aria-current')).toBe('false');
   });
 
   it('stars the view that opens first, in a word as well as a picture', () => {

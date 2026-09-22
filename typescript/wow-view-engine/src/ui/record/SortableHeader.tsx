@@ -20,13 +20,8 @@ import { Button } from '../components/button.js';
 import { TableHead } from '../components/table.js';
 import { Tooltip, TooltipTrigger } from '../components/tooltip.js';
 import { TooltipContent } from '../popups.js';
-import {
-  HEAD_CELL,
-  NUMERIC_CELL,
-  columnWidth,
-  isNumeric,
-  type PinPlacement,
-} from './columns.js';
+import { HEAD_CELL, NUMERIC_CELL, columnWidth, isNumeric } from './columns.js';
+import { OWN_LAYER, stickyHead, type StickyPin } from './sticky.js';
 import { ColumnResizer } from './ColumnResizer.js';
 import { useRovingHeader } from './headerRoving.js';
 
@@ -48,7 +43,7 @@ export interface SortableHeaderProps {
    * embedded table whose host has no controller to write to.
    */
   onResize?(field: string, width: number | null): void;
-  pin?: PinPlacement;
+  pin?: StickyPin;
 }
 
 /**
@@ -88,11 +83,11 @@ export function SortableHeader({
   } = useRovingHeader({ ...(onResize ? { onResize } : {}) });
   const at = sort.findIndex(entry => entry.field === column.field);
   const direction = at < 0 ? null : sort[at].direction;
-  const style = { ...columnWidth(column), ...pin?.style };
   // The handle is placed against the cell's own right edge, so the cell has
   // to be the positioned ancestor. A pinned header already is one — `sticky`
   // positions it — and two `position` classes on one element is a race
-  // between stylesheet rules rather than a choice.
+  // between stylesheet rules rather than a choice, which is what
+  // `OWN_LAYER` is the alternative to.
   const resizer = onResize && (
     <ColumnResizer column={column} onResize={onResize} />
   );
@@ -116,28 +111,23 @@ export function SortableHeader({
   // A numeric column reads from the right, header included, or the label
   // points at one edge while the digits under it point at the other.
   const numeric = isNumeric(column);
-  const head = cn(
-    HEAD_CELL,
-    numeric && NUMERIC_CELL,
-    // `isolate` scopes the resize handle's z-index to its own cell: the
-    // handle is `absolute z-20`, and inside a cell that is merely `relative`
-    // (no stacking context of its own) that 20 competed at the row's level
-    // and beat the pinned cells' 10 — so a scrolled column's edge line
-    // painted through the frozen header it had slid under (user, 2026-09-22).
-    pin?.className ?? 'relative isolate',
-  );
-
-  // The header is what the pinned offsets are measured from, so a pinned
-  // column says so on its header cell and names the offset it owns.
-  const pinned = { 'data-pin': pin?.side, 'data-pin-index': pin?.index };
+  // The one home of the sticky chrome (`sticky.ts`): the freeze, the edge,
+  // the measured offset and the `data-pin*` attributes the offsets and the
+  // cap are read back through, all from the pin this header was handed.
+  const head = stickyHead(pin, {
+    className: cn(
+      HEAD_CELL,
+      numeric && NUMERIC_CELL,
+      pin === undefined && OWN_LAYER,
+    ),
+    style: columnWidth(column),
+  });
 
   if (!column.sortable)
     return (
       <TableHead
         data-field={column.field}
-        {...pinned}
-        className={head}
-        style={style}
+        {...head}
         // A column with nothing to press is still a column to walk to and
         // still a column to widen, so the cell is the group's item here.
         ref={attach}
@@ -163,10 +153,8 @@ export function SortableHeader({
   return (
     <TableHead
       data-field={column.field}
-      {...pinned}
+      {...head}
       aria-sort={ariaSort(direction, at === 0)}
-      className={head}
-      style={style}
     >
       <Button
         type="button"

@@ -79,6 +79,10 @@ describe('RecordPagination counts the records', () => {
     const bar = container.querySelector<HTMLElement>(
       '[data-slot="record-pagination"]',
     )!;
+    // **Surviving class assertions**: layout at a call site, which is what
+    // `className` is for — there is no state behind a length or a
+    // direction, and jsdom lays nothing out. The pixels are the browser
+    // stories’.
     expect(bar.className).toContain('flex-wrap');
     expect(screen.getByText('42 records in all').className).toContain(
       'whitespace-nowrap',

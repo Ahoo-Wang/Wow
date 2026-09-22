@@ -100,6 +100,11 @@ describe('the resize handle', () => {
    */
   it('draws its line at rest, and thickens it under the pointer or focus', () => {
     table();
+    // **Surviving class assertions**: the line is a pseudo-element's fill
+    // in three pointer states, none of which is a state the handle could
+    // carry and none of which jsdom renders. The three are measured in the
+    // browser story; what is kept here is that the resting one is not
+    // transparent, which is the regression the user's call was about.
     const node = handle();
     expect(node.className).toContain('after:bg-border');
     expect(node.className).not.toContain('after:bg-transparent');
@@ -398,7 +403,9 @@ describe('a column that was given a width', () => {
 
     const body = within(screen.getByRole('table')).getAllByRole('cell');
     const value = body.find(cell => cell.textContent === '1')!;
-    expect(value.className).toContain('truncate');
+    // The `title` is the clipping's own consequence and its way out: the
+    // cell carries one exactly where the column was given a width, so it is
+    // both what a user gets back and what says the cell is cut at all.
     expect(value.getAttribute('title')).toBe('1');
   });
 
@@ -411,10 +418,11 @@ describe('a column that was given a width', () => {
       expect(cell.style.minWidth).toBe('');
       expect(cell.style.maxWidth).toBe('');
     }
+    // Nothing is cut, so no cell offers the whole of itself on a hover.
     expect(
       within(screen.getByRole('table'))
         .getAllByRole('cell')
-        .some(cell => cell.className.includes('truncate')),
+        .some(cell => cell.hasAttribute('title')),
     ).toBe(false);
   });
 });

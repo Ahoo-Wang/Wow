@@ -294,7 +294,10 @@ describe('sorting from the headers', () => {
       const name = header(container, field).querySelector<HTMLElement>(
         '[data-slot="column-label"]',
       )!;
-      expect(name.className).toContain('truncate');
+      // The name is the trigger, which is what makes the clipping bearable
+      // — a `Tooltip` and not the native `title`, which opens for a mouse
+      // and for nothing else (D16-6). That the name really is clipped is
+      // the browser story's to measure: jsdom lays out no text.
       expect(name.hasAttribute('data-base-ui-tooltip-trigger')).toBe(true);
       expect(name.textContent).toBe(field === 'id' ? 'Order' : 'Warehouse');
       // Not two ways of saying the same thing, and not the one only a mouse
@@ -309,9 +312,10 @@ describe('sorting from the headers', () => {
     const head = header(container, 'amount');
     expect(head.querySelector('[data-slot="sort-available"]')).not.toBeNull();
     // A bare button shows focus the way the vendored button does, not with
-    // the UA outline.
-    expect(head.querySelector('button')!.className).toContain(
-      'focus-visible:border-ring',
+    // the UA outline — which is to say it *is* the vendored button rather
+    // than a `<button>` with classes on it.
+    expect(head.querySelector<HTMLElement>('button')!.dataset.slot).toBe(
+      'button',
     );
     // Nothing is sorted, so nothing claims to be: a row of headers each
     // announcing `none` is noise, not information.
@@ -357,6 +361,11 @@ describe('sorting from the headers', () => {
       );
     expect(order('id')).toEqual(['column-label', 'sort-available']);
     expect(order('amount')).toEqual(['column-label', 'sort-direction']);
+    // A **surviving class assertion**. The inward step is a *visual* order
+    // with no DOM counterpart, deliberately: a reader hears the column's
+    // name first either way, and `order(…)` above is identical for the two
+    // columns for exactly that reason. So the reversal has nothing to be
+    // said on — the class is the whole of it.
     expect(
       header(container, 'amount').querySelector('button')!.className,
     ).toContain('flex-row-reverse');
@@ -609,16 +618,17 @@ describe('the table chrome', () => {
     );
 
     // One scroll area, so the sideways scrollbar sits under the summaries
-    // rather than between them and the rows.
+    // rather than between them and the rows. The shape is said on the
+    // element: the expanded workbench hands the remaining height to the
+    // table that is its own scrollport, and it has to be able to tell which
+    // one that is.
     const area = container.querySelector('[data-slot="record-table"]')!;
-    expect(area.className).toContain('overflow-auto');
-    // Said on the element as well as in the class list: the expanded
-    // workbench hands the remaining height to the table that is its own
-    // scrollport, and it has to be able to tell which one that is.
     expect(area.hasAttribute('data-scrolls')).toBe(true);
-    expect(container.querySelector('thead')!.className).toContain('sticky');
-    expect(container.querySelector('thead')!.className).toContain('top-0');
-    expect(container.querySelector('tfoot')!.className).toContain('bottom-0');
+    // And each band says which end of that port it holds. jsdom lays
+    // nothing out, so the truth is the browser's — `PinnedEdges` reads the
+    // computed `position` of all three layers, scrolled and at rest.
+    expect(container.querySelector('thead')!.dataset.sticky).toBe('top');
+    expect(container.querySelector('tfoot')!.dataset.sticky).toBe('bottom');
   });
 
   /**
@@ -637,16 +647,23 @@ describe('the table chrome', () => {
     );
 
     const area = container.querySelector('[data-slot="record-table"]')!;
-    expect(area.className).not.toContain('overflow-auto');
-    expect(area.className).not.toContain('max-h-');
-    // And it says so, so that an expanded workbench around it does not give
-    // it a height and put a second scrollport back under the sticky layers.
+    // It says which shape it is, so that an expanded workbench around it
+    // does not give it a height and put a second scrollport back under the
+    // sticky layers.
     expect(area.hasAttribute('data-scrolls')).toBe(false);
-    // The registry's own container stays out of the way either way, and the
-    // header and summaries still hold — against whatever really scrolls.
-    expect(area.className).toContain('overflow-visible');
-    expect(container.querySelector('thead')!.className).toContain('top-0');
-    expect(container.querySelector('tfoot')!.className).toContain('bottom-0');
+    // A **surviving class assertion**. The registry's own container stays
+    // out of the way in either shape,
+    // and that is a declaration aimed at a *descendant* — there is no
+    // element of this component's to say it on, and two nested scrollports
+    // is precisely the defect: the sticky layers would resolve against the
+    // inner one, which nothing ever scrolls.
+    expect(area.className).toContain(
+      '[&>[data-slot=table-container]]:overflow-visible',
+    );
+    // The header and summaries still hold — against whatever really
+    // scrolls, which the dashboard story measures for real.
+    expect(container.querySelector('thead')!.dataset.sticky).toBe('top');
+    expect(container.querySelector('tfoot')!.dataset.sticky).toBe('bottom');
   });
 
   it('pins a column on each side and leaves the middle to scroll', () => {
@@ -657,23 +674,24 @@ describe('the table chrome', () => {
     // Every cell of a pinned column, header and body alike: a header that
     // stays while its cells leave is worse than no pinning at all.
     for (const cell of cellsOf(container, 'id')) {
-      expect(cell.className).toContain('sticky');
+      expect(cell.dataset.pin).toBe('left');
       // It clears the selection column rather than sitting on it, at the
-      // measured offset where there is one and the class's own until then.
+      // measured offset where there is one and the config's own until then.
       expect(cell.style.left).toBe('var(--fve-pin-left-0, calc(2.5rem))');
     }
     for (const cell of cellsOf(container, 'status')) {
-      expect(cell.className).toContain('sticky');
+      expect(cell.dataset.pin).toBe('right');
       // Held against the edge itself: it is the one column the right side
       // has, so there is never anything out there for it to clear.
       expect(cell.style.right).toBe('var(--fve-pin-right-2, 0px)');
     }
     // The selection column is pinned along with them, or the pinned column
     // would scroll over the checkboxes.
-    const select = container.querySelector('thead th')!;
-    expect(select.className).toContain('sticky');
+    expect(container.querySelector<HTMLElement>('thead th')!.dataset.pin).toBe(
+      'left',
+    );
     // The middle column stays where it is.
-    expect(cellsOf(container, 'amount')[0].className).not.toContain('sticky');
+    expect(cellsOf(container, 'amount')[0].dataset.pin).toBeUndefined();
   });
 
   /**
@@ -787,7 +805,7 @@ describe('the table chrome', () => {
     // there: the host's action column is that whole side (D19), so the
     // table's own last column let go before any offset was added up.
     expect(table.style.getPropertyValue('--fve-pin-right-2')).toBe('');
-    expect(cellsOf(container, 'amount')[0].className).not.toContain('sticky');
+    expect(cellsOf(container, 'amount')[0].dataset.pin).toBeUndefined();
     // Every cell of the column reads the same offset, header to footer.
     for (const cell of cellsOf(container, 'status'))
       expect(cell.style.left).toBe(
@@ -850,9 +868,9 @@ describe('the table chrome', () => {
 
   it('pins nothing but the actions when no column asked for it', () => {
     const { container } = render(<RecordTable table={twoColumnTable()} />);
-    expect(container.querySelector('thead th')!.className).not.toContain(
-      'sticky',
-    );
+    expect(
+      container.querySelector<HTMLElement>('thead th')!.dataset.pin,
+    ).toBeUndefined();
   });
 });
 

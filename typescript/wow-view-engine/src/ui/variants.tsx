@@ -219,6 +219,11 @@ const destructiveActionVariants = cva([
  * Every one of them is this component — `DeleteDialog`, `LeaveGuard` and the
  * overwrite side of `ConflictConfirm` — so there is one destructive answer in
  * the package and no call site spells a colour.
+ *
+ * `data-tone` is how it says so on the element, the way `ToneBadge` and
+ * `LineAlert` do: a dialog's suite then asks whether its answer is the
+ * destructive one instead of naming the fill, and the fill itself is
+ * asserted once, here, in `test/variants.test.tsx`.
  */
 export function DestructiveAction({
   className,
@@ -227,6 +232,7 @@ export function DestructiveAction({
   return (
     <AlertDialogAction
       variant="destructive"
+      data-tone="danger"
       className={cn(destructiveActionVariants(), className)}
       {...props}
     />

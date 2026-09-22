@@ -592,6 +592,9 @@ describe('WriteOutcome', () => {
       'Save my copy',
       'Keep mine',
     ]);
+    // **Surviving class assertions**: "none of them emphasised" is a fill,
+    // and a button carries no state saying which variant it is — see
+    // `test/analysisUi.test.tsx` for the same exception.
     expect(
       buttons.filter(button => button.classList.contains('bg-primary')),
     ).toEqual([]);

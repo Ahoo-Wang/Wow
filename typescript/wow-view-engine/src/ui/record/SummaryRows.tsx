@@ -24,14 +24,12 @@ import { TooltipContent } from '../popups.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
 import { TableCell, TableFooter, TableRow } from '../components/table.js';
 import {
-  actionCell,
-  BAND,
-  BAND_ROW,
+  ACTION_CELL,
   CLIPPED_CELL,
-  SELECT_CELL,
   columnWidth,
   type TablePins,
 } from './columns.js';
+import { BAND_ROW, stickyBand, stickyCell } from './sticky.js';
 import { FillerCell } from './Filler.js';
 import { TEXT_UI } from '../layout.js';
 
@@ -83,13 +81,11 @@ export function SummaryRows({
     // rows above without looking like two more records, and pinned to the
     // foot of the scroll area — the numbers under a long page are the reason
     // the page is being read, and the sideways scrollbar belongs under them
-    // rather than between them and the rows. The grey is `BAND` rather than
-    // a `bg-muted` of its own, because the header wears the same one and
-    // the two of them being equal is what brackets the rows (P-21).
-    <TableFooter
-      data-slot="record-summaries"
-      className={cn(BAND, 'sticky bottom-0 z-20')}
-    >
+    // rather than between them and the rows. The grey comes from
+    // `stickyBand` rather than a `bg-muted` of its own, because the header
+    // wears the same one and the two of them being equal is what brackets
+    // the rows (P-21).
+    <TableFooter data-slot="record-summaries" {...stickyBand('bottom')}>
       {rows.map(row => (
         <SummaryLine
           key={row.scope}
@@ -146,9 +142,7 @@ function SummaryLine({
       className={BAND_ROW}
     >
       {selectable && (
-        <TableCell className={cn(pins.select && SELECT_CELL)}>
-          {scope}
-        </TableCell>
+        <TableCell {...stickyCell(pins.select)}>{scope}</TableCell>
       )}
       {columns.map((column, index) => {
         const pin = pins.columns.get(column.field);
@@ -158,11 +152,10 @@ function SummaryLine({
             // The footer is one of the rows a column's width has to hold
             // against: a summary wider than the width the user set would
             // push the column back out from underneath the rows.
-            className={cn(
-              column.width !== undefined && CLIPPED_CELL,
-              pin?.className,
-            )}
-            style={{ ...columnWidth(column), ...pin?.style }}
+            {...stickyCell(pin, {
+              className: cn(column.width !== undefined && CLIPPED_CELL),
+              style: columnWidth(column),
+            })}
           >
             {!selectable && index === 0 && scope}
             {(byField.get(column.field) ?? []).map(cell => (
@@ -173,7 +166,9 @@ function SummaryLine({
       })}
       {/* Nothing to summarise about actions, but the row still has to be
           as wide as the ones above it. */}
-      {actions && <TableCell className={actionCell(pins)} />}
+      {actions && (
+        <TableCell {...stickyCell(pins.actions, { className: ACTION_CELL })} />
+      )}
       {/* And the same last cell every other row carries, so the muted
           footer band ends where the rows above it end. */}
       <FillerCell />

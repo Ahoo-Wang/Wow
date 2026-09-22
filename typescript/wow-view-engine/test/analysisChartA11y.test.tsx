@@ -279,6 +279,9 @@ describe('every data value in the result appears in the readable text', () => {
     const { container } = draw(bars, barSpec, columns);
     const reading = container.querySelector('[data-slot="chart-reading"]')!;
 
+    // A **surviving class assertion**: `sr-only` is the one way to say
+    // "in the accessible tree, not on screen", and there is no state to
+    // read it back from.
     expect(reading.className).toContain('sr-only');
     expect(
       [...reading.querySelectorAll('th[scope="col"]')].map(c => c.textContent),

@@ -67,7 +67,11 @@ describe('the scroll port ends where the viewport does', () => {
     expect(port().style.getPropertyValue('--fve-record-table-fit')).toBe(
       `${900 - 300 - 60}px`,
     );
-    // The static fallback and the host's own cap are still the outer words.
+    // A **surviving class assertion**. Which of three heights wins is a
+    // cascade written inside one `max-h-[…]` value — the host's cap, then
+    // the measured fit above, then the static `70vh` — and an order of
+    // fallbacks in a CSS value is not a state any element could carry. The
+    // measured number itself is read off the element above.
     expect(port().className).toContain(
       'max-h-[var(--fve-record-table-max-h,var(--fve-record-table-fit,70vh))]',
     );
