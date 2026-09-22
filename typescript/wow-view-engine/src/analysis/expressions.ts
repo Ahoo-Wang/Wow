@@ -19,7 +19,7 @@ import type {
   RuntimeLimits,
 } from '../model/index.js';
 import { issue } from '../filter/index.js';
-import type { AnalysisScope } from './capability.js';
+import { unknownOrOutside, type AnalysisScope } from './capability.js';
 import {
   binaryChildren,
   budgetIssues,
@@ -40,11 +40,13 @@ function expressionIssues(
   if (!isExpression(expression))
     return [issue('analysis.expression.malformed', path)];
 
+  // An expression is computed inside the counting unit, so its fields are the
+  // innermost element's; one from outside exists but is out of reach.
   if (expression.type === 'FIELD')
     return scope.aggregations.has(expression.field)
       ? []
       : [
-          issue('analysis.field.unknown', [...path, 'field'], {
+          issue(unknownOrOutside(scope, expression.field), [...path, 'field'], {
             field: expression.field,
           }),
         ];

@@ -11,20 +11,29 @@
  * limitations under the License.
  */
 
-import type { AnalysisViewConfig, Issue, IssuePath } from '../model/index.js';
-import { issue } from '../filter/index.js';
-import type { AnalysisScope } from './capability.js';
+import {
+  isSingleStringField,
+  type AnalysisViewConfig,
+  type Issue,
+  type IssuePath,
+} from '../model/index.js';
+import { issue, type FieldKindRegistry } from '../filter/index.js';
+import { unknownOrOutside, type AnalysisScope } from './capability.js';
 
 export function validateGroups(
   config: AnalysisViewConfig,
   scope: AnalysisScope,
+  kinds: FieldKindRegistry,
 ): Issue[] {
   return config.groups.flatMap((group, index) => {
     const path: IssuePath = ['groups', index];
     const capability = scope.aggregations.get(group.field);
     if (!capability)
       return [
-        issue('analysis.field.unknown', [...path, 'field'], {
+        // With `elements`, a dimension buckets the entries of the innermost
+        // element and Wow reaches no further out; a root field named there is
+        // not a typo, so it does not read as one.
+        issue(unknownOrOutside(scope, group.field), [...path, 'field'], {
           field: group.field,
         }),
       ];
@@ -84,8 +93,39 @@ export function validateGroups(
           issues.push(
             issue('analysis.group.blank-missing-key', [...path, 'missingKey']),
           );
+        // Wow allows a sentinel bucket on single-valued string fields only —
+        // nullable ones being the case it exists for — and refuses
+        // multi-valued, numeric and boolean fields at schema validation. The
+        // kind answers what shape its values have, and the field's own
+        // candidates can still veto it: a closed set of numeric codes is a
+        // numeric field whatever its kind is called.
+        else if (!missingKeyAllowed(scope, group.field, kinds))
+          issues.push(
+            issue(
+              'analysis.group.missing-key-unsupported',
+              [...path, 'missingKey'],
+              { field: group.field },
+            ),
+          );
       }
     }
     return issues;
   });
+}
+
+/**
+ * Whether this dimension's field can carry a sentinel bucket key.
+ *
+ * A field the definition no longer declares says nothing either way: the
+ * aggregation capability admitted the name, and inventing a second finding
+ * over a missing declaration would bury the first one.
+ */
+function missingKeyAllowed(
+  scope: AnalysisScope,
+  name: string,
+  kinds: FieldKindRegistry,
+): boolean {
+  const field = scope.fields.get(name);
+  if (!field) return true;
+  return isSingleStringField(field, kinds.get(field.kind));
 }

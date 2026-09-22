@@ -87,6 +87,46 @@ export function isFieldlessKind(
   return FIELDLESS_FIELD_KIND_IDS.includes(kind);
 }
 
+/**
+ * Kinds whose value in one record is a single string.
+ *
+ * Wow allows a `TERMS` sentinel bucket (`missingKey`) on single-valued string
+ * fields only — nullable ones being the case it exists for — and refuses
+ * multi-valued, numeric and boolean fields at schema validation. `reference`
+ * is deliberately absent: its ids come from a remote source and may be
+ * numbers, and the kind cannot promise otherwise.
+ *
+ * This list is what `isSingleStringField` answers with when no registered
+ * kind is at hand; a registered one answers for itself through
+ * `FieldKind.singleString`, exactly as `isFieldlessKind` works.
+ */
+export const SINGLE_STRING_FIELD_KIND_IDS: readonly FieldKindId[] = [
+  'string',
+  'enum',
+];
+
+/**
+ * Whether one record holds at most one string in this field.
+ *
+ * Two answers make it up, because two declarations can make it false. The
+ * kind says what shape its values have; the field's own candidates say what
+ * those values are, and a closed set of numeric codes is a numeric field
+ * whatever its kind is called — `enum` over `[1, 2]` is stored as numbers,
+ * and a sentinel bucket over it is refused by Wow rather than by us.
+ */
+export function isSingleStringField(
+  field: FieldDefinition,
+  registered?: { singleString?: boolean },
+): boolean {
+  const declared = registered
+    ? registered.singleString === true
+    : SINGLE_STRING_FIELD_KIND_IDS.includes(field.kind);
+  if (!declared) return false;
+  return (field.options ?? []).every(
+    option => typeof option.value === 'string',
+  );
+}
+
 export const METADATA_FIELD_KIND_IDS: readonly MetadataFieldKindId[] = [
   'documentId',
   'aggregateId',

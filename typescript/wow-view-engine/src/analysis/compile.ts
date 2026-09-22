@@ -46,7 +46,12 @@ import {
 } from '../filter/index.js';
 import {
   analysisScope,
-  elementScopeFields,
+  elementFilterFields,
+  innermostElement,
+  relativeFields,
+  relativeName,
+  relativeTree,
+  scopePrefix,
   type AnalysisScope,
 } from './capability.js';
 
@@ -62,13 +67,15 @@ export function compileAnalysis(
   kinds: FieldKindRegistry,
   context: FilterCompileContext,
 ): AggregationQuery {
-  const query = baseQuery(definition, config, kinds, context);
+  const scope = scopeOf(definition, config);
+  const query = baseQuery(scope, config, kinds, context);
+  const inner = innerPrefix(scope);
   return {
     ...query,
     ...(config.groups.length > 0
       ? {
           groupBy: config.groups.map(group =>
-            compileGroup(group, context.timeZone),
+            compileGroup(group, context.timeZone, inner),
           ),
         }
       : {}),
@@ -89,36 +96,58 @@ export function compileAnalysisTotals(
   context: FilterCompileContext,
 ): AggregationQuery | null {
   if (!config.table.totals) return null;
-  return baseQuery(definition, config, kinds, context);
+  return baseQuery(scopeOf(definition, config), config, kinds, context);
 }
 
-function baseQuery(
+function scopeOf(
   definition: DataViewDefinition,
   config: AnalysisViewConfig,
-  kinds: FieldKindRegistry,
-  context: FilterCompileContext,
-): AggregationQuery {
+): AnalysisScope {
   const capability = definition.analysis;
   if (!capability)
     throw new Error(
       `Definition ${definition.id} declares no analysis capability`,
     );
-  const scope = analysisScope(definition, capability, config);
-  const fields = [...scope.fields.values()];
+  return analysisScope(definition, capability, config);
+}
 
+/**
+ * The prefix a dimension, a metric or a metric filter loses on its way out.
+ *
+ * With `elements`, Wow reads those names relative to the innermost expanded
+ * element — the counting unit — while the config spells them out from the
+ * query-model root. Without `elements` the two spellings are the same one.
+ */
+function innerPrefix(scope: AnalysisScope): string {
+  return scopePrefix(innermostElement(scope.elements)?.absolute ?? '');
+}
+
+function baseQuery(
+  scope: AnalysisScope,
+  config: AnalysisViewConfig,
+  kinds: FieldKindRegistry,
+  context: FilterCompileContext,
+): AggregationQuery {
+  const inner = innerPrefix(scope);
+  const innerFields = relativeFields([...scope.fields.values()], inner);
+
+  // A metric's filter decides, per record, whether that record counts, and a
+  // record here is one entry of the innermost element, so it is written in
+  // that element's names. The root filter runs before any expansion and keeps
+  // the absolute ones.
   const compileTree = (tree: FilterTree): FilterExpression =>
-    compileFilter(fields, tree, kinds, context);
+    compileFilter(innerFields, relativeTree(tree, inner), kinds, context);
 
   const metrics = config.metrics.map(metric =>
-    compileMetric(metric, compileTree),
+    compileMetric(metric, compileTree, inner),
   );
 
   return {
-    filter: compileTree(config.filter),
+    filter: compileFilter(scope.rootFields, config.filter, kinds, context),
     ...(config.elements && config.elements.length > 0
       ? {
-          elements: config.elements.map(element =>
-            compileElement(element, scope, kinds, context),
+          elements: config.elements.map((element, index) =>
+            compileElement(element, index, scope, kinds, context),
           ),
         }
       : {}),
@@ -126,18 +155,25 @@ function baseQuery(
   };
 }
 
+/**
+ * One level of the expansion chain. Its `path` is already relative to the
+ * level above it, as Wow reads it; its gate filter is relative to the element
+ * itself, so the fields and the tree both shed that element's prefix.
+ */
 function compileElement(
   element: NonNullable<AnalysisViewConfig['elements']>[number],
+  index: number,
   scope: AnalysisScope,
   kinds: FieldKindRegistry,
   context: FilterCompileContext,
 ): AggregationElement {
   if (!element.filter) return { path: element.path };
+  const prefix = scopePrefix(scope.elements[index]?.absolute ?? '');
   return {
     path: element.path,
     filter: compileFilter(
-      elementScopeFields(scope, element.path),
-      element.filter,
+      relativeFields(elementFilterFields(scope, index), prefix),
+      relativeTree(element.filter, prefix),
       kinds,
       context,
     ) as never,
@@ -153,12 +189,14 @@ function compileElement(
 function compileGroup(
   group: AnalysisGroup,
   timeZone: string,
+  prefix: string,
 ): AggregationGroup {
+  const field = relativeName(group.field, prefix);
   switch (group.type) {
     case 'TERMS':
       return {
         type: AggregationGroupType.TERMS,
-        field: group.field,
+        field,
         alias: group.alias,
         ...(group.missingKey === undefined
           ? {}
@@ -167,14 +205,14 @@ function compileGroup(
     case 'HISTOGRAM':
       return {
         type: AggregationGroupType.HISTOGRAM,
-        field: group.field,
+        field,
         alias: group.alias,
         interval: group.interval,
       };
     case 'DATE_HISTOGRAM':
       return {
         type: AggregationGroupType.DATE_HISTOGRAM,
-        field: group.field,
+        field,
         alias: group.alias,
         unit: group.unit as AggregationDateUnit,
         timeZone: group.timeZone ?? timeZone,
@@ -185,12 +223,13 @@ function compileGroup(
 
 function compileExpression(
   expression: AnalysisExpression,
+  prefix: string,
 ): AggregationExpression {
   switch (expression.type) {
     case 'FIELD':
       return {
         type: AggregationExpressionType.FIELD,
-        field: expression.field,
+        field: relativeName(expression.field, prefix),
       };
     case 'CONSTANT':
       return {
@@ -201,8 +240,8 @@ function compileExpression(
       return {
         type: AggregationExpressionType.BINARY,
         operator: expression.operator as AggregationExpressionOperator,
-        left: compileExpression(expression.left),
-        right: compileExpression(expression.right),
+        left: compileExpression(expression.left, prefix),
+        right: compileExpression(expression.right, prefix),
       };
   }
 }
@@ -234,6 +273,7 @@ function compileDerived(
 function compileMetric(
   metric: AnalysisMetric,
   compileTree: (tree: FilterTree) => FilterExpression,
+  prefix: string,
 ): AggregationMetric {
   // A DERIVED metric carries no filter in the protocol, and validation lets a
   // stale one through on the promise that it changes nothing. Compiling it
@@ -255,28 +295,28 @@ function compileMetric(
       return {
         type: AggregationMetricType.NUMERIC,
         function: metric.function as AggregationFunction,
-        expression: compileExpression(metric.expression),
+        expression: compileExpression(metric.expression, prefix),
         alias: metric.alias,
         ...predicate,
       };
     case 'ANY':
       return {
         type: AggregationMetricType.ANY,
-        field: metric.field,
+        field: relativeName(metric.field, prefix),
         alias: metric.alias,
         ...predicate,
       };
     case 'DISTINCT_COUNT':
       return {
         type: AggregationMetricType.DISTINCT_COUNT,
-        expression: compileExpression(metric.expression),
+        expression: compileExpression(metric.expression, prefix),
         alias: metric.alias,
         ...predicate,
       };
     case 'PERCENTILE':
       return {
         type: AggregationMetricType.PERCENTILE,
-        expression: compileExpression(metric.expression),
+        expression: compileExpression(metric.expression, prefix),
         percentile: metric.percentile,
         alias: metric.alias,
         ...predicate,

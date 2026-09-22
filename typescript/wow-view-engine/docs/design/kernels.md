@@ -37,7 +37,7 @@ resultSchema(def, cfg): ResultSchema                     // 结果行校验依�
 
 // dashboard
 emptyDashboardConfig(): DashboardViewConfig                     // 无面板、无全局字段的完整初始配置
-validateDashboard(cfg: DashboardViewConfig, scope: ViewInstance['scope'], refs: Map<string, PanelReference>, kinds: FieldKindRegistry): Issue[]   // 含 bindings 的字段 kind 兼容性与引用实例的可见范围；PanelReference = { instance; definition; fields }，fields 是该视图可触及的字段集，由 Engine 解析引用时计算（分析视图含其展开的元素字段），面板的 filter 与 bindings 都据此判断而不是只看根字段
+validateDashboard(cfg: DashboardViewConfig, scope: ViewInstance['scope'], refs: Map<string, PanelReference>, kinds: FieldKindRegistry): Issue[]   // 含 bindings 的字段 kind 兼容性与引用实例的可见范围；PanelReference = { instance; definition; fields }，fields 就是被引用定义自己的字段，由 Engine 解析引用时给出：面板的 filter 是查询根，全局筛选也只能映射到根字段上，分析视图即便展开了 elements 也一样（元素里的事从根上只能由 elementMatch 条件去问，而那是一个根字段）
 mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboard 的 filter 经 bindings 映射后 AND 合并到面板已应用筛选
 ```
 
@@ -53,19 +53,20 @@ mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboa
 
 - 字段名必须匹配 Wow 的查询字段语法 `^@?[A-Za-z_][A-Za-z0-9_-]*(\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$`，根字段与 element 字段同样适用，否则编译期会抛 `TypeError` 而不是产生 Issue；
 - 字段名在根字段内唯一，每个 element 的字段作用域内同样唯一；
-- 配置中引用 element 字段一律写成 `${path}.${field}` 的完整路径，因此与同名根字段不会混淆，能力查找也有确定归属；
+- 配置中引用 element 字段一律写成从根起的完整路径（`state.orders.lines.sku`），因此与同名根字段不会混淆，能力查找也有确定归属；发给 Wow 时再按作用域剥成相对名；
 - 反过来，声明按自身作用域写相对名——`elements[].aggregations[].field` 写元素内的名字，路径由 `qualify` 唯一合成，它一律加前缀，不再放过「已经以路径开头」的名字（两种拼写都接受等于没有约定，还会让 `items.sku` 在元素根部和在一个恰好同名的嵌套对象里含义不同）；
 - `elements[].aggregations[].field` 必须是该元素声明过的字段，与根字段的同名检查对齐；
 - `cell` 必须是 `FieldCellId` 里的一个（`definition.field.cell-invalid`），`options[].tone` 必须是四档语气里的一档（`definition.field.tone-invalid`，Issue 落在那一项选项上而不是字段上，好让一个有八个状态的定义知道该去改哪一个）。两者都是闭合取值：`/ui` 没有渲染器注册表，没人分派的键不会报错，只会悄悄走默认渲染，于是一列声明成链接的 URL 仍旧是一串点不动的字——正是这类沉默让"引擎给得出的，定义才写得出"（D4）在这里也成立；
 - `fieldGroups[]` 的 `id` 与 `label` 非空且 `id` 唯一（`definition.fieldGroup.invalid`／`duplicate`），其 `fields[]` 必须是已声明的根字段，且一个字段不得被两个分组同时列出（`definition.fieldGroup.field-unknown`／`field-duplicate`）；
 - `views[].id` 在定义内唯一，否则按名称查找无法确定使用哪一份能力；
-- `RecordCapability.layouts` 非空且 `rowKey` 指向已声明字段，`AnalysisCapability.fields[].field` 与 `elements[].path` 同样必须存在，使各 `default*Config` 对任何被接受的定义都能返回合法完整配置；
+- `RecordCapability.layouts` 非空且 `rowKey` 指向已声明字段，`AnalysisCapability.fields[].field` 同样必须存在，使各 `default*Config` 对任何被接受的定义都能返回合法完整配置；
+- `AnalysisCapability.elements` 是一条链，按链自根向内走：第一层是根上一个声明了 `elements` 的字段，第 i 层必须是第 i−1 层元素里声明了 `elements` 的字段，否则报 `definition.analysis.element-undeclared`——并列的两个根数组就是在这里被拒的，那是一条断链而不是两条链；层数不得超过 Wow 的 `AGGREGATION_LIMITS.MAX_ELEMENTS`（5），否则报 `definition.analysis.elements-too-many`：再深的一层任何配置都展开不到；
 - 每个 `views[].config.kind` 必须与所属定义的能力匹配：`kind: 'data'` 只接受 `record`／`analysis` 且对应能力已声明，`kind: 'dashboard'` 只接受 `dashboard`，否则报 error（系统视图不可覆盖，不能交付一个只能待修复的只读视图）；
 - 每个系统视图的配置还要通过对应的 `validate*`（Dashboard 系统视图在此只做本地结构校验，面板引用需要加载被引用实例与其定义，因此由 Engine 在注册或首次打开时用 `validateDashboard` 的完整入参复验，失败按该面板不可用处理）；
 - `definition.id` 与每个 `views[].id` 都不得包含 `:`，否则合成的 `system:${definitionId}:${id}` 会歧义（`('a:b','c')` 与 `('a','b:c')` 撞车），报 error；
 - `AnalysisCapability` 至少要能构造一个指标（`count` 为 true，或某个字段声明了非空 `functions`、`any`、`distinctCount` 或 `percentile`），否则该能力不可用，报 error。
 
-`defaultAnalysisConfig` 按固定优先级取第一个可用者，因此总能返回合法配置：`COUNT` → 首个有非空 `functions` 的字段（取其首个函数）→ 首个 `distinctCount` 字段 → 首个 `percentile` 字段（`percentile: 95`）→ 首个 `any` 字段。分组可以为空，Wow 允许无分组聚合；此时默认配置不带 `sort`，因为 Wow 对无分组的 `sort` 与 `having` 都会抛错。（见 test/definition.test.ts「validateDefinition fields」「validateDefinition capabilities」「validateDefinition system views」「field groups」与 test/analysisValidate.test.ts「defaultAnalysisConfig」）
+`defaultAnalysisConfig` 按固定优先级取第一个可用者，因此总能返回合法配置：`COUNT` → 首个有非空 `functions` 的字段（取其首个函数）→ 首个 `distinctCount` 字段 → 首个 `percentile` 字段（`percentile: 95`）→ 首个 `any` 字段。分组可以为空，Wow 允许无分组聚合；此时默认配置不带 `sort`，因为 Wow 对无分组的 `sort` 与 `having` 都会抛错。默认的 TERMS 维度若落在单值字符串字段上，带一个 `missingKey`（`DEFAULT_MISSING_KEY`，`'(empty)'`）：**不写它，Wow 把没有该值的记录整条丢出结果**，屏幕上没有任何地方会说这件事。它是存下来、发出去、再作为桶键回来的**数据**，所以是一个固定字符串而不是一句译文；那一组在界面上叫什么由 `/ui` 决定（批 4）。编辑器新建维度走同一个 `termsGroup(field, alias, kind?)`，规则只有一处。（见 test/definition.test.ts「validateDefinition fields」「validateDefinition capabilities」「validateDefinition system views」「field groups」与 test/analysisValidate.test.ts「defaultAnalysisConfig」）
 
 ## 未信任的配置：骨架与预算
 
@@ -153,14 +154,15 @@ mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboa
 - `HISTOGRAM` 的 `interval` 必须是大于 0 的有限数，与 `aggregation.histogram` 一致；
 - 表达式中的每个 `CONSTANT.value` 必须有限（在预算准入之后递归检查普通表达式与派生表达式），与 `aggregation.constant` 一致；
 - `BINARY` 的 `DIVIDE` 右侧为常量 0 报 error；
-- `elements[].path` 必须在能力中声明，展开后可用字段为根字段加元素字段；
+- **`elements` 是一条由外到内的链**（Wow 的口径，D20）：配置的第 i 层必须等于能力声明的第 i 层，可以只走链的前几层，链断在哪一层就从哪一层起不再往下判；能力从没声明过这个 path 报 `analysis.element.undeclared`，声明过但属于另一层（例如越过父数组直接展开 `lines`）报 `analysis.element.out-of-chain`；
+- **展开之后，计数单位是最内层元素**，维度、指标、数值表达式与指标条件的字段只能是那一层的；根字段或外层元素字段写在这些位置报 `analysis.field.outside-scope`（Wow 以「requires its declared element scope」拒绝，字段确实存在，所以不说「未知」）。根 `filter`（范围）反过来只认根字段——它在任何展开之前执行，要问元素里的事由 `elementMatch` 条件去问；第 i 层元素自己的 `filter` 只认该层持有的字段。（见 test/analysisCapability.test.ts「the expansion chain」「element scope」）
 - `any`、`distinctCount`、`percentile`、`expressions`、`having` 等未在能力中声明却被使用报 error；
 - 每个 group 的 `type` 必须在该字段的 `groups` 中，`DATE_HISTOGRAM.unit` 必须在其 `dateUnits` 中，`NUMERIC.function` 必须在该字段的 `functions` 中，能力未声明即报 error；
 - `limit` 必须是不超过 `RuntimeLimits.maxAnalysisRows` 的正整数，`groups`、`metrics`、`elements`、`sort` 的数量与 `limit` 始终受 Wow `AGGREGATION_LIMITS` 约束，`AnalysisCapability.limits` 只能进一步收紧（取更小者）；
 - `sort[].alias` 不得重复（`analysis.sort.duplicate`），`DATE_HISTOGRAM.dense` 只能用于唯一分组（`analysis.group.dense-not-alone`）；
 - `metrics` 不能为空，报 `analysis.metrics.empty`，与 Wow `metrics must not be empty.` 一致；
 - `metrics[].type` 不在六种之内报 `analysis.metric.type-unknown`，`compileMetric` 对此抛错而不发出空洞（定义准入另行检查这些上限与 `defaultLimit` 本身是正整数且 `defaultLimit` 不超过 `maxLimit`）；
-- `TERMS.missingKey` 与 `DATE_HISTOGRAM.timeZone` 若存在则不能为空白字符串，与 Wow 的 `aggregation.terms`／`dateHistogram` 一致；
+- `TERMS.missingKey` 与 `DATE_HISTOGRAM.timeZone` 若存在则不能为空白字符串，与 Wow 的 `aggregation.terms`／`dateHistogram` 一致；**`missingKey` 只能给单值字符串字段**（Wow 只允许这一种，多值／数字／布尔在 schema 校验处被拒），否则报 `analysis.group.missing-key-unsupported`。判据由 kind 自述 `FieldKind.singleString`（内置里 `string` 与 `enum` 声明它，`reference` 不声明：远端候选的 id 可能是数字），再由字段自己的 `options` 否决——一组数字码是数字字段，不管 kind 叫什么（`isSingleStringField`，`model/field.ts`；见 test/analysisValidate.test.ts「allows a missing-value bucket on single-valued text only」「gives a text dimension a bucket for the records with no value」）；
 - `table.columns[].alias` 必须是当前 groups 或 metrics 的别名且不重复。
 
 ### 图表规则
@@ -180,7 +182,8 @@ mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboa
 
 `compileAnalysis` 因同构而退化为映射：
 
-- 查询级、指标级、元素级三处 `FilterTree` 分别编译为 `FilterExpression`，元素级以元素字段为作用域；
+- 查询级、指标级、元素级三处 `FilterTree` 分别编译为 `FilterExpression`，各按自己的作用域：查询级是根字段（绝对名），第 i 层元素级是该层字段，指标级是最内层元素的字段；
+- **名字按作用域剥前缀**：配置存从根起的全名（`state.orders.lines.sku`），Wow 读的是相对名（`sku`），因此 `compileGroup`／`compileMetric`／`compileExpression` 与两处 `compileFilter` 都先把当前作用域的前缀去掉（`relativeName`／`relativeFields`／`relativeTree`，`analysis/capability.ts`；持有谓词的叶子连它的谓词一起剥，因为谓词的名字也是从根拼出来的）。`elements[].path` 本身已是相对上一层的写法，原样发出。原样发全名的后果不是报错而是错数：Wow 按 `parent.append(field)` 解析，`lines.sku` 在 `lines` 之下成了 `lines.lines.sku`；
 - 未声明时区的 DATE_HISTOGRAM 补上 `ctx.timeZone`，否则 Wow 按 UTC 切桶，东八区的"一天"从早上八点算起；
 - `projectAnalysis` 的结果列为全部 group 别名加全部 metric 别名，`DERIVED` 也是普通列；
 - 分组列与 `ANY` 列带上字段的 `kind`、`cell`、`options`，DATE_HISTOGRAM 列另带 `dateUnit` 与所声明的 `timeZone`，供界面按字段显示（见 [ui/README.md#值按字段显示](ui/README.md#值按字段显示)），其余指标是算出的数，不带；

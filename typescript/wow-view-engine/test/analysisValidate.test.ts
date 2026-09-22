@@ -22,12 +22,14 @@ import {
   AGGREGATION_LIMITS,
   AggregationDateUnit,
   AggregationFunction,
+  AggregationGroupType,
   aggregation,
 } from '@ahoo-wang/fetcher-wow';
 import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,
   compileAnalysis,
+  DEFAULT_MISSING_KEY,
   defaultAnalysisConfig,
   validateAnalysis,
   type AnalysisDerivedExpression,
@@ -59,6 +61,39 @@ describe('defaultAnalysisConfig', () => {
     expect(validateAnalysis(definition(), built, builtinFieldKinds)).toEqual(
       [],
     );
+  });
+
+  it('gives a text dimension a bucket for the records with no value', () => {
+    // Without a `missingKey` Wow drops those records from the result
+    // entirely, so a first config that left it out would answer a question
+    // nobody asked — and say nothing about the rows it left out.
+    expect(defaultAnalysisConfig(definition()).groups[0]).toEqual({
+      type: 'TERMS',
+      field: 'warehouse',
+      alias: 'warehouse_group',
+      missingKey: DEFAULT_MISSING_KEY,
+    });
+
+    // A dimension that cannot carry one starts without it; admission would
+    // refuse it there.
+    const numeric = definition({
+      fields: [{ name: 'amount', label: 'Amount', kind: 'number' }],
+      analysis: {
+        count: true,
+        fields: [
+          {
+            field: 'amount',
+            groups: [AggregationGroupType.TERMS],
+            functions: [],
+          },
+        ],
+      },
+    });
+    expect(defaultAnalysisConfig(numeric).groups[0]).toEqual({
+      type: 'TERMS',
+      field: 'amount',
+      alias: 'amount_group',
+    });
   });
 
   it('falls back through the capability when COUNT is not declared', () => {
@@ -378,6 +413,90 @@ describe('validateAnalysis', () => {
         ],
       }),
     ).toEqual(['analysis.config.malformed']);
+  });
+
+  it('allows a missing-value bucket on single-valued text only', () => {
+    // Without a `missingKey`, Wow drops the records that have no value of the
+    // dimension from the whole result rather than leaving them ungrouped, so
+    // a string dimension carries one; Wow refuses one on every other shape at
+    // schema validation, and a config that asks for it is refused here first.
+    const typed = definition({
+      fields: [
+        ...definition().fields,
+        {
+          name: 'status',
+          label: 'Status',
+          kind: 'enum',
+          options: [{ value: 'PAID', label: 'Paid' }],
+        },
+        {
+          name: 'code',
+          label: 'Code',
+          kind: 'enum',
+          options: [{ value: 1, label: 'One' }],
+        },
+        { name: 'tags', label: 'Tags', kind: 'array' },
+      ],
+      analysis: {
+        ...capability,
+        fields: [
+          ...capability.fields,
+          {
+            field: 'status',
+            groups: [AggregationGroupType.TERMS],
+            functions: [],
+          },
+          {
+            field: 'code',
+            groups: [AggregationGroupType.TERMS],
+            functions: [],
+          },
+          {
+            field: 'tags',
+            groups: [AggregationGroupType.TERMS],
+            functions: [],
+          },
+        ],
+      },
+    });
+    const onField = (field: string) =>
+      codes(
+        validateAnalysis(
+          typed,
+          config({
+            groups: [
+              { type: 'TERMS', field, alias: 'wh', missingKey: '(empty)' },
+            ],
+          }),
+          builtinFieldKinds,
+        ),
+      );
+
+    expect(onField('warehouse')).toEqual([]);
+    // A closed set of names is text; a closed set of numeric codes is not,
+    // whatever the kind is called.
+    expect(onField('status')).toEqual([]);
+    expect(onField('code')).toEqual(['analysis.group.missing-key-unsupported']);
+    expect(onField('tags')).toEqual(['analysis.group.missing-key-unsupported']);
+    expect(
+      codes(
+        validateAnalysis(
+          typed,
+          config({
+            groups: [
+              {
+                type: 'HISTOGRAM',
+                field: 'amount',
+                alias: 'wh',
+                interval: 10,
+                missingKey: '(empty)',
+              } as never,
+            ],
+          }),
+          builtinFieldKinds,
+        ),
+      ),
+    ).toEqual([]);
   });
 
   it('checks each metric against the field capability', () => {

@@ -61,8 +61,10 @@ export interface FieldKind {
 | `compileFilter`                       | `FilterExpression`（`LogicalFilter`、`EqualityFilter`、`ComparisonFilter`、`StringFilter`、`CollectionFilter`、`BetweenFilter` 等的联合） | 嵌入下方三种查询   |
 | `compileRecord` 分页                  | `FilterPagedQuery { filter; sort; pagination; projection }`                                                                               | `source.paged`     |
 | `compileRecord` 游标                  | `CursorQuery { filter; sort; ... }`                                                                                                       | `source.cursor`    |
-| `compileAnalysis`、`compileSummaries` | `AggregationQuery { filter; groupBy; metrics; sort; limit; having }`                                                                      | `source.aggregate` |
+| `compileAnalysis`、`compileSummaries` | `AggregationQuery { filter; elements; groupBy; metrics; sort; limit; having }`                                                            | `source.aggregate` |
 
 Wow 已将 `Condition`、`ConditionOptions`、`PagedQuery`、`ListQuery`、`SingleQuery` 等基于 condition 的 API 标记为弃用。本包只使用 `FilterExpression` 与 `Filter*Query` 系列；架构测试禁止从 `@ahoo-wang/fetcher-wow` 导入任何弃用符号，`FilterLeaf` 的编译结果类型固定为 `FilterExpression`。
 
 `AnalysisViewConfig` 覆盖 `AggregationQuery` 的全部字段：`filter`、`elements`、`groupBy`、六种 `metrics`、`having`、`sort`、`limit`。Wow 端的能力（是否支持 aggregate、支持哪些 group 类型、函数与扩展能力）由 `AnalysisCapability` 在定义中声明；内核只按声明编译，不探测后端。
+
+**名字按作用域编译。** `elements` 是一条由外到内的链，链决定计数单位，也决定每个名字写在哪个作用域里：根 `filter` 用绝对名，第 i 层元素的 `filter` 用相对该层的名字，维度／指标／数值表达式／指标条件用相对**最内层**元素的名字。配置里一律存从根起的全名（好校验、好显示），`compileAnalysis` 按作用域剥前缀——`state.orders.lines.sku` 在 `state.orders → lines` 之下发出去的是 `sku`。原样发全名会被 Wow 按 `parent.append(field)` 解析成 `state.orders.lines.lines.sku`，根字段写在维度位则以「requires its declared element scope」被拒；这两条内核都在准入阶段先拒（`analysis.field.outside-scope`）。自定义 kind 同受此约束：编译成根过滤的 kind 要声明 `fieldless`，元素域里用不了。

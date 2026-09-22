@@ -98,7 +98,7 @@ src/
     config.ts                 — ViewConfig — what each view kind stores, and which of its members only draw the result (`presentationMembers`)
     dashboard.ts              — Dashboard config, global fields, bindings
     definition.ts             — ViewDefinition, FieldDefinition, capabilities
-    field.ts                  — FieldKindId
+    field.ts                  — FieldKindId; what a cell reads as, and which fields hold one string
     filter.ts                 — FilterOperator as stored in a config; the three group operators and the reading of one
     instance.ts               — ViewInstance: authorship, scope, permissions
     issue.ts                  — Issue — how every kernel reports a problem
@@ -144,18 +144,18 @@ src/
     index.ts                  — The record kernel: a definition and a config in, a Wow query or a rendered view out
   analysis/                   — Analysis kernel — imports model and filter
     budget.ts                 — Depth and node budgets of a walked tree
-    capability.ts             — Reachable fields once element paths expand
+    capability.ts             — The three scopes the element chain makes: the root's, each element's, the innermost one's; and the renaming a scope implies
     chart.ts                  — Chart-shaped projection for the renderers
     compile.ts                — compileAnalysis → AggregationQuery
-    defaults.ts               — defaultAnalysisConfig — the first metric the capability can express; `aliasOf`
+    defaults.ts               — defaultAnalysisConfig — the first metric the capability can express; `aliasOf`, `termsGroup`, `DEFAULT_MISSING_KEY`
     expressions.ts            — Aggregate and derived expression walks
     project.ts                — projectAnalysis — table columns and rows
-    queryFilter.ts            — A filter in metric or element position
+    queryFilter.ts            — A filter in metric or element position, and the scope it may name
     validate.ts               — validateAnalysis — the one entry every per-rule file below is read through
     validateAliases.ts        — Alias syntax, the reserved prefix, duplicates
     validateChart.ts          — Chart rules; groups must all be consumed
-    validateElements.ts       — Declared element paths and their gate filters
-    validateGroups.ts         — Group kinds, date units, dense, blank keys
+    validateElements.ts       — The expansion chain, walked level by level, and each gate filter
+    validateGroups.ts         — Group kinds, date units, dense, missing-value keys
     validateHaving.ts         — Having: declared, grouped, over known metrics
     validateLimits.ts         — Declared limits under Wow's own ceilings
     validateMetrics.ts        — One rule set per metric type, filters included

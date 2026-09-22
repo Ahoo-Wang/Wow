@@ -85,8 +85,11 @@ export interface RecordCapability {
 export interface AnalysisCapability {
   count: boolean;
   fields: AggregationFieldCapability[];
-  // 可展开的数组路径：path 指向一个声明了 elements 的字段，
-  // 元素持有什么由那个字段说，这里只说哪些数组本分析可以展开、如何聚合
+  // 可展开的数组路径，是一条由外到内的**链**而不是并列的数组（与 Wow 一致）：
+  // elements[0].path 是根上的一个数组字段，elements[i].path 相对 elements[i-1]
+  // 的元素，最多 5 层（AGGREGATION_LIMITS.MAX_ELEMENTS）。元素持有什么由字段
+  // 自己的 elements 说，这里只说本分析可以展开哪条链、每层如何聚合。
+  // 写成两个根数组即为一条断链，validateDefinition 报 error。
   elements?: { path: string; aggregations: AggregationFieldCapability[] }[];
   expressions?: boolean; // 允许 BINARY 表达式与 DERIVED 指标
   having?: boolean;
@@ -171,7 +174,12 @@ export interface RecordViewConfig extends ViewConfigBase {
 
 export interface AnalysisViewConfig extends ViewConfigBase {
   kind: 'analysis';
-  elements?: { path: string; filter?: FilterTree }[]; // 数组展开；filter 以元素字段为作用域
+  // 展开链，与能力声明的链同形：path 相对上一层，可以只走链的前几层。
+  // 每层的 filter 以**该层元素自己**的字段为作用域；维度、指标、数值表达式与
+  // 指标条件的字段一律属于**最内层**元素（计数单位），根字段只留给 filter。
+  // 配置里字段名一律写从根起的全名（state.orders.lines.sku），编译时按作用域
+  // 剥去前缀发给 Wow（sku）。
+  elements?: { path: string; filter?: FilterTree }[];
   groups: AnalysisGroup[];
   metrics: [AnalysisMetric, ...AnalysisMetric[]];
   having?: AnalysisHavingExpression; // 与 Wow HavingExpression 同构，枚举为字面量；只引用指标别名与数字
@@ -193,6 +201,10 @@ export interface AnalysisTableSpec {
 // 与 Wow AggregationGroup / AggregationExpression / AggregationMetric 同构；
 // 差别只在字段按定义校验、筛选使用 FilterTree。
 export type AnalysisGroup =
+  // missingKey 是「没有该值的记录落进哪一组」的哨兵键：不写它，Wow 把这些记录
+  // 从结果里**整条丢掉**（不是留成一组空值），所以单值字符串维度缺省带一个
+  // DEFAULT_MISSING_KEY（'(empty)'，analysis/defaults.ts）；Wow 只允许单值
+  // 字符串字段带它，其余报 analysis.group.missing-key-unsupported。
   | { type: 'TERMS'; field: string; alias: string; missingKey?: string }
   | { type: 'HISTOGRAM'; field: string; alias: string; interval: number }
   | {

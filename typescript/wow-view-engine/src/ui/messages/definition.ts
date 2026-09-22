@@ -28,6 +28,8 @@ export const definitionMessages = {
     '{path} declares no field named {field}.',
   'definition.analysis.element-undeclared':
     'The analysis expands {path}, which is not a field holding elements.',
+  'definition.analysis.elements-too-many':
+    'The analysis declares more than {max} nested levels.',
   'definition.analysis.field-unknown':
     'The analysis capability names {field}, which the definition does not declare.',
   'definition.analysis.limit-invalid':

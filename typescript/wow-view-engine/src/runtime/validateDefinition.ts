@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { AGGREGATION_LIMITS } from '@ahoo-wang/fetcher-wow';
 import {
   DEFAULT_RUNTIME_LIMITS,
   FIELD_CELL_IDS,
@@ -303,12 +304,6 @@ function validateAnalysisCapability(definition: DataViewDefinition): Issue[] {
 
   const issues: Issue[] = [];
   const names = new Set(definition.fields.map(field => field.name));
-  // A path may be expanded only if some field actually holds elements.
-  const expandable = new Set(
-    definition.fields
-      .filter(field => field.elements !== undefined)
-      .map(field => field.name),
-  );
 
   capability.fields.forEach((entry, index) => {
     if (!names.has(entry.field))
@@ -323,39 +318,7 @@ function validateAnalysisCapability(definition: DataViewDefinition): Issue[] {
       );
   });
 
-  (capability.elements ?? []).forEach((element, index) => {
-    const at: IssuePath = ['analysis', 'elements', index];
-    // The path names a declared element; its fields are checked where they
-    // are declared, so all this has to establish is that it names one.
-    if (!expandable.has(element.path)) {
-      issues.push(
-        issue('definition.analysis.element-undeclared', [...at, 'path'], {
-          path: element.path,
-        }),
-      );
-      return;
-    }
-
-    // The same check the root fields get, which they had and these did not:
-    // an aggregation over a name the element never declared resolves to
-    // nothing, and a view built on it offers a metric with no field behind it.
-    const held = new Set(
-      (
-        definition.fields.find(field => field.name === element.path)
-          ?.elements ?? []
-      ).map(field => field.name),
-    );
-    element.aggregations.forEach((entry, at2) => {
-      if (!held.has(entry.field))
-        issues.push(
-          issue(
-            'definition.analysis.element-field-unknown',
-            [...at, 'aggregations', at2, 'field'],
-            { path: element.path, field: entry.field },
-          ),
-        );
-    });
-  });
+  issues.push(...validateElementChain(definition, capability));
 
   // `defaultAnalysisConfig` walks a fixed priority to find one metric. A
   // capability that offers none cannot produce a starting config at all.
@@ -363,6 +326,68 @@ function validateAnalysisCapability(definition: DataViewDefinition): Issue[] {
     issues.push(issue('definition.analysis.no-metric', ['analysis']));
 
   issues.push(...validateAnalysisLimits(capability));
+  return issues;
+}
+
+/**
+ * The expansion chain, walked from the root down.
+ *
+ * Wow's `elements` is one ordered parent-to-child chain and not a list of
+ * sibling arrays: the first path is a root field that holds elements, and
+ * each later one names an array declared *inside* the level above it. A
+ * capability that lists two root arrays is therefore one broken chain rather
+ * than two usable ones, and saying so here is what keeps a view from being
+ * built on an expansion the server refuses.
+ */
+function validateElementChain(
+  definition: DataViewDefinition,
+  capability: AnalysisCapability,
+): Issue[] {
+  const issues: Issue[] = [];
+  const declared = capability.elements ?? [];
+
+  // Beyond Wow's ceiling a level can never be expanded, so declaring it
+  // offers a capability no config may use.
+  if (declared.length > AGGREGATION_LIMITS.MAX_ELEMENTS)
+    issues.push(
+      issue('definition.analysis.elements-too-many', ['analysis', 'elements'], {
+        max: AGGREGATION_LIMITS.MAX_ELEMENTS,
+      }),
+    );
+
+  let held: readonly FieldDefinition[] = definition.fields;
+  for (const [index, element] of declared.entries()) {
+    const at: IssuePath = ['analysis', 'elements', index];
+    const holder = held.find(field => field.name === element.path);
+    // The path names a declared element of the level above; its fields are
+    // checked where they are declared, so all this has to establish is that
+    // it names one, and that it continues the chain.
+    if (!holder || holder.elements === undefined) {
+      issues.push(
+        issue('definition.analysis.element-undeclared', [...at, 'path'], {
+          path: element.path,
+        }),
+      );
+      break;
+    }
+    held = holder.elements;
+
+    // The same check the root fields get, which they had and these did not:
+    // an aggregation over a name the element never declared resolves to
+    // nothing, and a view built on it offers a metric with no field behind it.
+    const names = new Set(held.map(field => field.name));
+    element.aggregations.forEach((entry, position) => {
+      if (!names.has(entry.field))
+        issues.push(
+          issue(
+            'definition.analysis.element-field-unknown',
+            [...at, 'aggregations', position, 'field'],
+            { path: element.path, field: entry.field },
+          ),
+        );
+    });
+  }
+
   return issues;
 }
 

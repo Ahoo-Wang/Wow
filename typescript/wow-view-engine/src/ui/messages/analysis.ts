@@ -105,6 +105,8 @@ export const analysisMessages = {
     'The derived metric refers to {metric}, which is not declared before it.',
   'analysis.distinctCount.undeclared':
     '{field} does not offer distinct counts.',
+  'analysis.element.out-of-chain':
+    'The nested path {path} belongs to another level of the expansion.',
   'analysis.element.undeclared': 'The nested path {path} is not available.',
   'analysis.elementFilter.empty':
     'This filter has no conditions, so every entry is expanded.',
@@ -118,6 +120,8 @@ export const analysisMessages = {
   'analysis.expression.too-many-nodes': 'The expressions exceed {max} entries.',
   'analysis.expressions.undeclared':
     'This dataset does not offer computed expressions.',
+  'analysis.field.outside-scope':
+    'The field {field} sits outside the expanded scope.',
   'analysis.field.unknown': 'The field {field} is not available here.',
   'analysis.function.unsupported': '{field} does not offer {fn}.',
   'analysis.group.blank-missing-key':
@@ -127,6 +131,8 @@ export const analysisMessages = {
     'A gap-filling date grouping must be the only grouping.',
   'analysis.group.interval-not-positive':
     'A histogram interval must be greater than zero.',
+  'analysis.group.missing-key-unsupported':
+    '{field} cannot hold a bucket for missing values; only single-valued text fields can.',
   'analysis.group.unit-unsupported': 'The {unit} unit is not available here.',
   'analysis.group.unsupported': '{field} cannot be grouped by {type}.',
   'analysis.groups.too-many': 'Too many groupings for this dataset.',

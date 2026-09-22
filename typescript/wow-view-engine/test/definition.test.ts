@@ -11,7 +11,10 @@
  * limitations under the License.
  */
 
-import { AggregationGroupType } from '@ahoo-wang/fetcher-wow';
+import {
+  AGGREGATION_LIMITS,
+  AggregationGroupType,
+} from '@ahoo-wang/fetcher-wow';
 import { describe, expect, it, vi } from 'vitest';
 import {
   builtinFieldKinds,
@@ -23,6 +26,7 @@ import {
   MemoryViewStore,
   validateDefinition,
   ViewEngine,
+  type AnalysisCapability,
   type FieldDefinition,
   type Issue,
   type ViewDefinition,
@@ -418,6 +422,116 @@ describe('validateDefinition capabilities', () => {
         }),
       ),
     ).toEqual(['definition.analysis.element-field-unknown']);
+  });
+
+  it('walks the declared elements as one chain, not a list of arrays', () => {
+    // Wow's `elements` is one parent-to-child expansion: each later path is
+    // relative to the element above it, and the counting unit is the
+    // innermost one. Two root arrays are therefore a broken chain rather
+    // than two usable ones, whichever order they are written in.
+    const chained = (analysis: AnalysisCapability) =>
+      ordersDefinition({
+        analysis,
+        record: undefined,
+        views: [],
+        fields: [
+          {
+            name: 'items',
+            label: 'Items',
+            kind: 'array',
+            elements: [
+              { name: 'sku', label: 'SKU', kind: 'string' },
+              {
+                name: 'tags',
+                label: 'Tags',
+                kind: 'array',
+                elements: [{ name: 'name', label: 'Name', kind: 'string' }],
+              },
+            ],
+          },
+          {
+            name: 'notes',
+            label: 'Notes',
+            kind: 'array',
+            elements: [{ name: 'text', label: 'Text', kind: 'string' }],
+          },
+        ],
+      });
+
+    expect(
+      codes(
+        chained({
+          count: true,
+          fields: [],
+          elements: [
+            { path: 'items', aggregations: [] },
+            { path: 'tags', aggregations: [] },
+          ],
+        }),
+      ),
+    ).toEqual([]);
+    expect(
+      codes(
+        chained({
+          count: true,
+          fields: [],
+          // `notes` is a root array, so it does not continue `items`.
+          elements: [
+            { path: 'items', aggregations: [] },
+            { path: 'notes', aggregations: [] },
+          ],
+        }),
+      ),
+    ).toEqual(['definition.analysis.element-undeclared']);
+    // A deeper level's aggregations are checked against that level.
+    expect(
+      codes(
+        chained({
+          count: true,
+          fields: [],
+          elements: [
+            { path: 'items', aggregations: [] },
+            {
+              path: 'tags',
+              aggregations: [{ field: 'sku', groups: [], functions: [] }],
+            },
+          ],
+        }),
+      ),
+    ).toEqual(['definition.analysis.element-field-unknown']);
+  });
+
+  it('refuses a chain deeper than Wow expands', () => {
+    // Beyond the ceiling a level can never be expanded, so declaring it
+    // offers a capability no config may use.
+    const nest = (depth: number): FieldDefinition =>
+      depth === 0
+        ? { name: 'leaf', label: 'Leaf', kind: 'string' }
+        : {
+            name: `level${depth}`,
+            label: `Level ${depth}`,
+            kind: 'array',
+            elements: [nest(depth - 1)],
+          };
+    const depth = AGGREGATION_LIMITS.MAX_ELEMENTS + 1;
+
+    expect(
+      codes(
+        ordersDefinition({
+          fields: [nest(depth)],
+          record: undefined,
+          analysis: {
+            count: true,
+            fields: [],
+            elements: Array.from({ length: depth }, (_, index) => ({
+              path: `level${depth - index}`,
+              aggregations: [],
+            })),
+          },
+          views: [],
+        }),
+      ),
+    ).toEqual(['definition.analysis.elements-too-many']);
   });
 
   it('refuses an analysis expanding a field that holds no elements', () => {

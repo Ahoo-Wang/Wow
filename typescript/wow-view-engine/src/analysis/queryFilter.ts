@@ -52,22 +52,61 @@ const QUERY_FILTER_CODES = {
   },
 } as const;
 
-export function queryFilterIssues(
-  tree: FilterTree,
-  fields: readonly FieldDefinition[],
-  kinds: FieldKindRegistry,
-  limits: RuntimeLimits,
-  position: QueryFilterPosition,
-  path: IssuePath,
-): Issue[] {
+export interface QueryFilterCheck {
+  tree: FilterTree;
+  /**
+   * The fields this filter may name, plus the ones it may not but that exist
+   * elsewhere in the view: a leaf standing on one of those is a finding of
+   * its own (`outOfScope`), and admitting it here is what keeps that the only
+   * finding — its value and its operator are still judged, and one mistake
+   * is reported once.
+   */
+  fields: readonly FieldDefinition[];
+  /** Names among `fields` that this position may not reach. */
+  outOfScope?: ReadonlySet<string>;
+  kinds: FieldKindRegistry;
+  limits: RuntimeLimits;
+  position: QueryFilterPosition;
+  path: IssuePath;
+}
+
+export function queryFilterIssues(check: QueryFilterCheck): Issue[] {
+  const { tree, fields, kinds, limits, position, path } = check;
   const admitted = validateFilter(fields, tree, kinds, { limits });
   // The budget is there so a tree from a store cannot cost unbounded work.
   // `validateFilter` answers an oversized tree with the budget issue alone, so
   // a second full walk here would spend exactly what the budget refused.
   const issues = admitted.some(found => BUDGET_CODES.includes(found.code))
     ? admitted
-    : [...admitted, ...saysNothingIssues(tree, fields, kinds, position)];
+    : [
+        ...admitted,
+        ...outOfScopeIssues(tree, check.outOfScope),
+        ...saysNothingIssues(tree, fields, kinds, position, check.outOfScope),
+      ];
   return issues.map(found => ({ ...found, path: [...path, ...found.path] }));
+}
+
+/**
+ * Refuses a condition on a field this position cannot see.
+ *
+ * With `elements`, a metric filter and an element's gate are read in their
+ * own scope — the innermost element, and that element itself — and Wow
+ * refuses a name from outside it ("requires its declared element scope").
+ * The field exists, so "unknown" would send the reader looking for a typo.
+ */
+function outOfScopeIssues(
+  tree: FilterTree,
+  outOfScope: ReadonlySet<string> | undefined,
+): Issue[] {
+  if (!outOfScope || outOfScope.size === 0) return [];
+  const issues: Issue[] = [];
+  for (const { node, path } of walkFilter(tree)) {
+    if (!isFilterLeaf(node) || !outOfScope.has(node.field)) continue;
+    issues.push(
+      issue('analysis.field.outside-scope', path, { field: node.field }),
+    );
+  }
+  return issues;
 }
 
 /** What `validateFilter` answers with, alone, when a tree is over budget. */
@@ -109,6 +148,7 @@ function saysNothingIssues(
   fields: readonly FieldDefinition[],
   kinds: FieldKindRegistry,
   position: QueryFilterPosition,
+  outOfScope: ReadonlySet<string> | undefined,
 ): Issue[] {
   const codes = QUERY_FILTER_CODES[position];
   if (countLeaves(tree) === 0) return [issue(codes.empty, [])];
@@ -117,6 +157,9 @@ function saysNothingIssues(
   const issues: Issue[] = [];
   for (const { node, path } of walkFilter(tree)) {
     if (!isFilterLeaf(node)) continue;
+    // A field outside this scope was reported as exactly that; what it says
+    // about a record it cannot reach is not a second finding.
+    if (outOfScope?.has(node.field)) continue;
     // An unknown field, a kind no registry holds and an operator the field
     // does not offer are all `validateFilter`'s to report, not this one's.
     const field = byName.get(node.field);

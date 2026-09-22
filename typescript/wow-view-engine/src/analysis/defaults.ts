@@ -15,11 +15,13 @@ import { AggregationGroupType } from '@ahoo-wang/fetcher-wow';
 import {
   DEFAULT_RUNTIME_LIMITS,
   fieldAliasSegment,
+  isSingleStringField,
   type AggregationFieldCapability,
   type AnalysisGroup,
   type AnalysisMetric,
   type AnalysisViewConfig,
   type DataViewDefinition,
+  type FieldDefinition,
   type RuntimeLimits,
 } from '../model/index.js';
 import { emptyFilter } from '../filter/index.js';
@@ -77,16 +79,58 @@ function defaultMetric(
   throw new Error('analysis capability declares no usable metric');
 }
 
+/**
+ * The bucket key records with no value of the dimension land in.
+ *
+ * Without one, Wow drops those records from the whole result rather than
+ * leaving them ungrouped: a count of orders by warehouse would silently omit
+ * every order that has no warehouse, and nothing on screen would say so. It
+ * is a stored key and not a label — it travels to the server and comes back
+ * as the bucket's own key — so it is one fixed string in every language, and
+ * the wording a reader sees for that bucket is the interface's to decide.
+ */
+export const DEFAULT_MISSING_KEY = '(empty)';
+
+/**
+ * A TERMS dimension over `field`, with the sentinel bucket a new one starts
+ * with — on the fields that can carry one, which is Wow's rule and
+ * `validateGroups`'s.
+ *
+ * The editor builds its dimensions through this, so "a dimension never drops
+ * records without saying so" is one rule in one place rather than a default
+ * each surface repeats.
+ */
+export function termsGroup(
+  field: FieldDefinition,
+  alias: string,
+  kind?: { singleString?: boolean },
+): AnalysisGroup {
+  return {
+    type: 'TERMS',
+    field: field.name,
+    alias,
+    ...(isSingleStringField(field, kind)
+      ? { missingKey: DEFAULT_MISSING_KEY }
+      : {}),
+  };
+}
+
 function defaultGroup(
+  definition: DataViewDefinition,
   fields: readonly AggregationFieldCapability[],
 ): AnalysisGroup[] {
   const terms = fields.find(entry =>
     entry.groups.includes(AggregationGroupType.TERMS),
   );
   if (!terms) return [];
-  return [
-    { type: 'TERMS', field: terms.field, alias: aliasOf(terms.field, 'group') },
-  ];
+  const field = definition.fields.find(entry => entry.name === terms.field);
+  const alias = aliasOf(terms.field, 'group');
+  // Nothing here holds a registry, so a field of a kind an application
+  // registered itself is read by the built-in rule. Admission, which does
+  // hold one, is the authority; this only decides what a first config says.
+  return field
+    ? [termsGroup(field, alias)]
+    : [{ type: 'TERMS', field: terms.field, alias }];
 }
 
 /**
@@ -107,7 +151,7 @@ export function defaultAnalysisConfig(
     );
 
   const metric = defaultMetric(capability);
-  const groups = defaultGroup(capability.fields);
+  const groups = defaultGroup(definition, capability.fields);
   const limit = Math.min(
     capability.limits?.defaultLimit ?? DEFAULT_LIMIT,
     capability.limits?.maxLimit ?? Number.POSITIVE_INFINITY,

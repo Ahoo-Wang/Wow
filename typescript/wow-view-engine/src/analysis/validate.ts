@@ -69,15 +69,19 @@ export function validateAnalysis(
   if (shape.length > 0) return shape;
 
   const scope = analysisScope(definition, capability, config);
+  // The range is the root filter: it runs before any expansion, so it names
+  // the definition's own fields and never an element's. An element's entries
+  // are reached from there through an `elementMatch` condition, which is the
+  // one shape Wow accepts at the root.
   const issues = validateViewConfigBase(
-    [...scope.fields.values()],
+    scope.rootFields,
     config,
     kinds,
     limits,
   );
 
   issues.push(...validateElements(config, scope, kinds, limits));
-  issues.push(...validateGroups(config, scope));
+  issues.push(...validateGroups(config, scope, kinds));
   issues.push(...validateMetrics(config, capability, scope, kinds, limits));
   issues.push(...validateAliases(config));
   issues.push(...validateHaving(config, capability, limits));

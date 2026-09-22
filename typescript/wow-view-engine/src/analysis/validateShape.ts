@@ -48,7 +48,16 @@ export function validateShape(config: AnalysisViewConfig): Issue[] {
   list(config.groups, ['groups'], true);
   list(config.metrics, ['metrics'], true);
   list(config.sort, ['sort'], true);
-  if (config.elements !== undefined) list(config.elements, ['elements'], false);
+  if (config.elements !== undefined) {
+    list(config.elements, ['elements'], false);
+    // Each path is compared with the declared chain, level by level, so it
+    // must at least be a string before anything compares it.
+    if (Array.isArray(config.elements))
+      config.elements.forEach((entry, index) => {
+        if (isObject(entry) && typeof entry.path !== 'string')
+          malformed(['elements', index, 'path']);
+      });
+  }
   if (!isObject(config.table)) malformed(['table']);
   else list(config.table.columns, ['table', 'columns'], true);
   if (!isObject(config.chart)) malformed(['chart']);

@@ -88,6 +88,17 @@ export interface FieldKind {
    */
   scalar?: boolean;
   /**
+   * Whether one record's value of this kind is a single string.
+   *
+   * Defaults to false, unlike `scalar`: most kinds hold numbers, moments or
+   * many values, and the one rule that reads this — a `TERMS` sentinel bucket
+   * (`missingKey`), which Wow allows on single-valued string fields only —
+   * must not be offered on a guess. A kind that does hold one string says so
+   * here, and `isSingleStringField` still lets the field's own candidates
+   * veto it: a closed set of numeric codes is a numeric field.
+   */
+  singleString?: boolean;
+  /**
    * Whether this kind's `name` is a handle for the editor rather than a path
    * into the document.
    *

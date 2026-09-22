@@ -35,6 +35,9 @@ export const enumFieldKind: FieldKind = {
   id: 'enum',
   operators: ['IN', 'NOT_IN', ...PRESENCE_OPERATORS],
   defaultOperator: 'IN',
+  // One of the declared candidates, which are strings unless the definition
+  // wrote numeric codes — `isSingleStringField` reads those and answers no.
+  singleString: true,
 
   emptyValue() {
     return [] satisfies EnumFilterValue;

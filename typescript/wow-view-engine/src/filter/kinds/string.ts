@@ -46,6 +46,7 @@ export const stringFieldKind: FieldKind = {
     ...PRESENCE_OPERATORS,
   ],
   defaultOperator: 'EQ',
+  singleString: true,
 
   emptyValue(operator) {
     if (MULTI_VALUE.includes(operator)) return [];

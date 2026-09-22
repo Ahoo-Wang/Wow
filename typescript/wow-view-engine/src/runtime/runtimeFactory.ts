@@ -35,7 +35,6 @@ import type {
   ViewScope,
 } from '../model/index.js';
 import { issue, type FieldKindRegistry } from '../filter/index.js';
-import { analysisScope } from '../analysis/index.js';
 import type { RuntimeEnvironment } from './environment.js';
 import type { RequestRunner } from './requestRunner.js';
 import type { OptionSource, ViewSource } from './source.js';
@@ -158,7 +157,7 @@ export class RuntimeFactory {
   private readonly resolvePanel: PanelResolver = async instanceId => {
     const instance = await this.host.readInstance(instanceId);
     const definition = this.host.definitions.require(instance.definitionId);
-    return { instance, definition, fields: panelFields(instance, definition) };
+    return { instance, definition, fields: panelFields(definition) };
   };
 
   /**
@@ -206,20 +205,15 @@ function capabilityOf(definition: ViewDefinition, config: ViewConfig): boolean {
 }
 
 /**
- * What a panel's view is judged against. An analysis reaches the element
- * fields its config expands, and its filter may already stand on one; the
- * dashboard kernel cannot ask the analysis kernel, so the answer travels
- * with the reference.
+ * What a panel's view is judged against.
+ *
+ * The definition's own fields, for every kind of view: a dashboard's global
+ * filter is merged into the panel's own filter, and that filter is the query
+ * root. An analysis expands elements below it, but a root filter reaches an
+ * element's entries only through an `elementMatch` condition on the array
+ * itself — which is a root field — so an expansion adds nothing a binding
+ * could point at.
  */
-function panelFields(
-  instance: ViewInstance,
-  definition: ViewDefinition,
-): readonly FieldDefinition[] {
-  if (definition.kind !== 'data') return [];
-  const { config } = instance;
-  if (config.kind === 'analysis' && definition.analysis)
-    return [
-      ...analysisScope(definition, definition.analysis, config).fields.values(),
-    ];
-  return definition.fields;
+function panelFields(definition: ViewDefinition): readonly FieldDefinition[] {
+  return definition.kind === 'data' ? definition.fields : [];
 }

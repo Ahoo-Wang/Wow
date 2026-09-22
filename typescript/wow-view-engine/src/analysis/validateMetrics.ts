@@ -19,7 +19,12 @@ import type {
   RuntimeLimits,
 } from '../model/index.js';
 import { issue, type FieldKindRegistry } from '../filter/index.js';
-import type { AnalysisScope } from './capability.js';
+import {
+  outOfScopeNames,
+  unknownOrOutside,
+  withOutOfScope,
+  type AnalysisScope,
+} from './capability.js';
 import type { BudgetCounter } from './budget.js';
 import {
   budgetedDerivedIssues,
@@ -63,14 +68,15 @@ export function validateMetrics(
     // Refusing it would block a config over a property that changes nothing.
     if (metric.type !== 'DERIVED' && 'filter' in metric && metric.filter)
       issues.push(
-        ...queryFilterIssues(
-          metric.filter,
-          [...scope.fields.values()],
+        ...queryFilterIssues({
+          tree: metric.filter,
+          fields: withOutOfScope(scope, scope.fields),
+          outOfScope: outOfScopeNames(scope, scope.fields),
           kinds,
           limits,
-          'metric',
-          [...path, 'filter'],
-        ),
+          position: 'metric',
+          path: [...path, 'filter'],
+        }),
       );
 
     switch (metric.type) {
@@ -105,7 +111,7 @@ export function validateMetrics(
         const entry = declared(metric.field);
         if (!entry)
           issues.push(
-            issue('analysis.field.unknown', [...path, 'field'], {
+            issue(unknownOrOutside(scope, metric.field), [...path, 'field'], {
               field: metric.field,
             }),
           );

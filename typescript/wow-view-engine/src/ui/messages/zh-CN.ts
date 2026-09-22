@@ -619,6 +619,7 @@ export const zhCN: ViewMessages = {
   'analysis.derived.unknown-metric':
     '派生指标引用了 {metric}，它没有在它之前声明。',
   'analysis.distinctCount.undeclared': '{field} 不提供去重计数。',
+  'analysis.element.out-of-chain': '嵌套路径 {path} 属于展开链的另一层。',
   'analysis.element.undeclared': '嵌套路径 {path} 不可用。',
   'analysis.elementFilter.empty': '这组条件是空的，所以每个条目都会展开。',
   'analysis.elementFilter.incomplete':
@@ -629,12 +630,15 @@ export const zhCN: ViewMessages = {
   'analysis.expression.too-deep': '表达式的嵌套超过了 {max} 层。',
   'analysis.expression.too-many-nodes': '表达式超过了 {max} 条。',
   'analysis.expressions.undeclared': '这份数据不提供计算表达式。',
+  'analysis.field.outside-scope': '字段 {field} 不在展开后的范围里。',
   'analysis.field.unknown': '字段 {field} 在这里不可用。',
   'analysis.function.unsupported': '{field} 不提供 {fn}。',
   'analysis.group.blank-missing-key': '缺失值的占位文本是空的。',
   'analysis.group.blank-time-zone': '时区是空的。',
   'analysis.group.dense-not-alone': '补齐空档的日期分组只能是唯一的分组。',
   'analysis.group.interval-not-positive': '直方图的区间必须大于零。',
+  'analysis.group.missing-key-unsupported':
+    '{field} 不能为缺失值单独分一组，只有单值文本字段可以。',
   'analysis.group.unit-unsupported': '这里没有 {unit} 单位。',
   'analysis.group.unsupported': '{field} 不能按 {type} 分组。',
   'analysis.groups.too-many': '这份数据的分组太多了。',
@@ -765,6 +769,8 @@ export const zhCN: ViewMessages = {
     '{path} 没有声明名为 {field} 的字段。',
   'definition.analysis.element-undeclared':
     '分析展开了 {path}，它不是存放条目的字段。',
+  'definition.analysis.elements-too-many':
+    '分析声明的嵌套层数超过了 {max} 层。',
   'definition.analysis.field-unknown': '分析能力写了 {field}，定义没有声明它。',
   'definition.analysis.limit-invalid': '分析上限必须是正整数。',
   'definition.analysis.no-metric': '分析能力没有给出可以起步的指标。',

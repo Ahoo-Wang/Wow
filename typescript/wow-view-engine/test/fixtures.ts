@@ -18,7 +18,6 @@ import {
   AggregationMetricType,
 } from '@ahoo-wang/fetcher-wow';
 import { vi } from 'vitest';
-import { analysisScope } from '../src/index.js';
 import type {
   AnalysisViewConfig,
   DashboardDefinition,
@@ -243,20 +242,10 @@ export function panelReference(
 ): PanelReference {
   const found = savedInstance(instance);
   const owner = ordersDefinition(definition);
-  return {
-    instance: found,
-    definition: owner,
-    fields:
-      found.config.kind === 'analysis' && owner.analysis
-        ? [
-            ...analysisScope(
-              owner,
-              owner.analysis,
-              found.config,
-            ).fields.values(),
-          ]
-        : owner.fields,
-  };
+  // What `RuntimeFactory.resolvePanel` computes: the definition's own
+  // fields, whatever the view does below them — a panel's filter is the
+  // query root, and an expansion adds nothing a binding could point at.
+  return { instance: found, definition: owner, fields: owner.fields };
 }
 
 /** Narrows an open view's config to the record kind, or fails the test. */

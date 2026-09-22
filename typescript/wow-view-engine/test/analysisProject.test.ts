@@ -236,7 +236,9 @@ describe('projectAnalysis', () => {
 
   it('labels every metric that reads a field, and element fields too', () => {
     // Only NUMERIC used to be looked up, and only among the root fields, so a
-    // p95 read as `p95` and a grouping of `items.sku` read as its alias.
+    // p95 read as `p95` and a grouping of `items.sku` read as its alias. With
+    // an expansion the counting unit is one item, so every dimension and
+    // every metric reads that item's own fields.
     const withElements = definition({
       fields: [
         ...definition().fields,
@@ -244,7 +246,15 @@ describe('projectAnalysis', () => {
           name: 'items',
           label: 'Items',
           kind: 'array',
-          elements: [{ name: 'sku', label: 'SKU', kind: 'string' }],
+          elements: [
+            { name: 'sku', label: 'SKU', kind: 'string' },
+            {
+              name: 'amount',
+              label: 'Amount',
+              kind: 'number',
+              numberFormat: { style: 'currency', currency: 'CNY' },
+            },
+          ],
         },
       ],
       analysis: {
@@ -257,6 +267,14 @@ describe('projectAnalysis', () => {
                 field: 'sku',
                 groups: [AggregationGroupType.TERMS],
                 functions: [],
+              },
+              {
+                field: 'amount',
+                groups: [],
+                functions: [],
+                distinctCount: true,
+                percentile: true,
+                any: true,
               },
             ],
           },
@@ -273,15 +291,15 @@ describe('projectAnalysis', () => {
           {
             type: 'PERCENTILE',
             alias: 'p95',
-            expression: { type: 'FIELD', field: 'amount' },
+            expression: { type: 'FIELD', field: 'items.amount' },
             percentile: 95,
           },
           {
             type: 'DISTINCT_COUNT',
             alias: 'buyers',
-            expression: { type: 'FIELD', field: 'amount' },
+            expression: { type: 'FIELD', field: 'items.amount' },
           },
-          { type: 'ANY', alias: 'sample', field: 'amount' },
+          { type: 'ANY', alias: 'sample', field: 'items.amount' },
         ],
         sort: [],
         chart: {

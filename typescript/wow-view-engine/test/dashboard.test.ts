@@ -335,10 +335,12 @@ describe('validateDashboard references', () => {
     ).toEqual(['dashboard.panel.scope-too-narrow']);
   });
 
-  it('judges an analysis reference against the fields it can reach', () => {
-    // The analysis expands `items`, so its own filter may stand on
-    // `items.sku`. It opens fine on its own; a dashboard must not refuse it
-    // for a field the root definition does not list.
+  it("judges an analysis reference against the definition's own fields", () => {
+    // An analysis that expands `items` counts items rather than orders, but
+    // its filter is still the query root and still stands on root fields —
+    // an element field is reachable from there only through an
+    // `elementMatch` condition on the array itself, which is a root field.
+    // So a panel's bindings point at exactly what the definition declares.
     const items = {
       name: 'items',
       label: 'Items',
@@ -351,7 +353,7 @@ describe('validateDashboard references', () => {
           elements: [{ path: 'items' }],
           filter: {
             op: 'and',
-            children: [{ field: 'items.sku', operator: 'EQ', value: 'A-1' }],
+            children: [{ field: 'warehouse', operator: 'EQ', value: 'WH-1' }],
           },
         }),
       },
@@ -376,7 +378,9 @@ describe('validateDashboard references', () => {
     );
     const config = dashboardConfig({ panels: [viewPanel()] });
 
-    expect(reference.fields.map(field => field.name)).toContain('items.sku');
+    expect(reference.fields.map(field => field.name)).not.toContain(
+      'items.sku',
+    );
     expect(validate(config, 'personal', refs({ pending: reference }))).toEqual(
       [],
     );
