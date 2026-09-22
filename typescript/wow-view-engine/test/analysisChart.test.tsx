@@ -13,8 +13,13 @@
 
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { AnalysisView, ChartData, ChartSpec } from '../src/index.js';
-import { shapeChart } from '../src/index.js';
+import type {
+  AnalysisView,
+  AnalysisViewConfig,
+  ChartData,
+  ChartSpec,
+} from '../src/index.js';
+import { groupKeyText, shapeChart } from '../src/index.js';
 import { AnalysisChart, ViewSurface } from '../src/ui/index.js';
 import { TooltipValue } from '../src/ui/charts/TooltipValue.js';
 import { DRAWN, analysisConfig } from './fixtures.js';
@@ -502,6 +507,66 @@ describe('AnalysisChart', () => {
     const css = container.querySelector('style')?.textContent ?? '';
     expect(css).toContain('--color-s0: #eb6834');
     expect(css).toContain('--color-s1: var(--chart-2)');
+  });
+
+  /**
+   * The pie looked a pinned colour up by a spelling of its own and the
+   * cartesian family by the kernel's series label — two paths that agreed
+   * only because the two functions happened to match. Both now read
+   * `groupKeyText`; this pins that one key colours the same category, of
+   * every non-string kind, in either chart.
+   */
+  it('colours a number, a boolean and null by one key in a pie and in a split', () => {
+    const categories = [7, true, null];
+    const colors = { '7': '#eb6834', true: '#2a78d6', '': '#1f9d55' };
+    expect(categories.map(groupKeyText)).toEqual(Object.keys(colors));
+    const groups: AnalysisViewConfig['groups'] = [
+      { alias: 'month', field: 'createdAt', type: 'TERMS' },
+      { alias: 'warehouse', field: 'warehouse', type: 'TERMS' },
+    ];
+    const pieSpec: ChartSpec = {
+      type: 'pie',
+      pie: { category: 'warehouse', value: 'orders' },
+      colors,
+    };
+    const splitSpec: ChartSpec = {
+      type: 'bar',
+      cartesian: {
+        x: 'month',
+        splitBy: 'warehouse',
+        series: [{ metric: 'orders' }],
+      },
+      colors,
+    };
+    const rows = categories.map((warehouse, index) => ({
+      month: '2026-08',
+      warehouse,
+      orders: index + 1,
+    }));
+    const drawn = (spec: ChartSpec) => {
+      const data = shapeChart(
+        analysisConfig({
+          groups: spec.type === 'pie' ? groups.slice(1) : groups,
+          chart: spec,
+        }),
+        rows,
+      ) as ChartData;
+      const { container, unmount } = render(
+        <ViewSurface>
+          <AnalysisChart data={data} spec={spec} />
+        </ViewSurface>,
+      );
+      const css = container.querySelector('style')?.textContent ?? '';
+      unmount();
+      return css;
+    };
+
+    const pie = drawn(pieSpec);
+    const split = drawn(splitSpec);
+    Object.values(colors).forEach((pinned, index) => {
+      expect(pie).toContain(`--color-p${index}: ${pinned};`);
+      expect(split).toContain(`--color-s${index}: ${pinned};`);
+    });
   });
 
   /**

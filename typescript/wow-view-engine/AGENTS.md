@@ -145,7 +145,7 @@ src/
   analysis/                   — Analysis kernel — imports model and filter
     budget.ts                 — Depth and node budgets of a walked tree
     capability.ts             — The three scopes the element chain makes: the root's, each element's, the innermost one's; and the renaming a scope implies
-    chart.ts                  — Chart-shaped projection for the renderers
+    chart.ts                  — Chart-shaped projection for the renderers, and `groupKeyText` — a group value as a colour key, the one spelling every chart family reads
     chartSlots.ts             — `fitChartSlots`: the family sub-object of the current chart type, filled from the groups and metrics in force
     compile.ts                — compileAnalysis → AggregationQuery
     fitCharts.ts              — Which chart types can draw a result of this shape and which it reads best as (K3, Q6): the capability says which exist, this says which are greyed and why

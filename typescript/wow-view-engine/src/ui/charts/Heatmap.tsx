@@ -11,10 +11,10 @@
  * limitations under the License.
  */
 
-import type { HeatmapData } from '../../analysis/index.js';
+import { groupKeyText, type HeatmapData } from '../../analysis/index.js';
 import { cn } from 'cn';
 import { useViewMessages } from '../MessagesProvider.js';
-import { labelOf, type FamilyProps } from './family.js';
+import type { FamilyProps } from './family.js';
 
 /**
  * A grid rather than a chart library: a heatmap is cells with a background,
@@ -51,7 +51,7 @@ export function Heatmap({
       className={cn('flex flex-col gap-1 overflow-x-auto', className)}
     >
       {data.ys.map((y, row) => (
-        <div key={labelOf(y) || row} className="flex items-center gap-1">
+        <div key={groupKeyText(y) || row} className="flex items-center gap-1">
           <span className="text-muted-foreground w-24 shrink-0 truncate text-xs">
             {label(spec?.heatmap?.y, y)}
           </span>
@@ -59,7 +59,7 @@ export function Heatmap({
             const cell = data.cells[row]?.[column] ?? null;
             return (
               <div
-                key={labelOf(x) || column}
+                key={groupKeyText(x) || column}
                 title={messages.label('label.chart.cell', {
                   y: label(spec?.heatmap?.y, y),
                   x: label(spec?.heatmap?.x, x),
@@ -113,7 +113,7 @@ export function Heatmap({
         <span className="w-24 shrink-0" />
         {data.xs.map((x, column) => (
           <span
-            key={labelOf(x) || column}
+            key={groupKeyText(x) || column}
             className="text-muted-foreground w-8 shrink-0 truncate text-center text-xs"
           >
             {label(spec?.heatmap?.x, x)}

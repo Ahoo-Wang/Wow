@@ -12,7 +12,7 @@
  */
 
 import { Cell, LabelList, Pie, PieChart } from 'recharts';
-import type { PieData } from '../../analysis/index.js';
+import { groupKeyText, type PieData } from '../../analysis/index.js';
 import {
   ChartContainer,
   ChartLegend,
@@ -26,7 +26,7 @@ import { useViewMessages } from '../MessagesProvider.js';
 import { asImage } from './asImage.js';
 import { legendPlacement } from './legend.js';
 import { pointAnchor } from '../analysis/DrillMenu.js';
-import { labelOf, type FamilyProps } from './family.js';
+import type { FamilyProps } from './family.js';
 import { color, colorOf } from './palette.js';
 import { TooltipValue } from './TooltipValue.js';
 
@@ -48,15 +48,16 @@ export function PieSlices({
         ? messages.label('label.chart.other')
         : label(spec?.pie?.category, slice.category),
     value: slice.value,
-    // A slice is named by its category as the kernel labels it — `null` is
-    // the empty string there, where `String(...)` would have looked it up
-    // under `null` — rather than as the legend shows it. The merged
-    // remainder is no category anyone could have coloured, so it keeps its
-    // slot whatever the spec says.
+    // A slice is named by its category through `groupKeyText`, the spelling
+    // the kernel labels a split series with, so one key colours a category
+    // in either chart — `null` is the empty string there, where `String(...)`
+    // would have looked it up under `null` — rather than as the legend shows
+    // it. The merged remainder is no category anyone could have coloured, so
+    // it keeps its slot whatever the spec says.
     color:
       slice.other === true
         ? color(index)
-        : colorOf(spec, index, labelOf(slice.category)),
+        : colorOf(spec, index, groupKeyText(slice.category)),
   }));
   const config = Object.fromEntries(
     rows.map(row => [row.key, { label: row.name, color: row.color }]),

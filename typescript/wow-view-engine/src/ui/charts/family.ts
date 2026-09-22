@@ -103,15 +103,6 @@ export function useColumnTitle(
   }, [columns, messages]);
 }
 
-/** A raw group value as a React key or a spec's colour key, never as text. */
-export function labelOf(value: unknown): string {
-  if (value === null || value === undefined) return '';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean')
-    return value.toString();
-  return JSON.stringify(value) ?? '';
-}
-
 /**
  * What one funnel stage is called, wherever the funnel is read — the drawing
  * and the table under it say the same words.
