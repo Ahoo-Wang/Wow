@@ -354,7 +354,7 @@ describe('definitions are code', () => {
       kind: 'data',
       source: 'orders',
       fields: [
-        { name: 'id', label: 'Order', kind: 'string' },
+        { name: 'id', label: 'Order', kind: 'string', sortable: true },
         { name: 'amount', label: 'Amount', kind: 'number', summary: ['SUM'] },
         {
           name: 'createdAt',

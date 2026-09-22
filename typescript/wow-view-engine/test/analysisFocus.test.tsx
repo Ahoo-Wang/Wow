@@ -68,7 +68,7 @@ const analysisView: ViewInstance = {
 function richDefinition(): DataViewDefinition {
   return ordersDefinition({
     fields: [
-      { name: 'id', label: 'Order', kind: 'string' },
+      { name: 'id', label: 'Order', kind: 'string', sortable: true },
       { name: 'warehouse', label: 'Warehouse', kind: 'string' },
       { name: 'status', label: 'Status', kind: 'string' },
       { name: 'amount', label: 'Amount', kind: 'number' },
@@ -101,7 +101,7 @@ function richDefinition(): DataViewDefinition {
 function chainedDefinition(): DataViewDefinition {
   return ordersDefinition({
     fields: [
-      { name: 'id', label: 'Order', kind: 'string' },
+      { name: 'id', label: 'Order', kind: 'string', sortable: true },
       { name: 'warehouse', label: 'Warehouse', kind: 'string' },
       { name: 'amount', label: 'Amount', kind: 'number' },
       {

@@ -125,8 +125,10 @@ describe('DataWorkbench interaction', () => {
     fireEvent.click(screen.getByRole('button', { name: /Amount/ }));
     await waitFor(() => {
       const calls = vi.mocked(source.paged).mock.calls;
+      // The user's sort, then the row key the engine breaks ties on.
       expect(calls[calls.length - 1][0].sort).toEqual([
         { field: 'amount', direction: 'ASC' },
+        { field: 'id', direction: 'ASC' },
       ]);
     });
 
@@ -141,6 +143,34 @@ describe('DataWorkbench interaction', () => {
       const calls = vi.mocked(source.paged).mock.calls;
       expect(calls[calls.length - 1][0].pagination).toMatchObject({ index: 1 });
     });
+  });
+
+  /**
+   * The row key the query ends on is the engine's, not the user's: it keeps
+   * tied rows from repeating across pages and says nothing about how the
+   * user asked the rows to be ordered. So no sort control shows it — the
+   * header over the key column carries no `aria-sort`, and the toolbar's
+   * sort button reads one field, with no "+1" for a key nobody chose.
+   */
+  it('keeps the tie-breaking row key out of every sort control', async () => {
+    const { source } = await open();
+
+    fireEvent.click(screen.getByRole('button', { name: /Amount/ }));
+    await waitFor(() => {
+      const calls = vi.mocked(source.paged).mock.calls;
+      expect(calls[calls.length - 1][0].sort).toHaveLength(2);
+    });
+
+    const sorted = [...document.querySelectorAll('thead [aria-sort]')];
+    expect(
+      sorted.map(cell => [cell.textContent, cell.getAttribute('aria-sort')]),
+    ).toEqual([[expect.stringContaining('Amount'), 'ascending']]);
+    expect(
+      document.querySelectorAll('[data-slot="sort-position"]'),
+    ).toHaveLength(0);
+    expect(
+      screen.getByRole('button', { name: 'Sort: Amount Ascending' }),
+    ).toBeDefined();
   });
 
   /**

@@ -44,12 +44,31 @@ export const FIRST_PAGE: Readonly<
   cursor: Object.freeze({ cursor: null }),
 });
 
-function compileSort(config: RecordViewConfig): FieldSort[] {
-  return config.sort.map(sort => ({
-    field: sort.field,
+/**
+ * The config's sort, then the row key ascending as the last key.
+ *
+ * Paging by index over a sort that ties is not stable: a backend may order
+ * the tied rows one way for page 2 and another for page 3, so one row shows
+ * on both and another on neither — measured against a Wow service ordering
+ * failed executions by `eventTime`, where many share the millisecond. Wow
+ * adds a unique key only to cursor queries, and not every backend adds one
+ * at all, so the engine does: the row key is unique by definition, which
+ * makes every sort total. Cursor queries carry it too — one rule, and
+ * harmless where the backend already breaks ties. A sort already naming the
+ * row key, in either direction, is total already and is left as it is.
+ *
+ * The key is the query's, never the user's: the config keeps the sort the
+ * user chose, and every control reads that.
+ */
+function compileSort(config: RecordViewConfig, rowKey: string): FieldSort[] {
+  const sort = config.sort.map(entry => ({
+    field: entry.field,
     direction:
-      sort.direction === 'DESC' ? SortDirection.DESC : SortDirection.ASC,
+      entry.direction === 'DESC' ? SortDirection.DESC : SortDirection.ASC,
   }));
+  return sort.some(entry => entry.field === rowKey)
+    ? sort
+    : [...sort, { field: rowKey, direction: SortDirection.ASC }];
 }
 
 /**
@@ -150,7 +169,7 @@ export function compileRecord(
     kinds,
     context,
   );
-  const sort = compileSort(config);
+  const sort = compileSort(config, capability.rowKey);
   const projection = recordProjection(definition, config);
 
   // The mode decides, and the target must agree with it. Reading the mode off

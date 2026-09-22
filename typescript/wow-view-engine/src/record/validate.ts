@@ -159,14 +159,16 @@ function validatePageSize(
  *
  * A cursor is a position in one total order and Wow bounds how many fields
  * that order is built from; a paged query has no such bound, so the answer
- * is however many fields there are to sort on. It is exported because a
- * control that offers a field has to stop where `validateSort` starts
- * refusing — otherwise the pick is admitted by the UI, refused by the
- * kernel, and the view sits in an error nobody asked for.
+ * is however many fields there are to sort on. The query ends on the row
+ * key (`compileRecord`), which takes one of Wow's slots, so a cursor view
+ * offers one fewer. It is exported because a control that offers a field
+ * has to stop where `validateSort` starts refusing — otherwise the pick is
+ * admitted by the UI, refused by the kernel, and the view sits in an error
+ * nobody asked for.
  */
 export function maxSortFields(definition: DataViewDefinition): number {
   return definition.record?.paging === 'cursor'
-    ? MAX_CURSOR_SORT_FIELDS
+    ? MAX_CURSOR_SORT_FIELDS - 1
     : definition.fields.length;
 }
 

@@ -82,7 +82,7 @@ export interface FieldOption {
 }
 
 export interface RecordCapability {
-  rowKey: string;
+  rowKey: string; // 每行的身份；必须是已声明且 sortable: true 的字段——每条记录查询以它升序收尾，分页才不重不漏（kernels.md「Record 内核的规则」）
   paging: 'paged' | 'cursor'; // 数据源提供哪种分页；决定 runtime 调用 source.paged 还是 source.cursor
   // 分页查询最多能够到的行数：页码 × 每页条数。走搜索引擎的源自己有这道上限——
   // Wow 走 Elasticsearch 时 index × size 超过 10 000 直接 400（`HTTP page window[12000]

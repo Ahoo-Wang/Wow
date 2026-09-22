@@ -42,7 +42,7 @@ export function ordersDefinition(
     kind: 'data',
     source: 'orders',
     fields: [
-      { name: 'id', label: 'Order', kind: 'string' },
+      { name: 'id', label: 'Order', kind: 'string', sortable: true },
       { name: 'warehouse', label: 'Warehouse', kind: 'string' },
       { name: 'status', label: 'Status', kind: 'string' },
       {

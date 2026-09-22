@@ -979,6 +979,8 @@ export const zhCN: ViewMessages = {
   'definition.record.row-field-unknown': '行字段 {field} 不是已声明的字段。',
   'definition.record.row-field-not-a-path':
     '行字段 {field} 是搜索或元数据句柄，不是一行里的内容。',
+  'definition.record.row-key-unsortable':
+    '行键 {field} 必须可排序：每一页最后都按它排，同一行才不会出现在两页上。',
   'definition.view.id-duplicate': '两个视图共用了 id {id}。',
   'definition.view.id-separator': '视图 id 不能带 {separator}。',
   'definition.view.kind-mismatch': '{kind} 视图不属于 {definition} 定义。',

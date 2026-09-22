@@ -22,7 +22,7 @@ describeFilter(fields, tree, kinds): FilterSummaryItem[]     // 已应用条件�
 // record
 defaultRecordConfig(def): RecordViewConfig                      // 按 RecordCapability.defaults 补全的完整初始配置
 validateRecord(def, cfg: RecordViewConfig, kinds): Issue[]   // 见下方规则
-compileRecord(def, cfg, kinds, ctx, page: RecordPageTarget): FilterPagedQuery | CursorQuery   // 按 RecordCapability.paging 判别；首次查询为 { index: 1 } 或 { cursor: null }（Wow 页码从 1 开始）；两种都带 recordProjection 的 projection
+compileRecord(def, cfg, kinds, ctx, page: RecordPageTarget): FilterPagedQuery | CursorQuery   // 按 RecordCapability.paging 判别；首次查询为 { index: 1 } 或 { cursor: null }（Wow 页码从 1 开始）；两种都带 recordProjection 的 projection；排序末尾总是行键升序（见「Record 内核的规则」）
 recordProjection(def, cfg): Projection                         // { include }：这一页要向数据源要的字段，见「一页要哪些字段」
 projectRecord(def, cfg, page: PagedList<RecordData> | CursorPage<RecordData>, index?): RecordView   // 列语义、卡片布局（card，与列读同一份字段事实）、行、行键；paging 为 pagedPaging(...) | cursorPaging(...)
 pagedPaging({ index, size, total?, maxWindow? }): PagedPaging   // 分页条读的全部事实，出自**跑过的**那一页与那个每页条数（不是草稿的）：pages（数得到时）= min(⌈total/size⌉, ⌊maxWindow/size⌋)——index × size 不越过窗口才够得到，所以窗口向下取整页；hasNext；reachable 仅在这些页够不到 total 时出现，等于 pages × size。无 total 时不给 pages，hasNext 只受窗口约束（见 test/recordPaging.test.ts）
@@ -66,7 +66,8 @@ mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboa
 - `fieldGroups[]` 的 `id` 与 `label` 非空且 `id` 唯一（`definition.fieldGroup.invalid`／`duplicate`），其 `fields[]` 必须是已声明的根字段，且一个字段不得被两个分组同时列出（`definition.fieldGroup.field-unknown`／`field-duplicate`）；
 - `views[].id` 在定义内唯一，否则按名称查找无法确定使用哪一份能力；
 - `RecordCapability.rowFields` 的每一项都必须是已声明、且行里真有值的字段（不是搜索／元数据这类无字段种类），否则报 `definition.record.row-field-unknown`／`row-field-not-a-path`：它每一页都要被要回来，一个要不回来的名字只会让读它的动作永远读到 `undefined`；
-- `RecordCapability.layouts` 非空且 `rowKey` 指向已声明字段，`AnalysisCapability.fields[].field` 同样必须存在，使各 `default*Config` 对任何被接受的定义都能返回合法完整配置；
+- `RecordCapability.layouts` 非空且 `rowKey` 指向已声明字段（`definition.record.row-key-unknown`），`AnalysisCapability.fields[].field` 同样必须存在，使各 `default*Config` 对任何被接受的定义都能返回合法完整配置；
+- 行键字段还必须 `sortable: true`（`definition.record.row-key-unsortable`）：每条记录查询都以行键收尾（见「Record 内核的规则」），后端对不可排序的字段排序会整条拒绝，所以这件事在准入时说，而不是在第一次翻页时；
 - `AnalysisCapability.elements` 是一条链，按链自根向内走：第一层是根上一个声明了 `elements` 的字段，第 i 层必须是第 i−1 层元素里声明了 `elements` 的字段，否则报 `definition.analysis.element-undeclared`——并列的两个根数组就是在这里被拒的，那是一条断链而不是两条链；层数不得超过 Wow 的 `AGGREGATION_LIMITS.MAX_ELEMENTS`（5），否则报 `definition.analysis.elements-too-many`：再深的一层任何配置都展开不到；
 - 每个 `views[].config.kind` 必须与所属定义的能力匹配：`kind: 'data'` 只接受 `record`／`analysis` 且对应能力已声明，`kind: 'dashboard'` 只接受 `dashboard`，否则报 error（系统视图不可覆盖，不能交付一个只能待修复的只读视图）；
 - 每个系统视图的配置还要通过对应的 `validate*`（Dashboard 系统视图在此只做本地结构校验，面板引用需要加载被引用实例与其定义，因此由 Engine 在注册或首次打开时用 `validateDashboard` 的完整入参复验，失败按该面板不可用处理）；
@@ -157,8 +158,16 @@ mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboa
 - `table.columns`、`card.title`／`fields`／`image` 引用的字段都必须存在且不是无字段种类（`record.field.not-a-column`）；
 - `table.columns[].field`、`sort[].field` 与 `summaries[]` 的字段-函数对都不得重复，在第二次出现处报 `record.column.duplicate`／`record.sort.duplicate`／`record.summary.duplicate`；
 - `pageSize` 为不超过 `RuntimeLimits.maxPageSize` 的正整数；
-- `sort[].field` 必须存在且 `sortable` 为 true，游标模式下 `sort.length` 不超过 Wow 的 `MAX_CURSOR_SORT_FIELDS`（32）；
+- `sort[].field` 必须存在且 `sortable` 为 true，游标模式下 `sort.length` 不超过 `MAX_CURSOR_SORT_FIELDS − 1`（31）：Wow 的上限是 32，行键占掉一格（`maxSortFields`）；
 - 每个 `summaries[]` 的函数必须出现在该字段的 `summary` 集合中。（见 test/record.test.ts「validateRecord」「a record config that lost its shape」）
+
+**排序以行键收尾，分页才不重不漏**（2026-09-22 生产复审）。`compileRecord` 把配置里的 `sort` 原样编译，再在末尾追加 `{ field: rowKey, direction: ASC }`——**分页与游标两种查询都加**，一条规则；配置的 `sort` 里已经有行键（哪个方向都算）就不加，因为那个顺序已经是全序。原因是实测：对真实的 Wow 补偿服务按默认的 `eventTime DESC` 逐页翻，许多失败执行的 `eventTime` 精确到毫秒都相同，50 个页边界里有 15 个落在相同时间戳上，30 页 × 20 行的扫描 12 次里 11 次出现**同一行出现在两页上**（于是另一些行哪一页都没有）；追加 `state.id ASC` 后 12 次里 0 次。Wow 服务端的查询网关只给游标查询补唯一排序键，分页查询不补，别的后端更不一定补，而导出也是按页码翻的——一份文件可能重复一些行、漏掉另一些。所以一致性归引擎：行键按定义唯一，以它收尾的排序对任何后端都是全序。
+
+- 行键因此**必须可排序**，准入以 `definition.record.row-key-unsortable` 拒绝不声明 `sortable: true` 的行键（见「定义准入」）；
+- 这个收尾键是**查询的，不是用户的**：配置里存的仍是用户选的排序，表头的 `aria-sort`、排序位次、工具栏的「排序：… ↓ +N」都读配置而不读编译结果，所以没人选过的行键不会在界面上以排序的身份出现；
+- 游标模式下它占 Wow `MAX_CURSOR_SORT_FIELDS` 的一格，用户可选的上限因此是 31（`maxSortFields`）。
+
+（见 test/stableOrder.test.ts「the row key breaks ties」、test/definition.test.ts「refuses a row key the definition does not declare sortable」、test/stableOrder.test.ts「a sort that ties, paged by index」与 test/recordWorkbenchInteraction.test.tsx「keeps the tie-breaking row key out of every sort control」）
 
 ## 一页要哪些字段
 

@@ -50,7 +50,7 @@ function definition(
     kind: 'data',
     source: 'orders',
     fields: [
-      { name: 'id', label: 'Order', kind: 'string' },
+      { name: 'id', label: 'Order', kind: 'string', sortable: true },
       {
         name: 'amount',
         label: 'Amount',
@@ -218,7 +218,7 @@ describe('validateRecord', () => {
   it('reports a sort direction that reads as neither way round', () => {
     const bad = [
       { field: 'createdAt', direction: 'up' },
-      { field: 'id' },
+      { field: 'amount' },
     ] as unknown as RecordSort[];
 
     const issues = validateRecord(
@@ -240,10 +240,12 @@ describe('validateRecord', () => {
       record: { rowKey: 'id', paging: 'cursor', layouts: ['table'] },
     });
     // The ceiling a control has to stop at is this one: `maxSortFields` is
-    // exported so the two cannot drift into disagreeing.
-    expect(maxSortFields(def)).toBe(MAX_CURSOR_SORT_FIELDS);
+    // exported so the two cannot drift into disagreeing. The row key the
+    // query ends on takes one of Wow's slots, so a full user sort is one
+    // short of the limit.
+    expect(maxSortFields(def)).toBe(MAX_CURSOR_SORT_FIELDS - 1);
     expect(maxSortFields(definition())).toBe(definition().fields.length);
-    const sort = Array.from({ length: 33 }, () => ({
+    const sort = Array.from({ length: MAX_CURSOR_SORT_FIELDS }, () => ({
       field: 'createdAt',
       direction: 'ASC' as const,
     }));
@@ -542,7 +544,10 @@ describe('compileRecord', () => {
     );
     expect(query).toMatchObject({
       filter: { op: FilterOperator.MATCH_ALL },
-      sort: [{ field: 'createdAt', direction: SortDirection.DESC }],
+      sort: [
+        { field: 'createdAt', direction: SortDirection.DESC },
+        { field: 'id', direction: SortDirection.ASC },
+      ],
       pagination: { index: 1, size: 20 },
     });
   });
@@ -726,7 +731,7 @@ describe('projectRecord', () => {
         // may never take back (D17-4).
         pinned: 'left',
         primary: true,
-        sortable: false,
+        sortable: true,
         numberFormat: undefined,
       },
       {

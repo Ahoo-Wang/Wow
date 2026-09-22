@@ -839,7 +839,8 @@ describe('maxSortFields', () => {
       record: { rowKey: 'id', paging: 'cursor', layouts: ['table'] },
     });
 
-    expect(result.current.table.maxSortFields).toBe(MAX_CURSOR_SORT_FIELDS);
+    // One of Wow's slots is the row key the query ends on.
+    expect(result.current.table.maxSortFields).toBe(MAX_CURSOR_SORT_FIELDS - 1);
   });
 
   it('is bounded only by the fields there are on a paged source', async () => {

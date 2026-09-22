@@ -338,7 +338,7 @@ describe('useFilterEditor', () => {
   it('starts a condition on an operator the field allows', async () => {
     const definition = ordersDefinition({
       fields: [
-        { name: 'id', label: 'Order', kind: 'string' },
+        { name: 'id', label: 'Order', kind: 'string', sortable: true },
         {
           name: 'warehouse',
           label: 'Warehouse',

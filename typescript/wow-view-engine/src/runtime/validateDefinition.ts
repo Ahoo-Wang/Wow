@@ -322,7 +322,6 @@ function validateRecordCapability(definition: DataViewDefinition): Issue[] {
   if (!capability) return [];
 
   const issues: Issue[] = [];
-  const names = new Set(definition.fields.map(field => field.name));
 
   // `defaultRecordConfig` takes `layouts[0]`, and every config carries a row
   // key, so both have to exist before any view is built from this definition.
@@ -330,12 +329,26 @@ function validateRecordCapability(definition: DataViewDefinition): Issue[] {
     issues.push(
       issue('definition.record.layouts-empty', ['record', 'layouts']),
     );
-  if (!names.has(capability.rowKey))
+  const rowKey = definition.fields.find(
+    field => field.name === capability.rowKey,
+  );
+  if (!rowKey)
     issues.push(
       issue('definition.record.row-key-unknown', ['record', 'rowKey'], {
         field: capability.rowKey,
       }),
     );
+  // Every record query ends on the row key (`compileRecord`), which is what
+  // keeps a row from showing on two pages when the sort ties. A backend
+  // asked to order by a field it cannot sort on refuses the query, so the
+  // definition has to say the row key can be.
+  else if (rowKey.sortable !== true)
+    issues.push(
+      issue('definition.record.row-key-unsortable', ['record', 'rowKey'], {
+        field: capability.rowKey,
+      }),
+    );
+
   issues.push(...validateMaxWindow(capability));
 
   // What the host's code reads off a row is fetched on every page, so a

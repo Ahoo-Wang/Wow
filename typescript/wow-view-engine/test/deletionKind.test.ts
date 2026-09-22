@@ -35,7 +35,7 @@ import type {
  */
 const fields: FieldDefinition[] = [
   { name: '@deleted', label: 'Deleted', kind: 'deletion' },
-  { name: 'warehouse', label: 'Warehouse', kind: 'string' },
+  { name: 'warehouse', label: 'Warehouse', kind: 'string', sortable: true },
 ];
 const context = { now: new Date('2026-09-21T00:00:00Z'), timeZone: 'UTC' };
 

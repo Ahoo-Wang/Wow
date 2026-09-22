@@ -68,7 +68,7 @@ const view: ViewInstance = {
 function writingDefinition(expressions = true): DataViewDefinition {
   return ordersDefinition({
     fields: [
-      { name: 'id', label: 'Order', kind: 'string' },
+      { name: 'id', label: 'Order', kind: 'string', sortable: true },
       { name: 'warehouse', label: 'Warehouse', kind: 'string' },
       { name: 'amount', label: 'Amount', kind: 'number', sortable: true },
       { name: 'cost', label: 'Cost', kind: 'number', sortable: true },

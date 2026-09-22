@@ -54,7 +54,7 @@ function definition(
     source: 'failures',
     fields: [
       { name: 'keyword', label: 'Search', kind: 'search' },
-      { name: 'state.id', label: 'ID', kind: 'string' },
+      { name: 'state.id', label: 'ID', kind: 'string', sortable: true },
       { name: 'state.status', label: 'Status', kind: 'string' },
       { name: 'state.isRetryable', label: 'Retryable', kind: 'boolean' },
       { name: 'state.error', label: 'Error', kind: 'string' },

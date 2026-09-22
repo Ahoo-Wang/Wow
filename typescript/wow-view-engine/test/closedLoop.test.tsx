@@ -128,8 +128,12 @@ describe('closed loop one', () => {
 
     // 2. Sort by amount and drop a column.
     fireEvent.click(screen.getByRole('button', { name: 'Amount' }));
+    // The row key ends the query's sort, so tied amounts page stably.
     await waitFor(() =>
-      expect(last().sort).toEqual([{ field: 'amount', direction: 'ASC' }]),
+      expect(last().sort).toEqual([
+        { field: 'amount', direction: 'ASC' },
+        { field: 'id', direction: 'ASC' },
+      ]),
     );
     fireEvent.click(
       screen.getByRole('button', { name: 'Toggle column Amount' }),
@@ -180,7 +184,10 @@ describe('closed loop one', () => {
     );
     await waitFor(() => expect(value('status value')).toBe('PENDING'));
     await waitFor(() => expect(cells()).toHaveLength(3));
-    expect(last().sort).toEqual([{ field: 'amount', direction: 'ASC' }]);
+    expect(last().sort).toEqual([
+      { field: 'amount', direction: 'ASC' },
+      { field: 'id', direction: 'ASC' },
+    ]);
     expect(text('selection')).toBe('');
     expect(text('paging')).toBe('page 1 of 3');
     expect(text('dirty')).toBe('clean');

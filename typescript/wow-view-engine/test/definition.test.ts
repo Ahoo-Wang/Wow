@@ -281,6 +281,37 @@ describe('validateDefinition capabilities', () => {
     ]);
   });
 
+  /**
+   * Every record query ends on the row key, so a row cannot show on two
+   * pages when the user's sort ties (`compileRecord`). A backend asked to
+   * order by a field it cannot sort on refuses the whole query, so the
+   * definition has to say the row key can be — and a release that does not
+   * is refused before any view of it opens.
+   */
+  it('refuses a row key the definition does not declare sortable', () => {
+    const base = ordersDefinition();
+    const unsortable = (sortable: boolean | undefined) =>
+      ordersDefinition({
+        fields: base.fields.map(field =>
+          field.name === 'id' ? { ...field, sortable } : field,
+        ),
+      });
+
+    for (const sortable of [false, undefined]) {
+      const found = issues(unsortable(sortable));
+      expect(found.map(issue => issue.code)).toEqual([
+        'definition.record.row-key-unsortable',
+      ]);
+      expect(found[0]).toMatchObject({
+        severity: 'error',
+        path: ['record', 'rowKey'],
+        params: { field: 'id' },
+      });
+      expect(isUsableDefinition(found)).toBe(false);
+    }
+    expect(codes(unsortable(true))).toEqual([]);
+  });
+
   it('refuses an analysis capability over a field that is not declared', () => {
     expect(
       codes(
@@ -809,7 +840,13 @@ describe('ViewEngine and an unusable definition', () => {
         validateDefinition(
           ordersDefinition({
             fields: [
-              { name: 'sku', label: 'SKU', kind: 'string', stringComparison },
+              {
+                name: 'sku',
+                label: 'SKU',
+                kind: 'string',
+                sortable: true,
+                stringComparison,
+              },
             ],
             record: { rowKey: 'sku', paging: 'paged', layouts: ['table'] },
             analysis: undefined,
@@ -831,7 +868,13 @@ describe('ViewEngine and an unusable definition', () => {
     const found = validateDefinition(
       ordersDefinition({
         fields: [
-          { name: 'sku', label: 'SKU', kind: 'string', cell: 'chip' as never },
+          {
+            name: 'sku',
+            label: 'SKU',
+            kind: 'string',
+            sortable: true,
+            cell: 'chip' as never,
+          },
           {
             name: 'status',
             label: 'Status',
@@ -867,6 +910,7 @@ describe('ViewEngine and an unusable definition', () => {
                 name: 'sku',
                 label: 'SKU',
                 kind: 'string',
+                sortable: true,
                 cell,
                 options: FIELD_TONES.map(tone => ({
                   value: tone,

@@ -72,7 +72,7 @@ export const orders: ViewDefinition = {
   kind: 'data',
   source: 'orders',
   fields: [
-    { name: 'id', label: 'Order', kind: 'string' },
+    { name: 'id', label: 'Order', kind: 'string', sortable: true },
     {
       name: 'status',
       label: 'Status',
@@ -91,6 +91,7 @@ export const orders: ViewDefinition = {
     },
     { name: 'createdAt', label: 'Created', kind: 'datetime', sortable: true },
   ],
+  // 行键必须可排序：每条记录查询的排序都以它收尾，排序值相同的行翻页时才不重不漏
   record: { rowKey: 'id', paging: 'paged', layouts: ['table', 'card'] },
   // 系统视图：开发或运维配置的基础视图，随定义部署，所有用户可见，只读，可另存
   views: [

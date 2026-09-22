@@ -72,7 +72,7 @@ export const orders: ViewDefinition = {
   kind: 'data',
   source: 'orders',
   fields: [
-    { name: 'id', label: 'Order', kind: 'string' },
+    { name: 'id', label: 'Order', kind: 'string', sortable: true },
     {
       name: 'status',
       label: 'Status',
@@ -91,6 +91,8 @@ export const orders: ViewDefinition = {
     },
     { name: 'createdAt', label: 'Created', kind: 'datetime', sortable: true },
   ],
+  // The row key must be sortable: every record query ends its sort on it,
+  // so rows that tie on the chosen sort never repeat or go missing across pages.
   record: { rowKey: 'id', paging: 'paged', layouts: ['table', 'card'] },
   // System views: baseline views configured by developers or operators.
   // Deployed with the definition, visible to everyone, read-only, can be saved as.

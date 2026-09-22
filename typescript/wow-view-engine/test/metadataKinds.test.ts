@@ -69,8 +69,13 @@ describe('metadata field kinds', () => {
       title: 'Orders',
       kind: 'data',
       source: 'orders',
-      fields,
-      record: { rowKey: '@id', paging: 'paged', layouts: ['table'] },
+      // The row key is a document field the rows carry and the query sorts
+      // on last; a metadata kind names no such field.
+      fields: [
+        ...fields,
+        { name: 'orderNo', label: 'Order no.', kind: 'string', sortable: true },
+      ],
+      record: { rowKey: 'orderNo', paging: 'paged', layouts: ['table'] },
     };
 
     expect(validateDefinition(definition, builtinFieldKinds)).toEqual([]);
