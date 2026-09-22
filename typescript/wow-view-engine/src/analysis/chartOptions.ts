@@ -51,7 +51,7 @@ const TABLE_TABS: readonly OptionsTab[] = ['display'];
  * doubling up. The same rule places a heatmap's two axes and a scatter's
  * two metrics.
  */
-export function placed<S extends object, K extends keyof S>(
+export function withSlot<S extends object, K extends keyof S>(
   spec: S,
   at: K,
   other: K,
@@ -117,7 +117,11 @@ export function withSmooth(spec: CartesianSpec, on: boolean): CartesianSpec {
  * handle names the place one step away, and a drop names the place it landed
  * on, which may be any of them.
  */
-export function movedTo<T>(items: readonly T[], from: number, to: number): T[] {
+export function withMovedTo<T>(
+  items: readonly T[],
+  from: number,
+  to: number,
+): T[] {
   if (from < 0 || from >= items.length || to < 0 || to >= items.length)
     return [...items];
   const next = [...items];
@@ -126,12 +130,12 @@ export function movedTo<T>(items: readonly T[], from: number, to: number): T[] {
 }
 
 /** The list with the item at `index` moved one step, or as it was at an end. */
-export function moved<T>(
+export function withMoved<T>(
   items: readonly T[],
   index: number,
   step: -1 | 1,
 ): T[] {
-  return movedTo(items, index, index + step);
+  return withMovedTo(items, index, index + step);
 }
 
 /**

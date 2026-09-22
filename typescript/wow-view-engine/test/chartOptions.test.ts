@@ -15,10 +15,10 @@ import { describe, expect, it } from 'vitest';
 import {
   isSmooth,
   isStacked,
-  moved,
-  movedTo,
+  withMoved,
+  withMovedTo,
   optionTabs,
-  placed,
+  withSlot,
   stageValues,
   withSmooth,
   withStacked,
@@ -45,29 +45,29 @@ describe('chartOptions', () => {
   });
 
   it('places an alias in a slot and swaps when the other slot held it', () => {
-    expect(placed(cartesian, 'x', 'splitBy', 'region')).toMatchObject({
+    expect(withSlot(cartesian, 'x', 'splitBy', 'region')).toMatchObject({
       x: 'region',
       splitBy: 'month',
     });
     // Choosing the split's alias for the axis swaps the two rather than
     // leaving `chart.splitBy.same-as-x` behind.
-    expect(placed(cartesian, 'x', 'splitBy', 'month')).toMatchObject({
+    expect(withSlot(cartesian, 'x', 'splitBy', 'month')).toMatchObject({
       x: 'month',
       splitBy: 'warehouse',
     });
-    expect(placed(cartesian, 'splitBy', 'x', 'warehouse')).toMatchObject({
+    expect(withSlot(cartesian, 'splitBy', 'x', 'warehouse')).toMatchObject({
       x: 'month',
       splitBy: 'warehouse',
     });
     // The same rule for a heatmap's two axes and a scatter's two metrics.
-    expect(placed({ x: 'a', y: 'b', value: 'n' }, 'y', 'x', 'a')).toEqual({
+    expect(withSlot({ x: 'a', y: 'b', value: 'n' }, 'y', 'x', 'a')).toEqual({
       x: 'b',
       y: 'a',
       value: 'n',
     });
-    expect(placed({ category: 'c', x: 'm1', y: 'm2' }, 'x', 'y', 'm3')).toEqual(
-      { category: 'c', x: 'm3', y: 'm2' },
-    );
+    expect(
+      withSlot({ category: 'c', x: 'm1', y: 'm2' }, 'x', 'y', 'm3'),
+    ).toEqual({ category: 'c', x: 'm3', y: 'm2' });
   });
 
   it('stacks and smooths every series as one choice, and reads it back', () => {
@@ -99,11 +99,11 @@ describe('chartOptions', () => {
   });
 
   it('moves a list item one step and stays put at either end', () => {
-    expect(moved(['a', 'b', 'c'], 1, -1)).toEqual(['b', 'a', 'c']);
-    expect(moved(['a', 'b', 'c'], 1, 1)).toEqual(['a', 'c', 'b']);
-    expect(moved(['a', 'b', 'c'], 0, -1)).toEqual(['a', 'b', 'c']);
-    expect(moved(['a', 'b', 'c'], 2, 1)).toEqual(['a', 'b', 'c']);
-    expect(moved(['a', 'b', 'c'], 5, 1)).toEqual(['a', 'b', 'c']);
+    expect(withMoved(['a', 'b', 'c'], 1, -1)).toEqual(['b', 'a', 'c']);
+    expect(withMoved(['a', 'b', 'c'], 1, 1)).toEqual(['a', 'c', 'b']);
+    expect(withMoved(['a', 'b', 'c'], 0, -1)).toEqual(['a', 'b', 'c']);
+    expect(withMoved(['a', 'b', 'c'], 2, 1)).toEqual(['a', 'b', 'c']);
+    expect(withMoved(['a', 'b', 'c'], 5, 1)).toEqual(['a', 'b', 'c']);
   });
 
   /**
@@ -112,11 +112,11 @@ describe('chartOptions', () => {
    * other, so both inputs end up here.
    */
   it('takes a list item out and puts it back at the place asked for', () => {
-    expect(movedTo(['a', 'b', 'c'], 2, 0)).toEqual(['c', 'a', 'b']);
-    expect(movedTo(['a', 'b', 'c'], 0, 2)).toEqual(['b', 'c', 'a']);
-    expect(movedTo(['a', 'b', 'c'], 1, 1)).toEqual(['a', 'b', 'c']);
-    expect(movedTo(['a', 'b', 'c'], 0, 3)).toEqual(['a', 'b', 'c']);
-    expect(movedTo(['a', 'b', 'c'], -1, 0)).toEqual(['a', 'b', 'c']);
+    expect(withMovedTo(['a', 'b', 'c'], 2, 0)).toEqual(['c', 'a', 'b']);
+    expect(withMovedTo(['a', 'b', 'c'], 0, 2)).toEqual(['b', 'c', 'a']);
+    expect(withMovedTo(['a', 'b', 'c'], 1, 1)).toEqual(['a', 'b', 'c']);
+    expect(withMovedTo(['a', 'b', 'c'], 0, 3)).toEqual(['a', 'b', 'c']);
+    expect(withMovedTo(['a', 'b', 'c'], -1, 0)).toEqual(['a', 'b', 'c']);
   });
 
   it('lists a group’s text values once each in the order the rows came', () => {

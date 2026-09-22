@@ -23,8 +23,13 @@ export interface DragAnnouncement {
   canceled?: boolean;
 }
 
-/** The two sentences a drag says for itself, with the thing it carries named. */
+/**
+ * What a drag says for itself: the instructions on the handle, and the two
+ * sentences with the thing it carries named. `dragWording.ts` reads them
+ * out of the catalogue.
+ */
 export interface DragWording {
+  instructions: string;
   picked(name: string): string;
   cancelled(name: string): string;
 }
@@ -46,7 +51,6 @@ export interface DragWording {
  * move is never read out twice.
  */
 export function dragAccessibility(
-  instructions: string,
   say: DragWording,
   nameOf: (id: string) => string,
 ) {
@@ -54,7 +58,7 @@ export function dragAccessibility(
     event.operation.source ? nameOf(String(event.operation.source.id)) : null;
 
   return {
-    screenReaderInstructions: { draggable: instructions },
+    screenReaderInstructions: { draggable: say.instructions },
     announcements: {
       dragstart: (event: DragAnnouncement) => {
         const name = named(event);

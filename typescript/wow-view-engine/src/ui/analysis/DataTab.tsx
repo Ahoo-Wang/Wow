@@ -13,8 +13,8 @@
 
 import { ArrowDownIcon, ArrowUpIcon, XIcon } from 'lucide-react';
 import {
-  moved,
-  placed,
+  withMoved,
+  withSlot,
   stageValues,
   withStageOrder,
 } from '../../analysis/index.js';
@@ -76,14 +76,14 @@ function CartesianData({ chart, shape, onChange }: OptionsPageProps) {
         label={messages.label('label.chart.slot.x')}
         items={shape.groups}
         value={spec.x}
-        onChange={alias => update(placed(spec, 'x', 'splitBy', alias))}
+        onChange={alias => update(withSlot(spec, 'x', 'splitBy', alias))}
       />
       {spec.splitBy !== undefined && (
         <SlotSelect
           label={messages.label('label.chart.slot.split')}
           items={shape.groups}
           value={spec.splitBy}
-          onChange={alias => update(placed(spec, 'splitBy', 'x', alias))}
+          onChange={alias => update(withSlot(spec, 'splitBy', 'x', alias))}
         />
       )}
       <SeriesList
@@ -131,7 +131,7 @@ function HeatmapData({ chart, shape, onChange }: OptionsPageProps) {
         items={shape.groups}
         value={spec.y}
         onChange={alias =>
-          onChange({ ...chart, heatmap: placed(spec, 'y', 'x', alias) })
+          onChange({ ...chart, heatmap: withSlot(spec, 'y', 'x', alias) })
         }
       />
       <SlotSelect
@@ -139,7 +139,7 @@ function HeatmapData({ chart, shape, onChange }: OptionsPageProps) {
         items={shape.groups}
         value={spec.x}
         onChange={alias =>
-          onChange({ ...chart, heatmap: placed(spec, 'x', 'y', alias) })
+          onChange({ ...chart, heatmap: withSlot(spec, 'x', 'y', alias) })
         }
       />
       <SlotSelect
@@ -171,7 +171,7 @@ function ScatterData({ chart, shape, onChange }: OptionsPageProps) {
         items={shape.metrics}
         value={spec.x}
         onChange={alias =>
-          onChange({ ...chart, scatter: placed(spec, 'x', 'y', alias) })
+          onChange({ ...chart, scatter: withSlot(spec, 'x', 'y', alias) })
         }
       />
       <SlotSelect
@@ -179,7 +179,7 @@ function ScatterData({ chart, shape, onChange }: OptionsPageProps) {
         items={shape.metrics}
         value={spec.y}
         onChange={alias =>
-          onChange({ ...chart, scatter: placed(spec, 'y', 'x', alias) })
+          onChange({ ...chart, scatter: withSlot(spec, 'y', 'x', alias) })
         }
       />
       <OptionalSlotSelect
@@ -224,7 +224,7 @@ function FunnelData({ chart, shape, rows, label, onChange }: OptionsPageProps) {
         onMove={(index, step) =>
           update({
             ...spec,
-            stages: { from: 'metrics', items: moved(items, index, step) },
+            stages: { from: 'metrics', items: withMoved(items, index, step) },
           })
         }
         /**
@@ -287,7 +287,7 @@ function FunnelData({ chart, shape, rows, label, onChange }: OptionsPageProps) {
           name: label(stages.category, value),
         }))}
         onMove={(index, step) =>
-          update(withStageOrder(spec, moved(order, index, step)))
+          update(withStageOrder(spec, withMoved(order, index, step)))
         }
         onRemove={index =>
           update(

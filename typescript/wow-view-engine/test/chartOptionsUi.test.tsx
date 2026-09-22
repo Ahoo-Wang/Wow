@@ -42,7 +42,7 @@ import { defaultMessages } from '../src/ui/messages.js';
 import {
   seriesDragAccessibility,
   seriesDrop,
-} from '../src/ui/analysis/SeriesList.js';
+} from '../src/ui/analysis/drag.js';
 import { ordersDefinition, testSource } from './fixtures.js';
 import { formattersFor } from './fixtures/columns.js';
 import { describedText } from './fixtures/ui.js';

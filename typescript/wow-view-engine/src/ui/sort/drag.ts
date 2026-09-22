@@ -23,6 +23,7 @@
 
 import type { RecordSort } from '../../model/index.js';
 import { dragAccessibility } from '../dragAnnounce.js';
+import { dragWording, type DragWordingKeys } from '../dragWording.js';
 import { dropped, type DropOperation } from '../dragDrop.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
 
@@ -99,6 +100,14 @@ export function reorderSort(
   return [...rest.slice(0, to), moved, ...rest.slice(to)];
 }
 
+/** Where this list's drag sentences live in the catalogue. */
+export const SORT_DRAG_WORDING: DragWordingKeys = {
+  instructions: 'label.sort.instructions',
+  picked: 'label.sort.picked',
+  cancelled: 'label.sort.cancelled',
+  placeholder: 'field',
+};
+
 /**
  * What a screen reader hears while a sort entry is being carried: the shared
  * wording of a drag ({@link dragAccessibility}) said in this editor's own
@@ -109,12 +118,5 @@ export function sortDragAccessibility(
   messages: MessageFormatters,
   labelFor: (id: string) => string,
 ) {
-  return dragAccessibility(
-    messages.label('label.sort.instructions'),
-    {
-      picked: field => messages.label('label.sort.picked', { field }),
-      cancelled: field => messages.label('label.sort.cancelled', { field }),
-    },
-    labelFor,
-  );
+  return dragAccessibility(dragWording(messages, SORT_DRAG_WORDING), labelFor);
 }

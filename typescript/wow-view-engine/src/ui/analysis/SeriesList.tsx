@@ -16,7 +16,7 @@ import { useSortable } from '@dnd-kit/react/sortable';
 import { Accessibility } from '@dnd-kit/dom';
 import { OptimisticSortingPlugin } from '@dnd-kit/dom/sortable';
 import { PlusIcon, XIcon } from 'lucide-react';
-import { movedTo } from '../../analysis/index.js';
+import { withMovedTo } from '../../analysis/index.js';
 import type {
   CartesianSeries,
   CartesianSpec,
@@ -37,74 +37,14 @@ import {
   ItemTitle,
 } from '../components/item.js';
 import { DragHandle } from '../DragHandle.js';
-import { dragAccessibility } from '../dragAnnounce.js';
-import { dropped, type DropOperation } from '../dragDrop.js';
 import { IconButton } from '../IconButton.js';
-import {
-  useViewMessages,
-  type MessageFormatters,
-} from '../MessagesProvider.js';
+import { useViewMessages } from '../MessagesProvider.js';
 import { DropdownMenuContent } from '../popups.js';
 import { RowItem } from '../RowItem.js';
 import { CompactSelect } from './CompactSelect.js';
+import { seriesDragAccessibility, seriesDrop } from './drag.js';
 import { useListFocus, type ListFocus } from './listFocus.js';
 import { OptionsSection, type Choice } from './optionControls.js';
-
-/** The two places one drop on the series list is between. */
-export interface SeriesDrop {
-  from: number;
-  to: number;
-}
-
-/**
- * The move a finished drag on the series list is, or null.
- *
- * A series is carried under the alias of the metric it draws: a cartesian
- * chart draws one series per metric — that is what "add series" offers and
- * what the list has always been keyed by — so the two ids the drop reports
- * are the two metrics it is between, and no separate identity has to be
- * invented for the library to hold. Whether there was a drop at all is the
- * guard every sortable list here shares ({@link dropped}); what is added on
- * top is that both ids name a series *this* chart draws, since the panel is
- * not the only draggable thing the page holds.
- *
- * It is a function of its own because it is the one decision a pointer makes
- * that jsdom cannot reach — `@dnd-kit/dom` picks its target by measuring
- * boxes, and every box there is 0×0 at the origin.
- */
-export function seriesDrop(
-  series: readonly CartesianSeries[],
-  operation: DropOperation,
-  canceled: boolean | undefined,
-): SeriesDrop | null {
-  const drop = dropped(operation, canceled);
-  if (!drop) return null;
-  const from = series.findIndex(one => one.metric === drop.source);
-  const to = series.findIndex(one => one.metric === drop.target);
-  if (from < 0 || to < 0 || from === to) return null;
-  return { from, to };
-}
-
-/**
- * What a screen reader hears while a series is being carried: the shared
- * wording of a drag ({@link dragAccessibility}) said in this list's own
- * words, with the metric aliases the library is holding turned back into
- * the column titles on screen.
- */
-export function seriesDragAccessibility(
-  messages: MessageFormatters,
-  nameOf: (alias: string) => string,
-) {
-  return dragAccessibility(
-    messages.label('label.chart.series-instructions'),
-    {
-      picked: name => messages.label('label.chart.series-picked', { name }),
-      cancelled: name =>
-        messages.label('label.chart.series-cancelled', { name }),
-    },
-    nameOf,
-  );
-}
 
 export interface SeriesListProps {
   /** The chart type, which decides whether a series picks its own mark. */
@@ -167,7 +107,7 @@ export function SeriesList({ type, spec, metrics, onChange }: SeriesListProps) {
   const moveTo = (from: number, to: number) => {
     const carried = spec.series[from];
     if (!carried || from === to || to < 0 || to >= spec.series.length) return;
-    const order = movedTo(spec.series, from, to);
+    const order = withMovedTo(spec.series, from, to);
     update(order);
     say(
       messages.label('label.chart.series-moved', {

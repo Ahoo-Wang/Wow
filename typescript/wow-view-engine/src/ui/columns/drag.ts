@@ -22,6 +22,7 @@
  */
 
 import { dragAccessibility } from '../dragAnnounce.js';
+import { dragWording, type DragWordingKeys } from '../dragWording.js';
 import { dropped, type Drop, type DropOperation } from '../dragDrop.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
 import type { ColumnRegion } from './rows.js';
@@ -50,6 +51,14 @@ export function columnDrop(
   return drop;
 }
 
+/** Where this list's drag sentences live in the catalogue. */
+export const COLUMN_DRAG_WORDING: DragWordingKeys = {
+  instructions: 'label.columns.instructions',
+  picked: 'label.columns.picked',
+  cancelled: 'label.columns.cancelled',
+  placeholder: 'field',
+};
+
 /**
  * What a screen reader hears while a column is being dragged: the shared
  * wording of a drag ({@link dragAccessibility}) said in this panel's own
@@ -60,11 +69,7 @@ export function columnDragAccessibility(
   labelFor: (field: string) => string,
 ) {
   return dragAccessibility(
-    messages.label('label.columns.instructions'),
-    {
-      picked: field => messages.label('label.columns.picked', { field }),
-      cancelled: field => messages.label('label.columns.cancelled', { field }),
-    },
+    dragWording(messages, COLUMN_DRAG_WORDING),
     labelFor,
   );
 }

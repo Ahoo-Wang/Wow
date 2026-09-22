@@ -32,9 +32,8 @@ export interface Announcer {
  * panel's series list — and the first three each had their own
  * `role="status" aria-live="polite"` block, written out three times. The
  * region is not the interesting part of any of them: the wording is
- * (`dragAnnounce.ts`, `columns/drag.ts`, `manage/drag.ts`,
- * `analysis/SeriesList.tsx`), and the caller hands that over already
- * formatted.
+ * (`dragWording.ts`, `dragAnnounce.ts`, and each list's own `drag.ts`),
+ * and the caller hands that over already formatted.
  *
  * Why there is a region at all, next to a drag library that owns one:
  * `@dnd-kit`'s `Accessibility` plugin announces what the plugin itself

@@ -157,6 +157,8 @@ mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboa
 
 ## Analysis 内核的规则
 
+**命名只有一条规则**：读是 `is…`（`isStacked`、`isSmooth`、`isFormula`），写是 `with…`／`without…`——交回一份改过的新值（`withStacked`、`withSlot`、`withMoved`、`withStageOrder`、`withElements`、`withLevel`、`withoutLevelsFrom`、`withHavingRows`），推导是名词（`…Of`、`…Rows`、`nextExpansion`）。不用过去分词给写起名：placed、expanded 这样的名字摆在 `isStacked` 旁边读起来像判断，而它们其实是在改东西。
+
 **分桶的反向映射**（`analysis/drill.ts`，K1／K6）：`drillConditions(config, fields, kinds, row, ctx)` 把结果的一行还原成选出它背后记录的条件——TERMS 是一个值（kind 有 `EQ` 用 `EQ`，否则用它的「其中之一」：枚举 `IN [v]`、引用 `IN { items: [{ id, label }] }`；空桶与 `missingKey` 哨兵一律 `IS_NULL`），HISTOGRAM 是半开区间 `GTE key` + `LT key+interval`，DATE_HISTOGRAM 是 `bucketRange(unit, start, timeZone)` 给出的 `[start, 下一桶起)` 写成 `BETWEEN`、上界减 1ms（给日期加 `LT` 会波及所有日期编辑器；一毫秒比一个控件便宜）。桶在分组自己的 `timeZone`、没有则 `ctx.timeZone` 里推进：日历单位按该时区的挂钟走（跨夏令时的那一天按日历长），时钟单位按长度走。展开了 elements 的分析交不出条件（分组是最内层元素的字段，记录视图看的是根文档）——返回 `null`，`canDrill` 因此为假；这是线索。`drillFilter(applied, conditions)`：分析视图已应用的树是简单树就平铺成一个「都满足」组（记录视图因此以简单模式打开），否则嵌套。内核只交出条件（K6），开什么视图、带什么列由 `react/useWorkbench.ts` 与 `defaultRecordConfig` 合成，因为 `analysis` 与 `record` 互不引用。
 
 留在分析视图里的那两问（D20 追问）也在这里，交出的同样只是一份配置补丁，由运行时 `edit` 后 `apply`：`focusOn(config, conditions)` 把这一行的条件加进范围（`drillFilter` 的平铺／嵌套规则，因此简单树仍是简单模式，已经进阶的才留在进阶）；`splitBy(config, conditions, group)` 在此之上把维度整个换成 `group`——同一个问题换一个维度问，不是多分一层——并且把**指名旧别名的东西一起放掉**：`sort` 清空、`table.columns` 清空（表的其余设置留着）、`chart` 过一遍 `fitChartSlots` 重新配槽，否则那份补丁一跑就会被 `validateAnalysis` 以别名未知／分组未消费顶回来。`groupFor(field, offered, kind)` 是"这个字段当维度长什么样"：能按值就 `TERMS`，否则 `DATE_HISTOGRAM`，再不然 `HISTOGRAM`——它只挑类型，形状（哨兵桶、日期单位、区间宽度）出自唯一的构造器 `groupOfType`；别名用的是 `aliasOf(field, 'group')`，与新配置第一个维度的别名同一个写法，所以拆出来的视图存得下去。（见 test/analysisDrill.test.ts「bucketRange」「drillConditions」「drillFilter」「focusOn」「splitBy」「groupFor」）
@@ -195,7 +197,7 @@ D20 屏 G。展开一个数组就是换掉计数单位：`订单 → 明细项` 
 - **什么都不剩时指标重新起头**：`firstMetric(capability.count, 新单位的聚合能力)`，跟一份全新的分析一样。一份没有指标的聚合查询什么也答不上来，所以"空着"不是一个可选项；
 - **还指得着的东西原样留着**：明细项的货号维度在收起批次之后仍然是明细项的货号维度，不该因为链动了一下就重挑一遍。
 
-图表、排序与表列跟着这次形状变化走的方式，跟它们跟着任何一次分组／指标变化走的方式完全一样（`useAnalysisEditor` 的 `reshape`），所以这里只回答"分什么组、测什么数"。链本身的三个动作也在这儿：`expanded(elements, path)` 往里走一层，`collapsed(elements, index)` 从这一层切断（里面的层一起走），`nextExpansion(declaredChain, elements)` 是能力声明的下一步——链是一条线，所以至多只有一个可展开的东西；`levelLabel` 与 `nextLevel` 把层与下一步按它们的字段显示名说出来，给界面用。（见 test/expand.test.ts「withElements」与 test/elementsSlot.test.tsx「the expansion slot」）
+图表、排序与表列跟着这次形状变化走的方式，跟它们跟着任何一次分组／指标变化走的方式完全一样（`useAnalysisEditor` 的 `reshape`），所以这里只回答"分什么组、测什么数"。链本身的三个动作也在这儿：`withLevel(elements, path)` 往里走一层，`withoutLevelsFrom(elements, index)` 从这一层切断（里面的层一起走），`nextExpansion(declaredChain, elements)` 是能力声明的下一步——链是一条线，所以至多只有一个可展开的东西；`levelLabel` 与 `nextLevel` 把层与下一步按它们的字段显示名说出来，给界面用。（见 test/expand.test.ts「withElements」与 test/elementsSlot.test.tsx「the expansion slot」）
 
 ### 粒度推荐（K4）
 
@@ -233,7 +235,7 @@ D20 屏 G。展开一个数组就是换掉计数单位：`订单 → 明细项` 
 
 表格不经过这里：它画得了任何形态，所以它在列出图型的地方是一张永远可选的卡片，而不是一条规则。（见 test/fitCharts.test.ts「fitCharts」、test/chartFamilies.test.ts「chartFamilies」与 test/chartPicker.test.tsx「the visualization panel」）
 
-可视化面板第二层上那些"改一个设置不许弄坏另一个"的规则同样是内核的，不在组件里：`analysis/chartOptions.ts`（D20 屏 J）。`optionTabs` 说一个图型有哪几页；`placed` 让两个槽对调而不是重复（选中另一个槽正拿着的别名时）；`without` 是"取消一项"的写法；`isStacked`／`withStacked` 与 `isSmooth`／`withSmooth` 把堆叠与平滑当作整张图的一个选择，全体加入或全体退出；`moved` 排阶段；`stageValues`／`withStagesFrom`／`withStageOrder` 让按分组值分阶段的漏斗一被选中就有顺序可画——业务顺序内核不知道，但"结果行来的顺序"总好过空白。它们都是纯函数，不用 DOM 就能钉住；面板怎么用它们见 [ui/analysis.md#可视化的第二层选中图型的选项三个页签](ui/analysis.md#可视化的第二层选中图型的选项三个页签)。（见 test/chartOptions.test.ts「chartOptions」）
+可视化面板第二层上那些"改一个设置不许弄坏另一个"的规则同样是内核的，不在组件里：`analysis/chartOptions.ts`（D20 屏 J）。`optionTabs` 说一个图型有哪几页；`withSlot` 让两个槽对调而不是重复（选中另一个槽正拿着的别名时）；`without` 是"取消一项"的写法；`isStacked`／`withStacked` 与 `isSmooth`／`withSmooth` 把堆叠与平滑当作整张图的一个选择，全体加入或全体退出；`withMoved`／`withMovedTo` 排阶段与系列；`stageValues`／`withStagesFrom`／`withStageOrder` 让按分组值分阶段的漏斗一被选中就有顺序可画——业务顺序内核不知道，但"结果行来的顺序"总好过空白。它们都是纯函数，不用 DOM 就能钉住；面板怎么用它们见 [ui/analysis.md#可视化的第二层选中图型的选项三个页签](ui/analysis.md#可视化的第二层选中图型的选项三个页签)。（见 test/chartOptions.test.ts「chartOptions」）
 
 ### 图表的槽跟着形态走：`fitChartSlots`
 

@@ -30,9 +30,9 @@ import type {
 } from '../model/index.js';
 import {
   analysisScope,
-  collapsed,
+  withoutLevelsFrom,
   elementFilterFields,
-  expanded,
+  withLevel,
   fitChartSlots,
   havingRows,
   levelLabel,
@@ -357,11 +357,11 @@ export function useAnalysisEditor(
       [scope],
     ),
     expand: useCallback(
-      (path: string) => rescope(expanded(elements, path)),
+      (path: string) => rescope(withLevel(elements, path)),
       [rescope, elements],
     ),
     collapse: useCallback(
-      (index: number) => rescope(collapsed(elements, index)),
+      (index: number) => rescope(withoutLevelsFrom(elements, index)),
       [rescope, elements],
     ),
     setElementFilter: useCallback(

@@ -14,8 +14,8 @@
 import { AggregationGroupType } from '@ahoo-wang/fetcher-wow';
 import { describe, expect, it } from 'vitest';
 import {
-  collapsed,
-  expanded,
+  withoutLevelsFrom,
+  withLevel,
   nextExpansion,
   withElements,
 } from '../src/analysis/index.js';
@@ -71,7 +71,7 @@ describe('withElements', () => {
   it('takes the dimensions and metrics of the old unit with it, and starts the metrics again', () => {
     const rescoped = withElements(
       config(),
-      expanded([], 'items'),
+      withLevel([], 'items'),
       chained,
       chain,
     );
@@ -102,7 +102,7 @@ describe('withElements', () => {
     });
     const deeper = withElements(
       inside,
-      expanded(inside.elements!, 'batches'),
+      withLevel(inside.elements!, 'batches'),
       chained,
       chain,
     );
@@ -115,7 +115,7 @@ describe('withElements', () => {
     // condition on the order's warehouse leaves the metric.
     const back = withElements(
       inside,
-      collapsed(inside.elements!, 1),
+      withoutLevelsFrom(inside.elements!, 1),
       chained,
       chain,
     );
@@ -147,7 +147,7 @@ describe('withElements', () => {
           },
         ],
       }),
-      expanded([], 'items'),
+      withLevel([], 'items'),
       uncountable,
       uncountable.analysis!,
     );
@@ -184,7 +184,7 @@ describe('withElements', () => {
           },
         ],
       }),
-      expanded([], 'items'),
+      withLevel([], 'items'),
       chained,
       chain,
     );
@@ -234,7 +234,7 @@ describe('withElements', () => {
     // to read once the formula went, so it leaves too, and the item's
     // question starts again from what an item can be counted by.
     expect(
-      withElements(measured, expanded([], 'items'), chained, chain).metrics,
+      withElements(measured, withLevel([], 'items'), chained, chain).metrics,
     ).toMatchObject([{ type: 'COUNT' }]);
   });
 
@@ -249,9 +249,11 @@ describe('withElements', () => {
         [{ path: 'items' }, { path: 'batches' }],
       ),
     ).toBeUndefined();
-    expect(collapsed([{ path: 'items' }, { path: 'batches' }], 0)).toEqual([]);
-    expect(collapsed([{ path: 'items' }, { path: 'batches' }], 1)).toEqual([
-      { path: 'items' },
-    ]);
+    expect(
+      withoutLevelsFrom([{ path: 'items' }, { path: 'batches' }], 0),
+    ).toEqual([]);
+    expect(
+      withoutLevelsFrom([{ path: 'items' }, { path: 'batches' }], 1),
+    ).toEqual([{ path: 'items' }]);
   });
 });

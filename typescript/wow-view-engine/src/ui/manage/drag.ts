@@ -23,6 +23,7 @@
 
 import type { ViewAudience } from '../../model/index.js';
 import { dragAccessibility } from '../dragAnnounce.js';
+import { dragWording, type DragWordingKeys } from '../dragWording.js';
 import { dropped, type Drop, type DropOperation } from '../dragDrop.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
 
@@ -50,6 +51,14 @@ export function managerDrop(
   return drop;
 }
 
+/** Where this list's drag sentences live in the catalogue. */
+export const MANAGE_DRAG_WORDING: DragWordingKeys = {
+  instructions: 'label.manage.instructions',
+  picked: 'label.manage.picked',
+  cancelled: 'label.manage.cancelled',
+  placeholder: 'title',
+};
+
 /**
  * What a screen reader hears while a view is being carried: the shared
  * wording of a drag said in the manager's own words, with the instance ids
@@ -60,11 +69,7 @@ export function manageDragAccessibility(
   titleFor: (id: string) => string,
 ) {
   return dragAccessibility(
-    messages.label('label.manage.instructions'),
-    {
-      picked: title => messages.label('label.manage.picked', { title }),
-      cancelled: title => messages.label('label.manage.cancelled', { title }),
-    },
+    dragWording(messages, MANAGE_DRAG_WORDING),
     titleFor,
   );
 }

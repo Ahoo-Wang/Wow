@@ -80,7 +80,7 @@ export function withElements(
 }
 
 /** The chain one level deeper: the declared next step, with no gate yet. */
-export function expanded(
+export function withLevel(
   elements: readonly AnalysisElement[],
   path: string,
 ): AnalysisElement[] {
@@ -88,7 +88,7 @@ export function expanded(
 }
 
 /** The chain cut at `index`: that level and every level inside it leave. */
-export function collapsed(
+export function withoutLevelsFrom(
   elements: readonly AnalysisElement[],
   index: number,
 ): AnalysisElement[] {
