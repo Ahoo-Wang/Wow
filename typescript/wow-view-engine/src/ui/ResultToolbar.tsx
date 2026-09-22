@@ -25,7 +25,7 @@ import type { RecordViewRuntime } from '../runtime/index.js';
 import { Badge } from './components/badge.js';
 import { Button } from './components/button.js';
 import { ButtonGroup } from './components/button-group.js';
-import { LayoutGridIcon, Rows3Icon } from 'lucide-react';
+import { LayoutGridIcon, Rows3Icon, XIcon } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from './components/toggle-group.js';
 import { Tooltip, TooltipTrigger } from './components/tooltip.js';
 import { TooltipContent } from './popups.js';
@@ -33,6 +33,7 @@ import { CardSettings } from './CardSettings.js';
 import { ColumnSettings } from './ColumnSettings.js';
 import type { ReleasedPins } from './record/pinCap.js';
 import { ExportDialog, type ExportOffer } from './ExportDialog.js';
+import { IconTooltip } from './IconButton.js';
 import { SortSettings } from './SortSettings.js';
 import { featuresOf, type WorkbenchFeatures } from './features.js';
 import { SPACE, TEXT_UI } from './layout.js';
@@ -199,22 +200,51 @@ export function ResultToolbar({
           data-slot="toolbar-selection"
           className={`flex flex-wrap items-center ${SPACE.GROUPS}`}
         >
-          <Badge variant="secondary" role="status">
-            {messages.label('label.toolbar.selected', {
-              count: table.selection.length,
-            })}
-          </Badge>
-          <ToolbarItem
-            render={
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={table.clearSelection}
-              />
-            }
+          {/* The count and the way to drop it are one thing, so they sit
+              4px apart inside the 8px the groups keep between them: a ✕ is
+              read as belonging to whatever it is against, and what this one
+              clears is the number beside it. The badge keeps `role=status`
+              to itself — a control inside a live region would be announced
+              again on every change of the count. */}
+          <div
+            data-slot="toolbar-selection-count"
+            className="flex items-center gap-1"
           >
-            {messages.label('label.toolbar.clear-selection')}
-          </ToolbarItem>
+            <Badge variant="secondary" role="status">
+              {messages.label('label.toolbar.selected', {
+                count: table.selection.length,
+              })}
+            </Badge>
+            {/* **A glyph rather than a word** (P-05). As a `ghost` button
+                with a label in it, this was 74px of unframed 13px text
+                beside the host's framed 74px bulk action — the same size,
+                the same place, and no border: it read as the badge's
+                caption. `outline` would have made it read as pressable and
+                also as the host's peer, first in the row and heaviest on
+                the left, when clearing a selection is the way back from the
+                actions rather than one of them. A ✕ against the count is
+                the shape everything else uses for "drop this", stays
+                `ghost` like the rest of this bar, and gives the left 46px
+                back — on a phone the bar is three lines of controls. The
+                name is unchanged and said the way D12 says every icon
+                button's: `aria-label` plus the tooltip, over one string. */}
+            <IconTooltip
+              label={messages.label('label.toolbar.clear-selection')}
+              render={
+                <ToolbarItem
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={table.clearSelection}
+                    />
+                  }
+                />
+              }
+            >
+              <XIcon />
+            </IconTooltip>
+          </div>
           {/* The host's own controls stay as they came: a bulk slot holds
               arbitrary nodes, and an item can only be made of an element
               this file renders. They are ordinary tab stops between the two

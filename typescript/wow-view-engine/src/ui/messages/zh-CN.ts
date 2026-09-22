@@ -280,6 +280,7 @@ export const zhCN: ViewMessages = {
   'label.filter.add-value-of': '添加 {field}',
   'label.filter.add-value': '添加 {value}',
   'label.filter.remove-value': '删除 {value}',
+  'label.filter.type-to-add': '输入后按 Enter',
   'label.filter.already-listed': '已在列表中',
   'label.filter.not-a-number': '不是数字',
   'label.deletion.active': '仅未删除',

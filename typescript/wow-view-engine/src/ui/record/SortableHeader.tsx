@@ -28,6 +28,7 @@ import {
   type PinPlacement,
 } from './columns.js';
 import { ColumnResizer } from './ColumnResizer.js';
+import { useRovingHeader } from './headerRoving.js';
 
 export interface SortableHeaderProps {
   column: RecordColumnView;
@@ -76,6 +77,15 @@ export function SortableHeader({
   pin,
 }: SortableHeaderProps) {
   const messages = useViewMessages();
+  // One stop for the whole header row, and Alt+←/→ on whichever column it is
+  // standing on. The item is this header's own focusable element — the sort
+  // button where there is one, the cell itself where the column cannot be
+  // sorted, so every column is reachable by the same arrows.
+  const {
+    attach,
+    item: stop,
+    onKeyDown: rove,
+  } = useRovingHeader({ ...(onResize ? { onResize } : {}) });
   const at = sort.findIndex(entry => entry.field === column.field);
   const direction = at < 0 ? null : sort[at].direction;
   const style = { ...columnWidth(column), ...pin?.style };
@@ -123,6 +133,11 @@ export function SortableHeader({
         {...pinned}
         className={head}
         style={style}
+        // A column with nothing to press is still a column to walk to and
+        // still a column to widen, so the cell is the group's item here.
+        ref={attach}
+        {...stop}
+        onKeyDown={rove}
       >
         {label}
         {resizer}
@@ -152,6 +167,8 @@ export function SortableHeader({
         type="button"
         variant="ghost"
         size="sm"
+        ref={attach}
+        {...stop}
         aria-label={
           position === null
             ? name
@@ -188,6 +205,10 @@ export function SortableHeader({
           onToggle(column.field, { exclusive: !additive(event) })
         }
         onKeyDown={event => {
+          // The row's own keys first — walking to the next column and
+          // widening this one are answered before anything about sorting,
+          // and neither is a key this button would otherwise use.
+          if (rove(event)) return;
           if (!additive(event)) return;
           if (event.key !== 'Enter' && event.key !== ' ') return;
           event.preventDefault();

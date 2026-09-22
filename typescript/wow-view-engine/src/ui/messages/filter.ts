@@ -98,6 +98,10 @@ export const filterMessages = {
   'label.filter.add-value-of': 'Add {field}',
   'label.filter.add-value': 'Add {value}',
   'label.filter.remove-value': 'Remove {value}',
+  // What an empty list's entry box says: the whole gesture, because this is
+  // the one control on the panel where a key commits the value and Enter is
+  // written nowhere else on screen.
+  'label.filter.type-to-add': 'Type a value and press Enter',
   // Why what is typed is not offered: the popup says so rather than staying
   // silently empty.
   'label.filter.already-listed': 'Already in the list',

@@ -100,18 +100,22 @@ describe('the resize handle', () => {
 
   /**
    * A separator is what ARIA calls a movable boundary between two regions,
-   * and a focusable one carries the value it is set to. The name is the
-   * column, because a handle that says only "resize" is a handle a reader
-   * cannot tell from the three beside it.
+   * and one that carries a value says which value. The name is the column,
+   * because a handle that says only "resize" is a handle a reader cannot
+   * tell from the three beside it.
+   *
+   * It is **not** a tab stop (P-02 — twenty columns were twenty stops before
+   * the first row); the column's own header is, and it offers the same
+   * resize under Alt (`test/headerRoving.test.tsx`).
    */
-  it('is a named, focusable separator carrying the width it is set to', () => {
+  it('is a named separator carrying the width it is set to, off the Tab route', () => {
     table({ width: 160 });
 
     const edge = handle();
     expect(edge.getAttribute('aria-orientation')).toBe('vertical');
     expect(edge.getAttribute('aria-valuenow')).toBe('160');
     expect(edge.getAttribute('aria-valuemin')).toBe(String(MIN_COLUMN_WIDTH));
-    expect(edge.tabIndex).toBe(0);
+    expect(edge.tabIndex).toBe(-1);
   });
 
   it('is offered on every data column, sortable or not', () => {

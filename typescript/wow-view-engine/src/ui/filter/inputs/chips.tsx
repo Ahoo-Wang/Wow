@@ -72,7 +72,7 @@ export function ValueChips<T extends string | number>({
   invalid,
   parse,
   unparsable,
-  inputMode,
+  inputMode = 'text',
 }: {
   /** The list in force, as the host handed it over: the draft's key. */
   value: FilterValue;
@@ -87,6 +87,12 @@ export function ValueChips<T extends string | number>({
   parse(text: string): T | null;
   /** Why a non-empty entry is not a value, for the popup to say. */
   unparsable: string;
+  /**
+   * Which keyboard a phone offers. `decimal` for a list of numbers — the
+   * digits and a separator, rather than the letters nothing here accepts —
+   * and the default for everything else, said out loud rather than left
+   * off: a list takes typing, and what it takes is part of the control.
+   */
   inputMode?: 'decimal' | 'text';
 }) {
   const messages = useViewMessages();
@@ -169,12 +175,17 @@ export function ValueChips<T extends string | number>({
               })}
               aria-invalid={invalid}
               inputMode={inputMode}
-              // A list with nothing in it yet is a normal editing state
-              // rather than a mistake, so the box says what is missing;
-              // once it holds chips they say it themselves.
+              // **What to do, not what is missing.** An empty list is a
+              // normal editing state rather than a mistake, and the box used
+              // to say «Not set» — true, and no help at all: this is the one
+              // control on the panel where a value is committed by a key,
+              // and Enter is written nowhere else on screen. So the empty
+              // box says the whole gesture instead. Once it holds chips they
+              // have already shown what typing does, and the entry has
+              // shrunk to the room they left it.
               placeholder={
                 selected.length === 0
-                  ? messages.label('label.filter.not-set')
+                  ? messages.label('label.filter.type-to-add')
                   : undefined
               }
               onBlur={commit}

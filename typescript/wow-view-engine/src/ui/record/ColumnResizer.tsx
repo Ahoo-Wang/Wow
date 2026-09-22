@@ -151,18 +151,8 @@ export function ColumnResizer({ column, onResize }: ColumnResizerProps) {
   };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    const node = event.currentTarget;
-    if (event.key === 'Enter') {
+    if (resizeByKey(event.currentTarget, event, onResize))
       event.preventDefault();
-      resize(node, null);
-      return;
-    }
-    const towards =
-      event.key === 'ArrowLeft' ? -1 : event.key === 'ArrowRight' ? 1 : 0;
-    if (towards === 0) return;
-    event.preventDefault();
-    const by = towards * (event.shiftKey ? LEAP : STEP);
-    resize(node, Math.max(MIN_COLUMN_WIDTH, measure(node) + by));
   };
 
   return (
@@ -181,7 +171,13 @@ export function ColumnResizer({ column, onResize }: ColumnResizerProps) {
       })}
       aria-valuemin={MIN_COLUMN_WIDTH}
       aria-valuenow={column.width ?? MIN_COLUMN_WIDTH}
-      tabIndex={0}
+      // **Not a tab stop.** One per column meant a twenty-column table put
+      // twenty of them between the toolbar and the first row, and a keyboard
+      // user reaching the rows had to pass every edge of every column on the
+      // way. The keys it answers are unchanged and now answered from the
+      // column's own header as well (`useRovingHeader`, Alt+←/→), which is
+      // where a reader already is when it wants this column wider.
+      tabIndex={-1}
       // The hit area is wider than the line, and sits inside the cell so it
       // can never be clipped by a column that has one. The line is drawn at
       // rest — a hairline in `--border` on the boundary — and thickens to
@@ -197,6 +193,44 @@ export function ColumnResizer({ column, onResize }: ColumnResizerProps) {
       onDoubleClick={event => resize(event.currentTarget, null)}
     />
   );
+}
+
+/**
+ * The handle's keyboard contract, as a function over the handle itself.
+ *
+ * One column's width has two ways in — the handle, which a pointer and a
+ * reader's own cursor find, and the column header, which is where the
+ * roving order stops (`useRovingHeader`). Both must move the same column by
+ * the same amount, so the arithmetic and the DOM writing live here once and
+ * the header reaches them through its own handle rather than repeating them.
+ * The field comes off the handle because the handle already carries it: a
+ * second parameter saying which column this is could disagree with it.
+ *
+ * Returns whether the key was one of the three it answers, so a caller knows
+ * whether to stand the default action down.
+ */
+export function resizeByKey(
+  handle: HTMLElement,
+  event: { key: string; shiftKey: boolean },
+  onResize: (field: string, width: number | null) => void,
+): boolean {
+  const field = handle.dataset.field;
+  if (field === undefined) return false;
+  // Back to automatic is `null` rather than a number: the controller drops
+  // the member, and a column that sizes itself has no `width` in the config.
+  if (event.key === 'Enter') {
+    draw(handle, null);
+    onResize(field, null);
+    return true;
+  }
+  const towards =
+    event.key === 'ArrowLeft' ? -1 : event.key === 'ArrowRight' ? 1 : 0;
+  if (towards === 0) return false;
+  const by = towards * (event.shiftKey ? LEAP : STEP);
+  const width = Math.max(MIN_COLUMN_WIDTH, measure(handle) + by);
+  draw(handle, width);
+  onResize(field, width);
+  return true;
 }
 
 /** The header cell this handle is drawn in. */

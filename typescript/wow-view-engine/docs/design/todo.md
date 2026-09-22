@@ -71,10 +71,6 @@
 
 ### 打磨
 
-- **P-02 表头／列宽把手**：每列一个 Tab 站，20 列就是 20 个。判据：把手 `tabindex=-1`，表头 roving 组 + Alt+←/→。落点：`src/ui/record/ColumnResizer.tsx`、`SortableHeader.tsx`。
-- **P-04 多值录入框**：chips 后的录入框无 placeholder、无 `inputMode`；文档说的「添加按钮」不存在。判据：placeholder + `inputMode=decimal`；文档删掉按钮那半句。落点：`src/ui/filter/inputs/chips.tsx`。
-- **P-05 工具栏左端**：「清除选择」是 ghost，读起来像标签不像按钮。判据：outline，或做成徽章旁的 ✕ 图标按钮。落点：`src/ui/ResultToolbar.tsx`。
-- **P-07 筛选托盘／高级**：高级模式托盘约 620px 高，800×900 上结果整个掉出首屏。判据：封顶（`max-h-[40vh] overflow-auto`）或多条件时默认折起内层分组。落点：`src/ui/FilterPanel.tsx`、[ui/README.md#filterpanel-的布局](ui/README.md#filterpanel-的布局)。
 - **P-13 打开视图时**：整页只有一条 `h-8` 骨架。判据：标题栏 + 结果块骨架，结构与打开后一致。落点：`src/ui/WorkbenchShell.tsx`。
 - **P-15 筛选／取反**（拍板 Ⅶ）：简单模式写不出「不在这段时间内」。判据：pill 上的取反开关，写成 `nor`。落点：`src/ui/filter/ConditionPill.tsx`、`src/filter/`、[ui/README.md#filterpanel-的布局](ui/README.md#filterpanel-的布局)。
 

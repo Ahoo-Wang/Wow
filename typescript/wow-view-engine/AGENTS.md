@@ -360,12 +360,14 @@ src/
       CardSummaries.tsx       — The summary lines under the cards, both scopes (D18 V)
       ColumnResizer.tsx       — The handle a column is dragged wider by, and its keyboard
       EmptyResult.tsx         — A query that matched nothing, with one way out
+      Filler.tsx              — The aria-hidden last cell that lets rows fill the frame while columns keep their width (P-11)
       SkeletonCards.tsx       — The cards of a first query still on its way
       SkeletonRows.tsx        — The rows of a first query still on its way, one bar per column
       SortableHeader.tsx      — One column header: the sort button, its place in the sort, the resizer
       SummaryRows.tsx         — The table footer: one row per summary scope; `SummaryValue`
       cells.tsx               — `cellValue`/`cellText`: one value as its field reads it, for table, cards and CSV
       columns.ts              — Pinned columns: `tablePins`, `pinnedSlots`, `heldColumns`; `ACTIONS_COLUMN` is the table's action column key
+      headerRoving.ts         — `useRovingHeader`: one Tab stop per header row, arrows between columns, Alt+arrows resize (P-02)
       pinCap.ts               — The pin cap (D17-4): which pins to let go on a narrow port; `ReleasedPins`
       queryAnnouncement.ts    — What a query says about itself to a screen reader
       useSummaries.ts         — The two summary scopes from the one the runtime executed; table and cards share it
