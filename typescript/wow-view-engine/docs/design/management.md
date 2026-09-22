@@ -151,10 +151,14 @@ export interface WriteContext {
 }
 export class ViewStoreError extends Error {
   code: 'CONFLICT' | 'NOT_FOUND' | 'FORBIDDEN' | 'UNAVAILABLE' | 'INVALID';
-  /** 冲突时服务端持有的状态；缺省时 Engine 自行回读一次。 */
-  remote?: ViewInstance | ViewPreferences;
+  /** 实例写入冲突时服务端持有的那个实例。 */
+  instance?: ViewInstance;
+  /** 偏好写入冲突时服务端持有的那份偏好。 */
+  preferences?: ViewPreferences;
 }
 ```
+
+**冲突状态分两个成员，不是一个联合。** 一个 `remote?: ViewInstance | ViewPreferences` 编译得过，代价是每个用处都要 cast 一次：偏好冲突带回一个实例照样一路读作偏好。store 只填自己这次写的那一个；Engine 按 `payload.action` 读对应的那个成员，填错的那个读作没填，于是回落到自己回读一次（`store.getPreferences` 或 `store.get`），而不是被当真。构造函数第三个参数因此是 `{ instance }` 或 `{ preferences }`。（见 test/store.test.ts、test/writeLedger.test.ts「ignores a conflict state the write was not about」）
 
 `ViewStoreError` 与其判定函数放在 `model/`：端口两侧都要说这门语言，运行时据此分类写入结局，却不能依赖任何 store 实现（[分层规则](README.md#分层与依赖规则)第 4 条要求 `runtime → store` 只取端口类型）。判定按结构而非 `instanceof`，因此第二份包副本或自行构造该形状的适配器同样被识别。
 
@@ -168,5 +172,9 @@ export class ViewStoreError extends Error {
 本包只提供一个实现：`MemoryViewStore`。它是同步 Map 加自增 revision，服务测试、示例、Storybook 与"只查询不持久化"的场景；可选的 `snapshot: { load(); save(all) }` 钩子让示例把整份数据放进 localStorage，约三十行，不是第二个实现。
 
 不提供 IndexedDB 实现。Wow 业务应用总有后端，浏览器本地库不是保存视图的真实归宿；它需要事务内版本比较与浏览器测试矩阵，却没有一个消费者。
+
+`getPreferences` 对**从未排序也从未设过默认**的定义答 `emptyPreferences()`（revision `'0'`）而不是抛错：这个 revision 就是第一次 `setPreferences` 的 `If-Match`，两个实现必须给同一个，否则同一份宿主代码对两个 store 发出的第一个请求就不一样。`MemoryViewStore` 一直如此，`examples/FetcherViewStore.ts` 把服务端的 404 映射成它。
+
+`permissions` 是端口里唯一同步的方法——Engine 每次派发命令前都要问一次，问不起一个来回。HTTP 实现因此先取后答：`examples/FetcherViewStore.ts` 用 `loadPermissions(definitionId)` 取一次并存下，`permissions()` 从存下的那份同步作答；**没取过的定义答"全部允许"**，与端口对"根本没实现 `permissions` 的 store"的缺省一致——服务端才是可信边界，这里只决定按钮亮不亮。服务端答复里没说到的那一项同样读作允许（沉默不是拒绝），只把它明确说到的那些收窄；答复没点名的实例（包括这次答复之后新建的）按 `instanceDefault` 算。
 
 不在本包内提供 HTTP 实现。`ViewStore` 只有八个方法，业务应用用自己的 fetcher 实现它约一百行，HTTP 状态码到 `ViewStoreError.code` 的映射在应用侧完成。官方后端若落地，其客户端随后端合同一起发布，而不是先在前端猜一份 REST 形状。服务端的授权、可见性过滤与 requestId 去重是可信边界，前端 `permissions` 只用于按钮可用性。

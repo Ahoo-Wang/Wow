@@ -302,7 +302,15 @@ export class WriteLedger {
       case 'UNAVAILABLE':
         return { kind: 'unknown', requestId, payload };
       case 'CONFLICT': {
-        const remote = error.remote ?? (await this.fetchRemote(payload));
+        // Which of the two the error may carry is decided by what was being
+        // written, not by what happens to be on the error: a preference
+        // write reads `preferences` and an instance write reads `instance`,
+        // so a store that filled in the wrong one reports nothing rather
+        // than being believed.
+        const remote =
+          (payload.action === 'preferences'
+            ? error.preferences
+            : error.instance) ?? (await this.fetchRemote(payload));
         if (!remote)
           return {
             kind: 'rejected',

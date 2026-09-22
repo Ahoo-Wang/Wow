@@ -83,7 +83,6 @@
 - **P-14 分页**（拍板 Ⅷ）：只能一页页翻。判据：总数已知时给页码输入。落点：`src/ui/RecordPagination.tsx`。
 - **P-15 筛选／取反**（拍板 Ⅶ）：简单模式写不出「不在这段时间内」。判据：pill 上的取反开关，写成 `nor`。落点：`src/ui/filter/ConditionPill.tsx`、`src/filter/`、[ui/README.md#filterpanel-的布局](ui/README.md#filterpanel-的布局)。
 - **P-17 产品可配置项**（拍板 Ⅺ）：每页条数／刷新梯子／默认列数是模块常量；只有 `expandable` 一个开关；空结果动作写死。判据：梯子进 `RuntimeLimits`；`features` props；空结果动作提成 prop；权限留阶段 6。落点：`src/react/useAutoRefresh.ts`、`src/react/useRecordTable.ts`、`src/ui/RecordWorkbench.tsx`。
-- **P-18 宿主集成**：批量动作每个宿主重写 87 行；`FetcherViewStore` 示例 253 行且没实现 `permissions`；参考宿主复制整份定义的过时变通。判据：`useBulkCommand` + 标准结局条；端口 `remote` 拆两个成员、`revision` 对齐、示例补 `permissions`；删过时变通。落点：`src/react/`、`examples/`。
 - **P-19 文案**：文档引文与目录不一致（「新视图」vs「尚未保存」、「N 条」vs「N 项」）；`label.refresh.on` 多一个空格。判据：统一量词、修目录。落点：`src/ui/messages/`。
 
 ### 架构与测试（零行为变化，防腐化）

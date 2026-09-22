@@ -475,6 +475,67 @@ export const WithActions: Story = {
 };
 
 /**
+ * 批量命令跑完之后那一条：它说清结果，并且活得比它作用的那份选择久。
+ *
+ * 宿主只写了命令与按钮，剩下的（在途、结局、刷新、选择怎么办）都来自
+ * `useBulkCommand` 与 `BulkOutcomeStrip`。这一条待出库的订单里没有已取消的，
+ * 所以读到的是「全做完」那一档；清掉选择之后工具栏左端的徽章与 bulk 槽位一起
+ * 收走，而结局条还在——它画在工作台旁边，正是为了这一刻。
+ */
+export const BulkOutcomeOutlivesTheSelection: Story = {
+  ...DisplayWithActions,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    await waitFor(() =>
+      expect(readColumn(table, '订单号')).toEqual(PENDING_BY_AMOUNT),
+    );
+
+    await userEvent.click(
+      canvas.getByLabelText(zhCN['label.record.select-all']),
+    );
+    await userEvent.click(
+      await canvas.findByRole('button', { name: '导出所选' }),
+    );
+
+    // While it runs the button is disabled, so a second press cannot send a
+    // second write over the same rows.
+    await expect(
+      canvas.getByRole('button', { name: '导出所选' }),
+    ).toBeDisabled();
+
+    const outcome = await waitFor(() => {
+      const line = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="bulk-outcome"]',
+      );
+      expect(line).not.toBeNull();
+      return line!;
+    });
+    // A run everything took is a note, not an interruption.
+    await expect(outcome).toHaveAttribute('role', 'status');
+    await expect(outcome).toHaveAttribute('data-tone', 'info');
+    await expect(outcome).toHaveTextContent(
+      say('label.bulk.done', { done: PENDING_BY_AMOUNT.length }),
+    );
+
+    // The selection it acted on is gone with it — and the line is not.
+    await expect(canvas.queryByRole('button', { name: '导出所选' })).toBeNull();
+
+    // Nothing expires on its own; the one way out is the button on the line.
+    await userEvent.click(
+      within(outcome).getByRole('button', {
+        name: zhCN['label.bulk.dismiss'],
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="bulk-outcome"]'),
+      ).toBeNull(),
+    );
+  },
+};
+
+/**
  * 一屏只有一个 primary，它是跑查询的那个 Apply——宿主的全局动作不是（D12 Ⅰ）。
  *
  * D12 Ⅰ 原本写的是「宿主的主功能按钮，同屏唯一 primary」，而[动作槽位](

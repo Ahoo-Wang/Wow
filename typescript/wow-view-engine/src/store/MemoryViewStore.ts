@@ -192,7 +192,7 @@ export class MemoryViewStore implements ViewStore {
         new ViewStoreError(
           'CONFLICT',
           `Preferences for ${definitionId} changed`,
-          current,
+          { preferences: current },
         ),
       );
 
@@ -244,7 +244,7 @@ export class MemoryViewStore implements ViewStore {
       : new ViewStoreError(
           'CONFLICT',
           `View ${current.id} moved to revision ${current.revision}`,
-          current,
+          { instance: current },
         );
   }
 

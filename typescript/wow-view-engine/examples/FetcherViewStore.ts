@@ -18,10 +18,15 @@ import {
   type RequestOptions,
 } from '@ahoo-wang/fetcher';
 import {
+  emptyPreferences,
+  isViewStoreError,
   ViewStoreError,
+  type ConflictingState,
+  type InstancePermissions,
   type ViewConfig,
   type ViewInstance,
   type ViewInstanceSummary,
+  type ViewPermissions,
   type ViewPreferences,
   type ViewStore,
   type WriteContext,
@@ -41,12 +46,20 @@ import {
  *   what lets a server recognise the replay of a write whose answer was lost
  *   and return the original outcome rather than creating a second view.
  *
+ * `permissions` is the one method the port declares synchronous, because the
+ * engine asks it before every command and a command cannot wait for a round
+ * trip. An HTTP store therefore answers it from what `loadPermissions` has
+ * already fetched — the application awaits that once, next to whatever else
+ * it loads before mounting a workbench.
+ *
  * The routes below are one reasonable shape, not a specification: a backend
  * that spells them differently only changes this file.
  */
 export class FetcherViewStore implements ViewStore {
   private readonly fetcher: Fetcher;
   private readonly basePath: string;
+  /** One definition's answer, by definition id; see `loadPermissions`. */
+  private readonly allowed = new Map<string, ViewPermissions>();
 
   constructor(options: { fetcher: Fetcher; basePath?: string }) {
     this.fetcher = options.fetcher;
@@ -122,13 +135,32 @@ export class FetcherViewStore implements ViewStore {
     });
   }
 
+  /**
+   * A definition nobody has ordered or defaulted yet has no preference
+   * record, and a server that answers 404 for it is saying exactly that.
+   *
+   * It comes back as `emptyPreferences()` — revision `'0'` — which is what
+   * `MemoryViewStore` answers for the same definition. The revision is the
+   * point: it is what the first `setPreferences` sends as `If-Match`, so a
+   * host written against one store writes the same first request against the
+   * other. Left to throw, an untouched definition would take the sidebar's
+   * order and default down with it on every first visit.
+   */
   async getPreferences(
     definitionId: string,
     signal?: AbortSignal,
   ): Promise<ViewPreferences> {
-    return this.send<ViewPreferences>('GET', this.preferences(definitionId), {
-      signal,
-    });
+    try {
+      return await this.send<ViewPreferences>(
+        'GET',
+        this.preferences(definitionId),
+        { signal },
+      );
+    } catch (error) {
+      if (isViewStoreError(error) && error.code === 'NOT_FOUND')
+        return emptyPreferences();
+      throw error;
+    }
   }
 
   async setPreferences(
@@ -144,6 +176,35 @@ export class FetcherViewStore implements ViewStore {
       },
       signal: context.signal,
     });
+  }
+
+  /**
+   * Fetches what the current user may do with one definition's views and
+   * keeps it, so `permissions` can answer without a round trip. Call it once
+   * before the workbench is mounted; calling it again replaces the answer.
+   *
+   * A definition whose permissions were never loaded is not "nothing is
+   * allowed": the port's own default for a store that declares no
+   * `permissions` at all is that everything is, and this holds to it. The
+   * server is the trusted boundary either way — `permissions` decides which
+   * buttons are enabled, never what a write is allowed to do.
+   */
+  async loadPermissions(
+    definitionId: string,
+    signal?: AbortSignal,
+  ): Promise<ViewPermissions> {
+    const body = await this.send<PermissionsBody>(
+      'GET',
+      `${this.basePath}/definitions/${encodeURIComponent(definitionId)}/permissions`,
+      { signal },
+    );
+    const allowed = toPermissions(body);
+    this.allowed.set(definitionId, allowed);
+    return allowed;
+  }
+
+  permissions(definitionId: string): ViewPermissions {
+    return this.allowed.get(definitionId) ?? ALLOW_ALL;
   }
 
   private views(definitionId: string): string {
@@ -190,6 +251,48 @@ function idempotency(requestId: string): Record<string, string> {
   return { 'Idempotency-Key': requestId };
 }
 
+/**
+ * What the permissions endpoint answers with. Every member is optional
+ * because the mapping below reads a missing one as "the server said nothing
+ * about this", and what a server says nothing about is allowed — the same
+ * rule the port applies to a store with no `permissions` method at all.
+ * Refusing on silence would disable the whole sidebar the first time a
+ * backend forgot a field.
+ */
+interface PermissionsBody {
+  createPersonal?: boolean;
+  createShared?: boolean;
+  reorder?: boolean;
+  setDefault?: boolean;
+  /** The instances this user may not act on freely, by id. */
+  instances?: Record<string, Partial<InstancePermissions> | undefined>;
+  /** What an instance the answer does not name may take, including one created since. */
+  instanceDefault?: Partial<InstancePermissions>;
+}
+
+const ALLOWED_INSTANCE: InstancePermissions = {
+  save: true,
+  rename: true,
+  delete: true,
+};
+
+/** Everything, which is what an unloaded definition and a silent server get. */
+const ALLOW_ALL: ViewPermissions = toPermissions({});
+
+function toPermissions(body: PermissionsBody): ViewPermissions {
+  return {
+    createPersonal: body.createPersonal ?? true,
+    createShared: body.createShared ?? true,
+    reorder: body.reorder ?? true,
+    setDefault: body.setDefault ?? true,
+    instance: id => ({
+      ...ALLOWED_INSTANCE,
+      ...body.instanceDefault,
+      ...body.instances?.[id],
+    }),
+  };
+}
+
 function trimSlash(path: string): string {
   return path.endsWith('/') ? path.slice(0, -1) : path;
 }
@@ -215,11 +318,11 @@ async function toStoreError(error: unknown): Promise<ViewStoreError> {
     case 409:
     case 412:
       // A server that can say what it holds saves the engine a round trip;
-      // one that cannot leaves `remote` undefined and the engine fetches it.
+      // one that cannot leaves both members unset and the engine fetches it.
       return new ViewStoreError(
         'CONFLICT',
         response.statusText,
-        await remoteOf(response),
+        await heldBy(response),
       );
     case 400:
     case 422:
@@ -239,15 +342,26 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-async function remoteOf(
-  response: Response,
-): Promise<ViewInstance | ViewPreferences | undefined> {
+/**
+ * The state a conflict body carries, told apart by what is in it: an
+ * instance names a config, a preference record names an order. The port
+ * keeps them in two members rather than one, so this is where the two are
+ * distinguished — reading the body once, here, instead of casting one into
+ * the other wherever it is used.
+ */
+async function heldBy(response: Response): Promise<ConflictingState> {
   try {
-    const body = (await response.clone().json()) as
-      ViewInstance | ViewPreferences;
-    return typeof body?.revision === 'string' ? body : undefined;
+    const body = (await response.clone().json()) as Partial<
+      ViewInstance & ViewPreferences
+    >;
+    if (typeof body?.revision !== 'string') return {};
+    if (body.config !== undefined && typeof body.id === 'string')
+      return { instance: body as ViewInstance };
+    if (Array.isArray(body.order))
+      return { preferences: body as ViewPreferences };
+    return {};
   } catch {
     // A conflict without a readable body is still a conflict.
-    return undefined;
+    return {};
   }
 }

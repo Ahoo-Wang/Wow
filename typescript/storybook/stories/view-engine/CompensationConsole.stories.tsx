@@ -12,23 +12,26 @@
  */
 
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { useState, type ReactNode } from 'react';
+import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { RecoverableType } from '@ahoo-wang/fetcher-wow';
 import {
   systemInstanceId,
+  type RecordKey,
   type ViewEngine,
 } from '@ahoo-wang/fetcher-view-engine';
-import type {
-  RecordActionSlots,
-  RecordBulkActionContext,
+import {
+  useBulkCommand,
+  type BulkCommand,
+  type BulkSelection,
+  type RecordActionSlots,
 } from '@ahoo-wang/fetcher-view-engine/react';
 import {
   AnalysisWorkbench,
+  BulkOutcomeStrip,
   RecordWorkbench,
   ViewSurface,
 } from '@ahoo-wang/fetcher-view-engine/ui';
 // View Engine's own primitives, so the added commands look like its own.
-import { Alert, AlertDescription, AlertTitle } from '@/ui/components/alert';
 import { Button } from '@/ui/components/button';
 import {
   DropdownMenu,
@@ -42,7 +45,6 @@ import { ScenarioFrame } from '../shared/ScenarioFrame.js';
 import {
   DEFAULT_COMPENSATION_HOST,
   EXECUTION_FAILED,
-  EXECUTION_FAILED_ANALYSIS,
   compensationCommands,
   compensationFetcher,
   createCompensationEngine,
@@ -62,9 +64,10 @@ import '@ahoo-wang/fetcher-view-engine/styles.css';
  * environment.
  */
 
-interface Outcome {
+/** One command over a selection, named so the outcome can say which it was. */
+interface ChosenCommand {
   title: string;
-  outcomes: CommandOutcome[];
+  run(id: string): Promise<CommandOutcome>;
 }
 
 const RECOVERABILITY: [RecoverableType, string][] = [
@@ -74,54 +77,49 @@ const RECOVERABILITY: [RecoverableType, string][] = [
 ];
 
 /**
- * One command over every selected row, then a refresh, so the table shows what
- * the service now holds. Each command waits for the snapshot, so the refresh
- * reads its effect rather than racing it.
+ * The buttons, and nothing else. In-flight state, the outcome, the refresh
+ * and what becomes of the selection are `useBulkCommand`'s — this used to be
+ * 87 lines of them, written once here and once again in every other host.
  */
 function CompensationActions({
   selection,
   commands,
-  onOutcome,
+  bulk,
+  onRun,
 }: {
-  selection: RecordBulkActionContext;
+  selection: BulkSelection;
   commands: CompensationCommands;
-  onOutcome(outcome: Outcome): void;
+  bulk: BulkCommand;
+  onRun(chosen: ChosenCommand, selection: BulkSelection): void;
 }) {
-  const [running, setRunning] = useState(false);
-  const ids = selection.keys.map(key => String(key));
-  const disabled = running || ids.length === 0;
-
-  const run = async (
+  const count = selection.keys.length;
+  const run = (
     title: string,
     command: (id: string) => Promise<CommandOutcome>,
-  ) => {
-    setRunning(true);
-    const outcomes = await Promise.all(ids.map(command));
-    setRunning(false);
-    onOutcome({ title, outcomes });
-    selection.refresh();
-  };
+  ) => onRun({ title, run: command }, selection);
 
   return (
     <>
       <Button
         size="sm"
-        disabled={disabled}
-        onClick={() => void run('重试', commands.retry)}
+        disabled={bulk.pending}
+        onClick={() => run('重试', commands.retry)}
       >
-        {ids.length > 0 ? `重试 ${ids.length} 条` : '重试'}
+        {count > 0 ? `重试 ${count} 条` : '重试'}
       </Button>
       <Button
         variant="outline"
         size="sm"
-        disabled={disabled}
-        onClick={() => void run('强制重试', commands.forceRetry)}
+        disabled={bulk.pending}
+        onClick={() => run('强制重试', commands.forceRetry)}
       >
         强制重试
       </Button>
       <DropdownMenu>
         <DropdownMenuTrigger
-          render={<Button variant="outline" size="sm" disabled={disabled} />}
+          render={
+            <Button variant="outline" size="sm" disabled={bulk.pending} />
+          }
         >
           标记可恢复性
         </DropdownMenuTrigger>
@@ -131,7 +129,7 @@ function CompensationActions({
               <DropdownMenuItem
                 key={value}
                 onClick={() =>
-                  void run(`标记为${label}`, id =>
+                  run(`标记为${label}`, id =>
                     commands.markRecoverable(id, value),
                   )
                 }
@@ -143,26 +141,6 @@ function CompensationActions({
         </DropdownMenuContent>
       </DropdownMenu>
     </>
-  );
-}
-
-function OutcomeAlert({ outcome }: { outcome: Outcome }) {
-  const failed = outcome.outcomes.filter(found => found.error !== null);
-  const succeeded = outcome.outcomes.length - failed.length;
-  return (
-    <Alert variant={failed.length > 0 ? 'destructive' : 'default'}>
-      <AlertTitle>
-        {`${outcome.title}：${succeeded} 条成功`}
-        {failed.length > 0 && `，${failed.length} 条失败`}
-      </AlertTitle>
-      {failed.length > 0 && (
-        <AlertDescription>
-          {failed.slice(0, 5).map(found => (
-            <p key={found.id}>{`${found.id}：${found.error}`}</p>
-          ))}
-        </AlertDescription>
-      )}
-    </Alert>
   );
 }
 
@@ -181,13 +159,40 @@ function CompensationConsole({
   engine: ViewEngine;
   commands: CompensationCommands;
 }) {
-  const [outcome, setOutcome] = useState<Outcome | null>(null);
+  // Which of the five was pressed. The hook holds one command, and these are
+  // a menu of them, so the choice is made at the press and the wrapper below
+  // stays the stable function the hook is given.
+  const chosen = useRef<ChosenCommand | null>(null);
+  const [title, setTitle] = useState<string>('');
+  const bulk = useBulkCommand(
+    useCallback(async (keys: readonly RecordKey[]) => {
+      const outcomes = await Promise.all(
+        keys.map(key => chosen.current!.run(String(key))),
+      );
+      const failed = outcomes.filter(found => found.error !== null);
+      return {
+        succeeded: outcomes
+          .filter(found => found.error === null)
+          .map(found => found.id),
+        failed: failed.map(found => found.id),
+        // One reason, not a list: the strip is a line, and the keys of every
+        // record that failed are on the outcome for a host that wants more.
+        reason: failed[0]?.error ?? undefined,
+      };
+    }, []),
+  );
+
   const actions: RecordActionSlots = {
     bulk: selection => (
       <CompensationActions
         selection={selection}
         commands={commands}
-        onOutcome={setOutcome}
+        bulk={bulk}
+        onRun={(command, picked) => {
+          chosen.current = command;
+          setTitle(command.title);
+          bulk.run(picked);
+        }}
       />
     ),
   };
@@ -196,9 +201,13 @@ function CompensationConsole({
     <div className="flex min-w-0 flex-col">
       {/* What the last command came to. It outlives the selection it acted
           on, so it sits beside the workbench rather than inside its toolbar. */}
-      {outcome && (
-        <ViewSurface className="px-3 pt-3">
-          <OutcomeAlert outcome={outcome} />
+      {bulk.outcome && (
+        <ViewSurface {...HOST_LANGUAGE} className="px-3 pt-3">
+          <BulkOutcomeStrip
+            outcome={bulk.outcome}
+            onDismiss={bulk.dismiss}
+            title={title}
+          />
         </ViewSurface>
       )}
       <RecordWorkbench
@@ -248,8 +257,8 @@ function AnalysisConsole({ host }: { host: string }) {
       {engine => (
         <AnalysisWorkbench
           engine={engine}
-          definitionId={EXECUTION_FAILED_ANALYSIS}
-          instanceId={systemInstanceId(EXECUTION_FAILED_ANALYSIS, 'by-status')}
+          definitionId={EXECUTION_FAILED}
+          instanceId={systemInstanceId(EXECUTION_FAILED, 'by-status')}
           {...HOST_LANGUAGE}
         />
       )}

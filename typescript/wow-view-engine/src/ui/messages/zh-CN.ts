@@ -778,4 +778,11 @@ export const zhCN: ViewMessages = {
   // 一句；空按钮上写「切换视图」，等于给一个并不存在的视图提议离开。
   'label.workbench.choose-view': '选择视图',
   'label.workbench.editor-modes': '编辑器选项',
+
+  // 宿主自己的批量命令做完之后那一条。量词跟着它作用的那份选择走
+  // （`label.toolbar.selected` 是「已选 N 项」），说的就是那几项。
+  'label.bulk.done': '{done} 项已完成',
+  'label.bulk.partial': '{done} 项完成，{failed} 项失败',
+  'label.bulk.failed': '{failed} 项失败',
+  'label.bulk.dismiss': '知道了',
 } satisfies Record<MessageKey, string>;

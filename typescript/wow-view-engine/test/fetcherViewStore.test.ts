@@ -14,7 +14,9 @@
 import { Fetcher } from '@ahoo-wang/fetcher';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  emptyPreferences,
   isViewStoreError,
+  MemoryViewStore,
   toSummary,
   ViewEngine,
   type ViewInstance,
@@ -120,6 +122,30 @@ describe('FetcherViewStore reads', () => {
       'https://views.test/api/views/definitions/orders/preferences',
     );
   });
+
+  /**
+   * The revision is the whole point of this one: `'0'` is what the first
+   * `setPreferences` sends as `If-Match`, so a host written against the
+   * memory store writes the identical first request against this one.
+   */
+  it('reads a definition nobody has ordered yet as the memory store does', async () => {
+    fetchMock.mockResolvedValueOnce(
+      reply({ message: 'none' }, { status: 404 }),
+    );
+
+    const read = await store().getPreferences('orders');
+
+    expect(read).toEqual(emptyPreferences());
+    expect(read).toEqual(await new MemoryViewStore().getPreferences('orders'));
+  });
+
+  it('still reports a preference read that failed for any other reason', async () => {
+    fetchMock.mockResolvedValueOnce(reply({ message: 'no' }, { status: 403 }));
+
+    await expect(codeOf(store().getPreferences('orders'))).resolves.toBe(
+      'FORBIDDEN',
+    );
+  });
 });
 
 describe('FetcherViewStore writes', () => {
@@ -216,9 +242,13 @@ describe('FetcherViewStore failures', () => {
       .catch((caught: unknown) => caught);
 
     expect(isViewStoreError(error) && error.code).toBe('CONFLICT');
-    expect(isViewStoreError(error) && error.remote).toMatchObject({
+    // An instance write's conflict fills in the instance member, never the
+    // preference one: the port keeps the two apart so nothing downstream has
+    // to guess which of them arrived.
+    expect(isViewStoreError(error) && error.instance).toMatchObject({
       revision: 'r2',
     });
+    expect(isViewStoreError(error) && error.preferences).toBeUndefined();
   });
 
   it('is still a conflict when the body cannot be read', async () => {
@@ -234,7 +264,145 @@ describe('FetcherViewStore failures', () => {
       .catch((caught: unknown) => caught);
 
     expect(isViewStoreError(error) && error.code).toBe('CONFLICT');
-    expect(isViewStoreError(error) && error.remote).toBeUndefined();
+    expect(isViewStoreError(error) && error.instance).toBeUndefined();
+    expect(isViewStoreError(error) && error.preferences).toBeUndefined();
+  });
+
+  it('tells a preference conflict from an instance one by what it holds', async () => {
+    const held = {
+      order: ['orders-1'],
+      defaultInstanceId: null,
+      revision: 'p9',
+    };
+    fetchMock.mockResolvedValueOnce(reply(held, { status: 409 }));
+
+    const error = await store()
+      .setPreferences(
+        'orders',
+        { order: [], defaultInstanceId: null, revision: 'p8' },
+        { requestId: 'req-8' },
+      )
+      .catch((caught: unknown) => caught);
+
+    expect(isViewStoreError(error) && error.preferences).toEqual(held);
+    expect(isViewStoreError(error) && error.instance).toBeUndefined();
+  });
+
+  it('holds nothing when the conflict body is neither of the two', async () => {
+    fetchMock.mockResolvedValueOnce(
+      reply({ revision: 'r2', why: 'moved' }, { status: 409 }),
+    );
+
+    const error = await store()
+      .save('orders-1', recordConfig(), 'r1', { requestId: 'req-9' })
+      .catch((caught: unknown) => caught);
+
+    expect(isViewStoreError(error) && error.code).toBe('CONFLICT');
+    expect(isViewStoreError(error) && error.instance).toBeUndefined();
+    expect(isViewStoreError(error) && error.preferences).toBeUndefined();
+  });
+});
+
+/**
+ * `permissions` is synchronous — the engine asks it before every command —
+ * so an HTTP store answers from what it fetched in advance. These are about
+ * the mapping and the default, which is the whole of what the port asks for:
+ * the server remains the boundary, and this only decides which buttons look
+ * pressable.
+ */
+describe('FetcherViewStore permissions', () => {
+  it('allows everything for a definition nothing was loaded for', () => {
+    const allowed = store().permissions('orders');
+
+    expect(allowed).toMatchObject({
+      createPersonal: true,
+      createShared: true,
+      reorder: true,
+      setDefault: true,
+    });
+    expect(allowed.instance('orders-1')).toEqual({
+      save: true,
+      rename: true,
+      delete: true,
+    });
+  });
+
+  it("fetches one definition's permissions and answers from them", async () => {
+    fetchMock.mockResolvedValueOnce(
+      reply({
+        createPersonal: true,
+        createShared: false,
+        reorder: true,
+        setDefault: false,
+        instances: { 'orders-1': { save: false, delete: false } },
+      }),
+    );
+    const held = store();
+
+    await held.loadPermissions('orders');
+
+    expect(sent().url).toBe(
+      'https://views.test/view-engine/definitions/orders/permissions',
+    );
+    expect(sent().method).toBe('GET');
+    expect(held.permissions('orders')).toMatchObject({
+      createPersonal: true,
+      createShared: false,
+      reorder: true,
+      setDefault: false,
+    });
+    // Only what the server named about this instance is narrowed; a rename
+    // it said nothing about stays allowed.
+    expect(held.permissions('orders').instance('orders-1')).toEqual({
+      save: false,
+      rename: true,
+      delete: false,
+    });
+  });
+
+  it("takes an instance the answer never named on the answer's own default", async () => {
+    fetchMock.mockResolvedValueOnce(
+      reply({ instanceDefault: { delete: false } }),
+    );
+    const held = store();
+
+    await held.loadPermissions('orders');
+
+    // A view created since the answer was read is one of these.
+    expect(held.permissions('orders').instance('orders-9')).toEqual({
+      save: true,
+      rename: true,
+      delete: false,
+    });
+  });
+
+  it('reads a silent answer as allowed, the way an absent method is read', async () => {
+    fetchMock.mockResolvedValueOnce(reply({}));
+    const held = store();
+
+    await held.loadPermissions('orders');
+
+    expect(held.permissions('orders')).toMatchObject({
+      createPersonal: true,
+      createShared: true,
+    });
+  });
+
+  it('leaves a definition it was never asked about alone', async () => {
+    fetchMock.mockResolvedValueOnce(reply({ createShared: false }));
+    const held = store();
+
+    await held.loadPermissions('orders');
+
+    expect(held.permissions('waybills').createShared).toBe(true);
+  });
+
+  it("reports a refused permission read as the port's own failure", async () => {
+    fetchMock.mockResolvedValueOnce(reply({ message: 'no' }, { status: 403 }));
+
+    await expect(codeOf(store().loadPermissions('orders'))).resolves.toBe(
+      'FORBIDDEN',
+    );
   });
 });
 

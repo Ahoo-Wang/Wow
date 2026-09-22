@@ -194,6 +194,7 @@
 ## 动作槽位
 
 - 三层业务动作走 render 槽位（`RecordActionSlots`）：`global` 在标题栏，`bulk` 在有选择时的结果工具栏，`row` 在表格最后一列（sticky，滚不走）与卡片页脚，统一裹在 `RowActions` 里。**槽位里的按钮不要用 primary**：同屏唯一的 primary 是编辑带里的 Apply（[版式](#版式三块一套间距一种选项控件)），宿主的全局动作用 `outline`／`secondary`，否则编辑带一展开就是两个 primary。这一条是规矩本身，D12 Ⅰ 原本写着「宿主的主功能按钮，同屏唯一 primary」，2026-09-21 用户按这一条裁掉了那句；故事里的宿主按钮（`RecordWorkbench.stories.tsx` 的 `WithActions`，「新建订单」）因此是 `outline`，它同时是这条规矩给宿主看的样板。动作是代码——它开表单、发命令、跳页面——所以由宿主交出来，不按字符串键注册，也不进配置：存下来的是"看法"，能对记录做什么属于挂载工作台的那个应用。（见 test/rowActions.test.tsx「RowActions」）
+- **批量命令的结局有一条标准的条**（`ui/BulkOutcome.tsx` 的 `BulkOutcomeStrip`）：宿主把 `useBulkCommand` 的 `outcome` 与 `dismiss` 交给它，剩下的措辞、语气与出口都不用再写一遍（[react.md#usebulkcommand](../react.md#usebulkcommand)）。它就是写入结局那一份 callout 配方（`LineAlert`，见[两级 severity 与 StatusStrip](#两级-severity-与-statusstrip)）用在宿主自己的命令上——同一屏上「这条失败了」不该有第二套说法。三种读法对三档语气：全做完是 `info`（这是预期的结尾，预期的结尾不该喊），做了一部分是 `warning`，一条没做成是 `error`；本包没有 success 档，为这一条加一个就是只在这里出现的第四种颜色。**它的位置在工作台旁边而不是工具栏里**：`run` 成功后清掉选择，bulk 槽位随选择一起卸掉，条留在里面等于没有。故事 `RecordWorkbench.stories.tsx` 的 `WithActions` 是那份样板（导出所选 · 已取消的订单导不出，于是读到的是那条 partial）。（见 test/bulkCommand.test.tsx「BulkOutcomeStrip」）
 
 ## 渲染边界
 

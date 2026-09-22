@@ -23,6 +23,7 @@ export * from './environment.js';
 export * from './issues.js';
 export * from './useAnalysisEditor.js';
 export * from './useAutoRefresh.js';
+export * from './useBulkCommand.js';
 export * from './useDashboard.js';
 export * from './useFilterEditor.js';
 export * from './useRecordExport.js';

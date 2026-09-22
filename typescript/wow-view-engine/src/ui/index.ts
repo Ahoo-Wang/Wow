@@ -27,6 +27,7 @@ export * from './AnalysisEditor.js';
 export * from './AnalysisTable.js';
 export * from './AnalysisWorkbench.js';
 export * from './AppliedBar.js';
+export * from './BulkOutcome.js';
 export * from './ColumnSettings.js';
 export * from './DashboardArrange.js';
 export * from './DashboardGrid.js';

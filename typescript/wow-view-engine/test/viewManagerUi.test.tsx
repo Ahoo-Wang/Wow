@@ -1393,7 +1393,9 @@ describe('managing views from the workbench', () => {
       { requestId: 'other' },
     );
     vi.spyOn(store, 'delete').mockImplementationOnce(() =>
-      Promise.reject(new ViewStoreError('CONFLICT', 'moved', moved)),
+      Promise.reject(
+        new ViewStoreError('CONFLICT', 'moved', { instance: moved }),
+      ),
     );
 
     await remove('Mine');

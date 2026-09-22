@@ -41,19 +41,36 @@ export const VIEW_STORE_ERROR_CODES: readonly ViewStoreErrorCode[] = [
  */
 export class ViewStoreError extends Error {
   readonly code: ViewStoreErrorCode;
-  /** The state the server holds, when a conflict can report it. */
-  readonly remote?: ViewInstance | ViewPreferences;
+  /** The instance the server holds, when an instance write conflicted. */
+  readonly instance?: ViewInstance;
+  /** The preferences it holds, when a preference write conflicted. */
+  readonly preferences?: ViewPreferences;
 
   constructor(
     code: ViewStoreErrorCode,
     message: string,
-    remote?: ViewInstance | ViewPreferences,
+    held: ConflictingState = {},
   ) {
     super(message);
     this.name = 'ViewStoreError';
     this.code = code;
-    this.remote = remote;
+    this.instance = held.instance;
+    this.preferences = held.preferences;
   }
+}
+
+/**
+ * What the server holds, said by which of the two it is.
+ *
+ * One member carrying either used to be enough to compile, and so the two
+ * were told apart by casting at each point of use: a preference conflict
+ * that arrived carrying an instance was read as preferences all the way to
+ * the screen. A store fills in the one its own write was about, and nothing
+ * downstream has to guess.
+ */
+export interface ConflictingState {
+  instance?: ViewInstance;
+  preferences?: ViewPreferences;
 }
 
 /**

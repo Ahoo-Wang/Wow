@@ -175,8 +175,11 @@ describe('MemoryViewStore', () => {
     expect(isViewStoreError(failure)).toBe(true);
     expect(failure).toMatchObject({
       code: 'CONFLICT',
-      remote: { revision: '1' },
+      instance: { revision: '1' },
     });
+    // An instance write fills in the instance member and leaves the other
+    // one alone, so nothing downstream has to tell the two apart by shape.
+    expect((failure as ViewStoreError).preferences).toBeUndefined();
   });
 
   it('refuses to write a system view', async () => {
@@ -236,11 +239,17 @@ describe('MemoryViewStore', () => {
     const store = new MemoryViewStore();
     await store.setPreferences('orders', emptyPreferences(), ctx);
 
-    await expect(
-      store.setPreferences('orders', emptyPreferences(), {
-        requestId: 'req-2',
-      }),
-    ).rejects.toMatchObject({ code: 'CONFLICT' });
+    const failure = await store
+      .setPreferences('orders', emptyPreferences(), { requestId: 'req-2' })
+      .catch((error: unknown) => error);
+
+    // A preference write reports the preferences it conflicted with, and
+    // never the instance member — that is the other half of the split.
+    expect(failure).toMatchObject({
+      code: 'CONFLICT',
+      preferences: { revision: '1' },
+    });
+    expect((failure as ViewStoreError).instance).toBeUndefined();
   });
 
   it('replays preferences under the same requestId instead of conflicting', async () => {

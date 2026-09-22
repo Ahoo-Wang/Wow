@@ -235,3 +235,21 @@ RecordActionSlots { global?; bulk?; row? }
 - 三层业务动作的 render 槽位（react/actions.ts），由宿主传给工作台；
 - 动作是代码，不进配置也不进 ViewInstance。
 - 槽位里抛错由 `/ui` 的渲染边界接住（[ui/README.md#渲染边界](ui/README.md#渲染边界)）：只毁掉它所在的那一块，并经 `onRenderFailure` 交还宿主。
+
+## useBulkCommand
+
+```ts
+useBulkCommand(command: (keys) => Promise<BulkOutcome>): BulkCommand;
+BulkOutcome { succeeded: RecordKey[]; failed: RecordKey[]; reason? }
+BulkCommand { run(selection); pending; outcome; dismiss() }
+```
+
+批量动作里**不属于宿主的那一半**：在途标志、这一趟的结局、结局对选择的处置。宿主只留下命令本身与那颗按钮。此前每个宿主都把这一半重写一遍（补偿控制台是 87 行），三份写法在「失败了选择还清不清」上各不相同。
+
+- **`run` 收选择，钩子收命令**。钩子调在工作台**外面**——结局比它作用的那份选择活得久，而工具栏的 bulk 槽位随选择一起卸掉，一个跟着选择消失的结局没人读得到。选择只有槽位给得出（`RecordBulkActionContext`），所以它走 `run(selection)`：`keys`、`clearSelection`、`refresh` 三样正是命令需要的（`BulkSelection`）。
+- **一次只跑一趟**：命令是写入不是读取，在途时第二次 `run` 直接不受理，按钮同时按 `pending` 禁用；空选择什么也不跑。
+- **跑完必刷新**：记录被改过了，屏幕上那一份就是旧的。
+- **只有一条都没失败才清选择**：有失败就原样留着——用户下一步就是对同几行再来一次，让他从刚刷新的一页里手工重挑是最糟的时刻。
+- **抛出的命令读作整份失败**，`reason` 取它自己那句话：报不出逐条结果的命令也已经报了。
+- 结局不自行消失，`dismiss()` 是它唯一的出口；下一趟 `run` 一开始也把它换掉。
+- `/ui` 的 `BulkOutcomeStrip` 按这个结局画那一条（[ui/README.md#动作槽位](ui/README.md#动作槽位)）。（见 test/bulkCommand.test.tsx）

@@ -264,7 +264,7 @@ describe('WriteLedger conflicts', () => {
     const runtime = fakeRuntime();
     const remote = { ...mine, revision: '9', title: 'Theirs' };
     store.save.mockRejectedValueOnce(
-      new ViewStoreError('CONFLICT', 'moved', remote),
+      new ViewStoreError('CONFLICT', 'moved', { instance: remote }),
     );
 
     const failure = await expectWriteError(
@@ -287,7 +287,7 @@ describe('WriteLedger conflicts', () => {
     const runtime = fakeRuntime();
     const remote = { ...mine, revision: '9', title: 'Theirs' };
     store.save.mockRejectedValueOnce(
-      new ViewStoreError('CONFLICT', 'moved', remote),
+      new ViewStoreError('CONFLICT', 'moved', { instance: remote }),
     );
 
     const failure = await expectWriteError(
@@ -315,6 +315,33 @@ describe('WriteLedger conflicts', () => {
     });
   });
 
+  /**
+   * The two members are read by what was written, not by what happens to be
+   * on the error. A store that filled in the wrong one is not believed: the
+   * ledger reads nothing from it and goes to the store for the real state,
+   * where the one member used to be taken at face value and a preference
+   * conflict could reach the screen carrying an instance.
+   */
+  it('ignores a conflict state the write was not about', async () => {
+    const { ledger, store } = harness();
+    store.setPreferences.mockRejectedValueOnce(
+      new ViewStoreError('CONFLICT', 'moved', { instance: mine }),
+    );
+
+    const failure = await expectWriteError(
+      ledger.dispatch(
+        { action: 'preferences', definitionId: 'orders', next: preferences },
+        undefined,
+      ),
+    );
+
+    expect(store.getPreferences).toHaveBeenCalledWith('orders');
+    expect(failure.state).toMatchObject({
+      kind: 'conflict',
+      remote: preferences,
+    });
+  });
+
   it('reports a conflict it cannot read back as a rejection', async () => {
     const { ledger, store } = harness();
     store.save.mockRejectedValueOnce(new ViewStoreError('CONFLICT', 'moved'));
@@ -333,8 +360,7 @@ describe('WriteLedger conflicts', () => {
     const { ledger, store, reloaded } = harness();
     store.setPreferences.mockRejectedValueOnce(
       new ViewStoreError('CONFLICT', 'moved', {
-        ...preferences,
-        revision: '9',
+        preferences: { ...preferences, revision: '9' },
       }),
     );
 
@@ -366,7 +392,7 @@ describe('WriteLedger conflicts', () => {
     const { ledger, store, noted } = harness();
     const remote = { ...mine, revision: '9', title: 'Theirs' };
     store.delete.mockRejectedValueOnce(
-      new ViewStoreError('CONFLICT', 'moved', remote),
+      new ViewStoreError('CONFLICT', 'moved', { instance: remote }),
     );
 
     await expectWriteError(

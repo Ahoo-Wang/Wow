@@ -833,7 +833,7 @@ describe('ViewEngine write outcomes', () => {
     const runtime = await engine.open('orders-1');
     const remote = { ...mine, revision: '9', title: 'Theirs' };
     vi.spyOn(store, 'save').mockRejectedValueOnce(
-      new ViewStoreError('CONFLICT', 'moved', remote),
+      new ViewStoreError('CONFLICT', 'moved', { instance: remote }),
     );
 
     const failure = await failedWrite(engine.save(runtime));
@@ -889,7 +889,7 @@ describe('ViewEngine write outcomes', () => {
       config: recordConfig({ pageSize: 50 }),
     };
     vi.spyOn(store, 'save').mockRejectedValueOnce(
-      new ViewStoreError('CONFLICT', 'moved', remote),
+      new ViewStoreError('CONFLICT', 'moved', { instance: remote }),
     );
     await failedWrite(engine.save(runtime));
 
@@ -907,7 +907,7 @@ describe('ViewEngine write outcomes', () => {
     runtime.edit({ pageSize: 99 });
     const remote = { ...mine, revision: '9', title: 'Theirs' };
     vi.spyOn(store, 'rename').mockRejectedValueOnce(
-      new ViewStoreError('CONFLICT', 'moved', remote),
+      new ViewStoreError('CONFLICT', 'moved', { instance: remote }),
     );
     await failedWrite(engine.rename('orders-1', 'Mine again'));
 
@@ -1024,7 +1024,7 @@ describe('ViewEngine write outcomes', () => {
       config: recordConfig(),
     });
     vi.spyOn(store, 'create').mockRejectedValueOnce(
-      new ViewStoreError('CONFLICT', 'title taken', mine),
+      new ViewStoreError('CONFLICT', 'title taken', { instance: mine }),
     );
     await failedWrite(engine.save(runtime));
 
@@ -1172,8 +1172,7 @@ describe('ViewEngine write outcomes', () => {
 
     vi.spyOn(store, 'save').mockRejectedValueOnce(
       new ViewStoreError('CONFLICT', 'someone else', {
-        ...mine,
-        revision: '9',
+        instance: { ...mine, revision: '9' },
       }),
     );
     runtime.edit({ pageSize: 60 });

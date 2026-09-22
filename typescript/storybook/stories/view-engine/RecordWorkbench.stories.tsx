@@ -15,12 +15,23 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import {
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
+  type RecordKey,
 } from '@ahoo-wang/fetcher-view-engine';
-import type { RecordActionSlots } from '@ahoo-wang/fetcher-view-engine/react';
-import { RecordWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
+import {
+  useBulkCommand,
+  type BulkCommand,
+  type BulkOutcome,
+  type RecordActionSlots,
+} from '@ahoo-wang/fetcher-view-engine/react';
+import {
+  BulkOutcomeStrip,
+  RecordWorkbench,
+  ViewSurface,
+} from '@ahoo-wang/fetcher-view-engine/ui';
 // View Engine's own button, so the host's commands sit in its toolbar rather
 // than beside it — exactly what an application does with the action slots.
 import { Button } from '@/ui/components/button';
+import { Spinner } from '@/ui/components/spinner';
 import { ScenarioFrame } from '../shared/ScenarioFrame.js';
 import {
   HOST_LANGUAGE,
@@ -249,104 +260,128 @@ function RecordWorkbenchDemo({
    */
   wide?: boolean;
 }) {
+  // The whole of a host's bulk action that is not its own command: in
+  // flight, what it came to, and what that does to the selection.
+  const exportSelected = useBulkCommand(exportOrders);
   const workbench = (
-    <StoryEngine
-      create={() => {
-        if (noViews)
-          return createStoryEngine({
-            definitions: [
-              { ...ordersDefinition, views: [] },
-              overviewDefinition,
-            ],
-            instances: [],
-            behaviour,
-          });
-        if (wide)
-          return createStoryEngine({
-            definitions: [waybillsDefinition],
-            instances: savedWaybillViews,
-            source: waybillSource(behaviour),
-          });
-        if (writeOutcome) {
-          const staged = new OutcomeViewStore({ instances: savedViews });
-          staged.stage(writeOutcome);
-          outcomesStore.current = staged;
-          return createStoryEngine({ behaviour, store: staged });
-        }
-        const store = keepStore
-          ? new MemoryViewStore({ instances: savedViews })
-          : undefined;
-        if (store) tableSettingsStore.current = store;
-        return createStoryEngine({
-          behaviour,
-          ...(store ? { store } : {}),
-          // The export's own pages, where the story is about them: `slow`
-          // and `failing` answer the view normally and treat the export's
-          // whole-page request differently, and `capped` only lowers the
-          // ceiling — six orders against a ceiling of two.
-          ...(exporting === 'capped' ? { limits: { exportMax: 2 } } : {}),
-          ...(exporting === 'slow' || exporting === 'failing'
-            ? {
-                source: storyExportSource(
-                  exporting,
-                  DEFAULT_RUNTIME_LIMITS.maxPageSize,
-                ),
-              }
-            : {}),
-          instances: broken
-            ? [
-                {
-                  ...savedViews[0],
-                  title: '待修复视图',
-                  config: recordConfig({
-                    table: { columns: [{ field: 'removedColumn' }] },
-                  }),
-                },
-              ]
-            : paged
-              ? [pagedView]
-              : pinnedColumn
-                ? [pinnedView]
-                : refreshing
-                  ? [refreshingView]
-                  : narrowHost
-                    ? [longTitledView]
-                    : cellFamily
-                      ? [cellFamilyView]
-                      : savedViews,
-        });
-      }}
-    >
-      {engine => (
-        <RecordWorkbench
-          engine={engine}
-          definitionId={wide ? waybillsDefinition.id : 'orders'}
-          instanceId={
-            noViews
-              ? undefined
-              : (instanceId ??
-                (wide ? savedWaybillViews[0].id : savedViews[0].id))
-          }
-          actions={
-            breakable
-              ? breakableActions
-              : withActions
-                ? businessActions
-                : undefined
-          }
-          // zh-CN by default, because the fixtures are Chinese; the one
-          // story that says `english` gets the shipped defaults instead.
-          messages={english ? undefined : HOST_LANGUAGE.messages}
-          locale={english ? 'en-US' : HOST_LANGUAGE.locale}
+    <>
+      {/* Where a bulk outcome goes: beside the workbench, not in the toolbar
+          slot that raised it. The run clears the selection, the toolbar's
+          bulk slot lives only while there is one, and an outcome that went
+          down with the selection it reported on would never be read. Its own
+          `ViewSurface` is what carries this package's wording and theme to a
+          component mounted outside the workbench. */}
+      {exportSelected.outcome && (
+        <ViewSurface
+          {...(english ? {} : HOST_LANGUAGE)}
+          className="px-3 pt-3"
           theme={theme}
-          // Left to the shell everywhere but the one story that is *about*
-          // the fold: a column narrower than `md` opens folded on its own
-          // now, so the narrow host proves that rule rather than being
-          // handed the answer.
-          defaultSidebarOpen={collapsed ? false : undefined}
-        />
+        >
+          <BulkOutcomeStrip
+            outcome={exportSelected.outcome}
+            onDismiss={exportSelected.dismiss}
+            title={EXPORT_SELECTED}
+          />
+        </ViewSurface>
       )}
-    </StoryEngine>
+      <StoryEngine
+        create={() => {
+          if (noViews)
+            return createStoryEngine({
+              definitions: [
+                { ...ordersDefinition, views: [] },
+                overviewDefinition,
+              ],
+              instances: [],
+              behaviour,
+            });
+          if (wide)
+            return createStoryEngine({
+              definitions: [waybillsDefinition],
+              instances: savedWaybillViews,
+              source: waybillSource(behaviour),
+            });
+          if (writeOutcome) {
+            const staged = new OutcomeViewStore({ instances: savedViews });
+            staged.stage(writeOutcome);
+            outcomesStore.current = staged;
+            return createStoryEngine({ behaviour, store: staged });
+          }
+          const store = keepStore
+            ? new MemoryViewStore({ instances: savedViews })
+            : undefined;
+          if (store) tableSettingsStore.current = store;
+          return createStoryEngine({
+            behaviour,
+            ...(store ? { store } : {}),
+            // The export's own pages, where the story is about them: `slow`
+            // and `failing` answer the view normally and treat the export's
+            // whole-page request differently, and `capped` only lowers the
+            // ceiling — six orders against a ceiling of two.
+            ...(exporting === 'capped' ? { limits: { exportMax: 2 } } : {}),
+            ...(exporting === 'slow' || exporting === 'failing'
+              ? {
+                  source: storyExportSource(
+                    exporting,
+                    DEFAULT_RUNTIME_LIMITS.maxPageSize,
+                  ),
+                }
+              : {}),
+            instances: broken
+              ? [
+                  {
+                    ...savedViews[0],
+                    title: '待修复视图',
+                    config: recordConfig({
+                      table: { columns: [{ field: 'removedColumn' }] },
+                    }),
+                  },
+                ]
+              : paged
+                ? [pagedView]
+                : pinnedColumn
+                  ? [pinnedView]
+                  : refreshing
+                    ? [refreshingView]
+                    : narrowHost
+                      ? [longTitledView]
+                      : cellFamily
+                        ? [cellFamilyView]
+                        : savedViews,
+          });
+        }}
+      >
+        {engine => (
+          <RecordWorkbench
+            engine={engine}
+            definitionId={wide ? waybillsDefinition.id : 'orders'}
+            instanceId={
+              noViews
+                ? undefined
+                : (instanceId ??
+                  (wide ? savedWaybillViews[0].id : savedViews[0].id))
+            }
+            actions={
+              breakable
+                ? breakableActions
+                : withActions
+                  ? businessActions(exportSelected)
+                  : undefined
+            }
+            // zh-CN by default, because the fixtures are Chinese; the one
+            // story that says `english` gets the shipped defaults instead.
+            messages={english ? undefined : HOST_LANGUAGE.messages}
+            locale={english ? 'en-US' : HOST_LANGUAGE.locale}
+            theme={theme}
+            // Left to the shell everywhere but the one story that is *about*
+            // the fold: a column narrower than `md` opens folded on its own
+            // now, so the narrow host proves that rule rather than being
+            // handed the answer.
+            defaultSidebarOpen={collapsed ? false : undefined}
+          />
+        )}
+      </StoryEngine>
+    </>
   );
   // A column narrower than the title bar's own controls. The width is the
   // whole of the scenario, and the regression play walks it down by writing
@@ -454,49 +489,94 @@ const breakableActions: RecordActionSlots = {
   row: ({ row }) => <BreakableAction row={row} />,
 };
 
-const businessActions: RecordActionSlots = {
-  // `outline`, not the default: the one primary on a screen is the Apply that
-  // runs the query (D12 Ⅰ), and a host that put its own button in that weight
-  // would be the second primary the moment the editor band is open.
-  global: () => (
-    <Button variant="outline" size="sm" onClick={() => alert('新建订单')}>
-      新建订单
-    </Button>
-  ),
-  bulk: ({ rows, clearSelection }) => (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={() => {
-        alert(`导出 ${rows.length} 单`);
-        clearSelection();
-      }}
-    >
-      导出所选
-    </Button>
-  ),
-  row: ({ row, refresh }) => (
-    <>
-      <Button
-        variant="ghost"
-        size="xs"
-        onClick={() => alert(`打开 ${row.key}`)}
-      >
-        打开
+/** The name of the one bulk command these stories carry, said in two places. */
+const EXPORT_SELECTED = '导出所选';
+
+/**
+ * The host's own command, which is the only part `useBulkCommand` leaves to
+ * it: the orders that can be exported, and the ones that cannot.
+ *
+ * A cancelled order is not exportable, so selecting the whole of 「全部」
+ * gives the partial reading rather than the tidy one. That is on purpose —
+ * a bulk command over real records is partly refused more often than not.
+ */
+function exportOrders(keys: readonly RecordKey[]): Promise<BulkOutcome> {
+  const failed = keys.filter(key => CANCELLED_ORDERS.includes(String(key)));
+  return new Promise(resolve =>
+    setTimeout(
+      () =>
+        resolve({
+          succeeded: keys.filter(key => !failed.includes(key)),
+          failed,
+          reason: failed.length > 0 ? '已取消的订单不能导出。' : undefined,
+        }),
+      400,
+    ),
+  );
+}
+
+const CANCELLED_ORDERS = ['SO-1002'];
+
+function businessActions(exportSelected: BulkCommand): RecordActionSlots {
+  return {
+    // `outline`, not the default: the one primary on a screen is the Apply
+    // that runs the query (D12 Ⅰ), and a host that put its own button in that
+    // weight would be the second primary the moment the editor band is open.
+    global: () => (
+      <Button variant="outline" size="sm" onClick={() => alert('新建订单')}>
+        新建订单
       </Button>
+    ),
+    // The selection goes to `run` as it came from the slot: the keys it is
+    // over, and the two ways of showing what it did to them. The button's
+    // name does not change while it runs — a control that renames itself
+    // mid-press is one a screen reader has lost — so the spinner is drawn
+    // and `aria-busy` is what says so. The registry's `Spinner` carries its
+    // own `role="status"` and `aria-label`, for a spinner standing on its
+    // own; inside a button those join the button's name, so this one is
+    // hidden and the state is announced on the control itself.
+    bulk: selection => (
       <Button
-        variant="ghost"
-        size="xs"
-        onClick={() => {
-          alert(`取消 ${row.key}`);
-          refresh();
-        }}
+        variant="outline"
+        size="sm"
+        aria-busy={exportSelected.pending}
+        disabled={exportSelected.pending}
+        onClick={() => exportSelected.run(selection)}
       >
-        取消
+        {exportSelected.pending && (
+          <Spinner
+            data-icon="inline-start"
+            role={undefined}
+            aria-label={undefined}
+            aria-hidden="true"
+          />
+        )}
+        {EXPORT_SELECTED}
       </Button>
-    </>
-  ),
-};
+    ),
+    row: ({ row, refresh }) => (
+      <>
+        <Button
+          variant="ghost"
+          size="xs"
+          onClick={() => alert(`打开 ${row.key}`)}
+        >
+          打开
+        </Button>
+        <Button
+          variant="ghost"
+          size="xs"
+          onClick={() => {
+            alert(`取消 ${row.key}`);
+            refresh();
+          }}
+        >
+          取消
+        </Button>
+      </>
+    ),
+  };
+}
 
 const scene = {
   ...viewEngineScene,
