@@ -336,3 +336,180 @@ export const NumberList: Story = {
     );
   },
 };
+
+/**
+ * F-08: a condition pill keeps its value control inside its own border, and
+ * off the ✕ beside it, at every width the strip is given.
+ *
+ * The value select asked for `min-w-40`, and 160px is a floor a flex item
+ * reports upwards however little room its container has: at 1280 it ran 37px
+ * under the remove button and 6px past the pill's own border, at 420 104px
+ * and 73px, and the chevron was no longer the element at its own
+ * coordinates. Both boxes of a range did the same from the other end — 31px
+ * past the ✕ once the separator was between them. Only a real browser lays
+ * this out, which is why the rule is measured here rather than asserted as a
+ * class name in jsdom.
+ */
+export const TheValueStaysInsideItsPill: Story = {
+  ...DisplayAdvanced,
+  args: { instanceId: 'orders-rich', hostWidth: 420 },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // A saved view opens with its editor folded.
+    await userEvent.click(
+      await canvas.findByRole('button', {
+        name: new RegExp(`^${zhCN['label.filter.panel']}`),
+      }),
+    );
+    const host = canvasElement.querySelector<HTMLElement>('[data-pill-host]')!;
+
+    // It mounts at the narrowest of the three and is widened from there: the
+    // view list folds itself away for a narrow column at mount and stays
+    // folded, so every step measures a strip and not the fold.
+    for (const width of [420, 640, 1024]) {
+      host.style.width = `${width}px`;
+      await waitFor(() =>
+        expect(
+          canvasElement.querySelectorAll('[data-slot="filter-condition"]')
+            .length,
+        ).toBeGreaterThan(0),
+      );
+
+      for (const pill of canvasElement.querySelectorAll<HTMLElement>(
+        '[data-slot="filter-condition"]',
+      )) {
+        const frame = pill.getBoundingClientRect();
+        const buttons = [...pill.querySelectorAll('button')];
+        const cross = buttons[buttons.length - 1].getBoundingClientRect();
+        const value = pill.querySelector<HTMLElement>(
+          '[data-slot="filter-value"]',
+        )!;
+
+        for (const control of value.querySelectorAll<HTMLElement>(
+          '[data-slot="select-trigger"], [data-slot="input"], button',
+        )) {
+          const box = control.getBoundingClientRect();
+          // Base UI keeps a hidden input beside the one on screen.
+          if (box.width === 0) continue;
+          const where = `${pill.getAttribute('aria-label')} @ ${width}`;
+          // Inside the pill it belongs to, on both edges.
+          await expect(box.right, where).toBeLessThanOrEqual(frame.right);
+          await expect(box.left, where).toBeGreaterThanOrEqual(frame.left);
+          // And clear of the ✕ wherever the two share a line: a control the
+          // remove button covers is a control the pointer cannot reach.
+          const sameLine = box.top < cross.bottom && cross.top < box.bottom;
+          if (sameLine)
+            await expect(box.right, `${where} vs ✕`).toBeLessThanOrEqual(
+              cross.left,
+            );
+        }
+      }
+    }
+  },
+};
+
+/**
+ * F-09: the calendar speaks the surface's language, and the popover is sized
+ * by what is in it rather than by the grid of day numbers at the top.
+ *
+ * `react-day-picker` reads its words out of a date-fns `Locale` object and
+ * falls back to `en-US`, so this story's trigger said «2026年9月15日 –
+ * 2026年9月17日» over a popover headed `September 2026` and
+ * `Su Mo Tu We Th Fr Sa`. Measured in Chromium: the popover was 212px wide,
+ * narrower than its own 235px trigger, 「起始时刻」 was given 48px and broke
+ * across two lines in the middle of a word, and the hint under it ran to
+ * three.
+ */
+export const TheCalendarSpeaksTheSurfaceLanguage: Story = {
+  ...DisplayWithTime,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      await canvas.findByRole('button', {
+        name: new RegExp(`^${zhCN['label.filter.panel']}`),
+      }),
+    );
+    const trigger = await canvas.findByLabelText(
+      formatMessage(zhCN, 'label.filter.value-of', { field: '创建时间' }),
+    );
+    await userEvent.click(trigger);
+
+    const popup = within(document.body);
+    const popover = await waitFor(() => {
+      const found = document.body.querySelector<HTMLElement>(
+        '[data-slot="popover-content"]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    // A popover appears in two steps, and everything below either measures it
+    // or asks whether something inside it is visible — both of which the
+    // steps answer wrongly. Base UI keeps the positioner hidden until it has
+    // measured where to put the popup, and the popup then fades and scales in
+    // (`data-open:fade-in-0 zoom-in-95` through `animate-in`, whose
+    // `animation-fill-mode: both` pins the computed opacity at 0 until the
+    // first frame). So `toBeVisible` says no, and a box read mid-animation is
+    // 5% short — 271px of the 272 it settles at, and 204 at the start. This
+    // waits for the whole of it rather than racing it; a fixed delay is a
+    // guess a slower machine loses, which is exactly how this passed here and
+    // failed on CI.
+    await waitFor(() => {
+      expect(popover).toBeVisible();
+      expect(popover.getAnimations({ subtree: true })).toHaveLength(0);
+    });
+
+    // The month and the weekday heads are `Intl` in the surface's language,
+    // which is the same call the trigger above was formatted with.
+    const september = new Intl.DateTimeFormat('zh-CN', {
+      year: 'numeric',
+      month: 'long',
+    }).format(new Date(2026, 8, 15));
+    // Read off the caption rather than found by text: the library also keeps
+    // an `aria-live` span for announcing the month, which is empty between
+    // announcements and would be the first thing a text query answered with.
+    await waitFor(() =>
+      expect(
+        popover
+          .querySelector<HTMLElement>('[class*="month_caption"]')
+          ?.textContent?.trim(),
+      ).toBe(september),
+    );
+    await expect(
+      [...popover.querySelectorAll('th[aria-label]')].map(head =>
+        head.textContent?.trim(),
+      ),
+    ).toContain(
+      new Intl.DateTimeFormat('zh-CN', { weekday: 'short' }).format(
+        new Date(2026, 8, 15),
+      ),
+    );
+    // And the words no formatter produces come from the catalogue.
+    await expect(
+      popup.getByRole('button', { name: zhCN['label.date.calendar-next'] }),
+    ).toBeVisible();
+
+    // At least as wide as the control it belongs to: a popover narrower than
+    // its own trigger reads as a different, smaller thing.
+    await expect(popover.getBoundingClientRect().width).toBeGreaterThanOrEqual(
+      trigger.getBoundingClientRect().width,
+    );
+
+    // Each field's name on one line. A text node's client rects are one per
+    // line it occupies, which is the only way to tell a name that wrapped
+    // from one that happened to be tall.
+    for (const key of ['label.date.time-from', 'label.date.time-to'] as const) {
+      const field = popup.getByLabelText(zhCN[key]);
+      const name = popover.querySelector<HTMLElement>(
+        `label[for="${field.id}"]`,
+      )!;
+      const lines = document.createRange();
+      lines.selectNodeContents(name);
+      await expect(lines.getClientRects().length, zhCN[key]).toBe(1);
+      // And the box under it takes the width the name is measured against,
+      // rather than whatever a grid of digits left beside it.
+      await expect(
+        Math.round(field.getBoundingClientRect().width),
+      ).toBeGreaterThanOrEqual(Math.round(name.getBoundingClientRect().width));
+    }
+  },
+};

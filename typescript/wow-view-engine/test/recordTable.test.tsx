@@ -769,6 +769,31 @@ describe('sorting from the headers', () => {
       ],
     });
 
+  /**
+   * A column's name is the one thing in a header cell with a width of its
+   * own, so it is the one that truncates — and «订..» is a column with no
+   * name at all. The whole of it is one hover away, as a `Tooltip` and not
+   * the native `title` (D16-6): `title` opens for a mouse and for nothing
+   * else, while this header is a button that a keyboard reaches.
+   */
+  it('carries the whole column name it may have to truncate', () => {
+    const { container } = render(<RecordTable table={sorted([])} />);
+
+    // The sortable one and the plain one both answer: the trigger is the
+    // name itself, not the button that happens to be around one of them.
+    for (const field of ['id', 'warehouse']) {
+      const name = header(container, field).querySelector<HTMLElement>(
+        '[data-slot="column-label"]',
+      )!;
+      expect(name.className).toContain('truncate');
+      expect(name.hasAttribute('data-base-ui-tooltip-trigger')).toBe(true);
+      expect(name.textContent).toBe(field === 'id' ? 'Order' : 'Warehouse');
+      // Not two ways of saying the same thing, and not the one only a mouse
+      // can open.
+      expect(name.getAttribute('title')).toBeNull();
+    }
+  });
+
   it('offers a neutral mark on a sortable column nobody has sorted', () => {
     const { container } = render(<RecordTable table={sorted([])} />);
 

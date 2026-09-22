@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { ReactNode } from 'react';
 import type { FilterValue } from '../../../model/index.js';
 import {
   Select,
@@ -19,6 +20,7 @@ import {
   SelectValue,
 } from '../../components/select.js';
 import { SelectContent } from '../../popups.js';
+import { useViewMessages } from '../../MessagesProvider.js';
 import { PillSelectTrigger, type ControlChromeProps } from '../../variants.js';
 
 /** What every value control is given: the value in force, and where to put it. */
@@ -91,6 +93,34 @@ export function ChoiceValue({
         </SelectGroup>
       </SelectContent>
     </Select>
+  );
+}
+
+/**
+ * The two ends of a range, with the word that joins them between.
+ *
+ * Two boxes side by side are two answers; a range is one, and nothing on the
+ * row said so — «金额 介于 100 ———— 5,000» read as two numbers the user had
+ * been asked for separately. The separator is the same one the applied bar
+ * prints between the ends of a range (`label.filter.range-join`), so the
+ * condition is punctuated the same way wherever it is read. It is
+ * `aria-hidden`: each box is already named for the end it holds
+ * (`label.filter.range-from` / `range-to`), and a reader that also spoke the
+ * tilde would hear punctuation in the middle of a form.
+ *
+ * Both ends are `flex-1` against it, so they share whatever the pill has left
+ * and neither is the one that gives.
+ */
+export function RangeRow({ from, to }: { from: ReactNode; to: ReactNode }) {
+  const messages = useViewMessages();
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      {from}
+      <span aria-hidden="true" className="text-muted-foreground shrink-0">
+        {messages.label('label.filter.range-join')}
+      </span>
+      {to}
+    </div>
   );
 }
 

@@ -236,6 +236,7 @@ src/
       AddEntry.tsx                  — The field picker a group is added to from
       FilterActions.tsx             — Clear and Apply, with the blocked count
       inputs/                       — One file per `EditorDescriptor.input`, plus shared.tsx
+                                      and calendar.tsx (the registry calendar in the surface's language)
     ViewList.tsx, ViewSurface.tsx, EmbeddedView.tsx
     IconButton.tsx                — An icon-only control and the tooltip saying its name; the one place the two are paired
     RowItem.tsx                   — One row of a list over the registry's `Item`; the five lists share it

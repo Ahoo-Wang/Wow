@@ -16,7 +16,14 @@ import { useState } from 'react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { EditorDescriptor, FilterValue } from '../src/index.js';
-import { FilterValueEditor, ViewSurface } from '../src/ui/index.js';
+import { SurfaceCalendar } from '../src/ui/filter/inputs/calendar.js';
+import {
+  en,
+  FilterValueEditor,
+  formatMessage,
+  ViewSurface,
+  zhCN,
+} from '../src/ui/index.js';
 
 afterEach(cleanup);
 
@@ -183,6 +190,46 @@ describe('FilterValueEditor', () => {
       target: { value: '9' },
     });
     expect(range.changes).toEqual([[1, 9]]);
+  });
+
+  /**
+   * Two boxes side by side are two answers; a range is one. Nothing stood
+   * between them, so «amount between 100 ———— 5,000» read as a pair of
+   * numbers asked for separately — and the summary above the rows had been
+   * printing a `~` between the same two ends all along. One catalogue entry
+   * now, drawn `aria-hidden` because each end is already named.
+   */
+  it('joins the two ends of a range with the separator the summary uses', () => {
+    editor({ input: 'number', range: true }, [1, 2]);
+
+    const from = screen.getByLabelText('amount from');
+    const row = from.closest('div[class*="flex"]') as HTMLElement;
+    const join = row.querySelector(':scope > span[aria-hidden="true"]');
+
+    expect(join).not.toBeNull();
+    expect(join?.textContent).toBe(en['label.filter.range-join']);
+    // It sits between them rather than after both, and neither end is the
+    // one that gives when the pill runs out of room.
+    expect(
+      (join as Element).compareDocumentPosition(from) &
+        Node.DOCUMENT_POSITION_PRECEDING,
+    ).toBeTruthy();
+    for (const end of ['amount from', 'amount to'])
+      expect(screen.getByLabelText(end).className).toContain('flex-1');
+  });
+
+  /**
+   * The value select asked for a 160px floor, which a flex item reports
+   * upwards whatever its container has: inside a condition pill it grew past
+   * the pill's own border and under the ✕ beside it. It fills what the pill
+   * has left instead, and clamps.
+   */
+  it('lets the value select shrink to whatever room the pill has', () => {
+    editor({ input: 'select', options: CANDIDATES }, 'CN');
+
+    const trigger = screen.getByLabelText('amount');
+    expect(trigger.className).toContain('min-w-0');
+    expect(trigger.className).not.toMatch(/(^|\s)min-w-(?!0)/);
   });
 
   it('offers true and false for a boolean', async () => {
@@ -589,6 +636,75 @@ describe('FilterValueEditor', () => {
     expect(last(changes)).toEqual({ type: 'absolute', from: '2026-09-20' });
   });
 
+  /**
+   * The picker used to be the one control on the surface that did not speak
+   * its language: `react-day-picker` reads its words out of a date-fns
+   * locale object and falls back to `en-US`, so a 简体中文 surface whose
+   * trigger said «2026年9月15日» opened `September 2026` over
+   * `Su Mo Tu We Th Fr Sa`, and told a screen reader
+   * `Sunday, August 30th, 2026` and `Go to the Next Month`.
+   */
+  it('draws the calendar in the surface language, its chrome included', async () => {
+    const user = userEvent.setup();
+    // A day that is neither the selected one nor today, so its name is the
+    // bare date; the selected one is checked below, wording and all.
+    const day = new Date(2026, 8, 18);
+    render(
+      <ViewSurface locale="zh-CN" messages={zhCN}>
+        <FilterValueEditor
+          editor={{ input: 'date', withTime: false }}
+          value={
+            { type: 'absolute', from: '2026-09-16' } as unknown as FilterValue
+          }
+          label="创建时间"
+          onChange={() => {}}
+        />
+      </ViewSurface>,
+    );
+    await user.click(screen.getByLabelText('创建时间'));
+
+    // Everything that is a date comes from `Intl` in the surface's language,
+    // so the expectations are built the same way rather than typed out: what
+    // is pinned is that the picker and the rest of the package agree, not
+    // which words one release of ICU chose.
+    const inWords = (options: Intl.DateTimeFormatOptions) =>
+      new Intl.DateTimeFormat('zh-CN', options).format(day);
+    expect(
+      await screen.findByText(inWords({ year: 'numeric', month: 'long' })),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: inWords({ dateStyle: 'full' }) }),
+    ).toBeTruthy();
+    // What the grid says with colour alone, said in words for a reader.
+    const chosen = new Intl.DateTimeFormat('zh-CN', {
+      dateStyle: 'full',
+    }).format(new Date(2026, 8, 16));
+    expect(
+      screen.getByRole('button', {
+        name: formatMessage(zhCN, 'label.date.calendar-selected', {
+          date: chosen,
+        }),
+      }),
+    ).toBeTruthy();
+    // The heads are short on screen and long in the name a reader hears;
+    // both used to be `Su Mo Tu We Th Fr Sa` / `Sunday`.
+    const heads = [...document.querySelectorAll('th[aria-label]')];
+    expect(heads.map(head => head.getAttribute('aria-label'))).toContain(
+      inWords({ weekday: 'long' }),
+    );
+    expect(heads.map(head => head.textContent)).toContain(
+      inWords({ weekday: 'short' }),
+    );
+
+    // And the words around them, which no formatter produces, come from the
+    // catalogue in force.
+    for (const key of [
+      'label.date.calendar-previous',
+      'label.date.calendar-next',
+    ] as const)
+      expect(screen.getByRole('button', { name: zhCN[key] })).toBeTruthy();
+  });
+
   it('stores both ends of a day range as days', async () => {
     const { changes } = editor(
       { input: 'dateRange', range: true, withTime: false },
@@ -824,5 +940,57 @@ describe('FilterValueEditor', () => {
     );
 
     expect(last(changes)).toBeNull();
+  });
+});
+
+/**
+ * The wrapper takes every prop the registry's calendar does, so the strings
+ * it draws only under some of them are in the surface's language too — and a
+ * locale tag `Intl` refuses is a host's string, not a crash.
+ */
+describe('SurfaceCalendar', () => {
+  it('names the month, the year and the week in the surface language', () => {
+    render(
+      <ViewSurface locale="zh-CN">
+        <SurfaceCalendar
+          mode="single"
+          captionLayout="dropdown"
+          showWeekNumber
+          month={new Date(2026, 8, 1)}
+          startMonth={new Date(2026, 0, 1)}
+          endMonth={new Date(2026, 11, 31)}
+        />
+      </ViewSurface>,
+    );
+
+    const said = (options: Intl.DateTimeFormatOptions) =>
+      new Intl.DateTimeFormat('zh-CN', options).format(new Date(2026, 8, 1));
+    const options = [...document.querySelectorAll('option')].map(
+      option => option.textContent,
+    );
+    expect(options).toContain(said({ month: 'short' }));
+    expect(options).toContain(said({ year: 'numeric' }));
+    // The week numbers down the side are digits in the locale's own
+    // numbering system, which is all a number is. The registry draws them in
+    // a `td` rather than the library's `th`, so they are found by the role
+    // the library gives them.
+    expect(
+      [...document.querySelectorAll('[role="rowheader"]')].map(cell =>
+        cell.textContent?.trim(),
+      ),
+    ).toContain(new Intl.NumberFormat('zh-CN').format(36));
+  });
+
+  it('falls back to the environment for a tag Intl refuses', () => {
+    // `Intl` throws on construction for a malformed tag, and a surface's
+    // `locale` is whatever a host passed. One bad tag must not take the
+    // calendar — or the condition it is inside — down with it.
+    render(
+      <ViewSurface locale="not a locale">
+        <SurfaceCalendar mode="single" month={new Date(2026, 8, 1)} />
+      </ViewSurface>,
+    );
+
+    expect(document.querySelectorAll('th[aria-label]').length).toBe(7);
   });
 });

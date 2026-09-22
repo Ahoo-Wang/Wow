@@ -12,6 +12,7 @@
  */
 
 import { XIcon } from 'lucide-react';
+import { cn } from 'cn';
 import type {
   FieldOption,
   FilterLeaf,
@@ -215,7 +216,10 @@ export function ConditionPill({
       data-blank={blank || undefined}
       data-wide={wide || undefined}
       data-pending={pending || undefined}
-      className="border-border bg-muted/40 data-[blank]:border-dashed data-[invalid]:border-destructive data-[warning]:border-warning @[40rem]:data-[wide]:col-span-2 relative flex min-w-0 items-center gap-1 rounded-md border py-0.5 pr-0.5 pl-2 text-sm"
+      // `flex-wrap`: the value takes a line of its own where the strip is too
+      // narrow to hold the whole sentence on one — see the floor on the value
+      // below. Nothing wraps at a strip width the track was designed for.
+      className="border-border bg-muted/40 data-[blank]:border-dashed data-[invalid]:border-destructive data-[warning]:border-warning @[40rem]:data-[wide]:col-span-2 relative flex min-w-0 flex-wrap items-center gap-1 rounded-md border py-0.5 pr-0.5 pl-2 text-sm"
     >
       {pending && <PendingDot named className={PENDING_AT_CORNER} />}
       {/* The field's name is the one word on this row with a width of its
@@ -240,7 +244,22 @@ export function ConditionPill({
           render; it is each control's own variant now (`ui/variants.tsx`),
           so a registry rename cannot silently give the pill its borders
           back. */}
-      <div className="min-w-0 flex-1">
+      <div
+        data-slot="filter-value"
+        className={cn(
+          'min-w-0 flex-1',
+          // The floor that decides where the pill wraps. A value control is
+          // the answer itself, and below a few characters it stops being one:
+          // on a 420-wide strip the field's name and the operator left 38px,
+          // in which a range's second box ran 31px past the ✕ and an enum
+          // select showed its chevron and none of the value. The floor makes
+          // the value drop to a line of its own instead, where it has the
+          // whole pill — 6rem for one input, 9rem for the two a range or a
+          // date needs. Above the floor it still takes only what is left, and
+          // clamps.
+          wide ? 'min-w-36' : 'min-w-24',
+        )}
+      >
         {editor && (
           <FilterValueEditor
             editor={editor}

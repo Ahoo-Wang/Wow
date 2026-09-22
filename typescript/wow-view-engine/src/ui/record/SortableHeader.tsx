@@ -18,6 +18,8 @@ import { cn } from 'cn';
 import { useViewMessages } from '../MessagesProvider.js';
 import { Button } from '../components/button.js';
 import { TableHead } from '../components/table.js';
+import { Tooltip, TooltipTrigger } from '../components/tooltip.js';
+import { TooltipContent } from '../popups.js';
 import {
   HEAD_CELL,
   NUMERIC_CELL,
@@ -84,10 +86,22 @@ export function SortableHeader({
   const resizer = onResize && (
     <ColumnResizer column={column} onResize={onResize} />
   );
+  // `truncate` is visual only — a reader still hears the whole name, but a
+  // pointer or touch user has no way back to it once the ellipsis lands, and
+  // a column called «订..» is a column with no name at all. The whole of it is
+  // one hover away: a `Tooltip` and not the native `title` (D16-6), which
+  // opens for a mouse and for nothing else. The trigger renders the same span
+  // — nothing is wrapped around it — so the cell's layout and the order of
+  // its slots are untouched.
   const label = (
-    <span data-slot="column-label" className="truncate">
-      {column.label}
-    </span>
+    <Tooltip>
+      <TooltipTrigger
+        render={<span data-slot="column-label" className="truncate" />}
+      >
+        {column.label}
+      </TooltipTrigger>
+      <TooltipContent>{column.label}</TooltipContent>
+    </Tooltip>
   );
   // A numeric column reads from the right, header included, or the label
   // points at one edge while the digits under it point at the other.

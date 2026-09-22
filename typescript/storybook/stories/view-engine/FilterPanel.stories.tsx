@@ -155,8 +155,22 @@ const withTimeView: ViewInstance = {
   }),
 };
 
-function FilterPanelDemo({ instanceId }: { instanceId: string }) {
-  return (
+function FilterPanelDemo({
+  instanceId,
+  hostWidth,
+}: {
+  instanceId: string;
+  /**
+   * A column of a given width to render into, for the regression that
+   * measures the pills against the room the strip has. The width is fixed at
+   * mount rather than written afterwards: the shell decides whether the view
+   * list stands beside the work area from the column it is first given, and a
+   * column that only *becomes* narrow keeps the list — which leaves a strip
+   * too narrow for any pill and measures the fold instead of the pill.
+   */
+  hostWidth?: number;
+}) {
+  const workbench = (
     <StoryEngine
       create={() =>
         createStoryEngine({
@@ -174,6 +188,12 @@ function FilterPanelDemo({ instanceId }: { instanceId: string }) {
         />
       )}
     </StoryEngine>
+  );
+  if (hostWidth === undefined) return workbench;
+  return (
+    <div data-pill-host style={{ width: hostWidth, overflow: 'hidden' }}>
+      {workbench}
+    </div>
   );
 }
 
@@ -198,7 +218,10 @@ const meta = {
   title: 'View Engine/数据视图/筛选编辑器',
   component: FilterPanelDemo,
   args: { instanceId: 'orders-rich' },
-  argTypes: { instanceId: { table: { disable: true } } },
+  argTypes: {
+    instanceId: { table: { disable: true } },
+    hostWidth: { table: { disable: true } },
+  },
 } satisfies Meta<typeof FilterPanelDemo>;
 
 export default meta;

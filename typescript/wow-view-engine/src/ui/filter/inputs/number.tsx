@@ -17,7 +17,7 @@ import { useViewMessages } from '../../MessagesProvider.js';
 import { useSurfaceDisplay } from '../../ViewSurface.js';
 import { PillInput, type ControlChromeProps } from '../../variants.js';
 import { ValueChips } from './chips.js';
-import type { ValueProps } from './shared.js';
+import { RangeRow, type ValueProps } from './shared.js';
 
 /**
  * A number field, on Base UI's `NumberField`.
@@ -140,29 +140,28 @@ function NumberRangeValue({
   const messages = useViewMessages();
   const parts = Array.isArray(value) ? value : [];
   const ends = [numberOrBlank(parts[0]), numberOrBlank(parts[1])];
-
-  return (
-    <div className="flex items-center gap-2">
-      {[0, 1].map(index => (
-        <NumberInput
-          key={index}
-          label={messages.label(
-            index === 0 ? 'label.filter.range-from' : 'label.filter.range-to',
-            { field: label },
-          )}
-          disabled={disabled}
-          invalid={invalid}
-          value={ends[index]}
-          onNumber={next => {
-            const written = index === 0 ? [next, ends[1]] : [ends[0], next];
-            // Two empty ends are the kind's blank value, not a range between
-            // nothing and nothing.
-            onChange(written.every(end => end === null) ? null : written);
-          }}
-        />
-      ))}
-    </div>
+  const end = (index: 0 | 1) => (
+    <NumberInput
+      label={messages.label(
+        index === 0 ? 'label.filter.range-from' : 'label.filter.range-to',
+        { field: label },
+      )}
+      disabled={disabled}
+      invalid={invalid}
+      value={ends[index]}
+      // Neither end is the one that gives: they share the pill's room and
+      // each shrinks to nothing rather than pushing the row wider.
+      className="min-w-0 flex-1"
+      onNumber={next => {
+        const written = index === 0 ? [next, ends[1]] : [ends[0], next];
+        // Two empty ends are the kind's blank value, not a range between
+        // nothing and nothing.
+        onChange(written.every(end => end === null) ? null : written);
+      }}
+    />
   );
+
+  return <RangeRow from={end(0)} to={end(1)} />;
 }
 
 /** The values of an `IN` / `NOT_IN`: a list of numbers that grows. */

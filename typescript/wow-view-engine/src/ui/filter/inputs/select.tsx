@@ -122,11 +122,21 @@ export function OptionValue({
         onChange(multiple ? chosen : (chosen[0] ?? null));
       }}
     >
+      {/* Fills the room the pill has left and gives it all back when there
+          is none. The registry's trigger is `w-fit`, and this used to ask
+          for `min-w-40` on top of it: 160px is a floor a flex item reports
+          upwards whatever its container's width is, so the select grew out
+          of the pill's own border and under the ✕ beside it — 37px of it at
+          1280 and 104px at 420, where the chevron was no longer the element
+          at its own coordinates. `w-full min-w-0` says the same thing the
+          other way round: as wide as there is room for, and the chosen value
+          is clamped by the registry's own `*:data-[slot=select-value]:line-clamp-1`
+          rather than by the pill. */}
       <PillSelectTrigger
         aria-label={label}
         aria-invalid={invalid}
         size="sm"
-        className="min-w-40"
+        className="w-full min-w-0"
       >
         {/*
          * The placeholder belongs to the value, not to the root: `Select`

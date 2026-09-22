@@ -20,7 +20,7 @@ import {
   type AbsoluteDateTimeValue,
 } from '../../../filter/index.js';
 import { Button } from '../../components/button.js';
-import { Calendar } from '../../components/calendar.js';
+import { SurfaceCalendar } from './calendar.js';
 import {
   Field,
   FieldDescription,
@@ -110,9 +110,16 @@ export function AbsoluteDate({
           is one axe reports and a screen reader announces as nothing at all.
           The control's own name is the right one: the calendar and the clock
           in here are two halves of that one value. */}
-      <PopoverContent className="w-auto p-0" aria-label={label}>
+      {/* Sized by what is in it, with a floor. `w-auto` alone gave the
+          popover the calendar's own 212px — narrower than the 235px trigger
+          that opened it — and the clock under it was laid out in what a grid
+          of day numbers happened to leave: 「起始时刻」 wrapped mid-word in
+          48px and the hint ran to three lines. The floor is the calendar's
+          own width (7 cells plus its padding), so nothing below it is sized
+          by the grid above it. */}
+      <PopoverContent className="w-auto min-w-[17rem] p-0" aria-label={label}>
         {range ? (
-          <Calendar
+          <SurfaceCalendar
             mode="range"
             autoFocus
             selected={{ from: parseDay(from.day), to: parseDay(to.day) }}
@@ -124,7 +131,7 @@ export function AbsoluteDate({
             }
           />
         ) : (
-          <Calendar
+          <SurfaceCalendar
             mode="single"
             autoFocus
             selected={parseDay(from.day)}
@@ -181,9 +188,14 @@ function TimeOfDay({
   const messages = useViewMessages();
   const id = useId();
 
+  // Label above box, which is `Field`'s own default and what the registry's
+  // forms are. Side by side, the two of them shared the popover's width with
+  // the box: 「起始时刻」 was given 48px and broke across two lines in the
+  // middle of a word, and the same 48px would not have held `From time`
+  // either — a name that has to be read twice to be read at all.
   return (
     <FieldGroup className={cn('border-t p-3', SPACE.ROWS)}>
-      <Field orientation="horizontal">
+      <Field>
         <FieldLabel htmlFor={`${id}-from`}>
           {messages.label(range ? 'label.date.time-from' : 'label.date.time')}
         </FieldLabel>
@@ -191,14 +203,14 @@ function TimeOfDay({
           id={`${id}-from`}
           type="time"
           step="1"
-          className="w-36"
+          className="w-full"
           disabled={disabled || from.day === ''}
           value={from.time}
           onChange={event => onFrom(readTime(event.target.value))}
         />
       </Field>
       {range && (
-        <Field orientation="horizontal">
+        <Field>
           <FieldLabel htmlFor={`${id}-to`}>
             {messages.label('label.date.time-to')}
           </FieldLabel>
@@ -206,7 +218,7 @@ function TimeOfDay({
             id={`${id}-to`}
             type="time"
             step="1"
-            className="w-36"
+            className="w-full"
             disabled={disabled || to.day === ''}
             value={to.time}
             onChange={event => onTo(readTime(event.target.value))}

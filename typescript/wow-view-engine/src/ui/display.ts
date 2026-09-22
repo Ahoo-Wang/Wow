@@ -450,7 +450,11 @@ function summaryValue(
         .join(messages.label('label.filter.join'));
     case 'range': {
       const from = asField(value.from, item, messages, context);
-      return `${from} ~ ${asField(value.to, item, messages, context)}`;
+      const to = asField(value.to, item, messages, context);
+      // The same separator the editor draws between the two boxes: the tilde
+      // was typed in here and nowhere else, so a catalogue that wanted
+      // another one could change the summary and not the pill.
+      return `${from} ${messages.label('label.filter.range-join')} ${to}`;
     }
     case 'relative':
       // A span, or the moment at the end of it — the same stored value, two

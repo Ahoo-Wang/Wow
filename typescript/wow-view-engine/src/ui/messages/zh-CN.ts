@@ -255,6 +255,7 @@ export const zhCN: ViewMessages = {
   'label.filter.any-entry': '有任意条目',
   'label.filter.range-from': '{field} 从',
   'label.filter.range-to': '{field} 到',
+  'label.filter.range-join': '~',
   'label.filter.new-value-of': '新的 {field}',
   'label.filter.add-value-of': '添加 {field}',
   'label.filter.add-value': '添加 {value}',
@@ -287,6 +288,10 @@ export const zhCN: ViewMessages = {
   'label.date.time-to': '截止时刻',
   'label.date.time-hint':
     '留空表示整天：起点算 00:00:00，终点算 23:59:59.999。',
+  'label.date.calendar-previous': '上个月',
+  'label.date.calendar-next': '下个月',
+  'label.date.calendar-today': '今天，{date}',
+  'label.date.calendar-selected': '{date}，已选中',
 
   // 同一个"距今多远"，`BETWEEN` 问的是这段区间，`GTE`／`LTE` 比的是那一头的
   // 那一刻；把后者读成"最近 7 天"就是在描述一次没跑过的查询。

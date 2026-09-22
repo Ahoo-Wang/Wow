@@ -5051,3 +5051,59 @@ export const AMenuIsNotCoveredByItsOwnTooltip: Story = {
     await waitFor(() => expect(body.queryByRole('menu')).toBeNull());
   },
 };
+
+/**
+ * F-15: a column name the header cannot hold gives the whole of it back on
+ * hover.
+ *
+ * Measured in Chromium on this fixture at 1280: 运单号 was drawn in 17px of
+ * the 37px it asks for — «运..» — 订单号 in 21px and 件数 in 16px of 25,
+ * and the span carried neither a `title` nor a tooltip, so the rest of the
+ * name was reachable by no input device at all. It is a `Tooltip` rather
+ * than the native `title` (D16-6): `title` opens for a mouse and for nothing
+ * else, and these headers are buttons a keyboard reaches. Only a real
+ * browser truncates, so the pixels are checked here and the structure in
+ * jsdom (`test/recordTable.test.tsx`).
+ */
+export const ATruncatedColumnNameIsOneHoverAway: Story = {
+  ...DisplayWideTable,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    const labels = [
+      ...table.querySelectorAll<HTMLElement>(
+        'thead [data-slot="column-label"]',
+      ),
+    ];
+
+    // The premise: at least one name on this header is drawn in less room
+    // than it asks for.
+    const clipped = labels.filter(
+      label => label.scrollWidth > label.offsetWidth,
+    );
+    await expect(clipped.length).toBeGreaterThan(0);
+
+    const name = clipped[0];
+    const whole = name.textContent?.trim();
+    // Cut on screen and whole in the DOM, which is what a reader hears.
+    await expect(name.scrollWidth).toBeGreaterThan(name.offsetWidth);
+    await expect(whole).toBeTruthy();
+    // And not the one only a mouse can open.
+    await expect(name).not.toHaveAttribute('title');
+
+    await userEvent.hover(name);
+    const tip = await waitFor(() => {
+      const found = document.body.querySelector<HTMLElement>(
+        '[data-slot="tooltip-content"]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    await expect(tip.textContent?.trim()).toBe(whole);
+    // Themed from `ui/popups.tsx` like every other popup here: it is drawn
+    // outside the surface, where the tokens do not reach on their own.
+    await expect(tip.className).toContain('fve-root');
+
+    await userEvent.unhover(name);
+  },
+};
