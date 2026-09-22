@@ -175,14 +175,28 @@
     oklch(0.205 0 0deg)
   );
   --sidebar-border: var(--fve-sidebar-border, oklch(0.898 0 0deg));
-  --destructive: var(--fve-destructive, oklch(0.577 0.245 27.325deg));
+  --destructive: var(--fve-destructive, oklch(0.505 0.213 27.518deg));
 
   /*
    * Status colours, reserved for an outcome or a state and never for a chart
    * series, which carries its own slots. Only `destructive` has a registry
-   * variant; these three are applied by class. Light takes Tailwind's 700
-   * steps, picked so the colour clears 4.5:1 as text on the surface; dark
-   * takes the 400 steps.
+   * variant; these three are applied by class. Light takes Tailwind's 800
+   * steps — `destructive` the 700, because red is the darkest hue of the
+   * three at any one lightness — picked so the colour clears 4.5:1 as text
+   * on the surface with room to spare; dark takes the 400 steps.
+   *
+   * **The light steps were one step lighter and passed by a hair** (P-21).
+   * The 700/600 steps measured 4.94:1 (success), 5.05 (warning) and 4.77
+   * (destructive) against the page — over 1.4.3's 4.5, and over it by 6% in
+   * the worst case, which is not a margin: the badge these fill is set in
+   * the one small size (13px) and is the smallest text on the surface, and
+   * a host nudging `--fve-warning` half a step lighter takes the whole set
+   * under the bar without touching anything that looks like a contrast
+   * decision. One step down the same palette measures **7.09 / 7.13 /
+   * 6.42** (`ToneBadgeInk*`, measured in the browser), and it is still the
+   * palette's own step rather than a colour picked here. Dark is untouched:
+   * the 400 steps measure 11.15 / 11.53 / 6.84 against the dark page, and
+   * dark saturation is a phase-5 question.
    *
    * **A fill and its ink are a pair.** A toned badge is the token as the
    * fill and the surface colour as the writing (`record/cells.tsx`), which
@@ -196,9 +210,9 @@
    * none, because nothing fills with it — a token nothing reads is a
    * contract nothing keeps.
    */
-  --success: var(--fve-success, oklch(0.527 0.154 150.069deg));
+  --success: var(--fve-success, oklch(0.448 0.119 151.328deg));
   --success-foreground: var(--fve-success-foreground, var(--background));
-  --warning: var(--fve-warning, oklch(0.555 0.163 48.998deg));
+  --warning: var(--fve-warning, oklch(0.473 0.137 46.201deg));
   --warning-foreground: var(--fve-warning-foreground, var(--background));
   --info: var(--fve-info, oklch(0.546 0.245 262.881deg));
   --destructive-foreground: var(

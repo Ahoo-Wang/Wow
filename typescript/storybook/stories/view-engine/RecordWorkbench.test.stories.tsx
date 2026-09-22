@@ -59,6 +59,7 @@ import displayMeta, {
 } from './RecordWorkbench.stories.js';
 import {
   measureBorderContrast,
+  measureFillContrast,
   measureLayerSeparation,
   measureTextContrast,
 } from './contrast.js';
@@ -93,6 +94,14 @@ const say = (key: string, params: Record<string, string | number>) =>
 /** The bar under the rows. */
 const paginationBar = (canvasElement: HTMLElement) =>
   canvasElement.querySelector<HTMLElement>('[data-slot="record-pagination"]')!;
+
+/**
+ * 正文对比度的下限：WCAG 1.4.3 的 4.5:1。
+ *
+ * 状态条的句子、表头的列名、徽章上的状态词，都是正文大小或更小的文字——不是
+ * 大字号，也不是装饰，所以三处守的是同一个数，写在一处。
+ */
+const TEXT_CONTRAST = 4.5;
 
 export const WithData: Story = {
   ...DisplayWithData,
@@ -4892,6 +4901,142 @@ const BADGE_ON_ROW_CONTRAST = 1.5;
 export const BadgesOnRowsInLightTheme: Story = badgesOnRows('light');
 export const BadgesOnRowsInDarkTheme: Story = badgesOnRows('dark');
 
+/**
+ * 首尾两条灰带把数据行夹在中间，带上的列名是正文的墨色。
+ *
+ * 表头从前和数据行同为 `bg-background`，中间只有一根发丝线和一行灰字——用户
+ * 2026-09-22 的评审说第一行读起来像表头的一部分。现在表头与汇总层是**同一档
+ * 灰**（`ui/record/columns.ts` 的 `BAND`），所以这条故事量的第一件事是两条带
+ * 子的层叠色**逐字节相等**，第二件事是它们都不等于行底——一档谁也夹不住的灰
+ * 不是带子。
+ *
+ * 列名因此换回 registry 自己的 `text-foreground`：`text-muted-foreground`
+ * 压在这一档灰上量到 4.34:1，跌破 1.4.3 的 4.5，而它是整个表面上最小的一号
+ * 字。两条带子之间只有格子自己那 1px 发丝线——`<thead>` 上从前那条
+ * `border-b-2` 写在 `<tr>` 上，而分开的边框模型里行没有自己的边，屏幕上从来
+ * 就是 1px；带子的底色接手了分隔这件事。jsdom 不套样式表，这些数只有真浏览
+ * 器给得出。
+ */
+const headerBand = (theme: 'light' | 'dark'): Story => ({
+  ...DisplayWithData,
+  args: { ...DisplayWithData.args, theme },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = (await canvas.findByRole('table')) as HTMLTableElement;
+    await waitFor(() =>
+      expect(readColumn(table, '订单号')).toEqual(PENDING_BY_AMOUNT),
+    );
+    // 两条量同一主题的故事都会通过并各证一半，所以先把模式读出来。
+    await expect(
+      canvasElement.querySelector('[data-slot="view-surface"]'),
+    ).toHaveAttribute('data-theme', theme);
+
+    const head = table.tHead!.rows[0];
+    const foot = table.tFoot!.rows[0];
+    const row = table.tBodies[0].rows[0];
+    const band = measureFillContrast(head).colors.fill;
+    const footBand = measureFillContrast(foot).colors.fill;
+    const rowFill = measureFillContrast(row).colors.fill;
+    await expect(band, `${theme} — 表头 ${band}，汇总 ${footBand}`).toBe(
+      footBand,
+    );
+    await expect(band, `${theme} — 带子与行底同色 ${band}`).not.toBe(rowFill);
+
+    // 分隔只有格子自己那一根发丝线，而不是写在行上的那 2px。
+    await expect(getComputedStyle(head.cells[0]).borderBottomWidth).toBe('1px');
+
+    // 带上的每一个列名，压在带子上。字在排序按钮里，按钮静息时没有底色，所以
+    // 量的还是带子。
+    const measured = [...head.cells]
+      .filter(cell => (cell.textContent ?? '').trim().length > 0)
+      .map(cell => ({
+        name: cell.textContent!.trim(),
+        ...measureTextContrast(cell.querySelector('button') ?? cell),
+      }));
+    const report = measured
+      .map(
+        ({ name, ratio, colors }) =>
+          `${name} ${ratio.toFixed(2)}:1 (${colors.text} on ${colors.background})`,
+      )
+      .join('; ');
+    await expect(measured.length).toBeGreaterThan(0);
+    await expect(
+      Math.min(...measured.map(({ ratio }) => ratio)),
+      `${theme} — ${report}`,
+    ).toBeGreaterThanOrEqual(TEXT_CONTRAST);
+  },
+});
+
+export const HeaderBandInLightTheme: Story = headerBand('light');
+export const HeaderBandInDarkTheme: Story = headerBand('dark');
+
+/**
+ * 每一档语气的字压在它自己的底色上都读得出来，而且语气从来不是唯一的区别。
+ *
+ * 徽章是实底加页面底色写字（`ui/variants.tsx`），所以这里量的就是这一对搭配
+ * 本身：底色是不透明的，量出来的数与徽章落在哪一档行底上无关。用户
+ * 2026-09-22 的评审说「待出库」这枚白字压橙底在最小的一号字上（实测 13px）
+ * 贴着 AA 的边——旧的
+ * 700／600 档在亮色下量到 4.94／5.05／4.77，过线不到 6%；浅色三档因此各下
+ * 一档（`styles.css`），这条故事守的是新的余量。软配方（淡底 + 深字）同一批
+ * 量下来是 5.60／5.61／4.84，比实底更低，且淡底离行底只有 1.16–1.22:1，所以
+ * 没有取。
+ *
+ * 颜色之外还要有字（WCAG 1.4.1）：四档语气都在场，每一枚都有非空的标签，而且
+ * 没有两档共用同一个词。
+ */
+const toneBadgeInk = (theme: 'light' | 'dark'): Story => ({
+  ...DisplayCellFamily,
+  args: { ...DisplayCellFamily.args, theme },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    await waitFor(() => expect(readColumn(table, '订单号')).toHaveLength(6));
+    await expect(
+      canvasElement.querySelector('[data-slot="view-surface"]'),
+    ).toHaveAttribute('data-theme', theme);
+
+    const badges = [
+      ...table.querySelectorAll<HTMLElement>('[data-slot="badge"][data-tone]'),
+    ];
+    const words = new Map<string, Set<string>>();
+    for (const badge of badges) {
+      const label = (badge.textContent ?? '').trim();
+      await expect(label, '一枚没有字的徽章只剩颜色').not.toBe('');
+      const tone = badge.dataset.tone!;
+      words.set(tone, (words.get(tone) ?? new Set()).add(label));
+    }
+    await expect([...words.keys()].sort()).toEqual([
+      'danger',
+      'neutral',
+      'success',
+      'warning',
+    ]);
+    // 一个词只属于一档语气，否则读者就只能靠颜色分辨这两档。
+    const all = [...words.values()].flatMap(set => [...set]);
+    await expect(all.length).toBe(new Set(all).size);
+
+    const measured = badges.map(badge => ({
+      name: `${badge.dataset.tone} "${(badge.textContent ?? '').trim()}"`,
+      size: getComputedStyle(badge).fontSize,
+      ...measureTextContrast(badge),
+    }));
+    const report = measured
+      .map(
+        ({ name, size, ratio, colors }) =>
+          `${name} ${ratio.toFixed(2)}:1 @${size} (${colors.text} on ${colors.background})`,
+      )
+      .join('; ');
+    await expect(
+      Math.min(...measured.map(({ ratio }) => ratio)),
+      `${theme} — ${report}`,
+    ).toBeGreaterThanOrEqual(TEXT_CONTRAST);
+  },
+});
+
+export const ToneBadgeInkInLightTheme: Story = toneBadgeInk('light');
+export const ToneBadgeInkInDarkTheme: Story = toneBadgeInk('dark');
+
 /** The light theme's `--input`, over the card and the header it sits on. */
 export const ControlBordersInLightTheme: Story = controlBorders('light');
 
@@ -4944,7 +5089,7 @@ const calloutTone = (
     await expect(
       ratio,
       `${theme} ${tone} — ${colors.text} on ${colors.background}`,
-    ).toBeGreaterThanOrEqual(CALLOUT_TEXT_CONTRAST);
+    ).toBeGreaterThanOrEqual(TEXT_CONTRAST);
 
     // D1: one line high. The icon is 16px and the toggle beside it is the
     // `xs` button (24px), so a line of it clears 24 and nothing above 40 is
@@ -4955,12 +5100,6 @@ const calloutTone = (
     ).toBeLessThanOrEqual(ONE_LINE_HIGH);
   },
 });
-
-/**
- * 正文对比度的下限：WCAG 1.4.3 的 4.5:1。状态条的句子是正文大小的文字，不是
- * 大字号，也不是装饰。
- */
-const CALLOUT_TEXT_CONTRAST = 4.5;
 
 /** 一行的上限（px）：16px 的图标、24px 的 `xs` 按钮，加上 4px 的上下内边距。 */
 const ONE_LINE_HIGH = 40;
@@ -5036,7 +5175,7 @@ const deleteActionContrast = (theme: 'light' | 'dark'): Story => ({
     await expect(
       ratio,
       `${theme} — ${colors.text} on ${colors.background}`,
-    ).toBeGreaterThanOrEqual(CALLOUT_TEXT_CONTRAST);
+    ).toBeGreaterThanOrEqual(TEXT_CONTRAST);
 
     // And the list under it reads as being *under* it: two `bg-popover`
     // cards on their own measure 1.00:1 against each other, which is what

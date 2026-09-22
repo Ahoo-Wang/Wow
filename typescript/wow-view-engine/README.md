@@ -215,9 +215,9 @@ Every token reads a host-level variable with the built-in value as its fallback:
 | `sidebar-accent`            | Hovered row in the column            | `oklch(0.922 0 0deg)`           | `oklch(0.279 0 0deg)`           |
 | `sidebar-accent-foreground` | Text on a hovered row                | `oklch(0.205 0 0deg)`           | `oklch(0.985 0 0deg)`           |
 | `sidebar-border`            | The column's edge                    | `oklch(0.898 0 0deg)`           | `oklch(1 0 0deg / 20%)`         |
-| `destructive`               | Danger and delete                    | `oklch(0.577 0.245 27.325deg)`  | `oklch(0.704 0.191 22.216deg)`  |
-| `success`                   | Positive outcome                     | `oklch(0.527 0.154 150.069deg)` | `oklch(0.792 0.209 151.711deg)` |
-| `warning`                   | Needs attention, not blocking        | `oklch(0.555 0.163 48.998deg)`  | `oklch(0.828 0.189 84.429deg)`  |
+| `destructive`               | Danger and delete                    | `oklch(0.505 0.213 27.518deg)`  | `oklch(0.704 0.191 22.216deg)`  |
+| `success`                   | Positive outcome                     | `oklch(0.448 0.119 151.328deg)` | `oklch(0.792 0.209 151.711deg)` |
+| `warning`                   | Needs attention, not blocking        | `oklch(0.473 0.137 46.201deg)`  | `oklch(0.828 0.189 84.429deg)`  |
 | `info`                      | Neutral notice                       | `oklch(0.546 0.245 262.881deg)` | `oklch(0.707 0.165 254.624deg)` |
 | `border`                    | Borders and dividers                 | `oklch(0.922 0 0deg)`           | `oklch(1 0 0deg / 20%)`         |
 | `input`                     | Input and control borders            | `oklch(0.62 0 0deg)`            | `oklch(1 0 0deg / 40%)`         |

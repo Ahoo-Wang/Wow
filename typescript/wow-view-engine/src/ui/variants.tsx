@@ -68,11 +68,24 @@ const TONE_BASE: Record<FieldTone, 'secondary' | 'destructive'> = {
  * Not a tint of it, although that is what the registry's `destructive`
  * variant does and what this tried first: a 10% wash leaves the same hue
  * reading against a surface it has been lightened towards, and axe measured
- * 3.98:1 for destructive, 4.32 for success and 4.37 for warning at the 12px
- * a badge is set in — all of them short of 4.5. The tokens are picked to
- * clear that ratio *against the surface*, so filling with the token and
- * writing in the surface colour is the pairing they were chosen for, and it
- * flips with the theme: light text on a dark fill, dark text on a light one.
+ * 3.98:1 for destructive, 4.32 for success and 4.37 for warning at the one
+ * small size a badge is set in — all of them short of 4.5. The tokens are
+ * picked to clear that ratio *against the surface*, so filling with the
+ * token and writing in the surface colour is the pairing they were chosen
+ * for, and it flips with the theme: light text on a dark fill, dark text on
+ * a light one.
+ *
+ * **And not the soft recipe either** (P-21, the user's 2026-09-22 review
+ * asked for one or the other, measured). A 15% tint written in the tone's
+ * own darker step — shadcn's soft badge — measures 5.60 / 5.61 / 4.84 in
+ * the light theme against the solid's 7.09 / 7.13 / 6.42, so the softer of
+ * the two is the *less* readable one at every tone; and such a tint lands
+ * within 1.16–1.22:1 of the row under it, under the floor `BadgesOnRows*`
+ * holds a badge to, so every toned badge would have had to grow the grey
+ * halo the last paragraph here rules out. The way the light tones got
+ * their margin was the other branch of that review — one step down the
+ * palette, in `styles.css`, with nothing to change here. Measured by
+ * `ToneBadgeInk*`: 7.09 / 7.13 / 6.42 light, 11.15 / 11.53 / 6.84 dark.
  * The ink is each fill's own `-foreground` rather than `text-background`,
  * which was the right value under the wrong name — a host moving
  * `--fve-success` to a pale green got white writing on it and had nothing

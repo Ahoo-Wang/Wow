@@ -233,11 +233,60 @@ export const ROW_HOVER = 'hover:bg-row-hover has-aria-expanded:bg-row-hover';
 const HEAD_BUTTON = '[&>button]:max-w-[calc(100%+1rem)]';
 
 /**
- * A column header is metadata about the column rather than content in it, so
- * it is quieter than the values under it; the header row carries the
- * emphasis instead, as a layer with its own edge.
+ * What the pointer resting on a sortable header lights up.
+ *
+ * The registry's `ghost` button hovers to `bg-accent`, and on this surface
+ * `--accent` and `--muted` are the same 3% grey — over the band below that
+ * hover measured **1.00:1**, an affordance that stopped existing the moment
+ * the header stopped being white. So the step is taken in the other
+ * direction: the hovered cell lifts to the ground the rows are drawn on,
+ * which is the same mark the sidebar's open view wears (`ui/variants.tsx`).
+ * The step is exactly the one it always was, mirrored with the band —
+ * `--accent` over `--background` measured 1.09:1 light and 1.31:1 dark, and
+ * `--background` over `--muted` is those same two numbers — `--accent` and
+ * `--muted` hold the same value, so the step is the band-against-the-rows
+ * step either way round.
+ *
+ * It rides on the *cell*'s class rather than on the button's, so
+ * `SortableHeader` still spells no colour: the cell already carries this
+ * file's `HEAD_CELL`, and `> button:hover` outranks the variant's own
+ * `:hover` by the child selector it is written with.
  */
-export const HEAD_CELL = `text-muted-foreground font-medium ${TEXT_UI} ${HEAD_BUTTON}`;
+const HEAD_HOVER = '[&>button]:hover:bg-background';
+
+/**
+ * A band at one end of the table: the header at the top, the summaries at
+ * the bottom. One constant, because the two of them being **the same grey**
+ * is the whole point (P-21) — they bracket the rows, and the data is the
+ * only thing left drawn on the page's own ground. Before this the header
+ * was `--background` like the rows, parted from them by one hairline and a
+ * grey label, and the user's 2026-09-22 review read the first row as part
+ * of the header. (`HeaderBand*` measures the two fills and compares them
+ * byte for byte.)
+ *
+ * The colour is on the **row** as well as on the group because a pinned
+ * cell takes its fill from the row it is in (`bg-inherit`, see
+ * `SELECT_CELL`): a band painted on the `<thead>` alone leaves the held
+ * cells transparent, and the columns scrolling under them show through.
+ * `hover:` is said again because the registry hovers every `<tr>` to
+ * `bg-muted/50`, and neither band is hovered as a row — in the header only
+ * the button in it is ({@link HEAD_HOVER}).
+ */
+export const BAND = 'bg-muted';
+export const BAND_ROW = 'bg-muted hover:bg-muted';
+
+/**
+ * A column header is metadata about the column rather than content in it —
+ * but it is not quieter than the values under it: it is the same ink on a
+ * grey of its own. `text-muted-foreground` measured **4.34:1** on that grey
+ * (the same number `--quiet-foreground` exists because of, see
+ * `styles.css`), under 1.4.3's 4.5 at a size that is already the smallest
+ * on the surface; the registry's own `text-foreground font-medium` on
+ * `<th>` measures 18.15:1 light and 14.48:1 dark. So this class no longer
+ * overrides either of them — what is left is the one small type size and
+ * the two rules about the button in the cell.
+ */
+export const HEAD_CELL = `${TEXT_UI} ${HEAD_BUTTON} ${HEAD_HOVER}`;
 
 /** Numbers line up on their last digit, in the cells and in the header. */
 export const NUMERIC_CELL = 'text-right tabular-nums';

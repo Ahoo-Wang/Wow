@@ -68,8 +68,6 @@
 
 ### 打磨
 
-- **P-21 表头与数据的层级、语气色对比度**（用户 2026-09-22 评审）：表头与数据行同为白底，只靠一根 2px 线和灰字分开；「待出库」这类 warning 语气徽章是白字压在 L≈0.55 的橙底上，12px 下对比度在 AA 边缘。判据：表头改成与汇总层同一档的 `bg-muted` 灰带、字用 `text-foreground` 中等字重（灰带上的 muted 字会跌破 4.5:1），首尾两条灰带把数据行夹在中间；语气徽章改用 shadcn 的「软」配方（淡底 + 深字，`bg-{tone}/15 text-{tone}` 一类）或把浅色主题的 `--warning` 压到 L≈0.50，真浏览器量过对比度再定，三种语气一起改；暗色饱和度仍归 Ⅻ（阶段 5）。落点：`src/ui/record/columns.ts`（`HEAD_CELL`）、`src/ui/RecordTable.tsx`、`src/ui/variants.tsx`（`ToneBadge`）、`src/styles.css`、[ui/record.md](ui/record.md)。
-
 ### 架构与测试（零行为变化，防腐化）
 
 - **A-07 零行为小收口批次**：三处 `hasResult`、三份 `GROUPS`、三处路径谓词、四次重建 `RecordColumn`、四处 `notify`、三段同样的 Badge、六个只自用的 export、五条过时／说反的注释、死 eslint 配置、三处指向已删测试文件的「见 test/…」。判据：合成一到两个 PR，全程不该有屏幕差异。落点：分散，见审计报告。

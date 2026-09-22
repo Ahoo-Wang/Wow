@@ -25,6 +25,8 @@ import { useSurfaceDisplay } from './ViewSurface.js';
 import {
   actionCell,
   ACTIONS_COLUMN,
+  BAND,
+  BAND_ROW,
   CLIPPED_CELL,
   HEAD_CELL,
   NUMERIC_CELL,
@@ -248,11 +250,17 @@ export function RecordTable({
       }
     >
       <Table ref={element} className={TABLE_CELLS}>
-        {/* A layer rather than a row: it stays while the rows move under it,
-            and its edge is heavier than the hairlines between them. */}
+        {/* A band rather than a row: it stays while the rows move under it,
+            and it is the same grey as the summary band at the other end, so
+            the two of them bracket the data (`BAND`, P-21). The 2px
+            rule it used to carry is gone — `[&_tr]:border-b-2` named the
+            `<tr>`, and in the separate border model a row has no border to
+            paint, so what has always been on screen is the cells' own 1px
+            `border-b` from `TABLE_CELLS`. One hairline is what parts the
+            summary band from the rows as well, and the fill does the rest. */}
         {!firstLoad && (
-          <TableHeader className="bg-background sticky top-0 z-20 [&_tr]:border-b-2">
-            <TableRow className="bg-background hover:bg-background">
+          <TableHeader className={cn(BAND, 'sticky top-0 z-20')}>
+            <TableRow className={BAND_ROW}>
               {selectable && (
                 <TableHead
                   data-column={SELECT_COLUMN}

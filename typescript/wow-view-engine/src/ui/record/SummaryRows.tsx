@@ -25,6 +25,8 @@ import { useSurfaceDisplay } from '../ViewSurface.js';
 import { TableCell, TableFooter, TableRow } from '../components/table.js';
 import {
   actionCell,
+  BAND,
+  BAND_ROW,
   CLIPPED_CELL,
   SELECT_CELL,
   columnWidth,
@@ -81,10 +83,12 @@ export function SummaryRows({
     // rows above without looking like two more records, and pinned to the
     // foot of the scroll area — the numbers under a long page are the reason
     // the page is being read, and the sideways scrollbar belongs under them
-    // rather than between them and the rows.
+    // rather than between them and the rows. The grey is `BAND` rather than
+    // a `bg-muted` of its own, because the header wears the same one and
+    // the two of them being equal is what brackets the rows (P-21).
     <TableFooter
       data-slot="record-summaries"
-      className="bg-muted sticky bottom-0 z-20"
+      className={cn(BAND, 'sticky bottom-0 z-20')}
     >
       {rows.map(row => (
         <SummaryLine
@@ -139,7 +143,7 @@ function SummaryLine({
       // The muted layer is the row's own colour, and a pinned cell inherits
       // it: `bg-inherit` over a transparent row would let the columns it is
       // pinned over show through it.
-      className="bg-muted hover:bg-muted"
+      className={BAND_ROW}
     >
       {selectable && (
         <TableCell className={cn(pins.select && SELECT_CELL)}>
