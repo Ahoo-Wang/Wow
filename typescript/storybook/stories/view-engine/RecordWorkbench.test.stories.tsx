@@ -656,6 +656,23 @@ export const WithActions: Story = {
     ).toBeVisible();
     await expect(canvas.queryByRole('button', { name: '导出所选' })).toBeNull();
 
+    // The line between this package's controls and the host's own action
+    // stands centred on the row it parts — not parked at its top, which is
+    // where a stretched item with a height of its own ends up.
+    const controls = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="view-controls"]',
+    )!;
+    const divider = controls.querySelector<HTMLElement>(
+      '[data-slot="separator"]',
+    )!;
+    const middle = (rect: DOMRect) => rect.top + rect.height / 2;
+    await expect(
+      Math.abs(
+        middle(divider.getBoundingClientRect()) -
+          middle(controls.getBoundingClientRect()),
+      ),
+    ).toBeLessThanOrEqual(1);
+
     // One row action per row, in a column pinned to the end of the table.
     await expect(canvas.getAllByRole('button', { name: '打开' })).toHaveLength(
       PENDING_BY_AMOUNT.length,

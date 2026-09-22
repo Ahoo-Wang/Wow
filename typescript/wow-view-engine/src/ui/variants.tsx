@@ -196,26 +196,34 @@ export function DestructiveAction({
 }
 
 /**
- * The one divider on this surface that has to be seen.
+ * The one divider on this surface with a boundary to say.
  *
  * Every other line here separates things of the same kind — rows from rows,
- * a menu's groups from each other — and may be as quiet as `--border` is: a
- * hairline that is *nearly* invisible still reads as "these are one list".
- * The line at the end of the title bar divides two **authorships**: this
- * package's view-level controls on one side, the host's own actions on the
- * other. That boundary is the whole of what it says, and at 1×16px of
- * `--border` it measured **1.26:1** against the bar it stands on — it took
- * the space and made the promise without anybody being able to see it. A
- * divider nobody can see is not a quieter divider; it is no divider, with
- * the gap still spent.
+ * a menu's groups from each other. The line at the end of the title bar
+ * divides two **authorships**: this package's view-level controls on one
+ * side, the host's own actions on the other.
  *
- * So it is `--input`, the theme's "this edge *is* the thing" rung, held at
- * ≥3:1 in both themes (`styles.css`), and 20px in a 40px row rather than 16
- * — a line has to stand next to the controls it parts, not hide between
- * them. Spacing instead of a line was the other way out and is not taken:
- * this row's ruler has one step inside a group (8px) and the bar wraps at
- * narrow widths, so a 16px gap reads as the start of a wrap rather than as
- * a boundary.
+ * It is the edge the buttons on both sides of it wear: the registry's own
+ * `--border`, and in the dark theme `--input`, exactly as the registry's
+ * outline button is bordered (`border-border dark:border-input`) — the
+ * story measures the two against each other rather than against a number. An earlier version painted it `--input` (this
+ * package's `--input` is a mid grey, not shadcn's near-white) so that it
+ * would measure ≥3:1 against the bar, and the result was a dark bar among
+ * light-edged buttons: the one line on the row that did not belong to it
+ * (user, 2026-09-22). A separator between two bordered groups is read by
+ * being *taller than their gaps* — 20px in a 28px row, against the 8px
+ * step inside a group — not by being darker than their borders; a
+ * non-text contrast floor is for the edges of controls, and this is not
+ * one. Spacing instead of a line is still not taken: the bar wraps at
+ * narrow widths, and a 16px gap reads as the start of a wrap rather than
+ * as a boundary.
+ *
+ * `data-vertical:self-center` because the registry's vertical separator
+ * says `data-vertical:self-stretch`, and a stretched item with a height of
+ * its own is not stretched but parked at the cross-start: the 20px line sat
+ * against the top of the 28px row (user, 2026-09-22). Under the same
+ * variant, so that the merge replaces the registry's word rather than
+ * losing to it in the cascade — a plain `self-center` did.
  */
 export function SectionDivider({
   className,
@@ -224,7 +232,7 @@ export function SectionDivider({
   return (
     <Separator
       orientation="vertical"
-      className={cn('bg-input h-5', className)}
+      className={cn('dark:bg-input h-5 data-vertical:self-center', className)}
       {...props}
     />
   );

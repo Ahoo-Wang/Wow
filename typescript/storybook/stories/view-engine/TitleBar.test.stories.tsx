@@ -18,7 +18,6 @@ import displayMeta, {
   NarrowTitleBar as DisplayNarrowTitleBar,
   WithActions as DisplayWithActions,
 } from './RecordWorkbench.stories.js';
-import { measureFillContrast } from './contrast.js';
 
 /**
  * How the title bar narrows.
@@ -393,20 +392,18 @@ export const CollapsedPathIsTwoLevels: Story = {
 };
 
 /**
- * 标题栏右端那根竖线看得见，两个主题都算。
+ * 标题栏右端那根竖线是这一排的一员，两个主题都算。
  *
- * 它分的是两种作者：本包的视图级控件在左，宿主自己的全局动作在右。评审量到
- * 它是 1×16px 的 `--border`，在这块面的底上 **1.26:1**（暗色 1.77:1）——占着
- * 位置、许诺了一个分组，却没有人看得见。一条看不见的线不是更克制的分隔，是
- * 没有分隔，而那段间距照样花掉了。
+ * 它分的是两种作者：本包的视图级控件在左，宿主自己的全局动作在右。它曾被
+ * 画成 `--input`（本包的 `--input` 是中灰，不是 shadcn 的近白），为的是量到
+ * ≥3:1——结果是一排浅边按钮中间一根黑杠，整行唯一不属于这一行的线（用户
+ * 2026-09-22 指出）。分隔线靠**比组内间距高**被读出来（28px 的行里 20px，
+ * 对着组内 8px 的步进），不靠比旁边的边更黑；非文本对比度那条下限是给控件
+ * 的边的，它不是控件。
  *
- * 所以改成 `--input`，主题里「这条边就是那个东西」的那一档（两个主题都钉在
- * ≥3:1），高度 16 → 20px：一条线要能站在它所分的控件旁边，而不是躲在它们中
- * 间。用间距说话是另一条路，没有走——这一行的尺子只有组内 8px 与组间 8px 两
- * 档，而标题栏在窄处会换行，16px 的空档读起来像换行的起点而不像边界。
- *
- * 量的是层叠之后的真颜色：`Separator` 的线是**底色**不是边框，所以读的是
- * `measureFillContrast` 而不是 `measureBorderContrast`。
+ * 所以量的是两件事：它的颜色与旁边按钮的边是同一个 token（`--border`，注册
+ * 表 `Separator` 自己的颜色，没有调用处写的色），以及它站在这一行的正中——
+ * 注册表竖向分隔线带 `self-stretch`，而一条自带高度的项被 stretch 只会贴顶。
  */
 const titleBarDivider = (theme: 'light' | 'dark'): Story => ({
   ...DisplayWithActions,
@@ -419,22 +416,31 @@ const titleBarDivider = (theme: 'light' | 'dark'): Story => ({
       canvasElement.querySelector('[data-slot="view-surface"]'),
     ).toHaveAttribute('data-theme', theme);
 
-    const divider = canvasElement.querySelector<HTMLElement>(
-      '[data-slot="view-controls"] [data-slot="separator"]',
+    const controls = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="view-controls"]',
+    )!;
+    const divider = controls.querySelector<HTMLElement>(
+      '[data-slot="separator"]',
     );
     await expect(divider, '两端都有东西时才画这根线').not.toBeNull();
     await expect(divider!.getBoundingClientRect().height).toBe(20);
 
-    const { ratio, colors } = measureFillContrast(divider!);
+    // 与它右边那颗宿主按钮的边同色。
+    const host = within(controls).getByRole('button', { name: '新建订单' });
+    await expect(getComputedStyle(divider!).backgroundColor).toBe(
+      getComputedStyle(host).borderTopColor,
+    );
+
+    // 站在行的正中，误差一像素以内。
+    const middle = (rect: DOMRect) => rect.top + rect.height / 2;
     await expect(
-      ratio,
-      `${theme} — ${colors.fill} on ${colors.surface}`,
-    ).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
+      Math.abs(
+        middle(divider!.getBoundingClientRect()) -
+          middle(controls.getBoundingClientRect()),
+      ),
+    ).toBeLessThanOrEqual(1);
   },
 });
-
-/** `--input` 是两个主题都钉在 3:1 的那一档（WCAG 1.4.11 的数）。 */
-const NON_TEXT_CONTRAST = 3;
 
 export const TitleBarDividerInLightTheme: Story = titleBarDivider('light');
 export const TitleBarDividerInDarkTheme: Story = titleBarDivider('dark');
