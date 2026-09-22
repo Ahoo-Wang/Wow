@@ -47,7 +47,7 @@ pnpm --filter @ahoo-wang/fetcher-view-engine lint:check
 
 - Vitest in the **jsdom** environment, with `clearMocks` and `restoreMocks`
 - **No `globals: true`** — unlike the other packages here, import `describe`, `it`, `expect`, `vi` from `vitest` explicitly
-- Test files live in `test/` at the package root, named by subject rather than mirroring `src/` one-to-one. Fixtures shared by several suites sit beside them: `test/fixtures.ts` for definitions, configs and sources, `test/fixtures/ui.tsx` for what the UI suites open, `test/fixtures/manager.tsx` for the view-manager harness two suites share, `test/fixtures/writes.ts` for `tracked`/`landed` (a suite waits for the write a gesture caused, then reads the store once — never polls it), `test/fixtures/{analysis,columns,filter,hooks}.ts` for the rest
+- Test files live in `test/` at the package root, named by subject rather than mirroring `src/` one-to-one. Fixtures shared by several suites sit beside them: `test/fixtures.ts` for definitions, configs and sources, `test/fixtures/ui.tsx` for what the UI suites open, `test/fixtures/manager.tsx` for the view-manager harness two suites share, `test/fixtures/workbench.ts` for the gestures the record-workbench suites share, `test/fixtures/dashboard.ts` for the dashboard the grid and the workbench suites both open, `test/fixtures/writes.ts` for `tracked`/`landed` (a suite waits for the write a gesture caused, then reads the store once — never polls it), `test/fixtures/{analysis,columns,filter,hooks}.ts` for the rest
 - `@` resolves to `src/`
 - **Coverage thresholds are enforced**: statements 95, branches 91, functions 97, lines 96. `src/ui/components/**`, `src/ui/lib/**` and `src/styles.ts` are excluded — they are vendored from the shadcn registry and are upstream's to test
 - **A jsdom suite asserts what a class _means_, not how it is spelled** (A-09). A `className` assertion proves nothing about the screen — jsdom loads no stylesheet and lays nothing out — and it turns red wholesale the moment a colour or a recipe moves into a `cva`. So state is said **on the element** and read back from there: `data-pin` / `data-pin-edge` / `data-pin-index` / `data-sticky` / `data-overflowing` for the table's sticky chrome, `data-tone` for a toned badge, alert or destructive answer, `aria-current`, `aria-pressed`, `data-default`, `data-released`, `data-scrolls`, `data-invalid`, a role, an accessible name, a `title`, or an inline style jsdom really computes. Where a component writes no such attribute and the class is the only witness, **add the attribute** rather than keep the assertion. Three files are the deliberate homes of the remaining class assertions, because in each the class string _is_ the contract: `test/pinnedColumns.test.tsx` ("the sticky chrome recipe") for `ui/record/sticky.ts`, `test/variants.test.tsx` for the cva wrappers of D16-8, and `test/popups.test.tsx` for our copy of each popup's registry markup. Elsewhere a surviving assertion is marked **surviving class assertion** with its reason — a pure declaration with no state behind it (a length, a grid template, a border model, `sr-only`, a `:hover` fill), whose pixels a browser story measures instead
@@ -205,7 +205,8 @@ src/
     actions.ts                — The three action slots a host fills: global, bulk, row
     environment.ts            — `documentVisibility` / `browserRuntimeEnvironment`: page visibility, so a hidden tab stops polling
     issues.ts                 — Turns a thrown command into one Issue
-    recordColumns.ts          — `recordColumn`, the one builder of a stored column, and what the column commands write with it
+    recordColumns.ts          — `recordColumn`, the one builder of a stored column, and what the column commands write with it: `repinned`, `resized`, `shown`, `withColumnsShown`, `reordered`
+    recordEdits.ts            — What a record command works out before it writes: the sort cycle, the page-size ladder, the spelling of "no summaries", and the repairs a patch carries
     recordDraft.ts            — The draft's lists as a control may read them; the controller is the boundary
     useAnalysisEditor.ts      — Analysis controller
     useAutoRefresh.ts         — `RefreshController`: refresh now, the cadence ladder cut to the limits, the countdown
@@ -389,6 +390,7 @@ src/
       Unopenable.tsx          — The work area when the chosen view cannot be opened
       useEditorFold.ts        — The editor's fold, per opening; `filled`
       useSidebarFold.ts       — The sidebar's fold, following the surface's width until the user presses
+      useWorkbenchFolds.ts    — The shell's two folds as one hook: the list beside the view, the view filling the screen, and where a press sends focus
 ```
 
 `test/` (one file per subject plus `fixtures.ts` and `fixtures/`), `examples/` (`FetcherViewStore.ts`, `PlainRecordWorkbench.tsx`, `quickstart.ts`) and `docs/design/` sit beside `src/`.

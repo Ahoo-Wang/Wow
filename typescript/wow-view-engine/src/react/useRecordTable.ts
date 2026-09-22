@@ -25,16 +25,21 @@ import type {
   RecordSummary,
   SortDirection,
   SummaryFunction,
-  ViewInstance,
 } from '../model/index.js';
 import { columnHidden, columnPinned, isFieldlessKind } from '../model/index.js';
+import { recordColumns, recordSort, recordSummaries } from './recordDraft.js';
 import {
-  recordColumns,
-  recordSort,
-  recordSummaries,
-  wasSound,
-} from './recordDraft.js';
-import { repinned, resized, withColumnsShown } from './recordColumns.js';
+  reordered,
+  repinned,
+  resized,
+  withColumnsShown,
+} from './recordColumns.js';
+import {
+  cycledSort,
+  offeredPageSizes,
+  repairing,
+  summariesOf,
+} from './recordEdits.js';
 import { maxSortFields } from '../record/index.js';
 import type {
   RecordColumnView,
@@ -46,7 +51,6 @@ import {
   hasResult,
   type QueryStatus,
   type RecordViewRuntime,
-  type ViewRuntimeState,
 } from '../runtime/index.js';
 import type { RecordViewConfig } from '../model/index.js';
 import { useViewRuntime } from './useViewEngine.js';
@@ -85,67 +89,6 @@ export interface RecordCardField {
   cell?: string;
   options?: readonly FieldOption[];
   numberFormat?: NumberFormat;
-}
-
-/**
- * The summaries to write, in the shape the saved config uses for none.
- *
- * `summaries` is optional, so "no summaries" is spelled two ways — an empty
- * list, or no member at all — and `dirty` is an equality against the saved
- * config, which cannot tell the difference between a shape and a change.
- * Adding a summary and taking it away again therefore left the view unsaved
- * for the rest of the session, with the leave guard asking about an edit
- * that had already been undone. `edit` removes a member given as
- * `undefined`, so answering with the saved config's own spelling makes
- * undoing an undo.
- */
-function summariesOf(
-  next: RecordSummary[],
-  saved: ViewInstance | null,
-): RecordSummary[] | undefined {
-  if (next.length > 0) return next;
-  const config = saved?.config;
-  return config?.kind === 'record' && config.summaries !== undefined
-    ? []
-    : undefined;
-}
-
-/**
- * The patch, plus the sound form of any list the draft could not be read
- * from and this patch does not already replace.
- *
- * A list the controller had to repair is a config the kernel refuses over
- * entries that are not on screen — they could not be read, so no control
- * lists them and no control can take them out. Carrying the repair along
- * with whatever the user *did* change is what makes "the first change they
- * make writes the sound list back" true of every list rather than only of
- * the one they touched: with no sortable field left to add, an unreadable
- * `sort` had no other way out at all.
- */
-function repairing(
-  patch: Partial<RecordViewConfig>,
-  state: ViewRuntimeState<RecordViewConfig>,
-): Partial<RecordViewConfig> {
-  const draft = state.draft;
-  const repairs: Partial<RecordViewConfig> = {};
-
-  const sort = recordSort(draft.sort);
-  if (patch.sort === undefined && !wasSound(draft.sort, sort))
-    repairs.sort = sort;
-
-  const summaries = recordSummaries(draft.summaries);
-  if (
-    !('summaries' in patch) &&
-    draft.summaries !== undefined &&
-    !wasSound(draft.summaries, summaries)
-  )
-    repairs.summaries = summariesOf(summaries, state.saved);
-
-  const columns = recordColumns(draft.table?.columns);
-  if (patch.table === undefined && !wasSound(draft.table?.columns, columns))
-    repairs.table = { columns };
-
-  return { ...repairs, ...patch };
 }
 
 function cardField(field: FieldDefinition): RecordCardField {
@@ -422,28 +365,13 @@ export function useRecordTable(
   const toggleSort = useCallback(
     (field: string, options?: ToggleSortOptions) => {
       if (!runtime) return;
-      const current = recordSort(runtime.getSnapshot().draft.sort);
-      const at = current.findIndex(entry => entry.field === field);
-      // The same cycle either way: off → ascending → descending → off.
-      const turned: SortDirection | null =
-        at < 0 ? 'ASC' : current[at].direction === 'ASC' ? 'DESC' : null;
-      let next: RecordSort[];
-      if (options?.exclusive) {
-        // This column alone, wherever it stood: a plain click says "order
-        // the rows by this", not "also by this".
-        next = turned === null ? [] : [{ field, direction: turned }];
-      } else if (at < 0) {
-        // A new field joins at the end; an existing one keeps its place,
-        // because the order of `sort` is the priority between columns.
-        next = [...current, { field, direction: 'ASC' }];
-      } else if (turned === null) {
-        next = current.filter((_entry, index) => index !== at);
-      } else {
-        next = current.map((entry, index) =>
-          index === at ? { field, direction: turned } : entry,
-        );
-      }
-      runtime.edit({ sort: next });
+      runtime.edit({
+        sort: cycledSort(
+          recordSort(runtime.getSnapshot().draft.sort),
+          field,
+          options?.exclusive ?? false,
+        ),
+      });
       runtime.apply();
     },
     [runtime],
@@ -629,25 +557,12 @@ export function useRecordTable(
     setColumnOrder: useCallback(
       (fields: string[]) => {
         if (!runtime) return;
-        const columns = recordColumns(
-          runtime.getSnapshot().draft.table?.columns,
-        );
-        const byField = new Map(columns.map(column => [column.field, column]));
-        const named = new Set<string>();
-        const ordered = fields.flatMap(field => {
-          const column = byField.get(field);
-          // A name repeated by the caller would otherwise become a second
-          // column of the same field, which `validateRecord` then refuses.
-          if (!column || named.has(field)) return [];
-          named.add(field);
-          return [column];
-        });
         editAndApply({
           table: {
-            columns: [
-              ...ordered,
-              ...columns.filter(column => !named.has(column.field)),
-            ],
+            columns: reordered(
+              recordColumns(runtime.getSnapshot().draft.table?.columns),
+              fields,
+            ),
           },
         });
       },
@@ -718,20 +633,15 @@ export function useRecordTable(
       [editAndApply, runtime],
     ),
     pageSize,
-    pageSizes: useMemo(() => {
-      // The ladder is the engine's (`RuntimeLimits.pageSizes`): a product
-      // that wants 15/30/60 hands it in with the budgets rather than
-      // shipping a build.
-      const max = runtime?.limits.maxPageSize;
-      const offered = (runtime?.limits.pageSizes ?? []).filter(
-        size => max === undefined || size <= max,
-      );
-      // The saved size joins whatever it is: a view saved at 500 under an
-      // older limit still has to show the size it is running at.
-      return [
-        ...new Set([...offered, ...(pageSize > 0 ? [pageSize] : [])]),
-      ].sort((left, right) => left - right);
-    }, [pageSize, runtime]),
+    pageSizes: useMemo(
+      () =>
+        offeredPageSizes(
+          runtime?.limits.pageSizes ?? [],
+          runtime?.limits.maxPageSize,
+          pageSize,
+        ),
+      [pageSize, runtime],
+    ),
     setPageSize: useCallback(
       (pageSize: number) => editAndApply({ pageSize }),
       [editAndApply],

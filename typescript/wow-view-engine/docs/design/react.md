@@ -74,6 +74,8 @@ useFilterEditor(runtime): FilterController
 
 （见 test/recordTableCommands.test.tsx「the shapes a store can hold」，其中一条直接拿真实控制器把 `ResultToolbar` 渲染出来。）
 
+**命令先算清楚要写什么，这一步里没有 React**：表头一按走完的那个循环（`cycledSort`）、每页条数那把梯子（`offeredPageSizes`）、"没有汇总"该按哪种写法作答（`summariesOf`）、以及上面那段的 `repairing`，都住在 `src/react/recordEdits.ts`；列表本身的那几个——重建一列（`recordColumn`）、固定／宽度／开关（`repinned`／`resized`／`shown`）、整表开关（`withColumnsShown`）与整表重排（`reordered`）——住在 `src/react/recordColumns.ts`。两份都是纯函数：`useRecordTable` 只剩 `edit` 加 `apply` 的接线，而这些规则各自一条断言读得出来，不必先渲染一个 hook 再造一个 runtime。（见 test/recordColumns.test.ts）
+
 ## useRecordTable
 
 ```ts

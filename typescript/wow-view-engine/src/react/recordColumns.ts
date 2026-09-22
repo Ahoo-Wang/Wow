@@ -137,3 +137,33 @@ export function withColumnsShown(
     }),
   ];
 }
+
+/**
+ * The table's columns in the order `fields` names them.
+ *
+ * A name that is not a column is ignored and a column the caller leaves
+ * unnamed keeps its place at the end, so a control that knows about part of
+ * the table — one area of the column settings — cannot drop the rest of it
+ * by saying nothing about it.
+ *
+ * The columns are all of them, the switched-off ones included: a hidden
+ * column has a place in the order, which is what makes switching it back on
+ * put it back where it was, so a caller that means to order the whole table
+ * names it along with the rest.
+ */
+export function reordered(
+  columns: readonly RecordColumn[],
+  fields: readonly string[],
+): RecordColumn[] {
+  const byField = new Map(columns.map(column => [column.field, column]));
+  const named = new Set<string>();
+  const ordered = fields.flatMap(field => {
+    const column = byField.get(field);
+    // A name repeated by the caller would otherwise become a second column
+    // of the same field, which `validateRecord` then refuses.
+    if (!column || named.has(field)) return [];
+    named.add(field);
+    return [column];
+  });
+  return [...ordered, ...columns.filter(column => !named.has(column.field))];
+}

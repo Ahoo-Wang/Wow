@@ -33,7 +33,7 @@ import { ErrorStrip, WarningStrip } from './StatusStrip.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { RenderBoundary, type RenderFailureHandler } from './RenderBoundary.js';
 import type { ViewMessages } from './messages.js';
-import { useViewExpansion, ViewExpandToggle } from './ViewExpansion.js';
+import { ViewExpandToggle } from './ViewExpansion.js';
 import { ViewHeader } from './ViewHeader.js';
 import { ViewList } from './ViewList.js';
 import { ViewManager } from './ViewManager.js';
@@ -44,7 +44,7 @@ import { OpeningSkeleton } from './workbench/OpeningSkeleton.js';
 import { ResultBlock, resultBlockShown } from './workbench/ResultBlock.js';
 import { Unopenable } from './workbench/Unopenable.js';
 import { filled, useEditorFold } from './workbench/useEditorFold.js';
-import { useSidebarFold } from './workbench/useSidebarFold.js';
+import { useWorkbenchFolds } from './workbench/useWorkbenchFolds.js';
 
 export interface WorkbenchShellProps {
   workbench: WorkbenchController;
@@ -301,8 +301,25 @@ export function WorkbenchShell({
     !list.loading &&
     workbench.openId === null;
 
-  const collapseRef = useRef<HTMLButtonElement>(null);
-  const expandRef = useRef<HTMLButtonElement>(null);
+  // Whether the list is beside the view, and whether the view fills the
+  // screen: two folds that are one concern, because the second decides the
+  // first. The buttons each press takes off the screen are the hook's too —
+  // focus moves to whichever undoes the press.
+  const {
+    surfaceRef,
+    expandViewRef,
+    collapseRef,
+    expandRef,
+    sidebarOpen,
+    toggleSidebar,
+    fill,
+  } = useWorkbenchFolds({
+    expandable,
+    open,
+    opening: opened.loading,
+    defaultSidebarOpen,
+    onSidebarOpenChange,
+  });
 
   // Where the keyboard lands after a copy is created. The dialog it was made
   // in closes, and there is nothing left of it to return focus to — the
@@ -319,96 +336,6 @@ export function WorkbenchShell({
   const viewTitle = useRef<HTMLHeadingElement>(null);
   const created = useRef(false);
 
-  // Filling the screen. The surface expands where it already is — the whole
-  // point of the decision, since re-parenting it would remount the editor
-  // and take the draft with it — so the shell needs a handle on its own root
-  // and on the button that governs it, and nothing else moves.
-  const surfaceRef = useRef<HTMLDivElement>(null);
-  const expandViewRef = useRef<HTMLButtonElement>(null);
-  // Off while there is no view: the toggle lives in the title bar, which is
-  // not drawn then, and an expansion nobody can see a way out of is a trap.
-  // Passing the condition in rather than hiding the button releases one that
-  // is already in force — switching to a view that will not open puts the
-  // page back instead of stranding it.
-  //
-  // But a switch that is merely *loading* keeps it (Q7, decided 2026-09-21):
-  // filling the screen is a posture of the workspace, not a state of the
-  // view that happened to be open — the user asked for room for the rows,
-  // and the next view's rows want the same room. The old runtime's release
-  // is one render with nothing open and the next one already on its way;
-  // ending the fill there made every switch a way out nobody had taken.
-  // The title bar is back the moment the view is, and Escape works in
-  // between.
-  const expansion = useViewExpansion(
-    surfaceRef,
-    expandViewRef,
-    expandable && (open || opened.loading),
-  );
-  // Filling the screen is a screen of its own, and the list is folded for
-  // it: filling is a gesture about the *result* — "give the rows the room" —
-  // and a 224px column of navigation is the first thing that is not the
-  // result. On a phone it is worse than that, because below `md` the list is
-  // not even beside the rows: it stacks above them and the table starts
-  // 204px down, which is the fewest rows a filled screen has ever bought.
-  //
-  // So the fold is two answers rather than one, and which is in force is
-  // **derived** from whether the screen is filled. Nothing is remembered and
-  // nothing is put back: leaving reads the page's answer again because it is
-  // still there. The alternative — one boolean, folded and restored by an
-  // effect watching the expansion — is a cascading render for a value the
-  // render can simply work out, and it was also two rules pretending to be
-  // one.
-  //
-  // `inFill` starts folded on every fill, which is what `fill.toggle` below
-  // is for: pressing that button is the only way *into* a fill (Escape and
-  // switching views only end one), so it is the one place the previous
-  // fill's answer has to be let go.
-  const expanded = expansion.expanded;
-  const [inFill, setInFill] = useState(false);
-  // The fold as the *page* has it — the one a host sets and is told about,
-  // and the one the surface's own width answers for until a press settles
-  // it. What is actually on screen is derived from it, because a screen
-  // filled by the view has a fold of its own.
-  const page = useSidebarFold(
-    surfaceRef,
-    defaultSidebarOpen,
-    onSidebarOpenChange,
-  );
-  const sidebarOpen = expanded ? inFill : page.open;
-  const fill = {
-    expanded,
-    toggle: () => {
-      setInFill(false);
-      expansion.toggle();
-    },
-  };
-
-  // The state the last run saw, not "has this run before". StrictMode does
-  // setup, cleanup, setup on mount, so a "first run" flag is already spent
-  // by the second setup and the effect would take focus off the host's page
-  // on arrival — which is the one thing it must never do. Comparing the
-  // value answers the question actually being asked: did this change?
-  const shown = useRef(sidebarOpen);
-  // And *why* it changed. The fold now moves for three reasons — a button,
-  // the room the surface has, the screen being filled — and only the first
-  // is a press. Focus follows a press because the press took its own button
-  // off the screen; it must not follow the other two, which would take the
-  // keyboard out of whatever the user was doing — on arrival, on the way
-  // into a filled screen, or in the middle of dragging a window.
-  const pressed = useRef(false);
-  useLayoutEffect(() => {
-    if (shown.current === sidebarOpen) return;
-    shown.current = sidebarOpen;
-    if (!pressed.current) return;
-    pressed.current = false;
-    // Collapsing and expanding each take away the button that was just
-    // pressed, so focus moves to the one that undoes it. Both are held as
-    // refs rather than found again by selector: the buttons live in two
-    // different components, and a shell that went looking for one in the
-    // document would be reaching past both of them.
-    (sidebarOpen ? collapseRef : expandRef).current?.focus();
-  }, [sidebarOpen]);
-
   // Spent on the opening the copy produced: the id is in the dependencies
   // because it is what changes when the new view finally opens, and the
   // header is drawn again with the new title on it.
@@ -418,20 +345,6 @@ export function WorkbenchShell({
     created.current = false;
     viewTitle.current?.focus();
   }, [open, openedId]);
-
-  const toggleSidebar = (next: boolean) => {
-    pressed.current = true;
-    // While the screen is filled the answer is the fill's, and it lasts as
-    // long as the fill does: a user who wants the list back inside one gets
-    // it, and the next fill still starts without it. That press says nothing
-    // about the page's own fold, so it does not end the measurement either —
-    // which is why the two folds report to the host separately, each about
-    // the answer it holds.
-    if (expanded) {
-      setInFill(next);
-      onSidebarOpenChange?.(next);
-    } else page.set(next);
-  };
 
   const folded = editorLabel !== undefined && editor != null;
   // A caught failure belongs to the view it happened in: opening another

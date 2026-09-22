@@ -32,7 +32,7 @@
 
 - Dashboard 在这里显示尚未被任何已应用面板承载的 warning：自己的（`useDashboard().issues`，不含 `['panels', …]` 路径），以及 draft 里面板级却还没交给面板的——全局条件映射到会告警的面板字段、尚未 Apply，这时 `state.panels` 仍是上一次 applied 的，不说就会被 Save 原样存下；
 - 面板正文自己会滚动（面板高度由布局定，内容不一定装得下），所以它带 `tabIndex={0}` 与 `role="group"`、以面板标题为名：能滚动而键盘到不了的区域是一条实打实的缺陷。记录面板本来靠行里的控件凑巧满足了这一条，图表面板则一个可聚焦元素都没有——图表是一张 `role="img"`，不再是 recharts 默认挂在 `<svg>` 上的那个 tab 停靠点，见 [analysis.md#图表怎么被读出来](analysis.md#图表怎么被读出来)；
-- Apply 之后由面板承载，条里不再重复。面板级的由面板自己呈现：不可用的面板在正文里说明理由（首个 error，或独自到来的那条 warning），随之而来的其余 warning 仍在头部标记里，能运行却带 warning 的面板（子 runtime 对自身配置的 warning，以及它上一次**结果**自身的 warning——汇总退回本页、分析填满上限——都已重定址到面板，见 [runtime.md#dashboard](../runtime.md#dashboard)）照常显示视图，头部加 `panel-warning` 标记并以 `data-warning` 标出边框。（见 test/dashboardUi.test.tsx「DashboardWorkbench」、test/dashboardContent.test.tsx）
+- Apply 之后由面板承载，条里不再重复。面板级的由面板自己呈现：不可用的面板在正文里说明理由（首个 error，或独自到来的那条 warning），随之而来的其余 warning 仍在头部标记里，能运行却带 warning 的面板（子 runtime 对自身配置的 warning，以及它上一次**结果**自身的 warning——汇总退回本页、分析填满上限——都已重定址到面板，见 [runtime.md#dashboard](../runtime.md#dashboard)）照常显示视图，头部加 `panel-warning` 标记并以 `data-warning` 标出边框。（见 test/dashboardWorkbench.test.tsx「DashboardWorkbench」、test/dashboardContent.test.tsx）
 - 这个标记是 `IconTooltip`（`ui/IconButton.tsx`）而不是一个挂着 `title` 的 `span`：`title` 只有鼠标悬停才出得来，键盘与触屏都够不着，于是 warning 说了什么就只有拿鼠标的人读得到。走同一条通路之后，同一份 `messages.issues(warnings)` 既是控件名也是气泡文案，聚焦与轻点都能打开。颜色（`text-warning`）落在图标上而不是按钮上——那是标记本身的含义，按钮保留 ghost 变体自己的悬停与聚焦配色。（见 test/iconTooltips.test.tsx）
 
 ## 内容面板：排版与占位
