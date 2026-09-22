@@ -30,12 +30,21 @@ import { freeAlias } from './defaults.js';
  * by hand in the config, not in the tray.
  */
 
-export const EXPRESSION_OPERATORS: readonly AnalysisExpressionOperator[] = [
-  'ADD',
-  'SUBTRACT',
-  'MULTIPLY',
-  'DIVIDE',
-];
+/**
+ * Every operation between two operands, in the order the select lists them;
+ * a `Record` over the model's operator type, so an operation Wow adds is a
+ * compile error here until it is given a place.
+ */
+const EXPRESSION_OPERATOR_ORDER: Record<AnalysisExpressionOperator, true> = {
+  ADD: true,
+  SUBTRACT: true,
+  MULTIPLY: true,
+  DIVIDE: true,
+};
+
+export const EXPRESSION_OPERATORS = Object.keys(
+  EXPRESSION_OPERATOR_ORDER,
+) as readonly AnalysisExpressionOperator[];
 
 /**
  * How a derived metric's text names a reference to the record count. The

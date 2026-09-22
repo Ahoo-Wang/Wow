@@ -14,85 +14,36 @@
 import { AggregationGroupType } from '@ahoo-wang/fetcher-wow';
 import {
   DEFAULT_RUNTIME_LIMITS,
+  FIELD_METRIC_TYPES,
   fieldAliasSegment,
   isSingleStringField,
   without,
   type AggregationFieldCapability,
+  type AnalysisDateUnit,
+  type AnalysisFunction,
   type AnalysisGroup,
+  type AnalysisGroupType,
   type AnalysisMetric,
   type AnalysisViewConfig,
   type DataViewDefinition,
   type FieldDefinition,
+  type FieldMetricType,
   type RuntimeLimits,
 } from '../model/index.js';
 import { emptyFilter } from '../filter/index.js';
 import { fitChartSlots } from './chartSlots.js';
 
 const DEFAULT_LIMIT = 100;
-const DEFAULT_PERCENTILE = 95;
+
+/** The percentile a new percentile metric asks for. */
+export const DEFAULT_PERCENTILE = 95;
+
+/** The band a new number dimension starts with: one unit wide. */
+const DEFAULT_INTERVAL = 1;
 
 /** Alias derived from a field path, kept to the single segment Wow allows. */
 export function aliasOf(field: string, suffix: string): string {
   return `${fieldAliasSegment(field)}_${suffix}`;
-}
-
-/**
- * The first metric a definition can express, in a fixed order.
- *
- * `validateDefinition` only accepts a capability that can produce one of
- * these, so a definition that was admitted always has a usable default.
- */
-function defaultMetric(
-  capability: DataViewDefinition['analysis'],
-): AnalysisMetric {
-  if (!capability) throw new Error('no analysis capability');
-  return firstMetric(capability.count, capability.fields);
-}
-
-/**
- * The first metric a set of aggregation capabilities can express, in a
- * fixed order: the count, then the first field that can be summed, counted
- * distinctly, taken a percentile of, or sampled. The same rule seeds a
- * fresh definition and an analysis whose expansion left nothing to measure
- * (`withElements`), over whichever fields that unit holds.
- */
-export function firstMetric(
-  count: boolean,
-  fields: readonly AggregationFieldCapability[],
-): AnalysisMetric {
-  if (count) return { type: 'COUNT', alias: 'count' };
-
-  const numeric = fields.find(entry => entry.functions.length > 0);
-  if (numeric)
-    return {
-      type: 'NUMERIC',
-      alias: aliasOf(numeric.field, numeric.functions[0].toLowerCase()),
-      function: numeric.functions[0],
-      expression: { type: 'FIELD', field: numeric.field },
-    };
-
-  const distinct = fields.find(entry => entry.distinctCount);
-  if (distinct)
-    return {
-      type: 'DISTINCT_COUNT',
-      alias: aliasOf(distinct.field, 'distinct'),
-      expression: { type: 'FIELD', field: distinct.field },
-    };
-
-  const percentile = fields.find(entry => entry.percentile);
-  if (percentile)
-    return {
-      type: 'PERCENTILE',
-      alias: aliasOf(percentile.field, `p${DEFAULT_PERCENTILE}`),
-      expression: { type: 'FIELD', field: percentile.field },
-      percentile: DEFAULT_PERCENTILE,
-    };
-
-  const any = fields.find(entry => entry.any);
-  if (any)
-    return { type: 'ANY', alias: aliasOf(any.field, 'any'), field: any.field };
-
-  throw new Error('analysis capability declares no usable metric');
 }
 
 /**
@@ -108,30 +59,229 @@ export function firstMetric(
 export const DEFAULT_MISSING_KEY = '(empty)';
 
 /**
- * A TERMS dimension over `field`, with the sentinel bucket a new one starts
- * with — on the fields that can carry one, which is Wow's rule and
- * `validateGroups`'s.
- *
- * The editor builds its dimensions through this, so "a dimension never drops
- * records without saying so" is one rule in one place rather than a default
- * each surface repeats.
+ * What building a dimension needs to know of its field, and nothing more —
+ * so a declared field read with its capability (a fresh config, a split) and
+ * the editor's `AnalysisFieldOption` (a field picked on the tray) are the
+ * same input to the one builder.
  */
-export function termsGroup(
+export interface GroupFacts {
+  /** The field, named as a config names it. */
+  field: string;
+  /**
+   * Whether one record holds at most one string there
+   * (`isSingleStringField`): only then may the records missing it keep a
+   * bucket of their own, which is Wow's rule and `validateGroups`'s.
+   */
+  missingKey: boolean;
+  /** The date units the capability offers; a time dimension starts at the first. */
+  dateUnits: readonly AnalysisDateUnit[];
+}
+
+/**
+ * The facts of a declared field. Nothing in a kernel holds a registry, so a
+ * field of a kind an application registered itself is read by the built-in
+ * rule unless the caller hands its kind in; admission, which does hold one,
+ * is the authority.
+ */
+export function groupFacts(
   field: FieldDefinition,
-  alias: string,
+  dateUnits: readonly AnalysisDateUnit[] = [],
   kind?: { singleString?: boolean },
-): AnalysisGroup {
+): GroupFacts {
   return {
-    type: 'TERMS',
     field: field.name,
-    alias,
-    ...(isSingleStringField(field, kind)
-      ? { missingKey: DEFAULT_MISSING_KEY }
-      : {}),
+    missingKey: isSingleStringField(field, kind),
+    dateUnits,
   };
 }
 
-function defaultGroup(
+/**
+ * The one builder of a dimension: `type` on a field, whole rather than as a
+ * patch. A fresh config, a split from the follow-up menu, a field picked on
+ * the tray and a card switched to another type all build through this, so
+ * each default is said once:
+ *
+ * - by value, the sentinel bucket wherever the field can carry one — without
+ *   it Wow drops every record missing the value, and a dimension never drops
+ *   records without saying so;
+ * - by date, at `unit` when the caller recommends one (K4), else the first
+ *   unit the capability offers, else a day;
+ * - by band, one unit wide.
+ */
+export function groupOfType(
+  facts: GroupFacts,
+  type: AnalysisGroupType,
+  alias: string,
+  unit?: AnalysisDateUnit,
+): AnalysisGroup {
+  switch (type) {
+    case 'DATE_HISTOGRAM':
+      return {
+        type,
+        field: facts.field,
+        alias,
+        unit: unit ?? facts.dateUnits[0] ?? 'DAY',
+      };
+    case 'HISTOGRAM':
+      return { type, field: facts.field, alias, interval: DEFAULT_INTERVAL };
+    case 'TERMS':
+      return {
+        type,
+        field: facts.field,
+        alias,
+        ...(facts.missingKey ? { missingKey: DEFAULT_MISSING_KEY } : {}),
+      };
+  }
+}
+
+/**
+ * The fields a dimension may still be added on: the groupable ones `groups`
+ * does not already cut by. Cutting by one field twice is a question nobody
+ * asks — the second cut makes exactly the groups the first one did — so the
+ * tray's "add dimension" (over the draft) and the follow-up menu's split
+ * (over the config that ran) both read this list.
+ */
+export function groupableFields<
+  F extends { field: string; groups: readonly unknown[] },
+>(fields: readonly F[], groups: readonly Pick<AnalysisGroup, 'field'>[]): F[] {
+  const grouped = new Set(groups.map(group => group.field));
+  return fields.filter(
+    entry => entry.groups.length > 0 && !grouped.has(entry.field),
+  );
+}
+
+/**
+ * How a metric summarises its field, as one choice: a function for a
+ * numeric metric, the metric's own type for the other types that measure a
+ * field (`FIELD_METRIC_TYPES`). This is what a tray card's "summary" select
+ * shows and takes, so the six ways Wow can measure a field read as one list
+ * (D20 汇总方式).
+ */
+export type SummaryChoice =
+  AnalysisFunction | Exclude<FieldMetricType, 'NUMERIC'>;
+
+/** What a field offers to be measured by: its capability, or the editor's option of it. */
+export interface MetricFacts {
+  field: string;
+  functions: readonly AnalysisFunction[];
+  distinctCount?: boolean;
+  percentile?: boolean;
+  any?: boolean;
+}
+
+/** Which flag of a field offers each metric type that is not a function. */
+const OFFERED_BY = {
+  DISTINCT_COUNT: 'distinctCount',
+  PERCENTILE: 'percentile',
+  ANY: 'any',
+} as const satisfies Record<
+  Exclude<FieldMetricType, 'NUMERIC'>,
+  keyof MetricFacts
+>;
+
+/** The choices a field offers, in the order `FIELD_METRIC_TYPES` lists them. */
+export function summaryChoices(facts: MetricFacts): SummaryChoice[] {
+  return FIELD_METRIC_TYPES.flatMap<SummaryChoice>(type => {
+    if (type === 'NUMERIC') return [...facts.functions];
+    return facts[OFFERED_BY[type]] === true ? [type] : [];
+  });
+}
+
+/** The choice a metric was built from, or `null` for one that measures no field. */
+export function summaryOf(metric: AnalysisMetric): SummaryChoice | null {
+  switch (metric.type) {
+    case 'NUMERIC':
+      return metric.function;
+    case 'DISTINCT_COUNT':
+    case 'PERCENTILE':
+    case 'ANY':
+      return metric.type;
+    default:
+      return null;
+  }
+}
+
+/**
+ * The one builder of a metric over a field: `choice` on it, whole — a card
+ * that changes the summary replaces the metric rather than patching it, and
+ * a fresh config's first metric is built the same way.
+ */
+export function metricOfSummary(
+  facts: Pick<MetricFacts, 'field'>,
+  choice: SummaryChoice,
+  alias: string,
+): AnalysisMetric {
+  const expression = { type: 'FIELD', field: facts.field } as const;
+  switch (choice) {
+    case 'DISTINCT_COUNT':
+      return { type: 'DISTINCT_COUNT', alias, expression };
+    case 'PERCENTILE':
+      return {
+        type: 'PERCENTILE',
+        alias,
+        expression,
+        percentile: DEFAULT_PERCENTILE,
+      };
+    case 'ANY':
+      return { type: 'ANY', alias, field: facts.field };
+    default:
+      return { type: 'NUMERIC', alias, function: choice, expression };
+  }
+}
+
+/**
+ * The first metric a set of aggregation capabilities can express, in a
+ * fixed order: the count, then the first field that can be summed, counted
+ * distinctly, taken a percentile of, or sampled. The same rule seeds a
+ * fresh definition and an analysis whose expansion left nothing to measure
+ * (`withElements`), over whichever fields that unit holds.
+ *
+ * `validateDefinition` only accepts a capability that can produce one of
+ * these, so a definition that was admitted always has a usable default.
+ */
+export function firstMetric(
+  count: boolean,
+  fields: readonly AggregationFieldCapability[],
+): AnalysisMetric {
+  if (count) return { type: 'COUNT', alias: 'count' };
+
+  const numeric = fields.find(entry => entry.functions.length > 0);
+  if (numeric) {
+    const fn = numeric.functions[0];
+    return metricOfSummary(
+      numeric,
+      fn,
+      aliasOf(numeric.field, fn.toLowerCase()),
+    );
+  }
+
+  const distinct = fields.find(entry => entry.distinctCount);
+  if (distinct)
+    return metricOfSummary(
+      distinct,
+      'DISTINCT_COUNT',
+      aliasOf(distinct.field, 'distinct'),
+    );
+
+  const percentile = fields.find(entry => entry.percentile);
+  if (percentile)
+    return metricOfSummary(
+      percentile,
+      'PERCENTILE',
+      aliasOf(percentile.field, `p${DEFAULT_PERCENTILE}`),
+    );
+
+  const any = fields.find(entry => entry.any);
+  if (any) return metricOfSummary(any, 'ANY', aliasOf(any.field, 'any'));
+
+  throw new Error('analysis capability declares no usable metric');
+}
+
+/**
+ * The dimension a fresh config starts with: the first field the capability
+ * groups by value, if any.
+ */
+function firstGroups(
   definition: DataViewDefinition,
   fields: readonly AggregationFieldCapability[],
 ): AnalysisGroup[] {
@@ -140,13 +290,10 @@ function defaultGroup(
   );
   if (!terms) return [];
   const field = definition.fields.find(entry => entry.name === terms.field);
-  const alias = aliasOf(terms.field, 'group');
-  // Nothing here holds a registry, so a field of a kind an application
-  // registered itself is read by the built-in rule. Admission, which does
-  // hold one, is the authority; this only decides what a first config says.
-  return field
-    ? [termsGroup(field, alias)]
-    : [{ type: 'TERMS', field: terms.field, alias }];
+  const facts: GroupFacts = field
+    ? groupFacts(field)
+    : { field: terms.field, missingKey: false, dateUnits: [] };
+  return [groupOfType(facts, 'TERMS', aliasOf(terms.field, 'group'))];
 }
 
 /**
@@ -166,8 +313,8 @@ export function defaultAnalysisConfig(
       `Definition ${definition.id} declares no analysis capability`,
     );
 
-  const metric = defaultMetric(capability);
-  const groups = defaultGroup(definition, capability.fields);
+  const metric = firstMetric(capability.count, capability.fields);
+  const groups = firstGroups(definition, capability.fields);
   const limit = Math.min(
     capability.limits?.defaultLimit ?? DEFAULT_LIMIT,
     capability.limits?.maxLimit ?? Number.POSITIVE_INFINITY,

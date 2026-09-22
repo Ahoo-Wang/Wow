@@ -23,16 +23,30 @@ import type { AnalysisHavingExpression } from '../model/index.js';
  * into something it is not.
  */
 
-export type HavingOperator = 'EQ' | 'NE' | 'GT' | 'GTE' | 'LT' | 'LTE';
+/** The comparisons one row may make: the model's, never listed again. */
+export type HavingOperator = Extract<
+  AnalysisHavingExpression,
+  { type: 'CONDITION' }
+>['operator'];
 
-export const HAVING_OPERATORS: readonly HavingOperator[] = [
-  'GT',
-  'GTE',
-  'LT',
-  'LTE',
-  'EQ',
-  'NE',
-];
+/**
+ * Every comparison, in the order the select lists them. A `Record` over the
+ * operator type rather than an array, so an operator Wow adds is a compile
+ * error here until it is given a place — not a choice the tray silently
+ * never offers.
+ */
+const HAVING_OPERATOR_ORDER: Record<HavingOperator, true> = {
+  GT: true,
+  GTE: true,
+  LT: true,
+  LTE: true,
+  EQ: true,
+  NE: true,
+};
+
+export const HAVING_OPERATORS = Object.keys(
+  HAVING_OPERATOR_ORDER,
+) as readonly HavingOperator[];
 
 /** One row of the editor: keep the groups whose metric compares so. */
 export interface HavingRow {

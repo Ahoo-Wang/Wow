@@ -110,6 +110,23 @@ export type AnalysisMetric = AnalysisNamed &
       }
   );
 
+/**
+ * The metric types that measure one field, in the order a field offers them
+ * (D20 汇总方式): a function of its values, how many distinct values it
+ * holds, a percentile of them, or any one of them. The record count names
+ * no field, and a derived metric names other metrics. Declared beside the
+ * union so a `satisfies` refuses a type the metric does not have, and the
+ * summary a tray card offers is derived from this rather than listed again.
+ */
+export const FIELD_METRIC_TYPES = [
+  'NUMERIC',
+  'DISTINCT_COUNT',
+  'PERCENTILE',
+  'ANY',
+] as const satisfies readonly AnalysisMetric['type'][];
+
+export type FieldMetricType = (typeof FIELD_METRIC_TYPES)[number];
+
 /** Wow's having/derived trees only reference aliases and numbers. */
 export type AnalysisHavingExpression = LiteralEnums<HavingExpression>;
 export type AnalysisDerivedExpression = LiteralEnums<DerivedExpression>;

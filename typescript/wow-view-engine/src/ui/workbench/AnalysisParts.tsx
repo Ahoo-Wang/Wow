@@ -18,6 +18,7 @@ import {
   fitCharts,
   focusOn,
   groupFor,
+  groupableFields,
   shapeChart,
   splitBy,
   withStagesFrom,
@@ -248,13 +249,13 @@ export function AnalysisParts({
     ? (row: Pick['row'], anchor: Pick['anchor']) => setPick({ row, anchor })
     : undefined;
   // The dimensions the group can be split by: groupable fields the result
-  // on screen is not already grouped by. Read off the config that shaped it
+  // on screen is not already grouped by (`groupableFields`, the list the
+  // tray adds a dimension from). Read off the config that shaped it
   // rather than off the draft, for the same reason the conditions are: the
   // group pressed is a group of that result, not of what is being edited.
-  const grouped = new Set((shaped?.groups ?? []).map(group => group.field));
-  const splits = analysis.fields
-    .filter(option => option.groups.length > 0 && !grouped.has(option.field))
-    .map(option => ({ field: option.field, label: option.label }));
+  const splits = groupableFields(analysis.fields, shaped?.groups ?? []).map(
+    option => ({ field: option.field, label: option.label }),
+  );
   const close = () => setPick(null);
   const records = () => {
     if (conditions) workbench.drill(conditions);

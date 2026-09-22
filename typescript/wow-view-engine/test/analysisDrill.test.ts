@@ -22,8 +22,12 @@ import {
 } from '../src/analysis/index.js';
 import { builtinFieldKinds } from '../src/filter/index.js';
 import type {
+  AnalysisDateUnit,
   AnalysisGroup,
+  AnalysisGroupType,
   FieldDefinition,
+  FilterLeaf,
+  FilterNode,
   FilterTree,
 } from '../src/model/index.js';
 import { analysisConfig } from './fixtures.js';
@@ -502,4 +506,183 @@ describe('groupFor', () => {
       interval: 1,
     });
   });
+});
+
+/**
+ * Whether a record satisfies every leaf, reading only the operators a drill
+ * writes. An operator it does not know fails the test rather than passing
+ * a record it cannot judge.
+ */
+function selects(
+  conditions: readonly FilterNode[],
+  record: Record<string, unknown>,
+): boolean {
+  return conditions.every(node => {
+    const { field, operator, value } = node as FilterLeaf;
+    const actual = record[field];
+    switch (operator) {
+      case 'EQ':
+        return actual === value;
+      case 'IN':
+        return Array.isArray(value)
+          ? value.includes(actual as never)
+          : (value as { items: { id: unknown }[] }).items.some(
+              item => item.id === actual,
+            );
+      case 'IS_NULL':
+        return actual === null || actual === undefined;
+      case 'GTE':
+        return typeof actual === 'number' && actual >= (value as number);
+      case 'LT':
+        return typeof actual === 'number' && actual < (value as number);
+      case 'BETWEEN': {
+        const { from, to } = value as { from: string; to: string };
+        return (
+          typeof actual === 'number' &&
+          actual >= Date.parse(from) &&
+          actual <= Date.parse(to)
+        );
+      }
+      default:
+        throw new Error(`the drill wrote ${operator}, which this cannot read`);
+    }
+  });
+}
+
+describe('a dimension groupFor builds, drilled back', () => {
+  const byName = new Map(FIELDS.map(field => [field.name, field]));
+  const hour = Date.parse('2026-09-18T09:00:00Z');
+
+  /**
+   * One case per group type a field can take, with the bucket key a result
+   * row carries for it and records on both sides of that bucket's edges:
+   * `inside` are the records Wow counted into the row, `outside` the ones it
+   * did not — a neighbouring bucket, or the missing value when the key names
+   * a value. The dimension is built by `groupFor`, so the default each type
+   * starts with (the sentinel bucket, the unit band, the unit) is the one
+   * under test.
+   */
+  const cases: {
+    name: string;
+    field: string;
+    type: AnalysisGroupType;
+    unit?: AnalysisDateUnit;
+    key: unknown;
+    inside: unknown[];
+    outside: unknown[];
+  }[] = [
+    {
+      name: 'a string by value',
+      field: 'warehouse',
+      type: 'TERMS',
+      key: 'CN',
+      inside: ['CN'],
+      outside: ['US', null, undefined],
+    },
+    {
+      name: "a string's sentinel bucket",
+      field: 'warehouse',
+      type: 'TERMS',
+      key: '(empty)',
+      inside: [null, undefined],
+      outside: ['CN'],
+    },
+    {
+      name: 'an enum by value',
+      field: 'status',
+      type: 'TERMS',
+      key: 'PENDING',
+      inside: ['PENDING'],
+      outside: ['SHIPPED', null],
+    },
+    {
+      name: 'a reference by value',
+      field: 'customer',
+      type: 'TERMS',
+      key: 'c-1',
+      inside: ['c-1'],
+      outside: ['c-2', null],
+    },
+    {
+      // A reference carries no sentinel, so Wow hands the missing group
+      // back under a null key.
+      name: "a reference's missing values",
+      field: 'customer',
+      type: 'TERMS',
+      key: null,
+      inside: [null, undefined],
+      outside: ['c-1'],
+    },
+    {
+      name: 'a number by value',
+      field: 'amount',
+      type: 'TERMS',
+      key: 42,
+      inside: [42],
+      outside: [41, 43, null],
+    },
+    {
+      name: 'a number by band',
+      field: 'amount',
+      type: 'HISTOGRAM',
+      key: 3,
+      inside: [3, 3.5, 3.999],
+      outside: [2.999, 4, null],
+    },
+    {
+      name: 'a date by hour',
+      field: 'createdAt',
+      type: 'DATE_HISTOGRAM',
+      unit: 'HOUR',
+      key: hour,
+      inside: [hour, hour + 3_599_999],
+      outside: [hour - 1, hour + 3_600_000, null],
+    },
+    ...(
+      [
+        ['DAY', '2026-09-18', '2026-09-19'],
+        ['WEEK', '2026-09-14', '2026-09-21'],
+        ['MONTH', '2026-09-01', '2026-10-01'],
+        ['QUARTER', '2026-07-01', '2026-10-01'],
+        ['YEAR', '2026-01-01', '2027-01-01'],
+      ] as const
+    ).map(([unit, start, next]) => {
+      const from = midnight(start, SHANGHAI);
+      const to = midnight(next, SHANGHAI);
+      return {
+        name: `a date by ${unit.toLowerCase()}`,
+        field: 'createdAt',
+        type: 'DATE_HISTOGRAM' as const,
+        unit,
+        key: from,
+        inside: [from, to - 1],
+        outside: [from - 1, to, null],
+      };
+    }),
+  ];
+
+  it.each(cases)(
+    'selects exactly the bucket of $name',
+    ({ field: name, type, unit, key, inside, outside }) => {
+      const field = byName.get(name)!;
+      const group = groupFor(
+        field,
+        { groups: [type], dateUnits: unit ? [unit] : [] },
+        builtinFieldKinds.get(field.kind),
+      );
+      const conditions = drillConditions(
+        analysisConfig({ groups: [group] }),
+        FIELDS,
+        builtinFieldKinds,
+        { [group.alias]: key },
+        context,
+      );
+
+      expect(conditions).not.toBeNull();
+      for (const value of inside)
+        expect(selects(conditions!, { [name]: value })).toBe(true);
+      for (const value of outside)
+        expect(selects(conditions!, { [name]: value })).toBe(false);
+    },
+  );
 });

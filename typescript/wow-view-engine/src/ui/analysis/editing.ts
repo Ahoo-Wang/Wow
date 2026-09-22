@@ -12,12 +12,14 @@
  */
 
 import {
-  DEFAULT_MISSING_KEY,
   derivedText,
   expressionText,
   freeAlias,
+  groupOfType,
   isFormula,
   metricFunctionOf,
+  metricOfSummary,
+  summaryChoices,
 } from '../../analysis/index.js';
 import { columnTitle } from '../display.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
@@ -25,7 +27,6 @@ import type { MessageFormatters } from '../MessagesProvider.js';
 export { freeAlias };
 import type {
   AnalysisDateUnit,
-  AnalysisFunction,
   AnalysisGroup,
   AnalysisMetric,
 } from '../../model/index.js';
@@ -35,9 +36,11 @@ import type {
 } from '../../react/index.js';
 
 /**
- * What the tray builds when a field is picked: the dimension or the metric a
- * field starts as, and the shape a choice on a card turns it into. Pure, so
- * the cards stay markup and the tests read the rules straight.
+ * What the tray builds when a field is picked — the dimension or the metric
+ * a field starts as, under a free alias — and what a metric is called. The
+ * shapes are the analysis kernel's one builder of each (`groupOfType`,
+ * `metricOfSummary`); this only picks the tray's alias and first choice.
+ * Pure, so the cards stay markup and the tests read the rules straight.
  */
 
 /**
@@ -47,13 +50,14 @@ import type {
 export type MetricNaming = Pick<AnalysisEditorController, 'fields' | 'metrics'>;
 
 /** Every alias in use, which is the set an addition must stay clear of. */
-export function aliasesOf(analysis: AnalysisEditorController): string[] {
+export function usedAliases(analysis: AnalysisEditorController): string[] {
   return [...analysis.aliases.groups, ...analysis.aliases.metrics];
 }
 
 /**
- * The dimension a field starts as: the first shape its capability allows,
- * a time dimension at the granularity recommended for the range (K4).
+ * The dimension a field picked on the tray starts as: the first shape its
+ * capability offers, a time dimension at the granularity recommended for the
+ * range (K4). The shape is the kernel's one builder's (`groupOfType`).
  */
 export function defaultGroup(
   field: AnalysisFieldOption,
@@ -68,87 +72,7 @@ export function defaultGroup(
   );
 }
 
-/**
- * A dimension of `type` on `field`, whole rather than as a patch. A
- * dimension by value starts with the sentinel bucket wherever the field can
- * carry one: without it Wow drops every record missing the value, and a
- * dimension never drops records without saying so (`termsGroup`).
- */
-export function groupOfType(
-  field: AnalysisFieldOption,
-  type: string,
-  alias: string,
-  unit?: AnalysisDateUnit,
-): AnalysisGroup {
-  if (type === 'DATE_HISTOGRAM')
-    return {
-      type: 'DATE_HISTOGRAM',
-      field: field.field,
-      alias,
-      unit: unit ?? field.dateUnits[0] ?? 'DAY',
-    };
-  if (type === 'HISTOGRAM')
-    return { type: 'HISTOGRAM', field: field.field, alias, interval: 1 };
-  return {
-    type: 'TERMS',
-    field: field.field,
-    alias,
-    ...(field.missingKey ? { missingKey: DEFAULT_MISSING_KEY } : {}),
-  };
-}
-
-/**
- * How a metric summarises its field, as one choice: a function for a
- * numeric metric, the metric's own type for the others. This is what the
- * card's "summary" select shows and takes, so the six ways Wow can measure a
- * field read as one list (D20 汇总方式).
- */
-export type SummaryChoice =
-  AnalysisFunction | 'DISTINCT_COUNT' | 'PERCENTILE' | 'ANY';
-
-export function summaryOf(metric: AnalysisMetric): SummaryChoice | null {
-  switch (metric.type) {
-    case 'NUMERIC':
-      return metric.function;
-    case 'DISTINCT_COUNT':
-    case 'PERCENTILE':
-    case 'ANY':
-      return metric.type;
-    default:
-      return null;
-  }
-}
-
-/** The choices a field offers, in the order the card lists them. */
-export function summaryChoices(field: AnalysisFieldOption): SummaryChoice[] {
-  return [
-    ...field.functions,
-    ...(field.distinctCount ? (['DISTINCT_COUNT'] as const) : []),
-    ...(field.percentile ? (['PERCENTILE'] as const) : []),
-    ...(field.any ? (['ANY'] as const) : []),
-  ];
-}
-
-/** A metric of `choice` on `field`, whole: the card replaces, never patches. */
-export function metricOfSummary(
-  field: AnalysisFieldOption,
-  choice: SummaryChoice,
-  alias: string,
-): AnalysisMetric {
-  const expression = { type: 'FIELD', field: field.field } as const;
-  switch (choice) {
-    case 'DISTINCT_COUNT':
-      return { type: 'DISTINCT_COUNT', alias, expression };
-    case 'PERCENTILE':
-      return { type: 'PERCENTILE', alias, expression, percentile: 95 };
-    case 'ANY':
-      return { type: 'ANY', alias, field: field.field };
-    default:
-      return { type: 'NUMERIC', alias, function: choice, expression };
-  }
-}
-
-/** The metric a field starts as: the first way it can be measured. */
+/** The metric a field picked on the tray starts as: the first way it can be measured. */
 export function defaultMetric(
   field: AnalysisFieldOption,
   taken: readonly string[],

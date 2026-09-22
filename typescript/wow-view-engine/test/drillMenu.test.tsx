@@ -40,6 +40,7 @@ import {
   ordersDefinition,
   testSource,
 } from './fixtures.js';
+import { openTray } from './fixtures/workbench.js';
 
 afterEach(cleanup);
 
@@ -292,5 +293,33 @@ describe('the follow-up menu on one group', () => {
       children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
     });
     await waitFor(() => expect(menu()).toBeNull());
+  });
+
+  /**
+   * Both lists are the kernel's `groupableFields`: the tray's over the
+   * draft, the split's over the config that ran. With nothing edited the
+   * two configs are one, so the two menus must offer the same fields.
+   */
+  it('offers to split by exactly the fields the tray would add a dimension on', async () => {
+    open({ definition: twoDimensions() });
+    const names = (root: HTMLElement) =>
+      within(root)
+        .getAllByRole('menuitem')
+        .map(entry => entry.textContent);
+
+    await openTray();
+    fireEvent.click(screen.getByRole('button', { name: 'Add dimension' }));
+    const added = names(await screen.findByRole('menu'));
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
+
+    fireEvent.click(await groupRow());
+    fireEvent.click(await item(defaultMessages['label.drill.split']));
+    await item('Status');
+    const split = document.querySelector<HTMLElement>(
+      '[data-slot="dropdown-menu-sub-content"]',
+    )!;
+
+    expect(names(split)).toEqual(added);
   });
 });

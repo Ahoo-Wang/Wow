@@ -28,7 +28,13 @@ import { IconButton } from '../IconButton.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { DropdownMenuContent } from '../popups.js';
 import { EditorCard, EditorSlot } from '../variants.js';
-import { isFormula } from '../../analysis/index.js';
+import {
+  isFormula,
+  metricOfSummary,
+  summaryChoices,
+  summaryOf,
+  type SummaryChoice,
+} from '../../analysis/index.js';
 import { CardMenu, CardName } from './CardMenu.js';
 import { CompactSelect } from './CompactSelect.js';
 import { DerivedControls, FormulaControls } from './FormulaCard.js';
@@ -41,16 +47,12 @@ import {
   conditionItems,
 } from './MetricCondition.js';
 import {
-  aliasesOf,
+  usedAliases,
   defaultMetric,
   fieldOfMetric,
   freeAlias,
   metricFallbackName,
   metricReference,
-  metricOfSummary,
-  summaryChoices,
-  summaryOf,
-  type SummaryChoice,
 } from './editing.js';
 import { SortRow } from './SortRow.js';
 
@@ -130,7 +132,7 @@ export function MetricSlot({
                 onClick={() =>
                   analysis.addMetric({
                     type: 'COUNT',
-                    alias: freeAlias('count', aliasesOf(analysis)),
+                    alias: freeAlias('count', usedAliases(analysis)),
                   })
                 }
               >
@@ -146,7 +148,9 @@ export function MetricSlot({
               <DropdownMenuItem
                 key={field.field}
                 onClick={() =>
-                  analysis.addMetric(defaultMetric(field, aliasesOf(analysis)))
+                  analysis.addMetric(
+                    defaultMetric(field, usedAliases(analysis)),
+                  )
                 }
               >
                 {field.label}
