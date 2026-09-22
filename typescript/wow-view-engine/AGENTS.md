@@ -373,6 +373,7 @@ src/
       columns.ts              — The table's own chrome classes and pinned columns: `BAND` (the grey both ends share), `HEAD_CELL`, `ROW_HOVER`, `tablePins`, `pinnedSlots`, `heldColumns`; `ACTIONS_COLUMN` is the one column ever held on the right (D19)
       headerRoving.ts         — `useRovingHeader`: one Tab stop per header row, arrows between columns, Alt+arrows resize (P-02)
       fitViewport.ts          — `useViewportFit`: the scroll port ends where the viewport does, so the summaries and the pagination row stay in view (P-22)
+      overflow.ts             — `useOverflowing`: whether the table is wider than its port, said as `data-overflowing`; the held columns' edges answer to it (P-23)
       pinCap.ts               — The pin cap (D17-4): which pins to let go on a narrow port; `ReleasedPins`
       queryAnnouncement.ts    — What a query says about itself to a screen reader
       useSummaries.ts         — The two summary scopes from the one the runtime executed; table and cards share it

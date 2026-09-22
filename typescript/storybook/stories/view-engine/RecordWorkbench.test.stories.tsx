@@ -642,11 +642,15 @@ export const ColumnsKeepTheirWidthAndRowsFillTheFrame: Story = {
         Math.round(edge),
       );
 
-    // D13's right edge stays on the last *data* column, which is where the
-    // columns end; past it there is nothing rather than more table.
+    // D13's right edge belongs to the last *data* column, which is where
+    // the columns end; past it there is nothing rather than more table. And
+    // at 1300px nothing scrolls, so the edge is not drawn (P-23): a line
+    // there cut the surplus off the column and made the filler read as an
+    // empty column.
     const amount = columns[columns.length - 1]!;
     await expect(amount.dataset.pin).toBe('right');
-    await expect(getComputedStyle(amount).boxShadow).toContain('inset');
+    await expect(port.hasAttribute('data-overflowing')).toBe(false);
+    await expect(getComputedStyle(amount).boxShadow).toBe('none');
     await expect(
       Math.round(
         filler.getBoundingClientRect().left -
@@ -3837,11 +3841,16 @@ export const PinnedEdges: Story = {
     });
     const NONE = [false, false, false];
     const ALL = [true, true, true];
-    const FRAMED = { inner: NONE, left: ALL, end: NONE, actions: ALL };
+    const UNFRAMED = { inner: NONE, left: NONE, end: NONE, actions: NONE };
 
-    // Still, and wide enough that nothing has to scroll: the frame is there
-    // before anything moves, which is the whole of D13.
-    await waitFor(() => expect(edges()).toEqual(FRAMED));
+    // Still, and wide enough that nothing has to scroll: no edge at all
+    // (P-23, D13 as amended). The edge says "the middle scrolls under here",
+    // and there is no middle to scroll yet — it appears the moment there
+    // is, below, before anything has moved.
+    await waitFor(() =>
+      expect(area.hasAttribute('data-overflowing')).toBe(false),
+    );
+    await waitFor(() => expect(edges()).toEqual(UNFRAMED));
 
     // Computed is not painted: in collapsed-border mode Chromium draws no
     // outer box-shadow on a cell, and the edges above were on the page for
@@ -3898,6 +3907,11 @@ export const PinnedEdges: Story = {
     area.style.maxWidth = '420px';
     await waitFor(() =>
       expect(area.scrollWidth).toBeGreaterThan(area.clientWidth),
+    );
+    // Overflow is said on the port, and the frame is there before anything
+    // has been scrolled — which is the whole of D13.
+    await waitFor(() =>
+      expect(area.hasAttribute('data-overflowing')).toBe(true),
     );
     // The key is what the cap may never take, so there is always a left
     // boundary to look at.

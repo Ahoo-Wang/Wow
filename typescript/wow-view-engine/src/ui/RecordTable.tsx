@@ -42,6 +42,7 @@ import {
 } from './record/columns.js';
 import { usePinnedCap, type ReleasedPins } from './record/pinCap.js';
 import { useViewportFit } from './record/fitViewport.js';
+import { useOverflowing } from './record/overflow.js';
 import { cellText } from './display.js';
 import { cellValue } from './record/cells.js';
 import { EmptyResult } from './record/EmptyResult.js';
@@ -183,6 +184,10 @@ export function RecordTable({
   // beyond half the visible width the group is capped and the outermost
   // pins are let go, the config untouched (D17-4).
   const slots = useMemo(() => pinnedSlots(columns, layout), [columns, layout]);
+  // Whether the middle really scrolls, which is what the held columns'
+  // edges answer to (P-23). Asked before the cap, whose own observer a
+  // test reaches for as the latest one created.
+  const overflowing = useOverflowing(port, element);
   const released = usePinnedCap(port, element, slots);
   // The port ends where the viewport does (P-22); a host's own cap wins.
   const fit = useViewportFit(port, scrolls);
@@ -242,6 +247,7 @@ export function RecordTable({
       // hands the remaining height to the table that is its own scrollport,
       // and must not hand it to the one holding on against a panel.
       data-scrolls={scrolls ? '' : undefined}
+      data-overflowing={overflowing ? '' : undefined}
       className={scrolls ? SCROLL_AREA : STATIC_AREA}
       style={
         scrolls && fit !== null

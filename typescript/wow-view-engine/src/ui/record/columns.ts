@@ -143,21 +143,26 @@ function observeResize(
  * `--border` hairline saying where the column ends, and a soft shadow saying
  * the table continues beneath it.
  *
- * It is drawn **at rest** as well as while rows pass under it (D13). Tied to
- * the scroll position it said "something is moving under me right now", which
- * is a true sentence nobody needed: a table that has not been scrolled — or
- * one that fits — then showed no frame at all, and its two held columns read
- * as a layout that had come apart. The edge says "these two ends stay put",
- * and that is true before anything moves.
+ * It is drawn **whenever the middle can scroll**, at rest as much as while
+ * rows pass under it (D13, amended 2026-09-22 — P-23). Tied to the scroll
+ * position it said "something is moving under me right now", which is a
+ * true sentence nobody needed: a table that had not been scrolled showed no
+ * frame at all, and its two held columns read as a layout that had come
+ * apart. Tied to nothing at all it said too much the other way: on a table
+ * that *fits*, the last column's edge cut the row's surplus off it and the
+ * filler read as an empty column. So the edge answers to the port's own
+ * word — `data-overflowing`, measured by `useOverflowing` — which is
+ * exactly "these two ends stay put while the middle moves", true from the
+ * moment there is a middle to move.
  *
  * The soft half is `--pin-shadow` and not a literal black: black is a
  * shadow on a white card and nothing at all on a dark one, so the token
  * carries a value per theme (`styles.css` has the measurements).
  */
 const EDGE_LEFT =
-  'shadow-[inset_-1px_0_0_var(--border),12px_0_16px_-8px_var(--pin-shadow)]';
+  'in-data-[overflowing]:shadow-[inset_-1px_0_0_var(--border),12px_0_16px_-8px_var(--pin-shadow)]';
 const EDGE_RIGHT =
-  'shadow-[inset_1px_0_0_var(--border),-12px_0_16px_-8px_var(--pin-shadow)]';
+  'in-data-[overflowing]:shadow-[inset_1px_0_0_var(--border),-12px_0_16px_-8px_var(--pin-shadow)]';
 
 /**
  * The action column stays put while the rest scrolls sideways, which is the
