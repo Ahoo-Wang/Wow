@@ -49,7 +49,7 @@ const { SUM, AVG } = AggregationFunction;
  * screen nobody's application looks like. The shipped `zhCN` catalogue is
  * handed over the way a host hands it over, and `locale` goes with it so the
  * dates and the currency are read in the same language as the words around
- * them. `RecordWorkbench`'s `English` story is the one that opts out, and it
+ * them. `DataWorkbench`'s `English` story is the one that opts out, and it
  * is what keeps the English catalogue covered.
  */
 export const HOST_LANGUAGE = { messages: zhCN, locale: 'zh-CN' } as const;

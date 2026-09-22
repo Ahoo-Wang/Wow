@@ -142,10 +142,10 @@ const engine = new ViewEngine({
 
 ```tsx
 import '@ahoo-wang/fetcher-view-engine/styles.css';
-import { RecordWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
+import { DataWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
 
 export function OrdersPage() {
-  return <RecordWorkbench engine={engine} definitionId="orders" />;
+  return <DataWorkbench engine={engine} definitionId="orders" />;
 }
 ```
 
@@ -153,14 +153,16 @@ export function OrdersPage() {
 
 #### 开着哪个视图，与宿主的路由
 
-一个人打开的视图，就是他可以发出去的一条链接。三个工作台因此都收 `instanceId` 与 `onInstanceChange`——进出你的路由的两个方向，`RecordWorkbench`、`AnalysisWorkbench`、`DashboardWorkbench` 契约完全一致。
+一个数据定义同时装着它的记录视图与分析视图，`DataWorkbench` 把它们列在一张列表里：用户在一张订单表与一张订单图之间切换，就像在任意两个视图之间切换一样，「新建视图」会先问要建哪一种。宿主要一页只有一种，就收窄——`kinds={['record']}`——另一种在这一页既不列出也打不开。
+
+一个人打开的视图，就是他可以发出去的一条链接。两个工作台因此都收 `instanceId` 与 `onInstanceChange`——进出你的路由的两个方向，`DataWorkbench` 与 `DashboardWorkbench` 契约完全一致。
 
 ```tsx
 export function OrdersPage() {
   // 你的路由给什么都行：path 参数、query、hash。
   const [view, setView] = useSearchParam('view');
   return (
-    <RecordWorkbench
+    <DataWorkbench
       engine={engine}
       definitionId="orders"
       instanceId={view}
@@ -275,7 +277,7 @@ preflight 同样在边界里生效：这片区域内你自己的标题、列表�
 
 ```tsx
 import {
-  RecordWorkbench,
+  DataWorkbench,
   cellValue,
   useSurfaceDisplay,
   useViewMessages,
@@ -292,13 +294,16 @@ function OrderCell({ cell }: { cell: RecordCell }) {
   return <OrderStatusLamp status={String(cell.value)} />;
 }
 
-<RecordWorkbench
+<DataWorkbench
   engine={engine}
   definitionId="orders"
-  renderCell={cell => <OrderCell cell={cell} />}
-  renderValue={value => <PlainValue value={value} />}
-  selectable={false}
-  emptyTitle="没有待发货的订单"
+  // 关于记录视图的话——单元格怎么读、能不能勾选行、空结果说什么——是一个
+  // 对象，因为它们对分析视图都没有意义。
+  record={{
+    renderCell: cell => <OrderCell cell={cell} />,
+    selectable: false,
+    emptyTitle: '没有待发货的订单',
+  }}
 />;
 ```
 
@@ -381,12 +386,12 @@ const view = projectRecord(orders, config, page);
 
 ## 入口
 
-| 入口                             | 导出                                                                                                                                                                                                                                                                                                                                                                                  |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@ahoo-wang/fetcher-view-engine` | 模型类型、纯内核（`validate*` / `compile*` / `project*`）、运行时、`ViewStore`、`MemoryViewStore`                                                                                                                                                                                                                                                                                     |
-| `/react`                         | `useViewEngine`、`useOpenView`、`useViewRuntime`、`useViewList`、`useViewManager`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useDashboard`、`useSaveCommands`、`RecordActionSlots`                                                                                                                                                                                   |
-| `/ui`                            | `RecordWorkbench`、`AnalysisWorkbench`、`DashboardWorkbench`、`ViewHeader`、`SaveActions`、`ViewManager`、`useLeaveGuard`、`EditorBand`、`FilterPanel`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisEditor`、`AnalysisChart`、`DashboardGrid`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`EmbeddedView` |
-| `/styles.css`                    | 主题。显式导入；任何 JS 入口都不会引入 CSS，产物也不会在 `.fve-root`／`.fve-tokens` 两个样式边界之外绘制任何东西（preflight 与工具类在构建时收进边界内），`scripts/verify-package.mjs` 在每次构建时核对这两点。                                                                                                                                                                       |
+| 入口                             | 导出                                                                                                                                                                                                                                                                                                                                                           |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@ahoo-wang/fetcher-view-engine` | 模型类型、纯内核（`validate*` / `compile*` / `project*`）、运行时、`ViewStore`、`MemoryViewStore`                                                                                                                                                                                                                                                              |
+| `/react`                         | `useViewEngine`、`useOpenView`、`useViewRuntime`、`useViewList`、`useViewManager`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useDashboard`、`useSaveCommands`、`RecordActionSlots`                                                                                                                                                            |
+| `/ui`                            | `DataWorkbench`、`DashboardWorkbench`、`ViewHeader`、`SaveActions`、`ViewManager`、`useLeaveGuard`、`EditorBand`、`FilterPanel`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisEditor`、`AnalysisChart`、`DashboardGrid`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`EmbeddedView` |
+| `/styles.css`                    | 主题。显式导入；任何 JS 入口都不会引入 CSS，产物也不会在 `.fve-root`／`.fve-tokens` 两个样式边界之外绘制任何东西（preflight 与工具类在构建时收进边界内），`scripts/verify-package.mjs` 在每次构建时核对这两点。                                                                                                                                                |
 
 ## 持久化
 
@@ -443,9 +448,9 @@ interface ViewStore {
 值按字段显示：枚举显示选项的标签，`datetime`／`date` 经 `Intl.DateTimeFormat` 格式化，日期直方图的键显示为它起始的年、季度、月或日。`locale` 决定这些值用什么语言显示，缺省为运行环境的语言；它和 `messages` 是同一个选择，一个管文字，一个管值：
 
 ```tsx
-import { RecordWorkbench, zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
+import { DataWorkbench, zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 
-<RecordWorkbench
+<DataWorkbench
   engine={engine}
   definitionId="orders"
   messages={{ ...zhCN, 'label.filter.apply': '确定' }}

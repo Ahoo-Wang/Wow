@@ -30,7 +30,7 @@ import type { RecordActionSlots } from '../src/react/index.js';
 import {
   DashboardGrid,
   MessagesProvider,
-  RecordWorkbench,
+  DataWorkbench,
   RenderBoundary,
   ViewSurface,
   zhCN,
@@ -211,11 +211,11 @@ describe('the workbench boundaries', () => {
       },
     };
     const { rerender } = render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
-        actions={actions}
         onRenderFailure={f => failures.push(f)}
+        record={{ actions: actions }}
       />,
     );
 
@@ -239,11 +239,11 @@ describe('the workbench boundaries', () => {
 
     broken = false;
     rerender(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
-        actions={actions}
         onRenderFailure={f => failures.push(f)}
+        record={{ actions: actions }}
       />,
     );
     await userEvent.click(
@@ -258,15 +258,17 @@ describe('the workbench boundaries', () => {
     const { engine } = setup();
     const failures: RenderFailure[] = [];
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
-        actions={{
-          global: () => {
-            throw new Error('global action failed');
+        onRenderFailure={f => failures.push(f)}
+        record={{
+          actions: {
+            global: () => {
+              throw new Error('global action failed');
+            },
           },
         }}
-        onRenderFailure={f => failures.push(f)}
       />,
     );
 

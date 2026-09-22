@@ -18,7 +18,7 @@ import type {
 } from '@ahoo-wang/fetcher-view-engine';
 import {
   DashboardWorkbench,
-  RecordWorkbench,
+  DataWorkbench,
 } from '@ahoo-wang/fetcher-view-engine/ui';
 import { ScenarioFrame } from '../shared/ScenarioFrame.js';
 import {
@@ -284,7 +284,7 @@ function FilterPanelDemo({
       }
     >
       {engine => (
-        <RecordWorkbench
+        <DataWorkbench
           engine={engine}
           definitionId="orders"
           instanceId={instanceId}

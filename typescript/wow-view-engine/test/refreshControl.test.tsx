@@ -37,11 +37,10 @@ import type {
 import type { RecordViewRuntime, ViewRuntime } from '../src/runtime/index.js';
 import { useAutoRefresh, type RefreshController } from '../src/react/index.js';
 import {
-  AnalysisWorkbench,
+  DataWorkbench,
   DashboardWorkbench,
   defaultMessages,
   MessagesProvider,
-  RecordWorkbench,
   RefreshControl,
   ViewSurface,
   zhCN,
@@ -812,7 +811,7 @@ describe('every workbench offers the interval', () => {
     const user = userEvent.setup();
     render(
       <ViewSurface>
-        <RecordWorkbench
+        <DataWorkbench
           engine={engine}
           definitionId="orders"
           instanceId="orders-1"
@@ -849,10 +848,11 @@ describe('every workbench offers the interval', () => {
     const user = userEvent.setup();
     render(
       <ViewSurface>
-        <AnalysisWorkbench
+        <DataWorkbench
           engine={engine}
           definitionId="orders"
           instanceId="analysis-1"
+          kinds={['analysis']}
         />
       </ViewSurface>,
     );

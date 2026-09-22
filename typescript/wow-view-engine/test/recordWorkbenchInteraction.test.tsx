@@ -24,8 +24,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PagedList } from '@ahoo-wang/fetcher-wow';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
 import type { ViewInstance, ViewSource, RecordData } from '../src/index.js';
-import { defaultMessages, RecordWorkbench } from '../src/ui/index.js';
-import type { RecordWorkbenchProps } from '../src/ui/index.js';
+import { defaultMessages, DataWorkbench } from '../src/ui/index.js';
+import type { DataWorkbenchProps } from '../src/ui/index.js';
 import {
   deferred,
   ROWS,
@@ -38,11 +38,11 @@ import { mine, setup } from './fixtures/ui.js';
 
 afterEach(cleanup);
 
-describe('RecordWorkbench interaction', () => {
+describe('DataWorkbench interaction', () => {
   async function open(source: ViewSource = testSource()) {
     const harness = setup(source);
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={harness.engine}
         definitionId="orders"
         instanceId="orders-1"
@@ -154,7 +154,7 @@ describe('RecordWorkbench interaction', () => {
     });
     const harness = setup(source);
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={harness.engine}
         definitionId="orders"
         instanceId="orders-1"
@@ -305,7 +305,7 @@ describe('RecordWorkbench interaction', () => {
     const pending = deferred<PagedList<RecordData>>();
     const { engine } = setup(testSource({ paged: () => pending.promise }));
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
@@ -377,7 +377,7 @@ describe('the record workbench layout', () => {
 
   function workbench(
     instances: ViewInstance[],
-    props: Partial<RecordWorkbenchProps> = {},
+    props: Partial<DataWorkbenchProps> = {},
     source: ViewSource = testSource(),
   ) {
     const store = new MemoryViewStore({ instances });
@@ -387,7 +387,7 @@ describe('the record workbench layout', () => {
       resolveSource: () => source,
     });
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId={instances[0]?.id ?? null}
@@ -424,7 +424,7 @@ describe('the record workbench layout', () => {
     cleanup();
     vi.spyOn(engine, 'open').mockResolvedValue(fresh);
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
@@ -513,10 +513,12 @@ describe('the record workbench layout', () => {
 
   it("offers the host's bulk action only while rows are picked", async () => {
     workbench([mine], {
-      actions: {
-        bulk: ({ rows }) => (
-          <button type="button">Export {rows.length} selected</button>
-        ),
+      record: {
+        actions: {
+          bulk: ({ rows }) => (
+            <button type="button">Export {rows.length} selected</button>
+          ),
+        },
       },
     });
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
@@ -534,9 +536,13 @@ describe('the record workbench layout', () => {
 
   it("puts the host's row action in the pinned column, and in the card", async () => {
     workbench([mine], {
-      actions: {
-        global: () => <button type="button">New order</button>,
-        row: ({ row }) => <button type="button">Open {String(row.key)}</button>,
+      record: {
+        actions: {
+          global: () => <button type="button">New order</button>,
+          row: ({ row }) => (
+            <button type="button">Open {String(row.key)}</button>
+          ),
+        },
       },
     });
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));

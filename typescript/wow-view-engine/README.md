@@ -144,10 +144,10 @@ const engine = new ViewEngine({
 
 ```tsx
 import '@ahoo-wang/fetcher-view-engine/styles.css';
-import { RecordWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
+import { DataWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
 
 export function OrdersPage() {
-  return <RecordWorkbench engine={engine} definitionId="orders" />;
+  return <DataWorkbench engine={engine} definitionId="orders" />;
 }
 ```
 
@@ -155,14 +155,16 @@ The theme follows the host through a `.dark` class on any ancestor; pass `theme=
 
 #### Which view is open, and your route
 
-A view somebody opened is a link they can send, so the three workbenches take `instanceId` and `onInstanceChange` — the two directions in and out of your router. `RecordWorkbench`, `AnalysisWorkbench` and `DashboardWorkbench` share the contract exactly.
+One data definition holds its record views and its analysis views, and `DataWorkbench` lists them together: the user switches between a table of orders and a chart of them as between any two views, and the "new view" button asks which kind to make. A host that wants a page of one kind narrows it — `kinds={['record']}` — and the other kind is neither listed nor openable there.
+
+A view somebody opened is a link they can send, so both workbenches take `instanceId` and `onInstanceChange` — the two directions in and out of your router. `DataWorkbench` and `DashboardWorkbench` share the contract exactly.
 
 ```tsx
 export function OrdersPage() {
   // Whatever your router gives you: a param, a search key, a hash.
   const [view, setView] = useSearchParam('view');
   return (
-    <RecordWorkbench
+    <DataWorkbench
       engine={engine}
       definitionId="orders"
       instanceId={view}
@@ -277,7 +279,7 @@ Preflight applies inside the boundary too: your own headings, lists and buttons 
 
 ```tsx
 import {
-  RecordWorkbench,
+  DataWorkbench,
   cellValue,
   useSurfaceDisplay,
   useViewMessages,
@@ -295,12 +297,17 @@ function OrderCell({ cell }: { cell: RecordCell }) {
   return <OrderStatusLamp status={String(cell.value)} />;
 }
 
-<RecordWorkbench
+<DataWorkbench
   engine={engine}
   definitionId="orders"
-  renderCell={cell => <OrderCell cell={cell} />}
-  selectable={false}
-  emptyTitle="Nothing is waiting to ship"
+  // What you say about the record views — how a cell reads, whether rows
+  // can be picked, what an empty result says — is one object, because none
+  // of it means anything to an analysis view.
+  record={{
+    renderCell: cell => <OrderCell cell={cell} />,
+    selectable: false,
+    emptyTitle: 'Nothing is waiting to ship',
+  }}
   // Every control is there by default; one turned off is absent, not
   // disabled. What a user may do is the store's permissions, separately.
   features={{ export: false }}
@@ -386,12 +393,12 @@ Details in [docs/design/management.md](docs/design/management.md).
 
 ## Entries
 
-| Entry                            | Exports                                                                                                                                                                                                                                                                                                                                                                               |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@ahoo-wang/fetcher-view-engine` | Model types, pure kernels (`validate*` / `compile*` / `project*`), runtime, `ViewStore`, `MemoryViewStore`                                                                                                                                                                                                                                                                            |
-| `/react`                         | `useViewEngine`, `useOpenView`, `useViewRuntime`, `useViewList`, `useViewManager`, `useFilterEditor`, `useRecordTable`, `useAnalysisEditor`, `useDashboard`, `useSaveCommands`, `RecordActionSlots`                                                                                                                                                                                   |
-| `/ui`                            | `RecordWorkbench`, `AnalysisWorkbench`, `DashboardWorkbench`, `ViewHeader`, `SaveActions`, `ViewManager`, `useLeaveGuard`, `EditorBand`, `FilterPanel`, `StatusStrip`, `AppliedBar`, `ResultToolbar`, `RowActions`, `RecordTable`, `RecordCards`, `RecordPagination`, `AnalysisEditor`, `AnalysisChart`, `DashboardGrid`, `MarkdownPanel`, `ImagePanel`, `LinksPanel`, `EmbeddedView` |
-| `/styles.css`                    | The theme. Import it explicitly; no JavaScript entry imports CSS, and nothing in it paints outside the two style boundaries `.fve-root` and `.fve-tokens` (preflight and utilities are scoped at build time), both checked by `scripts/verify-package.mjs` on every build.                                                                                                            |
+| Entry                            | Exports                                                                                                                                                                                                                                                                                                                                                        |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@ahoo-wang/fetcher-view-engine` | Model types, pure kernels (`validate*` / `compile*` / `project*`), runtime, `ViewStore`, `MemoryViewStore`                                                                                                                                                                                                                                                     |
+| `/react`                         | `useViewEngine`, `useOpenView`, `useViewRuntime`, `useViewList`, `useViewManager`, `useFilterEditor`, `useRecordTable`, `useAnalysisEditor`, `useDashboard`, `useSaveCommands`, `RecordActionSlots`                                                                                                                                                            |
+| `/ui`                            | `DataWorkbench`, `DashboardWorkbench`, `ViewHeader`, `SaveActions`, `ViewManager`, `useLeaveGuard`, `EditorBand`, `FilterPanel`, `StatusStrip`, `AppliedBar`, `ResultToolbar`, `RowActions`, `RecordTable`, `RecordCards`, `RecordPagination`, `AnalysisEditor`, `AnalysisChart`, `DashboardGrid`, `MarkdownPanel`, `ImagePanel`, `LinksPanel`, `EmbeddedView` |
+| `/styles.css`                    | The theme. Import it explicitly; no JavaScript entry imports CSS, and nothing in it paints outside the two style boundaries `.fve-root` and `.fve-tokens` (preflight and utilities are scoped at build time), both checked by `scripts/verify-package.mjs` on every build.                                                                                     |
 
 ## Persistence
 
@@ -448,9 +455,9 @@ The model carries `code` and `params` and no copy, so `/ui` owns the words. `def
 Values show as their fields say: an enum by its option's label, a `datetime` or a `date` through `Intl.DateTimeFormat`, a date-histogram key as the year, quarter, month or day it starts. `locale` is the language they show in, the runtime's when left out; it is the same choice as `messages`, made for values rather than words:
 
 ```tsx
-import { RecordWorkbench, zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
+import { DataWorkbench, zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 
-<RecordWorkbench
+<DataWorkbench
   engine={engine}
   definitionId="orders"
   messages={{ ...zhCN, 'label.filter.apply': '确定' }}

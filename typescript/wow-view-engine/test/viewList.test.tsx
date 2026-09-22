@@ -144,7 +144,7 @@ describe('ViewList on its own', () => {
         list={listState()}
         currentId={null}
         onOpen={() => {}}
-        onCreate={onCreate}
+        create={{ creatable: ['record'], create: onCreate }}
       />,
     );
     fireEvent.click(screen.getByRole('button', { name: 'New view' }));

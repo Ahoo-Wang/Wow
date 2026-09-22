@@ -26,7 +26,7 @@ import {
 } from '@ahoo-wang/fetcher-view-engine/react';
 import {
   BulkOutcomeStrip,
-  RecordWorkbench,
+  DataWorkbench,
   ViewSurface,
 } from '@ahoo-wang/fetcher-view-engine/ui';
 // View Engine's own button, so the host's commands sit in its toolbar rather
@@ -413,7 +413,7 @@ function RecordWorkbenchDemo({
         }}
       >
         {engine => (
-          <RecordWorkbench
+          <DataWorkbench
             engine={engine}
             definitionId={wide ? waybillsDefinition.id : 'orders'}
             instanceId={
@@ -421,13 +421,6 @@ function RecordWorkbenchDemo({
                 ? undefined
                 : (instanceId ??
                   (wide ? savedWaybillViews[0].id : savedViews[0].id))
-            }
-            actions={
-              breakable
-                ? breakableActions
-                : withActions
-                  ? businessActions(exportSelected)
-                  : undefined
             }
             // zh-CN by default, because the fixtures are Chinese; the one
             // story that says `english` gets the shipped defaults instead.
@@ -439,6 +432,13 @@ function RecordWorkbenchDemo({
             // now, so the narrow host proves that rule rather than being
             // handed the answer.
             defaultSidebarOpen={collapsed ? false : undefined}
+            record={{
+              actions: breakable
+                ? breakableActions
+                : withActions
+                  ? businessActions(exportSelected)
+                  : undefined,
+            }}
           />
         )}
       </StoryEngine>
@@ -832,7 +832,7 @@ export const TableSettings: Story = { args: { keepStore: true } };
  * 拿到的是一个 UTF-8 带 BOM 的 CSV：列与顺序就是窗口里列出的那几列，每个值按单元
  * 格的读法写（枚举用标签、时间按这个界面的时区与语言、数字按 `numberFormat`），
  * 文件名就是窗口里报的那一个。「所有」在后台按已应用条件分页拉，屏幕上的行、翻页
- * 与勾选都不受影响。宿主想留痕的，`RecordWorkbench` 的 `onExported` 会把文件原样
+ * 与勾选都不受影响。宿主想留痕的，`DataWorkbench` 的 `record.onExported` 会把文件原样
  * 交出来。
  */
 export const ExportResult: Story = {

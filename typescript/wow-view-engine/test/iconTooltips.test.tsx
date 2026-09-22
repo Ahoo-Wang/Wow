@@ -26,9 +26,8 @@ import {
   type ViewInstance,
 } from '../src/index.js';
 import {
-  AnalysisWorkbench,
+  DataWorkbench,
   DashboardWorkbench,
-  RecordWorkbench,
   ViewSurface,
 } from '../src/ui/index.js';
 import {
@@ -218,7 +217,7 @@ describe('every icon-only button says its name on hover', () => {
   it('holds across the record workbench and the popups it opens', async () => {
     render(
       <ViewSurface>
-        <RecordWorkbench
+        <DataWorkbench
           engine={engineWith([orders, archived], pagedSource())}
           definitionId="orders"
           instanceId="orders-1"
@@ -271,10 +270,11 @@ describe('every icon-only button says its name on hover', () => {
   it('holds across the analysis workbench and its editor', async () => {
     render(
       <ViewSurface>
-        <AnalysisWorkbench
+        <DataWorkbench
           engine={engineWith([totals])}
           definitionId="orders"
           instanceId="totals-1"
+          kinds={['analysis']}
         />
       </ViewSurface>,
     );

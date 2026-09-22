@@ -36,9 +36,8 @@ import {
   type ViewSource,
 } from '../src/index.js';
 import {
-  AnalysisWorkbench,
+  DataWorkbench,
   EmbeddedView,
-  RecordWorkbench,
   defaultMessages,
   zhCN,
 } from '../src/ui/index.js';
@@ -281,7 +280,7 @@ describe('what the screen says about a downgraded total', () => {
 
   it('labels the row "this page" and says why in the strip', async () => {
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engineOver(SUMMED, noAggregate())}
         definitionId="orders"
         instanceId="orders-1"
@@ -302,7 +301,7 @@ describe('what the screen says about a downgraded total', () => {
 
   it('labels it "total" and says nothing when the query answered', async () => {
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engineOver(SUMMED, testSource())}
         definitionId="orders"
         instanceId="orders-1"
@@ -350,10 +349,11 @@ describe('what the screen says about an analysis cut short', () => {
 
   function show(config: AnalysisViewConfig, source: ViewSource) {
     render(
-      <AnalysisWorkbench
+      <DataWorkbench
         engine={engineOver(config, source)}
         definitionId="orders"
         instanceId="orders-1"
+        kinds={['analysis']}
       />,
     );
   }
@@ -395,10 +395,11 @@ describe('what the screen says about an analysis cut short', () => {
   it('stays on screen while the draft is edited under it', async () => {
     const engine = engineOver(cutShort('table'), grouped(2));
     render(
-      <AnalysisWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
+        kinds={['analysis']}
       />,
     );
     await screen.findByText(said('analysis.result.at-limit', 2));

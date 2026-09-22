@@ -238,7 +238,6 @@ src/
     AnalysisChart.tsx         — Dispatches by chart family; nothing else
     AnalysisEditor.tsx        — What to group by, what to measure, and how to draw it
     AnalysisTable.tsx         — The aggregation as a table: groups first, then metrics, with the totals row from its own ungrouped query rather than from summing what is on screen
-    AnalysisWorkbench.tsx     — Default Analysis workbench: `useWorkbench` + `AnalysisParts` + `WorkbenchShell`, joined
     Announcer.tsx             — `useAnnouncer`: one live region per surface, handed back rather than rendered by the caller
     AppliedBar.tsx            — The conditions the rows on screen were fetched under
     BulkOutcome.tsx           — `BulkOutcomeStrip`: what a host's bulk command did to the records it was handed
@@ -250,6 +249,7 @@ src/
     DashboardGrid.tsx         — The panels, placed
     DashboardPanels.tsx       — The static panels: a note, a picture, a list of links
     DashboardWorkbench.tsx    — Default Dashboard workbench
+    DataWorkbench.tsx         — The data workbench: one list of record and analysis views; `useWorkbench` + both parts + `WorkbenchShell`, joined (D18-1, D20)
     DeleteDialog.tsx          — What a delete costs, said before it happens
     DragHandle.tsx            — The handle a sortable row is carried by, and the arrow keys that move it; the three lists share it
     EditorBand.tsx            — The fold a view's editor lives in
@@ -266,7 +266,6 @@ src/
     RecordCards.tsx           — The same result as cards, drawn from the card half of the saved config (D18 V); a value reads as a card reads it, a note on its own three lines
     RecordPagination.tsx      — How many rows there are and how to reach the next of them
     RecordTable.tsx           — The record view as a table: the columns and rows of the result that ran, never of the draft; its rows are `TableDataRow`s and a value reads as a table reads it, one line each
-    RecordWorkbench.tsx       — Default Record workbench: `useWorkbench` + `RecordParts` + `WorkbenchShell`, joined
     RefreshControl.tsx        — Refresh now, and the auto-refresh cadence menu, as one split button
     RenderBoundary.tsx        — The boundary each part of a view renders behind, so one failing leaves the rest standing
     ResultToolbar.tsx         — Selection, bulk slot, layout, columns, refresh
@@ -386,7 +385,8 @@ src/
       drag.ts                 — What the sort editor makes of a drag: which entry a drop moves where, the order that comes out of it, and what a screen reader hears meanwhile
     workbench/                — The shell's private parts, and the parts each kind of view puts into it
       AnalysisParts.tsx       — What makes an analysis view an analysis view: its editor and its table or chart, handed to the shell as slots
-      NoViews.tsx             — The work area when the definition has no view of this kind yet
+      NewView.tsx             — The "new view" command drawn as a press or as a menu of the kinds, in the sidebar, the empty work area and the switcher (D20 Ⅱ)
+      NoViews.tsx             — The work area when the definition has no view of these kinds yet
       OpeningSkeleton.tsx     — The shape of the page that is opening: title-bar and result-block skeletons, one status sentence (P-13)
       RecordParts.tsx         — What makes a record view a record view: the condition band, the toolbar, the rows and the paging, handed to the shell as slots
       ResultBlock.tsx         — The result and its caption on the one bordered frame (D12)

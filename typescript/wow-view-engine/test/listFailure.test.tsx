@@ -27,7 +27,7 @@ import {
   ViewStoreError,
   type Issue,
 } from '../src/index.js';
-import { RecordWorkbench } from '../src/ui/index.js';
+import { DataWorkbench } from '../src/ui/index.js';
 import { ordersDefinition, testSource } from './fixtures.js';
 import { mine } from './fixtures/ui.js';
 
@@ -58,7 +58,7 @@ describe('when the list cannot be read', () => {
   it('keeps the open view and its draft when a reload fails after a save', async () => {
     const { engine, store } = setup();
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
@@ -111,7 +111,7 @@ describe('when the list cannot be read', () => {
       new ViewStoreError('UNAVAILABLE', 'offline'),
     );
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
@@ -142,7 +142,7 @@ describe('when the list cannot be read', () => {
       new ViewStoreError('FORBIDDEN', 'nope'),
     );
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
@@ -169,7 +169,7 @@ describe('when the list cannot be read', () => {
     };
     vi.spyOn(engine, 'definitionIssues').mockReturnValue([found]);
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"

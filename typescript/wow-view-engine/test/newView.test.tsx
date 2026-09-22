@@ -25,7 +25,7 @@ import {
   ViewEngine,
   type ViewPermissions,
 } from '../src/index.js';
-import { RecordWorkbench } from '../src/ui/index.js';
+import { DataWorkbench } from '../src/ui/index.js';
 import { ordersDefinition, testSource } from './fixtures.js';
 
 afterEach(cleanup);
@@ -65,7 +65,7 @@ function workArea(): HTMLElement {
 describe('a new view, from the work area to the list', () => {
   it('says the definition has no view yet, and offers one', async () => {
     const { engine } = setup();
-    render(<RecordWorkbench engine={engine} definitionId="orders" />);
+    render(<DataWorkbench engine={engine} definitionId="orders" />);
 
     await waitFor(() => workArea());
     expect(within(workArea()).getByText('No view yet')).toBeDefined();
@@ -96,11 +96,16 @@ describe('a new view, from the work area to the list', () => {
 
   it('opens it unsaved with its editor out, then names it on the first save', async () => {
     const { engine, store } = setup();
-    render(<RecordWorkbench engine={engine} definitionId="orders" />);
+    render(<DataWorkbench engine={engine} definitionId="orders" />);
     await waitFor(() => workArea());
 
+    // Both kinds may be made here, so the button is a menu of the two (D20
+    // Ⅱ): the kind decides the kernel, and is asked before the view opens.
     fireEvent.click(
       within(workArea()).getByRole('button', { name: 'New view' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('menuitem', { name: 'Record view' }),
     );
 
     // On screen at once, marked as never saved, with the conditions open:
@@ -143,7 +148,7 @@ describe('a new view, from the work area to the list', () => {
   it('offers it from the switcher while the list is folded away', async () => {
     const { engine } = setup();
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         defaultSidebarOpen={false}
@@ -153,9 +158,36 @@ describe('a new view, from the work area to the list', () => {
 
     // With nothing open the switcher wears its placeholder as its name.
     fireEvent.click(screen.getByRole('button', { name: 'Choose a view' }));
+    // Inside a menu the two kinds are a submenu under the same item.
     const item = await screen.findByRole('menuitem', { name: 'New view' });
     fireEvent.click(item);
+    fireEvent.click(
+      await screen.findByRole('menuitem', { name: 'Analysis view' }),
+    );
 
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Untitled view' }),
+    ).toBeDefined();
+    // An analysis view: its editor runs, it does not apply.
+    expect(await screen.findByRole('button', { name: /Run/ })).toBeDefined();
+  });
+
+  it('makes the one kind straight away when the workbench draws only that kind', async () => {
+    const { engine } = setup();
+    render(
+      <DataWorkbench
+        engine={engine}
+        definitionId="orders"
+        kinds={['record']}
+      />,
+    );
+    await waitFor(() => workArea());
+
+    // One creatable kind is a press, not a menu.
+    fireEvent.click(
+      within(workArea()).getByRole('button', { name: 'New view' }),
+    );
+    expect(screen.queryByRole('menuitem')).toBeNull();
     expect(
       await screen.findByRole('heading', { level: 2, name: 'Untitled view' }),
     ).toBeDefined();
@@ -163,7 +195,7 @@ describe('a new view, from the work area to the list', () => {
 
   it('offers nothing to a reader who may not create', async () => {
     const { engine } = setup(readOnly);
-    render(<RecordWorkbench engine={engine} definitionId="orders" />);
+    render(<DataWorkbench engine={engine} definitionId="orders" />);
 
     await waitFor(() => workArea());
     expect(within(workArea()).getByText('No view yet')).toBeDefined();

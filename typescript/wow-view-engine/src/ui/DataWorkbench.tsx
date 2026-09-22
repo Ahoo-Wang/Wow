@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-import type { FieldOption, RecordViewConfig } from '../model/index.js';
+import type {
+  AnalysisViewConfig,
+  FieldOption,
+  RecordViewConfig,
+} from '../model/index.js';
 import type { ViewEngine } from '../runtime/index.js';
 import { useWorkbench } from '../react/index.js';
 import { useViewMessages } from './MessagesProvider.js';
@@ -19,12 +23,24 @@ import type { ViewMessages } from './messages.js';
 import { featuresOf, type WorkbenchFeatures } from './features.js';
 import { WorkbenchShell } from './WorkbenchShell.js';
 import type { RenderFailureHandler } from './RenderBoundary.js';
+import { AnalysisParts } from './workbench/AnalysisParts.js';
 import { RecordParts, type RecordViewProps } from './workbench/RecordParts.js';
-import type { RenderParts } from './workbench/parts.js';
 
-export interface RecordWorkbenchProps extends RecordViewProps {
+/** The kinds of view a data definition holds; a dashboard is a definition of its own. */
+export type DataViewKind = 'record' | 'analysis';
+
+export interface DataWorkbenchProps {
   engine: ViewEngine;
   definitionId: string;
+  /**
+   * Which kinds this workbench lists and draws, in the order the "new view"
+   * menu offers them. Both by default (D20): one data definition holds its
+   * record views and its analysis views in one list, and the user switches
+   * between them as between any two views. A host that wants a page of one
+   * kind names that one (D9), which is a real narrowing — the other kind is
+   * neither listed nor openable there.
+   */
+  kinds?: readonly DataViewKind[];
   /**
    * Which view is open, as `value` is on an input: leaving it out lets the
    * workbench own it from the effective default on, and passing it — a
@@ -42,12 +58,13 @@ export interface RecordWorkbenchProps extends RecordViewProps {
    */
   onInstanceChange?(id: string | null): void;
   /**
-   * What a new view starts from, for a host with a better first view than
-   * the definition's default columns: `defaultRecordConfig` when left out.
-   * The view still opens unsaved, under the catalogue's "New view", and the
-   * first save asks for its name and audience.
+   * What a new view of each kind starts from, for a host with a better first
+   * view than the definition's default: `defaultRecordConfig` and
+   * `defaultAnalysisConfig` when left out. The view still opens unsaved,
+   * under the catalogue's "New view", and the first save asks for its name
+   * and audience.
    */
-  template?: RecordViewConfig;
+  templates?: { record?: RecordViewConfig; analysis?: AnalysisViewConfig };
   theme?: 'light' | 'dark';
   /** Wording, merged over what is already in force: where a host translates. */
   messages?: ViewMessages;
@@ -76,7 +93,8 @@ export interface RecordWorkbenchProps extends RecordViewProps {
   /**
    * Which of the workbench's own controls are on screen (D18 XI): export,
    * the layout switch, column settings, sort settings, the view manager.
-   * All on by default; one turned off is absent, not disabled.
+   * All on by default; one turned off is absent, not disabled. The first
+   * four name record-view controls; `manage` applies to every kind.
    */
   features?: WorkbenchFeatures;
   /**
@@ -85,24 +103,39 @@ export interface RecordWorkbenchProps extends RecordViewProps {
    * recoverable error state in place regardless; this is the host's copy.
    */
   onRenderFailure?: RenderFailureHandler;
+  /**
+   * What the host says about the record views: its business actions, how a
+   * cell is read, whether rows can be picked, what an empty result says.
+   * They are one object because none of them means anything to an analysis
+   * view (D20: an analysis view has no business actions), and a workbench of
+   * both kinds would otherwise wear seven props that apply to half of what
+   * it draws.
+   */
+  record?: RecordViewProps;
 }
 
-/** The one kind this workbench draws, held once so the list is not re-narrowed per render. */
-const RECORD = ['record'] as const;
+/** What the workbench draws when the host names no kinds. */
+const DATA_KINDS: readonly DataViewKind[] = ['record', 'analysis'];
 
 /**
- * The default Record workbench: the view list, the conditions, the result and
- * the save commands.
+ * The data workbench: one view list of record and analysis views, and the
+ * editor and result of whichever is open.
  *
- * `useWorkbench` finds, opens and leaves the view; `WorkbenchShell` draws the
- * frame; `RecordParts` is what makes a record view a record view. This
- * component only joins the three.
+ * `useWorkbench` finds, opens and leaves the view, for every kind alike;
+ * `WorkbenchShell` draws the frame; `RecordParts` and `AnalysisParts` are
+ * what make each kind of view what it is, and each hands back its slots only
+ * while a view of its kind is open — the shell never learns which kind it is
+ * drawing (D18-1). Both parts stay mounted whatever is open, so the shell is
+ * drawn at one place in the tree and keeps the screen's posture across a
+ * switch (`workbench/parts.ts`).
  */
-export function RecordWorkbench({
+export function DataWorkbench({
   engine,
   definitionId,
+  kinds = DATA_KINDS,
   instanceId,
   onInstanceChange,
+  templates,
   theme,
   messages: wording,
   locale,
@@ -110,46 +143,26 @@ export function RecordWorkbench({
   defaultSidebarOpen,
   onSidebarOpenChange,
   expandable,
-  onRenderFailure,
-  template,
   features,
-  ...record
-}: RecordWorkbenchProps) {
+  onRenderFailure,
+  record,
+}: DataWorkbenchProps) {
   // The host's wording, resolved here rather than read off the provider:
   // `ViewSurface` is inside `WorkbenchShell`, so this component is above the
   // context and would otherwise name a new view in English on a translated
   // page.
   const messages = useViewMessages(wording);
   const workbench = useWorkbench(engine, definitionId, {
-    kinds: RECORD,
+    kinds,
     instanceId,
     onInstanceChange,
     newView: {
       title: messages.label('label.view.new-title'),
-      ...(template ? { templates: { record: template } } : {}),
+      ...(templates ? { templates } : {}),
     },
   });
   const { runtime } = workbench;
 
-  const frame: RenderParts = parts => (
-    <WorkbenchShell
-      workbench={workbench}
-      title={engine.definitions.get(definitionId)?.title}
-      theme={theme}
-      messages={wording}
-      locale={locale}
-      timeZone={engine.environment.timeZone}
-      defaultSidebarOpen={defaultSidebarOpen}
-      onSidebarOpenChange={onSidebarOpenChange}
-      expandable={expandable}
-      manage={featuresOf(features).manage}
-      onRenderFailure={onRenderFailure}
-      {...parts}
-    />
-  );
-
-  // The parts are a component of the runtime, mounted whatever is open, and
-  // the shell is drawn inside them (`workbench/parts.ts`).
   return (
     <RecordParts
       engine={engine}
@@ -161,7 +174,34 @@ export function RecordWorkbench({
       features={features}
       {...record}
     >
-      {frame}
+      {recordParts => (
+        <AnalysisParts
+          workbench={workbench}
+          runtime={runtime?.kind === 'analysis' ? runtime : null}
+          messages={wording}
+          optionsFor={optionsFor}
+        >
+          {analysisParts => (
+            <WorkbenchShell
+              workbench={workbench}
+              title={engine.definitions.get(definitionId)?.title}
+              theme={theme}
+              messages={wording}
+              locale={locale}
+              timeZone={engine.environment.timeZone}
+              defaultSidebarOpen={defaultSidebarOpen}
+              onSidebarOpenChange={onSidebarOpenChange}
+              expandable={expandable}
+              manage={featuresOf(features).manage}
+              onRenderFailure={onRenderFailure}
+              // At most one of the two says anything at a time: the other
+              // hands back no parts, so the spread is a merge, not a fight.
+              {...recordParts}
+              {...analysisParts}
+            />
+          )}
+        </AnalysisParts>
+      )}
     </RecordParts>
   );
 }

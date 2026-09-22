@@ -40,7 +40,7 @@ import { useFilterEditor } from '../src/react/index.js';
 import {
   FilterPanel,
   MessagesProvider,
-  RecordWorkbench,
+  DataWorkbench,
   zhCN,
 } from '../src/ui/index.js';
 import type { FilterPanelProps, ViewMessages } from '../src/ui/index.js';
@@ -1348,7 +1348,7 @@ describe('the mode the condition editor is in', () => {
       resolveSource: () => testSource(),
     });
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
@@ -1523,7 +1523,7 @@ describe('a stored condition the editor cannot draw', () => {
       resolveSource: () => testSource(),
     });
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"

@@ -13,6 +13,7 @@
 
 import { LayersIcon } from 'lucide-react';
 import { Button } from '../components/button.js';
+import { NewViewControl, type NewViewCommand } from './NewView.js';
 import {
   Empty,
   EmptyContent,
@@ -39,11 +40,12 @@ import { useViewMessages } from '../MessagesProvider.js';
  */
 export function NoViews({
   failed,
-  onCreate,
+  create,
 }: {
   /** The list could not be loaded, which is a different sentence. */
   failed: boolean;
-  onCreate?(): void;
+  /** Makes a view; absent when none may be made here (D4). */
+  create?: NewViewCommand;
 }) {
   const messages = useViewMessages();
   return (
@@ -53,7 +55,7 @@ export function NoViews({
           <LayersIcon />
         </EmptyMedia>
         <EmptyTitle>{messages.label('label.view.none')}</EmptyTitle>
-        {(failed || onCreate) && (
+        {(failed || create) && (
           <EmptyDescription>
             {messages.label(
               failed ? 'label.view.list-failed' : 'label.view.none-hint',
@@ -61,11 +63,16 @@ export function NoViews({
           </EmptyDescription>
         )}
       </EmptyHeader>
-      {onCreate && (
+      {create && (
         <EmptyContent>
-          <Button variant="outline" size="sm" onClick={onCreate}>
-            {messages.label('label.view.new')}
-          </Button>
+          <NewViewControl
+            command={create}
+            trigger={props => (
+              <Button variant="outline" size="sm" {...props}>
+                {messages.label('label.view.new')}
+              </Button>
+            )}
+          />
         </EmptyContent>
       )}
     </Empty>

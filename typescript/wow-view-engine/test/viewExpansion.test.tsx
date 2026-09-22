@@ -26,10 +26,9 @@ import { MemoryViewStore, ViewEngine } from '../src/index.js';
 import type { ViewInstance, ViewSource } from '../src/index.js';
 import { useWorkbench } from '../src/react/index.js';
 import {
-  AnalysisWorkbench,
+  DataWorkbench,
   defaultMessages,
   EmbeddedView,
-  RecordWorkbench,
   useViewExpansion,
   WorkbenchShell,
   zhCN,
@@ -139,7 +138,7 @@ function engineWith(source: ViewSource = testSource()): ViewEngine {
 async function open(engine = engineWith()) {
   const user = userEvent.setup();
   render(
-    <RecordWorkbench engine={engine} definitionId="orders" instanceId="mine" />,
+    <DataWorkbench engine={engine} definitionId="orders" instanceId="mine" />,
   );
   await screen.findByRole('table');
   return user;
@@ -211,7 +210,7 @@ describe('the control that fills the screen', () => {
   it('speaks the host language, like every other word on the bar', async () => {
     const engine = engineWith();
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="mine"
@@ -238,8 +237,8 @@ describe('the control that fills the screen', () => {
   });
 
   it.each([
-    ['record', RecordWorkbench, 'mine'],
-    ['analysis', AnalysisWorkbench, 'by-warehouse'],
+    ['record', DataWorkbench, 'mine'],
+    ['analysis', DataWorkbench, 'by-warehouse'],
   ] as const)(
     'can be turned off through the %s workbench itself',
     async (_kind, Workbench, instanceId) => {
@@ -293,7 +292,7 @@ describe('the background while a view fills the screen', () => {
     give('scroll');
     const user = userEvent.setup();
     const view = render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engineWith()}
         definitionId="orders"
         instanceId="mine"
@@ -314,7 +313,7 @@ describe('the background while a view fills the screen', () => {
     const user = userEvent.setup();
     const view = render(
       <StrictMode>
-        <RecordWorkbench
+        <DataWorkbench
           engine={engineWith()}
           definitionId="orders"
           instanceId="mine"
@@ -401,7 +400,7 @@ describe('two surfaces on one document', () => {
     const user = userEvent.setup();
     const container = document.body.appendChild(document.createElement('div'));
     const view = render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engineWith()}
         definitionId="orders"
         instanceId="mine"
@@ -451,7 +450,7 @@ describe('two surfaces on one document', () => {
     try {
       const here = await page();
       const inFrame = render(
-        <RecordWorkbench
+        <DataWorkbench
           engine={engineWith()}
           definitionId="orders"
           instanceId="mine"
@@ -662,7 +661,7 @@ describe('the keyboard', () => {
     const frameDocument = frame.contentDocument!;
     try {
       const inFrame = render(
-        <RecordWorkbench
+        <DataWorkbench
           engine={engineWith()}
           definitionId="orders"
           instanceId="mine"
@@ -718,7 +717,7 @@ describe('the states a view can be expanded in', () => {
     const pending = deferred<{ total: number; list: typeof ROWS }>();
     const user = userEvent.setup();
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engineWith(testSource({ paged: () => pending.promise }))}
         definitionId="orders"
         instanceId="mine"
@@ -739,7 +738,7 @@ describe('the states a view can be expanded in', () => {
   it('expands over a query that failed, strip and all', async () => {
     const user = userEvent.setup();
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engineWith(
           testSource({ paged: () => Promise.reject(new Error('offline')) }),
         )}
@@ -758,10 +757,11 @@ describe('the states a view can be expanded in', () => {
     const pending = deferred<Record<string, unknown>[]>();
     const user = userEvent.setup();
     render(
-      <AnalysisWorkbench
+      <DataWorkbench
         engine={engineWith(testSource({ aggregate: () => pending.promise }))}
         definitionId="orders"
         instanceId="by-warehouse"
+        kinds={['analysis']}
       />,
     );
     const toggle = await screen.findByRole('button', { name: FILL });
@@ -789,7 +789,7 @@ describe('the states a view can be expanded in', () => {
 
   it('offers nothing over a view that would not open', async () => {
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engineWith()}
         definitionId="orders"
         instanceId="no-such-view"
@@ -1147,7 +1147,7 @@ describe('an embedded view, expanded by its host', () => {
     // A second surface, later in the document, expanded over the embed.
     const container = document.body.appendChild(document.createElement('div'));
     const over = render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engineWith()}
         definitionId="orders"
         instanceId="mine"

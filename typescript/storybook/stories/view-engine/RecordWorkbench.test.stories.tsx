@@ -929,14 +929,15 @@ export const ManageViews: Story = {
       return found;
     };
 
-    // Every record view of the definition is here, grouped as the sidebar
-    // groups them; a system view ships with the definition, so it cannot be
+    // Every view of the definition is here, grouped as the sidebar groups
+    // them; a system view ships with the definition, so it cannot be
     // deleted. The dialog fades in, so the rows are awaited rather than read
     // at once.
     await waitFor(() => expect(row('待出库订单')).toBeDefined());
-    // The definition also holds an analysis view. This page cannot draw one,
-    // so it neither lists it nor lets this dialog reorder it away.
-    await expect(() => row('仓库金额分布')).toThrow();
+    // The definition's analysis view sits in the same list as its record
+    // views (D20): one data workbench draws both kinds, so the manager
+    // orders both.
+    await expect(row('仓库金额分布')).toBeDefined();
     await expect(
       within(row('全部订单')).queryByRole('button', {
         name: zhCN['label.manage.delete'],
@@ -988,7 +989,8 @@ export const ManageViews: Story = {
         `[data-slot="view-manager-row"] button[aria-label^="${DRAG}"]`,
       ),
     ];
-    await expect(handles).toHaveLength(3);
+    // Four rows: the three record views and the analysis view beside them.
+    await expect(handles).toHaveLength(4);
     await expect(
       new Set(handles.map(grip => Math.round(grip.getBoundingClientRect().x)))
         .size,
@@ -1046,7 +1048,9 @@ export const ManageViews: Story = {
     // than clicked up one step at a time. This is the half jsdom cannot
     // run — `@dnd-kit/dom` picks its drop target by measuring boxes, and
     // every box there is 0×0 at the origin (see pointerDrag.ts).
-    const SHARED = ['全部订单', '待出库订单'];
+    // The shared analysis view is in the same sortable list as the shared
+    // record views (D20): one workbench, one order.
+    const SHARED = ['全部订单', '待出库订单', '仓库金额分布'];
     const listed = (audience: string) =>
       [
         ...document.querySelectorAll<HTMLElement>(
@@ -1058,7 +1062,7 @@ export const ManageViews: Story = {
         text => SHARED.find(title => text.includes(title)) ?? text,
       );
     const before = order();
-    await expect(before).toHaveLength(2);
+    await expect(before).toHaveLength(3);
 
     await dragHandleOnto(
       within(row(before[1])).getByRole('button', {
@@ -1070,7 +1074,9 @@ export const ManageViews: Story = {
     // The shared group reordered, and the personal one did not: the two
     // audiences are two sortable lists, so nothing can be carried across the
     // line between them.
-    await waitFor(() => expect(order()).toEqual([before[1], before[0]]));
+    await waitFor(() =>
+      expect(order()).toEqual([before[1], before[0], before[2]]),
+    );
     await expect(listed('personal')).toHaveLength(1);
     await expect(listed('personal')[0]).toContain('大额单');
 
@@ -1472,6 +1478,13 @@ export const NewView: Story = {
 
     await userEvent.click(
       within(workArea).getByRole('button', { name: zhCN['label.view.new'] }),
+    );
+    // Both kinds may be made here, so the button is a menu of the two (D20
+    // Ⅱ): the kind decides the kernel, and is asked before the view opens.
+    await userEvent.click(
+      await within(document.body).findByRole('menuitem', {
+        name: zhCN['label.kind.record'],
+      }),
     );
     await expect(
       await canvas.findByRole('heading', {

@@ -22,7 +22,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { PagedList } from '@ahoo-wang/fetcher-wow';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
 import type { RecordData } from '../src/index.js';
-import { RecordWorkbench } from '../src/ui/index.js';
+import { DataWorkbench } from '../src/ui/index.js';
 import { defaultMessages } from '../src/ui/messages.js';
 import { querySentence } from '../src/ui/record/queryAnnouncement.js';
 import {
@@ -62,7 +62,7 @@ function engineWith(paged: () => Promise<PagedList<RecordData>>): ViewEngine {
 describe('what a record query says out loud', () => {
   it('is one region, and it belongs to the result', async () => {
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engineWith(() =>
           Promise.resolve({ total: 2, list: [...ROWS] }),
         )}
@@ -87,7 +87,7 @@ describe('what a record query says out loud', () => {
   it('says a query is running, then what came back', async () => {
     const first = deferred<PagedList<RecordData>>();
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engineWith(() => first.promise)}
         definitionId="orders"
         instanceId="orders-1"
@@ -102,7 +102,7 @@ describe('what a record query says out loud', () => {
 
   it('says a result that matched nothing, in the words on the screen', async () => {
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engineWith(() => Promise.resolve({ total: 0, list: [] }))}
         definitionId="orders"
         instanceId="orders-1"
@@ -121,11 +121,11 @@ describe('what a record query says out loud', () => {
    */
   it("says the empty result in the host's own words, where it has some", async () => {
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engineWith(() => Promise.resolve({ total: 0, list: [] }))}
         definitionId="orders"
         instanceId="orders-1"
-        emptyTitle="No orders are waiting"
+        record={{ emptyTitle: 'No orders are waiting' }}
       />,
     );
 
@@ -149,7 +149,7 @@ describe('what a record query says out loud', () => {
 
   it('leaves a failure to the alert that already interrupts', async () => {
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engineWith(() => Promise.reject(new Error('down')))}
         definitionId="orders"
         instanceId="orders-1"
@@ -170,7 +170,7 @@ describe('what a record query says out loud', () => {
 
   it('reads each query back, however alike two results are', async () => {
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engineWith(() =>
           Promise.resolve({ total: 2, list: [...ROWS] }),
         )}
@@ -191,7 +191,7 @@ describe('what a record query says out loud', () => {
 
   it('says it in the catalogue in force', async () => {
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engineWith(() =>
           Promise.resolve({ total: 2, list: [...ROWS] }),
         )}

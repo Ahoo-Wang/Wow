@@ -31,6 +31,7 @@ import { AlertAction, AlertTitle } from './components/alert.js';
 import { Button } from './components/button.js';
 import { LineAlert } from './alerts.js';
 import { IconButton } from './IconButton.js';
+import { NewViewControl, type NewViewCommand } from './workbench/NewView.js';
 import { SidebarItem } from './variants.js';
 import { KIND_ICON } from './kinds.js';
 import { SPACE, TEXT_UI } from './layout.js';
@@ -56,7 +57,8 @@ export interface ViewListProps {
    * not exist (D4). The empty line below it says nothing about creating:
    * the offer is made once, in the room the new view will fill.
    */
-  onCreate?(): void;
+  /** Makes a view; absent when none may be made here (D4). */
+  create?: NewViewCommand;
   /**
    * Reads the list again after it failed. The failure is said where the
    * missing rows would be — under the views that are there, or in place of
@@ -110,7 +112,7 @@ export function ViewList({
   title,
   currentId,
   onOpen,
-  onCreate,
+  create,
   onRetry,
   onManage,
   onCollapse,
@@ -164,15 +166,20 @@ export function ViewList({
           >
             {title || messages.label('label.view.list')}
           </h1>
-          {onCreate && (
-            <IconButton
-              label={messages.label('label.view.new')}
-              variant="ghost"
-              size="icon-sm"
-              onClick={onCreate}
-            >
-              <PlusIcon />
-            </IconButton>
+          {create && (
+            <NewViewControl
+              command={create}
+              trigger={props => (
+                <IconButton
+                  label={messages.label('label.view.new')}
+                  variant="ghost"
+                  size="icon-sm"
+                  {...props}
+                >
+                  <PlusIcon />
+                </IconButton>
+              )}
+            />
           )}
           {onManage && (
             <IconButton

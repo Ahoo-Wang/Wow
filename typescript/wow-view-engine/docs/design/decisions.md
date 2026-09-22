@@ -58,11 +58,11 @@
 - **依据**：改名、删除、排序、设默认改的是列表而不是眼前这个视图；第一次确认说的是列表里的那个视图，冲突报回来的已经不是它；每次切换都拦的守卫，人会学会不读就点掉。
 - **落点**：[ui/README.md#保存与视图管理](ui/README.md#保存与视图管理)、[ui/README.md#离开保护](ui/README.md#离开保护)
 
-## D9 工作台只列自己那一种
+## D9 工作台只列自己画得出的那几种
 
-- **日期**：2026-09-19
-- **决定**：`useViewList(engine, definitionId, { kind })` 先按 `kind` 过滤，再排序、再解析默认，因此 Record 工作台的侧栏与默认视图里不会出现分析实例，反之亦然；宿主若显式指定了另一种的 `instanceId`，工作台以 `view.open.wrong-kind` 按「打不开」呈现。
-- **依据**：留下一张空白正文比直说打不开更难理解；而 `reorder` 提交的仍是 `all`（未经 `kind` 过滤的完整顺序），否则记录工作台调一次序就会把所有分析实例从 `order` 里抹掉。
+- **日期**：2026-09-19；2026-09-22 由 D20 改写：一个数据工作台缺省画记录与分析两种。
+- **决定**：`useViewList(engine, definitionId, { kinds })` 先按 `kinds` 过滤，再排序、再解析默认，因此侧栏与默认视图里只有这一页画得出的种类；`DataWorkbench` 缺省 `kinds = ['record', 'analysis']`，两种视图在同一张列表里切换，宿主要一页只有一种就给一种（`kinds={['record']}`），这是真的收窄——另一种既不列也开不了；宿主若显式指定了不在 `kinds` 里的 `instanceId`，工作台以 `view.open.wrong-kind` 按「打不开」呈现。
+- **依据**：留下一张空白正文比直说打不开更难理解；而 `reorder` 提交的仍是 `all`（未经 `kinds` 过滤的完整顺序），否则收窄过的工作台调一次序就会把没列出的种类从 `order` 里抹掉。
 - **落点**：[management.md#列表偏好与默认视图](management.md#列表偏好与默认视图)、[react.md#useviewlist](react.md#useviewlist)
 
 ## D10 铺满屏幕是就地展开，而且不是模态

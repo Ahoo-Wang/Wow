@@ -32,7 +32,7 @@ import {
 } from '../src/index.js';
 import { useSaveCommands, useViewRuntime } from '../src/react/index.js';
 import { MessagesProvider, zhCN } from '../src/ui/index.js';
-import { RecordWorkbench } from '../src/ui/RecordWorkbench.js';
+import { DataWorkbench } from '../src/ui/DataWorkbench.js';
 import type { SaveActionsProps } from '../src/ui/SaveActions.js';
 import { ViewHeader } from '../src/ui/ViewHeader.js';
 import { ViewSurface } from '../src/ui/ViewSurface.js';
@@ -522,7 +522,7 @@ describe('the save-as dialog', () => {
   it('puts focus on the new view’s title once the copy is open', async () => {
     const { engine } = setup();
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
@@ -977,7 +977,7 @@ describe('save actions', () => {
   async function open() {
     const harness = workbenchSetup();
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={harness.engine}
         definitionId="orders"
         instanceId="orders-1"
@@ -1132,7 +1132,7 @@ describe('save actions', () => {
       resolveSource: () => testSource(),
     });
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
@@ -1168,7 +1168,7 @@ describe('save actions', () => {
   it('offers only a copy of a view nobody may write to', async () => {
     const { engine } = workbenchSetup();
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId={systemInstanceId('orders', 'all')}

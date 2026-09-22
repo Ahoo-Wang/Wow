@@ -23,14 +23,13 @@ import {
   type ViewInstance,
 } from '../src/index.js';
 import {
-  AnalysisWorkbench,
+  DataWorkbench,
   DashboardWorkbench,
   defaultMessages,
   EmbeddedView,
   formatMessage,
   RecordPagination,
   RecordTable,
-  RecordWorkbench,
   useViewExpansion,
   ViewSurface,
 } from '../src/ui/index.js';
@@ -224,7 +223,7 @@ describe('the open view names the region it is drawn in', () => {
   it('renders the view title as a heading the main region points at', async () => {
     const { container } = render(
       <ViewSurface>
-        <RecordWorkbench
+        <DataWorkbench
           engine={engineWith([pendingOrders])}
           definitionId="orders"
           instanceId="pending"
@@ -249,7 +248,7 @@ describe('the open view names the region it is drawn in', () => {
   it('leaves the region unnamed when the view could not be opened', async () => {
     const { container } = render(
       <ViewSurface>
-        <RecordWorkbench
+        <DataWorkbench
           engine={engineWith([pendingOrders])}
           definitionId="orders"
           instanceId="no-such-view"
@@ -282,7 +281,7 @@ describe('the states behind a click pass axe', () => {
     const user = userEvent.setup();
     render(
       <ViewSurface>
-        <RecordWorkbench
+        <DataWorkbench
           engine={engineWith([instance], definition)}
           definitionId="orders"
           instanceId={instance.id}
@@ -490,7 +489,7 @@ describe('the default workbenches pass axe', () => {
   it('record', async () => {
     const { container } = render(
       <ViewSurface>
-        <RecordWorkbench
+        <DataWorkbench
           engine={engineWith([pendingOrders])}
           definitionId="orders"
           instanceId="pending"
@@ -527,7 +526,7 @@ describe('the default workbenches pass axe', () => {
     });
     const { container } = render(
       <ViewSurface>
-        <RecordWorkbench
+        <DataWorkbench
           engine={engine}
           definitionId="orders"
           instanceId="sorted"
@@ -561,11 +560,13 @@ describe('the default workbenches pass axe', () => {
     const user = userEvent.setup();
     render(
       <ViewSurface>
-        <RecordWorkbench
+        <DataWorkbench
           engine={engineWith([pendingOrders])}
           definitionId="orders"
           instanceId="pending"
-          actions={{ row: () => <button type="button">{'Open'}</button> }}
+          record={{
+            actions: { row: () => <button type="button">{'Open'}</button> },
+          }}
         />
       </ViewSurface>,
     );
@@ -594,7 +595,7 @@ describe('the default workbenches pass axe', () => {
     const user = userEvent.setup();
     render(
       <ViewSurface>
-        <RecordWorkbench
+        <DataWorkbench
           engine={engineWith([pendingOrders])}
           definitionId="orders"
           instanceId="pending"
@@ -618,10 +619,11 @@ describe('the default workbenches pass axe', () => {
   it('analysis', async () => {
     const { container } = render(
       <ViewSurface>
-        <AnalysisWorkbench
+        <DataWorkbench
           engine={engineWith([warehouseTotals])}
           definitionId="orders"
           instanceId="totals"
+          kinds={['analysis']}
         />
       </ViewSurface>,
     );
@@ -639,10 +641,11 @@ describe('the default workbenches pass axe', () => {
   it('analysis, drawn as a chart', async () => {
     const { container } = render(
       <ViewSurface>
-        <AnalysisWorkbench
+        <DataWorkbench
           engine={engineWith([warehouseChart])}
           definitionId="orders"
           instanceId="drawn"
+          kinds={['analysis']}
         />
       </ViewSurface>,
     );

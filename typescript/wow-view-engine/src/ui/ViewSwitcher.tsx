@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { ChevronDownIcon, PlusIcon, Settings2Icon } from 'lucide-react';
+import { ChevronDownIcon, Settings2Icon } from 'lucide-react';
 import {
   audienceOf,
   isSystemScope,
@@ -35,6 +35,7 @@ import {
 import { KIND_ICON } from './kinds.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { DropdownMenuContent } from './popups.js';
+import { NewViewItem, type NewViewCommand } from './workbench/NewView.js';
 
 export interface ViewSwitcherProps {
   /** The same list the sidebar draws, already narrowed to the kinds drawn. */
@@ -59,7 +60,7 @@ export interface ViewSwitcherProps {
    * Makes a view from nothing: the sidebar's `+`, in the one control that
    * stands in for the sidebar. Absent when nothing is behind it (D4).
    */
-  onCreate?(): void;
+  create?: NewViewCommand;
   /**
    * Opens the view manager. The item is absent when it is left out, which is
    * how a user with no write permission at all is spared an entry whose only
@@ -87,7 +88,7 @@ export function ViewSwitcher({
   currentId,
   currentTitle,
   onOpen,
-  onCreate,
+  create,
   onManage,
 }: ViewSwitcherProps) {
   const messages = useViewMessages();
@@ -196,19 +197,14 @@ export function ViewSwitcher({
           );
         })}
 
-        {(onCreate || onManage) && (
+        {(create || onManage) && (
           <>
             {/* Making a view and managing the list are not choosing from it,
                 so they are set apart rather than added to the end of the
                 views — in the sidebar's order: add first, then manage. */}
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              {onCreate && (
-                <DropdownMenuItem onClick={onCreate}>
-                  <PlusIcon />
-                  {messages.label('label.view.new')}
-                </DropdownMenuItem>
-              )}
+              {create && <NewViewItem command={create} />}
               {onManage && (
                 <DropdownMenuItem onClick={onManage}>
                   <Settings2Icon />

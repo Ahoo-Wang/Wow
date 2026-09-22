@@ -12,7 +12,7 @@
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { SortDirection } from '@ahoo-wang/fetcher-wow';
-import { AnalysisWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
+import { DataWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
 import { ScenarioFrame } from '../shared/ScenarioFrame.js';
 import {
   HOST_LANGUAGE,
@@ -108,11 +108,12 @@ function AnalysisWorkbenchDemo({
       }
     >
       {engine => (
-        <AnalysisWorkbench
+        <DataWorkbench
           engine={engine}
           definitionId="orders"
           instanceId={savedViews[1].id}
           {...HOST_LANGUAGE}
+          kinds={['analysis']}
         />
       )}
     </StoryEngine>

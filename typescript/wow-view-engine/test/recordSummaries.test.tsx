@@ -19,7 +19,7 @@ import type { RecordTableController } from '../src/react/index.js';
 import {
   defaultMessages,
   RecordTable,
-  RecordWorkbench,
+  DataWorkbench,
   ViewSurface,
 } from '../src/ui/index.js';
 import {
@@ -62,7 +62,7 @@ describe('the summary row', () => {
       resolveSource: () => source,
     });
     return render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
@@ -119,7 +119,7 @@ describe('the summary row', () => {
       resolveSource: () => testSource(),
     });
     const { container } = render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"

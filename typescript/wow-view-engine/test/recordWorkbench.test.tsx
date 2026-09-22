@@ -35,7 +35,7 @@ import type {
 import {
   defaultMessages,
   EmbeddedView,
-  RecordWorkbench,
+  DataWorkbench,
 } from '../src/ui/index.js';
 import { SPACE } from '../src/ui/layout.js';
 import {
@@ -57,7 +57,7 @@ import { mine, mixed, setup } from './fixtures/ui.js';
 
 afterEach(cleanup);
 
-describe('RecordWorkbench', () => {
+describe('DataWorkbench', () => {
   /** A second view to switch to, so leaving one is a thing that can happen. */
   const yours: ViewInstance = { ...mine, id: 'orders-2', title: 'Yours' };
 
@@ -81,7 +81,7 @@ describe('RecordWorkbench', () => {
   it('asks its leave question in the wording the host gave', async () => {
     const engine = withTwo();
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
@@ -106,7 +106,7 @@ describe('RecordWorkbench', () => {
     const engine = withTwo();
     const store = engine.store as MemoryViewStore;
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
@@ -142,7 +142,7 @@ describe('RecordWorkbench', () => {
     }));
 
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
@@ -167,7 +167,7 @@ describe('RecordWorkbench', () => {
     }));
 
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
@@ -182,7 +182,7 @@ describe('RecordWorkbench', () => {
     const { engine } = setup();
 
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
@@ -240,14 +240,14 @@ describe('RecordWorkbench', () => {
    *
    * What a class is worth in pixels is a stylesheet's answer and jsdom has
    * none, so the 16px itself is measured in the browser project
-   * (`stories/view-engine/RecordWorkbench.test.stories.tsx`, `BlockSpacing`).
+   * (`stories/view-engine/DataWorkbench.test.stories.tsx`, `BlockSpacing`).
    * What is pinned here is the class that decides it.
    */
   it('leaves the block spacing to the shell', async () => {
     const { engine } = setup();
 
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
@@ -273,7 +273,7 @@ describe('RecordWorkbench', () => {
     });
 
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
@@ -295,7 +295,7 @@ describe('RecordWorkbench', () => {
     const { engine } = setup();
 
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="missing"
@@ -347,7 +347,7 @@ describe('RecordWorkbench', () => {
     });
 
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
@@ -398,8 +398,32 @@ describe('RecordWorkbench', () => {
       });
     }
 
-    it('lists none of them, and opens a record view by default', async () => {
-      render(<RecordWorkbench engine={withBoth()} definitionId="orders" />);
+    it('lists both kinds in one list, and opens either (D20)', async () => {
+      render(<DataWorkbench engine={withBoth()} definitionId="orders" />);
+
+      await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+      const sidebar = within(
+        document.querySelector<HTMLElement>('[data-slot="view-sidebar"]')!,
+      );
+      expect(sidebar.getByRole('button', { name: /^Mine/ })).toBeDefined();
+      fireEvent.click(sidebar.getByRole('button', { name: /By warehouse/ }));
+
+      // The analysis view opens in the same workbench: its editor and its
+      // table replace the record view's, and the frame stays.
+      expect(
+        await screen.findByRole('heading', { level: 2, name: 'By warehouse' }),
+      ).toBeDefined();
+      expect(await screen.findByRole('button', { name: /Run/ })).toBeDefined();
+    });
+
+    it('lists only the kind a host narrows it to (D9)', async () => {
+      render(
+        <DataWorkbench
+          engine={withBoth()}
+          definitionId="orders"
+          kinds={['record']}
+        />,
+      );
 
       await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
       const sidebar = within(
@@ -420,9 +444,10 @@ describe('RecordWorkbench', () => {
      */
     it('offers the default view as the way out of one that cannot open', async () => {
       render(
-        <RecordWorkbench
+        <DataWorkbench
           engine={withBoth()}
           definitionId="orders"
+          kinds={['record']}
           instanceId="orders-chart"
         />,
       );
@@ -445,9 +470,10 @@ describe('RecordWorkbench', () => {
     // opens, and the page says why it is not showing it.
     it('says why an id of the other kind cannot be shown here', async () => {
       render(
-        <RecordWorkbench
+        <DataWorkbench
           engine={withBoth()}
           definitionId="orders"
+          kinds={['record']}
           instanceId="orders-chart"
         />,
       );
@@ -717,7 +743,7 @@ describe('RecordWorkbench', () => {
     const { engine } = setup();
 
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="missing"
@@ -739,7 +765,7 @@ describe('RecordWorkbench', () => {
     );
 
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"

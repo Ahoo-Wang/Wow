@@ -36,7 +36,7 @@ import {
   type ViewSource,
 } from '../src/index.js';
 import { useAnalysisEditor, useOpenView } from '../src/react/index.js';
-import { AnalysisWorkbench, defaultMessages, zhCN } from '../src/ui/index.js';
+import { DataWorkbench, defaultMessages, zhCN } from '../src/ui/index.js';
 import type { ViewMessages } from '../src/ui/index.js';
 import { SPACE } from '../src/ui/layout.js';
 import {
@@ -265,11 +265,12 @@ describe('AnalysisEditor defaults', () => {
       resolveSource: () => testSource(),
     });
     render(
-      <AnalysisWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
         messages={messages}
+        kinds={['analysis']}
       />,
     );
     await waitFor(() => expect(screen.getByRole('table')).toBeDefined());
@@ -312,7 +313,7 @@ describe('AnalysisEditor defaults', () => {
    *
    * jsdom applies no stylesheet, so what is pinned here is the class the
    * call site passes; the 12px it resolves to is measured in the browser
-   * project (`stories/view-engine/AnalysisWorkbench.test.stories.tsx`,
+   * project (`stories/view-engine/DataWorkbench.test.stories.tsx`,
    * `EditorRowSpacing`).
    */
   it('puts the ruler’s row step between the editor rows', async () => {
@@ -472,10 +473,11 @@ describe('AnalysisEditor defaults', () => {
       resolveSource: () => source,
     });
     render(
-      <AnalysisWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
+        kinds={['analysis']}
       />,
     );
     await waitFor(() => expect(screen.getByRole('table')).toBeDefined());
@@ -496,14 +498,15 @@ describe('AnalysisEditor defaults', () => {
   });
 });
 
-describe('AnalysisWorkbench', () => {
+describe('DataWorkbench', () => {
   async function open(source: ViewSource = testSource()) {
     const harness = setup(source);
     render(
-      <AnalysisWorkbench
+      <DataWorkbench
         engine={harness.engine}
         definitionId="orders"
         instanceId="orders-1"
+        kinds={['analysis']}
       />,
     );
     await waitFor(() => expect(screen.getByRole('table')).toBeDefined());
@@ -621,7 +624,7 @@ describe('AnalysisWorkbench', () => {
     const { engine } = setup();
 
     render(
-      <AnalysisWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="missing"
@@ -629,6 +632,7 @@ describe('AnalysisWorkbench', () => {
           'label.view.unopenable': '打不开这个视图',
           'label.scope.group.personal': '仅自己',
         }}
+        kinds={['analysis']}
       />,
     );
 
@@ -677,11 +681,12 @@ describe('AnalysisWorkbench', () => {
     });
 
     render(
-      <AnalysisWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
         locale="zh-CN"
+        kinds={['analysis']}
       />,
     );
 
@@ -711,10 +716,11 @@ describe('AnalysisWorkbench', () => {
       resolveSource: () => testSource(),
     });
     const { container } = render(
-      <AnalysisWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
+        kinds={['analysis']}
       />,
     );
     expect(await within(container).findByText('China', DRAWN)).toBeDefined();
@@ -754,10 +760,11 @@ describe('AnalysisWorkbench', () => {
 
     // Recharts measures text in a span of its own on the body.
     const { container } = render(
-      <AnalysisWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
+        kinds={['analysis']}
       />,
     );
 
@@ -786,10 +793,11 @@ describe('AnalysisWorkbench', () => {
     const waiting = deferred<Record<string, unknown>[]>();
     const { engine } = setup(testSource({ aggregate: () => waiting.promise }));
     render(
-      <AnalysisWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
+        kinds={['analysis']}
       />,
     );
     const limit = (await screen.findByLabelText(
@@ -885,10 +893,11 @@ describe('deleting the open analysis', () => {
       resolveSource: () => testSource(),
     });
     render(
-      <AnalysisWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
+        kinds={['analysis']}
       />,
     );
     await waitFor(() =>

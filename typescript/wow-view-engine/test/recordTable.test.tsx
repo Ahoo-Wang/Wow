@@ -19,7 +19,7 @@ import type { RecordSort, ViewInstance, ViewSource } from '../src/index.js';
 import {
   defaultMessages,
   RecordTable,
-  RecordWorkbench,
+  DataWorkbench,
   ViewSurface,
 } from '../src/ui/index.js';
 import {
@@ -901,7 +901,7 @@ describe('a record view with no result', () => {
       resolveSource: () => source,
     });
     return render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId={instance.id}

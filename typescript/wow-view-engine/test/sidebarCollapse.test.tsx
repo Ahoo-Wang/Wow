@@ -22,7 +22,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
 import type { ViewInstance, ViewPermissions } from '../src/index.js';
-import { defaultMessages, RecordWorkbench } from '../src/ui/index.js';
+import { defaultMessages, DataWorkbench } from '../src/ui/index.js';
 import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
 
 afterEach(cleanup);
@@ -88,7 +88,7 @@ function engineWith(
 async function open(engine: ViewEngine, instanceId: string | null = 'mine') {
   const user = userEvent.setup();
   render(
-    <RecordWorkbench
+    <DataWorkbench
       engine={engine}
       definitionId="orders"
       instanceId={instanceId}
@@ -257,7 +257,7 @@ describe('collapsing the sidebar', () => {
   it('starts folded when the host says so', async () => {
     const engine = engineWith();
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="mine"
@@ -275,7 +275,7 @@ describe('collapsing the sidebar', () => {
     const engine = engineWith();
     const user = userEvent.setup();
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="mine"
@@ -465,7 +465,7 @@ describe('collapsing with nothing to switch to', () => {
   it('keeps the way back when no view would open', async () => {
     const user = userEvent.setup();
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engineWith()}
         definitionId="orders"
         instanceId="no-such-view"
@@ -495,7 +495,7 @@ describe('collapsing with nothing to switch to', () => {
   it('shows the switcher under its own name while the list loads', async () => {
     const engine = engineWith();
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="mine"
@@ -519,7 +519,7 @@ describe('collapsing with nothing to switch to', () => {
    */
   it('names the switcher for what it does when no view opened', async () => {
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engineWith()}
         definitionId="orders"
         instanceId="no-such-view"
@@ -547,7 +547,7 @@ describe('collapsing with nothing to switch to', () => {
    */
   it('gives that bar the header container the name is measured against', async () => {
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engineWith()}
         definitionId="orders"
         instanceId="no-such-view"

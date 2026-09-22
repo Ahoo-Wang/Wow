@@ -26,11 +26,11 @@ import {
   cellText,
   cellValue,
   displayValue,
-  RecordWorkbench,
+  DataWorkbench,
   useSurfaceDisplay,
   useViewMessages,
 } from '../src/ui/index.js';
-import type { RecordCell, RecordWorkbenchProps } from '../src/ui/index.js';
+import type { RecordCell, DataWorkbenchProps } from '../src/ui/index.js';
 import {
   INSTANT,
   ZONE,
@@ -48,17 +48,17 @@ afterEach(cleanup);
  * not only in the controller: a route opens a view, and the view the user
  * picks goes back into the route.
  */
-describe('a RecordWorkbench a host routes', () => {
+describe('a DataWorkbench a host routes', () => {
   const other: ViewInstance = { ...mine, id: 'orders-2', title: 'Other' };
 
-  function routed(props: Partial<RecordWorkbenchProps> = {}) {
+  function routed(props: Partial<DataWorkbenchProps> = {}) {
     const engine = new ViewEngine({
       definitions: [ordersDefinition()],
       store: new MemoryViewStore({ instances: [mine, other] }),
       resolveSource: () => testSource(),
     });
-    const draw = (overrides: Partial<RecordWorkbenchProps>) => (
-      <RecordWorkbench
+    const draw = (overrides: Partial<DataWorkbenchProps>) => (
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
@@ -149,9 +149,9 @@ describe('a RecordWorkbench a host routes', () => {
  * reading of a value is exported: override the column you mean, and fall
  * back for the rest.
  */
-describe('a RecordWorkbench a host draws cells in', () => {
+describe('a DataWorkbench a host draws cells in', () => {
   function workbench(
-    props: Partial<RecordWorkbenchProps> = {},
+    props: Partial<DataWorkbenchProps> = {},
     source: ViewSource = testSource(),
   ) {
     const engine = new ViewEngine({
@@ -160,7 +160,7 @@ describe('a RecordWorkbench a host draws cells in', () => {
       resolveSource: () => source,
     });
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
@@ -179,7 +179,7 @@ describe('a RecordWorkbench a host draws cells in', () => {
   }
 
   it('draws the cells the host renders, and reads the rest itself', async () => {
-    workbench({ renderCell: cell => <HostCell cell={cell} /> });
+    workbench({ record: { renderCell: cell => <HostCell cell={cell} /> } });
 
     const lamps = await screen.findAllByTestId('lamp');
     expect(lamps.map(lamp => lamp.textContent)).toEqual(['10 ●', '20 ●']);
@@ -201,13 +201,15 @@ describe('a RecordWorkbench a host draws cells in', () => {
       resolveSource: () => testSource(),
     });
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
-        renderCell={cell => (
-          <span data-testid="plain">{String(cell.value)}</span>
-        )}
+        record={{
+          renderCell: cell => (
+            <span data-testid="plain">{String(cell.value)}</span>
+          ),
+        }}
       />,
     );
 
@@ -222,7 +224,7 @@ describe('a RecordWorkbench a host draws cells in', () => {
    * must not hand the choice back.
    */
   it('takes the selection away when the host offers nothing to do with it', async () => {
-    workbench({ selectable: false });
+    workbench({ record: { selectable: false } });
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
 
     expect(screen.queryByRole('checkbox', { name: /select/i })).toBeNull();
@@ -240,8 +242,10 @@ describe('a RecordWorkbench a host draws cells in', () => {
   it("says the host's own words when there is nothing to show", async () => {
     workbench(
       {
-        emptyTitle: 'Nothing is waiting to ship',
-        emptyDescription: 'Every order has left the warehouse.',
+        record: {
+          emptyTitle: 'Nothing is waiting to ship',
+          emptyDescription: 'Every order has left the warehouse.',
+        },
       },
       testSource({
         paged: vi.fn(() => Promise.resolve({ total: 0, list: [] })),

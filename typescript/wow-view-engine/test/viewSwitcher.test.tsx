@@ -212,7 +212,10 @@ describe('what the switcher offers besides the views', () => {
     const user = userEvent.setup();
     const onCreate = vi.fn();
     const onManage = vi.fn();
-    switcher({ onCreate, onManage });
+    switcher({
+      create: { creatable: ['record'], create: onCreate },
+      onManage,
+    });
     const menu = await openMenu();
 
     expect(

@@ -30,7 +30,7 @@ import {
   type RuntimeLimits,
   type ViewSource,
 } from '../src/index.js';
-import { RecordWorkbench } from '../src/ui/index.js';
+import { DataWorkbench } from '../src/ui/index.js';
 import { ordersDefinition, testSource } from './fixtures.js';
 import { mine, setup } from './fixtures/ui.js';
 
@@ -50,7 +50,7 @@ afterEach(() => {
  * `test/exportRows.test.ts`; this is the one place all of them are the same
  * export (D14).
  */
-describe('RecordWorkbench export', () => {
+describe('DataWorkbench export', () => {
   /** The browser's half, which jsdom has none of. */
   function stubObjectUrls() {
     const createObjectURL = vi.fn(() => 'blob:orders');
@@ -115,11 +115,11 @@ describe('RecordWorkbench export', () => {
     const onExported = vi.fn();
     const { engine } = setup(testSource());
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
-        onExported={onExported}
+        record={{ onExported: onExported }}
       />,
     );
 
@@ -175,11 +175,11 @@ describe('RecordWorkbench export', () => {
     const onExported = vi.fn();
     const { engine } = setup(testSource());
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
-        onExported={onExported}
+        record={{ onExported: onExported }}
       />,
     );
 
@@ -216,11 +216,11 @@ describe('RecordWorkbench export', () => {
     const onExported = vi.fn();
     const { engine } = setup(testSource());
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
-        onExported={onExported}
+        record={{ onExported: onExported }}
       />,
     );
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
@@ -247,7 +247,7 @@ describe('RecordWorkbench export', () => {
       paged: vi.fn(() => Promise.resolve({ total: 10, list: orders(5) })),
     });
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engineFor(source, { exportMax: 3 })}
         definitionId="orders"
         instanceId="orders-1"
@@ -274,11 +274,11 @@ describe('RecordWorkbench export', () => {
     const onExported = vi.fn();
     const { source, held } = gatedSource();
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engineFor(source)}
         definitionId="orders"
         instanceId="orders-1"
-        onExported={onExported}
+        record={{ onExported: onExported }}
       />,
     );
     const dialog = await openWindow();
@@ -312,11 +312,11 @@ describe('RecordWorkbench export', () => {
       .mockRejectedValueOnce(new Error('gateway down'))
       .mockResolvedValue({ total: 2, list: orders(2) });
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engineFor(testSource({ paged }))}
         definitionId="orders"
         instanceId="orders-1"
-        onExported={onExported}
+        record={{ onExported: onExported }}
       />,
     );
     const dialog = await openWindow();
@@ -335,7 +335,7 @@ describe('RecordWorkbench export', () => {
     stubObjectUrls();
     const { engine } = setup(testSource());
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"

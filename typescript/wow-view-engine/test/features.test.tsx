@@ -20,7 +20,7 @@ import {
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
-import { RecordWorkbench } from '../src/ui/index.js';
+import { DataWorkbench } from '../src/ui/index.js';
 import { ordersDefinition, testSource } from './fixtures.js';
 import { mine } from './fixtures/ui.js';
 
@@ -56,7 +56,7 @@ const OFF = {
 describe('workbench features', () => {
   it('draws every control by default', async () => {
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engineWith()}
         definitionId="orders"
         instanceId="orders-1"
@@ -71,7 +71,7 @@ describe('workbench features', () => {
 
   it('leaves out every control a host switched off', async () => {
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engineWith()}
         definitionId="orders"
         instanceId="orders-1"
@@ -93,7 +93,7 @@ describe('workbench features', () => {
 
   it('keeps the manager out of the switcher too', async () => {
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engineWith()}
         definitionId="orders"
         instanceId="orders-1"
@@ -114,11 +114,11 @@ describe("the empty result's action", () => {
   it("is the workbench's by default, the host's when given, and none on null", async () => {
     const own = vi.fn();
     const { rerender } = render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engineWith(false)}
         definitionId="orders"
         instanceId="orders-1"
-        emptyAction={own}
+        record={{ emptyAction: own }}
       />,
     );
     // Which of the two ways out it is depends on the conditions; either
@@ -128,11 +128,11 @@ describe("the empty result's action", () => {
     expect(own).toHaveBeenCalledTimes(1);
 
     rerender(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engineWith(false)}
         definitionId="orders"
         instanceId="orders-1"
-        emptyAction={null}
+        record={{ emptyAction: null }}
       />,
     );
     // A new engine opens the view again, so the empty result is awaited:

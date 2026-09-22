@@ -384,6 +384,31 @@ export function DropdownMenuContent({
   );
 }
 
+/**
+ * A submenu's popup: the same portal, layer and theme as the menu it opens
+ * from, positioned beside its trigger as the registry's copy positions it.
+ */
+export function DropdownMenuSubContent({
+  align = 'start',
+  alignOffset = -3,
+  side = 'right',
+  sideOffset = 0,
+  className,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuContent>) {
+  return (
+    <DropdownMenuContent
+      data-slot="dropdown-menu-sub-content"
+      className={withClass('w-auto min-w-24', className)}
+      align={align}
+      alignOffset={alignOffset}
+      side={side}
+      sideOffset={sideOffset}
+      {...props}
+    />
+  );
+}
+
 export function PopoverContent({
   className,
   align = 'center',

@@ -206,7 +206,7 @@ describe('EditorBandToggle', () => {
 
   /**
    * The combination every Record workbench is in, and the one no case here
-   * used to cover: `RecordWorkbench` always passes a mode, so the name the
+   * used to cover: `DataWorkbench` always passes a mode, so the name the
    * mode brought with it overrode the content — and the one credential a
    * folded editor cannot carry any other way was missing from every reader,
    * on every Record screen, all of the time.

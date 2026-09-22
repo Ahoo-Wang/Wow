@@ -20,7 +20,7 @@
  * and on the summaries, since a width the header alone declares is one an
  * auto-laid-out table is free to ignore. The pointer gesture itself is a
  * matter of boxes, and every box in jsdom is 0×0: it is measured in the
- * browser project instead (`stories/view-engine/RecordWorkbench.test.stories`
+ * browser project instead (`stories/view-engine/DataWorkbench.test.stories`
  * → `ColumnResize`).
  */
 

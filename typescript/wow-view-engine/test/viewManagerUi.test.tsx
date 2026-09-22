@@ -29,7 +29,7 @@ import {
 } from '../src/index.js';
 import { defaultMessages } from '../src/ui/messages.js';
 import { manageDragAccessibility, managerDrop } from '../src/ui/manage/drag.js';
-import { RecordWorkbench } from '../src/ui/RecordWorkbench.js';
+import { DataWorkbench } from '../src/ui/DataWorkbench.js';
 import { formattersFor } from './fixtures/columns.js';
 import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
 import { mine, setup as workbenchSetup } from './fixtures/ui.js';
@@ -327,7 +327,7 @@ describe('ViewManager rows', () => {
    * move — the one path a pointer cannot walk, and the only one jsdom can:
    * `@dnd-kit/dom` picks its drop target by measuring boxes against each
    * other, and every box here is 0×0 at the origin. The pointer half is a
-   * browser story (`RecordWorkbench.test.stories.tsx`, `ManageViews`).
+   * browser story (`DataWorkbench.test.stories.tsx`, `ManageViews`).
    */
   it('moves a view one place from the arrow keys on its handle', async () => {
     const { engine, store } = setup();
@@ -581,7 +581,7 @@ describe('ViewManager rows', () => {
  * The half of a drag a pointer decides and jsdom cannot reach:
  * `@dnd-kit/dom` picks its drop target by measuring boxes against each other,
  * and every box here is 0×0 at the origin. The gesture itself is a browser
- * story (`RecordWorkbench.test.stories.tsx`, `ManageViews`); what the manager
+ * story (`DataWorkbench.test.stories.tsx`, `ManageViews`); what the manager
  * makes of the result is this.
  */
 describe('what the manager takes a drop to mean', () => {
@@ -736,7 +736,7 @@ describe('managing views from the workbench', () => {
       store,
       resolveSource: () => testSource(),
     });
-    render(<RecordWorkbench engine={engine} definitionId="orders" />);
+    render(<DataWorkbench engine={engine} definitionId="orders" />);
     // A regex, because this one *is* the default: its row carries the star,
     // and the star says so in a word rather than only in a picture.
     await waitFor(() =>
@@ -772,7 +772,7 @@ describe('managing views from the workbench', () => {
       resolveSource: () => testSource(),
     });
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
@@ -806,7 +806,7 @@ describe('managing views from the workbench', () => {
       store,
       resolveSource: () => testSource(),
     });
-    render(<RecordWorkbench engine={engine} definitionId="orders" />);
+    render(<DataWorkbench engine={engine} definitionId="orders" />);
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
 
     await remove('Mine');
@@ -822,7 +822,7 @@ describe('managing views from the workbench', () => {
   it('lets go of the view once a recovered delete lands', async () => {
     const { engine, store } = workbenchSetup();
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
@@ -866,7 +866,7 @@ describe('managing views from the workbench', () => {
       resolveSource: () => testSource(),
     });
     render(
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
@@ -922,7 +922,7 @@ describe('managing views from the workbench', () => {
     });
     // No explicit instance: the workbench rides on the default view, so
     // nothing is pinned and a list reload must not close the runtime.
-    render(<RecordWorkbench engine={engine} definitionId="orders" />);
+    render(<DataWorkbench engine={engine} definitionId="orders" />);
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
 
     fireEvent.click(screen.getByRole('button', { name: /Columns/ }));

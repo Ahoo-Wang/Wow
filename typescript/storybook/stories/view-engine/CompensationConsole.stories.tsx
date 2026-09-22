@@ -26,9 +26,8 @@ import {
   type RecordActionSlots,
 } from '@ahoo-wang/fetcher-view-engine/react';
 import {
-  AnalysisWorkbench,
+  DataWorkbench,
   BulkOutcomeStrip,
-  RecordWorkbench,
   ViewSurface,
 } from '@ahoo-wang/fetcher-view-engine/ui';
 // View Engine's own primitives, so the added commands look like its own.
@@ -210,11 +209,11 @@ function CompensationConsole({
           />
         </ViewSurface>
       )}
-      <RecordWorkbench
+      <DataWorkbench
         engine={engine}
         definitionId={EXECUTION_FAILED}
-        actions={actions}
         {...HOST_LANGUAGE}
+        record={{ actions: actions }}
       />
     </div>
   );
@@ -255,11 +254,12 @@ function AnalysisConsole({ host }: { host: string }) {
   return (
     <Console key={host} host={host}>
       {engine => (
-        <AnalysisWorkbench
+        <DataWorkbench
           engine={engine}
           definitionId={EXECUTION_FAILED}
           instanceId={systemInstanceId(EXECUTION_FAILED, 'by-status')}
           {...HOST_LANGUAGE}
+          kinds={['analysis']}
         />
       )}
     </Console>

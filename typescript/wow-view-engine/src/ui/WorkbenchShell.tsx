@@ -40,6 +40,7 @@ import { ViewList } from './ViewList.js';
 import { ViewManager } from './ViewManager.js';
 import { ViewSurface } from './ViewSurface.js';
 import { ViewSwitcher } from './ViewSwitcher.js';
+import type { NewViewCommand } from './workbench/NewView.js';
 import { NoViews } from './workbench/NoViews.js';
 import { OpeningSkeleton } from './workbench/OpeningSkeleton.js';
 import { ResultBlock, resultBlockShown } from './workbench/ResultBlock.js';
@@ -304,12 +305,12 @@ export function WorkbenchShell({
   const canManage = manage && manager.can.anything;
   // One command behind three ways in — the sidebar's `+`, the switcher's
   // item and the empty work area's button — and none of the three exists
-  // without it (D4). Several creatable kinds are a menu, which is the kind
-  // menu's to draw (todo 批 3); until then the three controls offer the
-  // one kind a workbench can make.
-  const creatable = workbench.creatable;
-  const create =
-    creatable.length === 1 ? () => workbench.create(creatable[0]) : undefined;
+  // without it (D4). Each draws it as `NewViewControl`: one kind is a
+  // press, several are a menu of them (D20 Ⅱ).
+  const create: NewViewCommand | undefined =
+    workbench.creatable.length > 0
+      ? { creatable: workbench.creatable, create: workbench.create }
+      : undefined;
   // Nothing to open and nothing on its way: the list is in and has no view
   // of this kind, and no view was made from nothing either. Said in the
   // work area rather than left blank, because blank reads as broken.
@@ -490,7 +491,7 @@ export function WorkbenchShell({
         currentId={state?.saved?.id ?? null}
         currentTitle={state?.title ?? ''}
         onOpen={workbench.choose}
-        onCreate={create}
+        create={create}
         onManage={canManage ? () => setManaging(true) : undefined}
       />
     </div>
@@ -520,7 +521,7 @@ export function WorkbenchShell({
             title={title}
             currentId={state?.saved?.id ?? null}
             onOpen={workbench.choose}
-            onCreate={create}
+            create={create}
             onRetry={list.error ? () => list.reload() : undefined}
             // Only when something on the list can actually be managed: a
             // reader with no write permission at all would otherwise get a
@@ -578,7 +579,7 @@ export function WorkbenchShell({
           <OpeningSkeleton framed={resultFramed} header={!collapsed} />
         )}
 
-        {none && <NoViews failed={list.error !== null} onCreate={create} />}
+        {none && <NoViews failed={list.error !== null} create={create} />}
 
         {open && (
           <>
