@@ -197,7 +197,7 @@ useRefreshCountdown(refresh): number | null   // 每秒重画的剩余整秒
 ## useWorkbench
 
 ```ts
-useWorkbench(engine, definitionId, { kind, instanceId?, onInstanceChange? }): WorkbenchController
+useWorkbench(engine, definitionId, { kind, instanceId?, onInstanceChange?, guardUnload? }): WorkbenchController
 WorkbenchController {
   list; manager; openId; choose(id); opened; runtime; state; unopenable;
   commands; filter; refresh; leave; onSaved; onRenamed; onDeleted; onRecovered
@@ -217,7 +217,7 @@ WorkbenchController {
 - `onInstanceChange(id)` 报的正是能原样传回 `instanceId` 的那个值——`null` 在出口与入口同义，都指有效默认——所以「一键重开」在浏览器里就是一条可以发出去的链接。两种形态之间中途切换不受支持，和 input 一样：第一个值决定哪一边拿着这个状态。（见 test/workbench.test.tsx「a workbench a host routes」、test/closedLoop.test.tsx「closed loop two」，参照实现 `examples/PlainRecordWorkbench.tsx` 的 `HashRoutedRecordWorkbench`）；
 - 种类不符由 `kindMismatch` 判为 `unopenable`，与"打不开"同一个出口：一个定义同时容纳 record 与 analysis 实例，宿主仍可点名任一个，画不出的那一页要说明白，而不是在标题栏下留一片空白。`unopenable` 为真时 `runtime`／`state` 皆为 null；
 - pin 指向的视图被删除后由 `react/workbench/releaseDeleted.ts` 放手：引擎随实例释放 runtime，同一 id 再开只会一直答 not_found，页面因此永远走不到还在的那个视图上。只放手**开过**的 id——宿主点名而 store 从来没有的 id 是一个要报出来的错，不是一个要导航离开的状态；
-- `leave` 是无对话框的离开守卫（`react/workbench/leaveGuard.ts`）：`asking` / `request(next)` / `confirm()` / `cancel()`。`dirty` 或写入结局为 `unknown` 时才问，`confirm` 先结清（`commands.abandon()`）再走——`next` 会释放这个 runtime，结局就再没有它可依附，handle 会指向一个谁也够不着的 runtime 而 `engine.pendingWrites()` 把它留到会话结束。怎么问是宿主的事，`/ui` 用 `LeaveDialog`；
+- `leave` 是无对话框的离开守卫（`react/workbench/leaveGuard.ts`）：`asking` / `request(next)` / `confirm()` / `cancel()`。`dirty` 或写入结局为 `unknown` 时才问，`confirm` 先结清（`commands.abandon()`）再走——`next` 会释放这个 runtime，结局就再没有它可依附，handle 会指向一个谁也够不着的 runtime 而 `engine.pendingWrites()` 把它留到会话结束。怎么问是宿主的事，`/ui` 用 `LeaveDialog`。**同一条判据也挂在 `beforeunload` 上**（D18 Ⅸ）：关标签、后退、点走一个外链都会带走草稿，而这些路径一次也不经过 `request`——这个包甚至不会知道它发生过。脏或未知时挂上、其余时候一条也不挂（一个每次关闭都要争辩的标签，人会学会按两下），`guardUnload: false` 可以整个关掉，留给把工作台当页面一部分挂着、或在服务端渲染的宿主。处理器不带任何措辞：浏览器十年前就不再显示自定义文案了，能由我们措辞的那一句是 `LeaveDialog`，这一道只是那些到不了它的出口的兜底；嵌入视图不在其列——`EmbeddedView` 没有编辑器、没有草稿，压根不调这个钩子；
 - `filter` 是这次打开的筛选编辑器，在这里建一次：外壳画已应用条件条要用它，error 条要用它的 `unmarked`，三个工作台本来也各建一个；
 - `refresh` 是 `useAutoRefresh(runtime)` 的结果，在这里装配而不是在三个工作台里各调一次：`refresh` 在 `ViewConfigBase` 上，三种视图都有，取法也一样；
 - 四个 `on*` 是标题栏结局的工作台语义，已经接好：存下的副本随即打开、改名留在原视图（先 pin 再 reload，否则骑在默认视图上的工作台会关掉 runtime 连草稿一起丢）、删除即移开（只清 pin——列表由引擎的通知带着被删的 id 自己重读，再补一次不带 `without` 的重读反而会把那一行放回去；默认视图顺位接上，或随列表一起空掉）、恢复则重读列表。（见 test/workbench.test.tsx「useWorkbench」）

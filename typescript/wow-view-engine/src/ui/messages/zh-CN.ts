@@ -747,5 +747,8 @@ export const zhCN: ViewMessages = {
   'label.workbench.expand-view': '铺满屏幕',
   'label.workbench.collapse-view': '退出铺满',
   'label.workbench.switch-view': '切换视图',
+  // 背后没有视图时的同一个控件：它这时就是标签本身，看到的和读屏念到的是同
+  // 一句；空按钮上写「切换视图」，等于给一个并不存在的视图提议离开。
+  'label.workbench.choose-view': '选择视图',
   'label.workbench.editor-modes': '编辑器选项',
 } satisfies Record<MessageKey, string>;

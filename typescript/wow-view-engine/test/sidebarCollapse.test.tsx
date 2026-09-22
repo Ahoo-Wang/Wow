@@ -30,6 +30,8 @@ afterEach(cleanup);
 const COLLAPSE = defaultMessages['label.workbench.collapse-sidebar'];
 const EXPAND = defaultMessages['label.workbench.expand-sidebar'];
 const SWITCH = defaultMessages['label.workbench.switch-view'];
+/** The same control with no view behind it, where the label is the name. */
+const CHOOSE = defaultMessages['label.workbench.choose-view'];
 const MANAGE = defaultMessages['label.manage.open'];
 
 /**
@@ -98,6 +100,7 @@ async function open(engine: ViewEngine, instanceId: string | null = 'mine') {
 
 const sidebar = () => document.querySelector('[data-slot="view-sidebar"]');
 const switcher = () => screen.queryByRole('button', { name: SWITCH });
+const chooser = () => screen.queryByRole('button', { name: CHOOSE });
 
 describe('collapsing the sidebar', () => {
   it('opens with the list beside the result, and a way to fold it away', async () => {
@@ -483,7 +486,7 @@ describe('collapsing with nothing to switch to', () => {
     expect(screen.getAllByRole('menuitemradio')).toHaveLength(2);
   });
 
-  it('shows an empty switcher rather than none while the list loads', async () => {
+  it('shows the switcher under its own name while the list loads', async () => {
     const engine = engineWith();
     render(
       <RecordWorkbench
@@ -495,8 +498,62 @@ describe('collapsing with nothing to switch to', () => {
     );
 
     // The trigger is on screen before the list answers: a control that
-    // appeared late would move the title bar under the user's pointer.
-    expect(switcher()).not.toBeNull();
+    // appeared late would move the title bar under the user's pointer. It
+    // has no view to name yet, so it names itself rather than standing there
+    // blank.
+    expect(chooser()).not.toBeNull();
+    expect(switcher()).toBeNull();
     await screen.findByRole('table');
+  });
+
+  /**
+   * The screen that reports a view which will not open is the one screen
+   * where the switcher is the only way anywhere — and it used to be an icon,
+   * a chevron and a gap where a name would have been.
+   */
+  it('names the switcher for what it does when no view opened', async () => {
+    render(
+      <RecordWorkbench
+        engine={engineWith()}
+        definitionId="orders"
+        instanceId="no-such-view"
+        defaultSidebarOpen={false}
+      />,
+    );
+    await screen.findByRole('alert');
+
+    const trigger = chooser()!;
+    // Read the same to the eye and to a screen reader: a control whose
+    // visible word is not in its accessible name cannot be asked for out
+    // loud (WCAG 2.5.3).
+    expect(within(trigger).getByText(CHOOSE).getAttribute('data-slot')).toBe(
+      'view-switcher-label',
+    );
+    expect(switcher()).toBeNull();
+  });
+
+  /**
+   * And the definition's name is measured by the same rule it is measured by
+   * over an open view. The bar is drawn outside `ViewHeader` here, so without
+   * a container of its own the `@md/header` question had nothing to ask and
+   * the name stayed hidden at every width — on the one screen where nothing
+   * else says which definition this is.
+   */
+  it('gives that bar the header container the name is measured against', async () => {
+    render(
+      <RecordWorkbench
+        engine={engineWith()}
+        definitionId="orders"
+        instanceId="no-such-view"
+        defaultSidebarOpen={false}
+      />,
+    );
+    await screen.findByRole('alert');
+
+    const definition = document.querySelector<HTMLElement>(
+      '[data-slot="definition-title"]',
+    )!;
+    expect(definition.textContent).toBe('Orders');
+    expect(definition.closest('[class~="@container/header"]')).not.toBeNull();
   });
 });

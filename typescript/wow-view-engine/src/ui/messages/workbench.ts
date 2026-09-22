@@ -31,6 +31,12 @@ export const workbenchMessages = {
   // The switcher is the list while the list is away, so it is named for the
   // job and not for the shape: a user never reads "dropdown".
   'label.workbench.switch-view': 'Switch view',
+  // The same control with no view behind it — the screen that reports one
+  // that will not open, and the moment before the first one arrives. It
+  // *is* the label then, so the button reads the same to the eye and to a
+  // screen reader; "Switch view" over a blank button would name a view that
+  // is not there and offer to leave it.
+  'label.workbench.choose-view': 'Choose a view',
   // The chevron beside the editor's toggle. "Options" rather than "modes":
   // the filter puts its two modes in there, another editor may put something
   // else, and the name has to fit whatever the editor offers.

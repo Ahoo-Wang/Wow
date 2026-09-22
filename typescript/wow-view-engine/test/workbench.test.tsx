@@ -22,7 +22,7 @@ import {
   within,
 } from '@testing-library/react';
 import { useState } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
@@ -37,6 +37,7 @@ import {
   type LeaveGuardOptions,
   type LeaveGuardState,
 } from '../src/react/index.js';
+import { EmbeddedView } from '../src/ui/EmbeddedView.js';
 import { LeaveDialog } from '../src/ui/LeaveGuard.js';
 import type { ViewMessages } from '../src/ui/messages.js';
 import { ViewSurface } from '../src/ui/ViewSurface.js';
@@ -684,5 +685,121 @@ describe('useLeaveGuard', () => {
     leave();
 
     expect(where()).toBe('gone');
+  });
+});
+
+/**
+ * The other way out.
+ *
+ * Every exit inside the page goes through `request` and can be argued with.
+ * Closing the tab, going back and following a link off the page do not —
+ * nothing in this package is ever told they happened — so the same judgement
+ * hangs on `beforeunload`, and only while there is something to lose.
+ */
+function closeTab(): boolean {
+  const event = new Event('beforeunload', { cancelable: true });
+  window.dispatchEvent(event);
+  return event.defaultPrevented;
+}
+
+/** Whether a handler was hung at all — not merely whether one stopped the event. */
+function hung(listen: MockInstance<typeof window.addEventListener>): boolean {
+  return listen.mock.calls.some(([type]) => type === 'beforeunload');
+}
+
+describe('beforeunload', () => {
+  it('stops the tab closing over an unsaved draft', () => {
+    render(<Guarded state={{ dirty: true, write: null }} />);
+
+    expect(closeTab()).toBe(true);
+  });
+
+  /**
+   * The write the ledger cannot answer for: the request left and nothing came
+   * back, so nobody knows whether it landed. Closing the tab takes away the
+   * one screen that could still retry or abandon it.
+   */
+  it('stops it over a write nobody can answer for', () => {
+    render(
+      <Guarded
+        state={{
+          dirty: false,
+          write: {
+            kind: 'unknown',
+            requestId: 'r1',
+            payload: {
+              action: 'rename',
+              id: 'orders-1',
+              revision: '1',
+              title: 'Mine',
+            },
+          },
+        }}
+      />,
+    );
+
+    expect(closeTab()).toBe(true);
+  });
+
+  /**
+   * Nothing hung at all, rather than a handler that lets the event through: a
+   * page carrying a `beforeunload` listener is a page the browser may keep
+   * out of the back/forward cache whatever that listener decides.
+   */
+  it('hangs nothing while there is nothing to lose', () => {
+    const listen = vi.spyOn(window, 'addEventListener');
+    render(<Guarded state={{ dirty: false, write: null }} />);
+
+    expect(hung(listen)).toBe(false);
+    expect(closeTab()).toBe(false);
+  });
+
+  it('hangs nothing where the host asked for none', () => {
+    const listen = vi.spyOn(window, 'addEventListener');
+    render(
+      <Guarded
+        state={{ dirty: true, write: null }}
+        options={{ guardUnload: false }}
+      />,
+    );
+
+    expect(hung(listen)).toBe(false);
+    expect(closeTab()).toBe(false);
+  });
+
+  /**
+   * An embed is somebody else's page: no editor, no draft, no save — so it
+   * never reaches this guard at all, and an order page that happens to show a
+   * saved view is never argued with on its way out.
+   */
+  it('hangs nothing on an embedded view', async () => {
+    const listen = vi.spyOn(window, 'addEventListener');
+    render(<EmbeddedView engine={engineWith([mine])} instanceId="orders-1" />);
+
+    await waitFor(() => expect(screen.queryByRole('table')).not.toBeNull());
+    expect(hung(listen)).toBe(false);
+    expect(closeTab()).toBe(false);
+  });
+
+  it('takes it back down once the draft is saved', () => {
+    const { rerender } = render(
+      <Guarded state={{ dirty: true, write: null }} />,
+    );
+    expect(closeTab()).toBe(true);
+
+    rerender(<Guarded state={{ dirty: false, write: null }} />);
+
+    expect(closeTab()).toBe(false);
+  });
+
+  it('takes it back down when the workbench goes', () => {
+    const { unmount } = render(
+      <Guarded state={{ dirty: true, write: null }} />,
+    );
+    expect(closeTab()).toBe(true);
+
+    unmount();
+
+    expect(closeTab()).toBe(false);
   });
 });

@@ -523,8 +523,16 @@ export function WorkbenchShell({
         )}
       >
         {/* Without an open view there is no title bar to carry the way back,
-            and a workbench that could not be un-collapsed would be a trap. */}
-        {!open && collapsed && <div className="flex min-h-10">{collapsed}</div>}
+            and a workbench that could not be un-collapsed would be a trap.
+
+            It is the same bar, so it is the same container: `@container/header`
+            is what `ViewHeader` declares and what the definition's name is
+            measured against (`@md/header`). Without it here, that name had no
+            container to ask and stayed hidden at every width — on the one
+            screen where nothing else says which definition this is. */}
+        {!open && collapsed && (
+          <div className="@container/header flex min-h-10">{collapsed}</div>
+        )}
 
         {unopenable && (
           <Unopenable

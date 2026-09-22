@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { WriteState } from '../../runtime/index.js';
 import { blocksNewIntent } from '../writes.js';
 
@@ -53,6 +53,14 @@ export interface LeaveGuardOptions {
    * overwrite or abandon it. `useWorkbench` passes `commands.abandon` here.
    */
   onLeave?(): void;
+  /**
+   * Whether closing the tab or navigating away is guarded too, on top of the
+   * switch this hook asks about itself. On by default, and only a host that
+   * owns the whole page should be turning it off: the prompt belongs to the
+   * document, so a workbench that puts it up is speaking for every other
+   * thing on that page (D18 Ⅸ).
+   */
+  guardUnload?: boolean;
 }
 
 /**
@@ -70,6 +78,40 @@ function costly(state: LeaveGuardState | null): boolean {
 }
 
 /**
+ * The same question asked of the browser: closing the tab, going back, or
+ * following a link off the page takes the draft with it, and none of that
+ * goes through `request` — nothing in this package is even told it happened.
+ * So while there is something to lose the page says so the one way a page
+ * can, and while there is not it says nothing at all: a tab that argues
+ * about being closed every time is a tab people learn to close twice.
+ *
+ * What it asks with is not ours to choose. Every browser shows its own
+ * sentence and has ignored a custom one for a decade, so the handler carries
+ * no wording — the wording that matters is `LeaveDialog`'s, which is the
+ * question we *can* phrase, and this is the fallback for the exits that never
+ * reach it.
+ *
+ * `window` is checked for, not assumed: `/react` renders on a server too, and
+ * a hook that reached for a global there would take the whole page down (see
+ * `environment.ts`, which answers page visibility the same way).
+ */
+function useUnloadGuard(blocking: boolean): void {
+  useEffect(() => {
+    if (!blocking || typeof window === 'undefined') return;
+    const ask = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      // Legacy, and still what Chrome and Edge before 119 read. The value
+      // itself is never shown; being non-empty is the whole of its meaning.
+      event.returnValue = true;
+    };
+    window.addEventListener('beforeunload', ask);
+    return () => {
+      window.removeEventListener('beforeunload', ask);
+    };
+  }, [blocking]);
+}
+
+/**
  * The confirmation that stands between an open view and the next one.
  *
  * Opening another view releases this one's runtime, and a runtime is where
@@ -77,15 +119,24 @@ function costly(state: LeaveGuardState | null): boolean {
  * the deletion of work, asked about once, and a view with nothing to lose is
  * never asked about at all: a guard that interrupts every switch is one
  * people learn to dismiss without reading.
+ *
+ * The switch inside the page and the way out of the page are the same rule,
+ * so they are read off the same `blocking`: the sidebar, the switcher and a
+ * pushed `instanceId` come through `request`, and the tab's own close button
+ * comes through `beforeunload` (D18 Ⅸ). An embedded view has neither — it
+ * has no editor, no draft and no save, and `EmbeddedView` never calls this
+ * hook — so a business page that shows one is never argued with on the way
+ * out.
  */
 export function useLeaveGuard(
   state: LeaveGuardState | null,
-  { onLeave }: LeaveGuardOptions = {},
+  { onLeave, guardUnload = true }: LeaveGuardOptions = {},
 ): LeaveGuard {
   // The continuation, held until it is answered. Stored inside an object so
   // the state setter does not take it for an updater function.
   const [held, setHeld] = useState<{ next: () => void } | null>(null);
   const blocking = costly(state);
+  useUnloadGuard(guardUnload && blocking);
 
   const request = useCallback(
     (next: () => void) => {

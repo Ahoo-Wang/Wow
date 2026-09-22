@@ -73,6 +73,12 @@ export interface WorkbenchOptions {
    * makes a workbench addressable by a route.
    */
   onInstanceChange?(id: string | null): void;
+  /**
+   * Whether closing the tab is guarded as well as switching views. On by
+   * default; a host that mounts this workbench as one part of a larger page
+   * — or renders it on a server — can say no. See `workbench/leaveGuard.ts`.
+   */
+  guardUnload?: boolean;
 }
 
 /**
@@ -152,7 +158,7 @@ export function useWorkbench(
   definitionId: string,
   options: WorkbenchOptions,
 ): WorkbenchController {
-  const { kind, instanceId, onInstanceChange } = options;
+  const { kind, instanceId, onInstanceChange, guardUnload } = options;
   // Only the views this page can open: the sidebar offers no view the body
   // cannot render, and the effective default is resolved among those alone.
   const list = useViewList(engine, definitionId, { kind });
@@ -171,7 +177,7 @@ export function useWorkbench(
     state ? { dirty: state.dirty, write: state.write } : null,
     // Leaving settles the outcome first, because the runtime it belongs to
     // is about to go.
-    { onLeave: () => commands.abandon() },
+    { onLeave: () => commands.abandon(), guardUnload },
   );
   useReleaseDeleted(openId, chosen, opened, setChosen);
 

@@ -51,7 +51,12 @@ export interface ViewSwitcherProps {
   kind: ViewKind;
   /** The open view, checked in the menu; null while none is. */
   currentId: string | null;
-  /** The open view's title, on the trigger. */
+  /**
+   * The open view's title, on the trigger. Empty where there is no open view
+   * to name — the screen that reports one which will not open, and the moment
+   * before the first one arrives — and the trigger then says what it is for
+   * instead of showing nothing.
+   */
   currentTitle: string;
   onOpen(instanceId: string): void;
   /**
@@ -85,6 +90,17 @@ export function ViewSwitcher({
 }: ViewSwitcherProps) {
   const messages = useViewMessages();
   const Kind = KIND_ICON[kind];
+  // With no view behind it the trigger used to be an icon, a chevron and a
+  // gap where the name would have been — on the "cannot open" screen, where
+  // it is the only way anywhere, that reads as a control that is broken too.
+  // The placeholder is the button's name as well as its label: a button whose
+  // visible word and accessible name differ is one that cannot be asked for
+  // out loud (WCAG 2.5.3), and "Switch view" over an empty trigger names a
+  // view that is not there and offers to leave it.
+  const choosing = currentTitle === '';
+  const name = messages.label(
+    choosing ? 'label.workbench.choose-view' : 'label.workbench.switch-view',
+  );
 
   return (
     <DropdownMenu>
@@ -96,8 +112,9 @@ export function ViewSwitcher({
             size="sm"
             // The title is the label, so the button needs a name for what it
             // *does* — a screen reader otherwise hears the view it is on as
-            // though pressing it would open that one.
-            aria-label={messages.label('label.workbench.switch-view')}
+            // though pressing it would open that one. With no title it is
+            // the label, and the two are the same word.
+            aria-label={name}
             // `max-w-fit` is where the taking stops, and it is the whole of
             // the 470px pill: `grow` alone stretched the trigger across the
             // group whatever it had to say, and the vendored button centres
@@ -127,7 +144,9 @@ export function ViewSwitcher({
         {/* The same 6em floor `ViewHeader` puts under the heading, here
             keeping the label off the icons beside it once the trigger is at
             its own floor above. */}
-        <span className="min-w-[6em] truncate">{currentTitle}</span>
+        <span data-slot="view-switcher-label" className="min-w-[6em] truncate">
+          {choosing ? name : currentTitle}
+        </span>
         {/* The trigger's own foreground, not `muted`: an icon inside a
             button inherits the button's ink, and that grey measures 4.34:1
             on the card this bar sits on (`EditorBand` records the same call
