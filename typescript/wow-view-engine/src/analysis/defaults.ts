@@ -16,6 +16,7 @@ import {
   DEFAULT_RUNTIME_LIMITS,
   fieldAliasSegment,
   isSingleStringField,
+  without,
   type AggregationFieldCapability,
   type AnalysisGroup,
   type AnalysisMetric,
@@ -45,9 +46,23 @@ function defaultMetric(
   capability: DataViewDefinition['analysis'],
 ): AnalysisMetric {
   if (!capability) throw new Error('no analysis capability');
-  if (capability.count) return { type: 'COUNT', alias: 'count' };
+  return firstMetric(capability.count, capability.fields);
+}
 
-  const numeric = capability.fields.find(entry => entry.functions.length > 0);
+/**
+ * The first metric a set of aggregation capabilities can express, in a
+ * fixed order: the count, then the first field that can be summed, counted
+ * distinctly, taken a percentile of, or sampled. The same rule seeds a
+ * fresh definition and an analysis whose expansion left nothing to measure
+ * (`withElements`), over whichever fields that unit holds.
+ */
+export function firstMetric(
+  count: boolean,
+  fields: readonly AggregationFieldCapability[],
+): AnalysisMetric {
+  if (count) return { type: 'COUNT', alias: 'count' };
+
+  const numeric = fields.find(entry => entry.functions.length > 0);
   if (numeric)
     return {
       type: 'NUMERIC',
@@ -56,7 +71,7 @@ function defaultMetric(
       expression: { type: 'FIELD', field: numeric.field },
     };
 
-  const distinct = capability.fields.find(entry => entry.distinctCount);
+  const distinct = fields.find(entry => entry.distinctCount);
   if (distinct)
     return {
       type: 'DISTINCT_COUNT',
@@ -64,7 +79,7 @@ function defaultMetric(
       expression: { type: 'FIELD', field: distinct.field },
     };
 
-  const percentile = capability.fields.find(entry => entry.percentile);
+  const percentile = fields.find(entry => entry.percentile);
   if (percentile)
     return {
       type: 'PERCENTILE',
@@ -73,7 +88,7 @@ function defaultMetric(
       percentile: DEFAULT_PERCENTILE,
     };
 
-  const any = capability.fields.find(entry => entry.any);
+  const any = fields.find(entry => entry.any);
   if (any)
     return { type: 'ANY', alias: aliasOf(any.field, 'any'), field: any.field };
 
@@ -178,4 +193,38 @@ export function defaultAnalysisConfig(
       [metric],
     ),
   };
+}
+
+/**
+ * A name no group or metric is using: `base`'s stem plus the first free
+ * number. Numbering by the row count collided as soon as a row was removed,
+ * so the first free number it is, however rows were added and removed.
+ * Aliases are single-segment in Wow, so a field path becomes one token, and
+ * a copy of `amount_2` is `amount_<next>` rather than `amount_2_1`.
+ */
+export function freeAlias(base: string, taken: readonly string[]): string {
+  const stem = base.split('.').join('_').replace(/_\d+$/, '');
+  const used = new Set(taken);
+  for (let index = 1; ; index += 1) {
+    const alias = `${stem}_${index}`;
+    if (!used.has(alias)) return alias;
+  }
+}
+
+/**
+ * A second card of the same metric with an empty condition to fill in
+ * (D20 屏 H 「复制并加条件」): a free alias, no display name — two cards
+ * called the same thing is the ambiguity a name exists to resolve — and the
+ * summary kept. A derived metric carries no condition and is not copied.
+ */
+export function metricWithCondition(
+  source: AnalysisMetric,
+  taken: readonly string[],
+): AnalysisMetric | undefined {
+  if (source.type === 'DERIVED') return undefined;
+  return {
+    ...without(source, 'label'),
+    alias: freeAlias(source.alias, taken),
+    filter: { op: 'and', children: [] },
+  } as AnalysisMetric;
 }

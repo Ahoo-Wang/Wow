@@ -19,6 +19,8 @@ import {
   HOST_LANGUAGE,
   analysisConfig,
   createStoryEngine,
+  expandableOrdersDefinition,
+  overviewDefinition,
   savedViews,
   type SourceBehaviour,
 } from './fixtures.js';
@@ -43,6 +45,8 @@ function AnalysisWorkbenchDemo({
   series = 'amount',
   pinned = false,
   records = false,
+  expandable = false,
+  allColumns = false,
   limit,
 }: {
   behaviour?: SourceBehaviour;
@@ -57,6 +61,17 @@ function AnalysisWorkbenchDemo({
    * 下钻开出来的是一个记录视图，只在 record 也在 `kinds` 里时开得出来。
    */
   records?: boolean;
+  /**
+   * 这份定义声明不声明一条展开链（D20 屏 G）。声明了，托盘里才有「展开」
+   * 那一槽；它换的是定义而不是配置，因为链是能力说了算的。
+   */
+  expandable?: boolean;
+  /**
+   * 表列不再逐条声明，而是「有什么别名画什么」。托盘里新加的指标因此
+   * 当场多出一列——声明过列的视图只画声明过的那几列，那是作者的选择，
+   * 但它也让「加一条指标」在屏幕上什么也不发生。
+   */
+  allColumns?: boolean;
   /**
    * A row limit the four warehouses can actually hit. Ordering the result
    * makes which rows survive the cut a decision rather than an accident.
@@ -103,11 +118,9 @@ function AnalysisWorkbenchDemo({
       ...(pinned ? { colors: PINNED_COLORS } : {}),
     },
     table: {
-      columns: [
-        { alias: 'warehouse' },
-        { alias: 'orders' },
-        { alias: 'amount' },
-      ],
+      columns: allColumns
+        ? []
+        : [{ alias: 'warehouse' }, { alias: 'orders' }, { alias: 'amount' }],
       totals: true,
     },
   });
@@ -118,6 +131,11 @@ function AnalysisWorkbenchDemo({
         createStoryEngine({
           behaviour,
           instances: [{ ...savedViews[1], config }],
+          ...(expandable
+            ? {
+                definitions: [expandableOrdersDefinition, overviewDefinition],
+              }
+            : {}),
         })
       }
     >
@@ -160,10 +178,14 @@ const meta = {
     series: 'amount',
     pinned: false,
     records: false,
+    expandable: false,
+    allColumns: false,
   },
   argTypes: {
     limit: { table: { disable: true } },
+    allColumns: { control: 'boolean' },
     records: { control: 'boolean' },
+    expandable: { control: 'boolean' },
     behaviour: {
       control: 'inline-radio',
       options: ['data', 'empty', 'slow', 'failing'],
@@ -239,3 +261,12 @@ export const EmptyResult: Story = {
 
 /** A failed aggregation keeps the configuration on screen. */
 export const QueryFailed: Story = { args: { behaviour: 'failing' } };
+
+/**
+ * 一份声明了展开链的定义：托盘里多出「展开」那一槽（D20 屏 G）。展开改的是
+ * 「数的是什么」——展开到明细项，问题就是关于明细项的，仓库那个维度跟着离开。
+ * 故事的数据源不求值 `elements`，所以这个故事到托盘为止，不按「应用」。
+ */
+export const Expandable: Story = {
+  args: { layout: 'table', expandable: true },
+};

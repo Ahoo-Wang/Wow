@@ -18,6 +18,7 @@ import displayMeta, {
   CutShort as DisplayCutShort,
   CutShortTable as DisplayCutShortTable,
   EmptyResult as DisplayEmptyResult,
+  Expandable as DisplayExpandable,
   FollowUps as DisplayFollowUps,
   PieChart as DisplayPieChart,
   PinnedCategoryColor as DisplayPinnedCategoryColor,
@@ -810,6 +811,187 @@ export const TrayCardMenu: Story = {
     // 勾选项不关菜单——设置是在读它的地方切换的。
     await waitFor(() =>
       expect(missing()).toHaveAttribute('aria-checked', 'true'),
+    );
+  },
+};
+
+/**
+ * 指标自己的条件（D20 屏 H）：漏斗在卡片上，条件块就是范围那一套药丸。
+ *
+ * 一个数是在哪些记录上算出来的，这件事只有两处说得清楚：算它之前，和算它的
+ * 那张卡上。所以入口是卡片上的漏斗，而不是菜单里的一项、更不是一个对话框
+ * ——条件属于它收窄的那个指标，就长在那儿；写完收起来，卡片上留下一句
+ * 「只算 …」，于是一屏卡片里两个「金额 的 合计」为什么不一样，读得出来。
+ * 条件是这一个指标自己的：应用之后金额跟着变，旁边的记录数一颗不落。
+ */
+export const MetricCondition: Story = {
+  ...DisplayTableWithTotals,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const amounts = async () =>
+      readColumn(await findDataTable(canvasElement), AMOUNT_HEADER).map(
+        amountOf,
+      );
+    const counts = async () =>
+      readColumn(await findDataTable(canvasElement), COUNT_HEADER);
+    const beforeAmounts = await amounts();
+    const beforeCounts = await counts();
+    await openTray(canvasElement);
+
+    const funnel = () =>
+      canvas.getByRole('button', {
+        name: formatMessage(zhCN, 'label.analysis.condition-of', {
+          name: '金额',
+        }),
+      });
+    await expect(funnel()).toHaveAttribute('aria-pressed', 'false');
+    await userEvent.click(funnel());
+    const block = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="card-conditions"]',
+      );
+      if (!found) throw new Error('条件块没有打开');
+      return found;
+    });
+    await expect(block).toHaveTextContent(
+      zhCN['label.analysis.condition-title'],
+    );
+
+    // 条件用的就是范围那一套手势：字段清单勾一个，完成，再选值。
+    await userEvent.click(
+      within(block).getByRole('button', {
+        name: `金额 ${zhCN['label.filter.add-here']}`,
+      }),
+    );
+    const picker = await screen.findByRole('dialog', {
+      name: zhCN['label.filter.pick-fields'],
+    });
+    await userEvent.click(
+      within(picker).getByRole('checkbox', { name: '状态' }),
+    );
+    await userEvent.click(
+      within(picker).getByRole('button', {
+        name: zhCN['label.filter.pick-done'],
+      }),
+    );
+    await userEvent.click(
+      within(block).getByRole('combobox', {
+        name: formatMessage(zhCN, 'label.filter.value-of', { field: '状态' }),
+      }),
+    );
+    // 能装好几个值的单子写完不会自己关上，下一个手势不在它里面。
+    await userEvent.click(
+      await screen.findByRole('option', { name: '已发运' }),
+    );
+    await userEvent.keyboard('{Escape}');
+
+    await userEvent.click(
+      within(
+        canvasElement.querySelector<HTMLElement>(
+          '[data-slot="analysis-tray-actions"]',
+        )!,
+      ).getByRole('button', { name: zhCN['label.filter.apply'] }),
+    );
+    await waitFor(async () =>
+      expect(await amounts()).not.toEqual(beforeAmounts),
+    );
+    // 只有这一个指标被收窄：记录数还是全部。
+    await expect(await counts()).toEqual(beforeCounts);
+
+    // 收起条件，卡片上留下那句「只算 …」——一个数的读法不该藏在图标后面。
+    await userEvent.click(
+      within(block).getByRole('button', {
+        name: zhCN['label.analysis.condition-close'],
+      }),
+    );
+    const line = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="metric-condition-line"]',
+      );
+      if (!found) throw new Error('卡片上没有「只算 …」那一句');
+      return found;
+    });
+    await expect(line).toHaveTextContent('状态');
+    await expect(line).toHaveTextContent('已发运');
+    await expect(funnel()).toHaveAttribute('data-held');
+  },
+};
+
+/**
+ * 展开（D20 屏 G）：一条链，计数单位跟着最内层走。
+ *
+ * 展开改的是「数的是什么」：展开到明细项，一行就是一个明细项，而仓库是订单
+ * 的字段——在明细项里它什么也不指，所以那个维度跟着这一步离开。「再展开」只
+ * 给声明出来的下一步，收起一层连里面的一起带走。故事的数据源不求值
+ * `elements`（`rowSource.ts` 明着拒绝），所以这一趟到托盘为止，不按「应用」；
+ * 查询里带出去的是什么，由 test/elementsSlot.test.tsx 与
+ * test/analysisCompile.test.ts 钉着。
+ */
+export const TrayExpansion: Story = {
+  ...DisplayExpandable,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    const opened = await openTray(canvasElement);
+    const cards = () =>
+      canvasElement.querySelectorAll('[data-slot="element-card"]');
+    const unit = () =>
+      canvasElement.querySelector('[data-slot="counting-unit"]')?.textContent;
+
+    // 展开夹在范围与那两列之间：它改的是问题问的是什么，不是问题的答案。
+    await expect(
+      [...opened.querySelectorAll('[data-slot^="analysis-slot-"]')].map(slot =>
+        slot.getAttribute('data-slot'),
+      ),
+    ).toEqual([
+      'analysis-slot-range',
+      'analysis-slot-elements',
+      'analysis-slot-dimensions',
+      'analysis-slot-metrics',
+    ]);
+    await expect(unit()).toBe(
+      formatMessage(zhCN, 'label.analysis.unit', { name: '订单' }),
+    );
+
+    await userEvent.click(
+      canvas.getByRole('button', {
+        name: formatMessage(zhCN, 'label.analysis.expand-into', {
+          name: '明细项',
+        }),
+      }),
+    );
+    await waitFor(() => expect(cards()).toHaveLength(1));
+    await expect(unit()).toBe(
+      formatMessage(zhCN, 'label.analysis.unit', { name: '明细项' }),
+    );
+    await expect(
+      canvasElement.querySelectorAll('[data-slot="dimension-card"]'),
+    ).toHaveLength(0);
+
+    // 一条线，一次一步：能再展开的只有能力声明的下一层。
+    await userEvent.click(
+      canvas.getByRole('button', {
+        name: formatMessage(zhCN, 'label.analysis.expand-into', {
+          name: '批次',
+        }),
+      }),
+    );
+    await waitFor(() => expect(cards()).toHaveLength(2));
+    await expect(
+      canvasElement.querySelector('[data-slot="expand-into"]'),
+    ).toBeNull();
+
+    // 收起最外那一层，里面那层跟着走：批次只在明细项里存在。
+    await userEvent.click(
+      canvas.getAllByRole('button', {
+        name: formatMessage(zhCN, 'label.analysis.collapse', {
+          name: '明细项',
+        }),
+      })[0],
+    );
+    await waitFor(() => expect(cards()).toHaveLength(0));
+    await expect(unit()).toBe(
+      formatMessage(zhCN, 'label.analysis.unit', { name: '订单' }),
     );
   },
 };

@@ -13,7 +13,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { MessageFormatters } from '../src/ui/index.js';
-import type { FilterSummaryItem } from '../src/index.js';
+import { COUNT_NAME_TOKEN, type FilterSummaryItem } from '../src/index.js';
 import {
   badgeEntries,
   cellText,
@@ -22,6 +22,7 @@ import {
   isoDay,
   valueText,
   type DisplayField,
+  columnTitle,
 } from '../src/ui/display.js';
 import { summaryText } from '../src/ui/summary.js';
 import { en } from '../src/ui/messages/en.js';
@@ -782,5 +783,31 @@ describe('summaryText', () => {
     expect(
       say({ path: [], text: 'legacy', unresolved: false, label: 'legacy' }),
     ).toBe('legacy');
+  });
+});
+
+describe('columnTitle', () => {
+  const words: MessageFormatters = {
+    label: (key, params, fallback) => {
+      const found = formatMessage(en, key, params);
+      return found === key && fallback !== undefined ? fallback : found;
+    },
+    issue: () => '',
+    issues: () => '',
+  };
+
+  // A derived metric names the record count by the kernel's token, which
+  // holds no catalogue; the title puts the word in its place, wherever it
+  // stands in the text. A formula keeps its summary appended.
+  it('words a derived metric’s reference to the record count', () => {
+    expect(
+      columnTitle(
+        { label: `Amount ÷ ${COUNT_NAME_TOKEN}`, fn: 'DERIVED' },
+        words,
+      ),
+    ).toBe('Amount ÷ Record count');
+    expect(columnTitle({ label: 'Amount − Cost', fn: 'SUM' }, words)).toBe(
+      'Sum of Amount − Cost',
+    );
   });
 });

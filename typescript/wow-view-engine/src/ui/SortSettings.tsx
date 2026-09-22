@@ -28,7 +28,6 @@ import type {
   RecordSort,
   SortDirection,
 } from '../model/index.js';
-import type { RecordTableController } from '../react/index.js';
 import { Button } from './components/button.js';
 import { Empty, EmptyDescription, EmptyHeader } from './components/empty.js';
 import {
@@ -121,8 +120,18 @@ function sortButtonName(
     : `${name} ${messages.label('label.sort.more', { count: more })}`;
 }
 
+/**
+ * What the editor needs of whoever owns the sort: the record table, or the
+ * analysis editor with its aliases standing in for fields.
+ */
+export interface SortOwner {
+  sort: RecordSort[];
+  setSort(sort: RecordSort[]): void;
+  maxSortFields: number;
+}
+
 export interface SortSettingsProps {
-  table: RecordTableController;
+  table: SortOwner;
   /** The fields the definition offers; only sortable ones are listed. */
   fields: readonly FieldDefinition[];
   /** The picker groups of the definition the fields come from. */

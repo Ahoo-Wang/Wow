@@ -11,7 +11,16 @@
  * limitations under the License.
  */
 
-import { DEFAULT_MISSING_KEY } from '../../analysis/index.js';
+import {
+  DEFAULT_MISSING_KEY,
+  derivedText,
+  expressionText,
+  freeAlias,
+  isFormula,
+} from '../../analysis/index.js';
+import type { MessageFormatters } from '../MessagesProvider.js';
+
+export { freeAlias };
 import type {
   AnalysisDateUnit,
   AnalysisFunction,
@@ -28,24 +37,6 @@ import type {
  * field starts as, and the shape a choice on a card turns it into. Pure, so
  * the cards stay markup and the tests read the rules straight.
  */
-
-/**
- * A name no group or metric is using.
- *
- * Numbering by the row count collided as soon as a row was removed: two rows
- * added after one deletion were both `amount_2`, which React saw as one key
- * and validation reported as a duplicate alias. The first free number cannot
- * collide however the rows were added and removed. Aliases are single-segment
- * in Wow, so a field path becomes one token.
- */
-export function freeAlias(base: string, taken: readonly string[]): string {
-  const stem = base.split('.').join('_');
-  const used = new Set(taken);
-  for (let index = 1; ; index += 1) {
-    const alias = `${stem}_${index}`;
-    if (!used.has(alias)) return alias;
-  }
-}
 
 /** Every alias in use, which is the set an addition must stay clear of. */
 export function aliasesOf(analysis: AnalysisEditorController): string[] {
@@ -163,4 +154,37 @@ export function fieldOfMetric(metric: AnalysisMetric): string {
   if (metric.type === 'COUNT' || metric.type === 'DERIVED') return '';
   if (metric.type === 'ANY') return metric.field;
   return metric.expression.type === 'FIELD' ? metric.expression.field : '';
+}
+
+/**
+ * What a metric is called on the tray: the name the analyst gave, else
+ * what the metric composes — the record count's own word, a formula or a
+ * derived metric said as its author would, a field's label otherwise.
+ */
+export function metricName(
+  analysis: AnalysisEditorController,
+  metric: AnalysisMetric,
+  messages: MessageFormatters,
+): string {
+  return metric.label ?? metricFallbackName(analysis, metric, messages);
+}
+
+/** The name a metric falls back to without one of its own. */
+export function metricFallbackName(
+  analysis: AnalysisEditorController,
+  metric: AnalysisMetric,
+  messages: MessageFormatters,
+): string {
+  const fieldLabel = (field: string) =>
+    analysis.fields.find(entry => entry.field === field)?.label ?? field;
+  if (metric.type === 'COUNT')
+    return messages.label('label.analysis.row-count');
+  if (isFormula(metric)) return expressionText(metric.expression, fieldLabel);
+  if (metric.type === 'DERIVED')
+    return derivedText(metric.expression, alias => {
+      const referenced = analysis.metrics.find(entry => entry.alias === alias);
+      return referenced ? metricName(analysis, referenced, messages) : alias;
+    });
+  const field = fieldOfMetric(metric);
+  return fieldLabel(field);
 }

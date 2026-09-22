@@ -14,7 +14,9 @@
 import { useCallback, useMemo } from 'react';
 import type {
   FieldGroupDefinition,
+  FilterTree,
   AnalysisDateUnit,
+  AnalysisElement,
   AnalysisFunction,
   AnalysisGroup,
   AnalysisGroupType,
@@ -28,15 +30,27 @@ import type {
 } from '../model/index.js';
 import {
   analysisScope,
-  DEFAULT_MISSING_KEY,
+  collapsed,
+  elementFilterFields,
+  expanded,
   fitChartSlots,
+  havingRows,
+  levelLabel,
+  nextLevel,
+  withElements,
   rangeSpan,
   recommendDateUnit,
   resultSpan,
   type AnalysisScope,
 } from '../analysis/index.js';
-import { isSingleStringField, without } from '../model/index.js';
-import { comparePending, type ViewRuntime } from '../runtime/index.js';
+import { isFieldlessKind, isSingleStringField } from '../model/index.js';
+import { questionEditing, type QuestionEditing } from './analysisEditing.js';
+import type { FieldKindRegistry } from '../filter/index.js';
+import {
+  comparePending,
+  type OptionSource,
+  type ViewRuntime,
+} from '../runtime/index.js';
 import { useViewRuntime } from './useViewEngine.js';
 
 /** One field and what the definition allows doing with it. */
@@ -55,7 +69,28 @@ export interface AnalysisFieldOption {
   missingKey: boolean;
 }
 
-export interface AnalysisEditorController {
+export interface AnalysisEditorController extends QuestionEditing {
+  /**
+   * The expansion chain in force, outermost first (D20 屏 G): the arrays
+   * the analysis counts inside. Empty when it counts records.
+   */
+  elements: AnalysisElement[];
+  /** The next level the capability declares beyond the chain, or none. */
+  expandable: { path: string; label: string } | null;
+  /** Whether the capability declares a chain at all: the slot exists then. */
+  expansible: boolean;
+  /** What is being counted: the innermost element, or the definition's records. */
+  unit: string;
+  /** The array a level expands, as its field is labelled. */
+  elementLabel(index: number): string;
+  /** The fields a level's own gate may name. */
+  elementFields(index: number): FieldDefinition[];
+  /** One level deeper, along the declared chain; re-scopes the question. */
+  expand(path: string): void;
+  /** Cuts the chain at `index`: that level and every level inside it leave. */
+  collapse(index: number): void;
+  /** A level's gate on the entries it lets through, or none. */
+  setElementFilter(index: number, filter: FilterTree | undefined): void;
   groups: AnalysisGroup[];
   metrics: AnalysisMetric[];
   sort: AnalysisSort[];
@@ -72,6 +107,26 @@ export interface AnalysisEditorController {
   /** The picker groups the definition declares. */
   fieldGroups: readonly FieldGroupDefinition[];
   countable: boolean;
+  /** Whether 「只保留」 exists here: the capability declares `having`. */
+  havingAllowed: boolean;
+  /** Whether a formula or a derived metric may be written: `expressions`. */
+  expressionsAllowed: boolean;
+  /**
+   * 「只保留」 as rows of one comparison each, or `null` when the stored
+   * having is a shape the rows cannot say (`havingRows`).
+   */
+  having: ReturnType<typeof havingRows>;
+  /**
+   * The fields a metric's own condition may name (D20 屏 H): the scalar
+   * fields of the analysis scope — never a search, an array or an element
+   * match, which Wow refuses in metric position — as the range's editor
+   * names them, so the condition is built of the same pills.
+   */
+  conditionFields: readonly FieldDefinition[];
+  /** The kinds those fields are read by; absent without a runtime. */
+  kinds: FieldKindRegistry | undefined;
+  /** Candidates for a remote value editor, as the range's editor has them. */
+  optionSource?(remote: string): OptionSource | null;
   /**
    * True while the draft says something the last Run did not (D17-6): the
    * groups, metrics, sort, limit, chart and totals all wait for Run, and a
@@ -86,28 +141,27 @@ export interface AnalysisEditorController {
    * buckets a result already has on it, else the field's first unit.
    */
   dateUnitFor(field: AnalysisFieldOption): AnalysisDateUnit;
-  addGroup(group: AnalysisGroup): void;
-  updateGroup(index: number, patch: Partial<AnalysisGroup>): void;
-  removeGroup(index: number): void;
-  /** Names a dimension on screen, or takes the name back with `undefined`. */
-  renameGroup(index: number, label: string | undefined): void;
-  /** Keeps records missing the value as a group of their own, or drops them. */
-  setMissingBucket(index: number, on: boolean): void;
-  /** Fills in the empty periods of a time dimension, or leaves them out. */
-  setDense(index: number, on: boolean): void;
-  addMetric(metric: AnalysisMetric): void;
-  updateMetric(index: number, patch: Partial<AnalysisMetric>): void;
   /**
    * Puts a whole metric in a row's place. A change of summary is a change
    * of type — a sum becomes a distinct count — and a patch over the old
    * shape would leave its `function` or `expression` behind for admission
    * to trip over; the card builds the new metric and swaps it in.
    */
-  replaceMetric(index: number, metric: AnalysisMetric): void;
-  /** Refuses the last metric: an aggregation query needs at least one. */
-  removeMetric(index: number): void;
-  /** Names a metric on screen, or takes the name back with `undefined`. */
-  renameMetric(index: number, label: string | undefined): void;
+  /**
+   * The conditions a metric counts under, or none. An empty tree is kept
+   * while the card is being filled in — validation says it is unfinished
+   * and the query waits — and `undefined` takes the condition away.
+   */
+  /**
+   * A second card of the same metric, right after it, with an empty
+   * condition to fill in: 「复制『金额 合计』并加条件」. The copy keeps no
+   * display name — two cards called the same thing is the ambiguity the
+   * name exists to resolve, and the condition it is about to carry is what
+   * resolves it. Answers the copy's alias, which is what names the card, so
+   * the slot can open the copy's conditions on the spot: the menu item
+   * promised a condition, and a second identical card with nothing open is
+   * not one. `undefined` where there was nothing to copy.
+   */
   setSort(sort: AnalysisSort[]): void;
   setLimit(limit: number): void;
   /** A redraw of the same rows, never a run; nor does it count as pending. */
@@ -185,7 +239,10 @@ export function useAnalysisEditor(
     (
       update: (
         current: AnalysisViewConfig,
-      ) => Pick<AnalysisViewConfig, 'groups' | 'metrics'> | undefined,
+      ) =>
+        | (Pick<AnalysisViewConfig, 'groups' | 'metrics'> &
+            Partial<Pick<AnalysisViewConfig, 'elements'>>)
+        | undefined,
     ) =>
       change(current => {
         const next = update(current);
@@ -260,8 +317,79 @@ export function useAnalysisEditor(
 
   const groups = config?.groups ?? [];
   const metrics = config?.metrics ?? [];
+  const elements = useMemo(() => config?.elements ?? [], [config?.elements]);
+  const elementLabel = useCallback(
+    (index: number): string =>
+      scope && definition ? levelLabel(definition, scope, index) : '',
+    [scope, definition],
+  );
+  const expandable = useMemo(
+    () =>
+      scope && definition
+        ? (nextLevel(definition, scope, elements) ?? null)
+        : null,
+    [scope, definition, elements],
+  );
+  const rescope = useCallback(
+    (next: AnalysisElement[]) =>
+      reshape(current =>
+        definition && capability
+          ? withElements(current, next, definition, capability)
+          : undefined,
+      ),
+    [reshape, definition, capability],
+  );
+  const conditionFields = useMemo<FieldDefinition[]>(() => {
+    if (!scope || !runtime) return [];
+    return [...scope.fields.values()].filter((field: FieldDefinition) => {
+      const kind = runtime.kinds.get(field.kind);
+      return (
+        kind !== undefined &&
+        kind.scalar !== false &&
+        !isFieldlessKind(field.kind, kind)
+      );
+    });
+  }, [scope, runtime]);
+
+  const editing = useMemo(
+    () => questionEditing({ reshape, edit, scope }),
+    [reshape, edit, scope],
+  );
 
   return {
+    elements,
+    expandable,
+    expansible: (scope?.declaredChain.length ?? 0) > 0,
+    unit:
+      elements.length > 0
+        ? elementLabel(elements.length - 1)
+        : (definition?.title ?? ''),
+    elementLabel,
+    elementFields: useCallback(
+      (index: number) => (scope ? elementFilterFields(scope, index) : []),
+      [scope],
+    ),
+    expand: useCallback(
+      (path: string) => rescope(expanded(elements, path)),
+      [rescope, elements],
+    ),
+    collapse: useCallback(
+      (index: number) => rescope(collapsed(elements, index)),
+      [rescope, elements],
+    ),
+    setElementFilter: useCallback(
+      (index: number, filter: FilterTree | undefined) =>
+        change(current => ({
+          elements: (current.elements ?? []).map((element, at) =>
+            at !== index
+              ? element
+              : filter === undefined
+                ? { path: element.path }
+                : { ...element, filter },
+          ),
+        })),
+      [change],
+    ),
     groups,
     metrics,
     sort: config?.sort ?? [],
@@ -280,144 +408,18 @@ export function useAnalysisEditor(
     fields,
     fieldGroups: definition?.fieldGroups ?? EMPTY_GROUPS,
     countable: capability?.count === true,
+    havingAllowed: capability?.having === true,
+    expressionsAllowed: capability?.expressions === true,
+    having: havingRows(config?.having),
+    conditionFields,
+    kinds: runtime?.kinds,
+    ...(runtime ? { optionSource: runtime.optionSource.bind(runtime) } : {}),
     dateUnitFor,
     pending: state
       ? comparePending(state.draft, state.applied, state.issues).pending
       : false,
 
-    addGroup: useCallback(
-      (group: AnalysisGroup) =>
-        reshape(current => ({
-          groups: [...current.groups, group],
-          metrics: current.metrics,
-        })),
-      [reshape],
-    ),
-    updateGroup: useCallback(
-      (index: number, patch: Partial<AnalysisGroup>) =>
-        reshape(current => ({
-          groups: current.groups.map((group, at) =>
-            at === index ? ({ ...group, ...patch } as AnalysisGroup) : group,
-          ),
-          metrics: current.metrics,
-        })),
-      [reshape],
-    ),
-    removeGroup: useCallback(
-      (index: number) =>
-        reshape(current => ({
-          groups: current.groups.filter((_group, at) => at !== index),
-          metrics: current.metrics,
-        })),
-      [reshape],
-    ),
-    // The three settings that come and go rather than change: a name taken
-    // back, a sentinel bucket dropped, a fill switched off leave no key
-    // behind, so the config stays what a fresh one would be.
-    renameGroup: useCallback(
-      (index: number, label: string | undefined) =>
-        reshape(current => ({
-          groups: current.groups.map((group, at) =>
-            at !== index
-              ? group
-              : label === undefined
-                ? (without(group, 'label') as AnalysisGroup)
-                : { ...group, label },
-          ),
-          metrics: current.metrics,
-        })),
-      [reshape],
-    ),
-    setMissingBucket: useCallback(
-      (index: number, on: boolean) =>
-        reshape(current => ({
-          groups: current.groups.map((group, at) =>
-            at !== index || group.type !== 'TERMS'
-              ? group
-              : on
-                ? { ...group, missingKey: DEFAULT_MISSING_KEY }
-                : (without(group, 'missingKey') as AnalysisGroup),
-          ),
-          metrics: current.metrics,
-        })),
-      [reshape],
-    ),
-    setDense: useCallback(
-      (index: number, on: boolean) =>
-        reshape(current => ({
-          groups: current.groups.map((group, at) =>
-            at !== index || group.type !== 'DATE_HISTOGRAM'
-              ? group
-              : on
-                ? { ...group, dense: true }
-                : (without(group, 'dense') as AnalysisGroup),
-          ),
-          metrics: current.metrics,
-        })),
-      [reshape],
-    ),
-
-    addMetric: useCallback(
-      (metric: AnalysisMetric) =>
-        reshape(current => ({
-          groups: current.groups,
-          metrics: [
-            ...current.metrics,
-            metric,
-          ] as AnalysisViewConfig['metrics'],
-        })),
-      [reshape],
-    ),
-    updateMetric: useCallback(
-      (index: number, patch: Partial<AnalysisMetric>) =>
-        reshape(current => ({
-          groups: current.groups,
-          metrics: current.metrics.map((metric, at) =>
-            at === index ? ({ ...metric, ...patch } as AnalysisMetric) : metric,
-          ) as AnalysisViewConfig['metrics'],
-        })),
-      [reshape],
-    ),
-    replaceMetric: useCallback(
-      (index: number, metric: AnalysisMetric) =>
-        reshape(current => ({
-          groups: current.groups,
-          metrics: current.metrics.map((entry, at) =>
-            at === index ? metric : entry,
-          ) as AnalysisViewConfig['metrics'],
-        })),
-      [reshape],
-    ),
-    renameMetric: useCallback(
-      (index: number, label: string | undefined) =>
-        reshape(current => ({
-          groups: current.groups,
-          metrics: current.metrics.map((metric, at) =>
-            at !== index
-              ? metric
-              : label === undefined
-                ? (without(metric, 'label') as AnalysisMetric)
-                : { ...metric, label },
-          ) as AnalysisViewConfig['metrics'],
-        })),
-      [reshape],
-    ),
-    removeMetric: useCallback(
-      (index: number) =>
-        reshape(current =>
-          // An aggregation query without a metric has nothing to return.
-          current.metrics.length <= 1
-            ? undefined
-            : {
-                groups: current.groups,
-                metrics: current.metrics.filter(
-                  (_metric, at) => at !== index,
-                ) as AnalysisViewConfig['metrics'],
-              },
-        ),
-      [reshape],
-    ),
-
+    ...editing,
     setSort: useCallback((sort: AnalysisSort[]) => edit({ sort }), [edit]),
     setLimit: useCallback((limit: number) => edit({ limit }), [edit]),
     // A redraw, not a run: the result's rows are drawn as a table or as a

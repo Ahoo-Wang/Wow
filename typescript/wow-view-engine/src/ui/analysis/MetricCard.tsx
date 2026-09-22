@@ -13,7 +13,7 @@
 
 import { useRef, useState } from 'react';
 import { PlusIcon, XIcon } from 'lucide-react';
-import type { AnalysisMetric } from '../../model/index.js';
+import type { AnalysisMetric, FieldOption } from '../../model/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
 import { Button } from '../components/button.js';
 import {
@@ -28,13 +28,23 @@ import { IconButton } from '../IconButton.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { DropdownMenuContent } from '../popups.js';
 import { EditorCard, EditorSlot } from '../variants.js';
+import { isFormula } from '../../analysis/index.js';
 import { CardMenu, CardName } from './CardMenu.js';
 import { CompactSelect } from './CompactSelect.js';
+import { DerivedControls, FormulaControls } from './FormulaCard.js';
+import { HavingRows } from './HavingRows.js';
+import {
+  ConditionBlock,
+  ConditionButton,
+  ConditionLine,
+  conditionItems,
+} from './MetricCondition.js';
 import {
   aliasesOf,
   defaultMetric,
   fieldOfMetric,
   freeAlias,
+  metricFallbackName,
   metricOfSummary,
   summaryChoices,
   summaryOf,
@@ -50,14 +60,21 @@ import { SortRow } from './SortRow.js';
 export function MetricSlot({
   analysis,
   disabled,
+  optionsFor,
 }: {
   analysis: AnalysisEditorController;
   disabled?: boolean;
+  optionsFor?(remote: string): FieldOption[] | undefined;
 }) {
   const messages = useViewMessages();
   const measurable = analysis.fields.filter(
     field => summaryChoices(field).length > 0,
   );
+  // Which card has its conditions open, by the alias that names it. The
+  // slot holds it rather than each card, because the one gesture that opens
+  // a card's conditions from *another* card is the copy: 「复制并加条件」
+  // makes the copy and opens it, which is the condition it promised.
+  const [conditioning, setConditioning] = useState<string | null>(null);
   return (
     <EditorSlot
       name="metrics"
@@ -71,6 +88,12 @@ export function MetricSlot({
           metric={metric}
           index={index}
           disabled={disabled}
+          optionsFor={optionsFor}
+          conditioning={conditioning === metric.alias}
+          onConditioning={open => setConditioning(open ? metric.alias : null)}
+          onDuplicate={() =>
+            setConditioning(analysis.duplicateMetric(index) ?? null)
+          }
         />
       ))}
       <DropdownMenu>
@@ -119,9 +142,30 @@ export function MetricSlot({
               </DropdownMenuItem>
             )}
           />
+          {/* The two metrics written rather than picked, where the
+              capability declares expressions (D20 屏 B). */}
+          {analysis.expressionsAllowed && (
+            <DropdownMenuGroup>
+              <DropdownMenuItem
+                disabled={measurable.length === 0}
+                onClick={() => analysis.addFormula()}
+              >
+                {messages.label('label.analysis.add-formula')}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={
+                  !analysis.metrics.some(metric => metric.type !== 'ANY')
+                }
+                onClick={() => analysis.addDerived()}
+              >
+                {messages.label('label.analysis.add-derived')}
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
       <SortRow analysis={analysis} disabled={disabled} />
+      <HavingRows analysis={analysis} disabled={disabled} />
     </EditorSlot>
   );
 }
@@ -137,14 +181,28 @@ function MetricCard({
   metric,
   index,
   disabled,
+  optionsFor,
+  conditioning,
+  onConditioning,
+  onDuplicate,
 }: {
   analysis: AnalysisEditorController;
   metric: AnalysisMetric;
   index: number;
   disabled?: boolean;
+  optionsFor?(remote: string): FieldOption[] | undefined;
+  /**
+   * Whether this card's own conditions (D20 屏 H) are open under it. The
+   * slot decides, because a copy opens the card it made rather than itself.
+   */
+  conditioning: boolean;
+  onConditioning(open: boolean): void;
+  onDuplicate(): void;
 }) {
   const messages = useViewMessages();
   const [renaming, setRenaming] = useState(false);
+  const conditions = conditionItems(analysis, metric);
+  const held = metric.type !== 'DERIVED' && metric.filter !== undefined;
   const menu = useRef<HTMLButtonElement>(null);
   const done = () => {
     setRenaming(false);
@@ -154,10 +212,7 @@ function MetricCard({
   const field = analysis.fields.find(entry => entry.field === fieldName);
   // What the card is called, and what every control on it is named after:
   // the name the analyst gave, else what the field composes (D20 显示名).
-  const fallback =
-    metric.type === 'COUNT'
-      ? messages.label('label.analysis.row-count')
-      : (field?.label ?? fieldName);
+  const fallback = metricFallbackName(analysis, metric, messages);
   const name = metric.label ?? fallback;
   const choices = field ? summaryChoices(field) : [];
   const choice = summaryOf(metric);
@@ -182,7 +237,25 @@ function MetricCard({
         onRename={label => analysis.renameMetric(index, label)}
         onDone={done}
       />
-      {field && choice !== null && choices.length > 0 && (
+      {isFormula(metric) && (
+        <FormulaControls
+          analysis={analysis}
+          metric={metric}
+          index={index}
+          name={name}
+          disabled={disabled}
+        />
+      )}
+      {metric.type === 'DERIVED' && (
+        <DerivedControls
+          analysis={analysis}
+          metric={metric}
+          index={index}
+          name={name}
+          disabled={disabled}
+        />
+      )}
+      {field && choice !== null && choices.length > 0 && !isFormula(metric) && (
         <CompactSelect
           label={messages.label('label.analysis.function-of', { name })}
           items={choices.map(entry => ({ value: entry, label: word(entry) }))}
@@ -210,12 +283,33 @@ function MetricCard({
           }}
         />
       )}
+      {metric.type !== 'DERIVED' && (
+        <ConditionButton
+          label={messages.label('label.analysis.condition-of', { name })}
+          open={conditioning}
+          held={held}
+          disabled={disabled}
+          onToggle={() => {
+            if (!conditioning && !held)
+              analysis.setMetricFilter(index, { op: 'and', children: [] });
+            onConditioning(!conditioning);
+          }}
+        />
+      )}
       <CardMenu
         ref={menu}
         name={name}
         disabled={disabled}
         onRename={() => setRenaming(true)}
-      />
+      >
+        {metric.type !== 'DERIVED' && (
+          <DropdownMenuItem onClick={onDuplicate}>
+            {messages.label('label.analysis.copy-with-condition', {
+              name: metric.label ?? name,
+            })}
+          </DropdownMenuItem>
+        )}
+      </CardMenu>
       <IconButton
         label={messages.label('label.analysis.remove-metric', { name })}
         variant="ghost"
@@ -233,6 +327,19 @@ function MetricCard({
         <span data-slot="metric-note" className="text-muted-foreground w-full">
           {messages.label('label.analysis.any-note')}
         </span>
+      )}
+      {conditioning ? (
+        <ConditionBlock
+          analysis={analysis}
+          metric={metric}
+          index={index}
+          name={metric.label ?? name}
+          disabled={disabled}
+          optionsFor={optionsFor}
+          onClose={() => onConditioning(false)}
+        />
+      ) : (
+        <ConditionLine items={conditions} />
       )}
     </EditorCard>
   );

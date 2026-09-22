@@ -228,12 +228,20 @@ describe('a tray card’s menu', () => {
         name: defaultMessages['label.analysis.rename'],
       }),
     ).toBeDefined();
-    // The metric card has the rename and nothing else: the choices below
-    // are a dimension's, because only a dimension buckets anything.
+    // The metric card has the rename and the copy with a condition, and
+    // nothing else: the bucket choices are a dimension's, because only a
+    // dimension buckets anything.
     closeMenu();
     expect(
-      within(await cardMenu('Record count')).getAllByRole('menuitem'),
-    ).toHaveLength(1);
+      within(await cardMenu('Record count'))
+        .getAllByRole('menuitem')
+        .map(item => item.textContent),
+    ).toEqual([
+      defaultMessages['label.analysis.rename'],
+      formatMessage(defaultMessages, 'label.analysis.copy-with-condition', {
+        name: 'Record count',
+      }),
+    ]);
   });
 });
 

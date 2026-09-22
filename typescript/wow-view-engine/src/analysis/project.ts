@@ -30,6 +30,12 @@ import {
   metricFunctionOf,
   type MetricFunction,
 } from './metricFormat.js';
+import {
+  COUNT_NAME_TOKEN,
+  derivedText,
+  expressionText,
+  isFormula,
+} from './formula.js';
 
 /** A column of the result table; groups come first, then metrics. */
 export interface AnalysisColumnView {
@@ -239,7 +245,12 @@ export function projectAnalysis(
     return [
       {
         alias,
-        label: named ?? field?.label ?? source ?? alias,
+        label:
+          named ??
+          (metric && formulaLabel(metric, byName, byAlias)) ??
+          field?.label ??
+          source ??
+          alias,
         role,
         ...(named === undefined ? {} : { named: true }),
         ...(metric ? { fn: metricFunctionOf(metric) } : {}),
@@ -332,4 +343,33 @@ function scopeFields(
       `Definition ${definition.id} declares no analysis capability`,
     );
   return analysisScope(definition, capability, config).fields;
+}
+
+/**
+ * A formula or a derived metric said as its author would — 「金额 − 成本」,
+ * 「金额合计 ÷ 客户数」 — which is the only name either has: no field stands
+ * behind a formula, and a derived metric reads other metrics by alias.
+ */
+function formulaLabel(
+  metric: AnalysisMetric,
+  byName: ReadonlyMap<string, FieldDefinition>,
+  byAlias: ReadonlyMap<string, AnalysisMetric>,
+): string | undefined {
+  const fieldLabel = (field: string) => byName.get(field)?.label ?? field;
+  if (isFormula(metric)) return expressionText(metric.expression, fieldLabel);
+  if (metric.type !== 'DERIVED') return undefined;
+  return derivedText(metric.expression, alias => {
+    const referenced = byAlias.get(alias);
+    if (!referenced) return alias;
+    const source = sourceFieldOf(referenced);
+    return (
+      referenced.label ??
+      formulaLabel(referenced, byName, byAlias) ??
+      (referenced.type === 'COUNT'
+        ? COUNT_NAME_TOKEN
+        : source === undefined
+          ? alias
+          : fieldLabel(source))
+    );
+  });
 }

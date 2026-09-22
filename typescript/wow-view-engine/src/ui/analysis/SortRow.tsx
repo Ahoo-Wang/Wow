@@ -11,22 +11,19 @@
  * limitations under the License.
  */
 
-import { ArrowDownIcon, ArrowUpIcon } from 'lucide-react';
+import type { FieldDefinition } from '../../model/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
 import { NumberInput } from '../FilterValueEditor.js';
-import { IconButton } from '../IconButton.js';
 import { TEXT_UI } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
-import { CompactSelect } from './CompactSelect.js';
-import { fieldOfMetric } from './editing.js';
-
-const NONE = '';
+import { SortSettings } from '../SortSettings.js';
+import { metricName } from './editing.js';
 
 /**
  * What the first N groups are the first N of: the sort, and the N, on one
- * row at the bottom of the metrics slot. One sort entry here; Wow takes
- * several, which the tray does not offer yet. A sort needs a dimension, so
- * the row waits for one.
+ * row at the bottom of the metrics slot. The record view's own editor takes
+ * as many entries as there are aliases, so "first by one, then by the next"
+ * is sayable here too. A sort needs a dimension, so the row waits for one.
  */
 export function SortRow({
   analysis,
@@ -37,64 +34,43 @@ export function SortRow({
 }) {
   const messages = useViewMessages();
   if (analysis.groups.length === 0) return null;
-  const nameOf = (alias: string) => {
-    const group = analysis.groups.find(entry => entry.alias === alias);
-    const metric = analysis.metrics.find(entry => entry.alias === alias);
-    const field = group?.field ?? (metric && fieldOfMetric(metric));
-    if (metric?.type === 'COUNT')
-      return messages.label('label.analysis.row-count');
-    return analysis.fields.find(entry => entry.field === field)?.label ?? alias;
-  };
-  const items = [
-    { value: NONE, label: messages.label('label.analysis.sort-none') },
-    ...[...analysis.aliases.groups, ...analysis.aliases.metrics].map(alias => ({
-      value: alias,
-      label: nameOf(alias),
+  // The record view's own sort editor, over the aliases as if they were
+  // fields (D20: one control for one thing): every dimension and metric
+  // may order the groups, first by one, then by the next.
+  const fields: FieldDefinition[] = [
+    ...analysis.groups.map(group => ({
+      name: group.alias,
+      label:
+        group.label ??
+        analysis.fields.find(entry => entry.field === group.field)?.label ??
+        group.field,
+      kind: 'string',
+      sortable: true,
+    })),
+    ...analysis.metrics.map(metric => ({
+      name: metric.alias,
+      label: metricName(analysis, metric, messages),
+      kind: 'number',
+      sortable: true,
     })),
   ];
-  const first = analysis.sort[0];
-  const direction = first?.direction ?? 'DESC';
+  const owner = {
+    sort: analysis.sort.map(entry => ({
+      field: entry.alias,
+      direction: entry.direction,
+    })),
+    setSort: (sort: { field: string; direction: 'ASC' | 'DESC' }[]) =>
+      analysis.setSort(
+        sort.map(entry => ({ alias: entry.field, direction: entry.direction })),
+      ),
+    maxSortFields: fields.length,
+  };
   return (
     <div
       data-slot="analysis-sort"
       className={`mt-auto flex flex-wrap items-center gap-2 ${TEXT_UI}`}
     >
-      <span className="text-muted-foreground">
-        {messages.label('label.analysis.sort')}
-      </span>
-      <CompactSelect
-        label={messages.label('label.analysis.sort')}
-        items={items}
-        value={first?.alias ?? NONE}
-        disabled={disabled}
-        onChange={alias =>
-          analysis.setSort(alias === NONE ? [] : [{ alias, direction }])
-        }
-      />
-      {first && (
-        <IconButton
-          // Named by what pressing it does: the other direction.
-          label={messages.label(
-            direction === 'DESC'
-              ? 'label.sort.ascending'
-              : 'label.sort.descending',
-            { field: nameOf(first.alias) },
-          )}
-          variant="ghost"
-          size="icon-xs"
-          disabled={disabled}
-          onClick={() =>
-            analysis.setSort([
-              {
-                alias: first.alias,
-                direction: direction === 'DESC' ? 'ASC' : 'DESC',
-              },
-            ])
-          }
-        >
-          {direction === 'DESC' ? <ArrowDownIcon /> : <ArrowUpIcon />}
-        </IconButton>
-      )}
+      <SortSettings table={owner} fields={fields} />
       <NumberInput
         label={messages.label('label.analysis.row-limit')}
         chrome="box"

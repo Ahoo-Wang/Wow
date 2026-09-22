@@ -21,6 +21,35 @@
 - **跑不起来的配置从状态行回到托盘**：`errorAction` 是一颗「打开分析」（`label.analysis.open-editor`），因为发现是关于托盘的，而托盘可能正折着（F11）。
 - 纯规则都在 `ui/analysis/editing.ts`（`freeAlias`、`defaultGroup`、`groupOfType`、`summaryOf`、`summaryChoices`、`metricOfSummary`、`defaultMetric`、`fieldOfMetric`），卡片因此只剩标记。（见 test/analysisTray.test.tsx「the analysis tray」「opens a saved view folded, and the toggle opens the tray」「lays the slots out as range, then dimensions beside metrics」「carries one primary button on the screen, and it is Apply」「marks Apply while any slot holds something that has not run」「reaches the condition grammar from the range slot’s heading」「opens the tray from a config that will not run」「the tray’s dimension cards」「the tray’s metric cards」「swaps the whole metric when the summary changes」、test/analysisCards.test.tsx「a tray card’s menu」「a display name」「drops the edit on Escape, and starts fresh the next time」「titles the header and the reading once it has run」「the sentinel bucket」「filling in empty periods」「the granularity a new time dimension starts at」「the fields a dimension may be added on」与 stories/view-engine 的 `TrayFolds`、`TrayEdits`、`TrayCardMenu`）
 
+### 指标的条件：只算满足条件的记录
+
+D20 屏 H。一个数是在哪些记录上算出来的，跟这个数本身一样要紧：一屏卡片上两个「金额 的 合计」，差别只在其中一个「只算已付款的」——看不见这句话，两个数就都读不懂。规则本身（一个指标位的筛选能说什么）在 [kernels.md](../kernels.md#analysis-内核的规则) 与 `analysis/queryFilter.ts`，这里只说屏幕。
+
+- **入口是卡片上的漏斗，不是菜单里的一项，也不是一个对话框**（`ui/analysis/MetricCondition.tsx` 的 `ConditionButton`，`data-slot="metric-condition-toggle"`，名字是 `label.analysis.condition-of`「{name} 只算满足条件的记录」）。条件属于它收窄的那个指标，所以它长在那个指标上：块就开在卡片下面（`data-slot="card-conditions"`，`role="group"`，与按钮同名），编辑的时候旁边那几张卡都还在，"这个数和那个数差在哪儿"是一眼能比的。对话框会把其余的卡片盖掉，正好盖掉唯一要对照的东西。按钮在块开着的时候 `aria-pressed`，指标带着条件的时候 `data-held` 并换成 `secondary` 变体——"这个数是收窄过的"是卡片折起来也要说的事；
+- **块里就是范围那一套药丸**（`GroupBlock` 套在 `react` 层的 `treeController` 上，标题 `label.analysis.condition-title`「只算满足条件的记录」）：同样的字段清单、同样的操作符选择、同样的值控件、同样的「Add in this group」。写条件是一种手艺，不是两种；条件树的简单／高级也还是范围槽标题里的那一颗菜单管着，因为它管的是条件的语法，不是某一块面板；
+- **只列拿得出单值的字段**（`analysis.conditionFields`：作用域里 `kind.scalar !== false` 且不是 fieldless 的那些）。指标条件是逐条记录判「这条算不算」，而数组字段一条记录里有好几个值、全文检索字段一个值也不指——Wow 在指标位上拒绝它们（`analysis.metricFilter.not-scalar`）。所以它们根本不在清单里，而不是列在清单里、勾上了再在应用时被顶回来：一个勾上之后会被拒的复选框是在骗人；
+- **没写完就不跑，而且说得出是哪一条**。空条件编译成 `MATCH_ALL`，于是一个本该只算已付款的数悄悄覆盖了全部记录——数错了，还没有任何提示。所以「写了但空着」是错（`analysis.metricFilter.empty`／`.incomplete`）：药丸上带 `data-invalid`（块拿到的是 `['metrics', i, 'filter']` 下重新定位过的发现），编辑器上方的状态行把那句话说出来——这条发现落在范围的药丸带不动的一棵树上（`unmarkedErrors`），状态行是它唯一说得出口的地方；
+- **两条出路**：「去掉条件，算全部记录」（`label.analysis.condition-remove`）把 `filter` 这个键整个删掉并收起块——配置是普通 JSON，留一棵空树在那儿等于留着一个「没写完」；「收起条件」（`label.analysis.condition-close`）只是收起来，条件留着；
+- **收起之后卡片上留下一句话**（`data-slot="metric-condition-line"`，`label.analysis.only-where`「只算 {conditions}」，由 `describeFilter` + `summaryText` 说出来，与「正在显示」那条用的是同一套词）。一个数的读法不该藏在图标后面：漏斗只说"有条件"，这一句说的是"什么条件"；
+- **「复制『{name}』并加条件」**（菜单第二项，`label.analysis.copy-with-condition`）：同一个字段的两个数在两组条件下比，是这颗漏斗存在的理由，而第二张卡是问这个问题的方式。复制件紧跟在原件后面，拿一个空出来的别名（`freeAlias`：别名是查询与图表指着的名字），**不继承显示名**——两张卡叫同一个名字正是显示名要消解的那种歧义，而它马上要写的那个条件才是消解它的东西——并带着一个空条件，**当场打开**。菜单那一项许的就是一个条件，交出一张长得一模一样、什么也没开的卡片不算许了：所以「哪张卡的条件开着」这颗状态由指标槽持有而不是每张卡自己持有（`MetricSlot` 按别名记一张，`duplicateMetric` 交出复制件的别名），一张卡要开的本来就是另一张卡的块。派生指标没有这一项，也没有漏斗：它是别的指标之间的算术而不是一次记录走查，协议里就没有 `filter`。一个永远做不了事的控件不是禁用，是不画。
+
+（见 test/metricCondition.test.tsx「a metric’s own conditions」「opens from the funnel, and starts the condition empty」「offers the scope’s scalar fields, and nothing without one value」「sends the metric’s own filter with the query」「waits for an unfinished condition, and says where it is」「takes the condition away altogether, and closes」「says what it counts, on the card, at rest」「copies a metric with an empty condition to fill in」「gives a derived metric no funnel at all」；浏览器里走一遍的是 stories/view-engine 的 `MetricCondition`）
+
+### 展开：一条链，计数单位跟着最内层走
+
+D20 屏 G。订单里有明细项，明细项里有批次——「按货号看销量」问的是明细项，不是订单。展开就是把计数单位从记录换成某个数组里的一条。内核的规则（谁留下、谁离开）在 [kernels.md](../kernels.md#展开链把问题重新划一遍范围expandts)，这里说屏幕。
+
+- **槽夹在范围与那两列之间**（`ui/analysis/ElementsSlot.tsx`，`data-slot="analysis-slot-elements"`，标题 `label.analysis.slot.elements`「展开」，提示「数什么」），因为它改的是问题问的是什么，不是问题的答案。**能力没声明链的定义根本没有这一槽**（`analysis.expansible`）：一个空着的「展开」是定义从没许过的诺；
+- **一层一张卡，中间一个箭头**（`data-slot="element-card"`，`data-path`）。链是一条线而不是一丛并列的数组，所以画成一条线：订单 → 明细项 → 批次。每张卡上是这一层的名字（它展开的那个数组字段的显示名）、它自己的门，和一颗收起；
+- **每一层有自己的门**（`label.analysis.element-condition-of`「{name} 只算满足条件的明细项」，块标题 `label.analysis.element-condition-title`）：它决定这一层**哪些条目被展开**，所以只认这一层持有的字段（`analysis.elementFields(i)`，发现落在 `['elements', i, 'filter']`）——仓库是订单的字段，在明细项里什么也不指。它和指标的条件是同一个块（`ConditionsBlock`），因为它们是同一件事的两处：一处收窄要数的记录，一处收窄要展开的条目。没写完同样不跑（`analysis.elementFilter.empty`／`.incomplete`）；
+- **「再展开」只给声明出来的下一步**（`data-slot="expand-into"`，`label.analysis.expand-into`）。链是能力的，不是用户拼的：越过明细项直接展开批次是 `analysis.element.out-of-chain`，所以界面上根本走不到那一步，而不是走到了再被拒；
+- **收起一层带走里面所有层**（`label.analysis.collapse`「收起 {name}」，`collapsed` 从这一层切断）：批次只在明细项里存在，明细项没有了，它无处安身；
+- **一步进出都把问题重新划一遍范围**（`withElements`）：不再指向新单位字段的维度与指标跟着这一步离开，指标自己的条件若指着外面的字段则那个条件离开而指标留下，操作数都走光的派生指标离开；**什么都不剩时指标从这个单位数得出来的第一样东西重新起头**（`firstMetric`），因为一份没有指标的聚合查询什么也答不上来。这是"跟着走"而不是"报错"：用户刚说的是「我要数明细项」，界面该照办，而不是端出一屏 `analysis.field.outside-scope`；
+- **脚注说现在数的是什么**（`data-slot="counting-unit"`，`label.analysis.unit`「计数单位：{name}」）：展开之后一行不再是一条记录，而「记录数」这个词自己不会改口。没展开时它说的是定义自己的标题；
+- **展开了的分析追问不了**（`pickable` 为假）：一行是最内层元素的一组，根文档上没有哪条条件选得出来，见[追问](#追问点一组弹三项)。
+
+（见 test/elementsSlot.test.tsx「the expansion slot」「exists only where the capability declares a chain」「takes a step along the chain, and re-scopes the question」「gates a level over that level’s own fields」「sends the chain and each gate with the query」「collapses a level, and everything inside it」；浏览器里走一遍的是 stories/view-engine 的 `TrayExpansion`，它到托盘为止——故事的内存数据源不求值 `elements`）
+
 ## 结果第一行：读法与看法
 
 - **结果的第一行是 `AnalysisToolbar`**（`data-slot="result-toolbar"`，D12 Ⅳ）。左边一句「按 仓库 · 记录数、金额 的 合计」（`label.analysis.reading`，无维度时 `label.analysis.reading-flat`，`data-slot="analysis-reading"`）——下面这些数是什么，按**产生这个结果的那份配置**（`view.schema ?? view.columns`）读出来，不是按正在编辑的草稿；右边是怎么看它：表格｜图表、图型、合计行；
@@ -128,3 +157,41 @@ D20 把可视化定为分析的**最后一步**：结果先是表格，确认完
 - **坐标轴页只有笛卡尔家族有**，因为只有它有数值轴；类目轴没有可设的东西——它说的就是那个维度说的话。**右轴要等有系列坐上去才成为一节**：一条没有系列的轴不画，于是也没有它的标题与范围可填。四项（轴标题／最小／最大／数值格式）都空掉时 `yAxis.left` 整个消失，最后一侧消失时 `yAxis` 也消失——没人说过的事不该在配置里留下一个空对象；
 - **表格那一项要跑查询，其余都是重画。** 合计行来自它自己那次无分组聚合（见[被截断的分组要说出来](#被截断的分组要说出来)），所以按下即 `setTotals` + `submit`；图表的每一处改动只改 `chart`，而 `chart` 与 `layout` 都是 `ANALYSIS_PRESENTATION_MEMBERS`，走 `updateChart` 重画屏幕上已有的行——不回后端，也不在标题栏「分析」那颗开关上点亮未应用的点；
 - **漏斗的阶段顺序从结果行里起头**（`withStagesFrom`）。阶段的业务顺序内核不知道，`fitChartSlots` 把 `order` 留空，而没有阶段的漏斗什么也画不出来——刚选中就是一片空白，读起来是坏了。所以在第一层选中漏斗的那一刻，就按结果行来的顺序把各分组值填进去（每个文本值一次），之后用户在数据页上用上移／下移排它。（见 test/chartOptionsUi.test.tsx「the chart options」「the chart options’ display page」「the chart options’ axes page」「the chart options of the other families」「what the chart options change on screen」、test/chartOptions.test.ts「chartOptions」与 test/chartLegend.test.ts「legendPlacement」；浏览器里走一遍的是故事「可视化面板/回归」的 `ChartOptionsPages`）
+
+## 只保留：一行一条比较
+
+「只保留」（`ui/analysis/HavingRows.tsx`，`data-slot="analysis-having"`，D20 屏 B）是 Wow 的 `having`：**结果分组出来之后、排序与截断之前**的一道筛选。它落在指标槽底部、排序行下面，因为它筛的是「组」而不是「记录」——范围槽那棵条件树决定哪些记录参与计算，这里决定算完之后哪些组留下，两件事没有一个控件能同时说。
+
+- **它是一组行，不是第二棵条件树。** 一行一条比较（`data-slot="having-row"`）：「只保留 · 哪个指标 · 比较 · 数值」，行与行之间是「都要成立」。条件树能表达 OR 与嵌套，但分析师对分组说的话从来只有一种形状——「金额合计大于一万」「记录数不少于 5」——把第二棵树摆在这里，等于为一个没人问的问题付一整套控件的钱，还要让读者分辨两棵长得一样的树筛的是不同的东西。所以没有组操作符、没有分组块、没有「简单／高级」；
+- **在不在由能力与形态一起决定**（D4）：定义没声明 `having` 就整块不画，没有维度也不画——Wow 拒绝对无分组聚合做 having，而它本来就只有一行。两种情况都是不画而不是禁用：禁用的控件要让人读出「我做点什么它就能用」，而这里没有那件事可做；
+- **没有值的那一行是编辑器的，不是配置的。** 「只保留…」按钮（`data-slot="add-having"`）加出来的行先没有数值，它留在组件自己的 state 里；写进草稿的永远只有填完的那几条，于是**磁盘上的配置永远是 Wow 收得下的那一份**。填满一条是一个 `CONDITION`，两条是一个 `AND`，全删光连键都不留（`without` 的口径：配置是普通 JSON，一个挂着 `undefined` 的成员是任何新建配置都不会长成的样子）；
+- **那一行小字是口径而不是提示**（`data-slot="having-note"`，「没有值的组不会保留。」）。指标算不出数的组——没有可加的记录、除数为零——比较不成立，于是被筛掉。这是 Wow 的口径，不是我们的选择，但屏幕上少了两组而没人说过为什么，读者只会以为查询错了；
+- **指标单子里没有「任一值」**：Wow 的 having 比的是数，而样本值不是数，它会直接拒掉这份配置。一个选了就跑不起来的选项不是选项；
+- **存着的、行说不出的形状，照实说出来再给一条出路**（`label.analysis.having-unreadable` 加一颗「清掉」）。Wow 的 having 还有区间、集合、空值判断与 OR 树，一份配置可以存着它们中的任何一个。把一个 `BETWEEN` 摊成两行，是编辑器替作者写了一份他没写过的配置——下一次保存就把原件覆盖掉了。所以行不装、名字照说、清掉是唯一诚实的动作。
+
+（见 test/havingRows.test.tsx「keeping only some of the groups」「exists only where the capability declares it and a dimension is there」「adds a row that writes nothing until it has a value」「reads several rows as one AND, and unwinds to no key at all」「offers every metric but the sample value」「writes the comparison the row is set to」「shows a stored shape the rows cannot say, and clears it」「sends the having with the query Apply runs」与 test/having.test.ts「having rows」；浏览器里真的少两组的是 stories/view-engine 的 `KeepOnly`）
+
+## 公式与派生：写出来的指标
+
+有两种指标是**写出来**的而不是从字段里挑出来的（`ui/analysis/FormulaCard.tsx`，D20 屏 B），它们在「添加指标」菜单的最后一组，且只在能力声明 `expressions` 时出现：
+
+- **按公式**（Wow 的 `NUMERIC` 套一个 `BINARY`）：每条记录上算一个数再汇总，「金额 − 成本」逐单算毛利、再在组里合计。它**不等于**「金额合计 − 成本合计」——在合计上碰巧相等，在平均、百分位上根本不是一个数；
+- **按已有指标计算**（Wow 的 `DERIVED`）：同一行上两个指标的算术，「金额合计 ÷ 客户数」。它在后端于分组之后算，所以它没有自己的记录，卡片上因此**没有漏斗**——「只算满足条件的记录」对一个不读记录的指标无话可说。
+
+两者共用一副控件：**两个操作数，中间一个运算**。操作数从一张单子里挑（公式挑字段，派生挑指标），或者选「数字」当场敲一个进去——两种形态是一个控件的两种样子，不是两个控件。**不提供嵌套**：一个能套括号的公式编辑器是另一件产品（它要处理优先级、要有语法、要有错误位置），而托盘要装下的是分析师口里那一句话；配置里手写的嵌套式子照样跑得起来，卡片把它当成一句读出来、不去动它。
+
+- **名字就是它说的那句话。** 卡片上写「金额 − 成本」，结果的列头写「金额 − 成本 的 合计」——公式是一个被汇总过的数，所以列头是那两部分合成的（`columnTitle`）；派生指标的列头只有它自己那一句，因为它既没有函数也没有字段，后面再缀一个词就是凭空多出来的。别名是查询的名字，任何时候都不上屏；
+- **派生指标只读得到它前面的、非「任一值」的指标**——这是 Wow 的规矩（前向引用与环会被准入拒掉），所以两个操作数的单子里**就只列那些**：规矩由控件说出来，而不是由一条错误说出来；
+- **改一格就是改整条指标的 `expression`**：左、右、运算三处任何一处变动都重写整棵 `BINARY`，因为它们本来就是一棵树的三个位置，打补丁会留下上一形态的残渣。公式的「汇总方式」是 `function`，它与表达式无关，单独写。
+
+（见 test/formulaCard.test.tsx「a metric written as a formula」「is offered only where the capability declares expressions」「starts as two fields subtracted, and is named by what it says」「takes a number in place of a field, and writes it as a constant」「writes the operation and the summary the card is set to」「sends the expression and titles the column by what it says」「a metric derived from other metrics」「reads only the metrics before it, and holds no conditions of its own」「titles its column with its own words and nothing appended」与 test/having.test.ts「formulas」；浏览器里多出那一列的是 stories/view-engine 的 `Formula`）
+
+## 排序：与记录视图同一个控件
+
+指标槽底部那一行（`ui/analysis/SortRow.tsx`，`data-slot="analysis-sort"`）里的排序按钮，装的就是记录视图工具栏上的 `SortSettings`——同一个弹层、同一份优先级列表、同一套方向与拖拽。分析视图这边把**每个维度与每个指标的别名当成一个可排序的「字段」**递进去，标签用卡片现在叫的那个名字（`metricName`）。
+
+- **一句话只该有一个控件。** 从前这里是一个只装得下一条排序的选择框，于是「先按记录数、再按金额」说不出来：两组记录数相同的时候，谁在前面全凭数据源。记录视图早就有一个能说这句话的控件，再写第二个只会让两处对「先按哪个」给出两种解释；
+- **「前 N 组」紧挨着它**，因为「前 N」只有在「按什么排」旁边才读得懂。没有维度就整行不画——Wow 拒绝对无分组聚合排序，而它本来也只有一行；
+- **上限是别名的总数**（`maxSortFields`）：每个维度与指标至多排一次，排完就没有可加的了，「排序字段」那颗按钮自己灰掉。
+
+（见 test/formulaCard.test.tsx「ordering the groups」「orders by several aliases, in the priority the editor lists them」与 test/sortSettings.test.tsx「what the sort button says」；浏览器里换行序的是 stories/view-engine 的 `SortedByTwo`）

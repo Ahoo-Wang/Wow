@@ -69,6 +69,12 @@ mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboa
 
 `defaultAnalysisConfig` 按固定优先级取第一个可用者，因此总能返回合法配置：`COUNT` → 首个有非空 `functions` 的字段（取其首个函数）→ 首个 `distinctCount` 字段 → 首个 `percentile` 字段（`percentile: 95`）→ 首个 `any` 字段。分组可以为空，Wow 允许无分组聚合；此时默认配置不带 `sort`，因为 Wow 对无分组的 `sort` 与 `having` 都会抛错。默认的 TERMS 维度若落在单值字符串字段上，带一个 `missingKey`（`DEFAULT_MISSING_KEY`，`'(empty)'`）：**不写它，Wow 把没有该值的记录整条丢出结果**，屏幕上没有任何地方会说这件事。它是存下来、发出去、再作为桶键回来的**数据**，所以是一个固定字符串而不是一句译文；那一组在界面上叫什么由 `/ui` 决定（批 4）。编辑器新建维度走同一个 `termsGroup(field, alias, kind?)`，规则只有一处。（见 test/definition.test.ts「validateDefinition fields」「validateDefinition capabilities」「validateDefinition system views」「field groups」与 test/analysisValidate.test.ts「defaultAnalysisConfig」）
 
+`analysis/defaults.ts` 里还有三样东西是「新建一条」这件事的公共答案，所以它们在内核而不在卡片里：
+
+- `firstMetric(count, fields)` 就是上面那条优先级本身，**从一组聚合能力算起**。新建一份配置问的是根能力，而展开之后 `withElements` 问的是新单位那一层的能力——同一条规则，两处调用；
+- `freeAlias(base, taken)` 是「一个没人在用的别名」：`base` 的词干加上第一个空出来的编号。按行数编号在删掉一行之后立刻撞车（删一加二，两行都叫 `amount_2`，React 当成同一个 key、准入报重复别名），第一个空号则怎么加怎么删都不撞。Wow 的别名是单段的，所以字段路径先拼成一个词；词干末尾已有的编号先剥掉，于是 `amount_2` 的复制件是 `amount_<下一个>` 而不是 `amount_2_1`；
+- `metricWithCondition(metric, taken)` 是「复制并加条件」（D20 屏 H）：拿一个空别名、**不带显示名**（两张卡叫同一个名字正是显示名要消解的歧义）、汇总方式照旧，外加一个空条件等着填。派生指标没有 `filter`，所以返回 `undefined`，界面据此不画那一项。（见 test/metricCondition.test.tsx「copies a metric with an empty condition to fill in」「gives a derived metric no funnel at all」）
+
 ## 未信任的配置：骨架与预算
 
 配置来自持久化端口，不可假设结构可信：
@@ -172,6 +178,18 @@ mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboa
 - **显示名给了就得是个词**：group 与 metric 的 `label`（`AnalysisNamed`，D20 显示名）不给则罢，给了必须是字符串（否则 `analysis.config.malformed`）且不能是空白（否则 `analysis.label.blank`）——一个空名字顶在列头上什么也没说。它是视图自己的东西，`compileAnalysis` 逐成员拼 Wow 对象，因此永远不会被发出去（见 test/analysisValidate.test.ts「a display name」「is admitted when given, refused when blank, and never sent to Wow」）；
 - `table.columns[].alias` 必须是当前 groups 或 metrics 的别名且不重复。
 
+### 展开链把问题重新划一遍范围：expand.ts
+
+D20 屏 G。展开一个数组就是换掉计数单位：`订单 → 明细项` 之后，一行是一个明细项，维度与指标只能指明细项的字段，而一个按订单仓库切的维度问的是另一件事——Wow 以「requires its declared element scope」拒绝它。所以进出这条链的每一步都要把配置重新划一遍范围，这就是 `withElements(config, elements, definition, capability)`：
+
+- **不再指向新单位字段的维度与指标离开**。`COUNT` 永远留下（能数记录就能数条目），`ANY` 看它那个字段，其余看它表达式里的每个字段；
+- **指标自己的条件指着外面的字段时，条件离开而指标留下**：那句话问的是错的东西，但这个数本身还问得出来；
+- **操作数都走光的派生指标离开**：它引用的是别名，别名没了就算不出来；
+- **什么都不剩时指标重新起头**：`firstMetric(capability.count, 新单位的聚合能力)`，跟一份全新的分析一样。一份没有指标的聚合查询什么也答不上来，所以"空着"不是一个可选项；
+- **还指得着的东西原样留着**：明细项的货号维度在收起批次之后仍然是明细项的货号维度，不该因为链动了一下就重挑一遍。
+
+图表、排序与表列跟着这次形状变化走的方式，跟它们跟着任何一次分组／指标变化走的方式完全一样（`useAnalysisEditor` 的 `reshape`），所以这里只回答"分什么组、测什么数"。链本身的三个动作也在这儿：`expanded(elements, path)` 往里走一层，`collapsed(elements, index)` 从这一层切断（里面的层一起走），`nextExpansion(declaredChain, elements)` 是能力声明的下一步——链是一条线，所以至多只有一个可展开的东西；`levelLabel` 与 `nextLevel` 把层与下一步按它们的字段显示名说出来，给界面用。（见 test/expand.test.ts「withElements」与 test/elementsSlot.test.tsx「the expansion slot」）
+
 ### 粒度推荐（K4）
 
 新加的时间维度从哪个粒度起步，是 `analysis/granularity.ts` 回答的。从前它起步于字段声明的第一个单位，不管范围有多长：一年的订单按小时切是八千个没人要的桶，一周按月切是一个。**它只决定「起步」**——粒度选择就在卡片上，手选过的单位永远优先，推荐只给新维度播个种。
@@ -250,6 +268,15 @@ mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboa
 - **分组查询要的是 `limit + 1`，多出来的那一行是探针**（`analysisProbeLimit`，D20 Ⅷ）。聚合回答的是至多 `limit` 行，并不告诉调用方它省略了多少，所以"正好填满上限"曾是唯一可用的信号，而它本身是二义的：刚好这么多组，和被截到这么多组，长得一模一样。多要一行把猜变成问：那一行回来了，就是还有更多组；没回来，就是没有。`compileAnalysisTotals` 不受影响——合计查询本来就不带 `limit`；
 - **探针不越过天花板**：能力声明的 `maxLimit` 与 Wow 自己的 `AGGREGATION_LIMITS.MAX_LIMIT` 取小，越过任何一个的查询是被**拒绝**而不是被回答，拿整份结果换一行探针不划算。因此**配置上限已经顶到天花板时不探**——没有行可要了——这一种保留旧读法：行数填满上限时记下 `AnalysisView.atLimit`，报成"可能被截断"（`analysis.result.at-limit`）。没有分组时也不探：无分组聚合按定义只答一行，`limit: 1` 于是被每一次成功的查询填满，而没有任何分组可以被截掉。上限缺失或不是正整数时原样发出，把拒绝留在它本来在的地方（Wow）——准入会拒绝这些，但编译是导出的，宿主可能拿没被准入的配置来编译；
 - **`projectAnalysis` 把探针行读回来再丢掉**：回来的行数多于 `limit` 就是 `AnalysisView.truncated: true`，否则 `false`；`rows` 永远至多 `limit` 行，图表整形（占比、饼图的"其他"、漏斗）也只看这些行，否则屏幕上会出现一个表里没有的组的份额。`truncated` 与 `atLimit` 不会同时成立：前者是问出来的答案，后者是问不出来时剩下的那点线索。运行时据此报 `analysis.result.more-groups`（事实）或 `analysis.result.at-limit`（可能），见 [runtime.md#规则](runtime.md#规则)。**合计行不受影响**：它来自无分组查询，截没截断都覆盖范围内全部记录，这正是可见几行之和小于合计的原因。（见 test/analysisCompile.test.ts「the probe row」与 test/analysisProject.test.ts「the probe row read back」）
+
+### 只保留与写出来的指标：`having.ts` 与 `formula.ts`
+
+D20 屏 B 的两件事各有一个内核文件，都只是纯函数——托盘因此只剩标记，而「这份配置说得出来吗」只有一处答案：
+
+- **`analysis/having.ts`** 把 Wow 的 `having` 读成／写成**一行一条比较**。`havingRows(having)` 交出 `{metric, operator, value}[]`：一个 `CONDITION` 是一行，一棵一层的 `AND` 是几行，**其余一律 `null`**——区间、集合、空值判断、任何位置上的 OR、嵌套的 AND 都不摊平。摊平会把作者写的那份配置换成一份他没写过的、下一次保存就覆盖掉原件的配置，而「我读不出来」是一句可以老实说的话。`withHavingRows(rows)` 反过来：一条写成 `CONDITION`，几条写成一棵 `AND`，一条都没有就整个不写；**没有值的行直接落掉**，所以存下去的配置永远是 Wow 收得下的那一份，编辑到一半的状态归组件自己拿着。`HAVING_OPERATORS` 是那六个比较，顺序就是选择框里的顺序；
+- **`analysis/formula.ts`** 是两种写出来的指标的第一形态与它们的读法。`formulaMetric(left, right, fn, taken)` 造 Wow 的 `NUMERIC` 套 `BINARY`（两个字段相减再汇总），`derivedMetric(left, right, taken)` 造 `DERIVED`（前一个指标除以后一个）——都是**一张待改的卡片**，不是一个猜出来的答案。`expressionText`／`derivedText` 把式子说成作者会说的那句话（「金额 − 成本」「金额合计 ÷ 客户数」，嵌套的加括号），列头、图例与图表的文字读法共用它；`isFormula` 是「这条指标是卡片编得动的那一种吗」——一个操作两个操作数。`EXPRESSION_OPERATORS` 与 `OPERATOR_SIGN` 是那四则运算和它们在任何语言里都一样的符号。
+
+两者都不知道目录也不知道语言：`expressionText` 接一个 `nameOf` 回调，字段叫什么由调用处说。（见 test/having.test.ts「having rows」「formulas」；界面见 [ui/analysis.md#只保留一行一条比较](ui/analysis.md) 与 [ui/analysis.md#公式与派生写出来的指标](ui/analysis.md)）
 
 ## Dashboard 内核的规则
 

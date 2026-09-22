@@ -27,6 +27,7 @@ import {
   projectAnalysis,
   type AnalysisFunction,
   type AnalysisMetric,
+  COUNT_NAME_TOKEN,
 } from '../src/index.js';
 import {
   analysisCapability as capability,
@@ -429,6 +430,44 @@ describe('metricFormat', () => {
     expect(metricFunctionOf(count)).toBe('COUNT');
     expect(metricFunctionOf(numeric('AVG'))).toBe('AVG');
     expect(metricFunctionOf(percentile)).toBe('PERCENTILE');
+  });
+});
+
+describe('a derived column', () => {
+  // A derived metric is titled as its author says it; a reference to the
+  // record count is a token here, because the kernel holds no catalogue,
+  // and `columnTitle` words it (test/display.test.ts「columnTitle」).
+  it('names the metrics it reads, and the count by its token', () => {
+    const base = config();
+    const view = projectAnalysis(
+      definition(),
+      config({
+        metrics: [
+          { ...base.metrics[0] },
+          {
+            type: 'NUMERIC',
+            alias: 'total',
+            function: 'SUM',
+            expression: { type: 'FIELD', field: 'amount' },
+          },
+          {
+            type: 'DERIVED',
+            alias: 'avg',
+            expression: {
+              type: 'BINARY',
+              operator: 'DIVIDE',
+              left: { type: 'METRIC_REF', metric: 'total' },
+              right: { type: 'METRIC_REF', metric: base.metrics[0].alias },
+            },
+          },
+        ],
+        table: { columns: [] },
+      }),
+      [],
+    );
+    const derived = view.schema?.find(column => column.alias === 'avg');
+    expect(derived?.label).toBe(`Amount ÷ ${COUNT_NAME_TOKEN}`);
+    expect(derived?.fn).toBe('DERIVED');
   });
 });
 
