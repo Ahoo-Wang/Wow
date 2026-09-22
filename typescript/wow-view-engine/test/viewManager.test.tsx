@@ -20,7 +20,7 @@ import {
   ViewEngine,
   ViewStoreError,
   type ViewInstance,
-  type ViewInstanceSummary,
+  type ViewListing,
   type ViewPermissions,
 } from '../src/index.js';
 import {
@@ -156,7 +156,7 @@ describe('useViewManager', () => {
     // The reload a landing triggers is held open, which is the whole window
     // the list keeps its settled items through.
     const read = engine.list.bind(engine);
-    const listed = deferred<ViewInstanceSummary[]>();
+    const listed = deferred<ViewListing>();
     vi.spyOn(engine, 'list').mockImplementationOnce(() => listed.promise);
 
     await act(async () => {

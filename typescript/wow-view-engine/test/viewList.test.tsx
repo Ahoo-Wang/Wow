@@ -78,14 +78,45 @@ describe('ViewList on its own', () => {
     expect(screen.getByText('No view yet')).toBeDefined();
 
     cleanup();
+    const onRetry = vi.fn();
     render(
       <ViewList
-        list={listState({ error: { code: 'x', severity: 'error', path: [] } })}
+        list={listState({
+          error: { code: 'view.list.failed', severity: 'error', path: [] },
+        })}
         currentId={null}
         onOpen={() => {}}
+        onRetry={onRetry}
       />,
     );
+    // The reason in the issue's own words, and the way to ask again.
     expect(screen.getByText(/could not be loaded/)).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Reload list' }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('says the list is short when the store failed but the declared views are here', () => {
+    render(
+      <ViewList
+        list={listState({
+          items: [summary({ id: 'system:orders:all', scope: 'system' })],
+          error: {
+            code: 'view.list.failed.unavailable',
+            severity: 'error',
+            path: [],
+          },
+        })}
+        currentId={null}
+        onOpen={() => {}}
+        onRetry={() => {}}
+      />,
+    );
+    const line = document.querySelector('[data-slot="view-list-failed"]');
+    expect(line).not.toBeNull();
+    // Nothing on screen is broken, something is missing: a status, not an
+    // alert that cuts across the reader.
+    expect(line?.getAttribute('role')).toBe('status');
+    expect(screen.getByRole('button', { name: /Mine/ })).toBeDefined();
   });
 
   it('offers a new view from the heading only when given the command', () => {

@@ -67,7 +67,6 @@
 ### 缺陷（先做）
 
 - **F-04 筛选／reference 与远程候选**：`reference` 值是 `{items:[{id,label}]}`，UI 直接交给 `OptionValue`／`TextValue`，选一个候选就把叶子写成数组、Apply 与 Save 双双被挡；已存 label 读不出来；运行时定义好的 `OptionSource`（search／resolve／cursor／AbortSignal）在 UI 里一次都没被调用。判据：`RemoteValue` 做值适配并走 `engine.resolveOptions`：`Combobox multiple` + 防抖搜索 + 加载更多 + 加载／空／失败三态；`optionsFor` 保留为全量近路；`OptionValue` 换 `Combobox multiple`；UI 回归与故事（cursor 源）。落点：`src/ui/filter/inputs/`、`src/ui/FilterValueEditor.tsx`、[ui/README.md#filterpanel-的布局](ui/README.md#filterpanel-的布局)。
-- **F-05 侧栏／列表失败**：store 一抛错，代码声明的系统视图一起丢；保存后重读失败 → 侧栏清空 → 默认视图变 null → runtime 被释放，未保存草稿静默消失且不经离开守卫；失败原因、`preferencesError`、`definitionIssues` 都不显示。判据：`engine.list` 用 allSettled 语义并报 Issue；`useViewList` 失败时保留上一份；空态显示原因 + 重试；偏好与定义错误并入状态行。落点：`src/runtime/viewEngine.ts`、`src/react/useViewList.ts`、[management.md](management.md)。
 - **F-06 筛选／未注册 kind**：红 pill 没有值编辑器、空的操作符下拉、解释句被滤掉；添加列表仍列出该字段；`FilterValueEditor` 的 `default:` 静默退回文本框，与 [extension.md](extension.md) 承诺相反。判据：无 editor 时画只读原值 + `label.filter.kind-unregistered`；`addableFields` 按注册表过滤；`default:` 改为只读 + Issue；文档对齐。落点：`src/ui/filter/`、`src/ui/FilterValueEditor.tsx`、[extension.md](extension.md)。
 - **F-14 状态行与结果块**：配置跑不起来时画一圈空外框只装工具栏且导出仍可按；只有一条 error 也折叠成「还有 1 条」且无修法出口；失败条右缘被裁 22px；失败时红条在工具栏之上，与 D12「工具栏是第一行」矛盾。判据：无结果且无在途时不画结果块；单条 error 直接说 + 「打开列设置」动作；`LineAlert` 宽按容器；strips 槽顺序改为工具栏在上。落点：`src/ui/workbench/ResultBlock.tsx`、`src/ui/alerts.tsx`、[ui/record.md](ui/record.md)。
 

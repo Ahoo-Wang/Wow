@@ -487,6 +487,7 @@ export const zhCN: ViewMessages = {
   'view.open.wrong-kind': '这个视图是另一种类型（{kind}），这个页面无法显示。',
   'view.preferences.default-forbidden': '你不能设置默认视图。',
   'view.preferences.failed': '视图偏好保存失败。',
+  'view.preferences.load-failed': '视图偏好加载失败，视图按服务端顺序显示。',
   'view.preferences.reorder-forbidden': '你不能给视图排序。',
   'view.rename.failed': '视图改名失败。',
   'view.resolve.failed': '冲突未能解决。',

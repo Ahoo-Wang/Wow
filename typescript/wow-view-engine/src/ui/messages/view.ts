@@ -62,6 +62,10 @@ export const viewMessages = {
     'This view is of another kind ({kind}), so this page cannot show it.',
   'view.preferences.default-forbidden': 'You may not set the default view.',
   'view.preferences.failed': 'Your view preferences could not be saved.',
+  // Loading them is the other half, and a different sentence: the list is
+  // still here, in the order the server gave it.
+  'view.preferences.load-failed':
+    'Your view preferences could not be loaded; the views are in the server’s order.',
   'view.preferences.reorder-forbidden': 'You may not reorder views.',
   'view.rename.failed': 'This view could not be renamed.',
   'view.resolve.failed': 'That conflict could not be resolved.',

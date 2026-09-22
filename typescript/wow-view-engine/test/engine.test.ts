@@ -113,13 +113,34 @@ describe('ViewEngine listing', () => {
   it('puts code-declared system views before the stored ones', async () => {
     const { engine } = harness();
 
-    const summaries = await engine.list('orders');
+    const { items, failed } = await engine.list('orders');
 
-    expect(summaries.map(summary => summary.id)).toEqual([
+    expect(items.map(summary => summary.id)).toEqual([
       'system:orders:all',
       'orders-1',
     ]);
-    expect(summaries[0]).toMatchObject({ scope: 'system', revision: 'code' });
+    expect(items[0]).toMatchObject({ scope: 'system', revision: 'code' });
+    expect(failed).toBeNull();
+  });
+
+  /**
+   * The declared views travel with the definition, so a store that is down
+   * takes only the saved ones with it — and says so in the answer rather
+   * than throwing the declared ones away with the rest (F-05).
+   */
+  it('keeps the declared views when the store cannot list, and says why', async () => {
+    const { engine, store, issues } = harness();
+    vi.spyOn(store, 'list').mockRejectedValueOnce(
+      new ViewStoreError('UNAVAILABLE', 'offline'),
+    );
+
+    const { items, failed } = await engine.list('orders');
+
+    expect(items.map(summary => summary.id)).toEqual(['system:orders:all']);
+    expect(failed).toMatchObject({ code: 'view.list.failed.unavailable' });
+    expect(issues).toEqual([
+      expect.objectContaining({ code: 'view.list.failed.unavailable' }),
+    ]);
   });
 
   it('drops a stored id in the reserved namespace and reports it', async () => {
@@ -127,9 +148,9 @@ describe('ViewEngine listing', () => {
       instances: [mine, { ...mine, id: 'system:orders:fake' }],
     });
 
-    const summaries = await engine.list('orders');
+    const { items } = await engine.list('orders');
 
-    expect(summaries.map(summary => summary.id)).toEqual([
+    expect(items.map(summary => summary.id)).toEqual([
       'system:orders:all',
       'orders-1',
     ]);

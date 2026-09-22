@@ -21,6 +21,7 @@
 export * from './dashboardRuntime.js';
 export * from './environment.js';
 export * from './execute.js';
+export * from './issues.js';
 export * from './exportRows.js';
 export * from './pending.js';
 export * from './refreshTimer.js';

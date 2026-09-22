@@ -29,11 +29,15 @@ import {
 import type { ViewListState } from '../react/index.js';
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
 } from './components/empty.js';
+import { AlertAction, AlertTitle } from './components/alert.js';
+import { Button } from './components/button.js';
+import { LineAlert } from './alerts.js';
 import { IconButton } from './IconButton.js';
 import { SidebarItem } from './variants.js';
 import { KIND_ICON } from './kinds.js';
@@ -60,6 +64,12 @@ export interface ViewListProps {
    * or nothing behind it — neither exists (D4).
    */
   onCreate?(): void;
+  /**
+   * Reads the list again after it failed. The failure is said where the
+   * missing rows would be — under the views that are there, or in place of
+   * them — with this beside it; without it the sentence stands alone.
+   */
+  onRetry?(): void;
   /**
    * Opens the view manager — renaming, deleting, reordering and the default
    * view. Given one, the heading grows a button for it; left out, the list is
@@ -114,6 +124,7 @@ export function ViewList({
   currentId,
   onOpen,
   onCreate,
+  onRetry,
   onManage,
   onCollapse,
   collapseRef,
@@ -209,6 +220,7 @@ export function ViewList({
           currentId={currentId}
           creatable={onCreate !== undefined}
           onOpen={onOpen}
+          onRetry={onRetry}
         />
       </div>
     </nav>
@@ -220,14 +232,22 @@ function ViewListBody({
   currentId,
   creatable,
   onOpen,
+  onRetry,
 }: {
   list: ViewListState;
   currentId: string | null;
   /** Whether a new view is on offer, which is what the empty state says. */
   creatable: boolean;
   onOpen(instanceId: string): void;
+  onRetry?(): void;
 }) {
   const messages = useViewMessages();
+  // The way to ask again, drawn wherever the failure is said.
+  const retry = onRetry && (
+    <Button variant="outline" size="xs" onClick={onRetry}>
+      {messages.label('label.manage.reload')}
+    </Button>
+  );
   if (list.loading)
     return (
       <div className="flex flex-col gap-2">
@@ -249,23 +269,36 @@ function ViewListBody({
               reader who may not create is told there are none, not told to
               make one. The way to make one is the `+` above and the button
               on the work area, so this is a sentence and not a third
-              button. */}
+              button. A failure says its own reason — the issue's sentence
+              names the store's answer — rather than one line for every
+              way a list can fail. */}
           {(list.error || creatable) && (
             // `sidebar-foreground/70` for the reason the group heading
             // gives: `muted-foreground` clears 4.5:1 on white and measures
             // 4.34:1 on this column's ground.
             <EmptyDescription className="text-sidebar-foreground/70">
-              {messages.label(
-                list.error ? 'label.view.list-failed' : 'label.view.none-hint',
-              )}
+              {list.error
+                ? messages.issue(list.error)
+                : messages.label('label.view.none-hint')}
             </EmptyDescription>
           )}
         </EmptyHeader>
+        {list.error && retry && <EmptyContent>{retry}</EmptyContent>}
       </Empty>
     );
 
   return (
     <>
+      {/* The store's failure beside the views that are still here — the
+          declared ones — so a list that is short says it is short rather
+          than looking complete. A warning, not an error: nothing on screen
+          is broken, something is missing. */}
+      {list.error && (
+        <LineAlert tone="warning" frame="bare" data-slot="view-list-failed">
+          <AlertTitle>{messages.issue(list.error)}</AlertTitle>
+          {retry && <AlertAction>{retry}</AlertAction>}
+        </LineAlert>
+      )}
       {GROUPS.map(audience => {
         const items = list.items.filter(
           item => audienceOf(item.scope) === audience,

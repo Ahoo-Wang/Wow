@@ -522,6 +522,7 @@ export function WorkbenchShell({
             currentId={state?.saved?.id ?? null}
             onOpen={workbench.choose}
             onCreate={create}
+            onRetry={list.error ? () => list.reload() : undefined}
             // Only when something on the list can actually be managed: a
             // reader with no write permission at all would otherwise get a
             // button whose only lesson is that it leads to a dialog of
@@ -664,7 +665,10 @@ export function WorkbenchShell({
                 className={cn('flex flex-col empty:hidden', SPACE.ROWS)}
               >
                 <ErrorStrip
-                  issues={filter.unmarked}
+                  // The definition's own findings beside the view's: an
+                  // error in the definition was reported to `onIssue` and to
+                  // nobody on screen (F-05).
+                  issues={[...filter.unmarked, ...workbench.definitionIssues]}
                   title={
                     kind === 'dashboard'
                       ? messages.label('label.dashboard.needs-fixing')
@@ -672,8 +676,23 @@ export function WorkbenchShell({
                   }
                 />
                 {/* Warnings block nothing — the result below is the real one —
-                  so they sit under the errors and never replace it. */}
-                <WarningStrip issues={warnings ?? state.issues} />
+                  so they sit under the errors and never replace it. Failed
+                  preferences are one: the list still works, in the server's
+                  order, so it is said as a warning and said once. */}
+                <WarningStrip
+                  issues={[
+                    ...(warnings ?? state.issues),
+                    ...workbench.definitionIssues,
+                    ...(list.preferencesError
+                      ? [
+                          {
+                            ...list.preferencesError,
+                            severity: 'warning' as const,
+                          },
+                        ]
+                      : []),
+                  ]}
+                />
               </div>
 
               {/* The conditions, on a surface of their own. The block exists

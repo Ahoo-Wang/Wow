@@ -34,6 +34,7 @@ useOpenView(engine, instanceId, scopeFilter?): { runtime | null; loading; error;
 
 ```ts
 useViewList(engine, definitionId, options?: { kind }): { items; all; preferences; permissions; defaultInstanceId; loading; error; preferencesError; reload }
+// error 是 engine.list 答里的 failed（store 那一半没读到）或整个列表被拒的 Issue；两种情况下 items 都不清空：前者仍有代码声明的系统视图，重读时还留着上一份答案（F-05）
 ```
 
 - 给出 kind 时先按顺序排好再过滤、再解析默认，见 [management.md#列表偏好与默认视图](management.md#列表偏好与默认视图)；

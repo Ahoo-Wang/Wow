@@ -143,6 +143,14 @@ export interface WorkbenchController {
    * as a title bar over an empty body.
    */
   unopenable: Issue | null;
+  /**
+   * What admission found wrong with the definition itself — a system view
+   * the kernel refuses, a field group naming a field it does not have.
+   * The shell shows them in the status line beside the view's own, since a
+   * definition's error is otherwise reported to `onIssue` alone and the
+   * screen said nothing.
+   */
+  definitionIssues: Issue[];
   commands: SaveCommands;
   /**
    * How the open view renews its own answer: one refresh now, and the
@@ -318,6 +326,7 @@ export function useWorkbench(
     runtime,
     state,
     unopenable: opened.error ?? wrongKind,
+    definitionIssues: engine.definitionIssues(definitionId),
     commands,
     filter,
     refresh,

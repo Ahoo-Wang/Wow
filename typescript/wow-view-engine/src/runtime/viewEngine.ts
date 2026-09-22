@@ -62,6 +62,7 @@ import {
 } from './writeLedger.js';
 import { ViewChanges, type ViewChangeListener } from './viewChanges.js';
 import { DefinitionRegistry, systemInstances } from './definitions.js';
+import { toIssue } from './issues.js';
 import { PermissionGuard } from './permissions.js';
 import { PreferenceCache, resolveDefault } from './preferences.js';
 import { OpenRuntimes } from './openRuntimes.js';
@@ -98,6 +99,16 @@ export type { ConflictChoice, WriteTarget } from './writeLedger.js';
 
 /** Instances a definition declares in code, and the order a user put them in. */
 export { systemInstances } from './definitions.js';
+
+/**
+ * What a definition's list is right now: every view that could be read, and
+ * the reason the rest could not. The declared system views are always in
+ * `items`; `failed` names the store's failure when the saved ones are not.
+ */
+export interface ViewListing {
+  items: ViewInstanceSummary[];
+  failed: Issue | null;
+}
 export { orderSummaries } from './preferences.js';
 
 export interface CreateInput<C extends ViewConfig> {
@@ -202,18 +213,31 @@ export class ViewEngine {
    * the reserved namespace is dropped and reported: only a definition may
    * declare one.
    */
-  async list(definitionId: string): Promise<ViewInstanceSummary[]> {
+  async list(definitionId: string): Promise<ViewListing> {
     const definition = this.registry.require(definitionId);
     const declared = systemInstances(definition).map(toSummary);
-    const stored = await this.store.list(definitionId);
+    // The stored half may fail on its own: a store that is down takes the
+    // saved views with it and nothing else. The declared views travel with
+    // the definition, so they are listed regardless, and the failure is
+    // said beside them rather than thrown over them — a list that threw
+    // used to take the system views down too, and with them the one view
+    // every definition promises to have (management.md).
+    let stored: ViewInstanceSummary[] = [];
+    let failed: Issue | null = null;
+    try {
+      stored = await this.store.list(definitionId);
+    } catch (error) {
+      failed = toIssue(error, 'view.list.failed');
+      this.report(failed);
+    }
     const accepted = stored.filter(summary => {
       if (!isSystemInstanceId(summary.id)) return true;
       this.report(issue('view.list.reserved-id', [], { id: summary.id }));
       return false;
     });
-    const all = [...declared, ...accepted];
-    for (const summary of all) this.summaries.set(summary.id, summary);
-    return all;
+    const items = [...declared, ...accepted];
+    for (const summary of items) this.summaries.set(summary.id, summary);
+    return { items, failed };
   }
 
   /**

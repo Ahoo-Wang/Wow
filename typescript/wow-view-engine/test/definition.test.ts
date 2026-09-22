@@ -615,7 +615,10 @@ describe('ViewEngine and an unusable definition', () => {
     );
 
     expect(issues.every(found => found.severity === 'warning')).toBe(true);
-    await expect(engine.list('overview')).resolves.toHaveLength(1);
+    await expect(engine.list('overview')).resolves.toMatchObject({
+      items: [expect.anything()],
+      failed: null,
+    });
   });
 
   it('says nothing about a definition that is fine', () => {

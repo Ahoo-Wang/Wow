@@ -139,17 +139,39 @@ export function useViewList(
     let cancelled = false;
 
     void engine.list(definitionId).then(
-      value => {
-        if (!cancelled) setList({ key, definitionId, value, error: null });
+      // The store's failure rides beside what could be listed: the declared
+      // views are there whatever the store said, so the sidebar keeps its
+      // one guaranteed view and says why the rest are missing.
+      listing => {
+        if (cancelled) return;
+        setList(current => ({
+          key,
+          definitionId,
+          // A store that failed on a reload takes nothing off the screen:
+          // the answer before it — the saved views included — stays, and
+          // the failure is said beside it. Only a first read has nothing to
+          // keep, and shows the declared views alone.
+          value:
+            listing.failed &&
+            current.definitionId === definitionId &&
+            current.value
+              ? current.value
+              : listing.items,
+          error: listing.failed,
+        }));
       },
+      // A refusal of the whole list — an unknown definition, an invalid one.
+      // What was on hand for this definition stays: a list that blanked here
+      // took the default view with it, the workbench closed its runtime, and
+      // an unsaved draft went with it without a question (F-05).
       (error: unknown) => {
         if (!cancelled)
-          setList({
+          setList(current => ({
             key,
             definitionId,
-            value: null,
+            value: current.definitionId === definitionId ? current.value : null,
             error: toIssue(error, 'view.list.failed'),
-          });
+          }));
       },
     );
 
@@ -164,7 +186,7 @@ export function useViewList(
             key,
             definitionId,
             value: null,
-            error: toIssue(error, 'view.preferences.failed'),
+            error: toIssue(error, 'view.preferences.load-failed'),
           });
       },
     );

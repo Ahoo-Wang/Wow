@@ -107,10 +107,41 @@ describe('useViewList', () => {
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.error?.code).toBe('view.list.failed.unavailable');
     expect(result.current.preferencesError?.code).toBe(
-      'view.preferences.failed.forbidden',
+      'view.preferences.load-failed.forbidden',
     );
-    expect(result.current.items).toEqual([]);
-    expect(result.current.defaultInstanceId).toBeNull();
+    // The declared view is listed whatever the store said, and with no
+    // preferences it is the default in server order: every definition keeps
+    // one view that opens.
+    expect(result.current.items.map(item => item.id)).toEqual([
+      'system:orders:all',
+    ]);
+    expect(result.current.defaultInstanceId).toBe('system:orders:all');
+  });
+
+  /**
+   * A reload that fails keeps what was on screen. Blanking the list moved
+   * the default, the workbench closed the runtime that was riding on it,
+   * and an unsaved draft went without a question (F-05).
+   */
+  it('keeps the previous list when a reload fails', async () => {
+    const { engine, store } = engineWith();
+    const { result } = renderHook(() => useViewList(engine, 'orders'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.items.map(item => item.id)).toContain('orders-1');
+
+    vi.spyOn(store, 'list').mockRejectedValueOnce(
+      new ViewStoreError('UNAVAILABLE', 'offline'),
+    );
+    act(() => result.current.reload());
+    await waitFor(() => expect(result.current.error).not.toBeNull());
+
+    // The saved view is still listed, from the answer before the failure;
+    // the failure is said beside it.
+    expect(result.current.items.map(item => item.id)).toEqual([
+      'system:orders:all',
+      'orders-1',
+    ]);
+    expect(result.current.defaultInstanceId).not.toBeNull();
   });
 
   /**

@@ -12,28 +12,11 @@
  */
 
 import { issue } from '../filter/index.js';
-import { isViewStoreError, type Issue, type ViewKind } from '../model/index.js';
-import { isViewCommandError, isViewWriteError } from '../runtime/index.js';
+import type { Issue, ViewKind } from '../model/index.js';
 
-/**
- * One Issue for whatever a command threw, so a component renders a single
- * shape. A refusal already carries its Issue; a store failure keeps its code;
- * anything else keeps its message.
- */
-export function toIssue(error: unknown, code: string): Issue {
-  if (isViewCommandError(error)) return error.issue;
-  if (isViewWriteError(error))
-    return error.state.kind === 'rejected'
-      ? error.state.issue
-      : issue(`${code}.${error.state.kind}`, []);
-  if (isViewStoreError(error))
-    return issue(`${code}.${error.code.toLowerCase()}`, [], {
-      reason: error.message,
-    });
-  return issue(code, [], {
-    reason: error instanceof Error ? error.message : String(error),
-  });
-}
+// The one shape every command failure is rendered in. It moved to the
+// runtime, which needs it too; this layer keeps the name it always had.
+export { toIssue } from '../runtime/index.js';
 
 /**
  * The reason a view that opened cannot be drawn here, or nothing.

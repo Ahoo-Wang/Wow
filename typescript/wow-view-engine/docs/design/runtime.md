@@ -209,7 +209,7 @@ export interface ViewEngine {
     choice: 'reload' | 'overwrite',
   ): Promise<ViewInstance | void>;
   pendingWrites(): ReadonlyMap<string, WriteState>; // 未结清的写入，按 WriteHandle 索引；含列表命令
-  list(definitionId: string): Promise<ViewInstanceSummary[]>; // 代码声明的系统视图 + store.list()；摘要的 kind 由各自的 config 投影而来
+  list(definitionId: string): Promise<ViewListing>; // { items, failed }：代码声明的系统视图 + store.list()；store 失败时 items 只剩声明的、failed 说原因；摘要的 kind 由各自的 config 投影而来
   subscribe(listener: (change: ViewChange) => void): () => void; // 列表变化的订阅面，形同 runtime.subscribe；返回退订
   preferences(definitionId: string): Promise<ViewPreferences>;
   permissions(definitionId: string): ViewPermissions; // store 同步提供，缺省全允许
