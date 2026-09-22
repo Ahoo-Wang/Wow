@@ -16,6 +16,7 @@ import { cn } from 'cn';
 import type {
   FieldOption,
   FilterLeaf,
+  FilterOperatorName,
   FilterTree,
   Issue,
   IssuePath,
@@ -39,11 +40,23 @@ import {
 } from '../components/select.js';
 import { Tooltip, TooltipTrigger } from '../components/tooltip.js';
 import { SelectContent, TooltipContent } from '../popups.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import {
+  useViewMessages,
+  type MessageFormatters,
+} from '../MessagesProvider.js';
 import { FilterValueEditor } from '../FilterValueEditor.js';
 import { PendingDot, PENDING_AT_CORNER } from '../PendingDot.js';
 import { PillSelectTrigger } from '../variants.js';
+import { UnsupportedValue } from './inputs/unsupported.js';
 import { GroupBlock } from './GroupBlock.js';
+
+/**
+ * The pill's own frame, shared by the editable condition and the read-only
+ * one, so a condition nothing can edit is still recognisably a condition and
+ * sits in the same track as its neighbours.
+ */
+const PILL_FRAME =
+  'border-border bg-muted/40 data-[blank]:border-dashed data-[invalid]:border-destructive data-[warning]:border-warning @[40rem]:data-[wide]:col-span-2 relative flex min-w-0 flex-wrap items-center gap-1 rounded-md border py-0.5 pr-0.5 pl-2 text-sm';
 
 /**
  * One condition: a field, an operator and whatever value editor the kind
@@ -51,6 +64,12 @@ import { GroupBlock } from './GroupBlock.js';
  * it is dashed; wrong, it is marked invalid. A condition that holds a tree
  * is a block instead: its header is the same field and operator, its body
  * the group it holds.
+ *
+ * A condition whose kind the registry does not know is drawn read-only. The
+ * picker cannot produce one (`fieldsFor`), so it only ever arrives from a
+ * stored config whose definition has since changed, and the only two things
+ * the user can do with it are read it and take it out — which is exactly
+ * what the read-only pill offers.
  */
 export function ConditionPill({
   filter,
@@ -72,19 +91,16 @@ export function ConditionPill({
   const field = filter.fields.find(entry => entry.name === leaf.field);
   const label = field?.label ?? leaf.field;
   const operators = filter.operatorsFor(leaf.field).map(operator => ({
-    // The catalogue names every `FilterOperator`; the derived spelling is
-    // the fallback for one a host's own kind offers, as it is in the summary
-    // bar. It is a last resort and not a style: `OWNER_ID` derives to
-    // `owner id`, which is the enum with a space in it.
-    label: messages.label(
-      `label.operator.${operator}`,
-      undefined,
-      operator.split('_').join(' ').toLowerCase(),
-    ),
+    label: operatorLabel(messages, operator),
     value: operator,
   }));
   const editor = filter.editorFor(path);
   const kind = field && filter.kinds?.get(field.kind);
+  // A field the definition still declares, of a kind the registry does not
+  // know. A field the definition has dropped is a different finding
+  // (`filter.field.unknown`) with a different fix — this one names a kind
+  // that could be registered.
+  const unregistered = field !== undefined && kind === undefined;
   const blank =
     field !== undefined &&
     kind !== undefined &&
@@ -172,6 +188,60 @@ export function ConditionPill({
     </IconButton>
   );
 
+  // The field's name is the one word on this row with a width of its own, so
+  // it is the one that truncates. The whole of it is one hover away — a
+  // `Tooltip` rather than the native `title` this used to be (D16), because
+  // the ellipsis is just as final for a keyboard and a touch user, who never
+  // get `title` at all.
+  const name = (
+    <Tooltip>
+      <TooltipTrigger
+        render={<span className="w-16 shrink-0 truncate font-medium" />}
+      >
+        {label}
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+
+  if (unregistered)
+    return (
+      <div
+        data-slot="filter-condition"
+        data-unsupported=""
+        role="group"
+        aria-label={messages.label('label.filter.condition-of', {
+          field: label,
+        })}
+        // Refused, in the tone every refused condition wears: `validateFilter`
+        // reports `filter.kind.unregistered` for this very leaf, so the border
+        // is not a second opinion but the same one. It is set here rather than
+        // read from `invalid` because the pill must look refused even where
+        // this editor was handed no issues at all — a host rendering the tree
+        // without a runtime still has no editor for the kind.
+        data-invalid=""
+        data-pending={pending || undefined}
+        className={PILL_FRAME}
+      >
+        {pending && <PendingDot named className={PENDING_AT_CORNER} />}
+        {name}
+        {/* The operator as the word the dropdown would have shown, not as a
+            dropdown: the kind is what declares which operators a field
+            offers, and without it there is no list to choose from. An empty
+            select was the old answer, and it read as a choice the user had
+            failed to make. */}
+        <span className="w-24 shrink-0 truncate">
+          {operatorLabel(messages, leaf.operator)}
+        </span>
+        <UnsupportedValue
+          kind={field.kind}
+          value={leaf.value}
+          className="min-w-24 flex-1"
+        />
+        {remove}
+      </div>
+    );
+
   if (holdsTree)
     return (
       <div
@@ -219,22 +289,10 @@ export function ConditionPill({
       // `flex-wrap`: the value takes a line of its own where the strip is too
       // narrow to hold the whole sentence on one — see the floor on the value
       // below. Nothing wraps at a strip width the track was designed for.
-      className="border-border bg-muted/40 data-[blank]:border-dashed data-[invalid]:border-destructive data-[warning]:border-warning @[40rem]:data-[wide]:col-span-2 relative flex min-w-0 flex-wrap items-center gap-1 rounded-md border py-0.5 pr-0.5 pl-2 text-sm"
+      className={PILL_FRAME}
     >
       {pending && <PendingDot named className={PENDING_AT_CORNER} />}
-      {/* The field's name is the one word on this row with a width of its
-          own, so it is the one that truncates. The whole of it is one hover
-          away — a `Tooltip` rather than the native `title` this used to be
-          (D16), because the ellipsis is just as final for a keyboard and a
-          touch user, who never get `title` at all. */}
-      <Tooltip>
-        <TooltipTrigger
-          render={<span className="w-16 shrink-0 truncate font-medium" />}
-        >
-          {label}
-        </TooltipTrigger>
-        <TooltipContent>{label}</TooltipContent>
-      </Tooltip>
+      {name}
       <div className="w-24 shrink-0">{operatorSelect}</div>
       {/* One border per condition (D12): the pill is the field, so the
           value control inside it draws none of its own — like the operator
@@ -260,9 +318,13 @@ export function ConditionPill({
           wide ? 'min-w-36' : 'min-w-24',
         )}
       >
-        {editor && (
+        {/* `field` is defined wherever `editor` is — the descriptor comes
+            from its kind — and is named so the fallback can say which kind
+            asked for an input nobody wrote. */}
+        {editor && field && (
           <FilterValueEditor
             editor={editor}
+            kind={field.kind}
             value={leaf.value}
             // The field's title, as the other three names on this row use:
             // an identifier on screen is a word the interface never says
@@ -350,6 +412,27 @@ function rebase(issues: readonly Issue[], path: FilterPath): Issue[] {
     if (own.join('.') !== prefix.join('.')) return [];
     return [{ ...found, path: found.path.slice(prefix.length) }];
   });
+}
+
+/**
+ * One operator as a word.
+ *
+ * The catalogue names every `FilterOperator`; the derived spelling is the
+ * fallback for one a host's own kind offers, as it is in the summary bar. It
+ * is a last resort and not a style: `OWNER_ID` derives to `owner id`, which
+ * is the enum with a space in it. The select and the read-only reading below
+ * share it, so a condition nothing can edit still says the same word it would
+ * have said in the dropdown.
+ */
+function operatorLabel(
+  messages: MessageFormatters,
+  operator: FilterOperatorName,
+): string {
+  return messages.label(
+    `label.operator.${operator}`,
+    undefined,
+    operator.split('_').join(' ').toLowerCase(),
+  );
 }
 
 /** The node indexes of an issue path, comparable against a `FilterPath`. */

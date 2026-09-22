@@ -73,6 +73,7 @@ describe('FilterValueEditor', () => {
       return (
         <ViewSurface>
           <FilterValueEditor
+            kind="number"
             editor={descriptor}
             value={current}
             label="amount"
@@ -95,6 +96,7 @@ describe('FilterValueEditor', () => {
   it('renders nothing for an operator that takes no value', () => {
     const { container } = render(
       <FilterValueEditor
+        kind="number"
         editor={{ input: 'none' }}
         value={null}
         label="amount"
@@ -652,6 +654,7 @@ describe('FilterValueEditor', () => {
     render(
       <ViewSurface locale="zh-CN" messages={zhCN}>
         <FilterValueEditor
+          kind="datetime"
           editor={{ input: 'date', withTime: false }}
           value={
             { type: 'absolute', from: '2026-09-16' } as unknown as FilterValue

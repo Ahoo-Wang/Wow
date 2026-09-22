@@ -17,6 +17,7 @@ import displayMeta, {
   Advanced as DisplayAdvanced,
   NumberList as DisplayNumberList,
   Simple as DisplaySimple,
+  UnregisteredKind as DisplayUnregisteredKind,
   WithTime as DisplayWithTime,
 } from './FilterPanel.stories.js';
 import { amountOf, readColumn, readTotal } from './readTable.js';
@@ -511,5 +512,52 @@ export const TheCalendarSpeaksTheSurfaceLanguage: Story = {
         Math.round(field.getBoundingClientRect().width),
       ).toBeGreaterThanOrEqual(Math.round(name.getBoundingClientRect().width));
     }
+  },
+};
+
+/**
+ * A condition on a field whose kind no registry knows (F-06): drawn
+ * read-only with the stored value and the reason, its ✕ still working; the
+ * condition beside it stays editable; Apply is refused with the count.
+ */
+export const UnregisteredKind: Story = {
+  ...DisplayUnregisteredKind,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const toggle = await canvas.findByRole('button', { name: /^筛选/ });
+    if (toggle.getAttribute('aria-expanded') !== 'true')
+      await userEvent.click(toggle);
+
+    const unsupported = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="filter-unsupported"]',
+      );
+      if (!found) throw new Error('no read-only condition');
+      return found;
+    });
+    await expect(unsupported).toHaveTextContent('#ff8800');
+    await expect(unsupported).toHaveTextContent(
+      formatMessage(zhCN, 'label.filter.kind-unregistered', { kind: 'swatch' }),
+    );
+    // Nothing in it can be typed into; the row can still be taken away.
+    await expect(
+      unsupported.querySelector('input, [role="combobox"]'),
+    ).toBeNull();
+    const pill = unsupported.closest<HTMLElement>(
+      '[data-slot="filter-condition"]',
+    );
+    await expect(pill).not.toBeNull();
+    await expect(
+      within(pill!).getByRole('button', { name: /删除/ }),
+    ).toBeVisible();
+    // The other condition is an ordinary, editable one.
+    const editable = canvasElement.querySelectorAll(
+      '[data-slot="filter-condition"] [role="combobox"]',
+    );
+    await expect(editable.length).toBeGreaterThan(0);
+    // Apply is refused, and says how many conditions want fixing.
+    await expect(
+      canvas.getByRole('button', { name: zhCN['label.filter.apply'] }),
+    ).toBeDisabled();
   },
 };

@@ -51,6 +51,12 @@ export const filterMessages = {
   // with an error stops the whole submission; both are marked where they are.
   'label.filter.pending': 'Not applied yet',
   'label.filter.blocked': '{count} to fix',
+  // A condition nothing can edit: the field's kind is not in the registry,
+  // or the kind asked for an editor this engine does not have. The pill says
+  // it where the editor would have been, because that is where the absence
+  // is; the strip above is for findings no pill can carry.
+  'label.filter.kind-unregistered':
+    "This field's kind ({kind}) has no editor registered.",
   'label.filter.group-operator': 'Group operator',
   'label.filter.remove-group': 'Remove group',
   'label.filter.add': 'Add',
@@ -270,6 +276,8 @@ export const filterMessages = {
   'filter.field.unknown': 'The field {field} no longer exists.',
   'filter.group.unknown-operator': 'A condition group must be AND or OR.',
   'filter.kind.unregistered': 'No editor is registered for the {kind} type.',
+  'filter.kind.unknown-editor':
+    'The {kind} type asks for a {input} editor, which this engine does not have.',
   'filter.node.invalid': 'This condition could not be read.',
   'filter.operator.unsupported': '{field} does not support {operator}.',
   'filter.tree.too-deep': 'The conditions nest deeper than {max} levels.',

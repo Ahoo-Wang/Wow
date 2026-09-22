@@ -11,8 +11,9 @@
  * limitations under the License.
  */
 
-import type { FieldOption, FilterValue } from '../model/index.js';
+import type { FieldKindId, FieldOption, FilterValue } from '../model/index.js';
 import type { EditorDescriptor } from '../filter/index.js';
+import { UnsupportedValue } from './filter/inputs/unsupported.js';
 import { DateValue } from './filter/inputs/date.js';
 import { NumberValue } from './filter/inputs/number.js';
 import { RemoteValue } from './filter/inputs/remote.js';
@@ -33,6 +34,11 @@ export { NumberInput } from './filter/inputs/number.js';
 export interface FilterValueEditorProps {
   /** What the field's kind says this operator needs. */
   editor: EditorDescriptor;
+  /**
+   * The kind that produced the descriptor. Only the fallback reads it, to
+   * name the kind in the sentence saying why nothing here can be edited.
+   */
+  kind: FieldKindId;
   value: FilterValue;
   onChange(value: FilterValue): void;
   label: string;
@@ -57,11 +63,18 @@ export interface FilterValueEditorProps {
  * This switch is the one place that knows `EditorDescriptor.input` is a
  * closed union — every control behind it takes plain props and knows nothing
  * of the descriptor. That is the seam a per-kind renderer registry would be
- * cut along (docs/design/extension.md); until there is one, an unrecognised
- * shape falls through to a plain text input.
+ * cut along (docs/design/extension.md); until there is one, a kind picks one
+ * of the members, and a shape outside the union has no control at all. It
+ * used to fall through to a plain text input, which was the one answer the
+ * extension point promises not to give: a kind that invented a value shape
+ * had it quietly overwritten with a string by an editor that did not
+ * understand it. The fallback now reads the value out and says nothing can
+ * edit it, and admission refuses the condition for the same reason
+ * (`filter.kind.unknown-editor`), so Apply does not run it either.
  */
 export function FilterValueEditor({
   editor,
+  kind,
   value,
   onChange,
   label,
@@ -149,7 +162,7 @@ export function FilterValueEditor({
         />
       );
 
-    default:
+    case 'text':
       return (
         <TextValue
           value={value}
@@ -160,5 +173,18 @@ export function FilterValueEditor({
           multiple={editor.multiple === true}
         />
       );
+
+    case 'predicate':
+      // A condition, not a value: `ConditionPill` draws it as a block over
+      // the same group editor the outer filter uses, and never reaches this
+      // switch with one. There is no value control to give it here, which is
+      // why this is `null` and not the fallback below — the shape is
+      // supported, just not by a value editor.
+      return null;
+
+    default:
+      // Unreachable through the union, and reachable at runtime: the
+      // descriptor comes from a kind an application wrote. See above.
+      return <UnsupportedValue kind={kind} value={value} />;
   }
 }

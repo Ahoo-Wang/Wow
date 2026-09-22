@@ -177,22 +177,42 @@ export interface FieldKindDescribeContext {
   kinds: FieldKindRegistry;
 }
 
+/**
+ * Every input shape the engine can draw, as values and not as a type alone.
+ *
+ * `FilterValueEditor` switches over exactly this union and a kind picks one
+ * of its members — there is no renderer registry, so a kind that asks for
+ * anything else asks for a control nobody wrote. The list lives here, beside
+ * the union it spells out, so admission can hold a kind to the contract
+ * instead of the surface degrading to a text box: `validateFilter` refuses
+ * such a leaf with `filter.kind.unknown-editor`.
+ */
+export const EDITOR_INPUTS = [
+  'none',
+  'text',
+  'number',
+  'boolean',
+  /** One of the three deletion readings, worded by the catalogue. */
+  'deletion',
+  'select',
+  'remote',
+  'date',
+  'dateRange',
+  'relativeDate',
+  /** Not a value: a condition, built with the same editor as the outer one. */
+  'predicate',
+] as const;
+
+export type EditorInput = (typeof EDITOR_INPUTS)[number];
+
+/** Whether a kind named an input the engine has a control for. */
+export function isKnownEditorInput(input: unknown): input is EditorInput {
+  return EDITOR_INPUTS.includes(input as EditorInput);
+}
+
 /** Shape of the input an editor should render; never a component name. */
 export interface EditorDescriptor {
-  input:
-    | 'none'
-    | 'text'
-    | 'number'
-    | 'boolean'
-    /** One of the three deletion readings, worded by the catalogue. */
-    | 'deletion'
-    | 'select'
-    | 'remote'
-    | 'date'
-    | 'dateRange'
-    | 'relativeDate'
-    /** Not a value: a condition, built with the same editor as the outer one. */
-    | 'predicate';
+  input: EditorInput;
   /** The input collects several values, e.g. for `IN`. */
   multiple?: boolean;
   /** Two bounds rather than one value, e.g. for `BETWEEN`. */

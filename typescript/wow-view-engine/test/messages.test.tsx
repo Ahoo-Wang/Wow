@@ -591,6 +591,7 @@ describe('an application rewords what the components write', () => {
     render(
       <MessagesProvider messages={{ 'label.date.absolute': '某一天' }}>
         <FilterValueEditor
+          kind="datetime"
           editor={{ input: 'date' }}
           value={
             { type: 'absolute', from: '2026-01-31' } as unknown as FilterValue

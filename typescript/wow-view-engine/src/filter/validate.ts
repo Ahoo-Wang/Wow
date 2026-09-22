@@ -23,6 +23,7 @@ import {
 } from '../model/index.js';
 import {
   isBlankLeafValue,
+  isKnownEditorInput,
   issue,
   operatorsOf,
   type FieldKindRegistry,
@@ -97,8 +98,12 @@ export function validateFilter(
 
     const kind = kinds.get(field.kind);
     if (!kind) {
-      // Without a kind the kernel has no validate and no compile, so this
-      // blocks apply rather than degrading to a read-only editor.
+      // Without a kind the kernel has no validate and no compile, so the
+      // condition is refused here. The editor still draws it — read-only,
+      // saying which kind is missing — because a condition a saved view
+      // holds is not something the user wrote by mistake; what it must not
+      // do is pretend to be editable, or let Apply run a tree it cannot
+      // compile. See `ConditionPill`.
       issues.push(
         issue('filter.kind.unregistered', path, { kind: field.kind }),
       );
@@ -110,6 +115,24 @@ export function validateFilter(
         issue('filter.operator.unsupported', path, {
           field: field.name,
           operator: node.operator,
+        }),
+      );
+      continue;
+    }
+
+    // A registered kind that asks for an input nobody wrote is the same
+    // thing one step further in: `EditorDescriptor.input` is a closed union
+    // and the surface has one control per member, so an input outside it has
+    // no editor either. Refusing it here is what keeps the fallback honest —
+    // the alternative was a text box that quietly rewrote a value shape the
+    // kind invented. It is judged before blankness, because "still empty" is
+    // itself read off the descriptor.
+    const input = kind.editor(node.operator, field, node.value).input;
+    if (!isKnownEditorInput(input)) {
+      issues.push(
+        issue('filter.kind.unknown-editor', path, {
+          kind: field.kind,
+          input: String(input),
         }),
       );
       continue;

@@ -16,13 +16,18 @@ import type {
   FilterTree,
   ViewInstance,
 } from '@ahoo-wang/fetcher-view-engine';
-import { RecordWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
+import {
+  DashboardWorkbench,
+  RecordWorkbench,
+} from '@ahoo-wang/fetcher-view-engine/ui';
 import { ScenarioFrame } from '../shared/ScenarioFrame.js';
 import {
   HOST_LANGUAGE,
   createStoryEngine,
+  dashboardConfig,
   ordersDefinition,
   recordConfig,
+  savedDashboard,
   savedViews,
 } from './fixtures.js';
 import { StoryEngine, viewEngineScene } from './StoryEngine.js';
@@ -155,6 +160,53 @@ const withTimeView: ViewInstance = {
   }),
 };
 
+/**
+ * 一个仪表盘：它的筛选字段写在**保存下来的配置**里，不是定义里，所以某个
+ * kind 从注册表里撤掉之后，旧配置照样还按它提问。数据视图走不到这一步——定义
+ * 里有未注册的 kind，整份定义在准入时就被拒（`definition.field.kind-unregistered`）
+ * ——仪表盘是这件事真正会发生的地方。
+ */
+const staleDashboard: ViewInstance = {
+  ...savedDashboard,
+  id: 'overview-stale',
+  title: '类型已下线',
+  config: {
+    ...dashboardConfig(),
+    fields: [
+      ...dashboardConfig().fields,
+      // 没有任何注册表认得 `swatch`。
+      { name: 'tone', label: '色板', kind: 'swatch' },
+    ],
+    filter: {
+      op: 'and',
+      children: [
+        { field: 'region', operator: 'IN', value: ['CN-EAST'] },
+        { field: 'tone', operator: 'EQ', value: '#ff8800' },
+      ],
+    },
+  },
+};
+
+/** 全局筛选带里那条只读条件，连同旁边一条照常可编辑的条件。 */
+function UnregisteredKindDemo() {
+  return (
+    <StoryEngine
+      create={() =>
+        createStoryEngine({ instances: [...savedViews, staleDashboard] })
+      }
+    >
+      {engine => (
+        <DashboardWorkbench
+          engine={engine}
+          definitionId="overview"
+          instanceId={staleDashboard.id}
+          {...HOST_LANGUAGE}
+        />
+      )}
+    </StoryEngine>
+  );
+}
+
 function FilterPanelDemo({
   instanceId,
   hostWidth,
@@ -248,3 +300,12 @@ export const NumberList: Story = { args: { instanceId: 'orders-number-list' } };
  * millisecond as a start, the last as an end.
  */
 export const WithTime: Story = { args: { instanceId: 'orders-with-time' } };
+
+/**
+ * 一条没人能编辑的条件。展开「筛选」：色板那条画成只读——字段名、操作符的那个
+ * 词、配置里存着的原值，外加一句说明它为什么不能改——✕ 照常可按，「查询」被挡
+ * 住并在旁边报出待修正的条数。旁边那条仓库条件一切如常，只读只针对那一条。
+ */
+export const UnregisteredKind: Story = {
+  render: () => <UnregisteredKindDemo />,
+};

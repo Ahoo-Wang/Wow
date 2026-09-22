@@ -22,7 +22,7 @@ export interface FieldKind {
   ): Issue[];
   compile(leaf: FilterLeaf, field: FieldDefinition, ctx): FilterExpression;
   /** 由操作符与当前值的语义变体推出编辑器描述；组件名不进入配置。 */
-  editor(operator: FilterOperator, value?: unknown): EditorDescriptor; // { input: 'text' | 'number' | 'select' | 'date' | 'daterange' | 'relative' | 'remote'; multiple?; ... }
+  editor(operator: FilterOperator, value?: unknown): EditorDescriptor; // input 只能是 EDITOR_INPUTS 里的一个；界面按它分派，没有渲染器注册表 // { input: 'text' | 'number' | 'select' | 'date' | 'daterange' | 'relative' | 'remote'; multiple?; ... }
   /** 一条已应用条件的部件，以及它们读作的那句英文。 */
   describe(ctx): FieldKindDescription; // { text; operator?; relation?; value: FilterSummaryValue; items?; group? }
 }
@@ -31,6 +31,7 @@ export interface FieldKind {
 `describe` 交的是**部件**而不是一句话。它的结果落在结果区最显眼的那一行上，kind 自己拼出的句子——原始操作符名、`is empty`、`on or before`——是任何措辞目录都够不到的，`messages={zhCN}` 之下整页中文、唯独条件 badge 是英文就是这么来的。所以：
 
 - `value` 必须是封闭联合 `FilterSummaryValue` 中的一个（`none`／`blank`／`text`／`list`／`range`／`relative`／`preset`，见 [kernels.md#已应用摘要是部件不是句子](kernels.md#已应用摘要是部件不是句子)）。自定义 kind 也从这七种里挑一种，`/ui` 据此渲染，正如 `EditorDescriptor.input` 是封闭的一样；
+- **没注册的 kind、或注册了却要一个引擎没有的 `input`，界面不再退回文本框**（F-06，2026-09-21）：`validateFilter` 分别以 `filter.kind.unregistered`／`filter.kind.unknown-editor` 拒绝这条条件（Apply 被挡、状态条说明），条件 pill 把它画成**只读**（`ui/filter/inputs/unsupported.tsx`：配置里存的原值 + 一句「这个字段的类型（{kind}）没有注册编辑器」，✕ 照常可按），字段选择器根本不再列出这种字段（`fieldsFor` 按注册表过滤）。从前的 `default:` 分支静默退回文本框，让用户改写一个谁也读不回来的值形状。数据定义里的未注册 kind 在准入时就整份被拒（`definition.field.kind-unregistered`），真正会撞到这一条的是仪表盘保存下来的筛选字段。
 - 读不出的值交 `blank` 而不是编一个读法；操作符本身就是全部条件（presence、`IS_EMPTY`）时交 `none`；已经解析过的候选项标签随 `list.labels`／`text.label` 一起交出去，界面不再解析一遍；
 - `operator` 缺省就是叶子自己的，**编译出来的条件与叶子写的不是同一个时要自报**——缺上界的绝对 `BETWEEN` 编译成 `filter.gte(from)`，就报 `GTE`；
 - 同一个值在不同操作符下含义不同时，由 `value` 自己区分而不是让界面去猜操作符：相对日期的 `bound: 'window' | 'instant'` 就是这条规则的实例；

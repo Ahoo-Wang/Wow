@@ -876,4 +876,47 @@ describe('treeController', () => {
 
     expect(own.tree().children).toEqual([]);
   });
+
+  /**
+   * The picker is a promise: every field it lists can be made a condition.
+   * A field whose kind is not in the registry cannot — there is no default
+   * operator to seed and no empty value to start from — so `addLeaf` refuses
+   * it, and a picker that listed it anyway offered a row that did nothing
+   * when clicked. A condition a stored config already holds on such a field
+   * is a different question, answered read-only by the pill.
+   */
+  it('offers no field whose kind the registry does not know', () => {
+    const declared = [
+      ...fields,
+      { name: 'colour', label: 'Colour', kind: 'swatch' },
+    ];
+    let current: FilterTree = { op: 'and', children: [] };
+    const known = treeController({
+      tree: current,
+      fields: declared,
+      kinds: builtinFieldKinds,
+      issues: [],
+      onChange: next => {
+        current = next;
+      },
+    });
+
+    expect(known.fieldsFor().map(field => field.name)).toEqual(['sku', 'qty']);
+
+    // And the list was telling the truth: the field it left out is the one
+    // `addLeaf` will not make a condition of.
+    known.addLeaf('colour');
+    expect(current.children).toEqual([]);
+
+    // No registry at all — a controller built before a runtime exists —
+    // knows no kind, so it offers nothing rather than offering everything.
+    const blind = treeController({
+      tree: current,
+      fields: declared,
+      kinds: undefined,
+      issues: [],
+      onChange: () => {},
+    });
+    expect(blind.fieldsFor()).toEqual([]);
+  });
 });

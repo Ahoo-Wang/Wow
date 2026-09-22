@@ -447,7 +447,8 @@ export interface FilterTreeController {
   /**
    * Fields a new condition may be added on under `parent`: every field not
    * already a condition of that group, since a group holds one condition per
-   * field. The picker lists these rather than `fields`.
+   * field, and of a kind the registry knows, since a condition cannot be made
+   * on one it does not. The picker lists these rather than `fields`.
    */
   fieldsFor(parent?: FilterPath): FieldDefinition[];
   /**
@@ -508,11 +509,12 @@ function blankAt(
   return updateAt(tree, path, blankNode);
 }
 
-/** The fields not yet a condition of the group at `parent`; see `fieldsFor`. */
+/** The fields a condition can still be added on at `parent`; see `fieldsFor`. */
 function addableFields(
   tree: FilterTree,
   fields: readonly FieldDefinition[],
   parent: FilterPath,
+  kinds: FieldKindRegistry | undefined,
 ): FieldDefinition[] {
   const group = nodeAt(tree, parent);
   const used = new Set(
@@ -520,7 +522,15 @@ function addableFields(
       ? group.children.filter(isFilterLeaf).map(leaf => leaf.field)
       : [],
   );
-  return fields.filter(field => !used.has(field.name));
+  // A field whose kind the registry does not know is left out, because
+  // `addLeaf` refuses it: there is no default operator to seed and no empty
+  // value to start from, so the row it offered did nothing when clicked.
+  // A condition a stored config already holds on such a field is a different
+  // question — the definition changed under a saved view — and the panel
+  // still draws it, read-only.
+  return fields.filter(
+    field => !used.has(field.name) && kinds?.has(field.kind) === true,
+  );
 }
 
 /**
@@ -543,7 +553,7 @@ export function treeController(
     kinds,
     issues,
     fieldsFor(parent = ROOT) {
-      return addableFields(tree, fields, parent);
+      return addableFields(tree, fields, parent, kinds);
     },
     clearValue(path) {
       change(current => blankAt(current, path, byName, kinds));
