@@ -47,6 +47,7 @@ import {
 import { DropdownMenuContent } from '../popups.js';
 import { RowItem } from '../RowItem.js';
 import { CompactSelect } from './CompactSelect.js';
+import { useListFocus, type ListFocus } from './listFocus.js';
 import { OptionsSection, type Choice } from './optionControls.js';
 
 /** The two places one drop on the series list is between. */
@@ -140,6 +141,14 @@ export function SeriesList({ type, spec, metrics, onChange }: SeriesListProps) {
   const { say, region } = useAnnouncer('series-announcement');
   const drawn = new Set(spec.series.map(series => series.metric));
   const undrawn = metrics.filter(metric => !drawn.has(metric.value));
+  // A series taken out leaves the keyboard on the series that took its
+  // place (`listFocus.ts`). The arrow keys need nothing: a row is keyed by
+  // its metric, so a move carries the focused handle's own node with it.
+  const focus = useListFocus({
+    list: '[data-slot="chart-options-series"]',
+    item: '[data-slot="series-card"]',
+    add: '[data-slot="add-series"]',
+  });
   const nameOf = (alias: string) =>
     metrics.find(metric => metric.value === alias)?.label ?? alias;
   const update = (series: CartesianSeries[]) => onChange({ ...spec, series });
@@ -201,6 +210,7 @@ export function SeriesList({ type, spec, metrics, onChange }: SeriesListProps) {
               index={index}
               total={spec.series.length}
               name={nameOf(series.metric)}
+              focus={focus}
               onPatch={change => patch(index, change)}
               onRemove={() =>
                 update(spec.series.filter((_series, at) => at !== index))
@@ -224,6 +234,7 @@ export function SeriesList({ type, spec, metrics, onChange }: SeriesListProps) {
                 variant="ghost"
                 size="sm"
                 disabled={undrawn.length === 0}
+                data-slot="add-series"
                 className="self-start"
               />
             }
@@ -263,6 +274,7 @@ function SeriesRow({
   index,
   total,
   name,
+  focus,
   onPatch,
   onRemove,
   onMove,
@@ -273,6 +285,8 @@ function SeriesRow({
   /** How many series there are; a chart of one has no order to change. */
   total: number;
   name: string;
+  /** Where the keyboard goes when this row is the one removed. */
+  focus: ListFocus;
   onPatch(change: Partial<CartesianSeries>): void;
   onRemove(): void;
   /** Moves this series one place, from the arrow keys on its handle. */
@@ -341,7 +355,10 @@ function SeriesRow({
           variant="ghost"
           size="icon-xs"
           disabled={total <= 1}
-          onClick={onRemove}
+          onClick={event => {
+            focus.removing(event, index);
+            onRemove();
+          }}
         >
           <XIcon />
         </IconButton>

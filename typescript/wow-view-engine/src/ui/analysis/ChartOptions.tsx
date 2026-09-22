@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type RefObject } from 'react';
 import { ArrowLeftIcon } from 'lucide-react';
 import {
   isAdditiveMetric,
@@ -58,6 +58,8 @@ export interface ChartOptionsProps {
   onTotals(on: boolean): void;
   /** Back to the chart types. */
   onBack(): void;
+  /** This level's heading, which the keyboard is put on (A1, `ChartPicker`). */
+  headingRef?: RefObject<HTMLHeadingElement | null>;
 }
 
 /**
@@ -78,6 +80,7 @@ export function ChartOptions({
   totals,
   onTotals,
   onBack,
+  headingRef,
 }: ChartOptionsProps) {
   const messages = useViewMessages();
   // Every slot's choices are named as the result's columns are titled —
@@ -133,7 +136,7 @@ export function ChartOptions({
         >
           <ArrowLeftIcon />
         </IconButton>
-        <h2 className="text-base font-semibold">
+        <h2 ref={headingRef} tabIndex={-1} className="text-base font-semibold">
           {messages.label('label.chart.options', { name })}
         </h2>
       </div>

@@ -27,6 +27,7 @@ import { without } from '../../model/index.js';
 import { IconButton } from '../IconButton.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { EditorCard } from '../variants.js';
+import { useListFocus } from './listFocus.js';
 import { SeriesList } from './SeriesList.js';
 import {
   ChoiceField,
@@ -329,6 +330,14 @@ function StageList({
   onRemove?(index: number): void;
 }) {
   const messages = useViewMessages();
+  // A stage that goes leaves the keyboard on the stage that took its place;
+  // a stage that moves keeps it on the button that moved it, at the index
+  // the stage landed on — including the boundary, where that button is now
+  // disabled and the other way round takes the focus (`listFocus.ts`).
+  const focus = useListFocus({
+    list: '[data-slot="chart-options-stages"]',
+    item: '[data-slot="stage-card"]',
+  });
   return (
     <OptionsSection name="stages" title={title}>
       <ol className="flex flex-col gap-2">
@@ -365,8 +374,12 @@ function StageList({
                   variant="ghost"
                   size="icon-xs"
                   className="ml-auto"
+                  data-move="up"
                   disabled={index === 0}
-                  onClick={() => onMove(index, -1)}
+                  onClick={event => {
+                    focus.moved(event, index - 1, 'up');
+                    onMove(index, -1);
+                  }}
                 >
                   <ArrowUpIcon />
                 </IconButton>
@@ -374,8 +387,12 @@ function StageList({
                   label={messages.label('label.chart.move-down', { name })}
                   variant="ghost"
                   size="icon-xs"
+                  data-move="down"
                   disabled={index === stages.length - 1}
-                  onClick={() => onMove(index, 1)}
+                  onClick={event => {
+                    focus.moved(event, index + 1, 'down');
+                    onMove(index, 1);
+                  }}
                 >
                   <ArrowDownIcon />
                 </IconButton>
@@ -385,7 +402,10 @@ function StageList({
                     variant="ghost"
                     size="icon-xs"
                     disabled={stages.length <= 2}
-                    onClick={() => onRemove(index)}
+                    onClick={event => {
+                      focus.removing(event, index);
+                      onRemove(index);
+                    }}
                   >
                     <XIcon />
                   </IconButton>

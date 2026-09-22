@@ -13,6 +13,7 @@
 
 import type * as React from 'react';
 import { useLayoutEffect, useRef } from 'react';
+import { rovingDestination, settleStop, takeStop } from '../roving.js';
 import { resizeByKey } from './ColumnResizer.js';
 
 /**
@@ -58,11 +59,9 @@ export interface RovingHeader {
  * stop?* — if not, it takes it, and otherwise it stands at −1. That runs
  * after every render, which is also what heals the group when a column is
  * added, hidden or reordered: the holder leaving is a render of the row.
- *
- * `tabindex` is written on the node rather than rendered as a prop for the
- * same reason — React is not told, so it never renders the value back, and a
- * sort button is natively focusable and would otherwise be a stop for the
- * frame before the first effect.
+ * The stop itself — who holds it, how it moves, where an arrow lands — is
+ * `roving.ts`, which the analysis result's rows are a column of peers
+ * under; what is left here is what makes this group a header row.
  *
  * **What Alt buys.** The plain arrows walk the columns, so the width needs a
  * modifier: Alt+←/→ resizes the focused column by the handle's own contract
@@ -81,12 +80,10 @@ export function useRovingHeader({
 
   // No dependency list: the invariant is «exactly one member of this row
   // holds the stop», and every render of the row is a chance for it to have
-  // been broken by a column that left.
+  // been broken by a column that left (`roving.ts`).
   useLayoutEffect(() => {
     const node = item.current;
-    if (!node) return;
-    const holder = members(node).find(one => held(one));
-    node.setAttribute('tabindex', !holder || holder === node ? '0' : '-1');
+    if (node) settleStop(members(node));
   });
 
   return {
@@ -96,7 +93,10 @@ export function useRovingHeader({
     item: {
       [STOP]: '',
       ...(onResize ? { 'aria-keyshortcuts': RESIZE_KEYS } : {}),
-      onFocus: () => take(item.current),
+      onFocus: () => {
+        const node = item.current;
+        if (node) takeStop(node, members(node));
+      },
     },
     onKeyDown(event) {
       const node = item.current;
@@ -112,28 +112,16 @@ export function useRovingHeader({
       if (event.ctrlKey || event.metaKey || event.shiftKey) return false;
       const group = members(node);
       const at = group.indexOf(node);
-      const to = destination(event.key, at, group.length);
+      const to = rovingDestination(event.key, at, group.length, 'row');
       if (to === null || to === at) return false;
-      event.preventDefault();
       const next = group[to];
-      take(next);
+      if (!next) return false;
+      event.preventDefault();
+      takeStop(next, group);
       next.focus();
       return true;
     },
   };
-}
-
-/** Where an arrow lands, or `null` when the key is not one of the group's. */
-function destination(key: string, at: number, count: number): number | null {
-  // The ends do not wrap: past the last column lies the first row, and a
-  // header row that sends a reader back to column one is a row with no way
-  // out. `Toolbar` wraps because a bar is a closed set of controls; a header
-  // is the top of the table under it.
-  if (key === 'ArrowLeft') return Math.max(0, at - 1);
-  if (key === 'ArrowRight') return Math.min(count - 1, at + 1);
-  if (key === 'Home') return 0;
-  if (key === 'End') return count - 1;
-  return null;
 }
 
 /**
@@ -155,16 +143,4 @@ function handleOf(node: HTMLElement): HTMLElement | null {
 function members(node: HTMLElement): HTMLElement[] {
   const row = node.closest('tr');
   return row ? [...row.querySelectorAll<HTMLElement>(`[${STOP}]`)] : [];
-}
-
-/** Whether this item is the one the row's Tab stop is on. */
-function held(node: HTMLElement): boolean {
-  return node.getAttribute('tabindex') === '0';
-}
-
-/** Moves the stop onto one item, which is what focus means to a group. */
-function take(node: HTMLElement | null): void {
-  if (!node) return;
-  for (const one of members(node))
-    one.setAttribute('tabindex', one === node ? '0' : '-1');
 }

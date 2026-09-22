@@ -11,9 +11,10 @@
  * limitations under the License.
  */
 
-import { useId } from 'react';
+import { useId, useLayoutEffect, useRef } from 'react';
 import { columnTitle, displayValue, valueText } from './display.js';
 import { useViewMessages } from './MessagesProvider.js';
+import { rovingDestination, settleStop, takeStop } from './roving.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 import type { AnalysisView } from '../analysis/index.js';
 import { AnalysisEmpty } from './analysis/EmptyResult.js';
@@ -38,6 +39,9 @@ export interface AnalysisTableProps {
   onPick?: OnPick;
 }
 
+/** What marks a row as a member of the result's one Tab stop. */
+const ROW = 'tr[data-pickable]';
+
 /**
  * The aggregation as a table: groups first, then metrics, with the totals row
  * from its own ungrouped query rather than from summing what is on screen.
@@ -53,6 +57,26 @@ export function AnalysisTable({ view, onPick }: AnalysisTableProps) {
   const ids = useId();
   const approximateId = `${ids}-approximate`;
   const totalsId = `${ids}-totals`;
+  /**
+   * The rows are peers, and a hundred peers are one Tab stop (A9).
+   *
+   * A pressable row used to be `tabIndex={0}`, so a result of a hundred
+   * groups stood a hundred stops between the toolbar and whatever follows
+   * the table, and a keyboard leaving the result had to walk every group it
+   * had already read. They are a column of the same kind of thing, which is
+   * what a roving tabindex is for (`roving.ts`, and the record header above
+   * the same table): ↑/↓ between the rows, Home/End to the ends, Enter and
+   * Space opening the follow-up menu exactly as a press does.
+   */
+  const body = useRef<HTMLTableSectionElement | null>(null);
+  const rows = () => [
+    ...(body.current?.querySelectorAll<HTMLElement>(ROW) ?? []),
+  ];
+  // No dependency list: a result that lands is a new set of rows, and the
+  // stop has to be on one of *these*.
+  useLayoutEffect(() => {
+    settleStop(rows());
+  });
   // A group key or an ANY shows as its field's values do; the rest, and
   // anything the field's kind has nothing to say about, as before.
   const show = (value: unknown, column: AnalysisView['columns'][number]) =>
@@ -94,23 +118,53 @@ export function AnalysisTable({ view, onPick }: AnalysisTableProps) {
             ))}
           </TableRow>
         </TableHeader>
-        <TableBody>
+        <TableBody ref={body}>
           {view.rows.map((row, index) => (
             <TableRow
               key={index}
               data-pickable={onPick ? '' : undefined}
-              tabIndex={onPick ? 0 : undefined}
               aria-haspopup={onPick ? 'menu' : undefined}
               className={onPick ? 'cursor-pointer' : undefined}
               onClick={
                 onPick ? event => onPick(row, event.currentTarget) : undefined
               }
+              // The stop follows the keyboard: a row focused is the row the
+              // group's one stop is on, however focus got there — an arrow,
+              // a press, or the menu handing it back when it closes.
+              onFocus={
+                onPick
+                  ? event => takeStop(event.currentTarget, rows())
+                  : undefined
+              }
               onKeyDown={
                 onPick
                   ? event => {
-                      if (event.key !== 'Enter' && event.key !== ' ') return;
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        onPick(row, event.currentTarget);
+                        return;
+                      }
+                      // A modifier is the browser's or the page's, never the
+                      // group's: Ctrl+Home is the top of the document.
+                      if (
+                        event.altKey ||
+                        event.ctrlKey ||
+                        event.metaKey ||
+                        event.shiftKey
+                      )
+                        return;
+                      const group = rows();
+                      const to = rovingDestination(
+                        event.key,
+                        group.indexOf(event.currentTarget),
+                        group.length,
+                        'column',
+                      );
+                      const next = to === null ? undefined : group[to];
+                      if (!next || next === event.currentTarget) return;
                       event.preventDefault();
-                      onPick(row, event.currentTarget);
+                      takeStop(next, group);
+                      next.focus();
                     }
                   : undefined
               }

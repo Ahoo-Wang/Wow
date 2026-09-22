@@ -11,8 +11,8 @@
  * limitations under the License.
  */
 
-import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AnalysisView } from '../src/index.js';
 import { AnalysisTable, ViewSurface, zhCN } from '../src/ui/index.js';
 import { describedText } from './fixtures/ui.js';
@@ -298,5 +298,93 @@ describe('the three readings a result says out loud', () => {
     // An exact sum beside it wears neither the sign nor the word.
     expect(headers[2].dataset.approximate).toBeUndefined();
     expect(headers[2].title).toBe('');
+  });
+});
+
+/**
+ * A9. The pressable rows are a column of peers, so they are one Tab stop
+ * with the arrows inside it (`ui/roving.ts`, the same group the record
+ * view's header row is). A hundred groups used to be a hundred stops
+ * between the toolbar and whatever follows the table, which a keyboard
+ * leaving the result had to walk one group at a time.
+ */
+describe('the result rows are one tab stop', () => {
+  const view: AnalysisView = {
+    columns: [
+      { alias: 'warehouse', label: 'Warehouse', role: 'group' },
+      { alias: 'orders', label: 'Orders', role: 'metric' },
+    ],
+    rows: [
+      { warehouse: 'CN', orders: 3 },
+      { warehouse: 'JP', orders: 2 },
+      { warehouse: 'US', orders: 1 },
+    ],
+    truncated: false,
+  };
+
+  const rows = () => [
+    ...document.querySelectorAll<HTMLElement>('tr[data-pickable]'),
+  ];
+  const stops = () => rows().map(row => row.getAttribute('tabindex'));
+
+  it('gives the group one stop, wherever the keyboard is in it', () => {
+    render(<AnalysisTable view={view} onPick={() => {}} />);
+
+    expect(stops()).toEqual(['0', '-1', '-1']);
+
+    // Focus is what the stop follows, however it got there.
+    fireEvent.focus(rows()[2]!);
+    expect(stops()).toEqual(['-1', '-1', '0']);
+  });
+
+  it('moves between the rows on the arrows, and stops at the ends', () => {
+    render(<AnalysisTable view={view} onPick={() => {}} />);
+    rows()[0]!.focus();
+
+    fireEvent.keyDown(rows()[0]!, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(rows()[1]);
+    expect(stops()).toEqual(['-1', '0', '-1']);
+
+    fireEvent.keyDown(rows()[1]!, { key: 'End' });
+    expect(document.activeElement).toBe(rows()[2]);
+
+    // The end does not wrap: past the last row lies whatever follows the
+    // table, and a group that sends a reader back to row one has no way out.
+    fireEvent.keyDown(rows()[2]!, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(rows()[2]);
+
+    fireEvent.keyDown(rows()[2]!, { key: 'Home' });
+    expect(document.activeElement).toBe(rows()[0]);
+    expect(stops()).toEqual(['0', '-1', '-1']);
+  });
+
+  it('opens the follow-up menu on Enter and Space, as a press does', () => {
+    const onPick = vi.fn();
+    render(<AnalysisTable view={view} onPick={onPick} />);
+
+    fireEvent.keyDown(rows()[1]!, { key: 'Enter' });
+    fireEvent.keyDown(rows()[1]!, { key: ' ' });
+    fireEvent.click(rows()[1]!);
+
+    expect(onPick).toHaveBeenCalledTimes(3);
+    expect(onPick.mock.calls.every(call => call[0] === view.rows[1])).toBe(
+      true,
+    );
+    // A modifier belongs to the browser or the page: Ctrl+Home is the top
+    // of the document, not the top of this table.
+    fireEvent.keyDown(rows()[1]!, { key: 'Home', ctrlKey: true });
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  /** Rows nothing can be asked of take no stop at all. */
+  it('leaves an unpressable result out of the Tab order', () => {
+    render(<AnalysisTable view={view} />);
+
+    expect(rows()).toHaveLength(0);
+    expect(
+      [...document.querySelectorAll('tbody tr')].map(row =>
+        row.getAttribute('tabindex'),
+      ),
+    ).toEqual([null, null, null]);
   });
 });

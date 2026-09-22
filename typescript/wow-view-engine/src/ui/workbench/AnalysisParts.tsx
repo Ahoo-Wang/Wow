@@ -143,6 +143,55 @@ export function AnalysisParts({
   // says: the one way in is the toolbar's button, which is gone with it, and
   // an absent feature is absent rather than merely unreachable.
   const level = shown.visualization ? panel : null;
+  /**
+   * The keyboard follows the level (A1).
+   *
+   * The panel takes the sidebar's column and replaces its own contents as
+   * the level changes, so every one of those changes used to leave the
+   * focus on an element that is no longer on the page — the press that
+   * opened it, the gear, the way back — and a focus with nothing under it
+   * falls to `<body>`. Each level therefore takes the keyboard to its own
+   * heading, and closing the panel hands it back to the button that opened
+   * it, which is where the user was.
+   *
+   * It is an effect keyed on the level rather than anything done inside the
+   * press: the heading does not exist until React has drawn the level, and
+   * a timer waiting for that would be a guess.
+   */
+  const heading = useRef<HTMLHeadingElement | null>(null);
+  const visualizeRef = useRef<HTMLButtonElement | null>(null);
+  // Whatever the panel is a panel *of*, remembered while it is open: with
+  // the toolbar gone there is no button to go back to, and the result the
+  // panel is about is the next best place — found through the panel's own
+  // surface, because a page may hold more than one view (a dashboard does).
+  const surface = useRef<HTMLElement | null>(null);
+  const was = useRef(level);
+  useEffect(() => {
+    const before = was.current;
+    if (before === level) return;
+    was.current = level;
+    if (level !== null) {
+      surface.current =
+        heading.current?.closest<HTMLElement>('[data-slot="view-surface"]') ??
+        surface.current;
+      heading.current?.focus();
+      return;
+    }
+    if (before === null) return;
+    const button = visualizeRef.current;
+    if (button) {
+      button.focus();
+      return;
+    }
+    const block = surface.current?.querySelector<HTMLElement>(
+      '[data-slot="result-block"]',
+    );
+    if (!block) return;
+    // The section is not a control and owns no `tabindex` of its own; it is
+    // given one for this landing only, the way a skip link's target is.
+    block.setAttribute('tabindex', '-1');
+    block.focus();
+  }, [level]);
   const fits = useMemo(
     () =>
       fitCharts({
@@ -306,6 +355,7 @@ export function AnalysisParts({
         analysis={analysis}
         view={view}
         visualizing={level !== null}
+        visualizeRef={visualizeRef}
         {...(shown.visualization
           ? {
               onVisualize: (open: boolean) => setPanel(open ? 'picker' : null),
@@ -316,6 +366,7 @@ export function AnalysisParts({
     panel:
       level === 'picker' ? (
         <ChartPicker
+          headingRef={heading}
           fits={fits}
           picked={picked}
           onPick={choose}
@@ -324,6 +375,7 @@ export function AnalysisParts({
         />
       ) : level === 'options' && view ? (
         <ChartOptions
+          headingRef={heading}
           picked={picked}
           chart={chart}
           groups={shaped?.groups ?? []}

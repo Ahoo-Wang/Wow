@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useId, useRef } from 'react';
+import { useId, useRef, type RefObject } from 'react';
 import {
   ArrowLeftIcon,
   Settings2Icon,
@@ -62,6 +62,12 @@ export interface ChartPickerProps {
   onOptions(): void;
   /** Closes the panel: the way back to the view list. */
   onBack(): void;
+  /**
+   * The panel's own heading, which is where the keyboard is put when this
+   * level comes up. `AnalysisParts` holds the ref, because the level it
+   * belongs to is the state that moved (A1).
+   */
+  headingRef?: RefObject<HTMLHeadingElement | null>;
 }
 
 /**
@@ -97,6 +103,7 @@ export function ChartPicker({
   onPick,
   onOptions,
   onBack,
+  headingRef,
 }: ChartPickerProps) {
   const messages = useViewMessages();
   // One prefix for the picker, suffixed per tile: the ids the tiles' own
@@ -133,7 +140,11 @@ export function ChartPicker({
         >
           <ArrowLeftIcon />
         </IconButton>
-        <h2 className="text-base font-semibold">
+        {/* `tabIndex={-1}`: the heading is not a control and stays off the
+            Tab route, but the panel that has just replaced the view list has
+            to be where the keyboard is, and a heading is what says which
+            level it landed on. */}
+        <h2 ref={headingRef} tabIndex={-1} className="text-base font-semibold">
           {messages.label('label.chart.picker')}
         </h2>
       </div>

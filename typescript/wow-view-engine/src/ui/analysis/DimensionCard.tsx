@@ -34,6 +34,7 @@ import { EditorCard, EditorSlot } from '../variants.js';
 import { CardMenu, CardName } from './CardMenu.js';
 import { CompactSelect } from './CompactSelect.js';
 import { aliasesOf, defaultGroup, groupOfType } from './editing.js';
+import { useListFocus, type ListFocus } from './listFocus.js';
 
 /**
  * The dimensions slot: one card per group, in the order they cut the
@@ -55,6 +56,14 @@ export function DimensionSlot({
   const groupable = analysis.fields.filter(
     field => field.groups.length > 0 && !grouped.has(field.field),
   );
+  // A dimension taken out leaves the keyboard on this slot, not on the
+  // page's ground (`listFocus.ts`). It is held here rather than on the card
+  // because the card pressed is the one that goes.
+  const focus = useListFocus({
+    list: '[data-slot="analysis-slot-dimensions"]',
+    item: '[data-slot="dimension-card"]',
+    add: '[data-slot="add-group"]',
+  });
   return (
     <EditorSlot
       name="dimensions"
@@ -67,6 +76,7 @@ export function DimensionSlot({
           analysis={analysis}
           group={group}
           index={index}
+          focus={focus}
           disabled={disabled}
         />
       ))}
@@ -77,6 +87,7 @@ export function DimensionSlot({
               variant="ghost"
               size="sm"
               disabled={disabled || groupable.length === 0}
+              data-slot="add-group"
               className="self-start"
             />
           }
@@ -124,11 +135,14 @@ function DimensionCard({
   analysis,
   group,
   index,
+  focus,
   disabled,
 }: {
   analysis: AnalysisEditorController;
   group: AnalysisGroup;
   index: number;
+  /** Where the keyboard goes when this card is the one removed. */
+  focus: ListFocus;
   disabled?: boolean;
 }) {
   const messages = useViewMessages();
@@ -243,7 +257,10 @@ function DimensionCard({
         variant="ghost"
         size="icon-xs"
         disabled={disabled}
-        onClick={() => analysis.removeGroup(index)}
+        onClick={event => {
+          focus.removing(event, index);
+          analysis.removeGroup(index);
+        }}
       >
         <XIcon />
       </IconButton>

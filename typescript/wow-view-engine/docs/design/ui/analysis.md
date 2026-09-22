@@ -204,3 +204,13 @@ D20 把可视化定为分析的**最后一步**：结果先是表格，确认完
 - **上限是别名的总数**（`maxSortFields`）：每个维度与指标至多排一次，排完就没有可加的了，「排序字段」那颗按钮自己灰掉。
 
 （见 test/formulaCard.test.tsx「ordering the groups」「orders by several aliases, in the priority the editor lists them」与 test/sortSettings.test.tsx「what the sort button says」；浏览器里换行序的是 stories/view-engine 的 `SortedByTwo`）
+
+## 焦点：键盘不该被丢回页面开头
+
+阶段二评审的三条（A1／A2／A9）说的是同一件事：**屏幕换掉了键盘正站着的那个元素，就得说出键盘接下来站哪儿**。焦点落到 `<body>` 上不是"没有焦点"，而是下一次 Tab 从标题栏重新走一遍——删三个维度就得从头走三趟。
+
+- **可视化面板换层，焦点跟着层走**（A1，`ui/workbench/AnalysisParts.tsx`）。`panel` 这颗状态有三种值，每一次变化都会换掉侧栏里的整块内容：按「可视化」进第一层，焦点落到 `ChartPicker` 的 `h2`（`tabIndex={-1}`，它不进 Tab 路线，只接一次落点）；按齿轮进第二层，落到 `ChartOptions` 的 `h2`；「返回图型」回第一层，还是落到 `ChartPicker` 的 `h2`；「返回视图列表」把面板关掉，焦点**回到开面板的那颗按钮**（`AnalysisToolbar` 的 `data-slot="visualize"`，ref 由 `AnalysisParts` 持有）。工具栏本身已经不在了的时候（结果空了、宿主关了这项能力）退回结果块。这是一个**以层为依赖的 effect**，不是 `setTimeout`：标题要等 React 画完这一层才存在，而定时器只是在猜它什么时候画完；
+- **移除之后键盘留在原地**（A2，`ui/analysis/listFocus.ts` 的 `useListFocus`）。维度卡、指标卡、展开链的一层、「只保留」的一行、漏斗的一个阶段、系列的一行、参考线的一条——七处移除共用一条规则：**焦点落到补上这个位置的那一项**（同下标），列表到头了就落到**上一项**，一项都不剩就落到这个槽自己的「添加」。移动同理：按下「上移」「下移」之后，焦点留在**这项落到新下标之后的那颗同向按钮**上，于是连按几次就能一路挪；挪到头那颗按钮禁用了，反向的那颗接住焦点——**不为此把边界上的按钮留着当空操作**，一个按下去什么也不做的按钮比一次横向移动的焦点更难读。规则写在 effect 里而不是写在按下的那一刻：按下的时候那一项还在页面上，是下一次渲染才把它拿走的；
+- **结果的行是一个 Tab 停留点**（A9，`ui/AnalysisTable.tsx` + `ui/roving.ts`）。可按的行从前每行一个 `tabIndex={0}`，于是一百组就是一百个停留点，键盘想走出这张表得把已经读过的每一组再走一遍。行与行是同类的东西，这正是 roving tabindex 的场合（与记录视图表头同一套 `roving.ts`）：整组一个停留点，↑／↓ 在行之间走，Home／End 到两端，回车与空格照旧打开追问菜单。`tabindex` 写在节点上而不是渲染成属性——React 不知道它，也就不会把键盘挪过的那个停留点重新渲染回去。
+
+（见 test/analysisFocus.test.tsx「the visualization panel hands the keyboard on」「a removal leaves the keyboard in the list」与 test/analysisTable.test.tsx「the result rows are one tab stop」）

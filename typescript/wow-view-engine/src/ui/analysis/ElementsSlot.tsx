@@ -22,6 +22,7 @@ import { IconButton } from '../IconButton.js';
 import { TEXT_UI } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { EditorCard, EditorSlot } from '../variants.js';
+import { useListFocus, type ListFocus } from './listFocus.js';
 import {
   ConditionButton,
   ConditionLine,
@@ -48,6 +49,14 @@ export function ElementsSlot({
 }) {
   const messages = useViewMessages();
   const next = analysis.expandable;
+  // A level collapsed takes every level inside it, so what is left at that
+  // index is the level before it — and that is where the keyboard lands
+  // (`listFocus.ts`), or on 「再展开」 when the chain is gone entirely.
+  const focus = useListFocus({
+    list: '[data-slot="analysis-slot-elements"]',
+    item: '[data-slot="element-card"]',
+    add: '[data-slot="expand-into"]',
+  });
   return (
     <EditorSlot
       name="elements"
@@ -61,6 +70,7 @@ export function ElementsSlot({
             analysis={analysis}
             element={element}
             index={index}
+            focus={focus}
             disabled={disabled}
             optionsFor={optionsFor}
           />
@@ -96,12 +106,15 @@ function ElementCard({
   analysis,
   element,
   index,
+  focus,
   disabled,
   optionsFor,
 }: {
   analysis: AnalysisEditorController;
   element: AnalysisElement;
   index: number;
+  /** Where the keyboard goes when this level is the one collapsed. */
+  focus: ListFocus;
   disabled?: boolean;
   optionsFor?(remote: string): FieldOption[] | undefined;
 }) {
@@ -145,7 +158,10 @@ function ElementCard({
           size="icon-xs"
           className="ml-auto"
           disabled={disabled}
-          onClick={() => analysis.collapse(index)}
+          onClick={event => {
+            focus.removing(event, index);
+            analysis.collapse(index);
+          }}
         >
           <XIcon />
         </IconButton>

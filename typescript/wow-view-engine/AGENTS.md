@@ -306,6 +306,7 @@ src/
     layout.ts                 — `TEXT_UI`, `SPACE`: the one small type size and the spacing ruler
     messages.ts               — Wording, by key
     popups.tsx                — The popups this package renders, themed and on a layer of their own
+    roving.ts                 — A group of peers as one Tab stop: who holds it, how it moves, where an arrow lands; the record header and the analysis result's rows share it
     summary.ts                — The applied-conditions bar in words: one `FilterSummaryItem` as a sentence
     toolbar.tsx               — Base UI's toolbar primitive: one tab stop with the arrow keys inside
     variants.tsx              — The colours, edges and shapes a vendored component does not ship, in one place (D16-8); `TableDataRow` holds a record row's three states
@@ -333,6 +334,7 @@ src/
       SortRow.tsx             — The bottom of the metrics slot: what the first N groups are the first N of
       Tray.tsx                — The analysis view's editor: range → dimensions | metrics, one Apply for the whole draft (D20)
       editing.ts              — What the tray builds when a field is picked: default dimension and metric, the summary choice a card shows and the metric it swaps in
+      listFocus.ts            — Where the keyboard stands after the card it was on leaves the page: `useListFocus`, shared by every remove and move in the tray and the options panel (A2)
     charts/                   — One file per family, plus what they share
       Cartesian.tsx           — Which axis carries the numbers
       ChartReading.tsx        — The chart's numbers as a table, for whoever cannot see the marks

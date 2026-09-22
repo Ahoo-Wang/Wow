@@ -28,6 +28,7 @@ import { useViewMessages } from '../MessagesProvider.js';
 import { EditorCard } from '../variants.js';
 import { CompactSelect } from './CompactSelect.js';
 import { metricReference } from './editing.js';
+import { useListFocus } from './listFocus.js';
 
 /**
  * 「只保留」 (D20 屏 B; Wow `having`): which groups the result keeps, as
@@ -52,6 +53,13 @@ export function HavingRows({
   // so a revert or an applied change starts the editor over.
   const stored = analysis.having;
   const [pending, setPending] = useState<HavingRow[]>([]);
+  // A row taken out leaves the keyboard on the row that took its place, or
+  // on 「只保留」 once the last one goes (`listFocus.ts`).
+  const focus = useListFocus({
+    list: '[data-slot="analysis-having"]',
+    item: '[data-slot="having-row"]',
+    add: '[data-slot="add-having"]',
+  });
   if (!analysis.havingAllowed || analysis.groups.length === 0) return null;
   const rows = stored === null ? [] : [...stored, ...pending];
   const write = (next: HavingRow[]) => {
@@ -153,7 +161,10 @@ export function HavingRows({
               size="icon-xs"
               className="ml-auto"
               disabled={disabled}
-              onClick={() => write(rows.filter((_row, at) => at !== index))}
+              onClick={event => {
+                focus.removing(event, index);
+                write(rows.filter((_row, at) => at !== index));
+              }}
             >
               <XIcon />
             </IconButton>

@@ -34,6 +34,7 @@ import {
 } from '../MessagesProvider.js';
 import { EditorCard, PillInput } from '../variants.js';
 import { CompactSelect } from './CompactSelect.js';
+import { useListFocus } from './listFocus.js';
 import {
   CheckField,
   ChoiceField,
@@ -88,6 +89,13 @@ export function DisplayTab(props: OptionsPageProps) {
 
 function CartesianDisplay({ chart, onChange }: OptionsPageProps) {
   const messages = useViewMessages();
+  // A line taken out leaves the keyboard on the line under it, or on
+  // 「添加参考线」 once the last one goes (`listFocus.ts`).
+  const focus = useListFocus({
+    list: '[data-slot="chart-options-reference-lines"]',
+    item: '[data-slot="reference-line-card"]',
+    add: '[data-slot="add-reference-line"]',
+  });
   const spec = chart.cartesian;
   if (!spec) return null;
   const update = (next: CartesianSpec) =>
@@ -204,9 +212,10 @@ function CartesianDisplay({ chart, onChange }: OptionsPageProps) {
               label={messages.label('label.chart.remove-reference-line')}
               variant="ghost"
               size="icon-xs"
-              onClick={() =>
-                setLines(lines.filter((_line, at) => at !== index))
-              }
+              onClick={event => {
+                focus.removing(event, index);
+                setLines(lines.filter((_line, at) => at !== index));
+              }}
             >
               <XIcon />
             </IconButton>
@@ -216,6 +225,7 @@ function CartesianDisplay({ chart, onChange }: OptionsPageProps) {
           variant="ghost"
           size="sm"
           className="self-start"
+          data-slot="add-reference-line"
           onClick={() => setLines([...lines, { axis: 'left', value: 0 }])}
         >
           <PlusIcon data-icon="inline-start" />

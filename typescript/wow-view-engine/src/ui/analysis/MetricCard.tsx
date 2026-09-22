@@ -33,6 +33,7 @@ import { CardMenu, CardName } from './CardMenu.js';
 import { CompactSelect } from './CompactSelect.js';
 import { DerivedControls, FormulaControls } from './FormulaCard.js';
 import { HavingRows } from './HavingRows.js';
+import { useListFocus, type ListFocus } from './listFocus.js';
 import {
   ConditionBlock,
   ConditionButton,
@@ -76,6 +77,13 @@ export function MetricSlot({
   // a card's conditions from *another* card is the copy: 「复制并加条件」
   // makes the copy and opens it, which is the condition it promised.
   const [conditioning, setConditioning] = useState<string | null>(null);
+  // A metric taken out leaves the keyboard on this slot (`listFocus.ts`);
+  // held here because the card pressed is the one that goes.
+  const focus = useListFocus({
+    list: '[data-slot="analysis-slot-metrics"]',
+    item: '[data-slot="metric-card"]',
+    add: '[data-slot="add-metric"]',
+  });
   return (
     <EditorSlot
       name="metrics"
@@ -88,6 +96,7 @@ export function MetricSlot({
           analysis={analysis}
           metric={metric}
           index={index}
+          focus={focus}
           disabled={disabled}
           optionsFor={optionsFor}
           conditioning={conditioning === metric.alias}
@@ -106,6 +115,7 @@ export function MetricSlot({
               disabled={
                 disabled || (measurable.length === 0 && !analysis.countable)
               }
+              data-slot="add-metric"
               className="self-start"
             />
           }
@@ -181,6 +191,7 @@ function MetricCard({
   analysis,
   metric,
   index,
+  focus,
   disabled,
   optionsFor,
   conditioning,
@@ -190,6 +201,8 @@ function MetricCard({
   analysis: AnalysisEditorController;
   metric: AnalysisMetric;
   index: number;
+  /** Where the keyboard goes when this card is the one removed. */
+  focus: ListFocus;
   disabled?: boolean;
   optionsFor?(remote: string): FieldOption[] | undefined;
   /**
@@ -329,7 +342,10 @@ function MetricCard({
         variant="ghost"
         size="icon-xs"
         disabled={disabled || analysis.metrics.length <= 1}
-        onClick={() => analysis.removeMetric(index)}
+        onClick={event => {
+          focus.removing(event, index);
+          analysis.removeMetric(index);
+        }}
       >
         <XIcon />
       </IconButton>

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useId } from 'react';
+import { useId, type RefObject } from 'react';
 import { ChartColumnIcon } from 'lucide-react';
 import type { AnalysisView } from '../../analysis/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
@@ -36,6 +36,12 @@ export interface AnalysisToolbarProps {
    */
   visualizing?: boolean;
   onVisualize?(open: boolean): void;
+  /**
+   * The press that opened the panel, so the panel can hand the keyboard
+   * back to it when it closes (A1). Held by `AnalysisParts`, which owns the
+   * level the panel is at.
+   */
+  visualizeRef?: RefObject<HTMLButtonElement | null>;
   disabled?: boolean;
 }
 
@@ -53,6 +59,7 @@ export function AnalysisToolbar({
   view,
   visualizing,
   onVisualize,
+  visualizeRef,
   disabled,
 }: AnalysisToolbarProps) {
   const messages = useViewMessages();
@@ -111,6 +118,7 @@ export function AnalysisToolbar({
         </ToggleGroup>
         {onVisualize && (
           <Button
+            ref={visualizeRef}
             variant="outline"
             size="sm"
             aria-pressed={visualizing === true}
