@@ -11,8 +11,7 @@
  * limitations under the License.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { fitCharts, momentColumns } from '../../analysis/index.js';
+import { useEffect, useRef, useState } from 'react';
 import type { AnalysisViewConfig, FieldOption } from '../../model/index.js';
 import type { ViewRuntime } from '../../runtime/index.js';
 import {
@@ -88,30 +87,8 @@ export function AnalysisParts({
   const searchBox = useSearchBox(runtime);
 
   const result = useAnalysisResult(runtime, analysis, workbench);
-  const { view, chart, chartData, picked, ran } = result;
+  const { view, chart, chartData, fits, picked } = result;
   const layout = analysis.layout;
-  /**
-   * The picker's fits, judged against the rows as well as the shape. A
-   * funnel over one dimension takes its stages from the rows the moment it
-   * is picked (`withStagesFrom`), so whether it has the two it needs is a
-   * question only they answer: judged on the shape alone, a funnel over a
-   * result of one group was offered, and picking it drew nothing but
-   * 「漏斗至少要有两个阶段」 (the 2026-09-23 audit). The controller's `fits`
-   * is handed no rows yet (docs/design/todo.md), so the picker's are
-   * worked out here, from the same shape and moments it reads.
-   */
-  const fits = useMemo(
-    () =>
-      ran && view
-        ? fitCharts({
-            groups: ran.groups,
-            metrics: ran.metrics,
-            moments: momentColumns(view.schema ?? view.columns),
-            rows: view.rows,
-          })
-        : result.fits,
-    [ran, view, result.fits],
-  );
 
   // The visualization panel (D20 屏 I／J): open from the result's toolbar,
   // it takes the sidebar column, first as the chart types, then as the

@@ -274,9 +274,13 @@ function FunnelData({ chart, shape, rows, label, onChange }: OptionsPageProps) {
           )
         }
       />
+      {/* A stage counts what entered and remained: only a metric that adds
+          up is one (`chart.funnel.not-additive`). */}
       <SlotSelect
         label={messages.label('label.chart.slot.value')}
-        items={shape.quantities}
+        items={shape.quantities.filter(metric =>
+          shape.additive.has(metric.value),
+        )}
         value={stages.value}
         onChange={value => update({ ...spec, stages: { ...stages, value } })}
       />

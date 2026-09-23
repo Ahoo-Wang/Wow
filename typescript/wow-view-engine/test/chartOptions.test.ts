@@ -165,4 +165,31 @@ describe('chartOptions', () => {
     const bar: ChartSpec = { type: 'bar', funnel: funnel.funnel };
     expect(withStagesFrom(bar, rows)).toBe(bar);
   });
+
+  /**
+   * A saved funnel of one stage refuses to draw, and picked again it would
+   * refuse again: one stage is no order, so it is completed from the rows,
+   * the stage it names first.
+   */
+  it('completes an order of one stage from the rows', () => {
+    const rows = [
+      { stage: 'visited', n: 9 },
+      { stage: 'carted', n: 4 },
+      { stage: 'paid', n: 2 },
+    ];
+    const one: ChartSpec = {
+      type: 'funnel',
+      funnel: {
+        stages: {
+          from: 'group',
+          category: 'stage',
+          value: 'n',
+          order: ['paid'],
+        },
+      },
+    };
+    expect(withStagesFrom(one, rows).funnel?.stages).toMatchObject({
+      order: ['paid', 'visited', 'carted'],
+    });
+  });
 });

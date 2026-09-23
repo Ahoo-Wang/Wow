@@ -18,6 +18,7 @@ import {
   fitChartSlots,
   fitCharts,
   optionTabs,
+  switchChartType,
   validateChart,
   withStagesFrom,
 } from '../src/analysis/index.js';
@@ -81,6 +82,10 @@ const METRICS: AnalysisMetric[][] = [
   [latest],
   [count, latest],
   [latest, sum, average],
+  // A lead that does not add up beside one that does: a funnel takes the
+  // second (`chart.funnel.not-additive`).
+  [average, count],
+  [average, sum, latest],
 ];
 
 /**
@@ -101,6 +106,14 @@ function rowsOf(groups: AnalysisGroup[], values: readonly string[]) {
 
 /** Two groups, one group, and two whose values are none of them text. */
 const ROWS: readonly (readonly string[])[] = [['a', 'b'], ['a']];
+
+/** The stages a saved funnel names: two, one, one listed twice, none. */
+const ORDERS: readonly (readonly string[])[] = [
+  ['a', 'b'],
+  ['a'],
+  ['a', 'a'],
+  [],
+];
 
 /**
  * The chart the panel would draw on picking `type` for this shape: its
@@ -159,6 +172,64 @@ describe('chartFamilies', () => {
             if (draws !== fits[type].available)
               drift.push(
                 `${groups.map(group => group.alias).join('+') || '∅'} (${values.length} rows) × ${metrics
+                  .map(metric => metric.alias)
+                  .join(
+                    '+',
+                  )} → ${type}: offered ${fits[type].available}, draws ${draws}`,
+              );
+          }
+        }
+    expect(drift).toEqual([]);
+  });
+
+  /**
+   * Before anything ran there are no rows: a saved chart that is refused
+   * runs nothing, and picking a type is how it is repaired. The picker then
+   * reads the draft's shape and the stages its chart already names, and a
+   * pick is fitted to that shape — offered exactly when that draws.
+   */
+  it('one rule, before anything ran', () => {
+    const drift: string[] = [];
+    for (const groups of GROUPS)
+      for (const metrics of METRICS)
+        for (const order of ORDERS) {
+          const saved: ChartSpec = {
+            type: 'funnel',
+            funnel: {
+              stages: {
+                from: 'group',
+                category: groups[0]?.alias ?? '',
+                value: metrics[0].alias,
+                order: [...order],
+              },
+            },
+          };
+          const fits = fitCharts({
+            groups,
+            metrics,
+            moments: MOMENTS,
+            chart: saved,
+          });
+          for (const type of CHART_TYPES) {
+            const chart = fitChartSlots(
+              switchChartType(saved, type),
+              groups,
+              metrics,
+              MOMENTS,
+            );
+            const errors = validateChart(
+              analysisConfig({
+                groups,
+                metrics: metrics as [AnalysisMetric, ...AnalysisMetric[]],
+                chart,
+              }),
+              MOMENTS,
+            ).filter(issue => issue.severity === 'error');
+            const draws =
+              chart.type === type && errors.length === 0 && measures(chart);
+            if (draws !== fits[type].available)
+              drift.push(
+                `${groups.map(group => group.alias).join('+') || '∅'} [${order.join(',')}] × ${metrics
                   .map(metric => metric.alias)
                   .join(
                     '+',

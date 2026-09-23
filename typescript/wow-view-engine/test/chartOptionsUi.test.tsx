@@ -953,6 +953,34 @@ describe('the chart options of the other families', () => {
     });
   });
 
+  /**
+   * A stage counts what entered and remained, so its value is a record
+   * count or a sum (`chart.funnel.not-additive`): an average is not offered
+   * where the funnel's value is chosen.
+   */
+  it('offers a funnel only the metrics that add up', async () => {
+    const { user } = await open(
+      {
+        type: 'funnel',
+        funnel: {
+          stages: {
+            from: 'group',
+            category: 'warehouse',
+            value: 'orders',
+            order: ['CN', 'US'],
+          },
+        },
+      },
+      { metrics: [ORDERS, AVERAGE, TOTAL] },
+    );
+    await user.click(gear('funnel'));
+    await user.click(within(panel()!).getByLabelText('Value'));
+    const offered = (await screen.findAllByRole('option')).map(
+      option => option.textContent,
+    );
+    expect(offered).toEqual(['Record count', 'Sum of Amount']);
+  });
+
   it('puts a heatmap on a log scale and writes its numbers in the cells', async () => {
     const { user, draft, queries } = await open(
       {

@@ -38,7 +38,8 @@ import { issue } from '../filter/index.js';
  * Metrics the projection may add up across rows: a pie's "other" slice and a
  * metric card's trend headline are both sums of queried buckets, which only
  * means something for a metric that adds. AVG, MIN, MAX, DISTINCT_COUNT and a
- * percentile cannot be re-aggregated from their parts.
+ * percentile cannot be re-aggregated from their parts. A funnel's stages are
+ * counts of what entered and remained, so they are these too.
  */
 export function isAdditiveMetric(metric: AnalysisMetric | undefined): boolean {
   if (!metric) return false;
@@ -335,6 +336,26 @@ function scatter(context: ChartContext): Issue[] {
   return issues;
 }
 
+/**
+ * What a funnel stage measures: a quantity, and one that adds up. A funnel
+ * is how many entered and how many remained, and its conversion is one
+ * stage over another — which says nothing of an average, a distinct count,
+ * a percentile, the smallest, the largest or any one value, and a funnel
+ * over a dimension may add later stages into earlier ones (`cumulative`).
+ * Same rule as a pie's merged slice and a trend's headline.
+ */
+function counted(
+  context: ChartContext,
+  alias: string,
+  path: IssuePath,
+): Issue[] {
+  const measured = measure(context, alias, path);
+  if (measured.length > 0) return measured;
+  return isAdditiveMetric(context.metrics.get(alias))
+    ? []
+    : [issue('chart.funnel.not-additive', path, { metric: alias })];
+}
+
 function funnel(context: ChartContext, config: AnalysisViewConfig): Issue[] {
   const spec = context.chart.funnel;
   if (!spec) return [];
@@ -347,7 +368,7 @@ function funnel(context: ChartContext, config: AnalysisViewConfig): Issue[] {
       issues.push(issue('chart.funnel.too-few-stages', path));
     items.forEach((item, index) =>
       issues.push(
-        ...measure(context, item.metric, [...path, 'items', index, 'metric']),
+        ...counted(context, item.metric, [...path, 'items', index, 'metric']),
       ),
     );
     // Stage-per-metric funnels read one row, so a group would multiply it.
@@ -367,7 +388,7 @@ function funnel(context: ChartContext, config: AnalysisViewConfig): Issue[] {
     issues.push(
       issue('chart.funnel.stages-need-category', [...path, 'category']),
     );
-  issues.push(...measure(context, stages.value, [...path, 'value']));
+  issues.push(...counted(context, stages.value, [...path, 'value']));
   if (stages.order.length < 2)
     issues.push(issue('chart.funnel.too-few-stages', [...path, 'order']));
   if (new Set(stages.order).size !== stages.order.length)

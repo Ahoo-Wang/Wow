@@ -20,10 +20,6 @@
   - 为什么：用户原话「分析视图的 UI、UX 需要全面审查，还没有达到企业生产交付级别」「这些问题应该是你审查出的，而不是由我来主动发现」。审查已做完（真浏览器，main@810484eb6），完整清单在会话记忆 `view-engine-analysis-audit-2026-09-23`。**P0 已全部修完**：#1786／#1787（页脚、合计吸底、工具栏跳动、刻度截断、锁图标），#1798（时间轴升序、八色色板与「其他」），#1799（图型选项入口、追问菜单宽、「前 N 组」），#1801（指标卡大数字另问整体），#1802（换图型保持指标、饼图占比与口径），#1803（漏斗只在画得出时可选、散点轴与点）。用户拍板：计数单位统一「组」（#1796）、换图型保持指标、指标卡另发合计查询、定价服务开 CORS。剩下 P1／P2；图型显示要对齐 Metabase，绘图库拟换 ECharts（另开会话，见会话记忆 `view-engine-chart-library`），图型相关的 P1 随迁移一并做。
   - 判据：把清单（P0／P1／P2，覆盖标题栏与「分析」开关、托盘各槽、已应用带、结果工具栏、可视化面板每页、每种图型（刻度、图例、颜色、留白、tooltip、暗色）、分析表、追问与下钻、页脚、加载／空／错误／截断、键盘与焦点、铺满、视图切换时的跳动、与记录视图同概念同表达、文案）先给用户看、拍板；P0／P1 全部修掉并有故事或测试守着；P2 进本页。
   - 落点：`src/ui/analysis/*`、`src/ui/workbench/AnalysisParts.tsx`、`src/ui/AnalysisTable.tsx`、`src/ui/AnalysisChart.tsx`、`src/ui/charts/*`、[ui/analysis.md](ui/analysis.md)。
-- **`useAnalysisResult` 的 `fits` 带上结果行**。
-  - 为什么：漏斗画不画得出取决于行（`fitCharts` 的 `rows`：唯一维度的文本值不到两个就灰），而控制器只按形态判；修漏斗时 `react/useAnalysisResult.ts` 正被别的改动占着，于是 `ui/workbench/AnalysisParts.tsx` 自己带着行把 `fitCharts` 又算了一遍交给图型网格。两处各算一份，`drawable` 与网格可能说法不一。
-  - 判据：`useAnalysisResult` 调 `fitCharts` 时传 `rows: view?.rows`，`AnalysisParts` 删掉自己那份、直接用 `result.fits`；test/chartPicker 与故事 `FunnelNeedsStages` 仍绿。
-  - 落点：`src/react/useAnalysisResult.ts`、`src/ui/workbench/AnalysisParts.tsx`。
 
 ## 阶段 3：仪表盘
 

@@ -32,6 +32,12 @@ const month: AnalysisGroup = {
   unit: 'MONTH',
 };
 const count: AnalysisMetric = { type: 'COUNT', alias: 'orders' };
+const sum: AnalysisMetric = {
+  type: 'NUMERIC',
+  alias: 'sum',
+  function: 'SUM',
+  expression: { type: 'FIELD', field: 'amount' },
+};
 const average: AnalysisMetric = {
   type: 'NUMERIC',
   alias: 'avg',
@@ -90,8 +96,76 @@ describe('a funnel’s fit', () => {
 
   it('keeps the funnel of metrics, which reads one row', () => {
     expect(
-      fitCharts({ groups: [], metrics: [count, average], rows: [{}] }).funnel
+      fitCharts({ groups: [], metrics: [count, sum], rows: [{}] }).funnel
         .available,
+    ).toBe(true);
+  });
+
+  /**
+   * A funnel is how many entered and how many remained, and its conversion
+   * one stage over another: of averages, distinct counts, percentiles or
+   * extremes it means nothing. Offered only with something that adds up —
+   * one for a funnel over a dimension, two for one of metric stages.
+   */
+  it('counts only what adds up', () => {
+    const rows = [{ warehouse: 'CN' }, { warehouse: 'JP' }];
+    const over = (metrics: AnalysisMetric[]) =>
+      fitCharts({ groups: [warehouse], metrics, rows }).funnel;
+    expect(over([average])).toEqual({
+      available: false,
+      reason: 'chart.fit.needs-additive',
+    });
+    // The lead is not additive but another metric is: the funnel takes it.
+    expect(over([average, count]).available).toBe(true);
+    expect(over([average, sum]).available).toBe(true);
+
+    const staged = (metrics: AnalysisMetric[]) =>
+      fitCharts({ groups: [], metrics }).funnel;
+    expect(staged([count, average]).reason).toBe('chart.fit.needs-additive');
+    expect(staged([count, average, sum]).available).toBe(true);
+  });
+
+  /**
+   * Before anything ran — a saved funnel refused, so it never ran — there
+   * are no rows to fill stages from, and a funnel over the dimension has
+   * the stages its chart already names, and no others.
+   */
+  it('reads the stages a chart names while no rows are known', () => {
+    const named = (order: string[]) =>
+      fitCharts({
+        groups: [warehouse],
+        metrics: [count],
+        chart: {
+          type: 'bar',
+          funnel: {
+            stages: {
+              from: 'group',
+              category: 'warehouse',
+              value: 'orders',
+              order,
+            },
+          },
+        },
+      }).funnel;
+    expect(named(['CN', 'JP']).available).toBe(true);
+    expect(named(['CN']).reason).toBe('chart.fit.needs-two-stages');
+    expect(named(['CN', 'CN']).reason).toBe('chart.fit.needs-two-stages');
+    // A chart that names no funnel names no stages.
+    expect(
+      fitCharts({
+        groups: [warehouse],
+        metrics: [count],
+        chart: { type: 'bar' },
+      }).funnel.reason,
+    ).toBe('chart.fit.needs-two-stages');
+    // Rows, when there are any, are what the stages are filled from.
+    expect(
+      fitCharts({
+        groups: [warehouse],
+        metrics: [count],
+        rows: [{ warehouse: 'CN' }, { warehouse: 'JP' }],
+        chart: { type: 'bar' },
+      }).funnel.available,
     ).toBe(true);
   });
 });
@@ -105,7 +179,7 @@ describe('fitCharts', () => {
     expect(fits.heatmap.reason).toBe('chart.fit.needs-two-dimensions');
     // Two metrics with no dimension are a funnel of stages.
     expect(
-      fitCharts({ groups: [], metrics: [count, average] }).funnel.available,
+      fitCharts({ groups: [], metrics: [count, sum] }).funnel.available,
     ).toBe(true);
   });
 

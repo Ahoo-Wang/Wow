@@ -163,6 +163,12 @@ export function stageValues(
  * empty). Until the analyst has said otherwise, the order the result came
  * in is the one to start from — a funnel of no stages draws nothing, and a
  * chart that draws nothing when picked reads as broken.
+ *
+ * An order of one stage is no order either — a view saved before a funnel
+ * was offered only where it draws can hold one, and picked again it would
+ * refuse again — so it is completed the same way: the stage it names first,
+ * then the values the rows add. An order of two or more is the analyst's
+ * and is kept as it stands.
  */
 export function withStagesFrom(
   chart: ChartSpec,
@@ -173,12 +179,18 @@ export function withStagesFrom(
     chart.type !== 'funnel' ||
     !funnel ||
     funnel.stages.from !== 'group' ||
-    funnel.stages.order.length > 0
+    funnel.stages.order.length >= 2
   )
     return chart;
+  const named = funnel.stages.order;
   return {
     ...chart,
-    funnel: withStageOrder(funnel, stageValues(rows, funnel.stages.category)),
+    funnel: withStageOrder(funnel, [
+      ...named,
+      ...stageValues(rows, funnel.stages.category).filter(
+        value => !named.includes(value),
+      ),
+    ]),
   };
 }
 

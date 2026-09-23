@@ -311,4 +311,153 @@ describe('useAnalysisResult', () => {
     await new Promise(resolve => setTimeout(resolve, 50));
     expect(vi.mocked(source.aggregate).mock.calls.length).toBe(settled);
   });
+
+  /**
+   * A view saved with a chart that is refused runs nothing, so there are no
+   * rows to redraw. The status line opens the picker, and a pick there used
+   * to do nothing at all: it is fitted to the draft's shape instead, which
+   * makes the view valid, and it runs.
+   */
+  describe('a pick with no rows', () => {
+    /** A funnel over the warehouse, saved with the stages given. */
+    const funnelOf = (value: string, order: string[]) =>
+      analysisConfig({
+        metrics: [
+          { alias: 'orders', type: 'COUNT' },
+          {
+            alias: 'avg',
+            type: 'NUMERIC',
+            function: 'AVG',
+            expression: { type: 'FIELD', field: 'amount' },
+          },
+        ],
+        layout: 'chart',
+        chart: {
+          type: 'funnel',
+          funnel: {
+            stages: { from: 'group', category: 'warehouse', value, order },
+          },
+        },
+      });
+
+    async function broken(config: AnalysisViewConfig) {
+      const source = testSource();
+      const engine = new ViewEngine({
+        definitions: [
+          ordersDefinition({
+            analysis: {
+              count: true,
+              fields: [
+                {
+                  field: 'warehouse',
+                  groups: [AggregationGroupType.TERMS],
+                  functions: [],
+                },
+                {
+                  field: 'amount',
+                  groups: [],
+                  functions: [AggregationFunction.SUM, AggregationFunction.AVG],
+                },
+              ],
+            },
+          }),
+        ],
+        store: new MemoryViewStore({
+          instances: [{ ...analysisView, id: 'orders-broken', config }],
+        }),
+        resolveSource: () => source,
+      });
+      const hook = renderHook(() => {
+        const open = useOpenView(engine, 'orders-broken');
+        const runtime = open.runtime as ViewRuntime<AnalysisViewConfig> | null;
+        const state = useViewRuntime(runtime);
+        const analysis = useAnalysisEditor(runtime);
+        return {
+          runtime,
+          analysis,
+          result: useAnalysisResult(runtime, analysis, {
+            state,
+            canDrill: true,
+            drill: vi.fn(),
+          }),
+        };
+      });
+      await waitFor(() => expect(hook.result.current.runtime).not.toBeNull());
+      // Refused: nothing ran, nothing to draw.
+      expect(
+        hook.result.current.analysis.issues.map(found => found.code),
+      ).not.toEqual([]);
+      expect(source.aggregate).not.toHaveBeenCalled();
+      expect(hook.result.current.result.view).toBeNull();
+      return { ...hook, source };
+    }
+
+    it('offers what the draft’s shape draws, and the stages its chart names', async () => {
+      const { result } = await broken(funnelOf('orders', ['CN']));
+      const { fits } = result.current.result;
+      expect(fits.bar).toMatchObject({ available: true, recommended: true });
+      expect(fits.funnel).toEqual({
+        available: false,
+        reason: 'chart.fit.needs-two-stages',
+      });
+      expect(fits.metric.reason).toBe('chart.fit.needs-no-dimension');
+    });
+
+    it('fits a type picked to the draft, and runs', async () => {
+      const { result, source } = await broken(funnelOf('orders', ['CN']));
+      result.current.result.choose('bar');
+      await waitFor(() => expect(result.current.result.view).not.toBeNull());
+      expect(source.aggregate).toHaveBeenCalledTimes(1);
+      expect(result.current.analysis.issues).toEqual([]);
+      expect(result.current.result.picked).toBe('bar');
+      expect(result.current.analysis.chart.cartesian).toMatchObject({
+        x: 'warehouse',
+      });
+      // Applied: the bar is what ran.
+      expect(result.current.runtime?.getSnapshot().applied.chart.type).toBe(
+        'bar',
+      );
+    });
+
+    it('takes the table as the way out, with a chart that no longer refuses', async () => {
+      const { result, source } = await broken(funnelOf('orders', ['CN']));
+      result.current.result.choose('table');
+      await waitFor(() => expect(result.current.result.view).not.toBeNull());
+      expect(source.aggregate).toHaveBeenCalledTimes(1);
+      expect(result.current.result.picked).toBe('table');
+      // The shape reads best as bars, and the chart the table carries is.
+      expect(result.current.analysis.chart.type).toBe('bar');
+      expect(result.current.analysis.issues).toEqual([]);
+    });
+
+    it('measures a funnel of averages with the count instead', async () => {
+      const { result, source } = await broken(funnelOf('avg', ['CN', 'JP']));
+      expect(result.current.analysis.issues.map(found => found.code)).toContain(
+        'chart.funnel.not-additive',
+      );
+      // The count adds up, so the funnel is offered, and picked it counts.
+      expect(result.current.result.fits.funnel.available).toBe(true);
+      result.current.result.choose('funnel');
+      await waitFor(() => expect(result.current.result.view).not.toBeNull());
+      expect(source.aggregate).toHaveBeenCalledTimes(1);
+      expect(result.current.analysis.chart.funnel?.stages).toMatchObject({
+        value: 'orders',
+        order: ['CN', 'JP'],
+      });
+    });
+
+    it('leaves the run to Apply while the draft holds another edit', async () => {
+      const { result, source } = await broken(funnelOf('orders', ['CN']));
+      result.current.analysis.setLimit(10);
+      await waitFor(() => expect(result.current.analysis.pending).toBe(true));
+      result.current.result.choose('bar');
+      await waitFor(() =>
+        expect(result.current.analysis.chart.type).toBe('bar'),
+      );
+      expect(result.current.analysis.issues).toEqual([]);
+      expect(source.aggregate).not.toHaveBeenCalled();
+      result.current.analysis.submit();
+      await waitFor(() => expect(result.current.result.view).not.toBeNull());
+    });
+  });
 });

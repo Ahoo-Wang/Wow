@@ -139,6 +139,9 @@ export const analysisMessages = {
   // A funnel's stages are steps: the values of a category, two at least.
   'chart.fit.needs-category': 'Stages need a category dimension',
   'chart.fit.needs-two-stages': 'Needs two groups or more as stages',
+  // A funnel counts what entered and what remained: a record count or a
+  // sum, never an average, a distinct count or an extreme.
+  'chart.fit.needs-additive': 'Needs a count or a sum',
   // The panel's second level (D20 屏 J): the chosen type's options on
   // three pages, and the way in and out.
   'label.chart.options': '{name} options',
@@ -418,6 +421,8 @@ export const analysisMessages = {
   'chart.funnel.metrics-need-no-group':
     'A funnel staged by metrics can carry no dimension.',
   'chart.funnel.too-few-stages': 'A funnel needs at least two stages.',
+  'chart.funnel.not-additive':
+    'A funnel needs a metric that adds up (a record count or a sum), not {metric}.',
   'chart.funnel.stages-need-category':
     'A funnel’s stages are the values of a category, not dates or number ranges.',
   'chart.group.unconsumed': 'The chart does not use every dimension: {groups}.',

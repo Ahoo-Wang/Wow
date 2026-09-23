@@ -13,6 +13,7 @@
 
 import { useEffect, useMemo } from 'react';
 import {
+  CHART_PICKER_ORDER,
   drillConditions,
   fitChartSlots,
   fitCharts,
@@ -79,11 +80,19 @@ export interface AnalysisResultController {
   chart: ChartSpec;
   /** The rows shaped for `chart`, or undefined while there is nothing to draw. */
   chartData: ChartData | undefined;
-  /** Which chart types the shape that ran can draw (`fitCharts`). */
+  /**
+   * Which chart types the shape that ran can draw, its rows included
+   * (`fitCharts`); before anything ran, the draft's shape and the stages its
+   * chart names.
+   */
   fits: Record<ChartType, ChartFit>;
   /** What the visualization panel shows as chosen. */
   picked: Picked;
-  /** Draw the rows as this type, or as the table. Redraws; never runs. */
+  /**
+   * Draw the rows as this type, or as the table. Over rows it redraws and
+   * never runs; with none — a saved chart refused, so nothing ran — it fits
+   * the type to the draft's shape and runs (`repair`).
+   */
   choose(next: Picked): void;
   /**
    * Whether a group of this result can be followed up at all: an analysis
@@ -148,14 +157,36 @@ export function useAnalysisResult(
         : analysis.chart,
     [analysis.chart, ran, shapeRan, drafted, moments],
   );
+  // What the picker offers. Over rows, the shape that ran and the rows
+  // themselves: a funnel over one dimension takes its stages from them the
+  // moment it is picked (`withStagesFrom`), so only they say whether it has
+  // the two it needs. Before anything ran — a saved view whose chart is
+  // refused runs nothing — the draft's shape, and the stages its chart
+  // already names: picking from there is how such a view is repaired.
   const fits = useMemo(
     () =>
-      fitCharts({
-        groups: ran?.groups ?? [],
-        metrics: ran?.metrics ?? [],
-        moments,
-      }),
-    [ran, moments],
+      ran
+        ? fitCharts({
+            groups: ran.groups,
+            metrics: ran.metrics,
+            moments,
+            ...(view ? { rows: view.rows } : {}),
+          })
+        : fitCharts({
+            groups: analysis.groups,
+            metrics: analysis.metrics,
+            moments: analysis.moments,
+            chart: analysis.chart,
+          }),
+    [
+      ran,
+      view,
+      moments,
+      analysis.groups,
+      analysis.metrics,
+      analysis.moments,
+      analysis.chart,
+    ],
   );
   // A chart the shape that ran cannot draw — every metric a moment, nothing
   // to measure — is its table: the rows are there, and an empty frame would
@@ -195,12 +226,15 @@ export function useAnalysisResult(
   }, [wantsWhole, pending, submit]);
 
   const choose = (next: Picked) => {
+    if (!ran || !view) {
+      repair(analysis, next, fits);
+      return;
+    }
     if (next === 'table') {
       analysis.setLayout('table');
       return;
     }
     analysis.setLayout('chart');
-    if (!ran || !view) return;
     // Fitted to the rows on screen, and a funnel of a group's values given
     // the order they came in, so a type picked draws at once.
     analysis.updateChart(
@@ -275,6 +309,47 @@ export function useAnalysisResult(
     pickable,
     followUp,
   };
+}
+
+/**
+ * A pick with no rows on screen. Nothing has run — most often because the
+ * saved chart is refused (a funnel of one stage, or of averages), and a
+ * refused config never runs — so there is nothing to redraw: the pick is
+ * fitted to the shape of the draft (`setChartType`), which makes the config
+ * one that validates, and then it runs.
+ *
+ * The table is always a way out, but the chart is validated under a table
+ * too, so a refused chart would keep the table from running as well: it is
+ * replaced by the type the shape reads best as, or else the first it can
+ * draw. The run is left to Apply while the draft holds another edit, as a
+ * chart that asks for the whole is (`wantsWhole`): running would apply that
+ * too, which is not this gesture's to do.
+ */
+function repair(
+  analysis: AnalysisEditorController,
+  next: Picked,
+  fits: Record<ChartType, ChartFit>,
+): void {
+  if (next === 'table') {
+    analysis.setLayout('table');
+    const refused = analysis.issues.some(
+      found => found.severity === 'error' && found.path[0] === 'chart',
+    );
+    const fallback = refused ? drawableType(fits) : undefined;
+    if (fallback) analysis.setChartType(fallback);
+  } else {
+    analysis.setLayout('chart');
+    analysis.setChartType(next);
+  }
+  if (!analysis.pending) analysis.submit();
+}
+
+/** The type a shape reads best as, else the first it can draw at all. */
+function drawableType(
+  fits: Record<ChartType, ChartFit>,
+): ChartType | undefined {
+  const types = CHART_PICKER_ORDER.filter(type => fits[type].available);
+  return types.find(type => fits[type].recommended) ?? types[0];
 }
 
 function split(

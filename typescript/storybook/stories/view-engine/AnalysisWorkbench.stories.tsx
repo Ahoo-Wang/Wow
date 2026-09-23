@@ -58,6 +58,7 @@ function AnalysisWorkbenchDemo({
   latest = false,
   limit,
   waybills,
+  savedFunnel,
 }: {
   behaviour?: SourceBehaviour;
   layout?: 'table' | 'chart';
@@ -104,6 +105,12 @@ function AnalysisWorkbenchDemo({
    * 「时间朝哪边走」与「第九种颜色」都问不出来。
    */
   waybills?: WaybillScene;
+  /**
+   * 存成一个漏斗的视图：按仓库分阶段，量这些阶段的是 `value`，阶段是 `order`。
+   * 一个阶段的漏斗、量平均数的漏斗都是早先存得下、如今画不出的样子——打开它
+   * 什么也不跑，从状态行进图型网格修。
+   */
+  savedFunnel?: { value: 'orders' | 'amount'; order: string[] };
 }) {
   const { groups, metrics } = analysisConfig();
   const fitted = fitChartSlots({ type: chart }, groups, metrics);
@@ -151,7 +158,23 @@ function AnalysisWorkbenchDemo({
       totals: true,
     },
   });
-  const config = latest ? latestConfig(layout) : saved;
+  const config = latest
+    ? latestConfig(layout)
+    : savedFunnel
+      ? {
+          ...saved,
+          chart: {
+            type: 'funnel' as const,
+            funnel: {
+              stages: {
+                from: 'group' as const,
+                category: 'warehouse',
+                ...savedFunnel,
+              },
+            },
+          },
+        }
+      : saved;
 
   if (waybills) {
     const view = waybillAnalysisView(waybillScene(waybills, layout));
@@ -336,6 +359,7 @@ const meta = {
   argTypes: {
     latest: { control: 'boolean' },
     limit: { table: { disable: true } },
+    savedFunnel: { table: { disable: true } },
     waybills: {
       control: 'inline-radio',
       options: [undefined, 'daily', 'daily-card', 'cities'],

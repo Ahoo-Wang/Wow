@@ -215,7 +215,8 @@ useDashboard(runtime): DashboardController
 `useAnalysisResult(runtime, analysis, workbench)` 是分析结果那一半的控制器（阶段 2 审查·研发 #9）：跑出来的是哪批行（`view`）、它们按哪份配置跑的（`ran`）、画哪张图（`chart`）与图的数据（`chartData`）、可视化面板上哪些图型可选（`fits`）与选了哪个（`picked`、`choose`），以及按下一组之后能做什么（`followUp(row)`）。它读内核、写运行时；画它的组件（`ui/workbench/AnalysisParts.tsx`）只留屏幕上的事——哪一层面板开着、键盘在哪、按下的是哪一行和按在哪。`/ui` 的入口写着「每个组件只消费 `/react` 的控制器」，这一条从前在分析结果上不成立：组件自己调八个内核函数、直接 `runtime.edit` 再 `apply`，换一套界面就要把追问与可视化重写一遍。
 
 - **行读跑出它们的那份配置，怎么看读草稿**：草稿与跑出来的形态不一致时（托盘里加了还没跑的维度），图表规格先经 `fitChartSlots` 落到跑出来的形态上；一致时原样画——`fitChartSlots` 会把作者故意收窄的槽重新放开，只在形态真的变了时才该这样做。
-- **`choose` 只重画不重跑**：布局与图表是呈现成员（D20）；选一个图型时顺手按屏幕上的行填好槽、给按组分阶段的漏斗排好阶段，于是选了立刻画得出。
+- **`choose` 在有行时只重画不重跑**：布局与图表是呈现成员（D20）；选一个图型时顺手按屏幕上的行填好槽、给按组分阶段的漏斗排好阶段，于是选了立刻画得出。**没有行时它修配置并跑**：一个存下来图被拒的视图什么也没跑过，没有行可重画，于是按草稿的形态装槽（`setChartType`），视图合法了就 `submit`；选表格时若图被拒，图换成这个形态推荐的（或第一个画得出的）图型，因为图在表格布局下照样校验。草稿里另有待应用的改动时不替它跑。
+- **`fits` 带着行判**：有行时是跑出来的形态加上那批行（按维度分阶段的漏斗靠行填阶段），结果区的 `drawable` 与图型网格读的是同一份；没有行时是草稿的形态加上草稿的图（漏斗只有它已点名的阶段）。
 - **追问是一张动作列表**（`FollowUpAction`：`records`／`split`／`focus`），按这个顺序；`canDrill` 为假时没有 `records`，没有可拆的维度时没有 `split`。菜单按种类配图标与文字，加一种追问就是这张联合类型多一员、`followUp` 多一项，而不是菜单再多一对 props（审查 E4）。条件读的是跑出这批行的配置而不是草稿：按下去的是那个结果的一组。展开了元素的分析没有根条件能说出它的行，`pickable` 为假，行与标记都不可按。（见 test/analysisResult.test.tsx「useAnalysisResult」与 test/drillMenu.test.tsx「the follow-up menu on one group」）
 
 ## useAutoRefresh

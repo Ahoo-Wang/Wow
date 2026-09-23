@@ -15,6 +15,7 @@ import {
   CHART_TYPES,
   type AnalysisGroup,
   type AnalysisMetric,
+  type ChartSpec,
   type ChartType,
   type RecordData,
 } from '../model/index.js';
@@ -46,6 +47,14 @@ export interface ChartShape {
    * funnel needs; left out, only the dimension's type is judged.
    */
   rows?: readonly RecordData[];
+  /**
+   * The chart as it stands, read while no rows are known: a view that has
+   * not run has nothing to fill a funnel's stages from, so a funnel over the
+   * one dimension has the stages its spec already names (`order`, which
+   * `fitChartSlots` keeps) and no others. Left out, as are the rows, the
+   * stages are not judged.
+   */
+  chart?: ChartSpec;
 }
 
 /**
@@ -77,21 +86,38 @@ function shapeFacts(shape: ChartShape): ShapeFacts {
   const groups = shape.groups.length;
   const only = groups === 1 ? shape.groups[0] : undefined;
   const rows = shape.rows ?? [];
+  const quantities = shape.metrics.filter(
+    metric => !shape.moments?.has(metric.alias),
+  );
+  // No rows is no answer yet, not an answer of no stages: an empty result
+  // draws no chart of any type, and says so in a sentence of its own.
+  const stages =
+    only && rows.length > 0
+      ? stageValues(rows, only.alias).length
+      : only && shape.chart
+        ? namedStages(shape.chart)
+        : undefined;
   return {
     groups,
     metrics: shape.metrics.length,
-    quantities: shape.metrics.filter(
-      metric => !shape.moments?.has(metric.alias),
-    ).length,
+    quantities: quantities.length,
     dated: groups === 1 && shape.groups[0]?.type === 'DATE_HISTOGRAM',
-    additive: shape.metrics.some(isAdditiveMetric),
+    additive: quantities.filter(isAdditiveMetric).length,
     categorical: only?.type === 'TERMS',
-    // No rows is no answer yet, not an answer of no stages: an empty result
-    // draws no chart of any type, and says so in a sentence of its own.
-    ...(only && rows.length > 0
-      ? { stages: stageValues(rows, only.alias).length }
-      : {}),
+    textless: rows.length > 0 && stages === 0,
+    ...(stages === undefined ? {} : { stages }),
   };
+}
+
+/**
+ * The stages a funnel over one dimension has before any row arrives: the
+ * values its spec already orders, once each — kept by `fitChartSlots`
+ * whichever type the chart is now, since a family's settings survive a
+ * switch away and back — and none when it orders nothing.
+ */
+function namedStages(chart: ChartSpec): number {
+  const stages = chart.funnel?.stages;
+  return stages?.from === 'group' ? new Set(stages.order).size : 0;
 }
 
 /**

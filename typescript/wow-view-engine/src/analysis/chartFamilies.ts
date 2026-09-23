@@ -46,7 +46,8 @@ export type ChartUnfit =
   | 'chart.fit.needs-no-dimension'
   | 'chart.fit.needs-quantity'
   | 'chart.fit.needs-category'
-  | 'chart.fit.needs-two-stages';
+  | 'chart.fit.needs-two-stages'
+  | 'chart.fit.needs-additive';
 
 /** The facts of a result's shape a family's fit reads. */
 export interface ShapeFacts {
@@ -61,17 +62,27 @@ export interface ShapeFacts {
   quantities: number;
   /** One dimension, and it is a date bucket. */
   dated: boolean;
-  /** At least one metric may be added up across rows. */
-  additive: boolean;
+  /**
+   * How many of the quantities may be added up across rows
+   * (`isAdditiveMetric`): a record count or a sum. A trend's headline and a
+   * funnel's stages are counted from these alone.
+   */
+  additive: number;
   /**
    * One dimension, and it names categories (`TERMS`) rather than cutting a
    * scale into buckets: only a category's values can be a funnel's stages.
    */
   categorical: boolean;
   /**
-   * How many stages the rows on hand give a funnel over the one dimension —
-   * its text values, once each (`stageValues`, what picking the funnel
-   * fills its order with) — or `undefined` while no rows are known.
+   * Rows are known and none of the one dimension's values is text: nothing
+   * a stage could be named by.
+   */
+  textless: boolean;
+  /**
+   * How many stages a funnel over the one dimension would have: the text
+   * values the rows on hand give, once each (`stageValues`, what picking the
+   * funnel fills its order with); with no rows, the stages the chart already
+   * names; `undefined` while neither is known.
    */
   stages?: number;
 }
@@ -96,7 +107,8 @@ export interface ChartFamilyTraits {
  * heatmap two; a scatter plots two metrics per value of one dimension; a
  * funnel's stages are the values of one category dimension — two of them at
  * least, counted in the rows when there are rows — or, with none, the
- * metrics themselves; a card is one number, or a sparkline over the one
+ * metrics themselves, and either way it counts only what adds up (a record
+ * count or a sum); a card is one number, or a sparkline over the one
  * date dimension when its headline adds up.
  *
  * Every family but the card measures its metrics as marks — a length, a
@@ -153,11 +165,21 @@ export const CHART_FAMILIES: Readonly<Record<ChartFamily, ChartFamilyTraits>> =
       tabs: ['data', 'display'],
       legend: false,
       labels: false,
-      unfit: ({ groups, metrics, quantities, categorical, stages }) =>
+      unfit: ({
+        groups,
+        metrics,
+        quantities,
+        additive,
+        categorical,
+        textless,
+        stages,
+      }) =>
         groups === 1
-          ? (staged(categorical, stages) ?? measured(quantities, 1))
+          ? (staged(categorical, textless, stages) ??
+            measured(quantities, 1) ??
+            counted(additive, 1))
           : groups === 0 && metrics >= 2
-            ? measured(quantities, 2)
+            ? (measured(quantities, 2) ?? counted(additive, 2))
             : groups === 0
               ? 'chart.fit.needs-two-metrics'
               : 'chart.fit.needs-one-dimension',
@@ -167,7 +189,7 @@ export const CHART_FAMILIES: Readonly<Record<ChartFamily, ChartFamilyTraits>> =
       legend: false,
       labels: false,
       unfit: ({ groups, dated, additive }) =>
-        groups === 0 || (dated && additive)
+        groups === 0 || (dated && additive > 0)
           ? null
           : 'chart.fit.needs-no-dimension',
     },
@@ -182,6 +204,15 @@ function measured(quantities: number, needed: number): ChartUnfit | null {
 }
 
 /**
+ * A funnel, asked whether it has enough that adds up: its stages are counts
+ * of what entered and what remained, and a conversion of averages, distinct
+ * counts, percentiles or extremes means nothing (`chart.funnel.not-additive`).
+ */
+function counted(additive: number, needed: number): ChartUnfit | null {
+  return additive >= needed ? null : 'chart.fit.needs-additive';
+}
+
+/**
  * Whether one dimension's values can be a funnel's stages. A stage is a step
  * of a process, named — a status, a page — so a date bucket or a number band
  * is a scale rather than steps (`chart.funnel.stages-need-category`), and so
@@ -193,9 +224,10 @@ function measured(quantities: number, needed: number): ChartUnfit | null {
  */
 function staged(
   categorical: boolean,
+  textless: boolean,
   stages: number | undefined,
 ): ChartUnfit | null {
-  if (!categorical || stages === 0) return 'chart.fit.needs-category';
+  if (!categorical || textless) return 'chart.fit.needs-category';
   return stages !== undefined && stages < 2
     ? 'chart.fit.needs-two-stages'
     : null;

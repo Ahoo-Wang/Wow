@@ -279,3 +279,85 @@ export const FunnelNeedsCategory: Story = {
     ).toHaveTextContent(zhCN['chart.fit.needs-category']);
   },
 };
+
+/**
+ * 存下来画不出的漏斗，从图型网格修好：换一个画得出的图型就跑，跑出行来漏斗又可选。
+ *
+ * 漏斗只在画得出的地方给选（#1803）之前，一个阶段的漏斗是存得下来的。打开它
+ * 什么也不跑——配置被拒——状态行说「漏斗至少要有两个阶段」，按钮「打开图表选项」
+ * 打开的是图型网格；可网格上按什么都不起作用，因为没有行可重画。现在：漏斗那张
+ * 卡片照它自己点名的阶段判，灰着说缺什么；按柱状图，图按草稿的形态装槽、视图
+ * 变合法、当场跑，四根柱子出来，状态行不再报错；有了行，漏斗可选，选中它时存
+ * 下的那一个阶段排第一，其余从行里补齐，四段都画出来。
+ */
+export const SavedFunnelRepaired: Story = {
+  ...DisplayBarChart,
+  args: {
+    ...DisplayBarChart.args,
+    savedFunnel: { value: 'amount', order: ['CN-EAST'] },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // Refused, so nothing ran: the status line says why, and no bar is drawn.
+    const alert = await waitFor(() => {
+      const found = canvasElement.querySelector(
+        '[data-slot="status-line"] [role="alert"]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    await expect(alert).toHaveTextContent(zhCN['chart.funnel.too-few-stages']);
+    await expect(bars(canvasElement)).toHaveLength(0);
+
+    await userEvent.click(
+      canvas.getByRole('button', {
+        name: zhCN['label.analysis.open-chart-options'],
+      }),
+    );
+    const panel = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="view-panel"]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    // The funnel is judged by the one stage it names; bars are offered.
+    const funnel = chartTile(panel, 'funnel');
+    await expect(funnel).toHaveAttribute('aria-disabled', 'true');
+    await expect(
+      funnel.querySelector('[data-slot="chart-reason"]'),
+    ).toHaveTextContent(zhCN['chart.fit.needs-two-stages']);
+    await expect(chartTile(panel, 'bar')).not.toHaveAttribute('aria-disabled');
+
+    // A pick with no rows fits the draft and runs: a bar chart over the four
+    // warehouses, a series for each metric the family had never measured.
+    await userEvent.click(chartTile(panel, 'bar'));
+    await waitFor(() => expect(ticksOf(canvasElement, 'x')).toHaveLength(4));
+    await expect(bars(canvasElement).length).toBeGreaterThan(0);
+    await expect(
+      canvasElement.querySelector('[data-slot="status-line"] [role="alert"]'),
+    ).toBeNull();
+
+    // With rows on screen the funnel draws: the stage it was saved with
+    // first, the rest from the rows.
+    const offered = chartTile(
+      canvasElement.querySelector<HTMLElement>('[data-slot="view-panel"]')!,
+      'funnel',
+    );
+    await waitFor(() => expect(offered).not.toHaveAttribute('aria-disabled'));
+    await userEvent.click(offered);
+    const drawn = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="funnel"]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    await expect(
+      drawn.querySelectorAll('[data-slot="funnel-bar"]'),
+    ).toHaveLength(4);
+    await expect(
+      canvasElement.querySelector('[data-slot="status-line"] [role="alert"]'),
+    ).toBeNull();
+  },
+};

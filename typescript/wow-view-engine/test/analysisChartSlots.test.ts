@@ -347,22 +347,91 @@ describe('fitChartSlots', () => {
     );
 
     // Metric stages are a hand-made order too, so the list the spec holds
-    // stands and a metric it has never named joins at the end.
+    // stands and a metric it has never named joins at the end — one that
+    // adds up: an average is no stage of a funnel.
     const ordered: ChartSpec = {
       type: 'funnel',
       funnel: {
         stages: {
           from: 'metrics',
-          items: [{ metric: 'total' }, { metric: 'orders' }],
+          items: [{ metric: 'total' }],
         },
       },
     };
     expect(
-      fitChartSlots(ordered, [], [COUNT, TOTAL, AVERAGE]).funnel?.stages,
+      fitChartSlots(ordered, [], [COUNT, AVERAGE, TOTAL]).funnel?.stages,
     ).toEqual({
       from: 'metrics',
-      items: [{ metric: 'total' }, { metric: 'orders' }, { metric: 'average' }],
+      items: [{ metric: 'total' }, { metric: 'orders' }],
     });
+  });
+
+  /**
+   * A funnel is how many entered and how many remained: its stages add up
+   * (`chart.funnel.not-additive`). A lead that does not — an average, a
+   * distinct count — gives way to the first metric that does, rather than
+   * the funnel refusing; a stage that does not leaves the list.
+   */
+  it('measures a funnel with what adds up, the first of it when the lead does not', () => {
+    const averaged: ChartSpec = {
+      type: 'funnel',
+      funnel: {
+        stages: {
+          from: 'group',
+          category: 'wh',
+          value: 'average',
+          order: ['CN', 'JP'],
+        },
+      },
+    };
+    expect(
+      fitChartSlots(averaged, [WAREHOUSE], [AVERAGE, COUNT, TOTAL]).funnel
+        ?.stages,
+    ).toMatchObject({ value: 'orders', order: ['CN', 'JP'] });
+    // Nothing adds up: the slot is left empty for validation to name.
+    expect(
+      fitChartSlots(averaged, [WAREHOUSE], [AVERAGE]).funnel?.stages,
+    ).toMatchObject({ value: '' });
+    // A bar chart of the average picked as a funnel measures the count.
+    const bars = fitChartSlots({ type: 'bar' }, [WAREHOUSE], [AVERAGE, COUNT]);
+    expect(
+      fitChartSlots(
+        switchChartType(bars, 'funnel'),
+        [WAREHOUSE],
+        [AVERAGE, COUNT],
+      ).funnel?.stages,
+    ).toMatchObject({ value: 'orders' });
+    // Metric stages drop the average they named.
+    const staged: ChartSpec = {
+      type: 'funnel',
+      funnel: {
+        stages: {
+          from: 'metrics',
+          items: [{ metric: 'average' }, { metric: 'orders' }],
+        },
+      },
+    };
+    expect(fitChartSlots(staged, [], [AVERAGE, COUNT]).funnel?.stages).toEqual({
+      from: 'metrics',
+      items: [{ metric: 'orders' }],
+    });
+  });
+
+  it('keeps a stage listed twice once', () => {
+    const twice: ChartSpec = {
+      type: 'funnel',
+      funnel: {
+        stages: {
+          from: 'group',
+          category: 'wh',
+          value: 'orders',
+          order: ['CN', 'CN', 'JP'],
+        },
+      },
+    };
+    expect(
+      fitChartSlots(twice, [WAREHOUSE], [COUNT]).funnel?.stages,
+    ).toMatchObject({ order: ['CN', 'JP'] });
   });
 
   it('carries every other family over untouched', () => {

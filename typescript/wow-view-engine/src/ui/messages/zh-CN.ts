@@ -677,6 +677,7 @@ export const zhCN: ViewMessages = {
   'chart.fit.needs-quantity': '要数量指标，时间画不成图',
   'chart.fit.needs-category': '阶段要一个类别维度',
   'chart.fit.needs-two-stages': '要至少两组作阶段',
+  'chart.fit.needs-additive': '要记录数或合计',
   'label.chart.options': '{name}选项',
   'label.chart.options-back': '返回图型',
   'label.chart.tab.data': '数据',
@@ -876,6 +877,8 @@ export const zhCN: ViewMessages = {
   'chart.funnel.duplicate-stage': '漏斗的某个阶段列了两次。',
   'chart.funnel.metrics-need-no-group': '按指标分阶段的漏斗不能再有维度。',
   'chart.funnel.too-few-stages': '漏斗至少要有两个阶段。',
+  'chart.funnel.not-additive':
+    '漏斗要一个可累加的指标（记录数或合计），{metric} 不是。',
   'chart.funnel.stages-need-category':
     '漏斗的阶段取自类别维度，日期与数值区间不行。',
   'chart.group.unconsumed': '图表没有用上每一个维度：{groups}。',

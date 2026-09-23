@@ -307,11 +307,16 @@ function scatter(spec: ScatterSpec | undefined, shape: Shape): ScatterSpec {
 
 /**
  * Stages come from metrics when there is nothing to group by, and otherwise
- * from the values of the one group — whose business order is data this layer
+ * from the values of the one group, whose business order is data this layer
  * has never seen, so an order already written down is kept and an absent one
- * stays absent for the editor to ask about.
+ * stays absent for the editor to ask about. Either way a stage measures only
+ * what adds up — a record count or a sum.
  */
 function funnel(spec: FunnelSpec | undefined, shape: Shape): FunnelSpec {
+  // A stage is a count of what entered or remained: only a metric that adds
+  // up is one (`chart.funnel.not-additive`), so a lead that does not gives
+  // way to the first that does.
+  const counted = shape.quantities.filter(alias => shape.additive.has(alias));
   const rest = {
     ...(spec?.conversion === undefined ? {} : { conversion: spec.conversion }),
     ...(spec?.orientation === undefined
@@ -325,9 +330,7 @@ function funnel(spec: FunnelSpec | undefined, shape: Shape): FunnelSpec {
     // the end, where it can be moved from.
     const named =
       spec?.stages.from === 'metrics'
-        ? spec.stages.items.filter(item =>
-            shape.quantities.includes(item.metric),
-          )
+        ? spec.stages.items.filter(item => counted.includes(item.metric))
         : [];
     const taken = new Set(named.map(item => item.metric));
     return {
@@ -335,7 +338,7 @@ function funnel(spec: FunnelSpec | undefined, shape: Shape): FunnelSpec {
         from: 'metrics',
         items: [
           ...named,
-          ...shape.quantities
+          ...counted
             .filter(metric => !taken.has(metric))
             .map(metric => ({ metric })),
         ],
@@ -352,8 +355,9 @@ function funnel(spec: FunnelSpec | undefined, shape: Shape): FunnelSpec {
     stages: {
       from: 'group',
       category,
-      value: slot(kept?.value, shape.quantities),
-      order: kept?.order ?? [],
+      value: slot(kept?.value, counted),
+      // A stage listed twice is one stage (`chart.funnel.duplicate-stage`).
+      order: [...new Set(kept?.order ?? [])],
       ...(kept?.cumulative === undefined
         ? {}
         : { cumulative: kept.cumulative }),
