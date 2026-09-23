@@ -331,7 +331,7 @@ export function AnalysisParts({
 const RESULT_SLOTS = resultSlots('caption');
 
 /**
- * The analysis result's footer: 「正在显示 12 行，耗时 0.38 秒」.
+ * The analysis result's footer: 「正在显示 12 组，耗时 0.38 秒」.
  *
  * The time reads as a person reads a stopwatch: two decimals under a
  * second, where the difference between 0.04 and 0.38 is the difference a

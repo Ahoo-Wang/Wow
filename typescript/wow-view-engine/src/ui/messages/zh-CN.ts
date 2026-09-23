@@ -597,7 +597,7 @@ export const zhCN: ViewMessages = {
 
   // 分析编辑器与图表，以及它们背后的两个内核。
   'label.analysis.row-count': '记录数',
-  'label.analysis.caption': '正在显示 {count} 行，耗时 {seconds} 秒',
+  'label.analysis.caption': '正在显示 {count} 组，耗时 {seconds} 秒',
   'label.analysis.editor': '分析',
   'label.analysis.slot.range': '范围',
   'label.analysis.slot.dimensions': '维度',
@@ -964,7 +964,7 @@ export const zhCN: ViewMessages = {
     '{field} 搜索 {missing}，定义没有声明它。',
   'definition.field.search-mode-invalid':
     '{field} 声明了未知的搜索模式：{value}。',
-  'definition.analysis.default-limit-too-large': '默认行数上限超过了最大值。',
+  'definition.analysis.default-limit-too-large': '默认组数上限超过了最大值。',
   'definition.analysis.element-field-unknown':
     '{path} 没有声明名为 {field} 的字段。',
   'definition.analysis.element-undeclared':

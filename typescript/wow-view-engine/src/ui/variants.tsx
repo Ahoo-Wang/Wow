@@ -585,7 +585,7 @@ const RESULT_SLOTS = {
    * The frame's last row — ruled off above and on its own grey, so how
    * many rows there are and how to reach the next of them read as the
    * frame's footer rather than as one more row of the result: the record
-   * view's pagination, and the analysis result's 「正在显示 N 行，耗时 X
+   * view's pagination, and the analysis result's 「正在显示 N 组，耗时 X
    * 秒」. A kind that grows another names it here, beside these.
    */
   caption:

@@ -127,7 +127,7 @@ export const WholeTicks: Story = {
 };
 
 /**
- * 报表有个底：结果区最后一行固定写「正在显示 N 行，耗时 X 秒」。
+ * 报表有个底：结果区最后一行固定写「正在显示 N 组，耗时 X 秒」。
  *
  * 分析结果从前在最后一根柱子、最后一行下面就结束了，下面的空白读起来像报表
  * 掉了下去（用户 2026-09-23）。这里量三件事：那一行说的是屏幕上的行数与耗时，
@@ -142,7 +142,7 @@ export const CaptionHoldsTheReport: Story = {
       '[data-slot="analysis-caption"]',
     )!;
     await expect(caption.textContent).toMatch(
-      /^正在显示 4 行，耗时 [\d.]+ 秒$/,
+      /^正在显示 4 组，耗时 [\d.]+ 秒$/,
     );
     const block = caption.parentElement!;
     await expect(block.dataset.slot).toBe('result-block');
