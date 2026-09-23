@@ -866,78 +866,100 @@ export const FooterStaysAtTheBottom: Story = {
 };
 
 /**
- * P-22: the table's scroll port ends where the viewport does, so the two
- * summary rows and the pagination row are in view whenever there are more
- * rows than room — no matter how much title bar, tray and toolbar stand
- * above the table. Fifty rows in a wide view, and the frame's bottom edge is
- * the window's.
+ * 卡片一张不少地排下来，每张都有它自己那么高。
  *
- * In page flow, which is what P-22 is about: a host whose page is as tall as
- * its content gives the workbench no height, and the cap measured to the
- * viewport is all that keeps the footer in view. The host application every
- * scene sits in gives its page area a height, and a workbench stretched to it
- * fills it instead (`FooterStaysAtTheBottom`) and never asks for the cap — so
- * this one is held to its content's height at the top of the page area.
+ * 工作台填满容器之后，卡片区是一个定高的网格；网格按它有的空间分行高而不是按
+ * 卡片的内容，而卡片裁掉自己的溢出、最少要的是零——五十张卡在 900px 里被压成
+ * 一排排只剩标题的条（用户 2026-09-23 走查发现）。这里切到卡片，五十张：每张
+ * 卡的内容都在它自己的框里（没有被裁掉），卡片区自己滚动。
  */
-export const SummariesStayInView: Story = {
+export const CardsKeepTheirHeight: Story = {
+  ...DisplayWideTable,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.layout.cards'] }),
+    );
+    const region = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="record-cards"]',
+      );
+      if (!found) throw new Error('卡片区还没出来');
+      return found;
+    });
+    const cards = await waitFor(() => {
+      const found = [
+        ...region.querySelectorAll<HTMLElement>('[data-slot="card"]'),
+      ];
+      expect(found.length).toBeGreaterThan(20);
+      return found;
+    });
+    // Nothing of a card is cut off: what it holds fits the box it has.
+    for (const card of cards)
+      await expect(card.scrollHeight).toBeLessThanOrEqual(
+        card.clientHeight + 1,
+      );
+    // And more cards than room: the region scrolls rather than squeezing.
+    await expect(region.scrollHeight).toBeGreaterThan(region.clientHeight + 1);
+  },
+};
+
+/**
+ * 宿主没给高度，工作台就停在它的保底高度上，页脚照样贴底。
+ *
+ * 高度布局只有一种（2026-09-23，用户按推荐定）：工作台永远填满容器。容器没有
+ * 确定高度时 `h-full` 什么也不是，36rem 的保底（`--fve-workbench-min-height`）
+ * 就是它的全部——从前这里是「页面流」：表格按量出来的视窗剩余空间封顶，行少时
+ * 分页浮在半屏。这里把工作台放在一个按内容定高的外层里，五十行的宽表：根的高
+ * 度正是 36rem，表格在自己的滚动口里滚，两行合计与分页都在根的底边以内，分页
+ * 的下边就是根的下边。
+ */
+export const HeldAtItsFloor: Story = {
   ...DisplayWideTable,
   decorators: [
     Story => (
-      <div data-page-flow style={{ alignSelf: 'start' }}>
+      <div data-content-sized style={{ alignSelf: 'start' }}>
         <Story />
       </div>
     ),
   ],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const table = await canvas.findByRole('table');
+    const table = (await canvas.findByRole('table')) as HTMLTableElement;
     await waitFor(() =>
-      expect(table.querySelectorAll('tbody tr').length).toBeGreaterThan(10),
+      expect(table.tBodies[0].rows.length).toBeGreaterThan(10),
     );
-
+    const root = canvasElement.querySelector<HTMLElement>(
+      '[data-content-sized] > .fve-root',
+    )!;
     const port = canvasElement.querySelector<HTMLElement>(
       '[data-slot="record-table"]',
     )!;
-    const frame = port.closest<HTMLElement>('[data-slot="result-block"]')!;
-    // The premise: the workbench is in page flow, sized by its content, so
-    // the cap is what is being measured and not a height its host gave.
-    await expect(frame.closest('.fve-root')).not.toHaveAttribute(
-      'data-fills-host',
-    );
-    // More rows than room: the port really scrolls.
-    await waitFor(() =>
-      expect(port.scrollHeight).toBeGreaterThan(port.clientHeight + 1),
-    );
-    // The frame and the padding of what it closes end at the window's
-    // bottom edge, give or take a pixel: nothing of it is below the fold,
-    // and the page has nothing left to scroll — neither the document nor
-    // the host's page area, which is what scrolls in this host. The frame
-    // alone ending there was the old rule, and it left the page scrolling
-    // by the bottom padding of every container around the frame.
-    const page = canvasElement.querySelector<HTMLElement>('.story-app-page')!;
-    await waitFor(() => {
-      expect(
-        Math.abs(document.documentElement.scrollHeight - window.innerHeight),
-      ).toBeLessThanOrEqual(2);
-      expect(
-        Math.abs(page.scrollHeight - page.clientHeight),
-      ).toBeLessThanOrEqual(2);
-    });
-    await expect(frame.getBoundingClientRect().bottom).toBeLessThanOrEqual(
-      window.innerHeight,
-    );
-    // Both summary rows and the pagination row are inside the window.
-    for (const row of table.querySelectorAll<HTMLElement>('tfoot tr')) {
-      const rect = row.getBoundingClientRect();
-      await expect(rect.bottom).toBeLessThanOrEqual(window.innerHeight);
-      await expect(rect.top).toBeGreaterThanOrEqual(0);
-    }
     const pagination = canvasElement.querySelector<HTMLElement>(
       '[data-slot="record-pagination"]',
     )!;
-    await expect(pagination.getBoundingClientRect().bottom).toBeLessThanOrEqual(
-      window.innerHeight,
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+
+    // The floor is the whole of its height, and the rows scroll inside it.
+    await waitFor(() =>
+      expect(
+        Math.abs(root.getBoundingClientRect().height - 36 * rem),
+      ).toBeLessThanOrEqual(1),
     );
+    await waitFor(() =>
+      expect(port.scrollHeight).toBeGreaterThan(port.clientHeight + 1),
+    );
+    // The footer is at the root's bottom: the pagination's edge is its edge,
+    // and both summary rows are inside it.
+    const bottom = root.getBoundingClientRect().bottom;
+    await expect(
+      Math.abs(pagination.getBoundingClientRect().bottom - bottom),
+    ).toBeLessThanOrEqual(1);
+    for (const row of table.querySelectorAll<HTMLElement>('tfoot tr'))
+      await expect(row.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+        bottom,
+      );
   },
 };
 

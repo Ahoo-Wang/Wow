@@ -579,67 +579,86 @@
 }
 
 /*
- * A workbench fills the height its host gives it, and the footer stays at
- * the bottom (2026-09-23, borrowed from the legacy console).
+ * A workbench fills its container, and its footer stays at the bottom —
+ * one layout, whatever holds it (2026-09-23, the user's call; borrowed from
+ * the legacy console).
  *
- * In page flow the result is sized by measuring: the table's scroll port is
- * capped at the room left to the viewport's bottom (`useViewportFit`), and
- * everything under it follows its content. Many rows put the pagination at
- * the bottom of the screen; three rows, a loading page, an empty answer or
- * an opened editor floated it into the middle — the one control an operator
- * reaches for every page was somewhere different every page.
- *
- * A host that gives the workbench a height gets a column laid out by that
- * height instead: `useFillsHost` marks the root `data-fills-host`, and the
- * chain from the root to the table says what each part does with it — the
- * chain the expanded view below draws, without the fixed position:
+ * There used to be three. In page flow the table was capped at the room
+ * measured to the viewport's bottom, so many rows put the pagination at the
+ * bottom of the screen while three rows, a loading page, an empty answer or
+ * an opened editor floated it mid-screen; a host that gave a height was
+ * detected by measuring the root twice and laid out by height instead; and
+ * filling the screen was a third copy of the second. Two of the day's
+ * defects were measurements gone stale. Now the root is always `h-full`
+ * with a floor (`WorkbenchShell`: 36rem, or `--fve-workbench-min-height`),
+ * filling the screen is the same chain with the viewport as the container,
+ * and nothing is measured:
  *
  * - the view list and the work column each scroll on their own, so a long
  *   list or a tall editor scrolls its column and not the host's page;
  * - the result block takes whatever the parts above it left, and never less
  *   than its own content (`flex: 1 0 auto`), so under a tall editor the
  *   column scrolls rather than the block collapsing to its toolbar;
- * - inside it, the table that is its own scroll port, or the cards, take the
- *   height from a basis of nothing (`flex: 1 1 0`), never less than 12rem —
- *   no viewport cap, which is the page-flow answer and would stop the table
- *   short of a frame that reaches below the fold;
+ * - inside it, the part that holds the rows — the record table's scroll
+ *   port, the cards, the analysis result — takes that height from a basis
+ *   of nothing (`flex: 1 1 0`), never less than 12rem, and scrolls inside
+ *   it; a chart grows to the height it is given instead of stopping at its
+ *   own minimum with blank space under it;
  * - and the caption goes to the block's bottom edge (`margin-top: auto`),
- *   whatever is above it: rows, cards, an empty answer, a chart.
+ *   whatever is above it: rows, cards, an empty answer.
  *
  * The summary rows follow the same rule inside the table: the room the rows
  * leave is a row that draws nothing (`useRoomBelowRows`), so the totals sit
  * above the pagination rather than under the last row.
  */
-.fve-root[data-fills-host] > [data-slot='view-sidebar'],
-.fve-root[data-fills-host] > main {
+.fve-root > [data-slot='view-sidebar'],
+.fve-root > main {
   min-height: 0;
   overflow-y: auto;
 }
 
-.fve-root[data-fills-host] > main > [data-slot='result-block'] {
+.fve-root > main > [data-slot='result-block'] {
   flex: 1 0 auto;
 }
 
-.fve-root[data-fills-host]
+.fve-root
   > main
   [data-slot='result-block']
-  > :is([data-slot='record-table'][data-scrolls], [data-slot='record-cards']) {
+  > :is(
+    [data-slot='record-table'][data-scrolls],
+    [data-slot='record-cards'],
+    [data-slot='analysis-result']
+  ) {
   flex: 1 1 0;
   min-height: 12rem;
   max-height: none;
 }
 
-.fve-root[data-fills-host]
+.fve-root
   > main
   [data-slot='result-block']
-  > [data-slot='record-cards'] {
+  > :is([data-slot='record-cards'], [data-slot='analysis-result']) {
   overflow-y: auto;
 }
 
-.fve-root[data-fills-host]
-  > main
-  [data-slot='result-block']
-  > [data-slot='record-pagination'] {
+/*
+ * Cards are a grid, and a grid of definite height sizes its rows to the
+ * space it has, not to what is in them: a card clips its overflow, so the
+ * least it asks for is nothing, and fifty cards in a 900px region were
+ * squeezed to their titles (the user's 2026-09-23 review). Each row is as
+ * tall as its cards, whatever the region; the region scrolls.
+ */
+.fve-root > main [data-slot='result-block'] > [data-slot='record-cards'] {
+  grid-auto-rows: max-content;
+  align-content: start;
+}
+
+.fve-root > main [data-slot='analysis-result'] > [data-slot='chart'] {
+  flex: 1 1 auto;
+  aspect-ratio: auto;
+}
+
+.fve-root > main [data-slot='result-block'] > [data-slot='record-pagination'] {
   margin-top: auto;
 }
 
@@ -682,6 +701,9 @@
  * host's.
  */
 .fve-root[data-view-expanded='true'] {
+  /* The viewport is the container; the workbench's floor is not a reason to
+     run past it on a short screen. */
+  min-height: 0;
   position: fixed;
   top: var(--fve-expanded-y, 0);
   left: var(--fve-expanded-x, 0);

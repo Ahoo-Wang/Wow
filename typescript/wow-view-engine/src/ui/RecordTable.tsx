@@ -45,7 +45,7 @@ import {
   stickyHead,
 } from './record/sticky.js';
 import { usePinnedCap, type ReleasedPins } from './record/pinCap.js';
-import { useRoomBelowRows, useViewportFit } from './record/fitViewport.js';
+import { useRoomBelowRows } from './record/roomBelowRows.js';
 import { useOverflowing } from './record/overflow.js';
 import { cellText } from './display.js';
 import { cellValue } from './record/cells.js';
@@ -139,9 +139,15 @@ export interface RecordCell {
  * columns they belong to. The registry's own container is taken out of the
  * way — two nested scrollports and the sticky header would resolve against
  * the inner one, which never scrolls.
+ *
+ * How tall it is depends on where it stands. In a workbench it takes the
+ * height its column leaves it (`styles.css`, "A workbench fills its
+ * container"), which is why nothing here measures the viewport any more.
+ * Anywhere else — an embed in a host's page — it is capped at the host's
+ * `--fve-record-table-max-h`, or 70vh.
  */
 const SCROLL_AREA =
-  'relative max-h-[var(--fve-record-table-max-h,var(--fve-record-table-fit,70vh))] overflow-auto [&>[data-slot=table-container]]:overflow-visible';
+  'relative max-h-[var(--fve-record-table-max-h,70vh)] overflow-auto [&>[data-slot=table-container]]:overflow-visible';
 
 /**
  * And the same table where something around it scrolls instead.
@@ -216,8 +222,6 @@ export function RecordTable({
   // test reaches for as the latest one created.
   const overflowing = useOverflowing(port, element);
   const released = usePinnedCap(port, element, slots);
-  // The port ends where the viewport does (P-22); a host's own cap wins.
-  const fit = useViewportFit(port, scrolls);
   useEffect(() => onReleasedPins?.(released), [onReleasedPins, released]);
   const pins = useMemo(
     () => tablePins(columns, layout, released),
@@ -280,11 +284,6 @@ export function RecordTable({
       data-scrolls={scrolls ? '' : undefined}
       data-overflowing={overflowing ? '' : undefined}
       className={scrolls ? SCROLL_AREA : STATIC_AREA}
-      style={
-        scrolls && fit !== null
-          ? ({ '--fve-record-table-fit': `${fit}px` } as React.CSSProperties)
-          : undefined
-      }
     >
       <Table ref={element} className={TABLE_CELLS}>
         {/* A band rather than a row: it stays while the rows move under it,

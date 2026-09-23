@@ -546,7 +546,7 @@ export function SidebarItem({
  * the opening skeleton's title rule uses). The card was there to hold the
  * toolbar, the rows and the pagination together while the block could end
  * mid-page; since the workbench fills its host and the block reaches the
- * bottom (`useFillsHost`), its bottom and side edges only redrew the
+ * bottom (`styles.css`, "A workbench fills its container"), its bottom and side edges only redrew the
  * workbench's own, one frame inside another, and cost 32px of width and
  * 16px of height the rows could have. The rule on top is the one line still
  * saying something: where the conditions end and the result begins.

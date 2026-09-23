@@ -147,8 +147,8 @@ export type SceneService = { host: string } | { fixture: string };
  * host's would.
  *
  * The page area has a definite height, as a host's content region does, so a
- * workbench placed in it fills it and keeps its footer at the bottom
- * (`data-fills-host`); anything taller than the region scrolls inside it, and
+ * workbench placed in it fills it and keeps its footer at the bottom, as a
+ * workbench does in any container; anything taller than the region scrolls inside it, and
  * the bar never scrolls away. A scene that is not a workbench on its own — a
  * host page with a view embedded in it, a component a host places in its own
  * layout — asks for `padded`, the gutter a host's content region gives its

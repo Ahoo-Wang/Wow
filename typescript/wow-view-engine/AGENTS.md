@@ -439,10 +439,10 @@ src/
       cells.tsx               — `cellValue`/`cellText`: one value as its field reads it, for table, cards and CSV; `CellSurface` decides how many lines it may take, and nothing else
       columns.ts              — Which columns the table holds and what its cells wear otherwise: `tablePins`, `pinnedSlots`, `heldColumns`, `usePinnedOffsets` (the left offset chain, keyed on the pins), `HEAD_CELL`, `TABLE_CELLS`, `ACTION_CELL`; `ACTIONS_COLUMN` is the one column ever held on the right (D19)
       headerRoving.ts         — `useRovingHeader`: one Tab stop per header row, arrows between columns, Alt+arrows resize (P-02)
-      fitViewport.ts          — `useViewportFit`: the scroll port ends where the viewport does, so the summaries and the pagination row stay in view (P-22)
       overflow.ts             — `useOverflowing`: whether the table is wider than its port, said as `data-overflowing`; the held columns' edges answer to it (P-23)
       pinCap.ts               — The pin cap (D17-4): which pins to let go on a narrow port; `ReleasedPins`; its observer is keyed on the slots, not rebuilt every render
       queryAnnouncement.ts    — What a query says about itself to a screen reader
+      roomBelowRows.ts        — `useRoomBelowRows`: the room the rows leave in a taller port, so the totals sit at its bottom beside the pagination
       sticky.ts               — The one home of the table's sticky chrome (A-09): `stickyCell`/`stickyHead` (the held cell's recipe plus `data-pin`/`data-pin-edge`/`data-pin-index`), `stickyBand` and `BAND`/`BAND_ROW` (the two bands, `data-sticky`), `OWN_LAYER`, `pinVar`; `LeftPin` carries the offset chain and `RightPin` is the one column against the edge itself (A9, D19); the boundary's edge is drawn through `in-data-[overflowing]:`, so it answers to the port's word from `overflow.ts` (P-23)
       useSummaries.ts         — The two summary scopes from the one the runtime executed; table and cards share it
     sort/
@@ -463,7 +463,6 @@ src/
       TitleBar.tsx            — The title bar's ruled-off block: `ViewHeader` with the host's actions behind a boundary and the view-level controls — the editor's toggle, the refresh, filling the screen
       Unopenable.tsx          — The work area when the chosen view cannot be opened
       useEditorFold.ts        — The editor's fold, per opening; `filled`
-      useFillsHost.ts         — Whether the host gave a height to fill (`data-fills-host`), which keeps the footer at the bottom
       useSidebarFold.ts       — The sidebar's fold, following the surface's width until the user presses
       useWorkbenchFolds.ts    — The shell's two folds as one hook: the list beside the view, the view filling the screen, and where a press sends focus
 ```
