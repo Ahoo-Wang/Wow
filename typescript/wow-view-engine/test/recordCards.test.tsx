@@ -251,7 +251,7 @@ describe('RecordCards are picked as rows are', () => {
     expect(boxes[1].getAttribute('aria-checked')).toBe('true');
 
     fireEvent.click(boxes[0]);
-    expect(toggle).toHaveBeenCalledWith('o-1');
+    expect(toggle).toHaveBeenCalledWith('o-1', { range: false });
   });
 
   it('offers no checkbox at all where cards cannot be picked', () => {

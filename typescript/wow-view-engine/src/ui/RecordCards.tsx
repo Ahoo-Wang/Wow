@@ -12,13 +12,13 @@
  */
 
 import type * as React from 'react';
-import { useRef } from 'react';
+import { useId, useRef } from 'react';
 import type { RecordTableController } from '../react/index.js';
 import type { RecordCardField, RecordRow } from '../record/index.js';
 import { recordValue } from '../record/index.js';
 import { useOpenRows } from './record/openRows.js';
 import { RowActions } from './RowActions.js';
-import { Checkbox } from './components/checkbox.js';
+import { RangeHint, RowCheckbox } from './record/RowCheckbox.js';
 import {
   Card,
   CardContent,
@@ -122,6 +122,7 @@ export function RecordCards({
   // A grid read in reading order: every arrow is the next or the last card.
   const grid = useRef<HTMLDivElement>(null);
   const opening = useOpenRows(grid, onOpen, 'row', 'column');
+  const rangeId = useId();
   const render =
     renderCell ??
     (found => cellValue(found.value, found.column, messages, display, 'card'));
@@ -171,13 +172,7 @@ export function RecordCards({
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 {selectable && (
-                  <Checkbox
-                    aria-label={messages.label('label.record.select', {
-                      key: String(row.key),
-                    })}
-                    checked={table.isSelected(row.key)}
-                    onCheckedChange={() => table.toggle(row.key)}
-                  />
+                  <RowCheckbox table={table} row={row} hintId={rangeId} />
                 )}
                 {/* Read as its field reads it, through the same renderer as
                     the body: a status that titles a card wears the badge it
@@ -241,6 +236,7 @@ export function RecordCards({
           {messages.label('label.record.detail.hint')}
         </span>
       )}
+      {selectable && <RangeHint id={rangeId} />}
       {summaries.length > 0 && <CardSummaries rows={summaries} />}
     </>
   );

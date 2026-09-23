@@ -966,6 +966,75 @@ export const BulkOutcomeOutlivesTheSelection: Story = {
 };
 
 /**
+ * 按住 Shift 勾选一段：从上一次平点的那一行到按下的这一行，按结果顺序整段选中
+ * 或取消（`RecordTableController.toggle(key, { range })`）。
+ *
+ * 真浏览器里走一遍 jsdom 走不到的那条链：Base UI 的勾选框把根上的点击连同修饰
+ * 键转发给它藏着的 `<input>`，`onCheckedChange` 读到的原生事件才带着 Shift；
+ * 键盘那一路是根上 keyup 的空格被转成同样带修饰键的点击。两条路任何一环丢了
+ * Shift，这里读到的就只剩一行。工具栏的计数与每行的 `data-state` 是用户眼里的
+ * 两处读数，一并核对。
+ */
+export const ShiftSelectsARange: Story = {
+  ...DisplayWithActions,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    await waitFor(() =>
+      expect(readColumn(table, '订单号')).toEqual(PENDING_BY_AMOUNT),
+    );
+    const boxes = () => [
+      ...table.querySelectorAll<HTMLElement>('tbody [role="checkbox"]'),
+    ];
+    const picked = () =>
+      boxes().map(box => box.getAttribute('aria-checked') === 'true');
+    const selectedRows = () =>
+      [...table.querySelectorAll('tbody tr')].map(
+        row => row.getAttribute('data-state') === 'selected',
+      );
+    // One instance for the whole gesture, so the Shift held down is still
+    // held when the press lands.
+    const user = userEvent.setup();
+
+    // A plain press sets the anchor; a Shift+press two rows down takes the
+    // rows between with it.
+    await user.click(boxes()[0]);
+    await user.keyboard('{Shift>}');
+    await user.click(boxes()[2]);
+    await user.keyboard('{/Shift}');
+    await waitFor(() => expect(picked()).toEqual([true, true, true, false]));
+    await expect(selectedRows()).toEqual([true, true, true, false]);
+    await expect(
+      await canvas.findByText(say('label.toolbar.selected', { count: 3 })),
+    ).toBeVisible();
+
+    // Shift+Space on a focused checkbox is the same gesture, and the anchor
+    // is still the first row: the range did not move it.
+    boxes()[3].focus();
+    await user.keyboard('{Shift>}[Space]{/Shift}');
+    await waitFor(() => expect(picked()).toEqual([true, true, true, true]));
+
+    // Shift on a picked row clears the range, the way that row goes.
+    await user.keyboard('{Shift>}');
+    await user.click(boxes()[1]);
+    await user.keyboard('{/Shift}');
+    await waitFor(() => expect(picked()).toEqual([false, false, true, true]));
+    await expect(
+      await canvas.findByText(say('label.toolbar.selected', { count: 2 })),
+    ).toBeVisible();
+
+    // What Shift does is said once, and every row checkbox points at it.
+    const hints = new Set(
+      boxes().map(box => box.getAttribute('aria-describedby')),
+    );
+    await expect(hints.size).toBe(1);
+    await expect(document.getElementById([...hints][0]!)).toHaveTextContent(
+      zhCN['label.record.select.hint'],
+    );
+  },
+};
+
+/**
  * 一屏只有一个 primary，它是跑查询的那个 Apply——宿主的全局动作不是（D12 Ⅰ）。
  *
  * D12 Ⅰ 原本写的是「宿主的主功能按钮，同屏唯一 primary」，而[动作槽位](

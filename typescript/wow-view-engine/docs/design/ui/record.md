@@ -98,6 +98,14 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 
 落到文件上：`ui/RecordTable.tsx` 只留结果本身——行与它的三层；空态在 `ui/record/EmptyResult.tsx`，骨架行在 `ui/record/SkeletonRows.tsx`，一个值怎么读在 `ui/record/cells.tsx`（表格与卡片共用），表头与排序在 `ui/record/SortableHeader.tsx`，汇总行在 `ui/record/SummaryRows.tsx`，每一行末尾那一格吃富余的空格子在 `ui/record/Filler.tsx`，冻结列（含实测偏移）与表头／数字的类名在 `ui/record/columns.ts`。（见 test/recordTable.test.tsx「RecordTable on its own」「sorting from the headers」「enum cells」「the table chrome」、test/recordCards.test.tsx「RecordCards on its own」、test/recordSummaries.test.tsx「the summary row」「the summary rows」）
 
+## 勾选：Shift 连选一段
+
+- **按住 Shift 勾选是连选**，与文件管理器、邮件客户端同一条规矩：从**锚点**（上一次不带 Shift 的那一下勾选落在的行）到按下的这一行，两头都算、按**结果顺序**，整段跟着按下的这一行走——它原本没选就整段选中，原本选着就整段取消；段外已选的行原样不动。锚点只由平点移动，**连选不挪锚点**，所以第二次 Shift 是从同一行重画一段，而不是从上一段的尽头接着走。还没有锚点时 Shift 勾选就是一次平点，并把锚点落在这里。运维一页清掉四十条失败执行，从四十下变成两下。（见 test/rangeSelection.test.tsx「selects every row from the anchor down to the pressed one」「selects upwards just as it does downwards」「keeps the anchor through a range, so a second range re-draws from it」「clears the range when the pressed row is being cleared」「is a plain toggle with nothing to extend from, and sets the anchor」）
+- **键盘是同一条路**：焦点在行的勾选框上时 Shift+空格与 Shift+点击等价。不另写键盘处理——Base UI 的勾选框把根上空格的 keyup 转成一次带着修饰键的点击，再转给它藏着的 `<input>`，`onCheckedChange` 的第二个参数（`eventDetails.event`）就是那次点击，Shift 从它上面读；指针那一路也落在同一个事件上。（见 test/rangeSelection.test.tsx「extends with Shift+Space on a focused checkbox」）
+- **Shift+按下不带走一段文字**：浏览器会把同一下按压读成「把文字选区延伸到这里」，把两次按压之间每一格涂蓝。`RowCheckbox` 在带 Shift 的 `mousedown` 上拦掉默认动作，并把焦点直接交给勾选框（拦掉默认动作也拦掉了按压本来给的焦点）。这一条没有自动化的守护：浏览器的「Shift 延伸选区」只有真的输入设备触发得了，user-event 模拟的按压不走它——拿掉这个拦截，故事照样绿；只有 Playwright 的真鼠标（`vitest/browser` 的 `userEvent`）量得出那一段被涂蓝的文字，而故事文件在 Storybook 界面里也要能跑，引不了它。改动这里时用真鼠标手动核一遍。
+- **锚点属于屏幕上这一批行**：它记在控制器里（`useRecordTable` 的一个 ref），不在运行时——它是一双手怎么在挑行，不是视图的事实，也没有第二个读者。它连同**这批行是哪个问题的哪一页**一起记（`RowsMark`：`ViewResult.own` 按身份比，加上分页源的页码或游标源的下一个游标）：换页、应用了另一个问题（条件、排序）锚点就作废，哪怕同一个行键在新的一批里又出现了——那已经不是按下的那一行；同一页的刷新（手动或自动）问的还是同一个问题，锚点留着，否则自动刷新会让连选时灵时不灵。连选只覆盖当前结果的行。（见 test/rangeSelection.test.tsx「lets the anchor go on another page, whose rows are another set」「keeps the anchor through a refresh of the same page」「lets the anchor go when another question is applied」「stands only on the page and question it was set on, over a row still there」）
+- **读屏只听一次**：「Shift 连选」在屏幕上没有任何提示，所以照 `label.sort.additive` 与记录打开提示的做法，每个表面在表外渲染**一句** `sr-only`（`label.record.select.hint`，`RangeHint`），每一行的勾选框用 `aria-describedby` 指它；表头的「选择全部行」不指它——它选的是整页，没有段。表格与卡片共用 `ui/record/RowCheckbox.tsx`，两种布局一条规矩。（见 test/rangeSelection.test.tsx「tells a screen reader once what Shift does」「selects and clears ranges of cards the way the table does」，浏览器故事「Record 工作台/回归」的 `ShiftSelectsARange`）
+
 ## 记录详情：把一条读全
 
 列表只能给一条记录它的列那么宽：错误信息被截成一行，堆栈根本不在任何一列里。运维要的是「这一条到底怎么了」，所以每一行都能打开成一侧的抽屉（`ui/record/RecordDetail.tsx`，控制器 `useRecordDetail`）。

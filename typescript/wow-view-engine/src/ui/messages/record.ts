@@ -93,6 +93,10 @@ export const recordMessages = {
   'label.record.empty-add': 'Add a condition',
   'label.record.select-all': 'Select all rows',
   'label.record.select': 'Select {key}',
+  // Said as every row checkbox's description, once per surface: the range
+  // a Shift+press makes is otherwise invisible until it has been made.
+  'label.record.select.hint':
+    'Hold Shift to select or clear every record from the last one you picked to this one.',
   'label.record.detail': 'Record detail',
   'label.record.detail.hint':
     'Enter or Space opens the record; the arrow keys move between records.',

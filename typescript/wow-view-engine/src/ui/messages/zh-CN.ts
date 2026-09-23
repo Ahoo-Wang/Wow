@@ -152,6 +152,8 @@ export const zhCN: ViewMessages = {
   'label.record.empty-add': '添加条件',
   'label.record.select-all': '选择全部行',
   'label.record.select': '选择 {key}',
+  'label.record.select.hint':
+    '按住 Shift 勾选，从上一次勾选的那条到这一条之间的记录一并选中或取消。',
   'label.record.detail': '记录详情',
   'label.record.detail.hint':
     '按 Enter 或空格打开这条记录，方向键在记录间移动。',

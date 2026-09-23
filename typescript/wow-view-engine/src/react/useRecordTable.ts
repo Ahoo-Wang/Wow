@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import type {
   FieldGroupDefinition,
   Issue,
@@ -53,6 +53,23 @@ import {
 } from '../runtime/index.js';
 import type { RecordViewConfig } from '../model/index.js';
 import { useViewRuntime } from './useViewEngine.js';
+import {
+  rowsOnScreen,
+  standingAnchor,
+  toggledSelection,
+  type SelectionAnchor,
+} from './recordSelection.js';
+
+/** How {@link RecordTableController.toggle} treats the rows around one. */
+export interface ToggleSelectionOptions {
+  /**
+   * Extend from the anchor — the row the last plain toggle landed on — to
+   * this one, inclusive and in result order, the way Shift+click does in a
+   * file manager: the range goes the way this row goes. With no anchor
+   * standing among the rows on screen it is a plain toggle, and sets one.
+   */
+  range?: boolean;
+}
 
 /** How {@link RecordTableController.toggleSort} treats the other columns. */
 export interface ToggleSortOptions {
@@ -259,7 +276,14 @@ export interface RecordTableController {
    */
   selectedRows: RecordRow[];
   isSelected(key: RecordKey): boolean;
-  toggle(key: RecordKey): void;
+  /**
+   * Selects or unselects one row, or a range with `{ range: true }`. A
+   * plain toggle moves the anchor a range extends from; a range does not,
+   * so a second Shift+click re-draws the range from the same row. The
+   * anchor belongs to the rows on screen: another page, or another
+   * question applied, lets it go — a refresh of the same page keeps it.
+   */
+  toggle(key: RecordKey, options?: ToggleSelectionOptions): void;
   /** Selects every row of the current result, or clears the selection. */
   toggleAll(): void;
   clearSelection(): void;
@@ -362,15 +386,26 @@ export function useRecordTable(
     [runtime],
   );
 
+  // Where the last plain toggle landed. The controller's own rather than
+  // the runtime's: it is how one pair of hands is picking rows, not a fact
+  // about the view, and nothing but the next toggle ever reads it.
+  const anchor = useRef<SelectionAnchor | null>(null);
   const toggle = useCallback(
-    (key: RecordKey) => {
+    (key: RecordKey, options?: ToggleSelectionOptions) => {
       if (!runtime) return;
-      const current = runtime.getSnapshot().selection;
+      const snapshot = runtime.getSnapshot();
+      const onScreen = rowsOnScreen(snapshot);
+      const from =
+        options?.range && onScreen
+          ? standingAnchor(anchor.current, onScreen.rows, onScreen.mark)
+          : null;
       runtime.select(
-        current.includes(key)
-          ? current.filter(entry => entry !== key)
-          : [...current, key],
+        toggledSelection(snapshot.selection, onScreen?.rows ?? [], key, from),
       );
+      // A range leaves the anchor where it is; anything else is a plain
+      // toggle, a Shift+click with nothing to extend from included.
+      if (from === null)
+        anchor.current = onScreen ? { key, rows: onScreen.mark } : null;
     },
     [runtime],
   );

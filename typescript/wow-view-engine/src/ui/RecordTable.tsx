@@ -21,6 +21,7 @@ import { recordValue } from '../record/index.js';
 import { useOpenRows } from './record/openRows.js';
 import { RowActions } from './RowActions.js';
 import { Checkbox } from './components/checkbox.js';
+import { RangeHint, RowCheckbox } from './record/RowCheckbox.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 import {
@@ -187,6 +188,7 @@ export function RecordTable({
   const element = useRef<HTMLTableElement>(null);
   const port = useRef<HTMLDivElement>(null);
   const additiveId = useId();
+  const rangeId = useId();
   const body = useRef<HTMLTableSectionElement>(null);
   const opening = useOpenRows(body, onOpen, 'column');
   const layout = useMemo(
@@ -355,13 +357,7 @@ export function RecordTable({
               >
                 {selectable && (
                   <TableCell {...stickyCell(pins.select)}>
-                    <Checkbox
-                      aria-label={messages.label('label.record.select', {
-                        key: String(row.key),
-                      })}
-                      checked={table.isSelected(row.key)}
-                      onCheckedChange={() => table.toggle(row.key)}
-                    />
+                    <RowCheckbox table={table} row={row} hintId={rangeId} />
                   </TableCell>
                 )}
                 {columns.map(column => {
@@ -427,6 +423,7 @@ export function RecordTable({
           {messages.label('label.record.detail.hint')}
         </span>
       )}
+      {selectable && table.rows.length > 0 && <RangeHint id={rangeId} />}
       {!firstLoad && columns.some(column => column.sortable) && (
         <span id={additiveId} className="sr-only">
           {messages.label('label.sort.additive')}
