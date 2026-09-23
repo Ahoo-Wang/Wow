@@ -94,12 +94,17 @@ export interface AnalysisColumnView {
 }
 
 export interface AnalysisView {
-  /** The table's columns: those `table.columns` picks, in its order. */
+  /**
+   * The table's columns: every alias the result holds, those `table.columns`
+   * names first and in its order, then the rest as `schema` lists them. The
+   * list orders and sizes columns; it never decides which exist.
+   */
   columns: AnalysisColumnView[];
   /**
-   * Every alias the result holds, described as `columns` are, whatever the
-   * table picks. A chart names its categories through these: it may group by
-   * a column the table leaves out, whose values would otherwise show raw.
+   * Every alias the result holds, described as `columns` are, in the order
+   * the question asks them — groups, then metrics — whatever order the table
+   * was dragged into. A chart names its categories through these, and a
+   * reading of the result says them in this order.
    * `projectAnalysis` always sets it; a view built by hand may leave it out.
    */
   schema?: AnalysisColumnView[];
@@ -160,8 +165,9 @@ export function momentColumns(
 }
 
 /**
- * Every alias the result holds, groups first. It is the default column order
- * and the source of `AnalysisView.schema`, and nothing else: it was once
+ * Every alias the result holds, groups first. It is the column order the
+ * table's list does not override and the source of `AnalysisView.schema`,
+ * and nothing else: it was once
  * exported as "what a returned row is validated against", which nothing has
  * ever done — rows come back from Wow and are projected, never checked.
  */
@@ -216,10 +222,19 @@ export function projectAnalysis(
   const declared = new Map(
     config.table.columns.map(column => [column.alias, column]),
   );
-  const order =
-    config.table.columns.length > 0
-      ? config.table.columns.map(column => column.alias)
-      : resultSchema(config);
+  // `table.columns` is an override of order and width, not an allow-list
+  // (2026-09-23 audit P0-1). A metric or dimension added in the tray is part
+  // of the answer the moment the query runs, so it is a column whether or
+  // not the list has heard of it: appended after the listed ones, groups
+  // before metrics, as the question names them. An allow-list made "add a
+  // dimension" draw two 华东 rows with nothing on screen telling them apart.
+  // A listed alias the result no longer holds describes to nothing below.
+  const order = [
+    ...new Set([
+      ...config.table.columns.map(column => column.alias),
+      ...resultSchema(config),
+    ]),
+  ];
 
   const byAlias = new Map<string, AnalysisMetric>(
     config.metrics.map(metric => [metric.alias, metric]),

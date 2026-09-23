@@ -584,8 +584,9 @@ describe('DataWorkbench', () => {
   });
 
   it('names chart categories as their field names its values', async () => {
-    // The table shows only the count; the chart still groups by warehouse,
-    // and names its bars through the schema rather than the table's columns.
+    // The table's list puts the count first; the chart still groups by
+    // warehouse, and names its bars through the schema, in the question's
+    // order, rather than through the table's columns.
     const engine = new ViewEngine({
       definitions: [namedOrdersDefinition()],
       store: tracked(

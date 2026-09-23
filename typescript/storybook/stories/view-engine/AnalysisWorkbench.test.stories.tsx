@@ -48,6 +48,7 @@ import {
   columnIndex,
   findDataTable,
   readColumn,
+  readHeaders,
   readTotal,
 } from './readTable.js';
 import {
@@ -1459,6 +1460,81 @@ export const TrayEdits: Story = {
     await waitFor(() => expect(apply).not.toHaveAttribute('data-pending'));
     // The reading is the result's, so it only moves once the query lands.
     await waitFor(() => expect(reading()).not.toBe(before));
+  },
+};
+
+/** 「成本的合计」: the metric the regression below adds. */
+const COST_HEADER = formatMessage(zhCN, 'label.summary.of', {
+  field: '成本',
+  fn: zhCN['label.summary.fn.SUM'],
+});
+
+/**
+ * 加进来的就是一列（2026-09-23 审查 P0-1）。这个视图钉住了
+ * `table.columns`——仓库、记录数、金额——而那份列表只管顺序与宽度：托盘里
+ * 加的指标与维度跑完就在表里，接在列出的那几列后面，维度在前、指标在后。
+ * 它从前是白名单：读法说了「按仓库、状态」，表里却只有仓库一列，同一个
+ * 「华东」出现两行而没有一列分得开。
+ */
+export const AddedColumnsShow: Story = {
+  ...DisplayTableWithTotals,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const before = await findDataTable(canvasElement);
+    await waitFor(() =>
+      expect(readHeaders(before)).toEqual([
+        '仓库',
+        COUNT_HEADER,
+        AMOUNT_HEADER,
+      ]),
+    );
+
+    await openTray(canvasElement);
+    // One Apply runs both edits, so the table is read once, after both.
+    await userEvent.click(autoRunBox(canvasElement));
+    await waitFor(() =>
+      expect(autoRunBox(canvasElement)).toHaveAttribute(
+        'aria-checked',
+        'false',
+      ),
+    );
+
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.analysis.add-metric'] }),
+    );
+    await userEvent.click(
+      await screen.findByRole('menuitem', { name: '成本' }),
+    );
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.analysis.add-group'] }),
+    );
+    await userEvent.click(
+      await screen.findByRole('menuitem', { name: '状态' }),
+    );
+    await userEvent.click(applyButton(canvasElement));
+
+    await waitFor(async () =>
+      expect(readHeaders(await findDataTable(canvasElement))).toEqual([
+        '仓库',
+        COUNT_HEADER,
+        AMOUNT_HEADER,
+        '状态',
+        COST_HEADER,
+      ]),
+    );
+    // Every row says which group it is: no two rows share a warehouse and a
+    // status, and 华东 now has a row per status instead of two alike.
+    const after = await findDataTable(canvasElement);
+    const warehouses = readColumn(after, '仓库');
+    const statuses = readColumn(after, '状态');
+    const keys = warehouses.map(
+      (warehouse, row) => `${warehouse}|${statuses[row]}`,
+    );
+    await expect(new Set(keys).size).toBe(keys.length);
+    await expect(
+      warehouses.filter(warehouse => warehouse === '华东').length,
+    ).toBeGreaterThan(1);
+    await expect(readColumn(after, COST_HEADER).every(Boolean)).toBe(true);
   },
 };
 

@@ -293,7 +293,7 @@ D20 屏 G。展开一个数组就是换掉计数单位：`订单 → 明细项` 
 - **有时间维度时指标卡的主数取可加的那个**：选中的主数不可加而另有可加的指标时，取第一个可加的，而不是退成柱状——`fitCharts` 说「可画」是因为形态里有可加的指标，填槽就得用上它；
 - **漏斗的阶段只从可累加的数量里填**：按维度分阶段时的阶段值不可加（换图型带进来的主指标是平均数也一样）就取第一个可加的，按指标分阶段时不可加的那几段离开列表——同一个理由，`fitCharts` 说漏斗「可画」是因为有可累加的数；一个都没有时阶段值留空，由 `validateChart` 说缺什么。按维度分阶段的 `order` 去重（列了两次的一段就是一段）；
 - **不替形态编东西**：一个维度的热力图、一个指标的散点、以及阶段没人命名过的漏斗都不可表达，槽留空，于是 `validateChart` 说的是缺哪个槽而不是整个家族不在。这些是用户对着装不下它的形态选的图型；「某个形态提供哪些图型」是另一个问题，在列出它们的地方回答（阶段 5）；
-- 维度或指标的改动同样带走指向消失别名的 `sort` 与 `table.columns`，没有维度时 `sort` 清空（Wow 拒绝对无分组聚合排序，而它本来就只有一行）——这一步在 `react/useAnalysisEditor.ts` 的 `reshape` 里，它是「一次编辑要捎上什么」的那一处。（见 test/analysisChartSlots.test.ts「fitChartSlots」与 test/analysisUi.test.tsx「re-fits the chart and the sort when the shape changes」）
+- 维度或指标的改动同样带走指向消失别名的 `sort` 与 `table.columns`（新加的别名不必写进 `table.columns`：投影自己把它接在列出的那些后面），没有维度时 `sort` 清空（Wow 拒绝对无分组聚合排序，而它本来就只有一行）——这一步在 `react/useAnalysisEditor.ts` 的 `reshape` 里，它是「一次编辑要捎上什么」的那一处。（见 test/analysisChartSlots.test.ts「fitChartSlots」与 test/analysisUi.test.tsx「re-fits the chart and the sort when the shape changes」）
 
 ### 指标的数怎么读：`metricFormat`
 
@@ -330,7 +330,7 @@ D20 屏 G。展开一个数组就是换掉计数单位：`订单 → 明细项` 
 - 未声明时区的 DATE_HISTOGRAM 补上 `ctx.timeZone`，否则 Wow 按 UTC 切桶，东八区的"一天"从早上八点算起；
 - `projectAnalysis` 的结果列为全部 group 别名加全部 metric 别名，`DERIVED` 也是普通列。这份别名清单是默认列序与 `schema` 的来源，**不导出**：它从前以 `resultSchema` 的名义对外宣称自己是「结果行的校验依据」，而没有任何人校验过结果行——行从 Wow 回来就直接投影，合同因此删掉而不是改写；
 - 分组列与取字段自己的值的指标列（`MIN`／`MAX`／`PERCENTILE`／`ANY`，`readsAsItsField`）带上字段的 `kind`、`cell`、`options`，DATE_HISTOGRAM 列另带 `dateUnit` 与所声明的 `timeZone`，HISTOGRAM 列另带 `interval`（键只是一段的下界，界面凭它读出整段），供界面按字段显示（见 [ui/README.md#值按字段显示](ui/README.md#值按字段显示)），其余指标是算出的数，不带；
-- `columns` 按 `table.columns` 挑选，`schema` 以同样的描述覆盖结果里的每个别名——表格可以只显示计数，而图表仍按表格没显示的分组画，类目要经 `schema` 取名；
+- **`table.columns` 定顺序与宽度，不定有哪些列**（2026-09-23 审查 P0-1，参照 Metabase：新加的汇总或分组总是成为一列，列设置只记住隐藏与顺序）：`columns` 先按 `table.columns` 列出的别名排，其余别名接在后面——维度在前、指标在后，各按配置顺序，也就是列表为空时的那个顺序；列出的别名结果里已经没有就跳过，重复的只画一次（准入会拒绝这两种，但投影是导出的）。它从前是白名单：声明过列的视图在托盘里加一个指标，查询跑了、读法也说了，表里却没有那一列；再加一个维度，同一个仓库出现两行而没有一列分得开。模型里没有「隐藏」，所以没有一列能被藏起来；将来要有，是显式的 `hidden`（记录表 D17-8 那一个词），而不是「没列出」。补在内核而不在编辑器里，所以每个宿主——工作台、嵌入、仪表盘面板——拿到的是同一张表。`schema` 以同样的描述按配置顺序覆盖每个别名——图表的类目与结果那句读法按问题的顺序说，不跟着表被拖成的列序走；（见 test/analysisProject.test.ts「table.columns orders and sizes, never hides」）
 - 合计行来自 `compileAnalysisTotals` 的独立结果，因此 `AVG`、`DISTINCT_COUNT`、百分位等不可加指标也正确；
 - 该查询与主查询共享同一调度预算，失败只使合计行不可用，不影响主结果。图表所需的派生整形也在此完成：`splitBy` 透视、饼图"其他"合并、漏斗累计与转化率、热力图矩阵、metric 卡片的比较值。metric 卡片带 `trend` 时的标题值取自合计行（`projectAnalysis` 的 `totals`），无合计行时按分桶求和；
 - `compare` 与 `target` 在有无 `trend` 时同样生效。

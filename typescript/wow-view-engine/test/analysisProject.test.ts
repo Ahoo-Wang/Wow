@@ -75,16 +75,16 @@ describe('display metadata', () => {
     expect(named.groupBy?.[0]).toMatchObject({ timeZone: 'UTC' });
   });
 
-  // The table may show only the count while the chart still groups by the
-  // warehouse, so what a chart names its categories by cannot be the table's.
-  it('describes every alias for the chart, the ones the table hides too', () => {
+  // The table's order is whatever it was dragged into; the chart and the
+  // reading name things in the question's order, so they read the schema.
+  it('describes every alias for the chart in the order the question asks', () => {
     const view = projectAnalysis(
       withEnum(),
       config({ table: { columns: [{ alias: 'orders' }] } }),
       [],
     );
 
-    expect(view.columns.map(column => column.alias)).toEqual(['orders']);
+    expect(view.columns.map(column => column.alias)).toEqual(['orders', 'wh']);
     expect(view.schema?.map(column => column.alias)).toEqual(['wh', 'orders']);
     expect(view.schema?.[0]).toMatchObject({
       kind: 'enum',
@@ -231,9 +231,102 @@ describe('projectAnalysis', () => {
       rows,
       [{ orders: 40 }],
     );
-    expect(view.columns.map(column => column.alias)).toEqual(['orders']);
+    expect(view.columns.map(column => column.alias)).toEqual(['orders', 'wh']);
     expect(view.columns[0].width).toBe(90);
+    expect(view.columns[1].width).toBeUndefined();
     expect(view.totals).toEqual({ orders: 40 });
+  });
+
+  // 2026-09-23 audit P0-1. The list is an override of order and width, not
+  // an allow-list: what the tray added ran, so it is on screen — otherwise a
+  // second dimension draws two 华东 rows with no column telling them apart.
+  describe('table.columns orders and sizes, never hides', () => {
+    const grown = (columns: { alias: string; width?: number }[]) =>
+      projectAnalysis(
+        definition(),
+        config({
+          layout: 'table',
+          groups: [
+            { type: 'TERMS', field: 'warehouse', alias: 'wh' },
+            {
+              type: 'DATE_HISTOGRAM',
+              field: 'createdAt',
+              alias: 'month',
+              unit: 'MONTH',
+            },
+          ],
+          metrics: [
+            { type: 'COUNT', alias: 'orders' },
+            {
+              type: 'NUMERIC',
+              alias: 'amount_1',
+              function: 'SUM',
+              expression: { type: 'FIELD', field: 'amount' },
+            },
+          ],
+          table: { columns },
+        }),
+        [],
+      );
+    const aliases = (view: ReturnType<typeof grown>) =>
+      view.columns.map(column => column.alias);
+
+    it('appends a metric the list does not name', () => {
+      expect(
+        aliases(
+          grown([{ alias: 'wh' }, { alias: 'month' }, { alias: 'orders' }]),
+        ),
+      ).toEqual(['wh', 'month', 'orders', 'amount_1']);
+    });
+
+    it('appends a dimension the list does not name', () => {
+      expect(
+        aliases(
+          grown([{ alias: 'wh' }, { alias: 'orders' }, { alias: 'amount_1' }]),
+        ),
+      ).toEqual(['wh', 'orders', 'amount_1', 'month']);
+    });
+
+    // After the listed ones, as the question names them: dimensions first,
+    // each set in the config's order — the order an empty list draws.
+    it('appends groups before metrics, in the config order', () => {
+      expect(aliases(grown([{ alias: 'orders' }]))).toEqual([
+        'orders',
+        'wh',
+        'month',
+        'amount_1',
+      ]);
+    });
+
+    it('keeps the listed order and widths', () => {
+      const view = grown([
+        { alias: 'amount_1', width: 140 },
+        { alias: 'month' },
+        { alias: 'wh', width: 90 },
+      ]);
+      expect(aliases(view)).toEqual(['amount_1', 'month', 'wh', 'orders']);
+      expect(view.columns.map(column => column.width)).toEqual([
+        140,
+        undefined,
+        90,
+        undefined,
+      ]);
+    });
+
+    // Admission refuses both, but the projection is exported: a host may
+    // hand it a config nothing admitted, and neither may cost a column or
+    // draw one twice.
+    it('skips a listed alias the result does not hold and draws a repeat once', () => {
+      expect(
+        aliases(
+          grown([{ alias: 'gone' }, { alias: 'month' }, { alias: 'month' }]),
+        ),
+      ).toEqual(['month', 'wh', 'orders', 'amount_1']);
+    });
+
+    it('draws the config order when nothing is listed', () => {
+      expect(aliases(grown([]))).toEqual(['wh', 'month', 'orders', 'amount_1']);
+    });
   });
 
   it('labels a numeric metric with its source field', () => {

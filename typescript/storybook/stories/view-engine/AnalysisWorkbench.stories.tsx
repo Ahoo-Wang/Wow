@@ -56,7 +56,6 @@ function AnalysisWorkbenchDemo({
   pinned = false,
   records = false,
   expandable = false,
-  allColumns = false,
   visualization = true,
   latest = false,
   limit,
@@ -83,12 +82,6 @@ function AnalysisWorkbenchDemo({
    * 那一槽；它换的是定义而不是配置，因为链是能力说了算的。
    */
   expandable?: boolean;
-  /**
-   * 表列不再逐条声明，而是「有什么别名画什么」。托盘里新加的指标因此
-   * 当场多出一列——声明过列的视图只画声明过的那几列，那是作者的选择，
-   * 但它也让「加一条指标」在屏幕上什么也不发生。
-   */
-  allColumns?: boolean;
   /**
    * 宿主让不让配图（`WorkbenchFeatures.visualization`）。关掉之后结果工具栏上
    * 的「可视化」按钮与左侧栏那块面板一起不在——关掉的功能是不存在，而不是置灰。
@@ -172,9 +165,13 @@ function AnalysisWorkbenchDemo({
       ...(labels ? { labels: true } : {}),
     },
     table: {
-      columns: allColumns
-        ? []
-        : [{ alias: 'warehouse' }, { alias: 'orders' }, { alias: 'amount' }],
+      // The list orders the columns and nothing more: a dimension or metric
+      // added in the tray is appended after these (audit P0-1).
+      columns: [
+        { alias: 'warehouse' },
+        { alias: 'orders' },
+        { alias: 'amount' },
+      ],
       totals: true,
     },
   });
@@ -488,7 +485,6 @@ const meta = {
     pinned: false,
     records: false,
     expandable: false,
-    allColumns: false,
     visualization: true,
     latest: false,
     labels: false,
@@ -504,7 +500,6 @@ const meta = {
       control: 'inline-radio',
       options: [undefined, 'daily', 'daily-card', 'cities', 'bands'],
     },
-    allColumns: { control: 'boolean' },
     records: { control: 'boolean' },
     expandable: { control: 'boolean' },
     behaviour: {

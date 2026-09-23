@@ -154,7 +154,12 @@ export interface AnalysisColumn {
 }
 
 export interface AnalysisTableSpec {
-  /** Defaults to every group and metric alias. */
+  /**
+   * The order and widths of the table's columns — an override, not an
+   * allow-list. Every group and metric alias is a column; those listed come
+   * first in this order, the rest follow, groups before metrics, in the
+   * config's order. Empty means the config's order throughout.
+   */
   columns: AnalysisColumn[];
   /**
    * Whether the table draws a totals row. The row is the ungrouped

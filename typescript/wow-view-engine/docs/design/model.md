@@ -228,7 +228,7 @@ export interface AnalysisTableSpec {
   // 没有 pinned：分析表不冻结任何列，所以存下来的那个「固定」是一份没有
   // 渲染器去兑现、也没有控件去设置的设置——界面许诺了一件屏幕不会做的事。
   // 将来分析表长出冻结列时，照记录表那一个词、那一个取值来（D19）。
-  columns: { alias: string; width?: number }[]; // 缺省为全部 group + metric
+  columns: { alias: string; width?: number }[]; // 列序与列宽的覆盖，不是白名单：未列出的别名接在后面（维度先、指标后，按配置顺序）
   totals?: boolean; // 合计行；开启时执行一次无分组聚合，不由分组行推导
 }
 
