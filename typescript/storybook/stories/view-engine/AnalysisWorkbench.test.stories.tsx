@@ -661,10 +661,15 @@ export const FollowUpFocus: Story = {
   ...DisplayPieChart,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await waitFor(() => expect(slices(canvasElement)).toHaveLength(3));
-    const before = slices(canvasElement).map(slice => slice.name);
-
     await chartsDrawn(canvasElement);
+    // Named once the legend has listed every slice, not as the first one
+    // lands: under load the pie drew before its legend had all three.
+    const before = await waitFor(() => {
+      const names = slices(canvasElement).map(slice => slice.name);
+      expect(names).toHaveLength(3);
+      expect(names.every(name => name !== null)).toBe(true);
+      return names;
+    });
     pressMark(slicesInOrder(canvasElement)[0]!);
 
     const menu = await drillMenu();
