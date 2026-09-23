@@ -15,6 +15,7 @@ import type { Ref, ReactNode } from 'react';
 import type { FilterTree } from '../model/index.js';
 import type { RecordRow } from '../record/index.js';
 import {
+  hasAsked,
   hasResult,
   resultIssues,
   type DashboardRuntime,
@@ -241,7 +242,7 @@ function EmbeddedBody({
 function Applied({ runtime }: { runtime: OpenedRuntime }) {
   const state = useViewRuntime(runtime);
   const filter = useFilterEditor(runtime);
-  return <AppliedBar filter={filter} hasResult={hasResult(state)} readOnly />;
+  return <AppliedBar filter={filter} asked={hasAsked(state)} readOnly />;
 }
 
 function Failed({ runtime }: { runtime: OpenedRuntime }) {

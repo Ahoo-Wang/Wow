@@ -16,15 +16,18 @@ import type { ViewConfig, ViewInstance } from '../model/index.js';
 
 /**
  * Whether the conditions in force are other than the ones the view was saved
- * with — `null` when it was never saved, or is not a view of records with
- * conditions of its own. The empty result reads it to choose its way out:
- * back to the saved conditions, or on to another question (`emptyWayOut`).
+ * with — `null` when it was never saved, or is not a data view with
+ * conditions of its own. The empty result of a record view and of an
+ * analysis reads it to choose its way out: back to the saved conditions, or
+ * on to another question (`emptyWayOut`). A dashboard's global condition is
+ * the panels' to answer, and no one result of its is empty.
  */
 export function conditionsDrifted(
   applied: ViewConfig,
   saved: ViewInstance | null,
 ): boolean | null {
   const baseline = saved?.config;
-  if (applied.kind !== 'record' || baseline?.kind !== 'record') return null;
+  if (applied.kind === 'dashboard' || baseline?.kind !== applied.kind)
+    return null;
   return !dequal(applied.filter, baseline.filter);
 }

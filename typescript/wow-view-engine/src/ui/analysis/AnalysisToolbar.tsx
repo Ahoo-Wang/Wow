@@ -13,7 +13,7 @@
 
 import type { RefObject } from 'react';
 import { ChartColumnIcon } from 'lucide-react';
-import type { AnalysisView } from '../../analysis/index.js';
+import type { AnalysisColumnView } from '../../analysis/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
 import { Button } from '../components/button.js';
 import { ToggleGroup, ToggleGroupItem } from '../components/toggle-group.js';
@@ -24,8 +24,13 @@ import { Toolbar } from '../toolbar.js';
 
 export interface AnalysisToolbarProps {
   analysis: AnalysisEditorController;
-  /** The result on screen, which the reading names. */
-  view: AnalysisView;
+  /**
+   * The columns the reading names: the result's, or — while the first
+   * answer is on its way, or after it failed — the question's
+   * (`useAnalysisResult().columns`). The bar is the same bar either way,
+   * so it stands where it will stand from the moment a query is sent.
+   */
+  columns: readonly AnalysisColumnView[];
   /**
    * Whether the visualization panel is open, and the press that opens or
    * closes it. Left out where the host switched the panel off
@@ -53,14 +58,13 @@ export interface AnalysisToolbarProps {
  */
 export function AnalysisToolbar({
   analysis,
-  view,
+  columns,
   visualizing,
   onVisualize,
   visualizeRef,
   disabled,
 }: AnalysisToolbarProps) {
   const messages = useViewMessages();
-  const columns = view.schema ?? view.columns;
   // The separator is the catalogue's, as it is wherever this package lists
   // names in a sentence (`charts/reading.ts`): 「、」 in Chinese, ", " in
   // English.

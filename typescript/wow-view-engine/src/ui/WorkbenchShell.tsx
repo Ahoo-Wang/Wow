@@ -21,7 +21,10 @@ import {
 import { cn } from 'cn';
 import type { Issue } from '../model/index.js';
 // Aliased: `hasResult` here is the prop a dashboard overrides it with.
-import { hasResult as viewHasResult } from '../runtime/index.js';
+import {
+  hasAsked as viewHasAsked,
+  hasResult as viewHasResult,
+} from '../runtime/index.js';
 import type { WorkbenchController } from '../react/index.js';
 import { AppliedBar } from './AppliedBar.js';
 import { EditorFold } from './EditorBand.js';
@@ -305,10 +308,16 @@ export function WorkbenchShell({
   const kind =
     runtime?.kind ??
     (workbench.kinds.length === 1 ? workbench.kinds[0] : undefined);
-  // Whether there is a result for the applied bar to describe. It renders
-  // nothing without one, which is also half of whether the result block has
+  // Whether there is a result, which is half of whether the result block has
   // any reason to exist.
   const describesResult = hasResult ?? viewHasResult(state);
+  // Whether a question was put to the source, which is when the applied bar
+  // has something to say: the conditions the rows came back under, or — while
+  // the first answer is on its way, or after it failed — the ones it was
+  // sent under (`hasAsked`). Waiting for rows put the bar on screen as they
+  // landed, above the result, and pushed the whole block down under the
+  // reader's eyes. A dashboard answers for its panels through `hasResult`.
+  const asked = hasResult ?? viewHasAsked(state);
   // The other half of it: a block with a request in it holds the rows the
   // request will fill, drawn loading.
   const pending = resultPending ?? state?.query.status === 'loading';
@@ -600,7 +609,7 @@ export function WorkbenchShell({
                 were fetched under, a line of its own between the editor and
                 the result — neither inside the tray, which is the draft, nor
                 inside the result block, which is the rows. It draws nothing
-                until there is a result to describe. */}
+                until a question has been asked. */}
             {/* The search sits at the band's end: it is one of the
                 conditions, and the band has the width the title bar does
                 not — there, beside the title, the filter, the refresh and
@@ -612,13 +621,13 @@ export function WorkbenchShell({
               >
                 <AppliedBar
                   filter={filter}
-                  hasResult={describesResult}
+                  asked={asked}
                   className="min-w-0 grow"
                 />
                 <div className="ml-auto">{search}</div>
               </div>
             ) : (
-              <AppliedBar filter={filter} hasResult={describesResult} />
+              <AppliedBar filter={filter} asked={asked} />
             )}
 
             {/* The result itself (D12 Ⅳ–Ⅶ).

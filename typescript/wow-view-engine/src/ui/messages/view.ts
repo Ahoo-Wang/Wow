@@ -61,7 +61,12 @@ export const viewMessages = {
   'runtime.kind.not-declared': '{definition} does not offer a {kind} view.',
   'runtime.options.unresolved':
     'No candidate source is configured for {source}.',
-  'runtime.query.failed': 'The source answered: {reason}',
+  // Said to whoever reads the screen, not to whoever wrote the source: what
+  // did not happen, in their words, then the source's own reason. 「The
+  // source answered」 read as a transcript of a machine, and a failure
+  // worded for its reader is one they know what to do about — the line
+  // ends in Try again.
+  'runtime.query.failed': 'Could not load the data: {reason}',
   'record.detail.failed': 'The whole record could not be read: {reason}',
   'runtime.query.queue-full':
     'Too many queries at once; try again in a moment.',

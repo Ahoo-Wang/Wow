@@ -709,7 +709,7 @@ describe('DataWorkbench', () => {
         screen
           .getAllByRole('alert')
           .some(alert =>
-            (alert.textContent ?? '').includes('The source answered'),
+            (alert.textContent ?? '').includes('Could not load the data'),
           ),
       ).toBe(true),
     );

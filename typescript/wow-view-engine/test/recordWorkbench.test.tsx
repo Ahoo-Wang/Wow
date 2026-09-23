@@ -558,7 +558,7 @@ describe('DataWorkbench', () => {
     // The strip says what went wrong, not that something did.
     await waitFor(() =>
       expect(screen.getByRole('alert').textContent).toContain(
-        'The source answered: down',
+        'Could not load the data: down',
       ),
     );
   });
@@ -739,7 +739,7 @@ describe('DataWorkbench', () => {
 
     await waitFor(() =>
       expect(screen.getByRole('alert').textContent).toContain(
-        'The source answered: down',
+        'Could not load the data: down',
       ),
     );
   });
@@ -779,7 +779,7 @@ describe('DataWorkbench', () => {
 
     await waitFor(() =>
       expect(screen.getByRole('alert').textContent).toContain(
-        'The source answered: gateway down',
+        'Could not load the data: gateway down',
       ),
     );
   });

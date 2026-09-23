@@ -25,13 +25,14 @@ import { useSurfaceDisplay } from './ViewSurface.js';
 export interface AppliedBarProps {
   filter: FilterEditorController;
   /**
-   * Whether a result exists to describe. `filter.applied` reads the config
-   * the result carries, so an empty list means either "no condition" or "no
-   * answer yet" and the bar cannot tell the two apart on its own. The
-   * workbench knows — it holds the state — and says so here, which keeps the
-   * bar off the runtime.
+   * Whether a question has been put to the source — a result came back, one
+   * is on its way, or the last one failed (`hasAsked`). `filter.applied`
+   * describes the conditions it was put under, so an empty list means either
+   * "no condition" or "nothing asked yet" and the bar cannot tell the two
+   * apart on its own. The workbench knows — it holds the state — and says so
+   * here, which keeps the bar off the runtime.
    */
-  hasResult: boolean;
+  asked: boolean;
   disabled?: boolean;
   /**
    * Nothing here may be taken out of force. The ✕ is not rendered at all
@@ -53,7 +54,7 @@ export interface AppliedBarProps {
  */
 export function AppliedBar({
   filter,
-  hasResult,
+  asked,
   disabled,
   readOnly = false,
   className,
@@ -69,8 +70,8 @@ export function AppliedBar({
   // belong to the page rather than to the view. They read as `scoped` on the
   // controller precisely because no path here addresses them.
   const { applied, scoped, implied } = filter;
-  // Nothing has been fetched, so there is nothing to say the fetch ran under.
-  if (!hasResult) return null;
+  // Nothing has been asked, so there is nothing to say it was asked under.
+  if (!asked) return null;
 
   return (
     <div

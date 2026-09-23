@@ -287,11 +287,11 @@ describe('the visualization panel hands the keyboard on', () => {
   });
 
   /**
-   * The toolbar goes with the rows: a result that comes back empty while
-   * the panel is open leaves no button to hand the keyboard back to, so
-   * closing the panel lands on the result block it was a panel of.
+   * The toolbar no longer goes with the rows (2026-09-23 audit): a result
+   * that comes back empty while the panel is open keeps the button that
+   * opened it, and closing the panel hands the keyboard back to it.
    */
-  it('falls back to the result block when the toolbar is gone', async () => {
+  it('hands the keyboard back to the button when the result comes back empty', async () => {
     const rows = GROUPED.map(row => ({ ...row }));
     const engine = open({ config: { layout: 'chart' }, rows });
     fireEvent.click(
@@ -305,10 +305,8 @@ describe('the visualization panel hands the keyboard on', () => {
     act(() => engine.openRuntimes()[0]!.refresh());
     await waitFor(() =>
       expect(
-        screen.queryByRole('button', {
-          name: label('label.analysis.visualize'),
-        }),
-      ).toBeNull(),
+        document.querySelector('[data-slot="analysis-empty"]'),
+      ).not.toBeNull(),
     );
 
     press(label('label.chart.picker-back'));
@@ -316,7 +314,7 @@ describe('the visualization panel hands the keyboard on', () => {
     await waitFor(() => expect(picker()).toBeNull());
     await waitFor(() =>
       expect(active()).toBe(
-        document.querySelector('[data-slot="result-block"]'),
+        screen.getByRole('button', { name: label('label.analysis.visualize') }),
       ),
     );
   });

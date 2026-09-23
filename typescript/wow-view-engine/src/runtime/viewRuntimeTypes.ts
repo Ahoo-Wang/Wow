@@ -330,6 +330,30 @@ export function hasResult(
   return state?.result != null;
 }
 
+/**
+ * Whether this view has put a question to its source: a result came back,
+ * one is on its way, or the last one failed.
+ *
+ * It is the wider question the chrome around a result asks — the applied
+ * conditions, a toolbar that reads the question out — because each of those
+ * has something true to say from the moment a query is sent, not only from
+ * the moment one lands. Drawn only once rows arrived, they appeared under
+ * the reader's eyes as the first answer landed and pushed the result down
+ * the page, and a first query that failed left the failure standing alone
+ * with nothing around it to act on. A query that was sent was admitted, so
+ * `applied` is a config the screen may describe.
+ *
+ * What it is not: a view whose config was refused before it ran. Nothing
+ * was asked there, and the status line is what speaks.
+ */
+export function hasAsked(
+  state: { result: unknown; query: { status: QueryStatus } } | null | undefined,
+): boolean {
+  if (hasResult(state)) return true;
+  const status = state?.query.status;
+  return status === 'loading' || status === 'error';
+}
+
 export interface ViewRuntimeOptions<C extends DataViewConfig> {
   id: string;
   definition: DataViewDefinition;

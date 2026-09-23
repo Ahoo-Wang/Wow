@@ -98,7 +98,7 @@ function overRuntime(definition = ordersDefinition()) {
     return (
       <AppliedBar
         filter={filter}
-        hasResult={runtime.getSnapshot().result !== null}
+        asked={runtime.getSnapshot().result !== null}
       />
     );
   }
@@ -111,21 +111,21 @@ describe('AppliedBar', () => {
     // An empty `applied` means "no condition" *or* "no answer yet", and the
     // bar cannot tell them apart on its own — so it is told.
     const { container } = render(
-      <AppliedBar filter={stub([])} hasResult={false} />,
+      <AppliedBar filter={stub([])} asked={false} />,
     );
 
     expect(container.innerHTML).toBe('');
   });
 
   it('says so plainly when the result ran under no condition at all', () => {
-    render(<AppliedBar filter={stub([])} hasResult />);
+    render(<AppliedBar filter={stub([])} asked />);
 
     const bar = screen.getByRole('region', { name: 'Showing' });
     expect(bar.textContent).toContain('All records');
   });
 
   it('lists the conditions the rows in front of you were fetched under', () => {
-    render(<AppliedBar filter={stub([condition()])} hasResult />);
+    render(<AppliedBar filter={stub([condition()])} asked />);
 
     // The badge is built from the parts, so the operator is the catalogue's
     // word for it rather than the enum name the English line carries.
@@ -146,7 +146,7 @@ describe('AppliedBar', () => {
             value: { kind: 'blank' },
           }),
         ])}
-        hasResult
+        asked
       />,
     );
 
@@ -231,7 +231,7 @@ describe('AppliedBar', () => {
           ],
           { clearValue, submit },
         )}
-        hasResult
+        asked
       />,
     );
 
@@ -246,7 +246,7 @@ describe('AppliedBar', () => {
   });
 
   it('freezes its removes with the rest of the view', () => {
-    render(<AppliedBar filter={stub([condition()])} hasResult disabled />);
+    render(<AppliedBar filter={stub([condition()])} asked disabled />);
 
     expect(
       (
@@ -267,7 +267,7 @@ describe('AppliedBar', () => {
     render(
       <AppliedBar
         filter={stub([condition()], { scoped: [customer()] })}
-        hasResult
+        asked
       />,
     );
 
@@ -296,9 +296,7 @@ describe('AppliedBar', () => {
    * the reader the opposite of what the rows below it are.
    */
   it('does not call a scoped result all of them', () => {
-    render(
-      <AppliedBar filter={stub([], { scoped: [customer()] })} hasResult />,
-    );
+    render(<AppliedBar filter={stub([], { scoped: [customer()] })} asked />);
 
     expect(screen.queryByText('All records')).toBeNull();
     expect(screen.getByText(/Customer is c-1/)).toBeDefined();
@@ -324,7 +322,7 @@ describe('AppliedBar', () => {
       operator: 'DELETION',
       value: { kind: 'text', value: 'ACTIVE' },
     });
-    render(<AppliedBar filter={stub([], { implied: [implied] })} hasResult />);
+    render(<AppliedBar filter={stub([], { implied: [implied] })} asked />);
 
     const badge = screen.getByText(/Deleted/).closest('[data-slot="badge"]');
     expect(badge?.hasAttribute('data-implied')).toBe(true);
@@ -374,7 +372,7 @@ describe('AppliedBar', () => {
   });
 
   it('renders no remove at all when it is read-only', () => {
-    render(<AppliedBar filter={stub([condition()])} hasResult readOnly />);
+    render(<AppliedBar filter={stub([condition()])} asked readOnly />);
 
     expect(screen.getByText('Warehouse is CN')).toBeDefined();
     expect(screen.queryByRole('button')).toBeNull();
@@ -412,7 +410,7 @@ describe('a value the way its field shows it', () => {
             value: { kind: 'text', value: instant },
           }),
         ])}
-        hasResult
+        asked
       />,
     );
 
@@ -442,7 +440,7 @@ describe('a value the way its field shows it', () => {
             value: { kind: 'list', values: [100, 5000] },
           }),
         ])}
-        hasResult
+        asked
       />,
     );
 
@@ -470,7 +468,7 @@ describe('a value the way its field shows it', () => {
             },
           }),
         ])}
-        hasResult
+        asked
       />,
     );
 
@@ -491,7 +489,7 @@ describe('the applied badge in another language', () => {
   const inChinese = (applied: FilterSummaryItem[]) =>
     render(
       <MessagesProvider messages={zhCN}>
-        <AppliedBar filter={stub(applied)} hasResult />
+        <AppliedBar filter={stub(applied)} asked />
       </MessagesProvider>,
     );
 
@@ -679,7 +677,7 @@ describe('the applied badge in another language', () => {
       <MessagesProvider messages={zhCN}>
         <AppliedBar
           filter={stub([predicate('or', [sku('A', 0), sku('B', 1)])])}
-          hasResult
+          asked
         />
       </MessagesProvider>,
     );
@@ -691,10 +689,7 @@ describe('the applied badge in another language', () => {
     // (D18-7) — and is said as that, not as a group of one under 都不满足.
     rerender(
       <MessagesProvider messages={zhCN}>
-        <AppliedBar
-          filter={stub([predicate('nor', [sku('A', 0)])])}
-          hasResult
-        />
+        <AppliedBar filter={stub([predicate('nor', [sku('A', 0)])])} asked />
       </MessagesProvider>,
     );
     expect(screen.getByText('明细 任一条目满足 排除 SKU 等于 A')).toBeDefined();

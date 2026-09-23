@@ -12,7 +12,7 @@
 ## D2 三态各有一处凭据
 
 - **日期**：2026-09-19
-- **决定**：**草稿未应用**是条件 pill 与应用按钮上的那个点（`data-pending`，基准是 `state.applied`）；**已应用**是结果上方的 `AppliedBar`，它读 `state.result.own.filter` 而不是 `applied`；**未保存**是标题旁的标记。三处互不重复。
+- **决定**：**草稿未应用**是条件 pill 与应用按钮上的那个点（`data-pending`，基准是 `state.applied`）；**已应用**是结果上方的 `AppliedBar`，它读 `state.result.own.filter` 而不是 `applied`（还没有任何结果、但问过了时读 `applied`，2026-09-23）；**未保存**是标题旁的标记。三处互不重复。
 - **依据**：应用会启动一次查询，在查询答复之前 `applied` 已经走在前面，跟着它的条会描述还没到屏幕上的行。
 - **落点**：[ui/README.md#三态各有一处凭据](ui/README.md#三态各有一处凭据)、[react.md#usefiltereditor](react.md#usefiltereditor)
 

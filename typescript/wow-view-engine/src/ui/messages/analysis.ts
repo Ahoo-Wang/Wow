@@ -285,6 +285,19 @@ export const analysisMessages = {
   // Not "nothing to aggregate", which reads as "this analysis computes
   // nothing": the analysis is fine, the range simply matched no group.
   'label.analysis.empty': 'No groups match',
+  // Under the title, which of the three it is — the conditions left nothing
+  // to group, the saved view has nothing right now, the range is everything
+  // and still holds nothing — and the way out where there is one, as the
+  // record view's empty result words them (`record/emptyWayOut.ts`). The
+  // range is what the tray calls the conditions, so the way into it names
+  // it. With no condition in force there is no way out to name.
+  'label.analysis.empty-hint':
+    'No record under the current conditions falls into a group.',
+  'label.analysis.empty-view': 'This view has no records to group right now.',
+  'label.analysis.empty-none': 'There are no records in the range to group',
+  'label.analysis.empty-clear': 'Clear the conditions',
+  'label.analysis.empty-restore': 'Back to the saved conditions',
+  'label.analysis.empty-edit': 'Change the range',
 
   // The two closed enums the editor offers as choices. They used to reach
   // the screen as the identifier itself — `bar`, `date histogram` — which is

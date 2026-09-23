@@ -212,7 +212,7 @@ src/
     viewChanges.ts            — The change notifications a list of views subscribes to (D15)
     viewEngine.ts             — ViewEngine — the command surface: admission, then one dispatch
     viewRuntime.ts            — `DataViewRuntime`: one open data view over one `RuntimeStore` — admission, ask, run, land; what only a Record view has comes in through four hooks (`startOver`, `pageNow`, `settle`, `holds`)
-    viewRuntimeTypes.ts       — The runtime contract: `ViewRuntime`, `RecordViewRuntime`, `ManagedViewRuntime`, the state and result shapes; `hasResult`, the one reading of "a result ever arrived"
+    viewRuntimeTypes.ts       — The runtime contract: `ViewRuntime`, `RecordViewRuntime`, `ManagedViewRuntime`, the state and result shapes; `hasResult`, the one reading of "a result ever arrived", and `hasAsked`, of "a question was sent"
     write.ts                  — Write bodies, retry and overwrite replay
     writeLedger.ts            — The write ledger: outcomes by requestId, retry, conflicts
     index.ts                  — Transient state: what is open, what is in flight, what came back
@@ -233,7 +233,7 @@ src/
     recordDraft.ts            — The draft's lists as a control may read them; the controller is the boundary
     recordSelection.ts        — Shift ranges over the rows on screen: `toggledSelection` (the range goes the way the pressed row goes), the anchor and the page of which question it stands on (`RowsMark`, `standingAnchor`)
     useAnalysisEditor.ts      — Analysis controller
-    useAnalysisResult.ts      — The analysis result as a host draws it: the rows that ran, the chart over them, the picker's fits, and the follow-ups on a pressed group — the group by dimension, and what each follow-up opens
+    useAnalysisResult.ts      — The analysis result as a host draws it: the rows that ran, the question before any have (`question`, its `columns`), the chart over them, the picker's fits, and the follow-ups on a pressed group — the group by dimension, and what each follow-up opens
     analysisEditing.ts        — The edits to the question as plain functions over the draft (`questionEditing`): dimensions, metrics, conditions, copies, formulas, derived metrics, having
     useAutoRefresh.ts         — `RefreshController`: refresh now, the cadence ladder cut to the limits, the countdown
     useBulkCommand.ts         — A host's command for one record run over a selection: a few at a time, progress, stop, each refusal's reason, the unfinished rows left selected
@@ -346,7 +346,8 @@ src/
       FormulaCard.tsx         — The controls of a formula metric and of a derived metric (D20 屏 B): two operands picked or typed, the operation between, the summary for a formula
       HavingRows.tsx          — 「只保留」: the groups kept, as rows of one comparison each under the result slot's first label; a stored having of another shape is shown and clearable
       DrillMenu.tsx           — The follow-up menu on one group of a result: the records behind it, split by another dimension, only this group (D20 追问); headed by the group as the result reads it (`groupText`: a date bucket as its column prints it), naming what it opens 「{what} · {group}」; as wide as its words, hung from the mark, point or cell pressed, the keyboard handed back to the row
-      EmptyResult.tsx         — An aggregation that matched no group, one sentence for both layouts
+      EmptyResult.tsx         — An aggregation that matched no group, one sentence for both layouts, and in the workbench the record view's one way out (`wayOutOf`) — none with no condition in force
+      SkeletonResult.tsx      — The first answer on its way, in its shape: bars for the table's rows or one chart area, and the caption's bar (`CaptionSkeleton`)
       MetricCard.tsx          — The metrics slot and its cards: field and summary (the six ways Wow measures a field as one list), a percentile's number, the record count
       MetricCondition.tsx     — Conditions edited in place under a tray card (D20 屏 H): the funnel, the block of the range's own pills, the 「只算 …」 line at rest; a metric's and an expansion level's
       SeriesList.tsx          — The data page's 系列 slot: one row per metric drawn, carried by the shared handle into the order the analyst wants (`cartesian.series`, and nothing else about a series)
@@ -440,10 +441,10 @@ src/
       CardSummaries.tsx       — The summary lines under the cards, both scopes (D18 V)
       ColumnResizer.tsx       — The handle a column is dragged wider by, and its keyboard
       EmptyResult.tsx         — A query that matched nothing, with one way out
-      emptyWayOut.ts          — Which way out an empty result offers: back to a saved view's conditions, change them, clear them, or add one
+      emptyWayOut.ts          — Which way out an empty result offers: back to a saved view's conditions, change them, clear them, or add one; `wayOutOf`, the press that takes it, shared with the analysis
       Filler.tsx              — The aria-hidden last cell that lets rows fill the frame while columns keep their width (P-11)
       SkeletonCards.tsx       — The cards of a first query still on its way
-      SkeletonRows.tsx        — The rows of a first query still on its way, one bar per column
+      SkeletonRows.tsx        — The rows of a first query still on its way, one bar per column (`SKELETON_ROWS`, `barWidth`, the analysis's skeleton reuses both)
       openRows.ts             — Rows and cards that open their record: a press on the row's own ground, or Enter/Space in the rows' one Tab stop (`useOpenRows`)
       RowCheckbox.tsx         — One row's checkbox, table and cards alike: Shift+press or Shift+Space extends the selection (`{ range }`), and `RangeHint`, the one sentence per surface that says so
       RecordDetail.tsx        — The side panel a record opens in: every field under its group, long values whole, the row's commands in its header

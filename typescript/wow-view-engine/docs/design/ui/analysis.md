@@ -197,10 +197,17 @@ D20 定下的三条数据口径，每一条都是"这个数看起来是甲，其
 - **按下标记时提示框让开**：追问菜单弹在按下的那一点，而悬停时的提示框正停在那里、盖住菜单的前几项；按下即收起提示框（`hideTip`），菜单才是这一下的回答（浏览器故事 `FollowUpFromABar`）。
 - **`data-drawn`**：库报告画完（含动画）后写在图框上，新 option 下发时撤掉；浏览器故事量几何之前等它（`stories/view-engine/chartDom.ts` 的 `chartsDrawn`），否则量到的是还在长的柱子。
 
-## 空结果只有一句话
+## 结果的三种等待态：加载、失败、没有组
 
-- 结果没有任何一组时，表格与图表说同一句 `label.analysis.empty`（`ui/analysis/EmptyResult.tsx`）。图表从前画一对空坐标轴——那读起来是"这张图坏了"，而不是"范围里没有符合条件的组"；
-- 句子说的是**范围**，不是分析：从前的「没有可聚合的内容」读作"你这个分析算不出东西"，而指标好好的，只是没有组落进来。（见 test/analysisTable.test.tsx「says that no group matched」与 test/analysisUi.test.tsx「says that no group matched, chart layout included」）
+2026-09-23 审查 P1。三种状态共用一条原则：**框从问出去那一刻就站好，状态只换框里的内容**。何时算「问过了」是 `hasAsked`（有结果、在途、或失败；被拒而没跑的配置不算——那时说话的是状态行，结果块也不存在），问出去的查询都已通过准入，所以 `useAnalysisResult` 在没有结果时以 `state.applied` 作为 `question`，把它投影在零行上（`projectAnalysis(…, [])`）得到 `columns`／`tableColumns`：工具栏的读法、可合适的图型（`fits`）、图型的槽位与「可视化」第二层都按问题的形状走，只有要行的东西（漏斗阶段的顺序、追问）等行。有结果时 `question` 就是 `ran`，一切照旧。
+
+- **工具栏一直在**：`AnalysisToolbar` 收的是 `columns`，不是 `view`；从前它等到有行（且行数大于零）才画，于是第一次加载时它随答案一起冒出来把结果往下推，失败与没有组时表格／图表与「可视化」一起没了——而那正是读者手里唯一还能动的东西。表格／图表只重绘不重跑，在三种状态里都照常切换。
+- **加载**（第一次的答案在路上，`status === 'loading'` 且屏上没有结果）：结果区画 `ui/analysis/SkeletonResult.tsx`。表格布局是记录视图的配方（`record/SkeletonRows.tsx` 的 `SKELETON_ROWS` 行、每列一根按列名估宽的 `Skeleton`，`barWidth`，**不画表头**——理由同记录视图）；图表布局是一块占满绘图区的 `Skeleton`（`analysis-chart-skeleton`，与图同一圈 16px 边距）。页脚槽先放一根灰条（`CaptionSkeleton`，同一个 `data-slot="analysis-caption"`、同一行高，带 `data-loading`），行落地时换成那句话。全部 `aria-hidden`；读屏由结果的活区说 `label.status.querying`。**刷新**不走这里：屏上已有结果时旧结果留着（`data-stale` 淡化），不换成骨架。
+- **失败**：外壳在工具栏下画的 `QueryStrip`（与记录视图同一条，error 语气、末尾「重试」＝`runtime.refresh()`；已有旧结果时同一行接着说「显示的是上一次成功的结果」）。第一次就失败时结果区不画别的、页脚也不画——没有可数的组，与记录视图的分页条在同一状态下一样沉默。失败那句改成读者的话：`runtime.query.failed` 从「数据源回答：{reason}」改为「没能加载数据：{reason}」（en：`Could not load the data: {reason}`），记录视图共用。
+- **结果条件带**同理：还没有任何结果但问过了时，它说这次问的条件（`state.applied.filter`，见 [README.md](README.md#三态各有一处凭据)），而不是等答案落地再出现。
+- **没有组**：表格与图表说同一句 `label.analysis.empty`（`ui/analysis/EmptyResult.tsx`；图表从前画一对空坐标轴——那读起来是「这张图坏了」）；句子说的是**范围**，不是分析。工作台里它还给出**一步**，规则与记录视图的空结果同一条（`record/emptyWayOut.ts` 的 `emptyWayOut`，按下去做什么由 `wayOutOf` 一处说，两种视图共用）：保存过的视图条件被改过——「回到保存的条件」；从未保存且有条件——「清空条件」（清空并重跑）；保存过且条件原样——「调整范围」（打开托盘，范围在那里）；**没有任何条件——不给按钮**，只有标题与一句原因「范围里没有记录可以分组」（`label.analysis.empty-none`）：范围已经是全部记录，托盘里做什么都分不出组，一颗「设定范围」只会把空范围再收窄（用户对 #1800 的裁定；记录视图在这里仍给「添加条件」，那边加条件至少是个会有行回来的问题）。说明句随之是 `label.analysis.empty-hint`／`-view`／`-none`。`conditionsDrifted` 因此也回答分析视图（仪表盘仍是 `null`）。单独画的 `AnalysisTable`（仪表盘面板里）没有托盘可去，仍只有那一句。
+
+（见 test/analysisResultStates.test.tsx「the analysis result while its first answer is on its way」「the analysis result when its query fails」「the analysis result when no group matched」、test/analysisTable.test.tsx「says that no group matched」与 test/analysisUi.test.tsx「says that no group matched, chart layout included」；浏览器里量位置的是 stories/view-engine 的 `LoadingKeepsItsPlace`／`LoadingChartKeepsItsPlace`（骨架在时与行落地后，工具栏、条件带与页脚的上下边一像素不差）、`EmptyResult` 与 `QueryFailed`）
 
 ## 可视化：结果工具栏呼出左侧栏，先选图型
 
@@ -287,7 +294,7 @@ D20 把可视化定为分析的**最后一步**：结果先是表格，确认完
 
 阶段二评审的三条（A1／A2／A9）说的是同一件事：**屏幕换掉了键盘正站着的那个元素，就得说出键盘接下来站哪儿**。焦点落到 `<body>` 上不是"没有焦点"，而是下一次 Tab 从标题栏重新走一遍——删三个维度就得从头走三趟。
 
-- **可视化面板换层，焦点跟着层走**（A1，`ui/workbench/AnalysisParts.tsx`）。`panel` 这颗状态有三种值，每一次变化都会换掉侧栏里的整块内容：按「可视化」进第一层，焦点落到 `ChartPicker` 的 `h2`（`tabIndex={-1}`，它不进 Tab 路线，只接一次落点）；按网格下面那颗「…选项」按钮进第二层，落到 `ChartOptions` 的 `h2`；「返回图型」回第一层，落回**那颗「…选项」按钮**（ref 由 `AnalysisParts` 持有，交给 `ChartPicker` 的 `optionsRef`）——用户是从它离开的，回来落在层顶的标题上等于让他从头再 Tab 一遍；「返回视图列表」把面板关掉，焦点**回到开面板的那颗按钮**（`AnalysisToolbar` 的 `data-slot="visualize"`，ref 由 `AnalysisParts` 持有）。工具栏本身已经不在了的时候（结果空了、宿主关了这项能力）退回结果块。这是一个**以层为依赖的 effect**，不是 `setTimeout`：标题要等 React 画完这一层才存在，而定时器只是在猜它什么时候画完；
+- **可视化面板换层，焦点跟着层走**（A1，`ui/workbench/AnalysisParts.tsx`）。`panel` 这颗状态有三种值，每一次变化都会换掉侧栏里的整块内容：按「可视化」进第一层，焦点落到 `ChartPicker` 的 `h2`（`tabIndex={-1}`，它不进 Tab 路线，只接一次落点）；按网格下面那颗「…选项」按钮进第二层，落到 `ChartOptions` 的 `h2`；「返回图型」回第一层，落回**那颗「…选项」按钮**（ref 由 `AnalysisParts` 持有，交给 `ChartPicker` 的 `optionsRef`）——用户是从它离开的，回来落在层顶的标题上等于让他从头再 Tab 一遍；「返回视图列表」把面板关掉，焦点**回到开面板的那颗按钮**（`AnalysisToolbar` 的 `data-slot="visualize"`，ref 由 `AnalysisParts` 持有）。问出去之后那颗按钮总在：工具栏从问出去那一刻起就站着，结果空了、查询失败了都不走（[结果的三种等待态](#结果的三种等待态加载失败没有组)），宿主关掉这项能力时面板本身也不在——从前工具栏随行而去，所以这里曾留过「退回结果块」的第二个落点，那个状态已经没有了。状态行的「打开图表选项」在一份跑之前就被拒的图上开面板，那时什么都没问出去，也就没有结果块可退。这是一个**以层为依赖的 effect**，不是 `setTimeout`：标题要等 React 画完这一层才存在，而定时器只是在猜它什么时候画完；
 - **移除之后键盘留在原地**（A2，`ui/analysis/listFocus.ts` 的 `useListFocus`）。维度卡、指标卡、展开链的一层、「只保留」的一行、漏斗的一个阶段、系列的一行、参考线的一条——七处移除共用一条规则：**焦点落到补上这个位置的那一项**（同下标），列表到头了就落到**上一项**，一项都不剩就落到这个槽自己的「添加」。移动同理：按下「上移」「下移」之后，焦点留在**这项落到新下标之后的那颗同向按钮**上，于是连按几次就能一路挪；挪到头那颗按钮禁用了，反向的那颗接住焦点——**不为此把边界上的按钮留着当空操作**，一个按下去什么也不做的按钮比一次横向移动的焦点更难读。规则写在 effect 里而不是写在按下的那一刻：按下的时候那一项还在页面上，是下一次渲染才把它拿走的；
 - **结果的行是一个 Tab 停留点**（A9，`ui/AnalysisTable.tsx` + `ui/roving.ts`）。可按的行从前每行一个 `tabIndex={0}`，于是一百组就是一百个停留点，键盘想走出这张表得把已经读过的每一组再走一遍。行与行是同类的东西，这正是 roving tabindex 的场合（与记录视图表头同一套 `roving.ts`）：整组一个停留点，↑／↓ 在行之间走，Home／End 到两端，回车与空格照旧打开追问菜单。`tabindex` 写在节点上而不是渲染成属性——React 不知道它，也就不会把键盘挪过的那个停留点重新渲染回去。
 

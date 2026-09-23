@@ -22,6 +22,7 @@ import type {
   FilterOperatorName,
   FilterTree,
   Issue,
+  ViewConfig,
 } from '../model/index.js';
 import {
   clearFilter,
@@ -48,10 +49,12 @@ import {
 import {
   comparePending,
   filterOverBudget,
+  hasAsked,
   type OptionSource,
   type PendingReport,
   type ValueCandidateSource,
   type ViewRuntime,
+  type ViewRuntimeState,
 } from '../runtime/index.js';
 import { VALUE_CANDIDATE_OPERATORS } from '../analysis/index.js';
 import { useViewRuntime } from './useViewEngine.js';
@@ -67,8 +70,11 @@ export interface FilterEditorController extends FilterTreeController {
    * The view's own conditions the rows on screen were fetched under, for a
    * summary bar. It reads the config the result carries rather than `applied`,
    * so the bar always describes the data beside it: applying starts a query,
-   * and until it answers, `applied` has already moved on. Empty until a result
-   * exists.
+   * and until it answers, `applied` has already moved on. Before any result
+   * exists it describes the question on its way, or the one that failed —
+   * there are no rows for it to contradict, and the bar stands in its place
+   * from the first query rather than appearing as the answer lands. Empty
+   * while nothing has been asked (`hasAsked`).
    *
    * It describes `result.own`, not `result.config`: under a host scope filter
    * the two differ, and only the first is addressed by the paths this editor
@@ -199,6 +205,30 @@ const NOTHING_PENDING: PendingReport = {
 };
 
 /**
+ * The tree the applied bar describes: the one the rows on screen came back
+ * under, or — before any rows have — the one the question on its way (or the
+ * one that failed) was sent under.
+ *
+ * A data view reads its result first, which is the whole reason the bar
+ * does not follow `applied`: between apply and answer the two differ, and
+ * the rows on screen answer the older one. With no rows on screen there is
+ * nothing for the newer one to contradict, and a bar that waited for the
+ * first answer appeared as it landed and pushed the result down the page;
+ * `hasAsked` says a query was sent, and a query that was sent was admitted,
+ * so the tree is within budget. A dashboard's `result` is always null — the
+ * panels hold the queries — so it reads its applied config throughout.
+ */
+function askedFilter(
+  runtime: ViewRuntime | null,
+  state: ViewRuntimeState<ViewConfig> | null,
+): FilterTree | undefined {
+  if (!state) return undefined;
+  if (runtime?.kind === 'dashboard') return state.applied.filter;
+  if (state.result) return state.result.own.filter;
+  return hasAsked(state) ? state.applied.filter : undefined;
+}
+
+/**
  * Editing of the draft filter tree, addressed by path.
  *
  * It holds no state of its own: every action is an `edit` on the runtime, so
@@ -308,14 +338,7 @@ export function useFilterEditor(
     // apply, so it is not what produced these rows and does not silence what
     // did. `own` rather than `config`: a merged scope moves every path.
     applied: useMemo(() => {
-      // A dashboard's `result` is always null — the panels hold the queries —
-      // so what was asked is read from the applied config itself. A data
-      // view keeps reading its result, which is the whole reason the bar
-      // does not follow `applied`: between apply and answer they differ.
-      const ran =
-        runtime?.kind === 'dashboard'
-          ? state?.applied.filter
-          : state?.result?.own.filter;
+      const ran = askedFilter(runtime, state);
       return !ran || !kinds ? [] : describeFilter(fields, ran, kinds);
     }, [runtime, state, fields, kinds]),
     // The scope in force now rather than the one the result ran under: it is
@@ -332,10 +355,7 @@ export function useFilterEditor(
     // Against the same trees the two lists above describe: what ran, and
     // what the host holds in force beside it.
     implied: useMemo(() => {
-      const ran =
-        runtime?.kind === 'dashboard'
-          ? state?.applied.filter
-          : state?.result?.own.filter;
+      const ran = askedFilter(runtime, state);
       return !ran || !kinds
         ? []
         : impliedDeletion(fields, [ran, runtime?.scopeFilter], kinds);

@@ -22,6 +22,7 @@ import {
   groupableFields,
   momentColumns,
   asksForWhole,
+  projectAnalysis,
   shapeChart,
   splitBy,
   switchChartType,
@@ -40,9 +41,12 @@ import type {
   FilterNode,
   RecordData,
 } from '../model/index.js';
-import type { ViewRuntime } from '../runtime/index.js';
+import { hasAsked, type ViewRuntime } from '../runtime/index.js';
 import type { AnalysisEditorController } from './useAnalysisEditor.js';
 import type { WorkbenchController } from './useWorkbench.js';
+
+/** Stable identity for "nothing asked yet", so the memos below stay quiet. */
+const NO_COLUMNS: readonly AnalysisColumnView[] = [];
 
 /** A dimension a group can be split by: a field the result is not grouped on. */
 export interface SplitOption {
@@ -109,22 +113,42 @@ export interface AnalysisResultController {
   view: AnalysisView | null;
   /** The config those rows ran on: what a chart and a follow-up address. */
   ran: AnalysisViewConfig | undefined;
+  /**
+   * The question the result answers or will answer: `ran` once rows are on
+   * screen; before any are, the config on its way or the one that failed.
+   * Undefined while nothing has been asked (`hasAsked`). What the rows are
+   * *shaped* by — the reading, the chart types that fit, the slots a chart
+   * can name — is known from the moment the question is sent, so the
+   * toolbar and the visualization panel work while the first answer is on
+   * its way and after it failed; only what needs the rows waits for them.
+   */
+  question: AnalysisViewConfig | undefined;
+  /**
+   * Every column of that question, as the result names them — the rows' own
+   * schema, or the same projection over no rows while none have landed —
+   * and the ones the table draws, in its order (`AnalysisView.columns`).
+   * Both empty while nothing has been asked. The toolbar reads the first
+   * out; a skeleton standing in for the table draws a bar per the second.
+   */
+  columns: readonly AnalysisColumnView[];
+  tableColumns: readonly AnalysisColumnView[];
   /** The chart drawn over those rows, as the draft says to draw it. */
   chart: ChartSpec;
   /** The rows shaped for `chart`, or undefined while there is nothing to draw. */
   chartData: ChartData | undefined;
   /**
-   * Which chart types the shape that ran can draw, its rows included
-   * (`fitCharts`); before anything ran, the draft's shape and the stages its
-   * chart names.
+   * Which chart types the question's shape can draw, its rows included once
+   * there are any (`fitCharts`); before anything was asked, the draft's
+   * shape and the stages its chart names.
    */
   fits: Record<ChartType, ChartFit>;
   /** What the visualization panel shows as chosen. */
   picked: Picked;
   /**
-   * Draw the rows as this type, or as the table. Over rows it redraws and
-   * never runs; with none — a saved chart refused, so nothing ran — it fits
-   * the type to the draft's shape and runs (`repair`).
+   * Draw the rows as this type, or as the table. Over a question — rows on
+   * screen, the first answer on its way, or a query that failed — it
+   * redraws and never runs; with none asked — a saved chart refused, so
+   * nothing ran — it fits the type to the draft's shape and runs (`repair`).
    */
   choose(next: Picked): void;
   /**
@@ -172,26 +196,51 @@ export function useAnalysisResult(
   const view: AnalysisView | null =
     data?.kind === 'analysis' ? data.view : null;
   const ran = result?.config.kind === 'analysis' ? result.config : undefined;
+  // Before the first answer, the question itself. A query that was sent was
+  // admitted, so the applied config is one the kernel can project; a config
+  // refused before it ran was never asked, and stays undefined.
+  const state = workbench.state;
+  const applied = state?.applied;
+  const asked =
+    !ran && hasAsked(state) && applied?.kind === 'analysis'
+      ? applied
+      : undefined;
+  const question = ran ?? asked;
+  const definition = runtime?.definition;
+  const shape = useMemo<Pick<AnalysisView, 'columns' | 'schema'> | null>(
+    () =>
+      view ??
+      (asked && definition
+        ? // Over no rows and as a table: the columns are all that is
+          // wanted, and a chart shaped from nothing is work for no one.
+          projectAnalysis(definition, { ...asked, layout: 'table' }, [])
+        : null),
+    [view, asked, definition],
+  );
+  const columns = shape ? (shape.schema ?? shape.columns) : NO_COLUMNS;
+  const tableColumns = shape?.columns ?? NO_COLUMNS;
 
   const drafted = shapeKey(analysis.aliases.groups, analysis.aliases.metrics);
-  const shapeRan = ran
+  const shapeAsked = question
     ? shapeKey(
-        ran.groups.map(group => group.alias),
-        ran.metrics.map(metric => metric.alias),
+        question.groups.map(group => group.alias),
+        question.metrics.map(metric => metric.alias),
       )
     : null;
-  // The moments of the config that ran, read off its projection: a column
-  // that reads as a date is one (`momentMetrics`), and no mark measures it.
-  const moments = useMemo(
-    () => momentColumns(view?.schema ?? view?.columns ?? []),
-    [view],
-  );
+  // The moments of the question, read off its projection: a column that
+  // reads as a date is one (`momentMetrics`), and no mark measures it.
+  const moments = useMemo(() => momentColumns(columns), [columns]);
   const chart = useMemo(
     () =>
-      ran && shapeRan !== drafted
-        ? fitChartSlots(analysis.chart, ran.groups, ran.metrics, moments)
+      question && shapeAsked !== drafted
+        ? fitChartSlots(
+            analysis.chart,
+            question.groups,
+            question.metrics,
+            moments,
+          )
         : analysis.chart,
-    [analysis.chart, ran, shapeRan, drafted, moments],
+    [analysis.chart, question, shapeAsked, drafted, moments],
   );
   // What the picker offers. Over rows, the shape that ran and the rows
   // themselves: a funnel over one dimension takes its stages from them the
@@ -201,10 +250,10 @@ export function useAnalysisResult(
   // already names: picking from there is how such a view is repaired.
   const fits = useMemo(
     () =>
-      ran
+      question
         ? fitCharts({
-            groups: ran.groups,
-            metrics: ran.metrics,
+            groups: question.groups,
+            metrics: question.metrics,
             moments,
             ...(view ? { rows: view.rows } : {}),
           })
@@ -215,7 +264,7 @@ export function useAnalysisResult(
             chart: analysis.chart,
           }),
     [
-      ran,
+      question,
       view,
       moments,
       analysis.groups,
@@ -224,10 +273,11 @@ export function useAnalysisResult(
       analysis.chart,
     ],
   );
-  // A chart the shape that ran cannot draw — every metric a moment, nothing
-  // to measure — is its table: the rows are there, and an empty frame would
-  // say there were none. Before anything ran there is no shape to judge.
-  const drawable = !ran || fits[chart.type]?.available !== false;
+  // A chart the question's shape cannot draw — every metric a moment,
+  // nothing to measure — is its table: the rows are there, and an empty
+  // frame would say there were none. Before anything was asked there is no
+  // shape to judge.
+  const drawable = !question || fits[chart.type]?.available !== false;
   const chartData = useMemo(
     () =>
       view && ran && drawable
@@ -262,7 +312,10 @@ export function useAnalysisResult(
   }, [wantsWhole, pending, submit]);
 
   const choose = (next: Picked) => {
-    if (!ran || !view) {
+    // Nothing asked — a saved chart refused, so nothing ran — is a repair.
+    // A question on its way or one that failed is not: its shape is known,
+    // and a pick redraws over it as it would over rows.
+    if (!question) {
       repair(analysis, next, fits);
       return;
     }
@@ -271,19 +324,17 @@ export function useAnalysisResult(
       return;
     }
     analysis.setLayout('chart');
-    // Fitted to the rows on screen, and a funnel of a group's values given
-    // the order they came in, so a type picked draws at once.
-    analysis.updateChart(
-      withStagesFrom(
-        fitChartSlots(
-          switchChartType(chart, next),
-          ran.groups,
-          ran.metrics,
-          moments,
-        ),
-        view.rows,
-      ),
+    // Fitted to the question's shape, so a type picked while the first
+    // answer is on its way — or after it failed — is the chart the rows
+    // land in; and a funnel of a group's values given the order they came
+    // in, once there are rows to take it from.
+    const fitted = fitChartSlots(
+      switchChartType(chart, next),
+      question.groups,
+      question.metrics,
+      moments,
     );
+    analysis.updateChart(view ? withStagesFrom(fitted, view.rows) : fitted);
   };
 
   const pickable =
@@ -349,7 +400,6 @@ export function useAnalysisResult(
           conditions,
         ),
     });
-    const columns = view?.schema ?? view?.columns ?? [];
     return {
       groups: drilled.map(entry => ({
         column: columns.find(column => column.alias === entry.group.alias),
@@ -367,6 +417,9 @@ export function useAnalysisResult(
   return {
     view,
     ran,
+    question,
+    columns,
+    tableColumns,
     chart,
     chartData,
     fits,

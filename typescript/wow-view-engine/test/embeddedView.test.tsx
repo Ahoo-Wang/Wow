@@ -227,7 +227,7 @@ describe('EmbeddedView', () => {
 
     await waitFor(() =>
       expect(screen.getByRole('alert').textContent).toContain(
-        'The source answered: down',
+        'Could not load the data: down',
       ),
     );
   });
@@ -583,14 +583,14 @@ describe('EmbeddedView', () => {
 
     await waitFor(() =>
       expect(screen.getByRole('alert').textContent).toContain(
-        'The source answered: down',
+        'Could not load the data: down',
       ),
     );
     // Both at once, the way the workbenches do it: the rows that did come
     // back are still the real ones, and the failure's own line says so —
     // not a fold the reader has to open to learn the rows are old.
     expect(screen.getByRole('alert').textContent).toContain(
-      'The source answered: down · Showing the last successful result',
+      'Could not load the data: down · Showing the last successful result',
     );
     expect(screen.queryByRole('button', { name: '1 more' })).toBeNull();
     expect(screen.getAllByRole('row')).toHaveLength(3);

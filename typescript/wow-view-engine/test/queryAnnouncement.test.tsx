@@ -162,7 +162,7 @@ describe('what a record query says out loud', () => {
     // never arrived is not announced as an empty one either.
     await waitFor(() =>
       expect(screen.getByRole('alert').textContent).toContain(
-        'The source answered: down',
+        'Could not load the data: down',
       ),
     );
     expect(announced()).not.toContain('down');

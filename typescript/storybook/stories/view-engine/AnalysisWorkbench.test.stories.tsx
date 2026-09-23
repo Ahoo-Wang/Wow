@@ -40,6 +40,8 @@ import displayMeta, {
   LineChart as DisplayLineChart,
   OneBar as DisplayOneBar,
   ValueLabels as DisplayValueLabels,
+  Loading as DisplayLoading,
+  LoadingChart as DisplayLoadingChart,
 } from './AnalysisWorkbench.stories.js';
 import { converter } from 'culori';
 import { aggregateCalls } from './fixtures.js';
@@ -1289,21 +1291,170 @@ export const IdentifiersInMonospace: Story = {
   },
 };
 
-export const EmptyResult: Story = {
-  ...DisplayEmptyResult,
+/** The result block's toolbar — not the opening skeleton's hidden stand-in. */
+const resultToolbar = (canvasElement: HTMLElement) =>
+  canvasElement.querySelector<HTMLElement>(
+    '[data-slot="result-toolbar"]:not([aria-hidden])',
+  );
+
+/** Where a part of the frame stands, to the pixel that matters here. */
+const edges = (element: Element) => {
+  const rect = element.getBoundingClientRect();
+  return { top: Math.round(rect.top), bottom: Math.round(rect.bottom) };
+};
+
+/**
+ * 第一次的答案在路上时，框已经站好了（2026-09-23 审查 P1）。
+ *
+ * 从前结果区在数据回来之前是空白的，回来那一刻工具栏、条件带与页脚一起冒出来，
+ * 结果被往下推。这里在骨架还在时量一次工具栏、条件带与页脚的位置，数据落地后
+ * 再量一次：三者都在原地，骨架是表格那几行灰条，页脚先是一根灰条再换成那句话。
+ */
+export const LoadingKeepsItsPlace: Story = {
+  ...DisplayLoading,
   play: async ({ canvasElement }) => {
+    const skeleton = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="analysis-table-skeleton"]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    await expect(skeleton.querySelectorAll('tr')).toHaveLength(3);
+    const toolbar = resultToolbar(canvasElement)!;
+    // The reading is the question's, before any row has said it.
+    await expect(toolbar).toHaveTextContent('仓库');
+    const applied = canvasElement.querySelector('[data-slot="applied-bar"]')!;
+    await expect(applied).toBeVisible();
+    const caption = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="analysis-caption"]',
+    )!;
+    await expect(caption.dataset.loading).toBe('');
+    const before = {
+      toolbar: edges(toolbar),
+      applied: edges(applied),
+      caption: edges(caption),
+    };
+
+    // The source answers after 1.5 s; the skeleton is itself a `table`, so
+    // the rows are waited for by their own slot.
+    await waitFor(
+      () =>
+        expect(
+          canvasElement.querySelector('[data-slot="analysis-table"]'),
+        ).not.toBeNull(),
+      { timeout: 5_000 },
+    );
     await expect(
-      await within(canvasElement).findByText(zhCN['label.analysis.empty']),
-    ).toBeVisible();
+      canvasElement.querySelector('[data-slot="analysis-table-skeleton"]'),
+    ).toBeNull();
+    const landed = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="analysis-caption"]',
+    )!;
+    await expect(landed.dataset.loading).toBeUndefined();
+    await expect(resultToolbar(canvasElement)).toBe(toolbar);
+    await expect({
+      toolbar: edges(toolbar),
+      applied: edges(applied),
+      caption: edges(landed),
+    }).toEqual(before);
   },
 };
 
+/** 保存的是图表时，骨架是一块绘图区，工具栏与页脚同样不动。 */
+export const LoadingChartKeepsItsPlace: Story = {
+  ...DisplayLoadingChart,
+  play: async ({ canvasElement }) => {
+    const area = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="analysis-chart-skeleton"]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    // An area, not a sliver: it takes the height the chart will take.
+    await expect(area.getBoundingClientRect().height).toBeGreaterThan(150);
+    const toolbar = resultToolbar(canvasElement)!;
+    const caption = canvasElement.querySelector(
+      '[data-slot="analysis-caption"]',
+    )!;
+    const before = { toolbar: edges(toolbar), caption: edges(caption) };
+
+    // The source answers after 1.5 s.
+    await waitFor(() => expect(bars(canvasElement)).toHaveLength(4), {
+      timeout: 5_000,
+    });
+    await chartsDrawn(canvasElement);
+    await expect({
+      toolbar: edges(resultToolbar(canvasElement)!),
+      caption: edges(
+        canvasElement.querySelector('[data-slot="analysis-caption"]')!,
+      ),
+    }).toEqual(before);
+  },
+};
+
+/**
+ * 没有组落进来：工具栏还在，空状态说清是什么情况。没有任何条件时范围已是全部
+ * 记录，托盘里做什么都分不出组，所以只有标题与那一句原因，没有按钮（用户对
+ * #1800 的裁定）；页脚照样说「正在显示 0 组」。
+ */
+export const EmptyResult: Story = {
+  ...DisplayEmptyResult,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      await canvas.findByText(zhCN['label.analysis.empty']),
+    ).toBeVisible();
+    await expect(resultToolbar(canvasElement)).toBeVisible();
+    await expect(
+      canvas.getByText(zhCN['label.analysis.empty-none']),
+    ).toBeVisible();
+    const empty = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="analysis-empty"]',
+    )!;
+    await expect(within(empty).queryByRole('button')).toBeNull();
+    await expect(
+      canvasElement.querySelector('[data-slot="analysis-caption"]'),
+    ).toHaveTextContent(/^正在显示 0 组/);
+  },
+};
+
+/**
+ * 查询失败：工具栏、条件带都还在，失败说在工具栏下面那一行里，用读者的话，
+ * 末尾是「重试」；表格／图表照样能切，重试会重新去问。
+ */
 export const QueryFailed: Story = {
   ...DisplayQueryFailed,
   play: async ({ canvasElement }) => {
-    // The strip says the failure itself, in one line above the result.
-    const alert = await within(canvasElement).findByRole('alert');
-    await expect(alert).toHaveTextContent('仓储服务暂时不可用');
+    const canvas = within(canvasElement);
+    const alert = await canvas.findByRole('alert');
+    await expect(alert).toHaveTextContent('没能加载数据：仓储服务暂时不可用');
+    const toolbar = resultToolbar(canvasElement)!;
+    await expect(toolbar).toBeVisible();
+    // Under the toolbar, inside the result block.
+    await expect(edges(alert).top).toBeGreaterThanOrEqual(
+      edges(toolbar).bottom,
+    );
+    await expect(
+      canvasElement.querySelector('[data-slot="applied-bar"]'),
+    ).toBeVisible();
+
+    await userEvent.click(
+      within(toolbar).getByRole('button', { name: zhCN['label.layout.table'] }),
+    );
+    await expect(
+      within(toolbar).getByRole('button', {
+        name: zhCN['label.layout.table'],
+        pressed: true,
+      }),
+    ).toBeVisible();
+
+    const asked = aggregateCalls.current;
+    await userEvent.click(
+      within(alert).getByRole('button', { name: zhCN['label.query.retry'] }),
+    );
+    await waitFor(() => expect(aggregateCalls.current).toBeGreaterThan(asked));
   },
 };
 

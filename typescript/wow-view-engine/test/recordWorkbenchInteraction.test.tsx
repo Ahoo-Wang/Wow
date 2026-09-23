@@ -540,7 +540,9 @@ describe('the record workbench layout', () => {
     fireEvent.click(screen.getByRole('button', { name: /Refresh/ }));
 
     const strip = await screen.findByRole('alert');
-    expect(strip.textContent).toContain('The source answered: gateway down');
+    expect(strip.textContent).toContain(
+      'Could not load the data: gateway down',
+    );
     // The rows are the last ones that came back, and the failure's own
     // line says so rather than the table emptying itself over a dropped
     // connection — or a fold hiding that the rows are old.

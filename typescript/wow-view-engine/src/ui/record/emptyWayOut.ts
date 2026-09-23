@@ -11,6 +11,12 @@
  * limitations under the License.
  */
 
+import type { FilterTree, ViewConfig } from '../../model/index.js';
+import {
+  conditionsDrifted,
+  type ViewRuntimeState,
+} from '../../runtime/index.js';
+
 /**
  * The one way out of a query that matched nothing, by what was asked.
  *
@@ -36,4 +42,58 @@ export function emptyWayOut(
   if (drifted === null) return hasConditions ? 'clear' : 'add';
   if (drifted) return 'restore';
   return hasConditions ? 'edit' : 'add';
+}
+
+/** What `wayOutOf` reads and acts on; a record view and an analysis alike. */
+export interface WayOutTarget {
+  /** The open view's state: what is in force, and what it was saved as. */
+  state: Pick<ViewRuntimeState<ViewConfig>, 'applied' | 'saved'> | null;
+  /** Whether conditions of the view's own are in force on the rows. */
+  hasConditions: boolean;
+  /** Takes every condition out of the draft; `submit` then asks again. */
+  filter: { clear(): void; submit(): void };
+  /** The open view, to put the saved conditions back in force. */
+  runtime: { edit(patch: { filter: FilterTree }): void; apply(): void } | null;
+  /** Opens the editor the question is changed in. */
+  openEditor(): void;
+}
+
+/**
+ * The way out of an empty result, and the press that takes it.
+ *
+ * The two data views share the rule and the press: the record view's empty
+ * result and the analysis's say different sentences over them, and nothing
+ * else. Clearing asks again — `clear` alone would leave the rows on screen
+ * fetched under the conditions the button just took away; going back puts
+ * the saved conditions in force and nothing else of the draft (`restore` is
+ * only ever chosen when the saved config is of the open view's kind,
+ * `conditionsDrifted`); and asking something else opens the editor, because
+ * the question to change is behind a fold that may not even be on screen.
+ */
+export function wayOutOf({
+  state,
+  hasConditions,
+  filter,
+  runtime,
+  openEditor,
+}: WayOutTarget): { wayOut: EmptyWayOut; take(): void } {
+  const wayOut = emptyWayOut(
+    state ? conditionsDrifted(state.applied, state.saved) : null,
+    hasConditions,
+  );
+  const saved = state?.saved?.config;
+  const take = () => {
+    if (wayOut === 'clear') {
+      filter.clear();
+      filter.submit();
+      return;
+    }
+    if (wayOut === 'restore' && saved && runtime) {
+      runtime.edit({ filter: saved.filter });
+      runtime.apply();
+      return;
+    }
+    openEditor();
+  };
+  return { wayOut, take };
 }

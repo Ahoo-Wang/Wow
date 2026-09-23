@@ -20,7 +20,7 @@ import { stickyCell } from './sticky.js';
 import { FillerCell } from './Filler.js';
 
 /** How many rows a running query is drawn as. */
-const ROWS = 3;
+export const SKELETON_ROWS = 3;
 
 /**
  * How wide one column's bar is, in characters of its own name.
@@ -31,7 +31,7 @@ const ROWS = 3;
  * a two-letter name still gets a bar wide enough to read as one, and a
  * sentence of a label does not get a bar the width of the screen.
  */
-function barWidth(label: string): string {
+export function barWidth(label: string): string {
   return `${Math.min(Math.max(label.length, 4), 16)}ch`;
 }
 
@@ -59,7 +59,7 @@ export function SkeletonRows({
   selectable,
   actions,
 }: SkeletonRowsProps) {
-  const rows = Array.from({ length: ROWS }, (_unused, index) => index);
+  const rows = Array.from({ length: SKELETON_ROWS }, (_unused, index) => index);
   if (columns.length === 0)
     return rows.map(index => (
       <TableRow key={`skeleton-${index}`}>
