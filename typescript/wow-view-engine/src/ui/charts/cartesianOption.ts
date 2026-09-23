@@ -139,6 +139,40 @@ export function cartesianOption(
     ...lines.filter(line => axisId(line.axis) === side).map(line => line.value),
   ];
   /**
+   * The highest and the lowest a mark reaches on one axis: a stack reaches
+   * the sum of its parts on either side of zero, anything else its value.
+   * The axis starts at zero, so neither is ever past it the wrong way.
+   */
+  const reachOn = (side: 'left' | 'right') => {
+    let high = 0;
+    let low = 0;
+    for (const point of data.points) {
+      const stacks = new Map<
+        string | undefined,
+        { up: number; down: number }
+      >();
+      for (const entry of series.filter(one => one.side === side)) {
+        const value = point.values[entry.key];
+        if (typeof value !== 'number') continue;
+        const stack = entry.configured?.stack;
+        if (stack === undefined) {
+          high = Math.max(high, value);
+          low = Math.min(low, value);
+          continue;
+        }
+        const sum = stacks.get(stack) ?? { up: 0, down: 0 };
+        if (value > 0) sum.up += value;
+        else sum.down += value;
+        stacks.set(stack, sum);
+      }
+      for (const { up, down } of stacks.values()) {
+        high = Math.max(high, up);
+        low = Math.min(low, down);
+      }
+    }
+    return { high, low };
+  };
+  /**
    * An axis title, a weight above its ticks. Its gap is measured from the
    * axis line, not from the tick names: under the plot a gap of 16 left
    * 「事件类型」 two pixels under 「重试成功」, read as a second line of it,
@@ -160,17 +194,18 @@ export function cartesianOption(
     const lineValues = lines
       .filter(line => axisId(line.axis) === side)
       .map(line => line.value);
+    // A reference line is a threshold the reader set: one past the marks
+    // stretches the axis to it rather than falling off the plot. One within
+    // them leaves the axis to round its own ends — handed back as a bound,
+    // the data's raw top read 「¥4882」 on the last tick.
+    const reach = reachOn(side);
+    const lineHigh = Math.max(-Infinity, ...lineValues);
+    const lineLow = Math.min(Infinity, ...lineValues);
     return {
       type: 'value',
       position: horizontal ? (side === 'left' ? 'bottom' : 'top') : side,
-      min: axis?.min,
-      // A reference line is a threshold the reader set; one past the data
-      // stretches the axis to it rather than falling off the plot.
-      max:
-        axis?.max ??
-        (lineValues.length > 0
-          ? ({ max }: { max: number }) => Math.max(max, ...lineValues)
-          : undefined),
+      min: axis?.min ?? (lineLow < reach.low ? lineLow : undefined),
+      max: axis?.max ?? (lineHigh > reach.high ? lineHigh : undefined),
       // A count between 0 and 2 otherwise took ticks at 0.5 and 1.5, which
       // a count's format rounds into a second 「1」 and 「2」.
       minInterval: allWhole(values) ? 1 : undefined,
@@ -235,14 +270,24 @@ export function cartesianOption(
       ? { xAxisIndex: side === 'right' ? 1 : 0 }
       : { yAxisIndex: side === 'right' ? 1 : 0 };
 
+  /**
+   * A stack as the library draws it: the spec's name on one axis. Series
+   * measured against two axes are two scales, and stacking a count on top
+   * of an amount drew the count at the amount's height; each axis stacks
+   * its own.
+   */
+  const stackOf = (entry: DrawnSeries) =>
+    entry.configured?.stack === undefined
+      ? undefined
+      : `${entry.side}:${entry.configured.stack}`;
   const stacks = new Map<string, DrawnSeries[]>();
   for (const entry of series) {
-    const stack = entry.configured?.stack;
+    const stack = stackOf(entry);
     if (stack !== undefined)
       stacks.set(stack, [...(stacks.get(stack) ?? []), entry]);
   }
   const stacked = (entry: DrawnSeries) =>
-    (stacks.get(entry.configured?.stack ?? '')?.length ?? 0) > 1;
+    (stacks.get(stackOf(entry) ?? '')?.length ?? 0) > 1;
   const hasBars = series.some(entry => entry.kind === 'bar');
   const valueLabel = (metric: string, position: string) => ({
     show: true,
@@ -265,7 +310,7 @@ export function cartesianOption(
       name: entry.name,
       ...axisIndex(entry.side),
       data: data.points.map(point => point.values[entry.key] ?? null),
-      stack: entry.configured?.stack,
+      stack: stackOf(entry),
       cursor: pickable ? 'pointer' : 'default',
     };
     if (entry.kind === 'bar')
@@ -326,7 +371,7 @@ export function cartesianOption(
         .filter(members => members.length > 1)
         .map(members => ({
           type: 'bar',
-          stack: members[0].configured?.stack,
+          stack: stackOf(members[0]),
           ...axisIndex(members[0].side),
           data: data.points.map(() => 0),
           barMaxWidth: BAR_MAX_WIDTH,

@@ -16,7 +16,12 @@ import type { AnalysisColumnView, ChartData } from '../analysis/index.js';
 import type { ChartSpec } from '../model/index.js';
 import { Cartesian } from './charts/Cartesian.js';
 import { ChartReadingTable } from './charts/ChartReading.js';
-import { useColumnTitle, useValueLabel, type OnPick } from './charts/family.js';
+import {
+  useAdds,
+  useColumnTitle,
+  useValueLabel,
+  type OnPick,
+} from './charts/family.js';
 import { Funnel } from './charts/Funnel.js';
 import { Heatmap } from './charts/Heatmap.js';
 import { MetricCard } from './charts/MetricCard.js';
@@ -74,6 +79,7 @@ export function AnalysisChart({
   const messages = useViewMessages();
   const label = useValueLabel(columns);
   const column = useColumnTitle(columns);
+  const adds = useAdds(columns);
   const { locale } = useSurfaceDisplay();
   const reading = useMemo(
     () => readChart(data, spec, { messages, label, column, locale }),
@@ -84,6 +90,7 @@ export function AnalysisChart({
     className,
     label,
     column,
+    adds,
     name: reading.name,
     onPick,
     cutShort,

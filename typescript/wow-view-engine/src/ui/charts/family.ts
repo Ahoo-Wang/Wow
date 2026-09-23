@@ -85,6 +85,12 @@ export interface FamilyProps<D> {
    */
   name: string;
   /**
+   * Whether a column's numbers add up across groups — a count, a sum — so a
+   * whole written over them (a donut's centre) is a number at all: the
+   * total of some averages is not an average of anything.
+   */
+  adds?: (alias: string | undefined) => boolean;
+  /**
    * The rows are the first groups of more (`AnalysisView.truncated` or
    * `atLimit`): a family that draws shares of a whole says they are shares
    * of the groups shown.
@@ -118,6 +124,21 @@ export function useValueLabel(
       );
     };
   }, [columns, display, messages]);
+}
+
+/** Whether a column's numbers add up across groups: a count or a sum. */
+export function useAdds(
+  columns: readonly AnalysisColumnView[] | undefined,
+): (alias: string | undefined) => boolean {
+  return useMemo(() => {
+    const byAlias = new Map(
+      (columns ?? []).map(column => [column.alias, column]),
+    );
+    return alias => {
+      const fn = alias === undefined ? undefined : byAlias.get(alias)?.fn;
+      return fn === 'COUNT' || fn === 'SUM';
+    };
+  }, [columns]);
 }
 
 /**

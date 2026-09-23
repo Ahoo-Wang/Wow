@@ -66,7 +66,7 @@
 
 ### 组件清单
 
-组件清单：`FilterPanel`、`RecordTable`、`RecordCards`、分析托盘 `Tray`、`AnalysisChart`（bar／line／area／combo 由 ECharts 画，pie／scatter 暂由 recharts，D21）、`Heatmap`（自绘网格）、`Funnel`、`MetricCard`、`DashboardGrid`（react-grid-layout 适配）、内容面板 `MarkdownPanel`（react-markdown，不启用原始 HTML）、`ImagePanel`（加载失败显示占位）、`LinksPanel`（外链带 `rel="noopener"`）、三个工作台（侧栏列表 + 标题栏 + 编辑带 + 状态条 + 已应用条件条 + 结果 + 分页）、`ViewHeader`、`SaveActions`、`ViewManager`、`EditorBand`、`ViewExpandToggle`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordPagination`、`EmbeddedView`。每个默认组件只消费对应控制器，不直接调用 runtime 以外的对象。独立筛选器与值编辑器不需要 Engine。
+组件清单：`FilterPanel`、`RecordTable`、`RecordCards`、分析托盘 `Tray`、`AnalysisChart`（bar／line／area／combo／pie／scatter 由 ECharts 画，D21）、`Heatmap`（自绘网格）、`Funnel`、`MetricCard`、`DashboardGrid`（react-grid-layout 适配）、内容面板 `MarkdownPanel`（react-markdown，不启用原始 HTML）、`ImagePanel`（加载失败显示占位）、`LinksPanel`（外链带 `rel="noopener"`）、三个工作台（侧栏列表 + 标题栏 + 编辑带 + 状态条 + 已应用条件条 + 结果 + 分页）、`ViewHeader`、`SaveActions`、`ViewManager`、`EditorBand`、`ViewExpandToggle`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordPagination`、`EmbeddedView`。每个默认组件只消费对应控制器，不直接调用 runtime 以外的对象。独立筛选器与值编辑器不需要 Engine。
 
 ## 主题、弹层与明暗
 

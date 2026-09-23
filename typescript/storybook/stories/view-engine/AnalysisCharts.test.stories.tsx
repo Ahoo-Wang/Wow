@@ -17,7 +17,14 @@ import displayMeta, {
   BarChart as DisplayBarChart,
   DailyNewestFirst as DisplayDailyNewestFirst,
 } from './AnalysisWorkbench.stories.js';
-import { axisTicks, chartsDrawn, drawnMarks } from './chartDom.js';
+import {
+  axisTexts,
+  axisTicks,
+  axisTitles,
+  chartsDrawn,
+  drawnMarks,
+  valueLabels,
+} from './chartDom.js';
 
 const meta = {
   ...displayMeta,
@@ -83,13 +90,11 @@ const outside = (found: readonly Element[], outer: DOMRect) =>
       outer: [outer.left, outer.top, outer.right, outer.bottom].map(Math.round),
     }));
 
-/** The tick texts of one axis, as drawn. */
+/** The tick texts of one axis, as drawn: under the points, or beside them. */
 const ticksOf = (canvas: HTMLElement, axis: 'x' | 'y') =>
-  [
-    ...canvas.querySelectorAll(
-      `.recharts-${axis}Axis-tick-labels .recharts-cartesian-axis-tick-value`,
-    ),
-  ].map(tick => (tick.textContent ?? '').trim());
+  axisTicks(canvas, axis === 'x' ? 'bottom' : 'left').map(tick =>
+    (tick.textContent ?? '').trim(),
+  );
 
 /**
  * 散点：刻度不重复，点不出界，两根轴各有标题，点说得出自己是哪一组。
@@ -112,10 +117,9 @@ export const ScatterReadsItsPoints: Story = {
     );
     await userEvent.click(chartTile(panel, 'scatter'));
 
+    await chartsDrawn(canvasElement);
     const symbols = await waitFor(() => {
-      const found = [
-        ...canvasElement.querySelectorAll('.recharts-scatter-symbol'),
-      ];
+      const found = drawnMarks(canvasElement);
       expect(found).toHaveLength(4);
       return found;
     });
@@ -130,25 +134,24 @@ export const ScatterReadsItsPoints: Story = {
       await expect(new Set(ticks).size).toBe(ticks.length);
     }
 
-    // Every point inside the plot: the grid spans exactly the plot area.
-    const plot = canvasElement
-      .querySelector('.recharts-cartesian-grid')!
+    // Every point inside the drawing, whole; that each sits a radius in from
+    // the plot's edges is measured by coordinate in the package
+    // (test/analysisChart.test.tsx「a scatter」).
+    const surface = canvasElement
+      .querySelector('[data-slot="chart-plot"] svg')!
       .getBoundingClientRect();
-    await expect(outside(symbols, plot)).toEqual([]);
+    await expect(outside(symbols, surface)).toEqual([]);
 
     // Each axis titled as the table heads its column, inside the drawing.
-    const surface = canvasElement
-      .querySelector('.recharts-surface')!
-      .getBoundingClientRect();
-    const titles = [...canvasElement.querySelectorAll('.recharts-label')];
+    const titles = axisTitles(canvasElement);
     await expect(titles.map(title => title.textContent).sort()).toEqual(
       [AMOUNT_HEADER, COUNT_HEADER].sort(),
     );
     await expect(outside(titles, surface)).toEqual([]);
     // And clear of the numbers on its own axis.
-    const tickBoxes = [
-      ...canvasElement.querySelectorAll('.recharts-cartesian-axis-tick-value'),
-    ].map(tick => tick.getBoundingClientRect());
+    const tickBoxes = axisTexts(canvasElement)
+      .filter(text => !titles.includes(text))
+      .map(tick => tick.getBoundingClientRect());
     for (const title of titles) {
       const box = title.getBoundingClientRect();
       await expect(
@@ -165,9 +168,7 @@ export const ScatterReadsItsPoints: Story = {
     // Four points are four named things, each name inside the drawing.
     // They land once the points have finished moving in.
     const names = await waitFor(() => {
-      const found = [
-        ...canvasElement.querySelectorAll('.recharts-label-list text'),
-      ];
+      const found = valueLabels(canvasElement);
       expect(found.map(name => name.textContent).sort()).toEqual(
         [...WAREHOUSES].sort(),
       );
@@ -175,10 +176,8 @@ export const ScatterReadsItsPoints: Story = {
     });
     await expect(outside(names, surface)).toEqual([]);
 
-    // The tooltip is headed by the group the point is. Synthesised pointer
-    // events open no recharts tooltip in a real browser, so what it says is
-    // pinned in the package (test/analysisChart.test.tsx「a scatter」),
-    // where recharts takes a synthetic `mouseenter` on the point.
+    // The tooltip is headed by the group the point is: pinned in the
+    // package (test/scatterOption.test.ts).
   },
 };
 

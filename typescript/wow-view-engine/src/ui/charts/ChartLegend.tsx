@@ -21,6 +21,8 @@ export interface LegendEntry {
   label: string;
   /** A CSS colour: a theme slot or the one the spec pinned. */
   color: string;
+  /** A number beside the name — a slice's share — in figures that align. */
+  value?: string;
 }
 
 /**
@@ -99,6 +101,11 @@ export function ChartLegend({
               style={{ background: entry.color }}
             />
             <span className="truncate">{entry.label}</span>
+            {entry.value !== undefined && (
+              <span className="text-foreground ml-auto pl-1 tabular-nums">
+                {entry.value}
+              </span>
+            )}
           </li>
         ))}
       </ul>

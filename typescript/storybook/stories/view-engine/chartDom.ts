@@ -28,25 +28,7 @@ const plots = (root: ParentNode) =>
 /** Every painted shape — a bar, a slice — left to right: not a rule, not air. */
 export function drawnMarks(root: ParentNode): SVGPathElement[] {
   return (
-    [...plots(root)]
-      .flatMap(plot =>
-        [...plot.querySelectorAll<SVGPathElement>('svg path[fill]')].filter(
-          path => {
-            const fill = path.getAttribute('fill');
-            return (
-              // A clip is geometry the library cuts with, never paint.
-              !path.closest('defs, clipPath') &&
-              fill !== 'none' &&
-              fill !== 'transparent' &&
-              // A mark is opaque; the band under the pointer is not.
-              Number(path.getAttribute('fill-opacity') ?? 1) === 1 &&
-              // A bar of nothing — the carrier of a stack's total — encloses
-              // no area.
-              area(path) > 0
-            );
-          },
-        ),
-      )
+    painted(root)
       // In the order a reader meets them — the library raises the mark under
       // the pointer to the top of the drawing, which moves it last.
       .sort((a, b) => {
@@ -55,6 +37,43 @@ export function drawnMarks(root: ParentNode): SVGPathElement[] {
         return one.left - other.left || one.top - other.top;
       })
   );
+}
+
+/**
+ * A pie's slices in the order it drew them, which is the result's until a
+ * pointer raises one: the first is the first group.
+ */
+export function slicesInOrder(root: ParentNode): SVGPathElement[] {
+  return painted(root);
+}
+
+function painted(root: ParentNode): SVGPathElement[] {
+  return [...plots(root)].flatMap(plot =>
+    [...plot.querySelectorAll<SVGPathElement>('svg path[fill]')].filter(
+      path => {
+        const fill = path.getAttribute('fill');
+        return (
+          // A clip is geometry the library cuts with, never paint.
+          !path.closest('defs, clipPath') &&
+          fill !== 'none' &&
+          fill !== 'transparent' &&
+          // A mark is (nearly) opaque; the band under the pointer is half
+          // see-through.
+          Number(path.getAttribute('fill-opacity') ?? 1) > 0.5 &&
+          // A bar of nothing — the carrier of a stack's total — encloses
+          // no area.
+          area(path) > 0
+        );
+      },
+    ),
+  );
+}
+
+/** The names the legend lists, in its order: a slice's or a series'. */
+export function legendNames(root: ParentNode): string[] {
+  return [
+    ...root.querySelectorAll('[data-slot="chart-legend-item"] > .truncate'),
+  ].map(name => name.textContent ?? '');
 }
 
 function area(path: SVGGraphicsElement): number {
@@ -143,9 +162,15 @@ export function pressMark(mark: Element): void {
  * story measures before then is a bar on its way up.
  */
 export async function chartsDrawn(root: ParentNode): Promise<void> {
-  await waitFor(() => {
-    const frames = [...root.querySelectorAll('[data-slot="chart"]')];
-    expect(frames.length).toBeGreaterThan(0);
-    expect(frames.every(frame => frame.hasAttribute('data-drawn'))).toBe(true);
-  });
+  await waitFor(
+    () => {
+      const frames = [...root.querySelectorAll('[data-slot="chart"]')];
+      expect(frames.length).toBeGreaterThan(0);
+      expect(frames.every(frame => frame.hasAttribute('data-drawn'))).toBe(
+        true,
+      );
+      // The query answers first, then the marks sweep in.
+    },
+    { timeout: 4_000 },
+  );
 }

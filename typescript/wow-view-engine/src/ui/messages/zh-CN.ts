@@ -792,7 +792,7 @@ export const zhCN: ViewMessages = {
   'label.chart.share-basis': '占比按显示的组计算',
   'label.chart.legend.more': '还有 {count} 个',
   'label.chart.legend.less': '收起',
-  'label.chart.points': '数据点',
+  'label.chart.total': '合计',
   'label.chart.trend': '趋势',
   'label.chart.cell': '{y} · {x}：{value}',
   'label.chart.figure': '{type}：{measures}，按 {category}',

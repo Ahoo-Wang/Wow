@@ -632,7 +632,18 @@ describe('the chart options’ display page', () => {
     await choose(user, 'Legend', 'Right');
     await waitFor(() => expect(draft().chart.legend).toBe('right'));
     // A pie always has one, so the legend is still drawn — on its side.
-    expect(document.querySelector('.recharts-legend-wrapper')).not.toBeNull();
+    await waitFor(() =>
+      expect(
+        document
+          .querySelector('[data-slot="chart"]')
+          ?.getAttribute('data-legend'),
+      ).toBe('right'),
+    );
+    expect(document.querySelector('[data-slot="chart-legend"]')).not.toBeNull();
+    // And the hole is drawn: the frame says what it draws.
+    expect(
+      document.querySelector('[data-slot="chart"]')?.getAttribute('data-chart'),
+    ).toBe('donut');
   });
 
   it('turns a cartesian chart on its side and smooths its lines', async () => {

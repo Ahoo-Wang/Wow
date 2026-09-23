@@ -24,8 +24,9 @@
  * (`labelLayout.hideOverlap`), the reason the library was chosen
  * (docs/design/decisions.md D21).
  */
-import { BarChart, LineChart } from 'echarts/charts';
+import { BarChart, LineChart, PieChart, ScatterChart } from 'echarts/charts';
 import {
+  GraphicComponent,
   GridComponent,
   MarkLineComponent,
   TooltipComponent,
@@ -38,6 +39,9 @@ import { SVGRenderer } from 'echarts/renderers';
 register([
   BarChart,
   LineChart,
+  PieChart,
+  ScatterChart,
+  GraphicComponent,
   GridComponent,
   MarkLineComponent,
   TooltipComponent,

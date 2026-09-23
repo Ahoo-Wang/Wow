@@ -14,37 +14,6 @@
 import type { ChartSpec } from '../../model/index.js';
 
 /**
- * Where the legend goes, as the chart library takes it, or nothing when
- * there is to be none. `auto` — and no setting — leaves it to the family:
- * a pie always has one, a cartesian chart only once there is more than one
- * series to tell apart. A legend on the right stands as a column.
- */
-export function legendPlacement(
-  legend: ChartSpec['legend'],
-  auto: boolean,
-):
-  | {
-      props: {
-        verticalAlign: 'top' | 'bottom' | 'middle';
-        align?: 'right';
-        layout?: 'vertical';
-      };
-      className?: string;
-    }
-  | undefined {
-  const where = legend ?? 'auto';
-  if (where === 'none') return undefined;
-  if (where === 'auto')
-    return auto ? { props: { verticalAlign: 'bottom' } } : undefined;
-  if (where === 'right')
-    return {
-      props: { verticalAlign: 'middle', align: 'right', layout: 'vertical' },
-      className: 'flex-col items-start pt-0 pl-3',
-    };
-  return { props: { verticalAlign: where } };
-}
-
-/**
  * Where a legend drawn beside the chart goes (`ChartLegend`), or nowhere.
  * `auto` puts it on top, before the marks, once there is more than one
  * series to tell apart — where Metabase puts it, and where a reader looks
@@ -53,9 +22,11 @@ export function legendPlacement(
 export function legendAt(
   legend: ChartSpec['legend'],
   auto: boolean,
+  /** Where `auto` puts it: a pie keeps its key beside it, as Metabase does. */
+  side: 'top' | 'right' = 'top',
 ): 'top' | 'bottom' | 'right' | undefined {
   const where = legend ?? 'auto';
   if (where === 'none') return undefined;
-  if (where === 'auto') return auto ? 'top' : undefined;
+  if (where === 'auto') return auto ? side : undefined;
   return where;
 }

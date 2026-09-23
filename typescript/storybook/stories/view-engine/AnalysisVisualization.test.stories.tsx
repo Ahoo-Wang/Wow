@@ -22,6 +22,7 @@ import {
   chartsDrawn,
   drawnMarks,
   overlaps,
+  slicesInOrder,
   valueLabels,
 } from './chartDom.js';
 
@@ -59,7 +60,7 @@ const panel = () =>
  * rather than by what the config says.
  */
 const arcsPerSlice = () =>
-  [...document.querySelectorAll('.recharts-pie-sector path')].map(
+  slicesInOrder(document).map(
     path => (path.getAttribute('d')?.match(/A/g) ?? []).length,
   );
 
@@ -76,10 +77,22 @@ const legendOrder = () =>
   );
 
 /** Every two value labels on screen, apart: none drawn over another. */
-const labelsApart = (root: HTMLElement) => {
-  const boxes = valueLabels(root).map(label => label.getBoundingClientRect());
-  return boxes.every((box, index) =>
-    boxes.slice(index + 1).every(other => !overlaps(box, other)),
+/** Every two value labels drawn over each other, by their text and box. */
+const labelsOver = (root: HTMLElement) => {
+  const labels = valueLabels(root).map(label => ({
+    text: label.textContent,
+    box: label.getBoundingClientRect(),
+  }));
+  return labels.flatMap((one, index) =>
+    labels
+      .slice(index + 1)
+      .filter(other => overlaps(one.box, other.box))
+      .map(other => ({
+        pair: [one.text, other.text],
+        boxes: [one.box, other.box].map(box =>
+          [box.left, box.top, box.right, box.bottom].map(Math.round),
+        ),
+      })),
   );
 };
 
@@ -192,11 +205,12 @@ export const ChartOptionsPages: Story = {
       }),
     );
     // A label over every bar there is room for, and none over another.
-    await chartsDrawn(canvasElement);
     await waitFor(() =>
       expect(valueLabels(canvasElement).length).toBeGreaterThan(0),
     );
-    await expect(labelsApart(canvasElement)).toBe(true);
+    // Measured once the redraw the labels came with has landed.
+    await chartsDrawn(canvasElement);
+    await expect(labelsOver(canvasElement)).toEqual([]);
 
     await userEvent.click(
       within(panel()!).getByRole('checkbox', {
@@ -252,6 +266,7 @@ export const ChartOptionsPages: Story = {
     );
     // One slice per warehouse: a type picked here is fitted to the rows on
     // screen, and nothing has asked for a tail to be merged.
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(arcsPerSlice()).toHaveLength(4));
     await expect(arcsPerSlice().every(arcs => arcs === 1)).toBe(true);
 
@@ -273,9 +288,16 @@ export const ChartOptionsPages: Story = {
         name: zhCN['label.chart.donut'],
       }),
     );
-    // A hole in the middle: every sector now has an inner arc as well.
+    // A hole in the middle: every sector now has an inner arc as well,
+    // and the hole says the whole — the amount adds up.
+    await chartsDrawn(canvasElement);
     await waitFor(() =>
       expect(arcsPerSlice().every(arcs => arcs === 2)).toBe(true),
+    );
+    await waitFor(() =>
+      expect(axisTexts(canvasElement).map(text => text.textContent)).toContain(
+        zhCN['label.chart.total'],
+      ),
     );
 
     // Out the way it came in: the types, then the view list back in the

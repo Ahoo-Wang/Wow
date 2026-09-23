@@ -225,7 +225,7 @@ describe('cartesianOption: a bar chart', () => {
       'inside',
       'inside',
     ]);
-    expect(sum.stack).toBe('a');
+    expect(sum.stack).toBe('left:a');
     expect(sum.silent).toBe(true);
     expect(sum.tooltip).toEqual({ show: false });
     expect(sum.data).toEqual([0, 0]);
@@ -234,6 +234,25 @@ describe('cartesianOption: a bar chart', () => {
     // Only the part that has a value adds to the total.
     expect(sum.label.formatter({ dataIndex: 1 })).toBe('short orders=1');
     expect(sum.label.formatter({ dataIndex: 7 })).toBe('');
+  });
+
+  it('stacks each axis on its own: a count is not piled on an amount', () => {
+    const option = optionOf({
+      ...bar({
+        series: [
+          { metric: 'orders', stack: 'a', axis: 'right' },
+          { metric: 'total', stack: 'a' },
+        ],
+      }),
+      labels: true,
+    });
+    expect(option.series.map((series: Loose) => series.stack)).toEqual([
+      'right:a',
+      'left:a',
+    ]);
+    // Two stacks of one: no totals, each label over its own bar.
+    expect(option.series).toHaveLength(2);
+    expect(option.series[0].label.position).toBe('top');
   });
 
   it('writes no total over a stack of one, nor without labels', () => {
@@ -273,9 +292,39 @@ describe('cartesianOption: a bar chart', () => {
     expect(carriers[0].data).toEqual([]);
     expect(carriers[0].markLine.label.formatter({ dataIndex: 0 })).toBe('Goal');
     expect(carriers[1].markLine.label.formatter({ dataIndex: 0 })).toBe('');
-    // A line past the data stretches the axis to it; a pinned bound wins.
-    expect(upright.yAxis[0].max({ max: 2 })).toBe(50);
-    expect(upright.yAxis[0].max({ max: 80 })).toBe(80);
+    // A line past the marks stretches the axis to it; one within them leaves
+    // the axis to round its own ends.
+    expect(upright.yAxis[0].max).toBe(50);
+    expect(upright.yAxis[1].max).toBe(3);
+    expect(upright.yAxis[0].min).toBeUndefined();
+    const within = optionOf(
+      bar({ referenceLines: [{ axis: 'left', value: 1 }] }),
+    );
+    expect(within.yAxis[0].max).toBeUndefined();
+    const below = optionOf(
+      bar({ referenceLines: [{ axis: 'left', value: -4 }] }),
+    );
+    expect(below.yAxis[0].min).toBe(-4);
+    // Stacked, the marks reach the sum of their parts.
+    const stacked = optionOf(
+      bar({
+        series: [
+          { metric: 'orders', stack: 'a' },
+          { metric: 'total', stack: 'a' },
+        ],
+        referenceLines: [{ axis: 'left', value: 31 }],
+      }),
+    );
+    expect(stacked.yAxis[0].max).toBeUndefined();
+    // A pinned bound wins over the line.
+    expect(
+      optionOf(
+        bar({
+          referenceLines: lines,
+          yAxis: { left: { max: 10 } },
+        }),
+      ).yAxis[0].max,
+    ).toBe(10);
 
     const sideways = optionOf(
       bar({ orientation: 'horizontal', referenceLines: lines.slice(0, 1) }),
@@ -430,7 +479,7 @@ describe('cartesianOption: lines, areas and a combo', () => {
       color: 'resolved(var(--chart-1))',
       opacity: 0.2,
     });
-    expect(orders.stack).toBe('a');
+    expect(orders.stack).toBe('left:a');
     // Its labels sit over the points; a stack's total is a bar's affair.
     expect(orders.label.position).toBe('top');
     expect(option.series).toHaveLength(2);

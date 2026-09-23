@@ -11,13 +11,7 @@
  * limitations under the License.
  */
 
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  within,
-} from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
   AnalysisView,
@@ -27,7 +21,6 @@ import type {
 } from '../src/index.js';
 import { CHART_COLOR_SLOTS, groupKeyText, shapeChart } from '../src/index.js';
 import { AnalysisChart, ViewSurface } from '../src/ui/index.js';
-import { TooltipValue } from '../src/ui/charts/TooltipValue.js';
 import { DRAWN, analysisConfig } from './fixtures.js';
 
 afterEach(cleanup);
@@ -386,28 +379,6 @@ describe('AnalysisChart', () => {
     );
   });
 
-  /**
-   * The row a tooltip shows is drawn here rather than by the vendored
-   * content, whose only hook replaces the whole row — see
-   * `ui/charts/TooltipValue.tsx`. What each row reads it through is the
-   * series' own metric, which is the same labeller the ticks and the reading
-   * table go through, asserted above.
-   */
-  it('draws a tooltip row as the swatch, the series and the number', () => {
-    render(
-      <ViewSurface>
-        <TooltipValue color="#0f766e" name="Amount" value="¥1,234.00" />
-      </ViewSurface>,
-    );
-
-    expect(screen.getByText('Amount')).toBeDefined();
-    expect(screen.getByText('¥1,234.00')).toBeDefined();
-    expect(
-      document.querySelector<HTMLElement>('[data-slot="chart-tooltip-swatch"]')
-        ?.style.background,
-    ).toBe('rgb(15, 118, 110)');
-  });
-
   it('writes a data-valued series name as text, never into a stylesheet', () => {
     // A pivot names its series by raw group values. The drawing is handed
     // concrete colours rather than custom properties keyed by them, so no
@@ -439,15 +410,18 @@ describe('AnalysisChart', () => {
     expect(fills(container)).toContain('rgb(42, 120, 214)');
   });
 
-  it('maps a pie category to a synthetic key before CSS sees it', () => {
-    const hostile = 'x} *{color:red}';
+  it('writes a pie category as text, never into a stylesheet', () => {
+    const hostile = 'x} *{color:red}<b>';
     const { container } = chartOf({
       type: 'pie',
       slices: [{ category: hostile, value: 2 }],
     });
 
-    const css = container.querySelector('style')?.textContent ?? '';
-    expect(css).not.toContain(hostile);
+    expect(container.querySelector('style')).toBeNull();
+    expect(container.querySelector('b')).toBeNull();
+    expect(
+      container.querySelector('[data-slot="chart-legend-item"]')?.textContent,
+    ).toContain(hostile);
   });
 
   it('draws a pie and a donut', () => {
@@ -489,14 +463,13 @@ describe('AnalysisChart', () => {
       </ViewSurface>,
     );
 
-    // recharts draws no sector in jsdom — the pie layer comes out empty — so
-    // the colours are read where they are declared: the custom properties the
-    // container emits, which are the same values the cells are given.
-    const css = container.querySelector('style')?.textContent ?? '';
-    expect(css).toContain('--color-p0: #eb6834;');
-    expect(css).toContain('--color-p1: var(--chart-2);');
-    // The remainder is no category, so it wears the neutral, not a slot.
-    expect(css).toContain('--color-p2: var(--muted-foreground);');
+    // The legend wears the colours as written; the remainder is no
+    // category, so it wears the neutral, not a slot.
+    expect(legendColours(container)).toEqual(
+      ['#eb6834', 'var(--chart-2)', 'var(--muted-foreground)'].map(asStyled),
+    );
+    // And the slice is drawn in it.
+    expect(fills(container)).toContain('rgb(235, 104, 52)');
   });
 
   /**
@@ -521,13 +494,10 @@ describe('AnalysisChart', () => {
       </ViewSurface>,
     );
 
-    const css = container.querySelector('style')?.textContent ?? '';
-    const slots = [...css.matchAll(/--color-p\d+: (var\(--chart-\d+\));/g)]
-      .map(([, slot]) => slot)
-      // The container writes one block per mode; one is enough to read.
-      .slice(0, CHART_COLOR_SLOTS);
+    const slots = legendColours(container);
     expect(slots).toHaveLength(CHART_COLOR_SLOTS);
     expect(new Set(slots).size).toBe(CHART_COLOR_SLOTS);
+    expect(new Set(fills(container)).size).toBe(CHART_COLOR_SLOTS);
   });
 
   it('colours a cartesian series by its metric alias', () => {
@@ -647,11 +617,9 @@ describe('AnalysisChart', () => {
       return { css, legend };
     };
 
-    const pie = drawn(pieSpec).css;
+    const pie = drawn(pieSpec).legend;
     const split = drawn(splitSpec).legend;
-    Object.values(colors).forEach((pinned, index) => {
-      expect(pie).toContain(`--color-p${index}: ${pinned};`);
-    });
+    expect(pie).toEqual(Object.values(colors).map(asStyled));
     expect(split).toEqual(Object.values(colors).map(asStyled));
   });
 
@@ -715,12 +683,24 @@ describe('AnalysisChart', () => {
           />
         </ViewSurface>,
       );
+    // The drawing's texts: a point's name carries a halo, an axis title a
+    // heavier weight, and a tick neither — centred under the plot on X,
+    // right-aligned beside it on Y.
+    const texts = (container: HTMLElement) => [
+      ...container.querySelectorAll('[data-slot="chart-plot"] svg text'),
+    ];
+    const titled = (text: Element) =>
+      /font-weight/.test(text.getAttribute('style') ?? '');
     const ticks = (container: HTMLElement, axis: 'x' | 'y') =>
-      [
-        ...container.querySelectorAll(
-          `.recharts-${axis}Axis-tick-labels .recharts-cartesian-axis-tick-value`,
-        ),
-      ].map(tick => tick.textContent ?? '');
+      texts(container)
+        .filter(
+          text =>
+            !text.hasAttribute('stroke') &&
+            !titled(text) &&
+            text.getAttribute('text-anchor') ===
+              (axis === 'x' ? 'middle' : 'end'),
+        )
+        .map(tick => tick.textContent ?? '');
 
     /**
      * Counts from 0 to 2 used to tick at 0.5 and 1.5, which the count's own
@@ -743,9 +723,9 @@ describe('AnalysisChart', () => {
         { category: 'East', x: 1, y: 1200 },
         { category: 'West', x: 3, y: 800 },
       ]);
-      const titles = [...container.querySelectorAll('.recharts-label')].map(
-        title => title.textContent,
-      );
+      const titles = texts(container)
+        .filter(titled)
+        .map(title => title.textContent);
       expect(titles).toContain('Orders');
       expect(titles).toContain('Sum of Amount');
     });
@@ -760,20 +740,12 @@ describe('AnalysisChart', () => {
         { category: 'West', x: 3, y: 800 },
       ]);
       expect(
-        [...container.querySelectorAll('.recharts-label-list text')].map(
-          name => name.textContent,
-        ),
+        texts(container)
+          .filter(text => text.hasAttribute('stroke'))
+          .map(name => name.textContent)
+          .sort(),
       ).toEqual(['East', 'West']);
-
-      fireEvent.mouseEnter(
-        container.querySelectorAll('.recharts-scatter-symbol')[1]!,
-      );
-      const tooltip = container.querySelector<HTMLElement>(
-        '.recharts-tooltip-wrapper',
-      )!;
-      expect(within(tooltip).getByText('West')).toBeDefined();
-      expect(within(tooltip).getByText('Orders')).toBeDefined();
-      expect(within(tooltip).getByText('¥800.00')).toBeDefined();
+      // The tooltip is headed by the group: test/scatterOption.test.ts.
     });
 
     /**
@@ -787,34 +759,41 @@ describe('AnalysisChart', () => {
         { category: 'East', x: 0, y: 0 },
         { category: 'West', x: 4, y: 4000 },
       ]);
-      const lines = (which: 'horizontal' | 'vertical') => [
-        ...container.querySelectorAll(`.recharts-cartesian-grid-${which} line`),
-      ];
-      const [line] = lines('horizontal');
-      const left = Number(line.getAttribute('x1'));
-      const right = Number(line.getAttribute('x2'));
-      const [column] = lines('vertical');
-      const top = Math.min(
-        Number(column.getAttribute('y1')),
-        Number(column.getAttribute('y2')),
-      );
+      // The rules across the plot mark its edges; a point is a unit circle
+      // placed and scaled by its transform.
+      const rules = [
+        ...container.querySelectorAll('[data-slot="chart-plot"] svg path'),
+      ]
+        .filter(path => path.getAttribute('fill') === 'none')
+        .map(path =>
+          (path.getAttribute('d') ?? '').match(/-?[\d.]+/g)!.map(Number),
+        )
+        .filter(numbers => numbers.length === 4);
+      const flat = rules.filter(([, y1, , y2]) => y1 === y2);
+      const upright = rules.filter(([x1, , x2]) => x1 === x2);
+      const left = Math.min(...flat.map(([x1]) => x1));
+      const right = Math.max(...flat.map(([, , x2]) => x2));
+      const top = Math.min(...upright.map(([, y1, , y2]) => Math.min(y1, y2)));
       const bottom = Math.max(
-        Number(column.getAttribute('y1')),
-        Number(column.getAttribute('y2')),
+        ...upright.map(([, y1, , y2]) => Math.max(y1, y2)),
       );
       const centres = [
-        ...container.querySelectorAll('.recharts-scatter-symbol path'),
-      ].map(point => ({
-        x: Number(point.getAttribute('cx')),
-        y: Number(point.getAttribute('cy')),
-      }));
+        ...container.querySelectorAll('[data-slot="chart-plot"] svg path'),
+      ]
+        .filter(path => path.getAttribute('fill') === 'rgb(42, 120, 214)')
+        .map(point => {
+          const matrix = (point.getAttribute('transform') ?? '')
+            .match(/-?[\d.]+/g)!
+            .map(Number);
+          return { x: matrix[4], y: matrix[5] };
+        });
       expect(centres).toHaveLength(2);
-      // recharts' own point is 64px², a radius of 4.5.
+      // A point is 10px across: a radius of 5 in from every edge.
       for (const { x, y } of centres) {
-        expect(x - left).toBeGreaterThanOrEqual(4.5);
-        expect(right - x).toBeGreaterThanOrEqual(4.5);
-        expect(y - top).toBeGreaterThanOrEqual(4.5);
-        expect(bottom - y).toBeGreaterThanOrEqual(4.5);
+        expect(x - left).toBeGreaterThanOrEqual(5);
+        expect(right - x).toBeGreaterThanOrEqual(5);
+        expect(y - top).toBeGreaterThanOrEqual(5);
+        expect(bottom - y).toBeGreaterThanOrEqual(5);
       }
     });
 
@@ -826,7 +805,9 @@ describe('AnalysisChart', () => {
           y: index * 100,
         })),
       );
-      expect(container.querySelector('.recharts-label-list')).toBeNull();
+      expect(
+        texts(container).filter(text => text.hasAttribute('stroke')),
+      ).toHaveLength(0);
     });
   });
 

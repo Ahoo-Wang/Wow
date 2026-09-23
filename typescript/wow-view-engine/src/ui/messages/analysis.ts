@@ -288,7 +288,7 @@ export const analysisMessages = {
   'label.chart.share-basis': 'Shares of the groups shown',
   'label.chart.legend.more': '{count} more',
   'label.chart.legend.less': 'Show less',
-  'label.chart.points': 'Points',
+  'label.chart.total': 'Total',
   'label.chart.trend': 'Trend',
   'label.chart.cell': '{y} · {x}: {value}',
 
