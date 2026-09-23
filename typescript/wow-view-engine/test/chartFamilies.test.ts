@@ -20,6 +20,7 @@ import {
   optionTabs,
   switchChartType,
   validateChart,
+  valueLabelsOn,
   withStagesFrom,
 } from '../src/analysis/index.js';
 import {
@@ -280,5 +281,21 @@ describe('chartFamilies', () => {
         .map(([family]) => family),
     ).toEqual(['cartesian', 'pie', 'heatmap']);
     expect(optionTabs('table')).toEqual(['display']);
+  });
+});
+
+describe('valueLabelsOn', () => {
+  it('writes a cartesian chart’s values unasked, and no other family’s', () => {
+    expect(valueLabelsOn({ type: 'bar' })).toBe(true);
+    expect(valueLabelsOn({ type: 'line' })).toBe(true);
+    expect(valueLabelsOn({ type: 'pie' })).toBe(false);
+    expect(valueLabelsOn({ type: 'heatmap' })).toBe(false);
+    expect(valueLabelsOn(undefined)).toBe(false);
+  });
+
+  it('takes the analyst’s word, but never for a family that cannot write them', () => {
+    expect(valueLabelsOn({ type: 'bar', labels: false })).toBe(false);
+    expect(valueLabelsOn({ type: 'pie', labels: true })).toBe(true);
+    expect(valueLabelsOn({ type: 'scatter', labels: true })).toBe(false);
   });
 });

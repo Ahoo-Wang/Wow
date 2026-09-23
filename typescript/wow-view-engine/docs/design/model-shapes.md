@@ -28,7 +28,7 @@ export interface ChartSpec {
   funnel?: FunnelSpec;
   metric?: MetricCardSpec;
   legend?: 'auto' | 'top' | 'bottom' | 'right' | 'none';
-  labels?: boolean; // 数据标签
+  labels?: boolean; // 数据标签；不写时取家族缺省（直角坐标写，其余不写，`valueLabelsOn`）
   colors?: Record<string, string>; // 系列或分类 → 颜色，键是内核标出的分类值（数字、布尔转文本，null 为空串；是原值而不是显示出来的枚举名或日期，因此换语言、改选项措辞都不影响）或指标别名；未列出的用主题调色板；值须是 CSS 颜色（culori 解析），非对象报 malformed
 }
 

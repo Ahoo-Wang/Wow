@@ -190,9 +190,13 @@ describe('cartesianOption: a bar chart', () => {
   });
 
   it('writes the values on the bars, hiding one that would land on another', () => {
-    expect(optionOf(bar()).series[0]).not.toHaveProperty('label');
+    // Written unless the analyst turned them off, as Metabase writes them
+    // where they fit.
+    expect(optionOf({ ...bar(), labels: false }).series[0]).not.toHaveProperty(
+      'label',
+    );
 
-    const option = optionOf({ ...bar(), labels: true });
+    const option = optionOf(bar());
     const [orders] = option.series;
     expect(orders.label.show).toBe(true);
     expect(orders.label.position).toBe('top');
@@ -265,14 +269,15 @@ describe('cartesianOption: a bar chart', () => {
     expect(lone.series).toHaveLength(2);
     expect(lone.series[0].label.position).toBe('top');
 
-    const quiet = optionOf(
-      bar({
+    const quiet = optionOf({
+      ...bar({
         series: [
           { metric: 'orders', stack: 'a' },
           { metric: 'total', stack: 'a' },
         ],
       }),
-    );
+      labels: false,
+    });
     expect(quiet.series).toHaveLength(2);
   });
 

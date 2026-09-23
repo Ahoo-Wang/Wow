@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { ChartFamily, ChartType } from '../model/index.js';
+import type { ChartFamily, ChartSpec, ChartType } from '../model/index.js';
 import { CHART_FAMILY } from '../model/index.js';
 
 /**
@@ -94,6 +94,14 @@ export interface ChartFamilyTraits {
   legend: boolean;
   /** Whether it can write the values on its marks. */
   labels: boolean;
+  /**
+   * Whether it writes them while nobody has said (`ChartSpec.labels` left
+   * out). A bar or a line does, as Metabase's do: a length is compared at a
+   * glance, but read off the axis only roughly, and the labels give way
+   * where they would land on each other. A pie already writes its shares on
+   * its slices, and a heatmap's cells are too many for a number each.
+   */
+  labelsByDefault: boolean;
   /** Why it cannot draw this shape, or `null` when it can. */
   unfit(shape: ShapeFacts): ChartUnfit | null;
 }
@@ -123,6 +131,7 @@ export const CHART_FAMILIES: Readonly<Record<ChartFamily, ChartFamilyTraits>> =
       tabs: ['data', 'display', 'axes'],
       legend: true,
       labels: true,
+      labelsByDefault: true,
       unfit: ({ groups, quantities }) =>
         groups === 0
           ? 'chart.fit.needs-dimension'
@@ -134,6 +143,7 @@ export const CHART_FAMILIES: Readonly<Record<ChartFamily, ChartFamilyTraits>> =
       tabs: ['data', 'display'],
       legend: true,
       labels: true,
+      labelsByDefault: false,
       unfit: ({ groups, quantities }) =>
         groups === 1
           ? measured(quantities, 1)
@@ -143,6 +153,7 @@ export const CHART_FAMILIES: Readonly<Record<ChartFamily, ChartFamilyTraits>> =
       tabs: ['data', 'display'],
       legend: false,
       labels: true,
+      labelsByDefault: false,
       unfit: ({ groups, quantities }) =>
         groups === 2
           ? measured(quantities, 1)
@@ -152,6 +163,7 @@ export const CHART_FAMILIES: Readonly<Record<ChartFamily, ChartFamilyTraits>> =
       tabs: ['data'],
       legend: false,
       labels: false,
+      labelsByDefault: false,
       unfit: ({ groups, metrics, quantities }) =>
         groups === 0
           ? 'chart.fit.needs-dimension'
@@ -165,6 +177,7 @@ export const CHART_FAMILIES: Readonly<Record<ChartFamily, ChartFamilyTraits>> =
       tabs: ['data', 'display'],
       legend: false,
       labels: false,
+      labelsByDefault: false,
       unfit: ({
         groups,
         metrics,
@@ -188,6 +201,7 @@ export const CHART_FAMILIES: Readonly<Record<ChartFamily, ChartFamilyTraits>> =
       tabs: ['data', 'display'],
       legend: false,
       labels: false,
+      labelsByDefault: false,
       unfit: ({ groups, dated, additive }) =>
         groups === 0 || (dated && additive > 0)
           ? null
@@ -231,6 +245,17 @@ function staged(
   return stages !== undefined && stages < 2
     ? 'chart.fit.needs-two-stages'
     : null;
+}
+
+/**
+ * Whether a chart writes the values on its marks: what the spec says, and
+ * its family's default where it says nothing. An explicit `false` is a
+ * choice and stands; a family that cannot write them never does.
+ */
+export function valueLabelsOn(chart: ChartSpec | undefined): boolean {
+  if (!chart) return false;
+  const family = familyOf(chart.type);
+  return family.labels && (chart.labels ?? family.labelsByDefault);
 }
 
 /** The traits of the family a chart type belongs to. */

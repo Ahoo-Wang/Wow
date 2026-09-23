@@ -12,7 +12,11 @@
  */
 
 import type { EChartsCoreOption } from 'echarts/core';
-import { groupKeyText, type PieData } from '../../analysis/index.js';
+import {
+  groupKeyText,
+  valueLabelsOn,
+  type PieData,
+} from '../../analysis/index.js';
 import type { ChartSpec } from '../../model/index.js';
 import { formatValue } from './axis.js';
 import type { ValueLabel } from './family.js';
@@ -109,7 +113,7 @@ export function pieOption(
   const percent = (share: number) => formatValue(share, 'percent', locale);
   const caption = (slice: DrawnSlice) => {
     if (slice.share === undefined || slice.share < LABELLED_SHARE) return '';
-    return spec?.labels === true
+    return valueLabelsOn(spec)
       ? `${label(measure, slice.value, true)} · ${percent(slice.share)}`
       : percent(slice.share);
   };

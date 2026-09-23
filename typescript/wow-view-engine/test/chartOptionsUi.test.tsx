@@ -1060,7 +1060,7 @@ describe('what the chart options change on screen', () => {
   const labels = () =>
     document.querySelectorAll('[data-slot="chart-plot"] svg text[stroke]');
 
-  it('takes the legend away and writes the values on the marks', async () => {
+  it('takes the legend away, and the values it writes unasked', async () => {
     const { user, queries, draft } = await open({
       type: 'bar',
       cartesian: {
@@ -1075,17 +1075,16 @@ describe('what the chart options change on screen', () => {
     // Two series earn a legend without anybody asking for one; "None" is
     // how it is taken away again.
     expect(legend()).not.toBeNull();
-    expect(labels()).toHaveLength(0);
-
     await choose(user, 'Legend', 'None');
     await waitFor(() => expect(legend()).toBeNull());
 
-    fireEvent.click(
-      within(panel()!).getByRole('checkbox', { name: 'Value labels' }),
-    );
-    // One label per bar, each value read as its own column reads it —
-    // written short, where it has only the bar's width.
-    await waitFor(() => expect(draft().chart.labels).toBe(true));
+    // A bar chart writes its values without being asked, as Metabase's does
+    // where they fit: one label per bar, each read as its own column reads
+    // it, written short where it has only the bar's width.
+    const box = () =>
+      within(panel()!).getByRole('checkbox', { name: 'Value labels' });
+    expect(box().getAttribute('aria-checked')).toBe('true');
+    expect(draft().chart).not.toHaveProperty('labels');
     await waitFor(() => expect(labels().length).toBeGreaterThan(0));
     expect(
       document
@@ -1095,6 +1094,11 @@ describe('what the chart options change on screen', () => {
     expect([...labels()].map(text => text.textContent)).toEqual(
       expect.arrayContaining(['2', '1', '30', '10']),
     );
+
+    // Turned off, they stay off: the choice is saved as a choice.
+    fireEvent.click(box());
+    await waitFor(() => expect(draft().chart.labels).toBe(false));
+    await waitFor(() => expect(labels()).toHaveLength(0));
     expect(queries()).toBe(ran);
   });
 

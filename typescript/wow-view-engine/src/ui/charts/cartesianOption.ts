@@ -12,7 +12,7 @@
  */
 
 import type { EChartsCoreOption } from 'echarts/core';
-import type { CartesianData } from '../../analysis/index.js';
+import { valueLabelsOn, type CartesianData } from '../../analysis/index.js';
 import type {
   AxisSpec,
   CartesianSeries,
@@ -126,7 +126,7 @@ export function cartesianOption(
   const hasRight =
     series.some(entry => entry.side === 'right') ||
     lines.some(line => axisId(line.axis) === 'right');
-  const labelled = spec?.labels === true;
+  const labelled = valueLabelsOn(spec);
 
   /** Every value one axis carries: its series' and its reference lines'. */
   const valuesOn = (side: 'left' | 'right') => [

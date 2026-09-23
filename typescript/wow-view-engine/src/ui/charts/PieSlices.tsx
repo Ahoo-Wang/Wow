@@ -12,7 +12,7 @@
  */
 
 import { useCallback, useMemo } from 'react';
-import type { PieData } from '../../analysis/index.js';
+import { valueLabelsOn, type PieData } from '../../analysis/index.js';
 import { pointAnchor } from '../analysis/DrillMenu.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
@@ -139,7 +139,7 @@ export function PieSlices({
       data={{
         'data-chart': spec?.pie?.donut === true ? 'donut' : 'pie',
         'data-marks': data.slices.length,
-        'data-labels': spec?.labels === true ? 'on' : 'off',
+        'data-labels': valueLabelsOn(spec) ? 'on' : 'off',
       }}
     />
   );

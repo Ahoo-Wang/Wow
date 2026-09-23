@@ -12,7 +12,7 @@
  */
 
 import type { EChartsCoreOption } from 'echarts/core';
-import type { HeatmapData } from '../../analysis/index.js';
+import { valueLabelsOn, type HeatmapData } from '../../analysis/index.js';
 import type { ChartSpec } from '../../model/index.js';
 import { categoryTick } from './axis.js';
 import type { ColumnTitle, ValueLabel } from './family.js';
@@ -142,7 +142,7 @@ export function heatmapOption(
           borderRadius: 2,
         },
         label: {
-          show: spec?.labels === true,
+          show: valueLabelsOn(spec),
           color: theme.foreground,
           fontSize: 11,
           textBorderColor: theme.ground,

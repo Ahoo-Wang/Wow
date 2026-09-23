@@ -12,7 +12,7 @@
  */
 
 import { useCallback, useMemo } from 'react';
-import type { HeatmapData } from '../../analysis/index.js';
+import { valueLabelsOn, type HeatmapData } from '../../analysis/index.js';
 import { pointAnchor } from '../analysis/DrillMenu.js';
 import { categoryFit } from './cartesianOption.js';
 import { EChart, type ChartClick } from './EChart.js';
@@ -81,7 +81,7 @@ export function Heatmap({
       data={{
         'data-chart': 'heatmap',
         'data-marks': data.cells.flat().filter(cell => cell !== null).length,
-        'data-labels': spec?.labels === true ? 'on' : 'off',
+        'data-labels': valueLabelsOn(spec) ? 'on' : 'off',
       }}
     />
   );

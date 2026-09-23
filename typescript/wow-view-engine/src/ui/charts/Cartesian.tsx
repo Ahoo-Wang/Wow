@@ -12,7 +12,7 @@
  */
 
 import { useCallback, useMemo } from 'react';
-import type { CartesianData } from '../../analysis/index.js';
+import { valueLabelsOn, type CartesianData } from '../../analysis/index.js';
 import { pointAnchor } from '../analysis/DrillMenu.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
 import {
@@ -126,7 +126,7 @@ export function Cartesian({
       data={{
         'data-chart': data.chart,
         'data-marks': marks,
-        'data-labels': spec?.labels === true ? 'on' : 'off',
+        'data-labels': valueLabelsOn(spec) ? 'on' : 'off',
       }}
     />
   );

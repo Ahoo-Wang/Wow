@@ -198,12 +198,19 @@ export const ChartOptionsPages: Story = {
         name: zhCN['label.chart.tab.display'],
       }),
     );
-    await expect(valueLabels(canvasElement)).toHaveLength(0);
-    await userEvent.click(
+    // A bar chart writes its values unasked, as Metabase's does where they
+    // fit: turned off they go, and back on they return.
+    const labelsBox = () =>
       within(panel()!).getByRole('checkbox', {
         name: zhCN['label.chart.labels'],
-      }),
+      });
+    await expect(labelsBox()).toHaveAttribute('aria-checked', 'true');
+    await waitFor(() =>
+      expect(valueLabels(canvasElement).length).toBeGreaterThan(0),
     );
+    await userEvent.click(labelsBox());
+    await waitFor(() => expect(valueLabels(canvasElement)).toHaveLength(0));
+    await userEvent.click(labelsBox());
     // A label over every bar there is room for, and none over another.
     await waitFor(() =>
       expect(valueLabels(canvasElement).length).toBeGreaterThan(0),

@@ -16,6 +16,7 @@ import {
   CHART_FAMILIES,
   isSmooth,
   isStacked,
+  valueLabelsOn,
   withSmooth,
   withStacked,
 } from '../../analysis/index.js';
@@ -75,7 +76,7 @@ export function DisplayTab(props: OptionsPageProps) {
         <CheckField
           data-slot="chart-labels"
           label={messages.label('label.chart.labels')}
-          checked={chart.labels === true}
+          checked={valueLabelsOn(chart)}
           onChange={on => onChange({ ...chart, labels: on })}
         />
       )}

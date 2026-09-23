@@ -26,6 +26,11 @@ export interface ChartSpec {
   funnel?: FunnelSpec;
   metric?: MetricCardSpec;
   legend?: 'auto' | 'top' | 'bottom' | 'right' | 'none';
+  /**
+   * Whether the values are written on the marks. Left out, the family
+   * decides (`valueLabelsOn`): a cartesian chart writes them, the others
+   * do not; `false` is a choice and stands.
+   */
   labels?: boolean;
   /**
    * The colours pinned by hand; the theme fills in the rest from its palette.
