@@ -107,6 +107,14 @@ function advance(
   }
 }
 
+/**
+ * What a clock in `timeZone` shows at `ms`, as the instant that wall-clock
+ * time is at UTC — the axis a wall-clock bucket key (`2026-09-18`) is read on.
+ */
+export function wallClockAt(ms: number, timeZone: string): number {
+  return zonedToUtc(zonedParts(ms, timeZone), 'UTC');
+}
+
 function zonedParts(ms: number, timeZone: string): WallClock {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone,

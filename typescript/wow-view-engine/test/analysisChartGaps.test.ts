@@ -412,7 +412,9 @@ describe('shapeChart', () => {
         { x: day(4), value: 0 },
         { x: day(5), value: 5 },
       ]);
-      expect(card.value).toBe(8);
+      // The last period is the latest day; the one before it, a quiet day, is 0.
+      expect(card.value).toBe(5);
+      expect(card.period?.change).toEqual({ delta: 5, ratio: null });
 
       const matrix = shapeChart(
         config(

@@ -137,6 +137,25 @@ export function namedOrdersDefinition(): DataViewDefinition {
   });
 }
 
+/**
+ * `namedOrdersDefinition`, its date histogram offered by the day: the shape
+ * a trend card over the last days is drawn from.
+ */
+export function dailyOrdersDefinition(): DataViewDefinition {
+  const base = namedOrdersDefinition();
+  return {
+    ...base,
+    analysis: {
+      ...base.analysis!,
+      fields: base.analysis!.fields.map(field =>
+        field.field === 'createdAt'
+          ? { ...field, dateUnits: [AggregationDateUnit.DAY] }
+          : field,
+      ),
+    },
+  };
+}
+
 export function recordConfig(
   overrides: Partial<RecordViewConfig> = {},
 ): RecordViewConfig {

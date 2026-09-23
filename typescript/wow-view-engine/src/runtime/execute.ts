@@ -210,6 +210,7 @@ async function executeAnalysis(
     rows,
     totals ?? undefined,
     kinds,
+    filterContext,
   );
   return { kind: 'analysis', view, issues: cutShortIssues(config, view) };
 }

@@ -605,6 +605,126 @@ export const SparklineRunsForward: Story = {
   },
 };
 
+/** The card's reading table as `[day, number]`, one row a day of its trend. */
+async function trendReading(canvasElement: HTMLElement) {
+  return waitFor(() => {
+    const found = canvasElement.querySelector<HTMLTableElement>(
+      '[data-slot="chart-reading"] table',
+    );
+    if (!found) throw new Error('指标卡旁边没有读屏表');
+    const rows = [...found.tBodies[0].rows]
+      .map(row => [
+        row.cells[0]?.textContent ?? '',
+        row.cells[1]?.textContent ?? '',
+      ])
+      .filter(([day]) => dayOf(day).length === 3);
+    expect(rows.length).toBeGreaterThan(10);
+    return rows;
+  });
+}
+
+const cardSlot = (canvasElement: HTMLElement, name: string) =>
+  canvasElement.querySelector<HTMLElement>(`[data-slot="${name}"]`);
+
+/**
+ * 带走势的指标卡读最后一期（2026-09-23 用户拍板，审查 P1-6）：大数字上方写它是
+ * 哪一天，数就是迷你线上那一天的数（从前是全部时间的合计，迷你线却只画截断后的
+ * 那些天，屏幕上不说两者跨度不同）；下面一枚带色的徽标写较上一期的变化，方向与
+ * 颜色一致。可视化选项里把「大数字」换成「全部」，上方改写「范围内全部」、数变成
+ * 各天之和、变化不再画；换回「最后一期」又是那一天。
+ */
+export const TrendCardReadsLastPeriod: Story = {
+  ...DisplayDailyTrendCard,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const reading = await trendReading(canvasElement);
+
+    // The last day in the trend is over (the waybills end on the 20th), so
+    // it is the headline, named over it, its number the trend's own.
+    const [lastDay, lastCount] = reading[reading.length - 1]!;
+    await waitFor(() =>
+      expect(cardSlot(canvasElement, 'metric-period')).toHaveTextContent(
+        lastDay!,
+      ),
+    );
+    await expect(cardSlot(canvasElement, 'metric-value')).toHaveTextContent(
+      lastCount!,
+    );
+
+    // The change: its direction on the element, its tone agreeing with it,
+    // and what it is measured against in words.
+    const change = cardSlot(canvasElement, 'metric-change')!;
+    await expect(change).toHaveTextContent(zhCN['label.chart.change.against']);
+    const direction = change.getAttribute('data-direction');
+    const tone = change
+      .querySelector('[data-slot="badge"]')
+      ?.getAttribute('data-tone');
+    await expect(
+      { up: 'success', down: 'danger', flat: 'neutral' }[direction ?? ''],
+    ).toBe(tone);
+
+    // Switched to the whole in the options: the sum of the days.
+    const before = aggregateCalls.current;
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.analysis.visualize'] }),
+    );
+    await userEvent.click(
+      await waitFor(() => {
+        const found = canvasElement.querySelector<HTMLElement>(
+          '[data-slot="chart-options-open"]',
+        );
+        if (!found) throw new Error('没有选项按钮');
+        return found;
+      }),
+    );
+    const headline = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="metric-headline"]',
+      );
+      if (!found) throw new Error('选项里没有「大数字」');
+      return found;
+    });
+    await userEvent.click(
+      within(headline).getByRole('button', {
+        name: zhCN['label.chart.headline.whole'],
+      }),
+    );
+    await waitFor(() =>
+      expect(cardSlot(canvasElement, 'metric-period')).toHaveTextContent(
+        zhCN['label.chart.period.whole'],
+      ),
+    );
+    const sum = reading.reduce(
+      (total, [, count]) => total + Number(count!.replace(/[^\d]/g, '')),
+      0,
+    );
+    await waitFor(() =>
+      expect(cardSlot(canvasElement, 'metric-value')).toHaveTextContent(
+        String(sum),
+      ),
+    );
+    await expect(cardSlot(canvasElement, 'metric-change')).toBeNull();
+    // The whole is its own question, asked once.
+    await expect(aggregateCalls.current).toBeGreaterThan(before);
+    await expect(headline).toHaveTextContent(
+      zhCN['label.chart.headline.whole.hint'],
+    );
+
+    // And back: the last day again, redrawn from the rows on screen.
+    await userEvent.click(
+      within(headline).getByRole('button', {
+        name: zhCN['label.chart.headline.last'],
+      }),
+    );
+    await waitFor(() =>
+      expect(cardSlot(canvasElement, 'metric-period')).toHaveTextContent(
+        lastDay!,
+      ),
+    );
+    await expect(cardSlot(canvasElement, 'metric-change')).not.toBeNull();
+  },
+};
+
 /**
  * 没单的日子也占一格，读作 0。
  *

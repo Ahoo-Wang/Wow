@@ -292,7 +292,7 @@ describe('useAnalysisResult', () => {
     expect(result.current.analysis.chart.pie?.value).toBe('total');
   });
 
-  it('asks for the whole once when a metric card over a trend is picked', async () => {
+  it('asks for the whole once when a trend card is switched to read it', async () => {
     // A monthly analysis drawn as bars asks one query; its whole is asked
     // only when something draws it — here, a metric card over a trend.
     const source = testSource();
@@ -339,9 +339,25 @@ describe('useAnalysisResult', () => {
     const grouped = vi.mocked(source.aggregate).mock.calls.length;
     expect(result.current.result.view?.overall).toBeUndefined();
 
+    // Read as its last period — the default — the card is one of the rows
+    // that came back: it redraws, and nothing is asked.
     result.current.analysis.updateChart({
       type: 'metric',
       metric: { metric: 'orders', trend: { x: 'month' } },
+    });
+    await waitFor(() =>
+      expect(result.current.result.chartData).toMatchObject({
+        type: 'metric',
+      }),
+    );
+    expect(result.current.result.chartData).not.toHaveProperty('whole');
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(vi.mocked(source.aggregate).mock.calls.length).toBe(grouped);
+
+    // Switched to the whole in the options, it runs once for it.
+    result.current.analysis.updateChart({
+      type: 'metric',
+      metric: { metric: 'orders', trend: { x: 'month', headline: 'whole' } },
     });
     // One run, and it brought the whole.
     await waitFor(() =>

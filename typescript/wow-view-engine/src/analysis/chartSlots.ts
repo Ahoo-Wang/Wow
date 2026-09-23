@@ -440,7 +440,9 @@ function metricCard(
     ...(compare === undefined ? {} : { compare }),
     ...(spec?.target === undefined || !quantity ? {} : { target: spec.target }),
     ...(spec?.format === undefined || !quantity ? {} : { format: spec.format }),
-    ...(trending ? { trend: { x: shape.dateGroups[0] } } : {}),
+    // How the trend reads — its last period or the whole, and which way is
+    // good — is the analyst's, and survives a refit onto another date group.
+    ...(trending ? { trend: { ...spec?.trend, x: shape.dateGroups[0] } } : {}),
   };
 }
 

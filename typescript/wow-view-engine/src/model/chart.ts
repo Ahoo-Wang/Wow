@@ -211,10 +211,45 @@ export type FunnelStages =
 export interface MetricCardSpec {
   /** Metric alias. */
   metric: string;
+  /**
+   * Another metric the headline is compared with, read over the same span
+   * as the headline: the same period's value in the `last` mode of a trend,
+   * the whole's otherwise.
+   */
   compare?: { metric: string; mode: 'delta' | 'percent' };
-  /** Rendered as progress towards this value. */
+  /**
+   * Rendered as progress towards this value — a goal for the span the
+   * headline covers: one period in the `last` mode of a trend (a daily
+   * goal over a daily trend), the whole otherwise.
+   */
   target?: number;
   /** Sparkline; requires exactly one DATE_HISTOGRAM group with this alias. */
-  trend?: { x: string };
+  trend?: MetricTrend;
   format?: ValueFormat;
 }
+
+/** The time dimension a metric card draws as its sparkline, and how it reads. */
+export interface MetricTrend {
+  /** Alias of the one DATE_HISTOGRAM group. */
+  x: string;
+  /**
+   * What the headline is. `last`, the default: the last period that had
+   * ended when the question was asked, with its change against the period
+   * before — the reading an operator wants from a trend card. `whole`: every
+   * record in the range, from the ungrouped query (`asksForWhole`).
+   */
+  headline?: MetricHeadline;
+  /**
+   * Whether a fall is the good direction — failures, latency — so the
+   * change against the previous period is coloured the other way round.
+   */
+  lowerIsBetter?: boolean;
+}
+
+export type MetricHeadline = 'last' | 'whole';
+
+/** The two readings of a trend card's headline, the default first. */
+export const METRIC_HEADLINES = [
+  'last',
+  'whole',
+] as const satisfies readonly MetricHeadline[];

@@ -369,8 +369,32 @@ function MetricDisplay({ chart, shape, onChange }: OptionsPageProps) {
   // A moment headline is written out as its column reads it: a target to
   // reach and a number format are about quantities (`chart.metric.moment`).
   if (!spec || shape.moments.has(spec.metric)) return null;
+  const trend = spec.trend;
   return (
     <>
+      {/*
+        Which way is good colours the change against the previous period,
+        which only the last-period reading draws.
+      */}
+      {trend && trend.headline !== 'whole' && (
+        <CheckField
+          data-slot="metric-lower-is-better"
+          label={messages.label('label.chart.lower-is-better')}
+          hint={messages.label('label.chart.lower-is-better.hint')}
+          checked={trend.lowerIsBetter === true}
+          onChange={on =>
+            onChange({
+              ...chart,
+              metric: {
+                ...spec,
+                trend: on
+                  ? { ...trend, lowerIsBetter: true }
+                  : without(trend, 'lowerIsBetter'),
+              },
+            })
+          }
+        />
+      )}
       <NumberField
         label={messages.label('label.chart.target-value')}
         value={spec.target}

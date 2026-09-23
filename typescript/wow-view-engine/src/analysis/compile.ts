@@ -129,7 +129,9 @@ export function analysisProbeLimit(
 /**
  * Whether a config asks for its whole — the ungrouped answer — beside its
  * groups: when its table draws a totals row, or when its chart is a metric
- * card over a trend, whose headline is the whole.
+ * card over a trend read as the whole (`MetricTrend.headline: 'whole'`).
+ * Read as its last period — the default — the card's headline is one of
+ * the buckets, and the whole is not asked.
  *
  * Without it that card added up its buckets, and those are only the groups
  * that fit the limit: a card over the first twenty days of a month said the
@@ -143,7 +145,7 @@ export function asksForWhole(config: AnalysisViewConfig): boolean {
   return (
     config.groups.length > 0 &&
     config.chart.type === 'metric' &&
-    config.chart.metric?.trend !== undefined
+    config.chart.metric?.trend?.headline === 'whole'
   );
 }
 

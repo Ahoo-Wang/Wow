@@ -14,7 +14,7 @@
 import { AGGREGATION_LIMITS } from '@ahoo-wang/fetcher-wow';
 import type { AnalysisGroup, AnalysisViewConfig } from '../model/index.js';
 import { readInstant, type DateInstant } from '../filter/index.js';
-import { bucketRange } from './drill.js';
+import { bucketRange, wallClockAt } from './drill.js';
 
 /**
  * A time axis as the chart projection draws one: earliest first whatever
@@ -140,6 +140,37 @@ export function withoutHoles<T>(
     ...run.flatMap(ms => byMs.get(ms) ?? [hole(keyLike(sample, ms))]),
     ...untimed,
   ];
+}
+
+/**
+ * The bucket `key` starts, as the moments it runs from and to, stepped in
+ * the zone `withoutHoles` steps in: a wall-clock key at UTC, where
+ * `readInstant` reads it, anything else in the group's zone or the engine's.
+ * `ended` says whether it was over at `now`: a wall-clock key names a day
+ * and no zone, so it is over once the clock in that zone has passed its end.
+ * Undefined for a key that names no moment — the missing-value sentinel.
+ */
+export function bucketSpan(
+  group: DateGroup,
+  key: unknown,
+  timeZone: string,
+  now?: Date,
+): { from: number; to: number; ended: boolean } | undefined {
+  const instant = readInstant(key);
+  if (!instant) return undefined;
+  const zone = group.timeZone ?? timeZone;
+  const to = bucketRange(
+    group.unit,
+    instant.ms,
+    instant.wallClock ? 'UTC' : zone,
+  ).to;
+  const at =
+    now === undefined
+      ? undefined
+      : instant.wallClock
+        ? wallClockAt(now.getTime(), zone)
+        : now.getTime();
+  return { from: instant.ms, to, ended: at === undefined || at >= to };
 }
 
 /** Epoch milliseconds, written as digits. */

@@ -129,8 +129,14 @@ const toneBadgeVariants = cva('', {
       warning: `bg-warning/10 text-warning border-warning/30 ${SOFT}`,
       danger: `bg-destructive/10 dark:bg-destructive/10 text-destructive dark:text-[color-mix(in_oklab,var(--destructive)_80%,var(--foreground))] border-destructive/30 ${SOFT}`,
     } satisfies Record<FieldTone, string>,
+    /**
+     * `false` where an icon already marks the badge — a metric card's
+     * change leads with its arrow, and a dot beside the arrow is two marks
+     * saying one thing.
+     */
+    dot: { true: '', false: 'before:hidden' },
   },
-  defaultVariants: { tone: 'neutral' },
+  defaultVariants: { tone: 'neutral', dot: true },
 });
 
 export interface ToneBadgeProps extends Omit<
@@ -143,11 +149,14 @@ export interface ToneBadgeProps extends Omit<
    * words already carry.
    */
   tone?: FieldTone;
+  /** Whether the tone's dot leads the word; see `toneBadgeVariants`. */
+  dot?: boolean;
 }
 
 /** A badge in the colour of a field's tone. */
 export function ToneBadge({
   tone = 'neutral',
+  dot = true,
   className,
   ...props
 }: ToneBadgeProps) {
@@ -157,7 +166,7 @@ export function ToneBadge({
       // a test can read one without matching on colour.
       data-tone={tone}
       variant={TONE_BASE[tone]}
-      className={cn(toneBadgeVariants({ tone }), className)}
+      className={cn(toneBadgeVariants({ tone, dot }), className)}
       {...props}
     />
   );

@@ -17,6 +17,8 @@ import {
   type ChartType,
   type RecordData,
 } from '../model/index.js';
+import { absenceReader, num, owns, seriesKey } from './chartRows.js';
+import { metricCard, type MetricCardData } from './metricCard.js';
 import {
   forwardInTime,
   hostTimeZone,
@@ -37,6 +39,8 @@ export type ChartData =
   | ScatterData
   | FunnelData
   | MetricCardData;
+
+export type { MetricCardData, MetricPeriod } from './metricCard.js';
 
 export interface CartesianData {
   type: 'cartesian';
@@ -96,37 +100,6 @@ export interface FunnelData {
   cumulative?: true;
 }
 
-export interface MetricCardData {
-  type: 'metric';
-  /**
-   * The headline. A number, except for a moment (`momentMetrics`) a source
-   * answered as text — the latest of a day kept as `2026-09-18` — which is
-   * written out as its column reads it rather than dropped for not being
-   * one; nothing is measured, compared or aimed at over a moment.
-   */
-  value: number | string | null;
-  compare?: { value: number | null; delta: number | null };
-  target?: number;
-  trend?: { x: unknown; value: number | null }[];
-}
-
-/**
- * A split value's identity as a string key.
- *
- * Two values a query kept apart must stay apart here: `null` and `''` are two
- * series, `1` and `'1'` are two heatmap cells, and a key that merged them let
- * whichever row came second overwrite the first — wrong numbers, no warning.
- * So only a string is its own key, and everything else carries a type tag. A
- * string that holds the tag character doubles it, which is what keeps the two
- * alphabets from meeting: a tagged key's second character is a type letter,
- * an escaped string's is the tag again.
- *
- * A string is left alone rather than tagged too, because this key is also the
- * legend label of a cartesian pivot series, and a group value is a string in
- * every case that reaches a chart legend.
- */
-const TYPE_TAG = '\u0001';
-
 /**
  * A group value as text: the one spelling of a category or a split value
  * wherever a string has to name it — the key of `ChartSpec.colors` (see its
@@ -144,18 +117,6 @@ export function groupKeyText(value: unknown): string {
   return JSON.stringify(value) ?? '';
 }
 
-function seriesKey(value: unknown): string {
-  if (typeof value === 'string')
-    return value.includes(TYPE_TAG)
-      ? value.split(TYPE_TAG).join(`${TYPE_TAG}${TYPE_TAG}`)
-      : value;
-  if (value === null) return `${TYPE_TAG}n`;
-  if (value === undefined) return `${TYPE_TAG}u`;
-  if (typeof value === 'number') return `${TYPE_TAG}d${value}`;
-  if (typeof value === 'boolean') return `${TYPE_TAG}b${value}`;
-  return `${TYPE_TAG}j${JSON.stringify(value) ?? ''}`;
-}
-
 /**
  * Composite key of a heatmap cell. The row key is length-prefixed rather than
  * separated by a character, because no character is barred from a group value
@@ -164,47 +125,6 @@ function seriesKey(value: unknown): string {
 function cellKey(y: unknown, x: unknown): string {
   const row = seriesKey(y);
   return `${row.length}:${row}${seriesKey(x)}`;
-}
-
-function num(row: RecordData, alias: string): number | null {
-  const value = row[alias];
-  return typeof value === 'number' ? value : null;
-}
-
-/**
- * Whether a group the rows lack had no records — so an additive metric over
- * it is 0 — rather than records the query left out, which nobody can put a
- * number on. `at` is the missing group's values by alias, as far as known.
- *
- * A row is left out by two things. `having` (「只保留」) drops groups by
- * their numbers, so under it nothing absent is known to be empty. The limit
- * cuts the rows at the end of the view's sort: a result shorter than the
- * limit is every group there is, and one that fills it may have lost rows —
- * but only past its last row in the sort's leading dimension, so a group
- * whose leading value comes before that row's is still whole. Sorted by day,
- * newest first, thirty days of a longer history are thirty whole days, and
- * a day between two of them with no row is a day with no records.
- */
-function absenceReader(
-  config: AnalysisViewConfig,
-  rows: readonly RecordData[],
-): (at: Readonly<Record<string, unknown>>) => boolean {
-  if (config.having) return () => false;
-  const limit = config.limit;
-  if (Number.isInteger(limit) && rows.length < limit) return () => true;
-  const lead = config.sort[0]?.alias;
-  const last = rows[rows.length - 1];
-  if (lead === undefined || last === undefined) return () => false;
-  const edge = seriesKey(last[lead]);
-  return at => owns(at, lead) && seriesKey(at[lead]) !== edge;
-}
-
-/**
- * Whether `record` holds `key` itself: a split value may be any string,
- * `toString` included, and `in` would find that one on every object.
- */
-function owns(record: object, key: string): boolean {
-  return Object.prototype.hasOwnProperty.call(record, key);
 }
 
 /** Whether the metric `alias` names adds up, so a group of nothing is 0. */
@@ -221,11 +141,18 @@ export interface ShapeContext {
    * so the one its missing buckets are stepped in. The host's when left out.
    */
   timeZone?: string;
+  /**
+   * When the question was asked — the moment its relative conditions
+   * resolved against. A trend card's headline is the last period that had
+   * ended by then; left out, every bucket counts as ended.
+   */
+  now?: Date;
 }
 
 /**
  * `totals` is the one row of the ungrouped totals query, when it ran. Only
- * the metric card reads it: over a trend it is the headline for any metric.
+ * the metric card reads it: over a trend read as the whole, it is the
+ * headline for any metric.
  *
  * Every time axis — a cartesian chart's x, a heatmap's rows or columns, the
  * card's sparkline — and a series split by time run earliest first
@@ -262,7 +189,11 @@ export function shapeChart(
       return chart.funnel && funnel(chart.funnel, rows);
     case 'metric':
       return (
-        chart.metric && metricCard(chart.metric, config, rows, totals, timeZone)
+        chart.metric &&
+        metricCard(chart.metric, config, rows, totals, {
+          timeZone,
+          now: context.now,
+        })
       );
   }
 }
@@ -539,107 +470,4 @@ function withConversion(
       conversion: base === 0 ? undefined : stage.value / base,
     };
   });
-}
-
-/**
- * Without a trend the query is ungrouped, so its one row is the headline.
- * With one, the rows are the buckets of the sparkline and the headline is the
- * totals row when its query ran — the ungrouped aggregation, right for any
- * metric — and otherwise the buckets added up, which validation admits only
- * for a metric that adds. Compare and target read the same headline either
- * way, so a trend never drops them.
- */
-function metricCard(
-  spec: NonNullable<AnalysisViewConfig['chart']['metric']>,
-  config: AnalysisViewConfig,
-  rows: readonly RecordData[],
-  totals: RecordData | undefined,
-  timeZone: string,
-): MetricCardData {
-  const trend = spec.trend;
-  const headline: RecordData = trend
-    ? (totals ?? summed(config, rows))
-    : (rows[0] ?? {});
-
-  const value = num(headline, spec.metric);
-  const compare = spec.compare ? num(headline, spec.compare.metric) : null;
-  const written = headline[spec.metric];
-  return {
-    type: 'metric',
-    value: value ?? (typeof written === 'string' ? written : null),
-    ...(spec.compare
-      ? {
-          compare: {
-            value: compare,
-            delta: deltaOf(value, compare, spec.compare.mode),
-          },
-        }
-      : {}),
-    ...(spec.target === undefined ? {} : { target: spec.target }),
-    // The sparkline is a time axis too, and validation holds `trend.x` to a
-    // date bucket; the headline and the comparison add up in any order.
-    ...(trend
-      ? { trend: sparkline(spec, trend.x, config, rows, timeZone) }
-      : {}),
-  };
-}
-
-/**
- * The card's trend, earliest first and without holes as every time axis
- * runs: a quiet day is a dip to 0, not a line drawn straight past it.
- */
-function sparkline(
-  spec: NonNullable<AnalysisViewConfig['chart']['metric']>,
-  x: string,
-  config: AnalysisViewConfig,
-  rows: readonly RecordData[],
-  timeZone: string,
-): { x: unknown; value: number | null }[] {
-  const points = forwardInTime(
-    rows.map(row => ({ x: row[x], value: num(row, spec.metric) })),
-    point => point.x,
-  );
-  const axis = timeGroup(config, x);
-  if (!axis) return points;
-  const additive = adds(config, spec.metric);
-  const absent = absenceReader(config, rows);
-  return withoutHoles(
-    points,
-    point => point.x,
-    axis,
-    timeZone,
-    key => ({
-      x: key,
-      value: additive && absent({ [x]: key }) ? 0 : null,
-    }),
-  );
-}
-
-/**
- * The buckets added up, per additive metric. A metric that does not add is
- * left out, so it reads as null rather than as a number that means nothing.
- */
-function summed(
-  config: AnalysisViewConfig,
-  rows: readonly RecordData[],
-): RecordData {
-  const row: RecordData = {};
-  for (const metric of config.metrics) {
-    if (!isAdditiveMetric(metric)) continue;
-    row[metric.alias] = rows.reduce((sum, bucket) => {
-      const value = num(bucket, metric.alias);
-      return value === null ? sum : sum + value;
-    }, 0);
-  }
-  return row;
-}
-
-function deltaOf(
-  value: number | null,
-  compare: number | null,
-  mode: 'delta' | 'percent',
-): number | null {
-  if (value === null || compare === null) return null;
-  if (mode === 'delta') return value - compare;
-  return compare === 0 ? null : (value - compare) / compare;
 }

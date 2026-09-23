@@ -11,13 +11,6 @@
 
 ECharts 迁移（D21）与两份「数据分析师视角」审查的 P0 已全部合并：#1800、#1817～#1829。下面是已定、未做的，按批次排；动手前先在最新 main 上复现，已顺带修掉的删掉。审查原文的要点都在这里，原报告不在仓库里。
 
-- **指标卡改成「最后一期 + 环比」**（用户拍板，审查 P1-6）。
-  - 为什么：大数字写「全部时间」、迷你线只画截断后的 30 天，屏幕上不说两者的时间范围，读者会把全部当 30 天；运维要的是「最近一期多少、比上一期怎样」（Metabase 的 Trend 卡片）。
-  - 判据：有走势的指标卡大数字 = 最后一个完整周期，比较 = 相对上一期的变化（带方向与百分比）；卡上写明周期（如「9月22日」「本周」）；「全部」作为另一种模式保留在选项里；有测试与故事。
-  - 落点：`src/analysis/chart.ts`（`metricCard`）、`src/ui/charts/MetricCard.tsx`、指标卡选项、[ui/analysis.md](ui/analysis.md)。
-- **时区接上**：`shapeChart` 的第 4 个参数 `{ timeZone }` 已有，`useAnalysisResult.ts` 与 `project.ts` 没传 `runtime.environment.timeZone`，现在用的是浏览器时区（引擎时区不同时对不上格点的桶不补，不会补错）。
-  - 判据：两处都传引擎时区；引擎时区与浏览器不同的测试里，按日补零与刻度都按引擎时区。
-  - 落点：`src/react/useAnalysisResult.ts`、`src/analysis/project.ts`、`src/analysis/timeAxis.ts`。
 - **组合图的右轴**：槽位层看不到数值量级，第二个指标永远画在左轴。
   - 判据：组合图里量纲不同的指标（计数配金额、合计配平均）自动放右轴并写右轴标题；用户可在选项里改；双轴刻度对齐网格线（审查 P2-4）。
   - 落点：`src/analysis/chartSlots.ts`、`src/ui/charts/cartesianOption.ts`。

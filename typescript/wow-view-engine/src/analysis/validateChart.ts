@@ -440,10 +440,13 @@ function metricCard(
       }),
     );
 
-  // The headline over a trend is the totals row when that query ran, and
-  // otherwise the sum of the buckets — which only means something for a
-  // metric that adds. Same rule as a pie's merged slice, for the headline and
-  // for the value it is compared against.
+  // Read as the whole, the headline over a trend is the totals row when that
+  // query ran, and otherwise the sum of the buckets — which only means
+  // something for a metric that adds. Same rule as a pie's merged slice, for
+  // the headline and for the value it is compared against. Read as its last
+  // period the headline is one bucket, but the rule holds in both readings:
+  // the reading is a display switch, and flipping it must never turn a card
+  // that ran into one that is refused.
   const additive = (alias: string, at: IssuePath): Issue[] =>
     context.metrics.has(alias) && !isAdditiveMetric(context.metrics.get(alias))
       ? [issue('chart.metric.trend-not-additive', at, { metric: alias })]

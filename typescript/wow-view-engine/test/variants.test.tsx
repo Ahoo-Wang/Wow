@@ -94,6 +94,20 @@ describe('ToneBadge', () => {
       document.querySelector('[data-slot="badge"]')?.getAttribute('data-tone'),
     ).toBe('warning');
   });
+
+  it('drops the dot where an icon already marks the badge', () => {
+    render(
+      <ViewSurface>
+        <ToneBadge tone="success" dot={false}>
+          +20%
+        </ToneBadge>
+      </ViewSurface>,
+    );
+    // The tone stays; only the dot the icon would stand beside goes.
+    const badge = document.querySelector<HTMLElement>('[data-slot="badge"]')!;
+    expect(badge.className).toContain('text-success');
+    expect(badge.className).toContain('before:hidden');
+  });
 });
 
 describe('the controls of a condition pill', () => {

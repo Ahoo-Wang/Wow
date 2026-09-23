@@ -194,24 +194,36 @@ describe('compileAnalysis', () => {
     expect(totals?.metrics).toHaveLength(1);
   });
 
-  it('asks for the whole under a metric card over a trend', () => {
+  it('asks for the whole under a metric card over a trend read as the whole', () => {
     // Its headline is the whole; the buckets are only the groups that fit
     // the limit. No totals row is drawn, and the whole is still asked.
+    const day = {
+      type: 'DATE_HISTOGRAM',
+      field: 'createdAt',
+      alias: 'day',
+      unit: 'DAY',
+    } as const;
     const card = config({
-      groups: [
-        {
-          type: 'DATE_HISTOGRAM',
-          field: 'createdAt',
-          alias: 'day',
-          unit: 'DAY',
-        },
-      ],
+      groups: [day],
+      chart: {
+        type: 'metric',
+        metric: { metric: 'orders', trend: { x: 'day', headline: 'whole' } },
+      },
+    });
+    expect(asksForWhole(card)).toBe(true);
+    // Read as its last period — the default — the headline is a bucket, and
+    // the whole is one query nobody would draw.
+    const last = config({
+      groups: [day],
       chart: {
         type: 'metric',
         metric: { metric: 'orders', trend: { x: 'day' } },
       },
     });
-    expect(asksForWhole(card)).toBe(true);
+    expect(asksForWhole(last)).toBe(false);
+    expect(
+      compileAnalysisTotals(definition(), last, builtinFieldKinds, context),
+    ).toBeNull();
     const whole = compileAnalysisTotals(
       definition(),
       card,

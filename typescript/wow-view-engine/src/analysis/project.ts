@@ -27,7 +27,7 @@ import {
 } from '../model/index.js';
 import type { FieldKindRegistry } from '../filter/index.js';
 import { analysisScope } from './capability.js';
-import { shapeChart, type ChartData } from './chart.js';
+import { shapeChart, type ChartData, type ShapeContext } from './chart.js';
 import { analysisProbeLimit } from './compile.js';
 import {
   metricFieldOf,
@@ -225,6 +225,11 @@ function bucketOf(
  * `kinds` read a metric's own condition (`AnalysisColumnView.condition`);
  * without them a conditioned column cannot say what it counts, and says
  * nothing rather than guess.
+ *
+ * `context` is the engine's zone and the moment the question was asked, the
+ * chart is shaped under (`ShapeContext`): a day bucket is stepped in the
+ * engine's zone, not the host's, and a trend card's last period is the last
+ * one over by the time it was asked.
  */
 export function projectAnalysis(
   definition: DataViewDefinition,
@@ -232,6 +237,7 @@ export function projectAnalysis(
   result: readonly RecordData[],
   totals?: readonly RecordData[],
   kinds?: FieldKindRegistry,
+  context: ShapeContext = {},
 ): AnalysisView {
   const declared = new Map(
     config.table.columns.map(column => [column.alias, column]),
@@ -332,7 +338,7 @@ export function projectAnalysis(
     // chart is shaped from the rows that survive the cut: a pie's shares and
     // a "other" tail are over what is on screen and nothing else.
     ...(config.layout === 'chart'
-      ? { chart: shapeChart(config, cut.rows, overall) }
+      ? { chart: shapeChart(config, cut.rows, overall, context) }
       : {}),
   };
 }

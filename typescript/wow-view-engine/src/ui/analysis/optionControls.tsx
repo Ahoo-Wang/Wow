@@ -180,17 +180,23 @@ export function CheckField({
 /** One choice among a few words, all of them on screen at once. */
 export function ChoiceField<V extends string>({
   label,
+  hint,
   items,
   value,
   onChange,
+  'data-slot': slot,
 }: {
   label: string;
+  /** What the current choice means; shown under the choices. */
+  hint?: string;
   items: readonly { value: V; label: string }[];
   value: V;
   onChange(value: V): void;
+  'data-slot'?: string;
 }) {
+  const hintId = `${useId()}-hint`;
   return (
-    <Field>
+    <Field {...(slot === undefined ? {} : { 'data-slot': slot })}>
       <FieldLabel>{label}</FieldLabel>
       <ToggleGroup
         value={[value]}
@@ -202,6 +208,7 @@ export function ChoiceField<V extends string>({
         size="sm"
         spacing={0}
         aria-label={label}
+        aria-describedby={hint ? hintId : undefined}
       >
         {items.map(item => (
           <ToggleGroupItem key={item.value} value={item.value}>
@@ -209,6 +216,11 @@ export function ChoiceField<V extends string>({
           </ToggleGroupItem>
         ))}
       </ToggleGroup>
+      {hint && (
+        <FieldDescription id={hintId} className={HINT}>
+          {hint}
+        </FieldDescription>
+      )}
     </Field>
   );
 }

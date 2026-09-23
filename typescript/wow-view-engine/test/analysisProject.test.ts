@@ -472,7 +472,10 @@ describe('metric card headline', () => {
         table: { columns: [], totals: true },
         chart: {
           type: 'metric',
-          metric: { metric: 'orders', trend: { x: 'month' } },
+          metric: {
+            metric: 'orders',
+            trend: { x: 'month', headline: 'whole' },
+          },
         },
       }),
       [
@@ -790,7 +793,7 @@ describe('the whole beside the groups', () => {
         table,
         chart: {
           type: 'metric',
-          metric: { metric: 'orders', trend: { x: 'day' } },
+          metric: { metric: 'orders', trend: { x: 'day', headline: 'whole' } },
         },
       }),
       buckets,

@@ -230,6 +230,19 @@ export const analysisMessages = {
   'label.chart.compare-mode': 'Comparison',
   'label.chart.compare.delta': 'Difference',
   'label.chart.compare.percent': 'Percent',
+  // What a trend card's big number is: the last period that has ended, or
+  // every record in the range. Each hint says what the comparison with
+  // another metric and the target are measured over in that reading.
+  'label.chart.headline': 'Big number',
+  'label.chart.headline.last': 'Last period',
+  'label.chart.headline.whole': 'All',
+  'label.chart.headline.last.hint':
+    'The last period that has ended, against the one before; the comparison and the target are for that period.',
+  'label.chart.headline.whole.hint':
+    'Every record in the range; the comparison and the target are for all of it.',
+  'label.chart.lower-is-better': 'A fall is good',
+  'label.chart.lower-is-better.hint':
+    'Colours a fall green and a rise red — for failures, latency and the like.',
   // Display: what every drawn chart shares, then each family's own.
   'label.chart.legend': 'Legend',
   'label.chart.legend.auto': 'Auto',
@@ -375,6 +388,17 @@ export const analysisMessages = {
   // as the percentage the role would otherwise announce.
   'label.chart.target': 'Toward target',
   'label.chart.target.reached': '{value} of {target}',
+
+  // Which span a trend card's big number covers, said over it, and how it
+  // moved from the period before.
+  'label.chart.period.week': 'Week of {start}',
+  'label.chart.period.so-far': '{period} so far',
+  'label.chart.period.whole': 'All in range',
+  'label.chart.period.skipped': '{period} is not over yet and is not counted',
+  'label.chart.change.against': 'vs previous period',
+  'label.chart.change.none': 'No previous period to compare with',
+  'label.chart.change.unknown':
+    'No number in the previous period to compare with',
 
   // Analysis kernel.
   'analysis.alias.duplicate': 'The display name {alias} is used twice.',

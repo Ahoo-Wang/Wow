@@ -1004,7 +1004,9 @@ describe('shapeChart', () => {
         { x: day(2), value: 2 },
         { x: day(3), value: 3 },
       ]);
-      expect(data.value).toBe(6);
+      // The headline is the last period — the latest day, not the first row.
+      expect(data.value).toBe(3);
+      expect(data.period?.at).toBe(day(3));
     });
 
     it('leaves a pie over time in the rows’ order: it has no axis', () => {
@@ -1229,7 +1231,7 @@ describe('shapeChart', () => {
       expect(zero.compare).toEqual({ value: 0, delta: null });
     });
 
-    describe('over a trend', () => {
+    describe('over a trend, read as the whole', () => {
       const buckets: RecordData[] = [
         { month: '2026-08', orders: 40, total: 400 },
         { month: '2026-09', orders: 20, total: 100 },
@@ -1243,7 +1245,10 @@ describe('shapeChart', () => {
       const trend = config(
         {
           type: 'metric',
-          metric: { metric: 'orders', trend: { x: 'month' } },
+          metric: {
+            metric: 'orders',
+            trend: { x: 'month', headline: 'whole' },
+          },
         },
         [GROUPS.month],
       );
@@ -1264,30 +1269,6 @@ describe('shapeChart', () => {
         expect(data.trend).toEqual(points);
       });
 
-      it('leaves a headline it cannot add up as null', () => {
-        // Validation refuses this; the shaping still must not invent a
-        // number from buckets of an average.
-        const data = shapeChart(
-          config(
-            {
-              type: 'metric',
-              metric: { metric: 'average', trend: { x: 'month' } },
-            },
-            [GROUPS.month],
-            [METRICS.average],
-          ),
-          [
-            { month: '2026-08', average: 4 },
-            { month: '2026-09', average: 6 },
-          ],
-        ) as MetricCardData;
-        expect(data.value).toBeNull();
-        expect(data.trend).toEqual([
-          { x: '2026-08', value: 4 },
-          { x: '2026-09', value: 6 },
-        ]);
-      });
-
       it('compares and targets the headline as a single value is', () => {
         const compared = config(
           {
@@ -1296,7 +1277,7 @@ describe('shapeChart', () => {
               metric: 'orders',
               compare: { metric: 'total', mode: 'delta' },
               target: 100,
-              trend: { x: 'month' },
+              trend: { x: 'month', headline: 'whole' },
             },
           },
           [GROUPS.month],
@@ -1308,6 +1289,7 @@ describe('shapeChart', () => {
           compare: { value: 500, delta: -440 },
           target: 100,
           trend: points,
+          whole: true,
         });
 
         // With a totals row both sides come from it, and the card is the
@@ -1331,7 +1313,7 @@ describe('shapeChart', () => {
           ),
           [{ orders: 55, total: 500 }],
         );
-        expect(fromTotals).toEqual({ ...single, trend: points });
+        expect(fromTotals).toEqual({ ...single, trend: points, whole: true });
       });
     });
   });

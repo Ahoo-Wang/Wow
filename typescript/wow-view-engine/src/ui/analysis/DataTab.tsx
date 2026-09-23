@@ -20,6 +20,7 @@ import {
 } from '../../analysis/index.js';
 import {
   CHART_FAMILY,
+  METRIC_HEADLINES,
   type FunnelSpec,
   type MetricCardSpec,
 } from '../../model/index.js';
@@ -434,8 +435,37 @@ function MetricData({ chart, shape, onChange }: OptionsPageProps) {
   // A headline that is a moment is written out as it is: nothing is
   // compared with it (`chart.metric.moment`), so the comparison is not asked.
   const moment = shape.moments.has(spec.metric);
+  const trend = spec.trend;
+  const headline = trend?.headline === 'whole' ? 'whole' : 'last';
   return (
     <>
+      {/*
+        What the big number is, over a trend: the last period that has ended
+        (the default) or the whole range. First, because it decides what
+        the comparison and the target below are measured over, and its hint
+        says so for the reading chosen.
+      */}
+      {trend && (
+        <ChoiceField
+          data-slot="metric-headline"
+          label={messages.label('label.chart.headline')}
+          hint={messages.label(`label.chart.headline.${headline}.hint`)}
+          items={METRIC_HEADLINES.map(value => ({
+            value,
+            label: messages.label(`label.chart.headline.${value}`),
+          }))}
+          value={headline}
+          onChange={next =>
+            update({
+              ...spec,
+              trend:
+                next === 'whole'
+                  ? { ...trend, headline: next }
+                  : without(trend, 'headline'),
+            })
+          }
+        />
+      )}
       <SlotSelect
         label={messages.label('label.chart.slot.value')}
         items={shape.metrics}

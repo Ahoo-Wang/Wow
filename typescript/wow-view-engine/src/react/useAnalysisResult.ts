@@ -278,6 +278,12 @@ export function useAnalysisResult(
   // frame would say there were none. Before anything was asked there is no
   // shape to judge.
   const drawable = !question || fits[chart.type]?.available !== false;
+  // Shaped as the runtime shaped it (`projectAnalysis`): day buckets stepped
+  // in the engine's zone rather than the browser's, and a trend card's last
+  // period the last one over when the question was asked — which is when
+  // its answer arrived, less the time it took.
+  const timeZone = runtime?.environment.timeZone;
+  const askedAt = result ? result.receivedAt - result.elapsedMs : undefined;
   const chartData = useMemo(
     () =>
       view && ran && drawable
@@ -285,9 +291,13 @@ export function useAnalysisResult(
             { ...ran, chart, layout: 'chart' },
             view.rows,
             view.overall,
+            {
+              ...(timeZone === undefined ? {} : { timeZone }),
+              ...(askedAt === undefined ? {} : { now: new Date(askedAt) }),
+            },
           )
         : undefined,
-    [view, ran, chart, drawable],
+    [view, ran, chart, drawable, timeZone, askedAt],
   );
   const picked: Picked =
     analysis.layout === 'table' || !drawable ? 'table' : chart.type;
