@@ -30,6 +30,7 @@ import type { WorkbenchShellProps } from '../WorkbenchShell.js';
 export type WorkbenchParts = Pick<
   WorkbenchShellProps,
   | 'actions'
+  | 'search'
   | 'editor'
   | 'editorLabel'
   | 'editorModeLabel'

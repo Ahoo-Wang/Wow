@@ -25,6 +25,7 @@ import {
   DerivedExpressionType,
   FilterOperator,
   HavingExpressionType,
+  SearchMode,
   SortDirection,
   StringComparison,
   type AggregationExpression,
@@ -526,6 +527,26 @@ function criteria(
       return filter.state === DeletionState.ALL
         ? {}
         : { deleted: { $eq: filter.state === DeletionState.DELETED } };
+    // Full text as the service reads it: a phrase is the words together, in
+    // order; terms are any one of them — each without regard to case, in the
+    // fields the search names.
+    case FilterOperator.SEARCH: {
+      if (!filter.fields?.length)
+        throw new Error('The story source searches named fields only.');
+      const escape = (text: string) =>
+        text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const words =
+        filter.mode === SearchMode.PHRASE
+          ? [filter.query.trim()]
+          : filter.query.trim().split(/\s+/);
+      return {
+        $or: filter.fields.flatMap(field =>
+          words.map(word => ({
+            [relative(String(field))]: new RegExp(escape(word), 'i'),
+          })),
+        ),
+      };
+    }
     case FilterOperator.ELEMENT_MATCH: {
       const prefix = `${filter.field}.`;
       return {

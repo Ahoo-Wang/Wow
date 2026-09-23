@@ -39,6 +39,12 @@ export interface WorkbenchFeatures {
   visualization?: boolean;
   /** The view manager — its gear in the sidebar and its item in the switcher. */
   manage?: boolean;
+  /**
+   * The search box at the end of the applied band (`SearchBox`). It is there
+   * only where the definition declares a search field; off, the search is
+   * still a condition the editor can add, just not one kept on hand.
+   */
+  search?: boolean;
 }
 
 /** Every feature, as the answer when a host says nothing. */
@@ -49,6 +55,7 @@ export const ALL_FEATURES: Readonly<Required<WorkbenchFeatures>> = {
   sort: true,
   visualization: true,
   manage: true,
+  search: true,
 };
 
 /** The host's answer over the default, with no member left undefined. */

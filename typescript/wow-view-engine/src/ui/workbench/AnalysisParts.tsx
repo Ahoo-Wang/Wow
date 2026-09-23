@@ -16,6 +16,7 @@ import type { AnalysisViewConfig, FieldOption } from '../../model/index.js';
 import type { ViewRuntime } from '../../runtime/index.js';
 import {
   useAnalysisEditor,
+  useSearchBox,
   useAnalysisResult,
   type WorkbenchController,
 } from '../../react/index.js';
@@ -33,6 +34,7 @@ import { featuresOf, type WorkbenchFeatures } from '../features.js';
 import type { ViewMessages } from '../messages.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { NO_PARTS, type RenderParts } from './parts.js';
+import { SearchBox } from './SearchBox.js';
 
 export interface AnalysisPartsProps {
   workbench: WorkbenchController;
@@ -79,6 +81,7 @@ export function AnalysisParts({
   const shown = featuresOf(features);
   const { filter, state } = workbench;
   const analysis = useAnalysisEditor(runtime);
+  const searchBox = useSearchBox(runtime);
 
   const result = useAnalysisResult(runtime, analysis, workbench);
   const { view, chart, chartData, fits, picked } = result;
@@ -181,6 +184,7 @@ export function AnalysisParts({
     // The tray folds under the title bar's "Analysis" button, exactly where
     // the record view's "Filter" folds (D20): a saved view opens folded,
     // a new one opens out.
+    search: shown.search && searchBox && <SearchBox search={searchBox} />,
     editorLabel: messages.label('label.analysis.editor'),
     editorOpen: fold?.id === runtimeId ? fold.open : undefined,
     onEditorOpenChange: open => setFold({ id: runtimeId, open }),

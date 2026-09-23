@@ -66,6 +66,7 @@ const OFF: Required<WorkbenchFeatures> = {
   sort: false,
   visualization: false,
   manage: false,
+  search: false,
 };
 
 /**

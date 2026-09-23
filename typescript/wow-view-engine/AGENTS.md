@@ -117,6 +117,7 @@ src/
     marks.ts                  — unmarkedErrors — the errors no condition pill can carry
     time.ts                   — Relative and preset values resolved at compile time
     tree.ts                   — Tree node predicates, and what a node says as a condition (`conditionOf`, `conditions`, `removeConditionAt`: the negation wrapper is known here and nowhere else); trees arrive untrusted
+    search.ts                 — The view's search on the tree's root: `rootSearch`, `withRootSearch` (blank takes it out; an `or` top is narrowed, not joined), `searchFieldOf`
     validate.ts               — validateFilter — shape, budgets and kind rules over an untrusted tree; `isBlankFilter`, `isExecutableFilter`
     values.ts                 — Value shapes of the built-in kinds
     index.ts                  — The filter kernel: pure functions over a stored tree, plus the `FieldKind` registry that makes field types the one axis an application extends
@@ -234,6 +235,7 @@ src/
     analysisEditing.ts        — The edits to the question as plain functions over the draft (`questionEditing`): dimensions, metrics, conditions, copies, formulas, derived metrics, having
     useAutoRefresh.ts         — `RefreshController`: refresh now, the cadence ladder cut to the limits, the countdown
     useBulkCommand.ts         — A host's command for one record run over a selection: a few at a time, progress, stop, each refusal's reason, the unfinished rows left selected
+    useSearchBox.ts           — The view's search kept on hand: the definition's search field, the draft's and the applied text, set / submit / clear
     useDashboard.ts           — Dashboard panels, geometry and state
     useFilterEditor.ts        — Filter tree editor controller
     useRecordExport.ts        — The export run: scope, progress, the ceiling, delivery
@@ -454,6 +456,7 @@ src/
       parts.ts                — `WorkbenchParts`, the slice of the shell's slots a kind fills, and the render prop it fills them through
       Sidebar.tsx             — The sidebar in its two forms: `SidebarColumn` (the visualization panel or the view list beside the view) and `FoldedSidebar` (the way back, the definition's name and the switcher in the title bar)
       StatusLine.tsx          — The status line under the title bar: the errors, then the warnings — the view's, its result's, the definition's and failed preferences (D12 Ⅰ′)
+      SearchBox.tsx           — The search box at the applied band's end: typing edits the draft, Enter applies (not while an input method composes), ✕ clears and asks again
       TitleBar.tsx            — The title bar's ruled-off block: `ViewHeader` with the host's actions behind a boundary and the view-level controls — the editor's toggle, the refresh, filling the screen
       Unopenable.tsx          — The work area when the chosen view cannot be opened
       useEditorFold.ts        — The editor's fold, per opening; `filled`

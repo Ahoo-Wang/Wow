@@ -26,6 +26,7 @@ export * from './fieldKind.js';
 export * from './issuePath.js';
 export * from './kinds/index.js';
 export * from './marks.js';
+export * from './search.js';
 export * from './time.js';
 export * from './tree.js';
 export * from './validate.js';

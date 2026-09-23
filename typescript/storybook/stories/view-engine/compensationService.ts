@@ -32,7 +32,10 @@ const START = Date.parse('2026-09-18T08:00:00.000Z');
 // the other two.
 export const RECORDED_EXECUTIONS: RecordData[] = [
   execution('EF-1', 'FAILED', 'UNKNOWN', 2, 1, 'OrderSaga'),
-  execution('EF-2', 'PREPARED', 'RECOVERABLE', 1, 5, 'PaymentSaga'),
+  execution('EF-2', 'PREPARED', 'RECOVERABLE', 1, 5, 'PaymentSaga', {
+    errorCode: 'Timeout',
+    errorMsg: 'Payment gateway timed out.',
+  }),
   execution('EF-3', 'SUCCEEDED', 'RECOVERABLE', 1, 3, 'OrderSaga'),
   execution('EF-4', 'FAILED', 'UNRECOVERABLE', 3, 2, 'InventorySaga'),
   execution('EF-5', 'FAILED', 'UNKNOWN', 4, 4, 'OrderSaga'),
@@ -45,6 +48,8 @@ function execution(
   retries: number,
   minutes: number,
   processorName: string,
+  // What went wrong: an inventory refusal unless the execution says else.
+  error = { errorCode: 'BadRequest', errorMsg: 'Inventory refused.' },
 ): RecordData {
   const eventTime = START + minutes * 60_000;
   return {
@@ -72,7 +77,7 @@ function execution(
           aggregateId: `order-${id}`,
         },
       },
-      error: { errorCode: 'BadRequest', errorMsg: 'Inventory refused.' },
+      error,
       retrySpec: { maxRetries: 3, minBackoff: 180, executionTimeout: 120 },
       retryState: {
         retries,

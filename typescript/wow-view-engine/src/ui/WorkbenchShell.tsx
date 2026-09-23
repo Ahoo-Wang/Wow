@@ -74,6 +74,12 @@ export interface WorkbenchShellProps {
   /** The view's own editor, between the title bar and the strips. */
   editor?: ReactNode;
   /**
+   * The view's search box (`SearchBox`), at the end of the applied band: the
+   * one condition kept on hand rather than in the fold, beside the
+   * conditions the rows were fetched under.
+   */
+  search?: ReactNode;
+  /**
    * What the editor is called. Given one, the editor lives in a fold whose
    * toggle sits in the title bar; left out, the editor is drawn open on its
    * own block. It is opt-in because only a view whose editor *has* a settled
@@ -269,6 +275,7 @@ export function WorkbenchShell({
   freshness,
   editor,
   editorLabel,
+  search,
   editorModeLabel,
   editorModes,
   editorOpen,
@@ -592,7 +599,25 @@ export function WorkbenchShell({
                 the result — neither inside the tray, which is the draft, nor
                 inside the result block, which is the rows. It draws nothing
                 until there is a result to describe. */}
-            <AppliedBar filter={filter} hasResult={describesResult} />
+            {/* The search sits at the band's end: it is one of the
+                conditions, and the band has the width the title bar does
+                not — there, beside the title, the filter, the refresh and
+                the expand, it pushed the row onto two lines. */}
+            {search ? (
+              <div
+                data-slot="applied-row"
+                className="flex flex-wrap items-center gap-2"
+              >
+                <AppliedBar
+                  filter={filter}
+                  hasResult={describesResult}
+                  className="min-w-0 grow"
+                />
+                <div className="ml-auto">{search}</div>
+              </div>
+            ) : (
+              <AppliedBar filter={filter} hasResult={describesResult} />
+            )}
 
             {/* The result itself (D12 Ⅳ–Ⅶ).
 

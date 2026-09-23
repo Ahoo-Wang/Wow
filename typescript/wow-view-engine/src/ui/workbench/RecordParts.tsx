@@ -23,6 +23,7 @@ import {
   useRecordExport,
   useRecordDetail,
   useRecordTable,
+  useSearchBox,
   type BulkCommand,
   type RecordActionSlots,
   type RecordExportScope,
@@ -50,6 +51,7 @@ import { featuresOf, type WorkbenchFeatures } from '../features.js';
 import { resultSlots } from '../variants.js';
 import { RenderSlot } from '../RenderBoundary.js';
 import { NO_PARTS, type RenderParts } from './parts.js';
+import { SearchBox } from './SearchBox.js';
 
 /**
  * What a host may say about the record views a workbench draws: what may be
@@ -293,6 +295,7 @@ export function RecordParts({
     [columns, display, messages, onExported],
   );
   const exportControl = useRecordExport(record, table, { deliver });
+  const searchBox = useSearchBox(record);
 
   if (!record) return children(NO_PARTS);
   return children({
@@ -308,6 +311,7 @@ export function RecordParts({
     ),
     editorOpen,
     onEditorOpenChange: open => setFold({ id: runtimeId, open }),
+    search: shown.search && searchBox && <SearchBox search={searchBox} />,
     editorLabel: messages.label('label.filter.panel'),
     editorModeLabel: filterModeLabel(filter, messages),
     editorModes: <FilterModes filter={filter} />,

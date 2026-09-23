@@ -120,6 +120,9 @@ export const filterMessages = {
   // out whole, since a bare number beside a name says nothing), and the list
   // says when it is only the most frequent — the one wanted may be rarer.
   'label.filter.pick-or-type': 'Pick or type a value',
+  // The view's search box on the title bar.
+  'label.search.hint': 'Press Enter to search.',
+  'label.search.clear': 'Clear the search',
   'label.filter.value-count': '{value} ({count} records)',
   'label.filter.values-loading': 'Reading the values…',
   'label.filter.values-failed': 'The values could not be read: {reason}',

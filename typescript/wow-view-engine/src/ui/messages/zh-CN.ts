@@ -320,6 +320,8 @@ export const zhCN: ViewMessages = {
   'label.filter.candidates-failed': '候选加载失败',
   'label.filter.candidates-retry': '重试',
   'label.filter.pick-or-type': '选择或输入一个值',
+  'label.search.hint': '按 Enter 搜索。',
+  'label.search.clear': '清除搜索',
   'label.filter.value-count': '{value}（{count} 条记录）',
   'label.filter.values-loading': '正在读取字段的值…',
   'label.filter.values-failed': '字段的值读取失败：{reason}',

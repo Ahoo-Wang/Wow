@@ -171,7 +171,7 @@ export const DataConsole: Story = {
  */
 export const ValuesFromTheData: Story = {
   ...DisplayDataConsole,
-  name: '补偿控制台 · 条件值取自数据',
+  name: '快照控制台 · 条件值取自数据',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const table = await canvas.findByRole('table');
@@ -232,5 +232,42 @@ export const ValuesFromTheData: Story = {
       canvas.getByRole('button', { name: zhCN['label.filter.apply'] }),
     );
     await waitFor(() => expect(readColumn(table, 'ID')).toEqual(['EF-4']));
+  },
+};
+
+/**
+ * 搜索错误常驻在标题栏：输入一段错误、按 Enter，只剩那几次执行；✕ 撤掉搜索、
+ * 行回来。此前要打开条件、添加、勾「搜索错误」、完成、再输入，五步。
+ */
+export const SearchesTheErrors: Story = {
+  ...DisplayDataConsole,
+  name: '快照控制台 · 搜索错误',
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    await waitFor(() =>
+      expect(readColumn(table, 'ID')).toEqual(['EF-2', 'EF-5', 'EF-4', 'EF-1']),
+    );
+
+    // Named by what it searches, and there without opening anything.
+    const box = canvas.getByRole('searchbox', { name: '搜索错误' });
+    await userEvent.type(box, 'gateway timed out');
+    // Typing asks nothing yet: every key would be a query over the store.
+    await expect(readColumn(table, 'ID')).toHaveLength(4);
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() => expect(readColumn(table, 'ID')).toEqual(['EF-2']));
+
+    // The search is one of the conditions: the band says so.
+    const applied = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="applied-bar"]',
+    )!;
+    await expect(applied).toHaveTextContent('gateway timed out');
+
+    // ✕ takes it away and asks again.
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.search.clear'] }),
+    );
+    await waitFor(() => expect(readColumn(table, 'ID')).toHaveLength(4));
+    await expect(box).toHaveValue('');
   },
 };
