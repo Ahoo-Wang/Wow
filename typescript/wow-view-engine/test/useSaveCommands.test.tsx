@@ -62,6 +62,7 @@ describe('useSaveCommands', () => {
       dirty: false,
       blocked: false,
       hasErrors: false,
+      audience: null,
       isNew: false,
       lastSavedAt: null,
     });

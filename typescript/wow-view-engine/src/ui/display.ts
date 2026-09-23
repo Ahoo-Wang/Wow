@@ -201,8 +201,8 @@ export function summaryFunctionKey(
  * description carry (`SortableHeader`'s `note`).
  *
  * A metric with a condition of its own says it after a 「·」 (D20 显示名):
- * 「金额的合计 · 已发运」 when the condition keeps one value of one field,
- * 「金额的合计 · 有条件」 otherwise (`metricCondition`). Without it a sum over
+ * 「金额的总和 · 已发运」 when the condition keeps one value of one field,
+ * 「金额的总和 · 有条件」 otherwise (`metricCondition`). Without it a sum over
  * the shipped orders wore the header of a sum over all of them, and a
  * region with none shipped read as a region with no sales.
  */

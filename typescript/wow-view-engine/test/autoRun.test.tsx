@@ -205,9 +205,7 @@ describe('改了就跑: the tray’s switch', () => {
     );
     expect(described?.textContent).toBe(hint);
     expect(
-      within(
-        document.querySelector<HTMLElement>('[data-slot="auto-run"]')!,
-      ).getByText(hint),
+      document.querySelector<HTMLElement>('[data-slot="auto-run-hint"]'),
     ).toBe(described);
   });
 
@@ -356,6 +354,83 @@ describe('改了就跑: an analysis runs as it is edited', () => {
     await waitFor(() =>
       expect(result()!.hasAttribute('data-stale')).toBe(false),
     );
+  });
+
+  /**
+   * A slow answer is the case the debounce alone missed (2026-09-23 audit):
+   * the fade lasted the 300ms before the question was sent and went the
+   * moment it was, so the old rows stood at full strength for however long
+   * the source took, looking like the new ones. They stay faded for the
+   * whole flight, and come back when the answer lands.
+   */
+  it('keeps the rows faded for as long as the new answer takes', async () => {
+    const { clock, runs, source } = await openAnalysis();
+    let answer: (rows: Record<string, unknown>[]) => void = () => undefined;
+    vi.mocked(source.aggregate).mockImplementation(
+      () =>
+        new Promise(resolve => {
+          answer = resolve;
+        }),
+    );
+
+    await addDimension('Status');
+    elapse(clock);
+    await waitFor(() => expect(runs()).toBe(2));
+
+    // Sent and not back: still faded, however long it takes.
+    elapse(clock, 5_000);
+    expect(result()!.hasAttribute('data-stale')).toBe(true);
+
+    await act(async () =>
+      answer([{ warehouse: 'CN', status: 'PAID', orders: 1 }]),
+    );
+    await waitFor(() =>
+      expect(result()!.hasAttribute('data-stale')).toBe(false),
+    );
+  });
+
+  /**
+   * A refresh asks the same question again: its rows are the answer to what
+   * is being asked, so they are not faded while it runs.
+   */
+  it('does not fade the rows through a refresh of the same question', async () => {
+    const { runs, source } = await openAnalysis();
+    vi.mocked(source.aggregate).mockImplementation(
+      () => new Promise(() => undefined),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    await waitFor(() => expect(runs()).toBe(2));
+
+    expect(result()!.hasAttribute('data-stale')).toBe(false);
+  });
+
+  /**
+   * A range condition added and not yet filled in holds every run: the
+   * range waits for Apply, and Apply runs the whole draft, so nothing runs
+   * on its own however the question changes — and it used to say nothing
+   * about why (2026-09-23 audit). The switch's sentence says it instead,
+   * for as long as it is true.
+   */
+  it('says why nothing runs while the range holds an unfinished condition', async () => {
+    const { clock, runs } = await openAnalysis();
+    const hint = () =>
+      document.querySelector<HTMLElement>('[data-slot="auto-run-hint"]')!;
+    expect(hint().textContent).toBe(
+      defaultMessages['label.analysis.auto-run-hint'],
+    );
+
+    await addConditions(['Warehouse']);
+    await addDimension('Status');
+    elapse(clock, AUTO_APPLY_DELAY_MS * 2);
+
+    expect(runs()).toBe(1);
+    expect(hint().textContent).toBe(
+      defaultMessages['label.analysis.auto-run-held'],
+    );
+    expect(hint().hasAttribute('data-held')).toBe(true);
+    // Still the switch's description, so a reader on the switch hears it.
+    expect(autoRunSwitch().getAttribute('aria-describedby')).toBe(hint().id);
   });
 
   /**

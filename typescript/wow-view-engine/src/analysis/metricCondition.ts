@@ -27,17 +27,17 @@ import {
  * the way the metric reads.
  *
  * A number counted over some of the records is a different number from the
- * same summary over all of them, and a header that says 「金额的合计」 over
+ * same summary over all of them, and a header that says 「金额的总和」 over
  * both reads a region with no shipped orders as a region with no sales. So
  * the condition travels with the metric's name (D20 显示名):
  *
  * - `value` — the condition keeps **one value of one field**, and that value
- *   names itself: 「金额的合计 · 已发运」, as Metabase says "Sum of Total where
+ *   names itself: 「金额的总和 · 已发运」, as Metabase says "Sum of Total where
  *   Status is Shipped". Only a value that reads on its own after a 「·」 —
  *   the label the definition gave an option, or a piece of text — is one: a
  *   bare 「· 100」 or 「· 是」 does not say what it is about;
  * - otherwise the metric is **conditioned** without a word for it, and says
- *   so — 「金额的合计 · 有条件」 — until the analyst names it.
+ *   so — 「金额的总和 · 有条件」 — until the analyst names it.
  *
  * `items` is the whole condition as the applied bar reads one
  * (`describeFilter`), for the places with room to say it: the header's

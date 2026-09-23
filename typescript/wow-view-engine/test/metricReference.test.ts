@@ -88,7 +88,7 @@ describe('metricReference', () => {
 
   it('composes in each language’s own order', () => {
     const analysis = naming(sum);
-    expect(metricReference(analysis, sum, words(zhCN))).toBe('Amount的合计');
+    expect(metricReference(analysis, sum, words(zhCN))).toBe('Amount的总和');
   });
 
   it('names the earliest and the latest of a date as a record column does', () => {
@@ -148,8 +148,10 @@ describe('metricReference', () => {
         right: { type: 'FIELD', field: 'cost' },
       },
     };
+    // Bracketed: the summary is of the whole formula, and bare the sum
+    // read as belonging to Cost alone (2026-09-23 audit).
     expect(metricReference(naming(margin), margin, en_)).toBe(
-      'Sum of Amount − Cost',
+      'Sum of (Amount − Cost)',
     );
   });
 

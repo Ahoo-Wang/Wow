@@ -473,9 +473,17 @@ function MetricDisplay({ chart, shape, onChange }: OptionsPageProps) {
 /** The one display setting the table has. */
 export function TableDisplay({
   totals,
+  whole,
   onTotals,
 }: {
   totals: boolean;
+  /**
+   * The question has no dimension: its one row is every record in the
+   * range, so there is no totals row to draw (`AnalysisView.totals`). The
+   * box stays, greyed and saying why, because the choice comes back with
+   * the first dimension.
+   */
+  whole?: boolean;
   onTotals(on: boolean): void;
 }) {
   const messages = useViewMessages();
@@ -483,7 +491,11 @@ export function TableDisplay({
     <CheckField
       data-slot="chart-totals"
       label={messages.label('label.analysis.totals')}
-      checked={totals}
+      checked={totals && !whole}
+      disabled={whole}
+      {...(whole
+        ? { hint: messages.label('label.analysis.totals-whole') }
+        : {})}
       onChange={onTotals}
     />
   );

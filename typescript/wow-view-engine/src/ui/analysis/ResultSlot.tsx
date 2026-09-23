@@ -14,28 +14,27 @@
 import { useId, useState } from 'react';
 import type { FieldDefinition } from '../../model/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
-import { cn } from 'cn';
 import {
   Field,
+  FieldDescription,
   FieldError,
   FieldLabel,
   FieldTitle,
 } from '../components/field.js';
 import { columnTitle, formatNumber } from '../display.js';
 import { NumberInput } from '../FilterValueEditor.js';
-import { SPACE } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { SortSettings } from '../SortSettings.js';
 import { EditorSlot } from '../variants.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
 import { metricReference } from './editing.js';
-import { HavingRows } from './HavingRows.js';
+import { AddHaving, HavingRows, useHaving } from './HavingRows.js';
 
 /**
  * 「结果」: the step after the question (2026-09-23 audit) — which groups
  * the result keeps, in which order, and how many of them. Wow applies the
  * three in that order (having, then sort, then limit), and the analyst says
- * them in it too: 「只保留金额的合计大于 2000 的组，按金额的合计降序，取前 10
+ * them in it too: 「只保留金额的总和大于 2000 的组，按金额的总和降序，取前 10
  * 组」. So the slot reads top to bottom as that sentence, each control under
  * a visible label, with 「前 N 组」 beside the sort it is the first N of.
  *
@@ -43,6 +42,14 @@ import { HavingRows } from './HavingRows.js';
  * own: a button that said 「排序」 at rest, a bare number box and 「只保留…」,
  * none of which said which step of the question it was. They are a step of
  * their own because none of them is a metric — each is about the groups.
+ *
+ * **One line, not three.** Each control's label is beside it rather than
+ * over it, and 「只保留」 is a 「只保留…」 button on that line until it holds
+ * a row: stacked, the slot stood 137px — a label over a lone button, and a
+ * label over each of the other two — and at 1440×900 the tray had to be
+ * scrolled to reach 「排序／前 N 组」 (2026-09-23 audit P1). A row of rows
+ * kept takes its own block above the line, because it is a sentence of
+ * several controls.
  *
  * All three need a dimension (Wow refuses to sort, cut or keep an ungrouped
  * aggregation, which has one row anyway), so without one the slot is not
@@ -56,6 +63,7 @@ export function ResultSlot({
   disabled?: boolean;
 }) {
   const messages = useViewMessages();
+  const having = useHaving(analysis);
   if (analysis.groups.length === 0) return null;
   return (
     <EditorSlot
@@ -63,15 +71,14 @@ export function ResultSlot({
       title={messages.label('label.analysis.slot.result')}
       hint={messages.label('label.analysis.hint.result')}
     >
-      <HavingRows analysis={analysis} disabled={disabled} />
-      {/* `items-start`: the limit's refusal hangs under its box, and the
-          sort stays level with the box rather than centring on the pair. */}
+      <HavingRows having={having} disabled={disabled} />
       <div
         data-slot="analysis-order"
-        className={cn('flex flex-wrap items-start gap-x-6', SPACE.GROUPS)}
+        className="flex flex-wrap items-center gap-x-6 gap-y-2"
       >
         <SortField analysis={analysis} />
         <LimitField analysis={analysis} disabled={disabled} />
+        <AddHaving having={having} disabled={disabled} />
       </div>
     </EditorSlot>
   );
@@ -82,7 +89,7 @@ export function ResultSlot({
  * aliases as if they were fields (D20: one control for one thing) — every
  * dimension and metric may order the groups, first by one, then by the
  * next. The label is a title rather than a `<label>`: the button carries a
- * name of its own that reads the sort back (「排序：金额的合计 降序」), and
+ * name of its own that reads the sort back (「排序：金额的总和 降序」), and
  * the title names the group it stands in.
  */
 function SortField({ analysis }: { analysis: AnalysisEditorController }) {
@@ -130,15 +137,12 @@ function SortField({ analysis }: { analysis: AnalysisEditorController }) {
   return (
     <Field
       data-slot="analysis-sort"
+      orientation="horizontal"
       aria-labelledby={titleId}
-      className="w-auto gap-1"
+      className="w-auto"
     >
       <FieldTitle id={titleId}>{messages.label('label.sort.title')}</FieldTitle>
-      {/* A box of its own: a vertical field stretches each child to its
-          width, and the button is as wide as what it says. */}
-      <div>
-        <SortSettings table={owner} fields={fields} />
-      </div>
+      <SortSettings table={owner} fields={fields} />
     </Field>
   );
 }
@@ -180,6 +184,7 @@ function LimitField({
   const messages = useViewMessages();
   const { locale } = useSurfaceDisplay();
   const errorId = useId();
+  const noteId = useId();
   const inputId = useId();
   const { max, fallback } = analysis.limitBounds;
   const [typed, setTyped] = useState<{
@@ -189,11 +194,21 @@ function LimitField({
   const held = typed?.over === analysis.limit ? typed : null;
   const value = held ? held.value : analysis.limit;
   const invalid = value !== null && !withinLimit(value, max);
+  // Without a sort, which N groups come back is the source's choice — Wow
+  // hands the first N buckets it has, in no order the analyst asked for —
+  // and a 「前 10 组」 read as "the top ten" is the wrong ten (2026-09-23
+  // audit). Said beside the box, where the N is typed, and only then.
+  const unsorted = analysis.sort.length === 0;
+  const described = [
+    ...(invalid ? [errorId] : []),
+    ...(unsorted ? [noteId] : []),
+  ];
   return (
     <Field
       data-invalid={invalid || undefined}
       data-slot="analysis-limit"
-      className="w-auto gap-1"
+      orientation="horizontal"
+      className="w-auto flex-wrap"
     >
       <FieldLabel htmlFor={inputId}>
         {messages.label('label.analysis.row-limit')}
@@ -205,7 +220,7 @@ function LimitField({
         className="w-20"
         disabled={disabled}
         invalid={invalid}
-        describedBy={invalid ? errorId : undefined}
+        describedBy={described.length > 0 ? described.join(' ') : undefined}
         placeholder={formatNumber(fallback, undefined, locale)}
         value={value}
         onNumber={next => {
@@ -219,9 +234,15 @@ function LimitField({
         }}
       />
       {invalid && (
-        <FieldError id={errorId}>
+        // Its own line under the box: the refusal is about what was typed.
+        <FieldError id={errorId} className="basis-full">
           {messages.label('label.analysis.row-limit-invalid', { max })}
         </FieldError>
+      )}
+      {unsorted && (
+        <FieldDescription id={noteId} data-slot="limit-unsorted">
+          {messages.label('label.analysis.row-limit-unsorted')}
+        </FieldDescription>
       )}
     </Field>
   );

@@ -151,7 +151,7 @@ export function useAdds(
 }
 
 /**
- * An alias as its column is titled — 「金额的合计」 for a metric, the field
+ * An alias as its column is titled — 「金额的总和」 for a metric, the field
  * for a group — and `undefined` when this result has no such column: a name
  * that says "订单数 按 地区" is worth having, one that says "m0 按 g0" is not,
  * so the caller decides what to do without a title rather than being handed

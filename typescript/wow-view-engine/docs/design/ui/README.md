@@ -168,6 +168,7 @@
 ## 保存与视图管理
 
 - `SaveActions` 是拆分按钮组：能存就是 Save，否则是 Save as；**从没存过的视图**（`commands.state.isNew`）按 Save 打开 `SaveAsDialog` 的 `intent: 'first'`（「保存视图」，预填名字）——第一次保存就是创建。`pending` 时显示 `label.save.saving`，落地后 2.5s 内显示 `label.save.saved` 并播报一次。
+- **就地保存一个共享视图先问一句**（2026-09-23 审查 P1：「保存共享视图一键覆盖所有人的版本」）：`commands.state.audience === 'shared'`（`useSaveCommands` 按 `audienceOf(scope)` 给出）时，主按钮的 Save 打开 `AlertDialog`（`data-slot="shared-save-confirm"`，标题 `label.save.shared-heading`「更新所有人看到的视图？」，描述 `label.save.shared-description`「这会更新所有人看到的「{title}」。」，确认 `label.save.shared-confirm`「更新给所有人」，取消什么也不写）。**不是破坏性的语气**（不用 `DestructiveAction`）：没有丢掉作者不想改的东西，只是受它影响的人不在场，所以要说出来。个人视图照旧一按就存；第一次保存与另存为本来就走对话框，不再加问。（见 test/saveActions.test.tsx「asks before saving over a shared view, naming it」）
 - 写入在途或结局 `unknown`／`conflict` 未结清时，还原与菜单一并禁用：否则被保存掉的配置会成为新基线上的脏草稿，或被随后的 Retry／「保留我的」撤回。`hasErrors` 只在主按钮是就地 Save 时禁用它——Save as 去另一个受众，准入由对话框自己判，锁住它等于锁死只读视图的唯一出口。
 - 改名、删除、排序、设默认改的是列表，在侧栏的管理器（`ViewManager` + `useViewManager`）里；按钮按许可存在或不存在，系统视图没有改名与删除。未打开实例的写入结局显示在它那一行。删除确认把后果拼出来：基础句，shared 加一句，删的是当前打开且 dirty 的再加一句。
 - 键盘与焦点（见 [management.md#列表偏好与默认视图](../management.md#列表偏好与默认视图)）：改名框 Enter 提交、Escape 取消并 `stopPropagation`；`DeleteDialog` 收 `finalFocus`，管理器传自己的标题；`SaveActions` 与 `WriteOutcome` 给 `onCreated`（只在另存创建了视图时），`WorkbenchShell` 据此把焦点送到新视图的标题。这组回调是 `ui/WriteOutcome.tsx` 的 `ViewWriteCallbacks`，只声明一次：`WriteOutcome` 全收，`ViewHeader` 转手，`SaveActions` 用 `Pick` 只取 `onSaved` / `onCreated`。

@@ -30,6 +30,7 @@ import { analysisScope } from './capability.js';
 import { shapeChart, type ChartData, type ShapeContext } from './chart.js';
 import { analysisProbeLimit } from './compile.js';
 import {
+  formulaFormat,
   metricFieldOf,
   metricFormat,
   metricFunctionOf,
@@ -68,7 +69,7 @@ export interface AnalysisColumnView {
   named?: true;
   /**
    * For a metric with a condition of its own: the records it counts are
-   * only some of them, and the header says so (D20 显示名) — 「金额的合计 ·
+   * only some of them, and the header says so (D20 显示名) — 「金额的总和 ·
    * 已发运」 — unless the analyst named the column, and its description
    * says the whole condition either way.
    */
@@ -144,8 +145,20 @@ export interface AnalysisView {
    * never both set.
    */
   atLimit?: number;
-  /** Present only when `table.totals` asked for it and its query succeeded. */
+  /**
+   * Present only when `table.totals` asked for it, the result has a
+   * dimension, and its query succeeded. Without a dimension the one row *is*
+   * every record in the range, and a totals row under it said the same
+   * numbers twice (2026-09-23 audit).
+   */
   totals?: RecordData;
+  /**
+   * 「只保留」 was in force: groups the having dropped are in `totals` and in
+   * no row, so a table says so where its totals are rather than leave the
+   * two to disagree unexplained. Absent without a dimension, where there is
+   * nothing to drop.
+   */
+  narrowed?: true;
   /**
    * The ungrouped answer — every record in the range, one row — when the
    * config asked for it (`asksForWhole`) and its query succeeded. What a
@@ -337,7 +350,18 @@ export function projectAnalysis(
         ...(condition ? { condition } : {}),
         width: declaredColumn?.width,
         numberFormat: metric
-          ? metricFormat(metric, field)
+          ? metricFormat(
+              metric,
+              field ??
+                (isFormula(metric)
+                  ? {
+                      numberFormat: formulaFormat(
+                        metric.expression,
+                        name => byName.get(name)?.numberFormat,
+                      ),
+                    }
+                  : undefined),
+            )
           : field?.numberFormat,
         ...(field && valued.has(alias) ? valueOf(field) : {}),
         ...bucketOf(groups.get(alias)),
@@ -353,7 +377,12 @@ export function projectAnalysis(
     schema: resultSchema(config).flatMap(describe),
     ...cut,
     ...(overall ? { overall } : {}),
-    ...(overall && config.table.totals ? { totals: overall } : {}),
+    ...(overall && config.table.totals && config.groups.length > 0
+      ? { totals: overall }
+      : {}),
+    ...(config.having !== undefined && config.groups.length > 0
+      ? { narrowed: true as const }
+      : {}),
     // The probe row is not one of the groups the reader asked for, so the
     // chart is shaped from the rows that survive the cut: a pie's shares and
     // a "other" tail are over what is on screen and nothing else.
@@ -429,9 +458,13 @@ function scopeFields(
 }
 
 /**
- * A formula or a derived metric said as its author would — 「金额 − 成本」,
- * 「金额合计 ÷ 客户数」 — which is the only name either has: no field stands
+ * A formula or a derived metric said as its author would — 「(金额 − 成本)」,
+ * 「金额总和 ÷ 客户数」 — which is the only name either has: no field stands
  * behind a formula, and a derived metric reads other metrics by alias.
+ *
+ * A formula is bracketed, because its name is the `{field}` a summary is
+ * composed around: 「金额 − 成本的总和」 reads as 金额 minus the sum of
+ * 成本 (2026-09-23 audit), 「(金额 − 成本)的总和」 as what was computed.
  */
 function formulaLabel(
   metric: AnalysisMetric,
@@ -440,7 +473,8 @@ function formulaLabel(
   conditionOf: (metric: AnalysisMetric) => MetricCondition | undefined,
 ): string | undefined {
   const fieldLabel = (field: string) => byName.get(field)?.label ?? field;
-  if (isFormula(metric)) return expressionText(metric.expression, fieldLabel);
+  if (isFormula(metric))
+    return expressionText(metric.expression, fieldLabel, true);
   if (metric.type !== 'DERIVED') return undefined;
   return derivedText(metric.expression, alias => {
     const referenced = byAlias.get(alias);

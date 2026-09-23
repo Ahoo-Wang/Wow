@@ -417,7 +417,7 @@ describe('a metric written as a formula', () => {
     await waitFor(() =>
       expect(headers()).toContain(
         formatMessage(defaultMessages, 'label.summary.of', {
-          field: 'Amount − Cost',
+          field: '(Amount − Cost)',
           fn: defaultMessages['label.summary.fn.SUM'],
         }),
       ),

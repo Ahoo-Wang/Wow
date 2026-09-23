@@ -85,7 +85,7 @@ export function ConditionButton({
  * — so the reading of the number is on the card, not behind the funnel.
  *
  * `onName` is there when the condition has no one value to name the metric
- * by (D20 显示名): its name is 「金额的合计 · 有条件」 until the analyst
+ * by (D20 显示名): its name is 「金额的总和 · 有条件」 until the analyst
  * gives it one, and a name that says only "there is a condition" is asked to
  * be replaced right where the condition is said, not left to a menu.
  */
@@ -224,6 +224,11 @@ export function ConditionsBlock({
   );
 }
 
+/** A tree with nothing in it: a group of no children. */
+export function isEmptyTree(tree: FilterTree | undefined): boolean {
+  return tree === undefined || tree.children.length === 0;
+}
+
 /** A metric's own conditions, over the scalar fields of the scope. */
 export function ConditionBlock({
   analysis,
@@ -256,7 +261,12 @@ export function ConditionBlock({
       analysis={analysis}
       disabled={disabled}
       optionsFor={optionsFor}
-      onChange={next => analysis.setMetricFilter(index, next)}
+      // The last condition taken out leaves no condition rather than an
+      // empty one, which is what opening the block left too: an empty
+      // group is only ever written when Apply runs past it (`Tray`).
+      onChange={next =>
+        analysis.setMetricFilter(index, isEmptyTree(next) ? undefined : next)
+      }
       onClear={() => {
         analysis.setMetricFilter(index, undefined);
         onClose();

@@ -202,13 +202,29 @@ describe('keeping only some of the groups', () => {
     await open({}, keepingDefinition(false));
     expect(group()).toBeNull();
 
+    expect(addRow()).toBeNull();
+
     cleanup();
     await open({ groups: [] });
     expect(group()).toBeNull();
+    expect(addRow()).toBeNull();
 
     cleanup();
     await open();
-    expect(group()).not.toBeNull();
+    // With no row yet there is no block — a legend over a lone button was
+    // two rows of the tray saying nothing is kept (2026-09-23 audit P1) —
+    // only 「只保留…」 on the result's line, beside the sort and the N.
+    expect(group()).toBeNull();
+    const order = document.querySelector<HTMLElement>(
+      '[data-slot="analysis-order"]',
+    )!;
+    expect(order.contains(addRow())).toBe(true);
+    expect(addRow()!.textContent).toBe(
+      defaultMessages['label.analysis.having-first'],
+    );
+
+    fireEvent.click(addRow()!);
+    await waitFor(() => expect(group()).not.toBeNull());
     // Named by its visible label — the legend — in the result slot, not by
     // an `aria-label` a sighted reader never sees (2026-09-23 audit).
     expect(
@@ -221,10 +237,11 @@ describe('keeping only some of the groups', () => {
       }),
     ).toBe(group());
     expect(group()!.hasAttribute('aria-label')).toBe(false);
-    // Its one way in says what it adds, under the label that says why.
+    // Under its legend the next row's way in says what it adds.
     expect(addRow()!.textContent).toBe(
       defaultMessages['label.analysis.having'],
     );
+    expect(group()!.contains(addRow())).toBe(true);
   });
 
   /**
@@ -244,7 +261,7 @@ describe('keeping only some of the groups', () => {
   });
 
   /**
-   * A row without a value is the editor's, not the config's: 「金额合计
+   * A row without a value is the editor's, not the config's: 「金额总和
    * 大于 」 is not a comparison Wow can run, and a config on disk is always
    * one it accepts. So the row appears, and nothing is written until it says
    * a number.
@@ -443,11 +460,14 @@ describe('keeping only some of the groups', () => {
     );
 
     await waitFor(() => expect('having' in json(draft(engine))).toBe(false));
+    // Nothing kept, so no block: the line's 「只保留…」 is the way back in.
+    await waitFor(() => expect(group()).toBeNull());
     expect(
-      within(group()!).queryByText(
-        defaultMessages['label.analysis.having-unreadable'],
-      ),
+      screen.queryByText(defaultMessages['label.analysis.having-unreadable']),
     ).toBeNull();
+    expect(addRow()!.textContent).toBe(
+      defaultMessages['label.analysis.having-first'],
+    );
   });
 
   /** And the whole point: the query that runs carries it. */
@@ -606,7 +626,7 @@ describe("the result's reading says which groups were kept", () => {
     );
 
     expect(reading()!.textContent).toBe(
-      '按Warehouse · 记录数、Amount的合计、Amount的任一值 · 只保留 Amount的合计 大于 2,000 并且 记录数 不大于 5',
+      '按Warehouse · 记录数、Amount的总和、Amount的任一值 · 只保留 Amount的总和 大于 2,000 并且 记录数 不大于 5',
     );
 
     cleanup();
@@ -615,7 +635,7 @@ describe("the result's reading says which groups were kept", () => {
       { messages: zhCN, locale: 'zh-CN' },
     );
     expect(reading()!.textContent).toBe(
-      '按Warehouse · 记录数、Amount的合计、Amount的任一值 · 只保留符合自定义规则的组',
+      '按Warehouse · 记录数、Amount的总和、Amount的任一值 · 只保留符合自定义规则的组',
     );
   });
 

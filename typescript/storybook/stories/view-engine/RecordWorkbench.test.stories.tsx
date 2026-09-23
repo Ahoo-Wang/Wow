@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 import type { StoryObj } from '@storybook/react-vite';
-import { expect, userEvent, waitFor, within } from 'storybook/test';
+import { expect, screen, userEvent, waitFor, within } from 'storybook/test';
 import {
   defaultMessages,
   formatMessage,
@@ -2113,6 +2113,7 @@ export const TableSettings: Story = {
     await userEvent.click(
       canvas.getByRole('button', { name: zhCN['label.save.save'] }),
     );
+    await confirmSharedSave();
     await waitFor(async () => {
       const saved = await tableSettingsStore.current!.get('orders-pending');
       // The config keeps the order the reorder committed; where a pinned
@@ -2200,6 +2201,7 @@ export const TableSettingsPointerDrag: Story = {
     await userEvent.click(
       canvas.getByRole('button', { name: zhCN['label.save.save'] }),
     );
+    await confirmSharedSave();
     await waitFor(async () => {
       const saved = await tableSettingsStore.current!.get('orders-pending');
       expect(
@@ -2277,6 +2279,7 @@ export const HiddenColumnKeepsItsPlace: Story = {
     await userEvent.click(
       canvas.getByRole('button', { name: zhCN['label.save.save'] }),
     );
+    await confirmSharedSave();
     await waitFor(async () => {
       const saved = await tableSettingsStore.current!.get('orders-pending');
       expect((saved.config as RecordViewConfig).table.columns).toEqual([
@@ -2447,6 +2450,7 @@ export const ColumnResize: Story = {
     await userEvent.click(
       canvas.getByRole('button', { name: zhCN['label.save.save'] }),
     );
+    await confirmSharedSave();
     await waitFor(async () => {
       const saved = await tableSettingsStore.current!.get('orders-pending');
       const column = (saved.config as RecordViewConfig).table.columns.find(
@@ -2856,6 +2860,32 @@ async function dirtyTheDraft(canvasElement: HTMLElement): Promise<void> {
 async function save(canvas: ReturnType<typeof within>): Promise<void> {
   await pressWhenEnabled(
     canvas.getByRole('button', { name: zhCN['label.save.save'] }),
+  );
+  await confirmSharedSave();
+}
+
+/**
+ * Saving over a shared view asks first (2026-09-23 audit): these stories'
+ * views are shared, so every save in place goes through the confirmation,
+ * which names the view and writes on 「更新给所有人」.
+ */
+async function confirmSharedSave(): Promise<void> {
+  const dialog = await screen.findByRole('alertdialog', {
+    name: zhCN['label.save.shared-heading'],
+  });
+  await userEvent.click(
+    within(dialog).getByRole('button', {
+      name: zhCN['label.save.shared-confirm'],
+    }),
+  );
+  // Gone before the play reads on: while it is up, the page under it is
+  // hidden from the accessibility tree the queries read.
+  await waitFor(() =>
+    expect(
+      screen.queryByRole('alertdialog', {
+        name: zhCN['label.save.shared-heading'],
+      }),
+    ).toBeNull(),
   );
 }
 

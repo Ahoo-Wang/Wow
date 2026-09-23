@@ -18,7 +18,11 @@ import type {
   FieldOption,
   RecordData,
 } from '../../model/index.js';
-import type { ViewRuntime } from '../../runtime/index.js';
+import {
+  CUT_SHORT_CODES,
+  resultIssues,
+  type ViewRuntime,
+} from '../../runtime/index.js';
 import {
   useAnalysisEditor,
   useSearchBox,
@@ -41,6 +45,7 @@ import {
 } from '../analysis/SkeletonResult.js';
 import { wayOutOf } from '../record/emptyWayOut.js';
 import { useAnnouncer } from '../Announcer.js';
+import { NoteStrip, WarningStrip } from '../StatusStrip.js';
 import { featuresOf, type WorkbenchFeatures } from '../features.js';
 import type { ViewMessages } from '../messages.js';
 import { useViewMessages } from '../MessagesProvider.js';
@@ -169,10 +174,16 @@ export function AnalysisParts({
   // — as the record view's rows are (`record/queryAnnouncement.ts`).
   const { say, region: announcement } = useAnnouncer('analysis-announcement');
   const querying = state?.query.status === 'loading';
+  // Without a dimension the answer is one row that is the whole range: no
+  // groups to count, so neither the footer nor the announcement counts
+  // any — 「正在显示 1 组」 was a count of something that was never grouped.
+  const whole = result.ran?.groups.length === 0;
   const sentence = querying
     ? messages.label('label.status.querying')
     : view
-      ? messages.label('label.status.groups', { count: view.rows.length })
+      ? whole
+        ? messages.label('label.analysis.answered')
+        : messages.label('label.status.groups', { count: view.rows.length })
       : null;
   const said = useRef<string | null>(null);
   useEffect(() => {
@@ -211,8 +222,15 @@ export function AnalysisParts({
     filter.unmarked.length > 0 &&
     filter.unmarked.every(found => found.path[0] === 'chart');
 
+  // The result's own sentences about the groups below its last row, drawn
+  // over the rows (below) and left out of the status line (`besideResult`).
+  const cutShort = resultIssues(state?.result?.data).filter(found =>
+    CUT_SHORT_CODES.includes(found.code),
+  );
+
   if (!runtime) return children(NO_PARTS);
   return children({
+    besideResult: CUT_SHORT_CODES,
     // The caption is this kind's furniture in the frame (`resultSlots`).
     resultSlots: RESULT_SLOTS,
     // The tray folds under the title bar's "Analysis" button, exactly where
@@ -251,25 +269,29 @@ export function AnalysisParts({
     // sending a funnel short of stages to 「打开分析」 opened the one place
     // that could not fix it (the 2026-09-23 audit). With the panel switched
     // off by the host there is no way to it, so no button.
-    errorAction: chartOnly ? (
-      shown.visualization && (
-        <Button
-          variant="outline"
-          size="xs"
-          onClick={() => setPanel(question ? 'options' : 'picker')}
-        >
-          {messages.label('label.analysis.open-chart-options')}
-        </Button>
-      )
-    ) : (
-      <Button
-        variant="outline"
-        size="xs"
-        onClick={() => setFold({ id: runtimeId, open: true })}
-      >
-        {messages.label('label.analysis.open-editor')}
-      </Button>
-    ),
+    errorAction: chartOnly
+      ? shown.visualization && (
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={() => setPanel(question ? 'options' : 'picker')}
+          >
+            {messages.label('label.analysis.open-chart-options')}
+          </Button>
+        )
+      : // Only while the tray is folded away: it is the tray this opens, and
+        // over an open tray 「打开分析」 pointed at the very thing under it —
+        // the finding is marked there already (2026-09-23 audit).
+        (editorOpen: boolean) =>
+          !editorOpen && (
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={() => setFold({ id: runtimeId, open: true })}
+            >
+              {messages.label('label.analysis.open-editor')}
+            </Button>
+          ),
     // From the moment a question is sent, whatever comes of it: the reading
     // is the question's (`useAnalysisResult().columns`), and the switches
     // beside it redraw and never run, so they work while the first answer
@@ -326,10 +348,11 @@ export function AnalysisParts({
       <>
         <div
           data-slot="analysis-result"
-          // While the draft is about to run on its own (改了就跑), the rows on
-          // screen answer the last question: kept, faded rather than cleared,
-          // because the next answer is moments away and a blank in between
-          // reads as a failure.
+          // While the draft is about to run on its own (改了就跑), and for as
+          // long as the answer to a new question is on its way, the rows on
+          // screen answer the last question: kept, faded rather than
+          // cleared, because a blank in between reads as a failure — and a
+          // slow query has to look like one still working (2026-09-23 audit).
           data-stale={analysis.stale || undefined}
           // A column of its own rather than `contents`: an element with
           // `display: contents` generates no box, and a property that paints
@@ -344,6 +367,18 @@ export function AnalysisParts({
               in force; a chart of no rows is a pair of empty axes, which reads
               as a drawing that failed rather than as a range that matched
               nothing. */}
+          {/* Where the rows are cut short, the sentence that says so, just
+              above them: it is about these rows, and in the status line it
+              sat over the title bar's edge of the view, a screen away from
+              the table it described (2026-09-23 audit). A ranking — sorted by
+              a metric and cut at N on purpose — says nothing
+              (`cutShortIssues`). */}
+          {view && view.rows.length > 0 && cutShort.length > 0 && (
+            <div data-slot="analysis-cut-short" className="pb-2">
+              <WarningStrip issues={cutShort} />
+              <NoteStrip issues={cutShort} />
+            </div>
+          )}
           {!view ? (
             // Before the first answer, its shape; after a first query that
             // failed, nothing — the failure is the query strip's to say, under
@@ -387,7 +422,7 @@ export function AnalysisParts({
             the report having dropped off (the user's 2026-09-23 review). */}
         {view ? (
           <AnalysisCaption
-            rows={view.rows.length}
+            rows={whole ? null : view.rows.length}
             elapsedMs={state?.result?.elapsedMs ?? null}
           />
         ) : (
@@ -412,7 +447,11 @@ const RESULT_SLOTS = resultSlots('caption');
 const NO_SORT: readonly AnalysisSort[] = [];
 
 /**
- * The analysis result's footer: 「正在显示 12 组，耗时 0.38 秒」.
+ * The analysis result's footer: 「正在显示 12 组，耗时 0.38 秒」 — or, with no
+ * dimension, only 「耗时 0.38 秒」. An ungrouped answer is one row that is
+ * every record in the range; 「1 组」 counted a grouping nobody asked for,
+ * and 「1 行」 would count what the reader can see at a glance. What is left
+ * worth saying is how long it took.
  *
  * The time reads as a person reads a stopwatch: two decimals under a
  * second, where the difference between 0.04 and 0.38 is the difference a
@@ -422,12 +461,18 @@ function AnalysisCaption({
   rows,
   elapsedMs,
 }: {
-  rows: number;
+  /** The groups on screen; `null` when nothing was grouped. */
+  rows: number | null;
   elapsedMs: number | null;
 }) {
   const messages = useViewMessages();
   const { locale } = useSurfaceDisplay();
   const seconds = (elapsedMs ?? 0) / 1000;
+  const time = formatNumber(
+    seconds,
+    { maximumFractionDigits: seconds < 1 ? 2 : 1 },
+    locale,
+  );
   return (
     <div
       data-slot="analysis-caption"
@@ -436,14 +481,12 @@ function AnalysisCaption({
       // (the user's 2026-09-23 review).
       className="text-muted-foreground text-right text-sm tabular-nums"
     >
-      {messages.label('label.analysis.caption', {
-        count: formatNumber(rows, undefined, locale),
-        seconds: formatNumber(
-          seconds,
-          { maximumFractionDigits: seconds < 1 ? 2 : 1 },
-          locale,
-        ),
-      })}
+      {rows === null
+        ? messages.label('label.analysis.caption-whole', { seconds: time })
+        : messages.label('label.analysis.caption', {
+            count: formatNumber(rows, undefined, locale),
+            seconds: time,
+          })}
     </div>
   );
 }

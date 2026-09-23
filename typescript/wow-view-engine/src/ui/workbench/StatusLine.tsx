@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { ReactNode } from 'react';
 import { cn } from 'cn';
 import type { Issue, ViewKind } from '../../model/index.js';
 import type { WorkbenchController } from '../../react/index.js';
@@ -22,8 +23,10 @@ import type { WorkbenchShellProps } from '../WorkbenchShell.js';
 
 export interface StatusLineProps extends Pick<
   WorkbenchShellProps,
-  'warnings' | 'errorAction' | 'nameIssue'
+  'warnings' | 'besideResult' | 'nameIssue'
 > {
+  /** The way out of an error, already resolved against the editor's fold. */
+  errorAction?: ReactNode;
   /** The filter's unmarked findings, the definition's and the list's. */
   workbench: WorkbenchController;
   /** The open view, whose findings and result are the rest of it. */
@@ -46,10 +49,15 @@ export function StatusLine({
   kind,
   warnings,
   errorAction,
+  besideResult,
   nameIssue = sayAsIs,
 }: StatusLineProps) {
   const messages = useViewMessages();
   const { filter, list } = workbench;
+  // What the result says about itself, less what the kind says beside it.
+  const said = resultIssues(state.result?.data).filter(
+    found => !besideResult?.includes(found.code),
+  );
   return (
     <div
       data-slot="status-line"
@@ -76,9 +84,7 @@ export function StatusLine({
         order, so it is said as a warning and said once. */}
       <WarningStrip
         issues={[
-          ...(
-            warnings ?? [...state.issues, ...resultIssues(state.result?.data)]
-          ).map(nameIssue),
+          ...(warnings ?? [...state.issues, ...said]).map(nameIssue),
           ...workbench.definitionIssues,
           ...(list.preferencesError
             ? [
@@ -92,9 +98,7 @@ export function StatusLine({
       />
       {/* What is true of the answer and nothing is wrong with, under the
           warnings and quieter than them (`note`). */}
-      <NoteStrip
-        issues={[...state.issues, ...resultIssues(state.result?.data)]}
-      />
+      <NoteStrip issues={[...state.issues, ...said]} />
     </div>
   );
 }

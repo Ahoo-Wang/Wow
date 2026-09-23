@@ -65,6 +65,7 @@ export const HOST_LANGUAGE = { messages: zhCN, locale: 'zh-CN' } as const;
 export const ordersDefinition: DataViewDefinition = {
   id: 'orders',
   title: '订单',
+  recordNoun: '订单',
   kind: 'data',
   source: 'orders',
   fields: [
@@ -855,6 +856,7 @@ const WAYBILL_TAGS: FieldOption[] = [
 export const waybillsDefinition: DataViewDefinition = {
   id: 'waybills',
   title: '运单',
+  recordNoun: '运单',
   kind: 'data',
   source: 'waybills',
   fields: [
@@ -1231,6 +1233,7 @@ const FAILED_EVENTS: RecordData[] = [
 export const failedEventsDefinition: DataViewDefinition = {
   id: 'failed-events',
   title: '失败的事件',
+  recordNoun: '失败事件',
   kind: 'data',
   source: 'failed-events',
   fields: [

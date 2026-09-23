@@ -15,7 +15,7 @@ import type { AnalysisHavingExpression } from '../model/index.js';
 
 /**
  * 「只保留」 (D20 屏 B; Wow `having`): the grouped rows kept, said as rows of
- * one comparison each — 「金额合计 大于 10,000」 — all of which must hold.
+ * one comparison each — 「金额总和 大于 10,000」 — all of which must hold.
  * Wow's having is a small expression language (conditions, ranges, sets,
  * null checks, and/or trees); the tray offers the one shape an analyst
  * reaches for, a conjunction of comparisons, and reads any other shape a

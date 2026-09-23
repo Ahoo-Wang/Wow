@@ -404,10 +404,14 @@ export function freeAlias(base: string, taken: readonly string[]): string {
 }
 
 /**
- * A second card of the same metric with an empty condition to fill in
- * (D20 屏 H 「复制并加条件」): a free alias, no display name — two cards
- * called the same thing is the ambiguity a name exists to resolve — and the
- * summary kept. A derived metric carries no condition and is not copied.
+ * A second card of the same metric, for a condition of its own (D20 屏 H
+ * 「复制并加条件」): a free alias, no display name — two cards called the
+ * same thing is the ambiguity a name exists to resolve — the summary kept,
+ * and no condition yet. The card opens its conditions for one; an empty
+ * group written here would be a draft that refuses itself before the
+ * analyst has done anything (2026-09-23 audit), so the condition is written
+ * with its first entry. A derived metric carries no condition and is not
+ * copied.
  */
 export function metricWithCondition(
   source: AnalysisMetric,
@@ -415,8 +419,7 @@ export function metricWithCondition(
 ): AnalysisMetric | undefined {
   if (source.type === 'DERIVED') return undefined;
   return {
-    ...without(source, 'label'),
+    ...without(without(source, 'label'), 'filter'),
     alias: freeAlias(source.alias, taken),
-    filter: { op: 'and', children: [] },
   } as AnalysisMetric;
 }

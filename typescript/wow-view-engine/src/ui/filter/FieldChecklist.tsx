@@ -83,12 +83,20 @@ export function FieldChecklist({
   parent,
   disabled,
   label,
+  name,
 }: {
   filter: FilterTreeController;
   parent: FilterPath;
   disabled?: boolean;
-  /** The button's text, which is also its accessible name. */
+  /** The button's text, and its accessible name unless `name` says more. */
   label: string;
+  /**
+   * The accessible name, where the text alone would not tell two of these
+   * apart: a metric's condition block and the range both say 「添加条件」,
+   * and the name says whose (「金额的总和 添加条件」). It keeps the text in
+   * it, so what a reader hears is what a sighted user reads, plus whose.
+   */
+  name?: string;
 }) {
   const messages = useViewMessages();
   const [open, setOpen] = useState(false);
@@ -180,6 +188,7 @@ export function FieldChecklist({
       <PopoverTrigger
         disabled={disabled}
         render={<Button variant="outline" size="sm" disabled={disabled} />}
+        aria-label={name}
       >
         <PlusIcon data-icon="inline-start" />
         {label}

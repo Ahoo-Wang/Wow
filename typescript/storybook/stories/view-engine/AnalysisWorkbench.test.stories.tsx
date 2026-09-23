@@ -92,7 +92,7 @@ export default meta;
 type Story = StoryObj<typeof displayMeta>;
 
 /**
- * 「金额的合计」: the two parts a metric header is composed of (D20), and
+ * 「金额的总和」: the two parts a metric header is composed of (D20), and
  * the same sentence anything that *names* that metric says — the funnel,
  * the menu, the removal — since none of them has the summary control
  * beside it the way the card's own title does.
@@ -1275,7 +1275,7 @@ export const TableWithTotals: Story = {
       ]),
     );
     // A metric is headed by its two parts, never by the alias the query
-    // carried: 「金额的合计」, and a count of records by what it counts.
+    // carried: 「金额的总和」, and a count of records by what it counts.
     await expect(readColumn(table, COUNT_HEADER)).toEqual(['2', '1', '2', '1']);
     await expect(readColumn(table, AMOUNT_HEADER).map(amountOf)).toEqual([
       1920, 2450, 4880, 980,
@@ -1375,13 +1375,13 @@ export const PinnedCategoryColor: Story = {
 /** The sentence the strip says when the probe row came back. */
 const CUT_SHORT = zhCN['analysis.result.more-groups'].replace('{limit}', '2');
 
-/** The status-line strip: the one `status` that wears the strip's slot. */
+/** The strip that says it: the one `status` that wears the strip's slot. */
 async function findStrip(canvas: ReturnType<typeof within>) {
   const strips = await canvas.findAllByRole('status');
   const strip = strips.find(
     (found: HTMLElement) => found.getAttribute('data-slot') === 'status-strip',
   );
-  if (!strip) throw new Error('no status strip on the status line');
+  if (!strip) throw new Error('no status strip');
   return strip;
 }
 
@@ -1407,9 +1407,18 @@ export const CutShort: Story = {
       canvasElement.querySelector('[data-slot="pie-measure"]'),
     ).toHaveTextContent(zhCN['label.chart.share-basis']);
 
-    // The strip, not the result's live region: both are `status`, and only
-    // the strip is on the status line.
-    await expect(await findStrip(canvas)).toHaveTextContent(CUT_SHORT);
+    // The strip, not the result's live region: both are `status`. It is
+    // drawn just above the chart it is about (2026-09-23 audit), not on the
+    // status line a screen away — and a pie keeps it even sorted by a
+    // metric, since its slices are shares of what is shown.
+    const strip = await findStrip(canvas);
+    await expect(strip).toHaveTextContent(CUT_SHORT);
+    await expect(strip.closest('[data-slot="analysis-cut-short"]')).not.toBe(
+      null,
+    );
+    await expect(
+      canvasElement.querySelector('[data-slot="status-line"]'),
+    ).not.toHaveTextContent(CUT_SHORT);
   },
 };
 
@@ -1426,8 +1435,21 @@ export const CutShortTable: Story = {
     // every order — which is how two rows can add up to less than the total
     // under them without either number being wrong.
     await expect(amountOf(readTotal(table, AMOUNT_HEADER))).toBe(10230);
+    // And it says, where it is, what it holds that the two rows do not
+    // (2026-09-23 audit): the groups past the first two.
+    await expect(
+      canvasElement.querySelector('[data-slot="totals-hidden"]'),
+    ).toHaveTextContent(
+      formatMessage(zhCN, 'label.analysis.totals-hidden.cut', { limit: '2' }),
+    );
 
-    await expect(await findStrip(canvas)).toHaveTextContent(CUT_SHORT);
+    // Sorted by a metric and cut at two: a ranking, which left the rest out
+    // on purpose — so no 「只显示了前 2 组」 note tells its author what they
+    // asked for, neither over the table nor in the status line.
+    await expect(canvas.queryByText(CUT_SHORT)).toBeNull();
+    await expect(
+      canvasElement.querySelector('[data-slot="analysis-cut-short"]'),
+    ).toBeNull();
   },
 };
 
@@ -1963,7 +1985,7 @@ export const TrayEdits: Story = {
   },
 };
 
-/** 「成本的合计」: the metric the regression below adds. */
+/** 「成本的总和」: the metric the regression below adds. */
 const COST_HEADER = formatMessage(zhCN, 'label.summary.of', {
   field: '成本',
   fn: zhCN['label.summary.fn.SUM'],
@@ -2122,10 +2144,12 @@ export const EditorRowSpacing: Story = {
  * 托盘读得清（2026-09-23 审查，P1）。
  *
  * 一、「只保留」「排序」「前 N 组」自成「结果」一步，排在维度与指标后面，每一项
- * 都有看得见的名字，按 Wow 施加它们的顺序从上到下：只保留在上，排序与前 N 组
- * 同一行、排序在前。
+ * 都有看得见的名字，按 Wow 施加它们的顺序：排序、前 N 组与「只保留…」同在一
+ * 行（名字在控件左边，不再各占一行）；加了一条「只保留」，它的块在那一行上面。
+ * 没有排序时，前 N 组旁边说「未排序时由数据源决定取哪几组」。
  * 二、「自动运行」开着、没有东西等应用时，应用是描边按钮，不是全屏最实的那一
- * 颗；范围里加了条件（它要等应用）才回到实心。开关名下一行说它管什么。
+ * 颗；范围里加了条件（它要等应用）才回到实心。开关旁边那句说它管什么——范围里
+ * 有没应用的条件时，改说为什么现在不自动运行。
  * 三、托盘封顶工作列的一半，槽在里面滚，底行（自动运行／清空／应用）不滚、总看
  * 得见；结果不再被挤到它的下限。
  */
@@ -2146,9 +2170,6 @@ export const TrayReadsClearly: Story = {
     await expect(result.getBoundingClientRect().top).toBeGreaterThanOrEqual(
       metrics.getBoundingClientRect().bottom,
     );
-    const keep = within(result).getByRole('group', {
-      name: zhCN['label.analysis.having-title'],
-    });
     const sort = within(result).getByRole('group', {
       name: zhCN['label.sort.title'],
     });
@@ -2158,10 +2179,49 @@ export const TrayReadsClearly: Story = {
     const limit = limitBox.closest<HTMLElement>(
       '[data-slot="analysis-limit"]',
     )!;
+    const box = (element: HTMLElement) => element.getBoundingClientRect();
+    // No row kept yet: no 「只保留」 block, only 「只保留…」 on the line.
+    await expect(
+      within(result).queryByRole('group', {
+        name: zhCN['label.analysis.having-title'],
+      }),
+    ).toBeNull();
+    const firstKeep = within(result).getByRole('button', {
+      name: zhCN['label.analysis.having-first'],
+    });
+    // One line: the three stand on one centre line, in Wow's order.
+    const middle = (element: HTMLElement) =>
+      (box(element).top + box(element).bottom) / 2;
+    await expect(Math.abs(middle(sort) - middle(limit))).toBeLessThan(1);
+    await expect(Math.abs(middle(sort) - middle(firstKeep))).toBeLessThan(1);
+    await expect(box(sort).right).toBeLessThanOrEqual(box(limit).left);
+    await expect(box(limit).right).toBeLessThanOrEqual(box(firstKeep).left);
+    // Each label beside its control, on the control's line.
+    const sortLabel = sort.querySelector<HTMLElement>(
+      '[data-slot="field-label"]',
+    )!;
+    await expect(box(sortLabel).bottom).toBeGreaterThan(box(sort).top);
+    await expect(box(sortLabel).right).toBeLessThanOrEqual(
+      box(sort.querySelector<HTMLElement>('button')!).left,
+    );
+    // Nothing sorts the groups, so which N come back is the source's.
+    const unsorted = limit.querySelector<HTMLElement>(
+      '[data-slot="limit-unsorted"]',
+    )!;
+    await expect(unsorted).toBeVisible();
+    await expect(unsorted).toHaveTextContent(
+      zhCN['label.analysis.row-limit-unsorted'],
+    );
+    await expect(limitBox).toHaveAttribute('aria-describedby', unsorted.id);
+
+    await userEvent.click(firstKeep);
+    const keep = await within(result).findByRole('group', {
+      name: zhCN['label.analysis.having-title'],
+    });
     // The names are text a sighted analyst reads, not only a reader's.
     const visible = [
       keep.querySelector('legend'),
-      sort.querySelector('[data-slot="field-label"]'),
+      sortLabel,
       result.querySelector(`label[for="${limitBox.id}"]`),
     ];
     await expect(visible.map(label => label?.textContent)).toEqual([
@@ -2170,10 +2230,7 @@ export const TrayReadsClearly: Story = {
       zhCN['label.analysis.row-limit'],
     ]);
     for (const label of visible) await expect(label).toBeVisible();
-    const box = (element: HTMLElement) => element.getBoundingClientRect();
     await expect(box(keep).bottom).toBeLessThanOrEqual(box(sort).top);
-    await expect(Math.abs(box(sort).top - box(limit).top)).toBeLessThan(1);
-    await expect(box(sort).right).toBeLessThanOrEqual(box(limit).left);
 
     // 二、Apply rests while auto-run leaves it nothing to do. The checked
     // box wears the primary fill, which is what a filled Apply would share.
@@ -2181,11 +2238,11 @@ export const TrayReadsClearly: Story = {
     const apply = applyButton(canvasElement);
     await expect(apply).toHaveAttribute('data-emphasis', 'quiet');
     await expect(getComputedStyle(apply).backgroundColor).not.toBe(primary);
-    await expect(
-      within(
-        canvasElement.querySelector<HTMLElement>('[data-slot="auto-run"]')!,
-      ).getByText(zhCN['label.analysis.auto-run-hint']),
-    ).toBeVisible();
+    const hint = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="auto-run-hint"]',
+    )!;
+    await expect(hint).toBeVisible();
+    await expect(hint).toHaveTextContent(zhCN['label.analysis.auto-run-hint']);
 
     // A condition in the range waits for Apply, so Apply fills again.
     const range = canvas.getByRole('region', {
@@ -2210,6 +2267,9 @@ export const TrayReadsClearly: Story = {
       expect(apply).toHaveAttribute('data-emphasis', 'primary'),
     );
     await expect(getComputedStyle(apply).backgroundColor).toBe(primary);
+    // And the sentence by the switch says why nothing runs on its own now.
+    await expect(hint).toHaveTextContent(zhCN['label.analysis.auto-run-held']);
+    await expect(hint).toHaveAttribute('data-held');
 
     // Two rows kept on top of six conditions: a tray taller than half.
     for (let i = 0; i < 2; i++)
@@ -2238,6 +2298,134 @@ export const TrayReadsClearly: Story = {
     await expect(box(footer).top).toBeGreaterThanOrEqual(box(band).top);
     await expect(box(footer).bottom).toBeLessThanOrEqual(box(band).bottom);
     await expect(apply).toBeVisible();
+  },
+};
+
+/**
+ * The two screens the 2026-09-23 audit measured the tray on: a laptop at
+ * 1440×900 and a phone at 414 wide. The test runner sizes the page to them
+ * (`parameters.viewport`, read by the Storybook Vitest plugin).
+ */
+const TRAY_VIEWPORTS = {
+  viewport: {
+    options: {
+      desk: { name: '1440×900', styles: { width: '1440px', height: '900px' } },
+      phone: { name: '414×896', styles: { width: '414px', height: '896px' } },
+    },
+  },
+};
+
+/** The tray open over the saved table, and the boxes the two stories measure. */
+async function openedTrayBoxes(canvasElement: HTMLElement) {
+  await within(canvasElement).findByRole('table');
+  const opened = await openTray(canvasElement);
+  const part = (slot: string) =>
+    canvasElement.querySelector<HTMLElement>(`[data-slot="${slot}"]`)!;
+  const slots = opened.querySelector<HTMLElement>(
+    '[data-slot="analysis-tray-slots"]',
+  )!;
+  return {
+    main: canvasElement.querySelector<HTMLElement>('.fve-root > main')!,
+    band: part('editor-band'),
+    slots,
+    order: part('analysis-order'),
+    footer: part('analysis-tray-actions'),
+    result: part('result-block'),
+  };
+}
+
+/**
+ * 托盘在 1440×900 下不用滚就看得到「排序／前 N 组」（2026-09-23 审查 P1）。
+ *
+ * 从前结果槽每个控件的名字各占一行、「只保留」一个图例压着一颗按钮，底行三行，
+ * 托盘要滚才露出排序。现在结果槽一行、底行一行：这里量槽不需要滚、排序那一行
+ * 整个在编辑带里，托盘仍在工作列一半之内，结果块比从前高（从前约 305px）。
+ */
+export const TrayFitsADesk: Story = {
+  ...DisplayTableWithTotals,
+  parameters: { ...DisplayTableWithTotals.parameters, ...TRAY_VIEWPORTS },
+  globals: { viewport: { value: 'desk' } },
+  play: async ({ canvasElement }) => {
+    await expect(window.innerWidth).toBe(1440);
+    const { main, band, slots, order, footer, result } =
+      await openedTrayBoxes(canvasElement);
+    const box = (element: HTMLElement) => element.getBoundingClientRect();
+    await waitFor(() =>
+      expect(slots.scrollHeight).toBeLessThanOrEqual(slots.clientHeight + 1),
+    );
+    await expect(box(order).bottom).toBeLessThanOrEqual(box(band).bottom);
+    await expect(box(order).top).toBeGreaterThanOrEqual(box(band).top);
+    await expect(box(band).height).toBeLessThanOrEqual(
+      box(main).height / 2 + 1,
+    );
+    // One row each: the result's line and the footer.
+    await expect(box(order).height).toBeLessThan(40);
+    await expect(box(footer).height).toBeLessThan(40);
+    await expect(box(result).height).toBeGreaterThan(340);
+  },
+};
+
+/**
+ * 414 宽的手机上结果不再只剩约 230px（2026-09-23 审查 P1）。窄屏托盘封顶约
+ * 三分之一（`styles.css`），槽在里面滚、底行不滚；自动运行那句说明换到按钮下面
+ * 一整行，底行不再是三行。这里量结果块至少 340px（从前约 275px）、托盘不过
+ * 工作列的 36%、应用按钮仍在编辑带里看得见。
+ */
+export const TrayFitsAPhone: Story = {
+  ...DisplayTableWithTotals,
+  parameters: { ...DisplayTableWithTotals.parameters, ...TRAY_VIEWPORTS },
+  globals: { viewport: { value: 'phone' } },
+  play: async ({ canvasElement }) => {
+    await expect(window.innerWidth).toBe(414);
+    const { main, band, footer, result } = await openedTrayBoxes(canvasElement);
+    const box = (element: HTMLElement) => element.getBoundingClientRect();
+    await expect(box(band).height).toBeLessThanOrEqual(box(main).height * 0.36);
+    await expect(box(result).height).toBeGreaterThan(340);
+    await expect(box(footer).bottom).toBeLessThanOrEqual(box(band).bottom + 1);
+    await expect(footer.getBoundingClientRect().height).toBeLessThan(60);
+    await expect(applyButton(canvasElement)).toBeVisible();
+  },
+};
+
+/**
+ * 慢查询在路上时旧结果一直淡着（2026-09-23 审查 P1）。从前只在改动后那 300ms
+ * 去抖里淡，查询一发出就恢复满格——一个要 1.5 秒的查询，旧的行在它回来之前
+ * 满格站着，读起来就是新答案。这里在数据源每次都慢 1.5 秒的视图上加一个维度：
+ * 查询已经发出（过了去抖）之后结果仍是淡的，浏览器真的把它画淡了；新的行落地
+ * 后恢复。
+ */
+export const FadesUntilAnswered: Story = {
+  ...DisplayLoading,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table', {}, { timeout: 5_000 });
+    await openTray(canvasElement);
+    const result = () =>
+      canvasElement.querySelector<HTMLElement>(
+        '[data-slot="analysis-result"]',
+      )!;
+    const before = aggregateCalls.current;
+
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.analysis.add-group'] }),
+    );
+    await userEvent.click(
+      await screen.findByRole('menuitem', { name: '状态' }),
+    );
+
+    // Sent — past the debounce — and not back yet: still faded, on screen.
+    await waitFor(() => expect(aggregateCalls.current).toBeGreaterThan(before));
+    await new Promise(resolve => setTimeout(resolve, 600));
+    await expect(result()).toHaveAttribute('data-stale');
+    await expect(Number(getComputedStyle(result()).opacity)).toBeLessThan(1);
+
+    // The answer lands: two dimensions, full strength again.
+    await waitFor(() => expect(result()).not.toHaveAttribute('data-stale'), {
+      timeout: 5_000,
+    });
+    await expect(readHeaders(await findDataTable(canvasElement))).toContain(
+      '状态',
+    );
   },
 };
 
@@ -2520,7 +2708,7 @@ export const VisualizePanel: Story = {
  * 卡片上只放问题本身的那两三个控件，别的都收进一颗按卡片命名的菜单里——
  * 一张摆着六个控件的卡片读起来是张表单，不是一句话。改完名字，列头、结果
  * 那句读法与图例都跟着改（`columnTitle`：给了名字，名字就是整个标题，后面
- * 不再缀「的合计」）；空值单独一组是分析师的选择，勾上 Wow 才会把缺值的
+ * 不再缀「的总和」）；空值单独一组是分析师的选择，勾上 Wow 才会把缺值的
  * 记录单独归一组，而不是悄悄把它们丢掉。
  */
 export const TrayCardMenu: Story = {
@@ -2590,11 +2778,11 @@ export const TrayCardMenu: Story = {
  * 一个数是在哪些记录上算出来的，这件事只有两处说得清楚：算它之前，和算它的
  * 那张卡上。所以入口是卡片上的漏斗，而不是菜单里的一项、更不是一个对话框
  * ——条件属于它收窄的那个指标，就长在那儿；写完收起来，卡片上留下一句
- * 「只算 …」，于是一屏卡片里两个「金额的合计」为什么不一样，读得出来。
+ * 「只算 …」，于是一屏卡片里两个「金额的总和」为什么不一样，读得出来。
  * 条件是这一个指标自己的：应用之后金额跟着变，旁边的记录数一颗不落。
  *
  * 它也换了名字（审计 P0-3，D20 显示名）：表头、读法那一行、卡片上每个控件
- * 都说「金额的合计 · 已发运」。从前表头还是「金额的合计」，没有发运的地区
+ * 都说「金额的总和 · 已发运」。从前表头还是「金额的总和」，没有发运的地区
  * 一格 ¥0.00，读起来就是「没有销售」；而「只算 …」那一句只在托盘的卡片上，
  * 打开一个存好的视图时托盘是收着的。表头的说明（悬停与读屏）说出整条条件。
  */
@@ -2630,11 +2818,29 @@ export const MetricCondition: Story = {
     await expect(block).toHaveTextContent(
       zhCN['label.analysis.condition-title'],
     );
+    // Just opened, nothing done: nothing is red, Save is not greyed for it,
+    // and the status line offers no 「打开分析」 over the open tray
+    // (2026-09-23 audit P1).
+    await expect(canvas.queryByRole('alert')).toBeNull();
+    await expect(
+      canvas.queryByText(zhCN['analysis.metricFilter.empty']),
+    ).toBeNull();
+    await expect(
+      canvas.queryByRole('button', {
+        name: zhCN['label.analysis.open-editor'],
+      }),
+    ).toBeNull();
+    // Its way in says what it adds, and only that.
+    await expect(
+      within(block).getByRole('button', {
+        name: `${AMOUNT_HEADER} ${zhCN['label.filter.add-condition']}`,
+      }),
+    ).toHaveTextContent(new RegExp(`^${zhCN['label.filter.add-condition']}$`));
 
     // 条件用的就是范围那一套手势：字段清单勾一个，完成，再选值。
     await userEvent.click(
       within(block).getByRole('button', {
-        name: `${AMOUNT_HEADER} ${zhCN['label.filter.add-here']}`,
+        name: `${AMOUNT_HEADER} ${zhCN['label.filter.add-condition']}`,
       }),
     );
     const picker = await screen.findByRole('dialog', {

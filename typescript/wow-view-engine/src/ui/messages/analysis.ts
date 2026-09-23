@@ -26,6 +26,10 @@ export const analysisMessages = {
   'label.analysis.row-count': 'Record count',
   // The result's footer: what is on screen and how long it took to get.
   'label.analysis.caption': 'Showing {count} groups · took {seconds} s',
+  // With no dimension the result is one row — the whole range — so the
+  // footer counts no groups: it says how long the answer took.
+  'label.analysis.caption-whole': 'Took {seconds} s',
+  'label.analysis.answered': 'Result updated',
 
   'label.analysis.editor': 'Analysis',
   // The tray's slots, in the analyst's order (D20): the range, the array
@@ -47,6 +51,8 @@ export const analysisMessages = {
   'label.analysis.expand-into': 'Expand into {name}',
   'label.analysis.collapse': 'Stop expanding {name}',
   'label.analysis.unit': 'Counting: {name}',
+  // What one record is when the definition does not say (`recordNoun`).
+  'label.analysis.records': 'records',
   'label.analysis.element-condition-of': 'Conditions on the entries of {name}',
   'label.analysis.element-condition-title': 'Only entries where',
   'label.analysis.conditions-mode': 'Conditions: {mode}',
@@ -109,6 +115,9 @@ export const analysisMessages = {
   // is the field's visible label in the result slot; the button adds a row
   // under it, so it says what it adds rather than repeating the title.
   'label.analysis.having': 'Add condition',
+  // The way to a first 「只保留」 row, on the result's line: with no row
+  // there is no legend to say what 「Add condition」 would add.
+  'label.analysis.having-first': 'Keep only…',
   'label.analysis.having-title': 'Keep only',
   // Every row is four controls with the same four names, so the row itself
   // is a named group and its number is where a reader is.
@@ -130,11 +139,15 @@ export const analysisMessages = {
   'label.having.op.EQ': 'equal to',
   'label.having.op.NE': 'not equal to',
   'label.analysis.totals': 'Totals row',
+  'label.analysis.totals-whole':
+    'With no dimension the one row is every record in the range, so there is no totals row.',
   'label.analysis.row-limit': 'Top N groups',
   // Beside the field, which already says what it is: only the range it
   // takes. The same bounds as `analysis.limit.out-of-range`, from the same
   // `limitBounds`.
   'label.analysis.row-limit-invalid': 'A whole number from 1 to {max}',
+  'label.analysis.row-limit-unsorted':
+    'Unsorted, the source decides which groups',
   // The three readings D20 asks the screen to say out loud, because each is
   // a number that means something other than what it looks like.
   //
@@ -143,6 +156,12 @@ export const analysisMessages = {
   // included. That is why the rows above it can add up to less than it does
   // without either number being wrong.
   'label.analysis.totals-scope': 'Every record in the range',
+  // Where the totals and the rows above them part ways (2026-09-23 audit):
+  // the totals keep their meaning, and say what they hold that no row shows.
+  'label.analysis.totals-hidden.cut': 'Includes groups past the first {limit}',
+  'label.analysis.totals-hidden.maybe-cut':
+    'May include groups past the first {limit}',
+  'label.analysis.totals-hidden.kept': 'Includes groups Keep only removed',
   // Wow computes a percentile approximately, so the column says so: 「≈」 in
   // the header (`columnTitle`) and this word where there is room for one.
   'label.analysis.approximate': 'Approximate',
@@ -159,6 +178,11 @@ export const analysisMessages = {
   'label.analysis.auto-run': 'Run automatically',
   'label.analysis.auto-run-hint':
     'Changes to dimensions, metrics and the result run on their own; the range waits for Apply.',
+  // Auto-run on, and the range's conditions edited and not applied (a
+  // condition added and not filled in, most often): nothing runs on its own
+  // until Apply, however the question changes.
+  'label.analysis.auto-run-held':
+    'The range has conditions not applied (or not filled in); nothing runs until Apply.',
   'label.chart.picker': 'Visualization',
   'label.chart.picker-back': 'Back to the views',
   'label.chart.recommended': 'Recommended',

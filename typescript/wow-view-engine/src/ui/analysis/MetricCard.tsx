@@ -64,20 +64,27 @@ export function MetricSlot({
   analysis,
   disabled,
   optionsFor,
+  conditioning,
+  setConditioning,
 }: {
   analysis: AnalysisEditorController;
   disabled?: boolean;
   optionsFor?(remote: string): FieldOption[] | undefined;
+  /**
+   * Which card has its conditions open, by the alias that names it. Held
+   * above the cards, because the one gesture that opens a card's conditions
+   * from *another* card is the copy — 「复制并加条件」 makes the copy and
+   * opens it, which is the condition it promised — and above the slot,
+   * because Apply, in the tray's footer, has to know whether it is running
+   * past a condition the analyst opened and left empty (`Tray`).
+   */
+  conditioning: string | null;
+  setConditioning(alias: string | null): void;
 }) {
   const messages = useViewMessages();
   const measurable = analysis.fields.filter(
     field => summaryChoices(field).length > 0,
   );
-  // Which card has its conditions open, by the alias that names it. The
-  // slot holds it rather than each card, because the one gesture that opens
-  // a card's conditions from *another* card is the copy: 「复制并加条件」
-  // makes the copy and opens it, which is the condition it promised.
-  const [conditioning, setConditioning] = useState<string | null>(null);
   // A metric taken out leaves the keyboard on this slot (`listFocus.ts`);
   // held here because the card pressed is the one that goes.
   const focus = useListFocus({
@@ -218,7 +225,7 @@ function MetricCard({
   const [renaming, setRenaming] = useState(false);
   const condition = conditionOf(analysis, metric);
   // A condition with no one value to name the metric by leaves it called
-  // 「金额的合计 · 有条件」, which D20 asks the analyst to replace: the way
+  // 「金额的总和 · 有条件」, which D20 asks the analyst to replace: the way
   // to is offered beside the condition that caused it.
   const unnamed =
     metric.label === undefined &&
@@ -324,11 +331,13 @@ function MetricCard({
           open={conditioning}
           held={held}
           disabled={disabled}
-          onToggle={() => {
-            if (!conditioning && !held)
-              analysis.setMetricFilter(index, { op: 'and', children: [] });
-            onConditioning(!conditioning);
-          }}
+          // Opening writes nothing: a condition with nothing in it yet is
+          // no condition, and writing one used to make the draft refuse
+          // itself the moment the block opened — red under the card, Save
+          // greyed out, before the analyst had done anything (2026-09-23
+          // audit). The block edits `metric.filter ?? {}` and writes on the
+          // first condition; Apply over a block still empty says so then.
+          onToggle={() => onConditioning(!conditioning)}
         />
       )}
       <CardMenu

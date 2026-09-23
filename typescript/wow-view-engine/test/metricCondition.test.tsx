@@ -204,7 +204,7 @@ function applyButton(): HTMLElement {
 async function openPicker(scope: string): Promise<HTMLElement> {
   fireEvent.click(
     screen.getByRole('button', {
-      name: `${scope} ${defaultMessages['label.filter.add-here']}`,
+      name: `${scope} ${defaultMessages['label.filter.add-condition']}`,
     }),
   );
   return await screen.findByRole('dialog', {
@@ -247,12 +247,13 @@ describe('a metric’s own conditions', () => {
   /**
    * The way in is a funnel on the card itself rather than an item of the
    * card's menu or a dialog: a condition belongs to the metric it narrows,
-   * so it grows where the metric is. Pressing it on a metric that carries
-   * none writes an empty condition — the key being there is what says "this
-   * metric is being narrowed", and validation then says it is unfinished
-   * rather than letting an empty one widen the number silently.
+   * so it grows where the metric is. Opening it writes nothing (2026-09-23
+   * audit): an empty condition in the draft made the view refuse itself the
+   * moment the block opened — red under the card, Save greyed out — before
+   * the analyst had done anything. The condition is written with its first
+   * entry; the block and the pressed funnel are what say it is open.
    */
-  it('opens from the funnel, and starts the condition empty', async () => {
+  it('opens from the funnel, and reports nothing before anything is done', async () => {
     const { engine } = await open();
 
     const button = funnel(AMOUNT);
@@ -261,11 +262,6 @@ describe('a metric’s own conditions', () => {
 
     fireEvent.click(button);
 
-    await waitFor(() =>
-      expect(draft(engine).metrics[1]).toMatchObject({
-        filter: { op: 'and', children: [] },
-      }),
-    );
     const opened = await screen.findByRole('group', {
       name: label('label.analysis.condition-of', { name: AMOUNT }),
     });
@@ -276,7 +272,78 @@ describe('a metric’s own conditions', () => {
     // The card the block belongs to is the one whose funnel was pressed.
     expect(metricCards()[1]!.contains(opened)).toBe(true);
     expect(funnel(AMOUNT).getAttribute('aria-pressed')).toBe('true');
+    // Its way in says what it adds — 「添加条件」 — and nothing else; whose
+    // conditions they are is in the accessible name, where two such
+    // buttons on one screen are told apart (2026-09-23 audit: it read
+    // 「金额的合计 在这个分组里添加」).
+    const add = within(opened).getByRole('button', {
+      name: `${AMOUNT} ${defaultMessages['label.filter.add-condition']}`,
+    });
+    expect(add.textContent).toBe(defaultMessages['label.filter.add-condition']);
+    // Nothing written, nothing refused, nothing said in red.
+    expect('filter' in (draft(engine).metrics[1] as object)).toBe(false);
+    expect(engine.openRuntimes()[0].getSnapshot().issues).toEqual([]);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(funnel(AMOUNT).hasAttribute('data-held')).toBe(false);
+
+    // The first condition is what writes one, and the funnel is lit then.
+    await addCondition(AMOUNT, 'Status');
+    await waitFor(() =>
+      expect(draft(engine).metrics[1]).toMatchObject({
+        filter: { op: 'and', children: [{ field: 'status' }] },
+      }),
+    );
     expect(funnel(AMOUNT).hasAttribute('data-held')).toBe(true);
+  });
+
+  /**
+   * The empty condition is reported once the analyst tries to run: Apply
+   * over a block opened and left empty is the moment it becomes true that
+   * the number was meant to be narrowed and is not. The empty group is
+   * written then, the query waits, and the strip says why.
+   */
+  it('says an empty condition is empty when Apply runs past it', async () => {
+    const { engine, source } = await open();
+    fireEvent.click(funnel(AMOUNT));
+    await screen.findByRole('group', {
+      name: label('label.analysis.condition-of', { name: AMOUNT }),
+    });
+
+    const before = asked(source);
+    fireEvent.click(applyButton());
+
+    const strip = await screen.findByRole('alert');
+    expect(strip.textContent).toContain(
+      defaultMessages['analysis.metricFilter.empty'],
+    );
+    expect(draft(engine).metrics[1]).toMatchObject({
+      filter: { op: 'and', children: [] },
+    });
+    expect(asked(source)).toBe(before);
+  });
+
+  /**
+   * Taking the last condition out leaves no condition rather than an empty
+   * one — the same state opening the block left.
+   */
+  it('leaves no condition behind when the last one is taken out', async () => {
+    const { engine } = await open();
+    fireEvent.click(funnel(AMOUNT));
+    await addCondition(AMOUNT, 'Status');
+    await waitFor(() =>
+      expect('filter' in (draft(engine).metrics[1] as object)).toBe(true),
+    );
+
+    fireEvent.click(
+      within(block()!).getByRole('button', {
+        name: label('label.filter.remove-of', { field: 'Status' }),
+      }),
+    );
+
+    await waitFor(() =>
+      expect('filter' in (draft(engine).metrics[1] as object)).toBe(false),
+    );
+    expect(block()).not.toBeNull();
   });
 
   /**
@@ -391,7 +458,7 @@ describe('a metric’s own conditions', () => {
   /**
    * At rest the card says what it counts, in the same words the applied bar
    * uses. Without it the scope of a number lives behind an icon, and a
-   * screen of cards reading 「金额 合计」 twice says nothing about why the
+   * screen of cards reading 「金额 总和」 twice says nothing about why the
    * two are different.
    */
   it('says what it counts, on the card, at rest', async () => {
@@ -557,9 +624,11 @@ describe('a metric’s own conditions', () => {
       type: 'NUMERIC',
       alias: 'amount_1',
       function: 'SUM',
-      filter: { op: 'and', children: [] },
     });
     expect('label' in (copy as object)).toBe(false);
+    // No condition yet: the copy's block is open for one, and an empty
+    // group written now would refuse the draft before anything was done.
+    expect('filter' in (copy as object)).toBe(false);
     // Right after the metric it copies, not at the end of the slot.
     expect(draft(engine).metrics.map(metric => metric.alias)).toEqual([
       'orders',
@@ -573,7 +642,6 @@ describe('a metric’s own conditions', () => {
     const funnels = document.querySelectorAll<HTMLElement>(
       '[data-slot="metric-condition-toggle"]',
     );
-    expect(funnels[2]!.hasAttribute('data-held')).toBe(true);
     expect(funnels[2]!.getAttribute('aria-pressed')).toBe('true');
     // And only the copy's: one block at a time, on the card it belongs to.
     expect(funnels[1]!.getAttribute('aria-pressed')).toBe('false');

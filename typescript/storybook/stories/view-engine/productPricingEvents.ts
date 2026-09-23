@@ -164,6 +164,7 @@ const PRICINGS = {
 export const productPricingEventsDefinition: DataViewDefinition = {
   id: PRODUCT_PRICING_EVENTS,
   title: '事件流分析台',
+  recordNoun: '定价事件',
   kind: 'data',
   source: PRODUCT_PRICING_AGGREGATE,
   fieldGroups: [

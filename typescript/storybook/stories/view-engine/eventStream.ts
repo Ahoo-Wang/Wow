@@ -198,6 +198,7 @@ function dailyView(filter: FilterNode[]): AnalysisViewConfig {
 export const executionFailedEventsDefinition: DataViewDefinition = {
   id: EXECUTION_FAILED_EVENTS,
   title: '事件流分析台',
+  recordNoun: '补偿事件',
   kind: 'data',
   source: AGGREGATE,
   fieldGroups: [

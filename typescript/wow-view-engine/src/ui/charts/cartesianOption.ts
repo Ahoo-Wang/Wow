@@ -95,7 +95,7 @@ export function drawnSeries(
       key: series.key,
       metric: series.metric,
       // A pivoted series shows its split value as that field shows it; an
-      // unpivoted one is its column's title — 「金额的合计」, never the
+      // unpivoted one is its column's title — 「金额的总和」, never the
       // alias, which names the query.
       name:
         series.value === undefined

@@ -172,6 +172,49 @@ describe('the findings a result carries', () => {
   });
 
   /**
+   * A ranking — the groups ordered by a metric and cut at N — left the rest
+   * out on purpose, so the note would only tell the author what they asked
+   * for (2026-09-23 audit). The probe cannot know intent; a sort by a metric
+   * first is where the config says it. Sorted by a dimension, or not at
+   * all, the first N are whichever the order puts first, and it is said.
+   */
+  it('says nothing about a ranking, and still does about a plain cut', async () => {
+    const ranking = await ran(
+      analysisConfig({
+        limit: 2,
+        sort: [{ alias: 'orders', direction: 'DESC' }],
+      }),
+      grouped(4),
+    );
+    expect(ranking.issues).toEqual([]);
+
+    const byName = await ran(
+      analysisConfig({
+        limit: 2,
+        sort: [{ alias: 'warehouse', direction: 'ASC' }],
+      }),
+      grouped(4),
+    );
+    expect(byName.issues.map(found => found.code)).toEqual([
+      'analysis.result.more-groups',
+    ]);
+  });
+
+  /** A pie's shares are over what is shown, ranking or not. */
+  it('still warns about a ranked pie', async () => {
+    const data = await ran(
+      analysisConfig({
+        limit: 2,
+        sort: [{ alias: 'orders', direction: 'DESC' }],
+        layout: 'chart',
+        chart: { type: 'pie', pie: { category: 'warehouse', value: 'orders' } },
+      }),
+      grouped(4),
+    );
+    expect(data.issues.map(found => found.severity)).toEqual(['warning']);
+  });
+
+  /**
    * A pie's slices are shares of the groups shown, so a cut-short pie reads
    * as the whole when it is not: that is a warning.
    */
@@ -380,6 +423,28 @@ describe('what the screen says about an analysis cut short', () => {
 
     expect(await screen.findByText(MORE)).toBeDefined();
     expect(screen.getByRole('table')).toBeDefined();
+  });
+
+  /**
+   * The sentence is about these rows, so it is drawn just above them, in
+   * the result — not in the status line over the whole view, a screen away
+   * from the table it described (2026-09-23 audit) — and said once.
+   */
+  it('says it next to the rows, and not in the status line', async () => {
+    show(cutShort('table'), grouped(4));
+
+    const sentence = await screen.findByText(MORE);
+    const beside = document.querySelector<HTMLElement>(
+      '[data-slot="analysis-cut-short"]',
+    )!;
+    expect(beside.contains(sentence)).toBe(true);
+    expect(
+      document.querySelector('[data-slot="analysis-result"]')!.contains(beside),
+    ).toBe(true);
+    expect(
+      document.querySelector('[data-slot="status-line"]')!.textContent,
+    ).not.toContain(MORE);
+    expect(screen.getAllByText(MORE)).toHaveLength(1);
   });
 
   it('says it over the chart', async () => {

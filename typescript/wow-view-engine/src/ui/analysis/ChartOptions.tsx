@@ -86,7 +86,7 @@ export function ChartOptions({
 }: ChartOptionsProps) {
   const messages = useViewMessages();
   // Every slot's choices are named as the result's columns are titled —
-  // 「金额的合计」, never the alias — and a funnel's stages as the group's
+  // 「金额的总和」, never the alias — and a funnel's stages as the group's
   // values show. Both read the catalogue this panel is drawn under.
   const column = useColumnTitle(columns);
   const label = useValueLabel(columns);
@@ -120,7 +120,11 @@ export function ChartOptions({
   );
   const pageOf = (which: OptionsTab) =>
     picked === 'table' ? (
-      <TableDisplay totals={totals} onTotals={onTotals} />
+      <TableDisplay
+        totals={totals}
+        whole={groups.length === 0}
+        onTotals={onTotals}
+      />
     ) : which === 'data' ? (
       <DataTab {...page} />
     ) : which === 'display' ? (

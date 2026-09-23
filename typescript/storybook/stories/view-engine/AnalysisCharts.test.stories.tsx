@@ -46,7 +46,7 @@ export default meta;
 
 type Story = StoryObj<typeof displayMeta>;
 
-/** 「金额的合计」 and 「订单数」: the two columns a scatter plots. */
+/** 「金额的总和」 and 「订单数」: the two columns a scatter plots. */
 const AMOUNT_HEADER = formatMessage(zhCN, 'label.summary.of', {
   field: '金额',
   fn: zhCN['label.summary.fn.SUM'],
@@ -444,7 +444,7 @@ const middles = (texts: readonly Element[]) =>
     .sort((a, b) => a - b);
 
 /**
- * 组合图的右轴：订单数的柱上加金额的线，金额坐右轴、右轴写「金额的合计」，两根
+ * 组合图的右轴：订单数的柱上加金额的线，金额坐右轴、右轴写「金额的总和」，两根
  * 轴的刻度落在同一组网格线上。
  *
  * 从前槽位层看不到数，组合图的第二个指标永远在左轴：个位数的订单数与上千的金额

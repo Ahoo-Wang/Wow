@@ -278,6 +278,7 @@ function dailyView(filter: FilterNode[], count = '事件数'): AnalysisViewConfi
 export const customerEventsDefinition: DataViewDefinition = {
   id: CUSTOMER_EVENTS,
   title: '事件流分析台',
+  recordNoun: '客户事件',
   kind: 'data',
   source: CUSTOMER_AGGREGATE,
   fieldGroups: [

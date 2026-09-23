@@ -507,7 +507,7 @@ describe('the analysis tray', () => {
     await add('添加指标', 'Amount');
     expect(
       (await screen.findByLabelText('Amount 的汇总方式')).textContent,
-    ).toContain('合计');
+    ).toContain('总和');
   });
 });
 

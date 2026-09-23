@@ -31,6 +31,14 @@ export interface DataViewDefinition {
   /** Must not contain ':': system view ids are composed with it. */
   id: string;
   title: string;
+  /**
+   * What one record is, as a reader counts them: 「订单」, 「客户」,
+   * 「定价事件」. The analysis says it as its counting unit (「计数单位：订单」)
+   * where nothing is expanded. The title names the dataset — 「事件流分析台」
+   * — and read there it counted consoles (2026-09-23 audit); left out, the
+   * unit is the catalogue's word for a record.
+   */
+  recordNoun?: string;
   kind: 'data';
   /** Key passed to `resolveSource`. */
   source: string;

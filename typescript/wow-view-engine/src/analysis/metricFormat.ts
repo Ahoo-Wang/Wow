@@ -13,6 +13,7 @@
 
 import {
   isDateCell,
+  type AnalysisExpression,
   type AnalysisFunction,
   type AnalysisMetric,
   type FieldDefinition,
@@ -84,6 +85,81 @@ export function metricFormat(
     default:
       return format;
   }
+}
+
+/**
+ * The format a formula's per-record number shares with the fields it is
+ * computed from, or none.
+ *
+ * A formula summarises no one field, so `metricFormat` had nothing to go on
+ * and 「金额 − 成本」 — money minus money — came out as a bare number beside
+ * the ¥ of every other amount on screen (2026-09-23 audit). The rule is the
+ * one a unit follows through arithmetic:
+ *
+ * - a sum or a difference of operands in **one** format is in that format —
+ *   ¥ − ¥ is ¥ — and of two formats is in neither;
+ * - a product or a quotient with a plain number (a `CONSTANT`) keeps the
+ *   other side's format — ¥ × 1.13 is ¥, ¥ ÷ 2 is ¥ — unless the plain
+ *   number is divided by it: 2 ÷ ¥ is no money;
+ * - a product or a quotient of two fields is a new quantity — ¥ × ¥ is no
+ *   money, ¥ ÷ ¥ is a ratio — and gets no format.
+ *
+ * `formatOf` answers a field's own format, `undefined` for a plain one.
+ */
+export function formulaFormat(
+  expression: AnalysisExpression,
+  formatOf: (field: string) => NumberFormat | undefined,
+): NumberFormat | undefined {
+  const read = reading(expression, formatOf);
+  return read === SCALAR ? undefined : read.format;
+}
+
+/** A plain number: no unit of its own, and none taken from it. */
+const SCALAR = 'scalar';
+
+/** What an expression's value is measured in: a format, or a plain number. */
+type Reading = typeof SCALAR | { format: NumberFormat | undefined };
+
+const NO_FORMAT: Reading = { format: undefined };
+
+function reading(
+  expression: AnalysisExpression,
+  formatOf: (field: string) => NumberFormat | undefined,
+): Reading {
+  switch (expression.type) {
+    case 'FIELD':
+      return { format: formatOf(expression.field) };
+    case 'CONSTANT':
+      return SCALAR;
+    case 'BINARY': {
+      const left = reading(expression.left, formatOf);
+      const right = reading(expression.right, formatOf);
+      if (left === SCALAR && right === SCALAR) return SCALAR;
+      // A plain number beside a measured one scales it — 1.13 × ¥, ¥ ÷ 2 —
+      // except as a dividend: 2 ÷ ¥ is no money.
+      if (right === SCALAR) return left;
+      if (left === SCALAR)
+        return expression.operator === 'DIVIDE' ? NO_FORMAT : right;
+      // Two measured operands.
+      if (expression.operator === 'ADD' || expression.operator === 'SUBTRACT')
+        return sameFormat(left.format, right.format) ? left : NO_FORMAT;
+      return NO_FORMAT;
+    }
+  }
+}
+
+/** Whether two formats print a number alike: the same options, one by one. */
+function sameFormat(
+  a: NumberFormat | undefined,
+  b: NumberFormat | undefined,
+): boolean {
+  if (a === undefined || b === undefined) return a === b;
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  return [...keys].every(
+    key =>
+      (a as Record<string, unknown>)[key] ===
+      (b as Record<string, unknown>)[key],
+  );
 }
 
 /**

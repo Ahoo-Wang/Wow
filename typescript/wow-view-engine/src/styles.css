@@ -664,6 +664,22 @@
   overflow-y: auto;
 }
 
+/*
+ * On a phone, about a third. The title bar wraps to two rows there and the
+ * toolbar and the applied bar take their own, so half of what was left
+ * gave the result about 230px at 414 wide — three rows of a table under an
+ * open tray (2026-09-23 audit P1). The tray's slots scroll inside the cap
+ * with its footer standing, so a smaller cap costs the question a scroll,
+ * not a control. The breakpoint is the one the tray lays its slots out by
+ * (`md:grid-cols-2`), so one screen width decides both.
+ */
+@media (width < 48rem) {
+  .fve-root > main [data-slot='editor-band'],
+  .fve-root > main [data-slot='condition-block'] {
+    max-height: 35%;
+  }
+}
+
 .fve-root
   > main
   [data-slot='result-block']

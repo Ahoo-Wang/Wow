@@ -158,7 +158,7 @@ export function questionEditing({
       ),
     /**
      * A second card of the same metric, right after it, with an empty
-     * condition to fill in: 复制「金额的合计」并加条件. The copy keeps no
+     * condition to fill in: 复制「金额的总和」并加条件. The copy keeps no
      * display name — two cards called the same thing is the ambiguity the
      * name exists to resolve, and the condition it is about to carry is what
      * resolves it. Answers the copy's alias — the card's identity — so the

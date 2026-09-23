@@ -161,6 +161,7 @@ function analysisView(
 export const executionFailedDefinition: DataViewDefinition = {
   id: EXECUTION_FAILED,
   title: '快照控制台',
+  recordNoun: '失败执行',
   kind: 'data',
   source: AGGREGATE,
   // The pickers list the fields under these, in this order.

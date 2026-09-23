@@ -241,6 +241,7 @@ const ORDERS = {
 export const tradeOrderEventsDefinition: DataViewDefinition = {
   id: TRADE_ORDER_EVENTS,
   title: '事件流分析台',
+  recordNoun: '订单事件',
   kind: 'data',
   source: TRADE_ORDER_AGGREGATE,
   fieldGroups: [

@@ -128,12 +128,26 @@ export function GroupBlock({
       />
 
       <div className="flex flex-wrap items-center gap-1">
+        {/* It says what it adds, 「添加条件」, whatever group it is in: the
+            box it sits in already says which group, and a metric's name
+            put in front of the text (「金额的总和 在这个分组里添加」) read as
+            one garbled sentence (2026-09-23 audit). Whose conditions they
+            are stays in the accessible name, where two such buttons on one
+            screen have to be told apart. */}
         <AddEntry
           filter={filter}
           parent={path}
           disabled={disabled}
           groups
-          label={within(scope, messages.label('label.filter.add-here'))}
+          label={messages.label('label.filter.add-condition')}
+          {...(scope
+            ? {
+                name: within(
+                  scope,
+                  messages.label('label.filter.add-condition'),
+                ),
+              }
+            : {})}
         />
       </div>
     </div>

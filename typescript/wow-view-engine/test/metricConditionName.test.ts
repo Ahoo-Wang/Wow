@@ -14,7 +14,7 @@
 /**
  * What a metric with a condition of its own is called (D20 显示名): its
  * column title and, after a 「·」, the one value the condition keeps —
- * 「金额的合计 · 已发运」 — or 「… · 有条件」 when it keeps more than that. A
+ * 「金额的总和 · 已发运」 — or 「… · 有条件」 when it keeps more than that. A
  * sum over the shipped orders used to wear the header of a sum over all of
  * them, and a region with none shipped read as a region with no sales.
  *
@@ -184,7 +184,7 @@ describe('a conditioned column', () => {
     const view = project(sum(shipped));
     const column = view.columns.find(entry => entry.alias === 'total')!;
     expect(column.condition?.value).toBe('已发运');
-    expect(columnTitle(column, ZH)).toBe('Amount的合计 · 已发运');
+    expect(columnTitle(column, ZH)).toBe('Amount的总和 · 已发运');
     expect(columnTitle(column, EN)).toBe('Sum of Amount · 已发运');
   });
 
@@ -193,7 +193,7 @@ describe('a conditioned column', () => {
       sum(where({ field: 'amount', operator: 'GT', value: 100 })),
     );
     const column = view.columns.find(entry => entry.alias === 'total')!;
-    expect(columnTitle(column, ZH)).toBe('Amount的合计 · 有条件');
+    expect(columnTitle(column, ZH)).toBe('Amount的总和 · 有条件');
     expect(columnTitle(column, EN)).toBe('Sum of Amount · conditioned');
   });
 
@@ -311,13 +311,13 @@ describe('metricReference over a conditioned metric', () => {
   it('says the same name the result column says', () => {
     const metric = sum(shipped);
     expect(metricReference(naming(metric), metric, ZH)).toBe(
-      '金额的合计 · 已发运',
+      '金额的总和 · 已发运',
     );
     const several = sum(
       where({ field: 'status', operator: 'IN', value: ['SHIPPED', 'PAID'] }),
     );
     expect(metricReference(naming(several), several, ZH)).toBe(
-      '金额的合计 · 有条件',
+      '金额的总和 · 有条件',
     );
     expect(metricReference(naming(several), several, EN)).toBe(
       'Sum of 金额 · conditioned',
@@ -332,6 +332,6 @@ describe('metricReference over a conditioned metric', () => {
     const metric = sum(shipped);
     expect(
       metricReference({ fields: [option], metrics: [metric] }, metric, ZH),
-    ).toBe('金额的合计');
+    ).toBe('金额的总和');
   });
 });

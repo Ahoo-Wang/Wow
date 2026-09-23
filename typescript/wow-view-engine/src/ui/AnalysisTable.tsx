@@ -14,7 +14,12 @@
 import { useId, useLayoutEffect, useRef } from 'react';
 import { cn } from 'cn';
 import { bandText } from './band.js';
-import { columnTitle, displayValue, valueText } from './display.js';
+import {
+  columnTitle,
+  displayValue,
+  formatNumber,
+  valueText,
+} from './display.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { moveStop, settleStop, takeStop } from './roving.js';
 import { FOCUS_ROW } from './variants.js';
@@ -142,6 +147,28 @@ export function AnalysisTable({ view, onPick, sorting }: AnalysisTableProps) {
   }));
   const widths = useHeldWidths(titled);
   if (view.rows.length === 0) return <AnalysisEmpty />;
+
+  // What the totals hold that no row shows (`totals-hidden` below).
+  const count = (value: number) =>
+    formatNumber(value, undefined, display.locale);
+  const hidden = [
+    ...(view.truncated
+      ? [
+          messages.label('label.analysis.totals-hidden.cut', {
+            limit: count(view.rows.length),
+          }),
+        ]
+      : view.atLimit !== undefined
+        ? [
+            messages.label('label.analysis.totals-hidden.maybe-cut', {
+              limit: count(view.atLimit),
+            }),
+          ]
+        : []),
+    ...(view.narrowed
+      ? [messages.label('label.analysis.totals-hidden.kept')]
+      : []),
+  ];
 
   /**
    * What a header says about its column beyond its name, in its tooltip and
@@ -351,6 +378,24 @@ export function AnalysisTable({ view, onPick, sorting }: AnalysisTableProps) {
                     >
                       {messages.label('label.analysis.totals-scope')}
                     </span>
+                    {/* And where the rows above leave some of that out, what
+                        they leave out: the groups past the first N, the
+                        groups 「只保留」 dropped. The totals keep their
+                        meaning — every record in the range — and the
+                        difference is said here, beside the number that
+                        differs, instead of being left for the reader to
+                        notice (2026-09-23 audit). The same line, so the
+                        row stays one reading; whole in its `title` where
+                        the column cuts it. */}
+                    {hidden.length > 0 && (
+                      <span
+                        data-slot="totals-hidden"
+                        title={hidden.join(' · ')}
+                        className={cn('block truncate font-normal', TEXT_UI)}
+                      >
+                        {hidden.join(' · ')}
+                      </span>
+                    )}
                   </TableCell>
                 ) : (
                   cell(view.totals?.[entry.column.alias], entry)

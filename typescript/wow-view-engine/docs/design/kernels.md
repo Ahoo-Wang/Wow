@@ -268,7 +268,7 @@ D20 屏 G。展开一个数组就是换掉计数单位：`订单 → 明细项` 
 - **漏斗缺省不累计**：按维度分阶段时每一段就是这一组自己的数，与表格、柱图、下钻出来的记录数同一个数（与 Metabase 一致）。从前 `cumulative` 不写按 `true` 处理，把后面各段加进前面——那只对「每个对象只停在一个阶段」的流程状态成立，对事件类型、仓库这类维度是错的：补偿服务「事件类型分布」的漏斗写「首次失败 1,831,229」（七类之和），表格写 65.9 万。写了 `cumulative: true` 才累计，`FunnelData.cumulative` 随之为真，图上方写「累计：至少到达这一段」（`label.chart.column.cumulative`），读屏表的数值列同一句。（见 test/analysisChart.test.ts「draws each group stage as its own number by default」与 test/analysisChartGaps.test.ts「a split fills the combinations it lacks」「a date axis runs without holes」）
 - `referenceLines` 引用的轴必须有系列；
 - **图表必须消费全部分组别名**（cartesian 用 `x` 加可选 `splitBy`，pie 用 `category`，heatmap 用 `x`／`y`，scatter 用 `category`，group 漏斗用 `category`，metric 卡片要求无分组或仅 `trend.x`），否则结果里同一坐标会有多行，而 AVG、百分位、DISTINCT_COUNT 无法在投影层安全再聚合，报 error；
-- 漏斗至少两个阶段，每一段量的都是可累加的指标（`group` 形态的 `value`、`metrics` 形态的每个 `items[].metric`：记录数或合计，与 `maxSlices` 同一判据），否则报 `chart.funnel.not-additive`——转化率是一段除以另一段，平均数、去重计数、百分位、极值之间没有这回事；`metrics` 形态要求分组为空，`group` 形态的 `order` 无重复，且它的 `category` 要是**类别维度**（`TERMS`）：阶段是流程里有名字的一步，日期桶与数值区间是一把尺子切成的段，从一天到下一天谈不上转化——它们的桶键也不是文本，按名字读不回阶段（`chart.funnel.stages-need-category`）；
+- 漏斗至少两个阶段，每一段量的都是可累加的指标（`group` 形态的 `value`、`metrics` 形态的每个 `items[].metric`：记录数或总和，与 `maxSlices` 同一判据），否则报 `chart.funnel.not-additive`——转化率是一段除以另一段，平均数、去重计数、百分位、极值之间没有这回事；`metrics` 形态要求分组为空，`group` 形态的 `order` 无重复，且它的 `category` 要是**类别维度**（`TERMS`）：阶段是流程里有名字的一步，日期桶与数值区间是一把尺子切成的段，从一天到下一天谈不上转化——它们的桶键也不是文本，按名字读不回阶段（`chart.funnel.stages-need-category`）；
 - `metric` 无 `trend` 时要求分组为空，有 `trend` 时要求恰有一个 DATE_HISTOGRAM 分组且别名等于 `trend.x`，且 `metric` 与 `compare.metric` 必须是可加指标（与 `maxSlices` 同一判据），否则报 `chart.metric.trend-not-additive`。这条在「全部」读法下有它的理由（没有合计行时主数是各桶之和）；「最后一期」读法下主数是一个桶，本不需要，但两种读法守同一条：读法是展示开关，切换它不许把一张跑得起来的卡片变成被拒的配置。
 - **指标卡带 `trend` 时的主数**（`analysis/metricCard.ts`，2026-09-23 用户拍板、审查 P1-6，参照 Metabase 的 Trend 卡片）：`trend.headline` 不写或 `last` 时是**最后一期**——整形后（时间升序、补洞）最后一个在**提问时刻**（`ShapeContext.now`，运行时即编译相对条件的那个 `ctx.now`；工作台重画用结果的 `receivedAt - elapsedMs`）之前已经结束的桶（`bucketSpan`：桶按下钻的 `bucketRange` 推到终点；挂钟日期的桶按引擎时区的挂钟比）。还没结束的那一期（今天、本周）不当主数：半天对一整天，每天早上都读成下跌；它照样画在迷你线上，卡片写明它没计入（`MetricPeriod.skipped`）。一个结束的桶都没有时（范围里只有当前这一期），主数是这一期至今（`partial`），不比较。与**紧挨着的上一期**比（`previous`：终点等于主数那一期起点的桶；补洞后就是前一个点，补不了洞时前一行可能隔了几天，那不是「上一期」，不比），交出差值与相对上一期绝对值的比率（`change`；上一期没有数时为 `null`，上一期为 0 时比率为 `null`）。补洞的桶也是一行：可加指标确知没有记录时是 0，所以「昨天一单没有」读作 0，而不是没有上一期。`headline: 'whole'` 时是**全部**：合计行（`asksForWhole` 另问的无分组查询），没有时按各桶相加，`MetricCardData.whole` 为真；这时不比上一期。**`compare` 与 `target` 与主数同一个跨度**：最后一期读法下比较的是同一期里另一个指标的值、目标是一期的目标（日趋势就是日目标）；全部读法下是全部的值与全部的目标。（见 test/metricCardPeriod.test.ts 与 test/metricCardUi.test.tsx）
 
@@ -279,7 +279,7 @@ D20 屏 G。展开一个数组就是换掉计数单位：`订单 → 明细项` 
 - 直角坐标系的四个（bar／line／area／combo）各要一个维度当横轴——没有维度就没有轴（`chart.fit.needs-dimension`）；再多只能拆一层（`splitBy`），所以**最多两个维度**，第三个会让每个点下有几行，平均、去重计数这类指标在投影里加不回去——置灰并写「最多两个维度」（`chart.fit.too-many-dimensions`），而不是悄悄丢掉一个维度（D20，用户 2026-09-22 定）；
 - 饼图与按维度分阶段的漏斗要**恰好**一个维度（`chart.fit.needs-one-dimension`），漏斗另有「按指标分阶段」的形态，那一种要零维度加两个以上指标；
 - **按维度分阶段的漏斗还要看行**（`fitCharts` 的 `rows`）：一选中，阶段就按结果行来的顺序从那个维度的文本值里填（`withStagesFrom`），所以画不画得出是行说了算——维度不是类别（`TERMS`）、或行里一个文本值都没有时写 `chart.fit.needs-category`（「阶段要一个类别维度」），只有一个不同的值时写 `chart.fit.needs-two-stages`（「要至少两组作阶段」）。从前只按形态判，结果只有一组时漏斗照样可选，选中只得到一句「漏斗至少要有两个阶段」和一张空图（2026-09-23 审查）。没有行（还没跑、或一组也没有）不算零个阶段，只按类型判——除非同时交来图本身（`fitCharts` 的 `chart`）：一个配置被拒、从没跑过的视图没有行可填阶段，它的漏斗就只有图已经点名的那几段（`order`，去重计），于是一段的漏斗写「要至少两组作阶段」。这是从图型网格修一个存下来画不出的视图时的读法（[ui/analysis.md](ui/analysis.md)「存下来画不出的漏斗能从图型网格修好」）；
-- **漏斗只量可累加的数**：漏斗是「进来多少、留下多少」，平均、去重计数、百分位、极值与任一值之间没有转化可谈，所以按维度分阶段时要至少一个、按指标分阶段时要至少两个可累加的数量（`isAdditiveMetric`：记录数或合计），不够时写 `chart.fit.needs-additive`（「要记录数或合计」）。有可累加的数而主指标不是时仍可选：填槽时取第一个可累加的；
+- **漏斗只量可累加的数**：漏斗是「进来多少、留下多少」，平均、去重计数、百分位、极值与任一值之间没有转化可谈，所以按维度分阶段时要至少一个、按指标分阶段时要至少两个可累加的数量（`isAdditiveMetric`：记录数或总和），不够时写 `chart.fit.needs-additive`（「要记录数或总和」）。有可累加的数而主指标不是时仍可选：填槽时取第一个可累加的；
 - 热力图要两个维度（`chart.fit.needs-two-dimensions`）；
 - 散点把两个指标画成一个点、一个维度值一个点，所以要**恰好**一个维度（多了写 `chart.fit.needs-one-dimension`）再加两个指标（`chart.fit.needs-two-metrics`）；
 - 指标卡是一个数：没有维度时成立，有**恰好一个时间维度且主数可加**时也成立（那是迷你趋势，判据与 `maxSlices` 同一条），其余写 `chart.fit.needs-no-dimension`；
@@ -311,7 +311,7 @@ D20 屏 G。展开一个数组就是换掉计数单位：`订单 → 明细项` 
 | --------------------------------- | ----------------------------------------- |
 | `COUNT`、`DISTINCT_COUNT`         | 整数，不带任何货币（数的是记录）          |
 | `AVG`、`STDDEV`、`VARIANCE`       | 字段格式 + 两位小数（金额的平均仍是金额） |
-| `SUM`                             | 字段格式（金额的合计仍是金额）            |
+| `SUM`                             | 字段格式（金额的总和仍是金额）            |
 | `MIN`、`MAX`、`PERCENTILE`、`ANY` | 字段格式与字段自己的 `cell`／`options`    |
 | `DERIVED`                         | 不属于任何字段，两位小数的普通数          |
 

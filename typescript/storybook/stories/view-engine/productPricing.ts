@@ -231,6 +231,7 @@ function price(
 export const productPricingDefinition: DataViewDefinition = {
   id: PRODUCT_PRICING,
   title: '快照控制台',
+  recordNoun: '商品定价',
   kind: 'data',
   source: PRODUCT_PRICING_AGGREGATE,
   // The pickers list the fields under these, in this order.

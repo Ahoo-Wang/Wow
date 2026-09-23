@@ -21,6 +21,15 @@ import {
 } from 'lucide-react';
 import { unsettled, type SaveCommands } from '../react/index.js';
 import { cn } from 'cn';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './components/alert-dialog.js';
 import { Badge } from './components/badge.js';
 import { Button } from './components/button.js';
 import { IconButton, IconTooltip } from './IconButton.js';
@@ -33,7 +42,7 @@ import {
 } from './components/dropdown-menu.js';
 import { Spinner } from './components/spinner.js';
 import { useViewMessages } from './MessagesProvider.js';
-import { DropdownMenuContent } from './popups.js';
+import { AlertDialogContent, DropdownMenuContent } from './popups.js';
 import { SaveAsDialog } from './SaveAsDialog.js';
 import type { ViewWriteCallbacks } from './WriteOutcome.js';
 
@@ -82,6 +91,7 @@ export function SaveActions({
 }: SaveActionsProps) {
   const messages = useViewMessages();
   const [copying, setCopying] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const { can, state } = commands;
 
   // The moment a save landed, said only as long as it is worth saying. What
@@ -159,6 +169,12 @@ export function SaveActions({
   // So the dialog judges its own target, and this button does not judge it
   // for it.
   const blockedDraft = can.save && state.hasErrors;
+  // A save in place over a shared view is everyone's view changing under
+  // them, one click and no way back but the next save (2026-09-23 audit).
+  // So that one asks first, naming the view; a personal view is the
+  // author's alone, and saves on the press as it always did.
+  const write = () =>
+    void commands.save().then(made => made && onSaved?.(made));
 
   return (
     <div data-slot="save-actions" className="flex items-center gap-2">
@@ -171,9 +187,9 @@ export function SaveActions({
           // reason it does nothing is the state the user can see.
           disabled={stopped || blockedDraft || (saves && !state.dirty)}
           onClick={() => {
-            if (saves)
-              void commands.save().then(made => made && onSaved?.(made));
-            else setCopying(true);
+            if (!saves) setCopying(true);
+            else if (state.audience === 'shared') setConfirming(true);
+            else write();
           }}
         >
           <PrimaryFace
@@ -229,7 +245,63 @@ export function SaveActions({
       )}
 
       {copy}
+      <SharedSaveConfirm
+        open={confirming}
+        title={title}
+        onOpenChange={setConfirming}
+        onConfirm={write}
+      />
     </div>
+  );
+}
+
+/**
+ * 「这会更新所有人看到的「X」」: the one question before a shared view is
+ * written over. An `AlertDialog`, as every confirmation here is: Base UI
+ * holds it open under a stray click and keeps focus on the two answers.
+ * Not destructive in tone — nothing is lost that the author did not mean
+ * to change — but said, because the people it changes for are not here.
+ */
+function SharedSaveConfirm({
+  open,
+  title,
+  onOpenChange,
+  onConfirm,
+}: {
+  open: boolean;
+  title: string;
+  onOpenChange(open: boolean): void;
+  onConfirm(): void;
+}) {
+  const messages = useViewMessages();
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent data-slot="shared-save-confirm">
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            {messages.label('label.save.shared-heading')}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {messages.label('label.save.shared-description', { title })}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>
+            {messages.label('label.dialog.cancel')}
+          </AlertDialogCancel>
+          {/* The registry's action is a plain button: it closes nothing by
+              itself, so the answer closes the question and then writes. */}
+          <AlertDialogAction
+            onClick={() => {
+              onOpenChange(false);
+              onConfirm();
+            }}
+          >
+            {messages.label('label.save.shared-confirm')}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 

@@ -146,7 +146,7 @@ describe('formulas', () => {
     const names: Record<string, string> = {
       amount: '金额',
       cost: '成本',
-      total: '金额合计',
+      total: '金额总和',
       customers: '客户数',
     };
     const nameOf = (key: string) => names[key] ?? key;
@@ -188,6 +188,6 @@ describe('formulas', () => {
         },
         nameOf,
       ),
-    ).toBe('金额合计 ÷ 客户数');
+    ).toBe('金额总和 ÷ 客户数');
   });
 });

@@ -53,6 +53,7 @@ import { isFieldlessKind, isSingleStringField } from '../model/index.js';
 import { questionEditing, type QuestionEditing } from './analysisEditing.js';
 import type { FieldKindRegistry } from '../filter/index.js';
 import {
+  answeringAnew,
   autoApplyDue,
   comparePending,
   type OptionSource,
@@ -92,8 +93,12 @@ export interface AnalysisEditorController extends QuestionEditing {
   expandable: { path: string; label: string } | null;
   /** Whether the capability declares a chain at all: the slot exists then. */
   expansible: boolean;
-  /** What is being counted: the innermost element, or the definition's records. */
-  unit: string;
+  /**
+   * What is being counted: the innermost element, else the definition's
+   * `recordNoun`; `null` where the definition names none, and a surface
+   * says its own word for a record.
+   */
+  unit: string | null;
   /** The array a level expands, as its field is labelled. */
   elementLabel(index: number): string;
   /** The fields a level's own gate may name. */
@@ -133,10 +138,11 @@ export interface AnalysisEditorController extends QuestionEditing {
   fieldGroups: readonly FieldGroupDefinition[];
   countable: boolean;
   /**
-   * True while the rows on screen answer an older question than the draft
-   * and the runtime is about to run the draft on its own (`autoApplyDue`):
-   * the result is drawn faded rather than cleared, because the new one is
-   * moments away and a blank in between reads as a failure.
+   * True while the rows on screen answer an older question than the one
+   * being asked: the runtime is about to run the draft on its own
+   * (`autoApplyDue`), or has sent it and the answer is on its way
+   * (`answeringAnew`) — however slow it is. The result is drawn faded rather
+   * than cleared, because a blank in between reads as a failure.
    */
   stale: boolean;
   /** Whether 「只保留」 exists here: the capability declares `having`. */
@@ -423,7 +429,7 @@ export function useAnalysisEditor(
     unit:
       elements.length > 0
         ? elementLabel(elements.length - 1)
-        : (definition?.title ?? ''),
+        : (definition?.recordNoun ?? null),
     elementLabel,
     elementFields: useCallback(
       (index: number) => (scope ? elementFilterFields(scope, index) : []),
@@ -476,7 +482,7 @@ export function useAnalysisEditor(
     fields,
     fieldGroups: definition?.fieldGroups ?? EMPTY_GROUPS,
     countable: capability?.count === true,
-    stale: state ? autoApplyDue(state) : false,
+    stale: state ? autoApplyDue(state) || answeringAnew(state) : false,
     havingAllowed: capability?.having === true,
     expressionsAllowed: capability?.expressions === true,
     having: havingRows(config?.having),

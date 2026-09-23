@@ -31,6 +31,13 @@ export const saveMessages = {
   // so on its own it announces nothing.
   'label.save.saved': 'Saved',
   'label.save.saved-announce': 'View saved',
+  // Saving over a shared view changes it for everyone who sees it, so the
+  // one-click save asks first (2026-09-23 audit); a personal view is only
+  // the author's, and saves as it always did.
+  'label.save.shared-heading': 'Update it for everyone?',
+  'label.save.shared-description':
+    'This updates “{title}” for everyone who can see it.',
+  'label.save.shared-confirm': 'Update for everyone',
   // Named, because the dialog covers the row it is about: a manager row is
   // one of a list, the confirmation opens over it, and "this view" then
   // points at something the reader can no longer see.

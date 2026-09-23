@@ -352,7 +352,7 @@ describe('a display name', () => {
 
   /**
    * A named column is titled by its name alone (`columnTitle`): 「门店」, not
-   * 「门店的合计」 — the analyst already said what the column is, and
+   * 「门店的总和」 — the analyst already said what the column is, and
    * appending the summary to it says it twice. Every place a column is
    * named follows: the header, the result's reading, and a chart's legend
    * and figure name, which read through the same titler.

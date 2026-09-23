@@ -1069,11 +1069,33 @@ describe('columnTitle', () => {
 
   /**
    * A header is one phrase, so the Chinese composes without the spaces a
-   * sentence puts around a name (2026-09-23 audit: 「金额 的 合计」 read as
+   * sentence puts around a name (2026-09-23 audit: 「金额 的 总和」 read as
    * three words). The English keeps its own order.
    */
+  /**
+   * 「合计」 is the totals row — every record in the range — and only that;
+   * the SUM function is 「总和」 wherever it is named (2026-09-23 audit: the
+   * same word stood for the row and for a column's summary, so 「金额的合计」
+   * over a totals row read as the one thing twice). One word per concept.
+   */
+  it('keeps 「合计」 for the totals row and names SUM 「总和」', () => {
+    expect(zhCN['label.summary.fn.SUM']).toBe('总和');
+    expect(zhCN['label.summary.total']).toBe('合计');
+    const totalsKeys = new Set([
+      'label.summary.total',
+      'label.analysis.totals',
+      'label.analysis.totals-whole',
+      'label.chart.total',
+      'runtime.summary.page-only',
+    ]);
+    const others = Object.entries(zhCN)
+      .filter(([key, text]) => text.includes('合计') && !totalsKeys.has(key))
+      .map(([key]) => key);
+    expect(others).toEqual([]);
+  });
+
   it('composes a metric’s header as one phrase, in either language', () => {
-    expect(columnTitle({ label: '金额', fn: 'SUM' }, zh)).toBe('金额的合计');
+    expect(columnTitle({ label: '金额', fn: 'SUM' }, zh)).toBe('金额的总和');
     expect(
       columnTitle({ label: '创建时间', fn: 'MAX', cell: 'datetime' }, zh),
     ).toBe('创建时间的最晚');

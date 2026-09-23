@@ -12,6 +12,7 @@ export type ViewDefinition =
   | {
       id: string;
       title: string;
+      recordNoun?: string; // 一条记录叫什么（「订单」「客户」），分析的计数单位说它；不写说「记录」，不拿 title 充数
       kind: 'data';
       source: string; // resolveSource 的键
       fields: FieldDefinition[];
@@ -241,7 +242,7 @@ export interface AnalysisTableSpec {
 // 键仍然是 alias。给了就得是个词：空白报 analysis.label.blank，不是字符串报
 // analysis.config.malformed；不给就整个键都不在（「取消」写的是删键而不是
 // undefined，配置始终是普通 JSON）。projectAnalysis 把它写成列的 label 并另
-// 带一个 named: true，columnTitle 据此把名字当作整个标题、不再缀「的 合计」。
+// 带一个 named: true，columnTitle 据此把名字当作整个标题、不再缀「的总和」。
 export interface AnalysisNamed {
   label?: string;
 }

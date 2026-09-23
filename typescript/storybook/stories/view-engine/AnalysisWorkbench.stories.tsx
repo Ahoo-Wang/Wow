@@ -104,7 +104,7 @@ function AnalysisWorkbenchDemo({
    */
   limit?: number;
   /**
-   * 存成「只保留 金额的合计 大于 kept」的视图（Wow `having`）。打开时托盘收着，
+   * 存成「只保留 金额的总和 大于 kept」的视图（Wow `having`）。打开时托盘收着，
    * 于是被筛掉的组只能由结果第一行的读法说出来。
    */
   kept?: number;
@@ -130,7 +130,7 @@ function AnalysisWorkbenchDemo({
   /** Whether the chart writes each value over its mark (`ChartSpec.labels`). */
   labels?: boolean;
   /**
-   * 仓库 × 状态的热力图：两个维度、一个金额合计，格子深浅按金额，底下一条色标
+   * 仓库 × 状态的热力图：两个维度、一个金额总和，格子深浅按金额，底下一条色标
    * （D21 第四批）。
    */
   heatmap?: boolean;
@@ -606,7 +606,7 @@ export const TwoMetrics: Story = {
 };
 
 /**
- * 每个仓库的订单数画成柱。从这里在图型网格里选「组合图」：金额的合计作为折线
+ * 每个仓库的订单数画成柱。从这里在图型网格里选「组合图」：金额的总和作为折线
  * 加进来，量的是钱而不是个数，于是坐到右轴上、右轴写它的列标题，两根轴的刻度
  * 落在同一组网格线上。
  */

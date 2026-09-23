@@ -186,6 +186,7 @@ const IN_POOL: FilterNode = {
 export const customerDefinition: DataViewDefinition = {
   id: CUSTOMER,
   title: '快照控制台',
+  recordNoun: '客户',
   kind: 'data',
   source: CUSTOMER_AGGREGATE,
   // The pickers list the fields under these, in this order.

@@ -77,7 +77,7 @@ const groupRows = (table: HTMLElement) =>
 /**
  * 指标卡片上写的是它测量的那个字段——「金额」——汇总方式由旁边那个控件说；
  * 一旦在别处**提到**这个指标（「只保留」、排序、派生指标的操作数），旁边
- * 没有那个控件，于是提到它的地方和结果表的列头说同一句话：「金额的合计」
+ * 没有那个控件，于是提到它的地方和结果表的列头说同一句话：「金额的总和」
  * （`columnTitle` / `metricReference`）。
  */
 const AMOUNT_METRIC = formatMessage(zhCN, 'label.summary.of', {
@@ -85,9 +85,12 @@ const AMOUNT_METRIC = formatMessage(zhCN, 'label.summary.of', {
   fn: zhCN['label.summary.fn.SUM'],
 });
 
-/** 「金额 − 成本的合计」: a formula's own words, then how it was summarised. */
+/**
+ * 「(金额 − 成本)的总和」: a formula's own words, bracketed because a summary
+ * is put around them (2026-09-23 audit), then how it was summarised.
+ */
 const MARGIN_HEADER = formatMessage(zhCN, 'label.summary.of', {
-  field: '金额 − 成本',
+  field: '(金额 − 成本)',
   fn: zhCN['label.summary.fn.SUM'],
 });
 
@@ -95,7 +98,7 @@ const MARGIN_HEADER = formatMessage(zhCN, 'label.summary.of', {
 const reading = (canvasElement: HTMLElement) =>
   canvasElement.querySelector<HTMLElement>('[data-slot="analysis-reading"]');
 
-/** 「只保留 金额的合计 大于 ¥2,000.00」, in the words the tray's row uses. */
+/** 「只保留 金额的总和 大于 ¥2,000.00」, in the words the tray's row uses. */
 const KEPT_READING = formatMessage(zhCN, 'label.analysis.reading-kept', {
   reading: formatMessage(zhCN, 'label.analysis.reading', {
     dimensions: '仓库',
@@ -114,7 +117,7 @@ const KEPT_READING = formatMessage(zhCN, 'label.analysis.reading-kept', {
 /**
  * 「只保留」：一行一条比较，跑完之后表上真的少了两组。
  *
- * 四个仓库的金额合计是 1920／2450／4880／980，「金额的合计 大于 2000」
+ * 四个仓库的金额总和是 1920／2450／4880／980，「金额的总和 大于 2000」
  * 之后只剩华北与华南。它是聚合之后、排序与截断之前的一道筛选，所以它减少
  * 的是**组**，不是记录——一条画在条件面板里的筛选做不到这件事，这也是它
  * 为什么不在范围里。
@@ -169,7 +172,7 @@ export const KeepOnly: Story = {
  *
  * 表上只有华北与华南，合计行却数着全部记录；从前屏幕上没有一个字说华东与
  * 西南去了哪里，读的人只能当它们没有数据。现在结果第一行在指标后面说出
- * 「只保留 金额的合计 大于 ¥2,000.00」——不打开托盘也看得见。
+ * 「只保留 金额的总和 大于 ¥2,000.00」——不打开托盘也看得见。
  */
 export const KeepOnlySaved: Story = {
   ...DisplayTableWithTotals,
@@ -189,7 +192,7 @@ export const KeepOnlySaved: Story = {
 /**
  * 公式：两个字段一次运算，逐条算完再汇总，屏幕上多出一列。
  *
- * 「金额 − 成本」在**每一条记录上**算一次、再在组里合计，这与「金额合计
+ * 「金额 − 成本」在**每一条记录上**算一次、再在组里合计，这与「金额总和
  * 减 成本合计」在合计上碰巧相等、在平均上并不相等——数据源真的按表达式
  * 算，所以这一列的数是查询答的，不是故事写死的。
  */
@@ -226,6 +229,9 @@ export const Formula: Story = {
     await waitFor(() => expect(readHeaders(after)).toContain(MARGIN_HEADER));
     // 华东 1920 − 1400 = 520；这一列的数由数据源逐条算出来。
     await expect(readColumn(after, MARGIN_HEADER)[0]).toContain('520');
+    // Money minus money is money: the column reads in the ¥ its operands
+    // are in, as the amount column beside it does (2026-09-23 audit).
+    await expect(readColumn(after, MARGIN_HEADER)[0]).toBe('¥520.00');
   },
 };
 
@@ -309,7 +315,11 @@ export const TopNField: Story = {
       // A fraction is told the range, not that it must be positive.
       const said = await within(opened).findByText(refusal);
       await expect(said).toBeVisible();
-      await expect(box()).toHaveAccessibleDescription(refusal);
+      // Beside the note that the source picks the groups (nothing sorts
+      // them here), so the description holds both.
+      await expect(box()).toHaveAccessibleDescription(
+        expect.stringContaining(refusal),
+      );
       // Under its box, and inside the tray rather than cut off at its edge.
       const where = said.getBoundingClientRect();
       await expect(where.top).toBeGreaterThanOrEqual(
@@ -368,7 +378,7 @@ export const TopNField: Story = {
  * 不会漏给下一个故事，末尾不必再收拾一遍。
  */
 
-/** 「成本的合计」：关掉开关之后那次编辑要带出来的那一列。 */
+/** 「成本的总和」：关掉开关之后那次编辑要带出来的那一列。 */
 const COST_HEADER = formatMessage(zhCN, 'label.summary.of', {
   field: '成本',
   fn: zhCN['label.summary.fn.SUM'],

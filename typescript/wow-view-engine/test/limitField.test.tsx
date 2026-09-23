@@ -36,7 +36,7 @@ import {
   formatMessage,
 } from '../src/ui/index.js';
 import { analysisConfig, ordersDefinition, testSource } from './fixtures.js';
-import { openTray } from './fixtures/workbench.js';
+import { analysisToggle, openTray } from './fixtures/workbench.js';
 
 afterEach(cleanup);
 
@@ -89,9 +89,13 @@ function type(value: string) {
 }
 
 /** The sentence the box is described by, or null when nothing is wrong. */
+/** The refusal the box is described by, if any — not the unsorted note. */
 function refusal(): string | null {
-  const id = box().getAttribute('aria-describedby');
-  return id ? (document.getElementById(id)?.textContent ?? null) : null;
+  const ids = (box().getAttribute('aria-describedby') ?? '').split(' ');
+  const error = ids
+    .map(id => document.getElementById(id))
+    .find(node => node?.getAttribute('data-slot') === 'field-error');
+  return error?.textContent ?? null;
 }
 
 const outOfRange = (max: number) =>
@@ -206,6 +210,33 @@ describe('the top-N groups field', () => {
     expect(box().getAttribute('aria-invalid')).not.toBe('true');
   });
 
+  /**
+   * The status line's way out of a refused config is 「打开分析」 — which
+   * opens the tray. With the tray already open it pointed at the very thing
+   * under it (2026-09-23 audit), so it is offered only while the tray is
+   * folded away.
+   */
+  it('offers the way into the tray only while the tray is folded', async () => {
+    await open({ limit: 0 });
+    const openEditor = () =>
+      screen.queryByRole('button', {
+        name: defaultMessages['label.analysis.open-editor'],
+      });
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-slot="status-line"]')!.textContent,
+      ).not.toBe(''),
+    );
+    expect(openEditor()).toBeNull();
+
+    fireEvent.click(analysisToggle());
+    await waitFor(() => expect(openEditor()).not.toBeNull());
+
+    fireEvent.click(openEditor()!);
+    await waitFor(() => expect(openEditor()).toBeNull());
+    expect(field()).not.toBeNull();
+  });
+
   it('marks a stored N out of range, and lets a good one replace it', async () => {
     const { engine } = await open({ limit: 0 });
 
@@ -247,5 +278,28 @@ describe('the top-N groups field', () => {
 
     await waitFor(() => expect(box().value).toBe('30'));
     expect(box().getAttribute('aria-invalid')).not.toBe('true');
+  });
+
+  /**
+   * Without a sort, which N groups come back is the source's choice — Wow
+   * hands the first N buckets it has — and 「前 10 组」 read as "the top
+   * ten" is the wrong ten (2026-09-23 audit). Said beside the box, and to a
+   * reader on it, only while there is no sort.
+   */
+  it('says the source picks the groups while nothing sorts them', async () => {
+    const note = () =>
+      field()!.querySelector<HTMLElement>('[data-slot="limit-unsorted"]');
+    const { engine } = await open({ sort: [] });
+
+    expect(note()!.textContent).toBe(
+      defaultMessages['label.analysis.row-limit-unsorted'],
+    );
+    expect(box().getAttribute('aria-describedby')).toBe(note()!.id);
+
+    runtimeOf(engine).edit({
+      sort: [{ alias: 'orders', direction: 'DESC' }],
+    });
+    await waitFor(() => expect(note()).toBeNull());
+    expect(box().hasAttribute('aria-describedby')).toBe(false);
   });
 });

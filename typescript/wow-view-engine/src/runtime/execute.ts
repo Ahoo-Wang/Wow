@@ -216,6 +216,17 @@ async function executeAnalysis(
 }
 
 /**
+ * The findings a result makes about the groups below its last row
+ * (`cutShortIssues`). A workbench draws them beside the result they are
+ * about rather than in the status line over the whole view: a sentence
+ * about the rows belongs where the rows are (2026-09-23 audit).
+ */
+export const CUT_SHORT_CODES: readonly string[] = [
+  'analysis.result.more-groups',
+  'analysis.result.at-limit',
+];
+
+/**
  * What the screen is told about the groups below the last row.
  *
  * A grouping that goes on past the last row shown makes every share,
@@ -236,6 +247,14 @@ function cutShortIssues(
   // out on purpose — worth saying, but as a note, not as a warning that
   // something is wrong.
   const severity = sharesOfWhole(config) ? 'warning' : 'note';
+  // A ranking — the groups ordered by a metric and cut at N — left the rest
+  // out on purpose: 「销售额前 10 的城市」 is the question, and a note under
+  // it saying "only the first 10 are shown" tells its author what they
+  // asked for. The probe cannot know intent; the sort is the one place the
+  // config says it. Unsorted, or sorted by a dimension, the first N are
+  // whichever the order happens to put first, and the note stays. A pie
+  // keeps its warning either way: its slices are shares of what is shown.
+  if (severity === 'note' && isRanking(config)) return [];
   if (view.truncated)
     return [
       issue(
@@ -254,6 +273,15 @@ function cutShortIssues(
       severity,
     ),
   ];
+}
+
+/** Whether the groups are ordered by a metric first: a top N, on purpose. */
+function isRanking(config: AnalysisViewConfig): boolean {
+  const first = config.sort[0];
+  return (
+    first !== undefined &&
+    config.metrics.some(metric => metric.alias === first.alias)
+  );
 }
 
 /** Whether the result is drawn as shares of the groups it holds. */

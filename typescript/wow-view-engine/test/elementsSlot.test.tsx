@@ -67,6 +67,7 @@ const analysisView: ViewInstance = {
 /** Orders holding items holding batches: a declared two-level chain. */
 function chainedDefinition(): DataViewDefinition {
   return ordersDefinition({
+    recordNoun: 'Orders',
     fields: [
       { name: 'id', label: 'Order', kind: 'string', sortable: true },
       { name: 'warehouse', label: 'Warehouse', kind: 'string' },
@@ -215,7 +216,7 @@ async function expand(name: string): Promise<void> {
 async function addCondition(scope: string, field: string): Promise<void> {
   fireEvent.click(
     screen.getByRole('button', {
-      name: `${scope} ${defaultMessages['label.filter.add-here']}`,
+      name: `${scope} ${defaultMessages['label.filter.add-condition']}`,
     }),
   );
   const picker = await screen.findByRole('dialog', {
@@ -269,6 +270,8 @@ describe('the expansion slot', () => {
     // Nothing expanded: the records are what is counted, and the slot says
     // so under the one step there is to take.
     expect(levels()).toEqual([]);
+    // By the definition's record noun, not its title (2026-09-23 audit: a
+    // console titled 「事件流分析台」 was counting consoles).
     expect(unit()).toBe(label('label.analysis.unit', { name: 'Orders' }));
     expect(expandInto()?.textContent).toContain(
       label('label.analysis.expand-into', { name: 'Items' }),
@@ -336,7 +339,7 @@ describe('the expansion slot', () => {
 
     fireEvent.click(
       screen.getByRole('button', {
-        name: `Items ${defaultMessages['label.filter.add-here']}`,
+        name: `Items ${defaultMessages['label.filter.add-condition']}`,
       }),
     );
     const picker = await screen.findByRole('dialog', {
@@ -412,6 +415,21 @@ describe('the expansion slot', () => {
    * 明细项, so collapsing the item leaves nothing to hold it. The counting
    * unit goes back to the records, and the slot offers the first step again.
    */
+  /**
+   * A definition that names no record noun counts 「records」 — the
+   * catalogue's own word — and never its title, which names the dataset.
+   */
+  it('counts records by the catalogue’s word where the definition names none', async () => {
+    const unnamed = chainedDefinition();
+    delete unnamed.recordNoun;
+    await open({ definition: { ...unnamed, title: 'Event console' } });
+    expect(unit()).toBe(
+      label('label.analysis.unit', {
+        name: defaultMessages['label.analysis.records'],
+      }),
+    );
+  });
+
   it('collapses a level, and everything inside it', async () => {
     const { engine } = await open();
     await expand('Items');

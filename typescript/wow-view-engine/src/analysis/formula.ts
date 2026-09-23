@@ -27,7 +27,7 @@ import type { MetricFunction } from './metricFormat.js';
  * **formula** — a number computed per record from two fields and summed,
  * averaged, … across the group (Wow's `NUMERIC` over a `BINARY`
  * expression: 毛利 = 金额 − 成本) — and a **derived** metric — arithmetic
- * over two metrics of the same row (Wow's `DERIVED`: 客单价 = 金额合计 ÷
+ * over two metrics of the same row (Wow's `DERIVED`: 客单价 = 金额总和 ÷
  * 客户数). Both are one operation over two operands; nesting is written
  * by hand in the config, not in the tray.
  */
@@ -50,7 +50,7 @@ export const EXPRESSION_OPERATORS = Object.keys(
 
 /**
  * How a derived metric's text names another metric it refers to. The kernel
- * holds no catalogue, so it cannot say 「金额的合计」 or 「记录数」: it writes
+ * holds no catalogue, so it cannot say 「金额的总和」 or 「记录数」: it writes
  * the referenced metric's summary and name between control characters, and
  * `columnTitle` in the UI words each one exactly as that metric's own column
  * is worded (`wordReferences`) — so an operand reads the same in the
@@ -60,7 +60,7 @@ export const EXPRESSION_OPERATORS = Object.keys(
  * name.
  *
  * A referenced metric with a condition of its own carries it along
- * (`metricCondition`): 「金额的合计 · 已发运 ÷ 记录数」 is a different ratio
+ * (`metricCondition`): 「金额的总和 · 已发运 ÷ 记录数」 is a different ratio
  * from the one without it, and the operand says so as its own column does.
  * Only what a name reads is written — the one value, or that there is a
  * condition at all — as a third segment, empty for the second.

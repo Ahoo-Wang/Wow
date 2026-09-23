@@ -118,7 +118,7 @@ describe('FilterPanel tree editing', () => {
    */
   async function openPicker(
     name = 'Add',
-    // Every group carries an "Add in this group" of its own, so a nested
+    // Every group carries an "Add condition" of its own, so a nested
     // one's is reached through the group rather than through the page.
     from: HTMLElement = document.body,
   ): Promise<HTMLElement> {
@@ -959,7 +959,7 @@ describe('FilterPanel tree editing', () => {
     await waitFor(() =>
       expect(screen.getByLabelText('Items Group operator')).toBeTruthy(),
     );
-    await add(['SKU'], 'Items Add in this group');
+    await add(['SKU'], 'Items Add condition');
 
     const predicate = filter().tree.children[0] as unknown as {
       value: FilterTree;
@@ -971,7 +971,7 @@ describe('FilterPanel tree editing', () => {
     const { filter } = panel(false, withItems());
 
     act(() => filter().addLeaf('items'));
-    const picker = await openPicker('Items Add in this group');
+    const picker = await openPicker('Items Add condition');
 
     // `warehouse` belongs to the order, not to a line, and a predicate that
     // named it would compile into something Wow cannot answer.
@@ -985,7 +985,7 @@ describe('FilterPanel tree editing', () => {
     const { filter } = panel(false, withItems());
 
     act(() => filter().addLeaf('items'));
-    await add(['Qty'], 'Items Add in this group');
+    await add(['Qty'], 'Items Add condition');
 
     // A number field given text: the kind reports it under the leaf that
     // carries the predicate, and the row inside is what has to light up.
@@ -1022,7 +1022,7 @@ describe('FilterPanel tree editing', () => {
     act(() => filter().addGroup('or'));
     const group = screen.getByRole('group', { name: 'Any condition' });
 
-    await add(['Warehouse'], 'Add in this group', group);
+    await add(['Warehouse'], 'Add condition', group);
 
     expect(filter().tree.children[0]).toMatchObject({
       op: 'or',
@@ -1232,7 +1232,7 @@ describe('FilterPanel tree editing', () => {
       // Nesting left the field list when that list became a set of ticks: a
       // list of fields has no room for an entry that is not a field.
       const nest = await screen.findByRole('button', { name: 'Add a group' });
-      const picker = await openPicker('Add in this group');
+      const picker = await openPicker('Add condition');
       expect(within(picker).queryByText('Group')).toBeNull();
       fireEvent.keyDown(picker, { key: 'Escape' });
 
@@ -1260,7 +1260,7 @@ describe('FilterPanel tree editing', () => {
       act(() => harness.filter().setMode('advanced'));
 
       // The root is a group block in advanced mode, and a group block
-      // carries its own "Add in this group / Add a group". The panel's own
+      // carries its own "Add condition / Add a group". The panel's own
       // pair below it did the same two things a second time, so one screen
       // held four entries into one group.
       const root = screen.getByRole('region', { name: 'Filter' });
@@ -1272,7 +1272,7 @@ describe('FilterPanel tree editing', () => {
         ).toHaveLength(2),
       );
       expect(
-        within(root).getByRole('button', { name: 'Add in this group' }),
+        within(root).getByRole('button', { name: 'Add condition' }),
       ).toBeDefined();
       expect(
         within(root).getByRole('button', { name: 'Add a group' }),

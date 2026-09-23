@@ -33,21 +33,21 @@ import { useListFocus } from './listFocus.js';
 
 /**
  * 「只保留」 (D20 屏 B; Wow `having`): which groups the result keeps, as
- * rows of one comparison each, first in the result slot — 「金额的合计
+ * rows of one comparison each, first in the result slot — 「金额的总和
  * 大于 10,000」 — all of which must hold. It exists only where the capability
  * declares `having` and there is something to keep (a dimension); a
  * having over one row is refused by Wow. A row being filled in is the
  * editor's until it has a value, so the config on disk always holds
  * something Wow accepts. A stored having of another shape is shown as
  * present and clearable, not pretended to be editable.
+ *
+ * The state is a hook rather than the rows' own, because the way in is not
+ * always beside them: with no row there is no 「只保留」 block at all, only a
+ * 「只保留…」 button on the result's one line (`ResultSlot`) — an empty
+ * block with a legend and a lone button under it was two rows of the tray
+ * saying that nothing is kept (2026-09-23 audit).
  */
-export function HavingRows({
-  analysis,
-  disabled,
-}: {
-  analysis: AnalysisEditorController;
-  disabled?: boolean;
-}) {
+export function useHaving(analysis: AnalysisEditorController) {
   const messages = useViewMessages();
   // Rows the config cannot hold yet — no value — live here; the config
   // holds the complete ones. The key ties the local rows to the config's,
@@ -55,13 +55,13 @@ export function HavingRows({
   const stored = analysis.having;
   const [pending, setPending] = useState<HavingRow[]>([]);
   // A row taken out leaves the keyboard on the row that took its place, or
-  // on 「只保留」 once the last one goes (`listFocus.ts`).
+  // on the way to add one once the last one goes (`listFocus.ts`). The list
+  // is the result slot, which stays when the block goes with its last row.
   const focus = useListFocus({
-    list: '[data-slot="analysis-having"]',
+    list: '[data-slot="analysis-slot-result"]',
     item: '[data-slot="having-row"]',
     add: '[data-slot="add-having"]',
   });
-  if (!analysis.havingAllowed || analysis.groups.length === 0) return null;
   const rows = stored === null ? [] : [...stored, ...pending];
   const write = (next: HavingRow[]) => {
     setPending(next.filter(row => row.value === null));
@@ -77,11 +77,75 @@ export function HavingRows({
       value: metric.alias,
       label: metricReference(analysis, metric, messages),
     }));
+  const first = keepable[0];
+  return {
+    analysis,
+    /** Whether 「只保留」 exists here at all. */
+    allowed: analysis.havingAllowed && analysis.groups.length > 0,
+    /** `null` while the stored having is a shape the rows cannot say. */
+    stored,
+    rows,
+    keepable,
+    focus,
+    write,
+    /** Adds a row, or is absent where no metric can keep a group. */
+    add:
+      stored !== null && first
+        ? () =>
+            write([
+              ...rows,
+              { metric: first.value, operator: 'GT', value: null },
+            ])
+        : undefined,
+  };
+}
+
+export type Having = ReturnType<typeof useHaving>;
+
+/**
+ * The way to a first row, where there is none: 「只保留…」 on the result's
+ * line, beside the sort and 「前 N 组」. The rows' own block adds the next
+ * one under its legend instead (`HavingRows`).
+ */
+export function AddHaving({
+  having,
+  disabled,
+}: {
+  having: Having;
+  disabled?: boolean;
+}) {
+  const messages = useViewMessages();
+  if (!having.allowed || !having.add || having.rows.length > 0) return null;
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      data-slot="add-having"
+      disabled={disabled}
+      onClick={having.add}
+    >
+      <PlusIcon data-icon="inline-start" />
+      {messages.label('label.analysis.having-first')}
+    </Button>
+  );
+}
+
+/** The rows of 「只保留」, under their legend; nothing while there are none. */
+export function HavingRows({
+  having,
+  disabled,
+}: {
+  having: Having;
+  disabled?: boolean;
+}) {
+  const messages = useViewMessages();
+  const { analysis, stored, rows, keepable, focus, write } = having;
+  if (!having.allowed) return null;
+  if (stored !== null && rows.length === 0) return null;
   const operators = HAVING_OPERATORS.map(operator => ({
     value: operator,
     label: messages.label(`label.having.op.${operator}`),
   }));
-  const first = keepable[0];
   return (
     // A set of rows under one visible label, which is the fieldset's
     // legend: the rows' own controls are named for what they are (metric,
@@ -181,19 +245,14 @@ export function HavingRows({
           </EditorCard>
         ))
       )}
-      {stored !== null && first && (
+      {having.add && (
         <Button
           variant="ghost"
           size="sm"
           className="self-start"
           data-slot="add-having"
           disabled={disabled}
-          onClick={() =>
-            write([
-              ...rows,
-              { metric: first.value, operator: 'GT', value: null },
-            ])
-          }
+          onClick={having.add}
         >
           <PlusIcon data-icon="inline-start" />
           {messages.label('label.analysis.having')}

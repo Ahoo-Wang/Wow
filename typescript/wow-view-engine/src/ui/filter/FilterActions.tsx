@@ -38,6 +38,7 @@ export function FilterActions({
   overBudget,
   pending = filter.pending,
   quiet = false,
+  onApply,
 }: {
   filter: FilterEditorController;
   disabled?: boolean;
@@ -60,6 +61,11 @@ export function FilterActions({
    * primary again the moment something waits for it.
    */
   quiet?: boolean;
+  /**
+   * What Apply does, where a caller has something to settle first; the
+   * filter's own `submit` when left out.
+   */
+  onApply?(): void;
 }) {
   const messages = useViewMessages();
   const resting = quiet && !pending;
@@ -105,7 +111,7 @@ export function FilterActions({
         data-emphasis={resting ? 'quiet' : 'primary'}
         data-pending={pending || undefined}
         disabled={disabled || filter.blocked > 0}
-        onClick={filter.submit}
+        onClick={onApply ?? filter.submit}
       >
         {/* The same dot the pills wear, in the one colour that shows on a
             filled primary button — and a button with a dot is never the

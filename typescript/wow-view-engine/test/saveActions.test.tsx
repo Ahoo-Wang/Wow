@@ -215,6 +215,58 @@ describe('SaveActions, the split button group', () => {
     expect(screen.getByRole('status').textContent).toBe('View saved');
   });
 
+  /**
+   * A save in place over a shared view changes it for everyone who sees
+   * it, with one click (2026-09-23 audit). So that one asks first, naming
+   * the view; Cancel writes nothing, the confirmation writes it. A personal
+   * view — the one above — saves on the press as it always did.
+   */
+  it('asks before saving over a shared view, naming it', async () => {
+    const store = tracked(
+      new MemoryViewStore({
+        instances: [
+          { ...mine, id: 'orders-9', title: 'Ours', scope: 'shared' },
+        ],
+        permissions: permitting(),
+      }),
+    );
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store,
+      resolveSource: () => testSource(),
+    });
+    const runtime = await engine.open('orders-9');
+    render(<Harness engine={engine} runtime={runtime} />);
+    editIt(runtime);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const dialog = await screen.findByRole('alertdialog', {
+      name: 'Update it for everyone?',
+    });
+    expect(dialog.textContent).toContain(
+      'This updates “Ours” for everyone who can see it.',
+    );
+
+    // Cancel: nothing written.
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect((await store.get('orders-9')).revision).toBe('1');
+
+    // Confirmed: written.
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    fireEvent.click(
+      within(
+        await screen.findByRole('alertdialog', {
+          name: 'Update it for everyone?',
+        }),
+      ).getByRole('button', { name: 'Update for everyone' }),
+    );
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    await waitFor(async () =>
+      expect((await store.get('orders-9')).revision).toBe('2'),
+    );
+  });
+
   it('stops saying it the moment the view is edited again', async () => {
     const { runtime } = await open();
     editIt(runtime);

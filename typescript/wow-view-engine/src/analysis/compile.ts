@@ -141,9 +141,11 @@ export function analysisProbeLimit(
  * before, and a dashboard of them no more than it did.
  */
 export function asksForWhole(config: AnalysisViewConfig): boolean {
+  // Without a dimension the answer is already the whole — one row over
+  // every record in the range — and asking again would be the same query.
+  if (config.groups.length === 0) return false;
   if (config.table.totals) return true;
   return (
-    config.groups.length > 0 &&
     config.chart.type === 'metric' &&
     config.chart.metric?.trend?.headline === 'whole'
   );

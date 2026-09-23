@@ -216,6 +216,7 @@ function progress(
 export const tradeOrderDefinition: DataViewDefinition = {
   id: TRADE_ORDER,
   title: '快照控制台',
+  recordNoun: '订单',
   kind: 'data',
   source: TRADE_ORDER_AGGREGATE,
   // The pickers list the fields under these, in this order.

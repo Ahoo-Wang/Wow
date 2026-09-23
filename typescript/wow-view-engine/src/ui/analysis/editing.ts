@@ -126,12 +126,12 @@ export function metricName(
  *
  * The card's own title says the bare field name, because the summary
  * combobox sits right beside it and says the rest. Everywhere else there is
- * no such neighbour, so 「金额的合计」 and 「金额的平均」 would read as one
+ * no such neighbour, so 「金额的总和」 and 「金额的平均」 would read as one
  * name. This composes the summary in exactly the way the result column and
  * the chart slots do — `columnTitle` over the same label and the same
  * function — so a metric reads the same word wherever it is mentioned.
  * Its own condition goes along too (D20 显示名): two cards over one field
- * that differ only in what they count are 「金额的合计」 and 「金额的合计 ·
+ * that differ only in what they count are 「金额的总和」 and 「金额的总和 ·
  * 已发运」 here as they are in the result.
  */
 export function metricReference(
@@ -148,7 +148,7 @@ export function metricReference(
   return columnTitle(
     metric.label === undefined
       ? {
-          label: metricFallbackName(analysis, metric, messages),
+          label: metricFallbackName(analysis, metric, messages, true),
           fn: metricFunctionOf(metric),
           ...(cell === undefined ? {} : { cell }),
           ...(condition ? { condition } : {}),
@@ -158,21 +158,29 @@ export function metricReference(
   );
 }
 
-/** The name a metric falls back to without one of its own. */
+/**
+ * The name a metric falls back to without one of its own. `composed` is for
+ * a name a summary is put around (`metricReference`): a formula is then
+ * bracketed, 「(金额 − 成本)的总和」, as its result column is
+ * (`projectAnalysis`) — bare, the sum read as belonging to 成本 alone. Its
+ * own card says it bare, with the summary control beside it.
+ */
 export function metricFallbackName(
   analysis: MetricNaming,
   metric: AnalysisMetric,
   messages: MessageFormatters,
+  composed = false,
 ): string {
   const fieldLabel = (field: string) =>
     analysis.fields.find(entry => entry.field === field)?.label ?? field;
   if (metric.type === 'COUNT')
     return messages.label('label.analysis.row-count');
-  if (isFormula(metric)) return expressionText(metric.expression, fieldLabel);
+  if (isFormula(metric))
+    return expressionText(metric.expression, fieldLabel, composed);
   if (metric.type === 'DERIVED')
     return derivedText(metric.expression, alias => {
       // An operand is a reference to another metric, and says its summary
-      // (「金额的合计 ÷ 记录数」), as the derived column's header does.
+      // (「金额的总和 ÷ 记录数」), as the derived column's header does.
       const referenced = analysis.metrics.find(entry => entry.alias === alias);
       return referenced
         ? metricReference(analysis, referenced, messages)

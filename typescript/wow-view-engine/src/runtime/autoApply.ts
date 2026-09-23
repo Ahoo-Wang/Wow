@@ -58,6 +58,27 @@ export function autoApplyDue(state: AutoApplyState): boolean {
 }
 
 /**
+ * Whether the rows on screen answer an older question than the one on its
+ * way: a query is in flight and what it asks differs from what the result
+ * answered, in a member that does more than draw it.
+ *
+ * The other half of a result that is out of date. `autoApplyDue` covers the
+ * moment before the question is sent — the debounce — and went false the
+ * moment it was, so a slow answer left the old rows standing at full
+ * strength as though they were the new ones (2026-09-23 audit). A refresh of
+ * the same question is not this: its rows are the answer to what is being
+ * asked, and they stay as they are until the new ones land.
+ */
+export function answeringAnew(state: {
+  applied: ViewConfig;
+  query: { status: string };
+  result: { own: ViewConfig } | null;
+}): boolean {
+  if (state.query.status !== 'loading' || state.result === null) return false;
+  return changedMembers(state.applied, state.result.own).length > 0;
+}
+
+/**
  * The members the draft says differently from the applied config, leaving
  * out the ones that only draw the result (`presentationMembers`): those
  * redraw without asking the source, so they neither run nor hold a run.

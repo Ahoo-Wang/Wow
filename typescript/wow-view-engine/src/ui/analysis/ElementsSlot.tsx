@@ -92,7 +92,9 @@ export function ElementsSlot({
         data-slot="counting-unit"
         className={cn('text-muted-foreground', TEXT_UI)}
       >
-        {messages.label('label.analysis.unit', { name: analysis.unit })}
+        {messages.label('label.analysis.unit', {
+          name: analysis.unit ?? messages.label('label.analysis.records'),
+        })}
       </span>
     </EditorSlot>
   );

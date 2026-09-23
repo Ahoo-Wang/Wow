@@ -47,24 +47,28 @@ export function AddEntry({
   disabled,
   groups,
   label,
+  name,
 }: {
   filter: FilterTreeController;
   parent: FilterPath;
   disabled?: boolean;
   /** Whether groups may be added here: only the advanced editor shows them. */
   groups: boolean;
-  /** The accessible name; the catalogue's own when a caller names none. */
+  /** The button's text; the catalogue's own when a caller names none. */
   label?: string;
+  /** The accessible name, where it says more than the text (`FieldChecklist`). */
+  name?: string;
 }) {
   const messages = useViewMessages();
-  const name = label ?? messages.label('label.filter.add');
+  const text = label ?? messages.label('label.filter.add');
 
   const picker = (
     <FieldChecklist
       filter={filter}
       parent={parent}
       disabled={disabled}
-      label={name}
+      label={text}
+      {...(name === undefined ? {} : { name })}
     />
   );
 

@@ -302,7 +302,7 @@ describe('the chart options', () => {
     });
 
     await user.click(gear('bar'));
-    // Every series card is headed by its column — 「金额的合计」, never the
+    // Every series card is headed by its column — 「金额的总和」, never the
     // alias `total`, which names the query.
     expect(seriesNames()).toEqual(['Record count', 'Sum of Amount']);
     // The row is one line, so a long column title is cut off in it; the

@@ -126,6 +126,7 @@ const NOTHING: SaveCommands = {
     dirty: false,
     blocked: false,
     hasErrors: false,
+    audience: 'personal',
     isNew: false,
     lastSavedAt: null,
   },

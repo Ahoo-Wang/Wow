@@ -68,7 +68,7 @@ export const filterMessages = {
   'label.filter.group-operator': 'Group operator',
   'label.filter.remove-group': 'Remove group',
   'label.filter.add': 'Add',
-  'label.filter.add-here': 'Add in this group',
+  'label.filter.add-condition': 'Add condition',
   'label.filter.condition-of': '{field} condition',
   'label.field.none': 'No field matches',
   'label.field.search': 'Search fields',

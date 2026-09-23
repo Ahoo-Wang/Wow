@@ -183,7 +183,7 @@ export function FilterPanel({
           The field on the left is simple mode's. Advanced mode draws the
           root as a group block, and a group block already carries its own
           way in — so a second pair here made four entries for one group
-          ("Add in this group / Add a group / Add / Add a group"), two of
+          ("Add condition / Add a group / Add / Add a group"), two of
           which did exactly what the other two did. One group, one set: the
           root's lives in the root's frame, directly above this row, and
           what is left here is the way out. */}

@@ -224,7 +224,7 @@ describe('an analysis column header', () => {
 
     expect(
       screen.getAllByRole('columnheader').map(cell => cell.textContent),
-    ).toEqual(['Warehouse', 'Amount的合计', 'Amount的平均', '记录数']);
+    ).toEqual(['Warehouse', 'Amount的总和', 'Amount的平均', '记录数']);
   });
 });
 

@@ -130,10 +130,19 @@ export interface WorkbenchShellProps {
   result?: ReactNode;
   /**
    * The way out of an error the status line reports, at the end of its
-   * line. A record view offers its column settings; the other two have
-   * nowhere of their own to send a reader yet.
+   * line. A record view offers its column settings, an analysis view its
+   * tray or its chart options. Given as a function, it is asked whether the
+   * editor is open: a way out that only opens the editor is no way out
+   * while the editor is already open under it (2026-09-23 audit).
    */
-  errorAction?: ReactNode;
+  errorAction?: ReactNode | ((editorOpen: boolean) => ReactNode);
+  /**
+   * The codes of the findings a result makes about itself that the kind
+   * draws beside that result — an analysis's 「只显示了前 N 组」 over its
+   * table — and that the status line therefore leaves out, so a sentence is
+   * said once and where it is about.
+   */
+  besideResult?: readonly string[];
   /**
    * The sidebar a workbench opens on. One boolean governs it, so collapsing
    * is a change in one place rather than in the layout of every part beside
@@ -289,6 +298,7 @@ export function WorkbenchShell({
   strips,
   result,
   errorAction,
+  besideResult,
   defaultSidebarOpen,
   onSidebarOpenChange,
   expandable = true,
@@ -596,8 +606,15 @@ export function WorkbenchShell({
                 state={state}
                 kind={kind}
                 warnings={warnings}
+                besideResult={besideResult}
                 nameIssue={nameIssue}
-                errorAction={errorAction}
+                errorAction={
+                  typeof errorAction === 'function'
+                    ? errorAction(
+                        editor != null && (!folded || editorIsOpen.open),
+                      )
+                    : errorAction
+                }
               />
 
               {/* The conditions, on a surface of their own. The block exists

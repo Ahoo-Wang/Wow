@@ -91,6 +91,13 @@ export interface SaveCommandState {
    */
   hasErrors: boolean;
   /**
+   * Who sees the open view as it is saved: `personal` for its author alone,
+   * `shared` for everyone it is shared with (a system view is `shared` too,
+   * and has no save). A save in place over a shared view changes what all
+   * of them see, which is what a UI asks about first; `null` with no view.
+   */
+  audience: ViewAudience | null;
+  /**
    * The view has never been saved. Its first save is a create, which is why
    * a UI asks for a title and an audience before it rather than writing the
    * name the view opened under.
@@ -407,6 +414,7 @@ export function useSaveCommands(
         blocksNewIntent(state?.write) ||
         issues.some(found => found.severity === 'error'),
       hasErrors: issues.some(found => found.severity === 'error'),
+      audience: state ? audienceOf(state.scope) : null,
       isNew: state !== null && state.saved === null,
       lastSavedAt: own.savedAt,
     },
