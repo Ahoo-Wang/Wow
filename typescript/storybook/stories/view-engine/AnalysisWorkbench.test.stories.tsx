@@ -25,6 +25,7 @@ import displayMeta, {
   QueryFailed as DisplayQueryFailed,
   TableWithTotals as DisplayTableWithTotals,
   TwoMetrics as DisplayTwoMetrics,
+  LatestPerWarehouse as DisplayLatestPerWarehouse,
 } from './AnalysisWorkbench.stories.js';
 import { aggregateCalls } from './fixtures.js';
 import { amountOf, findDataTable, readColumn, readTotal } from './readTable.js';
@@ -90,6 +91,33 @@ export const BarChart: Story = {
     // same labeller; synthesised pointer events do not open a recharts
     // tooltip, so what it says is pinned in the package
     // (test/analysisChart.test.tsx) and looked at in a browser by hand.
+  },
+};
+
+/**
+ * 数的是记录，刻度就只有整数。
+ *
+ * 四个仓库各有一到三单，纵轴从 0 到 3：比例尺本来会在中间放 0.5、1.5，而订单数
+ * 的格式把它们写成「1」「2」，轴上读成 3、2、2、1、1、0（真实补偿服务上发现，
+ * 2026-09-23）。轴上每个数都是整数时就不给小数刻度，所以这里量两件事：刻度都是
+ * 整数，且没有两个刻度写成同一个字。
+ */
+export const WholeTicks: Story = {
+  ...DisplayLatestPerWarehouse,
+  args: { ...DisplayLatestPerWarehouse.args, layout: 'chart' },
+  play: async ({ canvasElement }) => {
+    await waitFor(() => expect(bars(canvasElement).length).toBeGreaterThan(0));
+    const labels = await waitFor(() => {
+      const found = [
+        ...canvasElement.querySelectorAll(
+          '.recharts-yAxis-tick-labels .recharts-cartesian-axis-tick-value',
+        ),
+      ].map(tick => (tick.textContent ?? '').trim());
+      expect(found.length).toBeGreaterThan(1);
+      return found;
+    });
+    await expect(labels.every(label => /^\d+$/.test(label))).toBe(true);
+    await expect(new Set(labels).size).toBe(labels.length);
   },
 };
 

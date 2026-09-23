@@ -135,6 +135,33 @@ export function Cartesian({
     data.series.find(
       series => axisId(bySeries.get(series.metric)?.axis) === side,
     )?.metric;
+  /**
+   * Whether every number on an axis is whole — a count of records, a sum of
+   * counts. Such an axis takes no fractional ticks: between 0 and 2 the
+   * scale otherwise puts 0.5 and 1.5, and the metric's own format, which
+   * rounds a count, wrote them as 「1」 and 「2」 — an axis reading 2, 2, 1,
+   * 1, 0 (found on the real compensation service, 2026-09-23). Read off the
+   * values rather than the metric's kind: an average of counts is not whole,
+   * and a sum of whole amounts is.
+   */
+  const wholeOn = (side: 'left' | 'right') => {
+    const keys = data.series
+      .filter(series => axisId(bySeries.get(series.metric)?.axis) === side)
+      .map(series => series.key);
+    return (
+      data.points.every(point =>
+        keys.every(key => {
+          const value = point.values[key];
+          return (
+            value === null || value === undefined || Number.isInteger(value)
+          );
+        }),
+      ) &&
+      referenceLines
+        .filter(line => axisId(line.axis) === side)
+        .every(line => Number.isInteger(line.value))
+    );
+  };
   const ticksOf = (axis: typeof left, side: 'left' | 'right') =>
     tickFormatterOf(axis, locale) ??
     ((value: number) => label(metricOn(side), value));
@@ -188,6 +215,7 @@ export function Cartesian({
             <XAxis
               type="number"
               xAxisId="left"
+              allowDecimals={!wholeOn('left')}
               domain={domainOf(left)}
               tickFormatter={ticksOf(left, 'left')}
               label={titleOf(left, 'left')}
@@ -197,6 +225,7 @@ export function Cartesian({
                 type="number"
                 xAxisId="right"
                 orientation="top"
+                allowDecimals={!wholeOn('right')}
                 domain={domainOf(right)}
                 tickFormatter={ticksOf(right, 'right')}
                 label={titleOf(right, 'right')}
@@ -211,6 +240,7 @@ export function Cartesian({
               yAxisId="left"
               tickLine={false}
               axisLine={false}
+              allowDecimals={!wholeOn('left')}
               domain={domainOf(left)}
               tickFormatter={ticksOf(left, 'left')}
               label={titleOf(left, 'left')}
@@ -221,6 +251,7 @@ export function Cartesian({
                 orientation="right"
                 tickLine={false}
                 axisLine={false}
+                allowDecimals={!wholeOn('right')}
                 domain={domainOf(right)}
                 tickFormatter={ticksOf(right, 'right')}
                 label={titleOf(right, 'right')}
