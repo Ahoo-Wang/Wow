@@ -30,6 +30,7 @@ import {
   compileRecord,
   recordProjection,
   validateDefinition,
+  without,
   type DataViewDefinition,
   type RecordViewConfig,
   type RecordViewRuntime,
@@ -182,12 +183,14 @@ describe('recordProjection', () => {
   });
 
   /**
-   * A column over an array of objects reads each element's title, so the
-   * page must bring the array: asked for by its own path, the elements come
-   * whole, their titles among them. The array of a hidden column is not
-   * fetched, however heavy or light its elements.
+   * A column over an array of objects reads each element's title and
+   * nothing else of it, so the page asks for the titles alone — an event's
+   * payload and stack trace stay on the server. An array with no title reads
+   * as how many it holds, which takes the elements; a host that reads the
+   * array itself names it whole in `rowFields`. The array of a hidden column
+   * is not fetched at all.
    */
-  it('asks for an array of objects by its path when its column shows', () => {
+  it('asks for a shown array of objects by its element titles', () => {
     const events: DataViewDefinition = {
       id: 'events',
       title: 'Events',
@@ -209,7 +212,7 @@ describe('recordProjection', () => {
       ],
       record: { rowKey: 'aggregateId', paging: 'paged', layouts: ['table'] },
     };
-    const shown = (hidden?: true) =>
+    const shown = (hidden?: true, card: string[] = []) =>
       recordConfig({
         table: {
           columns: [
@@ -217,17 +220,47 @@ describe('recordProjection', () => {
             { field: 'body', ...(hidden ? { hidden } : {}) },
           ],
         },
-        card: { title: 'aggregateId', fields: [] },
+        card: { title: 'aggregateId', fields: card },
       });
 
     expect(recordProjection(events, shown()).include).toEqual([
       'aggregateId',
       'version',
-      'body',
+      'body.name',
     ]);
     expect(recordProjection(events, shown(true)).include).toEqual([
       'aggregateId',
       'version',
+    ]);
+    // A card reads it the same way.
+    const carded: DataViewDefinition = {
+      ...events,
+      record: { ...events.record!, layouts: ['table', 'card'] },
+    };
+    expect(recordProjection(carded, shown(true, ['body'])).include).toEqual([
+      'aggregateId',
+      'version',
+      'body.name',
+    ]);
+    // A host that reads the array names it whole, and whole it comes.
+    const read: DataViewDefinition = {
+      ...events,
+      record: { ...events.record!, rowFields: ['body'] },
+    };
+    expect(recordProjection(read, shown()).include).toEqual([
+      'aggregateId',
+      'version',
+      'body',
+    ]);
+    // Without a title the cell counts the elements, which takes them all.
+    const untitled: DataViewDefinition = {
+      ...events,
+      fields: events.fields.map(field => without(field, 'elementTitle')),
+    };
+    expect(recordProjection(untitled, shown()).include).toEqual([
+      'aggregateId',
+      'version',
+      'body',
     ]);
   });
 

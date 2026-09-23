@@ -87,38 +87,12 @@ export function rowSource(rows: readonly RecordData[]): ViewSource {
 function projected(query: { projection?: { include?: readonly string[] } }) {
   const include = query.projection?.include;
   if (!include || include.length === 0) return (row: RecordData) => row;
-  return (row: RecordData): RecordData => {
-    const picked: RecordData = {};
-    for (const path of include) {
-      const value = readPath(row, path);
-      if (value !== undefined) writePath(picked, path, value);
-    }
-    return picked;
-  };
-}
-
-function readPath(row: RecordData, path: string): unknown {
-  return path
-    .split('.')
-    .reduce<unknown>(
-      (at, key) =>
-        at !== null && typeof at === 'object'
-          ? (at as Record<string, unknown>)[key]
-          : undefined,
-      row,
-    );
-}
-
-function writePath(row: RecordData, path: string, value: unknown): void {
-  const keys = path.split('.');
-  let at: Record<string, unknown> = row;
-  for (const key of keys.slice(0, -1)) {
-    const next = at[key];
-    at[key] =
-      next !== null && typeof next === 'object' ? next : ({} as RecordData);
-    at = at[key] as Record<string, unknown>;
-  }
-  at[keys[keys.length - 1]] = value;
+  // Mongo's own projection, as mingo implements it: a path through an array
+  // picks that member of every element (`body.bodyType` answers each event
+  // as `{ bodyType }`), which is what the service's store does too.
+  const spec = Object.fromEntries(include.map(path => [path, 1]));
+  return (row: RecordData): RecordData =>
+    find<RecordData>([row], {}, spec).all()[0] ?? {};
 }
 
 function select(

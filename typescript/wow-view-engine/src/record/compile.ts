@@ -116,18 +116,34 @@ export function recordProjection(
     throw new Error(
       `Definition ${definition.id} declares no record capability`,
     );
-  const paths = new Set(
-    definition.fields
-      .filter(field => !isFieldlessKind(field.kind))
-      .map(field => field.name),
+  const valued = definition.fields.filter(
+    field => !isFieldlessKind(field.kind),
   );
+  const paths = new Set(valued.map(field => field.name));
+  // What a shown array of objects needs is each element's title, not the
+  // elements: the cell, the card and the CSV read nothing else of them, and
+  // the rest can be most of the page — an event stream's events carry their
+  // payloads and stack traces (10 KB a page of titles against 860 KB whole,
+  // measured on the compensation service). The detail reads the record
+  // whole on its own, and a host that reads the array names it whole in
+  // `rowFields`, which the ancestor rule below then keeps.
+  const shownPath = new Map<string, string>();
+  for (const field of valued) {
+    const title = field.elementTitle;
+    if (title && field.elements?.some(element => element.name === title)) {
+      const path = `${field.name}.${title}`;
+      shownPath.set(field.name, path);
+      paths.add(path);
+    }
+  }
+  const shown = (field: string) => shownPath.get(field) ?? field;
   const asked: string[] = [capability.rowKey];
   for (const column of config.table.columns)
-    if (!columnHidden(column.hidden)) asked.push(column.field);
+    if (!columnHidden(column.hidden)) asked.push(shown(column.field));
   if (capability.layouts.includes('card')) {
-    asked.push(config.card.title);
+    asked.push(shown(config.card.title));
     if (config.card.image !== undefined) asked.push(config.card.image);
-    asked.push(...config.card.fields);
+    asked.push(...config.card.fields.map(shown));
   }
   for (const sort of config.sort) asked.push(sort.field);
   for (const summary of config.summaries ?? [])
