@@ -96,7 +96,7 @@ D20 屏 G。订单里有明细项，明细项里有批次——「按货号看�
 
 ## 图表怎么被读出来
 
-- **画出来的部分是一张有名字的图，数字在它旁边。** ECharts 画的家族（D21，目前是直角坐标四种、饼与环、散点）：`role="img"` 与名字在我们自己的 `data-slot="chart-plot"` 上，库的 `aria` 关着、它的 `<svg>` 不带角色与名字，图里没有可聚焦的元素（test/analysisChartA11y.test.tsx「draws into one named image」）。仍由 recharts 画的家族：recharts 默认打开 `accessibilityLayer`，给根 `<svg>` 挂上 `role="application"` 与 `tabIndex={0}`：读屏会因此退出浏览模式、把按键交给一个没有任何键盘处理的元素，而那个元素里只有坐标轴刻度、一个空 `<title>` 和一个空 `<desc>`——查询回答的数字一个都不在。那一层当时由 `charts/asImage.ts` 关掉；现在所有家族都由 ECharts 画，`role="img"` 加 `aria-label` 一律在 `data-slot="chart-plot"` 上，热力图、漏斗与指标卡的迷你趋势也不例外。图里于是没有任何可聚焦的元素；
+- **画出来的部分是一张有名字的图，数字在它旁边。** ECharts 画的家族（D21，所有家族）：`role="img"` 与名字在我们自己的 `data-slot="chart-plot"` 上，库的 `aria` 关着、它的 `<svg>` 不带角色与名字，图里没有可聚焦的元素（test/analysisChartA11y.test.tsx「draws into one named image」）。 迁移前 recharts 默认在根 `<svg>` 上挂 `role="application"` 与一个 Tab 停靠点，读屏因此退出浏览模式、进到一个只有刻度的元素里；那一层已随 recharts 删掉。
 - **名字说的是"画的是什么"**：`{图型}：{度量}，按 {类目}`（`label.chart.figure`），度量与类目都按别名回 `AnalysisView.schema` 取列标题，取不到就只剩图型名。指标卡没有类目，用 `label.chart.figure.plain`；它的迷你趋势线另有一个 `label.chart.sparkline`；
 - **可读替代来自同一份投影。** `charts/reading.ts` 从 `ChartData`——而不是旁边那份行投影——生成 `{name, header, rows}`，`ChartReadingTable` 用注册表的 `Table` 以 `sr-only` 渲染在图旁边，于是屏幕上画了什么、读屏就读到什么，两者不会各说各话：图上有、这里没有的值，只能意味着某个家族画了内核没整形过的东西。数值按该系列所在坐标轴的格式打印（`percent` 轴上的 0.25 读作 25%），空洞读作 `label.summary.unavailable`；
 - **仪表盘上的指标卡一行高**：网格一行 80px，面板标题下留给内容的是 28px；工作台里的 `text-3xl`（36px 行高）放不下，面板要么滚动、要么占两行（170px）大半是空白。所以仪表盘面板里的值（`data-slot="metric-value"`）降到 `text-2xl` 并去掉行距（`styles.css`「A number on a dashboard is a tile one row tall」），与 shadcn 仪表盘卡片的数字起始字号一致；工作台里仍是 `text-3xl`。首页的三张指标卡因此各占一行。（见回归 story「首页 / Fixture」）
@@ -149,7 +149,7 @@ D20 定下的三条数据口径，每一条都是"这个数看起来是甲，其
 - **散点说得出每个点是什么**（2026-09-23 审查）。两根轴各以它那个指标的**列标题**为名（`useColumnTitle`，与表头同一句：「订单数」「金额 的 合计」；没有列时写「X 轴」「Y 轴」）——散点的两个方向都是数，不写标题就读不出哪根是哪根。点是圆，圆心在值上，所以落在最大值上的那个点曾经半个在绘图区外：两根轴两端各让出跨度的 6%（纵轴在点上写名字时上端 14%），按跨度而不是按整刻度让——库自己的留白会把两端取整，计数 0 到 2 读成 -1…3——两端这两个不是谁选的刻度也就不写字。第三个指标是点的大小（直径 8～28px）。八个点以内每个点上写组名（`NAMED_POINTS`，与值标签一样压到别的名字就不写），更多时只在提示里；提示以组名为标题，逐行写两轴与大小，按各自的列读（`scatterOption.ts`；test/scatterOption.test.ts、test/analysisChart.test.tsx「a scatter」与浏览器故事「图型/回归」的 `ScatterReadsItsPoints`）；
 - **漏斗的百分比说明是转化率、相对哪一段**。内核按 `conversion`（缺省 `previous`）拿每一段除以**上一段**，写了 `first` 才除以第一段；光秃秃一个「25%」挨着条，读起来是「占全部的 25%」——只有相对第一段时才是。所以百分比那一列上面有一行表头（`charts/family.ts` 的 `conversionHeading`：「转化率（相对上一段）」／「转化率（相对第一段）」，用的是选项面板上那个选择自己的词），读屏表的那一列同一句。条用色板第一档（`color(0)`，一个漏斗就是一个系列），不再是按钮的 `primary`；数写在条旁、用文字色，不压在色块上（一档色相对白字的对比度各不相同）；各列是一张网格，条从同一条边起、最长的那根止于数字之前，结果区照样给它左右 16px（`styles.css`）。（test/analysisChart.test.tsx「says what a funnel’s percentages are relative to, and paints from the palette」；浏览器故事「图型/回归」的 `FunnelFromTheRows`）；
 - **时间点不画成图形，只写出来。** 柱子从零长、扇区占整体的一份、格子深浅按大小——一个时刻没有零点，也没有整体，把它的毫秒数画成柱长只会让每一根都一样高、从 1970 年长起。所以：可视化的数据页里，系列、饼与漏斗的值、热力格子、散点的两轴与大小这些「量的槽」只列数量指标（`OptionsShape.quantities`），时间点只能做指标卡的主数；以时间点为主数的指标卡不给「比较」、目标值与数值格式（`chart.metric.moment`）。指标全是时间点而又有维度时，每个图型都灰着写「要数量指标，时间画不成图」（`chart.fit.needs-quantity`），表格那张卡可选，结果区显示表格——**不去把时间轴做成日期刻度**：那样柱状与面积仍从轴的下界长起，最早的那根长度为零，读起来是"没有"，比不画更错；
-- **提示框是自己画的。** 注册表的 `ChartTooltipContent` 是 recharts 的组件，把数字写成 `toLocaleString()`；ECharts 画的家族由 `charts/tooltip.ts` 自己写整张提示框（注册表的样式、每个数按它的列读、数据里来的字一律转义），与 `ui/popups.tsx` 同一条缝，理由也一样：`ui/components/**` 是上游的，不手改。
+- **提示框是自己画的。** 注册表的图表组件（`chart`，recharts 适配）随 D21 删掉了，它的提示内容从前把数字写成 `toLocaleString()`；现在 `charts/tooltip.ts` 自己写整张提示框：注册表那一套样式，每个数按它的列读，数据里来的字一律转义。
 
 ## ECharts 的画法：对齐 Metabase（D21）
 

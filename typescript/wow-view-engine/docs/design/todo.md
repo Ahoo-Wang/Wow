@@ -7,17 +7,10 @@
 - 做完就**删掉**这一条，不打勾、不留归档。历史在 git 里。
 - 改行为之前先看这里有没有对应项；有就接着做，别另起一条。
 
-## 暂停中：等 ECharts 迁移（2026-09-23）
+## ECharts 迁移已完成（D21，#1809～），接着做下面三件
 
-用户裁定：图型显示对齐 Metabase，渲染层从 recharts 换到 ECharts 6.1（选型与理由由迁移会话记为 decisions.md 的 D21；调研要点在会话记忆 `view-engine-chart-library`）；**分析视图的审查暂停到迁移完成**，有冲突的 PR 一律暂停。
+用户裁定：图型显示对齐 Metabase，渲染层从 recharts 换到 ECharts 6.1（选型、理由与包体记在 [decisions.md](decisions.md) 的 D21；调研要点在会话记忆 `view-engine-chart-library`）；五批已合并（柱状 → 其余直角坐标 → 饼与散点 → 漏斗、热力图与迷你图 → 删 recharts），暂停的审查与 PR 现在接着做。
 
-- **ECharts 迁移**（另开的会话在执行）。
-  - 为什么：Metabase 截图里的读法——紧凑数字、每柱标值且防重叠、图例折叠「还有 N 个」、环图中心总计、类目轴自动间隔、热力图色阶、漏斗——在 recharts 里都要手写；ECharts 是配置项。Metabase、Superset、Evidence 都在 ECharts 6.1 上。
-  - 判据：`src/ui/charts/*` 全部改由 ECharts（SVG 渲染、`echarts/core` 按需、自写薄 hook、不用 echarts-for-react）绘制，recharts 移除；紧凑数字跟界面语言（中文万/亿）；内核 `ChartData` 不变；已有行为（时间轴升序、八色与「其他」、换图型保持指标、指标卡整体、饼图占比与口径、漏斗可选即画得出、散点轴名）有测试守着；每批对照 Metabase 在真浏览器走过。真实服务上走查时记下的图型问题（单组柱占满整宽、区间桶读作「¥0.00」、第二个指标没画、月度折线首月刻度缺失、长类目隔一个标、热力图无色标、漏斗不是居中的漏斗形）都在验收里。
-  - 落点：`src/ui/charts/*`、`src/ui/AnalysisChart.tsx`、`vite.config.ts`、[ui/analysis.md](ui/analysis.md)。
-  - 进度：第 1 批（绑定、主题、懒加载、柱状图，D21）、第 2 批（折线、面积、组合、图例折叠）、第 3 批（饼／环、散点）与第 4 批（迷你图、漏斗、热力图）已落地。另一会话报的「两个指标只画第一条」查明是保存的规格只列了一条系列（`fitChartSlots` 保留作者的系列单），不是漏画；数值轴的默认标题现在写出画的是哪个指标。余下每批一个 PR，按序，合并前真浏览器亮／暗、1440 与窄屏走过工作台、仪表盘与嵌入并对照 Metabase：
-    - **第 5 批：删 recharts**。判据：`recharts` 与 `ui/components/chart.tsx` 无人引用后删掉（先查 `stories/`），`THIRD_PARTY_NOTICES.md` 去掉 Recharts，README／AGENTS／[ui/analysis.md](ui/analysis.md) 收尾，包体说明（gzip 实测）写进 D21。
-    - **不在迁移里、但在图上看得见**：直方图维度的桶读成「¥0.00」「¥500.00」，应读成区间「¥0～500」且按界面语言写短——是 `display.ts` 对 `HISTOGRAM` 分组的读法，与渲染库无关；随第 2 批一起修或单开。
 - **迁移完成后：以数据分析师视角的第一性原理深度审查**。
   - 为什么：用户原话「完成后，基于第一性原理，以数据分析师视角深度审查分析视图 UI 视觉、UX，确保达到企业级生产标准」，并要求等 ECharts 切换完成再做。
   - 判据：清单（P0／P1／P2）先给用户看、拍板；P0／P1 修掉并有故事或测试守着；审查覆盖 [ui/analysis.md](ui/analysis.md) 的每一块与每种图型，亮暗、1440 与窄屏、真实服务与示例数据。
@@ -38,6 +31,11 @@
   - 为什么：与分析视图（#1807 待补）同一个问题：一次排序不该替用户应用别的修改。
   - 判据：草稿里另有待应用修改时，表头排序只进入待应用；有测试。
   - 落点：`src/ui/record/SortableHeader.tsx` 的调用处、`src/react/useRecordTable.ts`。
+
+- **直方图维度的桶读成区间**：桶读成「¥0.00」「¥500.00」，应读成区间「¥0～500」且按界面语言写短——是 `display.ts` 对 `HISTOGRAM` 分组的读法，与渲染库无关；随第 2 批一起修或单开。
+  - 为什么：真实后端走查（2026-09-23）看到「¥0.00」「¥500.00」这样的桶，读不出是哪一段。
+  - 判据：`HISTOGRAM` 分组的桶按「下界～上界」读，按界面语言写短，表格、图表与读屏表一致，有测试守着。
+  - 落点：`src/ui/display.ts`、[ui/analysis.md](ui/analysis.md)。
 
 ## 阶段 3：仪表盘
 

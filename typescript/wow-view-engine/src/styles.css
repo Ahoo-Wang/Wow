@@ -938,16 +938,4 @@
     outline: 2px solid var(--ring);
     outline-offset: -2px;
   }
-
-  /*
-   * Axis ticks. The registry's chart container styles them through
-   * `.recharts-cartesian-axis-tick text`, but recharts 3 no longer wraps a tick
-   * in that class, so the rule matches nothing and the ticks keep the
-   * library's #666 in both modes. The theme names the tick text itself.
-   */
-  .fve-root .recharts-cartesian-axis-tick-value,
-  .fve-root .recharts-polar-angle-axis-tick-value,
-  .fve-root .recharts-polar-radius-axis-tick-value {
-    fill: var(--muted-foreground);
-  }
 }

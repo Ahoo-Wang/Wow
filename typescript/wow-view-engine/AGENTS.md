@@ -70,7 +70,7 @@ Beyond the six:
 
 - `model` through `store` contain no React, DOM, `window` or `document`
 - `runtime` reaches `store` only as a **type-only import of `store/ViewStore`** — the port, never an implementation
-- Third-party landing spots are fixed by `HEADLESS_DEPENDENCIES` in `test/architecture.test.ts`, and a dependency the manifest carries but that list does not name is **UI-only**: `@ahoo-wang/fetcher-wow` only at the root entry and in `model`, `filter`, `record`, `analysis`, `runtime` (not `dashboard`, not `store`); `dayjs` in `filter`, `record`, `analysis`, `runtime`, `ui`; `dequal` in `runtime` alone; `culori` in `analysis` and `ui`. UI-only is therefore all the rest — `@base-ui/react`, `@dnd-kit/dom`, `@dnd-kit/react`, `class-variance-authority`, `cn`, `lucide-react`, `react-day-picker`, `react-error-boundary`, `react-grid-layout`, `react-markdown`, `echarts`, `recharts` — while `react` / `react-dom` are optional peers and reach `react` and `ui`. There is no table library: D16-1 declined `@tanstack/react-table`. A new React dependency cannot reach a headless layer without being listed explicitly in the test
+- Third-party landing spots are fixed by `HEADLESS_DEPENDENCIES` in `test/architecture.test.ts`, and a dependency the manifest carries but that list does not name is **UI-only**: `@ahoo-wang/fetcher-wow` only at the root entry and in `model`, `filter`, `record`, `analysis`, `runtime` (not `dashboard`, not `store`); `dayjs` in `filter`, `record`, `analysis`, `runtime`, `ui`; `dequal` in `runtime` alone; `culori` in `analysis` and `ui`. UI-only is therefore all the rest — `@base-ui/react`, `@dnd-kit/dom`, `@dnd-kit/react`, `class-variance-authority`, `cn`, `lucide-react`, `react-day-picker`, `react-error-boundary`, `react-grid-layout`, `react-markdown`, `echarts` — while `react` / `react-dom` are optional peers and reach `react` and `ui`. There is no table library: D16-1 declined `@tanstack/react-table`. A new React dependency cannot reach a headless layer without being listed explicitly in the test
 - **Deprecated Wow APIs are banned.** The test derives the deprecated export set from the wow sources themselves and fails on any import of it. Use `FilterExpression` and the `Filter*Query` family — never `Condition`, `PagedQuery`, `ListQuery` or `SingleQuery`
 - Wow must be imported from its root entry, by name, so every binding can be checked
 
@@ -386,7 +386,7 @@ src/
       drag.ts                 — What the settings make of a drag: `columnDrop` refuses one across the areas, plus what a reader hears
       rows.ts                 — The column settings' model: rows, the two areas (D19), order
       sections.ts             — Rows of one area by catalogue group; the search over them
-    components/               — 34 shadcn/ui primitives — vendored, see below
+    components/               — 33 shadcn/ui primitives — vendored, see below
     filter/                   — What the panel is made of
       AddEntry.tsx            — The field picker a group is added to from
       ConditionPill.tsx       — One condition; the element-match block; `PendingDot`
@@ -495,7 +495,7 @@ src/
 
 - `@ahoo-wang/fetcher-wow` — query protocol (`FilterExpression`, `FilterPagedQuery`, `CursorQuery`, `AggregationQuery`)
 - `react` / `react-dom` — **optional peer dependencies**; the root entry works without React
-- UI-only: `@base-ui/react`, `@dnd-kit/dom`, `@dnd-kit/react`, `echarts` (charts, loaded on first use; D21), `recharts` (only the vendored `ui/components/chart.tsx` still imports it; removed in the migration's last batch), `react-grid-layout`, `react-markdown`, `react-day-picker`, `react-error-boundary`, `lucide-react`, `class-variance-authority`, `cn`
+- UI-only: `@base-ui/react`, `@dnd-kit/dom`, `@dnd-kit/react`, `echarts` (every chart, loaded on first use; D21), `react-grid-layout`, `react-markdown`, `react-day-picker`, `react-error-boundary`, `lucide-react`, `class-variance-authority`, `cn`
 - Headless: `dayjs` (time), `dequal` (runtime equality), `culori` (colour syntax: in `analysis` a saved chart colour is validated, in `ui` the theme's colours are converted to `rgb()` for the chart library)
 
 ## Code Style
