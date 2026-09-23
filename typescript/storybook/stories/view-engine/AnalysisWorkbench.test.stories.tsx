@@ -25,6 +25,8 @@ import displayMeta, {
   DailyTrendCard as DisplayDailyTrendCard,
   EmptyResult as DisplayEmptyResult,
   Expandable as DisplayExpandable,
+  FailingAggregates as DisplayFailingAggregates,
+  FailingProcessors as DisplayFailingProcessors,
   FollowUps as DisplayFollowUps,
   PieChart as DisplayPieChart,
   PinnedCategoryColor as DisplayPinnedCategoryColor,
@@ -40,7 +42,13 @@ import displayMeta, {
 } from './AnalysisWorkbench.stories.js';
 import { converter } from 'culori';
 import { aggregateCalls } from './fixtures.js';
-import { amountOf, findDataTable, readColumn, readTotal } from './readTable.js';
+import {
+  amountOf,
+  columnIndex,
+  findDataTable,
+  readColumn,
+  readTotal,
+} from './readTable.js';
 import {
   axisTexts,
   axisTicks,
@@ -1009,6 +1017,215 @@ export const CutShortTable: Story = {
     await expect(amountOf(readTotal(table, AMOUNT_HEADER))).toBe(10230);
 
     await expect(await findStrip(canvas)).toHaveTextContent(CUT_SHORT);
+  },
+};
+
+/** The header cell, a body cell and the totals cell of one column. */
+function columnCells(table: HTMLElement, header: string): HTMLElement[] {
+  const grid = table as HTMLTableElement;
+  const index = columnIndex(table, header);
+  return [
+    grid.tHead!.rows[0]!.cells[index]!,
+    ...[...grid.tBodies[0]!.rows].map(row => row.cells[index]!),
+    ...(grid.tFoot ? [grid.tFoot.rows[0]!.cells[index]!] : []),
+  ];
+}
+
+/**
+ * How far a cell's text stands from the cell's own right content edge, in
+ * pixels: 0 for a number read from the right, the rest of the column for one
+ * read from the left.
+ */
+function gapOnTheRight(cell: HTMLElement): number {
+  const range = document.createRange();
+  // A header's name is in its label; a cell's text is the cell.
+  range.selectNodeContents(
+    cell.querySelector('[data-slot="column-label"]') ?? cell,
+  );
+  const inner =
+    cell.getBoundingClientRect().right -
+    parseFloat(getComputedStyle(cell).paddingRight);
+  return inner - range.getBoundingClientRect().right;
+}
+
+/**
+ * 一张分析师的表（2026-09-23 审查 P1）：数字靠右、等宽数字，表头与合计格同一
+ * 条右边线；维度靠左。「合计」下面看得见一行「范围内全部记录」——它是文字，不是
+ * 控件，页脚里没有可聚焦的东西。
+ */
+export const TableReadsLikeATable: Story = {
+  ...DisplayTableWithTotals,
+  play: async ({ canvasElement }) => {
+    const table = await findDataTable(canvasElement);
+    await waitFor(() =>
+      expect(readColumn(table, AMOUNT_HEADER).map(amountOf)).toEqual([
+        1920, 2450, 4880, 980,
+      ]),
+    );
+
+    for (const header of [AMOUNT_HEADER, COUNT_HEADER])
+      for (const cell of columnCells(table, header)) {
+        await expect(getComputedStyle(cell).textAlign).toBe('right');
+        await expect(getComputedStyle(cell).fontVariantNumeric).toContain(
+          'tabular-nums',
+        );
+        // Right against the edge, not merely declared so: the digits end
+        // where the cell's content ends, the header's name with them.
+        await expect(gapOnTheRight(cell)).toBeLessThan(4);
+      }
+    // The dimension reads from the left: its text ends well short of the edge.
+    const [, warehouse] = columnCells(table, '仓库');
+    await expect(gapOnTheRight(warehouse!)).toBeGreaterThan(20);
+
+    const heading = table.querySelector<HTMLElement>(
+      '[data-slot="totals-heading"]',
+    )!;
+    const scope = heading.querySelector('[data-slot="totals-scope"]');
+    await expect(scope).toBeVisible();
+    await expect(scope).toHaveTextContent(zhCN['label.analysis.totals-scope']);
+    // Under the word, not beside it: a line of its own.
+    await expect(scope!.getBoundingClientRect().top).toBeGreaterThan(
+      heading.getBoundingClientRect().top +
+        parseFloat(getComputedStyle(heading).paddingTop) +
+        4,
+    );
+    await expect(
+      (table as HTMLTableElement).tFoot!.querySelectorAll(
+        'button, a, input, [tabindex]',
+      ),
+    ).toHaveLength(0);
+  },
+};
+
+/**
+ * 点表头排序（2026-09-23 审查 P1）：金额 升序 → 降序 → 回到视图自己的次序；
+ * `aria-sort` 只在排着的那一列上。整行表头是一个 Tab 停靠点，←／→ 在列间走，
+ * 回车按下——与记录视图的表头同一个组件。
+ */
+export const HeaderSorts: Story = {
+  ...DisplayTableWithTotals,
+  play: async ({ canvasElement }) => {
+    const table = await findDataTable(canvasElement);
+    await waitFor(() =>
+      expect(readColumn(table, '仓库')).toEqual([
+        '华东',
+        '华北',
+        '华南',
+        '西南',
+      ]),
+    );
+    const head = (name: string) =>
+      (table as HTMLTableElement).tHead!.rows[0]!.cells[
+        columnIndex(table, name)
+      ]!;
+    const sorted = () =>
+      [...(table as HTMLTableElement).tHead!.rows[0]!.cells]
+        .filter(cell => cell.hasAttribute('aria-sort'))
+        .map(cell => cell.getAttribute('aria-sort'));
+    const amounts = () => readColumn(table, AMOUNT_HEADER).map(amountOf);
+
+    // One stop for the whole header row.
+    const buttons = [...table.querySelectorAll<HTMLElement>('thead button')];
+    await expect(buttons.filter(button => button.tabIndex === 0)).toHaveLength(
+      1,
+    );
+    within(head('仓库')).getByRole('button').focus();
+    await userEvent.keyboard('{ArrowRight}{ArrowRight}');
+    await expect(document.activeElement).toBe(
+      within(head(AMOUNT_HEADER)).getByRole('button'),
+    );
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() => expect(amounts()).toEqual([980, 1920, 2450, 4880]));
+    await expect(head(AMOUNT_HEADER)).toHaveAttribute('aria-sort', 'ascending');
+
+    await userEvent.click(within(head(AMOUNT_HEADER)).getByRole('button'));
+    await waitFor(() => expect(amounts()).toEqual([4880, 2450, 1920, 980]));
+    await expect(head(AMOUNT_HEADER)).toHaveAttribute(
+      'aria-sort',
+      'descending',
+    );
+
+    // The third press is the view's own order again, not "unsorted".
+    await userEvent.click(within(head(AMOUNT_HEADER)).getByRole('button'));
+    await waitFor(() =>
+      expect(readColumn(table, '仓库')).toEqual([
+        '华东',
+        '华北',
+        '华南',
+        '西南',
+      ]),
+    );
+    await expect(sorted()).toEqual([]);
+  },
+};
+
+/**
+ * 列宽不随结果跳（2026-09-23 审查 P1）。失败最多的两个处理器名字很长——表一
+ * 打开就合身，名字不截断；按表头把次数改成升序，留下的是「Mailer」「Audit」，
+ * 而每一列的左边与宽都和按之前一样。自动布局下处理器那一列会跟着名字缩回去，
+ * 后面每一列都往左挪。
+ */
+export const ColumnsHoldStill: Story = {
+  ...DisplayFailingProcessors,
+  play: async ({ canvasElement }) => {
+    const table = await findDataTable(canvasElement);
+    await waitFor(() =>
+      expect(readColumn(table, '处理器')).toEqual([
+        'OrderItemReservedTrackEventProcessor',
+        'InventorySnapshotProjectionHandler',
+      ]),
+    );
+    const heads = () =>
+      [
+        ...(
+          table as HTMLTableElement
+        ).tHead!.rows[0]!.querySelectorAll<HTMLElement>(
+          'th:not([aria-hidden])',
+        ),
+      ].map(cell => {
+        const box = cell.getBoundingClientRect();
+        return { left: Math.round(box.left), width: Math.round(box.width) };
+      });
+    // Opened fitting its rows: the long names are whole, not cut.
+    for (const cell of columnCells(table, '处理器').slice(1, 3))
+      await expect(cell.scrollWidth).toBeLessThanOrEqual(cell.clientWidth);
+    const before = heads();
+
+    await userEvent.click(
+      within(
+        (table as HTMLTableElement).tHead!.rows[0]!.cells[
+          columnIndex(table, COUNT_HEADER)
+        ]!,
+      ).getByRole('button'),
+    );
+    await waitFor(() =>
+      expect(readColumn(table, '处理器')).toEqual(['Mailer', 'Audit']),
+    );
+
+    await expect(heads()).toEqual(before);
+  },
+};
+
+/**
+ * ID 维度等宽（2026-09-23 审查 P1）：聚合 ID 在记录视图里读作可复制的值，
+ * 分析表里用与它同一个等宽字；数字列不是。
+ */
+export const IdentifiersInMonospace: Story = {
+  ...DisplayFailingAggregates,
+  play: async ({ canvasElement }) => {
+    const table = await findDataTable(canvasElement);
+    const ids = await waitFor(() => {
+      const found = [
+        ...table.querySelectorAll<HTMLElement>('[data-slot="identifier"]'),
+      ];
+      if (found.length === 0) throw new Error('no identifier yet');
+      return found;
+    });
+    await expect(ids[0]).toHaveTextContent(/^0b5f\d{4}-7c1e-/);
+    for (const id of ids)
+      await expect(getComputedStyle(id).fontFamily).toMatch(/mono/i);
+    const [, count] = columnCells(table, COUNT_HEADER);
+    await expect(getComputedStyle(count!).fontFamily).not.toMatch(/mono/i);
   },
 };
 

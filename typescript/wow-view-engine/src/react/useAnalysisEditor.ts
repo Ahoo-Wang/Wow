@@ -172,6 +172,16 @@ export interface AnalysisEditorController extends QuestionEditing {
    */
   dateUnitFor(field: AnalysisFieldOption): AnalysisDateUnit;
   setSort(sort: AnalysisSort[]): void;
+  /**
+   * Sets the sort and runs it now — unless something else in the draft is
+   * waiting for Apply. A press on a result header asks to see *this* result
+   * in another order; running would apply the other edits too (a range
+   * condition not yet applied, a dimension added in the tray), which is not
+   * that gesture's to do. Then the sort joins them, the pending dot shows,
+   * and Apply runs them together — the rule the metric card's whole
+   * (`useAnalysisResult`) keeps. Whether it ran is returned.
+   */
+  sortNow(sort: AnalysisSort[]): boolean;
   setLimit(limit: number): void;
   /** A redraw of the same rows, never a run; nor does it count as pending. */
   setLayout(layout: AnalysisViewConfig['layout']): void;
@@ -466,6 +476,27 @@ export function useAnalysisEditor(
 
     ...editing,
     setSort: useCallback((sort: AnalysisSort[]) => edit({ sort }), [edit]),
+    sortNow: useCallback(
+      (sort: AnalysisSort[]) => {
+        if (!runtime) return false;
+        const { draft, applied, issues } = runtime.getSnapshot();
+        if (draft.kind !== 'analysis' || applied.kind !== 'analysis')
+          return false;
+        // What waits besides the sort: the two sides compared with this
+        // sort on both, so a sort edited in the tray and not yet run —
+        // which this one replaces — does not hold it back.
+        const others = comparePending(
+          { ...draft, sort },
+          { ...applied, sort },
+          issues,
+        ).pending;
+        runtime.edit({ sort });
+        if (others) return false;
+        runtime.apply();
+        return true;
+      },
+      [runtime],
+    ),
     setLimit: useCallback((limit: number) => edit({ limit }), [edit]),
     // A redraw, not a run: the result's rows are drawn as a table or as a
     // chart from the same answer (`ANALYSIS_PRESENTATION_MEMBERS`).

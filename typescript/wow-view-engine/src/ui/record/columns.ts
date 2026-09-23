@@ -207,6 +207,15 @@ export const HEAD_CELL = `${TEXT_UI} ${HEAD_BUTTON} ${HEAD_HOVER}`;
 export const NUMERIC_CELL = 'text-right tabular-nums';
 
 /**
+ * The face an identifier is read in: monospace, so `0` and `O`, `l` and `1`
+ * do not look alike and a column of ids lines up under itself, at 0.9em
+ * because a monospace face at the text's own size reads a size larger (see
+ * `cells.tsx`, the copyable reading). The analysis table's key dimensions
+ * wear the same one.
+ */
+export const IDENTIFIER_FACE = 'font-mono text-[0.9em]';
+
+/**
  * A column that was given a width keeps it: the cell is capped as well as
  * sized, and what does not fit is cut with an ellipsis rather than pushing
  * the column back out. Without the cap the width is only a suggestion — an

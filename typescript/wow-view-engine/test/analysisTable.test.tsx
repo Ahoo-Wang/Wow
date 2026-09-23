@@ -11,10 +11,17 @@
  * limitations under the License.
  */
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AnalysisView } from '../src/index.js';
 import { AnalysisTable, ViewSurface, zhCN } from '../src/ui/index.js';
+import { columnWidthOf } from '../src/ui/analysis/tableColumns.js';
 import { describedText } from './fixtures/ui.js';
 
 afterEach(cleanup);
@@ -260,12 +267,18 @@ describe('the three readings a result says out loud', () => {
     render(<AnalysisTable view={{ ...view, totals: { total: 900 } }} />);
 
     expect(document.querySelector('[data-slot="totals-row"]')).not.toBeNull();
-    expect(heading().textContent).toBe('Total');
-    // The pointer and the reader get the same sentence, from one key. The
-    // reader's half is a described-by span rather than `aria-description`,
-    // which Chromium alone implements.
-    expect(heading().title).toBe('Totals = every record in the range');
-    expect(describedText(heading())).toBe('Totals = every record in the range');
+    // Said where the word is, and seen: a quiet line under 「Total」, part of
+    // the cell's own text, so a reader meets it with the cell and nobody has
+    // to find a `title` to learn it.
+    expect(heading().textContent).toBe('TotalEvery record in the range');
+    expect(
+      heading().querySelector('[data-slot="totals-scope"]')?.textContent,
+    ).toBe('Every record in the range');
+    expect(heading().title).toBe('');
+    expect(heading().getAttribute('aria-describedby')).toBeNull();
+    // Text, not a control: the table with no action to take gains no stop.
+    expect(heading().querySelector('button, [tabindex]')).toBeNull();
+    expect(heading().hasAttribute('tabindex')).toBe(false);
   });
 
   it('says it in the surface language too', () => {
@@ -275,7 +288,9 @@ describe('the three readings a result says out loud', () => {
       </ViewSurface>,
     );
 
-    expect(heading().title).toBe('合计 = 范围内全部记录');
+    expect(
+      heading().querySelector('[data-slot="totals-scope"]')?.textContent,
+    ).toBe('范围内全部记录');
   });
 
   /**
@@ -292,12 +307,11 @@ describe('the three readings a result says out loud', () => {
       '≈ Percentile of Latency',
       'Sum of Amount',
     ]);
-    expect(headers[1].dataset.approximate).toBe('');
-    expect(headers[1].title).toBe('Approximate');
+    expect(headers[1].dataset.note).toBe('');
     expect(describedText(headers[1])).toBe('Approximate');
     // An exact sum beside it wears neither the sign nor the word.
-    expect(headers[2].dataset.approximate).toBeUndefined();
-    expect(headers[2].title).toBe('');
+    expect(headers[2].dataset.note).toBeUndefined();
+    expect(describedText(headers[2])).toBe('');
   });
 });
 
@@ -386,5 +400,276 @@ describe('the result rows are one tab stop', () => {
         row.getAttribute('tabindex'),
       ),
     ).toEqual([null, null, null]);
+  });
+});
+
+/**
+ * An analyst's table reads its numbers from the right edge, in figures of
+ * one width, header included — the record table's recipe (`NUMERIC_CELL`),
+ * said on the cell as `data-numeric`. A dimension, and a metric that reads
+ * as its field's dates, stay on the left. Whether the pixels are right is
+ * measured in the browser (`AnalysisWorkbench` 回归 `TableReadsLikeATable`).
+ */
+describe('an analysis number reads from the right', () => {
+  const view: AnalysisView = {
+    columns: [
+      { alias: 'wh', label: 'Warehouse', role: 'group' },
+      { alias: 'total', label: 'Amount', role: 'metric', fn: 'SUM' },
+      {
+        alias: 'latest',
+        label: 'Created',
+        role: 'metric',
+        fn: 'MAX',
+        kind: 'datetime',
+        cell: 'datetime',
+      },
+    ],
+    rows: [{ wh: 'CN', total: 30, latest: Date.UTC(2026, 8, 18) }],
+    totals: { total: 30, latest: Date.UTC(2026, 8, 18) },
+    truncated: false,
+  };
+
+  const numeric = (cells: Iterable<Element>) =>
+    [...cells].map(cell => (cell as HTMLElement).dataset.numeric === '');
+
+  it('puts a metric on the right, header, rows and totals alike', () => {
+    render(<AnalysisTable view={view} />);
+
+    // The filler that ends each row is no column (`aria-hidden`).
+    const columns = (row: Element) =>
+      row.querySelectorAll(':scope > :not([aria-hidden])');
+    expect(numeric(screen.getAllByRole('columnheader'))).toEqual([
+      false,
+      true,
+      false,
+    ]);
+    expect(numeric(columns(document.querySelector('tbody tr')!))).toEqual([
+      false,
+      true,
+      false,
+    ]);
+    expect(
+      numeric(columns(document.querySelector('[data-slot="totals-row"]')!)),
+    ).toEqual([false, true, false]);
+  });
+});
+
+/**
+ * A dimension over an identifier — a field the record view reads as a value
+ * to copy (`cell: 'copyable'`) — shows its values in that reading's
+ * monospace, so `0` and `O` do not look alike in an analysis either.
+ */
+describe('an identifier dimension', () => {
+  it('shows its values in the monospace an id is read in', () => {
+    render(
+      <AnalysisTable
+        view={{
+          columns: [
+            {
+              alias: 'order',
+              label: 'Order',
+              role: 'group',
+              kind: 'string',
+              cell: 'copyable',
+            },
+            { alias: 'city', label: 'City', role: 'group', kind: 'string' },
+            { alias: 'orders', label: 'Orders', role: 'metric', fn: 'COUNT' },
+          ],
+          rows: [
+            { order: 'SO-1001', city: 'Hangzhou', orders: 1 },
+            { order: null, city: 'Ningbo', orders: 1 },
+          ],
+          truncated: false,
+        }}
+      />,
+    );
+
+    const ids = [...document.querySelectorAll('[data-slot="identifier"]')];
+    expect(ids.map(node => node.textContent)).toEqual(['SO-1001']);
+    // Surviving class assertion: the face is a declaration with no state
+    // behind it — the record table's own `IDENTIFIER_FACE`, which the
+    // browser story measures as a monospace family.
+    expect(ids[0]!.className).toContain('font-mono');
+  });
+});
+
+/**
+ * A column is as wide as the column says, never as its widest value: an
+ * automatic layout moved every column after one whose answer grew, so the
+ * column the eye was on was elsewhere after each question. The widths come
+ * from the table's declaration, else the column's reading and header
+ * (`tableColumns.ts`) — and the rows do not enter into it.
+ */
+describe('an analysis column keeps its width', () => {
+  const columns: AnalysisView['columns'] = [
+    { alias: 'wh', label: 'Warehouse', role: 'group' },
+    { alias: 'orders', label: 'Orders', role: 'metric', fn: 'COUNT' },
+    { alias: 'total', label: 'Amount', role: 'metric', fn: 'SUM', width: 120 },
+  ];
+  const first: AnalysisView = {
+    columns,
+    rows: [{ wh: 'CN', orders: 2, total: 30 }],
+    truncated: false,
+  };
+  const widths = () =>
+    screen
+      .getAllByRole('columnheader')
+      .map(cell => [
+        cell.style.width,
+        cell.style.minWidth,
+        cell.style.maxWidth,
+      ]);
+
+  it('takes the declared width, and holds every width on its cells', () => {
+    render(<AnalysisTable view={first} />);
+
+    const [group, count, amount] = widths();
+    expect(amount).toEqual(['120px', '120px', '120px']);
+    // A width with a floor and a ceiling is a width, not a suggestion.
+    expect(new Set(group).size).toBe(1);
+    expect(new Set(count).size).toBe(1);
+    expect(group[0]).not.toBe('');
+    // Each body cell carries its column's width as well.
+    expect(document.querySelector<HTMLElement>('tbody td')!.style.width).toBe(
+      group[0],
+    );
+  });
+
+  it('does not move when the answer changes', () => {
+    const { rerender } = render(<AnalysisTable view={first} />);
+    const before = widths();
+
+    rerender(
+      <AnalysisTable
+        view={{
+          columns,
+          rows: [
+            {
+              wh: 'OrderItemReservedTrackEventProcessor',
+              orders: 1234567,
+              total: 987654321.5,
+            },
+          ],
+          totals: { orders: 99999999, total: 1e12 },
+          truncated: false,
+        }}
+      />,
+    );
+
+    expect(widths()).toEqual(before);
+    // What the width cuts is whole one hover away.
+    expect(screen.getByText('OrderItemReservedTrackEventProcessor').title).toBe(
+      'OrderItemReservedTrackEventProcessor',
+    );
+  });
+
+  /**
+   * Held per column, not per table: a column is sized from the answer it is
+   * first drawn with, so the table opens fitting its rows, and a column the
+   * question gains is sized from the answer it arrives with while the others
+   * stay put.
+   */
+  it('sizes a column from the answer it first arrives with', () => {
+    const name = 'OrderItemReservedTrackEventProcessor';
+    const { rerender } = render(
+      <AnalysisTable
+        view={{
+          columns,
+          rows: [{ wh: name, orders: 2, total: 30 }],
+          truncated: false,
+        }}
+      />,
+    );
+    const [group] = widths();
+    const plain = columnWidthOf(columns[0]!, 'Warehouse', ['CN']);
+    expect(parseFloat(group![0]!)).toBeGreaterThan(plain);
+
+    rerender(
+      <AnalysisTable
+        view={{
+          columns: [
+            ...columns,
+            { alias: 'avg', label: 'Amount', role: 'metric', fn: 'AVG' },
+          ],
+          rows: [{ wh: 'CN', orders: 2, total: 30, avg: 15 }],
+          truncated: false,
+        }}
+      />,
+    );
+
+    const after = widths();
+    expect(after[0]).toEqual(group);
+    expect(after).toHaveLength(4);
+    expect(after[3]![0]).toBe(
+      `${columnWidthOf(
+        { alias: 'avg', label: 'Amount', role: 'metric', fn: 'AVG' },
+        'Average of Amount',
+        ['15'],
+      )}px`,
+    );
+  });
+});
+
+/**
+ * The header sorts the groups when the table is handed a way to (the
+ * workbench's `useHeaderSort`): the record table's own `SortableHeader`, so
+ * the press, the arrow, `aria-sort` and the one Tab stop are that header's.
+ * The cycle and the run are pinned in `test/analysisTableSort.test.tsx`.
+ */
+describe('an analysis header that sorts', () => {
+  const view: AnalysisView = {
+    columns: [
+      { alias: 'wh', label: 'Warehouse', role: 'group' },
+      { alias: 'p95', label: 'Latency', role: 'metric', fn: 'PERCENTILE' },
+      { alias: 'orders', label: 'Orders', role: 'metric', fn: 'COUNT' },
+    ],
+    rows: [{ wh: 'CN', p95: 12, orders: 2 }],
+    truncated: false,
+  };
+
+  it('presses through to the sort, and says the order it is in', () => {
+    const onToggle = vi.fn();
+    render(
+      <AnalysisTable
+        view={view}
+        sorting={{ sort: [{ alias: 'orders', direction: 'DESC' }], onToggle }}
+      />,
+    );
+
+    const headers = screen.getAllByRole('columnheader');
+    expect(headers.map(cell => cell.getAttribute('aria-sort'))).toEqual([
+      null,
+      null,
+      'descending',
+    ]);
+    fireEvent.click(within(headers[0]!).getByRole('button'));
+    fireEvent.click(within(headers[2]!).getByRole('button'), {
+      shiftKey: true,
+    });
+
+    expect(onToggle.mock.calls).toEqual([
+      ['wh', { exclusive: true }],
+      ['orders', { exclusive: false }],
+    ]);
+  });
+
+  it('is one Tab stop, and the percentile still says it is approximate', () => {
+    render(
+      <AnalysisTable view={view} sorting={{ sort: [], onToggle: () => {} }} />,
+    );
+
+    const buttons = screen
+      .getAllByRole('columnheader')
+      .map(cell => within(cell).getByRole('button'));
+    expect(buttons.map(button => button.tabIndex)).toEqual([0, -1, -1]);
+    expect(describedText(buttons[1]!)).toBe(
+      'Hold Shift to add to the sort Approximate',
+    );
+  });
+
+  it('draws no control where nothing sorts', () => {
+    render(<AnalysisTable view={view} />);
+
+    expect(screen.queryAllByRole('button')).toEqual([]);
   });
 });

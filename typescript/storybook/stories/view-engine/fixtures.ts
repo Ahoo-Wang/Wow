@@ -1184,3 +1184,84 @@ export function waybillAnalysisView(config: AnalysisViewConfig): ViewInstance {
 export function waybillSource(behaviour: SourceBehaviour = 'data'): ViewSource {
   return behavingSource(WAYBILLS, behaviour);
 }
+
+/* --------------------------------------------------------------------------
+ * 失败的事件：处理器名有长有短，聚合 ID 是一串要一个字一个字抄走的码。
+ *
+ * 分析表的两条回归靠它（2026-09-23 审查 P1）：按处理器数失败次数，前两组
+ * 降序是两个很长的名字、升序是两个很短的——自动布局下这一列跟着值变宽变窄，
+ * 后面每一列都挪位，所以它量得出「列宽不随结果跳」；按聚合 ID 分组，量得出
+ * ID 用的是与记录视图同一个等宽字。订单与运单的类目都是两三个字，量不出来。
+ * ------------------------------------------------------------------------ */
+
+const FAILED_EVENTS: RecordData[] = [
+  ['OrderItemReservedTrackEventProcessor', 3],
+  ['OrderItemReservedTrackEventProcessor', 5],
+  ['OrderItemReservedTrackEventProcessor', 1],
+  ['OrderItemReservedTrackEventProcessor', 2],
+  ['InventorySnapshotProjectionHandler', 4],
+  ['InventorySnapshotProjectionHandler', 1],
+  ['InventorySnapshotProjectionHandler', 2],
+  ['Mailer', 1],
+  ['Audit', 2],
+  ['Audit', 3],
+].map(([processor, retries], index) => ({
+  id: `evt-${index + 1}`,
+  processor,
+  // 两个事件落在同一个聚合上，好让按 ID 分组也有一组数到 2。
+  aggregateId: `0b5f${String(Math.min(index, 8)).padStart(4, '0')}-7c1e-4d2a-9f3b-5e6a7b8c9d0e`,
+  retries,
+}));
+
+/** 失败的事件：处理器、聚合 ID（可复制）与重试次数。 */
+export const failedEventsDefinition: DataViewDefinition = {
+  id: 'failed-events',
+  title: '失败的事件',
+  kind: 'data',
+  source: 'failed-events',
+  fields: [
+    {
+      name: 'id',
+      label: '事件 ID',
+      kind: 'string',
+      cell: 'copyable',
+      sortable: true,
+    },
+    { name: 'processor', label: '处理器', kind: 'string' },
+    {
+      name: 'aggregateId',
+      label: '聚合 ID',
+      kind: 'string',
+      cell: 'copyable',
+    },
+    { name: 'retries', label: '重试次数', kind: 'number' },
+  ],
+  record: { rowKey: 'id', paging: 'paged', layouts: ['table'] },
+  analysis: {
+    count: true,
+    fields: [
+      { field: 'processor', groups: [TERMS], functions: [] },
+      { field: 'aggregateId', groups: [TERMS], functions: [] },
+      { field: 'retries', groups: [], functions: [SUM] },
+    ],
+  },
+};
+
+/** 失败的事件上的一个分析视图；问什么由故事给。 */
+export function failedEventsView(config: AnalysisViewConfig): ViewInstance {
+  return {
+    id: 'failed-events-analysis',
+    definitionId: failedEventsDefinition.id,
+    title: '失败分析',
+    scope: 'shared',
+    revision: '1',
+    config,
+  };
+}
+
+/** 那十个失败事件背后的数据源；五档行为与 `storySource` 的同义。 */
+export function failedEventsSource(
+  behaviour: SourceBehaviour = 'data',
+): ViewSource {
+  return behavingSource(FAILED_EVENTS, behaviour);
+}

@@ -51,6 +51,14 @@ export interface SortableHeaderProps {
    * cannot be sorted has no button and points at nothing.
    */
   additiveId: string;
+  /**
+   * A word about the column its name does not say, and the id of the span a
+   * reader hears it from — an analysis percentile's 「近似值」, which Wow
+   * computes approximately. It follows the name into the tooltip, describes
+   * the header's focusable element beside the additive rule, and the cell
+   * says it carries one (`data-note`).
+   */
+  note?: { id: string; text: string };
 }
 
 /**
@@ -78,6 +86,7 @@ export function SortableHeader({
   onResize,
   pin,
   additiveId,
+  note,
 }: SortableHeaderProps) {
   const messages = useViewMessages();
   // One stop for the whole header row, and Alt+←/→ on whichever column it is
@@ -113,11 +122,14 @@ export function SortableHeader({
       >
         {column.label}
       </TooltipTrigger>
-      <TooltipContent>{column.label}</TooltipContent>
+      <TooltipContent>
+        {note ? `${column.label} · ${note.text}` : column.label}
+      </TooltipContent>
     </Tooltip>
   );
   // A numeric column reads from the right, header included, or the label
-  // points at one edge while the digits under it point at the other.
+  // points at one edge while the digits under it point at the other. Said on
+  // the cell as well (`data-numeric`), where a suite can read it.
   const numeric = isNumeric(column);
   // The one home of the sticky chrome (`sticky.ts`): the freeze, the edge,
   // the measured offset and the `data-pin*` attributes the offsets and the
@@ -135,11 +147,14 @@ export function SortableHeader({
     return (
       <TableHead
         data-field={column.field}
+        data-note={note ? '' : undefined}
+        data-numeric={numeric ? '' : undefined}
         {...head}
         // A column with nothing to press is still a column to walk to and
         // still a column to widen, so the cell is the group's item here.
         ref={attach}
         {...stop}
+        aria-describedby={note?.id}
         onKeyDown={rove}
       >
         {label}
@@ -161,6 +176,8 @@ export function SortableHeader({
   return (
     <TableHead
       data-field={column.field}
+      data-note={note ? '' : undefined}
+      data-numeric={numeric ? '' : undefined}
       {...head}
       aria-sort={ariaSort(direction, at === 0)}
     >
@@ -204,7 +221,7 @@ export function SortableHeader({
         // as a description because nothing on screen says it, and through
         // `aria-describedby` because the draft `aria-description` reaches
         // Chromium's readers and nobody else's.
-        aria-describedby={additiveId}
+        aria-describedby={note ? `${additiveId} ${note.id}` : additiveId}
         onClick={event =>
           onToggle(column.field, { exclusive: !additive(event) })
         }

@@ -12,7 +12,11 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import type { AnalysisViewConfig, FieldOption } from '../../model/index.js';
+import type {
+  AnalysisSort,
+  AnalysisViewConfig,
+  FieldOption,
+} from '../../model/index.js';
 import type { ViewRuntime } from '../../runtime/index.js';
 import {
   useAnalysisEditor,
@@ -28,6 +32,7 @@ import { ChartPicker } from '../analysis/ChartPicker.js';
 import { Tray } from '../analysis/Tray.js';
 import { Button } from '../components/button.js';
 import { DrillMenu, type Pick } from '../analysis/DrillMenu.js';
+import { useHeaderSort } from '../analysis/headerSort.js';
 import { AnalysisEmpty } from '../analysis/EmptyResult.js';
 import { useAnnouncer } from '../Announcer.js';
 import { featuresOf, type WorkbenchFeatures } from '../features.js';
@@ -89,6 +94,11 @@ export function AnalysisParts({
   const result = useAnalysisResult(runtime, analysis, workbench);
   const { view, chart, chartData, fits, picked } = result;
   const layout = analysis.layout;
+  // The headers order the groups by the column pressed, and run (the
+  // record table's header does the same). A sort needs a dimension — Wow
+  // refuses one over an ungrouped aggregation, which is one row anyway.
+  const headerSort = useHeaderSort(analysis, result.ran?.sort ?? NO_SORT);
+  const sortable = (result.ran?.groups.length ?? 0) > 0;
 
   // The visualization panel (D20 屏 I／J): open from the result's toolbar,
   // it takes the sidebar column, first as the chart types, then as the
@@ -326,7 +336,11 @@ export function AnalysisParts({
               cutShort={view.truncated || view.atLimit !== undefined}
             />
           ) : (
-            <AnalysisTable view={view} onPick={onPick} />
+            <AnalysisTable
+              view={view}
+              onPick={onPick}
+              {...(sortable ? { sorting: headerSort } : {})}
+            />
           )}
           {result.pickable && (
             <DrillMenu
@@ -355,6 +369,9 @@ export function AnalysisParts({
 
 /** What the analysis result hands the frame to dress (`ResultBlock.slots`). */
 const RESULT_SLOTS = resultSlots('caption');
+
+/** No sort has run yet: the order before any result. */
+const NO_SORT: readonly AnalysisSort[] = [];
 
 /**
  * The analysis result's footer: 「正在显示 12 组，耗时 0.38 秒」.

@@ -97,7 +97,7 @@ export function amountOf(text: string): number {
  * read from the element that holds it, and the whole cell only where there
  * is no such element to read.
  */
-function columnIndex(table: HTMLElement, header: string): number {
+export function columnIndex(table: HTMLElement, header: string): number {
   const cells = (table as HTMLTableElement).tHead?.rows[0]?.cells ?? [];
   const index = [...cells].findIndex(cell => {
     const label = cell.querySelector('[data-slot="column-label"]');

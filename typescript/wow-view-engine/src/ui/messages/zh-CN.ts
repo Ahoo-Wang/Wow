@@ -673,7 +673,7 @@ export const zhCN: ViewMessages = {
   'label.analysis.totals': '合计行',
   'label.analysis.row-limit': '前 N 组',
   'label.analysis.row-limit-invalid': '须为 1～{max} 的整数',
-  'label.analysis.totals-scope': '合计 = 范围内全部记录',
+  'label.analysis.totals-scope': '范围内全部记录',
   'label.analysis.approximate': '近似值',
   'label.analysis.any-note': '任一值：每次查询返回的不保证是同一个。',
   'label.analysis.visualize': '可视化',

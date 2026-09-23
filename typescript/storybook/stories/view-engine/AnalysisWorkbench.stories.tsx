@@ -24,6 +24,9 @@ import {
   createStoryEngine,
   datedOrdersDefinition,
   expandableOrdersDefinition,
+  failedEventsDefinition,
+  failedEventsSource,
+  failedEventsView,
   overviewDefinition,
   savedViews,
   waybillAnalysisDefinition,
@@ -58,6 +61,7 @@ function AnalysisWorkbenchDemo({
   latest = false,
   limit,
   waybills,
+  failures,
   savedFunnel,
   labels = false,
   heatmap = false,
@@ -107,6 +111,12 @@ function AnalysisWorkbenchDemo({
    * 「时间朝哪边走」与「第九种颜色」都问不出来。
    */
   waybills?: WaybillScene;
+  /**
+   * 换成十个失败事件问的问题（`failuresScene`）：按处理器数失败次数——名字有
+   * 长有短，前两组降序是两个长名字、升序是两个短的——或按聚合 ID 分组，一串
+   * 要一个字一个字抄走的码。
+   */
+  failures?: FailuresScene;
   /**
    * 存成一个漏斗的视图：按仓库分阶段，量这些阶段的是 `value`，阶段是 `order`。
    * 一个阶段的漏斗、量平均数的漏斗都是早先存得下、如今画不出的样子——打开它
@@ -187,6 +197,33 @@ function AnalysisWorkbenchDemo({
             },
           }
         : saved;
+
+  if (failures) {
+    const view = failedEventsView(failuresScene(failures));
+    return (
+      <StoryEngine
+        create={() =>
+          createStoryEngine({
+            behaviour,
+            definitions: [failedEventsDefinition, overviewDefinition],
+            source: failedEventsSource(behaviour),
+            instances: [view],
+          })
+        }
+      >
+        {engine => (
+          <DataWorkbench
+            engine={engine}
+            definitionId={failedEventsDefinition.id}
+            instanceId={view.id}
+            {...HOST_LANGUAGE}
+            kinds={['analysis']}
+            features={{ visualization }}
+          />
+        )}
+      </StoryEngine>
+    );
+  }
 
   if (waybills) {
     const scene = waybillScene(waybills, layout);
@@ -294,6 +331,45 @@ function latestConfig(layout: 'table' | 'chart') {
     table: { columns: [] },
     // The latest is a moment, which no mark measures: the bars count orders.
     chart: fitChartSlots({ type: 'bar' }, groups, metrics, new Set(['latest'])),
+  });
+}
+
+type FailuresScene = 'processor' | 'aggregate';
+
+/**
+ * 失败事件上的两个问题，都画成表。
+ *
+ * - `processor`：每个处理器失败几次、重试了几次，**失败最多的前两组**。按表头
+ *   把次数改成升序，留下的就是失败最少的两组——名字从三十几个字母变成五六个，
+ *   列一格也不该挪。
+ * - `aggregate`：每个聚合失败几次。聚合 ID 在记录视图里读作可复制的值，在这里
+ *   用同一个等宽字。
+ */
+function failuresScene(scene: FailuresScene): AnalysisViewConfig {
+  const byProcessor = scene === 'processor';
+  const groups = [
+    byProcessor
+      ? { type: 'TERMS', field: 'processor', alias: 'processor' }
+      : { type: 'TERMS', field: 'aggregateId', alias: 'aggregate' },
+  ] satisfies AnalysisViewConfig['groups'];
+  const failures = { alias: 'failures', type: 'COUNT' } as const;
+  const retries = {
+    alias: 'retries',
+    type: 'NUMERIC',
+    function: 'SUM',
+    expression: { type: 'FIELD', field: 'retries' },
+  } as const;
+  const metrics: AnalysisViewConfig['metrics'] = byProcessor
+    ? [failures, retries]
+    : [failures];
+  return analysisConfig({
+    layout: 'table',
+    groups,
+    metrics,
+    sort: [{ alias: 'failures', direction: SortDirection.DESC }],
+    limit: byProcessor ? 2 : 100,
+    table: { columns: [] },
+    chart: fitChartSlots({ type: 'bar' }, groups, metrics),
   });
 }
 
@@ -495,6 +571,19 @@ export const CutShortTable: Story = { args: { layout: 'table', limit: 2 } };
  * 语言与时区下的日期时间，而不是十三位毫秒；表头说「创建时间的最晚」。
  * 切到图表，柱子量的是订单数——时刻没有零点可以让柱子从那里长。
  */
+/**
+ * 失败最多的两个处理器（2026-09-23 审查 P1）：名字很长，表一打开就合身；按表头
+ * 把次数改成升序，留下失败最少的两个，名字只有几个字母——列宽是第一次画时量
+ * 的，之后钉住，列一格不挪。
+ */
+export const FailingProcessors: Story = { args: { failures: 'processor' } };
+
+/**
+ * 每个聚合失败几次：聚合 ID 在记录视图里读作可复制的值，这里用与它同一个
+ * 等宽字，0 和 O、l 和 1 分得开，一列码上下对齐。
+ */
+export const FailingAggregates: Story = { args: { failures: 'aggregate' } };
+
 export const LatestPerWarehouse: Story = {
   args: { layout: 'table', latest: true },
 };

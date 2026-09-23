@@ -28,6 +28,7 @@ import {
 } from '../display.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
 import { ToneBadge } from '../variants.js';
+import { IDENTIFIER_FACE } from './columns.js';
 import {
   DetailStructure,
   LongValue,
@@ -189,7 +190,10 @@ export function cellValue(
         // runs wider: at 1em the key column of `PinnedEdges` grew past the
         // share the pin cap allows the held group, and the actions column
         // lost its pin.
-        className="group/copyable inline-flex items-center gap-1 font-mono text-[0.9em]"
+        className={cn(
+          'group/copyable inline-flex items-center gap-1',
+          IDENTIFIER_FACE,
+        )}
       >
         {text}
         <CopyButton value={text} className="shrink-0" />

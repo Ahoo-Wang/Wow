@@ -264,7 +264,7 @@ src/
       releaseDeleted.ts       — Lets a workbench's pinned id go once the view is deleted
   ui/                         — Default look; may import every layer
     AnalysisChart.tsx         — Dispatches by chart family; nothing else
-    AnalysisTable.tsx         — The aggregation as a table: groups first, then metrics, with the totals row from its own ungrouped query rather than from summing what is on screen
+    AnalysisTable.tsx         — The aggregation as a table: groups first, then metrics, with the totals row from its own ungrouped query rather than from summing what is on screen, and its scope said under 「合计」; read with the record table's recipes — numbers on the right, ids in monospace, `SortableHeader`, held widths and the filler
     Announcer.tsx             — `useAnnouncer`: one live region per surface, handed back rather than rendered by the caller
     AppliedBar.tsx            — The conditions the rows on screen were fetched under
     BulkStatus.tsx            — `BulkStatus`: a host's bulk command as one line above the rows — how far it has come with a Stop, then what it came to and why
@@ -354,6 +354,8 @@ src/
       Tray.tsx                — The analysis view's editor: range → dimensions | metrics → result, one Apply for the whole draft (D20), quiet while auto-run leaves it nothing to do; the slots scroll, the footer stays
       editing.ts              — What the tray picks when a field is picked — its alias and the type or summary it starts as (`defaultGroup`, `defaultMetric`), the shapes being the kernel builders' — and what a metric is called
       listFocus.ts            — Where the keyboard stands after the card it was on leaves the page: `useListFocus`, shared by every remove and move in the tray and the options panel (A2)
+      headerSort.ts           — The result table's header sort: `headerSorted` (ascending, descending, back to the order the presses began from — an analysis's sort decides which groups the first N are) and `useHeaderSort`, which writes it through the editor's `sortNow` — run at once, as the record header does, unless the draft holds another edit waiting for Apply
+      tableColumns.ts         — An analysis column in the record table's terms: its reading (`readingOf`, a plain metric is a number), whether it is an id (`isIdentifier`), a width from the column alone and never from its values (`columnWidthOf`), and the `RecordColumnView` its `SortableHeader` takes
     charts/                   — One file per family, plus what they share
       Cartesian.tsx           — Bar, line, area and combo through `cartesianOption` (D21): the legend, the names fitted to the width, a pressed mark handed back as its group
       cartesianOption.ts      — `cartesianOption`: a cartesian chart as the library draws it — each series' mark, axes and their titles, short numbers, value labels that hide rather than overlap, stack totals, reference lines; `categoryFit`, the category names side by side or at a slant for the width

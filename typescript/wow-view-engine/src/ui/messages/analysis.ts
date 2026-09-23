@@ -130,7 +130,7 @@ export const analysisMessages = {
   // range — the groups past the top N and the groups 「只保留」 dropped
   // included. That is why the rows above it can add up to less than it does
   // without either number being wrong.
-  'label.analysis.totals-scope': 'Totals = every record in the range',
+  'label.analysis.totals-scope': 'Every record in the range',
   // Wow computes a percentile approximately, so the column says so: 「≈」 in
   // the header (`columnTitle`) and this word where there is room for one.
   'label.analysis.approximate': 'Approximate',

@@ -107,6 +107,7 @@ describe('useAnalysisEditor', () => {
       result.current.setSort([]);
       result.current.submit();
     }).not.toThrow();
+    expect(result.current.sortNow([])).toBe(false);
   });
 
   it('offers only what the capability declares', async () => {

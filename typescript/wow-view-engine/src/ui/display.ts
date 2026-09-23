@@ -193,7 +193,8 @@ export function summaryFunctionKey(
  * approximately, and a p95 that prints to two decimals beside an exact sum
  * reads as exact — the sign is one character and travels everywhere the
  * header does, the chart's axis and legend included. The word behind the sign
- * is `label.analysis.approximate`, which the header's `title` carries.
+ * is `label.analysis.approximate`, which the table header's tooltip and
+ * description carry (`SortableHeader`'s `note`).
  */
 export function columnTitle(
   column: {
