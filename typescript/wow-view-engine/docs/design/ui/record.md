@@ -205,6 +205,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 - **一个滚动容器，且真的会滚**：`scrolls` 默认 true 时 `RecordTable` 自己是容器（`overflow-auto`），高度由它站的位置定：在工作台里吃掉工作列留给它的高度（见下一条，不再量视窗）；别处（宿主页面里的嵌入视图）上限取 `--fve-record-table-max-h`，缺省 70vh。注册表 `Table` 自带的容器取消滚动：嵌套时粘性认里层；
 - **工作台永远填满它的容器，页脚永远贴底——高度布局只有一种**（2026-09-23，用户按推荐定，借鉴 legacy 控制台）：从前有三种——页面流里表格按量出来的「到视窗底」封顶，行少、加载中、空结果、编辑器展开时分页浮在半屏；宿主给了高度时靠把根量两次探测出来再按高度排；铺满屏幕又是第二种的一份拷贝。当天两个缺陷都是测量过期。现在工作台根永远是 `h-full`，外加保底 `min-h-[var(--fve-workbench-min-height,36rem)]`（容器没有确定高度时，保底就是它的全部高度）；铺满屏幕是同一条链、容器换成视口（`min-height: 0`，短屏上不越过视口）；什么都不量。`styles.css`「A workbench fills its container」：侧栏与工作列各自滚动；结果块 `flex: 1 0 auto` 吃掉上方剩下的高度、但不小于自身内容；装行的那一块——记录表的滚动口、卡片、分析结果——从 0 起分高度（`flex: 1 1 0`，下限 12rem）并在其中滚动，图表长满给它的高度而不是停在自己的最小高度、下面留白；分页 `margin-top: auto` 贴结果块底边。**合计行跟着贴底**：行留下的空间由 `useRoomBelowRows`（`ui/record/roomBelowRows.ts`）量出、画成表体后一个不画任何东西的 `tbody[data-slot=row-room]`（`aria-hidden`、单格跨全部列），本页／全部因此紧挨分页——表格多出的高度会被分摊给每一行，所以只能量。嵌入视图与仪表盘面板里的表格不在此列，它们随外层排版（浏览器故事「FooterStaysAtTheBottom」在 640px 容器里量分页、合计与框底，「HeldAtItsFloor」量没有高度的容器里停在 36rem 保底）；
 - **外面有东西在滚就关掉 `scrolls`**：横向能滚的盒子在两个轴上都是 scrollport，表头会粘在没人滚的盒子上。`DashboardGrid` 的记录面板传 `scrolls={false}`，表头、汇总与冻结列顶着面板；
+- **静着读的面板不钉末列**（`holdEnd={false}`，2026-09-23，D13 修正）：右冻结列只要表格溢出，**不滚也压在中间**——窄面板五列就溢出，首页「最近的活动失败」里 181px 的「最近更新」钉在 506px 可视宽的右缘，盖掉「已重试次数」整列和「错误码」23px，表头读成「已重试次」。实测封顶（D17-4）量得没错（端口 `clientWidth` 506／`scrollWidth` 649），只是一列 36% 不到一半，按规则留着——封顶管的是钉住的一组吃掉多少中间，不管一列盖住邻列多少。工作台里这是 D13 的框在干活（表是拿来滚着看的）；面板是一眼读完、很少横着滚的读数，框就是卡片本身。所以 `DashboardGrid` 的记录面板不钉末列（`TableLayout.end`，`heldColumns` 与操作列同一处放手，封顶也不再称它）；主键与左冻结列照旧——它们不滚时什么也不盖（test/dashboardUi.test.tsx「holds no end on the right」、test/pinnedColumns.test.tsx「holds no end where the surface is read at rest」；故事 `首页/回归` 的 `Fixture` 先断言面板溢出，再量每个冻结表头与其余表头的重叠为 0）；
 - `<thead>` 与 `<tfoot>` 各自 `sticky`；**首次加载（`loading` 且 `hasResult` 为假）不画表头**：列来自结果，空 `<th>` 读屏念空列头、axe 算缺陷，拿草稿列名凑是替结果许诺。骨架行照画，刷新不受影响（test/recordTable.test.tsx「a record view with no result」）；
 - **冻结列**：投影的 `pinned: 'left' | 'right'`（`ColumnEdge`）由 `tablePins` 折成每格的 `position: sticky` 与偏移——表头、数据行、汇总行同一列每格都带；
 - **偏移按实测，只有左边有**：列宽由内容决定，声明 `width` 只是建议，选择列与操作列没声明。`usePinnedOffsets` 在布局后量带 `data-pin` 的表头格，写成 `--fve-pin-left-{i}`，格子以 `var(--fve-pin-left-0, calc(…))` 读——量不到时退回按声明宽度累加（从选择列 `2.5rem` 起）。右边最多一列（D19），一个 `right-0` 说完。宽度变化不经过 React，直接写 DOM；`ResizeObserver` 逐格盯参与累加的表头格（字体加载、宿主按钮变宽都会在表盒子不变时改列宽）；
@@ -221,6 +222,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
   - **主键（`RecordColumnView.primary`）永远不放**，所以封顶是尽力而为；
   - **放得下就一个都不放**：判据 `clientWidth` 与 `scrollWidth`，容差 1px（`scrollWidth` 向上取整）——放掉冻结拿不回像素，却拆了 D13 的框；
   - **渲染而非编辑，但要说出来**：配置不动，表格经 `onReleasedPins` 报给工作台，列设置的固定按钮在那一行淡化并加「栏太窄，暂时未冻结」（`label.columns.pin-released`，`data-released`）——`aria-pressed` 说不出的那一半。操作列与卡片布局不报。栏拉宽即恢复（`ResizeObserver` 盯结果区与表头格）。判断在 **layout effect** 里，首次测量先于首次绘制；
+  - **不管一列盖住邻列多少**：一组不到一半就一个不放，哪怕右冻结的末列在不滚时压着邻列——那是 D13 的框；静着读的面板为此干脆不钉末列（见上「静着读的面板不钉末列」）；
   - **代价**：操作列放掉冻结时右边 D13 的边跟着走（test/pinnedColumns.test.tsx「the pinned group against a narrow port」；故事 `PinnedGroupCapped`：420 一栏上中间可视宽不低于一半，拉宽收窄都走）；
 - 选择列在**有列冻结在左**时一并冻结（封顶放掉时除外）；
 - 数字列（`cell` 为 `number`）单元格与表头右对齐并用 `tabular-nums`。

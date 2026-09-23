@@ -250,6 +250,25 @@ export function isNumeric(column: RecordColumnView): boolean {
   return column.cell === 'number';
 }
 
+/** What the table adds to the columns, and what it holds of them. */
+export interface TableLayout {
+  /** Whether the rows carry the selection column. */
+  selectable: boolean;
+  /** Whether the rows carry the host's action column. */
+  actions: boolean;
+  /**
+   * Whether the table's own last column is held against the right edge —
+   * D13's end. On unless the table stands where it is read at rest (a
+   * dashboard panel): a column held on the right covers the middle
+   * whenever the table overflows, *before* anything has scrolled, so on a
+   * surface nobody scrolls sideways what the reader gets is half a column
+   * under the end — 「已重试次数」 read as 「已重试次」. A pin on the left
+   * covers nothing until the rows are scrolled, so this is the right side
+   * alone.
+   */
+  end?: boolean;
+}
+
 /** What the table holds against its two edges, once the cap has had its say. */
 export interface TablePins {
   /** The pin each data column draws, by field; absent means it scrolls. */
@@ -281,7 +300,7 @@ export interface TablePins {
  */
 export function pinnedSlots(
   columns: readonly RecordColumnView[],
-  layout: { selectable: boolean; actions: boolean },
+  layout: TableLayout,
 ): PinnedSlot[] {
   const held = heldColumns(columns, layout);
   const slot = (column: RecordColumnView): PinnedSlot => ({
@@ -302,7 +321,8 @@ export function pinnedSlots(
   // middle by itself, and a frame round nothing readable is worth less than
   // the rows. It is the whole of the right side — there is no pinning there
   // for a config to ask for (D19) — and it is not there at all beside a
-  // host's action column, which has taken its place already.
+  // host's action column, which has taken its place already, nor on a
+  // surface read at rest, which holds no end (`TableLayout.end`).
   return [
     ...(layout.actions ? chrome(ACTIONS_COLUMN, 'actions') : []),
     ...(layout.selectable && held.some(isPinned('left'))
@@ -331,7 +351,7 @@ export function pinnedSlots(
  */
 export function tablePins(
   columns: readonly RecordColumnView[],
-  layout: { selectable: boolean; actions: boolean },
+  layout: TableLayout,
   released: ReleasedPins = NO_RELEASE,
 ): TablePins {
   const pins = new Map<string, StickyPin>();
@@ -390,15 +410,20 @@ export function tablePins(
  * with a seam between them that nothing ever passes, is a frame with a
  * doubled side. So the last column lets go and the actions take its place.
  *
+ * Nor can it see the surface the table stands on, and a surface that is
+ * read at rest has no end to hold (`TableLayout.end`): the last column lets
+ * go there as well, with nothing taking its place.
+ *
  * Every right-hand pin is that one column (D19), so this is the whole of
- * the right side: with an action column the table holds nothing of its own
- * there, which is what lets everything downstream stop asking.
+ * the right side: with an action column, or on such a surface, the table
+ * holds nothing of its own there, which is what lets everything downstream
+ * stop asking.
  */
 function heldColumns(
   columns: readonly RecordColumnView[],
-  layout: { actions: boolean },
+  layout: TableLayout,
 ): readonly RecordColumnView[] {
-  if (!layout.actions) return columns;
+  if (!layout.actions && layout.end !== false) return columns;
   return columns.map(column =>
     column.pinned === 'right' ? { ...column, pinned: undefined } : column,
   );

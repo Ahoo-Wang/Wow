@@ -396,6 +396,13 @@ function Unavailable({ issue }: { issue: Issue | undefined }) {
  * The panel is what scrolls here, so the table does not: its own scroll area
  * would be a box nothing ever scrolls, and the header and the summaries would
  * stay put against it while the panel moved them off the top.
+ *
+ * Nor does it hold its last column on the right. A panel is read where it
+ * stands, and a narrow one overflows with only a few columns: the held end
+ * then sits over the middle before anything has scrolled, covering the
+ * column before it — and the pin cap (D17-4) keeps it, one column being
+ * under half the port. The panel is the frame here; the key, if shown,
+ * stays held on the left, where it covers nothing at rest.
  */
 function RecordPanel({ runtime }: { runtime: RecordViewRuntime }) {
   const table = useRecordTable(runtime);
@@ -403,7 +410,14 @@ function RecordPanel({ runtime }: { runtime: RecordViewRuntime }) {
     return <PanelFailed error={table.error ?? undefined} />;
   if (table.loading && table.rows.length === 0)
     return <Skeleton className="h-24 w-full" />;
-  return <RecordTable table={table} selectable={false} scrolls={false} />;
+  return (
+    <RecordTable
+      table={table}
+      selectable={false}
+      scrolls={false}
+      holdEnd={false}
+    />
+  );
 }
 
 function AnalysisPanel({ runtime }: { runtime: DataViewRuntime }) {

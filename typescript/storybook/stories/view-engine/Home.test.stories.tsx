@@ -51,6 +51,37 @@ const PANELS = [
   '活动失败最多的处理器',
 ];
 
+/**
+ * Each header a held header lies over, and by how many pixels, as
+ * `"held over covered: px"`.
+ *
+ * Read off the header row because every layer of a column — header, rows,
+ * summaries — is held together, so a header that is whole is a column that
+ * is whole. The filler is skipped: it is not a column, and it has no width
+ * once the table overflows. Half a pixel is sub-pixel rounding between two
+ * neighbours, not a column under another.
+ */
+function covered(table: HTMLElement): string[] {
+  const heads = [
+    ...table.querySelectorAll<HTMLElement>('thead tr:first-child > th'),
+  ].filter(cell => cell.getBoundingClientRect().width > 0);
+  const found: string[] = [];
+  for (const held of heads.filter(cell => cell.hasAttribute('data-pin'))) {
+    const over = held.getBoundingClientRect();
+    for (const other of heads) {
+      if (other === held) continue;
+      const under = other.getBoundingClientRect();
+      const overlap =
+        Math.min(over.right, under.right) - Math.max(over.left, under.left);
+      if (overlap > 0.5)
+        found.push(
+          `${held.textContent} over ${other.textContent}: ${overlap.toFixed(1)}`,
+        );
+    }
+  }
+  return found;
+}
+
 export const Fixture: Story = {
   ...DisplayFixture,
   play: async ({ canvasElement }) => {
@@ -105,6 +136,20 @@ export const Fixture: Story = {
     await expect(readColumn(table, '最近更新')[0]).toBe(
       '2026年9月22日 06:00:00',
     );
+
+    // No column sits under a held one where the panel is read, at rest.
+    // Five columns overflow this seven-twelfths panel, and a last column
+    // held on the right sat over the middle before anything had scrolled —
+    // 「已重试次数」 read as 「已重试次」 — while the pin cap (D17-4) kept
+    // it, one column being well under half the port. A panel holds no end
+    // (`holdEnd`), so every header is read whole. The overflow is asserted
+    // first because it is what gives the measurement its meaning: a table
+    // that fits covers nothing whatever it pins.
+    const port = table.closest<HTMLElement>('[data-slot="record-table"]')!;
+    await waitFor(() =>
+      expect(port.hasAttribute('data-overflowing')).toBe(true),
+    );
+    await expect(covered(table)).toEqual([]);
 
     // The page fits its area sideways: only a genuinely taller page scrolls,
     // and only down. Waited for, because the grid learns its width from its

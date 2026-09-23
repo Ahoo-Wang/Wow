@@ -252,6 +252,37 @@ describe('DashboardGrid', () => {
   });
 
   /**
+   * A panel is read where it stands, and a narrow one overflows with only a
+   * few columns — so a last column held on the right would sit over the
+   * column before it at rest, which is exactly what the home page showed
+   * (「已重试次数」 read as 「已重试次」), and the pin cap keeps one column
+   * that is under half the port. The panel holds no end; the key keeps its
+   * place on the left, which covers nothing until the rows are scrolled.
+   * What the browser makes of it is measured by the home page's `Fixture`.
+   */
+  it('holds no end on the right, and keeps the key on the left', async () => {
+    const { controller } = await openDashboard(
+      dashboardConfig({ panels: [panel()] }),
+    );
+
+    const { container } = render(
+      <ViewSurface>
+        <DashboardGrid dashboard={controller()} />
+      </ViewSurface>,
+    );
+
+    await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
+    const pins = [
+      ...container.querySelectorAll<HTMLElement>('thead th[data-field]'),
+    ].map(cell => [cell.dataset.field, cell.dataset.pin ?? null]);
+    expect(pins).toEqual([
+      ['id', 'left'],
+      ['amount', null],
+    ]);
+    expect(container.querySelector('[data-pin="right"]')).toBeNull();
+  });
+
+  /**
    * The scope label rides in the selection column when there is one. Without
    * it the row has no spare cell, so the label must land above the first
    * column rather than take a column's place — a summary that silently lost

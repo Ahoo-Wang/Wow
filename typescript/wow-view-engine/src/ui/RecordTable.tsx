@@ -110,6 +110,24 @@ export interface RecordTableProps {
    * becomes a second scrollport that nothing ever scrolls.
    */
   scrolls?: boolean;
+  /**
+   * Whether the table holds its own last column against the right edge
+   * (D13's end). On by default, which is what a workbench wants: the table
+   * is worked, scrolled across, and the end frames the middle passing under
+   * it.
+   *
+   * A surface that is read at rest — a dashboard panel — turns it off. A
+   * column held on the right covers the middle as soon as the table
+   * overflows, before anything has scrolled, and the cap (D17-4) cannot
+   * help: it weighs the held group against half the port, and one column
+   * under half of it is kept however much of its neighbour it covers. On a
+   * workbench that is the frame doing its job; on a panel, read at a glance
+   * and seldom scrolled sideways, it is the neighbour's last characters gone
+   * — 「已重试次数」 read as 「已重试次」 on the home page. The key
+   * and the columns pinned left stay held, since those cover nothing until
+   * the rows are scrolled.
+   */
+  holdEnd?: boolean;
   /** Overrides the catalogue's own wording for an empty result. */
   emptyTitle?: string;
   emptyDescription?: string;
@@ -177,6 +195,7 @@ export function RecordTable({
   rowActions,
   onOpen,
   scrolls = true,
+  holdEnd = true,
   emptyTitle,
   emptyDescription,
   emptyWayOut = 'add',
@@ -201,8 +220,9 @@ export function RecordTable({
     () => ({
       selectable,
       actions: rowActions !== undefined,
+      end: holdEnd,
     }),
-    [selectable, rowActions],
+    [selectable, rowActions, holdEnd],
   );
   // What the table would hold, and what the port has room for it to hold:
   // beyond half the visible width the group is capped and the outermost

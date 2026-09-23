@@ -608,6 +608,51 @@ describe('the pinned group against a narrow port', () => {
     expect(letGo.select).toBeUndefined();
   });
 
+  /**
+   * A surface read at rest holds no end (`TableLayout.end`): the right side
+   * is the one whose pin covers the middle before anything has scrolled,
+   * and one column under half the port is more than the cap would ever let
+   * go. So the last column is not held and not weighed, while the key and
+   * the columns pinned left keep their places — they cover nothing at rest.
+   */
+  it('holds no end where the surface is read at rest', () => {
+    const columns = [
+      key(),
+      column('warehouse', 'left'),
+      column('amount', 'right'),
+    ];
+    const pinsAtRest = tablePins(columns, {
+      selectable: false,
+      actions: false,
+      end: false,
+    });
+
+    const names = (slots: readonly { key: string; fixed: boolean }[]) =>
+      slots.map(slot => `${slot.key}${slot.fixed ? '!' : ''}`);
+
+    expect(pinsAtRest.columns.has('amount')).toBe(false);
+    expect(pinsAtRest.columns.get('id')?.side).toBe('left');
+    expect(pinsAtRest.columns.get('warehouse')?.side).toBe('left');
+    expect(
+      names(
+        pinnedSlots(columns, { selectable: false, actions: false, end: false }),
+      ),
+    ).toEqual(['id!', 'warehouse']);
+
+    const { container } = render(
+      <RecordTable
+        table={controller([column('id', 'left'), column('status', 'right')])}
+        holdEnd={false}
+      />,
+    );
+    const status = cellsOf(container, 'status');
+    expect(status.map(cell => cell.dataset.pin)).toEqual(
+      status.map(() => undefined),
+    );
+    const id = cellsOf(container, 'id');
+    expect(id.map(cell => cell.dataset.pin)).toEqual(id.map(() => 'left'));
+  });
+
   it('keeps the key pinned even where it alone is more than half', () => {
     port = 286;
     widths.id = 200;
