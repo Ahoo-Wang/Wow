@@ -109,7 +109,8 @@ export interface RecordTableController {
   /**
    * Changes the card layout — which field titles it, which make its body,
    * where its image comes from, how many stand in a row — and applies at
-   * once, as `setColumns` does: the cards follow the config that ran.
+   * once, as `setColumns` does: the cards follow the config that ran. Like
+   * every write here, only while nothing else waits (see `toggleSort`).
    */
   setCard(patch: Partial<RecordCardSpec>): void;
   rows: RecordRow[];
@@ -166,7 +167,10 @@ export interface RecordTableController {
    * another edit waiting for Apply, a range condition above all. Running
    * then would apply that edit on the user's behalf; the sort joins it
    * instead, the pending dot shows, and Apply runs the two together
-   * (`pendingBesides`, the rule the analysis header keeps).
+   * (`pendingBesides`, the rule the analysis header keeps). Every write here
+   * that edits and runs keeps this rule: the page size, the columns, their
+   * order, pinning and width, the summaries, the card and a layout switch
+   * that moves the page size.
    */
   toggleSort(field: string, options?: ToggleSortOptions): void;
   /**
@@ -207,7 +211,8 @@ export interface RecordTableController {
   /** Whether the draft has this column switched off. */
   hiddenOf(field: string): boolean;
   /**
-   * Which columns the table shows, and applies at once.
+   * Which columns the table shows, and applies at once — while nothing else
+   * waits for Apply; otherwise it joins what waits (see `toggleSort`).
    *
    * A column the config already knows is switched off **in place** —
    * `hidden: true`, its entry kept — rather than taken out of the list, so
@@ -232,7 +237,8 @@ export interface RecordTableController {
    */
   setColumns(fields: string[]): void;
   /**
-   * Puts the draft's columns in this order and applies at once.
+   * Puts the draft's columns in this order and applies at once, under the
+   * rule `toggleSort` keeps.
    *
    * A name that is not a column is ignored and a column the caller leaves
    * unnamed keeps its place at the end, so a control that knows about part
@@ -248,7 +254,8 @@ export interface RecordTableController {
   /** Whether the draft holds this column against the table's left edge. */
   pinnedOf(field: string): boolean;
   /**
-   * Holds a column against the left edge, or lets it go. Applies at once.
+   * Holds a column against the left edge, or lets it go. Applies at once,
+   * under the rule `toggleSort` keeps.
    *
    * There is one end to pin to (D19): the right edge is the host's action
    * column, which is a render slot rather than anything a config names.
@@ -256,7 +263,8 @@ export interface RecordTableController {
   setPinned(field: string, pinned: boolean): void;
   /**
    * Sets one column's width in pixels, or `null` to let it size itself
-   * again. Applies at once, like the other column commands.
+   * again. Applies at once, like the other column commands, and under the
+   * same rule.
    *
    * The number is taken as given: how narrow a column may be dragged is a
    * question about a grab handle rather than about a config, so the table's
@@ -281,7 +289,8 @@ export interface RecordTableController {
    * A config may carry several functions for one field and the table shows
    * all of them; this writes one, because a control that offers a column one
    * summary is the shape the settings have. Setting one therefore drops the
-   * others on that column, and `null` leaves it without a summary.
+   * others on that column, and `null` leaves it without a summary. Applies
+   * at once under the rule `toggleSort` keeps.
    */
   setSummary(field: string, fn: SummaryFunction | null): void;
   pageSize: number;
@@ -295,6 +304,7 @@ export interface RecordTableController {
    * list whatever it is, or a select shows nothing at all.
    */
   pageSizes: number[];
+  /** A new size is a new query: runs under the rule `toggleSort` keeps. */
   setPageSize(size: number): void;
 
   selection: RecordKey[];
@@ -396,19 +406,30 @@ export function useRecordTable(
     [draft],
   );
 
-  // One sort write, from the header or the editor. The repairs a patch
-  // carries (`repairing`) are this write's own, so they are laid over both
-  // sides with the sort rather than counted as someone else's edit.
-  const sortNow = useCallback(
-    (sort: RecordSort[]) => {
+  // One write from a control that edits and runs — the sort, the page
+  // size, the columns, the summaries, the card. It runs only while nothing
+  // else waits: running applies the whole draft, and a condition still
+  // waiting in the range is not this control's to apply. Otherwise the
+  // write joins what waits, the pending dot counts it, and Apply runs them
+  // together (`pendingBesides`; the analysis header's `sortNow` keeps the
+  // same rule). The repairs a patch carries (`repairing`) are this write's
+  // own, so they are laid over both sides with it rather than counted as
+  // someone else's edit.
+  const editAndApply = useCallback(
+    (patch: Partial<RecordViewConfig>) => {
       if (!runtime) return;
       const snapshot = runtime.getSnapshot();
-      const patch = repairing({ sort }, snapshot);
-      const others = pendingBesides(snapshot, patch);
-      runtime.edit(patch);
+      const repaired = repairing(patch, snapshot);
+      const others = pendingBesides(snapshot, repaired);
+      runtime.edit(repaired);
       if (!others) runtime.apply();
     },
     [runtime],
+  );
+
+  const sortNow = useCallback(
+    (sort: RecordSort[]) => editAndApply({ sort }),
+    [editAndApply],
   );
 
   const toggleSort = useCallback(
@@ -423,15 +444,6 @@ export function useRecordTable(
       );
     },
     [runtime, sortNow],
-  );
-
-  const editAndApply = useCallback(
-    (patch: Partial<RecordViewConfig>) => {
-      if (!runtime) return;
-      runtime.edit(repairing(patch, runtime.getSnapshot()));
-      runtime.apply();
-    },
-    [runtime],
   );
 
   // Where the last plain toggle landed. The controller's own rather than
@@ -542,9 +554,14 @@ export function useRecordTable(
         // allows has no result at all, though: `apply` was refused on
         // open, `refresh` is a no-op until something has been admitted,
         // and the switch that repairs it would otherwise leave the screen
-        // as empty as it found it.
+        // as empty as it found it. Under the same rule as every other
+        // write here: not while another edit waits for Apply.
         const state = runtime.getSnapshot();
-        if (state.result === null && state.query.status === 'idle')
+        if (
+          state.result === null &&
+          state.query.status === 'idle' &&
+          !pendingBesides(state, {})
+        )
           runtime.apply();
       },
       [editAndApply, runtime],

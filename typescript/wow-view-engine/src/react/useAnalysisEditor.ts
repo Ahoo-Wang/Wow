@@ -56,6 +56,7 @@ import {
   answeringAnew,
   autoApplyDue,
   comparePending,
+  pendingBesides,
   type OptionSource,
   type ViewRuntime,
 } from '../runtime/index.js';
@@ -506,14 +507,10 @@ export function useAnalysisEditor(
         const { draft, applied, issues } = runtime.getSnapshot();
         if (draft.kind !== 'analysis' || applied.kind !== 'analysis')
           return false;
-        // What waits besides the sort: the two sides compared with this
-        // sort on both, so a sort edited in the tray and not yet run —
-        // which this one replaces — does not hold it back.
-        const others = comparePending(
-          { ...draft, sort },
-          { ...applied, sort },
-          issues,
-        ).pending;
+        // What waits besides the sort: a sort edited in the tray and not
+        // yet run — which this one replaces — does not hold it back. The
+        // record table's writes keep the same rule (`pendingBesides`).
+        const others = pendingBesides({ draft, applied, issues }, { sort });
         runtime.edit({ sort });
         if (others) return false;
         runtime.apply();

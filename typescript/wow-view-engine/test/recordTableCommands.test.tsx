@@ -1007,3 +1007,75 @@ describe('a sort never applies what else waits', () => {
     );
   });
 });
+
+/**
+ * The same rule for every command that edits and runs (todo 「记录视图的其余
+ * 一键即应用」): while a condition waits in the range, the write joins it —
+ * the draft says it, the applied config does not, nothing is asked — and
+ * Apply runs the two together.
+ */
+describe('no one-press command applies what else waits', () => {
+  const inCN: FilterTree = {
+    op: 'and',
+    children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+  };
+
+  type Table = ReturnType<typeof useRecordTable>;
+  const COMMANDS: [string, (table: Table) => void][] = [
+    [
+      'setPageSize',
+      table =>
+        table.setPageSize(
+          table.pageSizes.find(size => size !== table.pageSize)!,
+        ),
+    ],
+    ['setColumns', table => table.setColumns(table.columnFields.slice(1))],
+    [
+      'setColumnOrder',
+      table => table.setColumnOrder([...table.columnFields].reverse()),
+    ],
+    ['setPinned', table => table.setPinned('amount', true)],
+    ['setColumnWidth', table => table.setColumnWidth('amount', 180)],
+    ['setSummary', table => table.setSummary('amount', 'SUM')],
+    ['setCard', table => table.setCard({ perRow: 2 })],
+  ];
+
+  it.each(COMMANDS)('%s joins the edit waiting for Apply', async (_, press) => {
+    const source = testSource();
+    const result = await openTable(undefined, {}, true, source);
+    act(() => result.current.runtime!.edit({ filter: inCN }));
+    const before = result.current.runtime!.getSnapshot();
+    const asked = vi.mocked(source.paged).mock.calls.length;
+
+    act(() => press(result.current.table));
+
+    const after = result.current.runtime!.getSnapshot();
+    // Written, so the control shows it and Apply takes it along…
+    expect(after.draft).not.toEqual(before.draft);
+    expect(after.draft.filter).toEqual(inCN);
+    // …but nothing ran: the condition is not this press's to apply.
+    expect(after.applied).toBe(before.applied);
+    expect(vi.mocked(source.paged).mock.calls.length).toBe(asked);
+
+    act(() => result.current.runtime!.apply());
+    await waitFor(() =>
+      expect(vi.mocked(source.paged).mock.calls.length).toBe(asked + 1),
+    );
+    expect(result.current.runtime!.getSnapshot().applied).toEqual(after.draft);
+  });
+
+  it.each(COMMANDS)(
+    '%s runs at once when nothing else waits',
+    async (_, press) => {
+      const source = testSource();
+      const result = await openTable(undefined, {}, true, source);
+      const before = result.current.runtime!.getSnapshot().applied;
+
+      act(() => press(result.current.table));
+
+      const after = result.current.runtime!.getSnapshot();
+      expect(after.applied).not.toBe(before);
+      expect(after.applied).toEqual(after.draft);
+    },
+  );
+});

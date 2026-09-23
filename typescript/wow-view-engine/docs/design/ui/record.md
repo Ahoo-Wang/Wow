@@ -252,7 +252,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 
 - **左：一共多少条**。`label.pagination.total`（「共 18 条记录」）说条件选中了多少。没有总数时（游标源）用 `label.pagination.on-page` 说数得出的那个数，不拿一页满不满推总数；
 - **左：窗口那一句**。源声明了分页窗口（`RecordCapability.maxWindow`）且够得到的页装不下总数时，多一句 `label.pagination.window`「只能翻到前 10,000 条，缩小范围看其余」——Wow 走 Elasticsearch，窗口外的页是一个 400。它**不是警告**（没失败，出路在条件），弱色、无图标；是分页条（`nav`）与跳页框的 `aria-describedby`。数字按界面语言分组（`valueText`）；
-- **右：每页几条**。`label.pagination.page-size`（「每页」）即控件名字，不另写 `aria-label`。档位来自 `table.pageSizes`（表格取 `limits.pageSizes`、卡片取 `limits.cardPageSizes`——一页卡片是整行；按 `runtime.limits.maxPageSize` 裁剪、并入当前值）。切换布局时条数在同一次编辑里换到另一套梯子上最近的一档（`nearestPageSize`，平局取大）：表格 20 条切到卡片是 24 张，切回来还是 20 条；按卡片打开的新视图默认也在卡片梯子上（24）。（见 test/useRecordTable.test.tsx「offers whole rows of cards, and moves the size between ladders」），选项用 `label.pagination.page-size-option`「20 条」——量词跟着数字走。`setPageSize` 立即应用；
+- **右：每页几条**。`label.pagination.page-size`（「每页」）即控件名字，不另写 `aria-label`。档位来自 `table.pageSizes`（表格取 `limits.pageSizes`、卡片取 `limits.cardPageSizes`——一页卡片是整行；按 `runtime.limits.maxPageSize` 裁剪、并入当前值）。切换布局时条数在同一次编辑里换到另一套梯子上最近的一档（`nearestPageSize`，平局取大）：表格 20 条切到卡片是 24 张，切回来还是 20 条；按卡片打开的新视图默认也在卡片梯子上（24）。（见 test/useRecordTable.test.tsx「offers whole rows of cards, and moves the size between ladders」），选项用 `label.pagination.page-size-option`「20 条」——量词跟着数字走。`setPageSize` 立即应用——草稿里另有待应用修改时只并进待应用（与表头排序同一条规矩，[react.md](../react.md)）；
 - **右：第几页**。`label.toolbar.page-of`（「第 1 / 4 页」），页数是内核的**够得到的**页数（`paging.pages`），出自**跑过的**每页条数——新值在路上时屏幕上还是旧那一批。总数未知时退到 `label.toolbar.page`（「第 1 页」）；
 - **右：跳到第…页**（D18 裁定 Ⅷ）。总数已知时句子旁一个输入框（`Input`，`inputMode="numeric"`，名字 `label.pagination.go-to`），调 `goTo`：
   - **挨着句子而不嵌进去**：劈开「第 1 / 4 页」读屏会听到半句话、一个控件、再半句话；
