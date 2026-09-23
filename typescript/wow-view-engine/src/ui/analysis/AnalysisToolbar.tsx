@@ -11,13 +11,11 @@
  * limitations under the License.
  */
 
-import { useId, type RefObject } from 'react';
+import type { RefObject } from 'react';
 import { ChartColumnIcon } from 'lucide-react';
 import type { AnalysisView } from '../../analysis/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
 import { Button } from '../components/button.js';
-import { Checkbox } from '../components/checkbox.js';
-import { Field, FieldLabel } from '../components/field.js';
 import { ToggleGroup, ToggleGroupItem } from '../components/toggle-group.js';
 import { columnTitle } from '../display.js';
 import { SPACE, TEXT_UI } from '../layout.js';
@@ -51,8 +49,7 @@ export interface AnalysisToolbarProps {
  * result was actually shaped; on the right, how they are looked at. Looking
  * is the result's business, not the question's, so the layout switch and
  * the way into the visualization panel live here rather than in the tray
- * (D20). Table or chart redraws the same rows; the totals row is a query
- * of its own and runs at once.
+ * (D20). Table or chart redraws the same rows.
  */
 export function AnalysisToolbar({
   analysis,
@@ -63,7 +60,6 @@ export function AnalysisToolbar({
   disabled,
 }: AnalysisToolbarProps) {
   const messages = useViewMessages();
-  const id = useId();
   const columns = view.schema ?? view.columns;
   // The separator is the catalogue's, as it is wherever this package lists
   // names in a sentence (`charts/reading.ts`): 「、」 in Chinese, ", " in
@@ -81,10 +77,6 @@ export function AnalysisToolbar({
     dimensions === ''
       ? messages.label('label.analysis.reading-flat', { metrics })
       : messages.label('label.analysis.reading', { dimensions, metrics });
-  const apply = (change: () => void) => {
-    change();
-    analysis.submit();
-  };
   return (
     <Toolbar
       data-slot="result-toolbar"
@@ -130,21 +122,11 @@ export function AnalysisToolbar({
             {messages.label('label.analysis.visualize')}
           </Button>
         )}
-        {analysis.layout === 'table' && (
-          <Field orientation="horizontal" className="w-auto">
-            <Checkbox
-              id={`${id}-totals`}
-              checked={analysis.totals}
-              disabled={disabled}
-              onCheckedChange={checked =>
-                apply(() => analysis.setTotals(checked === true))
-              }
-            />
-            <FieldLabel htmlFor={`${id}-totals`}>
-              {messages.label('label.analysis.totals')}
-            </FieldLabel>
-          </Field>
-        )}
+        {/* No totals switch here. It was a checkbox that only the table
+            layout drew, so switching 表格／图表 moved everything beside it
+            (the user's 2026-09-23 review); the totals row is a setting of
+            the table, and it is set where the table's other settings are —
+            the visualization panel's table options (`ChartOptions`). */}
       </div>
     </Toolbar>
   );

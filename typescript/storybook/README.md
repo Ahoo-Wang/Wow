@@ -42,7 +42,7 @@ View Engine 的每个场景都放在宿主应用里评判：`shared/AppShell.tsx
 `view-engine/EventStreamConsole.stories.tsx` 是**事件流分析台**，同一个服务上 `execution_failed` 的事件流：一条记录是一次命令追加的事件流（执行 ID、版本、命令 ID、事件时间），事件在数组 `body` 里。按事件筛选是对 `body` 的元素匹配，按事件分析展开 `body`、以事件为计数单位。视图列表里有最近的事件、执行历史（按执行 ID 填写的模板，按版本排序）、重试成功、人工干预，以及事件类型分布、每月／每日事件量、每日重试成功、重试最多的执行。事件流只读，没有命令。字段定义按 `GET /execution_failed/event/schema` 人工对齐，舍弃了什么、为什么舍弃，见 `eventStream.ts` 里 `executionFailedEventsDefinition` 的说明。
 
 - 这两个场景就是操作员用的产品，与其余 View Engine 场景一样放在宿主外壳里（见上一节）；「服务」一行就是场景连接的 `host`。文档页还写着「命令真实写入」的提醒。
-- 服务地址是故事的 `host` 参数，可在 Controls 面板随时切换；初始值取 `STORYBOOK_WOW_COMPENSATION_HOST`，未设置时为 `http://localhost:8080`。两个场景共用这个地址。
+- 服务地址是故事的 `host` 参数，可在 Controls 面板随时切换；初始值取 `STORYBOOK_WOW_COMPENSATION_HOST`，未设置时为本地端口转发 `http://localhost:8080`（开发集群里是 `http://compensation-service.dev.svc.cluster.local`，命令行能连，但桌面应用的内置浏览器解析不了 `*.svc.cluster.local`）。两个场景共用这个地址。
 - 快照控制台的写操作会真实写回服务，只连接测试环境。
 - 真实数据每次都不同，这些故事标记为 `!test`，不进入回归测试；文档页用 `docs.autoMount: false` 只列出场景链接，不挂载示例，因此打开目录不会调用服务。
 - 变的只是数据；定义、系统视图和读取数据的方式是确定的，View Engine 的规则一变就可能让它们失效。每个场景都有一个回归孪生故事（`*.test.stories.tsx`），指向录制服务：`recordedWowService.ts` 用 `rowSource` 按服务的方式应答一个查询资源的 `paged`／`cursor`／`aggregation`（包括元素展开）。`compensationService.ts` 录了几条快照，并按服务的规则应答三条补偿命令；`eventStreamService.ts` 录了几条事件流。这类失效因此在 CI 里暴露，不必等有人打开目录才发现。

@@ -636,19 +636,23 @@
 
 /*
  * Rows scroll inside the height they are given; a drawing is sized to it and
- * never needs to. An analysis result scrolls only while it holds a table —
- * a scroll region with nothing in it to focus is one a keyboard cannot move
- * (axe `scrollable-region-focusable`), and a chart given its margin would
- * otherwise overflow by exactly that margin.
+ * never needs to. The cards scroll as one region; an analysis table is its
+ * own scroll port, as the record table is, so its header and its totals row
+ * stay while the rows move (`AnalysisTable`) — the analysis result itself
+ * never scrolls: a region with nothing in it to focus is one a keyboard
+ * cannot move (axe `scrollable-region-focusable`).
  */
+.fve-root > main [data-slot='result-block'] > [data-slot='record-cards'] {
+  overflow-y: auto;
+}
+
 .fve-root
   > main
   [data-slot='result-block']
-  > :is(
-    [data-slot='record-cards'],
-    [data-slot='analysis-result']:has(> [data-slot='analysis-table'])
-  ) {
-  overflow-y: auto;
+  > [data-slot='analysis-result']
+  > [data-slot='analysis-table'] {
+  flex: 1 1 0;
+  min-height: 0;
 }
 
 .fve-root

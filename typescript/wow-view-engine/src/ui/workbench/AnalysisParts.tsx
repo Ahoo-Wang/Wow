@@ -350,7 +350,10 @@ function AnalysisCaption({
   return (
     <div
       data-slot="analysis-caption"
-      className="text-muted-foreground text-sm tabular-nums"
+      // On the right, where the record view's pager is: the left of the
+      // row is where a reader starts the report, and this is its footnote
+      // (the user's 2026-09-23 review).
+      className="text-muted-foreground text-right text-sm tabular-nums"
     >
       {messages.label('label.analysis.caption', {
         count: formatNumber(rows, undefined, locale),

@@ -798,16 +798,25 @@ describe('the analysis result toolbar', () => {
    * question's (D20), so these apply at once rather than waiting for the
    * tray's Apply — the kernel shapes a chart only for what ran.
    */
-  it('applies a totals row at once', async () => {
-    const { source } = await open({ fold: false });
+  /**
+   * The totals switch is a setting of the table, set with the table's other
+   * settings in the visualization panel (`chartOptionsUi.test.tsx` runs it).
+   * On the toolbar it was drawn by the table layout alone, so switching
+   * 表格／图表 moved everything beside it (the user's 2026-09-23 review).
+   */
+  it('keeps the totals switch off the toolbar in either layout', async () => {
+    await open({ fold: false });
+    const toolbar = () =>
+      document.querySelector<HTMLElement>('[data-slot="result-toolbar"]')!;
+    expect(
+      within(toolbar()).queryByRole('checkbox', { name: 'Totals row' }),
+    ).toBeNull();
 
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Totals row' }));
-
-    await waitFor(() => {
-      const calls = vi.mocked(source.aggregate).mock.calls;
-      // Totals run their own ungrouped query, which carries no limit.
-      expect(calls.some(call => call[0].limit === undefined)).toBe(true);
-    });
+    cleanup();
+    await open({ config: { layout: 'chart' } });
+    expect(
+      within(toolbar()).queryByRole('checkbox', { name: 'Totals row' }),
+    ).toBeNull();
   });
 
   it('keeps the way into the visualization beside the layout switch, not in the tray', async () => {

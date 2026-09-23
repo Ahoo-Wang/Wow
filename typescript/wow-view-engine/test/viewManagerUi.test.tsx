@@ -445,7 +445,15 @@ describe('ViewManager rows', () => {
     expect((await store.getPreferences('orders')).defaultInstanceId).toBe(
       'orders-2',
     );
-    await waitFor(() => expect(row('Yours').textContent).toContain('Default'));
+    // The star says it, pressed in — the sidebar's mark, not a badge beside
+    // it.
+    await waitFor(() =>
+      expect(
+        within(row('Yours'))
+          .getByRole('button', { name: 'Stop opening this one first' })
+          .getAttribute('aria-pressed'),
+      ).toBe('true'),
+    );
 
     fireEvent.click(
       within(row('Yours')).getByRole('button', {

@@ -35,9 +35,14 @@ import {
 } from '@ahoo-wang/fetcher-view-engine';
 
 /**
- * The Wow compensation service the stories start on. Each story takes it as
- * its `host` arg, so the Controls panel can point it anywhere without a
- * restart; set `STORYBOOK_WOW_COMPENSATION_HOST` to change where it starts.
+ * The Wow compensation service the stories start on: a local port-forward of
+ * the development cluster's `compensation-service`. The cluster address,
+ * `http://compensation-service.dev.svc.cluster.local`, answers from a shell
+ * but not from every browser — the desktop app's built-in one cannot resolve
+ * `*.svc.cluster.local` — so the default is the forward (the user's call,
+ * 2026-09-23). Each story takes it as its `host` arg, so the Controls panel
+ * can point it anywhere without a restart; set
+ * `STORYBOOK_WOW_COMPENSATION_HOST` to change where it starts.
  */
 export const DEFAULT_COMPENSATION_HOST: string =
   import.meta.env.STORYBOOK_WOW_COMPENSATION_HOST ?? 'http://localhost:8080';

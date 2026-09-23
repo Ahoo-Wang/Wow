@@ -17,6 +17,8 @@ import { columnTitle, displayValue, valueText } from './display.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { moveStop, settleStop, takeStop } from './roving.js';
 import { FOCUS_ROW } from './variants.js';
+import { useRoomBelowRows } from './record/roomBelowRows.js';
+import { stickyBand } from './record/sticky.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 import type { AnalysisView } from '../analysis/index.js';
 import { AnalysisEmpty } from './analysis/EmptyResult.js';
@@ -79,6 +81,13 @@ export function AnalysisTable({ view, onPick }: AnalysisTableProps) {
   useLayoutEffect(() => {
     settleStop(rows());
   });
+  // The totals row sits at the bottom of the result as the record view's
+  // summaries do (the user's 2026-09-23 review): the table is its own
+  // scroll port, the header and the totals are its two sticky bands, and
+  // the room the rows leave in a taller port is a row that draws nothing.
+  const port = useRef<HTMLDivElement | null>(null);
+  const table = useRef<HTMLTableElement | null>(null);
+  const room = useRoomBelowRows(port, table, view.totals !== undefined);
   // A group key or an ANY shows as its field's values do; the rest, and
   // anything the field's kind has nothing to say about, as before.
   const show = (value: unknown, column: AnalysisView['columns'][number]) =>
@@ -87,18 +96,21 @@ export function AnalysisTable({ view, onPick }: AnalysisTableProps) {
   if (view.rows.length === 0) return <AnalysisEmpty />;
 
   return (
-    // No scrollport of its own: the vendored `Table` already renders one
-    // (`data-slot="table-container"`, `overflow-x-auto`), and a second box
-    // around it is a scrollport that never scrolls — the inner one reaches
-    // its scrollWidth first, so the outer never has anything to move, while
-    // anything inside that wants to resolve against "the thing that
-    // scrolls" resolves against the wrong one (which is why `RecordTable`
-    // goes the other way and takes the vendored container *out* of the way
-    // rather than adding to it). This div is the slot other code finds the
-    // table by, and nothing else.
-    <div data-slot="analysis-table">
-      <Table>
-        <TableHeader>
+    // Its own scroll port, as `RecordTable` is: the vendored `Table`'s
+    // container (`overflow-x-auto`) is taken out of the way, because two
+    // nested scrollports put the sticky header and totals against the inner
+    // one, which never scrolls up and down. In a workbench this port takes
+    // the height the column leaves it (`styles.css`); anywhere else it is
+    // as tall as its rows and scrolls only sideways. A port with no row to
+    // focus is a stop of its own, or a keyboard could not scroll it.
+    <div
+      ref={port}
+      data-slot="analysis-table"
+      tabIndex={onPick ? undefined : 0}
+      className="relative overflow-auto [&>[data-slot=table-container]]:overflow-visible"
+    >
+      <Table ref={table}>
+        <TableHeader {...stickyBand('top')}>
           <TableRow>
             {view.columns.map(column => (
               <TableHead
@@ -159,8 +171,18 @@ export function AnalysisTable({ view, onPick }: AnalysisTableProps) {
             </TableRow>
           ))}
         </TableBody>
+        {room > 0 && (
+          <tbody data-slot="row-room" aria-hidden>
+            <tr>
+              <td
+                colSpan={view.columns.length}
+                style={{ height: room, padding: 0, border: 0 }}
+              />
+            </tr>
+          </tbody>
+        )}
         {view.totals && (
-          <TableFooter>
+          <TableFooter {...stickyBand('bottom')}>
             <TableRow data-slot="totals-row">
               {view.columns.map((column, index) => {
                 const heading = index === 0 && column.role === 'group';

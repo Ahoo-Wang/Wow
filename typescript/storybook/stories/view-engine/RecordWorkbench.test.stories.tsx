@@ -1357,8 +1357,13 @@ export const ManageViews: Story = {
         name: zhCN['label.manage.set-default'],
       }),
     );
+    // The star is the mark, pressed in — no 「默认」 badge beside it.
     await waitFor(() =>
-      expect(row('待出库订单')).toHaveTextContent(zhCN['label.manage.default']),
+      expect(
+        within(row('待出库订单')).getByRole('button', {
+          name: zhCN['label.manage.unset-default'],
+        }),
+      ).toHaveAttribute('aria-pressed', 'true'),
     );
     // Said on the star itself and not only in the badge beside the title:
     // the attribute was there and nothing was drawn from it, so pressing the
@@ -3238,7 +3243,11 @@ export const DefaultViewWearsTheStar: Story = {
       }),
     );
     await waitFor(() =>
-      expect(managed).toHaveTextContent(zhCN['label.manage.default']),
+      expect(
+        within(managed).getByRole('button', {
+          name: zhCN['label.manage.unset-default'],
+        }),
+      ).toHaveAttribute('aria-pressed', 'true'),
     );
     await userEvent.keyboard('{Escape}');
     await waitFor(() =>

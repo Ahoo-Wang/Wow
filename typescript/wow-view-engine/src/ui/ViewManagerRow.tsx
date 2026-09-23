@@ -29,7 +29,6 @@ import {
 import type { ViewInstance, ViewPreferences } from '../model/index.js';
 import type { WriteState } from '../runtime/index.js';
 import type { ViewListState, ViewManagerController } from '../react/index.js';
-import { Badge } from './components/badge.js';
 import { DragHandle } from './DragHandle.js';
 import { IconButton, IconTooltip } from './IconButton.js';
 import { ButtonGroup } from './components/button-group.js';
@@ -49,6 +48,7 @@ import {
 import { RowItem } from './RowItem.js';
 import { DeleteDialog } from './DeleteDialog.js';
 import { KIND_ICON } from './kinds.js';
+import { SystemMark } from './SystemMark.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { OutcomeActions } from './OutcomeActions.js';
 
@@ -245,15 +245,24 @@ export function ViewManagerRow({
           )}
         </ItemContent>
 
-        {isSystemScope(item.scope) && (
-          <Badge variant="secondary" className="shrink-0">
-            {messages.label('label.scope.tag.system')}
-          </Badge>
-        )}
-        {isDefault && (
-          <Badge variant="outline" className="shrink-0">
-            {messages.label('label.manage.default')}
-          </Badge>
+        {/* The marks the sidebar and the switcher draw, drawn the same way
+            here (the user's 2026-09-23 review): a system view wears the lock
+            (`SystemMark`), not a 「系统」 badge of its own. The default view
+            is the star — the star button below when the default can be set
+            here, and the sidebar's drawn star when it cannot, rather than a
+            「默认」 badge beside a star that already says it. */}
+        {isSystemScope(item.scope) && <SystemMark />}
+        {isDefault && !manager.can.setDefault && (
+          <>
+            <StarIcon
+              data-slot="view-default-star"
+              className="text-primary size-3.5 shrink-0 fill-current"
+              aria-hidden
+            />
+            <span className="sr-only">
+              {messages.label('label.manage.default')}
+            </span>
+          </>
         )}
 
         {/* One group now that the order left this slot, so there is no
