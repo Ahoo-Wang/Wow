@@ -36,7 +36,7 @@ import {
 } from '../model/index.js';
 import { issue, type FieldKindRegistry } from '../filter/index.js';
 import { validateRecord } from '../record/index.js';
-import { validateAnalysis } from '../analysis/index.js';
+import { analysisScope, validateAnalysis } from '../analysis/index.js';
 import { validateDashboard } from '../dashboard/index.js';
 
 export interface ValidateDefinitionOptions {
@@ -461,7 +461,7 @@ function validateAnalysisCapability(definition: DataViewDefinition): Issue[] {
 
   // `defaultAnalysisConfig` walks a fixed priority to find one metric. A
   // capability that offers none cannot produce a starting config at all.
-  if (!hasConstructibleMetric(capability))
+  if (!hasConstructibleMetric(definition, capability))
     issues.push(issue('definition.analysis.no-metric', ['analysis']));
 
   issues.push(...validateAnalysisLimits(capability));
@@ -530,10 +530,16 @@ function validateElementChain(
   return issues;
 }
 
-function hasConstructibleMetric(capability: AnalysisCapability): boolean {
+function hasConstructibleMetric(
+  definition: DataViewDefinition,
+  capability: AnalysisCapability,
+): boolean {
   if (capability.count) return true;
+  // The root's offers as the scope reads them — a date field's declared sum
+  // is no metric at all (`aggregationFunctionsOf`) — so what is admitted
+  // here is what `defaultAnalysisConfig` can start from.
   const offers = [
-    ...capability.fields,
+    ...analysisScope(definition, capability).aggregations.values(),
     ...(capability.elements ?? []).flatMap(element => element.aggregations),
   ];
   return offers.some(

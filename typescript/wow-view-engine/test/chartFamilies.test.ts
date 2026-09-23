@@ -55,6 +55,14 @@ const average: AnalysisMetric = {
   function: 'AVG',
   expression: { type: 'FIELD', field: 'amount' },
 };
+/** The latest of a date: a moment, which no mark measures. */
+const latest: AnalysisMetric = {
+  type: 'NUMERIC',
+  alias: 'latest',
+  function: 'MAX',
+  expression: { type: 'FIELD', field: 'createdAt' },
+};
+const MOMENTS: ReadonlySet<string> = new Set([latest.alias]);
 
 const GROUPS: AnalysisGroup[][] = [
   [],
@@ -70,6 +78,9 @@ const METRICS: AnalysisMetric[][] = [
   [count, sum],
   [count, average],
   [count, sum, average],
+  [latest],
+  [count, latest],
+  [latest, sum, average],
 ];
 
 /**
@@ -83,11 +94,19 @@ function drawn(
   groups: AnalysisGroup[],
   metrics: AnalysisMetric[],
 ): ChartSpec {
-  const chart = fitChartSlots({ type }, groups, metrics);
+  const chart = fitChartSlots({ type }, groups, metrics, MOMENTS);
   const rows = ['a', 'b'].map(value =>
     Object.fromEntries(groups.map(group => [group.alias, value])),
   );
   return withStagesFrom(chart, rows);
+}
+
+/** Whether a valid chart has a mark to draw: bars with no series have none. */
+function measures(chart: ChartSpec): boolean {
+  return chart.cartesian === undefined ||
+    CHART_FAMILY[chart.type] !== 'cartesian'
+    ? true
+    : chart.cartesian.series.length > 0;
 }
 
 describe('chartFamilies', () => {
@@ -102,7 +121,7 @@ describe('chartFamilies', () => {
     const drift: string[] = [];
     for (const groups of GROUPS)
       for (const metrics of METRICS) {
-        const fits = fitCharts({ groups, metrics });
+        const fits = fitCharts({ groups, metrics, moments: MOMENTS });
         for (const type of CHART_TYPES) {
           const chart = drawn(type, groups, metrics);
           const errors = validateChart(
@@ -111,8 +130,13 @@ describe('chartFamilies', () => {
               metrics: metrics as [AnalysisMetric, ...AnalysisMetric[]],
               chart,
             }),
+            MOMENTS,
           ).filter(issue => issue.severity === 'error');
-          const draws = chart.type === type && errors.length === 0;
+          // Valid is not drawn: a shape with nothing to measure keeps a
+          // valid chart that measures nothing (`fitChartSlots`), which the
+          // result block shows as its table.
+          const draws =
+            chart.type === type && errors.length === 0 && measures(chart);
           if (draws !== fits[type].available)
             drift.push(
               `${groups.map(group => group.alias).join('+') || '∅'} × ${metrics

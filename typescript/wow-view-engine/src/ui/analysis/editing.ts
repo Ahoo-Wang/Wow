@@ -117,11 +117,17 @@ export function metricReference(
   metric: AnalysisMetric,
   messages: MessageFormatters,
 ): string {
+  // The field's reading goes along, so the latest of a datetime is named
+  // 「最晚」 here as its result column is.
+  const cell = analysis.fields.find(
+    entry => entry.field === fieldOfMetric(metric),
+  )?.cell;
   return columnTitle(
     metric.label === undefined
       ? {
           label: metricFallbackName(analysis, metric, messages),
           fn: metricFunctionOf(metric),
+          ...(cell === undefined ? {} : { cell }),
         }
       : { label: metric.label, named: true },
     messages,

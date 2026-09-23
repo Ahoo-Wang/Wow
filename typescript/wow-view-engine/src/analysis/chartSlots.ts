@@ -12,6 +12,7 @@
  */
 
 import {
+  CHART_FAMILY,
   CHART_TYPES,
   type AnalysisGroup,
   type AnalysisMetric,
@@ -58,15 +59,28 @@ import { isAdditiveMetric } from './validateChart.js';
  * one is missing rather than the family being absent altogether. Those are
  * types the user picked against a shape that cannot carry them; which types a
  * given shape *offers* is a separate question, answered where they are listed.
+ *
+ * **A mark measures quantities, never a moment** (`momentMetrics`, passed as
+ * `moments`): every slot a mark is drawn from — a series, a slice, a shade, a
+ * scatter axis, a funnel stage — is filled from the metrics that are not
+ * moments, and a card's comparison, target and number format stay only over
+ * a headline that is a quantity. A shape with dimensions and nothing to
+ * measure is drawn as bars with no series: a chart that is valid and empty,
+ * which the picker greys (`chart.fit.needs-quantity`) and the result block
+ * shows as its table.
  */
 export function fitChartSlots(
   chart: ChartSpec,
   groups: readonly AnalysisGroup[],
   metrics: readonly AnalysisMetric[],
+  moments: ReadonlySet<string> = NO_MOMENTS,
 ): ChartSpec {
   const shape: Shape = {
     groups: groups.map(group => group.alias),
     metrics: metrics.map(metric => metric.alias),
+    quantities: metrics
+      .filter(metric => !moments.has(metric.alias))
+      .map(metric => metric.alias),
     additive: new Set(
       metrics.filter(isAdditiveMetric).map(metric => metric.alias),
     ),
@@ -115,18 +129,38 @@ function drawableType(chart: ChartSpec, shape: Shape): ChartType {
   if (!CHART_TYPES.includes(chart.type)) return chart.type;
   if (shape.groups.length === 0)
     return chart.type === 'funnel' ? 'funnel' : 'metric';
+  // Nothing a mark can measure: the empty bars are the one chart such a
+  // shape is valid as, whatever was picked.
+  if (shape.quantities.length === 0)
+    return CHART_FAMILY[chart.type] === 'cartesian' ? chart.type : 'bar';
   if (chart.type !== 'metric') return chart.type;
   return shape.groups.length === 1 &&
     shape.dateGroups.length === 1 &&
-    shape.additive.has(slot(chart.metric?.metric, shape.metrics))
+    shape.additive.has(slot(chart.metric?.metric, headlines(shape)))
     ? 'metric'
     : 'bar';
 }
 
-/** The aliases a chart may reference, and the two facts a slot rule asks. */
+/**
+ * What a card's headline may be: any metric over no dimension; over the one
+ * date dimension only a metric that adds up, since the headline is then the
+ * buckets summed — the first of those, when the one chosen does not.
+ */
+function headlines(shape: Shape): string[] {
+  return shape.groups.length === 0
+    ? shape.metrics
+    : shape.metrics.filter(alias => shape.additive.has(alias));
+}
+
+/** Nothing is a moment: the shape of a chart fitted without a definition. */
+const NO_MOMENTS: ReadonlySet<string> = new Set();
+
+/** The aliases a chart may reference, and the facts a slot rule asks. */
 interface Shape {
   groups: string[];
   metrics: string[];
+  /** The metrics a mark can measure: every one that is not a moment. */
+  quantities: string[];
   /** Metrics the projection may add up across rows (a pie's merged tail). */
   additive: Set<string>;
   dateGroups: string[];
@@ -178,14 +212,17 @@ function cartesian(
     spec?.splitBy === undefined
       ? (spec?.series ?? [])
           .map(series => series.metric)
-          .filter(metric => shape.metrics.includes(metric))
+          .filter(metric => shape.quantities.includes(metric))
       : [];
+  const pivoted = slot(spec?.series?.[0]?.metric, shape.quantities);
   const drawn =
     splitBy !== undefined
-      ? [slot(spec?.series?.[0]?.metric, shape.metrics)]
+      ? pivoted === ''
+        ? []
+        : [pivoted]
       : named.length > 0
         ? named
-        : shape.metrics;
+        : shape.quantities;
   const series = drawn.map(metric =>
     oneSeries(previous.get(metric), metric, type),
   );
@@ -220,7 +257,7 @@ function oneSeries(
 }
 
 function pie(spec: PieSpec | undefined, shape: Shape): PieSpec {
-  const value = slot(spec?.value, shape.metrics);
+  const value = slot(spec?.value, shape.quantities);
   // The merged tail is the sum of the slices it swallowed, which only means
   // something for a metric that adds up.
   const merges =
@@ -245,19 +282,19 @@ function heatmap(spec: HeatmapSpec | undefined, shape: Shape): HeatmapSpec {
   return {
     x,
     y,
-    value: slot(spec?.value, shape.metrics),
+    value: slot(spec?.value, shape.quantities),
     ...(spec?.scale === undefined ? {} : { scale: spec.scale }),
   };
 }
 
 function scatter(spec: ScatterSpec | undefined, shape: Shape): ScatterSpec {
-  const x = slot(spec?.x, shape.metrics);
+  const x = slot(spec?.x, shape.quantities);
   const y = slot(
     spec?.y,
-    shape.metrics.filter(alias => alias !== x),
+    shape.quantities.filter(alias => alias !== x),
   );
   const size =
-    spec?.size !== undefined && shape.metrics.includes(spec.size)
+    spec?.size !== undefined && shape.quantities.includes(spec.size)
       ? spec.size
       : undefined;
   return {
@@ -288,7 +325,9 @@ function funnel(spec: FunnelSpec | undefined, shape: Shape): FunnelSpec {
     // the end, where it can be moved from.
     const named =
       spec?.stages.from === 'metrics'
-        ? spec.stages.items.filter(item => shape.metrics.includes(item.metric))
+        ? spec.stages.items.filter(item =>
+            shape.quantities.includes(item.metric),
+          )
         : [];
     const taken = new Set(named.map(item => item.metric));
     return {
@@ -296,7 +335,7 @@ function funnel(spec: FunnelSpec | undefined, shape: Shape): FunnelSpec {
         from: 'metrics',
         items: [
           ...named,
-          ...shape.metrics
+          ...shape.quantities
             .filter(metric => !taken.has(metric))
             .map(metric => ({ metric })),
         ],
@@ -313,7 +352,7 @@ function funnel(spec: FunnelSpec | undefined, shape: Shape): FunnelSpec {
     stages: {
       from: 'group',
       category,
-      value: slot(kept?.value, shape.metrics),
+      value: slot(kept?.value, shape.quantities),
       order: kept?.order ?? [],
       ...(kept?.cumulative === undefined
         ? {}
@@ -332,9 +371,14 @@ function metricCard(
   spec: MetricCardSpec | undefined,
   shape: Shape,
 ): MetricCardSpec {
-  const metric = slot(spec?.metric, shape.metrics);
+  const metric = slot(spec?.metric, headlines(shape));
+  // A moment is written out as it is: nothing compares to it, nothing is a
+  // target for it, and a number format does not print it.
+  const quantity = shape.quantities.includes(metric);
   const compare =
-    spec?.compare !== undefined && shape.metrics.includes(spec.compare.metric)
+    quantity &&
+    spec?.compare !== undefined &&
+    shape.quantities.includes(spec.compare.metric)
       ? spec.compare
       : undefined;
   const trending =
@@ -345,8 +389,8 @@ function metricCard(
   return {
     metric,
     ...(compare === undefined ? {} : { compare }),
-    ...(spec?.target === undefined ? {} : { target: spec.target }),
-    ...(spec?.format === undefined ? {} : { format: spec.format }),
+    ...(spec?.target === undefined || !quantity ? {} : { target: spec.target }),
+    ...(spec?.format === undefined || !quantity ? {} : { format: spec.format }),
     ...(trending ? { trend: { x: shape.dateGroups[0] } } : {}),
   };
 }

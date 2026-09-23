@@ -142,10 +142,15 @@ describe('display metadata', () => {
     // Cut in the engine's zone, which is the zone it is shown in anyway.
     expect(column('month')).toMatchObject({ dateUnit: 'MONTH' });
     expect(column('month')?.timeZone).toBeUndefined();
-    // ANY returns one of the field's values; any other metric is a number,
-    // whatever it was computed from.
+    // ANY returns one of the field's values, and so does MAX: the latest of
+    // a datetime is a datetime, never thirteen digits of epoch milliseconds
+    // (production review). A count is a number, whatever it counted.
     expect(column('some')).toMatchObject({ kind: 'enum', options: warehouses });
-    expect(column('latest')?.kind).toBeUndefined();
+    expect(column('latest')).toMatchObject({
+      kind: 'datetime',
+      cell: 'datetime',
+      fn: 'MAX',
+    });
     expect(column('orders')?.kind).toBeUndefined();
   });
 });

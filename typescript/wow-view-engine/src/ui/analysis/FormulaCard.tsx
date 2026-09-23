@@ -18,12 +18,13 @@ import {
   expressionText,
   isFormula,
 } from '../../analysis/index.js';
-import type {
-  AnalysisDerivedExpression,
-  AnalysisExpression,
-  AnalysisExpressionOperator,
-  AnalysisFunction,
-  AnalysisMetric,
+import {
+  isDateCell,
+  type AnalysisDerivedExpression,
+  type AnalysisExpression,
+  type AnalysisExpressionOperator,
+  type AnalysisFunction,
+  type AnalysisMetric,
 } from '../../model/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
 import { NumberInput } from '../FilterValueEditor.js';
@@ -164,8 +165,10 @@ export function FormulaControls({
 }) {
   const messages = useViewMessages();
   if (!isFormula(metric)) return null;
+  // A date is no operand (`analysis.expression.date-operand`): its earliest
+  // and its latest are summaries of it, and arithmetic over it is not.
   const fields = analysis.fields
-    .filter(field => field.functions.length > 0)
+    .filter(field => field.functions.length > 0 && !isDateCell(field.cell))
     .map(field => ({ value: field.field, label: field.label }));
   const functions = (
     ['SUM', 'AVG', 'MIN', 'MAX'] as const satisfies readonly AnalysisFunction[]
@@ -238,7 +241,7 @@ export function DerivedControls({
     return null;
   const earlier = analysis.metrics
     .slice(0, index)
-    .filter(entry => entry.type !== 'ANY')
+    .filter(entry => entry.type !== 'ANY' && !analysis.moments.has(entry.alias))
     .map(entry => ({
       value: entry.alias,
       label: metricReference(analysis, entry, messages),

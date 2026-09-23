@@ -37,8 +37,9 @@ validateAnalysis(def, cfg: AnalysisViewConfig, kinds): Issue[]   // 见下方规
 compileAnalysis(def, cfg, kinds, ctx): AggregationQuery          // 同构映射；三处 FilterTree 编译为 FilterExpression
 compileAnalysisTotals(def, cfg, kinds, ctx): AggregationQuery | null   // table.totals 为 true 时的无分组聚合，否则 null
 projectAnalysis(def, cfg, result, totals?): AnalysisView          // 表格列与行；图表系列；合计行取自 totals，metric 卡片趋势模式的标题值亦取自 totals；多回来的那一行（探针）丢掉并记 truncated，探不成时退回 atLimit
-fitChartSlots(chart, groups, metrics): ChartSpec          // 当前图型的家族子对象，按现有维度与指标装槽；用户选过且仍有效的槽保留
+fitChartSlots(chart, groups, metrics, moments?): ChartSpec   // 当前图型的家族子对象，按现有维度与指标装槽；用户选过且仍有效的槽保留；量的槽不放时间点
 metricFormat(metric, field?): NumberFormat | undefined    // 一个聚合值怎么打印（与字段自己的值怎么打印是两回事）
+momentMetrics(metrics, fields): Set<string>              // 哪些指标是时间点（日期字段的最早／最晚／百分位／任一值）
 
 // dashboard
 emptyDashboardConfig(): DashboardViewConfig                     // 无面板、无全局字段的完整初始配置
@@ -206,9 +207,10 @@ mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboa
 `validateAnalysis` 的规则：
 
 - 别名在 groups 与 metrics 之间唯一，且必须是单段（不含 `.`）、不以保留前缀 `__wow` 开头，并且必须匹配 Wow 的查询字段单段语法（否则报 `analysis.alias.invalid`），与 Wow 的 `aggregationAlias` 一致；
-- `sort` 只能引用已存在的 group 或 metric 别名，`having` 只能引用非 `ANY` 的 metric 别名（Wow 协议不支持）；
+- `sort` 只能引用已存在的 group 或 metric 别名，`having` 只能引用非 `ANY`、也不是时间点（见下「时间的最早与最晚」）的 metric 别名（前者 Wow 协议不支持，后者没有谁会键入的那个数）；
 - 二者都要求至少一个分组，无分组时分别报 `analysis.sort.requires-group` 与 `analysis.having.requires-group`，与 Wow `aggregation.query()` 的 `validateSort`／`validateHaving` 一致，让存储的配置在准入阶段而不是服务端被拒；
-- `DERIVED` 只能引用在它之前声明的非 `ANY` metric 别名，按 `metrics` 顺序维护可引用集合，前向引用与环报 error；
+- `DERIVED` 只能引用在它之前声明的非 `ANY` metric 别名，按 `metrics` 顺序维护可引用集合，前向引用与环报 error；引用一个时间点报 `analysis.derived.moment-operand`，公式里的日期字段报 `analysis.expression.date-operand`——两个时刻相加什么也不是，相减是一段时长，而这个引擎还没有时长的读法，只会印出一串没人要的毫秒数；
+- **日期字段只有最早与最晚**：能力对日期字段（`cell ?? kind` 是 `date`／`datetime`）声明的 `SUM`／`AVG`／`STDDEV`／`VARIANCE` 由 `analysisScope` 滤掉（`model/field.ts` 的 `aggregationFunctionsOf`，与记录视图的 `summaryFunctionsOf` 同一条理由），于是准入报 `analysis.function.unsupported`、托盘的汇总方式里没有它、新配置的第一个指标也不会是它，`validateDefinition` 判「有没有可用的指标」时读的也是滤过的那一份；
 - `percentile` 在开区间 (0, 100)，与 Wow 的 `aggregation.percentile` 一致，`100` 报 error；
 - `HISTOGRAM` 的 `interval` 必须是大于 0 的有限数，与 `aggregation.histogram` 一致；
 - 表达式中的每个 `CONSTANT.value` 必须有限（在预算准入之后递归检查普通表达式与派生表达式），与 `aggregation.constant` 一致；
@@ -269,7 +271,8 @@ D20 屏 G。展开一个数组就是换掉计数单位：`订单 → 明细项` 
 - 热力图要两个维度（`chart.fit.needs-two-dimensions`）；
 - 散点把两个指标画成一个点、一个维度值一个点，所以要**恰好**一个维度（多了写 `chart.fit.needs-one-dimension`）再加两个指标（`chart.fit.needs-two-metrics`）；
 - 指标卡是一个数：没有维度时成立，有**恰好一个时间维度且主数可加**时也成立（那是迷你趋势，判据与 `maxSlices` 同一条），其余写 `chart.fit.needs-no-dimension`；
-- **推荐只有一个，而且只推荐画得出来的那个**：没有维度推指标卡，一个日期维度推折线，其余推柱状；三个维度起不推荐任何一个——那是表格的活。推荐是记号不是动作，不自动换图（D20）。
+- **图形量的是数量，不量时间点**：`fitCharts` 另收 `moments`（`momentMetrics`，见下「时间的最早与最晚」），除指标卡外每个家族只数不是时间点的指标——维度对得上而可量的指标不够时写 `chart.fit.needs-quantity`（「要数量指标，时间画不成图」）；指标卡把主数写出来，时间点可以是它的主数；
+- **推荐只有一个，而且只推荐画得出来的那个**：没有维度推指标卡，一个日期维度推折线，其余推柱状；三个维度起、或者指标全是时间点时不推荐任何一个——那是表格的活。推荐是记号不是动作，不自动换图（D20）。
 
 表格不经过这里：它画得了任何形态，所以它在列出图型的地方是一张永远可选的卡片，而不是一条规则。（见 test/fitCharts.test.ts「fitCharts」、test/chartFamilies.test.ts「chartFamilies」与 test/chartPicker.test.tsx「the visualization panel」）
 
@@ -282,6 +285,8 @@ D20 屏 G。展开一个数组就是换掉计数单位：`订单 → 明细项` 
 - **用户选过的槽只要还指着存在的东西就保留**，只有别名没了、或新形态放不下的槽才重填；其余家族的子对象原样带着，换走再换回来还是那一套设置；
 - **列表类的槽也是"用户选过的槽"。** 笛卡尔家族的 `series` 与按指标分阶段的漏斗的 `items` 从前每次都按当前指标从头排一遍，而这个函数在每次重画时都要跑——于是可视化面板上「移除系列」按下去又长回来、阶段下移一格又弹回原位，两个按得动却不生效的控件。现在 `series` 只有两种时候重填：列表空了（或它点的指标全没了），以及**拆分维度刚刚离开**——收成一个系列那一次是形态逼的，不是谁选的，所以维度走了它就该开回去；漏斗的 `items` 按 spec 自己的顺序排，没被点到的指标补在末尾（那里够得着上移），而不是把手排的顺序抹掉；
 - **形态放不下时图型跟着动，而不是把配置变红**：除了指标卡与按指标分阶段的漏斗，每个家族都要靠维度寻址，所以没有任何维度时只有指标卡画得出来；而指标卡是一个数，所以有一个它画不成迷你趋势的维度时它就不是指标卡了（趋势要恰好一个时间维度，且主数可加——无合计行时主数就是各桶之和）。删掉最后一个维度改的是问题不是图，用户没有放弃过哪个选择；
+- **量的槽只从数量里填**（`moments` 参数）：系列、饼的值、热力格子、散点的两轴与大小、漏斗的阶段都跳过时间点；指标卡的主数可以是时间点，但那时比较、目标与数值格式都拿掉——没有什么跟一个时刻比，也没有数值格式印得出它。**有维度而一个数量都没有时**，任何图型都变成没有系列的柱状图：一张合法而什么也不量的图（拆分维度下一个系列都没有也合法，`chart.splitBy.needs-one-series` 只拒两个以上），于是只看表格的这份配置照样过准入；列图型的地方把它判灰，结果区把它画成表格（`useAnalysisResult` 在当前图型不可画时交出表格）；
+- **有时间维度时指标卡的主数取可加的那个**：选中的主数不可加而另有可加的指标时，取第一个可加的，而不是退成柱状——`fitCharts` 说「可画」是因为形态里有可加的指标，填槽就得用上它；
 - **不替形态编东西**：一个维度的热力图、一个指标的散点、以及阶段没人命名过的漏斗都不可表达，槽留空，于是 `validateChart` 说的是缺哪个槽而不是整个家族不在。这些是用户对着装不下它的形态选的图型；「某个形态提供哪些图型」是另一个问题，在列出它们的地方回答（阶段 5）；
 - 维度或指标的改动同样带走指向消失别名的 `sort` 与 `table.columns`，没有维度时 `sort` 清空（Wow 拒绝对无分组聚合排序，而它本来就只有一行）——这一步在 `react/useAnalysisEditor.ts` 的 `reshape` 里，它是「一次编辑要捎上什么」的那一处。（见 test/analysisChartSlots.test.ts「fitChartSlots」与 test/analysisUi.test.tsx「re-fits the chart and the sort when the shape changes」）
 
@@ -293,11 +298,23 @@ D20 屏 G。展开一个数组就是换掉计数单位：`订单 → 明细项` 
 | --------------------------------- | ----------------------------------------- |
 | `COUNT`、`DISTINCT_COUNT`         | 整数，不带任何货币（数的是记录）          |
 | `AVG`、`STDDEV`、`VARIANCE`       | 字段格式 + 两位小数（金额的平均仍是金额） |
-| `SUM`、`MIN`、`MAX`、`PERCENTILE` | 字段格式（它们就是该字段的值）            |
-| `ANY`                             | 字段格式与字段自己的 `cell`／`options`    |
+| `SUM`                             | 字段格式（金额的合计仍是金额）            |
+| `MIN`、`MAX`、`PERCENTILE`、`ANY` | 字段格式与字段自己的 `cell`／`options`    |
 | `DERIVED`                         | 不属于任何字段，两位小数的普通数          |
 
 `projectAnalysis` 把结果写进 `AnalysisColumnView.numberFormat`，表格、合计行、坐标轴、提示与指标卡因此都按同一份格式打印；列另带 `fn`（这一列是哪一种汇总），供界面把表头拼成「〈字段〉 的 〈汇总方式〉」，同一字段的两个汇总方式于是是两个不同的表头。（见 test/analysisProject.test.ts「metricFormat」）
+
+### 时间的最早与最晚：`readsAsItsField` 与 `momentMetrics`
+
+`MIN`、`MAX`、`PERCENTILE` 与 `ANY` 取的是**字段自己的一个值**（`readsAsItsField`）：日期字段的最晚就是一个时刻，不是十三位的纪元毫秒——真实 Wow 服务上 `MAX(eventTime)` 回来的正是 `1790115665062`。所以这几列像维度列一样带上字段的 `kind`、`cell`、`options`，界面按字段读值的那一条（`displayValue`）于是在表格、合计行、指标卡、提示与读屏表里都读成界面时区下的日期／日期时间，表头按 `summaryFunctionKey` 说「最早／最晚」而不是「最小／最大」，与记录视图的列汇总同一个词。`SUM`、平均、方差与计数是查询算出来的新数，照旧不带。
+
+其中字段是日期的那些是**时间点**（`momentMetrics(metrics, scope.fields)`，按别名）。时间点不是数量：没有零点可以让柱子从那里长，没有整体可以让扇区占它一份，两个加不出什么。于是：
+
+- 图形只量数量（见上 `fitCharts`、`fitChartSlots`）：`validateChart(config, moments)` 对系列、饼的值、热力格子、散点的轴与大小、漏斗阶段里的时间点报 `chart.metric.moment`，对以时间点为主数的指标卡上的 `compare`／`target`／`format` 也报；`validateAnalysis` 从作用域读出 `moments` 传进去；
+- 「只保留」与派生指标不引用时间点，公式不以日期字段为操作数（见上准入规则）；
+- 只拿着结果的读者（结果区、可视化面板）用 `momentColumns(view.schema)` 读同一件事：投影给了日期读法的指标列就是时间点，不必再去问定义；
+- 排序可以按时间点——「最晚的在前」正是要问的；
+- 时区与格式是字段读值的那一套：瞬时值按界面时区读，墙钟字符串按写下的样子读。（见 test/dateMetrics.test.ts 与 test/dateMetricsUi.test.tsx）
 
 ### compileAnalysis 与 projectAnalysis
 
@@ -307,7 +324,7 @@ D20 屏 G。展开一个数组就是换掉计数单位：`订单 → 明细项` 
 - **名字按作用域剥前缀**：配置存从根起的全名（`state.orders.lines.sku`），Wow 读的是相对名（`sku`），因此 `compileGroup`／`compileMetric`／`compileExpression` 与两处 `compileFilter` 都先把当前作用域的前缀去掉（`relativeName`／`relativeFields`／`relativeTree`，`analysis/capability.ts`；持有谓词的叶子连它的谓词一起剥，因为谓词的名字也是从根拼出来的）。`elements[].path` 本身已是相对上一层的写法，原样发出。原样发全名的后果不是报错而是错数：Wow 按 `parent.append(field)` 解析，`lines.sku` 在 `lines` 之下成了 `lines.lines.sku`；
 - 未声明时区的 DATE_HISTOGRAM 补上 `ctx.timeZone`，否则 Wow 按 UTC 切桶，东八区的"一天"从早上八点算起；
 - `projectAnalysis` 的结果列为全部 group 别名加全部 metric 别名，`DERIVED` 也是普通列。这份别名清单是默认列序与 `schema` 的来源，**不导出**：它从前以 `resultSchema` 的名义对外宣称自己是「结果行的校验依据」，而没有任何人校验过结果行——行从 Wow 回来就直接投影，合同因此删掉而不是改写；
-- 分组列与 `ANY` 列带上字段的 `kind`、`cell`、`options`，DATE_HISTOGRAM 列另带 `dateUnit` 与所声明的 `timeZone`，供界面按字段显示（见 [ui/README.md#值按字段显示](ui/README.md#值按字段显示)），其余指标是算出的数，不带；
+- 分组列与取字段自己的值的指标列（`MIN`／`MAX`／`PERCENTILE`／`ANY`，`readsAsItsField`）带上字段的 `kind`、`cell`、`options`，DATE_HISTOGRAM 列另带 `dateUnit` 与所声明的 `timeZone`，供界面按字段显示（见 [ui/README.md#值按字段显示](ui/README.md#值按字段显示)），其余指标是算出的数，不带；
 - `columns` 按 `table.columns` 挑选，`schema` 以同样的描述覆盖结果里的每个别名——表格可以只显示计数，而图表仍按表格没显示的分组画，类目要经 `schema` 取名；
 - 合计行来自 `compileAnalysisTotals` 的独立结果，因此 `AVG`、`DISTINCT_COUNT`、百分位等不可加指标也正确；
 - 该查询与主查询共享同一调度预算，失败只使合计行不可用，不影响主结果。图表所需的派生整形也在此完成：`splitBy` 透视、饼图"其他"合并、漏斗累计与转化率、热力图矩阵、metric 卡片的比较值。metric 卡片带 `trend` 时的标题值取自合计行（`projectAnalysis` 的 `totals`），无合计行时按分桶求和；

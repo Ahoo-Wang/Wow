@@ -11,23 +11,26 @@
  * limitations under the License.
  */
 
-import type {
-  AnalysisDateUnit,
-  AnalysisGroup,
-  AnalysisMetric,
-  AnalysisViewConfig,
-  DataViewDefinition,
-  FieldDefinition,
-  FieldOption,
-  NumberFormat,
-  RecordData,
+import {
+  isDateCell,
+  type AnalysisDateUnit,
+  type AnalysisGroup,
+  type AnalysisMetric,
+  type AnalysisViewConfig,
+  type DataViewDefinition,
+  type FieldDefinition,
+  type FieldOption,
+  type NumberFormat,
+  type RecordData,
 } from '../model/index.js';
 import { analysisScope } from './capability.js';
 import { shapeChart, type ChartData } from './chart.js';
 import { analysisProbeLimit } from './compile.js';
 import {
+  metricFieldOf,
   metricFormat,
   metricFunctionOf,
+  readsAsItsField,
   type MetricFunction,
 } from './metricFormat.js';
 import {
@@ -66,9 +69,11 @@ export interface AnalysisColumnView {
    */
   numberFormat?: NumberFormat;
   /**
-   * For a group, or an `ANY` whose value is one of the field's: the field's
-   * kind, renderer key and choices, so its values show as the field's do.
-   * Other metrics are numbers, whatever they were computed from.
+   * For a group, or a metric whose value is one of the field's
+   * (`readsAsItsField` — its earliest, its latest, a percentile, any one):
+   * the field's kind, renderer key and choices, so its values show as the
+   * field's do, a date as a date. Other metrics are numbers, whatever they
+   * were computed from.
    */
   kind?: string;
   cell?: string;
@@ -122,6 +127,23 @@ export interface AnalysisView {
 }
 
 /**
+ * The metric columns of a result that are moments — the earliest, the latest
+ * of a date — by alias: those the projection gave a date's reading. It is
+ * `momentMetrics` read off the result rather than the definition, so a
+ * reader holding only the rows (the result block, the options panel) says
+ * the same thing the kernels said.
+ */
+export function momentColumns(
+  columns: readonly AnalysisColumnView[],
+): Set<string> {
+  return new Set(
+    columns
+      .filter(column => column.role === 'metric' && isDateCell(column.cell))
+      .map(column => column.alias),
+  );
+}
+
+/**
  * Every alias the result holds, groups first. It is the default column order
  * and the source of `AnalysisView.schema`, and nothing else: it was once
  * exported as "what a returned row is validated against", which nothing has
@@ -132,27 +154,6 @@ function resultSchema(config: AnalysisViewConfig): string[] {
     ...config.groups.map(group => group.alias),
     ...config.metrics.map(metric => metric.alias),
   ];
-}
-
-/**
- * The field a column is computed from, when it has one.
- *
- * Every metric that reads a single field names it: `ANY` directly, and the
- * three expression-carrying kinds through a `FIELD` expression. Only `NUMERIC`
- * used to be looked up, so a `DISTINCT_COUNT` of customers or a p95 of latency
- * fell back to its alias and lost both its label and its number format.
- */
-function sourceFieldOf(metric: AnalysisMetric): string | undefined {
-  if (metric.type === 'ANY') return metric.field;
-  if (
-    metric.type === 'NUMERIC' ||
-    metric.type === 'DISTINCT_COUNT' ||
-    metric.type === 'PERCENTILE'
-  )
-    return metric.expression?.type === 'FIELD'
-      ? metric.expression.field
-      : undefined;
-  return undefined;
 }
 
 /** How the values of a field show, for a column that holds them. */
@@ -214,7 +215,7 @@ export function projectAnalysis(
   const sourceField = new Map<string, string>([
     ...config.groups.map(group => [group.alias, group.field] as const),
     ...config.metrics.flatMap(metric => {
-      const field = sourceFieldOf(metric);
+      const field = metricFieldOf(metric);
       return field === undefined
         ? ([] as const)
         : ([[metric.alias, field]] as const);
@@ -227,11 +228,12 @@ export function projectAnalysis(
   const groups = new Map<string, AnalysisGroup>(
     config.groups.map(group => [group.alias, group]),
   );
+  // The columns whose values are the field's own: a dimension's keys, and a
+  // metric that is one of the field's values (`readsAsItsField`) — the
+  // latest of a datetime is a datetime, not an epoch in milliseconds.
   const valued = new Set([
     ...groups.keys(),
-    ...config.metrics
-      .filter(metric => metric.type === 'ANY')
-      .map(metric => metric.alias),
+    ...config.metrics.filter(readsAsItsField).map(metric => metric.alias),
   ]);
 
   const describe = (alias: string): AnalysisColumnView[] => {
@@ -367,7 +369,7 @@ function formulaLabel(
     if (referenced.label !== undefined) return referenced.label;
     if (referenced.type === 'DERIVED')
       return formulaLabel(referenced, byName, byAlias) ?? alias;
-    const source = sourceFieldOf(referenced);
+    const source = metricFieldOf(referenced);
     return metricReferenceText(
       metricFunctionOf(referenced),
       formulaLabel(referenced, byName, byAlias) ??

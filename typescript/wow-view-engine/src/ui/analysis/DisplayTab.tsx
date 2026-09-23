@@ -343,10 +343,12 @@ function FunnelDisplay({ chart, onChange }: OptionsPageProps) {
   );
 }
 
-function MetricDisplay({ chart, onChange }: OptionsPageProps) {
+function MetricDisplay({ chart, shape, onChange }: OptionsPageProps) {
   const messages = useViewMessages();
   const spec = chart.metric;
-  if (!spec) return null;
+  // A moment headline is written out as its column reads it: a target to
+  // reach and a number format are about quantities (`chart.metric.moment`).
+  if (!spec || shape.moments.has(spec.metric)) return null;
   return (
     <>
       <NumberField

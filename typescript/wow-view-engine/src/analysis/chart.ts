@@ -84,7 +84,13 @@ export interface FunnelData {
 
 export interface MetricCardData {
   type: 'metric';
-  value: number | null;
+  /**
+   * The headline. A number, except for a moment (`momentMetrics`) a source
+   * answered as text — the latest of a day kept as `2026-09-18` — which is
+   * written out as its column reads it rather than dropped for not being
+   * one; nothing is measured, compared or aimed at over a moment.
+   */
+  value: number | string | null;
   compare?: { value: number | null; delta: number | null };
   target?: number;
   trend?: { x: unknown; value: number | null }[];
@@ -365,9 +371,10 @@ function metricCard(
 
   const value = num(headline, spec.metric);
   const compare = spec.compare ? num(headline, spec.compare.metric) : null;
+  const written = headline[spec.metric];
   return {
     type: 'metric',
-    value,
+    value: value ?? (typeof written === 'string' ? written : null),
     ...(spec.compare
       ? {
           compare: {

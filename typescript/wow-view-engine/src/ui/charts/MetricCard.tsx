@@ -67,8 +67,8 @@ export function MetricCard({
    * ¥10,230.00 where the table under it says the same. `MetricCardSpec.format`
    * still wins: it is an instruction about this card.
    */
-  const show = (value: number) =>
-    card?.format === undefined
+  const show = (value: number | string) =>
+    card?.format === undefined || typeof value === 'string'
       ? label(card?.metric, value)
       : formatValue(value, card.format, locale);
   return (
@@ -96,7 +96,7 @@ export function MetricCard({
         the registry's 1px at the call site, as the export progress does; the
         vendored file stays as it ships.
       */}
-      {data.target !== undefined && data.value !== null && (
+      {data.target !== undefined && typeof data.value === 'number' && (
         <Progress
           aria-label={messages.label('label.chart.target')}
           aria-valuetext={messages.label('label.chart.target.reached', {

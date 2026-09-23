@@ -91,6 +91,27 @@ describe('metricReference', () => {
     expect(metricReference(analysis, sum, words(zhCN))).toBe('Amount 的 合计');
   });
 
+  it('names the earliest and the latest of a date as a record column does', () => {
+    const created = {
+      ...field('createdAt', 'Created'),
+      functions: ['MIN', 'MAX'] as AnalysisFieldOption['functions'],
+      cell: 'datetime',
+    };
+    const earliest: AnalysisMetric = {
+      alias: 'first',
+      type: 'NUMERIC',
+      function: 'MIN',
+      expression: { type: 'FIELD', field: 'createdAt' },
+    };
+    const analysis = { fields: [...FIELDS, created], metrics: [earliest] };
+    expect(metricReference(analysis, earliest, en_)).toBe(
+      'Earliest of Created',
+    );
+    expect(metricReference(analysis, earliest, words(zhCN))).toBe(
+      'Created 的 最早',
+    );
+  });
+
   it('says the record count in its one word, with no summary appended', () => {
     expect(metricReference(naming(count), count, en_)).toBe('Record count');
   });

@@ -145,10 +145,13 @@ function readTime(
  * `MIN` of a number is its smallest and `MIN` of a moment is its earliest —
  * one word each, in the vocabulary of what is being summarised, rather than
  * one word stretched over both. The reading decides, because the reading is
- * what the column shows; every other function keeps its one name.
+ * what the column shows; every other function keeps its one name. A record
+ * column's summary and an analysis metric are named by this one rule, so the
+ * latest of a datetime is 「最晚」 under a record column, in an analysis
+ * header and in the tray's summary select alike.
  */
 export function summaryFunctionKey(
-  fn: SummaryFunction,
+  fn: SummaryFunction | Exclude<MetricFunction, 'DERIVED'>,
   cell?: string,
 ): MessageKey {
   return (fn === 'MIN' || fn === 'MAX') && isDateCell(cell)
@@ -174,7 +177,13 @@ export function summaryFunctionKey(
  * is `label.analysis.approximate`, which the header's `title` carries.
  */
 export function columnTitle(
-  column: { label: string; fn?: MetricFunction; named?: true },
+  column: {
+    label: string;
+    fn?: MetricFunction;
+    named?: true;
+    /** The reading of the values under it: a date's `MIN` is its earliest. */
+    cell?: string;
+  },
   messages: MessageFormatters,
 ): string {
   // A name the analyst gave is the whole title (D20 显示名). A derived
@@ -190,7 +199,7 @@ export function columnTitle(
   if (column.fn === 'DERIVED') return label;
   const title = messages.label('label.summary.of', {
     field: label,
-    fn: messages.label(`label.summary.fn.${column.fn}`),
+    fn: messages.label(summaryFunctionKey(column.fn, column.cell)),
   });
   return column.fn === 'PERCENTILE' ? `${APPROXIMATELY} ${title}` : title;
 }

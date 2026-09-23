@@ -36,6 +36,7 @@ import {
   fitChartSlots,
   havingRows,
   levelLabel,
+  momentMetrics,
   nextLevel,
   withElements,
   rangeSpan,
@@ -68,6 +69,12 @@ export interface AnalysisFieldOption {
   any: boolean;
   /** Whether a dimension on it may keep records missing the value as a group of their own. */
   missingKey: boolean;
+  /**
+   * How its values read (`cell ?? kind`): the earliest of a `datetime` is
+   * worded 「最早」 where a number's smallest is 「最小」, and a date is no
+   * operand of a formula. Absent when not known.
+   */
+  cell?: string;
 }
 
 export interface AnalysisEditorController extends QuestionEditing {
@@ -103,6 +110,12 @@ export interface AnalysisEditorController extends QuestionEditing {
   issues: Issue[];
   /** Aliases a chart or a sort may reference. */
   aliases: { groups: string[]; metrics: string[] };
+  /**
+   * The draft's metrics that are moments (`momentMetrics`) — the earliest or
+   * the latest of a date — by alias: read in the table and on a card, never
+   * measured by a mark, compared by 「只保留」 or calculated with.
+   */
+  moments: ReadonlySet<string>;
   /** What the definition allows, already expanded for configured elements. */
   fields: AnalysisFieldOption[];
   /** The picker groups the definition declares. */
@@ -163,6 +176,7 @@ export interface AnalysisEditorController extends QuestionEditing {
 }
 
 const EMPTY_CHART: ChartSpec = { type: 'bar' };
+const NO_MOMENTS: ReadonlySet<string> = new Set();
 
 /**
  * Editing of an analysis draft: what to group by, what to measure, and how to
@@ -197,6 +211,25 @@ export function useAnalysisEditor(
   const edit = useCallback(
     (patch: Partial<AnalysisViewConfig>) => runtime?.edit(patch),
     [runtime],
+  );
+  // Read against the scope of the config it is asked about, because a
+  // change to the expansion chain moves the fields a metric summarises.
+  const momentsOf = useCallback(
+    (shape: Pick<AnalysisViewConfig, 'metrics' | 'elements'>) =>
+      definition && capability
+        ? momentMetrics(
+            shape.metrics,
+            analysisScope(definition, capability, shape).fields,
+          )
+        : NO_MOMENTS,
+    [definition, capability],
+  );
+  const moments = useMemo(
+    () =>
+      config && scope
+        ? momentMetrics(config.metrics, scope.fields)
+        : NO_MOMENTS,
+    [config, scope],
   );
 
   /** Reads the live draft, so several edits in one event compose. */
@@ -240,7 +273,12 @@ export function useAnalysisEditor(
         ]);
         return {
           ...next,
-          chart: fitChartSlots(current.chart, next.groups, next.metrics),
+          chart: fitChartSlots(
+            current.chart,
+            next.groups,
+            next.metrics,
+            momentsOf({ ...current, ...next }),
+          ),
           // Wow refuses a sort over an ungrouped aggregation, and it has one
           // row anyway, so losing the last group empties the ordering too.
           sort:
@@ -255,7 +293,7 @@ export function useAnalysisEditor(
           },
         };
       }),
-    [change],
+    [change, momentsOf],
   );
 
   const fields = useMemo<AnalysisFieldOption[]>(() => {
@@ -272,6 +310,7 @@ export function useAnalysisEditor(
         percentile: aggregation?.percentile === true,
         any: aggregation?.any === true,
         missingKey: isSingleStringField(field, runtime?.kinds.get(field.kind)),
+        cell: field.cell ?? field.kind,
       };
     });
   }, [scope, runtime]);
@@ -392,6 +431,7 @@ export function useAnalysisEditor(
       groups: groups.map(group => group.alias),
       metrics: metrics.map(metric => metric.alias),
     },
+    moments,
     fields,
     fieldGroups: definition?.fieldGroups ?? EMPTY_GROUPS,
     countable: capability?.count === true,
@@ -427,9 +467,10 @@ export function useAnalysisEditor(
             { ...current.chart, type },
             current.groups,
             current.metrics,
+            momentsOf(current),
           ),
         })),
-      [change],
+      [change, momentsOf],
     ),
     updateChart: useCallback(
       (patch: Partial<ChartSpec>) =>

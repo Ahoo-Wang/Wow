@@ -32,6 +32,11 @@ export interface ChartFit {
 export interface ChartShape {
   groups: readonly AnalysisGroup[];
   metrics: readonly AnalysisMetric[];
+  /**
+   * The metrics among them that are moments (`momentMetrics`), by alias:
+   * written out on a card and in the table, never measured by a mark.
+   */
+  moments?: ReadonlySet<string>;
 }
 
 /**
@@ -64,6 +69,9 @@ function shapeFacts(shape: ChartShape): ShapeFacts {
   return {
     groups,
     metrics: shape.metrics.length,
+    quantities: shape.metrics.filter(
+      metric => !shape.moments?.has(metric.alias),
+    ).length,
     dated: groups === 1 && shape.groups[0]?.type === 'DATE_HISTOGRAM',
     additive: shape.metrics.some(isAdditiveMetric),
   };
@@ -72,7 +80,8 @@ function shapeFacts(shape: ChartShape): ShapeFacts {
 /**
  * What the shape reads best as: a number is a card, a series over time is a
  * line, one dimension is bars, two are bars split by the second. Three or
- * more are a table's job, and nothing is recommended — every chart that
+ * more are a table's job, and so is a shape whose every metric is a moment
+ * (`momentMetrics`); nothing is recommended — every chart that
  * could take them is greyed, and a recommendation nobody can act on is
  * worse than none.
  *
@@ -84,9 +93,11 @@ function shapeFacts(shape: ChartShape): ShapeFacts {
 function recommend({
   groups,
   dated,
+  quantities,
 }: ShapeFacts): Extract<ChartType, 'metric' | 'line' | 'bar'> | null {
   if (groups === 0) return 'metric';
-  if (groups > 2) return null;
+  // Nothing to measure: the earliest and the latest are the table's to read.
+  if (groups > 2 || quantities === 0) return null;
   if (dated) return 'line';
   return 'bar';
 }

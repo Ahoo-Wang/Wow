@@ -27,6 +27,12 @@ export function validateHaving(
   config: AnalysisViewConfig,
   capability: NonNullable<DataViewDefinition['analysis']>,
   limits: RuntimeLimits,
+  /**
+   * The metrics that are moments (`momentMetrics`). A having compares a
+   * metric with a number, and the earliest of a date is no number anybody
+   * types, so it is refused as a sample value is.
+   */
+  moments: ReadonlySet<string> = new Set(),
 ): Issue[] {
   if (!config.having) return [];
   // Having is a declared capability like expressions; an undeclared one is
@@ -64,7 +70,8 @@ export function validateHaving(
         walk(operand, [...path, 'operands', index]),
       );
     }
-    return nonAnyMetrics.has(expression.metric)
+    return nonAnyMetrics.has(expression.metric) &&
+      !moments.has(expression.metric)
       ? []
       : [
           issue('analysis.having.unknown-metric', [...path, 'metric'], {

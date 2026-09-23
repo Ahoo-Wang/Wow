@@ -107,6 +107,8 @@ function colors(chart: ChartSpec, path: IssuePath): Issue[] {
 interface ChartContext {
   groups: Set<string>;
   metrics: Map<string, AnalysisMetric>;
+  /** The metrics that are moments (`momentMetrics`): no mark measures one. */
+  moments: ReadonlySet<string>;
   chart: ChartSpec;
   path: IssuePath;
 }
@@ -116,8 +118,16 @@ interface ChartContext {
  * produces. The strictest one is that a chart must consume every group: an
  * unconsumed dimension leaves several rows per coordinate, and AVG, percentile
  * and DISTINCT_COUNT cannot be re-aggregated over them in the projection.
+ *
+ * `moments` are the metrics whose value is a moment (`momentMetrics`): a
+ * slot a mark measures refuses one (`chart.metric.moment`), and so does a
+ * card's comparison, target and number format over one. `validateAnalysis`
+ * passes them from the scope; left out, nothing is a moment.
  */
-export function validateChart(config: AnalysisViewConfig): Issue[] {
+export function validateChart(
+  config: AnalysisViewConfig,
+  moments: ReadonlySet<string> = new Set(),
+): Issue[] {
   const path: IssuePath = ['chart'];
   const chart = config.chart;
   // `validateAnalysis` refuses a missing chart before reaching here, but this
@@ -132,6 +142,7 @@ export function validateChart(config: AnalysisViewConfig): Issue[] {
   const context: ChartContext = {
     groups: new Set(config.groups.map(group => group.alias)),
     metrics: new Map(config.metrics.map(metric => [metric.alias, metric])),
+    moments,
     chart,
     path,
   };
@@ -176,6 +187,22 @@ function metric(
     : [issue('chart.metric.unknown', path, { alias })];
 }
 
+/**
+ * A metric a mark measures: one the result has, and a quantity — a bar, a
+ * slice, a shade or a point has no reading for the earliest of a date.
+ */
+function measure(
+  context: ChartContext,
+  alias: string,
+  path: IssuePath,
+): Issue[] {
+  const unknown = metric(context, alias, path);
+  if (unknown.length > 0) return unknown;
+  return context.moments.has(alias)
+    ? [issue('chart.metric.moment', path, { alias })]
+    : [];
+}
+
 /** Every group alias must appear, or the chart cannot address its own rows. */
 function consumesAll(
   context: ChartContext,
@@ -203,13 +230,14 @@ function cartesian(context: ChartContext, config: AnalysisViewConfig): Issue[] {
     if (spec.splitBy === spec.x)
       issues.push(issue('chart.splitBy.same-as-x', [...path, 'splitBy']));
     // A pivot turns one metric into a series per value; two would collide.
-    if (spec.series.length !== 1)
+    // None draws nothing, which is a shape with no quantity to measure.
+    if (spec.series.length > 1)
       issues.push(issue('chart.splitBy.needs-one-series', [...path, 'series']));
   }
 
   spec.series.forEach((series, index) => {
     issues.push(
-      ...metric(context, series.metric, [...path, 'series', index, 'metric']),
+      ...measure(context, series.metric, [...path, 'series', index, 'metric']),
     );
     if (config.chart.type === 'combo' && series.type === undefined)
       issues.push(
@@ -250,7 +278,7 @@ function pie(context: ChartContext): Issue[] {
   const path: IssuePath = [...context.path, 'pie'];
   const issues = [
     ...group(context, spec.category, [...path, 'category']),
-    ...metric(context, spec.value, [...path, 'value']),
+    ...measure(context, spec.value, [...path, 'value']),
   ];
 
   if (spec.maxSlices !== undefined) {
@@ -281,7 +309,7 @@ function heatmap(context: ChartContext): Issue[] {
   const issues = [
     ...group(context, spec.x, [...path, 'x']),
     ...group(context, spec.y, [...path, 'y']),
-    ...metric(context, spec.value, [...path, 'value']),
+    ...measure(context, spec.value, [...path, 'value']),
   ];
   if (spec.x === spec.y)
     issues.push(issue('chart.heatmap.same-axes', [...path, 'y']));
@@ -295,11 +323,11 @@ function scatter(context: ChartContext): Issue[] {
   const path: IssuePath = [...context.path, 'scatter'];
   const issues = [
     ...group(context, spec.category, [...path, 'category']),
-    ...metric(context, spec.x, [...path, 'x']),
-    ...metric(context, spec.y, [...path, 'y']),
+    ...measure(context, spec.x, [...path, 'x']),
+    ...measure(context, spec.y, [...path, 'y']),
     ...(spec.size === undefined
       ? []
-      : metric(context, spec.size, [...path, 'size'])),
+      : measure(context, spec.size, [...path, 'size'])),
   ];
   if (spec.x === spec.y)
     issues.push(issue('chart.scatter.same-metrics', [...path, 'y']));
@@ -319,7 +347,7 @@ function funnel(context: ChartContext, config: AnalysisViewConfig): Issue[] {
       issues.push(issue('chart.funnel.too-few-stages', path));
     items.forEach((item, index) =>
       issues.push(
-        ...metric(context, item.metric, [...path, 'items', index, 'metric']),
+        ...measure(context, item.metric, [...path, 'items', index, 'metric']),
       ),
     );
     // Stage-per-metric funnels read one row, so a group would multiply it.
@@ -330,7 +358,7 @@ function funnel(context: ChartContext, config: AnalysisViewConfig): Issue[] {
 
   const stages = spec.stages;
   issues.push(...group(context, stages.category, [...path, 'category']));
-  issues.push(...metric(context, stages.value, [...path, 'value']));
+  issues.push(...measure(context, stages.value, [...path, 'value']));
   if (stages.order.length < 2)
     issues.push(issue('chart.funnel.too-few-stages', [...path, 'order']));
   if (new Set(stages.order).size !== stages.order.length)
@@ -350,8 +378,18 @@ function metricCard(
 
   if (spec.compare)
     issues.push(
-      ...metric(context, spec.compare.metric, [...path, 'compare', 'metric']),
+      ...measure(context, spec.compare.metric, [...path, 'compare', 'metric']),
     );
+  // A moment headline is written out as it is: a comparison, a target and a
+  // number format are all about a quantity.
+  if (context.moments.has(spec.metric))
+    for (const member of ['compare', 'target', 'format'] as const)
+      if (spec[member] !== undefined)
+        issues.push(
+          issue('chart.metric.moment', [...path, member], {
+            alias: spec.metric,
+          }),
+        );
 
   if (spec.trend === undefined) {
     if (config.groups.length > 0)

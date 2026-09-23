@@ -32,6 +32,8 @@ import {
 } from '../model/index.js';
 import { emptyFilter } from '../filter/index.js';
 import { fitChartSlots } from './chartSlots.js';
+import { analysisScope } from './capability.js';
+import { momentMetrics } from './metricFormat.js';
 
 const DEFAULT_LIMIT = 100;
 
@@ -313,7 +315,15 @@ export function defaultAnalysisConfig(
       `Definition ${definition.id} declares no analysis capability`,
     );
 
-  const metric = firstMetric(capability.count, capability.fields);
+  // The root's offers as the scope reads them, so a date field's declared
+  // sum is not the metric a view starts with (`aggregationFunctionsOf`).
+  const scope = analysisScope(definition, capability);
+  const metric = firstMetric(capability.count, [
+    ...scope.aggregations.values(),
+  ]);
+  // The latest of a date is read, not drawn: a view that starts on one
+  // starts as its table.
+  const moments = momentMetrics([metric], scope.fields);
   const groups = firstGroups(definition, capability.fields);
   const limit = Math.min(
     capability.limits?.defaultLimit ?? DEFAULT_LIMIT,
@@ -330,7 +340,7 @@ export function defaultAnalysisConfig(
     metrics: [metric],
     sort: groups.length > 0 ? [{ alias: metric.alias, direction: 'DESC' }] : [],
     limit,
-    layout: groups.length > 0 ? 'chart' : 'table',
+    layout: groups.length > 0 && moments.size === 0 ? 'chart' : 'table',
     table: { columns: [] },
     // Through the same fitting the editor uses, so the first chart a view has
     // and every chart it is switched to are filled in by one rule.
@@ -338,6 +348,7 @@ export function defaultAnalysisConfig(
       { type: groups.length > 0 ? 'bar' : 'metric' },
       groups,
       [metric],
+      moments,
     ),
   };
 }

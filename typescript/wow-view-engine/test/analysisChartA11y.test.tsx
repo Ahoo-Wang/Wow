@@ -53,7 +53,7 @@ function readable(container: HTMLElement): string {
 
 /** Every number the kernel put in the projection, as the reading prints it. */
 function valuesOf(data: ChartData): string[] {
-  const said = (value: number | null | undefined) =>
+  const said = (value: number | string | null | undefined) =>
     value === null || value === undefined ? [] : [value.toLocaleString()];
   switch (data.type) {
     case 'cartesian':

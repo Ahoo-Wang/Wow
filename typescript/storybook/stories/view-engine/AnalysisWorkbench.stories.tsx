@@ -12,13 +12,17 @@
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { SortDirection } from '@ahoo-wang/fetcher-wow';
-import { fitChartSlots } from '@ahoo-wang/fetcher-view-engine';
+import {
+  fitChartSlots,
+  type AnalysisViewConfig,
+} from '@ahoo-wang/fetcher-view-engine';
 import { DataWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
 import { ScenarioFrame } from '../shared/ScenarioFrame.js';
 import {
   HOST_LANGUAGE,
   analysisConfig,
   createStoryEngine,
+  datedOrdersDefinition,
   expandableOrdersDefinition,
   overviewDefinition,
   savedViews,
@@ -48,6 +52,7 @@ function AnalysisWorkbenchDemo({
   expandable = false,
   allColumns = false,
   visualization = true,
+  latest = false,
   limit,
 }: {
   behaviour?: SourceBehaviour;
@@ -79,6 +84,12 @@ function AnalysisWorkbenchDemo({
    */
   visualization?: boolean;
   /**
+   * 每个仓库最晚的一单：指标是创建时间的最大值，也就是一个时刻。它读作日期
+   * 时间、表头说「最晚」，按它排序是「最近的在前」；图形不量它——柱子画的是
+   * 订单数，它留在表里。
+   */
+  latest?: boolean;
+  /**
    * A row limit the four warehouses can actually hit. Ordering the result
    * makes which rows survive the cut a decision rather than an accident.
    */
@@ -86,7 +97,7 @@ function AnalysisWorkbenchDemo({
 }) {
   const { groups, metrics } = analysisConfig();
   const fitted = fitChartSlots({ type: chart }, groups, metrics);
-  const config = analysisConfig({
+  const saved = analysisConfig({
     layout,
     ...(limit === undefined
       ? {}
@@ -130,6 +141,7 @@ function AnalysisWorkbenchDemo({
       totals: true,
     },
   });
+  const config = latest ? latestConfig(layout) : saved;
 
   return (
     <StoryEngine
@@ -141,7 +153,9 @@ function AnalysisWorkbenchDemo({
             ? {
                 definitions: [expandableOrdersDefinition, overviewDefinition],
               }
-            : {}),
+            : latest
+              ? { definitions: [datedOrdersDefinition, overviewDefinition] }
+              : {}),
         })
       }
     >
@@ -157,6 +171,28 @@ function AnalysisWorkbenchDemo({
       )}
     </StoryEngine>
   );
+}
+
+/** The order count and the latest order per warehouse, the latest first. */
+function latestConfig(layout: 'table' | 'chart') {
+  const { groups } = analysisConfig();
+  const metrics = [
+    { alias: 'orders', type: 'COUNT' },
+    {
+      alias: 'latest',
+      type: 'NUMERIC',
+      function: 'MAX',
+      expression: { type: 'FIELD', field: 'createdAt' },
+    },
+  ] satisfies AnalysisViewConfig['metrics'];
+  return analysisConfig({
+    layout,
+    metrics,
+    sort: [{ alias: 'latest', direction: SortDirection.DESC }],
+    table: { columns: [] },
+    // The latest is a moment, which no mark measures: the bars count orders.
+    chart: fitChartSlots({ type: 'bar' }, groups, metrics, new Set(['latest'])),
+  });
 }
 
 const scene = {
@@ -188,8 +224,10 @@ const meta = {
     expandable: false,
     allColumns: false,
     visualization: true,
+    latest: false,
   },
   argTypes: {
+    latest: { control: 'boolean' },
     limit: { table: { disable: true } },
     allColumns: { control: 'boolean' },
     records: { control: 'boolean' },
@@ -270,6 +308,15 @@ export const CutShort: Story = {
  * own ungrouped query. Hover it to read the scope.
  */
 export const CutShortTable: Story = { args: { layout: 'table', limit: 2 } };
+
+/**
+ * 每个仓库最晚的一单（生产审查）：创建时间的最大值是一个时刻，读作界面
+ * 语言与时区下的日期时间，而不是十三位毫秒；表头说「创建时间 的 最晚」。
+ * 切到图表，柱子量的是订单数——时刻没有零点可以让柱子从那里长。
+ */
+export const LatestPerWarehouse: Story = {
+  args: { layout: 'table', latest: true },
+};
 
 /** An aggregation that matched nothing still has its editor. */
 export const EmptyResult: Story = {

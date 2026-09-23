@@ -11,15 +11,16 @@
  * limitations under the License.
  */
 
-import type {
-  AggregationFieldCapability,
-  AnalysisCapability,
-  AnalysisViewConfig,
-  DataViewDefinition,
-  FieldDefinition,
-  FilterNode,
-  FilterTree,
-  FilterValue,
+import {
+  aggregationFunctionsOf,
+  type AggregationFieldCapability,
+  type AnalysisCapability,
+  type AnalysisViewConfig,
+  type DataViewDefinition,
+  type FieldDefinition,
+  type FilterNode,
+  type FilterTree,
+  type FilterValue,
 } from '../model/index.js';
 import { isFilterGroup } from '../filter/index.js';
 
@@ -115,10 +116,8 @@ export function analysisScope(
     );
     const aggregations = new Map(
       step.aggregations.map(aggregation => {
-        const named = {
-          ...aggregation,
-          field: qualify(absolute, aggregation.field),
-        };
+        const field = qualify(absolute, aggregation.field);
+        const named = offered({ ...aggregation, field }, fields.get(field));
         return [named.field, named] as const;
       }),
     );
@@ -131,12 +130,32 @@ export function analysisScope(
     fields: innermost ? innermost.fields : root,
     aggregations: innermost
       ? innermost.aggregations
-      : new Map(capability.fields.map(entry => [entry.field, entry])),
+      : new Map(
+          capability.fields.map(entry => [
+            entry.field,
+            offered(entry, root.get(entry.field)),
+          ]),
+        ),
     rootFields: [...rootFields],
     elements,
     declaredChain,
     reachable,
   };
+}
+
+/**
+ * One field's capability as the scope offers it: the functions its declaration
+ * lists, less those its values cannot answer (`aggregationFunctionsOf`) — the
+ * sum of a date is refused here, once, and not by each reader of the scope.
+ */
+function offered(
+  entry: AggregationFieldCapability,
+  field: FieldDefinition | undefined,
+): AggregationFieldCapability {
+  const functions = aggregationFunctionsOf(field, entry.functions);
+  return functions.length === entry.functions.length
+    ? entry
+    : { ...entry, functions };
 }
 
 /**

@@ -32,6 +32,7 @@ import {
 } from './expressions.js';
 import { queryFilterIssues } from './queryFilter.js';
 import { displayNameIssues } from './validateAliases.js';
+import { momentMetrics } from './metricFormat.js';
 
 export function validateMetrics(
   config: AnalysisViewConfig,
@@ -54,6 +55,7 @@ export function validateMetrics(
   // derived one, as Wow counts them.
   const expressionNodes: BudgetCounter = { nodes: 0 };
   const derivedNodes: BudgetCounter = { nodes: 0 };
+  const moments = momentMetrics(config.metrics, scope.fields);
 
   config.metrics.forEach((metric, index) => {
     const path: IssuePath = ['metrics', index];
@@ -186,6 +188,7 @@ export function validateMetrics(
             [...path, 'expression'],
             limits,
             derivedNodes,
+            moments,
           ),
         );
         break;

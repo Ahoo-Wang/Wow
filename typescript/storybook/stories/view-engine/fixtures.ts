@@ -39,7 +39,7 @@ import { rowSource } from './rowSource.js';
 
 // Wow's names for what the analysis side may group and compute by.
 const { TERMS } = AggregationGroupType;
-const { SUM, AVG } = AggregationFunction;
+const { SUM, AVG, MIN, MAX } = AggregationFunction;
 
 /**
  * The language every View Engine story is in.
@@ -245,6 +245,21 @@ export const orderLinesDefinition: DataViewDefinition = {
       ],
     },
   ],
+};
+
+/**
+ * 同一份订单，创建时间也能汇总：它的最早与最晚。只有「最晚」那个故事用它，
+ * 别的故事照旧用上面那份——多一个能度量的字段，托盘「添加指标」的单子就多一项。
+ */
+export const datedOrdersDefinition: DataViewDefinition = {
+  ...ordersDefinition,
+  analysis: {
+    ...ordersDefinition.analysis!,
+    fields: [
+      ...ordersDefinition.analysis!.fields,
+      { field: 'createdAt', groups: [], functions: [MIN, MAX] },
+    ],
+  },
 };
 
 /** Dashboards own no data; the definition is only their catalogue entry. */

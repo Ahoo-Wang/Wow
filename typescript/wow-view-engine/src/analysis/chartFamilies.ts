@@ -43,7 +43,8 @@ export type ChartUnfit =
   | 'chart.fit.needs-two-dimensions'
   | 'chart.fit.too-many-dimensions'
   | 'chart.fit.needs-two-metrics'
-  | 'chart.fit.needs-no-dimension';
+  | 'chart.fit.needs-no-dimension'
+  | 'chart.fit.needs-quantity';
 
 /** The facts of a result's shape a family's fit reads. */
 export interface ShapeFacts {
@@ -51,6 +52,11 @@ export interface ShapeFacts {
   groups: number;
   /** How many metrics. */
   metrics: number;
+  /**
+   * How many of them are quantities rather than moments (`momentMetrics`):
+   * what a mark can measure. A moment is read on a card, never drawn.
+   */
+  quantities: number;
   /** One dimension, and it is a date bucket. */
   dated: boolean;
   /** At least one metric may be added up across rows. */
@@ -78,6 +84,12 @@ export interface ChartFamilyTraits {
  * funnel's stages are the values of one dimension or, with none, the
  * metrics themselves; a card is one number, or a sparkline over the one
  * date dimension when its headline adds up.
+ *
+ * Every family but the card measures its metrics as marks — a length, a
+ * slice, a shade, a position against zero — so it counts only the metrics
+ * that are quantities: the earliest or the latest of a date is a moment, and
+ * a shape of nothing else is greyed with `chart.fit.needs-quantity` once its
+ * dimensions would fit. A card writes its headline out, so a moment is one.
  */
 export const CHART_FAMILIES: Readonly<Record<ChartFamily, ChartFamilyTraits>> =
   Object.freeze({
@@ -85,50 +97,56 @@ export const CHART_FAMILIES: Readonly<Record<ChartFamily, ChartFamilyTraits>> =
       tabs: ['data', 'display', 'axes'],
       legend: true,
       labels: true,
-      unfit: ({ groups }) =>
+      unfit: ({ groups, quantities }) =>
         groups === 0
           ? 'chart.fit.needs-dimension'
           : groups > 2
             ? 'chart.fit.too-many-dimensions'
-            : null,
+            : measured(quantities, 1),
     },
     pie: {
       tabs: ['data', 'display'],
       legend: true,
       labels: true,
-      unfit: ({ groups }) =>
-        groups === 1 ? null : 'chart.fit.needs-one-dimension',
+      unfit: ({ groups, quantities }) =>
+        groups === 1
+          ? measured(quantities, 1)
+          : 'chart.fit.needs-one-dimension',
     },
     heatmap: {
       tabs: ['data', 'display'],
       legend: false,
       labels: true,
-      unfit: ({ groups }) =>
-        groups === 2 ? null : 'chart.fit.needs-two-dimensions',
+      unfit: ({ groups, quantities }) =>
+        groups === 2
+          ? measured(quantities, 1)
+          : 'chart.fit.needs-two-dimensions',
     },
     scatter: {
       tabs: ['data'],
       legend: false,
       labels: false,
-      unfit: ({ groups, metrics }) =>
+      unfit: ({ groups, metrics, quantities }) =>
         groups === 0
           ? 'chart.fit.needs-dimension'
           : groups > 1
             ? 'chart.fit.needs-one-dimension'
             : metrics < 2
               ? 'chart.fit.needs-two-metrics'
-              : null,
+              : measured(quantities, 2),
     },
     funnel: {
       tabs: ['data', 'display'],
       legend: false,
       labels: false,
-      unfit: ({ groups, metrics }) =>
-        groups === 1 || (groups === 0 && metrics >= 2)
-          ? null
-          : groups === 0
-            ? 'chart.fit.needs-two-metrics'
-            : 'chart.fit.needs-one-dimension',
+      unfit: ({ groups, metrics, quantities }) =>
+        groups === 1
+          ? measured(quantities, 1)
+          : groups === 0 && metrics >= 2
+            ? measured(quantities, 2)
+            : groups === 0
+              ? 'chart.fit.needs-two-metrics'
+              : 'chart.fit.needs-one-dimension',
     },
     metric: {
       tabs: ['data', 'display'],
@@ -140,6 +158,14 @@ export const CHART_FAMILIES: Readonly<Record<ChartFamily, ChartFamilyTraits>> =
           : 'chart.fit.needs-no-dimension',
     },
   });
+
+/**
+ * A family whose dimensions fit, asked whether it has enough to measure:
+ * `needed` quantities, the metrics beyond them being moments.
+ */
+function measured(quantities: number, needed: number): ChartUnfit | null {
+  return quantities >= needed ? null : 'chart.fit.needs-quantity';
+}
 
 /** The traits of the family a chart type belongs to. */
 export function familyOf(type: ChartType): ChartFamilyTraits {

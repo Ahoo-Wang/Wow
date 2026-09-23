@@ -24,6 +24,7 @@ import {
   type FieldKindRegistry,
 } from '../filter/index.js';
 import { analysisScope } from './capability.js';
+import { momentMetrics } from './metricFormat.js';
 import { validateChart } from './validateChart.js';
 import { validateShape } from './validateShape.js';
 import { validateAliases } from './validateAliases.js';
@@ -84,9 +85,10 @@ export function validateAnalysis(
   issues.push(...validateGroups(config, scope, kinds));
   issues.push(...validateMetrics(config, capability, scope, kinds, limits));
   issues.push(...validateAliases(config));
-  issues.push(...validateHaving(config, capability, limits));
+  const moments = momentMetrics(config.metrics, scope.fields);
+  issues.push(...validateHaving(config, capability, limits, moments));
   issues.push(...validateSortAndColumns(config));
   issues.push(...validateLimits(config, capability, limits));
-  issues.push(...validateChart(config));
+  issues.push(...validateChart(config, moments));
   return issues;
 }

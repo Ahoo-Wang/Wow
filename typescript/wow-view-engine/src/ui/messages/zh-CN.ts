@@ -658,6 +658,7 @@ export const zhCN: ViewMessages = {
   'chart.fit.too-many-dimensions': '最多两个维度',
   'chart.fit.needs-two-metrics': '要两个指标',
   'chart.fit.needs-no-dimension': '有维度时不适用',
+  'chart.fit.needs-quantity': '要数量指标，时间画不成图',
   'label.chart.options': '{name}选项',
   'label.chart.options-of': '{name}的选项',
   'label.chart.options-back': '返回图型',
@@ -799,6 +800,7 @@ export const zhCN: ViewMessages = {
   'analysis.count.undeclared': '这份数据不提供记录数。',
   'analysis.derived.unknown-metric':
     '派生指标引用了 {metric}，它没有在它之前声明。',
+  'analysis.derived.moment-operand': '{metric} 是时间点，不能参与计算。',
   'analysis.distinctCount.undeclared': '{field} 不提供去重计数。',
   'analysis.element.out-of-chain': '{path} 的展开属于展开链的另一层。',
   'analysis.element.undeclared': '{path} 的展开不可用。',
@@ -807,6 +809,7 @@ export const zhCN: ViewMessages = {
     '给 {field} 一个值，否则每个明细项都会展开。',
   'analysis.elements.too-many': '这份数据的展开太多了。',
   'analysis.expression.divide-by-zero': '这个表达式除以了零。',
+  'analysis.expression.date-operand': '{field} 是日期，不能参与计算。',
   'analysis.expression.malformed': '这个指标没有可用的表达式。',
   'analysis.expression.too-deep': '表达式的嵌套超过了 {max} 层。',
   'analysis.expression.too-many-nodes': '表达式超过了 {max} 条。',
@@ -863,6 +866,7 @@ export const zhCN: ViewMessages = {
   'chart.metric.trend-not-additive':
     '趋势主数需要可累加的指标，{metric} 不是。',
   'chart.metric.unknown': '{alias} 不是这个分析的指标。',
+  'chart.metric.moment': '{alias} 是时间点，图表不画它，也不拿它作比较。',
   'chart.pie.maxSlices-not-additive': '合并最小的那些扇区需要可累加的指标。',
   'chart.pie.maxSlices-too-small': '至少留两个扇区。',
   'chart.referenceLine.empty-axis': '参考线所在的轴上要有系列。',

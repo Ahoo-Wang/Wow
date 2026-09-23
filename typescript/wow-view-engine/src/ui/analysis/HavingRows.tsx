@@ -66,8 +66,12 @@ export function HavingRows({
     setPending(next.filter(row => row.value === null));
     analysis.setHaving(withHavingRows(next));
   };
+  // A group is kept by a number it is compared with; a sample value and a
+  // moment (`analysis.moments`) have none a reader would type.
   const keepable = analysis.metrics
-    .filter(metric => metric.type !== 'ANY')
+    .filter(
+      metric => metric.type !== 'ANY' && !analysis.moments.has(metric.alias),
+    )
     .map(metric => ({
       value: metric.alias,
       label: metricReference(analysis, metric, messages),

@@ -15,6 +15,7 @@ import { useMemo, useState, type RefObject } from 'react';
 import { ArrowLeftIcon } from 'lucide-react';
 import {
   isAdditiveMetric,
+  momentColumns,
   optionTabs,
   type AnalysisColumnView,
   type OptionsTab,
@@ -88,22 +89,26 @@ export function ChartOptions({
   // values show. Both read the catalogue this panel is drawn under.
   const column = useColumnTitle(columns);
   const label = useValueLabel(columns);
-  const shape = useMemo<OptionsShape>(
-    () => ({
+  const shape = useMemo<OptionsShape>(() => {
+    // The metrics that are moments, which a mark never measures.
+    const moments = momentColumns(columns);
+    const choices = metrics.map(metric => ({
+      value: metric.alias,
+      label: column(metric.alias) ?? metric.alias,
+    }));
+    return {
       groups: groups.map(group => ({
         value: group.alias,
         label: column(group.alias) ?? group.alias,
       })),
-      metrics: metrics.map(metric => ({
-        value: metric.alias,
-        label: column(metric.alias) ?? metric.alias,
-      })),
+      metrics: choices,
+      quantities: choices.filter(choice => !moments.has(choice.value)),
+      moments,
       additive: new Set(
         metrics.filter(isAdditiveMetric).map(metric => metric.alias),
       ),
-    }),
-    [groups, metrics, column],
-  );
+    };
+  }, [groups, metrics, columns, column]);
   const page = { chart, shape, rows, label, onChange };
   const tabs = optionTabs(picked);
   const [tab, setTab] = useState<OptionsTab>(tabs[0] ?? 'data');

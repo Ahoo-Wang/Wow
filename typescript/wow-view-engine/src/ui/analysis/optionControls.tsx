@@ -36,7 +36,15 @@ export interface Choice {
 /** The result on hand, as the options page needs it. */
 export interface OptionsShape {
   groups: Choice[];
+  /** Every metric: what a card's headline may be. */
   metrics: Choice[];
+  /**
+   * The metrics a mark can measure: every one but a moment (`momentMetrics`
+   * — the earliest or the latest of a date), which is written out, not drawn.
+   */
+  quantities: Choice[];
+  /** The moments among `metrics`, by alias. */
+  moments: ReadonlySet<string>;
   /** Metrics that add up across rows: the ones a pie may merge a tail of. */
   additive: ReadonlySet<string>;
 }

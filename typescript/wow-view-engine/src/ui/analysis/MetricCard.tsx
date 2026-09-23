@@ -27,6 +27,7 @@ import { NumberInput } from '../FilterValueEditor.js';
 import { IconButton } from '../IconButton.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { DropdownMenuContent } from '../popups.js';
+import { summaryFunctionKey } from '../display.js';
 import { EditorCard, EditorSlot } from '../variants.js';
 import {
   isFormula,
@@ -244,11 +245,13 @@ function MetricCard({
   // The menu picks one of six, so «任一值» carries its caveat in the item
   // itself; a column header composes the bare word through `label.summary.of`
   // and would repeat the parenthesis on every reading of the table.
+  // 「最早／最晚」 over a date, 「最小／最大」 over a number: the one rule a
+  // record column's summary is named by (`summaryFunctionKey`).
   const word = (entry: SummaryChoice) =>
     entry === 'ANY'
       ? messages.label('label.summary.fn.ANY.item')
       : messages.label(
-          `label.summary.fn.${entry}`,
+          summaryFunctionKey(entry, field?.cell),
           undefined,
           entry.toLowerCase(),
         );

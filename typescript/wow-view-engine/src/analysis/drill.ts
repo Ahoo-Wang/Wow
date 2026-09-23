@@ -312,6 +312,8 @@ export function splitBy(
   config: AnalysisViewConfig,
   conditions: readonly FilterNode[],
   group: AnalysisGroup,
+  /** The metrics that are moments (`momentMetrics`), which no mark measures. */
+  moments?: ReadonlySet<string>,
 ): Pick<
   AnalysisViewConfig,
   'filter' | 'filterMode' | 'groups' | 'sort' | 'table' | 'chart'
@@ -324,7 +326,7 @@ export function splitBy(
     // the chart's slots follow the new shape.
     sort: [],
     table: { ...config.table, columns: [] },
-    chart: fitChartSlots(config.chart, groups, config.metrics),
+    chart: fitChartSlots(config.chart, groups, config.metrics, moments),
   };
 }
 

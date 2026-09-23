@@ -89,7 +89,7 @@ function CartesianData({ chart, shape, onChange }: OptionsPageProps) {
       <SeriesList
         type={chart.type}
         spec={spec}
-        metrics={shape.metrics}
+        metrics={shape.quantities}
         onChange={update}
       />
     </>
@@ -112,7 +112,7 @@ function PieData({ chart, shape, onChange }: OptionsPageProps) {
       />
       <SlotSelect
         label={messages.label('label.chart.slot.value')}
-        items={shape.metrics}
+        items={shape.quantities}
         value={spec.value}
         onChange={value => onChange({ ...chart, pie: { ...spec, value } })}
       />
@@ -144,7 +144,7 @@ function HeatmapData({ chart, shape, onChange }: OptionsPageProps) {
       />
       <SlotSelect
         label={messages.label('label.chart.slot.value')}
-        items={shape.metrics}
+        items={shape.quantities}
         value={spec.value}
         onChange={value => onChange({ ...chart, heatmap: { ...spec, value } })}
       />
@@ -168,7 +168,7 @@ function ScatterData({ chart, shape, onChange }: OptionsPageProps) {
       />
       <SlotSelect
         label={messages.label('label.chart.slot.x-metric')}
-        items={shape.metrics}
+        items={shape.quantities}
         value={spec.x}
         onChange={alias =>
           onChange({ ...chart, scatter: withSlot(spec, 'x', 'y', alias) })
@@ -176,7 +176,7 @@ function ScatterData({ chart, shape, onChange }: OptionsPageProps) {
       />
       <SlotSelect
         label={messages.label('label.chart.slot.y-metric')}
-        items={shape.metrics}
+        items={shape.quantities}
         value={spec.y}
         onChange={alias =>
           onChange({ ...chart, scatter: withSlot(spec, 'y', 'x', alias) })
@@ -185,7 +185,7 @@ function ScatterData({ chart, shape, onChange }: OptionsPageProps) {
       <OptionalSlotSelect
         label={messages.label('label.chart.slot.size')}
         none={messages.label('label.chart.slot.none')}
-        items={shape.metrics}
+        items={shape.quantities}
         value={spec.size}
         onChange={size =>
           onChange({
@@ -276,7 +276,7 @@ function FunnelData({ chart, shape, rows, label, onChange }: OptionsPageProps) {
       />
       <SlotSelect
         label={messages.label('label.chart.slot.value')}
-        items={shape.metrics}
+        items={shape.quantities}
         value={stages.value}
         onChange={value => update({ ...spec, stages: { ...stages, value } })}
       />
@@ -424,9 +424,12 @@ function MetricData({ chart, shape, onChange }: OptionsPageProps) {
   const spec = chart.metric;
   if (!spec) return null;
   const update = (next: MetricCardSpec) => onChange({ ...chart, metric: next });
-  const others: Choice[] = shape.metrics.filter(
+  const others: Choice[] = shape.quantities.filter(
     metric => metric.value !== spec.metric,
   );
+  // A headline that is a moment is written out as it is: nothing is
+  // compared with it (`chart.metric.moment`), so the comparison is not asked.
+  const moment = shape.moments.has(spec.metric);
   return (
     <>
       <SlotSelect
@@ -435,30 +438,41 @@ function MetricData({ chart, shape, onChange }: OptionsPageProps) {
         value={spec.metric}
         onChange={metric =>
           // The comparison names another metric; the headline moving onto
-          // it leaves nothing to compare with.
+          // it leaves nothing to compare with. Moving onto a moment leaves
+          // nothing to compare, aim at or format.
           update(
-            spec.compare?.metric === metric
-              ? { ...without(spec, 'compare'), metric }
-              : { ...spec, metric },
+            shape.moments.has(metric)
+              ? {
+                  ...without(
+                    without(without(spec, 'compare'), 'target'),
+                    'format',
+                  ),
+                  metric,
+                }
+              : spec.compare?.metric === metric
+                ? { ...without(spec, 'compare'), metric }
+                : { ...spec, metric },
           )
         }
       />
-      <OptionalSlotSelect
-        label={messages.label('label.chart.compare-with')}
-        none={messages.label('label.chart.slot.none')}
-        items={others}
-        value={spec.compare?.metric}
-        onChange={metric =>
-          update(
-            metric === undefined
-              ? without(spec, 'compare')
-              : {
-                  ...spec,
-                  compare: { metric, mode: spec.compare?.mode ?? 'delta' },
-                },
-          )
-        }
-      />
+      {!moment && (
+        <OptionalSlotSelect
+          label={messages.label('label.chart.compare-with')}
+          none={messages.label('label.chart.slot.none')}
+          items={others}
+          value={spec.compare?.metric}
+          onChange={metric =>
+            update(
+              metric === undefined
+                ? without(spec, 'compare')
+                : {
+                    ...spec,
+                    compare: { metric, mode: spec.compare?.mode ?? 'delta' },
+                  },
+            )
+          }
+        />
+      )}
       {spec.compare && (
         <ChoiceField
           label={messages.label('label.chart.compare-mode')}

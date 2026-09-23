@@ -14,6 +14,7 @@ import type { StoryObj } from '@storybook/react-vite';
 import { expect, screen, userEvent, waitFor, within } from 'storybook/test';
 import { formatMessage, zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 import displayMeta, {
+  LatestPerWarehouse as DisplayLatestPerWarehouse,
   TableWithTotals as DisplayTableWithTotals,
 } from './AnalysisWorkbench.stories.js';
 import { findDataTable, readColumn, readHeaders } from './readTable.js';
@@ -384,6 +385,69 @@ export const RunsAsEdited: Story = {
       expect(readHeaders(await findDataTable(canvasElement))).toContain(
         COST_HEADER,
       ),
+    );
+  },
+};
+
+/** 「创建时间 的 最晚」: a moment's own word, not 「最大」. */
+const LATEST_HEADER = formatMessage(zhCN, 'label.summary.of', {
+  field: '创建时间',
+  fn: zhCN['label.summary.fn.date.MAX'],
+});
+
+/**
+ * 每个仓库最晚的一单（生产审查：真实 Wow 服务上 `MAX(eventTime)` 在表里、
+ * 图上与读屏表里都是一串十三位毫秒）。
+ *
+ * 数据源真的按组取创建时间的最大值、再按它降序排（`rowSource.ts`），所以
+ * 这一列的时刻与行序都是查询答的：西南最近，华东最早（它最晚的那一单已被
+ * 软删除，不在答复里）。每一格按界面语言与引擎时区读，与记录视图的单元格
+ * 同一套读法；表头说「最晚」。切到可视化，散点灰着——它要两个数量，而
+ * 最晚是一个时刻，不是数量。
+ */
+export const LatestPerWarehouse: Story = {
+  ...DisplayLatestPerWarehouse,
+  play: async ({ canvasElement }) => {
+    const table = await findDataTable(canvasElement);
+    await waitFor(() => expect(groupRows(table)).toBe(4));
+    await expect(readHeaders(table)).toContain(LATEST_HEADER);
+
+    const shown = (iso: string) =>
+      new Intl.DateTimeFormat('zh-CN', {
+        dateStyle: 'medium',
+        timeStyle: 'medium',
+      }).format(new Date(iso));
+    await expect(readColumn(table, '仓库')).toEqual([
+      '西南',
+      '华南',
+      '华北',
+      '华东',
+    ]);
+    await expect(readColumn(table, LATEST_HEADER)).toEqual([
+      shown('2026-09-17T08:45:00.000Z'),
+      shown('2026-09-17T02:20:00.000Z'),
+      shown('2026-09-16T01:05:00.000Z'),
+      shown('2026-09-15T06:40:00.000Z'),
+    ]);
+    // Neither the stored value nor the number it was compared as.
+    await expect(table.textContent).not.toContain('2026-09-17T08:45');
+    await expect(table.textContent).not.toMatch(/[0-9]{13}/);
+
+    await userEvent.click(
+      within(canvasElement).getByRole('button', {
+        name: zhCN['label.analysis.visualize'],
+      }),
+    );
+    const scatter = await waitFor(() => {
+      const tile = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="chart-picker"] [data-chart-type="scatter"]',
+      );
+      if (!tile) throw new Error('可视化面板没有出来');
+      return tile;
+    });
+    await expect(scatter.getAttribute('aria-disabled')).toBe('true');
+    await expect(scatter.textContent).toContain(
+      zhCN['chart.fit.needs-quantity'],
     );
   },
 };

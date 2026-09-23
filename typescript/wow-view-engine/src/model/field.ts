@@ -374,6 +374,32 @@ export function temporalOf(field: FieldDefinition): FieldTemporal {
   return field.temporal ?? DEFAULT_TEMPORAL;
 }
 
+/**
+ * The aggregate functions an analysis may take of a field of moments: its
+ * earliest and its latest. `DATE_SUMMARY_FUNCTIONS` without the count, which
+ * an analysis spells as a metric of its own; the same reason leaves the sum,
+ * the average, the deviation and the variance out.
+ */
+export const DATE_AGGREGATION_FUNCTIONS = ['MIN', 'MAX'] as const;
+
+/**
+ * The aggregate functions a field really offers an analysis: what its
+ * capability declares, less what its own values cannot answer — the
+ * analysis side of `summaryFunctionsOf`, read by the analysis scope, so
+ * admission, the tray's summary select and a fresh config's first metric all
+ * stop at the same place. A field the scope cannot find keeps what it
+ * declares; admission reports the field itself.
+ */
+export function aggregationFunctionsOf<F extends string>(
+  field: Pick<FieldDefinition, 'kind' | 'cell'> | undefined,
+  declared: readonly F[],
+): F[] {
+  if (!field || !isDateCell(field.cell ?? field.kind)) return [...declared];
+  return declared.filter(fn =>
+    (DATE_AGGREGATION_FUNCTIONS as readonly string[]).includes(fn),
+  );
+}
+
 /** Formatting shared by cells, summaries and chart axes. */
 export type NumberFormat = Intl.NumberFormatOptions & { locale?: string };
 

@@ -126,6 +126,9 @@ export const analysisMessages = {
   'chart.fit.too-many-dimensions': 'At most two dimensions',
   'chart.fit.needs-two-metrics': 'Needs two metrics',
   'chart.fit.needs-no-dimension': 'Not with dimensions',
+  // Every metric left is the earliest or the latest of a date: a moment,
+  // which a mark has no length, share or shade for (`momentMetrics`).
+  'chart.fit.needs-quantity': 'Needs an amount; a time is not drawn',
   // The panel's second level (D20 屏 J): the chosen type's options on
   // three pages, and the way in and out.
   'label.chart.options': '{name} options',
@@ -313,6 +316,8 @@ export const analysisMessages = {
   'analysis.count.undeclared': 'This dataset does not offer a record count.',
   'analysis.derived.unknown-metric':
     'The derived metric refers to {metric}, which is not declared before it.',
+  'analysis.derived.moment-operand':
+    '{metric} is a point in time and cannot be calculated with.',
   'analysis.distinctCount.undeclared':
     '{field} does not offer distinct counts.',
   'analysis.element.out-of-chain':
@@ -324,6 +329,8 @@ export const analysisMessages = {
     'Give {field} a value, or every item is expanded.',
   'analysis.elements.too-many': 'Too many expansions for this dataset.',
   'analysis.expression.divide-by-zero': 'This expression divides by zero.',
+  'analysis.expression.date-operand':
+    '{field} is a date and cannot be calculated with.',
   'analysis.expression.malformed': 'This metric has no usable expression.',
   'analysis.expression.too-deep':
     'The expression nests deeper than {max} levels.',
@@ -409,6 +416,8 @@ export const analysisMessages = {
   'chart.metric.trend-not-additive':
     'A trend headline needs an additive metric, not {metric}.',
   'chart.metric.unknown': '{alias} is not a metric of this analysis.',
+  'chart.metric.moment':
+    '{alias} is a point in time; a chart does not draw or compare it.',
   'chart.pie.maxSlices-not-additive':
     'Merging the smallest slices needs an additive metric.',
   'chart.pie.maxSlices-too-small': 'Keep at least two slices.',

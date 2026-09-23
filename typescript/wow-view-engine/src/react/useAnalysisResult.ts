@@ -19,6 +19,7 @@ import {
   focusOn,
   groupFor,
   groupableFields,
+  momentColumns,
   shapeChart,
   splitBy,
   withStagesFrom,
@@ -132,25 +133,41 @@ export function useAnalysisResult(
         ran.metrics.map(metric => metric.alias),
       )
     : null;
+  // The moments of the config that ran, read off its projection: a column
+  // that reads as a date is one (`momentMetrics`), and no mark measures it.
+  const moments = useMemo(
+    () => momentColumns(view?.schema ?? view?.columns ?? []),
+    [view],
+  );
   const chart = useMemo(
     () =>
       ran && shapeRan !== drafted
-        ? fitChartSlots(analysis.chart, ran.groups, ran.metrics)
+        ? fitChartSlots(analysis.chart, ran.groups, ran.metrics, moments)
         : analysis.chart,
-    [analysis.chart, ran, shapeRan, drafted],
-  );
-  const chartData = useMemo(
-    () =>
-      view && ran
-        ? shapeChart({ ...ran, chart, layout: 'chart' }, view.rows, view.totals)
-        : undefined,
-    [view, ran, chart],
+    [analysis.chart, ran, shapeRan, drafted, moments],
   );
   const fits = useMemo(
-    () => fitCharts({ groups: ran?.groups ?? [], metrics: ran?.metrics ?? [] }),
-    [ran],
+    () =>
+      fitCharts({
+        groups: ran?.groups ?? [],
+        metrics: ran?.metrics ?? [],
+        moments,
+      }),
+    [ran, moments],
   );
-  const picked: Picked = analysis.layout === 'table' ? 'table' : chart.type;
+  // A chart the shape that ran cannot draw — every metric a moment, nothing
+  // to measure — is its table: the rows are there, and an empty frame would
+  // say there were none. Before anything ran there is no shape to judge.
+  const drawable = !ran || fits[chart.type]?.available !== false;
+  const chartData = useMemo(
+    () =>
+      view && ran && drawable
+        ? shapeChart({ ...ran, chart, layout: 'chart' }, view.rows, view.totals)
+        : undefined,
+    [view, ran, chart, drawable],
+  );
+  const picked: Picked =
+    analysis.layout === 'table' || !drawable ? 'table' : chart.type;
 
   const choose = (next: Picked) => {
     if (next === 'table') {
@@ -163,7 +180,12 @@ export function useAnalysisResult(
     // the order they came in, so a type picked draws at once.
     analysis.updateChart(
       withStagesFrom(
-        fitChartSlots({ ...chart, type: next }, ran.groups, ran.metrics),
+        fitChartSlots(
+          { ...chart, type: next },
+          ran.groups,
+          ran.metrics,
+          moments,
+        ),
         view.rows,
       ),
     );
@@ -198,7 +220,7 @@ export function useAnalysisResult(
       actions.push({
         kind: 'split',
         options,
-        run: name => split(runtime, analysis, ran, conditions, name),
+        run: name => split(runtime, analysis, ran, conditions, name, moments),
       });
     actions.push({
       kind: 'focus',
@@ -236,6 +258,7 @@ function split(
   ran: AnalysisViewConfig,
   conditions: readonly FilterNode[],
   name: string,
+  moments: ReadonlySet<string>,
 ): void {
   const field = runtime.fields.find(entry => entry.name === name);
   const option = analysis.fields.find(entry => entry.field === name);
@@ -245,6 +268,7 @@ function split(
       ran,
       conditions,
       groupFor(field, option, runtime.kinds.get(field.kind)),
+      moments,
     ),
   );
   runtime.apply();

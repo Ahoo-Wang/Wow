@@ -16,9 +16,11 @@ import {
   derivedMetric,
   formulaMetric,
   metricWithCondition,
+  momentMetrics,
   type AnalysisScope,
 } from '../analysis/index.js';
 import {
+  isDateCell,
   without,
   type AnalysisGroup,
   type AnalysisHavingExpression,
@@ -201,8 +203,14 @@ export function questionEditing({
      * changed, and a card with a slot it cannot fill is not offered.
      */
     addFormula: () => {
+      // A date is no operand (`analysis.expression.date-operand`): its
+      // earliest and latest are functions of it, arithmetic is not.
+      const dated = (name: string) => {
+        const field = scope?.fields.get(name);
+        return field !== undefined && isDateCell(field.cell ?? field.kind);
+      };
       const measurable = [...(scope?.aggregations.values() ?? [])].filter(
-        entry => entry.functions.length > 0,
+        entry => entry.functions.length > 0 && !dated(entry.field),
       );
       const [first, second = first] = measurable;
       if (!first) return;
@@ -221,12 +229,16 @@ export function questionEditing({
     },
     /**
      * A derived metric over the first two metrics before it that a derived
-     * one may read — any but a sample value — or over one metric twice.
+     * one may read — any but a sample value or a moment
+     * (`analysis.derived.moment-operand`) — or over one metric twice.
      */
     addDerived: () => {
       reshape(current => {
+        const moments = scope
+          ? momentMetrics(current.metrics, scope.fields)
+          : new Set<string>();
         const readable = current.metrics.filter(
-          metric => metric.type !== 'ANY',
+          metric => metric.type !== 'ANY' && !moments.has(metric.alias),
         );
         const [first, second = first] = readable;
         if (!first) return undefined;
