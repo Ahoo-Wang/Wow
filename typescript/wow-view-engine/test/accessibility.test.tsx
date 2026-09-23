@@ -852,7 +852,8 @@ describe('the analysis view’s open states pass axe', () => {
    * Level one of the visualization panel: the tiles. Each is a radio named
    * by the word written on it and described by the mark and the reason
    * beside it, and a greyed one is `aria-disabled` rather than `disabled` —
-   * three ways to break a name that only axe and a reader ever meet.
+   * three ways to break a name that only axe and a reader ever meet. Under
+   * them, the one labelled button on to the chosen type's options.
    */
   it('the visualization panel on its first level', async () => {
     const user = await analysis(warehouseChart, '[role="img"]');
@@ -864,6 +865,7 @@ describe('the analysis view’s open states pass axe', () => {
     );
 
     expect(slot('[data-slot="chart-picker"]')).toBeDefined();
+    expect(slot('[data-slot="chart-options-open"]')).toBeDefined();
     expect(await violations(document.body)).toEqual([]);
   });
 

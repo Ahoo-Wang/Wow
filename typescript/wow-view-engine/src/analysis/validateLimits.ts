@@ -20,6 +20,7 @@ import type {
   RuntimeLimits,
 } from '../model/index.js';
 import { issue } from '../filter/index.js';
+import { limitBounds } from './defaults.js';
 
 export function validateLimits(
   config: AnalysisViewConfig,
@@ -29,18 +30,12 @@ export function validateLimits(
   const issues: Issue[] = [];
   const declared = capability.limits ?? {};
 
-  if (!Number.isInteger(config.limit) || config.limit < 1)
-    issues.push(issue('analysis.limit.not-positive', ['limit']));
-  else {
-    // The runtime ceiling always applies; a capability may only lower it.
-    const max = Math.min(
-      declared.maxLimit ?? Number.POSITIVE_INFINITY,
-      limits.maxAnalysisRows,
-      AGGREGATION_LIMITS.MAX_LIMIT,
-    );
-    if (config.limit > max)
-      issues.push(issue('analysis.limit.too-large', ['limit'], { max }));
-  }
+  // One finding for every way out of range, worded as the range itself: 2.5
+  // used to be told it "must be a positive number", which it is, and -3 and
+  // 20,000 were told two different things about the one rule they broke.
+  const { max } = limitBounds(capability, limits);
+  if (!Number.isInteger(config.limit) || config.limit < 1 || config.limit > max)
+    issues.push(issue('analysis.limit.out-of-range', ['limit'], { max }));
 
   // Wow's own sizes always apply: a capability that declares no limits does
   // not lift them, it only means it lowers none of them. Without this the

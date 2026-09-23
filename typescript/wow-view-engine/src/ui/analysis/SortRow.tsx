@@ -11,12 +11,16 @@
  * limitations under the License.
  */
 
+import { useId, useState } from 'react';
 import type { FieldDefinition } from '../../model/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
+import { Field, FieldError } from '../components/field.js';
+import { formatNumber } from '../display.js';
 import { NumberInput } from '../FilterValueEditor.js';
 import { TEXT_UI } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { SortSettings } from '../SortSettings.js';
+import { useSurfaceDisplay } from '../ViewSurface.js';
 import { metricReference } from './editing.js';
 
 /**
@@ -68,19 +72,96 @@ export function SortRow({
   return (
     <div
       data-slot="analysis-sort"
-      className={`mt-auto flex flex-wrap items-center gap-2 ${TEXT_UI}`}
+      // `items-start`: the limit's refusal hangs under its box, and the sort
+      // button stays level with the box rather than centring on the pair.
+      className={`mt-auto flex flex-wrap items-start gap-2 ${TEXT_UI}`}
     >
       <SortSettings table={owner} fields={fields} />
+      <LimitField analysis={analysis} disabled={disabled} />
+    </div>
+  );
+}
+
+/**
+ * 「前 N 组」: the N, typed.
+ *
+ * **The draft only ever holds an N Wow takes** — a whole number from 1 to
+ * `limitBounds.max` — the rule the having rows keep for a row with no value
+ * yet. What the box holds that is not one stays in the box, as typed, marked
+ * `aria-invalid` with the range it must fall in beside it, and is not the
+ * question: Apply runs the last N that was. It used to go straight into the
+ * draft, which is how three defects came about at once — an emptied box
+ * wrote nothing and sprang back to the -3 before it, 2.5 was refused as "not
+ * positive" by admission, and a -3 left behind by removing the last
+ * dimension (which takes this row off the screen) went on refusing Apply
+ * with nothing on screen to fix.
+ *
+ * **Empty is the N a view starts at** (`limitBounds.fallback`), because the
+ * model has no "no limit": Wow answers at most its own `MAX_LIMIT` rows
+ * whatever is asked. So a blank writes that N and shows it as the
+ * placeholder, and the box stays blank rather than filling itself in under
+ * the cursor.
+ *
+ * What the box holds apart from the draft is its own state, so it goes with
+ * the box: when the row leaves the screen, the text and its refusal leave
+ * with it. It is remembered against the draft's N it was typed over, so an N
+ * that moves underneath — a discard, a follow-up, another view — takes the
+ * box back. A stored N out of range is marked the same way; admission refuses
+ * it too, so the status line says so as well.
+ */
+function LimitField({
+  analysis,
+  disabled,
+}: {
+  analysis: AnalysisEditorController;
+  disabled?: boolean;
+}) {
+  const messages = useViewMessages();
+  const { locale } = useSurfaceDisplay();
+  const errorId = useId();
+  const { max, fallback } = analysis.limitBounds;
+  const [typed, setTyped] = useState<{
+    value: number | null;
+    over: number;
+  } | null>(null);
+  const held = typed?.over === analysis.limit ? typed : null;
+  const value = held ? held.value : analysis.limit;
+  const invalid = value !== null && !withinLimit(value, max);
+  return (
+    <Field
+      data-invalid={invalid || undefined}
+      data-slot="analysis-limit"
+      className="w-auto gap-1"
+    >
       <NumberInput
         label={messages.label('label.analysis.row-limit')}
         chrome="box"
         className="w-20"
         disabled={disabled}
-        value={analysis.limit}
+        invalid={invalid}
+        describedBy={invalid ? errorId : undefined}
+        placeholder={formatNumber(fallback, undefined, locale)}
+        value={value}
         onNumber={next => {
-          if (next !== null) analysis.setLimit(next);
+          if (next === null) {
+            analysis.setLimit(fallback);
+            setTyped({ value: null, over: fallback });
+          } else if (withinLimit(next, max)) {
+            analysis.setLimit(next);
+            setTyped(null);
+          } else setTyped({ value: next, over: analysis.limit });
         }}
       />
-    </div>
+      {invalid && (
+        <FieldError id={errorId}>
+          {messages.label('label.analysis.row-limit-invalid', { max })}
+        </FieldError>
+      )}
+    </Field>
   );
+}
+
+/** Whether Wow takes this N: the one rule admission holds the draft to. */
+function withinLimit(value: number, max: number): boolean {
+  return Number.isInteger(value) && value >= 1 && value <= max;
 }

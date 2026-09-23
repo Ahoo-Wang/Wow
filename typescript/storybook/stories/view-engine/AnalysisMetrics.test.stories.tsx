@@ -232,6 +232,83 @@ export const SortedByTwo: Story = {
 };
 
 /**
+ * 「前 N 组」的框（2026-09-23 审查）：草稿里只放 Wow 收得下的 N。
+ *
+ * 从前清空之后弹回刚才的 -3；2.5 被说成「必须是正数」；删掉最后一个维度把这一
+ * 行带走之后，那个 -3 还留在草稿里拦着应用。这里在真浏览器里走一遍：出界的字
+ * 照原样留在框里，框下面一句「须为 1～10,000 的整数」，读得见、在框下面；清空
+ * 就是空着（占位字写着起步的 100）；带着一个出界的字删掉维度，框与那句话一起
+ * 走，应用照跑，表上只剩一行。
+ */
+export const TopNField: Story = {
+  ...DisplayTableWithTotals,
+  play: async ({ canvasElement }) => {
+    const table = await findDataTable(canvasElement);
+    await waitFor(() => expect(groupRows(table)).toBe(4));
+    const opened = await openTray(canvasElement);
+    const box = () =>
+      within(opened).getByLabelText<HTMLInputElement>(
+        zhCN['label.analysis.row-limit'],
+      );
+    const refusal = formatMessage(zhCN, 'label.analysis.row-limit-invalid', {
+      max: 10_000,
+    });
+
+    for (const typed of ['-3', '2.5']) {
+      await userEvent.clear(box());
+      await userEvent.type(box(), typed);
+      await expect(box()).toHaveValue(typed);
+      await expect(box()).toHaveAttribute('aria-invalid', 'true');
+      // A fraction is told the range, not that it must be positive.
+      const said = await within(opened).findByText(refusal);
+      await expect(said).toBeVisible();
+      await expect(box()).toHaveAccessibleDescription(refusal);
+      // Under its box, and inside the tray rather than cut off at its edge.
+      const where = said.getBoundingClientRect();
+      await expect(where.top).toBeGreaterThanOrEqual(
+        box().getBoundingClientRect().bottom,
+      );
+      await expect(where.right).toBeLessThanOrEqual(
+        opened.getBoundingClientRect().right,
+      );
+    }
+
+    // Emptied, it stays empty: the N a view starts at, said as the placeholder.
+    await userEvent.clear(box());
+    await userEvent.tab();
+    await expect(box()).toHaveValue('');
+    await expect(box()).toHaveAttribute('placeholder', '100');
+    await expect(box()).not.toHaveAttribute('aria-invalid', 'true');
+    await expect(within(opened).queryByText(refusal)).toBeNull();
+
+    // A refused N left in the box goes with the box when the last dimension
+    // takes the row away — and nothing is left behind to refuse Apply.
+    await userEvent.type(box(), '-3');
+    await within(opened).findByText(refusal);
+    await userEvent.click(
+      within(opened).getByRole('button', {
+        name: formatMessage(zhCN, 'label.analysis.remove-group', {
+          name: '仓库',
+        }),
+      }),
+    );
+    await waitFor(() =>
+      expect(opened.querySelector('[data-slot="analysis-limit"]')).toBeNull(),
+    );
+    await expect(within(canvasElement).queryByText(refusal)).toBeNull();
+    await expect(applyButton(canvasElement)).toBeEnabled();
+    await userEvent.click(applyButton(canvasElement));
+    await waitFor(async () =>
+      expect(groupRows(await findDataTable(canvasElement))).toBe(1),
+    );
+    // Nor does the status line say anything about the N.
+    await expect(canvasElement.textContent ?? '').not.toContain(
+      formatMessage(zhCN, 'analysis.limit.out-of-range', { max: 10_000 }),
+    );
+  },
+};
+
+/**
  * 「改了就跑」（D20，todo 批 7）：托盘里改一下问题，没人按应用，表自己重画。
  *
  * jsdom 那边钉的是**什么时候**跑——一次编辑之后那 300 毫秒、一串编辑并成一次

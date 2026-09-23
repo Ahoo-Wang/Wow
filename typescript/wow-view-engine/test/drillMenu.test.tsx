@@ -23,16 +23,21 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
+  type AnalysisView,
   type AnalysisViewConfig,
   type DataViewDefinition,
   type ViewInstance,
   type ViewSource,
 } from '../src/index.js';
-import { DataWorkbench, defaultMessages } from '../src/ui/index.js';
+import {
+  AnalysisTable,
+  DataWorkbench,
+  defaultMessages,
+} from '../src/ui/index.js';
 import type { DataViewKind } from '../src/ui/index.js';
 import {
   analysisConfig,
@@ -321,5 +326,53 @@ describe('the follow-up menu on one group', () => {
     )!;
 
     expect(names(split)).toEqual(added);
+  });
+
+  /**
+   * The menu is as wide as its words and hangs from what was pressed
+   * (2026-09-23 audit). It used to be anchored to the whole row, and the
+   * popup's recipe sizes a menu to its anchor (`--anchor-width`), so it came
+   * out as wide as the table — a band across the result rather than a menu
+   * by the pointer. Its pixels are measured in a browser
+   * (`FollowUpMenuFitsItsWords`); this pins what is handed to it.
+   */
+  it('hangs from the cell pressed, or the row’s first cell for a key — never the row', () => {
+    const view: AnalysisView = {
+      columns: [
+        { alias: 'warehouse', label: 'Warehouse', role: 'group' },
+        { alias: 'orders', label: 'Orders', role: 'metric' },
+      ],
+      rows: [
+        { warehouse: 'CN', orders: 3 },
+        { warehouse: 'JP', orders: 2 },
+      ],
+      truncated: false,
+    };
+    const onPick = vi.fn();
+    render(<AnalysisTable view={view} onPick={onPick} />);
+    const row =
+      document.querySelectorAll<HTMLTableRowElement>('tr[data-pickable]')[1]!;
+
+    // A press on a cell: the menu hangs from that cell, and the keyboard
+    // goes back to the row it belongs to.
+    fireEvent.click(within(row).getByText('2'));
+    expect(onPick).toHaveBeenLastCalledWith(view.rows[1], row.cells[1], row);
+
+    // A key has no point: the row's first cell, so the menu opens under the
+    // start of the group's name rather than across the row.
+    fireEvent.keyDown(row, { key: 'Enter' });
+    expect(onPick).toHaveBeenLastCalledWith(view.rows[1], row.cells[0], row);
+    for (const [, anchor] of onPick.mock.calls) expect(anchor).not.toBe(row);
+  });
+
+  it('sizes the menu to its words, not to what it hangs from', async () => {
+    open();
+    fireEvent.click(await groupRow());
+    await waitFor(() => expect(menu()).not.toBeNull());
+    // Surviving class assertion: a length with no state behind it. The
+    // popup's recipe carries `w-(--anchor-width)`; the menu's own width
+    // replaces it, and what that measures is `FollowUpMenuFitsItsWords`.
+    expect(menu()!.className).toMatch(/\bw-auto\b/);
+    expect(menu()!.className).not.toContain('w-(--anchor-width)');
   });
 });

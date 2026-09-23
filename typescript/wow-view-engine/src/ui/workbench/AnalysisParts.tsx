@@ -104,16 +104,18 @@ export function AnalysisParts({
    * The panel takes the sidebar's column and replaces its own contents as
    * the level changes, so every one of those changes used to leave the
    * focus on an element that is no longer on the page — the press that
-   * opened it, the gear, the way back — and a focus with nothing under it
-   * falls to `<body>`. Each level therefore takes the keyboard to its own
-   * heading, and closing the panel hands it back to the button that opened
-   * it, which is where the user was.
+   * opened it, the options button, the way back — and a focus with nothing
+   * under it falls to `<body>`. Each level therefore takes the keyboard to
+   * its own heading, except coming back from the options, which lands on the
+   * options button the user left by; closing the panel hands it back to the
+   * button that opened it. Both are where the user was.
    *
    * It is an effect keyed on the level rather than anything done inside the
    * press: the heading does not exist until React has drawn the level, and
    * a timer waiting for that would be a guess.
    */
   const heading = useRef<HTMLHeadingElement | null>(null);
+  const optionsButton = useRef<HTMLButtonElement | null>(null);
   const visualizeRef = useRef<HTMLButtonElement | null>(null);
   // Whatever the panel is a panel *of*, remembered while it is open: with
   // the toolbar gone there is no button to go back to, and the result the
@@ -129,7 +131,9 @@ export function AnalysisParts({
       surface.current =
         heading.current?.closest<HTMLElement>('[data-slot="view-surface"]') ??
         surface.current;
-      heading.current?.focus();
+      if (before === 'options' && level === 'picker' && optionsButton.current)
+        optionsButton.current.focus();
+      else heading.current?.focus();
       return;
     }
     if (before === null) return;
@@ -153,7 +157,8 @@ export function AnalysisParts({
   const [pick, setPick] = useState<Pick | null>(null);
   const followUp = pick ? result.followUp(pick.row) : null;
   const onPick = result.pickable
-    ? (row: Pick['row'], anchor: Pick['anchor']) => setPick({ row, anchor })
+    ? (row: Pick['row'], anchor: Pick['anchor'], origin?: HTMLElement) =>
+        setPick({ row, anchor, ...(origin ? { origin } : {}) })
     : undefined;
   const close = () => setPick(null);
 
@@ -244,6 +249,7 @@ export function AnalysisParts({
       level === 'picker' ? (
         <ChartPicker
           headingRef={heading}
+          optionsRef={optionsButton}
           fits={fits}
           picked={picked}
           onPick={result.choose}

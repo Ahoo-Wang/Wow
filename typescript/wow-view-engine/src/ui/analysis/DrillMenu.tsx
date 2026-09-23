@@ -35,7 +35,10 @@ export type PickAnchor = Element | { getBoundingClientRect(): DOMRect };
 /** One group of the result the user pressed, and where. */
 export interface Pick {
   row: RecordData;
+  /** What the menu hangs from: the cell or the point pressed, or a mark. */
   anchor: PickAnchor;
+  /** Where the keyboard goes back to on close: the row, when it was one. */
+  origin?: HTMLElement;
 }
 
 export interface DrillMenuProps {
@@ -69,7 +72,7 @@ export function DrillMenu({ pick, onClose, followUp }: DrillMenuProps) {
   // then focus is not moved at all.
   const back = useRef<HTMLElement | null>(null);
   useEffect(() => {
-    if (pick) back.current = focusable(pick.anchor);
+    if (pick) back.current = pick.origin ?? null;
   }, [pick]);
   return (
     <DropdownMenu
@@ -91,7 +94,13 @@ export function DrillMenu({ pick, onClose, followUp }: DrillMenuProps) {
         finalFocus={back}
         aria-label={messages.label('label.drill.menu')}
         data-slot="drill-menu"
-        className="min-w-56"
+        // As wide as its words, as the registry's own menus are sized (`w-auto
+        // min-w-56`), not as its anchor: the popup's recipe takes
+        // `--anchor-width`, which is right for a trigger it drops from and
+        // wrong for a table row it used to hang from — the menu came out as
+        // wide as the table. Capped, so a long condition in its heading
+        // wraps rather than stretching it back.
+        className="w-auto min-w-56 max-w-80"
       >
         <DropdownMenuGroup>
           {/* The group pressed, named by its conditions: what every item
@@ -153,14 +162,6 @@ export function DrillMenu({ pick, onClose, followUp }: DrillMenuProps) {
       </DropdownMenuContent>
     </DropdownMenu>
   );
-}
-
-/**
- * The anchor as something focus can go back to, or null: a table row takes
- * focus and a chart mark does not, and a point is not an element at all.
- */
-function focusable(anchor: PickAnchor): HTMLElement | null {
-  return anchor instanceof HTMLElement && anchor.tabIndex >= 0 ? anchor : null;
 }
 
 /** The point a pointer event happened at, as something a menu can anchor to. */

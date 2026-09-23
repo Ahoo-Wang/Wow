@@ -44,6 +44,8 @@ export function NumberInput({
   invalid,
   chrome,
   className,
+  placeholder,
+  describedBy,
 }: ControlChromeProps & {
   /** The number in force, if there is one. */
   value: unknown;
@@ -53,6 +55,13 @@ export function NumberInput({
   disabled?: boolean;
   invalid?: boolean;
   className?: string;
+  /**
+   * What an empty box stands for, where it stands for something: the row
+   * limit's blank is the N a view starts at, not a value still to be set.
+   */
+  placeholder?: string;
+  /** The id of the sentence that says why the box is refused. */
+  describedBy?: string;
 }) {
   const messages = useViewMessages();
   const { locale } = useSurfaceDisplay();
@@ -72,13 +81,14 @@ export function NumberInput({
           <PillInput
             aria-label={label}
             aria-invalid={invalid}
+            aria-describedby={describedBy}
             chrome={chrome}
             className={className}
           />
         }
         // A condition with no value yet is a normal editing state rather
         // than a mistake, so the box says what is missing.
-        placeholder={messages.label('label.filter.not-set')}
+        placeholder={placeholder ?? messages.label('label.filter.not-set')}
       />
     </NumberFieldPrimitive.Root>
   );

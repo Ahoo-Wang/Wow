@@ -194,9 +194,12 @@ const panel = () =>
 const picker = () =>
   document.querySelector<HTMLElement>('[data-slot="chart-picker"]');
 
-/** The gear beside the chosen tile, which is where level two opens. */
+/**
+ * The labelled button under the tiles, which is where level two opens: named
+ * by the chosen type, in the words the options page is headed with.
+ */
 function gear(name: string): HTMLElement {
-  return screen.getByRole('button', { name: `Options for ${name}` });
+  return screen.getByRole('button', { name: `${name} options` });
 }
 
 /** Chooses one item of a named `CompactSelect`. */
@@ -219,13 +222,13 @@ const seriesNames = () =>
   );
 
 describe('the chart options', () => {
-  it('opens from the chosen tile’s gear and goes back to the types', async () => {
+  it('opens from the button under the tiles and goes back to the types', async () => {
     const { user, queries } = await open({
       type: 'bar',
       cartesian: { x: 'warehouse', series: [{ metric: 'orders' }] },
     });
-    // Level one first: the gear is beside the chosen tile, not inside it —
-    // a button holds no button.
+    // Level one first: the way on is a button of its own under the tiles,
+    // named after the chosen type — a tile holds no button.
     expect(picker()).not.toBeNull();
     expect(panel()).toBeNull();
     const ran = queries();

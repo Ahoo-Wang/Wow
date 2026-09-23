@@ -335,6 +335,64 @@ describe('the visualization panel', () => {
     heatmap.focus();
     expect(document.activeElement).toBe(heatmap);
   });
+
+  /**
+   * The tiles only pick; the way on to the chosen type's options is one
+   * labelled button under them (2026-09-23 review). It used to be a 24px
+   * gear hanging off the chosen tile's corner, which covered nothing and
+   * which nobody saw or understood. Its pixels are measured in a browser
+   * (`VisualizePanel`); this pins what it is and where the keyboard goes.
+   */
+  it('opens the chosen type’s options from one labelled button under the tiles', async () => {
+    await open(viewOf({ layout: 'chart' }));
+    visualize();
+    const named = (type: string) =>
+      label('label.chart.options').replace('{name}', type);
+    const buttons = () => [
+      ...panel()!.querySelectorAll<HTMLButtonElement>(
+        '[data-slot="chart-options-open"]',
+      ),
+    ];
+
+    // One, named by the type it opens, in the words the page is headed with;
+    // after the tile group, inside no tile.
+    expect(buttons()).toHaveLength(1);
+    const button = buttons()[0]!;
+    expect(button.textContent).toBe(named(label('label.chart.type.bar')));
+    expect(screen.getByRole('button', { name: named('bar') })).toBe(button);
+    const group = screen.getByRole('radiogroup');
+    expect(group.contains(button)).toBe(false);
+    expect(
+      group.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // Each tile is one button, with nothing inside it but its words.
+    for (const each of group.querySelectorAll('[data-slot="chart-tile"]'))
+      expect(each.querySelector('button')).toBeNull();
+    // In the Tab order, where the group's one stop is not.
+    expect(button.tabIndex).toBe(0);
+
+    // A pick moves the choice and renames the button; it opens nothing.
+    fireEvent.click(tile('pie'));
+    expect(buttons()).toHaveLength(1);
+    expect(buttons()[0]!.textContent).toBe(named('pie'));
+    expect(document.querySelector('[data-slot="chart-options"]')).toBeNull();
+
+    // The table's options are its totals row, and the button says so.
+    fireEvent.click(tile('table'));
+    expect(buttons()[0]!.textContent).toBe(named(label('label.layout.table')));
+
+    // The press opens the options; back comes back to the button.
+    fireEvent.click(buttons()[0]!);
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-slot="chart-options"]'),
+      ).not.toBeNull(),
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: label('label.chart.options-back') }),
+    );
+    await waitFor(() => expect(document.activeElement).toBe(buttons()[0]));
+  });
 });
 
 describe('a layout is a redraw, not a run', () => {

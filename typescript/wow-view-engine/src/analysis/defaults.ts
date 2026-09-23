@@ -11,7 +11,10 @@
  * limitations under the License.
  */
 
-import { AggregationGroupType } from '@ahoo-wang/fetcher-wow';
+import {
+  AGGREGATION_LIMITS,
+  AggregationGroupType,
+} from '@ahoo-wang/fetcher-wow';
 import {
   DEFAULT_RUNTIME_LIMITS,
   FIELD_METRIC_TYPES,
@@ -36,6 +39,41 @@ import { analysisScope } from './capability.js';
 import { momentMetrics } from './metricFormat.js';
 
 const DEFAULT_LIMIT = 100;
+
+/**
+ * The range 「前 N 组」 may take, and the N it stands for when nobody said one.
+ *
+ * `max` is the lowest of three ceilings — the capability's `maxLimit`, the
+ * runtime's `maxAnalysisRows` and Wow's own `AGGREGATION_LIMITS.MAX_LIMIT` —
+ * because a declaration may only lower what the layers under it allow; the
+ * least is 1, since Wow refuses a limit under it. `fallback` is where a new
+ * view starts, and what an emptied 「前 N 组」 field means: the model has no
+ * "no limit" (Wow answers at most `MAX_LIMIT` rows whatever is asked), so
+ * the honest reading of a blank is the number a view would have started at.
+ *
+ * One function for the three readers — the default config, the admission
+ * rule and the tray's field — so the bounds a field says out loud are the
+ * ones Apply is refused by, never a second copy of them.
+ */
+export interface AnalysisLimitBounds {
+  max: number;
+  fallback: number;
+}
+
+export function limitBounds(
+  capability: NonNullable<DataViewDefinition['analysis']>,
+  limits: RuntimeLimits = DEFAULT_RUNTIME_LIMITS,
+): AnalysisLimitBounds {
+  const max = Math.min(
+    capability.limits?.maxLimit ?? Number.POSITIVE_INFINITY,
+    limits.maxAnalysisRows,
+    AGGREGATION_LIMITS.MAX_LIMIT,
+  );
+  return {
+    max,
+    fallback: Math.min(capability.limits?.defaultLimit ?? DEFAULT_LIMIT, max),
+  };
+}
 
 /** The percentile a new percentile metric asks for. */
 export const DEFAULT_PERCENTILE = 95;
@@ -325,11 +363,7 @@ export function defaultAnalysisConfig(
   // starts as its table.
   const moments = momentMetrics([metric], scope.fields);
   const groups = firstGroups(definition, capability.fields);
-  const limit = Math.min(
-    capability.limits?.defaultLimit ?? DEFAULT_LIMIT,
-    capability.limits?.maxLimit ?? Number.POSITIVE_INFINITY,
-    limits.maxAnalysisRows,
-  );
+  const limit = limitBounds(capability, limits).fallback;
 
   return {
     filter: emptyFilter(),

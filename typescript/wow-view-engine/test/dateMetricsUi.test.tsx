@@ -327,9 +327,7 @@ describe('an analysis view over the latest of a date', () => {
     });
     expect(card.textContent).not.toContain(String(INSTANT));
     await user.click(await screen.findByRole('button', { name: 'Visualize' }));
-    await user.click(
-      screen.getByRole('button', { name: 'Options for metric' }),
-    );
+    await user.click(screen.getByRole('button', { name: 'metric options' }));
     const panel = document.querySelector<HTMLElement>(
       '[data-slot="chart-options"]',
     )!;

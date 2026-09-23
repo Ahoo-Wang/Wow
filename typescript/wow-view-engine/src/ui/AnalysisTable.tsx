@@ -139,8 +139,20 @@ export function AnalysisTable({ view, onPick }: AnalysisTableProps) {
               data-pickable={onPick ? '' : undefined}
               aria-haspopup={onPick ? 'menu' : undefined}
               className={cn(onPick && 'cursor-pointer', FOCUS_ROW)}
+              // The menu hangs from the cell pressed, or from the row's first
+              // cell for a key, never from the row: a menu anchored to a row
+              // takes the row's width, and an analysis row is the width of
+              // the whole table (the popup's recipe is `--anchor-width`). The
+              // row stays where the keyboard goes back to.
               onClick={
-                onPick ? event => onPick(row, event.currentTarget) : undefined
+                onPick
+                  ? event =>
+                      onPick(
+                        row,
+                        cellOf(event.target, event.currentTarget),
+                        event.currentTarget,
+                      )
+                  : undefined
               }
               // The stop follows the keyboard: a row focused is the row the
               // group's one stop is on, however focus got there — an arrow,
@@ -155,7 +167,11 @@ export function AnalysisTable({ view, onPick }: AnalysisTableProps) {
                   ? event => {
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
-                        onPick(row, event.currentTarget);
+                        onPick(
+                          row,
+                          event.currentTarget.cells[0] ?? event.currentTarget,
+                          event.currentTarget,
+                        );
                         return;
                       }
                       moveStop(event, rows(), 'column');
@@ -240,4 +256,16 @@ export function AnalysisTable({ view, onPick }: AnalysisTableProps) {
       )}
     </div>
   );
+}
+
+/**
+ * The cell a press landed in, which the follow-up menu hangs from; the row
+ * itself only when the press found no cell of it (its padding, say).
+ */
+function cellOf(
+  target: EventTarget,
+  row: HTMLTableRowElement,
+): HTMLTableCellElement | HTMLTableRowElement {
+  const cell = target instanceof Element ? target.closest('td, th') : null;
+  return cell instanceof HTMLTableCellElement ? cell : row;
 }

@@ -230,7 +230,7 @@ describe('the visualization panel hands the keyboard on', () => {
     expect(pickerHeading.getAttribute('tabindex')).toBe('-1');
     await waitFor(() => expect(active()).toBe(pickerHeading));
 
-    press(label('label.chart.options-of').replace('{name}', 'bar'));
+    press(label('label.chart.options').replace('{name}', 'bar'));
 
     await waitFor(() => expect(options()).not.toBeNull());
     await waitFor(() => expect(active()).toBe(headingOf(options()!)));
@@ -238,7 +238,15 @@ describe('the visualization panel hands the keyboard on', () => {
     press(label('label.chart.options-back'));
 
     await waitFor(() => expect(picker()).not.toBeNull());
-    await waitFor(() => expect(active()).toBe(headingOf(picker()!)));
+    // Back from the options is back to the button that went there, the one
+    // the user left by — not the top of the level they are returning to.
+    await waitFor(() =>
+      expect(active()).toBe(
+        screen.getByRole('button', {
+          name: label('label.chart.options').replace('{name}', 'bar'),
+        }),
+      ),
+    );
 
     press(label('label.chart.picker-back'));
 
@@ -467,7 +475,7 @@ describe('the options panel keeps the keyboard on the list it moved', () => {
       }),
     );
     await waitFor(() => expect(picker()).not.toBeNull());
-    press(label('label.chart.options-of').replace('{name}', type));
+    press(label('label.chart.options').replace('{name}', type));
     await waitFor(() => expect(options()).not.toBeNull());
     return engine;
   }

@@ -33,9 +33,12 @@ export default meta;
 
 type Story = StoryObj<typeof displayMeta>;
 
-/** The gear beside the chosen tile, named after the type it configures. */
+/**
+ * The labelled button under the tiles that opens the chosen type's options,
+ * in the words the options page is headed with.
+ */
 const optionsOf = (type: 'bar' | 'pie') =>
-  formatMessage(zhCN, 'label.chart.options-of', {
+  formatMessage(zhCN, 'label.chart.options', {
     name: zhCN[`label.chart.type.${type}`],
   });
 

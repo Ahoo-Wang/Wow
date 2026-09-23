@@ -896,8 +896,11 @@ describe('validateAnalysis', () => {
   });
 
   it('bounds the limit and the counts', () => {
-    expect(check({ limit: 0 })).toEqual(['analysis.limit.not-positive']);
-    expect(check({ limit: 999_999 })).toEqual(['analysis.limit.too-large']);
+    // One finding for every way out of the range, since the sentence it
+    // reads as is the range itself: a fraction is not told it "must be
+    // positive", which it is.
+    for (const limit of [0, -3, 2.5, 999_999])
+      expect(check({ limit })).toEqual(['analysis.limit.out-of-range']);
     expect(
       codes(
         validateAnalysis(
@@ -1192,7 +1195,7 @@ describe('a malformed skeleton', () => {
 
   it('reports a limit that is not a number', () => {
     expect(codes(broken({ limit: 'ten' }))).toContain(
-      'analysis.limit.not-positive',
+      'analysis.limit.out-of-range',
     );
   });
 

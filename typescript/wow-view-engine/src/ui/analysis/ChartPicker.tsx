@@ -14,6 +14,7 @@
 import { useId, useRef, type RefObject } from 'react';
 import {
   ArrowLeftIcon,
+  ChevronRightIcon,
   Settings2Icon,
   ChartAreaIcon,
   ChartColumnIcon,
@@ -28,11 +29,13 @@ import {
 } from 'lucide-react';
 import {
   CHART_PICKER_ORDER,
+  optionTabs,
   type ChartFit,
   type Picked,
 } from '../../analysis/index.js';
 import type { ChartType } from '../../model/index.js';
 import { cn } from 'cn';
+import { Button } from '../components/button.js';
 import { IconButton } from '../IconButton.js';
 import { TEXT_UI } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
@@ -68,6 +71,11 @@ export interface ChartPickerProps {
    * belongs to is the state that moved (A1).
    */
   headingRef?: RefObject<HTMLHeadingElement | null>;
+  /**
+   * The options button, which is where the keyboard is put when the options
+   * page is left: the press that went there came from it.
+   */
+  optionsRef?: RefObject<HTMLButtonElement | null>;
 }
 
 /**
@@ -94,8 +102,14 @@ export interface ChartPickerProps {
  * at the badge and the reason where each exists: the reader hears 「柱状图,
  * 推荐」 and 「热力图, 需要两个维度」, which is what the tile says on screen.
  *
- * The chosen tile wears the gear that opens its options (D20 屏 J),
- * beside the tile rather than inside it — a button holds no button.
+ * **The tiles only pick.** The way on to the chosen type's options (D20
+ * 屏 J) is one button under the grid, as wide as the panel and named by what
+ * it opens — 「柱状图选项」, 「表格选项」 — with a chevron, because it leads to
+ * the panel's next page. It used to be a 24px gear hanging off the chosen
+ * tile's corner: it covered nothing, and nobody saw it or could tell what it
+ * was for (2026-09-23 review). A named control in the Tab order after the
+ * group says both, and leaves each tile one button with nothing inside or
+ * across it.
  */
 export function ChartPicker({
   fits,
@@ -104,11 +118,19 @@ export function ChartPicker({
   onOptions,
   onBack,
   headingRef,
+  optionsRef,
 }: ChartPickerProps) {
   const messages = useViewMessages();
   // One prefix for the picker, suffixed per tile: the ids the tiles' own
   // spans are addressed by, so the description is the markup on screen.
   const ids = useId();
+  const nameOf = (value: Picked) =>
+    messages.label(
+      value === 'table' ? 'label.layout.table' : `label.chart.type.${value}`,
+    );
+  // Every type has at least one page today; one without any would have no
+  // way on to offer, rather than a button that opens an empty panel.
+  const options = optionTabs(picked).length > 0;
   const tiles: { value: Picked; fit: ChartFit }[] = [
     ...CHART_PICKER_ORDER.map(type => ({ value: type, fit: fits[type] })),
     { value: 'table', fit: { available: true } },
@@ -151,15 +173,15 @@ export function ChartPicker({
       <div
         role="radiogroup"
         aria-label={messages.label('label.chart.picker')}
-        className="grid grid-cols-3 gap-2 *:min-w-0 [&>div>button]:w-full"
+        // Rows of one height (`auto-rows-fr`), so a tile that writes a reason
+        // under itself does not make its row a different shape from the
+        // next. The rows stand a step further apart than the columns: the
+        // 「推荐」 mark hangs across its tile's bottom edge, into that gap.
+        className="grid auto-rows-fr grid-cols-3 gap-x-2 gap-y-3 *:min-w-0"
       >
         {tiles.map(({ value, fit }, index) => {
           const Icon = ICON[value];
-          const name = messages.label(
-            value === 'table'
-              ? 'label.layout.table'
-              : `label.chart.type.${value}`,
-          );
+          const name = nameOf(value);
           const reason = fit.reason && messages.label(fit.reason);
           const nameId = `${ids}-name-${value}`;
           const badgeId = `${ids}-recommended-${value}`;
@@ -169,67 +191,72 @@ export function ChartPicker({
               .filter(Boolean)
               .join(' ') || undefined;
           return (
-            <div key={value} className="relative flex">
-              <ChartTile
-                ref={node => {
-                  if (node) refs.current.set(value, node);
-                  else refs.current.delete(value);
-                }}
-                role="radio"
-                aria-checked={picked === value}
-                aria-disabled={!fit.available || undefined}
-                // The word on the tile, and nothing else: without this the
-                // name is taken from the whole of the content, badge and
-                // reason included, and the description would only say them
-                // twice.
-                aria-labelledby={nameId}
-                aria-describedby={describedBy}
-                data-chart-type={value}
-                data-recommended={fit.recommended || undefined}
-                tabIndex={picked === value ? 0 : -1}
-                onClick={() => {
+            <ChartTile
+              key={value}
+              ref={node => {
+                if (node) refs.current.set(value, node);
+                else refs.current.delete(value);
+              }}
+              role="radio"
+              aria-checked={picked === value}
+              aria-disabled={!fit.available || undefined}
+              // The word on the tile, and nothing else: without this the
+              // name is taken from the whole of the content, badge and
+              // reason included, and the description would only say them
+              // twice.
+              aria-labelledby={nameId}
+              aria-describedby={describedBy}
+              data-chart-type={value}
+              data-recommended={fit.recommended || undefined}
+              tabIndex={picked === value ? 0 : -1}
+              onClick={() => {
+                if (fit.available) onPick(value);
+              }}
+              onKeyDown={event => {
+                if (event.key === 'ArrowRight' || event.key === 'ArrowDown')
+                  move(index, 1);
+                else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp')
+                  move(index, -1);
+                else if (event.key === ' ' || event.key === 'Enter') {
+                  event.preventDefault();
                   if (fit.available) onPick(value);
-                }}
-                onKeyDown={event => {
-                  if (event.key === 'ArrowRight' || event.key === 'ArrowDown')
-                    move(index, 1);
-                  else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp')
-                    move(index, -1);
-                  else if (event.key === ' ' || event.key === 'Enter') {
-                    event.preventDefault();
-                    if (fit.available) onPick(value);
-                  }
-                }}
-              >
-                <Icon aria-hidden className="size-5" />
-                <span id={nameId}>{name}</span>
-                {fit.recommended && (
-                  <span id={badgeId} data-slot="chart-recommended">
-                    {messages.label('label.chart.recommended')}
-                  </span>
-                )}
-                {reason && (
-                  <span id={reasonId} data-slot="chart-reason">
-                    {reason}
-                  </span>
-                )}
-              </ChartTile>
-              {picked === value && (
-                <IconButton
-                  label={messages.label('label.chart.options-of', { name })}
-                  variant="ghost"
-                  size="icon-xs"
-                  className="absolute top-0.5 right-0.5"
-                  data-slot="chart-options-open"
-                  onClick={onOptions}
-                >
-                  <Settings2Icon />
-                </IconButton>
+                }
+              }}
+            >
+              <Icon aria-hidden className="size-5" />
+              <span id={nameId}>{name}</span>
+              {fit.recommended && (
+                <span id={badgeId} data-slot="chart-recommended">
+                  {messages.label('label.chart.recommended')}
+                </span>
               )}
-            </div>
+              {reason && (
+                <span id={reasonId} data-slot="chart-reason">
+                  {reason}
+                </span>
+              )}
+            </ChartTile>
           );
         })}
       </div>
+      {options && (
+        <Button
+          ref={optionsRef}
+          variant="outline"
+          // The panel's width, the words at its start and the chevron at its
+          // end: a row that leads on, as a settings list's rows do.
+          className="w-full justify-start"
+          data-slot="chart-options-open"
+          onClick={onOptions}
+        >
+          <Settings2Icon data-icon="inline-start" />
+          <span className="min-w-0 flex-1 truncate text-left">
+            {/* The very words the page it opens is headed with. */}
+            {messages.label('label.chart.options', { name: nameOf(picked) })}
+          </span>
+          <ChevronRightIcon data-icon="inline-end" />
+        </Button>
+      )}
     </div>
   );
 }

@@ -160,7 +160,7 @@ src/
     expand.ts                 — The config re-scoped to an expansion chain (D20 屏 G): `withElements` keeps what still names the new unit's fields and starts the metrics again otherwise; `withLevel`, `withoutLevelsFrom`, `nextExpansion`
     granularity.ts            — The granularity a new time dimension starts at (K4): `recommendDateUnit` from the applied range's span (`rangeSpan`) or the result's buckets (`resultSpan`)
     having.ts                 — 「只保留」 as rows of one comparison each: `havingRows` reads a conjunction, `withHavingRows` writes it, any other shape is declined rather than flattened
-    defaults.ts               — defaultAnalysisConfig — the first metric the capability can express; the one builder of a dimension (`groupOfType` over `GroupFacts`) and of a metric (`metricOfSummary`, `summaryChoices`, `summaryOf`), `groupableFields`, `aliasOf`, `DEFAULT_MISSING_KEY`, `DEFAULT_PERCENTILE`
+    defaults.ts               — defaultAnalysisConfig — the first metric the capability can express; the one builder of a dimension (`groupOfType` over `GroupFacts`) and of a metric (`metricOfSummary`, `summaryChoices`, `summaryOf`), `groupableFields`, `aliasOf`, `DEFAULT_MISSING_KEY`, `DEFAULT_PERCENTILE`; `limitBounds`, the range 「前 N 组」 takes and what a blank stands for
     expressions.ts            — Aggregate and derived expression walks
     metricFormat.ts           — `metricFormat`/`metricFunctionOf`: how an aggregate's number prints, which is not how its field's values print; `readsAsItsField` (MIN/MAX/PERCENTILE/ANY read as the field does) and `momentMetrics` (those over a date: read, never measured by a mark)
     project.ts                — projectAnalysis — table columns and rows
@@ -171,7 +171,7 @@ src/
     validateElements.ts       — The expansion chain, walked level by level, and each gate filter
     validateGroups.ts         — Group kinds, date units, dense, missing-value keys
     validateHaving.ts         — Having: declared, grouped, over known metrics
-    validateLimits.ts         — Declared limits under Wow's own ceilings
+    validateLimits.ts         — Declared limits under Wow's own ceilings; the row limit against `limitBounds`, one finding for every way out of range
     validateMetrics.ts        — One rule set per metric type, filters included
     validateShape.ts          — The skeleton every other rule reads through
     validateSort.ts           — Sort and table columns, over known aliases
@@ -331,7 +331,7 @@ src/
     index.ts                  — The `/ui` entry: the default look, built on shadcn/ui with Base UI primitives
     analysis/                 — What the analysis view is made of
       AnalysisToolbar.tsx     — The result's first row: the reading (dimensions · metrics) and how the result is looked at — table or chart, chart type, totals row
-      ChartPicker.tsx         — The visualization panel's first level: the chart types as tiles in the sidebar column, greyed with a reason, the recommended one marked, the table among them (D20 屏 I)
+      ChartPicker.tsx         — The visualization panel's first level: the chart types as tiles in the sidebar column, greyed with a reason, the recommended one marked, the table among them (D20 屏 I); under them one labelled button on to the chosen type's options
       ChartOptions.tsx        — The visualization panel's second level: the chosen type's options on the data, display and axes pages (D20 屏 J)
       drag.ts                 — What the series list makes of a drag: `seriesDrop` takes only a drop between two series this chart draws, plus what a reader hears
       DataTab.tsx             — The options' data page: each family's slots, position slots listing dimensions and measure slots listing metrics; a funnel's stages reordered by hand, and a metric-staged one named by hand
@@ -344,13 +344,13 @@ src/
       ElementsSlot.tsx        — The expansion slot (D20 屏 G): the chain of arrays counted inside, one card a level with its own gate, 「展开：…」 along the declared chain, and the counting unit
       FormulaCard.tsx         — The controls of a formula metric and of a derived metric (D20 屏 B): two operands picked or typed, the operation between, the summary for a formula
       HavingRows.tsx          — 「只保留」: the groups kept, as rows of one comparison each under the metrics; a stored having of another shape is shown and clearable
-      DrillMenu.tsx           — The follow-up menu on one group of a result: the records behind it, split by another dimension, only this group (D20 追问); anchored to the mark or row pressed
+      DrillMenu.tsx           — The follow-up menu on one group of a result: the records behind it, split by another dimension, only this group (D20 追问); as wide as its words, hung from the mark, point or cell pressed, the keyboard handed back to the row
       EmptyResult.tsx         — An aggregation that matched no group, one sentence for both layouts
       MetricCard.tsx          — The metrics slot and its cards: field and summary (the six ways Wow measures a field as one list), a percentile's number, the record count
       MetricCondition.tsx     — Conditions edited in place under a tray card (D20 屏 H): the funnel, the block of the range's own pills, the 「只算 …」 line at rest; a metric's and an expansion level's
       SeriesList.tsx          — The data page's 系列 slot: one row per metric drawn, carried by the shared handle into the order the analyst wants (`cartesian.series`, and nothing else about a series)
       RangeSlot.tsx           — The tray's first slot: the condition panel under a heading that holds the tree's simple/advanced switch
-      SortRow.tsx             — The bottom of the metrics slot: what the first N groups are the first N of
+      SortRow.tsx             — The bottom of the metrics slot: what the first N groups are the first N of, and the N — a blank is the starting N, text out of range stays in the box, marked, and never reaches the draft
       Tray.tsx                — The analysis view's editor: range → dimensions | metrics, one Apply for the whole draft (D20)
       editing.ts              — What the tray picks when a field is picked — its alias and the type or summary it starts as (`defaultGroup`, `defaultMetric`), the shapes being the kernel builders' — and what a metric is called
       listFocus.ts            — Where the keyboard stands after the card it was on leaves the page: `useListFocus`, shared by every remove and move in the tray and the options panel (A2)
