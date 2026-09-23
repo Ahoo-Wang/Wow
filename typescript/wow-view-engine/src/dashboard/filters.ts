@@ -24,6 +24,7 @@ import {
   type DashboardFilters,
   type DashboardViewConfig,
   type FieldDefinition,
+  type FieldOption,
   type FilterLeaf,
   type FilterOperatorName,
   type FilterTree,
@@ -238,7 +239,8 @@ export function panelFilterTree(
  * value controls, never new ones): a date filter the date control its kind
  * asks for, a yes-or-no the yes/no select, an id filter ids from the host's
  * source or its list; a text or number filter with a list of its own the
- * select over it; otherwise text picked from the wired fields' values or a
+ * select over it, as over the list its wired fields declare (`wired`, an
+ * enum's options); otherwise text picked from the wired fields' values or a
  * number — one value or several as the filter
  * takes. A filter of a kind outside the five gets what its kind asks for.
  */
@@ -246,6 +248,7 @@ export function filterEditor(
   field: DashboardField,
   value: FilterValue | undefined,
   kinds: FieldKindRegistry,
+  wired: readonly FieldOption[] | null = null,
 ): EditorDescriptor {
   const type = filterTypeOf(field.kind);
   const multiple = field.multiple === true;
@@ -263,6 +266,10 @@ export function filterEditor(
   if (type === 'id') return { input: 'remote', multiple, remote: field.remote };
   if (Array.isArray(field.options) || field.kind === 'enum')
     return { input: 'select', multiple, options: field.options ?? [] };
+  // No list of its own: the list its wired fields declare, labels shown and
+  // codes stored (`wiredOptions`).
+  if (wired && wired.length > 0)
+    return { input: 'select', multiple, options: [...wired] };
   if (type === 'number') return { input: 'number', multiple };
   return { input: 'text', multiple };
 }

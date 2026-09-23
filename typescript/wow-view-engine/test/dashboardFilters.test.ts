@@ -319,6 +319,26 @@ describe('how a filter is edited', () => {
     ).toEqual({ input: 'number', multiple: false });
   });
 
+  it('picks from the list its wired fields declare, where it has none of its own', () => {
+    const declared = [{ value: 'PENDING', label: 'Pending' }];
+    expect(filterEditor(REGION, undefined, kinds, declared)).toEqual({
+      input: 'select',
+      multiple: false,
+      options: declared,
+    });
+    // Its own list is the one it picks from.
+    const own = [{ value: 'CN', label: 'China' }];
+    expect(
+      filterEditor({ ...REGION, options: own }, undefined, kinds, declared),
+    ).toMatchObject({ options: own });
+    // An empty list is none.
+    expect(filterEditor(REGION, undefined, kinds, [])).toEqual({
+      input: 'text',
+      multiple: false,
+    });
+    expect(filterStoredValue(REGION, 'PENDING', kinds)).toEqual(['PENDING']);
+  });
+
   it('asks a kind outside the five for its own control, and none for an unknown one', () => {
     const rounded: FieldKind = {
       ...(kinds.get('number') as FieldKind),

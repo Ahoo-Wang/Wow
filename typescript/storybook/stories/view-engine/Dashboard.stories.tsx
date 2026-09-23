@@ -12,7 +12,16 @@
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { DashboardWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
-import type { DashboardViewConfig } from '@ahoo-wang/fetcher-view-engine';
+import {
+  AggregationDateUnit,
+  AggregationGroupType,
+} from '@ahoo-wang/fetcher-wow';
+import type {
+  DashboardFilters,
+  DashboardViewConfig,
+  DataViewDefinition,
+  ViewInstance,
+} from '@ahoo-wang/fetcher-view-engine';
 import { AppShell } from '../shared/AppShell.js';
 import {
   HOST_LANGUAGE,
@@ -40,7 +49,8 @@ type Variant =
   | 'legacy'
   | 'system'
   | 'owned'
-  | 'tabs';
+  | 'tabs'
+  | 'filters';
 
 /**
  * The board that ships with the definition: read-only to everyone (D4), so
@@ -59,9 +69,12 @@ const systemOverview = {
 function DashboardDemo({
   behaviour = 'data',
   variant = 'panels',
+  onFiltersChange,
 }: {
   behaviour?: SourceBehaviour;
   variant?: Variant;
+  /** Told what the board's filters hold, as a host's address would be. */
+  onFiltersChange?(filters: DashboardFilters): void;
 }) {
   return (
     <StoryEngine
@@ -69,10 +82,13 @@ function DashboardDemo({
         createStoryEngine({
           behaviour,
           definitions: [
-            ordersDefinition,
+            // Orders bucketed by time, so a trend can be grouped by the
+            // board's 按日｜按月 (D22 F).
+            timedOrdersDefinition,
             variant === 'system' ? systemOverview : overviewDefinition,
           ],
           instances: [
+            trendView,
             // An unavailable panel is one whose instance is not in the store.
             ...(variant === 'unavailable' ? [savedViews[1]] : savedViews),
             {
@@ -96,6 +112,7 @@ function DashboardDemo({
           instanceId={
             variant === 'system' ? 'system:overview:ops' : savedDashboard.id
           }
+          onFiltersChange={onFiltersChange}
           {...HOST_LANGUAGE}
         />
       )}
@@ -104,6 +121,7 @@ function DashboardDemo({
 }
 
 function savedConfig(variant: Variant) {
+  if (variant === 'filters') return filtersConfig();
   if (variant === 'tabs') return tabbedConfig();
   if (variant === 'owned') return ownedConfig();
   if (variant === 'empty' || variant === 'empty-shared')
@@ -137,7 +155,18 @@ function tabbedConfig(): DashboardViewConfig {
         id: 'by-status',
         kind: 'view',
         title: '按状态看金额',
-        instanceId: 'orders-analysis',
+        // An analysis of the board's own, grouped by status, so the title
+        // says what the chart draws.
+        owned: {
+          definitionId: 'orders',
+          config: analysisConfig({
+            groups: [{ alias: 'status', field: 'status', type: 'TERMS' }],
+            chart: {
+              type: 'bar',
+              cartesian: { x: 'status', series: [{ metric: 'amount' }] },
+            },
+          }),
+        },
         bindings: [{ globalField: 'region', panelField: 'warehouse' }],
         layout: { x: 0, y: 0, w: 12, h: 4 },
         tab: 'tab-status',
@@ -167,6 +196,110 @@ function ownedConfig(): DashboardViewConfig {
           }),
         },
         bindings: [{ globalField: 'region', panelField: 'warehouse' }],
+        layout: { x: 8, y: 4, w: 16, h: 4 },
+      },
+    ],
+  };
+}
+
+/**
+ * Orders whose creation time an analysis may bucket by the day or the month,
+ * and whose order numbers it may count by value — which is what a text
+ * filter wired to 订单号 offers to pick from, with how many records hold
+ * each (D22 G).
+ */
+const timedOrdersDefinition: DataViewDefinition = {
+  ...ordersDefinition,
+  analysis: {
+    ...ordersDefinition.analysis!,
+    fields: [
+      ...ordersDefinition.analysis!.fields,
+      { field: 'id', groups: [AggregationGroupType.TERMS], functions: [] },
+      {
+        field: 'createdAt',
+        groups: [AggregationGroupType.DATE_HISTOGRAM],
+        functions: [],
+        dateUnits: [AggregationDateUnit.DAY, AggregationDateUnit.MONTH],
+      },
+    ],
+  },
+};
+
+/** Orders by the day they were created: a trend the board's grouping moves. */
+const trendView: ViewInstance = {
+  id: 'orders-trend',
+  definitionId: 'orders',
+  title: '每日订单',
+  scope: 'shared',
+  revision: '1',
+  config: analysisConfig({
+    groups: [
+      {
+        alias: 'createdAt',
+        field: 'createdAt',
+        type: 'DATE_HISTOGRAM',
+        unit: 'DAY',
+      },
+    ],
+    chart: {
+      type: 'bar',
+      cartesian: { x: 'createdAt', series: [{ metric: 'orders' }] },
+    },
+  }),
+};
+
+/**
+ * The board's filters (D22 F): a required creation time on every panel, a
+ * warehouse on the two over it — not on the trend, which says so — a
+ * category 状态 wired to the orders' status, whose closed list it picks from
+ * by label, an 订单号 picked from the order numbers the data holds, and the
+ * time grouping by the day or the month.
+ */
+function filtersConfig(): DashboardViewConfig {
+  const base = dashboardConfig();
+  const created = { globalField: 'created', panelField: 'createdAt' };
+  const status = { globalField: 'phase', panelField: 'status' };
+  return {
+    ...base,
+    fields: [
+      {
+        name: 'created',
+        label: '创建时间',
+        kind: 'datetime',
+        required: true,
+        default: {
+          type: 'absolute',
+          from: '2026-09-01',
+          to: '2026-09-30',
+        },
+      },
+      ...base.fields,
+      { name: 'phase', label: '状态', kind: 'string' },
+      { name: 'order', label: '订单号', kind: 'string' },
+    ],
+    timeGrouping: { units: ['DAY', 'MONTH'], default: 'DAY' },
+    panels: [
+      ...base.panels.map(panel =>
+        panel.kind === 'view'
+          ? {
+              ...panel,
+              bindings: [
+                ...panel.bindings,
+                created,
+                status,
+                ...(panel.id === 'pending'
+                  ? [{ globalField: 'order', panelField: 'id' }]
+                  : []),
+              ],
+            }
+          : panel,
+      ),
+      {
+        id: 'trend',
+        kind: 'view',
+        title: '每日订单',
+        instanceId: 'orders-trend',
+        bindings: [created, status],
         layout: { x: 8, y: 4, w: 16, h: 4 },
       },
     ],
@@ -282,6 +415,14 @@ export const Loading: Story = { args: { behaviour: 'slow' } };
 
 /** A failing backend leaves the layout and the filter intact. */
 export const QueryFailed: Story = { args: { behaviour: 'failing' } };
+
+/**
+ * The filter bar (D22 F): 创建时间 is required — starred, never empty —
+ * 仓库 reaches the two panels over it and not the trend, which says so once
+ * 仓库 holds a value, and 按日｜按月 regroups the trend. While the board is
+ * built, 「筛选 ＋」 adds one, and 「接线」 wires it (D22 G).
+ */
+export const Filters: Story = { name: '筛选条', args: { variant: 'filters' } };
 
 /** A dashboard with nothing on it yet. */
 export const EmptyDashboard: Story = { args: { variant: 'empty' } };

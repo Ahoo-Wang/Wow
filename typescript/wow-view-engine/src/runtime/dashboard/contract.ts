@@ -23,6 +23,7 @@ import type {
   DashboardFilters,
   DashboardViewConfig,
   DataViewDefinition,
+  FieldOption,
   FilterTree,
   FilterValue,
   Issue,
@@ -118,6 +119,12 @@ export interface DashboardRuntime
    * board does not take is left out, and said in the answer.
    */
   setFilters(filters: DashboardFilters): Issue[];
+  /**
+   * The list a filter without one of its own picks from: the options the
+   * fields it is wired to declare, merged, labels shown and codes stored
+   * (`wiredOptions`); `null` when none declares one.
+   */
+  wiredOptions(name: string): FieldOption[] | null;
 }
 
 export interface DashboardRuntimeOptions {

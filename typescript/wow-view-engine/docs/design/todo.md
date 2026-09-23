@@ -29,9 +29,7 @@ ECharts 迁移（D21）与两份「数据分析师视角」审查的 P0 已全�
   - 共享板上个人视图的面板菜单「复制为共享视图并替换」（D22 B）还没有。
   - 判据：从空仪表盘开始只用界面就能搭出首页那块运营看板；真浏览器逐控件走查。
   - 落点：`src/ui/dashboard/`、`src/ui/DashboardWorkbench.tsx`、[ui/dashboard.md](ui/dashboard.md)。
-- **批 C 全局筛选**（交互稿 F、G 屏）：C1 已落地模型与运行时（五种类型、默认值、必填、多值、值从哪来、时间粒度、接线与自动连接、「不受影响」、改了就跑、宿主地址），见 [model.md#dashboard-配置](model.md#dashboard-配置)、[runtime.md#dashboard](runtime.md#dashboard)。剩 C2：筛选条（页头一排、值控件复用条件编辑器、必填星号、「按日｜周｜月」、「清空」、当前标签页上不影响任何面板的淡一档）、面板头「不受『〈筛选〉』影响」、编辑中的「筛选 ＋」设置弹层与接线模式（底部接线条、「没有可接的字段」、「手动」、「已自动接上 N 个」可撤销）；筛选条接手之后，工作台标题栏里编辑整板常驻条件的那个折叠面板去掉。
-  - 判据：新加一个时间筛选自动接上所有有该字段的面板；必填时不跑全量；切粒度整板重算；有故事守着。
-  - 落点：`src/ui/dashboard/`、`src/ui/DashboardWorkbench.tsx`、[ui/dashboard.md](ui/dashboard.md) 的 F、G 屏。
+- **批 C 全局筛选**：已做完（C1 #1843 模型与运行时，C2 界面），见 [ui/dashboard.md](ui/dashboard.md)「筛选」。剩一件：**筛选条上的排序**——内核与 runtime 有 `moveFilter`，界面上还没有拖动或键盘调顺序；判据：编辑中筛选可按把手或方向键调顺序（同标签栏的 `DragHandle`），有测试；落点：`src/ui/dashboard/FilterBar.tsx`。
 - **批 D 点击**（交互稿 H、I 屏；迁移会话的审查也报了「面板点柱子没反应、打不开源视图」）：默认下钻（复用分析视图追问，经宿主路由钩子到工作台并带全局筛选）；按面板开启交叉筛选；自定义目的地。
   - 判据：点柱子弹出追问；开了交叉筛选的面板点一个值，其余接线面板跟着筛、它自己不变；有故事守着。
   - 落点：面板配置、`src/ui/DashboardGrid.tsx`、`src/react/useAnalysisResult.ts` 的追问复用、宿主钩子的类型。

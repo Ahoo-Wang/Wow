@@ -53,6 +53,7 @@ panelFilterTree(config, filters, bindings, kinds): FilterTree | null   // 一个
 filterEditor(field, value, kinds): EditorDescriptor           // 编辑一个筛选的值用条件编辑器的哪个控件
 bindPanel(config, name, panelId, panelField, fieldsOf): { config, connected }   // 亲手接一个面板，再按同名同类型自动接其余（任何标签页、任何定义）
 autoBindings(config, fields, given?): PanelBinding[]          // 新加的面板自带的接线
+wiredOptions(config, name, fieldsOf): FieldOption[] | null     // 筛选没列一组时，接上的字段声明的选项合成一组（同一代码一次）；没有为 null
 filterReach(config, panel, fields | null): Record<string, FilterReach>   // 每个筛选对一个面板：接上了（经哪个字段、是否自动）或没接上与为什么
 filtersOnTab(panels, tab): Set<string>                         // 在一个标签页上至少影响一个面板的筛选
 ```

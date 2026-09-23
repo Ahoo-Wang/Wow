@@ -38,6 +38,7 @@ import {
   setTimeGrouping,
   unbindPanels,
   wireableFields,
+  wiredOptions,
   type DashboardField,
   type DashboardPanel,
   type DashboardViewPanel,
@@ -505,5 +506,78 @@ describe('setting up the filters', () => {
     expect(grouped.timeGrouping?.units).toEqual(['DAY', 'WEEK']);
     expect(setTimeGrouping(grouped, null).timeGrouping).toBeUndefined();
     expect(setTimeGrouping(board, null)).toBe(board);
+  });
+});
+
+describe('the list the wired fields declare', () => {
+  const STATUS: FieldDefinition[] = [
+    {
+      name: 'status',
+      label: 'Status',
+      kind: 'enum',
+      options: [
+        { value: 'PENDING', label: 'Pending', tone: 'warning' },
+        { value: 'SHIPPED', label: 'Shipped' },
+      ],
+    },
+  ];
+  const STATE: FieldDefinition[] = [
+    {
+      name: 'state',
+      label: 'State',
+      kind: 'enum',
+      options: [
+        { value: 'SHIPPED', label: 'Sent' },
+        { value: 'LOST', label: 'Lost' },
+      ],
+    },
+  ];
+  const lists: PanelFields = panel => {
+    if (panel.instanceId === 'status') return STATUS;
+    if (panel.instanceId === 'state') return STATE;
+    if (panel.instanceId === 'orders') return ORDERS;
+    return null;
+  };
+  const wired = dashboardConfig({
+    fields: [{ name: 'phase', label: 'Phase', kind: 'string' }],
+    panels: [
+      view('a', 'status', {
+        bindings: [{ globalField: 'phase', panelField: 'status' }],
+      }),
+      view('b', 'state', {
+        bindings: [{ globalField: 'phase', panelField: 'state', auto: true }],
+      }),
+      // A field without a list adds nothing to it.
+      view('c', 'orders', {
+        bindings: [{ globalField: 'phase', panelField: 'warehouse' }],
+      }),
+      // Not wired: not asked.
+      view('d', 'status'),
+      view('e', 'unknown', {
+        bindings: [{ globalField: 'phase', panelField: 'x' }],
+      }),
+    ],
+  });
+
+  it('is every option of every wired field, the same code once, labels shown', () => {
+    expect(wiredOptions(wired, 'phase', lists)).toEqual([
+      { value: 'PENDING', label: 'Pending' },
+      { value: 'SHIPPED', label: 'Shipped' },
+      { value: 'LOST', label: 'Lost' },
+    ]);
+  });
+
+  it('is nothing where no wired field declares one', () => {
+    expect(wiredOptions(wired, 'gone', lists)).toBeNull();
+    expect(
+      wiredOptions(
+        dashboardConfig({
+          ...wired,
+          panels: [wired.panels[2]],
+        }),
+        'phase',
+        lists,
+      ),
+    ).toBeNull();
   });
 });

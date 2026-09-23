@@ -64,7 +64,7 @@
 
 **读与搭分开**（D22 A）：读板子时什么都不动——没有抓手、缩放角、摆放菜单，指针拖不动，键盘命令不落；标题栏里保存按钮旁边一颗「编辑」进入搭的状态，面板上的这些才出现。「编辑」**只给能保存这块板的人**（`SaveCommands.can.save`：系统仪表盘只读、没有保存权限的读者都没有），系统仪表盘因此只有「另存为」（D4）。编辑状态是界面的，属于这一次打开（`DashboardWorkbench` 按 runtime id 记）：换一个视图就回到读。它**不是** runtime 的 `setEditing`——那个是编辑器拿着焦点、暂停自动刷新的意思，条件面板一失焦就会把它关掉。（见 test/dashboardBuilding.test.tsx「offers 编辑 to whoever may save it, and nothing moves until it is pressed」「offers a system dashboard 另存为 and no 编辑」「offers no 编辑 to a reader who may not save the board」；浏览器里 stories/view-engine/DashboardBuilding.test.stories.tsx「NoGripsUntilBuilding」「SystemDashboardHasNoEdit」）
 
-- **编辑条**（`ui/dashboard/EditBar.tsx`）在栅格上方、全局筛选之下：「正在编辑」与一句说明（面板随改随跑；按「完成」才保存）、「＋ 添加 ▾」、「取消」、「完成」。它是一个以「正在编辑」为名的 `region`。**编辑中提交与回退只有一处**（用户 2026-09-23 定：一件事一种做法）：标题栏上的保存按钮与「已修改 ↺」都收起来——「完成」就是那次保存、「取消」就是那次还原，旁边再有一颗保存或一个 ↺ 就是同一条命令换个名字，只会让人猜哪颗才算。离开编辑（「完成」或「取消」）之后标题栏照旧：有未保存的修改（例如正在拼的全局条件）就有「已修改 ↺」。开关是 `WorkbenchShell`／`ViewHeader` 的 `commitElsewhere`。（见 test/dashboardBuilding.test.tsx「leaves 「已修改 ↺」 to the edit bar while the board is built」；浏览器里「BuildFromEmpty」「CancelReverts」）「筛选 ＋」随批 C 才有，今天不画。
+- **编辑条**（`ui/dashboard/EditBar.tsx`）在栅格上方、全局筛选之下：「正在编辑」与一句说明（面板随改随跑；按「完成」才保存）、「＋ 添加 ▾」、「取消」、「完成」。它是一个以「正在编辑」为名的 `region`。**编辑中提交与回退只有一处**（用户 2026-09-23 定：一件事一种做法）：标题栏上的保存按钮与「已修改 ↺」都收起来——「完成」就是那次保存、「取消」就是那次还原，旁边再有一颗保存或一个 ↺ 就是同一条命令换个名字，只会让人猜哪颗才算。离开编辑（「完成」或「取消」）之后标题栏照旧：有未保存的修改（例如正在拼的全局条件）就有「已修改 ↺」。开关是 `WorkbenchShell`／`ViewHeader` 的 `commitElsewhere`。（见 test/dashboardBuilding.test.tsx「leaves 「已修改 ↺」 to the edit bar while the board is built」；浏览器里「BuildFromEmpty」「CancelReverts」）「筛选 ＋」在「添加」旁边（批 C2，见下文「筛选」）。
 - **「完成」就是保存**：走 `SaveCommands.save` 同一条路，共享板先问一句、点名这块板（#1836 的 `SharedSaveConfirm`），个人板直接存；**从没保存过的板**弹首存对话框问名字与受众；没有改动就直接退出、什么也不写；写没落地（冲突、拒绝、结果未知）就留在编辑中，出了什么事照旧由标题下的 `WriteOutcome` 说。被整板 error 挡住的草稿「完成」禁用，原因在状态行里。（见 test/dashboardBuilding.test.tsx「saves on 完成 and reads the board again」「asks before 完成 writes over a shared board, naming it」「leaves at once on 完成 with nothing to save」）
 - **「取消」是 `revert`**：有改动先问——与 ↺ 同一个问题、同一个对话框（`RevertDialog`）——再回到保存的样子并退出；没有改动直接退出。从没保存过的板没有可回的地方，所以没有「取消」。（见 test/dashboardBuilding.test.tsx「puts back the saved board on 取消, asking first」；浏览器里「CancelReverts」）
 - **焦点**：按「编辑」时这颗按钮离开标题栏，焦点落到编辑条的「正在编辑」上（`tabIndex=-1`，只被送达、不是 Tab 站）；「完成」「取消」之后回到重新出现的「编辑」上。都只在焦点真丢了（落到 `body`）时才做——从空板子的第一步进来，焦点已经在对话框或标题的输入框里。
@@ -125,23 +125,38 @@ interface DashboardEditExtensions {
 - **屏幕上是哪一页不是扩展的一项**：它是 runtime 的（`DashboardController.tab`），栅格与 `spot.tab` 都读那里——只有一个来源，只跑那一页也由它说了算。
 - 对话框关上时键盘回到打开它的那颗控件（打开时那个菜单的触发钮——「添加」或面板的「⋯」——或空板子上那颗按钮），经一个稳定的 `finalFocus`：对话框的焦点管理在它换成新函数时会重新布防、顺手把键盘交回去。打开对话框的菜单项让菜单**不**在收起时把键盘拿回触发钮（`handedOff`）——菜单收起的动画晚于对话框打开，从前键盘会在对话框开着时被拿到板上的「添加」，打进标题框的字只进去一两个（浏览器里「CreateOwnedAnalysis」守着）。（见 test/dashboardBuilding.test.tsx「shows the extensions’ entries only where they are provided」）
 
+## 筛选（D22 F、G，批 C）
+
+模型与运行时见 [model.md#dashboard-配置](../model.md#dashboard-配置) 与 [runtime.md#dashboard](../runtime.md#dashboard)；这里是屏幕上的样子（`ui/dashboard/FilterBar.tsx`、`FilterSettings.tsx`、`FilterWiring.tsx`，由 `BoardFilters.tsx` 的 `useBoardFilters` 交给 `DashboardBoard`）。
+
+- **筛选条在板子最上面**（F 屏）：在编辑条、标签栏、面板之上，对所有标签页生效；一个以「筛选」为名的 `region`。一个筛选一枚：名字、值控件、需要时一颗 ✕。**值控件就是条件编辑器的那几个**（`FilterValueEditor`，经内核的 `filterEditor` 选：日期是那套「日历／相对／命名时段」，文本或类别：自己列了一组的是选择；没列而接上的字段自己声明了一组（`enum` 的选项）就从那一组里选——显示标签、存代码，几个字段的同一个代码只出一次（内核 `wiredOptions`，照 Metabase 的类别筛选），读者选「待出库」、筛选存 `PENDING`，不必打协议代码；都没有才从接上的字段在数据里的值里挑、带记录数（`DashboardRuntime.valueCandidates`，与文本条件同一个 `SuggestedValue`），连这也没有才是输入框；ID 走宿主的候选源，数字、是否各是各的）；单值筛选存成一项的列表，控件里就是那一个值（`filterControlValue`／`filterStoredValue`）。没有「应用」：改了就跑（300 毫秒后面板自己重跑）。（类别见 test/dashboardFilterBar.test.tsx「picks a category from the labels its wired fields declare, and holds their codes」，浏览器里「CategoryPicksFromLabels」「TextOffersCountedValues」）
+- **必填带星号，永远有值**：星号画出来，读屏念「创建时间（必填）」（名字写在这一枚 `group` 的 `aria-label` 上，星号本身 `aria-hidden`）；在默认值上没有 ✕，改过之后那颗是「把「创建时间」恢复为默认值」（`RotateCcwIcon`），「清空」把它放回默认值而不是清空。非必填的 ✕ 是「清除「仓库」」。**「清空」**在筛选条末尾，一切都在起点（必填在默认值、粒度在默认粒度、其余为空）时禁用。（见 test/dashboardFilterBar.test.tsx「never leaves a required filter empty: its ✕ and 「清空」 go back to the default」；浏览器里 stories/view-engine/DashboardFilters.test.stories.tsx「RequiredNeverEmpty」）
+- **时间粒度是一组「按日｜按周｜按月」**（`ToggleGroup`，按 `units` 的顺序，名字「时间粒度」）：按下就整板重算，接得上的面板都换成那个粒度（`regrouped`）；换不了的面板头上带那条 note（「保留自己的时间粒度」）。编辑中旁边一颗「移除时间粒度」。（见 test/dashboardFilterBar.test.tsx「switches the time grouping of every panel that can take it」；浏览器里「TimeGroupingSwitches」数了查询次数）
+- **在当前标签页上什么也没影响的筛选淡一档**（`filtersOnTab`）：边框变虚、底色退到背景，字保持原来的对比度——整枚降透明度会让文字过不了 axe 的对比度；旁边一颗 `InfoIcon` 的 `IconTooltip`，悬停与聚焦都说「这个标签页里没有受『仓库』影响的面板」。时间粒度同理（这一页没有面板按时间分组时）。（见 test/dashboardFilterBar.test.tsx「draws a filter that reaches nothing on the tab quieter, and says why」）
+- **「不受『〈筛选〉』影响」**：一个**此刻有值**的筛选没接上某个数据面板时，那个面板的标题后一枚 `ToneBadge`（warning 语气、不带圆点，`data-slot="panel-not-reached"`），几个就并成一句：不受「仓库」、「时间」影响（这句单独站在屏幕上，所以用「」而不是『』）。没值的筛选什么也没筛，就不说——否则一块板子上每个面板都挂一串。（见 test/dashboardFilterBar.test.tsx「runs a value on its own, only on the panels it reaches, and clears it」；浏览器里「UnwiredPanelSaysSo」）
+- **地址是宿主的**：`DashboardWorkbench` 的 `initialFilters`／`onFiltersChange`（批 C1）；浏览器里「ValuesReachTheHost」。
+- **标题栏里原来那个条件折叠面板去掉了**：筛选条就是板子的筛选。「已应用」那条带子只在还有筛选条不管的条件时才画——批 C 之前存下的整板条件，或宿主的作用域（Q16）——并照旧可以从那里拿掉。（见 test/dashboardWorkbench.test.tsx「opens a dashboard, shows its panels and its filter bar」「draws the applied band only for a standing condition the bar does not hold」）
+- **加筛选**（G 屏，编辑中）：编辑条上「添加」旁边一颗「筛选 ▾」（`AddFilterMenu`，名字「添加筛选」）：日期、文本或类别、ID、数字、是否；板子还没有时间粒度时多一项「时间粒度」（按日／周／月，默认按日）。新筛选以类型为名、加在末尾，它的**设置弹层随即打开**（`FilterSettings`，挂在那一枚上的齿轮，编辑中每一枚都有）：类型（换类型会丢掉默认值、列表与接线）、名字（空白不收）、默认值（与筛选条同一个值控件；必填却没有默认值时字段标红并说「必填的筛选需要一个默认值」）、可多选（日期、是否没有）、必填、值从哪来（文本与数字：「接上的字段」／「自己列一组」，后者就是条件编辑器的 chips）；底下「接线」「移除筛选」。每一下都是草稿里的编辑，「完成」才保存。（见 test/dashboardFilterBar.test.tsx「sets a text filter up: several values, a list of its own, then removes it」「adds the time grouping from 「筛选 ＋」 and takes it off from the bar」）
+- **接线**：「接线」让板子进入给这个筛选接线的状态：编辑条下一条「正在给『〈筛选〉』接线」与「完成接线」（`WiringBar`），每个数据面板底部一条接线条（`PanelWiring`）：「筛选字段 〈字段〉 ▾」，下拉里只有同类型的字段（`wireableFields`）加「不接」；一个同类型字段都没有就说「没有可接的字段」；亲手选的标「手动」（自动接的不标）。在一个面板上选了字段，**同名同类型的其余面板自动接上**（任何标签页、任何数据定义，`bindPanel`），随即一条提示「已自动接上 N 个有『〈字段〉』字段的面板」带「撤销」（`unbindPanels` 撤掉那几个，亲手选的留着）。提示是注册表的 `toast`（Base UI），**不 portal 出去**：放在板子自己的 `.fve-root` 里，主题才到得了它（同 `popups.tsx` 的理由），视口是它自己的 `aria-live` 区域。（见 test/dashboardFilterBar.test.tsx「adds a date filter, sets it up, and wires it — auto-connecting the rest, with an undo」；浏览器里「AddTimeFilterAutoConnects」）
+- **以后新加的面板同样自动接**（`addPanel` 经 `autoBindings`，批 C1）。筛选的顺序由 `moveFilter` 改，界面上的拖动排序这一批没做（todo）。
+
 ## 阶段 3 的交互（定稿）
 
 [仪表盘交互稿](https://claude.ai/artifact/SVjSG6BH7WVAnqthQDh42y) 2026-09-23 定稿（用户：十条待拍板「全按推荐」），方向见 [D22](../decisions.md#d22-仪表盘与嵌入视图参照-metabase2026-09-23)。批 B～D 按下面逐屏实现；实现落地后把每条改写成现状并附测试名。
 
 **批 B1 落地了 A～E 背后的模型与运行时**：24 列与旧布局迁移、标签页、板内分析视图与「另存为视图」、展示覆盖、标题卡片（[model.md#dashboard-配置](../model.md#dashboard-配置)）；搭板子的命令 `DashboardEditing`，编辑中按草稿实时重跑、保存才写回；保存只被整板 error 挡；动手后上浮压紧；同名面板编号（[runtime.md#dashboard](../runtime.md#dashboard)）。**批 B2 落地了 A、B、D 的界面**，已改写成上一节的现状；B3 做标签栏、「在仪表盘里新建分析」的大对话框、展示覆盖的编辑与「另存为视图」，从「扩展」接进来。
 
-**批 C1 落地了 F、G 背后的模型与运行时**：五种筛选类型、默认值、必填、多值、值从哪来、时间粒度、接线与自动连接、「不受影响」的答案（[model.md#dashboard-配置](../model.md#dashboard-配置)）；筛选此刻的值是读者的、改了就跑、必填永不为空、时间粒度只换定义允许的、候选值取自接上的字段（[runtime.md#dashboard](../runtime.md#dashboard)）。宿主经 `DashboardWorkbench` 的 `initialFilters`／`onFiltersChange` 把值写进自己的地址——打开那一刻也说一声，与 `initialTab`／`onTabChange` 同一个样子，包本身从不碰地址（见 test/dashboardWorkbench.test.tsx「opens under the filters a host keeps in its address, and tells it what they hold (D22 F)」）。筛选条与接线的界面随批 C2。
+**批 C1 落地了 F、G 背后的模型与运行时**：五种筛选类型、默认值、必填、多值、值从哪来、时间粒度、接线与自动连接、「不受影响」的答案（[model.md#dashboard-配置](../model.md#dashboard-配置)）；筛选此刻的值是读者的、改了就跑、必填永不为空、时间粒度只换定义允许的、候选值取自接上的字段（[runtime.md#dashboard](../runtime.md#dashboard)）。宿主经 `DashboardWorkbench` 的 `initialFilters`／`onFiltersChange` 把值写进自己的地址——打开那一刻也说一声，与 `initialTab`／`onTabChange` 同一个样子，包本身从不碰地址（见 test/dashboardWorkbench.test.tsx「opens under the filters a host keeps in its address, and tells it what they hold (D22 F)」）。筛选条与接线的界面是批 C2，见上文「筛选」。
 
 三条贯穿的原则：**读与搭分开**（平时不可拖、点不坏，「编辑」进入搭的状态，「完成」保存、「取消」放弃，系统仪表盘只有「另存为」）；**一个概念一种样子**（追问菜单、可视化面板、条件编辑器、候选值全部复用分析与记录视图的部件）；**说清作用范围**（每个筛选作用到哪些面板、哪个面板不受它影响，在面板上看得到）。
 
-- **A 编辑模式与「添加」**——**已落地**（批 B2，见上文「搭板子」；「新建分析…」的对话框批 B3）；「筛选 ＋」随批 C。
+- **A 编辑模式与「添加」**——**已落地**（批 B2，见上文「搭板子」；「新建分析…」的对话框批 B3；「筛选 ＋」批 C2）。
 - **B 选一个视图**——**已落地**（批 B2）；面板菜单的「复制为共享视图并替换」还没有（todo）。
 - **C 在仪表盘里新建分析**——**已落地**（批 B3，见上文「在仪表盘里新建分析」）：大对话框，先选数据定义，里面就是分析视图的托盘与结果；「放进仪表盘」存成只属于这块板的视图；「另存为视图…」把它提成普通视图，面板改为引用它。首版只新建分析。
 - **D 面板菜单与展示覆盖**——**已落地**（菜单批 B2，展示覆盖批 B3，见上文「面板菜单」「面板自己的展示」）；「导出数据…」「点击时…」不在其中（批 D 与以后）。
-- **E 标签页与 24 列**——**已落地**（24 列批 B1，标签页批 B3，见上文「标签页」）；「一个筛选在当前标签里没有受影响的面板时淡一档」随批 C 的筛选条。
-- **F 筛选条**（批 C）：页头一排；值控件与候选值复用条件编辑器；**必填**带星号、永远有值（清空回默认）；时间分组是整板的「按日｜周｜月」；未接上的面板头上「不受『〈筛选〉』影响」。**筛选值写进地址，不写进配置**（默认值才是配置）。
-- **G 加筛选与接线**（批 C）：设置里定类型、名字、默认值、可多选、必填、候选值来源（接上的字段／自己列一组）；在一个面板上选字段后**按同名同类型自动连接其余面板（跨数据定义也接）**，底部提示接了几个、可撤销，以后新加的面板同样自动接；每个面板底部一条接线条，可改、可断，跨定义手动接的标「手动」，没有可接的字段直说。
+- **E 标签页与 24 列**——**已落地**（24 列批 B1，标签页批 B3，见上文「标签页」）；「一个筛选在当前标签里没有受影响的面板时淡一档」批 C2 已落地（上文「筛选」）。
+- **F 筛选条**——**已落地**（模型与运行时批 C1，界面批 C2，见上文「筛选」）：页头一排、值控件与候选值复用条件编辑器、必填带星号永不为空、整板「按日｜周｜月」、未接上的面板头上「不受『〈筛选〉』影响」、筛选值经宿主进地址不进配置。
+- **G 加筛选与接线**——**已落地**（批 C1、C2，见上文「筛选」）：设置弹层、接线条、同名同类型自动连接（跨定义也接）并可撤销、以后新加的面板同样自动接、「手动」、「没有可接的字段」。筛选条上的拖动排序未做（todo）。
 - **H 默认：追问菜单**（批 D）：点柱、点行、点扇区，弹与分析视图同一个追问菜单，标题带上当前全局筛选（「仓库 属于 华南 · 本月」），三项都在工作台打开（↗），仪表盘不变。**宿主没给路由钩子时，不出追问菜单**。
 - **I 交叉筛选**（批 D）：作者在「点击时…」选「更新仪表盘筛选：〈筛选〉」；读者点一个值，筛选条上随之变化并注明来自哪个面板，其余接线面板重算；**被点的面板不筛自己、只高亮点中的一组；再点一次同一个值撤销**；面板头标「点击筛选〈筛选〉」。第三个选项「去另一个视图或页面」带上点中的值。
-- **J 窄屏**：窄于 768px 时按阅读顺序排成一列、各保留高度，布局是推导出来的、不写回——**这一半已落地**（见上文「DashboardGrid 与几何写回」）；筛选条横向滚动；**窄屏编辑只允许改标题、移除、调顺序**——改标题、移除已落地（批 B2），调顺序未做。
+- **J 窄屏**：窄于 768px 时按阅读顺序排成一列、各保留高度，布局是推导出来的、不写回——**这一半已落地**（见上文「DashboardGrid 与几何写回」）；筛选条窄屏时横向滚动（批 C2）；**窄屏编辑只允许改标题、移除、调顺序**——改标题、移除已落地（批 B2），调顺序未做。

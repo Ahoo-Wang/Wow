@@ -65,7 +65,19 @@ function orders(): DataViewDefinition {
   return {
     ...base,
     fields: [
-      ...base.fields,
+      // A closed set: a category filter wired to it picks from its labels.
+      ...base.fields.map(field =>
+        field.name === 'status'
+          ? {
+              ...field,
+              kind: 'enum',
+              options: [
+                { value: 'PENDING', label: 'Pending' },
+                { value: 'SHIPPED', label: 'Shipped' },
+              ],
+            }
+          : field,
+      ),
       { name: 'createdAt', label: 'Created', kind: 'datetime' },
     ],
     analysis: {
@@ -571,6 +583,44 @@ describe('what a text filter offers', () => {
     expect(runtime.valueCandidates('gone')).toBeNull();
   });
 
+  it('is the list the wired fields declare where they declare one, never counted', async () => {
+    const { runtime, sources } = await harness(
+      dashboardConfig({
+        fields: [
+          { name: 'phase', label: 'Phase', kind: 'string' },
+          {
+            name: 'own',
+            label: 'Own',
+            kind: 'string',
+            options: [{ value: 'X', label: 'X' }],
+          },
+        ],
+        panels: [
+          view('c', 'orders-list', [
+            { globalField: 'phase', panelField: 'status' },
+            { globalField: 'own', panelField: 'status' },
+          ]),
+        ],
+      }),
+    );
+
+    expect(runtime.wiredOptions('phase')).toEqual([
+      { value: 'PENDING', label: 'Pending' },
+      { value: 'SHIPPED', label: 'Shipped' },
+    ]);
+    // Its own list is its own; a filter the board lacks has none.
+    expect(runtime.wiredOptions('own')).toBeNull();
+    expect(runtime.wiredOptions('gone')).toBeNull();
+    expect(runtime.valueCandidates('phase')).toBeNull();
+    expect(vi.mocked(sources.orders.aggregate)).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        groupBy: [expect.objectContaining({ alias: 'value' })],
+      }),
+      expect.anything(),
+      expect.anything(),
+    );
+  });
+
   it("counts under the host's condition, and asks again when it changes", async () => {
     const { runtime, sources } = await harness(
       dashboardConfig({
@@ -637,6 +687,7 @@ describe('useDashboard', () => {
     expect(result.current.timeGrouping).toBeNull();
     expect(result.current.setFilterValue('x', null)).toEqual([]);
     expect(result.current.filterCandidates('x')).toBeNull();
+    expect(result.current.filterChoices('x')).toBeNull();
     result.current.setGroupingUnit('DAY');
     result.current.clearFilters();
   });

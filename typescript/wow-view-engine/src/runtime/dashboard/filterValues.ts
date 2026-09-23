@@ -18,6 +18,7 @@ import {
   type DashboardFilters,
   type DashboardViewConfig,
   type DashboardViewPanel,
+  type FieldOption,
   type FilterTree,
   type FilterValue,
   type Issue,
@@ -29,6 +30,7 @@ import {
   filtersOf,
   isViewPanel,
   mapGlobalFilter,
+  wiredOptions,
 } from '../../dashboard/index.js';
 import { AUTO_APPLY_DELAY_MS } from '../autoApply.js';
 import type { RuntimeEnvironment } from '../environment.js';
@@ -132,6 +134,8 @@ export class FilterValues {
     const filter = filtersOf(applied).find(field => field.name === name);
     if (!filter || filterTypeOf(filter.kind) !== 'text' || filter.options)
       return null;
+    // A list the wired fields declare is picked from, never counted.
+    if (this.optionsOf(name)) return null;
     const targets = panelsOf(applied).flatMap(panel => {
       if (!isViewPanel(panel)) return [];
       const binding = bindingsOf(panel).find(
@@ -153,6 +157,21 @@ export class FilterValues {
       ];
     });
     return this.candidates.of(name, targets);
+  }
+
+  /**
+   * The list a filter without one of its own picks from: what the fields
+   * it is wired to declare, merged (`wiredOptions`); `null` when none does.
+   */
+  optionsOf(name: string): FieldOption[] | null {
+    const applied = this.host.applied();
+    const filter = filtersOf(applied).find(field => field.name === name);
+    if (!filter || filter.options) return null;
+    return wiredOptions(
+      applied,
+      name,
+      panel => this.host.viewOf(panel)?.definition.fields ?? null,
+    );
   }
 
   /** The host's condition changed: what was counted under it is forgotten. */

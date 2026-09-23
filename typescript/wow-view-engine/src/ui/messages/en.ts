@@ -19,6 +19,7 @@ import { dashboardMessages } from './dashboard.js';
 import { definitionMessages } from './definition.js';
 import { exportMessages } from './export.js';
 import { filterMessages } from './filter.js';
+import { filtersMessages } from './filters.js';
 import { headerMessages } from './header.js';
 import { manageMessages } from './manage.js';
 import { recordMessages } from './record.js';
@@ -56,6 +57,7 @@ export const en = {
   ...analysisMessages,
   ...dashboardMessages,
   ...buildingMessages,
+  ...filtersMessages,
   ...statusMessages,
   ...definitionMessages,
   ...workbenchMessages,

@@ -20,7 +20,6 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { FilterOperator } from '@ahoo-wang/fetcher-wow';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -84,8 +83,7 @@ describe('DashboardWorkbench', () => {
     return { engine, source, store };
   }
 
-  it('opens a dashboard, shows its panels and its global filter', async () => {
-    const user = userEvent.setup();
+  it('opens a dashboard, shows its panels and its filter bar', async () => {
     const { engine } = setup();
 
     render(
@@ -108,15 +106,12 @@ describe('DashboardWorkbench', () => {
     expect(header.textContent).toContain('Operations');
     await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
 
-    // The global filter lives in the title bar's fold now, and a saved view
-    // opens folded: the panels are what the dashboard is for, so nothing of
-    // the editor is on the page until the handle beside the name asks for
-    // it.
+    // The board's filters are a bar over the panels (D22 F), not a fold in
+    // the title bar with an Apply: there is nothing to apply.
+    const bar = screen.getByRole('region', { name: 'Filters' });
+    expect(within(bar).getByRole('group', { name: 'Region' })).toBeTruthy();
+    expect(within(header).queryByRole('button', { name: 'Filter' })).toBeNull();
     expect(screen.queryByRole('button', { name: /Apply/ })).toBeNull();
-
-    await user.click(within(header).getByRole('button', { name: 'Filter' }));
-
-    expect(screen.getByRole('button', { name: /Apply/ })).toBeTruthy();
   });
 
   it('opens under the filters a host keeps in its address, and tells it what they hold (D22 F)', async () => {
@@ -269,8 +264,17 @@ describe('DashboardWorkbench', () => {
     expect(bar.textContent).toContain('north');
   });
 
-  it('says so plainly when the panels were asked under nothing', async () => {
-    const { engine } = setup();
+  it('draws the applied band only for a standing condition the bar does not hold', async () => {
+    const { engine } = setup({
+      ...overview,
+      config: {
+        ...overview.config,
+        filter: {
+          op: 'and',
+          children: [{ field: 'region', operator: 'EQ', value: 'CN' }],
+        },
+      } as typeof overview.config,
+    });
 
     render(
       <DashboardWorkbench
@@ -283,7 +287,22 @@ describe('DashboardWorkbench', () => {
 
     expect(
       screen.getByRole('region', { name: 'Showing' }).textContent,
-    ).toContain('All records');
+    ).toContain('Region');
+  });
+
+  it('draws no applied band over a board its bar says everything about', async () => {
+    const { engine } = setup();
+
+    render(
+      <DashboardWorkbench
+        engine={engine}
+        definitionId="overview"
+        instanceId="overview-1"
+      />,
+    );
+    await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
+
+    expect(screen.queryByRole('region', { name: 'Showing' })).toBeNull();
   });
 
   /**

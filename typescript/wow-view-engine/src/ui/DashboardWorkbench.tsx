@@ -33,9 +33,7 @@ import { useDashboard, useWorkbench } from '../react/index.js';
 import { Button } from './components/button.js';
 import { panelName, panelNames } from './DashboardPanel.js';
 import { DashboardBoard } from './dashboard/Board.js';
-import { FilterPanel } from './FilterPanel.js';
 import { RefreshControl } from './RefreshControl.js';
-import { FilterModes } from './filter/FilterModes.js';
 import { useViewMessages } from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
 import { featuresOf, type WorkbenchFeatures } from './features.js';
@@ -149,11 +147,9 @@ export interface DashboardWorkbenchProps {
  * The default Dashboard workbench: the view list, the global filter, the
  * panels and the save commands.
  *
- * The filter panel here edits the dashboard's own fields rather than a
- * definition's, which is why a runtime reports the fields to edit against
- * instead of the editor reading them off a definition. Submitting it applies
- * the dashboard, and every panel re-runs with the condition mapped onto its
- * own fields.
+ * The board's filters are a bar of their own over the panels (D22 F,
+ * `FilterBar`): each value runs on its own a moment after it changes, and
+ * reaches the panels wired to it through their own fields.
  */
 /** The one kind a dashboard workbench draws, held once so the list is not re-narrowed per render. */
 const DASHBOARD = ['dashboard'] as const;
@@ -325,10 +321,13 @@ export function DashboardWorkbench({
   // what the applied bar describes is whether the panels were asked at all.
   // One panel that has answered, or that is asking, is an answer: the global
   // condition it went out under is exactly what the bar says.
-  // Nothing to filter without global fields, and an empty fold in the title
-  // bar is a control that opens on nothing.
-  const hasGlobalFilter =
-    dashboard.panels.length > 0 && filter.fields.length > 0;
+  // The board's filters are its own bar (D22 F). The band of applied
+  // conditions stays for what that bar does not hold — a standing condition
+  // saved before the bar, or a host's scope (Q16) — and only then.
+  const standing =
+    filter.applied.length > 0 ||
+    filter.scoped.length > 0 ||
+    filter.implied.length > 0;
   const hasResult = dashboard.panels.some(panel => {
     const panelState = panel.runtime?.getSnapshot();
     return (
@@ -392,20 +391,7 @@ export function DashboardWorkbench({
           note={messages.label('label.refresh.panels')}
         />
       }
-      editorLabel={
-        hasGlobalFilter ? messages.label('label.filter.panel') : undefined
-      }
-      editorModes={
-        hasGlobalFilter ? <FilterModes filter={filter} /> : undefined
-      }
-      editorPending={filter.pendingCount}
-      editor={
-        /* Without global fields there is nothing to filter, and an empty
-           panel would only take up room. */
-        hasGlobalFilter && (
-          <FilterPanel filter={filter} optionsFor={optionsFor} modes={false} />
-        )
-      }
+      applied={standing}
       result={
         state && (
           <DashboardEditExtensionsContext.Provider

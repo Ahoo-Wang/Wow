@@ -700,10 +700,6 @@ export const UnregisteredKind: Story = {
   ...DisplayUnregisteredKind,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const toggle = await canvas.findByRole('button', { name: /^筛选/ });
-    if (toggle.getAttribute('aria-expanded') !== 'true')
-      await userEvent.click(toggle);
-
     const unsupported = await waitFor(() => {
       const found = canvasElement.querySelector<HTMLElement>(
         '[data-slot="filter-unsupported"]',

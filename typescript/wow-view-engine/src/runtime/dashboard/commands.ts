@@ -143,6 +143,9 @@ export abstract class BoardCommands
   setFilters(filters: DashboardFilters): Issue[] {
     return this.disposed ? [] : this.values.put(filters);
   }
+  wiredOptions(name: string): FieldOption[] | null {
+    return this.values.optionsOf(name);
+  }
 
   /**
    * Where a board opens, and what its filters hold as it does

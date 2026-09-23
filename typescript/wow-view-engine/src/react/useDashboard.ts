@@ -20,6 +20,7 @@ import {
   type DashboardPanel,
   type DashboardTab,
   type DashboardTimeGrouping,
+  type FieldOption,
   type FilterValue,
   type Issue,
   type PanelLayout,
@@ -31,9 +32,11 @@ import type {
   DashboardPanelState,
   DashboardRuntime,
   DataViewRuntime,
+  OptionSource,
   PanelGrouping,
   ValueCandidateSource,
 } from '../runtime/index.js';
+import type { FieldKindRegistry } from '../filter/index.js';
 import { useViewRuntime } from './useViewEngine.js';
 
 /** One panel, ready to place: geometry, what runs inside, what is wrong. */
@@ -116,6 +119,15 @@ export interface DashboardController {
   clearFilters(): void;
   /** What a text filter offers to pick from (`DashboardRuntime.valueCandidates`). */
   filterCandidates(name: string): ValueCandidateSource | null;
+  /**
+   * The list a filter without one of its own picks from, as its wired
+   * fields declare it (`DashboardRuntime.wiredOptions`); `null` for none.
+   */
+  filterChoices(name: string): FieldOption[] | null;
+  /** An id filter's candidates, by the host's source key (`optionSource`). */
+  filterOptions(remote: string): OptionSource | null;
+  /** The field kinds the board's filters are edited with; `null` without a board. */
+  kinds: FieldKindRegistry | null;
   /**
    * The board's tabs in the order of its bar, as they are on screen (D22
    * E); none on a board without. Fewer than two draw no bar.
@@ -212,6 +224,15 @@ export function useDashboard(
       (name: string) => runtime?.valueCandidates(name) ?? null,
       [runtime],
     ),
+    filterChoices: useCallback(
+      (name: string) => runtime?.wiredOptions(name) ?? null,
+      [runtime],
+    ),
+    filterOptions: useCallback(
+      (remote: string) => runtime?.optionSource(remote) ?? null,
+      [runtime],
+    ),
+    kinds: runtime?.kinds ?? null,
     // What is on screen: an edit writes the draft and the applied config
     // alike, so the two agree on the tabs whenever a panel is drawn.
     tabs: useMemo(() => tabsOf(state?.applied.tabs), [state?.applied.tabs]),

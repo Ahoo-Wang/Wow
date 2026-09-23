@@ -16,9 +16,15 @@ import type {
   FilterTree,
   ViewInstance,
 } from '@ahoo-wang/fetcher-view-engine';
+import type { ViewEngine } from '@ahoo-wang/fetcher-view-engine';
 import {
-  DashboardWorkbench,
+  useFilterEditor,
+  useOpenView,
+} from '@ahoo-wang/fetcher-view-engine/react';
+import {
   DataWorkbench,
+  FilterPanel,
+  ViewSurface,
 } from '@ahoo-wang/fetcher-view-engine/ui';
 import { AppShell } from '../shared/AppShell.js';
 import {
@@ -232,7 +238,11 @@ const staleDashboard: ViewInstance = {
   },
 };
 
-/** 全局筛选带里那条只读条件，连同旁边一条照常可编辑的条件。 */
+/**
+ * 那条只读条件，连同旁边一条照常可编辑的条件，在独立的条件编辑器里：仪表盘
+ * 自己的界面自批 C 起是筛选条，这棵批 C 之前存下的整板条件（Q16）只有条件
+ * 编辑器还能打开——它不需要工作台，只要一个 runtime。
+ */
 function UnregisteredKindDemo() {
   return (
     <StoryEngine
@@ -240,15 +250,18 @@ function UnregisteredKindDemo() {
         createStoryEngine({ instances: [...savedViews, staleDashboard] })
       }
     >
-      {engine => (
-        <DashboardWorkbench
-          engine={engine}
-          definitionId="overview"
-          instanceId={staleDashboard.id}
-          {...HOST_LANGUAGE}
-        />
-      )}
+      {engine => <StaleConditions engine={engine} />}
     </StoryEngine>
+  );
+}
+
+function StaleConditions({ engine }: { engine: ViewEngine }) {
+  const opened = useOpenView(engine, staleDashboard.id);
+  const filter = useFilterEditor(opened.runtime);
+  return (
+    <ViewSurface {...HOST_LANGUAGE}>
+      <FilterPanel filter={filter} />
+    </ViewSurface>
   );
 }
 
@@ -379,7 +392,7 @@ export const NumberList: Story = { args: { instanceId: 'orders-number-list' } };
 export const WithTime: Story = { args: { instanceId: 'orders-with-time' } };
 
 /**
- * 一条没人能编辑的条件。展开「筛选」：色板那条画成只读——字段名、操作符的那个
+ * 一条没人能编辑的条件。色板那条画成只读——字段名、操作符的那个
  * 词、配置里存着的原值，外加一句说明它为什么不能改——✕ 照常可按，「查询」被挡
  * 住并在旁边报出待修正的条数。旁边那条仓库条件一切如常，只读只针对那一条。
  */

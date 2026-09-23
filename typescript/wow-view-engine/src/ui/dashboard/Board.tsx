@@ -33,6 +33,7 @@ import {
 } from './ContentEditor.js';
 import { EditBar } from './EditBar.js';
 import { useDashboardEditExtensions } from './extensions.js';
+import { useBoardFilters } from './BoardFilters.js';
 import { ViewPicker, type PickerIntent } from './ViewPicker.js';
 
 /** Pixel height of one grid row, and the gap the grid keeps between rows. */
@@ -103,6 +104,7 @@ export function DashboardBoard({
       landingRef.current?.focus();
   }, [editing]);
 
+  const filters = useBoardFilters({ dashboard, editing, say: setSaid });
   const names = panelNames(dashboard.panels, messages);
   const onBoard = useMemo(
     () =>
@@ -194,7 +196,7 @@ export function DashboardBoard({
       setSaid(messages.label('label.panel.moved-to-tab', { title: name, tab })),
   };
 
-  return (
+  return filters.wrap(
     <BoardBuildingContext.Provider value={building}>
       <div ref={gridRef} className="flex flex-col gap-3">
         <DashboardGrid
@@ -205,6 +207,9 @@ export function DashboardBoard({
           onOpenView={onOpenView}
           header={({ narrow }) => (
             <>
+              {/* The filters over everything else: they are what the whole
+                  board is read under, every tab alike (D22 E, F). */}
+              {filters.bar}
               {editing && (
                 <EditBar
                   commands={commands}
@@ -219,8 +224,10 @@ export function DashboardBoard({
                   addRef={addRef}
                   add={add}
                   canCreate={canCreate}
+                  addFilter={filters.add}
                 />
               )}
+              {filters.wiring}
               {/* Under the edit bar and over the panels: the tabs belong to
                   what is read, the bar to how it is built. */}
               {extensions.tabBar}
@@ -286,7 +293,7 @@ export function DashboardBoard({
           edit.renamePanel(target.panelId, renamed ?? '');
         }}
       />
-    </BoardBuildingContext.Provider>
+    </BoardBuildingContext.Provider>,
   );
 }
 

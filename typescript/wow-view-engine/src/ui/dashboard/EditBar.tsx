@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useId, useRef, useState, type RefObject } from 'react';
+import { useId, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { CheckIcon, PencilRulerIcon } from 'lucide-react';
 import type { ViewInstance } from '../../model/index.js';
 import { unsettled, type SaveCommands } from '../../react/index.js';
@@ -39,6 +39,8 @@ export interface EditBarProps extends AddCommands {
   landingRef: RefObject<HTMLParagraphElement | null>;
   /** 「＋ 添加」, where the keyboard returns after an add from a dialog. */
   addRef: RefObject<HTMLButtonElement | null>;
+  /** 「筛选 ＋」 beside 「＋ 添加」 (D22 G); a placement it is not, so narrow too. */
+  addFilter?: ReactNode;
 }
 
 /**
@@ -66,6 +68,7 @@ export function EditBar({
   addRef,
   add,
   canCreate,
+  addFilter,
 }: EditBarProps) {
   const messages = useViewMessages();
   const labelId = useId();
@@ -119,6 +122,7 @@ export function EditBar({
         {!narrow && (
           <AddMenu add={add} canCreate={canCreate} triggerRef={addRef} />
         )}
+        {addFilter}
         {!state.isNew && (
           <Button
             data-slot="dashboard-cancel"

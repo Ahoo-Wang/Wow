@@ -27,6 +27,7 @@ import {
   type DashboardViewConfig,
   type DashboardViewPanel,
   type FieldDefinition,
+  type FieldOption,
   type PanelBinding,
 } from '../model/index.js';
 import { filtersOf } from './filters.js';
@@ -186,6 +187,41 @@ export function unbindPanels(
     };
   });
   return changed ? { ...config, panels } : config;
+}
+
+/**
+ * The fixed list the fields a filter is wired to offer, merged — what a
+ * category filter picks from when it has no list of its own (D22 G,
+ * 「值从哪来：接上的字段」, as Metabase's category filter does): every
+ * option of every wired field that declares some (an `enum`'s), the same
+ * code once, under the label it first comes with. A reader picks 「待出库」
+ * and the filter holds `PENDING`, which is what the fields store.
+ *
+ * `null` when no wired field declares a list — then the values the data
+ * holds are counted instead (`DashboardRuntime.valueCandidates`), or typed.
+ * A wired field without a list beside ones with one is picked for from
+ * the list: the list is the declared vocabulary of those values.
+ */
+export function wiredOptions(
+  config: DashboardViewConfig,
+  name: string,
+  fieldsOf: PanelFields,
+): FieldOption[] | null {
+  const merged = new Map<string, FieldOption>();
+  for (const panel of config.panels) {
+    if (!isViewPanel(panel)) continue;
+    const binding = bindingsOf(panel).find(entry => entry.globalField === name);
+    if (!binding) continue;
+    const field = fieldsOf(panel)?.find(
+      entry => entry.name === binding.panelField,
+    );
+    for (const option of field?.options ?? []) {
+      const key = `${typeof option.value}:${String(option.value)}`;
+      if (!merged.has(key))
+        merged.set(key, { value: option.value, label: option.label });
+    }
+  }
+  return merged.size > 0 ? [...merged.values()] : null;
 }
 
 /**

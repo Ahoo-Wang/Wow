@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { cn } from 'cn';
 import { InfoIcon, TriangleAlertIcon } from 'lucide-react';
 import { readingOrder, type ArrangeStep } from '../dashboard/index.js';
@@ -40,6 +40,7 @@ import { IconTooltip } from './IconButton.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import type { MessageKey } from './messages.js';
 import { Badge } from './components/badge.js';
+import { ToneBadge } from './variants.js';
 import { Button } from './components/button.js';
 import { Card, CardContent, CardHeader, CardTitle } from './components/card.js';
 
@@ -141,6 +142,14 @@ export interface DashboardPanelProps {
    * it, nor when it offers nothing.
    */
   commands?: PanelCommands;
+  /**
+   * The board's filters that hold a value and do not reach this panel, by
+   * their names on the bar (D22 F「不受此筛选影响」); said as a badge in the
+   * header, so nobody reads the panel as narrowed by them.
+   */
+  unreached?: readonly string[];
+  /** Under the body: the wiring strip while a filter is wired (D22 G). */
+  footer?: ReactNode;
   onRenderFailure?: RenderFailureHandler;
 }
 
@@ -166,6 +175,8 @@ export function DashboardPanel({
   onArrange,
   onRetry,
   commands,
+  unreached,
+  footer,
   onRenderFailure,
 }: DashboardPanelProps) {
   const messages = useViewMessages();
@@ -288,6 +299,24 @@ export function DashboardPanel({
               {name}
             </Title>
           )}
+          {unreached && unreached.length > 0 && (
+            <ToneBadge
+              data-slot="panel-not-reached"
+              tone="warning"
+              dot={false}
+              className="shrink-0"
+            >
+              {messages.label('label.filters.not-reached', {
+                filters: unreached
+                  .map(filter =>
+                    messages.label('label.filters.name-quoted', {
+                      name: filter,
+                    }),
+                  )
+                  .join(messages.label('label.filter.join')),
+              })}
+            </ToneBadge>
+          )}
           {look && (
             <Badge
               data-slot="panel-presentation"
@@ -338,6 +367,7 @@ export function DashboardPanel({
           </RenderBoundary>
         </CardContent>
       )}
+      {footer && <div className="px-3">{footer}</div>}
       {commands?.remove && (
         <RemovePanelDialog
           open={removing}

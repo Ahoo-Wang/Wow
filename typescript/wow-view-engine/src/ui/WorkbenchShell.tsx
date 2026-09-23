@@ -192,6 +192,12 @@ export interface WorkbenchShellProps {
    */
   hasResult?: boolean;
   /**
+   * Whether the applied-conditions band is drawn. On by default; a
+   * dashboard says what its panels run under in its own filter bar, and
+   * draws the band only for a standing condition the bar does not hold.
+   */
+  applied?: boolean;
+  /**
    * Whether a request is on its way, which is the other reason a result
    * block exists before there is a result: the rows are drawn loading in
    * it. The open view's own query when left out.
@@ -316,6 +322,7 @@ export function WorkbenchShell({
   expandable = true,
   manage = true,
   hasResult,
+  applied = true,
   resultPending,
   warnings,
   nameIssue,
@@ -661,13 +668,13 @@ export function WorkbenchShell({
               >
                 <AppliedBar
                   filter={filter}
-                  asked={asked}
+                  asked={asked && applied}
                   className="min-w-0 grow"
                 />
                 <div className="ml-auto">{search}</div>
               </div>
             ) : (
-              <AppliedBar filter={filter} asked={asked} />
+              <AppliedBar filter={filter} asked={asked && applied} />
             )}
 
             {/* The result itself (D12 Ⅳ–Ⅶ).

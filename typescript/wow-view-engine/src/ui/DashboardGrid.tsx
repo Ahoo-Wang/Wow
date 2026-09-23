@@ -29,7 +29,10 @@ import {
   type PlacedPanel,
 } from '../dashboard/index.js';
 import type { FilterTree } from '../model/index.js';
-import type { DashboardController } from '../react/index.js';
+import type {
+  DashboardController,
+  DashboardPanelView,
+} from '../react/index.js';
 import { PanelGridItem, PanelResizeHandle } from './DashboardArrange.js';
 import {
   DashboardPanel,
@@ -43,6 +46,7 @@ import { useGridPlacement } from './gridPlacement.js';
 import type { RenderFailureHandler } from './RenderBoundary.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import type { MessageKey } from './messages.js';
+import { PanelWiring, useFilterWiring } from './dashboard/FilterWiring.js';
 import {
   Empty,
   EmptyContent,
@@ -148,6 +152,7 @@ export function DashboardGrid({
   const placement = useGridPlacement(dashboard.place);
   const building = useBoardBuilding();
   const extensions = useDashboardEditExtensions();
+  const wiring = useFilterWiring();
 
   // The tab on screen (D22 E) is the grid: its panels alone are drawn, and
   // every placement is judged among them — another tab is another grid. It
@@ -312,6 +317,17 @@ export function DashboardGrid({
                     onOpenView,
                     messages,
                   })}
+                  unreached={unreachedBy(panel, dashboard)}
+                  footer={
+                    wiring &&
+                    editable && (
+                      <PanelWiring
+                        panel={panel}
+                        name={names.get(panel.id) ?? ''}
+                        wiring={wiring}
+                      />
+                    )
+                  }
                   onRenderFailure={onRenderFailure}
                 />
               </PanelGridItem>
@@ -387,5 +403,23 @@ function DashboardEmpty({
       </EmptyHeader>
       {children != null && <EmptyContent>{children}</EmptyContent>}
     </Empty>
+  );
+}
+
+/**
+ * The names of the board's filters that hold a value and do not reach one
+ * panel (D22 F「不受此筛选影响」). A filter holding nothing narrows no panel,
+ * so it is not said; a panel whose view is not known yet has no answer.
+ */
+function unreachedBy(
+  panel: DashboardPanelView,
+  dashboard: DashboardController,
+): string[] {
+  if (panel.panel.kind !== 'view' || panel.broken) return [];
+  return dashboard.filterFields.flatMap(field =>
+    dashboard.filters.values[field.name] !== undefined &&
+    panel.reach[field.name]?.wired === false
+      ? [field.label]
+      : [],
   );
 }

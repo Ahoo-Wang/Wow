@@ -193,7 +193,7 @@ src/
     tabs.ts                   — A board's tabs: `validateTabs`, and add (the first time, two), rename, reorder, remove with their panels
     validate.ts               — validateDashboard — grid, tabs, panels (saved or owned views, overrides of how they look), bindings, content
     validateFilters.ts        — The board's filters as declared (type, default, required, multiple, a list) and its time grouping
-    wiring.ts                 — Which field of which panel a filter narrows (D22 G): `wireableFields`, `bindPanel` (by hand, then auto-connect: same name, same type, any tab, any data), `unbindPanels`, `autoBindings` for a panel being added, and what reaches a panel (`filterReach`) or a tab (`filtersOnTab`)
+    wiring.ts                 — Which field of which panel a filter narrows (D22 G): `wireableFields`, `bindPanel` (by hand, then auto-connect: same name, same type, any tab, any data), `unbindPanels`, `autoBindings` for a panel being added, the list the wired fields declare (`wiredOptions`), and what reaches a panel (`filterReach`) or a tab (`filtersOnTab`)
     index.ts                  — The dashboard kernel: admission, panel binding resolution and the global filter merge
   runtime/                    — Stateful layer; never imports react or ui
     dashboardRuntime.ts       — `DashboardViewRuntime`: N child runtimes and one global filter, on one clock, over one `RuntimeStore`; every config it takes in read into the 24-column form; building the board (`DashboardEditing`) into the draft and the screen at once; only the tab on screen runs (`showTab`)
@@ -296,7 +296,7 @@ src/
     CopyButton.tsx            — A value's own copy button: the clipboard, the tick, and the two words a press comes back with
     DashboardArrange.tsx      — Placing a panel without a pointer: the two handles named after their panel (`PanelGridItem` tells the corner which), and the menu
     DashboardGrid.tsx         — The panels, placed — in reading order, one column below `md`, the tab on screen alone when a tab bar says which; the edit bar over them and the first things to add on an empty board, where the board is built; each panel's commands (`panelCommands`)
-    DashboardPanel.tsx        — One framed panel: its title (a heading panel is that and nothing else), its 「⋯」 menu, the arrange handles while the board is built, the body; what a panel is called (`panelName`, and `panelNames` numbering the names the board makes up); chart findings named by column
+    DashboardPanel.tsx        — One framed panel: its title (a heading panel is that and nothing else), 「不受『〈筛选〉』影响」, its 「⋯」 menu, the wiring strip under it, the arrange handles while the board is built, the body; what a panel is called (`panelName`, and `panelNames` numbering the names the board makes up); chart findings named by column
     DashboardPanels.tsx       — The static panels: a heading, a note, a picture, a list of links
     DashboardWorkbench.tsx    — Default Dashboard workbench
     DataWorkbench.tsx         — The data workbench: one list of record and analysis views; `useWorkbench` + both parts + `WorkbenchShell`, joined (D18-1, D20)
@@ -413,13 +413,17 @@ src/
       palette.ts              — The eight slot colours, the grey of a pie's "Other", and the spec's overrides
       reading.ts              — A chart as text: its name and the numbers it draws
     dashboard/                — What building a dashboard is made of (D22 A–E)
+      BoardFilters.tsx        — `useBoardFilters`: the board's filters as it draws them — the bar, 「筛选 ＋」, each filter's settings, wiring and the toast that undoes auto-connect
       AddMenu.tsx             — 「＋ 添加 ▾」: 数据 (a saved view, a new analysis where one can be made) and 内容 (heading, text, image, links); the same first steps on an empty board
       Board.tsx               — `DashboardBoard`: the grid with the edit bar over it, the picker and the content form, every edit one `DashboardEditing` command; where a new panel goes (the first row on screen of the tab on screen) and where the keyboard goes after
       building.tsx            — `useDashboardExtensions`: the default workbench's `DashboardEditExtensions` — a new owned analysis, a panel's own look and its reset, 另存为视图, the tab bar — and the three dialogs they open
       commands.ts             — `panelCommands`: what one panel's menu offers — 「看」 always, 「改」 while the board is built (「恢复为视图的样子」 only over a look of its own), renaming and removing alone in the one-column reading — and the builder the grid reaches through context
       ContentEditor.tsx       — The small form a note, a picture or a list of links is written in, what the kernel would refuse said at the field
       DashboardTabs.tsx       — The tab bar over the grid, two tabs or more: switch; while building, add, rename in place, carry by handle or arrows, delete (asked first when it holds panels); `tabTitle`
-      EditBar.tsx             — The bar a board is built under: 正在编辑, 添加, 取消 (put back the saved board, asked first) and 完成 (the save, a shared board asked first, a new one named)
+      FilterBar.tsx           — The filter bar (D22 F): a chip a filter with the condition editor's value controls, required ones starred and never empty, 按日｜周｜月, 「清空」, a filter reaching nothing on the tab drawn quieter and saying why
+      FilterSettings.tsx      — 「筛选 ＋」 (`AddFilterMenu`) and one filter's settings popover: type, name, default, several values, required, where its values come from, 接线 and 移除
+      FilterWiring.tsx        — Wiring a filter (D22 G): the context the grid reads, each panel's strip (same-type fields, 「没有可接的字段」, 「手动」), the wiring bar, the toasts in the board's own root
+      EditBar.tsx             — The bar a board is built under: 正在编辑, 添加 and 筛选 ＋ beside it, 取消 (put back the saved board, asked first) and 完成 (the save, a shared board asked first, a new one named)
       extensions.ts           — `DashboardEditExtensions`: the parts of building that live elsewhere (a new owned analysis, the presentation editor and its reset, 另存为视图, the tab bar), each entry there only while provided
       NewAnalysisDialog.tsx   — A new analysis made inside the dashboard: the data first, then `AnalysisParts` in a dialog (tray, result, visualization panel, 改了就跑), a title following the reading, 「放进仪表盘」
       PanelBodies.tsx         — What a data panel draws: the record table, the analysis drawn from its child's draft over the rows on hand (`useAnalysisResult`), a failed query with its retry, and 「此处改为〈图型〉」 (`presentationMark`)
@@ -431,7 +435,7 @@ src/
       drag.ts                 — What the settings make of a drag: `columnDrop` refuses one across the areas, plus what a reader hears
       rows.ts                 — The column settings' model: rows, the two areas (D19), order
       sections.ts             — Rows of one area by catalogue group; the search over them
-    components/               — 33 shadcn/ui primitives — vendored, see below
+    components/               — 34 shadcn/ui primitives — vendored, see below
     filter/                   — What the panel is made of
       AddEntry.tsx            — The field picker a group is added to from
       ConditionPill.tsx       — One condition; the element-match block; `PendingDot`
@@ -465,6 +469,7 @@ src/
       config.ts               — shared config — the part every view kind stores, so every kind reports it
       dashboard.ts            — the dashboard grid, its panels, and the dashboard kernel behind them
       definition.ts           — definition admission, worded for whoever wrote the release
+      filters.ts              — a board's filters, batch C2: the filter bar, a panel a filter does not reach, a filter's settings and wiring
       en.ts                   — the English catalogue: the files below, spread
       export.ts               — the export window
       filter.ts               — the condition builder, the applied-condition bar, and the filter kernel
