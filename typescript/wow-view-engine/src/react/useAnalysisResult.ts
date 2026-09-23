@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import {
   drillConditions,
   fitChartSlots,
@@ -20,6 +20,7 @@ import {
   groupFor,
   groupableFields,
   momentColumns,
+  asksForWhole,
   shapeChart,
   splitBy,
   withStagesFrom,
@@ -162,12 +163,35 @@ export function useAnalysisResult(
   const chartData = useMemo(
     () =>
       view && ran && drawable
-        ? shapeChart({ ...ran, chart, layout: 'chart' }, view.rows, view.totals)
+        ? shapeChart(
+            { ...ran, chart, layout: 'chart' },
+            view.rows,
+            view.overall,
+          )
         : undefined,
     [view, ran, chart, drawable],
   );
   const picked: Picked =
     analysis.layout === 'table' || !drawable ? 'table' : chart.type;
+
+  // A chart that headlines the whole — a metric card over a trend — is one
+  // the rows cannot draw alone: the buckets are only the groups that fit the
+  // limit (`asksForWhole`). Picked over rows that ran without the whole, it
+  // runs once, as the totals switch does. Not while the draft holds another
+  // edit waiting for Apply — running would apply that too, which is not this
+  // gesture's to do; the card adds up its buckets until then — and never
+  // again for a config that asked and did not get it, which is a failed
+  // query and not a missing question.
+  const { submit, pending } = analysis;
+  const wantsWhole =
+    ran !== undefined &&
+    analysis.layout === 'chart' &&
+    drawable &&
+    !asksForWhole(ran) &&
+    asksForWhole({ ...ran, chart });
+  useEffect(() => {
+    if (wantsWhole && !pending) submit();
+  }, [wantsWhole, pending, submit]);
 
   const choose = (next: Picked) => {
     if (next === 'table') {

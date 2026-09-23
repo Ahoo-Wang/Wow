@@ -126,6 +126,13 @@ export interface AnalysisView {
   atLimit?: number;
   /** Present only when `table.totals` asked for it and its query succeeded. */
   totals?: RecordData;
+  /**
+   * The ungrouped answer — every record in the range, one row — when the
+   * config asked for it (`asksForWhole`) and its query succeeded. What a
+   * chart reads as "the whole": the headline of a metric card over a trend.
+   * `totals` is the same row when the table was asked to draw it.
+   */
+  overall?: RecordData;
   /** Shaped for the configured chart family; absent when it cannot be drawn. */
   chart?: ChartData;
 }
@@ -273,17 +280,19 @@ export function projectAnalysis(
   };
 
   const cut = cutShort(definition, config, result);
+  const overall = totals && totals.length > 0 ? totals[0] : undefined;
 
   return {
     columns: order.flatMap(describe),
     schema: resultSchema(config).flatMap(describe),
     ...cut,
-    ...(totals && totals.length > 0 ? { totals: totals[0] } : {}),
+    ...(overall ? { overall } : {}),
+    ...(overall && config.table.totals ? { totals: overall } : {}),
     // The probe row is not one of the groups the reader asked for, so the
     // chart is shaped from the rows that survive the cut: a pie's shares and
     // a "other" tail are over what is on screen and nothing else.
     ...(config.layout === 'chart'
-      ? { chart: shapeChart(config, cut.rows, totals?.[0]) }
+      ? { chart: shapeChart(config, cut.rows, overall) }
       : {}),
   };
 }

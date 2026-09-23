@@ -156,7 +156,12 @@ export interface AnalysisColumn {
 export interface AnalysisTableSpec {
   /** Defaults to every group and metric alias. */
   columns: AnalysisColumn[];
-  /** Runs its own ungrouped aggregation, never derived from the group rows. */
+  /**
+   * Whether the table draws a totals row. The row is the ungrouped
+   * aggregation, never derived from the group rows — which a grouped
+   * analysis asks for either way (`compileAnalysisTotals`), so this says
+   * only whether it is drawn.
+   */
   totals?: boolean;
 }
 

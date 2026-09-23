@@ -743,6 +743,7 @@
     [data-slot='metric-card']
   ) {
   margin: 12px 16px 0;
+
   /* The margin comes out of the width rather than past it: a drawing that
      is `w-full` of the band and then pushed 16px in overhangs its right
      edge by 16px, where the band clips it — the last tick read 「2026年9」. */

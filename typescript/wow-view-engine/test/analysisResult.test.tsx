@@ -30,7 +30,12 @@ import {
   useOpenView,
   useViewRuntime,
 } from '../src/react/index.js';
-import { analysisConfig, ordersDefinition, testSource } from './fixtures.js';
+import {
+  analysisConfig,
+  namedOrdersDefinition,
+  ordersDefinition,
+  testSource,
+} from './fixtures.js';
 
 const analysisView: ViewInstance = {
   id: 'orders-1',
@@ -184,5 +189,73 @@ describe('useAnalysisResult', () => {
     result.current.result.choose('table');
     await waitFor(() => expect(result.current.result.picked).toBe('table'));
     expect(vi.mocked(source.aggregate).mock.calls.length).toBe(before);
+  });
+
+  it('asks for the whole once when a metric card over a trend is picked', async () => {
+    // A monthly analysis drawn as bars asks one query; its whole is asked
+    // only when something draws it — here, a metric card over a trend.
+    const source = testSource();
+    const monthly: ViewInstance = {
+      ...analysisView,
+      id: 'orders-monthly',
+      config: analysisConfig({
+        groups: [
+          {
+            alias: 'month',
+            field: 'createdAt',
+            type: 'DATE_HISTOGRAM',
+            unit: 'MONTH',
+          },
+        ],
+        layout: 'chart',
+        chart: {
+          type: 'bar',
+          cartesian: { x: 'month', series: [{ metric: 'orders' }] },
+        },
+      }),
+    };
+    const engine = new ViewEngine({
+      definitions: [namedOrdersDefinition()],
+      store: new MemoryViewStore({ instances: [monthly] }),
+      resolveSource: () => source,
+    });
+    const { result } = renderHook(() => {
+      const open = useOpenView(engine, 'orders-monthly');
+      const runtime = open.runtime as ViewRuntime<AnalysisViewConfig> | null;
+      const state = useViewRuntime(runtime);
+      const analysis = useAnalysisEditor(runtime);
+      return {
+        analysis,
+        result: useAnalysisResult(runtime, analysis, {
+          state,
+          canDrill: true,
+          drill: vi.fn(),
+        }),
+      };
+    });
+    await waitFor(() => expect(result.current.result.view).not.toBeNull());
+    const grouped = vi.mocked(source.aggregate).mock.calls.length;
+    expect(result.current.result.view?.overall).toBeUndefined();
+
+    result.current.analysis.updateChart({
+      type: 'metric',
+      metric: { metric: 'orders', trend: { x: 'month' } },
+    });
+    // One run, and it brought the whole.
+    await waitFor(() =>
+      expect(result.current.result.view?.overall).toBeDefined(),
+    );
+    const calls = vi.mocked(source.aggregate).mock.calls.slice(grouped);
+    expect(calls.some(([query]) => query.groupBy === undefined)).toBe(true);
+    expect(result.current.result.chartData).toMatchObject({
+      type: 'metric',
+      value: result.current.result.view?.overall?.orders,
+    });
+
+    // Asked once: the config that ran asked for the whole, so nothing runs
+    // again on its own.
+    const settled = vi.mocked(source.aggregate).mock.calls.length;
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(vi.mocked(source.aggregate).mock.calls.length).toBe(settled);
   });
 });

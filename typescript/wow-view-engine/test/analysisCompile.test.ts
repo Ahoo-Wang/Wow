@@ -29,6 +29,7 @@ import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,
   compileAnalysis,
+  asksForWhole,
   compileAnalysisTotals,
   validateAnalysis,
   type AnalysisViewConfig,
@@ -191,6 +192,43 @@ describe('compileAnalysis', () => {
     );
     expect(totals?.groupBy).toBeUndefined();
     expect(totals?.metrics).toHaveLength(1);
+  });
+
+  it('asks for the whole under a metric card over a trend', () => {
+    // Its headline is the whole; the buckets are only the groups that fit
+    // the limit. No totals row is drawn, and the whole is still asked.
+    const card = config({
+      groups: [
+        {
+          type: 'DATE_HISTOGRAM',
+          field: 'createdAt',
+          alias: 'day',
+          unit: 'DAY',
+        },
+      ],
+      chart: {
+        type: 'metric',
+        metric: { metric: 'orders', trend: { x: 'day' } },
+      },
+    });
+    expect(asksForWhole(card)).toBe(true);
+    const whole = compileAnalysisTotals(
+      definition(),
+      card,
+      builtinFieldKinds,
+      context,
+    );
+    expect(whole?.groupBy).toBeUndefined();
+
+    // A card without a trend is ungrouped: its one row is the whole.
+    expect(
+      asksForWhole(
+        config({
+          groups: [],
+          chart: { type: 'metric', metric: { metric: 'orders' } },
+        }),
+      ),
+    ).toBe(false);
   });
 
   it('refuses a definition without the analysis capability', () => {

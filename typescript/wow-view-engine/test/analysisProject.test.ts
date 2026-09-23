@@ -637,3 +637,57 @@ describe('the probe row read back', () => {
     ).toHaveLength(2);
   });
 });
+
+/**
+ * The whole, beside the groups. A metric card over a trend asks its
+ * ungrouped question too (`asksForWhole`), and headlines that answer rather
+ * than the buckets added up — which are only the groups that fit the limit
+ * (the 2026-09-23 audit).
+ */
+describe('the whole beside the groups', () => {
+  const day = {
+    type: 'DATE_HISTOGRAM',
+    field: 'createdAt',
+    alias: 'day',
+    unit: 'DAY',
+  } as const;
+  // Three days asked for, a fourth came back as the probe: the grouping
+  // goes on past what is shown.
+  const buckets = [
+    { day: '2026-09-01', orders: 5 },
+    { day: '2026-09-02', orders: 7 },
+    { day: '2026-09-03', orders: 4 },
+    { day: '2026-09-04', orders: 9 },
+  ];
+  const card = (table = { columns: [] as [] }) =>
+    projectAnalysis(
+      definition(),
+      config({
+        groups: [day],
+        limit: 3,
+        sort: [{ alias: 'day', direction: 'ASC' }],
+        table,
+        chart: {
+          type: 'metric',
+          metric: { metric: 'orders', trend: { x: 'day' } },
+        },
+      }),
+      buckets,
+      [{ orders: 120 }],
+    );
+
+  it('headlines the whole, not the buckets that fit the limit', () => {
+    const view = card();
+
+    expect(view.truncated).toBe(true);
+    expect(view.chart).toMatchObject({ type: 'metric', value: 120 });
+    expect(view.overall).toEqual({ orders: 120 });
+  });
+
+  it('draws no totals row unless the table asks for one', () => {
+    expect(card().totals).toBeUndefined();
+    expect(card({ columns: [], totals: true } as never).totals).toEqual({
+      orders: 120,
+    });
+  });
+});

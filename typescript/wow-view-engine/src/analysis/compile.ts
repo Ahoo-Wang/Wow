@@ -127,6 +127,27 @@ export function analysisProbeLimit(
 }
 
 /**
+ * Whether a config asks for its whole — the ungrouped answer — beside its
+ * groups: when its table draws a totals row, or when its chart is a metric
+ * card over a trend, whose headline is the whole.
+ *
+ * Without it that card added up its buckets, and those are only the groups
+ * that fit the limit: a card over the first twenty days of a month said the
+ * month was smaller than it was (the 2026-09-23 audit; the user chose a
+ * second query over a sum labelled as partial). It is asked only when
+ * something draws it, so a bar chart or a plain table costs one query as
+ * before, and a dashboard of them no more than it did.
+ */
+export function asksForWhole(config: AnalysisViewConfig): boolean {
+  if (config.table.totals) return true;
+  return (
+    config.groups.length > 0 &&
+    config.chart.type === 'metric' &&
+    config.chart.metric?.trend !== undefined
+  );
+}
+
+/**
  * Totals run their own ungrouped query. Deriving them from the grouped rows
  * would be wrong for AVG, DISTINCT_COUNT and percentile.
  */
@@ -136,7 +157,7 @@ export function compileAnalysisTotals(
   kinds: FieldKindRegistry,
   context: FilterCompileContext,
 ): AggregationQuery | null {
-  if (!config.table.totals) return null;
+  if (!asksForWhole(config)) return null;
   return baseQuery(scopeOf(definition, config), config, kinds, context);
 }
 
