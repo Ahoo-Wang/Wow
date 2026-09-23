@@ -19,7 +19,9 @@ import {
 } from '@ahoo-wang/fetcher-wow';
 import {
   builtinFieldKinds,
-  DataViewRuntime,
+  RecordDataViewRuntime,
+  dataViewRuntime,
+  isRecordRuntime,
   DEFAULT_RUNTIME_LIMITS,
   exportPlan,
   isExportCancelled,
@@ -69,7 +71,7 @@ function openRecord(options: {
   definition?: DataViewDefinition;
   limits?: RuntimeLimits;
 }): RecordViewRuntime {
-  return new DataViewRuntime({
+  return new RecordDataViewRuntime({
     id: 'runtime-1',
     definition: options.definition ?? ordersDefinition(),
     config: recordConfig({ pageSize: 2 }),
@@ -325,8 +327,12 @@ describe('exporting every row the applied config matches', () => {
     expect(source.paged).toHaveBeenCalledTimes(2);
   });
 
-  it('refuses a view that has no rows of its own to export', async () => {
-    const runtime = new DataViewRuntime({
+  /**
+   * An analysis has no rows of its own to export, and its runtime carries
+   * no export to refuse: the method is the Record runtime's alone.
+   */
+  it('gives a view with no rows of its own no export at all', () => {
+    const runtime = dataViewRuntime({
       id: 'runtime-2',
       definition: ordersDefinition(),
       config: analysisConfig(),
@@ -337,9 +343,11 @@ describe('exporting every row the applied config matches', () => {
       environment: testEnvironment().environment,
       source: testSource(),
       runner: new RequestRunner(),
-    }) as unknown as RecordViewRuntime;
+    });
 
-    await expect(runtime.exportRows()).rejects.toThrow(/no record rows/);
+    expect(isRecordRuntime(runtime)).toBe(false);
+    expect('exportRows' in runtime).toBe(false);
+    runtime.dispose();
   });
 
   it('is a no-op once the view is closed', async () => {
@@ -347,7 +355,7 @@ describe('exporting every row the applied config matches', () => {
     const runtime = openRecord({ source });
     runtime.dispose();
 
-    await expect(runtime.exportRows()).rejects.toThrow(/no record rows/);
+    await expect(runtime.exportRows()).rejects.toThrow(/closed/);
     expect(source.paged).not.toHaveBeenCalled();
   });
 });

@@ -39,7 +39,9 @@ import type { RuntimeEnvironment } from './environment.js';
 import type { RequestRunner } from './requestRunner.js';
 import type { OptionSource, ViewSource } from './source.js';
 import type { DataViewConfig } from './execute.js';
-import { DataViewRuntime, type ManagedViewRuntime } from './viewRuntime.js';
+import type { DataViewRuntime } from './viewRuntime.js';
+import { dataViewRuntime } from './recordRuntime.js';
+import type { ManagedViewRuntime } from './viewRuntimeTypes.js';
 import {
   DashboardViewRuntime,
   type PanelResolver,
@@ -103,7 +105,7 @@ export class RuntimeFactory {
         }),
       );
 
-    return new DataViewRuntime<DataViewConfig>({
+    return dataViewRuntime({
       id: this.newRuntimeId(),
       definition,
       config,
@@ -170,7 +172,7 @@ export class RuntimeFactory {
     scopeFilter: FilterTree | null,
   ) => {
     const { instance, definition } = reference;
-    return new DataViewRuntime<DataViewConfig>({
+    return dataViewRuntime({
       id: this.newRuntimeId(),
       // `validateDashboard` admitted this panel, so the reference is a data
       // view of a data definition by the time a runtime is built for it.

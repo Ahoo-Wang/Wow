@@ -21,7 +21,7 @@ import {
   refreshDelayOf,
   refreshIntervalOf,
 } from './refreshTimer.js';
-import type { ViewRuntimeState } from './viewRuntime.js';
+import type { ViewRuntimeState } from './viewRuntimeTypes.js';
 
 /** An `error` blocks apply and every write; a `warning` only reports. */
 export function hasError(issues: readonly Issue[]): boolean {

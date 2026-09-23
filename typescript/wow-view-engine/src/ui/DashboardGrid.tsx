@@ -35,7 +35,11 @@ import {
   useRecordTable,
   useViewRuntime,
 } from '../react/index.js';
-import type { DataViewRuntime, RecordViewRuntime } from '../runtime/index.js';
+import {
+  isRecordRuntime,
+  type DataViewRuntime,
+  type RecordViewRuntime,
+} from '../runtime/index.js';
 import { AnalysisChart } from './AnalysisChart.js';
 import { AnalysisTable } from './AnalysisTable.js';
 import {
@@ -331,8 +335,8 @@ function PanelBody({ panel }: { panel: DashboardPanelView }) {
   if (panel.broken) return <Unavailable issue={bodyIssue(panel)} />;
   if (panel.panel.kind !== 'view') return <ContentPanel panel={panel.panel} />;
   if (!panel.runtime) return <Unavailable issue={panel.issues[0]} />;
-  return panel.runtime.kind === 'record' ? (
-    <RecordPanel runtime={panel.runtime as RecordViewRuntime} />
+  return isRecordRuntime(panel.runtime) ? (
+    <RecordPanel runtime={panel.runtime} />
   ) : (
     <AnalysisPanel runtime={panel.runtime} />
   );

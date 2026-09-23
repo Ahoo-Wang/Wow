@@ -13,9 +13,10 @@
 
 import { FilterOperator, type QueryApi } from '@ahoo-wang/fetcher-wow';
 import { describe, expect, it, vi } from 'vitest';
+import type { DataViewRuntime, RecordDataViewRuntime } from '../src/index.js';
 import {
   builtinFieldKinds,
-  DataViewRuntime,
+  dataViewRuntime,
   DEFAULT_RUNTIME_LIMITS,
   RequestRunner,
   defaultRuntimeEnvironment,
@@ -48,7 +49,8 @@ function flush(): Promise<void> {
 }
 
 interface Harness {
-  runtime: DataViewRuntime;
+  // Record API on hand; the analysis cases in this file never call it.
+  runtime: RecordDataViewRuntime;
   source: ViewSource;
   clock: TestEnvironment;
 }
@@ -67,7 +69,7 @@ function harness(
   const clock = testEnvironment();
   const source = options.source ?? testSource();
   const definition = options.definition ?? ordersDefinition();
-  const runtime = new DataViewRuntime({
+  const runtime = dataViewRuntime({
     id: 'runtime-1',
     definition,
     config: options.config ?? recordConfig(),
@@ -80,7 +82,7 @@ function harness(
     source,
     runner: options.runner ?? new RequestRunner(),
     scopeFilter: options.scopeFilter,
-  });
+  }) as RecordDataViewRuntime;
   return { runtime, source, clock };
 }
 

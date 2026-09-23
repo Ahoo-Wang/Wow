@@ -56,13 +56,13 @@ import {
 } from './dashboard/panels.js';
 import { PanelReferences, type PanelResolver } from './dashboard/references.js';
 import type { WriteState } from './write.js';
+import type { DataViewRuntime } from './viewRuntime.js';
 import type {
-  DataViewRuntime,
   ManagedViewRuntime,
   ViewQueryState,
   ViewRuntime,
   ViewRuntimeState,
-} from './viewRuntime.js';
+} from './viewRuntimeTypes.js';
 
 export type { PanelResolver } from './dashboard/references.js';
 export type { PanelRuntimeFactory } from './dashboard/children.js';

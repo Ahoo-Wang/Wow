@@ -21,7 +21,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   builtinFieldKinds,
   compileRecord,
-  DataViewRuntime,
+  RecordDataViewRuntime,
   DEFAULT_RUNTIME_LIMITS,
   FIRST_PAGE,
   RequestRunner,
@@ -201,7 +201,7 @@ function unstableSource(): ViewSource {
 }
 
 function open(source: ViewSource): RecordViewRuntime<'paged'> {
-  return new DataViewRuntime({
+  return new RecordDataViewRuntime({
     id: 'runtime-1',
     definition: ordersDefinition(),
     config: recordConfig({

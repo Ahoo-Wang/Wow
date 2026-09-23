@@ -38,4 +38,6 @@ export * from './valueCandidates.js';
 export * from './viewChanges.js';
 export * from './viewEngine.js';
 export * from './viewRuntime.js';
+export * from './viewRuntimeTypes.js';
+export * from './recordRuntime.js';
 export * from './write.js';

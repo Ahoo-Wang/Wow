@@ -199,6 +199,7 @@ src/
     refreshTimer.ts           — The one auto-refresh timer both runtimes arm; `refreshIntervalOf`, `refreshDelayOf`
     autoApply.ts              — 「改了就跑」: whether the draft is due to run on its own (`autoApplyDue`) and the delay that merges a burst of edits into one query
     requestRunner.ts          — Scheduling; a newer request supersedes a key
+    recordRuntime.ts          — `RecordDataViewRuntime`: the page, the selection, the export and the record read whole — a Record view's alone; `dataViewRuntime` builds the one a config's kind runs on, `isRecordRuntime` tells them apart
     runtimeFactory.ts         — How one runtime is assembled, `open` and `create` alike
     runtimeStore.ts           — The store both runtimes are made of: the state, its listeners, the refresh timer's bookkeeping, dirty-against-saved; `hasError`
     sourceReason.ts           — What a source said went wrong, in its own words: a Wow error body's `errorMsg`, else the HTTP status, never the URL
@@ -210,7 +211,8 @@ src/
     valueCandidates.ts        — `ValueCandidateSources`: one `ValueCandidateSource` per offered field, compiled through the analysis kernel under the injected scope, answers kept for the life of the view and narrowed in hand where the source has nothing to add
     viewChanges.ts            — The change notifications a list of views subscribes to (D15)
     viewEngine.ts             — ViewEngine — the command surface: admission, then one dispatch
-    viewRuntime.ts            — One open view over one `RuntimeStore`: the `ViewRuntime` contract, admission and execution; `hasResult`, the one reading of "a result ever arrived"
+    viewRuntime.ts            — `DataViewRuntime`: one open data view over one `RuntimeStore` — admission, ask, run, land; what only a Record view has comes in through four hooks (`startOver`, `pageNow`, `settle`, `holds`)
+    viewRuntimeTypes.ts       — The runtime contract: `ViewRuntime`, `RecordViewRuntime`, `ManagedViewRuntime`, the state and result shapes; `hasResult`, the one reading of "a result ever arrived"
     write.ts                  — Write bodies, retry and overwrite replay
     writeLedger.ts            — The write ledger: outcomes by requestId, retry, conflicts
     index.ts                  — Transient state: what is open, what is in flight, what came back

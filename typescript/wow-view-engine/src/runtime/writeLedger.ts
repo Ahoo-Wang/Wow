@@ -18,7 +18,7 @@ import {
 } from '../model/index.js';
 import { issue } from '../filter/index.js';
 import type { ViewStore, WriteContext } from '../store/ViewStore.js';
-import type { ManagedViewRuntime, ViewRuntime } from './viewRuntime.js';
+import type { ManagedViewRuntime, ViewRuntime } from './viewRuntimeTypes.js';
 import type { ViewChange } from './viewChanges.js';
 import {
   ViewCommandError,

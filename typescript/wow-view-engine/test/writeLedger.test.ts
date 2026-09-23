@@ -19,7 +19,7 @@ import {
   type ViewInstance,
   type ViewPreferences,
 } from '../src/index.js';
-import type { ManagedViewRuntime } from '../src/runtime/viewRuntime.js';
+import type { ManagedViewRuntime } from '../src/runtime/viewRuntimeTypes.js';
 import type { ViewStore, WriteContext } from '../src/store/ViewStore.js';
 import {
   WriteLedger,

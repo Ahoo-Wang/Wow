@@ -17,6 +17,7 @@ import {
   autoApplyDue,
   builtinFieldKinds,
   DataViewRuntime,
+  RecordDataViewRuntime,
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
   RequestRunner,
@@ -155,7 +156,7 @@ describe('改了就跑: the analysis runs again on its own', () => {
     expect(autoRunMembers('record')).toEqual([]);
     const clock = testEnvironment();
     const source = testSource();
-    const runtime = new DataViewRuntime({
+    const runtime = new RecordDataViewRuntime({
       id: 'record-1',
       definition: ordersDefinition(),
       config: recordConfig(),

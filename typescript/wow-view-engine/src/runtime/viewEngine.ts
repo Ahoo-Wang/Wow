@@ -47,7 +47,7 @@ import type {
   ManagedViewRuntime,
   RuntimeFor,
   ViewRuntime,
-} from './viewRuntime.js';
+} from './viewRuntimeTypes.js';
 import { DashboardViewRuntime } from './dashboardRuntime.js';
 import {
   ViewCommandError,

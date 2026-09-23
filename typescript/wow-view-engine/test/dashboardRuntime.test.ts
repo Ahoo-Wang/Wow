@@ -16,7 +16,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   builtinFieldKinds,
   DashboardViewRuntime,
-  DataViewRuntime,
+  dataViewRuntime,
   DEFAULT_RUNTIME_LIMITS,
   isViewCommandError,
   MemoryViewStore,
@@ -879,7 +879,7 @@ describe('DashboardViewRuntime child refusal', () => {
       environment: clock.environment,
       resolve: () => Promise.resolve(reference),
       createPanelRuntime: (found, scopeFilter) =>
-        new DataViewRuntime({
+        dataViewRuntime({
           id: 'child',
           definition: ordersDefinition({
             fields: ordersDefinition().fields.filter(

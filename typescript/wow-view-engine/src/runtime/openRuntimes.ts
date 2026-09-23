@@ -21,11 +21,8 @@
  */
 
 import { issue } from '../filter/index.js';
-import {
-  DataViewRuntime,
-  type ManagedViewRuntime,
-  type ViewRuntime,
-} from './viewRuntime.js';
+import { DataViewRuntime } from './viewRuntime.js';
+import type { ManagedViewRuntime, ViewRuntime } from './viewRuntimeTypes.js';
 import { DashboardViewRuntime } from './dashboardRuntime.js';
 import { ViewCommandError } from './write.js';
 
