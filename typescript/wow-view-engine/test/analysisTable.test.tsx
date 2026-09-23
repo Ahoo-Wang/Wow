@@ -165,7 +165,7 @@ describe('AnalysisTable', () => {
     );
 
     expect(screen.getByText('¥0～500')).toBeDefined();
-    expect(screen.getByText('¥500～1000')).toBeDefined();
+    expect(screen.getByText('¥500～1,000')).toBeDefined();
     expect(screen.queryByText('¥0.00')).toBeNull();
   });
 

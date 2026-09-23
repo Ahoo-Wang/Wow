@@ -76,7 +76,7 @@ function boundTexts(
   format: NumberFormat | undefined,
   locale: string | undefined,
 ): [string, string] {
-  const short = compactFormat(format);
+  const short = bandCompact(format);
   const compact =
     format?.useGrouping !== false &&
     [lower, upper].every(bound => writesExactly(bound, short, locale));
@@ -96,6 +96,24 @@ function boundTexts(
     `${from.prefix}${from.core}${shared.suffix ? '' : from.suffix}`,
     `${shared.prefix ? '' : to.prefix}${to.core}${to.suffix}`,
   ];
+}
+
+/**
+ * The compact notation a bound is tried in: the axis's (`compactFormat`), but
+ * with at most one decimal and no significant digits. 「1.25K」 is exact, yet
+ * it is a figure to work out; a band edge short enough to read at a glance
+ * is written short, any other in full.
+ */
+function bandCompact(format: NumberFormat | undefined): NumberFormat {
+  const short: NumberFormat & { roundingPriority?: string } = {
+    ...compactFormat(format),
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 1,
+  };
+  delete short.minimumSignificantDigits;
+  delete short.maximumSignificantDigits;
+  delete short.roundingPriority;
+  return short;
 }
 
 /**

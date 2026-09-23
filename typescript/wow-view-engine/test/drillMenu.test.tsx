@@ -630,6 +630,6 @@ describe('the follow-up menu on one group', () => {
         messages,
         display,
       ),
-    ).toBe('价格区间 在 ¥500～1000');
+    ).toBe('价格区间 在 ¥500～1,000');
   });
 });

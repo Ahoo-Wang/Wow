@@ -147,7 +147,7 @@ export const SnapshotConsole: Story = {
         [...(reading?.tBodies[0]?.rows ?? [])].map(
           row => row.cells[0]?.textContent,
         ),
-      ).toEqual(['¥0～500', '¥3000～3500', '¥3500～4000', '¥4000～4500']);
+      ).toEqual(['¥0～500', '¥3,000～3,500', '¥3,500～4,000', '¥4,000～4,500']);
     });
 
     // Each brand's range, and its earliest deadline as a date. The two

@@ -411,8 +411,8 @@ describe('bandText', () => {
 
   it('reads a key as its band, short, in the surface language', () => {
     expect(band(0, 500, yuan)).toBe('¥0～500');
-    expect(band(500, 500, yuan)).toBe('¥500～1000');
-    expect(band(5000, 5000, yuan)).toBe('¥5000～1万');
+    expect(band(500, 500, yuan)).toBe('¥500～1,000');
+    expect(band(5000, 5000, yuan)).toBe('¥5,000～1万');
     expect(band(10000, 10000, yuan)).toBe('¥1～2万');
     expect(band(100000000, 100000000, yuan)).toBe('¥1～2亿');
     // English: an en dash, and K and M.

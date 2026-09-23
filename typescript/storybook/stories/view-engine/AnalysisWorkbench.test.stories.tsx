@@ -718,12 +718,12 @@ export const FollowUpFocus: Story = {
  *
  * 按 500 一档分组，一档的键是它的下界，从前横轴与表格读成「¥0.00」「¥500.00」，
  * 说不出一行是哪一段。这里量画出来的横轴、读屏表、切到表格后的那一列与按下
- * 一行弹出的追问菜单标题：都读成「¥0～500」「¥500～1000」「¥1000～1500」。
+ * 一行弹出的追问菜单标题：都读成「¥0～500」「¥500～1,000」「¥1,000～1,500」。
  */
 export const BandsReadAsRanges: Story = {
   ...DisplayFreightBands,
   play: async ({ canvasElement }) => {
-    const bands = ['¥0～500', '¥500～1000', '¥1000～1500'];
+    const bands = ['¥0～500', '¥500～1,000', '¥1,000～1,500'];
     await chartsDrawn(canvasElement);
     await waitFor(() => expect(bars(canvasElement)).toHaveLength(3));
     const ticks = await waitFor(() => {
