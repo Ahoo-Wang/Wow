@@ -352,9 +352,23 @@ export const FollowUpFromABar: Story = {
     await chartsDrawn(canvasElement);
     const [bar] = bars(canvasElement);
     const box = bar!.getBoundingClientRect();
+    // The pointer over the bar raises its tooltip first, as a reader's does.
+    bar!.dispatchEvent(
+      new MouseEvent('mousemove', {
+        bubbles: true,
+        clientX: box.left + box.width / 2,
+        clientY: box.top + box.height / 2,
+      }),
+    );
+    const tooltip = () =>
+      canvasElement.querySelector<HTMLElement>('[data-slot="chart-tooltip"]');
+    await waitFor(() => expect(tooltip()).toBeVisible());
     pressMark(bar!);
     const menu = await drillMenu();
     const opened = await settled(menu);
+    // The menu is the answer to the press: the tooltip steps aside rather
+    // than sit over its first items.
+    await waitFor(() => expect(tooltip()).not.toBeVisible());
     // Hung from the point pressed — an edge of the menu at it — not from
     // the chart's corner.
     const x = box.left + box.width / 2;

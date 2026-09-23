@@ -117,9 +117,15 @@ export function EChart({
         width: w,
         height: h,
       });
-      created.on('click', params =>
-        latest.current.onClick?.(params as unknown as ChartClick),
-      );
+      created.on('click', params => {
+        const handler = latest.current.onClick;
+        if (!handler) return;
+        // A press opens the follow-up menu at the point pressed, and the
+        // tooltip standing there sat on top of it, over its first items.
+        // The menu is the answer to the press; the tooltip steps aside.
+        created.dispatchAction({ type: 'hideTip' });
+        handler(params as unknown as ChartClick);
+      });
       // Said on the frame once the marks have landed — animation included —
       // and taken back while a new drawing is on its way, for whoever reads
       // the drawing's geometry: a bar measured as it grows is a bar of
