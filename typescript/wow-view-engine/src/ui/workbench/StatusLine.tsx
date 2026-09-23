@@ -17,7 +17,7 @@ import type { WorkbenchController } from '../../react/index.js';
 import { resultIssues } from '../../runtime/index.js';
 import { SPACE } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
-import { ErrorStrip, WarningStrip } from '../StatusStrip.js';
+import { ErrorStrip, NoteStrip, WarningStrip } from '../StatusStrip.js';
 import type { WorkbenchShellProps } from '../WorkbenchShell.js';
 
 export interface StatusLineProps extends Pick<
@@ -86,6 +86,11 @@ export function StatusLine({
               ]
             : []),
         ]}
+      />
+      {/* What is true of the answer and nothing is wrong with, under the
+          warnings and quieter than them (`note`). */}
+      <NoteStrip
+        issues={[...state.issues, ...resultIssues(state.result?.data)]}
       />
     </div>
   );

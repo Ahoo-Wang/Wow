@@ -223,13 +223,19 @@ function cutShortIssues(
   config: AnalysisViewConfig,
   view: AnalysisView,
 ): Issue[] {
+  // Only shares of a whole mislead when the whole is cut short: a pie's
+  // slices are fractions of the groups shown. Elsewhere every row is its
+  // own true number, and a view that asks for its top 30 has left the rest
+  // out on purpose — worth saying, but as a note, not as a warning that
+  // something is wrong.
+  const severity = sharesOfWhole(config) ? 'warning' : 'note';
   if (view.truncated)
     return [
       issue(
         'analysis.result.more-groups',
         ['limit'],
         { limit: config.limit },
-        'warning',
+        severity,
       ),
     ];
   if (view.atLimit === undefined) return [];
@@ -238,7 +244,12 @@ function cutShortIssues(
       'analysis.result.at-limit',
       ['limit'],
       { limit: view.atLimit },
-      'warning',
+      severity,
     ),
   ];
+}
+
+/** Whether the result is drawn as shares of the groups it holds. */
+function sharesOfWhole(config: AnalysisViewConfig): boolean {
+  return config.layout === 'chart' && config.chart?.type === 'pie';
 }

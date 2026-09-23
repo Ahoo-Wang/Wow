@@ -541,7 +541,7 @@ describe('DashboardViewRuntime child results', () => {
     ]);
   });
 
-  it('carries a child result warning on the panel: more groups than shown', async () => {
+  it('carries a child result note on the panel: more groups than shown', async () => {
     const board = await harness({
       instances: [pending({ config: analysisConfig({ limit: 1 }) })],
       // One group asked for, so the query asks for two — and two come back,
@@ -561,7 +561,8 @@ describe('DashboardViewRuntime child results', () => {
     const first = runtime.getSnapshot().panels[0];
     expect(codes(first.issues)).toEqual(['analysis.result.more-groups']);
     expect(first.issues[0].path).toEqual(['panels', 0, 'limit']);
-    expect(first.issues[0].severity).toBe('warning');
+    // A table's rows are whole whatever the limit left out: a note.
+    expect(first.issues[0].severity).toBe('note');
   });
 });
 

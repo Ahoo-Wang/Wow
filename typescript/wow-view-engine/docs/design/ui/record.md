@@ -88,6 +88,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
   - 没有条件 → 「还没有任何记录」（`label.record.empty-none`），出口「添加条件」；
   - `onEmptyAction` 不给就不画——仪表盘面板与 `EmbeddedView` 没有条件编辑器（test/recordWorkbenchInteraction.test.tsx「emptyWayOut」「takes a saved view back to its saved conditions from the empty result」）；
 - **骨架按列名给不等宽条**（列名字数 `ch`，夹在 4–16）：说的是"**这张**表在加载"；首次加载没有列时一行一条；
+- **卡片标题最多两行，全文在悬停上**（`data-slot="card-title-text"`，`line-clamp-2` 加 `title`）：标题常是一个长名字——处理器 `OrderItemReservedTrackEventProcessor` 比一张卡片宽——从中间硬截只剩前几个字母，什么也说不出。（见 test/recordCards.test.tsx「gives a card title two lines, and the whole of it on hover」）
 - **卡片正文是一列 `Item`**（D16 裁定三）：`ItemDescription` 字段名（灰、`TEXT_UI` 13px，走 `RowItem` 的 `description="label"` 变体——D16 裁定八：调用处不往 vendored 组件上写排版），`ItemTitle` 值（`text-sm`、中等字重），基线对齐；`ItemGroup`（`role="list"`）里每行显式 `role="listitem"`；
 - **卡片说的话和表格一样多**（D18 Ⅴ／Ⅵ）：`RecordCards` 守同样三道门（骨架卡片 `ui/record/SkeletonCards.tsx`、同一个 `EmptyResult`）；**汇总留在卡片下**（`ui/record/CardSummaries.tsx`，`data-slot="record-summaries"` + `data-layout="card"`），走同一个 `SummaryValue`，两份 scope 由 `useSummaries`（`ui/record/useSummaries.ts`）算；**标题走 `cellValue`**，定义里已没有的标题字段退回行键；**`renderCell` 两种布局同一签名**（卡片把字段补成列的形状，`sortable: false`），一个值不该有两个渲染器；
 - **卡片设置复用列设置那颗按钮**：`ResultToolbar` 按 `table.layout` 换成 `ui/CardSettings.tsx`（同一个 `data-control="columns"`，名字「卡片设置」）：标题字段（`Select`）、正文字段（复选框，勾上接末尾、已存顺序不动）、图片字段（含「不显示图片」）、每行几张（1–4 的 `ToggleGroup`），全走 `table.setCard(patch)`（test/recordCards.test.tsx、test/cardSettings.test.tsx；故事 `CardsAreSetUpFromTheSameButton`）；

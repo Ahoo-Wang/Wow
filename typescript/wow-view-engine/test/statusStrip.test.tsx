@@ -21,7 +21,7 @@ import {
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FilterTree, FilterValue, Issue } from '../src/index.js';
 import { Button } from '../src/ui/components/button.js';
-import { dedupeIssues, StatusStrip } from '../src/ui/StatusStrip.js';
+import { dedupeIssues, NoteStrip, StatusStrip } from '../src/ui/StatusStrip.js';
 // `unmarkedErrors` is a question about the tree, so it moved to the filter
 // kernel; the strip beside it only renders what it is handed.
 import { unmarkedErrors } from '../src/filter/index.js';
@@ -138,6 +138,30 @@ describe('StatusStrip', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
 
     expect(retry).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('NoteStrip', () => {
+  const note: Issue = {
+    code: 'analysis.result.more-groups',
+    severity: 'note',
+    path: ['limit'],
+    params: { limit: 30 },
+  };
+
+  /**
+   * A view that asked for its top 30 was answered as asked: the groups left
+   * out are said as a note, in the quiet tone, and never as a warning.
+   */
+  it('says a note quietly, and a warning strip does not take it', () => {
+    const { container } = render(<WarningStrip issues={[note]} />);
+    expect(container.innerHTML).toBe('');
+    cleanup();
+
+    render(<NoteStrip issues={[note]} />);
+    const line = screen.getByRole('status');
+    expect(line.getAttribute('data-tone')).toBe('info');
+    expect(line.textContent).toContain('30');
   });
 });
 

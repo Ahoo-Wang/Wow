@@ -172,6 +172,34 @@ export function WarningStrip({ issues, className }: IssueStripProps) {
   );
 }
 
+/**
+ * What is true about the answer and not wrong with it, as a quiet line: the
+ * groups a view's own limit left out, when every row shown is whole
+ * (`note`, `IssueSeverity`). The info tone rather than a warning's — a
+ * screen that warns about what it was asked to do teaches its reader to
+ * stop reading warnings.
+ */
+export function NoteStrip({ issues, className }: IssueStripProps) {
+  const messages = useViewMessages();
+  const notes = dedupeIssues(issues.filter(found => found.severity === 'note'));
+  if (notes.length === 0) return null;
+  const sentences = notes.map(found => messages.issue(found));
+  return (
+    <StatusStrip
+      tone="info"
+      title={
+        sentences.length === 1
+          ? sentences[0]
+          : messages.label('label.view.warnings-count', {
+              count: sentences.length,
+            })
+      }
+      details={sentences.length === 1 ? undefined : sentences}
+      className={className}
+    />
+  );
+}
+
 export interface QueryStripProps {
   /** The query's own failure; nothing is said while there is none. */
   error: Issue | null | undefined;

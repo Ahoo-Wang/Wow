@@ -20,6 +20,7 @@ import GridLayout, {
   type ResizeHandleAxis,
 } from 'react-grid-layout';
 import {
+  InfoIcon,
   LayoutDashboardIcon,
   TriangleAlertIcon,
   UnplugIcon,
@@ -245,6 +246,10 @@ export function DashboardPanel({
     found => found.severity === 'warning' && found !== shown,
   );
   const warned = warnings.length > 0;
+  // What is true of the panel's answer and nothing is wrong with — the
+  // groups its own limit left out — rides beside the title quietly: no
+  // warning colour on the glyph, none on the panel's edge.
+  const notes = panel.issues.filter(found => found.severity === 'note');
   return (
     <Card
       data-slot="dashboard-panel"
@@ -275,6 +280,16 @@ export function DashboardPanel({
               }
             >
               <TriangleAlertIcon className="text-warning" />
+            </IconTooltip>
+          )}
+          {notes.length > 0 && (
+            <IconTooltip
+              label={messages.issues(notes)}
+              render={
+                <Button data-slot="panel-note" variant="ghost" size="icon-sm" />
+              }
+            >
+              <InfoIcon className="text-muted-foreground" />
             </IconTooltip>
           )}
           {/*

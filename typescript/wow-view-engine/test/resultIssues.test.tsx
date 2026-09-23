@@ -151,13 +151,17 @@ describe('the findings a result carries', () => {
     expect(data.issues).toEqual([]);
   });
 
+  /**
+   * Every row shown is its own true number, and the view asked for its top
+   * two: the groups below are worth saying, as a note — nothing is wrong.
+   */
   it('reports an analysis with more groups than it showed', async () => {
     const data = await ran(analysisConfig({ limit: 2 }), grouped(4));
 
     expect(data.issues).toEqual([
       {
         code: 'analysis.result.more-groups',
-        severity: 'warning',
+        severity: 'note',
         path: ['limit'],
         // The limit the reader set, not the one the query carried: the probe
         // row is the engine's question and never the reader's.
@@ -165,6 +169,22 @@ describe('the findings a result carries', () => {
       },
     ]);
     expect(data.kind === 'analysis' && data.view.rows).toHaveLength(2);
+  });
+
+  /**
+   * A pie's slices are shares of the groups shown, so a cut-short pie reads
+   * as the whole when it is not: that is a warning.
+   */
+  it('warns when the groups left out skew a pie’s shares', async () => {
+    const data = await ran(
+      analysisConfig({
+        limit: 2,
+        layout: 'chart',
+        chart: { type: 'pie', pie: { category: 'warehouse', value: 'orders' } },
+      }),
+      grouped(4),
+    );
+    expect(data.issues.map(found => found.severity)).toEqual(['warning']);
   });
 
   /**
@@ -221,7 +241,7 @@ describe('the findings a result carries', () => {
     expect(runtime.getSnapshot().result?.data?.issues).toEqual([
       {
         code: 'analysis.result.at-limit',
-        severity: 'warning',
+        severity: 'note',
         path: ['limit'],
         params: { limit: 2 },
       },

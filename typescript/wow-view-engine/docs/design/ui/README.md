@@ -28,7 +28,7 @@
 - `EmbeddedView` 没有编辑器，全部报出并取代结果；查询失败例外：上一次结果还在时失败条与结果并排（`label.query.stale`）。`warning` 不阻塞但要被看见：用主题的 `warning` token（`text-warning`／`border-warning`，宿主以 `--fve-warning`／`--fve-dark-warning` 定制）；一条时那句话就是标题，多条时标题是 `label.view.warnings-count`。
 - **宿主的收窄被拒，说的是收窄而不是视图**：`EmbeddedView` 的 `scopeFilter` 不被定义接受时，是一条 destructive `Alert`（标题 `label.scope.refused`，正文列出理由），而不是 `label.view.needs-fixing`——宿主改不了别人存的视图。首次打开被拒与后来被拒同理（[decisions.md](../decisions.md) D17-5）：收窄不生效，视图照原样跑，结果留在屏幕上、告警压在上面。（见 test/embeddedView.test.tsx 与回归 story「ScopeRefused」「ScopeRefusedOnOpen」）
 - 同 code 同 params 的 warning 只说一句（`dedupeIssues`）。查询失败是一条 error 状态条：标题是失败那句，右端 Retry；上一次结果还在时同一行接着说「· 显示的是上一次成功的结果」（`label.query.stale`）——读者最需要的一句不折叠。失败从不清空结果。（见 test/statusStrip.test.tsx「StatusStrip」「dedupeIssues」「WarningStrip」「ErrorStrip」「QueryStrip」）
-- **结果自己的 warning 与配置的 warning 并排**：汇总行退回本页口径（`runtime.summary.page-only`）、还有没列出的组（`analysis.result.more-groups`／`analysis.result.at-limit`）这类发现随结果走（`ProjectedView.issues`，见 [../runtime.md#规则](../runtime.md#规则)）——`state.issues` 每次 `edit` 都重算，放进去就会在下一次按键时消失，而数字还在屏幕上。`RecordWorkbench` 与 `AnalysisWorkbench` 把两者拼给 `WorkbenchShell` 的 `warnings`，`EmbeddedView` 并进自己那条。
+- **结果自己的 warning 与配置的 warning 并排，note 在其下**（`NoteStrip`，info 语气；仪表盘面板头是一枚灰色 info 图标，不染面板边）：汇总行退回本页口径（`runtime.summary.page-only`）、还有没列出的组（`analysis.result.more-groups`／`analysis.result.at-limit`）这类发现随结果走（`ProjectedView.issues`，见 [../runtime.md#规则](../runtime.md#规则)）——`state.issues` 每次 `edit` 都重算，放进去就会在下一次按键时消失，而数字还在屏幕上。`RecordWorkbench` 与 `AnalysisWorkbench` 把两者拼给 `WorkbenchShell` 的 `warnings`，`EmbeddedView` 并进自己那条。
 
 `FilterPanel` 的条件 pill 见 [FilterPanel 的布局](#filterpanel-的布局)。
 

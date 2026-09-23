@@ -26,7 +26,12 @@ export interface Issue {
   params?: Record<string, string | number>;
 }
 
-/** `error` blocks apply and save; `warning` is reported without blocking. */
-export type IssueSeverity = 'error' | 'warning';
+/**
+ * `error` blocks apply and save; `warning` is reported without blocking —
+ * something is wrong, or the answer could be misread; `note` is something
+ * true about the answer a reader should know, and nothing is wrong: the
+ * groups a view's own limit left out, when every row shown is whole.
+ */
+export type IssueSeverity = 'error' | 'warning' | 'note';
 
 export type IssuePath = (string | number)[];

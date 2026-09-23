@@ -110,7 +110,7 @@ D20 屏 G。订单里有明细项，明细项里有批次——「按货号看�
 
 - 分组没画完时，屏幕上的行只是真实分组的一个前缀，于是这一屏的每个占比、每个百分比、每个扇区都是拿"已显示的部分"当分母算出来的。饼图是最坏的一种：它的全部含义就是"各部分占整体多少"，而整体已经不在图里了。这件事读者自己查不出来——一张被截断的表和一张完整的表长得一模一样；
 - **多要一行比猜一行强**（D20 Ⅷ）。聚合至多回答 `limit` 行，并不说它省略了多少，所以"恰好填满上限"曾经是唯一可用的信号，而它是二义的：刚好这么多组，和被截到这么多组，长得一样。现在引擎发查询时要 `limit + 1`（`analysisProbeLimit`）：那一行回来了就是"还有更多"，没回来就是"没有更多"，二义变成答案。**探针行只回答问题，不上屏**——`projectAnalysis` 把它丢掉，表格、图表与"其他"片都按读者要的那 N 组算，判据见 [../kernels.md#compileanalysis-与-projectanalysis](../kernels.md#compileanalysis-与-projectanalysis)；
-- 于是句子从"可能"变成事实：`analysis.result.more-groups`，「只显示了前 {limit} 组，还有更多未列出」。工作台把这条 warning 交给 `WorkbenchShell` 的 `warnings`，状态条在**表格与图表之上**，两种布局各画各的，这一行是共同的，切换布局不会把它丢掉；
+- 于是句子从"可能"变成事实：`analysis.result.more-groups`，「只显示了前 {limit} 组，还有更多未列出」。**它的级别看画的是什么**：画成饼图时是 warning——扇区是「前 N 组」内部的份额，截断了就会被读成整体；其余（表格、柱、线……每一行的数都是真的，视图本就只要前 N 组）是 note，状态行用安静的 info 条说一句（`NoteStrip`），黄色留给真有问题的时候——一屏常常对自己被要求做的事发警告，读者就不再读警告了。它交给 `WorkbenchShell`，状态条在**表格与图表之上**，两种布局各画各的，这一行是共同的，切换布局不会把它丢掉；
 - **唯一问不出来的那一种**：配置的上限已经顶到天花板（能力声明的 `maxLimit`，或 Wow 自己的 `AGGREGATION_LIMITS.MAX_LIMIT`）时，多要的那一行会让整个查询被拒，探不成。这一种保留旧读法与旧措辞——`analysis.result.at-limit`，「只显示了前 {limit} 组，可能还有更多未列出」——因为那时"恰好填满"确实是全部已知的东西；
 - 合计行照旧来自自己的无分组查询，**所以不管截没截断它都覆盖范围内全部记录**——可见的几行加起来小于它们下面的合计，两个数都没错，正是这条 warning 要解释的事；表头把这句口径写在自己身上（下面「三条口径」）。（见 test/resultIssues.test.tsx「what the screen says about an analysis cut short」、test/analysisProject.test.ts「the probe row read back」与 stories/view-engine 的 `CutShort`／`CutShortTable`）
 

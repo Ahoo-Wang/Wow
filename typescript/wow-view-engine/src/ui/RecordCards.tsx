@@ -40,7 +40,7 @@ import type { EmptyWayOut } from './record/emptyWayOut.js';
 import { SkeletonCards } from './record/SkeletonCards.js';
 import { useSummaries } from './record/useSummaries.js';
 import type { RecordCell } from './RecordTable.js';
-import { valueText } from './display.js';
+import { cellText, valueText } from './display.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 import { cn } from 'cn';
@@ -143,6 +143,18 @@ export function RecordCards({
     };
   };
 
+  // The title as a line of text, for the hover that shows what two lines
+  // cut short.
+  const titleText = (row: RecordRow): string =>
+    card.titleField
+      ? cellText(
+          recordValue(row.data, card.titleField.field),
+          card.titleField,
+          messages,
+          display,
+        ) || String(row.key)
+      : titleOf(row, card.title, messages, display.locale);
+
   // The same three gates the table keeps, for the same reasons it gives.
   if (!table.hasResult && table.status !== 'loading') return null;
   if (table.status === 'loading' && table.rows.length === 0)
@@ -180,9 +192,19 @@ export function RecordCards({
                     wears in its column, and a link is a link. The row key
                     alone names a card whose title field the definition has
                     dropped. */}
-                {card.titleField
-                  ? (render(cell(row, card.titleField)) ?? String(row.key))
-                  : titleOf(row, card.title, messages, display.locale)}
+                {/* Up to two lines, then the rest one hover away: a processor
+                    name like OrderItemReservedTrackEventProcessor is longer
+                    than a card is wide, and clipped mid-word it named
+                    nothing. */}
+                <span
+                  data-slot="card-title-text"
+                  className="line-clamp-2 min-w-0 [overflow-wrap:anywhere]"
+                  title={titleText(row)}
+                >
+                  {card.titleField
+                    ? (render(cell(row, card.titleField)) ?? String(row.key))
+                    : titleOf(row, card.title, messages, display.locale)}
+                </span>
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-1">
@@ -214,7 +236,11 @@ export function RecordCards({
                       <ItemDescription className="shrink-0">
                         {field.label}
                       </ItemDescription>
-                      <ItemTitle className="min-w-0">
+                      {/* An identifier has no space to wrap at — a
+                          function name like onInvoiceRegistrationCreated —
+                          so it may break anywhere rather than run off the
+                          card's edge. */}
+                      <ItemTitle className="min-w-0 [overflow-wrap:anywhere]">
                         {render(cell(row, field))}
                       </ItemTitle>
                     </ItemContent>
@@ -223,9 +249,11 @@ export function RecordCards({
               </ItemGroup>
             </CardContent>
             {/* A card has no column to pin actions to, so they sit under a
-                rule at its foot — the same buttons, the same order. */}
+                rule at its foot — the same buttons, the same order — and at
+                the foot of the tallest card in the row too (`mt-auto`), not
+                wherever a shorter card's body ended. */}
             {rowActions && (
-              <CardFooter className="flex justify-end gap-1 border-t pt-2">
+              <CardFooter className="mt-auto flex justify-end gap-1 border-t pt-2">
                 <RowActions>{rowActions(row)}</RowActions>
               </CardFooter>
             )}
@@ -279,7 +307,7 @@ function titleOf(
   title: string,
   messages: MessageFormatters,
   locale: string | undefined,
-): React.ReactNode {
+): string {
   const text = valueText(
     title ? recordValue(row.data, title) : row.key,
     messages,

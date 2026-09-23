@@ -212,7 +212,7 @@ export interface ViewPreferences {
 // ---- 问题 ----
 export interface Issue {
   code: string; // 程序分支依据
-  severity: 'error' | 'warning';
+  severity: 'error' | 'warning' | 'note'; // error 拦应用与保存；warning 报而不拦（有问题或可能被误读）；note 只是答案的一个事实，没有什么不对
   path: (string | number)[]; // 指向 config 内的位置
   params?: Record<string, string | number>;
 }

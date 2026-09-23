@@ -79,9 +79,12 @@ function recordView(
     layout: 'table',
     summaries: [],
     table: { columns: COLUMNS.map(field => ({ field })) },
+    // A card is scanned for which business flow failed: the processor
+    // titles it, and the function inside it leads the body.
     card: {
-      title: 'state.function.name',
+      title: 'state.function.processorName',
       fields: [
+        'state.function.name',
         'state.status',
         'state.error.errorCode',
         'state.error.errorMsg',

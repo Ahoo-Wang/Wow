@@ -49,6 +49,25 @@ function cards(
  * for every one of them.
  */
 describe('RecordCards outside the rows', () => {
+  /**
+   * A processor name is longer than a card is wide. Two lines of it, and
+   * the whole of it one hover away, rather than cut mid-word.
+   */
+  it('gives a card title two lines, and the whole of it on hover', () => {
+    const name = 'OrderItemReservedTrackEventProcessor';
+    cards({
+      card: {
+        title: 'processor',
+        titleField: { field: 'processor', label: 'Processor', kind: 'string' },
+        fields: [],
+      },
+      rows: [{ key: 'e-1', data: { processor: name } }],
+    });
+    const title = document.querySelector('[data-slot="card-title-text"]');
+    expect(title?.textContent).toBe(name);
+    expect(title?.getAttribute('title')).toBe(name);
+  });
+
   it('draws nothing before a result and nothing is running', () => {
     cards({ rows: [], hasResult: false, status: 'idle' });
     expect(document.querySelector('[data-slot="record-cards"]')).toBeNull();
