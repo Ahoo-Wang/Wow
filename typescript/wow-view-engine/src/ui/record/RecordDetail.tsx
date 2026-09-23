@@ -13,6 +13,7 @@
 
 import type { ReactNode } from 'react';
 import { useRef } from 'react';
+import { cn } from 'cn';
 import type { RecordRow } from '../../record/index.js';
 import { recordValue } from '../../record/index.js';
 import type { RecordDetailController } from '../../react/index.js';
@@ -29,6 +30,7 @@ import { SheetContent } from '../popups.js';
 import { RowActions } from '../RowActions.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
 import { cellValue } from './cells.js';
+import { blockOf } from './DetailStructure.js';
 
 export interface RecordDetailProps {
   detail: RecordDetailController;
@@ -132,12 +134,26 @@ export function RecordDetail({ detail, actions }: RecordDetailProps) {
                             'detail',
                           ) ?? '—')
                         );
+                      // A structure or a paragraph takes the whole width,
+                      // under its label (`blockOf`).
+                      const block = blockOf(value);
                       return (
                         <div key={field.field} className="contents">
-                          <dt className="text-muted-foreground">
+                          <dt
+                            className={cn(
+                              'text-muted-foreground',
+                              block && 'col-span-2',
+                            )}
+                          >
                             {field.label}
                           </dt>
-                          <dd className="min-w-0 [overflow-wrap:anywhere]">
+                          <dd
+                            data-block={block ? '' : undefined}
+                            className={cn(
+                              'min-w-0 [overflow-wrap:anywhere]',
+                              block,
+                            )}
+                          >
                             {shown}
                           </dd>
                         </div>

@@ -27,7 +27,13 @@ import {
   type DisplayField,
 } from '../display.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
-import { LongText, ToneBadge } from '../variants.js';
+import { ToneBadge } from '../variants.js';
+import {
+  DetailStructure,
+  LongValue,
+  isLong,
+  isStructure,
+} from './DetailStructure.js';
 
 /**
  * What a renderer knows about the field a value came from — which is what any
@@ -85,6 +91,19 @@ export function cellValue(
 ): React.ReactNode {
   if (value === null || value === undefined) return null;
 
+  // The detail has the room to read a structure whole: element by element,
+  // key by key (`DetailStructure`).
+  if (surface === 'detail' && isStructure(value))
+    return (
+      <DetailStructure
+        value={value}
+        field={field}
+        messages={messages}
+        display={display}
+        read={(one, of) => cellValue(one, of, messages, display, 'detail')}
+      />
+    );
+
   // An array of objects, or an object: its elements by their title, or how
   // many it holds — never its JSON (`heldReading`).
   const held = heldReading(value, field, messages, display);
@@ -103,12 +122,7 @@ export function cellValue(
   // one line, the stack trace no column holds. What makes it long is what it
   // is — lines, or more than a line's worth — not what the field declares.
   if (surface === 'detail' && typeof value === 'string' && isLong(value))
-    return (
-      <span data-slot="cell-long" className="group/copyable relative block">
-        <LongText>{value}</LongText>
-        <CopyButton value={value} className="absolute top-1 right-1" />
-      </span>
-    );
+    return <LongValue value={value} />;
   if (cell === 'link' && typeof value === 'string' && isSafeContentUrl(value))
     return (
       <a
@@ -232,13 +246,6 @@ function Badges({
       ))}
     </span>
   );
-}
-
-/** Past this many characters a value is read as a paragraph, not a label. */
-const LONG_VALUE = 120;
-
-function isLong(value: string): boolean {
-  return value.length > LONG_VALUE || value.includes('\n');
 }
 
 /**

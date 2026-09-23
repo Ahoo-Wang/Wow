@@ -94,6 +94,26 @@ export const EventStreamConsole: Story = {
       '首次失败',
     ]);
 
+    // One stream read whole: its event laid out in the detail — the type,
+    // the declared fields, and the payload no field declares, key by key.
+    table.querySelector<HTMLElement>('tbody tr:last-child')!.focus();
+    await userEvent.keyboard('{Enter}');
+    const detail = await within(document.body).findByRole('dialog');
+    await waitFor(() => expect(detail).toBeVisible());
+    const [event] = detail.querySelectorAll<HTMLElement>(
+      '[data-slot="detail-element"]',
+    );
+    await expect(within(event!).getByText('第 1 项')).toBeVisible();
+    await expect(within(event!).getByText('首次失败')).toBeVisible();
+    await expect(within(event!).getByText('errorMsg')).toBeVisible();
+    await expect(
+      await within(event!).findByText('Inventory refused.'),
+    ).toBeVisible();
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() =>
+      expect(within(document.body).queryByRole('dialog')).toBeNull(),
+    );
+
     // The history template, still unfilled, reads every history in order.
     await userEvent.click(view('执行历史'));
     await waitFor(() =>

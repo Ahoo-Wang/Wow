@@ -20,6 +20,7 @@ import {
   columnHidden,
   columnPinned,
   isDateCell,
+  isFieldlessKind,
   type DataViewDefinition,
   type FieldDefinition,
   type FieldOption,
@@ -143,6 +144,13 @@ export interface RecordCardField {
   numberFormat?: NumberFormat;
   /** For an array of objects, what each element is read by. */
   elementTitle?: ElementTitleView;
+  /**
+   * For an array of objects that declares its elements: each element field
+   * that holds a value, read the way this one is, `field` being its name
+   * within one element. Only the record detail lays an element out field by
+   * field; a cell and a card read an element by its title.
+   */
+  elements?: RecordCardField[];
 }
 
 /**
@@ -187,7 +195,15 @@ export function cardField(field: FieldDefinition): RecordCardField {
     ...(field.options ? { options: field.options } : {}),
     ...(field.numberFormat ? { numberFormat: field.numberFormat } : {}),
     ...elementTitleOf(field),
+    ...elementsOf(field),
   };
+}
+
+function elementsOf(field: FieldDefinition): { elements?: RecordCardField[] } {
+  const elements = (field.elements ?? []).filter(
+    element => !isFieldlessKind(element.kind),
+  );
+  return elements.length > 0 ? { elements: elements.map(cardField) } : {};
 }
 
 /**

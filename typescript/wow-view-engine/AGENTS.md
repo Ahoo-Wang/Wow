@@ -419,6 +419,7 @@ src/
       SkeletonRows.tsx        — The rows of a first query still on its way, one bar per column
       openRows.ts             — Rows and cards that open their record: a press on the row's own ground, or Enter/Space in the rows' one Tab stop (`useOpenRows`)
       RecordDetail.tsx        — The side panel a record opens in: every field under its group, long values whole, the row's commands in its header
+      DetailStructure.tsx     — A structure in the detail read whole: an array of objects element by element (title, declared fields, what nothing declares), an object key by key, long text as a copyable block
       SortableHeader.tsx      — One column header: the sort button, its place in the sort, the resizer
       SummaryRows.tsx         — The table footer: one row per summary scope; `SummaryValue`
       cells.tsx               — `cellValue`/`cellText`: one value as its field reads it, for table, cards and CSV; `CellSurface` decides how many lines it may take, and nothing else

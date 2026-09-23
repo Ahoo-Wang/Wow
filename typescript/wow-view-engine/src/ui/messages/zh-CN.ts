@@ -160,6 +160,7 @@ export const zhCN: ViewMessages = {
     '这条记录已不在了——可能已被删除，或已不在你能看到的范围内。',
   'label.record.detail.partial': '下面是列表里已有的字段。',
   'label.record.detail.other': '其他',
+  'label.record.detail.element': '第 {index} 项',
   'label.copy-of': '复制 {value}',
   'label.copied': '已复制',
   'label.copy-failed': '复制失败，请选中后手动复制',

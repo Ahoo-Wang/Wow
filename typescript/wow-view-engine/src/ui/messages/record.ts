@@ -101,6 +101,7 @@ export const recordMessages = {
     'This record is no longer there — it may have been deleted, or it is outside what you can see.',
   'label.record.detail.partial': 'Showing the fields the list had.',
   'label.record.detail.other': 'Other',
+  'label.record.detail.element': 'Item {index}',
 
   // A copyable cell's own button, and the two words a press can come back
   // with. The name carries the value because a table full of these buttons

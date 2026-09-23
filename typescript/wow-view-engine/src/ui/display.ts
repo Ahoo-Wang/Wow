@@ -51,6 +51,18 @@ export interface DisplayField {
    * its name within the element (`FieldDefinition.elementTitle`).
    */
   elementTitle?: ElementTitleField;
+  /**
+   * For an array of objects that declares its elements, each element field
+   * by its name within an element — what the record detail lays one
+   * element out by (`RecordCardField.elements`).
+   */
+  elements?: readonly ElementField[];
+}
+
+/** One field of an element, by its name within the element. */
+export interface ElementField extends DisplayField {
+  field: string;
+  label: string;
 }
 
 /** The element field an array of objects is read by, one element each. */
