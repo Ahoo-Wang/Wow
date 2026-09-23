@@ -430,7 +430,12 @@ export class DataViewRuntime<
     );
   }
 
-  protected execute(options: { keepSelection: boolean }): void {
+  protected execute(options: {
+    keepSelection: boolean;
+    /** When the question was first asked, for a page asked again. */
+    askedAt?: number;
+  }): void {
+    const askedAt = options.askedAt ?? this.environment.now().getTime();
     // Both halves travel with the request: what ran, and the view's own
     // config it was merged from. `applied` may move on before the answer
     // arrives, and a summary reading it would describe another question.
@@ -445,7 +450,14 @@ export class DataViewRuntime<
       )
       .then(
         data =>
-          this.onSuccess(requestId, config, own, data, options.keepSelection),
+          this.onSuccess(
+            requestId,
+            config,
+            own,
+            data,
+            options.keepSelection,
+            askedAt,
+          ),
         error => this.onFailure(requestId, error),
       );
   }
@@ -456,15 +468,17 @@ export class DataViewRuntime<
     own: C,
     data: ProjectedView,
     keepSelection: boolean,
+    askedAt: number,
   ): void {
     if (!this.isCurrent(requestId)) return;
     const settled = this.settle(data, keepSelection);
     if (settled === null) {
-      this.execute({ keepSelection });
+      this.execute({ keepSelection, askedAt });
       return;
     }
     const receivedAt = this.environment.now().getTime();
-    const result = { config, own, data, receivedAt };
+    const elapsedMs = Math.max(0, receivedAt - askedAt);
+    const result = { config, own, data, receivedAt, elapsedMs };
     this.store.setState({
       query: { status: 'success', requestId },
       result,

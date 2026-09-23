@@ -658,7 +658,10 @@
   aspect-ratio: auto;
 }
 
-.fve-root > main [data-slot='result-block'] > [data-slot='record-pagination'] {
+.fve-root
+  > main
+  [data-slot='result-block']
+  > :is([data-slot='record-pagination'], [data-slot='analysis-caption']) {
   margin-top: auto;
 }
 

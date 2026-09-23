@@ -126,6 +126,36 @@ export const WholeTicks: Story = {
   },
 };
 
+/**
+ * 报表有个底：结果区最后一行固定写「正在显示 N 行，耗时 X 秒」。
+ *
+ * 分析结果从前在最后一根柱子、最后一行下面就结束了，下面的空白读起来像报表
+ * 掉了下去（用户 2026-09-23）。这里量三件事：那一行说的是屏幕上的行数与耗时，
+ * 它是结果区的最后一行，它的下边就是结果区的下边——工作台填满容器，所以这就是
+ * 工作区的底。
+ */
+export const CaptionHoldsTheReport: Story = {
+  ...DisplayBarChart,
+  play: async ({ canvasElement }) => {
+    await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
+    const caption = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="analysis-caption"]',
+    )!;
+    await expect(caption.textContent).toMatch(
+      /^正在显示 4 行，耗时 [\d.]+ 秒$/,
+    );
+    const block = caption.parentElement!;
+    await expect(block.dataset.slot).toBe('result-block');
+    await expect(block.lastElementChild).toBe(caption);
+    await expect(
+      Math.abs(
+        caption.getBoundingClientRect().bottom -
+          block.getBoundingClientRect().bottom,
+      ),
+    ).toBeLessThanOrEqual(1);
+  },
+};
+
 /** 追问菜单本身：它弹在文档上，不在画布里。 */
 const drillMenu = () =>
   waitFor(() => {

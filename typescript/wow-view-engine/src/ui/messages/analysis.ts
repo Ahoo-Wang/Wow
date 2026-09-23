@@ -24,6 +24,8 @@
  */
 export const analysisMessages = {
   'label.analysis.row-count': 'Record count',
+  // The result's footer: what is on screen and how long it took to get.
+  'label.analysis.caption': 'Showing {count} rows · took {seconds} s',
 
   'label.analysis.editor': 'Analysis',
   // The tray's slots, in the analyst's order (D20): the range, the array

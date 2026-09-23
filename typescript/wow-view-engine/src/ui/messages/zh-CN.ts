@@ -597,6 +597,7 @@ export const zhCN: ViewMessages = {
 
   // 分析编辑器与图表，以及它们背后的两个内核。
   'label.analysis.row-count': '记录数',
+  'label.analysis.caption': '正在显示 {count} 行，耗时 {seconds} 秒',
   'label.analysis.editor': '分析',
   'label.analysis.slot.range': '范围',
   'label.analysis.slot.dimensions': '维度',

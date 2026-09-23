@@ -33,6 +33,9 @@ import { useAnnouncer } from '../Announcer.js';
 import { featuresOf, type WorkbenchFeatures } from '../features.js';
 import type { ViewMessages } from '../messages.js';
 import { useViewMessages } from '../MessagesProvider.js';
+import { formatNumber } from '../display.js';
+import { resultSlots } from '../variants.js';
+import { useSurfaceDisplay } from '../ViewSurface.js';
 import { NO_PARTS, type RenderParts } from './parts.js';
 import { SearchBox } from './SearchBox.js';
 
@@ -181,6 +184,8 @@ export function AnalysisParts({
 
   if (!runtime) return children(NO_PARTS);
   return children({
+    // The caption is this kind's furniture in the frame (`resultSlots`).
+    resultSlots: RESULT_SLOTS,
     // The tray folds under the title bar's "Analysis" button, exactly where
     // the record view's "Filter" folds (D20): a saved view opens folded,
     // a new one opens out.
@@ -264,49 +269,97 @@ export function AnalysisParts({
         />
       ) : null,
     result: view && (
-      <div
-        data-slot="analysis-result"
-        // While the draft is about to run on its own (改了就跑), the rows on
-        // screen answer the last question: kept, faded rather than cleared,
-        // because the next answer is moments away and a blank in between
-        // reads as a failure.
-        data-stale={analysis.stale || undefined}
-        // A column of its own rather than `contents`: an element with
-        // `display: contents` generates no box, and a property that paints
-        // one — `opacity` here — is then computed and never rendered, so
-        // the fade above would be a class nobody can see. A flex column
-        // lays the three parts out exactly as the result block laid them
-        // out when they were its own children (no gap, no margin
-        // collapsing, `min-w-0` so a wide table still scrolls inside it).
-        className="flex min-w-0 flex-col data-[stale]:opacity-60 data-[stale]:transition-opacity"
-      >
-        {/* A grouping nothing fell into is one sentence whichever layout is
-            in force; a chart of no rows is a pair of empty axes, which reads
-            as a drawing that failed rather than as a range that matched
-            nothing. */}
-        {view.rows.length === 0 ? (
-          <AnalysisEmpty />
-        ) : layout === 'chart' && chartData ? (
-          <AnalysisChart
-            data={chartData}
-            spec={chart}
-            columns={view.schema ?? view.columns}
-            onPick={onPick}
-          />
-        ) : (
-          <AnalysisTable view={view} onPick={onPick} />
-        )}
-        {result.pickable && (
-          <DrillMenu
-            pick={followUp ? pick : null}
-            onClose={close}
-            followUp={followUp}
-          />
-        )}
-        {/* Last in the block, where nothing about it can be reached by a
-            pointer or a tab: it draws nothing and is read, not seen. */}
-        {announcement}
-      </div>
+      <>
+        <div
+          data-slot="analysis-result"
+          // While the draft is about to run on its own (改了就跑), the rows on
+          // screen answer the last question: kept, faded rather than cleared,
+          // because the next answer is moments away and a blank in between
+          // reads as a failure.
+          data-stale={analysis.stale || undefined}
+          // A column of its own rather than `contents`: an element with
+          // `display: contents` generates no box, and a property that paints
+          // one — `opacity` here — is then computed and never rendered, so
+          // the fade above would be a class nobody can see. A flex column
+          // lays the three parts out exactly as the result block laid them
+          // out when they were its own children (no gap, no margin
+          // collapsing, `min-w-0` so a wide table still scrolls inside it).
+          className="flex min-w-0 flex-col data-[stale]:opacity-60 data-[stale]:transition-opacity"
+        >
+          {/* A grouping nothing fell into is one sentence whichever layout is
+              in force; a chart of no rows is a pair of empty axes, which reads
+              as a drawing that failed rather than as a range that matched
+              nothing. */}
+          {view.rows.length === 0 ? (
+            <AnalysisEmpty />
+          ) : layout === 'chart' && chartData ? (
+            <AnalysisChart
+              data={chartData}
+              spec={chart}
+              columns={view.schema ?? view.columns}
+              onPick={onPick}
+            />
+          ) : (
+            <AnalysisTable view={view} onPick={onPick} />
+          )}
+          {result.pickable && (
+            <DrillMenu
+              pick={followUp ? pick : null}
+              onClose={close}
+              followUp={followUp}
+            />
+          )}
+          {/* Last in the block, where nothing about it can be reached by a
+              pointer or a tab: it draws nothing and is read, not seen. */}
+          {announcement}
+        </div>
+        {/* The frame's last row, as the record view's pagination is: how
+            many rows are on screen and how long they took. It holds the
+            report up from the bottom edge — without it a short table or a
+            chart ended wherever it ended, and the space under it read as
+            the report having dropped off (the user's 2026-09-23 review). */}
+        <AnalysisCaption
+          rows={view.rows.length}
+          elapsedMs={state?.result?.elapsedMs ?? null}
+        />
+      </>
     ),
   });
+}
+
+/** What the analysis result hands the frame to dress (`ResultBlock.slots`). */
+const RESULT_SLOTS = resultSlots('caption');
+
+/**
+ * The analysis result's footer: 「正在显示 12 行，耗时 0.38 秒」.
+ *
+ * The time reads as a person reads a stopwatch: two decimals under a
+ * second, where the difference between 0.04 and 0.38 is the difference a
+ * reader notices, and one above it.
+ */
+function AnalysisCaption({
+  rows,
+  elapsedMs,
+}: {
+  rows: number;
+  elapsedMs: number | null;
+}) {
+  const messages = useViewMessages();
+  const { locale } = useSurfaceDisplay();
+  const seconds = (elapsedMs ?? 0) / 1000;
+  return (
+    <div
+      data-slot="analysis-caption"
+      className="text-muted-foreground text-sm tabular-nums"
+    >
+      {messages.label('label.analysis.caption', {
+        count: formatNumber(rows, undefined, locale),
+        seconds: formatNumber(
+          seconds,
+          { maximumFractionDigits: seconds < 1 ? 2 : 1 },
+          locale,
+        ),
+      })}
+    </div>
+  );
 }

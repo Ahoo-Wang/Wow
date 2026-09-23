@@ -584,12 +584,13 @@ const RESULT_SLOTS = {
   /**
    * The frame's last row — ruled off above and on its own grey, so how
    * many rows there are and how to reach the next of them read as the
-   * frame's footer rather than as one more row of the result. Today the
-   * only caption is the record view's pagination; a kind that grows
-   * another names it here, beside this one.
+   * frame's footer rather than as one more row of the result: the record
+   * view's pagination, and the analysis result's 「正在显示 N 行，耗时 X
+   * 秒」. A kind that grows another names it here, beside these.
    */
   caption:
-    '[&>[data-slot=record-pagination]]:border-border [&>[data-slot=record-pagination]]:bg-muted/40 [&>[data-slot=record-pagination]]:border-t [&>[data-slot=record-pagination]]:px-4 [&>[data-slot=record-pagination]]:py-2',
+    '[&>[data-slot=record-pagination]]:border-border [&>[data-slot=record-pagination]]:bg-muted/40 [&>[data-slot=record-pagination]]:border-t [&>[data-slot=record-pagination]]:px-4 [&>[data-slot=record-pagination]]:py-2 ' +
+    '[&>[data-slot=analysis-caption]]:border-border [&>[data-slot=analysis-caption]]:bg-muted/40 [&>[data-slot=analysis-caption]]:border-t [&>[data-slot=analysis-caption]]:px-4 [&>[data-slot=analysis-caption]]:py-2',
   /** A query that matched nothing, in air of its own rather than to the edge. */
   empty: '[&>[data-slot=record-empty]]:my-6',
   /** Cards keep the column's padding; a table is what runs to the edge. */

@@ -264,6 +264,14 @@ export interface ViewResult<C> {
   own: C;
   data: ProjectedView;
   receivedAt: number;
+  /**
+   * How long the answer took, in milliseconds on the environment's clock:
+   * from the moment it was asked to the moment it landed, a wait in the
+   * engine's queue included — that is time the person waited too. A page
+   * re-asked because the result shrank out from under it counts from the
+   * first asking. The analysis result's footer says it («耗时 0.4 秒»).
+   */
+  elapsedMs: number;
 }
 
 export interface ViewRuntimeState<C> {
