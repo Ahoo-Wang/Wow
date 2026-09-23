@@ -14,16 +14,52 @@
 /** The dashboard grid, its panels, and the dashboard kernel behind them. */
 export const dashboardMessages = {
   'label.dashboard.needs-fixing': 'This dashboard needs fixing before it runs',
-  'label.dashboard.empty': 'No panels yet',
+  // What an empty dashboard is, and nothing it cannot keep: there is no way
+  // to add a panel yet, so the empty state says what a dashboard shows and
+  // that this one has nothing on it, and invites nobody to press anything.
+  'label.dashboard.empty': 'This dashboard has no panels yet',
   'label.dashboard.empty-hint':
-    'Add a saved record or analysis view to see it here.',
-  'label.panel.unavailable': 'This panel is unavailable',
-  'label.panel.unavailable-hint': 'The view it shows could not be opened.',
+    'A dashboard puts saved record and analysis views side by side.',
+  // A panel that has no title of its own is named after what it shows, and
+  // one that shows nothing nameable after where it stands — never its id.
+  'label.panel.untitled': 'Panel {index}',
+  'label.panel.kind.markdown': 'Note',
+  'label.panel.kind.image': 'Image',
+  'label.panel.kind.links': 'Links',
+  // A panel that cannot show anything says why, in the reader's words, and
+  // who can get it back — never the id it points at, a scope code or what a
+  // store threw. Each reason is one finding the kernels raise, mapped.
+  'label.panel.out.missing':
+    'The view this panel shows was deleted, or you do not have access to it',
+  'label.panel.out.failed': 'The view this panel shows could not be opened',
+  'label.panel.out.kind':
+    'This panel points at something that is not a record or analysis view',
+  'label.panel.out.private':
+    'The view this panel shows is not open to everyone who reads this dashboard',
+  'label.panel.out.filter': "The dashboard's filters do not fit this panel",
+  'label.panel.out.refused':
+    'The view this panel shows was saved with settings that no longer work',
+  'label.panel.out.blocked': 'The dashboard itself needs fixing first',
+  'label.panel.out.unknown-kind': 'This type of panel cannot be shown here',
+  'label.panel.out.settings': "This panel's own settings cannot be used",
+  'label.panel.way-out.maintainer':
+    'Ask whoever maintains this dashboard to replace or remove this panel.',
+  'label.panel.way-out.share':
+    "Ask the view's owner to share it with you, or whoever maintains this dashboard to replace or remove this panel.",
+  'label.panel.way-out.widen':
+    "Ask the view's owner to share it as widely as this dashboard, or whoever maintains this dashboard to replace or remove this panel.",
+  'label.panel.way-out.author':
+    "Ask the view's owner to open it and fix it, or whoever maintains this dashboard to replace this panel.",
+  'label.panel.way-out.dashboard':
+    'This panel runs again once the dashboard is fixed.',
+  // A finding about one panel, said where the panel is not in view.
+  'label.panel.finding': '{panel}: {finding}',
   // Placing a panel: the two handles, the menu that says the same commands
   // in words, and what a keyboard hears once a command has landed.
-  'label.panel.move': 'Move {title} with the arrow keys',
-  'label.panel.resize': 'Resize this panel with the arrow keys',
-  'label.panel.arrange': 'Place {title}',
+  'label.panel.move': 'Move “{title}”',
+  'label.panel.resize': 'Resize “{title}”',
+  'label.panel.resize-any': 'Resize this panel',
+  'label.panel.arrange': 'Place “{title}”',
   'label.panel.arrange-move': 'Move',
   'label.panel.arrange-size': 'Size',
   'label.panel.move-up': 'Move up',
@@ -35,7 +71,15 @@ export const dashboardMessages = {
   'label.panel.taller': 'Taller',
   'label.panel.shorter': 'Shorter',
   'label.panel.placed':
-    '{title} is at column {column}, row {row}, {w} columns by {h} rows',
+    '{title} is at column {column}, row {row}, {width} by {height}',
+  // English counts: one column, two columns — the sentence picks the key.
+  'label.panel.columns': '{count} columns',
+  'label.panel.columns-one': '1 column',
+  'label.panel.rows': '{count} rows',
+  'label.panel.rows-one': '1 row',
+  // A link on a panel opens in a tab of its own; a reader is told before
+  // the page they were on is suddenly behind another one.
+  'label.link.new-tab': '(opens in a new tab)',
 
   // Dashboard kernel.
   'dashboard.binding.global-duplicate':
@@ -58,15 +102,16 @@ export const dashboardMessages = {
   'dashboard.link.label-empty': 'A link needs a label.',
   'dashboard.links.too-many': 'A links panel holds at most {max} links.',
   'dashboard.markdown.too-long': 'A note holds at most {max} characters.',
-  'dashboard.panel.failed': 'This panel could not be shown: {reason}',
+  'dashboard.panel.failed': 'The view this panel shows could not be opened.',
   'dashboard.panel.id-duplicate': 'Two panels share the id {id}.',
   'dashboard.panel.id-empty': 'A panel needs an id.',
   'dashboard.panel.kind-unsupported':
-    '{instance} is not a record or analysis view.',
+    'This panel points at something that is not a record or analysis view.',
   'dashboard.panel.scope-too-narrow':
-    'A {scope} dashboard cannot show a {instance} view, which others cannot read.',
-  'dashboard.panel.unavailable': 'The view this panel shows is unavailable.',
-  'dashboard.panel.unknown-kind': 'The {kind} panel type is not available.',
+    'The view this panel shows is not open to everyone who reads this dashboard.',
+  'dashboard.panel.unavailable':
+    'The view this panel shows was deleted, or you do not have access to it.',
+  'dashboard.panel.unknown-kind': 'This type of panel is not available.',
   'dashboard.panels.too-many': 'A dashboard holds at most {max} panels.',
   'dashboard.shape.invalid':
     'This part of the dashboard is not in the expected shape.',

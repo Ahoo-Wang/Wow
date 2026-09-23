@@ -55,6 +55,7 @@ export function ContentPanel({ panel }: ContentPanelProps) {
           alt={panel.alt}
           fit={panel.fit}
           href={panel.href}
+          title={panel.title}
         />
       );
     default:
@@ -90,12 +91,30 @@ const MARKDOWN_COMPONENTS = {
     return href !== undefined && isSafeContentUrl(href) ? (
       <a href={href} title={title} target="_blank" rel="noopener noreferrer">
         {children}
+        <NewTabNote />
       </a>
     ) : (
       <span title={title}>{children}</span>
     );
   },
 };
+
+/**
+ * What a reader is told before a link takes them out of the page: that it
+ * opens a tab of its own. Every link a panel draws opens one, and a reader
+ * who cannot see the tab strip would otherwise find the page they were on
+ * gone behind another, with Back doing nothing. It is part of the link's
+ * name — said, not drawn: the links panel already draws its outward arrow,
+ * and a note or a picture has no room for a second glyph.
+ */
+function NewTabNote() {
+  const messages = useViewMessages();
+  // The space is inside the hidden span: a name is read as one string, and
+  // without it the note runs into the last word of the link.
+  return (
+    <span className="sr-only"> {messages.label('label.link.new-tab')}</span>
+  );
+}
 
 /**
  * The type scale inside a markdown panel — what `react-markdown` renders has
@@ -141,6 +160,11 @@ export interface ImagePanelProps {
   alt?: string;
   fit?: 'contain' | 'cover';
   href?: string;
+  /**
+   * The panel's title, which names the link when the picture has no `alt`
+   * of its own to name it with.
+   */
+  title?: string;
 }
 
 export function ImagePanel({
@@ -148,6 +172,7 @@ export function ImagePanel({
   alt,
   fit = 'contain',
   href,
+  title,
 }: ImagePanelProps) {
   const [failed, setFailed] = useState(false);
   const messages = useViewMessages();
@@ -188,12 +213,27 @@ export function ImagePanel({
   );
 
   // An unsafe destination costs the link, not the picture.
-  return href && isSafeContentUrl(href) ? (
-    <a href={href} target="_blank" rel="noopener noreferrer" className="h-full">
+  if (!href || !isSafeContentUrl(href)) return image;
+  // A link's name is the text inside it, and a picture with no `alt` has
+  // none: the link was announced as a bare "link". Without the author's
+  // words for the picture, it is named by the panel's title, and failing
+  // that by what it does.
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="h-full"
+      data-slot="image-panel-link"
+    >
       {image}
+      {!alt && (
+        <span className="sr-only">
+          {title ?? messages.label('label.image.link')}
+        </span>
+      )}
+      <NewTabNote />
     </a>
-  ) : (
-    image
   );
 }
 
@@ -235,6 +275,7 @@ export function LinksPanel({ items }: LinksPanelProps) {
                   >
                     <span className="truncate">{item.label}</span>
                     <ExternalLinkIcon className="size-3" aria-hidden />
+                    <NewTabNote />
                   </a>
                 ) : (
                   // A destination this package refuses costs the link, not

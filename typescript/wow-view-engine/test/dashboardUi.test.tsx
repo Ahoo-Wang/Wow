@@ -19,6 +19,7 @@ import {
   renderHook,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -75,6 +76,7 @@ async function openDashboard(
   config: DashboardViewConfig,
   instances: ViewInstance[] = [pending],
   source: ViewSource = testSource(),
+  scope: ViewInstance['scope'] = 'personal',
 ): Promise<{
   controller: () => DashboardController;
   runtime: DashboardRuntime;
@@ -87,7 +89,7 @@ async function openDashboard(
     environment: testEnvironment().environment,
   });
   const instance = await store.create(
-    { definitionId: 'overview', title: 'Overview', scope: 'personal', config },
+    { definitionId: 'overview', title: 'Overview', scope, config },
     { requestId: 'r' },
   );
   const runtime = (await engine.open(instance.id)) as DashboardRuntime;
@@ -361,14 +363,55 @@ describe('DashboardGrid', () => {
     ).toBeTruthy();
   });
 
-  it('falls back to the panel id when it has no title', async () => {
+  /**
+   * `panel.id` is a key in a config, not a word anyone reading the board
+   * chose, and it used to be the heading, the grip's name and the scroll
+   * region's name of every untitled panel (U8). An untitled view panel is
+   * named after the view it shows, a content panel after what it holds, and
+   * one with nothing to name it by after where it stands.
+   */
+  it('names an untitled panel by what it shows, never by its id', async () => {
     const { controller } = await openDashboard(
-      dashboardConfig({ panels: [panel()] }),
+      dashboardConfig({
+        panels: [
+          panel(),
+          panel({
+            id: 'gone',
+            instanceId: 'deleted',
+            layout: { x: 6, y: 0, w: 6, h: 4 },
+          }),
+          panel({
+            id: 'memo',
+            kind: 'markdown',
+            content: 'hello',
+            layout: { x: 0, y: 4, w: 6, h: 2 },
+          }),
+        ],
+      }),
     );
 
     render(<DashboardGrid dashboard={controller()} />);
 
-    expect(screen.getByText('orders')).toBeTruthy();
+    const headings = screen
+      .getAllByRole('heading', { level: 3 })
+      .map(heading => heading.textContent);
+    expect(headings).toEqual(['Pending orders', 'Panel 2', 'Note']);
+    expect(screen.queryByText('orders')).toBeNull();
+    expect(screen.queryByText('gone')).toBeNull();
+    // The scroll region a keyboard reaches is named the same.
+    expect(screen.getByRole('group', { name: 'Pending orders' })).toBeTruthy();
+  });
+
+  it('draws each panel title as a heading under the view title', async () => {
+    const { controller } = await openDashboard(
+      dashboardConfig({ panels: [panel({ title: 'Waiting to ship' })] }),
+    );
+
+    render(<DashboardGrid dashboard={controller()} />);
+
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'Waiting to ship' }),
+    ).toBeTruthy();
   });
 
   it('shows an analysis panel as a chart', async () => {
@@ -393,19 +436,115 @@ describe('DashboardGrid', () => {
     const { controller } = await openDashboard(
       dashboardConfig({
         panels: [
-          panel({ id: 'gone', instanceId: 'deleted' }),
+          panel({ id: 'gone', instanceId: 'vanished' }),
           panel({ id: 'here', layout: { x: 6, y: 0, w: 6, h: 4 } }),
         ],
       }),
     );
 
-    render(<DashboardGrid dashboard={controller()} />);
+    const { container } = render(<DashboardGrid dashboard={controller()} />);
 
-    expect(screen.getByText('This panel is unavailable')).toBeTruthy();
+    // Why, once, in the reader's words — and who can bring it back. It used
+    // to say "unavailable" as the title and again under it (U5).
+    const body = container.querySelector(
+      '[data-slot="panel-unavailable"]',
+    ) as HTMLElement;
+    expect(body.textContent).toContain(
+      'The view this panel shows was deleted, or you do not have access to it',
+    );
+    expect(body.textContent).toContain("Ask the view's owner to share it");
+    expect(body.textContent?.match(/unavailable/g) ?? []).toEqual([]);
+    // Never the id it points at, and no button offering what nothing can do.
+    expect(body.textContent).not.toContain('vanished');
+    expect(within(body).queryByRole('button')).toBeNull();
     // The finding is said once, in the body where the view would have been;
     // the header marker is for a panel that runs with a caveat.
     expect(document.querySelector('[data-slot="panel-warning"]')).toBeNull();
     await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
+  });
+
+  /**
+   * Each finding that can put a panel out, mapped to a reason a reader of
+   * the board can use. The kernels' own sentences carry what a config knows
+   * — a scope code, the instance id a panel points at, a field's name — and
+   * none of it reaches the panel.
+   */
+  describe('says why a panel is out, in words its reader uses', () => {
+    async function outage(
+      config: DashboardViewConfig,
+      instances: ViewInstance[] = [pending],
+      scope: ViewInstance['scope'] = 'personal',
+    ) {
+      const { controller } = await openDashboard(
+        config,
+        instances,
+        testSource(),
+        scope,
+      );
+      const { container } = render(<DashboardGrid dashboard={controller()} />);
+      return (
+        container.querySelector('[data-slot="panel-unavailable"]')
+          ?.textContent ?? ''
+      );
+    }
+
+    it('a personal view on a shared board', async () => {
+      const said = await outage(
+        dashboardConfig({ panels: [panel()] }),
+        [{ ...pending, scope: 'personal' }],
+        'shared',
+      );
+      expect(said).toContain(
+        'The view this panel shows is not open to everyone who reads this dashboard',
+      );
+      expect(said).toContain('share it as widely as this dashboard');
+      expect(said).not.toMatch(/personal|shared|pending/);
+    });
+
+    it('a global filter the panel cannot carry', async () => {
+      const said = await outage(
+        dashboardConfig({
+          fields: [{ name: 'region', label: 'Region', kind: 'string' }],
+          panels: [
+            panel({
+              bindings: [{ globalField: 'region', panelField: 'nowhere' }],
+            }),
+          ],
+        }),
+      );
+      expect(said).toContain("The dashboard's filters do not fit this panel");
+      expect(said).not.toContain('nowhere');
+    });
+
+    it('a view saved with settings its definition now refuses', async () => {
+      const said = await outage(dashboardConfig({ panels: [panel()] }), [
+        { ...pending, config: recordConfig({ pageSize: 0 }) },
+      ]);
+      expect(said).toContain(
+        'The view this panel shows was saved with settings that no longer work',
+      );
+      expect(said).toContain("Ask the view's owner to open it and fix it");
+      expect(said).not.toMatch(/page size/i);
+    });
+
+    it('a panel pointing at another dashboard', async () => {
+      const said = await outage(
+        dashboardConfig({ panels: [panel({ instanceId: 'nested' })] }),
+        [
+          pending,
+          {
+            ...pending,
+            id: 'nested',
+            definitionId: 'overview',
+            config: dashboardConfig(),
+          },
+        ],
+      );
+      expect(said).toContain(
+        'This panel points at something that is not a record or analysis view',
+      );
+      expect(said).not.toContain('nested');
+    });
   });
 
   /**
@@ -469,8 +608,11 @@ describe('DashboardGrid', () => {
 
     render(<DashboardGrid dashboard={controller()} />);
 
-    expect(screen.getByText('This panel is unavailable')).toBeTruthy();
-    expect(screen.getByText(/page size must be a positive/)).toBeTruthy();
+    expect(
+      screen.getByText(
+        'The view this panel shows was saved with settings that no longer work',
+      ),
+    ).toBeTruthy();
     expect(
       screen.getByRole('button', {
         name: 'These conditions need the advanced editor to be shown in full.',
@@ -500,12 +642,18 @@ describe('DashboardGrid', () => {
     rerender(<DashboardGrid dashboard={controller()} editable />);
     // All three are named now: each one answers the arrows or says the
     // commands in words, so announcing them offers something reachable.
-    expect(screen.getByLabelText('Move orders with the arrow keys')).toBe(
+    expect(screen.getByLabelText('Move “Pending orders”')).toBe(
       slot('panel-grip'),
     );
-    expect(screen.getByLabelText('Place orders')).toBe(slot('panel-arrange'));
-    expect(screen.getByLabelText('Resize this panel with the arrow keys')).toBe(
+    expect(screen.getByLabelText('Place “Pending orders”')).toBe(
+      slot('panel-arrange'),
+    );
+    expect(screen.getByLabelText('Resize “Pending orders”')).toBe(
       slot('panel-resize'),
+    );
+    // Which keys work them is said on the element, not in the name.
+    expect(slot('panel-grip')?.getAttribute('aria-keyshortcuts')).toBe(
+      'ArrowUp ArrowDown ArrowLeft ArrowRight',
     );
   });
 
@@ -536,7 +684,7 @@ describe('DashboardGrid', () => {
         dashboardConfig({ panels: [panel()] }),
       );
       render(<LiveGrid runtime={runtime} />);
-      const grip = screen.getByLabelText('Move orders with the arrow keys');
+      const grip = screen.getByLabelText('Move “Pending orders”');
 
       // Nothing to the left of the first column, so the press is swallowed
       // rather than writing a layout the kernel would refuse.
@@ -556,7 +704,9 @@ describe('DashboardGrid', () => {
       expect(runtime.getSnapshot().dirty).toBe(true);
       // A pointer watches the panel move; a keyboard is told where it went.
       expect(
-        screen.getByText('orders is at column 2, row 2, 6 columns by 4 rows'),
+        screen.getByText(
+          'Pending orders is at column 2, row 2, 6 columns by 4 rows',
+        ),
       ).toBeTruthy();
     });
 
@@ -565,9 +715,7 @@ describe('DashboardGrid', () => {
         dashboardConfig({ panels: [panel()] }),
       );
       render(<LiveGrid runtime={runtime} />);
-      const corner = screen.getByLabelText(
-        'Resize this panel with the arrow keys',
-      );
+      const corner = screen.getByLabelText('Resize “Pending orders”');
 
       await press(corner, 'Enter');
       expect(runtime.getSnapshot().dirty).toBe(false);
@@ -580,6 +728,50 @@ describe('DashboardGrid', () => {
       expect(runtime.getSnapshot().dirty).toBe(true);
     });
 
+    it('says one column and one row as one, not "1 columns"', async () => {
+      const { runtime } = await openDashboard(
+        dashboardConfig({
+          panels: [panel({ layout: { x: 0, y: 0, w: 2, h: 2 } })],
+        }),
+      );
+      render(<LiveGrid runtime={runtime} />);
+      const corner = screen.getByLabelText('Resize “Pending orders”');
+
+      await press(corner, 'ArrowLeft');
+      await press(corner, 'ArrowUp');
+
+      expect(
+        screen.getByText(
+          'Pending orders is at column 1, row 1, 1 column by 1 row',
+        ),
+      ).toBeTruthy();
+    });
+
+    /**
+     * Two panels, two corners, two names: the corner reads its panel from
+     * the grid item the library appended it to.
+     */
+    it('names each corner after its own panel', async () => {
+      const { runtime } = await openDashboard(
+        dashboardConfig({
+          panels: [
+            panel({ title: 'North' }),
+            panel({
+              id: 'south',
+              title: 'South',
+              layout: { x: 6, y: 0, w: 6, h: 4 },
+            }),
+          ],
+        }),
+      );
+      render(<LiveGrid runtime={runtime} />);
+
+      const corners = [
+        ...document.querySelectorAll('[data-slot="panel-resize"]'),
+      ].map(corner => corner.getAttribute('aria-label'));
+      expect(corners).toEqual(['Resize “North”', 'Resize “South”']);
+    });
+
     /**
      * The corner is appended by the library inside the grid item, out of
      * reach of any context of ours, so it reads the panel back off the
@@ -590,10 +782,7 @@ describe('DashboardGrid', () => {
       const onStep = vi.fn();
       render(<PanelResizeHandle axis="se" ref={null} onStep={onStep} />);
 
-      await press(
-        screen.getByLabelText('Resize this panel with the arrow keys'),
-        'ArrowRight',
-      );
+      await press(screen.getByLabelText('Resize this panel'), 'ArrowRight');
 
       expect(onStep).not.toHaveBeenCalled();
     });
@@ -604,7 +793,7 @@ describe('DashboardGrid', () => {
       );
       render(<LiveGrid runtime={runtime} />);
 
-      await userEvent.click(screen.getByLabelText('Place orders'));
+      await userEvent.click(screen.getByLabelText('Place “Pending orders”'));
       // At the top left corner of the grid there is nowhere to go but away
       // from it, and the entries that would leave it are disabled rather
       // than missing: where a panel can go is this moment, not a permission.
@@ -828,7 +1017,7 @@ describe('DashboardGrid', () => {
     const grid = observers.find(
       observer => observer.node !== null && !observer.node.closest('table'),
     );
-    act(() => grid!.resize(600));
+    act(() => grid!.resize(900));
 
     // The measuring is `react-grid-layout`'s own `useContainerWidth`, which
     // coalesces a burst of measurements into one animation frame, so the new
@@ -847,12 +1036,166 @@ describe('DashboardGrid', () => {
     vi.unstubAllGlobals();
   });
 
-  it('invites the user to add a panel when there are none', async () => {
+  /**
+   * There is no way to add a panel yet (D22's batch B), so the empty state
+   * says what a dashboard is and that this one is empty — and offers
+   * nothing to press. It used to invite the reader to "add a saved view"
+   * through a door that was not there (U1).
+   */
+  it('says what an empty dashboard is, and promises nothing', async () => {
     const { controller } = await openDashboard(dashboardConfig());
+
+    const { container } = render(<DashboardGrid dashboard={controller()} />);
+
+    expect(screen.getByText('This dashboard has no panels yet')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'A dashboard puts saved record and analysis views side by side.',
+      ),
+    ).toBeTruthy();
+    expect(container.textContent).not.toMatch(/\badd\b/i);
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  /**
+   * The panels are drawn in reading order — rows top to bottom, each left
+   * to right — whatever order the config lists them in, so Tab walks the
+   * board the way the eye does.
+   */
+  it('draws the panels in reading order, not config order', async () => {
+    const { controller } = await openDashboard(
+      dashboardConfig({
+        panels: [
+          panel({
+            id: 'c',
+            title: 'Below',
+            layout: { x: 0, y: 4, w: 6, h: 2 },
+          }),
+          panel({
+            id: 'b',
+            title: 'Right',
+            layout: { x: 6, y: 0, w: 6, h: 4 },
+          }),
+          panel({ id: 'a', title: 'Left', layout: { x: 0, y: 0, w: 6, h: 4 } }),
+        ],
+      }),
+    );
 
     render(<DashboardGrid dashboard={controller()} />);
 
-    expect(screen.getByText('No panels yet')).toBeTruthy();
+    expect(
+      screen
+        .getAllByRole('heading', { level: 3 })
+        .map(heading => heading.textContent),
+    ).toEqual(['Left', 'Right', 'Below']);
+  });
+
+  /**
+   * Below `md` a twelve-column grid squeezes a panel to a sliver — an
+   * analysis panel at ~130px, its labels over each other. The grid gives up
+   * its columns there: one column, the panels in reading order, each full
+   * width and as tall as it was saved. It is a reading of the layout, never
+   * written back, and nothing can be dragged or resized in it.
+   */
+  describe('in a column narrower than md', () => {
+    async function narrow(width: number, editable = true) {
+      const observers: ResizeObserverStub[] = [];
+      vi.stubGlobal(
+        'ResizeObserver',
+        class extends ResizeObserverStub {
+          constructor(callback: ResizeObserverCallback) {
+            super(callback);
+            observers.push(this);
+          }
+        },
+      );
+      const opened = await openDashboard(
+        dashboardConfig({
+          panels: [
+            panel({
+              id: 'b',
+              title: 'Right',
+              layout: { x: 6, y: 0, w: 6, h: 4 },
+            }),
+            panel({
+              id: 'a',
+              title: 'Left',
+              layout: { x: 0, y: 0, w: 6, h: 3 },
+            }),
+          ],
+        }),
+      );
+      const view = render(
+        <DashboardGrid dashboard={opened.controller()} editable={editable} />,
+      );
+      const grid = observers.find(
+        observer => observer.node !== null && !observer.node.closest('table'),
+      );
+      act(() => grid!.resize(width));
+      await waitFor(() =>
+        expect(
+          document
+            .querySelector('[data-slot="dashboard-grid"]')
+            ?.hasAttribute('data-narrow'),
+        ).toBe(width < 768),
+      );
+      vi.unstubAllGlobals();
+      return { ...opened, ...view };
+    }
+
+    const item = (title: string) =>
+      screen
+        .getByRole('heading', { level: 3, name: title })
+        .closest('.react-grid-item') as HTMLElement;
+
+    it('stacks the panels in one column, each as tall as it was saved', async () => {
+      await narrow(414);
+
+      // Where the grid put an item: it places by `translate(x, y)`.
+      const at = (element: HTMLElement) =>
+        (
+          element.style.transform.match(
+            /translate\(([\d.]+)px,\s*([\d.]+)px\)/,
+          ) ?? []
+        )
+          .slice(1)
+          .map(Number);
+      // Full width: both as wide as the column, from the same left edge.
+      expect(item('Left').style.width).toBe(item('Right').style.width);
+      expect(parseFloat(item('Left').style.width)).toBeGreaterThan(414 * 0.9);
+      expect(at(item('Left'))[0]).toBe(at(item('Right'))[0]);
+      // Reading order: the left panel first, the right one under it, the
+      // height each was saved with kept (3 rows, then 4).
+      expect(at(item('Left'))[1]).toBeLessThan(at(item('Right'))[1]);
+      expect(parseFloat(item('Left').style.height)).toBeLessThan(
+        parseFloat(item('Right').style.height),
+      );
+    });
+
+    it('offers no handle to drag or resize, and writes nothing back', async () => {
+      const { controller, runtime } = await narrow(414);
+
+      expect(document.querySelector('[data-slot="panel-grip"]')).toBeNull();
+      expect(document.querySelector('[data-slot="panel-arrange"]')).toBeNull();
+      expect(document.querySelector('[data-slot="panel-resize"]')).toBeNull();
+      // The saved layout is the wide one, untouched.
+      expect(controller().panels.map(found => found.layout)).toEqual([
+        { x: 6, y: 0, w: 6, h: 4 },
+        { x: 0, y: 0, w: 6, h: 3 },
+      ]);
+      expect(runtime.getSnapshot().dirty).toBe(false);
+    });
+
+    it('keeps the grid from md up', async () => {
+      await narrow(768);
+
+      // The measurement lands a frame later, and 1280 — where it starts — is
+      // wide as well, so the width itself is what is waited for.
+      await waitFor(() =>
+        expect(parseFloat(item('Left').style.width)).toBeLessThan(768 / 2),
+      );
+      expect(document.querySelector('[data-slot="panel-grip"]')).toBeTruthy();
+    });
   });
 
   it('renders a content panel without a query', async () => {

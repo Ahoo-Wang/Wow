@@ -23,8 +23,15 @@ import displayMeta, {
   ScopeRefusedOnOpen as DisplayScopeRefusedOnOpen,
   ScopedByHost as DisplayScopedByHost,
   TotalCoversThisPageOnly as DisplayTotalCoversThisPageOnly,
+  DashboardWithAPanelOut as DisplayDashboardWithAPanelOut,
 } from './EmbeddedView.stories.js';
-import { amountOf, readColumn, readPage, readTotal } from './readTable.js';
+import {
+  amountOf,
+  findDataTable,
+  readColumn,
+  readPage,
+  readTotal,
+} from './readTable.js';
 import { drawnMarks } from './chartDom.js';
 
 const meta = {
@@ -397,3 +404,38 @@ function onViewport(element: HTMLElement): boolean {
     Math.abs(box.height - view.innerHeight) < 1
   );
 }
+
+/**
+ * One panel of an embedded dashboard is out: the grid still draws, the other
+ * panels run, and the one that is out says why in its own frame (R3). The
+ * embed used to take that panel's error for the dashboard's own and draw a
+ * red strip in place of the whole board.
+ */
+export const DashboardWithAPanelOut: Story = {
+  ...DisplayDashboardWithAPanelOut,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // The healthy panels draw: the table, the chart, the runbook.
+    await findDataTable(canvasElement);
+    await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(4));
+    await expect(
+      canvas.getByRole('link', { name: /出库异常处理/ }),
+    ).toBeVisible();
+    // The refused one says why, in its own frame, and who can fix it.
+    const out = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="panel-unavailable"]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    await expect(out).toHaveTextContent(zhCN['label.panel.out.private']);
+    await expect(out).toHaveTextContent(zhCN['label.panel.way-out.widen']);
+    // No strip above the grid takes the board's place.
+    await expect(
+      canvasElement.querySelector(
+        '[data-slot="status-strip"][data-tone="error"]',
+      ),
+    ).toBeNull();
+  },
+};

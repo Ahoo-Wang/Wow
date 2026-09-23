@@ -23,6 +23,17 @@ import {
 afterEach(cleanup);
 
 /**
+ * A link's name with the note that it opens a tab of its own. The note is a
+ * hidden span of its own, and jsdom's name computation drops the space a
+ * browser keeps between it and the words before it, so the space is
+ * optional here — what is held is that the note is part of the name.
+ */
+function newTab(name: string): RegExp {
+  const words = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`^${words} ?\\(opens in a new tab\\)$`);
+}
+
+/**
  * The panels that carry no query — a note, an image, a list of links. They
  * are their own file (`src/ui/DashboardPanels.tsx`), exported on their own,
  * and tested on their own rather than through the grid.
@@ -80,7 +91,7 @@ describe('content panels', () => {
       <MarkdownPanel content={'See [the report](https://example.com).'} />,
     );
 
-    const link = screen.getByRole('link', { name: 'the report' });
+    const link = screen.getByRole('link', { name: newTab('the report') });
     expect(link.getAttribute('target')).toBe('_blank');
     expect(link.getAttribute('rel')).toBe('noopener noreferrer');
   });
@@ -105,7 +116,9 @@ describe('content panels', () => {
     );
 
     expect(
-      screen.getByRole('link', { name: 'the report' }).getAttribute('title'),
+      screen
+        .getByRole('link', { name: newTab('the report') })
+        .getAttribute('title'),
     ).toBe('Quarterly numbers');
   });
 
@@ -131,9 +144,36 @@ describe('content panels', () => {
   it('wraps a linked image in an anchor that cannot reach the opener', () => {
     render(<ImagePanel src="/a.png" href="https://example.com" alt="A" />);
 
-    const link = screen.getByRole('link');
+    const link = screen.getByRole('link', { name: newTab('A') });
     expect(link.getAttribute('rel')).toBe('noopener noreferrer');
     expect(link.getAttribute('target')).toBe('_blank');
+  });
+
+  /**
+   * A link's name is the text inside it, and a picture without `alt` has
+   * none: the link used to be announced as a bare "link". It takes the
+   * panel's title when there is one, and says what it does when not.
+   */
+  it('names a linked image that has no alt text of its own', () => {
+    const { rerender } = render(
+      <ImagePanel src="/a.png" href="https://example.com" title="Floor plan" />,
+    );
+    expect(
+      screen.getByRole('link', { name: newTab('Floor plan') }),
+    ).toBeTruthy();
+
+    rerender(<ImagePanel src="/a.png" href="https://example.com" />);
+    expect(
+      screen.getByRole('link', {
+        name: newTab('Open the linked page'),
+      }),
+    ).toBeTruthy();
+  });
+
+  it('says every link opens a tab of its own', () => {
+    render(<LinksPanel items={[{ label: 'Runbook', href: '/runbook' }]} />);
+
+    expect(screen.getByRole('link', { name: newTab('Runbook') })).toBeTruthy();
   });
 
   it('opens every link with noopener', () => {
@@ -188,6 +228,6 @@ describe('content panels', () => {
         }}
       />,
     );
-    expect(screen.getByRole('link', { name: 'Docs' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: newTab('Docs') })).toBeTruthy();
   });
 });

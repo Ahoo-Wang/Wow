@@ -12,13 +12,14 @@
  */
 
 import type {
+  DashboardPanel,
   DashboardViewConfig,
   FieldOption,
   Issue,
 } from '../model/index.js';
 import type { ViewEngine } from '../runtime/index.js';
 import { useDashboard, useWorkbench } from '../react/index.js';
-import { DashboardGrid } from './DashboardGrid.js';
+import { DashboardGrid, panelName, panelNames } from './DashboardGrid.js';
 import { FilterPanel } from './FilterPanel.js';
 import { RefreshControl } from './RefreshControl.js';
 import { FilterModes } from './filter/FilterModes.js';
@@ -144,11 +145,37 @@ export function DashboardWorkbench({
   // that no panel holds until Apply hands it over — and Save would persist
   // it unseen. So the notice takes every warning no panel is showing.
   const carried = dashboard.panels.flatMap(panel => panel.issues);
+  const draftPanels: unknown[] =
+    state?.draft.kind === 'dashboard' && Array.isArray(state.draft.panels)
+      ? state.draft.panels
+      : [];
   const warnings = issues.filter(
     found =>
       found.severity === 'warning' &&
       !carried.some(shown => sameIssue(shown, found)),
   );
+  // A finding about one panel, said above the grid rather than in the panel,
+  // has to say which panel: the kernel's sentence says 「这个面板」, which in
+  // a panel's own frame is plain and up here names nothing. It is the draft
+  // the finding was raised against, so the draft's panel is the one named.
+  // The name is the one the grid gives the panel; a panel only the draft
+  // holds is named by its own title or kind, counted where the draft has it.
+  const shownNames = panelNames(dashboard.panels, messages);
+  const namePanel = (found: Issue): Issue => {
+    const at = found.path[0] === 'panels' ? found.path[1] : undefined;
+    const panel = typeof at === 'number' ? draftPanels[at] : undefined;
+    if (typeof at !== 'number' || !isPlainPanel(panel)) return found;
+    return {
+      ...found,
+      code: 'label.panel.finding',
+      params: {
+        panel:
+          shownNames.get(panel.id) ??
+          panelName({ title: panel.title, panel, runtime: null }, at, messages),
+        finding: messages.issue(found),
+      },
+    };
+  };
   // A dashboard runs nothing of its own — `state.result` is always null — so
   // what the applied bar describes is whether the panels were asked at all.
   // One panel that has answered, or that is asking, is an answer: the global
@@ -182,6 +209,7 @@ export function DashboardWorkbench({
       resultFramed={false}
       hasResult={hasResult}
       warnings={warnings}
+      nameIssue={namePanel}
       // The panels fail one by one and say so each in its own card; the
       // dashboard's own query has nothing to report in a strip.
       strips={null}
@@ -225,6 +253,21 @@ export function DashboardWorkbench({
         />
       }
     />
+  );
+}
+
+/**
+ * Whether a draft's entry is a panel to name. A draft is data that came
+ * from a store, and admission reports an entry that is no panel at its
+ * index; there is nothing to call that one but its place, which the
+ * finding's own sentence already gives.
+ */
+function isPlainPanel(value: unknown): value is DashboardPanel {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { id?: unknown }).id === 'string' &&
+    typeof (value as { kind?: unknown }).kind === 'string'
   );
 }
 

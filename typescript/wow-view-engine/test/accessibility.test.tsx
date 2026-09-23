@@ -684,6 +684,91 @@ describe('the default workbenches pass axe', () => {
   });
 
   /**
+   * The dashboard's other states: a board with nothing on it, a panel that
+   * cannot be shown beside one whose query failed, and a linked image with
+   * no words of its own — each draws markup the healthy board never does.
+   */
+  it('dashboard, empty', async () => {
+    const empty = { ...overview, config: dashboardConfig() };
+    const { container } = render(
+      <ViewSurface>
+        <DashboardWorkbench
+          engine={engineWith([pendingOrders, empty])}
+          definitionId="overview"
+          instanceId="overview-1"
+        />
+      </ViewSurface>,
+    );
+    await waitFor(() =>
+      expect(
+        container.querySelector('[data-slot="dashboard-empty"]'),
+      ).toBeTruthy(),
+    );
+
+    expect(await violations(container)).toEqual([]);
+  });
+
+  it('dashboard, with a panel out and a panel failed', async () => {
+    const board: ViewInstance = {
+      ...overview,
+      config: dashboardConfig({
+        panels: [
+          {
+            id: 'rows',
+            kind: 'view',
+            instanceId: 'pending',
+            bindings: [],
+            layout: { x: 0, y: 0, w: 6, h: 4 },
+          },
+          {
+            id: 'gone',
+            kind: 'view',
+            instanceId: 'vanished',
+            bindings: [],
+            layout: { x: 6, y: 0, w: 6, h: 4 },
+          },
+          {
+            id: 'picture',
+            kind: 'image',
+            src: '/plan.png',
+            href: 'https://example.com/plan',
+            layout: { x: 0, y: 4, w: 6, h: 2 },
+          },
+        ],
+      }),
+    };
+    const { container } = render(
+      <ViewSurface>
+        <DashboardWorkbench
+          engine={
+            new ViewEngine({
+              definitions: [ordersDefinition(), overviewDefinition()],
+              store: new MemoryViewStore({
+                instances: [pendingOrders, board],
+              }),
+              resolveSource: () =>
+                testSource({ paged: () => Promise.reject(new Error('down')) }),
+            })
+          }
+          definitionId="overview"
+          instanceId="overview-1"
+          editable
+        />
+      </ViewSurface>,
+    );
+    await waitFor(() => {
+      expect(
+        container.querySelector('[data-slot="panel-unavailable"]'),
+      ).toBeTruthy();
+      expect(
+        container.querySelector('[data-slot="panel-failed"]'),
+      ).toBeTruthy();
+    });
+
+    expect(await violations(container)).toEqual([]);
+  });
+
+  /**
    * The pagination bar on its own, on a page in the middle so that every
    * control it can draw is drawn and live.
    *

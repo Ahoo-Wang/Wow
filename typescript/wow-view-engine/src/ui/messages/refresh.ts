@@ -28,8 +28,9 @@ export const refreshMessages = {
   // The cadence on the button as a sentence, for a screen reader: what is
   // drawn there is a fragment, and "Refresh 30s" is not a thing to say.
   'label.refresh.on': 'This view refreshes itself every {interval}.',
-  // A dashboard times every panel at once, and a referenced view's own
-  // interval is ignored inside it, so the menu says which one it is setting.
+  // A dashboard times every panel at once, and the interval a panel's own
+  // view was saved with is ignored inside it, so the menu says which one it
+  // is setting — in the reader's words, not the runtime's.
   'label.refresh.panels':
-    'One timer for every panel of this dashboard; an interval saved in a referenced view does not apply here.',
+    'Every panel on this dashboard refreshes together, on this interval; an interval saved with the view a panel shows does not apply here.',
 } as const satisfies Record<string, string>;

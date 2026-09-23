@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { createContext, useContext } from 'react';
 import type * as React from 'react';
 import {
   ArrowDownIcon,
@@ -74,6 +75,14 @@ const SIZE_KEYS: Readonly<Record<string, ArrangeStep>> = {
   ArrowDown: 'taller',
 };
 
+/**
+ * The keys both handles answer, said on the element. The name says what the
+ * control is for (「移动『北区订单』」); which keys work it is this
+ * attribute's to say, and the menu beside the grip says the same commands in
+ * words.
+ */
+const ARROW_KEYS = 'ArrowUp ArrowDown ArrowLeft ArrowRight';
+
 /** The commands the menu lists, in two groups, each with its icon. */
 const MOVE_COMMANDS: readonly (readonly [ArrangeStep, MessageKey, React.FC])[] =
   [
@@ -113,6 +122,7 @@ export function PanelGrip({ title, onStep }: PanelGripProps) {
       type="button"
       data-slot="panel-grip"
       label={messages.label('label.panel.move', { title })}
+      aria-keyshortcuts={ARROW_KEYS}
       variant="ghost"
       size="icon-sm"
       className="shrink-0 cursor-move"
@@ -131,6 +141,48 @@ export function PanelGrip({ title, onStep }: PanelGripProps) {
   );
 }
 
+/** Which panel a grid item holds, for the corner the library appends to it. */
+interface PanelItemIdentity {
+  id: string;
+  /** What the panel is called on screen — never its id. */
+  name: string;
+}
+
+const PanelItemContext = createContext<PanelItemIdentity | null>(null);
+
+export interface PanelGridItemProps extends React.ComponentProps<'div'> {
+  panelId: string;
+  /** What the panel is called on screen, which its corner is named after. */
+  name: string;
+}
+
+/**
+ * One grid item, and the panel it holds said to what the grid appends to it.
+ *
+ * The library builds one resize-handle factory for the whole grid and hands
+ * it only the axis — but what that factory returns is appended to *this*
+ * element's children (`react-resizable` clones the item with its handles
+ * after whatever it already held). So the corner renders inside this
+ * component, and a context provided here reaches it: that is how one corner
+ * knows it is 「北区订单」's and not the next panel's. Whatever the grid puts
+ * on the item — its class, its position, its ref, the drag listeners —
+ * passes through to the `div` untouched.
+ */
+export function PanelGridItem({
+  panelId,
+  name,
+  children,
+  ...item
+}: PanelGridItemProps) {
+  return (
+    <div data-panel-id={panelId} {...item}>
+      <PanelItemContext.Provider value={{ id: panelId, name }}>
+        {children}
+      </PanelItemContext.Provider>
+    </div>
+  );
+}
+
 export interface PanelResizeHandleProps {
   /** Which corner or edge the library asked for; `se` unless told otherwise. */
   axis: string;
@@ -142,12 +194,12 @@ export interface PanelResizeHandleProps {
 /**
  * The corner the pointer drags to resize, named and focusable.
  *
- * The library builds one handle factory for the whole grid and hands it only
- * the axis, so the panel it belongs to is read back off the grid item it was
- * appended to — `DashboardGrid` stamps `data-panel-id` there for exactly
- * this. A per-panel handle is not on offer: `resizeConfig` is a grid-level
- * prop, and the element lands inside the item as a sibling of everything we
- * render, out of reach of any context of ours.
+ * Named after its panel (「调整『北区订单』的大小」): a board of six panels
+ * used to offer six corners under one name, and a reader walking the page
+ * could not tell which one they were on. The panel comes from
+ * `PanelGridItem`, which the library appends this to. Outside one there is
+ * no panel to name or to resize, so the corner says so generically and
+ * answers no key rather than guessing at the first panel.
  */
 export function PanelResizeHandle({
   axis,
@@ -155,9 +207,14 @@ export function PanelResizeHandle({
   onStep,
 }: PanelResizeHandleProps) {
   const messages = useViewMessages();
+  const panel = useContext(PanelItemContext);
   return (
     <IconTooltip
-      label={messages.label('label.panel.resize')}
+      label={
+        panel
+          ? messages.label('label.panel.resize', { title: panel.name })
+          : messages.label('label.panel.resize-any')
+      }
       render={
         <button
           // A plain element rather than the vendored `Button`: the class is
@@ -168,17 +225,14 @@ export function PanelResizeHandle({
           // is over the panel — is one rule in `styles.css`.
           type="button"
           data-slot="panel-resize"
+          aria-keyshortcuts={ARROW_KEYS}
           className={`react-resizable-handle react-resizable-handle-${axis}`}
           ref={ref as React.Ref<HTMLButtonElement>}
           onKeyDown={(event: React.KeyboardEvent<HTMLElement>) => {
             const step = SIZE_KEYS[event.key];
-            if (!step) return;
-            const panelId = event.currentTarget
-              .closest('[data-panel-id]')
-              ?.getAttribute('data-panel-id');
-            if (panelId === null || panelId === undefined) return;
+            if (!step || !panel) return;
             event.preventDefault();
-            onStep(panelId, step);
+            onStep(panel.id, step);
           }}
         />
       }

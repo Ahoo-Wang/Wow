@@ -12,7 +12,11 @@
  */
 import { useRef, useState, type CSSProperties } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import type { FilterTree, ViewEngine } from '@ahoo-wang/fetcher-view-engine';
+import type {
+  FilterTree,
+  ViewEngine,
+  ViewInstance,
+} from '@ahoo-wang/fetcher-view-engine';
 import {
   EmbeddedView,
   useViewExpansion,
@@ -36,6 +40,8 @@ import { AppShell } from '../shared/AppShell.js';
 import {
   HOST_LANGUAGE,
   createStoryEngine,
+  dashboardConfig,
+  savedDashboard,
   savedViews,
   type SourceBehaviour,
 } from './fixtures.js';
@@ -246,6 +252,30 @@ const SCOPE_FILTERS: Record<ScopeChoice, FilterTree | null> = {
   unknown: UNKNOWN_SCOPE,
 };
 
+/**
+ * 一块**共享**的仪表盘，其中一个面板指向一个**个人**视图——别的读者看不到它，
+ * 于是这一个面板被拒（error），其余面板照常。嵌入原来把这条面板级的 error 当
+ * 成整块仪表盘的，整张栅格一格都不画（R3）。
+ */
+const SHARED_BOARD_WITH_A_PRIVATE_PANEL: ViewInstance = {
+  ...savedDashboard,
+  id: 'overview-shared',
+  scope: 'shared',
+  config: dashboardConfig({
+    panels: [
+      ...dashboardConfig().panels,
+      {
+        id: 'mine',
+        kind: 'view',
+        title: '我盯的大额单',
+        instanceId: savedViews[2].id,
+        bindings: [],
+        layout: { x: 4, y: 4, w: 8, h: 2 },
+      },
+    ],
+  }),
+};
+
 function EmbeddedViewDemo({
   behaviour = 'data',
   instanceId,
@@ -264,7 +294,14 @@ function EmbeddedViewDemo({
   const [picked, setPicked] = useState<ScopeChoice>(scope);
   const choice = scopePicker ? picked : scope;
   return (
-    <StoryEngine create={() => createStoryEngine({ behaviour })}>
+    <StoryEngine
+      create={() =>
+        createStoryEngine({
+          behaviour,
+          instances: [...savedViews, SHARED_BOARD_WITH_A_PRIVATE_PANEL],
+        })
+      }
+    >
       {engine => (
         <HostPage
           engine={engine}
@@ -445,4 +482,20 @@ export const AnalysisEmbed: Story = {
  */
 export const TotalCoversThisPageOnly: Story = {
   args: { behaviour: 'no-aggregate' },
+};
+
+/**
+ * 嵌一块仪表盘，其中一个面板出不来。
+ *
+ * 这块共享仪表盘里有一个面板指向一个**个人**视图，别的读者看不到它，于是只有
+ * 这一个面板被拒。栅格照常画：其余面板各自跑，出不来的那一个在自己的框里说为
+ * 什么、找谁——和工作台里一样。原来这一条面板级的 error 被当成整块仪表盘的，
+ * 卡片里只剩一条红条（R3）。
+ */
+export const DashboardWithAPanelOut: Story = {
+  name: '嵌一块有面板出不来的仪表盘',
+  args: {
+    instanceId: SHARED_BOARD_WITH_A_PRIVATE_PANEL.id,
+    caption: '一块共享仪表盘，其中一个面板指向个人视图。',
+  },
 };

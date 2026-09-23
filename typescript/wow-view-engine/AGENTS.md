@@ -180,7 +180,7 @@ src/
     index.ts                  — The analysis kernel
   dashboard/                  — Dashboard kernel — imports model and filter
     defaults.ts               — emptyDashboardConfig
-    layout.ts                 — Where panels may go: `fitsGrid`, `arrangeLayout` (one keyboard step), `placePanel` (pushes covered panels down)
+    layout.ts                 — Where panels may go: `fitsGrid`, `arrangeLayout` (one keyboard step), `placePanel` (pushes covered panels down), `readingOrder` and `stackedLayout` (the one-column reading a narrow screen shows)
     merge.ts                  — mergeGlobalFilter onto one panel's fields
     panels.ts                 — Which panel a stored one is: `isViewPanel`, `isContentPanel`, and `isSafeContentUrl` for what a content panel points at
     validate.ts               — validateDashboard — panels, bindings, content
@@ -275,8 +275,8 @@ src/
     ColumnSettings.tsx        — Which columns show, in which order, pinned or not, summarised how — one sortable group per area (D19)
     ConflictConfirm.tsx       — The same choice, put once more with both configs on the table
     CopyButton.tsx            — A value's own copy button: the clipboard, the tick, and the two words a press comes back with
-    DashboardArrange.tsx      — Placing a panel without a pointer: the two named handles, and the menu
-    DashboardGrid.tsx         — The panels, placed
+    DashboardArrange.tsx      — Placing a panel without a pointer: the two handles named after their panel (`PanelGridItem` tells the corner which), and the menu
+    DashboardGrid.tsx         — The panels, placed — in reading order, one column below `md`; what a panel is called (`panelName`), why one is out and who can bring it back
     DashboardPanels.tsx       — The static panels: a note, a picture, a list of links
     DashboardWorkbench.tsx    — Default Dashboard workbench
     DataWorkbench.tsx         — The data workbench: one list of record and analysis views; `useWorkbench` + both parts + `WorkbenchShell`, joined (D18-1, D20)
@@ -292,6 +292,7 @@ src/
     LeaveGuard.tsx            — `LeaveDialog`: draws the headless guard's question
     MessagesProvider.tsx      — `MessagesProvider`: the wording every default component reads, each provider merging over the one above it
     OutcomeActions.tsx        — One outcome as a line and its buttons, shared by the two above and the manager
+    PanelUnavailable.tsx      — A dashboard panel that cannot show anything: the finding mapped to why, in the reader's words, and who can bring it back
     PendingDot.tsx            — The "changed, not applied" dot pinned to a pill or a group
     RecordCards.tsx           — The same result as cards, drawn from the card half of the saved config (D18 V); a value reads as a card reads it, a note on its own three lines
     RecordPagination.tsx      — How many rows there are and how to reach the next of them

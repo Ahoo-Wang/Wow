@@ -16,6 +16,8 @@ import {
   overlaps,
   placePanel,
   placePanelIn,
+  readingOrder,
+  stackedLayout,
   type DashboardPanel,
   type PlacedPanel,
 } from '../src/index.js';
@@ -205,5 +207,46 @@ describe('placePanelIn', () => {
     const config = dashboardConfig({ panels: 'nope' as never });
 
     expect(placePanelIn(config, 'a', { x: 0, y: 0, w: 1, h: 1 })).toBe(config);
+  });
+});
+
+/**
+ * The order a reader counts panels in — rows top to bottom, each left to
+ * right — and the one-column reading a narrow screen shows, derived from
+ * the stored layout and never written back to it.
+ */
+describe('readingOrder', () => {
+  it('reads rows top to bottom, each left to right, whatever the config order', () => {
+    const panels = [
+      { id: 'below', layout: box('below', 0, 4, 6, 2) },
+      { id: 'right', layout: box('right', 6, 0, 6, 4) },
+      { id: 'left', layout: box('left', 0, 0, 6, 4) },
+    ];
+
+    expect(readingOrder(panels).map(panel => panel.id)).toEqual([
+      'left',
+      'right',
+      'below',
+    ]);
+    // The config itself is left as it was.
+    expect(panels.map(panel => panel.id)).toEqual(['below', 'right', 'left']);
+  });
+});
+
+describe('stackedLayout', () => {
+  it('stacks the panels in reading order, full width, each as tall as saved', () => {
+    const stored = [
+      box('right', 6, 0, 6, 4),
+      box('left', 0, 0, 6, 3),
+      box('below', 0, 4, 4, 2),
+    ];
+
+    expect(stackedLayout(stored)).toEqual([
+      box('left', 0, 0, 1, 3),
+      box('right', 0, 3, 1, 4),
+      box('below', 0, 7, 1, 2),
+    ]);
+    // Derived, not placed: the stored boxes are untouched.
+    expect(stored[0]).toEqual(box('right', 6, 0, 6, 4));
   });
 });

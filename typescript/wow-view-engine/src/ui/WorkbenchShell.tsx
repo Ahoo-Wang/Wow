@@ -187,6 +187,13 @@ export interface WorkbenchShellProps {
    */
   warnings?: readonly Issue[];
   /**
+   * How a finding is said in the status line, where it stands away from the
+   * part it is about. A dashboard names the panel a finding belongs to —
+   * 「这个面板」 means something inside a panel and nothing above the grid.
+   * Every finding is said as it is when left out.
+   */
+  nameIssue?(issue: Issue): Issue;
+  /**
    * Whether the result is drawn inside one frame — toolbar on top, rows to
    * the edge, pagination at the bottom (D12). A dashboard opts out: its
    * result is already a grid of cards, and a frame round cards is a frame
@@ -289,6 +296,7 @@ export function WorkbenchShell({
   hasResult,
   resultPending,
   warnings,
+  nameIssue,
   onRenderFailure,
   resultFramed = true,
   resultSlots,
@@ -588,6 +596,7 @@ export function WorkbenchShell({
                 state={state}
                 kind={kind}
                 warnings={warnings}
+                nameIssue={nameIssue}
                 errorAction={errorAction}
               />
 

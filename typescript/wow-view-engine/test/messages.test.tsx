@@ -249,7 +249,7 @@ describe('the Chinese catalogue', () => {
       </MessagesProvider>,
     );
 
-    expect(screen.getByText('还没有面板')).toBeTruthy();
+    expect(screen.getByText('这个仪表盘还没有面板')).toBeTruthy();
   });
 
   it('is a base a host composes its own wording onto', () => {
@@ -505,7 +505,9 @@ describe('the provider', () => {
 
     expect(result.current.label('label.query.failed')).toBe('查询失败');
     // Everything not overridden keeps its default wording.
-    expect(result.current.label('label.dashboard.empty')).toBe('No panels yet');
+    expect(result.current.label('label.dashboard.empty')).toBe(
+      'This dashboard has no panels yet',
+    );
   });
 
   // A surface used to reset to the defaults, so an application that set its

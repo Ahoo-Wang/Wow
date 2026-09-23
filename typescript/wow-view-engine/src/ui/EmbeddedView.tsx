@@ -34,7 +34,7 @@ import { Skeleton } from './components/skeleton.js';
 import { AnalysisChart } from './AnalysisChart.js';
 import { AnalysisTable } from './AnalysisTable.js';
 import { AppliedBar } from './AppliedBar.js';
-import { DashboardGrid } from './DashboardGrid.js';
+import { DashboardGrid, type PanelHeadingLevel } from './DashboardGrid.js';
 import { RecordCards } from './RecordCards.js';
 import { RecordTable } from './RecordTable.js';
 import { ErrorStrip, QueryStrip, WarningStrip } from './StatusStrip.js';
@@ -86,6 +86,13 @@ export interface EmbeddedViewProps {
    * throws, for one. The embed shows a recoverable error state in place.
    */
   onRenderFailure?: RenderFailureHandler;
+  /**
+   * The heading level of a dashboard's panel titles. An embed has no title
+   * of its own, so its panels sit one under whatever the host's page calls
+   * the section it put them in — `2`, under a page's `h1`, unless the host
+   * says otherwise. Only the host knows its outline.
+   */
+  headingLevel?: PanelHeadingLevel;
 }
 
 /**
@@ -111,6 +118,7 @@ export function EmbeddedView({
   ref,
   rowActions,
   onRenderFailure,
+  headingLevel = 2,
 }: EmbeddedViewProps) {
   // The condition goes in with the config, not after it: `useOpenView` hands
   // it to `engine.open`, so the opening query is already scoped rather than
@@ -161,7 +169,11 @@ export function EmbeddedView({
           resetKeys={[runtime.id]}
           onFailure={onRenderFailure}
         >
-          <EmbeddedBody runtime={runtime} rowActions={rowActions} />
+          <EmbeddedBody
+            runtime={runtime}
+            rowActions={rowActions}
+            headingLevel={headingLevel}
+          />
         </RenderBoundary>
       )}
     </ViewSurface>
@@ -178,9 +190,11 @@ type OpenedRuntime = NonNullable<ReturnType<typeof useOpenView>['runtime']>;
 function EmbeddedBody({
   runtime,
   rowActions,
+  headingLevel,
 }: {
   runtime: OpenedRuntime;
   rowActions?(row: RecordRow): ReactNode;
+  headingLevel: PanelHeadingLevel;
 }) {
   const state = useViewRuntime(runtime);
 
@@ -188,22 +202,28 @@ function EmbeddedBody({
   // without this a record sits at an empty frame and an analysis at a
   // skeleton that never resolves: a view waiting to be fixed, dressed up as
   // one with nothing to show. The workbenches say so; so does this.
-  const issues = state?.issues ?? [];
+  // A dashboard's panel-scoped findings are the panels' to show, each in its
+  // own frame — its errors as much as its warnings. One panel's error stops
+  // that panel and nothing else (the runtime runs the rest), so taking it
+  // for the dashboard's own drew no grid at all around a board where every
+  // other panel was fine (R3). The workbench has always drawn the grid.
+  // "Too many panels" sits at `['panels']` itself and is no one panel's:
+  // it stops the whole board, and stays the dashboard's to say.
+  const issues = (state?.issues ?? []).filter(
+    found =>
+      runtime.kind !== 'dashboard' ||
+      found.path[0] !== 'panels' ||
+      typeof found.path[1] !== 'number',
+  );
   const errors = issues.filter(found => found.severity === 'error');
   // A warning blocks nothing, so the result still shows, with the warning
   // above it: an embed hides the editor, and this is the one place a reader
-  // learns the view is not quite what its author saved. A dashboard's
-  // panel-scoped findings are the panels' to show, each in its own frame.
-  // What the result says about itself is said here too, and for a stronger
-  // reason than in a workbench: there is no editor, no toolbar and no scope
-  // bar, so a page total wearing the word "total" or a pie drawn from a
-  // truncated grouping would have nothing at all to correct it.
-  const warnings = [
-    ...issues.filter(
-      found => runtime.kind !== 'dashboard' || found.path[0] !== 'panels',
-    ),
-    ...resultIssues(state?.result?.data),
-  ];
+  // learns the view is not quite what its author saved. What the result
+  // says about itself is said here too, and for a stronger reason than in a
+  // workbench: there is no editor, no toolbar and no scope bar, so a page
+  // total wearing the word "total" or a pie drawn from a truncated grouping
+  // would have nothing at all to correct it.
+  const warnings = [...issues, ...resultIssues(state?.result?.data)];
   // An error takes the result's place; it does not take the warnings' — a
   // config can carry both, and the workbench says both. There is no
   // condition editor here, so no finding is marked anywhere else.
@@ -223,7 +243,7 @@ function EmbeddedBody({
       ) : runtime.kind === 'analysis' ? (
         <EmbeddedAnalysis runtime={runtime} />
       ) : (
-        <EmbeddedDashboard runtime={runtime} />
+        <EmbeddedDashboard runtime={runtime} headingLevel={headingLevel} />
       )}
     </>
   );
@@ -317,7 +337,13 @@ function EmbeddedAnalysis({ runtime }: { runtime: OpenedRuntime }) {
   );
 }
 
-function EmbeddedDashboard({ runtime }: { runtime: DashboardRuntime }) {
+function EmbeddedDashboard({
+  runtime,
+  headingLevel,
+}: {
+  runtime: DashboardRuntime;
+  headingLevel: PanelHeadingLevel;
+}) {
   const dashboard = useDashboard(runtime);
-  return <DashboardGrid dashboard={dashboard} />;
+  return <DashboardGrid dashboard={dashboard} headingLevel={headingLevel} />;
 }

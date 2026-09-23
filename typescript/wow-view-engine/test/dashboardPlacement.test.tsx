@@ -149,10 +149,7 @@ describe('placing a panel', () => {
     const { runtime } = await openDashboard(column);
     render(<LiveGrid runtime={runtime} />);
 
-    await press(
-      screen.getByLabelText('Move Below with the arrow keys'),
-      'ArrowUp',
-    );
+    await press(screen.getByLabelText('Move “Below”'), 'ArrowUp');
 
     expect(layouts(runtime)).toEqual({
       top: { x: 0, y: 7, w: 6, h: 4 },
@@ -265,10 +262,7 @@ describe('placing a panel', () => {
     );
     render(<LiveGrid runtime={runtime} />);
 
-    await press(
-      screen.getByLabelText('Move Fine with the arrow keys'),
-      'ArrowDown',
-    );
+    await press(screen.getByLabelText('Move “Fine”'), 'ArrowDown');
 
     expect(layouts(runtime).fine).toEqual({ x: 0, y: 1, w: 6, h: 4 });
   });

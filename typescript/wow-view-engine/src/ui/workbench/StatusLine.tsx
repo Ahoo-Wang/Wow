@@ -12,7 +12,7 @@
  */
 
 import { cn } from 'cn';
-import type { ViewKind } from '../../model/index.js';
+import type { Issue, ViewKind } from '../../model/index.js';
 import type { WorkbenchController } from '../../react/index.js';
 import { resultIssues } from '../../runtime/index.js';
 import { SPACE } from '../layout.js';
@@ -22,7 +22,7 @@ import type { WorkbenchShellProps } from '../WorkbenchShell.js';
 
 export interface StatusLineProps extends Pick<
   WorkbenchShellProps,
-  'warnings' | 'errorAction'
+  'warnings' | 'errorAction' | 'nameIssue'
 > {
   /** The filter's unmarked findings, the definition's and the list's. */
   workbench: WorkbenchController;
@@ -46,6 +46,7 @@ export function StatusLine({
   kind,
   warnings,
   errorAction,
+  nameIssue = sayAsIs,
 }: StatusLineProps) {
   const messages = useViewMessages();
   const { filter, list } = workbench;
@@ -58,7 +59,10 @@ export function StatusLine({
         // The definition's own findings beside the view's: an
         // error in the definition was reported to `onIssue` and to
         // nobody on screen (F-05).
-        issues={[...filter.unmarked, ...workbench.definitionIssues]}
+        issues={[
+          ...filter.unmarked.map(nameIssue),
+          ...workbench.definitionIssues,
+        ]}
         title={
           kind === 'dashboard'
             ? messages.label('label.dashboard.needs-fixing')
@@ -72,10 +76,9 @@ export function StatusLine({
         order, so it is said as a warning and said once. */}
       <WarningStrip
         issues={[
-          ...(warnings ?? [
-            ...state.issues,
-            ...resultIssues(state.result?.data),
-          ]),
+          ...(
+            warnings ?? [...state.issues, ...resultIssues(state.result?.data)]
+          ).map(nameIssue),
           ...workbench.definitionIssues,
           ...(list.preferencesError
             ? [
@@ -94,4 +97,8 @@ export function StatusLine({
       />
     </div>
   );
+}
+
+function sayAsIs(issue: Issue): Issue {
+  return issue;
 }

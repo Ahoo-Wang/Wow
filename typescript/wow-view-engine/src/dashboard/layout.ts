@@ -208,6 +208,38 @@ export function placePanelIn(
   return changed ? { ...config, panels: next as DashboardPanel[] } : config;
 }
 
+/**
+ * The panels in reading order: rows top to bottom, each left to right — the
+ * order a reader counts them in and the grid draws them in, whatever order
+ * the config lists them. Stable, so two panels an author stacked on the same
+ * cell keep the order they were saved in.
+ */
+export function readingOrder<T extends { layout: PanelLayout }>(
+  panels: readonly T[],
+): T[] {
+  return [...panels].sort(
+    (a, b) => a.layout.y - b.layout.y || a.layout.x - b.layout.x,
+  );
+}
+
+/**
+ * The layout read as one column, for a screen too narrow for the grid: each
+ * panel the full width of a one-column grid and as tall as it was saved,
+ * stacked in reading order. A reading of the layout, not a placement — it is
+ * never handed to `place`, because nothing in it maps back to the wide
+ * layout the config holds.
+ */
+export function stackedLayout(panels: readonly PlacedPanel[]): PlacedPanel[] {
+  let y = 0;
+  return readingOrder(panels.map(panel => ({ panel, layout: panel }))).map(
+    ({ panel }) => {
+      const stacked = { id: panel.id, x: 0, y, w: 1, h: panel.h };
+      y += panel.h;
+      return stacked;
+    },
+  );
+}
+
 /** Whether two layouts are the same four numbers. */
 export function sameLayout(a: PanelLayout, b: PanelLayout): boolean {
   return a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;

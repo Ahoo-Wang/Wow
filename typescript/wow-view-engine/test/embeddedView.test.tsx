@@ -215,6 +215,101 @@ describe('EmbeddedView', () => {
     );
   });
 
+  /**
+   * One panel's error stops that panel and nothing else — the runtime runs
+   * the rest — but the embed read it as the dashboard's own and drew an
+   * error strip where the whole grid should have been (R3). The workbench
+   * always drew the grid; so does this, with the one panel saying why.
+   */
+  it('draws the grid around a panel that is out', async () => {
+    const board: ViewInstance = {
+      id: 'overview-1',
+      definitionId: 'overview',
+      title: 'Overview',
+      // Shared, over a personal view: that panel is refused with an error.
+      scope: 'shared',
+      revision: '1',
+      config: dashboardConfig({
+        panels: [
+          {
+            id: 'private',
+            kind: 'view',
+            title: 'Mine only',
+            instanceId: 'orders-1',
+            bindings: [],
+            layout: { x: 0, y: 0, w: 6, h: 4 },
+          },
+          {
+            id: 'note',
+            kind: 'markdown',
+            title: 'Note',
+            content: '# Weekly review',
+            layout: { x: 6, y: 0, w: 6, h: 2 },
+          },
+        ],
+      }),
+    };
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition(), overviewDefinition()],
+      store: new MemoryViewStore({
+        instances: [board, { ...mine, scope: 'personal' }],
+      }),
+      resolveSource: () => testSource(),
+    });
+
+    render(<EmbeddedView engine={engine} instanceId="overview-1" />);
+
+    // The healthy panel draws; the refused one says why in its own frame.
+    expect(
+      await screen.findByRole('heading', { name: 'Weekly review' }),
+    ).toBeTruthy();
+    const out = document.querySelector('[data-slot="panel-unavailable"]');
+    expect(out?.textContent).toContain(
+      'The view this panel shows is not open to everyone who reads this dashboard',
+    );
+    // And nothing above the grid takes the board's place.
+    expect(screen.queryByRole('alert')).toBeNull();
+    // An embed has no title of its own, so its panels sit one under the
+    // host page's `h1` unless the host says otherwise.
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Note' }),
+    ).toBeTruthy();
+  });
+
+  it('puts the panel titles where the host outline wants them', async () => {
+    const board: ViewInstance = {
+      id: 'overview-1',
+      definitionId: 'overview',
+      title: 'Overview',
+      scope: 'personal',
+      revision: '1',
+      config: dashboardConfig({
+        panels: [
+          {
+            id: 'note',
+            kind: 'markdown',
+            title: 'Note',
+            content: 'hello',
+            layout: { x: 0, y: 0, w: 6, h: 2 },
+          },
+        ],
+      }),
+    };
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition(), overviewDefinition()],
+      store: new MemoryViewStore({ instances: [board] }),
+      resolveSource: () => testSource(),
+    });
+
+    render(
+      <EmbeddedView engine={engine} instanceId="overview-1" headingLevel={4} />,
+    );
+
+    expect(
+      await screen.findByRole('heading', { level: 4, name: 'Note' }),
+    ).toBeTruthy();
+  });
+
   it('reports a failed query inside the embed', async () => {
     const engine = new ViewEngine({
       definitions: [ordersDefinition()],

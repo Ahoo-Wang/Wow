@@ -10,6 +10,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import type { ComponentType } from 'react';
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
@@ -22,7 +23,7 @@ import displayMeta, {
   QueryFailed as DisplayQueryFailed,
 } from './Dashboard.stories.js';
 import { amountOf, findDataTable, readColumn, readTotal } from './readTable.js';
-import { drawnMarks } from './chartDom.js';
+import { axisTicks, chartsDrawn, drawnMarks, overlaps } from './chartDom.js';
 import { outage } from './fixtures.js';
 
 const meta = {
@@ -42,6 +43,26 @@ type Story = StoryObj<typeof displayMeta>;
 
 const bars = (canvas: HTMLElement) => drawnMarks(canvas);
 
+/**
+ * A desk-width column for the stories that place panels. The test browser
+ * is a phone's width, and below `md` the board is one derived column that
+ * nothing is placed in.
+ */
+const DESK = (Story: ComponentType) => (
+  <div style={{ width: 1280 }}>
+    <Story />
+  </div>
+);
+
+/** Until the board is a grid rather than the one-column reading. */
+async function onTheGrid(canvasElement: HTMLElement): Promise<void> {
+  await waitFor(() =>
+    expect(
+      canvasElement.querySelector('[data-slot="dashboard-grid"]'),
+    ).not.toHaveAttribute('data-narrow'),
+  );
+}
+
 export const AllPanels: Story = {
   ...DisplayAllPanels,
   play: async ({ canvasElement }) => {
@@ -59,7 +80,7 @@ export const AllPanels: Story = {
     await expect(amountOf(readTotal(table, '金额'))).toBe(6470);
     await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
     await expect(
-      canvas.getByRole('link', { name: '出库异常处理' }),
+      canvas.getByRole('link', { name: /^出库异常处理/ }),
     ).toBeVisible();
   },
 };
@@ -77,14 +98,113 @@ export const GlobalFilter: Story = {
   },
 };
 
+/**
+ * A panel whose view was deleted says why once, in the reader's words, and
+ * who can bring it back — never 「不可用」 twice, never the id it points at,
+ * and no button offering what nothing on the board can do yet (U5).
+ */
 export const PanelUnavailable: Story = {
   ...DisplayPanelUnavailable,
   play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
     await expect(
-      await within(canvasElement).findByText(zhCN['label.panel.unavailable']),
+      await canvas.findByText(zhCN['label.panel.out.missing']),
+    ).toBeVisible();
+    const out = canvasElement.querySelector(
+      '[data-slot="panel-unavailable"]',
+    ) as HTMLElement;
+    await expect(out).toHaveTextContent(zhCN['label.panel.way-out.share']);
+    await expect(out.textContent).not.toContain('不可用');
+    await expect(out.textContent).not.toContain('orders-pending');
+    await expect(within(out).queryByRole('button')).toBeNull();
+    // The panel keeps its heading, one level under the view's own.
+    await expect(
+      canvas.getByRole('heading', { level: 3, name: '待出库明细' }),
     ).toBeVisible();
     // The other data panel is not taken down with it.
     await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
+  },
+};
+
+/**
+ * A phone-width column (2026-09-23 analysis audit): at 414px the twelve
+ * columns squeezed the analysis panel to ~130px, its bar labels over each
+ * other and cut. Below `md` the grid is one column — the panels in reading
+ * order, each full width and as tall as it was saved — so nothing scrolls
+ * sideways and every label stays inside its chart. The saved layout is not
+ * touched: the one column is derived, and nothing can be dragged in it.
+ */
+export const OnAPhone: Story = {
+  ...DisplayAllPanels,
+  decorators: [
+    Story => (
+      <div style={{ width: 414 }}>
+        <Story />
+      </div>
+    ),
+  ],
+  play: async ({ canvasElement }) => {
+    const grid = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="dashboard-grid"]',
+      );
+      expect(found).toHaveAttribute('data-narrow');
+      return found!;
+    });
+    await chartsDrawn(canvasElement);
+    await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
+
+    // No sideways scroll: the grid holds its panels inside its own width.
+    // The library slides an item to a new place over 200ms, so the panels
+    // are measured once they have landed.
+    const column = grid.getBoundingClientRect();
+    await waitFor(() => {
+      const panels = [
+        ...grid.querySelectorAll<HTMLElement>('.react-grid-item'),
+      ].map(item => ({
+        title: item.querySelector('[data-slot="panel-title"]')?.textContent,
+        box: item.getBoundingClientRect(),
+      }));
+      // Reading order, top to bottom: the stored layout puts the two data
+      // panels side by side on the first row and the runbook under them.
+      expect(
+        [...panels]
+          .sort((a, b) => a.box.top - b.box.top)
+          .map(panel => panel.title),
+      ).toEqual(['待出库明细', '按仓库汇总', '值班手册']);
+      // Every panel full width, each on a row of its own.
+      for (const panel of panels) {
+        expect(panel.box.width).toBeGreaterThan(column.width * 0.9);
+        expect(panel.box.left).toBeGreaterThanOrEqual(column.left - 1);
+        expect(panel.box.right).toBeLessThanOrEqual(column.right + 1);
+      }
+    });
+    await expect(grid.scrollWidth).toBeLessThanOrEqual(grid.clientWidth + 1);
+
+    // The chart's labels stay inside its drawing, and do not sit on each
+    // other: the ~130px panel wrote them over one another.
+    // Measured once the drawing has followed its panel to the new width.
+    await waitFor(() => {
+      const plot = canvasElement
+        .querySelector('[data-slot="chart-plot"]')!
+        .getBoundingClientRect();
+      expect(plot.width).toBeGreaterThan(300);
+      const labels = [...axisTicks(canvasElement, 'bottom')].map(text =>
+        text.getBoundingClientRect(),
+      );
+      expect(labels.length).toBeGreaterThan(0);
+      for (const [index, box] of labels.entries()) {
+        expect(box.left).toBeGreaterThanOrEqual(plot.left - 1);
+        expect(box.right).toBeLessThanOrEqual(plot.right + 1);
+        for (const other of labels.slice(index + 1))
+          expect(overlaps(box, other)).toBe(false);
+      }
+    });
+
+    // Nothing to drag in a derived column.
+    await expect(
+      canvasElement.querySelector('[data-slot="panel-grip"]'),
+    ).toBeNull();
   },
 };
 
@@ -96,7 +216,7 @@ export const QueryFailed: Story = {
       expect(canvas.getAllByText(zhCN['label.query.failed'])).toHaveLength(2),
     );
     await expect(
-      canvas.getByRole('link', { name: '出库异常处理' }),
+      canvas.getByRole('link', { name: /^出库异常处理/ }),
     ).toBeVisible();
   },
 };
@@ -119,8 +239,12 @@ export const QueryFailed: Story = {
  */
 export const KeyboardLayout: Story = {
   ...DisplayEditableLayout,
+  // The test browser is a phone's width, and below `md` the board is one
+  // derived column with nothing to place — so this one is given a desk.
+  decorators: [DESK],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await onTheGrid(canvasElement);
     const grip = canvas.getByLabelText(
       zhCN['label.panel.move'].replace('{title}', '待出库明细'),
     );
@@ -140,7 +264,11 @@ export const KeyboardLayout: Story = {
     // The second, once the grid has finished sliding it there.
     await waitFor(() => expect(from()).toBeGreaterThan(0.06));
 
-    const corner = within(panel).getByLabelText(zhCN['label.panel.resize']);
+    // Named after its own panel, like the grip: each corner on the board
+    // used to share one name (U8).
+    const corner = within(panel).getByLabelText(
+      zhCN['label.panel.resize'].replace('{title}', '待出库明细'),
+    );
     corner.focus();
     // Upstream keeps the corner at `opacity: 0` until a pointer is over the
     // panel; a keyboard that can reach it must be able to see it.
@@ -148,12 +276,23 @@ export const KeyboardLayout: Story = {
   },
 };
 
+/**
+ * What an empty dashboard is, and nothing it cannot keep: there is no way to
+ * add a panel yet (D22's batch B), so the empty state invites nobody to
+ * press anything (U1).
+ */
 export const EmptyDashboard: Story = {
   ...DisplayEmptyDashboard,
   play: async ({ canvasElement }) => {
     await expect(
       await within(canvasElement).findByText(zhCN['label.dashboard.empty']),
     ).toBeVisible();
+    const empty = canvasElement.querySelector(
+      '[data-slot="dashboard-empty"]',
+    ) as HTMLElement;
+    await expect(empty).toHaveTextContent(zhCN['label.dashboard.empty-hint']);
+    await expect(empty.textContent).not.toContain('添加');
+    await expect(within(empty).queryByRole('button')).toBeNull();
   },
 };
 
@@ -187,7 +326,10 @@ export const RefreshFailedKeepsData: Story = {
       // Both panels say the answer is the last one, and still show it.
       await waitFor(() => expect(canvas.getAllByText(stale)).toHaveLength(2));
       await expect(readColumn(table, '订单号')).toHaveLength(4);
-      await expect(bars(canvasElement)).toHaveLength(4);
+      // The strip above takes height from the chart, which redraws into
+      // what is left — its bars grow back in rather than being there at
+      // once, in the full-width panel of the phone-width test browser.
+      await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
       await expect(canvas.queryByText(zhCN['label.query.failed'])).toBeNull();
 
       // Back up: one panel's retry re-runs that panel, and only its line goes.
@@ -211,8 +353,12 @@ export const RefreshFailedKeepsData: Story = {
  */
 export const KeyboardStepPushes: Story = {
   ...DisplayEditableLayout,
+  // A desk, as for `KeyboardLayout`: nothing is placed in the phone-width
+  // column the test browser would otherwise give it.
+  decorators: [DESK],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await onTheGrid(canvasElement);
     const grip = (title: string) =>
       canvas.getByLabelText(zhCN['label.panel.move'].replace('{title}', title));
     const item = (title: string) =>

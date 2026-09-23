@@ -361,11 +361,12 @@ describe('DashboardWorkbench', () => {
       // error, and a personal copy of it is exactly the way out.
       const { store } = workbench(board('shared'));
       await screen.findByRole('button', { name: 'More view actions' });
-      // One finding, so the strip says it outright rather than heading it.
+      // One finding, so the strip says it outright rather than heading it —
+      // and, standing above the grid, it says which panel it is about.
       expect(
         (await screen.findAllByRole('alert')).some(alert =>
           (alert.textContent ?? '').includes(
-            'A shared dashboard cannot show a personal view',
+            'Mine: The view this panel shows is not open to everyone who reads this dashboard.',
           ),
         ),
       ).toBe(true);
@@ -615,8 +616,12 @@ describe('DashboardWorkbench', () => {
       '[data-slot="status-strip"][data-tone="warning"]',
     );
     expect(notice?.textContent).toContain('advanced editor');
-    expect(notice?.textContent).not.toContain('unavailable');
-    expect(screen.getByText('This panel is unavailable')).toBeTruthy();
+    expect(notice?.textContent).not.toContain('deleted');
+    expect(
+      screen.getByText(
+        'The view this panel shows was deleted, or you do not have access to it',
+      ),
+    ).toBeTruthy();
     expect(screen.queryByText(/needs fixing/)).toBeNull();
   });
 
@@ -713,8 +718,10 @@ describe('DashboardWorkbench', () => {
       }),
     );
 
+    // Above the grid, a panel's finding names its panel: 「这个面板」 would
+    // point at nothing up here.
     await waitFor(() =>
-      expect(notice()?.textContent).toContain('filter.value.rounded'),
+      expect(notice()?.textContent).toContain('Pending: filter.value.rounded'),
     );
     expect(marker()).toBeNull();
 
