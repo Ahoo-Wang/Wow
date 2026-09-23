@@ -102,7 +102,7 @@ describe('the result block', () => {
 
     const result = block('result-block')!;
     expect(result.querySelector('[data-slot="stub-result"]')).not.toBeNull();
-    // One frame round the result (D12 Ⅴ): the toolbar is its top row and
+    // One band for the result (D12 Ⅴ): the toolbar is its top row and
     // the pagination its bottom row, the rows run to its edge. Without it
     // the toolbar, the table and the pagination read as three things that
     // happen to be stacked, and the region has no end.
@@ -111,8 +111,11 @@ describe('the result block', () => {
     // `className` is for — there is no state behind a length or a
     // direction, and jsdom lays nothing out. The pixels are the browser
     // stories’.
-    expect(result.className).toContain('rounded-lg');
-    expect(result.className).toContain('border');
+    // A band rather than a card: one rule across its top, and its sides
+    // and bottom are the work column's own edges, bled through its padding.
+    expect(result.className).toContain('border-t');
+    expect(result.className).toContain('-mx-4');
+    expect(result.className).not.toContain('rounded-lg');
     // But no padding of its own — the rows go to the edge; what needs a
     // margin (the toolbar, the pagination, a strip) gets it by slot.
     expect(result.className).not.toMatch(/(^|\s)p-\d/);

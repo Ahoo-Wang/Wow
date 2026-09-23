@@ -539,10 +539,23 @@ export function SidebarItem({
  * The frame round a result, and the padding it gives the two parts the
  * shell itself puts in it (D12 Ⅳ–Ⅶ).
  *
+ * **It is a band, not a card** (2026-09-23, the user's call on the v16
+ * review, overriding the earlier "keep the result's border"): one rule
+ * across its top, and its sides and bottom are the work column's own edges
+ * — it bleeds through `main`'s 16px padding (`-mx-4 -mb-4`, the same bleed
+ * the opening skeleton's title rule uses). The card was there to hold the
+ * toolbar, the rows and the pagination together while the block could end
+ * mid-page; since the workbench fills its host and the block reaches the
+ * bottom (`useFillsHost`), its bottom and side edges only redrew the
+ * workbench's own, one frame inside another, and cost 32px of width and
+ * 16px of height the rows could have. The rule on top is the one line still
+ * saying something: where the conditions end and the result begins.
+ *
  * The frame has no padding, no ground and no row gap of its own: the rows
  * have to run to its edge, so the space inside belongs to each part — the
- * toolbar is its first row, ruled off; a callout landing under that keeps
- * the frame's own 12px. Those two are `WorkbenchShell`'s own slots
+ * toolbar is its first row, ruled off, at the column's 16px so its controls
+ * line up with the conditions above; a callout landing under that keeps a
+ * margin of its own. Those two are `WorkbenchShell`'s own slots
  * (`toolbar`, `strips`), named the same whichever kind is open, so they
  * stay with the frame.
  *
@@ -556,9 +569,9 @@ export function SidebarItem({
  * own `result` slot needs (`ResultBlock.slots`).
  */
 export const resultFrameChrome =
-  'border-border overflow-hidden rounded-lg border ' +
-  '[&>[data-slot=result-toolbar]]:border-border [&>[data-slot=result-toolbar]]:border-b [&>[data-slot=result-toolbar]]:px-3 [&>[data-slot=result-toolbar]]:py-2 ' +
-  '[&>[data-slot=status-strip]]:m-3';
+  'border-border -mx-4 -mb-4 overflow-hidden border-t ' +
+  '[&>[data-slot=result-toolbar]]:border-border [&>[data-slot=result-toolbar]]:border-b [&>[data-slot=result-toolbar]]:px-4 [&>[data-slot=result-toolbar]]:py-2 ' +
+  '[&>[data-slot=status-strip]]:mx-4 [&>[data-slot=status-strip]]:my-3';
 
 /**
  * What a kind's own parts wear inside that frame, one recipe per part.
@@ -576,13 +589,13 @@ const RESULT_SLOTS = {
    * another names it here, beside this one.
    */
   caption:
-    '[&>[data-slot=record-pagination]]:border-border [&>[data-slot=record-pagination]]:bg-muted/40 [&>[data-slot=record-pagination]]:border-t [&>[data-slot=record-pagination]]:px-3 [&>[data-slot=record-pagination]]:py-2',
+    '[&>[data-slot=record-pagination]]:border-border [&>[data-slot=record-pagination]]:bg-muted/40 [&>[data-slot=record-pagination]]:border-t [&>[data-slot=record-pagination]]:px-4 [&>[data-slot=record-pagination]]:py-2',
   /** A query that matched nothing, in air of its own rather than to the edge. */
   empty: '[&>[data-slot=record-empty]]:my-6',
-  /** Cards keep the frame's padding; a table is what runs to the edge. */
-  cards: '[&>[data-slot=record-cards]]:p-3',
+  /** Cards keep the column's padding; a table is what runs to the edge. */
+  cards: '[&>[data-slot=record-cards]]:p-4',
   /** A host command's line sits where the query strip does, and as it does. */
-  bulk: '[&>[data-slot=bulk-status]]:m-3',
+  bulk: '[&>[data-slot=bulk-status]]:mx-4 [&>[data-slot=bulk-status]]:my-3',
 } as const;
 
 /** One part of a kind's result, by the job it does inside the frame. */

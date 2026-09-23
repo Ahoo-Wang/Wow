@@ -114,7 +114,9 @@ export function useViewportFit(
  * puts content under the workbench scrolls to it as it should.
  */
 function trailingChrome(element: HTMLElement): number {
-  let total = 0;
+  // The element's own bottom margin first: a frame that bleeds through its
+  // column's padding (`-mb-4`) takes back what the padding below would add.
+  let total = parseFloat(getComputedStyle(element).marginBottom) || 0;
   for (
     let child: HTMLElement = element, parent = element.parentElement;
     parent && parent !== document.documentElement;

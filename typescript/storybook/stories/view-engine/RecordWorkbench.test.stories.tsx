@@ -809,7 +809,7 @@ export const ColumnsKeepTheirWidthAndRowsFillTheFrame: Story = {
  * 从前结果区只是「最多长到视口底」：四行数据时合计紧跟第四行、分页紧跟合计，
  * 两个页脚一起浮在半屏处，每换一页位置都不同。这里把工作台放进一个 640px 高的
  * 宿主框里，量三件事：分页的下边就是结果框的下边，合计的下边就是表格滚动区的
- * 下边，结果框的下边离宿主框底只剩工作列自己的内边距。
+ * 下边，结果框的下边就是宿主框底（结果区是贴边的带，穿过工作列的内边距）。
  */
 export const FooterStaysAtTheBottom: Story = {
   ...DisplayWithData,
@@ -838,13 +838,10 @@ export const FooterStaysAtTheBottom: Story = {
     )!;
     const bottom = (element: Element) => element.getBoundingClientRect().bottom;
 
-    // The frame reaches the host's bottom, less the work column's padding.
-    const main = frame.parentElement!;
-    const padding = parseFloat(getComputedStyle(main).paddingBottom);
+    // The frame reaches the host's bottom: it is a band that bleeds through
+    // the work column's padding, so its bottom is the workbench's own.
     await waitFor(() =>
-      expect(
-        Math.abs(bottom(frame) - (bottom(host) - padding)),
-      ).toBeLessThanOrEqual(1),
+      expect(Math.abs(bottom(frame) - bottom(host))).toBeLessThanOrEqual(1),
     );
     // The pagination is the frame's last row, at its bottom edge.
     await expect(
@@ -4521,8 +4518,9 @@ export const PinnedGroupCapped: Story = {
       );
     const middleShare = () => (area.clientWidth - held()) / area.clientWidth;
 
-    // The premise: a result area far narrower than the table it holds.
-    await expect(area.clientWidth).toBeLessThan(420);
+    // The premise: a result area far narrower than the table it holds — no
+    // wider than the 420px host, which the result band now runs edge to edge.
+    await expect(area.clientWidth).toBeLessThanOrEqual(420);
     await waitFor(() =>
       expect(area.scrollWidth).toBeGreaterThan(area.clientWidth),
     );
