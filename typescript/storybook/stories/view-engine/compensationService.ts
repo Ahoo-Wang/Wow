@@ -11,13 +11,8 @@
  * limitations under the License.
  */
 
-import type {
-  AggregationQuery,
-  CursorQuery,
-  FilterPagedQuery,
-} from '@ahoo-wang/fetcher-wow';
-import type { RecordData, ViewSource } from '@ahoo-wang/fetcher-view-engine';
-import { rowSource } from './rowSource.js';
+import type { RecordData } from '@ahoo-wang/fetcher-view-engine';
+import { installRecordedWowService } from './recordedWowService.js';
 
 /**
  * The host the console's regression stories point at. No network answers it:
@@ -87,38 +82,19 @@ function execution(
 
 /**
  * Answers what the console sends to the recorded host — the snapshot
- * queries, with `rowSource` standing in for the service's store, and the
- * three compensation commands, which change that store the way the service
- * does — and lets every other request go where it went before. The console's
- * own fetcher, clients and engine run unchanged, so what this checks is the
- * console, not a copy of it. Each install starts from the recorded
+ * queries, and the three compensation commands, which change the recorded
+ * executions the way the service does. Each install starts from the recorded
  * executions afresh.
  *
  * Returns the uninstaller, as `beforeEach` expects.
  */
 export function installRecordedCompensationService(): () => void {
-  const original = globalThis.fetch;
-  const rows = structuredClone(RECORDED_EXECUTIONS);
-  const source = rowSource(rows);
-  globalThis.fetch = async (input, init) => {
-    const request = new Request(input, init);
-    const url = new URL(request.url);
-    if (url.origin !== RECORDED_COMPENSATION_HOST) return original(input, init);
-    const body = await request.json();
-    const answer =
-      request.method === 'PUT'
-        ? answerCommand(rows, url.pathname, body)
-        : await answerSnapshotQuery(source, url.pathname, body);
-    return answer === undefined
-      ? Response.json(
-          { errorCode: 'NotFound', errorMsg: `Not recorded: ${url.pathname}` },
-          { status: 404 },
-        )
-      : Response.json(answer);
-  };
-  return () => {
-    globalThis.fetch = original;
-  };
+  return installRecordedWowService({
+    host: RECORDED_COMPENSATION_HOST,
+    resource: 'execution_failed/snapshot',
+    documents: RECORDED_EXECUTIONS,
+    command: answerCommand,
+  });
 }
 
 /**
@@ -130,7 +106,7 @@ export function installRecordedCompensationService(): () => void {
 function answerCommand(
   rows: RecordData[],
   path: string,
-  body: { recoverable?: string },
+  body: { recoverable?: unknown },
 ): object | undefined {
   const [, aggregate, id, command] = path.split('/');
   if (aggregate !== 'execution_failed') return undefined;
@@ -159,19 +135,4 @@ const SUCCEEDED = { errorCode: 'Ok', errorMsg: '' };
 
 function refused(errorCode: string, errorMsg: string) {
   return { errorCode, errorMsg };
-}
-
-function answerSnapshotQuery(
-  source: ViewSource,
-  path: string,
-  query: unknown,
-): Promise<unknown> | undefined {
-  switch (path) {
-    case '/execution_failed/snapshot/paged':
-      return source.paged(query as FilterPagedQuery);
-    case '/execution_failed/snapshot/cursor':
-      return source.cursor(query as CursorQuery);
-    case '/execution_failed/snapshot/aggregation':
-      return source.aggregate(query as AggregationQuery);
-  }
 }

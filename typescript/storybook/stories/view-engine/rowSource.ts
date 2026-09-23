@@ -124,7 +124,11 @@ function summarise(
   query: AggregationQuery,
 ): RecordData[] {
   if (query.elements?.length)
-    throw new Error('The story source does not evaluate elements.');
+    return summarise(expand(rows, query), {
+      ...query,
+      filter: undefined,
+      elements: undefined,
+    });
   const groupBy = query.groupBy ?? [];
   // A derived metric is arithmetic over the row the group produced, not an
   // accumulator, so it sits out the `$group` and is computed once the
@@ -179,6 +183,46 @@ function summarise(
       ),
     ];
   return cut;
+}
+
+/**
+ * The innermost elements an aggregation counts, as Wow expands them: the
+ * root filter picks the records first, then each step of the chain unwinds
+ * the array at its path — relative to the step before — and keeps the
+ * elements its own filter admits. What is left is summarised as if each
+ * element were a record, which is what "the unit of counting is the
+ * innermost element" means.
+ */
+function expand(
+  rows: readonly RecordData[],
+  query: AggregationQuery,
+): RecordData[] {
+  let scope = find<RecordData>(
+    [...rows],
+    withDeletionDefault(query.filter ?? { op: FilterOperator.MATCH_ALL }),
+  ).all();
+  for (const element of query.elements ?? []) {
+    scope = scope.flatMap(row => {
+      const items = element.path
+        .split('.')
+        .reduce<unknown>(
+          (value, segment) =>
+            value !== null && typeof value === 'object'
+              ? (value as RecordData)[segment]
+              : undefined,
+          row,
+        );
+      return Array.isArray(items)
+        ? items.filter(
+            (item): item is RecordData =>
+              item !== null && typeof item === 'object',
+          )
+        : [];
+    });
+    if (element.filter)
+      scope = find<RecordData>(scope, criteria(element.filter)).all();
+  }
+  return scope;
 }
 
 /**
