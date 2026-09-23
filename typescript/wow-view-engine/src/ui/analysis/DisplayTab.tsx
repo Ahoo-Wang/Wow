@@ -20,6 +20,7 @@ import {
   withStacked,
 } from '../../analysis/index.js';
 import {
+  CHART_COLOR_SLOTS,
   CHART_FAMILY,
   type CartesianSpec,
   type ReferenceLine,
@@ -253,13 +254,20 @@ function PieDisplay({ chart, shape, onChange }: OptionsPageProps) {
           })
         }
       />
-      {/* The merged tail is a sum, which only an additive metric has. */}
+      {/*
+        The merged tail is a sum, which only an additive metric has. The
+        ceiling is the palette's: a slice past it would wear a colour another
+        slice already has, and the kernel folds there whatever is written.
+      */}
       {shape.additive.has(spec.value) && (
         <NumberField
           label={messages.label('label.chart.max-slices')}
-          hint={messages.label('label.chart.max-slices.hint')}
+          hint={messages.label('label.chart.max-slices.hint', {
+            count: CHART_COLOR_SLOTS,
+          })}
           value={spec.maxSlices}
           min={2}
+          max={CHART_COLOR_SLOTS}
           onChange={maxSlices =>
             onChange({
               ...chart,

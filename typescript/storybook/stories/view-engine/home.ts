@@ -136,7 +136,7 @@ export const homeViews: ViewInstance[] = [
       },
     ],
     metrics: [{ alias: 'count', type: 'COUNT' }],
-    // A bar chart follows its rows, so the days go oldest first.
+    // The month reads oldest first; the chart would run forward either way.
     sort: [{ alias: 'day', direction: 'ASC' }],
     limit: 31,
     layout: 'chart',

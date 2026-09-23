@@ -258,6 +258,7 @@ D20 屏 G。展开一个数组就是换掉计数单位：`订单 → 明细项` 
 - `combo` 的每个系列必须有 `type`；
 - heatmap 的 `x`、`y` 不同，scatter 的 `x`、`y` 不同；
 - `maxSlices` 必须是不小于 2 的整数（NaN 与小数会让全部分类并入"其他"），且只能用于可加指标（`COUNT` 或 `SUM` 的 `NUMERIC`）：`AVG`、`MIN`／`MAX`、`DISTINCT_COUNT`、百分位无法由各分类结果推出合并值，报 error；
+- **投影在色板用完之前并「其他」**（`shapeChart`，不是准入规则）：`maxSlices` 不写时可加指标的饼图按 `CHART_COLOR_SLOTS`（8）并，写了更大的数也按 8 读——第九片会拿到第一片的颜色；**时间维度坐的轴按时间升序排**（直角坐标横轴、热力图行列、指标卡迷你趋势，以及按时间拆分的系列），不管视图按什么排序，类目与饼图照结果行的次序（[ui/analysis.md#analysischart-与-shapechart](ui/analysis.md#analysischart-与-shapechart)）；
 - `referenceLines` 引用的轴必须有系列；
 - **图表必须消费全部分组别名**（cartesian 用 `x` 加可选 `splitBy`，pie 用 `category`，heatmap 用 `x`／`y`，scatter 用 `category`，group 漏斗用 `category`，metric 卡片要求无分组或仅 `trend.x`），否则结果里同一坐标会有多行，而 AVG、百分位、DISTINCT_COUNT 无法在投影层安全再聚合，报 error；
 - 漏斗至少两个阶段，`metrics` 形态要求分组为空，`group` 形态的 `order` 无重复；

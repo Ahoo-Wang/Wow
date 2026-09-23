@@ -603,6 +603,16 @@ describe('the chart options’ display page', () => {
 
     fireEvent.change(cap(), { target: { value: '3' } });
     await waitFor(() => expect(draft().chart.pie?.maxSlices).toBe(3));
+
+    // Nor is a ninth slice: the palette has eight colours, and the field
+    // says what an empty box means.
+    fireEvent.change(cap(), { target: { value: '9' } });
+    expect(draft().chart.pie?.maxSlices).toBe(3);
+    expect(
+      within(panel()!).getByText(
+        'The rest merge into “Other”. At most 8, one colour each — and 8 when left empty.',
+      ),
+    ).toBeDefined();
   });
 
   it('turns a pie into a donut and stands its legend on the right', async () => {

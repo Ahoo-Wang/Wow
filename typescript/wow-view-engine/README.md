@@ -231,6 +231,9 @@ Every token reads a host-level variable with the built-in value as its fallback:
 | `chart-3`                   | Chart slot 3, aqua                   | `#1baf7a`                       | `#199e70`                       |
 | `chart-4`                   | Chart slot 4, yellow                 | `#eda100`                       | `#c98500`                       |
 | `chart-5`                   | Chart slot 5, magenta                | `#e87ba4`                       | `#d55181`                       |
+| `chart-6`                   | Chart slot 6, green                  | `#008300`                       | `#008300`                       |
+| `chart-7`                   | Chart slot 7, violet                 | `#4a3aa7`                       | `#9085e9`                       |
+| `chart-8`                   | Chart slot 8, red                    | `#e34948`                       | `#e66767`                       |
 | `radius`                    | Corner radius, the rest scale off it | `0.625rem`                      | —                               |
 | `text-ui`                   | The one size under the body text     | `0.8125rem`                     | —                               |
 

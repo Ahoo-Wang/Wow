@@ -31,6 +31,7 @@ import {
   type ViewStore,
 } from '@ahoo-wang/fetcher-view-engine';
 import {
+  AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
 } from '@ahoo-wang/fetcher-wow';
@@ -38,7 +39,7 @@ import { zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 import { rowSource } from './rowSource.js';
 
 // Wow's names for what the analysis side may group and compute by.
-const { TERMS } = AggregationGroupType;
+const { TERMS, DATE_HISTOGRAM } = AggregationGroupType;
 const { SUM, AVG, MIN, MAX } = AggregationFunction;
 
 /**
@@ -1141,6 +1142,43 @@ export const savedWaybillViews: ViewInstance[] = [
     config: waybillConfig(),
   },
 ];
+
+/**
+ * 同一份运单，也能分析：按目的城市或按创建的那一天分组，数单数、量运费合计。
+ *
+ * 两条分析回归靠它（2026-09-23 审查）：目的城市有十个，比色板的八色多两个，
+ * 所以饼图得把尾巴并进「其他」而不是让两片同色；二十天按日倒序是一张「最近的
+ * 在前」的表，而同一批行画成图，时间仍得从左往右走。订单那份只有四个仓库、
+ * 七单，两件事都问不出来。
+ */
+export const waybillAnalysisDefinition: DataViewDefinition = {
+  ...waybillsDefinition,
+  analysis: {
+    count: true,
+    fields: [
+      { field: 'destination', groups: [TERMS], functions: [] },
+      {
+        field: 'createdAt',
+        groups: [DATE_HISTOGRAM],
+        functions: [],
+        dateUnits: [AggregationDateUnit.DAY],
+      },
+      { field: 'amount', groups: [], functions: [SUM] },
+    ],
+  },
+};
+
+/** 运单上的一个分析视图；问什么由故事给。 */
+export function waybillAnalysisView(config: AnalysisViewConfig): ViewInstance {
+  return {
+    id: 'waybills-analysis',
+    definitionId: waybillsDefinition.id,
+    title: '运单分析',
+    scope: 'shared',
+    revision: '1',
+    config,
+  };
+}
 
 /** 50 行运单背后的数据源；五档行为与 `storySource` 的同义。 */
 export function waybillSource(behaviour: SourceBehaviour = 'data'): ViewSource {

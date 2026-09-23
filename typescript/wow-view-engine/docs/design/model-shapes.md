@@ -58,7 +58,7 @@ export interface PieSpec {
   category: string; // 分组别名
   value: string; // 指标别名
   donut?: boolean;
-  maxSlices?: number; // 超出部分合并为"其他"；只允许可加指标（COUNT／SUM）
+  maxSlices?: number; // 超出部分合并为"其他"；只允许可加指标（COUNT／SUM）；不写且可加时按 CHART_COLOR_SLOTS（8）并，大于 8 按 8 读
 }
 
 export interface HeatmapSpec {

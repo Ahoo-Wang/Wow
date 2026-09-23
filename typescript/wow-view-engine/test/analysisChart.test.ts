@@ -14,6 +14,7 @@
 import { describe, expect, it } from 'vitest';
 import { CATEGORY_LABEL_MAX, categoryTick } from '../src/ui/charts/axis.js';
 import {
+  CHART_COLOR_SLOTS,
   isChartColor,
   shapeChart,
   validateChart,
@@ -699,6 +700,234 @@ describe('shapeChart', () => {
       { category: 'SH', value: 30 },
       { category: null, value: 30, other: true },
     ]);
+  });
+
+  /**
+   * The palette holds `CHART_COLOR_SLOTS` colours, and a slice past them
+   * would wear the first again, so an additive pie folds there even when no
+   * `maxSlices` was written, and never later than there when one was.
+   */
+  describe('a pie past the palette', () => {
+    const categories = (count: number): RecordData[] =>
+      Array.from({ length: count }, (_, index) => ({
+        wh: `W${index}`,
+        orders: count - index,
+        average: count - index,
+      }));
+    const pieOf = (pie: Partial<ChartSpec['pie']> = {}, metric = 'orders') =>
+      config(
+        { type: 'pie', pie: { category: 'wh', value: metric, ...pie } },
+        [GROUPS.wh],
+        [METRICS.orders, METRICS.average],
+      );
+
+    it('draws as many slices as there are colours, and no fold', () => {
+      const data = shapeChart(
+        pieOf(),
+        categories(CHART_COLOR_SLOTS),
+      ) as PieData;
+      expect(data.slices).toHaveLength(CHART_COLOR_SLOTS);
+      expect(data.slices.some(slice => slice.other)).toBe(false);
+    });
+
+    it('folds the tail into "other" at the palette size by default', () => {
+      const data = shapeChart(pieOf(), categories(10)) as PieData;
+      expect(data.slices).toHaveLength(CHART_COLOR_SLOTS);
+      // The seven largest keep a slice each; the three smallest are 3 + 2 + 1.
+      expect(data.slices.slice(0, -1).map(slice => slice.category)).toEqual([
+        'W0',
+        'W1',
+        'W2',
+        'W3',
+        'W4',
+        'W5',
+        'W6',
+      ]);
+      expect(data.slices[data.slices.length - 1]).toEqual({
+        category: null,
+        value: 6,
+        other: true,
+      });
+    });
+
+    it('reads a larger maxSlices as the palette size', () => {
+      const data = shapeChart(
+        pieOf({ maxSlices: 12 }),
+        categories(12),
+      ) as PieData;
+      expect(data.slices).toHaveLength(CHART_COLOR_SLOTS);
+      expect(data.slices[data.slices.length - 1]?.other).toBe(true);
+    });
+
+    it('leaves a metric that does not add up unfolded', () => {
+      // An average of the rest is no average of anything.
+      const data = shapeChart(pieOf({}, 'average'), categories(10)) as PieData;
+      expect(data.slices).toHaveLength(10);
+      expect(data.slices.some(slice => slice.other)).toBe(false);
+    });
+  });
+
+  /**
+   * A view of the last days sorted newest first — so its table leads with
+   * today — drew its chart right to left, today at the origin, and its
+   * sparkline backwards (analysis audit, 2026-09-23).
+   */
+  describe('a time axis runs forward', () => {
+    const day = (n: number) => Date.UTC(2026, 8, n);
+    const daily: AnalysisGroup = {
+      type: 'DATE_HISTOGRAM',
+      field: 'createdAt',
+      alias: 'day',
+      unit: 'DAY',
+    };
+    // Newest first, as a view sorted by the day descending answers.
+    const newestFirst: RecordData[] = [
+      { day: day(3), wh: 'SH', orders: 3, total: 30 },
+      { day: day(2), wh: 'BJ', orders: 2, total: 20 },
+      { day: day(1), wh: 'SH', orders: 1, total: 10 },
+    ];
+
+    it('puts a time x axis in time order, whatever the sort', () => {
+      const data = shapeChart(
+        config(
+          {
+            type: 'line',
+            cartesian: { x: 'day', series: [{ metric: 'orders' }] },
+          },
+          [daily],
+        ),
+        newestFirst,
+      ) as CartesianData;
+      expect(data.points.map(point => point.x)).toEqual([
+        day(1),
+        day(2),
+        day(3),
+      ]);
+      expect(data.points.map(point => point.values.orders)).toEqual([1, 2, 3]);
+    });
+
+    it('reads a bucket written as digits or as a day the same way', () => {
+      const data = shapeChart(
+        config(
+          {
+            type: 'bar',
+            cartesian: { x: 'day', series: [{ metric: 'orders' }] },
+          },
+          [daily],
+        ),
+        [
+          { day: '2026-09-03', orders: 3 },
+          { day: String(day(1)), orders: 1 },
+          { day: day(2), orders: 2 },
+        ],
+      ) as CartesianData;
+      expect(data.points.map(point => point.values.orders)).toEqual([1, 2, 3]);
+    });
+
+    it('puts a bucket that names no moment after the last one', () => {
+      const data = shapeChart(
+        config(
+          {
+            type: 'bar',
+            cartesian: { x: 'day', series: [{ metric: 'orders' }] },
+          },
+          [daily],
+        ),
+        [
+          { day: null, orders: 0 },
+          { day: day(2), orders: 2 },
+          { day: day(1), orders: 1 },
+        ],
+      ) as CartesianData;
+      expect(data.points.map(point => point.x)).toEqual([day(1), day(2), null]);
+    });
+
+    it('keeps a category axis in the order the rows came in', () => {
+      const data = shapeChart(
+        config(
+          {
+            type: 'bar',
+            cartesian: { x: 'wh', series: [{ metric: 'orders' }] },
+          },
+          [GROUPS.wh],
+        ),
+        [
+          { wh: 'SH', orders: 3 },
+          { wh: 'BJ', orders: 2 },
+          { wh: 'CQ', orders: 1 },
+        ],
+      ) as CartesianData;
+      expect(data.points.map(point => point.x)).toEqual(['SH', 'BJ', 'CQ']);
+    });
+
+    it('orders series split by time, and leaves the category axis alone', () => {
+      const data = shapeChart(
+        config(
+          {
+            type: 'bar',
+            cartesian: {
+              x: 'wh',
+              splitBy: 'day',
+              series: [{ metric: 'orders' }],
+            },
+          },
+          [GROUPS.wh, daily],
+        ),
+        newestFirst,
+      ) as CartesianData;
+      expect(data.series.map(series => series.value)).toEqual([
+        day(1),
+        day(2),
+        day(3),
+      ]);
+      expect(data.points.map(point => point.x)).toEqual(['SH', 'BJ']);
+    });
+
+    it('runs a heatmap over time forward and keeps its cells with them', () => {
+      const data = shapeChart(
+        config(
+          { type: 'heatmap', heatmap: { x: 'day', y: 'wh', value: 'orders' } },
+          [daily, GROUPS.wh],
+        ),
+        newestFirst,
+      ) as HeatmapData;
+      expect(data.xs).toEqual([day(1), day(2), day(3)]);
+      expect(data.ys).toEqual(['SH', 'BJ']);
+      expect(data.cells).toEqual([
+        [1, null, 3],
+        [null, 2, null],
+      ]);
+    });
+
+    it('runs a card’s sparkline forward', () => {
+      const data = shapeChart(
+        config(
+          { type: 'metric', metric: { metric: 'orders', trend: { x: 'day' } } },
+          [daily],
+        ),
+        newestFirst,
+      ) as MetricCardData;
+      expect(data.trend).toEqual([
+        { x: day(1), value: 1 },
+        { x: day(2), value: 2 },
+        { x: day(3), value: 3 },
+      ]);
+      expect(data.value).toBe(6);
+    });
+
+    it('leaves a pie over time in the rows’ order: it has no axis', () => {
+      const data = shapeChart(
+        config({ type: 'pie', pie: { category: 'day', value: 'orders' } }, [
+          daily,
+        ]),
+        newestFirst,
+      ) as PieData;
+      expect(data.slices.map(slice => slice.category)).toEqual([
+        day(3),
+        day(2),
+        day(1),
+      ]);
+    });
   });
 
   it('lays a heatmap out as a matrix with holes', () => {

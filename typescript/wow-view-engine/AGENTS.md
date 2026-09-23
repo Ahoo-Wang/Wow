@@ -94,7 +94,7 @@ src/
   styles.css                  — Theme; consumers import it explicitly
   model/                      — Types and constants only; imports nothing
     analysis.ts               — Wow aggregation enums as stored literals; which metric types measure one field (`FIELD_METRIC_TYPES`)
-    chart.ts                  — ChartSpec — one sub-object per chart family, every reference a group or metric alias; `CHART_TYPES`, `CHART_FAMILY`
+    chart.ts                  — ChartSpec — one sub-object per chart family, every reference a group or metric alias; `CHART_TYPES`, `CHART_FAMILY`, `CHART_COLOR_SLOTS` (the palette's size, which a pie folds at)
     config.ts                 — ViewConfig — what each view kind stores, and which of its members only draw the result (`presentationMembers`)
     dashboard.ts              — Dashboard config, global fields, bindings
     definition.ts             — ViewDefinition, FieldDefinition, capabilities
@@ -149,7 +149,7 @@ src/
     budget.ts                 — Depth and node budgets of a walked tree
     capability.ts             — The three scopes the element chain makes: the root's, each element's, the innermost one's; and the renaming a scope implies
     candidates.ts             — A field's values as the data counts them (value candidates): `valueCandidateField` (grouped by `TERMS`, counted, one string, no `options`/`remote`), `valueCandidatesConfig` (an ordinary analysis — the top `valueCandidateLimit` by count, narrowed by `CONTAINS`/`STARTS_WITH` where the field offers one), `readValueCandidates` (whole or not, off the probe row), `narrowValueCandidates`
-    chart.ts                  — Chart-shaped projection for the renderers, and `groupKeyText` — a group value as a colour key, the one spelling every chart family reads
+    chart.ts                  — Chart-shaped projection for the renderers — a time axis always earliest first, a pie folded before the palette runs out — and `groupKeyText` — a group value as a colour key, the one spelling every chart family reads
     chartSlots.ts             — `fitChartSlots`: the family sub-object of the current chart type, filled from the groups and metrics in force
     compile.ts                — compileAnalysis → AggregationQuery
     fitCharts.ts              — Which chart types can draw a result of this shape and which it reads best as (K3, Q6): the capability says which exist, this says which are greyed and why
@@ -368,7 +368,7 @@ src/
       family.ts               — `FamilyProps`, the value labeller and the column titler
       legend.ts               — Where a legend goes as the chart library takes it, from the spec's `legend` and the family's own default
       motion.ts               — Whether a chart animates its marks: not when the reader asked for less motion (`useChartMotion`, read live)
-      palette.ts              — Slot colours and the spec's overrides
+      palette.ts              — The eight slot colours, the grey of a pie's "Other", and the spec's overrides
       reading.ts              — A chart as text: its name and the numbers it draws
     columns/
       ColumnRow.tsx           — One row of the column settings: checkbox, two-state pin toggle, summary, handle

@@ -73,6 +73,21 @@ export type ChartFamily = Extract<
   'cartesian' | 'pie' | 'heatmap' | 'scatter' | 'funnel' | 'metric'
 >;
 
+/**
+ * How many categorical colours the theme holds: `--chart-1` to `--chart-8`
+ * in `styles.css`, the same eight hues in both modes, in a fixed order.
+ *
+ * It lives here rather than beside the palette in `/ui` because the kernel
+ * shapes to it: a slot handed out twice is two categories wearing one
+ * colour, which a legend cannot tell apart, so a pie folds its tail into
+ * "Other" before a ninth slice would need a colour (`shapeChart`). A number
+ * the projection and the palette both read has to sit where both may import
+ * it, and the theme is held to the same count by a test that reads the
+ * stylesheet. A host can restyle a slot through `--fve-chart-N`; it cannot
+ * add one, so the count is the engine's and not the host's.
+ */
+export const CHART_COLOR_SLOTS = 8;
+
 /** Which sub-object each chart type requires. */
 export const CHART_FAMILY: Readonly<Record<ChartType, ChartFamily>> =
   Object.freeze({
@@ -130,7 +145,11 @@ export interface PieSpec {
   /** Metric alias. */
   value: string;
   donut?: boolean;
-  /** Merges the remainder into "other"; additive metrics only. */
+  /**
+   * Merges the remainder into "other"; additive metrics only. Left out, an
+   * additive pie still folds at `CHART_COLOR_SLOTS`, and a larger number is
+   * read as that many — past it two slices would share a colour.
+   */
   maxSlices?: number;
 }
 

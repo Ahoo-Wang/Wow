@@ -11,11 +11,13 @@
  * limitations under the License.
  */
 
-import type {
-  AnalysisViewConfig,
-  ChartType,
-  RecordData,
+import {
+  CHART_COLOR_SLOTS,
+  type AnalysisViewConfig,
+  type ChartType,
+  type RecordData,
 } from '../model/index.js';
+import { readInstant } from '../filter/index.js';
 import { isAdditiveMetric } from './validateChart.js';
 
 /**
@@ -158,8 +160,53 @@ function num(row: RecordData, alias: string): number | null {
 }
 
 /**
+ * Whether `alias` names a time dimension — a date bucket — in the config the
+ * rows came from.
+ */
+function isTimeGroup(
+  config: AnalysisViewConfig,
+  alias: string | undefined,
+): boolean {
+  return config.groups.some(
+    group => group.alias === alias && group.type === 'DATE_HISTOGRAM',
+  );
+}
+
+/**
+ * `items` earliest first, by the bucket `at` reads off each.
+ *
+ * A time axis runs forward whatever order the rows came in. The rows are in
+ * the view's sort, and a view of the last thirty days is sorted newest first
+ * on purpose — its table leads with today — but the same rows drawn in that
+ * order put today on the left and yesterday to its right: every line slopes
+ * the wrong way and every bar reads backwards, with nothing on screen to say
+ * so. The table is the view's to order; an axis is time's.
+ *
+ * A bucket is read the way the drill reads it (`readInstant`), so a key that
+ * arrives as epoch milliseconds, as a string of digits or as a wall-clock day
+ * sorts the same. One that names no instant — a missing-value sentinel — is
+ * no point in time, so it goes after the last one, and ties and unreadable
+ * keys keep the order they came in.
+ */
+function forwardInTime<T>(items: readonly T[], at: (item: T) => unknown): T[] {
+  return items
+    .map((item, index) => ({ item, index, ms: readInstant(at(item))?.ms }))
+    .sort((a, b) => {
+      if (a.ms === undefined || b.ms === undefined)
+        return a.ms === b.ms ? a.index - b.index : a.ms === undefined ? 1 : -1;
+      return a.ms - b.ms || a.index - b.index;
+    })
+    .map(entry => entry.item);
+}
+
+/**
  * `totals` is the one row of the ungrouped totals query, when it ran. Only
  * the metric card reads it: over a trend it is the headline for any metric.
+ *
+ * Every time axis — a cartesian chart's x, a heatmap's rows or columns, the
+ * card's sparkline — and a series split by time run earliest first
+ * (`forwardInTime`); everything else keeps the order the rows came in, which
+ * is the view's sort, because a category has no order of its own to restore.
  */
 export function shapeChart(
   config: AnalysisViewConfig,
@@ -172,11 +219,13 @@ export function shapeChart(
     case 'line':
     case 'area':
     case 'combo':
-      return chart.cartesian && cartesian(chart.type, chart.cartesian, rows);
+      return (
+        chart.cartesian && cartesian(chart.type, chart.cartesian, config, rows)
+      );
     case 'pie':
-      return chart.pie && pie(chart.pie, rows);
+      return chart.pie && pie(chart.pie, config, rows);
     case 'heatmap':
-      return chart.heatmap && heatmap(chart.heatmap, rows);
+      return chart.heatmap && heatmap(chart.heatmap, config, rows);
     case 'scatter':
       return chart.scatter && scatter(chart.scatter, rows);
     case 'funnel':
@@ -189,6 +238,7 @@ export function shapeChart(
 function cartesian(
   type: ChartType,
   spec: NonNullable<AnalysisViewConfig['chart']['cartesian']>,
+  config: AnalysisViewConfig,
   rows: readonly RecordData[],
 ): CartesianData {
   const byX = new Map<unknown, Record<string, number | null>>();
@@ -214,30 +264,58 @@ function cartesian(
     byX.set(x, values);
   }
 
+  const points = [...byX].map(([x, values]) => ({ x, values }));
+  const series = [...seriesKeys].map(([key, entry]) => ({ key, ...entry }));
+  // When time is the split rather than the axis, it is the legend that reads
+  // as a sequence — and the palette hands its slots out in that order, so
+  // the first day is always the first colour. The axis is then a category
+  // and keeps the rows' order, as any category does.
   return {
     type: 'cartesian',
     chart: type,
-    points: [...byX].map(([x, values]) => ({ x, values })),
-    series: [...seriesKeys].map(([key, entry]) => ({ key, ...entry })),
+    points: isTimeGroup(config, spec.x)
+      ? forwardInTime(points, point => point.x)
+      : points,
+    series: isTimeGroup(config, spec.splitBy)
+      ? forwardInTime(series, entry => entry.value)
+      : series,
   };
 }
 
+/**
+ * A pie folds its tail into "other" at `maxSlices`, and at the palette's size
+ * when nothing says otherwise — and never past it. The palette holds
+ * `CHART_COLOR_SLOTS` colours and a ninth slice would wear the first one
+ * again: two wedges one colour, and a legend that cannot say which is which.
+ * Folding is only a sum, so a metric that does not add up is left unfolded
+ * (validation refuses `maxSlices` on one), and its slices past the palette
+ * repeat colours.
+ *
+ * A pie has no axis, so its slices keep the rows' order even over time;
+ * once folded they go largest first, since "the rest" means the smallest.
+ */
 function pie(
   spec: NonNullable<AnalysisViewConfig['chart']['pie']>,
+  config: AnalysisViewConfig,
   rows: readonly RecordData[],
 ): PieData {
   const slices: PieSlice[] = rows.map(row => ({
     category: row[spec.category],
     value: num(row, spec.value) ?? 0,
   }));
-  if (spec.maxSlices === undefined || slices.length <= spec.maxSlices)
-    return { type: 'pie', slices };
+  const folds =
+    spec.maxSlices !== undefined ||
+    isAdditiveMetric(
+      config.metrics.find(metric => metric.alias === spec.value),
+    );
+  const cap = Math.min(spec.maxSlices ?? CHART_COLOR_SLOTS, CHART_COLOR_SLOTS);
+  if (!folds || slices.length <= cap) return { type: 'pie', slices };
 
   const sorted = [...slices].sort((a, b) => b.value - a.value);
-  const kept = sorted.slice(0, spec.maxSlices - 1);
+  const kept = sorted.slice(0, cap - 1);
   // Only additive metrics reach this branch, which validation enforces.
   const other = sorted
-    .slice(spec.maxSlices - 1)
+    .slice(cap - 1)
     .reduce((total, slice) => total + slice.value, 0);
   return {
     type: 'pie',
@@ -247,10 +325,11 @@ function pie(
 
 function heatmap(
   spec: NonNullable<AnalysisViewConfig['chart']['heatmap']>,
+  config: AnalysisViewConfig,
   rows: readonly RecordData[],
 ): HeatmapData {
-  const xs: unknown[] = [];
-  const ys: unknown[] = [];
+  let xs: unknown[] = [];
+  let ys: unknown[] = [];
   const cells = new Map<string, number | null>();
 
   for (const row of rows) {
@@ -260,6 +339,10 @@ function heatmap(
     if (!ys.includes(y)) ys.push(y);
     cells.set(cellKey(y, x), num(row, spec.value));
   }
+  // Columns run left to right and rows top to bottom, so either one over
+  // time reads forward; the cells follow, being looked up by key.
+  if (isTimeGroup(config, spec.x)) xs = forwardInTime(xs, x => x);
+  if (isTimeGroup(config, spec.y)) ys = forwardInTime(ys, y => y);
 
   return {
     type: 'heatmap',
@@ -384,12 +467,17 @@ function metricCard(
         }
       : {}),
     ...(spec.target === undefined ? {} : { target: spec.target }),
+    // The sparkline is a time axis too, and validation holds `trend.x` to a
+    // date bucket; the headline and the comparison add up in any order.
     ...(trend
       ? {
-          trend: rows.map(row => ({
-            x: row[trend.x],
-            value: num(row, spec.metric),
-          })),
+          trend: forwardInTime(
+            rows.map(row => ({
+              x: row[trend.x],
+              value: num(row, spec.metric),
+            })),
+            point => point.x,
+          ),
         }
       : {}),
   };

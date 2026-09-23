@@ -61,8 +61,11 @@ D20 屏 G。订单里有明细项，明细项里有批次——「按货号看�
 
 ## AnalysisChart 与 shapeChart
 
-- **行与列读的是产生当前结果的那份配置（`ViewResult.config`），怎么看它读的是草稿。** 别名只有那份配置说了算——类目按别名找列取标签，草稿的别名在应用之前可能已指向别的列；而"画成表还是画成图、画成哪种图"是结果的属性而不是问题的一部分（D20），所以它们读草稿，拿同一批行重画。两者的接缝在 `react/useAnalysisResult.ts`（[react.md#useanalysisresult](../react.md#useanalysisresult)），`ui/workbench/AnalysisParts.tsx` 只画它交出来的东西：**草稿的形态与跑出这批行的形态不一致时**，图表规格先过一遍 `fitChartSlots` 落到跑出来的那个形态上——托盘里刚加、还没应用的那个维度不是这批行的列，指着它的图什么也画不出来；一致时图表**原样**画，因为 `fitChartSlots` 会把作者收窄过的槽重新放开（两个指标只画一条系列的柱状图会变回两条），那在形态挪动时是对的，在每一次重绘里是错的。图表只画内核已经整形好的数据：透视、合并"其他"、漏斗累计与转化率、热力图矩阵、比较值都在 `shapeChart` 里完成，`AnalysisChart` 只选标记与配色，换一个图表库不触碰任何规则。`AnalysisChart` 按 `spec.colors` 给系列或分类上色，其余按 `--chart-1..5` 顺序取用；
-- 五档色相在亮暗两种模式下各自校过分离度与对比度。热力图与漏斗自绘，用图表库画它们的成本高于收益。**布局与图型都是重绘，不是重跑**（D20，见下一节）：工作台拿回来的那批行用 `shapeChart` 按草稿的图表规格现整形，所以 `useAnalysisEditor.setLayout` 与 `setChartType` 只编辑草稿，不 apply；
+- **行与列读的是产生当前结果的那份配置（`ViewResult.config`），怎么看它读的是草稿。** 别名只有那份配置说了算——类目按别名找列取标签，草稿的别名在应用之前可能已指向别的列；而"画成表还是画成图、画成哪种图"是结果的属性而不是问题的一部分（D20），所以它们读草稿，拿同一批行重画。两者的接缝在 `react/useAnalysisResult.ts`（[react.md#useanalysisresult](../react.md#useanalysisresult)），`ui/workbench/AnalysisParts.tsx` 只画它交出来的东西：**草稿的形态与跑出这批行的形态不一致时**，图表规格先过一遍 `fitChartSlots` 落到跑出来的那个形态上——托盘里刚加、还没应用的那个维度不是这批行的列，指着它的图什么也画不出来；一致时图表**原样**画，因为 `fitChartSlots` 会把作者收窄过的槽重新放开（两个指标只画一条系列的柱状图会变回两条），那在形态挪动时是对的，在每一次重绘里是错的。图表只画内核已经整形好的数据：透视、合并"其他"、漏斗累计与转化率、热力图矩阵、比较值都在 `shapeChart` 里完成，`AnalysisChart` 只选标记与配色，换一个图表库不触碰任何规则。`AnalysisChart` 按 `spec.colors` 给系列或分类上色，其余按 `--chart-1..8` 顺序取用；
+- **八档色相**（蓝、橙、青、黄、品红、绿、紫、红，`CHART_COLOR_SLOTS`）在亮暗两种模式下各自对着卡片底色校过：相邻两色在模拟红／绿色盲下的 OKLab 距离至少 8（亮 9.1、暗 8.4），正常视觉下至少 15（亮 19.6、暗 19.3）；暗色八色对卡片都过 3:1，亮色的青、黄、品红不到（2.8／2.2／2.7），由图旁的读屏表与表格布局补——不为它们压暗色相，那会把相邻两色挤到一起。顺序是固定的，它本身就是相邻两色分得开的保证，所以按序发、不洗牌。**从前只有五档**，第六个类目或第六条拆分系列又拿到蓝色：两片一个颜色，图例说不出谁是谁（2026-09-23 审查）；
+- **饼图超过八片就并「其他」**，不去造第九种颜色。`maxSlices` 不写时，可加指标的饼图按 `CHART_COLOR_SLOTS` 并；写了比八大的数也按八读，面板上那个数字框的上限就是八，提示写明「不填即 8 片」。「其他」**是灰的**（`OTHER_COLOR`，即 `--muted-foreground`）而不是某一档色：它不是一个类目，没人能按它、也没人能给它钉颜色，一档色相会让它读成又一个城市。不可加的指标（平均、去重计数……）并不出「其他」——剩下那些的平均不是任何东西的平均——所以它们超过八片仍会循环取色；拆分成八条以上系列的直角坐标图同样——两者怎么办是待定的产品口径（[decisions.md](../decisions.md#搁置待议) 的 Q9）。（见 test/analysisChart.test.ts「a pie past the palette」、test/analysisChart.test.tsx「gives each of eight slices a colour of its own」、test/styleBoundary.test.tsx「the chart palette the theme declares」与浏览器故事「分析工作台/回归」的 `EightColoursThenOther`）；
+- **时间轴从左往右走，不管视图怎么排**。「每日新增失败」按日倒序存着——表格今天在最上面，这是这类视图最常见的存法——而同一批行照原样画成柱，今天落在原点、昨天在它右边，每条线都斜反了，屏幕上没有任何东西说它是反的。所以 `shapeChart` 把**时间维度**（`DATE_HISTOGRAM`）坐的每一根轴按时间升序排：直角坐标图的横轴、热力图的行与列、指标卡的迷你趋势；桶按下钻读它的同一个 `readInstant` 读，读不出时刻的（缺值哨兵）排在最后，其余次序不动。**表格仍是视图的排序**——表是视图的，轴是时间的。时间是**拆分**而不是横轴时，按时间排的是系列（图例从最早的一天读起，色板也从最早的一天发第一档），横轴是类目，照结果行的次序；**类目维度**永远照结果行的次序，它没有自己的次序可还原；饼图没有轴，照结果行的次序（并了「其他」之后从大到小）。（见 test/analysisChart.test.ts「a time axis runs forward」与浏览器故事「分析工作台/回归」的 `TimeRunsForward`、`SparklineRunsForward`）
+- 热力图与漏斗自绘，用图表库画它们的成本高于收益。**布局与图型都是重绘，不是重跑**（D20，见下一节）：工作台拿回来的那批行用 `shapeChart` 按草稿的图表规格现整形，所以 `useAnalysisEditor.setLayout` 与 `setChartType` 只编辑草稿，不 apply；
 - 托盘里的改动等「应用」，等着的时候那颗点在应用按钮上（`data-pending`，`filter.pending || analysis.pending`，基准是整份配置，见 [ui/README.md#三态各有一处凭据](README.md#三态各有一处凭据)），被拒的应用同样算没应用。**同屏唯一的 primary 就是它**（D17-3，[版式](README.md#版式三块一套间距一种选项控件)）：范围与问题是一份配置、一次 `runtime.apply()`，所以只有一颗按钮跑查询。（见 test/analysisChart.test.tsx「AnalysisChart」、test/analysisUi.test.tsx「useAnalysisEditor」、test/analysisTray.test.tsx「carries one primary button on the screen, and it is Apply」与 test/analysisChart.test.ts「shapeChart」）
 
 ### 一个家族一个文件
@@ -78,7 +81,7 @@ D20 屏 G。订单里有明细项，明细项里有批次——「按货号看�
 | `ui/charts/Heatmap.tsx`       | 自绘网格                                                                                        |
 | `ui/charts/Funnel.tsx`        | 自绘阶段条与转化率                                                                              |
 | `ui/charts/MetricCard.tsx`    | 指标卡：值、比较、目标与迷你趋势                                                                |
-| `ui/charts/palette.ts`        | `--chart-1..5` 取色与 `spec.colors` 的覆盖（值在进 `<style>` 前再校一次）                       |
+| `ui/charts/palette.ts`        | `--chart-1..8` 取色、「其他」的灰与 `spec.colors` 的覆盖（值在进 `<style>` 前再校一次）         |
 | `ui/charts/axis.ts`           | 数值格式、轴域与刻度格式、左右轴归属                                                            |
 | `ui/charts/family.ts`         | `FamilyProps`（每个家族收到的同一份 props）、值标签器 `useValueLabel` 与列标题 `useColumnTitle` |
 | `ui/charts/TooltipValue.tsx`  | 提示里的那一个数值，按它所在列的读法                                                            |

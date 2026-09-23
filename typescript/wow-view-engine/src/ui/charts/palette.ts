@@ -12,20 +12,36 @@
  */
 
 import { isChartColor } from '../../analysis/index.js';
-import type { ChartSpec } from '../../model/index.js';
+import { CHART_COLOR_SLOTS, type ChartSpec } from '../../model/index.js';
 
-/** Five slots, cycled; the theme owns what they look like. */
-const PALETTE = [
-  'var(--chart-1)',
-  'var(--chart-2)',
-  'var(--chart-3)',
-  'var(--chart-4)',
-  'var(--chart-5)',
-];
+/**
+ * The theme's categorical slots, `--chart-1` to `--chart-8`, in the fixed
+ * order the stylesheet validated them in: the order is what keeps two
+ * neighbouring series apart under colour-vision deficiency, so the slots are
+ * handed out in it and never shuffled. The theme owns what they look like.
+ */
+const PALETTE = Array.from(
+  { length: CHART_COLOR_SLOTS },
+  (_, index) => `var(--chart-${index + 1})`,
+);
 
+/**
+ * The slot at `index`. Past the last one it starts again — a pie folds its
+ * tail before it gets there (`shapeChart`), so only a series split more
+ * ways than the palette has colours still arrives here and repeats one.
+ */
 export function color(index: number): string {
   return PALETTE[index % PALETTE.length];
 }
+
+/**
+ * The colour of a pie's merged "Other": a neutral, not a slot. It is not a
+ * category — nobody can pick it or pin a colour to it — and a hue would say
+ * it is one; the grey reads as "the rest" beside the slots the categories
+ * wear. It is the muted ink every surface already carries, so a theme that
+ * restyles its greys restyles this one with them.
+ */
+export const OTHER_COLOR = 'var(--muted-foreground)';
 
 /**
  * The colour the spec pinned for the first of `keys` that names one, and the

@@ -28,7 +28,7 @@ import { asImage } from './asImage.js';
 import { legendPlacement } from './legend.js';
 import { pointAnchor } from '../analysis/DrillMenu.js';
 import type { FamilyProps } from './family.js';
-import { color, colorOf } from './palette.js';
+import { OTHER_COLOR, colorOf } from './palette.js';
 import { TooltipValue } from './TooltipValue.js';
 
 export function PieSlices({
@@ -55,10 +55,10 @@ export function PieSlices({
     // in either chart — `null` is the empty string there, where `String(...)`
     // would have looked it up under `null` — rather than as the legend shows
     // it. The merged remainder is no category anyone could have coloured, so
-    // it keeps its slot whatever the spec says.
+    // it is the neutral whatever the spec says, and takes no slot.
     color:
       slice.other === true
-        ? color(index)
+        ? OTHER_COLOR
         : colorOf(spec, index, groupKeyText(slice.category)),
   }));
   const config = Object.fromEntries(

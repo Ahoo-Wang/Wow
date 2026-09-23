@@ -26,6 +26,9 @@ import {
   expandableOrdersDefinition,
   overviewDefinition,
   savedViews,
+  waybillAnalysisDefinition,
+  waybillAnalysisView,
+  waybillSource,
   type SourceBehaviour,
 } from './fixtures.js';
 import { StoryEngine } from './StoryEngine.js';
@@ -54,6 +57,7 @@ function AnalysisWorkbenchDemo({
   visualization = true,
   latest = false,
   limit,
+  waybills,
 }: {
   behaviour?: SourceBehaviour;
   layout?: 'table' | 'chart';
@@ -94,6 +98,12 @@ function AnalysisWorkbenchDemo({
    * makes which rows survive the cut a decision rather than an accident.
    */
   limit?: number;
+  /**
+   * 换成 50 行运单问的那几个问题（`waybillScene`）：按日倒序的单数画成柱或
+   * 指标卡的迷你趋势，或十个目的城市的运费画成饼。订单只有四个仓库、七单，
+   * 「时间朝哪边走」与「第九种颜色」都问不出来。
+   */
+  waybills?: WaybillScene;
 }) {
   const { groups, metrics } = analysisConfig();
   const fitted = fitChartSlots({ type: chart }, groups, metrics);
@@ -142,6 +152,33 @@ function AnalysisWorkbenchDemo({
     },
   });
   const config = latest ? latestConfig(layout) : saved;
+
+  if (waybills) {
+    const view = waybillAnalysisView(waybillScene(waybills, layout));
+    return (
+      <StoryEngine
+        create={() =>
+          createStoryEngine({
+            behaviour,
+            definitions: [waybillAnalysisDefinition, overviewDefinition],
+            source: waybillSource(behaviour),
+            instances: [view],
+          })
+        }
+      >
+        {engine => (
+          <DataWorkbench
+            engine={engine}
+            definitionId={waybillAnalysisDefinition.id}
+            instanceId={view.id}
+            {...HOST_LANGUAGE}
+            kinds={['analysis']}
+            features={{ visualization }}
+          />
+        )}
+      </StoryEngine>
+    );
+  }
 
   return (
     <StoryEngine
@@ -195,6 +232,63 @@ function latestConfig(layout: 'table' | 'chart') {
   });
 }
 
+type WaybillScene = 'daily' | 'daily-card' | 'cities';
+
+/**
+ * 运单上的三个问题。
+ *
+ * - `daily`／`daily-card`：每天几单，**按日倒序**——表格要今天在最上面，这是
+ *   这类视图最常见的存法（补偿服务的「每日新增失败」就是这样存的）。同一批行
+ *   画成柱或迷你趋势，时间轴仍从左往右走：图按时间排，表按视图排。
+ * - `cities`：十个目的城市的运费合计。色板八色，第九片会与第一片同色，所以
+ *   饼图在第八片把尾巴并进灰色的「其他」。
+ */
+function waybillScene(
+  scene: WaybillScene,
+  layout: 'table' | 'chart',
+): AnalysisViewConfig {
+  if (scene === 'cities') {
+    const groups = [
+      { type: 'TERMS', field: 'destination', alias: 'city' },
+    ] satisfies AnalysisViewConfig['groups'];
+    const metrics = [
+      {
+        alias: 'amount',
+        type: 'NUMERIC',
+        function: 'SUM',
+        expression: { type: 'FIELD', field: 'amount' },
+      },
+    ] satisfies AnalysisViewConfig['metrics'];
+    return analysisConfig({
+      layout,
+      groups,
+      metrics,
+      sort: [{ alias: 'amount', direction: SortDirection.DESC }],
+      table: { columns: [] },
+      chart: fitChartSlots({ type: 'pie' }, groups, metrics),
+    });
+  }
+  const groups = [
+    { type: 'DATE_HISTOGRAM', field: 'createdAt', alias: 'day', unit: 'DAY' },
+  ] satisfies AnalysisViewConfig['groups'];
+  const metrics = [
+    { alias: 'waybills', type: 'COUNT' },
+  ] satisfies AnalysisViewConfig['metrics'];
+  return analysisConfig({
+    layout,
+    groups,
+    metrics,
+    sort: [{ alias: 'day', direction: SortDirection.DESC }],
+    limit: 30,
+    table: { columns: [] },
+    chart: fitChartSlots(
+      { type: scene === 'daily' ? 'bar' : 'metric' },
+      groups,
+      metrics,
+    ),
+  });
+}
+
 /** What the scenes answer from, said in the host's service line and below. */
 const FIXTURE = '内存 ViewStore · 四个仓库的聚合结果';
 
@@ -242,6 +336,10 @@ const meta = {
   argTypes: {
     latest: { control: 'boolean' },
     limit: { table: { disable: true } },
+    waybills: {
+      control: 'inline-radio',
+      options: [undefined, 'daily', 'daily-card', 'cities'],
+    },
     allColumns: { control: 'boolean' },
     records: { control: 'boolean' },
     expandable: { control: 'boolean' },
@@ -329,6 +427,27 @@ export const CutShortTable: Story = { args: { layout: 'table', limit: 2 } };
  */
 export const LatestPerWarehouse: Story = {
   args: { layout: 'table', latest: true },
+};
+
+/**
+ * 每天几单，按日倒序存着——表格今天在最上面。画成柱，时间仍从左往右：
+ * 投影层按时间排时间轴，表格留着视图自己的排序（2026-09-23 审查）。
+ */
+export const DailyNewestFirst: Story = {
+  args: { layout: 'chart', waybills: 'daily' },
+};
+
+/** 同一个按日倒序的问题画成指标卡：迷你趋势同样从最早的一天画起。 */
+export const DailyTrendCard: Story = {
+  args: { layout: 'chart', waybills: 'daily-card' },
+};
+
+/**
+ * 十个目的城市的运费：色板八色，饼图画出七个城市加一片灰色的「其他」，
+ * 八片八种颜色——从前色板只有五色，第六片起与前面的同色。
+ */
+export const TenCities: Story = {
+  args: { layout: 'chart', waybills: 'cities' },
 };
 
 /** An aggregation that matched nothing still has its editor. */

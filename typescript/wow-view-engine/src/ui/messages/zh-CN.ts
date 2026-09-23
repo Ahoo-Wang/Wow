@@ -738,7 +738,8 @@ export const zhCN: ViewMessages = {
   'label.chart.reference-value': '参考线数值',
   'label.chart.donut': '环形',
   'label.chart.max-slices': '最多几片',
-  'label.chart.max-slices.hint': '其余并入「其他」。',
+  'label.chart.max-slices.hint':
+    '其余并入「其他」。至多 {count} 片，一片一种颜色；不填即 {count} 片。',
   'label.chart.scale': '色阶',
   'label.chart.scale.linear': '线性',
   'label.chart.scale.log': '对数',

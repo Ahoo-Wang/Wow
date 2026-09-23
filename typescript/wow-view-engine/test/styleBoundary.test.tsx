@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { cleanup, render, screen } from '@testing-library/react';
 import postcss, { type Rule } from 'postcss';
 import { afterEach, describe, expect, it } from 'vitest';
+import { CHART_COLOR_SLOTS } from '../src/index.js';
 import { ViewSurface, useSurfaceTheme } from '../src/ui/index.js';
 
 afterEach(cleanup);
@@ -222,5 +223,55 @@ describe("a host's chrome on the tokens boundary", () => {
       tokens: 'inherited',
       utilities: 'light',
     });
+  });
+});
+
+/**
+ * The kernel folds a pie at `CHART_COLOR_SLOTS` and the palette hands out
+ * that many `var(--chart-N)`, so the theme has to declare exactly that many:
+ * a slot the stylesheet never declared paints nothing, and one it declares
+ * past the count is a colour no chart ever reaches.
+ */
+describe('the chart palette the theme declares', () => {
+  const slots = Array.from(
+    { length: CHART_COLOR_SLOTS },
+    (_, index) => `--chart-${index + 1}`,
+  );
+
+  /** The `--chart-N` declarations of one mode's token block, in order. */
+  function declared(mode: 'light' | 'dark') {
+    const selector = tokenSelector(mode);
+    const rule = rules().find(candidate => candidate.selector === selector)!;
+    return rule.nodes.flatMap(node =>
+      node.type === 'decl' && /^--chart-\d+$/.test(node.prop)
+        ? [{ prop: node.prop, value: node.value }]
+        : [],
+    );
+  }
+
+  it('holds as many slots as the kernel folds at, in both modes', () => {
+    for (const [mode, host] of [
+      ['light', '--fve-chart-'],
+      ['dark', '--fve-dark-chart-'],
+    ] as const) {
+      const found = declared(mode);
+      expect(found.map(entry => entry.prop)).toEqual(slots);
+      // Each one a host can restyle, under its own mode's name.
+      found.forEach((entry, index) =>
+        expect(entry.value.startsWith(`var(${host}${index + 1},`)).toBe(true),
+      );
+    }
+  });
+
+  it('registers every slot as a utility colour', () => {
+    const registered: string[] = [];
+    postcss.parse(STYLESHEET).walkAtRules('theme', rule => {
+      rule.walkDecls(/^--color-chart-\d+$/, decl => {
+        registered.push(`${decl.prop}: ${decl.value}`);
+      });
+    });
+    expect(registered.sort()).toEqual(
+      slots.map(slot => `--color-${slot.slice(2)}: var(${slot})`).sort(),
+    );
   });
 });

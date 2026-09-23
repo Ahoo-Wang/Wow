@@ -219,6 +219,7 @@ export function NumberField({
   hint,
   value,
   min,
+  max,
   onChange,
 }: {
   label: string;
@@ -226,6 +227,8 @@ export function NumberField({
   value: number | undefined;
   /** Below this the number is refused rather than written. */
   min?: number;
+  /** Above this, likewise. */
+  max?: number;
   onChange(value: number | undefined): void;
 }) {
   return (
@@ -238,7 +241,11 @@ export function NumberField({
         value={value}
         onNumber={next => {
           if (next === null) onChange(undefined);
-          else if (min === undefined || next >= min) onChange(next);
+          else if (
+            (min === undefined || next >= min) &&
+            (max === undefined || next <= max)
+          )
+            onChange(next);
         }}
       />
       {hint && <FieldDescription className={HINT}>{hint}</FieldDescription>}

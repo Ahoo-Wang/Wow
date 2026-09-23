@@ -19,7 +19,7 @@ import type {
   ChartData,
   ChartSpec,
 } from '../src/index.js';
-import { groupKeyText, shapeChart } from '../src/index.js';
+import { CHART_COLOR_SLOTS, groupKeyText, shapeChart } from '../src/index.js';
 import { AnalysisChart, ViewSurface } from '../src/ui/index.js';
 import { TooltipValue } from '../src/ui/charts/TooltipValue.js';
 import { DRAWN, analysisConfig } from './fixtures.js';
@@ -445,7 +445,39 @@ describe('AnalysisChart', () => {
     const css = container.querySelector('style')?.textContent ?? '';
     expect(css).toContain('--color-p0: #eb6834;');
     expect(css).toContain('--color-p1: var(--chart-2);');
-    expect(css).toContain('--color-p2: var(--chart-3);');
+    // The remainder is no category, so it wears the neutral, not a slot.
+    expect(css).toContain('--color-p2: var(--muted-foreground);');
+  });
+
+  /**
+   * The palette held five slots and cycled, so the sixth category of a pie
+   * or a split came out blue again beside the first — two wedges one colour,
+   * and a legend that could not say which was which (analysis audit,
+   * 2026-09-23).
+   */
+  it('gives each of eight slices a colour of its own', () => {
+    const { container } = render(
+      <ViewSurface>
+        <AnalysisChart
+          data={{
+            type: 'pie',
+            slices: Array.from({ length: CHART_COLOR_SLOTS }, (_, index) => ({
+              category: `c${index}`,
+              value: CHART_COLOR_SLOTS - index,
+            })),
+          }}
+          spec={{ type: 'pie', pie: { category: 'region', value: 'orders' } }}
+        />
+      </ViewSurface>,
+    );
+
+    const css = container.querySelector('style')?.textContent ?? '';
+    const slots = [...css.matchAll(/--color-p\d+: (var\(--chart-\d+\));/g)]
+      .map(([, slot]) => slot)
+      // The container writes one block per mode; one is enough to read.
+      .slice(0, CHART_COLOR_SLOTS);
+    expect(slots).toHaveLength(CHART_COLOR_SLOTS);
+    expect(new Set(slots).size).toBe(CHART_COLOR_SLOTS);
   });
 
   it('colours a cartesian series by its metric alias', () => {
