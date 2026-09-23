@@ -30,6 +30,7 @@
 //    customise the theme from `:root` without reaching inside the root.
 import assert from 'node:assert/strict';
 import {
+  readdirSync,
   readFileSync,
   statSync,
   mkdtempSync,
@@ -415,6 +416,48 @@ for (const { specifier, resolved } of jsEntries) {
   assert.ok(Object.keys(module).length > 0, `${specifier} exports nothing`);
 }
 
+// 8. The chart chunk draws. It is loaded on a chart's first use, so no entry
+// imports it; a production build once kept its `init` and dropped the
+// registration of every chart type and the renderer (the package declares no
+// side effects but its stylesheet), and the first chart threw
+// 「lg[a] is not a constructor」. Drawn here through the library's
+// server-side rendering, which needs no DOM.
+const chartChunks = readdirSync(new URL('dist/', packageRoot)).filter(file =>
+  /^echarts-[\w-]+\.js$/.test(file),
+);
+assert.equal(
+  chartChunks.length,
+  1,
+  `one chart chunk in dist, found ${chartChunks.join(', ') || 'none'}`,
+);
+const charts = await import(
+  new URL(`dist/${chartChunks[0]}`, packageRoot).href
+);
+const probe = charts.init(null, null, {
+  renderer: 'svg',
+  ssr: true,
+  width: 200,
+  height: 100,
+});
+probe.setOption({
+  animation: false,
+  xAxis: { type: 'category', data: ['a', 'b'] },
+  yAxis: { type: 'value' },
+  series: [
+    { type: 'bar', data: [1, 2] },
+    { type: 'line', data: [1, 2] },
+    { type: 'pie', data: [{ value: 1 }] },
+    { type: 'scatter', data: [[1, 2]] },
+    { type: 'funnel', data: [{ value: 1 }] },
+  ],
+});
+assert.match(
+  probe.renderToSVGString(),
+  /<path/,
+  'the chart chunk draws no mark: its chart types or renderer are not registered',
+);
+probe.dispose();
+
 console.log(
-  `${targets.size} entries resolve and import, the root entry's types need no DOM lib, ${visited.size} runtime modules import no CSS, the stylesheet holds no rule outside ${BOUNDARIES.join(' / ')} and no :root selector at all, ${fullyScoped.length} of its rules carry the scope naming both boundaries and none names only one, its dark: utilities turn on the same ${tokenSelectors.length} roots as its dark tokens, and its ${lightTokens.tokens.length} light and ${darkTokens.tokens.length} dark tokens all defer to --fve-* host variables.`,
+  `${targets.size} entries resolve and import, the root entry's types need no DOM lib, ${visited.size} runtime modules import no CSS, the chart chunk draws, the stylesheet holds no rule outside ${BOUNDARIES.join(' / ')} and no :root selector at all, ${fullyScoped.length} of its rules carry the scope naming both boundaries and none names only one, its dark: utilities turn on the same ${tokenSelectors.length} roots as its dark tokens, and its ${lightTokens.tokens.length} light and ${darkTokens.tokens.length} dark tokens all defer to --fve-* host variables.`,
 );

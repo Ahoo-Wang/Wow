@@ -40,24 +40,45 @@ import {
   TooltipComponent,
 } from 'echarts/components';
 // `use` registers modules with the library; it is not a React hook.
-import { init, use as register } from 'echarts/core';
+import { init as initChart, use as register } from 'echarts/core';
 import { LabelLayout } from 'echarts/features';
 import { SVGRenderer } from 'echarts/renderers';
 
-register([
-  BarChart,
-  FunnelChart,
-  HeatmapChart,
-  LineChart,
-  PieChart,
-  ScatterChart,
-  GraphicComponent,
-  VisualMapContinuousComponent,
-  GridComponent,
-  MarkLineComponent,
-  TooltipComponent,
-  LabelLayout,
-  SVGRenderer,
-]);
+let registered = false;
 
-export { init };
+/**
+ * The library's `init`, with every piece this package draws with registered
+ * before the first chart is made.
+ *
+ * The registration lives inside the one export the package calls rather than
+ * at the top of the module: the package declares no side effects but its
+ * stylesheet (`package.json` `sideEffects`), so a production build keeps this
+ * module's exports and drops a top-level call whose result nobody reads — the
+ * built chunk carried `init` and no painter, and the first chart threw
+ * 「lg[a] is not a constructor」 on the deployed Storybook (2026-09-23).
+ * `scripts/verify-package.mjs` draws a chart through the built chunk so the
+ * package cannot ship like that again.
+ */
+export function init(
+  ...args: Parameters<typeof initChart>
+): ReturnType<typeof initChart> {
+  if (!registered) {
+    register([
+      BarChart,
+      FunnelChart,
+      HeatmapChart,
+      LineChart,
+      PieChart,
+      ScatterChart,
+      GraphicComponent,
+      VisualMapContinuousComponent,
+      GridComponent,
+      MarkLineComponent,
+      TooltipComponent,
+      LabelLayout,
+      SVGRenderer,
+    ]);
+    registered = true;
+  }
+  return initChart(...args);
+}
