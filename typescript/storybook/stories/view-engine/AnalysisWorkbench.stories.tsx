@@ -59,6 +59,7 @@ function AnalysisWorkbenchDemo({
   visualization = true,
   latest = false,
   limit,
+  kept,
   waybills,
   failures,
   savedFunnel,
@@ -99,6 +100,11 @@ function AnalysisWorkbenchDemo({
    */
   limit?: number;
   /**
+   * 存成「只保留 金额的合计 大于 kept」的视图（Wow `having`）。打开时托盘收着，
+   * 于是被筛掉的组只能由结果第一行的读法说出来。
+   */
+  kept?: number;
+  /**
    * 换成 50 行运单问的那几个问题（`waybillScene`）：按日倒序的单数画成柱或
    * 指标卡的迷你趋势，或十个目的城市的运费画成饼。订单只有四个仓库、七单，
    * 「时间朝哪边走」与「第九种颜色」都问不出来。
@@ -133,6 +139,16 @@ function AnalysisWorkbenchDemo({
       : {
           limit,
           sort: [{ alias: 'amount', direction: SortDirection.DESC }],
+        }),
+    ...(kept === undefined
+      ? {}
+      : {
+          having: {
+            type: 'CONDITION' as const,
+            metric: 'amount',
+            operator: 'GT' as const,
+            value: kept,
+          },
         }),
     // The family comes from the same fitting a press of the chart-type
     // control goes through, and the knobs below only vary what they say they
@@ -495,6 +511,7 @@ const meta = {
     labels: { control: 'boolean' },
     latest: { control: 'boolean' },
     limit: { table: { disable: true } },
+    kept: { table: { disable: true } },
     savedFunnel: { table: { disable: true } },
     waybills: {
       control: 'inline-radio',

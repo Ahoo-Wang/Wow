@@ -20,6 +20,7 @@ import type {
   AnalysisFunction,
   AnalysisGroup,
   AnalysisGroupType,
+  AnalysisHavingExpression,
   AnalysisMetric,
   AnalysisSort,
   AnalysisViewConfig,
@@ -146,6 +147,14 @@ export interface AnalysisEditorController extends QuestionEditing {
    * having is a shape the rows cannot say (`havingRows`).
    */
   having: ReturnType<typeof havingRows>;
+  /**
+   * The 「只保留」 the rows on screen ran under — the result's config, not
+   * the draft — or `undefined` when nothing ran or it kept every group. The
+   * result's reading says it (`AnalysisToolbar`): a saved view opens with
+   * the tray folded, and groups missing from the table with nothing on
+   * screen saying why read as groups with no data.
+   */
+  ranHaving: AnalysisHavingExpression | undefined;
   /**
    * The fields a metric's own condition may name (D20 屏 H): the scalar
    * fields of the analysis scope — never a search, an array or an element
@@ -466,6 +475,10 @@ export function useAnalysisEditor(
     havingAllowed: capability?.having === true,
     expressionsAllowed: capability?.expressions === true,
     having: havingRows(config?.having),
+    ranHaving:
+      state?.result?.config.kind === 'analysis'
+        ? state.result.config.having
+        : undefined,
     conditionFields,
     kinds: runtime?.kinds,
     ...(runtime ? { optionSource: runtime.optionSource.bind(runtime) } : {}),

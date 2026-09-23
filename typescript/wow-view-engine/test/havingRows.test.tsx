@@ -37,6 +37,8 @@ import {
   DataWorkbench,
   defaultMessages,
   formatMessage,
+  zhCN,
+  type ViewMessages,
 } from '../src/ui/index.js';
 import { analysisConfig, ordersDefinition, testSource } from './fixtures.js';
 import { openTray } from './fixtures/workbench.js';
@@ -470,6 +472,186 @@ describe('keeping only some of the groups', () => {
         operator: 'GT',
         value: 2000,
       }),
+    );
+  });
+});
+
+/**
+ * A saved view opens with its tray folded, so what 「只保留」 dropped was
+ * nowhere on screen: the table drew some of the groups, the totals row
+ * counted every record, and a reader took the missing groups for groups
+ * without data (the 2026-09-23 audit, P0-2). The result's reading says it,
+ * after the metrics and in the tray's own words, read off the config that
+ * ran.
+ */
+describe("the result's reading says which groups were kept", () => {
+  /** A saved view on screen, its tray left folded as it opens. */
+  async function showSaved(
+    config: Partial<AnalysisViewConfig>,
+    {
+      messages,
+      locale,
+      autoRun,
+    }: { messages?: ViewMessages; locale?: string; autoRun?: boolean } = {},
+  ): Promise<void> {
+    const store = new MemoryViewStore({
+      instances: [{ ...view, config: keepingConfig(config) }],
+      ...(autoRun === undefined
+        ? {}
+        : {
+            preferences: {
+              orders: {
+                order: [],
+                defaultInstanceId: null,
+                autoRun,
+                revision: 'p1',
+              },
+            },
+          }),
+    });
+    const source = testSource();
+    const engine = new ViewEngine({
+      definitions: [keepingDefinition()],
+      store,
+      resolveSource: () => source,
+    });
+    render(
+      <DataWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+        kinds={['analysis']}
+        messages={messages}
+        locale={locale}
+      />,
+    );
+    await waitFor(() => expect(reading()).not.toBeNull());
+  }
+
+  const reading = () =>
+    document.querySelector<HTMLElement>('[data-slot="analysis-reading"]');
+
+  const SHAPED =
+    'By Warehouse · Record count, Sum of Amount, Any value of Amount';
+
+  it('says the having after the metrics with the tray folded', async () => {
+    await showSaved({
+      having: {
+        type: 'CONDITION',
+        metric: 'amount',
+        operator: 'GT',
+        value: 2000,
+      },
+    });
+
+    expect(document.querySelector('[data-slot="analysis-tray"]')).toBeNull();
+    expect(reading()!.textContent).toBe(
+      `${SHAPED} · Keep only Sum of Amount more than 2,000`,
+    );
+  });
+
+  it('joins several rows with the word the tray joins them with', async () => {
+    await showSaved({
+      having: {
+        type: 'AND',
+        operands: [
+          { type: 'CONDITION', metric: 'amount', operator: 'GT', value: 2000 },
+          { type: 'CONDITION', metric: 'orders', operator: 'GTE', value: 2 },
+        ],
+      },
+    });
+
+    expect(reading()!.textContent).toBe(
+      `${SHAPED} · Keep only Sum of Amount more than 2,000 and Record count at least 2`,
+    );
+  });
+
+  /**
+   * A shape the rows cannot say is still said to be there — groups were
+   * dropped all the same — without claiming which rule dropped them.
+   */
+  it('says a having of another shape is there without spelling it', async () => {
+    await showSaved({
+      having: { type: 'BETWEEN', metric: 'amount', lower: 10, upper: 20 },
+    });
+
+    expect(reading()!.textContent).toBe(
+      `${SHAPED} · Keep only groups matching a custom rule`,
+    );
+  });
+
+  it('says nothing more where every group was kept', async () => {
+    await showSaved({});
+
+    expect(reading()!.textContent).toBe(SHAPED);
+  });
+
+  it('reads it in Chinese with zhCN', async () => {
+    await showSaved(
+      {
+        having: {
+          type: 'AND',
+          operands: [
+            {
+              type: 'CONDITION',
+              metric: 'amount',
+              operator: 'GT',
+              value: 2000,
+            },
+            { type: 'CONDITION', metric: 'orders', operator: 'LTE', value: 5 },
+          ],
+        },
+      },
+      { messages: zhCN, locale: 'zh-CN' },
+    );
+
+    expect(reading()!.textContent).toBe(
+      '按Warehouse · 记录数、Amount的合计、Amount的任一值 · 只保留 Amount的合计 大于 2,000 并且 记录数 不大于 5',
+    );
+
+    cleanup();
+    await showSaved(
+      { having: { type: 'BETWEEN', metric: 'amount', lower: 10, upper: 20 } },
+      { messages: zhCN, locale: 'zh-CN' },
+    );
+    expect(reading()!.textContent).toBe(
+      '按Warehouse · 记录数、Amount的合计、Amount的任一值 · 只保留符合自定义规则的组',
+    );
+  });
+
+  /**
+   * The reading is the result's, so a comparison edited in the tray is not
+   * said until it has run: the numbers below still answer the old one.
+   */
+  it('reads the having that ran, not the one being edited', async () => {
+    await showSaved(
+      {
+        having: {
+          type: 'CONDITION',
+          metric: 'amount',
+          operator: 'GT',
+          value: 2000,
+        },
+      },
+      { autoRun: false },
+    );
+    await openTray();
+
+    type(
+      within(rows()[0]).getByLabelText(
+        defaultMessages['label.analysis.having-value'],
+      ),
+      '3000',
+    );
+
+    expect(reading()!.textContent).toBe(
+      `${SHAPED} · Keep only Sum of Amount more than 2,000`,
+    );
+    fireEvent.click(applyButton());
+    await waitFor(() =>
+      expect(reading()!.textContent).toBe(
+        `${SHAPED} · Keep only Sum of Amount more than 3,000`,
+      ),
     );
   });
 });

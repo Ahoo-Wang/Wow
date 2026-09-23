@@ -80,6 +80,16 @@ export const analysisMessages = {
   'label.analysis.open-chart-options': 'Open chart options',
   'label.analysis.reading': 'By {dimensions} · {metrics}',
   'label.analysis.reading-flat': '{metrics}',
+  // The reading goes on to say which groups were kept (「只保留」, Wow's
+  // having), in the tray's own words: a saved view opens with the tray
+  // folded, and groups missing from the table with nothing saying why read
+  // as groups without data. One row is `reading-kept-row`, several are
+  // joined by `having-and`. A having the tray's rows cannot say — a range,
+  // a set, an OR — is said to be there without claiming what it keeps.
+  'label.analysis.reading-kept': '{reading} · Keep only {conditions}',
+  'label.analysis.reading-kept-row': '{metric} {operator} {value}',
+  'label.analysis.reading-kept-custom':
+    '{reading} · Keep only groups matching a custom rule',
   'label.analysis.layout': 'Show result as',
   'label.analysis.add-group': 'Add dimension',
   'label.analysis.add-metric': 'Add metric',

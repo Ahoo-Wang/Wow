@@ -91,6 +91,26 @@ const MARGIN_HEADER = formatMessage(zhCN, 'label.summary.of', {
   fn: zhCN['label.summary.fn.SUM'],
 });
 
+/** The result's first row: what the numbers below are. */
+const reading = (canvasElement: HTMLElement) =>
+  canvasElement.querySelector<HTMLElement>('[data-slot="analysis-reading"]');
+
+/** 「只保留 金额的合计 大于 ¥2,000.00」, in the words the tray's row uses. */
+const KEPT_READING = formatMessage(zhCN, 'label.analysis.reading-kept', {
+  reading: formatMessage(zhCN, 'label.analysis.reading', {
+    dimensions: '仓库',
+    metrics: `${zhCN['label.analysis.row-count']}${zhCN['label.filter.join']}${AMOUNT_METRIC}`,
+  }),
+  conditions: formatMessage(zhCN, 'label.analysis.reading-kept-row', {
+    metric: AMOUNT_METRIC,
+    operator: zhCN['label.having.op.GT'],
+    value: new Intl.NumberFormat('zh-CN', {
+      style: 'currency',
+      currency: 'CNY',
+    }).format(2000),
+  }),
+});
+
 /**
  * 「只保留」：一行一条比较，跑完之后表上真的少了两组。
  *
@@ -135,6 +155,34 @@ export const KeepOnly: Story = {
     const after = await findDataTable(canvasElement);
     await waitFor(() => expect(groupRows(after)).toBe(2));
     await expect(readColumn(after, '仓库')).toEqual(['华北', '华南']);
+
+    // 托盘收起之后，被筛掉的两组仍由结果第一行说出来（2026-09-23 审查 P0-2）。
+    await userEvent.click(trayToggle(canvasElement));
+    await waitFor(() => expect(tray(canvasElement)).toBeNull());
+    await expect(reading(canvasElement)).toBeVisible();
+    await expect(reading(canvasElement)?.textContent).toBe(KEPT_READING);
+  },
+};
+
+/**
+ * 存着「只保留」的视图，打开时托盘收着（P0-2）。
+ *
+ * 表上只有华北与华南，合计行却数着全部记录；从前屏幕上没有一个字说华东与
+ * 西南去了哪里，读的人只能当它们没有数据。现在结果第一行在指标后面说出
+ * 「只保留 金额的合计 大于 ¥2,000.00」——不打开托盘也看得见。
+ */
+export const KeepOnlySaved: Story = {
+  ...DisplayTableWithTotals,
+  args: { ...DisplayTableWithTotals.args, kept: 2000 },
+  play: async ({ canvasElement }) => {
+    const table = await findDataTable(canvasElement);
+    await waitFor(() => expect(groupRows(table)).toBe(2));
+    await expect(readColumn(table, '仓库')).toEqual(['华北', '华南']);
+
+    // A saved view opens folded: the tray is not there to say it.
+    await expect(tray(canvasElement)).toBeNull();
+    await expect(reading(canvasElement)).toBeVisible();
+    await expect(reading(canvasElement)?.textContent).toBe(KEPT_READING);
   },
 };
 
