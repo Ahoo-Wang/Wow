@@ -1007,6 +1007,59 @@ export const PieChart: Story = {
   },
 };
 
+/** A share written whole: one decimal, or a sliver's 「<0.1%」. */
+const WHOLE_SHARE = /^[<>]?\d{1,3}\.\d%$/;
+
+/**
+ * 手机宽度（414）上的饼图（2026-09-23 图表审查 P0-6）：图例原来贴在饼的右侧，
+ * 占掉两成宽度，饼挤在剩下的地方，片外的占比没处写——47.7% 被库截成「4」，
+ * 28.3% 成了「28....」。一个「4」也是一个数，比不写还糟。现在图框窄于 480px
+ * 时图例到饼的下方，饼拿到整个宽度；片外标签要么整条写得下，要么不写（饼先
+ * 让出一些位置，让不出就交给图例与提示框）。这里量：图例在绘图区下面，每条
+ * 片外标签都是完整的占比、都在绘图区里，图例里三片的占比都在。
+ */
+export const PieOnAPhone: Story = {
+  ...DisplayPieChart,
+  decorators: [
+    Story => (
+      <div style={{ width: 414 }}>
+        <Story />
+      </div>
+    ),
+  ],
+  play: async ({ canvasElement }) => {
+    await chartsDrawn(canvasElement);
+    const frame = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="chart"]',
+    )!;
+    await expect(frame.getBoundingClientRect().width).toBeLessThan(480);
+    await expect(frame).toHaveAttribute('data-legend', 'bottom');
+    const plot = frame
+      .querySelector('[data-slot="chart-plot"]')!
+      .getBoundingClientRect();
+    const legend = frame
+      .querySelector('[data-slot="chart-legend"]')!
+      .getBoundingClientRect();
+    await expect(legend.top).toBeGreaterThanOrEqual(plot.bottom - 1);
+
+    // Each label outside a slice is a whole share, inside the drawing.
+    const labels = valueLabels(canvasElement).filter(
+      label => label.getBoundingClientRect().width > 0,
+    );
+    for (const label of labels) {
+      await expect((label.textContent ?? '').trim()).toMatch(WHOLE_SHARE);
+      const box = label.getBoundingClientRect();
+      await expect(box.left).toBeGreaterThanOrEqual(plot.left - 1);
+      await expect(box.right).toBeLessThanOrEqual(plot.right + 1);
+    }
+    // The legend holds every share, whatever the labels could say.
+    const shares = [
+      ...frame.querySelectorAll('[data-slot="chart-legend-item"]'),
+    ].map(item => item.lastElementChild?.textContent ?? '');
+    await expect(shares).toEqual(['47.7%', '23.9%', '28.3%']);
+  },
+};
+
 export const PinnedCategoryColor: Story = {
   ...DisplayPinnedCategoryColor,
   play: async ({ canvasElement }) => {

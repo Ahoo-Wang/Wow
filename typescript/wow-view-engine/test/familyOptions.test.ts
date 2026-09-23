@@ -190,9 +190,39 @@ describe('heatmapOption', () => {
   it('keeps a colour scale, from the ground to the first slot', () => {
     const { visualMap } = heatmapOption(data, context(), theme) as Loose;
     expect([visualMap.min, visualMap.max]).toEqual([1, 100]);
-    expect(visualMap.inRange.colorAlpha).toEqual([0.2, 1]);
     expect(visualMap.text).toEqual(['short orders=100', 'short orders=1']);
     expect(visualMap.formatter(40)).toBe('short orders=40');
+  });
+
+  it('runs its colours from a concrete pale end on the actual ground, in either mode', () => {
+    // The dark theme's ground and first slot, as `readChartTheme` gives them.
+    const dark: ChartTheme = {
+      ...theme,
+      ground: 'rgb(10, 10, 10)',
+      resolve: () => 'rgb(60, 140, 240)',
+    };
+    const { visualMap } = heatmapOption(data, context(), dark) as Loose;
+    // The palest cell is the slot at a fifth over the near-black ground —
+    // dark, as the cells are — not the slot at a fifth over nothing, which
+    // the bar drew bright; no opacity is left for the library to composite.
+    expect(visualMap.inRange).toEqual({
+      color: ['rgb(20, 36, 56)', 'rgb(60, 140, 240)'],
+    });
+    const light: ChartTheme = {
+      ...dark,
+      ground: 'rgb(255, 255, 255)',
+    };
+    expect(
+      (heatmapOption(data, context(), light) as Loose).visualMap.inRange.color,
+    ).toEqual(['rgb(216, 232, 252)', 'rgb(60, 140, 240)']);
+  });
+
+  it('keeps the slot when the ground reads as no colour', () => {
+    const { visualMap } = heatmapOption(data, context(), theme) as Loose;
+    expect(visualMap.inRange.color).toEqual([
+      'resolved(var(--chart-1))',
+      'resolved(var(--chart-1))',
+    ]);
   });
 
   it('shades by the log on a log scale, and still writes the numbers', () => {

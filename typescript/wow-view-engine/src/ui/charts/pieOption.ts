@@ -18,7 +18,7 @@ import {
   type PieData,
 } from '../../analysis/index.js';
 import type { ChartSpec } from '../../model/index.js';
-import { formatValue } from './axis.js';
+import { formatShare } from './axis.js';
 import type { ValueLabel } from './family.js';
 import { OTHER_COLOR, colorOf } from './palette.js';
 import type { ChartTheme } from './theme.js';
@@ -93,14 +93,95 @@ function wholeOf(data: PieData): number {
 }
 
 /**
+ * What each slice writes outside itself, in the slices' order; `''` for a
+ * slice that writes nothing. A slice of 3% or more says its share, and with
+ * `labels: true` its value, short, before it.
+ */
+export function pieCaptions(
+  data: PieData,
+  context: Pick<PieContext, 'spec' | 'label' | 'locale' | 'other'>,
+): string[] {
+  const { spec, label, locale } = context;
+  const measure = spec?.pie?.value;
+  return drawnSlices(data, context).map(slice => {
+    if (slice.share === undefined || slice.share < LABELLED_SHARE) return '';
+    const share = formatShare(slice.share, locale);
+    return valueLabelsOn(spec)
+      ? `${label(measure, slice.value, true)} · ${share}`
+      : share;
+  });
+}
+
+/** The pie's outer radius, as a part of half the plot's shorter side. */
+const OUTER = 0.72;
+/** A donut's hole, as a part of the same. */
+const INNER = 0.5;
+/** A label's size, in pixels: a step under the page's 12. */
+const LABEL_SIZE = 11;
+/** The leader line's two legs, and the gap between it and its label. */
+const LEADER = { first: 8, second: 8, gap: 5 };
+/** What the library keeps clear between a label and the plot's edge. */
+const BLEED = 8;
+/**
+ * How far a pie gives way to make room for its labels: to seven tenths of
+ * its full size. Smaller, the picture is spent on words the legend already
+ * holds.
+ */
+export const LABEL_ROOM_SHRINK = 0.7;
+
+/**
+ * What the plot's size changes about a pie: whether its labels are written,
+ * and how big it is to make room for them (audit P0-6).
+ *
+ * A label outside a slice needs the room from the pie's edge to the plot's:
+ * the leader line, then the words. Where there is not enough the library
+ * cut the number — 47.7% came out 「4」, 28.3% 「28....」, and a 「4」 is a
+ * number, worse than none. So a label is written whole or not at all: the
+ * pie gives way first, down to `LABEL_ROOM_SHRINK` of its size, so the
+ * widest label fits even beside the pie's widest point; past that no slice
+ * writes its label, and the legend, which carries every share, and the
+ * tooltip say them — as Metabase leaves out an outer label it cannot fit.
+ * Measured against the widest point, so a label the library slides along
+ * the rim to clear its neighbour still fits.
+ */
+export function pieFit(
+  captions: readonly string[],
+  width: number,
+  height: number,
+  measure: (text: string) => number,
+  donut: boolean,
+): EChartsCoreOption {
+  const full = (OUTER * Math.min(width, height)) / 2;
+  const widest = Math.max(
+    0,
+    // `measureText` measures at the page's 12px.
+    ...captions.map(text => (text ? (measure(text) * LABEL_SIZE) / 12 : 0)),
+  );
+  const fits =
+    width / 2 - LEADER.first - LEADER.second - LEADER.gap - BLEED - widest;
+  const labelled = widest === 0 || fits >= full * LABEL_ROOM_SHRINK;
+  const outer = labelled ? Math.min(full, fits) : full;
+  return {
+    series: [
+      {
+        radius: [donut ? (outer * INNER) / OUTER : 0, outer],
+        label: { show: labelled },
+        labelLine: { show: labelled },
+      },
+    ],
+  };
+}
+
+/**
  * A pie or a donut as the library draws it.
  *
- * Each slice of 3% or more says its share outside itself, on a leader line,
- * and a label that would land on another is left out rather than drawn
- * over it; with `labels: true` it says its value too. A donut writes its
- * whole in the hole — when the measure adds up, since the total of some
- * averages is not a number anyone asked for. The tooltip is the slice's
- * value, whole, and its share.
+ * Each slice of 3% or more says its share outside itself, on a leader line
+ * (`pieCaptions`), and a label that would land on another is left out
+ * rather than drawn over it. A label is never cut short: whether the plot
+ * has room for them is `pieFit`'s to say. A donut writes its whole in the
+ * hole — when the measure adds up, since the total of some averages is not
+ * a number anyone asked for. The tooltip is the slice's value, whole, and
+ * its share.
  */
 export function pieOption(
   data: PieData,
@@ -109,14 +190,8 @@ export function pieOption(
 ): EChartsCoreOption {
   const { spec, label, locale, total, adds, animate, pickable } = context;
   const slices = drawnSlices(data, context);
+  const captions = pieCaptions(data, context);
   const measure = spec?.pie?.value;
-  const percent = (share: number) => formatValue(share, 'percent', locale);
-  const caption = (slice: DrawnSlice) => {
-    if (slice.share === undefined || slice.share < LABELLED_SHARE) return '';
-    return valueLabelsOn(spec)
-      ? `${label(measure, slice.value, true)} · ${percent(slice.share)}`
-      : percent(slice.share);
-  };
   const donut = spec?.pie?.donut === true;
   const whole = wholeOf(data);
   return {
@@ -137,7 +212,7 @@ export function pieOption(
             value:
               slice.share === undefined
                 ? value
-                : `${value} · ${percent(slice.share)}`,
+                : `${value} · ${formatShare(slice.share, locale)}`,
           },
         ]);
       },
@@ -145,7 +220,9 @@ export function pieOption(
     series: [
       {
         type: 'pie',
-        radius: donut ? ['50%', '72%'] : [0, '72%'],
+        radius: donut
+          ? [`${INNER * 100}%`, `${OUTER * 100}%`]
+          : [0, `${OUTER * 100}%`],
         center: ['50%', '50%'],
         cursor: pickable ? 'pointer' : 'default',
         // Clockwise from the top, in the order the kernel shaped them.
@@ -153,8 +230,28 @@ export function pieOption(
         avoidLabelOverlap: true,
         labelLayout: { hideOverlap: true },
         emphasis: { scale: true, scaleSize: 4 },
-        data: slices.map(slice => {
-          const text = caption(slice);
+        // Whether the labels are written at all is the series' (`pieFit`
+        // turns them off together); a slice with nothing to say is off
+        // for itself.
+        label: {
+          show: true,
+          color: theme.foreground,
+          fontSize: LABEL_SIZE,
+          textBorderColor: theme.ground,
+          textBorderWidth: 2,
+          // Whole or not at all: the library's default cuts the number.
+          overflow: 'none',
+          bleedMargin: BLEED,
+          distanceToLabelLine: LEADER.gap,
+        },
+        labelLine: {
+          show: true,
+          length: LEADER.first,
+          length2: LEADER.second,
+          lineStyle: { color: theme.border },
+        },
+        data: slices.map((slice, index) => {
+          const text = captions[index] ?? '';
           return {
             name: slice.name,
             // The library draws no negative wedge; the tooltip still says it.
@@ -165,20 +262,9 @@ export function pieOption(
               borderColor: theme.ground,
               borderWidth: 1,
             },
-            label: {
-              show: text !== '',
-              formatter: text,
-              color: theme.foreground,
-              fontSize: 11,
-              textBorderColor: theme.ground,
-              textBorderWidth: 2,
-            },
-            labelLine: {
-              show: text !== '',
-              length: 8,
-              length2: 8,
-              lineStyle: { color: theme.border },
-            },
+            ...(text === ''
+              ? { label: { show: false }, labelLine: { show: false } }
+              : { label: { formatter: text } }),
           };
         }),
       },

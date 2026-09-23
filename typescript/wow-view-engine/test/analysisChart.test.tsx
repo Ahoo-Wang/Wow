@@ -410,9 +410,10 @@ describe('AnalysisChart', () => {
 
     // A tick the domain pins and no row holds, so it can only be the axis —
     // written short, in the column's currency: the reading table beside it
-    // has the whole number.
-    expect(within(container).getByText('¥1000')).toBeDefined();
-    expect(within(container).getByText('¥2000')).toBeDefined();
+    // has the whole number. Grouped as the table groups it: Chinese has no
+    // short word under 万 (audit P2-3).
+    expect(within(container).getByText('¥1,000')).toBeDefined();
+    expect(within(container).getByText('¥2,000')).toBeDefined();
     // The reading beside the marks is the same numbers, so the same text.
     expect(within(container).getAllByText('¥1,234.00').length).toBeGreaterThan(
       0,

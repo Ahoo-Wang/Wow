@@ -19,7 +19,7 @@ import {
   waitFor,
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { ChartData, ChartSpec } from '../src/index.js';
+import type { ChartData, ChartSpec, NumberFormat } from '../src/index.js';
 import { AnalysisChart, ViewSurface } from '../src/ui/index.js';
 import { concreteColor, readChartTheme } from '../src/ui/charts/theme.js';
 import { compactFormat, formatNumber } from '../src/ui/display.js';
@@ -94,30 +94,65 @@ describe('readChartTheme: the stylesheet read back as colours', () => {
 });
 
 describe('a number written short', () => {
+  const short = (value: number, locale: string, currency?: boolean) =>
+    formatNumber(
+      value,
+      compactFormat(
+        currency
+          ? {
+              style: 'currency',
+              currency: 'CNY',
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }
+          : undefined,
+      ),
+      locale,
+    );
+
   it('follows the language: 万 and 亿 in Chinese, K and M in English', () => {
-    const short = (value: number, locale: string, currency?: boolean) =>
-      formatNumber(
-        value,
-        compactFormat(
-          currency
-            ? {
-                style: 'currency',
-                currency: 'CNY',
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              }
-            : undefined,
-        ),
-        locale,
-      );
-    expect(short(11_100_000, 'zh-CN')).toBe('1110万');
-    expect(short(123_456_789, 'zh-CN')).toBe('1.2亿');
+    expect(short(11_100_000, 'zh-CN')).toBe('1,110万');
+    expect(short(123_456_789, 'zh-CN')).toBe('1.23亿');
     expect(short(11_100_000, 'en')).toBe('11.1M');
     expect(short(4_200, 'en')).toBe('4.2K');
     // The column's currency stays; the decimals it asked of a whole number
     // do not.
-    expect(short(11_100_000, 'zh-CN', true)).toBe('¥1110万');
+    expect(short(11_100_000, 'zh-CN', true)).toBe('¥1,110万');
     expect(short(950, 'zh-CN', true)).toBe('¥950');
+  });
+
+  it('keeps three significant digits, adding no zero and inventing none (audit P1-4)', () => {
+    // A donut's ¥10,230 is not 「¥1万」, and a week of 49,993 / 49,818 /
+    // 49,077 is not three 「4.9万」s.
+    expect(short(10_230, 'zh-CN', true)).toBe('¥1.02万');
+    expect(short(10_230, 'en', true)).toBe('CN¥10.2K');
+    expect(
+      [49_993, 49_818, 49_077, 659_000, 1_831_229].map(value =>
+        short(value, 'zh-CN'),
+      ),
+    ).toEqual(['5万', '4.98万', '4.91万', '65.9万', '183万']);
+    expect(
+      [49_993, 49_818, 49_077, 659_000, 1_831_229].map(value =>
+        short(value, 'en'),
+      ),
+    ).toEqual(['50K', '49.8K', '49.1K', '659K', '1.83M']);
+    // No zero added to make up three (「5万」, not 「5.00万」), and none
+    // invented where the whole part is longer: 「1,235万」, not 「1,230万」.
+    expect(short(50_000, 'zh-CN')).toBe('5万');
+    expect(short(12_345_678, 'zh-CN')).toBe('1,235万');
+    // Small and fractional numbers keep their digits.
+    expect(short(12.345, 'en')).toBe('12.3');
+    expect(short(0.5, 'zh-CN', true)).toBe('¥0.5');
+  });
+
+  it('groups a Chinese figure under 万 as the table does (audit P2-3)', () => {
+    const chinese = (value: number, format?: NumberFormat) =>
+      formatNumber(value, compactFormat(format), 'zh-CN');
+    expect(short(4_880, 'zh-CN', true)).toBe('¥4,880');
+    // Written whole, not rounded to three digits: there is no shorter word.
+    expect(chinese(4_885)).toBe('4,885');
+    // A field whose numbers are names keeps them ungrouped.
+    expect(chinese(2_026, { useGrouping: false })).toBe('2026');
   });
 });
 
@@ -302,6 +337,84 @@ describe('merged: the width’s adjustment laid onto a drawing', () => {
       series: [2],
       grid: { top: 1 },
     });
+  });
+
+  it('merges a list of objects item by item, as the library does', () => {
+    expect(
+      merged(
+        {
+          series: [
+            { type: 'pie', radius: ['50%', '72%'], label: { color: 'a' } },
+            { type: 'pie' },
+          ],
+        },
+        { series: [{ radius: [50, 72], label: { show: false } }] },
+      ),
+    ).toEqual({
+      series: [
+        // A list of numbers replaces.
+        { type: 'pie', radius: [50, 72], label: { color: 'a', show: false } },
+        { type: 'pie' },
+      ],
+    });
+  });
+});
+
+describe('EChart: a legend beside the plot, where there is room', () => {
+  const pie: ChartData = {
+    type: 'pie',
+    slices: [
+      { category: 'CN', value: 3 },
+      { category: 'JP', value: 1 },
+    ],
+  };
+  const pieSpec: ChartSpec = {
+    type: 'pie',
+    pie: { category: 'country', value: 'orders' },
+  };
+  const framed = (width: number) => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(private readonly callback: ResizeObserverCallback) {}
+        observe(target: Element) {
+          this.callback(
+            [{ target, contentRect: { width, height: 300 } } as never],
+            this as never,
+          );
+        }
+        disconnect() {}
+      },
+    );
+    const { container } = render(
+      <ViewSurface>
+        <AnalysisChart data={pie} spec={pieSpec} />
+      </ViewSurface>,
+    );
+    vi.unstubAllGlobals();
+    return container.querySelector<HTMLElement>('[data-slot="chart"]')!;
+  };
+
+  it('stands beside a pie on a wide frame', () => {
+    const frame = framed(800);
+    expect(frame.getAttribute('data-legend')).toBe('right');
+    expect(frame.className).toContain('flex-row');
+  });
+
+  it('goes under the pie on a phone, and folds to a line there (audit P0-6)', () => {
+    const frame = framed(382);
+    expect(frame.getAttribute('data-legend')).toBe('bottom');
+    expect(frame.className).toContain('flex-col');
+    // Under the plot, after it.
+    expect(frame.lastElementChild?.getAttribute('data-slot')).toBe(
+      'chart-legend',
+    );
+    // Every share still in it, one decimal each.
+    expect(
+      [...frame.querySelectorAll('[data-slot="chart-legend-item"]')].map(
+        item => item.textContent,
+      ),
+    ).toEqual(['CN75.0%', 'JP25.0%']);
   });
 });
 

@@ -17,8 +17,15 @@ import type { ChartSpec } from '../../model/index.js';
 import { categoryTick } from './axis.js';
 import type { ColumnTitle, ValueLabel } from './family.js';
 import { color } from './palette.js';
-import type { ChartTheme } from './theme.js';
+import { mixColor, type ChartTheme } from './theme.js';
 import { tooltipFrame, tooltipHtml } from './tooltip.js';
+
+/**
+ * How strong the palest cell is against the ground: the low end is still a
+ * shade of the slot, not the ground itself — a cell with the least in it
+ * is a cell, and an empty one is none.
+ */
+const PALEST = 0.2;
 
 /** A cell as the series holds it: its column, its row, its shade, its value. */
 type Cell = [number, number, number, number];
@@ -104,7 +111,9 @@ export function heatmapOption(
       bottom: 0,
       itemWidth: 10,
       itemHeight: 160,
-      inRange: { color: [fill, fill], colorAlpha: [0.2, 1] },
+      // Both ends as concrete colours on the actual ground, so the cells
+      // and the bar that reads them are the same colours in either mode.
+      inRange: { color: [mixColor(theme.ground, fill, PALEST), fill] },
       text: [
         label(heatmap?.value, high, true),
         label(heatmap?.value, low, true),

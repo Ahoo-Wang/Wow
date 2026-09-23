@@ -16,22 +16,26 @@ import { valueLabelsOn, type PieData } from '../../analysis/index.js';
 import { pointAnchor } from '../analysis/DrillMenu.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
-import { formatValue } from './axis.js';
+import { formatShare } from './axis.js';
 import { ChartLegend } from './ChartLegend.js';
 import { EChart, type ChartClick } from './EChart.js';
 import type { FamilyProps } from './family.js';
 import { legendAt } from './legend.js';
+import { measureText } from './measure.js';
 import { useChartMotion } from './motion.js';
-import { drawnSlices, pieOption } from './pieOption.js';
+import { drawnSlices, pieCaptions, pieFit, pieOption } from './pieOption.js';
 import type { ChartTheme } from './theme.js';
 
 /**
  * A pie or a donut, drawn by ECharts from `pieOption` (D21).
  *
  * The legend is the key to the picture, so it is always there unless the
- * spec says none — beside the pie by default, as Metabase draws a donut's —
- * and it leads with what the slices measure, the column's own title, then
- * each slice with its share. When the rows are the first groups of more
+ * spec says none — beside the pie by default, as Metabase draws a donut's,
+ * and under it on a frame too narrow for both (`LEGEND_BESIDE_MIN`) — and
+ * it leads with what the slices measure, the column's own title, then each
+ * slice with its share. The labels outside the slices are written whole or
+ * not at all, as the plot's size allows (`pieFit`): the legend holds every
+ * share either way. When the rows are the first groups of more
  * the lead also says the shares are of those groups: the remainder is not
  * on the pie, and a share read as of the whole would be wrong by exactly it.
  */
@@ -76,6 +80,19 @@ export function PieSlices({
     () => drawnSlices(data, { spec, label, other }),
     [data, spec, label, other],
   );
+  const donut = spec?.pie?.donut === true;
+  // Whether the plot has room for the labels, whole (`pieFit`).
+  const adapt = useCallback(
+    (width: number, height: number) =>
+      pieFit(
+        pieCaptions(data, { spec, label, locale, other }),
+        width,
+        height,
+        text => measureText(text),
+        donut,
+      ),
+    [data, spec, label, locale, other, donut],
+  );
   // The merged remainder is not a group of the result: it stands for
   // several, and no one condition selects them.
   const onClick = useMemo(
@@ -105,13 +122,14 @@ export function PieSlices({
       name={name}
       className={className}
       option={option}
+      adapt={adapt}
       onClick={onClick}
       legend={
         at && {
           at,
-          node: (
+          node: placed => (
             <ChartLegend
-              at={at}
+              at={placed}
               lead={
                 measure !== undefined && (
                   <li
@@ -130,7 +148,7 @@ export function PieSlices({
                 color: slice.color,
                 ...(slice.share === undefined
                   ? {}
-                  : { value: formatValue(slice.share, 'percent', locale) }),
+                  : { value: formatShare(slice.share, locale) }),
               }))}
             />
           ),

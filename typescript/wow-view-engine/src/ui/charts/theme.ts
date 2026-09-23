@@ -13,6 +13,7 @@
 
 import {
   formatRgb,
+  interpolate,
   modeHsl,
   modeLab,
   modeLch,
@@ -97,6 +98,27 @@ export function concreteColor(text: string | undefined): string | undefined {
   if (!value) return undefined;
   const color = parse(value);
   return color && formatRgb(color);
+}
+
+/**
+ * `color` at `strength` over `ground`, as the one opaque colour the eye gets
+ * there: what painting it at that opacity on that ground shows, worked out
+ * before the library sees it. A scale drawn apart from the marks — a
+ * heatmap's colour bar — then reads the same colours the marks show, on
+ * whatever the ground is; handed the opacity instead, the library drew the
+ * bar's pale end against a ground of its own, bright on a dark page where
+ * the cells were near black (audit P1-9). Mixed in `rgb`, as the opacity
+ * composites. A colour that does not parse is given back as it came.
+ */
+export function mixColor(
+  ground: string,
+  color: string,
+  strength: number,
+): string {
+  const under = parse(ground);
+  const over = parse(color);
+  if (!under || !over) return color;
+  return formatRgb(interpolate([under, over], 'rgb')(strength));
 }
 
 export function readChartTheme(element: Element): ChartTheme {

@@ -44,7 +44,7 @@ export type ValueLabel = (
   value: unknown,
   /**
    * Written short, where room is scarce: a tick, a label over a bar. Only a
-   * number is shortened, and still in its column's format — 「¥1110万」 in
+   * number is shortened, and still in its column's format — 「¥1,110万」 in
    * Chinese and `CN¥11.1M` in English (`compactFormat`); a tooltip, the
    * reading table and the table layout keep the whole number.
    */

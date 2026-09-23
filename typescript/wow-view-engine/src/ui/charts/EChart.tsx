@@ -24,6 +24,18 @@ import { useSurfaceTheme } from '../ViewSurface.js';
 import { loadCharts, loadedCharts } from './load.js';
 import { readChartTheme, type ChartTheme } from './theme.js';
 
+/** Where a legend drawn beside the plot stands. */
+export type LegendPlace = 'top' | 'bottom' | 'right';
+
+/**
+ * The narrowest frame a legend stands beside the plot in, in pixels. Beside
+ * a plot on a phone the legend takes two fifths of the width, and a pie
+ * squeezed into the rest had no room left for its labels — the library cut
+ * 47.7% to 「4」 (audit P0-6). Under the plot, the pie gets the width, as
+ * Metabase moves a narrow chart's legend below it.
+ */
+export const LEGEND_BESIDE_MIN = 480;
+
 /** What a press on a mark hands back: which one, and where the pointer was. */
 export interface ChartClick {
   componentType: string;
@@ -42,15 +54,23 @@ export interface EChartProps {
   /** The drawing for a theme; rebuilt when the theme or this changes. */
   option: (theme: ChartTheme) => EChartsCoreOption;
   /**
-   * What the width changes: a category axis turns its names at a slant once
-   * they no longer fit side by side. Merged into the drawing as it resizes,
-   * so the marks move rather than grow in again.
+   * What the plot's size changes: a category axis turns its names at a
+   * slant once they no longer fit side by side; a pie makes room for its
+   * labels or leaves them out. Merged into the drawing as it resizes, so
+   * the marks move rather than grow in again.
    */
-  adapt?: (width: number) => EChartsCoreOption | undefined;
+  adapt?: (width: number, height: number) => EChartsCoreOption | undefined;
   /** A press on a mark; left out, the marks are not pressable. */
   onClick?: (click: ChartClick) => void;
-  /** Drawn above the plot, beside it (`right`) or under it. */
-  legend?: { at: 'top' | 'bottom' | 'right'; node: ReactNode };
+  /**
+   * Drawn above the plot, beside it (`right`) or under it. Beside it only
+   * where the frame has room (`LEGEND_BESIDE_MIN`): narrower, it goes under
+   * — so the node is drawn for where it lands.
+   */
+  legend?: {
+    at: LegendPlace;
+    node: ReactNode | ((placed: LegendPlace) => ReactNode);
+  };
   /** Said on the frame, for whoever reads the drawing's state back. */
   data?: Record<`data-${string}`, string | number | undefined>;
 }
@@ -94,11 +114,40 @@ export function EChart({
   }, [mode]);
 
   const chart = useRef<ECharts>(undefined);
-  const width = useRef(0);
+  const size = useRef({ width: 0, height: 0 });
   const latest = useRef({ option, adapt, onClick, theme });
   useLayoutEffect(() => {
     latest.current = { option, adapt, onClick, theme };
   });
+
+  // The frame's width, not the plot's: the plot widens when the legend
+  // leaves its side, and measured by the plot the legend would come back.
+  const beside = legend?.at === 'right';
+  const [narrow, setNarrow] = useState(false);
+  useLayoutEffect(() => {
+    const element = frame.current;
+    if (!beside || !element) return;
+    const measure = (width: number) => {
+      // Nothing laid out yet — or jsdom, which lays out nothing — says
+      // nothing about the room.
+      if (width > 0) setNarrow(width < LEGEND_BESIDE_MIN);
+    };
+    // Before the first paint, so a phone never sees the legend move.
+    measure(element.getBoundingClientRect().width);
+    const observer = new ResizeObserver(([entry]) =>
+      measure(entry.contentRect.width),
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [beside]);
+  const placed: LegendPlace | undefined =
+    beside && narrow ? 'bottom' : legend?.at;
+  const legendNode =
+    legend && placed
+      ? typeof legend.node === 'function'
+        ? legend.node(placed)
+        : legend.node
+      : undefined;
 
   useLayoutEffect(() => {
     const element = plot.current;
@@ -106,10 +155,10 @@ export function EChart({
     const observer = new ResizeObserver(([entry]) => {
       const { width: w, height: h } = entry.contentRect;
       if (!w || !h) return;
-      width.current = w;
+      size.current = { width: w, height: h };
       if (chart.current) {
         chart.current.resize({ width: w, height: h });
-        draw(chart.current, undefined, latest.current.adapt?.(w));
+        draw(chart.current, undefined, latest.current.adapt?.(w, h));
         return;
       }
       const created = library.init(element, null, {
@@ -136,7 +185,7 @@ export function EChart({
       );
       chart.current = created;
       const { theme: now, option: build, adapt: fit } = latest.current;
-      if (now) draw(created, build(now), fit?.(w));
+      if (now) draw(created, build(now), fit?.(w, h));
     });
     observer.observe(element);
     return () => {
@@ -149,7 +198,11 @@ export function EChart({
   useLayoutEffect(() => {
     if (chart.current && theme) {
       frame.current?.removeAttribute('data-drawn');
-      draw(chart.current, option(theme), adapt?.(width.current));
+      draw(
+        chart.current,
+        option(theme),
+        adapt?.(size.current.width, size.current.height),
+      );
     }
   }, [theme, option, adapt]);
 
@@ -170,17 +223,17 @@ export function EChart({
     <div
       ref={frame}
       data-slot="chart"
-      data-legend={legend?.at ?? 'none'}
+      data-legend={placed ?? 'none'}
       {...data}
       className={cn(
         'flex aspect-video min-h-52 w-full gap-2 text-xs',
-        legend?.at === 'right' ? 'flex-row' : 'flex-col',
+        placed === 'right' ? 'flex-row' : 'flex-col',
         className,
       )}
     >
-      {legend?.at === 'top' && legend.node}
+      {placed === 'top' && legendNode}
       {plotted}
-      {legend && legend.at !== 'top' && legend.node}
+      {placed !== undefined && placed !== 'top' && legendNode}
     </div>
   );
 }
@@ -204,7 +257,13 @@ function draw(
   else if (adjustment) chart.setOption(adjustment);
 }
 
-/** `over` laid onto `base`, object by object; anything else replaces. */
+/**
+ * `over` laid onto `base`, object by object, and a list of objects — the
+ * series — item by item, as the library merges an option handed to a
+ * drawing it already holds: a pie's radius adjusted on a resize and the
+ * same adjustment folded into a new drawing land alike. Anything else
+ * replaces, a list of numbers included.
+ */
 export function merged(
   base: EChartsCoreOption,
   over: EChartsCoreOption,
@@ -212,9 +271,26 @@ export function merged(
   const out: EChartsCoreOption = { ...base };
   for (const [key, value] of Object.entries(over)) {
     const under = out[key];
-    out[key] = isPlain(under) && isPlain(value) ? merged(under, value) : value;
+    out[key] =
+      isPlain(under) && isPlain(value)
+        ? merged(under, value)
+        : isPlainList(under) && isPlainList(value)
+          ? Array.from(
+              { length: Math.max(under.length, value.length) },
+              (_, index) =>
+                value[index] === undefined
+                  ? under[index]
+                  : under[index] === undefined
+                    ? value[index]
+                    : merged(under[index], value[index]),
+            )
+          : value;
   }
   return out;
+}
+
+function isPlainList(value: unknown): value is EChartsCoreOption[] {
+  return Array.isArray(value) && value.length > 0 && value.every(isPlain);
 }
 
 function isPlain(value: unknown): value is EChartsCoreOption {

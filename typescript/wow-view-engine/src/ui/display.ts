@@ -320,24 +320,46 @@ export function formatNumber(
 /**
  * A number format written short: the same style, currency or unit, in the
  * language's own compact notation — 万 and 亿 in Chinese, K, M and B in
- * English, which is what Intl's `compact` already knows — with at most one
- * decimal, so 11,100,000 reads 「1110万」 or `11.1M` rather than `11M`. What
- * the format said about decimals is dropped, since it was said about the
- * whole number: two fraction digits on a compact figure would ask for
- * 「1110.00万」.
+ * English, which is what Intl's `compact` already knows — to three
+ * significant digits, as Metabase writes it: 10,230 reads 「1.02万」 and
+ * `10.2K`, and 49,818 beside 50,000 reads 「4.98万」 beside 「5万」 — one
+ * decimal made them 「1万」 and 「5万」, and a week of 4.9万s hid its ups
+ * and downs (audit P1-4). No zero is added to reach three (「5万」, not
+ * 「5.00万」), and none is invented either: a whole part longer than three
+ * digits is written whole (`morePrecision`), so 4,885 reads 「4,885」 and
+ * 12,345,678 「1,235万」 rather than 「4,890」 and 「1,230万」. The whole
+ * part is grouped as every other number on the page is — Chinese has no
+ * short word below 万, and 4,880 was the one 「4880」 beside the table's
+ * 「4,880」 (audit P2-3) — unless the format says its numbers are names
+ * that take no grouping. What the format said about decimals is dropped,
+ * since it was said about the whole number: two fraction digits on a
+ * compact figure would ask for 「1110.00万」.
  */
 export function compactFormat(format: NumberFormat | undefined): NumberFormat {
   const short: NumberFormat = { ...format };
   delete short.minimumSignificantDigits;
   delete short.maximumSignificantDigits;
-  // Both ends said: an older ICU (Node 20's) keeps a currency's two
-  // minimum decimals under a maximum of one and writes 「¥1110.0万」.
-  return {
+  // `roundingPriority` is ES2023's; the Intl types this builds against
+  // predate it, and every engine the package runs on reads it.
+  const compact: NumberFormat & { roundingPriority: 'morePrecision' } = {
     ...short,
     notation: 'compact',
+    // `true` is 「always」: compact's own default groups nothing under five
+    // digits.
+    useGrouping: format?.useGrouping ?? true,
+    minimumSignificantDigits: 1,
+    maximumSignificantDigits: 3,
+    // Both fraction ends said, and said as none: what follows the point is
+    // the significant digits' to give. An older ICU (Node 20's) keeps a
+    // currency's two minimum decimals unless the minimum is spelled out —
+    // it wrote 「¥1110.0万」. An engine without `roundingPriority` reads
+    // the significant digits alone: the same figure, short of the rare
+    // whole part longer than three.
     minimumFractionDigits: 0,
-    maximumFractionDigits: 1,
+    maximumFractionDigits: 0,
+    roundingPriority: 'morePrecision',
   };
+  return compact;
 }
 
 /**

@@ -111,9 +111,9 @@ export function Cartesian({
       legend={
         at && {
           at,
-          node: (
+          node: placed => (
             <ChartLegend
-              at={at}
+              at={placed}
               entries={series.map(entry => ({
                 key: entry.key,
                 label: entry.name,

@@ -37,6 +37,36 @@ export function formatValue(
   return formatNumber(value, undefined, locale);
 }
 
+/** The finest step a share is written to: a tenth of a percent. */
+const SHARE_STEP = 0.001;
+
+/**
+ * A part of a whole — a slice of a pie — as a percentage with one decimal,
+ * always the one: 「36.0%」 beside 「32.5%」, so a column of shares lines
+ * up and none reads rounder than it is. A part too small to reach the
+ * first decimal is 「<0.1%」, not 「0.0%」: 51 records out of 1.8 million
+ * are few, and 「0%」 reads as none — the rare kinds are the ones an
+ * operator came to the pie for (audit P1-5, as Metabase writes it). Short
+ * of the whole by less than that is 「>99.9%」 for the same reason: a
+ * 「100.0%」 beside a 「<0.1%」 would add up to more than everything.
+ */
+export function formatShare(share: number, locale: string | undefined): string {
+  const percent = (value: number) =>
+    formatNumber(
+      value,
+      {
+        style: 'percent',
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      },
+      locale,
+    );
+  if (share > 0 && share < SHARE_STEP / 2) return `<${percent(SHARE_STEP)}`;
+  if (share < 1 && share >= 1 - SHARE_STEP / 2)
+    return `>${percent(1 - SHARE_STEP)}`;
+  return percent(share);
+}
+
 /**
  * The longest a category name is drawn on an axis before it is cut with an
  * ellipsis. The axis sizes itself to the names rather than to a fixed 96px
