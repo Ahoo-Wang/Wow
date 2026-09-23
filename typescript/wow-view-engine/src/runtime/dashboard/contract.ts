@@ -18,10 +18,14 @@
  */
 
 import type {
+  AnalysisDateUnit,
   DashboardDefinition,
+  DashboardFilters,
   DashboardViewConfig,
+  DataViewDefinition,
   FilterTree,
-  PanelLayout,
+  FilterValue,
+  Issue,
   RuntimeLimits,
   ViewInstance,
   ViewScope,
@@ -33,9 +37,10 @@ import type { OptionSource } from '../source.js';
 import type { DataViewRuntime } from '../viewRuntime.js';
 import type { ViewRuntime, ViewRuntimeState } from '../viewRuntimeTypes.js';
 import type { PanelRuntimeFactory } from './children.js';
-import type { DashboardEditing } from './editing.js';
+import type { DashboardEditing, DashboardFilterEditing } from './editing.js';
 import type { DashboardPanelState } from './panels.js';
 import type { PanelResolver } from './references.js';
+import type { ValueCandidateSources } from '../valueCandidates.js';
 
 export interface DashboardRuntimeState extends ViewRuntimeState<DashboardViewConfig> {
   /**
@@ -52,6 +57,13 @@ export interface DashboardRuntimeState extends ViewRuntimeState<DashboardViewCon
    * switching tabs never makes a board dirty.
    */
   tab: string | null;
+  /**
+   * What the board's filters hold — the values the panels run under, and
+   * the time grouping's unit (D22 F). The reader's, like the tab: never in
+   * the config, so setting one never makes a board dirty; a host keeps it
+   * in its address (`OpenOptions.filters`).
+   */
+  filters: DashboardFilters;
 }
 
 /**
@@ -60,20 +72,15 @@ export interface DashboardRuntimeState extends ViewRuntimeState<DashboardViewCon
  * panels without knowing the class behind them.
  */
 export interface DashboardRuntime
-  extends ViewRuntime<DashboardViewConfig>, DashboardEditing {
+  extends
+    ViewRuntime<DashboardViewConfig>,
+    DashboardEditing,
+    DashboardFilterEditing {
   getSnapshot(): DashboardRuntimeState;
   /** Resolves once every panel reference has been loaded or refused. */
   ready(): Promise<void>;
   /** The child runtime of one panel, for a host that drives a panel itself. */
   panelRuntime(panelId: string): DataViewRuntime | null;
-  /**
-   * Puts one panel at `layout` and applies that alone: the panels it now
-   * covers make way and its tab floats up behind it (`placePanel`), and
-   * every other pending edit — a global filter not yet applied, say — stays
-   * pending. A layout the grid does not admit, or a panel id there is none
-   * of, is ignored.
-   */
-  place(panelId: string, layout: PanelLayout): void;
   /** Re-runs one panel on what it has applied — a retry after it failed. */
   refreshPanel(panelId: string): void;
   /**
@@ -91,6 +98,26 @@ export interface DashboardRuntime
    * board lacks shows its first.
    */
   showTab(tabId: string | null): void;
+  /**
+   * Sets what one filter holds — `null` clears it, and a required one
+   * clearing goes back to its default — and the panels it reaches run on
+   * it a moment later on their own (「改了就跑」: a burst of keystrokes is
+   * one query). Returns why a value was refused, taking nothing then; `[]`
+   * when it took.
+   */
+  setFilterValue(name: string, value: FilterValue | null): Issue[];
+  /** Sets the time grouping's unit; one the board does not offer is ignored. */
+  setGroupingUnit(unit: AnalysisDateUnit): void;
+  /**
+   * Clears every filter (「清空」): the required ones go back to their
+   * defaults, the time grouping to its default unit.
+   */
+  clearFilters(): void;
+  /**
+   * Puts every filter at once, as a host's address has them: what the
+   * board does not take is left out, and said in the answer.
+   */
+  setFilters(filters: DashboardFilters): Issue[];
 }
 
 export interface DashboardRuntimeOptions {
@@ -114,4 +141,13 @@ export interface DashboardRuntimeOptions {
   resolveOptions?(key: string): OptionSource;
   /** An outer condition in force from the first execution, as for a data view. */
   scopeFilter?: FilterTree | null;
+  /**
+   * The values a definition's fields hold, counted, asked under `scope`
+   * (`ValueCandidateSources`) — what a text filter offers from the fields it
+   * is wired to (D22 G). Without it a filter's value is typed.
+   */
+  candidateSources?(
+    definition: DataViewDefinition,
+    scope: () => FilterTree | null,
+  ): ValueCandidateSources;
 }

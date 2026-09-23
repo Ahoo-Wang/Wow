@@ -39,6 +39,7 @@ import { useSaveCommands, type SaveCommands } from './useSaveCommands.js';
 import {
   useOpenView,
   useViewRuntime,
+  type DashboardOpening,
   type OpenViewState,
 } from './useViewEngine.js';
 import { useViewList, type ViewListState } from './useViewList.js';
@@ -105,11 +106,12 @@ export interface WorkbenchOptions {
    */
   onDrilldown?(target: DrillTarget): void;
   /**
-   * The tab a dashboard opens on (D22 E), asked as each view opens: a host's
-   * route names it. Nothing, and the board opens where its reader last read
-   * it (`ViewEngine.open`).
+   * What a dashboard opens with (D22 E, F), asked as each view opens: the
+   * tab and the filter values a host's route names. Nothing, and the board
+   * opens where its reader last read it, every filter at its default
+   * (`ViewEngine.open`).
    */
-  openTab?(instanceId: string): string | null | undefined;
+  opening?(instanceId: string): DashboardOpening | undefined;
 }
 
 /**
@@ -329,7 +331,7 @@ export function useWorkbench(
     guardUnload,
     newView,
     onDrilldown,
-    openTab,
+    opening,
   } = options;
   // Held by what they say: a host writes the array inline, so the object is
   // new every render while the kinds in it are not.
@@ -383,7 +385,7 @@ export function useWorkbench(
     engine,
     held && !held.origin ? null : openId,
     null,
-    openTab,
+    opening,
   );
   const opened: OpenViewState = held
     ? { runtime: held.runtime, loading: false, error: null, scopeIssues: [] }

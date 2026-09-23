@@ -119,6 +119,59 @@ describe('DashboardWorkbench', () => {
     expect(screen.getByRole('button', { name: /Apply/ })).toBeTruthy();
   });
 
+  it('opens under the filters a host keeps in its address, and tells it what they hold (D22 F)', async () => {
+    const onFiltersChange = vi.fn();
+    const { engine, source } = setup({
+      ...overview,
+      config: dashboardConfig({
+        fields: [
+          {
+            name: 'region',
+            label: 'Region',
+            kind: 'string',
+            required: true,
+            default: ['CN'],
+          },
+        ],
+        panels:
+          overview.config.kind === 'dashboard' ? overview.config.panels : [],
+      }),
+    });
+
+    render(
+      <DashboardWorkbench
+        engine={engine}
+        definitionId="overview"
+        instanceId="overview-1"
+        initialFilters={{ values: { region: ['EU'] } }}
+        onFiltersChange={onFiltersChange}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(onFiltersChange).toHaveBeenCalledWith({
+        values: { region: ['EU'] },
+      }),
+    );
+    // The first page asked already carries it: no run under the default.
+    await waitFor(() => expect(source.paged).toHaveBeenCalled());
+    expect(JSON.stringify(vi.mocked(source.paged).mock.calls[0])).toContain(
+      '"EU"',
+    );
+    const runtime = engine
+      .openRuntimes()
+      .find(opened => opened.kind === 'dashboard') as DashboardRuntime;
+    act(() => {
+      runtime.setFilterValue('region', null);
+    });
+    // Required: cleared, it holds its default again.
+    await waitFor(() =>
+      expect(onFiltersChange).toHaveBeenLastCalledWith({
+        values: { region: ['CN'] },
+      }),
+    );
+  });
+
   /**
    * Nothing reloads a pin: once the manager deletes the pinned view, the
    * engine disposes the runtime and reopening the id answers "no such view"

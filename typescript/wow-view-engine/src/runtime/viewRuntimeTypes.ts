@@ -14,6 +14,7 @@
 import type {
   AnalysisViewConfig,
   DashboardDefinition,
+  DashboardFilters,
   DashboardViewConfig,
   DataViewDefinition,
   FieldDefinition,
@@ -375,4 +376,27 @@ export interface ViewRuntimeOptions<C extends DataViewConfig> {
    * rather than letting each one run a timer of its own.
    */
   autoRefresh?: boolean;
+}
+
+/** How `ViewEngine.open` opens a view, beyond which one. */
+export interface OpenOptions {
+  /**
+   * An outer condition in force from the first query, in the view's own field
+   * names. It is admitted with the config rather than after it, so a host that
+   * scopes a view — an order page showing one customer's shipments — never
+   * lets an unscoped query leave, and never shows rows outside its scope.
+   */
+  scopeFilter?: FilterTree | null;
+  /**
+   * The tab a dashboard opens on (D22 E) — a host's route says it. Left out,
+   * the one this reader last read the board on (`ViewPreferences.lastTabs`);
+   * a tab the board lacks opens its first. Nothing else reads it.
+   */
+  tab?: string | null;
+  /**
+   * What a dashboard's filters hold as it opens (D22 F) — a host's address
+   * keeps them. Left out, every filter at its default; what the board does
+   * not take is left out. Nothing else reads it.
+   */
+  filters?: DashboardFilters | null;
 }

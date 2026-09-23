@@ -23,6 +23,7 @@ import type { FilterTree, Issue } from '../model/index.js';
 import {
   ViewEngine,
   type AnyViewRuntime,
+  type OpenOptions,
   type ViewEngineOptions,
 } from '../runtime/index.js';
 import { browserRuntimeEnvironment } from './environment.js';
@@ -88,6 +89,12 @@ export interface ViewRuntimeStore<S> {
  * `open` returns gives back the union of their states rather than one member.
  */
 export type SnapshotOf<R> = R extends { getSnapshot(): infer S } ? S : never;
+
+/**
+ * What a dashboard opens with, as a host's address has it: the tab on screen
+ * and what the filters hold (D22 E, F). Read as the view opens.
+ */
+export type DashboardOpening = Pick<OpenOptions, 'tab' | 'filters'>;
 
 export interface OpenViewState {
   runtime: AnyViewRuntime | null;
@@ -156,14 +163,15 @@ const NO_REOPEN: Reopen = { after: null, attempt: 0 };
  * definition refuses is not in force at all — the view runs un-narrowed and
  * `scopeIssues` says which condition did not take (D17-5).
  *
- * `tab` says which tab a dashboard opens on (`OpenOptions.tab`), asked of
- * the caller as each view opens — only then does it mean anything.
+ * `opening` says which tab a dashboard opens on and what its filters hold
+ * (`OpenOptions.tab`, `OpenOptions.filters`), asked of the caller as each
+ * view opens — only then does it mean anything.
  */
 export function useOpenView(
   engine: ViewEngine,
   instanceId: string | null,
   scopeFilter: FilterTree | null = null,
-  tab?: (instanceId: string) => string | null | undefined,
+  opening?: (instanceId: string) => DashboardOpening | undefined,
 ): OpenViewState {
   const [opened, setOpened] = useState<OpenedView>(NOT_OPENED);
   // Advanced once per runtime disposed under the hook, so the opening effect
@@ -177,10 +185,10 @@ export function useOpenView(
   useEffect(() => {
     latestScope.current = scopeFilter;
   }, [scopeFilter]);
-  const latestTab = useRef(tab);
+  const latestOpening = useRef(opening);
   useEffect(() => {
-    latestTab.current = tab;
-  }, [tab]);
+    latestOpening.current = opening;
+  }, [opening]);
 
   useEffect(() => {
     // Only `null` means "nothing to open". Any string, empty included, is an
@@ -190,12 +198,9 @@ export function useOpenView(
     let runtime: AnyViewRuntime | null = null;
     let cancelled = false;
 
-    const opensOn = latestTab.current?.(instanceId);
+    const opensOn = latestOpening.current?.(instanceId);
     void engine
-      .open(instanceId, {
-        scopeFilter: latestScope.current,
-        ...(opensOn == null ? {} : { tab: opensOn }),
-      })
+      .open(instanceId, { ...opensOn, scopeFilter: latestScope.current })
       .then(
         result => {
           if (cancelled) {

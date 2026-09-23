@@ -94,10 +94,10 @@ src/
   styles.ts                   — Build entry that carries styles.css into dist
   styles.css                  — Theme; consumers import it explicitly
   model/                      — Types and constants only; imports nothing
-    analysis.ts               — Wow aggregation enums as stored literals; which metric types measure one field (`FIELD_METRIC_TYPES`)
+    analysis.ts               — Wow aggregation enums as stored literals, the date units coarsest first (`ANALYSIS_DATE_UNITS`); which metric types measure one field (`FIELD_METRIC_TYPES`)
     chart.ts                  — ChartSpec — one sub-object per chart family, every reference a group or metric alias; `CHART_TYPES`, `CHART_FAMILY`, `CHART_COLOR_SLOTS` (the palette's size, which a pie folds at)
     config.ts                 — ViewConfig — what each view kind stores, and which of its members only draw the result (`presentationMembers`)
-    dashboard.ts              — Dashboard config: the 24-column grid it says it is in, tabs, global fields, bindings, panels on a saved view or one the board owns (`OwnedView`), how a panel looks at its view (`PanelPresentation`), content panels heading included
+    dashboard.ts              — Dashboard config: the 24-column grid it says it is in, tabs, the filters (five types, `filterTypeOf`; default, required, multiple, a list) and the time grouping, what they hold (`DashboardFilters`, never saved), bindings (auto or by hand), panels on a saved view or one the board owns (`OwnedView`), how a panel looks at its view (`PanelPresentation`), content panels heading included
     definition.ts             — ViewDefinition, FieldDefinition, capabilities
     field.ts                  — FieldKindId; what a cell reads as, which fields hold one string, and how a time field is stored (`temporalOf`, epoch milliseconds unless declared)
     filter.ts                 — FilterOperator as stored in a config; the three group operators and the reading of one
@@ -184,12 +184,16 @@ src/
   dashboard/                  — Dashboard kernel — imports model and filter
     defaults.ts               — emptyDashboardConfig
     edit.ts                   — Building a board as pure edits (D22 A–E): `addPanel` (at `freeSpot`, sized by `defaultPanelSize`), remove, duplicate, rename, replace the view, `referToSaved`, `setPresentation`, `editContent`, `movePanelToTab`, `compactTab`
+    filterEdit.ts             — Setting up the board's filters as pure edits (D22 G): add, rename, retype, remove, default, required, multiple, a list of its own, move; the time grouping
+    filters.ts                — A filter's value (D22 F): the one condition it stands for (`filterOperatorOf`, `filterCondition`), what the filters start at (`defaultFilters`) and take (`admitFilters`: required never blank), the condition one panel runs under (`panelFilterTree`, unwired filters left out), the control that edits it and its value's two shapes (`filterEditor`, `filterControlValue`, `filterStoredValue`)
     layout.ts                 — Where panels may go on the 24-column grid: `fitsGrid`, `placePanel` (covered panels make way, then the tab floats up — only a hand compacts), `compactLayout`, `arrangePanel` (one keyboard command on a compacted board), `freeSpot`, `readingOrder` and `stackedLayout` (the one-column reading a narrow screen shows)
     merge.ts                  — mergeGlobalFilter onto one panel's fields
     migrate.ts                — `migrateDashboardConfig`: a board stored without `columns` read from 12 columns into 24, every `x` and `w` doubled
     panels.ts                 — Which panel a stored one is: `isViewPanel`, `isContentPanel`, `isOwnedPanel`, `referencedInstance`, `panelTab`, `freshId`, and `isSafeContentUrl` for what a content panel points at
     tabs.ts                   — A board's tabs: `validateTabs`, and add (the first time, two), rename, reorder, remove with their panels
     validate.ts               — validateDashboard — grid, tabs, panels (saved or owned views, overrides of how they look), bindings, content
+    validateFilters.ts        — The board's filters as declared (type, default, required, multiple, a list) and its time grouping
+    wiring.ts                 — Which field of which panel a filter narrows (D22 G): `wireableFields`, `bindPanel` (by hand, then auto-connect: same name, same type, any tab, any data), `unbindPanels`, `autoBindings` for a panel being added, and what reaches a panel (`filterReach`) or a tab (`filtersOnTab`)
     index.ts                  — The dashboard kernel: admission, panel binding resolution and the global filter merge
   runtime/                    — Stateful layer; never imports react or ui
     dashboardRuntime.ts       — `DashboardViewRuntime`: N child runtimes and one global filter, on one clock, over one `RuntimeStore`; every config it takes in read into the 24-column form; building the board (`DashboardEditing`) into the draft and the screen at once; only the tab on screen runs (`showTab`)
@@ -227,9 +231,14 @@ src/
     writeLedger.ts            — The write ledger: outcomes by requestId, retry, conflicts
     index.ts                  — Transient state: what is open, what is in flight, what came back
     dashboard/                — What the dashboard runtime is made of
-      contract.ts             — `DashboardRuntime`, its state (the tab on screen among it) and its options: what the dashboard runtime is to the rest of the package
+      contract.ts             — `DashboardRuntime`, its state (the tab on screen and what the filters hold among it) and its options: what the dashboard runtime is to the rest of the package
+      commands.ts             — `BoardCommands`: the runtime's commands that are one call on one of its parts — the edits, what the filters hold, where a board opens
+      filterCandidates.ts     — `FilterCandidates`: what a text filter offers, the values of every field it is wired to counted across the board (`ValueCandidateSources`)
+      filterValues.ts         — `FilterValues`: what the filters hold — admitted, shown at once, run a moment later (「改了就跑」)
+      grouping.ts             — `regrouped`: the board's time grouping on one panel's time dimension, where its definition allows the unit (`PanelGrouping`)
+      panelRun.ts             — `panelRun`: what one data panel runs on the board — its look, its time grouping, the conditions that reach it; `panelReach`
       children.ts             — PanelChildren: one child runtime per data panel — a saved view or one the board owns (`PanelView`, `panelView`); a new config for the same view is an edit and a run, not a new child — an edit alone when only how it is drawn changed; a panel on a tab not shown is held as it is, and one that missed a refresh runs when its tab is shown
-      editing.ts              — `DashboardEditing` and `boardEditing`: building the board, each edit a kernel function applied to the draft and the screen alike
+      editing.ts              — `DashboardEditing`, `DashboardFilterEditing` and `boardEditing`: building the board and its filters, each edit a kernel function applied to the draft and the screen alike; a data panel added comes wired (`autoBindings`)
       panels.ts               — Panel helpers: reading, addressing, comparing; `blocksBoard`, the errors that stop the whole board; `stopsSave`, what stops a save of each kind; `shownTab`, the tab on screen; `migrated`, a stored board read into the 24-column form
       presentation.ts         — `presentedConfig`: a panel's override of how it looks laid over its view's config, dropped with a note when it no longer fits
       references.ts           — PanelReferences: loading what panels point at

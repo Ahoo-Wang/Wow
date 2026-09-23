@@ -12,15 +12,36 @@
  */
 
 import type {
+  DashboardFilterType,
+  DashboardTimeGrouping,
   DashboardViewConfig,
+  DashboardViewPanel,
+  FieldOption,
+  FilterValue,
+  PanelLayout,
   PanelPresentation,
   ViewConfig,
   ViewInstance,
 } from '../../model/index.js';
 import { isPlainObject } from '../../filter/index.js';
 import {
+  addFilter,
   addPanel,
   addTab,
+  autoBindings,
+  bindPanel,
+  moveFilter,
+  removeFilter,
+  renameFilter,
+  retypeFilter,
+  setFilterDefault,
+  setFilterMultiple,
+  setFilterOptions,
+  setFilterRequired,
+  setTimeGrouping,
+  unbindPanels,
+  type NewFilter,
+  type PanelFields,
   duplicatePanel,
   editContent,
   movePanelToTab,
@@ -32,6 +53,7 @@ import {
   renameTab,
   replacePanelView,
   setPresentation,
+  placePanelIn,
   type NewContentPanel,
   type NewPanel,
   type NewPanelPlacement,
@@ -85,6 +107,49 @@ export interface DashboardEditing {
   moveTab(tabId: string, index: number): void;
   /** Removes a tab and every panel on it; never the board's last tab. */
   removeTab(tabId: string): void;
+  /**
+   * Puts one panel at `layout` and applies that alone: the panels it now
+   * covers make way and its tab floats up behind it (`placePanel`), and
+   * every other pending edit — a global filter not yet applied, say — stays
+   * pending. A layout the grid does not admit, or a panel id there is none
+   * of, is ignored. No panel re-queries for it: a child is kept while its
+   * reference and its scope are unchanged, and neither is.
+   */
+  place(panelId: string, layout: PanelLayout): void;
+}
+
+/**
+ * Setting up the board's filters (D22 G), through the draft like every
+ * other edit of the board: each goes into the draft and onto the screen at
+ * once, and is saved with the board.
+ */
+export interface DashboardFilterEditing {
+  /** Adds a filter, last on the bar, and returns its name; `null` when full. */
+  addFilter(filter: NewFilter): string | null;
+  /** A filter's name on the bar; a blank one is not taken. */
+  renameFilter(name: string, label: string): void;
+  /** Gives a filter another type; its default, list and wires go. */
+  retypeFilter(name: string, type: DashboardFilterType): void;
+  /** Removes a filter and every wire to it. */
+  removeFilter(name: string): void;
+  /** What a filter starts at — and holds now; `null` takes it off. */
+  setFilterDefault(name: string, value: FilterValue | null): void;
+  setFilterRequired(name: string, required: boolean): void;
+  setFilterMultiple(name: string, multiple: boolean): void;
+  /** A list of its own to pick from, or `null`: the wired fields' values. */
+  setFilterOptions(name: string, options: FieldOption[] | null): void;
+  /** Moves a filter to `index` on the bar. */
+  moveFilter(name: string, index: number): void;
+  /**
+   * Wires one panel to a filter through `panelField` by hand, and every
+   * other panel with a field of that name and type on its own; returns the
+   * panels auto-connect wired (`bindPanel`).
+   */
+  bindPanel(name: string, panelId: string, panelField: string): string[];
+  /** Takes these panels' wires to a filter off — an undo of auto-connect too. */
+  unbindPanels(name: string, panelIds: readonly string[]): void;
+  /** Sets the board's time grouping, or takes it off with `null`. */
+  setTimeGrouping(grouping: DashboardTimeGrouping | null): void;
 }
 
 /** What the edits need of the runtime that holds the board. */
@@ -97,6 +162,11 @@ export interface EditingHost {
   viewConfig(instanceId: string): ViewConfig | undefined;
   /** A reference known without loading: the view an owned one was saved as. */
   seed(instance: ViewInstance): void;
+  /**
+   * The fields of the view a data panel shows, once known — what wiring and
+   * auto-connect match a filter against.
+   */
+  fieldsOf: PanelFields;
   /**
    * One edit, applied to the draft and to what is on screen alike, and
    * nothing else of either moved (`DashboardViewRuntime.restructure`).
@@ -112,7 +182,9 @@ export interface EditingHost {
  * adds works its id and place out once, on the draft, and the screen gets
  * that very panel or tab rather than working both out again.
  */
-export function boardEditing(host: EditingHost): DashboardEditing {
+export function boardEditing(
+  host: EditingHost,
+): DashboardEditing & DashboardFilterEditing {
   const edit = (change: (config: DashboardViewConfig) => DashboardViewConfig) =>
     host.restructure(change);
   /** An edit that added one panel to the draft, carried onto the screen. */
@@ -139,9 +211,25 @@ export function boardEditing(host: EditingHost): DashboardEditing {
       const draft = host.draft();
       if (!draft) return null;
       const instanceId = 'instanceId' in panel ? panel.instanceId : undefined;
+      // A data panel comes onto the board wired to every filter it has a
+      // field for, the way auto-connect wires the rest (D22 G).
+      const fields =
+        panel.kind === 'view'
+          ? host.fieldsOf(panel as unknown as DashboardViewPanel)
+          : null;
+      const wired =
+        panel.kind === 'view' && fields
+          ? {
+              ...panel,
+              bindings: [
+                ...(panel.bindings ?? []),
+                ...autoBindings(draft, fields, panel.bindings),
+              ],
+            }
+          : panel;
       return added(
         draft,
-        addPanel(draft, panel, {
+        addPanel(draft, wired, {
           max: host.maxPanels,
           view: instanceId === undefined ? null : host.viewConfig(instanceId),
           ...placement,
@@ -185,5 +273,54 @@ export function boardEditing(host: EditingHost): DashboardEditing {
       edit(config => renameTab(config, tabId, title)),
     moveTab: (tabId, index) => edit(config => moveTab(config, tabId, index)),
     removeTab: tabId => edit(config => removeTab(config, tabId)),
+    place: (panelId, layout) =>
+      edit(config => placePanelIn(config, panelId, layout)),
+
+    addFilter(filter) {
+      const draft = host.draft();
+      const result = draft && addFilter(draft, filter);
+      if (!draft || !result) return null;
+      edit(config =>
+        config === draft
+          ? result.config
+          : (addFilter(config, filter)?.config ?? config),
+      );
+      return result.name;
+    },
+    renameFilter: (name, label) =>
+      edit(config => renameFilter(config, name, label)),
+    retypeFilter: (name, type) =>
+      edit(config => retypeFilter(config, name, type)),
+    removeFilter: name => edit(config => removeFilter(config, name)),
+    setFilterDefault: (name, value) =>
+      edit(config => setFilterDefault(config, name, value)),
+    setFilterRequired: (name, required) =>
+      edit(config => setFilterRequired(config, name, required)),
+    setFilterMultiple: (name, multiple) =>
+      edit(config => setFilterMultiple(config, name, multiple)),
+    setFilterOptions: (name, options) =>
+      edit(config => setFilterOptions(config, name, options)),
+    moveFilter: (name, index) =>
+      edit(config => moveFilter(config, name, index)),
+    bindPanel(name, panelId, panelField) {
+      const draft = host.draft();
+      if (!draft) return [];
+      const { connected } = bindPanel(
+        draft,
+        name,
+        panelId,
+        panelField,
+        host.fieldsOf,
+      );
+      edit(
+        config =>
+          bindPanel(config, name, panelId, panelField, host.fieldsOf).config,
+      );
+      return connected;
+    },
+    unbindPanels: (name, panelIds) =>
+      edit(config => unbindPanels(config, name, panelIds)),
+    setTimeGrouping: grouping =>
+      edit(config => setTimeGrouping(config, grouping)),
   };
 }

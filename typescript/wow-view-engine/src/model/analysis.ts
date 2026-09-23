@@ -36,6 +36,23 @@ export type AnalysisDateUnit = `${AggregationDateUnit}`;
 export type AnalysisExpressionOperator = `${AggregationExpressionOperator}`;
 
 /**
+ * Every date unit Wow buckets by, coarsest first — the order a choice among
+ * them is offered in. A stored unit is checked against this list where no
+ * definition is at hand to ask (a board's time grouping, D22 F); a test holds
+ * it to Wow's enum.
+ */
+export const ANALYSIS_DATE_UNITS = [
+  'YEAR',
+  'QUARTER',
+  'MONTH',
+  'WEEK',
+  'DAY',
+  'HOUR',
+  'MINUTE',
+  'SECOND',
+] as const satisfies readonly AnalysisDateUnit[];
+
+/**
  * What a dimension or a metric is called on screen (D20 显示名), when the
  * analyst gave it a name: the column header, the legend and the reading say
  * this instead of what the field and the summary would compose. It is the

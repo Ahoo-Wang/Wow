@@ -45,6 +45,7 @@ import type { OptionSource, ViewSource } from './source.js';
 import type {
   AnyViewRuntime,
   ManagedViewRuntime,
+  OpenOptions,
   RuntimeFor,
   ViewRuntime,
 } from './viewRuntimeTypes.js';
@@ -86,22 +87,6 @@ export interface ViewEngineOptions {
   newId?(): string;
   /** Problems with no caller to reject, such as a list entry that was dropped. */
   onIssue?(issue: Issue): void;
-}
-
-export interface OpenOptions {
-  /**
-   * An outer condition in force from the first query, in the view's own field
-   * names. It is admitted with the config rather than after it, so a host that
-   * scopes a view — an order page showing one customer's shipments — never
-   * lets an unscoped query leave, and never shows rows outside its scope.
-   */
-  scopeFilter?: FilterTree | null;
-  /**
-   * The tab a dashboard opens on (D22 E) — a host's route says it. Left out,
-   * the one this reader last read the board on (`ViewPreferences.lastTabs`);
-   * a tab the board lacks opens its first. Nothing else reads it.
-   */
-  tab?: string | null;
 }
 
 /** The ledger names what a write command is addressed to; the engine takes it. */
@@ -295,12 +280,12 @@ export class ViewEngine {
     // only the tab on screen runs, so where it starts is what is asked.
     const tab = await this.tabs.opensOn(instance, options.tab);
     const runtime = this.attach(instance, options.scopeFilter ?? null);
-    if (runtime instanceof DashboardViewRuntime && tab !== null)
-      runtime.showTab(tab);
     // A dashboard is judged against the instances it references, so it waits
-    // for them before its first apply rather than opening into empty frames.
+    // for them before its first apply rather than opening into empty frames —
+    // on the tab and under the filters it opens with, noted before that.
     if (runtime instanceof DashboardViewRuntime)
       try {
+        runtime.opensOn(tab, options.filters);
         await runtime.ready();
       } catch (error) {
         // `attach` already registered it, and a dashboard may have children

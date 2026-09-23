@@ -193,6 +193,21 @@ export const dashboardMessages = {
   'dashboard.field.duplicate': 'The filter field {field} is declared twice.',
   'dashboard.field.name-empty': 'A filter field needs a name.',
   'dashboard.field.name-invalid': '{field} is not a usable field name.',
+  'dashboard.field.not-multiple':
+    'The filter {field} takes one value, and this holds several.',
+  'dashboard.field.options-empty':
+    'The filter {field} picks from a list of its own, and the list is empty.',
+  'dashboard.field.required-no-default':
+    'The filter {field} always has a value, so it needs a default to start at.',
+  'dashboard.fields.too-many': 'A dashboard holds at most {max} filters.',
+  'dashboard.filter.unknown': 'This dashboard has no filter {field}.',
+  'dashboard.grouping.kept':
+    'This panel keeps its own time grouping: its data cannot be grouped the way the dashboard is.',
+  'dashboard.grouping.unit-duplicate': 'The time grouping offers {unit} twice.',
+  'dashboard.grouping.unit-unknown':
+    '{unit} is not a time grouping this dashboard offers.',
+  'dashboard.grouping.units-empty':
+    'The time grouping offers nothing to choose from.',
   'dashboard.grid.unsupported':
     'This dashboard is laid out on a grid that cannot be drawn here; panels are placed on {columns} columns.',
   'dashboard.heading.too-long': 'A heading holds at most {max} characters.',

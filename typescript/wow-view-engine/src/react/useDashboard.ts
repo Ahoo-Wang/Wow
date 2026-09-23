@@ -14,16 +14,25 @@
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
 import {
   DASHBOARD_GRID_COLUMNS,
+  type AnalysisDateUnit,
+  type DashboardField,
+  type DashboardFilters,
   type DashboardPanel,
   type DashboardTab,
+  type DashboardTimeGrouping,
+  type FilterValue,
   type Issue,
   type PanelLayout,
 } from '../model/index.js';
+import { filtersOf, type FilterReach } from '../dashboard/index.js';
 import type {
   DashboardEditing,
+  DashboardFilterEditing,
   DashboardPanelState,
   DashboardRuntime,
   DataViewRuntime,
+  PanelGrouping,
+  ValueCandidateSource,
 } from '../runtime/index.js';
 import { useViewRuntime } from './useViewEngine.js';
 
@@ -40,6 +49,10 @@ export interface DashboardPanelView {
   broken: boolean;
   /** The tab it is on; `null` on a board without tabs. */
   tab: string | null;
+  /** What each filter does to it, by filter name (`filterReach`). */
+  reach: Readonly<Record<string, FilterReach>>;
+  /** What the time grouping does to it (`PanelGrouping`). */
+  grouping: PanelGrouping;
 }
 
 export interface DashboardController {
@@ -81,7 +94,28 @@ export interface DashboardController {
    * into the draft and onto the screen at once; `null` while no board is
    * open. Whether they are on offer is the UI's to say, by permission.
    */
-  edit: DashboardEditing | null;
+  edit: (DashboardEditing & DashboardFilterEditing) | null;
+  /**
+   * The board's filters as on screen, in the bar's order (D22 F); the same
+   * list the draft and the applied config hold, since every edit writes
+   * both.
+   */
+  filterFields: readonly DashboardField[];
+  /** The board's time grouping; `null` on a board without one. */
+  timeGrouping: DashboardTimeGrouping | null;
+  /** What the filters hold now: the reader's, never the config's. */
+  filters: DashboardFilters;
+  /**
+   * Sets what one filter holds, `null` clearing it; the panels run on it a
+   * moment later (`DashboardRuntime.setFilterValue`). Answers why a value
+   * was refused.
+   */
+  setFilterValue(name: string, value: FilterValue | null): Issue[];
+  setGroupingUnit(unit: AnalysisDateUnit): void;
+  /** 「清空」: every filter cleared, the required ones to their defaults. */
+  clearFilters(): void;
+  /** What a text filter offers to pick from (`DashboardRuntime.valueCandidates`). */
+  filterCandidates(name: string): ValueCandidateSource | null;
   /**
    * The board's tabs in the order of its bar, as they are on screen (D22
    * E); none on a board without. Fewer than two draw no bar.
@@ -96,6 +130,7 @@ export interface DashboardController {
 
 const EMPTY_PANELS: DashboardPanelState[] = [];
 const NO_TABS: readonly DashboardTab[] = [];
+const NO_FILTERS: DashboardFilters = { values: {} };
 
 /**
  * A dashboard as a grid of panels.
@@ -110,6 +145,7 @@ export function useDashboard(
 ): DashboardController {
   const state = useViewRuntime(runtime);
   const panels = state?.panels ?? EMPTY_PANELS;
+  const applied = state?.applied;
 
   // The children, watched here rather than left to the panels that draw
   // them: a child's query moving does not notify this runtime's subscribers
@@ -159,6 +195,23 @@ export function useDashboard(
       [runtime],
     ),
     edit: runtime,
+    filterFields: useMemo(() => (applied ? filtersOf(applied) : []), [applied]),
+    timeGrouping: applied?.timeGrouping ?? null,
+    filters: state?.filters ?? NO_FILTERS,
+    setFilterValue: useCallback(
+      (name: string, value: FilterValue | null) =>
+        runtime?.setFilterValue(name, value) ?? [],
+      [runtime],
+    ),
+    setGroupingUnit: useCallback(
+      (unit: AnalysisDateUnit) => runtime?.setGroupingUnit(unit),
+      [runtime],
+    ),
+    clearFilters: useCallback(() => runtime?.clearFilters(), [runtime]),
+    filterCandidates: useCallback(
+      (name: string) => runtime?.valueCandidates(name) ?? null,
+      [runtime],
+    ),
     // What is on screen: an edit writes the draft and the applied config
     // alike, so the two agree on the tabs whenever a panel is drawn.
     tabs: useMemo(() => tabsOf(state?.applied.tabs), [state?.applied.tabs]),
@@ -195,6 +248,8 @@ function toView(panel: DashboardPanelState): DashboardPanelView {
     runtime: panel.runtime,
     issues: panel.issues,
     tab: panel.tab,
+    reach: panel.reach,
+    grouping: panel.grouping,
     // A data panel with no runtime cannot query, and any panel carrying an
     // error was refused by `validateDashboard` — a content panel included,
     // whose markdown, image or link the grid would otherwise render as

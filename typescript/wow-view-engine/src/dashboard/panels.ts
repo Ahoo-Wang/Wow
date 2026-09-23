@@ -17,6 +17,7 @@ import type {
   DashboardViewConfig,
   DashboardViewPanel,
   OwnedView,
+  PanelBinding,
 } from '../model/index.js';
 import { isPlainObject } from '../filter/index.js';
 
@@ -43,6 +44,19 @@ export function isOwnedPanel(
   panel: unknown,
 ): panel is DashboardViewPanel & { owned: OwnedView } {
   return isViewPanel(panel) && panel.owned !== undefined;
+}
+
+/** A panel's bindings, read as the untrusted thing a stored config is. */
+export function bindingsOf(panel: DashboardViewPanel): PanelBinding[] {
+  const bindings: unknown = panel.bindings;
+  return Array.isArray(bindings)
+    ? bindings.filter(
+        (entry): entry is PanelBinding =>
+          isPlainObject(entry) &&
+          typeof entry.globalField === 'string' &&
+          typeof entry.panelField === 'string',
+      )
+    : [];
 }
 
 /**

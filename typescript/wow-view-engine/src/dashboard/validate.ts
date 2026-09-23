@@ -19,7 +19,7 @@ import {
   MAX_PANEL_LINKS,
   PANEL_PRESENTATION_MEMBERS,
   audienceOf,
-  isFieldName,
+  sameFilterType,
   type DashboardContentPanel,
   type DashboardPanel,
   type DashboardViewConfig,
@@ -37,12 +37,18 @@ import {
 import {
   filterFields,
   issue,
+  mergeFilters,
   validateFilter,
   validateViewConfigBase,
   type FieldKindRegistry,
   isPlainObject,
 } from '../filter/index.js';
+import { defaultFilters, panelFilterTree } from './filters.js';
 import { mergeGlobalFilter } from './merge.js';
+import {
+  validateFilterFields,
+  validateTimeGrouping,
+} from './validateFilters.js';
 import { isSafeContentUrl, isViewPanel } from './panels.js';
 import { validateTabs } from './tabs.js';
 
@@ -108,7 +114,8 @@ export function validateDashboard(
   const fields = config.fields as readonly FieldDefinition[];
   const issues = validateViewConfigBase(fields, config, kinds, limits);
 
-  issues.push(...validateFields(config));
+  issues.push(...validateFilterFields(config, kinds, limits));
+  issues.push(...validateTimeGrouping(config));
 
   // Before anything else about the panels, and so before the runtime creates
   // a single child for them.
@@ -181,36 +188,9 @@ function validateSkeleton(config: DashboardViewConfig): Issue[] {
 
 function shape(
   path: IssuePath,
-  expected: 'array' | 'object' | 'string',
+  expected: 'array' | 'object' | 'string' | 'true',
 ): Issue {
   return issue('dashboard.shape.invalid', path, { expected });
-}
-
-function validateFields(config: DashboardViewConfig): Issue[] {
-  const issues: Issue[] = [];
-  const seen = new Set<string>();
-
-  config.fields.forEach((field, index) => {
-    const path: IssuePath = ['fields', index, 'name'];
-    if (field.name.trim().length === 0) {
-      issues.push(issue('dashboard.field.name-empty', path));
-      return;
-    }
-    // A name outside Wow's query syntax would reach the compiler and throw.
-    if (!isFieldName(field.name)) {
-      issues.push(
-        issue('dashboard.field.name-invalid', path, { field: field.name }),
-      );
-      return;
-    }
-    if (seen.has(field.name))
-      issues.push(
-        issue('dashboard.field.duplicate', path, { field: field.name }),
-      );
-    seen.add(field.name);
-  });
-
-  return issues;
 }
 
 /** The id is the runtime's lookup key, the grid's key and where errors land. */
@@ -389,10 +369,12 @@ function validateViewPanel(
   // The view is judged against what it can reach, not the root fields alone:
   // an analysis standing on an element field opens fine on its own and must
   // not be refused the moment it is placed on a dashboard.
-  const merged = mergeGlobalFilter(
-    view.config.filter,
-    config.filter,
-    panel.bindings,
+  // What the panel starts under: the board's standing condition, and each
+  // wired filter at its default — a default the panel's field cannot take
+  // is said here, while the board is built, rather than when it runs.
+  const merged = mergeFilters(
+    mergeGlobalFilter(view.config.filter, config.filter, panel.bindings),
+    panelFilterTree(config, defaultFilters(config), panel.bindings, kinds),
   );
   issues.push(
     ...validateFilter(fields, merged, kinds, { limits }).map(found => ({
@@ -452,7 +434,12 @@ function validateBindings(
         }),
       );
 
-    if (global && target && global.kind !== target.kind)
+    if (binding.auto !== undefined && binding.auto !== true)
+      issues.push(shape([...at, 'auto'], 'true'));
+
+    // A filter reaches any field of its type (D22 F): a date one a `date`
+    // or a `datetime`, a text one a `string` or an `enum`.
+    if (global && target && !sameFilterType(global.kind, target.kind))
       issues.push(
         issue('dashboard.binding.kind-mismatch', at, {
           global: global.kind,

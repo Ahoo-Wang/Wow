@@ -21,6 +21,7 @@ import {
 import { PencilIcon } from 'lucide-react';
 import {
   audienceOf,
+  type DashboardFilters,
   type DashboardPanel,
   type DashboardViewConfig,
   type FieldOption,
@@ -79,6 +80,20 @@ export interface DashboardWorkbenchProps {
    * without tabs. The package never touches the address itself.
    */
   onTabChange?(tabId: string | null): void;
+  /**
+   * What the board's filters hold as it opens (D22 F), as a host's address
+   * has them: read with `instanceId` exactly as `initialTab` is. Left out,
+   * every filter starts at its default; what the board does not take is
+   * left out.
+   */
+  initialFilters?: DashboardFilters | null;
+  /**
+   * Told what the filters hold whenever that changes — the board opening
+   * included — so a host can write it into its address. Filter values are
+   * the reader's and never the board's config (「筛选值写进地址，不写进配置」):
+   * the package never touches the address itself.
+   */
+  onFiltersChange?(filters: DashboardFilters): void;
   /**
    * The host's route to the workbench, for 在工作台中打开 in a panel's menu
    * (D22 D): the saved view a panel shows, and the board's condition as the
@@ -161,29 +176,38 @@ export function DashboardWorkbench({
   features,
   initialTab,
   onTabChange,
+  initialFilters,
+  onFiltersChange,
 }: DashboardWorkbenchProps) {
   const messages = useViewMessages(wording, locale);
-  // The host's tab, asked as a board opens: a tab of the board its
+  // The host's tab and filters, asked as a board opens: of the board its
   // `instanceId` names, or — left uncontrolled — of the first board opened.
-  const hostTab = useRef({ instanceId, tab: initialTab });
+  const hostOpening = useRef({ instanceId, initialTab, initialFilters });
   useEffect(() => {
-    hostTab.current = { instanceId, tab: initialTab };
-  }, [instanceId, initialTab]);
+    hostOpening.current = { instanceId, initialTab, initialFilters };
+  }, [instanceId, initialTab, initialFilters]);
   // Whether a board has opened here yet: an uncontrolled workbench hands the
   // host's tab to that first one only — the next board the reader picks is
   // one the address never named.
   const openedOnce = useRef(false);
-  const openTab = useCallback((id: string) => {
-    const { instanceId: named, tab } = hostTab.current;
-    if (tab == null) return undefined;
-    if (named == null) return openedOnce.current ? undefined : tab;
-    return named === id ? tab : undefined;
+  const opening = useCallback((id: string) => {
+    const {
+      instanceId: named,
+      initialTab: tab,
+      initialFilters: filters,
+    } = hostOpening.current;
+    const ours = named == null ? !openedOnce.current : named === id;
+    if (!ours) return undefined;
+    return {
+      ...(tab == null ? {} : { tab }),
+      ...(filters == null ? {} : { filters }),
+    };
   }, []);
   const workbench = useWorkbench(engine, definitionId, {
     kinds: DASHBOARD,
     instanceId,
     onInstanceChange,
-    openTab,
+    opening,
     newView: {
       title: messages.label('label.view.new-title'),
       ...(template ? { templates: { dashboard: template } } : {}),
@@ -202,6 +226,11 @@ export function DashboardWorkbench({
   useEffect(() => {
     if (shownTab !== undefined) onTabChange?.(shownTab);
   }, [shownTab, onTabChange]);
+  // What the filters hold, told to the host as it changes, for its address.
+  const heldFilters = board ? dashboard.filters : undefined;
+  useEffect(() => {
+    if (heldFilters !== undefined) onFiltersChange?.(heldFilters);
+  }, [heldFilters, onFiltersChange]);
   const savedId = state?.saved?.id;
   const rememberTab = (tabId: string) => {
     if (savedId) void engine.rememberTab(definitionId, savedId, tabId);

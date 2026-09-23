@@ -22,9 +22,13 @@
  */
 export * from './defaults.js';
 export * from './edit.js';
+export * from './filterEdit.js';
+export * from './filters.js';
 export * from './layout.js';
 export * from './merge.js';
 export * from './migrate.js';
 export * from './panels.js';
 export * from './tabs.js';
 export * from './validate.js';
+export * from './validateFilters.js';
+export * from './wiring.js';

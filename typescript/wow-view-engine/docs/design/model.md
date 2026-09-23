@@ -168,7 +168,7 @@ export type ViewConfig =
 
 /** 三类配置的公共部分。 */
 interface ViewConfigBase {
-  filter: FilterTree; // Dashboard 中作用于全部数据面板
+  filter: FilterTree; // Dashboard 中是整板的常驻条件，每个数据面板都要接上它引用的字段；板子的筛选见 DashboardField
   filterMode: 'simple' | 'advanced'; // 编辑器模式跟随视图保存
   refresh: { interval: number | null }; // 自动刷新间隔，秒；null 关闭；开启时为有限整数，介于 RuntimeLimits.minRefreshInterval（缺省 5）与 maxRefreshInterval（缺省 86400）之间
 }
@@ -335,7 +335,8 @@ export interface DashboardViewConfig extends ViewConfigBase {
   kind: 'dashboard';
   columns: 24; // 布局写在几列的栅格上；见下文「24 列与旧布局」
   tabs: DashboardTab[]; // 标签页，按标签栏的顺序；0 或 1 个不画标签栏
-  fields: DashboardField[]; // Dashboard 自己的全局筛选字段；跨定义，因此由配置声明
+  fields: DashboardField[]; // 板子的筛选，按筛选条的顺序；跨定义，因此由配置声明
+  timeGrouping?: DashboardTimeGrouping; // 整板的时间粒度；没有就不写
   panels: DashboardPanel[];
 }
 
@@ -345,10 +346,28 @@ export interface DashboardTab {
 }
 
 export interface DashboardField {
-  name: string;
+  name: string; // 绑定、筛选值与宿主地址都按它称呼
   label: string;
-  kind: FieldKindId;
-  options?: FieldOption[];
+  kind: FieldKindId; // 五种筛选类型之一的字段种类（filterTypeOf）；类型之外的种类自成一类
+  options?: FieldOption[]; // 值从自己列的一组里选；不写就从接上的字段的值里选（enum 总是一组）
+  remote?: string; // ID 筛选的候选来源；接到带 remote 的字段时没有就取它的
+  default?: FilterValue; // 读者没设时它的值，形状是它的操作符要的（filterOperatorOf）
+  required?: true; // 永远有值：清空回到默认值，所以必须有默认值
+  multiple?: true; // 可多选
+}
+
+export type DashboardFilterType = 'date' | 'text' | 'id' | 'number' | 'boolean';
+// DASHBOARD_FILTER_KINDS：date → datetime／date，text → string／enum，id → reference，number，boolean
+
+export interface DashboardTimeGrouping {
+  units: AnalysisDateUnit[]; // 筛选条上按这个顺序给的粒度
+  default: AnalysisDateUnit;
+}
+
+/** 筛选此刻的值：读者的，不进配置；宿主经 initialFilters／onFiltersChange 写进地址。 */
+export interface DashboardFilters {
+  values: Record<string, FilterValue>; // 按筛选名；不在这里的筛选没有值
+  unit?: AnalysisDateUnit; // 有时间粒度的板子才有
 }
 
 export type DashboardPanel = DashboardViewPanel | DashboardContentPanel;
@@ -363,7 +382,7 @@ interface DashboardPanelBase {
 /** 数据面板：显示一个 Record 或 Analysis 视图——已保存的，或只属于这块板的——参与全局筛选与 apply。 */
 export type DashboardViewPanel = DashboardPanelBase & {
   kind: 'view';
-  bindings: { globalField: string; panelField: string }[];
+  bindings: { globalField: string; panelField: string; auto?: true }[]; // 哪个筛选经哪个字段筛这个面板；auto 是自动连接接上的
   presentation?: PanelPresentation; // 只改怎么看（D22 D）
 } & (
     | { instanceId: string } // 引用一个已保存的视图
@@ -403,6 +422,12 @@ export type DashboardContentPanel = DashboardPanelBase &
 - **板内分析视图**（D22 C）：数据面板要么 `instanceId`（已保存视图），要么 `owned: { definitionId, config }`（只属于这块板：随板保存、删除、受众，从不出现在工作台的列表里），两者恰有其一，否则 `dashboard.panel.source-invalid`。首版只收分析（`config.kind === 'analysis'`，否则 `dashboard.panel.owned-invalid`）。它的配置与已保存分析**一样判**：内核判绑定与合并后的全局筛选（定义由调用方按 id 查：`ValidateDashboardOptions.definitions`；查不到报 `dashboard.panel.definition-unknown`，没给查法时只判形状——定义准入时的系统仪表盘就是这样），分析本身由它的子 runtime 的准入判（见 [runtime.md#dashboard](runtime.md#dashboard)）。「另存为视图」把它提成普通视图、面板改为 `instanceId` 引用它（`referToSaved`，展示覆盖保留）。拒绝的写法：新加一种面板 `kind: 'analysis'`——它和引用视图的面板在接线、覆盖、点击、刷新上一模一样，分成两种每条规则都要写两遍；把板内分析存成一个隐藏的普通实例——那就要在列表、权限、删除上处处过滤它，还会在板子被删后留下孤儿。
 - **展示覆盖**（D22 D）：`presentation` 只收 `PANEL_PRESENTATION_MEMBERS`（`layout`、`chart`、`table`）——视图里画结果而不是问结果的那几个成员（D20），表格合计行一并算作「怎么看」；维度、指标、条件、排序永远是视图的。内核只判形状（不是对象、带了别的成员 → warning `dashboard.panel.presentation-dropped`）；合不合身由 runtime 用视图自己的内核判，不合身整份丢掉并注明同一条 warning，不是 error（见 [runtime.md#dashboard](runtime.md#dashboard)）。`setPresentation(…, null)` 就是「恢复为视图的样子」。替换视图时覆盖作废（它说的是怎么看原来那个视图）。
 - **标题卡片**：`{ kind: 'heading', content }`，一行纯文本、不解析 markdown，最长 `MAX_HEADING_LENGTH`（200，超出 `dashboard.heading.too-long`）；空文本允许（界面在编辑中显示占位）。它的字就是面板的名字（`panelName`），画在面板自己的标题元素里，正文不再重复。
+- **筛选**（D22 F、G，批 C1）：一个筛选就是筛选条上的一枚，经每个面板的一个字段去筛它。**五种类型对齐字段种类**（`DASHBOARD_FILTER_KINDS`）：日期（`datetime`／`date`，含相对与区间）、文本或类别（`string`／`enum`）、ID（`reference`）、数字、是否；「同类型」说的是同一类（`sameFilterType`），所以日期筛选接得上 `date` 也接得上 `datetime`，文本筛选接得上 `enum`。五类之外的种类（宿主自己注册的、数组……）照样能当筛选，自成一类：只接同一种类的字段、按那个种类的缺省操作符问——扩展点不因筛选而关上。**一个值就是一条条件**（`filterCondition`，`src/dashboard/filters.ts`）：操作符只由类型定（`filterOperatorOf`）——日期 `BETWEEN`（相对窗口、区间、某天、命名时段都是它）、是否 `EQ`、其余 `IN`；**单值也存成一项的列表**，于是同一条条件原样接得上 `string`、`enum`、`reference` 字段，映射时不必翻译操作符（`enum` 本来就只有 `IN`）。空值不筛任何东西。**值是读者的，从不进配置**（用户拍板「筛选值写进地址，不写进配置」）：配置只说它从哪开始（`default`）与怎么设（`required`、`multiple`、`options`）；此刻的值 `DashboardFilters` 在 runtime 里（[runtime.md#dashboard](runtime.md#dashboard)）。准入（`src/dashboard/validateFilters.ts`）：名字照旧（非空、合 Wow 字段语法、不重名）；`required`／`multiple` 只能是 `true` 或不写；`options` 是数组，空数组是 warning（`dashboard.field.options-empty`：作者可能正在列）；默认值按这个筛选自己的值来判（种类的值形状、单值筛选给了多个是 `dashboard.field.not-multiple`）；**必填却没有默认值是 error**（`dashboard.field.required-no-default`：必填永远有值，没有默认值就没有起点）；最多 `MAX_DASHBOARD_FILTERS`（20）个。默认值还要经每个接上的面板的字段再判一次（与旧的整板条件一起并进 `['panels', i, 'filter']` 那棵合并树）：一个面板的 `enum` 字段收不下的默认值，搭板子时就在那个面板上说，而不是等跑起来。（见 test/dashboardFilters.test.ts「the five filter types」「the condition a filter stands for」「admission of the filters」）
+- **接线**（D22 G）：`PanelBinding` 仍是「哪个筛选经哪个字段筛这个面板」，多一个 `auto?: true`——自动连接接上的；作者亲手选的不写。两端类型不同是 `dashboard.binding.kind-mismatch`；`auto` 写了别的是形状错。**没接上的面板就不受这个筛选影响**：面板跑的条件只收接上它的那些筛选（`panelFilterTree`），各筛选之间是 AND，少一条只是问得更宽，不会问错——所以不再要求每个面板都接上每个筛选。旧的「每个面板必须接上全局条件引用的全部字段」（`dashboard.binding.missing`）只留给整板那棵条件树（`config.filter`：宿主注入的作用域在准入时并进它，以及批 C 之前存下的旧条件）：任意一棵树缺一支会改变布尔含义。（见 test/dashboardFilters.test.ts「admission of the wiring」「the condition one panel runs under」）
+- **自动连接**（D22 G，用户拍板「同名同类型即接，跨定义也接」，`src/dashboard/wiring.ts`）：`bindPanel(config, 筛选, 面板, 字段, fieldsOf)` 先把这个面板亲手接到那个字段，再把**其余每个还没接这个筛选的数据面板**——任何标签页、任何数据定义——里**同名且同类型**的字段自动接上（`auto: true`），返回自动接上的面板（界面据此说「已自动接上 N 个」并能撤销：`unbindPanels`）。已经接着的面板不动；ID 筛选没有候选来源时取亲手接的那个字段的 `remote`。**以后新加的面板同样自动接**（`autoBindings`）：对每个它还没接的筛选，按这个筛选在板上最常用的字段名、再按筛选自己的名字找同类型的字段。什么接得上（`wireableFields`）只看类型。（见 test/dashboardWiring.test.ts「wiring a filter」「a panel added comes wired」）
+- **不受影响**（D22 F「说清作用范围」）：`filterReach(config, panel, fields)` 逐筛选回答一个面板：接上了（经哪个字段、是不是自动接的），或没接上与为什么——它的视图没有这个类型的字段（`no-field`，界面说「没有可接的字段」）、有但没人接（`unwired`）；视图还没读进来时只答接上的那些。`filtersOnTab(panels, tab)` 答一个标签页上有没有面板受某个筛选影响——筛选条据此把什么也没影响的筛选淡一档。（见 test/dashboardWiring.test.ts「what reaches a panel and a tab」）
+- **时间粒度**（D22 F，整板 按日／周／月）：`timeGrouping: { units, default }`，`units` 至少一个、都是 Wow 的日期粒度（`ANALYSIS_DATE_UNITS`）且不重复，`default` 在其中（`dashboard.grouping.units-empty`／`unit-unknown`／`unit-duplicate`）。它的值同筛选一样是读者的（`DashboardFilters.unit`）。它作用在每个分析面板的日期直方图维度上——视图的定义允许那个粒度时换成它，不允许的面板**保留自己的并说出来**（[runtime.md#dashboard](runtime.md#dashboard)）。（见 test/dashboardFilters.test.ts「admission of the time grouping」）
+- **设置筛选是草稿里的编辑**（`src/dashboard/filterEdit.ts`，与其余搭板子的编辑同一手法）：`addFilter`（末尾，名字是第一个没用过的 `filter-n`，新的一枚单值、不必填、谁也没接）、`renameFilter`（空白不改）、`retypeFilter`（换了类型，默认值、列表、来源与所有接线都作废——它们说的是旧类型；可多选在新类型能多选时保留）、`removeFilter`（连同所有接线）、`setFilterDefault`、`setFilterRequired`、`setFilterMultiple`（关掉时默认值只留第一个，免得筛选拒绝自己的起点）、`setFilterOptions`（`null` 回到从接上的字段取值）、`moveFilter`、`setTimeGrouping`。（见 test/dashboardWiring.test.ts「setting up the filters」）
 - **新面板放哪、多大**（D22 A）：`addPanel` 放进目标标签页从 `fromRow`（读者屏幕上的第一行）起、按阅读顺序的第一个**放得下且托得住**的空位（`freeSpot`：下一次压紧不会把它抬走），到底都没有就放到最下面；默认大小按显示的东西（`defaultPanelSize`，24 列计）：指标卡 6×2、图 12×4、表格 24（分析表 ×4、记录 ×5）、标题 24×1、笔记 12×3、图片 8×4、链接 8×3。新 id 是第一个没被占用的 `panel-n`（纯函数，同一份配置同一个答案）。复制放在原面板那一行起的第一个空位（旁边有位就在旁边），板内分析随面板复制成各自独立的一份。
 
 ## 时间字段怎样存

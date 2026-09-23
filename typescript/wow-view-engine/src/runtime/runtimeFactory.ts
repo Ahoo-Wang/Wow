@@ -48,6 +48,7 @@ import {
   type PanelRuntimeFactory,
 } from './dashboardRuntime.js';
 import type { DefinitionRegistry } from './definitions.js';
+import { ValueCandidateSources } from './valueCandidates.js';
 import { ViewCommandError } from './write.js';
 
 /** Who a runtime is, apart from the config it holds. */
@@ -153,6 +154,17 @@ export class RuntimeFactory {
       createPanelRuntime: this.createPanelRuntime,
       resolveOptions: this.host.resolveOptions,
       scopeFilter,
+      candidateSources: (panelDefinition, scope) =>
+        new ValueCandidateSources(
+          {
+            definition: panelDefinition,
+            kinds: this.host.kinds,
+            limits: this.host.limits,
+            environment: this.host.environment,
+            source: this.host.resolveSource(panelDefinition.source),
+          },
+          scope,
+        ),
     });
   }
 

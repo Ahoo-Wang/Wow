@@ -12,8 +12,10 @@
  */
 
 import type { FieldKindId, FieldOption } from './field.js';
+import type { FilterValue } from './filter.js';
 import type { ViewConfigBase } from './config.js';
 import type {
+  AnalysisDateUnit,
   AnalysisLayout,
   AnalysisTableSpec,
   AnalysisViewConfig,
@@ -22,14 +24,124 @@ import type { ChartSpec } from './chart.js';
 import type { RecordLayout } from './record.js';
 
 /**
- * A dashboard's own filter field. It spans definitions, so it is declared by
- * the config rather than by one definition.
+ * A board's filter (D22 F): one chip on the filter bar, wired to a field of
+ * each panel it narrows. It spans definitions, so the config declares it
+ * rather than any one definition.
+ *
+ * Its value is the reader's and is never saved (`DashboardFilters`); what
+ * the config says is what it starts at — `default` — and how it may be set.
  */
 export interface DashboardField {
+  /** The key the bindings, the values and the host's address name it by. */
   name: string;
   label: string;
+  /**
+   * A field kind of one of the five filter types (`filterTypeOf`), which is
+   * the family of panel fields it can be wired to.
+   */
   kind: FieldKindId;
+  /**
+   * A fixed list to pick from: the filter's value source is this list rather
+   * than the values its wired fields hold (D22 G, 「值从哪来」). An `enum`
+   * filter's choices are always such a list.
+   */
   options?: FieldOption[];
+  /**
+   * An id filter's candidate source, as a `reference` field names the host's
+   * (`FieldDefinition.remote`). Wiring it to a field that names one takes
+   * that one when it has none (`bindPanel`).
+   */
+  remote?: string;
+  /**
+   * The value the filter holds until a reader sets another, in the shape its
+   * operator takes (`filterOperatorOf`): a date window, a list of values, a
+   * yes or no. What a board starts at is the config; what a reader set is
+   * not.
+   */
+  default?: FilterValue;
+  /**
+   * Always has a value: clearing it goes back to `default`, which it must
+   * therefore have — so a board never runs with it empty.
+   */
+  required?: true;
+  /** May hold several values at once: 华东 or 华南, not only one of them. */
+  multiple?: true;
+}
+
+/**
+ * The five kinds of board filter (D22 F), each a family of the field kinds
+ * it can be wired to: a date filter reaches a `date` or a `datetime`, a text
+ * one a `string` or an `enum`, an id one a `reference`, a number and a
+ * yes-or-no their own. "Same kind" in wiring and auto-connect means the same
+ * family.
+ */
+export type DashboardFilterType = 'date' | 'text' | 'id' | 'number' | 'boolean';
+
+/** The field kinds of each filter type, the first being what a new one is. */
+export const DASHBOARD_FILTER_KINDS = {
+  date: ['datetime', 'date'],
+  text: ['string', 'enum'],
+  id: ['reference'],
+  number: ['number'],
+  boolean: ['boolean'],
+} as const satisfies Record<DashboardFilterType, readonly FieldKindId[]>;
+
+/** The five types, in the order a choice among them is offered. */
+export const DASHBOARD_FILTER_TYPES: readonly DashboardFilterType[] = [
+  'date',
+  'text',
+  'id',
+  'number',
+  'boolean',
+];
+
+/**
+ * The filter type a field kind belongs to, or `null` for a kind outside the
+ * five — an array, a search, a metadata handle, one a host added. A filter
+ * of such a kind still works, as a family of one: it wires to fields of
+ * that very kind and is asked the way the kind asks (`sameFilterType`).
+ */
+export function filterTypeOf(kind: unknown): DashboardFilterType | null {
+  for (const type of DASHBOARD_FILTER_TYPES)
+    if ((DASHBOARD_FILTER_KINDS[type] as readonly unknown[]).includes(kind))
+      return type;
+  return null;
+}
+
+/**
+ * Whether a filter of one kind can be wired to a field of another: the same
+ * filter type, or — outside the five — the very same kind.
+ */
+export function sameFilterType(filter: unknown, field: unknown): boolean {
+  const type = filterTypeOf(filter);
+  return type === null ? filter === field : type === filterTypeOf(field);
+}
+
+/** Filters one board may hold. */
+export const MAX_DASHBOARD_FILTERS = 20;
+
+/**
+ * The board's time grouping (D22 F, 整板 按日／周／月): one choice among
+ * `units` that sets the date unit of every panel's time dimension, where the
+ * panel's definition allows that unit. Like a filter's, its value is the
+ * reader's; `default` is what the board starts at.
+ */
+export interface DashboardTimeGrouping {
+  /** The units offered, in the order the bar shows them. */
+  units: AnalysisDateUnit[];
+  default: AnalysisDateUnit;
+}
+
+/**
+ * What a board's filters hold right now: the reader's, never the config's
+ * (D22 F「筛选值写进地址，不写进配置」). A host keeps it in its address
+ * through `DashboardWorkbench`'s `initialFilters` / `onFiltersChange`.
+ */
+export interface DashboardFilters {
+  /** Each filter's value by its name; a filter not here holds nothing. */
+  values: Record<string, FilterValue>;
+  /** The time grouping's unit, on a board that has one. */
+  unit?: AnalysisDateUnit;
 }
 
 export interface DashboardPanelBase {
@@ -137,10 +249,20 @@ export type DashboardViewPanel = DashboardViewPanelBase &
     | { owned: OwnedView; instanceId?: never }
   );
 
-/** Maps a dashboard field onto a field of the referenced definition. */
+/**
+ * Wires a board filter to a field of the panel's view: the filter narrows
+ * the panel through that field. A panel not wired to a filter is not
+ * narrowed by it, and says so (D22 F「不受此筛选影响」).
+ */
 export interface PanelBinding {
   globalField: string;
   panelField: string;
+  /**
+   * Made by auto-connect — the field has the name and the type of one the
+   * author wired by hand on another panel (D22 G) — rather than chosen for
+   * this panel. Left out for a binding the author chose.
+   */
+  auto?: true;
 }
 
 /**
@@ -177,7 +299,10 @@ export interface DashboardViewConfig extends ViewConfigBase {
   columns: typeof DASHBOARD_GRID_COLUMNS;
   /** In the order the tab bar shows them; see `DashboardTab`. */
   tabs: DashboardTab[];
+  /** The board's filters, in the order the filter bar shows them. */
   fields: DashboardField[];
+  /** The board's time grouping; a board without one leaves it out. */
+  timeGrouping?: DashboardTimeGrouping;
   panels: DashboardPanel[];
 }
 

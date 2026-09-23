@@ -131,6 +131,8 @@ interface DashboardEditExtensions {
 
 **批 B1 落地了 A～E 背后的模型与运行时**：24 列与旧布局迁移、标签页、板内分析视图与「另存为视图」、展示覆盖、标题卡片（[model.md#dashboard-配置](../model.md#dashboard-配置)）；搭板子的命令 `DashboardEditing`，编辑中按草稿实时重跑、保存才写回；保存只被整板 error 挡；动手后上浮压紧；同名面板编号（[runtime.md#dashboard](../runtime.md#dashboard)）。**批 B2 落地了 A、B、D 的界面**，已改写成上一节的现状；B3 做标签栏、「在仪表盘里新建分析」的大对话框、展示覆盖的编辑与「另存为视图」，从「扩展」接进来。
 
+**批 C1 落地了 F、G 背后的模型与运行时**：五种筛选类型、默认值、必填、多值、值从哪来、时间粒度、接线与自动连接、「不受影响」的答案（[model.md#dashboard-配置](../model.md#dashboard-配置)）；筛选此刻的值是读者的、改了就跑、必填永不为空、时间粒度只换定义允许的、候选值取自接上的字段（[runtime.md#dashboard](../runtime.md#dashboard)）。宿主经 `DashboardWorkbench` 的 `initialFilters`／`onFiltersChange` 把值写进自己的地址——打开那一刻也说一声，与 `initialTab`／`onTabChange` 同一个样子，包本身从不碰地址（见 test/dashboardWorkbench.test.tsx「opens under the filters a host keeps in its address, and tells it what they hold (D22 F)」）。筛选条与接线的界面随批 C2。
+
 三条贯穿的原则：**读与搭分开**（平时不可拖、点不坏，「编辑」进入搭的状态，「完成」保存、「取消」放弃，系统仪表盘只有「另存为」）；**一个概念一种样子**（追问菜单、可视化面板、条件编辑器、候选值全部复用分析与记录视图的部件）；**说清作用范围**（每个筛选作用到哪些面板、哪个面板不受它影响，在面板上看得到）。
 
 - **A 编辑模式与「添加」**——**已落地**（批 B2，见上文「搭板子」；「新建分析…」的对话框批 B3）；「筛选 ＋」随批 C。

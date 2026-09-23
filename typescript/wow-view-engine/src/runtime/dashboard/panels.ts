@@ -27,7 +27,13 @@ import type {
   ViewInstance,
   ViewKind,
 } from '../../model/index.js';
-import { migrateDashboardConfig, panelTab } from '../../dashboard/index.js';
+import {
+  migrateDashboardConfig,
+  panelTab,
+  type FilterReach,
+} from '../../dashboard/index.js';
+import type { PanelGrouping } from './grouping.js';
+import type { PanelChild } from './children.js';
 import { resultIssues } from '../source.js';
 import type { DataViewRuntime } from '../viewRuntime.js';
 
@@ -50,6 +56,15 @@ export interface DashboardPanelState {
    * its tab is (D22 E, only the tab on screen runs).
    */
   waiting: boolean;
+  /**
+   * What each of the board's filters does to it, by filter name
+   * (`filterReach`): wired, and through which field, or not and why. Empty
+   * for a content panel; a data panel whose view is not known yet answers
+   * for its wires alone.
+   */
+  reach: Readonly<Record<string, FilterReach>>;
+  /** What the board's time grouping does to it; see `PanelGrouping`. */
+  grouping: PanelGrouping;
 }
 
 /**
@@ -160,6 +175,25 @@ export function panelIssues(
   ];
 }
 
+/**
+ * The panels with one child's panel re-issued from what the child says now
+ * (`panelIssues`), or `null` when nothing changed — the child is not the
+ * one on screen for its panel, or it says what the panel already does.
+ */
+export function reissued(
+  panels: readonly DashboardPanelState[],
+  child: Pick<PanelChild, 'index' | 'own' | 'runtime'> | undefined,
+): DashboardPanelState[] | null {
+  const at = panels.findIndex(panel => panel.runtime === child?.runtime);
+  if (!child || at < 0) return null;
+  const current = panels[at];
+  const issues = panelIssues(child.index, child.own, child.runtime);
+  if (dequal(issues, current.issues)) return null;
+  const next = [...panels];
+  next[at] = { ...current, issues };
+  return next;
+}
+
 /** A child's issues, addressed from the dashboard's config. */
 export function atPanel(index: number, issues: readonly Issue[]): Issue[] {
   return issues.map(found => ({
@@ -187,6 +221,8 @@ export function samePanels(
         panel.runtime === other.runtime &&
         panel.tab === other.tab &&
         panel.waiting === other.waiting &&
+        panel.grouping === other.grouping &&
+        dequal(panel.reach, other.reach) &&
         dequal(panel.issues, other.issues)
       );
     })

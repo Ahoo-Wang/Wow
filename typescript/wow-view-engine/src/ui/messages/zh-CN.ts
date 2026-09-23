@@ -1180,6 +1180,18 @@ export const zhCN: ViewMessages = {
   'dashboard.field.duplicate': '筛选字段 {field} 声明了两次。',
   'dashboard.field.name-empty': '筛选字段需要一个名称。',
   'dashboard.field.name-invalid': '{field} 不是可用的字段名。',
+  'dashboard.field.not-multiple': '筛选 {field} 只能选一个值，这里有好几个。',
+  'dashboard.field.options-empty':
+    '筛选 {field} 从自己列的一组值里选，但这一组还是空的。',
+  'dashboard.field.required-no-default':
+    '筛选 {field} 是必填的，永远要有值，所以需要一个默认值。',
+  'dashboard.fields.too-many': '一个仪表盘最多放 {max} 个筛选。',
+  'dashboard.filter.unknown': '这个仪表盘没有筛选 {field}。',
+  'dashboard.grouping.kept':
+    '这个面板保留自己的时间粒度：它的数据不能按整板选的粒度分组。',
+  'dashboard.grouping.unit-duplicate': '时间粒度里 {unit} 出现了两次。',
+  'dashboard.grouping.unit-unknown': '{unit} 不是这个仪表盘提供的时间粒度。',
+  'dashboard.grouping.units-empty': '时间粒度里没有可选的粒度。',
   'dashboard.grid.unsupported':
     '这个仪表盘的布局用的栅格在这里画不出来；面板按 {columns} 列摆放。',
   'dashboard.heading.too-long': '一个标题最多 {max} 个字符。',
