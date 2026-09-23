@@ -905,12 +905,13 @@ export const WithActions: Story = {
 };
 
 /**
- * 批量命令跑完之后那一条：它说清结果，并且活得比它作用的那份选择久。
+ * 批量命令从按下到落定，工作台在行的上方说清它：跑到第几条、结局是什么、为什么
+ * 有的没做成，而没做成的那几行仍选着——它们就是还要处理的行。
  *
- * 宿主只写了命令与按钮，剩下的（在途、结局、刷新、选择怎么办）都来自
- * `useBulkCommand` 与 `BulkOutcomeStrip`。这一条待出库的订单里没有已取消的，
- * 所以读到的是「全做完」那一档；清掉选择之后工具栏左端的徽章与 bulk 槽位一起
- * 收走，而结局条还在——它画在工作台旁边，正是为了这一刻。
+ * 宿主只写了「导出一单」这一件事，其余（几条一起跑、进度、逐条原因、选择怎么办、
+ * 刷新）都来自 `useBulkCommand`，那一条由工作台画在结果区（`record.bulk`）。先在
+ * 待出库订单里全选导出，全都做成：选择放开，那一条还在；再到「全部订单」全选导出，
+ * 已取消的 SO-1002 被拒：那一条说出拒绝的原因与条数，SO-1002 仍选着。
  */
 export const BulkOutcomeOutlivesTheSelection: Story = {
   ...DisplayWithActions,
@@ -920,6 +921,14 @@ export const BulkOutcomeOutlivesTheSelection: Story = {
     await waitFor(() =>
       expect(readColumn(table, '订单号')).toEqual(PENDING_BY_AMOUNT),
     );
+    const line = (state: 'running' | 'settled') =>
+      waitFor(() => {
+        const found = canvasElement.querySelector<HTMLElement>(
+          `[data-slot="bulk-status"][data-state="${state}"]`,
+        );
+        expect(found).not.toBeNull();
+        return found!;
+      });
 
     await userEvent.click(
       canvas.getByLabelText(zhCN['label.record.select-all']),
@@ -929,39 +938,61 @@ export const BulkOutcomeOutlivesTheSelection: Story = {
     );
 
     // While it runs the button is disabled, so a second press cannot send a
-    // second write over the same rows.
+    // second write over the same rows, and the line counts as it goes.
     await expect(
       canvas.getByRole('button', { name: '导出所选' }),
     ).toBeDisabled();
+    const running = await line('running');
+    await expect(
+      within(running).getByRole('button', { name: zhCN['label.bulk.stop'] }),
+    ).toBeVisible();
 
-    const outcome = await waitFor(() => {
-      const line = canvasElement.querySelector<HTMLElement>(
-        '[data-slot="bulk-outcome"]',
-      );
-      expect(line).not.toBeNull();
-      return line!;
-    });
+    const done = await line('settled');
     // A run everything took is a note, not an interruption.
-    await expect(outcome).toHaveAttribute('role', 'status');
-    await expect(outcome).toHaveAttribute('data-tone', 'info');
-    await expect(outcome).toHaveTextContent(
+    await expect(done).toHaveAttribute('role', 'status');
+    await expect(done).toHaveAttribute('data-tone', 'info');
+    await expect(done).toHaveTextContent(
       say('label.bulk.done', { done: PENDING_BY_AMOUNT.length }),
     );
-
-    // The selection it acted on is gone with it — and the line is not.
+    // Everything took it, so the selection is let go — and the line is not.
     await expect(canvas.queryByRole('button', { name: '导出所选' })).toBeNull();
-
-    // Nothing expires on its own; the one way out is the button on the line.
     await userEvent.click(
-      within(outcome).getByRole('button', {
-        name: zhCN['label.bulk.dismiss'],
-      }),
+      within(done).getByRole('button', { name: zhCN['label.bulk.dismiss'] }),
     );
     await waitFor(() =>
       expect(
-        canvasElement.querySelector('[data-slot="bulk-outcome"]'),
+        canvasElement.querySelector('[data-slot="bulk-status"]'),
       ).toBeNull(),
     );
+
+    // Over every order, the cancelled one is refused: its reason is said
+    // with how many gave it, and it is the one row left selected.
+    await userEvent.click(canvas.getByRole('button', { name: /^全部订单/ }));
+    await waitFor(() =>
+      expect(readColumn(canvas.getByRole('table'), '订单号')).toContain(
+        'SO-1002',
+      ),
+    );
+    await userEvent.click(
+      canvas.getByLabelText(zhCN['label.record.select-all']),
+    );
+    await userEvent.click(
+      await canvas.findByRole('button', { name: '导出所选' }),
+    );
+    const partial = await line('settled');
+    await expect(partial).toHaveAttribute('data-tone', 'warning');
+    await expect(partial).toHaveTextContent(
+      say('label.bulk.reason', { reason: '已取消的订单不能导出。', count: 1 }),
+    );
+    await expect(partial).toHaveTextContent(zhCN['label.bulk.left']);
+    await waitFor(() =>
+      expect(
+        canvas.getByLabelText(say('label.record.select', { key: 'SO-1002' })),
+      ).toBeChecked(),
+    );
+    await expect(
+      canvas.getByLabelText(say('label.record.select', { key: 'SO-1001' })),
+    ).not.toBeChecked();
   },
 };
 

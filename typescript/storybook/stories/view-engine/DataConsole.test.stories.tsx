@@ -109,11 +109,15 @@ export const DataConsole: Story = {
     // Retrying one from its row prepares it, says so, and the row shows it.
     const within1 = await rowMenu(canvas, 'EF-1');
     await userEvent.click(within1.item('重试'));
-    await expect(
-      await canvas.findByText(/重试/, {
-        selector: '[data-slot="bulk-outcome"] *',
-      }),
-    ).toBeVisible();
+    // The workbench says what the command came to, above the rows.
+    const settled = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="bulk-status"][data-state="settled"]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    await expect(settled).toHaveTextContent('重试 · 1 项已完成');
     await waitFor(() =>
       expect(readColumn(table, '状态')).toEqual([
         '已准备重试',

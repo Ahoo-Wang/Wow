@@ -287,6 +287,8 @@ export interface RecordTableController {
   /** Selects every row of the current result, or clears the selection. */
   toggleAll(): void;
   clearSelection(): void;
+  /** Picks exactly these rows, in this order. */
+  select(keys: readonly RecordKey[]): void;
 
   /**
    * Paged sources only; a cursor source has no page numbers to jump to. A
@@ -635,6 +637,10 @@ export function useRecordTable(
     toggle,
     toggleAll,
     clearSelection: useCallback(() => runtime?.select([]), [runtime]),
+    select: useCallback(
+      (keys: readonly RecordKey[]) => runtime?.select([...keys]),
+      [runtime],
+    ),
 
     // Page numbers only mean something to a paged source.
     goTo: useCallback(

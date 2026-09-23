@@ -20,6 +20,18 @@ export const bulkMessages = {
   'label.bulk.done': '{done} done',
   'label.bulk.partial': '{done} done, {failed} failed',
   'label.bulk.failed': '{failed} failed',
+  'label.bulk.skipped': '{skipped} not run',
+  // One of the source's reasons, and how many records gave it.
+  'label.bulk.reason': '{reason} ({count})',
+  'label.bulk.more-reasons': '{count} more reasons',
+  'label.bulk.more-reasons-one': 'one more reason',
+  // What was not done stays selected, ready to be dealt with.
+  'label.bulk.left': 'the rest stay selected',
+  'label.bulk.running': 'Running {done} of {total}',
+  'label.bulk.running-failed': 'Running {done} of {total}, {failed} failed',
+  // Stopping starts nothing more; what is in flight still lands.
+  'label.bulk.stop': 'Stop',
+  'label.bulk.stopping': 'Stopping…',
   // Nothing here expires on its own, so every outcome carries its own way
   // out — the same one a refused write offers, in the same words.
   'label.bulk.dismiss': 'Dismiss',

@@ -557,6 +557,8 @@ const RESULT_SLOTS = {
   empty: '[&>[data-slot=record-empty]]:my-6',
   /** Cards keep the frame's padding; a table is what runs to the edge. */
   cards: '[&>[data-slot=record-cards]]:p-3',
+  /** A host command's line sits where the query strip does, and as it does. */
+  bulk: '[&>[data-slot=bulk-status]]:m-3',
 } as const;
 
 /** One part of a kind's result, by the job it does inside the frame. */

@@ -61,6 +61,7 @@ import {
   type ExportedRows,
 } from './exportRows.js';
 import { fetchRecord } from './fetchRecord.js';
+import { pageAfterShrink } from '../record/index.js';
 import type { WriteState } from './write.js';
 import type { DashboardRuntime } from './dashboardRuntime.js';
 
@@ -483,7 +484,12 @@ export class DataViewRuntime<
       refresh: () => this.refresh(),
       // A panel inside a dashboard is timed by the board, so it holds its own
       // timer for good; otherwise it is held while its one request is in flight.
-      holding: () => !this.autoRefresh || this.state.query.status === 'loading',
+      // A selection holds it too: a refresh can move or drop the very rows
+      // someone has picked to act on.
+      holding: () =>
+        !this.autoRefresh ||
+        this.state.query.status === 'loading' ||
+        this.state.selection.length > 0,
       release: () => this.runner.cancel(this.id),
     });
   }
@@ -579,8 +585,10 @@ export class DataViewRuntime<
    */
   refresh(): void {
     if (this.disposed || !this.appliedAdmitted) return;
-    // A refresh returns to the first page; the selection keeps whatever rows survive.
-    this.pageTarget = firstPageOf(this.context.definition);
+    // A refresh reads the page the reader is on again — the timer's, the
+    // button's and the one a command asks for after writing alike: sending
+    // them to the first page lost their place in a list they were working
+    // through. The selection keeps whatever rows survive.
     this.execute({ keepSelection: true });
   }
 
@@ -764,6 +772,14 @@ export class DataViewRuntime<
     keepSelection: boolean,
   ): void {
     if (!this.isCurrent(requestId)) return;
+    // A page the result shrank out from under lands on the last page there
+    // is, rather than on an empty page with rows before it.
+    const back = this.pageAfterShrink(data);
+    if (back !== null) {
+      this.pageTarget = { index: back };
+      this.execute({ keepSelection });
+      return;
+    }
     const receivedAt = this.environment.now().getTime();
     const result = { config, own, data, receivedAt };
     const selection = keepSelection
@@ -774,6 +790,16 @@ export class DataViewRuntime<
       result,
       ...(selection === this.state.selection ? {} : { selection }),
     });
+  }
+
+  private pageAfterShrink(data: ProjectedView): number | null {
+    const target = this.pageTarget;
+    if (data.kind !== 'record' || !target || !('index' in target)) return null;
+    return pageAfterShrink(
+      data.view.paging,
+      target.index,
+      data.view.rows.length,
+    );
   }
 
   private retainSelection(data: ProjectedView): RecordKey[] {

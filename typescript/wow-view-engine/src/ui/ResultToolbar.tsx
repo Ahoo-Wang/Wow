@@ -254,6 +254,7 @@ export function ResultToolbar({
             keys: table.selection,
             runtime,
             clearSelection: table.clearSelection,
+            select: table.select,
             refresh: table.refresh,
           })}
         </div>

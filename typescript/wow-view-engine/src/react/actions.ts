@@ -49,6 +49,8 @@ export interface RecordBulkActionContext {
   runtime: RecordViewRuntime;
   /** Selection survives a refresh, so an action that consumed it says so. */
   clearSelection(): void;
+  /** Picks exactly these rows — what a command leaves for the reader. */
+  select(keys: readonly RecordKey[]): void;
   refresh(): void;
 }
 

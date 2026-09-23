@@ -124,3 +124,21 @@ export function cursorPaging(nextCursor: string | null): CursorPaging {
 export function clampPage(paging: PagedPaging, index: number): number {
   return Math.max(1, Math.min(Math.floor(index), paging.pages ?? index));
 }
+
+/**
+ * Where a page that came back empty belongs instead: the last page there
+ * now is, when the rows it counted left the result under it — a refresh
+ * after a command took rows out, on the last page of a shrinking result.
+ * `null` when the page is where the reader belongs: it holds rows, it is
+ * the first, or the pages are not counted.
+ */
+export function pageAfterShrink(
+  paging: RecordPaging,
+  index: number,
+  rows: number,
+): number | null {
+  if (rows > 0 || index <= 1) return null;
+  if (paging.mode !== 'paged' || paging.pages === undefined) return null;
+  const last = Math.max(1, paging.pages);
+  return last < index ? last : null;
+}

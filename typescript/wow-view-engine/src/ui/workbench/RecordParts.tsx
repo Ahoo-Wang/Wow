@@ -19,6 +19,7 @@ import {
   useRecordExport,
   useRecordDetail,
   useRecordTable,
+  type BulkCommand,
   type RecordActionSlots,
   type RecordExportScope,
   type WorkbenchController,
@@ -37,6 +38,7 @@ import { RecordTable, type RecordCell } from '../RecordTable.js';
 import { RecordDetail } from '../record/RecordDetail.js';
 import { NO_RELEASE, type ReleasedPins } from '../record/pinCap.js';
 import { ResultToolbar } from '../ResultToolbar.js';
+import { BulkStatus } from '../BulkStatus.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import type { ViewMessages } from '../messages.js';
 import { featuresOf, type WorkbenchFeatures } from '../features.js';
@@ -59,6 +61,14 @@ export interface RecordViewProps {
    * the workbench, not to the way of looking somebody saved.
    */
   actions?: RecordActionSlots;
+  /**
+   * The host's bulk command (`useBulkCommand`), whose progress and outcome
+   * the workbench says above the rows, where a failed query is said. The
+   * command outlives the selection it ran over — the toolbar's bulk slot
+   * goes with the selection — so its line belongs to the result, not to
+   * the slot that started it.
+   */
+  bulk?: BulkCommand;
   /**
    * Renders one cell of the table; the default reads it as the column says.
    *
@@ -138,7 +148,7 @@ const CSV_TYPE = 'text/csv;charset=utf-8';
  * *record* view's parts: the frame is shared by three kinds, and one shared
  * frame that names one kind's slots is the `if` D18-1 means to do without.
  */
-const RESULT_SLOTS = resultSlots('caption', 'empty', 'cards');
+const RESULT_SLOTS = resultSlots('caption', 'empty', 'cards', 'bulk');
 
 /**
  * What makes a record view a record view: the condition band it edits in,
@@ -155,6 +165,7 @@ export function RecordParts({
   optionsFor,
   features,
   actions,
+  bulk,
   renderCell,
   selectable,
   emptyTitle,
@@ -343,6 +354,7 @@ export function RecordParts({
     ),
     result: (
       <>
+        {bulk && <BulkStatus command={bulk} />}
         {table.layout === 'card' ? (
           <RecordCards
             table={table}

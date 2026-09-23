@@ -21,14 +21,9 @@ import {
 import {
   useBulkCommand,
   type BulkCommand,
-  type BulkOutcome,
   type RecordActionSlots,
 } from '@ahoo-wang/fetcher-view-engine/react';
-import {
-  BulkOutcomeStrip,
-  DataWorkbench,
-  ViewSurface,
-} from '@ahoo-wang/fetcher-view-engine/ui';
+import { DataWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
 // View Engine's own button, so the host's commands sit in its toolbar rather
 // than beside it — exactly what an application does with the action slots.
 import { Button } from '@/ui/components/button';
@@ -350,30 +345,12 @@ function RecordWorkbenchDemo({
    */
   wide?: boolean;
 }) {
-  // The whole of a host's bulk action that is not its own command: in
-  // flight, what it came to, and what that does to the selection.
-  const exportSelected = useBulkCommand(exportOrders);
+  // The whole of a host's bulk command that is not what it does to one
+  // order: records a few at a time, how far it has come, the reasons, and
+  // what that leaves selected — said by the workbench above the rows.
+  const exportSelected = useBulkCommand();
   const workbench = (
     <>
-      {/* Where a bulk outcome goes: beside the workbench, not in the toolbar
-          slot that raised it. The run clears the selection, the toolbar's
-          bulk slot lives only while there is one, and an outcome that went
-          down with the selection it reported on would never be read. Its own
-          `ViewSurface` is what carries this package's wording and theme to a
-          component mounted outside the workbench. */}
-      {exportSelected.outcome && (
-        <ViewSurface
-          {...(english ? {} : HOST_LANGUAGE)}
-          className="px-3 pt-3"
-          theme={theme}
-        >
-          <BulkOutcomeStrip
-            outcome={exportSelected.outcome}
-            onDismiss={exportSelected.dismiss}
-            title={EXPORT_SELECTED}
-          />
-        </ViewSurface>
-      )}
       <StoryEngine
         create={() => {
           if (opening)
@@ -495,6 +472,7 @@ function RecordWorkbenchDemo({
                 : withActions
                   ? businessActions(exportSelected)
                   : undefined,
+              bulk: withActions ? exportSelected : undefined,
             }}
           />
         )}
@@ -612,22 +590,18 @@ const EXPORT_SELECTED = '导出所选';
 
 /**
  * The host's own command, which is the only part `useBulkCommand` leaves to
- * it: the orders that can be exported, and the ones that cannot.
- *
- * A cancelled order is not exportable, so selecting the whole of 「全部」
- * gives the partial reading rather than the tidy one. That is on purpose —
- * a bulk command over real records is partly refused more often than not.
+ * it: what exporting does to one order. A cancelled order is not
+ * exportable, so selecting the whole of 「全部」 gives the partial reading
+ * rather than the tidy one. That is on purpose — a bulk command over real
+ * records is partly refused more often than not.
  */
-function exportOrders(keys: readonly RecordKey[]): Promise<BulkOutcome> {
-  const failed = keys.filter(key => CANCELLED_ORDERS.includes(String(key)));
-  return new Promise(resolve =>
+function exportOrder(key: RecordKey): Promise<void> {
+  return new Promise((resolve, reject) =>
     setTimeout(
       () =>
-        resolve({
-          succeeded: keys.filter(key => !failed.includes(key)),
-          failed,
-          reason: failed.length > 0 ? '已取消的订单不能导出。' : undefined,
-        }),
+        CANCELLED_ORDERS.includes(String(key))
+          ? reject(new Error('已取消的订单不能导出。'))
+          : resolve(),
       400,
     ),
   );
@@ -646,7 +620,8 @@ function businessActions(exportSelected: BulkCommand): RecordActionSlots {
       </Button>
     ),
     // The selection goes to `run` as it came from the slot: the keys it is
-    // over, and the two ways of showing what it did to them. The button's
+    // over, and the ways of leaving the refused ones picked and reading the
+    // page again. The button's
     // name does not change while it runs — a control that renames itself
     // mid-press is one a screen reader has lost — so the spinner is drawn
     // and `aria-busy` is what says so. The registry's `Spinner` carries its
@@ -657,11 +632,16 @@ function businessActions(exportSelected: BulkCommand): RecordActionSlots {
       <Button
         variant="outline"
         size="sm"
-        aria-busy={exportSelected.pending}
-        disabled={exportSelected.pending}
-        onClick={() => exportSelected.run(selection)}
+        aria-busy={exportSelected.running !== null}
+        disabled={exportSelected.running !== null}
+        onClick={() =>
+          exportSelected.run(selection, {
+            title: EXPORT_SELECTED,
+            each: exportOrder,
+          })
+        }
       >
-        {exportSelected.pending && (
+        {exportSelected.running !== null && (
           <Spinner
             data-icon="inline-start"
             role={undefined}

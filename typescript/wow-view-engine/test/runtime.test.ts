@@ -408,27 +408,57 @@ describe('DataViewRuntime paging and selection', () => {
     expect(runtime.getSnapshot().selection).toEqual(['o-1']);
   });
 
-  it('returns to the first page on refresh and keeps the rows that survive', async () => {
-    const paged = vi
-      .fn()
-      .mockResolvedValueOnce({ total: 2, list: [...ROWS] })
-      .mockResolvedValueOnce({ total: 1, list: [ROWS[1]] });
+  /**
+   * A refresh — the button, the timer, the one a command asks for after it
+   * wrote — reads the page the reader is on again. It used to go back to
+   * page 1, which lost an operator's place in a list they were working
+   * through page by page.
+   */
+  it('reads the page it is on again on refresh', async () => {
+    const paged = vi.fn().mockResolvedValue({ total: 45, list: [...ROWS] });
     const { runtime } = harness({ source: testSource({ paged }) });
 
     runtime.apply();
     await flush();
-    runtime.select(['o-1', 'o-2']);
-    runtime.page({ index: 2 });
+    runtime.page({ index: 3 });
     await flush();
     runtime.refresh();
     await flush();
 
     expect(paged).toHaveBeenLastCalledWith(
-      expect.objectContaining({ pagination: { index: 1, size: 20 } }),
+      expect.objectContaining({ pagination: { index: 3, size: 20 } }),
       undefined,
       expect.any(AbortController),
     );
-    expect(runtime.getSnapshot().selection).toEqual([]);
+  });
+
+  it('steps back to the last page there is when the result shrank under it', async () => {
+    const paged = vi
+      .fn()
+      .mockResolvedValueOnce({ total: 45, list: [...ROWS] })
+      .mockResolvedValueOnce({ total: 45, list: [...ROWS] })
+      // The rows of page 3 left the result: 30 remain, two pages.
+      .mockResolvedValueOnce({ total: 30, list: [] })
+      .mockResolvedValueOnce({ total: 30, list: [...ROWS] });
+    const { runtime } = harness({ source: testSource({ paged }) });
+
+    runtime.apply();
+    await flush();
+    runtime.page({ index: 3 });
+    await flush();
+    runtime.refresh();
+    await flush();
+
+    expect(paged).toHaveBeenLastCalledWith(
+      expect.objectContaining({ pagination: { index: 2, size: 20 } }),
+      undefined,
+      expect.any(AbortController),
+    );
+    const { result, query } = runtime.getSnapshot();
+    expect(query.status).toBe('success');
+    expect(
+      result?.data.kind === 'record' && result.data.view.rows,
+    ).toHaveLength(ROWS.length);
   });
 
   it('intersects the selection with the rows a refresh returned', async () => {
@@ -1001,6 +1031,24 @@ describe('DataViewRuntime auto refresh', () => {
     runtime.select([]);
 
     expect(clock.timers).toBe(1);
+  });
+
+  /**
+   * Picked rows are rows someone is about to act on; a refresh can move them
+   * to another page or out of the result. The clock waits until the
+   * selection is let go of.
+   */
+  it('holds the timer while rows are selected', async () => {
+    const { runtime } = harness({ config: refreshing });
+    runtime.apply();
+    await flush();
+    expect(runtime.getSnapshot().nextRefreshAt).not.toBeNull();
+
+    runtime.select(['o-1']);
+    expect(runtime.getSnapshot().nextRefreshAt).toBeNull();
+
+    runtime.select([]);
+    expect(runtime.getSnapshot().nextRefreshAt).not.toBeNull();
   });
 
   it('runs no timer when the config asks for none', async () => {

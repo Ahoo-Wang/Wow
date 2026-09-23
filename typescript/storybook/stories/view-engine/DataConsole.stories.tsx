@@ -13,7 +13,7 @@
 
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { EllipsisVerticalIcon } from 'lucide-react';
-import { useCallback, useRef, useState } from 'react';
+import { useState } from 'react';
 import { RecoverableType } from '@ahoo-wang/fetcher-wow';
 import type {
   RecordKey,
@@ -23,14 +23,11 @@ import type {
 import {
   useBulkCommand,
   type BulkCommand,
+  type BulkRun,
   type BulkSelection,
   type RecordActionSlots,
 } from '@ahoo-wang/fetcher-view-engine/react';
-import {
-  BulkOutcomeStrip,
-  DataWorkbench,
-  ViewSurface,
-} from '@ahoo-wang/fetcher-view-engine/ui';
+import { DataWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
 // View Engine's own primitives, so the added commands look like its own.
 import { Button } from '@/ui/components/button';
 import {
@@ -51,7 +48,6 @@ import {
   compensationCommands,
   compensationFetcher,
   createCompensationEngine,
-  type CommandOutcome,
   type CompensationCommands,
 } from './compensation.js';
 import { HOST_LANGUAGE } from './fixtures.js';
@@ -70,12 +66,6 @@ import '@ahoo-wang/fetcher-view-engine/styles.css';
  * using, not for CI (its regression twin runs over a recorded service). The
  * commands really write — point `host` at a test environment.
  */
-
-/** One command over some executions, named so the outcome can say which. */
-interface ChosenCommand {
-  title: string;
-  run(id: string): Promise<CommandOutcome>;
-}
 
 const RECOVERABILITY: [RecoverableType, string][] = [
   [RecoverableType.RECOVERABLE, '可恢复'],
@@ -131,11 +121,11 @@ function RowCommands({
   row: RecordRow;
   commands: CompensationCommands;
   bulk: BulkCommand;
-  onRun(chosen: ChosenCommand, keys: readonly RecordKey[]): void;
+  onRun(command: BulkRun, keys: readonly RecordKey[]): void;
 }) {
   const can = standing(row);
-  const run = (title: string, command: ChosenCommand['run']) =>
-    onRun({ title, run: command }, [row.key]);
+  const run = (title: string, each: (id: string) => Promise<void>) =>
+    onRun({ title, each: key => each(String(key)) }, [row.key]);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -144,7 +134,7 @@ function RowCommands({
             label={`${String(row.key)} 的操作`}
             variant="ghost"
             size="icon-xs"
-            disabled={bulk.pending}
+            disabled={bulk.running !== null}
           />
         }
       >
@@ -187,16 +177,16 @@ function BulkCommands({
   selection: BulkSelection;
   commands: CompensationCommands;
   bulk: BulkCommand;
-  onRun(chosen: ChosenCommand, selection: BulkSelection): void;
+  onRun(command: BulkRun, selection: BulkSelection): void;
 }) {
   const count = selection.keys.length;
-  const run = (title: string, command: ChosenCommand['run']) =>
-    onRun({ title, run: command }, selection);
+  const run = (title: string, each: (id: string) => Promise<void>) =>
+    onRun({ title, each: key => each(String(key)) }, selection);
   return (
     <>
       <Button
         size="sm"
-        disabled={bulk.pending}
+        disabled={bulk.running !== null}
         onClick={() => run('重试', commands.retry)}
       >
         {count > 0 ? `重试 ${count} 条` : '重试'}
@@ -204,7 +194,7 @@ function BulkCommands({
       <Button
         variant="outline"
         size="sm"
-        disabled={bulk.pending}
+        disabled={bulk.running !== null}
         onClick={() => run('强制重试', commands.forceRetry)}
       >
         强制重试
@@ -212,7 +202,11 @@ function BulkCommands({
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
-            <Button variant="outline" size="sm" disabled={bulk.pending} />
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={bulk.running !== null}
+            />
           }
         >
           标记可恢复性
@@ -234,10 +228,14 @@ function BulkCommands({
  *
  * The console adds no markup of its own besides the commands: everything a
  * business page needs — what to do to one execution or a selection of them,
- * and what came of it — reaches the workbench through `record.actions`, which
- * is the route an application takes when the default look is right and only
- * the commands are its own. A row and a selection run through one
- * `useBulkCommand`, so one outcome strip says what either did.
+ * and what came of it — reaches the workbench through `record`, which is the
+ * route an application takes when the default look is right and only the
+ * commands are its own. What a command does to one execution is all the
+ * console writes; `useBulkCommand` runs it over the rows a few at a time,
+ * says how far it has come and why each refusal happened, and leaves the
+ * refused rows selected — and the workbench says all of that above the rows
+ * (`record.bulk`). A row and a selection run through the one command, so
+ * one line says what either did.
  */
 function ConsoleWorkbench({
   engine,
@@ -246,41 +244,16 @@ function ConsoleWorkbench({
   engine: ViewEngine;
   commands: CompensationCommands;
 }) {
-  // Which command was pressed. The hook holds one runner and these are a menu
-  // of them, so the choice is made at the press and the runner stays stable.
-  const chosen = useRef<ChosenCommand | null>(null);
-  const [title, setTitle] = useState<string>('');
-  const bulk = useBulkCommand(
-    useCallback(async (keys: readonly RecordKey[]) => {
-      const outcomes = await Promise.all(
-        keys.map(key => chosen.current!.run(String(key))),
-      );
-      const failed = outcomes.filter(found => found.error !== null);
-      return {
-        succeeded: outcomes
-          .filter(found => found.error === null)
-          .map(found => found.id),
-        failed: failed.map(found => found.id),
-        // One reason, not a list: the strip is a line, and the keys of every
-        // record that failed are on the outcome for a host that wants more.
-        reason: failed[0]?.error ?? undefined,
-      };
-    }, []),
-  );
-  const start = (command: ChosenCommand, selection: BulkSelection) => {
-    chosen.current = command;
-    setTitle(command.title);
-    bulk.run(selection);
-  };
-
+  const bulk = useBulkCommand();
   const actions: RecordActionSlots = {
     row: ({ row, refresh }) => (
       <RowCommands
         row={row}
         commands={commands}
         bulk={bulk}
+        // A row's command leaves the selection as it found it.
         onRun={(command, keys) =>
-          start(command, { keys: [...keys], refresh, clearSelection() {} })
+          bulk.run({ keys: [...keys], refresh, select() {} }, command)
         }
       />
     ),
@@ -289,31 +262,18 @@ function ConsoleWorkbench({
         selection={selection}
         commands={commands}
         bulk={bulk}
-        onRun={start}
+        onRun={(command, picked) => bulk.run(picked, command)}
       />
     ),
   };
 
   return (
-    <div className="flex min-w-0 flex-col">
-      {/* What the last command came to. It outlives the rows it acted on, so
-          it sits beside the workbench rather than inside its toolbar. */}
-      {bulk.outcome && (
-        <ViewSurface {...HOST_LANGUAGE} className="px-3 pt-3">
-          <BulkOutcomeStrip
-            outcome={bulk.outcome}
-            onDismiss={bulk.dismiss}
-            title={title}
-          />
-        </ViewSurface>
-      )}
-      <DataWorkbench
-        engine={engine}
-        definitionId={EXECUTION_FAILED}
-        {...HOST_LANGUAGE}
-        record={{ actions }}
-      />
-    </div>
+    <DataWorkbench
+      engine={engine}
+      definitionId={EXECUTION_FAILED}
+      {...HOST_LANGUAGE}
+      record={{ actions, bulk }}
+    />
   );
 }
 

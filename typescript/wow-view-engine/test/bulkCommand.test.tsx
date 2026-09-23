@@ -10,303 +10,322 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 import {
   act,
   cleanup,
   render,
   renderHook,
-  waitFor,
   screen,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { RecordKey } from '../src/index.js';
 import {
+  failureReasons,
   useBulkCommand,
-  type BulkOutcome,
+  type BulkCommand,
   type BulkSelection,
 } from '../src/react/index.js';
-import { BulkOutcomeStrip } from '../src/ui/index.js';
+import { BulkStatus } from '../src/ui/index.js';
 
 afterEach(cleanup);
 
 /** The slot's context, narrowed to what a command is given. */
 function selection(keys: RecordKey[] = ['a', 'b']) {
-  const clearSelection = vi.fn<() => void>();
+  const select = vi.fn<(keys: readonly RecordKey[]) => void>();
   const refresh = vi.fn<() => void>();
-  return { keys, clearSelection, refresh } satisfies BulkSelection;
+  return { keys, select, refresh } satisfies BulkSelection;
 }
 
-/** A command whose settling this test decides. */
-function deferred(): {
-  command: (keys: readonly RecordKey[]) => Promise<BulkOutcome>;
-  seen: RecordKey[][];
-  resolve(outcome: BulkOutcome): Promise<void>;
-  reject(error: unknown): Promise<void>;
-} {
-  const seen: RecordKey[][] = [];
-  let settle: (outcome: BulkOutcome) => void = () => undefined;
-  let fail: (error: unknown) => void = () => undefined;
-  return {
-    seen,
-    command: keys => {
-      seen.push([...keys]);
-      return new Promise<BulkOutcome>((resolveWith, rejectWith) => {
-        settle = resolveWith;
-        fail = rejectWith;
-      });
-    },
-    resolve: outcome =>
-      act(async () => {
-        settle(outcome);
-        await Promise.resolve();
-      }),
-    reject: error =>
-      act(async () => {
-        fail(error);
-        await Promise.resolve();
-      }),
+/** A command over records whose every settling this test decides. */
+function gated() {
+  const started: RecordKey[] = [];
+  const gates = new Map<
+    RecordKey,
+    { resolve(): void; reject(error: unknown): void }
+  >();
+  const each = (key: RecordKey) => {
+    started.push(key);
+    return new Promise<void>((resolve, reject) => {
+      gates.set(key, { resolve, reject });
+    });
   };
+  const settle = (key: RecordKey, error?: unknown) =>
+    act(async () => {
+      const gate = gates.get(key)!;
+      if (error === undefined) gate.resolve();
+      else gate.reject(error);
+      // The worker reads the reason, reports, and takes the next record.
+      for (let turn = 0; turn < 6; turn++) await Promise.resolve();
+    });
+  return { started, each, settle, command: { title: 'Retry', each } };
+}
+
+function refusal(errorMsg: string) {
+  return Object.assign(new Error('Request failed with status code 400'), {
+    exchange: {
+      response: { status: 400 },
+      extractResult: () => Promise.resolve({ errorCode: 'Refused', errorMsg }),
+    },
+  });
 }
 
 describe('useBulkCommand', () => {
-  it('is pending from the press until the command settles', async () => {
-    const held = deferred();
-    const { result } = renderHook(() => useBulkCommand(held.command));
+  it('runs a handful of records at a time, and the next as one lands', async () => {
+    const { result } = renderHook(() => useBulkCommand({ concurrency: 2 }));
+    const run = gated();
 
-    expect(result.current.pending).toBe(false);
-    act(() => result.current.run(selection()));
-    expect(result.current.pending).toBe(true);
-    expect(held.seen).toEqual([['a', 'b']]);
+    act(() => result.current.run(selection(['a', 'b', 'c']), run.command));
 
-    await held.resolve({ succeeded: ['a', 'b'], failed: [] });
-
-    expect(result.current.pending).toBe(false);
+    // Two in flight, not three: a selection is not sent in one burst.
+    expect(run.started).toEqual(['a', 'b']);
+    expect(result.current.running?.progress).toEqual({
+      total: 3,
+      done: 0,
+      failed: 0,
+    });
+    await run.settle('a');
+    expect(run.started).toEqual(['a', 'b', 'c']);
+    expect(result.current.running?.progress.done).toBe(1);
   });
 
-  it('hands the command the keys the selection was on', async () => {
-    const held = deferred();
-    const { result } = renderHook(() => useBulkCommand(held.command));
+  it('refuses a second run while one is in flight, and runs nothing over no rows', () => {
+    const { result } = renderHook(() => useBulkCommand());
+    const run = gated();
 
-    act(() => result.current.run(selection(['x', 7])));
-    await held.resolve({ succeeded: ['x', 7], failed: [] });
+    act(() => result.current.run(selection([]), run.command));
+    expect(result.current.running).toBeNull();
 
-    expect(held.seen).toEqual([['x', 7]]);
+    act(() => result.current.run(selection(['a']), run.command));
+    act(() => result.current.run(selection(['b']), run.command));
+    expect(run.started).toEqual(['a']);
   });
 
-  it('refuses a second run while one is in flight', async () => {
-    const held = deferred();
-    const { result } = renderHook(() => useBulkCommand(held.command));
+  it('lets go of the selection and reads the page again when every record took it', async () => {
+    const { result } = renderHook(() => useBulkCommand());
+    const run = gated();
+    const picked = selection(['a', 'b']);
 
-    act(() => result.current.run(selection()));
-    act(() => result.current.run(selection(['c'])));
+    act(() => result.current.run(picked, run.command));
+    await run.settle('a');
+    await run.settle('b');
 
-    expect(held.seen).toEqual([['a', 'b']]);
-    await held.resolve({ succeeded: ['a', 'b'], failed: [] });
-  });
-
-  it('runs nothing at all over an empty selection', () => {
-    const held = deferred();
-    const { result } = renderHook(() => useBulkCommand(held.command));
-
-    act(() => result.current.run(selection([])));
-
-    expect(held.seen).toEqual([]);
-    expect(result.current.pending).toBe(false);
-  });
-
-  it('refreshes and clears the selection when nothing failed', async () => {
-    const held = deferred();
-    const picked = selection();
-    const { result } = renderHook(() => useBulkCommand(held.command));
-
-    act(() => result.current.run(picked));
-    await held.resolve({ succeeded: ['a', 'b'], failed: [] });
-
+    expect(result.current.running).toBeNull();
     expect(result.current.outcome).toEqual({
+      title: 'Retry',
       succeeded: ['a', 'b'],
       failed: [],
+      skipped: [],
     });
+    expect(picked.select).toHaveBeenCalledWith([]);
     expect(picked.refresh).toHaveBeenCalledTimes(1);
-    expect(picked.clearSelection).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps the selection when anything failed, and still refreshes', async () => {
-    const held = deferred();
-    const picked = selection();
-    const { result } = renderHook(() => useBulkCommand(held.command));
+  /**
+   * The records that refused are the ones still to be dealt with, so they
+   * stay picked — each with the source's own reason, read off what the
+   * command threw, rather than one reason said for all of them.
+   */
+  it('keeps the refused records selected, each with the source’s reason', async () => {
+    const { result } = renderHook(() => useBulkCommand());
+    const run = gated();
+    const picked = selection(['a', 'b', 'c']);
 
-    act(() => result.current.run(picked));
-    await held.resolve({ succeeded: ['a'], failed: ['b'], reason: 'locked' });
+    act(() => result.current.run(picked, run.command));
+    await run.settle('a', refusal('Retry limit reached.'));
+    await run.settle('b');
+    await run.settle('c', 'Not a thing an Error is');
 
-    expect(result.current.outcome).toEqual({
+    expect(result.current.outcome?.failed).toEqual([
+      { key: 'a', reason: 'Retry limit reached.' },
+      { key: 'c', reason: 'Not a thing an Error is' },
+    ]);
+    expect(picked.select).toHaveBeenCalledWith(['a', 'c']);
+    expect(picked.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts nothing more once stopped, and leaves what never ran selected', async () => {
+    const { result } = renderHook(() => useBulkCommand({ concurrency: 1 }));
+    const run = gated();
+    const picked = selection(['a', 'b', 'c']);
+
+    act(() => result.current.run(picked, run.command));
+    act(() => result.current.stop());
+    expect(result.current.running?.stopping).toBe(true);
+    // What is in flight still lands: a write already sent is not taken back.
+    await run.settle('a');
+
+    expect(run.started).toEqual(['a']);
+    expect(result.current.outcome).toMatchObject({
       succeeded: ['a'],
-      failed: ['b'],
-      reason: 'locked',
+      skipped: ['b', 'c'],
     });
-    expect(picked.refresh).toHaveBeenCalledTimes(1);
-    expect(picked.clearSelection).not.toHaveBeenCalled();
+    expect(picked.select).toHaveBeenCalledWith(['b', 'c']);
   });
 
-  it('reads a thrown command as every record failing, in its own words', async () => {
-    const held = deferred();
-    const picked = selection();
-    const { result } = renderHook(() => useBulkCommand(held.command));
+  it('takes the outcome down when dismissed, and when the next run starts', async () => {
+    const { result } = renderHook(() => useBulkCommand());
+    const run = gated();
 
-    act(() => result.current.run(picked));
-    await held.reject(new Error('the service is down'));
-
-    expect(result.current.outcome).toEqual({
-      succeeded: [],
-      failed: ['a', 'b'],
-      reason: 'the service is down',
-    });
-    expect(picked.clearSelection).not.toHaveBeenCalled();
-  });
-
-  it('reads a refused command by what the service said', async () => {
-    const held = deferred();
-    const { result } = renderHook(() => useBulkCommand(held.command));
-
-    act(() => result.current.run(selection(['a'])));
-    await held.reject(
-      Object.assign(new Error('Request failed with status code 400'), {
-        exchange: {
-          response: { status: 400 },
-          extractResult: () =>
-            Promise.resolve({
-              errorCode: 'IllegalState',
-              errorMsg: 'Retry threshold reached.',
-            }),
-        },
-      }),
-    );
-
-    await waitFor(() =>
-      expect(result.current.outcome?.reason).toBe('Retry threshold reached.'),
-    );
-  });
-
-  it('reads a thrown non-error as its own text', async () => {
-    const held = deferred();
-    const { result } = renderHook(() => useBulkCommand(held.command));
-
-    act(() => result.current.run(selection(['a'])));
-    await held.reject('refused');
-
-    expect(result.current.outcome?.reason).toBe('refused');
-  });
-
-  it('takes the outcome down when it is dismissed', async () => {
-    const held = deferred();
-    const { result } = renderHook(() => useBulkCommand(held.command));
-
-    act(() => result.current.run(selection()));
-    await held.resolve({ succeeded: ['a', 'b'], failed: [] });
+    act(() => result.current.run(selection(['a']), run.command));
+    await run.settle('a');
     act(() => result.current.dismiss());
-
     expect(result.current.outcome).toBeNull();
-  });
 
-  it('drops the outcome the moment the next run starts', async () => {
-    const held = deferred();
-    const { result } = renderHook(() => useBulkCommand(held.command));
-
-    act(() => result.current.run(selection()));
-    await held.resolve({ succeeded: ['a'], failed: ['b'] });
-    act(() => result.current.run(selection(['c'])));
-
+    act(() => result.current.run(selection(['b']), run.command));
+    await run.settle('b');
+    act(() => result.current.run(selection(['c']), run.command));
     expect(result.current.outcome).toBeNull();
   });
 
   it('reports nothing once the host that asked has gone', async () => {
-    const held = deferred();
-    const picked = selection();
-    const { result, unmount } = renderHook(() => useBulkCommand(held.command));
+    const { result, unmount } = renderHook(() => useBulkCommand());
+    const run = gated();
+    const picked = selection(['a']);
 
-    act(() => result.current.run(picked));
+    act(() => result.current.run(picked, run.command));
     unmount();
-    await held.resolve({ succeeded: ['a', 'b'], failed: [] });
+    await run.settle('a');
 
+    expect(picked.select).not.toHaveBeenCalled();
     expect(picked.refresh).not.toHaveBeenCalled();
-    expect(picked.clearSelection).not.toHaveBeenCalled();
   });
 });
 
-describe('BulkOutcomeStrip', () => {
-  it('draws nothing before a command has settled', () => {
-    const { container } = render(
-      <BulkOutcomeStrip outcome={null} onDismiss={vi.fn()} />,
+describe('failureReasons', () => {
+  it('counts each reason, the commonest first', () => {
+    expect(
+      failureReasons([
+        { key: 'a', reason: 'Locked.' },
+        { key: 'b', reason: 'Gone.' },
+        { key: 'c', reason: 'Locked.' },
+      ]),
+    ).toEqual([
+      { reason: 'Locked.', count: 2 },
+      { reason: 'Gone.', count: 1 },
+    ]);
+  });
+});
+
+/** A command as the line reads it, in the state a test puts it in. */
+function command(state: Partial<BulkCommand>): BulkCommand {
+  return {
+    run: vi.fn(),
+    stop: vi.fn(),
+    dismiss: vi.fn(),
+    running: null,
+    outcome: null,
+    ...state,
+  };
+}
+
+describe('BulkStatus', () => {
+  it('draws nothing while no command has run', () => {
+    const { container } = render(<BulkStatus command={command({})} />);
+    expect(container.innerHTML).toBe('');
+  });
+
+  it('says how far a command has come, with the way to stop it', async () => {
+    const stop = vi.fn();
+    render(
+      <BulkStatus
+        command={command({
+          stop,
+          running: {
+            title: 'Retry',
+            progress: { total: 40, done: 12, failed: 2 },
+            stopping: false,
+          },
+        })}
+      />,
     );
 
-    expect(container.innerHTML).toBe('');
+    const line = screen.getByRole('status');
+    expect(line.textContent).toContain('Retry · Running 12 of 40, 2 failed');
+    await userEvent.click(screen.getByRole('button', { name: 'Stop' }));
+    expect(stop).toHaveBeenCalledTimes(1);
   });
 
   it('counts a run that everything took, as a note', () => {
     render(
-      <BulkOutcomeStrip
-        outcome={{ succeeded: ['a', 'b', 'c'], failed: [] }}
-        onDismiss={vi.fn()}
+      <BulkStatus
+        command={command({
+          outcome: {
+            title: 'Retry',
+            succeeded: ['a', 'b', 'c'],
+            failed: [],
+            skipped: [],
+          },
+        })}
       />,
     );
 
     const line = screen.getByRole('status');
-    expect(line.textContent).toContain('3 done');
+    expect(line.textContent).toContain('Retry · 3 done');
+    expect(line.textContent).not.toContain('selected');
     expect(line.getAttribute('data-tone')).toBe('info');
   });
 
-  it('counts both sides of a partly refused run, as a warning', () => {
+  it('gives the commonest reasons with their counts, and says the rest stay selected', () => {
     render(
-      <BulkOutcomeStrip
-        outcome={{ succeeded: ['a'], failed: ['b', 'c'], reason: 'Locked.' }}
-        onDismiss={vi.fn()}
+      <BulkStatus
+        command={command({
+          outcome: {
+            title: 'Retry',
+            succeeded: ['a'],
+            failed: [
+              { key: 'b', reason: 'Locked.' },
+              { key: 'c', reason: 'Locked.' },
+              { key: 'd', reason: 'Gone.' },
+              { key: 'e', reason: 'Late.' },
+            ],
+            skipped: ['f'],
+          },
+        })}
       />,
     );
 
     const line = screen.getByRole('status');
-    expect(line.textContent).toContain('1 done, 2 failed');
-    // The service's own words, after the counts and on the same line.
-    expect(line.textContent).toContain('Locked.');
     expect(line.getAttribute('data-tone')).toBe('warning');
+    expect(line.textContent).toContain(
+      '1 done, 4 failed · 1 not run · Locked. (2) · Gone. (1) · one more reason · the rest stay selected',
+    );
   });
 
   it('interrupts a reader when nothing took', () => {
     render(
-      <BulkOutcomeStrip
-        outcome={{ succeeded: [], failed: ['a', 'b'] }}
-        onDismiss={vi.fn()}
+      <BulkStatus
+        command={command({
+          outcome: {
+            title: 'Retry',
+            succeeded: [],
+            failed: [{ key: 'a', reason: 'Locked.' }],
+            skipped: [],
+          },
+        })}
       />,
     );
 
-    const line = screen.getByRole('alert');
-    expect(line.textContent).toContain('2 failed');
-    expect(line.getAttribute('data-tone')).toBe('error');
-  });
-
-  it('says which command it is about when the host names one', () => {
-    render(
-      <BulkOutcomeStrip
-        outcome={{ succeeded: ['a'], failed: [] }}
-        onDismiss={vi.fn()}
-        title="Export"
-      />,
-    );
-
-    expect(screen.getByRole('status').textContent).toContain('Export · 1 done');
+    expect(screen.getByRole('alert').getAttribute('data-tone')).toBe('error');
   });
 
   it('offers the one way out, and nothing expires on its own', async () => {
-    const onDismiss = vi.fn();
+    const dismiss = vi.fn();
     render(
-      <BulkOutcomeStrip
-        outcome={{ succeeded: ['a'], failed: [] }}
-        onDismiss={onDismiss}
+      <BulkStatus
+        command={command({
+          dismiss,
+          outcome: {
+            title: 'Retry',
+            succeeded: ['a'],
+            failed: [],
+            skipped: [],
+          },
+        })}
       />,
     );
 
     await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
-
-    expect(onDismiss).toHaveBeenCalledTimes(1);
+    expect(dismiss).toHaveBeenCalledTimes(1);
   });
 });

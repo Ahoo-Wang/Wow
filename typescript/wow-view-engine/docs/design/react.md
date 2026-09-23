@@ -269,17 +269,19 @@ RecordActionSlots { global?; bulk?; row? }
 ## useBulkCommand
 
 ```ts
-useBulkCommand(command: (keys) => Promise<BulkOutcome>): BulkCommand;
-BulkOutcome { succeeded: RecordKey[]; failed: RecordKey[]; reason? }
-BulkCommand { run(selection); pending; outcome; dismiss() }
+useBulkCommand(options?: { concurrency?: number }): BulkCommand;   // 默认 4
+BulkCommand { run(selection, { title, each(key) }); stop(); running; outcome; dismiss() }
+running  { title; progress: { total; done; failed }; stopping } | null
+BulkOutcome { title; succeeded: RecordKey[]; failed: { key; reason }[]; skipped: RecordKey[] }
 ```
 
-批量动作里**不属于宿主的那一半**：在途标志、这一趟的结局、结局对选择的处置。宿主只留下命令本身与那颗按钮。此前每个宿主都把这一半重写一遍（补偿控制台是 87 行），三份写法在「失败了选择还清不清」上各不相同。
+批量命令里**不属于宿主的那一半**全在这里：宿主只写「对**一条**记录做什么」（`each(key)`：做成就 resolve，被拒就抛错）与那颗按钮。此前宿主要自己把整份选择一次 `Promise.all` 发出去、自己拼结局、自己挑一句原因代表所有失败，补偿控制台为此还得用 ref 记住按的是哪条命令；三件事做得各不相同，也都做得不对。
 
-- **`run` 收选择，钩子收命令**。钩子调在工作台**外面**——结局比它作用的那份选择活得久，而工具栏的 bulk 槽位随选择一起卸掉，一个跟着选择消失的结局没人读得到。选择只有槽位给得出（`RecordBulkActionContext`），所以它走 `run(selection)`：`keys`、`clearSelection`、`refresh` 三样正是命令需要的（`BulkSelection`）。
-- **一次只跑一趟**：命令是写入不是读取，在途时第二次 `run` 直接不受理，按钮同时按 `pending` 禁用；空选择什么也不跑。
-- **跑完必刷新**：记录被改过了，屏幕上那一份就是旧的。
-- **只有一条都没失败才清选择**：有失败就原样留着——用户下一步就是对同几行再来一次，让他从刚刷新的一页里手工重挑是最糟的时刻。
-- **抛出的命令读作整份失败**，`reason` 取它自己那句话：报不出逐条结果的命令也已经报了。
-- 结局不自行消失，`dismiss()` 是它唯一的出口；下一趟 `run` 一开始也把它换掉。
-- `/ui` 的 `BulkOutcomeStrip` 按这个结局画那一条（[ui/README.md#动作槽位](ui/README.md#动作槽位)）。（见 test/bulkCommand.test.tsx）
+- **几条几条地跑**（`concurrency`，默认 4）：命令是写入，一百条选择一次发出去就是一百个写同时砸在一个服务上；一条落定，下一条才开始。
+- **进度**：跑的时候 `running.progress` 说做完几条、失败几条、一共几条。
+- **可停止**：`stop()` 之后不再开始新的，已经发出去的照常落地（写出去的不收回）；没开始的记在 `skipped`。
+- **逐条原因**：`each` 抛出的东西交给 `sourceReason` 读出数据源自己的话（Wow 的错误体），宿主把错误原样抛出即可，不必自己措辞；`failureReasons` 按条数从多到少归并同一句原因。
+- **没做完的留着选中**：落定后选择**恰好**是被拒的与没开始的（按原选择顺序），全做成就放开——这些行正是下一步要处理的。随后刷新，刷新留在当前页（[runtime.md](runtime.md)）。
+- **一次只跑一趟**：在途时第二次 `run` 直接不受理；空选择什么也不跑；宿主已卸载时照常跑完（记录已经收到命令），只是不再汇报。
+- **选择的接口**：`run` 收 `BulkSelection`（`keys`、`select`、`refresh`，都来自 bulk 槽位的 `RecordBulkActionContext`）；行上的命令传 `select() {}`，不动选择。
+- 结局不自行消失，`dismiss()` 是它唯一的出口；下一趟 `run` 一开始也把它换掉。**状态条由工作台画**：宿主把钩子交给 `record.bulk`，`/ui` 的 `BulkStatus` 在工具栏与行之间（查询失败条所在的地方）说出进度与结局——结局比它作用的那份选择活得久，而 bulk 槽位随选择一起卸掉，所以它属于结果区而不属于槽位；宿主不再需要在工作台外面自己套一层 `ViewSurface` 来画它。（见 test/bulkCommand.test.tsx「useBulkCommand」「BulkStatus」）

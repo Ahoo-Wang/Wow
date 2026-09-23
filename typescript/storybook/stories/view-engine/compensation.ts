@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { ExchangeError, Fetcher, HttpMethod } from '@ahoo-wang/fetcher';
+import { Fetcher, HttpMethod } from '@ahoo-wang/fetcher';
 import {
   AggregationDateUnit,
   AggregationFunction,
@@ -22,7 +22,6 @@ import {
   ErrorCodes,
   RecoverableType,
   SnapshotQueryClient,
-  type CommandResult,
 } from '@ahoo-wang/fetcher-wow';
 import {
   DEFAULT_RUNTIME_LIMITS,
@@ -599,32 +598,13 @@ export function compensationFetcher(host: string): Fetcher {
   return new Fetcher({ baseURL: host });
 }
 
-/** What one command did to one record. */
-export interface CommandOutcome {
-  id: string;
-  error: string | null;
-}
-
-/**
- * Why Wow refused a command. It answers a refusal with a 400 whose body is the
- * command result, so the reason is in that body rather than in the HTTP error
- * fetcher throws; Wow's own compensation dashboard reads it the same way.
- */
-async function refusal(error: unknown): Promise<string> {
-  if (error instanceof ExchangeError) {
-    try {
-      const result = await error.exchange.extractResult<CommandResult>();
-      if (result.errorMsg) return `${result.errorCode}: ${result.errorMsg}`;
-    } catch {
-      // No command result to read: the HTTP error is all there is.
-    }
-  }
-  return error instanceof Error ? error.message : String(error);
-}
-
 /**
  * The compensation commands a failed execution takes. Each waits until the
- * snapshot reflects it, so a refresh right after shows the new state.
+ * snapshot reflects it, so a refresh right after shows the new state, and
+ * each throws when Wow refused it: a refusal is a 400 whose body is the
+ * command result, which the engine reads for Wow's own words
+ * (`sourceReason`); a result that came back refused without one is thrown
+ * in its own words.
  */
 export function compensationCommands(fetcher: Fetcher) {
   const client = new CommandClient({ basePath: AGGREGATE, fetcher });
@@ -632,25 +612,16 @@ export function compensationCommands(fetcher: Fetcher) {
     id: string,
     command: string,
     body: object = {},
-  ): Promise<CommandOutcome> => {
-    try {
-      const result = await client.send({
-        path: `{id}/${command}`,
-        method: HttpMethod.PUT,
-        urlParams: { path: { id } },
-        headers: { [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT },
-        body,
-      });
-      return {
-        id,
-        error:
-          result.errorCode === ErrorCodes.SUCCEEDED
-            ? null
-            : `${result.errorCode}: ${result.errorMsg}`,
-      };
-    } catch (error) {
-      return { id, error: await refusal(error) };
-    }
+  ): Promise<void> => {
+    const result = await client.send({
+      path: `{id}/${command}`,
+      method: HttpMethod.PUT,
+      urlParams: { path: { id } },
+      headers: { [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT },
+      body,
+    });
+    if (result.errorCode !== ErrorCodes.SUCCEEDED)
+      throw new Error(result.errorMsg || result.errorCode);
   };
   return {
     /** Wow's `prepare_compensation`: retry now, within the retry spec. */
