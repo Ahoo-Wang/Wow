@@ -71,11 +71,35 @@ export function useViewportFit(
     window.addEventListener('resize', measure);
     if (typeof ResizeObserver === 'undefined')
       return () => window.removeEventListener('resize', measure);
+    // What moves the port's top: the page growing (a host whose page is
+    // as tall as its content), and — inside a host that gives the workbench
+    // a fixed height, where the page never changes size — the blocks
+    // stacked above the result in its own column: an editor unfolding, the
+    // applied band arriving with the first result. The column's children
+    // are observed as well as the page, and re-observed when one mounts.
     const observer = new ResizeObserver(measure);
-    observer.observe(document.body);
+    const frame = node.closest<HTMLElement>('[data-slot="result-block"]');
+    const column = frame?.parentElement ?? null;
+    const watch = () => {
+      observer.disconnect();
+      observer.observe(document.body);
+      if (column)
+        for (const child of Array.from(column.children))
+          observer.observe(child);
+    };
+    watch();
+    const mounts =
+      column && typeof MutationObserver !== 'undefined'
+        ? new MutationObserver(() => {
+            watch();
+            measure();
+          })
+        : null;
+    if (column) mounts?.observe(column, { childList: true });
     return () => {
       window.removeEventListener('resize', measure);
       observer.disconnect();
+      mounts?.disconnect();
     };
   }, [port, enabled]);
 
@@ -103,4 +127,56 @@ function trailingChrome(element: HTMLElement): number {
       (parseFloat(style.borderBottomWidth) || 0);
   }
   return total;
+}
+
+/**
+ * How much of the port the rows leave empty, so the summaries can be drawn
+ * at its bottom rather than straight after the last row.
+ *
+ * The footer of a workbench stays at the bottom of the screen (`styles.css`,
+ * "A workbench fills the height its host gives it"): the port takes the room
+ * the parts above it left, three rows or thirty. The summary rows are the
+ * table's own footer, and they are sticky to the port's bottom only while
+ * the rows overflow it — with three rows they sat under the third, and the
+ * two footers of one result, the totals and the pagination, came apart with
+ * blank space between them (the user's 2026-09-23 review). The room between
+ * is given to a row of its own that draws nothing (`RecordTable`), which
+ * puts the totals where the pagination is.
+ *
+ * Measured, because a table cannot be told to push its footer down: height
+ * a table has beyond its rows is shared out among the rows, which would
+ * stretch every row instead. What is measured is the port's inner height
+ * against the table's without the room row, so the room it adds is never
+ * counted as rows. `0` while the rows fill the port, where nothing is empty,
+ * and wherever nothing can be measured (jsdom).
+ */
+export function useRoomBelowRows(
+  port: RefObject<HTMLElement | null>,
+  table: RefObject<HTMLElement | null>,
+  enabled: boolean,
+): number {
+  const [room, setRoom] = useState(0);
+
+  useLayoutEffect(() => {
+    const node = port.current;
+    const content = table.current;
+    if (!enabled || !node || !content || typeof window === 'undefined') return;
+    const measure = () => {
+      const filler = content.querySelector<HTMLElement>(
+        '[data-slot="row-room"]',
+      );
+      const rows = content.offsetHeight - (filler?.offsetHeight ?? 0);
+      const empty = Math.floor(node.clientHeight - rows);
+      setRoom(Number.isFinite(empty) && empty > 0 ? empty : 0);
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, [port, table, enabled]);
+
+  // Switched off, there is no room to give whatever was last measured.
+  return enabled ? room : 0;
 }

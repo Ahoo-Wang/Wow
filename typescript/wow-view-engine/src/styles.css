@@ -579,6 +579,71 @@
 }
 
 /*
+ * A workbench fills the height its host gives it, and the footer stays at
+ * the bottom (2026-09-23, borrowed from the legacy console).
+ *
+ * In page flow the result is sized by measuring: the table's scroll port is
+ * capped at the room left to the viewport's bottom (`useViewportFit`), and
+ * everything under it follows its content. Many rows put the pagination at
+ * the bottom of the screen; three rows, a loading page, an empty answer or
+ * an opened editor floated it into the middle — the one control an operator
+ * reaches for every page was somewhere different every page.
+ *
+ * A host that gives the workbench a height gets a column laid out by that
+ * height instead: `useFillsHost` marks the root `data-fills-host`, and the
+ * chain from the root to the table says what each part does with it — the
+ * chain the expanded view below draws, without the fixed position:
+ *
+ * - the view list and the work column each scroll on their own, so a long
+ *   list or a tall editor scrolls its column and not the host's page;
+ * - the result block takes whatever the parts above it left, and never less
+ *   than its own content (`flex: 1 0 auto`), so under a tall editor the
+ *   column scrolls rather than the block collapsing to its toolbar;
+ * - inside it, the table that is its own scroll port, or the cards, take the
+ *   height from a basis of nothing (`flex: 1 1 0`), never less than 12rem —
+ *   no viewport cap, which is the page-flow answer and would stop the table
+ *   short of a frame that reaches below the fold;
+ * - and the caption goes to the block's bottom edge (`margin-top: auto`),
+ *   whatever is above it: rows, cards, an empty answer, a chart.
+ *
+ * The summary rows follow the same rule inside the table: the room the rows
+ * leave is a row that draws nothing (`useRoomBelowRows`), so the totals sit
+ * above the pagination rather than under the last row.
+ */
+.fve-root[data-fills-host] > [data-slot='view-sidebar'],
+.fve-root[data-fills-host] > main {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.fve-root[data-fills-host] > main > [data-slot='result-block'] {
+  flex: 1 0 auto;
+}
+
+.fve-root[data-fills-host]
+  > main
+  [data-slot='result-block']
+  > :is([data-slot='record-table'][data-scrolls], [data-slot='record-cards']) {
+  flex: 1 1 0;
+  min-height: 12rem;
+  max-height: none;
+}
+
+.fve-root[data-fills-host]
+  > main
+  [data-slot='result-block']
+  > [data-slot='record-cards'] {
+  overflow-y: auto;
+}
+
+.fve-root[data-fills-host]
+  > main
+  [data-slot='result-block']
+  > [data-slot='record-pagination'] {
+  margin-top: auto;
+}
+
+/*
  * A view filling the screen, pinned where it already stands.
  *
  * Unlayered on purpose: it has to outrank whatever utility gave the surface

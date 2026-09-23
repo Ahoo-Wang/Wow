@@ -463,6 +463,7 @@ src/
       TitleBar.tsx            — The title bar's ruled-off block: `ViewHeader` with the host's actions behind a boundary and the view-level controls — the editor's toggle, the refresh, filling the screen
       Unopenable.tsx          — The work area when the chosen view cannot be opened
       useEditorFold.ts        — The editor's fold, per opening; `filled`
+      useFillsHost.ts         — Whether the host gave a height to fill (`data-fills-host`), which keeps the footer at the bottom
       useSidebarFold.ts       — The sidebar's fold, following the surface's width until the user presses
       useWorkbenchFolds.ts    — The shell's two folds as one hook: the list beside the view, the view filling the screen, and where a press sends focus
 ```

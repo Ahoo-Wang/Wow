@@ -803,6 +803,67 @@ export const ColumnsKeepTheirWidthAndRowsFillTheFrame: Story = {
 };
 
 /**
+ * 宿主给了定高，工作台就填满它：分页贴在底边，本页／全部合计贴在分页上面，行
+ * 少时空白留在表格里（2026-09-23，借鉴 legacy 控制台）。
+ *
+ * 从前结果区只是「最多长到视口底」：四行数据时合计紧跟第四行、分页紧跟合计，
+ * 两个页脚一起浮在半屏处，每换一页位置都不同。这里把工作台放进一个 640px 高的
+ * 宿主框里，量三件事：分页的下边就是结果框的下边，合计的下边就是表格滚动区的
+ * 下边，结果框的下边离宿主框底只剩工作列自己的内边距。
+ */
+export const FooterStaysAtTheBottom: Story = {
+  ...DisplayWithData,
+  decorators: [
+    Story => (
+      <div data-testid="host-frame" style={{ display: 'grid', height: 640 }}>
+        <Story />
+      </div>
+    ),
+  ],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = (await canvas.findByRole('table')) as HTMLTableElement;
+    await waitFor(() =>
+      expect(readColumn(table, '订单号')).toEqual(PENDING_BY_AMOUNT),
+    );
+    const host = canvas.getByTestId('host-frame');
+    const frame = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="result-block"]',
+    )!;
+    const port = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="record-table"]',
+    )!;
+    const pagination = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="record-pagination"]',
+    )!;
+    const bottom = (element: Element) => element.getBoundingClientRect().bottom;
+
+    // The frame reaches the host's bottom, less the work column's padding.
+    const main = frame.parentElement!;
+    const padding = parseFloat(getComputedStyle(main).paddingBottom);
+    await waitFor(() =>
+      expect(
+        Math.abs(bottom(frame) - (bottom(host) - padding)),
+      ).toBeLessThanOrEqual(1),
+    );
+    // The pagination is the frame's last row, at its bottom edge.
+    await expect(
+      Math.abs(bottom(pagination) - bottom(frame)),
+    ).toBeLessThanOrEqual(1);
+    // Four rows leave room, and the totals sit at the bottom of the port —
+    // beside the pagination — rather than under the last row.
+    await waitFor(() =>
+      expect(table.querySelector('[data-slot="row-room"]')).not.toBeNull(),
+    );
+    await expect(
+      Math.abs(bottom(table.tFoot!) - bottom(port)),
+    ).toBeLessThanOrEqual(1);
+    // The room row is not a row: the rows' own body still holds only rows.
+    await expect(table.tBodies[0].rows).toHaveLength(PENDING_BY_AMOUNT.length);
+  },
+};
+
+/**
  * P-22: the table's scroll port ends where the viewport does, so the two
  * summary rows and the pagination row are in view whenever there are more
  * rows than room — no matter how much title bar, tray and toolbar stand

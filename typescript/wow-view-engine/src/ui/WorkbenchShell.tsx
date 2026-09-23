@@ -43,6 +43,7 @@ import { StatusLine } from './workbench/StatusLine.js';
 import { TitleBar } from './workbench/TitleBar.js';
 import { Unopenable } from './workbench/Unopenable.js';
 import { filled, useEditorFold } from './workbench/useEditorFold.js';
+import { useFillsHost } from './workbench/useFillsHost.js';
 import { useWorkbenchFolds } from './workbench/useWorkbenchFolds.js';
 
 export interface WorkbenchShellProps {
@@ -359,6 +360,9 @@ export function WorkbenchShell({
     defaultSidebarOpen,
     onSidebarOpenChange,
   });
+  // Whether the host gave a height to fill, which is what keeps the footer
+  // at the bottom (`data-fills-host`, `styles.css`).
+  useFillsHost(surfaceRef);
 
   // Where the keyboard lands after a copy is created. The dialog it was made
   // in closes, and there is nothing left of it to return focus to — the
@@ -456,7 +460,11 @@ export function WorkbenchShell({
       messages={wording}
       locale={locale}
       timeZone={timeZone}
-      className="gap-0 md:flex-row"
+      // The height the host gives, when it gives one: the footer then sits
+      // at the bottom whatever the result holds (`useFillsHost`). An
+      // indefinite parent makes this `auto`, which is the page-flow layout
+      // it always was.
+      className="h-full gap-0 md:flex-row"
     >
       <SidebarColumn
         panel={panel}

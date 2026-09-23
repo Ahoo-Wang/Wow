@@ -45,7 +45,7 @@ import {
   stickyHead,
 } from './record/sticky.js';
 import { usePinnedCap, type ReleasedPins } from './record/pinCap.js';
-import { useViewportFit } from './record/fitViewport.js';
+import { useRoomBelowRows, useViewportFit } from './record/fitViewport.js';
 import { useOverflowing } from './record/overflow.js';
 import { cellText } from './display.js';
 import { cellValue } from './record/cells.js';
@@ -202,6 +202,15 @@ export function RecordTable({
   // beyond half the visible width the group is capped and the outermost
   // pins are let go, the config untouched (D17-4).
   const slots = useMemo(() => pinnedSlots(columns, layout), [columns, layout]);
+  // The room the rows leave in a port taller than them, so the summaries
+  // sit at its bottom beside the pagination rather than under the last row.
+  // Measured first: its observer is not the cap's, and a suite reaches for
+  // the cap's as the latest one created.
+  const room = useRoomBelowRows(
+    port,
+    element,
+    scrolls && table.summaries !== null && table.rows.length > 0,
+  );
   // Whether the middle really scrolls, which is what the held columns'
   // edges answer to (P-23). Asked before the cap, whose own observer a
   // test reaches for as the latest one created.
@@ -403,6 +412,24 @@ export function RecordTable({
             ))
           )}
         </TableBody>
+        {/* The room the rows leave, drawn as nothing: a body of its own so
+            the rows' body still holds only rows, hidden from a reader, and
+            one cell across every column so it adds no column of its own. */}
+        {room > 0 && (
+          <tbody data-slot="row-room" aria-hidden>
+            <tr>
+              <td
+                colSpan={
+                  columns.length +
+                  (selectable ? 1 : 0) +
+                  (rowActions === undefined ? 0 : 1) +
+                  1
+                }
+                style={{ height: room, padding: 0, border: 0 }}
+              />
+            </tr>
+          </tbody>
+        )}
         {summaries.length > 0 && (
           <SummaryRows
             rows={summaries}
