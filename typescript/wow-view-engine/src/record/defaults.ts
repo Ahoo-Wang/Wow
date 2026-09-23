@@ -19,6 +19,7 @@ import {
   type RecordViewConfig,
   type RuntimeLimits,
   type ViewDefinition,
+  nearestPageSize,
 } from '../model/index.js';
 import { emptyFilter } from '../filter/index.js';
 
@@ -49,8 +50,14 @@ export function defaultRecordConfig(
     .filter(field => !isFieldlessKind(field.kind))
     .map(field => field.name);
   const defaults = capability.defaults ?? {};
+  const layout = defaults.layout ?? capability.layouts[0];
+  // A view that opens as cards starts on the card ladder's nearest rung, so
+  // its first page is whole rows; a size the definition names is its own.
   const pageSize = Math.min(
-    defaults.pageSize ?? limits.defaultPageSize,
+    defaults.pageSize ??
+      (layout === 'card'
+        ? nearestPageSize(limits.cardPageSizes, limits.defaultPageSize)
+        : limits.defaultPageSize),
     limits.maxPageSize,
   );
 
@@ -65,7 +72,7 @@ export function defaultRecordConfig(
     // member that is `undefined` is not the same object as no member at
     // all — which is what `dirty` compares, and what a store round-trips.
     ...(defaults.summaries ? { summaries: defaults.summaries } : {}),
-    layout: defaults.layout ?? capability.layouts[0],
+    layout,
     table: defaults.table ?? {
       columns: names.slice(0, limits.defaultColumns).map(field => ({ field })),
     },

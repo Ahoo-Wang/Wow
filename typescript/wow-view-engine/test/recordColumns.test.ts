@@ -31,7 +31,7 @@ import {
   repairing,
   summariesOf,
 } from '../src/react/recordEdits.js';
-import type { ViewRuntimeState } from '../src/index.js';
+import { nearestPageSize, type ViewRuntimeState } from '../src/index.js';
 import { recordConfig } from './fixtures.js';
 
 /**
@@ -183,6 +183,20 @@ describe('offeredPageSizes', () => {
   it('offers the whole ladder without a ceiling, and no size for none', () => {
     expect(offeredPageSizes([20, 50], undefined, 0)).toEqual([20, 50]);
     expect(offeredPageSizes([], undefined, 0)).toEqual([]);
+  });
+});
+
+describe('nearestPageSize', () => {
+  it('moves to the nearest rung, a tie to the larger one', () => {
+    expect(nearestPageSize([12, 24, 48, 96], 20)).toBe(24);
+    expect(nearestPageSize([12, 24, 48, 96], 50)).toBe(48);
+    expect(nearestPageSize([12, 24, 48, 96], 18)).toBe(24);
+    expect(nearestPageSize([10, 20, 50, 100], 24)).toBe(20);
+  });
+
+  it('leaves a size on the ladder, or with no ladder, as it is', () => {
+    expect(nearestPageSize([12, 24], 24)).toBe(24);
+    expect(nearestPageSize([], 20)).toBe(20);
   });
 });
 

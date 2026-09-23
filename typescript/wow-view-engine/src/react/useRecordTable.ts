@@ -23,8 +23,14 @@ import type {
   RecordSummary,
   SortDirection,
   SummaryFunction,
+  RuntimeLimits,
 } from '../model/index.js';
-import { columnHidden, columnPinned, isFieldlessKind } from '../model/index.js';
+import {
+  columnHidden,
+  columnPinned,
+  isFieldlessKind,
+  nearestPageSize,
+} from '../model/index.js';
 import { recordColumns, recordSort, recordSummaries } from './recordDraft.js';
 import {
   reordered,
@@ -259,8 +265,10 @@ export interface RecordTableController {
   setSummary(field: string, fn: SummaryFunction | null): void;
   pageSize: number;
   /**
-   * Page sizes worth offering: the standard ladder, cut to what the runtime
-   * limits admit and with the current size folded in. A size above
+   * Page sizes worth offering: the layout's ladder — `limits.pageSizes` for
+   * a table, `limits.cardPageSizes` for cards, which are whole rows at every
+   * width — cut to what the runtime limits admit and with the current size
+   * folded in. A size above
    * `maxPageSize` is refused by `validateRecord`, so offering it would be
    * offering a way to break the view — and the saved size has to be in the
    * list whatever it is, or a select shows nothing at all.
@@ -476,6 +484,22 @@ export function useRecordTable(
     setLayout: useCallback(
       (layout: RecordLayout) => {
         if (!runtime) return;
+        // The page size moves to the nearest rung of the new layout's
+        // ladder in the same edit: a page of cards is whole rows, a page of
+        // a table is the product's ladder, and the two meet at their nearest
+        // (20 rows come back as 24 cards and go back as 20). A size already
+        // on the ladder stays. A new size is a new query, so it runs.
+        const current = runtime.getSnapshot().draft.pageSize;
+        const size = nearestPageSize(
+          ladderOf(runtime.limits, layout).filter(
+            rung => rung <= runtime.limits.maxPageSize,
+          ),
+          current,
+        );
+        if (size !== current) {
+          editAndApply({ layout, pageSize: size });
+          return;
+        }
         runtime.edit({ layout });
         // Both layouts draw the same result, so switching normally needs
         // no query. A view whose saved layout the definition no longer
@@ -487,7 +511,7 @@ export function useRecordTable(
         if (state.result === null && state.query.status === 'idle')
           runtime.apply();
       },
-      [runtime],
+      [editAndApply, runtime],
     ),
     columnFields: useMemo(
       () => tableColumns.map(column => column.field),
@@ -620,11 +644,11 @@ export function useRecordTable(
     pageSizes: useMemo(
       () =>
         offeredPageSizes(
-          runtime?.limits.pageSizes ?? [],
+          ladderOf(runtime?.limits, state?.draft.layout ?? 'table'),
           runtime?.limits.maxPageSize,
           pageSize,
         ),
-      [pageSize, runtime],
+      [pageSize, runtime, state?.draft.layout],
     ),
     setPageSize: useCallback(
       (pageSize: number) => editAndApply({ pageSize }),
@@ -667,4 +691,13 @@ export function useRecordTable(
     }, [runtime, paging]),
     refresh: useCallback(() => runtime?.refresh(), [runtime]),
   };
+}
+
+/** The page-size ladder a layout offers from (`RuntimeLimits`). */
+function ladderOf(
+  limits: RuntimeLimits | undefined,
+  layout: RecordLayout,
+): readonly number[] {
+  if (!limits) return [];
+  return layout === 'card' ? limits.cardPageSizes : limits.pageSizes;
 }

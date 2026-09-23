@@ -60,6 +60,19 @@ export interface RuntimeLimits {
    */
   pageSizes: readonly number[];
   /**
+   * The page sizes the card layout offers from, cut and folded the same way.
+   *
+   * A page of cards is read in rows, and a page that is not a whole number
+   * of rows ends on a row with a gap in it — 50 cards three to a row is
+   * sixteen rows and a stray two (the user's 2026-09-23 review). The ladder
+   * is multiples of 12 because 12 is a whole number of rows at every width a
+   * grid can be: one to four cards per row, and the fewer columns a narrow
+   * screen falls back to. Switching the layout moves the page size to the
+   * nearest rung of the other ladder (`nearestPageSize`), so 20 rows of a
+   * table come back as 24 cards and go back as 20 rows.
+   */
+  cardPageSizes: readonly number[];
+  /**
    * The auto-refresh cadences a control offers from, in seconds, before the
    * two interval bounds cut them and the interval in force is folded in.
    *
@@ -93,6 +106,7 @@ export const DEFAULT_RUNTIME_LIMITS: Readonly<RuntimeLimits> = Object.freeze({
   maxFilterNodes: 256,
   maxDashboardPanels: 24,
   pageSizes: Object.freeze([10, 20, 50, 100]),
+  cardPageSizes: Object.freeze([12, 24, 48, 96]),
   refreshIntervals: Object.freeze([30, 60, 300]),
   defaultPageSize: 20,
   defaultColumns: 8,
@@ -104,3 +118,22 @@ export const DEFAULT_RUNTIME_LIMITS: Readonly<RuntimeLimits> = Object.freeze({
  * stays well below it, so a long interval never collapses into a tight loop.
  */
 export const MAX_TIMER_DELAY_MS = 2_147_483_647;
+
+/**
+ * The rung of a ladder nearest a page size, for a layout switch that moves
+ * a view from one ladder to the other (`RuntimeLimits.cardPageSizes`). A
+ * tie goes to the larger rung, so a switch never takes rows away where it
+ * could give one more; a size already on the ladder, or an empty ladder,
+ * leaves the size as it is.
+ */
+export function nearestPageSize(
+  ladder: readonly number[],
+  size: number,
+): number {
+  if (ladder.length === 0 || ladder.includes(size)) return size;
+  return ladder.reduce((best, rung) => {
+    const gap = Math.abs(rung - size);
+    const bestGap = Math.abs(best - size);
+    return gap < bestGap || (gap === bestGap && rung > best) ? rung : best;
+  });
+}

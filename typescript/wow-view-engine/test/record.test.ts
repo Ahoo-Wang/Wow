@@ -120,6 +120,27 @@ describe('defaultRecordConfig', () => {
     expect(validateRecord(definition(), built, builtinFieldKinds)).toEqual([]);
   });
 
+  /** A view that opens as cards starts on whole rows. */
+  it('starts a card view on the card ladder', () => {
+    const cards = definition({
+      record: { rowKey: 'id', paging: 'paged', layouts: ['card', 'table'] },
+    });
+    expect(defaultRecordConfig(cards)).toMatchObject({
+      layout: 'card',
+      pageSize: 24,
+    });
+    // A size the definition names is its own, whatever the layout.
+    const named = definition({
+      record: {
+        rowKey: 'id',
+        paging: 'paged',
+        layouts: ['card'],
+        defaults: { pageSize: 30 },
+      },
+    });
+    expect(defaultRecordConfig(named).pageSize).toBe(30);
+  });
+
   it('prefers the definition defaults and stays inside the page limit', () => {
     const def = definition({
       record: {

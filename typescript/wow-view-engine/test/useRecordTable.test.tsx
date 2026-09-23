@@ -155,6 +155,24 @@ describe('useRecordTable', () => {
     expect(result.current.pageSizes).toEqual([10, 20, 25, 50]);
   });
 
+  /**
+   * A page of cards is read in rows: the card ladder is whole rows at every
+   * width (multiples of 12), and a layout switch moves the size to the
+   * nearest rung of the other ladder in the same edit — and back again.
+   */
+  it('offers whole rows of cards, and moves the size between ladders', async () => {
+    const result = await openTable();
+    expect(result.current.table.pageSizes).toEqual([10, 20, 50, 100]);
+
+    act(() => result.current.table.setLayout('card'));
+    await waitFor(() => expect(result.current.table.pageSize).toBe(24));
+    expect(result.current.table.pageSizes).toEqual([12, 24, 48, 96]);
+
+    act(() => result.current.table.setLayout('table'));
+    await waitFor(() => expect(result.current.table.pageSize).toBe(20));
+    expect(result.current.table.pageSizes).toEqual([10, 20, 50, 100]);
+  });
+
   it('offers the layouts the definition allows', async () => {
     const result = await openTable();
 

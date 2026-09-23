@@ -384,7 +384,9 @@ describe('setLayout', () => {
 
   /** A view that is already running only changes shape; the rows stay put. */
   it('does not re-query a view that already has a result', async () => {
-    const result = await openTable();
+    // At a size the card ladder holds, so nothing but the layout changes;
+    // a size the switch has to move is a new query (useRecordTable.test).
+    const result = await openTable({ pageSize: 24 });
     const before = result.current.runtime!.getSnapshot().result;
 
     act(() => result.current.table.setLayout('card'));

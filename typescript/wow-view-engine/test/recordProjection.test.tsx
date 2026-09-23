@@ -333,6 +333,9 @@ describe('the query a view runs', () => {
             scope: 'personal',
             revision: '1',
             config: config({
+              // On both ladders' terms: a size the card ladder also holds,
+              // so a layout switch is a layout switch and nothing more.
+              pageSize: 24,
               table: {
                 columns: [
                   { field: 'state.status' },
