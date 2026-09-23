@@ -30,6 +30,7 @@ import { FILLER_COLUMN, FillerCell, FillerHead } from './record/Filler.js';
 import { useRoomBelowRows } from './record/roomBelowRows.js';
 import { SortableHeader } from './record/SortableHeader.js';
 import { stickyBand } from './record/sticky.js';
+import { onlyWhereText } from './summary.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 import type { AnalysisView } from '../analysis/index.js';
 import type { RecordSort } from '../model/index.js';
@@ -95,6 +96,7 @@ export function AnalysisTable({ view, onPick, sorting }: AnalysisTableProps) {
   const ids = useId();
   const approximateId = `${ids}-approximate`;
   const additiveId = `${ids}-additive`;
+  const conditionId = (index: number) => `${ids}-condition-${index}`;
   /**
    * The rows are peers, and a hundred peers are one Tab stop (A9).
    *
@@ -141,6 +143,44 @@ export function AnalysisTable({ view, onPick, sorting }: AnalysisTableProps) {
   const widths = useHeldWidths(titled);
   if (view.rows.length === 0) return <AnalysisEmpty />;
 
+  /**
+   * What a header says about its column beyond its name, in its tooltip and
+   * to a reader. A percentile's 「≈」 is a sign, and 「近似值」 is the word
+   * behind it: Wow computes percentiles approximately, and nothing else on
+   * the row says so (D20 口径). A conditioned metric's 「· 已发运」 is the
+   * short of its condition, and 「只算 状态 属于 已发运」 the whole of it —
+   * said even when the analyst's own name took the header's place.
+   */
+  const headerNote = (
+    column: AnalysisView['columns'][number],
+    index: number,
+  ): { id: string; text: string } | undefined => {
+    const notes = [
+      ...(column.fn === 'PERCENTILE'
+        ? [
+            {
+              id: approximateId,
+              text: messages.label('label.analysis.approximate'),
+            },
+          ]
+        : []),
+      ...(column.condition
+        ? [
+            {
+              id: conditionId(index),
+              text: onlyWhereText(column.condition.items, messages, display),
+            },
+          ]
+        : []),
+    ];
+    return notes.length === 0
+      ? undefined
+      : {
+          id: notes.map(note => note.id).join(' '),
+          text: notes.map(note => note.text).join(' · '),
+        };
+  };
+
   const columns = titled.map(({ column, title }, index) => {
     const head = headerColumnOf(
       column,
@@ -151,6 +191,7 @@ export function AnalysisTable({ view, onPick, sorting }: AnalysisTableProps) {
     return {
       column,
       head,
+      note: headerNote(column, index),
       // What every cell of the column wears: its width, held (a width on its
       // own is a suggestion an automatic layout overrides), cut with an
       // ellipsis where a value is longer, and the right edge for numbers.
@@ -203,24 +244,14 @@ export function AnalysisTable({ view, onPick, sorting }: AnalysisTableProps) {
       <Table ref={table}>
         <TableHeader {...stickyBand('top')}>
           <TableRow>
-            {columns.map(({ column, head }) => (
+            {columns.map(({ column, head, note }) => (
               <SortableHeader
                 key={column.alias}
                 column={head}
                 sort={sort}
                 onToggle={(alias, options) => sorting?.onToggle(alias, options)}
                 additiveId={additiveId}
-                // A percentile's 「≈」 is a sign; this is the word behind it.
-                // Wow computes percentiles approximately, and nothing else on
-                // the row says so (D20 口径).
-                {...(column.fn === 'PERCENTILE'
-                  ? {
-                      note: {
-                        id: approximateId,
-                        text: messages.label('label.analysis.approximate'),
-                      },
-                    }
-                  : {})}
+                {...(note ? { note } : {})}
               />
             ))}
             <FillerHead />
@@ -345,6 +376,13 @@ export function AnalysisTable({ view, onPick, sorting }: AnalysisTableProps) {
         <span id={approximateId} className="sr-only">
           {messages.label('label.analysis.approximate')}
         </span>
+      )}
+      {columns.map(({ column }, index) =>
+        column.condition ? (
+          <span key={column.alias} id={conditionId(index)} className="sr-only">
+            {onlyWhereText(column.condition.items, messages, display)}
+          </span>
+        ) : null,
       )}
     </div>
   );

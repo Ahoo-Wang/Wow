@@ -272,6 +272,16 @@ export const analysisMessages = {
   'label.analysis.condition-close': 'Close the conditions',
   'label.analysis.condition-remove': 'Count every record again',
   'label.analysis.only-where': 'Only where {conditions}',
+  // A conditioned metric's default name (D20 显示名), wherever the metric is
+  // named — its column, the chart, the sort, 「只保留」: the one value the
+  // condition keeps, else that it has one. `{metric}` is the metric as it
+  // reads without one ("Sum of Amount"). Metabase says "Sum of Total where
+  // Status is Shipped"; the whole condition is the header's description.
+  'label.analysis.metric-where': '{metric} · {value}',
+  'label.analysis.metric-conditioned': '{metric} · conditioned',
+  // Said on a card whose condition has no one value to name it by, so the
+  // name stays 「… · conditioned」 until the analyst gives it one.
+  'label.analysis.name-it': 'Give it a display name',
   'label.analysis.copy-with-condition': 'Copy “{name}” with a condition',
   'label.analysis.rename': 'Display name…',
   'label.analysis.display-name': 'Display name for {name}',

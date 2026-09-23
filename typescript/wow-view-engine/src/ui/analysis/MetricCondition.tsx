@@ -12,7 +12,7 @@
  */
 
 import { FunnelIcon, XIcon } from 'lucide-react';
-import { describeFilter, type FilterSummaryItem } from '../../filter/index.js';
+import type { FilterSummaryItem } from '../../filter/index.js';
 import type {
   AnalysisMetric,
   FieldDefinition,
@@ -31,7 +31,7 @@ import { GroupBlock } from '../filter/GroupBlock.js';
 import { IconButton } from '../IconButton.js';
 import { TEXT_UI } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
-import { summaryText } from '../summary.js';
+import { onlyWhereText } from '../summary.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
 
 /** The findings under one place in the config, addressed against the tree there. */
@@ -40,19 +40,6 @@ function issuesAt(issues: readonly Issue[], at: IssuePath): Issue[] {
     at.every((step, index) => found.path[index] === step)
       ? [{ ...found, path: found.path.slice(at.length) }]
       : [],
-  );
-}
-
-/** The conditions a metric counts under, as the applied bar would say them. */
-export function conditionItems(
-  analysis: AnalysisEditorController,
-  metric: AnalysisMetric,
-): FilterSummaryItem[] {
-  if (metric.type === 'DERIVED' || !metric.filter || !analysis.kinds) return [];
-  return describeFilter(
-    analysis.conditionFields,
-    metric.filter,
-    analysis.kinds,
   );
 }
 
@@ -96,22 +83,50 @@ export function ConditionButton({
 /**
  * The sentence a conditioned metric wears at rest — 「只算 状态 属于 已付款」
  * — so the reading of the number is on the card, not behind the funnel.
+ *
+ * `onName` is there when the condition has no one value to name the metric
+ * by (D20 显示名): its name is 「金额的合计 · 有条件」 until the analyst
+ * gives it one, and a name that says only "there is a condition" is asked to
+ * be replaced right where the condition is said, not left to a menu.
  */
-export function ConditionLine({ items }: { items: FilterSummaryItem[] }) {
+export function ConditionLine({
+  items,
+  onName,
+  disabled,
+}: {
+  items: FilterSummaryItem[];
+  onName?(): void;
+  disabled?: boolean;
+}) {
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
   if (items.length === 0) return null;
-  return (
+  const line = (
     <span
       data-slot="metric-condition-line"
-      className={cn('text-muted-foreground basis-full truncate', TEXT_UI)}
+      className={cn(
+        'text-muted-foreground min-w-0 truncate',
+        !onName && 'basis-full',
+        TEXT_UI,
+      )}
     >
-      {messages.label('label.analysis.only-where', {
-        conditions: items
-          .map(item => summaryText(item, messages, display))
-          .join(' · '),
-      })}
+      {onlyWhereText(items, messages, display)}
     </span>
+  );
+  if (!onName) return line;
+  return (
+    <div className="flex min-w-0 basis-full items-center gap-2">
+      {line}
+      <Button
+        variant="link"
+        size="xs"
+        data-slot="metric-name-it"
+        disabled={disabled}
+        onClick={onName}
+      >
+        {messages.label('label.analysis.name-it')}
+      </Button>
+    </div>
   );
 }
 

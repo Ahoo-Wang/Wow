@@ -17,9 +17,11 @@ import {
   freeAlias,
   groupOfType,
   isFormula,
+  metricCondition,
   metricFunctionOf,
   metricOfSummary,
   summaryChoices,
+  type MetricCondition,
 } from '../../analysis/index.js';
 import { columnTitle } from '../display.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
@@ -45,9 +47,26 @@ import type {
 
 /**
  * What naming a metric reads: the fields its formula or summary is over,
- * and the other metrics a derived one refers to.
+ * the other metrics a derived one refers to, and — where there is a runtime
+ * to read them — the fields and kinds its own condition is read by.
  */
-export type MetricNaming = Pick<AnalysisEditorController, 'fields' | 'metrics'>;
+export type MetricNaming = Pick<
+  AnalysisEditorController,
+  'fields' | 'metrics'
+> &
+  Partial<Pick<AnalysisEditorController, 'conditionFields' | 'kinds'>>;
+
+/** The condition a metric counts under, read as its result column reads it. */
+export function conditionOf(
+  analysis: MetricNaming,
+  metric: AnalysisMetric,
+): MetricCondition | undefined {
+  return metricCondition(
+    metric,
+    analysis.conditionFields ?? [],
+    analysis.kinds,
+  );
+}
 
 /** Every alias in use, which is the set an addition must stay clear of. */
 export function usedAliases(analysis: AnalysisEditorController): string[] {
@@ -111,6 +130,9 @@ export function metricName(
  * name. This composes the summary in exactly the way the result column and
  * the chart slots do — `columnTitle` over the same label and the same
  * function — so a metric reads the same word wherever it is mentioned.
+ * Its own condition goes along too (D20 显示名): two cards over one field
+ * that differ only in what they count are 「金额的合计」 and 「金额的合计 ·
+ * 已发运」 here as they are in the result.
  */
 export function metricReference(
   analysis: MetricNaming,
@@ -122,12 +144,14 @@ export function metricReference(
   const cell = analysis.fields.find(
     entry => entry.field === fieldOfMetric(metric),
   )?.cell;
+  const condition = conditionOf(analysis, metric);
   return columnTitle(
     metric.label === undefined
       ? {
           label: metricFallbackName(analysis, metric, messages),
           fn: metricFunctionOf(metric),
           ...(cell === undefined ? {} : { cell }),
+          ...(condition ? { condition } : {}),
         }
       : { label: metric.label, named: true },
     messages,

@@ -19,6 +19,7 @@ import type {
   AnalysisMetric,
 } from '../model/index.js';
 import { freeAlias } from './defaults.js';
+import type { MetricCondition } from './metricCondition.js';
 import type { MetricFunction } from './metricFormat.js';
 
 /**
@@ -57,24 +58,45 @@ export const EXPRESSION_OPERATORS = Object.keys(
  * picker beside it. Nothing a definition labels can hold a control
  * character, so a reference cannot collide with a field's or a metric's
  * name.
+ *
+ * A referenced metric with a condition of its own carries it along
+ * (`metricCondition`): 「金额的合计 · 已发运 ÷ 记录数」 is a different ratio
+ * from the one without it, and the operand says so as its own column does.
+ * Only what a name reads is written — the one value, or that there is a
+ * condition at all — as a third segment, empty for the second.
  */
-export function metricReferenceText(fn: MetricFunction, label: string): string {
-  return `${OPEN}${fn}${SEPARATOR}${label}${CLOSE}`;
+export function metricReferenceText(
+  fn: MetricFunction,
+  label: string,
+  condition?: Pick<MetricCondition, 'value'>,
+): string {
+  const conditioned =
+    condition === undefined ? '' : `${SEPARATOR}${condition.value ?? ''}`;
+  return `${OPEN}${fn}${SEPARATOR}${label}${conditioned}${CLOSE}`;
 }
 
 /**
  * A derived metric's text with every reference `metricReferenceText`
- * wrote in it replaced by what `word` makes of its summary and name.
+ * wrote in it replaced by what `word` makes of its summary, its name and
+ * the condition it counts under, when it has one.
  */
 export function wordReferences(
   text: string,
-  word: (fn: MetricFunction, label: string) => string,
+  word: (
+    fn: MetricFunction,
+    label: string,
+    condition?: Pick<MetricCondition, 'value'>,
+  ) => string,
 ): string {
   const [head = '', ...rest] = text.split(OPEN);
   return rest.reduce((done, part) => {
     const end = part.indexOf(CLOSE);
-    const [fn = '', label = ''] = part.slice(0, end).split(SEPARATOR);
-    return done + word(fn as MetricFunction, label) + part.slice(end + 1);
+    const [fn = '', label = '', value] = part.slice(0, end).split(SEPARATOR);
+    const condition =
+      value === undefined ? undefined : value === '' ? {} : { value };
+    return (
+      done + word(fn as MetricFunction, label, condition) + part.slice(end + 1)
+    );
   }, head);
 }
 

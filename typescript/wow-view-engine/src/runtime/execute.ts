@@ -204,7 +204,13 @@ async function executeAnalysis(
       : null,
   ]);
 
-  const view = projectAnalysis(definition, config, rows, totals ?? undefined);
+  const view = projectAnalysis(
+    definition,
+    config,
+    rows,
+    totals ?? undefined,
+    kinds,
+  );
   return { kind: 'analysis', view, issues: cutShortIssues(config, view) };
 }
 

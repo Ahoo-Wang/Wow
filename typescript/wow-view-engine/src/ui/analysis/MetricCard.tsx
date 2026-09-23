@@ -44,9 +44,9 @@ import {
   ConditionBlock,
   ConditionButton,
   ConditionLine,
-  conditionItems,
 } from './MetricCondition.js';
 import {
+  conditionOf,
   usedAliases,
   defaultMetric,
   fieldOfMetric,
@@ -216,7 +216,14 @@ function MetricCard({
 }) {
   const messages = useViewMessages();
   const [renaming, setRenaming] = useState(false);
-  const conditions = conditionItems(analysis, metric);
+  const condition = conditionOf(analysis, metric);
+  // A condition with no one value to name the metric by leaves it called
+  // 「金额的合计 · 有条件」, which D20 asks the analyst to replace: the way
+  // to is offered beside the condition that caused it.
+  const unnamed =
+    metric.label === undefined &&
+    condition !== undefined &&
+    condition.value === undefined;
   const held = metric.type !== 'DERIVED' && metric.filter !== undefined;
   const menu = useRef<HTMLButtonElement>(null);
   const done = () => {
@@ -372,7 +379,11 @@ function MetricCard({
           onClose={() => onConditioning(false)}
         />
       ) : (
-        <ConditionLine items={conditions} />
+        <ConditionLine
+          items={condition?.items ?? []}
+          disabled={disabled}
+          {...(unnamed && !renaming ? { onName: () => setRenaming(true) } : {})}
+        />
       )}
     </EditorCard>
   );

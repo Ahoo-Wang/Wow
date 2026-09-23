@@ -36,7 +36,8 @@ defaultAnalysisConfig(def, limits?: RuntimeLimits): AnalysisViewConfig   // 按�
 validateAnalysis(def, cfg: AnalysisViewConfig, kinds): Issue[]   // 见下方规则
 compileAnalysis(def, cfg, kinds, ctx): AggregationQuery          // 同构映射；三处 FilterTree 编译为 FilterExpression
 compileAnalysisTotals(def, cfg, kinds, ctx): AggregationQuery | null   // table.totals 为 true 时的无分组聚合，否则 null
-projectAnalysis(def, cfg, result, totals?): AnalysisView          // 表格列与行；图表系列；合计行取自 totals，metric 卡片趋势模式的标题值亦取自 totals；多回来的那一行（探针）丢掉并记 truncated，探不成时退回 atLimit
+projectAnalysis(def, cfg, result, totals?, kinds?): AnalysisView  // 表格列与行；图表系列；合计行取自 totals，metric 卡片趋势模式的标题值亦取自 totals；多回来的那一行（探针）丢掉并记 truncated，探不成时退回 atLimit；kinds 读指标自己的条件（列的 condition）
+metricCondition(metric, fields, kinds?): MetricCondition | undefined   // 指标自己的条件怎样进它的名字：整条（items）与「一个字段的一个值」时那个值的名字（value）
 fitChartSlots(chart, groups, metrics, moments?): ChartSpec   // 当前图型的家族子对象，按现有维度与指标装槽；用户选过且仍有效的槽保留；量的槽不放时间点
 metricFormat(metric, field?): NumberFormat | undefined    // 一个聚合值怎么打印（与字段自己的值怎么打印是两回事）
 momentMetrics(metrics, fields): Set<string>              // 哪些指标是时间点（日期字段的最早／最晚／百分位／任一值）
@@ -309,6 +310,8 @@ D20 屏 G。展开一个数组就是换掉计数单位：`订单 → 明细项` 
 
 `projectAnalysis` 把结果写进 `AnalysisColumnView.numberFormat`，表格、合计行、坐标轴、提示与指标卡因此都按同一份格式打印；列另带 `fn`（这一列是哪一种汇总），供界面把表头拼成「〈字段〉的〈汇总方式〉」，同一字段的两个汇总方式于是是两个不同的表头。（见 test/analysisProject.test.ts「metricFormat」）
 
+指标带着自己的条件时，列另带 `condition`（`analysis/metricCondition.ts` 的 `metricCondition`，D20 显示名）：`items` 是整条条件，与已应用条件栏同一种读法（`describeFilter`）；`value` 只在条件**恰好是一个字段的一个值**时才有——一个条件、字段还在、操作符是「就是这个值」（`EQ`，或只有一个候选的 `IN`），且这个值自己说得出是什么：选项的标签，或一段文字。「不等于 已发运」不是「已发运」，「· 100」「· 是」在一个点后面说不出它说的是什么，所以这些都只算「有条件」。界面据此把表头说成「金额的合计 · 已发运」或「金额的合计 · 有条件」；分析师起了显示名则显示名就是整个表头，`condition` 仍在，给表头的说明用。读不了条件（没有 `kinds`、条件还全空着）就不带——猜出来的名字比没有更糟。派生指标引用一个带条件的指标时，`metricReferenceText` 把那一段也写进引用（第三段：那个值，或空串表示「有条件」），于是「金额的合计 · 已发运 ÷ 记录数」与不带条件的那个比值是两个表头。托盘里的 `metricReference` 对草稿调同一个 `metricCondition`，排序、「只保留」与卡片上的控件与结果说的是同一个名字。（见 test/metricConditionName.test.ts）
+
 ### 时间的最早与最晚：`readsAsItsField` 与 `momentMetrics`
 
 `MIN`、`MAX`、`PERCENTILE` 与 `ANY` 取的是**字段自己的一个值**（`readsAsItsField`）：日期字段的最晚就是一个时刻，不是十三位的纪元毫秒——真实 Wow 服务上 `MAX(eventTime)` 回来的正是 `1790115665062`。所以这几列像维度列一样带上字段的 `kind`、`cell`、`options`，界面按字段读值的那一条（`displayValue`）于是在表格、合计行、指标卡、提示与读屏表里都读成界面时区下的日期／日期时间，表头按 `summaryFunctionKey` 说「最早／最晚」而不是「最小／最大」，与记录视图的列汇总同一个词。`SUM`、平均、方差与计数是查询算出来的新数，照旧不带。
@@ -344,7 +347,7 @@ D20 屏 G。展开一个数组就是换掉计数单位：`订单 → 明细项` 
 D20 屏 B 的两件事各有一个内核文件，都只是纯函数——托盘因此只剩标记，而「这份配置说得出来吗」只有一处答案：
 
 - **`analysis/having.ts`** 把 Wow 的 `having` 读成／写成**一行一条比较**。`havingRows(having)` 交出 `{metric, operator, value}[]`：一个 `CONDITION` 是一行，一棵一层的 `AND` 是几行，**其余一律 `null`**——区间、集合、空值判断、任何位置上的 OR、嵌套的 AND 都不摊平。摊平会把作者写的那份配置换成一份他没写过的、下一次保存就覆盖掉原件的配置，而「我读不出来」是一句可以老实说的话。`withHavingRows(rows)` 反过来：一条写成 `CONDITION`，几条写成一棵 `AND`，一条都没有就整个不写；**没有值的行直接落掉**，所以存下去的配置永远是 Wow 收得下的那一份，编辑到一半的状态归组件自己拿着。`HAVING_OPERATORS` 是那六个比较，顺序就是选择框里的顺序；
-- **`analysis/formula.ts`** 是两种写出来的指标的第一形态与它们的读法。`formulaMetric(left, right, fn, taken)` 造 Wow 的 `NUMERIC` 套 `BINARY`（两个字段相减再汇总），`derivedMetric(left, right, taken)` 造 `DERIVED`（前一个指标除以后一个）——都是**一张待改的卡片**，不是一个猜出来的答案。`expressionText`／`derivedText` 把式子说成作者会说的那句话（「金额 − 成本」「金额的合计 ÷ 客户数」，嵌套的加括号），列头、图例与图表的文字读法共用它。内核没有文案目录，说不出「金额的合计」或「记录数」，所以派生指标引用别的指标时，`metricReferenceText(fn, label)` 在列头文字里用控制字符标出「这是一个什么汇总的哪个指标」，界面的 `columnTitle` 用 `wordReferences` 把每一处换成那个指标自己列头的说法——被引用的指标有显示名时就是显示名本身，被引用的是派生指标时就是它自己那一句（已经标好）（test/formula.test.ts「wordReferences」、test/analysisProject.test.ts「marks the metrics it reads, each with its summary」）；`isFormula` 是「这条指标是卡片编得动的那一种吗」——一个操作两个操作数。`EXPRESSION_OPERATORS` 与 `OPERATOR_SIGN` 是那四则运算和它们在任何语言里都一样的符号。
+- **`analysis/formula.ts`** 是两种写出来的指标的第一形态与它们的读法。`formulaMetric(left, right, fn, taken)` 造 Wow 的 `NUMERIC` 套 `BINARY`（两个字段相减再汇总），`derivedMetric(left, right, taken)` 造 `DERIVED`（前一个指标除以后一个）——都是**一张待改的卡片**，不是一个猜出来的答案。`expressionText`／`derivedText` 把式子说成作者会说的那句话（「金额 − 成本」「金额的合计 ÷ 客户数」，嵌套的加括号），列头、图例与图表的文字读法共用它。内核没有文案目录，说不出「金额的合计」或「记录数」，所以派生指标引用别的指标时，`metricReferenceText(fn, label, condition?)` 在列头文字里用控制字符标出「这是一个什么汇总的哪个指标」，界面的 `columnTitle` 用 `wordReferences` 把每一处换成那个指标自己列头的说法——被引用的指标有显示名时就是显示名本身，被引用的是派生指标时就是它自己那一句（已经标好）（test/formula.test.ts「wordReferences」、test/analysisProject.test.ts「marks the metrics it reads, each with its summary」）；`isFormula` 是「这条指标是卡片编得动的那一种吗」——一个操作两个操作数。`EXPRESSION_OPERATORS` 与 `OPERATOR_SIGN` 是那四则运算和它们在任何语言里都一样的符号。
 
 两者都不知道目录也不知道语言：`expressionText` 接一个 `nameOf` 回调，字段叫什么由调用处说。（见 test/having.test.ts「having rows」「formulas」；界面见 [ui/analysis.md#只保留一行一条比较](ui/analysis.md) 与 [ui/analysis.md#公式与派生写出来的指标](ui/analysis.md)）
 

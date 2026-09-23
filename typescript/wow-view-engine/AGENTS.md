@@ -162,6 +162,7 @@ src/
     having.ts                 — 「只保留」 as rows of one comparison each: `havingRows` reads a conjunction, `withHavingRows` writes it, any other shape is declined rather than flattened
     defaults.ts               — defaultAnalysisConfig — the first metric the capability can express; the one builder of a dimension (`groupOfType` over `GroupFacts`) and of a metric (`metricOfSummary`, `summaryChoices`, `summaryOf`), `groupableFields`, `aliasOf`, `DEFAULT_MISSING_KEY`, `DEFAULT_PERCENTILE`; `limitBounds`, the range 「前 N 组」 takes and what a blank stands for
     expressions.ts            — Aggregate and derived expression walks
+    metricCondition.ts        — `metricCondition`: a metric's own condition as its name reads it (D20 显示名) — the whole condition, and the one value of one field that names it (「金额的合计 · 已发运」) when there is one
     metricFormat.ts           — `metricFormat`/`metricFunctionOf`: how an aggregate's number prints, which is not how its field's values print; `readsAsItsField` (MIN/MAX/PERCENTILE/ANY read as the field does) and `momentMetrics` (those over a date: read, never measured by a mark)
     project.ts                — projectAnalysis — table columns and rows
     queryFilter.ts            — A filter in metric or element position, and the scope it may name

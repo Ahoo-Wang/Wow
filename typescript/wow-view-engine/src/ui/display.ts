@@ -22,7 +22,11 @@ import {
   type EpochTimeUnit,
 } from '../model/index.js';
 import { readInstant } from '../filter/index.js';
-import { wordReferences, type MetricFunction } from '../analysis/index.js';
+import {
+  wordReferences,
+  type MetricCondition,
+  type MetricFunction,
+} from '../analysis/index.js';
 import { recordValue } from '../record/index.js';
 import type { MessageKey } from './messages.js';
 import type { MessageFormatters } from './MessagesProvider.js';
@@ -195,6 +199,12 @@ export function summaryFunctionKey(
  * header does, the chart's axis and legend included. The word behind the sign
  * is `label.analysis.approximate`, which the table header's tooltip and
  * description carry (`SortableHeader`'s `note`).
+ *
+ * A metric with a condition of its own says it after a 「·」 (D20 显示名):
+ * 「金额的合计 · 已发运」 when the condition keeps one value of one field,
+ * 「金额的合计 · 有条件」 otherwise (`metricCondition`). Without it a sum over
+ * the shipped orders wore the header of a sum over all of them, and a
+ * region with none shipped read as a region with no sales.
  */
 export function columnTitle(
   column: {
@@ -205,14 +215,19 @@ export function columnTitle(
     cell?: string;
     /** A time group's granularity: what one of its rows spans. */
     dateUnit?: AnalysisDateUnit;
+    /** A metric's own condition: the one value it keeps, when it is one. */
+    condition?: Pick<MetricCondition, 'value'>;
   },
   messages: MessageFormatters,
 ): string {
   // A name the analyst gave is the whole title (D20 显示名). A derived
   // metric's text marks each metric it refers to (`metricReferenceText`);
-  // each is worded as that metric's own column is.
-  const label = wordReferences(column.label, (fn, referenced) =>
-    columnTitle({ label: referenced, fn }, messages),
+  // each is worded as that metric's own column is, condition included.
+  const label = wordReferences(column.label, (fn, referenced, condition) =>
+    columnTitle(
+      { label: referenced, fn, ...(condition ? { condition } : {}) },
+      messages,
+    ),
   );
   if (column.named) return label;
   if (column.fn === undefined)
@@ -221,15 +236,36 @@ export function columnTitle(
       : messages.label(`label.analysis.dated.${column.dateUnit}`, {
           field: label,
         });
-  if (column.fn === 'COUNT') return messages.label('label.analysis.row-count');
   // A derived metric is arithmetic over other metrics: no field stands behind
   // it, so its stored name is all there is to show.
   if (column.fn === 'DERIVED') return label;
-  const title = messages.label('label.summary.of', {
-    field: label,
-    fn: messages.label(summaryFunctionKey(column.fn, column.cell)),
-  });
-  return column.fn === 'PERCENTILE' ? `${APPROXIMATELY} ${title}` : title;
+  const title =
+    column.fn === 'COUNT'
+      ? messages.label('label.analysis.row-count')
+      : messages.label('label.summary.of', {
+          field: label,
+          fn: messages.label(summaryFunctionKey(column.fn, column.cell)),
+        });
+  return conditionedTitle(
+    column.fn === 'PERCENTILE' ? `${APPROXIMATELY} ${title}` : title,
+    column.condition,
+    messages,
+  );
+}
+
+/** A metric's title and, after a 「·」, the condition it counts under. */
+function conditionedTitle(
+  metric: string,
+  condition: Pick<MetricCondition, 'value'> | undefined,
+  messages: MessageFormatters,
+): string {
+  if (condition === undefined) return metric;
+  return condition.value === undefined
+    ? messages.label('label.analysis.metric-conditioned', { metric })
+    : messages.label('label.analysis.metric-where', {
+        metric,
+        value: condition.value,
+      });
 }
 
 /** The one character that says a number is not exact. */

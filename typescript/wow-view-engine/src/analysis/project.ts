@@ -25,6 +25,7 @@ import {
   type RecordData,
   type EpochTimeUnit,
 } from '../model/index.js';
+import type { FieldKindRegistry } from '../filter/index.js';
 import { analysisScope } from './capability.js';
 import { shapeChart, type ChartData } from './chart.js';
 import { analysisProbeLimit } from './compile.js';
@@ -35,6 +36,7 @@ import {
   readsAsItsField,
   type MetricFunction,
 } from './metricFormat.js';
+import { metricCondition, type MetricCondition } from './metricCondition.js';
 import {
   metricReferenceText,
   derivedText,
@@ -63,6 +65,13 @@ export interface AnalysisColumnView {
    * whole title, and `fn` stays only for how the numbers read.
    */
   named?: true;
+  /**
+   * For a metric with a condition of its own: the records it counts are
+   * only some of them, and the header says so (D20 显示名) — 「金额的合计 ·
+   * 已发运」 — unless the analyst named the column, and its description
+   * says the whole condition either way.
+   */
+  condition?: MetricCondition;
   width?: number;
   /**
    * How this column's numbers print. A group shows values of its field, so it
@@ -212,12 +221,17 @@ function bucketOf(
 /**
  * Turns aggregation rows into table columns plus whatever the chart family
  * needs. A DERIVED metric is an ordinary column: the backend computed it.
+ *
+ * `kinds` read a metric's own condition (`AnalysisColumnView.condition`);
+ * without them a conditioned column cannot say what it counts, and says
+ * nothing rather than guess.
  */
 export function projectAnalysis(
   definition: DataViewDefinition,
   config: AnalysisViewConfig,
   result: readonly RecordData[],
   totals?: readonly RecordData[],
+  kinds?: FieldKindRegistry,
 ): AnalysisView {
   const declared = new Map(
     config.table.columns.map(column => [column.alias, column]),
@@ -260,6 +274,8 @@ export function projectAnalysis(
   // as `items.sku`, which no root field is named, so a grouping or metric over
   // one used to be labelled by its alias.
   const byName = scopeFields(definition, config);
+  const conditionOf = (metric: AnalysisMetric) =>
+    metricCondition(metric, [...byName.values()], kinds);
   const groups = new Map<string, AnalysisGroup>(
     config.groups.map(group => [group.alias, group]),
   );
@@ -279,18 +295,20 @@ export function projectAnalysis(
     const declaredColumn = declared.get(alias);
     const metric = byAlias.get(alias);
     const named = (groups.get(alias) ?? metric)?.label;
+    const condition = metric && conditionOf(metric);
     return [
       {
         alias,
         label:
           named ??
-          (metric && formulaLabel(metric, byName, byAlias)) ??
+          (metric && formulaLabel(metric, byName, byAlias, conditionOf)) ??
           field?.label ??
           source ??
           alias,
         role,
         ...(named === undefined ? {} : { named: true }),
         ...(metric ? { fn: metricFunctionOf(metric) } : {}),
+        ...(condition ? { condition } : {}),
         width: declaredColumn?.width,
         numberFormat: metric
           ? metricFormat(metric, field)
@@ -393,6 +411,7 @@ function formulaLabel(
   metric: AnalysisMetric,
   byName: ReadonlyMap<string, FieldDefinition>,
   byAlias: ReadonlyMap<string, AnalysisMetric>,
+  conditionOf: (metric: AnalysisMetric) => MetricCondition | undefined,
 ): string | undefined {
   const fieldLabel = (field: string) => byName.get(field)?.label ?? field;
   if (isFormula(metric)) return expressionText(metric.expression, fieldLabel);
@@ -402,15 +421,17 @@ function formulaLabel(
     if (!referenced) return alias;
     // A name the analyst gave is the whole name; a derived operand is its own
     // text, references already marked; anything else is a summary of a field
-    // or a formula, marked for the UI to word as its own column is worded.
+    // or a formula, marked for the UI to word as its own column is worded —
+    // its own condition included.
     if (referenced.label !== undefined) return referenced.label;
     if (referenced.type === 'DERIVED')
-      return formulaLabel(referenced, byName, byAlias) ?? alias;
+      return formulaLabel(referenced, byName, byAlias, conditionOf) ?? alias;
     const source = metricFieldOf(referenced);
     return metricReferenceText(
       metricFunctionOf(referenced),
-      formulaLabel(referenced, byName, byAlias) ??
+      formulaLabel(referenced, byName, byAlias, conditionOf) ??
         (source === undefined ? alias : fieldLabel(source)),
+      conditionOf(referenced),
     );
   });
 }

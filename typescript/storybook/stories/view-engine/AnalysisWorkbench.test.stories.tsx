@@ -2243,26 +2243,31 @@ export const TrayCardMenu: Story = {
  * ——条件属于它收窄的那个指标，就长在那儿；写完收起来，卡片上留下一句
  * 「只算 …」，于是一屏卡片里两个「金额的合计」为什么不一样，读得出来。
  * 条件是这一个指标自己的：应用之后金额跟着变，旁边的记录数一颗不落。
+ *
+ * 它也换了名字（审计 P0-3，D20 显示名）：表头、读法那一行、卡片上每个控件
+ * 都说「金额的合计 · 已发运」。从前表头还是「金额的合计」，没有发运的地区
+ * 一格 ¥0.00，读起来就是「没有销售」；而「只算 …」那一句只在托盘的卡片上，
+ * 打开一个存好的视图时托盘是收着的。表头的说明（悬停与读屏）说出整条条件。
  */
 export const MetricCondition: Story = {
   ...DisplayTableWithTotals,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const amounts = async () =>
-      readColumn(await findDataTable(canvasElement), AMOUNT_HEADER).map(
-        amountOf,
-      );
+    const shippedHeader = formatMessage(zhCN, 'label.analysis.metric-where', {
+      metric: AMOUNT_HEADER,
+      value: '已发运',
+    });
+    const amounts = async (header = AMOUNT_HEADER) =>
+      readColumn(await findDataTable(canvasElement), header).map(amountOf);
     const counts = async () =>
       readColumn(await findDataTable(canvasElement), COUNT_HEADER);
     const beforeAmounts = await amounts();
     const beforeCounts = await counts();
     await openTray(canvasElement);
 
-    const funnel = () =>
+    const funnel = (name = AMOUNT_HEADER) =>
       canvas.getByRole('button', {
-        name: formatMessage(zhCN, 'label.analysis.condition-of', {
-          name: AMOUNT_HEADER,
-        }),
+        name: formatMessage(zhCN, 'label.analysis.condition-of', { name }),
       });
     await expect(funnel()).toHaveAttribute('aria-pressed', 'false');
     await userEvent.click(funnel());
@@ -2312,11 +2317,27 @@ export const MetricCondition: Story = {
         )!,
       ).getByRole('button', { name: zhCN['label.filter.apply'] }),
     );
+    // 表头按它算的是什么改了名：没有发运的地区那一格 ¥0.00 是「没有已发运
+    // 的销售」，不是「没有销售」。
     await waitFor(async () =>
-      expect(await amounts()).not.toEqual(beforeAmounts),
+      expect(await amounts(shippedHeader)).not.toEqual(beforeAmounts),
     );
-    // 只有这一个指标被收窄：记录数还是全部。
+    // 只有这一个指标被收窄：记录数还是全部，名字也还是原来的。
     await expect(await counts()).toEqual(beforeCounts);
+    const table = (await findDataTable(canvasElement)) as HTMLTableElement;
+    const header =
+      table.tHead!.rows[0]!.cells[columnIndex(table, shippedHeader)]!;
+    // 整条条件在表头的说明里：悬停读得到，读屏也念得到。
+    const described = header.querySelector('[aria-describedby]');
+    const sentences = (described?.getAttribute('aria-describedby') ?? '')
+      .split(' ')
+      .map(id => canvasElement.ownerDocument.getElementById(id)?.textContent);
+    await expect(sentences.join('\n')).toContain('只算 状态');
+    await expect(sentences.join('\n')).toContain('已发运');
+    // 读法那一行说的是同一个名字。
+    await expect(
+      canvasElement.querySelector('[data-slot="analysis-reading"]'),
+    ).toHaveTextContent(shippedHeader);
 
     // 收起条件，卡片上留下那句「只算 …」——一个数的读法不该藏在图标后面。
     await userEvent.click(
@@ -2333,7 +2354,8 @@ export const MetricCondition: Story = {
     });
     await expect(line).toHaveTextContent('状态');
     await expect(line).toHaveTextContent('已发运');
-    await expect(funnel()).toHaveAttribute('data-held');
+    // 卡片上的控件也按新名字自称：两张同字段的卡差在条件上，名字就差在那儿。
+    await expect(funnel(shippedHeader)).toHaveAttribute('data-held');
   },
 };
 

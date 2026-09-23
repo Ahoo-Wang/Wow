@@ -88,6 +88,25 @@ export function summaryText(
 }
 
 /**
+ * The whole of a metric's own condition as one sentence — 「只算 状态 属于
+ * 已发运」 — in the words the applied bar uses for a condition. The card says
+ * it at rest under the metric, and a conditioned column's header says it as
+ * its description, so the header's short 「· 已发运」 and the full condition
+ * are one reading.
+ */
+export function onlyWhereText(
+  items: readonly FilterSummaryItem[],
+  messages: MessageFormatters,
+  context: DisplayContext,
+): string {
+  return messages.label('label.analysis.only-where', {
+    conditions: items
+      .map(item => summaryText(item, messages, context))
+      .join(' · '),
+  });
+}
+
+/**
  * The conditions of one group, joined and prefixed by the word for its own
  * operator. A group inside a group is parenthesised, as it is in `text`.
  *

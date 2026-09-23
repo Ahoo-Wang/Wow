@@ -420,11 +420,111 @@ describe('a metric’s own conditions', () => {
     });
     expect(line.textContent).toContain('Status');
     expect(line.textContent).toContain('Paid');
-    expect(funnel(AMOUNT).hasAttribute('data-held')).toBe(true);
+    // Named by what it counts (D20 显示名): the one value its condition
+    // keeps follows the summary, on every control that names the card.
+    expect(funnel(`${AMOUNT} · Paid`).hasAttribute('data-held')).toBe(true);
     // The count next to it carries none, so it wears no line.
     expect(
       metricCards()[0]!.querySelector('[data-slot="metric-condition-line"]'),
     ).toBeNull();
+    // One value names the metric already, so nothing asks for a name.
+    expect(document.querySelector('[data-slot="metric-name-it"]')).toBeNull();
+  });
+
+  /**
+   * The result says it too (audit P0-3): a header of 「Sum of Amount」 over
+   * a sum of the paid orders read a warehouse with none paid as one with no
+   * sales. The header names the one value; its description — the tooltip,
+   * and what a reader hears — says the whole condition, as the card does.
+   */
+  it('heads its result column with what it counts', async () => {
+    await open({
+      metrics: [
+        { alias: 'orders', type: 'COUNT' },
+        {
+          alias: 'amount',
+          type: 'NUMERIC',
+          function: 'SUM',
+          expression: { type: 'FIELD', field: 'amount' },
+          filter: {
+            op: 'and',
+            children: [{ field: 'status', operator: 'IN', value: ['PAID'] }],
+          },
+        },
+      ],
+    });
+
+    const header = await screen.findByRole('columnheader', {
+      name: new RegExp(`^${AMOUNT} · Paid`),
+    });
+    const described = header.querySelector('[aria-describedby]');
+    const ids = described?.getAttribute('aria-describedby')?.split(' ') ?? [];
+    const sentences = ids.map(id => document.getElementById(id)?.textContent);
+    expect(sentences).toContain(
+      label('label.analysis.only-where', {
+        conditions: 'Status is any of Paid',
+      }),
+    );
+    // The record count beside it counts every record and says nothing more.
+    expect(
+      screen
+        .getByRole('columnheader', {
+          name: new RegExp(`^${defaultMessages['label.analysis.row-count']}`),
+        })
+        .hasAttribute('data-note'),
+    ).toBe(false);
+  });
+
+  /**
+   * A condition with no one value to name the metric by leaves it
+   * 「Sum of Amount · conditioned」, which says there is a condition and not
+   * which. D20 asks the analyst to name it, so the card asks — beside the
+   * condition, where the reason is — and the name, once given, wins.
+   */
+  it('asks for a name when no one value names it', async () => {
+    const { engine } = await open({
+      metrics: [
+        { alias: 'orders', type: 'COUNT' },
+        {
+          alias: 'amount',
+          type: 'NUMERIC',
+          function: 'SUM',
+          expression: { type: 'FIELD', field: 'amount' },
+          filter: {
+            op: 'and',
+            children: [
+              { field: 'status', operator: 'IN', value: ['PAID', 'PENDING'] },
+            ],
+          },
+        },
+      ],
+    });
+    const conditioned = label('label.analysis.metric-conditioned', {
+      metric: AMOUNT,
+    });
+    expect(funnel(conditioned)).toBeDefined();
+
+    const ask = await waitFor(() => {
+      const found = metricCards()[1]!.querySelector<HTMLElement>(
+        '[data-slot="metric-name-it"]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    expect(ask.textContent).toBe(defaultMessages['label.analysis.name-it']);
+    fireEvent.click(ask);
+
+    const box = await screen.findByLabelText(
+      label('label.analysis.display-name', { name: conditioned }),
+    );
+    fireEvent.change(box, { target: { value: 'Settled' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
+
+    await waitFor(() =>
+      expect(draft(engine).metrics[1]).toMatchObject({ label: 'Settled' }),
+    );
+    expect(funnel('Settled')).toBeDefined();
+    expect(document.querySelector('[data-slot="metric-name-it"]')).toBeNull();
   });
 
   /**

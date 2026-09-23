@@ -30,6 +30,7 @@ export * from './formula.js';
 export * from './expand.js';
 export * from './granularity.js';
 export * from './having.js';
+export * from './metricCondition.js';
 export * from './metricFormat.js';
 export * from './project.js';
 export * from './validate.js';
