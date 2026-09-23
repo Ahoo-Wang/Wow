@@ -232,17 +232,17 @@ function homeDashboard(): DashboardViewConfig {
   return {
     ...emptyDashboardConfig(),
     panels: [
-      panel('active', 'home-active', '活动失败', { x: 0, y: 0, w: 4, h: 2 }),
+      panel('active', 'home-active', '活动失败', { x: 0, y: 0, w: 4, h: 1 }),
       panel('unrecoverable', 'home-unrecoverable', '其中不可恢复', {
         x: 4,
         y: 0,
         w: 4,
-        h: 2,
+        h: 1,
       }),
-      panel('today', 'home-today', '今日新增', { x: 8, y: 0, w: 4, h: 2 }),
+      panel('today', 'home-today', '今日新增', { x: 8, y: 0, w: 4, h: 1 }),
       panel('daily', 'home-daily', '本月每日新增失败', {
         x: 0,
-        y: 2,
+        y: 1,
         w: 8,
         h: 4,
       }),
@@ -250,17 +250,17 @@ function homeDashboard(): DashboardViewConfig {
         'by-status',
         systemInstanceId(EXECUTION_FAILED, 'by-status'),
         '按状态分布',
-        { x: 8, y: 2, w: 4, h: 4 },
+        { x: 8, y: 1, w: 4, h: 4 },
       ),
       panel('recent', 'home-recent', '最近的活动失败', {
         x: 0,
-        y: 6,
+        y: 5,
         w: 7,
         h: 5,
       }),
       panel('processors', 'home-processors', '活动失败最多的处理器', {
         x: 7,
-        y: 6,
+        y: 5,
         w: 5,
         h: 5,
       }),

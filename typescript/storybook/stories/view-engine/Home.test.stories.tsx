@@ -78,6 +78,18 @@ export const Fixture: Story = {
     await waitFor(() => expect(card('活动失败')).toBe('145'));
     await expect(card('其中不可恢复')).toBe('37');
     await expect(card('今日新增')).toBe('4');
+    // Each is a tile one grid row tall, and its number fits it: nothing to
+    // scroll, where at two rows a tile was mostly empty and at one the
+    // workbench's 3xl number overflowed.
+    for (const name of ['活动失败', '其中不可恢复', '今日新增']) {
+      const tile = panel(name).closest<HTMLElement>(
+        '[data-slot="dashboard-panel"]',
+      )!;
+      await expect(tile.getBoundingClientRect().height).toBeLessThanOrEqual(80);
+      await expect(panel(name).scrollHeight).toBeLessThanOrEqual(
+        panel(name).clientHeight,
+      );
+    }
 
     // One bar per day of September so far, one per status, and the
     // processors ahead first.

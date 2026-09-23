@@ -76,7 +76,10 @@ export function MetricCard({
       data-slot="metric-card"
       className={cn('flex flex-col gap-2', className)}
     >
-      <span className="text-3xl font-semibold tabular-nums">
+      <span
+        data-slot="metric-value"
+        className="text-3xl font-semibold tabular-nums"
+      >
         {data.value === null ? '—' : show(data.value)}
       </span>
       {data.compare && (

@@ -681,6 +681,24 @@
 }
 
 /*
+ * A number on a dashboard is a tile one row tall.
+ *
+ * A metric panel's whole job is its label and its number, and the grid's row
+ * (80px) is the size that says so; at 3xl the number's 36px line did not fit
+ * the 28px the panel leaves under its title, so a tile had either to scroll
+ * or to take two rows (170px) of mostly nothing — which is what the home
+ * page's tiles were, and read as too tall (the user's 2026-09-23 review).
+ * The number steps down to 2xl on a panel, as shadcn's own dashboard cards
+ * start their figure at `text-2xl`, and drops the line's leading: one line
+ * of digits has nothing to space from. A workbench's metric has the whole
+ * result to stand in and keeps its 3xl.
+ */
+.fve-root [data-slot='dashboard-panel'] [data-slot='metric-value'] {
+  font-size: var(--text-2xl);
+  line-height: 1;
+}
+
+/*
  * A drawing keeps the column's gutter; a table runs to the edge.
  *
  * The result is a band that bleeds to the work column's edges (`variants.tsx`,
