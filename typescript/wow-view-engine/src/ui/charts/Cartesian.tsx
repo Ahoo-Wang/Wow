@@ -39,7 +39,13 @@ import {
 } from '../components/chart.js';
 import { cn } from 'cn';
 import { asImage } from './asImage.js';
-import { axisId, domainOf, tickFormatterOf } from './axis.js';
+import {
+  axisId,
+  CHART_MARGIN,
+  categoryTick,
+  domainOf,
+  tickFormatterOf,
+} from './axis.js';
 import { legendPlacement } from './legend.js';
 import { pointAnchor } from '../analysis/DrillMenu.js';
 import type { FamilyProps } from './family.js';
@@ -207,6 +213,7 @@ export function Cartesian({
       <Chart
         data={rows}
         layout={horizontal ? 'vertical' : 'horizontal'}
+        margin={CHART_MARGIN}
         {...asImage(name)}
       >
         <CartesianGrid vertical={false} />
@@ -231,13 +238,19 @@ export function Cartesian({
                 label={titleOf(right, 'right')}
               />
             )}
-            <YAxis type="category" dataKey="x" width={96} />
+            <YAxis
+              type="category"
+              dataKey="x"
+              width="auto"
+              tickFormatter={categoryTick}
+            />
           </>
         ) : (
           <>
             <XAxis dataKey="x" tickLine={false} axisLine={false} />
             <YAxis
               yAxisId="left"
+              width="auto"
               tickLine={false}
               axisLine={false}
               allowDecimals={!wholeOn('left')}
@@ -249,6 +262,7 @@ export function Cartesian({
               <YAxis
                 yAxisId="right"
                 orientation="right"
+                width="auto"
                 tickLine={false}
                 axisLine={false}
                 allowDecimals={!wholeOn('right')}

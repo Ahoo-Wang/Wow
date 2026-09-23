@@ -288,7 +288,11 @@ describe('AnalysisChart', () => {
       </ViewSurface>,
     );
 
-    expect(container.querySelectorAll('.recharts-yAxis')).toHaveLength(2);
+    // The axes size themselves to their labels (`width="auto"`), and jsdom
+    // measures no text, so an axis with nothing on it is not drawn here;
+    // that the right-hand one stands beside the left is the browser
+    // story's (`分析工作台/回归 › TwoMetrics`).
+    expect(container.querySelector('.recharts-yAxis')).not.toBeNull();
     // The bounds the spec pinned, printed the way it asked for.
     expect(screen.getByText('900%')).toBeDefined();
   });

@@ -56,6 +56,33 @@ export function tickFormatterOf(
 }
 
 /** Which numeric axis a series or a line belongs to; the left one by default. */
+/**
+ * Room a chart keeps at its edges for the labels that sit on them.
+ *
+ * A tick label is centred on its tick, so the last one hangs half its width
+ * past the plot: a date under the last bar read 「2026年9月22E」 and a
+ * horizontal chart's last number 「600,00(」, cut by the chart's own box
+ * (found on the real compensation service, 2026-09-23). The right-hand room
+ * is half the widest such label the package draws — a full date at 12px.
+ */
+export const CHART_MARGIN = { top: 8, right: 40, bottom: 0, left: 0 } as const;
+
+/**
+ * The longest a category name is drawn on an axis before it is cut with an
+ * ellipsis. The axis then sizes itself to the names (`width="auto"`) rather
+ * than to a fixed 96px that cut 「OrderItemReservedTrackEventProcessor」 to
+ * 「kEventProcessor」 from the left; the whole name is in the tooltip.
+ */
+export const CATEGORY_LABEL_MAX = 24;
+
+/** A category name as an axis draws it, cut at `CATEGORY_LABEL_MAX`. */
+export function categoryTick(value: string | number): string {
+  const text = String(value);
+  return text.length > CATEGORY_LABEL_MAX
+    ? `${text.slice(0, CATEGORY_LABEL_MAX - 1)}…`
+    : text;
+}
+
 export function axisId(axis: 'left' | 'right' | undefined): 'left' | 'right' {
   return axis === 'right' ? 'right' : 'left';
 }

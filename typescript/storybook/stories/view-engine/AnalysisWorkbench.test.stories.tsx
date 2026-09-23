@@ -156,6 +156,39 @@ export const CaptionHoldsTheReport: Story = {
   },
 };
 
+/**
+ * 每一个刻度的字都在图里。
+ *
+ * 刻度字以刻度为中心，最后一个会伸出绘图区半个字宽：真实补偿服务上最后一天读成
+ * 「2026年9月22E」，横向图最后一个数读成「600,00(」；横向图的分类轴从前是写死的
+ * 96px，把长处理器名从左边截成「kEventProcessor」（2026-09-23）。这里量每一个刻度
+ * 字的框都在图的 `svg` 之内，且图离结果区的左边留着工作列的 16px。
+ */
+export const TicksInsideTheChart: Story = {
+  ...DisplayBarChart,
+  play: async ({ canvasElement }) => {
+    await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
+    const surface = canvasElement
+      .querySelector('.recharts-surface')!
+      .getBoundingClientRect();
+    // And the drawing keeps the column's 16px gutter: the result band runs
+    // to the edge, and the axis numbers used to sit against it.
+    const block = canvasElement
+      .querySelector('[data-slot="result-block"]')!
+      .getBoundingClientRect();
+    await expect(surface.left - block.left).toBeGreaterThanOrEqual(15);
+    const ticks = [
+      ...canvasElement.querySelectorAll('.recharts-cartesian-axis-tick-value'),
+    ];
+    await expect(ticks.length).toBeGreaterThan(0);
+    for (const tick of ticks) {
+      const box = tick.getBoundingClientRect();
+      await expect(box.left).toBeGreaterThanOrEqual(surface.left - 1);
+      await expect(box.right).toBeLessThanOrEqual(surface.right + 1);
+    }
+  },
+};
+
 /** 追问菜单本身：它弹在文档上，不在画布里。 */
 const drillMenu = () =>
   waitFor(() => {
@@ -369,6 +402,10 @@ export const TwoMetrics: Story = {
   ...DisplayTwoMetrics,
   play: async ({ canvasElement }) => {
     await waitFor(() => expect(bars(canvasElement)).toHaveLength(8));
+    // The count has an axis of its own on the right, beside the amount's.
+    await expect(
+      canvasElement.querySelectorAll('.recharts-yAxis'),
+    ).toHaveLength(2);
   },
 };
 

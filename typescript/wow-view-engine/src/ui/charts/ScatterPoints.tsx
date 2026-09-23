@@ -34,6 +34,7 @@ import { pointAnchor } from '../analysis/DrillMenu.js';
 import type { FamilyProps } from './family.js';
 import { color } from './palette.js';
 import { TooltipValue } from './TooltipValue.js';
+import { CHART_MARGIN } from './axis.js';
 
 export function ScatterPoints({
   data,
@@ -69,7 +70,7 @@ export function ScatterPoints({
       }}
       className={cn('min-h-52 w-full', className)}
     >
-      <ScatterChart {...asImage(name)}>
+      <ScatterChart margin={CHART_MARGIN} {...asImage(name)}>
         <CartesianGrid />
         <XAxis
           type="number"
@@ -79,6 +80,7 @@ export function ScatterPoints({
         <YAxis
           type="number"
           dataKey="y"
+          width="auto"
           tickFormatter={(value: number) => label(measured.y, value)}
         />
         <ZAxis type="number" dataKey="size" range={[40, 260]} />

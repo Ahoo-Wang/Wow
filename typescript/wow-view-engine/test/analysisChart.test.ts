@@ -12,6 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { CATEGORY_LABEL_MAX, categoryTick } from '../src/ui/charts/axis.js';
 import {
   isChartColor,
   shapeChart,
@@ -997,5 +998,22 @@ describe('shapeChart', () => {
         expect(fromTotals).toEqual({ ...single, trend: points });
       });
     });
+  });
+});
+
+describe('categoryTick', () => {
+  /**
+   * A category axis sizes itself to its names, so a name is cut to a length
+   * before it can take the chart: the whole of it is in the tooltip.
+   */
+  it('cuts a long category name with an ellipsis and leaves a short one', () => {
+    expect(categoryTick('OrderItemReservedTrackEventProcessor')).toBe(
+      'OrderItemReservedTrackE…',
+    );
+    expect(categoryTick('OrderItemReservedTrackEventProcessor')).toHaveLength(
+      CATEGORY_LABEL_MAX,
+    );
+    expect(categoryTick('QuotationSaga')).toBe('QuotationSaga');
+    expect(categoryTick(42)).toBe('42');
   });
 });
