@@ -25,7 +25,7 @@ import { loadCharts } from '../src/ui/charts/load.js';
  *
  * The size it reports is made up, and has to be: jsdom computes no layout, so
  * every element measures zero. A component that sizes itself from what it is
- * observing — a chart's responsive container — would otherwise render into
+ * observing — a chart, sized by what `EChart` observes — would otherwise render into
  * nothing at all, which is worse than a fiction, because it is a fiction that
  * looks like a passing test. A suite that drives sizes by hand replaces the
  * whole class with `vi.stubGlobal`, as `dashboardUi.test.tsx` does.

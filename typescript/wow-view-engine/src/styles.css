@@ -360,7 +360,7 @@
  * property of the controls, and the host's chrome draws the same ones.
  *
  * What upstream draws smaller *inside* something — a menu's or a select's
- * group label, a shortcut hint, the chart container's tick text — keeps its
+ * group label, a shortcut hint, a chart's tick text — keeps its
  * 12px: it is a rank below the chrome around it, and it is never read
  * beside one of these.
  */

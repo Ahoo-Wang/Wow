@@ -46,14 +46,13 @@ export const OTHER_COLOR = 'var(--muted-foreground)';
 /**
  * The colour the spec pinned for the first of `keys` that names one, and the
  * slot otherwise. A key is a series or category as the kernel labels it, never
- * an internal one: the kernel tags a pivot's key by type and the cartesian
- * family then exchanges it for `s0`, `s1` …, so a spec could not name either
- * if it tried. Nor is it the text shown, an enum's label or a bucket's day:
+ * an internal one: the kernel tags a pivot's key by type, so a spec could
+ * not name it if it tried. Nor is it the text shown, an enum's label or a bucket's day:
  * that follows the language and the definition's wording, and a saved key must
  * not.
  *
  * A spec may reach here unvalidated — the stories pass one straight in — and
- * its value ends up inside a `<style>` element, so the kernel's predicate
+ * its value reaches the drawing and the legend, so the kernel's predicate
  * decides again here rather than being trusted to have run.
  */
 export function colorOf(

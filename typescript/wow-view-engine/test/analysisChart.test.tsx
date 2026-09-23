@@ -84,8 +84,8 @@ describe('AnalysisChart', () => {
     { alias: 'orders', label: 'Orders', role: 'metric' },
   ];
 
-  // Recharts measures text in a span of its own on the body, so each query
-  // looks inside the chart.
+  // Each query looks inside the chart: the popups and the rest of the page
+  // are not what is asked about.
   it('names a category as its column shows it', () => {
     const { container } = render(
       <ViewSurface>

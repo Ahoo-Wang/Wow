@@ -39,8 +39,8 @@ export function formatValue(
 
 /**
  * The longest a category name is drawn on an axis before it is cut with an
- * ellipsis. The axis then sizes itself to the names (`width="auto"`) rather
- * than to a fixed 96px that cut 「OrderItemReservedTrackEventProcessor」 to
+ * ellipsis. The axis sizes itself to the names rather than to a fixed 96px
+ * that cut 「OrderItemReservedTrackEventProcessor」 to
  * 「kEventProcessor」 from the left; the whole name is in the tooltip.
  */
 export const CATEGORY_LABEL_MAX = 24;
@@ -55,7 +55,7 @@ export function categoryTick(value: string | number): string {
 
 /**
  * Whether every number an axis carries is whole — a count of records, a sum
- * of counts. Such an axis takes no fractional ticks (`allowDecimals`):
+ * of counts. Such an axis takes no fractional ticks (`minInterval: 1`):
  * between 0 and 2 the scale otherwise puts 0.5 and 1.5, and the metric's
  * own format, which rounds a count, writes them 「1」 and 「2」 — an axis
  * reading 0, 1, 1, 2, 2 (found on the real compensation service,

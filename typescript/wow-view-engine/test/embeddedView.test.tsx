@@ -106,8 +106,7 @@ describe('EmbeddedView', () => {
       }),
     );
 
-    // Recharts measures text in a span of its own on the body; the chart is
-    // what is asked about.
+    // The chart is what is asked about, so queries look inside it.
     const { container } = render(
       <EmbeddedView engine={engine} instanceId="orders-1" />,
     );

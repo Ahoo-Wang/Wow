@@ -468,7 +468,7 @@ describe('DashboardWorkbench', () => {
       }),
     );
 
-    // Recharts measures text in a span of its own on the body.
+    // Queries look inside the workbench rendered here.
     const { container } = render(
       <DashboardWorkbench
         engine={engine}

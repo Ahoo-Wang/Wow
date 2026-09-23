@@ -97,10 +97,10 @@ describe('validateChart', () => {
   });
 
   /**
-   * A saved colour is written verbatim into a `<style>` element, so it may
-   * name a colour and nothing else.
+   * A saved colour reaches the drawing and the legend, so it may name a
+   * colour and nothing else.
    */
-  it('takes a colour a style element can hold, and nothing else', () => {
+  it('takes a colour and nothing else', () => {
     const coloured = (colors: Record<string, string>): ChartSpec => ({
       type: 'bar',
       cartesian: { x: 'wh', series: [{ metric: 'orders' }] },

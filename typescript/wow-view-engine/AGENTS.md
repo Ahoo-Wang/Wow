@@ -374,7 +374,7 @@ src/
       MetricCard.tsx          — The value, the comparison signed, the target, and the trend through `sparklineOption`
       sparklineOption.ts      — `sparklineOption`: a metric card's trend as a line and a faint fill, no axes
       PieSlices.tsx           — A pie or a donut through `pieOption`: the legend beside it, led by the measured column (and, cut short, the share basis), each slice with its share
-      pieOption.ts            — `pieOption`: slices with their shares outside, labels that give way, the remainder grey, a donut's whole in its hole when the measure adds up; `drawnSlices`, `wholeOf`
+      pieOption.ts            — `pieOption`: slices with their shares outside, labels that give way, the remainder grey, a donut's whole in its hole when the measure adds up; `drawnSlices`
       ScatterPoints.tsx       — A scatter through `scatterOption`; a pressed point handed back as its group
       scatterOption.ts        — `scatterOption`: both axes titled by their columns and padded past the extremes, whole ticks where the values are, a third metric as size, a few points named
       axis.ts                 — Value format, whole axes (`allWhole`), a category name cut for its axis, and which axis a series is on

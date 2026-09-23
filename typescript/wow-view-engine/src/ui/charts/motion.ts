@@ -18,7 +18,7 @@ import { useSyncExternalStore } from 'react';
  * asked their system for less motion (`prefers-reduced-motion: reduce`).
  *
  * The stylesheet already honours that preference for everything CSS moves
- * (`styles.css`), but a chart's marks are moved by Recharts in script, which
+ * (`styles.css`), but a chart's marks are moved by the chart library in script, which
  * no media query reaches — so bars grew and slices swept for a reader who had
  * asked for neither. It is read live: the preference can change while a view
  * is open, and a chart redrawn afterwards follows it.

@@ -85,7 +85,7 @@ export function drawnSlices(
 }
 
 /** The whole the shares are of: every slice that has a share to give. */
-export function wholeOf(data: PieData): number {
+function wholeOf(data: PieData): number {
   return data.slices.reduce(
     (sum, slice) => (slice.value > 0 ? sum + slice.value : sum),
     0,

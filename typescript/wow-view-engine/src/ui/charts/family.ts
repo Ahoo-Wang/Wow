@@ -77,11 +77,9 @@ export interface FamilyProps<D> {
   /** An alias as its column is titled; `undefined` when no column holds it. */
   column: ColumnTitle;
   /**
-   * What is drawn, in one line. Each family puts it on whatever element is
-   * the picture — the `<svg>` for the three chart-library families, the grid
-   * itself for the two hand-drawn ones — as the name of a `role="img"`. The
-   * metric card is the exception: its value is already text, so only its
-   * sparkline is a picture.
+   * What is drawn, in one line: the name of the `role="img"` every family's
+   * drawing is (`EChart`'s `chart-plot`). The metric card is the exception:
+   * its value is already text, so only its sparkline is a picture.
    */
   name: string;
   /**

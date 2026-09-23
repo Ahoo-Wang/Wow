@@ -65,12 +65,12 @@ registerMode(modeP3);
 const VARIABLE_COLOR = /^var\(--[\w-]+\)$/;
 
 /**
- * Whether a saved colour is one the renderer may pass on. A chart colour is
- * written verbatim into a `<style>` element as a custom property's value, so
- * a config from a store gets to name a colour and nothing else: anything that
- * could close the declaration or the rule around it is not a colour here. The
- * renderer applies the same predicate and falls back to the palette, so an
- * unvalidated spec cannot inject either.
+ * Whether a saved colour is one the renderer may pass on. A chart colour
+ * reaches the page as a colour — the drawing is handed it made concrete, the
+ * legend's dot wears it as a style — so a config from a store gets to name a
+ * colour and nothing else. The renderer applies the same predicate and falls
+ * back to the palette, so an unvalidated spec draws in a slot rather than in
+ * whatever it said.
  *
  * Two shapes pass. A `var(--slot)` reference, which is how this package's own
  * palette is written and which no parser resolves; and anything `culori`

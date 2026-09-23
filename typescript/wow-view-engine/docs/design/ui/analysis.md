@@ -100,7 +100,7 @@ D20 屏 G。订单里有明细项，明细项里有批次——「按货号看�
 | `ui/charts/Heatmap.tsx`／`heatmapOption.ts`       | 热力图（ECharts）：格子铺满绘图区、第一行在上，`visualMap` 色标，对数刻度按对数上色、数照写                                                               |
 | `ui/charts/Funnel.tsx`／`funnelOption.ts`         | 漏斗（ECharts）：居中的漏斗形（色板第一档）、每段旁写名字、值与转化率，图上方标明相对哪一段                                                               |
 | `ui/charts/MetricCard.tsx`／`sparklineOption.ts`  | 指标卡：值、比较、目标与迷你趋势（ECharts：一根线、淡淡的填色，无轴无点）                                                                                 |
-| `ui/charts/palette.ts`                            | `--chart-1..8` 取色、「其他」的灰与 `spec.colors` 的覆盖（值在进 `<style>` 前再校一次）                                                                   |
+| `ui/charts/palette.ts`                            | `--chart-1..8` 取色、「其他」的灰与 `spec.colors` 的覆盖（值交给绘图与图例前再校一次，经 `theme.resolve` 转成具体颜色）                                   |
 | `ui/charts/axis.ts`                               | 数值格式、轴域与刻度格式、左右轴归属                                                                                                                      |
 | `ui/charts/family.ts`                             | `FamilyProps`（每个家族收到的同一份 props）、值标签器 `useValueLabel` 与列标题 `useColumnTitle`                                                           |
 

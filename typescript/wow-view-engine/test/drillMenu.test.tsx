@@ -172,7 +172,7 @@ describe('the follow-up menu on one group', () => {
   /**
    * The pointer presses a mark; the keyboard presses a row. A chart's marks
    * are inside an element that says `role="img"` and holds nothing focusable
-   * (`charts/asImage.ts`), and the reading table beside it is `sr-only` and
+   * (`charts/EChart.tsx`'s `chart-plot`), and the reading table beside it is `sr-only` and
    * deliberately out of reach — so the table layout is where the same menu is
    * opened without a pointer (F10), and the row says it opens one.
    */

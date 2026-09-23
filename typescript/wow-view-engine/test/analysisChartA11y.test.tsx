@@ -34,8 +34,7 @@ afterEach(cleanup);
  * An element with `role="img"` is its name and nothing else, whatever is
  * drawn inside it, so this substitutes the name for the subtree — which is
  * what makes "every value appears in the readable text" a real question
- * rather than one the axis ticks and the `<style>` element answer by
- * accident.
+ * rather than one the axis ticks and the value labels answer by accident.
  */
 function readable(container: HTMLElement): string {
   const clone = container.cloneNode(true) as HTMLElement;
