@@ -383,7 +383,7 @@ export const analysisMessages = {
   'label.chart.type.funnel': 'funnel',
   'label.chart.type.metric': 'metric',
   // A chart the shape leaves no room for, said with its reason where the
-  // surface can word both (`chart.as-table`, `chartIssueNamer`).
+  // surface can word both (`chart.as-table`, `analysisIssueNamer`).
   'label.analysis.as-table':
     'The {type} chart cannot draw this result ({reason}); it shows as a table.',
 
@@ -446,10 +446,11 @@ export const analysisMessages = {
   'analysis.any.undeclared': '{field} cannot be shown as a sample value.',
   'analysis.capability.missing':
     '{definition} does not offer an analysis view any more.',
-  // A validation message names a group or a metric by its alias: the
-  // kernel raises it, and the display name is composed in the catalogue
-  // (`columnTitle`), which no headless rule can reach. So the alias stands,
-  // and the sentence says nothing about columns or rows.
+  // The kernel names a group or a metric by its alias, a field by its path
+  // and a summary or a unit as Wow spells it; the surface says each as the
+  // screen does (`analysisIssueNamer`) — a column as it is headed, a field
+  // by its label, 'Average', 'By month'. The `analysis.alias.*` findings
+  // keep the alias: the key itself is what is wrong there.
   'analysis.column.duplicate': 'This result lists {alias} twice.',
   'analysis.column.unknown-alias': 'There is no {alias} in this result.',
   'analysis.config.malformed': 'This analysis has no usable shape.',
@@ -481,7 +482,7 @@ export const analysisMessages = {
   'analysis.field.outside-scope':
     'The field {field} sits outside the expanded scope.',
   'analysis.field.unknown': 'The field {field} is not available here.',
-  'analysis.function.unsupported': '{field} does not offer {fn}.',
+  'analysis.function.unsupported': '{field} cannot be summarised as {fn}.',
   'analysis.group.blank-missing-key':
     'The placeholder for missing values is empty.',
   'analysis.group.blank-time-zone': 'The time zone is empty.',
@@ -491,9 +492,10 @@ export const analysisMessages = {
     'A number range must be wider than zero.',
   'analysis.group.missing-key-unsupported':
     '{field} cannot hold a bucket for missing values; only single-valued text fields can.',
-  'analysis.group.unit-unsupported': 'The {unit} unit is not available here.',
+  'analysis.group.unit-unsupported':
+    'This dimension cannot group this way: {unit}.',
   'analysis.label.blank': 'The display name is empty.',
-  'analysis.group.unsupported': '{field} offers no {type} dimension.',
+  'analysis.group.unsupported': '{field} cannot be grouped this way: {type}.',
   'analysis.groups.too-many': 'Too many dimensions for this dataset.',
   'analysis.having.malformed': 'This result filter has no usable shape.',
   'analysis.having.requires-group':
@@ -536,7 +538,7 @@ export const analysisMessages = {
 
   // Charts. A finding names a dimension or a metric by its alias (`alias`,
   // `metric`); the surface says it as the result's column is headed
-  // (`chartIssueNamer`), so none of these ever prints a program's name.
+  // (`analysisIssueNamer`), so none of these ever prints a program's name.
   'chart.as-table':
     'The chosen chart cannot draw this result; it shows as a table.',
   'chart.cartesian.percent-not-additive':

@@ -129,7 +129,7 @@ interface ChartContext {
  * them only while the layout is the chart and its type can draw the shape
  * (D20; `chartUnfit`). A finding names a group or a metric by its alias, in
  * `alias` or `metric`, because an alias is all this layer has; a surface
- * says it as the column is headed (`chartIssueNamer` in `/ui`).
+ * says it as the column is headed (`analysisIssueNamer` in `/ui`).
  */
 export function validateChart(
   config: AnalysisViewConfig,

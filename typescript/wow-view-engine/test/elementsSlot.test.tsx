@@ -372,9 +372,12 @@ describe('the expansion slot', () => {
     const before = asked(source);
     fireEvent.click(applyButton());
 
-    expect((await screen.findByRole('alert')).textContent).toContain(
-      label('analysis.elementFilter.incomplete', { field: 'items.sku' }),
+    // The condition's field is said by its label, never by its path.
+    const strip = (await screen.findByRole('alert')).textContent;
+    expect(strip).toContain(
+      label('analysis.elementFilter.incomplete', { field: 'SKU' }),
     );
+    expect(strip).not.toContain('items.sku');
     expect(asked(source)).toBe(before);
   });
 

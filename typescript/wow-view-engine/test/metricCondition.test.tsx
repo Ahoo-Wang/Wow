@@ -427,7 +427,7 @@ describe('a metric’s own conditions', () => {
 
     const strip = await screen.findByRole('alert');
     expect(strip.textContent).toContain(
-      label('analysis.metricFilter.incomplete', { field: 'status' }),
+      label('analysis.metricFilter.incomplete', { field: 'Status' }),
     );
     expect(asked(source)).toBe(before);
   });

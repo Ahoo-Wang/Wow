@@ -35,7 +35,7 @@ import { AnalysisToolbar } from '../analysis/AnalysisToolbar.js';
 import { ChartOptions } from '../analysis/ChartOptions.js';
 import { ChartPicker } from '../analysis/ChartPicker.js';
 import { Tray } from '../analysis/Tray.js';
-import { chartIssueNamer } from '../analysis/issueNames.js';
+import { analysisIssueNamer } from '../analysis/issueNames.js';
 import { Button } from '../components/button.js';
 import { DrillMenu, type Pick as Pressed } from '../analysis/DrillMenu.js';
 import { useHeaderSort } from '../analysis/headerSort.js';
@@ -132,9 +132,9 @@ export function AnalysisParts({
   const { filter, state } = workbench;
   const analysis = useAnalysisEditor(runtime);
   const searchBox = useSearchBox(runtime);
-  // The status line says every dimension and metric a chart finding names
-  // as its column is headed, never by its alias (`chartIssueNamer`).
-  const nameIssue = chartIssueNamer(analysis, messages);
+  // The status line says every dimension, metric and field a finding names
+  // as the screen does, never by a program's key (`analysisIssueNamer`).
+  const nameIssue = analysisIssueNamer(analysis, messages);
 
   const result = useAnalysisResult(runtime, analysis, workbench);
   const { view, question, chart, chartData, fits, picked } = result;

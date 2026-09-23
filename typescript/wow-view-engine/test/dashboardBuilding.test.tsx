@@ -777,7 +777,7 @@ describe('a chart finding in a panel names columns', () => {
   /**
    * A bar chart over three dimensions is drawn as its table, and the panel
    * says so as the workbench does — with the chart's name and the reason,
-   * never an alias (`chartIssueNamer`). It used to say nothing at all: only
+   * never an alias (`analysisIssueNamer`). It used to say nothing at all: only
    * a child's warnings reached its panel, and this one is a note.
    */
   it('says why a chart shows as its table, in the words of the picker', async () => {

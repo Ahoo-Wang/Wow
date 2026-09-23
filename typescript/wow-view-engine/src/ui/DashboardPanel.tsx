@@ -24,7 +24,7 @@ import {
   RecordPanel,
   presentationMark,
 } from './dashboard/PanelBodies.js';
-import { chartIssueNamer } from './analysis/issueNames.js';
+import { analysisIssueNamer } from './analysis/issueNames.js';
 import { PanelArrangeMenu, PanelGrip } from './DashboardArrange.js';
 import { ContentPanel } from './DashboardPanels.js';
 import type { PanelCommands } from './dashboard/commands.js';
@@ -174,10 +174,13 @@ export function DashboardPanel({
   const heading = panel.panel.kind === 'heading';
   const menuTrigger = useRef<HTMLButtonElement>(null);
   const [removing, setRemoving] = useState(false);
-  // A chart finding names its dimensions and metrics as the panel's columns
-  // are headed, never by alias (`chartIssueNamer`); over a record panel or
-  // a content panel the editor is empty and names nothing.
-  const nameIssue = chartIssueNamer(useAnalysisEditor(panel.runtime), messages);
+  // A finding names its dimensions, metrics and fields as the panel's screen
+  // does, never by a program's key (`analysisIssueNamer`); over a record
+  // panel or a content panel the editor is empty and names nothing.
+  const nameIssue = analysisIssueNamer(
+    useAnalysisEditor(panel.runtime),
+    messages,
+  );
   // A panel that runs and still has something to say shows its view and
   // wears the finding in its header. A broken one says why in its body,
   // where the view would have been; whatever else it has to say — a config

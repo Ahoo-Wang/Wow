@@ -40,7 +40,7 @@ import {
   useViewRuntime,
 } from '../src/react/index.js';
 import { DataWorkbench, zhCN } from '../src/ui/index.js';
-import { chartIssueNamer } from '../src/ui/analysis/issueNames.js';
+import { analysisIssueNamer } from '../src/ui/analysis/issueNames.js';
 import {
   defaultMessages,
   formatIssue,
@@ -276,11 +276,11 @@ async function findings(config: AnalysisViewConfig) {
 
 function said(
   found: readonly Issue[],
-  analysis: Parameters<typeof chartIssueNamer>[0],
+  analysis: Parameters<typeof analysisIssueNamer>[0],
   catalogue: ViewMessages,
 ): string[] {
   const messages = formatters(catalogue);
-  const name = chartIssueNamer(analysis, messages);
+  const name = analysisIssueNamer(analysis, messages);
   return found.map(each => messages.issue(name(each)));
 }
 
@@ -303,7 +303,7 @@ describe('a chart finding says its columns as their headers do', () => {
   });
 
   it('passes every other finding through as it is', () => {
-    const namer = chartIssueNamer(
+    const namer = analysisIssueNamer(
       { fields: [], metrics: [], groups: [] },
       formatters(defaultMessages),
     );
