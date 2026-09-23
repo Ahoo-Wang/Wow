@@ -25,7 +25,7 @@ View Engine 的故事在 `view-engine/`，按界面分为数据视图、分析�
 
 View Engine 的每个场景都放在宿主应用里评判：`shared/AppShell.tsx` 画出宿主自己的顶部导航与左侧应用导航（可折成图标），视图引擎只是中间那一块——真实产品里它从来不是一整屏，只对着白底或文档框评判它的观感是对错了地方。外壳是宿主的标记，经 `fve-tokens` 读主题 token（D17-10），明暗两套随之成立。
 
-- **导航**第一项是单独的「首页」（不在任何分组下，宿主打开时就在那一页），其后按目录分组列出其余 View Engine 场景：真实后端（每个服务一组——补偿、客户、交易订单——各有快照控制台与事件流分析台）、数据视图（Record 工作台、嵌入视图、筛选编辑器）、分析视图（分析工作台）、仪表盘视图（仪表盘）。每项链接到该场景的第一个故事，当前场景标 `aria-current="page"`；图标与工作台里视图种类的图标一致（`ui/kinds.ts`）。链接写成 `./?path=/story/<id>`（`target="_top"`）：锚点在 `iframe.html` 里，它所在的目录就是 Storybook 的根——本地是 `/`，GitHub Pages 上是 `/storybook/`——写成 `/?path=` 会在 Pages 上跳出 Storybook。
+- **导航**第一项是单独的「首页」（不在任何分组下，宿主打开时就在那一页），其后按目录分组列出其余 View Engine 场景：真实后端（每个服务一组——补偿、客户、交易订单、商品定价——各有快照控制台与事件流分析台）、数据视图（Record 工作台、嵌入视图、筛选编辑器）、分析视图（分析工作台）、仪表盘视图（仪表盘）。每项链接到该场景的第一个故事，当前场景标 `aria-current="page"`；图标与工作台里视图种类的图标一致（`ui/kinds.ts`）。链接写成 `./?path=/story/<id>`（`target="_top"`）：锚点在 `iframe.html` 里，它所在的目录就是 Storybook 的根——本地是 `/`，GitHub Pages 上是 `/storybook/`——写成 `/?path=` 会在 Pages 上跳出 Storybook。
 - **首页**（`view-engine/Home.stories.tsx`，目录里 View Engine 下的第一项）是宿主应用的落地页：宿主只画日期、「运营概览」标题与一句说明，下面整块是 `EmbeddedView` 嵌入的仪表盘——补偿服务执行失败的三个计数、本月每日新增、状态分布、最近的活动失败与失败最多的处理器。仪表盘是 `home` 定义在代码里的系统视图，面板引用运营组共享的视图与快照控制台自己的「按状态分布」（`view-engine/home.ts`）。宿主不另画数字卡片：那些数字是同一份数据上的计数，是仪表盘的指标面板。「示例数据」用 `rowSource` 在内存里应答一组按序号生成的执行，时钟与时区钉在 2026-09-22 10:00 Asia/Shanghai，回归孪生 `Home.test.stories.tsx` 断言每个面板的数字与页面不横向滚动；「真实后端」连 `host`，标 `!test`。
 - **「服务」一行与环境标记**说的是场景真实连接的东西：真实后端写 `host` 并标「测试环境」，夹具场景写各自的数据源（如「内存 ViewStore · 六条订单」）并标「示例数据」。不放假条目。
 - **页面区有确定的高度**，像宿主的内容区一样：工作台填满这个高度（包里只有一种高度布局：永远填满容器，容器没高度时停在 36rem 保底），页脚（合计与分页）贴在底边；比页面区高的内容在页面区里滚动，顶栏不随之滚走。首页、嵌入视图（一张客户详情页）和筛选编辑器用 `padded`，得到宿主给页面的留白。
@@ -53,6 +53,12 @@ View Engine 的每个场景都放在宿主应用里评判：`shared/AppShell.tsx
 
 `view-engine/TradeOrderEventConsole.stories.tsx` 是订单的**事件流分析台**：订单历史、评审驳回、改单、取消与关闭，以及事件类型分布、每日事件量、变动最多的订单。29 种事件同样由定义命名，见 `tradeOrderEvents.ts`。
 
+**商品定价**是定价服务（`product_pricing` 聚合）这一组，同样两个场景，只读：
+
+`view-engine/ProductPricingSnapshot.stories.tsx` 是定价的**快照控制台**：生效中、半年内到期、已停用或过期，以及按状态分布、价格区间分布、各品牌价格、货期类型分布。字段定义按 `GET /product_pricing/snapshot/schema` 人工对齐，见 `productPricing.ts`。
+
+`view-engine/ProductPricingEvents.stories.tsx` 是定价的**事件流分析台**：定价历史、状态变更，以及事件类型分布、每月／每日事件量、改动最多的定价，见 `productPricingEvents.ts`。
+
 - 这些场景就是操作员用的产品，与其余 View Engine 场景一样放在宿主外壳里（见上一节）；「服务」一行就是场景连接的 `host`。补偿快照控制台的文档页还写着「命令真实写入」的提醒。
 - 服务地址是故事的 `host` 参数，可在 Controls 面板随时切换；初始值取环境变量，未设置时为开发集群服务在本机的端口转发（集群内地址命令行能连，但桌面应用的内置浏览器解析不了 `*.svc.cluster.local`）。同一个服务的两个场景共用一个地址：
 
@@ -61,10 +67,11 @@ View Engine 的每个场景都放在宿主应用里评判：`shared/AppShell.tsx
   | 补偿        | `STORYBOOK_WOW_COMPENSATION_HOST` | `http://localhost:8080` | `http://compensation-service.dev.svc.cluster.local` |
   | 客户（CRM） | `STORYBOOK_WOW_CRM_HOST`          | `http://localhost:8085` | `http://crm-service.dev.svc.cluster.local`          |
   | 交易订单    | `STORYBOOK_WOW_TRADING_HOST`      | `http://localhost:8088` | `http://trading-service.dev.svc.cluster.local`      |
+  | 商品定价    | `STORYBOOK_WOW_PRICING_HOST`      | `http://localhost:8089` | `http://pricing-service.dev.svc.cluster.local`      |
 
-- 补偿快照控制台的写操作会真实写回服务，只连接测试环境；客户与交易订单只读，不发命令。
+- 补偿快照控制台的写操作会真实写回服务，只连接测试环境；客户、交易订单与商品定价只读，不发命令。
 - 真实数据每次都不同，这些故事标记为 `!test`，不进入回归测试；文档页用 `docs.autoMount: false` 只列出场景链接，不挂载示例，因此打开目录不会调用服务。
-- 变的只是数据；定义、系统视图和读取数据的方式是确定的，View Engine 的规则一变就可能让它们失效。每个场景都有一个回归孪生故事（`*.test.stories.tsx`），指向录制服务：`recordedWowService.ts` 用 `rowSource` 按服务的方式应答一个查询资源的 `paged`／`cursor`／`aggregation`（包括元素展开）。`compensationService.ts` 录了几条快照，并按服务的规则应答三条补偿命令；`eventStreamService.ts` 录了几条事件流。客户与交易订单各有自己的录制服务（`customerService.ts`、`tradeOrderService.ts`），录了快照与事件流各几条；录制服务按服务的方式计算去重计数（`DISTINCT_COUNT`，由 `rowSource` 应答）。这类失效因此在 CI 里暴露，不必等有人打开目录才发现。
+- 变的只是数据；定义、系统视图和读取数据的方式是确定的，View Engine 的规则一变就可能让它们失效。每个场景都有一个回归孪生故事（`*.test.stories.tsx`），指向录制服务：`recordedWowService.ts` 用 `rowSource` 按服务的方式应答一个查询资源的 `paged`／`cursor`／`aggregation`（包括元素展开）。`compensationService.ts` 录了几条快照，并按服务的规则应答三条补偿命令；`eventStreamService.ts` 录了几条事件流。客户、交易订单与商品定价各有自己的录制服务（`customerService.ts`、`tradeOrderService.ts`、`productPricingService.ts`），录了快照与事件流各几条；录制服务按服务的方式计算去重计数（`DISTINCT_COUNT`，由 `rowSource` 应答）。这类失效因此在 CI 里暴露，不必等有人打开目录才发现。
 
 ## 检查命令
 

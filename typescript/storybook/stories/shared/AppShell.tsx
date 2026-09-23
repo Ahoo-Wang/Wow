@@ -40,6 +40,8 @@ export type ScenePage =
   | 'customer-event-streams'
   | 'trade-order-snapshots'
   | 'trade-order-event-streams'
+  | 'pricing-snapshots'
+  | 'pricing-event-streams'
   | 'records'
   | 'embedded'
   | 'filters'
@@ -125,6 +127,24 @@ const GROUPS: readonly { title?: string; items: readonly NavItem[] }[] = [
         title: '事件流分析台',
         story:
           'view-engine-真实后端-交易订单-事件流分析台--event-stream-console',
+        icon: ActivityIcon,
+      },
+    ],
+  },
+  {
+    title: '真实后端 · 商品定价',
+    items: [
+      {
+        page: 'pricing-snapshots',
+        title: '快照控制台',
+        story: 'view-engine-真实后端-商品定价-快照控制台--snapshot-console',
+        icon: ClipboardListIcon,
+      },
+      {
+        page: 'pricing-event-streams',
+        title: '事件流分析台',
+        story:
+          'view-engine-真实后端-商品定价-事件流分析台--event-stream-console',
         icon: ActivityIcon,
       },
     ],
