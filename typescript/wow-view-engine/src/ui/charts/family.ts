@@ -13,8 +13,14 @@
 
 import { useMemo } from 'react';
 import type { AnalysisColumnView } from '../../analysis/index.js';
-import type { ChartSpec, FunnelStages, RecordData } from '../../model/index.js';
+import type {
+  ChartSpec,
+  FunnelSpec,
+  FunnelStages,
+  RecordData,
+} from '../../model/index.js';
 import { columnTitle, displayValue, valueText } from '../display.js';
+import type { MessageKey } from '../messages.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
 
@@ -138,4 +144,25 @@ export function stageName(
   if (stages?.from === 'group') return label(stages.category, projected);
   const item = stages?.items[index];
   return item?.label ?? column(item?.metric) ?? projected;
+}
+
+/**
+ * The heading over a funnel's percentages, drawing and reading table alike.
+ *
+ * The kernel divides each stage by the one before it, or by the first
+ * (`conversion`, 'previous' unless the spec says otherwise), and a bare
+ * 「25%」 beside a bar reads as a share of the whole — which it is only
+ * against the first stage. So the heading says it is a conversion rate and
+ * what it is relative to, in the options panel's own words for the choice.
+ */
+export function conversionHeading(
+  mode: FunnelSpec['conversion'],
+): Extract<
+  MessageKey,
+  | 'label.chart.column.conversion.previous'
+  | 'label.chart.column.conversion.first'
+> {
+  return mode === 'first'
+    ? 'label.chart.column.conversion.first'
+    : 'label.chart.column.conversion.previous';
 }

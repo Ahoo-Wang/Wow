@@ -11,7 +11,8 @@
  * limitations under the License.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { fitCharts, momentColumns } from '../../analysis/index.js';
 import type { AnalysisViewConfig, FieldOption } from '../../model/index.js';
 import type { ViewRuntime } from '../../runtime/index.js';
 import {
@@ -87,8 +88,30 @@ export function AnalysisParts({
   const searchBox = useSearchBox(runtime);
 
   const result = useAnalysisResult(runtime, analysis, workbench);
-  const { view, chart, chartData, fits, picked } = result;
+  const { view, chart, chartData, picked, ran } = result;
   const layout = analysis.layout;
+  /**
+   * The picker's fits, judged against the rows as well as the shape. A
+   * funnel over one dimension takes its stages from the rows the moment it
+   * is picked (`withStagesFrom`), so whether it has the two it needs is a
+   * question only they answer: judged on the shape alone, a funnel over a
+   * result of one group was offered, and picking it drew nothing but
+   * 「漏斗至少要有两个阶段」 (the 2026-09-23 audit). The controller's `fits`
+   * is handed no rows yet (docs/design/todo.md), so the picker's are
+   * worked out here, from the same shape and moments it reads.
+   */
+  const fits = useMemo(
+    () =>
+      ran && view
+        ? fitCharts({
+            groups: ran.groups,
+            metrics: ran.metrics,
+            moments: momentColumns(view.schema ?? view.columns),
+            rows: view.rows,
+          })
+        : result.fits,
+    [ran, view, result.fits],
+  );
 
   // The visualization panel (D20 屏 I／J): open from the result's toolbar,
   // it takes the sidebar column, first as the chart types, then as the
@@ -187,6 +210,11 @@ export function AnalysisParts({
     null,
   );
 
+  // Whether every finding the strip shows is about the chart.
+  const chartOnly =
+    filter.unmarked.length > 0 &&
+    filter.unmarked.every(found => found.path[0] === 'chart');
+
   if (!runtime) return children(NO_PARTS);
   return children({
     // The caption is this kind's furniture in the frame (`resultSlots`).
@@ -221,9 +249,23 @@ export function AnalysisParts({
         }}
       />
     ),
-    // The way out of a config that will not run: the tray, which is where
-    // the finding is about (F11).
-    errorAction: (
+    // The way out of a config that will not run: wherever the finding is
+    // about (F11). A chart's are the visualization panel's — its options,
+    // where the stages and slots are set — and the tray holds none of them:
+    // sending a funnel short of stages to 「打开分析」 opened the one place
+    // that could not fix it (the 2026-09-23 audit). With the panel switched
+    // off by the host there is no way to it, so no button.
+    errorAction: chartOnly ? (
+      shown.visualization && (
+        <Button
+          variant="outline"
+          size="xs"
+          onClick={() => setPanel(view ? 'options' : 'picker')}
+        >
+          {messages.label('label.analysis.open-chart-options')}
+        </Button>
+      )
+    ) : (
       <Button
         variant="outline"
         size="xs"

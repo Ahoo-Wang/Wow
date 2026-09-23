@@ -11,7 +11,13 @@
  * limitations under the License.
  */
 
-import { cleanup, render, screen, within } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
   AnalysisView,
@@ -638,6 +644,147 @@ describe('AnalysisChart', () => {
     expect(container.querySelector('[data-slot="chart"]')).not.toBeNull();
   });
 
+  describe('a scatter', () => {
+    const regions: AnalysisView['columns'] = [
+      { alias: 'region', label: 'Region', role: 'group' },
+      { alias: 'orders', label: 'Orders', role: 'metric' },
+      {
+        alias: 'amount',
+        label: 'Amount',
+        role: 'metric',
+        fn: 'SUM',
+        numberFormat: { style: 'currency', currency: 'CNY' },
+      },
+    ];
+    const spec: ChartSpec = {
+      type: 'scatter',
+      scatter: { category: 'region', x: 'orders', y: 'amount' },
+    };
+    const scatterOf = (points: { category: string; x: number; y: number }[]) =>
+      render(
+        <ViewSurface locale="zh-CN">
+          <AnalysisChart
+            data={{ type: 'scatter', points }}
+            spec={spec}
+            columns={regions}
+          />
+        </ViewSurface>,
+      );
+    const ticks = (container: HTMLElement, axis: 'x' | 'y') =>
+      [
+        ...container.querySelectorAll(
+          `.recharts-${axis}Axis-tick-labels .recharts-cartesian-axis-tick-value`,
+        ),
+      ].map(tick => tick.textContent ?? '');
+
+    /**
+     * Counts from 0 to 2 used to tick at 0.5 and 1.5, which the count's own
+     * format rounds: an axis reading 0 1 1 2 2 (the 2026-09-23 audit).
+     */
+    it('ticks a whole-numbered axis at whole numbers, each once', () => {
+      const { container } = scatterOf([
+        { category: 'East', x: 0, y: 1200 },
+        { category: 'West', x: 1, y: 800 },
+        { category: 'North', x: 2, y: 300 },
+      ]);
+      const xs = ticks(container, 'x');
+      expect(xs.length).toBeGreaterThan(1);
+      expect(xs.every(tick => /^\d+$/.test(tick))).toBe(true);
+      expect(new Set(xs).size).toBe(xs.length);
+    });
+
+    it('titles each axis as the table heads its column', () => {
+      const { container } = scatterOf([
+        { category: 'East', x: 1, y: 1200 },
+        { category: 'West', x: 3, y: 800 },
+      ]);
+      const titles = [...container.querySelectorAll('.recharts-label')].map(
+        title => title.textContent,
+      );
+      expect(titles).toContain('Orders');
+      expect(titles).toContain('Sum of Amount');
+    });
+
+    /**
+     * A point is one group, and nothing about a dot says which: the tooltip
+     * is headed by it, and a few points are named where they are drawn.
+     */
+    it('says which group a point is', () => {
+      const { container } = scatterOf([
+        { category: 'East', x: 1, y: 1200 },
+        { category: 'West', x: 3, y: 800 },
+      ]);
+      expect(
+        [...container.querySelectorAll('.recharts-label-list text')].map(
+          name => name.textContent,
+        ),
+      ).toEqual(['East', 'West']);
+
+      fireEvent.mouseEnter(
+        container.querySelectorAll('.recharts-scatter-symbol')[1]!,
+      );
+      const tooltip = container.querySelector<HTMLElement>(
+        '.recharts-tooltip-wrapper',
+      )!;
+      expect(within(tooltip).getByText('West')).toBeDefined();
+      expect(within(tooltip).getByText('Orders')).toBeDefined();
+      expect(within(tooltip).getByText('¥800.00')).toBeDefined();
+    });
+
+    /**
+     * The point at the largest value sat on the plot's edge, half of it cut
+     * by the chart's own box (the 2026-09-23 audit). The scale is laid out
+     * even in jsdom, so where each point's centre falls against the grid is
+     * a number here: at least a point's radius in from every edge.
+     */
+    it('keeps the extreme points off the plot’s edges', () => {
+      const { container } = scatterOf([
+        { category: 'East', x: 0, y: 0 },
+        { category: 'West', x: 4, y: 4000 },
+      ]);
+      const lines = (which: 'horizontal' | 'vertical') => [
+        ...container.querySelectorAll(`.recharts-cartesian-grid-${which} line`),
+      ];
+      const [line] = lines('horizontal');
+      const left = Number(line.getAttribute('x1'));
+      const right = Number(line.getAttribute('x2'));
+      const [column] = lines('vertical');
+      const top = Math.min(
+        Number(column.getAttribute('y1')),
+        Number(column.getAttribute('y2')),
+      );
+      const bottom = Math.max(
+        Number(column.getAttribute('y1')),
+        Number(column.getAttribute('y2')),
+      );
+      const centres = [
+        ...container.querySelectorAll('.recharts-scatter-symbol path'),
+      ].map(point => ({
+        x: Number(point.getAttribute('cx')),
+        y: Number(point.getAttribute('cy')),
+      }));
+      expect(centres).toHaveLength(2);
+      // recharts' own point is 64px², a radius of 4.5.
+      for (const { x, y } of centres) {
+        expect(x - left).toBeGreaterThanOrEqual(4.5);
+        expect(right - x).toBeGreaterThanOrEqual(4.5);
+        expect(y - top).toBeGreaterThanOrEqual(4.5);
+        expect(bottom - y).toBeGreaterThanOrEqual(4.5);
+      }
+    });
+
+    it('names no point on the plot once there are many', () => {
+      const { container } = scatterOf(
+        Array.from({ length: 9 }, (_, index) => ({
+          category: `R${index}`,
+          x: index,
+          y: index * 100,
+        })),
+      );
+      expect(container.querySelector('.recharts-label-list')).toBeNull();
+    });
+  });
+
   it('draws a heatmap as a grid of cells', () => {
     chartOf({
       type: 'heatmap',
@@ -678,6 +825,68 @@ describe('AnalysisChart', () => {
 
     expect(screen.getByText('Visited', DRAWN)).toBeDefined();
     expect(screen.getByText('25%', DRAWN)).toBeDefined();
+  });
+
+  /**
+   * A bare 「25%」 beside a bar reads as a share of the whole; the kernel
+   * divides by the stage before unless the spec asks for the first. The
+   * heading over the percentages says which, drawing and reading alike, and
+   * the bars wear the palette's first slot rather than the button colour.
+   */
+  it('says what a funnel’s percentages are relative to, and paints from the palette', () => {
+    const stages = [
+      { label: 'Visited', value: 100, conversion: 1 },
+      { label: 'Bought', value: 25, conversion: 0.25 },
+    ];
+    const funnel = (conversion?: 'first') =>
+      render(
+        <ViewSurface>
+          <AnalysisChart
+            data={{ type: 'funnel', stages }}
+            spec={{
+              type: 'funnel',
+              funnel: {
+                stages: { from: 'metrics', items: [] },
+                ...(conversion ? { conversion } : {}),
+              },
+            }}
+          />
+        </ViewSurface>,
+      );
+    const heading = (container: HTMLElement) =>
+      container.querySelector('[data-slot="funnel-conversion-heading"]')
+        ?.textContent;
+
+    const { container, unmount } = funnel();
+    expect(heading(container)).toBe('Conversion from previous stage');
+    // The reading table's column says the same words.
+    expect(
+      within(
+        container.querySelector<HTMLElement>('[data-slot="chart-reading"]')!,
+      ).getByText('Conversion from previous stage'),
+    ).toBeDefined();
+    expect(
+      [
+        ...container.querySelectorAll<HTMLElement>('[data-slot="funnel-bar"]'),
+      ].map(bar => bar.style.background),
+    ).toEqual(['var(--chart-1)', 'var(--chart-1)']);
+    unmount();
+
+    const first = funnel('first');
+    expect(heading(first.container)).toBe('Conversion from first stage');
+  });
+
+  it('says no conversion where the spec asks for none', () => {
+    const { container } = chartOf({
+      type: 'funnel',
+      stages: [
+        { label: 'Visited', value: 100 },
+        { label: 'Bought', value: 25 },
+      ],
+    });
+    expect(
+      container.querySelector('[data-slot="funnel-conversion-heading"]'),
+    ).toBeNull();
   });
 
   /**

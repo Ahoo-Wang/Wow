@@ -40,6 +40,7 @@ import {
 import { cn } from 'cn';
 import { asImage } from './asImage.js';
 import {
+  allWhole,
   axisId,
   CHART_MARGIN,
   categoryTick,
@@ -142,31 +143,19 @@ export function Cartesian({
       series => axisId(bySeries.get(series.metric)?.axis) === side,
     )?.metric;
   /**
-   * Whether every number on an axis is whole — a count of records, a sum of
-   * counts. Such an axis takes no fractional ticks: between 0 and 2 the
-   * scale otherwise puts 0.5 and 1.5, and the metric's own format, which
-   * rounds a count, wrote them as 「1」 and 「2」 — an axis reading 2, 2, 1,
-   * 1, 0 (found on the real compensation service, 2026-09-23). Read off the
-   * values rather than the metric's kind: an average of counts is not whole,
-   * and a sum of whole amounts is.
+   * Whether every number on an axis is whole (`allWhole`): each series'
+   * every point on it, and each reference line drawn against it.
    */
   const wholeOn = (side: 'left' | 'right') => {
     const keys = data.series
       .filter(series => axisId(bySeries.get(series.metric)?.axis) === side)
       .map(series => series.key);
-    return (
-      data.points.every(point =>
-        keys.every(key => {
-          const value = point.values[key];
-          return (
-            value === null || value === undefined || Number.isInteger(value)
-          );
-        }),
-      ) &&
-      referenceLines
+    return allWhole([
+      ...data.points.flatMap(point => keys.map(key => point.values[key])),
+      ...referenceLines
         .filter(line => axisId(line.axis) === side)
-        .every(line => Number.isInteger(line.value))
-    );
+        .map(line => line.value),
+    ]);
   };
   const ticksOf = (axis: typeof left, side: 'left' | 'right') =>
     tickFormatterOf(axis, locale) ??

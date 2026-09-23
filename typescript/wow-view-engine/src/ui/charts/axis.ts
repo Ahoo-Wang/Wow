@@ -83,6 +83,23 @@ export function categoryTick(value: string | number): string {
     : text;
 }
 
+/**
+ * Whether every number an axis carries is whole — a count of records, a sum
+ * of counts. Such an axis takes no fractional ticks (`allowDecimals`):
+ * between 0 and 2 the scale otherwise puts 0.5 and 1.5, and the metric's
+ * own format, which rounds a count, writes them 「1」 and 「2」 — an axis
+ * reading 0, 1, 1, 2, 2 (found on the real compensation service,
+ * 2026-09-23). Read off the values rather than the metric's kind: an
+ * average of counts is not whole, and a sum of whole amounts is. A hole is
+ * no number and says nothing either way.
+ */
+export function allWhole(values: Iterable<number | null | undefined>): boolean {
+  for (const value of values)
+    if (value !== null && value !== undefined && !Number.isInteger(value))
+      return false;
+  return true;
+}
+
 export function axisId(axis: 'left' | 'right' | undefined): 'left' | 'right' {
   return axis === 'right' ? 'right' : 'left';
 }

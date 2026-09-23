@@ -1,0 +1,281 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+import type { StoryObj } from '@storybook/react-vite';
+import { expect, screen, userEvent, waitFor, within } from 'storybook/test';
+import { formatMessage, zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
+import displayMeta, {
+  BarChart as DisplayBarChart,
+  DailyNewestFirst as DisplayDailyNewestFirst,
+} from './AnalysisWorkbench.stories.js';
+
+const meta = {
+  ...displayMeta,
+  title: 'View Engine/分析视图/图型/回归',
+  tags: ['!dev', '!autodocs', 'test'],
+  // Spelled out, not left to the spread: Storybook writes a file's own
+  // description into a `parameters` of its meta, which would replace the
+  // display meta's — and with it the full-screen host application the
+  // workbench is meant to be exercised in.
+  parameters: { ...displayMeta.parameters },
+};
+
+export default meta;
+
+type Story = StoryObj<typeof displayMeta>;
+
+/** 「金额 的 合计」 and 「订单数」: the two columns a scatter plots. */
+const AMOUNT_HEADER = formatMessage(zhCN, 'label.summary.of', {
+  field: '金额',
+  fn: zhCN['label.summary.fn.SUM'],
+});
+const COUNT_HEADER = zhCN['label.analysis.row-count'];
+const WAREHOUSES = ['华东', '华南', '华北', '西南'];
+
+const bars = (canvas: HTMLElement) =>
+  canvas.querySelectorAll('.recharts-bar-rectangle');
+
+const chartTile = (canvas: HTMLElement, type: string) =>
+  canvas.querySelector<HTMLButtonElement>(
+    `[data-slot="chart-tile"][data-chart-type="${type}"]`,
+  )!;
+
+/** Opens the visualization panel from the result's toolbar. */
+async function visualize(canvasElement: HTMLElement) {
+  await userEvent.click(
+    within(canvasElement).getByRole('button', {
+      name: zhCN['label.analysis.visualize'],
+    }),
+  );
+  return canvasElement.querySelector<HTMLElement>('[data-slot="view-panel"]')!;
+}
+
+/** Whether `inner` lies inside `outer`, a pixel of rounding allowed. */
+function inside(inner: DOMRect, outer: DOMRect): boolean {
+  return (
+    inner.left >= outer.left - 1 &&
+    inner.right <= outer.right + 1 &&
+    inner.top >= outer.top - 1 &&
+    inner.bottom <= outer.bottom + 1
+  );
+}
+
+/**
+ * The elements among `found` that stick out of `outer`, each as its text
+ * and its box — so a failure says which one and by how much.
+ */
+const outside = (found: readonly Element[], outer: DOMRect) =>
+  found
+    .map(element => ({ element, box: element.getBoundingClientRect() }))
+    .filter(({ box }) => !inside(box, outer))
+    .map(({ element, box }) => ({
+      text: element.textContent,
+      box: [box.left, box.top, box.right, box.bottom].map(Math.round),
+      outer: [outer.left, outer.top, outer.right, outer.bottom].map(Math.round),
+    }));
+
+/** The tick texts of one axis, as drawn. */
+const ticksOf = (canvas: HTMLElement, axis: 'x' | 'y') =>
+  [
+    ...canvas.querySelectorAll(
+      `.recharts-${axis}Axis-tick-labels .recharts-cartesian-axis-tick-value`,
+    ),
+  ].map(tick => (tick.textContent ?? '').trim());
+
+/**
+ * 散点：刻度不重复，点不出界，两根轴各有标题，点说得出自己是哪一组。
+ *
+ * 审查（2026-09-23）在散点上看到四件事：横轴读成「0 1 1 2 2」——订单数是整数，
+ * 比例尺却在中间放了 0.5、1.5，订单数的格式把它们写成 1、2；落在最大值上的点半个
+ * 在绘图区外、被图自己的框切掉；两根轴都没有标题，看不出哪根是订单数、哪根是金额；
+ * 点上没有名字，也说不出是哪个仓库。这里从柱状图经图型网格换成散点——用户走的就是
+ * 这条路——然后量：两根轴的刻度都各不相同，每个点的框都在绘图区里，两个标题是表头
+ * 那两句、都在图里且不压刻度，四个点各带仓库名。四个仓库的极值不正好落在最末
+ * 一个刻度上；落在上面的那一种（点心压在绘图区边上）由包里的测试按坐标量着。
+ */
+export const ScatterReadsItsPoints: Story = {
+  ...DisplayBarChart,
+  play: async ({ canvasElement }) => {
+    await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
+    const panel = await visualize(canvasElement);
+    await expect(chartTile(panel, 'scatter')).not.toHaveAttribute(
+      'aria-disabled',
+    );
+    await userEvent.click(chartTile(panel, 'scatter'));
+
+    const symbols = await waitFor(() => {
+      const found = [
+        ...canvasElement.querySelectorAll('.recharts-scatter-symbol'),
+      ];
+      expect(found).toHaveLength(4);
+      return found;
+    });
+
+    // Every tick once, on both axes.
+    for (const axis of ['x', 'y'] as const) {
+      const ticks = await waitFor(() => {
+        const found = ticksOf(canvasElement, axis);
+        expect(found.length).toBeGreaterThan(1);
+        return found;
+      });
+      await expect(new Set(ticks).size).toBe(ticks.length);
+    }
+
+    // Every point inside the plot: the grid spans exactly the plot area.
+    const plot = canvasElement
+      .querySelector('.recharts-cartesian-grid')!
+      .getBoundingClientRect();
+    await expect(outside(symbols, plot)).toEqual([]);
+
+    // Each axis titled as the table heads its column, inside the drawing.
+    const surface = canvasElement
+      .querySelector('.recharts-surface')!
+      .getBoundingClientRect();
+    const titles = [...canvasElement.querySelectorAll('.recharts-label')];
+    await expect(titles.map(title => title.textContent).sort()).toEqual(
+      [AMOUNT_HEADER, COUNT_HEADER].sort(),
+    );
+    await expect(outside(titles, surface)).toEqual([]);
+    // And clear of the numbers on its own axis.
+    const tickBoxes = [
+      ...canvasElement.querySelectorAll('.recharts-cartesian-axis-tick-value'),
+    ].map(tick => tick.getBoundingClientRect());
+    for (const title of titles) {
+      const box = title.getBoundingClientRect();
+      await expect(
+        tickBoxes.filter(
+          tick =>
+            tick.left < box.right &&
+            box.left < tick.right &&
+            tick.top < box.bottom &&
+            box.top < tick.bottom,
+        ),
+      ).toEqual([]);
+    }
+
+    // Four points are four named things, each name inside the drawing.
+    // They land once the points have finished moving in.
+    const names = await waitFor(() => {
+      const found = [
+        ...canvasElement.querySelectorAll('.recharts-label-list text'),
+      ];
+      expect(found.map(name => name.textContent).sort()).toEqual(
+        [...WAREHOUSES].sort(),
+      );
+      return found;
+    });
+    await expect(outside(names, surface)).toEqual([]);
+
+    // The tooltip is headed by the group the point is. Synthesised pointer
+    // events open no recharts tooltip in a real browser, so what it says is
+    // pinned in the package (test/analysisChart.test.tsx「a scatter」),
+    // where recharts takes a synthetic `mouseenter` on the point.
+  },
+};
+
+/**
+ * 漏斗：从结果行起头，当场画出；条用色板的第一档，留着结果区的边，百分比说明是
+ * 相对上一段的转化率。
+ *
+ * 审查（2026-09-23）：漏斗贴着边、颜色是按钮的 primary 而不是图表色板、百分比
+ * 没说是什么的百分比。四个仓库是四个阶段，从图型网格选中即按行来的顺序画出，
+ * 状态行什么也不说；图离结果区左右各留 16px，每根条都在漏斗自己的框里，百分比
+ * 那一列上面写着「转化率（相对上一段）」。
+ */
+export const FunnelFromTheRows: Story = {
+  ...DisplayBarChart,
+  play: async ({ canvasElement }) => {
+    await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
+    const panel = await visualize(canvasElement);
+    await expect(chartTile(panel, 'funnel')).not.toHaveAttribute(
+      'aria-disabled',
+    );
+    await userEvent.click(chartTile(panel, 'funnel'));
+
+    const funnel = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="funnel"]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    const stageBars = [
+      ...funnel.querySelectorAll<HTMLElement>('[data-slot="funnel-bar"]'),
+    ];
+    await expect(stageBars).toHaveLength(4);
+    await expect(
+      canvasElement.querySelector('[data-slot="status-line"] [role="alert"]'),
+    ).toBeNull();
+
+    // The result's 16px gutter, on both sides.
+    const block = canvasElement
+      .querySelector('[data-slot="result-block"]')!
+      .getBoundingClientRect();
+    const box = funnel.getBoundingClientRect();
+    await expect(box.left - block.left).toBeGreaterThanOrEqual(15);
+    await expect(block.right - box.right).toBeGreaterThanOrEqual(15);
+    await expect(outside(stageBars, box)).toEqual([]);
+    // The palette's first slot, as a lone series wears it.
+    for (const bar of stageBars)
+      await expect(bar.style.background).toBe('var(--chart-1)');
+
+    await expect(
+      funnel.querySelector('[data-slot="funnel-conversion-heading"]'),
+    ).toHaveTextContent(zhCN['label.chart.column.conversion.previous']);
+  },
+};
+
+/**
+ * 一组画不成漏斗：卡片灰着，底下写明理由。
+ *
+ * 只要前 1 组时结果只有一个仓库，一个阶段没有可以转化的上一段。审查时它可选，
+ * 选中之后只有一句「漏斗至少要有两个阶段」和一张空图，而那句话的按钮「打开分析」
+ * 打开的是托盘——那里改不了图。现在这张卡片与热力图一样灰着，写的是缺什么。
+ */
+export const FunnelNeedsStages: Story = {
+  ...DisplayBarChart,
+  args: { ...DisplayBarChart.args, limit: 1 },
+  play: async ({ canvasElement }) => {
+    await waitFor(() => expect(bars(canvasElement)).toHaveLength(1));
+    const panel = await visualize(canvasElement);
+    const funnel = chartTile(panel, 'funnel');
+    await expect(funnel).toHaveAttribute('aria-disabled', 'true');
+    await expect(
+      funnel.querySelector('[data-slot="chart-reason"]'),
+    ).toHaveTextContent(zhCN['chart.fit.needs-two-stages']);
+    // And pressing it changes nothing: the bar stays, nothing is refused.
+    await userEvent.click(funnel);
+    await expect(funnel).toHaveAttribute('aria-checked', 'false');
+    await expect(bars(canvasElement)).toHaveLength(1);
+    await expect(
+      screen.queryByRole('button', {
+        name: zhCN['label.analysis.open-editor'],
+      }),
+    ).toBeNull();
+  },
+};
+
+/**
+ * 按日的结果画不成漏斗：一天不是流程里的一步，从昨天到今天也谈不上转化。
+ */
+export const FunnelNeedsCategory: Story = {
+  ...DisplayDailyNewestFirst,
+  play: async ({ canvasElement }) => {
+    await waitFor(() => expect(bars(canvasElement).length).toBeGreaterThan(10));
+    const panel = await visualize(canvasElement);
+    const funnel = chartTile(panel, 'funnel');
+    await expect(funnel).toHaveAttribute('aria-disabled', 'true');
+    await expect(
+      funnel.querySelector('[data-slot="chart-reason"]'),
+    ).toHaveTextContent(zhCN['chart.fit.needs-category']);
+  },
+};

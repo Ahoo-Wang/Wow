@@ -44,7 +44,9 @@ export type ChartUnfit =
   | 'chart.fit.too-many-dimensions'
   | 'chart.fit.needs-two-metrics'
   | 'chart.fit.needs-no-dimension'
-  | 'chart.fit.needs-quantity';
+  | 'chart.fit.needs-quantity'
+  | 'chart.fit.needs-category'
+  | 'chart.fit.needs-two-stages';
 
 /** The facts of a result's shape a family's fit reads. */
 export interface ShapeFacts {
@@ -61,6 +63,17 @@ export interface ShapeFacts {
   dated: boolean;
   /** At least one metric may be added up across rows. */
   additive: boolean;
+  /**
+   * One dimension, and it names categories (`TERMS`) rather than cutting a
+   * scale into buckets: only a category's values can be a funnel's stages.
+   */
+  categorical: boolean;
+  /**
+   * How many stages the rows on hand give a funnel over the one dimension —
+   * its text values, once each (`stageValues`, what picking the funnel
+   * fills its order with) — or `undefined` while no rows are known.
+   */
+  stages?: number;
 }
 
 export interface ChartFamilyTraits {
@@ -81,7 +94,8 @@ export interface ChartFamilyTraits {
  * DISTINCT_COUNT cannot be added back up over — D20 left that a table's
  * job rather than drop a dimension silently); a pie needs exactly one; a
  * heatmap two; a scatter plots two metrics per value of one dimension; a
- * funnel's stages are the values of one dimension or, with none, the
+ * funnel's stages are the values of one category dimension — two of them at
+ * least, counted in the rows when there are rows — or, with none, the
  * metrics themselves; a card is one number, or a sparkline over the one
  * date dimension when its headline adds up.
  *
@@ -139,9 +153,9 @@ export const CHART_FAMILIES: Readonly<Record<ChartFamily, ChartFamilyTraits>> =
       tabs: ['data', 'display'],
       legend: false,
       labels: false,
-      unfit: ({ groups, metrics, quantities }) =>
+      unfit: ({ groups, metrics, quantities, categorical, stages }) =>
         groups === 1
-          ? measured(quantities, 1)
+          ? (staged(categorical, stages) ?? measured(quantities, 1))
           : groups === 0 && metrics >= 2
             ? measured(quantities, 2)
             : groups === 0
@@ -165,6 +179,26 @@ export const CHART_FAMILIES: Readonly<Record<ChartFamily, ChartFamilyTraits>> =
  */
 function measured(quantities: number, needed: number): ChartUnfit | null {
   return quantities >= needed ? null : 'chart.fit.needs-quantity';
+}
+
+/**
+ * Whether one dimension's values can be a funnel's stages. A stage is a step
+ * of a process, named — a status, a page — so a date bucket or a number band
+ * is a scale rather than steps (`chart.funnel.stages-need-category`), and so
+ * are rows whose values are none of them text: a stage is read back by its
+ * name, which a number or a yes/no never matches. Two steps at least, or
+ * there is nothing to convert from (`chart.funnel.too-few-stages`) — and the
+ * rows are what the order is filled from when the funnel is picked, so they
+ * are what is counted.
+ */
+function staged(
+  categorical: boolean,
+  stages: number | undefined,
+): ChartUnfit | null {
+  if (!categorical || stages === 0) return 'chart.fit.needs-category';
+  return stages !== undefined && stages < 2
+    ? 'chart.fit.needs-two-stages'
+    : null;
 }
 
 /** The traits of the family a chart type belongs to. */

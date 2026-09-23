@@ -16,8 +16,10 @@ import {
   type AnalysisGroup,
   type AnalysisMetric,
   type ChartType,
+  type RecordData,
 } from '../model/index.js';
 import { familyOf, type ChartUnfit, type ShapeFacts } from './chartFamilies.js';
+import { stageValues } from './chartOptions.js';
 import { isAdditiveMetric } from './validateChart.js';
 
 export interface ChartFit {
@@ -37,6 +39,13 @@ export interface ChartShape {
    * written out on a card and in the table, never measured by a mark.
    */
   moments?: ReadonlySet<string>;
+  /**
+   * The rows the shape answered with, when there are any. A funnel over one
+   * dimension takes its stages from them the moment it is picked
+   * (`withStagesFrom`), so they decide whether it has the two stages a
+   * funnel needs; left out, only the dimension's type is judged.
+   */
+  rows?: readonly RecordData[];
 }
 
 /**
@@ -66,6 +75,8 @@ export function fitCharts(shape: ChartShape): Record<ChartType, ChartFit> {
 
 function shapeFacts(shape: ChartShape): ShapeFacts {
   const groups = shape.groups.length;
+  const only = groups === 1 ? shape.groups[0] : undefined;
+  const rows = shape.rows ?? [];
   return {
     groups,
     metrics: shape.metrics.length,
@@ -74,6 +85,12 @@ function shapeFacts(shape: ChartShape): ShapeFacts {
     ).length,
     dated: groups === 1 && shape.groups[0]?.type === 'DATE_HISTOGRAM',
     additive: shape.metrics.some(isAdditiveMetric),
+    categorical: only?.type === 'TERMS',
+    // No rows is no answer yet, not an answer of no stages: an empty result
+    // draws no chart of any type, and says so in a sentence of its own.
+    ...(only && rows.length > 0
+      ? { stages: stageValues(rows, only.alias).length }
+      : {}),
   };
 }
 

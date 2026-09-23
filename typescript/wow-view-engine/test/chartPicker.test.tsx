@@ -67,8 +67,8 @@ function viewOf(overrides: Partial<AnalysisViewConfig> = {}): ViewInstance {
 function setup(
   instance: ViewInstance = viewOf(),
   definition: DataViewDefinition = ordersDefinition(),
+  source: ViewSource = testSource(),
 ) {
-  const source = testSource();
   const engine = new ViewEngine({
     definitions: [definition],
     store: new MemoryViewStore({ instances: [instance] }),
@@ -78,8 +78,8 @@ function setup(
 }
 
 /** The workbench over one saved analysis view, waited for its first result. */
-async function open(instance?: ViewInstance) {
-  const { engine, source } = setup(instance);
+async function open(instance?: ViewInstance, answer?: ViewSource) {
+  const { engine, source } = setup(instance, undefined, answer);
   render(
     <DataWorkbench
       engine={engine}
@@ -447,5 +447,135 @@ describe('a layout is a redraw, not a run', () => {
     // question is what it was.
     expect({ ...draft, chart: applied.chart }).toEqual(applied);
     expect(result.current.analysis.pending).toBe(false);
+  });
+});
+
+describe('a funnel is offered where it draws', () => {
+  /** Two warehouses: two groups, so two stages a funnel can start from. */
+  const twoWarehouses = () =>
+    testSource({
+      aggregate: vi.fn(() =>
+        Promise.resolve([
+          { warehouse: 'CN', orders: 5, amount_sum: 30 },
+          { warehouse: 'JP', orders: 2, amount_sum: 10 },
+        ]),
+      ),
+    });
+
+  /**
+   * One group is one stage, and a funnel of one stage has nothing to convert
+   * from. It used to be offered anyway, and picking it drew nothing but
+   * 「漏斗至少要有两个阶段」 (the 2026-09-23 audit): the tile is greyed and
+   * says why, as every other tile the shape cannot fill does.
+   */
+  it('greys the funnel over one group, and says why', async () => {
+    await open(viewOf({ layout: 'chart' }));
+    await screen.findByRole('img', { name: /^bar:/ });
+    visualize();
+
+    const funnel = tile('funnel');
+    expect(funnel.getAttribute('aria-disabled')).toBe('true');
+    expect(
+      funnel.querySelector('[data-slot="chart-reason"]')?.textContent,
+    ).toBe(label('chart.fit.needs-two-stages'));
+    expect(describedText(funnel)).toBe(label('chart.fit.needs-two-stages'));
+
+    fireEvent.click(funnel);
+    expect(funnel.getAttribute('aria-checked')).toBe('false');
+    expect(await screen.findByRole('img', { name: /^bar:/ })).toBeDefined();
+  });
+
+  it('draws the funnel at once where the rows give it stages', async () => {
+    await open(viewOf({ layout: 'chart' }), twoWarehouses());
+    await screen.findByRole('img', { name: /^bar:/ });
+    visualize();
+    expect(tile('funnel').getAttribute('aria-disabled')).toBeNull();
+
+    fireEvent.click(tile('funnel'));
+
+    // The stages are the groups in the order they came, filled on the pick.
+    const drawing = await screen.findByRole('img', { name: /^funnel:/ });
+    expect(
+      [...drawing.querySelectorAll('[data-slot="funnel-stage"]')].map(
+        stage => stage.textContent,
+      ),
+    ).toEqual(['CN', 'JP']);
+    // Nothing is left to fix, so the status line says nothing.
+    expect(
+      screen.queryByRole('button', {
+        name: label('label.analysis.open-chart-options'),
+      }),
+    ).toBeNull();
+  });
+
+  /**
+   * A chart the config cannot draw is the visualization panel's to fix, and
+   * the tray holds nothing about it: the strip's way out used to be
+   * 「打开分析」, which opened the tray. A saved funnel of one stage is such a
+   * chart — the panel no longer offers a way to make one, but a store can
+   * still hold it.
+   */
+  it('sends a chart that will not draw to the visualization panel, not to the tray', async () => {
+    const { engine } = setup(
+      viewOf({
+        layout: 'chart',
+        chart: {
+          type: 'funnel',
+          funnel: {
+            stages: {
+              from: 'group',
+              category: 'warehouse',
+              value: 'orders',
+              order: ['CN'],
+            },
+          },
+        },
+      }),
+    );
+    render(
+      <DataWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+        kinds={['analysis']}
+      />,
+    );
+
+    const way = await screen.findByRole('button', {
+      name: label('label.analysis.open-chart-options'),
+    });
+    expect(
+      screen.queryByRole('button', {
+        name: label('label.analysis.open-editor'),
+      }),
+    ).toBeNull();
+
+    fireEvent.click(way);
+
+    await waitFor(() =>
+      expect(
+        within(panel()!).getByRole('radiogroup', {
+          name: label('label.chart.picker'),
+        }),
+      ).toBeDefined(),
+    );
+  });
+
+  it('keeps the tray as the way out of a finding that is not the chart’s', async () => {
+    const { engine } = setup(viewOf({ limit: 0 }));
+    render(
+      <DataWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+        kinds={['analysis']}
+      />,
+    );
+
+    expect(
+      await screen.findByRole('button', {
+        name: label('label.analysis.open-editor'),
+      }),
+    ).toBeDefined();
   });
 });

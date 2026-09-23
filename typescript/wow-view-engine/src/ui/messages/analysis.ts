@@ -58,6 +58,7 @@ export const analysisMessages = {
   'label.analysis.interval': 'Band width',
   'label.analysis.percentile': 'Percentile',
   'label.analysis.open-editor': 'Open analysis',
+  'label.analysis.open-chart-options': 'Open chart options',
   'label.analysis.reading': 'By {dimensions} · {metrics}',
   'label.analysis.reading-flat': '{metrics}',
   'label.analysis.layout': 'Show result as',
@@ -135,6 +136,9 @@ export const analysisMessages = {
   // Every metric left is the earliest or the latest of a date: a moment,
   // which a mark has no length, share or shade for (`momentMetrics`).
   'chart.fit.needs-quantity': 'Needs an amount; a time is not drawn',
+  // A funnel's stages are steps: the values of a category, two at least.
+  'chart.fit.needs-category': 'Stages need a category dimension',
+  'chart.fit.needs-two-stages': 'Needs two groups or more as stages',
   // The panel's second level (D20 屏 J): the chosen type's options on
   // three pages, and the way in and out.
   'label.chart.options': '{name} options',
@@ -295,7 +299,9 @@ export const analysisMessages = {
   'label.chart.column.x': 'X',
   'label.chart.column.y': 'Y',
   'label.chart.column.stage': 'Stage',
-  'label.chart.column.conversion': 'Conversion',
+  // Which stage a conversion is relative to, said where the percentages are.
+  'label.chart.column.conversion.previous': 'Conversion from previous stage',
+  'label.chart.column.conversion.first': 'Conversion from first stage',
   'label.chart.column.compare': 'Compared with',
   'label.chart.column.target': 'Target',
 
@@ -412,6 +418,8 @@ export const analysisMessages = {
   'chart.funnel.metrics-need-no-group':
     'A funnel staged by metrics can carry no dimension.',
   'chart.funnel.too-few-stages': 'A funnel needs at least two stages.',
+  'chart.funnel.stages-need-category':
+    'A funnel’s stages are the values of a category, not dates or number ranges.',
   'chart.group.unconsumed': 'The chart does not use every dimension: {groups}.',
   'chart.group.unknown':
     'The chart uses {alias}, which is not a dimension of this analysis.',

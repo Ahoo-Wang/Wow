@@ -352,6 +352,30 @@ describe('validateChart', () => {
       expect(codes(spec(['A']))).toEqual(['chart.funnel.too-few-stages']);
       expect(codes(spec(['A', 'A']))).toEqual(['chart.funnel.duplicate-stage']);
     });
+
+    /**
+     * A stage is a step, named: a month is a bucket of a scale, and the
+     * "conversion" from one month to the next is no conversion — nor could
+     * its bucket keys be read back as stage names.
+     */
+    it('takes its stages from a category, never from buckets of a scale', () => {
+      expect(
+        codes(
+          {
+            type: 'funnel',
+            funnel: {
+              stages: {
+                from: 'group',
+                category: 'month',
+                value: 'orders',
+                order: ['2026-01', '2026-02'],
+              },
+            },
+          },
+          [GROUPS.month],
+        ),
+      ).toEqual(['chart.funnel.stages-need-category']);
+    });
   });
 
   describe('metric card', () => {

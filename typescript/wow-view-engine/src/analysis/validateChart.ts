@@ -358,6 +358,15 @@ function funnel(context: ChartContext, config: AnalysisViewConfig): Issue[] {
 
   const stages = spec.stages;
   issues.push(...group(context, stages.category, [...path, 'category']));
+  // A stage is a step of a process, named: a date bucket or a number band
+  // is a scale cut into pieces, and "conversion" from one day to the next
+  // is no conversion. Its keys are not text either, and a stage is read
+  // back by its name (`stageValues`), so it could not be ordered at all.
+  const staged = config.groups.find(group_ => group_.alias === stages.category);
+  if (staged && staged.type !== 'TERMS')
+    issues.push(
+      issue('chart.funnel.stages-need-category', [...path, 'category']),
+    );
   issues.push(...measure(context, stages.value, [...path, 'value']));
   if (stages.order.length < 2)
     issues.push(issue('chart.funnel.too-few-stages', [...path, 'order']));

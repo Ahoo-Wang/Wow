@@ -261,7 +261,7 @@ D20 屏 G。展开一个数组就是换掉计数单位：`订单 → 明细项` 
 - **投影在色板用完之前并「其他」**（`shapeChart`，不是准入规则）：`maxSlices` 不写时可加指标的饼图按 `CHART_COLOR_SLOTS`（8）并，写了更大的数也按 8 读——第九片会拿到第一片的颜色；**时间维度坐的轴按时间升序排**（直角坐标横轴、热力图行列、指标卡迷你趋势，以及按时间拆分的系列），不管视图按什么排序，类目与饼图照结果行的次序（[ui/analysis.md#analysischart-与-shapechart](ui/analysis.md#analysischart-与-shapechart)）；
 - `referenceLines` 引用的轴必须有系列；
 - **图表必须消费全部分组别名**（cartesian 用 `x` 加可选 `splitBy`，pie 用 `category`，heatmap 用 `x`／`y`，scatter 用 `category`，group 漏斗用 `category`，metric 卡片要求无分组或仅 `trend.x`），否则结果里同一坐标会有多行，而 AVG、百分位、DISTINCT_COUNT 无法在投影层安全再聚合，报 error；
-- 漏斗至少两个阶段，`metrics` 形态要求分组为空，`group` 形态的 `order` 无重复；
+- 漏斗至少两个阶段，`metrics` 形态要求分组为空，`group` 形态的 `order` 无重复，且它的 `category` 要是**类别维度**（`TERMS`）：阶段是流程里有名字的一步，日期桶与数值区间是一把尺子切成的段，从一天到下一天谈不上转化——它们的桶键也不是文本，按名字读不回阶段（`chart.funnel.stages-need-category`）；
 - `metric` 无 `trend` 时要求分组为空，有 `trend` 时要求恰有一个 DATE_HISTOGRAM 分组且别名等于 `trend.x`，且 `metric` 与 `compare.metric` 必须是可加指标（与 `maxSlices` 同一判据），否则报 `chart.metric.trend-not-additive`。
 
 ### 哪些图型画得了这个形态：`fitCharts`（K3）
@@ -270,13 +270,14 @@ D20 屏 G。展开一个数组就是换掉计数单位：`订单 → 明细项` 
 
 - 直角坐标系的四个（bar／line／area／combo）各要一个维度当横轴——没有维度就没有轴（`chart.fit.needs-dimension`）；再多只能拆一层（`splitBy`），所以**最多两个维度**，第三个会让每个点下有几行，平均、去重计数这类指标在投影里加不回去——置灰并写「最多两个维度」（`chart.fit.too-many-dimensions`），而不是悄悄丢掉一个维度（D20，用户 2026-09-22 定）；
 - 饼图与按维度分阶段的漏斗要**恰好**一个维度（`chart.fit.needs-one-dimension`），漏斗另有「按指标分阶段」的形态，那一种要零维度加两个以上指标；
+- **按维度分阶段的漏斗还要看行**（`fitCharts` 的 `rows`）：一选中，阶段就按结果行来的顺序从那个维度的文本值里填（`withStagesFrom`），所以画不画得出是行说了算——维度不是类别（`TERMS`）、或行里一个文本值都没有时写 `chart.fit.needs-category`（「阶段要一个类别维度」），只有一个不同的值时写 `chart.fit.needs-two-stages`（「要至少两组作阶段」）。从前只按形态判，结果只有一组时漏斗照样可选，选中只得到一句「漏斗至少要有两个阶段」和一张空图（2026-09-23 审查）。没有行（还没跑、或一组也没有）不算零个阶段，只按类型判；
 - 热力图要两个维度（`chart.fit.needs-two-dimensions`）；
 - 散点把两个指标画成一个点、一个维度值一个点，所以要**恰好**一个维度（多了写 `chart.fit.needs-one-dimension`）再加两个指标（`chart.fit.needs-two-metrics`）；
 - 指标卡是一个数：没有维度时成立，有**恰好一个时间维度且主数可加**时也成立（那是迷你趋势，判据与 `maxSlices` 同一条），其余写 `chart.fit.needs-no-dimension`；
 - **图形量的是数量，不量时间点**：`fitCharts` 另收 `moments`（`momentMetrics`，见下「时间的最早与最晚」），除指标卡外每个家族只数不是时间点的指标——维度对得上而可量的指标不够时写 `chart.fit.needs-quantity`（「要数量指标，时间画不成图」）；指标卡把主数写出来，时间点可以是它的主数；
 - **推荐只有一个，而且只推荐画得出来的那个**：没有维度推指标卡，一个日期维度推折线，其余推柱状；三个维度起、或者指标全是时间点时不推荐任何一个——那是表格的活。推荐是记号不是动作，不自动换图（D20）。
 
-表格不经过这里：它画得了任何形态，所以它在列出图型的地方是一张永远可选的卡片，而不是一条规则。（见 test/fitCharts.test.ts「fitCharts」、test/chartFamilies.test.ts「chartFamilies」与 test/chartPicker.test.tsx「the visualization panel」）
+表格不经过这里：它画得了任何形态，所以它在列出图型的地方是一张永远可选的卡片，而不是一条规则。（见 test/fitCharts.test.ts「fitCharts」「a funnel’s fit」、test/chartFamilies.test.ts「chartFamilies」与 test/chartPicker.test.tsx「the visualization panel」「a funnel is offered where it draws」；遍历形态的那个测试同时遍历两组、一组与桶键不是文本的行）
 
 可视化面板第二层上那些"改一个设置不许弄坏另一个"的规则同样是内核的，不在组件里：`analysis/chartOptions.ts`（D20 屏 J）。`optionTabs` 说一个图型有哪几页；`withSlot` 让两个槽对调而不是重复（选中另一个槽正拿着的别名时）；`without` 是"取消一项"的写法；`isStacked`／`withStacked` 与 `isSmooth`／`withSmooth` 把堆叠与平滑当作整张图的一个选择，全体加入或全体退出；`withMoved`／`withMovedTo` 排阶段与系列；`stageValues`／`withStagesFrom`／`withStageOrder` 让按分组值分阶段的漏斗一被选中就有顺序可画——业务顺序内核不知道，但"结果行来的顺序"总好过空白。它们都是纯函数，不用 DOM 就能钉住；面板怎么用它们见 [ui/analysis.md#可视化的第二层选中图型的选项三个页签](ui/analysis.md#可视化的第二层选中图型的选项三个页签)。（见 test/chartOptions.test.ts「chartOptions」）
 

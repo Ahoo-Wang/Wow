@@ -84,20 +84,37 @@ const METRICS: AnalysisMetric[][] = [
 ];
 
 /**
+ * The rows a result of these groups could answer with: one per value, each
+ * group keyed by it — text for a category, a bucket's start for a date, as
+ * a source hands them back.
+ */
+function rowsOf(groups: AnalysisGroup[], values: readonly string[]) {
+  return values.map((value, index) =>
+    Object.fromEntries(
+      groups.map(group => [
+        group.alias,
+        group.type === 'TERMS' ? value : Date.UTC(2026, index, 1),
+      ]),
+    ),
+  );
+}
+
+/** Two groups, one group, and two whose values are none of them text. */
+const ROWS: readonly (readonly string[])[] = [['a', 'b'], ['a']];
+
+/**
  * The chart the panel would draw on picking `type` for this shape: its
  * slots filled the way `fitChartSlots` fills them, and — a funnel whose
- * stages are group values names them once rows arrive — two rows' worth of
- * stages, as the result block supplies them.
+ * stages are group values names them from the rows on the pick — the
+ * stages those rows give, as the result block supplies them.
  */
 function drawn(
   type: ChartType,
   groups: AnalysisGroup[],
   metrics: AnalysisMetric[],
+  rows: readonly Record<string, unknown>[],
 ): ChartSpec {
   const chart = fitChartSlots({ type }, groups, metrics, MOMENTS);
-  const rows = ['a', 'b'].map(value =>
-    Object.fromEntries(groups.map(group => [group.alias, value])),
-  );
   return withStagesFrom(chart, rows);
 }
 
@@ -120,33 +137,35 @@ describe('chartFamilies', () => {
   it('one rule, read forward and after the fact', () => {
     const drift: string[] = [];
     for (const groups of GROUPS)
-      for (const metrics of METRICS) {
-        const fits = fitCharts({ groups, metrics, moments: MOMENTS });
-        for (const type of CHART_TYPES) {
-          const chart = drawn(type, groups, metrics);
-          const errors = validateChart(
-            analysisConfig({
-              groups,
-              metrics: metrics as [AnalysisMetric, ...AnalysisMetric[]],
-              chart,
-            }),
-            MOMENTS,
-          ).filter(issue => issue.severity === 'error');
-          // Valid is not drawn: a shape with nothing to measure keeps a
-          // valid chart that measures nothing (`fitChartSlots`), which the
-          // result block shows as its table.
-          const draws =
-            chart.type === type && errors.length === 0 && measures(chart);
-          if (draws !== fits[type].available)
-            drift.push(
-              `${groups.map(group => group.alias).join('+') || '∅'} × ${metrics
-                .map(metric => metric.alias)
-                .join(
-                  '+',
-                )} → ${type}: offered ${fits[type].available}, draws ${draws}`,
-            );
+      for (const metrics of METRICS)
+        for (const values of ROWS) {
+          const rows = rowsOf(groups, values);
+          const fits = fitCharts({ groups, metrics, moments: MOMENTS, rows });
+          for (const type of CHART_TYPES) {
+            const chart = drawn(type, groups, metrics, rows);
+            const errors = validateChart(
+              analysisConfig({
+                groups,
+                metrics: metrics as [AnalysisMetric, ...AnalysisMetric[]],
+                chart,
+              }),
+              MOMENTS,
+            ).filter(issue => issue.severity === 'error');
+            // Valid is not drawn: a shape with nothing to measure keeps a
+            // valid chart that measures nothing (`fitChartSlots`), which the
+            // result block shows as its table.
+            const draws =
+              chart.type === type && errors.length === 0 && measures(chart);
+            if (draws !== fits[type].available)
+              drift.push(
+                `${groups.map(group => group.alias).join('+') || '∅'} (${values.length} rows) × ${metrics
+                  .map(metric => metric.alias)
+                  .join(
+                    '+',
+                  )} → ${type}: offered ${fits[type].available}, draws ${draws}`,
+              );
+          }
         }
-      }
     expect(drift).toEqual([]);
   });
 

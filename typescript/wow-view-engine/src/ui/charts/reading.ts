@@ -15,7 +15,7 @@ import type { ChartData } from '../../analysis/index.js';
 import type { ChartSpec, ChartType, ValueFormat } from '../../model/index.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
 import { formatValue } from './axis.js';
-import { stageName, type ValueLabel } from './family.js';
+import { conversionHeading, stageName, type ValueLabel } from './family.js';
 
 /**
  * A chart as text: a name for the drawing and the same numbers it draws,
@@ -274,7 +274,7 @@ function readFunnel(
       ctx.column(category) ?? ctx.messages.label('label.chart.column.stage'),
       ctx.messages.label('label.chart.column.value'),
       ...(converts
-        ? [ctx.messages.label('label.chart.column.conversion')]
+        ? [ctx.messages.label(conversionHeading(spec?.funnel?.conversion))]
         : []),
     ],
     rows: data.stages.map((stage, index) => [

@@ -17,6 +17,7 @@ import type {
   AnalysisGroup,
   AnalysisMetric,
   ChartType,
+  RecordData,
 } from '../src/model/index.js';
 
 const warehouse: AnalysisGroup = {
@@ -45,6 +46,55 @@ const available = (fits: ReturnType<typeof fitCharts>) =>
     .sort();
 const recommended = (fits: ReturnType<typeof fitCharts>) =>
   Object.entries(fits).find(([, fit]) => fit.recommended)?.[0];
+
+describe('a funnel’s fit', () => {
+  const funnelOf = (groups: AnalysisGroup[], rows?: RecordData[]) =>
+    fitCharts({ groups, metrics: [count], ...(rows ? { rows } : {}) }).funnel;
+
+  /**
+   * Picking a funnel fills its stages from the rows (`withStagesFrom`), so
+   * the rows decide whether it has the two a funnel needs. Judged on the
+   * shape alone, a result of one group was offered a funnel, and picking it
+   * drew nothing but 「漏斗至少要有两个阶段」 (the 2026-09-23 audit).
+   */
+  it('counts the stages the rows give it', () => {
+    expect(funnelOf([warehouse], [{ warehouse: 'CN' }])).toEqual({
+      available: false,
+      reason: 'chart.fit.needs-two-stages',
+    });
+    // A value twice over is still one stage.
+    expect(
+      funnelOf([warehouse], [{ warehouse: 'CN' }, { warehouse: 'CN' }]).reason,
+    ).toBe('chart.fit.needs-two-stages');
+    expect(
+      funnelOf([warehouse], [{ warehouse: 'CN' }, { warehouse: 'JP' }])
+        .available,
+    ).toBe(true);
+    // No rows yet is no answer yet: the shape alone is judged.
+    expect(funnelOf([warehouse]).available).toBe(true);
+    expect(funnelOf([warehouse], []).available).toBe(true);
+  });
+
+  it('takes stages from a category only', () => {
+    // A date bucket is a scale, not steps: greyed with or without rows.
+    expect(funnelOf([month]).reason).toBe('chart.fit.needs-category');
+    expect(funnelOf([month], [{ month: 1 }, { month: 2 }]).reason).toBe(
+      'chart.fit.needs-category',
+    );
+    // A category whose values are none of them text cannot be ordered by
+    // name, which is how a stage is read back.
+    expect(
+      funnelOf([warehouse], [{ warehouse: 1 }, { warehouse: 2 }]).reason,
+    ).toBe('chart.fit.needs-category');
+  });
+
+  it('keeps the funnel of metrics, which reads one row', () => {
+    expect(
+      fitCharts({ groups: [], metrics: [count, average], rows: [{}] }).funnel
+        .available,
+    ).toBe(true);
+  });
+});
 
 describe('fitCharts', () => {
   it('reads a bare number as a card, and greys everything that needs an axis', () => {
