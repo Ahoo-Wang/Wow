@@ -33,6 +33,7 @@ import {
   metricFieldOf,
   metricFormat,
   metricFunctionOf,
+  metricMeasure,
   readsAsItsField,
   type MetricFunction,
 } from './metricFormat.js';
@@ -170,6 +171,25 @@ export function momentColumns(
     columns
       .filter(column => column.role === 'metric' && isDateCell(column.cell))
       .map(column => column.alias),
+  );
+}
+
+/**
+ * What each metric column's number is a quantity of (`metricMeasure`), by
+ * alias: `metricMeasures` read off the result rather than the definition,
+ * from the summary a column says it is and the format it prints in — so the
+ * options panel and the redraw put a series on the axis the kernel would.
+ */
+export function measureColumns(
+  columns: readonly AnalysisColumnView[],
+): Map<string, string> {
+  return new Map(
+    columns
+      .filter(column => column.role === 'metric')
+      .map(column => [
+        column.alias,
+        metricMeasure(column.fn, column.numberFormat),
+      ]),
   );
 }
 

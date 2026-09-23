@@ -47,6 +47,8 @@ export interface OptionsShape {
   moments: ReadonlySet<string>;
   /** Metrics that add up across rows: the ones a pie may merge a tail of. */
   additive: ReadonlySet<string>;
+  /** What each metric is a quantity of (`metricMeasure`), by alias. */
+  measures: ReadonlyMap<string, string>;
 }
 
 /**

@@ -760,8 +760,17 @@ export const zhCN: ViewMessages = {
   'label.chart.labels': '数值标签',
   'label.chart.stacked': '堆叠',
   'label.chart.stacked-alone': '堆叠需要两个以上的柱或面积系列',
+  'label.chart.percent-stack': '百分比堆叠',
+  'label.chart.percent-stack.hint':
+    '每一摞读作各部分占这一摞的比例；提示框仍写原值',
   'label.chart.horizontal': '横向',
   'label.chart.smooth': '平滑',
+  'label.chart.missing': '缺值',
+  'label.chart.missing.zero': '补 0',
+  'label.chart.missing.gap': '留空（断开）',
+  'label.chart.missing.zero.hint':
+    '确知这一组没有记录、且指标可累加（记录数、合计）时补 0，其余留空',
+  'label.chart.missing.gap.hint': '没有数据的点一律不画，折线在那里断开',
   'label.chart.reference-lines': '参考线',
   'label.chart.reference-row': '参考线 {index}',
   'label.chart.add-reference-line': '添加参考线',
@@ -917,6 +926,8 @@ export const zhCN: ViewMessages = {
   'analysis.sort.requires-group': '排序至少需要一个维度。',
   'analysis.sort.too-many': '结果最多按 {max} 个维度或指标排序。',
   'analysis.sort.unknown-alias': '排序依据的 {alias} 不在这个结果里。',
+  'chart.cartesian.percent-not-additive':
+    '百分比堆叠要可累加的指标（记录数或合计），{metric} 不是。',
   'chart.combo.series-type-missing': '组合图的每个系列都要有自己的类型。',
   'chart.colors.invalid': '这不是图表画得出的颜色。',
   'chart.colors.malformed': '钉住的图表颜色要按系列或类别逐个列出。',

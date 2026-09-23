@@ -116,6 +116,21 @@ describe('shapeChart', () => {
       });
     });
 
+    it('with nothing when the chart asks for gaps', () => {
+      const asked = split(METRICS.orders);
+      const gapped = {
+        ...asked,
+        chart: {
+          ...asked.chart,
+          cartesian: { ...asked.chart.cartesian!, missing: 'gap' as const },
+        },
+      };
+      expect(bj(shapeChart(gapped, statusRows))).toEqual({
+        open: 2,
+        cancelled: null,
+      });
+    });
+
     // A split value is any text, one an object already answers to included.
     it('by the combinations the rows hold, whatever the split value is called', () => {
       const data = shapeChart(split(METRICS.orders), [
@@ -225,6 +240,31 @@ describe('shapeChart', () => {
     it('leaves a gap for a metric that does not add', () => {
       const data = shapeChart(line(daily(), METRICS.average), sparse);
       expect(values(data, 'average')).toEqual([10, 20, null, null, 50]);
+    });
+
+    // 「缺值：留空（断开）」 (audit P1-10): the holes still stand where their
+    // days are, and none of them is drawn as a number — the rows the same.
+    it('leaves every hole empty when the chart asks for gaps', () => {
+      const asked = line();
+      const gapped: AnalysisViewConfig = {
+        ...asked,
+        chart: {
+          ...asked.chart,
+          cartesian: { ...asked.chart.cartesian!, missing: 'gap' },
+        },
+      };
+      const data = shapeChart(gapped, sparse);
+      expect(xs(data)).toEqual([day(1), day(2), day(3), day(4), day(5)]);
+      expect(values(data)).toEqual([1, 2, null, null, 5]);
+      // Said as the default, the rule stands.
+      const zero: AnalysisViewConfig = {
+        ...asked,
+        chart: {
+          ...asked.chart,
+          cartesian: { ...asked.chart.cartesian!, missing: 'zero' },
+        },
+      };
+      expect(values(shapeChart(zero, sparse))).toEqual([1, 2, 0, 0, 5]);
     });
 
     it('fills every series of a split at a missing bucket', () => {

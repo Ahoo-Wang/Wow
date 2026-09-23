@@ -39,6 +39,7 @@ import {
   switchChartType,
   havingRows,
   levelLabel,
+  metricMeasures,
   momentMetrics,
   nextLevel,
   withElements,
@@ -241,16 +242,25 @@ export function useAnalysisEditor(
     (patch: Partial<AnalysisViewConfig>) => runtime?.edit(patch),
     [runtime],
   );
-  // Read against the scope of the config it is asked about, because a
-  // change to the expansion chain moves the fields a metric summarises.
-  const momentsOf = useCallback(
-    (shape: Pick<AnalysisViewConfig, 'metrics' | 'elements'>) =>
-      definition && capability
-        ? momentMetrics(
-            shape.metrics,
-            analysisScope(definition, capability, shape).fields,
-          )
-        : NO_MOMENTS,
+  // The chart fitted to a shape, with what its metrics are read against the
+  // scope of that shape, because a change to the expansion chain moves the
+  // fields a metric summarises: which are moments, and what each measures.
+  const fitTo = useCallback(
+    (
+      chart: ChartSpec,
+      shape: Pick<AnalysisViewConfig, 'groups' | 'metrics' | 'elements'>,
+    ) => {
+      if (!definition || !capability)
+        return fitChartSlots(chart, shape.groups, shape.metrics);
+      const { fields } = analysisScope(definition, capability, shape);
+      return fitChartSlots(
+        chart,
+        shape.groups,
+        shape.metrics,
+        momentMetrics(shape.metrics, fields),
+        metricMeasures(shape.metrics, fields),
+      );
+    },
     [definition, capability],
   );
   const moments = useMemo(
@@ -302,12 +312,7 @@ export function useAnalysisEditor(
         ]);
         return {
           ...next,
-          chart: fitChartSlots(
-            current.chart,
-            next.groups,
-            next.metrics,
-            momentsOf({ ...current, ...next }),
-          ),
+          chart: fitTo(current.chart, { ...current, ...next }),
           // Wow refuses a sort over an ungrouped aggregation, and it has one
           // row anyway, so losing the last group empties the ordering too.
           sort:
@@ -322,7 +327,7 @@ export function useAnalysisEditor(
           },
         };
       }),
-    [change, momentsOf],
+    [change, fitTo],
   );
 
   const fields = useMemo<AnalysisFieldOption[]>(() => {
@@ -524,14 +529,9 @@ export function useAnalysisEditor(
         // and draws nothing; every other family is carried over, so switching
         // type and back returns to the settings that family had.
         change(current => ({
-          chart: fitChartSlots(
-            switchChartType(current.chart, type),
-            current.groups,
-            current.metrics,
-            momentsOf(current),
-          ),
+          chart: fitTo(switchChartType(current.chart, type), current),
         })),
-      [change, momentsOf],
+      [change, fitTo],
     ),
     updateChart: useCallback(
       (patch: Partial<ChartSpec>) =>

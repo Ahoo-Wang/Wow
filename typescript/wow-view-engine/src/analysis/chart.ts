@@ -205,7 +205,9 @@ export function shapeChart(
  * a stacked area of lone dots floating at the stack's height — and nothing
  * otherwise: an average of no records is no number, and a combination the
  * limit or 「只保留」 cut is not known to be empty. A time x runs without
- * holes (`withoutHoles`), each hole filled by the same rule.
+ * holes (`withoutHoles`), each hole filled by the same rule. The spec's
+ * `missing: 'gap'` fills every one of them with nothing instead; the holes
+ * still stand on the axis, where their time is.
  */
 function cartesian(
   type: ChartType,
@@ -242,10 +244,15 @@ function cartesian(
   const additive = new Set(
     series.filter(entry => adds(config, entry.metric)).map(entry => entry.key),
   );
+  // Asked to leave them empty (`missing: 'gap'`), nothing is filled at all:
+  // the analyst knows the rows better than the rule, and a line broken where
+  // they end is a drawing choice — the rows and the query are the same.
+  const fills = spec.missing !== 'gap';
   const missing = (
     entry: (typeof series)[number],
     x: unknown,
   ): number | null =>
+    fills &&
     additive.has(entry.key) &&
     absent({
       [spec.x]: x,

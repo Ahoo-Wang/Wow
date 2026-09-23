@@ -91,6 +91,7 @@ function CartesianData({ chart, shape, onChange }: OptionsPageProps) {
         type={chart.type}
         spec={spec}
         metrics={shape.quantities}
+        measures={shape.measures}
         onChange={update}
       />
     </>

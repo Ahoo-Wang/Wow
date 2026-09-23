@@ -131,7 +131,29 @@ export interface CartesianSpec {
   orientation?: 'vertical' | 'horizontal';
   yAxis?: { left?: AxisSpec; right?: AxisSpec };
   referenceLines?: ReferenceLine[];
+  /**
+   * What a point the rows lack draws as — a bucket missing from a time axis,
+   * a combination missing from a split. Left out or `zero`, the kernel's
+   * rule: 0 where the group is known to have had no records and the metric
+   * adds up, nothing otherwise (`absenceReader`). `gap`: nothing anywhere, a
+   * line broken where the rows are. Drawing only; the query is the same.
+   */
+  missing?: CartesianMissing;
+  /**
+   * Stacked bars or areas drawn as each category's shares of its stack, so
+   * every stack reaches 100%. Only a stack of metrics that add up has a
+   * whole to share; a line or a chart that does not stack ignores it.
+   */
+  percentStack?: boolean;
 }
+
+/** The two readings of a missing point, the default first. */
+export const CARTESIAN_MISSING = [
+  'zero',
+  'gap',
+] as const satisfies readonly string[];
+
+export type CartesianMissing = (typeof CARTESIAN_MISSING)[number];
 
 export interface AxisSpec {
   label?: string;

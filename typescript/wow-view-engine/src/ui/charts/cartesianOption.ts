@@ -13,6 +13,7 @@
 
 import type { EChartsCoreOption } from 'echarts/core';
 import {
+  isPercentStacked,
   seriesMark,
   valueLabelsOn,
   type CartesianData,
@@ -22,7 +23,13 @@ import type {
   CartesianSeries,
   ChartSpec,
 } from '../../model/index.js';
-import { allWhole, axisId, categoryTick, formatValue } from './axis.js';
+import {
+  allWhole,
+  axisId,
+  categoryTick,
+  formatShare,
+  formatValue,
+} from './axis.js';
 import type { ColumnTitle, ValueLabel } from './family.js';
 import { measureText } from './measure.js';
 import { colorOf } from './palette.js';
@@ -148,12 +155,55 @@ export function cartesianOption(
       ? undefined
       : `${entry.side}:${entry.configured.stack}`;
 
+  /**
+   * Stacked to 100% (`percentStack`): a bar or an area chart only — a
+   * combo's line would stand on a scale of shares — whose stacks are then
+   * drawn as each part's share of its stack at that category, so every
+   * stack reaches the top. The value stays in the tooltip beside its share.
+   */
+  const percent =
+    cartesian !== undefined &&
+    (data.chart === 'bar' || data.chart === 'area') &&
+    isPercentStacked(cartesian, data.chart);
+  const wholes = percent
+    ? data.points.map(point => {
+        const sums = new Map<string, number>();
+        for (const entry of series) {
+          const stack = stackOf(entry);
+          const value = point.values[entry.key];
+          if (stack !== undefined && typeof value === 'number')
+            sums.set(stack, (sums.get(stack) ?? 0) + Math.abs(value));
+        }
+        return sums;
+      })
+    : undefined;
+  /** A series' share of its stack at one point, when it is drawn as one. */
+  const shareAt = (entry: DrawnSeries, index: number): number | undefined => {
+    const stack = stackOf(entry);
+    const value = data.points[index]?.values[entry.key];
+    const whole = stack === undefined ? undefined : wholes?.[index]?.get(stack);
+    return typeof value === 'number' && whole !== undefined && whole > 0
+      ? value / whole
+      : undefined;
+  };
+  /** What a series draws at one point: its value, or its share of a 100% stack. */
+  const drawnAt = (entry: DrawnSeries, index: number): number | null => {
+    const value = data.points[index]?.values[entry.key] ?? null;
+    if (!percent || stackOf(entry) === undefined || value === null)
+      return value;
+    return shareAt(entry, index) ?? null;
+  };
+  /** Whether one axis measures shares: a 100% stack stands on it. */
+  const sharesOn = (side: 'left' | 'right') =>
+    percent &&
+    series.some(entry => entry.side === side && stackOf(entry) !== undefined);
+
   /** Every value one axis carries: its series' and its reference lines'. */
   const valuesOn = (side: 'left' | 'right') => [
     ...series
       .filter(entry => entry.side === side)
       .flatMap(entry =>
-        data.points.map(point => point.values[entry.key] ?? null),
+        data.points.map((_point, index) => drawnAt(entry, index)),
       )
       .filter((value): value is number => value !== null),
     ...lines.filter(line => axisId(line.axis) === side).map(line => line.value),
@@ -166,13 +216,13 @@ export function cartesianOption(
   const reachOn = (side: 'left' | 'right') => {
     let high = 0;
     let low = 0;
-    for (const point of data.points) {
+    for (const [index] of data.points.entries()) {
       const stacks = new Map<
         string | undefined,
         { up: number; down: number }
       >();
       for (const entry of series.filter(one => one.side === side)) {
-        const value = point.values[entry.key];
+        const value = drawnAt(entry, index);
         if (typeof value !== 'number') continue;
         const stack = stackOf(entry);
         if (stack === undefined) {
@@ -202,6 +252,12 @@ export function cartesianOption(
    * (`nameMoveOverlap`), still a gap apart.
    */
   const titleStyle = { color: theme.muted, fontWeight: 500 };
+  /** Whether an axis steps in whole numbers only (`minInterval: 1`). */
+  const wholeOn = (side: 'left' | 'right') =>
+    !sharesOn(side) && allWhole(valuesOn(side));
+  /** Of two axes, the one whose ticks follow the other's gridlines. */
+  const follower: 'left' | 'right' =
+    wholeOn('right') && !wholeOn('left') ? 'left' : 'right';
   const under = (bottom: boolean) => (bottom ? TITLE_GAP_UNDER : 16);
   const valueAxis = (side: 'left' | 'right') => {
     const axis = cartesian?.yAxis?.[side];
@@ -223,14 +279,26 @@ export function cartesianOption(
     const reach = reachOn(side);
     const lineHigh = Math.max(-Infinity, ...lineValues);
     const lineLow = Math.min(Infinity, ...lineValues);
+    // A scale of shares runs from nothing to the whole, whatever the parts.
+    const shares = sharesOn(side);
     return {
       type: 'value',
       position: horizontal ? (side === 'left' ? 'bottom' : 'top') : side,
-      min: axis?.min ?? (lineLow < reach.low ? lineLow : undefined),
-      max: axis?.max ?? (lineHigh > reach.high ? lineHigh : undefined),
+      min:
+        axis?.min ?? (shares ? 0 : lineLow < reach.low ? lineLow : undefined),
+      max:
+        axis?.max ??
+        (shares ? 1 : lineHigh > reach.high ? lineHigh : undefined),
       // A count between 0 and 2 otherwise took ticks at 0.5 and 1.5, which
       // a count's format rounds into a second 「1」 and 「2」.
-      minInterval: allWhole(values) ? 1 : undefined,
+      minInterval: !shares && allWhole(values) ? 1 : undefined,
+      // Two axes rule the plot with one set of gridlines, the left's: the
+      // other axis takes as many steps, each a nice number of its own, so
+      // its ticks sit on those lines rather than between them (audit P2-4).
+      // The library's `alignTicks` does it; the axis that follows is the
+      // one that can take a fractional step — a whole axis made to follow
+      // would write 0.5 as a second 「1」.
+      ...(hasRight && side === follower ? { alignTicks: true } : {}),
       name:
         axis?.label ??
         (measured.size === 1 && metric !== undefined
@@ -245,7 +313,7 @@ export function cartesianOption(
       axisLabel: {
         color: theme.muted,
         hideOverlap: true,
-        formatter: (value: number) => tick(axis, metric, value),
+        formatter: (value: number) => tick(axis, metric, value, shares),
       },
       // One set of gridlines, the left axis's: a second set from the right
       // axis would rule the plot twice at two unrelated steps.
@@ -259,10 +327,13 @@ export function cartesianOption(
     axis: AxisSpec | undefined,
     metric: string | undefined,
     value: number,
+    shares = false,
   ) =>
     axis?.format && axis.format !== 'auto'
       ? formatValue(value, axis.format, locale)
-      : label(metric, value, true);
+      : shares
+        ? formatValue(value, 'percent', locale)
+        : label(metric, value, true);
 
   const names = data.points.map(point => label(cartesian?.x, point.x));
   const categoryAxis = {
@@ -302,7 +373,15 @@ export function cartesianOption(
   const stacked = (entry: DrawnSeries) =>
     (stacks.get(stackOf(entry) ?? '')?.length ?? 0) > 1;
   const hasBars = series.some(entry => entry.kind === 'bar');
-  const valueLabel = (metric: string, position: string) => ({
+  /** Whether a series is drawn as its shares of a 100% stack. */
+  const asShares = (entry: DrawnSeries) =>
+    percent && stackOf(entry) !== undefined;
+  /** A drawn number as text: a share as a percentage, a value as its column. */
+  const drawnText = (entry: DrawnSeries, value: number) =>
+    asShares(entry)
+      ? formatShare(value, locale)
+      : label(entry.metric, value, true);
+  const valueLabel = (entry: DrawnSeries, position: string) => ({
     show: true,
     position,
     color: theme.foreground,
@@ -312,7 +391,7 @@ export function cartesianOption(
     textBorderColor: theme.ground,
     textBorderWidth: 2,
     formatter: ({ value }: { value: unknown }) =>
-      typeof value === 'number' ? label(metric, value, true) : '',
+      typeof value === 'number' ? drawnText(entry, value) : '',
   });
   const outside = horizontal ? 'right' : 'top';
 
@@ -322,7 +401,7 @@ export function cartesianOption(
       id: `s${index}`,
       name: entry.name,
       ...axisIndex(entry.side),
-      data: data.points.map(point => point.values[entry.key] ?? null),
+      data: data.points.map((_point, at) => drawnAt(entry, at)),
       stack: stackOf(entry),
       cursor: pickable ? 'pointer' : 'default',
     };
@@ -340,10 +419,7 @@ export function cartesianOption(
         // on another is left out rather than drawn over it.
         ...(labelled(entry)
           ? {
-              label: valueLabel(
-                entry.metric,
-                stacked(entry) ? 'inside' : outside,
-              ),
+              label: valueLabel(entry, stacked(entry) ? 'inside' : outside),
               labelLayout: { hideOverlap: true },
             }
           : {}),
@@ -366,7 +442,7 @@ export function cartesianOption(
         : {}),
       ...(labelled(entry)
         ? {
-            label: valueLabel(entry.metric, outside),
+            label: valueLabel(entry, outside),
             labelLayout: { hideOverlap: true },
           }
         : {}),
@@ -376,12 +452,13 @@ export function cartesianOption(
   /**
    * The total over each stack: a bar of nothing on top of it, labelled with
    * the stack's sum, so the number lands where the stack ends. It takes no
-   * press and no tooltip row; the segments are the groups.
+   * press and no tooltip row; the segments are the groups. A 100% stack has
+   * none: every one of them would say 100%.
    */
   const totals = valueLabelsOn(spec, 'bar')
     ? [...stacks.values()]
         .map(members => members.filter(member => member.kind === 'bar'))
-        .filter(members => members.length > 1)
+        .filter(members => members.length > 1 && !asShares(members[0]))
         .map(members => ({
           type: 'bar',
           stack: stackOf(members[0]),
@@ -392,7 +469,7 @@ export function cartesianOption(
           tooltip: { show: false },
           itemStyle: { color: 'transparent' },
           label: {
-            ...valueLabel(members[0].metric, outside),
+            ...valueLabel(members[0], outside),
             formatter: ({ dataIndex }: { dataIndex: number }) => {
               const point = data.points[dataIndex];
               const parts = members
@@ -456,11 +533,9 @@ export function cartesianOption(
         entry => labelled(entry) && !(entry.kind === 'bar' && stacked(entry)),
       )
       .flatMap(entry =>
-        data.points.map(point => {
-          const value = point.values[entry.key];
-          return typeof value === 'number'
-            ? label(entry.metric, value, true)
-            : '';
+        data.points.map((_point, index) => {
+          const value = drawnAt(entry, index);
+          return value === null ? '' : drawnText(entry, value);
         }),
       ),
     ...totals.flatMap(total =>
@@ -514,11 +589,22 @@ export function cartesianOption(
           names[first.dataIndex] ?? '',
           series
             .filter(entry => typeof point.values[entry.key] === 'number')
-            .map(entry => ({
-              color: theme.resolve(entry.color),
-              name: entry.name,
-              value: label(entry.metric, point.values[entry.key]),
-            })),
+            .map(entry => {
+              const value = label(entry.metric, point.values[entry.key]);
+              // Stacked to 100%, the mark is a share and the tooltip says
+              // both: what the part is, and what part of its stack.
+              const share = asShares(entry)
+                ? shareAt(entry, first.dataIndex)
+                : undefined;
+              return {
+                color: theme.resolve(entry.color),
+                name: entry.name,
+                value:
+                  share === undefined
+                    ? value
+                    : `${value} · ${formatShare(share, locale)}`,
+              };
+            }),
         );
       },
     },

@@ -68,14 +68,21 @@ import { isAdditiveMetric } from './validateChart.js';
  * measure is drawn as bars with no series: a chart that is valid and empty,
  * which the picker greys (`chart.fit.needs-quantity`) and the result block
  * shows as its table.
+ *
+ * **A combo puts on the right axis what measures something else**
+ * (`measures`, `metricMeasures`): a series arriving in a combo takes the
+ * right axis when its metric is a quantity of another kind than the first
+ * series' (`comboAxis`). Left out, every metric reads as one measure.
  */
 export function fitChartSlots(
   chart: ChartSpec,
   groups: readonly AnalysisGroup[],
   metrics: readonly AnalysisMetric[],
   moments: ReadonlySet<string> = NO_MOMENTS,
+  measures: ReadonlyMap<string, string> = NO_MEASURES,
 ): ChartSpec {
   const shape: Shape = {
+    measures,
     groups: groups.map(group => group.alias),
     metrics: metrics.map(metric => metric.alias),
     quantities: metrics
@@ -155,8 +162,13 @@ function headlines(shape: Shape): string[] {
 /** Nothing is a moment: the shape of a chart fitted without a definition. */
 const NO_MOMENTS: ReadonlySet<string> = new Set();
 
+/** Every metric one measure: a chart fitted without a definition. */
+const NO_MEASURES: ReadonlyMap<string, string> = new Map();
+
 /** The aliases a chart may reference, and the facts a slot rule asks. */
 interface Shape {
+  /** What each metric is a quantity of (`metricMeasure`), by alias. */
+  measures: ReadonlyMap<string, string>;
   groups: string[];
   metrics: string[];
   /** The metrics a mark can measure: every one that is not a moment. */
@@ -228,8 +240,17 @@ function cartesian(
             ]
           : named
         : shape.quantities;
+  const lead = drawn[0];
+  const leadSide =
+    lead === undefined ? 'left' : (previous.get(lead)?.axis ?? 'left');
   const series = drawn.map((metric, index) =>
-    oneSeries(previous.get(metric), metric, type, index),
+    oneSeries(
+      previous.get(metric),
+      metric,
+      type,
+      index,
+      comboAxis(shape.measures, lead, metric, leadSide),
+    ),
   );
   // A reference line names the axis it hangs on, and an axis with no series
   // on it is not an axis; the line goes with the series that left.
@@ -237,6 +258,12 @@ function cartesian(
   const lines = (spec?.referenceLines ?? []).filter(line =>
     axes.has(line.axis),
   );
+  // A share of a stack is a part of a sum: over a metric that does not add
+  // up there is no whole to be a part of (`chart.cartesian.percent-not-additive`).
+  const shares =
+    spec?.percentStack === true &&
+    series.length > 0 &&
+    series.every(entry => shape.additive.has(entry.metric));
   return {
     x,
     ...(splitBy === undefined ? {} : { splitBy }),
@@ -246,24 +273,31 @@ function cartesian(
       : { orientation: spec.orientation }),
     ...(spec?.yAxis === undefined ? {} : { yAxis: spec.yAxis }),
     ...(lines.length > 0 ? { referenceLines: lines } : {}),
+    ...(spec?.missing === undefined ? {} : { missing: spec.missing }),
+    ...(shares ? { percentStack: true } : {}),
   };
 }
 
 /**
  * One drawn series, keeping how it was drawn; a combo names its own mark,
  * and a series that has none yet takes the combo's default for its place
- * (`comboMark`).
+ * (`comboMark`) and the axis its measure asks for (`comboAxis`), unless an
+ * axis was chosen for it already.
  */
 function oneSeries(
   previous: CartesianSeries | undefined,
   metric: string,
   type: ChartType,
   index: number,
+  axis: 'left' | 'right',
 ): CartesianSeries {
   const series: CartesianSeries = { ...previous, metric };
-  return type === 'combo' && series.type === undefined
-    ? { ...series, type: comboMark(index) }
-    : series;
+  if (type !== 'combo' || series.type !== undefined) return series;
+  return {
+    ...series,
+    type: comboMark(index),
+    ...(series.axis === undefined && axis === 'right' ? { axis } : {}),
+  };
 }
 
 /**
@@ -273,14 +307,37 @@ function oneSeries(
  * Picking it used to draw every series as bars, and the analyst who asked
  * for bars with a line saw nothing change (2026-09-23 audit P1-8). A mark
  * the analyst picked on the options page is kept.
- *
- * The right axis is not guessed here: whether two metrics are on scales far
- * apart is a fact of the rows, which this layer never sees, and a count
- * beside an amount is not always far apart. The options page puts a series
- * on the right axis in one press.
  */
 export function comboMark(index: number): 'bar' | 'line' {
   return index === 0 ? 'bar' : 'line';
+}
+
+/**
+ * The axis a combo gives `metric` when nobody has chosen one: the first
+ * series' side (`leadSide`) when it measures the same kind of thing as the
+ * first series (`lead`), the other side when it does not.
+ *
+ * Decided by what the metrics are, not by their values, which this layer
+ * never sees (`metricMeasure`): a count beside an amount, an amount beside
+ * an average, a percent beside a count are two scales, and drawn on one the
+ * smaller lies flat along zero — the combo's second metric always sat on the
+ * left axis, and a count beside money read as nothing. Two metrics of one
+ * measure stay together even when their values are far apart: nothing says
+ * they differ, and one scale is what lets them be compared. An axis the
+ * analyst picked on the options page is theirs and is kept.
+ */
+export function comboAxis(
+  measures: ReadonlyMap<string, string>,
+  lead: string | undefined,
+  metric: string,
+  leadSide: 'left' | 'right' = 'left',
+): 'left' | 'right' {
+  const same =
+    lead === undefined ||
+    lead === metric ||
+    measures.get(lead) === measures.get(metric);
+  if (same) return leadSide;
+  return leadSide === 'left' ? 'right' : 'left';
 }
 
 /**

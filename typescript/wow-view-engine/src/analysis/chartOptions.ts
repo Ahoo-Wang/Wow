@@ -121,8 +121,11 @@ export function withStacked(
   on: boolean,
   type: ChartType = 'bar',
 ): CartesianSpec {
+  // Shares are a way of reading a stack; with no stack there is nothing
+  // left for them to be shares of.
+  const rest = on ? spec : without(spec, 'percentStack');
   return {
-    ...spec,
+    ...rest,
     series: spec.series.map(series =>
       !on
         ? without(series, 'stack')
@@ -131,6 +134,50 @@ export function withStacked(
           : series,
     ),
   };
+}
+
+/**
+ * Whether the display page offers 「百分比堆叠」 for this chart: a bar or an
+ * area chart — a combo's lines would be drawn against a scale of shares —
+ * whose every series adds up (`additive`: a share is a part of a sum, and
+ * an average has no whole to be part of), with something to stack — a
+ * split, or two series or more. One series alone would be 100% everywhere.
+ */
+export function offersPercentStack(
+  spec: CartesianSpec,
+  type: ChartType,
+  additive: ReadonlySet<string>,
+): boolean {
+  return (
+    (type === 'bar' || type === 'area') &&
+    spec.series.length > 0 &&
+    spec.series.every(series => additive.has(series.metric)) &&
+    (spec.splitBy !== undefined || spec.series.length > 1)
+  );
+}
+
+/** Whether the chart draws its stacks as shares: stacked, and asked to. */
+export function isPercentStacked(
+  spec: CartesianSpec,
+  type: ChartType = 'bar',
+): boolean {
+  return spec.percentStack === true && isStacked(spec, type);
+}
+
+/**
+ * 「百分比堆叠」 on or off. On stacks the chart as well (`withStacked`) —
+ * shares are a reading of a stack, and a box that turned on and drew the
+ * same side-by-side bars would be a box that did nothing; off leaves the
+ * stack standing and draws its values again.
+ */
+export function withPercentStack(
+  spec: CartesianSpec,
+  on: boolean,
+  type: ChartType = 'bar',
+): CartesianSpec {
+  return on
+    ? { ...withStacked(spec, true, type), percentStack: true }
+    : without(spec, 'percentStack');
 }
 
 export function isSmooth(spec: CartesianSpec): boolean {

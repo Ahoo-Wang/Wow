@@ -253,8 +253,18 @@ export const analysisMessages = {
   'label.chart.labels': 'Value labels',
   'label.chart.stacked': 'Stacked',
   'label.chart.stacked-alone': 'Stacking needs two or more bar or area series',
+  'label.chart.percent-stack': 'Stacked to 100%',
+  'label.chart.percent-stack.hint':
+    'Each stack reads as shares of its total; the tooltip keeps the values',
   'label.chart.horizontal': 'Horizontal',
   'label.chart.smooth': 'Smooth lines',
+  'label.chart.missing': 'Missing values',
+  'label.chart.missing.zero': 'Zero',
+  'label.chart.missing.gap': 'Leave a gap',
+  'label.chart.missing.zero.hint':
+    'Zero where the group is known to have no records and the metric adds up (a count, a sum); a gap elsewhere',
+  'label.chart.missing.gap.hint':
+    'A point with no rows is not drawn, and a line breaks there',
   'label.chart.reference-lines': 'Reference lines',
   'label.chart.reference-row': 'Reference line {index}',
   'label.chart.add-reference-line': 'Add reference line',
@@ -497,6 +507,8 @@ export const analysisMessages = {
     'The sort orders by {alias}, which this result does not have.',
 
   // Charts.
+  'chart.cartesian.percent-not-additive':
+    'A 100% stack needs metrics that add up (a record count or a sum), not {metric}.',
   'chart.combo.series-type-missing':
     'Every series of a combo chart needs its own type.',
   'chart.colors.invalid': 'This is not a colour the chart can paint with.',

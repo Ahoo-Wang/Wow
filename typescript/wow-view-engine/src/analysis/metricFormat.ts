@@ -150,3 +150,77 @@ export function momentMetrics(
   }
   return moments;
 }
+
+/**
+ * What a metric's number is a quantity of, as one token: two metrics with
+ * the same token can share a scale, two with different ones cannot — a
+ * count of orders drawn on the scale of their amount lies flat along zero.
+ *
+ * Read off what the metric is, never off its values (the chart layer that
+ * uses it sees no rows): its function and the format its number prints in
+ * (`metricFormat`), which carries the field's declared unit.
+ *
+ * - `COUNT` and `DISTINCT_COUNT` count things: `count`;
+ * - `DERIVED` is arithmetic over other metrics — a ratio, a difference —
+ *   whose unit nothing declares: `derived`;
+ * - everything else is a function of a field, and the token is its scale
+ *   and its unit. A sum is a total (`total:`); an average, a bound, a
+ *   percentile, a deviation and any one value are on the scale of a single
+ *   value (`value:`) — a sum and an average of the same amount are both
+ *   money, a hundred times apart; a variance is in the square of the unit
+ *   (`square:`). The unit is the declared currency, percent or unit, and
+ *   `number` when the field declares none — two plain numbers are not told
+ *   apart, since nothing says they differ.
+ */
+export function metricMeasure(
+  fn: MetricFunction | undefined,
+  format?: NumberFormat,
+): string {
+  switch (fn) {
+    case 'COUNT':
+    case 'DISTINCT_COUNT':
+      return 'count';
+    case 'DERIVED':
+      return 'derived';
+    default: {
+      const scale =
+        fn === 'SUM' ? 'total' : fn === 'VARIANCE' ? 'square' : 'value';
+      return `${scale}:${unitOf(format)}`;
+    }
+  }
+}
+
+/** The unit a format declares: a currency, percent, a unit, or none. */
+function unitOf(format: NumberFormat | undefined): string {
+  switch (format?.style) {
+    case 'currency':
+      return `currency:${(format.currency ?? '').toUpperCase()}`;
+    case 'percent':
+      return 'percent';
+    case 'unit':
+      return `unit:${format.unit ?? ''}`;
+    default:
+      return 'number';
+  }
+}
+
+/**
+ * `metricMeasure` of every metric, by alias, from the definition: each
+ * metric's format as `metricFormat` reads it off its one field. `fields`
+ * is the analysis scope's, as `momentMetrics` takes it.
+ */
+export function metricMeasures(
+  metrics: readonly AnalysisMetric[],
+  fields: ReadonlyMap<string, Pick<FieldDefinition, 'numberFormat'>>,
+): Map<string, string> {
+  return new Map(
+    metrics.map(metric => {
+      const name = metricFieldOf(metric);
+      const field = name === undefined ? undefined : fields.get(name);
+      return [
+        metric.alias,
+        metricMeasure(metricFunctionOf(metric), metricFormat(metric, field)),
+      ];
+    }),
+  );
+}

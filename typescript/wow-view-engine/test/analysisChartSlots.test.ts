@@ -177,9 +177,11 @@ describe('fitChartSlots', () => {
       [WAREHOUSE],
       metrics,
     );
+    // Fitted with no measures, every metric is one measure: the line joins
+    // the bars' axis, wherever the analyst had put them.
     expect(combo.cartesian?.series).toEqual([
       { metric: 'total', axis: 'right', type: 'bar' },
-      { metric: 'orders', type: 'line' },
+      { metric: 'orders', type: 'line', axis: 'right' },
     ]);
     expect(issuesOf(combo, [WAREHOUSE], metrics)).toEqual([]);
 

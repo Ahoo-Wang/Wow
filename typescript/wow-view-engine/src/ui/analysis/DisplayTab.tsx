@@ -14,15 +14,19 @@
 import { PlusIcon, XIcon } from 'lucide-react';
 import {
   CHART_FAMILIES,
+  isPercentStacked,
   isSmooth,
   isStacked,
+  offersPercentStack,
   offersStacking,
   stacks,
   valueLabelsOn,
+  withPercentStack,
   withSmooth,
   withStacked,
 } from '../../analysis/index.js';
 import {
+  CARTESIAN_MISSING,
   CHART_COLOR_SLOTS,
   CHART_FAMILY,
   type CartesianSpec,
@@ -91,7 +95,7 @@ export function DisplayTab(props: OptionsPageProps) {
   );
 }
 
-function CartesianDisplay({ chart, onChange }: OptionsPageProps) {
+function CartesianDisplay({ chart, shape, onChange }: OptionsPageProps) {
   const messages = useViewMessages();
   // A line taken out leaves the keyboard on the line under it, or on
   // 「添加参考线」 once the last one goes (`listFocus.ts`).
@@ -116,6 +120,8 @@ function CartesianDisplay({ chart, onChange }: OptionsPageProps) {
       lines.map((line, at) => (at === index ? { ...line, ...change } : line)),
     );
   const curved = chart.type !== 'bar';
+  // A stored value this package does not know reads as the default.
+  const missing = spec.missing === 'gap' ? 'gap' : 'zero';
   // A right axis exists once a series sits on it; a line hung on an axis
   // with nothing on it is `chart.referenceLine.empty-axis`.
   const axes = new Set(spec.series.map(series => series.axis ?? 'left'));
@@ -144,6 +150,21 @@ function CartesianDisplay({ chart, onChange }: OptionsPageProps) {
           onChange={on => update(withStacked(spec, on, chart.type))}
         />
       )}
+      {/*
+        Shares need a whole: offered only on bars and areas whose every
+        metric adds up, with a split or two series to share it
+        (`offersPercentStack`); anywhere else the box is not there, because
+        no setting of this chart could make it mean something.
+      */}
+      {offersPercentStack(spec, chart.type, shape.additive) && (
+        <CheckField
+          data-slot="chart-percent-stack"
+          label={messages.label('label.chart.percent-stack')}
+          hint={messages.label('label.chart.percent-stack.hint')}
+          checked={isPercentStacked(spec, chart.type)}
+          onChange={on => update(withPercentStack(spec, on, chart.type))}
+        />
+      )}
       <CheckField
         data-slot="chart-horizontal"
         label={messages.label('label.chart.horizontal')}
@@ -164,6 +185,28 @@ function CartesianDisplay({ chart, onChange }: OptionsPageProps) {
           onChange={on => update(withSmooth(spec, on))}
         />
       )}
+      {/*
+        What a point the rows lack draws as. The default is the kernel's
+        rule, said under the choice so 「补 0」 is not read as "every hole is
+        0": an average, or a group 「只保留」 dropped, is never made one.
+      */}
+      <ChoiceField
+        data-slot="chart-missing"
+        label={messages.label('label.chart.missing')}
+        hint={messages.label(`label.chart.missing.${missing}.hint`)}
+        items={CARTESIAN_MISSING.map(mode => ({
+          value: mode,
+          label: messages.label(`label.chart.missing.${mode}`),
+        }))}
+        value={missing}
+        onChange={mode =>
+          update(
+            mode === 'gap'
+              ? { ...spec, missing: 'gap' }
+              : without(spec, 'missing'),
+          )
+        }
+      />
       <OptionsSection
         name="reference-lines"
         title={messages.label('label.chart.reference-lines')}

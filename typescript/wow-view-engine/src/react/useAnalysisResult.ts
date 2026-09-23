@@ -20,6 +20,7 @@ import {
   focusOn,
   groupFor,
   groupableFields,
+  measureColumns,
   momentColumns,
   asksForWhole,
   projectAnalysis,
@@ -230,6 +231,9 @@ export function useAnalysisResult(
   // The moments of the question, read off its projection: a column that
   // reads as a date is one (`momentMetrics`), and no mark measures it.
   const moments = useMemo(() => momentColumns(columns), [columns]);
+  // And what each measures (`metricMeasure`), so a combo picked here puts a
+  // count and an amount on two axes as the editor would.
+  const measures = useMemo(() => measureColumns(columns), [columns]);
   const chart = useMemo(
     () =>
       question && shapeAsked !== drafted
@@ -238,9 +242,10 @@ export function useAnalysisResult(
             question.groups,
             question.metrics,
             moments,
+            measures,
           )
         : analysis.chart,
-    [analysis.chart, question, shapeAsked, drafted, moments],
+    [analysis.chart, question, shapeAsked, drafted, moments, measures],
   );
   // What the picker offers. Over rows, the shape that ran and the rows
   // themselves: a funnel over one dimension takes its stages from them the
@@ -343,6 +348,7 @@ export function useAnalysisResult(
       question.groups,
       question.metrics,
       moments,
+      measures,
     );
     analysis.updateChart(view ? withStagesFrom(fitted, view.rows) : fitted);
   };

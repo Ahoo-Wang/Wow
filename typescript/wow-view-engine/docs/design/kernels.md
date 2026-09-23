@@ -256,11 +256,13 @@ D20 屏 G。展开一个数组就是换掉计数单位：`订单 → 明细项` 
 - `chart[族(type)]` 必须存在；
 - `x`、`splitBy`、`category`、heatmap 的 `x`／`y`、`funnel.group.category` 必须是分组别名，`series[].metric`、`value`、scatter 的 `x`／`y`／`size`、`metric`、`compare.metric`、`funnel.metrics.items[].metric` 必须是指标别名；
 - `splitBy` 不等于 `x`，且存在时 `series` 恰有一个指标；
-- `combo` 的每个系列必须有 `type`；
+- `combo` 的每个系列必须有 `type`；`fitChartSlots` 给刚换进组合图、没有 `type` 的系列补标记（`comboMark`）的同时补轴：量纲（`metricMeasure`，按汇总方式与字段声明的格式读，不看数值）与第一条系列不同的去另一侧（`comboAxis`），已写的 `axis` 不动；量纲由调用方传入（`fitChartSlots` 的 `measures`：编辑器用 `metricMeasures` 按定义读，结果区用 `measureColumns` 按列读），不传时全体算一种量纲（见 test/comboAxis.test.ts）；
+- `percentStack` 只能用于可加指标（与 `maxSlices` 同一判据），否则报 `chart.cartesian.percent-not-additive`；`fitChartSlots` 在系列里出现不可加的指标时把它去掉；
 - heatmap 的 `x`、`y` 不同，scatter 的 `x`、`y` 不同；
 - `maxSlices` 必须是不小于 2 的整数（NaN 与小数会让全部分类并入"其他"），且只能用于可加指标（`COUNT` 或 `SUM` 的 `NUMERIC`）：`AVG`、`MIN`／`MAX`、`DISTINCT_COUNT`、百分位无法由各分类结果推出合并值，报 error；
 - **投影在色板用完之前并「其他」**（`shapeChart`，不是准入规则）：`maxSlices` 不写时可加指标的饼图按 `CHART_COLOR_SLOTS`（8）并，写了更大的数也按 8 读——第九片会拿到第一片的颜色；**时间维度坐的轴按时间升序排**（直角坐标横轴、热力图行列、指标卡迷你趋势，以及按时间拆分的系列），不管视图按什么排序，类目与饼图照结果行的次序（[ui/analysis.md#analysischart-与-shapechart](ui/analysis.md#analysischart-与-shapechart)）；
 - **缺的格子是 0 还是「不知道」，由内核说**（`shapeChart` 的 `absenceReader`，2026-09-23 图表审查 P0-3／P0-4）：结果里没有的一组，只有在**确知它没有记录**时才是 0——没有「只保留」（`having` 按数字丢组，丢掉的不知道是多少），且行没有被上限截断（行数少于 `limit`，就是全部分组），或者被截断了但排序的第一键把截断推到了别处（按那个维度排，只有最后一行的那个值可能缺了一部分，排在它前面的值都是完整的——按日倒序的「近三十天」是三十个完整的天）。确知没有记录时，**可加指标**（`isAdditiveMetric`：记录数、合计）补 0，其余（平均、去重计数、百分位、极值……）补 `null`，画成断开——没有记录的平均数不是一个数；不确知时一律 `null`；
+  - **分析师可以要一律留空**：`cartesian.missing: 'gap'`（显示页「缺值：留空（断开）」）时上一条一个 0 也不补，洞仍补在轴上、值是 `null`；不写或 `zero` 按上一条。这是画法，不是问题：`chart` 整个是展示成员，改它不重跑（见 test/analysisChartGaps.test.ts「leaves every hole empty when the chart asks for gaps」「with nothing when the chart asks for gaps」）；
   - **拆分补齐缺的组合**：直角坐标图按 `splitBy` 透视时，某个横轴值上没有某个拆分值的行，按上一条补——「华东没有已取消」是 0，从前留空，堆叠面积与折线只剩悬在累加高度上的孤点。热力图不在此列：它把「没有这一组」画成没有格子（`heatmapOption`）；
   - **日期轴不留洞**：横轴（以及指标卡迷你趋势、热力图的行或列）是 `DATE_HISTOGRAM` 时，首尾两个桶之间按单位缺的桶补上（`withoutHoles`），值按上一条补。桶用下钻同一个 `bucketRange` 推进，在分组自己的 `timeZone`、没有则引擎时区（`shapeChart` 的 `context.timeZone`）里走——运行时的投影（`executeDataConfig` 把编译条件用的 `FilterCompileContext` 交给 `projectAnalysis`）与工作台的重画（`useAnalysisResult` 传 `runtime.environment.timeZone`）都传引擎时区，只有不传的调用方才落到宿主时区（与 `runtime/environment.ts` 的缺省同一个）；从前两处都没传，引擎时区与浏览器不同时，跨夏令时的日桶对不上格点，就一个也不补（见 test/chartTimeZone.test.tsx）；写成挂钟日期的桶键（`2026-09-18`）按 UTC 走，那是 `readInstant` 读它的时区。补出的桶键照第一个桶的写法（数字、数字串、挂钟日期、ISO 串）。**补不准就不补**：已有的桶有一个不在推进出的格点上（换了时区切的、周从别的日子起算的）、分组开了 `dense`（Wow 已经补过）、补完超过 `AGGREGATION_LIMITS.MAX_LIMIT` 个桶（任何 dense 查询也答不出那么多），都照原样画。读不出时刻的桶（缺值哨兵）仍排在最后；
 - **漏斗缺省不累计**：按维度分阶段时每一段就是这一组自己的数，与表格、柱图、下钻出来的记录数同一个数（与 Metabase 一致）。从前 `cumulative` 不写按 `true` 处理，把后面各段加进前面——那只对「每个对象只停在一个阶段」的流程状态成立，对事件类型、仓库这类维度是错的：补偿服务「事件类型分布」的漏斗写「首次失败 1,831,229」（七类之和），表格写 65.9 万。写了 `cumulative: true` 才累计，`FunnelData.cumulative` 随之为真，图上方写「累计：至少到达这一段」（`label.chart.column.cumulative`），读屏表的数值列同一句。（见 test/analysisChart.test.ts「draws each group stage as its own number by default」与 test/analysisChartGaps.test.ts「a split fills the combinations it lacks」「a date axis runs without holes」）
@@ -286,7 +288,7 @@ D20 屏 G。展开一个数组就是换掉计数单位：`订单 → 明细项` 
 
 表格不经过这里：它画得了任何形态，所以它在列出图型的地方是一张永远可选的卡片，而不是一条规则。（见 test/fitCharts.test.ts「fitCharts」「a funnel’s fit」、test/chartFamilies.test.ts「chartFamilies」与 test/chartPicker.test.tsx「the visualization panel」「a funnel is offered where it draws」；遍历形态的那个测试同时遍历两组、一组与桶键不是文本的行，另一个「one rule, before anything ran」遍历没有行、只有存下的漏斗点名两段／一段／重复一段／零段时的形态）
 
-可视化面板第二层上那些"改一个设置不许弄坏另一个"的规则同样是内核的，不在组件里：`analysis/chartOptions.ts`（D20 屏 J）。`optionTabs` 说一个图型有哪几页；`withSlot` 让两个槽对调而不是重复（选中另一个槽正拿着的别名时）；`without` 是"取消一项"的写法；`isStacked`／`withStacked` 与 `isSmooth`／`withSmooth` 把堆叠与平滑当作整张图的一个选择，全体加入或全体退出；`withMoved`／`withMovedTo` 排阶段与系列；`stageValues`／`withStagesFrom`／`withStageOrder` 让按分组值分阶段的漏斗一被选中就有顺序可画——业务顺序内核不知道，但"结果行来的顺序"总好过空白。它们都是纯函数，不用 DOM 就能钉住；面板怎么用它们见 [ui/analysis.md#可视化的第二层选中图型的选项三个页签](ui/analysis.md#可视化的第二层选中图型的选项三个页签)。（见 test/chartOptions.test.ts「chartOptions」）
+可视化面板第二层上那些"改一个设置不许弄坏另一个"的规则同样是内核的，不在组件里：`analysis/chartOptions.ts`（D20 屏 J）。`optionTabs` 说一个图型有哪几页；`withSlot` 让两个槽对调而不是重复（选中另一个槽正拿着的别名时）；`without` 是"取消一项"的写法；`isStacked`／`withStacked` 与 `isSmooth`／`withSmooth` 把堆叠与平滑当作整张图的一个选择，全体加入或全体退出；`offersPercentStack`／`isPercentStacked`／`withPercentStack` 说百分比堆叠在哪儿给、勾上即堆叠，`withStacked` 取消堆叠时把它一起去掉；`withMoved`／`withMovedTo` 排阶段与系列；`stageValues`／`withStagesFrom`／`withStageOrder` 让按分组值分阶段的漏斗一被选中就有顺序可画——业务顺序内核不知道，但"结果行来的顺序"总好过空白。它们都是纯函数，不用 DOM 就能钉住；面板怎么用它们见 [ui/analysis.md#可视化的第二层选中图型的选项三个页签](ui/analysis.md#可视化的第二层选中图型的选项三个页签)。（见 test/chartOptions.test.ts「chartOptions」）
 
 ### 图表的槽跟着形态走：`fitChartSlots`
 

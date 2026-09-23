@@ -16,7 +16,7 @@ import { useSortable } from '@dnd-kit/react/sortable';
 import { Accessibility } from '@dnd-kit/dom';
 import { OptimisticSortingPlugin } from '@dnd-kit/dom/sortable';
 import { PlusIcon, XIcon } from 'lucide-react';
-import { comboMark, withMovedTo } from '../../analysis/index.js';
+import { comboAxis, comboMark, withMovedTo } from '../../analysis/index.js';
 import type {
   CartesianSeries,
   CartesianSpec,
@@ -52,6 +52,11 @@ export interface SeriesListProps {
   spec: CartesianSpec;
   /** The metrics the result holds, each named as its column is titled. */
   metrics: readonly Choice[];
+  /**
+   * What each metric is a quantity of (`metricMeasure`): a series added to
+   * a combo takes the axis its measure asks for (`comboAxis`).
+   */
+  measures?: ReadonlyMap<string, string>;
   onChange(spec: CartesianSpec): void;
 }
 
@@ -73,7 +78,13 @@ export interface SeriesListProps {
  * reorders the DOM while the pointer moves, which makes the indexes this
  * list is rendered from stale precisely when the drop is read.
  */
-export function SeriesList({ type, spec, metrics, onChange }: SeriesListProps) {
+export function SeriesList({
+  type,
+  spec,
+  metrics,
+  measures = NO_MEASURES,
+  onChange,
+}: SeriesListProps) {
   const messages = useViewMessages();
   // The panel's own live region, alive only while the panel is: it answers
   // the arrow keys pressed inside it, as the sort editor's answers the ones
@@ -191,12 +202,11 @@ export function SeriesList({ type, spec, metrics, onChange }: SeriesListProps) {
                     update([
                       ...spec.series,
                       // A combo's first series is its bars and every other
-                      // a line, unless the analyst picks otherwise.
+                      // a line, unless the analyst picks otherwise; one that
+                      // measures something else than the first goes to the
+                      // other axis.
                       type === 'combo'
-                        ? {
-                            metric: metric.value,
-                            type: comboMark(spec.series.length),
-                          }
+                        ? addedToCombo(spec, metric.value, measures)
                         : { metric: metric.value },
                     ])
                   }
@@ -210,6 +220,23 @@ export function SeriesList({ type, spec, metrics, onChange }: SeriesListProps) {
       )}
     </OptionsSection>
   );
+}
+
+const NO_MEASURES: ReadonlyMap<string, string> = new Map();
+
+/** A series added to a combo: its mark for its place, its axis for its measure. */
+function addedToCombo(
+  spec: CartesianSpec,
+  metric: string,
+  measures: ReadonlyMap<string, string>,
+): CartesianSeries {
+  const lead = spec.series[0];
+  const axis = comboAxis(measures, lead?.metric, metric, lead?.axis);
+  return {
+    metric,
+    type: comboMark(spec.series.length),
+    ...(axis === 'right' ? { axis } : {}),
+  };
 }
 
 /** One series: its handle, its name, how it is drawn, and its way out. */

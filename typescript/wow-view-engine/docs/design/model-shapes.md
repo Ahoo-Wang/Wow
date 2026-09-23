@@ -38,13 +38,15 @@ export interface CartesianSpec {
   series: {
     metric: string; // 指标别名
     type?: 'bar' | 'line' | 'area'; // combo 时逐系列必填
-    axis?: 'left' | 'right';
+    axis?: 'left' | 'right'; // 不写为左；组合图刚换进来的系列按量纲补（comboAxis）
     stack?: string; // 同名系列堆叠
     smooth?: boolean;
   }[];
   orientation?: 'vertical' | 'horizontal';
   yAxis?: { left?: AxisSpec; right?: AxisSpec };
   referenceLines?: { axis: 'left' | 'right'; value: number; label?: string }[];
+  missing?: 'zero' | 'gap'; // 缺的点：不写／zero 按内核规则（确知为空且可加才补 0），gap 一律留空（断开）；只改画法
+  percentStack?: boolean; // 百分比堆叠：柱与面积的每一摞画成占比、顶到 100%；只用于可加指标，未堆叠时不读
 }
 
 export interface AxisSpec {

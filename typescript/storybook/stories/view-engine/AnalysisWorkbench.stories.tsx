@@ -70,8 +70,11 @@ function AnalysisWorkbenchDemo({
   behaviour?: SourceBehaviour;
   layout?: 'table' | 'chart';
   chart?: 'bar' | 'line' | 'pie';
-  /** Which metrics a cartesian chart draws; two of them earn a legend. */
-  series?: 'amount' | 'both';
+  /**
+   * Which metrics a cartesian chart draws; two of them earn a legend, and
+   * `orders` draws the count alone — the chart a combo is picked over.
+   */
+  series?: 'amount' | 'both' | 'orders';
   /** Whether the spec pins 华南 and the amount series to colours of their own. */
   pinned?: boolean;
   /**
@@ -178,7 +181,7 @@ function AnalysisWorkbenchDemo({
                       { metric: 'amount' },
                       { metric: 'orders', axis: 'right' as const },
                     ]
-                  : [{ metric: 'amount' }],
+                  : [{ metric: series === 'orders' ? 'orders' : 'amount' }],
               ...(horizontal ? { orientation: 'horizontal' as const } : {}),
             },
           }),
@@ -600,6 +603,15 @@ export const HorizontalBars: Story = {
  */
 export const TwoMetrics: Story = {
   args: { layout: 'chart', chart: 'bar', series: 'both' },
+};
+
+/**
+ * 每个仓库的订单数画成柱。从这里在图型网格里选「组合图」：金额的合计作为折线
+ * 加进来，量的是钱而不是个数，于是坐到右轴上、右轴写它的列标题，两根轴的刻度
+ * 落在同一组网格线上。
+ */
+export const CountBars: Story = {
+  args: { layout: 'chart', chart: 'bar', series: 'orders' },
 };
 
 /**

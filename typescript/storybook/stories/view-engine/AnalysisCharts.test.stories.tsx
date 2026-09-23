@@ -15,7 +15,10 @@ import { expect, screen, userEvent, waitFor, within } from 'storybook/test';
 import { formatMessage, zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 import displayMeta, {
   BarChart as DisplayBarChart,
+  CountBars as DisplayCountBars,
   DailyNewestFirst as DisplayDailyNewestFirst,
+  DailyQuietDays as DisplayDailyQuietDays,
+  HeatmapChart as DisplayHeatmapChart,
 } from './AnalysisWorkbench.stories.js';
 import {
   axisTexts,
@@ -406,5 +409,171 @@ export const SavedFunnelRepaired: Story = {
     await expect(
       canvasElement.querySelector('[data-slot="status-line"] [role="alert"]'),
     ).toBeNull();
+  },
+};
+
+/** Opens the chosen type's options on one of its pages. */
+async function optionsPage(canvasElement: HTMLElement, tab: string) {
+  await userEvent.click(
+    await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="chart-options-open"]',
+      );
+      if (!found) throw new Error('没有选项按钮');
+      return found;
+    }),
+  );
+  const options = await waitFor(() => {
+    const found = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="chart-options"]',
+    );
+    if (!found) throw new Error('选项没有打开');
+    return found;
+  });
+  await userEvent.click(within(options).getByRole('tab', { name: tab }));
+  return options;
+}
+
+/** The vertical middle of each text, top to bottom. */
+const middles = (texts: readonly Element[]) =>
+  texts
+    .map(text => {
+      const box = text.getBoundingClientRect();
+      return (box.top + box.bottom) / 2;
+    })
+    .sort((a, b) => a - b);
+
+/**
+ * 组合图的右轴：订单数的柱上加金额的线，金额坐右轴、右轴写「金额的合计」，两根
+ * 轴的刻度落在同一组网格线上。
+ *
+ * 从前槽位层看不到数，组合图的第二个指标永远在左轴：个位数的订单数与上千的金额
+ * 同一把尺子，线贴着零。现在按两者量的是什么判（计数对金额）——不看值。这里从
+ * 订单数的柱状图在图型网格里选「组合图」，量：右边有刻度，右轴的标题是金额那一
+ * 列的表头、在绘图区右侧；左右两列刻度一样多，每一对的垂直中线相差不到 1px
+ * （审查 P2-4：两根轴各取各的刻度，右轴的数落在两条网格线之间）。
+ */
+export const ComboPutsTheAmountRight: Story = {
+  ...DisplayCountBars,
+  play: async ({ canvasElement }) => {
+    await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
+    const panel = await visualize(canvasElement);
+    await userEvent.click(chartTile(panel, 'combo'));
+    await chartsDrawn(canvasElement);
+
+    const [left, right] = await waitFor(() => {
+      const found = [
+        axisTicks(canvasElement, 'left'),
+        axisTicks(canvasElement, 'right'),
+      ];
+      expect(found[1].length).toBeGreaterThan(1);
+      return found;
+    });
+    // The right axis is titled by the amount's column, and stands right of
+    // the marks; the left by the count's.
+    const titles = axisTitles(canvasElement);
+    const titleOf = (text: string) =>
+      titles.find(title => title.textContent === text);
+    await expect(titleOf(AMOUNT_HEADER)).toBeDefined();
+    await expect(titleOf(COUNT_HEADER)).toBeDefined();
+    const east = Math.max(
+      ...drawnMarks(canvasElement).map(
+        mark => mark.getBoundingClientRect().right,
+      ),
+    );
+    await expect(
+      titleOf(AMOUNT_HEADER)!.getBoundingClientRect().left,
+    ).toBeGreaterThan(east);
+    // One set of gridlines: as many ticks each side, pairwise level.
+    await expect(right.length).toBe(left.length);
+    const leftAt = middles(left);
+    const rightAt = middles(right);
+    await expect(
+      leftAt.every((at, index) => Math.abs(at - rightAt[index]!) < 1),
+    ).toBe(true);
+  },
+};
+
+/**
+ * 百分比堆叠：仓库 × 状态的金额，从热力图换成柱状图（按状态拆分），在显示页勾
+ * 「百分比堆叠」——每个仓库的那一摞都顶到绘图区的顶，纵轴写到 100%。
+ *
+ * 构成类的问题，饼图画不了几个仓库并排；堆叠柱按金额画，高低不同的摞读不出
+ * 比例（审查 P1-10）。量：每个仓库各段高度之和相同（差不到 1.5px），纵轴从
+ * 「0%」写到「100%」。
+ */
+export const PercentStackReachesTheTop: Story = {
+  ...DisplayHeatmapChart,
+  play: async ({ canvasElement }) => {
+    await chartsDrawn(canvasElement);
+    const panel = await visualize(canvasElement);
+    await userEvent.click(chartTile(panel, 'bar'));
+    await chartsDrawn(canvasElement);
+
+    const options = await optionsPage(
+      canvasElement,
+      zhCN['label.chart.tab.display'],
+    );
+    await userEvent.click(
+      within(options).getByRole('checkbox', {
+        name: zhCN['label.chart.percent-stack'],
+      }),
+    );
+    await chartsDrawn(canvasElement);
+
+    const stacks = await waitFor(() => {
+      const byColumn = new Map<number, number>();
+      for (const mark of drawnMarks(canvasElement)) {
+        const box = mark.getBoundingClientRect();
+        const column = Math.round((box.left + box.right) / 2);
+        byColumn.set(column, (byColumn.get(column) ?? 0) + box.height);
+      }
+      const heights = [...byColumn.values()];
+      expect(heights).toHaveLength(WAREHOUSES.length);
+      expect(Math.max(...heights) - Math.min(...heights)).toBeLessThan(1.5);
+      return heights;
+    });
+    await expect(stacks[0]).toBeGreaterThan(0);
+    const ticks = ticksOf(canvasElement, 'y');
+    await expect(ticks).toContain('100%');
+    await expect(ticks).toContain('0%');
+  },
+};
+
+/**
+ * 缺值：留空（断开）。只看发往杭州、上海的运单，没单的日子默认按 0 画（确知
+ * 没有记录、记录数可加）；在显示页选「留空（断开）」，那些日子不再有点，折线
+ * 在那里断开——有单的日子一天一个点，其余没有。
+ */
+export const MissingLeftAsGaps: Story = {
+  ...DisplayDailyQuietDays,
+  play: async ({ canvasElement }) => {
+    await chartsDrawn(canvasElement);
+    const days = await waitFor(() => {
+      const rows = readingOf(canvasElement);
+      expect(rows.length).toBeGreaterThan(10);
+      return rows.map(([, count]) =>
+        Number((count ?? '').replace(/[^\d]/g, '')),
+      );
+    });
+    const busy = days.filter(count => count > 0).length;
+    await expect(busy).toBeLessThan(days.length);
+    // Filled: a dot a day, the quiet ones on zero.
+    await waitFor(() =>
+      expect(drawnMarks(canvasElement)).toHaveLength(days.length),
+    );
+
+    await visualize(canvasElement);
+    const options = await optionsPage(
+      canvasElement,
+      zhCN['label.chart.tab.display'],
+    );
+    await userEvent.click(
+      within(options).getByRole('button', {
+        name: zhCN['label.chart.missing.gap'],
+      }),
+    );
+    // Gapped: a dot for each day that had a waybill, and none for the rest.
+    await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(busy));
   },
 };

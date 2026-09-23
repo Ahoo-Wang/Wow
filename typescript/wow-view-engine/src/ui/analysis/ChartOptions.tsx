@@ -15,6 +15,7 @@ import { useMemo, useState, type RefObject } from 'react';
 import { ArrowLeftIcon } from 'lucide-react';
 import {
   isAdditiveMetric,
+  measureColumns,
   momentColumns,
   optionTabs,
   type AnalysisColumnView,
@@ -107,6 +108,7 @@ export function ChartOptions({
       additive: new Set(
         metrics.filter(isAdditiveMetric).map(metric => metric.alias),
       ),
+      measures: measureColumns(columns),
     };
   }, [groups, metrics, columns, column]);
   const page = { chart, shape, rows, label, onChange };

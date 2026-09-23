@@ -251,6 +251,24 @@ function cartesian(context: ChartContext, config: AnalysisViewConfig): Issue[] {
       );
   });
 
+  // A share of a stack is a part of a sum, and only a metric that adds up
+  // has one: an average's 「占比」 is no share of anything.
+  if (spec.percentStack === true) {
+    const alone = spec.series.find(
+      series => !isAdditiveMetric(context.metrics.get(series.metric)),
+    );
+    if (alone)
+      issues.push(
+        issue(
+          'chart.cartesian.percent-not-additive',
+          [...path, 'percentStack'],
+          {
+            metric: alone.metric,
+          },
+        ),
+      );
+  }
+
   const axes = new Set(spec.series.map(series => series.axis ?? 'left'));
   (spec.referenceLines ?? []).forEach((line, index) => {
     if (!axes.has(line.axis))
