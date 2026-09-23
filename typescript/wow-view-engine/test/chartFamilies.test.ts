@@ -21,6 +21,8 @@ import {
   switchChartType,
   validateChart,
   valueLabelsOn,
+  seriesMark,
+  chartMarks,
   withStagesFrom,
 } from '../src/analysis/index.js';
 import {
@@ -285,17 +287,70 @@ describe('chartFamilies', () => {
 });
 
 describe('valueLabelsOn', () => {
-  it('writes a cartesian chart’s values unasked, and no other family’s', () => {
+  it('writes a bar’s values unasked, and no line’s, area’s or other family’s', () => {
     expect(valueLabelsOn({ type: 'bar' })).toBe(true);
-    expect(valueLabelsOn({ type: 'line' })).toBe(true);
+    // A number on every point drowned the line (audit P1-3).
+    expect(valueLabelsOn({ type: 'line' })).toBe(false);
+    expect(valueLabelsOn({ type: 'area' })).toBe(false);
     expect(valueLabelsOn({ type: 'pie' })).toBe(false);
     expect(valueLabelsOn({ type: 'heatmap' })).toBe(false);
     expect(valueLabelsOn(undefined)).toBe(false);
   });
 
+  it('asks a combo mark by mark, and the chart by whether any writes', () => {
+    const combo: ChartSpec = {
+      type: 'combo',
+      cartesian: {
+        x: 'wh',
+        series: [
+          { metric: 'orders', type: 'bar' },
+          { metric: 'total', type: 'line' },
+        ],
+      },
+    };
+    expect(valueLabelsOn(combo, 'bar')).toBe(true);
+    expect(valueLabelsOn(combo, 'line')).toBe(false);
+    expect(valueLabelsOn(combo)).toBe(true);
+    // A combo of lines alone writes nothing unasked.
+    expect(
+      valueLabelsOn({
+        ...combo,
+        cartesian: {
+          x: 'wh',
+          series: [{ metric: 'total', type: 'line' }],
+        },
+      }),
+    ).toBe(false);
+    // Asked for, every mark writes; turned off, none does.
+    expect(valueLabelsOn({ ...combo, labels: true }, 'line')).toBe(true);
+    expect(valueLabelsOn({ ...combo, labels: false }, 'bar')).toBe(false);
+  });
+
   it('takes the analyst’s word, but never for a family that cannot write them', () => {
     expect(valueLabelsOn({ type: 'bar', labels: false })).toBe(false);
+    expect(valueLabelsOn({ type: 'line', labels: true })).toBe(true);
     expect(valueLabelsOn({ type: 'pie', labels: true })).toBe(true);
     expect(valueLabelsOn({ type: 'scatter', labels: true })).toBe(false);
+  });
+});
+
+describe('seriesMark and chartMarks', () => {
+  it('draws a combo’s series as each names, and every other type’s alike', () => {
+    expect(seriesMark('combo', { type: 'line' })).toBe('line');
+    expect(seriesMark('combo', {})).toBe('bar');
+    expect(seriesMark('area', { type: 'line' })).toBe('area');
+    expect(seriesMark('bar')).toBe('bar');
+    expect(chartMarks({ type: 'line' })).toEqual(['line']);
+    expect(chartMarks({ type: 'pie' })).toEqual([]);
+    expect(
+      chartMarks({
+        type: 'combo',
+        cartesian: {
+          x: 'wh',
+          series: [{ metric: 'a', type: 'area' }, { metric: 'b' }],
+        },
+      }),
+    ).toEqual(['area', 'bar']);
+    expect(chartMarks({ type: 'combo' })).toEqual(['bar']);
   });
 });

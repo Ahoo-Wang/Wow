@@ -65,6 +65,7 @@ function AnalysisWorkbenchDemo({
   savedFunnel,
   labels = false,
   heatmap = false,
+  horizontal = false,
 }: {
   behaviour?: SourceBehaviour;
   layout?: 'table' | 'chart';
@@ -130,6 +131,8 @@ function AnalysisWorkbenchDemo({
    * （D21 第四批）。
    */
   heatmap?: boolean;
+  /** Whether a cartesian chart lies on its side, the numbers running right. */
+  horizontal?: boolean;
 }) {
   const { groups, metrics } = analysisConfig();
   const fitted = fitChartSlots({ type: chart }, groups, metrics);
@@ -176,6 +179,7 @@ function AnalysisWorkbenchDemo({
                       { metric: 'orders', axis: 'right' as const },
                     ]
                   : [{ metric: 'amount' }],
+              ...(horizontal ? { orientation: 'horizontal' as const } : {}),
             },
           }),
       ...(pinned ? { colors: PINNED_COLORS } : {}),
@@ -580,6 +584,14 @@ export const BarChart: Story = { args: { layout: 'chart', chart: 'bar' } };
  */
 export const FollowUps: Story = {
   args: { layout: 'chart', chart: 'bar', records: true },
+};
+
+/**
+ * 横向柱，每根柱子右端写着它的金额：最长那根的数也整个留在图框里（从前首页
+ * 「活动失败最多的处理器」最长那根的「59.6万」被图框切掉「万」，读成「59.6」）。
+ */
+export const HorizontalBars: Story = {
+  args: { layout: 'chart', chart: 'bar', horizontal: true },
 };
 
 /**

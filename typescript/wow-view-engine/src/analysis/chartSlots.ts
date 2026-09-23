@@ -221,10 +221,15 @@ function cartesian(
         ? []
         : [pivoted]
       : named.length > 0
-        ? named
+        ? arrivingCombo(type, named, previous)
+          ? [
+              ...named,
+              ...shape.quantities.filter(metric => !named.includes(metric)),
+            ]
+          : named
         : shape.quantities;
-  const series = drawn.map(metric =>
-    oneSeries(previous.get(metric), metric, type),
+  const series = drawn.map((metric, index) =>
+    oneSeries(previous.get(metric), metric, type, index),
   );
   // A reference line names the axis it hangs on, and an axis with no series
   // on it is not an axis; the line goes with the series that left.
@@ -244,16 +249,56 @@ function cartesian(
   };
 }
 
-/** One drawn series, keeping how it was drawn; a combo names its own mark. */
+/**
+ * One drawn series, keeping how it was drawn; a combo names its own mark,
+ * and a series that has none yet takes the combo's default for its place
+ * (`comboMark`).
+ */
 function oneSeries(
   previous: CartesianSeries | undefined,
   metric: string,
   type: ChartType,
+  index: number,
 ): CartesianSeries {
   const series: CartesianSeries = { ...previous, metric };
   return type === 'combo' && series.type === undefined
-    ? { ...series, type: 'bar' }
+    ? { ...series, type: comboMark(index) }
     : series;
+}
+
+/**
+ * The mark a combo gives the series at `index` when nobody has chosen one:
+ * the first metric as bars, every other as a line — Metabase's combo, and
+ * the only reading of 「组合图」 that is not a bar chart under another name.
+ * Picking it used to draw every series as bars, and the analyst who asked
+ * for bars with a line saw nothing change (2026-09-23 audit P1-8). A mark
+ * the analyst picked on the options page is kept.
+ *
+ * The right axis is not guessed here: whether two metrics are on scales far
+ * apart is a fact of the rows, which this layer never sees, and a count
+ * beside an amount is not always far apart. The options page puts a series
+ * on the right axis in one press.
+ */
+export function comboMark(index: number): 'bar' | 'line' {
+  return index === 0 ? 'bar' : 'line';
+}
+
+/**
+ * A combo just picked over a chart that draws one metric of several: one
+ * mark is no combo, so the others join as lines. Told apart by the series
+ * naming no mark — every series a combo has drawn names one, so a combo the
+ * analyst narrowed to one series on its options page stays one series.
+ */
+function arrivingCombo(
+  type: ChartType,
+  named: readonly string[],
+  previous: ReadonlyMap<string, CartesianSeries>,
+): boolean {
+  return (
+    type === 'combo' &&
+    named.length === 1 &&
+    previous.get(named[0])?.type === undefined
+  );
 }
 
 function pie(spec: PieSpec | undefined, shape: Shape): PieSpec {

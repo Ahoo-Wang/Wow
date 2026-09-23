@@ -15,6 +15,8 @@ import { describe, expect, it } from 'vitest';
 import {
   isSmooth,
   isStacked,
+  offersStacking,
+  stacks,
   withMoved,
   withMovedTo,
   optionTabs,
@@ -68,6 +70,53 @@ describe('chartOptions', () => {
     expect(
       withSlot({ category: 'c', x: 'm1', y: 'm2' }, 'x', 'y', 'm3'),
     ).toEqual({ category: 'c', x: 'm3', y: 'm2' });
+  });
+
+  it('stacks bars and areas, never a line (audit P0-2)', () => {
+    // A line chart offers no stacking at all; every other cartesian type
+    // does.
+    expect(offersStacking('line')).toBe(false);
+    expect(
+      (['bar', 'area', 'combo'] as const).every(type => offersStacking(type)),
+    ).toBe(true);
+    expect(stacks('combo', { type: 'line' })).toBe(false);
+    expect(stacks('combo', {})).toBe(true);
+    expect(stacks('area', {})).toBe(true);
+    expect(stacks('line', {})).toBe(false);
+
+    // A combo stacks its bars, and its line keeps its own axis and values.
+    const combo = {
+      x: 'warehouse',
+      series: [
+        { metric: 'orders', type: 'bar' as const, axis: 'right' as const },
+        { metric: 'amount', type: 'bar' as const },
+        { metric: 'average', type: 'line' as const, axis: 'right' as const },
+      ],
+    };
+    const stacked = withStacked(combo, true, 'combo');
+    expect(stacked.series).toEqual([
+      { metric: 'orders', type: 'bar', stack: 'all' },
+      { metric: 'amount', type: 'bar', stack: 'all' },
+      { metric: 'average', type: 'line', axis: 'right' },
+    ]);
+    // Read back over the bars alone.
+    expect(isStacked(stacked, 'combo')).toBe(true);
+    expect(isStacked(stacked, 'bar')).toBe(false);
+    expect(
+      withStacked(stacked, false, 'combo').series.every(
+        series => !('stack' in series),
+      ),
+    ).toBe(true);
+    // Nothing that stacks is not stacked.
+    expect(
+      isStacked(
+        {
+          x: 'warehouse',
+          series: [{ metric: 'a', type: 'line', stack: 'all' }],
+        },
+        'combo',
+      ),
+    ).toBe(false);
   });
 
   it('stacks and smooths every series as one choice, and reads it back', () => {

@@ -749,7 +749,7 @@ export const zhCN: ViewMessages = {
   'label.chart.legend.none': '无',
   'label.chart.labels': '数值标签',
   'label.chart.stacked': '堆叠',
-  'label.chart.stacked-alone': '堆叠需要两个以上的系列',
+  'label.chart.stacked-alone': '堆叠需要两个以上的柱或面积系列',
   'label.chart.horizontal': '横向',
   'label.chart.smooth': '平滑',
   'label.chart.reference-lines': '参考线',

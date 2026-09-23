@@ -39,31 +39,45 @@ export function Cartesian({
   className,
   label,
   column,
+  dateTicks,
   name,
   onPick,
 }: FamilyProps<CartesianData>) {
   const animate = useChartMotion();
   const { locale } = useSurfaceDisplay();
   const pickable = onPick !== undefined;
+  // A time axis writes its ticks short — the year only where it changes.
+  const ticks = useMemo(
+    () =>
+      dateTicks?.(
+        spec?.cartesian?.x,
+        data.points.map(point => point.x),
+      ),
+    [dateTicks, spec, data],
+  );
   const option = useCallback(
     (theme: ChartTheme) =>
       cartesianOption(
         data,
-        { spec, label, column, locale, animate, pickable },
+        { spec, label, column, locale, animate, pickable, ticks },
         theme,
       ),
-    [data, spec, label, column, locale, animate, pickable],
+    [data, spec, label, column, locale, animate, pickable, ticks],
   );
   const horizontal = spec?.cartesian?.orientation === 'horizontal';
   const adapt = useCallback(
     (width: number) =>
       categoryFit(
-        data.points.map(point => label(spec?.cartesian?.x, point.x)),
+        data.points.map(
+          (point, index) =>
+            ticks?.[index] ?? label(spec?.cartesian?.x, point.x),
+        ),
         width,
         text => measureText(text),
         horizontal,
+        ticks !== undefined,
       ),
-    [data, spec, label, horizontal],
+    [data, spec, label, horizontal, ticks],
   );
   const series = useMemo(
     () => drawnSeries(data, { spec, label, column }),

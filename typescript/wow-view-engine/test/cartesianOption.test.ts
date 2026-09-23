@@ -16,10 +16,12 @@ import type { CartesianData, ChartSpec } from '../src/index.js';
 import {
   BAR_MAX_WIDTH,
   DOTS_UP_TO,
+  TITLE_GAP_UNDER,
   cartesianOption,
   categoryFit,
   type CartesianContext,
 } from '../src/ui/charts/cartesianOption.js';
+import { measureText } from '../src/ui/charts/measure.js';
 import type { ChartTheme } from '../src/ui/charts/theme.js';
 import { escapeHtml, tooltipHtml } from '../src/ui/charts/tooltip.js';
 
@@ -345,6 +347,66 @@ describe('cartesianOption: a bar chart', () => {
     });
   });
 
+  it('keeps room on the value side for the widest label (audit P0-5)', () => {
+    // On its side the labels run past the bars' ends to the right: the
+    // longest bar's label used to cross the frame, 「59.6万」 read 「59.6」.
+    const sideways = optionOf(bar({ orientation: 'horizontal' }));
+    const widest = measureText('short total=30', 'Geist');
+    expect(sideways.grid.right).toBeGreaterThanOrEqual(widest + 5);
+    // Upright, a line of text over the tallest bar.
+    const upright = optionOf(bar());
+    expect(upright.grid.right).toBe(16);
+    expect(upright.grid.top).toBeGreaterThanOrEqual(24);
+    // Nothing written, nothing to keep room for.
+    const quiet = optionOf({
+      ...bar({ orientation: 'horizontal' }),
+      labels: false,
+    });
+    expect(quiet.grid.right).toBe(16);
+    expect(quiet.grid.top).toBe(16);
+    // A stack writes its parts inside and its total past the end: the room
+    // is the total's.
+    const stacked = optionOf(
+      bar({
+        orientation: 'horizontal',
+        series: [
+          { metric: 'orders', stack: 'a' },
+          { metric: 'total', stack: 'a' },
+        ],
+      }),
+    );
+    expect(stacked.grid.right).toBe(
+      Math.ceil(measureText('short orders=32', 'Geist')) + 9,
+    );
+  });
+
+  it('sets the title under the plot a clear line below the ticks (audit P1-2)', () => {
+    expect(TITLE_GAP_UNDER).toBeGreaterThanOrEqual(36);
+    expect(optionOf(bar()).xAxis.nameGap).toBe(TITLE_GAP_UNDER);
+    const sideways = optionOf(bar({ orientation: 'horizontal' }));
+    expect(sideways.xAxis[0].nameGap).toBe(TITLE_GAP_UNDER);
+    // Beside the plot the gap is to the ticks' side, not under them.
+    expect(sideways.yAxis.nameGap).toBe(16);
+  });
+
+  it('writes a time axis’s ticks short and names the whole bucket in the tooltip', () => {
+    const option = cartesianOption(
+      data,
+      { ...context(bar()), ticks: ['2026年9月1日', undefined] },
+      theme,
+    ) as Loose;
+    expect(option.xAxis.axisLabel.formatter('warehouse=CN', 0)).toBe(
+      '2026年9月1日',
+    );
+    // A point with no short tick reads as its column does.
+    expect(option.xAxis.axisLabel.formatter('warehouse=JP', 1)).toBe(
+      'warehouse=JP',
+    );
+    expect(option.tooltip.formatter([{ dataIndex: 0 }])).toContain(
+      'warehouse=CN',
+    );
+  });
+
   it('animates only where motion is welcome', () => {
     expect(optionOf(bar()).animation).toBe(false);
     expect(
@@ -405,6 +467,10 @@ describe('categoryFit: the names under the bars', () => {
       interval: 0,
       overflow: 'truncate',
     });
+    // The title under them clears the slant's depth — a name cut at 120px,
+    // slanted, plus a line of air — rather than sitting 4px under its end.
+    expect(fit.xAxis.nameGap).toBe(Math.ceil(8 + 136 * Math.SQRT1_2 + 14));
+    expect(fit.xAxis.nameGap).toBeGreaterThan(TITLE_GAP_UNDER);
   });
 
   it('names every few bars only when a band is narrower than a line', () => {
@@ -415,6 +481,20 @@ describe('categoryFit: the names under the bars', () => {
       interval: 'auto',
       showMinLabel: true,
       showMaxLabel: true,
+    });
+  });
+
+  it('writes a time axis flat, every few, rather than slanted', () => {
+    const days = Array.from({ length: 30 }, (_, i) => `9月${i + 1}日`);
+    const fit = categoryFit(days, 600, measure, false, true) as Loose;
+    expect(fit.xAxis.axisLabel).toEqual({
+      rotate: 0,
+      interval: 'auto',
+      showMinLabel: true,
+    });
+    // Room for every one: every one, flat.
+    expect(categoryFit(days.slice(0, 3), 600, measure, false, true)).toEqual({
+      xAxis: { axisLabel: { rotate: 0, interval: 0 } },
     });
   });
 
@@ -488,6 +568,75 @@ describe('cartesianOption: lines, areas and a combo', () => {
     // Its labels sit over the points; a stack's total is a bar's affair.
     expect(orders.label.position).toBe('top');
     expect(option.series).toHaveLength(2);
+  });
+
+  it('never stacks a line: it draws its own values (audit P0-2)', () => {
+    const stackedSpec = (type: ChartSpec['type']) => ({
+      ...bar({
+        series: [
+          { metric: 'orders', stack: 'a' },
+          { metric: 'total', stack: 'a' },
+        ],
+      }),
+      type,
+    });
+    const line = as('line', stackedSpec('line'));
+    expect(line.series.map((series: Loose) => series.stack)).toEqual([
+      undefined,
+      undefined,
+    ]);
+    // The axis reaches the highest value, not the sum of the two.
+    expect(line.yAxis[0].max).toBeUndefined();
+    const lined = as('line', {
+      ...stackedSpec('line'),
+      cartesian: {
+        ...stackedSpec('line').cartesian!,
+        referenceLines: [{ axis: 'left', value: 31 }],
+      },
+    });
+    // 31 is past every point (30 at most) though within their sum (32).
+    expect(lined.yAxis[0].max).toBe(31);
+
+    // In a stacked combo the bars stack and the line stands on its own.
+    const combo = as('combo', {
+      ...bar({
+        series: [
+          { metric: 'orders', type: 'bar', stack: 'a' },
+          { metric: 'total', type: 'line', stack: 'a' },
+        ],
+      }),
+      type: 'combo',
+    });
+    expect(combo.series.map((series: Loose) => series.stack)).toEqual([
+      'left:a',
+      undefined,
+    ]);
+    // A stack of one bar: its label over it, no total.
+    expect(combo.series).toHaveLength(2);
+    expect(combo.series[0].label.position).toBe('top');
+  });
+
+  it('writes the values on bars unasked, on lines and areas only when asked (audit P1-3)', () => {
+    expect(as('line', { ...bar(), type: 'line' }).series[0]).not.toHaveProperty(
+      'label',
+    );
+    expect(as('area', { ...bar(), type: 'area' }).series[0]).not.toHaveProperty(
+      'label',
+    );
+    expect(
+      as('line', { ...bar(), type: 'line', labels: true }).series[0].label.show,
+    ).toBe(true);
+    const combo = as('combo', {
+      ...bar({
+        series: [
+          { metric: 'orders', type: 'bar' },
+          { metric: 'total', type: 'line' },
+        ],
+      }),
+      type: 'combo',
+    });
+    expect(combo.series[0].label.show).toBe(true);
+    expect(combo.series[1]).not.toHaveProperty('label');
   });
 
   it('takes each combo series’ mark from the spec, bars where it names none', () => {

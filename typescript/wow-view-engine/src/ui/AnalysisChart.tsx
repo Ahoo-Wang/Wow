@@ -16,6 +16,7 @@ import type { AnalysisColumnView, ChartData } from '../analysis/index.js';
 import type { ChartSpec } from '../model/index.js';
 import { Cartesian } from './charts/Cartesian.js';
 import { ChartReadingTable } from './charts/ChartReading.js';
+import { useDateTicks } from './charts/dateTicks.js';
 import {
   useAdds,
   useColumnTitle,
@@ -80,6 +81,7 @@ export function AnalysisChart({
   const label = useValueLabel(columns);
   const column = useColumnTitle(columns);
   const adds = useAdds(columns);
+  const dateTicks = useDateTicks(columns);
   const { locale } = useSurfaceDisplay();
   const reading = useMemo(
     () => readChart(data, spec, { messages, label, column, locale }),
@@ -91,6 +93,7 @@ export function AnalysisChart({
     label,
     column,
     adds,
+    dateTicks,
     name: reading.name,
     onPick,
     cutShort,

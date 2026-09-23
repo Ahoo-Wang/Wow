@@ -30,6 +30,7 @@ import displayMeta, {
   FailingProcessors as DisplayFailingProcessors,
   FollowUps as DisplayFollowUps,
   FreightBands as DisplayFreightBands,
+  HorizontalBars as DisplayHorizontalBars,
   PieChart as DisplayPieChart,
   PinnedCategoryColor as DisplayPinnedCategoryColor,
   QueryFailed as DisplayQueryFailed,
@@ -243,6 +244,114 @@ export const TicksInsideTheChart: Story = {
   },
 };
 
+/** Every box of these texts lies within `frame`, a pixel of rounding aside. */
+async function allWithin(texts: readonly Element[], frame: DOMRect) {
+  for (const text of texts) {
+    const box = text.getBoundingClientRect();
+    await expect(box.left).toBeGreaterThanOrEqual(frame.left - 1);
+    await expect(box.right).toBeLessThanOrEqual(frame.right + 1);
+    await expect(box.top).toBeGreaterThanOrEqual(frame.top - 1);
+    await expect(box.bottom).toBeLessThanOrEqual(frame.bottom + 1);
+  }
+}
+
+/**
+ * 横向柱最长那根的数也整个在图里：首页「活动失败最多的处理器」最长那根的
+ * 「59.6万」越过图框，「万」被切掉一半，读成「59.6」（2026-09-23 审查 P0-5）。
+ * 这里量每一个数值标签、每一个刻度字都在图的 `svg` 之内，且最长那根的标签
+ * 在它的柱子右边。
+ */
+export const HorizontalLabelsInFrame: Story = {
+  ...DisplayHorizontalBars,
+  play: async ({ canvasElement }) => {
+    await chartsDrawn(canvasElement);
+    await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
+    const labels = await waitFor(() => {
+      const found = valueLabels(canvasElement);
+      expect(found).toHaveLength(4);
+      return found;
+    });
+    const surface = canvasElement
+      .querySelector('[data-slot="chart-plot"] svg')!
+      .getBoundingClientRect();
+    await allWithin(labels, surface);
+    await allWithin(axisTexts(canvasElement), surface);
+    // The longest bar's label stands past its end, whole.
+    const longest = bars(canvasElement)
+      .map(bar => bar.getBoundingClientRect())
+      .reduce((a, b) => (b.right > a.right ? b : a));
+    const beside = labels
+      .map(label => label.getBoundingClientRect())
+      .find(box => box.top < longest.bottom && box.bottom > longest.top)!;
+    await expect(beside.left).toBeGreaterThanOrEqual(longest.right);
+  },
+};
+
+/**
+ * The gap between the title under the plot and the lowest tick above it.
+ */
+function titleGap(canvas: HTMLElement): number {
+  const ticks = axisTicks(canvas, 'bottom').map(tick =>
+    tick.getBoundingClientRect(),
+  );
+  const floor = Math.max(...ticks.map(box => box.bottom));
+  const title = axisTitles(canvas)
+    .map(text => text.getBoundingClientRect())
+    .find(box => box.top >= floor - 1);
+  if (!title) throw new Error('no title under the ticks');
+  return title.top - floor;
+}
+
+/**
+ * 横轴标题离刻度字一整行空：从前标题落在居中那个刻度字下面 4px，类目数为奇数
+ * 时「已成功」叠在「状态」上，读成一个两行的类目名（2026-09-23 审查 P1-2）。
+ * 平排的刻度。
+ */
+export const TitleClearOfTicks: Story = {
+  ...DisplayBarChart,
+  play: async ({ canvasElement }) => {
+    await chartsDrawn(canvasElement);
+    await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
+    const ticks = axisTicks(canvasElement, 'bottom');
+    await expect(ticks).toHaveLength(4);
+    // Flat: each tick a single line of text.
+    await expect(
+      ticks.every(tick => tick.getBoundingClientRect().height < 20),
+    ).toBe(true);
+    await waitFor(() => expect(titleGap(canvasElement)).toBeGreaterThan(10));
+  },
+};
+
+/**
+ * 同一条规矩，刻度斜排时：九个聚合 ID 在自己那一格里放不下，斜 45°，标题
+ * 被推到它们下面，中间仍隔着一段空。
+ */
+export const TitleClearOfSlantedTicks: Story = {
+  ...DisplayFailingAggregates,
+  play: async ({ canvasElement }) => {
+    await userEvent.click(
+      await within(canvasElement).findByRole('button', {
+        name: zhCN['label.layout.chart'],
+      }),
+    );
+    await chartsDrawn(canvasElement);
+    await waitFor(() => expect(bars(canvasElement)).toHaveLength(9));
+    // Slanted: a tick's box is taller than a line of text.
+    await waitFor(() =>
+      expect(
+        axisTicks(canvasElement, 'bottom').some(
+          tick => tick.getBoundingClientRect().height > 30,
+        ),
+      ).toBe(true),
+    );
+    await waitFor(() => expect(titleGap(canvasElement)).toBeGreaterThan(10));
+    const surface = canvasElement
+      .querySelector('[data-slot="chart-plot"] svg')!
+      .getBoundingClientRect();
+    await allWithin(axisTexts(canvasElement), surface);
+  },
+};
+
 /**
  * 每根柱上的数：三十天里写得下的都写了，没有两个压在一起，也没有一个跑出图外。
  * 数写得短——与刻度同一个读法（D21）。
@@ -428,16 +537,30 @@ export const TimeRunsForward: Story = {
   play: async ({ canvasElement }) => {
     await chartsDrawn(canvasElement);
     await waitFor(() => expect(bars(canvasElement).length).toBeGreaterThan(10));
-    const drawn = await waitFor(() => {
-      const ticks = axisTicks(canvasElement, 'bottom');
-      expect(ticks.length).toBeGreaterThan(2);
-      return ticks
-        .map(tick => ({
-          left: tick.getBoundingClientRect().left,
-          day: dayOf(tick.textContent ?? ''),
-        }))
-        .sort((a, b) => a.left - b.left)
-        .map(tick => tick.day);
+    const ticks = await waitFor(() => {
+      const found = axisTicks(canvasElement, 'bottom');
+      expect(found.length).toBeGreaterThan(2);
+      return found.sort(
+        (a, b) =>
+          a.getBoundingClientRect().left - b.getBoundingClientRect().left,
+      );
+    });
+    // A time axis writes its ticks short and flat (audit P1-1): the year on
+    // the first alone — these thirty days are all of one year — and each
+    // tick one line of text rather than a slant.
+    const written = ticks.map(tick => tick.textContent ?? '');
+    await expect(written[0]).toMatch(/^\d{4}年\d{1,2}月\d{1,2}日$/);
+    await expect(
+      written.slice(1).every(text => /^\d{1,2}月\d{1,2}日$/.test(text)),
+    ).toBe(true);
+    await expect(
+      ticks.every(tick => tick.getBoundingClientRect().height < 20),
+    ).toBe(true);
+    // Read with the year the first tick names, a day later each.
+    const [year] = dayOf(written[0]);
+    const drawn = written.map(text => {
+      const parts = dayOf(text);
+      return parts.length === 3 ? parts : [year, ...parts];
     });
     await expect(runsForward(drawn)).toBe(true);
 

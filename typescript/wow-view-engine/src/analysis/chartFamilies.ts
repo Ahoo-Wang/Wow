@@ -11,7 +11,12 @@
  * limitations under the License.
  */
 
-import type { ChartFamily, ChartSpec, ChartType } from '../model/index.js';
+import type {
+  CartesianSeries,
+  ChartFamily,
+  ChartSpec,
+  ChartType,
+} from '../model/index.js';
 import { CHART_FAMILY } from '../model/index.js';
 
 /**
@@ -95,13 +100,17 @@ export interface ChartFamilyTraits {
   /** Whether it can write the values on its marks. */
   labels: boolean;
   /**
-   * Whether it writes them while nobody has said (`ChartSpec.labels` left
-   * out). A bar or a line does, as Metabase's do: a length is compared at a
-   * glance, but read off the axis only roughly, and the labels give way
-   * where they would land on each other. A pie already writes its shares on
-   * its slices, and a heatmap's cells are too many for a number each.
+   * Which of its marks write their values while nobody has said
+   * (`ChartSpec.labels` left out). A bar does: its length is compared at a
+   * glance but read off the axis only roughly, and the labels give way where
+   * they would land on each other. A line or an area does not — it answers
+   * where the numbers are heading and how two series move together, and a
+   * number on every point drowned a monthly line of 23 points (2026-09-23
+   * audit P1-3; Metabase leaves its data-point values off until asked). A
+   * pie already writes its shares on its slices, and a heatmap's cells are
+   * too many for a number each, so neither has a mark here.
    */
-  labelsByDefault: boolean;
+  labelsByDefault: readonly SeriesMark[];
   /** Why it cannot draw this shape, or `null` when it can. */
   unfit(shape: ShapeFacts): ChartUnfit | null;
 }
@@ -131,7 +140,7 @@ export const CHART_FAMILIES: Readonly<Record<ChartFamily, ChartFamilyTraits>> =
       tabs: ['data', 'display', 'axes'],
       legend: true,
       labels: true,
-      labelsByDefault: true,
+      labelsByDefault: ['bar'],
       unfit: ({ groups, quantities }) =>
         groups === 0
           ? 'chart.fit.needs-dimension'
@@ -143,7 +152,7 @@ export const CHART_FAMILIES: Readonly<Record<ChartFamily, ChartFamilyTraits>> =
       tabs: ['data', 'display'],
       legend: true,
       labels: true,
-      labelsByDefault: false,
+      labelsByDefault: [],
       unfit: ({ groups, quantities }) =>
         groups === 1
           ? measured(quantities, 1)
@@ -153,7 +162,7 @@ export const CHART_FAMILIES: Readonly<Record<ChartFamily, ChartFamilyTraits>> =
       tabs: ['data', 'display'],
       legend: false,
       labels: true,
-      labelsByDefault: false,
+      labelsByDefault: [],
       unfit: ({ groups, quantities }) =>
         groups === 2
           ? measured(quantities, 1)
@@ -163,7 +172,7 @@ export const CHART_FAMILIES: Readonly<Record<ChartFamily, ChartFamilyTraits>> =
       tabs: ['data'],
       legend: false,
       labels: false,
-      labelsByDefault: false,
+      labelsByDefault: [],
       unfit: ({ groups, metrics, quantities }) =>
         groups === 0
           ? 'chart.fit.needs-dimension'
@@ -177,7 +186,7 @@ export const CHART_FAMILIES: Readonly<Record<ChartFamily, ChartFamilyTraits>> =
       tabs: ['data', 'display'],
       legend: false,
       labels: false,
-      labelsByDefault: false,
+      labelsByDefault: [],
       unfit: ({
         groups,
         metrics,
@@ -201,7 +210,7 @@ export const CHART_FAMILIES: Readonly<Record<ChartFamily, ChartFamilyTraits>> =
       tabs: ['data', 'display'],
       legend: false,
       labels: false,
-      labelsByDefault: false,
+      labelsByDefault: [],
       unfit: ({ groups, dated, additive }) =>
         groups === 0 || (dated && additive > 0)
           ? null
@@ -247,15 +256,55 @@ function staged(
     : null;
 }
 
+/** The mark a cartesian series is drawn as. */
+export type SeriesMark = NonNullable<CartesianSeries['type']>;
+
 /**
- * Whether a chart writes the values on its marks: what the spec says, and
- * its family's default where it says nothing. An explicit `false` is a
- * choice and stands; a family that cannot write them never does.
+ * The mark one series of a chart of this type is drawn as: a combo's names
+ * its own and is a bar where it names none; every other cartesian type
+ * draws all its series alike.
  */
-export function valueLabelsOn(chart: ChartSpec | undefined): boolean {
+export function seriesMark(
+  type: ChartType,
+  series?: Pick<CartesianSeries, 'type'>,
+): SeriesMark {
+  if (type === 'combo') return series?.type ?? 'bar';
+  return type === 'line' || type === 'area' ? type : 'bar';
+}
+
+/**
+ * The marks a chart draws its series as, once each series: none for a
+ * family that has no series.
+ */
+export function chartMarks(chart: ChartSpec): SeriesMark[] {
+  if (CHART_FAMILY[chart.type] !== 'cartesian') return [];
+  const series = chart.cartesian?.series ?? [];
+  return chart.type === 'combo' && series.length > 0
+    ? series.map(one => seriesMark(chart.type, one))
+    : [seriesMark(chart.type)];
+}
+
+/**
+ * Whether a chart writes the values on its marks — or, given a `mark`, on
+ * the series drawn as that mark: what the spec says, and its family's
+ * default for the mark where it says nothing. An explicit `false` is a
+ * choice and stands, as is an explicit `true`, which writes them on every
+ * mark; a family that cannot write them never does.
+ *
+ * Asked of the whole chart, it is whether any of its marks writes them: a
+ * combo of bars and a line writes the bars' values by default, and the
+ * options' checkbox reads as ticked because numbers are on the screen.
+ */
+export function valueLabelsOn(
+  chart: ChartSpec | undefined,
+  mark?: SeriesMark,
+): boolean {
   if (!chart) return false;
   const family = familyOf(chart.type);
-  return family.labels && (chart.labels ?? family.labelsByDefault);
+  if (!family.labels) return false;
+  if (chart.labels !== undefined) return chart.labels;
+  const marks = mark === undefined ? chartMarks(chart) : [mark];
+  return marks.some(one => family.labelsByDefault.includes(one));
 }
 
 /** The traits of the family a chart type belongs to. */

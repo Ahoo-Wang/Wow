@@ -522,7 +522,71 @@ describe('the chart options’ display page', () => {
     expect(box.getAttribute('aria-disabled')).toBe('true');
     // And it says why: a control that refuses the press without a word is
     // the analyst wondering what is broken.
-    expect(describedText(box)).toBe('Stacking needs two or more series');
+    expect(describedText(box)).toBe(
+      'Stacking needs two or more bar or area series',
+    );
+  });
+
+  it('offers no stacking on a line, and writes its values only when asked', async () => {
+    const { user, draft } = await open({
+      type: 'line',
+      cartesian: {
+        x: 'warehouse',
+        series: [{ metric: 'orders' }, { metric: 'total' }],
+      },
+    });
+    await user.click(gear('line'));
+    await user.click(within(panel()!).getByRole('tab', { name: 'Display' }));
+
+    // A stacked line stood its points at the running sum while their labels
+    // said their own values (audit P0-2): a line never stacks, so there is
+    // no box to tick.
+    expect(
+      within(panel()!).queryByRole('checkbox', { name: 'Stacked' }),
+    ).toBeNull();
+    // A line answers where the numbers go, and a number on every point
+    // drowned it (audit P1-3): its values are off until asked for.
+    const box = () =>
+      within(panel()!).getByRole('checkbox', { name: 'Value labels' });
+    expect(box().getAttribute('aria-checked')).toBe('false');
+    const written = () =>
+      document.querySelectorAll('[data-slot="chart-plot"] svg text[stroke]');
+    expect(written()).toHaveLength(0);
+    fireEvent.click(box());
+    await waitFor(() => expect(draft().chart.labels).toBe(true));
+    await waitFor(() => expect(written().length).toBeGreaterThan(0));
+  });
+
+  it('stacks a combo’s bars and leaves its line where it is', async () => {
+    const { user, draft } = await open(
+      {
+        type: 'combo',
+        cartesian: {
+          x: 'warehouse',
+          series: [
+            { metric: 'orders', type: 'bar' },
+            { metric: 'average', type: 'bar' },
+            { metric: 'total', type: 'line', axis: 'right' },
+          ],
+        },
+      },
+      { metrics: [ORDERS, TOTAL, AVERAGE] },
+    );
+    await user.click(gear('combo'));
+    await user.click(within(panel()!).getByRole('tab', { name: 'Display' }));
+
+    const box = () =>
+      within(panel()!).getByRole('checkbox', { name: 'Stacked' });
+    expect(box().getAttribute('aria-disabled')).not.toBe('true');
+    fireEvent.click(box());
+    await waitFor(() =>
+      expect(draft().chart.cartesian?.series).toEqual([
+        { metric: 'orders', type: 'bar', stack: 'all' },
+        { metric: 'average', type: 'bar', stack: 'all' },
+        { metric: 'total', type: 'line', axis: 'right' },
+      ]),
+    );
+    expect(box().getAttribute('aria-checked')).toBe('true');
   });
 
   it('adds a reference line, writes its value and takes it away', async () => {

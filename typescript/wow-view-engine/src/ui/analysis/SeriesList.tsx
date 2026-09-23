@@ -16,7 +16,7 @@ import { useSortable } from '@dnd-kit/react/sortable';
 import { Accessibility } from '@dnd-kit/dom';
 import { OptimisticSortingPlugin } from '@dnd-kit/dom/sortable';
 import { PlusIcon, XIcon } from 'lucide-react';
-import { withMovedTo } from '../../analysis/index.js';
+import { comboMark, withMovedTo } from '../../analysis/index.js';
 import type {
   CartesianSeries,
   CartesianSpec,
@@ -190,8 +190,13 @@ export function SeriesList({ type, spec, metrics, onChange }: SeriesListProps) {
                   onClick={() =>
                     update([
                       ...spec.series,
+                      // A combo's first series is its bars and every other
+                      // a line, unless the analyst picks otherwise.
                       type === 'combo'
-                        ? { metric: metric.value, type: 'bar' }
+                        ? {
+                            metric: metric.value,
+                            type: comboMark(spec.series.length),
+                          }
                         : { metric: metric.value },
                     ])
                   }

@@ -239,7 +239,7 @@ export const analysisMessages = {
   'label.chart.legend.none': 'None',
   'label.chart.labels': 'Value labels',
   'label.chart.stacked': 'Stacked',
-  'label.chart.stacked-alone': 'Stacking needs two or more series',
+  'label.chart.stacked-alone': 'Stacking needs two or more bar or area series',
   'label.chart.horizontal': 'Horizontal',
   'label.chart.smooth': 'Smooth lines',
   'label.chart.reference-lines': 'Reference lines',

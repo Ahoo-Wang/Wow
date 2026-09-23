@@ -12,7 +12,11 @@
  */
 
 import type { EChartsCoreOption } from 'echarts/core';
-import { valueLabelsOn, type CartesianData } from '../../analysis/index.js';
+import {
+  seriesMark,
+  valueLabelsOn,
+  type CartesianData,
+} from '../../analysis/index.js';
 import type {
   AxisSpec,
   CartesianSeries,
@@ -20,6 +24,7 @@ import type {
 } from '../../model/index.js';
 import { allWhole, axisId, categoryTick, formatValue } from './axis.js';
 import type { ColumnTitle, ValueLabel } from './family.js';
+import { measureText } from './measure.js';
 import { colorOf } from './palette.js';
 import type { ChartTheme } from './theme.js';
 import { tooltipFrame, tooltipHtml } from './tooltip.js';
@@ -34,6 +39,12 @@ export interface CartesianContext {
   animate: boolean;
   /** Whether a press on a mark opens the follow-up menu. */
   pickable: boolean;
+  /**
+   * The category ticks written short, one per point, where the axis is a
+   * date bucket (`shortDateTicks`); a point with none is written as its
+   * column reads it. The tooltip still names the whole bucket.
+   */
+  ticks?: readonly (string | undefined)[];
 }
 
 /** One series as drawn: the kernel's, and what the spec says about it. */
@@ -56,15 +67,6 @@ export interface DrawnSeries {
  * 2026-09-23); a bar is a length to compare, and its width says nothing.
  */
 export const BAR_MAX_WIDTH = 48;
-
-/** A series' mark: a combo takes it from the spec, bars when it says none. */
-function markOf(
-  chart: CartesianData['chart'],
-  configured: CartesianSeries | undefined,
-): DrawnSeries['kind'] {
-  if (chart === 'combo') return configured?.type ?? 'bar';
-  return chart === 'line' || chart === 'area' ? chart : 'bar';
-}
 
 /**
  * Past this many points a line draws no dot on each: a dot per day of a year
@@ -97,7 +99,7 @@ export function drawnSeries(
       color: colorOf(spec, index, series.label, series.metric),
       side: axisId(configured?.axis),
       configured,
-      kind: markOf(data.chart, configured),
+      kind: seriesMark(data.chart, configured),
     };
   });
 }
@@ -118,7 +120,7 @@ export function cartesianOption(
   context: CartesianContext,
   theme: ChartTheme,
 ): EChartsCoreOption {
-  const { spec, label, column, locale, animate, pickable } = context;
+  const { spec, label, column, locale, animate, pickable, ticks } = context;
   const cartesian = spec?.cartesian;
   const horizontal = cartesian?.orientation === 'horizontal';
   const series = drawnSeries(data, context);
@@ -126,7 +128,25 @@ export function cartesianOption(
   const hasRight =
     series.some(entry => entry.side === 'right') ||
     lines.some(line => axisId(line.axis) === 'right');
-  const labelled = valueLabelsOn(spec);
+  /**
+   * Whether a series writes its values: a bar does unless the analyst said
+   * not to, a line or an area only when asked (`valueLabelsOn`) — a number
+   * on every point drowned the line it was on.
+   */
+  const labelled = (entry: DrawnSeries) => valueLabelsOn(spec, entry.kind);
+
+  /**
+   * A stack as the library draws it: the spec's name on one axis. Series
+   * measured against two axes are two scales, and stacking a count on top
+   * of an amount drew the count at the amount's height; each axis stacks
+   * its own. A line never stacks: its point would stand at the running sum
+   * while its label says its own value (「¥640」 at ¥1920), with no band
+   * under it to show the part it adds — it draws its own values.
+   */
+  const stackOf = (entry: DrawnSeries) =>
+    entry.configured?.stack === undefined || entry.kind === 'line'
+      ? undefined
+      : `${entry.side}:${entry.configured.stack}`;
 
   /** Every value one axis carries: its series' and its reference lines'. */
   const valuesOn = (side: 'left' | 'right') => [
@@ -154,7 +174,7 @@ export function cartesianOption(
       for (const entry of series.filter(one => one.side === side)) {
         const value = point.values[entry.key];
         if (typeof value !== 'number') continue;
-        const stack = entry.configured?.stack;
+        const stack = stackOf(entry);
         if (stack === undefined) {
           high = Math.max(high, value);
           low = Math.min(low, value);
@@ -174,13 +194,15 @@ export function cartesianOption(
   };
   /**
    * An axis title, a weight above its ticks. Its gap is measured from the
-   * axis line, not from the tick names: under the plot a gap of 16 left
-   * 「事件类型」 two pixels under 「重试成功」, read as a second line of it,
-   * so the axis under the plot keeps 24. Names that slant down past that
-   * push the title below them (`nameMoveOverlap`).
+   * axis line, not from the tick names, and a line of ticks under the plot
+   * takes some 20px of it: at 24 the title sat 4px under the middle tick,
+   * so with an odd count of categories 「已成功」 over 「状态」 read as one
+   * name on two lines (2026-09-23 audit P1-2). At 36 a clear line of air
+   * parts them. Names that slant down past that push the title below them
+   * (`nameMoveOverlap`), still a gap apart.
    */
   const titleStyle = { color: theme.muted, fontWeight: 500 };
-  const under = (bottom: boolean) => (bottom ? 24 : 16);
+  const under = (bottom: boolean) => (bottom ? TITLE_GAP_UNDER : 16);
   const valueAxis = (side: 'left' | 'right') => {
     const axis = cartesian?.yAxis?.[side];
     const values = valuesOn(side);
@@ -259,7 +281,8 @@ export function cartesianOption(
     axisLabel: {
       color: theme.muted,
       hideOverlap: true,
-      formatter: (name: string) => categoryTick(name),
+      formatter: (name: string, index: number) =>
+        ticks?.[index] ?? categoryTick(name),
     },
   };
   const values = hasRight
@@ -270,16 +293,6 @@ export function cartesianOption(
       ? { xAxisIndex: side === 'right' ? 1 : 0 }
       : { yAxisIndex: side === 'right' ? 1 : 0 };
 
-  /**
-   * A stack as the library draws it: the spec's name on one axis. Series
-   * measured against two axes are two scales, and stacking a count on top
-   * of an amount drew the count at the amount's height; each axis stacks
-   * its own.
-   */
-  const stackOf = (entry: DrawnSeries) =>
-    entry.configured?.stack === undefined
-      ? undefined
-      : `${entry.side}:${entry.configured.stack}`;
   const stacks = new Map<string, DrawnSeries[]>();
   for (const entry of series) {
     const stack = stackOf(entry);
@@ -325,7 +338,7 @@ export function cartesianOption(
         // Inside its segment when stacked — the total goes over the stack —
         // over the bar's end otherwise; either way a label that would land
         // on another is left out rather than drawn over it.
-        ...(labelled
+        ...(labelled(entry)
           ? {
               label: valueLabel(
                 entry.metric,
@@ -351,7 +364,7 @@ export function cartesianOption(
       ...(entry.kind === 'area'
         ? { areaStyle: { color: color(entry), opacity: 0.2 } }
         : {}),
-      ...(labelled
+      ...(labelled(entry)
         ? {
             label: valueLabel(entry.metric, outside),
             labelLayout: { hideOverlap: true },
@@ -365,7 +378,7 @@ export function cartesianOption(
    * the stack's sum, so the number lands where the stack ends. It takes no
    * press and no tooltip row; the segments are the groups.
    */
-  const totals = labelled
+  const totals = valueLabelsOn(spec, 'bar')
     ? [...stacks.values()]
         .map(members => members.filter(member => member.kind === 'bar'))
         .filter(members => members.length > 1)
@@ -431,17 +444,54 @@ export function cartesianOption(
       },
     }));
 
+  /**
+   * The value labels past the marks' ends, as text: what a bar or a point
+   * writes beside itself, and each stack's total. The widest of them is the
+   * room the value side keeps.
+   */
+  const outerTexts = [
+    ...series
+      // A stacked bar writes its part inside its segment.
+      .filter(
+        entry => labelled(entry) && !(entry.kind === 'bar' && stacked(entry)),
+      )
+      .flatMap(entry =>
+        data.points.map(point => {
+          const value = point.values[entry.key];
+          return typeof value === 'number'
+            ? label(entry.metric, value, true)
+            : '';
+        }),
+      ),
+    ...totals.flatMap(total =>
+      data.points.map((_point, dataIndex) =>
+        total.label.formatter({ dataIndex }),
+      ),
+    ),
+  ];
+  const widestLabel = Math.max(
+    0,
+    ...outerTexts.map(text => measureText(text, theme.fontFamily)),
+  );
+
   return {
     animation: animate,
     animationDuration: 300,
     textStyle: { fontFamily: theme.fontFamily, fontSize: 12 },
     // The labels and the axis titles stay inside the chart's own box: a
     // tick is centred on its mark, and the last one used to hang half its
-    // width past the edge (「2026年9月22E」).
+    // width past the edge (「2026年9月22E」). Neither does a value label
+    // cross it: the library keeps only the axes' text in the box, so the
+    // value side keeps room for the widest label beyond the longest mark —
+    // on its side, 「59.6万」 over the longest bar lost its 「万」 to the
+    // frame and read 「59.6」 (2026-09-23 audit P0-5); upright, a line of
+    // text over the tallest.
     grid: {
       left: 4,
-      right: 16,
-      top: 16,
+      right: horizontal
+        ? Math.max(16, Math.ceil(widestLabel) + LABEL_DISTANCE + 4)
+        : 16,
+      top: !horizontal && outerTexts.some(text => text !== '') ? 24 : 16,
       bottom: 4,
       outerBoundsMode: 'same',
       outerBoundsContain: 'all',
@@ -491,6 +541,13 @@ export function categoryFit(
   width: number,
   measure: (text: string) => number,
   horizontal: boolean,
+  /**
+   * The names are the days or months of a time axis, in order. Those are
+   * never slanted: a reader carries a date across the gap between two
+   * ticks, so the axis writes every few flat, the first always among them,
+   * as Metabase's time axis does.
+   */
+  dated = false,
 ): EChartsCoreOption {
   if (horizontal)
     return {
@@ -506,8 +563,19 @@ export function categoryFit(
   const widest = Math.max(0, ...names.map(name => measure(categoryTick(name))));
   if (widest + 8 <= band)
     return { xAxis: { axisLabel: { rotate: 0, interval: 0 } } };
+  if (dated)
+    return {
+      xAxis: {
+        axisLabel: { rotate: 0, interval: 'auto', showMinLabel: true },
+      },
+    };
+  // Slanted, the names reach further down than a line of text, and the
+  // title moved clear of them (`nameMoveOverlap`) sat 4px under their ends:
+  // the gap is set past the slant's own depth instead, a line of air below.
+  const slant = (Math.min(widest, SLANT_MAX) + LINE_HEIGHT) * Math.SQRT1_2;
   return {
     xAxis: {
+      nameGap: Math.ceil(LABEL_MARGIN + slant + TITLE_AIR),
       axisLabel: {
         rotate: 45,
         interval: band >= LINE_HEIGHT ? 0 : 'auto',
@@ -519,6 +587,21 @@ export function categoryFit(
     },
   };
 }
+
+/**
+ * How far below the axis line the title under the plot sits: a line of
+ * ticks (some 20px) and a clear line of air under it.
+ */
+export const TITLE_GAP_UNDER = 36;
+
+/** The air between the lowest tick and the title under it. */
+const TITLE_AIR = 14;
+
+/** How far a tick stands off its axis line (the library's default). */
+const LABEL_MARGIN = 8;
+
+/** How far a value label stands off its mark's end (the library's default). */
+const LABEL_DISTANCE = 5;
 
 /** A line of tick text, and so the narrowest band a slanted name fits. */
 const LINE_HEIGHT = 16;

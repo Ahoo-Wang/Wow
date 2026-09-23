@@ -14,6 +14,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CHART_TYPES,
+  comboMark,
   fitChartSlots,
   leadMetric,
   switchChartType,
@@ -112,9 +113,99 @@ describe('fitChartSlots', () => {
       if (type === 'combo')
         expect(fitted.cartesian?.series.map(s => s.type)).toEqual([
           'bar',
-          'bar',
+          'line',
         ]);
     }
+  });
+
+  /**
+   * A combo is bars with a line (audit P1-8): picked, it used to draw every
+   * series as bars — a bar chart under another name.
+   */
+  it('draws a combo’s first metric as bars and the others as lines, unless told', () => {
+    const metrics = [COUNT, TOTAL, AVERAGE];
+    const fitted = fitChartSlots({ type: 'combo' }, [WAREHOUSE], metrics);
+    expect(fitted.cartesian?.series).toEqual([
+      { metric: 'orders', type: 'bar' },
+      { metric: 'total', type: 'line' },
+      { metric: 'average', type: 'line' },
+    ]);
+    // The axes are left alone: the scales are the rows' fact, which the
+    // slots never see.
+    expect(fitted.cartesian?.series.every(s => s.axis === undefined)).toBe(
+      true,
+    );
+
+    // A mark the analyst chose stands, whatever its place.
+    const chosen = fitChartSlots(
+      {
+        type: 'combo',
+        cartesian: {
+          x: 'wh',
+          series: [
+            { metric: 'total', type: 'area' },
+            { metric: 'orders' },
+            { metric: 'average', type: 'bar' },
+          ],
+        },
+      },
+      [WAREHOUSE],
+      metrics,
+    );
+    expect(chosen.cartesian?.series.map(s => s.type)).toEqual([
+      'area',
+      'line',
+      'bar',
+    ]);
+    expect(comboMark(0)).toBe('bar');
+    expect(comboMark(2)).toBe('line');
+  });
+
+  it('brings the other metrics in as lines when a one-series chart becomes a combo', () => {
+    const metrics = [COUNT, TOTAL];
+    // A bar chart narrowed to the amount: one mark is no combo.
+    const bar = fitChartSlots(
+      {
+        type: 'bar',
+        cartesian: { x: 'wh', series: [{ metric: 'total', axis: 'right' }] },
+      },
+      [WAREHOUSE],
+      metrics,
+    );
+    const combo = fitChartSlots(
+      switchChartType(bar, 'combo'),
+      [WAREHOUSE],
+      metrics,
+    );
+    expect(combo.cartesian?.series).toEqual([
+      { metric: 'total', axis: 'right', type: 'bar' },
+      { metric: 'orders', type: 'line' },
+    ]);
+    expect(issuesOf(combo, [WAREHOUSE], metrics)).toEqual([]);
+
+    // A combo the analyst narrowed to one series on its options page names
+    // its mark, and stays one series on every redraw.
+    const narrowed = fitChartSlots(
+      {
+        type: 'combo',
+        cartesian: { x: 'wh', series: [{ metric: 'total', type: 'bar' }] },
+      },
+      [WAREHOUSE],
+      metrics,
+    );
+    expect(narrowed.cartesian?.series).toEqual([
+      { metric: 'total', type: 'bar' },
+    ]);
+    // A split draws one metric: nothing to bring in.
+    const split = fitChartSlots(
+      {
+        type: 'combo',
+        cartesian: { x: 'wh', splitBy: 'month', series: [{ metric: 'total' }] },
+      },
+      [WAREHOUSE, MONTH],
+      metrics,
+    );
+    expect(split.cartesian?.series).toEqual([{ metric: 'total', type: 'bar' }]);
   });
 
   /**

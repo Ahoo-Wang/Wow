@@ -30,6 +30,7 @@ import {
 import type { MessageKey } from '../messages.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
+import type { DateTicks } from './dateTicks.js';
 
 /**
  * A value as its column shows it, by the alias the chart read it from.
@@ -77,6 +78,12 @@ export interface FamilyProps<D> {
   label: ValueLabel;
   /** An alias as its column is titled; `undefined` when no column holds it. */
   column: ColumnTitle;
+  /**
+   * The short ticks of a time axis (`useDateTicks`): an axis of dates
+   * writes 「9月1日」 with the year only where it changes. Left out, every
+   * tick reads as its column does.
+   */
+  dateTicks?: DateTicks;
   /**
    * What is drawn, in one line: the name of the `role="img"` every family's
    * drawing is (`EChart`'s `chart-plot`). The metric card is the exception:

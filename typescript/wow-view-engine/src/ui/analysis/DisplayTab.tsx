@@ -16,6 +16,8 @@ import {
   CHART_FAMILIES,
   isSmooth,
   isStacked,
+  offersStacking,
+  stacks,
   valueLabelsOn,
   withSmooth,
   withStacked,
@@ -117,22 +119,31 @@ function CartesianDisplay({ chart, onChange }: OptionsPageProps) {
   // A right axis exists once a series sits on it; a line hung on an axis
   // with nothing on it is `chart.referenceLine.empty-axis`.
   const axes = new Set(spec.series.map(series => series.axis ?? 'left'));
-  // One series stacks against nothing, and a split has not made its series
-  // yet — either way the box refuses the press, and a box that refuses
-  // without saying why is the analyst's problem rather than the chart's.
-  const stackedAlone = spec.series.length <= 1 && spec.splitBy === undefined;
+  // Only bars and areas stack (`stacks`): a line chart has no such box, and
+  // a combo counts only its bars and areas. One of them stacks against
+  // nothing, and a split has not made its series yet — either way the box
+  // refuses the press, and a box that refuses without saying why is the
+  // analyst's problem rather than the chart's.
+  const stackable = spec.series.filter(series => stacks(chart.type, series));
+  const stackedAlone =
+    stackable.length === 0 ||
+    (stackable.length === 1 && spec.splitBy === undefined);
   return (
     <>
-      <CheckField
-        data-slot="chart-stacked"
-        label={messages.label('label.chart.stacked')}
-        hint={
-          stackedAlone ? messages.label('label.chart.stacked-alone') : undefined
-        }
-        checked={isStacked(spec)}
-        disabled={stackedAlone}
-        onChange={on => update(withStacked(spec, on))}
-      />
+      {offersStacking(chart.type) && (
+        <CheckField
+          data-slot="chart-stacked"
+          label={messages.label('label.chart.stacked')}
+          hint={
+            stackedAlone
+              ? messages.label('label.chart.stacked-alone')
+              : undefined
+          }
+          checked={isStacked(spec, chart.type)}
+          disabled={stackedAlone}
+          onChange={on => update(withStacked(spec, on, chart.type))}
+        />
+      )}
       <CheckField
         data-slot="chart-horizontal"
         label={messages.label('label.chart.horizontal')}

@@ -14,7 +14,7 @@ import type { StoryObj } from '@storybook/react-vite';
 import { expect, waitFor, within } from 'storybook/test';
 import displayMeta, { Fixture as DisplayFixture } from './Home.stories.js';
 import { findDataTable, readColumn } from './readTable.js';
-import { drawnMarks } from './chartDom.js';
+import { drawnMarks, valueLabels } from './chartDom.js';
 
 /**
  * The home page over the fixture, on its fixed morning.
@@ -129,6 +129,22 @@ export const Fixture: Story = {
     await waitFor(() => expect(bars('本月每日新增失败')).toBe(22));
     await waitFor(() => expect(bars('按状态分布')).toBe(3));
     await waitFor(() => expect(bars('活动失败最多的处理器')).toBe(6));
+    // Each processor's count is written past its bar's end, and the longest
+    // bar's stays whole inside the drawing: 「59.6万」 on the live service
+    // lost its 「万」 to the frame (audit P0-5).
+    const processors = panel('活动失败最多的处理器');
+    const frame = processors
+      .querySelector('[data-slot="chart-plot"] svg')!
+      .getBoundingClientRect();
+    const counts = await waitFor(() => {
+      const found = valueLabels(processors);
+      expect(found.length).toBeGreaterThan(0);
+      return found.map(label => label.getBoundingClientRect());
+    });
+    for (const box of counts) {
+      await expect(box.left).toBeGreaterThanOrEqual(frame.left - 1);
+      await expect(box.right).toBeLessThanOrEqual(frame.right + 1);
+    }
 
     // The newest active failures, newest first.
     const table = await findDataTable(panel('最近的活动失败'));

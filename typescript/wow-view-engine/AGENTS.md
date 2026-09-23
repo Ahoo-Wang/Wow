@@ -151,12 +151,12 @@ src/
     candidates.ts             — A field's values as the data counts them (value candidates): `valueCandidateField` (grouped by `TERMS`, counted, one string, no `options`/`remote`), `valueCandidatesConfig` (an ordinary analysis — the top `valueCandidateLimit` by count, narrowed by `CONTAINS`/`STARTS_WITH` where the field offers one), `readValueCandidates` (whole or not, off the probe row), `narrowValueCandidates`
     chart.ts                  — Chart-shaped projection for the renderers — a time axis always earliest first and without holes, a split's missing combination 0 where it is known empty and the metric adds, a funnel's stages its own rows' numbers unless asked to accumulate, a pie folded before the palette runs out — and `groupKeyText` — a group value as a colour key, the one spelling every chart family reads
     timeAxis.ts               — A time axis for the chart projection: `forwardInTime` (earliest first, the missing-value sentinel last) and `withoutHoles` (every bucket between the first and the last, stepped by `bucketRange` in the histogram's zone; nothing filled it cannot place)
-    chartSlots.ts             — `fitChartSlots`: the family sub-object of the current chart type, filled from the groups and metrics in force; `switchChartType`: a type switch carries the lead metric (`leadMetric`) into the new family
+    chartSlots.ts             — `fitChartSlots`: the family sub-object of the current chart type, filled from the groups and metrics in force; `switchChartType`: a type switch carries the lead metric (`leadMetric`) into the new family; `comboMark`: a combo draws its first metric as bars, the others as lines
     compile.ts                — compileAnalysis → AggregationQuery
     fitCharts.ts              — Which chart types can draw a result of this shape and which it reads best as (K3, Q6): the capability says which exist, this says which are greyed and why
     formula.ts                — Formulas and derived metrics (D20 屏 B): their first shapes, `expressionText`／`derivedText` as the author would say them, `isFormula`
     chartFamilies.ts          — What a chart family is, one row each: its options pages, legend and value labels, and the shapes it can draw — the forward reading of `validateChart`, held to it by a test over every shape
-    chartOptions.ts           — The rules behind the visualization panel's second level: which pages a type has, a slot swap, one-choice stacking and smoothing, and a funnel's stage order from the rows (D20 屏 J)
+    chartOptions.ts           — The rules behind the visualization panel's second level: which pages a type has, a slot swap, one-choice stacking (bars and areas only, `stacks`) and smoothing, and a funnel's stage order from the rows (D20 屏 J)
     drill.ts                  — One result row back into the conditions that select its records: `bucketRange` (the inverse of date bucketing, K1), `drillConditions` and the same by dimension (`drillGroups`), and the two follow-ups' patches, `focusOn` and `splitBy`; hands out conditions and config patches only (K6)
     expand.ts                 — The config re-scoped to an expansion chain (D20 屏 G): `withElements` keeps what still names the new unit's fields and starts the metrics again otherwise; `withLevel`, `withoutLevelsFrom`, `nextExpansion`
     granularity.ts            — The granularity a new time dimension starts at (K4): `recommendDateUnit` from the applied range's span (`rangeSpan`) or the result's buckets (`resultSpan`)
@@ -362,7 +362,7 @@ src/
       tableColumns.ts         — An analysis column in the record table's terms: its reading (`readingOf`, a plain metric is a number), whether it is an id (`isIdentifier`), a width from the column alone and never from its values (`columnWidthOf`), and the `RecordColumnView` its `SortableHeader` takes
     charts/                   — One file per family, plus what they share
       Cartesian.tsx           — Bar, line, area and combo through `cartesianOption` (D21): the legend, the names fitted to the width, a pressed mark handed back as its group
-      cartesianOption.ts      — `cartesianOption`: a cartesian chart as the library draws it — each series' mark, axes and their titles, short numbers, value labels that hide rather than overlap, stack totals, reference lines; `categoryFit`, the category names side by side or at a slant for the width
+      cartesianOption.ts      — `cartesianOption`: a cartesian chart as the library draws it — each series' mark, axes and their titles, short numbers, value labels that hide rather than overlap, stack totals, reference lines, room for the widest value label; `categoryFit`, the category names side by side or at a slant for the width, a time axis flat and thinned
       ChartLegend.tsx         — The legend as text beside the drawing: a dot per series, on top by default, one line with the rest counted (「还有 N 个」)
       ChartReading.tsx        — The chart's numbers as a table, for whoever cannot see the marks
       EChart.tsx              — The thin binding to the library: create once sized, resize, a whole new option per change, dispose; the frame (`data-slot="chart"`), the named image and the theme read off the element
@@ -382,6 +382,7 @@ src/
       ScatterPoints.tsx       — A scatter through `scatterOption`; a pressed point handed back as its group
       scatterOption.ts        — `scatterOption`: both axes titled by their columns and padded past the extremes, whole ticks where the values are, a third metric as size, a few points named
       axis.ts                 — Value format, whole axes (`allWhole`), a category name cut for its axis, and which axis a series is on
+      dateTicks.ts            — `useDateTicks`/`shortDateTicks`: a time axis's ticks written short (「9月1日」), the year only on the first and where it changes
       family.ts               — `FamilyProps`, the value labeller and the column titler
       legend.ts               — Where the legend beside the chart goes (`legendAt`), from the spec's `legend` and the family's own default
       motion.ts               — Whether a chart animates its marks: not when the reader asked for less motion (`useChartMotion`, read live)

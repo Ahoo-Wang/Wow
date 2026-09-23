@@ -13,13 +13,14 @@
 
 import {
   without,
+  type CartesianSeries,
   type CartesianSpec,
   type ChartSpec,
   type ChartType,
   type FunnelSpec,
   type RecordData,
 } from '../model/index.js';
-import { familyOf, type OptionsTab } from './chartFamilies.js';
+import { familyOf, seriesMark, type OptionsTab } from './chartFamilies.js';
 
 /**
  * The rules behind the visualization panel's second level (D20 屏 J): what
@@ -61,34 +62,73 @@ export function withSlot<S extends object, K extends keyof S>(
   return { ...spec, [at]: alias, ...swapped };
 }
 
-/** Whether every series is stacked; a lone series is not "stacked". */
-export function isStacked(spec: CartesianSpec): boolean {
+/**
+ * Whether a series of a chart of this type stacks: a bar or an area does, a
+ * line never. Stacked, a line's point is drawn at the running sum while its
+ * label says its own value — 「¥640」 at the height of ¥1920 — and a line
+ * has no band under it to show the part it adds, so the reader can only
+ * read the point off the axis, and reads the sum (2026-09-23 audit P0-2).
+ * Metabase offers stacking on bars and areas alone.
+ */
+export function stacks(
+  type: ChartType,
+  series: Pick<CartesianSeries, 'type'>,
+): boolean {
+  return seriesMark(type, series) !== 'line';
+}
+
+/**
+ * Whether the display page offers stacking for this type at all: a line
+ * chart's every series is a line, so there is nothing that could stack.
+ */
+export function offersStacking(type: ChartType): boolean {
+  return type !== 'line';
+}
+
+/**
+ * Whether every series that can stack is stacked; a lone series is not
+ * "stacked", and neither is a chart with nothing that stacks. A combo's
+ * lines are left out of the question: they draw their own values whatever
+ * the bars do.
+ */
+export function isStacked(
+  spec: CartesianSpec,
+  type: ChartType = 'bar',
+): boolean {
+  const stackable = spec.series.filter(series => stacks(type, series));
   return (
-    spec.series.length > 0 &&
-    spec.series.every(series => series.stack !== undefined)
+    stackable.length > 0 &&
+    stackable.every(series => series.stack !== undefined)
   );
 }
 
 /**
  * Stacking is one choice for the whole chart — series stacked in twos and
- * threes is a spec the panel does not offer — so every series joins the
- * one stack or leaves it.
+ * threes is a spec the panel does not offer — so every series that can
+ * stack joins the one stack or leaves it. A combo's line stays out of it,
+ * and keeps its axis: it is measured, not added.
  *
- * Joining it brings every series back onto the one axis: segments that sit
- * on top of each other are being added up, and two scales cannot be added.
- * A stack across two axes is one stack per axis, drawn at the same place
- * and the same width, so the taller one simply hides the other — a chart
- * that reads as broken rather than as a sum. Unstacking leaves them where
- * the stack put them; which series is measured against what is a choice,
- * and the panel does not guess at an old one.
+ * Joining it brings every stacked series back onto the one axis: segments
+ * that sit on top of each other are being added up, and two scales cannot
+ * be added. A stack across two axes is one stack per axis, drawn at the
+ * same place and the same width, so the taller one simply hides the other —
+ * a chart that reads as broken rather than as a sum. Unstacking leaves them
+ * where the stack put them; which series is measured against what is a
+ * choice, and the panel does not guess at an old one.
  */
-export function withStacked(spec: CartesianSpec, on: boolean): CartesianSpec {
+export function withStacked(
+  spec: CartesianSpec,
+  on: boolean,
+  type: ChartType = 'bar',
+): CartesianSpec {
   return {
     ...spec,
     series: spec.series.map(series =>
-      on
-        ? { ...without(series, 'axis'), stack: 'all' }
-        : without(series, 'stack'),
+      !on
+        ? without(series, 'stack')
+        : stacks(type, series)
+          ? { ...without(series, 'axis'), stack: 'all' }
+          : series,
     ),
   };
 }
