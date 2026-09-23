@@ -4,187 +4,181 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 
 ## ResultToolbar 的三组
 
-- 工具栏是「批量操作 + 展示设施」（D12 Ⅳ）。**左端**：有选中时先是「已选 N 条」加一颗紧贴计数的 ✕（`label.toolbar.clear-selection`，`ghost` 图标按钮，名字与 tooltip 照 D12；P-05，2026-09-21——从前是一颗 ghost 文字按钮「清除选择」，与旁边宿主带边的批量动作同高同位，读起来像徽章的说明；✕ 贴着它清掉的那个数，是全包「去掉这个」的形状，还把左端 46px 还给了窄屏）再是宿主的 `bulk` 槽位；没选中而宿主交了 `bulk` 槽位时是一句提示（`label.toolbar.hint`，「勾选行以批量处理」）——它说的是这一段将出现什么，所以只在有东西会出现时才说；宿主没有批量动作时左端为空。**右端**按职责两组，组间 8px、组内无缝：`[表格｜卡片]`（布局切换，图标各带名字与 tooltip）、`[列设置][排序]`（表格怎么显示手上这些行）。刷新不在这里：它是框架功能，在标题栏右组（[README.md#工作台骨架](README.md#工作台骨架)），三种工作台一样；
-- **工具栏就是 ARIA 的 toolbar，不是长得像工具栏的一排按钮**：壳是 Base UI 的 `Toolbar` 原语（registry 没有 `toolbar` 这个组件，所以按 `popups.tsx` 的做法在 `ui/toolbar.tsx` 放一层只加 `data-slot` 的薄包装）。换来的是三件此前每处各自重写的事：`role="toolbar"` 与 `aria-orientation`、**整条栏只占一个 Tab 站**、方向键在栏内左右走并在两端回绕——宽表上这条栏本来是横在行与标题栏之间的八九个 Tab 站。布局切换不用额外做什么：Base UI 的 `ToggleGroup` 自己认工具栏——在工具栏里它只画一个 `role=group`，档位直接登记进这条栏的漫游序，而不是另开一个；列设置／排序那两个仍用 `ButtonGroup`（画合缝的是它），`Toolbar.Group` 除了两者都给的 `role="group"` 之外只多一件「整组禁用」，这里没人用。**宿主交的批量按钮保持原样**：`bulk` 槽位里是任意节点，本文件渲染不到的元素就登记不进漫游序，它们仍是两端之间的普通 Tab 站——这是诚实的读法，那几个控件不归这条栏管。栏本身有名字（`label.toolbar.title`「结果工具栏」）：读屏落到一个只有一个站的容器上，总得先知道自己落进了什么再开始走。（见 test/resultToolbar.test.tsx「ResultToolbar keyboard」）
-- **右边两组是一个块，一起换行**。它们包在一个 `ml-auto flex flex-wrap justify-end` 里，而不是和一根 `flex-1` 撑条并排：撑条是最不该被换行绕着走的东西——它自己占满一行的宽度，于是布局切换被单独顶到第一行右端、列／排序掉到第二行左对齐。包成一块之后，它要么一行要么两行，右缘始终就是工具栏的右缘。左边**没有选择、也没有提示时整组不画**：那个 `min-h-8` 占位本是为了「选中第一行时结果不要被顶下去一行」，可右边的组本身就是按钮、任何时候都撑着这 32px，于是它只是 32px 的空白，在窄屏上还能自己占一行。（见回归 story「Record 工作台/回归」的 `ToolbarWrapsAsGroups`）
-- 右端第三组是**导出**（下面那条「导出」），它与前两组的区别正是它自成一组的理由：列设置与排序改的是这些行**怎么画**，导出什么也不改，只是把它们带走；
-- **份量**：功能一律是**带边的图标按钮**（`outline`），图标带名字与 tooltip——裸文字的 `ghost` 读起来像标签不像控件；只有同时报告状态的控件才带文字：排序按钮说的是当前排序（下面那条「按钮上读得出的排序」）。布局切换是一个控件两个档位，按[版式](README.md#版式三块一套间距一种选项控件)的房规用 `ToggleGroup spacing={0}` 合成一件（registry 自己的合缝配方，传 prop 而不是抄 class）；同屏唯一的 primary 仍是筛选的 Apply（编辑器折起时是宿主的主按钮）。（见 test/resultToolbar.test.tsx「ResultToolbar grouping and weight」）
-- 列设置是一个 popover，不是一串勾选项：**列显示什么、按什么顺序、固定在哪边、底下汇总什么**是同一个问题——"一行长什么样"——此前却分在三处（勾选列表管显隐，顺序只能改配置，固定与汇总根本没有入口）；
-- 顶部一句说明，其后一行一列：拖动手柄 · 显隐勾选框 · 列名 · （字段声明了 `summary` 时）汇总函数下拉 · 固定开关（固定时图标实心）；
-- **规矩挂在它管的那一行上，顶部只留一句**：面板顶上曾经是五句话（拖手柄、键列在左动作在右、至少留一列、先显示才能固定或汇总、灰色那行已不在数据里），读者得自己把其中哪一句对上眼前这一行——一条规矩摊在旁边当散文，读的人就得先做一次匹配。现在每一条都写在它管的那个控件旁边（`data-slot="column-note"`，行内 `<p>`，被该行**自己**的 `aria-describedby` 指到），顶部剩下的 `label.columns.hint` 只说一件没有哪一行能自己说的事：这份列表就是表格的列序。拖手柄那一条不留话——手柄的可及名字是"调整 {列名} 的顺序"，键盘用法由库挂在手柄上的 `label.columns.instructions` 说；"键列在左"也不留话——两个区域各有自己的标题在说这件事，固定开关还用 `aria-pressed` 报自己开着没开。行键那一行因此不带任何说明行（它的勾选框那一句除外）；
-- **行上的说明有两种，画不画由它是不是唯一的凭据决定**：失效列与"仅剩一列"那两句**画出来**，隐藏列那一句只给读屏（`sr-only`）——隐藏的字段可能有五个，五行同一句话又变回一段散文，而它们的控件本来就以禁用态说了自己不能用；失效那一句则是这一行与别的行唯一的区别，藏起来等于什么都没改。（见 test/columnSettings.test.tsx「a column the definition dropped」）
-- **区域就是固定方式**：`projectRecord` 按「固定（左） → 可滚动」两个区域排布列，列设置也照同一个口径分区。原因是 `sticky` 只把元素钉在它本来所在的位置——一个固定在中间的列照样跟着横向滚动滚走，固定这件事不是样式表单独能兑现的承诺。所以"排布"和"固定"是同一条规则的两半，写在表格真正读它们的那一处；一行靠**被固定**换区域，不是靠被拖过去（跨区的拖放由 `columns/drag.ts` 的 `columnDrop` 挡掉，理由与管理器挡跨受众同一条：它落在的那个位次是**另一个区**的位次），每个区域是各自独立的一个拖放组。**没有第三个区域**：右边那一列不是谁选的固定（[decisions.md#D19](../decisions.md#d19-固定只有左侧右边那一列是操作列)）；
-- **每个区域有一个看得见的标题，标题就是它的可及名字**：区域此前只有 `aria-label`，屏幕上什么也没有，于是一列刚被固定看着只是"跳到了列表顶上"——行动了，却没有一处说它动到哪儿去了。标题用的正是**两种固定方式**那两个词（`label.columns.pin.left`／`pin.none`），与行上那个开关切换的是同一套词，所以区域和控件说的是一件事；可滚动那一区原先借的是 popover 自己的标题（`label.columns.title`），当 `aria-label` 藏着没人察觉，一旦画出来就成了标题说两遍、区域一遍没说。样式与侧栏的分组标签同一档（`text-muted-foreground text-xs font-medium`），层级比 popover 标题低一级（`h3`），区域的 `<ul>` 用 `aria-labelledby` 指到它——**不再复写一份 `aria-label`**：同一个词写两处，总有一天只改一处。（见 test/columnSettings.test.tsx）
-- **两个区域，列不跨区**：主键列固定在左侧，其余按自己的 `pinned` 落在两区之一，区内自由排序。主键那一行照常显示自己的固定方式与手柄，但一律禁用——一个按下去什么也不发生的开关，比一个明说自己不能动的开关更糟。**宿主的操作列不在这份列表里**（D19）：它是 render 槽位而不是配置里的列，永远在最后、永远冻在右边，这三件事都不是"我这次想怎么看"的一部分，于是那一行的四个控件一个也按不动——一行谁也改不了的行是噪音。**末列也不再画成"钉住且不可改"**：它就是一列普通列，把它固定到左边是一次真的移动（它离开末位，另一列接替成为末端）；
-- **首尾两列固定，且都由投影说了算**（[decisions.md#D13](../decisions.md#d13-首尾两列固定阴影常在)）：`projectRecord` 给主键列一律发 `pinned: 'left'` 并排在最前，给**它真正画在最后的那一列**发 `pinned: 'right'`。一张两端会漂的表是一张没有边框的表：横向滚动时首列说明这一行是哪条记录，末列是眼睛回到的那条界线。末列是**投影排布之后**的最后一列，所以定义里已删掉的列不算、被关掉的列（`hidden`）也不算（两者都根本不画），只剩主键一列时也不算（一列被两端同时抓住等于哪一端都没抓住，主键胜出），**每一列都被固定时也不算**（没有会从框下面滚出去的东西，就不需要那道框）。右边只有这一种固定（D19），所以 `'right'` 一定就是"因为在最后"，`end` 那一标随之删掉：宿主的操作列是一个 render 槽位而不是投影出来的列，投影看不见它——`ui/record/columns.ts` 的 `heldColumns` 因此在有行操作时让它放手，操作列接替它成为末端，两列同时钉在右边、中间隔一道谁也不会经过的缝是一张边框加了一倍的表。于是右侧永远只有一格冻结、偏移永远是 0（`--fve-record-actions-width` 这个只为"钉右的列要避开操作列"存在的回退一并删掉），`ACTION_CELL` 也不必再问有没有列钉在那儿；
-- **主键"固定在左侧、且排在最前"都是投影说了算，不是面板说了算**：`projectRecord` 给主键列一律发 `pinned: 'left'`，并把它排到列序最前，无论配置写了什么，`RecordTable` 因此真的把它冻在第一格。两件事是同一条规则的两半——一个固定在左侧却画在第二位的列会盖住它前面那一列——所以写在同一处，也就是表格真正读列序与固定的那一处。这是定义的性质而不是偏好（那一列说明这一行是哪条记录，是横向滚动时唯一必须留在视野里的列），所以不写进配置、也不让用户改：勾掉再勾回主键，配置里它排到了末尾，表格照样把它放回最前。只在面板里画成"固定"而不落到读它的地方，等于面板许诺了一件表格不会做的事；
-- **读不出的固定值当作"不固定"**：配置是不可信数据，`validateShape` 只问列要一个 `field`，所以 `pinned` 可能是 `'left'`、`'top'` 或一个数字——固定是一个布尔（D19），这些都不是。`model/record.ts` 的 `columnPinned()` 是唯一的读法（只有 `true` 算固定），投影、控制器的 `pinnedOf` 与草稿三处都走它；`validateColumns` 另报 `record.column.pin-invalid` 让人去改，**两端也报**：值由谁决定是一回事，这个成员**读不读得懂**是另一回事，而草稿对任何一列的下一次改动都会把它顺手写成能读的形状（`recordColumns`）。`hidden` 同一套读法（`columnHidden()`），另报 `record.column.hidden-invalid`，能改它的那个控件就是这一行的勾选框。以前这里是拿它去索引文案表，`messages.label` 收到 `undefined` 当场抛错——从一个弹层里把整个工作台带走；
-- **报了错的那一项，一定够得着**：编辑器不能恰好在它所报的错上把唯一能改这件事的控件藏起来——只能去别处改 JSON 才能修好的视图，不算修好。反过来也成立：**配置说不了算的事，配置里放了什么都不算错**——主键的位置由投影决定，所以根本没有规则去报它。**但"读不读得懂"不在此列**：`pinned` 是一个布尔，读不出的值在哪一列上都报（D19），因为那是关于成员本身的问题，而且随便改一列就修好了。新增一条 Issue 码时按这条自检：有没有一个屏幕上的控件能改它所抱怨的那个东西，包括"这一列是仅剩的一列"这种最坏情况。落到这两个面板上是五条：定义里被删掉的列照样列出来（`data-broken`，行上一个 `CircleSlashIcon` 图标加一句 `label.columns.unknown`，只留勾选框，取消勾选即移除——**区别不能只是那一档灰**：只靠颜色传信息是 WCAG 1.4.1，分不清这两档灰的人在屏幕上拿到的是一行和别的行一模一样的列）；同一字段被列两次只画一行，一次取消把两条都带走；字段丢了汇总能力时，下拉仍把它当前那个函数列出来，好让"不汇总"够得着；保存的布局已不在定义允许之列时，布局切换照常显示（此时没有任何一项按下，因为在用的那个确实不在里面）；**汇总落在一个根本不是列的字段上时，它自己占一行**（D17-9）——`config.summaries` 指向的字段既不是列、定义也不再声明它（本包的界面写不出这种配置，手写或旧版本迁移过来的可以），`validateSummaries` 报 `record.field.unknown`、查询与保存都被挡住，而列设置只列列，那一条于是够不着。它按 broken 行画（`data-broken`，`summaryOnly`），句子换成 `label.columns.summary-unknown`（它不是"这一列不在数据里"，它压根不是列），勾选框叫 `label.columns.keep-summary`，**取消勾选只调 `setSummary(field, null)`、一根列都不碰**——它不在 `table.columns` 里，也不进列序，否则一条残留的汇总会被写回成一列用户从没加过的列。定义仍然声明、只是没显示的字段不走这条：它已经作为"关掉的列"列在那里，勾上就能再显示。
-- **关掉一列，它的汇总跟着走**：汇总属于列。留在 `config.summaries` 里的那一条会让运行时继续要一次没有格子可画的聚合——口径行空着、聚合失败时还会为一个看不见的汇总报警——而汇总下拉此时已被禁用，用户除了把列再打开没有别的出口。`setColumns` 因此在**同一次** `edit` 里把被关掉的列的汇总一并删掉，而不是分两次写：两次草稿、两次查询，只为一次点击；
-- **关掉的列留在原处（D17-8）**：`table.columns[]` 多了一个 `hidden?: true`，取消勾选是把这一位**就地关掉**而不是把这一条从配置里删掉，勾回来也就回到原来那一格，而不是排到末尾——从前想把一个字段放到第三列，得先勾上再拖一次。关着的列在列设置里照常有自己的一行、照常可拖，`projectRecord` 不画它、导出不写它，D13 的"画在最后的那一列"因此指的是**最后一个可见列**。关掉不清除任何东西：宽度与固定都留着，所以它就列在**它固定到的那个区域**里（不固定的才在可滚动区），勾回来是原地显示，而不是先落在可滚动区、再横跳一格。**定义里已经没有的字段与重复的那一条是例外**：它们没有可回来的位置，取消勾选照旧是把这一条删掉——否则 `record.field.unknown`／`record.column.duplicate` 会把查询与保存一直挡着，而挡着它的正是刚刚按下的那个控件。旧配置没有这个成员，一律读作显示；
-- **关掉的列不能固定、也不能加汇总，但能拖**：表格不画的那一列被固定在哪一侧都看不出来，`config.summaries` 也没有格子可画，所以这两个控件落在关掉的列上会一次次地写不出任何看得见的东西。它们因此禁用，由这一行自己的说明（`label.columns.hidden`，`sr-only`）说清先后顺序：先显示，再固定或加汇总，两个控件的 `aria-describedby` 都指这一句。**手柄不在其列**——关掉的列有位置可拖，所以它照常可用，也不指这一句；只有真的没有位置的那几行（配置从未提到的字段、失效列）手柄仍然禁用；
-- 拖动覆盖**配置里的每一列**，关掉的也在内：定义声明过、而配置从未提到的那些字段才没有位置可拖，它们的手柄禁用，列在可滚动区的末尾，勾上之后接在列表末尾（这样一个字段固定不固定无从谈起，所以一律列在可滚动区）。提交的顺序是两个区域按表格绘制顺序拼起来的完整列序，与 `projectRecord` 的排布一致——保存的和画出来的是同一份列表，而不是两份碰巧一致的列表；区域内不可拖的行（主键、失效列）留在原位，可拖的那些在它周围移动。所以面板写出去的配置本来就主键在前；一份别处写成主键在中间的配置也不会被悄悄推翻，而是由投影明说"主键在最前"，两边因此永远一致；
-- **主键列不能隐藏**：它的勾选框始终禁用，并在**那一行**上画出 `label.columns.primary-required` 说明原因（勾选框的 `aria-describedby` 指它）——投影永远把行键那一列钉在左边（D13），一行横着滚出去而不带着「这是哪一单」谁也读不懂；从前它可以被取消勾选，取消后表上没有任何左冻结，面板却仍把它列在「固定在左侧」（2026-09-21 复审）。有了这一条，「表格至少一列」不需要再守：主键就是那一列。操作列的勾选框另有原因（它根本不是配置里的列），所以那一句不是它的；
-- 汇总下拉只出现在字段声明了 `summary` 的列上，选项是"不汇总"加该字段声明的那几个函数，写入 `config.summaries`。配置里一个字段可以带多个函数（表格照样全画出来），而这个控件一列只给一个：选中一个就替换掉该列原有的；
-- 固定开关按 不固定 → 左 → 右 → 不固定 循环，写入 `table.columns[].pinned`；取消固定时那个键被**删掉**而不是置为 `undefined`——配置是 JSON，`{ pinned: undefined }` 与没有这个键在 `dequal` 眼里不是一回事，会让一个刚固定又取消的视图在整次打开里一直显示"未保存"；
-- **拖放用现成的库**（`@dnd-kit/react` + `@dnd-kit/dom`，走 catalog，MIT），不自写：它带指针与键盘传感器、拖动预览与一个 live region。只有可拖的行注册成 sortable item，固定行根本不是放置目标，这就是"列不跨区"在实现上的保证。库的 `OptimisticSortingPlugin` 按 [interaction-primitives 设计](../../../../docs/superpowers/specs/2026-09-13-view-engine-interaction-primitives-design.md) 关掉：它在指针移动时就重排 DOM，恰好让读取落点时的下标失效；落点由 drop 报出的 source／target 两个 id 算出；真指针那一条链路（按下手柄、移到第三行、松手）的回归只能放在浏览器工程里跑——库靠量盒子做碰撞检测，jsdom 里每个盒子都是原点上的 0×0，没有可比的东西——所以它是 `stories/view-engine/RecordWorkbench.test.stories.tsx` 的一条故事，与键盘那条共用同一份夹具，断言表头列序与保存后的 `table.columns`；
-- **键盘**：手柄可聚焦，方向键把这一行在区域内上下移一位；按空格拾起后方向键交给库，两边各有单一播报源（`isDragging` 时本地处理器让路）。库的英文播报换成目录里的句子，落定的结果由设置自己的 live region 说一次——拖的和按方向键的是同一句，不重复朗读。**手柄本身只有一份**：`ui/DragHandle.tsx`，本包三处可拖列表（列设置、排序编辑器、视图管理器）共用，调用处给的是名字、禁用的理由与移动回调，方向键答哪几个、拖动途中静音、图标与 `cursor-grab` 都在那一份里；放下这一步则由 `ui/dragDrop.ts` 的 `dropped()` 判定（见 test/dragHandle.test.tsx）。（见 test/columnSettings.test.tsx、test/accessibility.test.tsx「record, with the column settings open」）
+- 工具栏是「批量操作 + 展示设施」。**左端**：有选中时是「已选 N 条」加一颗紧贴计数的 ✕（`label.toolbar.clear-selection`，`ghost` 图标按钮——贴着它清掉的那个数，是全包「去掉这个」的形状），再是宿主的 `bulk` 槽位；没选中而宿主交了 `bulk` 时是一句提示（`label.toolbar.hint`「勾选行以批量处理」）；没有批量动作时左端为空、整组不画（右组本身撑着 32px，不必留 `min-h-8` 占位）。**右端**按职责分组，组间 8px、组内无缝：`[表格｜卡片]`、`[列设置][排序]`（这些行**怎么画**）、导出（什么也不改，只把行带走）。刷新是框架功能，在标题栏右组（[README.md#工作台骨架](README.md#工作台骨架)）；
+- **工具栏是 ARIA 的 toolbar**：壳是 Base UI 的 `Toolbar` 原语（registry 没有，按 `popups.tsx` 的做法在 `ui/toolbar.tsx` 放一层只加 `data-slot` 的薄包装）——`role="toolbar"`、**整条栏一个 Tab 站**、方向键在栏内走并回绕。`ToggleGroup` 自己登记进漫游序；列设置／排序用 `ButtonGroup` 画合缝。宿主 `bulk` 里的按钮登记不进来，仍是普通 Tab 站。栏有名字（`label.toolbar.title`「结果工具栏」）（test/resultToolbar.test.tsx「ResultToolbar keyboard」）；
+- **右边几组是一个块，一起换行**：包在 `ml-auto flex flex-wrap justify-end` 里，而不是与 `flex-1` 撑条并排——撑条会把布局切换单独顶在第一行（回归 story `ToolbarWrapsAsGroups`）；
+- **份量**：功能一律是**带边的图标按钮**（`outline`），带名字与 tooltip——裸文字 `ghost` 像标签；只有报告状态的控件带文字（排序按钮）。布局切换按[版式](README.md#版式三块一套间距一种选项控件)的房规用 `ToggleGroup spacing={0}`；同屏唯一的 primary 是筛选的 Apply（test/resultToolbar.test.tsx「ResultToolbar grouping and weight」）。
+
+### 列设置（面板）
+
+- 列设置是一个 popover：**列显示什么、什么顺序、固定与否、汇总什么**是同一个问题——"一行长什么样"。一行一列：手柄 · 显隐勾选框 · 列名 · （声明了 `summary` 时）汇总下拉 · 固定开关（固定时图标实心）；
+- **规矩挂在它管的那一行上**：说明写在控件旁（`data-slot="column-note"`，由该行的 `aria-describedby` 指到），顶部的 `label.columns.hint` 只说这份列表就是表格的列序。手柄靠可及名字（"调整 {列名} 的顺序"）与 `label.columns.instructions` 说用法；失效列与"仅剩一列"的说明画出来，隐藏列那句只给读屏（`sr-only`，五行同一句就又成散文）（test/columnSettings.test.tsx「a column the definition dropped」）；
+- **区域就是固定方式**：`projectRecord` 按「固定（左） → 可滚动」排布列，列设置照同一口径分区——`sticky` 只把元素钉在它本来的位置，固定在中间的列照样滚走。一行靠**被固定**换区域而不靠拖（`columns/drag.ts` 的 `columnDrop` 挡掉跨区），每区一个拖放组。没有第三个区域（[decisions.md#D19](../decisions.md#d19-固定只有左侧右边那一列是操作列)）。区域标题看得见，就是可及名字，用的正是开关的两个词（`label.columns.pin.left`／`pin.none`），`h3`、侧栏分组标签那一档；`<ul>` 用 `aria-labelledby` 指它而不另写 `aria-label`——同一个词写两处，总有一天只改一处（test/columnSettings.test.tsx）；
+- **首尾两列固定，由投影说了算**（[decisions.md#D13](../decisions.md#d13-首尾两列固定阴影常在)）：`projectRecord` 给主键列发 `pinned: 'left'` 并排在最前，给**真正画在最后**的那一列发 `pinned: 'right'`——首列说明是哪条记录，末列是眼睛回到的界线。末列不算删掉的、关掉的（`hidden`）列；只剩主键时不算；每列都固定时也不算。有行操作时 `ui/record/columns.ts` 的 `heldColumns` 让末列放手，操作列接替——右侧永远只有一格冻结、偏移为 0，`ACTION_CELL` 不必问；
+- **主键的位置是定义的性质**：无论配置怎么写，`RecordTable` 都把它冻在第一格，不让用户改；固定在左却画在第二位的列会盖住前一列，所以排序与固定写在投影同一处。主键那一行的固定开关与手柄照常显示、一律禁用；勾选框也禁用，并在那一行画出 `label.columns.primary-required`——横滚出去不带「这是哪一单」的行谁也读不懂，也因此「至少一列」不必另守。**宿主的操作列不在列表里**（D19）：它是 render 槽位，永远最后、冻在右边；
+- **读不出的值当作默认**：配置不可信，`pinned` 可能是 `'left'`、`'top'` 或数字，而固定是布尔（D19）。`model/record.ts` 的 `columnPinned()` 是唯一读法（只有 `true` 算固定），投影、控制器的 `pinnedOf` 与草稿都走它；`validateColumns` 另报 `record.column.pin-invalid`——下一次改动会把它写成能读的形状（`recordColumns`）。`hidden` 同理（`columnHidden()`，`record.column.hidden-invalid`）。渲染从不拿读不出的值去索引文案表；
+- **报了错的那一项一定够得着**，配置说不了算的事（主键位置）放了什么都不算错。新增 Issue 码时自检：屏幕上有没有控件能改它抱怨的东西，包括"仅剩一列"。落到面板上：
+  - 定义里删掉的列照样列出（`data-broken`，`CircleSlashIcon` 加 `label.columns.unknown`，只留勾选框，取消即移除）——区别不能只靠那一档灰（WCAG 1.4.1）；
+  - 同一字段列两次只画一行，一次取消两条都走；
+  - 字段丢了汇总能力时，下拉仍列出当前函数，好让"不汇总"够得着；
+  - 保存的布局已不被允许时，布局切换照常显示、无一项按下；
+  - **汇总落在不是列的字段上时自占一行**（D17-9，`validateSummaries` 报 `record.field.unknown`）：按 broken 行画（`summaryOnly`），句子 `label.columns.summary-unknown`，勾选框 `label.columns.keep-summary`，**取消只调 `setSummary(field, null)`**——否则残留汇总会被写回成一列用户从没加过的列；
+- **关掉的列留在原处（D17-8）**：`table.columns[]` 带 `hidden?: true`，勾回来回到原来那一格；照常有一行、可拖，列在它固定到的区域里（宽度与固定都留着）；`projectRecord` 不画、导出不写。它**不能固定、也不能加汇总**（写不出看得见的东西），两个控件禁用、`aria-describedby` 指 `sr-only` 的 `label.columns.hidden`（先显示，再固定或汇总）。失效字段与重复项没有可回来的位置，取消即删除——否则挡着查询与保存的正是刚按下的控件。旧配置没有这个成员，读作显示；
+- **关掉一列，汇总跟着走**：汇总属于列，留着会让运行时要一次没格子可画的聚合。`setColumns` 在**同一次** `edit` 里一并删掉；
+- **拖动覆盖配置里的每一列**；配置从未提到的字段没有位置，手柄禁用、列在可滚动区末尾，勾上接在末尾。提交的是两个区域按绘制顺序拼出的完整列序，与 `projectRecord` 是同一份列表；区内不可拖的行（主键、失效列）留在原位；
+- 汇总下拉的选项是"不汇总"加字段声明的函数，写入 `config.summaries`；配置可一字段多函数（表格照画），控件一列只给一个，选中即替换；
+- 固定开关写入 `table.columns[].pinned`；取消时**删掉**那个键而不是置 `undefined`——`dequal` 会把 `{ pinned: undefined }` 读成改动，视图一直"未保存"；
+- **拖放用现成的库**（`@dnd-kit/react` + `@dnd-kit/dom`，走 catalog）。只有可拖的行注册成 sortable item。`OptimisticSortingPlugin` 按 [interaction-primitives 设计](../../../../docs/superpowers/specs/2026-09-13-view-engine-interaction-primitives-design.md) 关掉——它在指针移动时重排 DOM，让落点下标失效；落点由 drop 报出的 source／target 两个 id 算出。真指针链路只能在浏览器里跑（jsdom 里盒子都是 0×0），是 `stories/view-engine/RecordWorkbench.test.stories.tsx` 的一条故事，断言表头列序与保存后的 `table.columns`；
+- **键盘**：手柄可聚焦，方向键在区内移一位；空格拾起后方向键交给库（`isDragging` 时本地让路），各有单一播报源，库的英文句子换成目录里的，落定由设置自己的 live region 说一次。**手柄只有一份**：`ui/DragHandle.tsx`，列设置、排序编辑器、视图管理器共用；放下由 `ui/dragDrop.ts` 的 `dropped()` 判定（test/dragHandle.test.tsx；test/accessibility.test.tsx「record, with the column settings open」）。
 
 ### 列设置的目录分组与搜索
 
-一张 20 列的表把这份列表变成另一样东西：一屏装不下、一眼找不着。三条一起答。
+一张 20 列的表让这份列表一屏装不下、一眼找不着。
 
-- **弹层自己有滚动口**：`ui/popups.tsx` 抄来的那份 Popover 比 registry 多 `max-h-(--available-height)` 与 `overflow-y-auto`（[README.md](README.md#主题弹层与明暗)）——portal 出去的弹层不跟着页面滚，没有滚动口就等于够不到底下那几行。列设置在这之上再加一件：**滚的是列表，不是整个弹层**（调用处写 `overflow-y-hidden`，列表那一层 `min-h-0 flex-1 overflow-y-auto`），否则搜索框会跟着它管的那些行一起滚出视线。1280×900 上量到弹层 5–895、列表 852 撑在 776 的口子里；420×860 上弹层 384px 宽、5–660，滚到底时最后一行「操作」的下沿正落在列表下沿，搜索框一个像素没动；
-- **顶上一个搜索框**，与字段选择器同一个控件、同一套词（`label.field.search` 作 placeholder 与可及名，一条不中时 `label.field.none` 走 `Empty`）。它按**行上那个词**匹配（不是字段名——屏幕上的是词，能翻译的也是词；操作列没有字段名，用的是 `label.toolbar.actions`），不分大小写。**它只少显示几行，别的什么都不改**：三个区域与区内顺序照旧，关掉的列照旧列在它自己那一格（D17-8），面板要数的东西（移动落在第几位、表格眼下画着几列）一律还是按整份列表数。弹层一关就清空，跟字段选择器的过滤同一个道理；
-- **筛选时不能拖，也不能用方向键挪**（2026-09-21 定）：一次移动是相对邻居说的，而搜索拿走的正是那些邻居——放手时落到一个读者看不见的位置，或者听到「移到第 7 位，共 20 位」而屏幕上什么也没变，都是在骗人。所以过滤期间每一行都按「不可拖」画（手柄禁用），输入框底下一句 `label.columns.filtered`「清空搜索即可调整列的顺序。」由输入框的 `aria-describedby` 指着——说清了出路，而不只是说不行。清空即恢复；
-- **目录只嵌在中间区**（2026-09-21 定，用户拍板）：区域仍是第一层（区域就是固定方式），定义的 `fieldGroups` 是中间区里的第二层——左右两区按构造就短（钉在两边的那几列），中间区才是宽定义下的整张表。未被任何分组列出的字段在最前、不带标题，其后按目录顺序各带一个标题（`h4`，比区域标题 `h3` 低一档：同样的字号，不加粗、缩进），空分组不画。`fieldGroups` 由 `ResultToolbar` 从定义透下来，与排序弹层同一条路；
-- **组内仍按表格画的顺序，不按分组自己的 `fields` 顺序**——这是本选择器与另外两个的唯一分歧（[README.md#字段目录与选择器分组](README.md#字段目录与选择器分组)），理由是这份列表本身就是列序。这也正是拖动还能诚实的原因：一次放手提交的是「把这一列放到那一列所在的位置」，按**整个区域**的顺序算（`movableIndex` 读的是整份列表），而每一节的行都是那份顺序的子序列，所以列落在它被放到的那一行旁边，其余各节的列一根没动。每一节各是一个拖放组（`columns-<区域>:<组 id>`），所以一列永远不会被拖出定义给它的那个分组；
-- （见 test/columnSettings.test.tsx「finding a column in a wide list」，以及浏览器故事 `WideTableColumnSettings`／`NarrowHostColumnSettings` 量 1280 与 420 两屏的几何）
+- **滚的是列表，不是整个弹层**：`ui/popups.tsx` 的 Popover 带 `max-h-(--available-height)` 与 `overflow-y-auto`（[README.md](README.md#主题弹层与明暗)）；列设置再写 `overflow-y-hidden`、列表 `min-h-0 flex-1 overflow-y-auto`，搜索框不随行滚走；
+- **顶上一个搜索框**，与字段选择器同一控件同一套词（`label.field.search`；无匹配 `label.field.none` 走 `Empty`），按**行上那个词**匹配（操作列用 `label.toolbar.actions`），不分大小写。**它只少显示几行**：区域、顺序、关掉的列都照旧，面板要数的东西仍按整份列表数。弹层一关就清空；
+- **筛选时不能拖，也不能用方向键挪**：移动是相对邻居说的，而搜索拿走了邻居。过滤期间手柄禁用，输入框的 `aria-describedby` 指 `label.columns.filtered`「清空搜索即可调整列的顺序。」；
+- **目录只嵌在中间区**：左右两区按构造就短。定义的 `fieldGroups`（由 `ResultToolbar` 透下来）是中间区的第二层：未分组字段在最前、不带标题，其后各组一个 `h4` 标题，空组不画；
+- **组内按表格画的顺序，不按组的 `fields` 顺序**——与另外两个选择器唯一的分歧（[README.md#字段目录与选择器分组](README.md#字段目录与选择器分组)），因为这份列表就是列序。落点按整区顺序算（`movableIndex`），每节是它的子序列，其余各节不动；每节一个拖放组（`columns-<区域>:<组 id>`），列拖不出它的分组（test/columnSettings.test.tsx「finding a column in a wide list」；浏览器故事 `WideTableColumnSettings`／`NarrowHostColumnSettings` 量 1280 与 420 两屏的几何）。
 
 ## 导出
 
-工具栏右端的 `ExportDialog`（D12 Ⅳ）：一个带边的图标按钮（`DownloadIcon`，可及名字 `label.export.title`），**点开是一个窗口，整件事都在这个窗口里**（D14）——没有下拉菜单，也没有第二个对话框。窗口是模态的 shadcn `Dialog`，`role="dialog"` 带标题，四步同一个壳：
+工具栏右端的 `ExportDialog`：带边的图标按钮（`DownloadIcon`，可及名字 `label.export.title`），**点开是一个模态 shadcn `Dialog`，整件事都在里面**（D14），四步同一个壳。
 
-**这颗按钮只在有结果可导时存在**（U4，用户 2026-09-22 的复核）。第一次查询就失败时结果块照样在——它装着那条失败条，那条说的正是这批行——但工具栏里的「导出」按下去是一个开在"没有结果"之上的窗口，成品是一个空文件。判据是 `table.hasResult` 而不是 `status`：刷新失败会留住它替换不掉的那批行，那些行仍在屏幕上、仍导得出去。缺席而不是置灰，是 P-17 那条（一个用不上的控件不存在，而不是摆在那儿变灰）；宿主用 `features.export` 关掉时同理，两条问的是两件事——有没有这项功能，与此刻有没有东西可导。旁边两组（列设置、排序）不受影响：视图还是视图，怎么显示还是这次要设的事。（见 test/resultToolbar.test.tsx「ResultToolbar export」，浏览器故事 `QueryFailed` 与 `WithData` 各钉一头）
+**按钮只在有结果可导时存在**，判据是 `table.hasResult` 而不是 `status`：首查失败时结果块还在但只会导出空文件；刷新失败留住的行仍可导。缺席而不是置灰；宿主用 `features.export` 关掉时同理（test/resultToolbar.test.tsx「ResultToolbar export」；浏览器故事 `QueryFailed` 与 `WithData`）。
 
-- **一、先摆清楚要导什么**：有勾选时是一组 `RadioGroup`——「选中（N）」（有勾选就默认它）与「所有（N，按当前筛选）」；没勾选就没有单选，只有「所有」（D4）。「所有」要说「按当前筛选」，它是唯一一条其行不是屏幕上那些行的口径；总数报不出时（游标源）只说条件，不编一个数。单选底下四行说的是**文件里会有什么**：多少条（总数不知道时是「按当前条件」）、按什么条件（与结果条件带同一套读法，`summaryText`，视图自己的条件加宿主注入的作用域，因为导出跑的就是合并之后那一份）、哪几列（`table.columns`——列设置里可见的列，投影后的顺序，也就是 `cellText` 要写的那一份，按 `label.filter.join` 连起来）、文件叫什么（`<视图名>-<yyyy-MM-dd>.csv`，`ui/download.ts` 的 `fileName`，与真正交出去的那一个同一个名字——**名字在窗口打开的那一刻定下**，此后这一趟都用它：名字里带着一个日子，跨过午夜再算一次，承诺的与交出去的就不是同一个文件名了；重试也用同一个名字，它是这一趟还在继续，不是第二趟）。条数已知且大于 `limits.exportMax` 时多一行警告「超过上限 {max} 条，文件只会有前 {max} 条」——**按下「导出」就是同意**，所以同意的是什么必须先在眼前，而不是下载完才说；这一行替掉了从前那个单独的超上限对话框，`useRecordExport` 因此不再有 `overLimit` 问句与 `force` 选项。按钮是「导出」（primary）与「取消」；
-- **二、跑起来还是这个窗口**：shadcn `Progress` 一条进度条（`role="progressbar"`，`aria-valuenow/max`）加「已拉取 {fetched} / {total} 条」，总数不知道时只说已拉取、进度条走不定态（`value={null}`）；只有一个「取消」。**在途时 Esc 与点遮罩就是取消**——不是被拒掉：取消是用户自己的答复，它可以关窗，而菜单当年必须拒绝这两下，因为唯一的出口在菜单里。「选中」那一路的行本来就在手上，从确认直接到结果，不闪一帧进度条；
-- **三、结果也在这个窗口**：「已导出 {count} 条」加文件名，被上限截断时多一句「文件只含前 {max} 条（共 {total} 条匹配）」（总数不知道时换一句不编数的）。下载已经发生了，按钮只有「关闭」（Esc 同）。关窗会 `reset()`，所以下次打开是重新问一遍，而不是把读过的结果再报一次；
-- **四、失败也在这个窗口**：`export.failed` 那句话，旁边「重试」与「关闭」——重试是原地再来一次，不用关掉窗口再从工具栏开一遍。因此**结果区上方的状态行里不再有导出的事**：一次旅程一个壳，`RecordWorkbench` 的 `strips` 只剩查询失败那一条；取消什么也不说——它是用户自己的答复；
-- **列与值就是表上那一份**：列取 `table.columns`，每个值走 `cellText`——与单元格同一条读法（枚举取标签、时间按 `ViewSurface` 的时区与语言、数字按 `numberFormat`）。屏幕上写着日期、文件里写着 `1789723315014`，那是同一份数据的第二个、更安静的版本；
-- **分层**：序列化在内核（`record/export.ts` 的 `serializeCsv`，值格式化由调用方注入，见 [kernels.md#导出序列化](../kernels.md#导出序列化)），拉全量在运行时（[runtime.md#导出](../runtime.md#导出)），口径与状态在 `useRecordExport`（[react.md#userecordexport](../react.md#userecordexport)），**只有下载在 `/ui`**：`ui/download.ts` 的 `downloadFile` 是那三行 DOM（Blob → object URL → 带 `download` 的 `<a>` 点一下 → 立刻 revoke），文件名 `<视图名>-<yyyy-MM-dd>.csv` 由同一个文件的 `fileName` 拼出来，日期按同一个时区，而何时拼是窗口说了算（见下一条）。宿主要留痕的，`RecordWorkbench` 的 `onExported` 把文件原样交出来；
-- **文件里的数字是数**（`csvCellText`）：屏幕上没配格式的数字按界面语言加千分位（534,897），写进 CSV 却原样写成 534897——CSV 是给表格软件读的，带千分位的数会被当成文本、没法求和；字段声明了格式（货币、百分比）的照声明写，作者说了怎么读，文件也照着读。其余值与屏幕同一读法（`cellText`）。（见 test/display.test.ts「csvCellText」）
-- **工具栏只认一个 `exporter`**：`ResultToolbar` 收 `{ control, conditions, nameFile }`（`ExportOffer`），列与上限它自己从 `table` 与 `runtime.limits` 取。条件与文件名只有工作台说得出，而窗口要在造出文件**之前**就把它们说清楚。`nameFile()` 是一次**问**而不是一个已经算好的字符串：窗口开的时候问一次，得到的名字既写在「文件叫什么」那一行上，也随 `run(scope, fileName)` 一路交给 `deliver`（[react.md#userecordexport](../react.md#userecordexport)），工作台因此不在 render 里读时钟、也不在交文件时再算一遍。不提供导出的嵌入视图什么也不传，按钮就不存在。（见 test/resultToolbar.test.tsx「ResultToolbar export」、test/recordExportUi.test.tsx「DataWorkbench export」，跨午夜那一条在后者，以及故事「Record 工作台/导出」与它的三个分支）
+- **一、先摆清楚要导什么**：有勾选时一组 `RadioGroup`——「选中（N）」（默认）与「所有（N，按当前筛选）」；没勾选只有「所有」（D4）。「所有」是唯一其行不在屏幕上的口径，所以要说「按当前筛选」；总数报不出时（游标源）不编数。底下四行说**文件里会有什么**：多少条；按什么条件（`summaryText`，视图条件加宿主作用域，导出跑的就是合并后那份）；哪几列（`table.columns` 可见列，投影顺序，按 `label.filter.join` 连起来）；文件名（`<视图名>-<yyyy-MM-dd>.csv`，`ui/download.ts` 的 `fileName`）。**名字在窗口打开那一刻定下**，这一趟（含重试）都用它——跨午夜再算，承诺的与交出去的就不是同一个名字。条数超过 `limits.exportMax` 时多一行「超过上限 {max} 条，文件只会有前 {max} 条」——**按下「导出」就是同意**，所以 `useRecordExport` 没有另外的超上限问句；
+- **二、跑起来**：shadcn `Progress`（`role="progressbar"`）加「已拉取 {fetched} / {total} 条」，总数未知时不定态（`value={null}`）；只有「取消」，**在途时 Esc 与点遮罩就是取消**。「选中」那一路直接到结果，不闪进度条；
+- **三、结果**：「已导出 {count} 条」加文件名，被上限截断时多一句（总数未知时不编数），只有「关闭」。关窗 `reset()`，下次重新问；
+- **四、失败**：`export.failed` 旁边「重试」与「关闭」，原地重试。所以状态行里没有导出的事，`RecordWorkbench` 的 `strips` 只有查询失败；取消什么也不说；
+- **值就是表上那一份**：值走 `cellText`（枚举取标签、时间按 `ViewSurface` 的时区与语言、数字按 `numberFormat`）；但**文件里的数字是数**（`csvCellText`）：没配格式的写成 534897 而不是 534,897，否则表格软件当文本、没法求和；声明了格式的照声明写（test/display.test.ts「csvCellText」）；
+- **分层**：序列化在内核（`record/export.ts` 的 `serializeCsv`，见 [kernels.md#导出序列化](../kernels.md#导出序列化)），拉全量在运行时（[runtime.md#导出](../runtime.md#导出)），口径与状态在 `useRecordExport`（[react.md#userecordexport](../react.md#userecordexport)），**只有下载在 `/ui`**：`ui/download.ts` 的 `downloadFile`（Blob → object URL → `<a download>` → 立刻 revoke）。宿主要留痕的，`RecordWorkbench` 的 `onExported` 把文件交出来；
+- **工具栏只认一个 `exporter`**：`ResultToolbar` 收 `{ control, conditions, nameFile }`（`ExportOffer`），列与上限自己从 `table` 与 `runtime.limits` 取。`nameFile()` 是一次**问**：窗口开时问一次，名字随 `run(scope, fileName)` 交给 `deliver`，工作台不在 render 里读时钟。不传就没有按钮（test/resultToolbar.test.tsx「ResultToolbar export」、test/recordExportUi.test.tsx「DataWorkbench export」，跨午夜在后者；故事「Record 工作台/导出」）。
 
 ## SortSettings：按钮上读得出的排序
 
-- 表头的点击切换一次只表达一列，说不清几列之间谁先谁后。工具栏的排序按钮把当前排序读成话——字段名加方向（"订单编号 ↓"），多于一条时是第一条加 `+{n}`；
-- **这颗按钮排过序之后要自报家门**。屏幕上它是「金额 ↓ +1」，读屏听到的就是一个字段名加一个方向：这是什么控件、它谈的是不是排序，一个字也没有——「排序」这个词是它**没排序时**才戴的那一个。所以有排序时它带一句自己的名字（`label.sort.button`「排序：{字段} {方向}」，多于一条再接上 `+{n}`，接法与编辑器里的 `label.sort.at` 同一条），**屏幕上的文字一个字不改**：同一件事两条通道说一遍，不是两个名字（D12）。方向从前是内容里一句 sr-only 的词，如今归到名字里——`aria-label` 一旦给出就盖掉内容，留着那一句就是没人听得到、人人得维护的一份副本。（见 test/sortSettings.test.tsx「what the sort button says」）
-- **按钮上也只有一枚箭头，跟在名字后面**：这里曾经还在名字前面领一个中性的 `↕`（控件自己的图标），于是排过序的表读成 `↕ 金额 ↓`——两枚箭头隔着它们共同谈论的那个词，实测相距 48px，而前一枚没说后一枚没说过的话。现在 `↕` 是**没有排序时**按钮戴的那一枚，一旦排了序就由方向箭头接替它：一枚标记、一个位置、一种含义，与表头（`SortableHeader`）同一个朝向。它不占 `data-icon` 的两个图标槽位——那会收紧按钮该侧的内边距，而多于一条排序时结尾的是 `+{n}` 而不是箭头；
-
-- 打开是一个小编辑器：逐条列出拖动手柄、序号、字段与方向，方向可翻转、条目可移除，底下的字段选择器只列**可排序且尚未用到**的字段，全部用完即禁用。新字段追加在末尾并按升序——它是既有字段的并列打破者，插在别处等于悄悄改变了行主要按什么排；
-- **顺序可拖**：谁先谁后是这份列表唯一在说的事（`label.sort.hint`「先按第一个字段排序，相同时再按下一个」），以前却只能靠"删掉再加回末尾"重建。每条前面是一个手柄（`GripVerticalIcon`），接的是列设置那同一套（`@dnd-kit/react` + `@dnd-kit/dom`，`OptimisticSortingPlugin` 关掉，`Accessibility` 插件的英文句子换成目录里的 `label.sort.*`，落定由编辑器自己的 live region 说一次）。**排序项按位置认身份**（`sort-entry-{i}`）而不是按字段：同一个字段排两次是内核会拒的配置（`record.sort.duplicate`），但编辑器照样把两条都列出来——列出来正是为了能删掉其中一条——两条同名的 id 库分不开。落点算出来的是**整份顺序**，经 `table.setSort([...])` 一次写出去（一次 `edit` 加一次 `apply`，与翻方向、删条目是同一种写），序号跟着新顺序重画，工具栏按钮上的摘要跟着新的第一条走。只有一条时手柄禁用：它同时是第一条和最后一条，一个只能把它放回原处的手柄是在说自己能做一件做不到的事；
-- **每条是一个 `Item`**（D16 裁定三，与列设置行、视图管理行同一个配方）：`ItemMedia` 里是手柄与序号，`ItemContent` 是字段名，`ItemActions` 是方向与移除；
-- **键盘等价**：手柄可聚焦，方向键把这一条上下移一位；按空格拾起后方向键交给库（`isDragging` 时本地处理器让路，两边各有单一播报源）。手柄用的是与列设置、视图管理器同一个 `ui/DragHandle.tsx`，这里只给它名字、`total < 2` 时的禁用与移动回调。落点（source／target 两个 id → 新顺序）是 `ui/sort/drag.ts` 里的纯函数——「算不算一次放下」先过 `ui/dragDrop.ts` 的 `dropped()`（三处共用的那道守卫），这里只在其上再问两个 id 是否都指向本列表的位置——jsdom 不用布局也能测；真指针那一条链路只能放在浏览器工程里跑——库靠量盒子做碰撞检测，jsdom 里每个盒子都是原点上的 0×0——所以它是 `stories/view-engine/RecordWorkbench.test.stories.tsx` 的一条故事，断言表头的 `aria-sort` 与按钮上的摘要；
-- **引擎追加的行键不是排序的一项**：每条记录查询以行键升序收尾，好让相同排序值的行翻页时不重不漏（[kernels.md「Record 内核的规则」](../kernels.md#record-内核的规则)）。那是查询的事、不是用户选的顺序，所以排序编辑器、表头的 `aria-sort` 与位次、工具栏按钮上的「排序：… +N」一律读配置里的 `sort`，从不读编译出来的查询（见 test/recordWorkbenchInteraction.test.tsx「keeps the tie-breaking row key out of every sort control」）；
-- 定义里没有任何 `sortable` 字段时整个控件不渲染：一个只能打开一屏空编辑器的按钮，是一个通向哪儿也不去的按钮；
-- **字段选择器停在内核开始拒绝的地方**：游标源的排序写在游标里，Wow 给它定了上限（`MAX_CURSOR_SORT_FIELDS`，其中一格是查询收尾的行键），`validateRecord` 一超就报 `record.sort.too-many`、`apply` 不跑——行保持原样，视图却进了错误态，而这是控件自己请用户进去的。上限由内核的 `maxSortFields(definition)` 给出、经控制器的 `maxSortFields` 送到控件，满了就禁用选择器并以 `label.sort.full` 说明；
-- **方向读不出来也不许崩**：配置是不可信数据，`validateShape` 只问排序项要一个 `field`，所以存进来的可能是 `direction: 'up'` 或者干脆没有。`validateSort` 现在把它报成 `record.sort.direction-invalid`（草稿因此停在错误态等人改），渲染这一侧仍然把读不出的方向当升序画——一个渲染要敢依赖校验，前提是它自己也是第二道防线。以前这里是拿 `undefined` 去索引文案表，整个工作台当场白屏，而这本该是一条可修的提示；
-- **没排序是空态，排满了不是**：一条都没有时画 `Empty` + `EmptyDescription`（`label.sort.unsorted`），和结果块、视图列表的空态同一副形制，不另写一段灰字；排到上限那句（`label.sort.full`）仍是一行普通的字——它说的是下面那个选择器为什么禁用，是一条天花板而不是"这里什么都没有"，`Alert` 在这么小的浮层里反而是一个带边框带图标、比它所谈论的列表还大的盒子。
-- 排序仍是"改完一次性应用"，与表头切换同一条路径（`setSort` 是一次 `edit` 加一次 `apply`）——表格画的是上一次成功结果，不重跑就看不到改动。（见 test/sortSettings.test.tsx）
+- 表头一次只表达一列，说不清谁先谁后。排序按钮把当前排序读成话——"订单编号 ↓"，多于一条加 `+{n}`；有排序时它的可及名字是 `label.sort.button`「排序：{字段} {方向}」（接法同 `label.sort.at`），屏幕文字不变——否则读屏只听到字段与方向，不知道这是排序控件（D12）。方向只在名字里说，不在内容里另放 sr-only 副本（`aria-label` 会盖掉内容）（test/sortSettings.test.tsx「what the sort button says」）；
+- **按钮上只有一枚箭头**：中性的 `↕` 只在没排序时戴，排了序由方向箭头接替，与表头（`SortableHeader`）同一朝向；它不占 `data-icon` 槽位（会收紧内边距，而多条时结尾是 `+{n}`）；
+- 编辑器逐条列出手柄、序号、字段与方向，方向可翻、条目可删；字段选择器只列**可排序且未用到**的字段，用完即禁用。新字段追加在末尾、升序——它是并列打破者，插在别处等于悄悄改了主排序；
+- **顺序可拖**（`label.sort.hint`「先按第一个字段排序，相同时再按下一个」），接列设置同一套（`@dnd-kit`，`OptimisticSortingPlugin` 关掉，播报用 `label.sort.*`）。**按位置认身份**（`sort-entry-{i}`）：重复字段是内核会拒的（`record.sort.duplicate`），编辑器仍列出两条好删掉一条。落点算出整份顺序，经 `table.setSort([...])` 一次写出。只有一条时手柄禁用。每条是一个 `Item`（D16 裁定三：`ItemMedia` 手柄与序号、`ItemContent` 字段名、`ItemActions` 方向与移除）；
+- **键盘**：同一个 `ui/DragHandle.tsx`（只给名字、`total < 2` 时禁用、移动回调）。落点是 `ui/sort/drag.ts` 的纯函数（先过 `dropped()`，再问两个 id 是否都指向本列表），jsdom 可测；真指针链路是 `stories/view-engine/RecordWorkbench.test.stories.tsx` 的一条故事，断言表头 `aria-sort` 与按钮摘要；
+- **引擎追加的行键不是排序的一项**：记录查询以行键升序收尾，好让翻页不重不漏（[kernels.md「Record 内核的规则」](../kernels.md#record-内核的规则)）。排序编辑器、表头 `aria-sort` 与位次、按钮摘要一律读配置里的 `sort`（test/recordWorkbenchInteraction.test.tsx「keeps the tie-breaking row key out of every sort control」）；
+- 没有任何 `sortable` 字段时控件不渲染；
+- **选择器停在内核开始拒绝的地方**：游标源的排序上限是 `MAX_CURSOR_SORT_FIELDS`（含收尾行键），超了 `validateRecord` 报 `record.sort.too-many`。内核的 `maxSortFields(definition)` 经控制器的 `maxSortFields` 送到控件，满了禁用并以 `label.sort.full` 说明；
+- **方向读不出也不崩**：`validateSort` 报 `record.sort.direction-invalid`，渲染仍当升序画——渲染自己也是第二道防线；
+- **没排序是空态，排满了不是**：零条画 `Empty` + `EmptyDescription`（`label.sort.unsorted`）；`label.sort.full` 是一行普通字——它是天花板，小浮层里的 `Alert` 比它谈论的列表还大；
+- 改完一次性应用（`setSort` 是一次 `edit` 加一次 `apply`），与表头切换同一路径（test/sortSettings.test.tsx）。
 
 ## 结果块：有结果才有，工具栏是第一行
 
-- **没有结果、也没有在途的查询时，这一块整块不画**（F-14）：那一圈边是**结果**的边，而配置跑不起来的视图从来没跑过，于是框里只剩一条工具栏——一圈空外框裹着一排控件，「导出」还按得下去，按下去是一个空文件。判据写成 `ui/workbench/ResultBlock.tsx` 的 `resultBlockShown`：有结果、有在途、或者 `strips` 槽真会画东西（查询失败那一条），才有这一块。这时读者该看到的是状态行上那一条错与它行尾的出路（下一条）。不带边的那一种不受这条管（仪表盘，`resultFramed={false}`）：它没有框可空，面板网格本身就是它的结果，一块面板都还没答话的可编辑看板正是加面板的地方；
-- **这一块的留白配方分两半，按作者分**（用户 2026-09-22 的复核 Ⅲ）。那圈边本身、以及外壳自己填的两个槽——工具栏是第一行（`border-b px-3 py-2`）、状态条 `m-3`——写在 `ui/variants.tsx` 的 `resultFrameChrome` 里，跟着 `ResultBlock` 走，因为 `toolbar` 与 `strips` 是 `WorkbenchShell` 的槽、三种视图同名。**记录视图自己那三件家具由记录视图交进来**：分页行是这圈边的末行（`border-t bg-muted/40 px-3 py-2`）、空结果 `my-6`、卡片 `p-3`——`RecordParts` 用 `resultSlots('caption','empty','cards')` 拼出配方，经 `WorkbenchShell.resultSlots` 交给 `ResultBlock.slots`。从前这五条全挂在 `ResultBlock` 上，其中三条点名 `record-pagination`／`record-empty`／`record-cards`：三种视图共用的那圈边记着其中一种的家具，而 D18-1 要在阶段 2 把记录与分析并进同一副外壳、且那副外壳不长 `if`。配方是一串写死的字面量而不是按槽位名拼出来的——Tailwind 读的是源码，运行时拼出来的变体没有样式表认得。屏幕上一个像素没变：`BlockSpacing` 与 `QueryFailed` 两个故事在真浏览器里量的就是这些边与留白；
-- **工具栏是这一块的第一行**（D12 Ⅳ），失败条在它**之下**。所以 `WorkbenchShell` 有 `toolbar` 与 `strips` 两个槽，而不是让 Record 把工具栏塞进 `result` 的头上：红条压在工具栏之上读起来像一条盖住整个视图的横幅，而它说的只是底下这批行的事。两个槽各在一道 `RenderBoundary`（都叫 `result`）里，中间的 `strips` 不在任何一道里面——宿主的批量按钮抛出来时该倒的是那一栏或那些行，查询失败那一句无论如何都得读得到；
-- **只有一条 error 就直接说，并给一条出路**（F-14）：`ErrorStrip` 与 `WarningStrip` 同一条规矩——一条发现就是那一行本身，两条起才加标题和「还有 N 项」的折叠。「这个视图需要修复才能运行 · 还有 1 项」是一个标题底下只装一件东西，而被折起来的正是唯一说得出要修什么的那句话。行尾的动作由 surface 给（`ErrorStrip` 的 `action` 槽）：Record 给的是「打开列设置」（`label.status.open-columns`），点开的就是工具栏那颗按钮打开的那一块——`ColumnSettings` 的 `trigger` prop 换掉它平时的图标按钮，因为这一行上没有工具栏可以当图标的落点，而这正是没有结果块的那个状态。两种布局都给：这句话说的是视图的列，而卡片设置里没有列；
-- **callout 宽按容器**：`LineAlert` 用 `w-auto` 覆掉 registry `Alert` 的 `w-full`——`w-full` 是一个长度、不扣外边距，而结果块里的失败条带着 `m-3`，于是右缘被挤出边框 24px。同一处还去掉暗色下行尾按钮的自有底色（`outline` 的 `dark:bg-input/30`）：tone 的字色是按 callout 的底量过的，按钮再往下垫一层就把这对颜色垫到 4.37:1（见回归 story `ErrorCalloutInDarkTheme`）。（见 test/workbenchShell.test.tsx「the result block exists only where there is a result」「the order inside the block」、test/statusStrip.test.tsx「ErrorStrip」、test/recordTable.test.tsx「a record view with no result」，以及回归 story `NeedsFixing`）
+- **没有结果也没有在途查询时，整块不画**：那圈边是**结果**的边。判据是 `ui/workbench/ResultBlock.tsx` 的 `resultBlockShown`：有结果、有在途、或 `strips` 真会画东西。不带边的（仪表盘，`resultFramed={false}`）不受此管：面板网格本身就是结果；
+- **留白配方按作者分两半**：那圈边与外壳自己的两个槽——工具栏（`border-b px-3 py-2`）、状态条 `m-3`——在 `ui/variants.tsx` 的 `resultFrameChrome`，跟着 `ResultBlock`，因为 `toolbar`、`strips` 是 `WorkbenchShell` 三种视图同名的槽。记录视图自己的三件家具——分页行（`border-t bg-muted/40 px-3 py-2`）、空结果 `my-6`、卡片 `p-3`——由 `RecordParts` 用 `resultSlots('caption','empty','cards')` 拼出，经 `WorkbenchShell.resultSlots` 交给 `ResultBlock.slots`：共用外壳不记某种视图的家具、不长 `if`（D18-1）。配方是写死的字面量，Tailwind 读的是源码（故事 `BlockSpacing` 与 `QueryFailed` 量边与留白）；
+- **工具栏是第一行，失败条在它之下**：红条压在工具栏上会读成盖住整个视图的横幅，而它说的只是这批行。两个槽各在一道 `RenderBoundary`（都叫 `result`）里，`strips` 不在任何一道里——查询失败那一句无论如何都得读得到；
+- **只有一条 error 就直接说，并给出路**：`ErrorStrip` 与 `WarningStrip` 一样，一条发现就是那一行本身，两条起才加标题与折叠——否则折起来的正是唯一说得出要修什么的句子。行尾动作由 surface 给（`action` 槽）：Record 给「打开列设置」（`label.status.open-columns`），用 `ColumnSettings` 的 `trigger` prop 换掉图标按钮（此时没有工具栏）；两种布局都给；
+- **callout 宽按容器**：`LineAlert` 用 `w-auto` 覆掉 `Alert` 的 `w-full`（不扣 `m-3`）；暗色下去掉行尾按钮的 `dark:bg-input/30`，tone 字色是按 callout 底量的（回归 story `ErrorCalloutInDarkTheme`）（test/workbenchShell.test.tsx「the result block exists only where there is a result」「the order inside the block」、test/statusStrip.test.tsx「ErrorStrip」、test/recordTable.test.tsx「a record view with no result」；回归 story `NeedsFixing`）。
 
 ## RecordTable 与 RecordCards
 
-- **没有结果、也没有在途的查询时，表根本不画**：列来自结果，所以一个从未拿到结果的视图连列都没有——画出来是一格空表头压在零行之上，格子里还留着一个 Tab 可达、名叫「选择全部行」的复选框：它选不中任何东西，点下去 `aria-checked` 也不动，既没有 `aria-disabled` 说明自己不能用。这一格比空白更糟，所以 `RecordTable` 在 `hasResult` 为假且状态不是 `loading` 时返回 `null`；
-- **两种"没有行"是两句话，读者对它们的反应不一样**：查询失败由 `QueryStrip` 说（「查询失败」，行尾带重试），配置跑不起来由 `ErrorStrip` 说（只有一条时就是那一条发现本身，两条起才是「这个视图需要修复才能运行」，见上面「结果块」），两句都在表之上，不由表再说一遍——这与 `AnalysisWorkbench` 的做法是同一条（它的结果槽位以 `view &&` 把关，没有结果就什么也不画）；**查询跑完、什么也没匹配上**才是表自己的那句话（`label.record.empty`「没有可显示的内容」），因为上面没有任何一条会说它；
-- **这道闸门窄到只关它该关的**：刷新失败会留住它替换不掉的那批行并把状态转为 `error`（见 test/recordWorkbenchInteraction.test.tsx「keeps the rows a failed refresh could not replace」），第一次 `loading` 有自己的骨架行——两者手上都有东西可画，表照画不误。`hasResult` 因此是控制器上一个独立的成员（`state.result != null`），而不是拿 `rows.length` 或 `status` 去猜：一个匹配零行的成功结果也没有行。（见 test/recordTable.test.tsx「a record view with no result」）
-- **空结果给一个出口**（D12 Ⅴ）：`label.record.empty` 下面是一个动作，而且只有一个，由**问的是什么**决定（`record/emptyWayOut.ts` 的 `emptyWayOut`，`RecordParts` 传 `emptyWayOut` 与 `onEmptyAction`，表自己够不到筛选控制器，也不该去够）。四种情况：**已保存的视图、读者在它的条件上又加了条件**——行是被加上的那些挡掉的，出口是「回到保存的条件」（`label.record.empty-restore`：把保存时的条件放回草稿并应用，草稿的其余改动不动），而不是清空——清空会把「不可恢复」变成「全部」，是顶着它的名字的另一个视图；**已保存的视图、条件与保存时一样**——这个视图此刻就是空的，这本身就是答案，句子改说「这个视图现在没有记录」（`label.record.empty-view`），条件就是这个视图本身，一个都不拿掉，出口是「修改条件」（`label.record.empty-edit`）打开托盘；**没保存过的视图有条件**——没有可以回去的地方，出口是「清空条件」（`label.record.empty-clear`），`filter.clear()` 之后必须 `submit()`，只清草稿会让屏幕上这批行仍然是刚被撤掉的那些条件取来的；**没有条件**——视图已经在显示全部，句子说「还没有任何记录」（`label.record.empty-none`），出口是「添加条件」打开折起来的托盘。出口只有一个：需要在两个出口之间选的出口不是出口。（见 test/recordWorkbenchInteraction.test.tsx「emptyWayOut」「takes a saved view back to its saved conditions from the empty result」）`onEmptyAction` 不给就一个都不画——仪表盘面板与 `EmbeddedView` 没有自己的条件编辑器，没地方送人去；
-- **骨架按列名给不等宽条**：知道列的时候，骨架一列一格，每条的宽度是列名的字数（`ch`，夹在 4–16 之间）。三条等宽的灰条只说了"有东西在加载"，一排不等宽的条压在真的表头下面说的是"**这张**表在加载，答案大概长这样"。首次加载没有列（也就没有表头，见下），那时仍是一行一条；
-- **卡片正文是一列 `Item`**（D16 裁定三）：一张卡片就是一行摊开，所以正文每个字段读成一行——`ItemDescription` 是字段名（灰、正常字重），`ItemTitle` 是它的值（中等字重），两者基线对齐；外面是 `ItemGroup`（`role="list"`），每行显式带 `role="listitem"`，因为注册表的 `Item` 是 `div` 而不带这个角色。字段名仍是 `TEXT_UI`（13px），值是 `text-sm`（14px）：标签是次要的那一半，先用字号说出来，颜色与字重再帮腔——注册表的 `ItemDescription` 自己是 `text-sm`，把它拉回 13 走的是 `RowItem` 的 `description="label"` 变体（D16 裁定八：调用处不往 vendored 组件上写排版）；
-- **卡片布局说的话和表格一样多**（D18 Ⅴ／Ⅵ，2026-09-21 F-07）：`RecordCards` 守表格那三道门——没有结果也没在跑时什么都不画，第一次加载画骨架卡片（`ui/record/SkeletonCards.tsx`，每张按正文字段数画几根条），查到零行画同一个 `EmptyResult`（同样的文案 prop、同样的一条出路）；**汇总行留在卡片下**（`ui/record/CardSummaries.tsx`，`data-slot="record-summaries"` 加 `data-layout="card"`）：两条线「本页／全部记录」，每条是字段名 + 函数 + 数，走表格页脚同一个 `SummaryValue`，两份 scope 由同一个 `useSummaries`（`ui/record/useSummaries.ts`）算——从前切到卡片汇总整块消失、一个字不说。**卡片标题走 `cellValue`**：标题字段是状态就戴那枚徽章，是链接就是链接；定义里已经没有的标题字段退回行键。**宿主的 `renderCell` 两种布局同一个签名**：卡片把字段补成列的形状（`sortable: false`）交过去，从前那个只给卡片用的第二个渲染器因此删掉——一个值两种读法就是两个渲染器要维护。**卡片设置复用列设置那颗按钮**：`ResultToolbar` 按 `table.layout` 换内容，卡片下是 `ui/CardSettings.tsx`（同一个 `data-control="columns"`，名字换成「卡片设置」，图标换成网格）：标题字段（`Select`）、正文字段（复选框，勾上接在末尾、勾掉移走、已存的顺序不动——拖动排序留到下一阶段）、图片字段（含「不显示图片」）、每行几张（1–4 的 `ToggleGroup`），全走 `table.setCard(patch)`，一次 `edit` 加一次 `apply`，与 `setColumns` 同一条路。（见 test/recordCards.test.tsx、test/cardSettings.test.tsx，浏览器故事「Record 工作台/回归」的 `CardsAreSetUpFromTheSameButton`）
-- `RecordTable` 的 `selectable` 默认为 true，工作台与 `EmbeddedView` 不受影响；
-- 关掉时汇总行的口径标签（`total`／`page`）没有多出来的格子可占，于是标在首列之上，而不是顶掉首列自己的汇总。
-- **汇总行里那半行安静的字走 `--quiet-foreground`**（口径与每个函数的名字）：它压暗的是 `foreground` 而不是去拿 `muted-foreground`——后者是对着页面底色调的，压在汇总行那层 muted 上只有 4.34:1。从前这是写在类名里的 `text-foreground/70`，现在是明暗各一份的 token，和行悬停、冻结列阴影一样宿主改得动（`--fve-quiet-foreground`／`--fve-dark-quiet-foreground`）。
+- **没有结果、也没在跑时表不画**：列来自结果，画出来是空表头加一个选不中任何东西却 Tab 可达的「选择全部行」。`RecordTable` 在 `hasResult` 为假且非 `loading` 时返回 `null`。刷新失败留住的行照画、状态转 `error`（test/recordWorkbenchInteraction.test.tsx「keeps the rows a failed refresh could not replace」），首次 `loading` 画骨架行。`hasResult` 是控制器上独立的成员（`state.result != null`），不拿 `rows.length` 或 `status` 猜（test/recordTable.test.tsx「a record view with no result」）；
+- **两种"没有行"是两句话**：查询失败由 `QueryStrip` 说、配置跑不起来由 `ErrorStrip` 说，都在表之上，表不再说（与 `AnalysisWorkbench` 以 `view &&` 把关同一条）；**跑完没匹配上**才是表自己的 `label.record.empty`「没有可显示的内容」；
+- **空结果给一个出口，只一个**，由问的是什么决定（`record/emptyWayOut.ts` 的 `emptyWayOut`；`RecordParts` 传 `emptyWayOut` 与 `onEmptyAction`）：
+  - 已保存视图、又加了条件 → 「回到保存的条件」（`label.record.empty-restore`，草稿其余改动不动），而不是清空——清空是顶着它名字的另一个视图；
+  - 已保存视图、条件未改 → 「这个视图现在没有记录」（`label.record.empty-view`），出口「修改条件」（`label.record.empty-edit`）；
+  - 未保存、有条件 → 「清空条件」（`label.record.empty-clear`），`filter.clear()` 之后必须 `submit()`；
+  - 没有条件 → 「还没有任何记录」（`label.record.empty-none`），出口「添加条件」；
+  - `onEmptyAction` 不给就不画——仪表盘面板与 `EmbeddedView` 没有条件编辑器（test/recordWorkbenchInteraction.test.tsx「emptyWayOut」「takes a saved view back to its saved conditions from the empty result」）；
+- **骨架按列名给不等宽条**（列名字数 `ch`，夹在 4–16）：说的是"**这张**表在加载"；首次加载没有列时一行一条；
+- **卡片正文是一列 `Item`**（D16 裁定三）：`ItemDescription` 字段名（灰、`TEXT_UI` 13px，走 `RowItem` 的 `description="label"` 变体——D16 裁定八：调用处不往 vendored 组件上写排版），`ItemTitle` 值（`text-sm`、中等字重），基线对齐；`ItemGroup`（`role="list"`）里每行显式 `role="listitem"`；
+- **卡片说的话和表格一样多**（D18 Ⅴ／Ⅵ）：`RecordCards` 守同样三道门（骨架卡片 `ui/record/SkeletonCards.tsx`、同一个 `EmptyResult`）；**汇总留在卡片下**（`ui/record/CardSummaries.tsx`，`data-slot="record-summaries"` + `data-layout="card"`），走同一个 `SummaryValue`，两份 scope 由 `useSummaries`（`ui/record/useSummaries.ts`）算；**标题走 `cellValue`**，定义里已没有的标题字段退回行键；**`renderCell` 两种布局同一签名**（卡片把字段补成列的形状，`sortable: false`），一个值不该有两个渲染器；
+- **卡片设置复用列设置那颗按钮**：`ResultToolbar` 按 `table.layout` 换成 `ui/CardSettings.tsx`（同一个 `data-control="columns"`，名字「卡片设置」）：标题字段（`Select`）、正文字段（复选框，勾上接末尾、已存顺序不动）、图片字段（含「不显示图片」）、每行几张（1–4 的 `ToggleGroup`），全走 `table.setCard(patch)`（test/recordCards.test.tsx、test/cardSettings.test.tsx；故事 `CardsAreSetUpFromTheSameButton`）；
+- `selectable` 默认 true；关掉时汇总行的口径标签（`total`／`page`）标在首列之上。汇总行的安静字走 `--quiet-foreground`——`muted-foreground` 压在 muted 上跌破 4.5；宿主可改 `--fve-quiet-foreground`／`--fve-dark-quiet-foreground`；
+- **不接 TanStack**（用户拍板）：它只解决「列状态有标准结构」，代价是：列状态本在视图配置里、要存库，它会成第二份；排序筛选分页全在服务端，客户端行模型用不上；冻结偏移按声明宽度算，而本包列宽由内容决定；D13、`aria-sort` 只落主列、操作列接替末端这些规矩它不带。加客户端分组、展开或虚拟滚动时再评估。
 
-- **`RecordTable` 不接 TanStack（2026-09-21 定，用户拍板）**：这句原本写的是「等列宽拖拽与列序拖拽真的要做时再引入」，两样现在都做了（`ColumnResizer`、列设置拖动），所以要正面回答「换了解决什么」。答案是只解决「列状态有个标准数据结构」这一件，而代价是四件：列状态本来就在视图配置里（`table.columns[].width/pinned`、`sort`）、属于运行时、要存库，TanStack 会成为第二份状态；排序、筛选、分页全在服务端，它只能开 `manual` 当状态容器，最值钱的客户端行模型一样都用不上；它的冻结偏移按声明宽度算，本包列宽由内容决定、选择列与操作列没有声明宽度，实测那段代码不会消失；拖拽预览写 DOM 不写 state、D13 边常在、`aria-sort` 只落主列、操作列接替末端这些规矩它都不带。复用是尽量不是必须，这里的 shadcn Data Table 不符合场景。将来若加客户端分组、展开或虚拟滚动再评估。
-
-落到文件上：`ui/RecordTable.tsx` 只留结果本身——行与它的三层；空态在 `ui/record/EmptyResult.tsx`，骨架行在 `ui/record/SkeletonRows.tsx`，一个值怎么读在 `ui/record/cells.tsx`（表格与卡片共用），表头与排序在 `ui/record/SortableHeader.tsx`，汇总行在 `ui/record/SummaryRows.tsx`，每一行末尾那一格吃富余的空格子在 `ui/record/Filler.tsx`，冻结列（含实测偏移）与表头／数字的类名在 `ui/record/columns.ts`。（见 test/recordTable.test.tsx「RecordTable on its own」「sorting from the headers」「enum cells」「the table chrome」、test/recordCards.test.tsx「RecordCards on its own」、test/recordSummaries.test.tsx「the summary row」「the summary rows」）
+文件：`ui/RecordTable.tsx` 只留行与三层；`ui/record/` 下 `EmptyResult.tsx`、`SkeletonRows.tsx`、`cells.tsx`（表格卡片共用）、`SortableHeader.tsx`、`SummaryRows.tsx`、`Filler.tsx`、`columns.ts`（冻结列与表头／数字类名）（test/recordTable.test.tsx「RecordTable on its own」「sorting from the headers」「enum cells」「the table chrome」、test/recordCards.test.tsx「RecordCards on its own」、test/recordSummaries.test.tsx「the summary row」「the summary rows」）。
 
 ## 勾选：Shift 连选一段
 
-- **按住 Shift 勾选是连选**，与文件管理器、邮件客户端同一条规矩：从**锚点**（上一次不带 Shift 的那一下勾选落在的行）到按下的这一行，两头都算、按**结果顺序**，整段跟着按下的这一行走——它原本没选就整段选中，原本选着就整段取消；段外已选的行原样不动。锚点只由平点移动，**连选不挪锚点**，所以第二次 Shift 是从同一行重画一段，而不是从上一段的尽头接着走。还没有锚点时 Shift 勾选就是一次平点，并把锚点落在这里。运维一页清掉四十条失败执行，从四十下变成两下。（见 test/rangeSelection.test.tsx「selects every row from the anchor down to the pressed one」「selects upwards just as it does downwards」「keeps the anchor through a range, so a second range re-draws from it」「clears the range when the pressed row is being cleared」「is a plain toggle with nothing to extend from, and sets the anchor」）
-- **键盘是同一条路**：焦点在行的勾选框上时 Shift+空格与 Shift+点击等价。不另写键盘处理——Base UI 的勾选框把根上空格的 keyup 转成一次带着修饰键的点击，再转给它藏着的 `<input>`，`onCheckedChange` 的第二个参数（`eventDetails.event`）就是那次点击，Shift 从它上面读；指针那一路也落在同一个事件上。（见 test/rangeSelection.test.tsx「extends with Shift+Space on a focused checkbox」）
-- **Shift+按下不带走一段文字**：浏览器会把同一下按压读成「把文字选区延伸到这里」，把两次按压之间每一格涂蓝。`RowCheckbox` 在带 Shift 的 `mousedown` 上拦掉默认动作，并把焦点直接交给勾选框（拦掉默认动作也拦掉了按压本来给的焦点）。这一条没有自动化的守护：浏览器的「Shift 延伸选区」只有真的输入设备触发得了，user-event 模拟的按压不走它——拿掉这个拦截，故事照样绿；只有 Playwright 的真鼠标（`vitest/browser` 的 `userEvent`）量得出那一段被涂蓝的文字，而故事文件在 Storybook 界面里也要能跑，引不了它。改动这里时用真鼠标手动核一遍。
-- **锚点属于屏幕上这一批行**：它记在控制器里（`useRecordTable` 的一个 ref），不在运行时——它是一双手怎么在挑行，不是视图的事实，也没有第二个读者。它连同**这批行是哪个问题的哪一页**一起记（`RowsMark`：`ViewResult.own` 按身份比，加上分页源的页码或游标源的下一个游标）：换页、应用了另一个问题（条件、排序）锚点就作废，哪怕同一个行键在新的一批里又出现了——那已经不是按下的那一行；同一页的刷新（手动或自动）问的还是同一个问题，锚点留着，否则自动刷新会让连选时灵时不灵。连选只覆盖当前结果的行。（见 test/rangeSelection.test.tsx「lets the anchor go on another page, whose rows are another set」「keeps the anchor through a refresh of the same page」「lets the anchor go when another question is applied」「stands only on the page and question it was set on, over a row still there」）
-- **读屏只听一次**：「Shift 连选」在屏幕上没有任何提示，所以照 `label.sort.additive` 与记录打开提示的做法，每个表面在表外渲染**一句** `sr-only`（`label.record.select.hint`，`RangeHint`），每一行的勾选框用 `aria-describedby` 指它；表头的「选择全部行」不指它——它选的是整页，没有段。表格与卡片共用 `ui/record/RowCheckbox.tsx`，两种布局一条规矩。（见 test/rangeSelection.test.tsx「tells a screen reader once what Shift does」「selects and clears ranges of cards the way the table does」，浏览器故事「Record 工作台/回归」的 `ShiftSelectsARange`）
+- **Shift 勾选是连选**：从**锚点**（上一次不带 Shift 的勾选）到这一行，两头都算、按结果顺序，整段跟着这一行走（原本没选就整段选中，选着就整段取消）；段外不动。**连选不挪锚点**；没有锚点时就是一次平点并落锚（test/rangeSelection.test.tsx「selects every row from the anchor down to the pressed one」「selects upwards just as it does downwards」「keeps the anchor through a range, so a second range re-draws from it」「clears the range when the pressed row is being cleared」「is a plain toggle with nothing to extend from, and sets the anchor」）；
+- **键盘同一条路**：Shift+空格等价，不另写处理——Base UI 勾选框把空格转成带修饰键的点击，Shift 从 `onCheckedChange` 的 `eventDetails.event` 读（test/rangeSelection.test.tsx「extends with Shift+Space on a focused checkbox」）；
+- **Shift+按下不带走文字**：`RowCheckbox` 在带 Shift 的 `mousedown` 上拦掉默认（文字选区延伸），并手动把焦点交给勾选框。**没有自动化守护**：只有真输入设备触发得了选区延伸，故事又不能引 Playwright 真鼠标——改这里时手动核一遍；
+- **锚点属于屏幕上这一批行**：记在控制器（`useRecordTable` 的 ref），不在运行时。连同 `RowsMark`（`ViewResult.own` 按身份比，加页码或下一个游标）一起记：换页或换了问题就作废，同一页的刷新保留——否则自动刷新让连选时灵时不灵（test/rangeSelection.test.tsx「lets the anchor go on another page, whose rows are another set」「keeps the anchor through a refresh of the same page」「lets the anchor go when another question is applied」「stands only on the page and question it was set on, over a row still there」）；
+- **读屏只听一次**：表外一句 `sr-only`（`label.record.select.hint`，`RangeHint`），每行勾选框 `aria-describedby` 指它，「选择全部行」不指。表格与卡片共用 `ui/record/RowCheckbox.tsx`（test/rangeSelection.test.tsx「tells a screen reader once what Shift does」「selects and clears ranges of cards the way the table does」；故事 `ShiftSelectsARange`）。
 
 ## 记录详情：把一条读全
 
-列表只能给一条记录它的列那么宽：错误信息被截成一行，堆栈根本不在任何一列里。运维要的是「这一条到底怎么了」，所以每一行都能打开成一侧的抽屉（`ui/record/RecordDetail.tsx`，控制器 `useRecordDetail`）。
+列表只给记录它的列那么宽：错误信息被截断，堆栈不在任何一列里。所以每一行都能打开成一侧的抽屉（`ui/record/RecordDetail.tsx`，控制器 `useRecordDetail`）。
 
-- **怎么打开**：指针点一行的空白处就开（点复选框、复制、链接、行操作，或是刚选中了一段文字，都不算）；键盘把一页行当作**一个 Tab 停靠**（与分析结果的行同一套 `roving.ts`），↑/↓ 在行间走、Home/End 到两头、Enter 或空格打开，焦点落在行里的复选框或按钮上时按键归那个控件；读屏听到的按键说明整张表只渲染一次，每行 `aria-describedby` 指向它（`record/openRows.ts` 的 `useOpenRows`）。关掉详情，焦点回到打开它的那一行。卡片同样：点卡片，或在卡片组里用方向键按阅读顺序走、Enter 打开。**不加「查看」按钮**：它要么自占一列，要么挤进固定的操作列、把宿主的行操作挤出固定区（操作列固定宽度会越过「不超过可见宽度一半」的上限）——而它要打开的就是这一行本身。（见 test/recordDetail.test.tsx「a record read whole」）
-- **先显示列表已有的，再补全**：打开瞬间就是这一行在页上的字段，完整记录到了再替换（`runtime.fetchRecord`，按行键、叠宿主的作用域、不带页上的条件与投影）——详情是关于这条记录的，不是关于这张列表的，一条重试过的失败已不再满足「失败」，但它的详情照样打得开。视图有新结果落地（例如在详情头部点了「重试」之后刷新）时它自己再读一次，所以详情跟着记录变。
-- **怎么排**：按定义的字段分组、按分组的顺序一节一节列出（`detailSections`），没被分组的字段收在「其他」；全文搜索、删除开关这类不是记录上的值的字段不列。每个值的读法与卡片一致（分区里的字段由内核按卡片字段的读法解析，`cardField`；同一个 `cellValue`，呈现面是 `detail`），数组对象按元素标题全部列出、折行不收起，只有长值不同：带换行或超过一行的文字（错误信息、堆栈）整段保留原样、等宽、可在自身里滚动、可复制（`LongText`）。
-- **头部放这一行的操作**：宿主的行操作在抽屉头部再出现一次——读完就要动手，不该先关掉抽屉再去列表里找回这一行。
-- **结构读全**：表格与卡片里，数组对象按元素标题读、对象按字段个数读（一行只有一行的地方）；详情有地方，而打开它往往正是为了那些被省掉的内容——一次失败记下的事件、事件的载荷、载荷里的堆栈。所以详情里数组对象**逐个元素**展开：「第 n 项」加元素标题的徽章，再按定义为元素声明的子字段逐项读（标题不重复，搜索这类无值句柄不列），最后是元素里没有任何字段声明的部分；没声明元素的对象**逐个键**展开。没声明的键没有显示名，照写原键名、等宽；纯值的数组连成一行（目录的列举分隔符），长文本照旧整段可复制，嵌套超过六层的剩余部分整段写出而不再一层层缩进。结构与长文本放在名字**下面**、占满整宽（结构左侧一条竖线表示层级，`blockOf`），短值放在名字旁边：放在旁边时每深一层就再让出一列名字的宽度，实测事件载荷三层下的堆栈只剩几个字宽（`record/DetailStructure.tsx`，子字段由内核的 `cardField` 解析为 `elements`）。（见 test/detailStructure.test.tsx「a structure in a record detail, read whole」）
-- **读不到与已不在**：读取失败说出数据源的原因（`sourceReason`），下面仍是列表里已有的字段；记录已被删除或已在作用域之外，说一句「这条记录已不在了」。（见 test/recordDetail.test.tsx「a record read whole」「detailSections」）
+- **怎么打开**：点一行的空白处（点复选框、复制、链接、行操作或刚选中文字都不算）；键盘把一页行当**一个 Tab 停靠**（同 `roving.ts`），↑/↓、Home/End 走，Enter 或空格打开；按键说明只渲染一次，每行 `aria-describedby` 指它（`record/openRows.ts` 的 `useOpenRows`）。关掉后焦点回到那一行。卡片同样。**不加「查看」按钮**：它要么自占一列，要么让固定的操作列越过一半宽度的上限——而它要打开的就是这一行（test/recordDetail.test.tsx「a record read whole」）；
+- **先显示已有的，再补全**：完整记录用 `runtime.fetchRecord`（按行键、叠宿主作用域、不带页上的条件与投影）——详情关于记录而不是列表。视图有新结果时再读一次；
+- **怎么排**：按定义的字段分组一节一节（`detailSections`），未分组的收在「其他」；搜索、删除开关这类非值字段不列。读法与卡片一致（`cardField`，`cellValue` 的 `detail` 呈现面）；长文本（带换行或超一行）整段原样、等宽、可滚、可复制（`LongText`）；
+- **头部放这一行的操作**：读完就要动手；
+- **结构读全**：数组对象**逐个元素**展开——「第 n 项」加标题徽章，再按元素声明的子字段逐项读，最后是未声明的部分；未声明元素的对象**逐个键**展开（原键名、等宽）；纯值数组连成一行；嵌套超过六层整段写出。结构与长文本放在名字**下面**、占满整宽（左侧竖线表示层级，`blockOf`），短值放在旁边——否则每深一层都再让出一列名字宽度（`record/DetailStructure.tsx`，子字段由 `cardField` 解析为 `elements`）（test/detailStructure.test.tsx「a structure in a record detail, read whole」）；
+- **读不到与已不在**：失败说出源的原因（`sourceReason`），下面仍是已有字段；记录已删除或出了作用域，说「这条记录已不在了」（test/recordDetail.test.tsx「a record read whole」「detailSections」）。
 
 ## 两行汇总：本页与所有
 
-- **两个口径永远各占一行**，哪怕两个数字一模一样：`本页`（`page`）是屏幕上这一页的行加起来，`所有`（`total`）是同一套条件下全范围聚合的答复。二十行的平均数被当成四万行的平均数，是这一行唯一能犯的错，所以口径不是注解而是行的一部分：每行首列一个灰底标签格（有选择列时占选择列，没有则标在首列之上，见上），`data-scope` 同时带在 `<tr>` 上；
-- **只有 `所有` 需要查询**。内核这两半都在：`compileSummaries` 产出全范围的 `AggregationQuery`，`projectSummaries` 按别名读回（见 [kernels.md](../kernels.md)）；`page` 口径不需要往返，因此 `record/project.ts` 的 `pageSummaries(cells, rows)` 用已执行配置给出的那些格子，在屏幕上的行上再算一遍——渲染层手里只有结果，没有配置，而这份算术与 `projectSummaries` 的 `page` 分支是同一份，放在一起才不会分头漂移；
-- **降级只剩本页**。聚合失败时 `runtime/execute.ts` 退回 `scope: 'page'`，于是表里只剩 `本页` 一行——没有的数不编——并在状态条上报一条 warning（`runtime.summary.page-only`）说明为什么只剩它。两处缺一不可：只剩一行而不说，读者未必注意到少了什么；只报 warning 而行上的词不改，那个词仍然在撒谎。（见 test/resultIssues.test.tsx「what the screen says about a downgraded total」）；
-- 一个字段可以配多个函数（`amount` 同时求和与求平均），内核为每个函数投影一格，所以格子按字段分组而不是按字段做键；函数名按目录措辞显示（`label.summary.fn.*`：合计／平均／最小／最大／计数）而不是配置里的 `SUM`，与数值一起右对齐在列的右缘；没有配汇总的列留空，而不是显示 0；某一格算不出来（字符串列求和、聚合没答这一格）显示 `label.summary.unavailable` 的破折号。
-- **一列时刻的最早与最晚**（2026-09-22 用户裁定）：`date`／`datetime` 列（含借了这个读法的 `cell: 'date'`）声明 `summary: ['MIN','MAX']` 后，两格各是这一列自己的一个单元格——`page` 口径按字段种类自己的读法（`readInstant`）比时刻、把胜出那一行的原值留下，`total` 口径把聚合的答复原样读回（ISO 串或毫秒都收）——所以页脚走 `cellText` 与单元格同一条路，在宿主的语言与时区里画那个时刻，而不是十三位毫秒；词也换成时刻的词（`label.summary.fn.date.MIN／MAX`：最早／最晚，不是最小／最大，一词一义），同一列上的 `COUNT` 仍是行数、仍是个数，合计与平均在这类列上被准入拒绝。（见 test/record.test.ts「a date column summarised」、test/recordTable.test.tsx、浏览器故事「Record 工作台/回归」的 `EarliestAndLatest`）
+- **两个口径永远各占一行**，哪怕数字一样：`本页`（`page`）是这一页的行，`所有`（`total`）是同条件下全范围的聚合。把二十行的平均当四万行的平均是这一行唯一能犯的错，所以口径是行的一部分：首列一个灰底标签格（有选择列时占选择列），`data-scope` 在 `<tr>` 上；
+- **只有 `所有` 需要查询**：`compileSummaries` 产出 `AggregationQuery`，`projectSummaries` 按别名读回（[kernels.md](../kernels.md)）；`page` 由 `record/project.ts` 的 `pageSummaries(cells, rows)` 在屏幕上的行上算，与 `projectSummaries` 的 `page` 分支同一份，不会漂移；
+- **降级只剩本页**：聚合失败时 `runtime/execute.ts` 退回 `scope: 'page'`，只剩 `本页` 一行（不编数），并报 warning（`runtime.summary.page-only`）——少一行而不说读者未必注意，只报不改词则那个词在撒谎（test/resultIssues.test.tsx「what the screen says about a downgraded total」）；
+- 一个字段可配多个函数，格子按字段分组；函数名按目录措辞（`label.summary.fn.*`），与数值一起右对齐；没配汇总的列留空而不是 0；算不出的格子显示 `label.summary.unavailable` 的破折号；
+- **时刻列的最早与最晚**：`date`／`datetime` 列（含 `cell: 'date'`）的 `MIN`／`MAX` 各是这一列的一个单元格——`page` 用 `readInstant` 比时刻、留下原值，`total` 把答复（ISO 串或毫秒）原样读回——页脚走 `cellText`，按宿主语言与时区画时刻；词是 `label.summary.fn.date.MIN／MAX`：最早／最晚（一词一义）；`COUNT` 仍是个数，合计与平均被准入拒绝（test/record.test.ts「a date column summarised」、test/recordTable.test.tsx；故事 `EarliestAndLatest`）。
 
 ## 表头排序
 
-- 点击表头在**升序 → 降序 → 取消**之间循环，走控制器的 `toggleSort`，改完立即 `apply`。**平击独占，Shift 追加**（legacy 的规矩）：不带修饰键的点击把这一列当成**整份**排序（`toggleSort(field, { exclusive: true })`），按住 Shift／Ctrl／⌘ 才是把它追加到已有排序之后；键盘等价是 Shift+Enter／Shift+Space——按钮由键盘激活时的 click 事件带着按住的修饰键，所以两条路走的是同一个处理器。这条规矩作为按钮的描述（`label.sort.additive`，「按住 Shift 追加排序」）说出来，因为「怎么追加」在屏幕上没有别的提示：表格在 `<table>` 之外写一个 `sr-only` 句子、每个可排序表头的按钮用 `aria-describedby` 指它——不放进每个 `<th>`，因为表头格里的文字是列头的一部分，读屏会在这一列每个值旁边再念一遍；不用 `aria-description`，因为它是只有 Chromium 实现的草案属性。独占必须是控制器的一个入口而不是 UI 拿追加模拟：模拟要对其余每个已排序列反复 `toggleSort`，每一次都是一次真实查询；
-- `aria-sort` **只落在主排序那一格**（`ascending`／`descending`）：ARIA 的表格语义里"按哪一列排"只有一列，给每个可排序表头都标上，未排序的会挨个念 `none`，两级排序则念出两个"升序"而不说先按哪个。次级排序的位次改由按钮的可及名字说（见下）；
-- 按钮的可及名字说的是**这一下点下去会发生什么**（`label.sort.ascending`／`descending`／`none`），列名在这句话里面，所见即所闻；
-- **一枚箭头，跟在列名内侧**：表头说的是一件事——这一列把表排成什么样——所以它只画一个标记。左读的列把名字放在左边、标记跟在名字后面；数字列右对齐（`NUMERIC_CELL`），整行反过来，标记于是落在名字与表格中间——同一条规则（名字守着数字对齐的那条边，标记朝里跟着它），不是两条。表头右边缘留给列宽手柄（`ColumnResizer`），它不画字形，所以表头里的每一个 `svg` 都是这枚标记；
-- **可排序但没排序的列带中性的 ↕，而且一直画着**：用过之后才出现的可供性不是可供性。考虑过的另一种是悬停／聚焦时才淡入，不取：触屏上等于这个可供性不存在，指针一进一出整行表头还要位移 18px，而"一直画着"是这一页已经定下的规矩而不是偏好。它用 `muted-foreground/60`——安静到不与列名争，又不必移动指针就找得到；
-
-- 控制器的 `toggleSort` 把新字段**追加**在末尾（`sort` 的顺序就是列间优先级），所以多列排序是天然的：同时排序多于一列时，每个表头带上自己的序号，并把 `label.sort.at`（第几个、共几个）接在可及名字后面——两个箭头只说了按什么排，没说先按哪个。legacy 的「按住 Shift 添加排序」要求平击是**独占**排序，而控制器没有能一次落下整份 `sort` 的成员，见 [todo.md](../todo.md)；
-- 键盘：表头就是一个按钮，Tab 可达，Enter／Space 即一次点击，没有需要按住的修饰键，也就没有要另找的键盘等价物。
+- 点击表头在**升序 → 降序 → 取消**间循环（`toggleSort`，立即 `apply`）。**平击独占，Shift 追加**（legacy 的规矩）：平击是 `toggleSort(field, { exclusive: true })`，按住 Shift／Ctrl／⌘ 才追加；键盘 Shift+Enter／Shift+Space 走同一处理器。规矩由 `label.sort.additive`「按住 Shift 追加排序」说出：`<table>` 外一个 `sr-only` 句子，按钮 `aria-describedby` 指它——不放进 `<th>`（读屏会在每个值旁重念），不用 `aria-description`（只有 Chromium 的草案）。独占是控制器的入口而不是 UI 模拟：模拟要对每列反复 `toggleSort`，每次都是一次查询；
+- `aria-sort` **只落在主排序那一格**：ARIA 里"按哪列排"只有一列。次级位次由可及名字说：多于一列时每个表头带序号，并把 `label.sort.at`（第几个、共几个）接在名字后；
+- 按钮的可及名字说**点下去会发生什么**（`label.sort.ascending`／`descending`／`none`），列名在句中；
+- **一枚箭头，跟在列名内侧**：数字列右对齐（`NUMERIC_CELL`），整行反过来——名字守对齐的那条边，标记朝里。表头右缘的列宽手柄（`ColumnResizer`）不画字形，所以表头里每个 `svg` 都是这枚标记；
+- **可排序没排序的列一直带中性的 ↕**（`muted-foreground/60`）：用过之后才出现的可供性不是可供性，悬停淡入在触屏上等于不存在；
+- 表头就是按钮，Enter／Space 即点击；整行表头一个 Tab 站（见「列宽」）。
 
 ## 一列怎么读，由定义说了算
 
-一列是状态、是标签组、是外链还是一段话，是**定义**知道而渲染层猜不出来的事。`FieldDefinition.cell` 因此是一个**闭合**取值（[model.md](../model.md)）：六个读法是各 kind 自己的渲染（`string`／`number`／`boolean`／`date`／`datetime`／`enum`，写在这里是为了借用——一个存毫秒时刻的数字声明 `cell: 'date'` 就读成日期），另外五个是没有哪个 kind 蕴含的读法。闭合是因为 `/ui` 没有渲染器注册表：`RecordTable` 按这个值分派，没人分派的键不会报错，只会悄悄走默认渲染——一列声明成链接的 URL 仍旧是一串点不动的字。定义准入因此拒绝未知值（`definition.field.cell-invalid`，见 [kernels.md#定义准入](../kernels.md#定义准入)），这与其余能力是同一条规矩：引擎给得出的，定义才写得出（D4）。
+一列是状态、标签组、外链还是一段话，是**定义**知道而渲染层猜不出的事。`FieldDefinition.cell` 是**闭合**取值（[model.md](../model.md)）：六个是各 kind 自己的读法（`string`／`number`／`boolean`／`date`／`datetime`／`enum`，可借用——存毫秒的数字声明 `cell: 'date'` 就读成日期），另五个是没有 kind 蕴含的读法。闭合是因为 `/ui` 没有渲染器注册表，没人分派的键会悄悄走默认渲染；准入拒绝未知值（`definition.field.cell-invalid`，[kernels.md#定义准入](../kernels.md#定义准入)）：引擎给得出的，定义才写得出（D4）。未声明就是默认渲染，这五个读法都排在它之前、不改它。
 
-**未声明就是今天的样子，一个字节都不差**——这五个读法都排在默认渲染之前，不改默认渲染本身。
+- **`status`**：一枚徽章。`enum` 是推断的（有 `options` 且至少一个值被命名），`status` 是**点名要的**，所以未命名的码照样戴徽章；
+- **`tags`**：一枚一枚画，有 `options` 用标签、否则原值——拼成一枚会读成名字里带逗号的一个标签。空数组画零枚；普通数组留给默认渲染（照字段读法、以目录的列表分隔符连成一行）；
+- **`link`**：字符串且过得了 `isSafeContentUrl` 才是外链，`target="_blank" rel="noopener noreferrer"`——记录里的 URL 是数据，打开的文档不能顺着 `window.opener` 摸回来。否则**落回纯文本**。与 `DashboardPanels` 的 markdown 链接同一个函数；
+- **`text`**：表格里截成一行（`block truncate`），卡片上三行（`line-clamp-3`，`whitespace-pre-wrap`），整段在 `title` 里。宽度上限 `--fve-record-text-max-w`（默认 `24rem`）：表格按内容布局，没天花板的一段话会撑宽整列。`block` 是给 `max-width` 与省略号一个盒子；
+- **`copyable`**：值按 kind 格式化，旁边一颗复制按钮（`ui/CopyButton.tsx`）：
+  - **在单元格里，不在行操作里**：一行有几样可复制的东西时，行尾一颗「复制」说不出复制哪个。名字带值（`label.copy-of`＝「复制 {value}」）；
+  - **悬停才现身，键盘永远够得到**：静息 `opacity-0`，行悬停（`group/row`）或单元格悬停（`group/copyable`）显形，`focus-visible` 显形；**绝不 `display:none`**（会摘出 Tab 路线）；**`(hover: hover)` 守的是「藏」**，触屏上一直在；
+  - **结果要说出来**：成功翻成对勾、改说「已复制」（`label.copied`），约 1.5 秒复原；失败说「复制失败」（`label.copy-failed`），值仍可手动框选。两者都挂一块**按结果挂载**的 `role="status"` `sr-only` 区域（读屏不重念正待着的按钮，同 `SaveActions`；不每行常驻，理由见 `DashboardGrid`）；
+  - 空值不画按钮。`cellText` 不变：CSV、`title` 与剪贴板是同一份读法。
 
-- **`status`**：一枚徽章。与 `enum` 的区别不在画什么，在**凭什么画**：`enum` 是推断出来的（定义声明了 `options`，且至少有一个值被命名，否则没人命名过的码套上徽章只会让它看起来是有意为之），而 `status` 是**点名要的**——那个问题定义已经答过了，所以一个选项不再命名的码照样留着它的徽章，画出它本来的样子；
-- **`tags`**：一个数组一枚一枚地画，有 `options` 就用标签、没有就用原值。拼成一枚会读成"名字里带逗号的一个标签"。空数组画零枚，不退回 `[]` 那样的字面量；普通数组留给默认渲染——每个值照字段的读法（有选项就是标签）、以目录的列表分隔符连成一行，不再是 `["a","b"]`；**表格里几枚并排就并排到底**（见下面「表格里一行就是一行」），卡片里才折行；
-- **`link`**：字符串且过得了 `isSafeContentUrl` 才是外链，`target="_blank" rel="noopener noreferrer"`——记录里的 URL 是数据不是本应用，打开的文档不能顺着 `window.opener` 摸回来，也不该带着来处。读不出的 scheme 或不是字符串的值**落回纯文本**，绝不退而求其次画成一个能点的链接。这与 `DashboardPanels` 的 markdown 链接是同一条规则、同一个函数；
-- **`text`**：多行文本**在表格里截成一行**（`block truncate`，作者敲的换行落成空格），**在卡片上仍是三行**（`line-clamp-3`，换行照留 `whitespace-pre-wrap`——一段折成一行是另一段话，而卡片有地方不折）；两处整段都在 `title` 里一悬停即得。宽度上限 `--fve-record-text-max-w`（默认 `24rem`）两处都有：表格按内容布局，一段没有天花板的话会把这一列撑到它最长那条备注那么宽，把别的列挤出屏幕。`block` 不是装饰——`max-width` 与省略号都要有个盒子，光秃秃一个 `<span>` 不是。
-- **`copyable`**：读法与 `text` 那一条之外的默认渲染一样——值按它的 kind 格式化出来——旁边多一颗复制按钮（`ui/CopyButton.tsx`，2026-09-22 用户提出：单据号是要拿去粘到别处的东西）。几件事是有意这么定的：
-  - **按钮在单元格里，而不是在行操作里**。要复制的是**这一个值**，不是这一行：一行上有订单号、运单号、客户手机三样可复制的东西时，行尾一颗「复制」根本说不出复制哪一个，而三颗挤在行尾又要各自把字段名写进名字里——那正是这一列的表头已经写过的话。按钮站在值旁边，名字里带着值（`label.copy-of`＝「复制 {value}」），读屏器听到的就是「复制 SO-1001」，一句话说完了复制什么；
-  - **悬停才现身，键盘永远够得到**。一列 50 行、每行一颗常驻的灰图标，是把这一列从「单据号」改读成「一排按钮」；所以静息时 `opacity-0`，行悬停（`group/row`，表格行与卡片字段行都带）或单元格悬停（`group/copyable`，`cellValue` 自己画的那一层，宿主拿导出的读法画在自家 markup 里时也还有东西可悬停）时显形。**绝不用 `display:none`**：那会把按钮从 Tab 路线里摘掉，而键盘正是那条一次也不悬停的入口——它始终可聚焦，`focus-visible` 时自己显形。**`(hover: hover)` 守的是「藏」而不是「现」**：Tailwind 的 `group-hover` 本身就裹在这条媒体查询里，若无条件地藏、再在查询里现，触屏上这颗按钮就永远不见天日；触屏没有悬停可用，于是干脆一直在；
-  - **结果要说出来**。`navigator.clipboard.writeText` 成了，图标翻成对勾、名字与 tooltip 改说「已复制」（`label.copied`），约 1.5 秒后复原——对勾是对一次按压的回答，不是这条记录的状态。失败（非安全上下文根本没有 `clipboard`、或用户拒绝了权限）说「复制失败」（`label.copy-failed`），值本身照旧是可以框选的文本，人手动选也拿得走。两种结果都挂一块 `role="status"` 的 `sr-only` 区域**说**出来，因为那个词出现在用户刚按下的那颗控件上，而读屏器不会把自己正待着的按钮再念一遍（与 `SaveActions` 的「已保存」同一条路子）；这块区域**按结果挂载**而不是每行常驻一块空的——理由见 `DashboardGrid`：一打空的 live region 是一打要读者绕过去的东西，而只有被按下的那一颗有话说；
-  - **空值不画按钮**：没有东西可拿走，就没有什么可提供；一个空单元格里的复制按钮复制的是空字符串。**`cellText` 一个字没动**：CSV、`title` 与复制到剪贴板的，是同一份单行读法——剪贴板里回来的东西不该是屏幕没说过的东西。
+徽章连**原值**一起交出，React key 用原值加下标而不是标签：`FieldOption.label` 与数组值都可能重复。
 
-每枚徽章连**原值**一起交出，React 的 key 用原值加下标而不是标签：`FieldOption.label` 是自由文本、可以重复，数组里的值本身也可以重复，同一个 key 下两个子节点的协调结果是未定义的，React 还会为此告警。
+**表格里一行就是一行**：表顺着一列往下读，行高不齐那条直线就成了台阶。所以同一读法在表格与卡片上**只差能占几行**——`text` 一行／三行，`tags` 并排／折行，`link` 本就一行。由 `cellValue` 的第五个参数 `CellSurface`（`'table' | 'card'`）说，宿主自画 `renderCell` 时也得说——比表格按 slot 名往下够进单元格（D16 不许）直白。**宽度归内容，高度归行**（test/recordCells.test.tsx「a text cell」「a tags cell」；浏览器故事 `WideTable` 量 50 行行高一致）。
 
-**表格里一行就是一行**（U3，2026-09-22 用户评审）。表是**顺着一列往下读**的——眼睛沿一条直线找那一行——哪条备注长一点、哪一行多一枚标记，行就高一截，那条直线就成了台阶。20 列 50 行的宽表实测量到 **41／61／77 三种行高**：`text` 截到三行的那些 60px，两枚标记被一列三个字宽的列折成两行的那些 44px，其余每格都是 17–20px。所以**同一个读法在表格里与在卡片上可以差一件事，也只差这一件：能占几行**——`text` 表格一行、卡片三行，`tags` 表格并排、卡片折行，`link` 本来就一行（URL 里没有可断处）。卡片没有要对齐的列，往下的地方要多少有多少，所以三行留给它。这件事由 `cellValue` 的第五个参数 `CellSurface`（`'table' | 'card'`）说，调用处两处各说各的，宿主自己画 `renderCell` 时也一样得说——比起把「一行」写成表格自己够进单元格里的一条 `[&_[data-slot=cell-text]]:…`（按 slot 名往下够两层，正是 D16 裁定不许的写法）要直白得多。**宽度归内容，高度归行**：一列真要摆下几枚标记，那是这一列该宽一点，不是这一行该高一点。（见 test/recordCells.test.tsx「a text cell」「a tags cell」；真值在浏览器故事 `WideTable` 里量：50 行行高一个像素都不差）
+**表格与卡片读同一份**：读法都在 `ui/record/cells.tsx` 的 `cellValue`，上面那条是唯一分歧（test/recordCells.test.tsx；浏览器故事「Record 工作台/单元格读法」）。
 
-**表格与卡片读同一份**：这几个读法都落在 `ui/record/cells.tsx` 的 `cellValue` 里，`RecordTable` 的默认单元格与 `RecordCards` 的字段都走它，所以卡片上的状态不会是表格里那一枚徽章底下的一个裸码；上面那一条是它们**唯一**分头走的地方。（见 test/recordCells.test.tsx，浏览器故事「Record 工作台/单元格读法」与它的回归）
-
-**这份读法是导出的**，`renderCell`／`selectable` 与两句空态文案也由 `DataWorkbench.record` 经 `RecordParts` 原样透传下去。改一个单元格是宿主最小的一次定制，最小的一次就得是最便宜的一次：只为了一列画法而放弃整个默认工作台是一笔荒唐的账，而拿到 `renderCell` 却够不到本包自己的读法，等于在"自己那一格"和"其余每一格"之间二选一。所以 `/ui` 入口导出 `cellValue`（节点）、`cellText`（单行文本）与 `displayValue`（只有字段种类那一层，种类无话可说时 `undefined`），两个上下文参数从 `useViewMessages` 与 `useSurfaceDisplay` 上读——宿主盖住在意的那一列，其余的原样落回默认读法。**vendored 的 shadcn 原语不在导出之列**：这里许诺的是一个值怎么读，不是它外面那圈 markup（README 的 `fve-tokens` 一节同此口径——那道边界给的是 token 与 utility）。`selectable` 表格与卡片一同关掉：卡片是行折出来的，换个布局不该把勾选框还回来。（见 test/recordWorkbenchHost.test.tsx「a DataWorkbench a host draws cells in」）
+**这份读法是导出的**：`renderCell`／`selectable` 与两句空态文案由 `DataWorkbench.record` 经 `RecordParts` 透传；宿主改一格就得够得到其余每一格的默认读法，所以 `/ui` 导出 `cellValue`（节点）、`cellText`（单行文本）、`displayValue`（字段种类那一层，无话可说时 `undefined`），上下文从 `useViewMessages` 与 `useSurfaceDisplay` 读。**vendored 的 shadcn 原语不导出**：许诺的是值怎么读，不是外面的 markup（同 README 的 `fve-tokens`）。`selectable` 表格与卡片一同关（test/recordWorkbenchHost.test.tsx「a DataWorkbench a host draws cells in」）。
 
 ### 数组对象的一列
 
-一列落在对象数组上（Wow 事件流的 `body`、订单的明细），读法由定义的 `elementTitle` 说（[model.md#数组对象在单元格里按元素的标题读](../model.md#数组对象在单元格里按元素的标题读)）：每个元素一枚 `ToneBadge`，字是标题字段自己的读法，语气是那个选项的语气（标题字段是单选且选项带语气时），否则中性。没声明标题就是一句「3 项」，对象是「2 个字段」——**单元格里从来不出现 JSON**。读法在 `display.ts` 的 `heldReading` 里，`cellValue` 与 `cellText` 都先问它，所以表格、卡片、CSV 与 `title` 说的是同一份。
+一列落在对象数组上（Wow 事件流的 `body`、订单明细），读法由定义的 `elementTitle` 说（[model.md#数组对象在单元格里按元素的标题读](../model.md#数组对象在单元格里按元素的标题读)）：每个元素一枚 `ToneBadge`，字是标题字段的读法，语气取那个选项的语气（单选且带语气时），否则中性。没声明标题就是「3 项」，对象是「2 个字段」——**单元格里从来不出现 JSON**。读法在 `display.ts` 的 `heldReading`，`cellValue` 与 `cellText` 都先问它，表格、卡片、CSV 与 `title` 说同一份。
 
-- **表格里最多三个位置**（`TABLE_ELEMENTS`，`ui/record/cells.tsx`）。表格一行就是一行，而对象数组与标签不同，没有天花板——一张订单可以有四十条明细，「宽度归内容」在这里会把一列撑到屏幕外，正是这次要修的那件事。三个是一眼能收下的量，也够这个读法本来的用处：一次事件流装一到三个事件，所以一条流整条读得出。**超过三个时画前两个、第三个位置写 `+k`**：画三个再写 `+1`，等于拿藏起来的那一个的地方去说它被藏起来了。
-- **什么都没丢**：整张清单是这一格的 `title`（悬停即得）；`+k` 只给眼睛（`aria-hidden`），读屏器听到的是它代表的那几个元素本身（`sr-only`），因为一个光秃秃的「+2」对它们什么也没说；CSV 写出全部；**卡片**往下有地方，所以全部画出、折行，不数掉任何一个。
-- 徽章按位置作 key：两个元素的标题完全可以相同（「准备重试」出现两次正是重试的样子）。
-- `+k` 不上色：它是一个数，不是一个元素；穿上徽章就会读成一个叫「+2」的元素。它继承正文墨色，与排序条上的 `label.sort.more` 同一个做法。
+- **表格里最多三个位置**（`TABLE_ELEMENTS`）：对象数组没有天花板，「宽度归内容」会把列撑出屏幕；三个一眼收得下，也够一条事件流。**超过三个画前两个、第三位写 `+k`**——画三个再写 `+1` 是拿藏起来的那个的位置说它被藏了；
+- **什么都没丢**：整张清单在 `title` 里；`+k` 只给眼睛（`aria-hidden`），读屏听到元素本身（`sr-only`）；CSV 全写；卡片全画、折行；
+- 徽章按位置作 key：元素标题可以相同（「准备重试」出现两次正是重试的样子）；
+- `+k` 不上色、继承正文墨色（同 `label.sort.more`）：穿上徽章就读成一个叫「+2」的元素。
 
-（见 test/recordCells.test.tsx「an array of objects」；浏览器故事「Record 工作台/按元素读」（`ElementColumns`））
+（test/recordCells.test.tsx「an array of objects」；浏览器故事「Record 工作台/按元素读」（`ElementColumns`））
 
 ### 徽章的颜色由定义说了算，但只能从主题里挑
 
-- 哪一个状态是好消息属于业务，渲染层猜不得——一个把 `CANCELLED` 画成红色的表格，在下一个应用里就把一条正常结局说成了事故。所以语气写在 `FieldOption.tone` 上（`'neutral' | 'success' | 'warning' | 'danger'`，闭合），`badgeEntries` 连同语气一起交出，单元格交给 `ToneBadge`（`ui/variants.tsx`：四档语气就是它的 cva variant，vendored 的 `Badge` 一个字不动，调用处只说语气、不说颜色——D16-8）；缺省是 `neutral`，也就是今天的 `secondary`；准入拒绝未知语气（`definition.field.tone-invalid`）；
-- **闭合的是语气而不是颜色**：定义说得出"这是坏消息"，说不出 `#22c55e`。每一档映射到主题已有的 token（`--success`／`--warning`／`--destructive`），宿主改 `--fve-success` 就一并改掉所有穿着它的徽章；
-- **一枚有语气的徽章是填色的，字用那一档自己的 `-foreground`**（`bg-success text-success-foreground`，默认值就是页面自己的底色），不是那个颜色的 10% 淡彩——注册表的 `destructive` variant 就是淡彩，这里最初也照做了，axe 在 12px 上量到 destructive 3.98:1、success 4.32、warning 4.37，三个都够不着 4.5。token 本来就是"在底色上当文字能过 4.5"挑出来的，所以拿 token 填色、拿底色写字，正是它们被挑出来的那一对搭配，而且跟着主题一起翻面：浅色底上是深色块配白字，深色底上是浅色块配深字。从前这道字色直接写成 `text-background`——值是对的、名字是错的：宿主把 `--fve-success` 调成一抹浅绿，白字就留在上面、且没有一处可改。现在每一种会被写字的填色都有自己的 `--success-foreground`／`--warning-foreground`／`--destructive-foreground`（明暗各一份，默认仍是 `var(--background)`）；`--info` 没有，因为没有东西用它填色——没人读的 token 是没人守的约定；
-- **浅色三档各下一档，余量是量出来的**（P-21，用户 2026-09-22 评审）：评审说「待出库」这枚白字压橙底贴着 AA 的边。真浏览器量下来，旧的 Tailwind 700／600 档在亮色下是 **success 4.94:1、warning 5.05、destructive 4.77**——都过了 1.4.3 的 4.5，但最紧的一档只过了 6%，而徽章上的字是整个表面上最小的一号（13px），宿主把 `--fve-warning` 往浅处挪半档就整组跌破，而他挪的时候看不出那是一次对比度决定。所以三档一起沿同一套调色板各下一档（success／warning 取 800 档，destructive 取 700 档——同一亮度下红最深），量到 **7.09／7.13／6.42**；暗色的 400 档不动，量到 **11.15／11.53／6.84**，饱和度仍归阶段 5。**这是一次 token 改动**，配方一个字没动，宿主的 `--fve-*` 覆盖点也一个没变。
-- **软配方（淡底 + 深字）量过之后没有取**：同一批测量里，15% 淡底配那一档自己的深字是 **5.60／5.61／4.84**，每一档都比实底低；而这样一块淡底离它所在的行底只有 **1.16–1.22:1**，跌破「还看得出是一枚徽章」那条 1.5 的下限（见下一条），于是每一枚有语气的徽章都得补一圈边——正是下一条结尾判掉的那圈光晕。两条路都过得了 4.5，取的是数更好、且不必新增 token 与新增边的那一条。（浏览器故事 `ToneBadgeInkInLightTheme`／`InDarkTheme` 逐枚量字压在自己底色上的数，并顺手守住「四档语气都在场、每枚都有非空的字、没有两档共用一个词」——颜色从来不是唯一的区别）
-- **没有语气的徽章靠一道 `border-input` 的边活着**：行底是会动的——选中走 `bg-muted`，悬停走同一档灰的不透明 `color-mix`——而 `secondary` 徽章的底色正是那一档 3% 灰，于是选中行上量到 **1.00:1**，徽章不再是徽章，只剩一个词（亮暗两个主题同样）。用 `input` 而不是 `border`：主题正是在这个问题上把两者分开的（`styles.css`）——`border` 是东西之间的线，`input` 是一个东西自己的边，并且被按 ≥3:1 守着，理由是"没勾的勾选框只剩这道边"；一枚失去了底色的徽章处境相同，而 `border` 在选中行上只有 **1.155:1**，不过是同一种消失慢了一步。盒子不动：注册表本来就给每枚徽章画 `border border-transparent`，这一步只是给那条透明的线一个颜色。**有语气的那几枚不加边**：它们是实底的状态面，靠自己的底色就把行甩开，实色外面一圈灰读起来是光晕而不是轮廓。（浏览器故事「BadgesOnRowsInLightTheme／InDarkTheme」把三档行底上每一枚徽章的最外那 1px 压在行底上的层叠色量到 ≥1.5:1）
-- **`danger` 把底色写两遍，因为注册表的 `destructive` variant 也写了两遍**：它是 `bg-destructive/10` **加上** `dark:bg-destructive/20`，而一个不带前缀的覆盖只换得掉不带前缀的那一条，于是暗色下留着的仍是 20% 淡彩——上面那条"实底"的规矩在两个主题里只有一个是真的，暗色选中行上的"已取消"量到 **1.29:1**。所以 `ToneBadge` 的 `danger` 是 `bg-destructive dark:bg-destructive`：不是写死了一对明暗颜色，是同一个语义 token 写在与 variant 同一档的选择器上，宿主改 `--fve-dark-destructive` 照样跟着动。（同上，由 BadgesOnRows 两条故事守住）
-- **颜色从来不是唯一的区别**：徽章上的字已经说了这是哪一个状态，语气只是给一个本来就写着的区别加重音（WCAG 1.4.1）。`data-tone` 也写在元素上，宿主要另外着色、测试要读一枚徽章的语气，都不必去比颜色。
+- 哪个状态是好消息属于业务，渲染层猜不得。语气写在 `FieldOption.tone`（`'neutral' | 'success' | 'warning' | 'danger'`，闭合），`badgeEntries` 连语气交出，单元格交给 `ToneBadge`（`ui/variants.tsx` 的 cva variant，vendored `Badge` 不动，调用处只说语气——D16-8）；缺省 `neutral`（`secondary`）；准入拒绝未知语气（`definition.field.tone-invalid`）；
+- **闭合的是语气而不是颜色**：每档映射主题 token（`--success`／`--warning`／`--destructive`），宿主改 `--fve-success` 就改掉所有徽章；
+- **有语气的徽章实底填色，字用那一档的 `-foreground`**（`bg-success text-success-foreground`），不用淡彩——淡彩在小字上够不着 4.5，而 token 本就是"在底色上当文字能过 4.5"挑出来的，填色配底色字正是那一对，且跟着主题翻面。`--success-foreground`／`--warning-foreground`／`--destructive-foreground` 明暗各一份（默认 `var(--background)`），宿主调浅填色时字色有处可改；`--info` 没有，没人用它填色；
+- **浅色三档留足余量**：徽章字是最小一号（13px），贴着 4.5 的档位让宿主挪半档就整组跌破。浅色 success／warning 取调色板 800 档、destructive 取 700 档，都在 6.4:1 以上；暗色用 400 档。这是 token 层面的选择，配方与 `--fve-*` 覆盖点不变；
+- **不用软配方（淡底 + 深字）**：字对比度每档都低于实底，淡底又近到离开行底就认不出是徽章，每枚都得补边——即下面判掉的光晕（浏览器故事 `ToneBadgeInkInLightTheme`／`InDarkTheme` 逐枚量字对比度，并守住四档都在场、字非空、两档不共用一个词）；
+- **没有语气的徽章靠 `border-input` 的边活着**：选中行底 `bg-muted` 与 `secondary` 底色同档，没边就只剩一个词。用 `input` 不用 `border`：主题里 `input` 是一个东西自己的边、按 ≥3:1 守着，`border` 是东西之间的线、在选中行上同样消失（`styles.css`）。注册表本就画 `border border-transparent`，这里只给它颜色。**有语气的不加边**：实色外一圈灰读成光晕（浏览器故事「BadgesOnRowsInLightTheme／InDarkTheme」量每枚最外 1px 对三档行底 ≥1.5:1）；
+- **`danger` 写 `bg-destructive dark:bg-destructive`**：注册表 `destructive` variant 是 `bg-destructive/10` 加 `dark:bg-destructive/20`，不带前缀的覆盖换不掉暗色那条；同一个语义 token 写在同档选择器上，宿主改 `--fve-dark-destructive` 照样生效（由 BadgesOnRows 两条故事守住）；
+- **颜色从来不是唯一的区别**：字已说了状态，语气只是重音（WCAG 1.4.1）。`data-tone` 写在元素上，宿主着色、测试读语气都不必比颜色。
 
 ## 表格 chrome：层次与冻结列
 
-自上而下三层，首尾两层是**同一档灰带**，数据行夹在中间；行之间仍只有发丝线。表**自己不画外框**：结果区那一圈边就是它的边（D12 Ⅳ–Ⅶ，见 [README.md#工作台骨架](README.md#工作台骨架)），表通到那圈边，上面是工具栏、下面是分页，中间的每一条线都是表自己的。
+自上而下三层，首尾两层是**同一档灰带**，数据行夹在中间，行间只有发丝线。表**自己不画外框**：结果区那圈边就是它的边（[README.md#工作台骨架](README.md#工作台骨架)）。
 
 ```
 ┌───────────────────────────────────────────────┬───────┐
@@ -201,68 +195,71 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
   ←──────────── 横向滚动条在汇总行之下 ────────────────→
 ```
 
-- **首尾两条灰带把数据行夹在中间**（P-21，用户 2026-09-22 评审）：表头从前和数据行同为 `bg-background`，中间只有一根发丝线和一行灰字，用户读第一行像在读表头的一部分。现在表头带与汇总带是同一档 `--muted`（两处共用 `ui/record/columns.ts` 的 `BAND`／`BAND_ROW`，"同一档"这件事因此是一个常量而不是两处巧合），带子对行底在亮色下量到 **1.09:1**、暗色 **1.31:1**——这是一块大面积的平色差，不是文字，1.4.3 管不到它，而它现在有两条边界互相印证：一条带子在上、一条在下。底色写在 `<tr>` 上而不只写在 `<thead>`／`<tfoot>` 上，因为冻结格子的底色是 `bg-inherit`，从行上取；只写在组上，那几格就是透明的，底下滚过的列会透出来。
-- **列名换回 registry 自己的 `text-foreground font-medium`**：灰字压在这一档灰上量到 **4.34:1**（正是 `--quiet-foreground` 存在的那个数，见 `styles.css`），跌破 1.4.3 的 4.5，而列名是整个表面上最小的一号字（13px）；墨色在带子上量到 **18.15:1**（暗色 14.48:1）。这一步是**删掉一个覆盖**而不是加一个：vendored 的 `<th>` 本来就是 `text-foreground font-medium`，从前被 `HEAD_CELL` 的 `text-muted-foreground` 压着。列名仍然是"关于这一列的元数据"，但说这句话的是它自己那条带子，不是把字调淡。
-- **排序按钮的悬停跟着翻面**：registry 的 `ghost` 悬停到 `bg-accent`，而本主题里 `--accent` 与 `--muted` 是同一档灰——压在带子上量到 **1.00:1**，一个随着表头变灰而当场消失的可供性。所以这一步改走另一个方向：悬停的格子亮成**行底那一档**（`--background`，同侧栏当前项的手法），量出来是 1.09:1／1.31:1，与从前 `--accent` 压在白表头上的两个数一模一样——同一级台阶，跟着带子一起翻了个面。
-- **分隔只剩格子自己那 1px，2px 那条规矩删掉**：从前 `<thead>` 带着 `[&_tr]:border-b-2`，而它写在 `<tr>` 上——分开的边框模型里行与行组**没有自己的边**（本节末尾那条 `border-separate` 说的就是这件事），所以那 2px 一个像素也没画过，屏幕上一直是格子自己的 1px。带子的底色接手了分隔这件事之后，把这条死规矩删掉比把它挪到格子上更诚实：汇总带与行之间也只有一根发丝线，两端于是对称。发丝线本身压在带子上是 1.155:1（暗色 1.92:1），它不是分隔的主力，只是一条收边。（表头带、汇总带同色与列名对比度由浏览器故事 `HeaderBandInLightTheme`／`InDarkTheme` 逐个量出来）
-- **卡片布局没有表头，不动**：卡片是行折出来的，没有一条列名带子可言；汇总仍旧在卡片下方自己的一行里（D18 Ⅴ）。
-- **富余归末尾那一格，不归某一列**（`ui/record/Filler.tsx`）：注册表的表是 `w-full`，而自动布局的表把富余**按比例**分给各列——列本来就宽的分得最多。1300px 的结果区里，四列的夹具把「金额」画成 **446px**，里面是一句 `¥2,450.00`：一眼从订单号扫到它要横穿大半个屏幕，而这一列并没有更多东西可读。现在每一行末尾多一格 `width: 100%` 的空格子，富余全归它，各列于是各自落在**自己的内容要的那个宽度**上：「金额」116.5px，一格没换行、没被裁，也没被撑。**它不是一列**：`aria-hidden`（读屏不会听到一列没名字也没值的列——首次加载那条拒绝空 `<th>` 说的正是这件事，区别在于这里确实有行，被拒绝的只是「这是又一列」这个说法）、不在 `table.columns` 里、配置里没有它的宽度、永远不固定、封顶的表头扫描跳过它。它排在所有东西之后（宿主的操作列也在它之前），所以 `ColumnResizer` 按 `cellIndex` 找格子、汇总行数自己的格子，一处也不用改；**D13 右边那道线仍在最后一个数据列上**，说的还是「这一列钉着」，线外面是空白而不是更多的表。**宽表一个像素没变**：列已经占满端口时没有富余可吃，这一格塌成 0，`scrollWidth`／`clientWidth` 与封顶读到的还是同两个数（20 列的夹具改前改后都是 1947／675）；
-- **先试过给表一个 `max-width: max-content`，不取**：列宽与上面这条一模一样，区别只在多出来那块地方算什么。1280 上它留下的是一张 **371px 的表待在 692px 的结果区里**：行间发丝线、悬停底色与两条汇总行全都停在 371px，右边 320px 是光秃秃的框，而它上面的工具栏与下面的分页照旧通到框边——一张浮在盒子里的表，也正好违反本节开头那条「表格通到这圈边」。空格子把行还原成整行：指针划过时亮起来的、选中时着色的，又是一整行；
-- **表头的按钮可以占满它那一格**（`HEAD_BUTTON`）：注册表的按钮带 `max-w-full`，而 `full` 是**内容盒**；按钮又用 `-mx-2` 把这一格的 `px-2` 原样抵消掉，它的外边距盒本来就可以比内容盒宽这 1rem。卡在内容盒上就正好差这 16px，于是列名被截：各列一落回自己内容要的那个宽度（上一条），「订单号」当场读成「订…」——被截的名字在表头的 tooltip 里一悬停即得，但悬停是「这一列装不下自己的名字」时的出路，不是「装得下却没给够」时的出路，触屏上更是从来没有这条出路。天花板因此是这一格的**内边距盒**（`calc(100% + 1rem)`），也就是负边距够得到的地方、一分不多：列被拖窄时按钮照旧裁自己的名字而不是压到邻居身上，末列的按钮也仍然收在格子里——当年一个溢出 2px 的按钮让每一张表都自报比端口宽；
-- **一个滚动容器，且它必须真的会滚**：`scrolls` 默认 true 时 `RecordTable` 自己是那个容器（`overflow-auto`；高度上限依次取宿主的 `--fve-record-table-max-h`、`useViewportFit` 量出来的「到视窗底为止」（`--fve-record-table-fit`：视窗高 − 滚动口顶 − 结果块在滚动口下面的部分，即分页行与边；下限 12rem；页面高度或窗口尺寸一变就重量，不监听滚动）、量不到时的 `70vh`——P-22，2026-09-22：固定的 70vh 不知道滚动口从哪里开始，标题栏、托盘、工具栏之下 70vh 的行冲出窗口底，`sticky bottom-0` 只对着滚动口的两行汇总跟着不见，读者要滚整页才找得到一条本来就为了「一直看得见」而存在的页脚），注册表 `Table` 自带的那层容器被取消滚动——两层嵌套时粘性会认里面那层，表头就粘不住了。横向滚动条因此在整张表之下，也就在汇总行之下；
-- **外面有东西在滚，就把 `scrolls` 关掉**：CSS 没有"只在一个轴上溢出"——横向能滚的盒子在两个轴上都是 scrollport——所以一个永远不需要滚的外壳干脆不能是 scrollport。仪表盘面板（`DashboardGrid` 的 `CardContent`）比表自己的 70vh 矮，滚的是面板；此时若表还带着自己的滚动容器，表头会牢牢粘在那个没人滚的盒子上，随面板一起滑出视野。关掉之后表头、汇总行与冻结列改为顶着**真正在滚的那一层**，`DashboardGrid` 的记录面板即照此传 `scrolls={false}`；
-- 表头 `<thead>` 与汇总 `<tfoot>` 各自 `sticky`，行在中间滚；
-- **首次加载（`loading` 且 `hasResult` 为假）根本不画表头**：列来自结果，而这时一个结果都还没有，画出来的就是那张死表的表头——一格里装着一个能 Tab 到的「Select all rows」，指着还不存在的行。骨架行照画（查询确实在跑），表头等结果。空 `<th>` 不是出路：读屏器会念出一个空列头，axe 也算它一条缺陷；拿草稿里的列名去凑也不是——那是拿结果还没答应的列去给行起名。刷新不受影响：手上还有上一批行，表头是它们的表头（见 test/recordTable.test.tsx「a record view with no result」）；
-- **冻结列**：投影给出的 `pinned: 'left' | 'right'`（主键与用户固定的那些在左，画在最后的那一列在右，`ColumnEdge`）由 `tablePins` 折成每个格子的 `position: sticky` 与偏移量——表头、数据行、汇总行同一列的每一格都要带，只粘表头而让格子滑走比不粘更糟；
-- **偏移量按实测**：列宽由内容决定而不是由配置决定——声明的 `width` 只是建议，自动布局的表可以超过它，选择列与操作列则根本没有声明。`usePinnedOffsets` 在每次布局后量表头（带 `data-pin` 的那几格），把结果写成表上的 `--fve-pin-left-{i}`，格子以 `var(--fve-pin-left-0, calc(…))` 读它：拿不到实测值时退回按声明宽度累加的那份算术。**这条链只有左边有**（A9）：右边最多钉一列（D19），它顶着的就是滚动口自己那条边，一个 `right-0` 说完，既没有下标也没有偏移量——D19 之后那份两侧对称的代码还留着，右边那一趟累加每次都算出 `0px`，`right: var(--fve-pin-right-N, 0px)` 每次都解成 `0px`，一个从不为真的分支比没有分支更难读。**这不是洁癖**：选择列的 class 写的是 `w-10`（2.5rem），而汇总行的口径标签在这一格里，实测渲染成 76.6px，照 class 冻结的下一列会盖住复选框 37px。宽度变化不经过 React，所以直接写 DOM 而不进 state；
-- **盯的是那几格表头，不是整张表**：字体加载完、宿主的行内按钮变宽，都能在表自身的盒子纹丝不动的情况下改掉某一列的宽度，此时按上一次布局发布的偏移量会让冻结列压住邻居。`ResizeObserver` 因此逐格 observe 参与累加的表头格（没有这个 API 的环境退回初次实测）；
-- 退路里，左侧从选择列的 `2.5rem` 起算，右侧从 `--fve-record-actions-width`（默认 `6rem`）起算，同侧第二个起按前一列声明的 `width` 累加；
-- 冻结格子的底色是 `bg-inherit`：行自带不透明底色，格子跟着行走，选中与悬停因此不会在冻结列上断开。**所以行的每一种底色都必须不透明**：注册表的行悬停是 `bg-muted/50`——一层洗在底下东西上的半透明——而冻结格子底下正是它替着占位的那一列，鼠标一到，那一列的字就从冻结格子里透出来（用户 2026-09-21 在窄屏上看到的正是这个）。`TableDataRow`（`ui/variants.tsx`，D16-8——行的静息／悬停／选中三档在它的 cva 里，调用处只说 `data-state`）用 `--row-hover` 调出同一个深浅的**不透明**色（`color-mix(in oklab, var(--muted) 50%, var(--background))`，明暗各一份写在 `styles.css` 里，宿主可改 `--fve-row-hover`／`--fve-dark-row-hover`；从前这段 `color-mix` 是直接写在类名里的一串字符），`has-aria-expanded`（行上开着菜单）同样处理；
-- **边框模型是 `border-separate`**（`TABLE_CELLS`）：预设把表格边框 collapse 掉，而 collapse 模式下 Chromium **根本不画**单元格的外阴影——D13 的边在 `getComputedStyle` 里一直都在，屏幕上一个像素也没有。分开的边框才画得出来；代价是 `<tr>`／`<thead>`／`<tfoot>` 在这个模型里没有自己的边，行间发丝线因此落在格子上（`[&_th]:border-b [&_td]:border-b`），汇总最后一行不画，那条线是结果区分页行自己的 `border-t`。真值只有浏览器量得到（故事 `PinnedEdges` 断言 `border-collapse: separate` 与悬停底色不透明）；
-- **冻结列的边常在——只要能滚**（D13，2026-09-22 按 P-23 修正）：一道 `--border` 发丝线加一段向外的软阴影（`--pin-shadow`），静止时就在，滚起来也不变。**阴影也分明暗**：从前两个主题都写死 `rgb(0 0 0/0.3)`，黑色在白卡片上量到 2.11:1 是一道阴影，在暗色卡片（`oklch(0.205)`）上量到 1.18:1——就算把黑用到头也只有 1.48:1，也就是说暗色下那两列根本没有边。暗色里投影的东西是光，所以暗色那一份是 25% 白，在同一张卡片上量到 2.18:1；边说的是「这两端钉着」，而不是「此刻正有东西在滚」——后者是真话，但没人需要：一张还没被滚过的表、或者一张根本就放得下的表，于是一条框线也没有，两端读起来像布局散架了（#1574 撞的就是这个）。所以从前那只量「滚没滚」的 hook、表上的 `data-scrolled-*` 与 `group-data-[scrolled-*]` 变体一并删掉，只留 `usePinnedOffsets` 量偏移。**只有边界格子画边**：最后一个左冻结列与第一个右冻结列面对着会滚的中间，两个冻结列之间从没有东西经过，画一道缝就是在撒谎；选择列永远不是边界（它后面总跟着一个左冻结列），操作列则一定是（右边只有它，D19）。表头、数据行、汇总行同一列拿的是**同一个落点**，三层因此同起同落——那个落点是 `ui/record/sticky.ts`（A-09）：`sticky z-10 bg-inherit`、两侧那两条 `in-data-[overflowing]:shadow-[…]`、偏移量（只有左边那条链）、以及两端那两条带子，整张表「不跟着滚的那部分」只写在这一个文件里，`RecordTable`、`columns.ts`、`SummaryRows`、`SkeletonRows`、`Filler` 都从它取（从前这份配方在这五处各抄一遍）。**它还把状态写在元素上**：冻结的格子带 `data-pin`（顶着哪一边）、面对滚动中段的那一格带 `data-pin-edge`、左冻结的表头那一格另带 `data-pin-index`（它拥有的那个偏移量变量；右边那一列没有，它没有偏移量），带子带 `data-sticky="top"／"bottom"`。**格子说自己是什么，滚动口说有什么可顶**：`data-pin-edge` 说的是「这一格是那条边界」，此刻画不画则由滚动口的 `data-overflowing` 决定（见本条末尾的 P-23），所以测试分两头问——问格子是不是边界，问滚动口有没有中段。`usePinnedOffsets`、`usePinnedCap`、jsdom 的各套测试与浏览器故事读的都是这些属性而不是类名——类名证明不了屏幕上的任何事，而且配方一搬就整片变红；类名本身只在 test/pinnedColumns.test.tsx「the sticky chrome recipe」那一处断言。（见 test/pinnedColumns.test.tsx「the pinned edges」，真值在浏览器故事「Record 工作台/回归」的 `PinnedEdges` 里量：静止时有、滚到底仍有）；表格装得下时不画：`useOverflowing`（`ui/record/overflow.ts`）在布局后与每次尺寸变化时量 `scrollWidth > clientWidth`，把结果写成滚动口的 `data-overflowing`，边的类是 `in-data-[overflowing]:shadow-[…]`——装得下时那道边只会把行末的富余从末列上切开，填充格读成一个空列；溢出从填充格归零那一刻开始，末列自然位置与钉住位置重合，不跳（见 stories `PinnedEdges`：静止且装得下时四处都无边，窄到 420 才有）；
-- **列宽把手的层叠只在自己那一格里算**：把手是 `absolute z-20`，而未冻结的表头格从前只是 `relative`——不成层叠上下文，那个 20 就到行这一级去比，压过了冻结格的 `z-10`：横向一滚，滑到冻结列头底下的那一列，它右缘的发丝线就从冻结列头上透出来（用户 2026-09-22 指出）。表头格现在是 `relative isolate`，把手的层级被关在自己格子里，冻结格照旧压在滚动格之上（见 stories/view-engine/RecordWorkbench.test.stories.tsx `PinnedEdges`：滑到底下的那一列，其把手不再是冻结列头范围内最上面的元素）；
-- **钉住的一组按结果区可视宽封顶为一半**（D17-4）：冻结列的宽度是固定的，视口越窄它占的比例越大，而在这条规矩之前没有任何一处封顶。用户 2026-09-21 在 420×860 上量到结果区可视宽 286px，而钉住的三列（勾选 42 + 主键 86 + 宿主操作列 104）合计 **232px，占 81%**，留给其余 19 列的只有 54px——中间最窄的一列 44px、最宽的 247px，也就是说一屏里看不全任何一个中间列。现在 `usePinnedCap`（`ui/record/pinCap.ts`）量出这两个数，超过一半就**从最外侧往里逐个放掉冻结**，直到这一组装得下：
-  - **顺序**是右边先走完再动左边——操作列、勾选列、左冻结列（从主键往外），**最后才是表格自己的末列**（右边只有它一枚，而且有行操作时它早已放手，D19）。最外面那两列是**布局自己加的**而不是用户钉的，所以先放；左边那一叠留到后面，因为勾选框与主键并排就是「这一行是谁、选没选中」；末列是 D13 的框，放在所有配置项之后——D13 与 D17-4 相遇时，封顶先取布局与配置加上去的，再取框，永远不取主键。末列不像主键那样死守：一根很宽的末列在窄栏上会自己吃光中间，一圈围着不可读内容的框不如那几行值钱。宽度为 0（量不到）的那一格跳过：放掉它一个像素也换不回来；
-  - **主键（`RecordColumnView.primary`，投影在行键那一列上打的标记）永远不放**。一行横着滚出去而不带着「这是哪一单」，就是一行谁也读不懂的行。因此封顶是**尽力而为**：主键自己就超过一半时，中间也到不了一半，这时已经没有别的办法；
-  - **放得下就一个都不放**：只有中间真要滚的时候冻结列才吃得掉东西（判据是 `clientWidth` 与 `scrollWidth`，容差 1px——`scrollWidth` 是从小数宽度向上取整的整数，一张贴着端口放下的表会自报宽 1px）。一张本来就放得下的表上放掉冻结，读者一个像素也拿不回来，却把 D13 的框拆了。2026-09-21 的复审量到过这一条被骗过的样子：表头排序按钮曾用 `-mx-2.5` 抵消格子 `px-2` 的内边距，末列的按钮因此溢出格子 2px，于是每张表都比端口宽 2px——恒挂一条横向滚动条，封顶又把它当成在滚，任何桌面宽度都放掉右冻结，D13 的右半从没生效过。按钮现在只抵消格子给的那 8px；
-  - **这是渲染，不是编辑，但屏幕要说出来**：配置里那一条 `pinned` 一个字没动，列设置里的固定开关照样是开的——而开关旁边不能什么也不说。表格把放掉的那几枚经 `onReleasedPins` 报给工作台，列设置的固定按钮在那一行淡化并在名字后加一句「栏太窄，暂时未冻结」（`label.columns.pin-released`，`data-released`）——名字里那一句是 `aria-pressed` 说不出的那一半：开关仍然是开的（配置就是这么写的），只是这一次没画出来。操作列没有这一行可报（D19），它的冻结不是设置；卡片布局下什么也不报。宿主把栏拉宽，冻结自己就回来（`ResizeObserver` 同时盯着结果区与那几格表头）。判断在 **layout effect** 里做，第一次测量赶在第一次绘制之前，所以不会先画错再改对；
-  - **代价**：操作列一旦放掉冻结，右边那道 D13 的边就跟着走（除非配置自己在右边钉了一列，那一列接着当边界）。中间读不出来的时候，框的那一头没有它值钱。（见 test/pinnedColumns.test.tsx「the pinned group against a narrow port」，真值在浏览器故事「Record 工作台/回归」的 `PinnedGroupCapped` 里量：420 一栏上「中间可视宽 ÷ 结果区可视宽」有下限 50%，拉宽再收窄两个方向都走一遍）；
-- 选择列在**有列冻结在左**时一并冻结，否则会被冻结列盖过去（封顶放掉它时除外）；
-- 数字列（`cell` 为 `number`）单元格与表头一律右对齐并用 `tabular-nums`，表头的排序标记跟在列名内侧。
+- **两条灰带**：表头与行同底时第一行读起来像表头的一部分。两带同一档 `--muted`，共用 `ui/record/columns.ts` 的 `BAND`／`BAND_ROW`（同一个常量而不是两处巧合）；底色写在 `<tr>` 上，因为冻结格子 `bg-inherit` 从行上取；
+- **列名用 registry 的 `text-foreground font-medium`**：灰字压灰带跌破 4.5，`HEAD_CELL` 不再覆盖它；
+- **排序按钮悬停亮成行底**（`--background`）：`ghost` 的 `bg-accent` 在本主题与 `--muted` 同档，压在带子上看不见；
+- **分隔只有格子的 1px**：分开的边框模型里行与行组没有自己的边；分隔主要靠带子，发丝线只是收边（浏览器故事 `HeaderBandInLightTheme`／`InDarkTheme`）；卡片布局没有表头，汇总在卡片下自己一行（D18 Ⅴ）；
+- **富余归末尾那一格**（`ui/record/Filler.tsx`）：`w-full` 的自动布局表按比例把富余分给各列，宽列更宽，一眼扫过要横穿屏幕。每行末尾一格 `width: 100%` 的空格子吃掉富余，各列落在内容要的宽度。**它不是一列**：`aria-hidden`、不在 `table.columns`、不固定、封顶扫描跳过；排在一切之后（含操作列），`ColumnResizer` 按 `cellIndex` 找格子不受影响；D13 右边那道线仍在最后一个数据列上。不用 `max-width: max-content`：那会让行线、悬停与汇总停在表右缘，表浮在盒子里；
+- **表头按钮可占满格子的内边距盒**（`HEAD_BUTTON`，`calc(100% + 1rem)`）：按钮用 `-mx-2` 抵消 `px-2`，而 `max-w-full` 卡在内容盒上会截掉列名；一分不多，末列按钮溢出会让每张表自报比端口宽；
+- **一个滚动容器，且真的会滚**：`scrolls` 默认 true 时 `RecordTable` 自己是容器（`overflow-auto`），高度上限依次取 `--fve-record-table-max-h`、`useViewportFit` 量出的「到视窗底」（`--fve-record-table-fit`：视窗高 − 滚动口顶 − 结果块在其下的部分；下限 12rem；页面或窗口尺寸变就重量，不监听滚动）、`70vh`——固定 70vh 不知道滚动口从哪开始，汇总行会冲出窗口底。注册表 `Table` 自带的容器取消滚动：嵌套时粘性认里层；
+- **外面有东西在滚就关掉 `scrolls`**：横向能滚的盒子在两个轴上都是 scrollport，表头会粘在没人滚的盒子上。`DashboardGrid` 的记录面板传 `scrolls={false}`，表头、汇总与冻结列顶着面板；
+- `<thead>` 与 `<tfoot>` 各自 `sticky`；**首次加载（`loading` 且 `hasResult` 为假）不画表头**：列来自结果，空 `<th>` 读屏念空列头、axe 算缺陷，拿草稿列名凑是替结果许诺。骨架行照画，刷新不受影响（test/recordTable.test.tsx「a record view with no result」）；
+- **冻结列**：投影的 `pinned: 'left' | 'right'`（`ColumnEdge`）由 `tablePins` 折成每格的 `position: sticky` 与偏移——表头、数据行、汇总行同一列每格都带；
+- **偏移按实测，只有左边有**：列宽由内容决定，声明 `width` 只是建议，选择列与操作列没声明。`usePinnedOffsets` 在布局后量带 `data-pin` 的表头格，写成 `--fve-pin-left-{i}`，格子以 `var(--fve-pin-left-0, calc(…))` 读——量不到时退回按声明宽度累加（从选择列 `2.5rem` 起）。右边最多一列（D19），一个 `right-0` 说完。宽度变化不经过 React，直接写 DOM；`ResizeObserver` 逐格盯参与累加的表头格（字体加载、宿主按钮变宽都会在表盒子不变时改列宽）；
+- 冻结格 `bg-inherit` 跟着行走，**所以行的每种底色都必须不透明**：半透明悬停会让冻结格下滚过的列透出来。`TableDataRow`（`ui/variants.tsx`，D16-8，调用处只说 `data-state`）用 `--row-hover`（`color-mix(in oklab, var(--muted) 50%, var(--background))`，明暗各一份，宿主可改 `--fve-row-hover`／`--fve-dark-row-hover`），`has-aria-expanded` 同样处理；
+- **边框模型 `border-separate`**（`TABLE_CELLS`）：collapse 下 Chromium 不画单元格外阴影。行线因此落在格子上（`[&_th]:border-b [&_td]:border-b`），汇总最后一行不画——那条是分页行的 `border-t`（故事 `PinnedEdges` 断言 `border-collapse: separate` 与悬停不透明）；
+- **冻结列的边常在——只要能滚**（D13）：`--border` 发丝线加向外软阴影（`--pin-shadow`），静止即在——边说的是「两端钉着」，没被滚过的表没有框线会像布局散架。暗色里投影的是光（25% 白），黑影在暗卡片上看不见；
+  - **只有边界格画边**：最后一个左冻结列与第一个右冻结列；选择列永远不是边界，操作列一定是（D19）；
+  - **一个落点**：`ui/record/sticky.ts` 放 `sticky z-10 bg-inherit`、两侧 `in-data-[overflowing]:shadow-[…]`、左侧偏移与两条带子；`RecordTable`、`columns.ts`、`SummaryRows`、`SkeletonRows`、`Filler` 都从它取，三层同起同落；
+  - **状态写在元素上**：`data-pin`（哪一边）、`data-pin-edge`（边界格）、`data-pin-index`（左冻结表头格的偏移变量）、带子的 `data-sticky="top"／"bottom"`。`usePinnedOffsets`、`usePinnedCap` 与测试读属性不读类名——类名证明不了屏幕上的事；类名只在 test/pinnedColumns.test.tsx「the sticky chrome recipe」断言；
+  - **装得下时不画**：`useOverflowing`（`ui/record/overflow.ts`）量 `scrollWidth > clientWidth` 写成滚动口的 `data-overflowing`——装得下时那道边只会把行末富余切开、把填充格读成空列；溢出从填充格归零开始，末列不跳（test/pinnedColumns.test.tsx「the pinned edges」；故事 `PinnedEdges`：装得下无边、窄到 420 才有、滚到底仍有）；
+- **列宽把手的层叠关在自己格子里**：把手 `absolute z-20`，表头格是 `relative isolate`，否则滑到冻结列头下的把手会透出来（stories/view-engine/RecordWorkbench.test.stories.tsx `PinnedEdges`）；
+- **钉住的一组封顶为结果区可视宽的一半**（D17-4）：冻结列宽度固定，窄屏上能吃掉八成宽度。`usePinnedCap`（`ui/record/pinCap.ts`）超过一半就**从最外侧往里逐个放掉冻结**：
+  - **顺序**：操作列、勾选列、左冻结列（从主键往外），最后才是末列（有行操作时它已放手）。最外两列是布局加的，先放；勾选与主键并排说「是谁、选没选」，留后；末列是 D13 的框，但很宽时会吃光中间，不死守。宽度为 0 的跳过；
+  - **主键（`RecordColumnView.primary`）永远不放**，所以封顶是尽力而为；
+  - **放得下就一个都不放**：判据 `clientWidth` 与 `scrollWidth`，容差 1px（`scrollWidth` 向上取整）——放掉冻结拿不回像素，却拆了 D13 的框；
+  - **渲染而非编辑，但要说出来**：配置不动，表格经 `onReleasedPins` 报给工作台，列设置的固定按钮在那一行淡化并加「栏太窄，暂时未冻结」（`label.columns.pin-released`，`data-released`）——`aria-pressed` 说不出的那一半。操作列与卡片布局不报。栏拉宽即恢复（`ResizeObserver` 盯结果区与表头格）。判断在 **layout effect** 里，首次测量先于首次绘制；
+  - **代价**：操作列放掉冻结时右边 D13 的边跟着走（test/pinnedColumns.test.tsx「the pinned group against a narrow port」；故事 `PinnedGroupCapped`：420 一栏上中间可视宽不低于一半，拉宽收窄都走）；
+- 选择列在**有列冻结在左**时一并冻结（封顶放掉时除外）；
+- 数字列（`cell` 为 `number`）单元格与表头右对齐并用 `tabular-nums`。
 
 ## 列宽：拖表头的右边
 
-`RecordColumn.width` 一直在模型里、投影也带着它，但在 D13 之前没有任何界面能改它。现在每个数据列的表头右边都是一个手柄（`SortableHeader` 里的 `ColumnResizer`）：
+每个数据列表头右边是一个手柄（`SortableHeader` 里的 `ColumnResizer`），改的是 `RecordColumn.width`：
 
-- **手柄是一个 `separator`**：`role="separator"`、`aria-orientation="vertical"`、`aria-valuenow` 为当前宽度、`aria-valuemin` 为下限，名字是「调整 {列} 宽度」（`label.columns.resize`）。它可聚焦，因为 ARIA 里"可聚焦的分隔条"正是这种可拖动的边界；**静息时就画一道 1px 的 `--border` 发丝线**，悬停或聚焦时加粗到 2px 并换成 `--ring`。第一版只在悬停时出现，用户 2026-09-21 指出这是错的——本页「可排序但没排序的列带中性的 ↕」那条说的正是同一个道理：用过之后才出现的可供性不是可供性，触屏更是从不悬停；
-- **拖动写 DOM，不写 state**：宽度是浏览器已经知道、React 不知道的那种布局，每次 `pointermove` 走一次 `setState` 会把整份结果——每一行每一格——重渲一遍。所以手势直接把宽度写到**本列的每一个格子**上（表头、数据行、汇总行、骨架行），与 `usePinnedOffsets` 直接写 CSS 变量是同一条理由；**只有松手**才走控制器。格子由 DOM 找：手柄知道自己的 `<th>`，`<th>` 知道自己的 `cellIndex`，表知道自己的行——一列就是每一行在那个下标上的格子；
-- **松手落 `table.setColumnWidth(field, px)`**，与 `setPinned` 同样是一次 `edit` 加一次 `apply`（[react.md#userecordtable](../react.md#userecordtable)）；
-- **键盘等价物**：←／→ 每次 8px，Shift+←／→ 每次 32px，**每一下都提交**；Enter 与双击恢复自适应，落的是 `setColumnWidth(field, null)`——控制器删键而不是置 `undefined`，理由与固定那一条相同。每一步从**当前**宽度算起而不是从 `column.width` 算起：提交过的宽度要等下一份结果才进投影，回读配置会让第二下重复第一下；
-- **整行表头是一个 Tab 站**（P-02，2026-09-21）：`ui/record/headerRoving.ts` 的 `useRovingHeader` 给表头行一个 roving tabindex——每个表头的可聚焦件（排序按钮，或格子本身）互相探问「谁拿着站位」，没人拿就自己拿，否则站 −1；←／→ 在列之间走、Home／End 到两端；把手 `tabIndex=-1` 退出 Tab 路线，宽度改由 **Alt+←／→** 在焦点列上调（Shift 长步、Alt+Enter 恢复自适应，仍是把手那套契约），并以 `aria-keyshortcuts` 说出来。从前每列带排序按钮与把手两个站，21 列的表在工具栏与第一行之间站了 28 个 Tab 站。（见 test/headerRoving.test.tsx）；
-- **下限 48px**：列自己的边是找回它的唯一入口，一条拖到上一列身上的边就是一列谁也找不回来的列。这是关于手柄的规矩，所以它住在 `ColumnResizer` 里而不是 `validateRecord` 里——手写的配置只要是正数就行；
-- **宽度要三个属性一起才算数**：`width` 单给是建议——自动布局的表先按内容定列宽，再把剩下的空间分摊出去，于是一列要 200px 在宽松的表上会更宽，装了长值还会再宽。`min-width` 与 `max-width` 取同一个数，这一列的最小与最大贡献就是同一个数，两步都没得商量。`<col>` 说不了这件事，就像它说不了冻结一样：它带的宽度表只当提示，也管不到画在它里面的那个格子；
-- **有宽度的格子裁字并带 `title`**：宽度是用户定的，就按它裁（`truncate`），被裁掉的部分悬停可见——与 `text` 单元格的三行夹断同一条路子。拖动过程中裁切随手势临时写在格子上，因为提交之前这些格子上还没有那个类；
-- **冻结列自己会跟上**：`usePinnedOffsets` 用 `ResizeObserver` 盯的就是表头格子，而被拖的正是其中一格。拖中间那些不冻结的列则本来就不影响偏移量——累加只数冻结的那几格。
+- **手柄是 `separator`**：`role="separator"`、`aria-orientation="vertical"`、`aria-valuenow`／`aria-valuemin`，名字「调整 {列} 宽度」（`label.columns.resize`）。**静息就画 1px `--border` 发丝线**，悬停或聚焦 2px `--ring`——用过才出现的可供性不是可供性；
+- **拖动写 DOM，不写 state**：每次 `pointermove` 一次 `setState` 会重渲整份结果。手势把宽度写到本列每个格子（表头、数据行、汇总行、骨架行），格子由 `<th>` 的 `cellIndex` 找；**松手**才落 `table.setColumnWidth(field, px)`（一次 `edit` 加一次 `apply`，[react.md#userecordtable](../react.md#userecordtable)）；
+- **键盘**：←／→ 8px，Shift 32px，**每一下都提交**；Enter 与双击恢复自适应（`setColumnWidth(field, null)`，删键）。每步从**当前**宽度算——提交的宽度要等下一份结果才进投影；
+- **整行表头一个 Tab 站**：`ui/record/headerRoving.ts` 的 `useRovingHeader` 给表头行 roving tabindex，←／→ 在列间走、Home／End 到两端；把手 `tabIndex=-1`，宽度改由 **Alt+←／→** 在焦点列上调（Shift 长步、Alt+Enter 恢复），以 `aria-keyshortcuts` 说出——否则每列两个站，宽表要按几十下 Tab（test/headerRoving.test.tsx）；
+- **下限 48px**：列的边是找回它的唯一入口。这是手柄的规矩，住在 `ColumnResizer` 而不是 `validateRecord`（手写配置只要正数）；
+- **宽度三个属性一起写**：`width` 单给只是建议，`min-width` 与 `max-width` 同值才没得商量；`<col>` 管不到格子；
+- **有宽度的格子裁字并带 `title`**（`truncate`）；拖动中裁切临时写在格子上；
+- 冻结列的偏移自己跟上：`usePinnedOffsets` 的 `ResizeObserver` 盯的正是表头格。
 
 ## RecordPagination
 
-结果下面的一行，不进工具栏：翻页不留在配置里，用户翻到第几页也不是他看记录的方式。一行从左到右读完——
+结果下面的一行，不进工具栏：翻页不留在配置里。
 
-**外框借 `@shadcn/pagination`，内容一字不动**（[decisions.md#D16](../decisions.md#d16-站在-shadcnbase-ui-肩膀上审计后的八条裁定) 裁定五）。这条从前是一个裸 `div`：全屏上唯一一组「带我去看其余记录」的控件，既不是地标，也没有名字。现在是 `Pagination`（`nav`）+ `PaginationContent`（`ul`）+ `PaginationItem`（`li`），名字来自目录的 `label.pagination.nav`（「分页」），不是注册表写死的那个英文串。**只借外框与语义**：注册表默认的那串页码链接不在这里，也不该在——源要么分页要么游标，页数常常算不出来，而页大小选择器与两个步进按钮才是这里真正有的东西。D12 的取舍（只有一页时一个箭头也不画、游标源不画页码与退路、首次加载整条不画）一条没变，措辞也一字没改。
+**外框借 `@shadcn/pagination`**（[decisions.md#D16](../decisions.md#d16-站在-shadcnbase-ui-肩膀上审计后的八条裁定) 裁定五）：`Pagination`（`nav`）+ `PaginationContent`（`ul`）+ `PaginationItem`（`li`），名字取 `label.pagination.nav`（「分页」）——唯一一组「带我去看其余记录」的控件得是有名字的地标。只借外框与语义，不用注册表的页码链接：游标源算不出页数。
 
-整行**放得下就一行，放不下就两行**（`flex-wrap`），而让步的从来不是那句话：计数带 `whitespace-nowrap`，控件那组带 `ml-auto`，所以它落在第一行还是第二行都贴着右缘。不换行的那一版在 375 上把「下一页」的右缘顶到 365.6，而卡片在 342 就结束了，同时 `justify-between` 把「4 records in all」压成三行、中文「共 4 条记录」拦腰断开。
+整行**放得下一行，放不下两行**（`flex-wrap`）：计数 `whitespace-nowrap`，控件组 `ml-auto` 贴右缘，让步的从来不是那句话。
 
-- **左：一共多少条**。`label.pagination.total`（「共 18 条记录」）说的是条件选中了多少，而不是这一页来了多少：那才是上面那串条件被问到的问题。源没有给总数时（cursor 分页）这句不出现，改由 `label.pagination.on-page` 说它确实数得出来的那个数，不拿一页满不满去推总数；
-- **右：每页几条**。`label.pagination.page-size`（「每页」）是控件的名字，不另写 `aria-label`——屏幕上读到的那几个字就是它的可及名称。档位来自 `table.pageSizes`（控制器按 `runtime.limits.maxPageSize` 裁剪后的结果，并入当前值），每个选项由 `label.pagination.page-size-option` 写成「20 条」／「20 per page」：量词跟着数字走，否则中文会读成「每页 20」。改每页条数是一次编辑，走 `setPageSize` 立即应用；
-- **左：窗口那一句**（2026-09-22，生产复核）。源声明了分页窗口（`RecordCapability.maxWindow`）且够得到的页装不下总数时，计数后面多一句 `label.pagination.window`：「只能翻到前 10,000 条，缩小范围看其余」／「Only the first 10,000 records can be paged through; narrow the conditions to see the rest」。起因是真实的：Wow 走 Elasticsearch，62 万行的补偿表，分页条写着「第 1 / 31205 页」、下一页与跳页都照给，跳到第 600 页就是一个 400（`page window[12000] must not exceed 10000`）。这一句**不是警告**：什么都没失败，出路在上面的条件而不在这条上，所以用这条的弱色、不加图标。它是分页条（`nav`）与跳页框的 `aria-describedby`，读屏的人落到这里就先听到页为什么停在那儿。条数、页码、总数一律按界面语言分组（`valueText`）——「共 624100 条记录」要人去数位数；
-- **右：第几页**。`label.toolbar.page-of`（「第 1 / 4 页」）；页数是内核给的**够得到的**页数（`paging.pages`），出自**跑过的**那个每页条数，而不是草稿的——新的每页条数还在路上时，屏幕上的行、页码与总数都还是旧的那一批，拿新的去除，说的是一个谁也没看到的结果。总数未知时退到 `label.toolbar.page`（「第 1 页」）——没有总数就数不出页数，只说到达的这一页；
-- **右：跳到第…页**（D18 裁定 Ⅷ）。**总数已知**时，那句话旁边多一个输入框（注册表的 `Input`，`inputMode="numeric"`，可及名字 `label.pagination.go-to`「跳到第…页」）。此前翻页只能一页一页按，第 17 页要按十六下、等十六次；控制器上的 `goTo` 一直都在，缺的只是一处说得出口的地方。**它挨着那句话，而不是嵌进那句话里**：「第 1 / 4 页」正是读者找「我在第几页」的地方，把它从中间劈开，读屏器听到的就是半句话、一个没名字的控件、再半句话。所以句子保持完整、说的是这批行来自哪一页，框子说的是要去哪一页；框里装着**已落定**的那一页，于是答复未回来之前两者读得出差别——句子是跑过的那一页，框子是要的那一页，落定之后（`index` 一变）框子跟着回到它；**跳页失败时 `index` 不变**，所以查询一落定、框里还是它自己要的那一页，就退回屏幕上这一页（从前框里写着 600、句子写着第 1 页）；读者在这期间自己改过的数不动，刷新落定不会把敲到一半的数抹掉。**Enter 或离开焦点才提交**，不是每敲一下就提交：一次提交就是一次查询，而 `4` 是通往 `40` 路上的一个键。**只认整数**：空、`abc`、`1.5`、`-2`、`1e3` 都不是在问一页，框子退回它所在的那一页而不去猜（`Number('')` 是 0，一个被清空的框子若只走夹取就成了「带我去第一页」）；**超出就夹到两端**，因为越过末尾的人要的就是末尾——末尾是够得到的最后一页，窗口外的页不是末尾而是一个 400。**游标源不画**——没有 M 就没有可以校验的东西；**只有一页时也不画**，与两个箭头同一条判据（D12 Ⅶ）：唯一的合法答案就是眼前这一页的框子，是一个什么也做不了的控件；
-- **右：上一页／下一页**两个图标按钮，**只有一页时一个也不画**（D12 Ⅶ）。画成两个死掉的箭头是同一件事的老实版本，却仍要两个 Tab 停靠点和一条 chrome 来说一个「没有」——而左边的「共 N 条」与右边的「第 1 / 1 页」已经把话说完了。判据是**页数确实数得出来且停在第一页**：源没给总数（游标分页）时分不清"只有一页"和"多页里的第一页"，照画；停在第 2 页及以后时照画，那条"别把人留在空页上"的规矩优先。下一页停在**够得到的**最后一页（`paging.hasNext`），窗口外的页不给。焦点顺序即阅读顺序：每页选择器 → 跳到第…页 → 上一页 → 下一页，左边那句是句子不是控件，不抢焦点。
+- **左：一共多少条**。`label.pagination.total`（「共 18 条记录」）说条件选中了多少。没有总数时（游标源）用 `label.pagination.on-page` 说数得出的那个数，不拿一页满不满推总数；
+- **左：窗口那一句**。源声明了分页窗口（`RecordCapability.maxWindow`）且够得到的页装不下总数时，多一句 `label.pagination.window`「只能翻到前 10,000 条，缩小范围看其余」——Wow 走 Elasticsearch，窗口外的页是一个 400。它**不是警告**（没失败，出路在条件），弱色、无图标；是分页条（`nav`）与跳页框的 `aria-describedby`。数字按界面语言分组（`valueText`）；
+- **右：每页几条**。`label.pagination.page-size`（「每页」）即控件名字，不另写 `aria-label`。档位来自 `table.pageSizes`（按 `runtime.limits.maxPageSize` 裁剪、并入当前值），选项用 `label.pagination.page-size-option`「20 条」——量词跟着数字走。`setPageSize` 立即应用；
+- **右：第几页**。`label.toolbar.page-of`（「第 1 / 4 页」），页数是内核的**够得到的**页数（`paging.pages`），出自**跑过的**每页条数——新值在路上时屏幕上还是旧那一批。总数未知时退到 `label.toolbar.page`（「第 1 页」）；
+- **右：跳到第…页**（D18 裁定 Ⅷ）。总数已知时句子旁一个输入框（`Input`，`inputMode="numeric"`，名字 `label.pagination.go-to`），调 `goTo`：
+  - **挨着句子而不嵌进去**：劈开「第 1 / 4 页」读屏会听到半句话、一个控件、再半句话；
+  - 框里装**已落定**的那一页，落定（`index` 变）后跟着回来；跳页失败 `index` 不变，框子也退回；读者正在改的数不被刷新抹掉；
+  - **Enter 或失焦才提交**：一次提交一次查询，`4` 是通往 `40` 的一个键；
+  - **只认整数**：空、`abc`、`1.5`、`-2`、`1e3` 退回所在页（`Number('')` 是 0）；**超出夹到两端**，末尾是够得到的最后一页；
+  - 游标源不画（无从校验）；只有一页也不画（D12 Ⅶ）；
+- **右：上一页／下一页**，**只有一页时一个也不画**（D12 Ⅶ）：两个死箭头仍占两个 Tab 站说一个「没有」。判据是**页数数得出且停在第一页**：游标源分不清，照画；第 2 页及以后照画。下一页停在够得到的最后一页（`paging.hasNext`）。焦点顺序：每页选择器 → 跳页 → 上一页 → 下一页。
 
 三条不随组成改变的规矩：
 
-- cursor 源既无页码也无退路，于是两样都不画，而不是画成死的；
-- **首次加载（`loading` 且 `hasResult` 为假）整条不画**：这时每一个数都是编的——「0 on this page」数的是还没到的行，旁边那个 `›` 通向一页谁也不知道存不存在的记录。上面的骨架已经说了查询在跑，这就是眼下知道的全部。刷新是另一回事：行还在屏幕上，数就还是那一批行的数，照画；
-- 结果为空且已落定时整条不画（空结果自己会说明），但**分页源停在第 2 页及以后时照画**——那一页可能是因为记录被删掉、或无总数的源多翻了一页才空的，收起来就把「上一页」一并收走，人留在空页上无处可按。查询在途时同理：手上还是上一批行，计数跟着它们，不闪成空再跳回来。
+- 游标源既无页码也无退路，两样都不画；
+- **首次加载（`loading` 且 `hasResult` 为假）整条不画**：这时每个数都是编的；刷新时照画那批行的数；
+- 结果为空且已落定时不画（空结果自己说明），但**分页源停在第 2 页及以后时照画**——否则收走了「上一页」，人留在空页上无处可按。查询在途时计数跟着手上那批行。
 
-（见 test/recordPagination.test.tsx（含「RecordPagination under a source window」）、test/recordPaging.test.ts、test/accessibility.test.tsx「the pagination bar, mid-way through a paged result」，以及回归 story「Paged」「PagedWindow」）
+（test/recordPagination.test.tsx「RecordPagination under a source window」、test/recordPaging.test.ts、test/accessibility.test.tsx「the pagination bar, mid-way through a paged result」；回归 story「Paged」「PagedWindow」）
