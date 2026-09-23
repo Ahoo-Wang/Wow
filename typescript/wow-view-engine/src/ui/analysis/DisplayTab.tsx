@@ -326,7 +326,7 @@ function FunnelDisplay({ chart, onChange }: OptionsPageProps) {
         <CheckField
           data-slot="chart-cumulative"
           label={messages.label('label.chart.cumulative')}
-          checked={stages.cumulative !== false}
+          checked={stages.cumulative === true}
           onChange={on =>
             onChange({
               ...chart,

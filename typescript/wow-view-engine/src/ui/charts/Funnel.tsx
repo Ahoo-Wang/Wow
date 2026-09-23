@@ -27,7 +27,10 @@ import type { ChartTheme } from './theme.js';
  * with its name, value and conversion beside it. What the percentages are
  * relative to is said once, over the drawing, where the heading of their
  * column used to stand (`conversionHeading`) — a bare 「25%」 reads as a
- * share of the whole, which it is only against the first stage.
+ * share of the whole, which it is only against the first stage. A funnel
+ * that accumulates says that there too: its numbers are "reached at least
+ * this stage", not the stage's own rows the table shows, and a number that
+ * differs from the table with nothing beside it reads as a wrong one.
  */
 export function Funnel({
   data,
@@ -44,6 +47,7 @@ export function Funnel({
   const conversion = messages.label(
     conversionHeading(spec?.funnel?.conversion),
   );
+  const cumulative = data.cumulative === true;
   const option = useCallback(
     (theme: ChartTheme) =>
       funnelOption(
@@ -59,15 +63,21 @@ export function Funnel({
       className={className}
       option={option}
       legend={
-        converts
+        converts || cumulative
           ? {
               at: 'top',
               node: (
-                <span
-                  data-slot="funnel-conversion-heading"
-                  className="text-muted-foreground"
-                >
-                  {conversion}
+                <span className="flex flex-wrap gap-x-3 text-muted-foreground">
+                  {cumulative && (
+                    <span data-slot="funnel-cumulative-note">
+                      {messages.label('label.chart.column.cumulative')}
+                    </span>
+                  )}
+                  {converts && (
+                    <span data-slot="funnel-conversion-heading">
+                      {conversion}
+                    </span>
+                  )}
                 </span>
               ),
             }
@@ -77,6 +87,7 @@ export function Funnel({
         'data-chart': 'funnel',
         'data-marks': data.stages.length,
         'data-orientation': spec?.funnel?.orientation ?? 'vertical',
+        'data-cumulative': cumulative ? 'on' : 'off',
       }}
     />
   );

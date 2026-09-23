@@ -261,7 +261,7 @@ export const analysisMessages = {
   'label.chart.conversion.previous': 'Previous stage',
   'label.chart.conversion.first': 'First stage',
   'label.chart.conversion.none': 'Not shown',
-  'label.chart.cumulative': 'Cumulative',
+  'label.chart.cumulative': 'Cumulative (reached at least this stage)',
   'label.chart.format': 'Number format',
   'label.chart.format.auto': 'Auto',
   'label.chart.format.compact': 'Compact',
@@ -364,6 +364,9 @@ export const analysisMessages = {
   // Which stage a conversion is relative to, said where the percentages are.
   'label.chart.column.conversion.previous': 'Conversion from previous stage',
   'label.chart.column.conversion.first': 'Conversion from first stage',
+  // A cumulative funnel's numbers are not the table's, said over the drawing
+  // and over its reading table's value column.
+  'label.chart.column.cumulative': 'Cumulative: reached at least this stage',
   'label.chart.column.compare': 'Compared with',
   'label.chart.column.target': 'Target',
 

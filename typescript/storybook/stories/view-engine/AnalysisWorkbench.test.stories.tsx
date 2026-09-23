@@ -22,6 +22,7 @@ import displayMeta, {
   CutShort as DisplayCutShort,
   CutShortTable as DisplayCutShortTable,
   DailyNewestFirst as DisplayDailyNewestFirst,
+  DailyQuietDays as DisplayDailyQuietDays,
   DailyTrendCard as DisplayDailyTrendCard,
   EmptyResult as DisplayEmptyResult,
   Expandable as DisplayExpandable,
@@ -478,6 +479,58 @@ export const SparklineRunsForward: Story = {
       return days;
     });
     await expect(runsForward(reading)).toBe(true);
+  },
+};
+
+/**
+ * 没单的日子也占一格，读作 0。
+ *
+ * 「每日重试成功」的横轴从 8/20 直接接到 8/23：画出来的只有有行的那几天，点与点
+ * 挨得一样近，折线把中间三天的 0 抹成一道斜坡（2026-09-23 图表审查 P0-4）。这里
+ * 只看发往杭州、上海的运单，只有几天有单：量读屏表——它与那条线出自同一份投影
+ * ——一行一天、一天不缺，没单的日子写 0，加起来仍是那十单；再量画出来的点，
+ * 一天一颗，左右等距。
+ */
+export const DailyHolesRunEvenly: Story = {
+  ...DisplayDailyQuietDays,
+  play: async ({ canvasElement }) => {
+    await chartsDrawn(canvasElement);
+    const read = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLTableElement>(
+        '[data-slot="chart-reading"] table',
+      );
+      if (!found) throw new Error('折线旁边没有读屏表');
+      const rows = [...found.tBodies[0].rows].map(row => ({
+        day: dayOf(row.cells[0]?.textContent ?? ''),
+        count: Number((row.cells[1]?.textContent ?? '').replace(/[^\d]/g, '')),
+      }));
+      expect(rows.length).toBeGreaterThan(10);
+      return rows;
+    });
+    // One row a day, not one skipped.
+    const DAY = 86_400_000;
+    const at = read.map(({ day: [year, month, date] }) =>
+      Date.UTC(year!, month! - 1, date),
+    );
+    await expect(
+      at.every((ms, index) => index === 0 || ms - at[index - 1]! === DAY),
+    ).toBe(true);
+    // The quiet days are there as 0, and the busy ones still add up to the
+    // ten waybills sent to the two cities.
+    await expect(read.filter(row => row.count === 0).length).toBeGreaterThan(5);
+    await expect(read.reduce((sum, row) => sum + row.count, 0)).toBe(10);
+
+    // A dot a day, evenly spaced: a quiet day is a step along the axis.
+    const dots = await waitFor(() => {
+      const found = drawnMarks(canvasElement);
+      expect(found).toHaveLength(read.length);
+      return found.map(dot => {
+        const box = dot.getBoundingClientRect();
+        return (box.left + box.right) / 2;
+      });
+    });
+    const steps = dots.slice(1).map((x, index) => x - dots[index]!);
+    await expect(Math.max(...steps) - Math.min(...steps)).toBeLessThan(1);
   },
 };
 

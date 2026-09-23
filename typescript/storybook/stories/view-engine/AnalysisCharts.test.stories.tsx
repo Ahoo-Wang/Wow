@@ -25,6 +25,7 @@ import {
   drawnMarks,
   valueLabels,
 } from './chartDom.js';
+import { findDataTable, readColumn } from './readTable.js';
 import { formatRgb, parse } from 'culori';
 
 const meta = {
@@ -183,13 +184,26 @@ export const ScatterReadsItsPoints: Story = {
 };
 
 /**
- * 漏斗：从结果行起头，当场画出；条用色板的第一档，留着结果区的边，百分比说明是
- * 相对上一段的转化率。
+ * The chart's reading table — the same projection the marks are drawn
+ * from — as its first two columns: what each mark is, and its number.
+ */
+const readingOf = (canvas: HTMLElement) =>
+  [
+    ...(canvas.querySelector<HTMLTableElement>(
+      '[data-slot="chart-reading"] table',
+    )?.tBodies[0]?.rows ?? []),
+  ].map(row => [row.cells[0]?.textContent, row.cells[1]?.textContent]);
+
+/**
+ * 漏斗：从结果行起头，当场画出；每一段就是表格里那个仓库的数；条用色板的第一档，
+ * 留着结果区的边，百分比说明是相对上一段的转化率。
  *
  * 审查（2026-09-23）：漏斗贴着边、颜色是按钮的 primary 而不是图表色板、百分比
  * 没说是什么的百分比。四个仓库是四个阶段，从图型网格选中即按行来的顺序画出，
  * 状态行什么也不说；图离结果区左右各留 16px，每根条都在漏斗自己的框里，百分比
- * 那一列上面写着「转化率（相对上一段）」。
+ * 那一列上面写着「转化率（相对上一段）」。图表审查（同日 P0-1）：漏斗缺省把后面
+ * 各段累加进前面，「华东 6」而华东只有 2 条记录——与表格对不上。现在缺省不累计：
+ * 漏斗读屏表里每一段的数就是切到表格后那个仓库的记录数，图上也不写「累计」。
  */
 export const FunnelFromTheRows: Story = {
   ...DisplayBarChart,
@@ -243,6 +257,25 @@ export const FunnelFromTheRows: Story = {
     await expect(
       funnel.querySelector('[data-slot="funnel-conversion-heading"]'),
     ).toHaveTextContent(zhCN['label.chart.column.conversion.previous']);
+
+    // Nothing added up, so nothing to say about it — and each stage is the
+    // number the table shows for its warehouse.
+    await expect(funnel).toHaveAttribute('data-cumulative', 'off');
+    await expect(
+      funnel.querySelector('[data-slot="funnel-cumulative-note"]'),
+    ).toBeNull();
+    const stages = readingOf(canvasElement);
+    await expect(stages).toHaveLength(4);
+    await userEvent.click(
+      within(canvasElement).getByRole('button', {
+        name: zhCN['label.layout.table'],
+      }),
+    );
+    const table = await findDataTable(canvasElement);
+    const counts = readColumn(table, COUNT_HEADER);
+    await expect(stages).toEqual(
+      readColumn(table, '仓库').map((name, index) => [name, counts[index]]),
+    );
   },
 };
 

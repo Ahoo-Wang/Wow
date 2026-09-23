@@ -1019,6 +1019,76 @@ describe('AnalysisChart', () => {
     expect(heading(first.container)).toBe('Conversion from first stage');
   });
 
+  /**
+   * A cumulative stage is not the number the table shows beside it, so the
+   * drawing says what it is over the stages, and the reading table's value
+   * column says the same words; a stage's own number needs no such note.
+   */
+  it('says a funnel accumulates when it does', () => {
+    const drawn = (cumulative: boolean) =>
+      render(
+        <ViewSurface>
+          <AnalysisChart
+            data={{
+              type: 'funnel',
+              stages: [
+                { label: 'Visited', value: 125 },
+                { label: 'Bought', value: 25 },
+              ],
+              ...(cumulative ? { cumulative: true as const } : {}),
+            }}
+            spec={{
+              type: 'funnel',
+              funnel: {
+                conversion: 'none',
+                stages: {
+                  from: 'group',
+                  category: 'step',
+                  value: 'orders',
+                  order: ['Visited', 'Bought'],
+                  cumulative,
+                },
+              },
+            }}
+          />
+        </ViewSurface>,
+      );
+    const note = 'Cumulative: reached at least this stage';
+
+    const { container, unmount } = drawn(true);
+    const frame = container.querySelector('[data-chart="funnel"]')!;
+    expect(frame.getAttribute('data-cumulative')).toBe('on');
+    expect(
+      container.querySelector('[data-slot="funnel-cumulative-note"]')
+        ?.textContent,
+    ).toBe(note);
+    // No conversion was asked for, so the note stands alone.
+    expect(
+      container.querySelector('[data-slot="funnel-conversion-heading"]'),
+    ).toBeNull();
+    expect(
+      within(
+        container.querySelector<HTMLElement>('[data-slot="chart-reading"]')!,
+      ).getByRole('columnheader', { name: note }),
+    ).toBeDefined();
+    unmount();
+
+    const own = drawn(false).container;
+    expect(
+      own
+        .querySelector('[data-chart="funnel"]')!
+        .getAttribute('data-cumulative'),
+    ).toBe('off');
+    expect(
+      own.querySelector('[data-slot="funnel-cumulative-note"]'),
+    ).toBeNull();
+    expect(
+      within(
+        own.querySelector<HTMLElement>('[data-slot="chart-reading"]')!,
+      ).getByRole('columnheader', { name: 'Value' }),
+    ).toBeDefined();
+  });
+
   it('says no conversion where the spec asks for none', () => {
     const { container } = chartOf({
       type: 'funnel',

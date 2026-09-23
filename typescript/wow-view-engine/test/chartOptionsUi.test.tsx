@@ -908,7 +908,7 @@ describe('the chart options of the other families', () => {
     // to accumulate and no such box.
     await user.click(within(panel()!).getByRole('tab', { name: 'Display' }));
     expect(
-      within(panel()!).queryByRole('checkbox', { name: 'Cumulative' }),
+      within(panel()!).queryByRole('checkbox', { name: /^Cumulative/ }),
     ).toBeNull();
     fireEvent.click(
       within(panel()!).getByRole('button', { name: 'First stage' }),
@@ -964,6 +964,18 @@ describe('the chart options of the other families', () => {
     expect(draft().chart.funnel?.stages).toMatchObject({
       order: ['SHIPPED', 'PENDING', 'PAID'],
     });
+
+    // Each stage is its own rows' number until the analyst asks for
+    // "reached at least" — the box starts clear and says what it adds up.
+    await user.click(within(panel()!).getByRole('tab', { name: 'Display' }));
+    const cumulative = within(panel()!).getByRole('checkbox', {
+      name: 'Cumulative (reached at least this stage)',
+    });
+    expect(cumulative.getAttribute('aria-checked')).toBe('false');
+    await user.click(cumulative);
+    await waitFor(() =>
+      expect(draft().chart.funnel?.stages).toMatchObject({ cumulative: true }),
+    );
   });
 
   /**

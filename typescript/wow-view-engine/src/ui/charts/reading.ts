@@ -272,7 +272,13 @@ function readFunnel(
     ),
     header: [
       ctx.column(category) ?? ctx.messages.label('label.chart.column.stage'),
-      ctx.messages.label('label.chart.column.value'),
+      // A cumulative stage is not the number the table shows, so its column
+      // says what it is, as the drawing's heading does.
+      ctx.messages.label(
+        data.cumulative
+          ? 'label.chart.column.cumulative'
+          : 'label.chart.column.value',
+      ),
       ...(converts
         ? [ctx.messages.label(conversionHeading(spec?.funnel?.conversion))]
         : []),

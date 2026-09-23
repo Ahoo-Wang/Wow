@@ -84,7 +84,7 @@ export interface FunnelSpec {
         category: string; // 分组别名
         value: string; // 指标别名
         order: string[]; // 阶段的业务顺序，取分组值
-        cumulative?: boolean; // 累计为"至少到达该阶段"，缺省 true
+        cumulative?: boolean; // 累计为"至少到达该阶段"（每段加上其后各段），缺省 false：每段是这一组自己的数，与表格同一个数
       };
   conversion?: 'previous' | 'first' | 'none'; // 转化率相对上一阶段或首阶段
   orientation?: 'vertical' | 'horizontal';

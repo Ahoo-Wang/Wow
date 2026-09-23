@@ -17,7 +17,12 @@ import {
   type ChartType,
   type RecordData,
 } from '../model/index.js';
-import { readInstant } from '../filter/index.js';
+import {
+  forwardInTime,
+  hostTimeZone,
+  timeGroup,
+  withoutHoles,
+} from './timeAxis.js';
 import { isAdditiveMetric } from './validateChart.js';
 
 /**
@@ -82,6 +87,13 @@ export interface FunnelStage {
 export interface FunnelData {
   type: 'funnel';
   stages: FunnelStage[];
+  /**
+   * Each stage is "reached at least this stage" — itself and every later
+   * one added up — rather than the stage's own rows, because the spec asked
+   * for it (`FunnelStages.cumulative`). Its values then differ from the
+   * table's, and a drawing that does not say so reads as a wrong number.
+   */
+  cumulative?: true;
 }
 
 export interface MetricCardData {
@@ -160,43 +172,55 @@ function num(row: RecordData, alias: string): number | null {
 }
 
 /**
- * Whether `alias` names a time dimension — a date bucket — in the config the
- * rows came from.
+ * Whether a group the rows lack had no records — so an additive metric over
+ * it is 0 — rather than records the query left out, which nobody can put a
+ * number on. `at` is the missing group's values by alias, as far as known.
+ *
+ * A row is left out by two things. `having` (「只保留」) drops groups by
+ * their numbers, so under it nothing absent is known to be empty. The limit
+ * cuts the rows at the end of the view's sort: a result shorter than the
+ * limit is every group there is, and one that fills it may have lost rows —
+ * but only past its last row in the sort's leading dimension, so a group
+ * whose leading value comes before that row's is still whole. Sorted by day,
+ * newest first, thirty days of a longer history are thirty whole days, and
+ * a day between two of them with no row is a day with no records.
  */
-function isTimeGroup(
+function absenceReader(
   config: AnalysisViewConfig,
-  alias: string | undefined,
-): boolean {
-  return config.groups.some(
-    group => group.alias === alias && group.type === 'DATE_HISTOGRAM',
-  );
+  rows: readonly RecordData[],
+): (at: Readonly<Record<string, unknown>>) => boolean {
+  if (config.having) return () => false;
+  const limit = config.limit;
+  if (Number.isInteger(limit) && rows.length < limit) return () => true;
+  const lead = config.sort[0]?.alias;
+  const last = rows[rows.length - 1];
+  if (lead === undefined || last === undefined) return () => false;
+  const edge = seriesKey(last[lead]);
+  return at => owns(at, lead) && seriesKey(at[lead]) !== edge;
 }
 
 /**
- * `items` earliest first, by the bucket `at` reads off each.
- *
- * A time axis runs forward whatever order the rows came in. The rows are in
- * the view's sort, and a view of the last thirty days is sorted newest first
- * on purpose — its table leads with today — but the same rows drawn in that
- * order put today on the left and yesterday to its right: every line slopes
- * the wrong way and every bar reads backwards, with nothing on screen to say
- * so. The table is the view's to order; an axis is time's.
- *
- * A bucket is read the way the drill reads it (`readInstant`), so a key that
- * arrives as epoch milliseconds, as a string of digits or as a wall-clock day
- * sorts the same. One that names no instant — a missing-value sentinel — is
- * no point in time, so it goes after the last one, and ties and unreadable
- * keys keep the order they came in.
+ * Whether `record` holds `key` itself: a split value may be any string,
+ * `toString` included, and `in` would find that one on every object.
  */
-function forwardInTime<T>(items: readonly T[], at: (item: T) => unknown): T[] {
-  return items
-    .map((item, index) => ({ item, index, ms: readInstant(at(item))?.ms }))
-    .sort((a, b) => {
-      if (a.ms === undefined || b.ms === undefined)
-        return a.ms === b.ms ? a.index - b.index : a.ms === undefined ? 1 : -1;
-      return a.ms - b.ms || a.index - b.index;
-    })
-    .map(entry => entry.item);
+function owns(record: object, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(record, key);
+}
+
+/** Whether the metric `alias` names adds up, so a group of nothing is 0. */
+function adds(config: AnalysisViewConfig, alias: string): boolean {
+  return isAdditiveMetric(
+    config.metrics.find(metric => metric.alias === alias),
+  );
+}
+
+/** What shaping reads besides the config and the rows. */
+export interface ShapeContext {
+  /**
+   * The engine's zone: the one a histogram that names none was cut in, and
+   * so the one its missing buckets are stepped in. The host's when left out.
+   */
+  timeZone?: string;
 }
 
 /**
@@ -207,39 +231,57 @@ function forwardInTime<T>(items: readonly T[], at: (item: T) => unknown): T[] {
  * card's sparkline — and a series split by time run earliest first
  * (`forwardInTime`); everything else keeps the order the rows came in, which
  * is the view's sort, because a category has no order of its own to restore.
+ * A time axis also runs without holes (`withoutHoles`), and what fills a
+ * missing bucket or a missing split — 0 or nothing — is `absenceReader`'s
+ * and the metric's to say.
  */
 export function shapeChart(
   config: AnalysisViewConfig,
   rows: readonly RecordData[],
   totals?: RecordData,
+  context: ShapeContext = {},
 ): ChartData | undefined {
   const chart = config.chart;
+  const timeZone = context.timeZone ?? hostTimeZone();
   switch (chart.type) {
     case 'bar':
     case 'line':
     case 'area':
     case 'combo':
       return (
-        chart.cartesian && cartesian(chart.type, chart.cartesian, config, rows)
+        chart.cartesian &&
+        cartesian(chart.type, chart.cartesian, config, rows, timeZone)
       );
     case 'pie':
       return chart.pie && pie(chart.pie, config, rows);
     case 'heatmap':
-      return chart.heatmap && heatmap(chart.heatmap, config, rows);
+      return chart.heatmap && heatmap(chart.heatmap, config, rows, timeZone);
     case 'scatter':
       return chart.scatter && scatter(chart.scatter, rows);
     case 'funnel':
       return chart.funnel && funnel(chart.funnel, rows);
     case 'metric':
-      return chart.metric && metricCard(chart.metric, config, rows, totals);
+      return (
+        chart.metric && metricCard(chart.metric, config, rows, totals, timeZone)
+      );
   }
 }
 
+/**
+ * A pivot fills every combination its rows lack: 0 for a metric that adds
+ * when the combination is known to have had no records (`absenceReader`) —
+ * 「华东 has no 已取消」 is a count of zero, and left out it drew as no data,
+ * a stacked area of lone dots floating at the stack's height — and nothing
+ * otherwise: an average of no records is no number, and a combination the
+ * limit or 「只保留」 cut is not known to be empty. A time x runs without
+ * holes (`withoutHoles`), each hole filled by the same rule.
+ */
 function cartesian(
   type: ChartType,
   spec: NonNullable<AnalysisViewConfig['chart']['cartesian']>,
   config: AnalysisViewConfig,
   rows: readonly RecordData[],
+  timeZone: string,
 ): CartesianData {
   const byX = new Map<unknown, Record<string, number | null>>();
   const seriesKeys = new Map<
@@ -264,8 +306,46 @@ function cartesian(
     byX.set(x, values);
   }
 
-  const points = [...byX].map(([x, values]) => ({ x, values }));
   const series = [...seriesKeys].map(([key, entry]) => ({ key, ...entry }));
+  const absent = absenceReader(config, rows);
+  const additive = new Set(
+    series.filter(entry => adds(config, entry.metric)).map(entry => entry.key),
+  );
+  const missing = (
+    entry: (typeof series)[number],
+    x: unknown,
+  ): number | null =>
+    additive.has(entry.key) &&
+    absent({
+      [spec.x]: x,
+      ...(spec.splitBy === undefined ? {} : { [spec.splitBy]: entry.value }),
+    })
+      ? 0
+      : null;
+
+  let points = [...byX].map(([x, values]) => ({
+    x,
+    values: Object.fromEntries(
+      series.map(entry => [
+        entry.key,
+        owns(values, entry.key) ? values[entry.key] : missing(entry, x),
+      ]),
+    ),
+  }));
+  const axis = timeGroup(config, spec.x);
+  if (axis)
+    points = withoutHoles(
+      forwardInTime(points, point => point.x),
+      point => point.x,
+      axis,
+      timeZone,
+      x => ({
+        x,
+        values: Object.fromEntries(
+          series.map(entry => [entry.key, missing(entry, x)]),
+        ),
+      }),
+    );
   // When time is the split rather than the axis, it is the legend that reads
   // as a sequence — and the palette hands its slots out in that order, so
   // the first day is always the first colour. The axis is then a category
@@ -273,10 +353,8 @@ function cartesian(
   return {
     type: 'cartesian',
     chart: type,
-    points: isTimeGroup(config, spec.x)
-      ? forwardInTime(points, point => point.x)
-      : points,
-    series: isTimeGroup(config, spec.splitBy)
+    points,
+    series: timeGroup(config, spec.splitBy)
       ? forwardInTime(series, entry => entry.value)
       : series,
   };
@@ -323,10 +401,16 @@ function pie(
   };
 }
 
+/**
+ * A time row or column runs without holes too, as any time axis does; the
+ * cells of a bucket that had no rows are empty, as every cell the query
+ * returned no row for is — a heatmap draws "no group" as no cell.
+ */
 function heatmap(
   spec: NonNullable<AnalysisViewConfig['chart']['heatmap']>,
   config: AnalysisViewConfig,
   rows: readonly RecordData[],
+  timeZone: string,
 ): HeatmapData {
   let xs: unknown[] = [];
   let ys: unknown[] = [];
@@ -341,8 +425,13 @@ function heatmap(
   }
   // Columns run left to right and rows top to bottom, so either one over
   // time reads forward; the cells follow, being looked up by key.
-  if (isTimeGroup(config, spec.x)) xs = forwardInTime(xs, x => x);
-  if (isTimeGroup(config, spec.y)) ys = forwardInTime(ys, y => y);
+  const across = timeGroup(config, spec.x);
+  const down = timeGroup(config, spec.y);
+  const same = (key: unknown) => key;
+  if (across)
+    xs = withoutHoles(forwardInTime(xs, same), same, across, timeZone, same);
+  if (down)
+    ys = withoutHoles(forwardInTime(ys, same), same, down, timeZone, same);
 
   return {
     type: 'heatmap',
@@ -380,9 +469,28 @@ function funnel(
       : stagesFromGroup(spec.stages, rows);
 
   const stages = withConversion(raw, spec.conversion ?? 'previous');
-  return { type: 'funnel', stages };
+  return {
+    type: 'funnel',
+    stages,
+    ...(spec.stages.from === 'group' && spec.stages.cumulative === true
+      ? { cumulative: true as const }
+      : {}),
+  };
 }
 
+/**
+ * The stages a group's values make, in the business order, each its own
+ * rows' number — the same number the table and the bar chart show beside
+ * that value, which is what Metabase draws too.
+ *
+ * Accumulating was the default once, on the reading that each object sits
+ * in exactly one stage and "reached at least here" is this stage and every
+ * later one. That holds for a status an order moves through and for nothing
+ * else a category can be: an event's type, a warehouse. The compensation
+ * service's 「事件类型分布」 drew 「首次失败 1,831,229」 — the seven types
+ * added up — beside a table that said 65.9万. So a funnel accumulates only
+ * when asked, and then says so (`FunnelData.cumulative`).
+ */
 function stagesFromGroup(
   stages: Extract<
     NonNullable<AnalysisViewConfig['chart']['funnel']>['stages'],
@@ -403,10 +511,10 @@ function stagesFromGroup(
     label: key,
     value: byCategory.get(seriesKey(key)) ?? 0,
   }));
-  if (stages.cumulative === false) return ordered;
+  if (stages.cumulative !== true) return ordered;
 
-  // Each object sits in exactly one stage, so "reached at least here" is the
-  // sum of this stage and every later one.
+  // Asked to, each object is read as sitting in exactly one stage, so
+  // "reached at least here" is the sum of this stage and every later one.
   let running = 0;
   return [...ordered]
     .reverse()
@@ -446,6 +554,7 @@ function metricCard(
   config: AnalysisViewConfig,
   rows: readonly RecordData[],
   totals: RecordData | undefined,
+  timeZone: string,
 ): MetricCardData {
   const trend = spec.trend;
   const headline: RecordData = trend
@@ -470,17 +579,40 @@ function metricCard(
     // The sparkline is a time axis too, and validation holds `trend.x` to a
     // date bucket; the headline and the comparison add up in any order.
     ...(trend
-      ? {
-          trend: forwardInTime(
-            rows.map(row => ({
-              x: row[trend.x],
-              value: num(row, spec.metric),
-            })),
-            point => point.x,
-          ),
-        }
+      ? { trend: sparkline(spec, trend.x, config, rows, timeZone) }
       : {}),
   };
+}
+
+/**
+ * The card's trend, earliest first and without holes as every time axis
+ * runs: a quiet day is a dip to 0, not a line drawn straight past it.
+ */
+function sparkline(
+  spec: NonNullable<AnalysisViewConfig['chart']['metric']>,
+  x: string,
+  config: AnalysisViewConfig,
+  rows: readonly RecordData[],
+  timeZone: string,
+): { x: unknown; value: number | null }[] {
+  const points = forwardInTime(
+    rows.map(row => ({ x: row[x], value: num(row, spec.metric) })),
+    point => point.x,
+  );
+  const axis = timeGroup(config, x);
+  if (!axis) return points;
+  const additive = adds(config, spec.metric);
+  const absent = absenceReader(config, rows);
+  return withoutHoles(
+    points,
+    point => point.x,
+    axis,
+    timeZone,
+    key => ({
+      x: key,
+      value: additive && absent({ [x]: key }) ? 0 : null,
+    }),
+  );
 }
 
 /**

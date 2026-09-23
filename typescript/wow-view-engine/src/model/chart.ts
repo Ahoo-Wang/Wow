@@ -195,7 +195,12 @@ export type FunnelStages =
       value: string;
       /** Business order of the stages, taken from the group values. */
       order: string[];
-      /** Accumulate into "reached at least this stage"; defaults to true. */
+      /**
+       * Accumulate into "reached at least this stage" — each stage plus
+       * every later one, which is right only when each object sits in
+       * exactly one stage. Defaults to false: each stage is its own rows'
+       * number, the one the table shows.
+       */
       cumulative?: boolean;
     };
 

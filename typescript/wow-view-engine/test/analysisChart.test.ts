@@ -1061,23 +1061,38 @@ describe('shapeChart', () => {
       { wh: 'shipped', orders: 30 },
     ];
 
-    it('accumulates group stages into "reached at least here"', () => {
-      const data = shapeChart(
-        config({
-          type: 'funnel',
-          funnel: {
-            stages: {
-              from: 'group',
-              category: 'wh',
-              value: 'orders',
-              order: ['created', 'paid', 'shipped'],
+    /**
+     * 「事件类型分布」 as a funnel said 「首次失败 1,831,229」 — all seven
+     * types added up — where the table said 65.9万 (chart audit P0-1). A
+     * stage is its own rows' number unless the spec asks for more.
+     */
+    it('draws each group stage as its own number by default', () => {
+      const funnelOf = (cumulative?: boolean) =>
+        shapeChart(
+          config({
+            type: 'funnel',
+            funnel: {
+              stages: {
+                from: 'group',
+                category: 'wh',
+                value: 'orders',
+                order: ['created', 'paid', 'shipped'],
+                ...(cumulative === undefined ? {} : { cumulative }),
+              },
             },
-          },
-        }),
-        stageRows,
-      ) as FunnelData;
-      expect(data.stages.map(stage => stage.value)).toEqual([190, 90, 30]);
-      expect(data.stages[1].conversion).toBeCloseTo(90 / 190);
+          }),
+          stageRows,
+        ) as FunnelData;
+      const own = funnelOf();
+      expect(own.stages.map(stage => stage.value)).toEqual([100, 60, 30]);
+      expect(own.stages[1].conversion).toBeCloseTo(0.6);
+      expect(own.cumulative).toBeUndefined();
+
+      // Asked for "reached at least here", it adds up — and says it did.
+      const reached = funnelOf(true);
+      expect(reached.stages.map(stage => stage.value)).toEqual([190, 90, 30]);
+      expect(reached.stages[1].conversion).toBeCloseTo(90 / 190);
+      expect(reached.cumulative).toBe(true);
     });
 
     it('leaves the values alone when accumulation is switched off', () => {
