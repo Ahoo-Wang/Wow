@@ -684,7 +684,7 @@ describe('the applied badge in another language', () => {
       </MessagesProvider>,
     );
     expect(
-      screen.getByText('明细 有条目满足 满足任一 SKU 等于 A、SKU 等于 B'),
+      screen.getByText('明细 任一条目满足 满足任一 SKU 等于 A、SKU 等于 B'),
     ).toBeDefined();
 
     // One condition under `nor` is its negation — the pill's own switch
@@ -697,7 +697,7 @@ describe('the applied badge in another language', () => {
         />
       </MessagesProvider>,
     );
-    expect(screen.getByText('明细 有条目满足 排除 SKU 等于 A')).toBeDefined();
+    expect(screen.getByText('明细 任一条目满足 排除 SKU 等于 A')).toBeDefined();
   });
 
   it("reads a group out under its own operator's word", () => {

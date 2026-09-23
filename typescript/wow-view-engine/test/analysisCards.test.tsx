@@ -112,9 +112,25 @@ const tray = () =>
   document.querySelector<HTMLElement>('[data-slot="analysis-tray"]');
 
 /** A saved analysis view on screen, its tray opened. */
-async function open(config: Partial<AnalysisViewConfig> = {}) {
+async function open(
+  config: Partial<AnalysisViewConfig> = {},
+  /** The user's auto-run preference; unsaid is on, as it is for a user. */
+  { autoRun }: { autoRun?: boolean } = {},
+) {
   const store = new MemoryViewStore({
     instances: [{ ...analysisView, config: analysisConfig(config) }],
+    ...(autoRun === undefined
+      ? {}
+      : {
+          preferences: {
+            orders: {
+              order: [],
+              defaultInstanceId: null,
+              autoRun,
+              revision: 'p1',
+            },
+          },
+        }),
   });
   const engine = new ViewEngine({
     definitions: [richDefinition()],
@@ -317,10 +333,11 @@ describe('a display name', () => {
 
   /**
    * A name is part of the question rather than part of how it is looked at,
-   * so it waits for Apply like every other edit in the tray (D17-6).
+   * so it waits for Apply like every other edit in the tray (D17-6) — where
+   * Apply is how the question runs, which is with auto-run off.
    */
   it('marks Apply, because a name runs rather than redraws', async () => {
-    await open();
+    await open({}, { autoRun: false });
     expect(applyButton().hasAttribute('data-pending')).toBe(false);
 
     commit(await renameBox('Warehouse'), '门店');
@@ -335,7 +352,7 @@ describe('a display name', () => {
 
   /**
    * A named column is titled by its name alone (`columnTitle`): 「门店」, not
-   * 「门店 的 合计」 — the analyst already said what the column is, and
+   * 「门店的合计」 — the analyst already said what the column is, and
    * appending the summary to it says it twice. Every place a column is
    * named follows: the header, the result's reading, and a chart's legend
    * and figure name, which read through the same titler.

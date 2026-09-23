@@ -431,8 +431,8 @@ export function leadMetric(chart: ChartSpec): string | undefined {
  * The chart as `type` draws it, measuring what the chart being left measured.
  *
  * Picking another type changes how the numbers are drawn, not which numbers
- * (the user's 2026-09-23 decision, audit P0-10): a bar chart of 「金额 的
- * 合计」 turned into a pie used to become a pie of 「记录数」, because a family
+ * (the user's 2026-09-23 decision, audit P0-10): a bar chart of 「金额的合计」
+ * turned into a pie used to become a pie of 「记录数」, because a family
  * never visited fills its value slot with the first metric, and one visited
  * before kept whatever it measured then. So the lead metric is carried into
  * the new family's slot; everything else the family had — a pie's donut, a

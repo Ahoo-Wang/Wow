@@ -259,6 +259,7 @@ describe('the expansion slot', () => {
       'analysis-slot-elements',
       'analysis-slot-dimensions',
       'analysis-slot-metrics',
+      'analysis-slot-result',
     ]);
     expect(
       screen.getByRole('region', {

@@ -125,7 +125,7 @@ describe('groupOfType', () => {
   /**
    * The order a definition lists a field's group types in is its author's
    * word on how the field is first looked at, so the tray's 「添加维度」 and
-   * the follow-up's 「按…拆一层」 both take the first one. They once
+   * the follow-up's 「按其他维度细分…」 both take the first one. They once
    * differed: the split preferred a value grouping wherever one was offered,
    * so a field declared date-first was grouped by date in the tray and by
    * value from the menu.

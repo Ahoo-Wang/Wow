@@ -88,7 +88,7 @@ describe('metricReference', () => {
 
   it('composes in each language’s own order', () => {
     const analysis = naming(sum);
-    expect(metricReference(analysis, sum, words(zhCN))).toBe('Amount 的 合计');
+    expect(metricReference(analysis, sum, words(zhCN))).toBe('Amount的合计');
   });
 
   it('names the earliest and the latest of a date as a record column does', () => {
@@ -108,7 +108,7 @@ describe('metricReference', () => {
       'Earliest of Created',
     );
     expect(metricReference(analysis, earliest, words(zhCN))).toBe(
-      'Created 的 最早',
+      'Created的最早',
     );
   });
 

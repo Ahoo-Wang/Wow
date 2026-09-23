@@ -53,7 +53,7 @@ export interface AnalysisColumnView {
   label: string;
   role: 'group' | 'metric';
   /**
-   * For a metric: which summary it is, so a header can read 「金额 的 平均」
+   * For a metric: which summary it is, so a header can read 「金额的平均」
    * rather than the alias `amount_1`. Two metrics over one field differ here
    * and nowhere else, which is exactly why the header cannot be the label.
    */

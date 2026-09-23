@@ -179,7 +179,7 @@ describe('an analysis column header', () => {
 
     expect(
       screen.getAllByRole('columnheader').map(cell => cell.textContent),
-    ).toEqual(['Warehouse', 'Amount 的 合计', 'Amount 的 平均', '记录数']);
+    ).toEqual(['Warehouse', 'Amount的合计', 'Amount的平均', '记录数']);
   });
 });
 

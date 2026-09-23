@@ -42,7 +42,7 @@ export default meta;
 
 type Story = StoryObj<typeof displayMeta>;
 
-/** 「金额 的 合计」 and 「订单数」: the two columns a scatter plots. */
+/** 「金额的合计」 and 「订单数」: the two columns a scatter plots. */
 const AMOUNT_HEADER = formatMessage(zhCN, 'label.summary.of', {
   field: '金额',
   fn: zhCN['label.summary.fn.SUM'],

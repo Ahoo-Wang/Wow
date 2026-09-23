@@ -14,22 +14,41 @@
 import { useId, useState } from 'react';
 import type { FieldDefinition } from '../../model/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
-import { Field, FieldError } from '../components/field.js';
-import { formatNumber } from '../display.js';
+import { cn } from 'cn';
+import {
+  Field,
+  FieldError,
+  FieldLabel,
+  FieldTitle,
+} from '../components/field.js';
+import { columnTitle, formatNumber } from '../display.js';
 import { NumberInput } from '../FilterValueEditor.js';
-import { TEXT_UI } from '../layout.js';
+import { SPACE } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { SortSettings } from '../SortSettings.js';
+import { EditorSlot } from '../variants.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
 import { metricReference } from './editing.js';
+import { HavingRows } from './HavingRows.js';
 
 /**
- * What the first N groups are the first N of: the sort, and the N, on one
- * row at the bottom of the metrics slot. The record view's own editor takes
- * as many entries as there are aliases, so "first by one, then by the next"
- * is sayable here too. A sort needs a dimension, so the row waits for one.
+ * 「结果」: the step after the question (2026-09-23 audit) — which groups
+ * the result keeps, in which order, and how many of them. Wow applies the
+ * three in that order (having, then sort, then limit), and the analyst says
+ * them in it too: 「只保留金额的合计大于 2000 的组，按金额的合计降序，取前 10
+ * 组」. So the slot reads top to bottom as that sentence, each control under
+ * a visible label, with 「前 N 组」 beside the sort it is the first N of.
+ *
+ * They used to sit at the foot of the metrics slot with no label of their
+ * own: a button that said 「排序」 at rest, a bare number box and 「只保留…」,
+ * none of which said which step of the question it was. They are a step of
+ * their own because none of them is a metric — each is about the groups.
+ *
+ * All three need a dimension (Wow refuses to sort, cut or keep an ungrouped
+ * aggregation, which has one row anyway), so without one the slot is not
+ * drawn rather than drawn empty.
  */
-export function SortRow({
+export function ResultSlot({
   analysis,
   disabled,
 }: {
@@ -38,16 +57,55 @@ export function SortRow({
 }) {
   const messages = useViewMessages();
   if (analysis.groups.length === 0) return null;
-  // The record view's own sort editor, over the aliases as if they were
-  // fields (D20: one control for one thing): every dimension and metric
-  // may order the groups, first by one, then by the next.
+  return (
+    <EditorSlot
+      name="result"
+      title={messages.label('label.analysis.slot.result')}
+      hint={messages.label('label.analysis.hint.result')}
+    >
+      <HavingRows analysis={analysis} disabled={disabled} />
+      {/* `items-start`: the limit's refusal hangs under its box, and the
+          sort stays level with the box rather than centring on the pair. */}
+      <div
+        data-slot="analysis-order"
+        className={cn('flex flex-wrap items-start gap-x-6', SPACE.GROUPS)}
+      >
+        <SortField analysis={analysis} />
+        <LimitField analysis={analysis} disabled={disabled} />
+      </div>
+    </EditorSlot>
+  );
+}
+
+/**
+ * The order of the groups: the record view's own sort editor, over the
+ * aliases as if they were fields (D20: one control for one thing) — every
+ * dimension and metric may order the groups, first by one, then by the
+ * next. The label is a title rather than a `<label>`: the button carries a
+ * name of its own that reads the sort back (「排序：金额的合计 降序」), and
+ * the title names the group it stands in.
+ */
+function SortField({ analysis }: { analysis: AnalysisEditorController }) {
+  const messages = useViewMessages();
+  const titleId = useId();
   const fields: FieldDefinition[] = [
     ...analysis.groups.map(group => ({
       name: group.alias,
-      label:
-        group.label ??
-        analysis.fields.find(entry => entry.field === group.field)?.label ??
-        group.field,
+      // Named as the result's column is — a time dimension with its
+      // granularity — so the sort says the header it orders by.
+      label: columnTitle(
+        group.label === undefined
+          ? {
+              label:
+                analysis.fields.find(entry => entry.field === group.field)
+                  ?.label ?? group.field,
+              ...(group.type === 'DATE_HISTOGRAM'
+                ? { dateUnit: group.unit }
+                : {}),
+            }
+          : { label: group.label, named: true },
+        messages,
+      ),
       kind: 'string',
       sortable: true,
     })),
@@ -70,15 +128,18 @@ export function SortRow({
     maxSortFields: fields.length,
   };
   return (
-    <div
+    <Field
       data-slot="analysis-sort"
-      // `items-start`: the limit's refusal hangs under its box, and the sort
-      // button stays level with the box rather than centring on the pair.
-      className={`mt-auto flex flex-wrap items-start gap-2 ${TEXT_UI}`}
+      aria-labelledby={titleId}
+      className="w-auto gap-1"
     >
-      <SortSettings table={owner} fields={fields} />
-      <LimitField analysis={analysis} disabled={disabled} />
-    </div>
+      <FieldTitle id={titleId}>{messages.label('label.sort.title')}</FieldTitle>
+      {/* A box of its own: a vertical field stretches each child to its
+          width, and the button is as wide as what it says. */}
+      <div>
+        <SortSettings table={owner} fields={fields} />
+      </div>
+    </Field>
   );
 }
 
@@ -119,6 +180,7 @@ function LimitField({
   const messages = useViewMessages();
   const { locale } = useSurfaceDisplay();
   const errorId = useId();
+  const inputId = useId();
   const { max, fallback } = analysis.limitBounds;
   const [typed, setTyped] = useState<{
     value: number | null;
@@ -133,7 +195,11 @@ function LimitField({
       data-slot="analysis-limit"
       className="w-auto gap-1"
     >
+      <FieldLabel htmlFor={inputId}>
+        {messages.label('label.analysis.row-limit')}
+      </FieldLabel>
       <NumberInput
+        id={inputId}
         label={messages.label('label.analysis.row-limit')}
         chrome="box"
         className="w-20"

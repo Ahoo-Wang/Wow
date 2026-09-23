@@ -85,7 +85,7 @@ export function ChartOptions({
 }: ChartOptionsProps) {
   const messages = useViewMessages();
   // Every slot's choices are named as the result's columns are titled —
-  // 「金额 的 合计」, never the alias — and a funnel's stages as the group's
+  // 「金额的合计」, never the alias — and a funnel's stages as the group's
   // values show. Both read the catalogue this panel is drawn under.
   const column = useColumnTitle(columns);
   const label = useValueLabel(columns);

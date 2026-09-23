@@ -36,6 +36,11 @@ export const analysisMessages = {
   'label.analysis.slot.metrics': 'Metrics',
   'label.analysis.hint.dimensions': 'compare by what',
   'label.analysis.hint.metrics': 'which numbers',
+  // The step after the question (2026-09-23 audit): which groups the result
+  // keeps, in which order, and how many — Wow's having, sort and limit, in
+  // the order it applies them.
+  'label.analysis.slot.result': 'Result',
+  'label.analysis.hint.result': 'which groups, in what order',
   // The expansion slot (D20 屏 G): the chain of arrays counted inside.
   'label.analysis.slot.elements': 'Expand',
   'label.analysis.hint.elements': 'count what',
@@ -55,6 +60,18 @@ export const analysisMessages = {
   'label.date-unit.HOUR': 'By hour',
   'label.date-unit.MINUTE': 'By minute',
   'label.date-unit.SECOND': 'By second',
+  // A time dimension's column says what one of its rows spans: 「创建时间
+  // （按日）」, "Created (by day)". One key a unit rather than the unit's
+  // own word in a pattern, because the English select says "By day" and a
+  // header in the middle of a title says "by day".
+  'label.analysis.dated.YEAR': '{field} (by year)',
+  'label.analysis.dated.QUARTER': '{field} (by quarter)',
+  'label.analysis.dated.MONTH': '{field} (by month)',
+  'label.analysis.dated.WEEK': '{field} (by week)',
+  'label.analysis.dated.DAY': '{field} (by day)',
+  'label.analysis.dated.HOUR': '{field} (by hour)',
+  'label.analysis.dated.MINUTE': '{field} (by minute)',
+  'label.analysis.dated.SECOND': '{field} (by second)',
   'label.analysis.interval': 'Band width',
   'label.analysis.percentile': 'Percentile',
   'label.analysis.open-editor': 'Open analysis',
@@ -76,13 +93,16 @@ export const analysisMessages = {
   // says and leaves it alone, rather than drawing nothing at all.
   'label.analysis.expression-unreadable':
     'This metric is written with an expression the card cannot show.',
-  // 「只保留」: the groups kept, as rows of one comparison each.
-  'label.analysis.having': 'Keep only…',
-  'label.analysis.having-title': 'Keep only the groups where',
+  // 「只保留」: the groups kept, as rows of one comparison each. The title
+  // is the field's visible label in the result slot; the button adds a row
+  // under it, so it says what it adds rather than repeating the title.
+  'label.analysis.having': 'Add condition',
+  'label.analysis.having-title': 'Keep only',
   // Every row is four controls with the same four names, so the row itself
   // is a named group and its number is where a reader is.
   'label.analysis.having-row': 'Keep-only condition {index}',
-  'label.analysis.having-keep': 'Keep where',
+  // Between two rows: every one of them must hold.
+  'label.analysis.having-and': 'and',
   'label.analysis.having-metric': 'Metric to keep by',
   'label.analysis.having-operator': 'Comparison',
   'label.analysis.having-value': 'Value to compare with',
@@ -122,8 +142,11 @@ export const analysisMessages = {
   // The visualization panel (D20 屏 I): the way in from the result's
   // toolbar, its title, the way back, and why a tile is greyed.
   'label.analysis.visualize': 'Visualize',
-  // 「改了就跑」 (D20): the switch on the tray's footer.
-  'label.analysis.auto-run': 'Run as I change the question',
+  // Auto-run (D20): the switch on the tray's footer, and what it does and
+  // does not cover — the range's conditions still wait for Apply.
+  'label.analysis.auto-run': 'Run automatically',
+  'label.analysis.auto-run-hint':
+    'Changes to dimensions, metrics and the result run on their own; the range waits for Apply.',
   'label.chart.picker': 'Visualization',
   'label.chart.picker-back': 'Back to the views',
   'label.chart.recommended': 'Recommended',

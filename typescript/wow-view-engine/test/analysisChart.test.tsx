@@ -20,7 +20,7 @@ import type {
   ChartSpec,
 } from '../src/index.js';
 import { CHART_COLOR_SLOTS, groupKeyText, shapeChart } from '../src/index.js';
-import { AnalysisChart, ViewSurface } from '../src/ui/index.js';
+import { AnalysisChart, ViewSurface, zhCN } from '../src/ui/index.js';
 import { DRAWN, analysisConfig } from './fixtures.js';
 
 afterEach(cleanup);
@@ -377,6 +377,65 @@ describe('AnalysisChart', () => {
     expect(within(container).getAllByText('¥1,234.00').length).toBeGreaterThan(
       0,
     );
+  });
+
+  /**
+   * The chart reads its columns as the table heads them: a time dimension
+   * says what one of its buckets spans, and a metric is one phrase — on the
+   * axis, in the legend and in the figure's name alike.
+   */
+  it('titles a time axis, a legend and the figure as the table heads them', () => {
+    const dated: AnalysisView['columns'] = [
+      {
+        alias: 'created',
+        label: '创建时间',
+        role: 'group',
+        kind: 'datetime',
+        dateUnit: 'DAY',
+      },
+      { alias: 'amount', label: '金额', role: 'metric', fn: 'SUM' },
+      { alias: 'orders', label: '订单', role: 'metric', fn: 'COUNT' },
+    ];
+    const { container } = render(
+      <ViewSurface messages={zhCN}>
+        <AnalysisChart
+          data={{
+            type: 'cartesian',
+            chart: 'bar',
+            points: [
+              { x: '2026-09-01', values: { amount: 1200, orders: 3 } },
+              { x: '2026-09-02', values: { amount: 800, orders: 2 } },
+            ],
+            series: [
+              { key: 'amount', label: 'amount', metric: 'amount' },
+              { key: 'orders', label: 'orders', metric: 'orders' },
+            ],
+          }}
+          spec={{
+            type: 'bar',
+            cartesian: {
+              x: 'created',
+              series: [{ metric: 'amount' }, { metric: 'orders' }],
+            },
+          }}
+          columns={dated}
+        />
+      </ViewSurface>,
+    );
+
+    expect(
+      within(container).getByText('创建时间（按日）', DRAWN),
+    ).toBeDefined();
+    expect(
+      [...container.querySelectorAll('[data-slot="chart-legend-item"]')].map(
+        item => item.textContent,
+      ),
+    ).toEqual(['金额的合计', '记录数']);
+    expect(
+      container
+        .querySelector('[data-slot="chart-plot"]')!
+        .getAttribute('aria-label'),
+    ).toBe('柱状图：金额的合计、记录数，按创建时间（按日）');
   });
 
   it('writes a data-valued series name as text, never into a stylesheet', () => {

@@ -46,6 +46,7 @@ export function NumberInput({
   className,
   placeholder,
   describedBy,
+  id,
 }: ControlChromeProps & {
   /** The number in force, if there is one. */
   value: unknown;
@@ -62,11 +63,14 @@ export function NumberInput({
   placeholder?: string;
   /** The id of the sentence that says why the box is refused. */
   describedBy?: string;
+  /** The input's id, where a visible `FieldLabel` points at it. */
+  id?: string;
 }) {
   const messages = useViewMessages();
   const { locale } = useSurfaceDisplay();
   return (
     <NumberFieldPrimitive.Root
+      id={id}
       value={numberOrBlank(value)}
       onValueChange={next => onNumber(next)}
       locale={locale}

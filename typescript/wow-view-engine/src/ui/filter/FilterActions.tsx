@@ -27,7 +27,9 @@ import { cn } from 'cn';
  * where a second submit button stands beside it: the analysis editor's Run
  * calls the same `runtime.apply()`, so it is one execution with two ways in,
  * and it is drawn `outline` rather than promoted to a second primary
- * (D17-3). Discard is the other end of the same decision and appears only
+ * (D17-3). Where the edits run on their own it may rest as an outline
+ * (`quiet`) until something waits for it. Discard is the other end of the
+ * same decision and appears only
  * when there is an edit to discard, so the row never offers to undo nothing.
  */
 export function FilterActions({
@@ -35,6 +37,7 @@ export function FilterActions({
   disabled,
   overBudget,
   pending = filter.pending,
+  quiet = false,
 }: {
   filter: FilterEditorController;
   disabled?: boolean;
@@ -50,8 +53,16 @@ export function FilterActions({
    * back to an editable filter.
    */
   overBudget: boolean;
+  /**
+   * Whether Apply may rest as an outline button while nothing is `pending`:
+   * the editor runs its edits on its own (the analysis tray's auto-run), so
+   * a filled button would ask for a press that does nothing new. It is
+   * primary again the moment something waits for it.
+   */
+  quiet?: boolean;
 }) {
   const messages = useViewMessages();
+  const resting = quiet && !pending;
   return (
     <div className="ml-auto flex items-center gap-2">
       {filter.blocked > 0 && (
@@ -88,13 +99,18 @@ export function FilterActions({
       </Button>
       <Button
         size="sm"
+        variant={resting ? 'outline' : 'default'}
+        // The emphasis said on the element (A-09): a fill is otherwise only
+        // a class, which proves nothing about the screen.
+        data-emphasis={resting ? 'quiet' : 'primary'}
         data-pending={pending || undefined}
         disabled={disabled || filter.blocked > 0}
         onClick={filter.submit}
       >
         {/* The same dot the pills wear, in the one colour that shows on a
-            filled primary button. It names nothing: the pills it summarises
-            carry the wording. */}
+            filled primary button — and a button with a dot is never the
+            resting one. It names nothing: the pills it summarises carry the
+            wording. */}
         {pending && <PendingDot tone="on-primary" />}
         <FilterIcon data-icon="inline-start" />
         {messages.label('label.filter.apply')}

@@ -206,7 +206,12 @@ export function groupText(
       column.dateUnit === 'WEEK'
         ? 'label.drill.bucket-week'
         : 'label.drill.bucket',
-      { field: columnTitle(column, messages), bucket },
+      // The field, not the column: the column's title carries its
+      // granularity (「创建时间（按月）」), which the bucket already says.
+      {
+        field: columnTitle({ ...column, dateUnit: undefined }, messages),
+        bucket,
+      },
     );
   return entry.conditions
     .map(item => summaryText(item, messages, display))

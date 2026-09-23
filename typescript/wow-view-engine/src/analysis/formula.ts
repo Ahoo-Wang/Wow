@@ -49,7 +49,7 @@ export const EXPRESSION_OPERATORS = Object.keys(
 
 /**
  * How a derived metric's text names another metric it refers to. The kernel
- * holds no catalogue, so it cannot say 「金额 的 合计」 or 「记录数」: it writes
+ * holds no catalogue, so it cannot say 「金额的合计」 or 「记录数」: it writes
  * the referenced metric's summary and name between control characters, and
  * `columnTitle` in the UI words each one exactly as that metric's own column
  * is worded (`wordReferences`) — so an operand reads the same in the

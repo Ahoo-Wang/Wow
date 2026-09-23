@@ -983,4 +983,47 @@ describe('columnTitle', () => {
       'Sum of Amount − Cost',
     );
   });
+
+  const zh: MessageFormatters = {
+    label: (key, params) => formatMessage(zhCN, key, params),
+    issue: () => '',
+    issues: () => '',
+  };
+
+  /**
+   * A header is one phrase, so the Chinese composes without the spaces a
+   * sentence puts around a name (2026-09-23 audit: 「金额 的 合计」 read as
+   * three words). The English keeps its own order.
+   */
+  it('composes a metric’s header as one phrase, in either language', () => {
+    expect(columnTitle({ label: '金额', fn: 'SUM' }, zh)).toBe('金额的合计');
+    expect(
+      columnTitle({ label: '创建时间', fn: 'MAX', cell: 'datetime' }, zh),
+    ).toBe('创建时间的最晚');
+    expect(columnTitle({ label: '金额', fn: 'PERCENTILE' }, zh)).toBe(
+      '≈ 金额的百分位',
+    );
+    expect(columnTitle({ label: 'Amount', fn: 'SUM' }, words)).toBe(
+      'Sum of Amount',
+    );
+  });
+
+  /**
+   * A time dimension's rows are buckets, and a bucket key reads as one
+   * moment: 「9月1日」 does not say whether the row is that day or that
+   * month. So its header says the granularity; a dimension the analyst
+   * named is titled by the name alone, and any other dimension by its field.
+   */
+  it('says what one row of a time dimension spans', () => {
+    expect(columnTitle({ label: '创建时间', dateUnit: 'DAY' }, zh)).toBe(
+      '创建时间（按日）',
+    );
+    expect(columnTitle({ label: 'Created', dateUnit: 'MONTH' }, words)).toBe(
+      'Created (by month)',
+    );
+    expect(
+      columnTitle({ label: '下单日', dateUnit: 'DAY', named: true }, zh),
+    ).toBe('下单日');
+    expect(columnTitle({ label: 'Warehouse' }, words)).toBe('Warehouse');
+  });
 });

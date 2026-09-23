@@ -107,7 +107,7 @@ export function metricName(
  *
  * The card's own title says the bare field name, because the summary
  * combobox sits right beside it and says the rest. Everywhere else there is
- * no such neighbour, so 「金额 的 合计」 and 「金额 的 平均」 would read as one
+ * no such neighbour, so 「金额的合计」 and 「金额的平均」 would read as one
  * name. This composes the summary in exactly the way the result column and
  * the chart slots do — `columnTitle` over the same label and the same
  * function — so a metric reads the same word wherever it is mentioned.
@@ -148,7 +148,7 @@ export function metricFallbackName(
   if (metric.type === 'DERIVED')
     return derivedText(metric.expression, alias => {
       // An operand is a reference to another metric, and says its summary
-      // (「金额 的 合计 ÷ 记录数」), as the derived column's header does.
+      // (「金额的合计 ÷ 记录数」), as the derived column's header does.
       const referenced = analysis.metrics.find(entry => entry.alias === alias);
       return referenced
         ? metricReference(analysis, referenced, messages)

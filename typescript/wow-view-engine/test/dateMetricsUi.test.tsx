@@ -108,7 +108,7 @@ describe('the earliest and the latest of a date, on screen', () => {
       </ViewSurface>,
     );
     expect(
-      screen.getByRole('columnheader', { name: 'Created 的 最晚' }),
+      screen.getByRole('columnheader', { name: 'Created的最晚' }),
     ).toBeDefined();
   });
 

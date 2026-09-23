@@ -207,9 +207,38 @@ describe('keeping only some of the groups', () => {
     cleanup();
     await open();
     expect(group()).not.toBeNull();
-    expect(group()!.getAttribute('aria-label')).toBe(
-      defaultMessages['label.analysis.having-title'],
+    // Named by its visible label — the legend — in the result slot, not by
+    // an `aria-label` a sighted reader never sees (2026-09-23 audit).
+    expect(
+      within(
+        screen.getByRole('region', {
+          name: defaultMessages['label.analysis.slot.result'],
+        }),
+      ).getByRole('group', {
+        name: defaultMessages['label.analysis.having-title'],
+      }),
+    ).toBe(group());
+    expect(group()!.hasAttribute('aria-label')).toBe(false);
+    // Its one way in says what it adds, under the label that says why.
+    expect(addRow()!.textContent).toBe(
+      defaultMessages['label.analysis.having'],
     );
+  });
+
+  /**
+   * The legend says 「只保留」 once; a second row reads on from the first
+   * with 「并且」, because every one of them has to hold.
+   */
+  it('joins the rows after the first with the word that says all must hold', async () => {
+    await open();
+
+    fireEvent.click(addRow()!);
+    fireEvent.click(addRow()!);
+
+    await waitFor(() => expect(rows()).toHaveLength(2));
+    const and = defaultMessages['label.analysis.having-and'];
+    expect(within(rows()[0]).queryByText(and)).toBeNull();
+    expect(within(rows()[1]).getByText(and)).toBeDefined();
   });
 
   /**

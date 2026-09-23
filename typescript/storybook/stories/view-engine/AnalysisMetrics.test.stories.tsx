@@ -77,7 +77,7 @@ const groupRows = (table: HTMLElement) =>
 /**
  * 指标卡片上写的是它测量的那个字段——「金额」——汇总方式由旁边那个控件说；
  * 一旦在别处**提到**这个指标（「只保留」、排序、派生指标的操作数），旁边
- * 没有那个控件，于是提到它的地方和结果表的列头说同一句话：「金额 的 合计」
+ * 没有那个控件，于是提到它的地方和结果表的列头说同一句话：「金额的合计」
  * （`columnTitle` / `metricReference`）。
  */
 const AMOUNT_METRIC = formatMessage(zhCN, 'label.summary.of', {
@@ -85,7 +85,7 @@ const AMOUNT_METRIC = formatMessage(zhCN, 'label.summary.of', {
   fn: zhCN['label.summary.fn.SUM'],
 });
 
-/** 「金额 − 成本 的 合计」: a formula's own words, then how it was summarised. */
+/** 「金额 − 成本的合计」: a formula's own words, then how it was summarised. */
 const MARGIN_HEADER = formatMessage(zhCN, 'label.summary.of', {
   field: '金额 − 成本',
   fn: zhCN['label.summary.fn.SUM'],
@@ -94,7 +94,7 @@ const MARGIN_HEADER = formatMessage(zhCN, 'label.summary.of', {
 /**
  * 「只保留」：一行一条比较，跑完之后表上真的少了两组。
  *
- * 四个仓库的金额合计是 1920／2450／4880／980，「金额 的 合计 大于 2000」
+ * 四个仓库的金额合计是 1920／2450／4880／980，「金额的合计 大于 2000」
  * 之后只剩华北与华南。它是聚合之后、排序与截断之前的一道筛选，所以它减少
  * 的是**组**，不是记录——一条画在条件面板里的筛选做不到这件事，这也是它
  * 为什么不在范围里。
@@ -321,7 +321,7 @@ export const TopNField: Story = {
  * 不会漏给下一个故事，末尾不必再收拾一遍。
  */
 
-/** 「成本 的 合计」：关掉开关之后那次编辑要带出来的那一列。 */
+/** 「成本的合计」：关掉开关之后那次编辑要带出来的那一列。 */
 const COST_HEADER = formatMessage(zhCN, 'label.summary.of', {
   field: '成本',
   fn: zhCN['label.summary.fn.SUM'],
@@ -471,7 +471,7 @@ export const RunsAsEdited: Story = {
   },
 };
 
-/** 「创建时间 的 最晚」: a moment's own word, not 「最大」. */
+/** 「创建时间的最晚」: a moment's own word, not 「最大」. */
 const LATEST_HEADER = formatMessage(zhCN, 'label.summary.of', {
   field: '创建时间',
   fn: zhCN['label.summary.fn.date.MAX'],

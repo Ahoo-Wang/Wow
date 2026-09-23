@@ -39,7 +39,6 @@ import {
 import { CardMenu, CardName } from './CardMenu.js';
 import { CompactSelect } from './CompactSelect.js';
 import { DerivedControls, FormulaControls } from './FormulaCard.js';
-import { HavingRows } from './HavingRows.js';
 import { useListFocus, type ListFocus } from './listFocus.js';
 import {
   ConditionBlock,
@@ -55,12 +54,11 @@ import {
   metricFallbackName,
   metricReference,
 } from './editing.js';
-import { SortRow } from './SortRow.js';
 
 /**
- * The metrics slot: one card per metric, the way to add one, and — at the
- * bottom, because "the first N groups" is only readable next to what they
- * are ordered by — the sort and the row limit.
+ * The metrics slot: one card per metric and the way to add one. What the
+ * result keeps of the groups — 「只保留」, the sort, 「前 N 组」 — is the
+ * result slot's (`ResultSlot.tsx`): none of it is a metric.
  */
 export function MetricSlot({
   analysis,
@@ -180,8 +178,6 @@ export function MetricSlot({
           )}
         </DropdownMenuContent>
       </DropdownMenu>
-      <SortRow analysis={analysis} disabled={disabled} />
-      <HavingRows analysis={analysis} disabled={disabled} />
     </EditorSlot>
   );
 }

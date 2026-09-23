@@ -21,6 +21,7 @@ import {
 import type { AnalysisEditorController } from '../../react/index.js';
 import { cn } from 'cn';
 import { Button } from '../components/button.js';
+import { FieldLegend, FieldSet } from '../components/field.js';
 import { NumberInput } from '../FilterValueEditor.js';
 import { IconButton } from '../IconButton.js';
 import { TEXT_UI } from '../layout.js';
@@ -32,8 +33,8 @@ import { useListFocus } from './listFocus.js';
 
 /**
  * 「只保留」 (D20 屏 B; Wow `having`): which groups the result keeps, as
- * rows of one comparison each under the metrics — 「金额合计 大于
- * 10,000」 — all of which must hold. It exists only where the capability
+ * rows of one comparison each, first in the result slot — 「金额的合计
+ * 大于 10,000」 — all of which must hold. It exists only where the capability
  * declares `having` and there is something to keep (a dimension); a
  * having over one row is refused by Wow. A row being filled in is the
  * editor's until it has a value, so the config on disk always holds
@@ -82,12 +83,13 @@ export function HavingRows({
   }));
   const first = keepable[0];
   return (
-    <div
-      data-slot="analysis-having"
-      role="group"
-      aria-label={messages.label('label.analysis.having-title')}
-      className={cn('flex flex-col gap-2', TEXT_UI)}
-    >
+    // A set of rows under one visible label, which is the fieldset's
+    // legend: the rows' own controls are named for what they are (metric,
+    // comparison, value), and the legend is what says they keep groups.
+    <FieldSet data-slot="analysis-having" className={cn('gap-2', TEXT_UI)}>
+      <FieldLegend variant="label" className="mb-0">
+        {messages.label('label.analysis.having-title')}
+      </FieldLegend>
       {stored === null ? (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-muted-foreground">
@@ -116,9 +118,13 @@ export function HavingRows({
               index: index + 1,
             })}
           >
-            <span className="text-muted-foreground">
-              {messages.label('label.analysis.having-keep')}
-            </span>
+            {/* The legend above says 「只保留」 once; a second row reads on
+                from the first, since every row has to hold. */}
+            {index > 0 && (
+              <span className="text-muted-foreground">
+                {messages.label('label.analysis.having-and')}
+              </span>
+            )}
             <CompactSelect
               label={messages.label('label.analysis.having-metric')}
               items={keepable}
@@ -198,6 +204,6 @@ export function HavingRows({
           {messages.label('label.analysis.having-note')}
         </span>
       )}
-    </div>
+    </FieldSet>
   );
 }

@@ -191,6 +191,44 @@ describe('改了就跑: the tray’s switch', () => {
   });
 
   /**
+   * The label is the analyst's word for the setting (「自动运行」, 2026-09-23
+   * audit, rather than the colloquial 「改了就跑」), and the line under it
+   * says what the word alone overpromises: the range is not part of it. On
+   * the screen and to a reader both — it is the box's description.
+   */
+  it('says under its name what it runs and what it leaves to Apply', async () => {
+    await openAnalysis();
+
+    const hint = defaultMessages['label.analysis.auto-run-hint'];
+    const described = document.getElementById(
+      autoRunSwitch().getAttribute('aria-describedby')!,
+    );
+    expect(described?.textContent).toBe(hint);
+    expect(
+      within(
+        document.querySelector<HTMLElement>('[data-slot="auto-run"]')!,
+      ).getByText(hint),
+    ).toBe(described);
+  });
+
+  /**
+   * Apply is primary only while something waits for it. With the switch on
+   * and nothing edited it rests; switched off, Apply is the one way to run
+   * again, and it is filled whatever the draft says.
+   */
+  it('rests Apply while it is on, and fills it again once it is off', async () => {
+    await openAnalysis();
+    expect(applyButton().getAttribute('data-emphasis')).toBe('quiet');
+
+    fireEvent.click(autoRunSwitch());
+
+    await waitFor(() =>
+      expect(applyButton().getAttribute('data-emphasis')).toBe('primary'),
+    );
+    expect(applyButton().hasAttribute('data-pending')).toBe(false);
+  });
+
+  /**
    * Switching it off is a write of this user's preference for this
    * definition — beside the order and the default, nothing anyone else
    * sees — and from then on Apply is the one way to run.
@@ -306,6 +344,11 @@ describe('改了就跑: an analysis runs as it is edited', () => {
     );
     // Faded, not emptied: the last answer is still readable while it waits.
     expect(screen.getAllByRole('table').length).toBeGreaterThan(0);
+    // And nothing asks for a press meanwhile: the run is already coming, so
+    // Apply stays at rest with no dot — a dot there would blink up and away
+    // on every edit.
+    expect(applyButton().getAttribute('data-emphasis')).toBe('quiet');
+    expect(applyButton().hasAttribute('data-pending')).toBe(false);
 
     elapse(clock);
 
@@ -332,6 +375,8 @@ describe('改了就跑: an analysis runs as it is edited', () => {
     expect(
       applyButton().querySelector('[data-slot="pending-dot"]'),
     ).not.toBeNull();
+    // Something waits for it, so it is the primary again.
+    expect(applyButton().getAttribute('data-emphasis')).toBe('primary');
     expect(result()!.hasAttribute('data-stale')).toBe(false);
 
     fireEvent.click(applyButton());

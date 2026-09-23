@@ -163,7 +163,7 @@ export class ViewWriteError extends Error {
 
 **一个 runtime 一只计时器**（`runtime/refreshTimer.ts` 的 `RefreshTimer`，与自动刷新那只各是各的）：每次 `edit` 都停表再武装，所以那 300 毫秒是从**最后一次**编辑数起——加一个时间维度、紧接着改它的粒度，是一次查询而不是两次。`apply`、`revert`、关掉开关与 `dispose` 各自停表。300 毫秒是「手停下来了」与「屏幕没反应」之间的那一档：更短会把一串连着的编辑各发一次查询，更长就读成卡了。
 
-跑之前那一下，屏幕上的行答的是上一个问题：它们**淡着留在那儿**，不清空——下一个答案只有几百毫秒远，中间闪一次白读起来是出了错。界面这一半是 `AnalysisParts` 的 `data-slot="analysis-result"` 加 `data-stale`，读的是 `useAnalysisEditor.stale`（见 [react.md#useanalysiseditor-与-usedashboard](react.md#useanalysiseditor-与-usedashboard) 与 [ui/analysis.md#托盘范围--维度--指标一个应用](ui/analysis.md#托盘范围--维度--指标一个应用)）。（见 test/autoApply.test.ts「改了就跑: the analysis runs again on its own」「the auto-run preference」与 test/autoRun.test.tsx「改了就跑: an analysis runs as it is edited」「改了就跑: the tray’s switch」）
+跑之前那一下，屏幕上的行答的是上一个问题：它们**淡着留在那儿**，不清空——下一个答案只有几百毫秒远，中间闪一次白读起来是出了错。界面这一半是 `AnalysisParts` 的 `data-slot="analysis-result"` 加 `data-stale`，读的是 `useAnalysisEditor.stale`（见 [react.md#useanalysiseditor-与-usedashboard](react.md#useanalysiseditor-与-usedashboard) 与 [ui/analysis.md#托盘范围--维度--指标--结果一个应用](ui/analysis.md#托盘范围--维度--指标--结果一个应用)）。（见 test/autoApply.test.ts「改了就跑: the analysis runs again on its own」「the auto-run preference」与 test/autoRun.test.tsx「改了就跑: an analysis runs as it is edited」「改了就跑: the tray’s switch」）
 
 ## 一条记录读全
 

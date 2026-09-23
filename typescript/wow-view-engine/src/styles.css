@@ -642,6 +642,28 @@
   flex: 1 0 auto;
 }
 
+/*
+ * The editor takes at most half the work column and scrolls inside that,
+ * whether the view fills the screen or not. It is a fold over the question,
+ * not the reason the view is open: an analysis tray with a few conditions,
+ * a dimension or two and the result's settings used to stand 600px tall and
+ * leave the chart its 12rem floor, 230px under it (2026-09-23 audit). An
+ * editor that knows which part of it should scroll says so inside — the
+ * analysis tray keeps its Apply footer and scrolls its slots — and this is
+ * the cap for the rest.
+ *
+ * `flex-shrink: 0`: the cap is the whole of what the editor gives up. A
+ * shrinking band under a tall result would be squeezed to nothing; this one
+ * is as tall as its content up to half, and the column scrolls past a short
+ * screen as it did before.
+ */
+.fve-root > main [data-slot='editor-band'],
+.fve-root > main [data-slot='condition-block'] {
+  flex-shrink: 0;
+  max-height: 50%;
+  overflow-y: auto;
+}
+
 .fve-root
   > main
   [data-slot='result-block']
@@ -843,18 +865,6 @@
      column refuses to shrink below its content and the surface's own
      `overflow: hidden` clips it instead of letting it scroll. */
   min-height: 0;
-  overflow-y: auto;
-}
-
-/*
- * The editor takes at most half the screen and scrolls inside that. It is a
- * fold over the conditions, not the reason the view was expanded; a long
- * filter tree that pushed the rows off the bottom would undo the whole
- * gesture.
- */
-.fve-root[data-view-expanded='true'] [data-slot='editor-band'],
-.fve-root[data-view-expanded='true'] [data-slot='condition-block'] {
-  max-height: 50%;
   overflow-y: auto;
 }
 

@@ -78,7 +78,7 @@ export default meta;
 type Story = StoryObj<typeof displayMeta>;
 
 /**
- * 「金额 的 合计」: the two parts a metric header is composed of (D20), and
+ * 「金额的合计」: the two parts a metric header is composed of (D20), and
  * the same sentence anything that *names* that metric says — the funnel,
  * the menu, the removal — since none of them has the summary control
  * beside it the way the card's own title does.
@@ -420,7 +420,12 @@ export const TimeRunsForward: Story = {
       }),
     );
     const table = await findDataTable(canvasElement);
-    const listed = readColumn(table, '创建时间').map(dayOf);
+    // The time dimension's header says what one row spans: 「创建时间（按日）」
+    // (2026-09-23 audit) — a column of dates does not say it alone.
+    const listed = readColumn(
+      table,
+      formatMessage(zhCN, 'label.analysis.dated.DAY', { field: '创建时间' }),
+    ).map(dayOf);
     await expect(listed.length).toBeGreaterThan(10);
     await expect(runsForward([...listed].reverse())).toBe(true);
   },
@@ -719,7 +724,7 @@ export const FollowUpOnADay: Story = {
 };
 
 /**
- * 「再按…拆一层」是一层子菜单，而子菜单在真浏览器里是**悬停**展开的（点一下
+ * 「按其他维度细分…」是一层子菜单，而子菜单在真浏览器里是**悬停**展开的（点一下
  * 反而是在开与关之间来回）——这是只有真指针验得了的一条，jsdom 里点开与悬停
  * 展开是同一回事。
  *
@@ -755,7 +760,7 @@ export const FollowUpSplit: Story = {
     await userEvent.hover(
       within(menu).getByRole('menuitem', { name: zhCN['label.drill.split'] }),
     );
-    // 已经分了的那一维不在里面：按它再拆一层拆不出东西来。
+    // 已经分了的那一维不在里面：按它再细分分不出东西来。
     const split = await waitFor(() => {
       const found = document.body.querySelector<HTMLElement>(
         '[data-slot="dropdown-menu-sub-content"]',
@@ -890,7 +895,7 @@ export const TableWithTotals: Story = {
       ]),
     );
     // A metric is headed by its two parts, never by the alias the query
-    // carried: 「金额 的 合计」, and a count of records by what it counts.
+    // carried: 「金额的合计」, and a count of records by what it counts.
     await expect(readColumn(table, COUNT_HEADER)).toEqual(['2', '1', '2', '1']);
     await expect(readColumn(table, AMOUNT_HEADER).map(amountOf)).toEqual([
       1920, 2450, 4880, 980,
@@ -1056,23 +1061,26 @@ export const TrayFolds: Story = {
       'analysis-slot-range',
       'analysis-slot-dimensions',
       'analysis-slot-metrics',
+      'analysis-slot-result',
     ]);
     for (const name of [
       zhCN['label.analysis.slot.range'],
       zhCN['label.analysis.slot.dimensions'],
       zhCN['label.analysis.slot.metrics'],
+      zhCN['label.analysis.slot.result'],
     ])
       await expect(canvas.getByRole('region', { name })).toBeVisible();
 
-    // One primary on the screen, and it is Apply (D17-3): there is no Run
-    // any more, because the range and the question are one execution. The
-    // fill is what "primary" comes to, so it is read off the pixels here
-    // and nothing else on screen may share it.
-    const apply = within(
-      canvasElement.querySelector<HTMLElement>(
-        '[data-slot="analysis-tray-actions"]',
-      )!,
-    ).getByRole('button', { name: zhCN['label.filter.apply'] });
+    // One primary on the screen at most, and it is Apply (D17-3): there is
+    // no Run any more, because the range and the question are one
+    // execution. With auto-run on it rests until something waits for it;
+    // switched off, it is the one filled button — read off the pixels,
+    // since the fill is what "primary" comes to.
+    await userEvent.click(autoRunBox(canvasElement));
+    const apply = applyButton(canvasElement);
+    await waitFor(() =>
+      expect(apply).toHaveAttribute('data-emphasis', 'primary'),
+    );
     const fill = getComputedStyle(apply).backgroundColor;
     const sharing = [
       ...canvasElement.querySelectorAll<HTMLElement>('[data-slot="button"]'),
@@ -1082,6 +1090,20 @@ export const TrayFolds: Story = {
     ]);
   },
 };
+
+/** The tray's Apply, in its footer. */
+const applyButton = (canvasElement: HTMLElement) =>
+  within(
+    canvasElement.querySelector<HTMLElement>(
+      '[data-slot="analysis-tray-actions"]',
+    )!,
+  ).getByRole('button', { name: zhCN['label.filter.apply'] });
+
+/** The tray's auto-run checkbox. */
+const autoRunBox = (canvasElement: HTMLElement) =>
+  within(
+    canvasElement.querySelector<HTMLElement>('[data-slot="auto-run"]')!,
+  ).getByRole('checkbox');
 
 /**
  * The tray edited: a dimension out of the menu, a metric's summary changed,
@@ -1102,6 +1124,15 @@ export const TrayEdits: Story = {
     await expect(
       opened.querySelectorAll('[data-slot="dimension-card"]'),
     ).toHaveLength(1);
+    // Apply is how the question runs in this story: with auto-run on each
+    // edit below would run itself (`RunsAsEdited`).
+    await userEvent.click(autoRunBox(canvasElement));
+    await waitFor(() =>
+      expect(autoRunBox(canvasElement)).toHaveAttribute(
+        'aria-checked',
+        'false',
+      ),
+    );
 
     // A dimension from the menu of groupable fields.
     await userEvent.click(
@@ -1218,6 +1249,129 @@ export const EditorRowSpacing: Story = {
         )!,
       ).rowGap,
     ).toBe('8px');
+  },
+};
+
+/**
+ * 托盘读得清（2026-09-23 审查，P1）。
+ *
+ * 一、「只保留」「排序」「前 N 组」自成「结果」一步，排在维度与指标后面，每一项
+ * 都有看得见的名字，按 Wow 施加它们的顺序从上到下：只保留在上，排序与前 N 组
+ * 同一行、排序在前。
+ * 二、「自动运行」开着、没有东西等应用时，应用是描边按钮，不是全屏最实的那一
+ * 颗；范围里加了条件（它要等应用）才回到实心。开关名下一行说它管什么。
+ * 三、托盘封顶工作列的一半，槽在里面滚，底行（自动运行／清空／应用）不滚、总看
+ * 得见；结果不再被挤到它的下限。
+ */
+export const TrayReadsClearly: Story = {
+  ...DisplayTableWithTotals,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    const opened = await openTray(canvasElement);
+
+    // 一、the result step, each part labelled on the screen, in Wow's order.
+    const result = canvas.getByRole('region', {
+      name: zhCN['label.analysis.slot.result'],
+    });
+    const metrics = canvas.getByRole('region', {
+      name: zhCN['label.analysis.slot.metrics'],
+    });
+    await expect(result.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      metrics.getBoundingClientRect().bottom,
+    );
+    const keep = within(result).getByRole('group', {
+      name: zhCN['label.analysis.having-title'],
+    });
+    const sort = within(result).getByRole('group', {
+      name: zhCN['label.sort.title'],
+    });
+    const limitBox = within(result).getByLabelText(
+      zhCN['label.analysis.row-limit'],
+    );
+    const limit = limitBox.closest<HTMLElement>(
+      '[data-slot="analysis-limit"]',
+    )!;
+    // The names are text a sighted analyst reads, not only a reader's.
+    const visible = [
+      keep.querySelector('legend'),
+      sort.querySelector('[data-slot="field-label"]'),
+      result.querySelector(`label[for="${limitBox.id}"]`),
+    ];
+    await expect(visible.map(label => label?.textContent)).toEqual([
+      zhCN['label.analysis.having-title'],
+      zhCN['label.sort.title'],
+      zhCN['label.analysis.row-limit'],
+    ]);
+    for (const label of visible) await expect(label).toBeVisible();
+    const box = (element: HTMLElement) => element.getBoundingClientRect();
+    await expect(box(keep).bottom).toBeLessThanOrEqual(box(sort).top);
+    await expect(Math.abs(box(sort).top - box(limit).top)).toBeLessThan(1);
+    await expect(box(sort).right).toBeLessThanOrEqual(box(limit).left);
+
+    // 二、Apply rests while auto-run leaves it nothing to do. The checked
+    // box wears the primary fill, which is what a filled Apply would share.
+    const primary = getComputedStyle(autoRunBox(canvasElement)).backgroundColor;
+    const apply = applyButton(canvasElement);
+    await expect(apply).toHaveAttribute('data-emphasis', 'quiet');
+    await expect(getComputedStyle(apply).backgroundColor).not.toBe(primary);
+    await expect(
+      within(
+        canvasElement.querySelector<HTMLElement>('[data-slot="auto-run"]')!,
+      ).getByText(zhCN['label.analysis.auto-run-hint']),
+    ).toBeVisible();
+
+    // A condition in the range waits for Apply, so Apply fills again.
+    const range = canvas.getByRole('region', {
+      name: zhCN['label.analysis.slot.range'],
+    });
+    await userEvent.click(
+      within(range).getByRole('button', { name: zhCN['label.filter.add'] }),
+    );
+    const picker = await screen.findByRole('dialog', {
+      name: zhCN['label.filter.pick-fields'],
+    });
+    for (const field of ['订单号', '仓库', '状态', '标记', '备注', '金额'])
+      await userEvent.click(
+        within(picker).getByRole('checkbox', { name: field }),
+      );
+    await userEvent.click(
+      within(picker).getByRole('button', {
+        name: zhCN['label.filter.pick-done'],
+      }),
+    );
+    await waitFor(() =>
+      expect(apply).toHaveAttribute('data-emphasis', 'primary'),
+    );
+    await expect(getComputedStyle(apply).backgroundColor).toBe(primary);
+
+    // Two rows kept on top of six conditions: a tray taller than half.
+    for (let i = 0; i < 2; i++)
+      await userEvent.click(
+        opened.querySelector<HTMLElement>('[data-slot="add-having"]')!,
+      );
+
+    // 三、capped at half the work column, the slots scrolling inside and
+    // the footer standing where it can be pressed.
+    const main = canvasElement.querySelector<HTMLElement>('.fve-root > main')!;
+    const band = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="editor-band"]',
+    )!;
+    const slots = opened.querySelector<HTMLElement>(
+      '[data-slot="analysis-tray-slots"]',
+    )!;
+    const footer = opened.querySelector<HTMLElement>(
+      '[data-slot="analysis-tray-actions"]',
+    )!;
+    await waitFor(() =>
+      expect(slots.scrollHeight).toBeGreaterThan(slots.clientHeight),
+    );
+    await expect(box(band).height).toBeLessThanOrEqual(
+      main.getBoundingClientRect().height / 2 + 1,
+    );
+    await expect(box(footer).top).toBeGreaterThanOrEqual(box(band).top);
+    await expect(box(footer).bottom).toBeLessThanOrEqual(box(band).bottom);
+    await expect(apply).toBeVisible();
   },
 };
 
@@ -1412,7 +1566,7 @@ export const VisualizePanel: Story = {
     // title, and each slice says its share.
     await expect(
       canvasElement.querySelector('[data-slot="pie-measure"]'),
-    ).toHaveTextContent('金额 的 合计');
+    ).toHaveTextContent(AMOUNT_HEADER);
     // The labels land with the sweep; the story browser does not ask for
     // less motion, so the pie sweeps as a reader's would.
     await waitFor(
@@ -1500,7 +1654,7 @@ export const VisualizePanel: Story = {
  * 卡片上只放问题本身的那两三个控件，别的都收进一颗按卡片命名的菜单里——
  * 一张摆着六个控件的卡片读起来是张表单，不是一句话。改完名字，列头、结果
  * 那句读法与图例都跟着改（`columnTitle`：给了名字，名字就是整个标题，后面
- * 不再缀「的 合计」）；空值单独一组是分析师的选择，勾上 Wow 才会把缺值的
+ * 不再缀「的合计」）；空值单独一组是分析师的选择，勾上 Wow 才会把缺值的
  * 记录单独归一组，而不是悄悄把它们丢掉。
  */
 export const TrayCardMenu: Story = {
@@ -1570,7 +1724,7 @@ export const TrayCardMenu: Story = {
  * 一个数是在哪些记录上算出来的，这件事只有两处说得清楚：算它之前，和算它的
  * 那张卡上。所以入口是卡片上的漏斗，而不是菜单里的一项、更不是一个对话框
  * ——条件属于它收窄的那个指标，就长在那儿；写完收起来，卡片上留下一句
- * 「只算 …」，于是一屏卡片里两个「金额 的 合计」为什么不一样，读得出来。
+ * 「只算 …」，于是一屏卡片里两个「金额的合计」为什么不一样，读得出来。
  * 条件是这一个指标自己的：应用之后金额跟着变，旁边的记录数一颗不落。
  */
 export const MetricCondition: Story = {
@@ -1697,6 +1851,7 @@ export const TrayExpansion: Story = {
       'analysis-slot-elements',
       'analysis-slot-dimensions',
       'analysis-slot-metrics',
+      'analysis-slot-result',
     ]);
     await expect(unit()).toBe(
       formatMessage(zhCN, 'label.analysis.unit', { name: '订单' }),

@@ -412,10 +412,10 @@ describe('the wording is in both catalogues', () => {
       container
         .querySelector('[data-slot="chart-plot"]')!
         .getAttribute('aria-label'),
-    ).toBe('柱状图：Orders，按 Warehouse');
+    ).toBe('柱状图：Orders，按Warehouse');
     expect(
       container.querySelector('[data-slot="chart-reading"] caption')!
         .textContent,
-    ).toBe('柱状图：Orders，按 Warehouse，数据表');
+    ).toBe('柱状图：Orders，按Warehouse，数据表');
   });
 });

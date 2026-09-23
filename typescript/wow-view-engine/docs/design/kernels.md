@@ -307,7 +307,7 @@ D20 屏 G。展开一个数组就是换掉计数单位：`订单 → 明细项` 
 | `MIN`、`MAX`、`PERCENTILE`、`ANY` | 字段格式与字段自己的 `cell`／`options`    |
 | `DERIVED`                         | 不属于任何字段，两位小数的普通数          |
 
-`projectAnalysis` 把结果写进 `AnalysisColumnView.numberFormat`，表格、合计行、坐标轴、提示与指标卡因此都按同一份格式打印；列另带 `fn`（这一列是哪一种汇总），供界面把表头拼成「〈字段〉 的 〈汇总方式〉」，同一字段的两个汇总方式于是是两个不同的表头。（见 test/analysisProject.test.ts「metricFormat」）
+`projectAnalysis` 把结果写进 `AnalysisColumnView.numberFormat`，表格、合计行、坐标轴、提示与指标卡因此都按同一份格式打印；列另带 `fn`（这一列是哪一种汇总），供界面把表头拼成「〈字段〉的〈汇总方式〉」，同一字段的两个汇总方式于是是两个不同的表头。（见 test/analysisProject.test.ts「metricFormat」）
 
 ### 时间的最早与最晚：`readsAsItsField` 与 `momentMetrics`
 
@@ -344,7 +344,7 @@ D20 屏 G。展开一个数组就是换掉计数单位：`订单 → 明细项` 
 D20 屏 B 的两件事各有一个内核文件，都只是纯函数——托盘因此只剩标记，而「这份配置说得出来吗」只有一处答案：
 
 - **`analysis/having.ts`** 把 Wow 的 `having` 读成／写成**一行一条比较**。`havingRows(having)` 交出 `{metric, operator, value}[]`：一个 `CONDITION` 是一行，一棵一层的 `AND` 是几行，**其余一律 `null`**——区间、集合、空值判断、任何位置上的 OR、嵌套的 AND 都不摊平。摊平会把作者写的那份配置换成一份他没写过的、下一次保存就覆盖掉原件的配置，而「我读不出来」是一句可以老实说的话。`withHavingRows(rows)` 反过来：一条写成 `CONDITION`，几条写成一棵 `AND`，一条都没有就整个不写；**没有值的行直接落掉**，所以存下去的配置永远是 Wow 收得下的那一份，编辑到一半的状态归组件自己拿着。`HAVING_OPERATORS` 是那六个比较，顺序就是选择框里的顺序；
-- **`analysis/formula.ts`** 是两种写出来的指标的第一形态与它们的读法。`formulaMetric(left, right, fn, taken)` 造 Wow 的 `NUMERIC` 套 `BINARY`（两个字段相减再汇总），`derivedMetric(left, right, taken)` 造 `DERIVED`（前一个指标除以后一个）——都是**一张待改的卡片**，不是一个猜出来的答案。`expressionText`／`derivedText` 把式子说成作者会说的那句话（「金额 − 成本」「金额 的 合计 ÷ 客户数」，嵌套的加括号），列头、图例与图表的文字读法共用它。内核没有文案目录，说不出「金额 的 合计」或「记录数」，所以派生指标引用别的指标时，`metricReferenceText(fn, label)` 在列头文字里用控制字符标出「这是一个什么汇总的哪个指标」，界面的 `columnTitle` 用 `wordReferences` 把每一处换成那个指标自己列头的说法——被引用的指标有显示名时就是显示名本身，被引用的是派生指标时就是它自己那一句（已经标好）（test/formula.test.ts「wordReferences」、test/analysisProject.test.ts「marks the metrics it reads, each with its summary」）；`isFormula` 是「这条指标是卡片编得动的那一种吗」——一个操作两个操作数。`EXPRESSION_OPERATORS` 与 `OPERATOR_SIGN` 是那四则运算和它们在任何语言里都一样的符号。
+- **`analysis/formula.ts`** 是两种写出来的指标的第一形态与它们的读法。`formulaMetric(left, right, fn, taken)` 造 Wow 的 `NUMERIC` 套 `BINARY`（两个字段相减再汇总），`derivedMetric(left, right, taken)` 造 `DERIVED`（前一个指标除以后一个）——都是**一张待改的卡片**，不是一个猜出来的答案。`expressionText`／`derivedText` 把式子说成作者会说的那句话（「金额 − 成本」「金额的合计 ÷ 客户数」，嵌套的加括号），列头、图例与图表的文字读法共用它。内核没有文案目录，说不出「金额的合计」或「记录数」，所以派生指标引用别的指标时，`metricReferenceText(fn, label)` 在列头文字里用控制字符标出「这是一个什么汇总的哪个指标」，界面的 `columnTitle` 用 `wordReferences` 把每一处换成那个指标自己列头的说法——被引用的指标有显示名时就是显示名本身，被引用的是派生指标时就是它自己那一句（已经标好）（test/formula.test.ts「wordReferences」、test/analysisProject.test.ts「marks the metrics it reads, each with its summary」）；`isFormula` 是「这条指标是卡片编得动的那一种吗」——一个操作两个操作数。`EXPRESSION_OPERATORS` 与 `OPERATOR_SIGN` 是那四则运算和它们在任何语言里都一样的符号。
 
 两者都不知道目录也不知道语言：`expressionText` 接一个 `nameOf` 回调，字段叫什么由调用处说。（见 test/having.test.ts「having rows」「formulas」；界面见 [ui/analysis.md#只保留一行一条比较](ui/analysis.md) 与 [ui/analysis.md#公式与派生写出来的指标](ui/analysis.md)）
 

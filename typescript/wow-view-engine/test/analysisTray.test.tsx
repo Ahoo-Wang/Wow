@@ -43,7 +43,11 @@ import {
 import type { ViewMessages } from '../src/ui/index.js';
 import { SPACE } from '../src/ui/layout.js';
 import { analysisConfig, ordersDefinition, testSource } from './fixtures.js';
-import { analysisToggle, openTray } from './fixtures/workbench.js';
+import {
+  addConditions,
+  analysisToggle,
+  openTray,
+} from './fixtures/workbench.js';
 import { tracked } from './fixtures/writes.js';
 
 afterEach(cleanup);
@@ -126,6 +130,8 @@ interface Options {
   source?: ViewSource;
   /** Whether to press the toggle open; a saved view starts folded. */
   fold?: boolean;
+  /** The user's auto-run preference; unsaid is on, as it is for a user. */
+  autoRun?: boolean;
 }
 
 /** A saved analysis view on screen, its tray opened unless asked otherwise. */
@@ -135,12 +141,25 @@ async function open({
   messages,
   source = testSource(),
   fold = true,
+  autoRun,
 }: Options = {}) {
   const store = tracked(
     new MemoryViewStore({
       instances: [
         { ...analysisView, config: analysisConfig({ ...(config ?? {}) }) },
       ],
+      ...(autoRun === undefined
+        ? {}
+        : {
+            preferences: {
+              orders: {
+                order: [],
+                defaultInstanceId: null,
+                autoRun,
+                revision: 'p1',
+              },
+            },
+          }),
     }),
   );
   const engine = new ViewEngine({
@@ -217,7 +236,7 @@ describe('the analysis tray', () => {
    * The tray holds the question and nothing about how it is looked at — the
    * layout and the chart type are the result's, on its toolbar.
    */
-  it('lays the slots out as range, then dimensions beside metrics', async () => {
+  it('lays the slots out as range, then dimensions beside metrics, then the result', async () => {
     await open();
     const slots = tray()!.querySelectorAll('[data-slot^="analysis-slot-"]');
 
@@ -225,9 +244,10 @@ describe('the analysis tray', () => {
       'analysis-slot-range',
       'analysis-slot-dimensions',
       'analysis-slot-metrics',
+      'analysis-slot-result',
     ]);
     // Each is a named region, in the analyst's words.
-    for (const name of ['Range', 'Dimensions', 'Metrics'])
+    for (const name of ['Range', 'Dimensions', 'Metrics', 'Result'])
       expect(screen.getByRole('region', { name })).toBeDefined();
     // The range slot is the record view's condition panel, unchanged.
     expect(
@@ -236,14 +256,23 @@ describe('the analysis tray', () => {
         { name: 'Filter' },
       ),
     ).toBeDefined();
-    // One card per dimension and per metric, and the sort under the metrics.
+    // One card per dimension and per metric; the sort is the result's.
     expect(
       tray()!.querySelectorAll('[data-slot="dimension-card"]'),
     ).toHaveLength(1);
     expect(tray()!.querySelectorAll('[data-slot="metric-card"]')).toHaveLength(
       1,
     );
-    expect(tray()!.querySelector('[data-slot="analysis-sort"]')).not.toBeNull();
+    expect(
+      screen
+        .getByRole('region', { name: 'Result' })
+        .querySelector('[data-slot="analysis-sort"]'),
+    ).not.toBeNull();
+    expect(
+      screen
+        .getByRole('region', { name: 'Metrics' })
+        .querySelector('[data-slot="analysis-sort"]'),
+    ).toBeNull();
     // Nothing about how the result is looked at is in here.
     expect(
       within(tray()!).queryByRole('button', {
@@ -289,14 +318,49 @@ describe('the analysis tray', () => {
    * to is measured in the browser.
    */
   it('carries one primary button on the screen, and it is Apply', async () => {
-    await open();
+    await open({ autoRun: false });
 
     const primary = Array.from(
       document.querySelectorAll<HTMLElement>('[data-slot="button"]'),
     ).filter(button => button.classList.contains('bg-primary'));
 
     expect(primary.map(button => button.textContent?.trim())).toEqual([APPLY]);
+    expect(applyButton().getAttribute('data-emphasis')).toBe('primary');
     expect(within(tray()!).queryByRole('button', { name: /Run/ })).toBeNull();
+  });
+
+  /**
+   * With auto-run on, the question runs itself, so an Apply with nothing to
+   * do rests as an outline button (2026-09-23 audit): a filled primary is
+   * the loudest thing on the screen, and it was asking for a press that did
+   * nothing new. The range still waits for Apply, so a condition edited
+   * there lifts it back to primary, with the dot.
+   */
+  it('rests Apply while auto-run leaves it nothing to do, and lifts it when something waits', async () => {
+    const user = userEvent.setup();
+    await open();
+
+    expect(applyButton().getAttribute('data-emphasis')).toBe('quiet');
+    expect(applyButton().hasAttribute('data-pending')).toBe(false);
+    // Nothing on the screen is filled: there is no press anything waits for.
+    expect(
+      Array.from(
+        document.querySelectorAll<HTMLElement>('[data-slot="button"]'),
+      ).filter(button => button.classList.contains('bg-primary')),
+    ).toEqual([]);
+
+    // A condition in the range is not the question: it waits for Apply.
+    await addConditions(['Warehouse']);
+
+    await waitFor(() =>
+      expect(applyButton().getAttribute('data-emphasis')).toBe('primary'),
+    );
+    expect(applyButton().hasAttribute('data-pending')).toBe(true);
+
+    await user.click(applyButton());
+    await waitFor(() =>
+      expect(applyButton().getAttribute('data-emphasis')).toBe('quiet'),
+    );
   });
 
   /**
@@ -307,7 +371,9 @@ describe('the analysis tray', () => {
    * buttons.
    */
   it('marks Apply while any slot holds something that has not run', async () => {
-    await open();
+    // Apply is how the question runs here; with auto-run on it would run
+    // itself, which `test/autoRun.test.tsx` covers.
+    await open({ autoRun: false });
     expect(applyButton().hasAttribute('data-pending')).toBe(false);
 
     // A change in the question's half, which the filter knows nothing about.
@@ -519,15 +585,32 @@ describe('the tray’s dimension cards', () => {
 
   /**
    * "The first N groups" is only readable next to what orders them, so the
-   * sort and the limit are one row at the bottom of the metrics slot — and
-   * a sort needs a dimension, so the row waits for one.
+   * sort and the limit are one row of the result slot, each under a label
+   * of its own — and a sort needs a dimension, so the slot waits for one.
    */
   it('takes the top N groups beside what orders them', async () => {
     const { engine, source } = await open();
-    const sort = () =>
-      document.querySelector<HTMLElement>('[data-slot="analysis-sort"]');
+    const result = () =>
+      document.querySelector<HTMLElement>('[data-slot="analysis-slot-result"]');
+    const order = result()!.querySelector<HTMLElement>(
+      '[data-slot="analysis-order"]',
+    )!;
+    // Both sit in the one row, the sort first: the N is the first N of it.
+    expect(
+      [...order.children].map(child => child.getAttribute('data-slot')),
+    ).toEqual(['analysis-sort', 'analysis-limit']);
+    // Each is labelled on the screen, not only to a reader.
+    expect(
+      within(order).getByRole('group', {
+        name: defaultMessages['label.sort.title'],
+      }),
+    ).toBeDefined();
+    const box = within(order).getByLabelText<HTMLInputElement>('Top N groups');
+    expect(document.querySelector(`label[for="${box.id}"]`)?.textContent).toBe(
+      'Top N groups',
+    );
 
-    fireEvent.change(within(sort()!).getByLabelText('Top N groups'), {
+    fireEvent.change(box, {
       target: { value: '25' },
     });
     fireEvent.click(applyButton());
@@ -541,11 +624,11 @@ describe('the tray’s dimension cards', () => {
       ).toBe(true),
     );
 
-    // The last dimension leaving takes the row with it.
+    // The last dimension leaving takes the slot with it.
     fireEvent.click(
       screen.getByRole('button', { name: 'Remove dimension Warehouse' }),
     );
-    await waitFor(() => expect(sort()).toBeNull());
+    await waitFor(() => expect(result()).toBeNull());
     expect(draft(engine).sort).toEqual([]);
   });
 });

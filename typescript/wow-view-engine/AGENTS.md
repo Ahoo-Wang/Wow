@@ -314,7 +314,7 @@ src/
     WriteOutcome.tsx          — The open view's last write, and the three ways out of a conflict
     alerts.tsx                — `LineAlert`: one callout one line high, tone deciding colour, icon and role
     describeConfig.ts         — One config in a sentence, for a conflict's side-by-side
-    display.ts                — A value as its field shows it: enum labels, dates, bucket keys, an array of objects by its elements' title or its count (`heldReading`), never JSON; `summaryFunctionKey` names a summary in its column's vocabulary, `columnTitle` composes an analysis header from its two parts
+    display.ts                — A value as its field shows it: enum labels, dates, bucket keys, an array of objects by its elements' title or its count (`heldReading`), never JSON; `summaryFunctionKey` names a summary in its column's vocabulary, `columnTitle` composes an analysis header from its two parts, and a time dimension's with its granularity
     download.ts               — Hands a file to the browser; the whole of the DOM the export needs, and the name it is handed under
     dragAnnounce.ts           — What a screen reader hears while a row is dragged, in the shape the drag library takes; the four sortable lists share it
     dragWording.ts            — `dragWording`: one list's three drag sentences read out of the catalogue under that list's keys; each `drag.ts` names only its keys
@@ -343,15 +343,15 @@ src/
       DimensionCard.tsx       — The dimensions slot and its cards: field, and the control its type asks for (granularity, band width)
       ElementsSlot.tsx        — The expansion slot (D20 屏 G): the chain of arrays counted inside, one card a level with its own gate, 「展开：…」 along the declared chain, and the counting unit
       FormulaCard.tsx         — The controls of a formula metric and of a derived metric (D20 屏 B): two operands picked or typed, the operation between, the summary for a formula
-      HavingRows.tsx          — 「只保留」: the groups kept, as rows of one comparison each under the metrics; a stored having of another shape is shown and clearable
+      HavingRows.tsx          — 「只保留」: the groups kept, as rows of one comparison each under the result slot's first label; a stored having of another shape is shown and clearable
       DrillMenu.tsx           — The follow-up menu on one group of a result: the records behind it, split by another dimension, only this group (D20 追问); headed by the group as the result reads it (`groupText`: a date bucket as its column prints it), naming what it opens 「{what} · {group}」; as wide as its words, hung from the mark, point or cell pressed, the keyboard handed back to the row
       EmptyResult.tsx         — An aggregation that matched no group, one sentence for both layouts
       MetricCard.tsx          — The metrics slot and its cards: field and summary (the six ways Wow measures a field as one list), a percentile's number, the record count
       MetricCondition.tsx     — Conditions edited in place under a tray card (D20 屏 H): the funnel, the block of the range's own pills, the 「只算 …」 line at rest; a metric's and an expansion level's
       SeriesList.tsx          — The data page's 系列 slot: one row per metric drawn, carried by the shared handle into the order the analyst wants (`cartesian.series`, and nothing else about a series)
       RangeSlot.tsx           — The tray's first slot: the condition panel under a heading that holds the tree's simple/advanced switch
-      SortRow.tsx             — The bottom of the metrics slot: what the first N groups are the first N of, and the N — a blank is the starting N, text out of range stays in the box, marked, and never reaches the draft
-      Tray.tsx                — The analysis view's editor: range → dimensions | metrics, one Apply for the whole draft (D20)
+      ResultSlot.tsx          — The tray's 「结果」 step: which groups are kept (「只保留」), their order and 「前 N 组」, each under a visible label; the N — a blank is the starting N, text out of range stays in the box, marked, and never reaches the draft
+      Tray.tsx                — The analysis view's editor: range → dimensions | metrics → result, one Apply for the whole draft (D20), quiet while auto-run leaves it nothing to do; the slots scroll, the footer stays
       editing.ts              — What the tray picks when a field is picked — its alias and the type or summary it starts as (`defaultGroup`, `defaultMetric`), the shapes being the kernel builders' — and what a metric is called
       listFocus.ts            — Where the keyboard stands after the card it was on leaves the page: `useListFocus`, shared by every remove and move in the tray and the options panel (A2)
     charts/                   — One file per family, plus what they share
