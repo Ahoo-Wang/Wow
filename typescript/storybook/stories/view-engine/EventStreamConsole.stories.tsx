@@ -14,7 +14,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 import { DataWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
-import { ScenarioFrame } from '../shared/ScenarioFrame.js';
+import { ConsoleScreen } from '../shared/ConsoleScreen.js';
 import {
   DEFAULT_COMPENSATION_HOST,
   compensationFetcher,
@@ -63,14 +63,20 @@ function HostConsole({ host }: { host: string }) {
   );
 }
 
-const scene = {
-  domain: '真实后端 · 补偿控制台',
-  summary:
-    'Wow 补偿服务里执行失败的事件流：真实的事件、真实的数据量；同一个工作台里读最近的事件、查一次执行的完整历史、看事件按类型与时间的分布。',
-  setup: '引擎与视图存储随故事新建；数据直连 host 指向的服务，只读。',
-  observe:
-    '一条记录是一次命令追加的事件流；按事件筛选是对 body 的元素匹配，按事件分析会展开 body、以事件为计数单位。',
-};
+/**
+ * What the scene is, on the docs page rather than above the console: the
+ * console is the product an analyst uses, so it has the screen to itself.
+ */
+const description = `**真实后端 · 补偿控制台**
+
+Wow 补偿服务里执行失败的事件流：真实的事件、真实的数据量；同一个工作台里读最近的事件、查一次执行的完整历史、看事件按类型与时间的分布。
+
+- **数据源**：Wow 补偿服务 · 事件流，地址是 \`host\` 参数，可在 Controls 面板切换；改动后按新地址重建引擎。
+- **准备**：引擎与视图存储随故事新建；数据直连 \`host\` 指向的服务，只读。
+- **操作**：打开「事件流分析台」场景，它铺满整个画布，像使用者看到的一样。
+- **观察**：一条记录是一次命令追加的事件流；按事件筛选是对 \`body\` 的元素匹配，按事件分析会展开 \`body\`、以事件为计数单位。
+
+> 事件流是已发生之事的记录，只读，没有命令。`;
 
 const meta = {
   title: 'View Engine/真实后端/补偿控制台/事件流分析台',
@@ -79,7 +85,11 @@ const meta = {
   // regression test, and its docs page does not mount it: opening the
   // catalog must not call the service.
   tags: ['!test'],
-  parameters: { docs: { autoMount: false } },
+  parameters: {
+    // The console is the product: it fills the canvas as it would a screen.
+    layout: 'fullscreen',
+    docs: { autoMount: false, description: { component: description } },
+  },
   args: { host: DEFAULT_COMPENSATION_HOST },
   argTypes: {
     host: {
@@ -88,14 +98,10 @@ const meta = {
     },
   },
   decorators: [
-    (Story, context) => (
-      <ScenarioFrame
-        title={context.name}
-        {...scene}
-        fixture={`Wow 补偿服务 · 事件流 · ${context.args.host}`}
-      >
+    Story => (
+      <ConsoleScreen>
         <Story />
-      </ScenarioFrame>
+      </ConsoleScreen>
     ),
   ],
 } satisfies Meta<typeof Console>;

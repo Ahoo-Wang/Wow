@@ -41,7 +41,7 @@ import {
 import { IconButton } from '@/ui/IconButton';
 // Popup contents come themed from popups.tsx, as View Engine's own do.
 import { DropdownMenuContent } from '@/ui/popups';
-import { ScenarioFrame } from '../shared/ScenarioFrame.js';
+import { ConsoleScreen } from '../shared/ConsoleScreen.js';
 import {
   DEFAULT_COMPENSATION_HOST,
   EXECUTION_FAILED,
@@ -296,14 +296,20 @@ function HostConsole({ host }: { host: string }) {
   );
 }
 
-const scene = {
-  domain: '真实后端 · 补偿控制台',
-  summary:
-    'Wow 补偿服务里的执行失败：真实的数据、真实的数据量；同一个工作台里查明细、做分析、逐条或成批地重试与标记。',
-  setup: '引擎与视图存储随故事新建；数据与补偿命令直连 host 指向的服务。',
-  observe:
-    '筛选、排序、分页、汇总与聚合都由服务端执行；每行的操作按这条执行的状态开放，命令等快照更新后再刷新结果。',
-};
+/**
+ * What the scene is, on the docs page rather than above the console: the
+ * console is the product an operator uses, so it has the screen to itself.
+ */
+const description = `**真实后端 · 补偿控制台**
+
+Wow 补偿服务里的执行失败：真实的数据、真实的数据量；同一个工作台里查明细、做分析、逐条或成批地重试与标记。
+
+- **数据源**：Wow 补偿服务，地址是 \`host\` 参数，可在 Controls 面板切换；改动后按新地址重建引擎。
+- **准备**：引擎与视图存储随故事新建；数据与补偿命令直连 \`host\` 指向的服务。
+- **操作**：打开「快照控制台」场景，它铺满整个画布，像操作员使用时一样。
+- **观察**：筛选、排序、分页、汇总与聚合都由服务端执行；每行的操作按这条执行的状态开放，命令等快照更新后再刷新结果。
+
+> 命令会真实写回服务：重试、强制重试与标记可恢复性都作用在 \`host\` 指向的服务上，只连接测试环境。`;
 
 const meta = {
   title: 'View Engine/真实后端/补偿控制台/快照控制台',
@@ -312,7 +318,11 @@ const meta = {
   // regression test, and its docs page does not mount it: opening the
   // catalog must not call the service.
   tags: ['!test'],
-  parameters: { docs: { autoMount: false } },
+  parameters: {
+    // The console is the product: it fills the canvas as it would a screen.
+    layout: 'fullscreen',
+    docs: { autoMount: false, description: { component: description } },
+  },
   args: { host: DEFAULT_COMPENSATION_HOST },
   argTypes: {
     host: {
@@ -321,14 +331,10 @@ const meta = {
     },
   },
   decorators: [
-    (Story, context) => (
-      <ScenarioFrame
-        title={context.name}
-        {...scene}
-        fixture={`Wow 补偿服务 · ${context.args.host}`}
-      >
+    Story => (
+      <ConsoleScreen>
         <Story />
-      </ScenarioFrame>
+      </ConsoleScreen>
     ),
   ],
 } satisfies Meta<typeof Console>;

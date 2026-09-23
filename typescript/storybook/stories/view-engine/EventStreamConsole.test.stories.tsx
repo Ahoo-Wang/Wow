@@ -34,6 +34,11 @@ const meta = {
   ...displayMeta,
   title: 'View Engine/真实后端/补偿控制台/事件流分析台/回归',
   tags: ['!dev', '!autodocs', 'test'],
+  // Spelled out, not left to the spread: Storybook writes this file's own
+  // description into a `parameters` of its meta, which would replace the
+  // display story's — and with it the full-screen layout the console is
+  // meant to be exercised in.
+  parameters: { ...displayMeta.parameters },
   args: { host: RECORDED_EVENT_STREAM_HOST },
   beforeEach: installRecordedEventStreamService,
 };
