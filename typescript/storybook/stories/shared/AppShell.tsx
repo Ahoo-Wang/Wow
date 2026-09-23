@@ -36,6 +36,10 @@ export type ScenePage =
   | 'home'
   | 'snapshots'
   | 'event-streams'
+  | 'customer-snapshots'
+  | 'customer-event-streams'
+  | 'trade-order-snapshots'
+  | 'trade-order-event-streams'
   | 'records'
   | 'embedded'
   | 'filters'
@@ -70,8 +74,10 @@ const GROUPS: readonly { title?: string; items: readonly NavItem[] }[] = [
       },
     ],
   },
+  // The real services, one group per service as the catalog has one
+  // directory per service; each has the same two consoles.
   {
-    title: '真实后端',
+    title: '真实后端 · 补偿',
     items: [
       {
         page: 'snapshots',
@@ -84,6 +90,41 @@ const GROUPS: readonly { title?: string; items: readonly NavItem[] }[] = [
         title: '事件流分析台',
         story:
           'view-engine-真实后端-补偿控制台-事件流分析台--event-stream-console',
+        icon: ActivityIcon,
+      },
+    ],
+  },
+  {
+    title: '真实后端 · 客户',
+    items: [
+      {
+        page: 'customer-snapshots',
+        title: '快照控制台',
+        story: 'view-engine-真实后端-客户-快照控制台--data-console',
+        icon: ClipboardListIcon,
+      },
+      {
+        page: 'customer-event-streams',
+        title: '事件流分析台',
+        story: 'view-engine-真实后端-客户-事件流分析台--event-stream-console',
+        icon: ActivityIcon,
+      },
+    ],
+  },
+  {
+    title: '真实后端 · 交易订单',
+    items: [
+      {
+        page: 'trade-order-snapshots',
+        title: '快照控制台',
+        story: 'view-engine-真实后端-交易订单-快照控制台--snapshot-console',
+        icon: ClipboardListIcon,
+      },
+      {
+        page: 'trade-order-event-streams',
+        title: '事件流分析台',
+        story:
+          'view-engine-真实后端-交易订单-事件流分析台--event-stream-console',
         icon: ActivityIcon,
       },
     ],

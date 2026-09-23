@@ -161,6 +161,7 @@ function summarise(
         ),
       },
     },
+    ...counted(accumulated),
     { $replaceWith: { $mergeObjects: ['$_id', '$$ROOT'] } },
     { $unset: '_id' },
   ]) as RecordData[];
@@ -181,7 +182,10 @@ function summarise(
         Object.fromEntries(
           accumulated.map(metric => [
             metric.alias,
-            metric.type === AggregationMetricType.COUNT ? 0 : null,
+            metric.type === AggregationMetricType.COUNT ||
+            metric.type === AggregationMetricType.DISTINCT_COUNT
+              ? 0
+              : null,
           ]),
         ),
         query.metrics,
@@ -467,7 +471,36 @@ function accumulator(metric: AggregationMetric): AnyObject {
       return { [name]: gate ? { $cond: [gate, value, null] } : value };
     }
   }
+  // The distinct values, gathered here and counted once the group is done
+  // (`counted`); a row the conditions leave out adds `null`, which is not
+  // counted.
+  if (metric.type === AggregationMetricType.DISTINCT_COUNT) {
+    const value = measured(metric.expression);
+    return { $addToSet: gate ? { $cond: [gate, value, null] } : value };
+  }
   throw new Error(`The story source does not compute ${metric.alias}.`);
+}
+
+/** How many distinct values each `DISTINCT_COUNT` gathered, nulls aside. */
+function counted(metrics: readonly AggregationMetric[]): AnyObject[] {
+  const distinct = metrics.filter(
+    metric => metric.type === AggregationMetricType.DISTINCT_COUNT,
+  );
+  if (distinct.length === 0) return [];
+  return [
+    {
+      $set: Object.fromEntries(
+        distinct.map(({ alias }) => [
+          alias,
+          {
+            $size: {
+              $filter: { input: `$${alias}`, cond: { $ne: ['$$this', null] } },
+            },
+          },
+        ]),
+      ),
+    },
+  ];
 }
 
 /** MongoDB's arithmetic operator for each of Wow's four. */
