@@ -62,6 +62,12 @@ export interface FamilyProps<D> {
    * sparkline is a picture.
    */
   name: string;
+  /**
+   * The rows are the first groups of more (`AnalysisView.truncated` or
+   * `atLimit`): a family that draws shares of a whole says they are shares
+   * of the groups shown.
+   */
+  cutShort?: boolean;
 }
 
 export function useValueLabel(

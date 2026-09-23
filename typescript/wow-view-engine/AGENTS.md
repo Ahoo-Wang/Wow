@@ -150,7 +150,7 @@ src/
     capability.ts             — The three scopes the element chain makes: the root's, each element's, the innermost one's; and the renaming a scope implies
     candidates.ts             — A field's values as the data counts them (value candidates): `valueCandidateField` (grouped by `TERMS`, counted, one string, no `options`/`remote`), `valueCandidatesConfig` (an ordinary analysis — the top `valueCandidateLimit` by count, narrowed by `CONTAINS`/`STARTS_WITH` where the field offers one), `readValueCandidates` (whole or not, off the probe row), `narrowValueCandidates`
     chart.ts                  — Chart-shaped projection for the renderers — a time axis always earliest first, a pie folded before the palette runs out — and `groupKeyText` — a group value as a colour key, the one spelling every chart family reads
-    chartSlots.ts             — `fitChartSlots`: the family sub-object of the current chart type, filled from the groups and metrics in force
+    chartSlots.ts             — `fitChartSlots`: the family sub-object of the current chart type, filled from the groups and metrics in force; `switchChartType`: a type switch carries the lead metric (`leadMetric`) into the new family
     compile.ts                — compileAnalysis → AggregationQuery
     fitCharts.ts              — Which chart types can draw a result of this shape and which it reads best as (K3, Q6): the capability says which exist, this says which are greyed and why
     formula.ts                — Formulas and derived metrics (D20 屏 B): their first shapes, `expressionText`／`derivedText` as the author would say them, `isFormula`
@@ -360,7 +360,7 @@ src/
       Funnel.tsx
       Heatmap.tsx             — A grid rather than a chart library: a heatmap is cells with a background, and every library's version of that costs more than it saves
       MetricCard.tsx          — The comparison, signed
-      PieSlices.tsx
+      PieSlices.tsx           — A pie or a donut: each slice labelled with its share, the legend led by the measured column (and, cut short, the share basis)
       ScatterPoints.tsx
       TooltipValue.tsx        — One measured value inside a tooltip, read as its column reads it
       asImage.ts              — What every chart family spreads onto its drawing: a named image

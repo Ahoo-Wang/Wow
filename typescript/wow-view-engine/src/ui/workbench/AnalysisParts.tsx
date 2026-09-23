@@ -304,6 +304,7 @@ export function AnalysisParts({
               spec={chart}
               columns={view.schema ?? view.columns}
               onPick={onPick}
+              cutShort={view.truncated || view.atLimit !== undefined}
             />
           ) : (
             <AnalysisTable view={view} onPick={onPick} />

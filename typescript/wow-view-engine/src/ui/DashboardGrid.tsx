@@ -436,6 +436,7 @@ function AnalysisPanel({ runtime }: { runtime: DataViewRuntime }) {
       spec={analysis.chart}
       columns={view.schema ?? view.columns}
       className="h-full"
+      cutShort={view.truncated || view.atLimit !== undefined}
     />
   ) : (
     <AnalysisTable view={view} />

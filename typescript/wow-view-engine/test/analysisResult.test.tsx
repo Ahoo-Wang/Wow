@@ -191,6 +191,59 @@ describe('useAnalysisResult', () => {
     expect(vi.mocked(source.aggregate).mock.calls.length).toBe(before);
   });
 
+  /**
+   * The picker's own path to a type, beside the editor's `setChartType`:
+   * bars of the total picked as a pie are a pie of the total, not of the
+   * first metric (audit P0-10).
+   */
+  it('keeps the metric the chart measured when a type is picked', async () => {
+    const source = testSource();
+    const totals: ViewInstance = {
+      ...analysisView,
+      id: 'orders-totals',
+      config: analysisConfig({
+        metrics: [
+          { alias: 'orders', type: 'COUNT' },
+          {
+            alias: 'total',
+            type: 'NUMERIC',
+            function: 'SUM',
+            expression: { type: 'FIELD', field: 'amount' },
+          },
+        ],
+        layout: 'chart',
+        chart: {
+          type: 'bar',
+          cartesian: { x: 'warehouse', series: [{ metric: 'total' }] },
+        },
+      }),
+    };
+    const engine = new ViewEngine({
+      definitions: [twoDimensions()],
+      store: new MemoryViewStore({ instances: [totals] }),
+      resolveSource: () => source,
+    });
+    const { result } = renderHook(() => {
+      const open = useOpenView(engine, 'orders-totals');
+      const runtime = open.runtime as ViewRuntime<AnalysisViewConfig> | null;
+      const state = useViewRuntime(runtime);
+      const analysis = useAnalysisEditor(runtime);
+      return {
+        analysis,
+        result: useAnalysisResult(runtime, analysis, {
+          state,
+          canDrill: true,
+          drill: vi.fn(),
+        }),
+      };
+    });
+    await waitFor(() => expect(result.current.result.view).not.toBeNull());
+
+    result.current.result.choose('pie');
+    await waitFor(() => expect(result.current.result.picked).toBe('pie'));
+    expect(result.current.analysis.chart.pie?.value).toBe('total');
+  });
+
   it('asks for the whole once when a metric card over a trend is picked', async () => {
     // A monthly analysis drawn as bars asks one query; its whole is asked
     // only when something draws it — here, a metric card over a trend.

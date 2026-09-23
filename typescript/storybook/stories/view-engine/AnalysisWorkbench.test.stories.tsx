@@ -675,6 +675,10 @@ export const CutShort: Story = {
       '华北',
     ]);
     await expect(slices(canvasElement).every(slice => slice.drawn)).toBe(true);
+    // The shares are of the two shown, and the pie says so where its key is.
+    await expect(
+      canvasElement.querySelector('[data-slot="pie-measure"]'),
+    ).toHaveTextContent(zhCN['label.chart.share-basis']);
 
     // The strip, not the result's live region: both are `status`, and only
     // the strip is on the status line.
@@ -1114,6 +1118,25 @@ export const VisualizePanel: Story = {
     );
     await expect(slices(canvasElement).every(slice => slice.drawn)).toBe(true);
     await expect(aggregateCalls.current).toBe(before);
+    // The pie measures what the bars measured: a type is how the numbers are
+    // drawn, not which (audit P0-10). Its legend leads with that column's
+    // title, and each slice says its share.
+    await expect(
+      canvasElement.querySelector('[data-slot="pie-measure"]'),
+    ).toHaveTextContent('金额 的 合计');
+    // Recharts writes a pie's labels only once its sweep has finished (a
+    // 400ms pause, then 1500ms), so they come about 1.5s after the sectors
+    // first appear — past `waitFor`'s one-second default. The story browser
+    // does not ask for less motion, so the pie sweeps as a reader's would.
+    await waitFor(
+      () =>
+        expect(
+          [...canvasElement.querySelectorAll('.recharts-label-list text')].some(
+            label => /%$/.test(label.textContent ?? ''),
+          ),
+        ).toBe(true),
+      { timeout: 4_000 },
+    );
     await expect(chartTile(panel, 'pie')).toHaveAttribute(
       'aria-checked',
       'true',

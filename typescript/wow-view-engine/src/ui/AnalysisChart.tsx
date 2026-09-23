@@ -43,6 +43,11 @@ export interface AnalysisChartProps {
    * where a row is a row (F10).
    */
   onPick?: OnPick;
+  /**
+   * The rows are the first groups of more — the result says so beside the
+   * chart; a pie also says its shares are of the groups shown.
+   */
+  cutShort?: boolean;
 }
 
 /**
@@ -64,6 +69,7 @@ export function AnalysisChart({
   className,
   columns,
   onPick,
+  cutShort,
 }: AnalysisChartProps) {
   const messages = useViewMessages();
   const label = useValueLabel(columns);
@@ -80,6 +86,7 @@ export function AnalysisChart({
     column,
     name: reading.name,
     onPick,
+    cutShort,
   };
   return (
     <>

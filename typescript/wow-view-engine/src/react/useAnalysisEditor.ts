@@ -35,6 +35,7 @@ import {
   elementFilterFields,
   withLevel,
   fitChartSlots,
+  switchChartType,
   havingRows,
   levelLabel,
   momentMetrics,
@@ -480,7 +481,7 @@ export function useAnalysisEditor(
         // type and back returns to the settings that family had.
         change(current => ({
           chart: fitChartSlots(
-            { ...current.chart, type },
+            switchChartType(current.chart, type),
             current.groups,
             current.metrics,
             momentsOf(current),
