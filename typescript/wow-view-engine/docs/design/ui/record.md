@@ -2,6 +2,10 @@
 
 Record 工作台的结果区组件。三种视图共用的骨架、状态条、值显示与 `FilterPanel` 见 [README.md](README.md)；控制器见 [react.md#userecordtable](../react.md#userecordtable)。
 
+## 提示说屏幕上的名字
+
+内核的发现只有它手里的键可说：字段路径（`field`）、协议拼法的汇总与操作符（`fn`、`operator`）、布局键（`layout`）。记录视图的状态条经 `nameIssue` 过 `ui/record/issueNames.ts` 的 `recordIssueNamer`，与分析视图的 `analysisIssueNamer` 同一条规矩：字段按标签（数组条目的字段按条目自己的标签），汇总按汇总选择框的词（`summaryFunctionKey`，时间点的 `MAX` 是「最晚」），操作符按操作符选择框的词，布局按布局开关的词（`LAYOUT_LABEL`）。中文文案里名字用「」括起来：「「Warehouse」不能用来排序。」「这里没有「卡片」布局。」定义里没有的字段原样留着——它在屏幕上本来就没有名字。（见 test/recordIssueNames.test.tsx）
+
 ## ResultToolbar 的三组
 
 - 工具栏是「批量操作 + 展示设施」。**左端**：有选中时是「已选 N 条」加一颗紧贴计数的 ✕（`label.toolbar.clear-selection`，`ghost` 图标按钮——贴着它清掉的那个数，是全包「去掉这个」的形状），再是宿主的 `bulk` 槽位；没选中时左端为空、整组不画——从前宿主交了 `bulk` 时这里有一句「勾选行以批量处理」，它在每个视图、每次打开都重复每一行复选框已经说过的话，是一栏控件里唯一一句散文（2026-09-23 视觉走查删去）（右组本身撑着 32px，不必留 `min-h-8` 占位）。**右端**按职责分组，组间 8px、组内无缝：`[表格｜卡片]`、`[列设置][排序]`（这些行**怎么画**）、导出（什么也不改，只把行带走）。刷新是框架功能，在标题栏右组（[README.md#工作台骨架](README.md#工作台骨架)）；

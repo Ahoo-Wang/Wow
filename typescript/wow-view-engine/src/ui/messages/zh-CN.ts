@@ -252,25 +252,28 @@ export const zhCN: ViewMessages = {
   'label.sort.cancelled': '移动已取消，{field} 保持原位',
   'record.capability.missing': '{definition} 不再提供记录视图。',
   'record.card.invalid': '卡片设置无法读取。',
-  'record.column.duplicate': '列 {field} 列了两次。',
+  'record.column.duplicate': '列「{field}」列了两次。',
   'record.column.hidden-invalid':
     '列 {field} 的隐藏值是 {hidden}，那不是隐藏一列的写法。',
   'record.column.pin-invalid':
     '列 {field} 的固定值是 {pinned}，那不是固定一列的写法。',
-  'record.column.width-invalid': '列 {field} 的宽度是 {width}，那不是像素数。',
-  'record.field.not-a-column': '{field} 是搜索或元数据句柄，不是一行里的内容。',
-  'record.field.unknown': '列 {field} 已不存在。',
-  'record.layout.unsupported': '这里没有 {layout} 布局。',
+  'record.column.width-invalid':
+    '列「{field}」的宽度是 {width}，那不是像素数。',
+  'record.field.not-a-column':
+    '「{field}」是搜索或元数据句柄，不是一行里的内容。',
+  'record.field.unknown': '列「{field}」已不存在。',
+  'record.layout.unsupported': '这里没有「{layout}」布局。',
   'record.pageSize.not-positive': '每页条数必须是正数。',
   'record.pageSize.too-large': '每页条数不能超过 {max}。',
-  'record.sort.direction-invalid': '{field} 的排序方向既不是升序也不是降序。',
-  'record.sort.duplicate': '排序已经按 {field} 排过了。',
+  'record.sort.direction-invalid':
+    '「{field}」的排序方向既不是升序也不是降序。',
+  'record.sort.duplicate': '排序已经按「{field}」排过了。',
   'record.sort.invalid': '排序设置无法读取。',
-  'record.sort.not-sortable': '{field} 不能用来排序。',
+  'record.sort.not-sortable': '「{field}」不能用来排序。',
   'record.sort.too-many': '游标视图最多按 {max} 个字段排序。',
   'record.summaries.invalid': '汇总设置无法读取。',
-  'record.summary.duplicate': '{field} 的 {fn} 汇总列了两次。',
-  'record.summary.unsupported': '{field} 不提供 {fn} 汇总。',
+  'record.summary.duplicate': '「{field}」的{fn}汇总列了两次。',
+  'record.summary.unsupported': '「{field}」不提供{fn}汇总。',
   'record.table.invalid': '表格设置无法读取。',
 
   // 条件编辑器、已应用条件条，以及筛选内核。
@@ -456,12 +459,12 @@ export const zhCN: ViewMessages = {
     '{field} 是引用字段，但没有声明候选来源。',
   'filter.field.duplicate-in-group':
     '{field} 已经是这个分组里的条件。要再问它别的，嵌套一个分组。',
-  'filter.field.unknown': '字段 {field} 已不存在。',
+  'filter.field.unknown': '字段「{field}」已不存在。',
   'filter.group.unknown-operator': '条件分组只能是 AND 或 OR。',
   'filter.kind.unregistered': '{kind} 类型没有注册编辑器。',
   'filter.kind.unknown-editor': '{kind} 类型要的 {input} 编辑器，引擎没有。',
   'filter.node.invalid': '这个条件无法读取。',
-  'filter.operator.unsupported': '{field} 不支持 {operator}。',
+  'filter.operator.unsupported': '「{field}」不支持「{operator}」。',
   'filter.tree.too-deep': '条件的嵌套超过了 {max} 层。',
   'filter.tree.too-many-nodes': '条件超过了 {max} 条。',
   'filter.value.expected-boolean': '选择是或否。',
@@ -475,7 +478,7 @@ export const zhCN: ViewMessages = {
   'filter.element.root-filter':
     '{field} 问的是整条记录，不能拿来问其中一个条目。',
   'filter.value.expected-predicate': '说明一个条目要满足什么。',
-  'filter.field.holds-no-elements': '{field} 没有可匹配的条目。',
+  'filter.field.holds-no-elements': '「{field}」没有可匹配的条目。',
   'filter.value.expected-entry-list': '选择或输入一个以上条目。',
   'filter.value.expected-number': '输入一个数字。',
   'filter.value.expected-number-list': '输入一个或多个数字。',

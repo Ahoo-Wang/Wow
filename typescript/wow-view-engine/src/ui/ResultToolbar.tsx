@@ -98,7 +98,7 @@ export interface ResultToolbarProps {
 }
 
 /** Wording per layout, so an unhandled one cannot be silently unlabelled. */
-const LAYOUT_LABEL: Record<RecordLayout, MessageKey> = {
+export const LAYOUT_LABEL: Record<RecordLayout, MessageKey> = {
   table: 'label.layout.table',
   card: 'label.layout.cards',
 };

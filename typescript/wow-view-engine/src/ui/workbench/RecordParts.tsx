@@ -42,6 +42,7 @@ import { NO_RELEASE, type ReleasedPins } from '../record/pinCap.js';
 import { ResultToolbar } from '../ResultToolbar.js';
 import { BulkStatus } from '../BulkStatus.js';
 import { useViewMessages } from '../MessagesProvider.js';
+import { recordIssueNamer } from '../record/issueNames.js';
 import type { ViewMessages } from '../messages.js';
 import { featuresOf, type WorkbenchFeatures } from '../features.js';
 import { resultSlots } from '../variants.js';
@@ -292,6 +293,9 @@ export function RecordParts({
     editorOpen,
     onEditorOpenChange: open => setFold({ id: runtimeId, open }),
     search: shown.search && searchBox && <SearchBox search={searchBox} />,
+    // The status line names every field, summary and operator a finding
+    // names as the screen does, never by its path (`recordIssueNamer`).
+    nameIssue: recordIssueNamer(record.definition.fields, messages),
     editorLabel: messages.label('label.filter.panel'),
     editorModes: <FilterModes filter={filter} />,
     editorPending: filter.pendingCount,

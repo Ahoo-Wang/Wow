@@ -221,7 +221,7 @@ describe('the Chinese catalogue', () => {
     expect(zhCN['label.filter.apply']).toBe('应用');
     expect(zhCN['label.save.save-as']).toBe('另存为');
     expect(zhCN['record.summary.unsupported']).toBe(
-      '{field} 不提供 {fn} 汇总。',
+      '「{field}」不提供{fn}汇总。',
     );
   });
 

@@ -67,7 +67,8 @@ const ALIAS_ITSELF = 'analysis.alias.';
  *   `AVG`, and the earliest of a moment 「最早」;
  * - a time unit (`unit`) as the dimension's granularity reads, 「按月」;
  * - a dimension type (`type` of `analysis.group.unsupported`) as the
- *   dimension card offers it, 「按数值区间」.
+ *   dimension card offers it, 「按数值区间」;
+ * - a condition's operator (`operator`) as its operator select says it.
  *
  * `chart.as-table` is said with the chart and its reason, the tile's own
  * words in the picker: 「柱状图画不了这个结果（最多两个维度），先以表格显示」.
@@ -123,6 +124,9 @@ export function analysisIssueNamer(
       const path = text(key);
       if (path !== undefined) say(key, field(path));
     }
+    const operator = text('operator');
+    if (operator !== undefined)
+      say('operator', labelled(`label.operator.${operator}`, operator));
     if (found.code.startsWith('analysis.')) {
       const fn = text('fn');
       const cell =
