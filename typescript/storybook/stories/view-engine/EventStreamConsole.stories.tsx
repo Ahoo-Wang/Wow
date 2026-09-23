@@ -14,7 +14,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 import { DataWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
-import { ConsoleScreen } from '../shared/ConsoleScreen.js';
+import { AppShell } from '../shared/AppShell.js';
 import {
   DEFAULT_COMPENSATION_HOST,
   compensationFetcher,
@@ -73,7 +73,7 @@ Wow 补偿服务里执行失败的事件流：真实的事件、真实的数据�
 
 - **数据源**：Wow 补偿服务 · 事件流，地址是 \`host\` 参数，可在 Controls 面板切换；改动后按新地址重建引擎。
 - **准备**：引擎与视图存储随故事新建；数据直连 \`host\` 指向的服务，只读。
-- **操作**：打开「事件流分析台」场景，它铺满整个画布，像使用者看到的一样。
+- **操作**：打开「事件流分析台」场景，它放在宿主应用里——顶部导航与左侧应用导航是宿主的，中间那一块是视图引擎——像使用者看到的一样。
 - **观察**：一条记录是一次命令追加的事件流；按事件筛选是对 \`body\` 的元素匹配，按事件分析会展开 \`body\`、以事件为计数单位。
 
 > 事件流是已发生之事的记录，只读，没有命令。`;
@@ -86,7 +86,8 @@ const meta = {
   // catalog must not call the service.
   tags: ['!test'],
   parameters: {
-    // The console is the product: it fills the canvas as it would a screen.
+    // The console is the product: it fills the canvas inside the host's
+    // own bar and navigation (`AppShell`), as it would a screen.
     layout: 'fullscreen',
     docs: { autoMount: false, description: { component: description } },
   },
@@ -98,10 +99,10 @@ const meta = {
     },
   },
   decorators: [
-    Story => (
-      <ConsoleScreen>
+    (Story, context) => (
+      <AppShell current="event-streams" host={context.args.host}>
         <Story />
-      </ConsoleScreen>
+      </AppShell>
     ),
   ],
 } satisfies Meta<typeof Console>;

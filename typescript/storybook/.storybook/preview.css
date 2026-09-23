@@ -409,3 +409,206 @@ html.dark body {
     animation-iteration-count: 1 !important;
   }
 }
+
+/*
+ * The host application round a real-backend console (`stories/shared/
+ * AppShell.tsx`): a top bar and a navigation column that belong to the host,
+ * painted from View Engine's tokens through `fve-tokens`, so both themes
+ * hold without a colour of their own here.
+ */
+.story-app {
+  display: grid;
+  grid-template-columns: 216px minmax(0, 1fr);
+  grid-template-rows: 52px minmax(0, 1fr);
+  min-height: 100dvh;
+  background: var(--background);
+  color: var(--foreground);
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  font-size: 14px;
+}
+
+.story-app[data-folded] {
+  grid-template-columns: 56px minmax(0, 1fr);
+}
+
+.story-app svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.story-app-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.story-app-logo {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.story-app-product {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.story-app-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+}
+
+.story-app-system {
+  color: var(--muted-foreground);
+}
+
+.story-app-spacer {
+  flex: 1;
+}
+
+.story-app-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 6px;
+  font-size: 13px;
+}
+
+.story-app-avatar {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--muted);
+}
+
+.story-app-avatar svg {
+  width: 14px;
+  height: 14px;
+}
+
+.story-app-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 8px;
+  border-right: 1px solid var(--border);
+  background: var(--background);
+  min-width: 0;
+}
+
+.story-app-group {
+  margin: 12px 8px 4px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.story-app-group:first-child {
+  margin-top: 0;
+}
+
+.story-app-item,
+.story-app-service {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  margin: 0;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.story-app-item:hover {
+  background: var(--muted);
+}
+
+.story-app-item[aria-current='page'] {
+  background: var(--muted);
+  font-weight: 600;
+}
+
+.story-app-item:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
+.story-app-service {
+  cursor: default;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+
+.story-app-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.story-app-fold {
+  color: var(--muted-foreground);
+}
+
+.story-app[data-folded] .story-app-label,
+.story-app[data-folded] .story-app-group {
+  display: none;
+}
+
+.story-app[data-folded] .story-app-item,
+.story-app[data-folded] .story-app-service {
+  justify-content: center;
+  padding: 0;
+}
+
+.story-app-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .story-app,
+  .story-app[data-folded] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 52px auto minmax(0, 1fr);
+  }
+
+  .story-app-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .story-app-group,
+  .story-app-service,
+  .story-app-fold,
+  .story-app-nav > .story-app-spacer,
+  .story-app-system,
+  .story-app-divider {
+    display: none;
+  }
+}

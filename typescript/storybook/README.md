@@ -7,7 +7,7 @@ Storybook 是可运行的接入文档，也承载浏览器交互回归。导航�
 - `*.stories.tsx`：展示组件、初始参数、说明和可手动操作的场景。允许初始化读取和无副作用的渲染断言。
 - `*.test.stories.tsx`：导入展示故事，复用参数和演示实现，安装复杂 `play`。使用 `['!dev', '!autodocs', 'test']`，保留测试执行并隐藏默认导航与文档入口。
 - `*.play.ts`：较长交互的具名实现，就近维护。不要求为简单断言单独建文件。
-- `shared/`：只有真实复用的场景外壳（文档场景的 `ScenarioFrame`、全屏控制台的 `ConsoleScreen`）和 Ant Design Provider。模块显式声明装饰器，不通过故事标题选择 Provider。
+- `shared/`：只有真实复用的场景外壳（文档场景的 `ScenarioFrame`、真实场景的宿主外壳 `AppShell`）和 Ant Design Provider。模块显式声明装饰器，不通过故事标题选择 Provider。
 
 普通展示不能依赖自动测试来创建初始数据或完成异步请求。打开页面后，筛选、保存、创建和删除均由使用者触发。
 
@@ -29,7 +29,7 @@ View Engine 的故事在 `view-engine/`，按界面分为数据视图、分析�
 
 `view-engine/EventStreamConsole.stories.tsx` 是**事件流分析台**，同一个服务上 `execution_failed` 的事件流：一条记录是一次命令追加的事件流（执行 ID、版本、命令 ID、事件时间），事件在数组 `body` 里。按事件筛选是对 `body` 的元素匹配，按事件分析展开 `body`、以事件为计数单位。视图列表里有最近的事件、执行历史（按执行 ID 填写的模板，按版本排序）、重试成功、人工干预，以及事件类型分布、每月／每日事件量、每日重试成功、重试最多的执行。事件流只读，没有命令。字段定义按 `GET /execution_failed/event/schema` 人工对齐，舍弃了什么、为什么舍弃，见 `eventStream.ts` 里 `executionFailedEventsDefinition` 的说明。
 
-- 这两个场景就是操作员用的产品，因此全屏呈现（`layout: 'fullscreen'`）：不套 `ScenarioFrame`，工作台由 `shared/ConsoleScreen.tsx` 撑满视口高度与宽度，表格自己量到视口底部的剩余空间并在其中滚动。场景说明——领域、摘要、准备、操作、观察、数据源与「命令真实写入」的提醒——写在文档页（`parameters.docs.description.component`）。回归孪生显式写 `parameters: { ...displayMeta.parameters }`：Storybook 会把孪生文件自己的注释写进其 meta 的 `parameters`，只靠展开会被整个替换，全屏布局随之丢失。
+- 这两个场景就是操作员用的产品，因此全屏呈现（`layout: 'fullscreen'`），并放在宿主应用里：不套 `ScenarioFrame`，而是 `shared/AppShell.tsx` 画出宿主自己的顶部导航与左侧应用导航（可折成图标），视图引擎只是中间那一块——真实产品里它从来不是一整屏，只对着白底评判它的观感是对错了地方。外壳是宿主的标记，经 `fve-tokens` 读主题 token（D17-10），明暗两套随之成立；导航里只有这两个真实场景、互相链接，「服务」一行就是场景连接的 `host`，不放假条目。表格照旧自己量到视口底部的剩余空间并在其中滚动，顶栏把它的起点往下推多少都一样。场景说明——领域、摘要、准备、操作、观察、数据源与「命令真实写入」的提醒——写在文档页（`parameters.docs.description.component`）。回归孪生显式写 `parameters: { ...displayMeta.parameters }`：Storybook 会把孪生文件自己的注释写进其 meta 的 `parameters`，只靠展开会被整个替换，全屏布局随之丢失。
 - 服务地址是故事的 `host` 参数，可在 Controls 面板随时切换；初始值取 `STORYBOOK_WOW_COMPENSATION_HOST`，未设置时为 `http://localhost:8080`。两个场景共用这个地址。
 - 快照控制台的写操作会真实写回服务，只连接测试环境。
 - 真实数据每次都不同，这些故事标记为 `!test`，不进入回归测试；文档页用 `docs.autoMount: false` 只列出场景链接，不挂载示例，因此打开目录不会调用服务。

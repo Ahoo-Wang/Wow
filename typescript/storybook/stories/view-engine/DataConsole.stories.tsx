@@ -41,7 +41,7 @@ import {
 import { IconButton } from '@/ui/IconButton';
 // Popup contents come themed from popups.tsx, as View Engine's own do.
 import { DropdownMenuContent } from '@/ui/popups';
-import { ConsoleScreen } from '../shared/ConsoleScreen.js';
+import { AppShell } from '../shared/AppShell.js';
 import {
   DEFAULT_COMPENSATION_HOST,
   EXECUTION_FAILED,
@@ -306,7 +306,7 @@ Wow 补偿服务里的执行失败：真实的数据、真实的数据量；同�
 
 - **数据源**：Wow 补偿服务，地址是 \`host\` 参数，可在 Controls 面板切换；改动后按新地址重建引擎。
 - **准备**：引擎与视图存储随故事新建；数据与补偿命令直连 \`host\` 指向的服务。
-- **操作**：打开「快照控制台」场景，它铺满整个画布，像操作员使用时一样。
+- **操作**：打开「快照控制台」场景，它放在宿主应用里——顶部导航与左侧应用导航是宿主的，中间那一块是视图引擎——像操作员使用时一样。
 - **观察**：筛选、排序、分页、汇总与聚合都由服务端执行；每行的操作按这条执行的状态开放，命令等快照更新后再刷新结果。
 
 > 命令会真实写回服务：重试、强制重试与标记可恢复性都作用在 \`host\` 指向的服务上，只连接测试环境。`;
@@ -319,7 +319,8 @@ const meta = {
   // catalog must not call the service.
   tags: ['!test'],
   parameters: {
-    // The console is the product: it fills the canvas as it would a screen.
+    // The console is the product: it fills the canvas inside the host's
+    // own bar and navigation (`AppShell`), as it would a screen.
     layout: 'fullscreen',
     docs: { autoMount: false, description: { component: description } },
   },
@@ -331,10 +332,10 @@ const meta = {
     },
   },
   decorators: [
-    Story => (
-      <ConsoleScreen>
+    (Story, context) => (
+      <AppShell current="snapshots" host={context.args.host}>
         <Story />
-      </ConsoleScreen>
+      </AppShell>
     ),
   ],
 } satisfies Meta<typeof Console>;
