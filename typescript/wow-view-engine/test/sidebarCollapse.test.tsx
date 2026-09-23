@@ -307,7 +307,7 @@ describe('collapsing the sidebar', () => {
 
     await user.click(screen.getByRole('button', { name: COLLAPSE }));
     // Nothing fixed-width is left beside it, which is the whole point on a
-    // narrow screen: `w-56` of list is `w-56` the rows do not get.
+    // narrow screen: `w-64` of list is `w-64` the rows do not get.
     expect(beside()).toHaveLength(0);
   });
 });

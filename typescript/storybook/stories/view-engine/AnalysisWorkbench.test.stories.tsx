@@ -162,7 +162,7 @@ export const CaptionHoldsTheReport: Story = {
  * 刻度字以刻度为中心，最后一个会伸出绘图区半个字宽：真实补偿服务上最后一天读成
  * 「2026年9月22E」，横向图最后一个数读成「600,00(」；横向图的分类轴从前是写死的
  * 96px，把长处理器名从左边截成「kEventProcessor」（2026-09-23）。这里量每一个刻度
- * 字的框都在图的 `svg` 之内，且图离结果区的左边留着工作列的 16px。
+ * 字的框都在图的 `svg` 之内，且图离结果区的左右两边都留着工作列的 16px。
  */
 export const TicksInsideTheChart: Story = {
   ...DisplayBarChart,
@@ -177,6 +177,10 @@ export const TicksInsideTheChart: Story = {
       .querySelector('[data-slot="result-block"]')!
       .getBoundingClientRect();
     await expect(surface.left - block.left).toBeGreaterThanOrEqual(15);
+    // On both sides: a chart that is the band's full width and then pushed
+    // 16px in overhangs the right edge, and the band clips its last tick
+    // (「2026年9」 on the real service's monthly line).
+    await expect(block.right - surface.right).toBeGreaterThanOrEqual(15);
     const ticks = [
       ...canvasElement.querySelectorAll('.recharts-cartesian-axis-tick-value'),
     ];
@@ -765,9 +769,13 @@ export const VisualizePanel: Story = {
     const canvas = within(canvasElement);
     await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
     // The list is in the column, and the panel is not.
-    await expect(
-      canvasElement.querySelector('[data-slot="view-sidebar"]'),
-    ).not.toBeNull();
+    const list = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="view-sidebar"]',
+    );
+    await expect(list).not.toBeNull();
+    const main = canvasElement.querySelector<HTMLElement>('.fve-root > main')!;
+    const listWidth = list!.getBoundingClientRect().width;
+    const mainLeft = main.getBoundingClientRect().left;
 
     await userEvent.click(
       canvas.getByRole('button', { name: zhCN['label.analysis.visualize'] }),
@@ -781,6 +789,10 @@ export const VisualizePanel: Story = {
     await expect(
       canvasElement.querySelector('[data-slot="view-sidebar"]'),
     ).toBeNull();
+    // At the list's width, so the work area stays where it was: a panel a
+    // size wider pushed everything right by 32px as it opened.
+    await expect(panel.getBoundingClientRect().width).toBeCloseTo(listWidth, 0);
+    await expect(main.getBoundingClientRect().left).toBeCloseTo(mainLeft, 0);
 
     // Every type the definition declares is a tile, and the table is one too.
     await expect(

@@ -56,9 +56,14 @@ export function SidebarColumn({
         // them would be a second opinion about where the column ends. The
         // `Separator` that used to stand here went with them — one edge,
         // drawn once, by whichever part the edge belongs to.
+        //
+        // The same 16rem as the panel that takes its place (and shadcn's own
+        // sidebar): a list a size narrower moved the whole work area 32px
+        // each time the panel opened or closed, and cut a six-character
+        // definition name beside the heading's three buttons.
         <aside
           data-slot="view-sidebar"
-          className="flex w-full shrink-0 flex-col md:w-56"
+          className="flex w-full shrink-0 flex-col md:w-64"
         >
           <ViewList
             list={list}

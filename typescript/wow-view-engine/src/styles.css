@@ -688,7 +688,8 @@
  * own — and wrong for a chart: its axis numbers sat against the column's
  * left rule with nothing between (the user's 2026-09-23 review). A chart, a
  * funnel, a heatmap and a metric card stand in the same 16px the toolbar
- * and the caption keep, with a step of air under the toolbar's rule. Inside
+ * and the caption keep, on both sides, with a step of air under the
+ * toolbar's rule. Inside
  * a dashboard panel the card is the gutter, so this is the workbench's
  * alone.
  */
@@ -703,6 +704,10 @@
     [data-slot='metric-card']
   ) {
   margin: 12px 16px 0;
+  /* The margin comes out of the width rather than past it: a drawing that
+     is `w-full` of the band and then pushed 16px in overhangs its right
+     edge by 16px, where the band clips it — the last tick read 「2026年9」. */
+  width: auto;
 }
 
 .fve-root
