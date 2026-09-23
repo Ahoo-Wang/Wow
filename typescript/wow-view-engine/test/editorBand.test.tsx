@@ -35,12 +35,10 @@ const BAND_ID = 'editor-band';
 function Fold({
   initial = false,
   pending = 0,
-  modeLabel,
   modes = false,
 }: {
   initial?: boolean;
   pending?: number;
-  modeLabel?: string;
   modes?: boolean;
 }) {
   const [open, setOpen] = useState(initial);
@@ -52,7 +50,6 @@ function Fold({
       <EditorFold open={open} onOpenChange={setOpen}>
         <EditorBandToggle
           label="Filter"
-          modeLabel={modeLabel}
           modes={
             modes ? <DropdownMenuItem>Advanced</DropdownMenuItem> : undefined
           }
@@ -191,50 +188,27 @@ describe('EditorBandToggle', () => {
   });
 
   /**
-   * The mode is part of the handle's name rather than a second control to
-   * find: "Filter · Simple" answers both "what is this" and "how is it set"
-   * without the menu having to be opened.
+   * The handle says what it opens and nothing about how: the mode is the
+   * editor's setting, shown as the checked item of the menu beside it, and
+   * a second word on the button competed with the count of what is edited
+   * and not applied (2026-09-23 visual review).
    */
-  it('says which mode the editor is in without being opened', () => {
-    render(<Fold modeLabel="Simple" />);
+  it('is called what it opens, with the pending count and no mode', () => {
+    render(<Fold modes pending={2} />);
 
+    // The count joined in, since two inline spans would run together as
+    // "Filter2 not applied" in a name computed from them.
     expect(
-      screen.getByRole('button', { name: 'Filter · Simple' }),
+      screen.getByRole('button', { name: 'Filter · 2 not applied' }),
     ).toBeDefined();
-    expect(screen.getByText('· Simple')).toBeDefined();
+    expect(toggle().textContent).not.toContain('·');
   });
 
-  /**
-   * The combination every Record workbench is in, and the one no case here
-   * used to cover: `DataWorkbench` always passes a mode, so the name the
-   * mode brought with it overrode the content — and the one credential a
-   * folded editor cannot carry any other way was missing from every reader,
-   * on every Record screen, all of the time.
-   */
-  it('keeps the pending count in the name a mode brings with it', () => {
-    render(<Fold modeLabel="Simple" pending={2} />);
-
-    expect(
-      screen.getByRole('button', { name: 'Filter · Simple · 2 not applied' }),
-    ).toBeDefined();
-    // Seen and heard hold the same three pieces, in the same order.
-    expect(screen.getByText('· Simple')).toBeDefined();
-    expect(screen.getByText('2 not applied')).toBeDefined();
-  });
-
-  it('says nothing about pending in the name when nothing is', () => {
-    render(<Fold modeLabel="Simple" pending={0} />);
-
-    expect(
-      screen.getByRole('button', { name: 'Filter · Simple' }),
-    ).toBeDefined();
-  });
-
-  it('leaves the name to the content when there is no mode to say', () => {
-    render(<Fold />);
+  it('is only its label when nothing is pending', () => {
+    render(<Fold modes />);
 
     expect(toggle().getAttribute('aria-label')).toBeNull();
-    expect(toggle().textContent).toContain('Filter');
+    expect(screen.getByRole('button', { name: 'Filter' })).toBeDefined();
   });
 
   it('offers no modes menu when the editor has no modes', () => {

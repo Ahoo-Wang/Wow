@@ -826,12 +826,18 @@ export const SummariesStayInView: Story = {
     await waitFor(() =>
       expect(port.scrollHeight).toBeGreaterThan(port.clientHeight + 1),
     );
-    // The frame ends at the window's bottom edge, give or take a pixel, so
-    // nothing of it is below the fold.
+    // The frame and the padding of what it closes end at the window's
+    // bottom edge, give or take a pixel: nothing of it is below the fold,
+    // and the page has nothing left to scroll. The frame alone ending there
+    // was the old rule, and it left the page scrolling by the bottom
+    // padding of every container around the frame.
     await waitFor(() =>
       expect(
-        Math.abs(frame.getBoundingClientRect().bottom - window.innerHeight),
+        Math.abs(document.documentElement.scrollHeight - window.innerHeight),
       ).toBeLessThanOrEqual(2),
+    );
+    await expect(frame.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+      window.innerHeight,
     );
     // Both summary rows and the pagination row are inside the window.
     for (const row of table.querySelectorAll<HTMLElement>('tfoot tr')) {
@@ -3032,13 +3038,19 @@ export const SidebarIsANavigationColumn: Story = {
       ),
     ).toBeLessThanOrEqual(1);
 
-    // The open view: the work area's own ground on top of the column's, plus
-    // the bar. Neither is another step of the same grey.
+    // The open view: a sheet of the work area's own ground lifted off the
+    // column — an edge all the way round and a small shadow, no bar (an
+    // inset bar bent round the corners into a "("). Neither is another step
+    // of the same grey.
     const current = listItem(canvasElement, '待出库订单');
     await expect(current.getAttribute('aria-current')).toBe('true');
     await expect(paintOf(current)).toBe(paintOf(work));
     await expect(paintOf(current)).not.toBe(ground);
-    await expect(getComputedStyle(current).boxShadow).toContain('inset');
+    const sheet = getComputedStyle(current);
+    await expect(sheet.boxShadow).not.toBe('none');
+    await expect(sheet.boxShadow).not.toContain('inset');
+    await expect(sheet.borderLeftColor).not.toBe('rgba(0, 0, 0, 0)');
+    await expect(sheet.borderLeftColor).toBe(sheet.borderRightColor);
     await expect(getComputedStyle(current).fontWeight).toBe('500');
 
     // A row that is not open carries no fill of its own, so what shows is
@@ -3066,8 +3078,8 @@ export const SidebarIsANavigationColumn: Story = {
     // The kind icon is on every row, because one definition holds record and
     // analysis views together and the name alone does not say which is which.
     await expect(other.querySelector('svg')).not.toBeNull();
-    // And where a view came from is a word after its name rather than a
-    // badge at the row's end — the end belongs to the star.
+    // And where a view came from is a lock at the row's end, beside where
+    // the star goes — a mark, not a badge.
     const system = listItem(canvasElement, '全部订单');
     await expect(
       system.querySelector('[data-slot="view-system-tag"]'),
@@ -3440,7 +3452,9 @@ export const EditorToggleAndModes: Story = {
         name: new RegExp(`^${zhCN['label.filter.panel']}`),
       }),
     ).toHaveAccessibleName(
-      `${zhCN['label.filter.panel']} · ${zhCN['label.filter.advanced']}`,
+      // Called what it opens: the mode is the menu's checked item, not a
+      // word on the button.
+      zhCN['label.filter.panel'],
     );
   },
 };
@@ -5260,8 +5274,9 @@ export const DarkHairlines: Story = {
  * 行底是会动的：选中走 `bg-muted`，悬停走同一档灰的不透明 `color-mix`，而
  * `secondary` 徽章的底色正是那一档——量到 **1.00:1**，徽章直接归零成一个词。
  * 这里量的是徽章最外那 1px 压在行底上的层叠色（`onSurface`）：没有语气的徽章
- * 靠 `border-input` 的边说话，有语气的那几枚边是透明的、靠自己的实底说话，
- * 所以同一个数对两族都成立。jsdom 不套样式表，这个数只有真浏览器给得出。
+ * 靠 `border-input` 的边说话，有语气的那几枚靠一圈 30% 的同色边——10% 的淡底
+ * 单独离行底只有 1.16–1.22:1——所以同一个数对两族都成立。jsdom 不套样式表，
+ * 这个数只有真浏览器给得出。
  */
 const badgesOnRows = (theme: 'light' | 'dark'): Story => ({
   ...DisplayCellFamily,
@@ -5397,14 +5412,11 @@ export const HeaderBandInDarkTheme: Story = headerBand('dark');
 /**
  * 每一档语气的字压在它自己的底色上都读得出来，而且语气从来不是唯一的区别。
  *
- * 徽章是实底加页面底色写字（`ui/variants.tsx`），所以这里量的就是这一对搭配
- * 本身：底色是不透明的，量出来的数与徽章落在哪一档行底上无关。用户
- * 2026-09-22 的评审说「待出库」这枚白字压橙底在最小的一号字上（实测 13px）
- * 贴着 AA 的边——旧的
- * 700／600 档在亮色下量到 4.94／5.05／4.77，过线不到 6%；浅色三档因此各下
- * 一档（`styles.css`），这条故事守的是新的余量。软配方（淡底 + 深字）同一批
- * 量下来是 5.60／5.61／4.84，比实底更低，且淡底离行底只有 1.16–1.22:1，所以
- * 没有取。
+ * 徽章是软配方（`ui/variants.tsx`，2026-09-23 v16 视觉稿）：10% 淡底、语气色
+ * 写字。淡底是半透明的，字对的是「淡底叠在行底上」的层叠色，所以行底动了这个
+ * 数就跟着动——这里在三档行底上各量一遍：静息、悬停、选中（选中时行底是
+ * `--muted`，淡底落在灰上，是最紧的一档）。暗色 danger 用自己的 token 在选中
+ * 行上曾量到 3.92:1，所以它写的是向前景色混五分之一的那一档。
  *
  * 颜色之外还要有字（WCAG 1.4.1）：四档语气都在场，每一枚都有非空的标签，而且
  * 没有两档共用同一个词。
@@ -5440,11 +5452,38 @@ const toneBadgeInk = (theme: 'light' | 'dark'): Story => ({
     const all = [...words.values()].flatMap(set => [...set]);
     await expect(all.length).toBe(new Set(all).size);
 
-    const measured = badges.map(badge => ({
-      name: `${badge.dataset.tone} "${(badge.textContent ?? '').trim()}"`,
-      size: getComputedStyle(badge).fontSize,
-      ...measureTextContrast(badge),
-    }));
+    /** Every toned badge of one row, against the ground that row is on. */
+    const inkOf = (row: HTMLTableRowElement, state: string) =>
+      [
+        ...row.querySelectorAll<HTMLElement>('[data-slot="badge"][data-tone]'),
+      ].map(badge => ({
+        name: `${state} ${badge.dataset.tone} "${(badge.textContent ?? '').trim()}"`,
+        size: getComputedStyle(badge).fontSize,
+        ...measureTextContrast(badge),
+      }));
+    const rows = [...(table as HTMLTableElement).tBodies[0].rows];
+
+    // At rest first, every row: all four tones are on the page.
+    const measured = rows.flatMap(row => inkOf(row, 'resting'));
+
+    // Selected, where the tint lands on `--muted`: the tightest ground.
+    await userEvent.click(
+      within(rows[0]).getByRole('checkbox', {
+        name: say('label.record.select', { key: 'SO-1001' }),
+      }),
+    );
+    await waitFor(() =>
+      expect(rows[0]).toHaveAttribute('data-state', 'selected'),
+    );
+    await settled(() => getComputedStyle(rows[0]).backgroundColor);
+    measured.push(...inkOf(rows[0], 'selected'));
+
+    // Hovered, the same grey mixed halfway into the page.
+    await userEvent.hover(rows[1]);
+    await settled(() => getComputedStyle(rows[1]).backgroundColor);
+    measured.push(...inkOf(rows[1], 'hovered'));
+    await userEvent.unhover(rows[1]);
+
     const report = measured
       .map(
         ({ name, size, ratio, colors }) =>

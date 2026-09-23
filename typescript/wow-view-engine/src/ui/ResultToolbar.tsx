@@ -36,11 +36,10 @@ import { ExportDialog, type ExportOffer } from './ExportDialog.js';
 import { IconTooltip } from './IconButton.js';
 import { SortSettings } from './SortSettings.js';
 import { featuresOf, type WorkbenchFeatures } from './features.js';
-import { SPACE, TEXT_UI } from './layout.js';
+import { SPACE } from './layout.js';
 import { Toolbar, ToolbarItem } from './toolbar.js';
 import type { MessageKey } from './messages.js';
 import { useViewMessages } from './MessagesProvider.js';
-import { cn } from 'cn';
 
 export interface ResultToolbarProps {
   table: RecordTableController;
@@ -181,19 +180,14 @@ export function ResultToolbar({
           nothing that could take a line to itself. Its own contents wrap:
           a count, a way to drop it, and however many bulk actions the host
           brought are more than one narrow line holds. */}
-      {/* Nothing selected but something to select for: the sentence that
-          says how the bulk actions are reached, in the place they will
-          appear. A host that brought no bulk action has nothing to explain,
-          and the left of the bar stays empty (D12 Ⅳ). */}
-      {!selected && bulkActions && (
-        <span
-          data-slot="toolbar-hint"
-          className={cn('text-muted-foreground', TEXT_UI)}
-        >
-          {messages.label('label.toolbar.hint')}
-        </span>
-      )}
-
+      {/* Nothing selected is nothing said. A sentence used to stand here
+          ("Select rows to act on them") whenever the host brought a bulk
+          action, and it said on every view, every visit, what the column of
+          checkboxes already says on every row: a standing instruction for a
+          control that is in plain sight is chrome, and it was the one line
+          of prose in a bar of controls (2026-09-23 visual review). The bulk
+          actions appear here the moment a row is picked, which is where the
+          eye already is. */}
       {selected && (
         <div
           data-slot="toolbar-selection"

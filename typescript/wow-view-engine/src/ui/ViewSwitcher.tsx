@@ -20,7 +20,6 @@ import {
   type ViewKind,
 } from '../model/index.js';
 import type { ViewListState } from '../react/index.js';
-import { Badge } from './components/badge.js';
 import { Button } from './components/button.js';
 import {
   DropdownMenu,
@@ -33,6 +32,7 @@ import {
   DropdownMenuTrigger,
 } from './components/dropdown-menu.js';
 import { KIND_ICON } from './kinds.js';
+import { SystemMark } from './SystemMark.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { DropdownMenuContent } from './popups.js';
 import { NewViewItem, type NewViewCommand } from './workbench/NewView.js';
@@ -220,20 +220,22 @@ export function ViewSwitcher({
 }
 
 /**
- * One view in the menu. It carries the two facts a row carries in the
- * sidebar and no others: what it is called, and whether it came with the
- * definition. The kind is on the trigger instead — the list is one kind.
+ * One view in the menu, carrying the facts a row carries in the sidebar and
+ * drawn with the same marks, so the folded list reads as the open one: the
+ * kind in front of the name, because one data definition holds record and
+ * analysis views together and a name alone does not say which is which; and
+ * the lock when the view came with the definition (`SystemMark`).
+ *
+ * The lock stands clear of the radio's check at the item's end (`mr-4`) —
+ * the open view's check is drawn there by the vendored item.
  */
 function SwitcherItem({ item }: { item: ViewInstanceSummary }) {
-  const messages = useViewMessages();
+  const Kind = KIND_ICON[item.kind];
   return (
     <DropdownMenuRadioItem value={item.id} closeOnClick>
+      <Kind aria-hidden />
       <span className="truncate">{item.title}</span>
-      {isSystemScope(item.scope) && (
-        <Badge variant="secondary" className="ml-auto mr-4">
-          {messages.label('label.scope.tag.system')}
-        </Badge>
-      )}
+      {isSystemScope(item.scope) && <SystemMark className="mr-4 ml-auto" />}
     </DropdownMenuRadioItem>
   );
 }

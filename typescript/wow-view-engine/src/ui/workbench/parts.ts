@@ -33,7 +33,6 @@ export type WorkbenchParts = Pick<
   | 'search'
   | 'editor'
   | 'editorLabel'
-  | 'editorModeLabel'
   | 'editorModes'
   | 'editorOpen'
   | 'onEditorOpenChange'

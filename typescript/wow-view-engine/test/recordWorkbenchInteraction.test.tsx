@@ -334,17 +334,14 @@ describe('DataWorkbench interaction', () => {
       await screen.findByRole('menuitemradio', { name: 'Advanced' }),
     );
 
-    // The toggle's own name is the mode in force, said without the menu
-    // being opened a second time.
+    // The panel below is the advanced editor: a group with an operator. The
+    // toggle stays "Filter" — the mode in force is the menu's checked item.
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: 'Filter · Advanced' }),
+        screen.getByRole('combobox', { name: 'Group operator' }),
       ).toBeDefined(),
     );
-    // And the panel below is the advanced editor: a group with an operator.
-    expect(
-      screen.getByRole('combobox', { name: 'Group operator' }),
-    ).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Filter' })).toBeDefined();
   });
 
   it('keeps the filter editable while a query is still running', async () => {

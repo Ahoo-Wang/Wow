@@ -88,12 +88,6 @@ export interface WorkbenchShellProps {
    */
   editorLabel?: string;
   /**
-   * The editor's current mode, appended to the toggle's accessible name —
-   * "Filter · Simple". It is what `editorModes` changes, said without
-   * opening the menu.
-   */
-  editorModeLabel?: string;
-  /**
    * Menu items for a chevron beside the editor's toggle: the ways of
    * editing this editor offers. Left out, the toggle stands alone.
    */
@@ -276,7 +270,6 @@ export function WorkbenchShell({
   editor,
   editorLabel,
   search,
-  editorModeLabel,
   editorModes,
   editorOpen,
   defaultEditorOpen,
@@ -548,7 +541,6 @@ export function WorkbenchShell({
                 namesView={sidebarOpen}
                 leading={collapsed || undefined}
                 editorLabel={folded ? editorLabel : undefined}
-                editorModeLabel={editorModeLabel}
                 editorModes={editorModes}
                 editorPending={editorPending}
                 freshness={freshness}

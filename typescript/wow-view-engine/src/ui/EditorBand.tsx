@@ -118,8 +118,6 @@ export function EditorBand({ id, children, className }: EditorBandProps) {
 
 export interface EditorBandToggleProps {
   label: string;
-  /** The editor's current mode, said without opening the menu. */
-  modeLabel?: string;
   /** The ways of editing this editor offers, under a chevron beside it. */
   modes?: ReactNode;
   /** How many nodes say something other than what ran. */
@@ -140,7 +138,6 @@ export interface EditorBandToggleProps {
  */
 export function EditorBandToggle({
   label,
-  modeLabel,
   modes,
   pending,
 }: EditorBandToggleProps) {
@@ -149,22 +146,18 @@ export function EditorBandToggle({
     pending > 0
       ? messages.label('label.editor.pending', { count: pending })
       : null;
-  // The mode is part of the name rather than a second control to find:
-  // "Filter · Simple" answers both "what is this" and "how is it set".
+  // The toggle says what it opens and nothing about how: "Filter", not
+  // "Filter · Simple" (2026-09-23 visual review). The mode is a setting of
+  // the editor, changed in the menu beside it and shown there as the
+  // checked item; on the button it was a second word competing with the
+  // one credential a folded editor cannot carry any other way — the count
+  // of what is edited and not applied (D17-6, D2).
   //
-  // The count goes in with it, and that is the whole of why this is
-  // assembled rather than left to the content. A name overrides the content
-  // it is put on, so "Filter · Simple" used to *hide* the "2 not applied"
-  // inside the button — and the Record workbench always passes a mode, so
-  // on that screen the one credential a folded editor cannot carry any
-  // other way (D17-6, D2) was missing from every reader, all of the time.
-  // Nothing in the content is dropped: what is heard is what is seen, in
-  // the same order, which is what WCAG 2.5.3 asks of a name.
-  const name = !modeLabel
-    ? undefined
-    : [label, modeLabel, ...(pendingLabel === null ? [] : [pendingLabel])].join(
-        ' · ',
-      );
+  // The count is joined into the name rather than left to the content: the
+  // label and the count are two inline spans, and a name computed from them
+  // runs them together — "Filter2 not applied". Joined, what is heard is
+  // what is seen, in the same order (WCAG 2.5.3).
+  const name = pendingLabel === null ? undefined : `${label} · ${pendingLabel}`;
   return (
     <ButtonGroup data-slot="editor-toggle">
       <CollapsibleTrigger
@@ -173,14 +166,6 @@ export function EditorBandToggle({
       >
         <SlidersHorizontalIcon data-icon="inline-start" />
         <span className="truncate">{label}</span>
-        {modeLabel && (
-          // No `text-muted-foreground` on either of these two. The toggle is
-          // an outline button on a card now, and muted text at this size
-          // lands at 4.34:1 on that background — under the 4.5:1 axe asks
-          // for. They inherit the button's own foreground instead, and stay
-          // secondary by being smaller rather than by being paler.
-          <span className="hidden sm:inline">· {modeLabel}</span>
-        )}
         {pendingLabel !== null && (
           <span className={cn('flex items-center gap-1 font-normal', TEXT_UI)}>
             {/* The same dot the pills wear. It names nothing here: the

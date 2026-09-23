@@ -147,6 +147,24 @@ describe('the view switcher menu', () => {
     expect(menu.textContent).toContain('Shared views');
   });
 
+  it('draws each view with the sidebar’s marks: its kind, and the lock', async () => {
+    switcher();
+    const menu = await openMenu();
+
+    // The folded list reads as the open one: every item leads with its
+    // kind, and the view that came with the definition wears the same lock
+    // it wears in the sidebar — not a badge of its own.
+    const items = within(menu).getAllByRole('menuitemradio');
+    for (const item of items) {
+      expect(item.querySelector(':scope > svg')).not.toBeNull();
+    }
+    const system = items.find(item => item.textContent?.includes('All orders'));
+    expect(
+      system?.querySelector('[data-slot="view-system-tag"] svg'),
+    ).not.toBeNull();
+    expect(menu.querySelector('[data-slot="badge"]')).toBeNull();
+  });
+
   it('leaves out a group nothing is in', async () => {
     switcher({ list: listState([ITEMS[0], ITEMS[1]]) });
     const menu = await openMenu();

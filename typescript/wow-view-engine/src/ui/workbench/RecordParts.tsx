@@ -36,7 +36,7 @@ import { csvCellText, isoDay, type DisplayContext } from '../display.js';
 import { downloadFile, fileName } from '../download.js';
 import { useQueryAnnouncement } from '../record/queryAnnouncement.js';
 import { FilterPanel } from '../FilterPanel.js';
-import { FilterModes, filterModeLabel } from '../filter/FilterModes.js';
+import { FilterModes } from '../filter/FilterModes.js';
 import { RecordCards } from '../RecordCards.js';
 import { RecordPagination } from '../RecordPagination.js';
 import { RecordTable, type RecordCell } from '../RecordTable.js';
@@ -313,7 +313,6 @@ export function RecordParts({
     onEditorOpenChange: open => setFold({ id: runtimeId, open }),
     search: shown.search && searchBox && <SearchBox search={searchBox} />,
     editorLabel: messages.label('label.filter.panel'),
-    editorModeLabel: filterModeLabel(filter, messages),
     editorModes: <FilterModes filter={filter} />,
     editorPending: filter.pendingCount,
     /* Not frozen while a query runs: typing never re-queries, and a refresh

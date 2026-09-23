@@ -4,7 +4,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 
 ## ResultToolbar 的三组
 
-- 工具栏是「批量操作 + 展示设施」。**左端**：有选中时是「已选 N 条」加一颗紧贴计数的 ✕（`label.toolbar.clear-selection`，`ghost` 图标按钮——贴着它清掉的那个数，是全包「去掉这个」的形状），再是宿主的 `bulk` 槽位；没选中而宿主交了 `bulk` 时是一句提示（`label.toolbar.hint`「勾选行以批量处理」）；没有批量动作时左端为空、整组不画（右组本身撑着 32px，不必留 `min-h-8` 占位）。**右端**按职责分组，组间 8px、组内无缝：`[表格｜卡片]`、`[列设置][排序]`（这些行**怎么画**）、导出（什么也不改，只把行带走）。刷新是框架功能，在标题栏右组（[README.md#工作台骨架](README.md#工作台骨架)）；
+- 工具栏是「批量操作 + 展示设施」。**左端**：有选中时是「已选 N 条」加一颗紧贴计数的 ✕（`label.toolbar.clear-selection`，`ghost` 图标按钮——贴着它清掉的那个数，是全包「去掉这个」的形状），再是宿主的 `bulk` 槽位；没选中时左端为空、整组不画——从前宿主交了 `bulk` 时这里有一句「勾选行以批量处理」，它在每个视图、每次打开都重复每一行复选框已经说过的话，是一栏控件里唯一一句散文（2026-09-23 视觉走查删去）（右组本身撑着 32px，不必留 `min-h-8` 占位）。**右端**按职责分组，组间 8px、组内无缝：`[表格｜卡片]`、`[列设置][排序]`（这些行**怎么画**）、导出（什么也不改，只把行带走）。刷新是框架功能，在标题栏右组（[README.md#工作台骨架](README.md#工作台骨架)）；
 - **工具栏是 ARIA 的 toolbar**：壳是 Base UI 的 `Toolbar` 原语（registry 没有，按 `popups.tsx` 的做法在 `ui/toolbar.tsx` 放一层只加 `data-slot` 的薄包装）——`role="toolbar"`、**整条栏一个 Tab 站**、方向键在栏内走并回绕。`ToggleGroup` 自己登记进漫游序；列设置／排序用 `ButtonGroup` 画合缝。宿主 `bulk` 里的按钮登记不进来，仍是普通 Tab 站。栏有名字（`label.toolbar.title`「结果工具栏」）（test/resultToolbar.test.tsx「ResultToolbar keyboard」）；
 - **右边几组是一个块，一起换行**：包在 `ml-auto flex flex-wrap justify-end` 里，而不是与 `flex-1` 撑条并排——撑条会把布局切换单独顶在第一行（回归 story `ToolbarWrapsAsGroups`）；
 - **份量**：功能一律是**带边的图标按钮**（`outline`），带名字与 tooltip——裸文字 `ghost` 像标签；只有报告状态的控件带文字（排序按钮）。布局切换按[版式](README.md#版式三块一套间距一种选项控件)的房规用 `ToggleGroup spacing={0}`；同屏唯一的 primary 是筛选的 Apply（test/resultToolbar.test.tsx「ResultToolbar grouping and weight」）。
@@ -141,7 +141,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 - **`tags`**：一枚一枚画，有 `options` 用标签、否则原值——拼成一枚会读成名字里带逗号的一个标签。空数组画零枚；普通数组留给默认渲染（照字段读法、以目录的列表分隔符连成一行）；
 - **`link`**：字符串且过得了 `isSafeContentUrl` 才是外链，`target="_blank" rel="noopener noreferrer"`——记录里的 URL 是数据，打开的文档不能顺着 `window.opener` 摸回来。否则**落回纯文本**。与 `DashboardPanels` 的 markdown 链接同一个函数；
 - **`text`**：表格里截成一行（`block truncate`），卡片上三行（`line-clamp-3`，`whitespace-pre-wrap`），整段在 `title` 里。宽度上限 `--fve-record-text-max-w`（默认 `24rem`）：表格按内容布局，没天花板的一段话会撑宽整列。`block` 是给 `max-width` 与省略号一个盒子；
-- **`copyable`**：值按 kind 格式化，旁边一颗复制按钮（`ui/CopyButton.tsx`）：
+- **`copyable`**：值按 kind 格式化、**用等宽字**（`font-mono`，字号 0.9em——等宽字同号读起来大一号、也更宽，1em 时 `PinnedEdges` 的主键列把冻结组撑过了上限、操作列丢了钉；与详情页标题里的主键同一种字——要逐字带走的值，比例字里 `0`/`O`、`l`/`1` 长得一样，等宽也让一列 ID 上下对齐；2026-09-23 视觉走查），旁边一颗复制按钮（`ui/CopyButton.tsx`）：
   - **在单元格里，不在行操作里**：一行有几样可复制的东西时，行尾一颗「复制」说不出复制哪个。名字带值（`label.copy-of`＝「复制 {value}」）；
   - **悬停才现身，键盘永远够得到**：静息 `opacity-0`，行悬停（`group/row`）或单元格悬停（`group/copyable`）显形，`focus-visible` 显形；**绝不 `display:none`**（会摘出 Tab 路线）；**`(hover: hover)` 守的是「藏」**，触屏上一直在；
   - **结果要说出来**：成功翻成对勾、改说「已复制」（`label.copied`），约 1.5 秒复原；失败说「复制失败」（`label.copy-failed`），值仍可手动框选。两者都挂一块**按结果挂载**的 `role="status"` `sr-only` 区域（读屏不重念正待着的按钮，同 `SaveActions`；不每行常驻，理由见 `DashboardGrid`）；
@@ -170,11 +170,11 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 
 - 哪个状态是好消息属于业务，渲染层猜不得。语气写在 `FieldOption.tone`（`'neutral' | 'success' | 'warning' | 'danger'`，闭合），`badgeEntries` 连语气交出，单元格交给 `ToneBadge`（`ui/variants.tsx` 的 cva variant，vendored `Badge` 不动，调用处只说语气——D16-8）；缺省 `neutral`（`secondary`）；准入拒绝未知语气（`definition.field.tone-invalid`）；
 - **闭合的是语气而不是颜色**：每档映射主题 token（`--success`／`--warning`／`--destructive`），宿主改 `--fve-success` 就改掉所有徽章；
-- **有语气的徽章实底填色，字用那一档的 `-foreground`**（`bg-success text-success-foreground`），不用淡彩——淡彩在小字上够不着 4.5，而 token 本就是"在底色上当文字能过 4.5"挑出来的，填色配底色字正是那一对，且跟着主题翻面。`--success-foreground`／`--warning-foreground`／`--destructive-foreground` 明暗各一份（默认 `var(--background)`），宿主调浅填色时字色有处可改；`--info` 没有，没人用它填色；
-- **浅色三档留足余量**：徽章字是最小一号（13px），贴着 4.5 的档位让宿主挪半档就整组跌破。浅色 success／warning 取调色板 800 档、destructive 取 700 档，都在 6.4:1 以上；暗色用 400 档。这是 token 层面的选择，配方与 `--fve-*` 覆盖点不变；
-- **不用软配方（淡底 + 深字）**：字对比度每档都低于实底，淡底又近到离开行底就认不出是徽章，每枚都得补边——即下面判掉的光晕（浏览器故事 `ToneBadgeInkInLightTheme`／`InDarkTheme` 逐枚量字对比度，并守住四档都在场、字非空、两档不共用一个词）；
-- **没有语气的徽章靠 `border-input` 的边活着**：选中行底 `bg-muted` 与 `secondary` 底色同档，没边就只剩一个词。用 `input` 不用 `border`：主题里 `input` 是一个东西自己的边、按 ≥3:1 守着，`border` 是东西之间的线、在选中行上同样消失（`styles.css`）。注册表本就画 `border border-transparent`，这里只给它颜色。**有语气的不加边**：实色外一圈灰读成光晕（浏览器故事「BadgesOnRowsInLightTheme／InDarkTheme」量每枚最外 1px 对三档行底 ≥1.5:1）；
-- **`danger` 写 `bg-destructive dark:bg-destructive`**：注册表 `destructive` variant 是 `bg-destructive/10` 加 `dark:bg-destructive/20`，不带前缀的覆盖换不掉暗色那条；同一个语义 token 写在同档选择器上，宿主改 `--fve-dark-destructive` 照样生效（由 BadgesOnRows 两条故事守住）；
+- **有语气的徽章是软配方**（2026-09-23 v16 视觉稿，用户确认）：那一档 token 的 10% 淡底、token 本身写字、字前一个同色圆点、一圈 30% 的同色边（`bg-success/10 text-success border-success/30`）。不再实底：状态列是一列一列往下读的，整列实心红在每一行都像警报，而「失败里的一条失败」才是常态；字说状态，淡底和圆点只负责归组，所以可以安静；
+- **软配方照样要守住实底守过的两条线**，都在三档行底（静息、悬停、选中——选中时行底是 `--muted`，淡底落在灰上）上量：**字 ≥4.5:1**——浅色 danger 5.33／4.90、success 6.07／5.59、warning 6.09／5.61（静息／选中）；暗色 success、warning 都过 7:1，danger 用自己的 token 在选中行上配注册表的 20% 暗色淡底只有 **3.92:1**（暗色 `--destructive` 比另两档暗），所以暗色 danger 的字是 token 向 `--foreground` 混五分之一（`color-mix(in oklab, var(--destructive) 80%, var(--foreground))`，6.76／5.65）——是混色不是第二种颜色，宿主改 `--fve-dark-destructive` 照样生效（浏览器故事 `ToneBadgeInkInLightTheme`／`InDarkTheme` 在三档行底上逐枚量，并守住四档都在场、字非空、两档不共用一个词）；**徽章在行上仍是一枚徽章（≥1.5:1）**——10% 淡底单独离行底只有 1.16–1.22:1（P-21 因此判过软配方一次），答案是那圈 30% 的同色边：各档、各行底、明暗两套都在 1.8–2.5:1；它是徽章自己颜色的线，不是实色外那圈读成光晕的灰（浏览器故事「BadgesOnRowsInLightTheme／InDarkTheme」量每枚最外 1px 对三档行底）；
+- **浅色三档的 token 留足余量**：徽章字是最小一号（13px）。浅色 success／warning 取调色板 800 档、destructive 取 700 档，暗色用 400 档——这是实底时代为白字留的余量，软配方下同样是深字能在淡底上过 4.5 的原因。`--success-foreground`／`--warning-foreground` 随实底一起删掉（没人读的 token 是没人守的契约），`--destructive-foreground` 留给还写在实底上的执行那一颗（`DestructiveAction`）；
+- **没有语气的徽章靠 `border-input` 的边活着**：选中行底 `bg-muted` 与 `secondary` 底色同档，没边就只剩一个词。用 `input` 不用 `border`：主题里 `input` 是一个东西自己的边、按 ≥3:1 守着，`border` 是东西之间的线、在选中行上同样消失（`styles.css`）。注册表本就画 `border border-transparent`，这里只给它颜色。它没有圆点：圆点说「这是一个状态」，没有语气的值只是一个值；
+- **`danger` 的淡底写两遍 `bg-destructive/10 dark:bg-destructive/10`**：注册表 `destructive` variant 是 `bg-destructive/10` 加 `dark:bg-destructive/20`，不带前缀的覆盖换不掉暗色那条，暗色就会留着上面那条过不了线的 20%；
 - **颜色从来不是唯一的区别**：字已说了状态，语气只是重音（WCAG 1.4.1）。`data-tone` 写在元素上，宿主着色、测试读语气都不必比颜色。
 
 ## 表格 chrome：层次与冻结列
@@ -209,7 +209,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 - **偏移按实测，只有左边有**：列宽由内容决定，声明 `width` 只是建议，选择列与操作列没声明。`usePinnedOffsets` 在布局后量带 `data-pin` 的表头格，写成 `--fve-pin-left-{i}`，格子以 `var(--fve-pin-left-0, calc(…))` 读——量不到时退回按声明宽度累加（从选择列 `2.5rem` 起）。右边最多一列（D19），一个 `right-0` 说完。宽度变化不经过 React，直接写 DOM；`ResizeObserver` 逐格盯参与累加的表头格（字体加载、宿主按钮变宽都会在表盒子不变时改列宽）；
 - 冻结格 `bg-inherit` 跟着行走，**所以行的每种底色都必须不透明**：半透明悬停会让冻结格下滚过的列透出来。`TableDataRow`（`ui/variants.tsx`，D16-8，调用处只说 `data-state`）用 `--row-hover`（`color-mix(in oklab, var(--muted) 50%, var(--background))`，明暗各一份，宿主可改 `--fve-row-hover`／`--fve-dark-row-hover`），`has-aria-expanded` 同样处理；
 - **边框模型 `border-separate`**（`TABLE_CELLS`）：collapse 下 Chromium 不画单元格外阴影。行线因此落在格子上（`[&_th]:border-b [&_td]:border-b`），汇总最后一行不画——那条是分页行的 `border-t`（故事 `PinnedEdges` 断言 `border-collapse: separate` 与悬停不透明）；
-- **冻结列的边常在——只要能滚**（D13）：`--border` 发丝线加向外软阴影（`--pin-shadow`），静止即在——边说的是「两端钉着」，没被滚过的表没有框线会像布局散架。暗色里投影的是光（25% 白），黑影在暗卡片上看不见；
+- **冻结列的边常在——只要能滚**（D13）：`--border` 发丝线加向外软阴影（`--pin-shadow`），静止即在——边说的是「两端钉着」，没被滚过的表没有框线会像布局散架。暗色里投影的是光，黑影在暗卡片上看不见。2026-09-23 视觉走查把软阴影减半：8px 短衰减、亮色 12% 黑／暗色 10% 白——30%／25% 投 12px 时两根固定列各披一条灰带，一张表读成三块面板；发丝线已说了列在哪结束，阴影只需说「行从它下面过」；
   - **只有边界格画边**：最后一个左冻结列与第一个右冻结列；选择列永远不是边界，操作列一定是（D19）；
   - **一个落点**：`ui/record/sticky.ts` 放 `sticky z-10 bg-inherit`、两侧 `in-data-[overflowing]:shadow-[…]`、左侧偏移与两条带子；`RecordTable`、`columns.ts`、`SummaryRows`、`SkeletonRows`、`Filler` 都从它取，三层同起同落；
   - **状态写在元素上**：`data-pin`（哪一边）、`data-pin-edge`（边界格）、`data-pin-index`（左冻结表头格的偏移变量）、带子的 `data-sticky="top"／"bottom"`。`usePinnedOffsets`、`usePinnedCap` 与测试读属性不读类名——类名证明不了屏幕上的事；类名只在 test/pinnedColumns.test.tsx「the sticky chrome recipe」断言；

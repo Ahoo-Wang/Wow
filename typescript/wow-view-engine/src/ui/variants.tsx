@@ -57,10 +57,10 @@ import { SPACE, TEXT_UI } from './layout.js';
 /**
  * The registry variant each tone starts from.
  *
- * `danger` starts from `destructive` so that everything but the fill —
- * the focus ring, its dark-theme counterpart — is the registry's own; the
- * others start from `secondary`, whose shape is right and whose fill is
- * replaced below.
+ * `danger` starts from `destructive` so that everything but the tint and
+ * the ink — the focus ring, its dark-theme counterpart — is the registry's
+ * own; the others start from `secondary`, whose shape is right and whose
+ * fill is replaced below.
  */
 const TONE_BASE: Record<FieldTone, 'secondary' | 'destructive'> = {
   neutral: 'secondary',
@@ -70,43 +70,40 @@ const TONE_BASE: Record<FieldTone, 'secondary' | 'destructive'> = {
 };
 
 /**
- * A toned badge is a *filled* status surface with the page's own colour as
- * its text, which is the recipe `styles.css` records for these tokens.
+ * A toned badge is the **soft** recipe: a 10% tint of the tone, written in
+ * the tone itself, with a dot of the same ink before the word and an edge
+ * of the tone at 30% (v16 visual draft, the user's 2026-09-23 pick).
  *
- * Not a tint of it, although that is what the registry's `destructive`
- * variant does and what this tried first: a 10% wash leaves the same hue
- * reading against a surface it has been lightened towards, and axe measured
- * 3.98:1 for destructive, 4.32 for success and 4.37 for warning at the one
- * small size a badge is set in — all of them short of 4.5. The tokens are
- * picked to clear that ratio *against the surface*, so filling with the
- * token and writing in the surface colour is the pairing they were chosen
- * for, and it flips with the theme: light text on a dark fill, dark text on
- * a light one.
+ * Soft rather than the solid fill it replaced, because a status column is
+ * read down the page and not one cell at a time: a column of solid red read
+ * as an alarm on every row, when a failure among failures is the ordinary
+ * case. The word carries the status (WCAG 1.4.1); the tint and the dot only
+ * group it, so they can afford to be quiet.
  *
- * **And not the soft recipe either** (P-21, the user's 2026-09-22 review
- * asked for one or the other, measured). A 15% tint written in the tone's
- * own darker step — shadcn's soft badge — measures 5.60 / 5.61 / 4.84 in
- * the light theme against the solid's 7.09 / 7.13 / 6.42, so the softer of
- * the two is the *less* readable one at every tone; and such a tint lands
- * within 1.16–1.22:1 of the row under it, under the floor `BadgesOnRows*`
- * holds a badge to, so every toned badge would have had to grow the grey
- * halo the last paragraph here rules out. The way the light tones got
- * their margin was the other branch of that review — one step down the
- * palette, in `styles.css`, with nothing to change here. Measured by
- * `ToneBadgeInk*`: 7.09 / 7.13 / 6.42 light, 11.15 / 11.53 / 6.84 dark.
- * The ink is each fill's own `-foreground` rather than `text-background`,
- * which was the right value under the wrong name — a host moving
- * `--fve-success` to a pale green got white writing on it and had nothing
- * to move.
+ * What the solid recipe was chosen for still has to hold, and the numbers
+ * below are what `ToneBadgeInk*` and `BadgesOnRows*` measure on all three
+ * grounds a row moves through — at rest, hovered, and selected, where the
+ * row takes `--muted` and the tint lands on grey:
  *
- * `danger` says the fill twice because the registry's `destructive` variant
- * says its own twice: `bg-destructive/10` *and* `dark:bg-destructive/20`.
- * Only the unprefixed one is replaced by an unprefixed override, so the dark
- * theme kept the 20% wash and a cancelled row measured **1.29:1** against
- * the row it was on — the solid fill this paragraph describes was true in
- * one theme out of two. This is not a hardcoded light/dark pair: it is the
- * same semantic token written at the variant's own specificity, so a host
- * moving `--fve-dark-destructive` still moves it.
+ * - **The ink clears 4.5:1.** Light: danger 5.33 / 4.90, success 6.07 /
+ *   5.59, warning 6.09 / 5.61 (rest / selected). Dark: success and warning
+ *   clear 7:1; danger in its own token measured **3.92:1** on a selected row
+ *   at the registry's 20% dark wash — the dark `--destructive` is dimmer
+ *   than the other two — so in dark it writes in the token mixed a fifth of
+ *   the way to `--foreground` (6.76 / 5.65). A mix and not a second colour,
+ *   so a host moving `--fve-dark-destructive` still moves it.
+ * - **The badge is still a badge on the row** (≥1.5:1): a 10% tint alone
+ *   lands within 1.16–1.22:1 of the row (P-21), which is why the soft
+ *   recipe was turned down once. The 30% edge in the tone's own colour is
+ *   what answers it — 1.8–2.5:1 across tones, rows and themes — and it is a
+ *   line of the badge's own colour, not the grey hairline around a colour
+ *   that read as a halo.
+ *
+ * The tint is said with and without `dark:` because the registry's
+ * `destructive` variant says its own twice (`bg-destructive/10` *and*
+ * `dark:bg-destructive/20`), and only the unprefixed one is replaced by an
+ * unprefixed rule — the dark theme would keep the 20% wash the ink above
+ * does not clear.
  *
  * **`neutral` is an edge and nothing else.** A row is a surface that moves
  * under the badge: `bg-muted` once it is selected, the same shade mixed in
@@ -118,20 +115,19 @@ const TONE_BASE: Record<FieldTone, 'secondary' | 'destructive'> = {
  * edge of a thing rather than a line between things, and it is held at ≥3:1
  * because an unticked checkbox is *only* its ring. Measured on the selected
  * row, `border` comes to **1.155:1**, which is the same disappearance one
- * step slower. Nothing moves either way — the registry already draws
- * `border border-transparent` on every badge, so this only gives that line
- * a colour.
- *
- * **A toned badge takes no edge.** It clears the row by its fill alone; a
- * grey hairline around a solid colour reads as a halo, not as an outline.
+ * step slower. It takes no dot: the dot says "this is a status", and a
+ * neutral value is a value.
  */
+const SOFT =
+  "before:size-1.5 before:shrink-0 before:rounded-full before:bg-current before:content-['']";
+
 const toneBadgeVariants = cva('', {
   variants: {
     tone: {
       neutral: 'border-input',
-      success: 'bg-success text-success-foreground',
-      warning: 'bg-warning text-warning-foreground',
-      danger: 'bg-destructive dark:bg-destructive text-destructive-foreground',
+      success: `bg-success/10 text-success border-success/30 ${SOFT}`,
+      warning: `bg-warning/10 text-warning border-warning/30 ${SOFT}`,
+      danger: `bg-destructive/10 dark:bg-destructive/10 text-destructive dark:text-[color-mix(in_oklab,var(--destructive)_80%,var(--foreground))] border-destructive/30 ${SOFT}`,
     } satisfies Record<FieldTone, string>,
   },
   defaultVariants: { tone: 'neutral' },
@@ -480,14 +476,19 @@ export function TableDataRow({
 /**
  * One row of the sidebar's list of views.
  *
- * The open one is the work area's own ground with a 2px bar of `primary`
- * down its leading edge — not another step of grey. Four states used to
+ * The open one is a sheet of the work area's own ground lifted off the
+ * column: `background`, the vendored button's own transparent border painted
+ * `border` all the way round, and the registry's `shadow-xs` — not another
+ * step of grey. Four states used to
  * share one 3% grey, so the open view and a hovered one painted the same
- * colour and the list had no "you are here" at all; a bar is a different
- * *kind* of mark, and no amount of theming can collapse it into the fill
- * beside it. Hover is a step of the column's own scale in the other
- * direction, which is why it replaces the ghost variant's `muted` — on this
- * ground that one is the ground.
+ * colour and the list had no "you are here" at all; a raised sheet is a
+ * different *kind* of mark, and no amount of theming can collapse it into
+ * the fill beside it. It replaced a 2px bar of `primary` down the leading
+ * edge (2026-09-23): an inset shadow follows the item's rounded corners, so
+ * the bar bent into a "(" at both ends, and a border has no end to bend. Hover
+ * is a step of the column's own scale in the other direction, which is why
+ * it replaces the ghost variant's `muted` — on this ground that one is the
+ * ground.
  *
  * `@shadcn/sidebar` ships `SidebarMenuButton` with this state built in and
  * is not taken (D16 ruling 2): it needs `SidebarProvider`, which writes a
@@ -501,7 +502,7 @@ const sidebarItemVariants = cva(
   {
     variants: {
       current: {
-        true: 'bg-background text-foreground hover:bg-background hover:text-foreground font-medium shadow-[inset_2px_0_0_var(--primary)]',
+        true: 'bg-background text-foreground hover:bg-background hover:text-foreground border-border font-medium shadow-xs',
         false: '',
       },
     },

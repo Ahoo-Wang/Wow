@@ -80,9 +80,9 @@ export type PinSide = 'left' | 'right';
  * carries a value per theme (`styles.css` has the measurements).
  */
 const EDGE = {
-  left: 'in-data-[overflowing]:shadow-[inset_-1px_0_0_var(--border),12px_0_16px_-8px_var(--pin-shadow)]',
+  left: 'in-data-[overflowing]:shadow-[inset_-1px_0_0_var(--border),8px_0_8px_-8px_var(--pin-shadow)]',
   right:
-    'in-data-[overflowing]:shadow-[inset_1px_0_0_var(--border),-12px_0_16px_-8px_var(--pin-shadow)]',
+    'in-data-[overflowing]:shadow-[inset_1px_0_0_var(--border),-8px_0_8px_-8px_var(--pin-shadow)]',
 } as const;
 
 /**

@@ -21,7 +21,7 @@ import { useDashboard, useWorkbench } from '../react/index.js';
 import { DashboardGrid } from './DashboardGrid.js';
 import { FilterPanel } from './FilterPanel.js';
 import { RefreshControl } from './RefreshControl.js';
-import { FilterModes, filterModeLabel } from './filter/FilterModes.js';
+import { FilterModes } from './filter/FilterModes.js';
 import { useViewMessages } from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
 import { featuresOf, type WorkbenchFeatures } from './features.js';
@@ -205,9 +205,6 @@ export function DashboardWorkbench({
       }
       editorLabel={
         hasGlobalFilter ? messages.label('label.filter.panel') : undefined
-      }
-      editorModeLabel={
-        hasGlobalFilter ? filterModeLabel(filter, messages) : undefined
       }
       editorModes={
         hasGlobalFilter ? <FilterModes filter={filter} /> : undefined

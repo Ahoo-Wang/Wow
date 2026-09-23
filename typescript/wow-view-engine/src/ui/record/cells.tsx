@@ -178,7 +178,18 @@ export function cellValue(
         // The cell is a group of its own so that a host drawing this
         // reading in its own markup still has something to hover; the row
         // is the other group, and the table provides that one.
-        className="group/copyable inline-flex items-center gap-1"
+        //
+        // In the monospace an identifier is — the same face the record
+        // detail titles its key in. A value offered for copying is one to
+        // be taken character for character, into a search box, a log query
+        // or a ticket, and a proportional face is where `0` and `O`, `l`
+        // and `1` look alike; fixed width also lines a column of ids up
+        // under each other (2026-09-23 visual review). At 0.9em, because a
+        // monospace face at the text's own size reads a size larger and
+        // runs wider: at 1em the key column of `PinnedEdges` grew past the
+        // share the pin cap allows the held group, and the actions column
+        // lost its pin.
+        className="group/copyable inline-flex items-center gap-1 font-mono text-[0.9em]"
       >
         {text}
         <CopyButton value={text} className="shrink-0" />

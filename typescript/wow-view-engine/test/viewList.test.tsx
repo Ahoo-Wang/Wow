@@ -225,14 +225,21 @@ describe('ViewList on its own', () => {
         .map(item => item.textContent),
     ).toEqual(['Mine']);
     // A system view is a shared view, so it sits in that group rather than
-    // in a third one — the tag is what says where it came from.
+    // in a third one — the lock at its end is what says where it came from.
     expect(
       within(shared).getByRole('heading', { name: 'Shared views' }),
     ).toBeDefined();
     expect(within(shared).getByRole('button', { name: /Ours/ })).toBeDefined();
+    // A lock on screen, a word for a screen reader: the row names the
+    // fact rather than only drawing it.
     const tags = screen.getAllByText('system');
     expect(tags).toHaveLength(1);
-    expect(tags[0].closest('button')?.textContent).toContain('All orders');
+    expect(tags[0].className).toContain('sr-only');
+    const system = tags[0].closest('button');
+    expect(system?.textContent).toContain('All orders');
+    expect(
+      system?.querySelector('[data-slot="view-system-tag"] svg'),
+    ).not.toBeNull();
   });
 
   it('shows only the groups it has views for', () => {
@@ -328,10 +335,10 @@ describe('ViewList on its own', () => {
     expect(nav.className).toContain('border-sidebar-border');
   });
 
-  it('marks the open view with a bar rather than with another grey', () => {
+  it('marks the open view as a raised sheet rather than with another grey', () => {
     // Four states used to share one 3% grey, so the open view and a hovered
-    // one painted the same colour. A bar is a different kind of mark, and no
-    // theme can collapse it into the fill beside it.
+    // one painted the same colour. A raised sheet is a different kind of
+    // mark, and no theme can collapse it into the fill beside it.
     render(
       <ViewSurface>
         <ViewList
@@ -348,7 +355,7 @@ describe('ViewList on its own', () => {
     );
 
     // Which row is the open one, said the way a list says it: `SidebarItem`
-    // carries `aria-current`, and the bar-and-not-another-grey recipe that
+    // carries `aria-current`, and the sheet-and-not-another-grey recipe that
     // draws it is asserted once where it lives (`test/variants.test.tsx`).
     const current = screen.getByRole('button', { name: /Mine/ });
     expect(current.getAttribute('aria-current')).toBe('true');

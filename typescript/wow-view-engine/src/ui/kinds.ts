@@ -16,6 +16,7 @@ import {
   LayoutDashboardIcon,
   LockIcon,
   SigmaIcon,
+  UserIcon,
   UsersIcon,
 } from 'lucide-react';
 import type { ViewAudience, ViewKind } from '../model/index.js';
@@ -34,10 +35,21 @@ export const KIND_ICON: Record<ViewKind, typeof InboxIcon> = {
 };
 
 /**
- * Who a view is for. A system view is a shared view — `audienceOf` says so —
- * so it wears the shared face and its tag says where it came from.
+ * Who a view is for: one person or several. A system view is a shared view —
+ * `audienceOf` says so — and where it came from is `SYSTEM_ICON`'s to say.
+ *
+ * Not a lock for "personal": a lock is what a system view wears, because the
+ * one thing a reader has to know about it is that it cannot be renamed or
+ * deleted, and one glyph meaning "only mine" in the title bar and "cannot be
+ * changed" in the list is a picture with two readings.
  */
-export const AUDIENCE_ICON: Record<ViewAudience, typeof LockIcon> = {
-  personal: LockIcon,
+export const AUDIENCE_ICON: Record<ViewAudience, typeof UserIcon> = {
+  personal: UserIcon,
   shared: UsersIcon,
 };
+
+/**
+ * A view that came with the definition: it travels with the code, so it is
+ * never renamed or deleted here, and a lock is that fact as a picture.
+ */
+export const SYSTEM_ICON = LockIcon;

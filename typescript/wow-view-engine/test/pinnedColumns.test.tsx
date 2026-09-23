@@ -683,10 +683,10 @@ describe('the sticky chrome recipe', () => {
     // no `data-*` of its own to answer it: `data-pin-edge` says "this cell
     // is the boundary" and the port says whether a boundary is called for.
     expect(left.className).toContain(
-      'in-data-[overflowing]:shadow-[inset_-1px_0_0_var(--border),12px_0_16px_-8px_var(--pin-shadow)]',
+      'in-data-[overflowing]:shadow-[inset_-1px_0_0_var(--border),8px_0_8px_-8px_var(--pin-shadow)]',
     );
     expect(right.className).toContain(
-      'in-data-[overflowing]:shadow-[inset_1px_0_0_var(--border),-12px_0_16px_-8px_var(--pin-shadow)]',
+      'in-data-[overflowing]:shadow-[inset_1px_0_0_var(--border),-8px_0_8px_-8px_var(--pin-shadow)]',
     );
     expect(left['data-pin-edge']).toBe('');
     expect(right['data-pin-edge']).toBe('');

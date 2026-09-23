@@ -28,7 +28,8 @@ export const scopeMessages = {
   // the same two words have to serve as the switcher's menu sections too.
   'label.scope.group.personal': 'My views',
   'label.scope.group.shared': 'Shared views',
-  'label.scope.system': 'Shipped with the definition',
+  'label.scope.system':
+    'Ships with the definition; cannot be renamed or deleted',
   'label.scope.tag.system': 'system',
   'label.scope.tag.personal': 'personal',
   'label.scope.tag.shared': 'shared',

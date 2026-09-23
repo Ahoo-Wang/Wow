@@ -48,7 +48,7 @@ import { ViewSurface } from '../src/ui/index.js';
 afterEach(cleanup);
 
 describe('ToneBadge', () => {
-  it('fills a toned badge and leaves a neutral one its edge', () => {
+  it('tints a toned badge and leaves a neutral one its edge', () => {
     render(
       <ViewSurface>
         <ToneBadge tone="success">Shipped</ToneBadge>
@@ -60,17 +60,28 @@ describe('ToneBadge', () => {
       ...document.querySelectorAll<HTMLElement>('[data-slot="badge"]'),
     ];
 
-    // A filled status surface, in the token the theme picked for writing on
-    // — never a 10% wash of it, which measured under 4.5:1 in both themes.
-    expect(success.className).toContain('bg-success');
-    expect(success.className).toContain('text-success-foreground');
-    // The fill said twice, because the registry's `destructive` says its own
+    // The soft recipe: a tint of the tone, written in the tone, with an edge
+    // of it — the ink measured on every row ground in the browser stories.
+    expect(success.className).toContain('bg-success/10');
+    expect(success.className).toContain('text-success');
+    expect(success.className).toContain('border-success/30');
+    // The tint said twice, because the registry's `destructive` says its own
     // twice and only the unprefixed one is replaced by an unprefixed rule.
-    expect(danger.className).toContain('bg-destructive dark:bg-destructive');
+    expect(danger.className).toContain(
+      'bg-destructive/10 dark:bg-destructive/10',
+    );
+    // Dark danger writes a step towards the foreground: its own token
+    // measured 3.92:1 on a selected row.
+    expect(danger.className).toContain(
+      'dark:text-[color-mix(in_oklab,var(--destructive)_80%,var(--foreground))]',
+    );
     // No tone is no fill at all: the edge is the whole of a neutral badge,
     // because the row under it moves through the registry's `secondary`.
     expect(neutral.className).toContain('border-input');
     expect(neutral.className).not.toContain('bg-success');
+    // The dot says "a status"; a neutral value is only a value.
+    expect(success.className).toContain("before:content-['']");
+    expect(neutral.className).not.toContain('before:content');
   });
 
   it('says its tone on the element, so nothing has to read a colour', () => {
@@ -126,7 +137,7 @@ describe('the controls of a condition pill', () => {
 });
 
 describe('SidebarItem', () => {
-  it('marks the open view with a bar rather than with another grey', () => {
+  it('marks the open view as a raised sheet rather than with another grey', () => {
     render(
       <ViewSurface>
         <SidebarItem current>Mine</SidebarItem>
@@ -136,14 +147,17 @@ describe('SidebarItem', () => {
     const current = screen.getByRole('button', { name: 'Mine' });
     const other = screen.getByRole('button', { name: 'Ours' });
 
-    expect(current.className).toContain(
-      'shadow-[inset_2px_0_0_var(--primary)]',
-    );
+    // A sheet of the work area's ground with an edge all round — no bar,
+    // whose inset shadow bent round the item's corners into a "(".
+    expect(current.className).toContain('bg-background');
+    expect(current.className).toContain('border-border');
+    expect(current.className).toContain('shadow-xs');
+    expect(current.className).not.toContain('shadow-[inset');
     expect(current.getAttribute('aria-current')).toBe('true');
     // Hover is the column's own step in the other direction — on this ground
     // the ghost variant's `muted` *is* the ground.
     expect(other.className).toContain('hover:bg-sidebar-accent');
-    expect(other.className).not.toContain('shadow-[inset');
+    expect(other.className).not.toContain('border-border');
   });
 });
 

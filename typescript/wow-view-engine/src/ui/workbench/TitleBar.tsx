@@ -23,11 +23,7 @@ import type { WorkbenchShellProps } from '../WorkbenchShell.js';
 
 export interface TitleBarProps extends Pick<
   WorkbenchShellProps,
-  | 'actions'
-  | 'freshness'
-  | 'editorModeLabel'
-  | 'editorModes'
-  | 'onRenderFailure'
+  'actions' | 'freshness' | 'editorModes' | 'onRenderFailure'
 > {
   /** The commands, the refresh and the write callbacks the bar is drawn from. */
   workbench: WorkbenchController;
@@ -72,7 +68,6 @@ export function TitleBar({
   namesView,
   leading,
   editorLabel,
-  editorModeLabel,
   editorModes,
   editorPending,
   freshness,
@@ -122,7 +117,6 @@ export function TitleBar({
             {editorLabel !== undefined && (
               <EditorBandToggle
                 label={editorLabel}
-                modeLabel={editorModeLabel}
                 modes={editorModes}
                 pending={editorPending}
               />

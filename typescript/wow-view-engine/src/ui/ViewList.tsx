@@ -34,6 +34,7 @@ import { IconButton } from './IconButton.js';
 import { NewViewControl, type NewViewCommand } from './workbench/NewView.js';
 import { SidebarItem } from './variants.js';
 import { KIND_ICON } from './kinds.js';
+import { SystemMark } from './SystemMark.js';
 import { SPACE, TEXT_UI } from './layout.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { Skeleton } from './components/skeleton.js';
@@ -101,7 +102,7 @@ export interface ViewListProps {
  * Three facts share one row and none of them repeats another: the icon says
  * which kind of view it is, because one data definition holds record and
  * analysis views together; the group heading says who it is for; and the
- * grey word after the name says it came with the definition. A system view is
+ * lock at the row's end says it came with the definition. A system view is
  * a shared view — that is `audienceOf`'s answer, not a third group.
  *
  * A system view is always here even when the store is unreachable, because it
@@ -408,7 +409,7 @@ function ViewListItem({
           none` child lands on its parent.
 
           The trigger stays this small rather than becoming the whole row:
-          the row already holds a second tooltip (the system tag below), and
+          the row may hold a second tooltip (the system lock at its end), and
           two triggers one inside the other would open both labels at once
           the moment the tag is pointed at. The kind stays out of the row's
           *name* for the same reason it is an icon and not a word: the row
@@ -426,43 +427,28 @@ function ViewListItem({
         </TooltipContent>
       </Tooltip>
       <span className="truncate">{item.title}</span>
-      {/* Where the view came from, said as a word after its name rather than
-          as a badge floating at the row's end: a badge there competes with
-          the star for the one place a row has, and this fact is a footnote
-          to the name, not a second column. */}
-      {isSystemScope(item.scope) && (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <span
-                data-slot="view-system-tag"
-                className={cn(
-                  'text-sidebar-foreground/70 shrink-0 font-normal',
-                  TEXT_UI,
-                )}
-              >
-                {messages.label('label.scope.tag.system')}
+      {/* The row's end holds the facts about the view rather than its name:
+          the star when it opens first, and the lock when it came with the
+          definition (`SystemMark`). One group pushed to the end, so a
+          default system view has both side by side and neither floats. */}
+      {(isDefault || isSystemScope(item.scope)) && (
+        <span className="ml-auto flex shrink-0 items-center gap-1.5">
+          {isDefault && (
+            <>
+              <StarIcon
+                data-slot="view-default-star"
+                className="text-primary size-3.5 fill-current"
+                aria-hidden
+              />
+              {/* The star is a picture of a fact, so the fact is also a
+                  word: a reader hears "Mine, Default" rather than nothing. */}
+              <span className="sr-only">
+                {messages.label('label.manage.default')}
               </span>
-            }
-          />
-          <TooltipContent>
-            {messages.label('label.scope.system')}
-          </TooltipContent>
-        </Tooltip>
-      )}
-      {isDefault && (
-        <>
-          <StarIcon
-            data-slot="view-default-star"
-            className="text-primary ml-auto size-3.5 fill-current"
-            aria-hidden
-          />
-          {/* The star is a picture of a fact, so the fact is also a word:
-              a reader hears "Mine, Default" rather than nothing at all. */}
-          <span className="sr-only">
-            {messages.label('label.manage.default')}
-          </span>
-        </>
+            </>
+          )}
+          {isSystemScope(item.scope) && <SystemMark />}
+        </span>
       )}
     </SidebarItem>
   );

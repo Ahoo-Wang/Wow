@@ -78,13 +78,11 @@
 
 @theme inline {
   /*
-   * The ink on a filled status surface, and the two colours the record
+   * The ink on a filled destructive surface, and the two colours the record
    * table draws itself with. They are registered here so a call site can
-   * name them as utilities (`text-success-foreground`, `bg-row-hover`,
+   * name them as utilities (`text-destructive-foreground`, `bg-row-hover`,
    * `text-quiet-foreground`) rather than reaching into `var()` by hand.
    */
-  --color-success-foreground: var(--success-foreground);
-  --color-warning-foreground: var(--warning-foreground);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-row-hover: var(--row-hover);
   --color-quiet-foreground: var(--quiet-foreground);
@@ -188,7 +186,7 @@
    * **The light steps were one step lighter and passed by a hair** (P-21).
    * The 700/600 steps measured 4.94:1 (success), 5.05 (warning) and 4.77
    * (destructive) against the page — over 1.4.3's 4.5, and over it by 6% in
-   * the worst case, which is not a margin: the badge these fill is set in
+   * the worst case, which is not a margin: the badge these write is set in
    * the one small size (13px) and is the smallest text on the surface, and
    * a host nudging `--fve-warning` half a step lighter takes the whole set
    * under the bar without touching anything that looks like a contrast
@@ -198,22 +196,19 @@
    * the 400 steps measure 11.15 / 11.53 / 6.84 against the dark page, and
    * dark saturation is a phase-5 question.
    *
-   * **A fill and its ink are a pair.** A toned badge is the token as the
-   * fill and the surface colour as the writing (`record/cells.tsx`), which
-   * is the pairing these steps were chosen for and which flips with the
-   * theme by itself — light text on a dark fill, dark text on a light one.
-   * That used to be spelled `text-background` at the call site, which is
-   * the right *value* under the wrong *name*: a host moving `--fve-success`
-   * to a pale green got white writing on it and had nothing to move. Each
-   * fill that is written on therefore has a `-foreground` of its own,
-   * defaulting to exactly what the call site used to hardcode. `info` has
-   * none, because nothing fills with it — a token nothing reads is a
-   * contract nothing keeps.
+   * **A fill and its ink are a pair.** What is filled with a status colour
+   * writes in that fill's own `-foreground`, defaulting to the surface
+   * colour, so a host moving the fill has the ink to move with it. Only
+   * `destructive` has one: the confirm button of a destructive dialog
+   * (`DestructiveAction`) is the one solid status fill left. The toned
+   * badges that used to fill with `success` and `warning` are the soft
+   * recipe since the 2026-09-23 visual draft — the token as a 10% tint and
+   * as the writing (`ToneBadge`, `ui/variants.tsx`) — and the two
+   * `-foreground`s went with them, because a token nothing reads is a
+   * contract nothing keeps. That is also why `info` has none.
    */
   --success: var(--fve-success, oklch(0.448 0.119 151.328deg));
-  --success-foreground: var(--fve-success-foreground, var(--background));
   --warning: var(--fve-warning, oklch(0.473 0.137 46.201deg));
-  --warning-foreground: var(--fve-warning-foreground, var(--background));
   --info: var(--fve-info, oklch(0.546 0.245 262.881deg));
   --destructive-foreground: var(
     --fve-destructive-foreground,
@@ -256,8 +251,16 @@
    * which measures 2.18:1 on that card: the same edge, as visible as the
    * light one. It was `rgb(0 0 0/0.3)` written into a class, in both
    * themes, which is why the held columns had no frame in the dark at all.
+   *
+   * **Then it was halved** (2026-09-23 visual review): at 30% / 25%, cast
+   * 12px, the two held columns wore a grey band each, and a table with a
+   * pinned key and pinned actions read as three panels rather than one
+   * table. The hairline already says where a column ends; the shadow only
+   * has to say "and the rows go under it", which a short 8px falloff at
+   * 12% black / 10% white says without drawing a band. The reasoning above
+   * — black in the light, light in the dark — is unchanged.
    */
-  --pin-shadow: var(--fve-pin-shadow, oklch(0 0 0deg / 30%));
+  --pin-shadow: var(--fve-pin-shadow, oklch(0 0 0deg / 12%));
 
   /*
    * `input` is the edge of a control, not a divider: an unticked checkbox is
@@ -467,9 +470,7 @@
     var(--background)
   );
   --success: var(--fve-dark-success, oklch(0.792 0.209 151.711deg));
-  --success-foreground: var(--fve-dark-success-foreground, var(--background));
   --warning: var(--fve-dark-warning, oklch(0.828 0.189 84.429deg));
-  --warning-foreground: var(--fve-dark-warning-foreground, var(--background));
   --info: var(--fve-dark-info, oklch(0.707 0.165 254.624deg));
   --row-hover: var(
     --fve-dark-row-hover,
@@ -481,7 +482,7 @@
   );
   /* White, not black — see the light half: over the dark card black tops
      out at 1.48:1 however much of it is spent. */
-  --pin-shadow: var(--fve-dark-pin-shadow, oklch(1 0 0deg / 25%));
+  --pin-shadow: var(--fve-dark-pin-shadow, oklch(1 0 0deg / 10%));
   /*
    * Dividers are not controls and owe no 3:1, but at 10% white the row
    * hairlines measured 1.32:1 on the dark card — a table with no visible

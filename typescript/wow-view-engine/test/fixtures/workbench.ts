@@ -15,17 +15,17 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { expect } from 'vitest';
 
 /**
- * The handle of the editor's fold, in the title bar. Its accessible name
- * carries the mode in force — "Filter · Simple" — so it is matched by what
- * it starts with rather than by the whole of it.
+ * The handle of the editor's fold, in the title bar. Its name is its content
+ * — "Filter", and the pending count beside it once the draft says something
+ * the last run did not — so it is matched by what it starts with.
  */
 export function editorToggle(): HTMLElement {
   return screen.getByRole('button', { name: /^Filter/ });
 }
 
 /**
- * The same handle over the analysis view's tray (D20). It carries no mode,
- * so its name is the content — "Analysis", and the pending count beside it
+ * The same handle over the analysis view's tray (D20). Its name is the
+ * content too — "Analysis", and the pending count beside it
  * once the draft says something the last run did not. Addressed through the
  * group it is the trigger of, so a name that grows does not lose it.
  */

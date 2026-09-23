@@ -350,13 +350,13 @@ describe('ResultToolbar grouping and weight', () => {
   });
 });
 
-describe('ResultToolbar hint', () => {
+describe('ResultToolbar before a row is picked', () => {
   /**
-   * The left of the bar is where the bulk actions will appear; before a row
-   * is picked it says so — and says nothing when the host brought no bulk
-   * action, since there would be nothing to reach.
+   * The left of the bar is where the bulk actions appear once a row is
+   * picked; before that it is empty, since the checkboxes on every row
+   * already say how to pick one.
    */
-  it('says how the bulk actions are reached, only when there are any', () => {
+  it('says nothing until a row is picked, then shows the bulk actions', () => {
     const { container, rerender } = render(
       <ResultToolbar
         table={tableController()}
@@ -365,7 +365,10 @@ describe('ResultToolbar hint', () => {
         bulkActions={() => <button>Export</button>}
       />,
     );
-    expect(screen.getByText('Select rows to act on them')).toBeTruthy();
+    expect(
+      container.querySelector('[data-slot="toolbar-selection"]'),
+    ).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Export' })).toBeNull();
 
     rerender(
       <ResultToolbar
@@ -375,17 +378,7 @@ describe('ResultToolbar hint', () => {
         bulkActions={() => <button>Export</button>}
       />,
     );
-    expect(screen.queryByText('Select rows to act on them')).toBeNull();
     expect(screen.getByRole('button', { name: 'Export' })).toBeTruthy();
-
-    rerender(
-      <ResultToolbar
-        table={tableController()}
-        fields={FIELDS}
-        runtime={runtime}
-      />,
-    );
-    expect(container.querySelector('[data-slot="toolbar-hint"]')).toBeNull();
   });
 });
 

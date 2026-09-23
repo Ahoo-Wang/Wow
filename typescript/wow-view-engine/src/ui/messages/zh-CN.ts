@@ -96,7 +96,6 @@ export const zhCN: ViewMessages = {
   'label.toolbar.refresh': '刷新',
   'label.toolbar.arrange': '表格设置',
   'label.toolbar.freshness': '数据新鲜度',
-  'label.toolbar.hint': '勾选行以批量处理',
   // 量词：记录数一律「条」（已选、共 N 条记录、导出 N 条），配置项、条件与
   // 检查发现一律「项」（N 项未应用、N 项待修正、还有 N 项）。
   'label.toolbar.selected': '已选 {count} 条',
@@ -495,7 +494,7 @@ export const zhCN: ViewMessages = {
   'label.scope.everyone': '所有人',
   'label.scope.group.personal': '我的视图',
   'label.scope.group.shared': '共享视图',
-  'label.scope.system': '随定义一起提供',
+  'label.scope.system': '随定义提供，不能改名或删除',
   'label.scope.tag.system': '系统',
   'label.scope.tag.personal': '个人',
   'label.scope.tag.shared': '共享',

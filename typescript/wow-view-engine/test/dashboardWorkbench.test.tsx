@@ -112,9 +112,7 @@ describe('DashboardWorkbench', () => {
     // it.
     expect(screen.queryByRole('button', { name: /Apply/ })).toBeNull();
 
-    await user.click(
-      within(header).getByRole('button', { name: 'Filter · Simple' }),
-    );
+    await user.click(within(header).getByRole('button', { name: 'Filter' }));
 
     expect(screen.getByRole('button', { name: /Apply/ })).toBeTruthy();
   });

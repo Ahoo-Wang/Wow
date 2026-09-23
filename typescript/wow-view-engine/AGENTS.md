@@ -301,6 +301,7 @@ src/
     SaveActions.tsx           — The split save button group: save in place, and the menu of the other ways to save
     SaveAsDialog.tsx          — What the create is: a copy of a saved view, or the first save of one made from nothing
     SortSettings.tsx          — The sort editor: entries in priority order, direction, drag to reorder
+    SystemMark.tsx            — The lock a view that came with the definition wears in the sidebar and the switcher
     StatusStrip.tsx           — One-line findings: warning, error, failed query (+ `dedupeIssues`)
     ViewExpansion.tsx         — Filling the screen: `useViewExpansion`, `ViewExpandToggle`, the document's scroll lock
     ViewHeader.tsx            — Title bar: kind, audience, title, unsaved mark, save commands

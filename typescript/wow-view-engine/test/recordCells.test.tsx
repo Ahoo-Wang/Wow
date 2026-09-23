@@ -435,6 +435,15 @@ describe('a copyable cell', () => {
     expect(button(COPY_FAILED)).toBeDefined();
   });
 
+  it('reads a value offered for copying in the monospace an id is', () => {
+    const { container } = render(<RecordTable table={copyable()} />);
+
+    // Taken character for character, so `0` and `O` must not look alike.
+    expect(
+      container.querySelector('[data-slot="cell-copyable"]')!.className,
+    ).toContain('font-mono text-[0.9em]');
+  });
+
   it('offers nothing where there is nothing to take away', () => {
     const { container } = render(<RecordTable table={copyable('')} />);
 

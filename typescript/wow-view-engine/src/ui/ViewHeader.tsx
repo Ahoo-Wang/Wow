@@ -38,7 +38,7 @@ import {
   AlertDialogTitle,
 } from './components/alert-dialog.js';
 import { DestructiveAction, SectionDivider } from './variants.js';
-import { AUDIENCE_ICON, KIND_ICON } from './kinds.js';
+import { AUDIENCE_ICON, KIND_ICON, SYSTEM_ICON } from './kinds.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { Tooltip, TooltipTrigger } from './components/tooltip.js';
 import { AlertDialogContent, TooltipContent } from './popups.js';
@@ -165,10 +165,11 @@ export function ViewHeader({
   const Title: `h${HeadingLevel}` = `h${headingLevel}`;
   const Kind = KIND_ICON[kind];
   const audience = audienceOf(state.scope);
-  const Audience = AUDIENCE_ICON[audience];
   // A system view is a shared view; its tag says where it came from, which
-  // the audience alone cannot.
-  const scopeKey = isSystemScope(state.scope) ? 'system' : audience;
+  // the audience alone cannot, and it wears the lock the list marks it with.
+  const system = isSystemScope(state.scope);
+  const scopeKey = system ? 'system' : audience;
+  const Audience = system ? SYSTEM_ICON : AUDIENCE_ICON[audience];
 
   return (
     // The bar is a query container named `header`, and it is the *only*

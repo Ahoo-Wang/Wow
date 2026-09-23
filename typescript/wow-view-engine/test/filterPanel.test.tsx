@@ -1379,16 +1379,19 @@ describe('the mode the condition editor is in', () => {
     openMixed(mixed);
 
     // The stored tree holds a group, which the simple editor cannot draw
-    // faithfully, so the toggle's own name says which editor is in force
-    // rather than which mode was saved.
+    // faithfully, so the modes menu checks the editor in force rather than
+    // the mode that was saved.
+    await screen.findByRole('button', { name: 'Filter' });
+    fireEvent.click(screen.getByRole('button', { name: 'Editor options' }));
     expect(
-      await screen.findByRole('button', { name: 'Filter · Advanced' }),
-    ).toBeDefined();
+      (await screen.findByRole('menuitemradio', { name: 'Advanced' }))
+        .ariaChecked,
+    ).toBe('true');
   });
 
   it('says why simple is not on offer for such a tree', async () => {
     openMixed(mixed);
-    await screen.findByRole('button', { name: 'Filter · Advanced' });
+    await screen.findByRole('button', { name: 'Filter' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Editor options' }));
 
@@ -1408,7 +1411,7 @@ describe('the mode the condition editor is in', () => {
 
   it('offers both ways of editing a tree the simple editor can draw', async () => {
     openMixed(mine);
-    await screen.findByRole('button', { name: 'Filter · Simple' });
+    await screen.findByRole('button', { name: 'Filter' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Editor options' }));
 

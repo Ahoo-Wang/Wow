@@ -321,17 +321,14 @@ describe('the editor fold', () => {
     expect(block('editor-band')).toBeNull();
   });
 
-  it('names the mode on the toggle, and offers it under a chevron', async () => {
+  it('offers the modes under a chevron, not as a word on the toggle', async () => {
     const user = await open({
       editorLabel: 'Filter',
-      editorModeLabel: 'Simple',
       editorModes: <div data-slot="stub-modes">modes</div>,
     });
 
-    // "Filter · Simple" answers both what this is and how it is set, so the
-    // mode is not a second control to go and find.
-    const toggle = screen.getByRole('button', { name: 'Filter · Simple' });
-    expect(toggle.textContent).toContain('Simple');
+    // The toggle is called what it opens; the mode is the menu's to show.
+    expect(screen.getByRole('button', { name: 'Filter' })).toBeDefined();
 
     await user.click(
       screen.getByRole('button', {
