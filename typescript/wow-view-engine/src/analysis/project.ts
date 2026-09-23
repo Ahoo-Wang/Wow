@@ -29,12 +29,14 @@ import type { FieldKindRegistry } from '../filter/index.js';
 import { analysisScope } from './capability.js';
 import { shapeChart, type ChartData, type ShapeContext } from './chart.js';
 import { analysisProbeLimit } from './compile.js';
+import { chartUnfit } from './fitCharts.js';
 import {
   formulaFormat,
   metricFieldOf,
   metricFormat,
   metricFunctionOf,
   metricMeasure,
+  momentMetrics,
   readsAsItsField,
   type MetricFunction,
 } from './metricFormat.js';
@@ -385,8 +387,12 @@ export function projectAnalysis(
       : {}),
     // The probe row is not one of the groups the reader asked for, so the
     // chart is shaped from the rows that survive the cut: a pie's shares and
-    // a "other" tail are over what is on screen and nothing else.
-    ...(config.layout === 'chart'
+    // a "other" tail are over what is on screen and nothing else. A chart
+    // whose type cannot draw the shape (`chartUnfit`) is drawn as the table
+    // and shapes nothing: three dimensions under bars would leave several
+    // rows at one point, and averages cannot be added back up over them.
+    ...(config.layout === 'chart' &&
+    chartUnfit(config, momentMetrics(config.metrics, byName)) === null
       ? { chart: shapeChart(config, cut.rows, overall, context) }
       : {}),
   };

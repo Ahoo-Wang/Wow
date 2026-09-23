@@ -19,6 +19,7 @@ import displayMeta, {
   DailyNewestFirst as DisplayDailyNewestFirst,
   DailyQuietDays as DisplayDailyQuietDays,
   HeatmapChart as DisplayHeatmapChart,
+  ThreeDimensions as DisplayThreeDimensions,
 } from './AnalysisWorkbench.stories.js';
 import {
   axisTexts,
@@ -28,7 +29,7 @@ import {
   drawnMarks,
   valueLabels,
 } from './chartDom.js';
-import { findDataTable, readColumn } from './readTable.js';
+import { findDataTable, readColumn, readHeaders } from './readTable.js';
 import { formatRgb, parse } from 'culori';
 
 const meta = {
@@ -575,5 +576,75 @@ export const MissingLeftAsGaps: Story = {
     );
     // Gapped: a dot for each day that had a waybill, and none for the rest.
     await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(busy));
+  },
+};
+
+/**
+ * 三个维度的分析以表格跑出来，图表不拦它（D20：怎么看是展示，不是问题）。
+ *
+ * 直角坐标图最多消化两个维度；从前图表在表格布局下也参与校验，第三个维度报
+ * 「图表没有用上每一个维度」，连表格也跑不起来。现在：表格照跑、状态行不报错；
+ * 「可视化」里每种图都灰着、写着缺什么，表格是选中的那一张；切到「图表」仍是这
+ * 张表，状态行说一句为什么——不是一个被拦住的状态。
+ */
+export const ThreeDimensionsRunAsTable: Story = {
+  ...DisplayThreeDimensions,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await findDataTable(canvasElement);
+    await waitFor(() =>
+      expect(readColumn(table, '目的城市').length).toBeGreaterThan(3),
+    );
+    await expect(readHeaders(table).slice(0, 3)).toEqual([
+      '目的城市',
+      '承运商',
+      '运输方式',
+    ]);
+    await expect(
+      canvasElement.querySelector(
+        '[data-slot="status-line"] [data-tone="error"]',
+      ),
+    ).toBeNull();
+
+    // Every chart greyed, each with its own reason; the table chosen.
+    const panel = await visualize(canvasElement);
+    const reasons = {
+      bar: 'chart.fit.too-many-dimensions',
+      line: 'chart.fit.too-many-dimensions',
+      pie: 'chart.fit.needs-one-dimension',
+      heatmap: 'chart.fit.needs-two-dimensions',
+      metric: 'chart.fit.needs-no-dimension',
+    } as const;
+    for (const [type, reason] of Object.entries(reasons)) {
+      const tile = chartTile(panel, type);
+      await expect(tile).toHaveAttribute('aria-disabled', 'true');
+      await expect(
+        tile.querySelector('[data-slot="chart-reason"]'),
+      ).toHaveTextContent(zhCN[reason]);
+    }
+    await expect(chartTile(panel, 'table')).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+
+    // The chart layout draws what it can — the table — and says why.
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.layout.chart'] }),
+    );
+    await expect(
+      await canvas.findByText(
+        formatMessage(zhCN, 'label.analysis.as-table', {
+          type: zhCN['label.chart.type.bar'],
+          reason: zhCN['chart.fit.too-many-dimensions'],
+        }),
+      ),
+    ).toBeVisible();
+    await expect(await findDataTable(canvasElement)).toBeVisible();
+    await expect(drawnMarks(canvasElement)).toHaveLength(0);
+    await expect(
+      canvasElement.querySelector(
+        '[data-slot="status-line"] [data-tone="error"]',
+      ),
+    ).toBeNull();
   },
 };

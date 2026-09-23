@@ -485,14 +485,15 @@ describe('useAnalysisResult', () => {
       );
     });
 
-    it('takes the table as the way out, with a chart that no longer refuses', async () => {
+    it('takes the table as the way out, and leaves the chart as it was saved', async () => {
       const { result, source } = await broken(funnelOf('orders', ['CN']));
       result.current.result.choose('table');
       await waitFor(() => expect(result.current.result.view).not.toBeNull());
       expect(source.aggregate).toHaveBeenCalledTimes(1);
       expect(result.current.result.picked).toBe('table');
-      // The shape reads best as bars, and the chart the table carries is.
-      expect(result.current.analysis.chart.type).toBe('bar');
+      // Under the table the chart is not judged (D20), so nothing had to be
+      // replaced for the table to run: the funnel is still the author's.
+      expect(result.current.analysis.chart.type).toBe('funnel');
       expect(result.current.analysis.issues).toEqual([]);
     });
 

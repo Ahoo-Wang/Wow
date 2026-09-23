@@ -523,10 +523,19 @@ export function useAnalysisEditor(
     ),
     setLimit: useCallback((limit: number) => edit({ limit }), [edit]),
     // A redraw, not a run: the result's rows are drawn as a table or as a
-    // chart from the same answer (`ANALYSIS_PRESENTATION_MEMBERS`).
+    // chart from the same answer (`ANALYSIS_PRESENTATION_MEMBERS`). Under
+    // the table the chart is not judged (D20), so the one it saved may name
+    // slots of an older shape; turning to it fits it to the shape in force,
+    // which keeps every slot that still names something. A shape no chart
+    // draws is drawn as the table, and the kernel says so (`chart.as-table`).
     setLayout: useCallback(
-      (layout: AnalysisViewConfig['layout']) => edit({ layout }),
-      [edit],
+      (layout: AnalysisViewConfig['layout']) =>
+        change(current =>
+          layout === 'chart' && current.layout !== 'chart'
+            ? { layout, chart: fitTo(current.chart, current) }
+            : { layout },
+        ),
+      [change, fitTo],
     ),
     setChartType: useCallback(
       (type: ChartType) =>

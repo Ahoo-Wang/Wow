@@ -15,6 +15,7 @@ import {
   CHART_TYPES,
   type AnalysisGroup,
   type AnalysisMetric,
+  type AnalysisViewConfig,
   type ChartSpec,
   type ChartType,
   type RecordData,
@@ -80,6 +81,29 @@ export function fitCharts(shape: ChartShape): Record<ChartType, ChartFit> {
   const best = recommend(facts);
   if (best) fits[best] = { ...fits[best], recommended: true };
   return fits;
+}
+
+/**
+ * Why the config's chart cannot draw its own shape, or null when it can —
+ * or when its type is none this package has, which `validateChart` names.
+ *
+ * Judged by the shape alone, as the picker judges it before any row: the
+ * dimensions and the metrics, the moments among them. A chart whose type
+ * the shape leaves no room for — a bar over three dimensions, bars over
+ * nothing but dates — is not a config gone wrong but a result the chart
+ * cannot draw (D20): the result is drawn as its table, which draws any
+ * shape, and the chart waits for a shape it can draw. Nothing is shaped
+ * for it (`projectAnalysis`), and its rules are not asked (`validateAnalysis`).
+ */
+export function chartUnfit(
+  config: Pick<AnalysisViewConfig, 'groups' | 'metrics' | 'chart'>,
+  moments: ReadonlySet<string>,
+): ChartUnfit | null {
+  const type = config.chart.type;
+  if (!CHART_TYPES.includes(type)) return null;
+  return familyOf(type).unfit(
+    shapeFacts({ groups: config.groups, metrics: config.metrics, moments }),
+  );
 }
 
 function shapeFacts(shape: ChartShape): ShapeFacts {

@@ -124,6 +124,12 @@ interface ChartContext {
  * slot a mark measures refuses one (`chart.metric.moment`), and so does a
  * card's comparison, target and number format over one. `validateAnalysis`
  * passes them from the scope; left out, nothing is a moment.
+ *
+ * These are the rules of a chart that is drawn: `validateAnalysis` asks
+ * them only while the layout is the chart and its type can draw the shape
+ * (D20; `chartUnfit`). A finding names a group or a metric by its alias, in
+ * `alias` or `metric`, because an alias is all this layer has; a surface
+ * says it as the column is headed (`chartIssueNamer` in `/ui`).
  */
 export function validateChart(
   config: AnalysisViewConfig,
@@ -204,20 +210,21 @@ function measure(
     : [];
 }
 
-/** Every group alias must appear, or the chart cannot address its own rows. */
+/**
+ * Every group alias must appear, or the chart cannot address its own rows.
+ * One finding per dimension left out, each naming its own: a reader is told
+ * which column it is by its header (`chart.*` findings name an alias, which
+ * the surface says as the result names it), and a list joined here could
+ * not be taken apart again to name each.
+ */
 function consumesAll(
   context: ChartContext,
   consumed: readonly string[],
 ): Issue[] {
   const used = new Set(consumed);
-  const missing = [...context.groups].filter(alias => !used.has(alias));
-  return missing.length === 0
-    ? []
-    : [
-        issue('chart.group.unconsumed', context.path, {
-          groups: missing.join(', '),
-        }),
-      ];
+  return [...context.groups]
+    .filter(alias => !used.has(alias))
+    .map(alias => issue('chart.group.unconsumed', context.path, { alias }));
 }
 
 function cartesian(context: ChartContext, config: AnalysisViewConfig): Issue[] {
@@ -452,9 +459,11 @@ function metricCard(
   if (config.groups.length !== 1 || dateGroups.length !== 1)
     issues.push(issue('chart.metric.trend-needs-one-date-group', context.path));
   else if (dateGroups[0].alias !== spec.trend.x)
+    // Named by the dimension it must use, which the analysis has: the one
+    // it names instead may be no dimension at all.
     issues.push(
       issue('chart.metric.trend-alias-mismatch', [...path, 'trend', 'x'], {
-        alias: spec.trend.x,
+        alias: dateGroups[0].alias,
       }),
     );
 

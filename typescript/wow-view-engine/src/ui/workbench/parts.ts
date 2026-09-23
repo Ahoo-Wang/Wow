@@ -41,6 +41,7 @@ export type WorkbenchParts = Pick<
   | 'result'
   | 'errorAction'
   | 'besideResult'
+  | 'nameIssue'
   | 'resultSlots'
   | 'panel'
 >;

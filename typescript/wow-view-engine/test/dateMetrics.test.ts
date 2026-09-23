@@ -400,17 +400,17 @@ describe('a moment is read, never measured by a mark', () => {
       'chart.metric.moment chart.metric.target',
       'chart.metric.moment chart.metric.format',
     ]);
-    // Admission reads the moments off the definition itself.
-    expect(
-      errors(
-        config([count, latest], {
-          chart: {
-            type: 'bar',
-            cartesian: { x: 'wh', series: [{ metric: 'latest' }] },
-          },
-        }),
-      ),
-    ).toEqual(['chart.metric.moment']);
+    // Admission reads the moments off the definition itself — of a chart
+    // that is drawn: under the table the chart is not judged (D20).
+    const measured = config([count, latest], {
+      layout: 'chart',
+      chart: {
+        type: 'bar',
+        cartesian: { x: 'wh', series: [{ metric: 'latest' }] },
+      },
+    });
+    expect(errors(measured)).toEqual(['chart.metric.moment']);
+    expect(errors({ ...measured, layout: 'table' })).toEqual([]);
   });
 
   it('splits by another dimension without drawing the moment', () => {

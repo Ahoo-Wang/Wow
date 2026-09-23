@@ -13,7 +13,6 @@
 
 import { useEffect, useMemo } from 'react';
 import {
-  CHART_PICKER_ORDER,
   drillGroups,
   fitChartSlots,
   fitCharts,
@@ -331,7 +330,7 @@ export function useAnalysisResult(
     // A question on its way or one that failed is not: its shape is known,
     // and a pick redraws over it as it would over rows.
     if (!question) {
-      repair(analysis, next, fits);
+      repair(analysis, next);
       return;
     }
     if (next === 'table') {
@@ -453,38 +452,20 @@ export function useAnalysisResult(
  * fitted to the shape of the draft (`setChartType`), which makes the config
  * one that validates, and then it runs.
  *
- * The table is always a way out, but the chart is validated under a table
- * too, so a refused chart would keep the table from running as well: it is
- * replaced by the type the shape reads best as, or else the first it can
- * draw. The run is left to Apply while the draft holds another edit, as a
- * chart that asks for the whole is (`wantsWhole`): running would apply that
- * too, which is not this gesture's to do.
+ * The table is always a way out, and needs nothing else: under the table
+ * the chart is not judged (D20, `validateAnalysis`), so the refused chart
+ * stays as it was saved and the table runs. The run is left to Apply while
+ * the draft holds another edit, as a chart that asks for the whole is
+ * (`wantsWhole`): running would apply that too, which is not this gesture's
+ * to do.
  */
-function repair(
-  analysis: AnalysisEditorController,
-  next: Picked,
-  fits: Record<ChartType, ChartFit>,
-): void {
-  if (next === 'table') {
-    analysis.setLayout('table');
-    const refused = analysis.issues.some(
-      found => found.severity === 'error' && found.path[0] === 'chart',
-    );
-    const fallback = refused ? drawableType(fits) : undefined;
-    if (fallback) analysis.setChartType(fallback);
-  } else {
+function repair(analysis: AnalysisEditorController, next: Picked): void {
+  if (next === 'table') analysis.setLayout('table');
+  else {
     analysis.setLayout('chart');
     analysis.setChartType(next);
   }
   if (!analysis.pending) analysis.submit();
-}
-
-/** The type a shape reads best as, else the first it can draw at all. */
-function drawableType(
-  fits: Record<ChartType, ChartFit>,
-): ChartType | undefined {
-  const types = CHART_PICKER_ORDER.filter(type => fits[type].available);
-  return types.find(type => fits[type].recommended) ?? types[0];
 }
 
 /**

@@ -34,6 +34,7 @@ import { Skeleton } from './components/skeleton.js';
 import { AnalysisChart } from './AnalysisChart.js';
 import { AnalysisTable } from './AnalysisTable.js';
 import { AppliedBar } from './AppliedBar.js';
+import { chartIssueNamer } from './analysis/issueNames.js';
 import { DashboardGrid, type PanelHeadingLevel } from './DashboardGrid.js';
 import { RecordCards } from './RecordCards.js';
 import { RecordTable } from './RecordTable.js';
@@ -197,6 +198,11 @@ function EmbeddedBody({
   headingLevel: PanelHeadingLevel;
 }) {
   const state = useViewRuntime(runtime);
+  const messages = useViewMessages();
+  // A chart finding names its dimensions and metrics as their columns are
+  // headed (`chartIssueNamer`); over a view of another kind the editor is
+  // empty and names nothing.
+  const nameIssue = chartIssueNamer(useAnalysisEditor(runtime), messages);
 
   // A config the definition no longer admits opens but never executes, so
   // without this a record sits at an empty frame and an analysis at a
@@ -209,12 +215,14 @@ function EmbeddedBody({
   // other panel was fine (R3). The workbench has always drawn the grid.
   // "Too many panels" sits at `['panels']` itself and is no one panel's:
   // it stops the whole board, and stays the dashboard's to say.
-  const issues = (state?.issues ?? []).filter(
-    found =>
-      runtime.kind !== 'dashboard' ||
-      found.path[0] !== 'panels' ||
-      typeof found.path[1] !== 'number',
-  );
+  const issues = (state?.issues ?? [])
+    .filter(
+      found =>
+        runtime.kind !== 'dashboard' ||
+        found.path[0] !== 'panels' ||
+        typeof found.path[1] !== 'number',
+    )
+    .map(nameIssue);
   const errors = issues.filter(found => found.severity === 'error');
   // A warning blocks nothing, so the result still shows, with the warning
   // above it: an embed hides the editor, and this is the one place a reader

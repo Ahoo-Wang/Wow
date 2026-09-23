@@ -159,6 +159,29 @@ export function metricReference(
 }
 
 /**
+ * What a dimension is called away from its own card — in the sort, in a
+ * finding — as its result column is headed: the name the analyst gave, else
+ * its field, a time dimension with its granularity (「创建时间（按日）」).
+ */
+export function groupReference(
+  analysis: Pick<MetricNaming, 'fields'>,
+  group: AnalysisGroup,
+  messages: MessageFormatters,
+): string {
+  return columnTitle(
+    group.label === undefined
+      ? {
+          label:
+            analysis.fields.find(entry => entry.field === group.field)?.label ??
+            group.field,
+          ...(group.type === 'DATE_HISTOGRAM' ? { dateUnit: group.unit } : {}),
+        }
+      : { label: group.label, named: true },
+    messages,
+  );
+}
+
+/**
  * The name a metric falls back to without one of its own. `composed` is for
  * a name a summary is put around (`metricReference`): a formula is then
  * bracketed, 「(金额 − 成本)的总和」, as its result column is

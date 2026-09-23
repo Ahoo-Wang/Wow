@@ -21,13 +21,13 @@ import {
   FieldLabel,
   FieldTitle,
 } from '../components/field.js';
-import { columnTitle, formatNumber } from '../display.js';
+import { formatNumber } from '../display.js';
 import { NumberInput } from '../FilterValueEditor.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { SortSettings } from '../SortSettings.js';
 import { EditorSlot } from '../variants.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
-import { metricReference } from './editing.js';
+import { groupReference, metricReference } from './editing.js';
 import { AddHaving, HavingRows, useHaving } from './HavingRows.js';
 
 /**
@@ -100,19 +100,7 @@ function SortField({ analysis }: { analysis: AnalysisEditorController }) {
       name: group.alias,
       // Named as the result's column is — a time dimension with its
       // granularity — so the sort says the header it orders by.
-      label: columnTitle(
-        group.label === undefined
-          ? {
-              label:
-                analysis.fields.find(entry => entry.field === group.field)
-                  ?.label ?? group.field,
-              ...(group.type === 'DATE_HISTOGRAM'
-                ? { dateUnit: group.unit }
-                : {}),
-            }
-          : { label: group.label, named: true },
-        messages,
-      ),
+      label: groupReference(analysis, group, messages),
       kind: 'string',
       sortable: true,
     })),

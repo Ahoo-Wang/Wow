@@ -98,7 +98,7 @@ export function StatusLine({
       />
       {/* What is true of the answer and nothing is wrong with, under the
           warnings and quieter than them (`note`). */}
-      <NoteStrip issues={[...state.issues, ...said]} />
+      <NoteStrip issues={[...state.issues, ...said].map(nameIssue)} />
     </div>
   );
 }

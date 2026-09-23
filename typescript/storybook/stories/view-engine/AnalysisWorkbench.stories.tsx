@@ -11,10 +11,11 @@
  * limitations under the License.
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { SortDirection } from '@ahoo-wang/fetcher-wow';
+import { AggregationGroupType, SortDirection } from '@ahoo-wang/fetcher-wow';
 import {
   fitChartSlots,
   type AnalysisViewConfig,
+  type DataViewDefinition,
 } from '@ahoo-wang/fetcher-view-engine';
 import { DataWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
 import { AppShell } from '../shared/AppShell.js';
@@ -251,12 +252,16 @@ function AnalysisWorkbenchDemo({
     const view = waybillAnalysisView(
       labels ? { ...scene, chart: { ...scene.chart, labels: true } } : scene,
     );
+    const definition =
+      waybills === 'three-way'
+        ? threeWayWaybillDefinition
+        : waybillAnalysisDefinition;
     return (
       <StoryEngine
         create={() =>
           createStoryEngine({
             behaviour,
-            definitions: [waybillAnalysisDefinition, overviewDefinition],
+            definitions: [definition, overviewDefinition],
             source: waybillSource(behaviour),
             instances: [view],
           })
@@ -394,7 +399,26 @@ function failuresScene(scene: FailuresScene): AnalysisViewConfig {
   });
 }
 
-type WaybillScene = 'daily' | 'daily-card' | 'daily-quiet' | 'cities' | 'bands';
+type WaybillScene =
+  'daily' | 'daily-card' | 'daily-quiet' | 'cities' | 'bands' | 'three-way';
+
+/**
+ * 运单分析，承运商与运输方式也能作维度：三个维度的问题要用它问。
+ */
+const threeWayWaybillDefinition: DataViewDefinition = {
+  ...waybillAnalysisDefinition,
+  analysis: {
+    ...waybillAnalysisDefinition.analysis!,
+    fields: [
+      ...waybillAnalysisDefinition.analysis!.fields,
+      ...['carrier', 'channel'].map(field => ({
+        field,
+        groups: [AggregationGroupType.TERMS],
+        functions: [],
+      })),
+    ],
+  },
+};
 
 /**
  * 运单上的五个问题。
@@ -409,11 +433,35 @@ type WaybillScene = 'daily' | 'daily-card' | 'daily-quiet' | 'cities' | 'bands';
  *   饼图在第八片把尾巴并进灰色的「其他」。
  * - `bands`：运费按 500 一档分组，每档几单。一个桶的键是那一档的下界，每一
  *   行、每根柱读成「¥0～500」这样的一段，而不是「¥0.00」。
+ * - `three-way`：按目的城市、承运商、运输方式三个维度数单数。直角坐标图最多
+ *   消化两个维度，所以没有一种图画得了它；它照样以表格跑出来（D20：怎么看是
+ *   展示，不是问题），图型网格里每一种都置灰并写原因。
  */
 function waybillScene(
   scene: WaybillScene,
   layout: 'table' | 'chart',
 ): AnalysisViewConfig {
+  if (scene === 'three-way') {
+    const groups = [
+      { type: 'TERMS', field: 'destination', alias: 'city' },
+      { type: 'TERMS', field: 'carrier', alias: 'carrier' },
+      { type: 'TERMS', field: 'channel', alias: 'channel' },
+    ] satisfies AnalysisViewConfig['groups'];
+    const metrics = [
+      { alias: 'waybills', type: 'COUNT' },
+    ] satisfies AnalysisViewConfig['metrics'];
+    return analysisConfig({
+      layout,
+      groups,
+      metrics,
+      sort: [{ alias: 'waybills', direction: SortDirection.DESC }],
+      table: { columns: [] },
+      // What the tray leaves a bar chart with when a third dimension is
+      // added: along the first, split by the second — the third it cannot
+      // place.
+      chart: fitChartSlots({ type: 'bar' }, groups, metrics),
+    });
+  }
   if (scene === 'bands') {
     const groups = [
       { type: 'HISTOGRAM', field: 'amount', alias: 'band', interval: 500 },
@@ -556,6 +604,7 @@ const meta = {
         'daily-quiet',
         'cities',
         'bands',
+        'three-way',
       ],
     },
     records: { control: 'boolean' },
@@ -756,6 +805,15 @@ export const TenCities: Story = {
  */
 export const FreightBands: Story = {
   args: { layout: 'chart', waybills: 'bands' },
+};
+
+/**
+ * 三个维度：目的城市 × 承运商 × 运输方式的单数。没有一种图画得了三个维度，
+ * 它以表格跑出来；切到「图表」仍是这张表，状态行说一句为什么；「可视化」里
+ * 每种图都置灰并写原因。从前图表在表格布局下也参与校验，整次查询被拦下。
+ */
+export const ThreeDimensions: Story = {
+  args: { layout: 'table', waybills: 'three-way' },
 };
 
 /**

@@ -11,14 +11,10 @@
 
 ECharts 迁移（D21）与两份「数据分析师视角」审查的 P0 已全部合并：#1800、#1817～#1829。下面是已定、未做的，按批次排；动手前先在最新 main 上复现，已顺带修掉的删掉。审查原文的要点都在这里，原报告不在仓库里。
 
-- **三个维度的分析跑不起来，连表格布局也不行**。
-  - 为什么：笛卡尔图最多消化两个维度，第三个报 `chart.group.unconsumed`，而图表在表格布局下也参与校验、拦住整次查询——违背「怎么看是展示、不是问题」（D20）与「表格永远是一条出路」。
-  - 判据：表格布局下图表不参与校验（切到图表布局时再按形态适配，画不了的图型置灰写原因）；三个维度的分析以表格跑出结果，有测试与故事。
-  - 落点：`src/analysis/validateChart.ts`、`src/analysis/fitCharts.ts`、`src/react/useAnalysisResult.ts`。迁移后做。
-- **图表的错误提示写别名而不是列标题**（如 `chart.funnel.not-additive`、`trend-not-additive` 里的 `{metric}` 显示 `avg`）。
-  - 为什么：用户读的是列标题，别名是程序的名字。
-  - 判据：这些提示的参数按 `columnTitle` 读成与表头同一句话；有测试。
-  - 落点：`src/analysis/validateChart.ts` 的参数与 `ui/messages` 的消费处。迁移后做。
+- **仪表盘面板的图表提示也说列标题**。
+  - 为什么：工作台与嵌入视图的图表提示已按列标题说（`ui/analysis/issueNames.ts` 的 `chartIssueNamer`，[ui/analysis.md](ui/analysis.md)「图表的提示说列标题，不说别名」），仪表盘面板的发现（`PanelUnavailable`、面板头的说明、`DashboardWorkbench` 的 `namePanel`）仍按别名说，`chart.as-table` 也只有通用那句。
+  - 判据：面板里渲染出来的图表提示不含别名，`chart.as-table` 说出图型与原因；有测试。
+  - 落点：`src/ui/DashboardGrid.tsx`、`src/ui/PanelUnavailable.tsx`、`src/ui/DashboardWorkbench.tsx`（面板的草稿维度与指标，经 `groupReference`／`metricReference`）。随批 B 做。
 - **P2 打磨（线索，先复现再做）**：托盘与表格——读法行「按创建时间」与列头「创建时间（按日）」不一致；单值措辞「属于／等于」统一为「是」；「排序」标签下又是「排序」按钮、排序弹层说「字段」；托盘残留记录视图用词（「选择筛选字段」「撤销筛选修改」「清空」）；「删除／移除」混用、英文 “Count every record again”“Showing 1 groups”；「添加指标」可重复加记录数、字段与「按公式」之间无分组、公式卡片移除按钮换行；「只看这一组」后移除条件 chip 标题仍带这一组；下钻记录视图标题与已应用条两种说法；「耗时 0 秒」写「<0.01 秒」；查询失败时两条横线夹空带；暗色「收起视图列表」按钮背景常亮；按「分析」打开托盘后 Tab 先经过刷新、自动刷新、铺满；短视图名与「共享」之间空一大段。图表——浅色悬停把柱子变浅像被禁用；堆叠段内标签发糊、单段堆叠同一个数写两遍；双轴刻度不对齐网格；饼图图例离饼太远；散点有一圈外框；中文纵轴标题侧躺；坐标轴页「轴标题」框空着看不出缺省；数值标签被 hideOverlap 随机藏掉像缺值；长名字排行默认竖柱斜排（该推荐横向）；窄屏可视化面板压在结果上方（应为抽屉）；磁贴下半截留白；漏斗梯形用面积编码两个数；选项页标题聚焦时一圈框。部分可能已由 #1826～#1828 顺带修掉。
   - 落点：`src/ui/analysis/*`、`src/ui/charts/*`、`src/ui/messages/*`。
 

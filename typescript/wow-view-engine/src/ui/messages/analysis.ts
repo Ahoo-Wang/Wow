@@ -382,6 +382,10 @@ export const analysisMessages = {
   'label.chart.type.scatter': 'scatter',
   'label.chart.type.funnel': 'funnel',
   'label.chart.type.metric': 'metric',
+  // A chart the shape leaves no room for, said with its reason where the
+  // surface can word both (`chart.as-table`, `chartIssueNamer`).
+  'label.analysis.as-table':
+    'The {type} chart cannot draw this result ({reason}); it shows as a table.',
 
   // What a dimension cuts by, said as the cut rather than as Wow's enum.
   'label.group.type.TERMS': 'By value',
@@ -530,7 +534,11 @@ export const analysisMessages = {
   'analysis.sort.unknown-alias':
     'The sort orders by {alias}, which this result does not have.',
 
-  // Charts.
+  // Charts. A finding names a dimension or a metric by its alias (`alias`,
+  // `metric`); the surface says it as the result's column is headed
+  // (`chartIssueNamer`), so none of these ever prints a program's name.
+  'chart.as-table':
+    'The chosen chart cannot draw this result; it shows as a table.',
   'chart.cartesian.percent-not-additive':
     'A 100% stack needs metrics that add up (a record count or a sum), not {metric}.',
   'chart.combo.series-type-missing':
@@ -547,9 +555,11 @@ export const analysisMessages = {
     'A funnel needs a metric that adds up (a record count or a sum), not {metric}.',
   'chart.funnel.stages-need-category':
     'A funnel’s stages are the values of a category, not dates or number ranges.',
-  'chart.group.unconsumed': 'The chart does not use every dimension: {groups}.',
+  'chart.group.unconsumed': 'The chart does not use the dimension {alias}.',
+  // An alias the analysis does not have has no header to be said by, and
+  // its program name tells a reader nothing: the slot is marked instead.
   'chart.group.unknown':
-    'The chart uses {alias}, which is not a dimension of this analysis.',
+    'The chart uses a dimension this analysis does not have.',
   'chart.heatmap.same-axes': 'A heatmap needs two different axes.',
   'chart.metric.needs-no-group': 'A metric card can carry no dimension.',
   'chart.metric.trend-alias-mismatch':
@@ -558,7 +568,8 @@ export const analysisMessages = {
     'A trend needs exactly one time dimension.',
   'chart.metric.trend-not-additive':
     'A trend headline needs an additive metric, not {metric}.',
-  'chart.metric.unknown': '{alias} is not a metric of this analysis.',
+  'chart.metric.unknown':
+    'The chart uses a metric this analysis does not have.',
   'chart.metric.moment':
     '{alias} is a point in time; a chart does not draw or compare it.',
   'chart.pie.maxSlices-not-additive':
