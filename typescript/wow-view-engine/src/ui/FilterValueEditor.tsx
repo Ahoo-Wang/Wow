@@ -16,13 +16,14 @@ import type { EditorDescriptor } from '../filter/index.js';
 import { UnsupportedValue } from './filter/inputs/unsupported.js';
 import { DateValue } from './filter/inputs/date.js';
 import { NumberValue } from './filter/inputs/number.js';
-import type { OptionSource } from '../runtime/index.js';
+import type { OptionSource, ValueCandidateSource } from '../runtime/index.js';
 import { RemoteValue } from './filter/inputs/remote.js';
 import {
   BooleanValue,
   DeletionValue,
   OptionValue,
 } from './filter/inputs/select.js';
+import { SuggestedValue } from './filter/inputs/suggested.js';
 import { TextValue } from './filter/inputs/text.js';
 
 /**
@@ -57,6 +58,12 @@ export interface FilterValueEditorProps {
    * neither this nor `options`, the value is typed.
    */
   source?: OptionSource | null;
+  /**
+   * The field's own values, counted from the data, behind a `text` editor
+   * (`FilterTreeController.valueCandidates`). With it the text is typed or
+   * picked from them; without it, typed.
+   */
+  candidates?: ValueCandidateSource | null;
 }
 
 /**
@@ -88,6 +95,7 @@ export function FilterValueEditor({
   invalid,
   options,
   source,
+  candidates,
 }: FilterValueEditorProps) {
   switch (editor.input) {
     case 'none':
@@ -171,6 +179,18 @@ export function FilterValueEditor({
       );
 
     case 'text':
+      if (candidates)
+        return (
+          <SuggestedValue
+            value={value}
+            onChange={onChange}
+            label={label}
+            disabled={disabled}
+            invalid={invalid}
+            multiple={editor.multiple === true}
+            source={candidates}
+          />
+        );
       return (
         <TextValue
           value={value}

@@ -27,12 +27,15 @@ const START = Date.parse('2026-09-18T08:00:00.000Z');
  * for `execution_failed`, with neutral names. `minutes` orders them in time,
  * so the default view's newest-first sort has something to decide.
  */
+// Three processors, so a condition on one is picked from the values the
+// service counts rather than typed: two failed in `OrderSaga`, one each in
+// the other two.
 export const RECORDED_EXECUTIONS: RecordData[] = [
-  execution('EF-1', 'FAILED', 'UNKNOWN', 2, 1),
-  execution('EF-2', 'PREPARED', 'RECOVERABLE', 1, 5),
-  execution('EF-3', 'SUCCEEDED', 'RECOVERABLE', 1, 3),
-  execution('EF-4', 'FAILED', 'UNRECOVERABLE', 3, 2),
-  execution('EF-5', 'FAILED', 'UNKNOWN', 4, 4),
+  execution('EF-1', 'FAILED', 'UNKNOWN', 2, 1, 'OrderSaga'),
+  execution('EF-2', 'PREPARED', 'RECOVERABLE', 1, 5, 'PaymentSaga'),
+  execution('EF-3', 'SUCCEEDED', 'RECOVERABLE', 1, 3, 'OrderSaga'),
+  execution('EF-4', 'FAILED', 'UNRECOVERABLE', 3, 2, 'InventorySaga'),
+  execution('EF-5', 'FAILED', 'UNKNOWN', 4, 4, 'OrderSaga'),
 ];
 
 function execution(
@@ -41,6 +44,7 @@ function execution(
   recoverable: string,
   retries: number,
   minutes: number,
+  processorName: string,
 ): RecordData {
   const eventTime = START + minutes * 60_000;
   return {
@@ -55,7 +59,7 @@ function execution(
       isBelowRetryThreshold: retries < 3,
       function: {
         contextName: 'order-service',
-        processorName: 'OrderSaga',
+        processorName,
         name: 'onOrderCreated',
         functionKind: 'EVENT',
       },

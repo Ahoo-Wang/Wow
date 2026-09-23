@@ -62,6 +62,10 @@ import {
 } from './exportRows.js';
 import { fetchRecord } from './fetchRecord.js';
 import { pageAfterShrink } from '../record/index.js';
+import {
+  ValueCandidateSources,
+  type ValueCandidateSource,
+} from './valueCandidates.js';
 import type { WriteState } from './write.js';
 import type { DashboardRuntime } from './dashboardRuntime.js';
 
@@ -100,6 +104,14 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
    * holds, and a value editor two levels down has no engine to reach.
    */
   optionSource(remote: string): OptionSource | null;
+  /**
+   * The values a condition on `field` may be picked from, counted from this
+   * view's data within the injected scope (`ValueCandidateSources`), or
+   * `null` where they are not offered: a field the definition does not let
+   * be grouped by value, one with `options` or `remote` of its own, and every
+   * field of a dashboard, which has no data of its own to count.
+   */
+  valueCandidates(field: string): ValueCandidateSource | null;
   getSnapshot(): ViewRuntimeState<C>;
   subscribe(listener: () => void): () => void;
   /**
@@ -409,6 +421,7 @@ export class DataViewRuntime<
   private readonly autoRefresh: boolean;
   /** The one timer behind 「改了就跑」, stopped whenever nothing is due. */
   private readonly autoTimer: RefreshTimer;
+  private readonly candidates: ValueCandidateSources;
 
   private injectedScope: FilterTree | null = null;
   /**
@@ -441,6 +454,10 @@ export class DataViewRuntime<
       environment: options.environment,
       source: options.source,
     };
+    this.candidates = new ValueCandidateSources(
+      this.context,
+      () => this.injectedScope,
+    );
 
     const saved = options.saved ?? null;
     this.pageTarget = firstPageOf(options.definition);
@@ -529,6 +546,10 @@ export class DataViewRuntime<
     return this.resolveOptions ? this.resolveOptions(remote) : null;
   }
 
+  valueCandidates(field: string): ValueCandidateSource | null {
+    return this.candidates.of(field);
+  }
+
   edit(patch: Partial<C>): void {
     if (this.disposed) return;
     const draft = patched(this.state.draft, patch);
@@ -585,6 +606,10 @@ export class DataViewRuntime<
    */
   refresh(): void {
     if (this.disposed || !this.appliedAdmitted) return;
+    // The values a condition is offered are the data's, and a refresh is
+    // the data read again: offering them from before it would list values
+    // the rows no longer hold, with counts they no longer have.
+    this.candidates.reset();
     // A refresh reads the page the reader is on again — the timer's, the
     // button's and the one a command asks for after writing alike: sending
     // them to the first page lost their place in a list they were working
@@ -663,6 +688,7 @@ export class DataViewRuntime<
       return this.refusedScope;
 
     this.injectedScope = tree ?? null;
+    this.candidates.reset();
     this.appliedAdmitted = !hasError(merged);
     this.pageTarget = firstPageOf(this.context.definition);
     // The draft is judged with the scope too, so its issues move with it.
@@ -719,6 +745,7 @@ export class DataViewRuntime<
 
   dispose(): void {
     this.autoTimer.stop();
+    this.candidates.reset();
     this.store.dispose();
   }
 

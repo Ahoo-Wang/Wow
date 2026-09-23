@@ -641,7 +641,7 @@ describe('FilterValueEditor', () => {
       source,
     );
 
-    await user.click(screen.getByLabelText('amount'));
+    await user.click(screen.getByRole('combobox', { name: 'amount' }));
     await screen.findByRole('option', { name: 'China' });
     expect(screen.queryByRole('option', { name: 'Japan' })).toBeNull();
 
@@ -651,7 +651,7 @@ describe('FilterValueEditor', () => {
     expect(screen.queryByRole('button', { name: 'More' })).toBeNull();
 
     // A failed search keeps the page that was listed and offers a retry.
-    await user.type(screen.getByLabelText('amount'), 'x');
+    await user.type(screen.getByRole('combobox', { name: 'amount' }), 'x');
     const alert = await screen.findByRole('alert');
     expect(alert.textContent).toContain('The candidates could not be loaded');
     expect(screen.getByRole('option', { name: 'China' })).toBeDefined();

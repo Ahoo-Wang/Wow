@@ -31,6 +31,7 @@ export * from './useRecordDetail.js';
 export * from './useRecordExport.js';
 export * from './useRecordTable.js';
 export * from './useSaveCommands.js';
+export * from './useValueCandidates.js';
 export * from './useViewEngine.js';
 export * from './useViewList.js';
 export * from './useViewManager.js';

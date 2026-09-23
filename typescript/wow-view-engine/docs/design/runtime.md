@@ -26,6 +26,7 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
   readonly refusedScope: Issue[]; // 当前要求的那个注入条件因何被拒；生效时为空。被拒不阻塞视图，见下「被拒的是条件，不是视图」
   readonly scopeFilter: FilterTree | null; // 当前生效的注入条件（最后一次被准入的那棵）；筛选摘要据此把"宿主的条件"与"视图自己的条件"分开呈现
   readonly environment: RuntimeEnvironment; // 这个视图跑在哪个宿主上；nextRefreshAt 是这只钟上的读数，倒计时必须问同一只钟
+  valueCandidates(field: string): ValueCandidateSource | null; // 一个文本条件可以从中挑的值，按数据计数、在注入作用域之内；不给时为 null（Dashboard 一律 null）。见「条件的值取自数据」
   dispose(): void; // 最后一次通知订阅者后清空监听
 }
 
@@ -167,6 +168,15 @@ export class ViewWriteError extends Error {
 ## 一条记录读全
 
 `RecordViewRuntime.fetchRecord(key, signal?)`（`runtime/fetchRecord.ts`）按行键单独取一条完整记录，供详情用：条件只有「行键等于 key」与宿主注入的作用域（一个租户的视图打不开别的租户的记录），**不带**页上的条件、排序与投影——详情是关于这条记录的，一条被命令改过的记录可能已不满足页上的条件；按定义的分页方式问第一条，没有就是 `null`。它和导出一样走在请求线之外，不占调度槽位、不动屏幕上的行。（见 test/recordDetail.test.tsx「a record read whole」）
+
+## 条件的值取自数据
+
+`ViewRuntime.valueCandidates(field)`（`runtime/valueCandidates.ts` 的 `ValueCandidateSources`）交出字段的 `ValueCandidateSource`——`search(query, signal?)` 答 `{ values: { value, count }[], complete }`——或 `null`：字段不是内核说能列的那种（`valueCandidateField`，[kernels.md#条件的值取自数据candidatests](kernels.md#条件的值取自数据candidatests)），或者这是一个 Dashboard：它的全局字段不是哪一份数据的字段。**每个字段一个源、同一个对象**，编辑器可以拿它当副作用的依赖。
+
+- **问法是内核的**：`valueCandidatesConfig` 造的分析配置经 `withScopeFilter` 合上**宿主注入的作用域**（不合视图自己的条件——那样编辑一个已有条件时只看得到它已经选中的那个值），过一遍 `validateAnalysis`（定义收不下这个问题就在这儿拒，而不是交给服务），再 `compileAnalysis`，走 `ViewSource.aggregate`，与导出、读一条记录一样**在请求线之外**：不占调度槽位、不动屏幕上的结果；
+- **答案留到下一次刷新**：按「字段 + 打的字」记下，同一个条件再打开、同一字段上的第二个条件都不再问；**手里能缩的不去问**——不带字的那份回来时已经齐了（`complete`），或者字段根本没有子串／前缀条件（源缩不了），打的字就在手里的那份上缩（`narrowValueCandidates`）；
+- **数据重读或作用域换了就全忘**：`refresh()` 是把数据再读一遍，留着之前的答案就会列出行里已经没有的值、报着已经不对的条数；宿主把视图收窄到另一个租户，问的就是另一批记录。`refresh`、`setScopeFilter` 与 `dispose` 都清空答案，换之前发出去、之后才回来的那一份也不记；
+- **取消用 `AbortSignal`**，跟 `fetchRecord` 一样由 `abortWith`（`runtime/abort.ts`，内部，不导出）转成源收的 controller；被取消的请求以信号的原因拒绝、什么也不记；源抛的错原样往上交，界面用 `sourceReason` 说成源自己的话。（见 test/valueCandidates.test.ts「a view runtime offers value candidates」）
 
 ## 导出
 

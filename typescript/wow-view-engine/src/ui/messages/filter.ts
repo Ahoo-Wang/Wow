@@ -115,6 +115,16 @@ export const filterMessages = {
   'label.filter.more-candidates': 'More',
   'label.filter.candidates-failed': 'The candidates could not be loaded',
   'label.filter.candidates-retry': 'Try again',
+  // A text field's own values, counted from the data: the box takes a value
+  // typed or picked, each listed value says how many records hold it (read
+  // out whole, since a bare number beside a name says nothing), and the list
+  // says when it is only the most frequent — the one wanted may be rarer.
+  'label.filter.pick-or-type': 'Pick or type a value',
+  'label.filter.value-count': '{value} ({count} records)',
+  'label.filter.values-loading': 'Reading the values…',
+  'label.filter.values-failed': 'The values could not be read: {reason}',
+  'label.filter.values-top':
+    'Only the most frequent values are listed; type to narrow',
   // What an empty list's entry box says: the whole gesture, because this is
   // the one control on the panel where a key commits the value and Enter is
   // written nowhere else on screen.

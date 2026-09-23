@@ -344,6 +344,18 @@ D20 屏 B 的两件事各有一个内核文件，都只是纯函数——托盘�
 
 两者都不知道目录也不知道语言：`expressionText` 接一个 `nameOf` 回调，字段叫什么由调用处说。（见 test/having.test.ts「having rows」「formulas」；界面见 [ui/analysis.md#只保留一行一条比较](ui/analysis.md) 与 [ui/analysis.md#公式与派生写出来的指标](ui/analysis.md)）
 
+### 条件的值取自数据：`candidates.ts`
+
+一个文本条件（`EQ`／`NE`／`IN`／`NOT_IN`，`VALUE_CANDIDATE_OPERATORS`）的值可以从字段在数据里真有的值里挑，而不是闭着眼打。**问的是一次普通的分析**，不是另一种查询：`valueCandidatesConfig(definition, field, kinds, query?, limits?)` 造一份 `AnalysisViewConfig`——按字段取值分组（`TERMS`，别名 `value`）、数记录（`COUNT`，别名 `count`）、按数降序再按值升序（同数时顺序稳定）、前 `valueCandidateLimit` 个——于是它走 `validateAnalysis` 准入、`compileAnalysis` 编译、`withScopeFilter` 合并宿主作用域，与分析视图同一条路；Wow 聚合没有第二种写法要跟着同步。
+
+- **哪些字段给**（`valueCandidateField`）：定义允许按值分组（能力里该字段的 `groups` 含 `TERMS`）且允许数记录（`count: true`）——这是 Wow 已经收得下的问题；一条记录在那儿只存一个字符串（`isSingleStringField`），分组键才是等值条件能比的值；字段**没有** `options`（封闭集合自己列、带标签）也没有 `remote`（宿主去搜）。只看根字段：元素里的字段按记录数出来的数不是谓词逐条判的那些元素；
+- **上限**：`VALUE_CANDIDATE_LIMIT`（50：几十个值的字段——处理器、错误码——一次列全，又短得能读而不是滚），再被定义的 `maxLimit`、Wow 的 `AGGREGATION_LIMITS.MAX_LIMIT` 与 `limits.maxAnalysisRows` 取小；
+- **全不全是问出来的**：编译照常多要一行探针（`analysisProbeLimit`），`readValueCandidates` 据此给出 `complete`——探针回来了就是还有更多值；顶在天花板上不探时，填满就算不全（可能不全）；
+- **分组不带哨兵桶**，和 `groupOfType` 给维度的默认相反：维度不能悄悄丢掉没有值的记录，而一张「可比的值」清单用不着它们——「没有值」是 `IS_NULL`，自己就是一个条件。同理，键不是非空字符串的行（空串、数字）读回来时落掉：空串是 `IS_EMPTY_STRING` 问的，数字不是文本条件比得了的；
+- **打字缩小范围**（`valueCandidateNarrowing`）：字段给了 `CONTAINS` 就用子串（打「saga」要找到「QuotationSaga」），否则 `STARTS_WITH`，都没有就是 `null`——源缩不了，只能在手里缩（`narrowValueCandidates`，大小写跟字段的 `stringComparison` 走，与源的读法一致）。条件照字段自己的条件编译，大小写在内。
+
+真实服务上验证过（Wow 补偿服务 `execution_failed`，2026-09-22）：`POST /execution_failed/snapshot/aggregation` 收 `groupBy: [{ type: 'TERMS', field: 'state.function.processorName', alias: 'value' }]`、`metrics: [{ type: 'COUNT', alias: 'count' }]`、`sort: [count DESC, value ASC]`、`limit: 51`，答回 51 行（处理器多于 50 个，于是 `complete: false`）；加上 `{ op: 'CONTAINS', value: 'saga', stringComparison: 'CASE_INSENSITIVE' }` 答回 43 个，齐了；`state.error.errorCode` 答回 11 个，其中一个是空串（落掉）。（见 test/valueCandidates.test.ts「offers the values of a text field the data can group by value, and of no other」「compiles the candidates as a count by value, most frequent first, one row past the limit」「narrows at the source by substring, else by prefix, else not at all」「reads the probe row as more values, and leaves out what cannot be compared with」）
+
 ## Dashboard 内核的规则
 
 `validateDashboard` 的规则：

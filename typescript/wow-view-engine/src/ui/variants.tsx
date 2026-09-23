@@ -47,7 +47,7 @@ import type { FieldTone } from '../model/index.js';
 import { AlertDialogAction } from './components/alert-dialog.js';
 import { Badge } from './components/badge.js';
 import { Button } from './components/button.js';
-import { ComboboxChips } from './components/combobox.js';
+import { ComboboxChips, ComboboxInput } from './components/combobox.js';
 import { Input } from './components/input.js';
 import { SelectTrigger } from './components/select.js';
 import { Separator } from './components/separator.js';
@@ -357,6 +357,29 @@ export function PillChips({
         controlChromeVariants({ chrome }),
         className,
       )}
+      {...props}
+    />
+  );
+}
+
+/**
+ * The text box of a condition pill that also offers a list — a value typed
+ * or picked from the field's own values (`inputs/suggested.tsx`). The
+ * registry's `ComboboxInput` is an `InputGroup` with an edge of its own; in a
+ * pill the edge is the pill's (D12), so it is taken off here as it is off
+ * `PillInput`. Its chevron is left off too: a press on the box opens the
+ * list already, and the chevron would be one more unnamed Tab stop in every
+ * pill — the placeholder says there is something to pick.
+ */
+export function PillComboboxInput({
+  chrome,
+  className,
+  ...props
+}: React.ComponentProps<typeof ComboboxInput> & ControlChromeProps) {
+  return (
+    <ComboboxInput
+      showTrigger={false}
+      className={cn(controlChromeVariants({ chrome }), className)}
       {...props}
     />
   );

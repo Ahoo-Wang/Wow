@@ -12,6 +12,7 @@
  */
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
+import { formatMessage, zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 import displayMeta, {
   DataConsole as DisplayDataConsole,
 } from './DataConsole.stories.js';
@@ -155,5 +156,81 @@ export const DataConsole: Story = {
         canvasElement.querySelectorAll('.recharts-bar-rectangle'),
       ).toHaveLength(3),
     );
+  },
+};
+
+/**
+ * A condition on a processor, picked from the values the service holds
+ * rather than typed blind.
+ *
+ * `处理器` is text the definition lets the service group by value, so the
+ * value box of its condition lists the processors the executions name, each
+ * with how many executions failed in it — the service's own count, asked as a
+ * `TERMS` aggregation (`POST …/snapshot/aggregation`) once the box opens.
+ * Picking one and applying narrows the rows to it.
+ */
+export const ValuesFromTheData: Story = {
+  ...DisplayDataConsole,
+  name: '补偿控制台 · 条件值取自数据',
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    await waitFor(() =>
+      expect(readColumn(table, 'ID')).toEqual(['EF-2', 'EF-5', 'EF-4', 'EF-1']),
+    );
+
+    const toggle = canvas.getByRole('button', {
+      name: new RegExp(`^${zhCN['label.filter.panel']}`),
+    });
+    if (toggle.getAttribute('aria-expanded') !== 'true')
+      await userEvent.click(toggle);
+    await userEvent.click(
+      await canvas.findByRole('button', { name: zhCN['label.filter.add'] }),
+    );
+    const picker = await within(document.body).findByRole('dialog');
+    await userEvent.click(
+      within(picker).getByRole('checkbox', { name: '处理器' }),
+    );
+    await userEvent.click(
+      within(picker).getByRole('button', {
+        name: zhCN['label.filter.pick-done'],
+      }),
+    );
+    await waitFor(() =>
+      expect(document.body.querySelector('[role="dialog"]')).toBeNull(),
+    );
+
+    const box = await canvas.findByRole('combobox', {
+      name: formatMessage(zhCN, 'label.filter.value-of', { field: '处理器' }),
+    });
+    await expect(box).toHaveAttribute(
+      'placeholder',
+      zhCN['label.filter.pick-or-type'],
+    );
+    await userEvent.click(box);
+    // Every processor the executions name, the most frequent first, each with
+    // its count — across the whole service, not only the active rows on
+    // screen: what is offered is what the field can hold.
+    const listbox = await within(document.body).findByRole('listbox');
+    await waitFor(() =>
+      expect(
+        within(listbox)
+          .getAllByRole('option')
+          .map(option => option.getAttribute('aria-label')),
+      ).toEqual([
+        'OrderSaga（3 条记录）',
+        'InventorySaga（1 条记录）',
+        'PaymentSaga（1 条记录）',
+      ]),
+    );
+
+    await userEvent.click(
+      within(listbox).getByRole('option', { name: /^InventorySaga/ }),
+    );
+    await expect(box).toHaveValue('InventorySaga');
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.filter.apply'] }),
+    );
+    await waitFor(() => expect(readColumn(table, 'ID')).toEqual(['EF-4']));
   },
 };

@@ -64,6 +64,21 @@ useFilterEditor(runtime): FilterController
 - blocked 是落在条件上的 error 条数——包括编辑器画不出 pill 的那些（畸形节点），它们同样阻塞 Apply，只是由状态条而不是 pill 报出；
 - unmarked 与 blocked 成对：blocked 数的是 pill 上那些（外加画不出 pill 的），unmarked 给出的是**没有一处标记**的那些——畸形节点、分组自身的 error，以及配置里条件以外的 error（掉了的列、不再受理的页大小）。两者合起来把"拦住视图的每一条 error"交代完，各说一次、互不重复：pill 一份，编辑器上方的状态条一份。判断由 `filter/marks.ts` 的 `unmarkedErrors(issues, tree)` 做，它只问树——哪些路径解析得到一条渲染得出的条件（谓词内部的条件也算）——所以它属于内核而不属于编辑器；unmarked 走的是整份 `state.issues` 而不是被本树收窄过的 `issues`。（见 test/useFilterEditor.test.tsx「useFilterEditor」「useFilterEditor pending and applied」「useFilterEditor under a host scope filter」与 test/statusStrip.test.tsx「ErrorStrip」）
 
+## useValueCandidates
+
+```ts
+useValueCandidates(source, query, active): ValueCandidatesController
+// { status: 'idle' | 'loading' | 'success' | 'error', query, values, complete, reason, retry() }
+```
+
+一个文本条件的值从数据里挑：`FilterTreeController.valueCandidates(path)` 交出那一格的 `ValueCandidateSource`（由 `useFilterEditor` 从 `runtime.valueCandidates(field)` 接来），**只在操作符比的是整个值**（`EQ`／`NE`／`IN`／`NOT_IN`）、kind 为它画的是文本框时才给——子串、区间、不要值的操作符都是 `null`；嵌套谓词与指标条件的控制器不带它，它们的字段是元素的，视图的数据数不出来。
+
+- **打开才问**：`active` 为假时什么也不问，一个摆着十几个条件的面板画出来不该花十几次聚合；不带字的那份立即问，打的字**停手 250 毫秒**（`VALUE_CANDIDATE_DEBOUNCE_MS`）才问；
+- **每次变化中止上一次**，关掉列表（`active` 转假）也中止；晚到的答案丢掉；
+- **答案按源保存**：换了字段就是另一份列表，上一个字段的值不会在它下面闪一下（状态以源为键推导，不在副作用里同步）；
+- `query` 是 `values` 回答的那段字——与眼下打的不同时，新答案还在路上，控件先在手里的那份上缩，列表跟着键盘走而不是跟着网络；
+- 失败保留上一份，`reason` 是 `sourceReason` 读出的源自己的话，`retry()` 再问一次。界面规则见 [ui/README.md#filterpanel-的布局](ui/README.md#filterpanel-的布局)。（见 test/useValueCandidates.test.tsx「useValueCandidates」「the filter editor offers value candidates」）
+
 ## 控制器是边界
 
 **控制器交给 UI 的列表，永远是可安全遍历、成员格式良好的列表**，无论存储里放的是什么。配置来自存储：`sort` 可能是一个对象、一个字符串，或一个含 `null` 的数组，`summaries` 同理。准入会报出形状（`record.sort.invalid`、`record.summaries.invalid`）、草稿因此停在错误态——但**能让用户删掉那一条的编辑器，正是从这同一份草稿渲染出来的**，一次 `.map` 落在字符串上就把工作台带走，用户根本够不着那一条。所以归一化发生在控制器这道边界上（`src/react/recordDraft.ts`），面板不再各写一遍防御性读取，下一个人写的面板也自动继承这条保证。

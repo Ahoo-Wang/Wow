@@ -258,6 +258,11 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     return resolve ? resolve(remote) : null;
   }
 
+  /** A dashboard's global fields are nobody's data; see `ViewRuntime.valueCandidates`. */
+  valueCandidates(): null {
+    return null;
+  }
+
   /**
    * Resolves once every reference the current config needs has been loaded or
    * found unreadable, so `open` can hand back a dashboard that is ready to

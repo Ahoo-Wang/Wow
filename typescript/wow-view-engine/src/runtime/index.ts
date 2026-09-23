@@ -33,6 +33,7 @@ export * from './requestRunner.js';
 export * from './runtimeStore.js';
 export * from './source.js';
 export * from './validateDefinition.js';
+export * from './valueCandidates.js';
 export * from './viewChanges.js';
 export * from './viewEngine.js';
 export * from './viewRuntime.js';

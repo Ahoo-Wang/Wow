@@ -50,8 +50,10 @@ import {
   filterOverBudget,
   type OptionSource,
   type PendingReport,
+  type ValueCandidateSource,
   type ViewRuntime,
 } from '../runtime/index.js';
+import { VALUE_CANDIDATE_OPERATORS } from '../analysis/index.js';
 import { useViewRuntime } from './useViewEngine.js';
 
 /**
@@ -268,6 +270,7 @@ export function useFilterEditor(
         current: () => runtime?.getSnapshot().draft.filter ?? tree,
         onChange: next => runtime?.edit({ filter: next }),
         optionSource: remote => runtime?.optionSource(remote) ?? null,
+        valueCandidates: field => runtime?.valueCandidates(field) ?? null,
       }),
     [tree, fields, fieldGroups, kinds, issues, runtime],
   );
@@ -478,6 +481,16 @@ export interface FilterTreeController {
    * value shares its parent's.
    */
   optionSource?(remote: string): OptionSource | null;
+  /**
+   * The values the condition at `path` may be picked from, counted from the
+   * data (`ViewRuntime.valueCandidates`), or `null` where none are offered:
+   * its field is not one the data can list, or its operator takes something
+   * other than one of the field's own values — a substring, a range, no
+   * value at all. Absent on a controller whose fields are not the view's
+   * own: a nested predicate's are an element's, which the view's data does
+   * not count.
+   */
+  valueCandidates?(path: FilterPath): ValueCandidateSource | null;
 }
 
 export interface TreeControllerInput {
@@ -498,6 +511,8 @@ export interface TreeControllerInput {
   onChange(tree: FilterTree): void;
   /** See `FilterTreeController.optionSource`. */
   optionSource?(remote: string): OptionSource | null;
+  /** The candidate source of a field by name; see `FilterTreeController.valueCandidates`. */
+  valueCandidates?(field: string): ValueCandidateSource | null;
 }
 
 /** The tree with the node at `path` set to say nothing; see `clearValue`. */
@@ -548,6 +563,27 @@ function addableFields(
   );
 }
 
+/** See `FilterTreeController.valueCandidates`. */
+function candidatesAt(
+  tree: FilterTree,
+  path: FilterPath,
+  byName: ReadonlyMap<string, FieldDefinition>,
+  kinds: FieldKindRegistry | undefined,
+  sourceOf: (field: string) => ValueCandidateSource | null,
+): ValueCandidateSource | null {
+  const node = nodeAt(tree, path);
+  if (!node || isFilterGroup(node)) return null;
+  if (!VALUE_CANDIDATE_OPERATORS.includes(node.operator)) return null;
+  const field = byName.get(node.field);
+  const kind = field && kinds?.get(field.kind);
+  // The kind decides what the value is typed into, and a list of values
+  // replaces only a text box: a kind drawing anything else has a control of
+  // its own for this operator.
+  if (!field || kind?.editor(node.operator, field, node.value).input !== 'text')
+    return null;
+  return sourceOf(node.field);
+}
+
 /**
  * A controller over any tree. It holds no state: every action produces the
  * next tree and hands it to `onChange`, which is what lets a nested one write
@@ -558,6 +594,7 @@ export function treeController(
 ): FilterTreeController {
   const { tree, fields, kinds, issues, onChange } = input;
   const byName = new Map(fields.map(field => [field.name, field]));
+  const sourceOf = input.valueCandidates;
   const change = (update: (current: FilterTree) => FilterTree) =>
     onChange(update(input.current?.() ?? tree));
 
@@ -568,6 +605,12 @@ export function treeController(
     kinds,
     issues,
     ...(input.optionSource ? { optionSource: input.optionSource } : {}),
+    ...(sourceOf
+      ? {
+          valueCandidates: (path: FilterPath) =>
+            candidatesAt(tree, path, byName, kinds, sourceOf),
+        }
+      : {}),
     fieldsFor(parent = ROOT) {
       return addableFields(tree, fields, parent, kinds);
     },

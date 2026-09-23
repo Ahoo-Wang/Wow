@@ -16,6 +16,7 @@
  * protocol, so compilation is a mapping and the interesting work is admission
  * and the shaping each chart family needs.
  */
+export * from './candidates.js';
 export * from './capability.js';
 export * from './chart.js';
 export * from './chartFamilies.js';

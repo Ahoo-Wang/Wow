@@ -396,6 +396,7 @@ export function ConditionPill({
                 ? (filter.optionSource?.(editor.remote) ?? null)
                 : null
             }
+            candidates={filter.valueCandidates?.(path) ?? null}
             onChange={value => filter.updateLeaf(path, { value })}
           />
         )}

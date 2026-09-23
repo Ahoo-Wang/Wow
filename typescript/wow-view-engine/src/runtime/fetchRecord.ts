@@ -22,6 +22,7 @@ import {
 import { FIRST_PAGE, compileRecord } from '../record/index.js';
 import type { KernelContext } from './execute.js';
 import { withScopeFilter } from './scope.js';
+import { abortWith } from './abort.js';
 
 /**
  * One record, whole, by its row key — what a detail panel reads.
@@ -97,15 +98,4 @@ function whole<Q extends { sort?: unknown }>(query: Q): Q {
       ? (without(query as Q & { projection?: unknown }, 'projection') as Q)
       : query;
   return { ...bare, sort: [] };
-}
-
-/** The controller a source takes, following the caller's signal. */
-function abortWith(signal?: AbortSignal): AbortController {
-  const controller = new AbortController();
-  if (signal?.aborted) controller.abort(signal.reason);
-  else
-    signal?.addEventListener('abort', () => controller.abort(signal.reason), {
-      once: true,
-    });
-  return controller;
 }

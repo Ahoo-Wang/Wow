@@ -147,6 +147,7 @@ src/
   analysis/                   — Analysis kernel — imports model and filter
     budget.ts                 — Depth and node budgets of a walked tree
     capability.ts             — The three scopes the element chain makes: the root's, each element's, the innermost one's; and the renaming a scope implies
+    candidates.ts             — A field's values as the data counts them (value candidates): `valueCandidateField` (grouped by `TERMS`, counted, one string, no `options`/`remote`), `valueCandidatesConfig` (an ordinary analysis — the top `valueCandidateLimit` by count, narrowed by `CONTAINS`/`STARTS_WITH` where the field offers one), `readValueCandidates` (whole or not, off the probe row), `narrowValueCandidates`
     chart.ts                  — Chart-shaped projection for the renderers, and `groupKeyText` — a group value as a colour key, the one spelling every chart family reads
     chartSlots.ts             — `fitChartSlots`: the family sub-object of the current chart type, filled from the groups and metrics in force
     compile.ts                — compileAnalysis → AggregationQuery
@@ -186,6 +187,7 @@ src/
     environment.ts            — `RuntimeEnvironment` and the `VisibilitySource` port; `ALWAYS_VISIBLE`, `defaultRuntimeEnvironment`
     execute.ts                — The two execution kinds a runtime drives
     exportRows.ts             — Fetching every row the conditions match, page by page, under `exportMax` and the source's paging window (`exportPlan`)
+    abort.ts                  — `abortWith`: the controller a source call takes, following the caller's signal (internal, not exported)
     fetchRecord.ts            — One record, whole, by its row key within the injected scope — not the page's conditions, no projection
     issues.ts                 — `toIssue`: one Issue for whatever a command threw
     listeners.ts              — `listenerSet`: the subscribe / notify half every store in this package has
@@ -203,6 +205,7 @@ src/
     source.ts                 — resolveSource — three QueryApi methods
     summaries.ts              — The instance-summary cache: noted on listing and on a confirmed write, dropped on delete, read before the store
     validateDefinition.ts     — Definition admission; needs all three kernels
+    valueCandidates.ts        — `ValueCandidateSources`: one `ValueCandidateSource` per offered field, compiled through the analysis kernel under the injected scope, answers kept for the life of the view and narrowed in hand where the source has nothing to add
     viewChanges.ts            — The change notifications a list of views subscribes to (D15)
     viewEngine.ts             — ViewEngine — the command surface: admission, then one dispatch
     viewRuntime.ts            — One open view over one `RuntimeStore`: the `ViewRuntime` contract, admission and execution; `hasResult`, the one reading of "a result ever arrived"
@@ -236,6 +239,7 @@ src/
     useRecordDetail.ts        — One record's detail: open, read whole (`fetchRecord`) and read again when the view's result lands; the page's row until then
     useRecordTable.ts         — Record controller
     useSaveCommands.ts        — Save, save-as, revert, rename, delete
+    useValueCandidates.ts     — A condition's values offered from the data: asked when the list opens, a typed fragment once typing pauses, aborted on change and on close; loading, the source's reason on failure, retry
     useViewEngine.ts          — Creates and disposes one engine
     useViewList.ts            — View summaries in the user's order
     useViewManager.ts         — Rename, delete, reorder, default; outcomes per row
@@ -385,6 +389,7 @@ src/
         candidates.ts         — `useCandidates`: a reference field's candidates searched from its `OptionSource` — debounced, aborted on change, paged, with a retry
         remote.tsx            — A value the host looks up: chips over a searchable `Combobox` (F-04), the host's whole list, or typed ids without either
         select.tsx            — One of a closed set, several of one, or yes/no/either
+        suggested.tsx         — A text value typed or picked from the field's own values with their record counts: one value as the box itself, several as chips; free text stays a value
         shared.tsx            — Whether the condition holding this value is refused
         text.tsx              — Free text
         unsupported.tsx       — A value no control can hold: the stored value and why it is read-only (F-06)

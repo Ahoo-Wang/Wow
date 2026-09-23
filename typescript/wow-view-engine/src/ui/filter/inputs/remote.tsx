@@ -200,8 +200,10 @@ function CandidateValue({
   const empty = (options !== undefined || state.status === 'success') && (
     <ComboboxEmpty>{messages.label('label.filter.no-candidate')}</ComboboxEmpty>
   );
+  // Named as the value box is: a listbox with no name is one axe refuses,
+  // and a reader landing in it would not know what it lists.
   const list = (
-    <ComboboxList>
+    <ComboboxList aria-label={label}>
       {(item: ReferenceItem) => (
         <ComboboxItem key={String(item.id)} value={item}>
           {item.label}
@@ -230,7 +232,7 @@ function CandidateValue({
           placeholder={messages.label('label.filter.search-candidates')}
           className="w-full"
         />
-        <ComboboxContent>
+        <ComboboxContent className={VALUE_LIST}>
           {empty}
           {list}
           {footer}
@@ -283,7 +285,7 @@ function CandidateValue({
           )}
         </ComboboxValue>
       </PillChips>
-      <ComboboxContent anchor={anchor}>
+      <ComboboxContent anchor={anchor} className={VALUE_LIST}>
         {empty}
         {list}
         {footer}
@@ -291,3 +293,12 @@ function CandidateValue({
     </Combobox>
   );
 }
+
+/**
+ * The list is as wide as its longest value, at least as wide as the box it
+ * drops from and at most a readable line: a condition's value box is
+ * narrow, and a list held to its width cut every processor name to its
+ * first three letters.
+ */
+const VALUE_LIST =
+  'w-max min-w-(--anchor-width) max-w-[min(28rem,var(--available-width))]';
