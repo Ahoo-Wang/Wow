@@ -7,6 +7,32 @@
 - 做完就**删掉**这一条，不打勾、不留归档。历史在 git 里。
 - 改行为之前先看这里有没有对应项；有就接着做，别另起一条。
 
+## 交接（2026-09-23 换账号）：先把这一节做完
+
+接手第一件事：按 [progress.md#上一个暂停点](progress.md) 看清 #1787／#1788 是否已合并。每一条合并前都在真实浏览器里对受影响的视图逐控件走一遍（亮／暗、1440 与窄屏），门禁逐条看退出码（`pnpm test` 末尾还有 `test:type`）。
+
+- **在真实服务上核验分析表的合计行吸底**（#1787）。
+  - 为什么：#1787 把分析表改成自己的滚动口、表头与合计行做成吸附带、行少时补 `row-room`，但只有单测与故事覆盖，交接前的实地脚本没跑完。
+  - 判据：`localhost:8080` 快照控制台 →「按状态分布」→ 表格：合计行的下边等于表格滚动口的下边、紧挨「正在显示 N 行，耗时 X 秒」（靠右）；行多时表头与合计行都吸住、中间滚动；页面不滚动；暗色同样；键盘能滚动这个口（`tabIndex`）。有偏差就修并补故事断言。
+  - 落点：`src/ui/AnalysisTable.tsx`、`src/styles.css`（「A workbench fills its container」）、`stories/view-engine/AnalysisWorkbench.test.stories.tsx`。
+- **把三个新真实场景接进来并开 PR**。
+  - 为什么：用户要求 CRM、交易、定价各一个快照控制台与事件流分析台，仿补偿场景。三个子代理在各自 worktree 里做完了定义、系统视图、回归孪生与录制数据，**未推送**，且被要求不改共享文件。
+  - 判据：三条分支（`claude/ve-scene-customer`、`claude/ve-scene-trade-order`、`claude/ve-scene-product-pricing`，worktree 在 `.claude/worktrees/agent-*`；若已不在，按同名分支或重做）合进一个或三个 PR；`stories/shared/AppShell.tsx` 的导航按目录加上「真实后端」下的 客户／交易订单／商品定价 各两项，「服务」一行写各自 host；`stories/README.md` 的真实后端一节补三段；默认 host 分别是 `http://localhost:8085`、`8088`、`8089`（集群地址写在注释里；内置浏览器解析不了 `*.svc.cluster.local`）；每个场景的每个系统视图在真实服务上亮暗走过（无截断、无原始 JSON／毫秒数、图表画出）；四道故事门禁全绿。
+  - 落点：`stories/view-engine/` 下各场景文件、`stories/shared/AppShell.tsx`、`stories/README.md`。
+  - 进度：**客户已完成并推送**（`origin/claude/ve-scene-customer` @ `91ba61434`，未开 PR）：`customer.ts`／`customerEvents.ts`、两个展示故事与回归孪生、录制服务 `customerService.ts`；共享文件只改了 `rowSource.ts`（录制服务算 `DISTINCT_COUNT`）。展示故事暂用 `current="snapshots"`／`"event-streams"`，接入时给 `AppShell` 的 `ScenePage` 加 `customer-snapshots`（「客户 · 快照控制台」，`ClipboardListIcon`，`view-engine-真实后端-客户-快照控制台--data-console`）与 `customer-event-streams`（「客户 · 事件流分析台」，`ActivityIcon`，`view-engine-真实后端-客户-事件流分析台--event-stream-console`）再换掉 `current`。待用户定：租户是列/维度还是宿主固定范围；年营业额单位（Schema 未写）。子代理报的缺陷：每月折线图最右「2026年9月」刻度在含 #1786 的 main 上仍被截（view-engine，另修）；CRM 服务 event schema 31 种事件标题全相同（服务侧）。**定价已完成并推送**（`origin/claude/ve-scene-product-pricing` @ `e1f311629`，未开 PR，没改共享文件）：导航加 `pricing-snapshots`（「商品定价 · 快照控制台」，`view-engine-真实后端-商品定价-快照控制台--snapshot-console`）与 `pricing-event-streams`（「商品定价 · 事件流分析台」，`view-engine-真实后端-商品定价-事件流分析台--event-stream-console`）。**阻塞：`localhost:8089` 的 CORS 预检不回 `Access-Control-Allow-Origin`**，浏览器里拿不到数据——要用户定：服务开 CORS，还是 `.storybook/main.ts` 加 Vite 代理。待用户定：单价按人民币、「半年内到期」窗口。又报：折线图首个月刻度不显示、末个月被截（#1786 后仍在，补偿「每月事件量」同样）；视图列表标题「事件流分析台」被截成「事件流分析...」。**交易订单已完成并推送**（`origin/claude/ve-scene-trade-order` @ `dbb623c07`，未开 PR）：导航加 `trade-order-snapshots`（「交易订单 · 快照控制台」，`view-engine-真实后端-交易订单-快照控制台--snapshot-console`）与 `trade-order-events`（「交易订单 · 事件流分析台」，`view-engine-真实后端-交易订单-事件流分析台--event-stream-console`），服务 `http://localhost:8088`。**客户与交易两个分支都改了 `rowSource.ts`（各自给录制服务加 `DISTINCT_COUNT`）**——接入时只留一份实现，另一份丢弃。待用户定：商品列用货号而非商品名；真实数据还没有「履约中」订单，以后是否补视图。又报：元素读成的徽标没有最大宽度，长标题会撑宽整列（包层）；交易服务 event schema 29 种事件标题全相同、快照 schema 多列一个从不填的 `orderItems`（服务侧）。
+- **分析视图全面审查，修到企业生产交付级别**。
+  - 为什么：用户原话「分析视图的 UI、UX 需要全面审查，还没有达到企业生产交付级别」「这些问题应该是你审查出的，而不是由我来主动发现」。审查已做完（真浏览器，main@810484eb6），完整清单在会话记忆 `view-engine-analysis-audit-2026-09-23`；#1786／#1787 已修掉其中的页脚位置、合计吸底、工具栏跳动、刻度截断、视图管理锁图标。P0 共 10 条待修：按日图表时间轴倒序（投影层按时间升序）；指标卡大数字是截断可见桶之和；类目超过 5 个颜色重复（色板只有 5 色）；图型选择器里「选项」按钮撑满整格盖住图标；「前 N 组」非法值清不掉、删维度后错误残留且应用无效；漏斗图可选却只报错；散点刻度重复、点被裁、无轴标题；分析表追问菜单被撑成整表宽；换图型悄悄换指标、饼图无指标名与占比；截断饼图的占比口径没说。另有「组／行／条」用词要问用户（页脚按用户原话写的是「行」）。
+  - 判据：把清单（P0／P1／P2，覆盖标题栏与「分析」开关、托盘各槽、已应用带、结果工具栏、可视化面板每页、每种图型（刻度、图例、颜色、留白、tooltip、暗色）、分析表、追问与下钻、页脚、加载／空／错误／截断、键盘与焦点、铺满、视图切换时的跳动、与记录视图同概念同表达、文案）先给用户看、拍板；P0／P1 全部修掉并有故事或测试守着；P2 进本页。
+  - 落点：`src/ui/analysis/*`、`src/ui/workbench/AnalysisParts.tsx`、`src/ui/AnalysisTable.tsx`、`src/ui/AnalysisChart.tsx`、`src/ui/charts/*`、[ui/analysis.md](ui/analysis.md)。
+- **暗色下嵌入视图的底色与宿主卡片对齐**。
+  - 为什么：嵌入视图的根画 `--background`，宿主卡片是 `--card`，暗色下两者不同，嵌入块在卡片里是一块更深的区域（明色两者都是白所以看不出）。主题决策是 CSS 变量为唯一真相源（不加主题上下文 API）。
+  - 判据：定下由谁对齐（宿主为嵌入设 `--fve-dark-background`，或嵌入视图不画自己的底、行与吸附带改用可被宿主覆盖的 token），暗色下嵌入块与所在卡片同底、吸附带仍不透明；「嵌入视图」故事亮暗截图对照。
+  - 落点：`src/ui/EmbeddedView.tsx`、`src/styles.css`、`stories/view-engine/EmbeddedView.stories.tsx`、[ui/README.md](ui/README.md)。
+- **仪表盘窄面板里的宽表：冻结的末列压住前面的列**。
+  - 为什么：首页「最近的活动失败」面板里「已重试次数」被冻结的「最近更新」盖住一半，表头读成「已重试次」。
+  - 判据：窄面板里冻结列的上限（D17-4 的 pin cap）同样生效，或面板表格不冻结末列；故事量出没有列被覆盖。
+  - 落点：`src/ui/DashboardGrid.tsx`、`src/ui/record/pinCap.ts`、`stories/view-engine/Home.test.stories.tsx`。
+
 ## 阶段 3：仪表盘
 
 从审计清单起：按五个维度（用户、研发、演进、可达性、文案）把仪表盘现状过一遍，清单先给用户看、拍板，再按批次写进这一节。
