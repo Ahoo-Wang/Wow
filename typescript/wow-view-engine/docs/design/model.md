@@ -382,6 +382,8 @@ export type DashboardContentPanel = DashboardPanelBase &
 
 **不声明时是纪元毫秒**（`DEFAULT_TEMPORAL`，`temporalOf(field)` 是唯一的读法）。引擎的对象是 Wow 数据：快照里的每一个时间——`eventTime`、`firstEventTime`、聚合上 `@QueryTemporal` 标注的 long——都是毫秒，Wow 自己的 `timeUnit` 缺省也是毫秒；照一份 Wow schema 写定义的人不该为了正确而在每个时间字段上多记一个成员。反过来的缺省（ISO 文本）只照顾了故事与测试的夹具，而它在真实服务上的代价是**每一条日期条件都被 400 拒绝**。存成原生日期的那一种由它自己说出来：故事里订单与运单的时间存成 ISO 文本，所以它们的字段写着 `temporal: { type: 'date' }`。两种错法都响亮：Wow 的 schema 校验对类型不符的值一律报 `Filter value does not match`，不会静默地少返回。
 
+**读值也按这个单位**：条件按 `temporal` 写出时间，显示与汇总读时间时同样按它读——`epochUnitOf(field)` 在字段存的是纪元**秒**时答 `SECONDS`（毫秒是缺省，不说），`readInstant(value, unit)` 按它换算；记录列、卡片字段（因而详情）、汇总行的最早／最晚、分析里取字段自身值的指标（`MIN`／`MAX`／分位／任取）与按该字段分组的列都带上 `timeUnit`，所以一个存秒的时间不会被当成毫秒显示成 1970 年 1 月。日期直方图的桶键是聚合给出的桶起点，不受字段存储单位影响。（见 test/epochSeconds.test.ts「a time kept in epoch seconds」与 test/dateMetrics.test.ts「a moment kept in epoch seconds」）
+
 ## 配置模型原则
 
 **配置模型原则：配置是意图模型，不是协议 DTO，也不是组件树。**

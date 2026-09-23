@@ -17,6 +17,7 @@ import {
   type FieldKindId,
   type FieldTemporal,
   type FilterOperatorName,
+  type EpochTimeUnit,
 } from '../../model/index.js';
 import type { FilterSummaryValue } from '../describe.js';
 import { issue, readValue, type FieldKind } from '../fieldKind.js';
@@ -79,7 +80,15 @@ export interface DateInstant {
  * Los Angeles. Anything the two agree on they agree on because they ask
  * here.
  */
-export function readInstant(value: unknown): DateInstant | undefined {
+export function readInstant(
+  value: unknown,
+  /**
+   * The unit a number counts in: the field's own (`epochUnitOf`), since a
+   * Wow time kept in seconds is a thousand times smaller than one in
+   * milliseconds and read as milliseconds lands in January 1970.
+   */
+  unit: EpochTimeUnit = 'MILLISECONDS',
+): DateInstant | undefined {
   const wall = typeof value === 'string' ? WALL_CLOCK.exec(value.trim()) : null;
   if (wall) {
     const [, day, hourMinute, seconds = '00', fraction = ''] = wall;
@@ -96,18 +105,18 @@ export function readInstant(value: unknown): DateInstant | undefined {
       ? { ms: date.getTime(), wallClock: true, dayOnly: true }
       : { ms: date.getTime(), wallClock: true };
   }
-  const ms = millisOf(value);
+  const ms = millisOf(value, unit === 'SECONDS' ? 1000 : 1);
   return ms === undefined ? undefined : { ms };
 }
 
-function millisOf(value: unknown): number | undefined {
+function millisOf(value: unknown, scale: number): number | undefined {
   const date =
     value instanceof Date
       ? value
       : typeof value === 'number'
-        ? new Date(value)
+        ? new Date(value * scale)
         : typeof value === 'string' && value.trim() !== ''
-          ? new Date(EPOCH.test(value) ? Number(value) : value)
+          ? new Date(EPOCH.test(value) ? Number(value) * scale : value)
           : undefined;
   return date && !Number.isNaN(date.getTime()) ? date.getTime() : undefined;
 }

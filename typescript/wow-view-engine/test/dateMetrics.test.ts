@@ -193,6 +193,38 @@ describe('a date is summarised by its earliest and its latest', () => {
   });
 });
 
+describe('a moment kept in epoch seconds', () => {
+  /**
+   * Wow keeps a time as epoch milliseconds unless the schema says seconds;
+   * the latest of a seconds field comes back in seconds, and read as
+   * milliseconds it lands in January 1970. The column carries the unit.
+   */
+  it('carries its unit to the column that holds its latest', () => {
+    const base = dated();
+    const seconds: DataViewDefinition = {
+      ...base,
+      fields: base.fields.map(field =>
+        field.name === 'createdAt'
+          ? { ...field, temporal: { type: 'epoch', timeUnit: 'SECONDS' } }
+          : field,
+      ),
+    };
+    const view = projectAnalysis(seconds, config([latest]), [
+      { wh: 'CN', latest: 1_790_115_665 },
+    ]);
+    expect(
+      view.columns.find(column => column.alias === 'latest'),
+    ).toMatchObject({ cell: 'datetime', timeUnit: 'SECONDS' });
+    // Milliseconds, the default, say nothing.
+    const ms = projectAnalysis(dated(), config([latest]), [
+      { wh: 'CN', latest: 1_790_115_665_000 },
+    ]);
+    expect(
+      ms.columns.find(column => column.alias === 'latest')?.timeUnit,
+    ).toBeUndefined();
+  });
+});
+
 describe('a metric that is one of its field’s values reads as the field', () => {
   it('carries the field’s reading on MIN, MAX, a percentile and ANY', () => {
     const metrics: AnalysisMetric[] = [

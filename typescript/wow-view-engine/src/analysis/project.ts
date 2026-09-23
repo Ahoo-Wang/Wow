@@ -12,6 +12,7 @@
  */
 
 import {
+  epochUnitOf,
   isDateCell,
   type AnalysisDateUnit,
   type AnalysisGroup,
@@ -22,6 +23,7 @@ import {
   type FieldOption,
   type NumberFormat,
   type RecordData,
+  type EpochTimeUnit,
 } from '../model/index.js';
 import { analysisScope } from './capability.js';
 import { shapeChart, type ChartData } from './chart.js';
@@ -78,6 +80,8 @@ export interface AnalysisColumnView {
   kind?: string;
   cell?: string;
   options?: readonly FieldOption[];
+  /** A field kept in epoch seconds; milliseconds when unsaid. */
+  timeUnit?: EpochTimeUnit;
   /** For a date histogram group: the width of the buckets its keys start. */
   dateUnit?: AnalysisDateUnit;
   /** For a date histogram group: the zone its buckets were cut in. */
@@ -159,11 +163,13 @@ function resultSchema(config: AnalysisViewConfig): string[] {
 /** How the values of a field show, for a column that holds them. */
 function valueOf(
   field: FieldDefinition,
-): Pick<AnalysisColumnView, 'kind' | 'cell' | 'options'> {
+): Pick<AnalysisColumnView, 'kind' | 'cell' | 'options' | 'timeUnit'> {
+  const timeUnit = epochUnitOf(field);
   return {
     kind: field.kind,
     cell: field.cell ?? field.kind,
     ...(field.options ? { options: field.options } : {}),
+    ...(timeUnit ? { timeUnit } : {}),
   };
 }
 

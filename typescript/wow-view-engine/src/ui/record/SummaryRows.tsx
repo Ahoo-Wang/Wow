@@ -212,7 +212,11 @@ export function SummaryValue({ cell }: { cell: SummaryCell }) {
               // field's kind is left out here for exactly that reason.
               cellText(
                 cell.value,
-                { cell: cell.cell, numberFormat: cell.numberFormat },
+                {
+                  cell: cell.cell,
+                  numberFormat: cell.numberFormat,
+                  timeUnit: cell.timeUnit,
+                },
                 messages,
                 display,
               )}

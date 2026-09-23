@@ -375,6 +375,22 @@ export function temporalOf(field: FieldDefinition): FieldTemporal {
 }
 
 /**
+ * The unit this field's epoch numbers count in, where it is not the
+ * default milliseconds — `undefined` for milliseconds and for a field that
+ * keeps no epoch at all. What reads a value as a time (`readInstant`) takes
+ * it, so a cell, a footer and an earliest agree with the condition that
+ * wrote the time in that unit.
+ */
+export function epochUnitOf(
+  field: Pick<FieldDefinition, 'kind' | 'cell' | 'temporal'>,
+): EpochTimeUnit | undefined {
+  const temporal = field.temporal;
+  return temporal?.type === 'epoch' && temporal.timeUnit === 'SECONDS'
+    ? 'SECONDS'
+    : undefined;
+}
+
+/**
  * The aggregate functions an analysis may take of a field of moments: its
  * earliest and its latest. `DATE_SUMMARY_FUNCTIONS` without the count, which
  * an analysis spells as a metric of its own; the same reason leaves the sum,

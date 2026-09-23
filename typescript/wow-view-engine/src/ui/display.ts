@@ -19,6 +19,7 @@ import {
   type FieldTone,
   type NumberFormat,
   type SummaryFunction,
+  type EpochTimeUnit,
 } from '../model/index.js';
 import { readInstant } from '../filter/index.js';
 import { wordReferences, type MetricFunction } from '../analysis/index.js';
@@ -57,6 +58,8 @@ export interface DisplayField {
    * element out by (`RecordCardField.elements`).
    */
   elements?: readonly ElementField[];
+  /** A time field kept in epoch seconds (`epochUnitOf`); milliseconds when unsaid. */
+  timeUnit?: EpochTimeUnit;
 }
 
 /** One field of an element, by its name within the element. */
@@ -100,7 +103,7 @@ export function displayValue(
   }
   switch (field.cell ?? field.kind) {
     case 'datetime': {
-      const time = readTime(value, context.timeZone);
+      const time = readTime(value, context.timeZone, field.timeUnit);
       return time
         ? format(time.date, context.locale, {
             dateStyle: 'medium',
@@ -114,7 +117,7 @@ export function displayValue(
         : undefined;
     }
     case 'date': {
-      const time = readTime(value, context.timeZone);
+      const time = readTime(value, context.timeZone, field.timeUnit);
       return time
         ? format(time.date, context.locale, {
             dateStyle: 'medium',
@@ -139,10 +142,11 @@ export function displayValue(
 function readTime(
   value: unknown,
   timeZone: string | undefined,
+  unit?: EpochTimeUnit,
 ): { date: Date; timeZone: string | undefined; dayOnly?: true } | undefined {
   // The date kind's own reader, so what a cell shows and what the record
   // kernel calls a column's earliest are the same reading of the same value.
-  const instant = readInstant(value);
+  const instant = readInstant(value, unit);
   if (!instant) return undefined;
   const date = new Date(instant.ms);
   if (!instant.wallClock) return { date, timeZone };

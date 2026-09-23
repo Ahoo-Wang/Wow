@@ -18,6 +18,7 @@ import {
 } from '@ahoo-wang/fetcher-wow';
 import {
   columnHidden,
+  epochUnitOf,
   columnPinned,
   isDateCell,
   isFieldlessKind,
@@ -31,6 +32,7 @@ import {
   type RecordKey,
   type RecordViewConfig,
   type SummaryFunction,
+  type EpochTimeUnit,
 } from '../model/index.js';
 import { readInstant } from '../filter/index.js';
 import { summaryAlias } from './compile.js';
@@ -78,6 +80,8 @@ export interface RecordColumnView {
   options?: readonly FieldOption[];
   /** For an array of objects, what each element is read by. */
   elementTitle?: ElementTitleView;
+  /** A time kept in epoch seconds; milliseconds when unsaid. */
+  timeUnit?: EpochTimeUnit;
 }
 
 /**
@@ -144,6 +148,8 @@ export interface RecordCardField {
   numberFormat?: NumberFormat;
   /** For an array of objects, what each element is read by. */
   elementTitle?: ElementTitleView;
+  /** A time kept in epoch seconds; milliseconds when unsaid. */
+  timeUnit?: EpochTimeUnit;
   /**
    * For an array of objects that declares its elements: each element field
    * that holds a value, read the way this one is, `field` being its name
@@ -196,6 +202,7 @@ export function cardField(field: FieldDefinition): RecordCardField {
     ...(field.numberFormat ? { numberFormat: field.numberFormat } : {}),
     ...elementTitleOf(field),
     ...elementsOf(field),
+    ...timeUnitOf(field),
   };
 }
 
@@ -250,7 +257,14 @@ function columnView(
     numberFormat: field.numberFormat,
     ...(field.options ? { options: field.options } : {}),
     ...elementTitleOf(field),
+    ...timeUnitOf(field),
   };
+}
+
+/** The epoch unit a time field counts in, where it is not milliseconds. */
+function timeUnitOf(field: FieldDefinition): { timeUnit?: EpochTimeUnit } {
+  const timeUnit = epochUnitOf(field);
+  return timeUnit ? { timeUnit } : {};
 }
 
 function elementTitleOf(field: FieldDefinition): {
@@ -395,6 +409,8 @@ export interface SummaryCell {
   /** `null` when the source returned nothing for this cell. */
   value: number | string | null;
   numberFormat?: NumberFormat;
+  /** The epoch unit of the moment it holds, with `cell`; see `epochUnitOf`. */
+  timeUnit?: EpochTimeUnit;
   /**
    * How the value reads, when the column does not read it as a number: the
    * renderer key of the column it stands under.
@@ -540,7 +556,9 @@ export function projectSummaries(
       fn: summary.fn,
       value,
       numberFormat: field?.numberFormat,
-      ...(reading === undefined ? {} : { cell: reading }),
+      ...(reading === undefined
+        ? {}
+        : { cell: reading, ...(field ? timeUnitOf(field) : {}) }),
     };
   });
 
