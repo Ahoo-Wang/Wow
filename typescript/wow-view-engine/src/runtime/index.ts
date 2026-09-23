@@ -31,6 +31,7 @@ export * from './pending.js';
 export * from './refreshTimer.js';
 export * from './requestRunner.js';
 export * from './runtimeStore.js';
+export * from './savedConditions.js';
 export * from './source.js';
 export * from './validateDefinition.js';
 export * from './valueCandidates.js';

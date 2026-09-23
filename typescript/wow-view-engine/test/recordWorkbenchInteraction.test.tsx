@@ -22,8 +22,20 @@ import {
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PagedList } from '@ahoo-wang/fetcher-wow';
-import { MemoryViewStore, ViewEngine } from '../src/index.js';
-import type { ViewInstance, ViewSource, RecordData } from '../src/index.js';
+import {
+  MemoryViewStore,
+  ViewEngine,
+  conditionsDrifted,
+} from '../src/index.js';
+import type {
+  FilterNode,
+  FilterTree,
+  RecordViewConfig,
+  ViewInstance,
+  ViewSource,
+  RecordData,
+} from '../src/index.js';
+import { emptyWayOut } from '../src/ui/record/emptyWayOut.js';
 import { defaultMessages, DataWorkbench } from '../src/ui/index.js';
 import type { DataWorkbenchProps } from '../src/ui/index.js';
 import {
@@ -199,11 +211,12 @@ describe('DataWorkbench interaction', () => {
   }
 
   /**
-   * The empty result's way out, wired to the conditions that emptied it:
-   * clearing the draft alone would leave the rows on screen fetched under
-   * the conditions the button had just taken away, so it applies as well.
+   * The empty result's way out on a saved view the reader added to: back to
+   * the conditions it was saved with — not to none, which would make it
+   * another view under its name — and asked again, since the rows on screen
+   * were fetched under the conditions the button takes away.
    */
-  it('clears the applied conditions from the empty result', async () => {
+  it('takes a saved view back to its saved conditions from the empty result', async () => {
     const source = await openEmpty();
 
     fireEvent.click(editorToggle());
@@ -221,12 +234,12 @@ describe('DataWorkbench interaction', () => {
 
     fireEvent.click(
       await screen.findByRole('button', {
-        name: defaultMessages['label.record.empty-clear'],
+        name: defaultMessages['label.record.empty-restore'],
       }),
     );
 
-    // Cleared *and* asked again: the rows the button is standing on were
-    // fetched under the conditions it just removed.
+    // Restored *and* asked again: the rows the button is standing on were
+    // fetched under the condition it just took away.
     await waitFor(() => {
       const calls = vi.mocked(source.paged).mock.calls;
       expect(calls[calls.length - 1][0].filter).not.toMatchObject({
@@ -676,5 +689,47 @@ describe('the record workbench layout', () => {
       ),
     );
     expect(screen.queryByRole('alertdialog')).toBeNull();
+  });
+});
+
+describe('emptyWayOut', () => {
+  const tree = (...children: FilterNode[]): FilterTree => ({
+    op: 'and',
+    children,
+  });
+  const pending: FilterNode = {
+    field: 'status',
+    operator: 'EQ',
+    value: 'PENDING',
+  };
+  const cn: FilterNode = { field: 'warehouse', operator: 'EQ', value: 'CN' };
+  const record = (filter: FilterTree) =>
+    ({ kind: 'record', filter }) as unknown as RecordViewConfig;
+  const saved = (filter: FilterTree) =>
+    ({ id: 'v', config: record(filter) }) as unknown as ViewInstance;
+
+  it('goes back to a saved view’s conditions when the reader added to them', () => {
+    const drifted = conditionsDrifted(
+      record(tree(pending, cn)),
+      saved(tree(pending)),
+    );
+    expect(drifted).toBe(true);
+    expect(emptyWayOut(drifted, true)).toBe('restore');
+  });
+
+  it('keeps a saved view’s own conditions when it is simply empty', () => {
+    const drifted = conditionsDrifted(
+      record(tree(pending)),
+      saved(tree(pending)),
+    );
+    expect(drifted).toBe(false);
+    expect(emptyWayOut(drifted, true)).toBe('edit');
+  });
+
+  it('clears the conditions of a view never saved, and asks for one where there are none', () => {
+    expect(conditionsDrifted(record(tree(cn)), null)).toBeNull();
+    expect(emptyWayOut(null, true)).toBe('clear');
+    expect(emptyWayOut(null, false)).toBe('add');
+    expect(emptyWayOut(false, false)).toBe('add');
   });
 });

@@ -69,14 +69,19 @@ export const Simple: Story = {
 
 /**
  * The rich tree asks for 华东 and, in its OR group, for 华北 or more than
- * 20,000 at once: no order is both, and the table says so.
+ * 20,000 at once: no order is both, and the table says so — as the saved
+ * view it is, asking what it was saved to ask, so the view is what is
+ * empty, and its conditions are not offered up to be cleared.
  */
 export const Advanced: Story = {
   ...DisplayAdvanced,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(
-      await canvas.findByText(zhCN['label.record.empty-hint']),
+      await canvas.findByText(zhCN['label.record.empty-view']),
+    ).toBeVisible();
+    await expect(
+      canvas.getByRole('button', { name: zhCN['label.record.empty-edit'] }),
     ).toBeVisible();
 
     // The bar over the result is the one place this tree is read back as

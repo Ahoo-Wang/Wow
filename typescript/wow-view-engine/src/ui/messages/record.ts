@@ -91,6 +91,10 @@ export const recordMessages = {
   // whether conditions are what emptied it.
   'label.record.empty-clear': 'Clear the conditions',
   'label.record.empty-add': 'Add a condition',
+  'label.record.empty-restore': 'Back to the saved conditions',
+  'label.record.empty-edit': 'Change the conditions',
+  'label.record.empty-view': 'This view has no records right now.',
+  'label.record.empty-none': 'There are no records yet.',
   'label.record.select-all': 'Select all rows',
   'label.record.select': 'Select {key}',
   // Said as every row checkbox's description, once per surface: the range

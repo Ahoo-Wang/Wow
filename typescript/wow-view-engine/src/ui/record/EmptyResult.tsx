@@ -22,13 +22,15 @@ import {
   EmptyTitle,
 } from '../components/empty.js';
 import { useViewMessages } from '../MessagesProvider.js';
+import type { MessageKey } from '../messages.js';
+import type { EmptyWayOut } from './emptyWayOut.js';
 
 export interface EmptyResultProps {
   /** Overrides the catalogue's own wording. */
   title?: string;
   description?: string;
-  /** Whether the query that matched nothing carried conditions of its own. */
-  hasConditions: boolean;
+  /** Which way out the query that matched nothing has (`emptyWayOut`). */
+  wayOut: EmptyWayOut;
   /** The one way out; without it the state is a sentence and nothing more. */
   onAction?(): void;
 }
@@ -43,17 +45,18 @@ export interface EmptyResultProps {
  * leaves the reader to find the control that caused it, which on a folded
  * editor is not even on screen.
  *
- * Which step it is follows from what was asked. Under conditions the rows
- * are missing *because of them*, so the way out is to clear them and see
- * what there is; with no conditions the view is already showing everything
- * there is, and the only thing left to try is asking a different question.
- * One action, never two: a way out that has to be chosen between is not a
- * way out.
+ * Which step it is follows from what was asked (`emptyWayOut`): back to a
+ * saved view's own conditions when the reader added to them, on to another
+ * question when the saved view itself is empty right now, clear when a view
+ * never saved is under conditions, add one when there are none. The
+ * sentence says which of those it is — 「这个视图现在没有记录」 is not
+ * 「没有记录符合当前条件」. One action, never two: a way out that has to be
+ * chosen between is not a way out.
  */
 export function EmptyResult({
   title,
   description,
-  hasConditions,
+  wayOut,
   onAction,
 }: EmptyResultProps) {
   const messages = useViewMessages();
@@ -65,20 +68,30 @@ export function EmptyResult({
         </EmptyMedia>
         <EmptyTitle>{title ?? messages.label('label.record.empty')}</EmptyTitle>
         <EmptyDescription>
-          {description ?? messages.label('label.record.empty-hint')}
+          {description ?? messages.label(HINT[wayOut])}
         </EmptyDescription>
       </EmptyHeader>
       {onAction && (
         <EmptyContent>
           <Button variant="outline" size="sm" onClick={onAction}>
-            {messages.label(
-              hasConditions
-                ? 'label.record.empty-clear'
-                : 'label.record.empty-add',
-            )}
+            {messages.label(ACTION[wayOut])}
           </Button>
         </EmptyContent>
       )}
     </Empty>
   );
 }
+
+const HINT: Record<EmptyWayOut, MessageKey> = {
+  restore: 'label.record.empty-hint',
+  clear: 'label.record.empty-hint',
+  edit: 'label.record.empty-view',
+  add: 'label.record.empty-none',
+};
+
+const ACTION: Record<EmptyWayOut, MessageKey> = {
+  restore: 'label.record.empty-restore',
+  clear: 'label.record.empty-clear',
+  edit: 'label.record.empty-edit',
+  add: 'label.record.empty-add',
+};

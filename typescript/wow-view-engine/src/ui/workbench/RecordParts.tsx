@@ -14,7 +14,11 @@
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import type { FieldOption, RecordData } from '../../model/index.js';
 import { serializeCsv, type RecordRow } from '../../record/index.js';
-import type { RecordViewRuntime, ViewEngine } from '../../runtime/index.js';
+import {
+  conditionsDrifted,
+  type RecordViewRuntime,
+  type ViewEngine,
+} from '../../runtime/index.js';
 import {
   useRecordExport,
   useRecordDetail,
@@ -36,6 +40,7 @@ import { RecordCards } from '../RecordCards.js';
 import { RecordPagination } from '../RecordPagination.js';
 import { RecordTable, type RecordCell } from '../RecordTable.js';
 import { RecordDetail } from '../record/RecordDetail.js';
+import { emptyWayOut } from '../record/emptyWayOut.js';
 import { NO_RELEASE, type ReleasedPins } from '../record/pinCap.js';
 import { ResultToolbar } from '../ResultToolbar.js';
 import { BulkStatus } from '../BulkStatus.js';
@@ -214,20 +219,31 @@ export function RecordParts({
   );
   const editorOpen = fold?.id === runtimeId ? fold.open : undefined;
 
-  // What the empty result offers. Under conditions it clears them and asks
-  // again — `clear` alone would leave the rows on screen fetched under the
-  // conditions the button just took away — and with none it opens the
-  // editor, because the question to change is behind a fold that may not
-  // even be on screen.
+  // What the empty result offers (`emptyWayOut`). Clearing asks again —
+  // `clear` alone would leave the rows on screen fetched under the
+  // conditions the button just took away; going back puts the saved
+  // conditions in force and nothing else of the draft; and asking something
+  // else opens the editor, because the question to change is behind a fold
+  // that may not even be on screen.
   const hasConditions = filter.applied.length > 0;
   const shown = featuresOf(features);
+  const saved = state?.saved?.config;
+  const wayOut = emptyWayOut(
+    state ? conditionsDrifted(state.applied, state.saved) : null,
+    hasConditions,
+  );
   const emptyAction = () => {
-    if (!hasConditions) {
-      setFold({ id: runtimeId, open: true });
+    if (wayOut === 'clear') {
+      filter.clear();
+      filter.submit();
       return;
     }
-    filter.clear();
-    filter.submit();
+    if (wayOut === 'restore' && saved?.kind === 'record' && record) {
+      record.edit({ filter: saved.filter });
+      record.apply();
+      return;
+    }
+    setFold({ id: runtimeId, open: true });
   };
   // The host's word over the workbench's: a function replaces the answer,
   // `null` takes the button away and leaves the sentence.
@@ -364,7 +380,7 @@ export function RecordParts({
             emptyDescription={emptyDescription}
             rowActions={bindRow(row, record, table.refresh)}
             onOpen={detail.open}
-            hasConditions={hasConditions}
+            emptyWayOut={wayOut}
             onEmptyAction={onEmptyAction}
           />
         ) : (
@@ -376,7 +392,7 @@ export function RecordParts({
             emptyDescription={emptyDescription}
             rowActions={bindRow(row, record, table.refresh)}
             onOpen={detail.open}
-            hasConditions={hasConditions}
+            emptyWayOut={wayOut}
             onEmptyAction={onEmptyAction}
             onReleasedPins={setReleased}
           />

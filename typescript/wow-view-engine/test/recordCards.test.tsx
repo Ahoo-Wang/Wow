@@ -67,7 +67,7 @@ describe('RecordCards outside the rows', () => {
 
   it('says a result matched nothing, with the way out', () => {
     const onEmptyAction = vi.fn();
-    cards({ rows: [] }, { hasConditions: true, onEmptyAction });
+    cards({ rows: [] }, { emptyWayOut: 'clear', onEmptyAction });
     expect(screen.getByText('Nothing to show')).toBeDefined();
     fireEvent.click(
       screen.getByRole('button', { name: 'Clear the conditions' }),

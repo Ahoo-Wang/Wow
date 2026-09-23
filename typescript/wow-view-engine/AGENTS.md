@@ -201,6 +201,7 @@ src/
     runtimeFactory.ts         — How one runtime is assembled, `open` and `create` alike
     runtimeStore.ts           — The store both runtimes are made of: the state, its listeners, the refresh timer's bookkeeping, dirty-against-saved; `hasError`
     sourceReason.ts           — What a source said went wrong, in its own words: a Wow error body's `errorMsg`, else the HTTP status, never the URL
+    savedConditions.ts        — `conditionsDrifted`: whether the conditions in force are other than the ones the view was saved with
     scope.ts                  — What an injected scope does to admission: the merge, and what it alone is refused for
     source.ts                 — resolveSource — three QueryApi methods
     summaries.ts              — The instance-summary cache: noted on listing and on a confirmed write, dropped on delete, read before the store
@@ -420,6 +421,7 @@ src/
       CardSummaries.tsx       — The summary lines under the cards, both scopes (D18 V)
       ColumnResizer.tsx       — The handle a column is dragged wider by, and its keyboard
       EmptyResult.tsx         — A query that matched nothing, with one way out
+      emptyWayOut.ts          — Which way out an empty result offers: back to a saved view's conditions, change them, clear them, or add one
       Filler.tsx              — The aria-hidden last cell that lets rows fill the frame while columns keep their width (P-11)
       SkeletonCards.tsx       — The cards of a first query still on its way
       SkeletonRows.tsx        — The rows of a first query still on its way, one bar per column

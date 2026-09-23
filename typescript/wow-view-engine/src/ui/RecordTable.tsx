@@ -50,6 +50,7 @@ import { useOverflowing } from './record/overflow.js';
 import { cellText } from './display.js';
 import { cellValue } from './record/cells.js';
 import { EmptyResult } from './record/EmptyResult.js';
+import type { EmptyWayOut } from './record/emptyWayOut.js';
 import { FillerCell, FillerHead } from './record/Filler.js';
 import { SkeletonRows } from './record/SkeletonRows.js';
 import { SortableHeader } from './record/SortableHeader.js';
@@ -113,11 +114,10 @@ export interface RecordTableProps {
   emptyTitle?: string;
   emptyDescription?: string;
   /**
-   * Whether the rows were fetched under conditions of the view's own. It is
-   * what the empty state's one way out is: with conditions in force the way
-   * out is to clear them, with none it is to add one.
+   * Which way out an empty result offers (`emptyWayOut`); `add` when left
+   * out — a table handed rows by hand has no conditions it knows of.
    */
-  hasConditions?: boolean;
+  emptyWayOut?: EmptyWayOut;
   /**
    * What that way out does. Left out, the empty result offers none — an
    * embedded view or a dashboard panel has no condition editor of its own to
@@ -173,7 +173,7 @@ export function RecordTable({
   scrolls = true,
   emptyTitle,
   emptyDescription,
-  hasConditions = false,
+  emptyWayOut = 'add',
   onEmptyAction,
   onReleasedPins,
 }: RecordTableProps) {
@@ -254,7 +254,7 @@ export function RecordTable({
       <EmptyResult
         title={emptyTitle}
         description={emptyDescription}
-        hasConditions={hasConditions}
+        wayOut={emptyWayOut}
         onAction={onEmptyAction}
       />
     );

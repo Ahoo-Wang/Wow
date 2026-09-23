@@ -36,6 +36,7 @@ import { RowItem } from './RowItem.js';
 import { CardSummaries } from './record/CardSummaries.js';
 import { cellValue } from './record/cells.js';
 import { EmptyResult } from './record/EmptyResult.js';
+import type { EmptyWayOut } from './record/emptyWayOut.js';
 import { SkeletonCards } from './record/SkeletonCards.js';
 import { useSummaries } from './record/useSummaries.js';
 import type { RecordCell } from './RecordTable.js';
@@ -73,8 +74,8 @@ export interface RecordCardsProps {
   /** The empty result's wording, when the host has its own. */
   emptyTitle?: string;
   emptyDescription?: string;
-  /** Whether the query that matched nothing carried conditions of its own. */
-  hasConditions?: boolean;
+  /** Which way out an empty result offers; see `RecordTable`. */
+  emptyWayOut?: EmptyWayOut;
   /** The one way out of an empty result; see `EmptyResult`. */
   onEmptyAction?(): void;
 }
@@ -112,7 +113,7 @@ export function RecordCards({
   onOpen,
   emptyTitle,
   emptyDescription,
-  hasConditions = false,
+  emptyWayOut = 'add',
   onEmptyAction,
 }: RecordCardsProps) {
   const messages = useViewMessages();
@@ -151,7 +152,7 @@ export function RecordCards({
       <EmptyResult
         title={emptyTitle}
         description={emptyDescription}
-        hasConditions={hasConditions}
+        wayOut={emptyWayOut}
         onAction={onEmptyAction}
       />
     );

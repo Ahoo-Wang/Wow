@@ -1324,33 +1324,33 @@ export const EmptyResult: Story = {
   ...DisplayEmptyResult,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    // The saved view asks exactly what it was saved to ask, so what it says
+    // is that the view is empty right now — not that "the conditions" match
+    // nothing, as though they were something to take away.
     await expect(
-      await canvas.findByText(zhCN['label.record.empty-hint']),
+      await canvas.findByText(zhCN['label.record.empty-view']),
     ).toBeVisible();
 
-    // One way out, and which one follows from what was asked: this view runs
-    // under a saved condition, so the way out is to clear it.
-    const clear = canvas.getByRole('button', {
-      name: zhCN['label.record.empty-clear'],
+    // One way out, and not the one that would turn 「待出库订单」 into every
+    // order under its name: its condition is what it is, so the way on is to
+    // ask something else, and the button opens the conditions.
+    const edit = canvas.getByRole('button', {
+      name: zhCN['label.record.empty-edit'],
     });
-    await expect(clear).toBeVisible();
     await expect(
-      canvas.queryByRole('button', { name: zhCN['label.record.empty-add'] }),
+      canvas.queryByRole('button', { name: zhCN['label.record.empty-clear'] }),
     ).toBeNull();
+    await userEvent.click(edit);
+    await expect(
+      await canvas.findByRole('button', { name: /^应用/ }),
+    ).toBeVisible();
 
-    // And it applies as well as clears: the band above the rows stops
-    // naming a condition and says "all records" instead, which is the proof
-    // that a query really went out — clearing the draft alone would leave
-    // these rows standing under the condition the button just removed.
-    await userEvent.click(clear);
+    // Nothing was taken away: the band still names the view's condition.
     const applied = canvasElement.querySelector<HTMLElement>(
       '[data-slot="applied-bar"]',
     )!;
-    await waitFor(() =>
-      expect(applied).toHaveTextContent(zhCN['label.applied.all']),
-    );
     await expect(applied.querySelectorAll('[data-slot="badge"]')).toHaveLength(
-      0,
+      1,
     );
   },
 };

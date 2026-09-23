@@ -150,6 +150,10 @@ export const zhCN: ViewMessages = {
   'label.record.empty-hint': '没有记录符合当前条件。',
   'label.record.empty-clear': '清空条件',
   'label.record.empty-add': '添加条件',
+  'label.record.empty-restore': '回到保存的条件',
+  'label.record.empty-edit': '修改条件',
+  'label.record.empty-view': '这个视图现在没有记录。',
+  'label.record.empty-none': '还没有任何记录。',
   'label.record.select-all': '选择全部行',
   'label.record.select': '选择 {key}',
   'label.record.select.hint':

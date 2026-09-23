@@ -158,7 +158,7 @@ describe('RecordTable on its own', () => {
     render(
       <RecordTable
         table={twoColumnTable({ rows: [] })}
-        hasConditions
+        emptyWayOut="clear"
         onEmptyAction={onEmptyAction}
       />,
     );
