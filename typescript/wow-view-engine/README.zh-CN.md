@@ -235,7 +235,7 @@ export function OrdersPage() {
 
 `radius` 与 `text-ui` 是暗色块不重新声明的两个 token——长度在明暗两态里是同一个长度——因此 `--fve-radius` 与 `--fve-text-ui` 对两态同时生效，也就没有对应的 `--fve-dark-` 那一半。`text-ui` 是正文之下唯一的那一档：分组标签、列头、徽章、分页与所有 `sm` 控件都用它，宿主改一处，这些一起动。
 
-根默认涂 `--background`，因此嵌入在宿主卡片里的视图会露出自己的底色矩形；若想让宿主自己的底色透出来，把 `--fve-background` 设为 `transparent`（钉住暗色的视图再设 `--fve-dark-background`），根就不再在组件后面涂任何底色，而组件仍保留各自的卡片、弹层与输入框底色。
+根默认涂 `--background`，因此嵌入在宿主卡片里的视图会露出自己的底色矩形——暗色下 `--card` 比 `--background` 亮一档，嵌入块读成卡片里一块更深的区域。让它涂所在之处的颜色：在那张卡片上把 `--fve-background` 与 `--fve-dark-background` 设为卡片色（变量会继承，卡片里的嵌入视图读到，别处不受影响）。不要设成 `transparent`：行、冻结列、悬停色与危险按钮上的字都用 `--background` 画，透明会让横向滚动的列从冻结列底下透出来，危险按钮的字也看不见。
 
 弹层——菜单、下拉列表、Popover、Tooltip 与对话框——都 portal 到 `<body>`，画在 `z-index: 50` 这一层，压在周围页面之上。宿主自己的 chrome 堆得比它还高时，改一个变量即可把它们一起抬起来：
 

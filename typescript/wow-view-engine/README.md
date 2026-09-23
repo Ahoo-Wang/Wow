@@ -238,7 +238,7 @@ The five `sidebar*` tokens are shadcn's own names for the navigation column the 
 
 `radius` and `text-ui` are the two tokens the dark block does not redeclare — a length is a length in either mode — so `--fve-radius` and `--fve-text-ui` set them for both and there is no `--fve-dark-` half. `text-ui` is the one step under the body size: the group labels, column headers, badges, pagination and every `sm` control are set in it, so a host that scales it moves them together.
 
-The root paints `--background`, so an embedded view shows its own rectangle inside a host card; to let the host's own surface show through instead, set `--fve-background: transparent` (and `--fve-dark-background` for a surface pinned to dark), and the root then paints nothing behind the components, which keep their own card, popover and input colours.
+The root paints `--background`, so an embedded view shows its own rectangle inside a host card — in dark mode `--card` is a step lighter than `--background`, and the embed reads as a darker block. Give it the colour of what it sits on: set `--fve-background` and `--fve-dark-background` to your card's colour on the card (they inherit, so the embed under it picks them up and nothing else does). Not `transparent`: the rows, a pinned column, the hover shade and the ink on a destructive button are drawn in `--background`, so a transparent one lets a scrolled column show through the pinned one and leaves that button's label invisible.
 
 Popups — menus, lists, popovers, tooltips and dialogs — are portalled to `<body>` and paint at `z-index: 50`, above the page around them. A host whose own chrome stacks higher than that raises every one of them with a single variable:
 

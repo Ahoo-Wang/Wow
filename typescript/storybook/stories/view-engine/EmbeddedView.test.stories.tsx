@@ -115,6 +115,47 @@ export const Default: Story = {
   },
 };
 
+/**
+ * 暗色下嵌入块与所在的卡片同底。
+ *
+ * 根涂的是 `--background`，暗色下它比 `--card` 深一档，嵌入块在卡片里读成一块
+ * 更深的区域（明色两者都是白，所以看不出）。宿主在卡片上把 `--fve-background`
+ * 与 `--fve-dark-background` 设为卡片色，嵌入视图、它的行都涂卡片色；表头与合计
+ * 那两条吸附带仍然不透明。
+ */
+export const OnTheCardInTheDark: Story = {
+  ...DisplayDefault,
+  globals: { theme: 'dark' },
+  play: async ({ canvasElement }) => {
+    const table = await within(canvasElement).findByRole('table');
+    await waitFor(() =>
+      expect(readColumn(table, '订单号')).toEqual(PENDING_BY_AMOUNT),
+    );
+    const surface = surfaceOf(canvasElement);
+    const card = surface.closest<HTMLElement>('[data-slot="card"]')!;
+    const paint = (element: Element) =>
+      getComputedStyle(element).backgroundColor;
+    await expect(document.documentElement).toHaveClass('dark');
+    await expect(paint(surface)).toBe(paint(card));
+    // A row is the card's colour too — opaque, so a pinned cell still hides
+    // the column scrolling under it. Waited for: a row fades between
+    // colours (`transition-colors`), and the dark class can land after it
+    // was first painted light.
+    await waitFor(() =>
+      expect(paint(table.querySelector('tbody tr')!)).toBe(paint(card)),
+    );
+    // The two sticky bands — the header and the totals — are their own
+    // colour, and opaque.
+    for (const band of [
+      table.querySelector('thead tr')!,
+      table.querySelector('tfoot tr')!,
+    ]) {
+      await expect(paint(band)).not.toBe(paint(card));
+      await expect(paint(band)).not.toMatch(/transparent|rgba\(0, 0, 0, 0\)/);
+    }
+  },
+};
+
 export const ScopedByHost: Story = {
   ...DisplayScopedByHost,
   play: async ({ canvasElement }) => {

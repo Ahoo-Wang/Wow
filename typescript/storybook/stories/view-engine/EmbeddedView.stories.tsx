@@ -10,7 +10,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useRef, useState } from 'react';
+import { useRef, useState, type CSSProperties } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { FilterTree, ViewEngine } from '@ahoo-wang/fetcher-view-engine';
 import {
@@ -76,6 +76,20 @@ const SCOPE_LABELS: Record<ScopeChoice, string> = {
 };
 
 const SCOPE_ORDER: ScopeChoice[] = ['none', 'east', 'unknown'];
+
+/**
+ * An embed on a card paints the card's colour: the root paints
+ * `--background`, which is the card's in light and a step darker in dark,
+ * so an embed left alone sat in its card as a darker block. The host says
+ * what it placed the embed on, through the tokens (the theme is the CSS
+ * variables, and nothing else) — the colour, not `transparent`: the rows,
+ * a pinned column and the hover mix are drawn in `--background`, and a
+ * pinned column that is transparent shows the column scrolling under it.
+ */
+const ON_CARD = {
+  '--fve-background': 'var(--card)',
+  '--fve-dark-background': 'var(--card)',
+} as CSSProperties;
 
 interface HostPageProps {
   engine: ViewEngine;
@@ -157,7 +171,7 @@ function HostPage({
             ))}
           </CardContent>
         </Card>
-        <Card className="min-w-0">
+        <Card className="min-w-0" style={ON_CARD}>
           <CardHeader>
             <CardTitle>最近运单</CardTitle>
             <CardDescription>{caption}</CardDescription>
