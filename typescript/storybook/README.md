@@ -7,7 +7,7 @@ Storybook 是可运行的接入文档，也承载浏览器交互回归。导航�
 - `*.stories.tsx`：展示组件、初始参数、说明和可手动操作的场景。允许初始化读取和无副作用的渲染断言。
 - `*.test.stories.tsx`：导入展示故事，复用参数和演示实现，安装复杂 `play`。使用 `['!dev', '!autodocs', 'test']`，保留测试执行并隐藏默认导航与文档入口。
 - `*.play.ts`：较长交互的具名实现，就近维护。不要求为简单断言单独建文件。
-- `shared/`：只有真实复用的场景外壳（文档场景的 `ScenarioFrame`、真实场景的宿主外壳 `AppShell`）和 Ant Design Provider。模块显式声明装饰器，不通过故事标题选择 Provider。
+- `shared/`：只有真实复用的场景外壳（View Engine 全部场景的宿主应用外壳 `AppShell`，其余包的文档场景外壳 `ScenarioFrame`）和 Ant Design Provider。模块显式声明装饰器，不通过故事标题选择 Provider。
 
 普通展示不能依赖自动测试来创建初始数据或完成异步请求。打开页面后，筛选、保存、创建和删除均由使用者触发。
 
@@ -21,6 +21,17 @@ View Engine 的故事在 `view-engine/`，按界面分为数据视图、分析�
 
 假数据源按引擎实际发出的查询作答：`rowSource.ts` 把 Wow 查询翻译成 MongoDB 查询，交给 `mingo` 做筛选、排序、分页与聚合，所以表格、汇总行和图表就是这些条件选出的结果。翻译不了的算子直接报错，表现为查询失败，而不是给出一个看似合理的错误答案。每个界面的 `*.test.stories.tsx` 断言这些结果。
 
+## 宿主外壳
+
+View Engine 的每个场景都放在宿主应用里评判：`shared/AppShell.tsx` 画出宿主自己的顶部导航与左侧应用导航（可折成图标），视图引擎只是中间那一块——真实产品里它从来不是一整屏，只对着白底或文档框评判它的观感是对错了地方。外壳是宿主的标记，经 `fve-tokens` 读主题 token（D17-10），明暗两套随之成立。
+
+- **导航**按目录分组列出全部 View Engine 场景：真实后端（快照控制台、事件流分析台）、数据视图（Record 工作台、嵌入视图、筛选编辑器）、分析视图（分析工作台）、仪表盘视图（仪表盘）。每项链接到该场景的第一个故事，当前场景标 `aria-current="page"`；图标与工作台里视图种类的图标一致（`ui/kinds.ts`）。
+- **「服务」一行与环境标记**说的是场景真实连接的东西：真实后端写 `host` 并标「测试环境」，夹具场景写各自的数据源（如「内存 ViewStore · 六条订单」）并标「示例数据」。不放假条目。
+- **页面区有确定的高度**，像宿主的内容区一样：工作台被拉伸到这个高度，根上标 `data-fills-host`，页脚（合计与分页）贴在底边；比页面区高的内容在页面区里滚动，顶栏不随之滚走。嵌入视图（一张客户详情页）和筛选编辑器用 `padded`，得到宿主给页面的留白。
+- 全部场景 `layout: 'fullscreen'`。场景说明——领域、摘要、数据源、准备、操作、观察——写在文档页（`parameters.docs.description.component`），不再压在画布上方。回归孪生显式写 `parameters: { ...displayMeta.parameters }`：Storybook 会把孪生文件自己的注释写进其 meta 的 `parameters`，只靠展开会被整个替换，全屏布局随之丢失。
+- 专门验证页面流（宿主不给高度）的回归故事自己把工作台按内容定高（如 `SummariesStayInView`），不借外壳的高度。
+- 其余包（`http/`、`events/`、`react/`、`storage/`）的故事是接入文档，仍用 `ScenarioFrame`：标题、摘要、夹具与 Setup／Action／Observe 三格。
+
 ## 真实后端
 
 按「服务 → 场景」组织：一个真实服务一组，组里每个场景是这个服务上的一种观察方式，场景内部记录视图与分析视图同在一个工作台。**补偿控制台**是 Wow 补偿服务这一组，有两个场景：
@@ -29,7 +40,7 @@ View Engine 的故事在 `view-engine/`，按界面分为数据视图、分析�
 
 `view-engine/EventStreamConsole.stories.tsx` 是**事件流分析台**，同一个服务上 `execution_failed` 的事件流：一条记录是一次命令追加的事件流（执行 ID、版本、命令 ID、事件时间），事件在数组 `body` 里。按事件筛选是对 `body` 的元素匹配，按事件分析展开 `body`、以事件为计数单位。视图列表里有最近的事件、执行历史（按执行 ID 填写的模板，按版本排序）、重试成功、人工干预，以及事件类型分布、每月／每日事件量、每日重试成功、重试最多的执行。事件流只读，没有命令。字段定义按 `GET /execution_failed/event/schema` 人工对齐，舍弃了什么、为什么舍弃，见 `eventStream.ts` 里 `executionFailedEventsDefinition` 的说明。
 
-- 这两个场景就是操作员用的产品，因此全屏呈现（`layout: 'fullscreen'`），并放在宿主应用里：不套 `ScenarioFrame`，而是 `shared/AppShell.tsx` 画出宿主自己的顶部导航与左侧应用导航（可折成图标），视图引擎只是中间那一块——真实产品里它从来不是一整屏，只对着白底评判它的观感是对错了地方。外壳是宿主的标记，经 `fve-tokens` 读主题 token（D17-10），明暗两套随之成立；导航里只有这两个真实场景、互相链接，「服务」一行就是场景连接的 `host`，不放假条目。表格照旧自己量到视口底部的剩余空间并在其中滚动，顶栏把它的起点往下推多少都一样。场景说明——领域、摘要、准备、操作、观察、数据源与「命令真实写入」的提醒——写在文档页（`parameters.docs.description.component`）。回归孪生显式写 `parameters: { ...displayMeta.parameters }`：Storybook 会把孪生文件自己的注释写进其 meta 的 `parameters`，只靠展开会被整个替换，全屏布局随之丢失。
+- 这两个场景就是操作员用的产品，与其余 View Engine 场景一样放在宿主外壳里（见上一节）；「服务」一行就是场景连接的 `host`。文档页还写着「命令真实写入」的提醒。
 - 服务地址是故事的 `host` 参数，可在 Controls 面板随时切换；初始值取 `STORYBOOK_WOW_COMPENSATION_HOST`，未设置时为 `http://localhost:8080`。两个场景共用这个地址。
 - 快照控制台的写操作会真实写回服务，只连接测试环境。
 - 真实数据每次都不同，这些故事标记为 `!test`，不进入回归测试；文档页用 `docs.autoMount: false` 只列出场景链接，不挂载示例，因此打开目录不会调用服务。

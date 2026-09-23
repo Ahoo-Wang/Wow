@@ -17,7 +17,7 @@ import {
   type AnalysisViewConfig,
 } from '@ahoo-wang/fetcher-view-engine';
 import { DataWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
-import { ScenarioFrame } from '../shared/ScenarioFrame.js';
+import { AppShell } from '../shared/AppShell.js';
 import {
   HOST_LANGUAGE,
   analysisConfig,
@@ -28,7 +28,7 @@ import {
   savedViews,
   type SourceBehaviour,
 } from './fixtures.js';
-import { StoryEngine, viewEngineScene } from './StoryEngine.js';
+import { StoryEngine } from './StoryEngine.js';
 import '@ahoo-wang/fetcher-view-engine/styles.css';
 
 /**
@@ -195,21 +195,34 @@ function latestConfig(layout: 'table' | 'chart') {
   });
 }
 
-const scene = {
-  ...viewEngineScene,
-  domain: '分析视图',
-  summary: '分组与指标进去，图表或表格出来。',
-  fixture: '内存 ViewStore · 四个仓库的聚合结果',
-  setup: '每次挂载都新建引擎与存储；分组、指标与图型来自保存的配置。',
-  observe: '切换 Table／Chart 会重新执行，因为图表整形发生在投影层。',
-};
+/** What the scenes answer from, said in the host's service line and below. */
+const FIXTURE = '内存 ViewStore · 四个仓库的聚合结果';
+
+/**
+ * What the scene is, on the docs page rather than above the workbench: the
+ * workbench sits in the host application (`AppShell`), as it would in a
+ * product, and has the page area to itself.
+ */
+const description = `**分析视图 · 分析工作台**
+
+分组与指标进去，图表或表格出来。
+
+- **数据源**：${FIXTURE}。
+- **准备**：每次挂载都新建引擎与存储；分组、指标与图型来自保存的配置。
+- **操作**：打开任一场景，它放在宿主应用里——顶部导航与左侧应用导航是宿主的，中间那一块是视图引擎——像使用者看到的一样。
+- **观察**：切换 Table／Chart 会重新执行，因为图表整形发生在投影层。`;
 
 const meta = {
+  parameters: {
+    // The workbench fills the host's page area, as it would a screen.
+    layout: 'fullscreen',
+    docs: { description: { component: description } },
+  },
   decorators: [
-    (Story, context) => (
-      <ScenarioFrame title={context.name} {...scene}>
+    Story => (
+      <AppShell current="analysis" service={{ fixture: FIXTURE }}>
         <Story />
-      </ScenarioFrame>
+      </AppShell>
     ),
   ],
   title: 'View Engine/分析视图/分析工作台',

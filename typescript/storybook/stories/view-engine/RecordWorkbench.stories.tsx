@@ -28,7 +28,7 @@ import { DataWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
 // than beside it — exactly what an application does with the action slots.
 import { Button } from '@/ui/components/button';
 import { Spinner } from '@/ui/components/spinner';
-import { ScenarioFrame } from '../shared/ScenarioFrame.js';
+import { AppShell } from '../shared/AppShell.js';
 import {
   HOST_LANGUAGE,
   createStoryEngine,
@@ -49,7 +49,7 @@ import {
   outcomesStore,
   type StagedOutcome,
 } from './outcomesStore.js';
-import { StoryEngine, viewEngineScene } from './StoryEngine.js';
+import { StoryEngine } from './StoryEngine.js';
 import '@ahoo-wang/fetcher-view-engine/styles.css';
 
 /**
@@ -676,21 +676,34 @@ function businessActions(exportSelected: BulkCommand): RecordActionSlots {
   };
 }
 
-const scene = {
-  ...viewEngineScene,
-  domain: '数据视图',
-  summary: '明细、汇总、筛选与保存，全部来自一份配置。',
-  fixture: '内存 ViewStore · 六条订单 · 可切换的数据源行为',
-  setup: '每次挂载都新建引擎与存储，场景之间不共享已保存的视图。',
-  observe: '表格、汇总行与提示反映这一次执行的口径，而不是草稿。',
-};
+/** What the scenes answer from, said in the host's service line and below. */
+const FIXTURE = '内存 ViewStore · 六条订单 · 可切换的数据源行为';
+
+/**
+ * What the scene is, on the docs page rather than above the workbench: the
+ * workbench sits in the host application (`AppShell`), as it would in a
+ * product, and has the page area to itself.
+ */
+const description = `**数据视图 · Record 工作台**
+
+明细、汇总、筛选与保存，全部来自一份配置。
+
+- **数据源**：${FIXTURE}。
+- **准备**：每次挂载都新建引擎与存储，场景之间不共享已保存的视图。
+- **操作**：打开任一场景，它放在宿主应用里——顶部导航与左侧应用导航是宿主的，中间那一块是视图引擎——像使用者看到的一样。
+- **观察**：表格、汇总行与提示反映这一次执行的口径，而不是草稿。`;
 
 const meta = {
+  parameters: {
+    // The workbench fills the host's page area, as it would a screen.
+    layout: 'fullscreen',
+    docs: { description: { component: description } },
+  },
   decorators: [
-    (Story, context) => (
-      <ScenarioFrame title={context.name} {...scene}>
+    Story => (
+      <AppShell current="records" service={{ fixture: FIXTURE }}>
         <Story />
-      </ScenarioFrame>
+      </AppShell>
     ),
   ],
   title: 'View Engine/数据视图/Record 工作台',

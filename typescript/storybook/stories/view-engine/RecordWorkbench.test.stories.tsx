@@ -65,7 +65,7 @@ import {
   measureLayerSeparation,
   measureTextContrast,
 } from './contrast.js';
-import { tableSettingsStore } from './fixtures.js';
+import { ordersDefinition, tableSettingsStore } from './fixtures.js';
 import { outcomesStore } from './outcomesStore.js';
 import { dragEdgeBy, dragHandleOnto } from './pointerDrag.js';
 import {
@@ -80,6 +80,11 @@ const meta = {
   ...displayMeta,
   title: 'View Engine/数据视图/Record 工作台/回归',
   tags: ['!dev', '!autodocs', 'test'],
+  // Spelled out, not left to the spread: Storybook writes a file's own
+  // description into a `parameters` of its meta, which would replace the
+  // display meta's — and with it the full-screen host application the
+  // workbench is meant to be exercised in.
+  parameters: { ...displayMeta.parameters },
 };
 
 export default meta;
@@ -866,9 +871,23 @@ export const FooterStaysAtTheBottom: Story = {
  * rows than room — no matter how much title bar, tray and toolbar stand
  * above the table. Fifty rows in a wide view, and the frame's bottom edge is
  * the window's.
+ *
+ * In page flow, which is what P-22 is about: a host whose page is as tall as
+ * its content gives the workbench no height, and the cap measured to the
+ * viewport is all that keeps the footer in view. The host application every
+ * scene sits in gives its page area a height, and a workbench stretched to it
+ * fills it instead (`FooterStaysAtTheBottom`) and never asks for the cap — so
+ * this one is held to its content's height at the top of the page area.
  */
 export const SummariesStayInView: Story = {
   ...DisplayWideTable,
+  decorators: [
+    Story => (
+      <div data-page-flow style={{ alignSelf: 'start' }}>
+        <Story />
+      </div>
+    ),
+  ],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const table = await canvas.findByRole('table');
@@ -880,20 +899,30 @@ export const SummariesStayInView: Story = {
       '[data-slot="record-table"]',
     )!;
     const frame = port.closest<HTMLElement>('[data-slot="result-block"]')!;
+    // The premise: the workbench is in page flow, sized by its content, so
+    // the cap is what is being measured and not a height its host gave.
+    await expect(frame.closest('.fve-root')).not.toHaveAttribute(
+      'data-fills-host',
+    );
     // More rows than room: the port really scrolls.
     await waitFor(() =>
       expect(port.scrollHeight).toBeGreaterThan(port.clientHeight + 1),
     );
     // The frame and the padding of what it closes end at the window's
     // bottom edge, give or take a pixel: nothing of it is below the fold,
-    // and the page has nothing left to scroll. The frame alone ending there
-    // was the old rule, and it left the page scrolling by the bottom
-    // padding of every container around the frame.
-    await waitFor(() =>
+    // and the page has nothing left to scroll — neither the document nor
+    // the host's page area, which is what scrolls in this host. The frame
+    // alone ending there was the old rule, and it left the page scrolling
+    // by the bottom padding of every container around the frame.
+    const page = canvasElement.querySelector<HTMLElement>('.story-app-page')!;
+    await waitFor(() => {
       expect(
         Math.abs(document.documentElement.scrollHeight - window.innerHeight),
-      ).toBeLessThanOrEqual(2),
-    );
+      ).toBeLessThanOrEqual(2);
+      expect(
+        Math.abs(page.scrollHeight - page.clientHeight),
+      ).toBeLessThanOrEqual(2);
+    });
     await expect(frame.getBoundingClientRect().bottom).toBeLessThanOrEqual(
       window.innerHeight,
     );
@@ -1083,8 +1112,10 @@ export const ShiftSelectsARange: Story = {
     ];
     const picked = () =>
       boxes().map(box => box.getAttribute('aria-checked') === 'true');
+    // The rows' own body: in a host that gives the workbench a height, the
+    // room the rows leave is a second, hidden body with a row of its own.
     const selectedRows = () =>
-      [...table.querySelectorAll('tbody tr')].map(
+      [...(table as HTMLTableElement).tBodies[0].rows].map(
         row => row.getAttribute('data-state') === 'selected',
       );
     // One instance for the whole gesture, so the Shift held down is still
@@ -1739,7 +1770,12 @@ export const NewView: Story = {
     });
     // Three ways in: the work area's button, the sidebar's `+`. The switcher
     // item is the third, behind a fold this story keeps open.
-    const sidebar = canvas.getByRole('navigation');
+    // The view list, not the host application's navigation beside it: both
+    // are navigation landmarks, and the list is the one named after the
+    // definition it lists.
+    const sidebar = canvas.getByRole('navigation', {
+      name: ordersDefinition.title,
+    });
     await expect(
       within(sidebar).getByRole('button', { name: zhCN['label.view.new'] }),
     ).toBeVisible();

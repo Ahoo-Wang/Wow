@@ -12,7 +12,7 @@
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { DashboardWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
-import { ScenarioFrame } from '../shared/ScenarioFrame.js';
+import { AppShell } from '../shared/AppShell.js';
 import {
   HOST_LANGUAGE,
   createStoryEngine,
@@ -22,7 +22,7 @@ import {
   savedViews,
   type SourceBehaviour,
 } from './fixtures.js';
-import { StoryEngine, viewEngineScene } from './StoryEngine.js';
+import { StoryEngine } from './StoryEngine.js';
 import '@ahoo-wang/fetcher-view-engine/styles.css';
 
 /** Which saved dashboard a story opens, and which views it can reach. */
@@ -80,21 +80,34 @@ function savedConfig(variant: Variant) {
   return dashboardConfig();
 }
 
-const scene = {
-  ...viewEngineScene,
-  domain: '仪表盘视图',
-  summary: '把已保存的明细与分析放在一页，用一个全局筛选统一收口径。',
-  fixture: '内存 ViewStore · 两个被引用的共享视图 · 一个内容面板',
-  setup: '每次挂载都新建引擎与存储；面板引用的实例随场景增减。',
-  observe: '每个面板各自加载、各自出错；一个面板不可用不影响其余面板。',
-};
+/** What the scenes answer from, said in the host's service line and below. */
+const FIXTURE = '内存 ViewStore · 两个被引用的共享视图 · 一个内容面板';
+
+/**
+ * What the scene is, on the docs page rather than above the workbench: the
+ * workbench sits in the host application (`AppShell`), as it would in a
+ * product, and has the page area to itself.
+ */
+const description = `**仪表盘视图 · 仪表盘**
+
+把已保存的明细与分析放在一页，用一个全局筛选统一收口径。
+
+- **数据源**：${FIXTURE}。
+- **准备**：每次挂载都新建引擎与存储；面板引用的实例随场景增减。
+- **操作**：打开任一场景，它放在宿主应用里——顶部导航与左侧应用导航是宿主的，中间那一块是视图引擎——像使用者看到的一样。
+- **观察**：每个面板各自加载、各自出错；一个面板不可用不影响其余面板。`;
 
 const meta = {
+  parameters: {
+    // The workbench fills the host's page area, as it would a screen.
+    layout: 'fullscreen',
+    docs: { description: { component: description } },
+  },
   decorators: [
-    (Story, context) => (
-      <ScenarioFrame title={context.name} {...scene}>
+    Story => (
+      <AppShell current="dashboard" service={{ fixture: FIXTURE }}>
         <Story />
-      </ScenarioFrame>
+      </AppShell>
     ),
   ],
   title: 'View Engine/仪表盘视图/Dashboard',

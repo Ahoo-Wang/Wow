@@ -20,7 +20,7 @@ import {
   DashboardWorkbench,
   DataWorkbench,
 } from '@ahoo-wang/fetcher-view-engine/ui';
-import { ScenarioFrame } from '../shared/ScenarioFrame.js';
+import { AppShell } from '../shared/AppShell.js';
 import {
   HOST_LANGUAGE,
   createStoryEngine,
@@ -30,7 +30,7 @@ import {
   savedDashboard,
   savedViews,
 } from './fixtures.js';
-import { StoryEngine, viewEngineScene } from './StoryEngine.js';
+import { StoryEngine } from './StoryEngine.js';
 import '@ahoo-wang/fetcher-view-engine/styles.css';
 
 /**
@@ -301,22 +301,34 @@ function FilterPanelDemo({
   );
 }
 
-const scene = {
-  ...viewEngineScene,
-  domain: '筛选编辑器',
-  summary: '分组是块，条件是内联的 pill；持有谓词的条件和分组一样是块。',
-  fixture: '内存 ViewStore · 带商品行数组字段的订单定义',
-  setup: '每次挂载都新建引擎与存储。',
-  observe:
-    '同一分组内每个字段只出现一次，添加条件的菜单只列出尚未使用的字段；未填写的条件是虚线，出错的条件标红。',
-};
+/** What the scenes answer from, said in the host's service line and below. */
+const FIXTURE = '内存 ViewStore · 带商品行数组字段的订单定义';
+
+/**
+ * What the scene is, on the docs page rather than above the editor: the
+ * editor sits in the host application (`AppShell`), in the workbench a host
+ * places in its page area, which is where anyone meets it.
+ */
+const description = `**数据视图 · 筛选编辑器**
+
+分组是块，条件是内联的 pill；持有谓词的条件和分组一样是块。
+
+- **数据源**：${FIXTURE}。
+- **准备**：每次挂载都新建引擎与存储。
+- **操作**：打开任一场景，展开标题栏上的「筛选」。编辑器在宿主应用的页面区里——顶部导航与左侧应用导航是宿主的，中间那一块是视图引擎——像使用者看到的一样。
+- **观察**：同一分组内每个字段只出现一次，添加条件的菜单只列出尚未使用的字段；未填写的条件是虚线，出错的条件标红。`;
 
 const meta = {
+  parameters: {
+    // The workbench fills the host's page area, inside the page's gutter.
+    layout: 'fullscreen',
+    docs: { description: { component: description } },
+  },
   decorators: [
-    (Story, context) => (
-      <ScenarioFrame title={context.name} {...scene}>
+    Story => (
+      <AppShell current="filters" service={{ fixture: FIXTURE }} padded>
         <Story />
-      </ScenarioFrame>
+      </AppShell>
     ),
   ],
   title: 'View Engine/数据视图/筛选编辑器',

@@ -33,6 +33,11 @@ const meta = {
   ...displayMeta,
   title: 'View Engine/数据视图/标题栏/回归',
   tags: ['!dev', '!autodocs', 'test'],
+  // Spelled out, not left to the spread: Storybook writes a file's own
+  // description into a `parameters` of its meta, which would replace the
+  // display meta's — and with it the full-screen host application the
+  // workbench is meant to be exercised in.
+  parameters: { ...displayMeta.parameters },
 };
 
 export default meta;

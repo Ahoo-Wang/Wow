@@ -31,12 +31,3 @@ export function StoryEngine({
   useEffect(() => () => engine.dispose(), [engine]);
   return <>{children(engine)}</>;
 }
-
-/** What every View Engine scene shares; a module narrows it. */
-export const viewEngineScene = {
-  domain: 'View Engine',
-  summary: '配置代替页面：定义在代码里，视图配置是数据。',
-  fixture: '内存 ViewStore · 假数据源',
-  setup: '每次挂载都新建引擎与存储。',
-  observe: '界面状态来自运行时快照，而不是组件内部状态。',
-};

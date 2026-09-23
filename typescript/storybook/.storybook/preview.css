@@ -411,7 +411,7 @@ html.dark body {
 }
 
 /*
- * The host application round a real-backend console (`stories/shared/
+ * The host application round every View Engine scene (`stories/shared/
  * AppShell.tsx`): a top bar and a navigation column that belong to the host,
  * painted from View Engine's tokens through `fve-tokens`, so both themes
  * hold without a colour of their own here.
@@ -515,6 +515,16 @@ html.dark body {
   border-right: 1px solid var(--border);
   background: var(--background);
   min-width: 0;
+  min-height: 0;
+  /* Every scene is listed, so a short window scrolls the column rather than
+     pushing the fold button off it. */
+  overflow-y: auto;
+}
+
+.story-app-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .story-app-group {
@@ -523,7 +533,7 @@ html.dark body {
   font-size: 12px;
 }
 
-.story-app-group:first-child {
+.story-app-section:first-child > .story-app-group {
   margin-top: 0;
 }
 
@@ -565,6 +575,24 @@ html.dark body {
   font-size: 13px;
 }
 
+/* A fixture is said in the scene's own words, which run longer than a host
+   name: it wraps under its icon rather than being cut to a few characters. */
+.story-app-service[data-fixture] {
+  align-items: flex-start;
+  height: auto;
+  min-height: 34px;
+  padding-block: 8px;
+  line-height: 18px;
+}
+
+.story-app-service[data-fixture] .story-app-label {
+  white-space: normal;
+}
+
+.story-app-service[data-fixture] svg {
+  margin-top: 1px;
+}
+
 .story-app-label {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -583,14 +611,24 @@ html.dark body {
 .story-app[data-folded] .story-app-item,
 .story-app[data-folded] .story-app-service {
   justify-content: center;
+  align-items: center;
+  height: 34px;
   padding: 0;
 }
 
+/* The host's content region: a definite height the workbench fills, and the
+   one place that scrolls when what it holds is taller. */
 .story-app-page {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
+  overflow: auto;
+}
+
+/* The gutter a host gives a page that is not a workbench edge to edge. */
+.story-app-page[data-padded] {
+  padding: 24px;
 }
 
 @media (max-width: 767px) {
@@ -600,11 +638,25 @@ html.dark body {
     grid-template-rows: 52px auto minmax(0, 1fr);
   }
 
+  /* One row of pages under the bar, scrolled sideways when it is longer
+     than the screen, as a phone's tab strip is. */
   .story-app-nav {
     flex-direction: row;
-    flex-wrap: wrap;
+    overflow: auto hidden;
     border-right: 0;
     border-bottom: 1px solid var(--border);
+  }
+
+  .story-app-section {
+    display: contents;
+  }
+
+  .story-app-item {
+    flex: none;
+  }
+
+  .story-app-page[data-padded] {
+    padding: 16px;
   }
 
   .story-app-group,

@@ -32,14 +32,14 @@ import {
 } from '@/ui/components/card';
 import { Separator } from '@/ui/components/separator';
 import { ToggleGroup, ToggleGroupItem } from '@/ui/components/toggle-group';
-import { ScenarioFrame } from '../shared/ScenarioFrame.js';
+import { AppShell } from '../shared/AppShell.js';
 import {
   HOST_LANGUAGE,
   createStoryEngine,
   savedViews,
   type SourceBehaviour,
 } from './fixtures.js';
-import { StoryEngine, viewEngineScene } from './StoryEngine.js';
+import { StoryEngine } from './StoryEngine.js';
 import '@ahoo-wang/fetcher-view-engine/styles.css';
 
 /**
@@ -53,7 +53,8 @@ import '@ahoo-wang/fetcher-view-engine/styles.css';
  * `useViewExpansion` 指向它。
  *
  * 所以每一条故事都套在一张假的客户详情页里，连面包屑、侧栏事实表和页脚一起
- * 画出来：视图铺满屏幕时盖住的是这些东西，不套宿主就看不出「盖住」这件事。
+ * 画出来，这张页面又放在宿主应用（`AppShell`）的页面区里：视图铺满屏幕时盖
+ * 住的是这些东西——连宿主的顶栏与导航一起——不套宿主就看不出「盖住」这件事。
  */
 
 /** 左栏那几条事实，纯静态——它们在这里是为了被铺满屏幕的视图盖住。 */
@@ -120,7 +121,9 @@ function HostPage({
   return (
     <div
       data-host-page
-      className="fve-tokens bg-background text-foreground flex min-h-0 flex-col gap-4 rounded-xl border p-4"
+      // The page itself, not a card: the host's page area around it gives
+      // the gutter, as a host's content region does.
+      className="fve-tokens bg-background text-foreground flex min-h-0 flex-col gap-4"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 flex-col gap-0.5">
@@ -261,21 +264,37 @@ function EmbeddedViewDemo({
   );
 }
 
-const scene = {
-  ...viewEngineScene,
-  domain: '数据视图',
-  summary: '别人定好的一份观察，摆进一张业务页面里：只有结果。',
-  fixture: '内存 ViewStore · 六条订单 · 假的客户详情页',
-  setup: '每次挂载都新建引擎与存储；铺满屏幕的按钮由宿主画在自己的卡片头上。',
-  observe: '没有标题栏、没有工具栏、没有保存——变的只有结果和它自己的说明。',
-};
+/**
+ * What the scenes answer from, said in the host's service line and below.
+ * The customer page is not a service, so the line names only the data.
+ */
+const FIXTURE = '内存 ViewStore · 六条订单';
+
+/**
+ * What the scene is, on the docs page rather than above the page: the embed
+ * is a customer page in the host application (`AppShell`), and the page has
+ * the host's page area to itself.
+ */
+const description = `**数据视图 · 嵌入视图**
+
+别人定好的一份观察，摆进一张业务页面里：只有结果。
+
+- **数据源**：${FIXTURE}，嵌在一张假的客户详情页里。
+- **准备**：每次挂载都新建引擎与存储；铺满屏幕的按钮由宿主画在自己的卡片头上。
+- **操作**：打开任一场景。客户详情页放在宿主应用的页面区里——顶部导航与左侧应用导航是宿主的，页面也是宿主的，只有「最近运单」卡片里那一块是视图引擎——嵌入本来就是这样。
+- **观察**：没有标题栏、没有工具栏、没有保存——变的只有结果和它自己的说明。`;
 
 const meta = {
+  parameters: {
+    // The host's page fills its page area, as it would a screen.
+    layout: 'fullscreen',
+    docs: { description: { component: description } },
+  },
   decorators: [
-    (Story, context) => (
-      <ScenarioFrame title={context.name} {...scene}>
+    Story => (
+      <AppShell current="embedded" service={{ fixture: FIXTURE }} padded>
         <Story />
-      </ScenarioFrame>
+      </AppShell>
     ),
   ],
   title: 'View Engine/数据视图/EmbeddedView',
