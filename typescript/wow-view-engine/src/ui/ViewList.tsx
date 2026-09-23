@@ -199,6 +199,12 @@ export function ViewList({
               variant="ghost"
               size="icon-sm"
               aria-expanded
+              // A disclosure, not a menu trigger: the ghost variant fills an
+              // expanded button, and this one is expanded whenever it is on
+              // screen, so it sat lit — plainly so on the dark ground (the
+              // 2026-09-23 audit, P2-11). The state stays for screen readers;
+              // only the fill goes, and hover still answers.
+              className="aria-expanded:not-hover:bg-transparent"
               onClick={onCollapse}
             >
               <PanelLeftCloseIcon />

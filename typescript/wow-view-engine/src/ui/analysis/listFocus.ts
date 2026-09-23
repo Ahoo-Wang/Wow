@@ -130,8 +130,12 @@ function place(
   if (add && !barred(add)) add.focus();
 }
 
-/** The first control of one item, which is the item as a keyboard sees it. */
-function focusIn(item: HTMLElement | undefined): boolean {
+/**
+ * The first control of one item, which is the item as a keyboard sees it;
+ * whether there was one to focus. Also where the keyboard goes into a band
+ * that was opened by a press (`WorkbenchShell`).
+ */
+export function focusIn(item: HTMLElement | null | undefined): boolean {
   if (!item) return false;
   const found = [item, ...item.querySelectorAll<HTMLElement>(FOCUSABLE)].find(
     node => node.matches(FOCUSABLE) && !barred(node),

@@ -42,6 +42,7 @@ import { OriginBar } from './workbench/OriginBar.js';
 import { OpeningSkeleton } from './workbench/OpeningSkeleton.js';
 import { resultBlockShown, ShellResult } from './workbench/ResultBlock.js';
 import { FoldedSidebar, SidebarColumn } from './workbench/Sidebar.js';
+import { focusIn } from './analysis/listFocus.js';
 import { StatusLine } from './workbench/StatusLine.js';
 import { TitleBar } from './workbench/TitleBar.js';
 import { Unopenable } from './workbench/Unopenable.js';
@@ -454,6 +455,24 @@ export function WorkbenchShell({
       ? state.query.error
       : null;
 
+  // A press that opens the editor takes the keyboard into it (the
+  // 2026-09-23 audit, P2-13): the band is drawn under the status line, so
+  // the next Tab otherwise walked Refresh, Auto refresh and Fill before it
+  // reached the first thing the press was for. Only a press does — the
+  // sidebar's rule (`pressed`): a band a host or a new view opened leaves
+  // the keyboard where it was. Closing leaves it on the toggle, which is
+  // Base UI's own.
+  const pressedOpen = useRef(false);
+  const openEditor = (next: boolean) => {
+    pressedOpen.current = next;
+    editorIsOpen.set(next);
+  };
+  useLayoutEffect(() => {
+    if (!editorIsOpen.open || !pressedOpen.current) return;
+    pressedOpen.current = false;
+    focusIn(document.getElementById(editorId));
+  }, [editorIsOpen.open, editorId]);
+
   // Folding the editor away ends the editing state the inputs inside it
   // started. Closing unmounts them, and an unmounted input fires no blur, so
   // `FilterPanel`'s own handler never runs — the runtime would stay
@@ -581,10 +600,7 @@ export function WorkbenchShell({
                 inside the other — they are wrapped instead. The root draws
                 nothing (`contents`), and where a workbench does not fold its
                 editor it simply holds neither trigger nor panel. */}
-            <EditorFold
-              open={editorIsOpen.open}
-              onOpenChange={editorIsOpen.set}
-            >
+            <EditorFold open={editorIsOpen.open} onOpenChange={openEditor}>
               <TitleBar
                 workbench={workbench}
                 state={state}

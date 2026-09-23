@@ -20,6 +20,7 @@ import {
   DropdownMenu,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../components/dropdown-menu.js';
 import { GroupedMenu } from '../FieldMenu.js';
@@ -85,6 +86,15 @@ export function MetricSlot({
   const measurable = analysis.fields.filter(
     field => summaryChoices(field).length > 0,
   );
+  // A second plain record count is the first one again: one column twice,
+  // under two aliases (the 2026-09-23 audit, P2-6). A count over some of
+  // the records is another metric, and 「复制并加条件」 on the card is the
+  // way to it — so the menu offers the count only while there is none.
+  const counted = analysis.metrics.some(
+    metric =>
+      metric.type === 'COUNT' &&
+      (metric.filter === undefined || metric.filter.children.length === 0),
+  );
   // A metric taken out leaves the keyboard on this slot (`listFocus.ts`);
   // held here because the card pressed is the one that goes.
   const focus = useListFocus({
@@ -135,6 +145,7 @@ export function MetricSlot({
           {analysis.countable && (
             <DropdownMenuGroup>
               <DropdownMenuItem
+                disabled={counted}
                 onClick={() =>
                   analysis.addMetric({
                     type: 'COUNT',
@@ -145,6 +156,11 @@ export function MetricSlot({
                 {messages.label('label.analysis.row-count')}
               </DropdownMenuItem>
             </DropdownMenuGroup>
+          )}
+          {/* Three kinds of thing to add, set apart as the menu's groups:
+              the count, a field, and a metric written rather than picked. */}
+          {analysis.countable && measurable.length > 0 && (
+            <DropdownMenuSeparator />
           )}
           <GroupedMenu
             items={measurable}
@@ -165,6 +181,7 @@ export function MetricSlot({
           />
           {/* The two metrics written rather than picked, where the
               capability declares expressions (D20 屏 B). */}
+          {analysis.expressionsAllowed && <DropdownMenuSeparator />}
           {analysis.expressionsAllowed && (
             <DropdownMenuGroup>
               <DropdownMenuItem
@@ -267,107 +284,127 @@ function MetricCard({
         );
   return (
     <EditorCard data-slot="metric-card" data-metric={metric.type}>
-      <CardName
-        name={fallback}
-        given={metric.label}
-        renaming={renaming}
-        label={messages.label('label.analysis.display-name', {
-          name: reference,
-        })}
-        onRename={label => analysis.renameMetric(index, label)}
-        onDone={done}
-      />
-      {isFormula(metric) && (
-        <FormulaControls
-          analysis={analysis}
-          metric={metric}
-          index={index}
-          name={name}
-          disabled={disabled}
-        />
-      )}
-      {metric.type === 'DERIVED' && (
-        <DerivedControls
-          analysis={analysis}
-          metric={metric}
-          index={index}
-          name={name}
-          disabled={disabled}
-        />
-      )}
-      {field && choice !== null && choices.length > 0 && !isFormula(metric) && (
-        <CompactSelect
-          label={messages.label('label.analysis.function-of', { name })}
-          items={choices.map(entry => ({ value: entry, label: word(entry) }))}
-          value={choice}
-          disabled={disabled}
-          onChange={next =>
-            analysis.replaceMetric(
-              index,
-              metricOfSummary(field, next, metric.alias),
-            )
-          }
-        />
-      )}
-      {metric.type === 'PERCENTILE' && (
-        <NumberInput
-          label={messages.label('label.analysis.percentile')}
-          chrome="box"
-          className="w-16"
-          disabled={disabled}
-          value={metric.percentile}
-          onNumber={next => {
-            // Wow's open interval: 100 is not a percentile, and 0 is none.
-            if (next !== null && next > 0 && next < 100)
-              analysis.updateMetric(index, { percentile: next });
-          }}
-        />
-      )}
-      {metric.type !== 'DERIVED' && (
-        <ConditionButton
-          label={messages.label('label.analysis.condition-of', {
+      {/* The controls wrap among themselves and the card's own actions keep
+          the first line's end: a formula's four selects used to push the
+          menu and ✕ onto a line of their own at 1440 (the 2026-09-23 audit,
+          P2-6), where they read as belonging to nothing. */}
+      <div
+        data-slot="metric-controls"
+        className="flex min-w-0 flex-1 flex-wrap items-center gap-2"
+      >
+        <CardName
+          name={fallback}
+          given={metric.label}
+          renaming={renaming}
+          label={messages.label('label.analysis.display-name', {
             name: reference,
           })}
-          open={conditioning}
-          held={held}
-          disabled={disabled}
-          // Opening writes nothing: a condition with nothing in it yet is
-          // no condition, and writing one used to make the draft refuse
-          // itself the moment the block opened — red under the card, Save
-          // greyed out, before the analyst had done anything (2026-09-23
-          // audit). The block edits `metric.filter ?? {}` and writes on the
-          // first condition; Apply over a block still empty says so then.
-          onToggle={() => onConditioning(!conditioning)}
+          onRename={label => analysis.renameMetric(index, label)}
+          onDone={done}
         />
-      )}
-      <CardMenu
-        ref={menu}
-        name={reference}
-        disabled={disabled}
-        onRename={() => setRenaming(true)}
-      >
+        {isFormula(metric) && (
+          <FormulaControls
+            analysis={analysis}
+            metric={metric}
+            index={index}
+            name={name}
+            disabled={disabled}
+          />
+        )}
+        {metric.type === 'DERIVED' && (
+          <DerivedControls
+            analysis={analysis}
+            metric={metric}
+            index={index}
+            name={name}
+            disabled={disabled}
+          />
+        )}
+        {field &&
+          choice !== null &&
+          choices.length > 0 &&
+          !isFormula(metric) && (
+            <CompactSelect
+              label={messages.label('label.analysis.function-of', { name })}
+              items={choices.map(entry => ({
+                value: entry,
+                label: word(entry),
+              }))}
+              value={choice}
+              disabled={disabled}
+              onChange={next =>
+                analysis.replaceMetric(
+                  index,
+                  metricOfSummary(field, next, metric.alias),
+                )
+              }
+            />
+          )}
+        {metric.type === 'PERCENTILE' && (
+          <NumberInput
+            label={messages.label('label.analysis.percentile')}
+            chrome="box"
+            className="w-16"
+            disabled={disabled}
+            value={metric.percentile}
+            onNumber={next => {
+              // Wow's open interval: 100 is not a percentile, and 0 is none.
+              if (next !== null && next > 0 && next < 100)
+                analysis.updateMetric(index, { percentile: next });
+            }}
+          />
+        )}
         {metric.type !== 'DERIVED' && (
-          <DropdownMenuItem onClick={onDuplicate}>
-            {messages.label('label.analysis.copy-with-condition', {
+          <ConditionButton
+            label={messages.label('label.analysis.condition-of', {
               name: reference,
             })}
-          </DropdownMenuItem>
+            open={conditioning}
+            held={held}
+            disabled={disabled}
+            // Opening writes nothing: a condition with nothing in it yet is
+            // no condition, and writing one used to make the draft refuse
+            // itself the moment the block opened — red under the card, Save
+            // greyed out, before the analyst had done anything (2026-09-23
+            // audit). The block edits `metric.filter ?? {}` and writes on the
+            // first condition; Apply over a block still empty says so then.
+            onToggle={() => onConditioning(!conditioning)}
+          />
         )}
-      </CardMenu>
-      <IconButton
-        label={messages.label('label.analysis.remove-metric', {
-          name: reference,
-        })}
-        variant="ghost"
-        size="icon-xs"
-        disabled={disabled || analysis.metrics.length <= 1}
-        onClick={event => {
-          focus.removing(event, index);
-          analysis.removeMetric(index);
-        }}
+      </div>
+      <div
+        data-slot="metric-actions"
+        className="flex shrink-0 items-center gap-2 self-start"
       >
-        <XIcon />
-      </IconButton>
+        <CardMenu
+          ref={menu}
+          name={reference}
+          disabled={disabled}
+          onRename={() => setRenaming(true)}
+        >
+          {metric.type !== 'DERIVED' && (
+            <DropdownMenuItem onClick={onDuplicate}>
+              {messages.label('label.analysis.copy-with-condition', {
+                name: reference,
+              })}
+            </DropdownMenuItem>
+          )}
+        </CardMenu>
+        <IconButton
+          label={messages.label('label.analysis.remove-metric', {
+            name: reference,
+          })}
+          variant="ghost"
+          size="icon-xs"
+          disabled={disabled || analysis.metrics.length <= 1}
+          onClick={event => {
+            focus.removing(event, index);
+            analysis.removeMetric(index);
+          }}
+        >
+          <XIcon />
+        </IconButton>
+      </div>
       {/* The caveat in full, under the summary, at rest: the parenthesis on
           the menu item is only read while the menu is open, and by then the
           choice is already being made. `w-full` breaks the card's flex row,

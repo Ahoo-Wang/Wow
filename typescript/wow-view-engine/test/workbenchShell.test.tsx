@@ -302,6 +302,33 @@ describe('the editor fold', () => {
     expect(toggle.getAttribute('aria-controls')).toBe(block('editor-band')!.id);
   });
 
+  /**
+   * The band is drawn under the status line, so a Tab after the press used
+   * to walk the title bar's other controls first (the 2026-09-23 audit,
+   * P2-13). A press takes the keyboard in; a band the host opened does not.
+   */
+  const withControl = <button type="button">Add condition</button>;
+
+  it('takes the keyboard into the editor it was pressed open for', async () => {
+    const user = await open({ editorLabel: 'Filter', editor: withControl });
+
+    await user.click(screen.getByRole('button', { name: 'Filter' }));
+
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'Add condition' }),
+    );
+  });
+
+  it('leaves the keyboard where it was when the host opens the editor', async () => {
+    await open({
+      editorLabel: 'Filter',
+      editor: withControl,
+      defaultEditorOpen: true,
+    });
+
+    expect(block('editor-band')!.contains(document.activeElement)).toBe(false);
+  });
+
   it('opens on what the host asked for instead, when it asked', async () => {
     await open({ editorLabel: 'Filter', defaultEditorOpen: true });
 

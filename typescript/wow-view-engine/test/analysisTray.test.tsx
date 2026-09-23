@@ -393,7 +393,7 @@ describe('the analysis tray', () => {
     expect(applyButton().hasAttribute('data-pending')).toBe(false);
 
     // A change in the question's half, which the filter knows nothing about.
-    await add('Add metric', 'Record count');
+    await add('Add metric', 'Amount');
     await waitFor(() =>
       expect(applyButton().hasAttribute('data-pending')).toBe(true),
     );
@@ -721,17 +721,34 @@ describe('the tray’s metric cards', () => {
     ]);
   });
 
-  it('adds the record count when the definition allows counting', async () => {
+  /**
+   * A second plain record count is the first one again — one column twice
+   * under two aliases (the 2026-09-23 audit, P2-6) — so the menu offers the
+   * count only while there is none. A count over some records is the card's
+   * 「复制并加条件」.
+   */
+  it('offers the record count only while the analysis has none', async () => {
     await open();
 
-    await add('Add metric', 'Record count');
+    fireEvent.click(screen.getByRole('button', { name: 'Add metric' }));
+    const count = await screen.findByRole('menuitem', {
+      name: 'Record count',
+    });
+    expect(count.getAttribute('aria-disabled')).toBe('true');
+    fireEvent.keyDown(count, { key: 'Escape' });
 
-    // Named by what it counts, not by the alias the query carries.
+    // Taken out, it is offered again, and added it is named by what it
+    // counts, not by the alias the query carries.
+    await add('Add metric', 'Amount');
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Remove metric Record count' }),
+    );
+    await add('Add metric', 'Record count');
     expect(
       await screen.findAllByRole('button', {
         name: 'Remove metric Record count',
       }),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
   });
 
   /**

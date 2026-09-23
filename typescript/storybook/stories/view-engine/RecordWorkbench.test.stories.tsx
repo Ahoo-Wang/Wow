@@ -3696,7 +3696,8 @@ export const EditorToggleAndModes: Story = {
  * 一、**结果工具栏是一条 toolbar**：整条栏只有一个 Tab 站，方向键在栏内左右
  * 走并在两端回绕，走过去只移动焦点——布局切换的档位不会被走成按下；离开这条
  * 栏的 Tab 直接落到表上。二、**折叠带的开关是 `CollapsibleTrigger`**：Enter
- * 开、空格关，`aria-expanded` 跟着翻，`aria-controls` 只在带子在页面上时存在。
+ * 开、空格关，`aria-expanded` 跟着翻，`aria-controls` 只在带子在页面上时存在；
+ * 按开之后键盘落进带子里。
  */
 export const ToolbarAndFoldByKeyboard: Story = {
   ...DisplayWithData,
@@ -3721,8 +3722,14 @@ export const ToolbarAndFoldByKeyboard: Story = {
     });
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
     await expect(toggle).toHaveAttribute('aria-controls', band.id);
-    // Space closes it again, and the panel leaves the page with it — so the
-    // reference the handle was making leaves too.
+    // A press takes the keyboard into what it opened (the 2026-09-23 audit,
+    // P2-13): the band's first control, not Refresh and Fill on the way.
+    await waitFor(() =>
+      expect(band.contains(document.activeElement)).toBe(true),
+    );
+    // Back on the handle, Space closes it again, and the panel leaves the
+    // page with it — so the reference the handle was making leaves too.
+    toggle.focus();
     await userEvent.keyboard(' ');
     await waitFor(() =>
       expect(

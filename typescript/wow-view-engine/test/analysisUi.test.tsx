@@ -665,9 +665,7 @@ describe('DataWorkbench', () => {
     await openTray();
 
     fireEvent.click(screen.getByRole('button', { name: /Add metric/ }));
-    fireEvent.click(
-      await screen.findByRole('menuitem', { name: 'Record count' }),
-    );
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Amount' }));
     fireEvent.click(apply());
 
     await waitFor(() => {
