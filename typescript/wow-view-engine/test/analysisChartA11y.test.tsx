@@ -156,8 +156,8 @@ describe('the chart is a named image, not an application', () => {
     ).toHaveLength(0);
   });
 
-  /** The two hand-drawn families are pictures too, and say so the same way. */
-  it('names the hand-drawn grid and the hand-drawn stages', () => {
+  /** A heatmap and a funnel are pictures too, and say so the same way. */
+  it('names the grid and the stages', () => {
     const heatmap = draw(
       { type: 'heatmap', xs: ['EAST'], ys: ['NORTH'], cells: [[7]] },
       {
@@ -168,7 +168,7 @@ describe('the chart is a named image, not an application', () => {
     );
     expect(
       heatmap.container
-        .querySelector('[data-slot="heatmap"]')!
+        .querySelector('[data-chart="heatmap"] [data-slot="chart-plot"]')!
         .getAttribute('aria-label'),
     ).toBe('heatmap: Orders by Warehouse, Warehouse');
 
@@ -178,7 +178,7 @@ describe('the chart is a named image, not an application', () => {
     });
     expect(
       funnel.container
-        .querySelector('[data-slot="funnel"]')!
+        .querySelector('[data-chart="funnel"] [data-slot="chart-plot"]')!
         .getAttribute('role'),
     ).toBe('img');
   });
@@ -358,7 +358,9 @@ describe('the metric card still says its value out loud', () => {
     expect(card.textContent).toContain('+1,047');
     // Only the sparkline is a picture, and it carries a name of its own.
     expect(
-      card.querySelector('svg.recharts-surface')!.getAttribute('aria-label'),
+      card
+        .querySelector('[data-chart="sparkline"] [data-slot="chart-plot"]')!
+        .getAttribute('aria-label'),
     ).toBe('metric: Orders, over time');
   });
 

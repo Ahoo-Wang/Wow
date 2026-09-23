@@ -365,14 +365,16 @@ src/
       measure.ts              — How wide a line of tick text is: a canvas where there is one, an estimate elsewhere
       theme.ts                — `readChartTheme`: the stylesheet's tokens read back off the chart's element as concrete colours
       tooltip.ts              — The tooltip as the registry draws one, in HTML, every data text escaped
-      Funnel.tsx
-      Heatmap.tsx             — A grid rather than a chart library: a heatmap is cells with a background, and every library's version of that costs more than it saves
-      MetricCard.tsx          — The comparison, signed
+      Funnel.tsx              — A funnel through `funnelOption`, the conversion's basis said over it
+      funnelOption.ts         — `funnelOption`: a centred funnel in the order given, each stage's name, value and conversion beside it; `drawnStages`
+      Heatmap.tsx             — A heatmap through `heatmapOption`; a pressed cell handed back as its row's and column's group
+      heatmapOption.ts        — `heatmapOption`: cells filling the plot, a `visualMap` colour scale, a log scale shading by the log, values on the cells
+      MetricCard.tsx          — The value, the comparison signed, the target, and the trend through `sparklineOption`
+      sparklineOption.ts      — `sparklineOption`: a metric card's trend as a line and a faint fill, no axes
       PieSlices.tsx           — A pie or a donut through `pieOption`: the legend beside it, led by the measured column (and, cut short, the share basis), each slice with its share
       pieOption.ts            — `pieOption`: slices with their shares outside, labels that give way, the remainder grey, a donut's whole in its hole when the measure adds up; `drawnSlices`, `wholeOf`
       ScatterPoints.tsx       — A scatter through `scatterOption`; a pressed point handed back as its group
       scatterOption.ts        — `scatterOption`: both axes titled by their columns and padded past the extremes, whole ticks where the values are, a third metric as size, a few points named
-      asImage.ts              — What the metric card's Recharts sparkline spreads onto its drawing: a named image (removed with Recharts, D21)
       axis.ts                 — Value format, whole axes (`allWhole`), a category name cut for its axis, and which axis a series is on
       family.ts               — `FamilyProps`, the value labeller and the column titler
       legend.ts               — Where the legend beside the chart goes (`legendAt`), from the spec's `legend` and the family's own default
@@ -493,7 +495,7 @@ src/
 
 - `@ahoo-wang/fetcher-wow` — query protocol (`FilterExpression`, `FilterPagedQuery`, `CursorQuery`, `AggregationQuery`)
 - `react` / `react-dom` — **optional peer dependencies**; the root entry works without React
-- UI-only: `@base-ui/react`, `@dnd-kit/dom`, `@dnd-kit/react`, `echarts` (charts, loaded on first use; D21), `recharts` (the metric card's sparkline, until the migration's last batches), `react-grid-layout`, `react-markdown`, `react-day-picker`, `react-error-boundary`, `lucide-react`, `class-variance-authority`, `cn`
+- UI-only: `@base-ui/react`, `@dnd-kit/dom`, `@dnd-kit/react`, `echarts` (charts, loaded on first use; D21), `recharts` (only the vendored `ui/components/chart.tsx` still imports it; removed in the migration's last batch), `react-grid-layout`, `react-markdown`, `react-day-picker`, `react-error-boundary`, `lucide-react`, `class-variance-authority`, `cn`
 - Headless: `dayjs` (time), `dequal` (runtime equality), `culori` (colour syntax: in `analysis` a saved chart colour is validated, in `ui` the theme's colours are converted to `rgb()` for the chart library)
 
 ## Code Style

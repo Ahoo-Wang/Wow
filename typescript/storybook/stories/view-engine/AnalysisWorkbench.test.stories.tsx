@@ -33,6 +33,7 @@ import displayMeta, {
   TenCities as DisplayTenCities,
   TwoMetrics as DisplayTwoMetrics,
   LatestPerWarehouse as DisplayLatestPerWarehouse,
+  HeatmapChart as DisplayHeatmapChart,
   LineChart as DisplayLineChart,
   OneBar as DisplayOneBar,
   ValueLabels as DisplayValueLabels,
@@ -291,6 +292,41 @@ export const LineKeepsOffTheEdges: Story = {
     await expect(
       axisTitles(canvasElement).map(title => title.textContent),
     ).toEqual(expect.arrayContaining([AMOUNT_HEADER, COUNT_HEADER]));
+  },
+};
+
+/**
+ * 热力图铺满它的绘图区，格子上的数两两不相交，底下有一条色标：量的是格子占了
+ * 图的大半宽，而不是挤在一角。
+ */
+export const HeatmapFillsItsPlot: Story = {
+  ...DisplayHeatmapChart,
+  play: async ({ canvasElement }) => {
+    await chartsDrawn(canvasElement);
+    const frame = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="chart"][data-chart="heatmap"]',
+    )!;
+    // A cell is as see-through as its value is low, so every shade counts.
+    const cells = await waitFor(() => {
+      const found = [
+        ...frame.querySelectorAll('[data-slot="chart-plot"] svg path'),
+      ].filter(
+        path =>
+          (path.getAttribute('fill') ?? '').startsWith('rgb') &&
+          Number(path.getAttribute('fill-opacity') ?? 1) > 0,
+      );
+      expect(found.length).toBe(Number(frame.getAttribute('data-marks')));
+      return found.map(cell => cell.getBoundingClientRect());
+    });
+    const plot = frame
+      .querySelector('[data-slot="chart-plot"]')!
+      .getBoundingClientRect();
+    const span =
+      Math.max(...cells.map(cell => cell.right)) -
+      Math.min(...cells.map(cell => cell.left));
+    await expect(span / plot.width).toBeGreaterThan(0.6);
+    await expect(apart(valueLabels(frame))).toBe(true);
+    await expect(valueLabels(frame).length).toBeGreaterThan(0);
   },
 };
 

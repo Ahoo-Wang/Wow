@@ -794,7 +794,6 @@ export const zhCN: ViewMessages = {
   'label.chart.legend.less': '收起',
   'label.chart.total': '合计',
   'label.chart.trend': '趋势',
-  'label.chart.cell': '{y} · {x}：{value}',
   'label.chart.figure': '{type}：{measures}，按 {category}',
   'label.chart.figure.plain': '{type}：{measures}',
   'label.chart.sparkline': '{name}，随时间变化',

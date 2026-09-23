@@ -1006,18 +1006,15 @@ describe('the chart options of the other families', () => {
     const ran = queries();
     await user.click(within(panel()!).getByRole('tab', { name: 'Display' }));
 
-    // A grid, not a chart library: its value labels are the cells' own.
-    expect(
-      document.querySelectorAll('[data-slot="heatmap-label"]'),
-    ).toHaveLength(0);
+    // A cell's number is written on it, with the halo every value label
+    // wears.
+    const written = () =>
+      document.querySelectorAll('[data-slot="chart-plot"] svg text[stroke]');
+    expect(written()).toHaveLength(0);
     fireEvent.click(
       within(panel()!).getByRole('checkbox', { name: 'Value labels' }),
     );
-    await waitFor(() =>
-      expect(
-        document.querySelectorAll('[data-slot="heatmap-label"]').length,
-      ).toBeGreaterThan(0),
-    );
+    await waitFor(() => expect(written().length).toBeGreaterThan(0));
 
     fireEvent.click(
       within(panel()!).getByRole('button', { name: 'Logarithmic' }),

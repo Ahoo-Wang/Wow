@@ -812,7 +812,7 @@ describe('AnalysisChart', () => {
   });
 
   it('draws a heatmap as a grid of cells', () => {
-    chartOf({
+    const { container } = chartOf({
       type: 'heatmap',
       xs: ['Mon', 'Tue'],
       ys: ['CN', 'JP'],
@@ -822,13 +822,27 @@ describe('AnalysisChart', () => {
       ],
     });
 
-    expect(screen.getByTitle('CN · Mon: 1')).toBeDefined();
-    // A missing cell says so rather than pretending to be zero.
-    expect(screen.getByTitle('JP · Tue: —')).toBeDefined();
+    // A cell per value, none where nothing fell — a hole is no zero.
+    expect(
+      container
+        .querySelector('[data-chart="heatmap"]')
+        ?.getAttribute('data-marks'),
+    ).toBe('3');
+    expect(fills(container).length).toBeGreaterThanOrEqual(3);
+    for (const name of ['Mon', 'Tue', 'CN', 'JP'])
+      expect(
+        within(container).getAllByText(name, DRAWN).length,
+      ).toBeGreaterThan(0);
+    // The hole is said in the reading table rather than drawn as zero.
+    expect(
+      within(
+        container.querySelector<HTMLElement>('[data-slot="chart-reading"]')!,
+      ).getAllByText('—').length,
+    ).toBeGreaterThan(0);
   });
 
   it('labels every kind of category value', () => {
-    chartOf({
+    const { container } = chartOf({
       type: 'heatmap',
       xs: [null, true, { id: 1 }],
       ys: [3],
@@ -836,8 +850,11 @@ describe('AnalysisChart', () => {
     });
 
     // A boolean reads as the analysis table writes it, in the catalogue's words.
-    expect(screen.getByTitle('3 · Yes: 2')).toBeDefined();
-    expect(screen.getByTitle('3 · {"id":1}: 3')).toBeDefined();
+    const plot = container.querySelector<HTMLElement>(
+      '[data-slot="chart-plot"]',
+    )!;
+    expect(within(plot).getByText('Yes', DRAWN)).toBeDefined();
+    expect(within(plot).getByText('{"id":1}', DRAWN)).toBeDefined();
   });
 
   it('draws a funnel with its conversions', () => {
@@ -891,11 +908,11 @@ describe('AnalysisChart', () => {
         container.querySelector<HTMLElement>('[data-slot="chart-reading"]')!,
       ).getByText('Conversion from previous stage'),
     ).toBeDefined();
-    expect(
-      [
-        ...container.querySelectorAll<HTMLElement>('[data-slot="funnel-bar"]'),
-      ].map(bar => bar.style.background),
-    ).toEqual(['var(--chart-1)', 'var(--chart-1)']);
+    // Both stages in the palette's first slot.
+    expect(fills(container)).toEqual([
+      'rgb(42, 120, 214)',
+      'rgb(42, 120, 214)',
+    ]);
     unmount();
 
     const first = funnel('first');

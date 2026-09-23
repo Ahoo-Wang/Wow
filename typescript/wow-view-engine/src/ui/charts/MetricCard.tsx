@@ -11,18 +11,18 @@
  * limitations under the License.
  */
 
-import { Line, LineChart } from 'recharts';
+import { useCallback } from 'react';
 import { useChartMotion } from './motion.js';
 import type { MetricCardData } from '../../analysis/index.js';
-import { ChartContainer } from '../components/chart.js';
 import { Progress } from '../components/progress.js';
 import { cn } from 'cn';
 import { useViewMessages } from '../MessagesProvider.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
-import { asImage } from './asImage.js';
 import { formatValue } from './axis.js';
+import { EChart } from './EChart.js';
 import type { FamilyProps } from './family.js';
-import { color } from './palette.js';
+import { sparklineOption } from './sparklineOption.js';
+import type { ChartTheme } from './theme.js';
 
 /**
  * The comparison, signed. In `percent` mode the kernel divides, so the delta
@@ -62,6 +62,23 @@ export function MetricCard({
   const messages = useViewMessages();
   const { locale } = useSurfaceDisplay();
   const card = spec?.metric;
+  const trendName = messages.label('label.chart.trend');
+  const trend = data.trend;
+  const sparkline = useCallback(
+    (theme: ChartTheme) =>
+      sparklineOption(
+        trend ?? [],
+        {
+          label,
+          x: card?.trend?.x,
+          metric: card?.metric,
+          name: trendName,
+          animate,
+        },
+        theme,
+      ),
+    [trend, label, card, trendName, animate],
+  );
   /**
    * The headline number as its own column reads it, so a card of money says
    * ¥10,230.00 where the table under it says the same. `MetricCardSpec.format`
@@ -110,31 +127,13 @@ export function MetricCard({
           className="[&_[data-slot=progress-track]]:h-2"
         />
       )}
-      {data.trend && data.trend.length > 0 && (
-        <ChartContainer
-          config={{
-            trend: {
-              label: messages.label('label.chart.trend'),
-              color: color(0),
-            },
-          }}
-          className="h-16 w-full"
-        >
-          <LineChart
-            {...asImage(messages.label('label.chart.sparkline', { name }))}
-            data={data.trend.map(point => ({
-              x: label(spec?.metric?.trend?.x, point.x),
-              trend: point.value,
-            }))}
-          >
-            <Line
-              dataKey="trend"
-              stroke="var(--color-trend)"
-              dot={false}
-              isAnimationActive={animate}
-            />
-          </LineChart>
-        </ChartContainer>
+      {trend && trend.length > 0 && (
+        <EChart
+          name={messages.label('label.chart.sparkline', { name })}
+          className="aspect-auto h-16 min-h-0"
+          option={sparkline}
+          data={{ 'data-chart': 'sparkline', 'data-marks': trend.length }}
+        />
       )}
     </div>
   );

@@ -60,6 +60,7 @@ function AnalysisWorkbenchDemo({
   waybills,
   savedFunnel,
   labels = false,
+  heatmap = false,
 }: {
   behaviour?: SourceBehaviour;
   layout?: 'table' | 'chart';
@@ -114,6 +115,11 @@ function AnalysisWorkbenchDemo({
   savedFunnel?: { value: 'orders' | 'amount'; order: string[] };
   /** Whether the chart writes each value over its mark (`ChartSpec.labels`). */
   labels?: boolean;
+  /**
+   * 仓库 × 状态的热力图：两个维度、一个金额合计，格子深浅按金额，底下一条色标
+   * （D21 第四批）。
+   */
+  heatmap?: boolean;
 }) {
   const { groups, metrics } = analysisConfig();
   const fitted = fitChartSlots({ type: chart }, groups, metrics);
@@ -162,23 +168,25 @@ function AnalysisWorkbenchDemo({
       totals: true,
     },
   });
-  const config = latest
-    ? latestConfig(layout)
-    : savedFunnel
-      ? {
-          ...saved,
-          chart: {
-            type: 'funnel' as const,
-            funnel: {
-              stages: {
-                from: 'group' as const,
-                category: 'warehouse',
-                ...savedFunnel,
+  const config = heatmap
+    ? heatmapConfig(layout, labels)
+    : latest
+      ? latestConfig(layout)
+      : savedFunnel
+        ? {
+            ...saved,
+            chart: {
+              type: 'funnel' as const,
+              funnel: {
+                stages: {
+                  from: 'group' as const,
+                  category: 'warehouse',
+                  ...savedFunnel,
+                },
               },
             },
-          },
-        }
-      : saved;
+          }
+        : saved;
 
   if (waybills) {
     const scene = waybillScene(waybills, layout);
@@ -238,6 +246,33 @@ function AnalysisWorkbenchDemo({
       )}
     </StoryEngine>
   );
+}
+
+/** Orders by warehouse and status, as a heatmap. */
+function heatmapConfig(layout: 'table' | 'chart', labels: boolean) {
+  const groups = [
+    { alias: 'warehouse', field: 'warehouse', type: 'TERMS' },
+    { alias: 'status', field: 'status', type: 'TERMS' },
+  ] satisfies AnalysisViewConfig['groups'];
+  // The amounts differ cell to cell where the counts are all one.
+  const metrics = [
+    {
+      alias: 'amount',
+      type: 'NUMERIC',
+      function: 'SUM',
+      expression: { type: 'FIELD', field: 'amount' },
+    },
+  ] satisfies AnalysisViewConfig['metrics'];
+  return analysisConfig({
+    layout,
+    groups,
+    metrics,
+    table: { columns: [] },
+    chart: {
+      ...fitChartSlots({ type: 'heatmap' }, groups, metrics),
+      ...(labels ? { labels: true } : {}),
+    },
+  });
 }
 
 /** The order count and the latest order per warehouse, the latest first. */
@@ -363,8 +398,10 @@ const meta = {
     visualization: true,
     latest: false,
     labels: false,
+    heatmap: false,
   },
   argTypes: {
+    heatmap: { control: 'boolean' },
     labels: { control: 'boolean' },
     latest: { control: 'boolean' },
     limit: { table: { disable: true } },
@@ -477,6 +514,14 @@ export const DailyNewestFirst: Story = {
  */
 export const ValueLabels: Story = {
   args: { layout: 'chart', waybills: 'daily', labels: true },
+};
+
+/**
+ * 仓库 × 状态的热力图：格子铺满绘图区、第一行在上，深浅按金额，底下一条色标
+ * 读得回数；格子上写着金额（从前是挤在一角的灰格子，没有色标也没有数）。
+ */
+export const HeatmapChart: Story = {
+  args: { layout: 'chart', heatmap: true, labels: true },
 };
 
 /**

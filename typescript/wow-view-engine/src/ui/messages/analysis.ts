@@ -290,7 +290,6 @@ export const analysisMessages = {
   'label.chart.legend.less': 'Show less',
   'label.chart.total': 'Total',
   'label.chart.trend': 'Trend',
-  'label.chart.cell': '{y} · {x}: {value}',
 
   // What a chart says about itself. The drawing is one image with a name —
   // the marks are a picture, not an application — and the numbers it draws

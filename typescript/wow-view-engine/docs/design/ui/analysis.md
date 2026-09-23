@@ -66,7 +66,7 @@ D20 屏 G。订单里有明细项，明细项里有批次——「按货号看�
 - **饼图超过八片就并「其他」**，不去造第九种颜色。`maxSlices` 不写时，可加指标的饼图按 `CHART_COLOR_SLOTS` 并；写了比八大的数也按八读，面板上那个数字框的上限就是八，提示写明「不填即 8 片」。「其他」**是灰的**（`OTHER_COLOR`，即 `--muted-foreground`）而不是某一档色：它不是一个类目，没人能按它、也没人能给它钉颜色，一档色相会让它读成又一个城市。不可加的指标（平均、去重计数……）并不出「其他」——剩下那些的平均不是任何东西的平均——所以它们超过八片仍会循环取色；拆分成八条以上系列的直角坐标图同样——两者怎么办是待定的产品口径（[decisions.md](../decisions.md#搁置待议) 的 Q9）。（见 test/analysisChart.test.ts「a pie past the palette」、test/analysisChart.test.tsx「gives each of eight slices a colour of its own」、test/styleBoundary.test.tsx「the chart palette the theme declares」与浏览器故事「分析工作台/回归」的 `EightColoursThenOther`）；
 - **饼图说出每一片的占比，也说出它量的是什么**（审查 P0-10／P0-11）。饼图只回答"各占整体多少"，而眼睛读角度最差，所以占比写在片上：每一片 ≥3% 的扇区在外侧标出占比（`formatValue(…, 'percent')`，按界面语言写）；规格里开了数值标签（`labels: true`）就写「值 · 占比」；不到 3% 的细条不标——标签会挤在一起——它的占比在 tooltip 与图旁的读屏表里。tooltip 同样是「值 · 占比」。**分母是画出来的那些片**：负值没有份额可言，不进分母也不标占比。图例第一项是被量的那一列的标题（`data-slot="pie-measure"`，如「金额 的 合计」），扇区的颜色于是有了单位。**结果被截到前 N 组时**（`view.truncated`，或探不成的 `atLimit`），这一项后面接一句「占比按显示的组计算」（`label.chart.share-basis`）：剩下的组不在饼上，一个读成"占全部"的份额恰好差了它们——状态行那条 warning 说的是结果，这句话写在饼自己的图例上，读占比的人不必再往上找。`cutShort` 由 `AnalysisParts`、`DashboardGrid`、`EmbeddedView` 从 `AnalysisView` 算出，经 `AnalysisChart` 交给各家族（`FamilyProps.cutShort`）。（见浏览器故事「分析工作台/回归」的 `VisualizePanel`：换成饼图后图例首项是「金额 的 合计」、片上标签以 % 结尾；`CutShort`：图例写着口径）；
 - **时间轴从左往右走，不管视图怎么排**。「每日新增失败」按日倒序存着——表格今天在最上面，这是这类视图最常见的存法——而同一批行照原样画成柱，今天落在原点、昨天在它右边，每条线都斜反了，屏幕上没有任何东西说它是反的。所以 `shapeChart` 把**时间维度**（`DATE_HISTOGRAM`）坐的每一根轴按时间升序排：直角坐标图的横轴、热力图的行与列、指标卡的迷你趋势；桶按下钻读它的同一个 `readInstant` 读，读不出时刻的（缺值哨兵）排在最后，其余次序不动。**表格仍是视图的排序**——表是视图的，轴是时间的。时间是**拆分**而不是横轴时，按时间排的是系列（图例从最早的一天读起，色板也从最早的一天发第一档），横轴是类目，照结果行的次序；**类目维度**永远照结果行的次序，它没有自己的次序可还原；饼图没有轴，照结果行的次序（并了「其他」之后从大到小）。（见 test/analysisChart.test.ts「a time axis runs forward」与浏览器故事「分析工作台/回归」的 `TimeRunsForward`、`SparklineRunsForward`）
-- 热力图与漏斗自绘，用图表库画它们的成本高于收益。**布局与图型都是重绘，不是重跑**（D20，见下一节）：工作台拿回来的那批行用 `shapeChart` 按草稿的图表规格现整形，所以 `useAnalysisEditor.setLayout` 与 `setChartType` 只编辑草稿，不 apply；
+- 热力图与漏斗也由 ECharts 画（D21 第四批）：从前自绘的网格挤在一角、没有色标，漏斗是一排左对齐的条。**布局与图型都是重绘，不是重跑**（D20，见下一节）：工作台拿回来的那批行用 `shapeChart` 按草稿的图表规格现整形，所以 `useAnalysisEditor.setLayout` 与 `setChartType` 只编辑草稿，不 apply；
 - 托盘里的改动等「应用」，等着的时候那颗点在应用按钮上（`data-pending`，`filter.pending || analysis.pending`，基准是整份配置，见 [ui/README.md#三态各有一处凭据](README.md#三态各有一处凭据)），被拒的应用同样算没应用。**同屏唯一的 primary 就是它**（D17-3，[版式](README.md#版式三块一套间距一种选项控件)）：范围与问题是一份配置、一次 `runtime.apply()`，所以只有一颗按钮跑查询。（见 test/analysisChart.test.tsx「AnalysisChart」、test/analysisUi.test.tsx「useAnalysisEditor」、test/analysisTray.test.tsx「carries one primary button on the screen, and it is Apply」与 test/analysisChart.test.ts「shapeChart」）
 
 ### 一个家族一个文件
@@ -85,9 +85,9 @@ D20 屏 G。订单里有明细项，明细项里有批次——「按货号看�
 | `ui/charts/tooltip.ts`                            | 提示框：注册表图表提示的那一套样式，数据里来的字一律转义                                                                                                  |
 | `ui/charts/PieSlices.tsx`／`pieOption.ts`         | 饼图与环形图（ECharts）：「其他」那一片、片外的占比、环心的合计、图例上的度量、占比口径与每片的占比                                                       |
 | `ui/charts/ScatterPoints.tsx`／`scatterOption.ts` | 散点（ECharts）：两轴以列标题为名、点离绘图区边留白、第三维是点的大小、八个点以内点上写组名                                                               |
-| `ui/charts/Heatmap.tsx`                           | 自绘网格                                                                                                                                                  |
-| `ui/charts/Funnel.tsx`                            | 自绘阶段条（色板第一档）、条旁的数，与标明相对哪一段的转化率                                                                                              |
-| `ui/charts/MetricCard.tsx`                        | 指标卡：值、比较、目标与迷你趋势                                                                                                                          |
+| `ui/charts/Heatmap.tsx`／`heatmapOption.ts`       | 热力图（ECharts）：格子铺满绘图区、第一行在上，`visualMap` 色标，对数刻度按对数上色、数照写                                                               |
+| `ui/charts/Funnel.tsx`／`funnelOption.ts`         | 漏斗（ECharts）：居中的漏斗形（色板第一档）、每段旁写名字、值与转化率，图上方标明相对哪一段                                                               |
+| `ui/charts/MetricCard.tsx`／`sparklineOption.ts`  | 指标卡：值、比较、目标与迷你趋势（ECharts：一根线、淡淡的填色，无轴无点）                                                                                 |
 | `ui/charts/palette.ts`                            | `--chart-1..8` 取色、「其他」的灰与 `spec.colors` 的覆盖（值在进 `<style>` 前再校一次）                                                                   |
 | `ui/charts/axis.ts`                               | 数值格式、轴域与刻度格式、左右轴归属                                                                                                                      |
 | `ui/charts/family.ts`                             | `FamilyProps`（每个家族收到的同一份 props）、值标签器 `useValueLabel` 与列标题 `useColumnTitle`                                                           |
@@ -96,7 +96,7 @@ D20 屏 G。订单里有明细项，明细项里有批次——「按货号看�
 
 ## 图表怎么被读出来
 
-- **画出来的部分是一张有名字的图，数字在它旁边。** ECharts 画的家族（D21，目前是直角坐标四种、饼与环、散点）：`role="img"` 与名字在我们自己的 `data-slot="chart-plot"` 上，库的 `aria` 关着、它的 `<svg>` 不带角色与名字，图里没有可聚焦的元素（test/analysisChartA11y.test.tsx「draws into one named image」）。仍由 recharts 画的家族：recharts 默认打开 `accessibilityLayer`，给根 `<svg>` 挂上 `role="application"` 与 `tabIndex={0}`：读屏会因此退出浏览模式、把按键交给一个没有任何键盘处理的元素，而那个元素里只有坐标轴刻度、一个空 `<title>` 和一个空 `<desc>`——查询回答的数字一个都不在。`charts/asImage.ts` 把这一层关掉，换成 `role="img"` 加 `aria-label`；热力图与漏斗是自绘的 `div`，同样以 `role="img"` 加名字整块作为一张图。图里于是没有任何可聚焦的元素；
+- **画出来的部分是一张有名字的图，数字在它旁边。** ECharts 画的家族（D21，目前是直角坐标四种、饼与环、散点）：`role="img"` 与名字在我们自己的 `data-slot="chart-plot"` 上，库的 `aria` 关着、它的 `<svg>` 不带角色与名字，图里没有可聚焦的元素（test/analysisChartA11y.test.tsx「draws into one named image」）。仍由 recharts 画的家族：recharts 默认打开 `accessibilityLayer`，给根 `<svg>` 挂上 `role="application"` 与 `tabIndex={0}`：读屏会因此退出浏览模式、把按键交给一个没有任何键盘处理的元素，而那个元素里只有坐标轴刻度、一个空 `<title>` 和一个空 `<desc>`——查询回答的数字一个都不在。那一层当时由 `charts/asImage.ts` 关掉；现在所有家族都由 ECharts 画，`role="img"` 加 `aria-label` 一律在 `data-slot="chart-plot"` 上，热力图、漏斗与指标卡的迷你趋势也不例外。图里于是没有任何可聚焦的元素；
 - **名字说的是"画的是什么"**：`{图型}：{度量}，按 {类目}`（`label.chart.figure`），度量与类目都按别名回 `AnalysisView.schema` 取列标题，取不到就只剩图型名。指标卡没有类目，用 `label.chart.figure.plain`；它的迷你趋势线另有一个 `label.chart.sparkline`；
 - **可读替代来自同一份投影。** `charts/reading.ts` 从 `ChartData`——而不是旁边那份行投影——生成 `{name, header, rows}`，`ChartReadingTable` 用注册表的 `Table` 以 `sr-only` 渲染在图旁边，于是屏幕上画了什么、读屏就读到什么，两者不会各说各话：图上有、这里没有的值，只能意味着某个家族画了内核没整形过的东西。数值按该系列所在坐标轴的格式打印（`percent` 轴上的 0.25 读作 25%），空洞读作 `label.summary.unavailable`；
 - **仪表盘上的指标卡一行高**：网格一行 80px，面板标题下留给内容的是 28px；工作台里的 `text-3xl`（36px 行高）放不下，面板要么滚动、要么占两行（170px）大半是空白。所以仪表盘面板里的值（`data-slot="metric-value"`）降到 `text-2xl` 并去掉行距（`styles.css`「A number on a dashboard is a tile one row tall」），与 shadcn 仪表盘卡片的数字起始字号一致；工作台里仍是 `text-3xl`。首页的三张指标卡因此各占一行。（见回归 story「首页 / Fixture」）
@@ -153,7 +153,7 @@ D20 定下的三条数据口径，每一条都是"这个数看起来是甲，其
 
 ## ECharts 的画法：对齐 Metabase（D21）
 
-直角坐标四种、饼与环、散点已由 ECharts 画（`charts/cartesianOption.ts`、`pieOption.ts`、`scatterOption.ts`），迷你图、漏斗与热力图按 D21 的批次跟进。显示照 Metabase 的规矩：
+每个家族都由 ECharts 画（`charts/cartesianOption.ts`、`pieOption.ts`、`scatterOption.ts`、`funnelOption.ts`、`heatmapOption.ts`、`sparklineOption.ts`）。显示照 Metabase 的规矩：
 
 - **数写短，读法仍是那一列的**：刻度与柱上的数经 `label(alias, value, true)`，中文「1110万」「1.2亿」、英文「11.1M」，列的货币保留（「¥1110万」）；提示框、读屏表与表格写全。`AxisSpec.format` 仍优先。
 - **每根柱上可写它的数，压到别的数就不写**：`labels: true` 时每个值一个标签（`labelLayout.hideOverlap`），标签带一圈脚下底色的描边，压在网格线或邻柱上也读得清；堆叠时段内写各段、栈顶写合计（一根高度为零的承载柱，不接按下、不进提示）。是否默认打开值标签是产品口径，现状仍是显示页的复选框（默认关）。（浏览器故事 `ValueLabelsApart`：三十天的标签两两不相交且都在图内）
@@ -167,6 +167,9 @@ D20 定下的三条数据口径，每一条都是"这个数看起来是甲，其
 - **饼与环**：每片 ≥3% 的在片外、连一根引线写占比（`labels: true` 时写「值 · 占比」，值写短），标签压到别的就不写；片与片之间一道底色的细缝；环形图的洞里写合计与「合计」两字（`graphic`）——**只在度量可加时**（记录数、合计，`FamilyProps.adds`）：几个平均数加起来不是任何东西。图例默认在右侧（Metabase 的环图就是这样），第一行是被量的那一列（截断时接「占比按显示的组计算」），每一项右端对齐写它的占比；「其他」灰色、按下不弹追问。（test/pieOption.test.ts；浏览器故事 `EightColoursThenOther`、`ChartOptionsPages` 的环心合计）
 - **参考线只在高过数据时撑轴**：高过柱顶（堆叠按各段之和）的线把轴撑到它；在数据之内的线让轴自己取整——把数据的原始最大值当边界交回去，顶端刻度读成「¥4882」。
 - **堆叠按轴分**：同一个堆叠名落在左右两根轴上是两套刻度，叠在一起会把计数画在金额的高度上；每根轴各叠各的（`left:a`／`right:a`），合计也各算各的。
+- **热力图**：格子铺满绘图区（第一行在上，格子之间一道底色的缝），颜色从底色到色板第一档（透明度 0.2～1），底下一条 `visualMap` 色标、两端写最小与最大值（写短）；对数刻度时按 `log1p` 上色，格子上与提示里的数照原样写；全部格子一样大时按最深的一档画——唯一的那个值就是最多的；没有落进任何记录的格子不画。格子上写数（`labels: true`，写短、带描边、压到就不写），提示是「行 · 列」加值。（test/familyOptions.test.ts；浏览器故事 `HeatmapFillsItsPlot`）
+- **漏斗**：居中的漏斗形（`series.type: 'funnel'`，按给定的阶段次序、从不重排），每段一样的色板第一档、一道底色的缝，最窄的一段也留 4% 的宽，读作零而不是画坏了；每段旁边写「名字　值　转化率」，横放时写在下面。转化率相对哪一段写在图上方（`funnel-conversion-heading`），读屏表那一列同一句。（test/familyOptions.test.ts；浏览器故事「图型/回归」的 `FunnelFromTheRows` 量每段的中心在一条线上）
+- **指标卡的迷你趋势**：一根线加淡淡的填色，没有轴、网格与点——大数字才是主角，线只说它这一阵往哪边走；提示仍读每个点的日子与值。
 - **宿主的 `svg` 规则压不扁图**：库把尺寸写在 `<svg>` 属性上，宿主常见的图标规则（故事宿主的 `.story-app svg { width: 16px }`）会把整张图压成左上角 16px 的方块；`styles.css` 让图的 svg 填满库给它的框。
 - **`data-drawn`**：库报告画完（含动画）后写在图框上，新 option 下发时撤掉；浏览器故事量几何之前等它（`stories/view-engine/chartDom.ts` 的 `chartsDrawn`），否则量到的是还在长的柱子。
 

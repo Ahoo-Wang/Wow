@@ -25,6 +25,7 @@ import {
   drawnMarks,
   valueLabels,
 } from './chartDom.js';
+import { formatRgb, parse } from 'culori';
 
 const meta = {
   ...displayMeta,
@@ -202,14 +203,13 @@ export const FunnelFromTheRows: Story = {
 
     const funnel = await waitFor(() => {
       const found = canvasElement.querySelector<HTMLElement>(
-        '[data-slot="funnel"]',
+        '[data-slot="chart"][data-chart="funnel"]',
       );
       expect(found).not.toBeNull();
       return found!;
     });
-    const stageBars = [
-      ...funnel.querySelectorAll<HTMLElement>('[data-slot="funnel-bar"]'),
-    ];
+    await chartsDrawn(canvasElement);
+    const stageBars = drawnMarks(funnel);
     await expect(stageBars).toHaveLength(4);
     await expect(
       canvasElement.querySelector('[data-slot="status-line"] [role="alert"]'),
@@ -223,9 +223,22 @@ export const FunnelFromTheRows: Story = {
     await expect(box.left - block.left).toBeGreaterThanOrEqual(15);
     await expect(block.right - box.right).toBeGreaterThanOrEqual(15);
     await expect(outside(stageBars, box)).toEqual([]);
-    // The palette's first slot, as a lone series wears it.
+    // The palette's first slot, as a lone series wears it — read back off
+    // the stylesheet, as the drawing was handed it.
+    const first = formatRgb(
+      parse(getComputedStyle(funnel).getPropertyValue('--chart-1').trim()),
+    );
     for (const bar of stageBars)
-      await expect(bar.style.background).toBe('var(--chart-1)');
+      await expect(getComputedStyle(bar).fill).toBe(first);
+    // A funnel, not bars: each stage narrower than the one above it, and
+    // all of them centred on one line.
+    const boxes = stageBars
+      .map(bar => bar.getBoundingClientRect())
+      .sort((a, b) => a.top - b.top);
+    const centres = boxes.map(one => (one.left + one.right) / 2);
+    await expect(
+      centres.every(centre => Math.abs(centre - centres[0]!) < 1),
+    ).toBe(true);
 
     await expect(
       funnel.querySelector('[data-slot="funnel-conversion-heading"]'),
@@ -350,14 +363,13 @@ export const SavedFunnelRepaired: Story = {
     await userEvent.click(offered);
     const drawn = await waitFor(() => {
       const found = canvasElement.querySelector<HTMLElement>(
-        '[data-slot="funnel"]',
+        '[data-slot="chart"][data-chart="funnel"]',
       );
       expect(found).not.toBeNull();
       return found!;
     });
-    await expect(
-      drawn.querySelectorAll('[data-slot="funnel-bar"]'),
-    ).toHaveLength(4);
+    await chartsDrawn(canvasElement);
+    await expect(drawnMarks(drawn)).toHaveLength(4);
     await expect(
       canvasElement.querySelector('[data-slot="status-line"] [role="alert"]'),
     ).toBeNull();

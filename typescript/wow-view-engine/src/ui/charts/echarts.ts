@@ -24,10 +24,18 @@
  * (`labelLayout.hideOverlap`), the reason the library was chosen
  * (docs/design/decisions.md D21).
  */
-import { BarChart, LineChart, PieChart, ScatterChart } from 'echarts/charts';
+import {
+  BarChart,
+  FunnelChart,
+  HeatmapChart,
+  LineChart,
+  PieChart,
+  ScatterChart,
+} from 'echarts/charts';
 import {
   GraphicComponent,
   GridComponent,
+  VisualMapContinuousComponent,
   MarkLineComponent,
   TooltipComponent,
 } from 'echarts/components';
@@ -38,10 +46,13 @@ import { SVGRenderer } from 'echarts/renderers';
 
 register([
   BarChart,
+  FunnelChart,
+  HeatmapChart,
   LineChart,
   PieChart,
   ScatterChart,
   GraphicComponent,
+  VisualMapContinuousComponent,
   GridComponent,
   MarkLineComponent,
   TooltipComponent,

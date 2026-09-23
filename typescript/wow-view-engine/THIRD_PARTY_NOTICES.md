@@ -28,7 +28,7 @@ THE SOFTWARE.
 
 ## Recharts — MIT License
 
-The metric card's sparkline still renders through Recharts, a runtime dependency until the ECharts migration's later batches remove it (docs/design/decisions.md D21): https://github.com/recharts/recharts
+No chart renders through Recharts any more; it stays a dependency only until the vendored `ui/components/chart.tsx` is removed in the ECharts migration's last batch (docs/design/decisions.md D21): https://github.com/recharts/recharts
 
 The MIT License (MIT)
 

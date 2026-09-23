@@ -29,6 +29,8 @@ export interface ChartClick {
   componentType: string;
   seriesIndex?: number;
   dataIndex: number;
+  /** The datum pressed, as the series holds it: a heatmap cell's `[x, y, …]`. */
+  value?: unknown;
   /** The pointer event under the press, for the menu to hang from. */
   event?: { event?: { clientX: number; clientY: number } };
 }

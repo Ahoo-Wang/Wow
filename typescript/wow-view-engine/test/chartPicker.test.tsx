@@ -493,11 +493,15 @@ describe('a funnel is offered where it draws', () => {
 
     fireEvent.click(tile('funnel'));
 
-    // The stages are the groups in the order they came, filled on the pick.
-    const drawing = await screen.findByRole('img', { name: /^funnel:/ });
+    // The stages are the groups in the order they came, filled on the pick:
+    // the reading table beside the drawing lists them as it draws them.
+    await screen.findByRole('img', { name: /^funnel:/ });
+    const reading = document.querySelector<HTMLElement>(
+      '[data-slot="chart-reading"] tbody',
+    )!;
     expect(
-      [...drawing.querySelectorAll('[data-slot="funnel-stage"]')].map(
-        stage => stage.textContent,
+      [...reading.querySelectorAll('tr')].map(
+        row => row.querySelector('th, td')?.textContent,
       ),
     ).toEqual(['CN', 'JP']);
     // Nothing is left to fix, so the status line says nothing.
