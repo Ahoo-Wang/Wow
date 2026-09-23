@@ -89,20 +89,35 @@ export class PanelReferences {
         ),
     );
     if (wanted.size === 0) return false;
-
-    for (const id of wanted) {
-      // A rejection is an answer too: the instance was deleted, or this user
-      // may not read it, and only that one panel is affected.
-      const loading = this.resolve(id).then(
-        reference => this.resolved(id, reference),
-        () => this.resolved(id, null),
-      );
-      this.pending.set(
-        id,
-        awaited ? loading : loading.catch(error => this.failed(id, error)),
-      );
-    }
+    for (const id of wanted) void this.start(id, awaited);
     return true;
+  }
+
+  /**
+   * Loads one saved view before any panel points at it — the one a board is
+   * about to add, so the panel starts at the size of what it shows — and
+   * resolves once it has settled, however it settled; `null` when it is
+   * already known or on its way, and there is nothing to start.
+   */
+  fetch(instanceId: string): Promise<void> | null {
+    if (this.references.has(instanceId)) return null;
+    const pending = this.pending.get(instanceId);
+    if (pending) return pending.catch(() => undefined);
+    return this.start(instanceId, false);
+  }
+
+  private start(id: string, awaited: boolean): Promise<void> {
+    // A rejection is an answer too: the instance was deleted, or this user
+    // may not read it, and only that one panel is affected.
+    const loading = this.resolve(id).then(
+      reference => this.resolved(id, reference),
+      () => this.resolved(id, null),
+    );
+    const settled = awaited
+      ? loading
+      : loading.catch(error => this.failed(id, error));
+    this.pending.set(id, settled);
+    return settled;
   }
 
   /**

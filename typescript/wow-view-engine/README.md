@@ -184,6 +184,20 @@ export function OrdersPage() {
 
 It converges rather than renders. A view holds an unsaved draft, so a pushed value goes through the same leave guard a click on the sidebar goes through: whichever side moved last is the one that speaks, and the other follows. If the guard asks and the user stays, the workbench reports the view that stayed, so your route is never left naming a view that is not on screen. `examples/PlainRecordWorkbench.tsx` has the whole of it against `window.location.hash`, back button included.
 
+#### Building a dashboard, and opening a panel's view
+
+A dashboard is read until someone who may save it presses **Edit**: nothing on a board being read moves. Editing brings up a bar with **Add** (a saved view, a heading, text, an image, links), **Cancel** and **Done** — panels re-run as the board changes, and only **Done** saves it, through the same save the title bar has. A system dashboard is read-only and offers **Save as**.
+
+Each panel's **⋯** menu offers **Open in the workbench** only when you give the dashboard a route for it. `onOpenView(instanceId, filter)` hands you the saved view the panel shows and the dashboard's condition as the panel carries it — already in that view's own field names, ready to pass on as its scope. `DashboardWorkbench` and `EmbeddedView` take the same prop.
+
+```tsx
+<DashboardWorkbench
+  engine={engine}
+  definitionId="overview"
+  onOpenView={(instanceId, filter) => openInWorkbench(instanceId, filter)}
+/>
+```
+
 #### Customising the theme
 
 Every token reads a host-level variable with the built-in value as its fallback: set `--fve-<token>` for light and `--fve-dark-<token>` for dark on your own `:root`, and the surface and the popups portalled to `<body>` both pick it up — no selector to scope, no load order to win.

@@ -181,6 +181,20 @@ export function OrdersPage() {
 
 它**收敛**而不是**渲染**。视图里装着未保存的草稿，所以推进来的值与侧栏上的一次点击走同一道离开守卫：后动的那一方说话，另一方跟上。若守卫问过而用户选择留下，工作台会把**留下的那个**报回来，你的路由不会停在一个没开着的视图上。完整参照见 `examples/PlainRecordWorkbench.tsx`，连浏览器后退一并覆盖。
 
+#### 搭仪表盘，以及打开面板背后的视图
+
+仪表盘平时是读的：能保存它的人按「编辑」之前，板上什么都不动。编辑中顶上一条编辑条，有「添加」（已保存的视图、标题、文字、图片、链接）、「取消」与「完成」——面板随改随跑，只有「完成」才保存，走的就是标题栏那次保存。系统仪表盘只读，只有「另存为」。
+
+每块面板的「⋯」里，「在工作台中打开」只在你给了仪表盘一条路由时才有。`onOpenView(instanceId, filter)` 交给你面板显示的那个已保存视图，以及面板此刻带着的全局条件——已经换成那个视图自己的字段名，可以直接当作用域传下去。`DashboardWorkbench` 与 `EmbeddedView` 收同一个属性。
+
+```tsx
+<DashboardWorkbench
+  engine={engine}
+  definitionId="overview"
+  onOpenView={(instanceId, filter) => openInWorkbench(instanceId, filter)}
+/>
+```
+
 #### 定制主题
 
 每个 token 都读一个宿主层变量，并以内置值兜底：在自己的 `:root` 上给亮色设 `--fve-<token>`、给暗色设 `--fve-dark-<token>` 即可，视图根与 Portal 到 `<body>` 的弹层都会读到——不必考虑选择器作用域，也不必考虑样式加载顺序。

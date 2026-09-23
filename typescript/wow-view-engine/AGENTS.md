@@ -249,7 +249,7 @@ src/
     useAutoRefresh.ts         — `RefreshController`: refresh now, the cadence ladder cut to the limits, the countdown
     useBulkCommand.ts         — A host's command for one record run over a selection: a few at a time, progress, stop, each refusal's reason, the unfinished rows left selected
     useSearchBox.ts           — The view's search kept on hand: the definition's search field, the draft's and the applied text, set / submit / clear
-    useDashboard.ts           — Dashboard panels, geometry and state
+    useDashboard.ts           — Dashboard panels, geometry and state; the board's edit commands, its tabs, and `preload` for a view about to be added
     useFilterEditor.ts        — Filter tree editor controller
     useRecordExport.ts        — The export run: scope, progress, the ceiling, delivery
     useRecordDetail.ts        — One record's detail: open, read whole (`fetchRecord`) and read again when the view's result lands; the page's row until then
@@ -284,7 +284,8 @@ src/
     ConflictConfirm.tsx       — The same choice, put once more with both configs on the table
     CopyButton.tsx            — A value's own copy button: the clipboard, the tick, and the two words a press comes back with
     DashboardArrange.tsx      — Placing a panel without a pointer: the two handles named after their panel (`PanelGridItem` tells the corner which), and the menu
-    DashboardGrid.tsx         — The panels, placed — in reading order, one column below `md`; what a panel is called (`panelName`, and `panelNames` numbering the names the board makes up), why one is out and who can bring it back
+    DashboardGrid.tsx         — The panels, placed — in reading order, one column below `md`, the tab on screen alone when a tab bar says which; the edit bar over them and the first things to add on an empty board, where the board is built; each panel's commands (`panelCommands`)
+    DashboardPanel.tsx        — One framed panel: its title (a heading panel is that and nothing else), its 「⋯」 menu, the arrange handles while the board is built, the body; what a panel is called (`panelName`, and `panelNames` numbering the names the board makes up); chart findings named by column
     DashboardPanels.tsx       — The static panels: a heading, a note, a picture, a list of links
     DashboardWorkbench.tsx    — Default Dashboard workbench
     DataWorkbench.tsx         — The data workbench: one list of record and analysis views; `useWorkbench` + both parts + `WorkbenchShell`, joined (D18-1, D20)
@@ -300,7 +301,7 @@ src/
     LeaveGuard.tsx            — `LeaveDialog`: draws the headless guard's question
     MessagesProvider.tsx      — `MessagesProvider`: the wording every default component reads, each provider merging over the one above it
     OutcomeActions.tsx        — One outcome as a line and its buttons, shared by the two above and the manager
-    PanelUnavailable.tsx      — A dashboard panel that cannot show anything: the finding mapped to why, in the reader's words, and who can bring it back
+    PanelUnavailable.tsx      — A dashboard panel that cannot show anything: the finding mapped to why, in the reader's words, and who can bring it back — or, while the board is built, the buttons that do
     PendingDot.tsx            — The "changed, not applied" dot pinned to a pill or a group
     RecordCards.tsx           — The same result as cards, drawn from the card half of the saved config (D18 V); a value reads as a card reads it, a note on its own three lines
     RecordPagination.tsx      — How many rows there are and how to reach the next of them
@@ -400,6 +401,15 @@ src/
       motion.ts               — Whether a chart animates its marks: not when the reader asked for less motion (`useChartMotion`, read live)
       palette.ts              — The eight slot colours, the grey of a pie's "Other", and the spec's overrides
       reading.ts              — A chart as text: its name and the numbers it draws
+    dashboard/                — What building a dashboard is made of (D22 A, B, D)
+      AddMenu.tsx             — 「＋ 添加 ▾」: 数据 (a saved view, a new analysis where one can be made) and 内容 (heading, text, image, links); the same first steps on an empty board
+      Board.tsx               — `DashboardBoard`: the grid with the edit bar over it, the picker and the content form, every edit one `DashboardEditing` command; where a new panel goes (the first row on screen) and where the keyboard goes after
+      commands.ts             — `panelCommands`: what one panel's menu offers — 「看」 always, 「改」 while the board is built, renaming and removing alone in the one-column reading — and the builder the grid reaches through context
+      ContentEditor.tsx       — The small form a note, a picture or a list of links is written in, what the kernel would refuse said at the field
+      EditBar.tsx             — The bar a board is built under: 正在编辑, 添加, 取消 (put back the saved board, asked first) and 完成 (the save, a shared board asked first, a new one named)
+      extensions.ts           — `DashboardEditExtensions`: the parts of building that live elsewhere (a new owned analysis, the presentation editor, 另存为视图, the tab bar and the tab on screen), each entry there only while provided
+      PanelMenu.tsx           — 「⋯」 on a panel, the question before it is removed, and its title renamed in place
+      ViewPicker.tsx          — Choosing a saved view: grouped as the switcher groups them, searched, narrowed by kind and data, 「已在板上」 and 「只有你看得到」 said on the row
     columns/
       ColumnRow.tsx           — One row of the column settings: checkbox, two-state pin toggle, summary, handle
       drag.ts                 — What the settings make of a drag: `columnDrop` refuses one across the areas, plus what a reader hears

@@ -29,7 +29,9 @@ export * from './BulkStatus.js';
 export * from './ColumnSettings.js';
 export * from './DashboardArrange.js';
 export * from './DashboardGrid.js';
+export * from './DashboardPanel.js';
 export * from './DashboardPanels.js';
+export * from './dashboard/extensions.js';
 export * from './DashboardWorkbench.js';
 export * from './describeConfig.js';
 /**

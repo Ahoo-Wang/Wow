@@ -23,7 +23,12 @@ import type { WorkbenchShellProps } from '../WorkbenchShell.js';
 
 export interface TitleBarProps extends Pick<
   WorkbenchShellProps,
-  'actions' | 'freshness' | 'editorModes' | 'onRenderFailure'
+  | 'actions'
+  | 'freshness'
+  | 'editorModes'
+  | 'onRenderFailure'
+  | 'build'
+  | 'commitElsewhere'
 > {
   /** The commands, the refresh and the write callbacks the bar is drawn from. */
   workbench: WorkbenchController;
@@ -76,6 +81,8 @@ export function TitleBar({
   fill,
   expandViewRef,
   onCreated,
+  build,
+  commitElsewhere,
 }: TitleBarProps) {
   return (
     <div
@@ -107,6 +114,8 @@ export function TitleBar({
         // so the bar does not show them a second time.
         namesView={namesView}
         leading={leading}
+        build={build}
+        commitElsewhere={commitElsewhere}
         trailing={
           // All three are answers to *how am I looking at this*,
           // which is what this group is, and they read outwards: the

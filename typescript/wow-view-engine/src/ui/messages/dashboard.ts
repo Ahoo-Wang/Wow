@@ -14,9 +14,8 @@
 /** The dashboard grid, its panels, and the dashboard kernel behind them. */
 export const dashboardMessages = {
   'label.dashboard.needs-fixing': 'This dashboard needs fixing before it runs',
-  // What an empty dashboard is, and nothing it cannot keep: there is no way
-  // to add a panel yet, so the empty state says what a dashboard shows and
-  // that this one has nothing on it, and invites nobody to press anything.
+  // What an empty dashboard is, and nothing it cannot keep: the first things
+  // to add are offered under it only to whoever may build the board.
   'label.dashboard.empty': 'This dashboard has no panels yet',
   'label.dashboard.empty-hint':
     'A dashboard puts saved record and analysis views side by side.',
@@ -84,6 +83,101 @@ export const dashboardMessages = {
   // A link on a panel opens in a tab of its own; a reader is told before
   // the page they were on is suddenly behind another one.
   'label.link.new-tab': '(opens in a new tab)',
+
+  // Building the board (D22 A): the way in, the bar it is built under, and the ways out.
+  'label.dashboard.edit': 'Edit',
+  'label.dashboard.editing': 'Editing',
+  'label.dashboard.editing-hint':
+    'Panels run as you change them; nothing is saved until Done.',
+  'label.dashboard.done': 'Done',
+  'label.dashboard.add': 'Add',
+  'label.dashboard.add.data': 'Data',
+  'label.dashboard.add.content': 'Content',
+  'label.dashboard.add.saved-view': 'Saved view…',
+  'label.dashboard.add.new-analysis': 'New analysis…',
+  'label.dashboard.add.heading': 'Heading',
+  'label.dashboard.add.markdown': 'Text…',
+  'label.dashboard.add.image': 'Image…',
+  'label.dashboard.add.links': 'Links…',
+  'label.dashboard.empty.add-view': 'Add a view…',
+  'label.dashboard.empty.add-heading': 'Add a heading',
+  'label.dashboard.new-heading': 'New section',
+  'label.dashboard.added': 'Added “{title}”',
+  'label.dashboard.duplicated': 'Copied “{title}”',
+  'label.dashboard.removed': 'Removed “{title}”',
+  'label.dashboard.tab.untitled': 'Tab {index}',
+  // The picker a saved view is added or swapped in from (D22 B).
+  'label.picker.add-heading': 'Add a saved view',
+  'label.picker.replace-heading': 'Replace the view in “{title}”',
+  'label.picker.description':
+    'Pick a record or analysis view to show on this dashboard.',
+  'label.picker.search': 'Search by name',
+  'label.picker.kind': 'Kind',
+  'label.picker.kind.all': 'All',
+  'label.picker.kind.record': 'Records',
+  'label.picker.kind.analysis': 'Analyses',
+  'label.picker.definition': 'Data',
+  'label.picker.definition.all': 'All data',
+  'label.picker.on-board': 'On the board',
+  'label.picker.private': 'Only you can see it',
+  'label.picker.none': 'No view matches.',
+  'label.picker.empty': 'There is no saved record or analysis view yet.',
+  'label.picker.loading': 'Loading views…',
+  // One panel's menu (D22 D): how it is looked at, and — while the board is built — how it is changed.
+  'label.panel.menu': 'Actions for “{title}”',
+  'label.panel.menu.view': 'View',
+  'label.panel.menu.edit': 'Change',
+  'label.panel.open': 'Open in the workbench',
+  'label.panel.refresh': 'Refresh this panel',
+  'label.panel.rename': 'Rename',
+  'label.panel.edit-presentation': 'Change how it looks here…',
+  'label.panel.edit-content': 'Edit content…',
+  'label.panel.replace': 'Replace view…',
+  'label.panel.duplicate': 'Duplicate',
+  'label.panel.move-to-tab': 'Move to tab',
+  'label.panel.save-as-view': 'Save as a view…',
+  'label.panel.remove': 'Remove from dashboard',
+  'label.panel.remove-heading': 'Remove “{title}” from this dashboard?',
+  'label.panel.remove-view': 'The view it shows is not deleted.',
+  'label.panel.remove-owned':
+    'The analysis in it belongs to this dashboard and goes with it.',
+  'label.panel.remove-content': 'What it holds goes with it.',
+  'label.panel.remove-undo': 'Cancel on the editing bar still brings it back.',
+  'label.panel.keep': 'Keep it',
+  'label.panel.title-input': 'Panel title',
+  'label.panel.heading-input': 'Heading text',
+  'label.panel.way-out.edit':
+    'Replace it with another view, or remove it from the dashboard.',
+  'label.panel.way-out.edit-content':
+    'Change what it holds, or remove it from the dashboard.',
+  // What a content panel holds, edited in a small form (D22 A).
+  'label.content.markdown.add': 'Add text',
+  'label.content.markdown.edit': 'Edit text',
+  'label.content.markdown.field': 'Text',
+  'label.content.markdown.hint':
+    'Markdown: **bold**, lists, [links](https://…).',
+  'label.content.markdown.default': 'Write what this part of the board is for.',
+  'label.content.image.add': 'Add an image',
+  'label.content.image.edit': 'Edit image',
+  'label.content.image.src': 'Image address',
+  'label.content.image.alt': 'Description',
+  'label.content.image.alt-hint': 'Read out to whoever cannot see the image.',
+  'label.content.image.href': 'Opens when pressed (optional)',
+  'label.content.image.fit': 'Fit',
+  'label.content.image.fit.contain': 'Whole image',
+  'label.content.image.fit.cover': 'Fill and crop',
+  'label.content.links.add': 'Add links',
+  'label.content.links.edit': 'Edit links',
+  'label.content.links.item': 'Link {n}',
+  'label.content.links.label': 'Text',
+  'label.content.links.href': 'Address',
+  'label.content.links.description': 'Note (optional)',
+  'label.content.links.more': 'Add a link',
+  'label.content.links.drop': 'Remove link {n}',
+  'label.content.title': 'Panel title (optional)',
+  'label.content.required': 'Fill this in.',
+  'label.content.submit-add': 'Add',
+  'label.content.submit-edit': 'Update',
 
   // Dashboard kernel.
   'dashboard.binding.global-duplicate':

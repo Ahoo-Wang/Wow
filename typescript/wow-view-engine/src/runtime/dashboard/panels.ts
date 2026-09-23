@@ -128,15 +128,20 @@ export function panelIssues(
   runtime: DataViewRuntime,
 ): Issue[] {
   const snapshot = runtime.getSnapshot();
+  // What its own config says beside running: a warning, and a note — the
+  // chart it cannot draw for this shape, drawn as its table (`chart.as-table`)
+  // — which a panel would otherwise show without a word, as the workbench
+  // never does.
   const caveats = snapshot.issues.filter(
     found =>
-      found.severity === 'warning' &&
-      !own.some(
-        said =>
-          said.severity === 'warning' &&
-          said.code === found.code &&
-          dequal(said.params, found.params),
-      ),
+      found.severity === 'note' ||
+      (found.severity === 'warning' &&
+        !own.some(
+          said =>
+            said.severity === 'warning' &&
+            said.code === found.code &&
+            dequal(said.params, found.params),
+        )),
   );
   return [
     ...own,

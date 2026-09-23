@@ -11,7 +11,7 @@
 
 - **面板按阅读顺序画**：先按行、行内从左到右（内核的 `readingOrder`，`src/dashboard/layout.ts`；面板叫「面板 3」时数的也是这个顺序），与配置里的数组顺序无关，所以 Tab 走的是眼睛走的路；
 - **窄于 `md`（768px）时一列**（D22 J）：栅格的列数被库自己的断点读法（`getBreakpointFromWidth`，量的是栅格拿到的宽度，不是给面板写媒体查询）换成 1，面板由内核的 `stackedLayout` 按上面的阅读顺序叠成一列、各保留保存时的高度。这一列是**推导出来的读法**，不写回：抓手、菜单、缩放角都不出现，指针拖拽与缩放关掉，交给 `place` 的手势回调也不接、键盘命令也不落——窄屏里摆出来的位置没有一个能对应回宽布局。容器被隐藏时量到 0 不是手机，断点停在上一次画得出的宽度。原来 414px 下分析面板被挤到 130px 上下，柱标签叠在一起、被截断。（见 test/dashboardUi.test.tsx「in a column narrower than md」；浏览器里无横向滚动、每个面板满宽、标签都在图里，见 stories/view-engine/Dashboard.test.stories.tsx「OnAPhone」）
-- **空仪表盘不许诺做不到的事**（U1）：说「这个仪表盘还没有面板」，再用一句说仪表盘是什么（把已保存的记录视图和分析视图并排放在一起看），没有按钮、没有「添加」。今天界面上没有任何添加面板的入口，原来那句「添加一个已保存的记录或分析视图就能在这里看到」指向一扇不存在的门。批 B 的「添加」放在 `DashboardEmpty` 里、`EmptyHeader` 之下的 `EmptyContent`——一块没有面板的板子唯一有地方放第一个动作的位置；（见 test/dashboardUi.test.tsx「says what an empty dashboard is, and promises nothing」）
+- **空仪表盘只许诺做得到的事**（U1，D22 A）：说「这个仪表盘还没有面板」，再用一句说仪表盘是什么（把已保存的记录视图和分析视图并排放在一起看）。**能搭这块板的人**在 `EmptyHeader` 之下的 `EmptyContent` 里拿到同样的第一步——「添加视图…」、「新建分析…」（只在有人提供那个对话框时，见下文「扩展」）、「添加标题」——按下去同时进入编辑；**不能搭的人**什么按钮也没有，一个按不动的入口就是那扇不存在的门。（见 test/dashboardUi.test.tsx「says what an empty dashboard is, and promises nothing」、test/dashboardBuilding.test.tsx「offers an empty board its first steps, and a reader who cannot build it nothing」）
 - 面板里的 Record 视图以 `selectable={false}` 渲染 `RecordTable`：Dashboard 是读数的地方，没有工具栏也没有行动作，没有任何东西读选择，勾选框因此只是一列点不出结果的控件。
 
 ## 摆放面板：键盘与指针写同一个 layout
@@ -23,7 +23,7 @@
 - **一步是什么、何时禁用**：`arrangePanel`（在内核里，`src/dashboard/layout.ts`，菜单与按键都调它，看的是整块板子）。左右与大小一步一格；上下是压紧的板子上的一步——往下挪一行会被上浮送回原处，所以「下移」是让它落到别处的最小一步，也就是越过下面那块、两块对调，「上移」同理（批 A 走查）。边界就是内核的边界（`x`、`y` 非负，`w`、`h` 至少一格，`x + w` 不越界），所以没有哪条命令能产出 `validateDashboard` 会拒的 layout；一条什么也不会改变的命令——一列最下面那块的「下移」、第一列的「左移」——在菜单里**禁用而不是消失**：一个面板此刻能往哪去是当下的状态、不是权限（D4），菜单里来来去去的条目没人学得会。落位播报说的是压紧之后它停在哪。（见 test/dashboardLayout.test.ts「arranging by keyboard」、test/dashboardPlacement.test.tsx「trades places with the panel above on a keyboard step up」）
 - **每个手柄以自己的面板命名**：「移动『北区订单』」「调整『北区订单』的大小」「摆放『北区订单』」，哪些键能用由 `aria-keyshortcuts` 说，而不写进名字。原来缩放角全板同名（「用方向键调整这个面板的大小」），读屏走一遍板子分不出自己在哪个面板上（U8）。`resizeConfig` 是整张栅格级的属性，库只把 axis 交给这个工厂——但它返回的元素被 `react-resizable` 追加进**栅格项本身**的子节点里，所以栅格项是我们的 `PanelGridItem`，它向子树提供「这是哪个面板、叫什么」，角从 context 读名字与 id；不在栅格项里时它只说「调整这个面板的大小」、什么键也不答；
 - **面板叫什么**（`panelName`）：自己的标题；没有标题的视图面板用它显示的视图的标题；标题卡片用它的字；内容面板用种类（标题／笔记／图片／链接）；剩下的（视图打不开、又没有标题）按它在板上的位置叫「面板 3」。**从不用 `panel.id`**——那是配置里的键，不是看板子的人起的名字。**板子起的名字不重名**（`panelNames`，批 A 走查）：两块没标题的笔记原来都叫「笔记」，抓手、发现、落位播报按名字指向的是两块；现在按阅读顺序编号「笔记」「笔记 2」，并绕开作者起的标题（作者自己起了两个同名的，那是作者的）。标题、抓手、角、菜单、正文滚动区、落位播报都用这同一个名字；（见 test/dashboardUi.test.tsx「names an untitled panel by what it shows, never by its id」「numbers the names it makes up, in reading order, around the titles given」「names each corner after its own panel」）
-- **标题卡片**（`heading`，分节用）：它的字就是面板的标题元素，正文不重复；怎么在大纲里分节、编辑中的占位随批 B2 的编辑界面定。
+- **标题卡片**（`heading`，分节用）：它的字就是面板的标题元素（`panelName`），卡片上**只有这个标题**、字号大一档（`text-base`）、没有正文——没有一块可滚动、可聚焦却空着的区域；新加的标题卡片叫「新的分节」，加上就地改名。标题层级与其它面板同级（工作台里 `h3`）：分节卡片是读者扫板子时的路标，把它升一级会让它下面的面板在大纲里变成它的子节，而栅格上的「下面」并不是从属。（见 test/dashboardBuilding.test.tsx「adds a heading and names it in place」）
 - **落位要说出来**：指针能看见面板在自己手下动，键盘只有一个不在屏幕上的 layout，所以整张栅格有一个 `aria-live="polite"` 区域，说这个面板现在在第几列第几行、多宽多高（`label.panel.placed`）。一块板子一次只摆一个面板，所以是一个区域而不是每个面板一个。宽高各是一个带量词的整句（`label.panel.columns`／`-one`、`label.panel.rows`／`-one`），英文不再出「1 columns」；
 - **菜单的八条命令成对**：上移／下移、左移／右移、加宽／减宽、加高／减高。原来的「压扁」口语、与「加高」不成对，「收窄」与「加宽」也不成对（U9）；
 - **聚焦时角必须看得见**：上游只在指针悬停在面板上时才画那个 20px 的角（`opacity: 0` → `:hover` 时 `1`），键盘到得了却看不见就等于没到。`styles.css` 里补了 `:focus-visible` 的一条。
@@ -47,9 +47,10 @@
 - **状态条上的面板级发现要说是哪个面板**：内核的句子说「这个面板……」，在面板自己的框里是清楚的，挪到栅格上方的状态条里就什么也没指。`DashboardWorkbench` 把 `nameIssue` 交给 `WorkbenchShell`，状态条的 error 与 warning 都先过它：路径是 `['panels', i, …]` 的发现改说成「「北区订单」：……」（`label.panel.finding`），名字取自 draft 里的那个面板（发现就是对 draft 下的）；
 - **面板标题是标题元素**：工作台里是 `h3`，在视图自己的 `h2`（`ViewHeader`）之下，按标题跳读能一个个面板走到；原来是一个带样式的 `div`。嵌入没有自己的标题，面板标题默认 `h2`（在宿主页面的 `h1` 之下），宿主用 `EmbeddedView` 的 `headingLevel`（`DashboardGrid` 同名属性）按自己的大纲改——只有宿主知道自己的标题层级，首页那块板子就是在「运营概览」`h1` 下（axe `heading-order`，见 stories/view-engine/Home.test.stories.tsx）；
 - **嵌入的仪表盘同样画整张栅格**（R3）：一个面板的 error 只停那一个面板（runtime 照跑其余的），`EmbeddedView` 却把它当成整块仪表盘的，用一条红条顶掉了整张栅格。现在路径是 `['panels', i, …]` 的 error 与 warning 都归面板自己说，只有仪表盘自己的（含落在 `['panels']` 本身、不属于任何一个面板的「面板太多」）才进嵌入上方的条——与工作台一致；（见 test/embeddedView.test.tsx「draws the grid around a panel that is out」、stories/view-engine/EmbeddedView.test.stories.tsx「DashboardWithAPanelOut」）
-- **出不来的面板说为什么、找谁**（U5）：正文是一个 `Empty`，标题是原因，描述是出路，同一个词不说两遍（原来是「这个面板不可用」下面再一句「……不可用」，而且不说为什么）。原因按内核的 issue code 映射成读者的话（`PanelUnavailable.tsx` 的 `OUTAGES`）——视图被删或你没有权限（`dashboard.panel.unavailable`，存储分不出是哪一种，面板也就不猜）、没能打开、指向的不是记录或分析视图、视图并不对这块板的所有读者开放、仪表盘的筛选接不上这个面板（`dashboard.binding.*`）、视图保存的设置已经用不了（子视图自己的内核发现）；仪表盘自己关于一个面板的其余规则（位置、笔记长度、链接协议）本来就是读者的话，照说。**从不出现** instanceId、scope 代码、字段名或存储抛出的 `error.message`——那几条内核句子也一并改掉了占位符。出路是今天真有的那条：板上还不能移除或替换面板（批 B），所以说该找谁——「请视图的所有者共享给你／打开它修正」「请这个仪表盘的维护者替换或移除这个面板」；没有一颗按下去什么也做不了的按钮。（见 test/dashboardUi.test.tsx「says why a panel is out, in words its reader uses」、stories/view-engine/Dashboard.test.stories.tsx「PanelUnavailable」）
+- **出不来的面板说为什么、找谁**（U5）：正文是一个 `Empty`，标题是原因，描述是出路，同一个词不说两遍（原来是「这个面板不可用」下面再一句「……不可用」，而且不说为什么）。原因按内核的 issue code 映射成读者的话（`PanelUnavailable.tsx` 的 `OUTAGES`）——视图被删或你没有权限（`dashboard.panel.unavailable`，存储分不出是哪一种，面板也就不猜）、没能打开、指向的不是记录或分析视图、视图并不对这块板的所有读者开放、仪表盘的筛选接不上这个面板（`dashboard.binding.*`）、视图保存的设置已经用不了（子视图自己的内核发现）；仪表盘自己关于一个面板的其余规则（位置、笔记长度、链接协议）本来就是读者的话，照说。**从不出现** instanceId、scope 代码、字段名或存储抛出的 `error.message`——那几条内核句子也一并改掉了占位符。出路按读者分：**读板子的人**被告诉该找谁——「请视图的所有者共享给你／打开它修正」「请这个仪表盘的维护者替换或移除这个面板」，没有一颗按下去什么也做不了的按钮；**正在搭板子的人**就是那句话要找的人，于是那句换成「换成另一个视图，或把它从仪表盘移除」，下面是真按钮：数据面板「替换视图…」、内容面板「改内容…」，都有「从仪表盘移除」（与面板菜单同一个确认）。（见 test/dashboardUi.test.tsx「says why a panel is out, in words its reader uses」、test/dashboardBuilding.test.tsx「offers the way out as buttons rather than a person to ask」、stories/view-engine/Dashboard.test.stories.tsx「PanelUnavailable」）
 - 面板正文自己会滚动（面板高度由布局定，内容不一定装得下），所以它带 `tabIndex={0}` 与 `role="group"`、以面板标题为名：能滚动而键盘到不了的区域是一条实打实的缺陷。记录面板本来靠行里的控件凑巧满足了这一条，图表面板则一个可聚焦元素都没有——图表是一张 `role="img"`，里面没有任何能拿焦点的东西，见 [analysis.md#图表怎么被读出来](analysis.md#图表怎么被读出来)；
 - Apply 之后由面板承载，条里不再重复。面板级的由面板自己呈现：不可用的面板在正文里说明理由（首个 error，或独自到来的那条 warning），随之而来的其余 warning 仍在头部标记里，能运行却带 warning 的面板（子 runtime 对自身配置的 warning，以及它上一次**结果**自身的 warning——汇总退回本页、分析填满上限——都已重定址到面板，见 [runtime.md#dashboard](../runtime.md#dashboard)）照常显示视图，头部加 `panel-warning` 标记并以 `data-warning` 标出边框。（见 test/dashboardWorkbench.test.tsx「DashboardWorkbench」、test/dashboardContent.test.tsx）
+- **面板上的图表提示说列标题**：头部标记里的发现先过 `chartIssueNamer`（`ui/analysis/issueNames.ts`，工作台与嵌入视图用的同一个），维度与指标按列标题说、不说别名；`chart.as-table` 说出图型与原因（「柱状图画不了这个结果（最多两个维度），先以表格显示」）。这一条原来根本到不了面板：子 runtime 只有 warning 被重定址到面板，这条是 note，一张退回表格的图在仪表盘里一声不吭——现在子 runtime 对自身配置的 note 同样交给面板（`panelIssues`，见 [runtime.md#dashboard](../runtime.md#dashboard)）。（见 test/dashboardBuilding.test.tsx「says why a chart shows as its table, in the words of the picker」）
 - 这个标记是 `IconTooltip`（`ui/IconButton.tsx`）而不是一个挂着 `title` 的 `span`：`title` 只有鼠标悬停才出得来，键盘与触屏都够不着，于是 warning 说了什么就只有拿鼠标的人读得到。走同一条通路之后，同一份 `messages.issues(warnings)` 既是控件名也是气泡文案，聚焦与轻点都能打开。颜色（`text-warning`）落在图标上而不是按钮上——那是标记本身的含义，按钮保留 ghost 变体自己的悬停与聚焦配色。（见 test/iconTooltips.test.tsx）
 
 ## 内容面板：排版与占位
@@ -59,21 +60,64 @@
 - **带链接的图片要有名字**：链接的名字是它里面的文字，没有 `alt` 的图片什么也不给，于是读屏只念一个「链接」。没有 `alt` 时用面板标题、再没有就用「打开链接的页面」（`label.image.link`），写在链接里的一个 `sr-only` 里；
 - **在新标签页打开要先说**：面板上的每一个链接（笔记里的、链接面板的、图片的）都 `target="_blank"`，看不见标签栏的人会发现原来的页面突然到了另一页后面、后退也没用。所以每个链接的名字末尾带一句「（在新标签页中打开）」（`label.link.new-tab`，`sr-only`）：只说不画——链接面板已经画了外链箭头，笔记与图片没地方再放一个图标。（见 test/dashboardContent.test.tsx「says every link opens a tab of its own」）
 
-## 阶段 3 的交互（定稿，待实现）
+## 搭板子：编辑模式、添加、面板菜单（D22 A、B、D，批 B2）
+
+**读与搭分开**（D22 A）：读板子时什么都不动——没有抓手、缩放角、摆放菜单，指针拖不动，键盘命令不落；标题栏里保存按钮旁边一颗「编辑」进入搭的状态，面板上的这些才出现。「编辑」**只给能保存这块板的人**（`SaveCommands.can.save`：系统仪表盘只读、没有保存权限的读者都没有），系统仪表盘因此只有「另存为」（D4）。编辑状态是界面的，属于这一次打开（`DashboardWorkbench` 按 runtime id 记）：换一个视图就回到读。它**不是** runtime 的 `setEditing`——那个是编辑器拿着焦点、暂停自动刷新的意思，条件面板一失焦就会把它关掉。（见 test/dashboardBuilding.test.tsx「offers 编辑 to whoever may save it, and nothing moves until it is pressed」「offers a system dashboard 另存为 and no 编辑」「offers no 编辑 to a reader who may not save the board」；浏览器里 stories/view-engine/DashboardBuilding.test.stories.tsx「NoGripsUntilBuilding」「SystemDashboardHasNoEdit」）
+
+- **编辑条**（`ui/dashboard/EditBar.tsx`）在栅格上方、全局筛选之下：「正在编辑」与一句说明（面板随改随跑；按「完成」才保存）、「＋ 添加 ▾」、「取消」、「完成」。它是一个以「正在编辑」为名的 `region`。**编辑中提交与回退只有一处**（用户 2026-09-23 定：一件事一种做法）：标题栏上的保存按钮与「已修改 ↺」都收起来——「完成」就是那次保存、「取消」就是那次还原，旁边再有一颗保存或一个 ↺ 就是同一条命令换个名字，只会让人猜哪颗才算。离开编辑（「完成」或「取消」）之后标题栏照旧：有未保存的修改（例如正在拼的全局条件）就有「已修改 ↺」。开关是 `WorkbenchShell`／`ViewHeader` 的 `commitElsewhere`。（见 test/dashboardBuilding.test.tsx「leaves 「已修改 ↺」 to the edit bar while the board is built」；浏览器里「BuildFromEmpty」「CancelReverts」）「筛选 ＋」随批 C 才有，今天不画。
+- **「完成」就是保存**：走 `SaveCommands.save` 同一条路，共享板先问一句、点名这块板（#1836 的 `SharedSaveConfirm`），个人板直接存；**从没保存过的板**弹首存对话框问名字与受众；没有改动就直接退出、什么也不写；写没落地（冲突、拒绝、结果未知）就留在编辑中，出了什么事照旧由标题下的 `WriteOutcome` 说。被整板 error 挡住的草稿「完成」禁用，原因在状态行里。（见 test/dashboardBuilding.test.tsx「saves on 完成 and reads the board again」「asks before 完成 writes over a shared board, naming it」「leaves at once on 完成 with nothing to save」）
+- **「取消」是 `revert`**：有改动先问——与 ↺ 同一个问题、同一个对话框（`RevertDialog`）——再回到保存的样子并退出；没有改动直接退出。从没保存过的板没有可回的地方，所以没有「取消」。（见 test/dashboardBuilding.test.tsx「puts back the saved board on 取消, asking first」；浏览器里「CancelReverts」）
+- **焦点**：按「编辑」时这颗按钮离开标题栏，焦点落到编辑条的「正在编辑」上（`tabIndex=-1`，只被送达、不是 Tab 站）；「完成」「取消」之后回到重新出现的「编辑」上。都只在焦点真丢了（落到 `body`）时才做——从空板子的第一步进来，焦点已经在对话框或标题的输入框里。
+- **编辑中面板按草稿实时重跑，「完成」才写回**：每一次增删改都是 runtime 的一条 `DashboardEditing` 命令（`useDashboard().edit`），同时写进草稿与屏幕，正在编辑的全局筛选照样待应用（[runtime.md#dashboard](../runtime.md#dashboard)）。
+
+### 添加（D22 A、B）
+
+- **「＋ 添加 ▾」**（`ui/dashboard/AddMenu.tsx`，Base UI 菜单，两组）：数据——「已保存的视图…」「新建分析…」（后者只在有人提供 `onAddOwnedAnalysis` 时，见「扩展」）；内容——「标题」「文字…」「图片…」「链接…」。带省略号的会先问一些东西；标题直接放上板，**就地改名**（焦点直接在名字框里，所以这一项让菜单不把焦点还给触发器）。
+- **新面板放哪、多大**：当前标签页、从读者屏幕上能看到的第一行起的第一个空位（`fromRow`，按栅格顶边滚出视口多少行算），大小按种类（`defaultPanelSize`：指标卡 6、图 12、表格 24，按 24 列）。已保存的视图**先读进来再放**（`DashboardRuntime.preload`）——不读就不知道它是指标卡还是表格，从前一律按图的 12 列放；读进来的引用直接用于这个面板的子 runtime，不多读一次。（见 test/dashboardBuilding.test.tsx「adds a saved view from the picker, sized by what it shows」）
+- **选一个视图**（`ui/dashboard/ViewPicker.tsx`）：一个对话框，列出每个数据定义下的记录与分析视图（每次打开现读，刚在别处存的也在），**与视图切换器同一套分组**——系统视图、共享视图、我的视图——每行带种类图标、系统视图的锁、「种类 · 数据」一行说明；按名称搜索，按种类（全部／记录／分析，`ToggleGroup`）与数据定义（多于一个时，`Select`）收窄。**已经在板上的仍可再加**，行尾标「已在板上」（同一个视图两块面板、各看各的，是正常用法）；**共享板上的个人视图**当场标「只有你看得到」——允许放（D22 B，面板上随后是 `dashboard.panel.scope-too-narrow` 的 warning）。「替换视图…」用同一个对话框，标题换成「替换「X」显示的视图」。列表读失败的定义说一行 warning，其余照列。
+- **内容的小表单**（`ui/dashboard/ContentEditor.tsx`）：文字（Markdown，默认一句提示语，`MAX_MARKDOWN_LENGTH`）、图片（地址必填、描述、点击时打开、显示方式「完整显示／铺满裁切」）、链接（一条一组：文字、地址、说明，可加可删，至多 `MAX_PANEL_LINKS`），每种都可选一个面板标题。内核会拒的东西——地址不是 http／https／mailto／相对路径、链接没有文字——**在字段上先说**（`data-invalid` + `aria-invalid` + `FieldError`，第一次提交之后才标），不写一块会被准入拒掉的面板。改的时候清空的可选项是删掉那个键，不留一个空字符串让内核拒。（见 test/dashboardBuilding.test.tsx「writes a note, a picture and links through their forms」）
+- 加上、复制、移除都用一个 `aria-live` 区域说一句（「已添加「X」」「已复制「X」」「已移除「X」」）：指针看得见面板出现或消失，别人听不见。对话框关上时焦点回到打开它的那颗按钮——「＋ 添加」或面板的「⋯」——而不是跟着已关掉的菜单项落到 `body`（`FinalFocus`）。
+
+### 面板菜单（D22 D）
+
+每块面板标题行末尾一颗「⋯」（`ui/dashboard/PanelMenu.tsx`，名字「「X」的操作」），两组，**一项只在做得到时出现**（D4），一项都没有就不画这颗按钮：
+
+- **看**（读与搭都有）：「在工作台中打开」——只在宿主给了路由钩子 `onOpenView(instanceId, filter)` 时（`DashboardWorkbench` 与 `EmbeddedView` 同名属性），`filter` 是面板此刻带着的全局条件、**已经映射成那个视图自己的字段名**（子 runtime 的 `scopeFilter`），宿主可以直接当作用域交给工作台；板内分析没有已保存的视图，没有这一项。「刷新这个面板」（`refreshPanel`）。「导出数据…」这一批没有：导出窗口今天是工具栏里自带触发器的一个窗口、交付逻辑在记录视图的部件里，面板要复用得先把它拆成可受控的——记在 todo。
+- **改**（只在编辑中）：「改标题」（就地，Enter 或离开保留、Escape 放弃，空白回到按内容命名；标题卡片改的就是它的字）、「改这里的展示…」（有 `onEditPresentation` 时）、「改内容…」（文字、图片、链接）、「替换视图…」、「复制」（原面板旁边第一个空位）、「移到标签页 ›」（板子有两个以上标签页时，子菜单列出其余的，没名字的按位置叫「标签页 2」）、「另存为视图…」（板内分析，且有 `onSaveOwnedAsView` 时）、「从仪表盘移除」（先问）。「点击时…」随批 D。
+- **移除先问**（`RemovePanelDialog`）：说走的是什么、留下的是什么——引用的视图不会被删／板内分析会一起移除／内容会一起移除——以及编辑条的「取消」还能找回。问而不是「撤销」提示：runtime 没有单步撤销，「取消」会连别的改动一起撤掉。移除后焦点落到编辑条上。（见 test/dashboardBuilding.test.tsx「a panel's menu (D22 D)」各条；浏览器里「BuildFromEmpty」）
+- **窄屏只改标题、移除**（D22 J）：一列的读法是推导出来的，里面摆不出能写回的位置，而复制、换标签页、添加都是一次摆放——所以窄于 `md` 时编辑条上没有「添加」，面板菜单的「改」只有改标题与移除；调顺序这一批没做（todo）。
+
+### 扩展：批 B3 接进来的地方
+
+`DashboardEditExtensions`（`ui/dashboard/extensions.ts`，经 `DashboardEditExtensionsContext` 提供，`/ui` 导出）是搭板子里**住在编辑条与面板菜单之外的那几件**的接口，每一项可选，**没提供就没有对应的入口**：
+
+```ts
+interface DashboardEditExtensions {
+  onAddOwnedAnalysis?(spot: { fromRow: number; tab?: string }): void; // 「新建分析…」：添加菜单与空板子
+  onEditPresentation?(panelId: string): void; // 面板菜单「改这里的展示…」
+  onSaveOwnedAsView?(panelId: string): void; // 板内分析的「另存为视图…」
+  tabBar?: ReactNode; // 编辑条之下、面板之上
+  tab?: string; // 屏幕上的标签页：栅格只画它的面板，新面板放到它上面；不给时画全部、放第一页
+}
+```
+
+编辑条、添加菜单、面板菜单都从 context 读它，所以实现者在 `DashboardWorkbench` 里（或包在它外面）提供一份，栅格、编辑条、菜单都不必多一个属性。`spot` 是编辑条算好的放置点，交给 `addPanel({ kind: 'view', owned }, spot)` 即可。（见 test/dashboardBuilding.test.tsx「shows the extensions’ entries only where they are provided」）
+
+## 阶段 3 的交互（定稿）
 
 [仪表盘交互稿](https://claude.ai/artifact/SVjSG6BH7WVAnqthQDh42y) 2026-09-23 定稿（用户：十条待拍板「全按推荐」），方向见 [D22](../decisions.md#d22-仪表盘与嵌入视图参照-metabase2026-09-23)。批 B～D 按下面逐屏实现；实现落地后把每条改写成现状并附测试名。
 
-**批 B1 已落地的是 A～E 背后的模型与运行时，界面还没有**：24 列与旧布局迁移、标签页、板内分析视图与「另存为视图」、展示覆盖、标题卡片（[model.md#dashboard-配置](../model.md#dashboard-配置)）；搭板子的命令 `DashboardEditing`，编辑中按草稿实时重跑、保存才写回；保存只被整板 error 挡；动手后上浮压紧；同名面板编号（[runtime.md#dashboard](../runtime.md#dashboard)）。B2／B3 在这上面做编辑条、添加对话框、面板菜单、标签栏与「在仪表盘里新建分析」的大对话框。
+**批 B1 落地了 A～E 背后的模型与运行时**：24 列与旧布局迁移、标签页、板内分析视图与「另存为视图」、展示覆盖、标题卡片（[model.md#dashboard-配置](../model.md#dashboard-配置)）；搭板子的命令 `DashboardEditing`，编辑中按草稿实时重跑、保存才写回；保存只被整板 error 挡；动手后上浮压紧；同名面板编号（[runtime.md#dashboard](../runtime.md#dashboard)）。**批 B2 落地了 A、B、D 的界面**，已改写成上一节的现状；B3 做标签栏、「在仪表盘里新建分析」的大对话框、展示覆盖的编辑与「另存为视图」，从「扩展」接进来。
 
 三条贯穿的原则：**读与搭分开**（平时不可拖、点不坏，「编辑」进入搭的状态，「完成」保存、「取消」放弃，系统仪表盘只有「另存为」）；**一个概念一种样子**（追问菜单、可视化面板、条件编辑器、候选值全部复用分析与记录视图的部件）；**说清作用范围**（每个筛选作用到哪些面板、哪个面板不受它影响，在面板上看得到）。
 
-- **A 编辑模式与「添加」**（批 B）：标题栏「编辑」只对有编辑权的人出现；编辑中顶上一条编辑条：「＋ 添加 ▾」（数据：已保存的视图…、新建分析…；内容：标题、文字、图片、链接）、「筛选 ＋」、取消、完成。新面板放进当前可见区域的第一个空位，默认宽度按种类（指标卡 6、图 12、表 24，按 24 列计）。空仪表盘给同样三个入口；没有编辑权时只说「还没有面板」。**编辑中面板按草稿实时重跑，「完成」才写回**。
-- **B 选一个视图**（批 B）：对话框与视图切换器同一套分组（系统／共享／我的）与种类图标，可搜索、可筛种类与数据定义；已在板上的仍可再加（标「已在板上」）。**共享板引用个人视图：允许，当场标「只有你看得到」，面板菜单给「复制为共享视图并替换」**。
+- **A 编辑模式与「添加」**——**已落地**（批 B2，见上文「搭板子」）；「筛选 ＋」随批 C，「新建分析…」的对话框随 B3。
+- **B 选一个视图**——**已落地**（批 B2）；面板菜单的「复制为共享视图并替换」还没有（todo）。
 - **C 在仪表盘里新建分析**（批 B）：大对话框，先选数据定义，里面就是分析视图的托盘与结果（自动运行照常）；「放进仪表盘」存成只属于这块板的视图（随板保存、删除、受众）。**首版只新建分析**；**面板菜单「另存为视图…」把它提成普通视图**，面板改为引用它。
-- **D 面板菜单与展示覆盖**（批 B）：「⋯」分两组——看（在工作台中打开↗，带全局筛选；刷新这个面板；导出数据）与改（编辑中：改标题、改这里的展示、点击时…、替换视图、复制、移到标签页、移除）。**展示覆盖只管怎么看**（布局、图型与图的选项、表格合计行），不改问题；面板头标「此处改为〈图型〉」，菜单可「恢复为视图的样子」。
+- **D 面板菜单与展示覆盖**——**菜单已落地**（批 B2，见上文「面板菜单」；「导出数据…」「点击时…」不在其中）。**展示覆盖只管怎么看**（布局、图型与图的选项、表格合计行），不改问题；面板头标「此处改为〈图型〉」，菜单可「恢复为视图的样子」——编辑它们随 B3。
 - **E 标签页与 24 列**（批 B）：筛选在标签之上、对所有标签生效；一个筛选在当前标签里没有受影响的面板时淡一档并说明；只有一个标签时不画标签栏；编辑中可加、改名、排序、删除（带面板删除先确认）。**记住每人上次看的标签（个人偏好，不入配置），当前标签写进地址**。24 列，旧 12 列布局读取时 `x`、`w` 乘 2、存回才写新格式。
 - **F 筛选条**（批 C）：页头一排；值控件与候选值复用条件编辑器；**必填**带星号、永远有值（清空回默认）；时间分组是整板的「按日｜周｜月」；未接上的面板头上「不受『〈筛选〉』影响」。**筛选值写进地址，不写进配置**（默认值才是配置）。
 - **G 加筛选与接线**（批 C）：设置里定类型、名字、默认值、可多选、必填、候选值来源（接上的字段／自己列一组）；在一个面板上选字段后**按同名同类型自动连接其余面板（跨数据定义也接）**，底部提示接了几个、可撤销，以后新加的面板同样自动接；每个面板底部一条接线条，可改、可断，跨定义手动接的标「手动」，没有可接的字段直说。
 - **H 默认：追问菜单**（批 D）：点柱、点行、点扇区，弹与分析视图同一个追问菜单，标题带上当前全局筛选（「仓库 属于 华南 · 本月」），三项都在工作台打开（↗），仪表盘不变。**宿主没给路由钩子时，不出追问菜单**。
 - **I 交叉筛选**（批 D）：作者在「点击时…」选「更新仪表盘筛选：〈筛选〉」；读者点一个值，筛选条上随之变化并注明来自哪个面板，其余接线面板重算；**被点的面板不筛自己、只高亮点中的一组；再点一次同一个值撤销**；面板头标「点击筛选〈筛选〉」。第三个选项「去另一个视图或页面」带上点中的值。
-- **J 窄屏**：窄于 768px 时按阅读顺序排成一列、各保留高度，布局是推导出来的、不写回——**这一半已落地**（见上文「DashboardGrid 与几何写回」）；筛选条横向滚动；**窄屏编辑只允许改标题、移除、调顺序**（随批 B 的编辑模式）。
+- **J 窄屏**：窄于 768px 时按阅读顺序排成一列、各保留高度，布局是推导出来的、不写回——**这一半已落地**（见上文「DashboardGrid 与几何写回」）；筛选条横向滚动；**窄屏编辑只允许改标题、移除、调顺序**——改标题、移除已落地（批 B2），调顺序未做。

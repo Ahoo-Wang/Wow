@@ -115,6 +115,14 @@ export interface DashboardRuntime
   place(panelId: string, layout: PanelLayout): void;
   /** Re-runs one panel on what it has applied — a retry after it failed. */
   refreshPanel(panelId: string): void;
+  /**
+   * Loads a saved view a panel is about to show, and resolves once it has
+   * settled — read or found unreadable, never rejecting. `addPanel` sizes a
+   * saved view by what it shows only once it is loaded (a metric card a
+   * quarter, a table the full width), so the board's 「添加」 waits for this
+   * first; the child then starts on the reference already in hand.
+   */
+  preload(instanceId: string): Promise<void>;
 }
 
 export interface DashboardRuntimeOptions {
@@ -447,6 +455,14 @@ export class DashboardViewRuntime
       dirty: this.store.isDirty(nextDraft, this.state.saved),
     });
     this.load(nextDraft);
+  }
+
+  async preload(instanceId: string): Promise<void> {
+    if (this.disposed) return;
+    const loading = this.references.fetch(instanceId);
+    if (!loading) return;
+    this.store.setState({ resolving: true });
+    await loading;
   }
 
   /**

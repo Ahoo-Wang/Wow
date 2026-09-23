@@ -1,0 +1,371 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { useRef, useState, type RefObject } from 'react';
+import {
+  ArrowRightLeftIcon,
+  CopyIcon,
+  ExternalLinkIcon,
+  FolderInputIcon,
+  MoreHorizontalIcon,
+  PaletteIcon,
+  PencilIcon,
+  RefreshCwIcon,
+  SaveIcon,
+  SquarePenIcon,
+  Trash2Icon,
+} from 'lucide-react';
+import { Button } from '../components/button.js';
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/alert-dialog.js';
+import {
+  DropdownMenu,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from '../components/dropdown-menu.js';
+import { Input } from '../components/input.js';
+import { IconTooltip } from '../IconButton.js';
+import { useViewMessages } from '../MessagesProvider.js';
+import {
+  AlertDialogContent,
+  DropdownMenuContent,
+  DropdownMenuSubContent,
+} from '../popups.js';
+import { DestructiveAction } from '../variants.js';
+import type { PanelCommands } from './commands.js';
+
+/** Whether a panel has anything to put in its menu at all. */
+export function hasMenu(commands: PanelCommands): boolean {
+  return Boolean(
+    commands.open ||
+    commands.refresh ||
+    commands.rename ||
+    commands.remove ||
+    commands.replace ||
+    commands.editContent,
+  );
+}
+
+export interface PanelMenuProps {
+  /** What the panel is called on screen, which the trigger is named after. */
+  name: string;
+  commands: PanelCommands;
+  /** The trigger, for whatever hands the keyboard back to the panel. */
+  triggerRef: RefObject<HTMLButtonElement | null>;
+  /** 从仪表盘移除 was chosen: the panel asks before it goes. */
+  onRemove(): void;
+}
+
+/**
+ * 「⋯」 on a panel's header (D22 D): 「看」 — the panel as a reader uses it
+ * — and, while the board is built, 「改」. An item exists only when it can
+ * be done here: the host's route for 在工作台中打开, a tab bar for 移到标签页,
+ * a panel owning its analysis for 另存为视图 (D4). Never an empty menu: the
+ * trigger is not drawn when there is nothing in it (`hasMenu`).
+ */
+export function PanelMenu({
+  name,
+  commands,
+  triggerRef,
+  onRemove,
+}: PanelMenuProps) {
+  const messages = useViewMessages();
+  // 改标题 hands the keyboard to the title's input rather than back to the
+  // trigger, which would take it straight out of the box it just opened.
+  const handedOff = useRef(false);
+  const looks = commands.open || commands.refresh;
+  const changes = commands.rename || commands.remove;
+  return (
+    <DropdownMenu
+      onOpenChange={open => {
+        if (open) handedOff.current = false;
+      }}
+    >
+      <IconTooltip
+        label={messages.label('label.panel.menu', { title: name })}
+        render={
+          <DropdownMenuTrigger
+            ref={triggerRef}
+            render={
+              <Button data-slot="panel-menu" variant="ghost" size="icon-xs" />
+            }
+          />
+        }
+      >
+        <MoreHorizontalIcon />
+      </IconTooltip>
+      <DropdownMenuContent
+        align="end"
+        className="min-w-48"
+        finalFocus={() => !handedOff.current}
+      >
+        {looks && (
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>
+              {messages.label('label.panel.menu.view')}
+            </DropdownMenuLabel>
+            {commands.open && (
+              <DropdownMenuItem data-slot="panel-open" onClick={commands.open}>
+                <ExternalLinkIcon />
+                {messages.label('label.panel.open')}
+              </DropdownMenuItem>
+            )}
+            {commands.refresh && (
+              <DropdownMenuItem
+                data-slot="panel-refresh"
+                onClick={commands.refresh}
+              >
+                <RefreshCwIcon />
+                {messages.label('label.panel.refresh')}
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuGroup>
+        )}
+        {looks && changes && <DropdownMenuSeparator />}
+        {changes && (
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>
+              {messages.label('label.panel.menu.edit')}
+            </DropdownMenuLabel>
+            {commands.rename && (
+              <DropdownMenuItem
+                data-slot="panel-rename"
+                onClick={() => {
+                  handedOff.current = true;
+                  commands.rename?.();
+                }}
+              >
+                <PencilIcon />
+                {messages.label('label.panel.rename')}
+              </DropdownMenuItem>
+            )}
+            {commands.editPresentation && (
+              <DropdownMenuItem onClick={commands.editPresentation}>
+                <PaletteIcon />
+                {messages.label('label.panel.edit-presentation')}
+              </DropdownMenuItem>
+            )}
+            {commands.editContent && (
+              <DropdownMenuItem
+                data-slot="panel-edit-content"
+                onClick={commands.editContent}
+              >
+                <SquarePenIcon />
+                {messages.label('label.panel.edit-content')}
+              </DropdownMenuItem>
+            )}
+            {commands.replace && (
+              <DropdownMenuItem
+                data-slot="panel-replace"
+                onClick={commands.replace}
+              >
+                <ArrowRightLeftIcon />
+                {messages.label('label.panel.replace')}
+              </DropdownMenuItem>
+            )}
+            {commands.duplicate && (
+              <DropdownMenuItem
+                data-slot="panel-duplicate"
+                onClick={commands.duplicate}
+              >
+                <CopyIcon />
+                {messages.label('label.panel.duplicate')}
+              </DropdownMenuItem>
+            )}
+            {commands.moveTo && (
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <FolderInputIcon />
+                  {messages.label('label.panel.move-to-tab')}
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuGroup>
+                    {commands.moveTo.tabs.map(tab => (
+                      <DropdownMenuItem
+                        key={tab.id}
+                        onClick={() => commands.moveTo?.move(tab.id)}
+                      >
+                        {tab.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuGroup>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            )}
+            {commands.saveAsView && (
+              <DropdownMenuItem onClick={commands.saveAsView}>
+                <SaveIcon />
+                {messages.label('label.panel.save-as-view')}
+              </DropdownMenuItem>
+            )}
+            {commands.remove && (
+              <DropdownMenuItem
+                data-slot="panel-remove"
+                variant="destructive"
+                onClick={onRemove}
+              >
+                <Trash2Icon />
+                {messages.label('label.panel.remove')}
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuGroup>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/** What going costs, said under the question: the view stays, owned things go. */
+const REMOVES = {
+  view: 'label.panel.remove-view',
+  owned: 'label.panel.remove-owned',
+  content: 'label.panel.remove-content',
+} as const;
+
+export interface RemovePanelDialogProps {
+  open: boolean;
+  onOpenChange(open: boolean): void;
+  name: string;
+  removes: PanelCommands['removes'];
+  /** Where the keyboard goes when the panel stays: back to what asked. */
+  returnTo: RefObject<HTMLElement | null>;
+  onConfirm(): void;
+}
+
+/**
+ * The question before a panel leaves the board. Asked rather than undone:
+ * the runtime has no single-edit undo, and 「取消」 on the edit bar would
+ * take back every other change with it. It says what goes and what stays,
+ * and that the edit bar's 取消 still brings it back until 完成.
+ */
+export function RemovePanelDialog({
+  open,
+  onOpenChange,
+  name,
+  removes,
+  returnTo,
+  onConfirm,
+}: RemovePanelDialogProps) {
+  const messages = useViewMessages();
+  // The panel goes with its answer, and focus with it; the builder puts it
+  // on the edit bar instead (`BoardBuilding.removed`).
+  const took = useRef(false);
+  return (
+    <AlertDialog
+      open={open}
+      onOpenChange={next => {
+        if (next) took.current = false;
+        onOpenChange(next);
+      }}
+    >
+      <AlertDialogContent
+        data-slot="panel-remove-confirm"
+        finalFocus={() => (took.current ? false : (returnTo.current ?? true))}
+      >
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            {messages.label('label.panel.remove-heading', { title: name })}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {messages.label(REMOVES[removes])}{' '}
+            {messages.label('label.panel.remove-undo')}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>
+            {messages.label('label.panel.keep')}
+          </AlertDialogCancel>
+          <DestructiveAction
+            onClick={() => {
+              took.current = true;
+              onOpenChange(false);
+              onConfirm();
+            }}
+          >
+            {messages.label('label.panel.remove')}
+          </DestructiveAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+export interface PanelTitleInputProps {
+  /** What the title says now — a heading's words, or the panel's name. */
+  initial: string;
+  /** A heading's words are its content; another panel's, its title. */
+  heading: boolean;
+  renaming: NonNullable<PanelCommands['renaming']>;
+  /** Where the keyboard goes once Enter or Escape ends the edit. */
+  returnTo: RefObject<HTMLElement | null>;
+}
+
+/**
+ * 改标题, in place: the title becomes a box with the name in it, selected.
+ * Enter or leaving the box keeps what was typed — a blank one names the
+ * panel by what it shows again — and Escape keeps what was there. Only the
+ * two keys hand the keyboard back to the panel's menu; leaving by Tab or a
+ * press already put it somewhere.
+ */
+export function PanelTitleInput({
+  initial,
+  heading,
+  renaming,
+  returnTo,
+}: PanelTitleInputProps) {
+  const messages = useViewMessages();
+  const [value, setValue] = useState(initial);
+  // Enter and Escape end the edit before the blur they cause arrives.
+  const ended = useRef(false);
+  const end = (keep: boolean) => {
+    if (ended.current) return;
+    ended.current = true;
+    // Unchanged is not a rename: a panel named after its view would
+    // otherwise take that name as a title of its own.
+    if (keep && value !== initial) renaming.commit(value);
+    else renaming.cancel();
+  };
+  return (
+    <Input
+      data-slot="panel-title-input"
+      // Focused as it appears: the menu that asked for it hands the
+      // keyboard over rather than taking it back to its trigger.
+      autoFocus
+      onFocus={event => event.currentTarget.select()}
+      aria-label={messages.label(
+        heading ? 'label.panel.heading-input' : 'label.panel.title-input',
+      )}
+      value={value}
+      onChange={event => setValue(event.target.value)}
+      onBlur={() => end(true)}
+      onKeyDown={event => {
+        if (event.key !== 'Enter' && event.key !== 'Escape') return;
+        event.preventDefault();
+        end(event.key === 'Enter');
+        returnTo.current?.focus();
+      }}
+      className="h-7 min-w-0 flex-1"
+    />
+  );
+}

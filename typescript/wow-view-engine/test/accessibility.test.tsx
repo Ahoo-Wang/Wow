@@ -12,7 +12,13 @@
  */
 
 import { useRef, useState } from 'react';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import axe from 'axe-core';
@@ -661,26 +667,62 @@ describe('the default workbenches pass axe', () => {
     expect(await violations(container)).toEqual([]);
   });
 
-  it('dashboard, with the layout open for editing', async () => {
+  it('dashboard, being built', async () => {
+    const user = userEvent.setup();
     const { container } = render(
       <ViewSurface>
         <DashboardWorkbench
           engine={engineWith([pendingOrders, overview])}
           definitionId="overview"
           instanceId="overview-1"
-          editable
         />
       </ViewSurface>,
     );
+    await user.click(await screen.findByRole('button', { name: 'Edit' }));
     await waitFor(() =>
-      expect(
-        container.querySelector('[data-slot="dashboard-panel"]'),
-      ).toBeTruthy(),
+      expect(container.querySelector('[data-slot="panel-grip"]')).toBeTruthy(),
     );
 
     // The drag grip is the reason this test exists: an `aria-label` on a bare
     // span is a prohibited attribute, and only a browser or axe reports it.
+    // The edit bar and each panel's menu trigger are drawn now as well.
     expect(await violations(container)).toEqual([]);
+  });
+
+  /**
+   * The two dialogs a board is built through, each open: the picker's
+   * search, kind switch and grouped rows, and a content form tried once
+   * with nothing in it, so its field errors are drawn.
+   */
+  it('dashboard, with the view picker and a content form open', async () => {
+    const user = userEvent.setup();
+    render(
+      <ViewSurface>
+        <DashboardWorkbench
+          engine={engineWith([pendingOrders, overview])}
+          definitionId="overview"
+          instanceId="overview-1"
+        />
+      </ViewSurface>,
+    );
+    await user.click(await screen.findByRole('button', { name: 'Edit' }));
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    await user.click(
+      await screen.findByRole('menuitem', { name: 'Saved view…' }),
+    );
+    const picker = await screen.findByRole('dialog');
+    await waitFor(() =>
+      expect(picker.querySelector('[data-slot="picker-view"]')).toBeTruthy(),
+    );
+    expect(await violations(document.body)).toEqual([]);
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Links…' }));
+    const form = await screen.findByRole('dialog');
+    await user.click(within(form).getByRole('button', { name: 'Add' }));
+    expect(await violations(document.body)).toEqual([]);
   });
 
   /**
@@ -752,13 +794,14 @@ describe('the default workbenches pass axe', () => {
           }
           definitionId="overview"
           instanceId="overview-1"
-          editable
         />
       </ViewSurface>,
     );
+    // Being built, so the way out of the panel that is out is its buttons.
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit' }));
     await waitFor(() => {
       expect(
-        container.querySelector('[data-slot="panel-unavailable"]'),
+        container.querySelector('[data-slot="panel-unavailable"] button'),
       ).toBeTruthy();
       expect(
         container.querySelector('[data-slot="panel-failed"]'),

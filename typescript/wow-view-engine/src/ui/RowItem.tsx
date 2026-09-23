@@ -60,6 +60,15 @@ const rowItemVariants = cva(
        * reaches no stylesheet — so this pair and `TEXT_UI` in `layout.ts`
        * move together.
        */
+      /**
+       * A row that is itself the control — one choice in a picker, rendered
+       * as a `button` — lit under the pointer the way the registry lights a
+       * row that is a link (`[a]:hover:bg-muted`), and read from its start.
+       */
+      pressable: {
+        true: 'hover:bg-muted cursor-pointer text-left',
+        false: '',
+      },
       description: {
         prose: '',
         label: [
@@ -71,6 +80,7 @@ const rowItemVariants = cva(
     defaultVariants: {
       density: 'roomy',
       description: 'prose',
+      pressable: false,
     },
   },
 );
@@ -92,12 +102,16 @@ export function RowItem({
   className,
   density = 'roomy',
   description,
+  pressable,
   ...props
 }: RowItemProps) {
   return (
     <Item
       size={density === 'dense' ? 'xs' : 'default'}
-      className={cn(rowItemVariants({ density, description }), className)}
+      className={cn(
+        rowItemVariants({ density, description, pressable }),
+        className,
+      )}
       {...props}
     />
   );

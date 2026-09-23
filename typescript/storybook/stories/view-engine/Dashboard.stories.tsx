@@ -19,6 +19,8 @@ import {
   dashboardConfig,
   emptyDashboard,
   legacyDashboardConfig,
+  ordersDefinition,
+  overviewDefinition,
   savedDashboard,
   savedViews,
   type SourceBehaviour,
@@ -27,7 +29,23 @@ import { StoryEngine } from './StoryEngine.js';
 import '@ahoo-wang/fetcher-view-engine/styles.css';
 
 /** Which saved dashboard a story opens, and which views it can reach. */
-type Variant = 'panels' | 'filtered' | 'unavailable' | 'empty' | 'legacy';
+type Variant =
+  | 'panels'
+  | 'filtered'
+  | 'unavailable'
+  | 'empty'
+  | 'empty-shared'
+  | 'legacy'
+  | 'system';
+
+/**
+ * The board that ships with the definition: read-only to everyone (D4), so
+ * it offers 另存为 and no 编辑.
+ */
+const systemOverview = {
+  ...overviewDefinition,
+  views: [{ id: 'ops', title: '出库概览（系统）', config: dashboardConfig() }],
+};
 
 /**
  * A dashboard composes saved views. The global filter reaches each panel as
@@ -37,21 +55,27 @@ type Variant = 'panels' | 'filtered' | 'unavailable' | 'empty' | 'legacy';
 function DashboardDemo({
   behaviour = 'data',
   variant = 'panels',
-  editable = false,
 }: {
   behaviour?: SourceBehaviour;
   variant?: Variant;
-  editable?: boolean;
 }) {
   return (
     <StoryEngine
       create={() =>
         createStoryEngine({
           behaviour,
+          definitions: [
+            ordersDefinition,
+            variant === 'system' ? systemOverview : overviewDefinition,
+          ],
           instances: [
             // An unavailable panel is one whose instance is not in the store.
             ...(variant === 'unavailable' ? [savedViews[1]] : savedViews),
-            { ...savedDashboard, config: savedConfig(variant) },
+            {
+              ...savedDashboard,
+              ...(variant === 'empty-shared' ? { scope: 'shared' } : {}),
+              config: savedConfig(variant),
+            },
           ],
         })
       }
@@ -60,8 +84,9 @@ function DashboardDemo({
         <DashboardWorkbench
           engine={engine}
           definitionId="overview"
-          instanceId={savedDashboard.id}
-          editable={editable}
+          instanceId={
+            variant === 'system' ? 'system:overview:ops' : savedDashboard.id
+          }
           {...HOST_LANGUAGE}
         />
       )}
@@ -70,7 +95,8 @@ function DashboardDemo({
 }
 
 function savedConfig(variant: Variant) {
-  if (variant === 'empty') return emptyDashboard();
+  if (variant === 'empty' || variant === 'empty-shared')
+    return emptyDashboard();
   if (variant === 'legacy') return legacyDashboardConfig();
   if (variant === 'filtered')
     return dashboardConfig({
@@ -114,14 +140,13 @@ const meta = {
   ],
   title: 'View Engine/仪表盘视图/Dashboard',
   component: DashboardDemo,
-  args: { behaviour: 'data', variant: 'panels', editable: false },
+  args: { behaviour: 'data', variant: 'panels' },
   argTypes: {
     behaviour: {
       control: 'inline-radio',
       options: ['data', 'empty', 'slow', 'failing'],
     },
     variant: { table: { disable: true } },
-    editable: { control: 'boolean' },
   },
 } satisfies Meta<typeof DashboardDemo>;
 
@@ -139,12 +164,24 @@ export const AllPanels: Story = { args: { variant: 'panels' } };
 export const GlobalFilter: Story = { args: { variant: 'filtered' } };
 
 /**
- * Drag by a panel's grip, or resize it by its corner — or do either from the
+ * Press 「编辑」 to build the board (D22 A): the edit bar comes up with
+ * 「＋ 添加」, 取消 and 完成, every panel's 「⋯」 gains 「改」, and panels can be
+ * dragged by their grip or resized by their corner — or either from the
  * keyboard: both handles answer the arrow keys, and the menu beside the grip
- * says the same eight commands in words. Each one applies at once, like
- * sorting a table.
+ * says the same eight commands in words. Panels run as the board changes;
+ * 完成 saves, 取消 puts back what was saved.
  */
-export const EditableLayout: Story = { args: { editable: true } };
+export const Building: Story = { args: { variant: 'panels' } };
+
+/**
+ * A board shared with everyone and nothing on it yet: its first steps are
+ * offered under the empty state, and a personal view put on it is marked
+ * 「只有你看得到」 in the picker (D22 B).
+ */
+export const EmptySharedBoard: Story = { args: { variant: 'empty-shared' } };
+
+/** The board the definition ships: 另存为, and no 编辑 (D4). */
+export const SystemDashboard: Story = { args: { variant: 'system' } };
 
 /** A referenced view that was deleted: only that panel says so. */
 export const PanelUnavailable: Story = { args: { variant: 'unavailable' } };

@@ -15,10 +15,12 @@ import { useCallback, useMemo, useSyncExternalStore } from 'react';
 import {
   DASHBOARD_GRID_COLUMNS,
   type DashboardPanel,
+  type DashboardTab,
   type Issue,
   type PanelLayout,
 } from '../model/index.js';
 import type {
+  DashboardEditing,
   DashboardPanelState,
   DashboardRuntime,
   DataViewRuntime,
@@ -68,9 +70,23 @@ export interface DashboardController {
   refresh(): void;
   /** Re-runs one panel: the retry on a panel whose query failed. */
   refreshPanel(panelId: string): void;
+  /**
+   * Building the board (D22 A–E): the runtime's own commands, each written
+   * into the draft and onto the screen at once; `null` while no board is
+   * open. Whether they are on offer is the UI's to say, by permission.
+   */
+  edit: DashboardEditing | null;
+  /** The board's tabs in the order of its bar; none on a board without. */
+  tabs: readonly DashboardTab[];
+  /**
+   * Loads a saved view before a panel shows it, so the panel is added at
+   * the size of what it shows (`DashboardRuntime.preload`); never rejects.
+   */
+  preload(instanceId: string): Promise<void>;
 }
 
 const EMPTY_PANELS: DashboardPanelState[] = [];
+const NO_TABS: readonly DashboardTab[] = [];
 
 /**
  * A dashboard as a grid of panels.
@@ -131,7 +147,32 @@ export function useDashboard(
       (panelId: string) => runtime?.refreshPanel(panelId),
       [runtime],
     ),
+    edit: runtime,
+    // What is on screen: an edit writes the draft and the applied config
+    // alike, so the two agree on the tabs whenever a panel is drawn.
+    tabs: useMemo(() => tabsOf(state?.applied.tabs), [state?.applied.tabs]),
+    preload: useCallback(
+      async (instanceId: string) => {
+        await runtime?.preload(instanceId);
+      },
+      [runtime],
+    ),
   };
+}
+
+/**
+ * The well-formed tabs of a stored config: admission reports the rest, and
+ * a bar or a menu naming tabs must not be the second place to find out.
+ */
+function tabsOf(tabs: unknown): readonly DashboardTab[] {
+  if (!Array.isArray(tabs) || tabs.length === 0) return NO_TABS;
+  return tabs.filter(
+    (tab): tab is DashboardTab =>
+      typeof tab === 'object' &&
+      tab !== null &&
+      typeof (tab as { id?: unknown }).id === 'string' &&
+      typeof (tab as { title?: unknown }).title === 'string',
+  );
 }
 
 function toView(panel: DashboardPanelState): DashboardPanelView {

@@ -11,15 +11,21 @@
  * limitations under the License.
  */
 
-import type {
-  DashboardPanel,
-  DashboardViewConfig,
-  FieldOption,
-  Issue,
+import { useLayoutEffect, useRef, useState } from 'react';
+import { PencilIcon } from 'lucide-react';
+import {
+  audienceOf,
+  type DashboardPanel,
+  type DashboardViewConfig,
+  type FieldOption,
+  type FilterTree,
+  type Issue,
 } from '../model/index.js';
 import type { ViewEngine } from '../runtime/index.js';
 import { useDashboard, useWorkbench } from '../react/index.js';
-import { DashboardGrid, panelName, panelNames } from './DashboardGrid.js';
+import { Button } from './components/button.js';
+import { panelName, panelNames } from './DashboardPanel.js';
+import { DashboardBoard } from './dashboard/Board.js';
 import { FilterPanel } from './FilterPanel.js';
 import { RefreshControl } from './RefreshControl.js';
 import { FilterModes } from './filter/FilterModes.js';
@@ -48,8 +54,13 @@ export interface DashboardWorkbenchProps {
    * link.
    */
   onInstanceChange?(id: string | null): void;
-  /** Whether panels may be dragged and resized. */
-  editable?: boolean;
+  /**
+   * The host's route to the workbench, for 在工作台中打开 in a panel's menu
+   * (D22 D): the saved view a panel shows, and the board's condition as the
+   * panel carries it — already in that view's own field names, ready to be
+   * handed to it as its scope. Without it the item does not exist.
+   */
+  onOpenView?(instanceId: string, filter: FilterTree | null): void;
   /**
    * What a new dashboard starts from: an empty one when left out. It opens
    * unsaved, and the first save asks for its name and audience.
@@ -112,7 +123,7 @@ export function DashboardWorkbench({
   definitionId,
   instanceId,
   onInstanceChange,
-  editable = false,
+  onOpenView,
   theme,
   messages: wording,
   locale,
@@ -137,6 +148,30 @@ export function DashboardWorkbench({
   const { filter, runtime, state } = workbench;
   const board = runtime?.kind === 'dashboard' ? runtime : null;
   const dashboard = useDashboard(board);
+
+  // Reading and building are two states (D22 A): nothing on a board being
+  // read moves, and 「编辑」 is the way in — only for whoever may save the
+  // board, so a system board (read-only, D4) offers 「另存为」 and nothing
+  // else. The state is this opening's: another view opens read.
+  const [buildingId, setBuildingId] = useState<string | null>(null);
+  const editing = board !== null && buildingId === board.id;
+  const canEdit = board !== null && workbench.commands.can.save;
+  const setEditing = (on: boolean) =>
+    setBuildingId(on && board ? board.id : null);
+  // 「编辑」 leaves the bar as the building starts and comes back as it
+  // ends; the keyboard that pressed 完成 or 取消 goes back to it rather than
+  // to the page — only as the building ends, and only when the focus was
+  // lost with the bar: an opening view never takes it.
+  const editButton = useRef<HTMLButtonElement>(null);
+  const wasEditing = useRef(editing);
+  useLayoutEffect(() => {
+    const ended = wasEditing.current && !editing;
+    wasEditing.current = editing;
+    if (!ended) return;
+    const active = document.activeElement;
+    if (active === null || active === document.body)
+      editButton.current?.focus();
+  }, [editing]);
 
   const issues = state?.issues ?? [];
   // The panels carry the warnings of what is applied, each in its own frame.
@@ -204,6 +239,22 @@ export function DashboardWorkbench({
       onSidebarOpenChange={onSidebarOpenChange}
       expandable={expandable}
       manage={featuresOf(features).manage}
+      build={
+        canEdit &&
+        !editing && (
+          <Button
+            ref={editButton}
+            data-slot="dashboard-edit"
+            variant="outline"
+            size="sm"
+            onClick={() => setEditing(true)}
+          >
+            <PencilIcon data-icon="inline-start" />
+            {messages.label('label.dashboard.edit')}
+          </Button>
+        )
+      }
+      commitElsewhere={editing}
       onRenderFailure={onRenderFailure}
       // A grid of cards is not framed again.
       resultFramed={false}
@@ -246,11 +297,21 @@ export function DashboardWorkbench({
         )
       }
       result={
-        <DashboardGrid
-          dashboard={dashboard}
-          editable={editable}
-          onRenderFailure={onRenderFailure}
-        />
+        state && (
+          <DashboardBoard
+            engine={engine}
+            dashboard={dashboard}
+            commands={workbench.commands}
+            title={state.title}
+            shared={audienceOf(state.scope) === 'shared'}
+            canEdit={canEdit}
+            editing={editing}
+            onEditingChange={setEditing}
+            onSaved={workbench.onSaved}
+            onOpenView={onOpenView}
+            onRenderFailure={onRenderFailure}
+          />
+        )
       }
     />
   );

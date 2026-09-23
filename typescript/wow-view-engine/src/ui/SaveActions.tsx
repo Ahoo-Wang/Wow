@@ -262,7 +262,7 @@ export function SaveActions({
  * Not destructive in tone — nothing is lost that the author did not mean
  * to change — but said, because the people it changes for are not here.
  */
-function SharedSaveConfirm({
+export function SharedSaveConfirm({
   open,
   title,
   onOpenChange,

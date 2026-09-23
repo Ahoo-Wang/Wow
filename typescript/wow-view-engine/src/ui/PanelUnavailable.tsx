@@ -11,12 +11,19 @@
  * limitations under the License.
  */
 
-import { UnplugIcon } from 'lucide-react';
+import {
+  ArrowRightLeftIcon,
+  SquarePenIcon,
+  Trash2Icon,
+  UnplugIcon,
+} from 'lucide-react';
 import type { Issue } from '../model/index.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import type { MessageKey } from './messages.js';
+import { Button } from './components/button.js';
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -30,10 +37,10 @@ import {
  * The kernels' own sentences were written for whoever edits a config, and
  * some carry what only a config knows — the instance id a panel points at,
  * a scope code, a store's error text. A reader of the board gets the reason
- * in their own words instead, and the way out that exists today: there is
- * no removing or replacing a panel from the board yet (D22's batch B), so
- * the way out is the person who can, named by role. No button offers what
- * nothing on screen can do.
+ * in their own words instead, and the way out: a reader is told who can
+ * bring it back, named by role; whoever is building the board is handed the
+ * way itself (`PanelUnavailableProps.remove`). No button offers what nothing
+ * on screen can do.
  */
 const OUTAGES: Readonly<Record<string, readonly [MessageKey, MessageKey]>> = {
   // Deleted, or out of this reader's reach: the store will not say which,
@@ -107,6 +114,15 @@ function outageOf(
 export interface PanelUnavailableProps {
   /** The finding that put the panel out; none when the dashboard holds it back. */
   issue: Issue | undefined;
+  /**
+   * While the board is built, the way out is the author's to take (D22 D):
+   * given, the sentence naming who to ask gives way to these buttons.
+   */
+  remove?(): void;
+  /** 替换视图…, for a data panel. */
+  replace?(): void;
+  /** 改内容…, for a note, a picture or links the kernel refused. */
+  editContent?(): void;
 }
 
 /**
@@ -114,9 +130,23 @@ export interface PanelUnavailableProps {
  * It used to say 「不可用」 as its title and 「……不可用」 again under it,
  * which is the same word twice and no reason at all (U5).
  */
-export function PanelUnavailable({ issue }: PanelUnavailableProps) {
+export function PanelUnavailable({
+  issue,
+  remove,
+  replace,
+  editContent,
+}: PanelUnavailableProps) {
   const messages = useViewMessages();
-  const [reason, wayOut] = outageOf(issue, messages);
+  const [reason, readersWayOut] = outageOf(issue, messages);
+  // Whoever builds the board is the one the sentence would send a reader
+  // to; they are given the way itself, and the sentence says what it does.
+  const wayOut = !remove
+    ? readersWayOut
+    : messages.label(
+        replace
+          ? 'label.panel.way-out.edit'
+          : 'label.panel.way-out.edit-content',
+      );
   return (
     <Empty data-slot="panel-unavailable" className="p-4">
       <EmptyHeader>
@@ -126,6 +156,28 @@ export function PanelUnavailable({ issue }: PanelUnavailableProps) {
         <EmptyTitle>{reason}</EmptyTitle>
         <EmptyDescription>{wayOut}</EmptyDescription>
       </EmptyHeader>
+      {remove && (
+        <EmptyContent>
+          <div className="flex flex-wrap justify-center gap-2">
+            {replace && (
+              <Button variant="outline" size="sm" onClick={replace}>
+                <ArrowRightLeftIcon data-icon="inline-start" />
+                {messages.label('label.panel.replace')}
+              </Button>
+            )}
+            {editContent && (
+              <Button variant="outline" size="sm" onClick={editContent}>
+                <SquarePenIcon data-icon="inline-start" />
+                {messages.label('label.panel.edit-content')}
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={remove}>
+              <Trash2Icon data-icon="inline-start" />
+              {messages.label('label.panel.remove')}
+            </Button>
+          </div>
+        </EmptyContent>
+      )}
     </Empty>
   );
 }

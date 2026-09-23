@@ -11,10 +11,6 @@
 
 ECharts 迁移（D21）与两份「数据分析师视角」审查的 P0 已全部合并：#1800、#1817～#1829；交接的 P1 也已合并：#1834（指标卡最后一期＋环比、引擎时区）、#1835（组合图右轴、缺值、百分比堆叠）、#1836（托盘与分析表 13 条）、#1837（记录视图表头排序等应用）、#1838（表格永远跑得起来、图表提示说列标题）。下面是已定、未做的，按批次排；动手前先在最新 main 上复现，已顺带修掉的删掉。审查原文的要点都在这里，原报告不在仓库里。
 
-- **仪表盘面板的图表提示也说列标题**。
-  - 为什么：工作台与嵌入视图的图表提示已按列标题说（`ui/analysis/issueNames.ts` 的 `chartIssueNamer`，[ui/analysis.md](ui/analysis.md)「图表的提示说列标题，不说别名」），仪表盘面板的发现（`PanelUnavailable`、面板头的说明、`DashboardWorkbench` 的 `namePanel`）仍按别名说，`chart.as-table` 也只有通用那句。
-  - 判据：面板里渲染出来的图表提示不含别名，`chart.as-table` 说出图型与原因；有测试。
-  - 落点：`src/ui/DashboardGrid.tsx`、`src/ui/PanelUnavailable.tsx`、`src/ui/DashboardWorkbench.tsx`（面板的草稿维度与指标，经 `groupReference`／`metricReference`）。随批 B 做。
 - **其余分析提示也说列标题**：#1838 只处理了图表提示，别的分析提示仍带别名（如 `analysis.derived.moment-operand` 的 `{metric}`）。
   - 为什么：同 #1838——用户读的是列标题。
   - 判据：分析视图任何渲染出来的提示都不含别名；有测试（仿 `test/chartIssueNames.test.tsx`）。
@@ -32,11 +28,11 @@ ECharts 迁移（D21）与两份「数据分析师视角」审查的 P0 已全�
 
 批次按顺序；每批都做到可生产交付、真浏览器走过。起点的缺陷清单在会话记忆 `view-engine-dashboard-walk-2026-09-22`（U1～U11、R1～R18、G1～G10）。
 
-- **批 B 怎么搭**（交互稿 A～E 屏）：**B1 已做完模型、校验、迁移与运行时**（24 列与旧布局迁移、标签页、板内分析视图与「另存为视图」、展示覆盖、标题卡片、`DashboardEditing` 命令走草稿、动手后上浮压紧、保存只被整板 error 挡、同名面板编号；见 [model.md#dashboard-配置](model.md#dashboard-配置)、[runtime.md#dashboard](runtime.md#dashboard)）。剩下的是界面（B2／B3）：编辑模式与编辑条（「编辑」「完成」＝保存并退出、「取消」＝`revert`；系统仪表盘只读、只有「另存为」）；「＋ 添加」——选已保存视图的对话框（分组、搜索、「已在板上」、共享板引用个人视图当场标「只有你看得到」与面板菜单「复制为共享视图并替换」）、在仪表盘里新建分析的大对话框（托盘＋结果，「放进仪表盘」＝`addPanel({ owned })`）、标题／文字／图片／链接；新面板放进当前可见区域（`fromRow`）；面板菜单（改标题、改这里的展示、替换视图、复制、移到标签页、移除、「另存为视图…」＝`ViewEngine.saveOwnedView`、「恢复为视图的样子」＝`setPresentation(null)`）与面板头「此处改为〈图型〉」；标签栏（只画当前标签页的面板、加／改名／排序／删除带确认、记住每人上次的标签＝个人偏好、当前标签进地址）；窄屏编辑只允许改标题、移除、调顺序。
+- **批 B 怎么搭**（交互稿 A～E 屏）：**B1 已做完模型、校验、迁移与运行时**（见 [model.md#dashboard-配置](model.md#dashboard-配置)、[runtime.md#dashboard](runtime.md#dashboard)）；**B2 已做完编辑模式、编辑条、添加（选视图对话框、标题／文字／图片／链接）、面板菜单、空板子的第一步、不可用面板的真按钮、面板图表提示说列标题**（见 [ui/dashboard.md](ui/dashboard.md)「搭板子」）。剩下的（B3）从 `DashboardEditExtensions` 接进来：在仪表盘里新建分析的大对话框（托盘＋结果，「放进仪表盘」＝`addPanel({ owned }, spot)`，接 `onAddOwnedAnalysis`）；展示覆盖的编辑（接 `onEditPresentation`）、面板头「此处改为〈图型〉」与「恢复为视图的样子」＝`setPresentation(null)`；「另存为视图…」的对话框（接 `onSaveOwnedAsView`，`ViewEngine.saveOwnedView`）；标签栏（接 `tabBar` 与 `tab`：只画当前标签页的面板——栅格已按 `tab` 收窄——、加／改名／排序／删除带确认、记住每人上次的标签＝个人偏好、当前标签进地址）；共享板上个人视图的面板菜单「复制为共享视图并替换」。
   - 判据：从空仪表盘开始只用界面就能搭出首页那块运营看板；真浏览器逐控件走查。
-  - 批 A 走查补进来、留给界面的一件：**不可用面板的出路换成真按钮**（替换视图、移除；`PanelUnavailable.tsx` 现在按角色说「请……」）。
-  - B1 留给 B2 的两处运行时收口：面板改由草稿重画图（`useAnalysisResult` 那条路）之后，展示覆盖里只改 `layout`／`chart` 的那一种从「edit + apply」收窄为只重画不重跑（D20，`runtime/dashboard/children.ts` 的 `sync`）；子 runtime 目前不论在哪个标签页都跑，标签栏上线时改为只跑当前标签页（切过去再跑，跑过的保留）。
-  - 落点：`src/ui/DashboardGrid.tsx`、`src/ui/DashboardWorkbench.tsx` 与新的编辑部件、`src/react/useDashboard.ts`（把 `DashboardEditing` 与 `tabs` 交给界面）、[ui/dashboard.md](ui/dashboard.md)。
+  - B2 留下的三件：**面板菜单「导出数据…」**——`ExportDialog` 今天是自带触发器的工具栏窗口、CSV 的交付在 `workbench/RecordParts.tsx` 里，要先拆成可受控的窗口加一个共享的交付钩子，面板才能从菜单打开它（分析面板的导出另议）；**窄屏调顺序**（D22 J，窄屏编辑只改标题、移除、调顺序，后者未做：一列里的上下移要映射回宽布局的阅读顺序）；**编辑中的全局「撤销」**——移除今天先确认，因为 runtime 没有单步撤销、「取消」会连别的改动一起撤掉。
+  - B1 留给后面的两处运行时收口：面板改由草稿重画图（`useAnalysisResult` 那条路）之后，展示覆盖里只改 `layout`／`chart` 的那一种从「edit + apply」收窄为只重画不重跑（D20，`runtime/dashboard/children.ts` 的 `sync`）；子 runtime 目前不论在哪个标签页都跑，标签栏上线时改为只跑当前标签页（切过去再跑，跑过的保留）。
+  - 落点：`src/ui/dashboard/`（`extensions.ts` 是 B3 的接口）、`src/ui/DashboardWorkbench.tsx`、[ui/dashboard.md](ui/dashboard.md)。
 - **批 C 全局筛选**（交互稿 F、G 屏）：筛选的增删改、接线与自动连接、「不受此筛选影响」、默认值与必填、多值、时间分组参数。
   - 判据：新加一个时间筛选自动接上所有有该字段的面板；必填时不跑全量；切粒度整板重算。
   - 落点：`src/model/dashboard.ts`（`DashboardField`、`PanelBinding`）、`src/runtime/dashboard*`、筛选条 UI。

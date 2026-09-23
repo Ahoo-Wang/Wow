@@ -72,9 +72,10 @@ export interface HeadingPanelProps {
 /**
  * A section's title across the board: one line of plain text, cut short
  * rather than wrapped, since a heading card is one row high. Plain text on
- * purpose — no markdown, no link — so a title is never anything else. How it
- * sits in the board's outline (its own heading level, the chrome it wears)
- * is the editing UI's to settle with the grid (batch B2).
+ * purpose — no markdown, no link — so a title is never anything else. On a
+ * board the grid draws a heading card as its panel title alone
+ * (`DashboardPanel`), at the level of every other panel title; this is the
+ * same words for a host that renders a content panel by itself.
  */
 export function HeadingPanel({ content }: HeadingPanelProps) {
   return (

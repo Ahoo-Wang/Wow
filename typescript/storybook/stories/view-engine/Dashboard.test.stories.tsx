@@ -16,7 +16,7 @@ import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 import displayMeta, {
   AllPanels as DisplayAllPanels,
-  EditableLayout as DisplayEditableLayout,
+  Building as DisplayBuilding,
   EmptyDashboard as DisplayEmptyDashboard,
   GlobalFilter as DisplayGlobalFilter,
   LegacyLayout as DisplayLegacyLayout,
@@ -61,6 +61,15 @@ async function onTheGrid(canvasElement: HTMLElement): Promise<void> {
     expect(
       canvasElement.querySelector('[data-slot="dashboard-grid"]'),
     ).not.toHaveAttribute('data-narrow'),
+  );
+}
+
+/** 「编辑」: nothing on a board moves until it is being built (D22 A). */
+async function startBuilding(canvasElement: HTMLElement): Promise<void> {
+  await userEvent.click(
+    await within(canvasElement).findByRole('button', {
+      name: zhCN['label.dashboard.edit'],
+    }),
   );
 }
 
@@ -239,13 +248,14 @@ export const QueryFailed: Story = {
  * not comparable. Where the panel starts within the grid is.
  */
 export const KeyboardLayout: Story = {
-  ...DisplayEditableLayout,
+  ...DisplayBuilding,
   // The test browser is a phone's width, and below `md` the board is one
   // derived column with nothing to place — so this one is given a desk.
   decorators: [DESK],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await onTheGrid(canvasElement);
+    await startBuilding(canvasElement);
     const grip = canvas.getByLabelText(
       zhCN['label.panel.move'].replace('{title}', '待出库明细'),
     );
@@ -278,9 +288,9 @@ export const KeyboardLayout: Story = {
 };
 
 /**
- * What an empty dashboard is, and nothing it cannot keep: there is no way to
- * add a panel yet (D22's batch B), so the empty state invites nobody to
- * press anything (U1).
+ * What an empty dashboard is, and — for whoever may build it — the first
+ * steps, under the words (D22 A): a view, a heading. No 「新建分析」 until
+ * something provides the dialog it opens.
  */
 export const EmptyDashboard: Story = {
   ...DisplayEmptyDashboard,
@@ -292,8 +302,14 @@ export const EmptyDashboard: Story = {
       '[data-slot="dashboard-empty"]',
     ) as HTMLElement;
     await expect(empty).toHaveTextContent(zhCN['label.dashboard.empty-hint']);
-    await expect(empty.textContent).not.toContain('添加');
-    await expect(within(empty).queryByRole('button')).toBeNull();
+    await expect(
+      within(empty)
+        .getAllByRole('button')
+        .map(button => button.textContent),
+    ).toEqual([
+      zhCN['label.dashboard.empty.add-view'],
+      zhCN['label.dashboard.empty.add-heading'],
+    ]);
   },
 };
 
@@ -354,13 +370,14 @@ export const RefreshFailedKeepsData: Story = {
  * two trade places, and the column closes up (batch-A walk).
  */
 export const KeyboardStepPushes: Story = {
-  ...DisplayEditableLayout,
+  ...DisplayBuilding,
   // A desk, as for `KeyboardLayout`: nothing is placed in the phone-width
   // column the test browser would otherwise give it.
   decorators: [DESK],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await onTheGrid(canvasElement);
+    await startBuilding(canvasElement);
     const grip = (title: string) =>
       canvas.getByLabelText(zhCN['label.panel.move'].replace('{title}', title));
     const item = (title: string) =>

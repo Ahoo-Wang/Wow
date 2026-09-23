@@ -81,6 +81,20 @@ export interface ViewHeaderProps extends ViewWriteCallbacks {
    */
   trailing?: ReactNode;
   /**
+   * The way into building the view, beside its save commands — a
+   * dashboard's 「编辑」 (D22 A). Absent where the view is not built here.
+   */
+  build?: ReactNode;
+  /**
+   * Whether the view is committed and rolled back somewhere other than this
+   * bar — a dashboard being built, whose edit bar holds 「完成」 and
+   * 「取消」 (D22 A). The bar then leaves off its save commands and the
+   * "edited" mark with its ↺: one way to do one thing, and a second Save or
+   * a second revert beside the edit bar's would be the same command under
+   * another name.
+   */
+  commitElsewhere?: boolean;
+  /**
    * Whether this bar is the thing that says which view is open. False when
    * something in `leading` already does — a view switcher shows the kind and
    * the title both — and the bar then drops its own icon and leaves the
@@ -134,6 +148,8 @@ export function ViewHeader({
   actions,
   leading,
   trailing,
+  build,
+  commitElsewhere = false,
   namesView = true,
   titleId,
   headingLevel = 2,
@@ -325,19 +341,23 @@ export function ViewHeader({
             // ask about. So it is asked, in the same words and the same
             // shape; a dialog would be friction over an action that could
             // be taken back, and this one cannot.
-            state.dirty && (
+            state.dirty &&
+            !commitElsewhere && (
               <UnsavedMark
                 commands={{ ...commands, revert: () => setAsking(true) }}
               />
             )
           )}
 
-          <SaveActions
-            commands={commands}
-            title={state.title}
-            onSaved={onSaved}
-            onCreated={onCreated}
-          />
+          {!commitElsewhere && (
+            <SaveActions
+              commands={commands}
+              title={state.title}
+              onSaved={onSaved}
+              onCreated={onCreated}
+            />
+          )}
+          {build}
         </div>
 
         {/* How it is being looked at. The host's own actions end the line:
@@ -385,7 +405,7 @@ export function ViewHeader({
   );
 }
 
-interface RevertDialogProps {
+export interface RevertDialogProps {
   open: boolean;
   onOpenChange(open: boolean): void;
   /** Puts the saved config back; only the confirming answer calls it. */
@@ -396,7 +416,7 @@ interface RevertDialogProps {
    * bar — so on the way out there is nothing to give focus back to, and the
    * view's own heading is the nearest thing to where the user was standing.
    */
-  landing: RefObject<HTMLHeadingElement | null>;
+  landing: RefObject<HTMLElement | null>;
 }
 
 /**
@@ -414,7 +434,7 @@ interface RevertDialogProps {
  * dialog in front of an action that could be taken back is friction; in
  * front of one that cannot, it is the only place the user gets to decide.
  */
-function RevertDialog({
+export function RevertDialog({
   open,
   onOpenChange,
   onConfirm,
