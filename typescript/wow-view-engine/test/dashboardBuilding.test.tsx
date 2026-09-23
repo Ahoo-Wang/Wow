@@ -521,7 +521,9 @@ describe('adding to a board (D22 A, B)', () => {
       within(empty)
         .getAllByRole('button')
         .map(button => button.textContent),
-    ).toEqual(['Add a view…', 'Add a heading']);
+      // The workbench provides the new-analysis dialog, so its first step is
+      // there too (`DashboardEditExtensions.onAddOwnedAnalysis`).
+    ).toEqual(['Add a view…', 'New analysis…', 'Add a heading']);
     await user.click(
       within(empty).getByRole('button', { name: 'Add a heading' }),
     );
@@ -723,14 +725,23 @@ describe("a panel's menu (D22 D)", () => {
     await add(user, 'New analysis…');
     expect(onAddOwnedAnalysis).toHaveBeenCalledWith({ fromRow: 0 });
 
+    // A record panel has no look to change here, nor an analysis to save.
     let menu = await panelMenu(user, 'Pending');
     expect(
       within(menu).queryByRole('menuitem', { name: 'Save as a view…' }),
     ).toBeNull();
+    expect(
+      within(menu).queryByRole('menuitem', {
+        name: 'Change how it looks here…',
+      }),
+    ).toBeNull();
+    await user.keyboard('{Escape}');
+
+    menu = await panelMenu(user, 'Own');
     await user.click(
       within(menu).getByRole('menuitem', { name: 'Change how it looks here…' }),
     );
-    expect(onEditPresentation).toHaveBeenCalledWith('orders');
+    expect(onEditPresentation).toHaveBeenCalledWith('own');
 
     menu = await panelMenu(user, 'Own');
     await user.click(

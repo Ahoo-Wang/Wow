@@ -24,8 +24,10 @@ import type {
   DashboardPanel,
   DashboardViewConfig,
   Issue,
+  ViewInstance,
   ViewKind,
 } from '../../model/index.js';
+import { migrateDashboardConfig, panelTab } from '../../dashboard/index.js';
 import { resultIssues } from '../source.js';
 import type { DataViewRuntime } from '../viewRuntime.js';
 
@@ -40,6 +42,14 @@ export interface DashboardPanelState {
   runtime: DataViewRuntime | null;
   /** Issues about this panel alone; the dashboard around it still works. */
   issues: Issue[];
+  /** The tab it is on (`panelTab`); `null` on a board without tabs. */
+  tab: string | null;
+  /**
+   * A data panel on a tab that has not been shown yet: nothing was asked
+   * for it and nothing is wrong with it — its child is made the first time
+   * its tab is (D22 E, only the tab on screen runs).
+   */
+  waiting: boolean;
 }
 
 /**
@@ -175,8 +185,31 @@ export function samePanels(
         panel.id === other.id &&
         panel.panel === other.panel &&
         panel.runtime === other.runtime &&
+        panel.tab === other.tab &&
+        panel.waiting === other.waiting &&
         dequal(panel.issues, other.issues)
       );
     })
   );
+}
+
+/**
+ * The tab a board shows: the one asked for while it has it, else its first;
+ * `null` for a board without tabs. A stored config is read as untrusted.
+ */
+export function shownTab(
+  config: DashboardViewConfig,
+  requested: string | null,
+): string | null {
+  return panelTab(config, requested === null ? {} : { tab: requested });
+}
+
+/**
+ * A stored board read into the form this engine writes
+ * (`migrateDashboardConfig`); the same instance when it already is.
+ */
+export function migrated(instance: ViewInstance | null): ViewInstance | null {
+  if (instance === null) return null;
+  const config = migrateDashboardConfig(instance.config as DashboardViewConfig);
+  return config === instance.config ? instance : { ...instance, config };
 }

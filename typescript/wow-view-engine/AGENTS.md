@@ -192,7 +192,7 @@ src/
     validate.ts               — validateDashboard — grid, tabs, panels (saved or owned views, overrides of how they look), bindings, content
     index.ts                  — The dashboard kernel: admission, panel binding resolution and the global filter merge
   runtime/                    — Stateful layer; never imports react or ui
-    dashboardRuntime.ts       — `DashboardViewRuntime`: N child runtimes and one global filter, on one clock, over one `RuntimeStore`; every config it takes in read into the 24-column form; building the board (`DashboardEditing`) into the draft and the screen at once
+    dashboardRuntime.ts       — `DashboardViewRuntime`: N child runtimes and one global filter, on one clock, over one `RuntimeStore`; every config it takes in read into the 24-column form; building the board (`DashboardEditing`) into the draft and the screen at once; only the tab on screen runs (`showTab`)
     definitions.ts            — The definition registry: judged once, refused at the point of use
     environment.ts            — `RuntimeEnvironment` and the `VisibilitySource` port; `ALWAYS_VISIBLE`, `defaultRuntimeEnvironment`
     execute.ts                — The two execution kinds a runtime drives
@@ -215,6 +215,7 @@ src/
     savedConditions.ts        — `conditionsDrifted`: whether the conditions in force are other than the ones the view was saved with
     scope.ts                  — What an injected scope does to admission: the merge, and what it alone is refused for
     source.ts                 — resolveSource — three QueryApi methods
+    tabMemory.ts              — `TabMemory`: where each reader last read each dashboard (`ViewPreferences.lastTabs`), the tab a board opens on, and a burst of switches written as its last, never rejecting
     summaries.ts              — The instance-summary cache: noted on listing and on a confirmed write, dropped on delete, read before the store
     validateDefinition.ts     — Definition admission; needs all three kernels
     valueCandidates.ts        — `ValueCandidateSources`: one `ValueCandidateSource` per offered field, compiled through the analysis kernel under the injected scope, answers kept for the life of the view and narrowed in hand where the source has nothing to add
@@ -226,9 +227,10 @@ src/
     writeLedger.ts            — The write ledger: outcomes by requestId, retry, conflicts
     index.ts                  — Transient state: what is open, what is in flight, what came back
     dashboard/                — What the dashboard runtime is made of
-      children.ts             — PanelChildren: one child runtime per data panel — a saved view or one the board owns (`PanelView`, `panelView`); a new config for the same view is an edit and a run, not a new child
+      contract.ts             — `DashboardRuntime`, its state (the tab on screen among it) and its options: what the dashboard runtime is to the rest of the package
+      children.ts             — PanelChildren: one child runtime per data panel — a saved view or one the board owns (`PanelView`, `panelView`); a new config for the same view is an edit and a run, not a new child — an edit alone when only how it is drawn changed; a panel on a tab not shown is held as it is, and one that missed a refresh runs when its tab is shown
       editing.ts              — `DashboardEditing` and `boardEditing`: building the board, each edit a kernel function applied to the draft and the screen alike
-      panels.ts               — Panel helpers: reading, addressing, comparing; `blocksBoard`, the errors that stop the whole board; `stopsSave`, what stops a save of each kind
+      panels.ts               — Panel helpers: reading, addressing, comparing; `blocksBoard`, the errors that stop the whole board; `stopsSave`, what stops a save of each kind; `shownTab`, the tab on screen; `migrated`, a stored board read into the 24-column form
       presentation.ts         — `presentedConfig`: a panel's override of how it looks laid over its view's config, dropped with a note when it no longer fits
       references.ts           — PanelReferences: loading what panels point at
   store/                      — Persistence port — imports model only
@@ -401,14 +403,19 @@ src/
       motion.ts               — Whether a chart animates its marks: not when the reader asked for less motion (`useChartMotion`, read live)
       palette.ts              — The eight slot colours, the grey of a pie's "Other", and the spec's overrides
       reading.ts              — A chart as text: its name and the numbers it draws
-    dashboard/                — What building a dashboard is made of (D22 A, B, D)
+    dashboard/                — What building a dashboard is made of (D22 A–E)
       AddMenu.tsx             — 「＋ 添加 ▾」: 数据 (a saved view, a new analysis where one can be made) and 内容 (heading, text, image, links); the same first steps on an empty board
-      Board.tsx               — `DashboardBoard`: the grid with the edit bar over it, the picker and the content form, every edit one `DashboardEditing` command; where a new panel goes (the first row on screen) and where the keyboard goes after
-      commands.ts             — `panelCommands`: what one panel's menu offers — 「看」 always, 「改」 while the board is built, renaming and removing alone in the one-column reading — and the builder the grid reaches through context
+      Board.tsx               — `DashboardBoard`: the grid with the edit bar over it, the picker and the content form, every edit one `DashboardEditing` command; where a new panel goes (the first row on screen of the tab on screen) and where the keyboard goes after
+      building.tsx            — `useDashboardExtensions`: the default workbench's `DashboardEditExtensions` — a new owned analysis, a panel's own look and its reset, 另存为视图, the tab bar — and the three dialogs they open
+      commands.ts             — `panelCommands`: what one panel's menu offers — 「看」 always, 「改」 while the board is built (「恢复为视图的样子」 only over a look of its own), renaming and removing alone in the one-column reading — and the builder the grid reaches through context
       ContentEditor.tsx       — The small form a note, a picture or a list of links is written in, what the kernel would refuse said at the field
+      DashboardTabs.tsx       — The tab bar over the grid, two tabs or more: switch; while building, add, rename in place, carry by handle or arrows, delete (asked first when it holds panels); `tabTitle`
       EditBar.tsx             — The bar a board is built under: 正在编辑, 添加, 取消 (put back the saved board, asked first) and 完成 (the save, a shared board asked first, a new one named)
-      extensions.ts           — `DashboardEditExtensions`: the parts of building that live elsewhere (a new owned analysis, the presentation editor, 另存为视图, the tab bar and the tab on screen), each entry there only while provided
+      extensions.ts           — `DashboardEditExtensions`: the parts of building that live elsewhere (a new owned analysis, the presentation editor and its reset, 另存为视图, the tab bar), each entry there only while provided
+      NewAnalysisDialog.tsx   — A new analysis made inside the dashboard: the data first, then `AnalysisParts` in a dialog (tray, result, visualization panel, 改了就跑), a title following the reading, 「放进仪表盘」
+      PanelBodies.tsx         — What a data panel draws: the record table, the analysis drawn from its child's draft over the rows on hand (`useAnalysisResult`), a failed query with its retry, and 「此处改为〈图型〉」 (`presentationMark`)
       PanelMenu.tsx           — 「⋯」 on a panel, the question before it is removed, and its title renamed in place
+      PresentationDialog.tsx  — 「改这里的展示」: the chart picker and options writing one panel's look, beside the panel as it will look; Cancel puts back the look it opened with
       ViewPicker.tsx          — Choosing a saved view: grouped as the switcher groups them, searched, narrowed by kind and data, 「已在板上」 and 「只有你看得到」 said on the row
     columns/
       ColumnRow.tsx           — One row of the column settings: checkbox, two-state pin toggle, summary, handle
@@ -444,6 +451,7 @@ src/
       drag.ts                 — What the manager makes of a drag: which drop it will take, and what a screen reader hears while one is under way
     messages/                 — the catalogue, one file per prefix family
       analysis.ts             — the analysis editor and its charts, with the two kernels behind them
+      building.ts             — building a board, batch B3: tabs, a new analysis in a dashboard, saving it as a view, a panel's own look
       bulk.ts                 — bulk outcome wording
       config.ts               — shared config — the part every view kind stores, so every kind reports it
       dashboard.ts            — the dashboard grid, its panels, and the dashboard kernel behind them

@@ -121,7 +121,7 @@ export function DashboardBoard({
    */
   const spot = () => ({
     fromRow: firstVisibleRow(gridRef.current),
-    ...(extensions.tab === undefined ? {} : { tab: extensions.tab }),
+    ...(dashboard.tab === null ? {} : { tab: dashboard.tab }),
   });
   const added = (id: string | null, fallback: string) => {
     if (id === null) return;
@@ -190,6 +190,8 @@ export function DashboardBoard({
     },
     duplicated: name =>
       setSaid(messages.label('label.dashboard.duplicated', { title: name })),
+    moved: (name, tab) =>
+      setSaid(messages.label('label.panel.moved-to-tab', { title: name, tab })),
   };
 
   return (

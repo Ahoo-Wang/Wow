@@ -46,11 +46,12 @@ export type AnyViewRuntime =
 /** Dashboard 的公开面：快照多出 panels 与 resolving，并能等待引用加载、按面板取子 runtime。 */
 export interface DashboardRuntime
   extends ViewRuntime<DashboardViewConfig>, DashboardEditing {
-  getSnapshot(): DashboardRuntimeState; // ViewRuntimeState + panels: DashboardPanelState[] + resolving
+  getSnapshot(): DashboardRuntimeState; // ViewRuntimeState + panels: DashboardPanelState[] + resolving + tab（屏幕上的标签页）
   ready(): Promise<void>; // 每个面板引用都已加载或确认不可读
   panelRuntime(panelId: string): DataViewRuntime | null; // 宿主自行驱动某个面板时使用
   place(panelId: string, layout: PanelLayout): void; // 摆一个面板并只应用这一处摆放；被盖住的面板让开、所在标签页上浮压紧（placePanel），其余未应用的编辑照旧待应用
   refreshPanel(panelId: string): void; // 只重跑这一个面板：失败面板的「重试」
+  showTab(tabId: string | null): void; // 换屏幕上的标签页：只有它的面板跑（批 B3）；板子没有它就是第一页
 }
 
 /** 搭板子（D22 A～E，批 B1）：每条都同时写进 draft 与屏幕上的 applied，面板按草稿实时重跑；保存才写回，revert 放弃。 */
@@ -233,7 +234,8 @@ export class ViewWriteError extends Error {
 - **搭板子的命令（`DashboardEditing`，D22 A～E）走同一条路**：`addPanel`／`removePanel`／`duplicatePanel`／`renamePanel`／`replacePanelView`／`editPanelContent`／`movePanelToTab`／`setPresentation`／`referToSaved` 与四个标签页命令，每条都是内核里的一个纯函数（`src/dashboard/edit.ts`、`tabs.ts`），像 `place` 一样同时写进 draft 与 applied、不提升草稿的其余部分——**编辑中面板按草稿实时重跑，「完成」（保存）才写回，「取消」是 `revert`**（D22 A，用户拍板）。加面板时新 id 与位置按 draft 算一次，applied 拿同一块面板，不各算各的。新引用照常加载。命令指向不存在的面板或标签页时什么也不做。编辑模式本身是界面的状态（`setEditing`），这些命令不看它——能不能编辑是界面按权限给不给入口。（见 test/dashboardEditing.test.ts「editing a board」）
 - **加面板之前先把视图读进来**：`preload(instanceId)` 读一个还没有面板指着的已保存视图、落定（读到或读不到）后兑现，从不拒绝；`addPanel` 按视图显示的东西定大小（`defaultPanelSize`）只在它已读进来时做得到，所以界面的「添加」先等它（批 B2）。读进来的引用就放在 `PanelReferences` 里，面板的子 runtime 直接用，不再读一次。（见 test/dashboardBuilding.test.tsx「adds a saved view from the picker, sized by what it shows」）
 - **板内分析视图**（D22 C）：`owned` 面板没有引用可加载，定义是代码，`DashboardRuntimeOptions.definitions`（工厂从定义注册表查，查不到或准入失败为 `null`）同步给出；准入把它当成已保存分析一样判（绑定、合并后的全局筛选；定义不在报 `dashboard.panel.definition-unknown`），子 runtime 从它自己的配置开、`saved` 为 `null`（它随板保存，永远不单独保存），所以它的问题由子 runtime 自己的准入判——与已保存分析一字不差；判不过的面板不跑、在面板上说为什么。板内分析改了问题，子 runtime 不重建：同一个子 runtime `edit` 新配置再 `apply`，屏幕上的结果留到新结果到为止。「另存为视图」是 `ViewEngine.saveOwnedView`：按分析视图的规则校验、要标题与创建许可，写出实例后 `referToSaved` 把面板改为引用它（引用直接播种进 `PanelReferences`，不再读一次），展示覆盖保留；板子本身随后照常保存。（见 test/dashboardEditing.test.ts「a view the board owns」）
-- **展示覆盖**（D22 D）：子 runtime 拿到的配置是「视图自己的配置 + 面板的 `presentation`」（`runtime/dashboard/presentation.ts` 的 `presentedConfig`）：记录视图只认 `layout`，分析认 `layout`／`chart`／`table`。覆盖不再合身——成员这种视图没有，或者分析内核判这张图画不了这个结果——就整份丢掉、面板照视图原样显示，带一条 warning `dashboard.panel.presentation-dropped`，不是 error；视图本身已判不过时说的是视图的问题。覆盖只改怎么看，所以同一个子 runtime `edit` + `apply`，不重建（保留旧结果到新结果到）；D20 说换图是重画不是重跑，这里仍跑一次，因为面板今天画的是结果投影时的图——批 B2 面板改由草稿重画时再收窄为不跑。覆盖永远不写回被引用的视图。（见 test/dashboardEditing.test.ts「a panel's override of how it looks」）
+- **展示覆盖**（D22 D）：子 runtime 拿到的配置是「视图自己的配置 + 面板的 `presentation`」（`runtime/dashboard/presentation.ts` 的 `presentedConfig`）：记录视图只认 `layout`，分析认 `layout`／`chart`／`table`。覆盖不再合身——成员这种视图没有，或者分析内核判这张图画不了这个结果——就整份丢掉、面板照视图原样显示，带一条 warning `dashboard.panel.presentation-dropped`，不是 error；视图本身已判不过时说的是视图的问题。覆盖只改怎么看，所以同一个子 runtime，不重建。**只改了画法的那一种只重画不重跑**（D20：展示从不问数据源；批 B3 收口）：新旧配置只在 `presentationMembers(kind)`——分析的 `layout`／`chart`、记录的 `layout`——上不同时，`PanelChildren.sync` 只把它 `edit` 进子 runtime 的草稿、不 `apply`，面板由草稿在手上的行上重画（`ui/dashboard/PanelBodies.tsx` 的 `AnalysisPanel` 走 `useAnalysisResult`，与工作台同一条路）；表格合计行是一次自己的查询，改它照旧 `edit` + `apply`，旧结果留到新结果到。覆盖永远不写回被引用的视图。（见 test/dashboardEditing.test.ts「a panel's override of how it looks」的「changes in the same child, redrawn and never asked again」「runs again for a totals row, which is a query of its own」）
+- **只跑屏幕上的那一页**（D22 E，批 B3 收口）：`state.tab` 是屏幕上的标签页——`showTab(tabId)` 要的那一页、板子有它时；否则第一页；没有标签页为 `null`。它是读者的，不进配置，切换不让板子变脏。`sync` 只把这一页的面板与子 runtime 对齐：别的页上**已有**子 runtime 的面板原样留着（`PanelChildren.hold`：行、作用域都不动，只更新问题的地址），**从没看过**的页上的数据面板没有子 runtime、标 `waiting`（没问过、也没坏）。切过去时 `sync` 对齐那一页：新面板建子 runtime 并跑；看过的面板只有问的东西变了（全局筛选、视图、覆盖）才重跑，否则直接画留着的行。整板刷新（计时器与按钮）只刷新屏幕上那一页，别的页上的子 runtime 记下 `missed`，切回去时补刷一次（这一趟本来就要因作用域变了而重跑的，就不另刷）。`removeTab` 删掉屏幕上那一页时落到第一页。打开时先定页：`ViewEngine.open` 在第一次 `sync` 之前 `showTab`（宿主给的 `OpenOptions.tab`，板子有它时；否则读者的 `ViewPreferences.lastTabs`），于是记住的那一页直接开始跑，而不是先跑第一页再切过去。（见 test/dashboardTabs.test.ts「only the tab on screen runs」「where a board opens」）
 - **保存只被整板的 error 挡**（D22 B）：`stopsSave(kind, issues)`（`runtime/dashboard/panels.ts`）对记录与分析视图是「任何 error」，对仪表盘就是 `blocksBoard`——面板自己的问题（引用读者看不到、绑定不成立、视图保存的设置已不可用）在面板上说，随板保存；作者可能正是要保存去修另一块面板，一块坏面板让整板存不了，板子就没人维护得了。`ViewEngine.save`／`saveAs` 与 `useSaveCommands` 的 `hasErrors`／`blocked` 用同一个函数。共享板引用个人视图因此是 warning（`dashboard.panel.scope-too-narrow`）：面板对看得到的人照常跑，头部标记说明不是每位读者都看得到。（见 test/dashboardEditing.test.ts「what stops a save」、test/dashboardRuntime.test.ts「shares a dashboard that stands on a personal view」）
 
 ## ViewEngine
@@ -250,8 +252,8 @@ export interface ViewEngine {
 
   open(
     instanceId: string,
-    options?: { scopeFilter?: FilterTree | null },
-  ): Promise<AnyViewRuntime>; // store.get → validate → runtime；按 runtime.kind 收窄；scopeFilter 从首次查询起生效并与配置一起准入，被拒则不生效、记在 refusedScope 上
+    options?: { scopeFilter?: FilterTree | null; tab?: string | null },
+  ): Promise<AnyViewRuntime>; // store.get → validate → runtime；按 runtime.kind 收窄；scopeFilter 从首次查询起生效并与配置一起准入，被拒则不生效、记在 refusedScope 上；tab 是仪表盘从哪一页开（板子没有它就读 lastTabs）
   create<C extends ViewConfig>(
     definitionId: string,
     input: {
@@ -276,6 +278,11 @@ export interface ViewEngine {
     instanceId: string | null,
   ): Promise<ViewPreferences>;
   setAutoRun(definitionId: string, autoRun: boolean): Promise<ViewPreferences>; // 改了就跑，与排序、默认视图同住一份偏好；不问许可
+  rememberTab(
+    definitionId: string,
+    instanceId: string,
+    tabId: string,
+  ): Promise<void>; // 读者上次看的标签页（lastTabs）；一串切换只写最后一个，从不拒绝、失败即放手
   resolveDefault(summaries, preferences, explicit?): string | null; // management.md「列表、偏好与默认视图」的解析规则
   retryWrite(target: ViewRuntime | WriteHandle): Promise<ViewInstance | void>; // 复用原 requestId 与原正文重放；创建意图返回新实例
   abandonWrite(target: ViewRuntime | WriteHandle): void; // 清除写入状态，草稿保留

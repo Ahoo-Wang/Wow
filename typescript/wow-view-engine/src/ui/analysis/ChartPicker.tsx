@@ -63,8 +63,17 @@ export interface ChartPickerProps {
   onPick(picked: Picked): void;
   /** Opens the chosen type's options: the panel's second level. */
   onOptions(): void;
-  /** Closes the panel: the way back to the view list. */
-  onBack(): void;
+  /**
+   * Closes the panel: the way back to the view list. Left out where the
+   * picker is not in the list's place — a dashboard panel's own look is
+   * chosen in a dialog, which closes as a dialog does.
+   */
+  onBack?(): void;
+  /**
+   * What that way back is called: 「返回视图列表」 in the workbench, whose
+   * list the panel stands in for; a host without a list names its own.
+   */
+  backLabel?: string;
   /**
    * The panel's own heading, which is where the keyboard is put when this
    * level comes up. `AnalysisParts` holds the ref, because the level it
@@ -117,6 +126,7 @@ export function ChartPicker({
   onPick,
   onOptions,
   onBack,
+  backLabel,
   headingRef,
   optionsRef,
 }: ChartPickerProps) {
@@ -154,14 +164,16 @@ export function ChartPicker({
       className={cn('flex flex-col gap-3 p-3', TEXT_UI)}
     >
       <div className="flex items-center gap-2">
-        <IconButton
-          label={messages.label('label.chart.picker-back')}
-          variant="ghost"
-          size="icon-sm"
-          onClick={onBack}
-        >
-          <ArrowLeftIcon />
-        </IconButton>
+        {onBack && (
+          <IconButton
+            label={backLabel ?? messages.label('label.chart.picker-back')}
+            variant="ghost"
+            size="icon-sm"
+            onClick={onBack}
+          >
+            <ArrowLeftIcon />
+          </IconButton>
+        )}
         {/* `tabIndex={-1}`: the heading is not a control and stays off the
             Tab route, but the panel that has just replaced the view list has
             to be where the keyboard is, and a heading is what says which

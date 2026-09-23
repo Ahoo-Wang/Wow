@@ -11,7 +11,13 @@
  * limitations under the License.
  */
 
-import { useLayoutEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { PencilIcon } from 'lucide-react';
 import {
   audienceOf,
@@ -34,6 +40,12 @@ import type { ViewMessages } from './messages.js';
 import { featuresOf, type WorkbenchFeatures } from './features.js';
 import { WorkbenchShell } from './WorkbenchShell.js';
 import type { RenderFailureHandler } from './RenderBoundary.js';
+import { DashboardTabs } from './dashboard/DashboardTabs.js';
+import { useDashboardExtensions } from './dashboard/building.js';
+import {
+  DashboardEditExtensionsContext,
+  useDashboardEditExtensions,
+} from './dashboard/extensions.js';
 
 export interface DashboardWorkbenchProps {
   engine: ViewEngine;
@@ -54,6 +66,19 @@ export interface DashboardWorkbenchProps {
    * link.
    */
   onInstanceChange?(id: string | null): void;
+  /**
+   * The tab the board opens on (D22 E), as a host's route has it: read with
+   * `instanceId` — a tab of the board it names, or with `instanceId` left
+   * out, of the first board this workbench opens. Left out, or a tab the
+   * board does not have, the board opens where its reader last read it.
+   */
+  initialTab?: string | null;
+  /**
+   * Told which tab is on screen whenever that changes — the board opening
+   * included — so a host can write it into its route; `null` for a board
+   * without tabs. The package never touches the address itself.
+   */
+  onTabChange?(tabId: string | null): void;
   /**
    * The host's route to the workbench, for 在工作台中打开 in a panel's menu
    * (D22 D): the saved view a panel shows, and the board's condition as the
@@ -134,12 +159,31 @@ export function DashboardWorkbench({
   onRenderFailure,
   template,
   features,
+  initialTab,
+  onTabChange,
 }: DashboardWorkbenchProps) {
   const messages = useViewMessages(wording, locale);
+  // The host's tab, asked as a board opens: a tab of the board its
+  // `instanceId` names, or — left uncontrolled — of the first board opened.
+  const hostTab = useRef({ instanceId, tab: initialTab });
+  useEffect(() => {
+    hostTab.current = { instanceId, tab: initialTab };
+  }, [instanceId, initialTab]);
+  // Whether a board has opened here yet: an uncontrolled workbench hands the
+  // host's tab to that first one only — the next board the reader picks is
+  // one the address never named.
+  const openedOnce = useRef(false);
+  const openTab = useCallback((id: string) => {
+    const { instanceId: named, tab } = hostTab.current;
+    if (tab == null) return undefined;
+    if (named == null) return openedOnce.current ? undefined : tab;
+    return named === id ? tab : undefined;
+  }, []);
   const workbench = useWorkbench(engine, definitionId, {
     kinds: DASHBOARD,
     instanceId,
     onInstanceChange,
+    openTab,
     newView: {
       title: messages.label('label.view.new-title'),
       ...(template ? { templates: { dashboard: template } } : {}),
@@ -147,7 +191,21 @@ export function DashboardWorkbench({
   });
   const { filter, runtime, state } = workbench;
   const board = runtime?.kind === 'dashboard' ? runtime : null;
+  useEffect(() => {
+    if (board) openedOnce.current = true;
+  }, [board]);
   const dashboard = useDashboard(board);
+
+  // The tab on screen, told to the host as it changes, and remembered as the
+  // reader's own when they pick one (a preference, never the board's).
+  const shownTab = board ? dashboard.tab : undefined;
+  useEffect(() => {
+    if (shownTab !== undefined) onTabChange?.(shownTab);
+  }, [shownTab, onTabChange]);
+  const savedId = state?.saved?.id;
+  const rememberTab = (tabId: string) => {
+    if (savedId) void engine.rememberTab(definitionId, savedId, tabId);
+  };
 
   // Reading and building are two states (D22 A): nothing on a board being
   // read moves, and 「编辑」 is the way in — only for whoever may save the
@@ -172,6 +230,29 @@ export function DashboardWorkbench({
     if (active === null || active === document.body)
       editButton.current?.focus();
   }, [editing]);
+
+  // What building a board adds beyond the edit bar and the panel menu (D22
+  // C–E), as the one extension contract the board reads: the new-analysis
+  // dialog, a panel's own look and its reset, promoting an owned analysis,
+  // and the tab bar — which arranges tabs while the board is built, the one
+  // edit state above.
+  // A host that provides an entry of its own around the workbench replaces
+  // that one entry; the rest are the workbench's.
+  const hosted = useDashboardEditExtensions();
+  const { extensions: own, dialogs } = useDashboardExtensions({
+    engine,
+    board,
+    dashboard,
+    messages,
+    optionsFor,
+    tabBar: board && (
+      <DashboardTabs
+        dashboard={dashboard}
+        editing={editing ? board : null}
+        onShow={rememberTab}
+      />
+    ),
+  });
 
   const issues = state?.issues ?? [];
   // The panels carry the warnings of what is applied, each in its own frame.
@@ -298,19 +379,24 @@ export function DashboardWorkbench({
       }
       result={
         state && (
-          <DashboardBoard
-            engine={engine}
-            dashboard={dashboard}
-            commands={workbench.commands}
-            title={state.title}
-            shared={audienceOf(state.scope) === 'shared'}
-            canEdit={canEdit}
-            editing={editing}
-            onEditingChange={setEditing}
-            onSaved={workbench.onSaved}
-            onOpenView={onOpenView}
-            onRenderFailure={onRenderFailure}
-          />
+          <DashboardEditExtensionsContext.Provider
+            value={{ ...own, ...hosted }}
+          >
+            <DashboardBoard
+              engine={engine}
+              dashboard={dashboard}
+              commands={workbench.commands}
+              title={state.title}
+              shared={audienceOf(state.scope) === 'shared'}
+              canEdit={canEdit}
+              editing={editing}
+              onEditingChange={setEditing}
+              onSaved={workbench.onSaved}
+              onOpenView={onOpenView}
+              onRenderFailure={onRenderFailure}
+            />
+            {dialogs}
+          </DashboardEditExtensionsContext.Provider>
         )
       }
     />

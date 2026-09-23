@@ -104,6 +104,12 @@ export interface WorkbenchOptions {
    * drill into.
    */
   onDrilldown?(target: DrillTarget): void;
+  /**
+   * The tab a dashboard opens on (D22 E), asked as each view opens: a host's
+   * route names it. Nothing, and the board opens where its reader last read
+   * it (`ViewEngine.open`).
+   */
+  openTab?(instanceId: string): string | null | undefined;
 }
 
 /**
@@ -317,8 +323,14 @@ export function useWorkbench(
   definitionId: string,
   options: WorkbenchOptions,
 ): WorkbenchController {
-  const { instanceId, onInstanceChange, guardUnload, newView, onDrilldown } =
-    options;
+  const {
+    instanceId,
+    onInstanceChange,
+    guardUnload,
+    newView,
+    onDrilldown,
+    openTab,
+  } = options;
   // Held by what they say: a host writes the array inline, so the object is
   // new every render while the kinds in it are not.
   const kindsKey = options.kinds.join(' ');
@@ -367,7 +379,12 @@ export function useWorkbench(
 
   // A view made from nothing releases the one opened by id; a drilled view
   // keeps it, because it is the origin.
-  const byId = useOpenView(engine, held && !held.origin ? null : openId);
+  const byId = useOpenView(
+    engine,
+    held && !held.origin ? null : openId,
+    null,
+    openTab,
+  );
   const opened: OpenViewState = held
     ? { runtime: held.runtime, loading: false, error: null, scopeIssues: [] }
     : byId;

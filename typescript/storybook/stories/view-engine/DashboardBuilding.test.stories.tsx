@@ -18,8 +18,12 @@ import displayMeta, {
   AllPanels as DisplayAllPanels,
   Building as DisplayBuilding,
   EmptySharedBoard as DisplayEmptySharedBoard,
+  OwnedAnalysis as DisplayOwnedAnalysis,
   SystemDashboard as DisplaySystemDashboard,
+  Tabs as DisplayTabs,
 } from './Dashboard.stories.js';
+import { aggregateCalls } from './fixtures.js';
+import { chartsDrawn } from './chartDom.js';
 
 const meta = {
   ...displayMeta,
@@ -324,6 +328,329 @@ export const NoGripsUntilBuilding: Story = {
       expect(
         canvasElement.querySelectorAll('[data-slot="panel-grip"]').length,
       ).toBe(3),
+    );
+  },
+};
+
+/** 「编辑」: the board's building state, entered as its author enters it. */
+async function startBuilding(canvasElement: HTMLElement) {
+  const canvas = within(canvasElement);
+  await userEvent.click(
+    await canvas.findByRole('button', { name: zhCN['label.dashboard.edit'] }),
+  );
+  await waitFor(() =>
+    expect(
+      canvasElement.querySelector('[data-slot="dashboard-edit-bar"]'),
+    ).not.toBeNull(),
+  );
+}
+
+/**
+ * Screen C: a new analysis made inside the dashboard, from 「＋ 添加 ▾」. The
+ * dialog is the analysis view — the tray and the result, running as it is
+ * edited — named by what it shows, and 「放进仪表盘」 puts it on the board.
+ * The keyboard is held inside while it is open and handed back to 「添加」.
+ */
+export const CreateOwnedAnalysis: Story = {
+  ...DisplayBuilding,
+  decorators: [DESK],
+  play: async ({ canvasElement }) => {
+    await within(canvasElement).findByRole('heading', {
+      level: 3,
+      name: '按仓库汇总',
+    });
+    await startBuilding(canvasElement);
+    await addFromBar(canvasElement, zhCN['label.dashboard.add.new-analysis']);
+
+    const dialog = await screen.findByRole('dialog', {
+      name: label('label.panel.new-analysis.heading-of', {
+        definition: '订单',
+      }),
+    });
+    const inside = within(dialog);
+    // The same tray as the workbench: dimensions and metrics.
+    await expect(
+      dialog.querySelector('[data-slot="new-analysis-tray"]'),
+    ).not.toBeNull();
+    const title = inside.getByRole('textbox', {
+      name: zhCN['label.panel.new-analysis.title'],
+    });
+    await waitFor(() => expect(title).toHaveValue('按仓库 · 记录数'));
+    // Held inside while it is open: the keyboard starts on the first
+    // question, which data.
+    await waitFor(() =>
+      expect(dialog.contains(document.activeElement)).toBe(true),
+    );
+
+    // Typed once the dialog has settled its own focus, and read back before
+    // it is put on the board: the name its author gave it.
+    await userEvent.clear(title);
+    await userEvent.type(title, '各仓订单数', { skipClick: true });
+    await waitFor(() => expect(title).toHaveValue('各仓订单数'));
+    await userEvent.click(
+      inside.getByRole('button', {
+        name: zhCN['label.panel.new-analysis.add'],
+      }),
+    );
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    // On the board, under the name its author gave it.
+    await waitFor(() => expect(titles(canvasElement)).toContain('各仓订单数'));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        within(canvasElement).getByRole('button', {
+          name: zhCN['label.dashboard.add'],
+        }),
+      ),
+    );
+  },
+};
+
+/**
+ * Screen C, the other half: an analysis the board owns saved as a view of
+ * its own, from its 「⋯」. The dialog asks for a title and an audience —
+ * the board's, a shared one, first — and the panel then shows that view:
+ * its menu no longer offers to save it.
+ */
+export const PromoteOwnedAnalysis: Story = {
+  ...DisplayOwnedAnalysis,
+  decorators: [DESK],
+  play: async ({ canvasElement }) => {
+    const owned = '本板自建：订单数按仓库';
+    await within(canvasElement).findByRole('heading', {
+      level: 3,
+      name: owned,
+    });
+    await startBuilding(canvasElement);
+    await fromPanelMenu(canvasElement, owned, zhCN['label.panel.save-as-view']);
+    const dialog = await screen.findByRole('dialog', {
+      name: zhCN['label.panel.save-owned.heading'],
+    });
+    const inside = within(dialog);
+    await expect(dialog).toHaveTextContent('它会成为「订单」的一个视图');
+    await expect(
+      inside.getByRole('radio', { name: zhCN['label.scope.everyone'] }),
+    ).toBeChecked();
+    const title = inside.getByRole('textbox', {
+      name: zhCN['label.save.title'],
+    });
+    await expect(title).toHaveValue(owned);
+    await userEvent.click(
+      inside.getByRole('button', {
+        name: zhCN['label.panel.save-owned.submit'],
+      }),
+    );
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await expect(
+      canvasElement.ownerDocument.querySelector(
+        '[data-slot="building-announcement"]',
+      ),
+    ).toHaveTextContent(`已另存为视图「${owned}」`);
+    await userEvent.click(
+      within(canvasElement).getByRole('button', {
+        name: label('label.panel.menu', { title: owned }),
+      }),
+    );
+    const menu = await screen.findByRole('menu');
+    await expect(
+      within(menu).queryByRole('menuitem', {
+        name: zhCN['label.panel.save-as-view'],
+      }),
+    ).toBeNull();
+    await userEvent.keyboard('{Escape}');
+  },
+};
+
+/**
+ * Screen D: a panel's own look, from its 「⋯」. The visualization panel
+ * picks a pie for this panel alone; the panel says 「此处改为饼图」 and is
+ * drawn as a pie from the rows it had — no query. 「恢复为视图的样子」 on the
+ * same menu puts the view's own bars back, and 取消 in the dialog puts back
+ * what the panel had when it opened.
+ */
+export const OverrideToPieAndReset: Story = {
+  ...DisplayBuilding,
+  decorators: [DESK],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const name = '按仓库汇总';
+    await canvas.findByRole('heading', { level: 3, name });
+    await chartsDrawn(canvasElement);
+    await startBuilding(canvasElement);
+    const asked = aggregateCalls.current;
+    const look = async () => {
+      await fromPanelMenu(
+        canvasElement,
+        name,
+        zhCN['label.panel.edit-presentation'],
+      );
+      return screen.findByRole('dialog', {
+        name: label('label.panel.presentation.heading', { title: name }),
+      });
+    };
+    let dialog = await look();
+    await userEvent.click(within(dialog).getByRole('radio', { name: '饼图' }));
+    // Beside the options, the panel as it will look: a pie.
+    await expect(
+      await within(dialog).findByRole('img', { name: /^饼图/ }),
+    ).toBeVisible();
+    await userEvent.click(
+      within(dialog).getByRole('button', {
+        name: zhCN['label.panel.presentation.done'],
+      }),
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+    // On the board: marked, and drawn as a pie from the rows it had.
+    await expect(canvas.getByText('此处改为饼图')).toBeVisible();
+    await expect(
+      await canvas.findByRole('img', { name: /^饼图/ }),
+    ).toBeVisible();
+    // Presentation never asks the source (D20).
+    await expect(aggregateCalls.current).toBe(asked);
+
+    // Put back from the menu: the view's own bars, and no mark.
+    await fromPanelMenu(
+      canvasElement,
+      name,
+      zhCN['label.panel.presentation.reset'],
+    );
+    await waitFor(() => expect(canvas.queryByText('此处改为饼图')).toBeNull());
+    await expect(
+      await canvas.findByRole('img', { name: /^柱状图/ }),
+    ).toBeVisible();
+
+    // 取消 in the dialog puts back what the panel had when it opened.
+    dialog = await look();
+    await userEvent.click(within(dialog).getByRole('radio', { name: '饼图' }));
+    await userEvent.click(
+      within(dialog).getByRole('button', {
+        name: zhCN['label.dialog.cancel'],
+      }),
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await expect(canvas.queryByText('此处改为饼图')).toBeNull();
+    await expect(aggregateCalls.current).toBe(asked);
+  },
+};
+
+/**
+ * Screen E: tabs. Only the tab on screen runs — switching to the second
+ * asks for its one panel and nothing else, switching back asks nothing —
+ * and a board opened again, from the list, lands on the tab its reader
+ * last read.
+ */
+export const TabsRunOnlyTheTabShown: Story = {
+  ...DisplayTabs,
+  decorators: [DESK],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const tabs = await canvas.findByRole('tablist', {
+      name: zhCN['label.tabs.name'],
+    });
+    await canvas.findByRole('heading', { level: 3, name: '按仓库汇总' });
+    await expect(
+      canvas.queryByRole('heading', { level: 3, name: '按状态看金额' }),
+    ).toBeNull();
+    await chartsDrawn(canvasElement);
+    const asked = aggregateCalls.current;
+
+    await userEvent.click(within(tabs).getByRole('tab', { name: '状态' }));
+    await canvas.findByRole('heading', { level: 3, name: '按状态看金额' });
+    await waitFor(() => expect(aggregateCalls.current).toBeGreaterThan(asked));
+    const second = aggregateCalls.current;
+
+    await userEvent.click(within(tabs).getByRole('tab', { name: '出库' }));
+    await canvas.findByRole('heading', { level: 3, name: '按仓库汇总' });
+    await expect(aggregateCalls.current).toBe(second);
+
+    // The reader's last tab is theirs: back on 状态, another board, and
+    // this one again — on 状态.
+    await userEvent.click(within(tabs).getByRole('tab', { name: '状态' }));
+    await canvas.findByRole('heading', { level: 3, name: '按状态看金额' });
+    await userEvent.click(await canvas.findByText('异常概览'));
+    await waitFor(() => expect(canvas.queryByRole('tablist')).toBeNull());
+    await userEvent.click(await canvas.findByText('出库概览'));
+    await waitFor(() =>
+      expect(canvas.getByRole('tab', { name: '状态' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      ),
+    );
+    await expect(
+      canvas.queryByRole('heading', { level: 3, name: '待出库明细' }),
+    ).toBeNull();
+  },
+};
+
+/**
+ * Screen E while building: a tab added under the edit bar and named in
+ * place, a panel moved to it from its 「⋯」, and the tab reordered from the
+ * keyboard.
+ */
+export const TabsBuilt: Story = {
+  ...DisplayTabs,
+  decorators: [DESK],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('heading', { level: 3, name: '按仓库汇总' });
+    await startBuilding(canvasElement);
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.tabs.add'] }),
+    );
+    const name = await canvas.findByRole('textbox', {
+      name: '标签页「标签页 3」的名字',
+    });
+    // Focused with its name selected: typing replaces it.
+    await waitFor(() => expect(name).toHaveFocus());
+    await userEvent.keyboard('异常{Enter}');
+    // Being built, the bar is the tabs to arrange; the one on screen is
+    // the one pressed in.
+    const added = await canvas.findByRole('button', { name: '异常' });
+    await expect(added).toHaveAttribute('aria-current', 'true');
+    await expect(canvas.getByText('这个标签页还没有面板')).toBeVisible();
+
+    // Back to the first tab, and a panel moved to the new one.
+    await userEvent.click(canvas.getByRole('button', { name: '出库' }));
+    await fromPanelMenu(
+      canvasElement,
+      '按仓库汇总',
+      zhCN['label.panel.move-to-tab'],
+    );
+    await screen.findByRole('menuitem', { name: '异常' });
+    await userEvent.keyboard('{ArrowRight}');
+    await waitFor(() =>
+      expect(document.activeElement?.textContent).toBe('状态'),
+    );
+    await userEvent.keyboard('{ArrowDown}');
+    await waitFor(() =>
+      expect(document.activeElement?.textContent).toBe('异常'),
+    );
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() =>
+      expect(
+        canvas.queryByRole('heading', { level: 3, name: '按仓库汇总' }),
+      ).toBeNull(),
+    );
+    await userEvent.click(canvas.getByRole('button', { name: '异常' }));
+    await expect(
+      await canvas.findByRole('heading', { level: 3, name: '按仓库汇总' }),
+    ).toBeVisible();
+
+    // Reordered from the keyboard: the handle answers the arrows.
+    const handle = canvas.getByRole('button', { name: '调整「异常」的顺序' });
+    handle.focus();
+    await userEvent.keyboard('{ArrowLeft}');
+    await waitFor(() =>
+      expect(
+        within(canvas.getByRole('list', { name: zhCN['label.tabs.name'] }))
+          .getAllByRole('listitem')
+          .map(
+            item =>
+              item.querySelector('[data-slot="dashboard-tab"]')?.textContent,
+          ),
+      ).toEqual(['出库', '异常', '状态']),
     );
   },
 };

@@ -107,5 +107,11 @@ export interface ViewPreferences {
    * (D20 改了就跑); on when unsaid. The range still waits for Apply.
    */
   autoRun?: boolean;
+  /**
+   * The tab this reader last read each dashboard of the definition on, by
+   * instance id (D22 E). The reader's, never the board's: a board's config
+   * holds its tabs, not where anyone is on them.
+   */
+  lastTabs?: Record<string, string>;
   revision: string;
 }

@@ -22,7 +22,6 @@ import GridLayout, {
 import { LayoutDashboardIcon } from 'lucide-react';
 import {
   arrangePanel,
-  panelTab,
   placePanel,
   readingOrder,
   stackedLayout,
@@ -39,6 +38,7 @@ import {
 } from './DashboardPanel.js';
 import { panelCommands, useBoardBuilding } from './dashboard/commands.js';
 import { useDashboardEditExtensions } from './dashboard/extensions.js';
+import { tabTitle } from './dashboard/DashboardTabs.js';
 import { useGridPlacement } from './gridPlacement.js';
 import type { RenderFailureHandler } from './RenderBoundary.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
@@ -149,15 +149,18 @@ export function DashboardGrid({
   const building = useBoardBuilding();
   const extensions = useDashboardEditExtensions();
 
-  // The tab on screen, when a tab bar says which: its panels are the grid,
-  // and every placement is judged among them — another tab is another grid.
-  const tab = extensions.tab;
-  const onScreen =
-    tab === undefined
-      ? dashboard.panels
-      : dashboard.panels.filter(
-          panel => panelTab({ tabs: [...dashboard.tabs] }, panel.panel) === tab,
-        );
+  // The tab on screen (D22 E) is the grid: its panels alone are drawn, and
+  // every placement is judged among them — another tab is another grid. It
+  // is the runtime's, since only that tab runs (`DashboardRuntime.showTab`);
+  // a board without tabs has every panel on screen.
+  const onScreen = dashboard.panels.filter(
+    panel => panel.tab === dashboard.tab,
+  );
+  const at = dashboard.tabs.findIndex(entry => entry.id === dashboard.tab);
+  const shownTab =
+    !editable && dashboard.tabs.length > 1 && at >= 0
+      ? tabTitle(dashboard.tabs[at], at, messages)
+      : null;
 
   // Reading order — rows top to bottom, each left to right — over the layout
   // as stored. The panels are rendered in it too, so the tab order follows
@@ -217,87 +220,105 @@ export function DashboardGrid({
       className={cn('flex w-full flex-col gap-3', className)}
     >
       {header?.({ narrow })}
-      {panels.length === 0 ? (
-        <DashboardEmpty>{emptyActions}</DashboardEmpty>
-      ) : (
-        <GridLayout
-          // A new grid on either side of the breakpoint: the library holds the
-          // layout in state of its own and catches up with a new one an effect
-          // later, so for one frame it drew the wide layout's six-column panels
-          // in a one-column grid — six times the width of the screen.
-          key={narrow ? 'narrow' : 'wide'}
-          width={width}
-          layout={layout}
-          gridConfig={{ cols: narrow ? 1 : dashboard.columns, rowHeight }}
-          // Dragging by the header alone leaves the panel body clickable.
-          dragConfig={{
-            enabled: arranging,
-            handle: '[data-slot="panel-grip"]',
-          }}
-          resizeConfig={{
-            enabled: arranging,
-            // The corner is a named, focusable control while the layout may
-            // be edited, and nothing at all while it may not — upstream's
-            // bare `span` has no name to give and no key to answer.
-            handleComponent: (axis: ResizeHandleAxis, ref: Ref<HTMLElement>) =>
-              arranging ? (
-                <PanelResizeHandle axis={axis} ref={ref} onStep={arrange} />
-              ) : (
-                <span
-                  ref={ref}
-                  aria-hidden="true"
-                  className={`react-resizable-handle react-resizable-handle-${axis}`}
+      {/* The tab on screen's panel, while a tab bar is read above it: the
+          bar is a `tablist`, and what it switches is named after the tab it
+          shows. Being built, the bar is a list to arrange and this a grid. */}
+      <div
+        data-slot="dashboard-tab-panel"
+        className="flex min-w-0 flex-col"
+        {...(shownTab === null
+          ? {}
+          : { role: 'tabpanel', 'aria-label': shownTab })}
+      >
+        {panels.length === 0 ? (
+          // A tab with nothing on it, on a board with panels elsewhere, says
+          // so of the tab: 「这个仪表盘还没有面板」 would be untrue one tab away.
+          <DashboardEmpty tab={dashboard.panels.length > 0}>
+            {emptyActions}
+          </DashboardEmpty>
+        ) : (
+          <GridLayout
+            // A new grid on either side of the breakpoint: the library holds the
+            // layout in state of its own and catches up with a new one an effect
+            // later, so for one frame it drew the wide layout's six-column panels
+            // in a one-column grid — six times the width of the screen.
+            key={narrow ? 'narrow' : 'wide'}
+            width={width}
+            layout={layout}
+            gridConfig={{ cols: narrow ? 1 : dashboard.columns, rowHeight }}
+            // Dragging by the header alone leaves the panel body clickable.
+            dragConfig={{
+              enabled: arranging,
+              handle: '[data-slot="panel-grip"]',
+            }}
+            resizeConfig={{
+              enabled: arranging,
+              // The corner is a named, focusable control while the layout may
+              // be edited, and nothing at all while it may not — upstream's
+              // bare `span` has no name to give and no key to answer.
+              handleComponent: (
+                axis: ResizeHandleAxis,
+                ref: Ref<HTMLElement>,
+              ) =>
+                arranging ? (
+                  <PanelResizeHandle axis={axis} ref={ref} onStep={arrange} />
+                ) : (
+                  <span
+                    ref={ref}
+                    aria-hidden="true"
+                    className={`react-resizable-handle react-resizable-handle-${axis}`}
+                  />
+                ),
+            }}
+            compactor={placement.compactor}
+            // The gestures are off in the one-column reading, and so are the
+            // callbacks that would hand a placement to `place`: nothing drawn in
+            // that column is a layout the config could hold.
+            {...(arranging
+              ? {
+                  onDragStart: placement.onDragStart,
+                  onDragStop: placement.onDragStop,
+                  onResizeStart: placement.onResizeStart,
+                  onResizeStop: placement.onResizeStop,
+                }
+              : {})}
+          >
+            {panels.map(panel => (
+              // The library appends the resize corner to this item, after the
+              // panel; the item says which panel it holds to whatever lands in
+              // it, so the corner is named after its own panel.
+              <PanelGridItem
+                key={panel.id}
+                panelId={panel.id}
+                name={names.get(panel.id) ?? ''}
+                className="min-h-0"
+              >
+                <DashboardPanel
+                  panel={panel}
+                  name={names.get(panel.id)}
+                  headingLevel={headingLevel}
+                  editable={arranging}
+                  available={step => available(panel.id, step)}
+                  onArrange={step => arrange(panel.id, step)}
+                  onRetry={() => dashboard.refreshPanel(panel.id)}
+                  commands={panelCommands({
+                    panel,
+                    name: names.get(panel.id) ?? '',
+                    dashboard,
+                    building,
+                    editing: editable,
+                    narrow,
+                    extensions,
+                    onOpenView,
+                    messages,
+                  })}
+                  onRenderFailure={onRenderFailure}
                 />
-              ),
-          }}
-          compactor={placement.compactor}
-          // The gestures are off in the one-column reading, and so are the
-          // callbacks that would hand a placement to `place`: nothing drawn in
-          // that column is a layout the config could hold.
-          {...(arranging
-            ? {
-                onDragStart: placement.onDragStart,
-                onDragStop: placement.onDragStop,
-                onResizeStart: placement.onResizeStart,
-                onResizeStop: placement.onResizeStop,
-              }
-            : {})}
-        >
-          {panels.map(panel => (
-            // The library appends the resize corner to this item, after the
-            // panel; the item says which panel it holds to whatever lands in
-            // it, so the corner is named after its own panel.
-            <PanelGridItem
-              key={panel.id}
-              panelId={panel.id}
-              name={names.get(panel.id) ?? ''}
-              className="min-h-0"
-            >
-              <DashboardPanel
-                panel={panel}
-                name={names.get(panel.id)}
-                headingLevel={headingLevel}
-                editable={arranging}
-                available={step => available(panel.id, step)}
-                onArrange={step => arrange(panel.id, step)}
-                onRetry={() => dashboard.refreshPanel(panel.id)}
-                commands={panelCommands({
-                  panel,
-                  name: names.get(panel.id) ?? '',
-                  dashboard,
-                  building,
-                  editing: editable,
-                  narrow,
-                  extensions,
-                  onOpenView,
-                  messages,
-                })}
-                onRenderFailure={onRenderFailure}
-              />
-            </PanelGridItem>
-          ))}
-        </GridLayout>
-      )}
+              </PanelGridItem>
+            ))}
+          </GridLayout>
+        )}
+      </div>
       {/* One region for the whole grid rather than one per panel: only one
           panel is ever being placed, and the rest would be a dozen empty
           regions for a reader to walk past. */}
@@ -340,17 +361,28 @@ const ROWS = ['label.panel.rows', 'label.panel.rows-one'] as const;
  * it is offered nothing: an entry they cannot use is a door that is not
  * there (U1).
  */
-function DashboardEmpty({ children }: { children?: ReactNode }) {
+function DashboardEmpty({
+  tab = false,
+  children,
+}: {
+  /** Whether it is one tab that is empty, rather than the whole board. */
+  tab?: boolean;
+  children?: ReactNode;
+}) {
   const messages = useViewMessages();
   return (
-    <Empty data-slot="dashboard-empty">
+    <Empty data-slot="dashboard-empty" data-tab={tab || undefined}>
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <LayoutDashboardIcon />
         </EmptyMedia>
-        <EmptyTitle>{messages.label('label.dashboard.empty')}</EmptyTitle>
+        <EmptyTitle>
+          {messages.label(tab ? 'label.tabs.empty' : 'label.dashboard.empty')}
+        </EmptyTitle>
         <EmptyDescription>
-          {messages.label('label.dashboard.empty-hint')}
+          {messages.label(
+            tab ? 'label.tabs.empty-hint' : 'label.dashboard.empty-hint',
+          )}
         </EmptyDescription>
       </EmptyHeader>
       {children != null && <EmptyContent>{children}</EmptyContent>}

@@ -37,7 +37,7 @@ import { ChartPicker } from '../analysis/ChartPicker.js';
 import { Tray } from '../analysis/Tray.js';
 import { chartIssueNamer } from '../analysis/issueNames.js';
 import { Button } from '../components/button.js';
-import { DrillMenu, type Pick } from '../analysis/DrillMenu.js';
+import { DrillMenu, type Pick as Pressed } from '../analysis/DrillMenu.js';
 import { useHeaderSort } from '../analysis/headerSort.js';
 import { AnalysisEmpty } from '../analysis/EmptyResult.js';
 import {
@@ -56,8 +56,24 @@ import { useSurfaceDisplay } from '../ViewSurface.js';
 import { NO_PARTS, type RenderParts } from './parts.js';
 import { SearchBox } from './SearchBox.js';
 
+/**
+ * What the analysis parts read of the workbench around them: the data
+ * workbench's own controller, or — for an analysis made inside a dashboard
+ * (D22 C) — the few members a dialog holding its own view supplies.
+ */
+export type AnalysisHost = Pick<
+  WorkbenchController,
+  | 'filter'
+  | 'state'
+  | 'autoRun'
+  | 'setAutoRun'
+  | 'canDrill'
+  | 'drill'
+  | 'follow'
+>;
+
 export interface AnalysisPartsProps {
-  workbench: WorkbenchController;
+  workbench: AnalysisHost;
   /** The open analysis view, or null while what is open is not one. */
   runtime: ViewRuntime<AnalysisViewConfig> | null;
   /** Wording, merged over what is already in force: where a host translates. */
@@ -75,6 +91,18 @@ export interface AnalysisPartsProps {
    * record view and are passed through untouched.
    */
   features?: WorkbenchFeatures;
+  /**
+   * Whether a press on a group offers the follow-ups (D20 追问). On in a
+   * workbench, which opens what they ask beside the view; off where there is
+   * no beside — the dashboard's dialog making a new analysis.
+   */
+  followUps?: boolean;
+  /**
+   * What the visualization panel's way back is called. In the workbench it
+   * stands where the view list stood, and its way back says so; where there
+   * is no list — the dashboard's dialog — the host names it.
+   */
+  visualizationBack?: string;
   children: RenderParts;
 }
 
@@ -95,6 +123,8 @@ export function AnalysisParts({
   locale,
   optionsFor,
   features,
+  followUps = true,
+  visualizationBack,
   children,
 }: AnalysisPartsProps) {
   const messages = useViewMessages(wording, locale);
@@ -165,12 +195,16 @@ export function AnalysisParts({
   // The group the user pressed, on the chart or in the table, and the menu
   // over it (D20 追问). What the menu offers is the controller's; which row
   // was pressed, and where, is the screen's.
-  const [pick, setPick] = useState<Pick | null>(null);
+  const [pick, setPick] = useState<Pressed | null>(null);
   const followUp = pick ? result.followUp(pick.row) : null;
-  const onPick = result.pickable
-    ? (row: Pick['row'], anchor: Pick['anchor'], origin?: HTMLElement) =>
-        setPick({ row, anchor, ...(origin ? { origin } : {}) })
-    : undefined;
+  const onPick =
+    result.pickable && followUps
+      ? (
+          row: Pressed['row'],
+          anchor: Pressed['anchor'],
+          origin?: HTMLElement,
+        ) => setPick({ row, anchor, ...(origin ? { origin } : {}) })
+      : undefined;
   const close = () => setPick(null);
 
   // The one live region of this surface: a query that lands is a change of
@@ -327,6 +361,9 @@ export function AnalysisParts({
           onPick={result.choose}
           onOptions={() => setPanel('options')}
           onBack={() => setPanel(null)}
+          {...(visualizationBack === undefined
+            ? {}
+            : { backLabel: visualizationBack })}
         />
       ) : level === 'options' && question ? (
         // Over the question, so the options work before the first answer
@@ -409,7 +446,7 @@ export function AnalysisParts({
               {...(sortable ? { sorting: headerSort } : {})}
             />
           )}
-          {result.pickable && (
+          {result.pickable && followUps && (
             <DrillMenu
               pick={followUp ? pick : null}
               onClose={close}

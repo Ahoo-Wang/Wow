@@ -98,7 +98,13 @@ export function AddMenu({
           {canCreate && (
             <DropdownMenuItem
               data-slot="add-new-analysis"
-              onClick={() => add('new-analysis')}
+              onClick={() => {
+                // The dialog it opens takes the keyboard, and gives it back
+                // to this trigger as it closes: the menu going away after it
+                // opened must not take it out of the dialog.
+                handedOff.current = true;
+                add('new-analysis');
+              }}
             >
               <SigmaIcon />
               {messages.label('label.dashboard.add.new-analysis')}

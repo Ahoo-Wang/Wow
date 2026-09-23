@@ -71,24 +71,8 @@ export function AnalysisToolbar({
 }: AnalysisToolbarProps) {
   const messages = useViewMessages();
   const { locale } = useSurfaceDisplay();
-  // The separator is the catalogue's, as it is wherever this package lists
-  // names in a sentence (`charts/reading.ts`): 「、」 in Chinese, ", " in
-  // English.
-  const join = messages.label('label.filter.join');
-  const dimensions = columns
-    .filter(column => column.role === 'group')
-    .map(column => column.label)
-    .join(join);
-  const metrics = columns
-    .filter(column => column.role === 'metric')
-    .map(column => columnTitle(column, messages))
-    .join(join);
-  const shaped =
-    dimensions === ''
-      ? messages.label('label.analysis.reading-flat', { metrics })
-      : messages.label('label.analysis.reading', { dimensions, metrics });
   const reading = withKept(
-    shaped,
+    analysisReading(columns, messages),
     analysis.ranHaving,
     columns,
     messages,
@@ -150,6 +134,33 @@ export function AnalysisToolbar({
       </div>
     </Toolbar>
   );
+}
+
+/**
+ * What a result's numbers are, in one line: 「按仓库 · 记录数」 — the
+ * dimensions, then the metrics as their columns are headed. The toolbar
+ * says it over the rows; a new analysis in a dashboard is named by it until
+ * its author names it (D22 C).
+ */
+export function analysisReading(
+  columns: readonly AnalysisColumnView[],
+  messages: MessageFormatters,
+): string {
+  // The separator is the catalogue's, as it is wherever this package lists
+  // names in a sentence (`charts/reading.ts`): 「、」 in Chinese, ", " in
+  // English.
+  const join = messages.label('label.filter.join');
+  const dimensions = columns
+    .filter(column => column.role === 'group')
+    .map(column => column.label)
+    .join(join);
+  const metrics = columns
+    .filter(column => column.role === 'metric')
+    .map(column => columnTitle(column, messages))
+    .join(join);
+  return dimensions === ''
+    ? messages.label('label.analysis.reading-flat', { metrics })
+    : messages.label('label.analysis.reading', { dimensions, metrics });
 }
 
 /**

@@ -536,23 +536,48 @@ describe("a panel's override of how it looks", () => {
     expect(runtime.getSnapshot().panels[0].issues).toEqual([]);
   });
 
-  it('changes in the same child, and is reset to the view’s own look', async () => {
+  it('changes in the same child, redrawn and never asked again, and is reset to the view’s own look', async () => {
     const board = harness();
     const runtime = await board.open(
       dashboardConfig({ panels: [onAnalysis()] }),
     );
     const child = runtime.getSnapshot().panels[0].runtime;
+    const asked = vi.mocked(board.source.aggregate).mock.calls.length;
 
     runtime.setPresentation('p', chart);
     await flush();
     expect(runtime.getSnapshot().panels[0].runtime).toBe(child);
-    expect(child?.getSnapshot().applied.layout).toBe('chart');
+    // Presentation never asks the source (D20): the child's draft carries
+    // the new look, the panel draws it over the rows it has.
+    expect(child?.getSnapshot().draft).toMatchObject(chart);
+    expect(child?.getSnapshot().applied.layout).toBe('table');
+    expect(board.source.aggregate).toHaveBeenCalledTimes(asked);
 
     runtime.setPresentation('p', null);
     await flush();
-    expect(child?.getSnapshot().applied.layout).toBe('table');
+    expect(child?.getSnapshot().draft.layout).toBe('table');
+    expect(board.source.aggregate).toHaveBeenCalledTimes(asked);
     expect(runtime.getSnapshot().draft.panels[0]).not.toHaveProperty(
       'presentation',
+    );
+  });
+
+  it('runs again for a totals row, which is a query of its own', async () => {
+    const board = harness();
+    const runtime = await board.open(
+      dashboardConfig({ panels: [onAnalysis()] }),
+    );
+    const child = runtime.getSnapshot().panels[0].runtime;
+    const asked = vi.mocked(board.source.aggregate).mock.calls.length;
+
+    runtime.setPresentation('p', { table: { columns: [], totals: true } });
+    await flush();
+    expect(runtime.getSnapshot().panels[0].runtime).toBe(child);
+    expect(child?.getSnapshot().applied).toMatchObject({
+      table: { totals: true },
+    });
+    expect(vi.mocked(board.source.aggregate).mock.calls.length).toBeGreaterThan(
+      asked,
     );
   });
 

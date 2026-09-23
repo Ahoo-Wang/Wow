@@ -289,8 +289,8 @@ export const KeyboardLayout: Story = {
 
 /**
  * What an empty dashboard is, and — for whoever may build it — the first
- * steps, under the words (D22 A): a view, a heading. No 「新建分析」 until
- * something provides the dialog it opens.
+ * steps, under the words (D22 A): a view, a new analysis (the workbench
+ * provides the dialog it opens, D22 C), a heading.
  */
 export const EmptyDashboard: Story = {
   ...DisplayEmptyDashboard,
@@ -308,6 +308,7 @@ export const EmptyDashboard: Story = {
         .map(button => button.textContent),
     ).toEqual([
       zhCN['label.dashboard.empty.add-view'],
+      zhCN['label.dashboard.add.new-analysis'],
       zhCN['label.dashboard.empty.add-heading'],
     ]);
   },

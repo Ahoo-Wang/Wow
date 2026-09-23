@@ -15,10 +15,13 @@ import type { KeyboardEvent } from 'react';
 import { GripVerticalIcon } from 'lucide-react';
 import { IconButton } from './IconButton.js';
 
-/** Arrow keys that move a row, and how far. */
-const STEP: Record<string, -1 | 1 | undefined> = {
-  ArrowUp: -1,
-  ArrowDown: 1,
+/** Arrow keys that move a row, and how far, along the way its list runs. */
+const STEP: Record<
+  'vertical' | 'horizontal',
+  Record<string, -1 | 1 | undefined>
+> = {
+  vertical: { ArrowUp: -1, ArrowDown: 1 },
+  horizontal: { ArrowLeft: -1, ArrowRight: 1 },
 };
 
 export interface DragHandleProps {
@@ -50,6 +53,11 @@ export interface DragHandleProps {
    * manager, whose action cells are sized by three `icon-sm` buttons.
    */
   size?: 'icon-xs' | 'icon-sm';
+  /**
+   * The way the list runs, which is the pair of arrows that moves along it:
+   * up and down for the lists, left and right for a dashboard's tab bar.
+   */
+  axis?: 'vertical' | 'horizontal';
   /** Moves the row one place, from the arrow keys on this handle. */
   onMove(step: -1 | 1): void;
 }
@@ -81,6 +89,7 @@ export function DragHandle({
   disabled,
   describedBy,
   size = 'icon-xs',
+  axis = 'vertical',
   onMove,
 }: DragHandleProps) {
   return (
@@ -98,7 +107,7 @@ export function DragHandle({
         // While the library is carrying the row the arrows are its: two
         // handlers on one press would move the row twice.
         if (dragging) return;
-        const step = STEP[event.key];
+        const step = STEP[axis][event.key];
         if (!step) return;
         event.preventDefault();
         onMove(step);

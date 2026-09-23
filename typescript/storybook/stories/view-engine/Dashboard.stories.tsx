@@ -12,9 +12,11 @@
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { DashboardWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
+import type { DashboardViewConfig } from '@ahoo-wang/fetcher-view-engine';
 import { AppShell } from '../shared/AppShell.js';
 import {
   HOST_LANGUAGE,
+  analysisConfig,
   createStoryEngine,
   dashboardConfig,
   emptyDashboard,
@@ -36,7 +38,9 @@ type Variant =
   | 'empty'
   | 'empty-shared'
   | 'legacy'
-  | 'system';
+  | 'system'
+  | 'owned'
+  | 'tabs';
 
 /**
  * The board that ships with the definition: read-only to everyone (D4), so
@@ -73,9 +77,14 @@ function DashboardDemo({
             ...(variant === 'unavailable' ? [savedViews[1]] : savedViews),
             {
               ...savedDashboard,
-              ...(variant === 'empty-shared' ? { scope: 'shared' } : {}),
+              ...(variant === 'empty-shared' || variant === 'owned'
+                ? { scope: 'shared' }
+                : {}),
               config: savedConfig(variant),
             },
+            // A second board beside the tabbed one, so the list has another
+            // to open and the tabbed one can be opened again from it.
+            ...(variant === 'tabs' ? [otherBoard] : []),
           ],
         })
       }
@@ -95,6 +104,8 @@ function DashboardDemo({
 }
 
 function savedConfig(variant: Variant) {
+  if (variant === 'tabs') return tabbedConfig();
+  if (variant === 'owned') return ownedConfig();
   if (variant === 'empty' || variant === 'empty-shared')
     return emptyDashboard();
   if (variant === 'legacy') return legacyDashboardConfig();
@@ -107,6 +118,68 @@ function savedConfig(variant: Variant) {
     });
   return dashboardConfig();
 }
+
+/**
+ * Two tabs: the outbound overview, and a second tab with one more analysis
+ * — only the tab on screen runs (D22 E).
+ */
+function tabbedConfig(): DashboardViewConfig {
+  const base = dashboardConfig();
+  return {
+    ...base,
+    tabs: [
+      { id: 'tab-outbound', title: '出库' },
+      { id: 'tab-status', title: '状态' },
+    ],
+    panels: [
+      ...base.panels.map(panel => ({ ...panel, tab: 'tab-outbound' })),
+      {
+        id: 'by-status',
+        kind: 'view',
+        title: '按状态看金额',
+        instanceId: 'orders-analysis',
+        bindings: [{ globalField: 'region', panelField: 'warehouse' }],
+        layout: { x: 0, y: 0, w: 12, h: 4 },
+        tab: 'tab-status',
+      },
+    ],
+  };
+}
+
+/** The overview with one analysis the board owns rather than refers to (D22 C). */
+function ownedConfig(): DashboardViewConfig {
+  const base = dashboardConfig();
+  return {
+    ...base,
+    panels: [
+      ...base.panels,
+      {
+        id: 'owned',
+        kind: 'view',
+        title: '本板自建：订单数按仓库',
+        owned: {
+          definitionId: 'orders',
+          config: analysisConfig({
+            chart: {
+              type: 'bar',
+              cartesian: { x: 'warehouse', series: [{ metric: 'orders' }] },
+            },
+          }),
+        },
+        bindings: [{ globalField: 'region', panelField: 'warehouse' }],
+        layout: { x: 8, y: 4, w: 16, h: 4 },
+      },
+    ],
+  };
+}
+
+/** Another board in the list, for the tabbed one to be left and opened again. */
+const otherBoard = {
+  ...savedDashboard,
+  id: 'overview-other',
+  title: '异常概览',
+  config: dashboardConfig(),
+};
 
 /** What the scenes answer from, said in the host's service line and below. */
 const FIXTURE = '内存 ViewStore · 两个被引用的共享视图 · 一个内容面板';
@@ -179,6 +252,24 @@ export const Building: Story = { args: { variant: 'panels' } };
  * 「只有你看得到」 in the picker (D22 B).
  */
 export const EmptySharedBoard: Story = { args: { variant: 'empty-shared' } };
+
+/**
+ * A board that owns one analysis (D22 C): while it is built, its 「⋯」 offers
+ * 「另存为视图…」, which makes it a view of its own; 「＋ 添加 ▾」 offers
+ * 「新建分析…」, the analysis view in a dialog; and an analysis panel offers
+ * 「改这里的展示…」, its own look (D22 D).
+ */
+export const OwnedAnalysis: Story = {
+  name: '板内分析与改展示',
+  args: { variant: 'owned' },
+};
+
+/**
+ * Two tabs (D22 E): only the tab on screen runs, the reader's last tab is
+ * where the board opens next, and while it is built the bar adds, renames,
+ * reorders and deletes tabs.
+ */
+export const Tabs: Story = { name: '标签页', args: { variant: 'tabs' } };
 
 /** The board the definition ships: 另存为, and no 编辑 (D4). */
 export const SystemDashboard: Story = { args: { variant: 'system' } };

@@ -38,12 +38,18 @@ export interface DashboardPanelView {
   issues: Issue[];
   /** True when this panel alone cannot show anything. */
   broken: boolean;
+  /** The tab it is on; `null` on a board without tabs. */
+  tab: string | null;
 }
 
 export interface DashboardController {
   panels: DashboardPanelView[];
   /** Columns a layout is placed in; the kernel admits against the same number. */
   columns: number;
+  /** The tab on screen, whose panels alone run; `null` without tabs. */
+  tab: string | null;
+  /** Shows another tab (`DashboardRuntime.showTab`). */
+  showTab(tabId: string): void;
   /** Issues about the dashboard as a whole, panels excluded. */
   issues: Issue[];
   /** True while a panel reference is still loading. */
@@ -76,7 +82,10 @@ export interface DashboardController {
    * open. Whether they are on offer is the UI's to say, by permission.
    */
   edit: DashboardEditing | null;
-  /** The board's tabs in the order of its bar; none on a board without. */
+  /**
+   * The board's tabs in the order of its bar, as they are on screen (D22
+   * E); none on a board without. Fewer than two draw no bar.
+   */
   tabs: readonly DashboardTab[];
   /**
    * Loads a saved view before a panel shows it, so the panel is added at
@@ -133,6 +142,8 @@ export function useDashboard(
   return {
     panels: useMemo(() => panels.map(toView), [panels]),
     columns: DASHBOARD_GRID_COLUMNS,
+    tab: state?.tab ?? null,
+    showTab: useCallback((tabId: string) => runtime?.showTab(tabId), [runtime]),
     // A panel's own issues travel with the panel; what is left belongs here.
     issues: (state?.issues ?? []).filter(found => found.path[0] !== 'panels'),
     resolving: state?.resolving ?? false,
@@ -183,12 +194,16 @@ function toView(panel: DashboardPanelState): DashboardPanelView {
     layout: panel.panel.layout,
     runtime: panel.runtime,
     issues: panel.issues,
+    tab: panel.tab,
     // A data panel with no runtime cannot query, and any panel carrying an
     // error was refused by `validateDashboard` — a content panel included,
     // whose markdown, image or link the grid would otherwise render as
     // though nothing were wrong with it.
+    // One on a tab not shown yet was never asked, which is not broken.
     broken:
-      (panel.runtime === null && panel.panel.kind === 'view') ||
+      (panel.runtime === null &&
+        panel.panel.kind === 'view' &&
+        !panel.waiting) ||
       panel.issues.some(found => found.severity === 'error'),
   };
 }

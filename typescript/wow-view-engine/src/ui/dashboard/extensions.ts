@@ -41,16 +41,21 @@ export interface DashboardEditExtensions {
   onAddOwnedAnalysis?(spot: NewPanelSpot): void;
   /** 「改这里的展示…」 on a data panel: its presentation override. */
   onEditPresentation?(panelId: string): void;
+  /**
+   * 「恢复为视图的样子」 on a panel that wears a look of its own: its override
+   * dropped (`setPresentation(panelId, null)`). The menu offers it only on a
+   * panel with an override.
+   */
+  onResetPresentation?(panelId: string): void;
   /** 「另存为视图…」 on a panel that owns its analysis. */
   onSaveOwnedAsView?(panelId: string): void;
-  /** The tab bar, drawn between the edit bar and the panels. */
-  tabBar?: ReactNode;
   /**
-   * The tab on screen. Given, the grid draws that tab's panels alone and new
-   * panels go on it; left out, every panel is drawn and new ones go on the
-   * board's first tab.
+   * The tab bar, drawn between the edit bar and the panels. Which tab is on
+   * screen is not an extension: it is the runtime's (`DashboardController.tab`,
+   * since only that tab runs), and the grid and a new panel's place read it
+   * there.
    */
-  tab?: string;
+  tabBar?: ReactNode;
 }
 
 const NONE: DashboardEditExtensions = {};

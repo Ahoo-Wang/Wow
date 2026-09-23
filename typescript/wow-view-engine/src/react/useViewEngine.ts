@@ -155,11 +155,15 @@ const NO_REOPEN: Reopen = { after: null, attempt: 0 };
  * pass a fresh object every render without reopening anything. One the
  * definition refuses is not in force at all — the view runs un-narrowed and
  * `scopeIssues` says which condition did not take (D17-5).
+ *
+ * `tab` says which tab a dashboard opens on (`OpenOptions.tab`), asked of
+ * the caller as each view opens — only then does it mean anything.
  */
 export function useOpenView(
   engine: ViewEngine,
   instanceId: string | null,
   scopeFilter: FilterTree | null = null,
+  tab?: (instanceId: string) => string | null | undefined,
 ): OpenViewState {
   const [opened, setOpened] = useState<OpenedView>(NOT_OPENED);
   // Advanced once per runtime disposed under the hook, so the opening effect
@@ -173,6 +177,10 @@ export function useOpenView(
   useEffect(() => {
     latestScope.current = scopeFilter;
   }, [scopeFilter]);
+  const latestTab = useRef(tab);
+  useEffect(() => {
+    latestTab.current = tab;
+  }, [tab]);
 
   useEffect(() => {
     // Only `null` means "nothing to open". Any string, empty included, is an
@@ -182,25 +190,31 @@ export function useOpenView(
     let runtime: AnyViewRuntime | null = null;
     let cancelled = false;
 
-    void engine.open(instanceId, { scopeFilter: latestScope.current }).then(
-      result => {
-        if (cancelled) {
-          engine.close(result);
-          return;
-        }
-        runtime = result;
-        setOpened({ engine, instanceId, runtime: result, error: null });
-      },
-      (error: unknown) => {
-        if (cancelled) return;
-        setOpened({
-          engine,
-          instanceId,
-          runtime: null,
-          error: toIssue(error, 'view.open.failed'),
-        });
-      },
-    );
+    const opensOn = latestTab.current?.(instanceId);
+    void engine
+      .open(instanceId, {
+        scopeFilter: latestScope.current,
+        ...(opensOn == null ? {} : { tab: opensOn }),
+      })
+      .then(
+        result => {
+          if (cancelled) {
+            engine.close(result);
+            return;
+          }
+          runtime = result;
+          setOpened({ engine, instanceId, runtime: result, error: null });
+        },
+        (error: unknown) => {
+          if (cancelled) return;
+          setOpened({
+            engine,
+            instanceId,
+            runtime: null,
+            error: toIssue(error, 'view.open.failed'),
+          });
+        },
+      );
 
     return () => {
       cancelled = true;

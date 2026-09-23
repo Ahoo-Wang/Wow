@@ -12,13 +12,14 @@
  */
 
 import { dequal } from 'dequal';
-import type {
-  DashboardViewPanel,
-  DataViewDefinition,
-  FilterTree,
-  Issue,
-  ViewInstance,
-  ViewScope,
+import {
+  presentationMembers,
+  type DashboardViewPanel,
+  type DataViewDefinition,
+  type FilterTree,
+  type Issue,
+  type ViewInstance,
+  type ViewScope,
 } from '../../model/index.js';
 import { isPlainObject } from '../../filter/index.js';
 import type { PanelDefinition, PanelReference } from '../../dashboard/index.js';
@@ -104,6 +105,12 @@ export interface PanelChild {
   index: number;
   /** The dashboard's own findings about the panel, as of the last sync. */
   own: Issue[];
+  /**
+   * A refresh of the board went by while the panel was on a tab not shown
+   * (`PanelChildren.refresh`): its rows are older than the board's, so it
+   * is refreshed the next time its tab is shown.
+   */
+  missed: boolean;
 }
 
 /**
@@ -147,6 +154,13 @@ export class PanelChildren {
    * new ones land, instead of the panel blanking to a skeleton for a change
    * of chart. A config the child now refuses stops it, as a refused scope
    * does.
+   *
+   * A change of how the rows are drawn alone — the layout, the chart
+   * (`presentationMembers`) — is an edit and nothing more: presentation
+   * never asks the source (D20), and the panel draws the child's draft over
+   * the rows it has (`useAnalysisResult`). A child that missed a refresh
+   * while its tab was away is refreshed here, unless what changed runs it
+   * anyway.
    */
   sync(
     panelId: string,
@@ -162,14 +176,18 @@ export class PanelChildren {
       existing.index = index;
       existing.own = own;
       const changed = !dequal(existing.view.config, view.config);
+      const asks = changed && !drawsOnly(existing.view.config, view.config);
       if (changed)
         existing.runtime.edit(replacing(existing.view.config, view.config));
       existing.view = view;
+      const rescoped = !dequal(existing.runtime.scopeFilter, scope ?? null);
       const refused = changed ? [...existing.runtime.getSnapshot().issues] : [];
       if (!hasError(refused))
         refused.push(...existing.runtime.setScopeFilter(scope));
       if (!hasError(refused)) {
-        if (changed) existing.runtime.apply();
+        if (asks) existing.runtime.apply();
+        else if (existing.missed && !rescoped) existing.runtime.refresh();
+        existing.missed = false;
         return {
           runtime: existing.runtime,
           issues: panelIssues(index, own, existing.runtime),
@@ -193,9 +211,37 @@ export class PanelChildren {
       return { runtime: null, issues: [...own, ...atPanel(index, refused)] };
     }
     const unsubscribe = runtime.subscribe(() => this.notified(panelId));
-    this.children.set(panelId, { runtime, view, unsubscribe, index, own });
+    this.children.set(panelId, {
+      runtime,
+      view,
+      unsubscribe,
+      index,
+      own,
+      missed: false,
+    });
     runtime.apply();
     return { runtime, issues: panelIssues(index, own, runtime) };
+  }
+
+  /**
+   * A panel on a tab not shown: its child, if it has one, is kept as it is —
+   * rows and all, neither re-scoped nor re-run (D22 E: only the tab on
+   * screen runs) — and only where its findings are addressed moves with the
+   * config. `null` for a panel that has never been shown.
+   */
+  hold(
+    panelId: string,
+    index: number,
+    own: Issue[],
+  ): { runtime: DataViewRuntime; issues: Issue[] } | null {
+    const held = this.children.get(panelId);
+    if (!held) return null;
+    held.index = index;
+    held.own = own;
+    return {
+      runtime: held.runtime,
+      issues: panelIssues(index, own, held.runtime),
+    };
   }
 
   /** Lets go of the children whose panels are no longer among `live`. */
@@ -220,9 +266,14 @@ export class PanelChildren {
     this.children.clear();
   }
 
-  /** Re-runs every child on what it has applied. */
-  refresh(): void {
-    for (const child of this.children.values()) child.runtime.refresh();
+  /**
+   * Re-runs every child on the tab shown on what it has applied; the others
+   * are marked to run when their tab is shown again (`sync`).
+   */
+  refresh(shown: (panelId: string) => boolean = () => true): void {
+    for (const [panelId, child] of this.children)
+      if (shown(panelId)) child.runtime.refresh();
+      else child.missed = true;
   }
 
   /** Whether any child has a query in flight. */
@@ -245,6 +296,23 @@ function replacing(
   const patch: Record<string, unknown> = {};
   for (const key of Object.keys(previous)) patch[key] = undefined;
   return { ...patch, ...next };
+}
+
+/**
+ * Whether two configs of one view differ only in how the rows are drawn —
+ * the members that never ask the source (`presentationMembers`).
+ */
+function drawsOnly(previous: DataViewConfig, next: DataViewConfig): boolean {
+  const drawn = presentationMembers(next.kind);
+  const keys = new Set([...Object.keys(previous), ...Object.keys(next)]);
+  return [...keys].every(
+    key =>
+      drawn.includes(key) ||
+      dequal(
+        (previous as unknown as Record<string, unknown>)[key],
+        (next as unknown as Record<string, unknown>)[key],
+      ),
+  );
 }
 
 /**

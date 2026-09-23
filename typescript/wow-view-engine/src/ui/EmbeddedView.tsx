@@ -36,6 +36,7 @@ import { AnalysisTable } from './AnalysisTable.js';
 import { AppliedBar } from './AppliedBar.js';
 import { chartIssueNamer } from './analysis/issueNames.js';
 import { DashboardGrid, type PanelHeadingLevel } from './DashboardGrid.js';
+import { DashboardTabs } from './dashboard/DashboardTabs.js';
 import { RecordCards } from './RecordCards.js';
 import { RecordTable } from './RecordTable.js';
 import { ErrorStrip, QueryStrip, WarningStrip } from './StatusStrip.js';
@@ -370,11 +371,14 @@ function EmbeddedDashboard({
   onOpenView?(instanceId: string, filter: FilterTree | null): void;
 }) {
   const dashboard = useDashboard(runtime);
+  // A board with tabs switches between them here too (D22 E); where a
+  // reader was is the workbench's to remember, not an embed's.
   return (
     <DashboardGrid
       dashboard={dashboard}
       headingLevel={headingLevel}
       onOpenView={onOpenView}
+      header={() => <DashboardTabs dashboard={dashboard} />}
     />
   );
 }

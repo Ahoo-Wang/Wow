@@ -57,6 +57,7 @@ export interface ViewPreferences {
   order: string[]; // 显式排序的实例 id
   defaultInstanceId: string | null;
   autoRun?: boolean; // 改了就跑：分析视图的问题一变就自己再跑；没说过就是开着
+  lastTabs?: Record<string, string>; // 仪表盘（按实例 id）上次看的标签页（D22 E）
   revision: string;
 }
 ```
@@ -72,6 +73,7 @@ export interface ViewPreferences {
   - 乐观顺序同时记住提交的完整顺序与移动后的可见顺序，连动两次才不会拿前一次的下标去配另一份列表——所以位置要在**下手那一刻**问（`manager.placeOf(id)`），而不是从这一次渲染上读：排队中还没落地的那一次移动，屏幕上还看不见。
 - **默认视图。** `setDefault(id | null)` 只改 `defaultInstanceId`。有效默认值的解析规则：显式指定的 `instanceId` 优先；否则 `defaultInstanceId` 存在于列表则用它；否则取排序后的第一项，通常就是第一个系统视图；列表为空时工作区显示空态并提供新建（见上）。
 - **改了就跑（`autoRun`）。** `setAutoRun(definitionId, on)` 与排序、默认视图同住这一份偏好里，写法也一样（`PreferenceCache` 读当前那份、只换这一个成员、带 revision 写回），**不问许可**：它改的是这个用户自己的屏幕，别人看不见也不受影响，而许可回答的是"谁能改别人看得见的东西"。**没说过就是开着**（`autoRun ?? true`）——读答案本来就是分析师来这儿的目的，一个默认关着的开关等于把这件事藏起来；成员因此是可选的，一份从来没写过偏好的定义不必先被写一次才有正常行为。它按**定义**存而不是按视图存：它是"我看这类数据时的习惯"，不是这个视图的一部分——存进 `ViewConfig` 就会随共享视图发给别人，而那是别人的习惯。工作台把它推给打开着的分析 runtime（`ViewRuntime.setAutoApply`，见 [runtime.md#改了就跑](runtime.md#改了就跑)），记录视图与仪表盘不读它。（见 test/autoApply.test.ts「the auto-run preference」与 test/autoRun.test.tsx「改了就跑: the tray’s switch」）
+- **上次看的标签页（`lastTabs`）。** 仪表盘的读者切标签页时，工作台经 `ViewEngine.rememberTab(definitionId, instanceId, tabId)` 把它记在这一份偏好里（按仪表盘定义存、按实例 id 分），`open` 在宿主没指明标签页时读它、让板子直接从那一页开始跑（D22 E，用户「全按推荐」）。它是读者的而不是板子的：写进配置就会随共享板发给别人，也会让只切了标签页的板子变脏。它只是便利，所以**从不拒绝、从不留下结局**：一串快速切换只写最后一个（在途那一次落定后再写）；写失败就放手（`abandonWrite`），否则一个没结清的偏好写入会挡住管理器自己的排序与默认视图；读不到偏好时板子从第一页开。**不问许可**，理由与 `autoRun` 相同。（见 test/dashboardTabs.test.ts「where a board opens」）
 - **删除与偏好。** 删除实例不写偏好。读取时忽略已不存在的 id，下一次 `reorder` 或 `setDefault` 写入自然清理。
 - **偏好冲突。** `setPreferences` 返回 `CONFLICT` 时重新加载偏好，保留用户本次意图并要求再次确认，不用最新 revision 静默重试。重载之后引擎已结清该冲突，原 handle 不再寻址任何写入，因此「再次确认」不是恢复动作而是一次**新写入**：`useViewManager().resubmit(key)` 只把用户那一半意图（`setDefault` 的默认值，或 `reorder` 的顺序）按刚读回的 revision 再提交一次，另一半留给对方刚写入的值；UI 在重载后把按钮换成 `label.manage.resubmit`。
 

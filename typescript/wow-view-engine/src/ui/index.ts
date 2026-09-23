@@ -33,6 +33,12 @@ export * from './DashboardPanel.js';
 export * from './DashboardPanels.js';
 export * from './dashboard/extensions.js';
 export * from './DashboardWorkbench.js';
+// Building a board, batch B3 (D22 C–E): the tab bar, the commands a board's
+// menus call and the dialogs they open.
+export * from './dashboard/DashboardTabs.js';
+export * from './dashboard/building.js';
+export * from './dashboard/NewAnalysisDialog.js';
+export * from './dashboard/PresentationDialog.js';
 export * from './describeConfig.js';
 /**
  * How this package reads one value, so a host that renders a cell itself can

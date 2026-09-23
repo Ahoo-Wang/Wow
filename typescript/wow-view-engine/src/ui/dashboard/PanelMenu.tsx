@@ -24,6 +24,7 @@ import {
   SaveIcon,
   SquarePenIcon,
   Trash2Icon,
+  Undo2Icon,
 } from 'lucide-react';
 import { Button } from '../components/button.js';
 import {
@@ -161,9 +162,25 @@ export function PanelMenu({
               </DropdownMenuItem>
             )}
             {commands.editPresentation && (
-              <DropdownMenuItem onClick={commands.editPresentation}>
+              <DropdownMenuItem
+                onClick={() => {
+                  // A dialog takes the keyboard, and gives it back to the
+                  // 「⋯」 as it closes.
+                  handedOff.current = true;
+                  commands.editPresentation?.();
+                }}
+              >
                 <PaletteIcon />
                 {messages.label('label.panel.edit-presentation')}
+              </DropdownMenuItem>
+            )}
+            {commands.resetPresentation && (
+              <DropdownMenuItem
+                data-slot="panel-reset-presentation"
+                onClick={commands.resetPresentation}
+              >
+                <Undo2Icon />
+                {messages.label('label.panel.presentation.reset')}
               </DropdownMenuItem>
             )}
             {commands.editContent && (
@@ -214,7 +231,12 @@ export function PanelMenu({
               </DropdownMenuSub>
             )}
             {commands.saveAsView && (
-              <DropdownMenuItem onClick={commands.saveAsView}>
+              <DropdownMenuItem
+                onClick={() => {
+                  handedOff.current = true;
+                  commands.saveAsView?.();
+                }}
+              >
                 <SaveIcon />
                 {messages.label('label.panel.save-as-view')}
               </DropdownMenuItem>

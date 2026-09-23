@@ -69,6 +69,7 @@ import { PermissionGuard } from './permissions.js';
 import { PreferenceCache, resolveDefault } from './preferences.js';
 import { OpenRuntimes } from './openRuntimes.js';
 import { SummaryCache } from './summaries.js';
+import { TabMemory } from './tabMemory.js';
 import { RuntimeFactory, type RuntimeIdentity } from './runtimeFactory.js';
 
 export interface ViewEngineOptions {
@@ -95,6 +96,12 @@ export interface OpenOptions {
    * lets an unscoped query leave, and never shows rows outside its scope.
    */
   scopeFilter?: FilterTree | null;
+  /**
+   * The tab a dashboard opens on (D22 E) — a host's route says it. Left out,
+   * the one this reader last read the board on (`ViewPreferences.lastTabs`);
+   * a tab the board lacks opens its first. Nothing else reads it.
+   */
+  tab?: string | null;
 }
 
 /** The ledger names what a write command is addressed to; the engine takes it. */
@@ -168,6 +175,12 @@ export class ViewEngine {
   private readonly changes = new ViewChanges(found => this.report(found));
   /** The last summary seen of each instance; see `summaries.ts`. */
   private readonly summaries = new SummaryCache();
+  /** Where each reader last read each board; see `tabMemory.ts`. */
+  private readonly tabs = new TabMemory({
+    current: definitionId => this.preferenceCache.current(definitionId),
+    write: (definitionId, next) => this.writePreferences(definitionId, next),
+    abandon: handle => this.ledger.abandonWrite(handle),
+  });
 
   constructor(options: ViewEngineOptions) {
     this.options = options;
@@ -278,7 +291,12 @@ export class ViewEngine {
     options: OpenOptions = {},
   ): Promise<AnyViewRuntime> {
     const instance = await this.readInstance(instanceId);
+    // A dashboard opens on its tab rather than on its first and then there:
+    // only the tab on screen runs, so where it starts is what is asked.
+    const tab = await this.tabs.opensOn(instance, options.tab);
     const runtime = this.attach(instance, options.scopeFilter ?? null);
+    if (runtime instanceof DashboardViewRuntime && tab !== null)
+      runtime.showTab(tab);
     // A dashboard is judged against the instances it references, so it waits
     // for them before its first apply rather than opening into empty frames.
     if (runtime instanceof DashboardViewRuntime)
@@ -508,6 +526,20 @@ export class ViewEngine {
   ): Promise<ViewPreferences> {
     const current = await this.preferenceCache.current(definitionId);
     return this.writePreferences(definitionId, { ...current, autoRun });
+  }
+
+  /**
+   * Remembers the tab this reader last read a dashboard on (D22 E), kept
+   * with their other preferences for the board's definition and read back
+   * by `open`. A convenience: it never rejects and never leaves an outcome
+   * behind (`TabMemory`).
+   */
+  rememberTab(
+    definitionId: string,
+    instanceId: string,
+    tabId: string,
+  ): Promise<void> {
+    return this.tabs.remember(definitionId, instanceId, tabId);
   }
 
   /**

@@ -41,112 +41,49 @@ import {
   isViewPanel,
   mapGlobalFilter,
   migrateDashboardConfig,
+  panelTab,
   placePanelIn,
   referencedInstance,
   validateDashboard,
   type NewContentPanel,
   type NewPanel,
   type NewPanelPlacement,
-  type PanelDefinition,
 } from '../dashboard/index.js';
 import { presentedConfig } from './dashboard/presentation.js';
 import { boardEditing, type DashboardEditing } from './dashboard/editing.js';
 import type { RuntimeEnvironment } from './environment.js';
 import { hasError, RuntimeStore } from './runtimeStore.js';
 import type { OptionSource } from './source.js';
-import {
-  PanelChildren,
-  panelView,
-  type PanelRuntimeFactory,
-} from './dashboard/children.js';
+import { PanelChildren, panelView } from './dashboard/children.js';
 import {
   blocksBoard,
   panelIssues,
   panelOf,
   panelsOf,
   samePanels,
+  migrated,
+  shownTab,
   type DashboardPanelState,
 } from './dashboard/panels.js';
-import { PanelReferences, type PanelResolver } from './dashboard/references.js';
+import { PanelReferences } from './dashboard/references.js';
 import type { WriteState } from './write.js';
 import type { DataViewRuntime } from './viewRuntime.js';
-import type {
-  ManagedViewRuntime,
-  ViewQueryState,
-  ViewRuntime,
-  ViewRuntimeState,
-} from './viewRuntimeTypes.js';
+import type { ManagedViewRuntime, ViewQueryState } from './viewRuntimeTypes.js';
 
 export type { PanelResolver } from './dashboard/references.js';
 export type { PanelRuntimeFactory, PanelView } from './dashboard/children.js';
 export type { DashboardPanelState } from './dashboard/panels.js';
 export { stopsSave } from './dashboard/panels.js';
 export type { DashboardEditing } from './dashboard/editing.js';
-
-export interface DashboardRuntimeState extends ViewRuntimeState<DashboardViewConfig> {
-  /**
-   * The applied panels. Loading, errors and data are each panel's own: a
-   * dashboard has no single query state to report.
-   */
-  panels: DashboardPanelState[];
-  /** True while a panel reference is still being loaded. */
-  resolving: boolean;
-}
-
-/**
- * The public face of a dashboard runtime: a view runtime whose snapshot also
- * carries the panels. `open` narrows to it by `kind`, so a caller reaches the
- * panels without knowing the class behind them.
- */
-export interface DashboardRuntime
-  extends ViewRuntime<DashboardViewConfig>, DashboardEditing {
-  getSnapshot(): DashboardRuntimeState;
-  /** Resolves once every panel reference has been loaded or refused. */
-  ready(): Promise<void>;
-  /** The child runtime of one panel, for a host that drives a panel itself. */
-  panelRuntime(panelId: string): DataViewRuntime | null;
-  /**
-   * Puts one panel at `layout` and applies that alone: the panels it now
-   * covers make way and its tab floats up behind it (`placePanel`), and
-   * every other pending edit — a global filter not yet applied, say — stays
-   * pending. A layout the grid does not admit, or a panel id there is none
-   * of, is ignored.
-   */
-  place(panelId: string, layout: PanelLayout): void;
-  /** Re-runs one panel on what it has applied — a retry after it failed. */
-  refreshPanel(panelId: string): void;
-  /**
-   * Loads a saved view a panel is about to show, and resolves once it has
-   * settled — read or found unreadable, never rejecting. `addPanel` sizes a
-   * saved view by what it shows only once it is loaded (a metric card a
-   * quarter, a table the full width), so the board's 「添加」 waits for this
-   * first; the child then starts on the reference already in hand.
-   */
-  preload(instanceId: string): Promise<void>;
-}
-
-export interface DashboardRuntimeOptions {
-  id: string;
-  definition: DashboardDefinition;
-  config: DashboardViewConfig;
-  title: string;
-  scope: ViewScope;
-  saved?: ViewInstance | null;
-  kinds: FieldKindRegistry;
-  limits: RuntimeLimits;
-  environment: RuntimeEnvironment;
-  resolve: PanelResolver;
-  /**
-   * The definition a view the board owns is of; `null` for one this release
-   * does not declare. Definitions are code, so this answers at once.
-   */
-  definitions(definitionId: string): PanelDefinition | null;
-  createPanelRuntime: PanelRuntimeFactory;
-  /** See `ViewRuntime.optionSource`. */
-  resolveOptions?(key: string): OptionSource;
-  /** An outer condition in force from the first execution, as for a data view. */
-  scopeFilter?: FilterTree | null;
-}
+export type {
+  DashboardRuntime,
+  DashboardRuntimeOptions,
+  DashboardRuntimeState,
+} from './dashboard/contract.js';
+import type {
+  DashboardRuntimeOptions,
+  DashboardRuntimeState,
+} from './dashboard/contract.js';
 
 const IDLE: ViewQueryState = { status: 'idle' };
 
@@ -185,6 +122,10 @@ export class DashboardViewRuntime
   private readonly edits: DashboardEditing;
 
   private injectedScope: FilterTree | null;
+  /** The tab the reader asked for; see `DashboardRuntimeState.tab`. */
+  private requestedTab: string | null = null;
+  /** Whether the panels were brought in line once: until then a tab is only noted. */
+  private synced = false;
 
   constructor(options: DashboardRuntimeOptions) {
     this.options = options;
@@ -251,6 +192,7 @@ export class DashboardViewRuntime
         nextRefreshAt: null,
         panels: [],
         resolving: false,
+        tab: shownTab(config, null),
       },
       environment: options.environment,
       refusedScope,
@@ -371,7 +313,25 @@ export class DashboardViewRuntime
    */
   refresh(): void {
     if (this.disposed) return;
-    this.children.refresh();
+    const shown = new Set(
+      this.state.panels
+        .filter(panel => panel.tab === this.state.tab)
+        .map(panel => panel.id),
+    );
+    this.children.refresh(panelId => shown.has(panelId));
+  }
+
+  showTab(tabId: string | null): void {
+    if (this.disposed) return;
+    this.requestedTab = tabId;
+    // Before the first sync this only says where the board opens: nothing
+    // has run yet, and the first sync starts on this tab rather than on the
+    // first and then here.
+    if (!this.synced) {
+      this.store.setState({ tab: shownTab(this.state.applied, tabId) });
+      return;
+    }
+    this.sync();
   }
 
   /**
@@ -632,8 +592,13 @@ export class DashboardViewRuntime
    */
   private sync(patch: Partial<DashboardRuntimeState> = {}): void {
     if (this.disposed) return;
+    this.synced = true;
     const applied = patch.applied ?? this.state.applied;
     const issues = this.admit(applied, this.state.scope);
+    // Only the tab on screen runs (D22 E). A panel elsewhere keeps the child
+    // it has, rows and all, exactly as it stands — neither re-scoped nor
+    // re-run — until its tab is shown; one never shown has none yet.
+    const tab = shownTab(applied, this.requestedTab);
     const panels: DashboardPanelState[] = [];
     const live = new Set<string>();
     // A problem with the dashboard itself stops every panel, which is the
@@ -649,12 +614,26 @@ export class DashboardViewRuntime
       // no id to build a state under, and nothing to run.
       if (!isPlainObject(panel)) return;
       const own = issues.filter(found => panelOf(found) === index);
-      const { runtime, issues: reported } =
-        isViewPanel(panel) && !blocked
+      const on = panelTab(applied, panel);
+      const shown = on === tab;
+      const runs = isViewPanel(panel) && !blocked;
+      const { runtime, issues: reported } = !runs
+        ? { runtime: null, issues: own }
+        : shown
           ? this.syncPanel(panel, index, applied, own)
-          : { runtime: null, issues: own };
+          : (this.children.hold(panel.id, index, own) ?? {
+              runtime: null,
+              issues: own,
+            });
       if (runtime) live.add(panel.id);
-      panels.push({ id: panel.id, panel, runtime, issues: reported });
+      panels.push({
+        id: panel.id,
+        panel,
+        runtime,
+        issues: reported,
+        tab: on,
+        waiting: runs && !shown && runtime === null && !hasError(own),
+      });
     });
 
     this.children.keepOnly(live);
@@ -663,6 +642,7 @@ export class DashboardViewRuntime
     // bound with `useSyncExternalStore` does not re-render on every apply.
     this.store.setState({
       ...patch,
+      tab,
       panels: samePanels(this.state.panels, panels)
         ? this.state.panels
         : panels,
@@ -746,14 +726,4 @@ export class DashboardViewRuntime
     panels[at] = { ...current, issues };
     this.store.setState({ panels });
   }
-}
-
-/**
- * A stored board read into the form this engine writes
- * (`migrateDashboardConfig`); the same instance when it already is.
- */
-function migrated(instance: ViewInstance | null): ViewInstance | null {
-  if (instance === null) return null;
-  const config = migrateDashboardConfig(instance.config as DashboardViewConfig);
-  return config === instance.config ? instance : { ...instance, config };
 }

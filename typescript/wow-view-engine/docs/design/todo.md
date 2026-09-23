@@ -28,11 +28,11 @@ ECharts 迁移（D21）与两份「数据分析师视角」审查的 P0 已全�
 
 批次按顺序；每批都做到可生产交付、真浏览器走过。起点的缺陷清单在会话记忆 `view-engine-dashboard-walk-2026-09-22`（U1～U11、R1～R18、G1～G10）。
 
-- **批 B 怎么搭**（交互稿 A～E 屏）：**B1 已做完模型、校验、迁移与运行时**（见 [model.md#dashboard-配置](model.md#dashboard-配置)、[runtime.md#dashboard](runtime.md#dashboard)）；**B2 已做完编辑模式、编辑条、添加（选视图对话框、标题／文字／图片／链接）、面板菜单、空板子的第一步、不可用面板的真按钮、面板图表提示说列标题**（见 [ui/dashboard.md](ui/dashboard.md)「搭板子」）。剩下的（B3）从 `DashboardEditExtensions` 接进来：在仪表盘里新建分析的大对话框（托盘＋结果，「放进仪表盘」＝`addPanel({ owned }, spot)`，接 `onAddOwnedAnalysis`）；展示覆盖的编辑（接 `onEditPresentation`）、面板头「此处改为〈图型〉」与「恢复为视图的样子」＝`setPresentation(null)`；「另存为视图…」的对话框（接 `onSaveOwnedAsView`，`ViewEngine.saveOwnedView`）；标签栏（接 `tabBar` 与 `tab`：只画当前标签页的面板——栅格已按 `tab` 收窄——、加／改名／排序／删除带确认、记住每人上次的标签＝个人偏好、当前标签进地址）；共享板上个人视图的面板菜单「复制为共享视图并替换」。
-  - 判据：从空仪表盘开始只用界面就能搭出首页那块运营看板；真浏览器逐控件走查。
+- **批 B 怎么搭**（交互稿 A～E 屏）：**已做完**——B1 模型、校验、迁移与运行时（[model.md#dashboard-配置](model.md#dashboard-配置)、[runtime.md#dashboard](runtime.md#dashboard)）；B2 编辑模式、编辑条、添加、面板菜单、空板子的第一步、不可用面板的真按钮、面板图表提示说列标题；B3 在仪表盘里新建分析、「另存为视图…」、展示覆盖（「改这里的展示…」、面板头「此处改为〈图型〉」、「恢复为视图的样子」）、标签栏（只跑当前标签页、加／改名／排序／删除带确认、记住每人上次的标签、当前标签经 `onTabChange`／`initialTab` 交给宿主进地址），以及 B1 留下的两处运行时收口（只改画法的展示覆盖只重画不重跑；只跑当前标签页）。一份扩展接口 `DashboardEditExtensions`，见 [ui/dashboard.md](ui/dashboard.md)「搭板子」「扩展」。下面是批 B 剩下的：
   - B2 留下的三件：**面板菜单「导出数据…」**——`ExportDialog` 今天是自带触发器的工具栏窗口、CSV 的交付在 `workbench/RecordParts.tsx` 里，要先拆成可受控的窗口加一个共享的交付钩子，面板才能从菜单打开它（分析面板的导出另议）；**窄屏调顺序**（D22 J，窄屏编辑只改标题、移除、调顺序，后者未做：一列里的上下移要映射回宽布局的阅读顺序）；**编辑中的全局「撤销」**——移除今天先确认，因为 runtime 没有单步撤销、「取消」会连别的改动一起撤掉。
-  - B1 留给后面的两处运行时收口：面板改由草稿重画图（`useAnalysisResult` 那条路）之后，展示覆盖里只改 `layout`／`chart` 的那一种从「edit + apply」收窄为只重画不重跑（D20，`runtime/dashboard/children.ts` 的 `sync`）；子 runtime 目前不论在哪个标签页都跑，标签栏上线时改为只跑当前标签页（切过去再跑，跑过的保留）。
-  - 落点：`src/ui/dashboard/`（`extensions.ts` 是 B3 的接口）、`src/ui/DashboardWorkbench.tsx`、[ui/dashboard.md](ui/dashboard.md)。
+  - 共享板上个人视图的面板菜单「复制为共享视图并替换」（D22 B）还没有。
+  - 判据：从空仪表盘开始只用界面就能搭出首页那块运营看板；真浏览器逐控件走查。
+  - 落点：`src/ui/dashboard/`、`src/ui/DashboardWorkbench.tsx`、[ui/dashboard.md](ui/dashboard.md)。
 - **批 C 全局筛选**（交互稿 F、G 屏）：筛选的增删改、接线与自动连接、「不受此筛选影响」、默认值与必填、多值、时间分组参数。
   - 判据：新加一个时间筛选自动接上所有有该字段的面板；必填时不跑全量；切粒度整板重算。
   - 落点：`src/model/dashboard.ts`（`DashboardField`、`PanelBinding`）、`src/runtime/dashboard*`、筛选条 UI。

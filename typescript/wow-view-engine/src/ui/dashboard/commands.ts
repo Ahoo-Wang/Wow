@@ -18,7 +18,10 @@ import {
   panelTab,
   referencedInstance,
 } from '../../dashboard/index.js';
-import type { FilterTree } from '../../model/index.js';
+import {
+  PANEL_PRESENTATION_MEMBERS,
+  type FilterTree,
+} from '../../model/index.js';
 import type {
   DashboardController,
   DashboardPanelView,
@@ -47,6 +50,8 @@ export interface BoardBuilding {
   removed(name: string): void;
   /** A panel was copied, and the copy is called this. */
   duplicated(name: string): void;
+  /** A panel went to another tab, called this on the bar. */
+  moved(name: string, tab: string): void;
 }
 
 export const BoardBuildingContext = createContext<BoardBuilding | null>(null);
@@ -79,6 +84,8 @@ export interface PanelCommands {
   /** While the title is being edited in place: take or drop the new one. */
   renaming?: { commit(title: string): void; cancel(): void };
   editPresentation?(): void;
+  /** 恢复为视图的样子: only on a panel that wears a look of its own. */
+  resetPresentation?(): void;
   editContent?(): void;
   replace?(): void;
   duplicate?(): void;
@@ -110,6 +117,19 @@ export interface PanelCommandInput {
   extensions: DashboardEditExtensions;
   onOpenView?(instanceId: string, filter: FilterTree | null): void;
   messages: MessageFormatters;
+}
+
+/** Whether a panel overrides how its view looks (D22 D). */
+function hasOwnLook(panel: DashboardPanelView['panel']): boolean {
+  if (panel.kind !== 'view') return false;
+  const look: unknown = panel.presentation;
+  return (
+    typeof look === 'object' &&
+    look !== null &&
+    Object.keys(look).some(key =>
+      (PANEL_PRESENTATION_MEMBERS as readonly string[]).includes(key),
+    )
+  );
 }
 
 /** One panel's commands, read off the board as it stands. */
@@ -164,9 +184,16 @@ export function panelCommands({
 
   if (!content) {
     commands.replace = () => building.replace(id);
-    if (extensions.onEditPresentation) {
+    // A look is an analysis's to change here: a chart type, its options,
+    // the totals row. A record panel has nothing the visualization panel
+    // could draw.
+    if (extensions.onEditPresentation && child?.kind === 'analysis') {
       const present = extensions.onEditPresentation;
       commands.editPresentation = () => present(id);
+    }
+    if (extensions.onResetPresentation && hasOwnLook(stored)) {
+      const reset = extensions.onResetPresentation;
+      commands.resetPresentation = () => reset(id);
     }
     if (owned && extensions.onSaveOwnedAsView) {
       const promote = extensions.onSaveOwnedAsView;
@@ -197,7 +224,11 @@ export function panelCommands({
               },
             ],
       ),
-      move: tabId => edit.movePanelToTab(id, tabId),
+      move: tabId => {
+        edit.movePanelToTab(id, tabId);
+        const to = commands.moveTo?.tabs.find(tab => tab.id === tabId);
+        if (to) building.moved(name, to.name);
+      },
     };
   }
   return commands;
