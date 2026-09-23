@@ -13,10 +13,7 @@
 
 import type { RefObject } from 'react';
 import { ChartColumnIcon } from 'lucide-react';
-import {
-  havingRows,
-  type AnalysisColumnView,
-} from '../../analysis/index.js';
+import { havingRows, type AnalysisColumnView } from '../../analysis/index.js';
 import type { AnalysisHavingExpression } from '../../model/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
 import { Button } from '../components/button.js';
