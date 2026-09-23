@@ -67,7 +67,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 - **选择器停在内核开始拒绝的地方**：游标源的排序上限是 `MAX_CURSOR_SORT_FIELDS`（含收尾行键），超了 `validateRecord` 报 `record.sort.too-many`。内核的 `maxSortFields(definition)` 经控制器的 `maxSortFields` 送到控件，满了禁用并以 `label.sort.full` 说明；
 - **方向读不出也不崩**：`validateSort` 报 `record.sort.direction-invalid`，渲染仍当升序画——渲染自己也是第二道防线；
 - **没排序是空态，排满了不是**：零条画 `Empty` + `EmptyDescription`（`label.sort.unsorted`）；`label.sort.full` 是一行普通字——它是天花板，小浮层里的 `Alert` 比它谈论的列表还大；
-- 改完一次性应用（`setSort` 是一次 `edit` 加一次 `apply`），与表头切换同一路径（test/sortSettings.test.tsx）。
+- 改完一次性写出（`setSort`），与表头切换同一路径、同一条规矩：草稿里没有别的待应用修改时当场应用，有就并进待应用（见下「表头排序」）。卡片布局没有表头，这里就是它唯一的排序入口（test/sortSettings.test.tsx；test/recordWorkbenchInteraction.test.tsx「holds the card layout’s sort editor back the same way」）。
 
 ## 结果块：有结果才有，工具栏是第一行
 
@@ -126,7 +126,9 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 
 ## 表头排序
 
-- 点击表头在**升序 → 降序 → 取消**间循环（`toggleSort`，立即 `apply`）。**平击独占，Shift 追加**（legacy 的规矩）：平击是 `toggleSort(field, { exclusive: true })`，按住 Shift／Ctrl／⌘ 才追加；键盘 Shift+Enter／Shift+Space 走同一处理器。规矩由 `label.sort.additive`「按住 Shift 追加排序」说出：`<table>` 外一个 `sr-only` 句子，按钮 `aria-describedby` 指它——不放进 `<th>`（读屏会在每个值旁重念），不用 `aria-description`（只有 Chromium 的草案）。独占是控制器的入口而不是 UI 模拟：模拟要对每列反复 `toggleSort`，每次都是一次查询；
+- 点击表头在**升序 → 降序 → 取消**间循环（`toggleSort`）。**平击独占，Shift 追加**（legacy 的规矩）：平击是 `toggleSort(field, { exclusive: true })`，按住 Shift／Ctrl／⌘ 才追加；键盘 Shift+Enter／Shift+Space 走同一处理器。规矩由 `label.sort.additive`「按住 Shift 追加排序」说出：`<table>` 外一个 `sr-only` 句子，按钮 `aria-describedby` 指它——不放进 `<th>`（读屏会在每个值旁重念），不用 `aria-description`（只有 Chromium 的草案）。独占是控制器的入口而不是 UI 模拟：模拟要对每列反复 `toggleSort`，每次都是一次查询；
+- **按下去当场跑，除非草稿里另有待应用的修改**（与分析表头的 `sortNow` 同一条规矩，判法是 `runtime/pending.ts` 的 `pendingBesides`）：排序是问题的一员，对着结果按表头却什么也没变，读起来就是表头坏了，所以平时当场应用；但范围里还有没应用的条件、或别的修改等着「应用」时，跑就连那条修改一起替用户应用了——这一下只并进待应用，「应用」上亮起那颗点，按「应用」时一起跑。先前被拦下、还没跑的排序不算「别的修改」：下一下正是替换它，只剩它时照跑（test/recordTableCommands.test.tsx「a sort never applies what else waits」、test/recordWorkbenchInteraction.test.tsx「holds a header press back while a condition waits for Apply」；故事 `HeaderSortWaitsForApply`）；
+- **两种读法，各有其主**：箭头、`aria-sort` 与位次按**跑过的那份配置**的排序画（`table.ranSort`）——它们说的是屏幕上这些行的次序，排序等着「应用」时指向下的箭头压在升序的行上就是在撒谎；下一下按**草稿**的排序算（`table.sort`），没有东西等着时两者是同一个，等着时连按两下仍是先升序、再降序。工具栏的排序按钮与编辑器是编辑草稿的地方，读草稿——等着时它说的正是「应用」将要跑的次序；
 - `aria-sort` **只落在主排序那一格**：ARIA 里"按哪列排"只有一列。次级位次由可及名字说：多于一列时每个表头带序号，并把 `label.sort.at`（第几个、共几个）接在名字后；
 - 按钮的可及名字说**点下去会发生什么**（`label.sort.ascending`／`descending`／`none`），列名在句中；
 - **一枚箭头，跟在列名内侧**：数字列右对齐（`NUMERIC_CELL`），整行反过来——名字守对齐的那条边，标记朝里。表头右缘的列宽手柄（`ColumnResizer`）不画字形，所以表头里每个 `svg` 都是这枚标记；

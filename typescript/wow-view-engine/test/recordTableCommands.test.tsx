@@ -28,14 +28,16 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
   type DataViewDefinition,
   type RecordViewConfig,
+  type FilterTree,
   type RecordViewRuntime,
   type ViewInstance,
+  type ViewSource,
 } from '../src/index.js';
 import { useOpenView, useRecordTable } from '../src/react/index.js';
 import { ResultToolbar } from '../src/ui/ResultToolbar.js';
@@ -80,13 +82,14 @@ async function openTable(
   config?: Partial<RecordViewConfig>,
   overrides: Partial<DataViewDefinition> = {},
   ready = true,
+  source: ViewSource = testSource(),
 ) {
   const engine = new ViewEngine({
     definitions: [{ ...definition(), ...overrides }],
     store: new MemoryViewStore({
       instances: [config ? { ...mine, config: recordConfig(config) } : mine],
     }),
-    resolveSource: () => testSource(),
+    resolveSource: () => source,
   });
   const { result } = renderHook(() => {
     const opened = useOpenView(engine, 'orders-1');
@@ -880,5 +883,127 @@ describe('setSort', () => {
     act(() => result.current.table.setSort([]));
 
     await waitFor(() => expect(result.current.table.sort).toEqual([]));
+  });
+});
+
+/**
+ * A sort is one member of the question, and pressing for it says nothing
+ * about the others. So a sort runs at once only while nothing else in the
+ * draft waits for Apply; with a condition still waiting, it joins it and
+ * Apply runs the two together — the rule the analysis table's header keeps
+ * (`sortNow`, #1807). Before this, a header press ran the whole draft and
+ * applied the waiting condition on the user's behalf.
+ */
+describe('a sort never applies what else waits', () => {
+  const inCN: FilterTree = {
+    op: 'and',
+    children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+  };
+
+  async function waiting() {
+    const source = testSource();
+    const result = await openTable(undefined, {}, true, source);
+    // A condition edited in the range and not applied.
+    act(() => result.current.runtime!.edit({ filter: inCN }));
+    return { result, source, asked: vi.mocked(source.paged).mock.calls.length };
+  }
+
+  function applied(result: {
+    current: { runtime: RecordViewRuntime | null };
+  }): RecordViewConfig {
+    return result.current.runtime!.getSnapshot().applied;
+  }
+
+  it('runs a header press at once when nothing else waits', async () => {
+    const source = testSource();
+    const result = await openTable(undefined, {}, true, source);
+    const asked = vi.mocked(source.paged).mock.calls.length;
+
+    act(() => result.current.table.toggleSort('amount', { exclusive: true }));
+
+    expect(applied(result).sort).toEqual([
+      { field: 'amount', direction: 'ASC' },
+    ]);
+    await waitFor(() =>
+      expect(result.current.table.ranSort).toEqual([
+        { field: 'amount', direction: 'ASC' },
+      ]),
+    );
+    expect(vi.mocked(source.paged).mock.calls.length).toBe(asked + 1);
+  });
+
+  it('holds a header press back while a condition waits, and Apply runs both', async () => {
+    const { result, source, asked } = await waiting();
+
+    act(() => result.current.table.toggleSort('amount', { exclusive: true }));
+
+    // The sort is written — the next press cycles from it — but nothing ran.
+    expect(result.current.table.sort).toEqual([
+      { field: 'amount', direction: 'ASC' },
+    ]);
+    expect(applied(result).filter).toEqual({ op: 'and', children: [] });
+    expect(applied(result).sort).toEqual([]);
+    expect(vi.mocked(source.paged).mock.calls.length).toBe(asked);
+    // The rows are still in the order they were fetched in.
+    expect(result.current.table.ranSort).toEqual([]);
+
+    // A second press goes on from the draft: ascending, then descending.
+    act(() => result.current.table.toggleSort('amount', { exclusive: true }));
+    expect(result.current.table.sort).toEqual([
+      { field: 'amount', direction: 'DESC' },
+    ]);
+    expect(vi.mocked(source.paged).mock.calls.length).toBe(asked);
+
+    act(() => result.current.runtime!.apply());
+    await waitFor(() =>
+      expect(result.current.table.ranSort).toEqual([
+        { field: 'amount', direction: 'DESC' },
+      ]),
+    );
+    const calls = vi.mocked(source.paged).mock.calls;
+    expect(calls).toHaveLength(asked + 1);
+    expect(calls[asked][0].filter).toMatchObject({
+      field: 'warehouse',
+      value: 'CN',
+    });
+    expect(calls[asked][0].sort?.[0]).toEqual({
+      field: 'amount',
+      direction: 'DESC',
+    });
+  });
+
+  it('holds the sort editor back the same way', async () => {
+    const { result, source, asked } = await waiting();
+
+    act(() =>
+      result.current.table.setSort([{ field: 'id', direction: 'DESC' }]),
+    );
+
+    expect(result.current.table.sort).toEqual([
+      { field: 'id', direction: 'DESC' },
+    ]);
+    expect(applied(result).filter).toEqual({ op: 'and', children: [] });
+    expect(vi.mocked(source.paged).mock.calls.length).toBe(asked);
+  });
+
+  /**
+   * The sort a press held back is not "something else" to the next press:
+   * that press replaces it. Once the condition is taken back, the header
+   * runs again.
+   */
+  it('runs again once only the sort itself waits', async () => {
+    const { result, source, asked } = await waiting();
+
+    act(() => result.current.table.toggleSort('amount', { exclusive: true }));
+    act(() => result.current.runtime!.edit({ filter: applied(result).filter }));
+    act(() => result.current.table.toggleSort('amount', { exclusive: true }));
+
+    expect(applied(result).sort).toEqual([
+      { field: 'amount', direction: 'DESC' },
+    ]);
+    expect(applied(result).filter).toEqual({ op: 'and', children: [] });
+    await waitFor(() =>
+      expect(vi.mocked(source.paged).mock.calls.length).toBe(asked + 1),
+    );
   });
 });

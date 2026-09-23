@@ -110,6 +110,9 @@ export function recordTableController(
     loading: false,
     hasResult: true,
     sort: [],
+    // Settled: nothing waits for Apply, so the rows ran on the sort the
+    // draft holds — a suite that hands in a sort sees it on the headers.
+    ranSort: overrides.sort ?? [],
     sortOf: () => null,
     toggleSort: () => {},
     setSort: () => {},
@@ -190,6 +193,9 @@ export function twoColumnTable(
     loading: false,
     hasResult: true,
     sort: [],
+    // Settled: nothing waits for Apply, so the rows ran on the sort the
+    // draft holds — a suite that hands in a sort sees it on the headers.
+    ranSort: overrides.sort ?? [],
     sortOf: () => null,
     toggleSort: () => {},
     setSort: () => {},

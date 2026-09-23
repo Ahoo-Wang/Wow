@@ -336,11 +336,14 @@ export function RecordTable({
                   />
                 </TableHead>
               )}
+              {/* The arrows say the order the rows on screen are in — the
+                  sort that ran; a press held back while other edits wait
+                  for Apply shows on the Apply dot, not here. */}
               {columns.map(column => (
                 <SortableHeader
                   key={column.field}
                   column={column}
-                  sort={table.sort}
+                  sort={table.ranSort}
                   onToggle={table.toggleSort}
                   onResize={table.setColumnWidth}
                   pin={pins.columns.get(column.field)}

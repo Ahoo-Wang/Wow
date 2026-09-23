@@ -54,6 +54,7 @@ import type {
 } from '../record/index.js';
 import {
   hasResult,
+  pendingBesides,
   type QueryStatus,
   type RecordViewRuntime,
 } from '../runtime/index.js';
@@ -137,21 +138,41 @@ export interface RecordTableController {
    */
   hasResult: boolean;
 
+  /**
+   * The draft's sort: what the sort editor edits, and what the next header
+   * press cycles from.
+   */
   sort: RecordSort[];
+  /**
+   * The sort the rows on screen were fetched by — the config that ran, not
+   * the draft. The header's arrows and `aria-sort` say this one: while a
+   * sort waits for Apply, a header pointing down over rows that go up would
+   * be lying about them. Empty before anything has run.
+   */
+  ranSort: RecordSort[];
   sortOf(field: string): SortDirection | null;
   /**
-   * Ascending, then descending, then off. Applies at once, like a table does.
+   * Ascending, then descending, then off.
    *
    * By default the field joins the sort — a new one at the end, an existing
    * one in its place — so several columns may order the rows. With
    * `exclusive` the cycled field is the whole sort: what a plain click on a
-   * header means, where Shift is what adds. Both are one `edit` and one
-   * `apply`; imitating exclusivity with the additive form would spend one
-   * query per column being cleared.
+   * header means, where Shift is what adds. Both are one `edit` and at most
+   * one `apply`; imitating exclusivity with the additive form would spend
+   * one query per column being cleared.
+   *
+   * **It runs only when nothing else waits.** A press is about the order of
+   * the rows, so it applies at once as a table does — unless the draft holds
+   * another edit waiting for Apply, a range condition above all. Running
+   * then would apply that edit on the user's behalf; the sort joins it
+   * instead, the pending dot shows, and Apply runs the two together
+   * (`pendingBesides`, the rule the analysis header keeps).
    */
   toggleSort(field: string, options?: ToggleSortOptions): void;
   /**
-   * Replaces the whole sort, in priority order, and applies at once.
+   * Replaces the whole sort, in priority order — and runs under the same
+   * rule as `toggleSort`: at once when nothing else waits, otherwise with
+   * the edits waiting for Apply.
    *
    * `toggleSort` is one column's answer and can only append; an editor that
    * shows the sort as a list needs to say which field comes first, flip one
@@ -333,8 +354,9 @@ const NO_CARD_SPEC: RecordCardSpec = { title: '', fields: [] };
  * A record view as a table renders it, with no vendor types in sight.
  *
  * Rows and columns come from the last successful result rather than the draft,
- * because the kernel projected them from the config that ran. Changing sort or
- * columns therefore applies immediately; changing a filter waits for submit.
+ * because the kernel projected them from the config that ran. Changing columns
+ * therefore applies immediately, and so does a sort while nothing else waits
+ * (`toggleSort`); changing a filter waits for submit.
  */
 export function useRecordTable(
   runtime: RecordViewRuntime | null,
@@ -363,6 +385,8 @@ export function useRecordTable(
     () => (draft ? recordSort(draft.sort) : NO_SORT),
     [draft],
   );
+  const ran = state?.result?.own;
+  const ranSort = useMemo(() => (ran ? recordSort(ran.sort) : NO_SORT), [ran]);
   const tableColumns = useMemo(
     () => (draft ? recordColumns(draft.table?.columns) : NO_COLUMNS),
     [draft],
@@ -372,19 +396,33 @@ export function useRecordTable(
     [draft],
   );
 
+  // One sort write, from the header or the editor. The repairs a patch
+  // carries (`repairing`) are this write's own, so they are laid over both
+  // sides with the sort rather than counted as someone else's edit.
+  const sortNow = useCallback(
+    (sort: RecordSort[]) => {
+      if (!runtime) return;
+      const snapshot = runtime.getSnapshot();
+      const patch = repairing({ sort }, snapshot);
+      const others = pendingBesides(snapshot, patch);
+      runtime.edit(patch);
+      if (!others) runtime.apply();
+    },
+    [runtime],
+  );
+
   const toggleSort = useCallback(
     (field: string, options?: ToggleSortOptions) => {
       if (!runtime) return;
-      runtime.edit({
-        sort: cycledSort(
+      sortNow(
+        cycledSort(
           recordSort(runtime.getSnapshot().draft.sort),
           field,
           options?.exclusive ?? false,
         ),
-      });
-      runtime.apply();
+      );
     },
-    [runtime],
+    [runtime, sortNow],
   );
 
   const editAndApply = useCallback(
@@ -470,11 +508,9 @@ export function useRecordTable(
         sort.find(entry => entry.field === field)?.direction ?? null,
       [sort],
     ),
+    ranSort,
     toggleSort,
-    setSort: useCallback(
-      (sort: RecordSort[]) => editAndApply({ sort }),
-      [editAndApply],
-    ),
+    setSort: sortNow,
     // The kernel owns the rule; the controller only hands it on, so the
     // ceiling a control stops at is the one `validateRecord` refuses past.
     maxSortFields: definition ? maxSortFields(definition) : 0,

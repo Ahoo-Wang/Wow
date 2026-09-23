@@ -104,7 +104,7 @@ useRecordTable(runtime): RecordTableController
 - `hasResult`——这个视图**是否曾经拿到过结果**（`state.result != null`），哪怕它已经过期。它不是 `rows.length > 0`，也不是 `status === 'success'`：失败的刷新会留住它替换不掉的行并转为 `error`，匹配零行的成功结果则根本没有行。判断只有一处（`runtime/viewRuntime.ts` 的 `hasResult`），控制器、结果条件带与结果块问的是同一个函数。表格靠它区分"结果是空的"与"从来没有结果"——后者连列都没有，画出来是一格空表头加一个选不中任何东西的「选择全部行」（见 [ui/record.md](ui/record.md)）。
 - `hasAsked`——更宽的一问：**是否已经向数据源问过**——有结果、查询在途、或上一次失败。围着结果的那圈 chrome（结果条件带、分析结果的工具栏）从问出去那一刻就有真话可说，所以问的是它：只等有结果才画，它们会在第一批行落地时一起冒出来把结果推下去，第一次就失败时只剩一条失败。问出去的查询都已通过准入，所以此时的 `applied` 可以被描述、被投影。被拒而没跑的配置不算问过——那时说话的是状态行。`useFilterEditor().applied` 在没有结果时据此改读 `state.applied.filter`，`useAnalysisResult` 据此给出 `question` 与它的列（见 [ui/analysis.md](ui/analysis.md#结果的三种等待态加载失败没有组)）。
 
-改动配置的命令一律是一次 `edit` 加一次 `apply`，与既有的 `toggleSort`（`toggleSort(field, { exclusive })`：默认追加，`exclusive` 时这一列就是整份排序——表头平击走它，Shift 追加走默认）／`setColumns` 同一条路径：表格画的是内核按**执行时**的配置投影出来的列与行，不重跑就看不到改动（筛选则等提交）。列设置与排序控件（[ui/record.md](ui/record.md)）所需的那几条：
+改动配置的命令一律是一次 `edit` 加一次 `apply`，与 `setColumns` 同一条路径：表格画的是内核按**执行时**的配置投影出来的列与行，不重跑就看不到改动（筛选则等提交）。**排序是例外的一半**：`toggleSort(field, { exclusive })`（默认追加，`exclusive` 时这一列就是整份排序——表头平击走它，Shift 追加走默认）与 `setSort` 只在**草稿里没有别的待应用修改**时当场 `apply`；范围里还有没应用的条件（或别的待应用修改）时只写进草稿、并进待应用，「应用」一起跑——跑就替用户应用了那条修改，那不是排序这个手势的事。「别的」由 `runtime/pending.ts` 的 `pendingBesides(state, patch)` 判：把这次写入（连同 `repairing` 顺带的修复）同时放到草稿与已应用两边再 `comparePending`，所以先前被拦下、还没跑的排序不拦下一次——这一下正是替换它。与分析表头的 `sortNow` 同一条规矩（见 test/recordTableCommands.test.tsx「a sort never applies what else waits」）。`sort` 是草稿的排序（排序编辑器与下一次按表头从它算），`ranSort` 是**跑过的那份配置**的排序（表头的箭头与 `aria-sort` 读它，还没跑过时为空）。列设置与排序控件（[ui/record.md](ui/record.md)）所需的那几条：
 
 - `setColumnOrder(fields)`——按给定顺序重排草稿的列，**关掉的那些也在内**（它们有位置，正是这个位置让它们勾回来时回到原处，所以要整表重排就得连它们一起点名）。不是列的名字忽略，重复的名字只算一次（否则会落成同一字段的两列，`validateRecord` 随即拒绝），**没被点到名的列保留在末尾**：只了解表格一部分的控件（列设置的一个区域）不该因为没提到其余部分就把它们删掉；每一列按原样搬运，宽度与固定不会在下次保存时丢失；
 - `setLayout(layout)`——表格还是卡片。两种布局画的是同一份结果，所以平时只 `edit` 不 `apply`；但保存的布局已不在定义允许之列时，`apply` 在打开时就被拒、`refresh` 在有东西被准入之前是空操作，此时这个切换如果只 `edit`，屏幕修好了也还是空的——所以**什么都没跑过时**（`result === null` 且查询 `idle`）它顺带 `apply` 一次；
@@ -117,7 +117,7 @@ useRecordTable(runtime): RecordTableController
 - `paging`——分页条读的事实，全部出自内核（`record/paging.ts`）：跑过的那一页与**跑过的那个每页条数**、够得到的页数（声明了 `maxWindow` 时只数窗口里的）、`hasNext`、窗口截短总数时的 `reachable`。`pageSize` 是草稿里的那个，只给每页条数的选择器用；新每页条数还在路上时，分页条仍按旧的那一批算，不拿草稿去除结果的总数。`hasNext` 就是 `paging.hasNext`，`goTo` 越过够得到的最后一页时落在那一页（`clampPage`）；
 - `card`——卡片布局与列一样由内核投影（`projectRecord` 的 `card`），控制器不再自己对着定义解析一遍字段；`rowKey`／`fieldGroups` 由控制器转交，列设置不直接读定义；
 - `maxSortFields`——这个视图一次最多按几个字段排序：游标源取 Wow 的上限减一（查询以行键收尾，占掉一格），分页源取定义里字段的个数。规则在内核（`record/maxSortFields`），控制器只转交，所以"控件停在哪"与"内核从哪开始拒绝"是同一个数；
-- `setSort(sort)`——整份排序按优先级顺序替换。`toggleSort` 是单列的答案、只能往后追加，而把排序当作一张列表来编辑要能说清谁先谁后、翻转其中一条、删掉其中一条，三件事是同一次写入。（见 test/recordTableCommands.test.tsx）
+- `setSort(sort)`——整份排序按优先级顺序替换，跑不跑与 `toggleSort` 同一条规矩（上文）。`toggleSort` 是单列的答案、只能往后追加，而把排序当作一张列表来编辑要能说清谁先谁后、翻转其中一条、删掉其中一条，三件事是同一次写入。（见 test/recordTableCommands.test.tsx）
 
 ## useRecordDetail
 

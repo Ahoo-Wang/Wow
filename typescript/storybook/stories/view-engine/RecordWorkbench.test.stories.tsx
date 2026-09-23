@@ -259,6 +259,80 @@ export const WithData: Story = {
 };
 
 /**
+ * 表头排序不替人应用别的修改。
+ *
+ * 范围里删掉「状态」这条条件、还没按「应用」，这时按「订单号」表头：从前
+ * 这一下把整份草稿都跑了，删掉的条件跟着生效。现在排序只并进待应用——行
+ * 不动、表头的箭头仍说屏幕上这些行的次序（金额降序）、「应用」上亮起那颗
+ * 点——按「应用」时两件事一起跑：不止待出库的那几单，按订单号升序。
+ */
+export const HeaderSortWaitsForApply: Story = {
+  ...DisplayWithData,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    await waitFor(() =>
+      expect(readColumn(table, '订单号')).toEqual(PENDING_BY_AMOUNT),
+    );
+
+    await userEvent.click(
+      canvas.getByRole('button', {
+        name: new RegExp(`^${zhCN['label.filter.panel']}`),
+      }),
+    );
+    const apply = await canvas.findByRole('button', {
+      name: zhCN['label.filter.apply'],
+    });
+    await userEvent.click(
+      canvas.getByRole('button', {
+        name: say('label.filter.remove-of', { field: '状态' }),
+      }),
+    );
+    await waitFor(() =>
+      expect(apply.querySelector('[data-slot="pending-dot"]')).not.toBeNull(),
+    );
+
+    await userEvent.click(headerOf(table, '订单号').querySelector('button')!);
+
+    // Nothing ran: the same rows in the same order, and the headers still
+    // say that order rather than the one waiting.
+    await expect(readColumn(table, '订单号')).toEqual(PENDING_BY_AMOUNT);
+    await expect(headerOf(table, '金额')).toHaveAttribute(
+      'aria-sort',
+      'descending',
+    );
+    await expect(headerOf(table, '订单号')).not.toHaveAttribute('aria-sort');
+    // The sort control reads the draft: it says what Apply is about to run.
+    await expect(
+      canvas.getByRole('button', {
+        name: say('label.sort.button', {
+          field: '订单号',
+          direction: zhCN['label.sort.asc'],
+        }),
+      }),
+    ).toBeVisible();
+    await expect(
+      apply.querySelector('[data-slot="pending-dot"]'),
+    ).not.toBeNull();
+
+    // Apply runs the two together: the orders that are not pending are in,
+    // and every order is in its number's place.
+    await userEvent.click(apply);
+    await waitFor(() =>
+      expect(readColumn(table, '订单号')).toContain('SO-1002'),
+    );
+    const numbers = readColumn(table, '订单号');
+    await expect(numbers.length).toBeGreaterThan(PENDING_BY_AMOUNT.length);
+    await expect(numbers).toEqual([...numbers].sort());
+    await expect(headerOf(table, '订单号')).toHaveAttribute(
+      'aria-sort',
+      'ascending',
+    );
+    await expect(apply.querySelector('[data-slot="pending-dot"]')).toBeNull();
+  },
+};
+
+/**
  * The ruler between the blocks of the main column, the right way up.
  *
  * This workbench handed the shell a `className="gap-2"` and `cn` let it beat

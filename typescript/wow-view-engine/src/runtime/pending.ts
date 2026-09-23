@@ -35,7 +35,7 @@ import {
  * a control that edits without applying — the filter mode, the analysis
  * editor's groups, metrics, sort, limit and chart, which all wait for Run —
  * and a control that edits and applies whose apply was refused, because the
- * draft holds an error and `apply` does not land. The sort header, the page
+ * draft holds an error and `apply` does not land. The sort editor, the page
  * size and the column settings then read the draft while the rows are still
  * the last execution's.
  *
@@ -121,6 +121,28 @@ export function comparePending(
     if (!dequal(before, after)) count += 1;
   }
   return { pending: count > 0, count, conditions };
+}
+
+/**
+ * Whether the draft waits for apply on anything `patch` does not write.
+ *
+ * A control that edits one member and runs — a header's sort above all —
+ * may run only while nothing else waits: running applies the whole draft,
+ * and a condition still waiting in the range is not the control's to apply
+ * (todo 「记录视图按表头排序」; the analysis header's `sortNow`, #1807). The
+ * patch is laid over both sides before they are compared, so an edit to the
+ * same member that was held back earlier — which this one replaces — does
+ * not count as another.
+ */
+export function pendingBesides<C extends ViewConfig>(
+  state: { draft: C; applied: C; issues: readonly Issue[] },
+  patch: Partial<C>,
+): boolean {
+  return comparePending(
+    { ...state.draft, ...patch },
+    { ...state.applied, ...patch },
+    state.issues,
+  ).pending;
 }
 
 /**

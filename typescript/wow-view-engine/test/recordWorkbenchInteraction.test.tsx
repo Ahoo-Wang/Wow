@@ -186,6 +186,79 @@ describe('DataWorkbench interaction', () => {
   });
 
   /**
+   * A header press is about the order of the rows and nothing else. With a
+   * condition edited in the range and not applied, running would apply it
+   * on the user's behalf — so the sort joins it instead: nothing is asked,
+   * the header keeps saying the order the rows are in, the dot on Apply
+   * shows, and Apply runs the two together.
+   */
+  it('holds a header press back while a condition waits for Apply', async () => {
+    const { source } = await open();
+    await addConditions(['Warehouse']);
+    fireEvent.change(await screen.findByLabelText('Warehouse value'), {
+      target: { value: 'CN' },
+    });
+    const asked = vi.mocked(source.paged).mock.calls.length;
+    const apply = screen.getByRole('button', { name: /Apply/ });
+
+    fireEvent.click(screen.getByRole('button', { name: /Amount/ }));
+
+    expect(vi.mocked(source.paged).mock.calls).toHaveLength(asked);
+    expect(document.querySelectorAll('thead [aria-sort]')).toHaveLength(0);
+    // The sort control reads the draft: it says what Apply is about to run.
+    expect(
+      screen.getByRole('button', { name: 'Sort: Amount Ascending' }),
+    ).toBeDefined();
+    expect(apply.querySelector('[data-slot="pending-dot"]')).not.toBeNull();
+
+    fireEvent.click(apply);
+    await waitFor(() => {
+      const calls = vi.mocked(source.paged).mock.calls;
+      expect(calls).toHaveLength(asked + 1);
+      expect(calls[asked][0].filter).toMatchObject({
+        field: 'warehouse',
+        value: 'CN',
+      });
+      expect(calls[asked][0].sort?.[0]).toEqual({
+        field: 'amount',
+        direction: 'ASC',
+      });
+    });
+    await waitFor(() =>
+      expect(
+        document.querySelector('thead [aria-sort]')?.getAttribute('aria-sort'),
+      ).toBe('ascending'),
+    );
+  });
+
+  /**
+   * The cards have no headers; their one sort control is the toolbar's
+   * sort editor, and it keeps the same rule.
+   */
+  it('holds the card layout’s sort editor back the same way', async () => {
+    const user = userEvent.setup();
+    const { source } = await open();
+    fireEvent.click(screen.getByRole('button', { name: 'Cards' }));
+    await waitFor(() => expect(screen.queryByRole('table')).toBeNull());
+    await addConditions(['Warehouse']);
+    fireEvent.change(await screen.findByLabelText('Warehouse value'), {
+      target: { value: 'CN' },
+    });
+    const asked = vi.mocked(source.paged).mock.calls.length;
+
+    await user.click(screen.getByRole('button', { name: /^Sort/ }));
+    await user.click(screen.getByRole('button', { name: /Sort by a field/ }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Amount' }));
+
+    expect(vi.mocked(source.paged).mock.calls).toHaveLength(asked);
+    expect(
+      screen
+        .getByRole('button', { name: /Apply/ })
+        .querySelector('[data-slot="pending-dot"]'),
+    ).not.toBeNull();
+  });
+
+  /**
    * A view whose query matched nothing, which is what the empty state and
    * its one way out are drawn over. `open` waits for rows, so this waits
    * for the sentence that stands in their place.
