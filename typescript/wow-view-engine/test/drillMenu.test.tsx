@@ -19,6 +19,7 @@ import {
   cleanup,
   fireEvent,
   render,
+  renderHook,
   screen,
   waitFor,
   within,
@@ -39,13 +40,20 @@ import {
   defaultMessages,
 } from '../src/ui/index.js';
 import type { DataViewKind } from '../src/ui/index.js';
+import { groupText } from '../src/ui/analysis/DrillMenu.js';
+import { useViewMessages } from '../src/ui/MessagesProvider.js';
 import {
   analysisConfig,
   mine,
+  namedOrdersDefinition,
   ordersDefinition,
   testSource,
 } from './fixtures.js';
-import { openTray } from './fixtures/workbench.js';
+import {
+  analysisToggle,
+  editorToggle,
+  openTray,
+} from './fixtures/workbench.js';
 
 afterEach(cleanup);
 
@@ -90,25 +98,48 @@ function open(
     kinds?: readonly DataViewKind[];
     definition?: DataViewDefinition;
     source?: ViewSource;
+    instance?: ViewInstance;
   } = {},
 ) {
   const source = options.source ?? testSource();
+  const instance = options.instance ?? chart;
   const engine = new ViewEngine({
     definitions: [options.definition ?? ordersDefinition()],
     // A record view beside the analysis one, so the list holds both kinds.
-    store: new MemoryViewStore({ instances: [mine, chart] }),
+    store: new MemoryViewStore({ instances: [mine, instance] }),
     resolveSource: () => source,
   });
   render(
     <DataWorkbench
       engine={engine}
       definitionId="orders"
-      instanceId="orders-chart"
+      instanceId={instance.id}
       kinds={options.kinds ?? ['record', 'analysis']}
+      locale="en-GB"
     />,
   );
   return { engine, source };
 }
+
+/** The line under the title bar of a view opened out of another. */
+const originBar = () =>
+  waitFor(() => {
+    const found = document.querySelector<HTMLElement>(
+      '[data-slot="origin-bar"]',
+    );
+    if (!found) throw new Error('no origin bar');
+    return found;
+  });
+
+/** The band that says what the rows on screen were fetched under. */
+const appliedBar = () =>
+  waitFor(() => {
+    const found = document.querySelector<HTMLElement>(
+      '[data-slot="applied-bar"]',
+    );
+    if (!found) throw new Error('no applied bar');
+    return found;
+  });
 
 /** The analysis result's one data row: the group the user presses. */
 async function groupRow(): Promise<HTMLElement> {
@@ -192,29 +223,34 @@ describe('the follow-up menu on one group', () => {
     await waitFor(() => expect(document.activeElement).toBe(row));
   });
 
-  it('opens the records behind the group, held under its origin', async () => {
+  /**
+   * The records view says each thing once (2026-09-23 audit): its name is
+   * what it is, the definition's records of the group; the origin bar is
+   * the way back, naming the origin; the group's conditions are on the
+   * applied bar, with the editor folded rather than unfolded over them.
+   */
+  it('opens the records behind the group, named by what they are, the conditions said once', async () => {
     open();
     fireEvent.click(await groupRow());
     fireEvent.click(await item(defaultMessages['label.drill.records']));
 
-    // A record view, with the line that says where it came from and the way
-    // back to it.
-    const bar = await waitFor(() => {
-      const found = document.querySelector<HTMLElement>(
-        '[data-slot="origin-bar"]',
-      );
-      if (!found) throw new Error('no origin bar');
-      return found;
-    });
-    expect(within(bar).getByText('From By warehouse')).toBeDefined();
-    expect(
-      [...bar.querySelectorAll('[data-slot="origin-condition"]')].map(
-        badge => badge.textContent,
-      ),
-    ).toEqual(['Warehouse is CN']);
+    const bar = await originBar();
+    expect(bar.textContent).toBe('Back to By warehouse');
     expect(
       within(bar).getByRole('button', { name: 'Back to By warehouse' }),
     ).toBeDefined();
+    expect(
+      screen.getByRole('heading', {
+        level: 2,
+        name: 'Orders · Warehouse is CN',
+      }),
+    ).toBeDefined();
+    const applied = await appliedBar();
+    await waitFor(() =>
+      expect(within(applied).getByText('Warehouse is CN')).toBeDefined(),
+    );
+    expect(screen.getAllByText('Warehouse is CN')).toHaveLength(1);
+    expect(editorToggle().getAttribute('aria-expanded')).toBe('false');
     await waitFor(() => expect(menu()).toBeNull());
   });
 
@@ -237,36 +273,128 @@ describe('the follow-up menu on one group', () => {
     ).toBeDefined();
   });
 
-  it('narrows the analysis view to the group, and stays one', async () => {
+  /**
+   * 「只看这一组」 is a question of its own beside the one it came from
+   * (2026-09-23 audit): it used to write the group into this view's range
+   * and run, with no way back but undoing it by hand. Now the narrowed
+   * question opens as an unsaved view, named by what it is, with the same
+   * way back as the records — and going back is the result as it was, not
+   * a run.
+   */
+  it('asks the question of the group alone, beside this one, with the way back', async () => {
     const { engine, source } = open();
-    fireEvent.click(await groupRow());
+    const row = await groupRow();
+    const saved = analysisRuntime(engine);
+    fireEvent.click(row);
     fireEvent.click(await item(defaultMessages['label.drill.focus']));
 
-    // The condition is in force — asked for again, and said on the bar the
-    // rows on screen were fetched under.
+    // Asked once more — by the new view, not by this one.
     await waitFor(() => expect(source.aggregate).toHaveBeenCalledTimes(2));
-    const runtime = analysisRuntime(engine);
-    expect(appliedIn(runtime).filter).toEqual({
+    expect(saved.getSnapshot().dirty).toBe(false);
+    expect(appliedIn(saved).filter).toEqual({ op: 'and', children: [] });
+    const followed = engine
+      .openRuntimes()
+      .find(runtime => runtime !== saved && runtime.kind === 'analysis')!;
+    expect(appliedIn(followed).filter).toEqual({
       op: 'and',
       children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
     });
-    // Still an analysis view, still grouped as it was: only the range moved.
-    expect(runtime.kind).toBe('analysis');
-    expect(appliedIn(runtime).groups.map(group => group.field)).toEqual([
+    // Still grouped as it was: only the range moved.
+    expect(appliedIn(followed).groups.map(group => group.field)).toEqual([
       'warehouse',
     ]);
-    expect(document.querySelector('[data-slot="origin-bar"]')).toBeNull();
 
-    const bar = await waitFor(() => {
-      const found = document.querySelector<HTMLElement>(
-        '[data-slot="applied-bar"]',
-      );
-      if (!found) throw new Error('no applied bar');
-      return found;
-    });
+    // Named by what it is, the conditions on the applied bar alone, the tray
+    // folded, and the way back naming where it came from.
+    expect(
+      screen.getByRole('heading', {
+        level: 2,
+        name: 'By warehouse · Warehouse is CN',
+      }),
+    ).toBeDefined();
+    const applied = await appliedBar();
     await waitFor(() =>
-      expect(within(bar).getByText('Warehouse is CN')).toBeDefined(),
+      expect(within(applied).getByText('Warehouse is CN')).toBeDefined(),
     );
+    expect(analysisToggle().getAttribute('aria-expanded')).toBe('false');
+    const bar = await originBar();
+    expect(bar.textContent).toBe('Back to By warehouse');
+
+    fireEvent.click(
+      within(bar).getByRole('button', { name: 'Back to By warehouse' }),
+    );
+
+    // The result it came from, as it was: no run, nothing to save.
+    await waitFor(() =>
+      expect(document.querySelector('[data-slot="origin-bar"]')).toBeNull(),
+    );
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'By warehouse' }),
+    ).toBeDefined();
+    expect(source.aggregate).toHaveBeenCalledTimes(2);
+    expect(followed.disposed).toBe(true);
+    expect(saved.getSnapshot().dirty).toBe(false);
+  });
+
+  /**
+   * A date bucket reads as its column prints it (2026-09-23 audit): the
+   * heading used to be its condition, the two instants bounding the month
+   * written out in full. The records it opens are named the same way.
+   */
+  it('names a date bucket as the table reads it, not as the range behind it', async () => {
+    // Mid-month, so it is September on whichever clock the engine reads.
+    const month = Date.UTC(2026, 8, 15);
+    const monthly: ViewInstance = {
+      ...chart,
+      id: 'orders-monthly',
+      title: 'By month',
+      config: analysisConfig({
+        layout: 'table',
+        groups: [
+          {
+            alias: 'month',
+            field: 'createdAt',
+            type: 'DATE_HISTOGRAM',
+            unit: 'MONTH',
+          },
+        ],
+        table: { columns: [] },
+        chart: {
+          type: 'bar',
+          cartesian: { x: 'month', series: [{ metric: 'orders' }] },
+        },
+      }),
+    };
+    open({
+      definition: namedOrdersDefinition(),
+      instance: monthly,
+      source: testSource({
+        aggregate: vi.fn(() => Promise.resolve([{ month, orders: 2 }])),
+      }),
+    });
+    const bucket = new Intl.DateTimeFormat('en-GB', {
+      year: 'numeric',
+      month: 'long',
+      calendar: 'gregory',
+    }).format(month);
+
+    const row = (await groupRow()) as HTMLTableRowElement;
+    // The same words the table cell holds.
+    expect(row.cells[0]!.textContent).toBe(bucket);
+    fireEvent.click(row);
+    await waitFor(() => expect(menu()).not.toBeNull());
+    expect(
+      menu()!.querySelector('[data-slot="drill-group"]')!.textContent,
+    ).toBe(`Created in ${bucket}`);
+
+    fireEvent.click(await item(defaultMessages['label.drill.records']));
+    await originBar();
+    expect(
+      screen.getByRole('heading', {
+        level: 2,
+        name: `Orders · Created in ${bucket}`,
+      }),
+    ).toBeDefined();
   });
 
   it('splits the group by a dimension it is not grouped by already', async () => {
@@ -286,18 +414,44 @@ describe('the follow-up menu on one group', () => {
         .map(entry => entry.textContent),
     ).toEqual(['Status']);
 
+    const saved = analysisRuntime(engine);
     fireEvent.click(within(split).getByRole('menuitem', { name: 'Status' }));
 
     // The same question, of the group the user pressed, by the other
-    // dimension: one group, and the range narrowed to the row.
+    // dimension: one group, and the range narrowed to the row — asked as a
+    // view of its own beside this one, which stays as it ran (the user's
+    // 2026-09-23 ruling: all three follow-ups open beside).
     await waitFor(() => expect(source.aggregate).toHaveBeenCalledTimes(2));
-    const applied = appliedIn(analysisRuntime(engine));
+    const followed = engine
+      .openRuntimes()
+      .find(runtime => runtime !== saved && runtime.kind === 'analysis')!;
+    const applied = appliedIn(followed);
     expect(applied.groups.map(group => group.field)).toEqual(['status']);
     expect(applied.filter).toEqual({
       op: 'and',
       children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
     });
     await waitFor(() => expect(menu()).toBeNull());
+    expect(saved.getSnapshot().dirty).toBe(false);
+    expect(appliedIn(saved).groups.map(group => group.field)).toEqual([
+      'warehouse',
+    ]);
+    expect(
+      screen.getByRole('heading', {
+        level: 2,
+        name: 'By warehouse · Warehouse is CN',
+      }),
+    ).toBeDefined();
+
+    // Back is the result it came from, without a run.
+    const bar = await originBar();
+    fireEvent.click(within(bar).getByRole('button'));
+    await waitFor(() =>
+      expect(document.querySelector('[data-slot="origin-bar"]')).toBeNull(),
+    );
+    expect(source.aggregate).toHaveBeenCalledTimes(2);
+    expect(followed.disposed).toBe(true);
+    expect(analysisRuntime(engine)).toBe(saved);
   });
 
   /**
@@ -374,5 +528,56 @@ describe('the follow-up menu on one group', () => {
     // replaces it, and what that measures is `FollowUpMenuFitsItsWords`.
     expect(menu()!.className).toMatch(/\bw-auto\b/);
     expect(menu()!.className).not.toContain('w-(--anchor-width)');
+  });
+
+  /**
+   * The one reading `groupText` adds to the applied bar's: a bucket as its
+   * column prints it. A week is printed as the day it starts, so the words
+   * say it is a week; a bucket with no key — the sentinel — has no date to
+   * print and reads as its condition, as any other dimension does.
+   */
+  it('reads a week as a week, and a keyless bucket as its condition', () => {
+    const messages = renderHook(() => useViewMessages()).result.current;
+    const display = { locale: 'en-GB', timeZone: 'UTC' };
+    const column = {
+      alias: 'week',
+      label: 'Created',
+      role: 'group' as const,
+      dateUnit: 'WEEK' as const,
+    };
+    const conditions = [
+      {
+        path: [0],
+        text: 'Created is empty',
+        unresolved: false,
+        field: 'createdAt',
+        label: 'Created',
+        operator: 'IS_NULL' as const,
+      },
+    ];
+    const start = Date.UTC(2026, 8, 21);
+    const day = new Intl.DateTimeFormat('en-GB', {
+      dateStyle: 'medium',
+      timeZone: 'UTC',
+    }).format(start);
+
+    expect(
+      groupText({ column, value: start, conditions }, messages, display),
+    ).toBe(`Created in the week of ${day}`);
+    const keyless = groupText(
+      { column, value: null, conditions },
+      messages,
+      display,
+    );
+    expect(keyless).not.toContain('week');
+    expect(keyless.startsWith('Created')).toBe(true);
+    // A dimension no column was drawn for reads as its conditions too.
+    expect(
+      groupText(
+        { column: undefined, value: start, conditions },
+        messages,
+        display,
+      ),
+    ).toBe(keyless);
   });
 });

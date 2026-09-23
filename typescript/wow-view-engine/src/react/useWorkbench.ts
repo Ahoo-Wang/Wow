@@ -91,9 +91,9 @@ export interface WorkbenchOptions {
    * first save, and the config it starts from. Left out, the workbench
    * offers no new view — the engine refuses a view with no title, and the
    * title is wording, which this layer does not carry. `/ui` passes its
-   * catalogue's word; a host's own template goes in `templates`. A drilled
-   * view opens under the same name, so without this there is no drilling
-   * either.
+   * catalogue's word; a host's own template goes in `templates`. A view
+   * opened out of another is named by whoever opens it (`drill`, `follow`),
+   * so this has no say there.
    */
   newView?: NewViewOptions;
   /**
@@ -125,6 +125,8 @@ export interface ViewOrigin {
 export interface DrillTarget {
   definitionId: string;
   origin: ViewOrigin;
+  /** The name the records open under, as the caller of `drill` gave it. */
+  title: string;
   /** The record view: the origin's filter plus the row's, default columns. */
   config: RecordViewConfig;
   /** The origin's injected scope, which the drilled view inherits (H4). */
@@ -144,8 +146,8 @@ export interface HeldView {
   origin: ViewOrigin | null;
   /**
    * The held view the origin itself was, when it was one: drilling out of an
-   * unsaved analysis view must not let that view go, so going back puts it
-   * back as it was held.
+   * unsaved analysis view — or out of a group already followed — must not
+   * let that view go, so going back puts it back as it was held.
    */
   from: HeldView | null;
 }
@@ -197,15 +199,14 @@ export interface WorkbenchController {
   create(kind: ViewKind): void;
   /**
    * The view the workbench holds instead of opening by id, if any: one made
-   * from nothing, or one drilled out of another. Its `origin` is what the
-   * "from" line reads.
+   * from nothing, or one opened out of another (`drill`, `follow`). Its
+   * `origin` is what the "from" line reads.
    */
   held: HeldView | null;
   /**
    * Whether a row of the open analysis view can open the records behind it
-   * (H2): the workbench draws record views, the definition has them, and a
-   * new view has a name to open under. The drill gesture exists on this and
-   * on nothing else.
+   * (H2): the workbench draws record views and the definition has them.
+   * The drill gesture exists on this and on nothing else.
    */
   canDrill: boolean;
   /**
@@ -213,14 +214,34 @@ export interface WorkbenchController {
    * record view under the origin's conditions plus `conditions`, held with
    * its origin so the way back is on screen (D20). The origin stays open
    * with the result it was drilled on, so going back shows that result
-   * rather than running it again. Through the leave guard, like any switch.
-   * Does nothing while `canDrill` is false.
+   * rather than running it again. Nothing is left behind, so the leave guard
+   * is not asked. Does nothing while `canDrill` is false.
+   *
+   * `title` is what the records open under until they are saved — wording,
+   * which this layer does not carry, so the caller says it: `/ui` names them
+   * by what they are, the definition's records of that group (D20 追问).
    */
-  drill(conditions: readonly FilterNode[]): void;
+  drill(conditions: readonly FilterNode[], title: string): void;
+  /**
+   * Opens `config` as a view of its own, held with the open view as its
+   * origin: the follow-up that narrows an analysis to one group (D20 追问
+   * 「只看这一组」) is a new question beside the one it came from, not an
+   * edit that writes over it. The origin stays open with its result, so
+   * `back()` shows that result again without running it; the view opened is
+   * unsaved, named `title`, under the origin's injected scope, and saving it
+   * is a first save like any new view's. `conditions` are what the follow-up
+   * added, kept on the origin for whoever reads it. The origin keeps its
+   * draft, so the leave guard is not asked.
+   */
+  follow(
+    config: ViewConfig,
+    title: string,
+    conditions: readonly FilterNode[],
+  ): void;
   /**
    * Returns to the held view's origin, through the leave guard: an untouched
-   * drilled view goes without a question, one the user shaped is asked
-   * about. Does nothing while nothing held has an origin.
+   * view opened out of another goes without a question, one the user shaped
+   * is asked about. Does nothing while nothing held has an origin.
    */
   back(): void;
   opened: OpenViewState;
@@ -443,64 +464,82 @@ export function useWorkbench(
     [blanks, title, request, engine, definitionId, hold],
   );
 
-  // Drilling needs a record view to open, a place to draw it, and a name.
-  // Not a permission: the drilled view is looked at, not written (H1).
+  // Opens `config` beside the view on screen, which becomes its origin: kept
+  // open with its result, so going back shows that result without a run.
+  // Not a permission: a view opened this way is looked at, not written (H1);
+  // its first save asks, as a new view's does. It inherits the origin's
+  // scope as it is — the page's narrowing is not the view's to widen (H4).
+  //
+  // Not through the leave guard either: nothing is left. The origin keeps
+  // its draft and its pending write, held or opened by id, and `back()`
+  // returns to both — asking "leave without saving?" here would name a loss
+  // that does not happen.
+  const holdFrom = useCallback(
+    (
+      config: ViewConfig,
+      viewTitle: string,
+      conditions: readonly FilterNode[],
+    ) => {
+      if (!runtime || !state) return;
+      const made = engine.create(definitionId, {
+        title: viewTitle,
+        scope: 'personal',
+        config,
+        scopeFilter: runtime.scopeFilter,
+      }) as unknown as AnyViewRuntime;
+      hold({
+        runtime: made,
+        draft: made.getSnapshot().draft,
+        origin: { runtime, title: state.title, conditions },
+        from: heldRef.current,
+      });
+    },
+    [runtime, state, engine, definitionId, hold],
+  );
+
+  // Drilling needs a record view to open and a place to draw it.
   const canDrill =
     runtime?.kind === 'analysis' &&
     kinds.includes('record') &&
     definition?.kind === 'data' &&
-    definition.record !== undefined &&
-    title !== undefined;
+    definition.record !== undefined;
   const drill = useCallback(
-    (conditions: readonly FilterNode[]) => {
+    (conditions: readonly FilterNode[], viewTitle: string) => {
       if (
         !canDrill ||
         !runtime ||
         !state ||
         !definition ||
-        definition.kind !== 'data' ||
-        title === undefined
+        definition.kind !== 'data'
       )
         return;
       // Under what ran, not what is being typed: the row came from the
-      // applied conditions, and the origin's scope is inherited as it is —
-      // the page's narrowing is not the view's to widen (H4).
+      // applied conditions.
       const config: RecordViewConfig = {
         ...defaultRecordConfig(definition, engine.limits),
         filter: drillFilter(state.applied.filter, conditions),
       };
-      const scopeFilter = runtime.scopeFilter;
-      const origin: ViewOrigin = { runtime, title: state.title, conditions };
       if (onDrilldown) {
-        onDrilldown({ definitionId, origin, config, scopeFilter });
+        onDrilldown({
+          definitionId,
+          origin: { runtime, title: state.title, conditions },
+          title: viewTitle,
+          config,
+          scopeFilter: runtime.scopeFilter,
+        });
         return;
       }
-      request(() => {
-        const made = engine.create(definitionId, {
-          title,
-          scope: 'personal',
-          config,
-          scopeFilter,
-        }) as unknown as AnyViewRuntime;
-        hold({
-          runtime: made,
-          draft: made.getSnapshot().draft,
-          origin,
-          from: heldRef.current,
-        });
-      });
+      holdFrom(config, viewTitle, conditions);
     },
     [
       canDrill,
       runtime,
       state,
       definition,
-      title,
       engine,
       definitionId,
       onDrilldown,
-      request,
-      hold,
+      holdFrom,
     ],
   );
   const back = useCallback(() => {
@@ -544,6 +583,7 @@ export function useWorkbench(
     held,
     canDrill,
     drill,
+    follow: holdFrom,
     back,
     opened,
     runtime,

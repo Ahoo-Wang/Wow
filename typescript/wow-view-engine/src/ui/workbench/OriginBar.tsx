@@ -12,21 +12,20 @@
  */
 
 import { ArrowLeftIcon } from 'lucide-react';
-import { describeFilter } from '../../filter/index.js';
 import type { ViewOrigin } from '../../react/index.js';
 import { Button } from '../components/button.js';
 import { TEXT_UI } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
-import { summaryText } from '../summary.js';
-import { WrappingBadge } from '../variants.js';
-import { useSurfaceDisplay } from '../ViewSurface.js';
 
 /**
  * The line under the title bar of a view opened from another (D20): the way
- * back, and where this one came from — the origin's name and the conditions
- * the drill added, in the applied bar's own badges. It is the workbench's
- * fact rather than the view's, so the shell draws it from `workbench.held`
- * and no kind's parts know it exists.
+ * back, which names where this one came from — once. It used to say the
+ * origin's name twice (「返回 X · 来自 X」) and the conditions the follow-up
+ * added a third time beside the applied bar and the editor (2026-09-23
+ * audit); the conditions are the applied bar's, which is where every view
+ * says what its rows were fetched under, and the view's own name says which
+ * group it is. It is the workbench's fact rather than the view's, so the
+ * shell draws it from `workbench.held` and no kind's parts know it exists.
  */
 export function OriginBar({
   origin,
@@ -36,37 +35,17 @@ export function OriginBar({
   onBack(): void;
 }) {
   const messages = useViewMessages();
-  const display = useSurfaceDisplay();
-  // Described by the origin, whose fields these conditions name, and in the
-  // words the applied bar would use for them.
-  const items = describeFilter(
-    origin.runtime.fields,
-    { op: 'and', children: [...origin.conditions] },
-    origin.runtime.kinds,
-  );
   return (
     <div
       data-slot="origin-bar"
       role="region"
-      aria-label={messages.label('label.origin.from', { title: origin.title })}
+      aria-label={messages.label('label.origin.region')}
       className={`flex flex-wrap items-center gap-2 ${TEXT_UI}`}
     >
       <Button variant="outline" size="xs" onClick={onBack}>
         <ArrowLeftIcon />
         {messages.label('label.origin.back', { title: origin.title })}
       </Button>
-      <span className="text-muted-foreground">
-        {messages.label('label.origin.from', { title: origin.title })}
-      </span>
-      {items.map(item => (
-        <WrappingBadge
-          key={item.path.join('.')}
-          variant="secondary"
-          data-slot="origin-condition"
-        >
-          {summaryText(item, messages, display)}
-        </WrappingBadge>
-      ))}
     </div>
   );
 }

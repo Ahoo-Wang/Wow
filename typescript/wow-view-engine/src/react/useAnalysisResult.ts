@@ -14,7 +14,7 @@
 import { useEffect, useMemo } from 'react';
 import {
   CHART_PICKER_ORDER,
-  drillConditions,
+  drillGroups,
   fitChartSlots,
   fitCharts,
   focusOn,
@@ -26,6 +26,7 @@ import {
   splitBy,
   switchChartType,
   withStagesFrom,
+  type AnalysisColumnView,
   type AnalysisView,
   type ChartData,
   type ChartFit,
@@ -57,17 +58,49 @@ export interface SplitOption {
  * and one more entry in `followUp`, not another pair of props on the menu.
  */
 export type FollowUpAction =
-  /** Open the records behind the group, in a record view of their own. */
-  | { kind: 'records'; run(): void }
-  /** Ask the same question of the group, by one more dimension. */
-  | { kind: 'split'; options: readonly SplitOption[]; run(field: string): void }
-  /** Narrow the range to the group, and run. */
-  | { kind: 'focus'; run(): void };
+  /**
+   * Open the records behind the group, in a record view of their own. The
+   * view is named `title`: wording, so the menu says it — of `subject`, the
+   * definition's name for its records, and the group.
+   */
+  | { kind: 'records'; subject: string; run(title: string): void }
+  /**
+   * Ask the same question of the group by another dimension, as a view of
+   * its own beside this one (`WorkbenchController.follow`), as `focus`
+   * does. Named `title`, of `subject` — this view's name — and the group.
+   */
+  | {
+      kind: 'split';
+      subject: string;
+      options: readonly SplitOption[];
+      run(field: string, title: string): void;
+    }
+  /**
+   * Ask the same question of the group alone, as a view of its own beside
+   * this one (`WorkbenchController.follow`), so the way back is this result
+   * as it stands. Named `title`, of `subject` — this view's name — and the
+   * group.
+   */
+  | { kind: 'focus'; subject: string; run(title: string): void };
+
+/** One dimension of the group pressed, for the menu to name it by. */
+export interface FollowUpGroup {
+  /**
+   * The dimension's column in the result — its header and how its values
+   * read, a date bucket's width among them — or undefined where the result
+   * drew none.
+   */
+  column: AnalysisColumnView | undefined;
+  /** The row's value in that column: a key, a bucket's start. */
+  value: unknown;
+  /** The conditions that select it, as the applied bar names them. */
+  conditions: readonly FilterSummaryItem[];
+}
 
 /** What the menu over one pressed group shows. */
 export interface FollowUp {
-  /** The group, named by its conditions as the applied bar names them. */
-  conditions: readonly FilterSummaryItem[];
+  /** The group, one dimension each, in the order the result is grouped. */
+  groups: readonly FollowUpGroup[];
   actions: readonly FollowUpAction[];
 }
 
@@ -129,7 +162,10 @@ export interface AnalysisResultController {
 export function useAnalysisResult(
   runtime: ViewRuntime<AnalysisViewConfig> | null,
   analysis: AnalysisEditorController,
-  workbench: Pick<WorkbenchController, 'state' | 'canDrill' | 'drill'>,
+  workbench: Pick<
+    WorkbenchController,
+    'state' | 'canDrill' | 'drill' | 'follow'
+  >,
 ): AnalysisResultController {
   const result = workbench.state?.result;
   const data = result?.data;
@@ -257,17 +293,18 @@ export function useAnalysisResult(
 
   const followUp = (row: RecordData): FollowUp | null => {
     if (!pickable || !ran || !runtime) return null;
-    const conditions = drillConditions(
-      ran,
-      runtime.fields,
-      runtime.kinds,
-      row,
-      { timeZone: runtime.environment.timeZone },
-    );
-    if (!conditions) return null;
+    const drilled = drillGroups(ran, runtime.fields, runtime.kinds, row, {
+      timeZone: runtime.environment.timeZone,
+    });
+    if (!drilled) return null;
+    const conditions = drilled.flatMap(entry => entry.conditions);
     const actions: FollowUpAction[] = [];
     if (workbench.canDrill)
-      actions.push({ kind: 'records', run: () => workbench.drill(conditions) });
+      actions.push({
+        kind: 'records',
+        subject: runtime.definition.title,
+        run: title => workbench.drill(conditions, title),
+      });
     // Groupable fields the result is not already grouped by — the list the
     // tray adds a dimension from (`groupableFields`) — read off the config
     // that ran, for the reason the conditions are.
@@ -275,25 +312,54 @@ export function useAnalysisResult(
       analysis.fields,
       ran.groups,
     ).map(option => ({ field: option.field, label: option.label }));
+    // Both open beside this view: the question that ran, drawn as the screen
+    // draws it — the layout and the chart are the draft's, and nothing else
+    // the draft holds is applied by a gesture that did not ask for it.
+    const drawn: AnalysisViewConfig = {
+      ...ran,
+      layout: analysis.layout,
+      chart,
+    };
+    const subject = workbench.state?.title ?? '';
     if (options.length > 0)
       actions.push({
         kind: 'split',
+        subject,
         options,
-        run: name => split(runtime, analysis, ran, conditions, name, moments),
+        run: (name, title) => {
+          const patch = split(
+            runtime,
+            analysis,
+            drawn,
+            conditions,
+            name,
+            moments,
+          );
+          if (patch)
+            workbench.follow({ ...drawn, ...patch }, title, conditions);
+        },
       });
     actions.push({
       kind: 'focus',
-      run: () => {
-        runtime.edit(focusOn(ran, conditions));
-        runtime.apply();
-      },
+      subject,
+      run: title =>
+        workbench.follow(
+          { ...drawn, ...focusOn(ran, conditions) },
+          title,
+          conditions,
+        ),
     });
+    const columns = view?.schema ?? view?.columns ?? [];
     return {
-      conditions: describeFilter(
-        runtime.fields,
-        { op: 'and', children: conditions },
-        runtime.kinds,
-      ),
+      groups: drilled.map(entry => ({
+        column: columns.find(column => column.alias === entry.group.alias),
+        value: entry.value,
+        conditions: describeFilter(
+          runtime.fields,
+          { op: 'and', children: entry.conditions },
+          runtime.kinds,
+        ),
+      })),
       actions,
     };
   };
@@ -352,26 +418,28 @@ function drawableType(
   return types.find(type => fits[type].recommended) ?? types[0];
 }
 
+/**
+ * The patch that asks `config` of the group by the field named, or null
+ * where the field is not one to split by. The chart's slots follow the new
+ * shape; the metrics do not change, so neither do the moments among them.
+ */
 function split(
   runtime: ViewRuntime<AnalysisViewConfig>,
   analysis: AnalysisEditorController,
-  ran: AnalysisViewConfig,
+  config: AnalysisViewConfig,
   conditions: readonly FilterNode[],
   name: string,
   moments: ReadonlySet<string>,
-): void {
+): ReturnType<typeof splitBy> | null {
   const field = runtime.fields.find(entry => entry.name === name);
   const option = analysis.fields.find(entry => entry.field === name);
-  if (!field || !option) return;
-  runtime.edit(
-    splitBy(
-      ran,
-      conditions,
-      groupFor(field, option, runtime.kinds.get(field.kind)),
-      moments,
-    ),
+  if (!field || !option) return null;
+  return splitBy(
+    config,
+    conditions,
+    groupFor(field, option, runtime.kinds.get(field.kind)),
+    moments,
   );
-  runtime.apply();
 }
 
 /**

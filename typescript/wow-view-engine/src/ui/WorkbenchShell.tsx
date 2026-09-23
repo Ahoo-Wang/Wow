@@ -391,7 +391,12 @@ export function WorkbenchShell({
   const resetKeys = [runtime?.id ?? null];
   const editorIsOpen = useEditorFold({
     controlled: editorOpen,
-    fallback: defaultEditorOpen ?? state?.saved === null,
+    // A new view opens with its editor out, since there is nothing in it yet
+    // — but not one opened from another's group: its conditions are what it
+    // was opened with, the applied bar says them, and an editor unfolded
+    // over them says them twice more (2026-09-23 audit).
+    fallback:
+      defaultEditorOpen ?? (state?.saved === null && !workbench.held?.origin),
     runtimeId: runtime?.id ?? null,
     onChange: onEditorOpenChange,
   });
@@ -559,8 +564,8 @@ export function WorkbenchShell({
               />
 
               {/* Where this view came from, when it was opened out of another
-                (D20): the way back and the origin's name, under the title
-                bar and before anything the view says about itself. The
+                (D20): the way back, naming the origin, under the title bar
+                and before anything the view says about itself. The
                 workbench holds it; no kind's parts know it exists. */}
               {workbench.held?.origin && (
                 <OriginBar

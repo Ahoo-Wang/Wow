@@ -44,6 +44,9 @@ const chart: ViewInstance = {
 /** The row the user pressed: the warehouse bar. */
 const ROW: FilterNode[] = [{ field: 'warehouse', operator: 'EQ', value: 'CN' }];
 
+/** What the caller names the records: `/ui` says it, this layer carries it. */
+const TITLE = 'Orders · Warehouse is CN';
+
 const readOnly = (): ViewPermissions => ({
   createPersonal: false,
   createShared: false,
@@ -82,14 +85,15 @@ describe('drilling from an analysis view', () => {
     const origin = result.current.runtime!;
 
     act(() => {
-      result.current.drill(ROW);
+      result.current.drill(ROW, TITLE);
     });
 
     // A record view, unsaved, under the origin's conditions plus the row's,
     // flattened into one simple group.
     expect(result.current.runtime?.kind).toBe('record');
     expect(result.current.state?.saved).toBeNull();
-    expect(result.current.state?.title).toBe('Untitled view');
+    // Named as the caller named it, not as a view made from nothing.
+    expect(result.current.state?.title).toBe(TITLE);
     expect(result.current.state?.draft.filter).toEqual({
       op: 'and',
       children: [{ field: 'status', operator: 'EQ', value: 'PENDING' }, ...ROW],
@@ -115,7 +119,7 @@ describe('drilling from an analysis view', () => {
     const ran = vi.mocked(source.aggregate).mock.calls.length;
 
     act(() => {
-      result.current.drill(ROW);
+      result.current.drill(ROW, TITLE);
     });
     const drilled = result.current.runtime!;
     act(() => {
@@ -142,7 +146,7 @@ describe('drilling from an analysis view', () => {
     });
 
     act(() => {
-      result.current.drill(ROW);
+      result.current.drill(ROW, TITLE);
     });
 
     expect(result.current.runtime?.scopeFilter).toEqual(scope);
@@ -156,12 +160,12 @@ describe('drilling from an analysis view', () => {
     // ...but the records behind a row are only looked at.
     expect(result.current.canDrill).toBe(true);
     act(() => {
-      result.current.drill(ROW);
+      result.current.drill(ROW, TITLE);
     });
     expect(result.current.runtime?.kind).toBe('record');
   });
 
-  it('is not on offer from a record view, without record views, or without a name', async () => {
+  it('is not on offer from a record view or without record views', async () => {
     const fromRecord = setup({ instanceId: 'orders-1' });
     await waitFor(() =>
       expect(fromRecord.result.current.runtime?.kind).toBe('record'),
@@ -174,15 +178,18 @@ describe('drilling from an analysis view', () => {
     );
     expect(analysisOnly.result.current.canDrill).toBe(false);
 
+    act(() => {
+      analysisOnly.result.current.drill(ROW, TITLE);
+    });
+    expect(analysisOnly.result.current.runtime?.kind).toBe('analysis');
+
+    // The name is the caller's, so a workbench that offers no view made from
+    // nothing still drills.
     const unnamed = setup({ newView: undefined });
     await waitFor(() =>
       expect(unnamed.result.current.runtime?.kind).toBe('analysis'),
     );
-    expect(unnamed.result.current.canDrill).toBe(false);
-    act(() => {
-      unnamed.result.current.drill(ROW);
-    });
-    expect(unnamed.result.current.runtime?.kind).toBe('analysis');
+    expect(unnamed.result.current.canDrill).toBe(true);
   });
 
   it('hands the target to a host that takes drilling over, and holds nothing (H5)', async () => {
@@ -191,13 +198,14 @@ describe('drilling from an analysis view', () => {
     await waitFor(() => expect(result.current.runtime?.kind).toBe('analysis'));
 
     act(() => {
-      result.current.drill(ROW);
+      result.current.drill(ROW, TITLE);
     });
 
     expect(onDrilldown).toHaveBeenCalledTimes(1);
     expect(onDrilldown.mock.calls[0][0]).toMatchObject({
       definitionId: 'orders',
       origin: { title: 'By warehouse', conditions: ROW },
+      title: TITLE,
       config: { kind: 'record' },
       scopeFilter: null,
     });
@@ -215,7 +223,7 @@ describe('drilling from an analysis view', () => {
     expect(result.current.state?.saved).toBeNull();
 
     act(() => {
-      result.current.drill(ROW);
+      result.current.drill(ROW, TITLE);
     });
     expect(result.current.runtime?.kind).toBe('record');
     expect(unsaved.disposed).toBe(false);
@@ -231,7 +239,7 @@ describe('drilling from an analysis view', () => {
     const { result } = setup();
     await waitFor(() => expect(result.current.runtime?.kind).toBe('analysis'));
     act(() => {
-      result.current.drill(ROW);
+      result.current.drill(ROW, TITLE);
     });
     act(() => {
       result.current.back();
@@ -240,7 +248,7 @@ describe('drilling from an analysis view', () => {
     expect(result.current.runtime?.kind).toBe('analysis');
 
     act(() => {
-      result.current.drill(ROW);
+      result.current.drill(ROW, TITLE);
     });
     act(() => {
       result.current.runtime!.edit({ pageSize: 7 });
@@ -264,7 +272,7 @@ describe('drilling from an analysis view', () => {
     });
     const unsaved = result.current.runtime!;
     act(() => {
-      result.current.drill(ROW);
+      result.current.drill(ROW, TITLE);
     });
     const drilled = result.current.runtime!;
 
@@ -272,5 +280,194 @@ describe('drilling from an analysis view', () => {
 
     expect(unsaved.disposed).toBe(true);
     expect(drilled.disposed).toBe(true);
+  });
+});
+
+describe('following a group into a view of its own', () => {
+  /** The origin's config, narrowed to the row, as the result would pass it. */
+  const focused = () => ({
+    ...chart.config,
+    filter: {
+      op: 'and' as const,
+      children: [
+        { field: 'status', operator: 'EQ' as const, value: 'PENDING' },
+        ...ROW,
+      ],
+    },
+  });
+  const NARROWED = 'By warehouse · Warehouse is CN';
+
+  it('opens the config as a held view beside its origin, named as asked', async () => {
+    const { result } = setup();
+    await waitFor(() => expect(result.current.runtime?.kind).toBe('analysis'));
+    const origin = result.current.runtime!;
+
+    act(() => {
+      result.current.follow(focused(), NARROWED, ROW);
+    });
+
+    // A new analysis view, unsaved, not the saved one written over.
+    expect(result.current.runtime).not.toBe(origin);
+    expect(result.current.runtime?.kind).toBe('analysis');
+    expect(result.current.state?.saved).toBeNull();
+    expect(result.current.state?.title).toBe(NARROWED);
+    expect(result.current.state?.draft.filter).toEqual(focused().filter);
+    expect(result.current.held?.origin).toMatchObject({
+      runtime: origin,
+      title: 'By warehouse',
+      conditions: ROW,
+    });
+    // The saved view is as it was: nothing to save, nothing to revert.
+    expect(origin.getSnapshot().dirty).toBe(false);
+    expect(origin.disposed).toBe(false);
+  });
+
+  it('goes back to the result it came from, without running it again', async () => {
+    const { result, source } = setup();
+    await waitFor(() =>
+      expect(result.current.state?.query.status).toBe('success'),
+    );
+    const origin = result.current.runtime!;
+    const before = origin.getSnapshot().result;
+
+    act(() => {
+      result.current.follow(focused(), NARROWED, ROW);
+    });
+    // The narrowed question runs, once, as its own view.
+    await waitFor(() =>
+      expect(result.current.state?.query.status).toBe('success'),
+    );
+    const ran = vi.mocked(source.aggregate).mock.calls.length;
+    const followed = result.current.runtime!;
+
+    act(() => {
+      result.current.back();
+    });
+
+    expect(result.current.runtime).toBe(origin);
+    expect(result.current.held).toBeNull();
+    expect(origin.getSnapshot().result).toBe(before);
+    expect(vi.mocked(source.aggregate).mock.calls.length).toBe(ran);
+    expect(followed.disposed).toBe(true);
+  });
+
+  it('chains: records drilled from a followed group go back to it, and it to the saved view', async () => {
+    const { result } = setup();
+    await waitFor(() => expect(result.current.runtime?.kind).toBe('analysis'));
+    const saved = result.current.runtime!;
+    act(() => {
+      result.current.follow(focused(), NARROWED, ROW);
+    });
+    const followed = result.current.runtime!;
+
+    act(() => {
+      result.current.drill(ROW, TITLE);
+    });
+    expect(result.current.runtime?.kind).toBe('record');
+    expect(result.current.held?.origin?.title).toBe(NARROWED);
+
+    act(() => {
+      result.current.back();
+    });
+    expect(result.current.runtime).toBe(followed);
+    expect(followed.disposed).toBe(false);
+    act(() => {
+      result.current.back();
+    });
+    expect(result.current.runtime).toBe(saved);
+  });
+
+  it('chains a split after a focus, and steps back one question at a time', async () => {
+    const { result, source } = setup();
+    await waitFor(() =>
+      expect(result.current.state?.query.status).toBe('success'),
+    );
+    const saved = result.current.runtime!;
+    act(() => {
+      result.current.follow(focused(), NARROWED, ROW);
+    });
+    await waitFor(() =>
+      expect(result.current.state?.query.status).toBe('success'),
+    );
+    const narrowed = result.current.runtime!;
+    const narrowedResult = narrowed.getSnapshot().result;
+
+    // A second follow-up of the group already narrowed to. This fixture
+    // offers one dimension, so the question it asks is the split's shape —
+    // a new config handed over whole — rather than a split's dimension;
+    // which config a follow-up builds is `useAnalysisResult`'s to test.
+    const byStatus = { ...focused(), limit: 5, sort: [] };
+    act(() => {
+      result.current.follow(byStatus, `${NARROWED} · by status`, ROW);
+    });
+    expect(result.current.held?.origin?.runtime).toBe(narrowed);
+    await waitFor(() =>
+      expect(result.current.state?.query.status).toBe('success'),
+    );
+    const ran = vi.mocked(source.aggregate).mock.calls.length;
+
+    act(() => {
+      result.current.back();
+    });
+    expect(result.current.runtime).toBe(narrowed);
+    expect(narrowed.getSnapshot().result).toBe(narrowedResult);
+    act(() => {
+      result.current.back();
+    });
+    expect(result.current.runtime).toBe(saved);
+    expect(result.current.held).toBeNull();
+    expect(vi.mocked(source.aggregate).mock.calls.length).toBe(ran);
+    expect(saved.getSnapshot().dirty).toBe(false);
+  });
+
+  it('leaves nothing behind, so asks nothing: the origin keeps its unsaved edits', async () => {
+    const { result } = setup();
+    await waitFor(() => expect(result.current.runtime?.kind).toBe('analysis'));
+    const origin = result.current.runtime!;
+    act(() => {
+      origin.edit({ limit: 7 });
+    });
+    const edited = origin.getSnapshot().draft;
+
+    act(() => {
+      result.current.follow(focused(), NARROWED, ROW);
+    });
+    expect(result.current.leave.asking).toBe(false);
+    expect(result.current.state?.title).toBe(NARROWED);
+
+    act(() => {
+      result.current.drill(ROW, TITLE);
+    });
+    expect(result.current.leave.asking).toBe(false);
+    expect(result.current.runtime?.kind).toBe('record');
+
+    act(() => {
+      result.current.back();
+    });
+    act(() => {
+      result.current.back();
+    });
+    expect(result.current.runtime).toBe(origin);
+    expect(origin.getSnapshot().draft).toBe(edited);
+    expect(origin.getSnapshot().dirty).toBe(true);
+  });
+
+  it('inherits the scope the origin ran under, and needs no permission', async () => {
+    const { result } = setup({}, readOnly);
+    await waitFor(() => expect(result.current.runtime?.kind).toBe('analysis'));
+    const scope: FilterTree = {
+      op: 'and',
+      children: [{ field: 'warehouse', operator: 'NE', value: 'XX' }],
+    };
+    act(() => {
+      result.current.runtime!.setScopeFilter(scope);
+    });
+
+    act(() => {
+      result.current.follow(focused(), NARROWED, ROW);
+    });
+
+    expect(result.current.state?.title).toBe(NARROWED);
+    expect(result.current.runtime?.scopeFilter).toEqual(scope);
   });
 });

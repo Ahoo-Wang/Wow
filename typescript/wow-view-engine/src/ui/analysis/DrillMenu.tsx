@@ -14,7 +14,7 @@
 import { CrosshairIcon, ListTreeIcon, TableIcon } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import type { RecordData } from '../../model/index.js';
-import type { FollowUp } from '../../react/index.js';
+import type { FollowUp, FollowUpGroup } from '../../react/index.js';
 import {
   DropdownMenu,
   DropdownMenuGroup,
@@ -24,7 +24,11 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '../components/dropdown-menu.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { columnTitle, displayValue, type DisplayContext } from '../display.js';
+import {
+  useViewMessages,
+  type MessageFormatters,
+} from '../MessagesProvider.js';
 import { DropdownMenuContent, DropdownMenuSubContent } from '../popups.js';
 import { summaryText } from '../summary.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
@@ -54,9 +58,10 @@ export interface DrillMenuProps {
 
 /**
  * The follow-up menu on one group of an analysis result (D20 追问): see the
- * records behind it, ask the same question by another dimension, or narrow
- * the range to it. The first opens another view — which is why it wears a
- * "from" line and a way back — and the other two are edits to this one.
+ * records behind it, ask the same question by another dimension, or ask it
+ * of this group alone. Each opens a view of its own beside this one — which
+ * is why each wears a way back, and is named by what it is, 「{what} · {the
+ * group}」 — and none edits this one.
  *
  * It has no trigger of its own: a chart mark or a table row opens it and
  * hands over what to anchor to, so one menu serves every layout and every
@@ -74,6 +79,13 @@ export function DrillMenu({ pick, onClose, followUp }: DrillMenuProps) {
   useEffect(() => {
     if (pick) back.current = pick.origin ?? null;
   }, [pick]);
+  // The group pressed, in words: the menu's heading, and the second half of
+  // the name a view opened from it goes by.
+  const group = (followUp?.groups ?? [])
+    .map(entry => groupText(entry, messages, display))
+    .join(' · ');
+  const titled = (subject: string) =>
+    messages.label('label.drill.titled', { subject, group });
   return (
     <DropdownMenu
       open={pick !== null}
@@ -108,11 +120,7 @@ export function DrillMenu({ pick, onClose, followUp }: DrillMenuProps) {
               what it labels, every item under it being about this one group,
               and a reader entering the group hears the conditions rather than
               nothing. Outside it Base UI has no group to label and throws. */}
-          <DropdownMenuLabel data-slot="drill-group">
-            {(followUp?.conditions ?? [])
-              .map(item => summaryText(item, messages, display))
-              .join(' · ')}
-          </DropdownMenuLabel>
+          <DropdownMenuLabel data-slot="drill-group">{group}</DropdownMenuLabel>
           {followUp?.actions.map(action => {
             // Every follow-up is run, then the menu goes: it is about a
             // group of a result that the action is about to replace.
@@ -125,7 +133,10 @@ export function DrillMenu({ pick, onClose, followUp }: DrillMenuProps) {
             switch (action.kind) {
               case 'records':
                 return (
-                  <DropdownMenuItem key="records" onClick={done(action.run)}>
+                  <DropdownMenuItem
+                    key="records"
+                    onClick={done(() => action.run(titled(action.subject)))}
+                  >
                     <TableIcon />
                     {messages.label('label.drill.records')}
                   </DropdownMenuItem>
@@ -141,7 +152,9 @@ export function DrillMenu({ pick, onClose, followUp }: DrillMenuProps) {
                       {action.options.map(option => (
                         <DropdownMenuItem
                           key={option.field}
-                          onClick={done(() => action.run(option.field))}
+                          onClick={done(() =>
+                            action.run(option.field, titled(action.subject)),
+                          )}
                         >
                           {option.label}
                         </DropdownMenuItem>
@@ -151,7 +164,10 @@ export function DrillMenu({ pick, onClose, followUp }: DrillMenuProps) {
                 );
               case 'focus':
                 return (
-                  <DropdownMenuItem key="focus" onClick={done(action.run)}>
+                  <DropdownMenuItem
+                    key="focus"
+                    onClick={done(() => action.run(titled(action.subject)))}
+                  >
                     <CrosshairIcon />
                     {messages.label('label.drill.focus')}
                   </DropdownMenuItem>
@@ -162,6 +178,39 @@ export function DrillMenu({ pick, onClose, followUp }: DrillMenuProps) {
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+/**
+ * One dimension of the group pressed, as the result reads it (2026-09-23
+ * audit). A date bucket is its value the way its axis and its table column
+ * print it — 「创建时间 在 2026年9月」 — through the table's own
+ * `displayValue`: its conditions are the two instants bounding the bucket,
+ * a long range nobody pressed. A week says it is one, since its value is
+ * only the day it starts. Every other dimension is its conditions in the
+ * applied bar's words: a value (「仓库 属于 华南」), a band of numbers, or no
+ * value at all — the bucket's sentinel, which is how a date bucket with no
+ * key reads too.
+ */
+export function groupText(
+  entry: FollowUpGroup,
+  messages: MessageFormatters,
+  display: DisplayContext,
+): string {
+  const { column } = entry;
+  const bucket =
+    column?.dateUnit === undefined
+      ? undefined
+      : displayValue(entry.value, column, display);
+  if (column !== undefined && bucket !== undefined)
+    return messages.label(
+      column.dateUnit === 'WEEK'
+        ? 'label.drill.bucket-week'
+        : 'label.drill.bucket',
+      { field: columnTitle(column, messages), bucket },
+    );
+  return entry.conditions
+    .map(item => summaryText(item, messages, display))
+    .join(' · ');
 }
 
 /** The point a pointer event happened at, as something a menu can anchor to. */

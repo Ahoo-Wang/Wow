@@ -156,7 +156,7 @@ src/
     formula.ts                — Formulas and derived metrics (D20 屏 B): their first shapes, `expressionText`／`derivedText` as the author would say them, `isFormula`
     chartFamilies.ts          — What a chart family is, one row each: its options pages, legend and value labels, and the shapes it can draw — the forward reading of `validateChart`, held to it by a test over every shape
     chartOptions.ts           — The rules behind the visualization panel's second level: which pages a type has, a slot swap, one-choice stacking and smoothing, and a funnel's stage order from the rows (D20 屏 J)
-    drill.ts                  — One result row back into the conditions that select its records: `bucketRange` (the inverse of date bucketing, K1), `drillConditions`, and the two follow-ups that stay in the view, `focusOn` and `splitBy`; hands out conditions and config patches only (K6)
+    drill.ts                  — One result row back into the conditions that select its records: `bucketRange` (the inverse of date bucketing, K1), `drillConditions` and the same by dimension (`drillGroups`), and the two follow-ups' patches, `focusOn` and `splitBy`; hands out conditions and config patches only (K6)
     expand.ts                 — The config re-scoped to an expansion chain (D20 屏 G): `withElements` keeps what still names the new unit's fields and starts the metrics again otherwise; `withLevel`, `withoutLevelsFrom`, `nextExpansion`
     granularity.ts            — The granularity a new time dimension starts at (K4): `recommendDateUnit` from the applied range's span (`rangeSpan`) or the result's buckets (`resultSpan`)
     having.ts                 — 「只保留」 as rows of one comparison each: `havingRows` reads a conjunction, `withHavingRows` writes it, any other shape is declined rather than flattened
@@ -233,7 +233,7 @@ src/
     recordDraft.ts            — The draft's lists as a control may read them; the controller is the boundary
     recordSelection.ts        — Shift ranges over the rows on screen: `toggledSelection` (the range goes the way the pressed row goes), the anchor and the page of which question it stands on (`RowsMark`, `standingAnchor`)
     useAnalysisEditor.ts      — Analysis controller
-    useAnalysisResult.ts      — The analysis result as a host draws it: the rows that ran, the chart over them, the picker's fits, and the follow-ups on a pressed group
+    useAnalysisResult.ts      — The analysis result as a host draws it: the rows that ran, the chart over them, the picker's fits, and the follow-ups on a pressed group — the group by dimension, and what each follow-up opens
     analysisEditing.ts        — The edits to the question as plain functions over the draft (`questionEditing`): dimensions, metrics, conditions, copies, formulas, derived metrics, having
     useAutoRefresh.ts         — `RefreshController`: refresh now, the cadence ladder cut to the limits, the countdown
     useBulkCommand.ts         — A host's command for one record run over a selection: a few at a time, progress, stop, each refusal's reason, the unfinished rows left selected
@@ -344,7 +344,7 @@ src/
       ElementsSlot.tsx        — The expansion slot (D20 屏 G): the chain of arrays counted inside, one card a level with its own gate, 「展开：…」 along the declared chain, and the counting unit
       FormulaCard.tsx         — The controls of a formula metric and of a derived metric (D20 屏 B): two operands picked or typed, the operation between, the summary for a formula
       HavingRows.tsx          — 「只保留」: the groups kept, as rows of one comparison each under the metrics; a stored having of another shape is shown and clearable
-      DrillMenu.tsx           — The follow-up menu on one group of a result: the records behind it, split by another dimension, only this group (D20 追问); as wide as its words, hung from the mark, point or cell pressed, the keyboard handed back to the row
+      DrillMenu.tsx           — The follow-up menu on one group of a result: the records behind it, split by another dimension, only this group (D20 追问); headed by the group as the result reads it (`groupText`: a date bucket as its column prints it), naming what it opens 「{what} · {group}」; as wide as its words, hung from the mark, point or cell pressed, the keyboard handed back to the row
       EmptyResult.tsx         — An aggregation that matched no group, one sentence for both layouts
       MetricCard.tsx          — The metrics slot and its cards: field and summary (the six ways Wow measures a field as one list), a percentile's number, the record count
       MetricCondition.tsx     — Conditions edited in place under a tray card (D20 屏 H): the funnel, the block of the range's own pills, the 「只算 …」 line at rest; a metric's and an expansion level's
@@ -464,7 +464,7 @@ src/
       NewView.tsx             — The "new view" command drawn as a press or as a menu of the kinds, in the sidebar, the empty work area and the switcher (D20 Ⅱ)
       NoViews.tsx             — The work area when the definition has no view of these kinds yet
       OpeningSkeleton.tsx     — The shape of the page that is opening: title-bar and result-block skeletons, one status sentence (P-13)
-      OriginBar.tsx           — The "from" line under the title bar of a drilled view: the way back, the origin's name and the conditions the drill added (D20)
+      OriginBar.tsx           — The line under the title bar of a view opened from another's group: the way back, which names the origin once (D20)
       RecordParts.tsx         — What makes a record view a record view: the condition band, the toolbar, the rows and the paging, handed to the shell as slots
       ResultBlock.tsx         — The result and its caption on the one bordered frame (D12); `ShellResult` fills it with the toolbar, the strip and the result, each half behind its own boundary
       parts.ts                — `WorkbenchParts`, the slice of the shell's slots a kind fills, and the render prop it fills them through

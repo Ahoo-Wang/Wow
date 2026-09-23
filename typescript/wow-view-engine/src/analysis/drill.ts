@@ -184,17 +184,46 @@ export function drillConditions(
   row: RecordData,
   context: DrillContext,
 ): FilterNode[] | null {
+  return (
+    drillGroups(config, fields, kinds, row, context)?.flatMap(
+      drilled => drilled.conditions,
+    ) ?? null
+  );
+}
+
+/** One dimension of a pressed row, and the conditions that select it. */
+export interface DrilledGroup {
+  group: AnalysisGroup;
+  /** The row's value under the group's alias: a key, a bucket's start. */
+  value: unknown;
+  conditions: FilterLeaf[];
+}
+
+/**
+ * `drillConditions`, dimension by dimension, in the config's order: what a
+ * menu names the group pressed by, where one dimension may read better as
+ * its value than as its conditions — a month is 「2026年9月」, not the two
+ * instants that bound it.
+ */
+export function drillGroups(
+  config: AnalysisViewConfig,
+  fields: readonly FieldDefinition[],
+  kinds: FieldKindRegistry,
+  row: RecordData,
+  context: DrillContext,
+): DrilledGroup[] | null {
   if (config.elements && config.elements.length > 0) return null;
   const byName = new Map(fields.map(field => [field.name, field]));
-  const leaves: FilterLeaf[] = [];
+  const drilled: DrilledGroup[] = [];
   for (const group of config.groups) {
     const field = byName.get(group.field);
     if (!field) return null;
-    const made = conditionsOf(group, row[group.alias], field, kinds, context);
-    if (made === null) return null;
-    leaves.push(...made);
+    const value = row[group.alias];
+    const conditions = conditionsOf(group, value, field, kinds, context);
+    if (conditions === null) return null;
+    drilled.push({ group, value, conditions });
   }
-  return leaves;
+  return drilled;
 }
 
 function conditionsOf(
@@ -289,11 +318,11 @@ export function drillFilter(
 }
 
 /**
- * The two follow-up questions that stay in the analysis view (D20 追问):
- * "only this group" narrows the range to the row, "split by" narrows it and
- * asks the same question by another dimension. Both are edits to the view's
- * own config, so they land as a patch the runtime applies — undoable,
- * savable, and marked as a change like any other.
+ * The two follow-up questions that stay analyses (D20 追问): "only this
+ * group" narrows the range to the row, "split by" narrows it and asks the
+ * same question by another dimension. Each is a patch over the config that
+ * ran; the workbench opens the patched config as a view of its own beside
+ * the one pressed, which it leaves as it was.
  */
 export function focusOn(
   config: AnalysisViewConfig,

@@ -81,6 +81,7 @@ async function opened(canDrill = true) {
     resolveSource: () => source,
   });
   const drill = vi.fn();
+  const follow = vi.fn();
   const hook = renderHook(() => {
     const open = useOpenView(engine, 'orders-1');
     const runtime = open.runtime as ViewRuntime<AnalysisViewConfig> | null;
@@ -89,11 +90,16 @@ async function opened(canDrill = true) {
     return {
       runtime,
       analysis,
-      result: useAnalysisResult(runtime, analysis, { state, canDrill, drill }),
+      result: useAnalysisResult(runtime, analysis, {
+        state,
+        canDrill,
+        drill,
+        follow,
+      }),
     };
   });
   await waitFor(() => expect(hook.result.current.result.view).not.toBeNull());
-  return { ...hook, source, drill };
+  return { ...hook, source, drill, follow };
 }
 
 describe('useAnalysisResult', () => {
@@ -103,6 +109,7 @@ describe('useAnalysisResult', () => {
         state: null,
         canDrill: true,
         drill: () => {},
+        follow: () => {},
       }),
     );
     expect(result.current.view).toBeNull();
@@ -122,8 +129,25 @@ describe('useAnalysisResult', () => {
       'split',
       'focus',
     ]);
-    // Named as the applied bar names it: one condition, on the warehouse.
-    expect(followUp?.conditions).toHaveLength(1);
+    // Named dimension by dimension: the warehouse's column, the row's value
+    // under it, and its one condition as the applied bar names it.
+    expect(followUp?.groups).toHaveLength(1);
+    expect(followUp?.groups[0]).toMatchObject({
+      column: { alias: 'warehouse', role: 'group' },
+      value: 'CN',
+    });
+    expect(followUp?.groups[0].conditions.map(item => item.text)).toHaveLength(
+      1,
+    );
+    // What the two views a follow-up opens are of: the definition's records,
+    // and this view.
+    expect(
+      followUp?.actions.map(action => [action.kind, action.subject]),
+    ).toEqual([
+      ['records', 'Orders'],
+      ['split', 'By warehouse'],
+      ['focus', 'By warehouse'],
+    ]);
     // A split is by a field the result is not grouped by already.
     const split = followUp?.actions.find(action => action.kind === 'split');
     const fields =
@@ -140,41 +164,64 @@ describe('useAnalysisResult', () => {
     ).toEqual(['split', 'focus']);
   });
 
-  it('opens the records, narrows to the group, or splits it — each a run of its own', async () => {
-    const { result, source, drill } = await opened();
+  it('opens the records, follows the group, or splits it', async () => {
+    const { result, source, drill, follow } = await opened();
     const actions = result.current.result.followUp({
       warehouse: 'CN',
     })!.actions;
     const run = (kind: string, field?: string) => {
       const action = actions.find(entry => entry.kind === kind)!;
-      if (action.kind === 'split') action.run(field ?? action.options[0].field);
-      else action.run();
+      if (action.kind === 'split')
+        action.run(field ?? action.options[0].field, `named ${kind}`);
+      else action.run(`named ${kind}`);
     };
+    const row = [expect.objectContaining({ field: 'warehouse' })];
 
     run('records');
-    expect(drill).toHaveBeenCalledWith([
-      expect.objectContaining({ field: 'warehouse' }),
-    ]);
+    expect(drill).toHaveBeenCalledWith(row, 'named records');
 
+    // Only this group: the question that ran, narrowed, handed to the
+    // workbench as a view of its own — this one is neither edited nor run.
     const before = vi.mocked(source.aggregate).mock.calls.length;
     run('focus');
-    await waitFor(() =>
-      expect(vi.mocked(source.aggregate).mock.calls.length).toBe(before + 1),
-    );
-    expect(
-      JSON.stringify(result.current.runtime?.getSnapshot().applied.filter),
-    ).toContain('warehouse');
+    expect(follow).toHaveBeenCalledTimes(1);
+    const [config, title, conditions] = follow.mock.calls[0];
+    expect(title).toBe('named focus');
+    expect(conditions).toEqual(row);
+    expect(config).toMatchObject({
+      kind: 'analysis',
+      groups: [expect.objectContaining({ field: 'warehouse' })],
+      layout: result.current.analysis.layout,
+      filter: { op: 'and', children: row },
+    });
+    expect(result.current.runtime?.getSnapshot().dirty).toBe(false);
+    expect(vi.mocked(source.aggregate).mock.calls.length).toBe(before);
 
+    // Split: the group narrowed to, asked again by the dimension chosen —
+    // beside this view too, which stays as it ran.
     run('split');
-    await waitFor(() =>
-      expect(vi.mocked(source.aggregate).mock.calls.length).toBe(before + 2),
-    );
-    // The group narrowed to, and asked again by the dimension chosen.
+    expect(follow).toHaveBeenCalledTimes(2);
+    const [split, splitTitle, splitConditions] = follow.mock.calls[1];
+    expect(splitTitle).toBe('named split');
+    expect(splitConditions).toEqual(row);
+    expect(split).toMatchObject({
+      kind: 'analysis',
+      groups: [expect.objectContaining({ field: 'status' })],
+      filter: { op: 'and', children: row },
+      sort: [],
+    });
+    expect(result.current.runtime?.getSnapshot().dirty).toBe(false);
     expect(
       result.current.runtime
         ?.getSnapshot()
         .applied.groups.map(group => group.field),
-    ).toEqual(['status']);
+    ).toEqual(['warehouse']);
+    expect(vi.mocked(source.aggregate).mock.calls.length).toBe(before);
+
+    // A field that is no dimension here opens nothing.
+    const offer = actions.find(entry => entry.kind === 'split')!;
+    if (offer.kind === 'split') offer.run('nowhere', 'named nothing');
+    expect(follow).toHaveBeenCalledTimes(2);
   });
 
   it('redraws for a type picked, and never runs for it', async () => {
@@ -234,6 +281,7 @@ describe('useAnalysisResult', () => {
           state,
           canDrill: true,
           drill: vi.fn(),
+          follow: vi.fn(),
         }),
       };
     });
@@ -283,6 +331,7 @@ describe('useAnalysisResult', () => {
           state,
           canDrill: true,
           drill: vi.fn(),
+          follow: vi.fn(),
         }),
       };
     });
@@ -379,6 +428,7 @@ describe('useAnalysisResult', () => {
             state,
             canDrill: true,
             drill: vi.fn(),
+            follow: vi.fn(),
           }),
         };
       });

@@ -16,6 +16,7 @@ import {
   bucketRange,
   drillConditions,
   drillFilter,
+  drillGroups,
   focusOn,
   groupFor,
   splitBy,
@@ -326,6 +327,62 @@ describe('drillConditions', () => {
         FIELDS,
         builtinFieldKinds,
         { ghost: 'x' },
+        context,
+      ),
+    ).toBeNull();
+  });
+});
+
+describe('drillGroups', () => {
+  /**
+   * The same conditions, kept by the dimension they came from: a menu names
+   * the group pressed one dimension at a time, and a bucket reads better as
+   * its value than as the two instants that bound it.
+   */
+  it('keeps each dimension with its value and its own conditions', () => {
+    const config = analysisConfig({
+      groups: [
+        { alias: 'warehouse', field: 'warehouse', type: 'TERMS' },
+        { alias: 'band', field: 'amount', type: 'HISTOGRAM', interval: 500 },
+      ],
+    });
+    const row = { warehouse: 'CN', band: 1000 };
+    const drilled = drillGroups(
+      config,
+      FIELDS,
+      builtinFieldKinds,
+      row,
+      context,
+    );
+    expect(
+      drilled?.map(entry => [entry.group.alias, entry.value, entry.conditions]),
+    ).toEqual([
+      [
+        'warehouse',
+        'CN',
+        [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+      ],
+      [
+        'band',
+        1000,
+        [
+          { field: 'amount', operator: 'GTE', value: 1000 },
+          { field: 'amount', operator: 'LT', value: 1500 },
+        ],
+      ],
+    ]);
+    // Flattened, they are `drillConditions` exactly.
+    expect(drilled?.flatMap(entry => entry.conditions)).toEqual(
+      drillConditions(config, FIELDS, builtinFieldKinds, row, context),
+    );
+    expect(
+      drillGroups(
+        analysisConfig({
+          groups: [{ alias: 'gone', field: 'nowhere', type: 'TERMS' }],
+        }),
+        FIELDS,
+        builtinFieldKinds,
+        row,
         context,
       ),
     ).toBeNull();

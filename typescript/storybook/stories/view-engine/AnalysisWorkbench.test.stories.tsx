@@ -493,22 +493,67 @@ const drillMenu = () =>
     return found;
   });
 
-/** 下钻出来的视图头上那条「返回／来自」。 */
+/** 从一组开出来的视图头上那条「返回 X」。 */
 const originBar = () =>
   waitFor(() => {
     const found = document.body.querySelector<HTMLElement>(
       '[data-slot="origin-bar"]',
     );
-    if (!found) throw new Error('没有「来自」那一条');
+    if (!found) throw new Error('没有「返回」那一条');
     return found;
   });
 
-const FROM = formatMessage(zhCN, 'label.origin.from', {
-  title: '仓库金额分布',
-});
+/**
+ * 从一组开出来的视图每件事只说一遍（2026-09-23 审查）：标题说它是什么，
+ * 「返回」那条说从哪来、怎么回去，这一组的条件只在「正在显示」那条上，
+ * 编辑器收着。从前来源的名字说两遍（「返回 X · 来自 X」），条件说三遍——
+ * 「来自」那条、「正在显示」那条、再加上自动展开的编辑器。
+ */
+async function saysEachThingOnce(
+  canvasElement: HTMLElement,
+  title: string,
+  condition: string,
+) {
+  const line = await originBar();
+  await expect(line).toHaveTextContent(new RegExp(`^${BACK}$`));
+  await expect(
+    within(canvasElement).getByRole('heading', { level: 2, name: title }),
+  ).toBeVisible();
+  await waitFor(() =>
+    expect(
+      within(appliedBar(canvasElement)).getByText(condition),
+    ).toBeVisible(),
+  );
+  // 屏幕上除了标题里那一次，条件只在「正在显示」那条上出现。
+  await expect(
+    within(canvasElement)
+      .getAllByText(condition)
+      .filter(found => found.closest('h2') === null),
+  ).toHaveLength(1);
+  await expect(
+    canvasElement.querySelector(
+      '[data-slot="editor-toggle"] [aria-expanded="true"]',
+    ),
+  ).toBeNull();
+  return line;
+}
+
 const BACK = formatMessage(zhCN, 'label.origin.back', {
   title: '仓库金额分布',
 });
+
+/** 按下的那一组，用菜单标题与「正在显示」那条共用的词说出来。 */
+const SOUTH = `仓库 ${zhCN['label.operator.IN']} 华南`;
+
+/** 从一组开出来的视图叫什么：「{是什么} · {这一组}」。 */
+const titled = (subject: string, group: string) =>
+  formatMessage(zhCN, 'label.drill.titled', { subject, group });
+
+/** 「正在显示」那条：结果的行是在哪些条件下取来的。 */
+const appliedBar = (canvasElement: HTMLElement) =>
+  within(canvasElement).getByRole('region', {
+    name: zhCN['label.applied.title'],
+  });
 
 /**
  * 追问（D20 Ⅳ）：按下一根柱子，弹出这一组的三项。
@@ -517,9 +562,10 @@ const BACK = formatMessage(zhCN, 'label.origin.back', {
  * 的点击打开的，而不是被某个按钮打开的；标题是这一组的条件，用的是「正在显示」
  * 那条用的同一套词。
  *
- * 「查看这些记录」在同一个工作台里开出一个未保存的记录视图：标题栏下多一条
- * 「返回 仓库金额分布 · 来自 仓库金额分布 · 仓库 属于 华南」，下面是华南那两单。
- * 按「返回」回到原来那次聚合结果——图还在，没有重跑。
+ * 「查看这些记录」在同一个工作台里开出一个未保存的记录视图，叫「订单 · 仓库
+ * 属于 华南」——它是订单里华南那一组；标题栏下一颗「返回 仓库金额分布」，条件
+ * 只在「正在显示」那条上，编辑器收着；下面是华南那两单。按「返回」回到原来
+ * 那次聚合结果——图还在，没有重跑。
  */
 export const FollowUpToRecords: Story = {
   ...DisplayFollowUps,
@@ -532,9 +578,7 @@ export const FollowUpToRecords: Story = {
     pressMark(bars(canvasElement)[2]!);
 
     const menu = await drillMenu();
-    await expect(
-      within(menu).getByText(`仓库 ${zhCN['label.operator.IN']} 华南`),
-    ).toBeVisible();
+    await expect(within(menu).getByText(SOUTH)).toBeVisible();
     await expect(
       within(menu)
         .getAllByRole('menuitem')
@@ -551,32 +595,28 @@ export const FollowUpToRecords: Story = {
       }),
     );
 
-    const line = await originBar();
-    await expect(within(line).getByText(FROM)).toBeVisible();
-    await expect(
-      within(line).getByRole('button', { name: BACK }),
-    ).toBeVisible();
-    await expect(
-      [...line.querySelectorAll('[data-slot="origin-condition"]')].map(
-        badge => badge.textContent,
-      ),
-    ).toEqual([`仓库 ${zhCN['label.operator.IN']} 华南`]);
-
     // 记录视图，不是聚合：华南的两单，按明细列出来。
     const table = await findDataTable(canvasElement);
     await waitFor(() =>
       expect(readColumn(table, '订单号')).toEqual(['SO-1004', 'SO-1005']),
     );
+    const line = await saysEachThingOnce(
+      canvasElement,
+      titled('订单', SOUTH),
+      SOUTH,
+    );
+    const ran = aggregateCalls.current;
 
     await userEvent.click(within(line).getByRole('button', { name: BACK }));
 
     await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
     await expect(
       canvas.getByRole('heading', { level: 2, name: '仓库金额分布' }),
-    ).toBeVisible();
+    ).not.toHaveAttribute('data-dirty');
     await expect(
       document.body.querySelector('[data-slot="origin-bar"]'),
     ).toBeNull();
+    await expect(aggregateCalls.current).toBe(ran);
   },
 };
 
@@ -584,14 +624,17 @@ export const FollowUpToRecords: Story = {
  * 同一个菜单，从一枚扇区上弹出来——图表家族换了，手势没换。
  *
  * 这个工作台只列分析视图，所以没有「查看这些记录」：下钻开出来的是记录视图，
- * 开不出来的地方就不摆这一项。「只看这一组」改的是当前这个视图：条件进范围、
- * 立刻重跑，「正在显示」那条随即说出它。
+ * 开不出来的地方就不摆这一项。「只看这一组」是同一个问题只问这一组，开在
+ * 原来那个旁边（2026-09-23 审查）：一个未保存的分析视图，叫「仓库金额分布 ·
+ * 仓库 属于 华南」，图上只剩华南，和「查看这些记录」一样有一颗「返回」——
+ * 按下去是原来那次结果，四个仓库都在，不重跑，原来那个视图也没被改脏。
  */
 export const FollowUpFocus: Story = {
   ...DisplayPieChart,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await waitFor(() => expect(slices(canvasElement)).toHaveLength(3));
+    const before = slices(canvasElement).map(slice => slice.name);
 
     await chartsDrawn(canvasElement);
     pressMark(slicesInOrder(canvasElement)[0]!);
@@ -607,18 +650,71 @@ export const FollowUpFocus: Story = {
       within(menu).getByRole('menuitem', { name: zhCN['label.drill.focus'] }),
     );
 
-    // 范围里多了这一组，图上只剩它自己。
-    const applied = canvas.getByRole('region', {
-      name: zhCN['label.applied.title'],
-    });
-    await waitFor(() =>
-      expect(
-        within(applied).getByText(`仓库 ${zhCN['label.operator.IN']} 华南`),
-      ).toBeVisible(),
-    );
+    // 图上只剩这一组；它是一个自己的视图，每件事只说一遍。
     await waitFor(() =>
       expect(slices(canvasElement).map(slice => slice.name)).toEqual(['华南']),
     );
+    const line = await saysEachThingOnce(
+      canvasElement,
+      titled('仓库金额分布', SOUTH),
+      SOUTH,
+    );
+    const ran = aggregateCalls.current;
+
+    await userEvent.click(within(line).getByRole('button', { name: BACK }));
+
+    // 原来那次结果，原样回来：不重跑，也没有什么要保存的。
+    await waitFor(() =>
+      expect(slices(canvasElement).map(slice => slice.name)).toEqual(before),
+    );
+    await expect(
+      canvas.getByRole('heading', { level: 2, name: '仓库金额分布' }),
+    ).not.toHaveAttribute('data-dirty');
+    await expect(
+      document.body.querySelector('[data-slot="origin-bar"]'),
+    ).toBeNull();
+    await expect(aggregateCalls.current).toBe(ran);
+  },
+};
+
+/**
+ * 按日分组的一行，菜单标题读作表格那一格读的样子——「创建时间 在 2026年9月
+ * 21日」——而不是它背后那两个精确到毫秒的时刻（2026-09-23 审查）。只看这一组
+ * 开出来的视图也照这个说法起名。
+ */
+export const FollowUpOnADay: Story = {
+  ...DisplayDailyNewestFirst,
+  args: { ...DisplayDailyNewestFirst.args, layout: 'table' },
+  play: async ({ canvasElement }) => {
+    const row = await waitFor(() => {
+      const found =
+        canvasElement.querySelector<HTMLTableRowElement>('tr[data-pickable]');
+      if (!found) throw new Error('结果还没有行');
+      return found;
+    });
+    const day = row.cells[0]!.textContent ?? '';
+    await expect(day).toMatch(/^\d{4}年\d{1,2}月\d{1,2}日$/);
+    const group = formatMessage(zhCN, 'label.drill.bucket', {
+      field: '创建时间',
+      bucket: day,
+    });
+
+    await userEvent.click(row.cells[1]!);
+    const menu = await drillMenu();
+    await expect(
+      menu.querySelector('[data-slot="drill-group"]'),
+    ).toHaveTextContent(new RegExp(`^${group}$`));
+
+    await userEvent.click(
+      within(menu).getByRole('menuitem', { name: zhCN['label.drill.focus'] }),
+    );
+    await originBar();
+    await expect(
+      within(canvasElement).getByRole('heading', {
+        level: 2,
+        name: titled('运单分析', group),
+      }),
+    ).toBeVisible();
   },
 };
 
@@ -629,6 +725,9 @@ export const FollowUpFocus: Story = {
  *
  * 拆完之后是同一个问题换一个维度问：范围收到这一组，维度换成状态，上一维度
  * 的名字从排序、表列与图表槽位里一并退场（`analysis/drill.ts` 的 `splitBy`）。
+ * 它和另外两项一样开在旁边（用户 2026-09-23 拍板）：一个未保存的分析视图，
+ * 叫「仓库金额分布 · 仓库 属于 华南」，带「返回」；按下去是原来那次按仓库分的
+ * 结果，不重跑，原来那个视图也没被改脏。
  */
 export const FollowUpSplit: Story = {
   ...DisplayFollowUps,
@@ -678,12 +777,31 @@ export const FollowUpSplit: Story = {
     await waitFor(() =>
       expect(readColumn(after, '状态')).toEqual(['已发运', '待出库']),
     );
-    const applied = canvas.getByRole('region', {
-      name: zhCN['label.applied.title'],
-    });
+    const line = await saysEachThingOnce(
+      canvasElement,
+      titled('仓库金额分布', SOUTH),
+      SOUTH,
+    );
+    const ran = aggregateCalls.current;
+
+    await userEvent.click(within(line).getByRole('button', { name: BACK }));
+
+    // 原来那次按仓库分的结果，原样回来：不重跑，标题栏也没有未保存的改动。
+    await waitFor(async () =>
+      expect(readColumn(await findDataTable(canvasElement), '仓库')).toEqual([
+        '华东',
+        '华北',
+        '华南',
+        '西南',
+      ]),
+    );
     await expect(
-      within(applied).getByText(`仓库 ${zhCN['label.operator.IN']} 华南`),
-    ).toBeVisible();
+      canvas.getByRole('heading', { level: 2, name: '仓库金额分布' }),
+    ).not.toHaveAttribute('data-dirty');
+    await expect(
+      document.body.querySelector('[data-slot="origin-bar"]'),
+    ).toBeNull();
+    await expect(aggregateCalls.current).toBe(ran);
   },
 };
 

@@ -36,17 +36,26 @@ export const viewMessages = {
   'label.view.warnings-count': '{count} things worth noting',
   'label.view.none': 'No view yet',
   // The line under the title bar of a view opened from another (D20): the
-  // way back, and where this one came from. `{title}` is the origin's name;
-  // the conditions the drill added follow as the applied bar's badges.
+  // way back, which names where this one came from — `{title}` is the
+  // origin's name, said once. The conditions the follow-up added are the
+  // applied bar's to show, not this line's.
   'label.origin.back': 'Back to {title}',
-  'label.origin.from': 'From {title}',
+  'label.origin.region': 'Opened from another view',
   // The follow-up menu on one group of an analysis result (D20 追问): the
   // records behind it, the same question by another dimension, or the
-  // range narrowed to it.
+  // question asked of the group alone.
   'label.drill.menu': 'This group',
   'label.drill.records': 'See these records',
   'label.drill.split': 'Split this group by…',
   'label.drill.focus': 'Only this group',
+  // A view opened from a group, named by what it is: `{subject}` is the
+  // records' name (the definition's) or the view it narrows, `{group}` the
+  // group pressed as the menu heads it.
+  'label.drill.titled': '{subject} · {group}',
+  // A date dimension of the group pressed, as its column prints the bucket;
+  // a week's value is only the day it starts.
+  'label.drill.bucket': '{field} in {bucket}',
+  'label.drill.bucket-week': '{field} in the week of {bucket}',
 
   // Runtime and commands.
   'runtime.kind.not-declared': '{definition} does not offer a {kind} view.',

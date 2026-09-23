@@ -77,7 +77,7 @@ const bar = () =>
   document.querySelector<HTMLElement>('[data-slot="origin-bar"]');
 
 describe('the origin bar', () => {
-  it('says where a drilled view came from, and takes the user back', async () => {
+  it('names where a drilled view came from in its way back, once', async () => {
     let controller: WorkbenchController | null = null;
     render(
       <Shell
@@ -92,22 +92,28 @@ describe('the origin bar', () => {
     expect(bar()).toBeNull();
 
     act(() => {
-      controller!.drill([{ field: 'warehouse', operator: 'EQ', value: 'CN' }]);
+      controller!.drill(
+        [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+        'Orders · Warehouse is CN',
+      );
     });
     await screen.findByText('record');
 
-    // The line: the way back, the origin's name, and the row's condition in
-    // the applied bar's own words.
+    // The line is the way back, and the way back names the origin — once
+    // (2026-09-23 audit: it used to read 「Back to X · From X」, and repeat
+    // the row's conditions the applied bar already shows).
     const line = bar()!;
     expect(line.getAttribute('role')).toBe('region');
-    expect(within(line).getByText('From By warehouse')).toBeDefined();
-    const conditions = [
-      ...line.querySelectorAll('[data-slot="origin-condition"]'),
-    ].map(badge => badge.textContent);
-    expect(conditions).toEqual(['Warehouse is CN']);
-    // The title bar names the drilled view as unsaved, like any new view.
+    expect(line.getAttribute('aria-label')).toBe('Opened from another view');
+    expect(line.textContent).toBe('Back to By warehouse');
+    expect(line.textContent!.split('By warehouse')).toHaveLength(2);
+    expect(line.querySelector('[data-slot="origin-condition"]')).toBeNull();
+    // The title bar names the view by what it is, as the drill named it.
     expect(
-      screen.getByRole('heading', { level: 2, name: 'Untitled view' }),
+      screen.getByRole('heading', {
+        level: 2,
+        name: 'Orders · Warehouse is CN',
+      }),
     ).toBeDefined();
 
     fireEvent.click(
