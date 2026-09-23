@@ -39,7 +39,7 @@ import { zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 import { rowSource } from './rowSource.js';
 
 // Wow's names for what the analysis side may group and compute by.
-const { TERMS, DATE_HISTOGRAM } = AggregationGroupType;
+const { TERMS, HISTOGRAM, DATE_HISTOGRAM } = AggregationGroupType;
 const { SUM, AVG, MIN, MAX } = AggregationFunction;
 
 /**
@@ -1144,12 +1144,14 @@ export const savedWaybillViews: ViewInstance[] = [
 ];
 
 /**
- * 同一份运单，也能分析：按目的城市或按创建的那一天分组，数单数、量运费合计。
+ * 同一份运单，也能分析：按目的城市、按创建的那一天或按运费区间分组，数单数、
+ * 量运费合计。
  *
- * 两条分析回归靠它（2026-09-23 审查）：目的城市有十个，比色板的八色多两个，
+ * 三条分析回归靠它（2026-09-23 审查）：目的城市有十个，比色板的八色多两个，
  * 所以饼图得把尾巴并进「其他」而不是让两片同色；二十天按日倒序是一张「最近的
- * 在前」的表，而同一批行画成图，时间仍得从左往右走。订单那份只有四个仓库、
- * 七单，两件事都问不出来。
+ * 在前」的表，而同一批行画成图，时间仍得从左往右走；运费按区间分组，每一行
+ * 读成「¥0～500」这样的一段而不是它的下界。订单那份只有四个仓库、七单，这些
+ * 都问不出来。
  */
 export const waybillAnalysisDefinition: DataViewDefinition = {
   ...waybillsDefinition,
@@ -1163,7 +1165,9 @@ export const waybillAnalysisDefinition: DataViewDefinition = {
         functions: [],
         dateUnits: [AggregationDateUnit.DAY],
       },
-      { field: 'amount', groups: [], functions: [SUM] },
+      // 运费从 ¥180 到 ¥1220，按 500 一档切成三段：一个桶的键只是那一段的
+      // 下界，读成「¥0.00」说不出是哪一段（2026-09-23 真实后端走查）。
+      { field: 'amount', groups: [HISTOGRAM], functions: [SUM] },
     ],
   },
 };

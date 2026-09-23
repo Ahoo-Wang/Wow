@@ -86,6 +86,11 @@ export interface AnalysisColumnView {
   dateUnit?: AnalysisDateUnit;
   /** For a date histogram group: the zone its buckets were cut in. */
   timeZone?: string;
+  /**
+   * For a number histogram group: the width of the bands its keys start, so
+   * a key reads as the band 「¥0～500」 rather than its lower bound alone.
+   */
+  interval?: number;
 }
 
 export interface AnalysisView {
@@ -181,14 +186,16 @@ function valueOf(
 }
 
 /**
- * A date histogram's keys are bucket starts: the unit says how wide, and the
+ * A histogram's keys are bucket starts. A number histogram's interval says
+ * how wide each band is. A date histogram's unit says how wide, and the
  * zone, when the group named one, the clock they were cut by. Without one the
  * engine's zone cut them (see `compileAnalysis`), which is the zone they are
  * shown in anyway.
  */
 function bucketOf(
   group: AnalysisGroup | undefined,
-): Pick<AnalysisColumnView, 'dateUnit' | 'timeZone'> {
+): Pick<AnalysisColumnView, 'dateUnit' | 'timeZone' | 'interval'> {
+  if (group?.type === 'HISTOGRAM') return { interval: group.interval };
   if (group?.type !== 'DATE_HISTOGRAM') return {};
   return {
     dateUnit: group.unit,

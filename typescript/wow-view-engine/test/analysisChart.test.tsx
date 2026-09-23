@@ -147,6 +147,46 @@ describe('AnalysisChart', () => {
     expect(within(container).getByText('Yes', DRAWN)).toBeDefined();
   });
 
+  // A number histogram's key is its band's lower bound: the axis and the
+  // reading table name the band, as the analysis table does.
+  it('names a number band from its key to the key plus the interval', () => {
+    const { container } = render(
+      <ViewSurface messages={zhCN} locale="zh-CN">
+        <AnalysisChart
+          data={{
+            ...cartesian,
+            points: [
+              { x: 0, values: { orders: 2 } },
+              { x: 10000, values: { orders: 1 } },
+            ],
+          }}
+          spec={{
+            type: 'bar',
+            cartesian: { x: 'band', series: [{ metric: 'orders' }] },
+          }}
+          columns={[
+            {
+              alias: 'band',
+              label: '单价',
+              role: 'group',
+              kind: 'number',
+              cell: 'number',
+              numberFormat: { style: 'currency', currency: 'CNY' },
+              interval: 10000,
+            },
+            { alias: 'orders', label: '订单数', role: 'metric' },
+          ]}
+        />
+      </ViewSurface>,
+    );
+
+    expect(within(container).getByText('¥0～1万', DRAWN)).toBeDefined();
+    expect(within(container).getByText('¥1～2万', DRAWN)).toBeDefined();
+    const reading = container.querySelector('[data-slot="chart-reading"]')!;
+    expect(within(reading as HTMLElement).getByText('¥0～1万')).toBeDefined();
+    expect(within(container).queryByText('¥0.00', DRAWN)).toBeNull();
+  });
+
   it('names a pivot series by the value it was split by', () => {
     const { container } = render(
       <ViewSurface>

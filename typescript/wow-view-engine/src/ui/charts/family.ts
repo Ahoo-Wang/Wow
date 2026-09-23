@@ -19,6 +19,7 @@ import type {
   FunnelStages,
   RecordData,
 } from '../../model/index.js';
+import { bandText } from '../band.js';
 import {
   columnTitle,
   compactFormat,
@@ -105,13 +106,16 @@ export function useValueLabel(
     const byAlias = new Map(
       (columns ?? []).map(column => [column.alias, column]),
     );
-    // As the analysis table shows the same value: what the field's kind
-    // names first, then a number in its format and a boolean in words, both
-    // in the surface's language.
+    // As the analysis table shows the same value: a number band as the band,
+    // what the field's kind names next, then a number in its format and a
+    // boolean in words, all in the surface's language. A band is short
+    // already, so the axis and the tooltip read it alike.
     return (alias, value, compact) => {
       const column = alias === undefined ? undefined : byAlias.get(alias);
       return (
-        (column && displayValue(value, column, display)) ??
+        (column &&
+          (bandText(value, column, messages, display) ??
+            displayValue(value, column, display))) ??
         (compact && typeof value === 'number'
           ? formatNumber(
               value,

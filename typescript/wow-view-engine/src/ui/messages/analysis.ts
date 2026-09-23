@@ -72,6 +72,8 @@ export const analysisMessages = {
   'label.analysis.dated.HOUR': '{field} (by hour)',
   'label.analysis.dated.MINUTE': '{field} (by minute)',
   'label.analysis.dated.SECOND': '{field} (by second)',
+  // A number band: its lower bound to its upper, an en dash between.
+  'label.analysis.band': '{from}–{to}',
   'label.analysis.interval': 'Band width',
   'label.analysis.percentile': 'Percentile',
   'label.analysis.open-editor': 'Open analysis',

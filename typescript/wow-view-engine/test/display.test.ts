@@ -13,7 +13,12 @@
 
 import { describe, expect, it } from 'vitest';
 import type { MessageFormatters } from '../src/ui/index.js';
-import { metricReferenceText, type FilterSummaryItem } from '../src/index.js';
+import {
+  metricReferenceText,
+  type FilterSummaryItem,
+  type NumberFormat,
+} from '../src/index.js';
+import { bandText } from '../src/ui/band.js';
 import {
   badgeEntries,
   cellText,
@@ -378,6 +383,78 @@ describe('formatNumber', () => {
     // A year or an employee number is a name, not an amount: the definition
     // says so, and the grouping is its to turn off.
     expect(formatNumber(2026, { useGrouping: false }, 'en')).toBe('2026');
+  });
+});
+
+/**
+ * A number histogram's key is the lower bound of its band, and 「¥0.00」
+ * 「¥500.00」 does not say which band a row is (2026-09-23, real backend).
+ * The band reads from its key to the key plus the interval, short in the
+ * surface's language, with the catalogue's dash.
+ */
+describe('bandText', () => {
+  const catalogue = (messages: ViewMessages): MessageFormatters => ({
+    label: (key, params) => formatMessage(messages, key, params),
+    issue: () => '',
+    issues: () => '',
+  });
+  const zh = catalogue(zhCN);
+  const english = catalogue(en);
+  const yuan = { style: 'currency', currency: 'CNY' } as const;
+  const band = (
+    key: unknown,
+    interval: number | undefined,
+    numberFormat?: NumberFormat,
+    words = zh,
+    locale = 'zh-CN',
+  ) => bandText(key, { interval, numberFormat }, words, { locale });
+
+  it('reads a key as its band, short, in the surface language', () => {
+    expect(band(0, 500, yuan)).toBe('¥0～500');
+    expect(band(500, 500, yuan)).toBe('¥500～1000');
+    expect(band(5000, 5000, yuan)).toBe('¥5000～1万');
+    expect(band(10000, 10000, yuan)).toBe('¥1～2万');
+    expect(band(100000000, 100000000, yuan)).toBe('¥1～2亿');
+    // English: an en dash, and K and M.
+    expect(band(0, 500, yuan, english, 'en-US')).toBe('CN¥0–500');
+    expect(band(1000, 1000, undefined, english, 'en-US')).toBe('1–2K');
+    expect(band(0, 500, yuan, english, 'zh-CN')).toBe('¥0–500');
+  });
+
+  it('says a unit, a percent or a currency once, on its own side', () => {
+    const words = english;
+    expect(band(0.1, 0.1, { style: 'percent' }, words, 'en-US')).toBe('10–20%');
+    expect(
+      band(0, 5, { style: 'unit', unit: 'kilogram' }, words, 'en-US'),
+    ).toBe('0–5 kg');
+    expect(band(-500, 500, undefined)).toBe('-500～0');
+  });
+
+  /**
+   * Short is only worth having when it is exact: 1,250 compact is 「1.3K」,
+   * a band edge nobody set. Then both bounds are written in full, with the
+   * decimals the band needs and no currency zeros it does not.
+   */
+  it('writes the band in full where short would round it', () => {
+    expect(band(1250, 1250, yuan, english, 'en-US')).toBe('CN¥1,250–2,500');
+    expect(band(0.25, 0.25, undefined, english, 'en-US')).toBe('0.25–0.5');
+    // 0.2 + 0.1 is 0.30000000000000004 in binary; the band ends at 0.3.
+    expect(band(0.2, 0.1, undefined, english, 'en-US')).toBe('0.2–0.3');
+    // A number that names something is not compacted: 2K is not a year.
+    expect(band(2000, 1000, { useGrouping: false }, english, 'en-US')).toBe(
+      '2000–3000',
+    );
+  });
+
+  it('leaves a key it cannot read, and any other column, to the caller', () => {
+    // A bucket with no key reads as it always did.
+    expect(band(null, 500, yuan)).toBeUndefined();
+    expect(band('(none)', 500, yuan)).toBeUndefined();
+    expect(band(Number.NaN, 500, yuan)).toBeUndefined();
+    // Not a number histogram, or one with no width to add.
+    expect(band(0, undefined, yuan)).toBeUndefined();
+    expect(band(0, 0, yuan)).toBeUndefined();
+    expect(band(0, Number.POSITIVE_INFINITY, yuan)).toBeUndefined();
   });
 });
 

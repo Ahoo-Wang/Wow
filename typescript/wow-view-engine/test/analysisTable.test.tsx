@@ -132,6 +132,44 @@ describe('AnalysisTable', () => {
   });
 
   /**
+   * A number histogram's key is only its band's lower bound: 「¥0.00」 does
+   * not say which band a row is (2026-09-23, real backend). The row says the
+   * band, short, in the surface's language.
+   */
+  it('shows a number histogram key as the band it starts', () => {
+    const band = {
+      alias: 'band',
+      label: '单价',
+      role: 'group' as const,
+      kind: 'number',
+      cell: 'number',
+      numberFormat: { style: 'currency' as const, currency: 'CNY' },
+      interval: 500,
+    };
+    render(
+      <ViewSurface messages={zhCN} locale="zh-CN">
+        <AnalysisTable
+          view={{
+            columns: [
+              band,
+              { alias: 'orders', label: '订单数', role: 'metric' },
+            ],
+            rows: [
+              { band: 0, orders: 2 },
+              { band: 500, orders: 1 },
+            ],
+            truncated: false,
+          }}
+        />
+      </ViewSurface>,
+    );
+
+    expect(screen.getByText('¥0～500')).toBeDefined();
+    expect(screen.getByText('¥500～1000')).toBeDefined();
+    expect(screen.queryByText('¥0.00')).toBeNull();
+  });
+
+  /**
    * The sentence is about the range, not about the analysis: "nothing to
    * aggregate" read as "this analysis computes nothing", which is never what
    * happened — the metrics are fine and no group matched.

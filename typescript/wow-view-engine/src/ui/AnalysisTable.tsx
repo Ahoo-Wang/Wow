@@ -13,6 +13,7 @@
 
 import { useId, useLayoutEffect, useRef } from 'react';
 import { cn } from 'cn';
+import { bandText } from './band.js';
 import { columnTitle, displayValue, valueText } from './display.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { moveStop, settleStop, takeStop } from './roving.js';
@@ -121,9 +122,11 @@ export function AnalysisTable({ view, onPick, sorting }: AnalysisTableProps) {
   const port = useRef<HTMLDivElement | null>(null);
   const table = useRef<HTMLTableElement | null>(null);
   const room = useRoomBelowRows(port, table, view.totals !== undefined);
-  // A group key or an ANY shows as its field's values do; the rest, and
-  // anything the field's kind has nothing to say about, as before.
+  // A number band reads as the band it is; a group key or an ANY shows as
+  // its field's values do; the rest, and anything the field's kind has
+  // nothing to say about, as before.
   const show = (value: unknown, column: AnalysisView['columns'][number]) =>
+    bandText(value, column, messages, display) ??
     displayValue(value, column, display) ??
     valueText(value, messages, column.numberFormat, display.locale);
   const titled = view.columns.map(column => ({

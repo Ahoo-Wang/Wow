@@ -28,6 +28,7 @@ import displayMeta, {
   FailingAggregates as DisplayFailingAggregates,
   FailingProcessors as DisplayFailingProcessors,
   FollowUps as DisplayFollowUps,
+  FreightBands as DisplayFreightBands,
   PieChart as DisplayPieChart,
   PinnedCategoryColor as DisplayPinnedCategoryColor,
   QueryFailed as DisplayQueryFailed,
@@ -701,6 +702,59 @@ export const FollowUpFocus: Story = {
       document.body.querySelector('[data-slot="origin-bar"]'),
     ).toBeNull();
     await expect(aggregateCalls.current).toBe(ran);
+  },
+};
+
+/**
+ * 运费区间读成一段一段（2026-09-23 真实后端走查）。
+ *
+ * 按 500 一档分组，一档的键是它的下界，从前横轴与表格读成「¥0.00」「¥500.00」，
+ * 说不出一行是哪一段。这里量画出来的横轴、读屏表、切到表格后的那一列与按下
+ * 一行弹出的追问菜单标题：都读成「¥0～500」「¥500～1000」「¥1000～1500」。
+ */
+export const BandsReadAsRanges: Story = {
+  ...DisplayFreightBands,
+  play: async ({ canvasElement }) => {
+    const bands = ['¥0～500', '¥500～1000', '¥1000～1500'];
+    await chartsDrawn(canvasElement);
+    await waitFor(() => expect(bars(canvasElement)).toHaveLength(3));
+    const ticks = await waitFor(() => {
+      const found = axisTicks(canvasElement, 'bottom')
+        .sort(
+          (a, b) =>
+            a.getBoundingClientRect().left - b.getBoundingClientRect().left,
+        )
+        .map(tick => tick.textContent);
+      expect(found).toHaveLength(3);
+      return found;
+    });
+    await expect(ticks).toEqual(bands);
+    const reading = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="chart-reading"] table',
+    );
+    await expect(reading).not.toBeNull();
+    for (const band of bands)
+      await expect(within(reading!).getByText(band)).toBeInTheDocument();
+
+    await userEvent.click(
+      within(canvasElement).getByRole('button', {
+        name: zhCN['label.layout.table'],
+      }),
+    );
+    const table = await findDataTable(canvasElement);
+    await waitFor(() => expect(readColumn(table, '运费')).toEqual(bands));
+
+    const row =
+      canvasElement.querySelector<HTMLTableRowElement>('tr[data-pickable]');
+    await userEvent.click(row!.cells[1]!);
+    const menu = await drillMenu();
+    await expect(
+      menu.querySelector('[data-slot="drill-group"]'),
+    ).toHaveTextContent(
+      new RegExp(
+        `^${formatMessage(zhCN, 'label.drill.bucket', { field: '运费', bucket: bands[0] })}$`,
+      ),
+    );
   },
 };
 

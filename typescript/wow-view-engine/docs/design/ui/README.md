@@ -36,7 +36,7 @@
 
 - 规则在 `ui/display.ts` 的 `displayValue`（已应用条的措辞在 `ui/summary.ts`）：Wow 把时间存为毫秒时间戳、枚举存为代码，原样打印没法读。声明了 `options` 的字段按选项标签显示（数组逐项，未知的码原样）。
 - `cell ?? kind` 为 `datetime` 时经 `Intl.DateTimeFormat`（`dateStyle`／`timeStyle: 'medium'`），为 `date` 时只显示日期；`datetime` 上不带时刻的挂钟字符串（`2026-01-31`）只显示到日——它指一整天（[kernels.md](../kernels.md#日期条件一个字符串算哪一刻)），印 `00:00:00` 是陈述一个没人选过的时刻。不带偏移的字符串（`LocalDate`／`LocalDateTime`）是挂钟时间，原样显示不换算时区；日历上不存在的挂钟时间（`2025-02-29`、`24:00`）原样显示，不交给 `Date` 顺延。
-- DATE_HISTOGRAM 的键显示为桶起始的年、季度（`2026 Q3`）、月、日或时刻，按公历命名（Wow 按公历切桶）。
+- DATE_HISTOGRAM 的键显示为桶起始的年、季度（`2026 Q3`）、月、日或时刻，按公历命名（Wow 按公历切桶）。HISTOGRAM 的键读成它起头的那一段（`bandText`，见 [analysis.md#数字按它自己的列读](analysis.md#数字按它自己的列读)）。
 - 分析的表格、坐标轴、提示、热力图与指标卡共用 `valueText`（图表侧经 `useValueLabel`），指标的格式来自 `metricFormat`（[kernels.md#指标的数怎么读](../kernels.md#指标的数怎么读metricformat)）；宿主给了 `renderCell` 就由宿主决定。
 - 语言取 `ViewSurface` 的 `locale`（缺省为运行环境），时区取 `timeZone`；工作台透传同名属性，并把时区交给引擎的 `environment.timeZone`——相对日期按它解析、未声明时区的 DATE_HISTOGRAM 按它切桶、界面按它显示，一行按什么时钟被筛选，就按什么时钟显示。分组自己声明了时区的按那个时区读。
 - 表格、卡片与图表的类目共用这套规则：`RecordColumnView` 带 `options`，`RecordCardField` 带 `kind`、`cell`、`options` 与 `numberFormat`，`AnalysisColumnView` 见 [kernels.md#compileanalysis-与-projectanalysis](../kernels.md#compileanalysis-与-projectanalysis)，`AnalysisChart` 经 `AnalysisView.schema` 拿到它们。`spec.colors` 的键仍是原值。`numberFormat` 构造不出来时先放弃语言、再放弃格式，不让整张表抛错。（见 test/display.test.ts「displayValue」）

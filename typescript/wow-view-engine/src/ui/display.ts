@@ -639,7 +639,7 @@ const numberFormatters = new Map<string, Intl.NumberFormat | null>();
  * the whole table down mid-render. The language gives way first, as a date's
  * does; a format that still fails is dropped, and the number shows unformatted.
  */
-function numberFormatter(
+export function numberFormatter(
   format: NumberFormat,
   surfaceLocale?: string,
 ): Intl.NumberFormat | null {

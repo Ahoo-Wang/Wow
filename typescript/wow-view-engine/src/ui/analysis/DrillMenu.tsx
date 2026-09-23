@@ -24,6 +24,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '../components/dropdown-menu.js';
+import { bandText } from '../band.js';
 import { columnTitle, displayValue, type DisplayContext } from '../display.js';
 import {
   useViewMessages,
@@ -182,14 +183,15 @@ export function DrillMenu({ pick, onClose, followUp }: DrillMenuProps) {
 
 /**
  * One dimension of the group pressed, as the result reads it (2026-09-23
- * audit). A date bucket is its value the way its axis and its table column
- * print it — 「创建时间 在 2026年9月」 — through the table's own
- * `displayValue`: its conditions are the two instants bounding the bucket,
- * a long range nobody pressed. A week says it is one, since its value is
- * only the day it starts. Every other dimension is its conditions in the
- * applied bar's words: a value (「仓库 属于 华南」), a band of numbers, or no
- * value at all — the bucket's sentinel, which is how a date bucket with no
- * key reads too.
+ * audit). A bucket is its value the way its axis and its table column print
+ * it, through the table's own readings: a date bucket through `displayValue`
+ * — 「创建时间 在 2026年9月」 — whose conditions are the two instants bounding
+ * it, a long range nobody pressed; a number band through `bandText` —
+ * 「单价 在 ¥0～500」 — whose conditions are two comparisons with the bounds
+ * in full. A week says it is one, since its value is only the day it starts.
+ * Every other dimension is its conditions in the applied bar's words: a
+ * value (「仓库 属于 华南」), or no value at all — the bucket's sentinel,
+ * which is how a bucket with no key reads too.
  */
 export function groupText(
   entry: FollowUpGroup,
@@ -198,9 +200,11 @@ export function groupText(
 ): string {
   const { column } = entry;
   const bucket =
-    column?.dateUnit === undefined
+    column === undefined
       ? undefined
-      : displayValue(entry.value, column, display);
+      : column.dateUnit === undefined
+        ? bandText(entry.value, column, messages, display)
+        : displayValue(entry.value, column, display);
   if (column !== undefined && bucket !== undefined)
     return messages.label(
       column.dateUnit === 'WEEK'

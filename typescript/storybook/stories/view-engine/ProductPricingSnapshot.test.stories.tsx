@@ -134,6 +134,22 @@ export const SnapshotConsole: Story = {
     await userEvent.click(view('按状态分布'));
     await waitFor(() => expect(bars(canvasElement)).toHaveLength(3));
 
+    // Where the prices sit, in bands of five hundred: each band reads as
+    // the band it is, not as its lower bound — 「¥0.00」「¥3,000.00」 on
+    // this service's own data said nothing about which band a bar was
+    // (2026-09-23). The reading table names each bar as the axis does.
+    await userEvent.click(view('价格区间分布'));
+    await waitFor(() => {
+      const reading = canvasElement.querySelector<HTMLTableElement>(
+        '[data-slot="chart-reading"] table',
+      );
+      expect(
+        [...(reading?.tBodies[0]?.rows ?? [])].map(
+          row => row.cells[0]?.textContent,
+        ),
+      ).toEqual(['¥0～500', '¥3000～3500', '¥3500～4000', '¥4000～4500']);
+    });
+
     // Each brand's range, and its earliest deadline as a date. The two
     // brands of one pricing each tie, in no order the count decides.
     await userEvent.click(view('各品牌价格'));

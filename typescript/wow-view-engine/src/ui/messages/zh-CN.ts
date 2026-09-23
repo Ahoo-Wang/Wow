@@ -634,6 +634,7 @@ export const zhCN: ViewMessages = {
   'label.analysis.dated.HOUR': '{field}（按小时）',
   'label.analysis.dated.MINUTE': '{field}（按分钟）',
   'label.analysis.dated.SECOND': '{field}（按秒）',
+  'label.analysis.band': '{from}～{to}',
   'label.analysis.interval': '区间宽度',
   'label.analysis.percentile': '百分位',
   'label.analysis.open-editor': '打开分析',

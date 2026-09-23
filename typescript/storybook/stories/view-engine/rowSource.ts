@@ -351,53 +351,78 @@ const DATE_UNITS: Partial<Record<AggregationDateUnit, OpUnitType>> = {
 };
 
 /**
- * The rows, each marked with the bucket every `DATE_HISTOGRAM` group puts it
- * in: the start of its unit in the group's zone, in epoch milliseconds, which
- * is the key the service answers a date bucket with. MongoDB's `$dateTrunc`
- * would do this inside the pipeline; the bucket is worked out here instead,
- * as a gate is, so the zone arithmetic is dayjs's and not a translation of
- * it. Only the buckets with rows are answered — a `dense` histogram, which
- * the service fills in, is refused rather than answered thin.
+ * The rows, each marked with the bucket every histogram group puts it in.
+ *
+ * A `DATE_HISTOGRAM` bucket is the start of its unit in the group's zone, in
+ * epoch milliseconds, which is the key the service answers a date bucket
+ * with. MongoDB's `$dateTrunc` would do this inside the pipeline; the bucket
+ * is worked out here instead, as a gate is, so the zone arithmetic is dayjs's
+ * and not a translation of it. Only the buckets with rows are answered — a
+ * `dense` histogram, which the service fills in, is refused rather than
+ * answered thin.
+ *
+ * A `HISTOGRAM` bucket is the lower bound of the band of `interval` the value
+ * falls in, counted from zero — `floor(value / interval) * interval`, the key
+ * the service answers a number band with.
  */
 function bucketed(
   rows: readonly RecordData[],
   groupBy: readonly AggregationGroup[],
 ): RecordData[] {
-  const histograms = groupBy.flatMap(group =>
-    group.type === AggregationGroupType.DATE_HISTOGRAM ? [group] : [],
-  );
-  if (histograms.length === 0) return [...rows];
-  const cuts = histograms.map(group => {
+  const cuts = groupBy.flatMap(group => {
+    if (group.type === AggregationGroupType.HISTOGRAM) {
+      const { interval } = group;
+      return [
+        (row: RecordData): [string, number | null] => {
+          const at = valueAt(row, group.field);
+          return [
+            `${BUCKET}${group.alias}`,
+            typeof at === 'number' && Number.isFinite(at)
+              ? Math.floor(at / interval) * interval
+              : null,
+          ];
+        },
+      ];
+    }
+    if (group.type !== AggregationGroupType.DATE_HISTOGRAM) return [];
     const unit = DATE_UNITS[group.unit];
     if (!unit || group.dense)
       throw new Error(
         `The story source does not bucket by ${group.dense ? 'dense ' : ''}${group.unit}.`,
       );
     const zone = group.timeZone ?? dayjs.tz.guess();
-    return (row: RecordData): [string, number | null] => {
-      const at = group.field
-        .split('.')
-        .reduce<unknown>(
-          (held, segment) =>
-            held !== null && typeof held === 'object'
-              ? (held as RecordData)[segment]
-              : undefined,
-          row,
-        );
-      const bucket =
-        typeof at === 'number' || typeof at === 'string'
-          ? dayjs(at).tz(zone).startOf(unit).valueOf()
-          : null;
-      return [`${BUCKET}${group.alias}`, bucket];
-    };
+    return [
+      (row: RecordData): [string, number | null] => {
+        const at = valueAt(row, group.field);
+        const bucket =
+          typeof at === 'number' || typeof at === 'string'
+            ? dayjs(at).tz(zone).startOf(unit).valueOf()
+            : null;
+        return [`${BUCKET}${group.alias}`, bucket];
+      },
+    ];
   });
+  if (cuts.length === 0) return [...rows];
   return rows.map(row => ({
     ...row,
     ...Object.fromEntries(cuts.map(cut => cut(row))),
   }));
 }
 
-/** The bucket one date group reads, kept out of every field's namespace. */
+/** A field of a row by its dotted path; `undefined` where the path ends early. */
+function valueAt(row: RecordData, path: string): unknown {
+  return path
+    .split('.')
+    .reduce<unknown>(
+      (held, segment) =>
+        held !== null && typeof held === 'object'
+          ? (held as RecordData)[segment]
+          : undefined,
+      row,
+    );
+}
+
+/** The bucket one histogram group reads, kept out of every field's namespace. */
 const BUCKET = '__bucket_';
 
 /** The mark one gated metric reads, kept out of every field's namespace. */
@@ -441,10 +466,11 @@ function gated(
 }
 
 function groupKey(group: AggregationGroup): unknown {
-  if (group.type === AggregationGroupType.DATE_HISTOGRAM)
+  if (
+    group.type === AggregationGroupType.DATE_HISTOGRAM ||
+    group.type === AggregationGroupType.HISTOGRAM
+  )
     return `$${BUCKET}${group.alias}`;
-  if (group.type !== AggregationGroupType.TERMS)
-    throw new Error(`The story source does not group by ${group.type}.`);
   return group.missingKey === undefined
     ? `$${group.field}`
     : { $ifNull: [`$${group.field}`, group.missingKey] };

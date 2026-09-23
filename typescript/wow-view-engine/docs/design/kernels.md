@@ -329,7 +329,7 @@ D20 屏 G。展开一个数组就是换掉计数单位：`订单 → 明细项` 
 - **名字按作用域剥前缀**：配置存从根起的全名（`state.orders.lines.sku`），Wow 读的是相对名（`sku`），因此 `compileGroup`／`compileMetric`／`compileExpression` 与两处 `compileFilter` 都先把当前作用域的前缀去掉（`relativeName`／`relativeFields`／`relativeTree`，`analysis/capability.ts`；持有谓词的叶子连它的谓词一起剥，因为谓词的名字也是从根拼出来的）。`elements[].path` 本身已是相对上一层的写法，原样发出。原样发全名的后果不是报错而是错数：Wow 按 `parent.append(field)` 解析，`lines.sku` 在 `lines` 之下成了 `lines.lines.sku`；
 - 未声明时区的 DATE_HISTOGRAM 补上 `ctx.timeZone`，否则 Wow 按 UTC 切桶，东八区的"一天"从早上八点算起；
 - `projectAnalysis` 的结果列为全部 group 别名加全部 metric 别名，`DERIVED` 也是普通列。这份别名清单是默认列序与 `schema` 的来源，**不导出**：它从前以 `resultSchema` 的名义对外宣称自己是「结果行的校验依据」，而没有任何人校验过结果行——行从 Wow 回来就直接投影，合同因此删掉而不是改写；
-- 分组列与取字段自己的值的指标列（`MIN`／`MAX`／`PERCENTILE`／`ANY`，`readsAsItsField`）带上字段的 `kind`、`cell`、`options`，DATE_HISTOGRAM 列另带 `dateUnit` 与所声明的 `timeZone`，供界面按字段显示（见 [ui/README.md#值按字段显示](ui/README.md#值按字段显示)），其余指标是算出的数，不带；
+- 分组列与取字段自己的值的指标列（`MIN`／`MAX`／`PERCENTILE`／`ANY`，`readsAsItsField`）带上字段的 `kind`、`cell`、`options`，DATE_HISTOGRAM 列另带 `dateUnit` 与所声明的 `timeZone`，HISTOGRAM 列另带 `interval`（键只是一段的下界，界面凭它读出整段），供界面按字段显示（见 [ui/README.md#值按字段显示](ui/README.md#值按字段显示)），其余指标是算出的数，不带；
 - `columns` 按 `table.columns` 挑选，`schema` 以同样的描述覆盖结果里的每个别名——表格可以只显示计数，而图表仍按表格没显示的分组画，类目要经 `schema` 取名；
 - 合计行来自 `compileAnalysisTotals` 的独立结果，因此 `AVG`、`DISTINCT_COUNT`、百分位等不可加指标也正确；
 - 该查询与主查询共享同一调度预算，失败只使合计行不可用，不影响主结果。图表所需的派生整形也在此完成：`splitBy` 透视、饼图"其他"合并、漏斗累计与转化率、热力图矩阵、metric 卡片的比较值。metric 卡片带 `trend` 时的标题值取自合计行（`projectAnalysis` 的 `totals`），无合计行时按分桶求和；

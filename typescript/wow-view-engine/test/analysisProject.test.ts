@@ -153,6 +153,34 @@ describe('display metadata', () => {
     });
     expect(column('orders')?.kind).toBeUndefined();
   });
+
+  // A number histogram's key is only the band's lower bound: the column
+  // carries the interval, as a date histogram's carries its unit, so the
+  // screen can say the band — and the field's format, to say it in.
+  it('tells a number histogram column how wide its bands are', () => {
+    const view = projectAnalysis(
+      definition(),
+      config({
+        layout: 'table',
+        groups: [
+          { type: 'HISTOGRAM', field: 'amount', alias: 'band', interval: 500 },
+          { type: 'TERMS', field: 'warehouse', alias: 'wh' },
+        ],
+        metrics: [{ type: 'COUNT', alias: 'orders' }],
+      }),
+      [],
+    );
+    const column = (alias: string) =>
+      view.columns.find(found => found.alias === alias);
+
+    expect(column('band')).toMatchObject({
+      interval: 500,
+      numberFormat: { style: 'currency', currency: 'CNY' },
+    });
+    expect(column('band')?.dateUnit).toBeUndefined();
+    expect(column('wh')?.interval).toBeUndefined();
+    expect(column('orders')?.interval).toBeUndefined();
+  });
 });
 
 describe('projectAnalysis', () => {

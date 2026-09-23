@@ -313,6 +313,7 @@ src/
     WorkbenchShell.tsx        — The frame the workbenches share, over one `useWorkbench`: composes its columns and blocks from `workbench/` and holds the state they share; resolves the refresh, the query strip and the warnings itself
     WriteOutcome.tsx          — The open view's last write, and the three ways out of a conflict
     alerts.tsx                — `LineAlert`: one callout one line high, tone deciding colour, icon and role
+    band.ts                   — `bandText`: a number histogram's key as the band it starts, 「¥0～500」, its bounds short when short is exact
     describeConfig.ts         — One config in a sentence, for a conflict's side-by-side
     display.ts                — A value as its field shows it: enum labels, dates, bucket keys, an array of objects by its elements' title or its count (`heldReading`), never JSON; `summaryFunctionKey` names a summary in its column's vocabulary, `columnTitle` composes an analysis header from its two parts, and a time dimension's with its granularity
     download.ts               — Hands a file to the browser; the whole of the DOM the export needs, and the name it is handed under

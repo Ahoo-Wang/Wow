@@ -373,21 +373,39 @@ function failuresScene(scene: FailuresScene): AnalysisViewConfig {
   });
 }
 
-type WaybillScene = 'daily' | 'daily-card' | 'cities';
+type WaybillScene = 'daily' | 'daily-card' | 'cities' | 'bands';
 
 /**
- * 运单上的三个问题。
+ * 运单上的四个问题。
  *
  * - `daily`／`daily-card`：每天几单，**按日倒序**——表格要今天在最上面，这是
  *   这类视图最常见的存法（补偿服务的「每日新增失败」就是这样存的）。同一批行
  *   画成柱或迷你趋势，时间轴仍从左往右走：图按时间排，表按视图排。
  * - `cities`：十个目的城市的运费合计。色板八色，第九片会与第一片同色，所以
  *   饼图在第八片把尾巴并进灰色的「其他」。
+ * - `bands`：运费按 500 一档分组，每档几单。一个桶的键是那一档的下界，每一
+ *   行、每根柱读成「¥0～500」这样的一段，而不是「¥0.00」。
  */
 function waybillScene(
   scene: WaybillScene,
   layout: 'table' | 'chart',
 ): AnalysisViewConfig {
+  if (scene === 'bands') {
+    const groups = [
+      { type: 'HISTOGRAM', field: 'amount', alias: 'band', interval: 500 },
+    ] satisfies AnalysisViewConfig['groups'];
+    const metrics = [
+      { alias: 'waybills', type: 'COUNT' },
+    ] satisfies AnalysisViewConfig['metrics'];
+    return analysisConfig({
+      layout,
+      groups,
+      metrics,
+      sort: [{ alias: 'band', direction: SortDirection.ASC }],
+      table: { columns: [] },
+      chart: fitChartSlots({ type: 'bar' }, groups, metrics),
+    });
+  }
   if (scene === 'cities') {
     const groups = [
       { type: 'TERMS', field: 'destination', alias: 'city' },
@@ -484,7 +502,7 @@ const meta = {
     savedFunnel: { table: { disable: true } },
     waybills: {
       control: 'inline-radio',
-      options: [undefined, 'daily', 'daily-card', 'cities'],
+      options: [undefined, 'daily', 'daily-card', 'cities', 'bands'],
     },
     allColumns: { control: 'boolean' },
     records: { control: 'boolean' },
@@ -638,6 +656,15 @@ export const DailyTrendCard: Story = {
  */
 export const TenCities: Story = {
   args: { layout: 'chart', waybills: 'cities' },
+};
+
+/**
+ * 运费区间：按 500 一档，每档几单。一档的键只是它的下界，从前读成「¥0.00」
+ * 「¥500.00」，说不出是哪一段（2026-09-23 真实后端走查）；现在横轴、提示、
+ * 读屏表、表格与追问菜单的标题都读成「¥0～500」，按界面语言写短（万、亿）。
+ */
+export const FreightBands: Story = {
+  args: { layout: 'chart', waybills: 'bands' },
 };
 
 /** An aggregation that matched nothing still has its editor. */
