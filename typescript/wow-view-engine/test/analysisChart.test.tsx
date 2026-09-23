@@ -40,6 +40,31 @@ function chartOf(data: ChartData) {
   );
 }
 
+/** The colour each legend entry wears, as the CSS the page resolves. */
+function legendColours(container: HTMLElement): string[] {
+  return [
+    ...container.querySelectorAll<HTMLElement>(
+      '[data-slot="chart-legend-item"] > [aria-hidden]',
+    ),
+  ].map(dot => dot.style.background);
+}
+
+/** A CSS colour as the page's own style object writes it back. */
+function asStyled(color: string): string {
+  const probe = document.createElement('span');
+  probe.style.background = color;
+  return probe.style.background;
+}
+
+/** The painted shapes of the drawing: bars, and nothing that is only air. */
+function fills(container: HTMLElement): string[] {
+  return [
+    ...container.querySelectorAll('[data-slot="chart-plot"] svg path[fill]'),
+  ]
+    .map(path => path.getAttribute('fill')!)
+    .filter(fill => fill !== 'none' && fill !== 'transparent');
+}
+
 describe('AnalysisChart', () => {
   const cartesian: ChartData = {
     type: 'cartesian',
@@ -249,11 +274,15 @@ describe('AnalysisChart', () => {
         referenceLines: [{ axis: 'left' as const, value: 2 }],
       },
     });
+    // The one dashed rule in the drawing, and whether it runs up the plot.
     const bounds = (container: HTMLElement) => {
-      const line = container.querySelector('.recharts-reference-line-line');
-      return {
-        vertical: line?.getAttribute('x1') === line?.getAttribute('x2'),
-      };
+      const line = container.querySelector(
+        '[data-slot="chart-plot"] path[stroke-dasharray]',
+      );
+      const [x1, y1, x2, y2] = (line?.getAttribute('d') ?? '')
+        .match(/-?[\d.]+/g)!
+        .map(Number);
+      return { vertical: x1 === x2 && y1 !== y2 };
     };
 
     const upright = render(
@@ -294,13 +323,12 @@ describe('AnalysisChart', () => {
       </ViewSurface>,
     );
 
-    // The axes size themselves to their labels (`width="auto"`), and jsdom
-    // measures no text, so an axis with nothing on it is not drawn here;
-    // that the right-hand one stands beside the left is the browser
-    // story's (`分析工作台/回归 › TwoMetrics`).
-    expect(container.querySelector('.recharts-yAxis')).not.toBeNull();
-    // The bounds the spec pinned, printed the way it asked for.
-    expect(screen.getByText('900%')).toBeDefined();
+    // The bounds the spec pinned, printed the way it asked for: 0 to 10 as
+    // a share, on the only numeric axis there is to write it on. That the
+    // right-hand axis stands beside the left is the browser story's
+    // (`分析工作台/回归 › TwoMetrics`).
+    expect(within(container).getByText('1,000%')).toBeDefined();
+    expect(within(container).getByText('0%')).toBeDefined();
   });
 
   /**
@@ -347,8 +375,11 @@ describe('AnalysisChart', () => {
       </ViewSurface>,
     );
 
-    // A tick the domain pins and no row holds, so it can only be the axis.
-    expect(screen.getByText('¥1,000.00')).toBeDefined();
+    // A tick the domain pins and no row holds, so it can only be the axis —
+    // written short, in the column's currency: the reading table beside it
+    // has the whole number.
+    expect(within(container).getByText('¥1000')).toBeDefined();
+    expect(within(container).getByText('¥2000')).toBeDefined();
     // The reading beside the marks is the same numbers, so the same text.
     expect(within(container).getAllByText('¥1,234.00').length).toBeGreaterThan(
       0,
@@ -377,22 +408,35 @@ describe('AnalysisChart', () => {
     ).toBe('rgb(15, 118, 110)');
   });
 
-  it('maps a data-valued series key to a synthetic one before CSS sees it', () => {
-    // A pivot names its series by raw group values, which the style element
-    // interpolates into custom properties; anything but an identifier breaks
-    // the rule or breaks out of it.
-    const hostile = 'a} *{background:url(//evil/)}';
-    const { container } = chartOf({
-      type: 'cartesian',
-      chart: 'bar',
-      points: [{ x: 'CN', values: { [hostile]: 2 } }],
-      series: [{ key: hostile, label: hostile, metric: 'orders' }],
-    });
+  it('writes a data-valued series name as text, never into a stylesheet', () => {
+    // A pivot names its series by raw group values. The drawing is handed
+    // concrete colours rather than custom properties keyed by them, so no
+    // style element is written at all, and the name is the legend's text.
+    const hostile = 'a} *{background:url(//evil/)}<b>';
+    const { container } = render(
+      <ViewSurface>
+        <AnalysisChart
+          data={{
+            type: 'cartesian',
+            chart: 'bar',
+            points: [{ x: 'CN', values: { [hostile]: 2 } }],
+            series: [{ key: hostile, label: hostile, metric: 'orders' }],
+          }}
+          spec={{
+            type: 'bar',
+            cartesian: { x: 'warehouse', series: [{ metric: 'orders' }] },
+            legend: 'top',
+          }}
+        />
+      </ViewSurface>,
+    );
 
-    const css = container.querySelector('style')?.textContent ?? '';
-    expect(css).not.toContain(hostile);
-    // The series keeps its colour: the config carries a synthetic key.
-    expect(css).toContain('--color-s0');
+    expect(container.querySelector('style')).toBeNull();
+    expect(container.querySelector('b')).toBeNull();
+    expect(
+      container.querySelector('[data-slot="chart-legend-item"]')?.textContent,
+    ).toBe(hostile);
+    expect(fills(container)).toContain('rgb(42, 120, 214)');
   });
 
   it('maps a pie category to a synthetic key before CSS sees it', () => {
@@ -494,16 +538,14 @@ describe('AnalysisChart', () => {
           spec={{
             type: 'bar',
             cartesian: { x: 'warehouse', series: [{ metric: 'orders' }] },
-            colors: { orders: '#2a78d6' },
+            colors: { orders: '#0f766e' },
           }}
         />
       </ViewSurface>,
     );
 
-    // The series is drawn from the custom property the container emits, so
-    // that is where a configured colour has to land.
-    const css = container.querySelector('style')?.textContent ?? '';
-    expect(css).toContain('--color-s0: #2a78d6');
+    // Pinned by its alias, and handed to the drawing as a concrete colour.
+    expect(fills(container)).toContain('rgb(15, 118, 110)');
   });
 
   /**
@@ -546,9 +588,10 @@ describe('AnalysisChart', () => {
       </ViewSurface>,
     );
 
-    const css = container.querySelector('style')?.textContent ?? '';
-    expect(css).toContain('--color-s0: #eb6834');
-    expect(css).toContain('--color-s1: var(--chart-2)');
+    // Two series earn a legend, which wears the colours as written.
+    expect(legendColours(container)).toEqual(
+      ['#eb6834', 'var(--chart-2)'].map(asStyled),
+    );
   });
 
   /**
@@ -599,16 +642,17 @@ describe('AnalysisChart', () => {
         </ViewSurface>,
       );
       const css = container.querySelector('style')?.textContent ?? '';
+      const legend = legendColours(container);
       unmount();
-      return css;
+      return { css, legend };
     };
 
-    const pie = drawn(pieSpec);
-    const split = drawn(splitSpec);
+    const pie = drawn(pieSpec).css;
+    const split = drawn(splitSpec).legend;
     Object.values(colors).forEach((pinned, index) => {
       expect(pie).toContain(`--color-p${index}: ${pinned};`);
-      expect(split).toContain(`--color-s${index}: ${pinned};`);
     });
+    expect(split).toEqual(Object.values(colors).map(asStyled));
   });
 
   /**
@@ -626,14 +670,15 @@ describe('AnalysisChart', () => {
             type: 'bar',
             cartesian: { x: 'warehouse', series: [{ metric: 'orders' }] },
             colors: { orders: hostile },
+            legend: 'top',
           }}
         />
       </ViewSurface>,
     );
 
-    const css = container.querySelector('style')?.textContent ?? '';
-    expect(css).not.toContain(hostile);
-    expect(css).toContain('--color-s0: var(--chart-1)');
+    expect(container.innerHTML).not.toContain(hostile);
+    expect(legendColours(container)).toEqual([asStyled('var(--chart-1)')]);
+    expect(fills(container)).toContain('rgb(42, 120, 214)');
   });
 
   it('draws a scatter', () => {

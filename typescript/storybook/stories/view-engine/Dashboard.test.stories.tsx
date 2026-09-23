@@ -22,6 +22,7 @@ import displayMeta, {
   QueryFailed as DisplayQueryFailed,
 } from './Dashboard.stories.js';
 import { amountOf, findDataTable, readColumn, readTotal } from './readTable.js';
+import { drawnMarks } from './chartDom.js';
 
 const meta = {
   ...displayMeta,
@@ -38,8 +39,7 @@ export default meta;
 
 type Story = StoryObj<typeof displayMeta>;
 
-const bars = (canvas: HTMLElement) =>
-  canvas.querySelectorAll('.recharts-bar-rectangle');
+const bars = (canvas: HTMLElement) => drawnMarks(canvas);
 
 export const AllPanels: Story = {
   ...DisplayAllPanels,

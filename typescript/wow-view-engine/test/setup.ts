@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+import { loadCharts } from '../src/ui/charts/load.js';
+
 /**
  * The browser APIs jsdom does not implement, stubbed just enough to import.
  *
@@ -77,3 +79,20 @@ globals.matchMedia ??= (query: string): MediaQueryList =>
     removeListener: () => {},
     dispatchEvent: () => false,
   }) as MediaQueryList;
+
+/**
+ * jsdom has a `<canvas>` but no drawing context, and says so on the console
+ * each time one is asked for. The chart library asks to measure its text and
+ * estimates the width when told there is no context, so it is told that
+ * quietly — the estimate is what every jsdom chart is laid out with.
+ */
+HTMLCanvasElement.prototype.getContext = (() =>
+  null) as typeof HTMLCanvasElement.prototype.getContext;
+
+/**
+ * The chart chunk is loaded on a chart's first use (`charts/load.ts`), a
+ * tick after the render that asks for it. Loaded here, before any suite
+ * renders, every chart draws inside the render a test asserts on, as it
+ * does in a browser from the second chart on.
+ */
+await loadCharts();

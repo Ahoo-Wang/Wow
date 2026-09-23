@@ -19,7 +19,13 @@ import type {
   FunnelStages,
   RecordData,
 } from '../../model/index.js';
-import { columnTitle, displayValue, valueText } from '../display.js';
+import {
+  columnTitle,
+  compactFormat,
+  displayValue,
+  formatNumber,
+  valueText,
+} from '../display.js';
 import type { MessageKey } from '../messages.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
@@ -32,7 +38,17 @@ import { useSurfaceDisplay } from '../ViewSurface.js';
  * function on purpose — a table showing ¥1,234.00 beside a tooltip showing
  * 1234 is two readings of one number, and only one of them is the column's.
  */
-export type ValueLabel = (alias: string | undefined, value: unknown) => string;
+export type ValueLabel = (
+  alias: string | undefined,
+  value: unknown,
+  /**
+   * Written short, where room is scarce: a tick, a label over a bar. Only a
+   * number is shortened, and still in its column's format — 「¥1110万」 in
+   * Chinese and `CN¥11.1M` in English (`compactFormat`); a tooltip, the
+   * reading table and the table layout keep the whole number.
+   */
+  compact?: boolean,
+) => string;
 
 /** What `AnalysisChart` hands whichever family the data asked for. */
 /**
@@ -88,11 +104,17 @@ export function useValueLabel(
     // As the analysis table shows the same value: what the field's kind
     // names first, then a number in its format and a boolean in words, both
     // in the surface's language.
-    return (alias, value) => {
+    return (alias, value, compact) => {
       const column = alias === undefined ? undefined : byAlias.get(alias);
       return (
         (column && displayValue(value, column, display)) ??
-        valueText(value, messages, column?.numberFormat, display.locale)
+        (compact && typeof value === 'number'
+          ? formatNumber(
+              value,
+              compactFormat(column?.numberFormat),
+              display.locale,
+            )
+          : valueText(value, messages, column?.numberFormat, display.locale))
       );
     };
   }, [columns, display, messages]);

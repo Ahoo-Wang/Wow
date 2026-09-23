@@ -73,25 +73,31 @@ D20 屏 G。订单里有明细项，明细项里有批次——「按货号看�
 
 - `AnalysisChart.tsx` 只剩按 `data.type` 分派，外加把类目标签器交给家族；六个家族与它们共用的工具各自成文件，改一个家族不必通读另外五个：
 
-| 文件                          | 管什么                                                                                          |
-| ----------------------------- | ----------------------------------------------------------------------------------------------- |
-| `ui/AnalysisChart.tsx`        | 按 family 分派；`AnalysisChartProps` 是对外的那一个                                             |
-| `ui/charts/Cartesian.tsx`     | bar／line／area／combo，双数值轴、参考线与 `mark` 选标记                                        |
-| `ui/charts/PieSlices.tsx`     | 饼图与环形图，「其他」那一片，每片的占比，图例上的度量与占比口径                                |
-| `ui/charts/ScatterPoints.tsx` | 散点，第三维走 `ZAxis`；两轴以列标题为名，点离绘图区边留一个半径，八个点以内点上写组名          |
-| `ui/charts/Heatmap.tsx`       | 自绘网格                                                                                        |
-| `ui/charts/Funnel.tsx`        | 自绘阶段条（色板第一档）、条旁的数，与标明相对哪一段的转化率                                    |
-| `ui/charts/MetricCard.tsx`    | 指标卡：值、比较、目标与迷你趋势                                                                |
-| `ui/charts/palette.ts`        | `--chart-1..8` 取色、「其他」的灰与 `spec.colors` 的覆盖（值在进 `<style>` 前再校一次）         |
-| `ui/charts/axis.ts`           | 数值格式、轴域与刻度格式、左右轴归属                                                            |
-| `ui/charts/family.ts`         | `FamilyProps`（每个家族收到的同一份 props）、值标签器 `useValueLabel` 与列标题 `useColumnTitle` |
-| `ui/charts/TooltipValue.tsx`  | 提示里的那一个数值，按它所在列的读法                                                            |
+| 文件                              | 管什么                                                                                                                |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `ui/AnalysisChart.tsx`            | 按 family 分派；`AnalysisChartProps` 是对外的那一个                                                                   |
+| `ui/charts/Cartesian.tsx`         | bar／line／area／combo：柱状图交 `cartesianOption`（ECharts），其余暂交 `RechartsCartesian`（D21 第二批删）           |
+| `ui/charts/cartesianOption.ts`    | 柱状图的 option：数值轴与标题、紧凑刻度、值标签与防重叠、堆叠合计、参考线；`categoryFit` 按宽度决定类目名平排还是斜排 |
+| `ui/charts/EChart.tsx`            | 与库的薄绑定：有尺寸才建、跟尺寸、option 整份替换、随元素销毁；图框、命名的图、主题读取、`data-drawn`                 |
+| `ui/charts/echarts.ts`／`load.ts` | 按需注册的图表块，第一次画图时才加载（`loadCharts`）                                                                  |
+| `ui/charts/theme.ts`              | 从图自己的元素读回样式表的令牌，转成具体的 `rgb()`（`readChartTheme`）                                                |
+| `ui/charts/ChartLegend.tsx`       | 图旁边的文字图例：每条系列一个圆点，默认在上方                                                                        |
+| `ui/charts/tooltip.ts`            | 提示框：注册表图表提示的那一套样式，数据里来的字一律转义                                                              |
+| `ui/charts/PieSlices.tsx`         | 饼图与环形图，「其他」那一片，每片的占比，图例上的度量与占比口径                                                      |
+| `ui/charts/ScatterPoints.tsx`     | 散点，第三维走 `ZAxis`；两轴以列标题为名，点离绘图区边留一个半径，八个点以内点上写组名                                |
+| `ui/charts/Heatmap.tsx`           | 自绘网格                                                                                                              |
+| `ui/charts/Funnel.tsx`            | 自绘阶段条（色板第一档）、条旁的数，与标明相对哪一段的转化率                                                          |
+| `ui/charts/MetricCard.tsx`        | 指标卡：值、比较、目标与迷你趋势                                                                                      |
+| `ui/charts/palette.ts`            | `--chart-1..8` 取色、「其他」的灰与 `spec.colors` 的覆盖（值在进 `<style>` 前再校一次）                               |
+| `ui/charts/axis.ts`               | 数值格式、轴域与刻度格式、左右轴归属                                                                                  |
+| `ui/charts/family.ts`             | `FamilyProps`（每个家族收到的同一份 props）、值标签器 `useValueLabel` 与列标题 `useColumnTitle`                       |
+| `ui/charts/TooltipValue.tsx`      | 提示里的那一个数值，按它所在列的读法                                                                                  |
 
 - 家族组件都不导出到包外：`/ui` 的出口只有 `AnalysisChart`，换一种画法是换 `charts/` 下的文件，不是换一个公开 API。（见 test/analysisChart.test.tsx「AnalysisChart」）
 
 ## 图表怎么被读出来
 
-- **画出来的部分是一张有名字的图，数字在它旁边。** recharts 默认打开 `accessibilityLayer`，给根 `<svg>` 挂上 `role="application"` 与 `tabIndex={0}`：读屏会因此退出浏览模式、把按键交给一个没有任何键盘处理的元素，而那个元素里只有坐标轴刻度、一个空 `<title>` 和一个空 `<desc>`——查询回答的数字一个都不在。`charts/asImage.ts` 把这一层关掉，换成 `role="img"` 加 `aria-label`；热力图与漏斗是自绘的 `div`，同样以 `role="img"` 加名字整块作为一张图。图里于是没有任何可聚焦的元素；
+- **画出来的部分是一张有名字的图，数字在它旁边。** ECharts 画的家族（D21，目前是柱状图）：`role="img"` 与名字在我们自己的 `data-slot="chart-plot"` 上，库的 `aria` 关着、它的 `<svg>` 不带角色与名字，图里没有可聚焦的元素（test/analysisChartA11y.test.tsx「draws into one named image」）。仍由 recharts 画的家族：recharts 默认打开 `accessibilityLayer`，给根 `<svg>` 挂上 `role="application"` 与 `tabIndex={0}`：读屏会因此退出浏览模式、把按键交给一个没有任何键盘处理的元素，而那个元素里只有坐标轴刻度、一个空 `<title>` 和一个空 `<desc>`——查询回答的数字一个都不在。`charts/asImage.ts` 把这一层关掉，换成 `role="img"` 加 `aria-label`；热力图与漏斗是自绘的 `div`，同样以 `role="img"` 加名字整块作为一张图。图里于是没有任何可聚焦的元素；
 - **名字说的是"画的是什么"**：`{图型}：{度量}，按 {类目}`（`label.chart.figure`），度量与类目都按别名回 `AnalysisView.schema` 取列标题，取不到就只剩图型名。指标卡没有类目，用 `label.chart.figure.plain`；它的迷你趋势线另有一个 `label.chart.sparkline`；
 - **可读替代来自同一份投影。** `charts/reading.ts` 从 `ChartData`——而不是旁边那份行投影——生成 `{name, header, rows}`，`ChartReadingTable` 用注册表的 `Table` 以 `sr-only` 渲染在图旁边，于是屏幕上画了什么、读屏就读到什么，两者不会各说各话：图上有、这里没有的值，只能意味着某个家族画了内核没整形过的东西。数值按该系列所在坐标轴的格式打印（`percent` 轴上的 0.25 读作 25%），空洞读作 `label.summary.unavailable`；
 - **仪表盘上的指标卡一行高**：网格一行 80px，面板标题下留给内容的是 28px；工作台里的 `text-3xl`（36px 行高）放不下，面板要么滚动、要么占两行（170px）大半是空白。所以仪表盘面板里的值（`data-slot="metric-value"`）降到 `text-2xl` 并去掉行距（`styles.css`「A number on a dashboard is a tile one row tall」），与 shadcn 仪表盘卡片的数字起始字号一致；工作台里仍是 `text-3xl`。首页的三张指标卡因此各占一行。（见回归 story「首页 / Fixture」）
@@ -100,7 +106,7 @@ D20 屏 G。订单里有明细项，明细项里有批次——「按货号看�
 
 ## 追问：点一组弹三项
 
-- **手势是"按下这一组"，而不是"按下某个按钮"。** 指针按在标记上——柱子（`charts/Cartesian.tsx`，挂在 recharts 的 `<Bar>` 上）、扇区（`PieSlices.tsx`）、热力图格子（`Heatmap.tsx`）、散点（`ScatterPoints.tsx`）——键盘按在表格的行上（`AnalysisTable.tsx`：行 `tabIndex=0`、`aria-haspopup="menu"`、`data-pickable`，Enter 或空格弹出同一个菜单）。四个家族与表格交出的都是同一个 `onPick(row, anchor)`（`charts/family.ts`），所以一个菜单服务所有布局；
+- **手势是"按下这一组"，而不是"按下某个按钮"。** 指针按在标记上——柱子（`charts/Cartesian.tsx`，库的 `click` 交出 `seriesIndex`／`dataIndex` 与原生事件，换回这一组的行，锚在按下的那一点，test/chartTheme.test.tsx「hands a pressed bar’s group to the follow-up」与浏览器故事 `FollowUpFromABar`）、扇区（`PieSlices.tsx`）、热力图格子（`Heatmap.tsx`）、散点（`ScatterPoints.tsx`）——键盘按在表格的行上（`AnalysisTable.tsx`：行 `tabIndex=0`、`aria-haspopup="menu"`、`data-pickable`，Enter 或空格弹出同一个菜单）。四个家族与表格交出的都是同一个 `onPick(row, anchor)`（`charts/family.ts`），所以一个菜单服务所有布局；
 - **键盘那条路是表格布局，不是图旁边那张 `sr-only` 表（F10）。** 画出来的部分整块是一张 `role="img"` 的图，里面一个可聚焦元素都没有（[图表怎么被读出来](#图表怎么被读出来)），而 `ChartReadingTable` 是读屏用的替代文本，本来就摆在指针与 Tab 都够不到的地方——把它做成可操作的，等于把"读得到"和"点得动"混成一件事。两种布局回答的是同一个问题，所以键盘的入口是切到表格：那里一行就是一组；
 - **三项**（`ui/analysis/DrillMenu.tsx`，画的是 `useAnalysisResult().followUp(row)` 交出的动作列表，哪几项、什么顺序、按下去做什么都由控制器定）：**查看这些记录**（`workbench.drill(conditions)`，在同一个工作台里开出未保存的记录视图，带「来自」那一条，见 [react.md](../react.md) 的「持有的视图」；`canDrill` 为假时这一项不在——不是禁用，是不画）、**再按…拆一层**（一层子菜单，列出能分组、当前结果又还没按它分的字段；选中即 `splitBy` 后 `apply`）、**只看这一组**（`focusOn` 后 `apply`）。后两项改的是当前这个分析视图的配置，所以它们和手改编辑器一样会变脏、可撤、可保存；
 - **菜单的标题就是这一组的条件**，由 `drillConditions` 交出、`describeFilter` 描述、`summaryText` 说出来——与「正在显示」那条用的是同一套词，所以"我点的是哪一组"和"现在筛的是什么"读起来是一句话的两半。标题写在菜单组**里面**：它标的就是组里这几项，读屏进到组里先听见条件；
@@ -139,12 +145,27 @@ D20 定下的三条数据口径，每一条都是"这个数看起来是甲，其
 - **日期的最早与最晚是日期，不是数**（[kernels.md#时间的最早与最晚](../kernels.md#时间的最早与最晚readsasitsfield-与-momentmetrics)）：`MAX(eventTime)` 这一列带着字段的 `cell`，于是表格、合计行、指标卡的主数、`sr-only` 读屏表都按字段读值（界面时区下的日期时间），表头、托盘的汇总方式、「只保留」与排序里提到它的地方都说「最晚」而不是「最大」（`columnTitle`／`metricReference`／指标卡的汇总方式都走 `summaryFunctionKey`，与记录视图的列汇总同一条）。日期字段的汇总方式单子上只有最早与最晚（任一值、百分位照能力声明），没有合计与平均；
 - **分析表是自己的滚动口，表头与合计行吸在两端**（2026-09-23 用户：合计行参考记录视图，固定在底部）：与 `RecordTable` 同样把 vendored `Table` 的容器挪开（`overflow-visible`），`data-slot="analysis-table"` 自己 `overflow-auto`；表头 `stickyBand('top')`、合计行 `stickyBand('bottom')`（与记录视图的表头／汇总带同一档灰）；行少时 `useRoomBelowRows` 量出的空间画成不画东西的 `tbody[data-slot=row-room]`，合计行因此紧挨页脚。在工作台里这个口吃掉分析结果留给它的高度（`styles.css`：`analysis-table` `flex: 1 1 0`），分析结果自身不再滚动；别处（仪表盘面板、嵌入）它和行一样高、只横向滚。行不可按时口自己是一个 Tab 停靠点（`tabIndex=0`），否则键盘滚不动它。页脚那一句靠右，与记录视图的翻页同侧；
 - **结果区有个底：最后一行是「正在显示 N 组，耗时 X 秒」**（`label.analysis.caption`，2026-09-23 用户：「底部就可以托住了，否则感觉报表会掉下来」）。它是结果块的 caption，与记录视图的分页同一份配方（`resultSlots('caption')`：上一条线、浅灰底、`px-4 py-2`），在填满容器的工作台里 `margin-top: auto` 贴底；图表与表格在它上面分剩下的高度。数的是屏幕上的组——分析结果的一行就是一组，分析里计数的单位一律叫「组」（托盘的「前 N 组」、截断提示的「只显示了前 N 组」、这里的页脚同一个词；2026-09-23 用户拍板，记录视图仍用「条」）；耗时是运行时写在结果上的 `ViewResult.elapsedMs`——从提问到答案落地，引擎队列里的等待也算（人也在等），一秒内两位小数、一秒以上一位（浏览器故事「分析工作台/回归」的 `CaptionHoldsTheReport`；test/runtime.test.ts「says how long the answer took」）；
-- **刻度字都在图里。** 数值轴与横向图的分类轴按刻度字自己定宽（recharts `width="auto"`），不再写死——分类轴从前固定 96px，把「OrderItemReservedTrackEventProcessor」从左边截成「kEventProcessor」；分类名超过 `CATEGORY_LABEL_MAX`（24 字）才以省略号截短，全名在 tooltip 里（`charts/axis.ts` 的 `categoryTick`）。刻度字以刻度为中心，最后一个会伸出绘图区半个字宽（真实服务上读成「2026年9月22E」「600,00(」），所以每张直角坐标图与散点图右侧留 `CHART_MARGIN.right`（40px，一个完整日期的一半）（浏览器故事「分析工作台/回归」的 `TicksInsideTheChart`；`TwoMetrics` 量两根纵轴并存）；
-- **轴上全是整数，就没有小数刻度。** 记录数、计数之和这类指标：比例尺在 0 到 2 之间本会放 0.5、1.5，指标自己的格式把它们四舍五入成「1」「2」，轴就读成 2、2、1、1、0（真实补偿服务上发现，2026-09-23）。`charts/Cartesian.tsx` 的 `wholeOn` 按这根轴上的**值**判断（该轴上每个系列的每个点、以及落在该轴的参考线都是整数），而不是按指标种类——计数的平均不是整数，整数金额的合计是——整数轴给 `allowDecimals={false}`（浏览器故事「分析工作台/回归」的 `WholeTicks`：刻度全是整数且没有两个写成同一个字）。判据是 `charts/axis.ts` 的 `allWhole`，散点的两根轴用同一条（审查时横轴读成「0 1 1 2 2」）；
+- **刻度字都在图里。** 数值轴与横向图的分类轴按刻度字自己定宽（recharts `width="auto"`），不再写死——分类轴从前固定 96px，把「OrderItemReservedTrackEventProcessor」从左边截成「kEventProcessor」；分类名超过 `CATEGORY_LABEL_MAX`（24 字）才以省略号截短，全名在 tooltip 里（`charts/axis.ts` 的 `categoryTick`）。刻度字以刻度为中心，最后一个会伸出绘图区半个字宽（真实服务上读成「2026年9月22E」「600,00(」），所以每张直角坐标图与散点图右侧留 `CHART_MARGIN.right`（40px，一个完整日期的一半）（浏览器故事「分析工作台/回归」的 `TicksInsideTheChart`；`TwoMetrics` 量两根纵轴并存）； ECharts 画的柱状图不再靠这 40px：标签在 `grid.outerBoundsMode` 里被收进图框（见下面「ECharts 的画法」），`TicksInsideTheChart` 同一个故事还量刻度两两不相交。
+- **轴上全是整数，就没有小数刻度。** 记录数、计数之和这类指标：比例尺在 0 到 2 之间本会放 0.5、1.5，指标自己的格式把它们四舍五入成「1」「2」，轴就读成 2、2、1、1、0（真实补偿服务上发现，2026-09-23）。`charts/Cartesian.tsx` 的 `wholeOn` 按这根轴上的**值**判断（该轴上每个系列的每个点、以及落在该轴的参考线都是整数），而不是按指标种类——计数的平均不是整数，整数金额的合计是——整数轴给 `allowDecimals={false}`（ECharts 画的柱状图是 `minInterval: 1`，`cartesianOption.ts`）（浏览器故事「分析工作台/回归」的 `WholeTicks`：刻度全是整数且没有两个写成同一个字）。判据是 `charts/axis.ts` 的 `allWhole`，散点的两根轴用同一条（审查时横轴读成「0 1 1 2 2」）；
 - **散点说得出每个点是什么**（2026-09-23 审查）。两根轴各以它那个指标的**列标题**为名（`useColumnTitle`，与表头同一句：「订单数」「金额 的 合计」）——散点的两个方向都是数，不写标题就读不出哪根是哪根；纵轴标题竖排、离图左边 10px（recharts 缺省的 5px 让它头一个像素落在 `svg` 外），横轴标题在刻度下、轴高 44px。点是圆，圆心在值上，所以落在最大值上的那个点半个在绘图区外、被图自己的框切掉：两根轴两端各让出 12px（recharts 的轴 `padding`，大于最大点的半径），而不是把定义域按一个猜的比例撑大——那样刻度会落在奇怪的数上。一个点是一组，提示的标题就是那一组（`labelFormatter`），行名是轴的列标题而不是 `x`／`y`；没有第三个指标时不画 `ZAxis`，提示里也就没有一行「1」。**八个点以内**（`NAMED_POINTS`，与色板同数）组名直接写在点上方（`LabelList`，`fill-foreground`：字用文字色，不用系列色），再多就会互相压住，只留给提示（test/analysisChart.test.tsx「a scatter」；浏览器故事「图型/回归」的 `ScatterReadsItsPoints`：刻度各不相同、每个点的框在绘图区里、两个标题在图里且不压刻度、四个点带仓库名）；
 - **漏斗的百分比说明是转化率、相对哪一段**。内核按 `conversion`（缺省 `previous`）拿每一段除以**上一段**，写了 `first` 才除以第一段；光秃秃一个「25%」挨着条，读起来是「占全部的 25%」——只有相对第一段时才是。所以百分比那一列上面有一行表头（`charts/family.ts` 的 `conversionHeading`：「转化率（相对上一段）」／「转化率（相对第一段）」，用的是选项面板上那个选择自己的词），读屏表的那一列同一句。条用色板第一档（`color(0)`，一个漏斗就是一个系列），不再是按钮的 `primary`；数写在条旁、用文字色，不压在色块上（一档色相对白字的对比度各不相同）；各列是一张网格，条从同一条边起、最长的那根止于数字之前，结果区照样给它左右 16px（`styles.css`）。（test/analysisChart.test.tsx「says what a funnel’s percentages are relative to, and paints from the palette」；浏览器故事「图型/回归」的 `FunnelFromTheRows`）；
 - **时间点不画成图形，只写出来。** 柱子从零长、扇区占整体的一份、格子深浅按大小——一个时刻没有零点，也没有整体，把它的毫秒数画成柱长只会让每一根都一样高、从 1970 年长起。所以：可视化的数据页里，系列、饼与漏斗的值、热力格子、散点的两轴与大小这些「量的槽」只列数量指标（`OptionsShape.quantities`），时间点只能做指标卡的主数；以时间点为主数的指标卡不给「比较」、目标值与数值格式（`chart.metric.moment`）。指标全是时间点而又有维度时，每个图型都灰着写「要数量指标，时间画不成图」（`chart.fit.needs-quantity`），表格那张卡可选，结果区显示表格——**不去把时间轴做成日期刻度**：那样柱状与面积仍从轴的下界长起，最早的那根长度为零，读起来是"没有"，比不画更错；
-- **提示里的那一行是自己画的。** 上游的 `ChartTooltipContent` 把数字写成 `toLocaleString()`，而它给出的唯一钩子 `formatter` 替换的是整行，所以色块、系列名与数值写在 `ui/charts/TooltipValue.tsx`——与 `ui/popups.tsx` 同一条缝，理由也一样：`ui/components/**` 是上游的，不手改。
+- **提示里的那一行是自己画的。** 上游的 `ChartTooltipContent` 把数字写成 `toLocaleString()`，而它给出的唯一钩子 `formatter` 替换的是整行，所以色块、系列名与数值写在 `ui/charts/TooltipValue.tsx`——与 `ui/popups.tsx` 同一条缝，理由也一样：`ui/components/**` 是上游的，不手改。 ECharts 画的家族同理：`charts/tooltip.ts` 自己写整张提示框。
+
+## ECharts 的画法：对齐 Metabase（D21）
+
+柱状图已由 ECharts 画（`charts/cartesianOption.ts`），其余家族按 D21 的批次跟进。显示照 Metabase 的规矩：
+
+- **数写短，读法仍是那一列的**：刻度与柱上的数经 `label(alias, value, true)`，中文「1110万」「1.2亿」、英文「11.1M」，列的货币保留（「¥1110万」）；提示框、读屏表与表格写全。`AxisSpec.format` 仍优先。
+- **每根柱上可写它的数，压到别的数就不写**：`labels: true` 时每个值一个标签（`labelLayout.hideOverlap`），标签带一圈脚下底色的描边，压在网格线或邻柱上也读得清；堆叠时段内写各段、栈顶写合计（一根高度为零的承载柱，不接按下、不进提示）。是否默认打开值标签是产品口径，现状仍是显示页的复选框（默认关）。（浏览器故事 `ValueLabelsApart`：三十天的标签两两不相交且都在图内）
+- **轴有标题**：横轴默认是维度的列标题，数值轴在只量一个指标时默认是它的列标题（拆分只算一个），两个指标同轴时不写——图例在说；`AxisSpec.label` 写了就用它。标题比刻度字重一档（500）。右轴有自己的标题。
+- **图例是文字，在左上**：`ChartLegend` 画在图框里、绘图区之外，每条系列一个圆点；`auto` 在多于一条系列时出现在上方（Metabase 的位置，读者先看到它），`top`／`bottom`／`right`／`none` 照写。折叠成「还有 N 个」在第二批。
+- **类目名按宽度排**：放得下就平排，放不下斜 45° 且每根都写、过长截断；一格比一行字还窄时才隔几个写一个，首尾总在（`categoryFit`，随尺寸合并进 option，不重放入场动画）。横向图的类目名按宽度的三成截断。
+- **柱子有最大宽度** 48px（`BAR_MAX_WIDTH`）：只剩一组时不再是一整块铺满的色板（浏览器故事 `OneBarKeepsItsWidth`）。
+- **细网格线、没有轴线与刻度线**（数值轴）；类目轴一条底线。标签与轴标题都留在图自己的框里（`grid.outerBoundsMode: 'same'`），最后一个刻度不再伸出去被截。
+- **提示框是注册表那一套**：`tooltip.ts` 返回带令牌类名的 HTML（框、标题、色块、名字、等宽数字），画在图自己的元素里所以跟着暗色走；数据来的每个字都转义。
+- **宿主的 `svg` 规则压不扁图**：库把尺寸写在 `<svg>` 属性上，宿主常见的图标规则（故事宿主的 `.story-app svg { width: 16px }`）会把整张图压成左上角 16px 的方块；`styles.css` 让图的 svg 填满库给它的框。
+- **`data-drawn`**：库报告画完（含动画）后写在图框上，新 option 下发时撤掉；浏览器故事量几何之前等它（`stories/view-engine/chartDom.ts` 的 `chartsDrawn`），否则量到的是还在长的柱子。
 
 ## 空结果只有一句话
 

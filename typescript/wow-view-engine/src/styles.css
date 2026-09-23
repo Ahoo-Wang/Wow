@@ -720,6 +720,21 @@
 }
 
 /*
+ * A chart's drawing is the size of the box the library drew it for.
+ *
+ * The library writes the size as the `<svg>`'s attributes, which any host
+ * rule on `svg` outranks: the story host's `.story-app svg { width: 16px }`
+ * — an icon rule, as most applications carry one — shrank every chart to a
+ * 16px square in its corner, drawn but invisible (found 2026-09-23 with the
+ * ECharts migration, D21). The library's own element around it is sized in
+ * pixels, so filling it is the drawing's true size.
+ */
+.fve-root [data-slot='chart-plot'] svg {
+  width: 100%;
+  height: 100%;
+}
+
+/*
  * A drawing keeps the column's gutter; a table runs to the edge.
  *
  * The result is a band that bleeds to the work column's edges (`variants.tsx`,

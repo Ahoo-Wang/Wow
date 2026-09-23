@@ -17,6 +17,13 @@ import displayMeta, {
   TwoMetrics as DisplayTwoMetrics,
 } from './AnalysisWorkbench.stories.js';
 import { dragHandleOnto } from './pointerDrag.js';
+import {
+  axisTexts,
+  chartsDrawn,
+  drawnMarks,
+  overlaps,
+  valueLabels,
+} from './chartDom.js';
 
 const meta = {
   ...displayMeta,
@@ -63,9 +70,17 @@ const seriesOrder = () =>
   );
 
 /** The legend entries in the order the chart draws them. */
-const legendOrder = () => {
-  const legend = document.querySelector('.recharts-legend-wrapper > div');
-  return legend ? [...legend.children].map(item => item.textContent) : [];
+const legendOrder = () =>
+  [...document.querySelectorAll('[data-slot="chart-legend-item"]')].map(
+    item => item.textContent,
+  );
+
+/** Every two value labels on screen, apart: none drawn over another. */
+const labelsApart = (root: HTMLElement) => {
+  const boxes = valueLabels(root).map(label => label.getBoundingClientRect());
+  return boxes.every((box, index) =>
+    boxes.slice(index + 1).every(other => !overlaps(box, other)),
+  );
 };
 
 /**
@@ -85,11 +100,7 @@ export const SeriesOrder: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const body = within(document.body);
-    await waitFor(() =>
-      expect(
-        canvasElement.querySelectorAll('.recharts-bar-rectangle'),
-      ).toHaveLength(8),
-    );
+    await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(8));
     const drawn = legendOrder();
     await expect(drawn).toHaveLength(2);
 
@@ -112,9 +123,7 @@ export const SeriesOrder: Story = {
     // Only the order moved: each series kept the axis it is measured on,
     // and the chart still draws both.
     await waitFor(() => expect(legendOrder()).toEqual([...drawn].reverse()));
-    await expect(
-      canvasElement.querySelectorAll('.recharts-bar-rectangle'),
-    ).toHaveLength(8);
+    await expect(drawnMarks(canvasElement)).toHaveLength(8);
   },
 };
 
@@ -135,11 +144,7 @@ export const ChartOptionsPages: Story = {
     const canvas = within(canvasElement);
     const body = within(document.body);
     // Two metrics, so there are two series to stack and a legend to read.
-    await waitFor(() =>
-      expect(
-        canvasElement.querySelectorAll('.recharts-bar-rectangle'),
-      ).toHaveLength(8),
-    );
+    await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(8));
 
     // Level one: the panel takes the sidebar column, where the view list was.
     await userEvent.click(
@@ -180,19 +185,18 @@ export const ChartOptionsPages: Story = {
         name: zhCN['label.chart.tab.display'],
       }),
     );
-    await expect(
-      canvasElement.querySelectorAll('.recharts-label-list'),
-    ).toHaveLength(0);
+    await expect(valueLabels(canvasElement)).toHaveLength(0);
     await userEvent.click(
       within(panel()!).getByRole('checkbox', {
         name: zhCN['label.chart.labels'],
       }),
     );
+    // A label over every bar there is room for, and none over another.
+    await chartsDrawn(canvasElement);
     await waitFor(() =>
-      expect(
-        canvasElement.querySelectorAll('.recharts-label-list'),
-      ).toHaveLength(2),
+      expect(valueLabels(canvasElement).length).toBeGreaterThan(0),
     );
+    await expect(labelsApart(canvasElement)).toBe(true);
 
     await userEvent.click(
       within(panel()!).getByRole('checkbox', {
@@ -216,7 +220,9 @@ export const ChartOptionsPages: Story = {
     );
     await waitFor(() =>
       expect(
-        canvasElement.querySelectorAll('.recharts-reference-line'),
+        canvasElement.querySelectorAll(
+          '[data-slot="chart-plot"] path[stroke-dasharray]',
+        ),
       ).toHaveLength(1),
     );
 
@@ -229,11 +235,9 @@ export const ChartOptionsPages: Story = {
       '金额',
     );
     await waitFor(() =>
-      expect(
-        [...canvasElement.querySelectorAll('.recharts-label')].map(
-          label => label.textContent,
-        ),
-      ).toContain('金额'),
+      expect(axisTexts(canvasElement).map(text => text.textContent)).toContain(
+        '金额',
+      ),
     );
 
     // Back to the types, and on to another family: a pie of the same rows,

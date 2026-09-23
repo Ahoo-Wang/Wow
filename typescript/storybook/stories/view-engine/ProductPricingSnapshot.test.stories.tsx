@@ -20,6 +20,7 @@ import {
   installRecordedPricingService,
 } from './productPricingService.js';
 import { readColumn } from './readTable.js';
+import { drawnMarks } from './chartDom.js';
 
 /**
  * The product pricing snapshot console against a recorded service instead
@@ -48,8 +49,7 @@ export default meta;
 
 type Story = StoryObj<typeof displayMeta>;
 
-const bars = (canvasElement: HTMLElement) =>
-  canvasElement.querySelectorAll('.recharts-bar-rectangle');
+const bars = (canvasElement: HTMLElement) => drawnMarks(canvasElement);
 
 export const SnapshotConsole: Story = {
   ...DisplaySnapshotConsole,

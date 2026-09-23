@@ -738,9 +738,11 @@ describe('the chart options’ axes page', () => {
     );
     // The title reaches the drawing.
     await waitFor(() =>
-      expect(document.querySelector('.recharts-label')?.textContent).toBe(
-        'Money',
-      ),
+      expect(
+        [...document.querySelectorAll('[data-slot="chart-plot"] svg text')].map(
+          text => text.textContent,
+        ),
+      ).toContain('Money'),
     );
 
     fireEvent.change(within(axis).getByLabelText('Axis title'), {
@@ -1044,8 +1046,11 @@ describe('the chart options of the other families', () => {
 });
 
 describe('what the chart options change on screen', () => {
-  const legend = () => document.querySelector('.recharts-legend-wrapper');
-  const labels = () => document.querySelectorAll('.recharts-label-list');
+  const legend = () => document.querySelector('[data-slot="chart-legend"]');
+  // A value label is drawn with a halo of the ground under it, and a tick is
+  // not: the halo is what tells the two texts of the drawing apart.
+  const labels = () =>
+    document.querySelectorAll('[data-slot="chart-plot"] svg text[stroke]');
 
   it('takes the legend away and writes the values on the marks', async () => {
     const { user, queries, draft } = await open({
@@ -1070,12 +1075,17 @@ describe('what the chart options change on screen', () => {
     fireEvent.click(
       within(panel()!).getByRole('checkbox', { name: 'Value labels' }),
     );
-    // One list per mark, each value read as its own column reads it. The
-    // suites ask for less motion, so the marks and their labels land at once.
+    // One label per bar, each value read as its own column reads it —
+    // written short, where it has only the bar's width.
     await waitFor(() => expect(draft().chart.labels).toBe(true));
-    await waitFor(() => expect(labels()).toHaveLength(2));
-    expect([...labels()].map(list => list.textContent).join('|')).toBe(
-      '21|3010',
+    await waitFor(() => expect(labels().length).toBeGreaterThan(0));
+    expect(
+      document
+        .querySelector('[data-slot="chart"]')!
+        .getAttribute('data-labels'),
+    ).toBe('on');
+    expect([...labels()].map(text => text.textContent)).toEqual(
+      expect.arrayContaining(['2', '1', '30', '10']),
     );
     expect(queries()).toBe(ran);
   });

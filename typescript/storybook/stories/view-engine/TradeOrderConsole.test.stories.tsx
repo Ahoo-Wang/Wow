@@ -20,6 +20,7 @@ import {
   RECORDED_TRADING_HOST,
   installRecordedTradeOrderService,
 } from './tradeOrderService.js';
+import { drawnMarks } from './chartDom.js';
 
 /**
  * The trade order console against a recorded service instead of a live one.
@@ -113,11 +114,7 @@ export const SnapshotConsole: Story = {
 
     // The analysis is a view of the same workbench: one bar per status.
     await userEvent.click(view('按状态分布'));
-    await waitFor(() =>
-      expect(
-        canvasElement.querySelectorAll('.recharts-bar-rectangle'),
-      ).toHaveLength(4),
-    );
+    await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(4));
 
     // Every order placed, by the day it was placed — all six, whichever
     // time zone the browser reads the days in.

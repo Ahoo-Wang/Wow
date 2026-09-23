@@ -11,50 +11,38 @@
  * limitations under the License.
  */
 
-import { useMemo, type MouseEvent as ReactMouseEvent } from 'react';
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ComposedChart,
-  LabelList,
-  Line,
-  LineChart,
-  ReferenceLine,
-  XAxis,
-  YAxis,
-} from 'recharts';
-import { useChartMotion } from './motion.js';
+import { useCallback, useMemo } from 'react';
 import type { CartesianData } from '../../analysis/index.js';
-import type { CartesianSeries } from '../../model/index.js';
-import {
-  ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from '../components/chart.js';
-import { cn } from 'cn';
-import { asImage } from './asImage.js';
-import {
-  allWhole,
-  axisId,
-  CHART_MARGIN,
-  categoryTick,
-  domainOf,
-  tickFormatterOf,
-} from './axis.js';
-import { legendPlacement } from './legend.js';
 import { pointAnchor } from '../analysis/DrillMenu.js';
-import type { FamilyProps } from './family.js';
-import { colorOf } from './palette.js';
-import { TooltipValue } from './TooltipValue.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
+import {
+  categoryFit,
+  cartesianOption,
+  drawnSeries,
+} from './cartesianOption.js';
+import { ChartLegend } from './ChartLegend.js';
+import { EChart, type ChartClick } from './EChart.js';
+import type { FamilyProps } from './family.js';
+import { legendAt } from './legend.js';
+import { measureText } from './measure.js';
+import { useChartMotion } from './motion.js';
+import { RechartsCartesian } from './RechartsCartesian.js';
+import type { ChartTheme } from './theme.js';
 
-export function Cartesian({
+/**
+ * Bar, line, area and combo. A bar chart is drawn by ECharts
+ * (`cartesianOption`); the other three still by Recharts until their batch
+ * of the migration lands (docs/design/decisions.md D21).
+ */
+export function Cartesian(props: FamilyProps<CartesianData>) {
+  return props.data.chart === 'bar' ? (
+    <Bars {...props} />
+  ) : (
+    <RechartsCartesian {...props} />
+  );
+}
+
+function Bars({
   data,
   spec,
   className,
@@ -65,347 +53,90 @@ export function Cartesian({
 }: FamilyProps<CartesianData>) {
   const animate = useChartMotion();
   const { locale } = useSurfaceDisplay();
-  // A pivot names its series by raw group values, and the style element
-  // interpolates config keys into custom properties: only an identifier is
-  // safe there, so every data-valued key is exchanged for a synthetic one
-  // while the original stays the label.
-  const safeKeys = useMemo(() => {
-    const map = new Map<string, string>();
-    data.series.forEach((series, index) => map.set(series.key, `s${index}`));
-    return map;
-  }, [data]);
-
-  const rows = useMemo(
-    () =>
-      data.points.map(point => ({
-        x: label(spec?.cartesian?.x, point.x),
-        ...Object.fromEntries(
-          Object.entries(point.values).map(([key, value]) => [
-            safeKeys.get(key) ?? key,
-            value,
-          ]),
-        ),
-      })),
-    [data, safeKeys, label, spec],
-  );
-
-  const config = useMemo<ChartConfig>(
-    () =>
-      Object.fromEntries(
-        data.series.map((series, index) => [
-          safeKeys.get(series.key) ?? series.key,
-          {
-            // A pivoted series shows its split value as that field shows
-            // it; an unpivoted one is its column's title — 「金额 的 合计」,
-            // never the alias `amount`, which names the query. The legend and
-            // the tooltip both read this label.
-            label:
-              series.value === undefined
-                ? (column(series.metric) ?? series.label)
-                : label(spec?.cartesian?.splitBy, series.value),
-            // The spec names a pivoted series by its split value as the
-            // kernel labels it and an unpivoted one by its metric alias; it
-            // may name either.
-            color: colorOf(spec, index, series.label, series.metric),
-          },
-        ]),
+  const pickable = onPick !== undefined;
+  const option = useCallback(
+    (theme: ChartTheme) =>
+      cartesianOption(
+        data,
+        { spec, label, column, locale, animate, pickable },
+        theme,
       ),
-    [data, safeKeys, label, column, spec],
+    [data, spec, label, column, locale, animate, pickable],
   );
-
   const horizontal = spec?.cartesian?.orientation === 'horizontal';
-  const bySeries = new Map(
-    (spec?.cartesian?.series ?? []).map(series => [series.metric, series]),
+  const adapt = useCallback(
+    (width: number) =>
+      categoryFit(
+        data.points.map(point => label(spec?.cartesian?.x, point.x)),
+        width,
+        text => measureText(text),
+        horizontal,
+      ),
+    [data, spec, label, horizontal],
   );
-  const referenceLines = spec?.cartesian?.referenceLines ?? [];
-  const left = spec?.cartesian?.yAxis?.left;
-  const right = spec?.cartesian?.yAxis?.right;
-  // A second axis is drawn only when something sits on it: two axes where
-  // every series is on the left is a scale nobody asked for.
-  const hasRight =
-    data.series.some(series => bySeries.get(series.metric)?.axis === 'right') ||
-    referenceLines.some(line => line.axis === 'right');
-  /**
-   * Which axis carries the numbers. Laid out vertically that is Y; laid out
-   * horizontally the chart is on its side and it is X, which is why a
-   * reference line drawn at `y` used to land on the categories.
-   */
-  const onNumericAxis = (axis: 'left' | 'right' | undefined) =>
-    horizontal ? { xAxisId: axisId(axis) } : { yAxisId: axisId(axis) };
-  /**
-   * The ticks of a numeric axis read as the metric on it reads: the axis
-   * carries one column's numbers, so a money series puts ¥1,234.00 on the
-   * ticks and in the tooltip, exactly as the table does. An `AxisSpec.format`
-   * still wins, because it is an instruction about this axis.
-   */
-  const metricOn = (side: 'left' | 'right') =>
-    data.series.find(
-      series => axisId(bySeries.get(series.metric)?.axis) === side,
-    )?.metric;
-  /**
-   * Whether every number on an axis is whole (`allWhole`): each series'
-   * every point on it, and each reference line drawn against it.
-   */
-  const wholeOn = (side: 'left' | 'right') => {
-    const keys = data.series
-      .filter(series => axisId(bySeries.get(series.metric)?.axis) === side)
-      .map(series => series.key);
-    return allWhole([
-      ...data.points.flatMap(point => keys.map(key => point.values[key])),
-      ...referenceLines
-        .filter(line => axisId(line.axis) === side)
-        .map(line => line.value),
-    ]);
-  };
-  const ticksOf = (axis: typeof left, side: 'left' | 'right') =>
-    tickFormatterOf(axis, locale) ??
-    ((value: number) => label(metricOn(side), value));
-  // An axis title, written along the axis; the category axis has none.
-  const titleOf = (
-    axis: typeof left,
-    side: 'left' | 'right',
-  ): AxisTitle | undefined =>
-    axis?.label === undefined
-      ? undefined
-      : horizontal
-        ? {
-            value: axis.label,
-            position: side === 'left' ? 'insideBottom' : 'insideTop',
-          }
-        : {
-            value: axis.label,
-            angle: side === 'left' ? -90 : 90,
-            position: side === 'left' ? 'insideLeft' : 'insideRight',
-          };
-  // Value labels read as the series' own column reads, like the ticks.
-  const labelled = spec?.labels === true;
-  const legend = legendPlacement(spec?.legend, data.series.length > 1);
-  // A tooltip row names a series and shows one of its numbers, so the number
-  // is read through that series' own metric.
-  const byKey = new Map(
-    data.series.map(series => [safeKeys.get(series.key) ?? series.key, series]),
+  const series = useMemo(
+    () => drawnSeries(data, { spec, label, column }),
+    [data, spec, label, column],
   );
-  const Chart =
-    data.chart === 'line'
-      ? LineChart
-      : data.chart === 'area'
-        ? AreaChart
-        : data.chart === 'combo'
-          ? ComposedChart
-          : BarChart;
-
+  const at = legendAt(spec?.legend, series.length > 1);
+  // The group a bar stands for: its category, and the split value when the
+  // series is one — named by the aliases the spec put on the axes, which is
+  // what the kernel reads a row by.
+  const onClick = useMemo(
+    () =>
+      onPick &&
+      ((click: ChartClick) => {
+        const entry = data.series[click.seriesIndex ?? -1];
+        const point = data.points[click.dataIndex];
+        const cartesian = spec?.cartesian;
+        if (click.componentType !== 'series' || !entry || !point || !cartesian)
+          return;
+        onPick(
+          {
+            [cartesian.x]: point.x,
+            ...(cartesian.splitBy === undefined
+              ? {}
+              : { [cartesian.splitBy]: entry.value }),
+          },
+          pointAnchor(click.event?.event ?? { clientX: 0, clientY: 0 }),
+        );
+      }),
+    [onPick, data, spec],
+  );
+  const marks = data.points.reduce(
+    (count, point) =>
+      count +
+      data.series.filter(entry => typeof point.values[entry.key] === 'number')
+        .length,
+    0,
+  );
   return (
-    <ChartContainer
-      config={config}
-      className={cn('min-h-52 w-full', className)}
-    >
-      <Chart
-        data={rows}
-        layout={horizontal ? 'vertical' : 'horizontal'}
-        margin={CHART_MARGIN}
-        {...asImage(name)}
-      >
-        <CartesianGrid vertical={false} />
-        {horizontal ? (
-          <>
-            <XAxis
-              type="number"
-              xAxisId="left"
-              allowDecimals={!wholeOn('left')}
-              domain={domainOf(left)}
-              tickFormatter={ticksOf(left, 'left')}
-              label={titleOf(left, 'left')}
+    <EChart
+      name={name}
+      className={className}
+      option={option}
+      adapt={adapt}
+      onClick={onClick}
+      legend={
+        at && {
+          at,
+          node: (
+            <ChartLegend
+              at={at}
+              entries={series.map(entry => ({
+                key: entry.key,
+                label: entry.name,
+                color: entry.color,
+              }))}
             />
-            {hasRight && (
-              <XAxis
-                type="number"
-                xAxisId="right"
-                orientation="top"
-                allowDecimals={!wholeOn('right')}
-                domain={domainOf(right)}
-                tickFormatter={ticksOf(right, 'right')}
-                label={titleOf(right, 'right')}
-              />
-            )}
-            <YAxis
-              type="category"
-              dataKey="x"
-              width="auto"
-              tickFormatter={categoryTick}
-            />
-          </>
-        ) : (
-          <>
-            <XAxis dataKey="x" tickLine={false} axisLine={false} />
-            <YAxis
-              yAxisId="left"
-              width="auto"
-              tickLine={false}
-              axisLine={false}
-              allowDecimals={!wholeOn('left')}
-              domain={domainOf(left)}
-              tickFormatter={ticksOf(left, 'left')}
-              label={titleOf(left, 'left')}
-            />
-            {hasRight && (
-              <YAxis
-                yAxisId="right"
-                orientation="right"
-                width="auto"
-                tickLine={false}
-                axisLine={false}
-                allowDecimals={!wholeOn('right')}
-                domain={domainOf(right)}
-                tickFormatter={ticksOf(right, 'right')}
-                label={titleOf(right, 'right')}
-              />
-            )}
-          </>
-        )}
-        <ChartTooltip
-          content={
-            <ChartTooltipContent
-              formatter={(value, name, item) => (
-                <TooltipValue
-                  color={item.payload?.fill ?? item.color}
-                  name={config[String(name)]?.label ?? name}
-                  value={label(byKey.get(String(name))?.metric, value)}
-                />
-              )}
-            />
-          }
-        />
-        {legend && (
-          <ChartLegend
-            {...legend.props}
-            content={<ChartLegendContent className={legend.className} />}
-          />
-        )}
-        {data.series.map(series => {
-          const configured = bySeries.get(series.metric);
-          return mark(
-            safeKeys.get(series.key) ?? series.key,
-            configured,
-            data.chart,
-            onNumericAxis(configured?.axis),
-            labelled
-              ? (value: number) => label(series.metric, value)
-              : undefined,
-            // The group a bar stands for: its category, and the split value
-            // when the series is one — named by the aliases the spec put on
-            // the axes, which is what the kernel reads a row by.
-            onPick &&
-              ((index: number, event: MouseEvent) => {
-                const point = data.points[index];
-                if (!point || !spec?.cartesian) return;
-                const { x, splitBy } = spec.cartesian;
-                onPick(
-                  {
-                    [x]: point.x,
-                    ...(splitBy === undefined
-                      ? {}
-                      : { [splitBy]: series.value }),
-                  },
-                  pointAnchor(event),
-                );
-              }),
-            animate,
-          );
-        })}
-        {referenceLines.map(line => (
-          <ReferenceLine
-            key={`${line.axis}-${line.value}`}
-            {...onNumericAxis(line.axis)}
-            {...(horizontal ? { x: line.value } : { y: line.value })}
-            label={line.label}
-            strokeDasharray="4 4"
-          />
-        ))}
-      </Chart>
-    </ChartContainer>
-  );
-}
-
-/** An axis title as the chart library places it: along the axis, inside. */
-interface AxisTitle {
-  value: string;
-  angle?: number;
-  position: 'insideLeft' | 'insideRight' | 'insideBottom' | 'insideTop';
-}
-
-/** One drawn series; `combo` takes its mark from the saved spec. */
-function mark(
-  key: string,
-  series: CartesianSeries | undefined,
-  chart: CartesianData['chart'],
-  /** The numeric axis this series is measured against. */
-  axis: { xAxisId: 'left' | 'right' } | { yAxisId: 'left' | 'right' },
-  /** Writes each value over its mark, as its column reads; none when off. */
-  valueLabel: ((value: number) => string) | undefined,
-  /** A press on the mark at this index; only bars take one. */
-  onPress: ((index: number, event: MouseEvent) => void) | undefined,
-  /** Whether the mark grows into place (`useChartMotion`). */
-  animate: boolean,
-) {
-  const kind = chart === 'combo' ? (series?.type ?? 'bar') : chart;
-  const fill = `var(--color-${key})`;
-  const labels = valueLabel && (
-    <LabelList
-      dataKey={key}
-      position="top"
-      className="fill-foreground text-xs"
-      formatter={(value: unknown) =>
-        typeof value === 'number' ? valueLabel(value) : ''
+          ),
+        }
       }
+      data={{
+        'data-chart': 'bar',
+        'data-marks': marks,
+        'data-labels': spec?.labels === true ? 'on' : 'off',
+      }}
     />
-  );
-  if (kind === 'line')
-    return (
-      <Line
-        key={key}
-        {...axis}
-        dataKey={key}
-        stroke={fill}
-        dot={false}
-        type={series?.smooth === true ? 'monotone' : 'linear'}
-        isAnimationActive={animate}
-      >
-        {labels}
-      </Line>
-    );
-  if (kind === 'area')
-    return (
-      <Area
-        key={key}
-        {...axis}
-        dataKey={key}
-        stroke={fill}
-        fill={fill}
-        fillOpacity={0.2}
-        stackId={series?.stack}
-        type={series?.smooth === true ? 'monotone' : 'linear'}
-        isAnimationActive={animate}
-      >
-        {labels}
-      </Area>
-    );
-  return (
-    <Bar
-      key={key}
-      {...axis}
-      dataKey={key}
-      fill={fill}
-      stackId={series?.stack}
-      radius={2}
-      isAnimationActive={animate}
-      className={onPress ? 'cursor-pointer' : undefined}
-      onClick={
-        onPress &&
-        ((_: unknown, index: number, event: ReactMouseEvent) =>
-          onPress(index, event.nativeEvent))
-      }
-    >
-      {labels}
-    </Bar>
   );
 }

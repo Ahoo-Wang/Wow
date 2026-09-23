@@ -12,7 +12,7 @@
  */
 
 import type { AxisSpec, ValueFormat } from '../../model/index.js';
-import { formatNumber } from '../display.js';
+import { compactFormat, formatNumber } from '../display.js';
 
 /**
  * A number as the spec asks for it, in the surface's language — through the
@@ -33,7 +33,7 @@ export function formatValue(
       locale,
     );
   if (format === 'compact')
-    return formatNumber(value, { notation: 'compact' }, locale);
+    return formatNumber(value, compactFormat(undefined), locale);
   return formatNumber(value, undefined, locale);
 }
 

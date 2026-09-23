@@ -20,6 +20,7 @@ import {
   RECORDED_TRADING_HOST,
   installRecordedTradeOrderEventService,
 } from './tradeOrderService.js';
+import { drawnMarks } from './chartDom.js';
 
 /**
  * The trade order event console against a recorded service instead of a
@@ -120,11 +121,7 @@ export const EventStreamConsole: Story = {
 
     // The analysis counts events, one bar per type the streams hold.
     await userEvent.click(view('事件类型分布'));
-    await waitFor(() =>
-      expect(
-        canvasElement.querySelectorAll('.recharts-bar-rectangle'),
-      ).toHaveLength(7),
-    );
+    await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(7));
 
     // The streams by the day they were appended — all ten, whichever time
     // zone the browser reads the days in — and the orders they touched.

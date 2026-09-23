@@ -20,6 +20,7 @@ import {
   installRecordedCustomerService,
 } from './customerService.js';
 import { readColumn } from './readTable.js';
+import { drawnMarks } from './chartDom.js';
 
 /**
  * The customer console against a recorded service instead of a live one.
@@ -47,8 +48,7 @@ export default meta;
 
 type Story = StoryObj<typeof displayMeta>;
 
-const bars = (canvasElement: HTMLElement) =>
-  canvasElement.querySelectorAll('.recharts-bar-rectangle');
+const bars = (canvasElement: HTMLElement) => drawnMarks(canvasElement);
 
 export const DataConsole: Story = {
   ...DisplayDataConsole,

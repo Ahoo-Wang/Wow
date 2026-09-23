@@ -17,6 +17,7 @@ import displayMeta, {
   BarChart as DisplayBarChart,
   DailyNewestFirst as DisplayDailyNewestFirst,
 } from './AnalysisWorkbench.stories.js';
+import { axisTicks, chartsDrawn, drawnMarks } from './chartDom.js';
 
 const meta = {
   ...displayMeta,
@@ -41,8 +42,7 @@ const AMOUNT_HEADER = formatMessage(zhCN, 'label.summary.of', {
 const COUNT_HEADER = zhCN['label.analysis.row-count'];
 const WAREHOUSES = ['华东', '华南', '华北', '西南'];
 
-const bars = (canvas: HTMLElement) =>
-  canvas.querySelectorAll('.recharts-bar-rectangle');
+const bars = (canvas: HTMLElement) => drawnMarks(canvas);
 
 const chartTile = (canvas: HTMLElement, type: string) =>
   canvas.querySelector<HTMLButtonElement>(
@@ -332,7 +332,10 @@ export const SavedFunnelRepaired: Story = {
     // A pick with no rows fits the draft and runs: a bar chart over the four
     // warehouses, a series for each metric the family had never measured.
     await userEvent.click(chartTile(panel, 'bar'));
-    await waitFor(() => expect(ticksOf(canvasElement, 'x')).toHaveLength(4));
+    await chartsDrawn(canvasElement);
+    await waitFor(() =>
+      expect(axisTicks(canvasElement, 'bottom')).toHaveLength(4),
+    );
     await expect(bars(canvasElement).length).toBeGreaterThan(0);
     await expect(
       canvasElement.querySelector('[data-slot="status-line"] [role="alert"]'),

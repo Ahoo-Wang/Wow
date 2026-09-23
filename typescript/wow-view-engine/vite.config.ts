@@ -49,7 +49,7 @@ export default defineConfig({
     },
     rolldownOptions: {
       external:
-        /^(react|react-dom|react-grid-layout|react-markdown|react-day-picker|@base-ui\/react|@ahoo-wang\/fetcher-wow|lucide-react|class-variance-authority|clsx|tailwind-merge|recharts)(\/|$)/,
+        /^(react|react-dom|react-grid-layout|react-markdown|react-day-picker|@base-ui\/react|@ahoo-wang\/fetcher-wow|lucide-react|class-variance-authority|clsx|tailwind-merge|recharts|echarts|zrender)(\/|$)/,
     },
   },
 });

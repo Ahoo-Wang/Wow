@@ -20,6 +20,7 @@ import {
   installRecordedCustomerEventService,
 } from './customerService.js';
 import { readColumn } from './readTable.js';
+import { drawnMarks } from './chartDom.js';
 
 /**
  * The customer event stream console against a recorded service instead of a
@@ -136,11 +137,7 @@ export const EventStreamConsole: Story = {
 
     // The analysis counts events, one bar per type the streams hold.
     await userEvent.click(view('事件类型分布'));
-    await waitFor(() =>
-      expect(
-        canvasElement.querySelectorAll('.recharts-bar-rectangle'),
-      ).toHaveLength(7),
-    );
+    await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(7));
 
     // Every event lands in some day, and each day says how many customers
     // its events touched. Which day is the zone's to say, so only the sum.

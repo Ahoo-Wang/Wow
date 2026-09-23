@@ -20,6 +20,7 @@ import {
   installRecordedPricingEventService,
 } from './productPricingService.js';
 import { readColumn } from './readTable.js';
+import { drawnMarks } from './chartDom.js';
 
 /**
  * The product pricing event stream console against a recorded service
@@ -130,11 +131,7 @@ export const EventStreamConsole: Story = {
 
     // The analysis counts events, one bar per type the streams hold.
     await userEvent.click(view('事件类型分布'));
-    await waitFor(() =>
-      expect(
-        canvasElement.querySelectorAll('.recharts-bar-rectangle'),
-      ).toHaveLength(3),
-    );
+    await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(3));
 
     // The pricings changed after they were created, the most first, and when
     // the last change was — a date, not epoch milliseconds.

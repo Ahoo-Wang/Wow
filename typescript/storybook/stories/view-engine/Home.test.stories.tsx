@@ -14,6 +14,7 @@ import type { StoryObj } from '@storybook/react-vite';
 import { expect, waitFor, within } from 'storybook/test';
 import displayMeta, { Fixture as DisplayFixture } from './Home.stories.js';
 import { findDataTable, readColumn } from './readTable.js';
+import { drawnMarks } from './chartDom.js';
 
 /**
  * The home page over the fixture, on its fixed morning.
@@ -124,8 +125,7 @@ export const Fixture: Story = {
 
     // One bar per day of September so far, one per status, and the
     // processors ahead first.
-    const bars = (name: string) =>
-      panel(name).querySelectorAll('.recharts-bar-rectangle').length;
+    const bars = (name: string) => drawnMarks(panel(name)).length;
     await waitFor(() => expect(bars('本月每日新增失败')).toBe(22));
     await waitFor(() => expect(bars('按状态分布')).toBe(3));
     await waitFor(() => expect(bars('活动失败最多的处理器')).toBe(6));

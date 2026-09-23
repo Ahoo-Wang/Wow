@@ -21,6 +21,7 @@ import {
   installRecordedCompensationService,
 } from './compensationService.js';
 import { readColumn, readTotal } from './readTable.js';
+import { drawnMarks } from './chartDom.js';
 
 /**
  * The compensation console against a recorded service instead of a live one.
@@ -156,11 +157,7 @@ export const DataConsole: Story = {
 
     // The analysis is a view of the same workbench, not another console.
     await userEvent.click(canvas.getByRole('button', { name: /^按状态分布/ }));
-    await waitFor(() =>
-      expect(
-        canvasElement.querySelectorAll('.recharts-bar-rectangle'),
-      ).toHaveLength(3),
-    );
+    await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(3));
   },
 };
 

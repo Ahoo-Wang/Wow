@@ -270,6 +270,29 @@ export function formatNumber(
 }
 
 /**
+ * A number format written short: the same style, currency or unit, in the
+ * language's own compact notation — 万 and 亿 in Chinese, K, M and B in
+ * English, which is what Intl's `compact` already knows — with at most one
+ * decimal, so 11,100,000 reads 「1110万」 or `11.1M` rather than `11M`. What
+ * the format said about decimals is dropped, since it was said about the
+ * whole number: two fraction digits on a compact figure would ask for
+ * 「1110.00万」.
+ */
+export function compactFormat(format: NumberFormat | undefined): NumberFormat {
+  const short: NumberFormat = { ...format };
+  delete short.minimumSignificantDigits;
+  delete short.maximumSignificantDigits;
+  // Both ends said: an older ICU (Node 20's) keeps a currency's two
+  // minimum decimals under a maximum of one and writes 「¥1110.0万」.
+  return {
+    ...short,
+    notation: 'compact',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 1,
+  };
+}
+
+/**
  * A value an analysis shows when its field's kind has nothing to add: a number
  * as `formatNumber` prints it; a boolean in the catalogue's words; anything
  * else as text. A table cell, a chart axis and a tooltip read the same, so a

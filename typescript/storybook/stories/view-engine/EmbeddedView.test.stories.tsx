@@ -25,6 +25,7 @@ import displayMeta, {
   TotalCoversThisPageOnly as DisplayTotalCoversThisPageOnly,
 } from './EmbeddedView.stories.js';
 import { amountOf, readColumn, readPage, readTotal } from './readTable.js';
+import { drawnMarks } from './chartDom.js';
 
 const meta = {
   ...displayMeta,
@@ -276,11 +277,7 @@ export const AnalysisEmbed: Story = {
   ...DisplayAnalysisEmbed,
   play: async ({ canvasElement }) => {
     // Dispatch by kind is the embed's own: the host handed over an id.
-    await waitFor(() =>
-      expect(
-        canvasElement.querySelectorAll('.recharts-bar-rectangle'),
-      ).toHaveLength(4),
-    );
+    await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(4));
     await expect(
       canvasElement.querySelector('[data-slot="applied-bar"]'),
     ).not.toBeNull();

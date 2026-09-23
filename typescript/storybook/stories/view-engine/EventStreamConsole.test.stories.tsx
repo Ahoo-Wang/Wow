@@ -20,6 +20,7 @@ import {
   installRecordedEventStreamService,
 } from './eventStreamService.js';
 import { readColumn } from './readTable.js';
+import { drawnMarks } from './chartDom.js';
 
 /**
  * The event stream console against a recorded service instead of a live one.
@@ -144,11 +145,7 @@ export const EventStreamConsole: Story = {
 
     // The analysis counts events, one bar per type the streams hold.
     await userEvent.click(view('事件类型分布'));
-    await waitFor(() =>
-      expect(
-        canvasElement.querySelectorAll('.recharts-bar-rectangle'),
-      ).toHaveLength(5),
-    );
+    await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(5));
 
     // The execution retried most, and when it last was — the latest of its
     // retry events' times, read as a date and not as epoch milliseconds.

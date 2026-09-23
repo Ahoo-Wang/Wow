@@ -43,3 +43,19 @@ export function legendPlacement(
     };
   return { props: { verticalAlign: where } };
 }
+
+/**
+ * Where a legend drawn beside the chart goes (`ChartLegend`), or nowhere.
+ * `auto` puts it on top, before the marks, once there is more than one
+ * series to tell apart — where Metabase puts it, and where a reader looks
+ * first; a single series is named by the axis title and the chart's name.
+ */
+export function legendAt(
+  legend: ChartSpec['legend'],
+  auto: boolean,
+): 'top' | 'bottom' | 'right' | undefined {
+  const where = legend ?? 'auto';
+  if (where === 'none') return undefined;
+  if (where === 'auto') return auto ? 'top' : undefined;
+  return where;
+}

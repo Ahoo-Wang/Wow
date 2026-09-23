@@ -182,6 +182,20 @@
 - **依据**：用户 2026-09-22 的裁定（顺序、可视化在左侧栏、分析视图无业务操作、不拆简单／高级）与第一原理：托盘只装问题、图是结果的属性、能力决定在不在而配置决定灰不灰、条件是定义的一部分所以静止时也要看得见。
 - **落点**：阶段 2 的批次在 [todo.md](todo.md)；组合工作台的设计在 D18-1；D9 的「只列自己那一种」由 `kinds` 取代。
 
+## D21 图表渲染层换成 Apache ECharts 6.1（2026-09-23）
+
+- **日期**：2026-09-23（用户拍板；迁移分五批，本条随第一批落地）
+- **决定**：`ui/charts/` 的渲染从 recharts（经 shadcn 的 `ui/components/chart.tsx`）换成 **Apache ECharts 6.1.0**，显示对齐 **Metabase**。**SVG 渲染器**；从 `echarts/core` 按需注册（`charts/echarts.ts`，只注册用到的图型与组件）；**自写薄绑定** `charts/EChart.tsx`——有尺寸才 `init(el, null, { renderer: 'svg', width, height })`、`ResizeObserver` 跟尺寸、每次 option 变化 `setOption(opt, { notMerge: true })`、随元素 `dispose`——**不用 `echarts-for-react`**（它在供应链通告 GMS-2026-530 里），也不引 `size-sensor`。版本精确锁定（`pnpm-workspace.yaml` 的 catalog 写 `6.1.0`，与 Metabase 同一版）；图表块**懒加载**（`charts/load.ts` 的 `import('./echarts.js')`，第一张图时才要，之后同一次渲染里就画）；`vite.config.ts` 把 `echarts|zrender` 列为 external。
+- **内核不动**：`analysis/chart.ts` 仍按家族整形 `ChartData`；`ui/charts/` 只是渲染层，每个家族一个纯函数 `xxxOption(ChartData, context, theme) → option`，不用 DOM 就能单测（`test/cartesianOption.test.ts`）。
+- **主题**：CSS 自定义属性仍是唯一真相源（D16）。`charts/theme.ts` 在图自己的元素上 `getComputedStyle` 读 `--chart-1..8`、`--foreground`、`--muted-foreground`、`--border` 与脚下的底色，**转成具体的 `rgb()` 再交给库**——option 里不放 `var()`（库靠解析颜色推导悬停色与标签对比色，自定义属性解析不出，echarts#16044／#19743），也不放 `oklch()`（主题用它写，库的解析器不认）。换肤不重挂载：`ViewSurface` 的观察者本来就盯着祖先的 `class`／`data-theme`（`useSurfaceTheme`），图以它为依赖重读变量、就地重画；不另立主题上下文。
+- **紧凑数字跟界面语言**：刻度与柱上的数写短、提示与读屏表与表格写全，都经同一个 `useValueLabel`（多一个 `compact` 参数，`display.ts` 的 `compactFormat`）：中文「1110万」「1.2亿」、英文「11.1M」「4.2K」，这是 `Intl` 的 `compact` 本来就会的，列的货币与单位保留，列为整数写的小数位不带过去。
+- **可达性**：画出来的部分是一张 `role="img"`、以 `readChart` 的名字命名的图（`data-slot="chart-plot"`），库自己的 aria 关着；数字在 `ChartReadingTable`。ECharts 没有键盘导航（echarts#18585），所以键盘到一组的路仍是表格布局的行（F10）。axe 用例保持绿。
+- **追问**：按下标记时库交出 `{seriesIndex, dataIndex, event}`，家族把它换回这一组的行，锚点用原生事件的 `clientX/Y`（`pointAnchor`），调用同一个 `OnPick`。
+- **为什么不是别的**（2026-09-23 评估）：AntV G2（gzip 405KB、按需裁剪无效、jsdom 跑不起、2026-05 AntV 的 npm 账号被盗）；Highcharts（商业 EULA，不能随 Apache-2.0 的库分发）；Vega-Lite（mark 标签没有防碰撞）；Nivo（停更）；visx（等于自造）；Plotly（约 1.5MB）；Chart.js（只有 canvas，读不了 CSS 变量）；Unovis（没有漏斗与缩放）；留在 recharts（标签防碰撞、图例折叠、类目轴自动间隔、热力图色标、dataZoom 全得手写）。Metabase、Superset、Evidence 用的都是 ECharts 6.1，Lightdash 5.6。
+- **实测**：recharts 现用量 gzip 130KB；ECharts SVG 带六个家族与 grid／tooltip／legend／markLine／visualMap／graphic／LabelLayout 231KB（加 dataZoom／brush／aria／dataset／title／markArea 为 269KB）。1 万点散点 380ms → 7ms；10 万点折线 247ms → 19～91ms。30 天 × 2 系列每柱一个标签，`labelLayout.hideOverlap` 画出约 43／60 个且互不重叠（估算字宽带来个别 2～4px 的擦边）。ECharts SVG 在 jsdom 里能渲染（点击参数带 `{name, seriesName, value, dataIndex, event.offsetX/Y}`），`ssr: true` + `renderToSVGString()` 在 Node 里无 DOM 可用。
+- **分批**：①绑定 + 主题 + 懒加载 + **柱状图**（含横向、堆叠与合计、值标签防重叠、紧凑刻度、轴标题）；②其余直角坐标（折线、面积、组合、带标题的右轴、参考线、图例折叠／滚动）；③饼／环（中心总计、图例带占比、「其他」）与散点／气泡；④指标卡迷你图、漏斗（换掉自绘，标出转化）、热力图（`visualMap` 色标）；⑤删掉 recharts 与 `ui/components/chart.tsx`、文档与包体说明。迁移期间一张图只由一个库画：`charts/Cartesian.tsx` 把 bar 交给 ECharts，其余仍交 `RechartsCartesian.tsx`，下一批删掉它。
+- **落点**：`src/ui/charts/{EChart.tsx,echarts.ts,load.ts,theme.ts,cartesianOption.ts,ChartLegend.tsx,tooltip.ts,measure.ts,Cartesian.tsx}`、`src/ui/display.ts`（`compactFormat`）、`src/styles.css`（图的 svg 按库给的框定尺寸）、[ui/analysis.md](ui/analysis.md)。
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。

@@ -59,6 +59,7 @@ function AnalysisWorkbenchDemo({
   limit,
   waybills,
   savedFunnel,
+  labels = false,
 }: {
   behaviour?: SourceBehaviour;
   layout?: 'table' | 'chart';
@@ -111,6 +112,8 @@ function AnalysisWorkbenchDemo({
    * 什么也不跑，从状态行进图型网格修。
    */
   savedFunnel?: { value: 'orders' | 'amount'; order: string[] };
+  /** Whether the chart writes each value over its mark (`ChartSpec.labels`). */
+  labels?: boolean;
 }) {
   const { groups, metrics } = analysisConfig();
   const fitted = fitChartSlots({ type: chart }, groups, metrics);
@@ -150,6 +153,7 @@ function AnalysisWorkbenchDemo({
             },
           }),
       ...(pinned ? { colors: PINNED_COLORS } : {}),
+      ...(labels ? { labels: true } : {}),
     },
     table: {
       columns: allColumns
@@ -177,7 +181,10 @@ function AnalysisWorkbenchDemo({
       : saved;
 
   if (waybills) {
-    const view = waybillAnalysisView(waybillScene(waybills, layout));
+    const scene = waybillScene(waybills, layout);
+    const view = waybillAnalysisView(
+      labels ? { ...scene, chart: { ...scene.chart, labels: true } } : scene,
+    );
     return (
       <StoryEngine
         create={() =>
@@ -355,8 +362,10 @@ const meta = {
     allColumns: false,
     visualization: true,
     latest: false,
+    labels: false,
   },
   argTypes: {
+    labels: { control: 'boolean' },
     latest: { control: 'boolean' },
     limit: { table: { disable: true } },
     savedFunnel: { table: { disable: true } },
@@ -460,6 +469,21 @@ export const LatestPerWarehouse: Story = {
 export const DailyNewestFirst: Story = {
   args: { layout: 'chart', waybills: 'daily' },
 };
+
+/**
+ * 三十天的柱，每根柱上写着它的数：写得下的都写，会压到别的数上的那一个不写
+ * ——而不是叠在一起（ECharts 的 `labelLayout.hideOverlap`，D21）。数写得短，
+ * 与刻度同一个读法。
+ */
+export const ValueLabels: Story = {
+  args: { layout: 'chart', waybills: 'daily', labels: true },
+};
+
+/**
+ * 只剩一组时柱子也只有它该有的宽：从前一组就是一整块铺满绘图区的色板
+ * （定价「按状态分布」，真实后端 2026-09-23）。
+ */
+export const OneBar: Story = { args: { layout: 'chart', limit: 1 } };
 
 /** 同一个按日倒序的问题画成指标卡：迷你趋势同样从最早的一天画起。 */
 export const DailyTrendCard: Story = {

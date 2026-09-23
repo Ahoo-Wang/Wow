@@ -125,13 +125,18 @@ const barSpec: ChartSpec = {
 };
 
 describe('the chart is a named image, not an application', () => {
-  it('hands back the role recharts claimed, and takes a name', () => {
+  it('draws into one named image, and the drawing claims no role', () => {
     const { container } = draw(bars, barSpec, columns);
-    const svg = container.querySelector('svg.recharts-surface')!;
+    const plot = container.querySelector('[data-slot="chart-plot"]')!;
 
-    expect(svg.getAttribute('role')).toBe('img');
-    expect(svg.getAttribute('aria-label')).toBe('bar: Orders by Warehouse');
-    expect(svg.getAttribute('role')).not.toBe('application');
+    expect(plot.getAttribute('role')).toBe('img');
+    expect(plot.getAttribute('aria-label')).toBe('bar: Orders by Warehouse');
+    // The library's own layer stays off: its `<svg>` names nothing and is
+    // not an application, so the one name is the image's.
+    const svg = plot.querySelector('svg')!;
+    expect(svg).not.toBeNull();
+    expect(svg.getAttribute('role')).toBeNull();
+    expect(svg.getAttribute('aria-label')).toBeNull();
   });
 
   /**
@@ -141,11 +146,11 @@ describe('the chart is a named image, not an application', () => {
    */
   it('leaves nothing inside the drawing focusable', () => {
     const { container } = draw(bars, barSpec, columns);
-    const svg = container.querySelector('svg.recharts-surface')!;
+    const plot = container.querySelector('[data-slot="chart-plot"]')!;
 
-    expect(svg.getAttribute('tabindex')).toBeNull();
+    expect(plot.querySelector('svg')!.getAttribute('tabindex')).toBeNull();
     expect(
-      svg.querySelectorAll(
+      plot.querySelectorAll(
         '[tabindex]:not([tabindex="-1"]),a[href],button,input,select,textarea',
       ),
     ).toHaveLength(0);
@@ -403,7 +408,7 @@ describe('the wording is in both catalogues', () => {
 
     expect(
       container
-        .querySelector('svg.recharts-surface')!
+        .querySelector('[data-slot="chart-plot"]')!
         .getAttribute('aria-label'),
     ).toBe('柱状图：Orders，按 Warehouse');
     expect(
