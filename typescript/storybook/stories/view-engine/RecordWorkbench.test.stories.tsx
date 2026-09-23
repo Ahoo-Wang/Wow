@@ -2024,9 +2024,10 @@ export const English: Story = {
     const applied = canvas.getByRole('region', {
       name: defaultMessages['label.applied.title'],
     });
-    const badge = `状态 ${defaultMessages['label.operator.IN']} 待出库`;
+    // One value reads 'is' however it was stored (`label.relation.is`).
+    const badge = `状态 ${defaultMessages['label.relation.is']} 待出库`;
     await expect(applied).toHaveTextContent(badge);
-    await expect(applied).not.toHaveTextContent(zhCN['label.operator.IN']);
+    await expect(applied).not.toHaveTextContent(zhCN['label.relation.is']);
 
     // And it is operable: the ✕ takes the condition out of force and the
     // query runs again, which is what leaves every order on screen.

@@ -138,7 +138,10 @@ export function AnalysisToolbar({
 
 /**
  * What a result's numbers are, in one line: 「按仓库 · 记录数」 — the
- * dimensions, then the metrics as their columns are headed. The toolbar
+ * dimensions, then the metrics, each as its column is headed: a time
+ * dimension with its granularity, 「按创建时间（按日） · 记录数」, since the
+ * axis and the header under it say 「创建时间（按日）」 and a line that
+ * dropped it read as a different question. The toolbar
  * says it over the rows; a new analysis in a dashboard is named by it until
  * its author names it (D22 C).
  */
@@ -152,7 +155,7 @@ export function analysisReading(
   const join = messages.label('label.filter.join');
   const dimensions = columns
     .filter(column => column.role === 'group')
-    .map(column => column.label)
+    .map(column => columnTitle(column, messages))
     .join(join);
   const metrics = columns
     .filter(column => column.role === 'metric')

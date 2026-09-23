@@ -175,7 +175,7 @@ export function AnalysisTable({ view, onPick, sorting }: AnalysisTableProps) {
    * to a reader. A percentile's 「≈」 is a sign, and 「近似值」 is the word
    * behind it: Wow computes percentiles approximately, and nothing else on
    * the row says so (D20 口径). A conditioned metric's 「· 已发运」 is the
-   * short of its condition, and 「只算 状态 属于 已发运」 the whole of it —
+   * short of its condition, and 「只算 状态 是 已发运」 the whole of it —
    * said even when the analyst's own name took the header's place.
    */
   const headerNote = (

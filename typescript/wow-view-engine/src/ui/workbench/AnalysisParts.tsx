@@ -488,6 +488,9 @@ const RESULT_SLOTS = resultSlots('caption');
 /** No sort has run yet: the order before any result. */
 const NO_SORT: readonly AnalysisSort[] = [];
 
+/** The smallest time the footer says; anything under it is 「<0.01 秒」. */
+const MIN_SHOWN_SECONDS = 0.01;
+
 /**
  * The analysis result's footer: 「正在显示 12 组，耗时 0.38 秒」 — or, with no
  * dimension, only 「耗时 0.38 秒」. An ungrouped answer is one row that is
@@ -510,11 +513,17 @@ function AnalysisCaption({
   const messages = useViewMessages();
   const { locale } = useSurfaceDisplay();
   const seconds = (elapsedMs ?? 0) / 1000;
-  const time = formatNumber(
-    seconds,
-    { maximumFractionDigits: seconds < 1 ? 2 : 1 },
-    locale,
-  );
+  // Under a hundredth it rounds to 「0 秒」, which reads as nothing having
+  // been asked (the 2026-09-23 audit, P2-9): it is said as below the
+  // smallest step the footer shows.
+  const time =
+    seconds < MIN_SHOWN_SECONDS
+      ? `<${formatNumber(MIN_SHOWN_SECONDS, undefined, locale)}`
+      : formatNumber(
+          seconds,
+          { maximumFractionDigits: seconds < 1 ? 2 : 1 },
+          locale,
+        );
   return (
     <div
       data-slot="analysis-caption"
@@ -525,10 +534,15 @@ function AnalysisCaption({
     >
       {rows === null
         ? messages.label('label.analysis.caption-whole', { seconds: time })
-        : messages.label('label.analysis.caption', {
-            count: formatNumber(rows, undefined, locale),
-            seconds: time,
-          })}
+        : messages.label(
+            rows === 1
+              ? 'label.analysis.caption-one'
+              : 'label.analysis.caption',
+            {
+              count: formatNumber(rows, undefined, locale),
+              seconds: time,
+            },
+          )}
     </div>
   );
 }

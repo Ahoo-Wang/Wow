@@ -433,7 +433,7 @@ describe('a metric’s own conditions', () => {
   });
 
   /**
-   * "Count every record again" is the way back out, and it takes the key
+   * "Remove the condition, count every record" is the way back out, and it takes the key
    * away rather than leaving an empty tree behind: a config is plain JSON,
    * and a metric carrying `filter: undefined` is a config no fresh one
    * would ever be. The block closes with it — there is nothing left to
@@ -529,7 +529,7 @@ describe('a metric’s own conditions', () => {
     const sentences = ids.map(id => document.getElementById(id)?.textContent);
     expect(sentences).toContain(
       label('label.analysis.only-where', {
-        conditions: 'Status is any of Paid',
+        conditions: 'Status is Paid',
       }),
     );
     // The record count beside it counts every record and says nothing more.

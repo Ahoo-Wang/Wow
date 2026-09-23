@@ -123,7 +123,7 @@ describe('FilterPanel tree editing', () => {
     from: HTMLElement = document.body,
   ): Promise<HTMLElement> {
     fireEvent.click(within(from).getByRole('button', { name }));
-    return screen.findByRole('dialog', { name: 'Choose filter fields' });
+    return screen.findByRole('dialog', { name: 'Choose fields' });
   }
 
   /** Ticking a field is what adds its condition; Done is the way out. */
@@ -235,9 +235,7 @@ describe('FilterPanel tree editing', () => {
     expect(
       filter().tree.children.map(child => (child as { field: string }).field),
     ).toEqual(['warehouse', 'status']);
-    expect(
-      screen.getByRole('dialog', { name: 'Choose filter fields' }),
-    ).toBeDefined();
+    expect(screen.getByRole('dialog', { name: 'Choose fields' })).toBeDefined();
 
     fireEvent.click(within(picker).getByRole('button', { name: 'Done' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());

@@ -190,7 +190,7 @@ export function DrillMenu({ pick, onClose, followUp }: DrillMenuProps) {
  * 「单价 在 ¥0～500」 — whose conditions are two comparisons with the bounds
  * in full. A week says it is one, since its value is only the day it starts.
  * Every other dimension is its conditions in the applied bar's words: a
- * value (「仓库 属于 华南」), or no value at all — the bucket's sentinel,
+ * value (「仓库 是 华南」), or no value at all — the bucket's sentinel,
  * which is how a bucket with no key reads too.
  */
 export function groupText(

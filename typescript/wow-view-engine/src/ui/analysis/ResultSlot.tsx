@@ -130,7 +130,7 @@ function SortField({ analysis }: { analysis: AnalysisEditorController }) {
       className="w-auto"
     >
       <FieldTitle id={titleId}>{messages.label('label.sort.title')}</FieldTitle>
-      <SortSettings table={owner} fields={fields} />
+      <SortSettings table={owner} fields={fields} of="groups" />
     </Field>
   );
 }

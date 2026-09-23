@@ -26,6 +26,7 @@ export const analysisMessages = {
   'label.analysis.row-count': 'Record count',
   // The result's footer: what is on screen and how long it took to get.
   'label.analysis.caption': 'Showing {count} groups · took {seconds} s',
+  'label.analysis.caption-one': 'Showing 1 group · took {seconds} s',
   // With no dimension the result is one row — the whole range — so the
   // footer counts no groups: it says how long the answer took.
   'label.analysis.caption-whole': 'Took {seconds} s',
@@ -327,7 +328,7 @@ export const analysisMessages = {
   'label.analysis.condition-of': 'Conditions for {name}',
   'label.analysis.condition-title': 'Only records where',
   'label.analysis.condition-close': 'Close the conditions',
-  'label.analysis.condition-remove': 'Count every record again',
+  'label.analysis.condition-remove': 'Remove the condition, count every record',
   'label.analysis.only-where': 'Only where {conditions}',
   // A conditioned metric's default name (D20 显示名), wherever the metric is
   // named — its column, the chart, the sort, 「只保留」: the one value the

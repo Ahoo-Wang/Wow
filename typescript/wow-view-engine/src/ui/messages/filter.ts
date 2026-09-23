@@ -32,6 +32,11 @@ export const filterMessages = {
   // the draft filter alone — it puts the conditions back to what the rows on
   // screen were fetched under and leaves everything else where it is.
   'label.filter.discard': 'Discard edits',
+  // The same two actions under an analysis's range (`FilterActions`'s
+  // `words`): the tray's conditions are the range, and 'Discard edits'
+  // there read as undoing the whole tray (the 2026-09-23 audit, P2-4).
+  'label.filter.range.discard': 'Discard range edits',
+  'label.filter.range.clear': 'Clear range',
   // A group's operator, read as the sentence it makes of the conditions
   // under it rather than as the boolean it compiles to. "All of" was the
   // word for a toggle in a row of three; a select shows one at a time, and
@@ -40,7 +45,9 @@ export const filterMessages = {
   'label.filter.any-condition': 'Any condition',
   'label.filter.no-condition': 'No condition',
   // The field picker, which stays open while several fields are chosen.
-  'label.filter.pick-fields': 'Choose filter fields',
+  // The same picker adds to a record filter, an analysis's range and a
+  // metric's own condition, so its title names none of them.
+  'label.filter.pick-fields': 'Choose fields',
   'label.filter.pick-done': 'Done',
   'label.filter.add-group': 'Add a group',
   // A condition with no value yet. It is a normal editing state and not an
@@ -79,6 +86,11 @@ export const filterMessages = {
   // What separates the values of one condition, and the conditions of one
   // group, in an applied badge. Punctuation is wording too: a Chinese list
   // is not separated by a comma and a space.
+  // A condition that keeps one value, said in a summary: 「状态 是 待出库」
+  // whether it was stored as `EQ` or as an `IN` of one (the 2026-09-23
+  // audit, P2-2 — 「等于」 and 「属于」 read as two different relations).
+  'label.relation.is': 'is',
+  'label.relation.is-not': 'is not',
   // What an operator means for the kind that named it: an array's `IN` asks
   // whether the array holds any of the candidates, which "is any of" would
   // say the other way round.
@@ -158,7 +170,9 @@ export const filterMessages = {
 
   // The three date shapes, the side of now a relative window lies on, and
   // the controls that edit them.
-  'label.date.absolute': 'On a date',
+  // Absolute dates are one date or two (`BETWEEN`), so the name holds both;
+  // 「某一天」 sat over a month-long range (the 2026-09-23 dashboard walk).
+  'label.date.absolute': 'Specific dates',
   'label.date.relative': 'Relative',
   'label.date.preset': 'A period',
   'label.date.past': 'In the last',

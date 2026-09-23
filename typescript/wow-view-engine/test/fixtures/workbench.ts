@@ -54,7 +54,7 @@ export async function openTray(): Promise<HTMLElement> {
 export async function addConditions(fields: string[]): Promise<void> {
   fireEvent.click(screen.getByRole('button', { name: 'Add' }));
   const picker = await screen.findByRole('dialog', {
-    name: 'Choose filter fields',
+    name: 'Choose fields',
   });
   for (const field of fields)
     fireEvent.click(within(picker).getByRole('checkbox', { name: field }));

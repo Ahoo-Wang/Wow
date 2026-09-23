@@ -136,7 +136,35 @@ export interface SortSettingsProps {
   fields: readonly FieldDefinition[];
   /** The picker groups of the definition the fields come from. */
   fieldGroups?: readonly FieldGroupDefinition[];
+  /**
+   * What is being ordered, which decides the words (the 2026-09-23 audit,
+   * P2-3). `'records'` — the record toolbar — orders rows by fields, and
+   * the unsorted button says 「排序」 because nothing else names it.
+   * `'groups'` — the analysis tray — orders an answer's groups by its
+   * dimensions and metrics, and the control sits under its own 「排序」
+   * title: the button then says the state, 「未排序」, rather than the
+   * title again, and the editor speaks of dimensions and metrics.
+   */
+  of?: 'records' | 'groups';
 }
+
+/** The words that differ between ordering rows and ordering groups. */
+const WORDS = {
+  records: {
+    none: 'label.sort.title',
+    hint: 'label.sort.hint',
+    unsorted: 'label.sort.unsorted',
+    add: 'label.sort.add',
+    full: 'label.sort.full',
+  },
+  groups: {
+    none: 'label.sort.groups.none',
+    hint: 'label.sort.groups.hint',
+    unsorted: 'label.sort.groups.unsorted',
+    add: 'label.sort.groups.add',
+    full: 'label.sort.groups.full',
+  },
+} as const;
 
 /**
  * What the rows are ordered by, said on the button and edited behind it.
@@ -150,8 +178,10 @@ export function SortSettings({
   table,
   fields,
   fieldGroups,
+  of = 'records',
 }: SortSettingsProps) {
   const messages = useViewMessages();
+  const words = WORDS[of];
   const { say: announce, region: announcement } =
     useAnnouncer('sort-announcement');
   const sortable = fields.filter(field => field.sortable === true);
@@ -226,14 +256,17 @@ export function SortSettings({
           />
         }
       >
-        <SortSummary sort={table.sort} labelOf={labelOf} messages={messages} />
+        <SortSummary
+          sort={table.sort}
+          labelOf={labelOf}
+          messages={messages}
+          none={messages.label(words.none)}
+        />
       </ToolbarItem>
       <PopoverContent align="end" className="w-80">
         <PopoverHeader>
           <PopoverTitle>{messages.label('label.sort.title')}</PopoverTitle>
-          <PopoverDescription>
-            {messages.label('label.sort.hint')}
-          </PopoverDescription>
+          <PopoverDescription>{messages.label(words.hint)}</PopoverDescription>
         </PopoverHeader>
 
         {/* A ceiling, not an empty state and not a callout: it is one line
@@ -243,7 +276,7 @@ export function SortSettings({
             icon-bearing box taking more room than the list it is about. */}
         {full && (
           <p className="text-muted-foreground">
-            {messages.label('label.sort.full', {
+            {messages.label(words.full, {
               max: table.maxSortFields,
             })}
           </p>
@@ -256,7 +289,7 @@ export function SortSettings({
           <Empty data-slot="sort-unsorted" className="p-0">
             <EmptyHeader>
               <EmptyDescription>
-                {messages.label('label.sort.unsorted')}
+                {messages.label(words.unsorted)}
               </EmptyDescription>
             </EmptyHeader>
           </Empty>
@@ -328,7 +361,7 @@ export function SortSettings({
             }
           >
             <PlusIcon data-icon="inline-start" />
-            {messages.label('label.sort.add')}
+            {messages.label(words.add)}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
             <GroupedMenu
@@ -477,16 +510,19 @@ function SortSummary({
   sort,
   labelOf,
   messages,
+  none,
 }: {
   sort: readonly RecordSort[];
   labelOf(field: string): string;
   messages: MessageFormatters;
+  /** What the button says while nothing is sorted. */
+  none: string;
 }) {
   const first = sort[0];
   if (!first)
     return (
       <>
-        {messages.label('label.sort.title')}
+        {none}
         <ArrowDownUpIcon data-slot="sort-available" data-icon="inline-end" />
       </>
     );

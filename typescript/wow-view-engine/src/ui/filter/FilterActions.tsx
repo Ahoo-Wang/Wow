@@ -38,6 +38,7 @@ export function FilterActions({
   overBudget,
   pending = filter.pending,
   quiet = false,
+  words = 'filter',
   onApply,
 }: {
   filter: FilterEditorController;
@@ -61,6 +62,12 @@ export function FilterActions({
    * primary again the moment something waits for it.
    */
   quiet?: boolean;
+  /**
+   * What the conditions are called where these stand: a record view's
+   * filter, or an analysis's range — the tray says 「范围」 over them, and
+   * 「撤销筛选修改」 under it read as undoing the whole tray.
+   */
+  words?: 'filter' | 'range';
   /**
    * What Apply does, where a caller has something to settle first; the
    * filter's own `submit` when left out.
@@ -92,7 +99,11 @@ export function FilterActions({
           onClick={filter.discard}
         >
           <Undo2Icon data-icon="inline-start" />
-          {messages.label('label.filter.discard')}
+          {messages.label(
+            words === 'range'
+              ? 'label.filter.range.discard'
+              : 'label.filter.discard',
+          )}
         </Button>
       )}
       <Button
@@ -101,7 +112,9 @@ export function FilterActions({
         disabled={disabled || (filter.count === 0 && !overBudget)}
         onClick={filter.clear}
       >
-        {messages.label('label.filter.clear')}
+        {messages.label(
+          words === 'range' ? 'label.filter.range.clear' : 'label.filter.clear',
+        )}
       </Button>
       <Button
         size="sm"

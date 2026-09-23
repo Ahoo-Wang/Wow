@@ -507,9 +507,40 @@ describe('the applied badge in another language', () => {
   it('says the field, the operator and the option in Chinese', () => {
     inChinese([status()]);
 
-    expect(screen.getByText('状态 属于 待出库')).toBeDefined();
+    expect(screen.getByText('状态 是 待出库')).toBeDefined();
     // And nothing of the English line the kind produced beside it.
     expect(screen.queryByText(/Status IN Pending/)).toBeNull();
+  });
+
+  /**
+   * One value reads 「是」 however it was stored (the 2026-09-23 audit,
+   * P2-2): 「状态 属于 待出库」 beside 「仓库 等于 华东」 read as two
+   * relations for one. Several values keep the operator's own word.
+   */
+  it('says one value as 「是」 or 「不是」, whichever operator stored it', () => {
+    const warehouse = (
+      operator: string,
+      value: FilterSummaryItem['value'],
+    ): FilterSummaryItem =>
+      condition({
+        text: `Warehouse ${operator}`,
+        field: 'warehouse',
+        label: '仓库',
+        kind: 'string',
+        operator: operator as FilterSummaryItem['operator'],
+        value,
+      });
+    inChinese([
+      warehouse('EQ', { kind: 'text', value: '华东' }),
+      warehouse('NE', { kind: 'text', value: '华北' }),
+      warehouse('NOT_IN', { kind: 'list', values: ['西南'] }),
+      warehouse('IN', { kind: 'list', values: ['华南', '西南'] }),
+    ]);
+
+    expect(screen.getByText('仓库 是 华东')).toBeDefined();
+    expect(screen.getByText('仓库 不是 华北')).toBeDefined();
+    expect(screen.getByText('仓库 不是 西南')).toBeDefined();
+    expect(screen.getByText('仓库 属于 华南、西南')).toBeDefined();
   });
 
   /**
@@ -539,7 +570,7 @@ describe('the applied badge in another language', () => {
 
     expect(screen.getByRole('region', { name: '正在显示' })).toBeDefined();
     expect(
-      screen.getByRole('button', { name: '清空 状态 属于 待出库' }),
+      screen.getByRole('button', { name: '清空 状态 是 待出库' }),
     ).toBeDefined();
   });
 
@@ -682,7 +713,7 @@ describe('the applied badge in another language', () => {
       </MessagesProvider>,
     );
     expect(
-      screen.getByText('明细 任一条目满足 满足任一 SKU 等于 A、SKU 等于 B'),
+      screen.getByText('明细 任一条目满足 满足任一 SKU 是 A、SKU 是 B'),
     ).toBeDefined();
 
     // One condition under `nor` is its negation — the pill's own switch
@@ -692,7 +723,7 @@ describe('the applied badge in another language', () => {
         <AppliedBar filter={stub([predicate('nor', [sku('A', 0)])])} asked />
       </MessagesProvider>,
     );
-    expect(screen.getByText('明细 任一条目满足 排除 SKU 等于 A')).toBeDefined();
+    expect(screen.getByText('明细 任一条目满足 排除 SKU 是 A')).toBeDefined();
   });
 
   it("reads a group out under its own operator's word", () => {
@@ -718,7 +749,7 @@ describe('the applied badge in another language', () => {
     ]);
 
     expect(
-      screen.getByText('满足任一 状态 属于 待出库、金额 介于 1 ~ 9'),
+      screen.getByText('满足任一 状态 是 待出库、金额 介于 1 ~ 9'),
     ).toBeDefined();
   });
 });

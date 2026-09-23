@@ -180,9 +180,19 @@ describe('an analysis with no dimension', () => {
     expect(vi.mocked(from.aggregate)).toHaveBeenCalledTimes(1);
     const caption = slot('analysis-caption')!.textContent!;
     expect(caption).toBe(
+      // An answer faster than the footer's smallest step says so rather
+      // than 「0 秒」 (the 2026-09-23 audit, P2-9).
       formatMessage(defaultMessages, 'label.analysis.caption-whole', {
-        seconds: '0',
+        seconds: '<0.01',
       }),
+    );
+  });
+
+  it('counts one group as one', async () => {
+    show({ limit: 1 });
+    await waitFor(() => expect(slot('totals-row')).not.toBeNull());
+    expect(slot('analysis-caption')!.textContent).toBe(
+      'Showing 1 group · took <0.01 s',
     );
   });
 
@@ -192,7 +202,7 @@ describe('an analysis with no dimension', () => {
     expect(slot('analysis-caption')!.textContent).toBe(
       formatMessage(defaultMessages, 'label.analysis.caption', {
         count: '4',
-        seconds: '0',
+        seconds: '<0.01',
       }),
     );
   });

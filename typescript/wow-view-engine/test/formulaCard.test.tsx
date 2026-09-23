@@ -659,7 +659,7 @@ describe('ordering the groups', () => {
 
     await user.click(
       within(editor).getByRole('button', {
-        name: defaultMessages['label.sort.add'],
+        name: defaultMessages['label.sort.groups.add'],
       }),
     );
     await user.click(
@@ -673,7 +673,7 @@ describe('ordering the groups', () => {
 
     await user.click(
       within(editor).getByRole('button', {
-        name: defaultMessages['label.sort.add'],
+        name: defaultMessages['label.sort.groups.add'],
       }),
     );
     await user.click(

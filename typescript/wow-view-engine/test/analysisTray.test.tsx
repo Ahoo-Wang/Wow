@@ -364,6 +364,22 @@ describe('the analysis tray', () => {
   });
 
   /**
+   * The tray's conditions are the range, and its two ways back say so: a
+   * record view's 'Discard edits' under the tray read as undoing the whole
+   * tray (the 2026-09-23 audit, P2-4).
+   */
+  it('says the range in the ways back from its conditions', async () => {
+    await open();
+    await addConditions(['Warehouse']);
+
+    expect(
+      await screen.findByRole('button', { name: 'Discard range edits' }),
+    ).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Clear range' })).toBeDefined();
+    expect(screen.queryByRole('button', { name: 'Discard edits' })).toBeNull();
+  });
+
+  /**
    * D17-6: "changed, not applied" is read off the whole draft, and the one
    * button that runs it wears the dot — whichever slot the change is in. It
    * used to be the aggregation editor's own Run that carried the analysis

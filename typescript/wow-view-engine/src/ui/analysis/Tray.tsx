@@ -222,6 +222,7 @@ export function Tray({
           // loudest thing on the screen asking for a press that does
           // nothing new.
           quiet={autoRun?.on === true}
+          words="range"
           onApply={apply}
         />
       </div>

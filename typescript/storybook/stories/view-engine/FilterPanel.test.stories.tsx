@@ -104,7 +104,7 @@ export const Advanced: Story = {
     // in: the badge is the one line that has to change with `messages`, so a
     // hard-coded expectation would only ever prove that nothing changed.
     await expect(badges).toEqual([
-      `仓库 ${zhCN['label.operator.IN']} 华东`,
+      `仓库 ${zhCN['label.relation.is']} 华东`,
       `状态 ${zhCN['label.operator.IN']} 待出库${JOIN}已发运`,
       // The field's own `numberFormat`, from the same Intl call the bar
       // makes — which currency symbol ICU picks is not what this is about.
@@ -112,12 +112,12 @@ export const Advanced: Story = {
       // A period, not a range: the operator asks for the window it names.
       `创建时间 ${zhCN['label.operator.BETWEEN']} ${zhCN['label.relative.preset.thisMonth']}`,
       // A group says how its conditions combine before it lists them.
-      `${zhCN['label.filter.any-of']} 仓库 ${zhCN['label.operator.IN']} 华北` +
+      `${zhCN['label.filter.any-of']} 仓库 ${zhCN['label.relation.is']} 华北` +
         `${JOIN}金额 ${zhCN['label.operator.GT']} ${yuan(20000)}`,
       // And a predicate reads its own conditions out once, under the one
       // operator it holds them by.
       `商品行 ${zhCN['label.operator.ELEMENT_MATCH']} ` +
-        `${zhCN['label.filter.all-of']} SKU ${zhCN['label.operator.EQ']} A-1` +
+        `${zhCN['label.filter.all-of']} SKU ${zhCN['label.relation.is']} A-1` +
         `${JOIN}数量 ${zhCN['label.operator.GT']} 2`,
       // Last, the reading nobody wrote: the definition declares the
       // soft-delete dimension and this tree leaves it blank, so the rows
@@ -146,7 +146,7 @@ export const Negated: Story = {
           .getByRole('region', { name: zhCN['label.applied.title'] })
           .querySelectorAll('[data-slot="badge"]'),
       ].map(badge => badge.textContent?.trim());
-    const status = `状态 ${zhCN['label.operator.IN']} 已取消`;
+    const status = `状态 ${zhCN['label.relation.is']} 已取消`;
 
     // Every order that is not cancelled.
     await waitFor(() =>
@@ -235,7 +235,7 @@ export const Reference: Story = {
       expect(readColumn(table, '订单号')).toEqual(['SO-1001', 'SO-1003']),
     );
     await expect(badges()[0]).toBe(
-      `客户 ${zhCN['label.operator.IN']} 晨光食品`,
+      `客户 ${zhCN['label.relation.is']} 晨光食品`,
     );
 
     await userEvent.click(
@@ -286,7 +286,7 @@ export const Reference: Story = {
       ]),
     );
     await expect(badges()[0]).toBe(
-      `客户 ${zhCN['label.operator.IN']} 蓝海物流`,
+      `客户 ${zhCN['label.relation.is']} 蓝海物流`,
     );
   },
 };
@@ -720,7 +720,7 @@ export const UnregisteredKind: Story = {
     );
     await expect(pill).not.toBeNull();
     await expect(
-      within(pill!).getByRole('button', { name: /删除/ }),
+      within(pill!).getByRole('button', { name: /移除/ }),
     ).toBeVisible();
     // The other condition is an ordinary, editable one.
     const editable = canvasElement.querySelectorAll(

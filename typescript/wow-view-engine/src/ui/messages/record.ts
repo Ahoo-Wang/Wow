@@ -268,6 +268,16 @@ export const recordMessages = {
   'label.sort.direction': 'Direction of {field}',
   'label.sort.add': 'Sort by a field',
   'label.sort.full': 'These rows can be ordered by at most {max} fields.',
+  // The same editor over an analysis's groups (`SortSettings`'s `of`): it
+  // sits under its own 'Sort' title, so the button says the state, and it
+  // orders by dimensions and metrics rather than by fields.
+  'label.sort.groups.none': 'Not sorted',
+  'label.sort.groups.hint':
+    'Groups are ordered by the first, then by the next where they tie.',
+  'label.sort.groups.unsorted': 'These groups are in no particular order.',
+  'label.sort.groups.add': 'Sort by a dimension or metric',
+  'label.sort.groups.full':
+    'Groups can be ordered by at most {max} dimensions and metrics.',
   // Which field comes first is the whole of what this list says, so the
   // order is something to be taken hold of rather than something rebuilt by
   // removing an entry and adding it again at the end.

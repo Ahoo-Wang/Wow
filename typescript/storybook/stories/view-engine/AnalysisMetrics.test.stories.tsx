@@ -258,7 +258,9 @@ export const SortedByTwo: Story = {
 
     for (const name of [zhCN['label.analysis.row-count'], AMOUNT_METRIC]) {
       await userEvent.click(
-        within(editor).getByRole('button', { name: zhCN['label.sort.add'] }),
+        within(editor).getByRole('button', {
+          name: zhCN['label.sort.groups.add'],
+        }),
       );
       await userEvent.click(await screen.findByRole('menuitem', { name }));
     }

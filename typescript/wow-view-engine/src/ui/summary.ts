@@ -88,7 +88,7 @@ export function summaryText(
 }
 
 /**
- * The whole of a metric's own condition as one sentence — 「只算 状态 属于
+ * The whole of a metric's own condition as one sentence — 「只算 状态 是
  * 已发运」 — in the words the applied bar uses for a condition. The card says
  * it at rest under the metric, and a conditioned column's header says it as
  * its description, so the header's short 「· 已发运」 and the full condition
@@ -154,13 +154,32 @@ function pushWord(said: string[], word: string): void {
  * own word. `IN` over an array asks whether the array contains any of the
  * candidates, and "is any of" would say the opposite thing about a scalar,
  * so a kind that knows better says so and this prefers it.
+ *
+ * A condition over one value reads 「是」／「不是」 whichever way it was
+ * stored: `EQ` said 「等于」 and an `IN` of one said 「属于」, so 「状态 属于
+ * 待出库」 and 「仓库 等于 华东」 on one bar read as two different relations
+ * for the same thing (the 2026-09-23 audit, P2-2).
  */
 function conditionWord(
   item: FilterSummaryItem,
   messages: MessageFormatters,
 ): string {
   if (item.relation) return messages.label(`label.relation.${item.relation}`);
+  const one = oneValueRelation(item);
+  if (one) return messages.label(`label.relation.${one}`);
   return item.operator ? operatorWord(item.operator, messages) : '';
+}
+
+/** 「是」 or 「不是」 for a condition over one value, else nothing. */
+function oneValueRelation(item: FilterSummaryItem): 'is' | 'is-not' | null {
+  const { operator, value } = item;
+  const one =
+    value?.kind === 'text' ||
+    (value?.kind === 'list' && value.values.length === 1);
+  if (!one) return null;
+  if (operator === 'EQ' || operator === 'IN') return 'is';
+  if (operator === 'NE' || operator === 'NOT_IN') return 'is-not';
+  return null;
 }
 
 /**

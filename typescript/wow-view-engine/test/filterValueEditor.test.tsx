@@ -1047,11 +1047,13 @@ describe('FilterValueEditor', () => {
     } as unknown as FilterValue);
 
     await user.click(screen.getByLabelText('amount kind'));
-    await user.click(await screen.findByRole('option', { name: 'On a date' }));
+    await user.click(
+      await screen.findByRole('option', { name: 'Specific dates' }),
+    );
 
     expect(last(day.changes)).toBeNull();
     expect(screen.getByLabelText('amount kind').textContent).toContain(
-      'On a date',
+      'Specific dates',
     );
     expect(screen.getByLabelText('amount').textContent).toContain(
       'Pick a date',

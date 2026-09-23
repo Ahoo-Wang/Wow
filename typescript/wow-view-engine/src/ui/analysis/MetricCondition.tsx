@@ -81,7 +81,7 @@ export function ConditionButton({
 }
 
 /**
- * The sentence a conditioned metric wears at rest — 「只算 状态 属于 已付款」
+ * The sentence a conditioned metric wears at rest — 「只算 状态 是 已付款」
  * — so the reading of the number is on the card, not behind the funnel.
  *
  * `onName` is there when the condition has no one value to name the metric

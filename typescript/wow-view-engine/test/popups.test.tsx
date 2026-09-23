@@ -76,7 +76,7 @@ afterEach(cleanup);
  * more than one portalled thing at a time.
  */
 async function findFieldPicker(): Promise<Element | null> {
-  const title = await screen.findByText('Choose filter fields');
+  const title = await screen.findByText('Choose fields');
   return title.closest('[data-slot="popover-content"]');
 }
 

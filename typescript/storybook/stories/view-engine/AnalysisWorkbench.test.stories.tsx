@@ -192,7 +192,7 @@ export const CaptionHoldsTheReport: Story = {
       '[data-slot="analysis-caption"]',
     )!;
     await expect(caption.textContent).toMatch(
-      /^正在显示 4 组，耗时 [\d.]+ 秒$/,
+      /^正在显示 4 组，耗时 <?[\d.]+ 秒$/,
     );
     const block = caption.parentElement!;
     await expect(block.dataset.slot).toBe('result-block');
@@ -870,7 +870,7 @@ const BACK = formatMessage(zhCN, 'label.origin.back', {
 });
 
 /** 按下的那一组，用菜单标题与「正在显示」那条共用的词说出来。 */
-const SOUTH = `仓库 ${zhCN['label.operator.IN']} 华南`;
+const SOUTH = `仓库 ${zhCN['label.relation.is']} 华南`;
 
 /** 从一组开出来的视图叫什么：「{是什么} · {这一组}」。 */
 const titled = (subject: string, group: string) =>
@@ -890,7 +890,7 @@ const appliedBar = (canvasElement: HTMLElement) =>
  * 那条用的同一套词。
  *
  * 「查看这些记录」在同一个工作台里开出一个未保存的记录视图，叫「订单 · 仓库
- * 属于 华南」——它是订单里华南那一组；标题栏下一颗「返回 仓库金额分布」，条件
+ * 是 华南」——它是订单里华南那一组；标题栏下一颗「返回 仓库金额分布」，条件
  * 只在「正在显示」那条上，编辑器收着；下面是华南那两单。按「返回」回到原来
  * 那次聚合结果——图还在，没有重跑。
  */
@@ -953,7 +953,7 @@ export const FollowUpToRecords: Story = {
  * 这个工作台只列分析视图，所以没有「查看这些记录」：下钻开出来的是记录视图，
  * 开不出来的地方就不摆这一项。「只看这一组」是同一个问题只问这一组，开在
  * 原来那个旁边（2026-09-23 审查）：一个未保存的分析视图，叫「仓库金额分布 ·
- * 仓库 属于 华南」，图上只剩华南，和「查看这些记录」一样有一颗「返回」——
+ * 仓库 是 华南」，图上只剩华南，和「查看这些记录」一样有一颗「返回」——
  * 按下去是原来那次结果，四个仓库都在，不重跑，原来那个视图也没被改脏。
  */
 export const FollowUpFocus: Story = {
@@ -1111,7 +1111,7 @@ export const FollowUpOnADay: Story = {
  * 拆完之后是同一个问题换一个维度问：范围收到这一组，维度换成状态，上一维度
  * 的名字从排序、表列与图表槽位里一并退场（`analysis/drill.ts` 的 `splitBy`）。
  * 它和另外两项一样开在旁边（用户 2026-09-23 拍板）：一个未保存的分析视图，
- * 叫「仓库金额分布 · 仓库 属于 华南」，带「返回」；按下去是原来那次按仓库分的
+ * 叫「仓库金额分布 · 仓库 是 华南」，带「返回」；按下去是原来那次按仓库分的
  * 结果，不重跑，原来那个视图也没被改脏。
  */
 export const FollowUpSplit: Story = {
