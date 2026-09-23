@@ -64,7 +64,7 @@ function HostConsole({ host }: { host: string }) {
 }
 
 const scene = {
-  domain: '真实后端',
+  domain: '真实后端 · 补偿控制台',
   summary:
     'Wow 补偿服务里执行失败的事件流：真实的事件、真实的数据量；同一个工作台里读最近的事件、查一次执行的完整历史、看事件按类型与时间的分布。',
   setup: '引擎与视图存储随故事新建；数据直连 host 指向的服务，只读。',
@@ -73,7 +73,7 @@ const scene = {
 };
 
 const meta = {
-  title: 'View Engine/真实后端/事件流分析台',
+  title: 'View Engine/真实后端/补偿控制台/事件流分析台',
   component: Console,
   // A live service answers differently every time, so this is never a
   // regression test, and its docs page does not mount it: opening the

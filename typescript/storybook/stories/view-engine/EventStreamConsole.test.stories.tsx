@@ -32,7 +32,7 @@ import { readColumn } from './readTable.js';
  */
 const meta = {
   ...displayMeta,
-  title: 'View Engine/真实后端/事件流分析台/回归',
+  title: 'View Engine/真实后端/补偿控制台/事件流分析台/回归',
   tags: ['!dev', '!autodocs', 'test'],
   args: { host: RECORDED_EVENT_STREAM_HOST },
   beforeEach: installRecordedEventStreamService,

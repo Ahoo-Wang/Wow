@@ -337,7 +337,7 @@ function HostConsole({ host }: { host: string }) {
 }
 
 const scene = {
-  domain: '真实后端',
+  domain: '真实后端 · 补偿控制台',
   summary:
     'Wow 补偿服务里的执行失败：真实的数据、真实的数据量；同一个工作台里查明细、做分析、逐条或成批地重试与标记。',
   setup: '引擎与视图存储随故事新建；数据与补偿命令直连 host 指向的服务。',
@@ -346,7 +346,7 @@ const scene = {
 };
 
 const meta = {
-  title: 'View Engine/真实后端/补偿控制台',
+  title: 'View Engine/真实后端/补偿控制台/快照控制台',
   component: Console,
   // A live service answers differently every time, so this is never a
   // regression test, and its docs page does not mount it: opening the
@@ -378,4 +378,4 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /** Failed executions, the analysis over them, and the commands on either. */
-export const DataConsole: Story = { name: '补偿控制台' };
+export const DataConsole: Story = { name: '快照控制台' };
