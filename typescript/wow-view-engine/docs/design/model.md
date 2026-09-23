@@ -333,8 +333,15 @@ Wow 的对应规则在 `requireScalarMetricFilterFields`：形状那半条（`SE
 ```ts
 export interface DashboardViewConfig extends ViewConfigBase {
   kind: 'dashboard';
+  columns: 24; // 布局写在几列的栅格上；见下文「24 列与旧布局」
+  tabs: DashboardTab[]; // 标签页，按标签栏的顺序；0 或 1 个不画标签栏
   fields: DashboardField[]; // Dashboard 自己的全局筛选字段；跨定义，因此由配置声明
   panels: DashboardPanel[];
+}
+
+export interface DashboardTab {
+  id: string;
+  title: string;
 }
 
 export interface DashboardField {
@@ -350,18 +357,30 @@ interface DashboardPanelBase {
   id: string;
   title?: string;
   layout: { x: number; y: number; w: number; h: number };
+  tab?: string; // 所在标签页的 id；没有标签页的板子不写
 }
 
-/** 数据面板：引用一个 Record 或 Analysis 实例，参与全局筛选与 apply。 */
-export interface DashboardViewPanel extends DashboardPanelBase {
+/** 数据面板：显示一个 Record 或 Analysis 视图——已保存的，或只属于这块板的——参与全局筛选与 apply。 */
+export type DashboardViewPanel = DashboardPanelBase & {
   kind: 'view';
-  instanceId: string;
   bindings: { globalField: string; panelField: string }[];
+  presentation?: PanelPresentation; // 只改怎么看（D22 D）
+} & (
+    | { instanceId: string } // 引用一个已保存的视图
+    | { owned: { definitionId: string; config: AnalysisViewConfig } } // 板内分析（D22 C）
+  );
+
+/** 面板对「怎么看」的覆盖：只有展示成员，从不碰问题。 */
+export interface PanelPresentation {
+  layout?: 'table' | 'chart' | 'card';
+  chart?: ChartSpec;
+  table?: AnalysisTableSpec;
 }
 
-/** 内容面板：静态说明、图片、链接；不查询，不参与全局筛选。 */
+/** 内容面板：标题、静态说明、图片、链接；不查询，不参与全局筛选。 */
 export type DashboardContentPanel = DashboardPanelBase &
   (
+    | { kind: 'heading'; content: string } // 分节的标题卡片：一行纯文本
     | { kind: 'markdown'; content: string }
     | {
         kind: 'image';
@@ -376,6 +395,15 @@ export type DashboardContentPanel = DashboardPanelBase &
       }
   );
 ```
+
+批 B1（D22 A～E 的模型；界面在 B2／B3）定下的几条：
+
+- **24 列与旧布局**（D22 E，用户拍板）：`DASHBOARD_GRID_COLUMNS` 是 24。配置**自己说**布局写在几列上（`columns: 24`），而不是由读者从最宽的面板去猜——所有面板都在左半边的板子两种读法都说得通。没有 `columns` 的配置就是栅格还是 12 列时存下的：`migrateDashboardConfig`（`src/dashboard/migrate.ts`）读取时把每个 `x`、`w` 乘 2，`y`、`h` 不动，补上 `columns: 24` 与空的 `tabs`；保存写出新格式，下次读就原样通过。写了别的 `columns` 的配置不猜，准入报整板 error `dashboard.grid.unsupported`。乘 2 在像素上是恒等的：新栅格的一列加一道缝恰是旧的一半，所以宽 `2w` 的面板与原来的 `w` 一样宽、`2x` 处与原来的 `x` 处对齐——这不是论证，是量出来的：react-grid-layout 自己的算式把 12 列能放的每一个面板（78 种 `x`／`w`）在四种宽度下都算一遍，迁移前后差不到 1px（test/dashboardBuild.test.ts「draws every 12-column panel on exactly the pixels it had」）；浏览器里一块旧格式的板子逐面板比对屏幕上的框（stories/view-engine/Dashboard.test.stories.tsx「LegacyLayoutDrawsTheSame」）。故事与测试的板子都已改写成 24 列（`x`、`w` 乘 2），画出来与原来一样。拒绝的写法：`version: 2` 之类的版本号（说的是历史而不是这些数字的意思，下一次改动又得加一个）；按最宽面板猜（见上）。
+- **标签页**（D22 E）：`tabs` 有序，每个 `{ id, title }`；0 或 1 个不画标签栏（界面的事）；全局筛选在标签页之上、对所有标签页生效。面板用 `tab` 写自己在哪一页。准入：`tabs` 不是数组是 `dashboard.shape.invalid`，id 缺失／重复是整板 error（`dashboard.tab.id-empty`／`-duplicate`，面板靠它找页），标题空白只是 warning（`dashboard.tab.title-empty`，界面按位置称呼它），超过 `MAX_DASHBOARD_TABS` 报 `dashboard.tabs.too-many`；面板写了板子没有的页（或有标签页却没写、没有标签页却写了）是 warning `dashboard.panel.tab-unknown`，读作在第一页（`panelTab`）——面板照常显示，不因为一个页 id 就消失。编辑（`src/dashboard/tabs.ts`）：`addTab` 在没有标签页的板子上一次建两个——现有面板归入第一页（名字由调用方给，内核没有措辞），新的是第二页；`renameTab`（空白不改）、`moveTab`、`removeTab`（连同该页面板；最后一页不删——只剩一页等于没有标签栏，留着它的名字等再加一页时用）。面板移到别的页见下一条。拒绝的写法：标签页里嵌面板数组（`tabs[].panels`）——移页就成了跨数组搬运，面板 id 的唯一性与问题路径 `['panels', i]` 都要改；「没有标签页时也有一个隐藏的默认页」——多出一个读者看不见的东西。
+- **板内分析视图**（D22 C）：数据面板要么 `instanceId`（已保存视图），要么 `owned: { definitionId, config }`（只属于这块板：随板保存、删除、受众，从不出现在工作台的列表里），两者恰有其一，否则 `dashboard.panel.source-invalid`。首版只收分析（`config.kind === 'analysis'`，否则 `dashboard.panel.owned-invalid`）。它的配置与已保存分析**一样判**：内核判绑定与合并后的全局筛选（定义由调用方按 id 查：`ValidateDashboardOptions.definitions`；查不到报 `dashboard.panel.definition-unknown`，没给查法时只判形状——定义准入时的系统仪表盘就是这样），分析本身由它的子 runtime 的准入判（见 [runtime.md#dashboard](runtime.md#dashboard)）。「另存为视图」把它提成普通视图、面板改为 `instanceId` 引用它（`referToSaved`，展示覆盖保留）。拒绝的写法：新加一种面板 `kind: 'analysis'`——它和引用视图的面板在接线、覆盖、点击、刷新上一模一样，分成两种每条规则都要写两遍；把板内分析存成一个隐藏的普通实例——那就要在列表、权限、删除上处处过滤它，还会在板子被删后留下孤儿。
+- **展示覆盖**（D22 D）：`presentation` 只收 `PANEL_PRESENTATION_MEMBERS`（`layout`、`chart`、`table`）——视图里画结果而不是问结果的那几个成员（D20），表格合计行一并算作「怎么看」；维度、指标、条件、排序永远是视图的。内核只判形状（不是对象、带了别的成员 → warning `dashboard.panel.presentation-dropped`）；合不合身由 runtime 用视图自己的内核判，不合身整份丢掉并注明同一条 warning，不是 error（见 [runtime.md#dashboard](runtime.md#dashboard)）。`setPresentation(…, null)` 就是「恢复为视图的样子」。替换视图时覆盖作废（它说的是怎么看原来那个视图）。
+- **标题卡片**：`{ kind: 'heading', content }`，一行纯文本、不解析 markdown，最长 `MAX_HEADING_LENGTH`（200，超出 `dashboard.heading.too-long`）；空文本允许（界面在编辑中显示占位）。它的字就是面板的名字（`panelName`），画在面板自己的标题元素里，正文不再重复。
+- **新面板放哪、多大**（D22 A）：`addPanel` 放进目标标签页从 `fromRow`（读者屏幕上的第一行）起、按阅读顺序的第一个**放得下且托得住**的空位（`freeSpot`：下一次压紧不会把它抬走），到底都没有就放到最下面；默认大小按显示的东西（`defaultPanelSize`，24 列计）：指标卡 6×2、图 12×4、表格 24（分析表 ×4、记录 ×5）、标题 24×1、笔记 12×3、图片 8×4、链接 8×3。新 id 是第一个没被占用的 `panel-n`（纯函数，同一份配置同一个答案）。复制放在原面板那一行起的第一个空位（旁边有位就在旁边），板内分析随面板复制成各自独立的一份。
 
 ## 时间字段怎样存
 

@@ -143,22 +143,23 @@ describe('placing a panel', () => {
   /**
    * R6. A keyboard step placed one panel and nothing else, so stepping into
    * a neighbour left the two on top of each other. It goes through the
-   * kernel now, which pushes the neighbour out of the way.
+   * kernel now: the neighbour makes way, and the column closes up — one
+   * step up past the panel above trades their places.
    */
-  it('pushes a neighbour out of the way of a keyboard step', async () => {
+  it('trades places with the panel above on a keyboard step up', async () => {
     const { runtime } = await openDashboard(column);
     render(<LiveGrid runtime={runtime} />);
 
     await press(screen.getByLabelText('Move “Below”'), 'ArrowUp');
 
     expect(layouts(runtime)).toEqual({
-      top: { x: 0, y: 7, w: 6, h: 4 },
-      below: { x: 0, y: 3, w: 6, h: 4 },
+      top: { x: 0, y: 4, w: 6, h: 4 },
+      below: { x: 0, y: 0, w: 6, h: 4 },
     });
     // What is said is where the stepped panel went; the pushed one is on
     // screen in the order the grid reads.
     expect(
-      screen.getByText('Below is at column 1, row 4, 6 columns by 4 rows'),
+      screen.getByText('Below is at column 1, row 1, 6 columns by 4 rows'),
     ).toBeTruthy();
   });
 
@@ -187,7 +188,7 @@ describe('placing a panel', () => {
     // jsdom lays nothing out, so `offsetParent` is null and the grid would
     // refuse to start a drag; every rect is at the origin, so the drag
     // starts from (0, 0) whatever the panel's stored position. The 1280px
-    // container makes the sums below: 12 columns of ~107px, rows of 80px.
+    // container makes the sums below: 24 columns of ~53px, rows of 80px.
     vi.spyOn(HTMLElement.prototype, 'offsetParent', 'get').mockImplementation(
       function (this: HTMLElement) {
         return this.parentElement;
@@ -221,19 +222,20 @@ describe('placing a panel', () => {
     // panel's lower half.
     fireEvent.mouseDown(grip, { clientX: 10, clientY: 10, button: 0 });
     fireEvent.mouseMove(document, { clientX: 100, clientY: 100 });
-    fireEvent.mouseMove(document, { clientX: 310, clientY: 190 });
+    fireEvent.mouseMove(document, { clientX: 160, clientY: 190 });
     await settle();
     // Already out of the way while the pointer is still down: the preview
     // is the kernel's placement, not the library's own collision handling.
     expect(left.style.transform).not.toBe(resting);
     expect(runtime.getSnapshot().applied.panels[0].layout.y).toBe(0);
 
-    fireEvent.mouseUp(document, { clientX: 310, clientY: 190 });
+    fireEvent.mouseUp(document, { clientX: 160, clientY: 190 });
     await settle();
 
+    // Left made way under it, and right, let go, rose to the top.
     expect(layouts(runtime)).toEqual({
-      left: { x: 0, y: 6, w: 6, h: 4 },
-      right: { x: 3, y: 2, w: 6, h: 4 },
+      left: { x: 0, y: 4, w: 6, h: 4 },
+      right: { x: 3, y: 0, w: 6, h: 4 },
     });
     // Nothing overlaps on screen either: the grid shows what was applied.
     const tops = [...document.querySelectorAll('.react-grid-item')].map(
@@ -262,9 +264,9 @@ describe('placing a panel', () => {
     );
     render(<LiveGrid runtime={runtime} />);
 
-    await press(screen.getByLabelText('Move “Fine”'), 'ArrowDown');
+    await press(screen.getByLabelText('Move “Fine”'), 'ArrowRight');
 
-    expect(layouts(runtime).fine).toEqual({ x: 0, y: 1, w: 6, h: 4 });
+    expect(layouts(runtime).fine).toEqual({ x: 1, y: 0, w: 6, h: 4 });
   });
 });
 

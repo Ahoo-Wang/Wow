@@ -242,7 +242,7 @@ describe('validateDashboard panels', () => {
       panels: [
         viewPanel({ id: 'a', layout: { x: -1, y: 0.5, w: 6, h: 4 } }),
         viewPanel({ id: 'b', layout: { x: 0, y: 0, w: 0, h: Infinity } }),
-        viewPanel({ id: 'c', layout: { x: 8, y: 0, w: 6, h: 4 } }),
+        viewPanel({ id: 'c', layout: { x: 20, y: 0, w: 6, h: 4 } }),
       ],
     });
 
@@ -255,16 +255,30 @@ describe('validateDashboard panels', () => {
     ]);
   });
 
-  it('takes the grid width from the options', () => {
-    const config = dashboardConfig({
-      panels: [viewPanel({ layout: { x: 0, y: 0, w: 6, h: 4 } })],
+  it('places panels on the 24 columns the config says it is written in', () => {
+    const inside = dashboardConfig({
+      panels: [viewPanel({ layout: { x: 12, y: 0, w: 12, h: 4 } })],
+    });
+    const past = dashboardConfig({
+      panels: [viewPanel({ layout: { x: 13, y: 0, w: 12, h: 4 } })],
     });
 
-    expect(
-      codes(
-        validateDashboard(config, 'personal', refs(), kinds, { columns: 4 }),
-      ),
-    ).toEqual(['dashboard.layout.out-of-grid']);
+    expect(codes(validate(inside))).toEqual([]);
+    expect(codes(validate(past))).toEqual(['dashboard.layout.out-of-grid']);
+  });
+
+  it('refuses a config that names a grid other than its own', () => {
+    // Only a config that says nothing is read as the old 12 columns; one
+    // that names a grid is taken at its word, and this engine draws one.
+    const config = { ...dashboardConfig(), columns: 12 } as never;
+
+    expect(validate(config)).toEqual([
+      expect.objectContaining({
+        code: 'dashboard.grid.unsupported',
+        path: ['columns'],
+        severity: 'error',
+      }),
+    ]);
   });
 
   it('reports a missing layout rather than reading through it', () => {
@@ -326,13 +340,17 @@ describe('validateDashboard references', () => {
     );
   });
 
-  it('refuses a personal reference from a shared dashboard', () => {
+  it('warns of a personal reference from a shared dashboard, and allows it (D22 B)', () => {
     const config = dashboardConfig({ panels: [viewPanel()] });
     const personal = panelReference({ scope: 'personal' });
 
-    expect(
-      codes(validate(config, 'shared', refs({ pending: personal }))),
-    ).toEqual(['dashboard.panel.scope-too-narrow']);
+    expect(validate(config, 'shared', refs({ pending: personal }))).toEqual([
+      expect.objectContaining({
+        code: 'dashboard.panel.scope-too-narrow',
+        path: ['panels', 0, 'instanceId'],
+        severity: 'warning',
+      }),
+    ]);
   });
 
   it("judges an analysis reference against the definition's own fields", () => {

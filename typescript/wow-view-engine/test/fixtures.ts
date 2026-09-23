@@ -233,6 +233,8 @@ export function dashboardConfig(
     filterMode: 'simple',
     refresh: { interval: null },
     kind: 'dashboard',
+    columns: 24,
+    tabs: [],
     fields: [],
     panels: [],
     ...overrides,

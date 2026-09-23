@@ -483,7 +483,7 @@ export function dashboardConfig(
         title: '待出库明细',
         instanceId: 'orders-pending',
         bindings: [{ globalField: 'region', panelField: 'warehouse' }],
-        layout: { x: 0, y: 0, w: 7, h: 4 },
+        layout: { x: 0, y: 0, w: 14, h: 4 },
       },
       {
         id: 'by-warehouse',
@@ -491,7 +491,7 @@ export function dashboardConfig(
         title: '按仓库汇总',
         instanceId: 'orders-analysis',
         bindings: [{ globalField: 'region', panelField: 'warehouse' }],
-        layout: { x: 7, y: 0, w: 5, h: 4 },
+        layout: { x: 14, y: 0, w: 10, h: 4 },
       },
       {
         id: 'runbook',
@@ -505,7 +505,7 @@ export function dashboardConfig(
           },
           { label: '联系仓储值班', href: 'mailto:ops@example.com' },
         ],
-        layout: { x: 0, y: 4, w: 4, h: 2 },
+        layout: { x: 0, y: 4, w: 8, h: 2 },
       },
     ],
     ...overrides,
@@ -554,6 +554,30 @@ export const savedViews: ViewInstance[] = [
     }),
   },
 ];
+
+/**
+ * `dashboardConfig()` as a store kept it before the grid had 24 columns: no
+ * `columns`, no `tabs`, every `x` and `w` in twelfths. The engine reads it
+ * into 24 columns on open (D22 E); the story over it measures that every
+ * panel is drawn where these numbers put it.
+ */
+export function legacyDashboardConfig(): DashboardViewConfig {
+  const current = dashboardConfig();
+  const stored: Record<string, unknown> = {
+    ...current,
+    panels: current.panels.map(panel => ({
+      ...panel,
+      layout: {
+        ...panel.layout,
+        x: panel.layout.x / 2,
+        w: panel.layout.w / 2,
+      },
+    })),
+  };
+  delete stored.columns;
+  delete stored.tabs;
+  return stored as unknown as DashboardViewConfig;
+}
 
 /** A dashboard with nothing on it, which is a valid starting point. */
 export function emptyDashboard(): DashboardViewConfig {

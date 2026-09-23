@@ -11,7 +11,10 @@
  * limitations under the License.
  */
 
-import type { DashboardViewConfig } from '../model/index.js';
+import {
+  DASHBOARD_GRID_COLUMNS,
+  type DashboardViewConfig,
+} from '../model/index.js';
 import { emptyFilter } from '../filter/index.js';
 
 /**
@@ -28,6 +31,8 @@ export function emptyDashboardConfig(): DashboardViewConfig {
     filterMode: 'simple',
     refresh: { interval: null },
     kind: 'dashboard',
+    columns: DASHBOARD_GRID_COLUMNS,
+    tabs: [],
     fields: [],
     panels: [],
   };

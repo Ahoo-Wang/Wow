@@ -23,6 +23,10 @@ export const dashboardMessages = {
   // A panel that has no title of its own is named after what it shows, and
   // one that shows nothing nameable after where it stands — never its id.
   'label.panel.untitled': 'Panel {index}',
+  // Two panels the board names alike are told apart by a number, in
+  // reading order: 「Note」, 「Note 2」.
+  'label.panel.numbered': '{name} {n}',
+  'label.panel.kind.heading': 'Heading',
   'label.panel.kind.markdown': 'Note',
   'label.panel.kind.image': 'Image',
   'label.panel.kind.links': 'Links',
@@ -95,6 +99,9 @@ export const dashboardMessages = {
   'dashboard.field.duplicate': 'The filter field {field} is declared twice.',
   'dashboard.field.name-empty': 'A filter field needs a name.',
   'dashboard.field.name-invalid': '{field} is not a usable field name.',
+  'dashboard.grid.unsupported':
+    'This dashboard is laid out on a grid that cannot be drawn here; panels are placed on {columns} columns.',
+  'dashboard.heading.too-long': 'A heading holds at most {max} characters.',
   'dashboard.layout.invalid': 'This panel has an unusable position or size.',
   'dashboard.layout.missing': 'This panel has no position.',
   'dashboard.layout.out-of-grid':
@@ -102,19 +109,36 @@ export const dashboardMessages = {
   'dashboard.link.label-empty': 'A link needs a label.',
   'dashboard.links.too-many': 'A links panel holds at most {max} links.',
   'dashboard.markdown.too-long': 'A note holds at most {max} characters.',
+  'dashboard.panel.definition-unknown':
+    'The data the analysis in this panel was built on is no longer available.',
   'dashboard.panel.failed': 'The view this panel shows could not be opened.',
   'dashboard.panel.id-duplicate': 'Two panels share the id {id}.',
   'dashboard.panel.id-empty': 'A panel needs an id.',
   'dashboard.panel.kind-unsupported':
     'This panel points at something that is not a record or analysis view.',
+  'dashboard.panel.not-owned':
+    'Only an analysis that lives in this dashboard can be saved as a view.',
+  'dashboard.panel.owned-invalid':
+    'The analysis this panel holds is not in the expected shape.',
+  'dashboard.panel.presentation-dropped':
+    "How this panel was set to look no longer fits its view, so it shows the view's own look.",
   'dashboard.panel.scope-too-narrow':
     'The view this panel shows is not open to everyone who reads this dashboard.',
+  'dashboard.panel.source-invalid':
+    'This panel should show either a saved view or an analysis of its own.',
+  'dashboard.panel.tab-unknown':
+    'This panel is on no tab of this dashboard, so it is shown on the first.',
   'dashboard.panel.unavailable':
     'The view this panel shows was deleted, or you do not have access to it.',
   'dashboard.panel.unknown-kind': 'This type of panel is not available.',
   'dashboard.panels.too-many': 'A dashboard holds at most {max} panels.',
   'dashboard.shape.invalid':
     'This part of the dashboard is not in the expected shape.',
+  'dashboard.tab.id-duplicate': 'Two tabs share the id {id}.',
+  'dashboard.tab.id-empty': 'A tab needs an id.',
+  'dashboard.tab.title-empty':
+    'A tab has no name, so it is called by its place.',
+  'dashboard.tabs.too-many': 'A dashboard holds at most {max} tabs.',
   'dashboard.url.unsupported-scheme':
     'Only http, https, mailto and relative links can be shown.',
 } as const satisfies Record<string, string>;

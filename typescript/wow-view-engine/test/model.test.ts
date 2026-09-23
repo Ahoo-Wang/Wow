@@ -153,6 +153,8 @@ describe('a summary', () => {
   const dashboard: ViewConfig = {
     ...filterBase,
     kind: 'dashboard',
+    columns: 24,
+    tabs: [],
     refresh: { interval: null },
     fields: [],
     panels: [],
@@ -222,6 +224,8 @@ describe('configs stay plain JSON', () => {
     const dashboard: DashboardViewConfig = {
       ...filterBase,
       kind: 'dashboard',
+      columns: 24,
+      tabs: [],
       refresh: { interval: null },
       fields: [{ name: 'warehouse', label: 'Warehouse', kind: 'string' }],
       panels: [

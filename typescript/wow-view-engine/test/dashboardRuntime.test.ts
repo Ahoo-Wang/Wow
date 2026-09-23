@@ -18,7 +18,6 @@ import {
   DashboardViewRuntime,
   dataViewRuntime,
   DEFAULT_RUNTIME_LIMITS,
-  isViewCommandError,
   MemoryViewStore,
   RequestRunner,
   ViewEngine,
@@ -499,6 +498,29 @@ describe('DashboardViewRuntime unavailable references', () => {
   });
 
   it('does not run a panel whose own config is in error', async () => {
+    const board = await harness();
+    const runtime = await board.open(
+      dashboardConfig({
+        panels: [
+          panel({ bindings: [{ globalField: 'ghost', panelField: 'status' }] }),
+        ],
+      }),
+    );
+    const state = runtime.getSnapshot();
+
+    expect(codes(state.panels[0].issues)).toEqual([
+      'dashboard.binding.global-unknown',
+    ]);
+    expect(state.panels[0].runtime).toBeNull();
+    expect(board.source.paged).not.toHaveBeenCalled();
+  });
+
+  /**
+   * D22 B: a shared board may stand on a personal view. Its author sees
+   * the panel, told that not every reader does; the readers who cannot
+   * read the view get `dashboard.panel.unavailable` from their own store.
+   */
+  it('runs a panel on a view not every reader can open, and says so', async () => {
     const board = await harness({
       instances: [pending({ scope: 'personal' })],
       scope: 'shared',
@@ -506,11 +528,14 @@ describe('DashboardViewRuntime unavailable references', () => {
     const runtime = await board.open(dashboardConfig({ panels: [panel()] }));
     const state = runtime.getSnapshot();
 
-    expect(codes(state.panels[0].issues)).toEqual([
-      'dashboard.panel.scope-too-narrow',
+    expect(state.panels[0].issues).toEqual([
+      expect.objectContaining({
+        code: 'dashboard.panel.scope-too-narrow',
+        severity: 'warning',
+      }),
     ]);
-    expect(state.panels[0].runtime).toBeNull();
-    expect(board.source.paged).not.toHaveBeenCalled();
+    expect(state.panels[0].runtime).not.toBeNull();
+    expect(board.source.paged).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -885,6 +910,7 @@ describe('DashboardViewRuntime child refusal', () => {
       limits: DEFAULT_RUNTIME_LIMITS,
       environment: clock.environment,
       resolve: () => Promise.resolve(reference),
+      definitions: () => null,
       createPanelRuntime: (found, scopeFilter) =>
         dataViewRuntime({
           id: 'child',
@@ -893,9 +919,9 @@ describe('DashboardViewRuntime child refusal', () => {
               field => field.name !== 'status',
             ),
           }),
-          config: found.instance.config as never,
-          title: found.instance.title,
-          scope: found.instance.scope,
+          config: found.config as never,
+          title: found.title,
+          scope: found.scope,
           saved: found.instance,
           kinds: builtinFieldKinds,
           limits: DEFAULT_RUNTIME_LIMITS,
@@ -1123,22 +1149,25 @@ describe('DashboardViewRuntime lifecycle', () => {
 });
 
 describe('DashboardViewRuntime saving', () => {
-  it('refuses to share a dashboard that stands on a personal view', async () => {
+  it('shares a dashboard that stands on a personal view, saying who cannot see it', async () => {
     const board = await harness({
       instances: [pending({ scope: 'personal' })],
     });
     const runtime = await board.open(dashboardConfig({ panels: [panel()] }));
 
     // Valid where it is: a personal dashboard may reference anything its
-    // owner can read. Sharing it would leave the panel blank for everyone else.
+    // owner can read. Shared, the panel is blank for everyone else — said,
+    // and allowed (D22 B): the board saves.
     expect(runtime.getSnapshot().issues).toEqual([]);
-    const refused = await board.engine
-      .saveAs(runtime, { title: 'Shared', scope: 'shared' })
-      .catch((error: unknown) => error);
+    expect(codes(runtime.issuesAt('shared'))).toEqual([
+      'dashboard.panel.scope-too-narrow',
+    ]);
+    const saved = await board.engine.saveAs(runtime, {
+      title: 'Shared',
+      scope: 'shared',
+    });
 
-    expect(isViewCommandError(refused) && refused.issue.code).toBe(
-      'view.config.invalid',
-    );
+    expect(saved.scope).toBe('shared');
   });
 
   it('advances the baseline and drops the dirty flag', async () => {
@@ -1315,9 +1344,9 @@ describe('DashboardViewRuntime a panel in error', () => {
     const board = await harness();
     const runtime = await board.open(withMisbound());
 
-    runtime.place('orders', { x: 0, y: 4, w: 6, h: 4 });
+    runtime.place('orders', { x: 6, y: 0, w: 6, h: 4 });
 
-    expect(runtime.getSnapshot().applied.panels[0].layout.y).toBe(4);
+    expect(runtime.getSnapshot().applied.panels[0].layout.x).toBe(6);
   });
 
   it('keeps the board timer running for the others', async () => {
@@ -1355,12 +1384,12 @@ describe('DashboardViewRuntime placing', () => {
     const child = runtime.getSnapshot().panels[0].runtime;
 
     runtime.edit({ filter: EU_FILTER });
-    runtime.place('orders', { x: 6, y: 1, w: 6, h: 4 });
+    runtime.place('orders', { x: 6, y: 0, w: 6, h: 4 });
     await flush();
     const state = runtime.getSnapshot();
 
-    expect(state.applied.panels[0].layout).toEqual({ x: 6, y: 1, w: 6, h: 4 });
-    expect(state.draft.panels[0].layout).toEqual({ x: 6, y: 1, w: 6, h: 4 });
+    expect(state.applied.panels[0].layout).toEqual({ x: 6, y: 0, w: 6, h: 4 });
+    expect(state.draft.panels[0].layout).toEqual({ x: 6, y: 0, w: 6, h: 4 });
     // Half a draft used to run here: the filter being composed went out with
     // the nudge.
     expect(state.applied.filter).toEqual(REGION_FILTER);
@@ -1379,7 +1408,7 @@ describe('DashboardViewRuntime placing', () => {
     expect(runtime.getSnapshot().applied.panels[0].layout.x).toBe(6);
   });
 
-  it('pushes the panels it lands on down, and the ones they land on in turn', async () => {
+  it('makes way for the panel placed, and closes up behind it', async () => {
     const board = await harness();
     const runtime = await board.open(
       dashboardConfig({
@@ -1400,9 +1429,11 @@ describe('DashboardViewRuntime placing', () => {
     );
 
     expect(layouts).toEqual({
-      c: { x: 0, y: 2, w: 6, h: 2 },
-      a: { x: 0, y: 4, w: 6, h: 4 },
-      b: { x: 0, y: 8, w: 6, h: 4 },
+      // c takes the rows it was put on; a and b make way under it, and the
+      // column floats up behind them — no hole where c came from.
+      c: { x: 0, y: 0, w: 6, h: 2 },
+      a: { x: 0, y: 2, w: 6, h: 4 },
+      b: { x: 0, y: 6, w: 6, h: 4 },
       // Beside the column, so nothing to move out of the way of.
       aside: { x: 6, y: 0, w: 6, h: 4 },
     });
@@ -1418,7 +1449,7 @@ describe('DashboardViewRuntime placing', () => {
     runtime.subscribe(listener);
     const before = runtime.getSnapshot();
 
-    runtime.place('orders', { x: 10, y: 0, w: 6, h: 4 });
+    runtime.place('orders', { x: 20, y: 0, w: 6, h: 4 });
     runtime.place('orders', { x: -1, y: 0, w: 6, h: 4 });
     runtime.place('ghost', { x: 0, y: 0, w: 1, h: 1 });
     runtime.place('orders', { x: 0, y: 0, w: 6, h: 4 });

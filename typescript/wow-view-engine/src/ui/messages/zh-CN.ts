@@ -980,6 +980,8 @@ export const zhCN: ViewMessages = {
   'label.dashboard.empty-hint':
     '仪表盘把已保存的记录视图和分析视图并排放在一起看。',
   'label.panel.untitled': '面板 {index}',
+  'label.panel.numbered': '{name} {n}',
+  'label.panel.kind.heading': '标题',
   'label.panel.kind.markdown': '笔记',
   'label.panel.kind.image': '图片',
   'label.panel.kind.links': '链接',
@@ -1031,23 +1033,40 @@ export const zhCN: ViewMessages = {
   'dashboard.field.duplicate': '筛选字段 {field} 声明了两次。',
   'dashboard.field.name-empty': '筛选字段需要一个名称。',
   'dashboard.field.name-invalid': '{field} 不是可用的字段名。',
+  'dashboard.grid.unsupported':
+    '这个仪表盘的布局用的栅格在这里画不出来；面板按 {columns} 列摆放。',
+  'dashboard.heading.too-long': '一个标题最多 {max} 个字符。',
   'dashboard.layout.invalid': '这个面板的位置或尺寸不可用。',
   'dashboard.layout.missing': '这个面板没有位置。',
   'dashboard.layout.out-of-grid': '这个面板超出了网格的 {columns} 列。',
   'dashboard.link.label-empty': '链接需要一个标签。',
   'dashboard.links.too-many': '链接面板最多放 {max} 个链接。',
   'dashboard.markdown.too-long': '一条笔记最多 {max} 个字符。',
+  'dashboard.panel.definition-unknown':
+    '这个面板里的分析所用的数据已经不可用了。',
   'dashboard.panel.failed': '这个面板显示的视图没能打开。',
   'dashboard.panel.id-duplicate': '两个面板共用了 id {id}。',
   'dashboard.panel.id-empty': '面板需要一个 id。',
   'dashboard.panel.kind-unsupported': '这个面板指向的不是记录视图或分析视图。',
+  'dashboard.panel.not-owned': '只有只属于这个仪表盘的分析才能另存为视图。',
+  'dashboard.panel.owned-invalid': '这个面板里的分析不是预期的结构。',
+  'dashboard.panel.presentation-dropped':
+    '这个面板改过的展示已经不适用于它的视图，按视图本来的样子显示。',
   'dashboard.panel.scope-too-narrow':
     '这个面板显示的视图并不对这个仪表盘的所有读者开放。',
+  'dashboard.panel.source-invalid':
+    '这个面板要么显示一个已保存的视图，要么显示只属于这个仪表盘的分析。',
+  'dashboard.panel.tab-unknown':
+    '这个面板不在这个仪表盘的任何标签页上，先显示在第一个标签页。',
   'dashboard.panel.unavailable':
     '这个面板显示的视图已被删除，或者你没有查看权限。',
   'dashboard.panel.unknown-kind': '这种面板类型不可用。',
   'dashboard.panels.too-many': '一个仪表盘最多放 {max} 个面板。',
   'dashboard.shape.invalid': '仪表盘的这一部分不是预期的结构。',
+  'dashboard.tab.id-duplicate': '两个标签页共用了 id {id}。',
+  'dashboard.tab.id-empty': '标签页需要一个 id。',
+  'dashboard.tab.title-empty': '有一个标签页没有名字，按它的位置称呼。',
+  'dashboard.tabs.too-many': '一个仪表盘最多放 {max} 个标签页。',
   'dashboard.url.unsupported-scheme':
     '只能显示 http、https、mailto 和相对链接。',
 

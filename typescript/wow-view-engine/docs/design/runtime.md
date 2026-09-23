@@ -44,12 +44,33 @@ export type AnyViewRuntime =
   RecordViewRuntime | ViewRuntime<AnalysisViewConfig> | DashboardRuntime;
 
 /** Dashboard 的公开面：快照多出 panels 与 resolving，并能等待引用加载、按面板取子 runtime。 */
-export interface DashboardRuntime extends ViewRuntime<DashboardViewConfig> {
+export interface DashboardRuntime
+  extends ViewRuntime<DashboardViewConfig>, DashboardEditing {
   getSnapshot(): DashboardRuntimeState; // ViewRuntimeState + panels: DashboardPanelState[] + resolving
   ready(): Promise<void>; // 每个面板引用都已加载或确认不可读
   panelRuntime(panelId: string): DataViewRuntime | null; // 宿主自行驱动某个面板时使用
-  place(panelId: string, layout: PanelLayout): void; // 摆一个面板并只应用这一处摆放；被盖住的面板向下让开（placePanel），其余未应用的编辑照旧待应用
+  place(panelId: string, layout: PanelLayout): void; // 摆一个面板并只应用这一处摆放；被盖住的面板让开、所在标签页上浮压紧（placePanel），其余未应用的编辑照旧待应用
   refreshPanel(panelId: string): void; // 只重跑这一个面板：失败面板的「重试」
+}
+
+/** 搭板子（D22 A～E，批 B1）：每条都同时写进 draft 与屏幕上的 applied，面板按草稿实时重跑；保存才写回，revert 放弃。 */
+export interface DashboardEditing {
+  addPanel(panel: NewPanel, placement?: NewPanelPlacement): string | null; // 已保存视图／板内分析／内容；放进所在标签页 fromRow 起的第一个空位；满了为 null
+  removePanel(panelId: string): void; // 所在标签页随之上浮压紧
+  duplicatePanel(panelId: string): string | null; // 旁边有位放旁边，否则放下面；板内分析一并复制
+  renamePanel(panelId: string, title: string): void; // 空白去掉标题，回到按内容命名
+  replacePanelView(panelId: string, instanceId: string): void; // 换一个已保存视图；展示覆盖作废，标题与接线保留
+  editPanelContent(panelId: string, patch: Partial<NewContentPanel>): void; // 内容面板改内容，不改种类
+  movePanelToTab(panelId: string, tabId: string): void; // 放进目标标签页的第一个空位，原标签页压紧
+  setPresentation(
+    panelId: string,
+    presentation: PanelPresentation | null,
+  ): void; // null：恢复为视图的样子
+  referToSaved(panelId: string, instance: ViewInstance): void; // 板内分析已另存为视图：面板改为引用它（ViewEngine.saveOwnedView 调用）
+  addTab(title: string, firstTitle: string): string | null; // 无标签页的板子第一次加：现有面板归入 firstTitle 那一页
+  renameTab(tabId: string, title: string): void;
+  moveTab(tabId: string, index: number): void;
+  removeTab(tabId: string): void; // 连同面板；最后一个标签页不删
 }
 
 /** 由配置类型推出的 runtime 类型，create 用它保留静态收窄。 */
@@ -193,7 +214,7 @@ export class ViewWriteError extends Error {
 
 ## Dashboard
 
-实现拆在 `src/runtime/dashboard/`：`references.ts`（`PanelReferences`——面板引用的加载：未问／在加载／已加载（读不到为 `null`）三态，外加「到了却用不上」的失败原因；每一次落定回调一次，由 runtime 重新判草稿）、`children.ts`（`PanelChildren`——每个数据面板的子 runtime 与其生命周期：随每次 sync 对齐面板与作用域、面板没了或指向别处就释放、随仪表盘一起 dispose；子 runtime 一通知就回调 runtime 重排计时器并重建该面板的 issues）、`panels.ts`（无状态的读法与寻址：`panelsOf`、`panelOf`、`blocksBoard`、`panelIssues`、`atPanel`、`samePanels`）。`DashboardViewRuntime` 只剩准入、状态与计时器，公开面不变。
+实现拆在 `src/runtime/dashboard/`：`references.ts`（`PanelReferences`——面板引用的加载：未问／在加载／已加载（读不到为 `null`）三态，外加「到了却用不上」的失败原因；每一次落定回调一次，由 runtime 重新判草稿）、`children.ts`（`PanelChildren`——每个数据面板的子 runtime 与其生命周期：随每次 sync 对齐面板与作用域、面板没了或指向别处就释放、随仪表盘一起 dispose；子 runtime 一通知就回调 runtime 重排计时器并重建该面板的 issues）、`panels.ts`（无状态的读法与寻址：`panelsOf`、`panelOf`、`blocksBoard`、`stopsSave`、`panelIssues`、`atPanel`、`samePanels`）、`presentation.ts`（`presentedConfig`：面板的展示覆盖叠到视图配置上，不合身就丢掉并注明）。`DashboardViewRuntime` 只剩准入、状态与计时器，公开面不变。
 
 `DashboardRuntime` 持有 N 个子 `ViewRuntime` 加一个全局筛选草稿。`apply()` 校验全局筛选，为每个面板计算 `mergeGlobalFilter` 后经 `setScopeFilter` 注入再触发子 runtime 执行；宿主注入给 Dashboard 的作用域条件与数据视图同样从打开起就并入校验。
 
@@ -207,7 +228,12 @@ export class ViewWriteError extends Error {
 - 每个面板独立 loading / error / result，Dashboard 不汇总成单一状态。
 - 自动刷新由 DashboardRuntime 按自身 `refresh.interval` 统一计时并触发全部数据面板的 `refresh()`；被引用实例自身的 `refresh` 配置在 Dashboard 内忽略，避免两层计时器。`nextRefreshAt` 同样是这一只计时器的到期时刻（「在途」问的是面板），标题栏那处倒计时因此数的就是整块板子的下一次刷新。（见 test/dashboardRuntime.test.ts「DashboardViewRuntime refreshing」）
 - 单个面板的重跑是 `refreshPanel(panelId)`：整板刷新收窄到一个子 runtime，面板失败时的「重试」用它；没有子 runtime 的面板（不可用、被拒）没什么可重跑，它什么也不做。刷新失败时子 runtime 的 `result` 不动（「只随成功推进」），面板因此留着上一次的结果，由界面注明（[ui/dashboard.md](ui/dashboard.md#面板失败保留上次的结果可以重试)）。（见 test/dashboardRuntime.test.ts「DashboardViewRuntime refreshing one panel」）
-- 布局编辑可以是普通 `edit({ panels })`，但**用手摆放走 `place(panelId, layout)`**：它把这一处摆放同时写进 draft 与 applied，然后按 applied 同步，**不提升 draft 的其余部分**——从前摆放走 `edit` + `apply`，正在编辑、还没应用的全局筛选随手一挪就跑了半份（R2）。被摆的面板占它要的格子，被它盖住的面板直直往下推到它下面，推下去的再压到谁就接着推谁（`placePanel`，`src/dashboard/layout.ts`，即 react-grid-layout 纵向紧凑对「正在拖的那一块」做的事，只是不再往上收——这张栅格不紧凑）；配置里原本就叠着的两块不因摆第三块而被整理。越出栅格、不是面板的摆放被忽略。不改引用与作用域，所以没有面板重跑。（见 test/dashboardRuntime.test.ts「DashboardViewRuntime placing」、test/dashboardLayout.test.ts）
+- 布局编辑可以是普通 `edit({ panels })`，但**用手摆放走 `place(panelId, layout)`**：它把这一处摆放同时写进 draft 与 applied，然后按 applied 同步，**不提升 draft 的其余部分**——从前摆放走 `edit` + `apply`，正在编辑、还没应用的全局筛选随手一挪就跑了半份（R2）。被摆的面板占它要的格子，盖住的面板让开，然后**它所在的标签页整页上浮压紧**（批 A 走查，照 Metabase）：不留洞，拖走的面板原位由下面的补上，放到空处的面板浮到有东西托住为止（`placePanel`，`src/dashboard/layout.ts`，见 [ui/dashboard.md](ui/dashboard.md#dashboardgrid-与几何写回)）。只有用手动才压紧：打开保存的仪表盘什么也不动，库自己算的布局不写回。只动这一个标签页——另一个标签页是另一张栅格。越出栅格、不是面板的摆放被忽略。不改引用与作用域，所以没有面板重跑。（见 test/dashboardRuntime.test.ts「DashboardViewRuntime placing」、test/dashboardLayout.test.ts）
+- **旧的 12 列布局读进来就是 24 列**（D22 E）：`DashboardViewRuntime` 收进来的每一份配置——打开时的配置与保存基线、`adoptSaved`／`moveBaseline` 带回的实例——都先过 `migrateDashboardConfig`（内核，`src/dashboard/migrate.ts`）。基线与草稿同样迁移，所以打开旧板子不会变脏；第一次保存写出新格式。系统仪表盘在定义准入时同样先迁移再校验。（见 test/dashboardEditing.test.ts「a board stored in the 12-column grid」）
+- **搭板子的命令（`DashboardEditing`，D22 A～E）走同一条路**：`addPanel`／`removePanel`／`duplicatePanel`／`renamePanel`／`replacePanelView`／`editPanelContent`／`movePanelToTab`／`setPresentation`／`referToSaved` 与四个标签页命令，每条都是内核里的一个纯函数（`src/dashboard/edit.ts`、`tabs.ts`），像 `place` 一样同时写进 draft 与 applied、不提升草稿的其余部分——**编辑中面板按草稿实时重跑，「完成」（保存）才写回，「取消」是 `revert`**（D22 A，用户拍板）。加面板时新 id 与位置按 draft 算一次，applied 拿同一块面板，不各算各的。新引用照常加载。命令指向不存在的面板或标签页时什么也不做。编辑模式本身是界面的状态（`setEditing`），这些命令不看它——能不能编辑是界面按权限给不给入口。（见 test/dashboardEditing.test.ts「editing a board」）
+- **板内分析视图**（D22 C）：`owned` 面板没有引用可加载，定义是代码，`DashboardRuntimeOptions.definitions`（工厂从定义注册表查，查不到或准入失败为 `null`）同步给出；准入把它当成已保存分析一样判（绑定、合并后的全局筛选；定义不在报 `dashboard.panel.definition-unknown`），子 runtime 从它自己的配置开、`saved` 为 `null`（它随板保存，永远不单独保存），所以它的问题由子 runtime 自己的准入判——与已保存分析一字不差；判不过的面板不跑、在面板上说为什么。板内分析改了问题，子 runtime 不重建：同一个子 runtime `edit` 新配置再 `apply`，屏幕上的结果留到新结果到为止。「另存为视图」是 `ViewEngine.saveOwnedView`：按分析视图的规则校验、要标题与创建许可，写出实例后 `referToSaved` 把面板改为引用它（引用直接播种进 `PanelReferences`，不再读一次），展示覆盖保留；板子本身随后照常保存。（见 test/dashboardEditing.test.ts「a view the board owns」）
+- **展示覆盖**（D22 D）：子 runtime 拿到的配置是「视图自己的配置 + 面板的 `presentation`」（`runtime/dashboard/presentation.ts` 的 `presentedConfig`）：记录视图只认 `layout`，分析认 `layout`／`chart`／`table`。覆盖不再合身——成员这种视图没有，或者分析内核判这张图画不了这个结果——就整份丢掉、面板照视图原样显示，带一条 warning `dashboard.panel.presentation-dropped`，不是 error；视图本身已判不过时说的是视图的问题。覆盖只改怎么看，所以同一个子 runtime `edit` + `apply`，不重建（保留旧结果到新结果到）；D20 说换图是重画不是重跑，这里仍跑一次，因为面板今天画的是结果投影时的图——批 B2 面板改由草稿重画时再收窄为不跑。覆盖永远不写回被引用的视图。（见 test/dashboardEditing.test.ts「a panel's override of how it looks」）
+- **保存只被整板的 error 挡**（D22 B）：`stopsSave(kind, issues)`（`runtime/dashboard/panels.ts`）对记录与分析视图是「任何 error」，对仪表盘就是 `blocksBoard`——面板自己的问题（引用读者看不到、绑定不成立、视图保存的设置已不可用）在面板上说，随板保存；作者可能正是要保存去修另一块面板，一块坏面板让整板存不了，板子就没人维护得了。`ViewEngine.save`／`saveAs` 与 `useSaveCommands` 的 `hasErrors`／`blocked` 用同一个函数。共享板引用个人视图因此是 warning（`dashboard.panel.scope-too-narrow`）：面板对看得到的人照常跑，头部标记说明不是每位读者都看得到。（见 test/dashboardEditing.test.ts「what stops a save」、test/dashboardRuntime.test.ts「shares a dashboard that stands on a personal view」）
 
 ## ViewEngine
 
@@ -234,8 +260,13 @@ export interface ViewEngine {
       scopeFilter?: FilterTree | null;
     },
   ): RuntimeFor<C>; // 未保存的新视图；config 必填，由 default*Config / emptyDashboardConfig 生成；不问许可——什么都还没写，第一次 save 才问（H1）；scopeFilter 同 open，下钻出的视图借此继承来源的作用域（H4）
-  save(runtime: ViewRuntime): Promise<ViewInstance>; // saved ? store.save : store.create
+  save(runtime: ViewRuntime): Promise<ViewInstance>; // saved ? store.save : store.create；被 stopsSave 挡的 draft 拒绝
   saveAs(runtime, input: { title; scope }): Promise<ViewInstance>;
+  saveOwnedView(
+    dashboard: ViewRuntime,
+    panelId: string,
+    input: { title; scope },
+  ): Promise<ViewInstance>; // 板内分析「另存为视图」：建实例，面板改为引用它（写进板子的 draft，随板保存）
   rename(id: string, title: string): Promise<ViewInstance>;
   delete(id: string): Promise<void>;
   reorder(definitionId: string, order: string[]): Promise<ViewPreferences>;

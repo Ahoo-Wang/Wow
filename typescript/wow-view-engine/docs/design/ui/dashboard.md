@@ -4,9 +4,9 @@
 
 ## DashboardGrid 与几何写回
 
-- `DashboardGrid` 不做自动紧凑，面板按配置中的 `layout` 原样摆放；
+- `DashboardGrid` 画的是配置中的 `layout` 原样，库自己不紧凑；**24 列**（D22 E），存的是旧的 12 列的板子由运行时读成 24 列、每个面板落在原来的像素上（[model.md#dashboard-配置](../model.md#dashboard-配置)）；
 - 只有用户动手才把几何写回（`dashboard.place(panelId, layout)`，只应用这一处摆放，见 [runtime.md#dashboard](../runtime.md#dashboard)）——一次拖拽或缩放结束，或者一条键盘命令（见下一节），库自身在挂载或属性变化时算出的布局不写回，因此打开已保存的 Dashboard 不会变脏。（见 test/dashboardUi.test.tsx「DashboardGrid」「with a stored layout the grid would have compacted」）
-- **碰撞只有一套规则，是内核的**（`placePanel`，`src/dashboard/layout.ts`）：被摆的面板占它要的格子，被它盖住的面板往下推开，推下去的再压到谁就接着推。库自己的碰撞处理不用——不紧凑时它让缩放的面板直接叠在邻居上、拖过去的面板要么叠上要么和邻居对调行，和键盘走的内核规则是两个答案（R6、R9）。所以 `useGridPlacement`（`ui/gridPlacement.ts`）告诉库「可以叠」（它就什么都不处理），再把内核当作库的 compactor 交进去：手势进行中每一步都按「手势开始时的布局」重新摆一次正在拖的那块，拖下时的预览因此正是松手后应用的布局，被推开的面板在拖走之后也会回来；松手只把这一块交给 `place`，其余由运行时按同一规则推。手势以外（挂载、每次新布局）它什么也不改，屏幕上是准入过的布局原样。（见 test/dashboardPlacement.test.tsx「placing a panel」；浏览器里 stories/view-engine/Dashboard.test.stories.tsx「KeyboardStepPushes」）
+- **碰撞只有一套规则，是内核的**（`placePanel`，`src/dashboard/layout.ts`）：被摆的面板占它要的格子，被它盖住的面板让开——正好落在下一块上时两块对调（被压的那块上到它原来的位置，与 react-grid-layout 纵向紧凑对拖着的那块一样），否则往下推，推下去的再压到谁就接着推；**然后整个标签页上浮压紧**（批 A 走查，照 Metabase）：拖走的面板原位由下面的补上，放到空处的面板浮到有东西托住为止，动手之后不留洞。只有动手才压紧——打开保存的仪表盘什么也不动，旧板子里本来的洞第一次动手时一并收掉。（见 test/dashboardLayout.test.ts「placePanel」）库自己的碰撞处理不用——不紧凑时它让缩放的面板直接叠在邻居上、拖过去的面板要么叠上要么和邻居对调行，和键盘走的内核规则是两个答案（R6、R9）。所以 `useGridPlacement`（`ui/gridPlacement.ts`）告诉库「可以叠」（它就什么都不处理），再把内核当作库的 compactor 交进去：手势进行中每一步都按「手势开始时的布局」重新摆一次正在拖的那块，拖下时的预览因此正是松手后应用的布局，被推开的面板在拖走之后也会回来；松手只把这一块交给 `place`，其余由运行时按同一规则推。手势以外（挂载、每次新布局）它什么也不改，屏幕上是准入过的布局原样。（见 test/dashboardPlacement.test.tsx「placing a panel」；浏览器里 stories/view-engine/Dashboard.test.stories.tsx「KeyboardStepPushes」）
 - 栅格要的是像素宽度，而容器只有上了屏才知道自己多宽。量它的是 `react-grid-layout` 自己的 `useContainerWidth`，不是这里另写一个 `ResizeObserver`：同一个观察者、同一套取宽规则，没有 `ResizeObserver` 的环境照样能画，连续几次缩放合并到同一帧。容器报 0（被隐藏时就是这样）时这个 hook 照实上报，栅格自己不收，面板保持上一次能画的宽度。（见 test/dashboardUi.test.tsx「follows the container width once it can be measured」）
 
 - **面板按阅读顺序画**：先按行、行内从左到右（内核的 `readingOrder`，`src/dashboard/layout.ts`；面板叫「面板 3」时数的也是这个顺序），与配置里的数组顺序无关，所以 Tab 走的是眼睛走的路；
@@ -20,9 +20,10 @@
 
 - **两个手柄都有名字，也都答方向键**：抓手（`panel-grip`）移动，东南角（`panel-resize`）缩放，各自对应它用指针做的事。抓手原来是 `aria-hidden` 加一个 `title`——那是对的，当时拖拽没有键盘等价物，给一个键盘够不着的东西起名字比不起更糟；现在它有了，于是它是一个普通控件；
 - **菜单把同样八条命令写成字**（`panel-arrange`，`DropdownMenu` 两组：移动 / 大小）：只能靠按下去才发现的键等于没有；
-- **边界处是禁用而不是消失**：`arrangeLayout`（在内核里，`src/dashboard/layout.ts`，菜单与按键都调它）的边界就是内核的边界（`x`、`y` 非负，`w`、`h` 至少一格，`x + w` 不越界），所以没有哪条命令能产出 `validateDashboard` 会拒的 layout；一个面板此刻能往哪去是当下的状态、不是权限（D4），菜单里来来去去的条目没人学得会。向下与加高没有远边——仪表盘向下长；
+- **一步是什么、何时禁用**：`arrangePanel`（在内核里，`src/dashboard/layout.ts`，菜单与按键都调它，看的是整块板子）。左右与大小一步一格；上下是压紧的板子上的一步——往下挪一行会被上浮送回原处，所以「下移」是让它落到别处的最小一步，也就是越过下面那块、两块对调，「上移」同理（批 A 走查）。边界就是内核的边界（`x`、`y` 非负，`w`、`h` 至少一格，`x + w` 不越界），所以没有哪条命令能产出 `validateDashboard` 会拒的 layout；一条什么也不会改变的命令——一列最下面那块的「下移」、第一列的「左移」——在菜单里**禁用而不是消失**：一个面板此刻能往哪去是当下的状态、不是权限（D4），菜单里来来去去的条目没人学得会。落位播报说的是压紧之后它停在哪。（见 test/dashboardLayout.test.ts「arranging by keyboard」、test/dashboardPlacement.test.tsx「trades places with the panel above on a keyboard step up」）
 - **每个手柄以自己的面板命名**：「移动『北区订单』」「调整『北区订单』的大小」「摆放『北区订单』」，哪些键能用由 `aria-keyshortcuts` 说，而不写进名字。原来缩放角全板同名（「用方向键调整这个面板的大小」），读屏走一遍板子分不出自己在哪个面板上（U8）。`resizeConfig` 是整张栅格级的属性，库只把 axis 交给这个工厂——但它返回的元素被 `react-resizable` 追加进**栅格项本身**的子节点里，所以栅格项是我们的 `PanelGridItem`，它向子树提供「这是哪个面板、叫什么」，角从 context 读名字与 id；不在栅格项里时它只说「调整这个面板的大小」、什么键也不答；
-- **面板叫什么**（`panelName`）：自己的标题；没有标题的视图面板用它显示的视图的标题；内容面板用种类（笔记／图片／链接）；剩下的（视图打不开、又没有标题）按它在板上的位置叫「面板 3」。**从不用 `panel.id`**——那是配置里的键，不是看板子的人起的名字。标题、抓手、角、菜单、正文滚动区、落位播报都用这同一个名字；（见 test/dashboardUi.test.tsx「names an untitled panel by what it shows, never by its id」「names each corner after its own panel」）
+- **面板叫什么**（`panelName`）：自己的标题；没有标题的视图面板用它显示的视图的标题；标题卡片用它的字；内容面板用种类（标题／笔记／图片／链接）；剩下的（视图打不开、又没有标题）按它在板上的位置叫「面板 3」。**从不用 `panel.id`**——那是配置里的键，不是看板子的人起的名字。**板子起的名字不重名**（`panelNames`，批 A 走查）：两块没标题的笔记原来都叫「笔记」，抓手、发现、落位播报按名字指向的是两块；现在按阅读顺序编号「笔记」「笔记 2」，并绕开作者起的标题（作者自己起了两个同名的，那是作者的）。标题、抓手、角、菜单、正文滚动区、落位播报都用这同一个名字；（见 test/dashboardUi.test.tsx「names an untitled panel by what it shows, never by its id」「numbers the names it makes up, in reading order, around the titles given」「names each corner after its own panel」）
+- **标题卡片**（`heading`，分节用）：它的字就是面板的标题元素，正文不重复；怎么在大纲里分节、编辑中的占位随批 B2 的编辑界面定。
 - **落位要说出来**：指针能看见面板在自己手下动，键盘只有一个不在屏幕上的 layout，所以整张栅格有一个 `aria-live="polite"` 区域，说这个面板现在在第几列第几行、多宽多高（`label.panel.placed`）。一块板子一次只摆一个面板，所以是一个区域而不是每个面板一个。宽高各是一个带量词的整句（`label.panel.columns`／`-one`、`label.panel.rows`／`-one`），英文不再出「1 columns」；
 - **菜单的八条命令成对**：上移／下移、左移／右移、加宽／减宽、加高／减高。原来的「压扁」口语、与「加高」不成对，「收窄」与「加宽」也不成对（U9）；
 - **聚焦时角必须看得见**：上游只在指针悬停在面板上时才画那个 20px 的角（`opacity: 0` → `:hover` 时 `1`），键盘到得了却看不见就等于没到。`styles.css` 里补了 `:focus-visible` 的一条。
@@ -61,6 +62,8 @@
 ## 阶段 3 的交互（定稿，待实现）
 
 [仪表盘交互稿](https://claude.ai/artifact/SVjSG6BH7WVAnqthQDh42y) 2026-09-23 定稿（用户：十条待拍板「全按推荐」），方向见 [D22](../decisions.md#d22-仪表盘与嵌入视图参照-metabase2026-09-23)。批 B～D 按下面逐屏实现；实现落地后把每条改写成现状并附测试名。
+
+**批 B1 已落地的是 A～E 背后的模型与运行时，界面还没有**：24 列与旧布局迁移、标签页、板内分析视图与「另存为视图」、展示覆盖、标题卡片（[model.md#dashboard-配置](../model.md#dashboard-配置)）；搭板子的命令 `DashboardEditing`，编辑中按草稿实时重跑、保存才写回；保存只被整板 error 挡；动手后上浮压紧；同名面板编号（[runtime.md#dashboard](../runtime.md#dashboard)）。B2／B3 在这上面做编辑条、添加对话框、面板菜单、标签栏与「在仪表盘里新建分析」的大对话框。
 
 三条贯穿的原则：**读与搭分开**（平时不可拖、点不坏，「编辑」进入搭的状态，「完成」保存、「取消」放弃，系统仪表盘只有「另存为」）；**一个概念一种样子**（追问菜单、可视化面板、条件编辑器、候选值全部复用分析与记录视图的部件）；**说清作用范围**（每个筛选作用到哪些面板、哪个面板不受它影响，在面板上看得到）。
 

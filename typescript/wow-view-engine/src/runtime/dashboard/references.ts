@@ -12,7 +12,10 @@
  */
 
 import type { DashboardViewConfig } from '../../model/index.js';
-import { isViewPanel, type PanelReference } from '../../dashboard/index.js';
+import {
+  referencedInstance,
+  type PanelReference,
+} from '../../dashboard/index.js';
 import { panelsOf, reasonOf } from './panels.js';
 
 /** Loads what a panel references; rejects when it is gone or unreadable. */
@@ -77,9 +80,13 @@ export class PanelReferences {
   load(config: DashboardViewConfig, awaited: boolean): boolean {
     const wanted = new Set(
       panelsOf(config)
-        .filter(isViewPanel)
-        .map(panel => panel.instanceId)
-        .filter(id => !this.references.has(id) && !this.pending.has(id)),
+        .map(referencedInstance)
+        .filter(
+          (id): id is string =>
+            id !== undefined &&
+            !this.references.has(id) &&
+            !this.pending.has(id),
+        ),
     );
     if (wanted.size === 0) return false;
 
@@ -105,6 +112,16 @@ export class PanelReferences {
    */
   async ready(): Promise<void> {
     while (this.pending.size > 0) await Promise.all([...this.pending.values()]);
+  }
+
+  /**
+   * A reference known without asking the store — the view a board has just
+   * saved one of its own views as — so the panel pointing at it does not
+   * blank while it is read back.
+   */
+  seed(reference: PanelReference): void {
+    this.references.set(reference.instance.id, reference);
+    this.failures.delete(reference.instance.id);
   }
 
   private resolved(id: string, reference: PanelReference | null): void {

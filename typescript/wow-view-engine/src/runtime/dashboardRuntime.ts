@@ -20,6 +20,7 @@ import {
   type FilterTree,
   type Issue,
   type PanelLayout,
+  type PanelPresentation,
   type RuntimeLimits,
   type ViewInstance,
   type ViewScope,
@@ -39,14 +40,23 @@ import {
 import {
   isViewPanel,
   mapGlobalFilter,
+  migrateDashboardConfig,
   placePanelIn,
+  referencedInstance,
   validateDashboard,
+  type NewContentPanel,
+  type NewPanel,
+  type NewPanelPlacement,
+  type PanelDefinition,
 } from '../dashboard/index.js';
+import { presentedConfig } from './dashboard/presentation.js';
+import { boardEditing, type DashboardEditing } from './dashboard/editing.js';
 import type { RuntimeEnvironment } from './environment.js';
 import { hasError, RuntimeStore } from './runtimeStore.js';
 import type { OptionSource } from './source.js';
 import {
   PanelChildren,
+  panelView,
   type PanelRuntimeFactory,
 } from './dashboard/children.js';
 import {
@@ -68,8 +78,10 @@ import type {
 } from './viewRuntimeTypes.js';
 
 export type { PanelResolver } from './dashboard/references.js';
-export type { PanelRuntimeFactory } from './dashboard/children.js';
+export type { PanelRuntimeFactory, PanelView } from './dashboard/children.js';
 export type { DashboardPanelState } from './dashboard/panels.js';
+export { stopsSave } from './dashboard/panels.js';
+export type { DashboardEditing } from './dashboard/editing.js';
 
 export interface DashboardRuntimeState extends ViewRuntimeState<DashboardViewConfig> {
   /**
@@ -86,7 +98,8 @@ export interface DashboardRuntimeState extends ViewRuntimeState<DashboardViewCon
  * carries the panels. `open` narrows to it by `kind`, so a caller reaches the
  * panels without knowing the class behind them.
  */
-export interface DashboardRuntime extends ViewRuntime<DashboardViewConfig> {
+export interface DashboardRuntime
+  extends ViewRuntime<DashboardViewConfig>, DashboardEditing {
   getSnapshot(): DashboardRuntimeState;
   /** Resolves once every panel reference has been loaded or refused. */
   ready(): Promise<void>;
@@ -94,10 +107,10 @@ export interface DashboardRuntime extends ViewRuntime<DashboardViewConfig> {
   panelRuntime(panelId: string): DataViewRuntime | null;
   /**
    * Puts one panel at `layout` and applies that alone: the panels it now
-   * covers are pushed down out of its way (`placePanel`), and every other
-   * pending edit — a global filter not yet applied, say — stays pending.
-   * A layout the grid does not admit, or a panel id there is none of, is
-   * ignored.
+   * covers make way and its tab floats up behind it (`placePanel`), and
+   * every other pending edit — a global filter not yet applied, say — stays
+   * pending. A layout the grid does not admit, or a panel id there is none
+   * of, is ignored.
    */
   place(panelId: string, layout: PanelLayout): void;
   /** Re-runs one panel on what it has applied — a retry after it failed. */
@@ -115,6 +128,11 @@ export interface DashboardRuntimeOptions {
   limits: RuntimeLimits;
   environment: RuntimeEnvironment;
   resolve: PanelResolver;
+  /**
+   * The definition a view the board owns is of; `null` for one this release
+   * does not declare. Definitions are code, so this answers at once.
+   */
+  definitions(definitionId: string): PanelDefinition | null;
   createPanelRuntime: PanelRuntimeFactory;
   /** See `ViewRuntime.optionSource`. */
   resolveOptions?(key: string): OptionSource;
@@ -139,7 +157,9 @@ const IDLE: ViewQueryState = { status: 'idle' };
  * dirty-against-saved — is the `RuntimeStore` a data view holds as well; what
  * is left here is composition.
  */
-export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewConfig> {
+export class DashboardViewRuntime
+  implements ManagedViewRuntime<DashboardViewConfig>, DashboardEditing
+{
   readonly id: string;
   readonly kind = 'dashboard' as const;
   readonly definition: DashboardDefinition;
@@ -153,6 +173,8 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
   private readonly references: PanelReferences;
   /** The child runtime of each data panel that runs; see `PanelChildren`. */
   private readonly children: PanelChildren;
+  /** Building the board; see `runtime/dashboard/editing.ts`. */
+  private readonly edits: DashboardEditing;
 
   private injectedScope: FilterTree | null;
 
@@ -174,8 +196,22 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
       this.store.retime();
       this.refreshPanelIssues(panelId);
     });
+    this.edits = boardEditing({
+      draft: () => (this.disposed ? null : this.state.draft),
+      maxPanels: options.limits.maxDashboardPanels,
+      viewConfig: id => this.references.get(id)?.instance.config,
+      seed: instance => {
+        const found = options.definitions(instance.definitionId);
+        if (found) this.references.seed({ ...found, instance });
+      },
+      restructure: change => this.restructure(change),
+    });
 
-    const saved = options.saved ?? null;
+    // Everything that comes in is read into the form this engine writes —
+    // the config and the baseline alike, so a board stored in the old grid
+    // opens clean rather than dirty with its own migration (D22 E).
+    const saved = migrated(options.saved ?? null);
+    const config = migrateDashboardConfig(options.config);
     // The injected condition is judged with the config from the start, as a
     // data view does, so a scope the panels cannot carry is never pushed onto
     // them. What this board's own fields refuse is the host's condition and
@@ -183,9 +219,9 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     // the issues, the panels run un-narrowed, and `refusedScope` says which
     // condition did not take.
     const wanted = options.scopeFilter ?? null;
-    const own = this.admit(options.config, options.scope, null);
+    const own = this.admit(config, options.scope, null);
     const merged =
-      wanted === null ? own : this.admit(options.config, options.scope, wanted);
+      wanted === null ? own : this.admit(config, options.scope, wanted);
     const refusedScope = scopeRefusal(own, merged);
     const refused = refusedScope.length > 0;
     if (!refused) this.injectedScope = wanted;
@@ -194,8 +230,8 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
         saved,
         title: options.title,
         scope: options.scope,
-        draft: options.config,
-        applied: options.config,
+        draft: config,
+        applied: config,
         issues: refused ? own : merged,
         dirty: saved === null,
         query: IDLE,
@@ -222,7 +258,7 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
       // so it goes through `load` exactly as an edit does.
       restored: draft => this.load(draft),
     });
-    this.load(options.config, true);
+    this.load(config, true);
   }
 
   get disposed(): boolean {
@@ -344,10 +380,65 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
    * scope are unchanged, and neither is.
    */
   place(panelId: string, layout: PanelLayout): void {
+    this.restructure(config => placePanelIn(config, panelId, layout));
+  }
+
+  // Building the board: `DashboardEditing`, each edit one kernel function
+  // handed to `restructure` (`runtime/dashboard/editing.ts`).
+  addPanel(panel: NewPanel, placement?: NewPanelPlacement): string | null {
+    return this.edits.addPanel(panel, placement);
+  }
+  removePanel(panelId: string): void {
+    this.edits.removePanel(panelId);
+  }
+  duplicatePanel(panelId: string): string | null {
+    return this.edits.duplicatePanel(panelId);
+  }
+  renamePanel(panelId: string, title: string): void {
+    this.edits.renamePanel(panelId, title);
+  }
+  replacePanelView(panelId: string, instanceId: string): void {
+    this.edits.replacePanelView(panelId, instanceId);
+  }
+  editPanelContent(panelId: string, patch: Partial<NewContentPanel>): void {
+    this.edits.editPanelContent(panelId, patch);
+  }
+  movePanelToTab(panelId: string, tabId: string): void {
+    this.edits.movePanelToTab(panelId, tabId);
+  }
+  setPresentation(panelId: string, look: PanelPresentation | null): void {
+    this.edits.setPresentation(panelId, look);
+  }
+  referToSaved(panelId: string, instance: ViewInstance): void {
+    this.edits.referToSaved(panelId, instance);
+  }
+  addTab(title: string, firstTitle: string): string | null {
+    return this.edits.addTab(title, firstTitle);
+  }
+  renameTab(tabId: string, title: string): void {
+    this.edits.renameTab(tabId, title);
+  }
+  moveTab(tabId: string, index: number): void {
+    this.edits.moveTab(tabId, index);
+  }
+  removeTab(tabId: string): void {
+    this.edits.removeTab(tabId);
+  }
+
+  /**
+   * One edit to the board, applied as a placement is: into the draft and
+   * into what is on screen alike, and nothing else of either moves — a
+   * global filter still being composed stays pending (D22 A: the panels run
+   * on the draft as it is built; saving writes it, `revert` undoes it). A
+   * panel the edit adds is loaded like any the draft names.
+   */
+  private restructure(
+    change: (config: DashboardViewConfig) => DashboardViewConfig,
+  ): void {
     if (this.disposed) return;
     const { draft, applied } = this.state;
-    const nextDraft = placePanelIn(draft, panelId, layout);
-    const nextApplied = placePanelIn(applied, panelId, layout);
+    const nextDraft = change(draft);
+    const nextApplied = change(applied);
     if (nextDraft === draft && nextApplied === applied) return;
     this.sync({
       draft: nextDraft,
@@ -355,6 +446,7 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
       issues: this.admit(nextDraft, this.state.scope),
       dirty: this.store.isDirty(nextDraft, this.state.saved),
     });
+    this.load(nextDraft);
   }
 
   /**
@@ -422,8 +514,9 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     this.store.setState({ write: null });
   }
 
-  moveBaseline(instance: ViewInstance): void {
+  moveBaseline(stored: ViewInstance): void {
     if (this.disposed) return;
+    const instance = migrated(stored) as ViewInstance;
     this.store.setState({
       saved: instance,
       title: instance.title,
@@ -432,8 +525,9 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     });
   }
 
-  adoptSaved(instance: ViewInstance): void {
+  adoptSaved(stored: ViewInstance): void {
     if (this.disposed) return;
+    const instance = migrated(stored) as ViewInstance;
     const draft = instance.config as DashboardViewConfig;
     this.store.setState({
       saved: instance,
@@ -475,6 +569,7 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     return withoutScopeModeWarning(
       validateDashboard(merged, scope, this.references.known, this.kinds, {
         limits: this.options.limits,
+        definitions: this.options.definitions,
       }),
       config,
       scopeFilter,
@@ -571,28 +666,48 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     applied: DashboardViewConfig,
     own: Issue[],
   ): { runtime: DataViewRuntime | null; issues: Issue[] } {
-    const failure = this.references.failure(panel.instanceId);
+    const instanceId = referencedInstance(panel) ?? '';
+    const failure = this.references.failure(instanceId);
     if (failure !== undefined)
       return {
         runtime: null,
         issues: [
           ...own,
           issue('dashboard.panel.failed', ['panels', index, 'instanceId'], {
-            instance: panel.instanceId,
+            instance: instanceId,
             reason: failure,
           }),
         ],
       };
 
-    const reference = this.references.get(panel.instanceId);
+    const view = panelView(
+      panel,
+      id => this.references.get(id),
+      this.options.definitions,
+      this.state.scope,
+    );
     // A panel with a problem of its own does not query; the others still do.
-    if (!reference || hasError(own)) return { runtime: null, issues: own };
+    if (!view || hasError(own)) return { runtime: null, issues: own };
 
+    // How the panel looks at the view goes over the view's own config, and
+    // an override that no longer fits it is dropped here with a note.
+    const presented = presentedConfig(
+      view.config,
+      panel.presentation,
+      { definition: view.definition, kinds: this.kinds, limits: this.limits },
+      ['panels', index, 'presentation'],
+    );
     const scope = mapGlobalFilter(
       mergeFilters(applied.filter, this.injectedScope),
       panel.bindings,
     );
-    return this.children.sync(panel.id, index, own, reference, scope);
+    return this.children.sync(
+      panel.id,
+      index,
+      [...own, ...presented.issues],
+      { ...view, config: presented.config },
+      scope,
+    );
   }
 
   /**
@@ -615,4 +730,14 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     panels[at] = { ...current, issues };
     this.store.setState({ panels });
   }
+}
+
+/**
+ * A stored board read into the form this engine writes
+ * (`migrateDashboardConfig`); the same instance when it already is.
+ */
+function migrated(instance: ViewInstance | null): ViewInstance | null {
+  if (instance === null) return null;
+  const config = migrateDashboardConfig(instance.config as DashboardViewConfig);
+  return config === instance.config ? instance : { ...instance, config };
 }

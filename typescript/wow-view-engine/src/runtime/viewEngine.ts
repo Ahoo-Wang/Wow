@@ -48,7 +48,9 @@ import type {
   RuntimeFor,
   ViewRuntime,
 } from './viewRuntimeTypes.js';
-import { DashboardViewRuntime } from './dashboardRuntime.js';
+import { DashboardViewRuntime, stopsSave } from './dashboardRuntime.js';
+import { isOwnedPanel } from '../dashboard/index.js';
+import { validateDataConfig } from './execute.js';
 import {
   ViewCommandError,
   type WritePayload,
@@ -338,7 +340,7 @@ export class ViewEngine {
   async save(runtime: ViewRuntime): Promise<ViewInstance> {
     const target = this.runtimes.require(runtime);
     const state = target.getSnapshot();
-    this.requireValid(target.issuesAt(state.scope));
+    this.requireSavable(target, target.issuesAt(state.scope));
 
     if (!state.saved) {
       const input = {
@@ -373,7 +375,7 @@ export class ViewEngine {
     const target = this.runtimes.require(runtime);
     const state = target.getSnapshot();
     // Judged at the scope it is going to, not the one it came from.
-    this.requireValid(target.issuesAt(input.scope));
+    this.requireSavable(target, target.issuesAt(input.scope));
     this.requireTitle(input.title);
     this.guard.requireCreate(target.definition.id, input.scope);
 
@@ -390,6 +392,61 @@ export class ViewEngine {
       },
       target,
     )) as ViewInstance;
+  }
+
+  /**
+   * Saves a view a dashboard owns as a view of its own (「另存为视图」, D22 C)
+   * and points the panel at it: the new instance is listed with the
+   * definition's other views from then on, and the panel keeps its title,
+   * wiring and override. The board itself is not written — the panel's new
+   * reference is an edit of its draft, saved with the board like any other.
+   *
+   * Judged as any save-as is: the view's config against its definition, a
+   * title, the right to create at that audience. A view the board does not
+   * own, or a panel it lacks, is refused (`dashboard.panel.not-owned`).
+   */
+  async saveOwnedView(
+    dashboard: ViewRuntime,
+    panelId: string,
+    input: { title: string; scope: ViewAudience },
+  ): Promise<ViewInstance> {
+    const target = this.runtimes.require(dashboard);
+    const panel =
+      target instanceof DashboardViewRuntime
+        ? target.getSnapshot().draft.panels.find(entry => entry.id === panelId)
+        : undefined;
+    if (!isOwnedPanel(panel))
+      throw new ViewCommandError(
+        issue('dashboard.panel.not-owned', [], { panel: panelId }),
+      );
+    const { definitionId, config } = panel.owned;
+    const definition = this.registry.require(definitionId);
+    this.requireTitle(input.title);
+    if (definition.kind !== 'data')
+      throw new ViewCommandError(
+        issue('runtime.kind.not-declared', [], {
+          definition: definitionId,
+          kind: config.kind,
+        }),
+      );
+    this.requireValid(
+      validateDataConfig(
+        { definition, kinds: this.kinds, limits: this.limits },
+        config,
+      ),
+    );
+    this.guard.requireCreate(definitionId, input.scope);
+
+    const instance = (await this.ledger.dispatch(
+      {
+        action: 'create',
+        input: { definitionId, title: input.title, scope: input.scope, config },
+        intent: 'save-as',
+      },
+      undefined,
+    )) as ViewInstance;
+    (target as DashboardViewRuntime).referToSaved(panelId, instance);
+    return instance;
   }
 
   /** Renaming carries no config, so a draft with errors does not block it. */
@@ -621,6 +678,15 @@ export class ViewEngine {
 
   private requireValid(issues: readonly Issue[]): void {
     if (issues.some(entry => entry.severity === 'error'))
+      throw new ViewCommandError(issue('view.config.invalid', []));
+  }
+
+  /** What stops a save of this runtime's kind (`stopsSave`). */
+  private requireSavable(
+    runtime: ManagedViewRuntime,
+    issues: readonly Issue[],
+  ): void {
+    if (stopsSave(runtime.kind, issues))
       throw new ViewCommandError(issue('view.config.invalid', []));
   }
 }

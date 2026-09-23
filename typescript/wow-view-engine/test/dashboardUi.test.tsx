@@ -24,7 +24,7 @@ import {
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  arrangeLayout,
+  arrangePanel,
   MemoryViewStore,
   ViewEngine,
   type DashboardRuntime,
@@ -109,7 +109,7 @@ describe('useDashboard', () => {
     expect(controller().panels).toHaveLength(1);
     expect(controller().panels[0].layout).toEqual({ x: 0, y: 0, w: 6, h: 4 });
     expect(controller().panels[0].broken).toBe(false);
-    expect(controller().columns).toBe(12);
+    expect(controller().columns).toBe(24);
   });
 
   it('marks a panel that cannot run as broken', async () => {
@@ -140,7 +140,8 @@ describe('useDashboard', () => {
       controller().place('orders', { x: 6, y: 2, w: 4, h: 3 });
     });
 
-    expect(controller().panels[0].layout).toEqual({ x: 6, y: 2, w: 4, h: 3 });
+    // Nothing above it, so it rises to the top of its column.
+    expect(controller().panels[0].layout).toEqual({ x: 6, y: 0, w: 4, h: 3 });
     expect(runtime.getSnapshot().dirty).toBe(true);
   });
 
@@ -402,6 +403,56 @@ describe('DashboardGrid', () => {
     expect(screen.getByRole('group', { name: 'Pending orders' })).toBeTruthy();
   });
 
+  /**
+   * Batch-A walk: two untitled notes were both 「Note」, so a handle, a
+   * finding or a landing announced by name pointed at two panels. A name
+   * the board makes up is numbered in reading order; an author's title is
+   * theirs, and a made-up name steps around it.
+   */
+  it('numbers the names it makes up, in reading order, around the titles given', async () => {
+    const memo = (id: string, x: number, y: number, title?: string) =>
+      panel({
+        id,
+        kind: 'markdown',
+        content: 'hello',
+        layout: { x, y, w: 6, h: 2 },
+        ...(title ? { title } : {}),
+      });
+    const { controller } = await openDashboard(
+      dashboardConfig({
+        panels: [
+          // Listed out of order: the numbers follow the board, not the list.
+          memo('third', 0, 4),
+          memo('first', 0, 0),
+          memo('second', 6, 0),
+          memo('titled', 6, 4, 'Note 2'),
+          panel({
+            id: 'heading',
+            kind: 'heading',
+            content: 'Stock',
+            layout: { x: 0, y: 6, w: 24, h: 1 },
+          }),
+          panel({
+            id: 'blank',
+            kind: 'heading',
+            content: ' ',
+            layout: { x: 0, y: 7, w: 24, h: 1 },
+          }),
+        ],
+      }),
+    );
+
+    render(<DashboardGrid dashboard={controller()} />);
+
+    expect(
+      screen
+        .getAllByRole('heading', { level: 3 })
+        .map(heading => heading.textContent),
+    ).toEqual(['Note', 'Note 3', 'Note 4', 'Note 2', 'Stock', 'Heading']);
+    // A heading card says its words once: as the panel's own title.
+    expect(document.querySelector('[data-slot="panel-heading"]')).toBeNull();
+  });
+
   it('draws each panel title as a heading under the view title', async () => {
     const { controller } = await openDashboard(
       dashboardConfig({ panels: [panel({ title: 'Waiting to ship' })] }),
@@ -488,17 +539,28 @@ describe('DashboardGrid', () => {
       );
     }
 
-    it('a personal view on a shared board', async () => {
-      const said = await outage(
+    /**
+     * Not an outage any more (D22 B): whoever can read the personal view —
+     * its author, typically — sees the panel, with the reason in its
+     * header; the readers who cannot are told the view is out of reach.
+     */
+    it('a personal view on a shared board is shown, marked in its header', async () => {
+      const { controller } = await openDashboard(
         dashboardConfig({ panels: [panel()] }),
         [{ ...pending, scope: 'personal' }],
+        testSource(),
         'shared',
       );
-      expect(said).toContain(
-        'The view this panel shows is not open to everyone who reads this dashboard',
-      );
-      expect(said).toContain('share it as widely as this dashboard');
-      expect(said).not.toMatch(/personal|shared|pending/);
+      const { container } = render(<DashboardGrid dashboard={controller()} />);
+
+      expect(
+        container.querySelector('[data-slot="panel-unavailable"]'),
+      ).toBeNull();
+      expect(
+        screen.getByLabelText(
+          'The view this panel shows is not open to everyone who reads this dashboard.',
+        ),
+      ).toBeTruthy();
     });
 
     it('a global filter the panel cannot carry', async () => {
@@ -697,15 +759,19 @@ describe('DashboardGrid', () => {
       await press(grip, 'Enter');
       expect(runtime.getSnapshot().dirty).toBe(false);
 
-      await press(grip, 'ArrowRight');
+      // Alone in its column, the panel has nowhere down to go on a board
+      // that floats panels up: the press changes nothing.
       await press(grip, 'ArrowDown');
+      expect(runtime.getSnapshot().dirty).toBe(false);
 
-      expect(controller().panels[0].layout).toEqual({ x: 1, y: 1, w: 6, h: 4 });
+      await press(grip, 'ArrowRight');
+
+      expect(controller().panels[0].layout).toEqual({ x: 1, y: 0, w: 6, h: 4 });
       expect(runtime.getSnapshot().dirty).toBe(true);
       // A pointer watches the panel move; a keyboard is told where it went.
       expect(
         screen.getByText(
-          'Pending orders is at column 2, row 2, 6 columns by 4 rows',
+          'Pending orders is at column 2, row 1, 6 columns by 4 rows',
         ),
       ).toBeTruthy();
     });
@@ -813,35 +879,36 @@ describe('DashboardGrid', () => {
     });
 
     /**
-     * One step is one cell, and the bounds are the kernel's, so no command
-     * can produce a layout `validateDashboard` would refuse. Down and
-     * taller have no far edge — a dashboard grows downwards.
+     * Sideways and in size one step is one cell, and the bounds are the
+     * kernel's, so no command can produce a layout `validateDashboard`
+     * would refuse. Up and down are what a board that floats panels up
+     * makes of them — see test/dashboardLayout.test.ts「arranging by
+     * keyboard」.
      */
-    describe('arrangeLayout', () => {
-      const here = { x: 1, y: 1, w: 2, h: 2 };
+    describe('arrangePanel', () => {
+      const here = { id: 'a', x: 1, y: 0, w: 2, h: 2 };
 
       it.each([
-        ['left', { ...here, x: 0 }],
-        ['right', { ...here, x: 2 }],
-        ['up', { ...here, y: 0 }],
-        ['down', { ...here, y: 2 }],
-        ['wider', { ...here, w: 3 }],
-        ['narrower', { ...here, w: 1 }],
-        ['taller', { ...here, h: 3 }],
-        ['shorter', { ...here, h: 1 }],
+        ['left', { x: 0, y: 0, w: 2, h: 2 }],
+        ['right', { x: 2, y: 0, w: 2, h: 2 }],
+        ['wider', { x: 1, y: 0, w: 3, h: 2 }],
+        ['narrower', { x: 1, y: 0, w: 1, h: 2 }],
+        ['taller', { x: 1, y: 0, w: 2, h: 3 }],
+        ['shorter', { x: 1, y: 0, w: 2, h: 1 }],
       ] as const)('takes one cell %s', (step, landed) => {
-        expect(arrangeLayout(here, step, 12)).toEqual(landed);
+        expect(arrangePanel([here], 'a', step, 24)).toEqual(landed);
       });
 
       it.each([
-        ['left', { x: 0, y: 0, w: 1, h: 1 }],
-        ['up', { x: 0, y: 0, w: 1, h: 1 }],
-        ['right', { x: 11, y: 0, w: 1, h: 1 }],
-        ['wider', { x: 11, y: 0, w: 1, h: 1 }],
-        ['narrower', { x: 0, y: 0, w: 1, h: 1 }],
-        ['shorter', { x: 0, y: 0, w: 1, h: 1 }],
-      ] as const)('has no room to go %s', (step, cornered) => {
-        expect(arrangeLayout(cornered, step, 12)).toBeNull();
+        ['left', { id: 'a', x: 0, y: 0, w: 1, h: 1 }],
+        ['up', { id: 'a', x: 0, y: 0, w: 1, h: 1 }],
+        ['down', { id: 'a', x: 0, y: 0, w: 1, h: 1 }],
+        ['right', { id: 'a', x: 23, y: 0, w: 1, h: 1 }],
+        ['wider', { id: 'a', x: 23, y: 0, w: 1, h: 1 }],
+        ['narrower', { id: 'a', x: 0, y: 0, w: 1, h: 1 }],
+        ['shorter', { id: 'a', x: 0, y: 0, w: 1, h: 1 }],
+      ] as const)('has nowhere to go %s', (step, cornered) => {
+        expect(arrangePanel([cornered], 'a', step, 24)).toBeNull();
       });
     });
   });
@@ -922,8 +989,9 @@ describe('DashboardGrid', () => {
       ) as HTMLElement;
 
       // A drag as the pointer makes one: down on the grip, movement on the
-      // document, up. The grid is 1280px over 12 columns of 80px rows, so
-      // 300px right and 180px down is three columns and two rows.
+      // document, up. The grid is 1280px over 24 columns of 80px rows, so
+      // 300px right and 180px down is some columns and two rows; with
+      // nothing above it, the panel then rises to the top (batch-A walk).
       fireEvent.mouseDown(grip, { clientX: 10, clientY: 10, button: 0 });
       fireEvent.mouseMove(document, { clientX: 100, clientY: 100 });
       fireEvent.mouseMove(document, { clientX: 310, clientY: 190 });
@@ -931,12 +999,11 @@ describe('DashboardGrid', () => {
       await settle();
 
       expect(runtime.getSnapshot().dirty).toBe(true);
-      expect(controller().panels[0].layout).toEqual({
-        x: 3,
-        y: 2,
-        w: 6,
-        h: 4,
-      });
+      // Which of the narrow columns it lands in depends on the width the
+      // grid measured first; that it moved right and rose is the point.
+      const moved = controller().panels[0].layout;
+      expect(moved).toMatchObject({ y: 0, w: 6, h: 4 });
+      expect(moved.x).toBeGreaterThanOrEqual(3);
     });
   });
 

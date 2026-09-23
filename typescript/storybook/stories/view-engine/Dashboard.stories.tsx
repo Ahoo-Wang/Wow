@@ -18,6 +18,7 @@ import {
   createStoryEngine,
   dashboardConfig,
   emptyDashboard,
+  legacyDashboardConfig,
   savedDashboard,
   savedViews,
   type SourceBehaviour,
@@ -26,7 +27,7 @@ import { StoryEngine } from './StoryEngine.js';
 import '@ahoo-wang/fetcher-view-engine/styles.css';
 
 /** Which saved dashboard a story opens, and which views it can reach. */
-type Variant = 'panels' | 'filtered' | 'unavailable' | 'empty';
+type Variant = 'panels' | 'filtered' | 'unavailable' | 'empty' | 'legacy';
 
 /**
  * A dashboard composes saved views. The global filter reaches each panel as
@@ -70,6 +71,7 @@ function DashboardDemo({
 
 function savedConfig(variant: Variant) {
   if (variant === 'empty') return emptyDashboard();
+  if (variant === 'legacy') return legacyDashboardConfig();
   if (variant === 'filtered')
     return dashboardConfig({
       filter: {
@@ -155,3 +157,12 @@ export const QueryFailed: Story = { args: { behaviour: 'failing' } };
 
 /** A dashboard with nothing on it yet. */
 export const EmptyDashboard: Story = { args: { variant: 'empty' } };
+
+/**
+ * 一块在栅格还是 12 列时存下的仪表盘（没有 `columns`）：打开时按 24 列读，
+ * `x`、`w` 乘 2，每个面板落在原来的像素上（D22 E）。不变脏，存回才写新格式。
+ */
+export const LegacyLayout: Story = {
+  name: '旧的 12 列布局',
+  args: { variant: 'legacy' },
+};

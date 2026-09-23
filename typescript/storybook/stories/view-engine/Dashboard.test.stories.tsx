@@ -19,12 +19,13 @@ import displayMeta, {
   EditableLayout as DisplayEditableLayout,
   EmptyDashboard as DisplayEmptyDashboard,
   GlobalFilter as DisplayGlobalFilter,
+  LegacyLayout as DisplayLegacyLayout,
   PanelUnavailable as DisplayPanelUnavailable,
   QueryFailed as DisplayQueryFailed,
 } from './Dashboard.stories.js';
 import { amountOf, findDataTable, readColumn, readTotal } from './readTable.js';
 import { axisTicks, chartsDrawn, drawnMarks, overlaps } from './chartDom.js';
-import { outage } from './fixtures.js';
+import { legacyDashboardConfig, outage } from './fixtures.js';
 
 const meta = {
   ...displayMeta,
@@ -261,8 +262,8 @@ export const KeyboardLayout: Story = {
     await expect(from()).toBeLessThan(0.03);
     grip.focus();
     await userEvent.keyboard('{ArrowRight}');
-    // The second, once the grid has finished sliding it there.
-    await waitFor(() => expect(from()).toBeGreaterThan(0.06));
+    // The second of 24, once the grid has finished sliding it there.
+    await waitFor(() => expect(from()).toBeGreaterThan(0.04));
 
     // Named after its own panel, like the grip: each corner on the board
     // used to share one name (U8).
@@ -347,9 +348,10 @@ export const RefreshFailedKeepsData: Story = {
 };
 
 /**
- * A keyboard step into a neighbour pushes the neighbour down, in a real
- * layout: stepping 值班手册 up one row puts it over 待出库明细's last row,
- * and 待出库明细 moves below it rather than being drawn underneath.
+ * A keyboard step into a neighbour moves the neighbour out of the way, in a
+ * real layout: stepping 值班手册 up one row puts it over 待出库明细's last
+ * row, and 待出库明细 goes below it rather than being drawn underneath — the
+ * two trade places, and the column closes up (batch-A walk).
  */
 export const KeyboardStepPushes: Story = {
   ...DisplayEditableLayout,
@@ -387,5 +389,46 @@ export const KeyboardStepPushes: Story = {
       ),
     );
     await waitFor(() => expect(overlap()).toBe(false));
+  },
+};
+
+/**
+ * A board stored in the 12-column grid, drawn in 24 (D22 E), measured in a
+ * real layout: every panel sits exactly where its twelve-column numbers put
+ * it — the grid library's arithmetic for 12 columns (a column and the gap
+ * after it, 10px gaps and padding), against the boxes on screen, to a pixel.
+ * The kernel test measures every panel a 12-column board can hold the same
+ * way; this one holds that the grid on screen agrees.
+ */
+export const LegacyLayoutDrawsTheSame: Story = {
+  ...DisplayLegacyLayout,
+  decorators: [DESK],
+  play: async ({ canvasElement }) => {
+    await onTheGrid(canvasElement);
+    await findDataTable(canvasElement);
+    const grid = canvasElement.querySelector(
+      '.react-grid-layout',
+    ) as HTMLElement;
+    const gap = 10;
+    for (const panel of legacyDashboardConfig().panels) {
+      const item = canvasElement.querySelector(
+        `.react-grid-item[data-panel-id="${panel.id}"]`,
+      ) as HTMLElement;
+      await waitFor(() => {
+        const width = grid.getBoundingClientRect().width;
+        const column = (width - gap * 11 - gap * 2) / 12;
+        const box = item.getBoundingClientRect();
+        const left = box.left - grid.getBoundingClientRect().left;
+        const { x, w } = panel.layout;
+        expect(Math.abs(left - ((column + gap) * x + gap))).toBeLessThan(1.5);
+        expect(Math.abs(box.width - (column * w + (w - 1) * gap))).toBeLessThan(
+          1.5,
+        );
+      });
+    }
+    // Read into the new form, not moved: opening it changes nothing to save.
+    await expect(
+      within(canvasElement).queryByText(zhCN['label.header.unsaved']),
+    ).toBeNull();
   },
 };

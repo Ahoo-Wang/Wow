@@ -39,6 +39,24 @@ function newTab(name: string): RegExp {
  * and tested on their own rather than through the grid.
  */
 describe('content panels', () => {
+  it('draws a heading as its one line of plain text', () => {
+    const { container } = render(
+      <ContentPanel
+        panel={{
+          id: 'h',
+          kind: 'heading',
+          content: '**Stock** <b>now</b>',
+          layout: { x: 0, y: 0, w: 24, h: 1 },
+        }}
+      />,
+    );
+
+    const heading = container.querySelector('[data-slot="panel-heading"]');
+    // Plain text: nothing in it is read as markdown or markup.
+    expect(heading?.textContent).toBe('**Stock** <b>now</b>');
+    expect(container.querySelector('b, strong')).toBeNull();
+  });
+
   /**
    * These components are exported on their own, so a host can render one from
    * a config that no `validateDashboard` ever saw. The scheme guard therefore

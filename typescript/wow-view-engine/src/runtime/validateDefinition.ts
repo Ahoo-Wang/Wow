@@ -37,7 +37,10 @@ import {
 import { issue, type FieldKindRegistry } from '../filter/index.js';
 import { validateRecord } from '../record/index.js';
 import { analysisScope, validateAnalysis } from '../analysis/index.js';
-import { validateDashboard } from '../dashboard/index.js';
+import {
+  migrateDashboardConfig,
+  validateDashboard,
+} from '../dashboard/index.js';
 
 export interface ValidateDefinitionOptions {
   limits?: RuntimeLimits;
@@ -639,9 +642,15 @@ function validateSystemConfig(
         // with the references in hand when the view is opened.
         under(
           path,
-          validateDashboard(view.config, 'system', EMPTY_REFERENCES, kinds, {
-            limits,
-          }),
+          validateDashboard(
+            migrateDashboardConfig(view.config),
+            'system',
+            EMPTY_REFERENCES,
+            kinds,
+            {
+              limits,
+            },
+          ),
         )
       : [mismatch];
 

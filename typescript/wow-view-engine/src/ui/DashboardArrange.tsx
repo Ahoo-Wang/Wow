@@ -25,8 +25,7 @@ import {
   GripVerticalIcon,
   MoveIcon,
 } from 'lucide-react';
-import { arrangeLayout, type ArrangeStep } from '../dashboard/index.js';
-import type { PanelLayout } from '../model/index.js';
+import type { ArrangeStep } from '../dashboard/index.js';
 import { IconButton, IconTooltip } from './IconButton.js';
 import type { MessageKey } from './messages.js';
 import { useViewMessages } from './MessagesProvider.js';
@@ -50,7 +49,7 @@ import { DropdownMenuContent } from './popups.js';
  * equivalent is not a setting to turn on; it is a set of commands of our
  * own, over the one thing a gesture produces: a new `PanelLayout`.
  *
- * What a command lands on is the kernel's (`arrangeLayout`, and `placePanel`
+ * What a command lands on is the kernel's (`arrangePanel`, and `placePanel`
  * for the panels it then covers), the same rules a pointer's drop goes
  * through, so the keyboard and the pointer cannot place differently.
  *
@@ -241,22 +240,25 @@ export function PanelResizeHandle({
 }
 
 export interface PanelArrangeMenuProps extends PanelGripProps {
-  /** Where the panel is now; a command at the edge of the grid is out. */
-  layout: PanelLayout;
-  columns: number;
+  /**
+   * Whether a command would move the panel at all: one off the grid's edge,
+   * or "down" for the last panel of its column on a board that floats
+   * panels up, would not (`arrangePanel` answers `null`). Every command is
+   * offered when it is left out.
+   */
+  available?: (step: ArrangeStep) => boolean;
 }
 
 /**
  * The eight commands in words.
  *
- * A command the grid has no room for is disabled rather than absent: where
+ * A command that would change nothing is disabled rather than absent: where
  * a panel can go is a property of this moment, not a permission (D4), and a
  * menu whose entries come and go is one nobody can learn.
  */
 export function PanelArrangeMenu({
   title,
-  layout,
-  columns,
+  available = () => true,
   onStep,
 }: PanelArrangeMenuProps) {
   const messages = useViewMessages();
@@ -270,7 +272,7 @@ export function PanelArrangeMenu({
         <DropdownMenuItem
           key={step}
           data-slot={`panel-arrange-${step}`}
-          disabled={arrangeLayout(layout, step, columns) === null}
+          disabled={!available(step)}
           onClick={() => onStep(step)}
         >
           <Icon />

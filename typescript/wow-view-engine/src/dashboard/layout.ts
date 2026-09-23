@@ -17,12 +17,16 @@
  *
  * A panel is placed by hand in three ways — dragged, resized by its corner,
  * or stepped by a keyboard command — and each lands on the same thing, a new
- * `PanelLayout` for one panel. What happens to the panels it now covers is
- * decided here, once: they are pushed down out of its way, the way
- * react-grid-layout's vertical compactor treats the item being moved. They
- * are not pulled back up afterwards, because this grid does not compact — a
- * panel stays where its author put it until a hand moves it or another
- * panel's placement pushes it.
+ * `PanelLayout` for one panel. What happens to the others is decided here,
+ * once, and it is what a Metabase board does (D22, batch-A walk): the panel
+ * placed takes the cells it asked for, whatever it covers makes way, and
+ * then every panel of its tab floats up as far as it can, so a move leaves
+ * no hole behind — the vertical compaction react-grid-layout would run,
+ * written here so the keyboard and the pointer land on one answer.
+ *
+ * Only a hand compacts. A stored board is drawn as it was saved, holes and
+ * all, and opening it never moves a panel; the first placement tidies the
+ * tab it happens on.
  */
 
 import {
@@ -32,6 +36,7 @@ import {
   type PanelLayout,
 } from '../model/index.js';
 import { isPlainObject } from '../filter/index.js';
+import { panelTab } from './panels.js';
 import { validateLayout } from './validate.js';
 
 /** One keyboard command: a step of one grid cell, or a size one cell bigger or smaller. */
@@ -61,44 +66,6 @@ export function fitsGrid(
   );
 }
 
-/**
- * The layout one step lands on, or `null` when the grid has no room for it.
- *
- * One step is one cell, which is what a drag lands on anyway — the grid
- * snaps to the column and the row. Down and taller have no far edge: a
- * dashboard grows downwards, and admission puts no ceiling on `y` or `h`.
- * The panels the result now covers are not this function's business;
- * `placePanel` moves them.
- */
-export function arrangeLayout(
-  layout: PanelLayout,
-  step: ArrangeStep,
-  columns: number = DASHBOARD_GRID_COLUMNS,
-): PanelLayout | null {
-  const { x, y, w, h } = layout;
-  const next = ((): PanelLayout => {
-    switch (step) {
-      case 'left':
-        return { x: x - 1, y, w, h };
-      case 'right':
-        return { x: x + 1, y, w, h };
-      case 'up':
-        return { x, y: y - 1, w, h };
-      case 'down':
-        return { x, y: y + 1, w, h };
-      case 'wider':
-        return { x, y, w: w + 1, h };
-      case 'narrower':
-        return { x, y, w: w - 1, h };
-      case 'taller':
-        return { x, y, w, h: h + 1 };
-      case 'shorter':
-        return { x, y, w, h: h - 1 };
-    }
-  })();
-  return fitsGrid(next, columns) ? next : null;
-}
-
 /** A panel's geometry under its id: what `placePanel` reads and returns. */
 export interface PlacedPanel extends PanelLayout {
   id: string;
@@ -111,19 +78,36 @@ export function overlaps(a: PanelLayout, b: PanelLayout): boolean {
   );
 }
 
+/** The first row below every panel: where a board ends. */
+export function bottomOf(panels: readonly PanelLayout[]): number {
+  return panels.reduce(
+    (bottom, panel) => Math.max(bottom, panel.y + panel.h),
+    0,
+  );
+}
+
+/**
+ * The panels floated up: each, in reading order, rises as far as it can
+ * without touching one already settled, and one that overlaps a settled
+ * panel (a stored config may hold two on one cell) drops below it instead.
+ * No panel passes another on the way up, so the order a reader sees down a
+ * column is kept; only the holes go.
+ */
+export function compactLayout(panels: readonly PlacedPanel[]): PlacedPanel[] {
+  return compactAround(panels, [], -1);
+}
+
 /**
  * The panels after one of them is put at `layout`, or `null` when the
  * placement is not one the grid admits or names no panel.
  *
- * The panel placed wins the cells it asked for. A panel it now covers is
- * pushed straight down until it clears it, and a panel that push lands on
- * is pushed in turn, top to bottom — the cascade a vertical compactor runs
- * for the item being dragged. Nothing moves sideways and nothing moves up.
- *
- * Only what this placement displaces moves. Two panels a stored config
- * already had overlapping stay as they were: they are the author's doing,
- * admission lets them stand, and placing some third panel is no reason to
- * rearrange them.
+ * The panel placed is held at the cells it asked for while the others are
+ * compacted around it, in their reading order: one it covers drops below it,
+ * one it has moved out from under rises into the room it left. Then it is
+ * let go, and the whole tab is compacted — the panel placed rises too, until
+ * something is above it. So a panel dropped past the one under it trades
+ * places with it, and one dropped into empty space below the rest comes up
+ * to rest under them.
  */
 export function placePanel(
   panels: readonly PlacedPanel[],
@@ -133,47 +117,81 @@ export function placePanel(
 ): PlacedPanel[] | null {
   const at = panels.findIndex(panel => panel.id === id);
   if (at < 0 || !fitsGrid(layout, columns)) return null;
-
-  const placed: PlacedPanel = {
-    id,
-    x: layout.x,
-    y: layout.y,
-    w: layout.w,
-    h: layout.h,
-  };
-  const out = [...panels];
-  out[at] = placed;
-  // Everything moved so far; a panel is pushed only by one of these.
-  const displaced: PlacedPanel[] = [placed];
-  // Top to bottom, then left to right, so a push is always by something
-  // already settled above it; the index breaks a tie and keeps it stable.
-  const order = panels
-    .map((_, index) => index)
-    .filter(index => index !== at)
-    .sort(
-      (a, b) => panels[a].y - panels[b].y || panels[a].x - panels[b].x || a - b,
-    );
-  for (const index of order) {
-    let box = panels[index];
-    let hit = displaced.find(other => overlaps(other, box));
-    if (!hit) continue;
-    while (hit) {
-      box = { ...box, y: hit.y + hit.h };
-      hit = displaced.find(other => overlaps(other, box));
-    }
-    out[index] = box;
-    displaced.push(box);
-  }
-  return out;
+  const held: PlacedPanel = { id, ...geometry(layout) };
+  const others = [...panels];
+  others[at] = held;
+  return compactLayout(compactAround(others, [held], at, held));
 }
 
 /**
- * A config with one panel placed and the panels it pushed moved with it, or
- * the same config when the placement changes nothing or cannot be made.
+ * Where one keyboard command puts the panel, as the layout to hand `place`,
+ * or `null` when it would change nothing the reader could see.
  *
- * Read as the untrusted thing a stored config is: an entry that is no panel,
- * or a panel whose layout admission would refuse, takes no part — it is not
- * pushed and pushes nothing — and is handed back untouched.
+ * Sideways and in size, one command is one cell, as a drag snaps to one.
+ * Up and down are what a compacted board makes of them: a panel stepped one
+ * row down into the one under it floats straight back, so "down" is the
+ * smallest drop that lands it somewhere else — past the panel below — and
+ * the bottom panel of a column has nowhere to go down. Up is the same the
+ * other way. A step off the grid is `null` as well, so a menu disables it
+ * rather than offering a command that does nothing.
+ */
+export function arrangePanel(
+  panels: readonly PlacedPanel[],
+  id: string,
+  step: ArrangeStep,
+  columns: number = DASHBOARD_GRID_COLUMNS,
+): PanelLayout | null {
+  const panel = panels.find(entry => entry.id === id);
+  // Where it rests now: the baseline a command has to differ from.
+  const resting = panel && placePanel(panels, id, panel, columns);
+  if (!panel || !resting) return null;
+  const reach = step === 'up' || step === 'down' ? bottomOf(panels) + 1 : 1;
+  for (let distance = 1; distance <= reach; distance += 1) {
+    const target = stepped(panel, step, distance);
+    const placed = placePanel(panels, id, target, columns);
+    if (!placed) return null;
+    if (!samePlacement(placed, resting)) return target;
+  }
+  return null;
+}
+
+/**
+ * The first place a new panel of this size can go: free, at rest (the
+ * compaction a later placement runs would not lift it), and at or below
+ * `fromRow` — the first row the reader has on screen, so what they add
+ * lands where they are looking (D22 A). Rows top to bottom, each left to
+ * right. When nothing down to the board's end will take it, it goes under
+ * everything and rises to rest there.
+ */
+export function freeSpot(
+  panels: readonly PanelLayout[],
+  size: { w: number; h: number },
+  columns: number = DASHBOARD_GRID_COLUMNS,
+  fromRow = 0,
+): PanelLayout {
+  const w = Math.min(Math.max(1, size.w), columns);
+  const h = Math.max(1, size.h);
+  const boxes = panels.map(panel => ({ id: '', ...geometry(panel) }));
+  const bottom = bottomOf(panels);
+  for (let y = Math.max(0, fromRow); y < bottom; y += 1)
+    for (let x = 0; x + w <= columns; x += 1) {
+      const spot = { x, y, w, h };
+      if (boxes.some(box => overlaps(box, spot))) continue;
+      if (settle({ id: '', ...spot }, boxes).y === y) return spot;
+    }
+  return geometry(settle({ id: '', x: 0, y: bottom, w, h }, boxes));
+}
+
+/**
+ * A config with one panel placed and the rest of its tab compacted around
+ * it, or the same config when the placement changes nothing or cannot be
+ * made.
+ *
+ * Only the panel's own tab moves: another tab is another grid, whose
+ * panels share no cell with these whatever their numbers say. Read as the
+ * untrusted thing a stored config is: an entry that is no panel, or a panel
+ * whose layout admission would refuse, takes no part — it is not moved and
+ * moves nothing — and is handed back untouched.
  */
 export function placePanelIn(
   config: DashboardViewConfig,
@@ -184,17 +202,37 @@ export function placePanelIn(
   const panels: readonly unknown[] = Array.isArray(config.panels)
     ? config.panels
     : [];
+  const moving = panels.find(
+    (panel): panel is DashboardPanel => isPlainObject(panel) && panel.id === id,
+  );
+  if (!moving) return config;
+  const tab = panelTab(config, moving);
   const boxes = panels.flatMap((panel): PlacedPanel[] =>
     isPlainObject(panel) &&
     typeof panel.id === 'string' &&
-    fitsGrid(panel.layout, columns)
+    fitsGrid(panel.layout, columns) &&
+    panelTab(config, panel) === tab
       ? [{ id: panel.id, ...geometry(panel.layout) }]
       : [],
   );
   const placed = placePanel(boxes, id, layout, columns);
-  if (!placed) return config;
-  const moved = new Map(placed.map(box => [box.id, box]));
+  return placed ? withLayouts(config, placed) : config;
+}
 
+/**
+ * A config with these boxes written into the panels they name, or the same
+ * config when none of them moves. A panel no box names, or whose stored
+ * layout is not one the grid admits, is left as it is.
+ */
+export function withLayouts(
+  config: DashboardViewConfig,
+  boxes: readonly PlacedPanel[],
+  columns: number = DASHBOARD_GRID_COLUMNS,
+): DashboardViewConfig {
+  const panels: readonly unknown[] = Array.isArray(config.panels)
+    ? config.panels
+    : [];
+  const moved = new Map(boxes.map(box => [box.id, box]));
   let changed = false;
   const next = panels.map(panel => {
     if (!isPlainObject(panel) || typeof panel.id !== 'string') return panel;
@@ -245,7 +283,96 @@ export function sameLayout(a: PanelLayout, b: PanelLayout): boolean {
   return a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
 }
 
-/** The four numbers alone, whatever else the object carried. */
+/**
+ * `panels` with every box but `skip` settled in reading order against
+ * `settled` and each other; `skip` keeps its place (`-1` skips nothing).
+ * `held` is the panel a hand is placing, if any (see `settle`).
+ */
+function compactAround(
+  panels: readonly PlacedPanel[],
+  settled: PlacedPanel[],
+  skip: number,
+  held?: PlacedPanel,
+): PlacedPanel[] {
+  const out = [...panels];
+  const order = panels
+    .map((_, index) => index)
+    .filter(index => index !== skip)
+    .sort(
+      (a, b) => panels[a].y - panels[b].y || panels[a].x - panels[b].x || a - b,
+    );
+  for (const index of order) {
+    const box = settle(panels[index], settled, held);
+    out[index] = box;
+    settled.push(box);
+  }
+  return out;
+}
+
+/**
+ * One box floated up until the row above it is taken, then dropped below
+ * whatever it still overlaps.
+ *
+ * Except that a box the panel in hand has landed on first tries the room
+ * just above that panel, as react-grid-layout's vertical compactor does for
+ * the item being dragged: so a panel put down squarely on the one below it
+ * trades places with it, rather than both going back where they were.
+ */
+function settle(
+  box: PlacedPanel,
+  settled: readonly PlacedPanel[],
+  held?: PlacedPanel,
+): PlacedPanel {
+  let y = box.y;
+  while (y > 0 && !settled.some(other => overlaps(other, { ...box, y: y - 1 })))
+    y -= 1;
+  let placed = y === box.y ? box : { ...box, y };
+  if (held && overlaps(held, placed)) {
+    const above = { ...placed, y: held.y - placed.h };
+    if (above.y >= 0 && !settled.some(other => overlaps(other, above)))
+      return settle(above, settled);
+  }
+  let hit = settled.find(other => overlaps(other, placed));
+  while (hit) {
+    placed = { ...placed, y: hit.y + hit.h };
+    hit = settled.find(other => overlaps(other, placed));
+  }
+  return placed;
+}
+
+/** The layout `distance` cells away in the direction of `step`. */
+function stepped(
+  { x, y, w, h }: PanelLayout,
+  step: ArrangeStep,
+  distance: number,
+): PanelLayout {
+  switch (step) {
+    case 'left':
+      return { x: x - distance, y, w, h };
+    case 'right':
+      return { x: x + distance, y, w, h };
+    case 'up':
+      return { x, y: y - distance, w, h };
+    case 'down':
+      return { x, y: y + distance, w, h };
+    case 'wider':
+      return { x, y, w: w + distance, h };
+    case 'narrower':
+      return { x, y, w: w - distance, h };
+    case 'taller':
+      return { x, y, w, h: h + distance };
+    case 'shorter':
+      return { x, y, w, h: h - distance };
+  }
+}
+
+function samePlacement(
+  a: readonly PlacedPanel[],
+  b: readonly PlacedPanel[],
+): boolean {
+  return a.every((box, index) => sameLayout(box, b[index]));
+}
+
 function geometry({ x, y, w, h }: PanelLayout): PanelLayout {
   return { x, y, w, h };
 }

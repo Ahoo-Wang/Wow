@@ -19,11 +19,12 @@ import {
   type ViewAudience,
   type ViewInstance,
 } from '../model/index.js';
-import type {
-  ConflictChoice,
-  ViewEngine,
-  ViewRuntime,
-  WriteState,
+import {
+  stopsSave,
+  type ConflictChoice,
+  type ViewEngine,
+  type ViewRuntime,
+  type WriteState,
 } from '../runtime/index.js';
 import { useViewRuntime } from './useViewEngine.js';
 import { toIssue } from './issues.js';
@@ -88,6 +89,10 @@ export interface SaveCommandState {
    * The draft itself reports something that stops every write. Unlike
    * `blocked` it says nothing about outcomes, which is what lets a caller
    * decide for itself which of those it wants to stop on.
+   *
+   * For a dashboard that is an error about the board alone (`stopsSave`): a
+   * panel's own trouble — a view some of its readers cannot open (D22 B), a
+   * binding that no longer holds — is said on the panel and saved with it.
    */
   hasErrors: boolean;
   /**
@@ -380,7 +385,8 @@ export function useSaveCommands(
 
   const revert = useCallback(() => runtime?.revert(), [runtime]);
 
-  const issues = state?.issues ?? [];
+  const hasErrors =
+    runtime !== null && stopsSave(runtime.kind, state?.issues ?? []);
 
   return {
     save,
@@ -409,11 +415,8 @@ export function useSaveCommands(
       error: own.error,
       write: state?.write ?? null,
       dirty: state?.dirty ?? false,
-      blocked:
-        own.pending ||
-        blocksNewIntent(state?.write) ||
-        issues.some(found => found.severity === 'error'),
-      hasErrors: issues.some(found => found.severity === 'error'),
+      blocked: own.pending || blocksNewIntent(state?.write) || hasErrors,
+      hasErrors,
       audience: state ? audienceOf(state.scope) : null,
       isNew: state !== null && state.saved === null,
       lastSavedAt: own.savedAt,

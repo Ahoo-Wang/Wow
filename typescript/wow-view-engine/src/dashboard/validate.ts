@@ -14,8 +14,10 @@
 import {
   DASHBOARD_GRID_COLUMNS,
   DEFAULT_RUNTIME_LIMITS,
+  MAX_HEADING_LENGTH,
   MAX_MARKDOWN_LENGTH,
   MAX_PANEL_LINKS,
+  PANEL_PRESENTATION_MEMBERS,
   audienceOf,
   isFieldName,
   type DashboardContentPanel,
@@ -27,6 +29,7 @@ import {
   type IssuePath,
   type PanelLayout,
   type RuntimeLimits,
+  type ViewConfig,
   type ViewDefinition,
   type ViewInstance,
   type ViewScope,
@@ -41,19 +44,22 @@ import {
 } from '../filter/index.js';
 import { mergeGlobalFilter } from './merge.js';
 import { isSafeContentUrl, isViewPanel } from './panels.js';
+import { validateTabs } from './tabs.js';
 
-/** What a panel refers to, once the engine has loaded it. */
-export interface PanelReference {
-  instance: ViewInstance;
+/** The definition a panel's view is of, and what its bindings may name. */
+export interface PanelDefinition {
   definition: ViewDefinition;
   /**
-   * The fields the referenced view's filter and bindings are judged against.
-   * A record view sees its definition's own; an analysis view also reaches
-   * the element fields its config expands, and its filter may already stand
-   * on one. The resolver computes this, because the kernel that knows how an
-   * analysis expands is not one this kernel may import.
+   * The fields the view's filter and bindings are judged against: the
+   * definition's own. The resolver computes this, because what a view can
+   * reach is the other kernels' to say, and this one may not import them.
    */
   fields: readonly FieldDefinition[];
+}
+
+/** What a panel refers to, once the engine has loaded it. */
+export interface PanelReference extends PanelDefinition {
+  instance: ViewInstance;
 }
 
 /**
@@ -65,8 +71,14 @@ export type PanelReferences = ReadonlyMap<string, PanelReference | null>;
 
 export interface ValidateDashboardOptions {
   limits?: RuntimeLimits;
-  /** Columns a layout must fit within; the grid adapter uses the same number. */
-  columns?: number;
+  /**
+   * The definition a view the board owns is of (`OwnedView.definitionId`),
+   * `null` for one this release does not declare. Definitions are code, so
+   * this is a lookup rather than a load. Left out, an owned view is judged
+   * by its shape alone — what a definition's own declared dashboard gets,
+   * where nothing can be looked up yet.
+   */
+  definitions?: (definitionId: string) => PanelDefinition | null;
 }
 
 /**
@@ -87,7 +99,7 @@ export function validateDashboard(
   options: ValidateDashboardOptions = {},
 ): Issue[] {
   const limits = options.limits ?? DEFAULT_RUNTIME_LIMITS;
-  const columns = options.columns ?? DASHBOARD_GRID_COLUMNS;
+  const columns = DASHBOARD_GRID_COLUMNS;
   // A config arrives from a store. When its skeleton is not a dashboard's,
   // nothing below can be judged, and saying so is the kernel's job rather
   // than a `TypeError`'s.
@@ -109,7 +121,16 @@ export function validateDashboard(
     return issues;
   }
 
+  issues.push(...validateTabs(config.tabs));
+  const tabs = new Set(
+    config.tabs.flatMap((tab: unknown) =>
+      isPlainObject(tab) && typeof tab.id === 'string' ? [tab.id] : [],
+    ),
+  );
+
   const ids = new Set<string>();
+  const context: ViewPanelContext = { config, scope, refs, kinds, limits };
+  const lookup = options.definitions;
   config.panels.forEach((panel, index) => {
     const path: IssuePath = ['panels', index];
     if (!isPlainObject(panel)) {
@@ -118,9 +139,10 @@ export function validateDashboard(
     }
     issues.push(...validateIdentity(panel, path, ids));
     issues.push(...validateLayout(panel.layout, [...path, 'layout'], columns));
+    issues.push(...validatePanelTab(panel, path, tabs));
     issues.push(
       ...(isViewPanel(panel)
-        ? validateViewPanel(panel, path, config, scope, refs, kinds, limits)
+        ? validateViewPanel(panel, path, context, lookup)
         : validateContentPanel(panel, path)),
     );
   });
@@ -129,12 +151,24 @@ export function validateDashboard(
 }
 
 /**
- * The parts every later check reads without asking: the two arrays, and
- * each field entry, which the shared config check maps by name before this
- * kernel's own rules get to look at it.
+ * The parts every later check reads without asking: the grid the layouts
+ * are written in, the three arrays, and each field entry, which the shared
+ * config check maps by name before this kernel's own rules get to look at
+ * it.
+ *
+ * A grid other than this engine's is refused rather than drawn: its numbers
+ * mean other cells, and the one grid a config may be in without saying so
+ * was read into this one before it got here (`migrateDashboardConfig`).
  */
 function validateSkeleton(config: DashboardViewConfig): Issue[] {
   const issues: Issue[] = [];
+  if (config.columns !== DASHBOARD_GRID_COLUMNS)
+    issues.push(
+      issue('dashboard.grid.unsupported', ['columns'], {
+        columns: DASHBOARD_GRID_COLUMNS,
+      }),
+    );
+  if (!Array.isArray(config.tabs)) issues.push(shape(['tabs'], 'array'));
   if (!Array.isArray(config.fields)) issues.push(shape(['fields'], 'array'));
   else
     config.fields.forEach((field, index) => {
@@ -219,47 +253,131 @@ export function validateLayout(
   return issues;
 }
 
-function validateViewPanel(
+/** What every data panel of one config is judged with. */
+interface ViewPanelContext {
+  config: DashboardViewConfig;
+  scope: ViewScope;
+  refs: PanelReferences;
+  kinds: FieldKindRegistry;
+  limits: RuntimeLimits;
+}
+
+/**
+ * The view a data panel shows, as far as this kernel can know it: its
+ * definition, the config it runs, and — for a saved view — who may read it.
+ * The issues are why there is none to judge the rest against; `view` is
+ * `null` then, and also for an owned view with no lookup to judge it by.
+ */
+function panelView(
   panel: DashboardViewPanel,
   path: IssuePath,
-  config: DashboardViewConfig,
-  scope: ViewScope,
   refs: PanelReferences,
-  kinds: FieldKindRegistry,
-  limits: RuntimeLimits,
-): Issue[] {
-  const reference = refs.get(panel.instanceId);
+  lookup: ValidateDashboardOptions['definitions'],
+): {
+  view: (PanelDefinition & { config: ViewConfig; scope?: ViewScope }) | null;
+  issues: Issue[];
+} {
+  const owned: unknown = panel.owned;
+  if ((owned === undefined) === (panel.instanceId === undefined))
+    return {
+      view: null,
+      issues: [issue('dashboard.panel.source-invalid', path)],
+    };
+
+  if (owned !== undefined) {
+    const at: IssuePath = [...path, 'owned'];
+    if (
+      !isPlainObject(owned) ||
+      typeof owned.definitionId !== 'string' ||
+      !isPlainObject(owned.config) ||
+      owned.config.kind !== 'analysis'
+    )
+      return {
+        view: null,
+        issues: [issue('dashboard.panel.owned-invalid', at)],
+      };
+    if (!lookup) return { view: null, issues: [] };
+    const found = lookup(owned.definitionId);
+    if (!found)
+      return {
+        view: null,
+        issues: [
+          issue('dashboard.panel.definition-unknown', [...at, 'definitionId'], {
+            definition: owned.definitionId,
+          }),
+        ],
+      };
+    return {
+      view: { ...found, config: owned.config as unknown as ViewConfig },
+      issues: [],
+    };
+  }
+
+  const reference = refs.get(panel.instanceId as string);
   // A warning, not an error: the referenced view may be deleted or out of
   // this user's reach, which is not something the dashboard's editor can fix
   // and must not stop the other panels from running or the layout from being
   // saved. The panel itself reports that it is unavailable.
   if (!reference)
+    return {
+      view: null,
+      issues: [
+        issue(
+          'dashboard.panel.unavailable',
+          [...path, 'instanceId'],
+          { instance: String(panel.instanceId) },
+          'warning',
+        ),
+      ],
+    };
+  const { instance, ...definition } = reference;
+  return {
+    view: { ...definition, config: instance.config, scope: instance.scope },
+    issues: [],
+  };
+}
+
+function validateViewPanel(
+  panel: DashboardViewPanel,
+  path: IssuePath,
+  { config, scope, refs, kinds, limits }: ViewPanelContext,
+  lookup: ValidateDashboardOptions['definitions'],
+): Issue[] {
+  const { view, issues } = panelView(panel, path, refs, lookup);
+  issues.push(...validatePresentation(panel, path));
+  if (!view) return issues;
+
+  const { definition, fields } = view;
+  const source: IssuePath = [
+    ...path,
+    panel.owned === undefined ? 'instanceId' : 'owned',
+  ];
+  // A board owns only analyses (D22 C, first version), and a saved panel
+  // shows a record or an analysis view — never another dashboard.
+  const supported =
+    definition.kind === 'data' &&
+    (panel.owned === undefined
+      ? view.config.kind !== 'dashboard'
+      : definition.analysis !== undefined);
+  if (!supported)
     return [
+      ...issues,
+      issue('dashboard.panel.kind-unsupported', source, {
+        instance: panel.instanceId ?? '',
+      }),
+    ];
+
+  // A shared dashboard built on a personal view is blank for everyone who
+  // cannot read that view. It is allowed (D22 B) — the author sees the panel
+  // and is told who does not — so this is a warning, and the board saves.
+  if (view.scope !== undefined && !coversScope(scope, view.scope))
+    issues.push(
       issue(
-        'dashboard.panel.unavailable',
-        [...path, 'instanceId'],
-        { instance: panel.instanceId },
+        'dashboard.panel.scope-too-narrow',
+        source,
+        { scope, instance: view.scope },
         'warning',
       ),
-    ];
-
-  const { instance, definition, fields } = reference;
-  if (definition.kind !== 'data' || instance.config.kind === 'dashboard')
-    return [
-      issue('dashboard.panel.kind-unsupported', [...path, 'instanceId'], {
-        instance: panel.instanceId,
-      }),
-    ];
-
-  const issues: Issue[] = [];
-  // A shared dashboard built on a personal view would be blank for everyone
-  // else, so the reference is refused rather than silently dropped later.
-  if (!coversScope(scope, instance.scope))
-    issues.push(
-      issue('dashboard.panel.scope-too-narrow', [...path, 'instanceId'], {
-        scope,
-        instance: instance.scope,
-      }),
     );
 
   const bindings = validateBindings(panel, path, config, fields);
@@ -272,7 +390,7 @@ function validateViewPanel(
   // an analysis standing on an element field opens fine on its own and must
   // not be refused the moment it is placed on a dashboard.
   const merged = mergeGlobalFilter(
-    instance.config.filter,
+    view.config.filter,
     config.filter,
     panel.bindings,
   );
@@ -359,16 +477,20 @@ function validateContentPanel(
   path: IssuePath,
 ): Issue[] {
   switch (panel.kind) {
+    case 'heading':
+      return validateText(
+        panel.content,
+        [...path, 'content'],
+        MAX_HEADING_LENGTH,
+        'dashboard.heading.too-long',
+      );
     case 'markdown':
-      if (typeof panel.content !== 'string')
-        return [shape([...path, 'content'], 'string')];
-      return panel.content.length > MAX_MARKDOWN_LENGTH
-        ? [
-            issue('dashboard.markdown.too-long', [...path, 'content'], {
-              max: MAX_MARKDOWN_LENGTH,
-            }),
-          ]
-        : [];
+      return validateText(
+        panel.content,
+        [...path, 'content'],
+        MAX_MARKDOWN_LENGTH,
+        'dashboard.markdown.too-long',
+      );
     case 'image':
       return validateImage(panel, path);
     case 'links':
@@ -380,6 +502,73 @@ function validateContentPanel(
         }),
       ];
   }
+}
+
+/** A content panel's text: a string no longer than its kind holds. */
+function validateText(
+  content: unknown,
+  path: IssuePath,
+  max: number,
+  code: string,
+): Issue[] {
+  if (typeof content !== 'string') return [shape(path, 'string')];
+  return content.length > max ? [issue(code, path, { max })] : [];
+}
+
+/**
+ * An override of how the panel looks (D22 D). Only its shape is this
+ * kernel's to judge: whether a chart fits the view's result is the analysis
+ * kernel's, and the runtime asks it — an override that does not fit is
+ * dropped there with the same note, never refused (`presentation.ts`).
+ */
+function validatePresentation(
+  panel: DashboardViewPanel,
+  path: IssuePath,
+): Issue[] {
+  const presentation: unknown = panel.presentation;
+  if (presentation === undefined) return [];
+  const fits =
+    isPlainObject(presentation) &&
+    Object.keys(presentation).every(key =>
+      (PANEL_PRESENTATION_MEMBERS as readonly string[]).includes(key),
+    );
+  return fits
+    ? []
+    : [
+        issue(
+          'dashboard.panel.presentation-dropped',
+          [...path, 'presentation'],
+          {},
+          'warning',
+        ),
+      ];
+}
+
+/**
+ * The tab a panel names. On a board without tabs a panel names none; on one
+ * with tabs it names one of them. A panel that does not is shown on the
+ * first tab (`panelTab`) and said to be — a warning, since it still shows.
+ */
+function validatePanelTab(
+  panel: DashboardPanel,
+  path: IssuePath,
+  tabs: ReadonlySet<string>,
+): Issue[] {
+  const tab: unknown = panel.tab;
+  const fine =
+    tabs.size === 0
+      ? tab === undefined
+      : typeof tab === 'string' && tabs.has(tab);
+  return fine
+    ? []
+    : [
+        issue(
+          'dashboard.panel.tab-unknown',
+          [...path, 'tab'],
+          { tab: typeof tab === 'string' ? tab : '' },
+          'warning',
+        ),
+      ];
 }
 
 function validateImage(

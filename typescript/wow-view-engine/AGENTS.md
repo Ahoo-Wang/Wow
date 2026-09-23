@@ -96,7 +96,7 @@ src/
     analysis.ts               — Wow aggregation enums as stored literals; which metric types measure one field (`FIELD_METRIC_TYPES`)
     chart.ts                  — ChartSpec — one sub-object per chart family, every reference a group or metric alias; `CHART_TYPES`, `CHART_FAMILY`, `CHART_COLOR_SLOTS` (the palette's size, which a pie folds at)
     config.ts                 — ViewConfig — what each view kind stores, and which of its members only draw the result (`presentationMembers`)
-    dashboard.ts              — Dashboard config, global fields, bindings
+    dashboard.ts              — Dashboard config: the 24-column grid it says it is in, tabs, global fields, bindings, panels on a saved view or one the board owns (`OwnedView`), how a panel looks at its view (`PanelPresentation`), content panels heading included
     definition.ts             — ViewDefinition, FieldDefinition, capabilities
     field.ts                  — FieldKindId; what a cell reads as, which fields hold one string, and how a time field is stored (`temporalOf`, epoch milliseconds unless declared)
     filter.ts                 — FilterOperator as stored in a config; the three group operators and the reading of one
@@ -182,13 +182,16 @@ src/
     index.ts                  — The analysis kernel
   dashboard/                  — Dashboard kernel — imports model and filter
     defaults.ts               — emptyDashboardConfig
-    layout.ts                 — Where panels may go: `fitsGrid`, `arrangeLayout` (one keyboard step), `placePanel` (pushes covered panels down), `readingOrder` and `stackedLayout` (the one-column reading a narrow screen shows)
+    edit.ts                   — Building a board as pure edits (D22 A–E): `addPanel` (at `freeSpot`, sized by `defaultPanelSize`), remove, duplicate, rename, replace the view, `referToSaved`, `setPresentation`, `editContent`, `movePanelToTab`, `compactTab`
+    layout.ts                 — Where panels may go on the 24-column grid: `fitsGrid`, `placePanel` (covered panels make way, then the tab floats up — only a hand compacts), `compactLayout`, `arrangePanel` (one keyboard command on a compacted board), `freeSpot`, `readingOrder` and `stackedLayout` (the one-column reading a narrow screen shows)
     merge.ts                  — mergeGlobalFilter onto one panel's fields
-    panels.ts                 — Which panel a stored one is: `isViewPanel`, `isContentPanel`, and `isSafeContentUrl` for what a content panel points at
-    validate.ts               — validateDashboard — panels, bindings, content
+    migrate.ts                — `migrateDashboardConfig`: a board stored without `columns` read from 12 columns into 24, every `x` and `w` doubled
+    panels.ts                 — Which panel a stored one is: `isViewPanel`, `isContentPanel`, `isOwnedPanel`, `referencedInstance`, `panelTab`, `freshId`, and `isSafeContentUrl` for what a content panel points at
+    tabs.ts                   — A board's tabs: `validateTabs`, and add (the first time, two), rename, reorder, remove with their panels
+    validate.ts               — validateDashboard — grid, tabs, panels (saved or owned views, overrides of how they look), bindings, content
     index.ts                  — The dashboard kernel: admission, panel binding resolution and the global filter merge
   runtime/                    — Stateful layer; never imports react or ui
-    dashboardRuntime.ts       — `DashboardViewRuntime`: N child runtimes and one global filter, on one clock, over one `RuntimeStore`
+    dashboardRuntime.ts       — `DashboardViewRuntime`: N child runtimes and one global filter, on one clock, over one `RuntimeStore`; every config it takes in read into the 24-column form; building the board (`DashboardEditing`) into the draft and the screen at once
     definitions.ts            — The definition registry: judged once, refused at the point of use
     environment.ts            — `RuntimeEnvironment` and the `VisibilitySource` port; `ALWAYS_VISIBLE`, `defaultRuntimeEnvironment`
     execute.ts                — The two execution kinds a runtime drives
@@ -222,8 +225,10 @@ src/
     writeLedger.ts            — The write ledger: outcomes by requestId, retry, conflicts
     index.ts                  — Transient state: what is open, what is in flight, what came back
     dashboard/                — What the dashboard runtime is made of
-      children.ts             — PanelChildren: one child runtime per data panel
-      panels.ts               — Panel helpers: reading, addressing, comparing; `blocksBoard`, the errors that stop the whole board
+      children.ts             — PanelChildren: one child runtime per data panel — a saved view or one the board owns (`PanelView`, `panelView`); a new config for the same view is an edit and a run, not a new child
+      editing.ts              — `DashboardEditing` and `boardEditing`: building the board, each edit a kernel function applied to the draft and the screen alike
+      panels.ts               — Panel helpers: reading, addressing, comparing; `blocksBoard`, the errors that stop the whole board; `stopsSave`, what stops a save of each kind
+      presentation.ts         — `presentedConfig`: a panel's override of how it looks laid over its view's config, dropped with a note when it no longer fits
       references.ts           — PanelReferences: loading what panels point at
   store/                      — Persistence port — imports model only
     MemoryViewStore.ts        — In-memory implementation for examples and tests
@@ -278,8 +283,8 @@ src/
     ConflictConfirm.tsx       — The same choice, put once more with both configs on the table
     CopyButton.tsx            — A value's own copy button: the clipboard, the tick, and the two words a press comes back with
     DashboardArrange.tsx      — Placing a panel without a pointer: the two handles named after their panel (`PanelGridItem` tells the corner which), and the menu
-    DashboardGrid.tsx         — The panels, placed — in reading order, one column below `md`; what a panel is called (`panelName`), why one is out and who can bring it back
-    DashboardPanels.tsx       — The static panels: a note, a picture, a list of links
+    DashboardGrid.tsx         — The panels, placed — in reading order, one column below `md`; what a panel is called (`panelName`, and `panelNames` numbering the names the board makes up), why one is out and who can bring it back
+    DashboardPanels.tsx       — The static panels: a heading, a note, a picture, a list of links
     DashboardWorkbench.tsx    — Default Dashboard workbench
     DataWorkbench.tsx         — The data workbench: one list of record and analysis views; `useWorkbench` + both parts + `WorkbenchShell`, joined (D18-1, D20)
     DeleteDialog.tsx          — What a delete costs, said before it happens

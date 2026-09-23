@@ -59,7 +59,7 @@ export interface KernelContext {
 
 /** Admission, dispatched by kind. Both kernels take the same three inputs. */
 export function validateDataConfig(
-  context: KernelContext,
+  context: Pick<KernelContext, 'definition' | 'kinds' | 'limits'>,
   config: DataViewConfig,
 ): Issue[] {
   const { definition, kinds, limits } = context;

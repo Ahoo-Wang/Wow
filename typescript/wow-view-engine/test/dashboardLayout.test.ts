@@ -12,12 +12,17 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  arrangePanel,
+  bottomOf,
+  compactLayout,
   fitsGrid,
+  freeSpot,
   overlaps,
   placePanel,
   placePanelIn,
   readingOrder,
   stackedLayout,
+  withLayouts,
   type DashboardPanel,
   type PlacedPanel,
 } from '../src/index.js';
@@ -36,9 +41,9 @@ function byId(boxes: readonly PlacedPanel[] | null) {
 
 describe('fitsGrid', () => {
   it.each([
-    [{ x: 0, y: 0, w: 12, h: 1 }, true],
-    [{ x: 11, y: 40, w: 1, h: 9 }, true],
-    [{ x: 7, y: 0, w: 6, h: 1 }, false],
+    [{ x: 0, y: 0, w: 24, h: 1 }, true],
+    [{ x: 23, y: 40, w: 1, h: 9 }, true],
+    [{ x: 13, y: 0, w: 12, h: 1 }, false],
     [{ x: -1, y: 0, w: 1, h: 1 }, false],
     [{ x: 0, y: 0, w: 0, h: 1 }, false],
     [{ x: 0.5, y: 0, w: 1, h: 1 }, false],
@@ -57,87 +62,141 @@ describe('overlaps', () => {
   });
 });
 
+describe('compactLayout', () => {
+  it('floats every panel up until something is above it, keeping the order down a column', () => {
+    const holey = [
+      box('a', 0, 2, 12, 2),
+      box('b', 0, 7, 12, 3),
+      box('c', 12, 5, 12, 1),
+    ];
+
+    expect(byId(compactLayout(holey))).toEqual({
+      a: { x: 0, y: 0, w: 12, h: 2 },
+      b: { x: 0, y: 2, w: 12, h: 3 },
+      c: { x: 12, y: 0, w: 12, h: 1 },
+    });
+  });
+
+  it('drops a panel stored on top of another below it', () => {
+    const stacked = [box('a', 0, 0, 12, 4), box('b', 0, 2, 12, 4)];
+
+    expect(byId(compactLayout(stacked))).toEqual({
+      a: { x: 0, y: 0, w: 12, h: 4 },
+      b: { x: 0, y: 4, w: 12, h: 4 },
+    });
+  });
+});
+
 /**
  * The one rule a panel is placed by, whether a pointer dropped it or a key
- * stepped it: the panel wins the cells it asked for, the ones it covers are
- * pushed straight down, and nothing else moves.
+ * stepped it: the panel takes the cells it asked for, whatever it covers
+ * makes way, and then its tab floats up — no hole is left behind a move
+ * (batch-A walk, as a Metabase board does).
  */
 describe('placePanel', () => {
-  const column = [box('a', 0, 0, 6, 4), box('b', 0, 4, 6, 4)];
+  const column = [box('a', 0, 0, 12, 4), box('b', 0, 4, 12, 4)];
 
   it('moves only the panel when it lands on nothing', () => {
-    expect(byId(placePanel(column, 'b', { x: 6, y: 0, w: 6, h: 4 }))).toEqual({
-      a: { x: 0, y: 0, w: 6, h: 4 },
-      b: { x: 6, y: 0, w: 6, h: 4 },
+    expect(byId(placePanel(column, 'b', { x: 12, y: 0, w: 12, h: 4 }))).toEqual(
+      {
+        a: { x: 0, y: 0, w: 12, h: 4 },
+        b: { x: 12, y: 0, w: 12, h: 4 },
+      },
+    );
+  });
+
+  it('floats the rest up into the room a panel moved out of', () => {
+    const three = [...column, box('c', 0, 8, 12, 2)];
+
+    expect(byId(placePanel(three, 'a', { x: 12, y: 0, w: 12, h: 4 }))).toEqual({
+      a: { x: 12, y: 0, w: 12, h: 4 },
+      b: { x: 0, y: 0, w: 12, h: 4 },
+      c: { x: 0, y: 4, w: 12, h: 2 },
     });
   });
 
-  it('pushes a panel it covers down below it', () => {
-    // One step up by keyboard: b takes a's last row, and a goes under b.
-    expect(byId(placePanel(column, 'b', { x: 0, y: 3, w: 6, h: 4 }))).toEqual({
-      a: { x: 0, y: 7, w: 6, h: 4 },
-      b: { x: 0, y: 3, w: 6, h: 4 },
+  it('floats a panel dropped into empty space up to rest under the others', () => {
+    expect(byId(placePanel(column, 'a', { x: 0, y: 20, w: 12, h: 4 }))).toEqual(
+      {
+        a: { x: 0, y: 4, w: 12, h: 4 },
+        b: { x: 0, y: 0, w: 12, h: 4 },
+      },
+    );
+  });
+
+  it('trades places with the panel it is put down on', () => {
+    // Dropped squarely on b, a takes b's cells and b rises into the room
+    // above it — a's old place.
+    expect(byId(placePanel(column, 'a', { x: 0, y: 4, w: 12, h: 4 }))).toEqual({
+      a: { x: 0, y: 4, w: 12, h: 4 },
+      b: { x: 0, y: 0, w: 12, h: 4 },
     });
   });
 
-  it('pushes the panel below when one grows into it', () => {
-    expect(byId(placePanel(column, 'a', { x: 0, y: 0, w: 6, h: 5 }))).toEqual({
-      a: { x: 0, y: 0, w: 6, h: 5 },
-      b: { x: 0, y: 5, w: 6, h: 4 },
+  it('sends the panel above below one moved up into it', () => {
+    // One row up by keyboard: b takes a's last row, a goes under b, and
+    // the column closes up.
+    expect(byId(placePanel(column, 'b', { x: 0, y: 3, w: 12, h: 4 }))).toEqual({
+      a: { x: 0, y: 4, w: 12, h: 4 },
+      b: { x: 0, y: 0, w: 12, h: 4 },
+    });
+  });
+
+  it('puts back a panel stepped one row into the one under it', () => {
+    // a one row down would leave a hole above it: it floats back.
+    expect(byId(placePanel(column, 'a', { x: 0, y: 1, w: 12, h: 4 }))).toEqual(
+      byId(column),
+    );
+  });
+
+  it('pushes the panel below when one grows into it, and pulls it back when it shrinks', () => {
+    expect(byId(placePanel(column, 'a', { x: 0, y: 0, w: 12, h: 5 }))).toEqual({
+      a: { x: 0, y: 0, w: 12, h: 5 },
+      b: { x: 0, y: 5, w: 12, h: 4 },
+    });
+    expect(byId(placePanel(column, 'a', { x: 0, y: 0, w: 12, h: 2 }))).toEqual({
+      a: { x: 0, y: 0, w: 12, h: 2 },
+      b: { x: 0, y: 2, w: 12, h: 4 },
     });
   });
 
   it('pushes a panel beside it when one grows wide enough to cover it', () => {
-    const row = [box('a', 0, 0, 6, 4), box('b', 6, 0, 6, 2)];
-    expect(byId(placePanel(row, 'a', { x: 0, y: 0, w: 7, h: 4 }))).toEqual({
-      a: { x: 0, y: 0, w: 7, h: 4 },
-      b: { x: 6, y: 4, w: 6, h: 2 },
+    const row = [box('a', 0, 0, 12, 4), box('b', 12, 0, 12, 2)];
+    expect(byId(placePanel(row, 'a', { x: 0, y: 0, w: 13, h: 4 }))).toEqual({
+      a: { x: 0, y: 0, w: 13, h: 4 },
+      b: { x: 12, y: 4, w: 12, h: 2 },
     });
   });
 
-  it('cascades: what a pushed panel lands on is pushed in turn', () => {
-    const stack = [...column, box('c', 0, 8, 6, 2), box('d', 6, 8, 6, 2)];
-    expect(byId(placePanel(stack, 'a', { x: 0, y: 0, w: 6, h: 6 }))).toEqual({
-      a: { x: 0, y: 0, w: 6, h: 6 },
-      b: { x: 0, y: 6, w: 6, h: 4 },
-      c: { x: 0, y: 10, w: 6, h: 2 },
+  it('cascades: what a pushed panel lands on goes down in turn', () => {
+    const stack = [...column, box('c', 0, 8, 12, 2), box('d', 12, 0, 12, 2)];
+    expect(byId(placePanel(stack, 'a', { x: 0, y: 0, w: 12, h: 6 }))).toEqual({
+      a: { x: 0, y: 0, w: 12, h: 6 },
+      b: { x: 0, y: 6, w: 12, h: 4 },
+      c: { x: 0, y: 10, w: 12, h: 2 },
       // Beside the column, so never covered.
-      d: { x: 6, y: 8, w: 6, h: 2 },
+      d: { x: 12, y: 0, w: 12, h: 2 },
     });
   });
 
-  it('keeps pushing until the panel clears every one it met', () => {
-    const stack = [
-      box('m', 6, 0, 6, 1),
-      box('d', 0, 1, 3, 2),
-      box('x', 0, 4, 6, 1),
-    ];
-    // m grows over both. d goes under it first; x, pushed under m next,
-    // would then sit on d, so it goes on down under d.
-    const placed = placePanel(stack, 'm', { x: 0, y: 0, w: 6, h: 6 });
-    expect(byId(placed)).toEqual({
-      m: { x: 0, y: 0, w: 6, h: 6 },
-      d: { x: 0, y: 6, w: 3, h: 2 },
-      x: { x: 0, y: 8, w: 6, h: 1 },
-    });
-  });
-
-  it('leaves an overlap the config already had alone', () => {
+  it('tidies a stored overlap the move reaches', () => {
     const stored = [
-      box('a', 0, 0, 6, 4),
-      box('b', 0, 2, 6, 4),
-      box('c', 6, 0, 6, 2),
+      box('a', 0, 0, 12, 4),
+      box('b', 0, 2, 12, 4),
+      box('c', 12, 0, 12, 2),
     ];
-    expect(byId(placePanel(stored, 'c', { x: 6, y: 1, w: 6, h: 2 }))).toEqual({
-      a: { x: 0, y: 0, w: 6, h: 4 },
-      b: { x: 0, y: 2, w: 6, h: 4 },
-      c: { x: 6, y: 1, w: 6, h: 2 },
-    });
+    expect(byId(placePanel(stored, 'c', { x: 12, y: 1, w: 12, h: 2 }))).toEqual(
+      {
+        a: { x: 0, y: 0, w: 12, h: 4 },
+        b: { x: 0, y: 4, w: 12, h: 4 },
+        c: { x: 12, y: 0, w: 12, h: 2 },
+      },
+    );
   });
 
   it('refuses a layout the grid does not admit, and a panel there is none of', () => {
-    expect(placePanel(column, 'a', { x: 7, y: 0, w: 6, h: 4 })).toBeNull();
-    expect(placePanel(column, 'a', { x: 0, y: -1, w: 6, h: 4 })).toBeNull();
+    expect(placePanel(column, 'a', { x: 13, y: 0, w: 12, h: 4 })).toBeNull();
+    expect(placePanel(column, 'a', { x: 0, y: -1, w: 12, h: 4 })).toBeNull();
     expect(placePanel(column, 'ghost', { x: 0, y: 0, w: 1, h: 1 })).toBeNull();
   });
 
@@ -145,11 +204,109 @@ describe('placePanel', () => {
     const placed = placePanel(column, 'a', {
       x: 0,
       y: 0,
-      w: 6,
+      w: 12,
       h: 4,
       moved: true,
     } as never);
-    expect(placed?.[0]).toEqual({ id: 'a', x: 0, y: 0, w: 6, h: 4 });
+    expect(placed?.[0]).toEqual({ id: 'a', x: 0, y: 0, w: 12, h: 4 });
+  });
+});
+
+/**
+ * A keyboard step is what the board makes of it: sideways and in size one
+ * cell; up and down the smallest move that lands the panel somewhere else,
+ * which on a board that floats up means past its neighbour.
+ */
+describe('arranging by keyboard', () => {
+  const column = [
+    box('a', 0, 0, 12, 4),
+    box('b', 0, 4, 12, 2),
+    box('c', 12, 0, 12, 6),
+  ];
+
+  it('moves down past the panel below', () => {
+    const target = arrangePanel(column, 'a', 'down');
+    expect(target).toEqual({ x: 0, y: 2, w: 12, h: 4 });
+    expect(byId(placePanel(column, 'a', target!))).toMatchObject({
+      a: { y: 2 },
+      b: { y: 0 },
+    });
+  });
+
+  it('moves up past the panel above', () => {
+    const target = arrangePanel(column, 'b', 'up');
+    expect(target).toEqual({ x: 0, y: 3, w: 12, h: 2 });
+    expect(byId(placePanel(column, 'b', target!))).toMatchObject({
+      a: { y: 2 },
+      b: { y: 0 },
+    });
+  });
+
+  it('has nowhere down for the last panel of a column, nor up for the first', () => {
+    expect(arrangePanel(column, 'b', 'down')).toBeNull();
+    expect(arrangePanel(column, 'c', 'down')).toBeNull();
+    expect(arrangePanel(column, 'a', 'up')).toBeNull();
+  });
+
+  it('does not count tidying a stored hole as a move', () => {
+    const holey = [box('a', 0, 3, 12, 2)];
+    expect(arrangePanel(holey, 'a', 'up')).toBeNull();
+    expect(arrangePanel(holey, 'a', 'down')).toBeNull();
+  });
+
+  it('takes one cell sideways and in size', () => {
+    expect(arrangePanel(column, 'a', 'right')).toEqual({
+      x: 1,
+      y: 0,
+      w: 12,
+      h: 4,
+    });
+    expect(arrangePanel(column, 'a', 'taller')).toEqual({
+      x: 0,
+      y: 0,
+      w: 12,
+      h: 5,
+    });
+    expect(arrangePanel(column, 'c', 'right')).toBeNull();
+    expect(arrangePanel(column, 'ghost', 'right')).toBeNull();
+  });
+});
+
+describe('freeSpot', () => {
+  const board = [box('a', 0, 0, 12, 4), box('b', 0, 4, 24, 2)];
+
+  it('takes the first free place at rest, rows top to bottom, each left to right', () => {
+    expect(freeSpot(board, { w: 12, h: 4 })).toEqual({
+      x: 12,
+      y: 0,
+      w: 12,
+      h: 4,
+    });
+  });
+
+  it('lands at or below the row on screen', () => {
+    expect(freeSpot(board, { w: 6, h: 2 }, 24, 6)).toEqual({
+      x: 0,
+      y: 6,
+      w: 6,
+      h: 2,
+    });
+  });
+
+  it('never leaves a new panel hanging over a hole', () => {
+    // From row 2 there is room at x 12, but nothing under row 1 holds it
+    // up; the first place it rests is under b.
+    expect(freeSpot(board, { w: 12, h: 2 }, 24, 2)).toEqual({
+      x: 0,
+      y: 6,
+      w: 12,
+      h: 2,
+    });
+  });
+
+  it('starts an empty board at the top, and keeps a size inside the grid', () => {
+    expect(freeSpot([], { w: 40, h: 0 })).toEqual({ x: 0, y: 0, w: 24, h: 1 });
+    expect(bottomOf(board)).toBe(6);
   });
 });
 
@@ -159,23 +316,23 @@ describe('placePanelIn', () => {
       id: 'a',
       kind: 'markdown',
       content: '',
-      layout: { x: 0, y: 0, w: 6, h: 4 },
+      layout: { x: 0, y: 0, w: 12, h: 4 },
     },
     {
       id: 'b',
       kind: 'markdown',
       content: '',
-      layout: { x: 0, y: 4, w: 6, h: 4 },
+      layout: { x: 0, y: 4, w: 12, h: 4 },
     },
   ] as DashboardPanel[];
 
-  it('writes the placed panel and the ones it pushed, and nothing else', () => {
+  it('writes the placed panel and the ones that made way, and nothing else', () => {
     const config = dashboardConfig({ panels });
-    const placed = placePanelIn(config, 'b', { x: 0, y: 2, w: 6, h: 4 });
+    const placed = placePanelIn(config, 'b', { x: 0, y: 2, w: 12, h: 4 });
 
     expect(placed.panels.map(entry => entry.layout)).toEqual([
-      { x: 0, y: 6, w: 6, h: 4 },
-      { x: 0, y: 2, w: 6, h: 4 },
+      { x: 0, y: 4, w: 12, h: 4 },
+      { x: 0, y: 0, w: 12, h: 4 },
     ]);
     expect(placed.filter).toBe(config.filter);
     expect(config.panels[0].layout.y).toBe(0);
@@ -184,8 +341,37 @@ describe('placePanelIn', () => {
   it('hands back the same config when nothing moves', () => {
     const config = dashboardConfig({ panels });
 
-    expect(placePanelIn(config, 'a', { x: 0, y: 0, w: 6, h: 4 })).toBe(config);
-    expect(placePanelIn(config, 'a', { x: 9, y: 0, w: 6, h: 4 })).toBe(config);
+    expect(placePanelIn(config, 'a', { x: 0, y: 0, w: 12, h: 4 })).toBe(config);
+    expect(placePanelIn(config, 'a', { x: 13, y: 0, w: 12, h: 4 })).toBe(
+      config,
+    );
+    expect(placePanelIn(config, 'ghost', { x: 0, y: 0, w: 1, h: 1 })).toBe(
+      config,
+    );
+  });
+
+  it('moves only the panels of the tab it is on', () => {
+    const config = dashboardConfig({
+      tabs: [
+        { id: 'one', title: 'One' },
+        { id: 'two', title: 'Two' },
+      ],
+      panels: [
+        { ...panels[0], tab: 'one' },
+        { ...panels[1], tab: 'one' },
+        // Another grid: its numbers share no cell with tab one's.
+        {
+          ...panels[1],
+          id: 'c',
+          tab: 'two',
+          layout: { x: 0, y: 6, w: 12, h: 2 },
+        },
+      ] as DashboardPanel[],
+    });
+
+    const placed = placePanelIn(config, 'a', { x: 12, y: 0, w: 12, h: 4 });
+
+    expect(placed.panels.map(entry => entry.layout.y)).toEqual([0, 0, 6]);
   });
 
   it('leaves an entry that is no panel, or has no layout it admits, out of it', () => {
@@ -196,17 +382,18 @@ describe('placePanelIn', () => {
     ] as unknown as DashboardPanel[];
     const config = dashboardConfig({ panels: odd });
 
-    const placed = placePanelIn(config, 'b', { x: 0, y: 2, w: 6, h: 4 });
+    const placed = placePanelIn(config, 'b', { x: 0, y: 2, w: 12, h: 4 });
 
     expect(placed.panels[2]).toBe(odd[2]);
     expect(placed.panels[3]).toBe(odd[3]);
-    expect(placed.panels[0].layout.y).toBe(6);
+    expect(placed.panels[0].layout.y).toBe(4);
   });
 
   it('reads a config whose panels are not a list as having none', () => {
     const config = dashboardConfig({ panels: 'nope' as never });
 
     expect(placePanelIn(config, 'a', { x: 0, y: 0, w: 1, h: 1 })).toBe(config);
+    expect(withLayouts(config, [box('a', 0, 0, 1, 1)])).toBe(config);
   });
 });
 
@@ -218,9 +405,9 @@ describe('placePanelIn', () => {
 describe('readingOrder', () => {
   it('reads rows top to bottom, each left to right, whatever the config order', () => {
     const panels = [
-      { id: 'below', layout: box('below', 0, 4, 6, 2) },
-      { id: 'right', layout: box('right', 6, 0, 6, 4) },
-      { id: 'left', layout: box('left', 0, 0, 6, 4) },
+      { id: 'below', layout: box('below', 0, 4, 12, 2) },
+      { id: 'right', layout: box('right', 12, 0, 12, 4) },
+      { id: 'left', layout: box('left', 0, 0, 12, 4) },
     ];
 
     expect(readingOrder(panels).map(panel => panel.id)).toEqual([
@@ -236,9 +423,9 @@ describe('readingOrder', () => {
 describe('stackedLayout', () => {
   it('stacks the panels in reading order, full width, each as tall as saved', () => {
     const stored = [
-      box('right', 6, 0, 6, 4),
-      box('left', 0, 0, 6, 3),
-      box('below', 0, 4, 4, 2),
+      box('right', 12, 0, 12, 4),
+      box('left', 0, 0, 12, 3),
+      box('below', 0, 4, 8, 2),
     ];
 
     expect(stackedLayout(stored)).toEqual([
@@ -247,6 +434,6 @@ describe('stackedLayout', () => {
       box('below', 0, 7, 1, 2),
     ]);
     // Derived, not placed: the stored boxes are untouched.
-    expect(stored[0]).toEqual(box('right', 6, 0, 6, 4));
+    expect(stored[0]).toEqual(box('right', 12, 0, 12, 4));
   });
 });

@@ -46,6 +46,8 @@ export interface ContentPanelProps {
  */
 export function ContentPanel({ panel }: ContentPanelProps) {
   switch (panel.kind) {
+    case 'heading':
+      return <HeadingPanel content={panel.content} />;
     case 'markdown':
       return <MarkdownPanel content={panel.content} />;
     case 'image':
@@ -61,6 +63,25 @@ export function ContentPanel({ panel }: ContentPanelProps) {
     default:
       return <LinksPanel items={panel.items} />;
   }
+}
+
+export interface HeadingPanelProps {
+  content: string;
+}
+
+/**
+ * A section's title across the board: one line of plain text, cut short
+ * rather than wrapped, since a heading card is one row high. Plain text on
+ * purpose — no markdown, no link — so a title is never anything else. How it
+ * sits in the board's outline (its own heading level, the chrome it wears)
+ * is the editing UI's to settle with the grid (batch B2).
+ */
+export function HeadingPanel({ content }: HeadingPanelProps) {
+  return (
+    <p data-slot="panel-heading" className="truncate text-base font-semibold">
+      {content}
+    </p>
+  );
 }
 
 export interface MarkdownPanelProps {

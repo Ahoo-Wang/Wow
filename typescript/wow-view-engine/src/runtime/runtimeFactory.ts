@@ -18,14 +18,14 @@
  * Both `open` and `create` end here, with the same two checks — the config's
  * kind must be one the definition declares, and a dashboard config belongs to
  * a dashboard definition — and the same set of injected parts. A dashboard
- * needs two things it cannot reach itself, how to read a referenced instance
- * and how to build a child runtime for it, so this is also where those two
- * are built.
+ * needs three things it cannot reach itself — how to read a referenced
+ * instance, the definition a view it owns is of, and how to build a child
+ * runtime for either — so this is also where those are built.
  */
 
+import type { PanelDefinition } from '../dashboard/index.js';
 import type {
   DashboardViewConfig,
-  DataViewDefinition,
   FieldDefinition,
   FilterTree,
   RuntimeLimits,
@@ -149,6 +149,7 @@ export class RuntimeFactory {
       limits: this.host.limits,
       environment: this.host.environment,
       resolve: this.resolvePanel,
+      definitions: this.panelDefinition,
       createPanelRuntime: this.createPanelRuntime,
       resolveOptions: this.host.resolveOptions,
       scopeFilter,
@@ -163,30 +164,46 @@ export class RuntimeFactory {
   };
 
   /**
+   * The definition a view a board owns is of: code, so looked up rather
+   * than loaded, and `null` for one this release does not declare or one
+   * that failed admission — neither can be run.
+   */
+  private readonly panelDefinition = (
+    definitionId: string,
+  ): PanelDefinition | null => {
+    const registry = this.host.definitions;
+    if (!registry.definitions.has(definitionId)) return null;
+    try {
+      const definition = registry.require(definitionId);
+      return { definition, fields: panelFields(definition) };
+    } catch {
+      return null;
+    }
+  };
+
+  /**
    * One panel's child runtime. It is owned by its dashboard rather than by
    * the engine: it is not saved, renamed or deleted through a command, and it
-   * runs no timer of its own, because the dashboard times every panel.
+   * runs no timer of its own, because the dashboard times every panel. A
+   * view the board owns has no baseline (`saved` is `null`): it is saved
+   * with the board, never on its own.
    */
   private readonly createPanelRuntime: PanelRuntimeFactory = (
-    reference,
+    view,
     scopeFilter: FilterTree | null,
   ) => {
-    const { instance, definition } = reference;
+    const { instance, definition } = view;
     return dataViewRuntime({
       id: this.newRuntimeId(),
-      // `validateDashboard` admitted this panel, so the reference is a data
-      // view of a data definition by the time a runtime is built for it.
-      definition: definition as DataViewDefinition,
-      config: instance.config as DataViewConfig,
-      title: instance.title,
-      scope: instance.scope,
+      definition,
+      config: view.config,
+      title: view.title,
+      scope: view.scope,
       saved: instance,
       kinds: this.host.kinds,
       limits: this.host.limits,
       environment: this.host.environment,
-      source: this.host.resolveSource(
-        (definition as DataViewDefinition).source,
-      ),
+      source: this.host.resolveSource(definition.source),
       runner: this.host.runner,
       resolveOptions: this.host.resolveOptions,
       scopeFilter,

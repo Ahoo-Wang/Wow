@@ -27,12 +27,14 @@ import {
 } from 'lucide-react';
 import type { AnalysisView } from '../analysis/index.js';
 import {
-  arrangeLayout,
+  arrangePanel,
+  placePanel,
   readingOrder,
   stackedLayout,
   type ArrangeStep,
+  type PlacedPanel,
 } from '../dashboard/index.js';
-import { DASHBOARD_GRID_COLUMNS, type Issue } from '../model/index.js';
+import type { Issue } from '../model/index.js';
 import type {
   DashboardController,
   DashboardPanelView,
@@ -154,14 +156,29 @@ export function DashboardGrid({
   const byId = new Map(dashboard.panels.map(panel => [panel.id, panel]));
   const names = panelNames(dashboard.panels, messages);
 
+  // The board as the kernel places it: a keyboard command is judged against
+  // every panel, since on a board that floats panels up "down" means past
+  // the panel below, and the bottom of a column has nowhere down to go.
+  const placed: PlacedPanel[] = dashboard.panels.map(panel => ({
+    id: panel.id,
+    ...panel.layout,
+  }));
+  const available = (panelId: string, step: ArrangeStep) =>
+    arrangePanel(placed, panelId, step, dashboard.columns) !== null;
+
   /** One keyboard command: the same placement a gesture lands. */
   const arrange = (panelId: string, step: ArrangeStep) => {
-    const panel = byId.get(panelId);
     // The one-column reading is never a placement to write back.
-    if (!panel || !arranging) return;
-    const next = arrangeLayout(panel.layout, step, dashboard.columns);
-    if (!next) return;
-    dashboard.place(panelId, next);
+    if (!byId.has(panelId) || !arranging) return;
+    const target = arrangePanel(placed, panelId, step, dashboard.columns);
+    if (!target) return;
+    dashboard.place(panelId, target);
+    // Where it came to rest, which is what the reader is told — the target
+    // is only where it was put down before its tab floated up.
+    const next =
+      placePanel(placed, panelId, target, dashboard.columns)?.find(
+        box => box.id === panelId,
+      ) ?? target;
     setArranged(
       messages.label('label.panel.placed', {
         title: names.get(panelId) ?? '',
@@ -248,7 +265,7 @@ export function DashboardGrid({
               name={names.get(panel.id)}
               headingLevel={headingLevel}
               editable={arranging}
-              columns={dashboard.columns}
+              available={step => available(panel.id, step)}
               onArrange={step => arrange(panel.id, step)}
               onRetry={() => dashboard.refreshPanel(panel.id)}
               onRenderFailure={onRenderFailure}
@@ -293,6 +310,7 @@ const ROWS = ['label.panel.rows', 'label.panel.rows-one'] as const;
 
 /** What an untitled content panel is called: what kind of thing it holds. */
 const CONTENT_NAMES: Readonly<Record<string, MessageKey>> = {
+  heading: 'label.panel.kind.heading',
   markdown: 'label.panel.kind.markdown',
   image: 'label.panel.kind.image',
   links: 'label.panel.kind.links',
@@ -303,8 +321,9 @@ const CONTENT_NAMES: Readonly<Record<string, MessageKey>> = {
  * handles, the line that says where it landed.
  *
  * Its own title first. A view panel without one is named after the view it
- * shows, which is what its reader sees in it; a content panel after the kind
- * of thing it holds. What is left — a panel whose view could not be opened —
+ * shows, which is what its reader sees in it; a heading after the words it
+ * says; a content panel after the kind of thing it holds. What is left — a
+ * panel whose view could not be opened —
  * is named by where it stands on the board in reading order, counted from
  * one (`index`). Never its id: `panel.id` is a key in a config, and
  * 「orders-2」 is not a word anyone reading the board ever chose.
@@ -317,6 +336,8 @@ export function panelName(
   if (panel.title) return panel.title;
   const shown = panel.runtime?.getSnapshot()?.title;
   if (shown) return shown;
+  if (panel.panel.kind === 'heading' && panel.panel.content.trim())
+    return panel.panel.content.trim();
   const kind = CONTENT_NAMES[panel.panel.kind];
   return kind
     ? messages.label(kind)
@@ -327,16 +348,29 @@ export function panelName(
  * Every panel's name by its id, each counted by its place in reading order
  * — rows top to bottom, each left to right — which is the order the grid
  * draws them in and the one a reader counts by.
+ *
+ * Two panels are never called the same by the board itself: a name the
+ * board made up (`panelName` without a title) that another panel already
+ * goes by is numbered in reading order — 「笔记」, 「笔记 2」 — so a handle,
+ * a finding or a landing announced by name points at one panel. Titles the
+ * author gave are theirs and left as they are, even when two agree; a
+ * made-up name steps around them.
  */
 export function panelNames(
   panels: readonly DashboardPanelView[],
   messages: MessageFormatters,
 ): Map<string, string> {
+  const used = new Set(panels.flatMap(panel => panel.title || []));
   return new Map(
-    readingOrder(panels).map((panel, index) => [
-      panel.id,
-      panelName(panel, index, messages),
-    ]),
+    readingOrder(panels).map((panel, index) => {
+      if (panel.title) return [panel.id, panel.title];
+      const name = panelName(panel, index, messages);
+      let numbered = name;
+      for (let n = 2; used.has(numbered); n += 1)
+        numbered = messages.label('label.panel.numbered', { name, n });
+      used.add(numbered);
+      return [panel.id, numbered];
+    }),
   );
 }
 
@@ -370,8 +404,12 @@ function DashboardEmpty() {
 export interface DashboardPanelProps {
   panel: DashboardPanelView;
   editable?: boolean;
-  /** Columns the grid places in; what the arrange commands run up against. */
-  columns?: number;
+  /**
+   * Whether an arrange command would move the panel at all (`arrangePanel`
+   * over the whole board); the menu disables the ones that would not. Every
+   * command is offered when it is left out.
+   */
+  available?: (step: ArrangeStep) => boolean;
   /**
    * What the panel is called on screen; the grid names every panel once
    * (`panelName`), counting an untitled one by its place among the others.
@@ -402,7 +440,7 @@ export interface DashboardPanelProps {
 export function DashboardPanel({
   panel,
   editable,
-  columns = DASHBOARD_GRID_COLUMNS,
+  available,
   name: given,
   headingLevel = 3,
   onArrange,
@@ -480,8 +518,7 @@ export function DashboardPanel({
               <PanelGrip title={name} onStep={onArrange} />
               <PanelArrangeMenu
                 title={name}
-                layout={panel.layout}
-                columns={columns}
+                available={available}
                 onStep={onArrange}
               />
             </>
@@ -532,6 +569,9 @@ function PanelBody({
   // whose scheme was rejected must not reach the document because the rest of
   // the dashboard happened to be fine.
   if (panel.broken) return <PanelUnavailable issue={bodyIssue(panel)} />;
+  // A heading's words are already the panel's title element — its name,
+  // `panelName` — so the body would only say them twice.
+  if (panel.panel.kind === 'heading') return null;
   if (panel.panel.kind !== 'view') return <ContentPanel panel={panel.panel} />;
   if (!panel.runtime) return <PanelUnavailable issue={panel.issues[0]} />;
   return isRecordRuntime(panel.runtime) ? (

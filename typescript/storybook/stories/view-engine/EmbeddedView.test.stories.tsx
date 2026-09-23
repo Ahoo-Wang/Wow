@@ -429,8 +429,8 @@ export const DashboardWithAPanelOut: Story = {
       expect(found).not.toBeNull();
       return found!;
     });
-    await expect(out).toHaveTextContent(zhCN['label.panel.out.private']);
-    await expect(out).toHaveTextContent(zhCN['label.panel.way-out.widen']);
+    await expect(out).toHaveTextContent(zhCN['label.panel.out.missing']);
+    await expect(out).toHaveTextContent(zhCN['label.panel.way-out.share']);
     // No strip above the grid takes the board's place.
     await expect(
       canvasElement.querySelector(

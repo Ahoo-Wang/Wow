@@ -22,12 +22,14 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { FilterOperator } from '@ahoo-wang/fetcher-wow';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   builtinFieldKinds,
   MemoryViewStore,
+  ViewCommandError,
   ViewEngine,
   defaultRuntimeEnvironment,
+  issue,
   withFieldKinds,
   type DashboardRuntime,
   type FieldKind,
@@ -314,7 +316,7 @@ describe('DashboardWorkbench', () => {
           instanceId="overview-1"
         />,
       );
-      return { store };
+      return { store, engine };
     }
 
     /** The save-as dialog, opened from the title bar's menu. */
@@ -326,8 +328,12 @@ describe('DashboardWorkbench', () => {
       return screen.findByRole('dialog');
     }
 
-    it('shows the refusal inside the dialog and stays open', async () => {
-      // Valid where it is: a personal dashboard may show a personal view.
+    /**
+     * D22 B: a shared board may stand on a personal view — the panel is
+     * blank for whoever cannot read it, and says so — so copying a personal
+     * board to everyone is a save like any other.
+     */
+    it('copies a board on a personal view to everyone', async () => {
       const { store } = workbench(board('personal'));
       await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
 
@@ -336,13 +342,32 @@ describe('DashboardWorkbench', () => {
         target: { value: 'For everyone' },
       });
       fireEvent.click(within(dialog).getByRole('radio', { name: 'Everyone' }));
-      const create = within(dialog).getByRole('button', {
-        name: 'Create view',
+      fireEvent.click(
+        within(dialog).getByRole('button', { name: 'Create view' }),
+      );
+
+      await landed(store);
+      expect((await store.list('overview')).map(item => item.title)).toContain(
+        'For everyone',
+      );
+    });
+
+    it('shows a refusal inside the dialog and stays open', async () => {
+      const { store, engine } = workbench(board('personal'));
+      await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
+      // Only the engine knows, at the scope the copy is headed for.
+      vi.spyOn(engine, 'saveAs').mockRejectedValue(
+        new ViewCommandError(issue('view.config.invalid', [])),
+      );
+
+      const dialog = await openCopy();
+      fireEvent.change(within(dialog).getByLabelText('Title'), {
+        target: { value: 'For everyone' },
       });
-      // The draft is valid, so nothing here can tell it will be refused —
-      // only the engine knows, at the scope the copy is headed for.
-      expect(create).toHaveProperty('disabled', false);
-      fireEvent.click(create);
+      fireEvent.click(within(dialog).getByRole('radio', { name: 'Everyone' }));
+      fireEvent.click(
+        within(dialog).getByRole('button', { name: 'Create view' }),
+      );
 
       expect(
         await within(dialog).findByText(
@@ -356,20 +381,16 @@ describe('DashboardWorkbench', () => {
       ).not.toContain('For everyone');
     });
 
-    it('takes a copy that is valid where the open view is not', async () => {
-      // Saved shared over a personal panel: the view on screen reports an
-      // error, and a personal copy of it is exactly the way out.
+    it('takes a personal copy of a shared board on a personal view', async () => {
+      // Saved shared over a personal panel: the panel runs for its author
+      // and says, in its header, that not every reader of the board sees it.
       const { store } = workbench(board('shared'));
-      await screen.findByRole('button', { name: 'More view actions' });
-      // One finding, so the strip says it outright rather than heading it —
-      // and, standing above the grid, it says which panel it is about.
+      await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
       expect(
-        (await screen.findAllByRole('alert')).some(alert =>
-          (alert.textContent ?? '').includes(
-            'Mine: The view this panel shows is not open to everyone who reads this dashboard.',
-          ),
+        screen.getByLabelText(
+          'The view this panel shows is not open to everyone who reads this dashboard.',
         ),
-      ).toBe(true);
+      ).toBeTruthy();
 
       const dialog = await openCopy();
       fireEvent.change(within(dialog).getByLabelText('Title'), {

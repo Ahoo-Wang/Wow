@@ -226,7 +226,8 @@ describe('EmbeddedView', () => {
       id: 'overview-1',
       definitionId: 'overview',
       title: 'Overview',
-      // Shared, over a personal view: that panel is refused with an error.
+      // One panel wired to a filter the board does not have: refused with an
+      // error of its own.
       scope: 'shared',
       revision: '1',
       config: dashboardConfig({
@@ -236,7 +237,7 @@ describe('EmbeddedView', () => {
             kind: 'view',
             title: 'Mine only',
             instanceId: 'orders-1',
-            bindings: [],
+            bindings: [{ globalField: 'ghost', panelField: 'status' }],
             layout: { x: 0, y: 0, w: 6, h: 4 },
           },
           {
@@ -252,7 +253,7 @@ describe('EmbeddedView', () => {
     const engine = new ViewEngine({
       definitions: [ordersDefinition(), overviewDefinition()],
       store: new MemoryViewStore({
-        instances: [board, { ...mine, scope: 'personal' }],
+        instances: [board, mine],
       }),
       resolveSource: () => testSource(),
     });
@@ -265,7 +266,7 @@ describe('EmbeddedView', () => {
     ).toBeTruthy();
     const out = document.querySelector('[data-slot="panel-unavailable"]');
     expect(out?.textContent).toContain(
-      'The view this panel shows is not open to everyone who reads this dashboard',
+      "The dashboard's filters do not fit this panel",
     );
     // And nothing above the grid takes the board's place.
     expect(screen.queryByRole('alert')).toBeNull();

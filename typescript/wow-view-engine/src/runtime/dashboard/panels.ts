@@ -24,6 +24,7 @@ import type {
   DashboardPanel,
   DashboardViewConfig,
   Issue,
+  ViewKind,
 } from '../../model/index.js';
 import { resultIssues } from '../source.js';
 import type { DataViewRuntime } from '../viewRuntime.js';
@@ -74,6 +75,24 @@ export function blocksBoard(issues: readonly Issue[]): boolean {
   return issues.some(
     found => found.severity === 'error' && panelOf(found) === null,
   );
+}
+
+/**
+ * Whether these issues stop a view of this kind from being saved.
+ *
+ * Any error does for a record or an analysis view: its config is one
+ * question, and a question that cannot be asked is not worth keeping. A
+ * dashboard is stopped only by what stops the board (`blocksBoard`): a
+ * panel's own trouble — a view some readers cannot open, a binding that no
+ * longer holds, a view whose saved settings no longer work — is said on the
+ * panel and saved with the board (D22 B), since the author may well be
+ * saving precisely to fix a different panel, and a board nobody can save
+ * until every panel is well is one nobody can maintain.
+ */
+export function stopsSave(kind: ViewKind, issues: readonly Issue[]): boolean {
+  return kind === 'dashboard'
+    ? blocksBoard(issues)
+    : issues.some(found => found.severity === 'error');
 }
 
 /** What a thrown value says for itself; not everything thrown is an `Error`. */
