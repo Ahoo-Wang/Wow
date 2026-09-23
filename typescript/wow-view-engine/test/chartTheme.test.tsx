@@ -25,6 +25,7 @@ import { concreteColor, readChartTheme } from '../src/ui/charts/theme.js';
 import { compactFormat, formatNumber } from '../src/ui/display.js';
 import { measureText } from '../src/ui/charts/measure.js';
 import { merged } from '../src/ui/charts/EChart.js';
+import { ChartLegend } from '../src/ui/charts/ChartLegend.js';
 
 afterEach(() => {
   cleanup();
@@ -301,5 +302,52 @@ describe('merged: the width’s adjustment laid onto a drawing', () => {
       series: [2],
       grid: { top: 1 },
     });
+  });
+});
+
+describe('ChartLegend: one line, and the rest counted', () => {
+  it('counts the entries past the first line, and opens the whole list', async () => {
+    // jsdom lays nothing out: every entry past the third stands a line lower.
+    vi.spyOn(HTMLElement.prototype, 'offsetTop', 'get').mockImplementation(
+      function (this: HTMLElement) {
+        const siblings = [...(this.parentElement?.children ?? [])];
+        return this.dataset.slot === 'chart-legend-item' &&
+          siblings.indexOf(this) >= 3
+          ? 20
+          : 0;
+      },
+    );
+    const entries = Array.from({ length: 7 }, (_, i) => ({
+      key: `k${i}`,
+      label: `Series ${i}`,
+      color: 'red',
+    }));
+    render(
+      <ViewSurface>
+        <ChartLegend entries={entries} at="top" />
+      </ViewSurface>,
+    );
+    const more = screen.getByRole('button', { name: '4 more' });
+    expect(more.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(more);
+    const less = screen.getByRole('button', { name: 'Show less' });
+    expect(less.getAttribute('aria-expanded')).toBe('true');
+    expect(
+      document
+        .querySelector('[data-slot="chart-legend"]')!
+        .hasAttribute('data-open'),
+    ).toBe(true);
+  });
+
+  it('scrolls beside the plot rather than folding', () => {
+    render(
+      <ViewSurface>
+        <ChartLegend
+          entries={[{ key: 'a', label: 'A', color: 'red' }]}
+          at="right"
+        />
+      </ViewSurface>,
+    );
+    expect(screen.queryByRole('button')).toBeNull();
   });
 });

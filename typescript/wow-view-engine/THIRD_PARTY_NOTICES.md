@@ -28,7 +28,7 @@ THE SOFTWARE.
 
 ## Recharts — MIT License
 
-Line, area, combo, pie, scatter and the metric card's sparkline still render through Recharts, a runtime dependency until the ECharts migration's later batches remove it (docs/design/decisions.md D21): https://github.com/recharts/recharts
+Pie, scatter and the metric card's sparkline still render through Recharts, a runtime dependency until the ECharts migration's later batches remove it (docs/design/decisions.md D21): https://github.com/recharts/recharts
 
 The MIT License (MIT)
 

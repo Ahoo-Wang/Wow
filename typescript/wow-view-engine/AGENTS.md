@@ -355,10 +355,9 @@ src/
       editing.ts              — What the tray picks when a field is picked — its alias and the type or summary it starts as (`defaultGroup`, `defaultMetric`), the shapes being the kernel builders' — and what a metric is called
       listFocus.ts            — Where the keyboard stands after the card it was on leaves the page: `useListFocus`, shared by every remove and move in the tray and the options panel (A2)
     charts/                   — One file per family, plus what they share
-      Cartesian.tsx           — Bar, line, area and combo: a bar chart through `cartesianOption`, the rest through `RechartsCartesian` until their batch lands (D21)
-      RechartsCartesian.tsx   — Line, area and combo on Recharts, which carries the numbers on which axis; removed with Recharts (D21)
-      cartesianOption.ts      — `cartesianOption`: a bar chart as the library draws it — axes, short numbers, value labels that hide rather than overlap, stack totals, reference lines; `categoryFit`, the category names side by side or at a slant for the width
-      ChartLegend.tsx         — The legend as text beside the drawing: a dot per series, on top by default
+      Cartesian.tsx           — Bar, line, area and combo through `cartesianOption` (D21): the legend, the names fitted to the width, a pressed mark handed back as its group
+      cartesianOption.ts      — `cartesianOption`: a cartesian chart as the library draws it — each series' mark, axes and their titles, short numbers, value labels that hide rather than overlap, stack totals, reference lines; `categoryFit`, the category names side by side or at a slant for the width
+      ChartLegend.tsx         — The legend as text beside the drawing: a dot per series, on top by default, one line with the rest counted (「还有 N 个」)
       ChartReading.tsx        — The chart's numbers as a table, for whoever cannot see the marks
       EChart.tsx              — The thin binding to the library: create once sized, resize, a whole new option per change, dispose; the frame (`data-slot="chart"`), the named image and the theme read off the element
       echarts.ts              — The chart chunk: the library's pieces registered on demand, SVG renderer; imported by `load.ts` only
@@ -493,7 +492,7 @@ src/
 
 - `@ahoo-wang/fetcher-wow` — query protocol (`FilterExpression`, `FilterPagedQuery`, `CursorQuery`, `AggregationQuery`)
 - `react` / `react-dom` — **optional peer dependencies**; the root entry works without React
-- UI-only: `@base-ui/react`, `@dnd-kit/dom`, `@dnd-kit/react`, `echarts` (charts, loaded on first use; D21), `recharts` (line, area, combo, pie, scatter and the metric card's sparkline, until the migration's later batches), `react-grid-layout`, `react-markdown`, `react-day-picker`, `react-error-boundary`, `lucide-react`, `class-variance-authority`, `cn`
+- UI-only: `@base-ui/react`, `@dnd-kit/dom`, `@dnd-kit/react`, `echarts` (charts, loaded on first use; D21), `recharts` (pie, scatter and the metric card's sparkline, until the migration's later batches), `react-grid-layout`, `react-markdown`, `react-day-picker`, `react-error-boundary`, `lucide-react`, `class-variance-authority`, `cn`
 - Headless: `dayjs` (time), `dequal` (runtime equality), `culori` (colour syntax: in `analysis` a saved chart colour is validated, in `ui` the theme's colours are converted to `rgb()` for the chart library)
 
 ## Code Style

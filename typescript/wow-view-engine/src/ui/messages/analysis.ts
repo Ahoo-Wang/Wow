@@ -286,6 +286,8 @@ export const analysisMessages = {
   // Series names the chart writes itself, for legends and tooltips.
   'label.chart.other': 'Other',
   'label.chart.share-basis': 'Shares of the groups shown',
+  'label.chart.legend.more': '{count} more',
+  'label.chart.legend.less': 'Show less',
   'label.chart.points': 'Points',
   'label.chart.trend': 'Trend',
   'label.chart.cell': '{y} · {x}: {value}',

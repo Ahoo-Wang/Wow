@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { AxisSpec, ValueFormat } from '../../model/index.js';
+import type { ValueFormat } from '../../model/index.js';
 import { compactFormat, formatNumber } from '../display.js';
 
 /**
@@ -35,24 +35,6 @@ export function formatValue(
   if (format === 'compact')
     return formatNumber(value, compactFormat(undefined), locale);
   return formatNumber(value, undefined, locale);
-}
-
-/** A bound the spec pinned; the other end is left to the data. */
-export function domainOf(axis: AxisSpec | undefined) {
-  if (!axis || (axis.min === undefined && axis.max === undefined))
-    return undefined;
-  return [axis.min ?? 'auto', axis.max ?? 'auto'] as [
-    number | 'auto',
-    number | 'auto',
-  ];
-}
-
-export function tickFormatterOf(
-  axis: AxisSpec | undefined,
-  locale: string | undefined,
-) {
-  if (!axis?.format) return undefined;
-  return (value: number) => formatValue(value, axis.format, locale);
 }
 
 /** Which numeric axis a series or a line belongs to; the left one by default. */

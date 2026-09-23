@@ -34,6 +34,8 @@ export function drawnMarks(root: ParentNode): SVGPathElement[] {
           path => {
             const fill = path.getAttribute('fill');
             return (
+              // A clip is geometry the library cuts with, never paint.
+              !path.closest('defs, clipPath') &&
               fill !== 'none' &&
               fill !== 'transparent' &&
               // A mark is opaque; the band under the pointer is not.

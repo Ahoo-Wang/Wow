@@ -480,6 +480,14 @@ export const ValueLabels: Story = {
 };
 
 /**
+ * 两个指标画成折线：每个点一颗圆点，线的两端各离绘图区的边半格，金额在左轴、
+ * 订单数在右轴，两根轴各有标题（D21 第二批）。
+ */
+export const LineChart: Story = {
+  args: { layout: 'chart', chart: 'line', series: 'both' },
+};
+
+/**
  * 只剩一组时柱子也只有它该有的宽：从前一组就是一整块铺满绘图区的色板
  * （定价「按状态分布」，真实后端 2026-09-23）。
  */

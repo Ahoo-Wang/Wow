@@ -193,7 +193,7 @@
 - **追问**：按下标记时库交出 `{seriesIndex, dataIndex, event}`，家族把它换回这一组的行，锚点用原生事件的 `clientX/Y`（`pointAnchor`），调用同一个 `OnPick`。
 - **为什么不是别的**（2026-09-23 评估）：AntV G2（gzip 405KB、按需裁剪无效、jsdom 跑不起、2026-05 AntV 的 npm 账号被盗）；Highcharts（商业 EULA，不能随 Apache-2.0 的库分发）；Vega-Lite（mark 标签没有防碰撞）；Nivo（停更）；visx（等于自造）；Plotly（约 1.5MB）；Chart.js（只有 canvas，读不了 CSS 变量）；Unovis（没有漏斗与缩放）；留在 recharts（标签防碰撞、图例折叠、类目轴自动间隔、热力图色标、dataZoom 全得手写）。Metabase、Superset、Evidence 用的都是 ECharts 6.1，Lightdash 5.6。
 - **实测**：recharts 现用量 gzip 130KB；ECharts SVG 带六个家族与 grid／tooltip／legend／markLine／visualMap／graphic／LabelLayout 231KB（加 dataZoom／brush／aria／dataset／title／markArea 为 269KB）。1 万点散点 380ms → 7ms；10 万点折线 247ms → 19～91ms。30 天 × 2 系列每柱一个标签，`labelLayout.hideOverlap` 画出约 43／60 个且互不重叠（估算字宽带来个别 2～4px 的擦边）。ECharts SVG 在 jsdom 里能渲染（点击参数带 `{name, seriesName, value, dataIndex, event.offsetX/Y}`），`ssr: true` + `renderToSVGString()` 在 Node 里无 DOM 可用。
-- **分批**：①绑定 + 主题 + 懒加载 + **柱状图**（含横向、堆叠与合计、值标签防重叠、紧凑刻度、轴标题）；②其余直角坐标（折线、面积、组合、带标题的右轴、参考线、图例折叠／滚动）；③饼／环（中心总计、图例带占比、「其他」）与散点／气泡；④指标卡迷你图、漏斗（换掉自绘，标出转化）、热力图（`visualMap` 色标）；⑤删掉 recharts 与 `ui/components/chart.tsx`、文档与包体说明。迁移期间一张图只由一个库画：`charts/Cartesian.tsx` 把 bar 交给 ECharts，其余仍交 `RechartsCartesian.tsx`，下一批删掉它。
+- **分批**：①绑定 + 主题 + 懒加载 + **柱状图**（含横向、堆叠与合计、值标签防重叠、紧凑刻度、轴标题）；②其余直角坐标（折线、面积、组合、带标题的右轴、参考线、图例折叠／滚动）；③饼／环（中心总计、图例带占比、「其他」）与散点／气泡；④指标卡迷你图、漏斗（换掉自绘，标出转化）、热力图（`visualMap` 色标）；⑤删掉 recharts 与 `ui/components/chart.tsx`、文档与包体说明。迁移期间一张图只由一个库画：第一批时 `charts/Cartesian.tsx` 只把 bar 交给 ECharts，第二批起直角坐标四种都由它画。
 - **落点**：`src/ui/charts/{EChart.tsx,echarts.ts,load.ts,theme.ts,cartesianOption.ts,ChartLegend.tsx,tooltip.ts,measure.ts,Cartesian.tsx}`、`src/ui/display.ts`（`compactFormat`）、`src/styles.css`（图的 svg 按库给的框定尺寸）、[ui/analysis.md](ui/analysis.md)。
 
 ## 搁置待议

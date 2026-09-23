@@ -15,6 +15,7 @@ import { describe, expect, it } from 'vitest';
 import type { CartesianData, ChartSpec } from '../src/index.js';
 import {
   BAR_MAX_WIDTH,
+  DOTS_UP_TO,
   cartesianOption,
   categoryFit,
   type CartesianContext,
@@ -370,5 +371,82 @@ describe('categoryFit: the names under the bars', () => {
     expect(
       (categoryFit(['A'], 100, measure, true) as Loose).yAxis.axisLabel.width,
     ).toBe(64);
+  });
+});
+
+describe('cartesianOption: lines, areas and a combo', () => {
+  const as = (chart: CartesianData['chart'], spec: ChartSpec) =>
+    cartesianOption({ ...data, chart }, context(spec), theme) as Loose;
+
+  it('draws a line with a dot on each point, a gap where one is missing', () => {
+    const option = as('line', {
+      ...bar({
+        series: [{ metric: 'orders', smooth: true }, { metric: 'total' }],
+      }),
+      type: 'line',
+    });
+    const [orders, total] = option.series;
+    expect(orders.type).toBe('line');
+    expect(orders.smooth).toBe(true);
+    expect(total.smooth).toBe(false);
+    expect(orders.showSymbol).toBe(true);
+    expect(orders.connectNulls).toBe(false);
+    expect(orders).not.toHaveProperty('areaStyle');
+    expect(orders.lineStyle.color).toBe('resolved(var(--chart-1))');
+    // A rule through the points rather than a band behind them.
+    expect(option.tooltip.axisPointer.type).toBe('line');
+  });
+
+  it('leaves the dots off once there are too many to tell apart', () => {
+    const many: CartesianData = {
+      ...data,
+      chart: 'line',
+      points: Array.from({ length: DOTS_UP_TO + 1 }, (_, x) => ({
+        x,
+        values: { orders: x, total: x },
+      })),
+    };
+    const option = cartesianOption(
+      many,
+      context({ ...bar(), type: 'line' }),
+      theme,
+    ) as Loose;
+    expect(option.series[0].showSymbol).toBe(false);
+  });
+
+  it('fills an area under its line, stacked when the spec says so', () => {
+    const option = as('area', {
+      ...bar({
+        series: [
+          { metric: 'orders', stack: 'a' },
+          { metric: 'total', stack: 'a' },
+        ],
+      }),
+      type: 'area',
+      labels: true,
+    });
+    const [orders] = option.series;
+    expect(orders.areaStyle).toEqual({
+      color: 'resolved(var(--chart-1))',
+      opacity: 0.2,
+    });
+    expect(orders.stack).toBe('a');
+    // Its labels sit over the points; a stack's total is a bar's affair.
+    expect(orders.label.position).toBe('top');
+    expect(option.series).toHaveLength(2);
+  });
+
+  it('takes each combo series’ mark from the spec, bars where it names none', () => {
+    const option = as('combo', {
+      ...bar({
+        series: [{ metric: 'orders', type: 'line' }, { metric: 'total' }],
+      }),
+      type: 'combo',
+    });
+    expect(option.series.map((series: Loose) => series.type)).toEqual([
+      'line',
+      'bar',
+    ]);
+    expect(option.tooltip.axisPointer.type).toBe('shadow');
   });
 });

@@ -33,6 +33,7 @@ import displayMeta, {
   TenCities as DisplayTenCities,
   TwoMetrics as DisplayTwoMetrics,
   LatestPerWarehouse as DisplayLatestPerWarehouse,
+  LineChart as DisplayLineChart,
   OneBar as DisplayOneBar,
   ValueLabels as DisplayValueLabels,
 } from './AnalysisWorkbench.stories.js';
@@ -42,6 +43,7 @@ import { amountOf, findDataTable, readColumn, readTotal } from './readTable.js';
 import {
   axisTexts,
   axisTicks,
+  axisTitles,
   chartsDrawn,
   drawnMarks,
   overlaps,
@@ -250,6 +252,40 @@ export const ValueLabelsApart: Story = {
     await expect(
       labels.every(label => /^\d+$/.test(label.textContent ?? '')),
     ).toBe(true);
+  },
+};
+
+/**
+ * 折线的每个点都有一颗圆点，两端的点离左右两根轴都有距离——线不贴着绘图区的
+ * 边（另一会话在真实服务上报：折线碰到两端、没有点），两根数值轴各有标题。
+ */
+export const LineKeepsOffTheEdges: Story = {
+  ...DisplayLineChart,
+  play: async ({ canvasElement }) => {
+    await chartsDrawn(canvasElement);
+    // Two metrics over four warehouses: a dot on every point.
+    const dots = await waitFor(() => {
+      const found = drawnMarks(canvasElement);
+      expect(found).toHaveLength(8);
+      return found.map(dot => dot.getBoundingClientRect());
+    });
+    const left = axisTicks(canvasElement, 'left').map(tick =>
+      tick.getBoundingClientRect(),
+    );
+    const right = axisTicks(canvasElement, 'right').map(tick =>
+      tick.getBoundingClientRect(),
+    );
+    const firstDot = Math.min(...dots.map(dot => dot.left));
+    const lastDot = Math.max(...dots.map(dot => dot.right));
+    await expect(
+      firstDot - Math.max(...left.map(tick => tick.right)),
+    ).toBeGreaterThan(20);
+    await expect(
+      Math.min(...right.map(tick => tick.left)) - lastDot,
+    ).toBeGreaterThan(20);
+    await expect(
+      axisTitles(canvasElement).map(title => title.textContent),
+    ).toEqual(expect.arrayContaining([AMOUNT_HEADER, COUNT_HEADER]));
   },
 };
 

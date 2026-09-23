@@ -26,23 +26,14 @@ import type { FamilyProps } from './family.js';
 import { legendAt } from './legend.js';
 import { measureText } from './measure.js';
 import { useChartMotion } from './motion.js';
-import { RechartsCartesian } from './RechartsCartesian.js';
 import type { ChartTheme } from './theme.js';
 
 /**
- * Bar, line, area and combo. A bar chart is drawn by ECharts
- * (`cartesianOption`); the other three still by Recharts until their batch
- * of the migration lands (docs/design/decisions.md D21).
+ * Bar, line, area and combo, drawn by ECharts from `cartesianOption`
+ * (docs/design/decisions.md D21): the legend beside the plot, the category
+ * names fitted to the width, and a press on a mark handed back as its group.
  */
-export function Cartesian(props: FamilyProps<CartesianData>) {
-  return props.data.chart === 'bar' ? (
-    <Bars {...props} />
-  ) : (
-    <RechartsCartesian {...props} />
-  );
-}
-
-function Bars({
+export function Cartesian({
   data,
   spec,
   className,
@@ -133,7 +124,7 @@ function Bars({
         }
       }
       data={{
-        'data-chart': 'bar',
+        'data-chart': data.chart,
         'data-marks': marks,
         'data-labels': spec?.labels === true ? 'on' : 'off',
       }}

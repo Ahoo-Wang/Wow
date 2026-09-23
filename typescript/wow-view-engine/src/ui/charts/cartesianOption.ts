@@ -32,7 +32,7 @@ export interface CartesianContext {
   locale?: string;
   /** Whether the marks grow into place (`useChartMotion`). */
   animate: boolean;
-  /** Whether a press on a bar opens the follow-up menu. */
+  /** Whether a press on a mark opens the follow-up menu. */
   pickable: boolean;
 }
 
@@ -46,6 +46,8 @@ export interface DrawnSeries {
   color: string;
   side: 'left' | 'right';
   configured?: CartesianSeries;
+  /** The mark: the chart's own, or — in a combo — the one the spec names. */
+  kind: 'bar' | 'line' | 'area';
 }
 
 /**
@@ -54,6 +56,21 @@ export interface DrawnSeries {
  * 2026-09-23); a bar is a length to compare, and its width says nothing.
  */
 export const BAR_MAX_WIDTH = 48;
+
+/** A series' mark: a combo takes it from the spec, bars when it says none. */
+function markOf(
+  chart: CartesianData['chart'],
+  configured: CartesianSeries | undefined,
+): DrawnSeries['kind'] {
+  if (chart === 'combo') return configured?.type ?? 'bar';
+  return chart === 'line' || chart === 'area' ? chart : 'bar';
+}
+
+/**
+ * Past this many points a line draws no dot on each: a dot per day of a year
+ * is a smear, and the tooltip names the point under the pointer anyway.
+ */
+export const DOTS_UP_TO = 60;
 
 /** The series as the legend, the tooltip and the marks all name them. */
 export function drawnSeries(
@@ -80,12 +97,14 @@ export function drawnSeries(
       color: colorOf(spec, index, series.label, series.metric),
       side: axisId(configured?.axis),
       configured,
+      kind: markOf(data.chart, configured),
     };
   });
 }
 
 /**
- * A bar chart as the library draws it, from the kernel's shape.
+ * A bar, line, area or combo chart as the library draws it, from the
+ * kernel's shape.
  *
  * What it adds to the data is only display: which axis carries the numbers,
  * how they are written (short on the ticks and over the bars, whole in the
@@ -119,6 +138,15 @@ export function cartesianOption(
       .filter((value): value is number => value !== null),
     ...lines.filter(line => axisId(line.axis) === side).map(line => line.value),
   ];
+  /**
+   * An axis title, a weight above its ticks. Its gap is measured from the
+   * axis line, not from the tick names: under the plot a gap of 16 left
+   * 「事件类型」 two pixels under 「重试成功」, read as a second line of it,
+   * so the axis under the plot keeps 24. Names that slant down past that
+   * push the title below them (`nameMoveOverlap`).
+   */
+  const titleStyle = { color: theme.muted, fontWeight: 500 };
+  const under = (bottom: boolean) => (bottom ? 24 : 16);
   const valueAxis = (side: 'left' | 'right') => {
     const axis = cartesian?.yAxis?.[side];
     const values = valuesOn(side);
@@ -152,8 +180,9 @@ export function cartesianOption(
           ? column(metric)
           : undefined),
       nameLocation: 'middle',
-      nameGap: 12,
-      nameTextStyle: { color: theme.muted, fontWeight: 500 },
+      nameGap: under(horizontal && side === 'left'),
+      nameMoveOverlap: true,
+      nameTextStyle: titleStyle,
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: {
@@ -187,8 +216,9 @@ export function cartesianOption(
     // Titled by the dimension, as the value axis is by its metric.
     name: column(cartesian?.x),
     nameLocation: 'middle',
-    nameGap: 12,
-    nameTextStyle: { color: theme.muted, fontWeight: 500 },
+    nameGap: under(!horizontal),
+    nameMoveOverlap: true,
+    nameTextStyle: titleStyle,
     axisTick: { show: false },
     axisLine: { lineStyle: { color: theme.border } },
     axisLabel: {
@@ -213,6 +243,7 @@ export function cartesianOption(
   }
   const stacked = (entry: DrawnSeries) =>
     (stacks.get(entry.configured?.stack ?? '')?.length ?? 0) > 1;
+  const hasBars = series.some(entry => entry.kind === 'bar');
   const valueLabel = (metric: string, position: string) => ({
     show: true,
     position,
@@ -227,29 +258,62 @@ export function cartesianOption(
   });
   const outside = horizontal ? 'right' : 'top';
 
-  const bars = series.map(entry => ({
-    type: 'bar',
-    id: `s${series.indexOf(entry)}`,
-    name: entry.name,
-    ...axisIndex(entry.side),
-    data: data.points.map(point => point.values[entry.key] ?? null),
-    stack: entry.configured?.stack,
-    barMaxWidth: BAR_MAX_WIDTH,
-    cursor: pickable ? 'pointer' : 'default',
-    itemStyle: {
-      color: theme.resolve(entry.color),
-      borderRadius: horizontal ? [0, 2, 2, 0] : [2, 2, 0, 0],
-    },
-    // Inside its segment when stacked — the total goes over the stack —
-    // over the bar's end otherwise; either way a label that would land on
-    // another is left out rather than drawn over it.
-    ...(labelled
-      ? {
-          label: valueLabel(entry.metric, stacked(entry) ? 'inside' : outside),
-          labelLayout: { hideOverlap: true },
-        }
-      : {}),
-  }));
+  const color = (entry: DrawnSeries) => theme.resolve(entry.color);
+  const marks = series.map((entry, index) => {
+    const common = {
+      id: `s${index}`,
+      name: entry.name,
+      ...axisIndex(entry.side),
+      data: data.points.map(point => point.values[entry.key] ?? null),
+      stack: entry.configured?.stack,
+      cursor: pickable ? 'pointer' : 'default',
+    };
+    if (entry.kind === 'bar')
+      return {
+        ...common,
+        type: 'bar',
+        barMaxWidth: BAR_MAX_WIDTH,
+        itemStyle: {
+          color: color(entry),
+          borderRadius: horizontal ? [0, 2, 2, 0] : [2, 2, 0, 0],
+        },
+        // Inside its segment when stacked — the total goes over the stack —
+        // over the bar's end otherwise; either way a label that would land
+        // on another is left out rather than drawn over it.
+        ...(labelled
+          ? {
+              label: valueLabel(
+                entry.metric,
+                stacked(entry) ? 'inside' : outside,
+              ),
+              labelLayout: { hideOverlap: true },
+            }
+          : {}),
+      };
+    // A line or an area: a dot on each point while there are few enough to
+    // tell apart, a gap where a value is missing rather than a line drawn
+    // through it, and an area filled faintly under its own line.
+    return {
+      ...common,
+      type: 'line',
+      smooth: entry.configured?.smooth === true,
+      symbol: 'circle',
+      symbolSize: 6,
+      showSymbol: data.points.length <= DOTS_UP_TO,
+      connectNulls: false,
+      lineStyle: { color: color(entry), width: 2 },
+      itemStyle: { color: color(entry) },
+      ...(entry.kind === 'area'
+        ? { areaStyle: { color: color(entry), opacity: 0.2 } }
+        : {}),
+      ...(labelled
+        ? {
+            label: valueLabel(entry.metric, outside),
+            labelLayout: { hideOverlap: true },
+          }
+        : {}),
+    };
+  });
 
   /**
    * The total over each stack: a bar of nothing on top of it, labelled with
@@ -258,6 +322,7 @@ export function cartesianOption(
    */
   const totals = labelled
     ? [...stacks.values()]
+        .map(members => members.filter(member => member.kind === 'bar'))
         .filter(members => members.length > 1)
         .map(members => ({
           type: 'bar',
@@ -341,10 +406,11 @@ export function cartesianOption(
     tooltip: {
       ...tooltipFrame(theme),
       trigger: 'axis',
-      axisPointer: {
-        type: 'shadow',
-        shadowStyle: { color: theme.border, opacity: 0.5 },
-      },
+      // A band behind the bars of one category; a rule through the points
+      // of a line, which a band would blur.
+      axisPointer: hasBars
+        ? { type: 'shadow', shadowStyle: { color: theme.border, opacity: 0.5 } }
+        : { type: 'line', lineStyle: { color: theme.muted, width: 1 } },
       formatter: (params: { dataIndex: number }[] | { dataIndex: number }) => {
         const first = Array.isArray(params) ? params[0] : params;
         const point = data.points[first?.dataIndex ?? -1];
@@ -361,7 +427,7 @@ export function cartesianOption(
         );
       },
     },
-    series: [...bars, ...totals, ...references],
+    series: [...marks, ...totals, ...references],
   };
 }
 
