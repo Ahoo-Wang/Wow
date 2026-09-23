@@ -167,6 +167,12 @@ function pagedQueries(source: ViewSource): FilterPagedQuery[] {
     .mock.calls.map(call => call[0] as FilterPagedQuery);
 }
 
+/** The newest paged query the source was asked for. */
+function lastQuery(source: ViewSource): FilterPagedQuery {
+  const queries = pagedQueries(source);
+  return queries[queries.length - 1];
+}
+
 function codes(issues: readonly Issue[]): string[] {
   return issues.map(found => found.code);
 }
@@ -1223,5 +1229,249 @@ describe('DashboardViewRuntime saving', () => {
 
     runtime.setWrite(null);
     expect(runtime.getSnapshot().write).toBeNull();
+  });
+});
+
+const EU_FILTER: FilterTree = {
+  op: 'and',
+  children: [{ field: 'region', operator: 'EQ', value: 'EU' }],
+};
+
+/**
+ * A board whose second panel binds the global field to a field its view does
+ * not have: an error of that panel's own, at `['panels', 1, …]`.
+ */
+function withMisbound(
+  overrides: Partial<DashboardViewConfig> = {},
+): DashboardViewConfig {
+  return boundConfig({
+    panels: [
+      panel({ bindings: [{ globalField: 'region', panelField: 'warehouse' }] }),
+      panel({
+        id: 'misbound',
+        bindings: [{ globalField: 'region', panelField: 'nope' }],
+        layout: { x: 6, y: 0, w: 6, h: 4 },
+      }),
+    ],
+    ...overrides,
+  });
+}
+
+/**
+ * R1: a panel's own error stops that panel and nothing else. It used to stop
+ * the board's apply as a whole — a drag snapped back and the global filter
+ * never reached the panels that could carry it — because `apply` refused on
+ * any error, where `sync` already told the board's errors from a panel's.
+ */
+describe('DashboardViewRuntime a panel in error', () => {
+  it('applies the global filter to the panels that can carry it', async () => {
+    const board = await harness();
+    const runtime = await board.open(withMisbound());
+    expect(codes(runtime.getSnapshot().panels[1].issues)).toContain(
+      'dashboard.binding.panel-unknown',
+    );
+
+    runtime.edit({ filter: EU_FILTER });
+    runtime.apply();
+    await flush();
+    const state = runtime.getSnapshot();
+
+    expect(state.applied.filter).toEqual(EU_FILTER);
+    expect(lastQuery(board.source).filter).toMatchObject({
+      field: 'warehouse',
+      value: 'EU',
+    });
+    // The broken panel stays out, and still says why.
+    expect(state.panels[1].runtime).toBeNull();
+    expect(codes(state.panels[1].issues)).toContain(
+      'dashboard.binding.panel-unknown',
+    );
+  });
+
+  it('applies a layout edit', async () => {
+    const board = await harness();
+    const runtime = await board.open(withMisbound());
+
+    runtime.edit({
+      panels: runtime
+        .getSnapshot()
+        .draft.panels.map(entry =>
+          entry.id === 'orders'
+            ? { ...entry, layout: { x: 0, y: 4, w: 6, h: 4 } }
+            : entry,
+        ),
+    });
+    runtime.apply();
+
+    expect(runtime.getSnapshot().applied.panels[0].layout).toEqual({
+      x: 0,
+      y: 4,
+      w: 6,
+      h: 4,
+    });
+  });
+
+  it('places a panel', async () => {
+    const board = await harness();
+    const runtime = await board.open(withMisbound());
+
+    runtime.place('orders', { x: 0, y: 4, w: 6, h: 4 });
+
+    expect(runtime.getSnapshot().applied.panels[0].layout.y).toBe(4);
+  });
+
+  it('keeps the board timer running for the others', async () => {
+    const board = await harness();
+    await board.open(withMisbound({ refresh: { interval: 60 } }));
+
+    expect(board.clock.timers).toBe(1);
+    board.clock.advance(60_000);
+    await flush();
+
+    expect(pagedQueries(board.source)).toHaveLength(2);
+  });
+
+  it('re-applies what was saved on revert', async () => {
+    const board = await harness();
+    const runtime = await board.open(withMisbound());
+    runtime.edit({ filter: EU_FILTER });
+    runtime.apply();
+
+    runtime.revert();
+    await flush();
+
+    expect(runtime.getSnapshot().applied.filter).toEqual(REGION_FILTER);
+  });
+});
+
+/**
+ * R2 and R6: a placement lands at once, but it is not an apply of the whole
+ * draft, and the panels it lands on move out of its way.
+ */
+describe('DashboardViewRuntime placing', () => {
+  it('applies the placement alone and leaves a pending filter pending', async () => {
+    const board = await harness();
+    const runtime = await board.open();
+    const child = runtime.getSnapshot().panels[0].runtime;
+
+    runtime.edit({ filter: EU_FILTER });
+    runtime.place('orders', { x: 6, y: 1, w: 6, h: 4 });
+    await flush();
+    const state = runtime.getSnapshot();
+
+    expect(state.applied.panels[0].layout).toEqual({ x: 6, y: 1, w: 6, h: 4 });
+    expect(state.draft.panels[0].layout).toEqual({ x: 6, y: 1, w: 6, h: 4 });
+    // Half a draft used to run here: the filter being composed went out with
+    // the nudge.
+    expect(state.applied.filter).toEqual(REGION_FILTER);
+    expect(state.draft.filter).toEqual(EU_FILTER);
+    expect(state.dirty).toBe(true);
+    // Geometry asks nothing of the source, and the child keeps its data.
+    expect(pagedQueries(board.source)).toHaveLength(1);
+    expect(state.panels[0].runtime).toBe(child);
+
+    // The filter still applies when asked, under the new geometry.
+    runtime.apply();
+    await flush();
+    expect(lastQuery(board.source).filter).toMatchObject({
+      value: 'EU',
+    });
+    expect(runtime.getSnapshot().applied.panels[0].layout.x).toBe(6);
+  });
+
+  it('pushes the panels it lands on down, and the ones they land on in turn', async () => {
+    const board = await harness();
+    const runtime = await board.open(
+      dashboardConfig({
+        panels: [
+          panel({ id: 'a', layout: { x: 0, y: 0, w: 6, h: 4 } }),
+          panel({ id: 'b', layout: { x: 0, y: 4, w: 6, h: 4 } }),
+          panel({ id: 'c', layout: { x: 0, y: 8, w: 6, h: 2 } }),
+          panel({ id: 'aside', layout: { x: 6, y: 0, w: 6, h: 4 } }),
+        ],
+      }),
+    );
+
+    runtime.place('c', { x: 0, y: 2, w: 6, h: 2 });
+    const layouts = Object.fromEntries(
+      runtime
+        .getSnapshot()
+        .applied.panels.map(entry => [entry.id, entry.layout]),
+    );
+
+    expect(layouts).toEqual({
+      c: { x: 0, y: 2, w: 6, h: 2 },
+      a: { x: 0, y: 4, w: 6, h: 4 },
+      b: { x: 0, y: 8, w: 6, h: 4 },
+      // Beside the column, so nothing to move out of the way of.
+      aside: { x: 6, y: 0, w: 6, h: 4 },
+    });
+    expect(runtime.getSnapshot().draft.panels).toEqual(
+      runtime.getSnapshot().applied.panels,
+    );
+  });
+
+  it('ignores a placement the grid does not admit, and a panel there is none of', async () => {
+    const board = await harness();
+    const runtime = await board.open();
+    const listener = vi.fn();
+    runtime.subscribe(listener);
+    const before = runtime.getSnapshot();
+
+    runtime.place('orders', { x: 10, y: 0, w: 6, h: 4 });
+    runtime.place('orders', { x: -1, y: 0, w: 6, h: 4 });
+    runtime.place('ghost', { x: 0, y: 0, w: 1, h: 1 });
+    runtime.place('orders', { x: 0, y: 0, w: 6, h: 4 });
+
+    expect(runtime.getSnapshot()).toBe(before);
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('does nothing once disposed', async () => {
+    const board = await harness();
+    const runtime = await board.open();
+    runtime.dispose();
+
+    runtime.place('orders', { x: 6, y: 0, w: 6, h: 4 });
+    runtime.refreshPanel('orders');
+
+    expect(runtime.getSnapshot().applied.panels[0].layout.x).toBe(0);
+    expect(pagedQueries(board.source)).toHaveLength(1);
+  });
+});
+
+/** U4: one panel re-run on its own — the retry a failed panel offers. */
+describe('DashboardViewRuntime refreshing one panel', () => {
+  it('re-runs that panel and leaves the others alone', async () => {
+    const board = await harness();
+    const runtime = await board.open(
+      dashboardConfig({
+        panels: [
+          panel({ id: 'first' }),
+          panel({ id: 'second', layout: { x: 6, y: 0, w: 6, h: 4 } }),
+        ],
+      }),
+    );
+    const second = runtime.panelRuntime('second')?.getSnapshot().result;
+    expect(pagedQueries(board.source)).toHaveLength(2);
+
+    runtime.refreshPanel('first');
+    await flush();
+
+    expect(pagedQueries(board.source)).toHaveLength(3);
+    expect(runtime.panelRuntime('second')?.getSnapshot().result).toBe(second);
+  });
+
+  it('does nothing for a panel with nothing to run', async () => {
+    const board = await harness();
+    const runtime = await board.open(
+      dashboardConfig({ panels: [panel({ instanceId: 'deleted' })] }),
+    );
+
+    runtime.refreshPanel('orders');
+    runtime.refreshPanel('ghost');
+    await flush();
+
+    expect(board.source.paged).not.toHaveBeenCalled();
   });
 });

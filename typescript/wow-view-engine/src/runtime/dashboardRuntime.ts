@@ -19,6 +19,7 @@ import {
   type FieldDefinition,
   type FilterTree,
   type Issue,
+  type PanelLayout,
   type RuntimeLimits,
   type ViewInstance,
   type ViewScope,
@@ -38,6 +39,7 @@ import {
 import {
   isViewPanel,
   mapGlobalFilter,
+  placePanelIn,
   validateDashboard,
 } from '../dashboard/index.js';
 import type { RuntimeEnvironment } from './environment.js';
@@ -48,6 +50,7 @@ import {
   type PanelRuntimeFactory,
 } from './dashboard/children.js';
 import {
+  blocksBoard,
   panelIssues,
   panelOf,
   panelsOf,
@@ -89,6 +92,16 @@ export interface DashboardRuntime extends ViewRuntime<DashboardViewConfig> {
   ready(): Promise<void>;
   /** The child runtime of one panel, for a host that drives a panel itself. */
   panelRuntime(panelId: string): DataViewRuntime | null;
+  /**
+   * Puts one panel at `layout` and applies that alone: the panels it now
+   * covers are pushed down out of its way (`placePanel`), and every other
+   * pending edit — a global filter not yet applied, say — stays pending.
+   * A layout the grid does not admit, or a panel id there is none of, is
+   * ignored.
+   */
+  place(panelId: string, layout: PanelLayout): void;
+  /** Re-runs one panel on what it has applied — a retry after it failed. */
+  refreshPanel(panelId: string): void;
 }
 
 export interface DashboardRuntimeOptions {
@@ -198,6 +211,8 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
       environment: options.environment,
       refusedScope,
       admit: draft => this.admit(draft, this.state.scope),
+      // A panel's own error stops that panel, not the board's timer.
+      blocking: blocksBoard,
       apply: () => this.apply(),
       refresh: () => this.refresh(),
       // One clock for the whole board, so a request in flight is any panel's.
@@ -284,9 +299,16 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     this.load(draft);
   }
 
-  /** Promotes the draft and brings the panels in line with it. */
+  /**
+   * Promotes the draft and brings the panels in line with it.
+   *
+   * Only an error about the board itself refuses it (`blocksBoard`). A
+   * panel in error is promoted with the rest and stays out on its own —
+   * `sync` runs nothing for it and its issues say why — so one broken panel
+   * cannot hold the global filter back from all the others.
+   */
   apply(): void {
-    if (this.disposed || hasError(this.state.issues)) return;
+    if (this.disposed || blocksBoard(this.state.issues)) return;
     // Promotion and the panels that follow from it commit together, so a
     // subscriber is notified once and never sees the two disagree.
     this.sync({ applied: this.state.draft });
@@ -306,6 +328,43 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
   refresh(): void {
     if (this.disposed) return;
     this.children.refresh();
+  }
+
+  /**
+   * Places one panel and applies the placement alone.
+   *
+   * A placement is a gesture that lands at once, like sorting a table, but
+   * it is not an apply of the whole draft: going through `edit` + `apply`
+   * would also run whatever else was waiting — a global filter the user was
+   * still composing ran the moment they nudged a panel. So the layout is
+   * written into both the draft and the applied config, the panels it
+   * pushes with it, and nothing else in either moves.
+   *
+   * No panel re-queries for it: a child is kept while its reference and its
+   * scope are unchanged, and neither is.
+   */
+  place(panelId: string, layout: PanelLayout): void {
+    if (this.disposed) return;
+    const { draft, applied } = this.state;
+    const nextDraft = placePanelIn(draft, panelId, layout);
+    const nextApplied = placePanelIn(applied, panelId, layout);
+    if (nextDraft === draft && nextApplied === applied) return;
+    this.sync({
+      draft: nextDraft,
+      applied: nextApplied,
+      issues: this.admit(nextDraft, this.state.scope),
+      dirty: this.store.isDirty(nextDraft, this.state.saved),
+    });
+  }
+
+  /**
+   * Re-runs one panel — the retry a panel whose query failed offers. It is
+   * the board's refresh narrowed to one child, so a panel that cannot run
+   * has nothing to re-run and this does nothing for it.
+   */
+  refreshPanel(panelId: string): void {
+    if (this.disposed) return;
+    this.children.runtimeOf(panelId)?.refresh();
   }
 
   /**
@@ -472,7 +531,7 @@ export class DashboardViewRuntime implements ManagedViewRuntime<DashboardViewCon
     // and a view waiting to be fixed must not start querying behind that.
     // "Too many panels" sits at `['panels']` and belongs to no one panel, so
     // it counts against the whole rather than slipping between the two.
-    const blocked = hasError(issues.filter(found => panelOf(found) === null));
+    const blocked = blocksBoard(issues);
 
     panelsOf(applied).forEach((panel, index) => {
       // Admission reports an entry that is no panel at its index; there is

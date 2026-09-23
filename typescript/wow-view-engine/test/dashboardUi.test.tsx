@@ -23,6 +23,7 @@ import {
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  arrangeLayout,
   MemoryViewStore,
   ViewEngine,
   type DashboardRuntime,
@@ -33,7 +34,6 @@ import {
 } from '../src/index.js';
 import { useDashboard, type DashboardController } from '../src/react/index.js';
 import {
-  arrangeLayout,
   DashboardGrid,
   PanelResizeHandle,
   ViewSurface,
@@ -129,13 +129,13 @@ describe('useDashboard', () => {
     expect(controller().issues).toEqual([]);
   });
 
-  it('places panels with one edit and one apply', async () => {
+  it('places a panel and applies the placement', async () => {
     const { controller, runtime } = await openDashboard(
       dashboardConfig({ panels: [panel()] }),
     );
 
     act(() => {
-      controller().place([{ id: 'orders', x: 6, y: 2, w: 4, h: 3 }]);
+      controller().place('orders', { x: 6, y: 2, w: 4, h: 3 });
     });
 
     expect(controller().panels[0].layout).toEqual({ x: 6, y: 2, w: 4, h: 3 });
@@ -148,8 +148,8 @@ describe('useDashboard', () => {
     );
 
     act(() => {
-      controller().place([{ id: 'orders', x: 0, y: 0, w: 6, h: 4 }]);
-      controller().place([{ id: 'other', x: 3, y: 3, w: 3, h: 3 }]);
+      controller().place('orders', { x: 0, y: 0, w: 6, h: 4 });
+      controller().place('other', { x: 3, y: 3, w: 3, h: 3 });
     });
 
     expect(runtime.getSnapshot().dirty).toBe(false);
@@ -176,8 +176,9 @@ describe('useDashboard', () => {
     expect(view.result.current.panels).toEqual([]);
     expect(view.result.current.resolving).toBe(false);
     expect(view.result.current.dirty).toBe(false);
-    view.result.current.place([{ id: 'x', x: 0, y: 0, w: 1, h: 1 }]);
+    view.result.current.place('x', { x: 0, y: 0, w: 1, h: 1 });
     view.result.current.refresh();
+    view.result.current.refreshPanel('x');
   });
 });
 

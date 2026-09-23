@@ -58,6 +58,24 @@ export function panelOf(found: Issue): number | null {
   return head === 'panels' && typeof index === 'number' ? index : null;
 }
 
+/**
+ * Whether the issues hold an error about the dashboard itself — one no
+ * panel owns, "too many panels" at `['panels']` included.
+ *
+ * Only such an error stops the board: its apply, its timer and every panel
+ * with it. A panel's own error — a reference it may not use, a binding that
+ * does not hold, a link it may not show — stops that panel and nothing else,
+ * so a drag still lands and the global filter still reaches the panels that
+ * can carry it. One broken panel must not decide what the others show, and
+ * a board a user cannot rearrange until some other panel is fixed is one
+ * they cannot use.
+ */
+export function blocksBoard(issues: readonly Issue[]): boolean {
+  return issues.some(
+    found => found.severity === 'error' && panelOf(found) === null,
+  );
+}
+
 /** What a thrown value says for itself; not everything thrown is an `Error`. */
 export function reasonOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);

@@ -577,7 +577,17 @@ export const savedDashboard: ViewInstance = {
  * meaning something other than what it says.
  */
 export type SourceBehaviour =
-  'data' | 'empty' | 'slow' | 'failing' | 'no-aggregate';
+  'data' | 'empty' | 'slow' | 'failing' | 'no-aggregate' | 'outage';
+
+/**
+ * The switch behind the `outage` behaviour: while `down`, every query fails
+ * as `failing` does, and it answers again once a play turns it back. It is
+ * how a play shows a view that had data, lost its backend and got it back —
+ * a refresh that fails over rows that are still good, and a retry. Module
+ * state, like `aggregateCalls`, so a play reaches the source its story
+ * built; a play that turns it on turns it off before it ends.
+ */
+export const outage = { down: false };
 
 /**
  * The rows above behind a `ViewSource`, or a backend that refuses to answer.
@@ -674,7 +684,7 @@ function behavingSource(
 ): ViewSource {
   const source = rowSource(behaviour === 'empty' ? [] : rows);
   const answer = async <T>(query: () => Promise<T>): Promise<T> => {
-    if (behaviour === 'failing')
+    if (behaviour === 'failing' || (behaviour === 'outage' && outage.down))
       throw new ViewStoreError('UNAVAILABLE', '仓储服务暂时不可用');
     // Long enough to look at, short enough that nobody waits for it.
     if (behaviour === 'slow') await delay(1_500);

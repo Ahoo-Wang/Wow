@@ -14,7 +14,6 @@
 import { useState, type Ref } from 'react';
 import { cn } from 'cn';
 import GridLayout, {
-  noCompactor,
   useContainerWidth,
   type Layout,
   type ResizeHandleAxis,
@@ -26,6 +25,7 @@ import {
   UnplugIcon,
 } from 'lucide-react';
 import type { AnalysisView } from '../analysis/index.js';
+import { arrangeLayout, type ArrangeStep } from '../dashboard/index.js';
 import { DASHBOARD_GRID_COLUMNS, type Issue } from '../model/index.js';
 import type {
   DashboardController,
@@ -44,20 +44,21 @@ import {
 import { AnalysisChart } from './AnalysisChart.js';
 import { AnalysisTable } from './AnalysisTable.js';
 import {
-  arrangeLayout,
   PanelArrangeMenu,
   PanelGrip,
   PanelResizeHandle,
-  type ArrangeStep,
 } from './DashboardArrange.js';
 import { ContentPanel } from './DashboardPanels.js';
+import { useGridPlacement } from './gridPlacement.js';
 import { RenderBoundary, type RenderFailureHandler } from './RenderBoundary.js';
+import { QueryStrip } from './StatusStrip.js';
 import { IconTooltip } from './IconButton.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { Button } from './components/button.js';
 import { Card, CardContent, CardHeader, CardTitle } from './components/card.js';
 import {
   Empty,
+  EmptyContent,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
@@ -80,9 +81,11 @@ export interface DashboardGridProps {
 /**
  * The panels, placed.
  *
- * The grid library owns geometry and nothing else: a move or a resize comes
- * back as a placement, the controller turns it into an edit and an apply, and
- * everything inside a panel is the same component a full view would use.
+ * The grid library draws the gesture and nothing else: where a moved or
+ * resized panel lands, and what it pushes out of the way, is the kernel's
+ * (`useGridPlacement`), the drop reaches `dashboard.place`, which applies that
+ * placement alone, and everything inside a panel is the same component a
+ * full view would use.
  *
  * Only a gesture writes geometry back. The library also reports a layout it
  * computed itself — on mount, and whenever the props change — and applying
@@ -110,17 +113,15 @@ export function DashboardGrid({
   // so the new place is read out. It starts empty, so opening a dashboard
   // announces nothing.
   const [arranged, setArranged] = useState('');
-  const placed = (next: Layout) => {
-    if (editable) dashboard.place(next.map(toPlacement));
-  };
+  const placement = useGridPlacement(dashboard.place);
 
-  /** One keyboard command: the same edit and apply a gesture lands. */
+  /** One keyboard command: the same placement a gesture lands. */
   const arrange = (panelId: string, step: ArrangeStep) => {
     const panel = dashboard.panels.find(found => found.id === panelId);
     if (!panel) return;
     const next = arrangeLayout(panel.layout, step, dashboard.columns);
     if (!next) return;
-    dashboard.place([{ id: panelId, ...next }]);
+    dashboard.place(panelId, next);
     setArranged(
       messages.label('label.panel.placed', {
         title: panel.title ?? panel.id,
@@ -181,9 +182,11 @@ export function DashboardGrid({
               />
             ),
         }}
-        compactor={noCompactor}
-        onDragStop={placed}
-        onResizeStop={placed}
+        compactor={placement.compactor}
+        onDragStart={placement.onDragStart}
+        onDragStop={placement.onDragStop}
+        onResizeStart={placement.onResizeStart}
+        onResizeStop={placement.onResizeStop}
       >
         {dashboard.panels.map(panel => (
           // The id is stamped on the item because the resize corner is
@@ -195,6 +198,7 @@ export function DashboardGrid({
               editable={editable}
               columns={dashboard.columns}
               onArrange={step => arrange(panel.id, step)}
+              onRetry={() => dashboard.refreshPanel(panel.id)}
               onRenderFailure={onRenderFailure}
             />
           </div>
@@ -210,10 +214,6 @@ export function DashboardGrid({
   );
 }
 
-function toPlacement(item: Layout[number]) {
-  return { id: item.i, x: item.x, y: item.y, w: item.w, h: item.h };
-}
-
 export interface DashboardPanelProps {
   panel: DashboardPanelView;
   editable?: boolean;
@@ -221,6 +221,11 @@ export interface DashboardPanelProps {
   columns?: number;
   /** One arrange command, when the layout may be edited. */
   onArrange?: (step: ArrangeStep) => void;
+  /**
+   * Re-runs this panel alone. Given, a panel whose query failed offers it
+   * as its retry (`DashboardController.refreshPanel`).
+   */
+  onRetry?: () => void;
   onRenderFailure?: RenderFailureHandler;
 }
 
@@ -233,6 +238,7 @@ export function DashboardPanel({
   editable,
   columns = DASHBOARD_GRID_COLUMNS,
   onArrange,
+  onRetry,
   onRenderFailure,
 }: DashboardPanelProps) {
   const messages = useViewMessages();
@@ -317,10 +323,10 @@ export function DashboardPanel({
         /*
           The body scrolls, and a region that scrolls has to be reachable by
           keyboard. A record panel gets that for free from the controls in its
-          rows; a chart panel has nothing focusable in it at all — the drawing
-          is one `role="img"` now, not the tab stop recharts used to put on
-          its `<svg>` — so the scroll container itself takes the focus, named
-          by the panel it belongs to.
+          rows; a chart panel has nothing focusable in it at all — the chart
+          is one `role="img"` with nothing inside it that takes focus — so the
+          scroll container itself takes the focus, named by the panel it
+          belongs to.
         */
         role="group"
         tabIndex={0}
@@ -335,14 +341,20 @@ export function DashboardPanel({
           resetKeys={[panel.runtime?.id ?? null]}
           onFailure={onRenderFailure}
         >
-          <PanelBody panel={panel} />
+          <PanelBody panel={panel} onRetry={onRetry} />
         </RenderBoundary>
       </CardContent>
     </Card>
   );
 }
 
-function PanelBody({ panel }: { panel: DashboardPanelView }) {
+function PanelBody({
+  panel,
+  onRetry,
+}: {
+  panel: DashboardPanelView;
+  onRetry?: () => void;
+}) {
   // A panel the dashboard could not open, or one admission refused, says so
   // and leaves the rest alone. Content panels come through here too: a link
   // whose scheme was rejected must not reach the document because the rest of
@@ -351,9 +363,9 @@ function PanelBody({ panel }: { panel: DashboardPanelView }) {
   if (panel.panel.kind !== 'view') return <ContentPanel panel={panel.panel} />;
   if (!panel.runtime) return <Unavailable issue={panel.issues[0]} />;
   return isRecordRuntime(panel.runtime) ? (
-    <RecordPanel runtime={panel.runtime} />
+    <RecordPanel runtime={panel.runtime} onRetry={onRetry} />
   ) : (
-    <AnalysisPanel runtime={panel.runtime} />
+    <AnalysisPanel runtime={panel.runtime} onRetry={onRetry} />
   );
 }
 
@@ -403,48 +415,90 @@ function Unavailable({ issue }: { issue: Issue | undefined }) {
  * column before it — and the pin cap (D17-4) keeps it, one column being
  * under half the port. The panel is the frame here; the key, if shown,
  * stays held on the left, where it covers nothing at rest.
+ *
+ * A refresh that fails over rows that are still good says so above them
+ * rather than instead of them, the way the workbenches and `EmbeddedView`
+ * do (`QueryStrip` with `stale`): a panel that emptied itself on a dropped
+ * connection would lose what its reader was reading for no reason they
+ * caused. Only a failure with nothing behind it takes the body.
  */
-function RecordPanel({ runtime }: { runtime: RecordViewRuntime }) {
+function RecordPanel({
+  runtime,
+  onRetry,
+}: {
+  runtime: RecordViewRuntime;
+  onRetry?: () => void;
+}) {
   const table = useRecordTable(runtime);
-  if (table.status === 'error')
-    return <PanelFailed error={table.error ?? undefined} />;
+  const failed = table.status === 'error';
+  if (failed && !table.hasResult)
+    return <PanelFailed error={table.error ?? undefined} onRetry={onRetry} />;
   if (table.loading && table.rows.length === 0)
     return <Skeleton className="h-24 w-full" />;
   return (
-    <RecordTable
-      table={table}
-      selectable={false}
-      scrolls={false}
-      holdEnd={false}
-    />
+    <>
+      <QueryStrip error={failed ? table.error : null} stale onRetry={onRetry} />
+      <RecordTable
+        table={table}
+        selectable={false}
+        scrolls={false}
+        holdEnd={false}
+      />
+    </>
   );
 }
 
-function AnalysisPanel({ runtime }: { runtime: DataViewRuntime }) {
+/** The chart or the table an analysis panel shows; stale as a record panel is. */
+function AnalysisPanel({
+  runtime,
+  onRetry,
+}: {
+  runtime: DataViewRuntime;
+  onRetry?: () => void;
+}) {
   const state = useViewRuntime(runtime);
   const analysis = useAnalysisEditor(runtime);
   const data = state?.result?.data;
   const view: AnalysisView | null =
     data?.kind === 'analysis' ? data.view : null;
+  const failed = state?.query.status === 'error';
 
-  if (state?.query.status === 'error')
-    return <PanelFailed error={state.query.error} />;
+  if (failed && !view)
+    return <PanelFailed error={state.query.error} onRetry={onRetry} />;
   if (!view) return <Skeleton className="h-24 w-full" />;
-  return view.chart ? (
+  const body = view.chart ? (
     <AnalysisChart
       data={view.chart}
       spec={analysis.chart}
       columns={view.schema ?? view.columns}
-      className="h-full"
+      // Under the stale line the chart takes what is left of the panel.
+      className={failed ? 'min-h-0 flex-1' : 'h-full'}
       cutShort={view.truncated || view.atLimit !== undefined}
     />
   ) : (
     <AnalysisTable view={view} />
   );
+  if (!failed) return body;
+  return (
+    <div className="flex h-full flex-col gap-2">
+      <QueryStrip error={state.query.error} stale onRetry={onRetry} />
+      {body}
+    </div>
+  );
 }
 
-/** One panel's failed query: reported here, while the others keep running. */
-function PanelFailed({ error }: { error: Issue | undefined }) {
+/**
+ * One panel's failed query with no earlier result behind it: reported here,
+ * while the others keep running, with the way to run this one again — the
+ * board's refresh would re-run every panel to retry one.
+ */
+function PanelFailed({
+  error,
+  onRetry,
+}: {
+  error: Issue | undefined;
+  onRetry?: () => void;
+}) {
   const messages = useViewMessages();
   return (
     <Empty data-slot="panel-failed" className="p-4">
@@ -457,6 +511,13 @@ function PanelFailed({ error }: { error: Issue | undefined }) {
           {error ? messages.issue(error) : undefined}
         </EmptyDescription>
       </EmptyHeader>
+      {onRetry && (
+        <EmptyContent>
+          <Button variant="outline" size="sm" onClick={onRetry}>
+            {messages.label('label.query.retry')}
+          </Button>
+        </EmptyContent>
+      )}
     </Empty>
   );
 }

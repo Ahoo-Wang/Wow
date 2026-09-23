@@ -21,6 +21,7 @@
  * global filter maps onto every one of them without losing its meaning.
  */
 export * from './defaults.js';
+export * from './layout.js';
 export * from './merge.js';
 export * from './panels.js';
 export * from './validate.js';

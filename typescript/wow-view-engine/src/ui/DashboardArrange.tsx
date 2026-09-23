@@ -24,6 +24,7 @@ import {
   GripVerticalIcon,
   MoveIcon,
 } from 'lucide-react';
+import { arrangeLayout, type ArrangeStep } from '../dashboard/index.js';
 import type { PanelLayout } from '../model/index.js';
 import { IconButton, IconTooltip } from './IconButton.js';
 import type { MessageKey } from './messages.js';
@@ -39,7 +40,7 @@ import {
 } from './components/dropdown-menu.js';
 import { DropdownMenuContent } from './popups.js';
 
-/**
+/*
  * Placing a panel without a pointer.
  *
  * `react-grid-layout` 2.2 has no keyboard sensor — the drag is
@@ -48,59 +49,15 @@ import { DropdownMenuContent } from './popups.js';
  * equivalent is not a setting to turn on; it is a set of commands of our
  * own, over the one thing a gesture produces: a new `PanelLayout`.
  *
- * One step is one grid cell, which is what a drag lands on anyway — the
- * library snaps to the column and the row — so the keyboard and the pointer
- * write the same kind of value and `dashboard.place` cannot tell them apart.
+ * What a command lands on is the kernel's (`arrangeLayout`, and `placePanel`
+ * for the panels it then covers), the same rules a pointer's drop goes
+ * through, so the keyboard and the pointer cannot place differently.
  *
  * Both handles answer the arrow keys for what that handle does by pointer:
  * the grip moves, the south-east corner resizes. The menu says the same
  * eight commands in words, because a key that is only discoverable by
  * pressing it is not discoverable.
  */
-export type ArrangeStep =
-  | 'left'
-  | 'right'
-  | 'up'
-  | 'down'
-  | 'wider'
-  | 'narrower'
-  | 'taller'
-  | 'shorter';
-
-/**
- * The layout one step lands on, or `null` when the grid has no room for it.
- *
- * The bounds are the kernel's, so a command can never produce a layout
- * `validateDashboard` would refuse: `x` and `y` are non-negative, `w` and
- * `h` are at least one cell, and `x + w` stays inside the grid. Down and
- * taller have no far edge — a dashboard grows downwards, and the kernel
- * puts no ceiling on `y` or `h`.
- */
-export function arrangeLayout(
-  layout: PanelLayout,
-  step: ArrangeStep,
-  columns: number,
-): PanelLayout | null {
-  const { x, y, w, h } = layout;
-  switch (step) {
-    case 'left':
-      return x > 0 ? { ...layout, x: x - 1 } : null;
-    case 'right':
-      return x + w < columns ? { ...layout, x: x + 1 } : null;
-    case 'up':
-      return y > 0 ? { ...layout, y: y - 1 } : null;
-    case 'down':
-      return { ...layout, y: y + 1 };
-    case 'wider':
-      return x + w < columns ? { ...layout, w: w + 1 } : null;
-    case 'narrower':
-      return w > 1 ? { ...layout, w: w - 1 } : null;
-    case 'taller':
-      return { ...layout, h: h + 1 };
-    case 'shorter':
-      return h > 1 ? { ...layout, h: h - 1 } : null;
-  }
-}
 
 /** What each arrow key means on the grip, and on the resize corner. */
 const MOVE_KEYS: Readonly<Record<string, ArrangeStep>> = {

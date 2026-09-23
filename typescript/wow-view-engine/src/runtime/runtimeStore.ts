@@ -65,6 +65,14 @@ export interface RuntimeStoreHost<S extends ViewRuntimeState<ViewConfig>> {
    * one line the two `revert`s used to differ by.
    */
   restored?(draft: S['draft']): void;
+  /**
+   * Whether these issues stop the runtime from applying, and so hold its
+   * timer. Any error does, for a data view — its config is one query. A
+   * dashboard answers only for errors about the board itself: a panel's own
+   * error stops that panel, and the board keeps applying and refreshing the
+   * rest (`blocksBoard`).
+   */
+  blocking?(issues: readonly Issue[]): boolean;
 }
 
 export interface RuntimeStoreOptions<
@@ -212,7 +220,7 @@ export class RuntimeStore<S extends ViewRuntimeState<ViewConfig>> {
       dirty: this.isDirty(draft, saved),
     } as Partial<S>);
     this.host.restored?.(draft);
-    if (!dequal(ran, draft) && !hasError(issues)) this.host.apply();
+    if (!dequal(ran, draft) && !this.blocking(issues)) this.host.apply();
   }
 
   /**
@@ -257,7 +265,7 @@ export class RuntimeStore<S extends ViewRuntimeState<ViewConfig>> {
     const held =
       this.stopped ||
       this.current.editing ||
-      hasError(this.current.issues) ||
+      this.blocking(this.current.issues) ||
       !this.environment.visibility.isVisible() ||
       this.host.holding();
     this.setDueAt(
@@ -265,6 +273,11 @@ export class RuntimeStore<S extends ViewRuntimeState<ViewConfig>> {
         refreshDelayOf(refreshIntervalOf(this.current.applied), held),
       ),
     );
+  }
+
+  /** See `RuntimeStoreHost.blocking`; any error, unless the runtime says otherwise. */
+  private blocking(issues: readonly Issue[]): boolean {
+    return this.host.blocking ? this.host.blocking(issues) : hasError(issues);
   }
 
   private setDueAt(at: number | null): void {

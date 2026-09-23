@@ -23,6 +23,7 @@ import displayMeta, {
 } from './Dashboard.stories.js';
 import { amountOf, findDataTable, readColumn, readTotal } from './readTable.js';
 import { drawnMarks } from './chartDom.js';
+import { outage } from './fixtures.js';
 
 const meta = {
   ...displayMeta,
@@ -153,5 +154,92 @@ export const EmptyDashboard: Story = {
     await expect(
       await within(canvasElement).findByText(zhCN['label.dashboard.empty']),
     ).toBeVisible();
+  },
+};
+
+/**
+ * A board whose backend drops out after it has answered, and comes back.
+ *
+ * jsdom holds the rules (`test/dashboardPlacement.test.tsx`); this is the
+ * same in a real browser, with both data panels and the real title bar. The
+ * refresh that fails keeps each panel's last answer on screen under a line
+ * saying it is the last one — the words the workbenches and the embed use —
+ * and that line's 「重试」 re-runs that panel alone.
+ */
+export const RefreshFailedKeepsData: Story = {
+  ...DisplayAllPanels,
+  args: { ...DisplayAllPanels.args, behaviour: 'outage' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const stale = new RegExp(
+      `${zhCN['label.query.stale'].replace('{error} · ', '')}$`,
+    );
+    outage.down = false;
+    try {
+      const table = await findDataTable(canvasElement);
+      await waitFor(() => expect(readColumn(table, '订单号')).toHaveLength(4));
+      await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
+
+      outage.down = true;
+      await userEvent.click(
+        canvas.getByRole('button', { name: zhCN['label.toolbar.refresh'] }),
+      );
+      // Both panels say the answer is the last one, and still show it.
+      await waitFor(() => expect(canvas.getAllByText(stale)).toHaveLength(2));
+      await expect(readColumn(table, '订单号')).toHaveLength(4);
+      await expect(bars(canvasElement)).toHaveLength(4);
+      await expect(canvas.queryByText(zhCN['label.query.failed'])).toBeNull();
+
+      // Back up: one panel's retry re-runs that panel, and only its line goes.
+      outage.down = false;
+      const [first] = canvas.getAllByRole('button', {
+        name: zhCN['label.query.retry'],
+      });
+      await userEvent.click(first);
+      await waitFor(() => expect(canvas.getAllByText(stale)).toHaveLength(1));
+      await expect(readColumn(table, '订单号')).toHaveLength(4);
+    } finally {
+      outage.down = false;
+    }
+  },
+};
+
+/**
+ * A keyboard step into a neighbour pushes the neighbour down, in a real
+ * layout: stepping 值班手册 up one row puts it over 待出库明细's last row,
+ * and 待出库明细 moves below it rather than being drawn underneath.
+ */
+export const KeyboardStepPushes: Story = {
+  ...DisplayEditableLayout,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const grip = (title: string) =>
+      canvas.getByLabelText(zhCN['label.panel.move'].replace('{title}', title));
+    const item = (title: string) =>
+      grip(title).closest('.react-grid-item') as HTMLElement;
+    const runbook = item('值班手册');
+    const pending = item('待出库明细');
+    const overlap = () => {
+      const a = runbook.getBoundingClientRect();
+      const b = pending.getBoundingClientRect();
+      return (
+        a.left < b.right &&
+        b.left < a.right &&
+        a.top < b.bottom &&
+        b.top < a.bottom
+      );
+    };
+    await expect(overlap()).toBe(false);
+
+    grip('值班手册').focus();
+    await userEvent.keyboard('{ArrowUp}');
+
+    // Once the grid has slid them there: the runbook above, nothing overlaid.
+    await waitFor(() =>
+      expect(runbook.getBoundingClientRect().top).toBeLessThan(
+        pending.getBoundingClientRect().top,
+      ),
+    );
+    await waitFor(() => expect(overlap()).toBe(false));
   },
 };

@@ -38,11 +38,6 @@ export interface DashboardPanelView {
   broken: boolean;
 }
 
-/** A new position and size for one panel, as a grid reports it. */
-export interface PanelPlacement extends PanelLayout {
-  id: string;
-}
-
 export interface DashboardController {
   panels: DashboardPanelView[];
   /** Columns a layout is placed in; the kernel admits against the same number. */
@@ -62,10 +57,17 @@ export interface DashboardController {
    */
   loading: boolean;
   dirty: boolean;
-  /** Moves and resizes panels: an edit and an apply, like sorting a table. */
-  place(placements: readonly PanelPlacement[]): void;
+  /**
+   * Moves or resizes one panel, and applies that alone, like sorting a
+   * table: the panels it lands on are pushed down out of its way, and a
+   * global filter still being edited stays unapplied
+   * (`DashboardRuntime.place`).
+   */
+  place(panelId: string, layout: PanelLayout): void;
   /** Re-runs every panel at once. */
   refresh(): void;
+  /** Re-runs one panel: the retry on a panel whose query failed. */
+  refreshPanel(panelId: string): void;
 }
 
 const EMPTY_PANELS: DashboardPanelState[] = [];
@@ -76,7 +78,7 @@ const EMPTY_PANELS: DashboardPanelState[] = [];
  * It reports the applied panels rather than the draft's, because a panel is
  * a running query and not a form field: what the grid shows is what is
  * executing. Geometry is the exception the design allows — moving a panel
- * edits and applies in one gesture, so a drag lands immediately.
+ * applies that move alone in one gesture, so a drag lands immediately.
  */
 export function useDashboard(
   runtime: DashboardRuntime | null,
@@ -112,24 +114,6 @@ export function useDashboard(
   );
   const loading = useSyncExternalStore(watch, anyLoading, anyLoading);
 
-  const place = useCallback(
-    (placements: readonly PanelPlacement[]) => {
-      if (!runtime) return;
-      const byId = new Map(placements.map(entry => [entry.id, entry]));
-      const current = runtime.getSnapshot().draft.panels;
-      const next = current.map(panel => {
-        const placement = byId.get(panel.id);
-        if (!placement || sameLayout(panel.layout, placement)) return panel;
-        const { x, y, w, h } = placement;
-        return { ...panel, layout: { x, y, w, h } };
-      });
-      if (next.every((panel, index) => panel === current[index])) return;
-      runtime.edit({ panels: next });
-      runtime.apply();
-    },
-    [runtime],
-  );
-
   return {
     panels: useMemo(() => panels.map(toView), [panels]),
     columns: DASHBOARD_GRID_COLUMNS,
@@ -138,8 +122,15 @@ export function useDashboard(
     resolving: state?.resolving ?? false,
     loading,
     dirty: state?.dirty ?? false,
-    place,
+    place: useCallback(
+      (panelId: string, layout: PanelLayout) => runtime?.place(panelId, layout),
+      [runtime],
+    ),
     refresh: useCallback(() => runtime?.refresh(), [runtime]),
+    refreshPanel: useCallback(
+      (panelId: string) => runtime?.refreshPanel(panelId),
+      [runtime],
+    ),
   };
 }
 
@@ -159,13 +150,4 @@ function toView(panel: DashboardPanelState): DashboardPanelView {
       (panel.runtime === null && panel.panel.kind === 'view') ||
       panel.issues.some(found => found.severity === 'error'),
   };
-}
-
-function sameLayout(layout: PanelLayout, next: PanelLayout): boolean {
-  return (
-    layout.x === next.x &&
-    layout.y === next.y &&
-    layout.w === next.w &&
-    layout.h === next.h
-  );
 }

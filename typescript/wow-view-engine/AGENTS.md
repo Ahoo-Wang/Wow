@@ -180,6 +180,7 @@ src/
     index.ts                  — The analysis kernel
   dashboard/                  — Dashboard kernel — imports model and filter
     defaults.ts               — emptyDashboardConfig
+    layout.ts                 — Where panels may go: `fitsGrid`, `arrangeLayout` (one keyboard step), `placePanel` (pushes covered panels down)
     merge.ts                  — mergeGlobalFilter onto one panel's fields
     panels.ts                 — Which panel a stored one is: `isViewPanel`, `isContentPanel`, and `isSafeContentUrl` for what a content panel points at
     validate.ts               — validateDashboard — panels, bindings, content
@@ -220,7 +221,7 @@ src/
     index.ts                  — Transient state: what is open, what is in flight, what came back
     dashboard/                — What the dashboard runtime is made of
       children.ts             — PanelChildren: one child runtime per data panel
-      panels.ts               — Panel helpers: reading, addressing, comparing
+      panels.ts               — Panel helpers: reading, addressing, comparing; `blocksBoard`, the errors that stop the whole board
       references.ts           — PanelReferences: loading what panels point at
   store/                      — Persistence port — imports model only
     MemoryViewStore.ts        — In-memory implementation for examples and tests
@@ -323,6 +324,7 @@ src/
     dragWording.ts            — `dragWording`: one list's three drag sentences read out of the catalogue under that list's keys; each `drag.ts` names only its keys
     dragDrop.ts               — `dropped()`: what makes a finished drag a drop at all, before any list adds its own rule
     features.ts               — `WorkbenchFeatures`: which of the workbench's own controls exist (D18 XI)
+    gridPlacement.ts          — `useGridPlacement`: a pointer drag or resize placed by the kernel's `placePanel`, preview and drop alike
     kinds.ts                  — The icon each kind and audience wears, shared by list and header
     layout.ts                 — `TEXT_UI`, `SPACE`: the one small type size and the spacing ruler
     messages.ts               — Wording, by key

@@ -194,7 +194,11 @@ function validateIdentity(
   return [];
 }
 
-function validateLayout(
+/**
+ * What is wrong with one panel's geometry. `fitsGrid` asks the same thing,
+ * so a placement the runtime makes is never one this reports.
+ */
+export function validateLayout(
   layout: PanelLayout | undefined,
   path: IssuePath,
   columns: number,

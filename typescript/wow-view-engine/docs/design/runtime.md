@@ -1,6 +1,6 @@
 # 运行时
 
-一个打开的视图对应一个 `ViewRuntime`，它是带 `subscribe / getSnapshot` 的小 store。**store 那一半只有一份实现**（`runtime/runtimeStore.ts` 的 `RuntimeStore`）：它持有 `draft`／`applied`／`result` 这三态所在的那份快照、订阅者、自动刷新计时器的账本，以及「draft 与已保存的那份是否还一样」这一条 `dirty` 判据——数据视图与仪表盘各持一只，两个 runtime 只留各自「是哪种视图」的部分（一次查询，还是 N 块面板）。两处真正不同的地方做成 store 的显式钩子而不是拷贝：`admit`（这个类把配置交给哪一套准入）、`apply`（提升在这里意味着什么）、`holding`（暂停理由里要问 runtime 的那几条：在途的是谁的请求、有没有选中的行）、`release`（dispose 时还要放掉什么）与 `restored`（`revert` 之后仪表盘还要 `load` 一次引用）。订阅与通知那一半再往下由 `runtime/listeners.ts` 的 `listenerSet` 出：`RuntimeStore`、列表变化通知与 React 那边的倒数读数共用一份，两条规则（提交状态之后再通知、遍历监听者集合的副本，好让监听者在自己那一下里退订）因此只写一处。（store 自身的那几条见 test/runtimeStore.test.ts，两个 runtime 各自的规则仍在 test/runtime.test.ts 与 test/dashboardRuntime.test.ts）
+一个打开的视图对应一个 `ViewRuntime`，它是带 `subscribe / getSnapshot` 的小 store。**store 那一半只有一份实现**（`runtime/runtimeStore.ts` 的 `RuntimeStore`）：它持有 `draft`／`applied`／`result` 这三态所在的那份快照、订阅者、自动刷新计时器的账本，以及「draft 与已保存的那份是否还一样」这一条 `dirty` 判据——数据视图与仪表盘各持一只，两个 runtime 只留各自「是哪种视图」的部分（一次查询，还是 N 块面板）。两处真正不同的地方做成 store 的显式钩子而不是拷贝：`admit`（这个类把配置交给哪一套准入）、`apply`（提升在这里意味着什么）、`holding`（暂停理由里要问 runtime 的那几条：在途的是谁的请求、有没有选中的行）、`release`（dispose 时还要放掉什么）、`restored`（`revert` 之后仪表盘还要 `load` 一次引用）与可选的 `blocking`（哪些 issue 挡住 apply 与计时器：数据视图不给，任何 error 都挡；仪表盘只算整板的 error，见「Dashboard」）。订阅与通知那一半再往下由 `runtime/listeners.ts` 的 `listenerSet` 出：`RuntimeStore`、列表变化通知与 React 那边的倒数读数共用一份，两条规则（提交状态之后再通知、遍历监听者集合的副本，好让监听者在自己那一下里退订）因此只写一处。（store 自身的那几条见 test/runtimeStore.test.ts，两个 runtime 各自的规则仍在 test/runtime.test.ts 与 test/dashboardRuntime.test.ts）
 
 ## 状态与命令
 
@@ -48,6 +48,8 @@ export interface DashboardRuntime extends ViewRuntime<DashboardViewConfig> {
   getSnapshot(): DashboardRuntimeState; // ViewRuntimeState + panels: DashboardPanelState[] + resolving
   ready(): Promise<void>; // 每个面板引用都已加载或确认不可读
   panelRuntime(panelId: string): DataViewRuntime | null; // 宿主自行驱动某个面板时使用
+  place(panelId: string, layout: PanelLayout): void; // 摆一个面板并只应用这一处摆放；被盖住的面板向下让开（placePanel），其余未应用的编辑照旧待应用
+  refreshPanel(panelId: string): void; // 只重跑这一个面板：失败面板的「重试」
 }
 
 /** 由配置类型推出的 runtime 类型，create 用它保留静态收窄。 */
@@ -191,11 +193,12 @@ export class ViewWriteError extends Error {
 
 ## Dashboard
 
-实现拆在 `src/runtime/dashboard/`：`references.ts`（`PanelReferences`——面板引用的加载：未问／在加载／已加载（读不到为 `null`）三态，外加「到了却用不上」的失败原因；每一次落定回调一次，由 runtime 重新判草稿）、`children.ts`（`PanelChildren`——每个数据面板的子 runtime 与其生命周期：随每次 sync 对齐面板与作用域、面板没了或指向别处就释放、随仪表盘一起 dispose；子 runtime 一通知就回调 runtime 重排计时器并重建该面板的 issues）、`panels.ts`（无状态的读法与寻址：`panelsOf`、`panelOf`、`panelIssues`、`atPanel`、`samePanels`）。`DashboardViewRuntime` 只剩准入、状态与计时器，公开面不变。
+实现拆在 `src/runtime/dashboard/`：`references.ts`（`PanelReferences`——面板引用的加载：未问／在加载／已加载（读不到为 `null`）三态，外加「到了却用不上」的失败原因；每一次落定回调一次，由 runtime 重新判草稿）、`children.ts`（`PanelChildren`——每个数据面板的子 runtime 与其生命周期：随每次 sync 对齐面板与作用域、面板没了或指向别处就释放、随仪表盘一起 dispose；子 runtime 一通知就回调 runtime 重排计时器并重建该面板的 issues）、`panels.ts`（无状态的读法与寻址：`panelsOf`、`panelOf`、`blocksBoard`、`panelIssues`、`atPanel`、`samePanels`）。`DashboardViewRuntime` 只剩准入、状态与计时器，公开面不变。
 
 `DashboardRuntime` 持有 N 个子 `ViewRuntime` 加一个全局筛选草稿。`apply()` 校验全局筛选，为每个面板计算 `mergeGlobalFilter` 后经 `setScopeFilter` 注入再触发子 runtime 执行；宿主注入给 Dashboard 的作用域条件与数据视图同样从打开起就并入校验。
 
 - `dashboard.panels.too-many` 这类路径为 `['panels']`、不属于任何一个面板的 Issue 按 Dashboard 整体的 error 处理，阻止全部面板执行。
+- **只有这种整板的 error 挡住整板**（`blocksBoard`，`runtime/dashboard/panels.ts`）：`apply()`、`revert()` 之后的重新应用、整板的刷新计时器都只看它。面板自己的 error——引用用不了、绑定不成立、链接的协议被拒——只让这一块不跑、在面板上说明，全局筛选照样应用到其余面板，拖拽照样落地，计时器照样刷新其余面板。从前 `apply` 见任何 error 就拒绝：一块坏面板让拖拽弹回、全局筛选点了没反应（R1）。`RuntimeStore` 为此多了一个可选的 `blocking` 钩子，数据视图不给、仍是「任何 error」。（见 test/dashboardRuntime.test.ts「DashboardViewRuntime a panel in error」）
 - 子 runtime 拒绝注入的作用域时，该子 runtime 被释放而不是继续跑旧口径，拒绝理由以 `['panels', index, ...]` 为路径记在该面板的 `issues` 里，其余面板不受影响。（见 test/dashboardRuntime.test.ts「DashboardViewRuntime child refusal」）
 - 子 runtime 接受作用域后，它对自身已存配置的 warning 同样重定址到该路径记入面板的 `issues`，面板照常运行；**子 runtime 上一次结果自身的 warning**（`resultIssues`：汇总退回本页 `runtime.summary.page-only`、分析还有更多组 `analysis.result.more-groups` 或探不成时的 `analysis.result.at-limit`）也并入，同样重定址——两个工作台与 `EmbeddedView` 都会说这两条，同一张被截断的饼图放进仪表盘不能就不说了；子 runtime 一通知（结果落地就是一次）面板的 `issues` 就重建，不等下一次 Dashboard 同步（见 test/dashboardRuntime.test.ts「carries a child result warning on the panel」）——从子 runtime 的快照读取，因为 `setScopeFilter` 对未变化的作用域返回空，而布局编辑会以同一作用域重新同步每个面板。
 - `validateDashboard` 对映射后筛选的复验与子 runtime 对同一棵合并树的准入会让一个 kind 的 warning 出现两次，同 code 同 params 的只记面板校验的那一条。
@@ -203,7 +206,8 @@ export class ViewWriteError extends Error {
 - 作用域条件不进入子 runtime 的 `draft` 或 `saved`，面板因此不会变脏，也不会把 Dashboard 条件保存回被引用实例，执行的有效配置记录在 `result.config`。（见 test/dashboardRuntime.test.ts「DashboardViewRuntime scope filter」）
 - 每个面板独立 loading / error / result，Dashboard 不汇总成单一状态。
 - 自动刷新由 DashboardRuntime 按自身 `refresh.interval` 统一计时并触发全部数据面板的 `refresh()`；被引用实例自身的 `refresh` 配置在 Dashboard 内忽略，避免两层计时器。`nextRefreshAt` 同样是这一只计时器的到期时刻（「在途」问的是面板），标题栏那处倒计时因此数的就是整块板子的下一次刷新。（见 test/dashboardRuntime.test.ts「DashboardViewRuntime refreshing」）
-- 布局编辑是普通 `edit({ panels })`。
+- 单个面板的重跑是 `refreshPanel(panelId)`：整板刷新收窄到一个子 runtime，面板失败时的「重试」用它；没有子 runtime 的面板（不可用、被拒）没什么可重跑，它什么也不做。刷新失败时子 runtime 的 `result` 不动（「只随成功推进」），面板因此留着上一次的结果，由界面注明（[ui/dashboard.md](ui/dashboard.md#面板失败保留上次的结果可以重试)）。（见 test/dashboardRuntime.test.ts「DashboardViewRuntime refreshing one panel」）
+- 布局编辑可以是普通 `edit({ panels })`，但**用手摆放走 `place(panelId, layout)`**：它把这一处摆放同时写进 draft 与 applied，然后按 applied 同步，**不提升 draft 的其余部分**——从前摆放走 `edit` + `apply`，正在编辑、还没应用的全局筛选随手一挪就跑了半份（R2）。被摆的面板占它要的格子，被它盖住的面板直直往下推到它下面，推下去的再压到谁就接着推谁（`placePanel`，`src/dashboard/layout.ts`，即 react-grid-layout 纵向紧凑对「正在拖的那一块」做的事，只是不再往上收——这张栅格不紧凑）；配置里原本就叠着的两块不因摆第三块而被整理。越出栅格、不是面板的摆放被忽略。不改引用与作用域，所以没有面板重跑。（见 test/dashboardRuntime.test.ts「DashboardViewRuntime placing」、test/dashboardLayout.test.ts）
 
 ## ViewEngine
 
