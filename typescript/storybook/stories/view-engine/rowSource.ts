@@ -11,9 +11,13 @@
  * limitations under the License.
  */
 
+import dayjs, { type OpUnitType } from 'dayjs';
+import timezone from 'dayjs/plugin/timezone';
+import utc from 'dayjs/plugin/utc';
 import { aggregate, find } from 'mingo';
 import type { AnyObject } from 'mingo/types';
 import {
+  AggregationDateUnit,
   AggregationExpressionOperator,
   AggregationExpressionType,
   AggregationFunction,
@@ -137,7 +141,7 @@ function summarise(
   const accumulated = query.metrics.filter(
     metric => metric.type !== AggregationMetricType.DERIVED,
   );
-  const grouped = aggregate(gated(rows, query.metrics), [
+  const grouped = aggregate(bucketed(gated(rows, query.metrics), groupBy), [
     // An aggregation without a filter reads every row.
     {
       $match: withDeletionDefault(
@@ -325,6 +329,73 @@ function compares(
   }
 }
 
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+/**
+ * The calendar units a date bucket is cut at here. A week is left out on
+ * purpose: which day it starts on is the service's to say, and a guess would
+ * be a plausible wrong answer rather than a refusal.
+ */
+const DATE_UNITS: Partial<Record<AggregationDateUnit, OpUnitType>> = {
+  [AggregationDateUnit.YEAR]: 'year',
+  [AggregationDateUnit.MONTH]: 'month',
+  [AggregationDateUnit.DAY]: 'day',
+  [AggregationDateUnit.HOUR]: 'hour',
+  [AggregationDateUnit.MINUTE]: 'minute',
+  [AggregationDateUnit.SECOND]: 'second',
+};
+
+/**
+ * The rows, each marked with the bucket every `DATE_HISTOGRAM` group puts it
+ * in: the start of its unit in the group's zone, in epoch milliseconds, which
+ * is the key the service answers a date bucket with. MongoDB's `$dateTrunc`
+ * would do this inside the pipeline; the bucket is worked out here instead,
+ * as a gate is, so the zone arithmetic is dayjs's and not a translation of
+ * it. Only the buckets with rows are answered — a `dense` histogram, which
+ * the service fills in, is refused rather than answered thin.
+ */
+function bucketed(
+  rows: readonly RecordData[],
+  groupBy: readonly AggregationGroup[],
+): RecordData[] {
+  const histograms = groupBy.flatMap(group =>
+    group.type === AggregationGroupType.DATE_HISTOGRAM ? [group] : [],
+  );
+  if (histograms.length === 0) return [...rows];
+  const cuts = histograms.map(group => {
+    const unit = DATE_UNITS[group.unit];
+    if (!unit || group.dense)
+      throw new Error(
+        `The story source does not bucket by ${group.dense ? 'dense ' : ''}${group.unit}.`,
+      );
+    const zone = group.timeZone ?? dayjs.tz.guess();
+    return (row: RecordData): [string, number | null] => {
+      const at = group.field
+        .split('.')
+        .reduce<unknown>(
+          (held, segment) =>
+            held !== null && typeof held === 'object'
+              ? (held as RecordData)[segment]
+              : undefined,
+          row,
+        );
+      const bucket =
+        typeof at === 'number' || typeof at === 'string'
+          ? dayjs(at).tz(zone).startOf(unit).valueOf()
+          : null;
+      return [`${BUCKET}${group.alias}`, bucket];
+    };
+  });
+  return rows.map(row => ({
+    ...row,
+    ...Object.fromEntries(cuts.map(cut => cut(row))),
+  }));
+}
+
+/** The bucket one date group reads, kept out of every field's namespace. */
+const BUCKET = '__bucket_';
+
 /** The mark one gated metric reads, kept out of every field's namespace. */
 const GATE = '__gate_';
 
@@ -366,6 +437,8 @@ function gated(
 }
 
 function groupKey(group: AggregationGroup): unknown {
+  if (group.type === AggregationGroupType.DATE_HISTOGRAM)
+    return `$${BUCKET}${group.alias}`;
   if (group.type !== AggregationGroupType.TERMS)
     throw new Error(`The story source does not group by ${group.type}.`);
   return group.missingKey === undefined

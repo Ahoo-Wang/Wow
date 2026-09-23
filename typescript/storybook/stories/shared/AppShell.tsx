@@ -18,6 +18,7 @@ import {
   ClipboardListIcon,
   DatabaseIcon,
   FunnelIcon,
+  HouseIcon,
   InboxIcon,
   LayoutDashboardIcon,
   PanelLeftCloseIcon,
@@ -32,6 +33,7 @@ import { ToneBadge } from '@/ui/variants';
 
 /** The pages of this host, one per View Engine scene. */
 export type ScenePage =
+  | 'home'
   | 'snapshots'
   | 'event-streams'
   | 'records'
@@ -52,8 +54,22 @@ interface NavItem {
  * The navigation, grouped the way the catalog is. The kinds wear the icons
  * the workbench gives them (`ui/kinds.ts`), so a Record page in this column
  * and a Record view in the workbench's own list read as one thing.
+ *
+ * The home page comes first and on its own, as a host's does: it is where
+ * the application opens, not one scene among a group of them, so it has no
+ * group heading over it.
  */
-const GROUPS: readonly { title: string; items: readonly NavItem[] }[] = [
+const GROUPS: readonly { title?: string; items: readonly NavItem[] }[] = [
+  {
+    items: [
+      {
+        page: 'home',
+        title: '首页',
+        story: 'view-engine-首页--fixture',
+        icon: HouseIcon,
+      },
+    ],
+  },
   {
     title: '真实后端',
     items: [
@@ -139,8 +155,9 @@ export type SceneService = { host: string } | { fixture: string };
  * markup, reading the theme's tokens through `fve-tokens` (D17-10) rather
  * than being a second View Engine surface.
  *
- * Nothing here pretends. The navigation holds the scenes the catalog has,
- * grouped as the catalog groups them, each linked to its first story; the
+ * Nothing here pretends. The navigation holds the scenes the catalog has —
+ * the home page first, then the rest grouped as the catalog groups them —
+ * each linked to its first story; the
  * environment badge and the service line say what the scene really talks
  * to — the `host` of a real service, or the fixture a scene answers from in
  * memory, in the scene's own words. The column folds to its icons, as a
@@ -151,8 +168,8 @@ export type SceneService = { host: string } | { fixture: string };
  * workbench does in any container; anything taller than the region scrolls inside it, and
  * the bar never scrolls away. A scene that is not a workbench on its own — a
  * host page with a view embedded in it, a component a host places in its own
- * layout — asks for `padded`, the gutter a host's content region gives its
- * pages.
+ * layout, the home page with its dashboard — asks for `padded`, the gutter
+ * a host's content region gives its pages.
  */
 export function AppShell({
   current,
@@ -203,15 +220,19 @@ export function AppShell({
 
       <nav id={navId} className="story-app-nav" aria-label="应用导航">
         {GROUPS.map(group => (
-          <div key={group.title} className="story-app-section">
-            <p className="story-app-group">{group.title}</p>
+          <div key={group.title ?? ''} className="story-app-section">
+            {group.title && <p className="story-app-group">{group.title}</p>}
             {group.items.map(({ page, title, story, icon: Icon }) => (
               <a
                 key={page}
                 className="story-app-item"
                 // The whole Storybook moves to the other scene, as a host's
-                // navigation moves the whole page.
-                href={`/?path=/story/${story}`}
+                // navigation moves the whole page. Relative to the page, not
+                // the site root: this anchor lives in `iframe.html`, whose
+                // directory is the Storybook root wherever it is served — `/`
+                // locally, `/storybook/` on GitHub Pages — where `/?path=`
+                // would leave the published Storybook for the site's root.
+                href={`./?path=/story/${story}`}
                 target="_top"
                 aria-current={page === current ? 'page' : undefined}
                 title={folded ? title : undefined}

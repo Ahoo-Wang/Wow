@@ -31,6 +31,7 @@ import {
   type DataViewDefinition,
   type FilterNode,
   type RecordViewConfig,
+  type ViewSource,
 } from '@ahoo-wang/fetcher-view-engine';
 
 /**
@@ -46,7 +47,8 @@ export const EXECUTION_FAILED = 'execution-failed';
 /** Wow's `ExecutionFailed` aggregate, as the compensation service exposes it. */
 const AGGREGATE = 'execution_failed';
 
-const ACTIVE = ['FAILED', 'PREPARED'];
+/** The statuses of an execution still waiting on someone. */
+export const ACTIVE = ['FAILED', 'PREPARED'];
 
 // Wow's names for what the analysis side may group and compute by.
 const { TERMS, HISTOGRAM, DATE_HISTOGRAM } = AggregationGroupType;
@@ -586,7 +588,7 @@ export const executionFailedDefinition: DataViewDefinition = {
  * memory, so they last as long as the story does.
  */
 export function createCompensationEngine(fetcher: Fetcher): ViewEngine {
-  const source = new SnapshotQueryClient({ basePath: AGGREGATE, fetcher });
+  const source = compensationSource(fetcher);
   return new ViewEngine({
     definitions: [executionFailedDefinition],
     // The service pages at most 100 rows at a time; an export pages at the
@@ -595,6 +597,15 @@ export function createCompensationEngine(fetcher: Fetcher): ViewEngine {
     store: new MemoryViewStore({ instances: [] }),
     resolveSource: () => source,
   });
+}
+
+/**
+ * The failed executions of the service `fetcher` points at, as a view source:
+ * the snapshot query client as it is, since `ViewSource` is three of its
+ * methods. Every scene over this service reads through it.
+ */
+export function compensationSource(fetcher: Fetcher): ViewSource {
+  return new SnapshotQueryClient({ basePath: AGGREGATE, fetcher });
 }
 
 export function compensationFetcher(host: string): Fetcher {
