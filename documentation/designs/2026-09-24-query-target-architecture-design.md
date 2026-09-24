@@ -11,14 +11,14 @@
 
 ## 1. 兼容边界
 
+**唯一的兼容保证是 QueryGateway API 与 RESTful 查询 API。** 其余一律不做兼容：保持架构与代码干净，不保留过渡层、别名类、弃用路径或双格式。
+
 | 范围 | 约定 |
 |---|---|
-| QueryGateway API | 十个公开方法及返回形状保持不变 |
+| QueryGateway API | 十个公开方法及其返回形状保持不变 |
 | RESTful 查询 API | 查询路由、请求 JSON（含 legacy `condition`）、响应 JSON、状态码、错误码与错误文案保持不变 |
-| `GET …/snapshot/schema`、`GET …/event/schema` 的响应 | **不属于兼容约定**，按本文重新设计 |
-| Backend、Filter、Policy SPI，Schema 内部类型，装配方式 | 允许重构或重写 |
-| DSL | 保持源码兼容；不要求二进制兼容 |
-| 安全修复带来的 REST 行为变化 | 默认保持现行为，新行为通过显式配置启用 |
+| `GET …/snapshot/schema`、`GET …/event/schema` 的响应 | 不属于兼容约定，按本文重新设计 |
+| 其他一切：Backend、Filter、Policy SPI，Schema 内部类型，DSL，装配方式，公开的实现类名 | 不做兼容，直接修改或删除 |
 
 ## 2. 第一性原理
 
