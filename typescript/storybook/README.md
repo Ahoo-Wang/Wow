@@ -86,9 +86,9 @@ View Engine 的每个场景都放在宿主应用里评判：`shared/AppShell.tsx
 
 ## 本地门禁
 
-合并前在本机跑齐下面每一条，**每条单独看退出码**（`命令 > 日志 2>&1; echo "名字 exit $?"`），全部为 0 才算过——`pnpm test` 末尾还有一段 `test:type`，只 grep 测试摘要会漏掉它的失败。View Engine 包自己的约定见 [`typescript/wow-view-engine/docs/design/README.md`](../typescript/wow-view-engine/docs/design/README.md#本地门禁)。
+合并前在本机跑齐下面每一条，**每条单独看退出码**（`命令 > 日志 2>&1; echo "名字 exit $?"`），全部为 0 才算过——view-engine 的 `pnpm test` 末尾还有一段 `test:type`，只 grep 测试摘要会漏掉它的失败。View Engine 包自己的约定见 [`typescript/wow-view-engine/docs/design/README.md`](../wow-view-engine/docs/design/README.md#本地门禁)。命令都在仓库根运行。
 
-**0. 先构建依赖（新 worktree 必做一次）。** 各包之间按 `dist/` 互相引用，没构建时 vitest 报 `Failed to resolve import "@ahoo-wang/wow-client"`，`typecheck:stories` 找不到类型声明：
+**0. 先构建依赖（新 worktree 必做一次）。** 各包之间按 `dist/` 互相引用，没构建时 vitest 报 `Failed to resolve import "@ahoo-wang/wow-client"`，`typecheck` 找不到类型声明：
 
 ```bash
 pnpm install
@@ -103,39 +103,39 @@ pnpm test         # vitest + 覆盖率阈值，然后 test:type（三个 tsc 工
 pnpm build        # vite build，然后 test:package 检查构建产物
 ```
 
-覆盖率阈值写在包的 `vitest.config.ts`，不达标时 `pnpm test` 非零退出，即使每个用例都绿。仓库根的 `pnpm build`（`pnpm -r build`）还会构建 `wiki`，它的 `prebuild` 重写受版本控制的 `wiki/llms-full.txt`；这不是改动的一部分时用 `git checkout -- wiki/llms-full.txt` 还原再提交。
+覆盖率阈值写在包的 `vitest.config.ts`，不达标时 `pnpm test` 非零退出，即使每个用例都绿。
 
-**2. 仓库根的故事门禁：**
+**2. 故事门禁：**
 
 ```bash
-pnpm lint:stories
-pnpm typecheck:stories   # 对照第 0 步构建出的类型声明
-PLAYWRIGHT_BROWSERS_PATH=$HOME/Library/Caches/ms-playwright-user pnpm test:storybook
+pnpm --filter wow-storybook lint
+pnpm --filter wow-storybook typecheck   # 对照第 0 步构建出的类型声明
+PLAYWRIGHT_BROWSERS_PATH=$HOME/Library/Caches/ms-playwright-user pnpm --filter wow-storybook test
 ```
 
-`test:storybook` 在无头 Chromium 里跑每个 `*.test.stories.tsx` 的 `play`（`vitest.config.ts` 的 `storybook` 工程，`@vitest/browser-playwright`）。它要的 Chromium 版本跟随 `playwright` 的版本；默认缓存 `~/Library/Caches/ms-playwright` 可能是旧版本，也可能归 root 所有、装不进新版本，此时测试一启动就报找不到浏览器。办法是把 Chromium 装进一个自己拥有的目录，之后每次运行都用同一个 `PLAYWRIGHT_BROWSERS_PATH` 指向它：
+`test` 在无头 Chromium 里跑每个 `*.test.stories.tsx` 的 `play`（`vitest.config.ts` 的 `storybook` 工程，`@vitest/browser-playwright`）。它要的 Chromium 版本跟随 `playwright` 的版本；默认缓存 `~/Library/Caches/ms-playwright` 可能是旧版本，也可能归 root 所有、装不进新版本，此时测试一启动就报找不到浏览器。办法是把 Chromium 装进一个自己拥有的目录，之后每次运行都用同一个 `PLAYWRIGHT_BROWSERS_PATH` 指向它：
 
 ```bash
-PLAYWRIGHT_BROWSERS_PATH=$HOME/Library/Caches/ms-playwright-user pnpm exec playwright install chromium
+PLAYWRIGHT_BROWSERS_PATH=$HOME/Library/Caches/ms-playwright-user pnpm --filter wow-storybook exec playwright install chromium
 ```
 
-机器同时跑多组测试时给 vitest 限并发，例如 `pnpm test:storybook --maxWorkers=3`（包里的 `pnpm test` 同理拆成 `pnpm exec vitest run --coverage --maxWorkers=3` 加 `pnpm test:type`，两个退出码都要看）；某个故事因超时失败，先单独重跑那一个文件再判断是不是真失败。
+机器同时跑多组测试时给 vitest 限并发，例如 `pnpm --filter wow-storybook test --maxWorkers=3`（view-engine 的 `pnpm test` 同理拆成 `pnpm exec vitest run --coverage --maxWorkers=3` 加 `pnpm test:type`，两个退出码都要看）；某个故事因超时失败，先单独重跑那一个文件再判断是不是真失败。
 
-**3. 格式：** 对每个改动过的文件跑 `prettier --check`，失败时 `--write` 后再查一遍。仓库根没有 `prettier` 的可执行入口（它是各包的开发依赖，版本在 `pnpm-workspace.yaml` 的 catalog 里），在根目录直接用 pnpm 存储里的那份，路径里的版本号按 catalog 填：
+**3. 格式：** 对每个改动过的文件跑 `prettier --check`，失败时 `--write` 后再查一遍：
 
 ```bash
-git diff --name-only --diff-filter=d origin/main... | xargs node node_modules/.pnpm/prettier@3.9.9/node_modules/prettier/bin/prettier.cjs --check
+git diff --name-only --diff-filter=d origin/main... | xargs pnpm exec prettier --check --ignore-unknown
 ```
 
 **4. 静态 Storybook（改了导航、故事 id 或标签时）：**
 
 ```bash
-pnpm build-storybook
+pnpm --filter wow-storybook build
 ```
 
-`build-storybook` 包含静态索引检查：验证首页地址与回归标签。
+`build` 包含静态索引检查（`scripts/verify-storybook.mjs`）：验证首页地址与回归标签。
 
-先运行 `pnpm storybook`，再运行以下真实浏览器检查；使用独立的无头浏览器：
+先运行 `pnpm --filter wow-storybook storybook`，再在 `typescript/storybook` 里运行以下真实浏览器检查；使用独立的无头浏览器：
 
 ```bash
 node scripts/verify-storybook-browser.mjs
@@ -143,4 +143,8 @@ node scripts/verify-storybook-browser.mjs
 
 文档浏览器检查也可接收服务地址：`node scripts/verify-storybook-browser.mjs http://127.0.0.1:6006`。
 
-移动故事时同步检查首页、验证脚本和测试中的地址。历史迁移记录见 `docs/superpowers/plans/2026-09-08-storybook-migration.md`。
+移动故事时同步检查首页、验证脚本和测试中的地址。
+
+## CI
+
+`.github/workflows/typescript-storybook.yml` 在改到故事、view-engine、wow-client 或 wow-react 时运行（范围由 `.github/scripts/ci-scope.mjs` 的 `storybook` 输出决定）：`build` 先构建这几个包，再跑上面第 2 步的 `typecheck`、`lint` 和第 4 步的 `build`；`interactions` 把 `test` 拆成两片在 Chromium 里并行（Playwright 浏览器按 `playwright` 的版本缓存）。`typescript-storybook-gate` 是合并信号。
