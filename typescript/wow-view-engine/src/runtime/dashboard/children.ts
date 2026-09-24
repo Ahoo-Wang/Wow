@@ -14,7 +14,6 @@
 import { dequal } from 'dequal';
 import {
   presentationMembers,
-  type DashboardViewPanel,
   type DataViewDefinition,
   type FilterTree,
   type Issue,
@@ -22,7 +21,11 @@ import {
   type ViewScope,
 } from '../../model/index.js';
 import { isPlainObject } from '../../filter/index.js';
-import type { PanelDefinition, PanelReference } from '../../dashboard/index.js';
+import type {
+  DataPanelSource,
+  PanelDefinition,
+  PanelReference,
+} from '../../dashboard/index.js';
 import type { DataViewConfig } from '../execute.js';
 import type { DataViewRuntime } from '../viewRuntime.js';
 import { hasError } from '../runtimeStore.js';
@@ -52,7 +55,7 @@ export interface PanelView {
  * own — the panel's is its name — and is read by the board's audience.
  */
 export function panelView(
-  panel: DashboardViewPanel,
+  panel: DataPanelSource,
   reference: (instanceId: string) => PanelReference | null | undefined,
   definitions: (definitionId: string) => PanelDefinition | null,
   board: ViewScope,
@@ -320,14 +323,11 @@ function replacing(
  */
 function drawsOnly(previous: DataViewConfig, next: DataViewConfig): boolean {
   const drawn = presentationMembers(next.kind);
-  const keys = new Set([...Object.keys(previous), ...Object.keys(next)]);
+  const before: Record<string, unknown> = { ...previous };
+  const after: Record<string, unknown> = { ...next };
+  const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
   return [...keys].every(
-    key =>
-      drawn.includes(key) ||
-      dequal(
-        (previous as unknown as Record<string, unknown>)[key],
-        (next as unknown as Record<string, unknown>)[key],
-      ),
+    key => drawn.includes(key) || dequal(before[key], after[key]),
   );
 }
 

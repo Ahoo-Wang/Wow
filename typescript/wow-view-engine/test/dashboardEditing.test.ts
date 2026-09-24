@@ -94,6 +94,17 @@ function owned(id: string, config = analysisConfig()): DashboardPanel {
   } as DashboardPanel;
 }
 
+/** A write elsewhere read back with these panels, and applied. */
+function adopt(runtime: DashboardViewRuntime, panels: DashboardPanel[]): void {
+  const saved = runtime.getSnapshot().saved;
+  if (!saved) throw new Error('expected a saved board');
+  runtime.adoptSaved({
+    ...saved,
+    config: { ...runtime.getSnapshot().draft, panels },
+  });
+  runtime.apply();
+}
+
 function harness(scope: ViewScope = 'personal') {
   const source = testSource();
   const store = new MemoryViewStore({ instances: [pending, byWarehouse] });
@@ -116,6 +127,9 @@ function harness(scope: ViewScope = 'personal') {
       await flush();
       if (!(runtime instanceof DashboardViewRuntime))
         throw new Error('expected a dashboard');
+      // Every board here is opened to be built: an edit is refused while
+      // a board is only read (Q-02, test/dashboardBuildingGate.test.ts).
+      runtime.setBuilding(true);
       return runtime;
     },
   };
@@ -375,7 +389,6 @@ describe('editing a board', () => {
 
   it('adds nothing past the most panels a board may hold', async () => {
     const board = harness();
-    const runtime = await board.open(dashboardConfig());
     const full = Array.from(
       { length: board.engine.limits.maxDashboardPanels },
       (_, n) =>
@@ -386,8 +399,7 @@ describe('editing a board', () => {
           layout: { x: 0, y: n, w: 1, h: 1 },
         }) as DashboardPanel,
     );
-    runtime.edit({ panels: full });
-    runtime.apply();
+    const runtime = await board.open(dashboardConfig({ panels: full }));
 
     expect(runtime.addPanel({ kind: 'markdown', content: '' })).toBeNull();
     expect(runtime.duplicatePanel('n0')).toBeNull();
@@ -468,8 +480,9 @@ describe('a view the board owns', () => {
     const child = runtime.getSnapshot().panels[0].runtime;
     const asked = vi.mocked(board.source.aggregate).mock.calls.length;
 
-    runtime.edit({ panels: [owned('own', analysisConfig({ limit: 5 }))] });
-    runtime.apply();
+    // Another writer's change read back is how a question the board owns
+    // changes under it (`adoptSaved`).
+    adopt(runtime, [owned('own', analysisConfig({ limit: 5 }))]);
     await flush();
 
     expect(runtime.getSnapshot().panels[0].runtime).toBe(child);
@@ -485,17 +498,14 @@ describe('a view the board owns', () => {
       dashboardConfig({ panels: [owned('own')] }),
     );
 
-    runtime.edit({
-      panels: [
-        owned(
-          'own',
-          analysisConfig({
-            groups: [{ alias: 'g', field: 'nowhere', type: 'TERMS' }],
-          }),
-        ),
-      ],
-    });
-    runtime.apply();
+    adopt(runtime, [
+      owned(
+        'own',
+        analysisConfig({
+          groups: [{ alias: 'g', field: 'nowhere', type: 'TERMS' }],
+        }),
+      ),
+    ]);
 
     expect(runtime.getSnapshot().panels[0].runtime).toBeNull();
   });

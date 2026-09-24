@@ -189,6 +189,7 @@ describe('only the tab on screen runs', () => {
     expect(runtime.getSnapshot().tab).toBe('overview');
 
     runtime.showTab('detail');
+    runtime.setBuilding(true);
     runtime.removeTab('detail');
     await flush();
     expect(runtime.getSnapshot().tab).toBe('overview');
@@ -202,6 +203,7 @@ describe('only the tab on screen runs', () => {
     const board = harness();
     const runtime = await board.open();
     const moved = byId(runtime, 'a').runtime;
+    runtime.setBuilding(true);
 
     runtime.movePanelToTab('a', 'detail');
     await flush();

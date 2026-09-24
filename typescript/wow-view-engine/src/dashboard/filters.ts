@@ -44,7 +44,7 @@ import {
   type EditorDescriptor,
   type FieldKindRegistry,
 } from '../filter/index.js';
-import { clicksFilter, isViewPanel } from './panels.js';
+import { clicksFilter, isViewPanel, panelsOf } from './panels.js';
 
 /**
  * The operator a filter of each of the five types is asked with: a date
@@ -231,7 +231,7 @@ function pressedFrom(
   values: Readonly<Record<string, FilterValue>>,
 ): Record<string, string> | undefined {
   if (!isPlainObject(asked)) return undefined;
-  const panels: unknown[] = Array.isArray(config.panels) ? config.panels : [];
+  const panels = panelsOf(config);
   const kept: Record<string, string> = {};
   for (const [name, panelId] of Object.entries(asked)) {
     if (typeof panelId !== 'string' || values[name] === undefined) continue;

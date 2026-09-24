@@ -12,13 +12,14 @@
  */
 
 import { dequal } from 'dequal';
-import type {
-  FieldDefinition,
-  FilterTree,
-  Issue,
-  RecordPageTarget,
-  RuntimeLimits,
-  ViewInstance,
+import {
+  overlaid,
+  type FieldDefinition,
+  type FilterTree,
+  type Issue,
+  type RecordPageTarget,
+  type RuntimeLimits,
+  type ViewInstance,
 } from '../model/index.js';
 import { issue, type FieldKindRegistry } from '../filter/index.js';
 import { periodRollover } from '../analysis/index.js';
@@ -59,23 +60,6 @@ import type {
 } from './viewRuntimeTypes.js';
 
 const IDLE: ViewQueryState = { status: 'idle' };
-
-/**
- * The draft with `patch` over it, where a member given as `undefined` is
- * removed rather than set to it.
- *
- * A config is JSON. A member that is not there and a member that is
- * `undefined` are the same config, but not the same object, and `dirty` is
- * an equality against the saved one — so an editor that took the last entry
- * out of an optional list left the view unsaved for the rest of the session,
- * with the leave guard asking about an edit that had already been undone.
- */
-function patched<C extends object>(draft: C, patch: Partial<C>): C {
-  const next: Record<string, unknown> = { ...draft, ...patch };
-  for (const [key, value] of Object.entries(patch))
-    if (value === undefined) delete next[key];
-  return next as C;
-}
 
 /**
  * The runtime of a data view: an Analysis view as it is, and the shared
@@ -264,7 +248,11 @@ export class DataViewRuntime<
 
   edit(patch: Partial<C>): void {
     if (this.disposed) return;
-    const draft = patched(this.state.draft, patch);
+    // A member given as `undefined` is taken out (`overlaid`): an editor
+    // that took the last entry out of an optional list left the view
+    // unsaved for the rest of the session otherwise, `dirty` being an
+    // equality against the saved config.
+    const draft = overlaid(this.state.draft, patch);
     this.store.setState({
       draft,
       issues: this.admit(draft),

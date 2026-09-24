@@ -11,20 +11,77 @@
  * limitations under the License.
  */
 
-import type {
-  BoardValueSource,
-  DashboardContentPanel,
-  DashboardPanel,
-  DashboardViewConfig,
-  DashboardViewPanel,
-  OwnedView,
-  PanelBinding,
-  PanelClick,
+import {
+  PANEL_PRESENTATION_MEMBERS,
+  type BoardValueSource,
+  type DashboardContentPanel,
+  type DashboardPanel,
+  type DashboardTab,
+  type DashboardViewConfig,
+  type DashboardViewPanel,
+  type OwnedView,
+  type PanelBinding,
+  type PanelClick,
+  type PanelPresentation,
 } from '../model/index.js';
 import { isPlainObject } from '../filter/index.js';
 
-/** A panel backed by a referenced instance, and so by a child runtime. */
 /**
+ * The panels a config holds, read as the untrusted thing a stored config is.
+ * Admission reports a `panels` that is not an array; until it is fixed there
+ * is nothing to load, run or place, and nothing to throw about. An entry is
+ * still untrusted: each reader asks `isPlainObject` or `isViewPanel` of it.
+ */
+export function panelsOf(
+  config: Pick<DashboardViewConfig, 'panels'>,
+): readonly DashboardPanel[] {
+  const panels: unknown = config.panels;
+  return Array.isArray(panels) ? (panels as DashboardPanel[]) : [];
+}
+
+/**
+ * The well-formed tabs of a stored config, in the order of its bar:
+ * admission reports the rest (`validateTabs`), and a bar or a menu naming
+ * tabs must not be the second place to find out.
+ */
+export function tabsOf(
+  config: Pick<DashboardViewConfig, 'tabs'>,
+): readonly DashboardTab[] {
+  const tabs: unknown = config.tabs;
+  if (!Array.isArray(tabs)) return [];
+  return tabs.filter(
+    (tab): tab is DashboardTab =>
+      isPlainObject(tab) &&
+      typeof tab.id === 'string' &&
+      typeof tab.title === 'string',
+  );
+}
+
+/** Whether a key is one a panel's override of how it looks may set. */
+export function isPresentationMember(
+  key: string,
+): key is keyof PanelPresentation {
+  return (PANEL_PRESENTATION_MEMBERS as readonly string[]).includes(key);
+}
+
+/**
+ * The members a data panel's override of how it looks sets (D22 D), read as
+ * untrusted: none for a content panel, an override that is no object, or
+ * one that names only what no view has. Whether they fit its view is the
+ * runtime's to find out (`presentedConfig`).
+ */
+export function presentationMembersOf(
+  panel: unknown,
+): (keyof PanelPresentation)[] {
+  if (!isViewPanel(panel)) return [];
+  const look: unknown = panel.presentation;
+  return isPlainObject(look)
+    ? Object.keys(look).filter(isPresentationMember)
+    : [];
+}
+
+/**
+ * A panel backed by a referenced instance, and so by a child runtime.
  * Total over `unknown`: a stored config may hold a panel that is no object,
  * and the runtime asks this before admission has had its say.
  */

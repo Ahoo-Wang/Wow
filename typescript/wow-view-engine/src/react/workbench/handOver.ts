@@ -96,15 +96,12 @@ export function useHandOver(
     }
     if (!kinds.includes(handOver.config.kind)) return;
     request(() => {
-      // `create` types its answer by the config's kind, which a union of
-      // configs cannot name; what it builds is the runtime `open` would
-      // hand back for the same view.
       const made = engine.create(definitionId, {
         title: handOver.title,
         scope: 'personal',
         config: handOver.config,
         scopeFilter: handOver.scopeFilter,
-      }) as unknown as AnyViewRuntime;
+      });
       hold({
         runtime: made,
         draft: made.getSnapshot().draft,

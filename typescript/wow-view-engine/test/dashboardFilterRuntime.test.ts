@@ -507,6 +507,7 @@ describe('setting the filters up', () => {
         ],
       }),
     );
+    runtime.setBuilding(true);
 
     expect(runtime.bindPanel('when', 'b', 'createdAt')).toEqual(['a', 'c']);
     expect(panel('a').reach.when).toEqual({
@@ -522,6 +523,7 @@ describe('setting the filters up', () => {
 
   it('wires a panel added to every filter it has a field for', async () => {
     const { runtime, panel } = await harness();
+    runtime.setBuilding(true);
 
     await runtime.preload('orders-trend');
     const id = runtime.addPanel({ kind: 'view', instanceId: 'orders-trend' });
@@ -535,6 +537,7 @@ describe('setting the filters up', () => {
 
   it('adds, names, retypes, moves and removes a filter, what it holds following', async () => {
     const { runtime } = await harness();
+    runtime.setBuilding(true);
 
     const name = runtime.addFilter({ type: 'text', label: 'Status' });
     expect(name).toBe('filter-1');

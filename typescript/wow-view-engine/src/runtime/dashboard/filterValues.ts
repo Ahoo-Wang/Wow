@@ -17,7 +17,6 @@ import {
   type AnalysisDateUnit,
   type DashboardFilters,
   type DashboardViewConfig,
-  type DashboardViewPanel,
   type FieldOption,
   type FilterValue,
   type Issue,
@@ -25,9 +24,11 @@ import {
 import {
   admitFilters,
   bindingsOf,
+  type DataPanelSource,
   defaultFilters,
   filtersOf,
   isViewPanel,
+  panelsOf,
   wiredOptions,
 } from '../../dashboard/index.js';
 import {
@@ -46,7 +47,6 @@ import {
   type CandidateSourceFactory,
 } from './filterCandidates.js';
 import { panelScope } from './panelRun.js';
-import { panelsOf } from './panels.js';
 
 /** What the filter values need of the runtime that holds the board. */
 export interface FilterValuesHost {
@@ -64,7 +64,7 @@ export interface FilterValuesHost {
   /** Runs the panels on the values in force. */
   run(): void;
   /** The view a data panel shows, once known. */
-  viewOf(panel: DashboardViewPanel): PanelView | null;
+  viewOf(panel: DataPanelSource): PanelView | null;
 }
 
 /**

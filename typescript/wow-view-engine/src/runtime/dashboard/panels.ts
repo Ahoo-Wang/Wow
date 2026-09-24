@@ -89,17 +89,6 @@ export function clickInForce(
   return click?.kind === 'filter' && held(click.filter) ? null : click;
 }
 
-/**
- * The panels a config holds, read as the untrusted thing a stored config is.
- * Admission reports a `panels` that is not an array; until it is fixed there
- * is nothing to load or run, and nothing to throw about.
- */
-export function panelsOf(
-  config: DashboardViewConfig,
-): readonly DashboardPanel[] {
-  return Array.isArray(config.panels) ? config.panels : [];
-}
-
 /** The panel an issue belongs to, or `null` for one about the dashboard. */
 export function panelOf(found: Issue): number | null {
   const [head, index] = found.path;
@@ -121,6 +110,28 @@ export function panelOf(found: Issue): number | null {
 export function blocksBoard(issues: readonly Issue[]): boolean {
   return issues.some(
     found => found.severity === 'error' && panelOf(found) === null,
+  );
+}
+
+/**
+ * What a board says about itself, above its panels (Q-01, A-07): every
+ * finding on the draft that no panel carries. That is the board's own —
+ * "too many panels" at `['panels']` among them, which belongs to no one
+ * panel — and a panel's that the draft raised and no panel wears yet: a
+ * board condition mapped onto a panel field that warns is, until it is
+ * applied, a finding under `['panels', …]` that only the draft holds, and
+ * a save would write it unseen. A panel's own findings stay the panel's to
+ * say, each in its own frame. One reading, so the workbench, an embed that
+ * builds and a host drawing its own board say the same.
+ */
+export function boardFindings(state: {
+  issues: readonly Issue[];
+  panels: readonly Pick<DashboardPanelState, 'issues'>[];
+}): Issue[] {
+  const carried = state.panels.flatMap(panel => panel.issues);
+  return state.issues.filter(
+    found =>
+      panelOf(found) === null || !carried.some(shown => dequal(shown, found)),
   );
 }
 

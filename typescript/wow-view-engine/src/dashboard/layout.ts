@@ -36,7 +36,7 @@ import {
   type PanelLayout,
 } from '../model/index.js';
 import { isPlainObject } from '../filter/index.js';
-import { panelTab } from './panels.js';
+import { panelsOf, panelTab } from './panels.js';
 import { validateLayout } from './validate.js';
 
 /** One keyboard command: a step of one grid cell, or a size one cell bigger or smaller. */
@@ -214,9 +214,7 @@ function tabBoxes(
   id: string,
   columns: number,
 ): PlacedPanel[] | null {
-  const panels: readonly unknown[] = Array.isArray(config.panels)
-    ? config.panels
-    : [];
+  const panels: readonly unknown[] = panelsOf(config);
   const moving = panels.find(
     (panel): panel is DashboardPanel => isPlainObject(panel) && panel.id === id,
   );
@@ -242,9 +240,7 @@ export function withLayouts(
   boxes: readonly PlacedPanel[],
   columns: number = DASHBOARD_GRID_COLUMNS,
 ): DashboardViewConfig {
-  const panels: readonly unknown[] = Array.isArray(config.panels)
-    ? config.panels
-    : [];
+  const panels: readonly unknown[] = panelsOf(config);
   const moved = new Map(boxes.map(box => [box.id, box]));
   let changed = false;
   const next = panels.map(panel => {

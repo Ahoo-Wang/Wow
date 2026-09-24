@@ -573,14 +573,11 @@ export function useWorkbench(
       const blank = blanks.find(([made]) => made === kind)?.[1];
       if (!blank || title === undefined) return;
       request(() => {
-        // `create` types its answer by the config's kind, which a union of
-        // configs cannot name; what it builds is the runtime `open` would
-        // hand back for the same view.
         const made = engine.create(definitionId, {
           title,
           scope: blank.scope,
           config: blank.config,
-        }) as unknown as AnyViewRuntime;
+        });
         hold({
           runtime: made,
           draft: made.getSnapshot().draft,
@@ -615,7 +612,7 @@ export function useWorkbench(
         scope: 'personal',
         config,
         scopeFilter: runtime.scopeFilter,
-      }) as unknown as AnyViewRuntime;
+      });
       hold({
         runtime: made,
         draft: made.getSnapshot().draft,

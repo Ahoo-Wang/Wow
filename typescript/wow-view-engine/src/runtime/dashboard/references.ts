@@ -13,10 +13,11 @@
 
 import type { DashboardViewConfig } from '../../model/index.js';
 import {
+  panelsOf,
   referencedInstance,
   type PanelReference,
 } from '../../dashboard/index.js';
-import { panelsOf, reasonOf } from './panels.js';
+import { reasonOf } from './panels.js';
 
 /** Loads what a panel references; rejects when it is gone or unreadable. */
 export type PanelResolver = (instanceId: string) => Promise<PanelReference>;

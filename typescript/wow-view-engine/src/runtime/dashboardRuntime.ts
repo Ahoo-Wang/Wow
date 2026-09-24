@@ -12,6 +12,7 @@
  */
 
 import {
+  overlaid,
   type DashboardDefinition,
   type DashboardFilters,
   type DashboardViewConfig,
@@ -23,25 +24,24 @@ import {
   type ViewInstance,
   type ViewScope,
 } from '../model/index.js';
-import {
-  isPlainObject,
-  issue,
-  type FieldKindRegistry,
-} from '../filter/index.js';
+import { issue, type FieldKindRegistry } from '../filter/index.js';
 import {
   admitFilters,
   filtersOf,
-  isViewPanel,
-  panelTab,
   referencedInstance,
   validateDashboard,
+  type DataPanelSource,
 } from '../dashboard/index.js';
-import { panelHandOver, panelReach, panelRun } from './dashboard/panelRun.js';
+import { boardHandOver, boardPanels, panelRun } from './dashboard/panelRun.js';
 import { FilterValues } from './dashboard/filterValues.js';
 import { PanelPresses } from './dashboard/press.js';
 import { boardEditing, type BoardEdits } from './dashboard/editing.js';
-import { BoardCommands } from './dashboard/commands.js';
-import { NO_HISTORY, type EditHistoryState } from './dashboard/history.js';
+import { BoardCommands, BoardRules } from './dashboard/commands.js';
+import {
+  NO_HISTORY,
+  outsideHistory,
+  type EditHistoryState,
+} from './dashboard/history.js';
 import type { ValueCandidateSource } from './valueCandidates.js';
 import type { RuntimeEnvironment } from './environment.js';
 import { hasError, RuntimeStore } from './runtimeStore.js';
@@ -53,14 +53,10 @@ import {
 } from './dashboard/children.js';
 import {
   blocksBoard,
-  clickInForce,
   panelFailure,
-  panelOf,
   reissued,
-  panelsOf,
   samePanels,
   shownTab,
-  type DashboardPanelState,
 } from './dashboard/panels.js';
 import { PanelReferences } from './dashboard/references.js';
 import type { WriteState } from './write.js';
@@ -71,7 +67,7 @@ import type { HandOver } from './navigation.js';
 export type { PanelResolver } from './dashboard/references.js';
 export type { PanelRuntimeFactory, PanelView } from './dashboard/children.js';
 export type { DashboardPanelState } from './dashboard/panels.js';
-export { stopsSave } from './dashboard/panels.js';
+export { boardFindings, stopsSave } from './dashboard/panels.js';
 export type {
   DashboardEditing,
   DashboardFilterEditing,
@@ -133,6 +129,8 @@ export class DashboardViewRuntime
   protected readonly values: FilterValues;
   /** A press on a panel's group; see `PanelPresses`. */
   protected readonly presses: PanelPresses;
+  /** The rules that span the parts above; see `BoardRules`. */
+  protected readonly rules: BoardRules;
 
   /** The tab the reader asked for; see `DashboardRuntimeState.tab`. */
   private requestedTab: string | null = null;
@@ -158,6 +156,7 @@ export class DashboardViewRuntime
       this.refreshPanelIssues(panelId);
     });
     this.edits = boardEditing({
+      building: () => this.rules.building(),
       draft: () => (this.disposed ? null : this.state.draft),
       maxPanels: options.limits.maxDashboardPanels,
       viewConfig: id => this.references.get(id)?.instance.config,
@@ -192,6 +191,21 @@ export class DashboardViewRuntime
         await this.references.fetch(id);
         return this.references.get(id) ?? null;
       },
+    });
+    this.rules = new BoardRules({
+      limits: options.limits,
+      edits: this.edits,
+      values: this.values,
+      disposed: () => this.disposed,
+      snapshot: () => this.state,
+      patch: state => this.store.setState(state),
+      retime: () => this.store.retime(),
+      reread: () => {
+        if (this.synced) this.sync();
+      },
+      edit: patch => this.edit(patch),
+      apply: () => this.apply(),
+      showTab: tab => this.showTab(tab),
     });
 
     // A stored board was read into the form this engine writes on its way
@@ -231,8 +245,8 @@ export class DashboardViewRuntime
       refresh: () => this.refresh(),
       // One clock for the whole board, so a request in flight is any panel's;
       // and it keeps the reader's own interval over the board's (D26 Q35).
-      holding: () => this.holdsTimer() || this.children.loading(),
-      interval: () => this.intervalInForce(),
+      holding: () => this.rules.holdsTimer() || this.children.loading(),
+      interval: () => this.rules.intervalInForce(),
       // And one moment a card on the tab shown moves on, the soonest.
       expiresAt: () => this.children.rolloverAt(this.onTab()),
       release: () => {
@@ -305,16 +319,23 @@ export class DashboardViewRuntime
     await this.references.ready();
   }
 
+  /**
+   * The draft with `patch` over it, a member given as `undefined` taken
+   * out (`overlaid`), as a data view's is. What building writes — the
+   * panels, the tabs, the filters and the time grouping — is not taken
+   * here (`outsideHistory`): each is written by its own command, one step
+   * of the history, and an undo puts back the whole member a step changed,
+   * so a list this changed underneath it would silently be put back too
+   * (A-10). The rest — the board condition, a refresh interval — is.
+   */
   edit(patch: Partial<DashboardViewConfig>): void {
     if (this.disposed) return;
-    const draft = { ...this.state.draft, ...patch };
+    const draft = overlaid(this.state.draft, outsideHistory(patch));
     this.store.setState({
       draft,
       issues: this.admit(draft, this.state.scope),
       dirty: this.store.isDirty(draft, this.state.saved),
     });
-    // New panels need their references before the draft can be judged fully.
-    this.load(draft);
   }
 
   /**
@@ -424,14 +445,6 @@ export class DashboardViewRuntime
     this.store.setState(state);
   }
 
-  protected retime(): void {
-    this.store.retime();
-  }
-
-  protected reread(): void {
-    if (this.synced) this.sync();
-  }
-
   /**
    * Refuses any condition (D26 Q32): a board is narrowed filter by filter,
    * through what the host holds (`holdFilters`), never by a tree it would
@@ -447,32 +460,11 @@ export class DashboardViewRuntime
   /** See `DashboardRuntime.handOver`. */
   handOver(panelId: string): HandOver | null {
     if (this.disposed) return null;
-    const { applied, filters, saved, title, tab } = this.state;
-    const panel = panelsOf(applied).find(
-      (entry): entry is DashboardViewPanel =>
-        isPlainObject(entry) && isViewPanel(entry) && entry.id === panelId,
-    );
-    if (!panel) return null;
-    const parts = panelHandOver(panel, {
-      applied,
-      filters,
+    return boardHandOver(panelId, this.state, {
+      definitionId: this.definition.id,
       held: name => this.values.holds(name),
       kinds: this.kinds,
     });
-    if (!saved) return parts;
-    return {
-      ...parts,
-      from: {
-        title,
-        back: {
-          kind: 'dashboard',
-          definitionId: this.definition.id,
-          instanceId: saved.id,
-          filters,
-          tab,
-        },
-      },
-    };
   }
 
   /**
@@ -576,50 +568,23 @@ export class DashboardViewRuntime
     // it has, rows and all, exactly as it stands — neither re-scoped nor
     // re-run — until its tab is shown; one never shown has none yet.
     const tab = shownTab(applied, this.requestedTab);
-    const panels: DashboardPanelState[] = [];
-    const live = new Set<string>();
-    // A problem with the dashboard itself stops every panel, which is the
-    // same rule `apply` follows; a panel's own problem stops only that one.
-    // The check belongs here because a reference arriving also gets us here,
-    // and a view waiting to be fixed must not start querying behind that.
-    // "Too many panels" sits at `['panels']` and belongs to no one panel, so
-    // it counts against the whole rather than slipping between the two.
-    const blocked = blocksBoard(issues);
     // What the filters hold, read against the board as it now is: a filter
     // taken off holds nothing, a required one never less than its default.
     const filters = this.values.on(applied);
-
-    panelsOf(applied).forEach((panel, index) => {
-      // Admission reports an entry that is no panel at its index; there is
-      // no id to build a state under, and nothing to run.
-      if (!isPlainObject(panel)) return;
-      const own = issues.filter(found => panelOf(found) === index);
-      const on = panelTab(applied, panel);
-      const shown = on === tab;
-      const runs = isViewPanel(panel) && !blocked;
-      const { runtime, issues: reported } = !runs
-        ? { runtime: null, issues: own }
-        : shown
-          ? this.syncPanel(panel, index, applied, filters, own)
-          : (this.children.hold(panel.id, index, own) ?? {
-              runtime: null,
-              issues: own,
-            });
-      if (runtime) live.add(panel.id);
-      const view = isViewPanel(panel) ? this.viewOf(panel) : null;
-      panels.push({
-        id: panel.id,
-        panel,
-        runtime,
-        issues: reported,
-        tab: on,
-        waiting: runs && !shown && runtime === null && !hasError(own),
-        click: clickInForce(panel, reported, name => this.values.holds(name)),
-        ...panelReach(applied, panel, view, filters),
-      });
+    const panels = boardPanels({
+      applied,
+      issues,
+      tab,
+      filters,
+      held: name => this.values.holds(name),
+      viewOf: panel => this.viewOf(panel),
+      run: (panel, index, own) =>
+        this.syncPanel(panel, index, applied, filters, own),
+      hold: (panel, index, own) => this.children.hold(panel.id, index, own),
     });
-
-    this.children.keepOnly(live);
+    this.children.keepOnly(
+      new Set(panels.flatMap(panel => (panel.runtime ? [panel.id] : []))),
+    );
 
     // A re-sync that changes nothing keeps the previous array, so a grid
     // bound with `useSyncExternalStore` does not re-render on every apply.
@@ -675,7 +640,7 @@ export class DashboardViewRuntime
   }
 
   /** The view a data panel shows, once there is one; see `panelView`. */
-  private viewOf(panel: DashboardViewPanel): PanelView | null {
+  private viewOf(panel: DataPanelSource): PanelView | null {
     return panelView(
       panel,
       id => this.references.get(id),

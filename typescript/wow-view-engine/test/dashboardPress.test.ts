@@ -422,6 +422,7 @@ describe('a custom destination (D22 I)', () => {
         }),
       ),
     );
+    runtime.setBuilding(true);
     runtime.setPanelClick('chart', { kind: 'view', instanceId: boardId });
     runtime.apply();
     await flush();

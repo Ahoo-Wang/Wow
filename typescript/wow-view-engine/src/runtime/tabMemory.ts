@@ -16,6 +16,7 @@ import type {
   ViewInstance,
   ViewPreferences,
 } from '../model/index.js';
+import { tabsOf } from '../dashboard/index.js';
 import { isViewWriteError, type WriteHandle } from './write.js';
 
 /** What the memory borrows of the engine: the preferences and their writes. */
@@ -104,15 +105,9 @@ function hasTab(
   config: ViewConfig,
   tab: string | null | undefined,
 ): tab is string {
-  const tabs: unknown = (config as { tabs?: unknown }).tabs;
   return (
     typeof tab === 'string' &&
-    Array.isArray(tabs) &&
-    tabs.some(
-      entry =>
-        typeof entry === 'object' &&
-        entry !== null &&
-        (entry as { id?: unknown }).id === tab,
-    )
+    config.kind === 'dashboard' &&
+    tabsOf(config).some(entry => entry.id === tab)
   );
 }

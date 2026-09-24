@@ -39,3 +39,17 @@ export function without<T extends object, K extends keyof T>(
   delete next[key];
   return next;
 }
+
+/**
+ * The object with `patch` laid over it, where a member the patch gives as
+ * `undefined` is taken out rather than set to it — for the same reason as
+ * `without`: a member that is not there and one that is `undefined` are the
+ * same JSON but not the same object, and a comparison against what was
+ * saved would call the two different.
+ */
+export function overlaid<T extends object>(value: T, patch: Partial<T>): T {
+  const next: T = { ...value, ...patch };
+  for (const key of Object.keys(patch) as (keyof T)[])
+    if (patch[key] === undefined) delete next[key];
+  return next;
+}

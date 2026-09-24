@@ -55,6 +55,7 @@ import {
   filterValueIssues,
   filtersOf,
   isViewPanel,
+  panelsOf,
   takesGroup,
   validateBoardClick,
   type BoardClick,
@@ -62,7 +63,6 @@ import {
 } from '../../dashboard/index.js';
 import type { DataViewRuntime } from '../viewRuntime.js';
 import type { HandOver, ViewNavigation } from '../navigation.js';
-import { panelsOf } from './panels.js';
 
 /** What a press that sets a filter did (D22 I). */
 export type CrossFilterOutcome =

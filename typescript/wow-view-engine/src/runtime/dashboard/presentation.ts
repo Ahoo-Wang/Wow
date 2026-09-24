@@ -11,13 +11,9 @@
  * limitations under the License.
  */
 
-import {
-  PANEL_PRESENTATION_MEMBERS,
-  type Issue,
-  type IssuePath,
-  type PanelPresentation,
-} from '../../model/index.js';
+import type { Issue, IssuePath, PanelPresentation } from '../../model/index.js';
 import { issue, isPlainObject } from '../../filter/index.js';
+import { isPresentationMember } from '../../dashboard/index.js';
 import {
   validateDataConfig,
   type DataViewConfig,
@@ -61,9 +57,7 @@ export function presentedConfig(
   path: IssuePath,
 ): { config: DataViewConfig; issues: Issue[] } {
   if (!isPlainObject(presentation)) return { config: base, issues: [] };
-  const set = Object.keys(presentation).filter(key =>
-    (PANEL_PRESENTATION_MEMBERS as readonly string[]).includes(key),
-  );
+  const set = Object.keys(presentation).filter(isPresentationMember);
   if (set.length === 0) return { config: base, issues: [] };
   const dropped = {
     config: base,
@@ -75,8 +69,7 @@ export function presentedConfig(
   if (set.some(key => !allowed.includes(key))) return dropped;
 
   const over: Record<string, unknown> = {};
-  for (const key of set)
-    over[key] = presentation[key as keyof PanelPresentation];
+  for (const key of set) over[key] = presentation[key];
   const config = { ...base, ...over };
   if (hasError(validateDataConfig(judge, config)))
     return hasError(validateDataConfig(judge, base))

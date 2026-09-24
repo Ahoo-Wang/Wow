@@ -17,7 +17,6 @@ import {
   MAX_HEADING_LENGTH,
   MAX_MARKDOWN_LENGTH,
   MAX_PANEL_LINKS,
-  PANEL_PRESENTATION_MEMBERS,
   audienceOf,
   sameFilterType,
   type DashboardContentPanel,
@@ -51,7 +50,11 @@ import {
   validateFilterFields,
   validateTimeGrouping,
 } from './validateFilters.js';
-import { isSafeContentUrl, isViewPanel } from './panels.js';
+import {
+  isPresentationMember,
+  isSafeContentUrl,
+  isViewPanel,
+} from './panels.js';
 import { validateTabs } from './tabs.js';
 
 /** The definition a panel's view is of, and what its bindings may name. */
@@ -545,9 +548,7 @@ function validatePresentation(
   if (presentation === undefined) return [];
   const fits =
     isPlainObject(presentation) &&
-    Object.keys(presentation).every(key =>
-      (PANEL_PRESENTATION_MEMBERS as readonly string[]).includes(key),
-    );
+    Object.keys(presentation).every(isPresentationMember);
   return fits
     ? []
     : [

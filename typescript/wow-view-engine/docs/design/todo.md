@@ -38,8 +38,20 @@ ECharts 迁移（D21）与两份「数据分析师视角」审查的 P0 已全�
 - **追问菜单与图表提示框叠在一起**（2026-09-24 R6 走查发现，main 上可复现：仪表盘「点击」故事点一根柱）：点柱后追问菜单打开，ECharts 的提示框（「华北 / 金额的总和 ¥2,450.00」）仍留在原处，压在菜单项上。
   - 判据：菜单打开时提示框收起（或菜单盖在提示框之上且不透出），分析工作台与仪表盘面板一致；有故事断言。
   - 落点：`src/ui/analysis/DrillMenu.tsx` 与图表组件（随 R7 做）。
-- **R3 运行时与界面去重**：Q-01／A-07 整板发现的三种分法收成一个 `boardFindings()`（嵌入可编辑档今天丢草稿警告，控制器那份还漏掉「面板太多」）；Q-02 加载中按「取消」仍会加面板——运行时在非搭建态拒绝编辑命令；A-04 轻量版（`dashboardRuntime.ts` 498／500 行，跨部件规则从转发层挪到一处）；A-10 公开 `edit()` 绕过撤销历史；A-11、A-14／Q-06 工作台与嵌入共用一份搭建外壳；Q-05、Q-07～Q-13（重复的判断、JSON 小工具、改名输入框、拖拽可达性样板、强转、导出参数）；A-15、A-17。
-  - 判据：行为不变的重构由现有测试守住，新缺陷各有测试；`max-lines` 豁免表仍为空。落点：`src/runtime/`、`src/dashboard/`、`src/ui/`。
+- **R3 运行时与界面去重（界面一半）**：运行时一半已在 R3a 做完——`boardFindings` 一种读法、控制器的 `issues` 就是它；非搭建态拒绝编辑命令；`edit` 碰不到历史管的成员；跨部件规则收进 `BoardRules`，`dashboardRuntime.ts` 降到约 450 行；`panelsOf`／`tabsOf`／`presentationMembersOf` 进内核，`overlaid` 进 `model/json.ts`；`PanelFields` 收窄到 `DataPanelSource`、`RuntimeFor` 对联合给出 `AnyViewRuntime`，去掉了四处强转。剩下的都要动 `src/ui/` 或它的测试：
+  - Q-01／A-07 接上：`DashboardWorkbench` 的 `carried`／`sameIssue` 与 `EmbeddedDashboard` 自己拆 `state.issues` 的那段都改读 `dashboard.issues`（按 severity 分 error 与 warning）；`namePanel`（栅格上方给面板发现起名）两处共用；可编辑档嵌入补一条测试：草稿里只在 `['panels', 0, …]` 的 warning 要显示。
+  - Q-02 界面：`Board.tsx` 的 preload 续体里再读一次当前的 `dashboard.edit`，补一条界面测试（preload 挂起、先按取消再放行，板上不多面板）；`place` 也纳入非搭建态拒绝——先让 test/dashboardUi.test.tsx 的「places a panel and applies the placement」「placed by keyboard」「writes the geometry back once a drag ends」与 test/dashboardPlacement.test.tsx 的「placing a panel」在摆放前开始搭建，再删掉 `runtime/dashboard/editing.ts` 里 `draftFor` 对 `place` 的例外。
+  - A-11（审查原文是 `PanelPresses` 自己判断点击生不生效、不读面板状态的 `click`）：改成读 `DashboardPanelState.click` 会让 test/dashboardPress.test.ts「warns of a filter this board no longer has, and a press falls back to the menu」里「照样按下去就退回菜单并说为什么」那一条不再成立，要先定「准入说过话的点击被按下时答什么」。
+  - A-14／Q-06：工作台与嵌入共用一份搭建外壳（编辑按钮、完成／取消后焦点回「编辑」、离开守卫、`onTabChange`／`onFiltersChange` 两个上报）。
+  - Q-05 界面：`DashboardPanel`（圈复杂度 50）标题行的六种标记抽成一个组件；`ClickForm`（49）的九个状态收拢、`wanted()` 下沉为内核纯函数；`panelCommands` 按「看」「改」拆开；`DashboardTabs.tsx`、`ExportDialog.tsx` 贴近 500 行。
+  - Q-07 界面：`ui/dashboard/commands.ts` 的 `hasOwnLook`、`PresentationDialog.tsx` 的 `hasLook`、`PanelBodies.tsx` 的 `presentationMark` 改用内核的 `presentationMembersOf`。
+  - Q-08 界面：`filterModes.ts` 与 `PresentationDialog.tsx` 两份语义不同的 `sameValue` 收成一份。
+  - Q-09 可视化面板的两层与焦点跟随在 `PresentationDialog` 与 `AnalysisParts` 各写一份，`ignore`／`NO_ROWS` 也各一份；Q-10 三份原地改名输入框（面板菜单、标签栏、视图管理行）行为各异，收成一个；Q-11 六份拖拽可达性插件样板收成一个共用的插件工厂。
+  - Q-12 界面：`ui/dashboard/history.ts` 的 `usable` 改成类型守卫（去掉 `node!`），`PresentationDialog.tsx` 的 `as unknown as Record<string, unknown>`。
+  - Q-13：`useExportOffer` 自己取 `messages`／`display` 并交回 `columns`／`max`，`PanelExport`、`EmbeddedRecord`、`RecordParts` 只传 `runtime, table, filter, title`。
+  - A-15：`ui/index.ts` 开头「只读控制器」的承诺改成「纯内核读法可以直接用，有状态的判断走控制器」，或把有状态的判断上移到 `/react`。
+  - AGENTS.md 结构树的描述按 R3a 改：`json.ts`（`overlaid`）、内核 `panels.ts`（`panelsOf`、`tabsOf`、`presentationMembersOf`）、`wiring.ts`（`DataPanelSource`）、runtime 的 `commands.ts`（`BoardRules` 与只转一手的 `BoardCommands`）、`history.ts`（`outsideHistory`）、`panelRun.ts`（`boardPanels`、`boardHandOver`）、`panels.ts`（`boardFindings`）。
+  - 判据：行为不变的重构由现有测试守住，新缺陷各有测试；`max-lines` 豁免表仍为空。落点：`src/ui/`、`AGENTS.md`。
 - **R4 测试**：Q-15 测试卫生（14 份 `flush`、真实等待、过期注释、可编辑档嵌入缺浏览器故事）。
   - 落点：`test/`、`stories/view-engine/`。
 - **R5 措辞与文档**：X-03 仪表盘筛选发现说程序键（`filter-1`）；X-08 一词多义（「筛选 ▾」→「添加筛选」、「分节标题」「笔记」统一、「板／仪表盘」）；X-09 两个「撤销」；X-06 本页与 [ui/dashboard.md](ui/dashboard.md) 的过期项与顺序行；X-07 README 入口表与迁移段落；X-11 D22 的「固定宽度／全宽」等补进 todo；X-12、X-13、X-16、Q-16、A-19 文档漂移与守护缺口；A-16 公开面快照（首发前必做，可在 Wow 做）。

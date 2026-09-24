@@ -27,21 +27,22 @@ import {
   type PanelLayout,
   type RecordData,
 } from '../model/index.js';
-import { filtersOf, type FilterReach } from '../dashboard/index.js';
-import type {
-  CrossFilterOutcome,
-  DashboardEditing,
-  DashboardFilterEditing,
-  DashboardPanelState,
-  DashboardRuntime,
-  DataViewRuntime,
-  DestinationBoard,
-  EditHistoryState,
-  HandOver,
-  OptionSource,
-  PanelGrouping,
-  PressDestination,
-  ValueCandidateSource,
+import { filtersOf, tabsOf, type FilterReach } from '../dashboard/index.js';
+import {
+  boardFindings,
+  type CrossFilterOutcome,
+  type DashboardEditing,
+  type DashboardFilterEditing,
+  type DashboardPanelState,
+  type DashboardRuntime,
+  type DataViewRuntime,
+  type DestinationBoard,
+  type EditHistoryState,
+  type HandOver,
+  type OptionSource,
+  type PanelGrouping,
+  type PressDestination,
+  type ValueCandidateSource,
 } from '../runtime/index.js';
 import type { FieldKindRegistry } from '../filter/index.js';
 import { useViewRuntime } from './useViewEngine.js';
@@ -78,7 +79,12 @@ export interface DashboardController {
   tab: string | null;
   /** Shows another tab (`DashboardRuntime.showTab`). */
   showTab(tabId: string): void;
-  /** Issues about the dashboard as a whole, panels excluded. */
+  /**
+   * What the board says about itself, above its panels (`boardFindings`):
+   * its own findings — "too many panels" among them — and a panel's the
+   * draft raised that no panel wears yet. Everything else a panel says in
+   * its own frame.
+   */
   issues: Issue[];
   /** True while a panel reference is still loading. */
   resolving: boolean;
@@ -190,8 +196,8 @@ export interface DashboardController {
 }
 
 const EMPTY_PANELS: DashboardPanelState[] = [];
-const NO_TABS: readonly DashboardTab[] = [];
 const NO_FILTERS: DashboardFilters = { values: {} };
+const NO_ISSUES: Issue[] = [];
 const NO_HISTORY: EditHistoryState = { undo: null, redo: null };
 
 /**
@@ -237,14 +243,18 @@ export function useDashboard(
   );
   const loading = useSyncExternalStore(watch, anyLoading, anyLoading);
   const filtersNow = state?.filters ?? null;
+  const appliedTabs = applied?.tabs;
+  const issues = state?.issues;
 
   return {
     panels: useMemo(() => panels.map(toView), [panels]),
     columns: DASHBOARD_GRID_COLUMNS,
     tab: state?.tab ?? null,
     showTab: useCallback((tabId: string) => runtime?.showTab(tabId), [runtime]),
-    // A panel's own issues travel with the panel; what is left belongs here.
-    issues: (state?.issues ?? []).filter(found => found.path[0] !== 'panels'),
+    issues: useMemo(
+      () => (issues ? boardFindings({ issues, panels }) : NO_ISSUES),
+      [issues, panels],
+    ),
     resolving: state?.resolving ?? false,
     loading,
     dirty: state?.dirty ?? false,
@@ -292,7 +302,7 @@ export function useDashboard(
     kinds: runtime?.kinds ?? null,
     // What is on screen: an edit writes the draft and the applied config
     // alike, so the two agree on the tabs whenever a panel is drawn.
-    tabs: useMemo(() => tabsOf(state?.applied.tabs), [state?.applied.tabs]),
+    tabs: useMemo(() => tabsOf({ tabs: appliedTabs ?? [] }), [appliedTabs]),
     preload: useCallback(
       async (instanceId: string) => {
         await runtime?.preload(instanceId);
@@ -328,21 +338,6 @@ export function useDashboard(
       [runtime],
     ),
   };
-}
-
-/**
- * The well-formed tabs of a stored config: admission reports the rest, and
- * a bar or a menu naming tabs must not be the second place to find out.
- */
-function tabsOf(tabs: unknown): readonly DashboardTab[] {
-  if (!Array.isArray(tabs) || tabs.length === 0) return NO_TABS;
-  return tabs.filter(
-    (tab): tab is DashboardTab =>
-      typeof tab === 'object' &&
-      tab !== null &&
-      typeof (tab as { id?: unknown }).id === 'string' &&
-      typeof (tab as { title?: unknown }).title === 'string',
-  );
 }
 
 function toView(panel: DashboardPanelState): DashboardPanelView {

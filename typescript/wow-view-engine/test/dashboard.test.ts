@@ -20,9 +20,14 @@ import {
   emptyDashboardConfig,
   isContentPanel,
   isSafeContentUrl,
+  isPresentationMember,
   isViewPanel,
   mapGlobalFilter,
   mergeGlobalFilter,
+  overlaid,
+  panelsOf,
+  presentationMembersOf,
+  tabsOf,
   validateDashboard,
   type DashboardPanel,
   type DashboardViewConfig,
@@ -101,6 +106,58 @@ describe('panel predicates', () => {
     expect(isContentPanel(view)).toBe(false);
     expect(isViewPanel(markdown)).toBe(false);
     expect(isContentPanel(markdown)).toBe(true);
+  });
+
+  /**
+   * A stored config is untrusted, and every layer reads its panels and its
+   * tabs through the kernel's one reading (A-17) rather than an
+   * `Array.isArray` of its own.
+   */
+  it('read the panels and the well-formed tabs of an untrusted config', () => {
+    const config = dashboardConfig({ panels: [viewPanel()] });
+
+    expect(panelsOf(config)).toBe(config.panels);
+    expect(panelsOf({ panels: 'x' as never })).toEqual([]);
+    expect(
+      tabsOf({
+        tabs: [
+          { id: 'a', title: 'A' },
+          { id: 'b' },
+          'c',
+          { id: 1, title: 'D' },
+        ] as never,
+      }),
+    ).toEqual([{ id: 'a', title: 'A' }]);
+    expect(tabsOf({ tabs: null as never })).toEqual([]);
+  });
+
+  /** Q-07: which members a panel's own look sets, asked in one place. */
+  it('name the members a data panel overrides how it looks by', () => {
+    expect(isPresentationMember('chart')).toBe(true);
+    expect(isPresentationMember('filter')).toBe(false);
+    expect(
+      presentationMembersOf(
+        viewPanel({ presentation: { layout: 'chart', nothing: 1 } as never }),
+      ),
+    ).toEqual(['layout']);
+    expect(presentationMembersOf(viewPanel())).toEqual([]);
+    expect(
+      presentationMembersOf(viewPanel({ presentation: 'x' as never })),
+    ).toEqual([]);
+    expect(
+      presentationMembersOf(viewPanel({ kind: 'markdown', content: '' })),
+    ).toEqual([]);
+  });
+});
+
+describe('overlaid', () => {
+  it('lays a patch over a config, a member given as undefined taken out', () => {
+    const before = { a: 1, b: 2, c: 3 } as { a: number; b?: number; c: number };
+    const after = overlaid(before, { a: 5, b: undefined });
+
+    expect(after).toEqual({ a: 5, c: 3 });
+    expect('b' in after).toBe(false);
+    expect(before).toEqual({ a: 1, b: 2, c: 3 });
   });
 });
 

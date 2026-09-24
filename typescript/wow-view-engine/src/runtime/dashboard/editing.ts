@@ -15,7 +15,6 @@ import type {
   DashboardFilterType,
   DashboardTimeGrouping,
   DashboardViewConfig,
-  DashboardViewPanel,
   FieldOption,
   FilterValue,
   PanelClick,
@@ -78,6 +77,14 @@ import {
  * was. A global filter being composed meanwhile stays pending, as it does
  * under a `place`. An edit that names a panel or a tab the board lacks does
  * nothing.
+ *
+ * Only while the board is built (`DashboardRuntimeState.building`): outside
+ * it every command here is refused — nothing changes, no step is noted, and
+ * one that answers answers as a refused one does (`null`, no panels wired).
+ * An edit is the building's, and a gesture that outlived it — a view picked,
+ * then 「取消」 pressed while it still loaded — must not land on the board
+ * read after it (Q-02). `place` alone is not held to it yet (see
+ * `boardEditing`).
  */
 export interface DashboardEditing {
   /**
@@ -189,6 +196,8 @@ export interface DashboardFilterEditing {
 
 /** What the edits need of the runtime that holds the board. */
 export interface EditingHost {
+  /** Whether the board is being built, which every edit asks first. */
+  building(): boolean;
   /** The draft an edit works its ids and places out on; `null` once disposed. */
   draft(): DashboardViewConfig | null;
   /** The most panels a board may hold. */
@@ -232,13 +241,22 @@ export interface BoardEdits extends DashboardEditing, DashboardFilterEditing {
  */
 export function boardEditing(host: EditingHost): BoardEdits {
   const history = new EditHistory();
+  /**
+   * The draft `command` works on, or `null` when it is refused: outside
+   * building, or once disposed. A placement is still taken outside
+   * building — the grid's own suites place panels, and take them back, on
+   * a board they never started building, and moving it under building
+   * waits on them (todo R3).
+   */
+  const draftFor = (command: EditCommand) =>
+    command === 'place' || host.building() ? host.draft() : null;
   /** One edit, on the draft and the screen alike, noted as one step of `command` about `subject`. */
   const edit = (
     command: EditCommand,
     subject: string | null,
     change: (config: DashboardViewConfig) => DashboardViewConfig,
   ) => {
-    const draft = host.draft();
+    const draft = draftFor(command);
     const applied = host.applied();
     if (!draft || !applied) return;
     const next = [change(draft), change(applied)] as const;
@@ -249,6 +267,9 @@ export function boardEditing(host: EditingHost): BoardEdits {
   /**
    * One step taken back or made again: the members it changed laid over the
    * draft and the screen, the same way an edit goes, and nothing else moved.
+   * Not held to building by itself: the history is the building's — every
+   * step but a placement was taken while building, and ending it forgets
+   * them (`BoardRules.setBuilding`).
    */
   const rewind = (way: 'undo' | 'redo'): EditStep | null => {
     const draft = host.draft();
@@ -285,15 +306,12 @@ export function boardEditing(host: EditingHost): BoardEdits {
 
   return {
     addPanel(panel, placement = {}) {
-      const draft = host.draft();
+      const draft = draftFor('addPanel');
       if (!draft) return null;
       const instanceId = 'instanceId' in panel ? panel.instanceId : undefined;
       // A data panel comes onto the board wired to every filter it has a
       // field for, the way auto-connect wires the rest (D22 G).
-      const fields =
-        panel.kind === 'view'
-          ? host.fieldsOf(panel as unknown as DashboardViewPanel)
-          : null;
+      const fields = panel.kind === 'view' ? host.fieldsOf(panel) : null;
       const wired =
         panel.kind === 'view' && fields
           ? {
@@ -317,7 +335,7 @@ export function boardEditing(host: EditingHost): BoardEdits {
     removePanel: panelId =>
       edit('removePanel', panelId, config => removePanel(config, panelId)),
     duplicatePanel(panelId) {
-      const draft = host.draft();
+      const draft = draftFor('duplicatePanel');
       return draft
         ? added(
             'duplicatePanel',
@@ -351,14 +369,14 @@ export function boardEditing(host: EditingHost): BoardEdits {
         setPanelClick(config, panelId, click),
       ),
     referToSaved(panelId, instance) {
-      if (!host.draft()) return;
+      if (!draftFor('referToSaved')) return;
       host.seed(instance);
       edit('referToSaved', panelId, config =>
         referToSaved(config, panelId, instance.id),
       );
     },
     addTab(title, firstTitle) {
-      const draft = host.draft();
+      const draft = draftFor('addTab');
       const result = draft && addTab(draft, title, firstTitle);
       if (!draft || !result) return null;
       edit('addTab', result.id, config =>
@@ -396,7 +414,7 @@ export function boardEditing(host: EditingHost): BoardEdits {
     },
 
     addFilter(filter) {
-      const draft = host.draft();
+      const draft = draftFor('addFilter');
       const result = draft && addFilter(draft, filter);
       if (!draft || !result) return null;
       edit('addFilter', result.name, config =>
@@ -431,7 +449,7 @@ export function boardEditing(host: EditingHost): BoardEdits {
     moveFilter: (name, index) =>
       edit('moveFilter', name, config => moveFilter(config, name, index)),
     bindPanel(name, panelId, panelField) {
-      const draft = host.draft();
+      const draft = draftFor('bindPanel');
       if (!draft) return [];
       const { connected } = bindPanel(
         draft,

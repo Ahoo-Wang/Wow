@@ -345,8 +345,7 @@ describe('DashboardViewRuntime unavailable references', () => {
       },
     ]);
 
-    runtime.edit({ panels: [panel({ layout: { x: 1, y: 0, w: 6, h: 4 } })] });
-    runtime.apply();
+    runtime.place('orders', { x: 1, y: 0, w: 6, h: 4 });
     await flush();
 
     expect(first().runtime).not.toBeNull();
@@ -479,17 +478,8 @@ describe('DashboardViewRuntime unavailable references', () => {
     });
     const runtime = await board.open(dashboardConfig({ panels: [panel()] }));
 
-    runtime.edit({
-      panels: [
-        panel(),
-        panel({
-          id: 'broken',
-          instanceId: 'broken-1',
-          layout: { x: 6, y: 0, w: 6, h: 4 },
-        }),
-      ],
-    });
-    runtime.apply();
+    runtime.setBuilding(true);
+    runtime.addPanel({ kind: 'view', instanceId: 'broken-1' });
     await flush();
     const state = runtime.getSnapshot();
 
@@ -633,15 +623,7 @@ describe('DashboardViewRuntime editing', () => {
     const runtime = await board.open();
     const before = runtime.getSnapshot().panels[0].runtime;
 
-    runtime.edit({
-      panels: [
-        panel({
-          bindings: [{ globalField: 'region', panelField: 'warehouse' }],
-          layout: { x: 6, y: 0, w: 6, h: 4 },
-        }),
-      ],
-    });
-    runtime.apply();
+    runtime.place('orders', { x: 6, y: 0, w: 6, h: 4 });
     await flush();
 
     expect(pagedQueries(board.source)).toHaveLength(1);
@@ -655,12 +637,8 @@ describe('DashboardViewRuntime editing', () => {
     const runtime = await board.open();
     const child = runtime.getSnapshot().panels[0].runtime;
 
-    runtime.edit({
-      panels: [],
-      fields: [],
-      filter: { op: 'and', children: [] },
-    });
-    runtime.apply();
+    runtime.setBuilding(true);
+    runtime.removePanel('orders');
 
     expect(child?.disposed).toBe(true);
     expect(runtime.getSnapshot().panels).toEqual([]);
@@ -673,9 +651,9 @@ describe('DashboardViewRuntime editing', () => {
     const runtime = await board.open(dashboardConfig({ panels: [panel()] }));
     const first = runtime.getSnapshot().panels[0].runtime;
 
-    runtime.edit({ panels: [panel({ instanceId: 'shipped' })] });
+    runtime.setBuilding(true);
+    runtime.replacePanelView('orders', 'shipped');
     await runtime.ready();
-    runtime.apply();
     await flush();
 
     const second = runtime.getSnapshot().panels[0].runtime;
@@ -688,9 +666,9 @@ describe('DashboardViewRuntime editing', () => {
     const board = await harness();
     const runtime = await board.open(emptyDashboardConfig());
 
-    runtime.edit({ panels: [panel()] });
+    runtime.setBuilding(true);
+    runtime.addPanel({ kind: 'view', instanceId: 'pending' });
     await runtime.ready();
-    runtime.apply();
     await flush();
 
     expect(runtime.getSnapshot().panels[0].runtime).not.toBeNull();
@@ -700,10 +678,10 @@ describe('DashboardViewRuntime editing', () => {
     const board = await harness();
     const runtime = await board.open();
 
-    runtime.edit({ fields: [{ name: '', label: 'Broken', kind: 'string' }] });
+    runtime.edit({ refresh: { interval: -1 } });
     runtime.apply();
 
-    expect(runtime.getSnapshot().applied.fields).toEqual([REGION_FIELD]);
+    expect(runtime.getSnapshot().applied.refresh).toEqual({ interval: null });
   });
 });
 
@@ -1011,7 +989,9 @@ describe('DashboardViewRuntime lifecycle', () => {
     const before = runtime.getSnapshot();
 
     runtime.dispose();
-    runtime.edit({ fields: [] });
+    runtime.edit({ refresh: { interval: 60_000 } });
+    runtime.setBuilding(true);
+    runtime.removePanel('orders');
     runtime.apply();
     runtime.refresh();
     runtime.setEditing(true);
@@ -1053,7 +1033,8 @@ describe('DashboardViewRuntime lifecycle', () => {
     const runtime = await board.open();
 
     expect(runtime.fields).toEqual([REGION_FIELD]);
-    runtime.edit({ fields: [] });
+    runtime.setBuilding(true);
+    runtime.removeFilter('region');
     expect(runtime.fields).toEqual([]);
   });
 });
@@ -1225,29 +1206,6 @@ describe('DashboardViewRuntime a panel in error', () => {
     expect(codes(state.panels[1].issues)).toContain(
       'dashboard.binding.panel-unknown',
     );
-  });
-
-  it('applies a layout edit', async () => {
-    const board = await harness();
-    const runtime = await board.open(withMisbound());
-
-    runtime.edit({
-      panels: runtime
-        .getSnapshot()
-        .draft.panels.map(entry =>
-          entry.id === 'orders'
-            ? { ...entry, layout: { x: 0, y: 4, w: 6, h: 4 } }
-            : entry,
-        ),
-    });
-    runtime.apply();
-
-    expect(runtime.getSnapshot().applied.panels[0].layout).toEqual({
-      x: 0,
-      y: 4,
-      w: 6,
-      h: 4,
-    });
   });
 
   it('places a panel', async () => {

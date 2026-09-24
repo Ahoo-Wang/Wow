@@ -94,6 +94,9 @@ function harness(scope: 'personal' | 'shared' = 'personal') {
       await flush();
       if (!(runtime instanceof DashboardViewRuntime))
         throw new Error('expected a dashboard');
+      // Every board here is opened to be built: an edit is refused while
+      // a board is only read (Q-02, test/dashboardBuildingGate.test.ts).
+      runtime.setBuilding(true);
       return runtime;
     },
   };

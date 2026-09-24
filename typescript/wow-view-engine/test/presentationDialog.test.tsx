@@ -102,7 +102,11 @@ async function openBoard(
     store: new MemoryViewStore({ instances: [pending, board] }),
     resolveSource: () => source,
   });
-  return (await engine.open('board')) as DashboardViewRuntime;
+  const runtime = (await engine.open('board')) as DashboardViewRuntime;
+  // 「改这里的展示」 is on offer only while the board is built, and an edit
+  // is refused while it is read (Q-02).
+  runtime.setBuilding(true);
+  return runtime;
 }
 
 /** The dialog over one of the board's panels, open until it asks to close. */

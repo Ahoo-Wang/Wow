@@ -243,10 +243,18 @@ export interface ManagedViewRuntime<
   setWrite(write: WriteState | null): void;
 }
 
-/** Keeps the narrow type through `create`, which knows its config statically. */
-export type RuntimeFor<C extends ViewConfig> = C extends RecordViewConfig
+/**
+ * Keeps the narrow type through `create`, which knows its config statically
+ * — and, for a config whose kind only the value knows (a union), is what
+ * `open` hands back (`AnyViewRuntime`), so no caller has to say it again.
+ */
+export type RuntimeFor<C extends ViewConfig> = [C] extends [RecordViewConfig]
   ? RecordViewRuntime
-  : ViewRuntime<C>;
+  : [C] extends [AnalysisViewConfig]
+    ? ViewRuntime<AnalysisViewConfig>
+    : [C] extends [DashboardViewConfig]
+      ? DashboardRuntime
+      : AnyViewRuntime;
 
 export type QueryStatus = 'idle' | 'loading' | 'success' | 'error';
 

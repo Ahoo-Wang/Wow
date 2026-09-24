@@ -119,7 +119,9 @@ export interface DashboardRuntime
    * on as 「编辑」 is pressed, off as 「完成」 saves or 「取消」 reverts. While
    * it is on the board's auto refresh waits — the author's panels are not
    * re-run under them — and it resumes as it goes off (D26 Q39). Starting
-   * lets go of the reader's own interval.
+   * lets go of the reader's own interval. Every edit is the building's:
+   * outside it `DashboardEditing` and `DashboardFilterEditing` refuse
+   * (Q-02), and ending it forgets the history.
    */
   setBuilding(active: boolean): void;
   /**

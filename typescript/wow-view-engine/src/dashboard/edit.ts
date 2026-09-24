@@ -34,6 +34,7 @@ import {
   type PanelBinding,
   type PanelPresentation,
   type ViewConfig,
+  overlaid,
   without,
 } from '../model/index.js';
 import { isPlainObject } from '../filter/index.js';
@@ -277,12 +278,8 @@ export function editContent(
       (patch.kind !== undefined && patch.kind !== panel.kind)
     )
       return panel;
-    const next: Record<string, unknown> = { ...panel };
-    for (const [key, value] of Object.entries(patch))
-      if (key === 'title') continue;
-      else if (value === undefined) delete next[key];
-      else next[key] = value;
-    return next as unknown as DashboardPanel;
+    // The title is `renamePanel`'s to read, below.
+    return overlaid(panel, 'title' in patch ? without(patch, 'title') : patch);
   });
   const panel = find(edited, id);
   return 'title' in patch && panel && panel.kind !== 'view'

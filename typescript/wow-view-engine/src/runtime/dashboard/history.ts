@@ -12,7 +12,7 @@
  */
 
 import { dequal } from 'dequal';
-import type { DashboardViewConfig } from '../../model/index.js';
+import { overlaid, type DashboardViewConfig } from '../../model/index.js';
 
 /**
  * The edits building a board is made of, by the command that makes each —
@@ -98,6 +98,32 @@ const BURSTS: ReadonlySet<EditCommand> = new Set([
   'setPresentation',
   'setTimeGrouping',
 ]);
+
+/**
+ * The members of a board the building commands write — each command one
+ * step of the history, which keeps these members as they were and came out
+ * (A-10). A plain `edit` of the board leaves them to those commands.
+ */
+const BUILT_MEMBERS = [
+  'panels',
+  'tabs',
+  'fields',
+  'timeGrouping',
+] as const satisfies readonly (keyof DashboardViewConfig)[];
+
+/**
+ * A patch with the members the building commands own taken out: an undo
+ * puts back the whole member a step changed, so a list an `edit` had
+ * changed underneath it would be put back too, and silently — the edit
+ * noted nowhere, the undo naming another step.
+ */
+export function outsideHistory(
+  patch: Partial<DashboardViewConfig>,
+): Partial<DashboardViewConfig> {
+  const rest = { ...patch };
+  for (const member of BUILT_MEMBERS) delete rest[member];
+  return rest;
+}
 
 /** How many steps back an undo reaches. */
 export const EDIT_HISTORY_DEPTH = 100;
@@ -201,12 +227,9 @@ export function rewound(
   members: Partial<DashboardViewConfig>,
 ): DashboardViewConfig {
   const keys = Object.keys(members) as (keyof DashboardViewConfig)[];
-  if (keys.every(key => config[key] === members[key])) return config;
-  const next: Record<string, unknown> = { ...config };
-  for (const key of keys)
-    if (members[key] === undefined) delete next[key];
-    else next[key] = members[key];
-  return next as unknown as DashboardViewConfig;
+  return keys.every(key => config[key] === members[key])
+    ? config
+    : overlaid(config, members);
 }
 
 /**

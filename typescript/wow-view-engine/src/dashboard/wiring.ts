@@ -28,6 +28,7 @@ import {
   type DashboardViewPanel,
   type FieldDefinition,
   type FieldOption,
+  type OwnedView,
   type PanelBinding,
   without,
 } from '../model/index.js';
@@ -35,11 +36,22 @@ import { filtersOf } from './filters.js';
 import { bindingsOf, clicksFilter, isViewPanel } from './panels.js';
 
 /**
+ * What of a data panel says which view it shows: the saved one it points
+ * at, or the one it owns — all a panel being added has yet, before it has
+ * an id or a place, and all that finding its fields reads.
+ */
+export interface DataPanelSource {
+  instanceId?: string;
+  owned?: OwnedView;
+  title?: string;
+}
+
+/**
  * The fields of the view a data panel shows, once it is known; `null` for a
  * panel whose view has not loaded, or cannot be — nothing is said about it.
  */
 export type PanelFields = (
-  panel: DashboardViewPanel,
+  panel: DataPanelSource,
 ) => readonly FieldDefinition[] | null;
 
 /**
