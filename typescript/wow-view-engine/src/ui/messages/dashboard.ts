@@ -55,6 +55,57 @@ export const dashboardMessages = {
   'label.dashboard.manage': 'Manage dashboards',
   'label.dashboard.manage-description':
     'Rename, reorder and delete dashboards, and pick the one that opens by default.',
+  // What the engine reports about the board itself, said as a board's where
+  // the same code on another surface says view (D26 Q34, `kindIssue`): an
+  // issue's code reads the entry it falls back to, and that entry's board
+  // sentence stands in for it. A code whose sentence names no view keeps it.
+  'label.dashboard.config-invalid':
+    'Fix what this dashboard reports before saving it.',
+  'label.dashboard.create-forbidden': 'You may not create dashboards here.',
+  'label.dashboard.delete-failed': 'This dashboard could not be deleted.',
+  'label.dashboard.delete-forbidden':
+    'You may not delete this dashboard; ask whoever owns it to remove it.',
+  'label.dashboard.list-failed': 'The list of dashboards could not be loaded.',
+  'label.dashboard.list-unavailable':
+    'The list of dashboards could not be loaded: the server could not be reached.',
+  'label.dashboard.reserved-id':
+    'The stored dashboard {id} uses a reserved id and was skipped.',
+  'label.dashboard.notify-failed':
+    'A listener on dashboard changes failed: {reason}. The list may be a revision behind.',
+  'label.dashboard.open-failed': 'This dashboard could not be opened.',
+  'label.dashboard.not-found': 'No dashboard named {id}.',
+  // Opened, it turned out to be a record or an analysis view: what it is
+  // not is the one thing the reader of this page needs to know.
+  'label.dashboard.wrong-kind':
+    'This is not a dashboard ({kind}), so this page cannot show it.',
+  'label.dashboard.gone': 'This dashboard no longer exists.',
+  'label.dashboard.open-forbidden': 'You may not open this dashboard.',
+  'label.dashboard.open-unavailable':
+    'This dashboard could not be loaded: the server could not be reached.',
+  'label.dashboard.default-forbidden': 'You may not set the default dashboard.',
+  'label.dashboard.preferences-failed':
+    'Your dashboard preferences could not be saved.',
+  'label.dashboard.preferences-load-failed':
+    'Your dashboard preferences could not be loaded; the dashboards are in the server’s order.',
+  'label.dashboard.reorder-forbidden': 'You may not reorder dashboards.',
+  'label.dashboard.rename-failed': 'This dashboard could not be renamed.',
+  'label.dashboard.rename-forbidden':
+    'You may not rename this dashboard; save a copy of your own instead.',
+  'label.dashboard.not-open': 'This dashboard is not open here any more.',
+  'label.dashboard.save-as-failed':
+    'This dashboard could not be saved as a copy.',
+  'label.dashboard.save-failed': 'This dashboard could not be saved.',
+  'label.dashboard.save-forbidden':
+    'You may not save changes to this dashboard; save a copy of your own instead.',
+  'label.dashboard.system-read-only':
+    'A built-in dashboard cannot be changed ({action}).',
+  'label.dashboard.title-empty': 'A dashboard needs a title.',
+  'label.dashboard.write-in-flight':
+    'This dashboard is already being saved; wait for that to finish.',
+  'label.dashboard.write-forbidden': 'You may not write to this dashboard.',
+  'label.dashboard.unreadable': 'This dashboard could not be read.',
+  'label.dashboard.refresh-missing': 'This dashboard has no refresh setting.',
+  'label.dashboard.not-declared': '{definition} does not offer dashboards.',
   // What an empty dashboard is, and nothing it cannot keep: the first things
   // to add are offered under it only to whoever may build the board.
   'label.dashboard.empty': 'This dashboard has no panels yet',

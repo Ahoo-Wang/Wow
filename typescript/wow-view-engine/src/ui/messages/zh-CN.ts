@@ -1044,6 +1044,42 @@ export const zhCN: ViewMessages = {
   'label.dashboard.manage': '管理仪表盘',
   'label.dashboard.manage-description':
     '改名、排序、删除仪表盘，并选择默认打开的仪表盘。',
+  'label.dashboard.config-invalid': '先修正这个仪表盘报出的问题，再保存。',
+  'label.dashboard.create-forbidden': '你不能在这里创建仪表盘。',
+  'label.dashboard.delete-failed': '这个仪表盘删不掉。',
+  'label.dashboard.delete-forbidden':
+    '你不能删除这个仪表盘，请联系它的归属人。',
+  'label.dashboard.list-failed': '仪表盘列表加载失败。',
+  'label.dashboard.list-unavailable': '仪表盘列表加载失败：无法连接服务端。',
+  'label.dashboard.reserved-id': '存储的仪表盘 {id} 用了保留 id，已跳过。',
+  'label.dashboard.notify-failed':
+    '仪表盘变化的订阅者出错：{reason}。列表可能慢一拍。',
+  'label.dashboard.open-failed': '无法打开这个仪表盘。',
+  'label.dashboard.not-found': '没有名为 {id} 的仪表盘。',
+  'label.dashboard.wrong-kind': '这不是仪表盘（{kind}），这个页面无法显示。',
+  'label.dashboard.gone': '这个仪表盘已不存在。',
+  'label.dashboard.open-forbidden': '你不能打开这个仪表盘。',
+  'label.dashboard.open-unavailable': '无法加载这个仪表盘：无法连接服务端。',
+  'label.dashboard.default-forbidden': '你不能设置默认仪表盘。',
+  'label.dashboard.preferences-failed': '仪表盘偏好保存失败。',
+  'label.dashboard.preferences-load-failed':
+    '仪表盘偏好加载失败，仪表盘按服务端顺序显示。',
+  'label.dashboard.reorder-forbidden': '你不能给仪表盘排序。',
+  'label.dashboard.rename-failed': '仪表盘改名失败。',
+  'label.dashboard.rename-forbidden':
+    '你不能给这个仪表盘改名，另存一份自己的吧。',
+  'label.dashboard.not-open': '这个仪表盘在这里已经不是打开着的了。',
+  'label.dashboard.save-as-failed': '这个仪表盘存不成副本。',
+  'label.dashboard.save-failed': '仪表盘保存失败。',
+  'label.dashboard.save-forbidden':
+    '你不能保存对这个仪表盘的改动，另存一份自己的吧。',
+  'label.dashboard.system-read-only': '系统仪表盘不能改（{action}）。',
+  'label.dashboard.title-empty': '仪表盘需要一个标题。',
+  'label.dashboard.write-in-flight': '这个仪表盘正在保存，等它结束。',
+  'label.dashboard.write-forbidden': '你不能写这个仪表盘。',
+  'label.dashboard.unreadable': '这个仪表盘无法读取。',
+  'label.dashboard.refresh-missing': '这个仪表盘没有刷新设置。',
+  'label.dashboard.not-declared': '{definition} 不提供仪表盘。',
   'label.dashboard.empty': '这个仪表盘还没有面板',
   'label.dashboard.empty-hint':
     '仪表盘把已保存的记录视图和分析视图并排放在一起看。',

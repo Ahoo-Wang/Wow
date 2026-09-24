@@ -17,6 +17,7 @@ import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import displayMeta, {
   AllPanels as DisplayAllPanels,
   Building as DisplayBuilding,
+  CannotOpen as DisplayCannotOpen,
   CrossFilter as DisplayCrossFilter,
   EmptyDashboard as DisplayEmptyDashboard,
   Filters as DisplayFilters,
@@ -339,6 +340,31 @@ export const EmptyDashboard: Story = {
       zhCN['label.dashboard.add.new-analysis'],
       zhCN['label.dashboard.empty.add-heading'],
     ]);
+  },
+};
+
+/**
+ * A board the store no longer holds (D26 Q34): the engine reports it with
+ * the code every kind shares, and the page says it of a dashboard — the
+ * title, the reason and the way out alike, 「视图」 nowhere.
+ */
+export const CannotOpen: Story = {
+  ...DisplayCannotOpen,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const alert = await canvas.findByRole('alert');
+    await expect(alert).toHaveAttribute('data-slot', 'view-unopenable');
+    await expect(alert).toHaveTextContent(zhCN['label.dashboard.unopenable']);
+    await expect(alert).toHaveTextContent(zhCN['label.dashboard.gone']);
+    await expect(alert.textContent).not.toContain('视图');
+
+    await userEvent.click(
+      within(alert).getByRole('button', {
+        name: zhCN['label.dashboard.open-default'],
+      }),
+    );
+    await findDataTable(canvasElement);
+    await expect(canvas.queryByRole('alert')).toBeNull();
   },
 };
 

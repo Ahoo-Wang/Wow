@@ -17,6 +17,7 @@ import type { AnyViewRuntime, ViewEngine } from '../../runtime/index.js';
 import { kindMismatch, type OpenViewState } from '../../react/index.js';
 import { Alert, AlertDescription, AlertTitle } from '../components/alert.js';
 import { Skeleton } from '../components/skeleton.js';
+import { kindIssue, kindWord, SurfaceKind } from '../kinds.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { RenderBoundary } from '../RenderBoundary.js';
 import { ViewSurface } from '../ViewSurface.js';
@@ -32,6 +33,10 @@ import type { EmbedBaseProps } from './options.js';
  * dashboard named to `EmbeddedView`, a record view to `EmbeddedDashboard` —
  * the two are split by resource, as the workbenches are); or the page's own
  * narrowing was refused, which is never shown in silence (D17-5).
+ *
+ * An entry that draws one kind says what it opens by that kind's word, here
+ * and below (`SurfaceKind`): an embedded board that cannot be opened is a
+ * dashboard that cannot be opened (Q34). One that draws several says view.
  */
 export function EmbedFrame({
   engine,
@@ -61,6 +66,7 @@ export function EmbedFrame({
   const runtime = opened.runtime;
   const wrongKind = kindMismatch(runtime, kinds);
   const unopenable = opened.error ?? wrongKind;
+  const kind = kinds.length === 1 ? kinds[0] : undefined;
   // The host's word on the view's own timer, followed as it changes. Set
   // once the view is open; a timer is seconds long, so nothing fires first.
   useEffect(() => {
@@ -77,48 +83,59 @@ export function EmbedFrame({
       className={className}
       data-embed-size={size}
     >
-      {unopenable && (
-        <Alert variant="destructive">
-          <AlertTitle>{messages.label('label.view.unopenable')}</AlertTitle>
-          <AlertDescription>{messages.issue(unopenable)}</AlertDescription>
-        </Alert>
-      )}
-      {/*
-        A refused narrowing leaves the wider result running, which is the one
-        outcome this must never show in silence: the page asked for one
-        customer's shipments and would otherwise quietly list everyone's. It
-        reads the same on the first open as on any later one — what was
-        refused is the page's own condition, and the page is who can change
-        it; the view below is whatever its author saved, and still worth
-        showing (D17-5).
-      */}
-      {opened.scopeIssues.length > 0 && (
-        <Alert variant="destructive">
-          <AlertTitle>{messages.label('label.scope.refused')}</AlertTitle>
-          <AlertDescription>
-            {messages.issues(opened.scopeIssues)}
-          </AlertDescription>
-        </Alert>
-      )}
-      {/* Said as well as drawn (U-13), as the workbench's opening is: the
-          embed's first moment is otherwise silent to a reader. */}
-      {opened.loading && (
-        <div data-slot="embed-opening" aria-busy="true">
-          <span role="status" className="sr-only">
-            {messages.label('label.workbench.opening')}
-          </span>
-          <Skeleton aria-hidden="true" className="h-24 w-full" />
-        </div>
-      )}
-      {runtime && !wrongKind && (
-        <RenderBoundary
-          name="result"
-          resetKeys={[runtime.id]}
-          onFailure={onRenderFailure}
-        >
-          {children(runtime)}
-        </RenderBoundary>
-      )}
+      {/* What the frame opens is named by its one kind, if it draws one:
+          below, through `SurfaceKind`; its own lines, which the provider
+          does not reach, by `kind` directly. */}
+      <SurfaceKind.Provider value={kind}>
+        {unopenable && (
+          <Alert variant="destructive">
+            <AlertTitle>
+              {messages.label(kindWord('label.view.unopenable', kind))}
+            </AlertTitle>
+            <AlertDescription>
+              {messages.issue(kindIssue(unopenable, kind))}
+            </AlertDescription>
+          </Alert>
+        )}
+        {/*
+          A refused narrowing leaves the wider result running, which is the
+          one outcome this must never show in silence: the page asked for one
+          customer's shipments and would otherwise quietly list everyone's.
+          It reads the same on the first open as on any later one — what was
+          refused is the page's own condition, and the page is who can change
+          it; the view below is whatever its author saved, and still worth
+          showing (D17-5).
+        */}
+        {opened.scopeIssues.length > 0 && (
+          <Alert variant="destructive">
+            <AlertTitle>
+              {messages.label(kindWord('label.scope.refused', kind))}
+            </AlertTitle>
+            <AlertDescription>
+              {messages.issues(opened.scopeIssues)}
+            </AlertDescription>
+          </Alert>
+        )}
+        {/* Said as well as drawn (U-13), as the workbench's opening is: the
+            embed's first moment is otherwise silent to a reader. */}
+        {opened.loading && (
+          <div data-slot="embed-opening" aria-busy="true">
+            <span role="status" className="sr-only">
+              {messages.label(kindWord('label.workbench.opening', kind))}
+            </span>
+            <Skeleton aria-hidden="true" className="h-24 w-full" />
+          </div>
+        )}
+        {runtime && !wrongKind && (
+          <RenderBoundary
+            name="result"
+            resetKeys={[runtime.id]}
+            onFailure={onRenderFailure}
+          >
+            {children(runtime)}
+          </RenderBoundary>
+        )}
+      </SurfaceKind.Provider>
     </ViewSurface>
   );
 }

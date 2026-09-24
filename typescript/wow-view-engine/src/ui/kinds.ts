@@ -20,8 +20,8 @@ import {
   UsersIcon,
 } from 'lucide-react';
 import { createContext, useContext } from 'react';
-import type { ViewAudience, ViewKind } from '../model/index.js';
-import type { MessageKey } from './messages.js';
+import type { Issue, ViewAudience, ViewKind } from '../model/index.js';
+import { defaultMessages, type MessageKey } from './messages.js';
 
 /**
  * The face each kind and each audience wears.
@@ -67,7 +67,8 @@ export const SurfaceKind = createContext<ViewKind | undefined>(undefined);
 /**
  * What a dashboard says where any other view says 视图 (D26 Q34): new,
  * save, the shared-save question, delete, the manager, the sidebar's three
- * groups and the line an unopenable one gets. Only the chrome
+ * groups and the line an unopenable one gets — and what the engine reports
+ * about the thing open, by code (`kindIssue`). Only the chrome
  * that names the thing open reads through it — a board's panels still show
  * views, and the picker, 另存为视图 and the rest say so in keys of their own.
  */
@@ -105,6 +106,45 @@ const DASHBOARD_WORDS: Partial<Record<MessageKey, MessageKey>> = {
   'label.scope.refused': 'label.dashboard.scope-refused',
   'label.render.failed-hint': 'label.dashboard.render-hint',
   'label.view.needs-fixing': 'label.dashboard.needs-fixing',
+  // What the engine reports about the thing open (`kindIssue`), by the entry
+  // its code reads. Only the entries whose sentence names a view: the rest
+  // say a write, a server or a definition, and read the same on a board.
+  'view.config.invalid': 'label.dashboard.config-invalid',
+  'view.create.forbidden': 'label.dashboard.create-forbidden',
+  'view.delete.failed': 'label.dashboard.delete-failed',
+  'view.delete.forbidden': 'label.dashboard.delete-forbidden',
+  'view.list.failed': 'label.dashboard.list-failed',
+  'view.list.failed.unavailable': 'label.dashboard.list-unavailable',
+  'view.list.reserved-id': 'label.dashboard.reserved-id',
+  'view.change.notify-failed': 'label.dashboard.notify-failed',
+  'view.open.failed': 'label.dashboard.open-failed',
+  'view.open.not-found': 'label.dashboard.not-found',
+  'view.open.wrong-kind': 'label.dashboard.wrong-kind',
+  'view.open.failed.not_found': 'label.dashboard.gone',
+  'view.open.failed.forbidden': 'label.dashboard.open-forbidden',
+  'view.open.failed.unavailable': 'label.dashboard.open-unavailable',
+  'view.preferences.default-forbidden': 'label.dashboard.default-forbidden',
+  'view.preferences.failed': 'label.dashboard.preferences-failed',
+  'view.preferences.load-failed': 'label.dashboard.preferences-load-failed',
+  'view.preferences.reorder-forbidden': 'label.dashboard.reorder-forbidden',
+  'view.rename.failed': 'label.dashboard.rename-failed',
+  'view.rename.forbidden': 'label.dashboard.rename-forbidden',
+  'view.runtime.not-owned': 'label.dashboard.not-open',
+  'view.save-as.failed': 'label.dashboard.save-as-failed',
+  'view.save.failed': 'label.dashboard.save-failed',
+  'view.save.forbidden': 'label.dashboard.save-forbidden',
+  'view.system.read-only': 'label.dashboard.system-read-only',
+  'view.title.empty': 'label.dashboard.title-empty',
+  'view.write.conflict': 'label.dashboard.write-conflict',
+  'view.write.forbidden': 'label.dashboard.write-forbidden',
+  'view.write.in-flight': 'label.dashboard.write-in-flight',
+  'view.write.not_found': 'label.dashboard.gone',
+  // The part of a config every kind stores, judged for the board as for
+  // any view (a board has no conditions of its own, D27, so the two about
+  // them never reach one); and a definition that offers no board at all.
+  'config.invalid': 'label.dashboard.unreadable',
+  'config.refresh.missing': 'label.dashboard.refresh-missing',
+  'runtime.kind.not-declared': 'label.dashboard.not-declared',
 };
 
 /** The key a kind says `key` with: its own where it has one. */
@@ -119,4 +159,44 @@ export function kindWord(
 export function useKindWord(): (key: MessageKey) => MessageKey {
   const kind = useContext(SurfaceKind);
   return key => kindWord(key, kind);
+}
+
+/**
+ * An issue about the thing open, said as its kind says it: 「仪表盘保存失败」
+ * on a board where a view says 「视图保存失败」.
+ *
+ * The engine raises the same code for every kind — the write, the list and
+ * the opening are one protocol — so the choice is the surface's, as it is
+ * for a label (`kindWord`). A code reads the entry it falls back to
+ * (`formatMessage`: the code itself, else its longest prefix the catalogue
+ * ships), so `view.save.failed.unavailable` reads as `view.save.failed`
+ * does, and that entry's own word stands in. Only the chrome that reports
+ * on the thing open asks: a panel's view, the picker's list and a board's
+ * analysis promoted to a view are views, and are said so.
+ */
+export function kindIssue(found: Issue, kind: ViewKind | undefined): Issue {
+  if (kind !== 'dashboard') return found;
+  const entry = shippedEntry(found.code);
+  const own = entry === undefined ? undefined : DASHBOARD_WORDS[entry];
+  return own === undefined ? found : { ...found, code: own };
+}
+
+/** `kindIssue` for the kind the surface has open (`SurfaceKind`). */
+export function useKindIssue(): (found: Issue) => Issue {
+  const kind = useContext(SurfaceKind);
+  return found => kindIssue(found, kind);
+}
+
+/** The shipped entry a code is worded by, walking back along its dots. */
+function shippedEntry(code: string): MessageKey | undefined {
+  for (let candidate = code; ;) {
+    if (isShipped(candidate)) return candidate;
+    const cut = candidate.lastIndexOf('.');
+    if (cut < 0) return undefined;
+    candidate = candidate.slice(0, cut);
+  }
+}
+
+function isShipped(key: string): key is MessageKey {
+  return Object.prototype.hasOwnProperty.call(defaultMessages, key);
 }

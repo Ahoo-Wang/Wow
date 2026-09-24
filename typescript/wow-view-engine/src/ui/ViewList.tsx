@@ -33,7 +33,7 @@ import { LineAlert } from './alerts.js';
 import { IconButton } from './IconButton.js';
 import { NewViewControl, type NewViewCommand } from './workbench/NewView.js';
 import { SidebarItem } from './variants.js';
-import { KIND_ICON, useKindWord } from './kinds.js';
+import { KIND_ICON, useKindIssue, useKindWord } from './kinds.js';
 import { SystemMark } from './SystemMark.js';
 import { SPACE, TEXT_UI } from './layout.js';
 import { useViewMessages } from './MessagesProvider.js';
@@ -241,6 +241,7 @@ function ViewListBody({
 }) {
   const messages = useViewMessages();
   const word = useKindWord();
+  const ownWord = useKindIssue();
   // The way to ask again, drawn wherever the failure is said.
   const retry = onRetry && (
     <Button variant="outline" size="xs" onClick={onRetry}>
@@ -255,7 +256,7 @@ function ViewListBody({
    */
   const failed = list.error && (
     <LineAlert tone="warning" frame="bare" data-slot="view-list-failed">
-      <AlertTitle>{messages.issue(list.error)}</AlertTitle>
+      <AlertTitle>{messages.issue(ownWord(list.error))}</AlertTitle>
       {retry && <AlertAction>{retry}</AlertAction>}
     </LineAlert>
   );

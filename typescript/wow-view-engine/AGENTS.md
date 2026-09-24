@@ -356,7 +356,7 @@ src/
     dragDrop.ts               — `dropped()`: what makes a finished drag a drop at all, before any list adds its own rule
     features.ts               — `WorkbenchFeatures`: which of the workbench's own controls exist (D18 XI)
     gridPlacement.ts          — `useGridPlacement`: a pointer drag or resize placed by the kernel's `placePanel`, preview and drop alike
-    kinds.ts                  — The icon each kind and audience wears, shared by list and header; `SurfaceKind`, the one kind a surface has open, and `kindWord`／`useKindWord`: a dashboard's chrome says 仪表盘 where another says 视图 (D26 Q34)
+    kinds.ts                  — The icon each kind and audience wears, shared by list and header; `SurfaceKind`, the one kind a surface has open, `kindWord`／`useKindWord`: a dashboard's chrome says 仪表盘 where another says 视图 (D26 Q34), and `kindIssue`／`useKindIssue`, the same for what the engine reports about the thing open, by the entry its code reads
     layout.ts                 — `TEXT_UI`, `SPACE`: the one small type size and the spacing ruler
     messages.ts               — Wording, by key
     popups.tsx                — The popups this package renders, themed and on a layer of their own
@@ -428,7 +428,7 @@ src/
       reading.ts              — A chart as text: its name and the numbers it draws
     embed/                    — What the two embeds share, and the data view's bodies (D22)
       options.ts              — The tiers (`EmbedInteraction`, `DashboardEmbedInteraction`), `EmbedSize`, and `EmbedBaseProps` — what both embeds take
-      EmbedFrame.tsx          — The surface both embeds draw on (`data-embed-size`), the moment it opens, said as well as drawn, what can go wrong opening one — unopenable, another kind, a refused narrowing — the auto-refresh switch, and one render boundary
+      EmbedFrame.tsx          — The surface both embeds draw on (`data-embed-size`), the moment it opens, said as well as drawn, what can go wrong opening one — unopenable, another kind, a refused narrowing — said by the one kind it draws (`SurfaceKind`), the auto-refresh switch, and one render boundary
       EmbedHead.tsx           — An embed's first row, only when it has something in it: the title at the host's heading level and the controls on the right; `OpenInWorkbench`
       EmbeddedRecord.tsx      — A record view embedded: the rows, the read-only applied band and the search at its end, the export in the head; header sort and pages in the interactive tier
       EmbeddedAnalysis.tsx    — An analysis view embedded: its chart or table as saved; in the interactive tier the table｜chart switch, the header sort and the follow-up menu through the host's route
