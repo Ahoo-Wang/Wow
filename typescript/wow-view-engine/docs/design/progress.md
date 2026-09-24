@@ -89,8 +89,8 @@
 ## 这个暂停点（2026-09-24）
 
 - **在做**（阶段 3 最后几项，各一个子代理；分支都基于 #1863 之后的 main，已推到 origin；子代理若中断，读分支最后一个 `wip:` 提交的说明即可接着做，完成后开 PR、本地门禁全绿即合并）：
-  - `claude/ve-p3-panel-menu`（WIP `b240a1b4f`）：导出窗口已可受控（`ExportButton` 拆出）、`referToSaved` 放宽、`ViewEngine.copyPanelView` 已有；未做：面板菜单「导出数据…」、`EmbeddedDashboard` 的导出开关、「复制为共享视图并替换…」界面、`dashboard.panel.not-referenced` 的文案与测试、分析面板导出记为搁置待议。
-  - `claude/ve-p3-edit-mode`（WIP `70faa1b5d`）：窄屏调顺序的内核 `reorderPanel`／`reorderPanelIn` 与测试已有、撤销栈 `runtime/dashboard/history.ts` 的 `EditHistory` 已写；未做：接进 runtime（`undo`／`redo`、还原保存重读时清空）、窄屏「上移／下移」、编辑条「撤销／重做」与 ⌘/Ctrl+Z、去掉移除面板的确认（删带面板的标签页仍确认）。
+  - `claude/ve-p3-panel-menu`（WIP `b240a1b4f`）：导出窗口已可受控（工具栏按钮单独拆出）、`referToSaved` 放宽、`ViewEngine.copyPanelView` 已有；未做：面板菜单「导出数据…」、`EmbeddedDashboard` 的导出开关、「复制为共享视图并替换…」界面、`dashboard.panel.not-referenced` 的文案与测试、分析面板导出记为搁置待议。
+  - `claude/ve-p3-edit-mode`（WIP `70faa1b5d`）：窄屏调顺序的内核函数与测试已有、撤销栈（`runtime/dashboard/history.ts`，分支上的新文件）已写；未做：接进 runtime（`undo`／`redo`、还原保存重读时清空）、窄屏「上移／下移」、编辑条「撤销／重做」与 ⌘/Ctrl+Z、去掉移除面板的确认（删带面板的标签页仍确认）。
   - `claude/ve-p3-analysis-leftovers`（WIP `8eb03baff`）：「只看这一组」后标题与另存名已修（`1a019529a`）；下钻标题与已应用条一种说法做了一半（以下钻菜单的分桶读法、字段自己的标签为准）；待应用时表头排序的可及名未开始。
 - **下一步**：这几项合并后，阶段 3 与阶段 4 **一起**做阶段审查（架构、代码质量、UI、视觉、UX）与审查后的重构；然后停下，告诉用户进入迁移窗口（迁移由本会话按方案执行，动手前先把步骤列给用户）。
 - **CI**：Node 20 已停测，仓库要求 Node ≥ 22.12.0；Node 24 的 view-engine 拆成三片加一个汇总 job（阈值与 `test:type` 在汇总里），Storybook 交互测试拆成两片；只改包内 Markdown 的 PR 只跑 `Package docs`。
