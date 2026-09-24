@@ -73,6 +73,11 @@ export interface AggregateDefinition {
   /** The aggregate metadata with tag and alias information */
   aggregate: TagAliasAggregate;
   /**
+   * The aggregate's route segment, which is its name unless the aggregate
+   * sets a resource name: `sales-order` for the aggregate `order`.
+   */
+  resourceName: string;
+  /**
    * The schema for the aggregate root state
    */
   state: KeySchema;

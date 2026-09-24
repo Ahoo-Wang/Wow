@@ -33,13 +33,14 @@ import {
 } from '../model';
 import {
   addImport,
+  addImportBoundedContext,
   addImportRefModel,
   addJSDoc,
   camelCase,
   isEmptyObject,
+  quoteStringLiteral,
   resolveOptionalFields,
   resolvePathParameterType,
-  quoteStringLiteral,
 } from '../utils';
 import {
   addApiMetadataCtor,
@@ -50,8 +51,9 @@ import {
 } from './decorators';
 import {
   createClientFilePath,
-  resolveClassName,
   methodToDecorator,
+  resolveClassName,
+  uniqueParameterName,
 } from './utils';
 
 /**
@@ -123,6 +125,15 @@ export class CommandClientGenerator implements Generator {
     this.context.logger.info(
       `Creating default command client options: ${this.defaultCommandClientOptionsName}`,
     );
+    const contextDeclarationName = resolveContextDeclarationName(
+      aggregate.aggregate.contextAlias,
+    );
+    addImportBoundedContext(
+      commandClientFile,
+      this.context.outputDir,
+      aggregate.aggregate.contextAlias,
+      contextDeclarationName,
+    );
     commandClientFile.addVariableStatement({
       declarationKind: VariableDeclarationKind.Const,
       declarations: [
@@ -130,37 +141,24 @@ export class CommandClientGenerator implements Generator {
           name: this.defaultCommandClientOptionsName,
           type: 'ApiMetadata',
           initializer: `{
-        basePath: ${resolveContextDeclarationName(aggregate.aggregate.contextAlias)}
+        basePath: ${contextDeclarationName}
       }`,
         },
       ],
       isExported: false,
     });
 
-    this.context.logger.info(
-      `Adding imports from ${IMPORT_WOW_PATH}: CommandRequest, CommandResult, CommandResultEventStream, CommandBody, DeleteAggregateCommand, RecoverAggregateCommand`,
-    );
-    commandClientFile.addImportDeclaration({
-      moduleSpecifier: IMPORT_WOW_PATH,
-      namedImports: [
-        'CommandRequest',
-        'CommandResult',
-        'CommandResultEventStream',
-        'CommandBody',
-        'DeleteAggregateCommand',
-        'RecoverAggregateCommand',
-      ],
-    });
-
-    this.context.logger.info(
-      `Adding import from @ahoo-wang/fetcher-eventstream: JsonEventStreamResultExtractor`,
-    );
+    addImport(commandClientFile, IMPORT_WOW_PATH, [
+      'CommandRequest',
+      'CommandResult',
+      'CommandResultEventStream',
+      'CommandBody',
+    ]);
     addImportEventStream(commandClientFile);
-
-    this.context.logger.info(
-      `Adding import from @ahoo-wang/fetcher: ContentTypeValues`,
-    );
-    addImport(commandClientFile, '@ahoo-wang/fetcher', ['ContentTypeValues']);
+    addImport(commandClientFile, '@ahoo-wang/fetcher', [
+      'ContentTypeValues',
+      'PartialBy',
+    ]);
 
     this.context.logger.info(
       `Adding imports from @ahoo-wang/fetcher-decorator: ApiMetadata types and decorators`,
@@ -202,19 +200,57 @@ export class CommandClientGenerator implements Generator {
       name: aggregateCommandEndpointPathsName,
       isExported: true,
     });
+    const members = this.endpointMemberNames(aggregateDefinition);
     aggregateDefinition.commands.forEach(command => {
-      this.context.logger.info(
-        `Adding command endpoint: ${command.name.toUpperCase()} = '${command.path}'`,
-      );
       enumDeclaration.addMember({
-        name: command.name.toUpperCase(),
-        initializer: `'${command.path}'`,
+        name: members.get(command)!,
+        initializer: quoteStringLiteral(command.path),
       });
     });
     this.context.logger.info(
       `Command endpoint paths enum created with ${aggregateDefinition.commands.size} entries`,
     );
     return aggregateCommandEndpointPathsName;
+  }
+
+  private endpointMembers = new WeakMap<
+    AggregateDefinition,
+    Map<CommandDefinition, string>
+  >();
+
+  /**
+   * Names each command's endpoint member: its name upper-cased
+   * (`add_cart_item` → `ADD_CART_ITEM`), with characters no identifier may
+   * hold replaced by `_` (`pay-order` → `PAY_ORDER`), a leading digit
+   * prefixed with `_`, and a number appended to the second of two commands
+   * that end up alike.
+   */
+  private endpointMemberNames(
+    aggregateDefinition: AggregateDefinition,
+  ): Map<CommandDefinition, string> {
+    let names = this.endpointMembers.get(aggregateDefinition);
+    if (names) return names;
+    names = new Map();
+    const used = new Set<string>();
+    for (const command of aggregateDefinition.commands.values()) {
+      let base = command.name.toUpperCase().replace(/[^\p{L}\p{N}_$]/gu, '_');
+      if (!base || /^\p{N}/u.test(base)) base = `_${base}`;
+      let name = base;
+      for (let suffix = 2; used.has(name); suffix++) name = `${base}_${suffix}`;
+      used.add(name);
+      names.set(command, name);
+    }
+    this.endpointMembers.set(aggregateDefinition, names);
+    return names;
+  }
+
+  /**
+   * The method a command generates: its name camel-cased, as
+   * `add_cart_item` → `addCartItem`.
+   */
+  private commandMethodName(definition: CommandDefinition): string {
+    const name = camelCase(definition.name) || '_';
+    return /^\p{N}/u.test(name) ? `_${name}` : name;
   }
 
   resolveCommandTypeName(definition: CommandDefinition): [ModelInfo, string] {
@@ -226,6 +262,8 @@ export class CommandClientGenerator implements Generator {
     const [commandModelInfo, commandName] =
       this.resolveCommandTypeName(definition);
     if (commandModelInfo.path === IMPORT_WOW_PATH) {
+      // Wow's own commands have their command types in wow-client.
+      addImport(clientFile, IMPORT_WOW_PATH, [commandName]);
       return;
     }
     addImportRefModel(clientFile, this.context.outputDir, commandModelInfo);
@@ -257,10 +295,11 @@ export class CommandClientGenerator implements Generator {
   }
 
   getEndpointPath(
+    aggregateDefinition: AggregateDefinition,
     aggregateCommandEndpointPathsName: string,
     command: CommandDefinition,
   ): string {
-    return `${aggregateCommandEndpointPathsName}.${command.name.toUpperCase()}`;
+    return `${aggregateCommandEndpointPathsName}.${this.endpointMemberNames(aggregateDefinition).get(command)}`;
   }
 
   processCommandClient(
@@ -278,7 +317,10 @@ export class CommandClientGenerator implements Generator {
       [],
       ['R = CommandResult'],
     );
-    addApiMetadataCtor(commandClient, this.defaultCommandClientOptionsName);
+    addApiMetadataCtor(
+      commandClient,
+      `...${this.defaultCommandClientOptionsName}`,
+    );
 
     aggregateDefinition.commands.forEach(command => {
       this.processCommandMethod(
@@ -303,23 +345,14 @@ export class CommandClientGenerator implements Generator {
       'StreamCommandClient',
     );
 
-    const streamCommandClient = createDecoratorClass(
+    // Inherits the constructor, which merges apiMetadata over the defaults.
+    createDecoratorClass(
       commandStreamClientName,
       clientFile,
       [`''`, STREAM_RESULT_EXTRACTOR_METADATA],
       [],
       `${commandClientName}<CommandResultEventStream>`,
     );
-    streamCommandClient.addConstructor({
-      parameters: [
-        {
-          name: 'apiMetadata',
-          type: 'ApiMetadata',
-          initializer: this.defaultCommandClientOptionsName,
-        } as OptionalKind<ParameterDeclarationStructure>,
-      ],
-      statements: `super(apiMetadata);`,
-    });
   }
 
   private resolveParameters(
@@ -332,30 +365,23 @@ export class CommandClientGenerator implements Generator {
       `Adding import for command model: ${commandModelInfo.name} from path: ${commandModelInfo.path}`,
     );
 
-    const parameters = definition.pathParameters
-      .filter(parameter => {
-        return !this.context.isIgnoreCommandClientPathParameters(
-          tag.name,
-          parameter.name,
-        );
-      })
-      .map(parameter => {
-        const parameterType = resolvePathParameterType(parameter);
-        this.context.logger.info(
-          `Adding path parameter: ${parameter.name} (type: ${parameterType})`,
-        );
-        return {
-          name: parameter.name,
-          type: parameterType,
+    const used = new Set(['commandRequest', 'attributes']);
+    const parameters: OptionalKind<ParameterDeclarationStructure>[] =
+      definition.pathParameters
+        .filter(parameter => {
+          return !this.context.isIgnoreCommandClientPathParameters(
+            tag.name,
+            parameter.name,
+          );
+        })
+        .map(parameter => ({
+          name: uniqueParameterName(parameter.name, used),
+          type: resolvePathParameterType(parameter),
           hasQuestionToken: false,
           decorators: [
-            {
-              name: 'path',
-              arguments: [`'${parameter.name}'`],
-            },
+            { name: 'path', arguments: [quoteStringLiteral(parameter.name)] },
           ],
-        };
-      });
+        }));
 
     this.context.logger.info(
       `Adding command request parameter: commandRequest (type: CommandRequest<${commandName}>)`,
@@ -372,13 +398,10 @@ export class CommandClientGenerator implements Generator {
       ],
     });
 
-    this.context.logger.info(
-      `Adding attributes parameter: attributes (type: Record<string, any>)`,
-    );
     parameters.push({
       name: 'attributes',
       hasQuestionToken: true,
-      type: 'Record<string, any>',
+      type: 'Record<string, unknown>',
       decorators: [
         {
           name: 'attribute',
@@ -395,8 +418,9 @@ export class CommandClientGenerator implements Generator {
     definition: CommandDefinition,
     aggregateCommandEndpointPathsName: string,
   ) {
+    const methodName = this.commandMethodName(definition);
     this.context.logger.info(
-      `Generating command method: ${camelCase(definition.name)} for command: ${definition.name}`,
+      `Generating command method: ${methodName} for command: ${definition.name}`,
     );
     this.context.logger.info(
       `Command method details: HTTP ${definition.method}, path: ${definition.path}`,
@@ -406,12 +430,16 @@ export class CommandClientGenerator implements Generator {
       definition,
     );
     const methodDeclaration = client.addMethod({
-      name: camelCase(definition.name),
+      name: methodName,
       decorators: [
         {
           name: methodToDecorator(definition.method),
           arguments: [
-            `${this.getEndpointPath(aggregateCommandEndpointPathsName, definition)}`,
+            this.getEndpointPath(
+              aggregate,
+              aggregateCommandEndpointPathsName,
+              definition,
+            ),
           ],
         },
       ],
@@ -420,9 +448,6 @@ export class CommandClientGenerator implements Generator {
       statements: `throw autoGeneratedError(${parameters.map(parameter => parameter.name).join(',')});`,
     });
 
-    this.context.logger.info(
-      `Adding JSDoc documentation for method: ${camelCase(definition.name)}`,
-    );
     addJSDoc(methodDeclaration, [
       definition.summary,
       definition.description,
@@ -430,8 +455,6 @@ export class CommandClientGenerator implements Generator {
       `- path: \`${definition.path}\``,
     ]);
 
-    this.context.logger.info(
-      `Command method generated: ${camelCase(definition.name)}`,
-    );
+    this.context.logger.info(`Command method generated: ${methodName}`);
   }
 }

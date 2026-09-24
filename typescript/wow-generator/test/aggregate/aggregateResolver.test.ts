@@ -22,7 +22,8 @@ vi.mock('../../src/aggregate/utils', () => ({
   operationIdToCommandName: vi.fn(),
 }));
 
-vi.mock('../../src/utils', () => ({
+vi.mock('../../src/utils', async importOriginal => ({
+  ...(await importOriginal<typeof import('../../src/utils')>()),
   parseOpenAPI: vi.fn(),
   extractOkResponse: vi.fn(),
   extractOperationOkResponseJsonSchema: vi.fn(),
@@ -55,7 +56,11 @@ describe('AggregateResolver', () => {
   let mockExtractOperations: any;
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    // Reset queued return values too: an operation the resolver now skips
+    // early must not leave one for the next test.
+    vi.resetAllMocks();
+    (extractOperationEndpoints as any).mockReturnValue([]);
+    (extractPathParameters as any).mockReturnValue([]);
 
     mockOpenAPI = {
       paths: {},
@@ -146,7 +151,9 @@ describe('AggregateResolver', () => {
       const result = aggregateResolver.resolve();
       expect(result.size).toBe(1);
       expect(result.get('test')).toBeDefined();
-      expect(result.get('test')!.has(mockAggregate)).toBe(true);
+      expect([...result.get('test')!]).toEqual([
+        { ...mockAggregate, resourceName: 'TestAggregate' },
+      ]);
     });
   });
 
@@ -345,7 +352,7 @@ describe('AggregateResolver', () => {
       expect(mockAggregate.state).toBeUndefined();
     });
 
-    it('should skip operations without reference response', () => {
+    it('should reject an aggregate state response that is not a reference', () => {
       const operation = {
         operationId: 'test.snapshot_state.single',
         tags: ['tag1'],
@@ -355,7 +362,9 @@ describe('AggregateResolver', () => {
       });
       (isReference as any).mockReturnValue(false);
 
-      (aggregateResolver as any).state(operation);
+      expect(() => (aggregateResolver as any).state(operation)).toThrow(
+        'Cannot read the Wow metadata of test.snapshot_state.single: its 200 application/json response is not a $ref to the state schema.',
+      );
       expect(mockAggregate.state).toBeUndefined();
     });
 
@@ -441,7 +450,7 @@ describe('AggregateResolver', () => {
       expect(mockAggregate.events.size).toBe(0);
     });
 
-    it('should skip operations without reference items', () => {
+    it('should reject an event list whose items are not a reference', () => {
       const operation = {
         operationId: 'test.event.list_query',
         tags: ['tag1'],
@@ -453,7 +462,9 @@ describe('AggregateResolver', () => {
         .mockReturnValueOnce(false)
         .mockReturnValueOnce(false);
 
-      (aggregateResolver as any).events(operation);
+      expect(() => (aggregateResolver as any).events(operation)).toThrow(
+        'Cannot read the Wow metadata of test.event.list_query: its 200 application/json response is not an array of a $ref to the event stream schema.',
+      );
       expect(mockAggregate.events.size).toBe(0);
     });
 
@@ -484,7 +495,7 @@ describe('AggregateResolver', () => {
       (extractOperationOkResponseJsonSchema as any).mockReturnValue({
         items: { $ref: '#/components/schemas/EventStream' },
       });
-      (isReference as any).mockReturnValueOnce(false).mockReturnValueOnce(true);
+      (isReference as any).mockImplementation(actualIsReference);
       (extractSchema as any).mockReturnValue(mockEventSchema);
       (keySchema as any).mockReturnValue(mockEventBodySchema);
 
@@ -611,7 +622,7 @@ describe('AggregateResolver', () => {
           field: { $ref: '#/components/schemas/LegacyAggregatedFields' },
         },
       });
-      (isReference as any).mockReturnValue(false);
+      (isReference as any).mockImplementation(actualIsReference);
 
       expect(() => (aggregateResolver as any).fields(operation)).toThrow(
         'x-wow-query-fields must be a schema reference',
@@ -642,6 +653,7 @@ describe('AggregateResolver', () => {
         .mockReturnValueOnce(mockConditionSchema)
         .mockReturnValueOnce({ type: 'string' });
       (keySchema as any).mockReturnValue(mockFieldSchema);
+      (isReference as any).mockImplementation(actualIsReference);
 
       (aggregateResolver as any).fields(operation);
       expect(mockAggregate.fields).toBe(mockFieldSchema);

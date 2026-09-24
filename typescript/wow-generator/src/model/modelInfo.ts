@@ -17,7 +17,7 @@ import {
   COMPONENTS_SCHEMAS_REF,
   extractComponentKey,
   extractSchema,
-  pascalCase,
+  toTypeIdentifier,
   upperSnakeCase,
 } from '../utils';
 import { IMPORT_WOW_PATH, WOW_TYPE_MAPPING } from './wowTypeMapping';
@@ -83,7 +83,7 @@ export function resolveModelInfo(
 
   // Construct the model name from the remaining parts
   const nameParts = parts.slice(modelNameIndex);
-  const name = pascalCase(nameParts);
+  const name = toTypeIdentifier(nameParts);
 
   return { name, path };
 }
@@ -104,5 +104,6 @@ export function resolveReferenceModelInfo(
 
 export function resolveContextDeclarationName(contextAlias: string): string {
   const contextUpperName = upperSnakeCase(contextAlias);
-  return `${contextUpperName}_BOUNDED_CONTEXT_ALIAS`;
+  const name = `${contextUpperName}_BOUNDED_CONTEXT_ALIAS`;
+  return /^\p{N}/u.test(name) ? `_${name}` : name;
 }

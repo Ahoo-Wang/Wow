@@ -66,7 +66,10 @@ export function tagToAggregate(tag: Tag): TagAliasAggregate | null {
  */
 export function tagsToAggregates(
   tags?: Tag[],
-): Map<string, PartialBy<AggregateDefinition, 'state' | 'fields'>> {
+): Map<
+  string,
+  PartialBy<AggregateDefinition, 'state' | 'fields' | 'resourceName'>
+> {
   const tagAliasAggregates = tags
     ?.map(tag => tagToAggregate(tag))
     .filter(tag => tag !== null);
@@ -75,7 +78,7 @@ export function tagsToAggregates(
   }
   const aggregates = new Map<
     string,
-    PartialBy<AggregateDefinition, 'state' | 'fields'>
+    PartialBy<AggregateDefinition, 'state' | 'fields' | 'resourceName'>
   >();
   tagAliasAggregates.forEach(tagAliasAggregate => {
     aggregates.set(tagAliasAggregate.tag.name, {

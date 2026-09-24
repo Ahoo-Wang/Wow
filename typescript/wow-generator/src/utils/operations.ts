@@ -125,16 +125,33 @@ export function extractOperations(pathItem: PathItem): MethodOperation[] {
 }
 
 /**
- * Extracts the OK (200) response from an operation.
+ * Picks the status code of an operation's success response: `200`, else the
+ * lowest other 2xx code, else `2XX`.
+ *
+ * @param operation - The OpenAPI operation
+ * @returns The status code key, or undefined when no 2xx response is declared
+ */
+export function okResponseStatus(operation: Operation): string | undefined {
+  const statuses = Object.keys(operation.responses ?? {});
+  if (statuses.includes('200')) return '200';
+  const exact = statuses.filter(status => /^2\d\d$/.test(status)).sort();
+  if (exact.length > 0) return exact[0];
+  return statuses.find(status => status.toUpperCase() === '2XX');
+}
+
+/**
+ * Extracts the success response from an operation: `200`, else the lowest
+ * other 2xx response, else `2XX`.
  * @param operation - The OpenAPI operation
  * @param components - Optional components used to resolve response references
- * @returns The 200 response or undefined if not found
+ * @returns The success response or undefined if not found
  */
 export function extractOkResponse(
   operation: Operation,
   components?: Components,
 ): Response | Reference | undefined {
-  const response = operation.responses['200'];
+  const status = okResponseStatus(operation);
+  const response = status ? operation.responses[status] : undefined;
   return components && isReference(response)
     ? extractResponse(response, components)
     : response;

@@ -53,6 +53,11 @@ export function setupCLI() {
       '--timeout <ms>',
       `Milliseconds before fetching an http(s) input is abandoned (default: ${DEFAULT_HTTP_TIMEOUT_MS})`,
     )
+    .option(
+      '--schema-docs <mode>',
+      'What model doc comments carry: "summary" (title, description, constraints) or "full" (also the JSON schema)',
+      'summary',
+    )
     .option('--strict', 'Exit with code 4 when the run logs a warning')
     .option('--verbose', 'Log every step, and the stack trace of a failure')
     .option('--quiet', 'Log only warnings and errors')

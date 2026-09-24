@@ -11,11 +11,10 @@
  * limitations under the License.
  */
 
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import {
   cpSync,
   existsSync,
-  mkdirSync,
   readdirSync,
   readFileSync,
   rmSync,
@@ -24,8 +23,15 @@ import {
 } from 'fs';
 import * as path from 'path';
 import { runGenerate, SilentLogger } from '../src/utils';
+import {
+  BUNDLER_OPTIONS,
+  coldDirectory,
+  NODE_NEXT_OPTIONS,
+  PACKAGE_ROOT,
+  removeDirectories,
+  typeCheck,
+} from './support/generation';
 
-const OUT_PUT_DIR = 'test-output';
 const EXPECTED_DIR = 'expected';
 
 /**
@@ -37,41 +43,11 @@ const EXPECTED_DIR = 'expected';
  */
 const UPDATE_SNAPSHOTS = process.env.UPDATE_SNAPSHOTS === 'true';
 
-function resolvePackagePath(...segments: string[]): string {
-  return path.join(__dirname, '..', ...segments);
-}
+const directories: string[] = [];
+afterAll(() => removeDirectories(directories));
 
-/**
- * ts-morph's Project requires tsConfigFilePath to point at an EXISTING file.
- * (The pre-rewrite e2e test silently relied on a stale, gitignored
- * test-output/tsconfig.json left over from previous local runs — on a fresh
- * checkout the generation crashed and generateAction's catch swallowed it,
- * so the zero-assertion test appeared green.) Write a hermetic tsconfig
- * scoped to the output directory before generating.
- */
-function writeOutputTsconfig(outputDir: string) {
-  const absoluteOutputDir = resolvePackagePath(outputDir);
-  mkdirSync(absoluteOutputDir, { recursive: true });
-  writeFileSync(
-    path.join(absoluteOutputDir, 'tsconfig.json'),
-    JSON.stringify(
-      {
-        compilerOptions: {
-          target: 'ES2020',
-          module: 'ES2020',
-          moduleResolution: 'bundler',
-          strict: true,
-          experimentalDecorators: true,
-          emitDecoratorMetadata: true,
-          skipLibCheck: true,
-          noEmit: true,
-        },
-        include: ['./**/*'],
-      },
-      null,
-      2,
-    ),
-  );
+function resolvePackagePath(...segments: string[]): string {
+  return path.join(PACKAGE_ROOT, ...segments);
 }
 
 function listFilesRecursive(dir: string, base: string = dir): string[] {
@@ -91,17 +67,16 @@ function listFilesRecursive(dir: string, base: string = dir): string[] {
 }
 
 function expectOutputMatchesSnapshot(outputDir: string, snapshotDir: string) {
-  const absoluteOutputDir = resolvePackagePath(outputDir);
   const absoluteSnapshotDir = resolvePackagePath(snapshotDir);
 
   if (UPDATE_SNAPSHOTS) {
     rmSync(absoluteSnapshotDir, { recursive: true, force: true });
-    cpSync(absoluteOutputDir, absoluteSnapshotDir, { recursive: true });
+    cpSync(outputDir, absoluteSnapshotDir, { recursive: true });
     return;
   }
 
   const expectedFiles = listFilesRecursive(absoluteSnapshotDir);
-  const actualFiles = listFilesRecursive(absoluteOutputDir);
+  const actualFiles = listFilesRecursive(outputDir);
   expect(
     actualFiles,
     `Generated file list diverged from [${snapshotDir}]. ` +
@@ -113,7 +88,7 @@ function expectOutputMatchesSnapshot(outputDir: string, snapshotDir: string) {
       path.join(absoluteSnapshotDir, file),
       'utf-8',
     );
-    const actual = readFileSync(path.join(absoluteOutputDir, file), 'utf-8');
+    const actual = readFileSync(path.join(outputDir, file), 'utf-8');
     expect(
       actual,
       `Generated file [${file}] diverged from its snapshot. ` +
@@ -122,58 +97,84 @@ function expectOutputMatchesSnapshot(outputDir: string, snapshotDir: string) {
   }
 }
 
+/**
+ * Generates into a directory outside the package, where `@ahoo-wang/*` does
+ * not resolve: the output must not depend on what its directory resolves.
+ * The project's tsconfig sits beside the output, as in an application.
+ */
+async function generate(
+  name: string,
+  options: { input: string; config?: string },
+): Promise<string> {
+  const dir = coldDirectory(`e2e-${name}`, directories);
+  const tsConfigFilePath = path.join(dir, 'tsconfig.json');
+  writeFileSync(
+    tsConfigFilePath,
+    JSON.stringify({
+      compilerOptions: {
+        target: 'ES2022',
+        module: 'ESNext',
+        moduleResolution: 'bundler',
+        strict: true,
+        experimentalDecorators: true,
+        skipLibCheck: true,
+        noEmit: true,
+      },
+      include: ['src/**/*'],
+    }),
+  );
+  const output = path.join(dir, 'src', 'generated');
+  const exitCode = await runGenerate(
+    {
+      input: resolvePackagePath(options.input),
+      output,
+      config: options.config && resolvePackagePath(options.config),
+      tsConfigFilePath,
+    },
+    new SilentLogger(),
+  );
+  expect(exitCode).toBe(0);
+  return output;
+}
+
 describe('E2E Test', () => {
   it('should generate [test/demo.spec.json] code', async () => {
-    const outputDir = `${OUT_PUT_DIR}/demo`;
-    rmSync(resolvePackagePath(outputDir), { recursive: true, force: true });
-    writeOutputTsconfig(outputDir);
-
-    const exitCode = await runGenerate(
-      {
-        input: 'test/demo.spec.json',
-        output: outputDir,
-        config: 'test/wow-generator.config.json',
-        tsConfigFilePath: `${outputDir}/tsconfig.json`,
-      },
-      new SilentLogger(),
-    );
-    expect(exitCode).toBe(0);
+    const output = await generate('demo', {
+      input: 'test/demo.spec.json',
+      config: 'test/wow-generator.config.json',
+    });
 
     // Structural smoke checks on key artifacts (the snapshot comparison below
     // is the exact baseline; these guard the semantics that matter most).
     const cartApiClient = readFileSync(
-      resolvePackagePath(outputDir, 'example/CartApiClient.ts'),
+      path.join(output, 'example/CartApiClient.ts'),
       'utf-8',
     );
     expect(cartApiClient).toContain('export class CartApiClient');
 
     const orderCommandClient = readFileSync(
-      resolvePackagePath(outputDir, 'example/order/commandClient.ts'),
+      path.join(output, 'example/order/commandClient.ts'),
       'utf-8',
     );
     expect(orderCommandClient).toContain('export class OrderCommandClient');
     expect(orderCommandClient).toContain(
       'CreateOrderCommand = CommandBody<CreateOrder>',
     );
+    // The order aggregate routes as sales-order, which its query paths use.
+    expect(
+      readFileSync(path.join(output, 'example/order/queryClient.ts'), 'utf-8'),
+    ).toContain("aggregateName: 'sales-order',");
 
-    expectOutputMatchesSnapshot(outputDir, `${EXPECTED_DIR}/demo-spec`);
-  }, 15000);
+    expectOutputMatchesSnapshot(output, `${EXPECTED_DIR}/demo-spec`);
+  }, 30000);
 
   it('should generate [test/compensation.spec.json] code', async () => {
-    const outputDir = `${OUT_PUT_DIR}/compensation`;
-    rmSync(resolvePackagePath(outputDir), { recursive: true, force: true });
-
-    const exitCode = await runGenerate(
-      { input: 'test/compensation.spec.json', output: outputDir },
-      new SilentLogger(),
-    );
-    expect(exitCode).toBe(0);
+    const output = await generate('compensation', {
+      input: 'test/compensation.spec.json',
+    });
 
     const commandClient = readFileSync(
-      resolvePackagePath(
-        outputDir,
-        'compensation/execution_failed/commandClient.ts',
-      ),
+      path.join(output, 'compensation/execution_failed/commandClient.ts'),
       'utf-8',
     );
     expect(commandClient).toContain(
@@ -182,11 +183,30 @@ describe('E2E Test', () => {
     expect(commandClient).toContain('CommandRequest<DeleteAggregateCommand>');
 
     const types = readFileSync(
-      resolvePackagePath(outputDir, 'compensation/execution_failed/types.ts'),
+      path.join(output, 'compensation/execution_failed/types.ts'),
       'utf-8',
     );
     expect(types).toContain('export interface CreateExecutionFailed');
 
-    expectOutputMatchesSnapshot(outputDir, `${EXPECTED_DIR}/compensation-spec`);
-  }, 15000);
+    expectOutputMatchesSnapshot(output, `${EXPECTED_DIR}/compensation-spec`);
+  }, 30000);
+
+  // The committed snapshots compile as a project using them would, with
+  // both the bundler and the NodeNext module resolution.
+  describe.each(['demo-spec', 'compensation-spec'])('expected/%s', snapshot => {
+    it.each([
+      ['bundler', BUNDLER_OPTIONS],
+      ['NodeNext', NODE_NEXT_OPTIONS],
+    ] as const)(
+      'type-checks with %s module resolution',
+      (_, options) => {
+        const dir = coldDirectory(`tsc-${snapshot}`, directories);
+        cpSync(resolvePackagePath(EXPECTED_DIR, snapshot), dir, {
+          recursive: true,
+        });
+        expect(typeCheck(dir, options)).toEqual([]);
+      },
+      60000,
+    );
+  });
 });

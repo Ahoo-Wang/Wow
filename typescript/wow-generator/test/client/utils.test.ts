@@ -18,6 +18,7 @@ import {
   createClientFilePath,
   methodToDecorator,
   resolveMethodName,
+  uniqueParameterName,
 } from '../../src/client';
 import { ResourceAttributionPathSpec } from '@ahoo-wang/wow-client';
 
@@ -161,84 +162,60 @@ describe('client utils', () => {
   });
 
   describe('resolveMethodName', () => {
-    it('should return custom method name from x-fetcher-method extension', () => {
+    it.each([
+      ['getUserProfile', 'getUserProfile'],
+      ['delete_user_by_id', 'deleteUserById'],
+      ['get_user_by_id', 'getUserById'],
+      ['getUser_1', 'getUser1'],
+      ['users.list', 'list'],
+      ['user.getProfile', 'getProfile'],
+      ['example.cart.add_cart_item', 'addCartItem'],
+      ['create', 'create'],
+      ['1st-step', '_1stStep'],
+    ])('names %s %s', (operationId, methodName) => {
+      expect(resolveMethodName({ operationId } as any)).toBe(methodName);
+    });
+
+    it('prefers the configured name, then x-fetcher-method', () => {
       const operation = {
         'x-fetcher-method': 'customMethod',
         operationId: 'user.getProfile',
       };
-      const isExists = vi.fn();
-
-      const result = resolveMethodName(operation as any, isExists);
-
-      expect(result).toBe('customMethod');
-      expect(isExists).not.toHaveBeenCalled();
+      expect(resolveMethodName(operation as any)).toBe('customMethod');
+      expect(resolveMethodName(operation as any, 'configured')).toBe(
+        'configured',
+      );
     });
 
-    it('should return undefined when operation has no operationId', () => {
-      const operation = {};
-      const isExists = vi.fn();
-
-      const result = resolveMethodName(operation as any, isExists);
-
-      expect(result).toBeUndefined();
-      expect(isExists).not.toHaveBeenCalled();
+    it('accepts a reserved word, which may name a method', () => {
+      expect(resolveMethodName({ 'x-fetcher-method': 'delete' } as any)).toBe(
+        'delete',
+      );
     });
 
-    it('should return the shortest unique method name from operationId', () => {
-      const operation = { operationId: 'user.getProfile' };
-      const isExists = vi.fn(() => false); // No methods exist
-
-      const result = resolveMethodName(operation as any, isExists);
-
-      expect(result).toBe('getProfile');
-      expect(isExists).toHaveBeenCalledWith('getProfile');
+    it('rejects an explicit name that is not a method name', () => {
+      expect(() =>
+        resolveMethodName({
+          operationId: 'users.list',
+          'x-fetcher-method': 'list users',
+        } as any),
+      ).toThrow(
+        'x-fetcher-method of users.list is "list users", which is not a valid method name.',
+      );
     });
 
-    it('should try shorter suffixes when longer ones exist', () => {
-      const operation = { operationId: 'user.get.profile' };
-      const isExists = vi.fn(name => name === 'profile'); // Only 'profile' exists
-
-      const result = resolveMethodName(operation as any, isExists);
-
-      expect(result).toBe('getProfile');
-      expect(isExists).toHaveBeenCalledWith('profile');
-      expect(isExists).toHaveBeenCalledWith('getProfile');
+    it('returns undefined without an operationId', () => {
+      expect(resolveMethodName({} as any)).toBeUndefined();
     });
+  });
 
-    it('should return full camelCase name when no unique method found', () => {
-      const operation = { operationId: 'user.get.profile' };
-      const isExists = vi.fn(() => true); // All methods exist
-
-      const result = resolveMethodName(operation as any, isExists);
-
-      expect(result).toBe('userGetProfile');
-    });
-
-    it('should handle single part operationId', () => {
-      const operation = { operationId: 'create' };
-      const isExists = vi.fn(() => false);
-
-      const result = resolveMethodName(operation as any, isExists);
-
-      expect(result).toBe('create');
-    });
-
-    it('should handle operationId with underscores', () => {
-      const operation = { operationId: 'user_create_profile' };
-      const isExists = vi.fn(() => false);
-
-      const result = resolveMethodName(operation as any, isExists);
-
-      expect(result).toBe('profile');
-    });
-
-    it('should handle operationId with camelCase', () => {
-      const operation = { operationId: 'getUserProfile' };
-      const isExists = vi.fn(() => false);
-
-      const result = resolveMethodName(operation as any, isExists);
-
-      expect(result).toBe('getUserProfile');
+  describe('uniqueParameterName', () => {
+    it('turns names into identifiers and numbers repeats', () => {
+      const used = new Set(['attributes']);
+      expect(uniqueParameterName('item-id', used)).toBe('itemId');
+      expect(uniqueParameterName('itemId', used)).toBe('itemId2');
+      expect(uniqueParameterName('attributes', used)).toBe('attributes2');
+      expect(uniqueParameterName('default', used)).toBe('default_');
     });
   });
 });

@@ -141,36 +141,36 @@ describe('decorators', () => {
             hasQuestionToken: true,
             scope: Scope.Public,
             isReadonly: true,
-            initializer: undefined,
           },
         ],
       });
     });
 
-    it('should add implements and constructor with initializer', () => {
+    it('merges apiMetadata over defaults, so a partial one keeps them', () => {
+      const addJsDoc = vi.fn();
       const mockClassDeclaration = {
         addImplements: vi.fn(),
-        addConstructor: vi.fn(),
+        addProperty: vi.fn(),
+        addConstructor: vi.fn(() => ({ addJsDoc })),
       } as any;
-      const initializer = '{}';
 
-      addApiMetadataCtor(mockClassDeclaration, initializer);
+      addApiMetadataCtor(mockClassDeclaration, '...DEFAULTS');
 
       expect(mockClassDeclaration.addImplements).toHaveBeenCalledWith(
         'ApiMetadataCapable',
       );
+      expect(mockClassDeclaration.addProperty).toHaveBeenCalledWith({
+        name: 'apiMetadata',
+        type: 'ApiMetadata',
+        isReadonly: true,
+      });
       expect(mockClassDeclaration.addConstructor).toHaveBeenCalledWith({
         parameters: [
-          {
-            name: 'apiMetadata',
-            type: 'ApiMetadata',
-            hasQuestionToken: false,
-            scope: Scope.Public,
-            isReadonly: true,
-            initializer,
-          },
+          { name: 'apiMetadata', type: 'ApiMetadata', hasQuestionToken: true },
         ],
+        statements: 'this.apiMetadata = { ...DEFAULTS, ...apiMetadata };',
       });
+      expect(addJsDoc).toHaveBeenCalled();
     });
   });
 });

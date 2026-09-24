@@ -41,7 +41,9 @@ describe('naming', () => {
 
     it('should preserve numbers and special chars as is', () => {
       expect(pascalCase('user123')).toBe('User123');
-      expect(pascalCase('user@domain')).toBe('User@domain');
+      // A character no identifier may hold separates words.
+      expect(pascalCase('user@domain')).toBe('UserDomain');
+      expect(pascalCase('Page«User»')).toBe('PageUser');
     });
   });
 
@@ -121,8 +123,8 @@ describe('naming', () => {
     });
 
     it('should handle strings with special characters', () => {
-      expect(upperSnakeCase('user@domain')).toBe('USER@DOMAIN');
-      expect(upperSnakeCase('test#value')).toBe('TEST#VALUE');
+      expect(upperSnakeCase('user@domain')).toBe('USER_DOMAIN');
+      expect(upperSnakeCase('test#value')).toBe('TEST_VALUE');
       expect(upperSnakeCase('data$value')).toBe('DATA$VALUE');
     });
 

@@ -15,7 +15,7 @@ import { relative } from 'path';
 import packageJson from '../../package.json';
 import { EXIT_CODES, GeneratorError } from '../errors';
 import { CodeGenerator } from '../index';
-import type { GeneratorOptions, Logger } from '../types';
+import type { GeneratorOptions, Logger, SchemaDocs } from '../types';
 import type { LogLevel } from './logger';
 import { ConsoleLogger } from './logger';
 
@@ -31,6 +31,8 @@ export interface GenerateCommandOptions {
   header?: string[];
   /** Milliseconds, as typed on the command line. */
   timeout?: string;
+  /** `summary` or `full`. */
+  schemaDocs?: string;
   /** Exit with a non-zero code when the run logged a warning. */
   strict?: boolean;
   verbose?: boolean;
@@ -99,6 +101,15 @@ function parseTimeout(timeout: string | undefined): number | undefined {
   return value;
 }
 
+function parseSchemaDocs(schemaDocs: string | undefined): SchemaDocs {
+  if (schemaDocs === undefined || schemaDocs === 'summary') return 'summary';
+  if (schemaDocs === 'full') return 'full';
+  throw new GeneratorError(
+    'input',
+    `Invalid --schema-docs "${schemaDocs}": expected "summary" or "full".`,
+  );
+}
+
 function logLevel(options: GenerateCommandOptions): LogLevel {
   if (options.verbose) return 'verbose';
   if (options.quiet) return 'quiet';
@@ -161,6 +172,7 @@ export async function runGenerate(
       tsConfigFilePath: options.tsConfigFilePath,
       headers: parseHeaders(options.header),
       timeoutMs: parseTimeout(options.timeout),
+      schemaDocs: parseSchemaDocs(options.schemaDocs),
       logger,
     };
     const result = await new CodeGenerator(generatorOptions).generate();

@@ -28,6 +28,8 @@ import {
   addImportModelInfo,
   addMainSchemaJSDoc,
   addSchemaJSDoc,
+  enumMemberKey,
+  extractComponentKey,
   extractSchema,
   getEnumText,
   getMapKeySchema,
@@ -40,13 +42,14 @@ import {
   isReadOnly,
   isReference,
   jsDoc,
-  resolveEnumMemberName,
+  quoteStringLiteral,
   resolvePrimitiveType,
   resolvePropertyName,
   schemaJSDoc,
   toArrayType,
 } from '../utils';
 import type { Generator } from '../generateContext';
+import type { SchemaDocs } from '../types';
 
 /**
  * What a schema generates, as far as assignability to an index signature goes.
@@ -157,6 +160,92 @@ function clashesWithIndexSignature(
   );
 }
 
+/**
+ * Global names generated code relies on. A model imported under one of these
+ * names would shadow the global, so the import is aliased instead: a model
+ * named `Response` must not turn `Promise<Response>` into a promise of the
+ * model.
+ */
+export const GLOBAL_TYPE_NAMES: readonly string[] = [
+  'Array',
+  'Blob',
+  'Exclude',
+  'FormData',
+  'Partial',
+  'Promise',
+  'ReadonlyArray',
+  'Record',
+  'Response',
+  'Symbol',
+  'URLSearchParams',
+];
+
+/**
+ * Keywords that describe a schema without constraining its instances.
+ */
+const ANNOTATION_KEYWORDS = new Set([
+  '$comment',
+  '$schema',
+  'default',
+  'deprecated',
+  'description',
+  'example',
+  'examples',
+  'externalDocs',
+  'readOnly',
+  'title',
+  'writeOnly',
+  'xml',
+]);
+
+/**
+ * Names the members of an enum. Each value takes its UPPER_SNAKE_CASE form;
+ * when another value already took that form - `in-progress`, `IN_PROGRESS`
+ * and `inProgress` all give `IN_PROGRESS` - it takes its own value as a
+ * quoted member name, or else a numbered form.
+ *
+ * @param values - The distinct values, in document order
+ * @returns The member name of each value, quoted where it has to be
+ */
+export function uniqueEnumMemberNames(
+  values: readonly string[],
+): Map<string, string> {
+  const used = new Set<string>();
+  const names = new Map<string, string>();
+  for (const value of values) {
+    const preferred = enumMemberKey(value);
+    const candidates = [preferred];
+    // A numeric name cannot name an enum member, even quoted.
+    if (!/^\d/.test(value)) candidates.push(value);
+    let key = candidates.find(candidate => !used.has(candidate));
+    for (let index = 2; key === undefined; index++) {
+      if (!used.has(`${preferred}_${index}`)) key = `${preferred}_${index}`;
+    }
+    used.add(key);
+    names.set(value, resolvePropertyName(key));
+  }
+  return names;
+}
+
+/**
+ * Tells whether a schema is the OpenAPI 3.0 idiom for a nullable reference:
+ * `nullable: true` beside a composition of references alone, such as
+ * `{nullable: true, allOf: [{$ref: X}]}`.
+ *
+ * Strictly, `nullable` only widens a sibling `type`, and a member that
+ * requires an object rules null out; springdoc and Swagger nevertheless write
+ * this form for a property that may be null, and mean `X | null`. An inline
+ * member keeps the strict reading.
+ */
+function isNullableReference(schema: Schema): boolean {
+  if (schema.nullable !== true || isEnum(schema) || !isComposition(schema)) {
+    return false;
+  }
+  return [schema.allOf, schema.oneOf, schema.anyOf].every(
+    members => members === undefined || members.every(isReference),
+  );
+}
+
 export class TypeGenerator implements Generator {
   constructor(
     private readonly modelInfo: ModelInfo,
@@ -164,12 +253,18 @@ export class TypeGenerator implements Generator {
     private readonly keySchema: KeySchema<Schema | Reference>,
     private readonly outputDir: string,
     private readonly components?: Components,
+    private readonly schemaDocs: SchemaDocs = 'summary',
   ) {}
 
   generate(): void {
     const node = this.process();
     if (node) {
-      addMainSchemaJSDoc(node, this.keySchema.schema, this.keySchema.key);
+      addMainSchemaJSDoc(
+        node,
+        this.keySchema.schema,
+        this.keySchema.key,
+        this.schemaDocs === 'full',
+      );
     }
   }
 
@@ -193,6 +288,14 @@ export class TypeGenerator implements Generator {
     }
     if (isObject(schema)) {
       return this.processInterface(schema);
+    }
+    if (
+      isMap(schema) &&
+      typeof schema.additionalProperties === 'object' &&
+      !getMapKeySchema(schema) &&
+      !schema.required?.length
+    ) {
+      return this.processIndexSignature(schema);
     }
     if (isArray(schema)) {
       return this.processArray(schema);
@@ -219,6 +322,7 @@ export class TypeGenerator implements Generator {
     if (existingAlias) return { ...refModelInfo, name: existingAlias };
 
     const reservedNames = new Set([
+      ...GLOBAL_TYPE_NAMES,
       this.modelInfo.name,
       ...Object.keys(this.components?.schemas ?? {})
         .map(key => resolveModelInfo(key))
@@ -454,13 +558,19 @@ export class TypeGenerator implements Generator {
         })
         .join(' | ');
     }
+    if (isNullableReference(schema)) {
+      // OpenAPI 3.0 writes a nullable reference as {nullable, allOf: [$ref]}.
+      return `(${this.resolveType({ ...schema, nullable: false })}) | null`;
+    }
     if (isComposition(schema)) {
+      const simple = this.resolveSimpleComposition(schema);
+      if (simple !== undefined) return simple;
       const compositions = (['allOf', 'oneOf', 'anyOf'] as const).flatMap(
         keyword => {
           const schemas = schema[keyword];
           if (!schemas?.length) return [];
           const types = schemas.map(member => {
-            const type = this.resolveType(member);
+            const type = this.resolveMemberType(schema, keyword, member);
             return type === 'any'
               ? 'unknown'
               : /[|&]/.test(type)
@@ -536,6 +646,79 @@ export class TypeGenerator implements Generator {
     return resolvePrimitiveType(schema.type);
   }
 
+  /**
+   * Resolves a composition of references alone - `allOf: [$ref]`,
+   * `anyOf: [$ref, {type: null}]`, a discriminated `oneOf` - to the plain
+   * union or intersection of its members.
+   *
+   * With no sibling keyword that constrains the instance, the members say
+   * everything, and none of the guards the general form needs applies.
+   *
+   * @returns The type, or undefined when the composition is not that simple
+   */
+  private resolveSimpleComposition(schema: Schema): string | undefined {
+    const keywords = (['allOf', 'oneOf', 'anyOf'] as const).filter(
+      keyword => schema[keyword]?.length,
+    );
+    if (keywords.length !== 1) return undefined;
+    const [keyword] = keywords;
+    const constraining = Object.keys(schema).filter(
+      key =>
+        key !== keyword &&
+        key !== 'discriminator' &&
+        !key.startsWith('x-') &&
+        !ANNOTATION_KEYWORDS.has(key),
+    );
+    if (constraining.length > 0) return undefined;
+    const members: (Schema | Reference)[] = schema[keyword]!;
+    const isNullMember = (member: Schema) =>
+      keyword !== 'allOf' &&
+      [member.type].flat().every(type => type === 'null') &&
+      member.type !== undefined &&
+      Object.keys(member).every(
+        key => key === 'type' || ANNOTATION_KEYWORDS.has(key),
+      );
+    if (!members.every(member => isReference(member) || isNullMember(member))) {
+      return undefined;
+    }
+    const types = members.map(member =>
+      isReference(member)
+        ? this.resolveMemberType(schema, keyword, member)
+        : 'null',
+    );
+    return [...new Set(types)].join(keyword === 'allOf' ? ' & ' : ' | ');
+  }
+
+  /**
+   * Resolves one member of a composition. A member of a `oneOf` or `anyOf`
+   * that carries a `discriminator` is intersected with the literal the
+   * discriminator property holds for it, so checking that property narrows
+   * the union: `(Cat & { petType: 'cat' }) | (Dog & { petType: 'dog' })`.
+   */
+  private resolveMemberType(
+    schema: Schema,
+    keyword: 'allOf' | 'oneOf' | 'anyOf',
+    member: Schema | Reference,
+  ): string {
+    const type = this.resolveType(member);
+    const discriminator = schema.discriminator;
+    if (
+      keyword === 'allOf' ||
+      !discriminator?.propertyName ||
+      !isReference(member)
+    ) {
+      return type;
+    }
+    const componentKey = extractComponentKey(member);
+    const mapped = Object.entries(discriminator.mapping ?? {})
+      .filter(([, target]) => target === member.$ref || target === componentKey)
+      .map(([value]) => value);
+    const literal = (mapped.length > 0 ? mapped : [componentKey])
+      .map(value => quoteStringLiteral(value))
+      .join(' | ');
+    return `(${type} & { ${resolvePropertyName(discriminator.propertyName)}: ${literal} })`;
+  }
+
   private matchesLiteralType(value: unknown, schema: Schema): boolean {
     if (schema.type === undefined) return true;
     if (value === null && schema.nullable) return true;
@@ -577,25 +760,31 @@ export class TypeGenerator implements Generator {
   private processEnum(schema: EnumSchema): JSDocableNode | undefined {
     const enumText = getEnumText(schema);
     if (enumText) {
+      const textNames = uniqueEnumMemberNames(Object.keys(enumText));
       this.sourceFile.addEnum({
         name: this.modelInfo.name + 'EnumText',
         isExported: true,
-        members: Object.entries(enumText).map(([name, text]) => {
+        members: [...textNames].map(([name, memberName]) => {
           return {
-            name: resolveEnumMemberName(name),
-            initializer: this.resolveLiteral(text),
+            name: memberName,
+            initializer: this.resolveLiteral(enumText[name]),
           };
         }),
       });
     }
-    const stringValues = schema.enum.filter(
-      (value): value is string => typeof value === 'string',
-    );
+    const stringValues = [
+      ...new Set(
+        schema.enum.filter(
+          (value): value is string => typeof value === 'string',
+        ),
+      ),
+    ];
+    const memberNames = uniqueEnumMemberNames(stringValues);
     if (
       isComposition(schema) ||
       schema.const !== undefined ||
       (schema.type !== undefined && schema.type !== 'string') ||
-      stringValues.length !== schema.enum.length
+      schema.enum.some(value => typeof value !== 'string')
     ) {
       if (stringValues.length) {
         this.sourceFile.addVariableStatement({
@@ -608,7 +797,7 @@ export class TypeGenerator implements Generator {
                 writer.inlineBlock(() => {
                   for (const value of stringValues) {
                     writer
-                      .write(`${resolveEnumMemberName(value)}: `)
+                      .write(`${memberNames.get(value)}: `)
                       .quote(value)
                       .write(',')
                       .newLine();
@@ -625,12 +814,10 @@ export class TypeGenerator implements Generator {
     return this.sourceFile.addEnum({
       name: this.modelInfo.name,
       isExported: true,
-      members: schema.enum
-        .filter(value => typeof value === 'string')
-        .map(value => ({
-          name: resolveEnumMemberName(value),
-          initializer: this.resolveLiteral(value),
-        })),
+      members: stringValues.map(value => ({
+        name: memberNames.get(value)!,
+        initializer: this.resolveLiteral(value),
+      })),
     });
   }
 
@@ -694,9 +881,27 @@ export class TypeGenerator implements Generator {
     const itemType = this.resolveType(schema.items);
     return this.sourceFile.addTypeAlias({
       name: this.modelInfo.name,
-      type: `Array<${itemType}>`,
+      type: toArrayType(itemType),
       isExported: true,
     });
+  }
+
+  /**
+   * A string-keyed map is an interface with an index signature rather than an
+   * alias of `Record`: an alias may not reference itself through `Record`
+   * (TS2456), and a map of its own type - a tree of dictionaries - does.
+   */
+  private processIndexSignature(schema: MapSchema): JSDocableNode | undefined {
+    const interfaceDeclaration = this.sourceFile.addInterface({
+      name: this.modelInfo.name,
+      isExported: true,
+    });
+    interfaceDeclaration.addIndexSignature({
+      keyName: 'key',
+      keyType: 'string',
+      returnType: this.resolveMapValueType(schema),
+    });
+    return interfaceDeclaration;
   }
 
   private processComposition(
