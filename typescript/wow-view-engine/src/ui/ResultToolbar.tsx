@@ -21,7 +21,8 @@ import type {
   RecordBulkActionContext,
   RecordTableController,
 } from '../react/index.js';
-import { exportPlan, type RecordViewRuntime } from '../runtime/index.js';
+import type { RecordViewRuntime } from '../runtime/index.js';
+import { exportPlan } from '../runtime/exportRows.js';
 import { Badge } from './components/badge.js';
 import { Button } from './components/button.js';
 import { ButtonGroup } from './components/button-group.js';

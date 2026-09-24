@@ -12,10 +12,8 @@
  */
 
 import type { FilterTree, ViewConfig } from '../../model/index.js';
-import {
-  conditionsDrifted,
-  type ViewRuntimeState,
-} from '../../runtime/index.js';
+import type { ViewRuntimeState } from '../../runtime/index.js';
+import { conditionsDrifted } from '../../runtime/savedConditions.js';
 
 /**
  * The one way out of a query that matched nothing, by what was asked.

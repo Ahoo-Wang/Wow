@@ -54,10 +54,10 @@ import type {
 } from '../record/index.js';
 import {
   hasResult,
-  pendingBesides,
   type QueryStatus,
   type RecordViewRuntime,
 } from '../runtime/index.js';
+import { pendingBesides } from '../runtime/pending.js';
 import type { RecordViewConfig } from '../model/index.js';
 import { useViewRuntime } from './useViewEngine.js';
 import {

@@ -33,16 +33,18 @@ import {
   removeAt,
   sameFilterTree,
 } from '../../filter/index.js';
+import type {
+  AnyViewRuntime,
+  ViewRuntime,
+  SavedViewTarget,
+  ViewEngine,
+  ViewHandOver,
+} from '../../runtime/index.js';
 import {
   handedConditions,
-  listenerSet,
   withHandedFilter,
-  type AnyViewRuntime,
-  type ViewRuntime,
-  type SavedViewTarget,
-  type ViewEngine,
-  type ViewHandOver,
-} from '../../runtime/index.js';
+} from '../../runtime/navigation.js';
+import { listenerSet } from '../../runtime/listeners.js';
 import type { FilterEditorController } from '../useFilterEditor.js';
 import type { HeldView } from '../useWorkbench.js';
 

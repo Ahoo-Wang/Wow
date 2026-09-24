@@ -16,7 +16,7 @@ import type { Issue, ViewKind } from '../model/index.js';
 
 // The one shape every command failure is rendered in. It moved to the
 // runtime, which needs it too; this layer keeps the name it always had.
-export { toIssue } from '../runtime/index.js';
+export { toIssue } from '../runtime/issues.js';
 
 /**
  * The reason a view that opened cannot be drawn here, or nothing.

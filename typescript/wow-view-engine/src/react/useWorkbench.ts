@@ -23,18 +23,18 @@ import type {
 } from '../model/index.js';
 import { drillFilter, narrowsTo } from '../analysis/index.js';
 import { defaultRecordConfig } from '../record/index.js';
-import {
-  untouchedSince,
-  type AnyViewRuntime,
-  type BoardOrigin,
-  type GroupNaming,
-  type SavedViewTarget,
-  type ViewEngine,
-  type ViewHandOver,
-  type ViewNavigation,
-  type ViewRuntimeState,
-  type WriteAction,
+import type {
+  AnyViewRuntime,
+  BoardOrigin,
+  GroupNaming,
+  SavedViewTarget,
+  ViewEngine,
+  ViewHandOver,
+  ViewNavigation,
+  ViewRuntimeState,
+  WriteAction,
 } from '../runtime/index.js';
+import { untouchedSince } from '../runtime/navigation.js';
 import { kindMismatch } from './issues.js';
 import { useAutoRefresh, type RefreshController } from './useAutoRefresh.js';
 import {

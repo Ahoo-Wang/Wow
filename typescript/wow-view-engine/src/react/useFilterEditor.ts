@@ -47,15 +47,17 @@ import {
   isFilterGroup,
 } from '../filter/index.js';
 import {
-  comparePending,
-  filterOverBudget,
   hasAsked,
   type OptionSource,
-  type PendingReport,
   type ValueCandidateSource,
   type ViewRuntime,
   type ViewRuntimeState,
 } from '../runtime/index.js';
+import {
+  comparePending,
+  filterOverBudget,
+  type PendingReport,
+} from '../runtime/pending.js';
 import { VALUE_CANDIDATE_OPERATORS } from '../analysis/index.js';
 import { useViewRuntime } from './useViewEngine.js';
 

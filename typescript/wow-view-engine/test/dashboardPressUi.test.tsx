@@ -31,7 +31,6 @@ import {
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  DashboardViewRuntime,
   MemoryViewStore,
   ViewEngine,
   type ViewNavigation,
@@ -41,6 +40,7 @@ import {
   type FilterNode,
   type ViewInstance,
 } from '../src/index.js';
+import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import { DashboardWorkbench, DataWorkbench } from '../src/ui/index.js';
 import {
   analysisConfig,

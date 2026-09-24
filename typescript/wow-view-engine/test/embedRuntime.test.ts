@@ -20,8 +20,6 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import {
-  AUTO_APPLY_DELAY_MS,
-  DashboardViewRuntime,
   MemoryViewStore,
   ViewEngine,
   type DashboardFilters,
@@ -29,6 +27,8 @@ import {
   type DashboardViewConfig,
   type ViewInstance,
 } from '../src/index.js';
+import { AUTO_APPLY_DELAY_MS } from '../src/runtime/autoApply.js';
+import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import {
   analysisConfig,
   dashboardConfig,

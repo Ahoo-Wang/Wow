@@ -21,10 +21,8 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   builtinFieldKinds,
   compileRecord,
-  RecordDataViewRuntime,
   DEFAULT_RUNTIME_LIMITS,
   FIRST_PAGE,
-  RequestRunner,
   type DataViewDefinition,
   type ProjectedRecord,
   type RecordData,
@@ -33,6 +31,8 @@ import {
   type RecordViewRuntime,
   type ViewSource,
 } from '../src/index.js';
+import { RecordDataViewRuntime } from '../src/runtime/recordRuntime.js';
+import { RequestRunner } from '../src/runtime/requestRunner.js';
 import {
   nextTask,
   ordersDefinition,

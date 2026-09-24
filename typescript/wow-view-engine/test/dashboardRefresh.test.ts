@@ -22,13 +22,13 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import {
-  DashboardViewRuntime,
   MemoryViewStore,
   ViewEngine,
   type DashboardPanel,
   type DashboardViewConfig,
   type ViewInstance,
 } from '../src/index.js';
+import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import {
   dashboardConfig,
   nextTask,

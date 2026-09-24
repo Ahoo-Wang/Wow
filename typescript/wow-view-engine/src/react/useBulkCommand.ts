@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RecordKey } from '../model/index.js';
-import { sourceReason } from '../runtime/index.js';
+import { sourceReason } from '../runtime/sourceReason.js';
 import type { RecordBulkActionContext } from './actions.js';
 
 /**

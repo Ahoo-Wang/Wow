@@ -19,19 +19,21 @@ import {
 } from '@ahoo-wang/wow-client';
 import {
   builtinFieldKinds,
-  RecordDataViewRuntime,
-  dataViewRuntime,
   isRecordRuntime,
   DEFAULT_RUNTIME_LIMITS,
-  exportPlan,
   isExportCancelled,
-  RequestRunner,
   type DataViewDefinition,
   type RecordData,
   type RecordViewRuntime,
   type RuntimeLimits,
   type ViewSource,
 } from '../src/index.js';
+import {
+  RecordDataViewRuntime,
+  dataViewRuntime,
+} from '../src/runtime/recordRuntime.js';
+import { exportPlan } from '../src/runtime/exportRows.js';
+import { RequestRunner } from '../src/runtime/requestRunner.js';
 import {
   analysisConfig,
   ordersDefinition,

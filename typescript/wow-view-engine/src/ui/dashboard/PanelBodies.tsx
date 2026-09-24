@@ -23,6 +23,7 @@ import { UnplugIcon } from 'lucide-react';
 import {
   PANEL_PRESENTATION_MEMBERS,
   type AnalysisViewConfig,
+  type DataViewConfig,
   type Issue,
   type RecordData,
 } from '../../model/index.js';
@@ -34,11 +35,7 @@ import {
   useViewRuntime,
   type DashboardPanelView,
 } from '../../react/index.js';
-import type {
-  DataViewRuntime,
-  RecordViewRuntime,
-  ViewRuntime,
-} from '../../runtime/index.js';
+import type { RecordViewRuntime, ViewRuntime } from '../../runtime/index.js';
 import {
   DrillMenu,
   groupText,
@@ -141,7 +138,7 @@ export function AnalysisPanel({
   const analysis = useAnalysisEditor(runtime);
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
-  const child = runtime as DataViewRuntime;
+  const child = runtime as ViewRuntime<DataViewConfig>;
   // The workbench the follow-ups drive is the host's, reached by its route.
   const followUps = usePanelFollowUps(
     child,
