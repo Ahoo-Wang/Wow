@@ -394,7 +394,7 @@ describe('DashboardGrid', () => {
     const headings = screen
       .getAllByRole('heading', { level: 3 })
       .map(heading => heading.textContent);
-    expect(headings).toEqual(['Pending orders', 'Panel 2', 'Note']);
+    expect(headings).toEqual(['Pending orders', 'Panel 2', 'Text']);
     expect(screen.queryByText('orders')).toBeNull();
     expect(screen.queryByText('gone')).toBeNull();
     // The scroll region a keyboard reaches is named the same.
@@ -402,7 +402,7 @@ describe('DashboardGrid', () => {
   });
 
   /**
-   * Batch-A walk: two untitled notes were both 「Note」, so a handle, a
+   * Batch-A walk: two untitled text panels were both 「Text」, so a handle, a
    * finding or a landing announced by name pointed at two panels. A name
    * the board makes up is numbered in reading order; an author's title is
    * theirs, and a made-up name steps around it.
@@ -423,7 +423,7 @@ describe('DashboardGrid', () => {
           memo('third', 0, 4),
           memo('first', 0, 0),
           memo('second', 6, 0),
-          memo('titled', 6, 4, 'Note 2'),
+          memo('titled', 6, 4, 'Text 2'),
           panel({
             id: 'heading',
             kind: 'heading',
@@ -446,7 +446,7 @@ describe('DashboardGrid', () => {
       screen
         .getAllByRole('heading', { level: 3 })
         .map(heading => heading.textContent),
-    ).toEqual(['Note', 'Note 3', 'Note 4', 'Note 2', 'Stock', 'Heading']);
+    ).toEqual(['Text', 'Text 3', 'Text 4', 'Text 2', 'Stock', 'Heading']);
     // A heading card says its words once: as the panel's own title.
     expect(document.querySelector('[data-slot="panel-heading"]')).toBeNull();
   });

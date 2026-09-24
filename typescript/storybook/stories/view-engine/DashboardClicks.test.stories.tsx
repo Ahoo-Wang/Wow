@@ -22,7 +22,14 @@ import displayMeta, {
   ToAnotherBoardStale as DisplayToAnotherBoardStale,
   ToAnotherBoardWithOwnFilter as DisplayToAnotherBoardWithOwnFilter,
 } from './Dashboard.stories.js';
-import { chartsDrawn, drawnMarks, fadedMarks, pressMark } from './chartDom.js';
+import {
+  chartTooltip,
+  chartsDrawn,
+  drawnMarks,
+  fadedMarks,
+  hoverMark,
+  pressMark,
+} from './chartDom.js';
 import { measureMarkContrast } from './contrast.js';
 import { readColumn } from './readTable.js';
 
@@ -143,6 +150,36 @@ export const BarOpensFollowUps: Story = {
       }),
     );
     await panelNamed(canvasElement, '按仓库汇总');
+  },
+};
+
+/**
+ * The follow-up menu sits clear of the chart's tooltip (2026-09-24 walk):
+ * the pointer over a bar raises its tooltip, the press puts it away, and
+ * the least move on the bar after the press — before the menu's backdrop is
+ * up — no longer raises it again over the menu's first items. Once the menu
+ * has gone, the tooltip is back for the next pointer.
+ */
+export const MenuClearOfTheTooltip: Story = {
+  ...DisplayClicks,
+  decorators: [DESK],
+  play: async ({ canvasElement }) => {
+    const [bar] = await bars(canvasElement);
+    const panel = await panelNamed(canvasElement, '按仓库汇总');
+    hoverMark(bar!);
+    await waitFor(() => expect(chartTooltip(panel)).toBeVisible());
+    pressMark(bar!);
+    const menu = await screen.findByRole('menu');
+    await waitFor(() => expect(chartTooltip(panel)).not.toBeVisible());
+    hoverMark(bar!);
+    // Given the library's time to raise it, it still is not drawn.
+    await new Promise(resolve => setTimeout(resolve, 300));
+    await expect(chartTooltip(panel)).not.toBeVisible();
+    await expect(within(menu).getAllByRole('menuitem')[0]).toBeVisible();
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
+    hoverMark(bar!);
+    await waitFor(() => expect(chartTooltip(panel)).toBeVisible());
   },
 };
 
@@ -566,7 +603,7 @@ export const SetsAnotherBoardWhenClicked: Story = {
     );
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     await userEvent.click(
-      canvas.getByRole('button', { name: zhCN['label.dashboard.done'] }),
+      canvas.getByRole('button', { name: zhCN['label.dashboard.save'] }),
     );
     await waitFor(() =>
       expect(

@@ -224,7 +224,7 @@ D20 定下的三条数据口径，每一条都是"这个数看起来是甲，其
 - **指标卡的迷你趋势**：一根线加淡淡的填色，没有轴、网格与点——大数字才是主角，线只说它这一阵往哪边走；提示仍读每个点的日子与值。
 - **工作台里的指标卡站在结果中间**（2026-09-23 审查：挤在左上角、下面一大片空）：它只是几行字——期、数、变化——而结果区是整块工作区，所以卡片是一列不宽于 40rem 的内容，上下左右都在结果区里居中，数字 `text-5xl`，迷你趋势 6rem 高（`styles.css`「A metric card in the workbench stands in the middle of the result」）；Metabase 的数字卡与趋势卡也是让数占满位置。仪表盘面板里仍是那张一行高的磁贴。（浏览器故事「图表读法/回归」的 `TrendCardStandsInTheMiddle` 量左右留白相等、上下相差不到一行、数字至少 44px 高）
 - **宿主的 `svg` 规则压不扁图**：库把尺寸写在 `<svg>` 属性上，宿主常见的图标规则（故事宿主的 `.story-app svg { width: 16px }`）会把整张图压成左上角 16px 的方块；`styles.css` 让图的 svg 填满库给它的框。
-- **按下标记时提示框让开**：追问菜单弹在按下的那一点，而悬停时的提示框正停在那里、盖住菜单的前几项；按下即收起提示框（`hideTip`），菜单才是这一下的回答（浏览器故事 `FollowUpFromABar`）。
+- **按下标记时提示框让开**：追问菜单弹在按下的那一点，而悬停时的提示框正停在那里、盖住菜单的前几项；按下即收起提示框（`hideTip`），菜单才是这一下的回答。**菜单开着时提示框一直不画**（2026-09-24 R6 走查：仪表盘「点击」故事点一根柱，提示框「华北 / 金额的总和」又压在菜单项上）：按下之后、菜单的遮罩铺上之前，指针在柱上最轻的一动就让图库把提示框重新立起来，之后再没有事件到得了图、把它收回去。现在打开追问菜单的地方（分析工作台、仪表盘面板、嵌入的分析）把「菜单开着」交给 `AnalysisChart` 的 `menuOpen`，经 `charts/EChart.tsx` 的 `ChartMenuOpen` 到每一张图：图框带 `data-menu-open`，里面我们画的那个提示框（`data-slot="chart-tooltip"`，外面是图库透明的空盒）随之 `invisible`，菜单一关，下一次指针过来它就回来。（见 test/chartHighlight.test.tsx「says the menu is open on its frame, and nothing once it closes」；浏览器故事 `FollowUpFromABar`、stories/view-engine/DashboardClicks.test.stories.tsx「MenuClearOfTheTooltip」）
 - **`data-drawn`**：库报告画完（含动画）后写在图框上，新 option 下发时撤掉；浏览器故事量几何之前等它（`stories/view-engine/chartDom.ts` 的 `chartsDrawn`），否则量到的是还在长的柱子。
 
 ## 结果的三种等待态：加载、失败、没有组

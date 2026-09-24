@@ -214,6 +214,7 @@ export function AnalysisPanel({
         cutShort={view.truncated || view.atLimit !== undefined}
         onPick={onPick}
         highlight={highlight}
+        menuOpen={followUp !== null && pick !== null}
       />
     ) : (
       <AnalysisTable

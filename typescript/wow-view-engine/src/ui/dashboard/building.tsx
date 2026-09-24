@@ -76,7 +76,7 @@ function opener(): HTMLElement | null {
  * which the workbench draws beside the board.
  *
  * Every command goes through the board's own edits (`DashboardEditing`),
- * so nothing is written until 完成 saves the board.
+ * so nothing is written until 保存 saves the board.
  */
 export function useDashboardExtensions({
   engine,

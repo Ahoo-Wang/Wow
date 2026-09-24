@@ -440,6 +440,7 @@ export function AnalysisParts({
               columns={view.schema ?? view.columns}
               onPick={onPick}
               cutShort={view.truncated || view.atLimit !== undefined}
+              menuOpen={followUp !== null && pick !== null}
             />
           ) : (
             <AnalysisTable

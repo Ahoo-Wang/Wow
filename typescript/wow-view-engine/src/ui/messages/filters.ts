@@ -26,12 +26,18 @@ export const filtersMessages = {
     'Nothing on this tab is filtered by “{filter}”, so it changes nothing here.',
   'label.filters.grouping': 'Time grouping',
   'label.filters.grouping-remove': 'Remove the time grouping',
+  // The board's fixed scope (D26 Q31, D27): in force beside the filters,
+  // read-only, and nobody's to take out while reading.
+  'label.filters.fixed': 'Fixed scope',
+  'label.filters.fixed-note':
+    'The dashboard itself holds every panel to this; it cannot be changed here.',
+  // Narrower than md the bar is one button and a sheet (D26 Q38).
+  'label.filters.sheet-set': 'Filters ({count} set)',
   // A panel a filter holding a value does not reach, named in its header.
   'label.filters.not-reached': 'Not filtered by {filters}',
   'label.filters.name-quoted': '“{name}”',
-  // 「筛选 ＋」 (screen G).
-  'label.filters.add': 'Filter',
-  'label.filters.add-menu': 'Add a filter',
+  // 「添加筛选」 (screen G).
+  'label.filters.add': 'Add filter',
   'label.filters.add-grouping': 'Time grouping',
   'label.filters.type.date': 'Date',
   'label.filters.type.text': 'Text or category',
@@ -74,7 +80,9 @@ export const filtersMessages = {
     'Wired {count} more panels with a “{field}” field automatically',
   'label.filters.auto-wired-one':
     'Wired 1 more panel with a “{field}” field automatically',
-  'label.filters.undo': 'Undo',
+  // Not 「撤销」: that is the edit bar's step back (X-09). This keeps the
+  // panel just picked and unwires the ones auto-connect added.
+  'label.filters.only-picked': 'Only the panel picked',
   'label.filters.dismiss': 'Dismiss',
   'label.filters.toasts': 'Wiring notices',
   'label.filters.refused': 'Some of the filters in the link could not be used',

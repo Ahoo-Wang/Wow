@@ -170,8 +170,6 @@ export const filterMessages = {
   // A condition the host put in force, which the reader cannot take out:
   // it is not in the draft, and no path of this editor addresses it.
   'label.applied.scoped': 'Set by the page',
-  // A dashboard's fixed scope (D26 Q31): the board's, not the reader's.
-  'label.applied.fixed': 'Fixed by the dashboard',
   // A reading the source applies when nothing was written: said, since the
   // rows on screen obey it (D17-2).
   'label.applied.implied': 'By default',

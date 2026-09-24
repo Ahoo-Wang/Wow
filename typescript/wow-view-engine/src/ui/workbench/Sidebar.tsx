@@ -19,6 +19,7 @@ import { SheetContent } from '../popups.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { ViewList, type ViewListProps } from '../ViewList.js';
 import { ViewSwitcher, type ViewSwitcherProps } from '../ViewSwitcher.js';
+import { useKindWord } from '../kinds.js';
 
 export interface SidebarColumnProps extends Omit<ViewListProps, 'onRetry'> {
   /**
@@ -79,7 +80,7 @@ export function SidebarColumn({
           showCloseButton={false}
           // Dimmed, not blurred: the result above is what a pick here
           // redraws, and a reader looks up to see it change.
-          overlayClassName="backdrop-blur-none"
+          overlayClassName="supports-backdrop-filter:backdrop-blur-none"
           // The keyboard lands where the panel's own levels land it: on the
           // heading it is sent to (`tabIndex={-1}`), which exists only once
           // the drawer has drawn its content — the panel's own effect runs
@@ -158,6 +159,7 @@ export function FoldedSidebar({
   ...switcher
 }: FoldedSidebarProps) {
   const messages = useViewMessages();
+  const word = useKindWord();
   return (
     <div
       data-slot="view-collapsed"
@@ -183,7 +185,7 @@ export function FoldedSidebar({
     >
       <IconButton
         ref={expandRef}
-        label={messages.label('label.workbench.expand-sidebar')}
+        label={messages.label(word('label.workbench.expand-sidebar'))}
         variant="ghost"
         size="icon-sm"
         aria-expanded={false}

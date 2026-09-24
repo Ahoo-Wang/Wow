@@ -11,8 +11,9 @@
  * limitations under the License.
  */
 
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { TriangleAlertIcon, XIcon } from 'lucide-react';
+import type { FilterSummaryItem } from '../../filter/index.js';
 import type { DashboardField, Issue } from '../../model/index.js';
 import type { DashboardController } from '../../react/index.js';
 import {
@@ -25,6 +26,7 @@ import { createToastManager, ToastProvider } from '../components/toast.js';
 import { IconButton } from '../IconButton.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { FilterBar } from './FilterBar.js';
+import { filterNamer } from './findings.js';
 import type { BoardFilterModes } from './filterModes.js';
 import { AddFilterMenu, FilterSettings } from './FilterSettings.js';
 import {
@@ -46,9 +48,12 @@ import {
 
 /** What the board draws of its filters, and where. */
 export interface BoardFilterParts {
-  /** The filter bar, over everything else on the board (D22 F). */
-  bar: ReactNode;
-  /** 「筛选 ＋」, for the edit bar while the board is built (D22 G). */
+  /**
+   * The filter bar, over everything else on the board (D22 F); in the
+   * one-column reading, one button and a sheet (D26 Q38).
+   */
+  bar(narrow: boolean): ReactNode;
+  /** 「添加筛选」, for the edit bar while the board is built (D22 G). */
   add: ReactNode;
   /** The line saying which filter is being wired, while one is. */
   wiring: ReactNode;
@@ -58,9 +63,9 @@ export interface BoardFilterParts {
 
 /**
  * A board's filters as the board draws them (D22 F, G): the bar; while the
- * board is built, 「筛选 ＋」, each filter's settings, and wiring — every
+ * board is built, 「添加筛选」, each filter's settings, and wiring — every
  * panel's strip, and after a pick on one panel a toast saying how many more
- * auto-connect wired, with 撤销. Wiring ends with the building.
+ * auto-connect wired, with 「只接刚选的面板」. Wiring ends with the building.
  */
 export function useBoardFilters({
   dashboard,
@@ -68,6 +73,7 @@ export function useBoardFilters({
   say,
   modes,
   refused = NONE_REFUSED,
+  fixed,
 }: {
   dashboard: DashboardController;
   editing: boolean;
@@ -77,6 +83,8 @@ export function useBoardFilters({
   modes?: BoardFilterModes | undefined;
   /** What the board refused of the filters it opened on (`FiltersRefused`). */
   refused?: readonly Issue[] | undefined;
+  /** The board's fixed scope in force, read-only beside the filters (D27). */
+  fixed?: readonly FilterSummaryItem[] | undefined;
 }): BoardFilterParts {
   const messages = useViewMessages();
   const [settingsOf, setSettingsOf] = useState<string | null>(null);
@@ -85,6 +93,13 @@ export function useBoardFilters({
   // Where the keyboard goes when wiring ends or a filter goes, taking the
   // control pressed with them (U-02).
   const land = useLanding();
+  // Said by each filter's name on the bar, never its key (X-03); held
+  // while the refusal is, so putting it away holds too.
+  const filterFields = dashboard.filterFields;
+  const namedRefused = useMemo(
+    () => refused.map(filterNamer(filterFields)),
+    [refused, filterFields],
+  );
   const edit = dashboard.edit;
   const building = editing && edit !== null;
   const filter = building
@@ -109,7 +124,7 @@ export function useBoardFilters({
           ),
           timeout: 10_000,
           actionProps: {
-            children: messages.label('label.filters.undo'),
+            children: messages.label('label.filters.only-picked'),
             onClick: () => edit?.unbindPanels(filter.name, connected),
           },
         });
@@ -126,7 +141,7 @@ export function useBoardFilters({
         onWire={() => setWiringOf(field.name)}
         onRemoved={(label, from) => {
           // The chip goes, its settings with it: on to the chip that takes
-          // its place, or 「筛选 ＋」 after the last.
+          // its place, or 「添加筛选」 after the last.
           const board = boardOf(from);
           const at = chipsOf(board).findIndex(
             chip => chip.dataset.filter === field.name,
@@ -140,11 +155,13 @@ export function useBoardFilters({
     ) : null;
 
   return {
-    bar: (
+    bar: narrow => (
       <>
-        <FiltersRefused issues={refused} />
+        <FiltersRefused issues={namedRefused} />
         <FilterBar
           dashboard={dashboard}
+          narrow={narrow}
+          fixed={fixed}
           settings={building ? settings : undefined}
           onRemoveGrouping={
             building ? () => edit.setTimeGrouping(null) : undefined

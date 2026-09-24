@@ -23,6 +23,7 @@ import {
   EmptyTitle,
 } from '../components/empty.js';
 import { useViewMessages } from '../MessagesProvider.js';
+import { useKindWord } from '../kinds.js';
 
 /** The main column when the chosen view cannot be opened: the reason, and the way to the default. */
 export function Unopenable({
@@ -33,19 +34,20 @@ export function Unopenable({
   onDefault?(): void;
 }) {
   const messages = useViewMessages();
+  const word = useKindWord();
   return (
     <Empty role="alert" data-slot="view-unopenable">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <FileQuestionMarkIcon />
         </EmptyMedia>
-        <EmptyTitle>{messages.label('label.view.unopenable')}</EmptyTitle>
+        <EmptyTitle>{messages.label(word('label.view.unopenable'))}</EmptyTitle>
         <EmptyDescription>{messages.issue(issue)}</EmptyDescription>
       </EmptyHeader>
       {onDefault && (
         <EmptyContent>
           <Button variant="outline" size="sm" onClick={onDefault}>
-            {messages.label('label.view.open-default')}
+            {messages.label(word('label.view.open-default'))}
           </Button>
         </EmptyContent>
       )}

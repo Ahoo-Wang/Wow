@@ -31,7 +31,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './components/dropdown-menu.js';
-import { KIND_ICON } from './kinds.js';
+import { KIND_ICON, useKindWord } from './kinds.js';
 import { SystemMark } from './SystemMark.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { DropdownMenuContent } from './popups.js';
@@ -92,6 +92,7 @@ export function ViewSwitcher({
   onManage,
 }: ViewSwitcherProps) {
   const messages = useViewMessages();
+  const word = useKindWord();
   const Kind = kind === undefined ? null : KIND_ICON[kind];
   // With no view behind it the trigger used to be an icon, a chevron and a
   // gap where the name would have been — on the "cannot open" screen, where
@@ -102,7 +103,9 @@ export function ViewSwitcher({
   // view that is not there and offers to leave it.
   const choosing = currentTitle === '';
   const name = messages.label(
-    choosing ? 'label.workbench.choose-view' : 'label.workbench.switch-view',
+    word(
+      choosing ? 'label.workbench.choose-view' : 'label.workbench.switch-view',
+    ),
   );
 
   return (
@@ -188,7 +191,7 @@ export function ViewSwitcher({
               onValueChange={(next: string) => onOpen(next)}
             >
               <DropdownMenuLabel>
-                {messages.label(`label.scope.group.${audience}`)}
+                {messages.label(word(`label.scope.group.${audience}`))}
               </DropdownMenuLabel>
               {items.map(item => (
                 <SwitcherItem key={item.id} item={item} />
@@ -208,7 +211,7 @@ export function ViewSwitcher({
               {onManage && (
                 <DropdownMenuItem onClick={onManage}>
                   <Settings2Icon />
-                  {messages.label('label.manage.open')}
+                  {messages.label(word('label.manage.open'))}
                 </DropdownMenuItem>
               )}
             </DropdownMenuGroup>

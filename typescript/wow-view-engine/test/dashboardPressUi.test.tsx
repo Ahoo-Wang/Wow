@@ -192,7 +192,7 @@ describe('the follow-up menu on a panel (D22 H)', () => {
     await user.click(row);
     const menu = await screen.findByRole('menu');
     expect(menu.querySelector('[data-slot="drill-context"]')?.textContent).toBe(
-      'Board filters: Warehouse is CN',
+      'Dashboard filters: Warehouse is CN',
     );
     // Each item says it opens elsewhere.
     expect(menu.querySelectorAll('[data-slot="drill-away"]').length).toBe(2);
@@ -252,7 +252,7 @@ describe('cross-filtering on screen (D22 I)', () => {
     // a button with a tooltip and the note as its description, not a
     // `title` only a mouse ever sees.
     const note =
-      'Pressing a group of this panel sets “Region” for the rest of the board; pressing it again clears it.';
+      'Pressing a group of this panel sets “Region” for the rest of the dashboard; pressing it again clears it.';
     expect(mark.tagName).toBe('BUTTON');
     expect(mark.getAttribute('title')).toBeNull();
     expect(
@@ -637,7 +637,7 @@ describe('a press that opens another board (D23 Q17)', () => {
     // A date filter takes no text dimension: nothing to pick, and it says so.
     expect(period.hasAttribute('data-disabled')).toBe(true);
     within(rows).getByText(
-      'Neither a dimension of this panel nor a filter of this board’s fits it.',
+      'Neither a dimension of this panel nor a filter of this dashboard’s fits it.',
     );
     await user.click(area);
     await user.click(

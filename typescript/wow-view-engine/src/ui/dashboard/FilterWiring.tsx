@@ -167,7 +167,7 @@ export function WiringBar({
       </p>
       <Button
         data-slot="dashboard-wiring-done"
-        // Not a second primary under 完成 (U-09): the board has one, and
+        // Not a second primary under 保存 (U-09): the board has one, and
         // it is the one that saves.
         variant="outline"
         size="sm"

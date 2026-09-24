@@ -172,7 +172,7 @@ export const teamBoard: ViewInstance = {
 
 /**
  * A memory store that tells the host page what it last took — the page's
- * witness that 「完成」 wrote the board through, and that 「取消」 did not.
+ * witness that 「保存」 wrote the board through, and that 「取消」 did not.
  */
 export class WatchedViewStore extends MemoryViewStore {
   private readonly listeners = new Set<(saved: ViewInstance) => void>();

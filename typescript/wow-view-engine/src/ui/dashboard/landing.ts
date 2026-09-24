@@ -111,7 +111,7 @@ export function valueOf(chip: Element | null | undefined): Element | null {
   return chip?.querySelector('[data-slot="filter-value"]') ?? chip ?? null;
 }
 
-/** 「筛选 ＋」 on the edit bar. */
+/** 「添加筛选」 on the edit bar. */
 export function addFilterOf(board: Element | null): Element | null {
   return board?.querySelector('[data-slot="dashboard-add-filter"]') ?? null;
 }

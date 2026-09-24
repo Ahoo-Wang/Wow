@@ -301,7 +301,7 @@ describe('复制为共享视图并替换… (D22 B)', () => {
     // The personal view is left as it was.
     expect((await store.get('mine')).scope).toBe('personal');
     // The panel shows the copy, keeping its look; the board is not written
-    // until 完成.
+    // until 保存.
     const draft = boardOf(engine).getSnapshot().draft.panels[0];
     expect(draft).toMatchObject({
       instanceId: copies[0].id,

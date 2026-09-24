@@ -170,3 +170,44 @@ describe('a chart marking the group pressed', () => {
     expect(await highlighted(container)).toBe('1');
   });
 });
+
+/**
+ * The follow-up menu open over a chart (2026-09-24 walk): the frame says so,
+ * and the tooltip the library draws inside it is not drawn while it does —
+ * the pointer's least move on the mark raised it over the menu's items.
+ * The pixels are a browser story's (「MenuClearOfTheTooltip」); here, the word.
+ */
+describe('a chart under its follow-up menu', () => {
+  const pie = {
+    type: 'pie',
+    slices: [
+      { category: 'CN', value: 2 },
+      { category: 'EU', value: 1 },
+    ],
+  } as const satisfies ChartData;
+  const spec: ChartSpec = {
+    type: 'pie',
+    pie: { category: 'region', value: 'orders' },
+  };
+  const frame = (container: HTMLElement) =>
+    container.querySelector<HTMLElement>('[data-slot="chart"]');
+
+  it('says the menu is open on its frame, and nothing once it closes', async () => {
+    const { container, rerender } = render(
+      <ViewSurface>
+        <AnalysisChart data={pie} spec={spec} menuOpen />
+      </ViewSurface>,
+    );
+    await waitFor(() =>
+      expect(frame(container)?.hasAttribute('data-menu-open')).toBe(true),
+    );
+    rerender(
+      <ViewSurface>
+        <AnalysisChart data={pie} spec={spec} />
+      </ViewSurface>,
+    );
+    await waitFor(() =>
+      expect(frame(container)?.hasAttribute('data-menu-open')).toBe(false),
+    );
+  });
+});

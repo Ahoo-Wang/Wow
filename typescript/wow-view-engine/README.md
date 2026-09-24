@@ -186,7 +186,7 @@ It converges rather than renders. A view holds an unsaved draft, so a pushed val
 
 #### Building a dashboard, and opening a panel's view
 
-A dashboard is read until someone who may save it presses **Edit**: nothing on a board being read moves. Editing brings up a bar with **Undo** and **Redo**, **Add** (data: a saved view, or a new analysis the board owns; content: a heading, text, an image, links), **Filter** (a board filter, then wired to the panels), **Cancel** and **Done**, and the tab bar under it adds, renames, reorders and deletes tabs — panels re-run as the board changes, and only **Done** saves it, through the same save the title bar has. A system dashboard is read-only and offers **Save as**.
+A dashboard is read until someone who may save it presses **Edit**: nothing on a board being read moves. Editing brings up a bar with **Undo** and **Redo**, **Add** (data: a saved view, or a new analysis the board owns; content: a heading, text, an image, links), **Add filter** (a board filter, then wired to the panels), **Cancel** and **Save**, and the tab bar under it adds, renames, reorders and deletes tabs — panels re-run as the board changes, and only **Save** saves it, through the same save the title bar has. A system dashboard is read-only and offers **Save as**.
 
 Every way off the board goes through one route of yours, `onNavigate(to)` — the package never touches the address. Without it none of them exist:
 
@@ -254,7 +254,7 @@ import {
 | ------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | `read-only`   | The result and what it was fetched under. Headers do not sort, there are no pages, nothing leads anywhere             | The panels, answering nothing: no follow-up menu, no cross-filtering, no **⋯**     |
 | `interactive` | Header sort and pages; an analysis's table｜chart switch and the follow-up menu on a group; **Open in the workbench** | The follow-up menu, cross-filtering, destinations, **Open in the workbench**       |
-| `editable`    | —                                                                                                                     | **Edit**, for whoever may save the board: it is built in place, and **Done** saves |
+| `editable`    | —                                                                                                                     | **Edit**, for whoever may save the board: it is built in place, and **Save** saves |
 
 Every way off the embed goes through your one route, `onNavigate(to)` — the same `ViewNavigation` the dashboard workbench hands over; without it, none of those ways exist.
 

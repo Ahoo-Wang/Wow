@@ -29,6 +29,7 @@ import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import { DropdownMenuContent } from './popups.js';
 import { TEXT_UI } from './layout.js';
 import { cn } from 'cn';
+import { useKindWord } from './kinds.js';
 
 /** The value the radio group carries for "no automatic refresh". */
 const OFF = 'off';
@@ -102,6 +103,7 @@ export function RefreshControl({
   note,
 }: RefreshControlProps) {
   const messages = useViewMessages();
+  const word = useKindWord();
   const { interval, chosen, intervals, unsound } = refresh;
   // Ticks only while the runtime has a timer armed, and only for as long as
   // this control is mounted.
@@ -203,7 +205,7 @@ export function RefreshControl({
           members by that attribute, pass over it. */}
       {cadence !== null && (
         <span id={cadenceId} className="sr-only">
-          {messages.label('label.refresh.on', { interval: cadence })}
+          {messages.label(word('label.refresh.on'), { interval: cadence })}
         </span>
       )}
 

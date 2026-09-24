@@ -17,8 +17,8 @@
  * value controls, required ones starred and never empty, the time grouping
  * as one choice, 「清空」, a filter reaching nothing on the tab drawn quieter
  * and saying why — the badge on a panel a filter does not reach, and while
- * the board is built 「筛选 ＋」, a filter's settings and wiring, with the
- * toast that says how many panels auto-connect wired and undoes it.
+ * the board is built 「添加筛选」, a filter's settings and wiring, with the
+ * toast that says how many panels auto-connect wired and unwires them again.
  */
 
 import {
@@ -44,7 +44,9 @@ import {
   type DataViewDefinition,
   type ViewInstance,
 } from '../src/index.js';
+import { useDashboard, useFilterEditor } from '../src/react/index.js';
 import { DashboardWorkbench } from '../src/ui/index.js';
+import { FilterBar } from '../src/ui/dashboard/FilterBar.js';
 import { barMove } from '../src/ui/dashboard/FilterOrder.js';
 import {
   analysisConfig,
@@ -184,7 +186,10 @@ function board(): DashboardViewConfig {
   });
 }
 
-function setup(config: DashboardViewConfig = board()) {
+function setup(
+  config: DashboardViewConfig = board(),
+  { workbench = true }: { workbench?: boolean } = {},
+) {
   const source = testSource();
   const store = new MemoryViewStore({
     instances: [
@@ -211,13 +216,14 @@ function setup(config: DashboardViewConfig = board()) {
         (open): open is DashboardViewRuntime =>
           open instanceof DashboardViewRuntime,
       ) as DashboardViewRuntime;
-  render(
-    <DashboardWorkbench
-      engine={engine}
-      definitionId="overview"
-      instanceId="board"
-    />,
-  );
+  if (workbench)
+    render(
+      <DashboardWorkbench
+        engine={engine}
+        definitionId="overview"
+        instanceId="board"
+      />,
+    );
   return { engine, source, runtime, store };
 }
 
@@ -423,6 +429,123 @@ describe('the filter bar (D22 F)', () => {
     await screen.findByText('List');
     expect(screen.queryByRole('region', { name: 'Filters' })).toBeNull();
   });
+
+  /**
+   * D27: the board's fixed scope is read on the bar's row, at its head, as
+   * the board's — 「Fixed scope」 — with a note on why and nothing to take
+   * it out by; there is no 「正在显示」 band to say it instead.
+   */
+  it('reads the board’s fixed scope at the head of the bar, with nothing to remove it by', async () => {
+    setup({ ...board(), fixed: NOT_NORTH });
+    const filters = await bar();
+
+    const fixed = await within(filters).findByRole('group', {
+      name: 'Fixed scope',
+    });
+    expect(filters.firstElementChild).toBe(fixed);
+    expect(fixed.textContent).toContain('Region is not north');
+    expect(
+      within(fixed)
+        .getAllByRole('button')
+        .map(button => button.getAttribute('aria-label')),
+    ).toEqual([
+      'The dashboard itself holds every panel to this; it cannot be changed here.',
+    ]);
+    expect(screen.queryByRole('region', { name: 'Showing' })).toBeNull();
+  });
+});
+
+/** 「仓库 不是 north」, a board's fixed scope. */
+const NOT_NORTH = {
+  op: 'and',
+  children: [{ field: 'region', operator: 'NE', value: 'north' }],
+} as const satisfies DashboardViewConfig['fixed'];
+
+/** The bar as a board draws it below `md`, over its own runtime. */
+function NarrowBar({ runtime }: { runtime: DashboardViewRuntime }) {
+  const dashboard = useDashboard(runtime);
+  const { fixed } = useFilterEditor(runtime);
+  return (
+    <FilterBar
+      dashboard={dashboard}
+      fixed={fixed}
+      modes={{ filters: { region: 'locked' } }}
+      narrow
+    />
+  );
+}
+
+describe('the filter bar below md (D26 Q38)', () => {
+  it('folds into one button and a sheet below md, the held ones read beside it (D26 Q38)', async () => {
+    const { engine } = setup(
+      { ...board(), fixed: NOT_NORTH },
+      { workbench: false },
+    );
+    const runtime = (await engine.open('board')) as DashboardViewRuntime;
+    const user = userEvent.setup();
+    render(<NarrowBar runtime={runtime} />);
+    const filters = await bar();
+
+    expect(filters.hasAttribute('data-narrow')).toBe(true);
+    // Read beside the button: the fixed scope and the locked filter.
+    expect(
+      within(filters).getByRole('group', { name: 'Fixed scope' }),
+    ).toBeTruthy();
+    const held = filters.querySelector<HTMLElement>(
+      '[data-slot="dashboard-filter-held"]',
+    );
+    expect(held?.dataset.filter).toBe('region');
+    // What the reader changes is not on the bar itself.
+    expect(
+      within(filters).queryByRole('group', { name: 'Created (required)' }),
+    ).toBeNull();
+
+    // One of the reader's filters holds a value: Created, at its default.
+    await user.click(
+      within(filters).getByRole('button', { name: 'Filters (1 set)' }),
+    );
+    const sheet = await screen.findByRole('dialog', { name: 'Filters' });
+    expect(
+      within(sheet).getByRole('group', { name: 'Created (required)' }),
+    ).toBeTruthy();
+    expect(
+      within(sheet).getByRole('group', { name: 'Time grouping' }),
+    ).toBeTruthy();
+    expect(
+      [
+        ...sheet.querySelectorAll<HTMLElement>(
+          '[data-slot="dashboard-filter"]',
+        ),
+      ].map(chip => chip.dataset.filter),
+    ).toEqual(['created', 'region']);
+  });
+
+  it('offers no button when there is nothing the reader could change', async () => {
+    const { engine } = setup(
+      dashboardConfig({
+        fields: [{ name: 'region', label: 'Region', kind: 'string' }],
+        fixed: NOT_NORTH,
+        panels: [
+          panel(
+            'b',
+            'list',
+            0,
+            [{ globalField: 'region', panelField: 'warehouse' }],
+            'List',
+          ),
+        ],
+      }),
+      { workbench: false },
+    );
+    const runtime = (await engine.open('board')) as DashboardViewRuntime;
+    render(<NarrowBar runtime={runtime} />);
+    const filters = await bar();
+
+    expect(
+      within(filters).queryByRole('button', { name: /Filters/ }),
+    ).toBeNull();
+    expect(filters.textContent).toContain('Region is not north');
+  });
 });
 
 async function startBuilding(user: ReturnType<typeof userEvent.setup>) {
@@ -448,7 +571,7 @@ describe('adding and wiring a filter (D22 G)', () => {
     await screen.findByText('Trend');
     await startBuilding(user);
 
-    await user.click(screen.getByRole('button', { name: 'Add a filter' }));
+    await user.click(screen.getByRole('button', { name: 'Add filter' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Date' }));
 
     // Its settings open on it at once.
@@ -526,7 +649,9 @@ describe('adding and wiring a filter (D22 G)', () => {
         ?.textContent,
     ).toBe('Wired by hand rather than by name');
 
-    await user.click(screen.getByRole('button', { name: 'Undo' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Only the panel picked' }),
+    );
     await waitFor(() =>
       expect(reach('c')).toEqual({ wired: false, why: 'unwired' }),
     );
@@ -548,7 +673,7 @@ describe('adding and wiring a filter (D22 G)', () => {
     expect(strips()).toHaveLength(0);
 
     // A yes-or-no filter has nothing to wire to on these panels, and says so.
-    await user.click(screen.getByRole('button', { name: 'Add a filter' }));
+    await user.click(screen.getByRole('button', { name: 'Add filter' }));
     await user.click(
       await screen.findByRole('menuitem', { name: 'Yes or no' }),
     );
@@ -615,7 +740,7 @@ describe('adding and wiring a filter (D22 G)', () => {
     );
   });
 
-  it('adds the time grouping from 「筛选 ＋」 and takes it off from the bar', async () => {
+  it('adds the time grouping from 「添加筛选」 and takes it off from the bar', async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     const plain = board();
     delete plain.timeGrouping;
@@ -623,7 +748,7 @@ describe('adding and wiring a filter (D22 G)', () => {
     await bar();
     await startBuilding(user);
 
-    await user.click(screen.getByRole('button', { name: 'Add a filter' }));
+    await user.click(screen.getByRole('button', { name: 'Add filter' }));
     await user.click(
       await screen.findByRole('menuitem', { name: 'Time grouping' }),
     );
@@ -690,7 +815,7 @@ describe('putting the filters in order (D22 G)', () => {
     await user.keyboard('{ArrowLeft}{ArrowUp}');
     expect(onBar()).toEqual(['region', 'created']);
 
-    await user.click(screen.getByRole('button', { name: 'Done' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(async () => {
       const stored = (await store.get('board')).config as DashboardViewConfig;
       expect(stored.fields?.map(field => field.name)).toEqual([
@@ -778,7 +903,7 @@ describe('where the keyboard goes after a press on the bar (U-02)', () => {
     );
   });
 
-  it('lands on 「筛选 ＋」 when the time grouping goes, and on the grouping when it comes back', async () => {
+  it('lands on 「添加筛选」 when the time grouping goes, and on the grouping when it comes back', async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     setup();
     await bar();
@@ -790,7 +915,7 @@ describe('where the keyboard goes after a press on the bar (U-02)', () => {
     );
     await waitFor(() =>
       expect(document.activeElement).toBe(
-        screen.getByRole('button', { name: 'Add a filter' }),
+        screen.getByRole('button', { name: 'Add filter' }),
       ),
     );
 
@@ -845,10 +970,10 @@ describe('where the keyboard goes after a press on the bar (U-02)', () => {
   });
 
   /**
-   * One primary on the board while a filter is wired (U-09): 「完成」, which
+   * One primary on the board while a filter is wired (U-09): 「保存」, which
    * saves. 「完成接线」 under it and 「接线」 in the settings are outline.
    */
-  it('carries one primary while a filter is wired, and it is 完成', async () => {
+  it('carries one primary while a filter is wired, and it is 保存', async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     setup();
     await bar();
@@ -876,7 +1001,7 @@ describe('where the keyboard goes after a press on the bar (U-02)', () => {
     expect(wire.classList.contains('bg-primary')).toBe(false);
     await user.click(wire);
     await screen.findByRole('button', { name: 'Done wiring' });
-    expect(primary()).toEqual(['Done']);
+    expect(primary()).toEqual(['Save']);
   });
 
   /**

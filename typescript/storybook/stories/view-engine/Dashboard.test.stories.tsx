@@ -106,6 +106,8 @@ export const AllPanels: Story = {
 
 export const GlobalFilter: Story = {
   ...DisplayGlobalFilter,
+  // A desk: below `md` the bar is one button and a sheet (D26 Q38).
+  decorators: [DESK],
   play: async ({ canvasElement }) => {
     const table = await findDataTable(canvasElement);
     // 华南 reaches both panels through their own warehouse field.
@@ -114,6 +116,16 @@ export const GlobalFilter: Story = {
     );
     await expect(amountOf(readTotal(table, '金额'))).toBe(1760);
     await waitFor(() => expect(bars(canvasElement)).toHaveLength(1));
+    // The value is the filter bar's, and the bar says it once: no
+    // 「正在显示」 band over the panels says it again (D27).
+    const canvas = within(canvasElement);
+    const bar = canvas.getByRole('region', { name: zhCN['label.filters.bar'] });
+    await expect(
+      within(bar).getByRole('combobox', { name: '仓库' }),
+    ).toHaveTextContent('华南');
+    await expect(
+      canvas.queryByRole('region', { name: zhCN['label.applied.title'] }),
+    ).toBeNull();
   },
 };
 
@@ -473,12 +485,13 @@ export const LegacyLayoutDrawsTheSame: Story = {
 /**
  * A board stored before batch C (D26 Q31): the leaf a filter could hold is
  * that filter's default on the filter bar, the reader's to change; the rest
- * is the board's fixed scope, said on the 「正在显示」 band as the board's,
- * with nothing to remove it by. Both reach the panels, and opening it
- * changes nothing to save.
+ * is the board's fixed scope, read on the bar's row as 「固定范围」 with
+ * nothing to remove it by — and no 「正在显示」 band says it again (D27).
+ * Both reach the panels, and opening it changes nothing to save.
  */
 export const PreBatchCFixedScope: Story = {
   ...DisplayPreBatchCCondition,
+  decorators: [DESK],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const table = await findDataTable(canvasElement);
@@ -490,15 +503,22 @@ export const PreBatchCFixedScope: Story = {
       within(bar).getByRole('combobox', { name: '仓库' }),
     ).toHaveTextContent('华南');
 
-    const band = await canvas.findByRole('region', {
-      name: zhCN['label.applied.title'],
+    const fixed = within(bar).getByRole('group', {
+      name: zhCN['label.filters.fixed'],
     });
-    const fixed = band.querySelector('[data-fixed]') as HTMLElement;
-    await expect(fixed).not.toBeNull();
+    await expect(fixed).toHaveTextContent(zhCN['label.filters.fixed']);
     await expect(fixed).toHaveTextContent('仓库');
     await expect(fixed).toHaveTextContent('西南');
-    await expect(fixed).toHaveTextContent(zhCN['label.applied.fixed']);
-    await expect(within(band).queryAllByRole('button')).toHaveLength(0);
+    // Read-only: its one button says why, and takes nothing out.
+    await expect(within(fixed).getAllByRole('button')).toHaveLength(1);
+    await expect(
+      within(fixed).getByRole('button', {
+        name: zhCN['label.filters.fixed-note'],
+      }),
+    ).toBeVisible();
+    await expect(
+      canvas.queryByRole('region', { name: zhCN['label.applied.title'] }),
+    ).toBeNull();
 
     // 华南 and not 西南: the list answers for 华南 alone.
     await waitFor(() =>
@@ -590,6 +610,7 @@ export const PanelChromeInDarkTheme: Story = panelChrome('dark');
  */
 const chipEdges = (theme: 'light' | 'dark'): Story => ({
   ...DisplayFilters,
+  decorators: [DESK],
   globals: { theme },
   play: async ({ canvasElement }) => {
     await waitFor(() =>

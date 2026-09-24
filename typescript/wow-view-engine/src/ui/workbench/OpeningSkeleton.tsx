@@ -16,6 +16,7 @@ import { Skeleton } from '../components/skeleton.js';
 import { SPACE } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { ResultBlock } from './ResultBlock.js';
+import { useKindWord } from '../kinds.js';
 
 /** How many rows the block is drawn as; the same three a query is. */
 const ROWS = 3;
@@ -62,6 +63,7 @@ export function OpeningSkeleton({
   header = true,
 }: OpeningSkeletonProps) {
   const messages = useViewMessages();
+  const word = useKindWord();
   return (
     <div
       data-slot="opening-skeleton"
@@ -73,7 +75,7 @@ export function OpeningSkeleton({
       className={cn('flex min-w-0 flex-col', SPACE.BLOCKS)}
     >
       <span role="status" className="sr-only">
-        {messages.label('label.workbench.opening')}
+        {messages.label(word('label.workbench.opening'))}
       </span>
 
       {header && (

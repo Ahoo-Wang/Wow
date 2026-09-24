@@ -210,6 +210,26 @@ export function pressMark(mark: Element): void {
 }
 
 /**
+ * The pointer moved over a mark's middle, as the library hears a pointer:
+ * what raises the mark's tooltip.
+ */
+export function hoverMark(mark: Element): void {
+  const box = mark.getBoundingClientRect();
+  mark.dispatchEvent(
+    new MouseEvent('mousemove', {
+      bubbles: true,
+      clientX: box.left + box.width / 2,
+      clientY: box.top + box.height / 2,
+    }),
+  );
+}
+
+/** The drawing's tooltip under `root`, while the library holds one. */
+export function chartTooltip(root: ParentNode): HTMLElement | null {
+  return root.querySelector<HTMLElement>('[data-slot="chart-tooltip"]');
+}
+
+/**
  * Until every chart under `root` has landed: drawn, its marks grown into
  * place (`data-drawn`, set when the library says it has finished). What a
  * story measures before then is a bar on its way up.

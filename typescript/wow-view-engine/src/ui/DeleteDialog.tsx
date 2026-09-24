@@ -21,6 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from './components/alert-dialog.js';
+import { kindWord } from './kinds.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { AlertDialogContent } from './popups.js';
 import { DestructiveAction } from './variants.js';
@@ -62,7 +63,10 @@ export function DeleteDialog({
   onConfirm(): void;
 }) {
   const messages = useViewMessages();
-  const consequences = [messages.label('label.delete.consequence')];
+  // A dashboard's own: the analyses made inside it go with it (D26 Q34).
+  const consequences = [
+    messages.label(kindWord('label.delete.consequence', item.kind)),
+  ];
   if (audienceOf(item.scope) === 'shared')
     consequences.push(messages.label('label.delete.shared-consequence'));
   if (dirty)

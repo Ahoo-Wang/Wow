@@ -195,7 +195,7 @@ describe('reading and building a dashboard (D22 A)', () => {
 
     await enter(user);
     expect(slot('panel-grip')).not.toBeNull();
-    // The bar's 完成 is the save while it is up; Save is not beside it.
+    // The bar's 保存 is the save while it is up; Save is not beside it.
     expect(slot('save-actions')).toBeNull();
     expect(slot('dashboard-edit')).toBeNull();
     // Nothing had focus to give back but the pressed button, which went:
@@ -229,7 +229,7 @@ describe('reading and building a dashboard (D22 A)', () => {
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
   });
 
-  it('saves on 完成 and reads the board again', async () => {
+  it('saves on 保存 and reads the board again', async () => {
     const { store, user } = open();
     await enter(user);
     const menu = await panelMenu(user, 'Pending');
@@ -241,7 +241,7 @@ describe('reading and building a dashboard (D22 A)', () => {
     expect(titles()).toEqual(['Waiting']);
 
     const saved = landed(store);
-    await user.click(screen.getByRole('button', { name: 'Done' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
     await saved;
     const stored = await store.get('overview-1');
     expect(
@@ -253,15 +253,21 @@ describe('reading and building a dashboard (D22 A)', () => {
     expect(document.activeElement).toBe(slot('dashboard-edit'));
   });
 
-  it('asks before 完成 writes over a shared board, naming it', async () => {
+  it('asks before 保存 writes over a shared board, naming it', async () => {
     const { store, user } = open({ scope: 'shared' });
     await enter(user);
     await add(user, 'Heading');
     await user.keyboard('{Enter}');
 
-    await user.click(screen.getByRole('button', { name: 'Done' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
     const question = await screen.findByRole('alertdialog');
     expect(question.textContent).toContain('Operations');
+    // Asked about a dashboard, as a dashboard (D26 Q34).
+    expect(
+      within(question).getByRole('heading', {
+        name: 'Update the dashboard for everyone?',
+      }),
+    ).toBeTruthy();
     const saved = landed(store);
     await user.click(
       within(question).getByRole('button', { name: 'Update for everyone' }),
@@ -277,8 +283,8 @@ describe('reading and building a dashboard (D22 A)', () => {
 
   /**
    * One way to do one thing: while the board is built its edit bar holds
-   * 完成 and 取消, so the title bar's 「已修改 ↺」 is not beside them. Once
-   * the building ends — by 取消 or by 完成 — the title bar says and undoes
+   * 保存 and 取消, so the title bar's 「已修改 ↺」 is not beside them. Once
+   * the building ends — by 取消 or by 保存 — the title bar says and undoes
    * an unsaved change as it always has.
    */
   it('leaves 「已修改 ↺」 to the edit bar while the board is built', async () => {
@@ -298,7 +304,7 @@ describe('reading and building a dashboard (D22 A)', () => {
         }),
       );
 
-    for (const leave of ['Cancel', 'Done'] as const) {
+    for (const leave of ['Cancel', 'Save'] as const) {
       await enter(user);
       await add(user, 'Heading');
       await user.keyboard('{Enter}');
@@ -329,11 +335,11 @@ describe('reading and building a dashboard (D22 A)', () => {
     }
   });
 
-  it('leaves at once on 完成 with nothing to save', async () => {
+  it('leaves at once on 保存 with nothing to save', async () => {
     const { store, user } = open();
     await enter(user);
     const save = vi.spyOn(store, 'save');
-    await user.click(screen.getByRole('button', { name: 'Done' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(slot('dashboard-edit-bar')).toBeNull();
     expect(save).not.toHaveBeenCalled();
   });
@@ -343,7 +349,7 @@ describe('reading and building a dashboard (D22 A)', () => {
     await enter(user);
     await add(user, 'Heading');
     await user.keyboard('{Enter}');
-    expect(titles()).toContain('New section');
+    expect(titles()).toContain('New heading');
 
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
     const question = await screen.findByRole('alertdialog');
@@ -372,9 +378,9 @@ describe('adding to a board (D22 A, B)', () => {
     expect(groups).toEqual(['System views', 'Shared views', 'My views']);
     const row = (name: string) =>
       within(picker).getByRole('button', { name: new RegExp(name) });
-    expect(row('Pending orders').textContent).toContain('On the board');
+    expect(row('Pending orders').textContent).toContain('On the dashboard');
     expect(row('My orders').textContent).toContain('Only you can see it');
-    expect(row('By warehouse').textContent).not.toContain('On the board');
+    expect(row('By warehouse').textContent).not.toContain('On the dashboard');
 
     // Searched by name, and narrowed by kind.
     await user.type(
@@ -442,7 +448,7 @@ describe('adding to a board (D22 A, B)', () => {
     await waitFor(() => expect(document.activeElement).toBe(text));
     expect((text as HTMLTextAreaElement).value).toBe('');
     expect(text.getAttribute('placeholder')).toBe(
-      'Write what this part of the board is for.',
+      'Write what this dashboard is for.',
     );
     await user.click(within(form).getByRole('button', { name: 'Add' }));
     expect(within(form).getByText('Fill this in.')).toBeTruthy();
@@ -484,7 +490,7 @@ describe('adding to a board (D22 A, B)', () => {
     await add(user, 'Links…');
     form = await screen.findByRole('dialog');
     await user.type(
-      within(form).getByRole('textbox', { name: 'Text' }),
+      within(form).getByRole('textbox', { name: 'Link text' }),
       'Runbook',
     );
     await user.type(
@@ -506,7 +512,7 @@ describe('adding to a board (D22 A, B)', () => {
       within(menu).getByRole('menuitem', { name: 'Edit content…' }),
     );
     form = await screen.findByRole('dialog');
-    const label = within(form).getByRole('textbox', { name: 'Text' });
+    const label = within(form).getByRole('textbox', { name: 'Link text' });
     await user.clear(label);
     await user.type(label, 'On-call runbook');
     await user.click(within(form).getByRole('button', { name: 'Update' }));

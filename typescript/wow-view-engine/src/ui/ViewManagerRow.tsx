@@ -47,7 +47,7 @@ import {
 } from './components/item.js';
 import { RowItem } from './RowItem.js';
 import { DeleteDialog } from './DeleteDialog.js';
-import { KIND_ICON } from './kinds.js';
+import { KIND_ICON, useKindWord } from './kinds.js';
 import { SystemMark } from './SystemMark.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { OutcomeActions } from './OutcomeActions.js';
@@ -113,6 +113,7 @@ export function ViewManagerRow({
   handleRef,
 }: ViewManagerRowProps) {
   const messages = useViewMessages();
+  const word = useKindWord();
   const [renaming, setRenaming] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const Kind = KIND_ICON[item.kind];
@@ -274,7 +275,7 @@ export function ViewManagerRow({
             {(manager.can.setDefault || can.rename || can.delete) && (
               <ButtonGroup
                 className={ACTION_CELLS}
-                aria-label={messages.label('label.manage.view-group')}
+                aria-label={messages.label(word('label.manage.view-group'))}
               >
                 {manager.can.setDefault && (
                   <IconButton

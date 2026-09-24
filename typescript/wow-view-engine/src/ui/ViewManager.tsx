@@ -42,6 +42,7 @@ import {
 } from './ViewManagerRow.js';
 import { TEXT_UI } from './layout.js';
 import { cn } from 'cn';
+import { useKindWord } from './kinds.js';
 
 export interface ViewManagerProps {
   manager: ViewManagerController;
@@ -92,6 +93,7 @@ export function ViewManager({
   openDirtyId = null,
 }: ViewManagerProps) {
   const messages = useViewMessages();
+  const word = useKindWord();
   const { say: announce, region: announcement } = useAnnouncer(
     'view-manager-announcement',
   );
@@ -151,7 +153,7 @@ export function ViewManager({
           className="flex flex-col gap-1"
         >
           <span className={cn('text-muted-foreground px-1', TEXT_UI)}>
-            {messages.label(`label.scope.group.${group.audience}`)}
+            {messages.label(word(`label.scope.group.${group.audience}`))}
           </span>
           {group.items.map((item, index) => {
             const shared = {
@@ -197,10 +199,10 @@ export function ViewManager({
               stop: it is reachable when focus is *sent* here, and invisible
               to Tab, which is what a heading should be. */}
           <DialogTitle ref={heading} tabIndex={-1}>
-            {messages.label('label.manage.heading')}
+            {messages.label(word('label.manage.heading'))}
           </DialogTitle>
           <DialogDescription>
-            {messages.label('label.manage.description')}
+            {messages.label(word('label.manage.description'))}
           </DialogDescription>
         </DialogHeader>
 
@@ -222,7 +224,7 @@ export function ViewManager({
                 defaults.map(plugin =>
                   plugin === Accessibility
                     ? Accessibility.configure(
-                        manageDragAccessibility(messages, titleOf),
+                        manageDragAccessibility(messages, titleOf, word),
                       )
                     : plugin,
                 )

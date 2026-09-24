@@ -195,7 +195,7 @@ function titles(canvasElement: HTMLElement): string[] {
 /**
  * The editable tier end to end (D22): the team's home board is built where
  * it is read. 「编辑」 brings up the edit bar; a heading added is named in
- * place; 「完成」 asks before it updates the board everyone reads, saves it,
+ * place; 「保存」 asks before it updates the board everyone reads, saves it,
  * and hands the keyboard back to 「编辑」.
  */
 export const Editing: Story = {
@@ -231,9 +231,9 @@ export const Editing: Story = {
     await userEvent.type(heading, '本周重点{Enter}');
     await waitFor(() => expect(titles(canvasElement)).toContain('本周重点'));
 
-    // The board is the team's: 完成 asks before it updates it for everyone.
+    // The board is the team's: 保存 asks before it updates it for everyone.
     await userEvent.click(
-      canvas.getByRole('button', { name: zhCN['label.dashboard.done'] }),
+      canvas.getByRole('button', { name: zhCN['label.dashboard.save'] }),
     );
     await userEvent.click(
       await screen.findByRole('button', {

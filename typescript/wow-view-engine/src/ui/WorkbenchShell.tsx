@@ -28,6 +28,7 @@ import {
 import type { WorkbenchController } from '../react/index.js';
 import { AppliedBar } from './AppliedBar.js';
 import { EditorFold } from './EditorBand.js';
+import { SurfaceKind } from './kinds.js';
 import { SPACE } from './layout.js';
 import { LeaveDialog } from './LeaveGuard.js';
 import { QueryStrip } from './StatusStrip.js';
@@ -195,8 +196,8 @@ export interface WorkbenchShellProps {
   hasResult?: boolean;
   /**
    * Whether the applied-conditions band is drawn. On by default; a
-   * dashboard says what its panels run under in its own filter bar, and
-   * draws the band only for a standing condition the bar does not hold.
+   * dashboard turns it off (D27): its filters run as they change, so its
+   * filter bar is what the panels are showing, its fixed scope read there.
    */
   applied?: boolean;
   /**
@@ -533,45 +534,48 @@ export function WorkbenchShell({
   );
 
   return (
-    <ViewSurface
-      ref={surfaceRef}
-      theme={theme}
-      messages={wording}
-      locale={locale}
-      timeZone={timeZone}
-      // The container's height, always: the result takes what the parts
-      // above it leave and the footer sits at the bottom, whatever the rows
-      // (`styles.css`, "A workbench fills its container"). A container of
-      // no definite height makes `h-full` nothing, and the floor is then
-      // the whole of it — 36rem, or the host's `--fve-workbench-min-height`.
-      className="h-full min-h-[var(--fve-workbench-min-height,36rem)] gap-0 md:flex-row"
-    >
-      <SidebarColumn
-        panel={panel}
-        narrow={narrow}
-        onPanelClose={onPanelClose}
-        open={sidebarOpen}
-        list={list}
-        title={title}
-        currentId={currentId}
-        onOpen={workbench.choose}
-        create={create}
-        onManage={onManage}
-        onCollapse={() => toggleSidebar(false)}
-        collapseRef={collapseRef}
-      />
-
-      <main
-        // Only while the title is on screen: an id that addresses nothing is
-        // a broken label rather than a missing one.
-        aria-labelledby={open ? titleId : undefined}
-        className={cn(
-          'flex min-w-0 flex-1 flex-col p-4',
-          SPACE.BLOCKS,
-          className,
-        )}
+    // What the chrome calls the thing open: a dashboard workbench says
+    // 仪表盘 in its new, save, delete and manager words (Q34).
+    <SurfaceKind.Provider value={kind}>
+      <ViewSurface
+        ref={surfaceRef}
+        theme={theme}
+        messages={wording}
+        locale={locale}
+        timeZone={timeZone}
+        // The container's height, always: the result takes what the parts
+        // above it leave and the footer sits at the bottom, whatever the rows
+        // (`styles.css`, "A workbench fills its container"). A container of
+        // no definite height makes `h-full` nothing, and the floor is then
+        // the whole of it — 36rem, or the host's `--fve-workbench-min-height`.
+        className="h-full min-h-[var(--fve-workbench-min-height,36rem)] gap-0 md:flex-row"
       >
-        {/* Without an open view there is no title bar to carry the way back,
+        <SidebarColumn
+          panel={panel}
+          narrow={narrow}
+          onPanelClose={onPanelClose}
+          open={sidebarOpen}
+          list={list}
+          title={title}
+          currentId={currentId}
+          onOpen={workbench.choose}
+          create={create}
+          onManage={onManage}
+          onCollapse={() => toggleSidebar(false)}
+          collapseRef={collapseRef}
+        />
+
+        <main
+          // Only while the title is on screen: an id that addresses nothing is
+          // a broken label rather than a missing one.
+          aria-labelledby={open ? titleId : undefined}
+          className={cn(
+            'flex min-w-0 flex-1 flex-col p-4',
+            SPACE.BLOCKS,
+            className,
+          )}
+        >
+          {/* Without an open view there is no title bar to carry the way back,
             and a workbench that could not be un-collapsed would be a trap.
 
             It is the same bar, so it is the same container: `@container/header`
@@ -579,186 +583,187 @@ export function WorkbenchShell({
             measured against (`@md/header`). Without it here, that name had no
             container to ask and stayed hidden at every width — on the one
             screen where nothing else says which definition this is. */}
-        {!open && collapsed && (
-          <div className="@container/header flex min-h-10">{collapsed}</div>
-        )}
+          {!open && collapsed && (
+            <div className="@container/header flex min-h-10">{collapsed}</div>
+          )}
 
-        {unopenable && (
-          <Unopenable
-            issue={unopenable}
-            // The way back is the view the user would have got without
-            // asking for this one — and only where that is somewhere else,
-            // because an action that re-opens the view that just failed is
-            // a button whose whole effect is to redraw this screen.
-            onDefault={
-              list.defaultInstanceId !== null &&
-              list.defaultInstanceId !== workbench.openId
-                ? () => workbench.choose(list.defaultInstanceId)
-                : undefined
-            }
-          />
-        )}
+          {unopenable && (
+            <Unopenable
+              issue={unopenable}
+              // The way back is the view the user would have got without
+              // asking for this one — and only where that is somewhere else,
+              // because an action that re-opens the view that just failed is
+              // a button whose whole effect is to redraw this screen.
+              onDefault={
+                list.defaultInstanceId !== null &&
+                list.defaultInstanceId !== workbench.openId
+                  ? () => workbench.choose(list.defaultInstanceId)
+                  : undefined
+              }
+            />
+          )}
 
-        {/* The shape of the page that is coming, not a bar saying something
+          {/* The shape of the page that is coming, not a bar saying something
             is (P-13). Its title bar is left out where the collapsed row
             above already stands in that place. */}
-        {opened.loading && (
-          <OpeningSkeleton framed={resultFramed} header={!collapsed} />
-        )}
+          {opened.loading && (
+            <OpeningSkeleton framed={resultFramed} header={!collapsed} />
+          )}
 
-        {none && <NoViews failed={list.error !== null} create={create} />}
+          {none && <NoViews failed={list.error !== null} create={create} />}
 
-        {open && (
-          <>
-            {/* The handle is in the title bar and the band is under the
+          {open && (
+            <>
+              {/* The handle is in the title bar and the band is under the
                 status line, so the two ends of the fold cannot be nested one
                 inside the other — they are wrapped instead. The root draws
                 nothing (`contents`), and where a workbench does not fold its
                 editor it simply holds neither trigger nor panel. */}
-            <EditorFold open={editorIsOpen.open} onOpenChange={openEditor}>
-              <TitleBar
-                workbench={workbench}
-                state={state}
-                kind={runtime.kind}
-                titleId={titleId}
-                titleRef={viewTitle}
-                actions={actions}
-                resetKeys={resetKeys}
-                onRenderFailure={onRenderFailure}
-                namesView={sidebarOpen}
-                leading={collapsed || undefined}
-                editorLabel={folded ? editorLabel : undefined}
-                editorModes={editorModes}
-                editorPending={editorPending}
-                freshness={freshness}
-                busy={querying}
-                expandable={expandable}
-                fill={fill}
-                expandViewRef={expandViewRef}
-                onCreated={() => {
-                  created.current = true;
-                }}
-                build={build}
-                commitElsewhere={commitElsewhere}
-              />
+              <EditorFold open={editorIsOpen.open} onOpenChange={openEditor}>
+                <TitleBar
+                  workbench={workbench}
+                  state={state}
+                  kind={runtime.kind}
+                  titleId={titleId}
+                  titleRef={viewTitle}
+                  actions={actions}
+                  resetKeys={resetKeys}
+                  onRenderFailure={onRenderFailure}
+                  namesView={sidebarOpen}
+                  leading={collapsed || undefined}
+                  editorLabel={folded ? editorLabel : undefined}
+                  editorModes={editorModes}
+                  editorPending={editorPending}
+                  freshness={freshness}
+                  busy={querying}
+                  expandable={expandable}
+                  fill={fill}
+                  expandViewRef={expandViewRef}
+                  onCreated={() => {
+                    created.current = true;
+                  }}
+                  build={build}
+                  commitElsewhere={commitElsewhere}
+                />
 
-              {/* Where this view came from, when it was opened out of another
+                {/* Where this view came from, when it was opened out of another
                 (D20) or handed over from a dashboard (D26 Q33): the way
                 back, naming the origin, under the title bar and before
                 anything the view says about itself. The workbench holds
                 it; no kind's parts know it exists. */}
-              {workbench.held?.origin ? (
-                <OriginBar
-                  title={workbench.held.origin.title}
-                  from="view"
-                  onBack={workbench.back}
-                />
-              ) : (
-                workbench.board && (
+                {workbench.held?.origin ? (
                   <OriginBar
-                    title={workbench.board.title}
-                    from="dashboard"
-                    onBack={workbench.toBoard}
+                    title={workbench.held.origin.title}
+                    from="view"
+                    onBack={workbench.back}
                   />
-                )
-              )}
+                ) : (
+                  workbench.board && (
+                    <OriginBar
+                      title={workbench.board.title}
+                      from="dashboard"
+                      onBack={workbench.toBoard}
+                    />
+                  )
+                )}
 
-              <StatusLine
-                workbench={workbench}
-                state={state}
-                kind={kind}
-                warnings={warnings}
-                besideResult={besideResult}
-                nameIssue={nameIssue}
-                errorAction={
-                  typeof errorAction === 'function'
-                    ? errorAction(
-                        editor != null && (!folded || editorIsOpen.open),
-                      )
-                    : errorAction
-                }
-              />
+                <StatusLine
+                  workbench={workbench}
+                  state={state}
+                  kind={kind}
+                  warnings={warnings}
+                  besideResult={besideResult}
+                  nameIssue={nameIssue}
+                  errorAction={
+                    typeof errorAction === 'function'
+                      ? errorAction(
+                          editor != null && (!folded || editorIsOpen.open),
+                        )
+                      : errorAction
+                  }
+                />
 
-              {/* The conditions, on a surface of their own. The block exists
+                {/* The conditions, on a surface of their own. The block exists
                 only where there is something in it: an empty card is the
                 promise of an editor that is not there. */}
-              {editor != null && (
-                <ConditionBlock
-                  editor={editor}
-                  folded={folded}
-                  id={editorId}
-                  resetKeys={resetKeys}
-                  onRenderFailure={onRenderFailure}
-                />
-              )}
-            </EditorFold>
+                {editor != null && (
+                  <ConditionBlock
+                    editor={editor}
+                    folded={folded}
+                    id={editorId}
+                    resetKeys={resetKeys}
+                    onRenderFailure={onRenderFailure}
+                  />
+                )}
+              </EditorFold>
 
-            {/* The applied-conditions band (D12 Ⅲ): what the rows on screen
+              {/* The applied-conditions band (D12 Ⅲ): what the rows on screen
                 were fetched under, a line of its own between the editor and
                 the result — neither inside the tray, which is the draft, nor
                 inside the result block, which is the rows. It draws nothing
                 until a question has been asked. */}
-            {/* The search sits at the band's end: it is one of the
+              {/* The search sits at the band's end: it is one of the
                 conditions, and the band has the width the title bar does
                 not — there, beside the title, the filter, the refresh and
                 the expand, it pushed the row onto two lines. */}
-            {search ? (
-              <div
-                data-slot="applied-row"
-                className="flex flex-wrap items-center gap-2"
-              >
-                <AppliedBar
-                  filter={filter}
-                  asked={asked && applied}
-                  className="min-w-0 grow"
-                />
-                <div className="ml-auto">{search}</div>
-              </div>
-            ) : (
-              <AppliedBar filter={filter} asked={asked && applied} />
-            )}
+              {search ? (
+                <div
+                  data-slot="applied-row"
+                  className="flex flex-wrap items-center gap-2"
+                >
+                  <AppliedBar
+                    filter={filter}
+                    asked={asked && applied}
+                    className="min-w-0 grow"
+                  />
+                  <div className="ml-auto">{search}</div>
+                </div>
+              ) : (
+                <AppliedBar filter={filter} asked={asked && applied} />
+              )}
 
-            {/* The result itself (D12 Ⅳ–Ⅶ).
+              {/* The result itself (D12 Ⅳ–Ⅶ).
 
                 Only where there is a result to frame, one on its way, or
                 something to say about the last one (`resultBlockShown`): a
                 block around none of those is the empty block this package's
                 own layout rule forbids, and for a config that will not run
                 it was a frame around a toolbar. */}
-            {resultBlockShown({
-              framed: resultFramed,
-              hasResult: describesResult,
-              pending,
-              strips: filled(strip),
-              result: filled(result),
-            }) && (
-              <ShellResult
-                framed={resultFramed}
-                slots={resultSlots}
-                toolbar={toolbar}
-                strip={strip}
-                result={result}
-                resetKeys={resetKeys}
-                onRenderFailure={onRenderFailure}
-              />
-            )}
-          </>
+              {resultBlockShown({
+                framed: resultFramed,
+                hasResult: describesResult,
+                pending,
+                strips: filled(strip),
+                result: filled(result),
+              }) && (
+                <ShellResult
+                  framed={resultFramed}
+                  slots={resultSlots}
+                  toolbar={toolbar}
+                  strip={strip}
+                  result={result}
+                  resetKeys={resetKeys}
+                  onRenderFailure={onRenderFailure}
+                />
+              )}
+            </>
+          )}
+        </main>
+
+        {canManage && (
+          <ViewManager
+            manager={manager}
+            list={list}
+            open={managing}
+            onOpenChange={setManaging}
+            openDirtyId={state?.dirty ? (state.saved?.id ?? null) : null}
+          />
         )}
-      </main>
 
-      {canManage && (
-        <ViewManager
-          manager={manager}
-          list={list}
-          open={managing}
-          onOpenChange={setManaging}
-          openDirtyId={state?.dirty ? (state.saved?.id ?? null) : null}
-        />
-      )}
-
-      {/* Outside the surface, and so handed the wording directly: it is the
+        {/* Outside the surface, and so handed the wording directly: it is the
           one dialog an override would otherwise never reach. */}
-      <LeaveDialog leave={leave} messages={wording} />
-    </ViewSurface>
+        <LeaveDialog leave={leave} messages={wording} />
+      </ViewSurface>
+    </SurfaceKind.Provider>
   );
 }

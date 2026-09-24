@@ -90,7 +90,7 @@ export interface ViewHeaderProps extends ViewWriteCallbacks {
   build?: ReactNode;
   /**
    * Whether the view is committed and rolled back somewhere other than this
-   * bar — a dashboard being built, whose edit bar holds 「完成」 and
+   * bar — a dashboard being built, whose edit bar holds 「保存」 and
    * 「取消」 (D22 A). The bar then leaves off its save commands and the
    * "edited" mark with its ↺: one way to do one thing, and a second Save or
    * a second revert beside the edit bar's would be the same command under

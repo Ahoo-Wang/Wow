@@ -14,6 +14,47 @@
 /** The dashboard grid, its panels, and the dashboard kernel behind them. */
 export const dashboardMessages = {
   'label.dashboard.needs-fixing': 'This dashboard needs fixing before it runs',
+  // The dashboard workbench calls what it has open a dashboard wherever
+  // another workbench says view (D26 Q34, `kindWord`): new, save, the
+  // shared-save question, delete and the manager.
+  'label.dashboard.new': 'New dashboard',
+  'label.dashboard.new-title': 'Untitled dashboard',
+  'label.dashboard.none': 'No dashboard yet',
+  'label.dashboard.more': 'More dashboard actions',
+  'label.dashboard.leave-heading': 'Leave this dashboard?',
+  'label.dashboard.refresh-on':
+    'This dashboard refreshes itself every {interval}.',
+  'label.dashboard.list': 'Dashboards',
+  'label.dashboard.manage-group': 'What to do with this dashboard',
+  'label.dashboard.manage-instructions':
+    'Press the arrow keys to move this dashboard one place. Press space to pick it up, the arrow keys to move it, space again to drop it and escape to cancel.',
+  'label.dashboard.collapse-sidebar': 'Hide the dashboard list',
+  'label.dashboard.expand-sidebar': 'Show the dashboard list',
+  'label.dashboard.switch': 'Switch dashboard',
+  'label.dashboard.choose': 'Choose a dashboard',
+  'label.dashboard.opening': 'Opening the dashboard',
+  'label.dashboard.write-conflict': 'Someone else saved this dashboard first',
+  'label.dashboard.scope-refused': 'This page could not narrow this dashboard',
+  'label.dashboard.render-hint':
+    'The rest of the dashboard still works. Try again to draw this part.',
+  'label.dashboard.unopenable': 'This dashboard could not be opened',
+  'label.dashboard.open-default': 'Open the default dashboard',
+  'label.dashboard.save-group': 'Dashboard actions',
+  'label.dashboard.saved-announce': 'Dashboard saved',
+  'label.dashboard.shared-heading': 'Update the dashboard for everyone?',
+  'label.dashboard.first-heading': 'Save this dashboard',
+  'label.dashboard.save-as.heading': 'Save as a new dashboard',
+  'label.dashboard.save-as.description':
+    'The dashboard you are looking at stays as it is.',
+  'label.dashboard.save-as.submit': 'Create dashboard',
+  'label.dashboard.delete-consequence':
+    'Only the dashboard is removed: its records and the saved views its panels show stay, and the analyses made inside it go with it.',
+  'label.dashboard.group.personal': 'My dashboards',
+  'label.dashboard.group.shared': 'Shared dashboards',
+  'label.dashboard.group.system': 'System dashboards',
+  'label.dashboard.manage': 'Manage dashboards',
+  'label.dashboard.manage-description':
+    'Rename, reorder and delete dashboards, and pick the one that opens by default.',
   // What an empty dashboard is, and nothing it cannot keep: the first things
   // to add are offered under it only to whoever may build the board.
   'label.dashboard.empty': 'This dashboard has no panels yet',
@@ -23,10 +64,10 @@ export const dashboardMessages = {
   // one that shows nothing nameable after where it stands — never its id.
   'label.panel.untitled': 'Panel {index}',
   // Two panels the board names alike are told apart by a number, in
-  // reading order: 「Note」, 「Note 2」.
+  // reading order: 「Text」, 「Text 2」.
   'label.panel.numbered': '{name} {n}',
   'label.panel.kind.heading': 'Heading',
-  'label.panel.kind.markdown': 'Note',
+  'label.panel.kind.markdown': 'Text',
   'label.panel.kind.image': 'Image',
   'label.panel.kind.links': 'Links',
   // A panel that cannot show anything says why, in the reader's words, and
@@ -84,8 +125,8 @@ export const dashboardMessages = {
   'label.dashboard.edit': 'Edit',
   'label.dashboard.editing': 'Editing',
   'label.dashboard.editing-hint':
-    'Panels run as you change them; nothing is saved until Done.',
-  'label.dashboard.done': 'Done',
+    'Panels run as you change them; nothing is kept until you save.',
+  'label.dashboard.save': 'Save',
   'label.dashboard.add': 'Add',
   'label.dashboard.add.data': 'Data',
   'label.dashboard.add.content': 'Content',
@@ -97,7 +138,7 @@ export const dashboardMessages = {
   'label.dashboard.add.links': 'Links…',
   'label.dashboard.empty.add-view': 'Add a view…',
   'label.dashboard.empty.add-heading': 'Add a heading',
-  'label.dashboard.new-heading': 'New section',
+  'label.dashboard.new-heading': 'New heading',
   'label.dashboard.added': 'Added “{title}”',
   'label.dashboard.duplicated': 'Copied “{title}”',
   'label.dashboard.removed': 'Removed “{title}”. Undo brings it back.',
@@ -134,7 +175,7 @@ export const dashboardMessages = {
   'label.picker.kind.analysis': 'Analyses',
   'label.picker.definition': 'Data',
   'label.picker.definition.all': 'All data',
-  'label.picker.on-board': 'On the board',
+  'label.picker.on-board': 'On the dashboard',
   'label.picker.private': 'Only you can see it',
   'label.picker.none': 'No view matches.',
   'label.picker.empty': 'There is no saved record or analysis view yet.',
@@ -171,8 +212,7 @@ export const dashboardMessages = {
   'label.content.markdown.field': 'Text',
   'label.content.markdown.hint':
     'Markdown: **bold**, lists, [links](https://…).',
-  'label.content.markdown.placeholder':
-    'Write what this part of the board is for.',
+  'label.content.markdown.placeholder': 'Write what this dashboard is for.',
   'label.content.image.add': 'Add an image',
   'label.content.image.edit': 'Edit image',
   'label.content.image.src': 'Image address',
@@ -185,7 +225,7 @@ export const dashboardMessages = {
   'label.content.links.add': 'Add links',
   'label.content.links.edit': 'Edit links',
   'label.content.links.item': 'Link {n}',
-  'label.content.links.label': 'Text',
+  'label.content.links.label': 'Link text',
   'label.content.links.href': 'Address',
   'label.content.links.description': 'Note (optional)',
   'label.content.links.more': 'Add a link',
@@ -237,7 +277,7 @@ export const dashboardMessages = {
     'This panel reaches past the {columns} columns of the grid.',
   'dashboard.link.label-empty': 'A link needs a label.',
   'dashboard.links.too-many': 'A links panel holds at most {max} links.',
-  'dashboard.markdown.too-long': 'A note holds at most {max} characters.',
+  'dashboard.markdown.too-long': 'A text panel holds at most {max} characters.',
   'dashboard.panel.definition-unknown':
     'The data the analysis in this panel was built on is no longer available.',
   'dashboard.panel.failed': 'The view this panel shows could not be opened.',

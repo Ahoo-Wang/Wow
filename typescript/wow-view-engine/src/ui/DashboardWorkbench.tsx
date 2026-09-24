@@ -34,6 +34,7 @@ import { featuresOf, type WorkbenchFeatures } from './features.js';
 import { WorkbenchShell } from './WorkbenchShell.js';
 import type { RenderFailureHandler } from './RenderBoundary.js';
 import { DashboardTabs } from './dashboard/DashboardTabs.js';
+import { filterNamer } from './dashboard/findings.js';
 import { useDashboardExtensions } from './dashboard/building.js';
 import {
   DashboardEditExtensionsContext,
@@ -204,7 +205,7 @@ export function DashboardWorkbench({
     onInstanceChange,
     opening,
     newView: {
-      title: messages.label('label.view.new-title'),
+      title: messages.label('label.dashboard.new-title'),
       ...(template ? { templates: { dashboard: template } } : {}),
     },
   });
@@ -240,7 +241,7 @@ export function DashboardWorkbench({
   const canEdit = board !== null && workbench.commands.can.save;
   const setEditing = dashboard.setBuilding;
   // 「编辑」 leaves the bar as the building starts and comes back as it
-  // ends; the keyboard that pressed 完成 or 取消 goes back to it rather than
+  // ends; the keyboard that pressed 保存 or 取消 goes back to it rather than
   // to the page — only as the building ends, and only when the focus was
   // lost with the bar: an opening view never takes it.
   const editButton = useRef<HTMLButtonElement>(null);
@@ -303,8 +304,12 @@ export function DashboardWorkbench({
   // the finding was raised against, so the draft's panel is the one named.
   // The name is the one the grid gives the panel; a panel only the draft
   // holds is named by its own title or kind, counted where the draft has it.
+  // A finding about one of the board's filters says it by its name on the
+  // bar, never by its key (X-03).
   const shownNames = panelNames(dashboard.panels, messages);
-  const namePanel = (found: Issue): Issue => {
+  const nameFilter = filterNamer(dashboard.filterFields);
+  const namePanel = (said: Issue): Issue => {
+    const found = nameFilter(said);
     const at = found.path[0] === 'panels' ? found.path[1] : undefined;
     const panel = typeof at === 'number' ? draftPanels[at] : undefined;
     if (typeof at !== 'number' || !isPlainPanel(panel)) return found;
@@ -320,18 +325,8 @@ export function DashboardWorkbench({
     };
   };
   // A dashboard runs nothing of its own — `state.result` is always null — so
-  // what the applied bar describes is whether the panels were asked at all.
-  // One panel that has answered, or that is asking, is an answer: the global
-  // condition it went out under is exactly what the bar says.
-  // The board's filters are its own bar (D22 F). The band of applied
-  // conditions stays for what that bar does not hold — the fixed scope of a
-  // board saved before the bar (Q16, D26 Q31), or a host's scope — and only
-  // then.
-  const standing =
-    filter.applied.length > 0 ||
-    filter.fixed.length > 0 ||
-    filter.scoped.length > 0 ||
-    filter.implied.length > 0;
+  // whether there is a result is whether the panels were asked at all: one
+  // that has answered, or that is asking, is an answer.
   const hasResult = dashboard.panels.some(panel => {
     const panelState = panel.runtime?.getSnapshot();
     return (
@@ -395,7 +390,10 @@ export function DashboardWorkbench({
           note={messages.label('label.refresh.panels')}
         />
       }
-      applied={standing}
+      // No 「正在显示」 band on a board (D27): its filters run as they
+      // change, so the filter bar is what the panels are showing — and the
+      // board's fixed scope is read on that bar's row.
+      applied={false}
       result={
         state && (
           <DashboardEditExtensionsContext.Provider
@@ -415,6 +413,7 @@ export function DashboardWorkbench({
                 onNavigate={onNavigate}
                 onRenderFailure={onRenderFailure}
                 refusedFilters={board?.refusedFilters}
+                fixed={filter.fixed}
                 reading={{ panelExport: featuresOf(features).export }}
               />
               {dialogs}

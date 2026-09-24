@@ -25,27 +25,24 @@ ECharts 迁移（D21）与两份「数据分析师视角」审查的 P0 已全�
   - 判据：从空仪表盘开始只用界面就能搭出首页那块运营看板；真浏览器逐控件走查。
   - 落点：`src/ui/dashboard/`、`src/ui/DashboardWorkbench.tsx`、[ui/dashboard.md](ui/dashboard.md)。
 - **批 C 全局筛选**：已做完（C1 #1843 模型与运行时，C2 界面），见 [ui/dashboard.md](ui/dashboard.md)「筛选」。
-- **批 C 之前的整板条件——固定范围的界面**（[D23](decisions.md#d23-搁置待议的六条拍板2026-09-23) Q16）：迁成默认值的那一半已做（`migrateDashboardConfig` 的 `intoDefaults`，[model.md#dashboard-配置](model.md#dashboard-配置)）。拆不开的存成独立成员 `fixed`（D26 Q31），今天在「正在显示」条上只读、注明是仪表盘的固定范围，读者拿不掉；但不在筛选条旁，也删不掉——要在筛选条旁注明为只读的「固定范围」，编辑模式里可以整体删掉。筛选条旁只读的那一枚随 [D27](decisions.md#d27-仪表盘不画正在显示条2026-09-24) 在 R7 做，编辑模式里整体删掉仍到 Wow 做。等阶段 4（筛选三态动 `FilterBar`）合并后做。
-  - 判据：拆不开的那棵条件在筛选条旁读得到、编辑中删得掉；有测试与故事。
+- **批 C 之前的整板条件——固定范围的界面**（[D23](decisions.md#d23-搁置待议的六条拍板2026-09-23) Q16）：迁成默认值的那一半已做（`migrateDashboardConfig` 的 `intoDefaults`，[model.md#dashboard-配置](model.md#dashboard-配置)）。拆不开的存成独立成员 `fixed`（D26 Q31），在筛选条那一行只读地写作「固定范围」、读者拿不掉（[D27](decisions.md#d27-仪表盘不画正在显示条2026-09-24)，R7b 已做，见 [ui/dashboard.md](ui/dashboard.md)「筛选」）。剩下编辑模式里整体删掉——到 Wow 做。
+  - 判据：编辑中那一枚删得掉（删掉即 `fixed` 为空树，随板子保存）；有测试与故事。
   - 落点：`src/ui/dashboard/FilterBar.tsx`、[ui/dashboard.md](ui/dashboard.md)「筛选」。
 
 ## 阶段 3＋4 联合审查的处置（2026-09-24）
 
 四路只读审查（架构 A-、代码质量 Q-、UI 与可达性 U-、UX 与文档 X-）加主会话的视觉走查（V-）共 69 条，原报告在主会话 scratchpad `review-p34/`（不在仓库里，要点记在这里）。要拍板的 11 条已定为 [D26](decisions.md#d26-阶段-34-联合审查的十一条拍板2026-09-24)（Q30～Q40，2026-09-24 按推荐），Q31、Q35、Q39 已做完（R1b），R6 已做完，其余落在下面的 R7；R2～R5 不需要产品判断。批次按文件分开、可并行。每批：先在最新 main 上复现，修掉并补测试，文档按现状改，本地门禁全绿即合并，最后一批等完整 CI。
 
-- **R7 界面的拍板**（R2 合并后）：Q34 仪表盘工作台说「仪表盘」；Q37「完成」改「保存」；Q38 手机上筛选条收成按钮与底部 `Sheet`；[D27](decisions.md#d27-仪表盘不画正在显示条2026-09-24) 仪表盘不画「正在显示」条、固定范围挪到筛选条那一行（只读）、模型去掉仪表盘的 `filter`、GlobalFilter 故事演示筛选条上的值。可与 R5 措辞一起做。
-  - 落点：`src/ui/`、`src/ui/messages/`、[ui/dashboard.md](ui/dashboard.md)、[ui/record.md](ui/record.md)。
-- **追问菜单与图表提示框叠在一起**（2026-09-24 R6 走查发现，main 上可复现：仪表盘「点击」故事点一根柱）：点柱后追问菜单打开，ECharts 的提示框（「华北 / 金额的总和 ¥2,450.00」）仍留在原处，压在菜单项上。
-  - 判据：菜单打开时提示框收起（或菜单盖在提示框之上且不透出），分析工作台与仪表盘面板一致；有故事断言。
-  - 落点：`src/ui/analysis/DrillMenu.tsx` 与图表组件（随 R7 做）。
+- **R7 界面的拍板**：剩 [D27](decisions.md#d27-仪表盘不画正在显示条2026-09-24) 的模型那一半——模型里去掉仪表盘的 `filter` 成员（旧数据在读取边界已迁成默认值与 `fixed`，D26 Q31），连同只为它存在的 `boardCondition` 里那一半、`useFilterEditor` 给仪表盘读 `applied.filter` 的那条路与 `DashboardWorkbench` 里仍把它交给面板的地方；R3a 已合并，可以做。Q34、Q37、Q38 与 D27 的界面一半已在 R7b 做完（仪表盘与嵌入的板子都不画「正在显示」条，固定范围在筛选条那一行只读，GlobalFilter 故事演示筛选条上的值）；Q36、Q40 在 R7a。
+  - 落点：`src/model/dashboard.ts`、`src/dashboard/`、`src/runtime/`、`src/react/useFilterEditor.ts`、[model.md#dashboard-配置](model.md#dashboard-配置)。
 - **R3b 界面的几处修复**（R3 的界面一半只留用户看得到的；不改行为的重构按 [D28](decisions.md#d28-r3-的界面重构到-wow-做迁移前提放宽2026-09-24) 挪到 Wow，见下面检查点一节）：运行时一半已在 R3a（#1892）做完。R7b 合并后做。
   - Q-01／A-07 接上：`DashboardWorkbench` 的 `carried`／`sameIssue` 与 `EmbeddedDashboard` 自己拆 `state.issues` 的那段都改读 `dashboard.issues`（按 severity 分 error 与 warning）；`namePanel`（栅格上方给面板发现起名）两处共用；可编辑档嵌入补一条测试：草稿里只在 `['panels', 0, …]` 的 warning 要显示。
   - Q-02 界面：`Board.tsx` 的 preload 续体里再读一次当前的 `dashboard.edit`，补一条界面测试（preload 挂起、先按取消再放行，板上不多面板）；`place` 也纳入非搭建态拒绝——先让 test/dashboardUi.test.tsx 的「places a panel and applies the placement」「placed by keyboard」「writes the geometry back once a drag ends」与 test/dashboardPlacement.test.tsx 的「placing a panel」在摆放前开始搭建，再删掉 `runtime/dashboard/editing.ts` 里 `draftFor` 对 `place` 的例外。
   - A-11（审查原文是 `PanelPresses` 自己判断点击生不生效、不读面板状态的 `click`）：口径不变——准入报过 warning 的点击按下去回到追问菜单并说为什么（[model.md](model.md) 的「点击」、D22 H）；改的是做法：面板状态同时带点击与它的准入结论，`PanelPresses` 只读状态、不再自己判（2026-09-24 主会话定，技术取舍、不涉产品口径）。test/dashboardPress.test.ts「warns of a filter this board no longer has, and a press falls back to the menu」照旧成立。
   - 搭板时编辑条一直可见（2026-09-24 R4b 走查发现）：嵌入可编辑档里添加一块面板，卡片内部滚到新面板，编辑条（保存／取消）随之滚出视野，要滚回去才能结束；工作台同理。编辑条在滚动口里吸顶（Metabase 的编辑条也固定在顶上），随共用外壳一起做，故事断言添加后编辑条仍在视野内。
   - 判据：各条有测试或故事断言；`max-lines` 豁免表仍为空。落点：`src/ui/`。
-- **R5 措辞与文档**：X-03 仪表盘筛选发现说程序键（`filter-1`）；X-08 一词多义（「筛选 ▾」→「添加筛选」、「分节标题」「笔记」统一、「板／仪表盘」）；X-09 两个「撤销」；X-06 本页与 [ui/dashboard.md](ui/dashboard.md) 的过期项与顺序行，连同 X-12 留在那一页的一处（「搭板子」「扩展」末句说宿主自拼 `DashboardBoard`——它不从 `/ui` 导出，宿主能拼的是 `DashboardGrid`）。
-  - 落点：`src/ui/messages/`（X-03、X-08）、`src/ui/dashboard/BoardFilters.tsx` 与 `src/runtime/dashboard/editing.ts`（X-09）、`docs/design/`（X-06、X-12）。
+- **R5 措辞与文档**：X-06 本页与 [ui/dashboard.md](ui/dashboard.md) 的过期项与顺序行，连同 X-12 留在那一页的一处（「搭板子」「扩展」末句说宿主自拼 `DashboardBoard`——它不从 `/ui` 导出，宿主能拼的是 `DashboardGrid`）。
+  - 落点：`docs/design/`（X-06、X-12）。X-03、X-08、X-09 已在 R7b 做完（见 [ui/README.md](ui/README.md) 的「一词一义」）。
 
 ## 检查点：迁往 Wow 仓（阶段 3、4 收口之后）
 

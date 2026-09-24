@@ -81,7 +81,7 @@ const TYPE_ICONS: Record<DashboardFilterType, LucideIcon> = {
 };
 
 /**
- * 「筛选 ＋」 on the edit bar (D22 G): a new filter of one of the five
+ * 「添加筛选」 on the edit bar (D22 G): a new filter of one of the five
  * types, named after its type until renamed, its settings opened at once;
  * and the board's time grouping, while it has none.
  */
@@ -114,7 +114,6 @@ export function AddFilterMenu({
             data-slot="dashboard-add-filter"
             variant="outline"
             size="sm"
-            aria-label={messages.label('label.filters.add-menu')}
           />
         }
       >

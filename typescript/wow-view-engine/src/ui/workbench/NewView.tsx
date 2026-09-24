@@ -21,7 +21,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '../components/dropdown-menu.js';
-import { KIND_ICON } from '../kinds.js';
+import { KIND_ICON, useKindWord } from '../kinds.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { DropdownMenuContent, DropdownMenuSubContent } from '../popups.js';
 
@@ -76,19 +76,20 @@ export function NewViewControl({
  */
 export function NewViewItem({ command }: { command: NewViewCommand }) {
   const messages = useViewMessages();
+  const word = useKindWord();
   const only = command.creatable.length === 1 ? command.creatable[0] : null;
   if (only !== undefined && only !== null)
     return (
       <DropdownMenuItem onClick={() => command.create(only)}>
         <PlusIcon />
-        {messages.label('label.view.new')}
+        {messages.label(word('label.view.new'))}
       </DropdownMenuItem>
     );
   return (
     <DropdownMenuSub>
       <DropdownMenuSubTrigger>
         <PlusIcon />
-        {messages.label('label.view.new')}
+        {messages.label(word('label.view.new'))}
       </DropdownMenuSubTrigger>
       <DropdownMenuSubContent>
         <NewViewKinds command={command} />

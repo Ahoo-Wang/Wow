@@ -123,6 +123,7 @@ export function EmbeddedAnalysis({
               columns={view.schema ?? view.columns}
               cutShort={view.truncated || view.atLimit !== undefined}
               onPick={onPick}
+              menuOpen={followUp !== null && pick !== null}
             />
           ) : (
             <AnalysisTable

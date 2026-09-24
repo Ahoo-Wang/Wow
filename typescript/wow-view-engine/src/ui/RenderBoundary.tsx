@@ -25,6 +25,7 @@ import { Button } from './components/button.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { Tooltip, TooltipTrigger } from './components/tooltip.js';
 import { TooltipContent } from './popups.js';
+import { useKindWord } from './kinds.js';
 
 /**
  * The parts of a view a render can fail in, each behind a boundary of its
@@ -125,6 +126,7 @@ function RenderFailed({
   compact,
 }: FallbackProps & { name: RenderBoundaryName; compact: boolean }) {
   const messages = useViewMessages();
+  const word = useKindWord();
   const detail = describe(error);
   const retry = (
     <Button
@@ -177,7 +179,7 @@ function RenderFailed({
       <ErrorIcon />
       <AlertTitle>{messages.label('label.render.failed')}</AlertTitle>
       <AlertDescription>
-        <p>{messages.label('label.render.failed-hint')}</p>
+        <p>{messages.label(word('label.render.failed-hint'))}</p>
         {detail && (
           <p data-slot="render-detail" className="text-muted-foreground">
             {detail}

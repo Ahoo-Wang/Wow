@@ -152,6 +152,10 @@ function DashboardDemo({
             instanceId={
               variant === 'system' ? 'system:overview:ops' : savedDashboard.id
             }
+            // The 'filtered' board opens with 仓库 set to 华南 on its filter
+            // bar, as a host's address would hand it over (D27): the
+            // reader's value, not a condition saved in the board.
+            initialFilters={variant === 'filtered' ? SOUTH : undefined}
             onFiltersChange={onFiltersChange}
             {...HOST_LANGUAGE}
           />
@@ -264,6 +268,9 @@ function RoutedHost({
   );
 }
 
+/** 仓库 at 华南, the reader's value the 'filtered' board opens on. */
+const SOUTH: DashboardFilters = { values: { region: ['CN-SOUTH'] } };
+
 /** What the page of the 'handed' board holds 状态 to: the orders in play. */
 const IN_PLAY = ['PENDING', 'SHIPPED'];
 
@@ -341,13 +348,6 @@ function savedConfig(variant: Variant) {
   if (variant === 'legacy') return legacyDashboardConfig();
   if (variant === 'pre-c') return preBatchCConfig();
   if (variant === 'personal') return personalPanelConfig();
-  if (variant === 'filtered')
-    return dashboardConfig({
-      filter: {
-        op: 'and',
-        children: [{ field: 'region', operator: 'IN', value: ['CN-SOUTH'] }],
-      },
-    });
   return dashboardConfig();
 }
 
@@ -692,18 +692,19 @@ type Story = StoryObj<typeof meta>;
 export const AllPanels: Story = { args: { variant: 'panels' } };
 
 /**
- * Saved with the global filter on 华南: each panel answers for that warehouse
- * alone, through its own field, and neither referenced view changes.
+ * The filter bar's 仓库 set to 华南: each panel answers for that warehouse
+ * alone, through its own field, and neither referenced view changes. No
+ * 「正在显示」 band (D27): the bar is what the panels are showing.
  */
 export const GlobalFilter: Story = { args: { variant: 'filtered' } };
 
 /**
  * Press 「编辑」 to build the board (D22 A): the edit bar comes up with
- * 「＋ 添加」, 取消 and 完成, every panel's 「⋯」 gains 「改」, and panels can be
+ * 「＋ 添加」, 取消 and 保存, every panel's 「⋯」 gains 「改」, and panels can be
  * dragged by their grip or resized by their corner — or either from the
  * keyboard: both handles answer the arrow keys, and the menu beside the grip
  * says the same eight commands in words. Panels run as the board changes;
- * 完成 saves, 取消 puts back what was saved.
+ * 保存 saves, 取消 puts back what was saved.
  */
 export const Building: Story = { args: { variant: 'panels' } };
 
@@ -761,7 +762,7 @@ export const QueryFailed: Story = { args: { behaviour: 'failing' } };
  * The filter bar (D22 F): 创建时间 is required — starred, never empty —
  * 仓库 reaches the two panels over it and not the trend, which says so once
  * 仓库 holds a value, and 按日｜按月 regroups the trend. While the board is
- * built, 「筛选 ＋」 adds one, and 「接线」 wires it (D22 G).
+ * built, 「添加筛选」 adds one, and 「接线」 wires it (D22 G).
  */
 export const Filters: Story = { name: '筛选条', args: { variant: 'filters' } };
 
@@ -822,8 +823,8 @@ export const ToAnotherBoardWithOwnFilter: Story = {
 /**
  * 批 C 之前存下的整板条件（D23 Q16、D26 Q31）：筛选收得下的「仓库 属于 华南」
  * 读成仓库筛选的默认值，筛选条上就是华南、读者能改；收不下的「仓库 不是 西南」
- * 读成板子的固定范围，在「正在显示」一行只读地说出来，没有 ✕。打开不变脏，存回
- * 才写新形式（`fixed`），之后作者怎么改筛选设置都不再迁。
+ * 读成仪表盘的固定范围，在筛选条那一行只读地写作「固定范围」，没有 ✕（D27）。
+ * 打开不变脏，存回才写新形式（`fixed`），之后作者怎么改筛选设置都不再迁。
  */
 export const PreBatchCCondition: Story = {
   name: '批 C 之前的整板条件',

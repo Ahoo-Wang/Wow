@@ -137,7 +137,7 @@ async function fromPanelMenu(
  * The board built from nothing with the screen alone (D22 A, B, D): three
  * saved views from the picker — one of them the author's own, which a
  * shared board marks 「只有你看得到」 before it goes on — and a heading named
- * in place; one panel renamed, one removed; 完成 asks, as Save does over a
+ * in place; one panel renamed, one removed; 保存 asks, as Save does over a
  * shared view, and saves.
  */
 export const BuildFromEmpty: Story = {
@@ -189,7 +189,7 @@ export const BuildFromEmpty: Story = {
     await userEvent.clear(heading);
     await userEvent.type(heading, '出库{Enter}');
     await waitFor(() => expect(titles(canvasElement)).toContain('出库'));
-    // Changed, and the title bar neither says so nor undoes it: 完成 and
+    // Changed, and the title bar neither says so nor undoes it: 保存 and
     // 取消 on the edit bar are the one way to commit or roll back.
     await expectTitleBarCommits(canvasElement, false);
 
@@ -218,7 +218,7 @@ export const BuildFromEmpty: Story = {
     );
 
     await userEvent.click(
-      canvas.getByRole('button', { name: zhCN['label.dashboard.done'] }),
+      canvas.getByRole('button', { name: zhCN['label.dashboard.save'] }),
     );
     const confirm = await screen.findByRole('alertdialog');
     await userEvent.click(
@@ -259,7 +259,7 @@ export const CancelReverts: Story = {
         zhCN['label.dashboard.new-heading'],
       ),
     );
-    // One way to do one thing: the edit bar holds 完成 and 取消, so the
+    // One way to do one thing: the edit bar holds 保存 and 取消, so the
     // title bar has neither its Save nor its 「已修改 ↺」 beside them.
     await expectTitleBarCommits(canvasElement, false);
 

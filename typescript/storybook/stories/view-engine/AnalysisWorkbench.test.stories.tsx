@@ -517,6 +517,18 @@ export const FollowUpFromABar: Story = {
     // The menu is the answer to the press: the tooltip steps aside rather
     // than sit over its first items.
     await waitFor(() => expect(tooltip()).not.toBeVisible());
+    // And stays aside while the menu is open: the least move on the bar
+    // before the menu's backdrop is up raised it again over the menu's
+    // first items (2026-09-24 walk).
+    bar!.dispatchEvent(
+      new MouseEvent('mousemove', {
+        bubbles: true,
+        clientX: box.left + box.width / 2 + 1,
+        clientY: box.top + box.height / 2,
+      }),
+    );
+    await new Promise(resolve => setTimeout(resolve, 300));
+    await expect(tooltip()).not.toBeVisible();
     // Hung from the point pressed — an edge of the menu at it — not from
     // the chart's corner.
     const x = box.left + box.width / 2;

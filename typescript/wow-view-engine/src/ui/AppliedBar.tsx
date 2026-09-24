@@ -69,7 +69,7 @@ export function AppliedBar({
   // The host's own conditions, which are in force beside the view's own but
   // belong to the page rather than to the view. They read as `scoped` on the
   // controller precisely because no path here addresses them.
-  const { applied, fixed, scoped, implied } = filter;
+  const { applied, scoped, implied } = filter;
   // Nothing has been asked, so there is nothing to say it was asked under.
   if (!asked) return null;
 
@@ -85,14 +85,11 @@ export function AppliedBar({
       </span>
       {/* "All records" answers for everything in force, so a scope counts:
           rows narrowed by the page are not all of them. */}
-      {applied.length === 0 &&
-        fixed.length === 0 &&
-        scoped.length === 0 &&
-        implied.length === 0 && (
-          <span className="text-muted-foreground">
-            {messages.label('label.applied.all')}
-          </span>
-        )}
+      {applied.length === 0 && scoped.length === 0 && implied.length === 0 && (
+        <span className="text-muted-foreground">
+          {messages.label('label.applied.all')}
+        </span>
+      )}
       {applied.map(item => (
         // A group reads out as one badge, its conditions joined by its own
         // operator, so the bar keeps the logic the tree has. Its remove
@@ -146,24 +143,6 @@ export function AppliedBar({
               <XIcon />
             </IconButton>
           )}
-        </WrappingBadge>
-      ))}
-      {/* A dashboard's fixed scope (D26 Q31), worn like the page's: the
-          board holds it in force, and no reader takes it out — so no ✕,
-          and it says whose it is. Its own place beside the filter bar,
-          removable while the board is built, is the Wow repo's (Q16). */}
-      {fixed.map(item => (
-        <WrappingBadge
-          key={`fixed:${item.path.join('.')}`}
-          variant="outline"
-          data-fixed
-          data-unresolved={item.unresolved || undefined}
-        >
-          {say(item)}
-          <span className="sr-only">
-            {' '}
-            {messages.label('label.applied.fixed')}
-          </span>
         </WrappingBadge>
       ))}
       {/* After the editable ones, and worn differently: the page put these

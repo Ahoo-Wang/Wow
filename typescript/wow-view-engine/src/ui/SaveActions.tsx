@@ -45,6 +45,7 @@ import { useViewMessages } from './MessagesProvider.js';
 import { AlertDialogContent, DropdownMenuContent } from './popups.js';
 import { SaveAsDialog } from './SaveAsDialog.js';
 import type { ViewWriteCallbacks } from './WriteOutcome.js';
+import { useKindWord } from './kinds.js';
 
 /**
  * How long the button says a save landed. Long enough to be read, short
@@ -90,6 +91,7 @@ export function SaveActions({
   onCreated,
 }: SaveActionsProps) {
   const messages = useViewMessages();
+  const word = useKindWord();
   const [copying, setCopying] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const { can, state } = commands;
@@ -178,7 +180,7 @@ export function SaveActions({
 
   return (
     <div data-slot="save-actions" className="flex items-center gap-2">
-      <ButtonGroup aria-label={messages.label('label.save.group')}>
+      <ButtonGroup aria-label={messages.label(word('label.save.group'))}>
         <Button
           variant="outline"
           size="sm"
@@ -202,7 +204,7 @@ export function SaveActions({
         {menuSaveAs && (
           <DropdownMenu>
             <IconTooltip
-              label={messages.label('label.header.more')}
+              label={messages.label(word('label.header.more'))}
               render={
                 <DropdownMenuTrigger
                   render={
@@ -240,7 +242,7 @@ export function SaveActions({
           the user just pressed, which a screen reader does not re-read. */}
       {saved && (
         <span role="status" className="sr-only">
-          {messages.label('label.save.saved-announce')}
+          {messages.label(word('label.save.saved-announce'))}
         </span>
       )}
 
@@ -274,12 +276,13 @@ export function SharedSaveConfirm({
   onConfirm(): void;
 }) {
   const messages = useViewMessages();
+  const word = useKindWord();
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent data-slot="shared-save-confirm">
         <AlertDialogHeader>
           <AlertDialogTitle>
-            {messages.label('label.save.shared-heading')}
+            {messages.label(word('label.save.shared-heading'))}
           </AlertDialogTitle>
           <AlertDialogDescription>
             {messages.label('label.save.shared-description', { title })}

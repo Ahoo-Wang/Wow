@@ -39,6 +39,7 @@ import {
 import { Input } from './components/input.js';
 import { RadioGroup, RadioGroupItem } from './components/radio-group.js';
 import { Spinner } from './components/spinner.js';
+import { useKindWord } from './kinds.js';
 import type { MessageKey } from './messages.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { DialogContent } from './popups.js';
@@ -208,6 +209,8 @@ function SaveAsForm({
           : 'shared',
   );
   const first = intent !== 'copy';
+  // A copy and a first save name the thing open — on a board, 仪表盘 (Q34).
+  const word = useKindWord();
   const words = WORDS[intent];
   const [next, setNext] = useState(() =>
     first ? title : messages.label('label.save-as.copy-title', { title }),
@@ -234,9 +237,9 @@ function SaveAsForm({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>{messages.label(words.heading)}</DialogTitle>
+        <DialogTitle>{messages.label(word(words.heading))}</DialogTitle>
         <DialogDescription>
-          {description ?? messages.label(words.description)}
+          {description ?? messages.label(word(words.description))}
         </DialogDescription>
       </DialogHeader>
 
@@ -331,7 +334,7 @@ function SaveAsForm({
               aria-label={messages.label('label.status.loading')}
             />
           )}
-          {messages.label(words.submit)}
+          {messages.label(word(words.submit))}
         </Button>
       </DialogFooter>
     </>

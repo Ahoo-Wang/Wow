@@ -291,8 +291,8 @@ export const zhCN: ViewMessages = {
   'label.filter.mode': '筛选模式',
   'label.filter.clear': '清空',
   'label.filter.apply': '应用',
-  'label.filter.discard': '撤销筛选修改',
-  'label.filter.range.discard': '撤销范围修改',
+  'label.filter.discard': '放弃筛选修改',
+  'label.filter.range.discard': '放弃范围修改',
   'label.filter.range.clear': '清空范围',
   'label.filter.all-conditions': '满足全部条件',
   'label.filter.any-condition': '满足任一条件',
@@ -359,7 +359,6 @@ export const zhCN: ViewMessages = {
   'label.applied.title': '正在显示',
   'label.applied.all': '全部记录',
   'label.applied.scoped': '由页面设定',
-  'label.applied.fixed': '仪表盘的固定范围',
   'label.applied.implied': '缺省口径',
   'label.date.absolute': '指定日期',
   'label.date.relative': '相对',
@@ -1009,13 +1008,49 @@ export const zhCN: ViewMessages = {
 
   // 仪表盘网格、面板，以及它们背后的内核。
   'label.dashboard.needs-fixing': '这个仪表盘要先修正才能运行',
+  'label.dashboard.new': '新建仪表盘',
+  'label.dashboard.new-title': '新仪表盘',
+  'label.dashboard.none': '还没有仪表盘',
+  'label.dashboard.more': '更多仪表盘操作',
+  'label.dashboard.leave-heading': '离开这个仪表盘？',
+  'label.dashboard.refresh-on': '这个仪表盘每 {interval}自动刷新一次。',
+  'label.dashboard.list': '仪表盘',
+  'label.dashboard.manage-group': '处置这个仪表盘',
+  'label.dashboard.manage-instructions':
+    '按方向键将这个仪表盘移动一位。按空格拿起，方向键移动，再按空格放下，按 Esc 取消。',
+  'label.dashboard.collapse-sidebar': '收起仪表盘列表',
+  'label.dashboard.expand-sidebar': '展开仪表盘列表',
+  'label.dashboard.switch': '切换仪表盘',
+  'label.dashboard.choose': '选择仪表盘',
+  'label.dashboard.opening': '正在打开仪表盘',
+  'label.dashboard.write-conflict': '别人先保存了这个仪表盘',
+  'label.dashboard.scope-refused': '页面的作用域条件对这个仪表盘不适用',
+  'label.dashboard.render-hint':
+    '仪表盘的其余部分照常可用；重试会重新绘制这一块。',
+  'label.dashboard.unopenable': '无法打开这个仪表盘',
+  'label.dashboard.open-default': '回到默认仪表盘',
+  'label.dashboard.save-group': '仪表盘操作',
+  'label.dashboard.saved-announce': '仪表盘已保存',
+  'label.dashboard.shared-heading': '更新所有人看到的仪表盘？',
+  'label.dashboard.first-heading': '保存仪表盘',
+  'label.dashboard.save-as.heading': '另存为新仪表盘',
+  'label.dashboard.save-as.description': '正在看的这个仪表盘保持原样。',
+  'label.dashboard.save-as.submit': '创建仪表盘',
+  'label.dashboard.delete-consequence':
+    '只删除仪表盘：记录和面板显示的已保存视图仍然保留，在仪表盘里新建的分析随之删除。',
+  'label.dashboard.group.personal': '我的仪表盘',
+  'label.dashboard.group.shared': '共享仪表盘',
+  'label.dashboard.group.system': '系统仪表盘',
+  'label.dashboard.manage': '管理仪表盘',
+  'label.dashboard.manage-description':
+    '改名、排序、删除仪表盘，并选择默认打开的仪表盘。',
   'label.dashboard.empty': '这个仪表盘还没有面板',
   'label.dashboard.empty-hint':
     '仪表盘把已保存的记录视图和分析视图并排放在一起看。',
   'label.panel.untitled': '面板 {index}',
   'label.panel.numbered': '{name} {n}',
   'label.panel.kind.heading': '标题',
-  'label.panel.kind.markdown': '笔记',
+  'label.panel.kind.markdown': '文字',
   'label.panel.kind.image': '图片',
   'label.panel.kind.links': '链接',
   'label.panel.out.missing': '这个面板显示的视图已被删除，或者你没有查看权限',
@@ -1062,14 +1097,17 @@ export const zhCN: ViewMessages = {
   'label.filters.idle': '这个标签页里没有受「{filter}」影响的面板。',
   'label.filters.grouping': '时间粒度',
   'label.filters.grouping-remove': '移除时间粒度',
+  'label.filters.fixed': '固定范围',
+  'label.filters.fixed-note':
+    '仪表盘本身让每个面板都只看这个范围，这里改不了。',
+  'label.filters.sheet-set': '筛选（已设 {count} 个）',
   'label.filters.not-reached': '不受{filters}影响',
   'label.filters.name-quoted': '「{name}」',
   // 嵌入（D22 嵌入一半）：页面锁定的筛选。
   'label.embed.locked': '由页面设定',
   'label.embed.locked-name': '{filter}（由页面设定）',
   'label.embed.any': '不限',
-  'label.filters.add': '筛选',
-  'label.filters.add-menu': '添加筛选',
+  'label.filters.add': '添加筛选',
   'label.filters.add-grouping': '时间粒度',
   'label.filters.type.date': '日期',
   'label.filters.type.text': '文本或类别',
@@ -1105,7 +1143,7 @@ export const zhCN: ViewMessages = {
   'label.filters.manual-hint': '亲手接的，不是按同名自动接的',
   'label.filters.auto-wired': '已自动接上 {count} 个有「{field}」字段的面板',
   'label.filters.auto-wired-one': '已自动接上 1 个有「{field}」字段的面板',
-  'label.filters.undo': '撤销',
+  'label.filters.only-picked': '只接刚选的面板',
   'label.filters.dismiss': '关闭',
   'label.filters.toasts': '接线提示',
   'label.filters.refused': '链接里有的筛选没能用上',
@@ -1134,9 +1172,9 @@ export const zhCN: ViewMessages = {
   'label.tabs.removed': '已删除标签页「{title}」',
   'label.tabs.remove-heading': '删除标签页「{title}」？',
   'label.tabs.remove-description':
-    '它上面的 {count} 个面板会一起删除。完成编辑前不会保存，按「撤销」可以找回。',
+    '它上面的 {count} 个面板会一起删除。按「保存」之前不会存下，按「撤销」可以找回。',
   'label.tabs.remove-description-one':
-    '它上面的 1 个面板会一起删除。完成编辑前不会保存，按「撤销」可以找回。',
+    '它上面的 1 个面板会一起删除。按「保存」之前不会存下，按「撤销」可以找回。',
   'label.tabs.remove-confirm': '删除标签页和面板',
   'label.tabs.empty': '这个标签页还没有面板',
   'label.tabs.empty-hint':
@@ -1183,8 +1221,8 @@ export const zhCN: ViewMessages = {
     '这块面板和它显示的视图长得不一样是有意的：只在这个仪表盘里改过。',
   'label.dashboard.edit': '编辑',
   'label.dashboard.editing': '正在编辑',
-  'label.dashboard.editing-hint': '面板随改随跑；按「完成」才保存。',
-  'label.dashboard.done': '完成',
+  'label.dashboard.editing-hint': '面板随改随跑；按「保存」才存下这些改动。',
+  'label.dashboard.save': '保存',
   'label.dashboard.add': '添加',
   'label.dashboard.add.data': '数据',
   'label.dashboard.add.content': '内容',
@@ -1196,7 +1234,7 @@ export const zhCN: ViewMessages = {
   'label.dashboard.add.links': '链接…',
   'label.dashboard.empty.add-view': '添加视图…',
   'label.dashboard.empty.add-heading': '添加标题',
-  'label.dashboard.new-heading': '新的分节',
+  'label.dashboard.new-heading': '新标题',
   'label.dashboard.added': '已添加「{title}」',
   'label.dashboard.duplicated': '已复制「{title}」',
   'label.dashboard.removed': '已移除「{title}」，按「撤销」可以找回',
@@ -1229,7 +1267,7 @@ export const zhCN: ViewMessages = {
   'label.picker.kind.analysis': '分析',
   'label.picker.definition': '数据',
   'label.picker.definition.all': '全部数据',
-  'label.picker.on-board': '已在板上',
+  'label.picker.on-board': '已在仪表盘上',
   'label.picker.private': '只有你看得到',
   'label.picker.none': '没有符合条件的视图。',
   'label.picker.empty': '还没有已保存的记录视图或分析视图。',
@@ -1261,7 +1299,7 @@ export const zhCN: ViewMessages = {
   'label.content.markdown.field': '文字',
   'label.content.markdown.hint':
     '支持 Markdown：**粗体**、列表、[链接](https://…)。',
-  'label.content.markdown.placeholder': '在这里写这块板子是做什么的。',
+  'label.content.markdown.placeholder': '在这里写这个仪表盘是做什么的。',
   'label.content.image.add': '添加图片',
   'label.content.image.edit': '编辑图片',
   'label.content.image.src': '图片地址',
@@ -1274,7 +1312,7 @@ export const zhCN: ViewMessages = {
   'label.content.links.add': '添加链接',
   'label.content.links.edit': '编辑链接',
   'label.content.links.item': '链接 {n}',
-  'label.content.links.label': '文字',
+  'label.content.links.label': '链接文字',
   'label.content.links.href': '地址',
   'label.content.links.description': '说明（可选）',
   'label.content.links.more': '再加一条',
@@ -1303,7 +1341,7 @@ export const zhCN: ViewMessages = {
   'dashboard.scope.unsupported':
     '仪表盘不接受外部条件：请改为锁定或隐藏它的筛选。',
   'dashboard.grouping.kept':
-    '这个面板保留自己的时间粒度：它的数据不能按整板选的粒度分组。',
+    '这个面板保留自己的时间粒度：它的数据不能按仪表盘选的粒度分组。',
   'dashboard.grouping.unit-duplicate': '时间粒度里 {unit} 出现了两次。',
   'dashboard.grouping.unit-unknown': '{unit} 不是这个仪表盘提供的时间粒度。',
   'dashboard.grouping.units-empty': '时间粒度里没有可选的粒度。',
@@ -1315,7 +1353,7 @@ export const zhCN: ViewMessages = {
   'dashboard.layout.out-of-grid': '这个面板超出了网格的 {columns} 列。',
   'dashboard.link.label-empty': '链接需要一个标签。',
   'dashboard.links.too-many': '链接面板最多放 {max} 个链接。',
-  'dashboard.markdown.too-long': '一条笔记最多 {max} 个字符。',
+  'dashboard.markdown.too-long': '一段文字最多 {max} 个字符。',
   'dashboard.panel.definition-unknown':
     '这个面板里的分析所用的数据已经不可用了。',
   'dashboard.panel.failed': '这个面板显示的视图没能打开。',
@@ -1459,7 +1497,7 @@ export const zhCN: ViewMessages = {
   'label.drill.away': '（在工作台中打开）',
   'label.click.badge': '点击筛选「{filter}」',
   'label.click.badge-note':
-    '点这个面板的一组，就用它设置整板的「{filter}」；再点一次撤销。',
+    '点这个面板的一组，就用它设置仪表盘的「{filter}」；再点一次清除。',
   'label.click.from': '来自「{panel}」',
   'label.click.filtered': '「{filter}」已按点中的一组筛选',
   'label.click.filtered-to': '「{filter}」已按点中的一组筛选：{group}',
@@ -1476,7 +1514,7 @@ export const zhCN: ViewMessages = {
   'label.click.menu-no-route': '这个页面没有接工作台，点一组什么也不做。',
   'label.click.filter': '更新仪表盘筛选',
   'label.click.filter-hint':
-    '其余接线的面板按点中的值筛选；这个面板保留所有组，只标出点中的那一组。再点一次撤销。',
+    '其余接线的面板按点中的值筛选；这个面板保留所有组，只标出点中的那一组。再点一次清除。',
   'label.click.filter-none': '先把一个筛选接到这个面板按来分组的字段上。',
   'label.click.filter-pick': '筛选',
   'label.click.go': '去另一个视图、仪表盘或页面',
@@ -1503,19 +1541,19 @@ export const zhCN: ViewMessages = {
   'label.click.board-list-none': '没有符合条件的仪表盘。',
   'label.click.board-values': '它的筛选',
   'label.click.board-values-hint':
-    '每个筛选带点中那一组的一个维度的值、这块板上一个筛选此刻的值，或者不带；不带的从它的默认值开始。',
+    '每个筛选带点中那一组的一个维度的值、这个仪表盘上一个筛选此刻的值，或者不带；不带的从它的默认值开始。',
   'label.click.board-value': '这一组的{dimension}',
   'label.click.board-skip': '不带',
   'label.click.board-no-source':
-    '这个面板没有它能收的维度，这块板上也没有同类型的筛选。',
+    '这个面板没有它能收的维度，这个仪表盘上也没有同类型的筛选。',
   'label.click.board-no-filters': '那块仪表盘没有筛选，点一组就原样打开它。',
   'label.click.board-loading': '正在读取它的筛选…',
   'label.click.board-unreadable': '那块仪表盘已被删除，或你没有权限打开它。',
   'label.click.board-stale':
-    '带给{filters}的值已失效（那个筛选、这个面板的维度或这块板的筛选不在了），完成时会去掉。',
-  'label.click.board-filter-value': '这块板的{filter}',
+    '带给{filters}的值已失效（那个筛选、这个面板的维度或这个仪表盘的筛选不在了），完成时会去掉。',
+  'label.click.board-filter-value': '这个仪表盘的{filter}',
   'label.click.board-from-group': '点中的这一组',
-  'label.click.board-from-board': '这块板的筛选',
+  'label.click.board-from-board': '这个仪表盘的筛选',
   'label.click.board-stale-name': '「{filter}」',
   'label.click.save': '完成',
   'dashboard.click.invalid':
@@ -1523,7 +1561,7 @@ export const zhCN: ViewMessages = {
   'dashboard.click.unpressable':
     '这个面板没有可点的组（记录视图，或展开了明细项的分析），「点击时」的设置不生效。',
   'dashboard.click.filter-unknown':
-    '这个面板点击时要设置的筛选已经不在板上，点一组会打开追问菜单。',
+    '这个面板点击时要设置的筛选已经不在仪表盘上，点一组会打开追问菜单。',
   'dashboard.click.filter-unwired':
     '「{filter}」没有接到这个面板，点一组设置不了它，会打开追问菜单。',
   'dashboard.click.filter-ungrouped':
@@ -1547,5 +1585,5 @@ export const zhCN: ViewMessages = {
   'dashboard.click.board-filter-mismatch':
     '点击时要打开的仪表盘上的「{filter}」收不了 {field} 的值，点一组会打开追问菜单。',
   'dashboard.click.board-source-unknown':
-    '点击要把这块板的筛选「{filter}」带到另一块仪表盘，但这块板上已没有它，点一组会打开追问菜单。',
+    '点击要把这个仪表盘的筛选「{filter}」带到另一块仪表盘，但这个仪表盘上已没有它，点一组会打开追问菜单。',
 } satisfies Record<MessageKey, string>;

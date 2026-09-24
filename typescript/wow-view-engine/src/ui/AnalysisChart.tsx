@@ -15,6 +15,7 @@ import { useMemo } from 'react';
 import type { AnalysisColumnView, ChartData } from '../analysis/index.js';
 import type { ChartSpec, RecordData } from '../model/index.js';
 import { Cartesian } from './charts/Cartesian.js';
+import { ChartMenuOpen } from './charts/EChart.js';
 import { ChartReadingTable } from './charts/ChartReading.js';
 import { useDateTicks } from './charts/dateTicks.js';
 import {
@@ -60,6 +61,11 @@ export interface AnalysisChartProps {
    * a bar, a line's point or a slice stands out, the rest drawn faint.
    */
   highlight?: (row: RecordData) => boolean;
+  /**
+   * The follow-up menu is open over the chart (`DrillMenu`): the drawing's
+   * tooltip is put away and stays away until it closes (`ChartMenuOpen`).
+   */
+  menuOpen?: boolean;
 }
 
 /**
@@ -83,6 +89,7 @@ export function AnalysisChart({
   onPick,
   cutShort,
   highlight,
+  menuOpen = false,
 }: AnalysisChartProps) {
   const messages = useViewMessages();
   const label = useValueLabel(columns);
@@ -109,10 +116,10 @@ export function AnalysisChart({
     filled,
   };
   return (
-    <>
+    <ChartMenuOpen.Provider value={menuOpen}>
       {family(data, props)}
       <ChartReadingTable reading={reading} />
-    </>
+    </ChartMenuOpen.Provider>
   );
 }
 

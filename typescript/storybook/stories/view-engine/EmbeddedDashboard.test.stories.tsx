@@ -64,7 +64,9 @@ async function orderNumbers(canvasElement: HTMLElement): Promise<string[]> {
 /**
  * The customer page, the interactive tier end to end (D22): the customer is
  * locked — read on the bar as who it is, with no control and no way to
- * clear it — the placing time is the reader's and moves the panels, both
+ * clear it, beside the one button a phone's bar is (D26 Q38) — the placing
+ * time is the reader's, set in the sheet that button opens, and moves the
+ * panels, both
  * reach the host's address, and a group's follow-up and 在工作台中打开 go
  * through the host's route carrying the customer.
  */
@@ -89,9 +91,20 @@ export const CustomerDetail: Story = {
       expect(await orderNumbers(canvasElement)).toEqual(['SO-1003', 'SO-1001']),
     );
 
+    // On a phone the bar is one button (D26 Q38): the customer is read
+    // beside it, the reader's own filters are in the sheet it opens.
+    const sheet = async () => {
+      await userEvent.click(within(bar).getByRole('button', { name: /^筛选/ }));
+      return screen.findByRole('dialog', { name: zhCN['label.filters.bar'] });
+    };
+    // Closed again, the panels behind it are the page's once more.
+    const closeSheet = async () => {
+      await userEvent.keyboard('{Escape}');
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    };
     // The placing time is the reader's: last month holds none of theirs.
     await userEvent.click(
-      within(bar).getByRole('combobox', {
+      within(await sheet()).getByRole('combobox', {
         name: label('label.date.period-of', { field: '下单时间' }),
       }),
     );
@@ -100,6 +113,7 @@ export const CustomerDetail: Story = {
         name: zhCN['label.relative.preset.lastMonth'],
       }),
     );
+    await closeSheet();
     const orders = await panelBody(canvasElement, '这个客户的订单');
     await waitFor(() =>
       expect(orders).toHaveTextContent(zhCN['label.record.empty']),
@@ -125,8 +139,11 @@ export const CustomerDetail: Story = {
     // 「清空」 clears what the reader holds and leaves the customer: every
     // order of theirs, of any time.
     await userEvent.click(
-      within(bar).getByRole('button', { name: zhCN['label.filters.clear'] }),
+      within(await sheet()).getByRole('button', {
+        name: zhCN['label.filters.clear'],
+      }),
     );
+    await closeSheet();
     await waitFor(async () =>
       expect(await orderNumbers(canvasElement)).toEqual(['SO-1003', 'SO-1001']),
     );
@@ -316,7 +333,7 @@ function panelTitles(canvasElement: HTMLElement): string[] {
 /**
  * The team page, the editable tier end to end (D22 A): 「编辑」 builds the
  * board where it sits; a text added from 「添加」 is on the board at once
- * and in the store only once 「完成」 has asked and saved — the host's
+ * and in the store only once 「保存」 has asked and saved — the host's
  * footer reads the store, not the screen. 「取消」 then puts back what was
  * saved and writes nothing, and each time the keyboard is back on 「编辑」.
  */
@@ -380,9 +397,9 @@ export const EditableBoard: Story = {
     // On the board, not yet in the store.
     await expect(stored).toHaveTextContent('还没保存过');
 
-    // 「完成」 over a shared board asks, as Save does, and saves.
+    // 「保存」 over a shared board asks, as Save does, and saves.
     await userEvent.click(
-      canvas.getByRole('button', { name: zhCN['label.dashboard.done'] }),
+      canvas.getByRole('button', { name: zhCN['label.dashboard.save'] }),
     );
     const confirm = await screen.findByRole('alertdialog');
     await userEvent.click(

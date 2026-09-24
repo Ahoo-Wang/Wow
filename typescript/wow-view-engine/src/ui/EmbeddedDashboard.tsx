@@ -34,6 +34,7 @@ import type {
 } from '../runtime/index.js';
 import {
   useDashboard,
+  useFilterEditor,
   useLeaveGuard,
   useOpenView,
   useSaveCommands,
@@ -46,6 +47,7 @@ import { SurfaceAnnouncer, useAnnouncer } from './Announcer.js';
 import { DashboardBoard, type BoardReading } from './dashboard/Board.js';
 import { useDashboardExtensions } from './dashboard/building.js';
 import { DashboardTabs } from './dashboard/DashboardTabs.js';
+import { filterNamer } from './dashboard/findings.js';
 import { DashboardEditExtensionsContext } from './dashboard/extensions.js';
 import {
   heldFilters,
@@ -60,6 +62,7 @@ import type {
   DashboardEmbedInteraction,
   EmbedBaseProps,
 } from './embed/options.js';
+import { SurfaceKind } from './kinds.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { ErrorStrip, WarningStrip } from './StatusStrip.js';
 import { WriteOutcome } from './WriteOutcome.js';
@@ -216,6 +219,9 @@ function EmbeddedBoard({
   const dashboard = useDashboard(runtime);
   const messages = useViewMessages();
   const commands = useSaveCommands(engine, runtime);
+  // The board's fixed scope, read-only on the filter bar's row (D27): an
+  // embedded board draws no 「正在显示」 band, as the workbench does not.
+  const { fixed } = useFilterEditor(runtime);
   const reads = interaction !== 'read-only';
 
   // What the page holds, handed to the runtime, which keeps every command
@@ -279,14 +285,14 @@ function EmbeddedBoard({
 
   // Building (D22 A), in the editable tier and for whoever may save the
   // board: 「编辑」 in the embed's first row, the edit bar over the board,
-  // 「完成」 saving through the same commands the workbench's title bar has.
+  // 「保存」 saving through the same commands the workbench's title bar has.
   // The state is the runtime's, so the board's timer waits on it (D26 Q39).
   const { building, setBuilding } = dashboard;
   const canEdit = interaction === 'editable' && commands.can.save;
   const editing = canEdit && building;
   const editButton = useRef<HTMLButtonElement>(null);
   const wasEditing = useRef(editing);
-  // The keyboard that pressed 完成 or 取消 goes back to 「编辑」, which comes
+  // The keyboard that pressed 保存 or 取消 goes back to 「编辑」, which comes
   // back as the bar goes — only when it was lost with the bar.
   useLayoutEffect(() => {
     const ended = wasEditing.current && !editing;
@@ -340,14 +346,20 @@ function EmbeddedBoard({
   // nothing else, and taking it for the board's drew no grid around a board
   // where every other panel was fine (R3). "Too many panels" sits at
   // `['panels']` itself and is no one panel's: it stops the whole board.
-  const issues = (state?.issues ?? []).filter(
-    found => found.path[0] !== 'panels' || typeof found.path[1] !== 'number',
-  );
+  // A filter is said by its name on the bar, never its key (X-03).
+  const nameFilter = filterNamer(dashboard.filterFields);
+  const issues = (state?.issues ?? [])
+    .filter(
+      found => found.path[0] !== 'panels' || typeof found.path[1] !== 'number',
+    )
+    .map(nameFilter);
   const errors = issues.filter(found => found.severity === 'error');
   const warnings = issues.filter(found => found.severity !== 'error');
 
   return (
-    <>
+    // What the chrome calls the thing open: the editable tier's save
+    // questions say 仪表盘 (Q34).
+    <SurfaceKind.Provider value="dashboard">
       <EmbedHead
         title={withTitle ? title : undefined}
         headingLevel={headingLevel}
@@ -368,7 +380,9 @@ function EmbeddedBoard({
       {refused.length > 0 && (
         <Alert variant="destructive">
           <AlertTitle>{messages.label('label.scope.refused')}</AlertTitle>
-          <AlertDescription>{messages.issues(refused)}</AlertDescription>
+          <AlertDescription>
+            {messages.issues(refused.map(nameFilter))}
+          </AlertDescription>
         </Alert>
       )}
       {canEdit && <WriteOutcome commands={commands} title={title} />}
@@ -391,6 +405,7 @@ function EmbeddedBoard({
               onNavigate={reads ? onNavigate : undefined}
               onRenderFailure={onRenderFailure}
               refusedFilters={addressRefused}
+              fixed={fixed}
               reading={reading}
             />
             {canEdit && dialogs}
@@ -398,6 +413,6 @@ function EmbeddedBoard({
           {voice.region}
         </DashboardEditExtensionsContext.Provider>
       )}
-    </>
+    </SurfaceKind.Provider>
   );
 }

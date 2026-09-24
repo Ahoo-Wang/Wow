@@ -23,6 +23,7 @@ import {
   EmptyTitle,
 } from '../components/empty.js';
 import { useViewMessages } from '../MessagesProvider.js';
+import { useKindWord } from '../kinds.js';
 
 /**
  * The work area when the definition has no view of this kind to open.
@@ -48,13 +49,14 @@ export function NoViews({
   create?: NewViewCommand;
 }) {
   const messages = useViewMessages();
+  const word = useKindWord();
   return (
     <Empty data-slot="view-none">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <LayersIcon />
         </EmptyMedia>
-        <EmptyTitle>{messages.label('label.view.none')}</EmptyTitle>
+        <EmptyTitle>{messages.label(word('label.view.none'))}</EmptyTitle>
         {(failed || create) && (
           <EmptyDescription>
             {messages.label(
@@ -69,7 +71,7 @@ export function NoViews({
             command={create}
             trigger={props => (
               <Button variant="outline" size="sm" {...props}>
-                {messages.label('label.view.new')}
+                {messages.label(word('label.view.new'))}
               </Button>
             )}
           />

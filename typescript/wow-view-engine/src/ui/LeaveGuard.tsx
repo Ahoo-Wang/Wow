@@ -24,6 +24,7 @@ import {
 import { useViewMessages } from './MessagesProvider.js';
 import { AlertDialogContent } from './popups.js';
 import { DestructiveAction } from './variants.js';
+import { useKindWord } from './kinds.js';
 
 export interface LeaveDialogProps {
   /** The headless guard from `useWorkbench`; this only draws its question. */
@@ -51,6 +52,7 @@ export interface LeaveDialogProps {
  */
 export function LeaveDialog({ leave, messages: wording }: LeaveDialogProps) {
   const messages = useViewMessages(wording);
+  const word = useKindWord();
   return (
     <AlertDialog
       open={leave.asking}
@@ -59,7 +61,7 @@ export function LeaveDialog({ leave, messages: wording }: LeaveDialogProps) {
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            {messages.label('label.leave.heading')}
+            {messages.label(word('label.leave.heading'))}
           </AlertDialogTitle>
           <AlertDialogDescription>
             {messages.label('label.leave.consequence')}

@@ -15,11 +15,11 @@
 | ------------- | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | `read-only`   | 结果与它的已应用条件（只读）；表头不能排序、不能拖宽，没有分页，没有勾选（开了导出也没有），失败条没有「重试」      | 面板照画，什么都不回应：点一组不弹菜单、不联动、不去别处；面板没有「⋯」（开了导出除外），失败的面板没有「重试」 |
 | `interactive` | 表头排序、分页、失败时「重试」；分析的表格｜图表切换（`AnalysisToolbar`）、表头排序、按一组追问；「在工作台中打开」 | 追问菜单、交叉筛选、自定义目的地、面板「⋯」里的「在工作台中打开」                                               |
-| `editable`    | —                                                                                                                   | 再加「编辑」：就地搭板子（编辑条、添加、筛选 ＋、面板菜单的「改」），「完成」保存                               |
+| `editable`    | —                                                                                                                   | 再加「编辑」：就地搭板子（编辑条、添加、添加筛选、面板菜单的「改」），「保存」存下                              |
 
 - 离开嵌入的每一条路都经宿主的**一个**路由 `onNavigate(to: ViewNavigation)`，包本身不碰地址；没有路由，追问与「在工作台中打开」都不出现。去另一块仪表盘的点击（D23 Q17）交出 `{ kind: 'dashboard', instanceId, filters }`，宿主可以把 `filters` 交给另一个 `EmbeddedDashboard` 的 `initialFilters`（或 `DashboardWorkbench` 的 `initialFilters`）。记录／分析的「在工作台中打开」交出 `{ kind: 'view', definitionId, instanceId, scopeFilter, filter: null }`——存下的视图，页面的收窄是它的作用域，到了工作台照样锁着、没有 ✕（D26 Q30：页面持有的保持锁定）；读者这一次的排序、翻页、搜索不带走。追问与仪表盘面板同一个钩子（`usePanelFollowUps`），交法也一样：页面的收窄是开出去那个视图的 `scopeFilter`，这一组的条件是它自己的。宿主把两种都原样交给 `DataWorkbench` 的 `handOver`。仪表盘面板的出口与工作台里的仪表盘一种交法，锁定与隐藏的筛选是作用域、读者的值是视图自己的条件，另带回板子的路（[dashboard.md](dashboard.md) 面板菜单的「看」）。（见 test/embeddedView.test.tsx「reads, and does nothing else, in the read-only tier」「sorts by a header and pages in the interactive tier」「switches an analysis between table and chart in the interactive tier, and not in the read-only one」「opens the follow-up menu on a group, through the host route, in the interactive tier」「opens the view in the workbench through the host route, under the page narrowing — interactive only」）
 - 仪表盘的只读一档由 `DashboardGrid` 的 `readOnly` 说：不给面板 `press`、不给「⋯」、不给重试——板子按自己的计时器重跑。（见 test/embeddedDashboard.test.tsx「answers no press and offers no way off the board in the read-only tier」「cross-filters on a press in the interactive tier」）
-- **可编辑一档**用的是工作台的同一套：`DashboardBoard`、`useDashboardExtensions`（新建分析、面板自己的展示、另存为视图、复制为共享视图并替换、标签栏）、`useSaveCommands` 的保存、`WriteOutcome` 的冲突出路；「编辑」只给能保存这块板的人——系统板、没有保存权限的读者读作可交互一档，不给「另存为」（D24 Q23）。编辑中挂 `beforeunload`（`useLeaveGuard`），宿主自己的导航卸掉嵌入，不经过它。「完成」「取消」之后键盘回到「编辑」。（见 test/embeddedDashboard.test.tsx「builds in place in the editable tier, for whoever may save the board」「offers no building on a board nobody may save here」；浏览器里 stories/view-engine/Home.test.stories.tsx「Editing」）
+- **可编辑一档**用的是工作台的同一套：`DashboardBoard`、`useDashboardExtensions`（新建分析、面板自己的展示、另存为视图、复制为共享视图并替换、标签栏）、`useSaveCommands` 的保存、`WriteOutcome` 的冲突出路；「编辑」只给能保存这块板的人——系统板、没有保存权限的读者读作可交互一档，不给「另存为」（D24 Q23）。编辑中挂 `beforeunload`（`useLeaveGuard`），宿主自己的导航卸掉嵌入，不经过它。「保存」「取消」之后键盘回到「编辑」。（见 test/embeddedDashboard.test.tsx「builds in place in the editable tier, for whoever may save the board」「offers no building on a board nobody may save here」；浏览器里 stories/view-engine/Home.test.stories.tsx「Editing」）
 
 ## 开关
 
@@ -67,7 +67,7 @@
 
 每个故事跑一档（`stories/view-engine/`）：
 
-- **首页**（`Home.stories.tsx`，可编辑）：运营组共享的那块板嵌在宿主首页，「编辑」就地加一个分节、「完成」替整组保存（`Home.test.stories.tsx`「Editing」）。
+- **首页**（`Home.stories.tsx`，可编辑）：运营组共享的那块板嵌在宿主首页，「编辑」就地加一个标题、「保存」替整组存下（`Home.test.stories.tsx`「Editing」）。
 - **客户详情页**（`EmbeddedDashboard.stories.tsx`「CustomerDetail」，可交互）：客户锁定成这一页的客户，下单时间可改；筛选值在页脚的「宿主地址」里来回；追问与「在工作台中打开」经宿主路由、带着这位客户；开了导出，「这个客户的订单」可以「导出数据…」（`EmbeddedDashboard.test.stories.tsx`「CustomerOrdersExport」）。
 - **大屏**（「WallScreenReadOnly」，全只读）：暗色、铺满、标题画出来，仓库锁定在华东仓；没有「⋯」、没有可按的组、没有「编辑」、没有「清空」。
 

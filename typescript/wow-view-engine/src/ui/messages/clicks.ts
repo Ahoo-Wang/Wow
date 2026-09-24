@@ -18,12 +18,12 @@
  */
 export const clicksMessages = {
   // The follow-up menu on a panel (screen H).
-  'label.drill.board': 'Board filters: {conditions}',
+  'label.drill.board': 'Dashboard filters: {conditions}',
   'label.drill.away': '(opens in the workbench)',
   // Cross-filtering (screen I).
   'label.click.badge': 'Click filters “{filter}”',
   'label.click.badge-note':
-    'Pressing a group of this panel sets “{filter}” for the rest of the board; pressing it again clears it.',
+    'Pressing a group of this panel sets “{filter}” for the rest of the dashboard; pressing it again clears it.',
   'label.click.from': 'from “{panel}”',
   'label.click.filtered': '“{filter}” now filters by the group pressed',
   'label.click.filtered-to':
@@ -74,18 +74,18 @@ export const clicksMessages = {
   'label.click.board-list-none': 'No dashboard matches.',
   'label.click.board-values': 'Its filters',
   'label.click.board-values-hint':
-    'For each, the value of one dimension of the group pressed, what one of this board’s filters holds, or nothing; one not carried starts at its default.',
+    'For each, the value of one dimension of the group pressed, what one of this dashboard’s filters holds, or nothing; one not carried starts at its default.',
   'label.click.board-value': 'This group’s {dimension}',
   'label.click.board-skip': 'Not carried',
   'label.click.board-no-source':
-    'Neither a dimension of this panel nor a filter of this board’s fits it.',
+    'Neither a dimension of this panel nor a filter of this dashboard’s fits it.',
   'label.click.board-no-filters':
     'That dashboard has no filters: a press opens it as it is.',
   'label.click.board-loading': 'Reading its filters…',
   'label.click.board-unreadable':
     'That dashboard was deleted, or you may not open it.',
   'label.click.board-stale':
-    'What went to {filters} no longer applies — that filter, this panel’s dimension or this board’s filter is gone — and is dropped on Done.',
+    'What went to {filters} no longer applies — that filter, this panel’s dimension or this dashboard’s filter is gone — and is dropped on Done.',
   'label.click.board-filter-value': 'This board’s {filter}',
   'label.click.board-from-group': 'The group pressed',
   'label.click.board-from-board': 'This board’s filters',
@@ -97,7 +97,7 @@ export const clicksMessages = {
   'dashboard.click.unpressable':
     'This panel has no groups to press — a record view, or an analysis over expanded elements — so its click setting does nothing.',
   'dashboard.click.filter-unknown':
-    'The filter this panel’s click sets is no longer on the board; pressing it opens the follow-up menu.',
+    'The filter this panel’s click sets is no longer on the dashboard; pressing it opens the follow-up menu.',
   'dashboard.click.filter-unwired':
     '“{filter}” is not wired to this panel, so a press cannot set it; pressing it opens the follow-up menu.',
   'dashboard.click.filter-ungrouped':
@@ -121,5 +121,5 @@ export const clicksMessages = {
   'dashboard.click.board-filter-mismatch':
     '“{filter}” on the dashboard a press opens cannot take {field}; pressing it opens the follow-up menu.',
   'dashboard.click.board-source-unknown':
-    'The click carries this board’s filter “{filter}” to another dashboard, but this board no longer has it; pressing it opens the follow-up menu.',
+    'The click carries this dashboard’s filter “{filter}” to another dashboard, but this dashboard no longer has it; pressing it opens the follow-up menu.',
 } as const satisfies Record<string, string>;

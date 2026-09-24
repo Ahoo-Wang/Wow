@@ -13,6 +13,8 @@
 
 import type { EChartsCoreOption, ECharts } from 'echarts/core';
 import {
+  createContext,
+  useContext,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -35,6 +37,17 @@ export type LegendPlace = 'top' | 'bottom' | 'right';
  * Metabase moves a narrow chart's legend below it.
  */
 export const LEGEND_BESIDE_MIN = 480;
+
+/**
+ * Whether a menu stands over the chart — the follow-up menu on a pressed
+ * group (`DrillMenu`). The press puts the tooltip away, but the pointer is
+ * still on the mark: the least move before the menu's backdrop is up raised
+ * it again, and nothing afterwards reached the chart to take it down, so it
+ * sat over the menu's first items (2026-09-24 walk). While this holds, the
+ * tooltip is not drawn at all; it comes back with the next pointer over the
+ * chart once the menu has gone.
+ */
+export const ChartMenuOpen = createContext(false);
 
 /** What a press on a mark hands back: which one, and where the pointer was. */
 export interface ChartClick {
@@ -124,6 +137,10 @@ export function EChart({
   }, [mode]);
 
   const chart = useRef<ECharts>(undefined);
+  const menuOpen = useContext(ChartMenuOpen);
+  useEffect(() => {
+    if (menuOpen) chart.current?.dispatchAction({ type: 'hideTip' });
+  }, [menuOpen]);
   const size = useRef({ width: 0, height: 0 });
   const latest = useRef({ option, adapt, onClick, theme });
   useLayoutEffect(() => {
@@ -238,9 +255,13 @@ export function EChart({
       ref={frame}
       data-slot="chart"
       data-legend={placed ?? 'none'}
+      data-menu-open={menuOpen || undefined}
       {...data}
       className={cn(
         'flex aspect-video min-h-52 w-full gap-2 text-xs',
+        // The tooltip the library draws is ours (`tooltipHtml`), inside its
+        // own transparent box: hidden, nothing of it is on screen.
+        'data-menu-open:[&_[data-slot=chart-tooltip]]:invisible',
         placed === 'right' ? 'flex-row' : 'flex-col',
         hugged && 'justify-center',
         className,

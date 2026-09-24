@@ -72,9 +72,9 @@ async function pickSouth(bar: HTMLElement) {
 }
 
 /**
- * Screen G: 「筛选 ＋」 → 日期 opens its settings; 「接线」 puts a strip on
+ * Screen G: 「添加筛选」 → 日期 opens its settings; 「接线」 puts a strip on
  * every panel; picking 创建时间 on one wires the other panel with that field
- * on its own, and the toast says so with 撤销 — which takes it back.
+ * on its own, and the toast says so with 「只接刚选的面板」 — which unwires it again.
  */
 export const AddTimeFilterAutoConnects: Story = {
   ...DisplayAllPanels,
@@ -87,7 +87,7 @@ export const AddTimeFilterAutoConnects: Story = {
     );
     await userEvent.click(
       await canvas.findByRole('button', {
-        name: zhCN['label.filters.add-menu'],
+        name: zhCN['label.filters.add'],
       }),
     );
     await userEvent.click(
@@ -146,7 +146,7 @@ export const AddTimeFilterAutoConnects: Story = {
     ).toHaveLength(1);
 
     await userEvent.click(
-      canvas.getByRole('button', { name: zhCN['label.filters.undo'] }),
+      canvas.getByRole('button', { name: zhCN['label.filters.only-picked'] }),
     );
     await waitFor(() =>
       expect(summary()).toHaveTextContent(zhCN['label.filters.unwired']),
@@ -391,5 +391,68 @@ export const ValuesReachTheHost: Story = {
         }),
       ),
     );
+  },
+};
+
+/** A phone: below `md` the board is one column, its filters one button. */
+const PHONE = (Story: ComponentType) => (
+  <div style={{ width: 390 }}>
+    <Story />
+  </div>
+);
+
+/**
+ * On a phone (D26 Q38): the bar is one button, 「筛选（已设 1 个）」 —
+ * 创建时间 is required and holds its default — and pressing it opens every
+ * filter in a sheet from the bottom edge. 华南 picked there runs the panels
+ * behind it and the count follows; the sheet is left open, so axe judges it.
+ */
+export const FiltersInASheetOnAPhone: Story = {
+  ...DisplayFilters,
+  decorators: [PHONE],
+  play: async ({ canvasElement }) => {
+    const bar = await filterBar(canvasElement);
+    await waitFor(() => expect(bar).toHaveAttribute('data-narrow'));
+    // Nothing is changed on the bar itself: its controls are in the sheet.
+    await expect(within(bar).queryByRole('combobox')).toBeNull();
+    const open = within(bar).getByRole('button', {
+      name: label('label.filters.sheet-set', { count: '1' }),
+    });
+    await userEvent.click(open);
+    const sheet = await screen.findByRole('dialog', {
+      name: zhCN['label.filters.bar'],
+    });
+    // Every filter the bar holds, and the time grouping after them.
+    await expect(
+      [
+        ...sheet.querySelectorAll<HTMLElement>(
+          '[data-slot="dashboard-filter"]',
+        ),
+      ].map(chip => chip.dataset.filter),
+    ).toEqual(['created', 'region', 'phase', 'order']);
+    // Once it has slid in: it starts transparent.
+    await waitFor(() =>
+      expect(
+        within(sheet).getByRole('group', {
+          name: zhCN['label.filters.grouping'],
+        }),
+      ).toBeVisible(),
+    );
+    // The sheet stands on the bottom edge, the board's top still in view.
+    await waitFor(() => {
+      const box = sheet.getBoundingClientRect();
+      expect(Math.round(box.bottom)).toBe(window.innerHeight);
+      expect(box.top).toBeGreaterThan(0);
+    });
+
+    await pickSouth(sheet);
+    await waitFor(() =>
+      expect(open).toHaveTextContent(
+        label('label.filters.sheet-set', { count: '2' }),
+      ),
+    );
+    await expect(
+      within(sheet).getByRole('combobox', { name: '仓库' }),
+    ).toHaveTextContent('华南');
   },
 };

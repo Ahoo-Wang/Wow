@@ -24,6 +24,7 @@ import {
 } from './components/collapsible.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { TEXT_UI } from './layout.js';
+import { useKindWord } from './kinds.js';
 
 export interface StatusStripProps {
   /** How loud it is: the colour, the icon and the role come with it. */
@@ -285,6 +286,7 @@ export function ErrorStrip({
   className,
 }: ErrorStripProps) {
   const messages = useViewMessages();
+  const word = useKindWord();
   const errors = dedupeIssues(
     issues.filter(found => found.severity === 'error'),
   );
@@ -302,7 +304,7 @@ export function ErrorStrip({
       title={
         alone
           ? sentences[0]
-          : (title ?? messages.label('label.view.needs-fixing'))
+          : (title ?? messages.label(word('label.view.needs-fixing')))
       }
       details={alone ? undefined : sentences}
       className={className}

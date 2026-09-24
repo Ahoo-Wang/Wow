@@ -17,6 +17,7 @@ import {
   referencedInstance,
   type NewContentPanel,
 } from '../../dashboard/index.js';
+import type { FilterSummaryItem } from '../../filter/index.js';
 import type { Issue, ViewInstance } from '../../model/index.js';
 import type { DashboardController, SaveCommands } from '../../react/index.js';
 import type { ViewNavigation, ViewEngine } from '../../runtime/index.js';
@@ -46,7 +47,7 @@ const ROW_GAP = 10;
 export interface DashboardBoardProps {
   engine: ViewEngine;
   dashboard: DashboardController;
-  /** The board's save commands: 完成 is their save. */
+  /** The board's save commands: 保存 is their save. */
   commands: SaveCommands;
   /** The board's title and whether others read it, for the questions asked. */
   title: string;
@@ -65,6 +66,11 @@ export interface DashboardBoardProps {
    * the filter bar (`FiltersRefused`).
    */
   refusedFilters?: readonly Issue[];
+  /**
+   * The board's fixed scope in force (D26 Q31, `FilterEditorController.fixed`),
+   * read-only on the filter bar's row as 「固定范围」 (D27).
+   */
+  fixed?: readonly FilterSummaryItem[];
   /**
    * How a page that embeds the board reads it (D22): the grid's switches —
    * the panels' heading level and titles, whether the board is only read,
@@ -90,7 +96,7 @@ export type BoardReading = Pick<
  * it is built, the first things to add on an empty one, and the two dialogs
  * a panel is chosen or written in. Every edit is one of the runtime's
  * `DashboardEditing` commands, written into the draft and onto the screen
- * at once — the panels run on it as the author works — and only 完成 saves.
+ * at once — the panels run on it as the author works — and only 保存 saves.
  */
 export function DashboardBoard({
   engine,
@@ -105,6 +111,7 @@ export function DashboardBoard({
   onNavigate,
   onRenderFailure,
   refusedFilters,
+  fixed,
   reading,
 }: DashboardBoardProps) {
   const messages = useViewMessages();
@@ -144,6 +151,7 @@ export function DashboardBoard({
     say,
     modes: reading?.filterModes,
     refused: refusedFilters,
+    fixed,
   });
   const names = panelNames(dashboard.panels, messages);
   const history = useBoardHistory({
@@ -271,7 +279,7 @@ export function DashboardBoard({
               <>
                 {/* The filters over everything else: they are what the whole
                   board is read under, every tab alike (D22 E, F). */}
-                {filters.bar}
+                {filters.bar(narrow)}
                 {editing && (
                   <EditBar
                     commands={commands}

@@ -82,7 +82,7 @@ export interface ClickSettingsProps {
  * Q17: `BoardDestination`) or a page of the host's, the group carried
  * along. One choice among three, so a `RadioGroup`; what each choice needs
  * sits under it. 「完成」 writes it into the draft (`setPanelClick`), as every
- * edit of a board is; the board's own 「完成」 saves it.
+ * edit of a board is; the board's own 「保存」 saves it.
  */
 export function ClickSettings({
   engine,

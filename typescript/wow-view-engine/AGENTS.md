@@ -293,10 +293,10 @@ src/
       releaseDeleted.ts       — Lets a workbench's pinned id go once the view is deleted
       handOver.ts             — `useHandOver`: a view a host hands the workbench (D26 Q30) — a saved one opened by its id, one nobody saved held as `handed` so the shell opens it folded — once per object through the leave guard, under what the page holds as its scope; `useHandedConditions`, the reader's board values put onto a handed saved view's own conditions
   ui/                         — Default look; may import every layer
-    AnalysisChart.tsx         — Dispatches by chart family; nothing else
+    AnalysisChart.tsx         — Dispatches by chart family; nothing else but saying whether the follow-up menu is open over the chart (`ChartMenuOpen`)
     AnalysisTable.tsx         — The aggregation as a table: groups first, then metrics, with the totals row from its own ungrouped query rather than from summing what is on screen, and its scope said under 「合计」; read with the record table's recipes — numbers on the right, ids in monospace, `SortableHeader`, held widths and the filler
     Announcer.tsx             — `useAnnouncer`: one live region per surface, handed back rather than rendered by the caller, the same words twice said twice; `SurfaceAnnouncer`／`useSurfaceAnnouncer`: a surface's one voice handed to the parts drawn inside it (a board's grid, tabs, filters, building)
-    AppliedBar.tsx            — The conditions the rows on screen were fetched under; a page's scope and a dashboard's fixed scope worn read-only
+    AppliedBar.tsx            — The conditions the rows on screen were fetched under; a page's scope worn read-only. Record and analysis views only: a dashboard draws none (D27)
     BulkStatus.tsx            — `BulkStatus`: a host's bulk command as one line above the rows — how far it has come with a Stop, then what it came to and why
     CardSettings.tsx          — The card layout's settings behind the column settings' button (D18 VI)
     ColumnSettings.tsx        — Which columns show, in which order, pinned or not, summarised how — one sortable group per area (D19)
@@ -306,9 +306,9 @@ src/
     DashboardGrid.tsx         — The panels, placed — in reading order, one column below `md`, the tab on screen alone when a tab bar says which; the edit bar over them and the first things to add on an empty board, where the board is built; each panel's commands (`panelCommands`) and its press (`panelPress`)
     DashboardPanel.tsx        — One framed panel: its title (a heading panel is that and nothing else), 「不受『〈筛选〉』影响」, 「点击筛选「〈筛选〉」」, its 「⋯」 menu, the wiring strip under it, the one arrange handle while the board is built, the body; what a panel is called (`panelName`, and `panelNames` numbering the names the board makes up); chart findings named by column
     DashboardPanels.tsx       — The static panels: a heading, a note (its headings under the panel's own), a picture, a list of links
-    DashboardWorkbench.tsx    — Default Dashboard workbench
+    DashboardWorkbench.tsx    — Default Dashboard workbench: no 「正在显示」 band (D27), the board's fixed scope handed to the filter bar, a finding about a filter or a panel said by its name
     DataWorkbench.tsx         — The data workbench: one list of record and analysis views; `useWorkbench` + both parts + `WorkbenchShell`, joined (D18-1, D20)
-    DeleteDialog.tsx          — What a delete costs, said before it happens
+    DeleteDialog.tsx          — What a delete costs, said before it happens — a dashboard's, that the analyses made inside it go with it
     DragHandle.tsx            — The handle a sortable row is carried by, and the arrow keys that move it; the three lists share it
     EditorBand.tsx            — The fold a view's editor lives in
     EmbeddedDashboard.tsx     — A saved board on a business page (D22): a tier (read-only, interactive, editable), each filter editable, locked or hidden (`filterModes`) — the locked and hidden values the page's own and followed (`pageValues`), the reader's the host's address (`initialFilters`/`onFiltersChange`, never a held one) — the title, panel-title and export switches
@@ -356,7 +356,7 @@ src/
     dragDrop.ts               — `dropped()`: what makes a finished drag a drop at all, before any list adds its own rule
     features.ts               — `WorkbenchFeatures`: which of the workbench's own controls exist (D18 XI)
     gridPlacement.ts          — `useGridPlacement`: a pointer drag or resize placed by the kernel's `placePanel`, preview and drop alike
-    kinds.ts                  — The icon each kind and audience wears, shared by list and header
+    kinds.ts                  — The icon each kind and audience wears, shared by list and header; `SurfaceKind`, the one kind a surface has open, and `kindWord`／`useKindWord`: a dashboard's chrome says 仪表盘 where another says 视图 (D26 Q34)
     layout.ts                 — `TEXT_UI`, `SPACE`: the one small type size and the spacing ruler
     messages.ts               — Wording, by key
     popups.tsx                — The popups this package renders, themed and on a layer of their own
@@ -403,7 +403,7 @@ src/
       ChartLegend.tsx         — The legend as text beside the drawing: a dot per series, on top by default, one line with the rest counted (「还有 N 个」)
       ChartReading.tsx        — The chart's numbers as a table, for whoever cannot see the marks
       highlight.ts            — `faded`: every mark but the group pressed drawn faint, over any family's option (D22 I)
-      EChart.tsx              — The thin binding to the library: create once sized, resize, a whole new option per change, dispose; the frame (`data-slot="chart"`), the named image and the theme read off the element; a plot hugging its legend (`hug`)
+      EChart.tsx              — The thin binding to the library: create once sized, resize, a whole new option per change, dispose; the frame (`data-slot="chart"`), the named image and the theme read off the element; a plot hugging its legend (`hug`); `ChartMenuOpen`, a menu over the chart, which keeps the tooltip away until it closes
       echarts.ts              — The chart chunk: the library's pieces registered on demand, SVG renderer; imported by `load.ts` only
       load.ts                 — `loadCharts`: the chart chunk loaded on first use and kept
       measure.ts              — How wide a line of tick text is: a canvas where there is one, an estimate elsewhere
@@ -433,7 +433,7 @@ src/
       EmbeddedRecord.tsx      — A record view embedded: the rows, the read-only applied band and the search at its end, the export in the head; header sort and pages in the interactive tier
       EmbeddedAnalysis.tsx    — An analysis view embedded: its chart or table as saved; in the interactive tier the table｜chart switch, the header sort and the follow-up menu through the host's route
     dashboard/                — What building a dashboard is made of (D22 A–E)
-      BoardFilters.tsx        — `useBoardFilters`: the board's filters as it draws them — the bar, 「筛选 ＋」, each filter's settings, wiring and the toast that undoes auto-connect; `FiltersRefused`, what the board left out of the address it opened on, said once over the bar
+      BoardFilters.tsx        — `useBoardFilters`: the board's filters as it draws them — the bar (in the one-column reading, `FilterSheet`), 「添加筛选」, each filter's settings, wiring and the toast whose 「只接刚选的面板」 unwires what auto-connect added; `FiltersRefused`, what the board left out of the address it opened on, said once over the bar, each filter by its name
       ClickSettings.tsx       — 「点击时…」 (D22 I): the follow-up menu, a board filter a press sets, or another view, board or page, one `RadioGroup`; a view picked with the `ViewPicker`, a URL checked at the field
       BoardDestination.tsx    — 「另一块仪表盘」 in 「点击时…」 (D23 Q17): the board picked and read (`useDestinationBoard`), its filters one row each — 「不带」, 「这一组的〈维度〉」 or 「这块板的〈筛选〉」 — and what no longer holds said and dropped (`mappedValues`)
       AddMenu.tsx             — 「＋ 添加 ▾」: 数据 (a saved view, a new analysis where one can be made) and 内容 (heading, text, image, links); the same first steps on an empty board
@@ -443,12 +443,15 @@ src/
       ContentEditor.tsx       — The small form a note, a picture or a list of links is written in, what the kernel would refuse said at the field
       DashboardTabs.tsx       — The tab bar over the grid, two tabs or more: switch; while building, add, rename in place, carry by handle or arrows, delete (asked first when it holds panels); `tabTitle`
       filterModes.ts          — How an embedding page offers each filter (`DashboardFilterMode`: editable, locked, hidden) and the time grouping; what the page holds (`heldOf`) and what is the reader's (`readersOf`); `sameValue`
-      FilterBar.tsx           — The filter bar (D22 F): a chip a filter with the condition editor's value controls, required ones starred and never empty, 按日｜周｜月, 「清空」, a filter reaching nothing on the tab drawn quieter and saying why, 「来自「〈面板〉」」 on a value a press set; on an embedding page a locked filter read as what it holds, with a lock, and a hidden one not at all
+      FilterBar.tsx           — The filter bar (D22 F): a chip a filter with the condition editor's value controls, required ones starred and never empty, 按日｜周｜月, 「清空」, a filter reaching nothing on the tab drawn quieter and saying why, 「来自「〈面板〉」」 on a value a press set; on an embedding page a locked filter read as what it holds, with a lock, and a hidden one not at all; the board's fixed scope read-only at the head of the row (D27)
+      FilterReadings.tsx      — What the bar holds that the reader reads and does not change: the board's fixed scope (`FixedScope`, 「固定范围」), a filter the page locked (`LockedChip`, `LockedReading`), and the chip's own layout (`CHIP`)
+      FilterSheet.tsx         — The filter bar below `md` (D26 Q38): one button, 「筛选（已设 n 个）」, opening every filter in a sheet from the bottom edge; the fixed scope and the locked filters read beside it
+      findings.ts             — `filterNamer`: a kernel finding about one of the board's filters said by its name on the bar, never its key (X-03)
       FilterOrder.tsx         — `useFilterOrder`: the bar's filters put in another order while the board is built — a `DragHandle` on each chip, ←/→ or a drag, the landing said in the board's voice, every move `moveFilter`; the places are the bar's, a hidden filter kept in order (`barMove`), the time grouping after them all
-      FilterSettings.tsx      — 「筛选 ＋」 (`AddFilterMenu`) and one filter's settings popover: type, name, default, several values, required, where its values come from, 接线 and 移除
+      FilterSettings.tsx      — 「添加筛选」 (`AddFilterMenu`) and one filter's settings popover: type, name, default, several values, required, where its values come from, 接线 and 移除
       FilterWiring.tsx        — Wiring a filter (D22 G): the context the grid reads, each panel's strip (same-type fields, 「没有可接的字段」, 「手动」), the wiring bar, the toasts in the board's own root
       landing.ts              — `useLanding`: where the keyboard goes when a press on the filter bar takes its own control away (U-02), and the lookups on the board it lands by
-      EditBar.tsx             — The bar a board is built under: 正在编辑, 撤销／重做, 添加 and 筛选 ＋ beside it, 取消 (put back the saved board, asked first) and 完成 (the save, a shared board asked first, a new one named)
+      EditBar.tsx             — The bar a board is built under: 正在编辑, 撤销／重做, 添加 and 添加筛选 beside it, 取消 (put back the saved board, asked first) and 保存 (the save, a shared board asked first, a new one named; D26 Q37)
       history.ts              — `useBoardHistory`: 撤销／重做 named after the step each takes, said when taken, ⌘Z／Ctrl+Z on the board and never in a field, and where the keyboard goes
       extensions.ts           — `DashboardEditExtensions`: the parts of building that live elsewhere (a new owned analysis, the presentation editor and its reset, 另存为视图, 复制为共享视图并替换 with whether it is offered, the tab bar), each entry there only while provided
       NewAnalysisDialog.tsx   — A new analysis made inside the dashboard: the data first, then `AnalysisParts` in a dialog (tray, result, visualization panel, 改了就跑), a title following the reading, 「放进仪表盘」

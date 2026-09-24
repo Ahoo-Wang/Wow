@@ -18,6 +18,7 @@ import { LineAlert, type AlertTone } from './alerts.js';
 import { AlertAction, AlertTitle } from './components/alert.js';
 import { Button } from './components/button.js';
 import { useViewMessages } from './MessagesProvider.js';
+import { useKindWord } from './kinds.js';
 
 /**
  * Where an outcome is being reported, which is the only thing the two callers
@@ -89,6 +90,7 @@ export function OutcomeActions({
   surface = 'view',
 }: OutcomeActionsProps) {
   const messages = useViewMessages();
+  const word = useKindWord();
   const size = surface === 'row' ? 'xs' : 'sm';
 
   // A conflict's three ways out are all `outline`, and they are drawn safest
@@ -102,7 +104,7 @@ export function OutcomeActions({
   if (state.kind === 'conflict')
     return (
       <OutcomeLine surface={surface} tone="error">
-        <AlertTitle>{messages.label('label.write.conflict')}</AlertTitle>
+        <AlertTitle>{messages.label(word('label.write.conflict'))}</AlertTitle>
         <AlertAction>
           {actions.resubmit ? (
             <Button size={size} disabled={pending} onClick={actions.resubmit}>

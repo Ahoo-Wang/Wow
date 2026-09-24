@@ -65,7 +65,7 @@ export function FilterActions({
   /**
    * What the conditions are called where these stand: a record view's
    * filter, or an analysis's range — the tray says 「范围」 over them, and
-   * 「撤销筛选修改」 under it read as undoing the whole tray.
+   * 「放弃筛选修改」 under it read as undoing the whole tray.
    */
   words?: 'filter' | 'range';
   /**

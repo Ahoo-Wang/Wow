@@ -12,15 +12,14 @@
  */
 
 import { useRef, type ReactNode } from 'react';
-import { InfoIcon, LockIcon, RotateCcwIcon, XIcon } from 'lucide-react';
+import { InfoIcon, RotateCcwIcon, XIcon } from 'lucide-react';
 import {
-  filterCondition,
   filterControlValue,
   filterEditor,
   filterStoredValue,
   filtersOnTab,
 } from '../../dashboard/index.js';
-import { describeFilter } from '../../filter/index.js';
+import type { FilterSummaryItem } from '../../filter/index.js';
 import type {
   AnalysisDateUnit,
   DashboardField,
@@ -36,9 +35,7 @@ import { IconButton, IconTooltip } from '../IconButton.js';
 import { panelNames } from '../DashboardPanel.js';
 import { cn } from '../lib/utils.js';
 import { useViewMessages } from '../MessagesProvider.js';
-import { summaryText } from '../summary.js';
 import { ControlFrame } from '../variants.js';
-import { useSurfaceDisplay } from '../ViewSurface.js';
 import {
   filterModeOf,
   holdsGrouping,
@@ -50,6 +47,13 @@ import {
   type FilterCarry,
   type FilterOrder,
 } from './FilterOrder.js';
+import {
+  CHIP,
+  FixedScope,
+  LockedChip,
+  LockedReading,
+} from './FilterReadings.js';
+import { FilterSheet } from './FilterSheet.js';
 import {
   addFilterOf,
   boardOf,
@@ -68,7 +72,7 @@ export interface FilterBarProps {
   settings?(field: DashboardField): ReactNode;
   /** While the board is built: taking the time grouping off. */
   onRemoveGrouping?(): void;
-  /** Where 「筛选 ＋」 stands while the board is built. */
+  /** Where 「添加筛选」 stands while the board is built. */
   add?: ReactNode;
   /**
    * How an embedding page offers each filter (`DashboardFilterMode`): a
@@ -81,6 +85,17 @@ export interface FilterBarProps {
    * on each chip (`useFilterOrder`); left out, the order is read.
    */
   order?: FilterOrder;
+  /**
+   * The board's fixed scope in force (D26 Q31): read-only at the head of
+   * the row, as 「固定范围」, with nothing to take it out by (D27).
+   */
+  fixed?: readonly FilterSummaryItem[] | undefined;
+  /**
+   * The one-column reading (below `md`): the bar is one button that opens
+   * every filter in a sheet from the bottom edge, what the reader cannot
+   * change read beside it (D26 Q38, `FilterSheet`).
+   */
+  narrow?: boolean;
 }
 
 /**
@@ -100,6 +115,8 @@ export function FilterBar({
   add,
   modes,
   order,
+  fixed = NO_FIXED,
+  narrow = false,
 }: FilterBarProps) {
   const messages = useViewMessages();
   // What the page hid is not on the bar; what it locked is, as a reading.
@@ -114,7 +131,8 @@ export function FilterBar({
   const land = useLanding();
   const groupingMode = modes?.grouping ?? 'editable';
   const grouping = groupingMode === 'hidden' ? null : dashboard.timeGrouping;
-  if (fields.length === 0 && grouping === null && !add) return null;
+  if (fields.length === 0 && grouping === null && !add && fixed.length === 0)
+    return null;
 
   const onTab = dashboard.panels.filter(panel => panel.tab === dashboard.tab);
   const reaching = filtersOnTab(onTab, dashboard.tab);
@@ -130,16 +148,9 @@ export function FilterBar({
   // (D22 I, 「来自「北区订单」」).
   const names = panelNames(dashboard.panels, messages);
 
-  return (
-    <div
-      ref={bar}
-      data-slot="dashboard-filter-bar"
-      role="region"
-      aria-label={messages.label('label.filters.bar')}
-      // A row that scrolls sideways when the screen is narrow (D22 J), and
-      // wraps where there is room.
-      className="flex flex-wrap items-center gap-2 max-md:flex-nowrap max-md:overflow-x-auto"
-    >
+  const scope = fixed.length > 0 && <FixedScope items={fixed} />;
+  const items = (
+    <>
       {sortable.wrap(
         fields.map((field, index) =>
           sortable.carry(field, index, carry =>
@@ -219,9 +230,62 @@ export function FilterBar({
           {messages.label('label.filters.clear')}
         </Button>
       )}
+    </>
+  );
+
+  if (narrow)
+    return (
+      <FilterSheet
+        listRef={bar}
+        count={
+          fields.filter(
+            field =>
+              filterModeOf(modes, field.name) === 'editable' &&
+              filters.values[field.name] !== undefined,
+          ).length
+        }
+        // Only for something to change: what the reader holds, or — while
+        // the board is built — every filter's settings.
+        opens={
+          clearable ||
+          Boolean(add) ||
+          (settings !== undefined && fields.length > 0)
+        }
+        held={
+          <>
+            {scope}
+            {fields.map(
+              field =>
+                filterModeOf(modes, field.name) === 'locked' && (
+                  <LockedChip
+                    key={field.name}
+                    field={field}
+                    dashboard={dashboard}
+                    beside
+                  />
+                ),
+            )}
+          </>
+        }
+      >
+        {items}
+      </FilterSheet>
+    );
+  return (
+    <div
+      ref={bar}
+      data-slot="dashboard-filter-bar"
+      role="region"
+      aria-label={messages.label('label.filters.bar')}
+      className="flex flex-wrap items-center gap-2"
+    >
+      {scope}
+      {items}
     </div>
   );
 }
+
+const NO_FIXED: readonly FilterSummaryItem[] = [];
 
 /**
  * What 「清空」 comes back to (`DashboardRuntime.clearFilters`): every
@@ -376,108 +440,6 @@ function FilterChip({
     </ControlFrame>
   );
 }
-
-/**
- * A filter the page locked (`DashboardFilterMode`): what it holds, said as
- * the applied band says a condition — 「客户 是 明远商贸」 — with a lock,
- * and no control: the page fixed it, and the reader reads it. Its settings
- * still stand beside it while the board is built.
- */
-function LockedChip({
-  field,
-  dashboard,
-  settings,
-  carry,
-}: {
-  field: DashboardField;
-  dashboard: DashboardController;
-  settings?: ReactNode;
-  carry?: FilterCarry;
-}) {
-  const messages = useViewMessages();
-  const display = useSurfaceDisplay();
-  const kinds = dashboard.kinds;
-  const leaf =
-    kinds &&
-    filterCondition(field, dashboard.filters.values[field.name], kinds);
-  const [item] =
-    leaf && kinds
-      ? describeFilter([field], { op: 'and', children: [leaf] }, kinds)
-      : [];
-  const reading = item
-    ? summaryText({ ...item, label: undefined }, messages, display)
-    : messages.label('label.embed.any');
-  return (
-    <LockedReading
-      slot="dashboard-filter"
-      name={field.name}
-      label={field.label}
-      reading={reading}
-      settings={settings}
-      carry={carry}
-    />
-  );
-}
-
-/** One reading the page fixed: its name, what it holds, and the lock. */
-function LockedReading({
-  slot,
-  name,
-  label,
-  reading,
-  settings,
-  carry,
-}: {
-  slot: string;
-  name?: string;
-  label: string;
-  reading: string;
-  settings?: ReactNode;
-  /** While the board is built, a locked filter is carried like the rest. */
-  carry?: FilterCarry;
-}) {
-  const messages = useViewMessages();
-  const locked = messages.label('label.embed.locked');
-  return (
-    <ControlFrame
-      ref={carry?.ref}
-      data-slot={slot}
-      data-filter={name}
-      data-locked=""
-      data-dragging={carry?.dragging || undefined}
-      role="group"
-      // 「客户（由页面设定）」: the lock is said, not only drawn.
-      aria-label={messages.label('label.embed.locked-name', {
-        filter: label,
-      })}
-      className={cn(CHIP, carry ? 'pl-0.5' : 'pl-2')}
-    >
-      {carry?.handle}
-      <span className="text-muted-foreground shrink-0 whitespace-nowrap">
-        {label}
-      </span>
-      <span data-slot="filter-reading" className="min-w-0 truncate">
-        {reading}
-      </span>
-      <IconTooltip
-        label={locked}
-        render={
-          <Button
-            data-slot="dashboard-filter-locked"
-            variant="ghost"
-            size="icon-xs"
-          />
-        }
-      >
-        <LockIcon />
-      </IconTooltip>
-      {settings}
-    </ControlFrame>
-  );
-}
-
-/** How a chip lays out its name, its control and its buttons in its frame. */
-const CHIP = 'flex min-w-0 shrink-0 items-center gap-1 py-0.5 pr-0.5 text-sm';
 
 /** The time grouping (整板 按日｜周｜月): one choice among the units offered. */
 function GroupingControl({

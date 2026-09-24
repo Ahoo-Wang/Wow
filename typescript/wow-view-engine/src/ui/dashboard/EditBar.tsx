@@ -37,13 +37,13 @@ export interface EditBarProps extends AddCommands {
   narrow: boolean;
   /** Leaves the building state; the board is then read as saved. */
   onLeave(): void;
-  /** Told of the instance a 完成 wrote, as a save from the title bar tells. */
+  /** Told of the instance a 保存 wrote, as a save from the title bar tells. */
   onSaved?(instance: ViewInstance): void;
   /** The bar's own name, where the keyboard lands when nothing else on the bar can take it. */
   landingRef: RefObject<HTMLParagraphElement | null>;
   /** 「＋ 添加」, where the keyboard returns after an add from a dialog. */
   addRef: RefObject<HTMLButtonElement | null>;
-  /** 「筛选 ＋」 beside 「＋ 添加」 (D22 G); a placement it is not, so narrow too. */
+  /** 「添加筛选」 beside 「＋ 添加」 (D22 G); a placement it is not, so narrow too. */
   addFilter?: ReactNode;
   /** 撤销 and 重做 (`useBoardHistory`), narrow too: every edit there is one. */
   history: BoardHistory;
@@ -53,18 +53,18 @@ export interface EditBarProps extends AddCommands {
 
 /**
  * The bar a board is built under (D22 A): 「正在编辑」 and what that means,
- * 撤销／重做 (one step of building each), 「＋ 添加 ▾」, and the two ways out — 取消 puts back the saved board, 完成
+ * 撤销／重做 (one step of building each), 「＋ 添加 ▾」, and the two ways out — 取消 puts back the saved board, 保存
  * saves it the way the title bar's Save does and leaves.
  *
- * 完成 is that save, not a second one: a shared board asks first, as Save
+ * 保存 is that save, not a second one: a shared board asks first, as Save
  * does (the question names the board, #1836); a board never saved asks for
  * its name and audience; and a write that did not land keeps the bar up,
  * with what became of it said under the title as ever (`WriteOutcome`).
- * Nothing to save is nothing to ask — 完成 just leaves.
+ * Nothing to save is nothing to ask — 保存 just leaves.
  *
  * 取消 asks before it throws edits away, in the words ↺ uses for the same
  * loss; a board never saved has nothing to go back to, so it has no 取消 —
- * 完成 or leaving the view are the ways out.
+ * 保存 or leaving the view are the ways out.
  */
 export function EditBar({
   commands,
@@ -174,10 +174,10 @@ export function EditBar({
           </Button>
         )}
         <Button
-          data-slot="dashboard-done"
+          data-slot="dashboard-save"
           size="sm"
           // A board whose draft cannot be saved says why in the status line
-          // above; 完成 waits for it, and 取消 is still there.
+          // above; 保存 waits for it, and 取消 is still there.
           disabled={busy || (state.dirty && state.hasErrors && !state.isNew)}
           onClick={done}
         >
@@ -189,7 +189,7 @@ export function EditBar({
           ) : (
             <CheckIcon data-icon="inline-start" />
           )}
-          {messages.label('label.dashboard.done')}
+          {messages.label('label.dashboard.save')}
         </Button>
       </div>
 
