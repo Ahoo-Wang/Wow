@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { FunctionKind } from "@ahoo-wang/fetcher-wow";
+import { FunctionKind } from "@ahoo-wang/wow-client";
 import { ChangeFunction } from "../ChangeFunction.tsx";
 import { TooltipProvider } from "@/components/ui/tooltip";
 

@@ -11,13 +11,13 @@
  * limitations under the License.
  */
 
-import type { CommandResult } from "@ahoo-wang/fetcher-wow";
-import { FunctionKind, type FunctionInfo } from "@ahoo-wang/fetcher-wow";
+import type { CommandResult } from "@ahoo-wang/wow-client";
+import { FunctionKind, type FunctionInfo } from "@ahoo-wang/wow-client";
 import type { ChangeFunction as ChangeFunctionCommand } from "../../generated";
 import { executionFailedCommandClient } from "../../services";
 import type { OnChangedCapable } from "./types.ts";
 import { useGlobalDrawer } from "../../components/GlobalDrawer";
-import { useExecutePromise } from "@ahoo-wang/fetcher-react";
+import { useExecutePromise } from "@ahoo-wang/fetcher-react/core";
 import type { ExchangeError } from "@ahoo-wang/fetcher";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";

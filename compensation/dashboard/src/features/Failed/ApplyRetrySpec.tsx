@@ -18,8 +18,8 @@ import type {
 import { executionFailedCommandClient } from "../../services";
 import { useGlobalDrawer } from "../../components/GlobalDrawer";
 import type { OnChangedCapable } from "./types.ts";
-import { useExecutePromise } from "@ahoo-wang/fetcher-react";
-import type { CommandResult } from "@ahoo-wang/fetcher-wow";
+import { useExecutePromise } from "@ahoo-wang/fetcher-react/core";
+import type { CommandResult } from "@ahoo-wang/wow-client";
 import type { ExchangeError } from "@ahoo-wang/fetcher";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";

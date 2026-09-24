@@ -14,7 +14,7 @@
 import { MemoryRouter } from "react-router";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { FunctionKind, RecoverableType } from "@ahoo-wang/fetcher-wow";
+import { FunctionKind, RecoverableType } from "@ahoo-wang/wow-client";
 import {
   ExecutionFailedStatus,
   type ExecutionFailedState,

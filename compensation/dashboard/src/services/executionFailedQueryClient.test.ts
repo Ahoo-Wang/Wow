@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { filter, pagedQuery, singleQuery } from "@ahoo-wang/fetcher-wow";
+import { filter, pagedQuery, singleQuery } from "@ahoo-wang/wow-client";
 import {
   aggregateExecutionFailedSnapshots,
   queryExecutionFailedPage,

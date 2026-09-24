@@ -13,10 +13,10 @@
 
 import type { ExecutionFailedAggregatedFields } from "../../../generated";
 import { type ExecutionFailedState } from "../../../generated";
-import { filter, singleQuery } from "@ahoo-wang/fetcher-wow";
+import { filter, singleQuery } from "@ahoo-wang/wow-client";
 import { FailedDetails } from "./FailedDetails.tsx";
 import { queryExecutionFailedState } from "../../../services";
-import { useSingleQuery } from "@ahoo-wang/fetcher-react";
+import { useSingleQuery } from "@ahoo-wang/wow-react";
 import type { FetcherError } from "@ahoo-wang/fetcher";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";

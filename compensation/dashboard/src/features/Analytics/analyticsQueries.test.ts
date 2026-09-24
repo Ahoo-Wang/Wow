@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { AggregationDateUnit } from "@ahoo-wang/fetcher-wow";
+import { AggregationDateUnit } from "@ahoo-wang/wow-client";
 import { describe, expect, it } from "vitest";
 import { ExecutionFailedStatus } from "../../generated";
 import { RetryConditions } from "../Failed/RetryConditions.ts";

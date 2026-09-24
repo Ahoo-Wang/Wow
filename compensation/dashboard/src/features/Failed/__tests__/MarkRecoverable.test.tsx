@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { RecoverableType } from "@ahoo-wang/fetcher-wow";
+import { RecoverableType } from "@ahoo-wang/wow-client";
 import { MarkRecoverable } from "../MarkRecoverable.tsx";
 
 const mocks = vi.hoisted(() => ({

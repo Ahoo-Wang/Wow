@@ -1,4 +1,4 @@
-import { AggregateId, BindingError, FunctionInfo, FunctionKind, RecoverableType } from "@ahoo-wang/fetcher-wow";
+import { AggregateId, BindingError, FunctionInfo, FunctionKind, RecoverableType } from "@ahoo-wang/wow-client";
 
 /**
  * apply_execution_failed
@@ -226,7 +226,7 @@ export interface CreateExecutionFailed {
     executeAt: number;
     function: FunctionInfo;
     recoverable: RecoverableType;
-    retrySpec: (null | RetrySpec);
+    retrySpec: globalThis.Exclude<(null | RetrySpec), string | number | boolean | readonly unknown[]> & ({ readonly [globalThis.Symbol.iterator]?: never } | null);
 }
 
 /**
@@ -464,6 +464,42 @@ export interface ExecutionFailedState {
 }
 
 /**
+ * - key: compensation.execution_failed.ExecutionFailedStateCursorPage
+ * - schema: 
+ * ```json
+ * {
+ *   "type": "object",
+ *   "properties": {
+ *     "list": {
+ *       "type": "array",
+ *       "items": {
+ *         "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedState"
+ *       }
+ *     },
+ *     "nextCursor": {
+ *       "anyOf": [
+ *         {
+ *           "type": "null"
+ *         },
+ *         {
+ *           "type": "string"
+ *         }
+ *       ]
+ *     }
+ *   },
+ *   "required": [
+ *     "list",
+ *     "nextCursor"
+ *   ]
+ * }
+ * ```
+ */
+export interface ExecutionFailedStateCursorPage {
+    list: ExecutionFailedState[];
+    nextCursor: (null | string);
+}
+
+/**
  * - key: compensation.execution_failed.ExecutionFailedStatus
  * - schema: 
  * ```json
@@ -478,9 +514,9 @@ export interface ExecutionFailedState {
  * ```
  */
 export enum ExecutionFailedStatus {
-    FAILED = `FAILED`,
-    PREPARED = `PREPARED`,
-    SUCCEEDED = `SUCCEEDED`
+    FAILED = 'FAILED',
+    PREPARED = 'PREPARED',
+    SUCCEEDED = 'SUCCEEDED'
 }
 
 /**
@@ -520,7 +556,7 @@ export interface ExecutionSuccessApplied {
  * }
  * ```
  */
-export type ForcePrepareCompensation = Record<string, any>;
+export type ForcePrepareCompensation = globalThis.Record<string, any>;
 
 /**
  * function_changed
@@ -596,7 +632,7 @@ export interface MarkRecoverable {
  * }
  * ```
  */
-export type PrepareCompensation = Record<string, any>;
+export type PrepareCompensation = globalThis.Record<string, any>;
 
 /**
  * recoverable_marked
@@ -761,6 +797,7 @@ export interface RetryState {
  *     "snapshotTime",
  *     "spaceId",
  *     "state",
+ *     "state.belowRetryThreshold",
  *     "state.error",
  *     "state.error.bindingErrors",
  *     "state.error.bindingErrors.msg",
@@ -776,10 +813,13 @@ export interface RetryState {
  *     "state.eventId.aggregateId.contextName",
  *     "state.eventId.aggregateId.tenantId",
  *     "state.eventId.id",
+ *     "state.eventId.initialVersion",
+ *     "state.eventId.initialized",
  *     "state.eventId.version",
  *     "state.executeAt",
  *     "state.function",
  *     "state.function.contextName",
+ *     "state.function.empty",
  *     "state.function.functionKind",
  *     "state.function.name",
  *     "state.function.processorName",
@@ -796,6 +836,7 @@ export interface RetryState {
  *     "state.retryState.retries",
  *     "state.retryState.retryAt",
  *     "state.retryState.timeoutAt",
+ *     "state.retryable",
  *     "state.status",
  *     "tags",
  *     "tenantId",
@@ -805,56 +846,61 @@ export interface RetryState {
  * ```
  */
 export enum ExecutionFailedAggregatedFields {
-    AGGREGATE_ID = `aggregateId`,
-    AGGREGATE_NAME = `aggregateName`,
-    CONTEXT_NAME = `contextName`,
-    DELETED = `deleted`,
-    EVENT_ID = `eventId`,
-    EVENT_TIME = `eventTime`,
-    FIRST_EVENT_TIME = `firstEventTime`,
-    FIRST_OPERATOR = `firstOperator`,
-    OPERATOR = `operator`,
-    OWNER_ID = `ownerId`,
-    SNAPSHOT_TIME = `snapshotTime`,
-    SPACE_ID = `spaceId`,
-    STATE = `state`,
-    STATE_ERROR = `state.error`,
-    STATE_ERROR_BINDING_ERRORS = `state.error.bindingErrors`,
-    STATE_ERROR_BINDING_ERRORS_MSG = `state.error.bindingErrors.msg`,
-    STATE_ERROR_BINDING_ERRORS_NAME = `state.error.bindingErrors.name`,
-    STATE_ERROR_ERROR_CODE = `state.error.errorCode`,
-    STATE_ERROR_ERROR_MSG = `state.error.errorMsg`,
-    STATE_ERROR_STACK_TRACE = `state.error.stackTrace`,
-    STATE_ERROR_SUCCEEDED = `state.error.succeeded`,
-    STATE_EVENT_ID = `state.eventId`,
-    STATE_EVENT_ID_AGGREGATE_ID = `state.eventId.aggregateId`,
-    STATE_EVENT_ID_AGGREGATE_ID_AGGREGATE_ID = `state.eventId.aggregateId.aggregateId`,
-    STATE_EVENT_ID_AGGREGATE_ID_AGGREGATE_NAME = `state.eventId.aggregateId.aggregateName`,
-    STATE_EVENT_ID_AGGREGATE_ID_CONTEXT_NAME = `state.eventId.aggregateId.contextName`,
-    STATE_EVENT_ID_AGGREGATE_ID_TENANT_ID = `state.eventId.aggregateId.tenantId`,
-    STATE_EVENT_ID_ID = `state.eventId.id`,
-    STATE_EVENT_ID_VERSION = `state.eventId.version`,
-    STATE_EXECUTE_AT = `state.executeAt`,
-    STATE_FUNCTION = `state.function`,
-    STATE_FUNCTION_CONTEXT_NAME = `state.function.contextName`,
-    STATE_FUNCTION_FUNCTION_KIND = `state.function.functionKind`,
-    STATE_FUNCTION_NAME = `state.function.name`,
-    STATE_FUNCTION_PROCESSOR_NAME = `state.function.processorName`,
-    STATE_ID = `state.id`,
-    STATE_IS_BELOW_RETRY_THRESHOLD = `state.isBelowRetryThreshold`,
-    STATE_IS_RETRYABLE = `state.isRetryable`,
-    STATE_RECOVERABLE = `state.recoverable`,
-    STATE_RETRY_SPEC = `state.retrySpec`,
-    STATE_RETRY_SPEC_EXECUTION_TIMEOUT = `state.retrySpec.executionTimeout`,
-    STATE_RETRY_SPEC_MAX_RETRIES = `state.retrySpec.maxRetries`,
-    STATE_RETRY_SPEC_MIN_BACKOFF = `state.retrySpec.minBackoff`,
-    STATE_RETRY_STATE = `state.retryState`,
-    STATE_RETRY_STATE_NEXT_RETRY_AT = `state.retryState.nextRetryAt`,
-    STATE_RETRY_STATE_RETRIES = `state.retryState.retries`,
-    STATE_RETRY_STATE_RETRY_AT = `state.retryState.retryAt`,
-    STATE_RETRY_STATE_TIMEOUT_AT = `state.retryState.timeoutAt`,
-    STATE_STATUS = `state.status`,
-    TAGS = `tags`,
-    TENANT_ID = `tenantId`,
-    VERSION = `version`
+    AGGREGATE_ID = 'aggregateId',
+    AGGREGATE_NAME = 'aggregateName',
+    CONTEXT_NAME = 'contextName',
+    DELETED = 'deleted',
+    EVENT_ID = 'eventId',
+    EVENT_TIME = 'eventTime',
+    FIRST_EVENT_TIME = 'firstEventTime',
+    FIRST_OPERATOR = 'firstOperator',
+    OPERATOR = 'operator',
+    OWNER_ID = 'ownerId',
+    SNAPSHOT_TIME = 'snapshotTime',
+    SPACE_ID = 'spaceId',
+    STATE = 'state',
+    STATE_BELOW_RETRY_THRESHOLD = 'state.belowRetryThreshold',
+    STATE_ERROR = 'state.error',
+    STATE_ERROR_BINDING_ERRORS = 'state.error.bindingErrors',
+    STATE_ERROR_BINDING_ERRORS_MSG = 'state.error.bindingErrors.msg',
+    STATE_ERROR_BINDING_ERRORS_NAME = 'state.error.bindingErrors.name',
+    STATE_ERROR_ERROR_CODE = 'state.error.errorCode',
+    STATE_ERROR_ERROR_MSG = 'state.error.errorMsg',
+    STATE_ERROR_STACK_TRACE = 'state.error.stackTrace',
+    STATE_ERROR_SUCCEEDED = 'state.error.succeeded',
+    STATE_EVENT_ID = 'state.eventId',
+    STATE_EVENT_ID_AGGREGATE_ID = 'state.eventId.aggregateId',
+    STATE_EVENT_ID_AGGREGATE_ID_AGGREGATE_ID = 'state.eventId.aggregateId.aggregateId',
+    STATE_EVENT_ID_AGGREGATE_ID_AGGREGATE_NAME = 'state.eventId.aggregateId.aggregateName',
+    STATE_EVENT_ID_AGGREGATE_ID_CONTEXT_NAME = 'state.eventId.aggregateId.contextName',
+    STATE_EVENT_ID_AGGREGATE_ID_TENANT_ID = 'state.eventId.aggregateId.tenantId',
+    STATE_EVENT_ID_ID = 'state.eventId.id',
+    STATE_EVENT_ID_INITIAL_VERSION = 'state.eventId.initialVersion',
+    STATE_EVENT_ID_INITIALIZED = 'state.eventId.initialized',
+    STATE_EVENT_ID_VERSION = 'state.eventId.version',
+    STATE_EXECUTE_AT = 'state.executeAt',
+    STATE_FUNCTION = 'state.function',
+    STATE_FUNCTION_CONTEXT_NAME = 'state.function.contextName',
+    STATE_FUNCTION_EMPTY = 'state.function.empty',
+    STATE_FUNCTION_FUNCTION_KIND = 'state.function.functionKind',
+    STATE_FUNCTION_NAME = 'state.function.name',
+    STATE_FUNCTION_PROCESSOR_NAME = 'state.function.processorName',
+    STATE_ID = 'state.id',
+    STATE_IS_BELOW_RETRY_THRESHOLD = 'state.isBelowRetryThreshold',
+    STATE_IS_RETRYABLE = 'state.isRetryable',
+    STATE_RECOVERABLE = 'state.recoverable',
+    STATE_RETRY_SPEC = 'state.retrySpec',
+    STATE_RETRY_SPEC_EXECUTION_TIMEOUT = 'state.retrySpec.executionTimeout',
+    STATE_RETRY_SPEC_MAX_RETRIES = 'state.retrySpec.maxRetries',
+    STATE_RETRY_SPEC_MIN_BACKOFF = 'state.retrySpec.minBackoff',
+    STATE_RETRY_STATE = 'state.retryState',
+    STATE_RETRY_STATE_NEXT_RETRY_AT = 'state.retryState.nextRetryAt',
+    STATE_RETRY_STATE_RETRIES = 'state.retryState.retries',
+    STATE_RETRY_STATE_RETRY_AT = 'state.retryState.retryAt',
+    STATE_RETRY_STATE_TIMEOUT_AT = 'state.retryState.timeoutAt',
+    STATE_RETRYABLE = 'state.retryable',
+    STATE_STATUS = 'state.status',
+    TAGS = 'tags',
+    TENANT_ID = 'tenantId',
+    VERSION = 'version'
 }

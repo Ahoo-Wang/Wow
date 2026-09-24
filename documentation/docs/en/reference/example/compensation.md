@@ -22,6 +22,7 @@ Check the domain, core, and console first:
 
 ```bash
 ./gradlew :wow-compensation-domain:check :wow-compensation-core:check
+pnpm --filter wow-compensation-dashboard^... build
 pnpm --dir compensation/dashboard exec vitest run
 ```
 
@@ -70,6 +71,7 @@ Expect `{"status":"UP"}` and `compensation.execution_failed.prepare_compensation
 Run and verify the Dashboard separately:
 
 ```bash
+pnpm --filter wow-compensation-dashboard^... build
 pnpm --dir compensation/dashboard dev
 ```
 

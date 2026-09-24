@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "files": {
+    "compensation/boundedContext.ts": "c8224683408336b206d4685a045f6db9322a9f13c75786bc13301b8b44f6b86c",
+    "compensation/execution_failed/commandClient.ts": "4a62adf80f7d4ff1f2b6c216963a0606e8920f108f8d49c6697aed4cc869d9a5",
+    "compensation/execution_failed/index.ts": "bd180919586fd2d243b06ff644f6f51ed8919242c58f155e284a2833be3229c6",
+    "compensation/execution_failed/queryClient.ts": "2c33f4f0cb4f744c6a39294e5a19e8ccb54d7fab9fa2fef24c37e588ce153cbb",
+    "compensation/execution_failed/types.ts": "02fb482719bf1b12abe686f075da8376422d5aaf78fd29d708eeb3c051c442fd",
+    "compensation/index.ts": "911a07ee6fcb51649feec772deea9a98e82822ff0992aea7d8c2f9feb3e4483e",
+    "compensation/types.ts": "f0b0231b5fb463e2fdb74f280337b5cd8aa75157d60c5df80b25992ca77365d1",
+    "index.ts": "84d2d07747b82299f979c66971e9a695c5441340e71d12433eb09f73649055a9"
+  }
+}

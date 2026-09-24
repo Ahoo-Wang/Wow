@@ -64,6 +64,7 @@ Run only the layers the change requires. Expand to aggregate tasks for shared ru
 The dashboard and documentation use their native commands:
 
 ```bash
+pnpm --filter wow-compensation-dashboard^... build
 pnpm --dir compensation/dashboard test
 pnpm --dir compensation/dashboard lint
 pnpm --dir compensation/dashboard build

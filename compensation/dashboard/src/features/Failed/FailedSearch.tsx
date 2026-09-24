@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { filter, type FilterExpression } from "@ahoo-wang/fetcher-wow";
+import { filter, type FilterExpression } from "@ahoo-wang/wow-client";
 import { Filter, LoaderCircle, Search, X } from "lucide-react";
 import { useMemo, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";

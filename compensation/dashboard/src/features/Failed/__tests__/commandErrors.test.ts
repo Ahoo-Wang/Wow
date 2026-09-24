@@ -1,5 +1,5 @@
 import type { ExchangeError } from "@ahoo-wang/fetcher";
-import type { CommandResult } from "@ahoo-wang/fetcher-wow";
+import type { CommandResult } from "@ahoo-wang/wow-client";
 import { describe, expect, it, vi } from "vitest";
 import { commandErrorMessage } from "../commandErrors.ts";
 

@@ -11,15 +11,15 @@
  * limitations under the License.
  */
 
-import { usePagedQuery } from "@ahoo-wang/fetcher-react";
-import type { DomainEventStream, PagedList } from "@ahoo-wang/fetcher-wow";
+import { usePagedQuery } from "@ahoo-wang/wow-react";
+import type { DomainEventStream, PagedList } from "@ahoo-wang/wow-client";
 import {
   desc,
   DomainEventStreamMetadataFields,
   filter,
   pagedList,
   pagedQuery,
-} from "@ahoo-wang/fetcher-wow";
+} from "@ahoo-wang/wow-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ExecutionFailedDomainEventType } from "../../../generated";
 import { executionFailedEventStreamQueryClient } from "../../../services";

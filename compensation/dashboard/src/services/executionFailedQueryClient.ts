@@ -18,7 +18,7 @@ import type {
   FilterPagedQuery,
   FilterSingleQuery,
   QueryClientOptions,
-} from "@ahoo-wang/fetcher-wow";
+} from "@ahoo-wang/wow-client";
 import type { ExecutionFailedAggregatedFields } from "../generated";
 
 const executionFailedQueryClientOptions: QueryClientOptions = {

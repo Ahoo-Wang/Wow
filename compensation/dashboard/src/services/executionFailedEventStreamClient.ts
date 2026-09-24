@@ -15,7 +15,7 @@ import { executionFailedQueryClientFactory } from "../generated";
 import type {
   AggregationQuery,
   DynamicDocument,
-} from "@ahoo-wang/fetcher-wow";
+} from "@ahoo-wang/wow-client";
 
 export const executionFailedEventStreamQueryClient =
   executionFailedQueryClientFactory.createEventStreamQueryClient({

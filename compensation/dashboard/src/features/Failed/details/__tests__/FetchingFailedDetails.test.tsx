@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { filter, singleQuery } from "@ahoo-wang/fetcher-wow";
+import { filter, singleQuery } from "@ahoo-wang/wow-client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExecutionFailedState } from "../../../../generated";
 import { FetchingFailedDetails } from "../FetchingFailedDetails.tsx";
@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   result: { id: "remote-A" } as ExecutionFailedState | null | undefined,
 }));
 
-vi.mock("@ahoo-wang/fetcher-react", () => ({
+vi.mock("@ahoo-wang/wow-react", () => ({
   useSingleQuery: (options: unknown) => {
     mocks.hookOptions = options;
     return {

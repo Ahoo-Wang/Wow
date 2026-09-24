@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { filter } from "@ahoo-wang/fetcher-wow";
+import { filter } from "@ahoo-wang/wow-client";
 import { describe, expect, it, vi } from "vitest";
 import { FailedSearch } from "../FailedSearch.tsx";
 
