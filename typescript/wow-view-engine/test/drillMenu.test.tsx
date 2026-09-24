@@ -492,7 +492,9 @@ describe('the follow-up menu on one group', () => {
     const said = menu()!.querySelector(
       '[data-slot="drill-group"]',
     )!.textContent;
-    expect(said).toBe('Amount in 500–1K');
+    // The band, written short; ICU spells en-GB's thousand `K` or `k`
+    // depending on its version, so only that letter is left open.
+    expect(said).toMatch(/^Amount in 500–1[Kk]$/);
 
     fireEvent.click(await item(defaultMessages['label.drill.records']));
     await originBar();
