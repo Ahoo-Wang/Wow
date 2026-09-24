@@ -46,6 +46,7 @@ import {
 /** Runtime entry points and a value each must export. */
 const ENTRIES = [
   ['@ahoo-wang/wow-client', 'filter'],
+  ['@ahoo-wang/wow-client/dsl', 'filter'],
   ['@ahoo-wang/wow-client/legacy', 'zh_CN'],
   ['@ahoo-wang/wow-react', 'useFetcherPagedQuery'],
   ['@ahoo-wang/wow-generator', 'CodeGenerator'],

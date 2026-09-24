@@ -19,12 +19,13 @@ Install `@ahoo-wang/fetcher` and `@ahoo-wang/wow-client`. This example assumes t
 import { Fetcher, HttpMethod } from '@ahoo-wang/fetcher';
 import {
   CommandClient,
-  CommandHeaders,
   CommandStage,
   SnapshotQueryClient,
+  commandHeaders,
   filter,
   pagedQuery,
   listQuery,
+  waitStrategy,
 } from '@ahoo-wang/wow-client';
 
 interface AddCartItem {
@@ -42,43 +43,73 @@ export function createCartClients(baseURL: string, ownerId: string) {
     basePath: 'owner/{ownerId}/cart',
     urlParams: { path: { ownerId } },
   };
-  const commands = new CommandClient<AddCartItem>(metadata);
+  const commands = new CommandClient(metadata);
   const snapshots = new SnapshotQueryClient<CartState>(metadata);
   const active = filter.and([
     filter.ownerId(ownerId),
     filter.eq('state.status', 'ACTIVE'),
   ]);
   return {
-    addItem: (body: AddCartItem) =>
-      commands.send({
+    addItem: (body: AddCartItem, requestId: string) =>
+      commands.send<AddCartItem>({
         path: 'add_cart_item',
         method: HttpMethod.POST,
         body,
-        headers: { [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT },
+        headers: {
+          ...commandHeaders({ requestId }),
+          ...waitStrategy({ stage: CommandStage.SNAPSHOT, timeoutMs: 10_000 }),
+        },
       }),
-    loadPage: (controller: AbortController) =>
+    loadPage: (signal: AbortSignal) =>
       snapshots.pagedState(
         pagedQuery({ filter: active, pagination: { index: 1, size: 20 } }),
         undefined,
-        controller,
+        signal,
       ),
-    streamStates: (controller: AbortController) =>
+    streamStates: (signal: AbortSignal) =>
       snapshots.listStateStream(
         listQuery({ filter: active, limit: 50 }),
         undefined,
-        controller,
+        signal,
       ),
   };
 }
 ```
 
-`createCartClients(apiOrigin, ownerId)` returns functions for adding an item, reading a first page, and streaming up to 50 states. `pagedState` returns `PagedList<CartState>` with list and total; state methods unwrap snapshot envelopes but filter field names still address the stored snapshot, hence `state.status`.
+`createCartClients(apiOrigin, ownerId)` returns functions for adding an item, reading a first page, and streaming up to 50 states. `CommandClient` is not generic: the body type is chosen per `send<C>` call. `commandHeaders()` and `waitStrategy()` build typed command headers and throw `TypeError` on invalid input. `pagedState` returns `PagedList<CartState>` with list and total; state methods unwrap snapshot envelopes but filter field names still address the stored snapshot, hence `state.status`.
 
 ## 3. Send once and inspect the result
 
-Await `clients.addItem({ productId: 'book-1', quantity: 2 })` and inspect the returned stage, errorCode and errorMsg according to your server's command contract. An HTTP success does not itself establish business success. `WAIT_STAGE: SNAPSHOT` requests that stage; it does not guarantee every projection is already queryable or that failures disappear. Use the server's request-ID policy when retrying a command whose outcome is uncertain.
+A command can fail in two ways, and both must stay visible:
 
-Only after deciding how to handle the command result, load the page with `clients.loadPage(controller)`. Catch transport failures separately from returned command failures. Pass a newly created AbortController to each independently owned query; call abort when its UI/task ends.
+- The server refuses the request (validation, a version conflict, a repeated request id): `send` rejects. `await toWowError(error)` turns the fetcher's error into a `WowError` with the server's `errorCode`, `errorMsg`, `bindingErrors` and HTTP `status`; it returns `undefined` when Wow did not answer at all (network failure, abort).
+- The command was accepted but its processing failed: `send` resolves, and the result's `errorCode` is not `ErrorCodes.SUCCEEDED`.
+
+```ts
+import { ErrorCodes, toWowError } from '@ahoo-wang/wow-client';
+import type { createCartClients } from './cart';
+
+export async function addBook(clients: ReturnType<typeof createCartClients>) {
+  try {
+    const result = await clients.addItem(
+      { productId: 'book-1', quantity: 2 },
+      crypto.randomUUID(),
+    );
+    if (result.errorCode !== ErrorCodes.SUCCEEDED) {
+      return { failed: result.errorCode, message: result.errorMsg };
+    }
+    return { stage: result.stage };
+  } catch (error) {
+    const wowError = await toWowError(error);
+    if (!wowError) throw error; // network failure, abort, proxy error page
+    return { failed: wowError.errorCode, message: wowError.errorMsg };
+  }
+}
+```
+
+`waitStrategy({ stage: CommandStage.SNAPSHOT })` requests that stage; it does not guarantee every projection is already queryable or that failures disappear. Reuse the same request id when retrying a command whose outcome is uncertain, so the server can refuse the duplicate (`ErrorCodes.DUPLICATE_REQUEST_ID`).
+
+Only after deciding how to handle the command result, load the page with `clients.loadPage(signal)`. Each query method takes `abort` as its last argument: an `AbortController`, or an `AbortSignal` — `AbortSignal.timeout(ms)`, or the `signal` a data library such as TanStack Query passes to its query function. Give each independently owned query its own signal and abort it when its UI/task ends.
 
 ## 4. Consume a bounded query stream
 
@@ -88,10 +119,7 @@ This standalone variant assumes a non-owner-scoped `cart` query path. Change it 
 import { Fetcher } from '@ahoo-wang/fetcher';
 import { SnapshotQueryClient, filter, listQuery } from '@ahoo-wang/wow-client';
 
-export async function printActiveStates(
-  baseURL: string,
-  controller: AbortController,
-) {
+export async function printActiveStates(baseURL: string, signal: AbortSignal) {
   const snapshots = new SnapshotQueryClient<{ status: string }>({
     fetcher: new Fetcher({ baseURL }),
     basePath: 'cart',
@@ -99,7 +127,7 @@ export async function printActiveStates(
   const stream = await snapshots.listStateStream(
     listQuery({ filter: filter.eq('state.status', 'ACTIVE'), limit: 50 }),
     undefined,
-    controller,
+    signal,
   );
   const reader = stream.getReader();
   let finished = false;
@@ -122,16 +150,16 @@ export async function printActiveStates(
 }
 ```
 
-The third method argument is the AbortController; the second is optional attributes. Stop a pending request or active stream by aborting the supplied controller. Both request creation and subsequent reads may reject, so catch the function's promise at the owner. Reader cleanup also runs when rendering/processing a row throws.
+The third method argument is `abort` (an AbortController or AbortSignal); the second is optional attributes. Stop a pending request or active stream by aborting it. Both request creation and subsequent reads may reject: when the server fails midway through a stream it still answered HTTP 200, so the error arrives as an error event, and `reader.read()` (or a `for await` loop) throws a `WowError`. Catch the function's promise at the owner. Reader cleanup also runs when rendering/processing a row throws.
 
 ## 5. Verify the boundary
 
-Mock fetch and assert command path/body/WAIT_STAGE, query JSON, one-based pagination and Accept for the SSE call. Return a documented command result fixture and a `{list: [], total: 0}` page fixture separately. Do not infer consistency from a mock: confirm command stages and snapshot visibility against your real service in an integration test.
+Mock fetch and assert command path/body/`Command-Wait-Stage`, query JSON, one-based pagination and Accept for the SSE call. Return a documented command result fixture and a `{list: [], total: 0}` page fixture separately. Do not infer consistency from a mock: confirm command stages and snapshot visibility against your real service in an integration test.
 
 Array-first filter builders require one nonempty array; empty input throws before execution. Use `filter.matchAll()` intentionally for an unfiltered query. For larger result sets choose [cursor queries](../../reference/typescript/wow-client/cursor-queries); for server calculations use [aggregations](../../reference/typescript/wow-client/aggregations). Neither is required to fetch this first page.
 
 See [commands](../../reference/typescript/wow-client/commands), [snapshot queries](../../reference/typescript/wow-client/snapshot-queries), [filters](../../reference/typescript/wow-client/filters), and [pagination/projection/sort](../../reference/typescript/wow-client/query-options).
 
-[snapshotQueryClient.ts:326](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshotQueryClient.ts#L326) defines the stream arguments.
+[snapshotQueryClient.ts:335](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshotQueryClient.ts#L335) defines the stream arguments.
 
 [Review integration boundaries](https://fetcher.ahoo.me/architecture/integration-decisions); [return to this task group](./index.md).

@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client — 197 names, from src/index.ts.
+# @ahoo-wang/wow-client — 208 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 value AGGREGATION_LIMITS
@@ -20,6 +20,7 @@ value AggregationFunction
 type  AggregationGroup
 value AggregationGroupType
 type  AggregationMetric
+type  AggregationMetricOptions
 value AggregationMetricType
 type  AggregationQuery
 type  AliasAggregate
@@ -39,6 +40,7 @@ type  CalendarFilter
 type  CollectionFilter
 type  CommandBody
 value CommandClient
+type  CommandHeaderOptions
 value CommandHeaders
 type  CommandId
 type  CommandRequest
@@ -47,8 +49,10 @@ type  CommandResult
 type  CommandResultArray
 type  CommandResultCapable
 type  CommandResultEventStream
+value CommandResultEventStreamResultExtractor
 value CommandStage
 type  CommandStageCapable
+type  CommandStageName
 type  CommandUrlParams
 type  ComparableFilterLiteral
 type  ComparisonFilter
@@ -60,7 +64,6 @@ type  CreateTimeCapable
 type  CursorPage
 type  CursorQuery
 value DEFAULT_CURSOR_SIZE
-value DEFAULT_OWNER_ID
 value DEFAULT_PAGINATION
 value DEFAULT_PROJECTION
 type  DateHistogramAggregationGroup
@@ -88,12 +91,12 @@ type  ElementLogicalFilter
 type  ElementMatchFilter
 type  EqualityFilter
 type  EqualityFilterValue
+type  ErrorCode
 value ErrorCodes
 type  ErrorInfo
 type  EventIdCapable
 type  EventStreamQueryApi
 value EventStreamQueryClient
-value EventStreamQueryEndpointPaths
 type  EventTimeCapable
 type  FieldAggregationExpression
 type  FieldPresenceFilter
@@ -117,9 +120,7 @@ type  HistogramAggregationGroup
 type  HistogramAggregationOptions
 type  Identifier
 value LoadOwnerStateAggregateClient
-value LoadOwnerStateAggregateEndpointPaths
 value LoadStateAggregateClient
-value LoadStateAggregateEndpointPaths
 type  LogicalField
 type  LogicalFilter
 value MAX_CURSOR_SIZE
@@ -141,11 +142,13 @@ type  OwnerId
 type  PagedList
 type  Pagination
 type  PercentileAggregationMetric
+type  PercentileAggregationOptions
 type  Projection
 type  ProjectionCapable
 type  QueryApi
 value QueryClientFactory
 type  QueryClientOptions
+value QueryEventStreamResultExtractor
 type  QueryField
 type  ReadableDomainEventStream
 type  RecoverAggregate
@@ -163,7 +166,6 @@ type  SmallMaterializedSnapshot
 value SnapshotMetadataFields
 type  SnapshotQueryApi
 value SnapshotQueryClient
-value SnapshotQueryEndpointPaths
 type  SnapshotTimeCapable
 type  SortCapable
 value SortDirection
@@ -174,27 +176,36 @@ value StringComparison
 type  StringFilter
 type  TenantId
 type  TermsAggregationGroup
+type  TermsAggregationOptions
 value TimeUnit
 type  UrlPathParams
 type  Version
 value WILDCARD_ABAC_TAG_VALUES
+type  WaitChainOptions
 type  WaitCommandIdCapable
+type  WaitFunction
 type  WaitSignal
+type  WaitStageOptions
+type  WaitStrategyOptions
+value WowError
+type  WowErrorCode
+type  WowErrorOptions
 value WowHeaders
 type  WowMetadata
+value WowMetadataClient
 value aggregation
 value asc
-value createQueryApiMetadata
+value commandHeaders
 value cursorQuery
 value defaultProjection
 value desc
-value effectiveSort
 value filter
-value getPropertyValue
+value isErrorInfo
 value listQuery
 value pagedList
 value pagedQuery
 value pagination
 value projection
-value requireElementScopedFilter
 value singleQuery
+value toWowError
+value waitStrategy

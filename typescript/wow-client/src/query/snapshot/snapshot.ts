@@ -19,7 +19,6 @@ import type {
   EventTimeCapable,
   FirstEventTimeCapable,
   FirstOperatorCapable,
-  NamedAggregate,
   OperatorCapable,
   OwnerId,
   SnapshotTimeCapable,
@@ -56,11 +55,13 @@ export interface MaterializedSnapshot<S>
  * This interface is designed to be generic, capable of holding state data of any type.
  * Each snapshot corresponds to a specific version of the state within a tenant and owner context,
  * and records information such as event IDs and operation times to support tracing and auditing.
+ *
+ * Mirrors `MediumMaterializedSnapshot` in
+ * `wow-api/src/main/kotlin/me/ahoo/wow/api/query/MediumMaterializedSnapshot.kt`.
  */
 export interface MediumMaterializedSnapshot<S>
   extends
     StateCapable<S>,
-    NamedAggregate,
     TenantId,
     OwnerId,
     SpaceIdCapable,
@@ -76,9 +77,12 @@ export interface MediumMaterializedSnapshot<S>
  * Interface for simplified materialized snapshots with generic state.
  *
  * This interface implements multiple interfaces to provide version, materialization, first event time, and state information.
+ *
+ * Mirrors `SmallMaterializedSnapshot` in
+ * `wow-api/src/main/kotlin/me/ahoo/wow/api/query/SmallMaterializedSnapshot.kt`.
  */
 export interface SmallMaterializedSnapshot<S>
-  extends StateCapable<S>, NamedAggregate, Version, FirstEventTimeCapable {}
+  extends StateCapable<S>, Version, FirstEventTimeCapable {}
 
 /**
  * Provides field names for snapshot metadata.

@@ -5,20 +5,23 @@
 - [Installation](#installation)
 - [Core Concepts](#core-concepts)
 - [Package Imports](#package-imports)
+  - [Entry Points](#entry-points)
 - [CommonJS](#commonjs)
 - [Constructors (All Use ApiMetadata)](#constructors-all-use-apimetadata)
-- [CommandClient<C>](#commandclientc)
+- [CommandClient](#commandclient)
   - [Setup](#setup)
-  - [send(commandRequest, attributes?)](#sendcommandrequest-attributes)
-  - [sendAndWaitStream(commandRequest, attributes?)](#sendandwaitstreamcommandrequest-attributes)
+  - [send<C>(commandRequest, attributes?)](#sendccommandrequest-attributes)
+  - [sendAndWaitStream<C>(commandRequest, attributes?)](#sendandwaitstreamccommandrequest-attributes)
   - [CommandStage Values](#commandstage-values)
-  - [CommandHeaders Constants](#commandheaders-constants)
+  - [Command Headers](#command-headers)
   - [CommandRequest<C>](#commandrequestc)
   - [CommandResult Fields](#commandresult-fields)
+- [Errors](#errors)
 - [SnapshotQueryClient<S, FIELDS>](#snapshotqueryclients-fields)
   - [Setup](#setup-1)
   - [Query Methods](#query-methods)
   - [Aggregation Methods](#aggregation-methods)
+  - [Query cancellation](#query-cancellation)
   - [ID-Based Lookup Methods](#id-based-lookup-methods)
 - [EventStreamQueryClient<DomainEventBody, FIELDS>](#eventstreamqueryclientdomaineventbody-fields)
   - [Setup](#setup-2)
@@ -29,10 +32,11 @@
   - [Setup](#setup-3)
   - [ResourceAttributionPathSpec](#resourceattributionpathspec)
   - [Factory Methods](#factory-methods)
+- [WowMetadataClient](#wowmetadataclient)
 - [Cursor Queries](#cursor-queries)
 - [Filter Expressions](#filter-expressions)
 - [AggregationQuery](#aggregationquery)
-- [Query DSL Conditions](#query-dsl-conditions)
+- [Query DSL Conditions (Deprecated)](#query-dsl-conditions-deprecated)
   - [Comparison Operators](#comparison-operators)
   - [String Operators](#string-operators)
   - [Collection Operators](#collection-operators)
@@ -59,7 +63,7 @@ The `@ahoo-wang/wow-client` package (formerly `@ahoo-wang/fetcher-wow`) provides
 pnpm add @ahoo-wang/wow-client @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-eventstream
 ```
 
-`@ahoo-wang/fetcher`, `@ahoo-wang/fetcher-decorator`, and `@ahoo-wang/fetcher-eventstream` stay in the fetcher project under their own names and are peer dependencies of `@ahoo-wang/wow-client`. Migrating from `@ahoo-wang/fetcher-wow` means replacing the package name in dependencies and imports; the exported API keeps its names.
+`@ahoo-wang/fetcher`, `@ahoo-wang/fetcher-decorator`, and `@ahoo-wang/fetcher-eventstream` stay in the fetcher project under their own names and are peer dependencies of `@ahoo-wang/wow-client`. Migrating from `@ahoo-wang/fetcher-wow` means replacing the package name in dependencies and imports, importing the deprecated `Condition` API from `@ahoo-wang/wow-client/legacy`, and adapting to the first release's API changes: `ErrorCodes` is a frozen object (no `isSucceeded`/`isError`; compare with `ErrorCodes.SUCCEEDED`), failed calls are read with `toWowError`, `CommandClient` is not generic (`send<C>(…)`), command headers are typed and built with `commandHeaders()`/`waitStrategy()`, the last query parameter is `abort?: AbortController | AbortSignal`, aggregation builders take `(target, alias, options?)`, `createOwnerLoadStateAggregateClient` is `createLoadOwnerStateAggregateClient`, and `getPropertyValue`, `createQueryApiMetadata`, `DEFAULT_OWNER_ID`, `effectiveSort`, `requireElementScopedFilter` and the `*EndpointPaths` constants are gone. See the migration guide in the Wow documentation (`guide/typescript/migration`).
 
 ## Core Concepts
 
@@ -73,23 +77,33 @@ The Wow framework implements CQRS + Event Sourcing + DDD:
 ## Package Imports
 
 ```typescript
-import '@ahoo-wang/fetcher-eventstream'; // Optional: SSE support; a peer dependency that wow-client already loads
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
-import { ContentTypeValues, HttpMethod } from '@ahoo-wang/fetcher';
+import { HttpMethod } from '@ahoo-wang/fetcher';
 import {
   // Command
   CommandClient,
   CommandHeaders,
   CommandStage,
+  commandHeaders,
+  waitStrategy,
+  WowHeaders,
+  // Errors
+  ErrorCodes,
+  WowError,
+  toWowError,
+  isErrorInfo,
   // Query clients
   SnapshotQueryClient,
   EventStreamQueryClient,
   QueryClientFactory,
   LoadStateAggregateClient,
   LoadOwnerStateAggregateClient,
+  WowMetadataClient,
   ResourceAttributionPathSpec,
+  // Query DSL (also exported by '@ahoo-wang/wow-client/dsl')
   SortDirection,
   aggregation,
+  AGGREGATION_LIMITS,
   AggregationGroupType,
   AggregationMetricType,
   AggregationExpressionType,
@@ -103,14 +117,49 @@ import {
   TimeUnit,
   filter,
   listQuery,
+  pagedQuery,
+  singleQuery,
   DEFAULT_CURSOR_SIZE,
   MAX_CURSOR_SIZE,
   MAX_CURSOR_SORT_FIELDS,
   cursorQuery,
-  // Sort helpers
   asc,
   desc,
-  // Deprecated Condition builders (compatibility only)
+  // Types
+  type CommandRequest,
+  type CommandRequestHeaders,
+  type CommandResult,
+  type CommandBody,
+  type ErrorCode,
+  type ErrorInfo,
+  type MaterializedSnapshot,
+  type PagedList,
+  type FilterExpression,
+  type QueryField,
+  type ElementFilterExpression,
+  type MetadataFilter,
+  type EqualityFilterValue,
+  type SearchFilterOptions,
+  type RelativeTimeFilterOptions,
+  type FilterListQuery,
+  type FilterPagedQuery,
+  type FilterSingleQuery,
+  type CursorQuery,
+  type CursorPage,
+  type AggregationQuery,
+  type AggregationElement,
+  type AggregationGroup,
+  type AggregationMetric,
+  type AggregationMetricOptions,
+  type TermsAggregationOptions,
+  type HistogramAggregationOptions,
+  type DateHistogramAggregationOptions,
+  type PercentileAggregationOptions,
+  type DynamicDocument,
+} from '@ahoo-wang/wow-client';
+
+// Deprecated Condition API, only for Wow 8.10 servers; removed in v10.
+import {
   and,
   or,
   nor,
@@ -155,38 +204,34 @@ import {
   aggregateIds,
   tenantId,
   ownerId,
-  // Types
-  type CommandRequest,
-  type CommandResult,
-  type CommandBody,
-  type MaterializedSnapshot,
-  type PagedList,
+  Operator,
+  en_US,
+  zh_CN,
+  type Condition,
   type ListQuery,
   type PagedQuery,
   type SingleQuery,
-  type FilterExpression,
-  type QueryField,
-  type ElementFilterExpression,
-  type MetadataFilter,
-  type EqualityFilterValue,
-  type SearchFilterOptions,
-  type RelativeTimeFilterOptions,
-  type FilterListQuery,
-  type FilterPagedQuery,
-  type FilterSingleQuery,
-  type CursorQuery,
-  type CursorPage,
   type ListQueryRequest,
   type PagedQueryRequest,
   type SingleQueryRequest,
-  type AggregationQuery,
-  type AggregationElement,
-  type AggregationGroup,
-  type AggregationMetric,
-  type HistogramAggregationOptions,
-  type DateHistogramAggregationOptions,
-  type DynamicDocument,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/legacy';
+```
+
+The `/legacy` entry also has `listQuery`, `pagedQuery` and `singleQuery`, which build `Condition` queries; import them under another name if a file needs both.
+
+### Entry Points
+
+| Import | Contents |
+|---|---|
+| `@ahoo-wang/wow-client` | Everything except the `/legacy` API: clients, `QueryClientFactory`, `WowMetadataClient`, errors, headers and their builders, `QueryEventStreamResultExtractor` / `CommandResultEventStreamResultExtractor`, and the query DSL. |
+| `@ahoo-wang/wow-client/dsl` | The query DSL alone — `filter`, `aggregation`, sort, projection, pagination, `cursorQuery`, the query factories and `Filter*` types, `DeletionState`, `DynamicDocument`, `SnapshotMetadataFields`, `DomainEventStreamMetadataFields` — with no HTTP code: no Fetcher, decorators, `reflect-metadata` or event-stream patches. Use it in code that only builds queries. |
+| `@ahoo-wang/wow-client/legacy` | The deprecated `Condition` API for Wow 8.10 servers (builders, `Operator`, `Condition`-based query types and factories, operator locales). Removed in v10. |
+
+```typescript
+import { aggregation, filter, pagedQuery } from '@ahoo-wang/wow-client/dsl';
+
+export const paidPage = pagedQuery({ filter: filter.eq('state.status', 'PAID') });
+export const byStatus = aggregation.terms('state.status', 'status');
 ```
 
 ---
@@ -249,26 +294,26 @@ Alternatively, CoSec's resource-attribution interceptor can fill `{tenantId}`/`{
 
 ### Space Attribution
 
-For space-scoped aggregates, `CommandHeaders.SPACE_ID` (`Wow-Space-Id`, the same value as `WowHeaders.SPACE_ID`) attributes a command to a space, and the `spaceId(value)` condition filters queries by space. Snapshots expose `spaceId` via `MaterializedSnapshot`.
+For space-scoped aggregates, `CommandHeaders.SPACE_ID` (`Wow-Space-Id`, the same value as `WowHeaders.SPACE_ID`) attributes a command to a space, and `filter.spaceId(value)` filters queries by space (`commandHeaders({ spaceId })` builds the command header). Snapshots expose `spaceId` via `MaterializedSnapshot`.
 
 ---
 
-## CommandClient<C>
+## CommandClient
 
-Sends commands to modify aggregate state.
+Sends commands to modify aggregate state. The client is not generic: the body type is chosen per call, so one client sends every command of an aggregate.
 
 ### Setup
 
 ```typescript
-const commandClient = new CommandClient<AddCartItem>({
+const commandClient = new CommandClient({
   fetcher,
   basePath: 'owner/{ownerId}/cart',
 });
 ```
 
-### send(commandRequest, attributes?)
+### send<C>(commandRequest, attributes?)
 
-Sends a command and waits for a `CommandResult`. The `CommandRequest` carries the command path and request configuration.
+Sends a command and resolves to the `CommandResult` of the stage it waited for (`PROCESSED` unless the headers say otherwise). A command whose processing failed resolves too, with the failure in `result.errorCode`; a request the server refuses rejects — read it with `toWowError` (see [Errors](#errors)).
 
 ```typescript
 interface AddCartItem {
@@ -276,35 +321,47 @@ interface AddCartItem {
   quantity: number;
 }
 
-const result: CommandResult = await commandClient.send({
+const result: CommandResult = await commandClient.send<AddCartItem>({
   path: 'add_cart_item',
   method: HttpMethod.POST,
+  urlParams: { path: { ownerId: 'owner-123' } },
   headers: {
-    [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
+    ...commandHeaders({ requestId: crypto.randomUUID() }),
+    ...waitStrategy({ stage: CommandStage.SNAPSHOT, timeoutMs: 10_000 }),
   },
   body: {
     productId: 'product-123',
     quantity: 2,
   },
 });
+if (result.errorCode !== ErrorCodes.SUCCEEDED) {
+  throw new Error(`${result.errorCode}: ${result.errorMsg}`);
+}
 ```
 
-### sendAndWaitStream(commandRequest, attributes?)
+### sendAndWaitStream<C>(commandRequest, attributes?)
 
-Sends a command and receives results as a `Promise<CommandResultEventStream>` (a `ReadableStream<JsonServerSentEvent<CommandResult>>`).
+Sends a command and receives one `CommandResult` per stage it reaches, as a `Promise<CommandResultEventStream>` (a `ReadableStream<JsonServerSentEvent<CommandResult>>`). The method sets `Accept: text/event-stream` itself. When the server fails midway (for example the wait times out) the stream errors with a `WowError`, so the `for await` throws; a result whose own `errorCode` is not `Ok` is still delivered as a result.
 
 ```typescript
-const stream = await commandClient.sendAndWaitStream({
+const stream = await commandClient.sendAndWaitStream<AddCartItem>({
   path: 'add_cart_item',
   method: HttpMethod.POST,
-  headers: { Accept: ContentTypeValues.TEXT_EVENT_STREAM },
+  headers: waitStrategy({ stage: CommandStage.PROJECTED }),
   body: { productId: 'product-123', quantity: 2 },
 });
 
-for await (const event of stream) {
-  console.log('Received:', event.data); // CommandResult
+try {
+  for await (const event of stream) {
+    console.log('Reached:', event.data.stage); // CommandResult
+  }
+} catch (error) {
+  if (error instanceof WowError) console.warn(error.errorCode, error.errorMsg);
+  throw error;
 }
 ```
+
+A generated or hand-written command client gets the same behaviour by using `CommandResultEventStreamResultExtractor` as its `resultExtractor`.
 
 ### CommandStage Values
 
@@ -315,7 +372,9 @@ for await (const event of stream) {
 - `EVENT_HANDLED` - Events processed by event handlers
 - `SAGA_HANDLED` - Events processed by Saga
 
-### CommandHeaders Constants
+### Command Headers
+
+`CommandHeaders` and `WowHeaders` are frozen `as const` objects of header names (each value a string literal type):
 
 - `CommandHeaders.TENANT_ID` - Tenant context (`Command-Tenant-Id`)
 - `CommandHeaders.OWNER_ID` - Owner context (`Command-Owner-Id`)
@@ -323,18 +382,39 @@ for await (const event of stream) {
 - `CommandHeaders.AGGREGATE_ID` - Aggregate root ID (`Command-Aggregate-Id`)
 - `CommandHeaders.AGGREGATE_VERSION` - Expected version (`Command-Aggregate-Version`)
 - `CommandHeaders.WAIT_STAGE` - Wait stage (`Command-Wait-Stage`)
-- `CommandHeaders.WAIT_TIME_OUT` - Wait timeout (`Command-Wait-Timeout`)
-- `CommandHeaders.WAIT_CONTEXT` - Wait context (`Command-Wait-Context`)
-- `CommandHeaders.WAIT_PROCESSOR` - Wait processor (`Command-Wait-Processor`)
-- `CommandHeaders.WAIT_FUNCTION` - Wait function (`Command-Wait-Function`)
+- `CommandHeaders.WAIT_TIME_OUT` - Wait timeout in milliseconds (`Command-Wait-Timeout`)
+- `CommandHeaders.WAIT_CONTEXT` / `WAIT_PROCESSOR` / `WAIT_FUNCTION` - What the wait stage refers to (`Command-Wait-Context`, `-Processor`, `-Function`)
+- `CommandHeaders.WAIT_TAIL_STAGE` / `WAIT_TAIL_CONTEXT` / `WAIT_TAIL_PROCESSOR` / `WAIT_TAIL_FUNCTION` - Wait-chain tail (`Command-Wait-Tail-*`), only with `SAGA_HANDLED`
 - `CommandHeaders.REQUEST_ID` - Request ID for idempotency (`Command-Request-Id`)
 - `CommandHeaders.LOCAL_FIRST` - Prefer local processing (`Command-Local-First`)
-- `CommandHeaders.COMMAND_TYPE` - Command type (`Command-Type`)
+- `CommandHeaders.COMMAND_AGGREGATE_CONTEXT` / `COMMAND_AGGREGATE_NAME` / `COMMAND_TYPE` - For the generic `/wow/command/send` route, which has no dedicated method: send to it with `CommandClient` and these headers
+- `CommandHeaders.COMMAND_HEADER_X_PREFIX` - `Command-Header-`, custom headers copied into the command header
+- `WowHeaders.ERROR_CODE` - `Wow-Error-Code` response header
+
+`CommandRequestHeaders` makes every command header optional and types it by what the server parses: wait stages are `CommandStageName` (`CommandStage` or its name), `Command-Aggregate-Version` and `Command-Wait-Timeout` are `` `${number}` ``, `Command-Local-First` is `'true' | 'false'`. Other headers (`Authorization`, `Command-Header-*`) stay allowed as strings. Build them with the two helpers; both omit what you leave out and throw `TypeError` on invalid input:
+
+```typescript
+// Who the command is for. aggregateVersion: non-negative integer.
+commandHeaders({ tenantId, ownerId, spaceId, aggregateId, aggregateVersion: 3, requestId, localFirst: true });
+
+// What the server waits for before answering. timeoutMs: positive integer.
+waitStrategy({ stage: CommandStage.SNAPSHOT, timeoutMs: 5_000 });
+
+// Wait chain: a saga handles the events, then the command it sends reaches tail.stage.
+// A tail with any stage other than SAGA_HANDLED is a type error and throws.
+waitStrategy({
+  stage: CommandStage.SAGA_HANDLED,
+  processor: 'TransferSaga',
+  tail: { stage: CommandStage.PROCESSED, context: 'account' },
+});
+```
+
+Option types: `CommandHeaderOptions`, `WaitFunction` (`context`, `processor`, `function`), `WaitStageOptions`, `WaitChainOptions`, `WaitStrategyOptions`.
 
 ### CommandRequest<C>
 
 ```typescript
-interface CommandRequest<C extends object> extends ParameterRequest<
+interface CommandRequest<C extends object = object> extends ParameterRequest<
   CommandBody<C>
 > {
   urlParams?: CommandUrlParams;
@@ -345,9 +425,35 @@ interface CommandRequest<C extends object> extends ParameterRequest<
 
 ### CommandResult Fields
 
-`CommandResult` extends: Identifier, WaitCommandIdCapable, CommandStageCapable, NamedBoundedContext, AggregateNameCapable, AggregateId, ErrorInfo, CommandId, RequestId, FunctionInfoCapable, CommandResultCapable, SignalTimeCapable, NullableAggregateVersionCapable.
+`CommandResult` extends: Identifier, WaitCommandIdCapable, CommandStageCapable, NamedBoundedContext, AggregateNameCapable, AggregateId, CommandId, RequestId, ErrorInfo, FunctionInfoCapable, CommandResultCapable, SignalTimeCapable, NullableAggregateVersionCapable.
 
 Key fields: `id`, `waitCommandId`, `stage`, `contextName`, `aggregateName`, `aggregateId`, `aggregateVersion?`, `commandId`, `requestId`, `errorCode`, `errorMsg`, `bindingErrors?`, `signalTime`, `result`.
+
+---
+
+## Errors
+
+A Wow call fails in one of three ways:
+
+- **The server refuses the request** (HTTP 4xx/5xx): the Promise rejects with the fetcher's error. `await toWowError(error)` returns a `WowError` read from the response's `ErrorInfo` body (through a clone), or from its `Wow-Error-Code` header.
+- **A server-sent event stream fails midway**: Wow answers HTTP 200 and sends a last event named after the error code with an `ErrorInfo` body. Every built-in stream (`listStream`, `listStateStream`, `aggregateStream`, event `loadStream`, `sendAndWaitStream`) then errors with a `WowError`, so `for await` throws.
+- **Wow never answered** (network failure, timeout, abort, a proxy's error page): `toWowError` returns `undefined`; handle the original error.
+
+```typescript
+try {
+  return await snapshotClient.getStateById(id);
+} catch (error) {
+  const wowError = await toWowError(error);
+  if (wowError?.errorCode === ErrorCodes.NOT_FOUND) return undefined;
+  throw wowError ?? error;
+}
+```
+
+- `WowError extends Error`: `name = 'WowError'`, `errorCode: ErrorCode`, `errorMsg` (empty when absent), `bindingErrors` (empty array when absent), optional `status` (HTTP status) and `cause`. `new WowError(errorInfo, { status?, cause? })`.
+- `isErrorInfo(value)` is the `ErrorInfo` type guard.
+- `ErrorCodes` is a frozen `as const` object: `SUCCEEDED` (`'Ok'`), `NOT_FOUND`, `BAD_REQUEST`, `ILLEGAL_ARGUMENT`, `ILLEGAL_STATE`, `REQUEST_TIMEOUT`, `TOO_MANY_REQUESTS`, `DUPLICATE_REQUEST_ID`, `COMMAND_VALIDATION`, `REWRITE_NO_COMMAND`, `EVENT_VERSION_CONFLICT`, `DUPLICATE_AGGREGATE_ID`, `COMMAND_EXPECT_VERSION_CONFLICT`, `SOURCING_VERSION_CONFLICT`, `ILLEGAL_ACCESS_DELETED_AGGREGATE`, `ILLEGAL_ACCESS_OWNER_AGGREGATE`, `ILLEGAL_ACCESS_SPACE_AGGREGATE`, `INTERNAL_SERVER_ERROR`, `QUERY_SCHEMA_VALIDATION`, `QUERY_SCHEMA_CONFLICT`, `QUERY_SCHEMA_UNAVAILABLE`, `BATCH_TASK_ERROR`. There is no `isSucceeded`/`isError`: compare `errorCode === ErrorCodes.SUCCEEDED`.
+- `WowErrorCode` is the union of those values; `ErrorCode = WowErrorCode | (string & {})` also admits application codes. `ErrorInfo.errorCode` is `ErrorCode`.
+- `RecoverableType`: `RECOVERABLE` (retrying may succeed), `UNRECOVERABLE` (retrying will not help), `UNKNOWN` (cannot be determined).
 
 ---
 
@@ -415,12 +521,12 @@ const stateCursorPage = await snapshotClient.cursorState(
 
 // Single snapshot
 const snapshot = await snapshotClient.single({
-  filter: filter.eq('aggregateId', 'cart-123'),
+  filter: filter.aggregateId('cart-123'),
 });
 
 // Single state
 const state = await snapshotClient.singleState({
-  filter: filter.eq('aggregateId', 'cart-123'),
+  filter: filter.aggregateId('cart-123'),
 });
 ```
 
@@ -463,8 +569,8 @@ aggregate<
   AGGREGATION_FIELDS extends string = string,
 >(
   query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>,
-  attributes?: Record<string, any>,
-  abortController?: AbortController,
+  attributes?: Record<string, unknown>,
+  abort?: AbortController | AbortSignal,
 ): Promise<Row[]>;
 
 aggregateStream<
@@ -472,8 +578,8 @@ aggregateStream<
   AGGREGATION_FIELDS extends string = string,
 >(
   query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>,
-  attributes?: Record<string, any>,
-  abortController?: AbortController,
+  attributes?: Record<string, unknown>,
+  abort?: AbortController | AbortSignal,
 ): Promise<ReadableStream<JsonServerSentEvent<Row>>>;
 ```
 
@@ -486,15 +592,16 @@ requires `cursorState`.
 
 ### Query cancellation
 
-`QueryApi.single`, `list`, `listStream`, `paged`, and `count` accept an optional
-third `abortController?: AbortController` argument, matching the concrete
-clients and the existing cursor/aggregation methods. The second argument
-remains request attributes. Cancellation is cooperative: consumers must also
-ignore responses from superseded requests.
+The last parameter of every query and load method (`single`, `list`, `listStream`, `paged`, `count`, `cursor`, `aggregate`, the `*State` variants, `getById`…, the event client's `load`/`loadStream`, the state loaders, `WowMetadataClient.metadata`) is `abort?: AbortController | AbortSignal`. Pass a controller, `AbortSignal.timeout(ms)`, or the `signal` a data library such as TanStack Query hands to its query function. The second argument remains request attributes (`Record<string, unknown>`). Cancellation is cooperative: consumers must also ignore responses from superseded requests.
 
 ```typescript
-const controller = new AbortController();
-const page = await snapshotClient.paged(query, undefined, controller);
+const page = await snapshotClient.paged(query, undefined, AbortSignal.timeout(10_000));
+
+// TanStack Query
+useQuery({
+  queryKey: ['carts', query],
+  queryFn: ({ signal }) => snapshotClient.pagedState(query, undefined, signal),
+});
 ```
 
 ### ID-Based Lookup Methods
@@ -559,6 +666,21 @@ const eventCountStream = await eventClient.aggregateStream(
 Event aggregation expands the event array at `body`. Event fields are then
 relative to that element; payload fields are nested below its `body` field.
 Both aggregation methods use `event/aggregation`.
+
+`load(id, headVersion, tailVersion, attributes?, abort?)` replays one aggregate's
+event streams from `headVersion` (from 1) to `tailVersion`, both inclusive, in
+version order — `GET {id}/event/{headVersion}/{tailVersion}`. `loadStream(…)` is
+the same route as server-sent events. The server treats the range as a list
+query and refuses more than its maximum list size (1000 by default). The route
+carries a tenant segment by default but no owner segment, like the load-state
+routes.
+
+```typescript
+const firstTen = await eventClient.load('cart-123', 1, 10);
+```
+
+`GET {id}/snapshot` and `GET {id}/state/tracing` have no client method; call
+them through a Fetcher directly.
 
 ---
 
@@ -628,7 +750,25 @@ const factory = new QueryClientFactory({
 const snapshotClient = factory.createSnapshotQueryClient();
 const eventClient = factory.createEventStreamQueryClient();
 const stateClient = factory.createLoadStateAggregateClient();
-const ownerStateClient = factory.createOwnerLoadStateAggregateClient();
+const ownerStateClient = factory.createLoadOwnerStateAggregateClient();
+```
+
+`createEventStreamQueryClient<EVENT_FIELDS>()` types event-stream fields
+separately from the factory's snapshot `FIELDS`. The route composition itself
+is internal (there is no `createQueryApiMetadata` and no `*EndpointPaths`
+constant); read a client's `apiMetadata.basePath` if you need the result.
+
+---
+
+## WowMetadataClient
+
+Reads the server's `WowMetadata` (bounded contexts, their aggregates, and each
+aggregate's commands and events) from `GET /wow/metadata`, relative to the
+fetcher's base URL.
+
+```typescript
+const metadata = await new WowMetadataClient({ fetcher }).metadata();
+Object.keys(metadata.contexts); // ['example-service', …]
 ```
 
 ---
@@ -655,7 +795,9 @@ if (first.nextCursor) {
 ```
 
 `DEFAULT_CURSOR_SIZE` is `10`; `size` must be between `1` and
-`MAX_CURSOR_SIZE` (`2147483646`). A request accepts at most
+`MAX_CURSOR_SIZE` (`2147483646`), the cursor model's bound. Over HTTP the
+server enforces its own page limit, 100 by default, and answers a larger size
+with a 400. A request accepts at most
 `MAX_CURSOR_SORT_FIELDS` (`32`) explicit sort fields, and each field at most
 once: `cursorQuery` throws `TypeError('Cursor sort fields must be unique.')`
 for a repeat. A cursor is a position in one total order, and two directions for
@@ -690,8 +832,10 @@ await snapshotClient.list({ filter: expression, limit: 10 });
 const query = listQuery({ filter: expression });
 ```
 
-`listQuery({ filter })` defaults `limit` to `0` (unlimited), matching current
-Wow V9. Legacy `listQuery({ condition })` keeps the previous default page size.
+`listQuery({ filter })` sends no `limit` unless given, so the server applies its
+default list size (100 by default) and refuses a limit above its maximum list
+size (1000 by default). The legacy `listQuery({ condition })` from
+`@ahoo-wang/wow-client/legacy` keeps its previous default page size.
 
 Available builders:
 
@@ -772,7 +916,8 @@ filter.earlierDays(field, days, options?);
 `SingleQueryRequest`, `ListQueryRequest`, and `PagedQueryRequest` accept either
 the filter-based request types or the existing condition-based request types.
 `count` likewise accepts `FilterExpression | Condition`. The legacy Condition
-API remains available for servers in the compatibility window.
+API remains available from `@ahoo-wang/wow-client/legacy` for servers in the
+compatibility window.
 
 `elementMatch` accepts `ElementFilterExpression`, whose relative field type is
 independent from the outer query fields and excludes metadata filters,
@@ -834,21 +979,36 @@ aggregation.add(left, right);
 aggregation.subtract(left, right);
 aggregation.multiply(left, right);
 aggregation.divide(left, right);
-aggregation.terms(field, alias, missingKey?);
-aggregation.histogram(field, { interval, alias });
-aggregation.dateHistogram(field, { unit, alias, timeZone, dense }); // timeZone defaults to UTC
-aggregation.any(field, alias, predicate?);
-aggregation.count(alias, predicate?);
-aggregation.sum(expression, alias, predicate?);
-aggregation.avg(expression, alias, predicate?);
-aggregation.min(expression, alias, predicate?);
-aggregation.max(expression, alias, predicate?);
-aggregation.stddev(expression, alias, predicate?);
-aggregation.variance(expression, alias, predicate?);
-aggregation.distinctCount(expression, alias, predicate?);
-aggregation.percentile(expression, percentile, alias, predicate?);
+// Every group and metric: target first, alias second, options last.
+aggregation.terms(field, alias, { missingKey? }?);
+aggregation.histogram(field, alias, { interval });
+aggregation.dateHistogram(field, alias, { unit, timeZone?, dense? }); // timeZone defaults to UTC
+aggregation.any(field, alias, { filter? }?);
+aggregation.count(alias, { filter? }?);
+aggregation.sum(expression, alias, { filter? }?);
+aggregation.avg(expression, alias, { filter? }?);
+aggregation.min(expression, alias, { filter? }?);
+aggregation.max(expression, alias, { filter? }?);
+aggregation.stddev(expression, alias, { filter? }?);
+aggregation.variance(expression, alias, { filter? }?);
+aggregation.distinctCount(expression, alias, { filter? }?);
+aggregation.percentile(expression, alias, { percentile, filter? });
 aggregation.derived(expression, alias);
 aggregation.query(query); // admits the assembled query, returns it
+```
+
+Option types: `TermsAggregationOptions` (`missingKey`), `HistogramAggregationOptions`
+(`interval`), `DateHistogramAggregationOptions` (`unit`, `timeZone`, `dense`),
+`AggregationMetricOptions` (`filter`), `PercentileAggregationOptions`
+(`percentile`, `filter`). None of them carries the alias.
+
+```typescript
+aggregation.count('paid', { filter: filter.eq('state.status', 'PAID') });
+aggregation.percentile(aggregation.field('latency'), 'p95', { percentile: 95 });
+aggregation.dateHistogram('createTime', 'day', {
+  unit: AggregationDateUnit.DAY,
+  timeZone: 'Asia/Shanghai',
+});
 ```
 
 `ANY` is a metric, not a group. It returns one non-null scalar from the current
@@ -872,8 +1032,7 @@ metric filter.
 
 `AGGREGATION_LIMITS` publishes those sizes (`DEFAULT_LIMIT` 100, `MAX_LIMIT`
 10000, `MAX_ELEMENTS` 5, `MAX_GROUPS` 32, `MAX_METRICS` 64, `MAX_SORT_FIELDS`
-32, `MAX_EXPRESSION_DEPTH` 8, `MAX_EXPRESSION_NODES` 256).
-`effectiveSort({ groupBy, sort })` returns the order Wow actually applies: the
+32, `MAX_EXPRESSION_DEPTH` 8, `MAX_EXPRESSION_NODES` 256). Wow applies the
 requested sort, then each remaining group ascending.
 
 What stays on the server is what needs a schema: field capabilities,
@@ -883,13 +1042,13 @@ decoding.
 
 ### Derived metrics, HAVING and group options
 
-Aligned with Wow `main` at `fd1b3cd46`. Existing builder calls keep their JSON shape; optional metric filters, `missingKey`, and `dense` are omitted unless supplied.
+Aligned with Wow `main` at `fd1b3cd46`. Optional metric filters, `missingKey`, and `dense` are omitted from the JSON unless supplied.
 
-- `aggregation.distinctCount(expression, alias, predicate?)` counts distinct non-null contributions; `aggregation.percentile(expression, percentile, alias, predicate?)` accepts finite values strictly between 0 and 100 (use 50 for the median). `stddev` and `variance` compute population statistics. Percentiles are approximate on both backends; Elasticsearch distinct counts may be approximate, while MongoDB counts distinct values exactly.
-- Non-derived metrics accept an optional `FilterExpression` in the current aggregation scope. It affects only that metric. `aggregation.query()` rejects `SEARCH` and `ELEMENT_MATCH` there — a metric filter is a whole-value predicate on one record, so element matching and full text have no reading — while the backend rejects array-valued fields, which needs a schema.
+- `aggregation.distinctCount(expression, alias, { filter? })` counts distinct non-null contributions; `aggregation.percentile(expression, alias, { percentile, filter? })` accepts finite values strictly between 0 and 100 (use 50 for the median). `stddev` and `variance` compute population statistics. Percentiles are approximate on both backends; Elasticsearch distinct counts may be approximate, while MongoDB counts distinct values exactly.
+- Non-derived metrics accept an optional `{ filter }` option, a `FilterExpression` in the current aggregation scope. It affects only that metric. `aggregation.query()` rejects `SEARCH` and `ELEMENT_MATCH` there — a metric filter is a whole-value predicate on one record, so element matching and full text have no reading — while the backend rejects array-valued fields, which needs a schema.
 - `aggregation.derived(expression, alias)` uses a `DerivedExpression` tree (`METRIC_REF`, `CONSTANT`, `BINARY`). References must name metrics declared strictly before the derived metric (so a self-reference cannot be written) and cannot reference `ANY`; `aggregation.query()` enforces both. Derived metrics have no record filter; filter the referenced metrics instead. Null operands or division by zero produce null.
 - `having?: HavingExpression` supports `CONDITION`, `BETWEEN`, `IN`, `IS_NULL`, `AND`, and `OR`, using metric aliases, not field paths. `ComparisonOperator` contains `EQ`, `NE`, `GT`, `GTE`, `LT`, `LTE`. HAVING requires grouping and cannot reference `ANY`; it runs before sorting and limit. Non-empty sets/operands are enforced by tuple types, and `aggregation.query()` checks finite values, ordered bounds, references and depth before the request is sent.
-- `terms(field, alias, missingKey?)` optionally merges missing/null values into a nonblank string bucket key; the backend validates string field support. `dateHistogram(field, { unit, alias, timeZone?, dense? })` fills interior date gaps when `dense` is true; it requires the only group dimension. No rows means no generated date range.
+- `terms(field, alias, { missingKey })` optionally merges missing/null values into a nonblank string bucket key; the backend validates string field support. `dateHistogram(field, alias, { unit, timeZone?, dense: true })` fills interior date gaps; it requires the only group dimension. No rows means no generated date range.
 
 Backend requirements still apply (MongoDB 5.1+ for dense groups, 7.0+ for percentiles); the client performs no backend capability probing. Raw typed expression objects are not runtime validators on their own — pass the assembled query through `aggregation.query()` to have them checked.
 
@@ -904,7 +1063,9 @@ import {
 } from '@ahoo-wang/wow-client';
 
 const query: AggregationQuery = {
-  groupBy: [aggregation.terms('state.status', 'status', 'Unknown')],
+  groupBy: [
+    aggregation.terms('state.status', 'status', { missingKey: 'Unknown' }),
+  ],
   metrics: [
     aggregation.count('orders'),
     aggregation.sum(aggregation.field('state.amount'), 'revenue'),
@@ -930,8 +1091,17 @@ const query: AggregationQuery = {
 ## Query DSL Conditions (Deprecated)
 
 The complete Condition API (`Condition`, `ConditionCapable`, `Operator`,
-builders, helpers, and operator locales) is deprecated. Use `FilterExpression`
-and `filter.*`; keep Condition only while talking to a legacy Wow server.
+builders, helpers, and operator locales) is deprecated and exported only by
+`@ahoo-wang/wow-client/legacy`, which is removed in v10. Use `FilterExpression`
+and `filter.*`; keep Condition only while talking to a Wow 8.10 server.
+
+```typescript
+import { and, eq, listQuery, ownerId } from '@ahoo-wang/wow-client/legacy';
+
+const carts = await snapshotClient.listState(
+  listQuery({ condition: and(ownerId('u-42'), eq('state.status', 'ACTIVE')) }),
+);
+```
 
 ### Comparison Operators
 
@@ -1003,6 +1173,7 @@ ownerId('owner-123');
 
 ```typescript
 import { DeletionState } from '@ahoo-wang/wow-client';
+import { active, all, deleted } from '@ahoo-wang/wow-client/legacy';
 
 active(); // Not deleted (shorthand for deleted(DeletionState.ACTIVE))
 deleted(DeletionState.DELETED); // Is deleted
@@ -1032,7 +1203,7 @@ raw({ $text: { $search: 'keywords' } }); // Raw condition
 
 ### MaterializedSnapshot<S>
 
-Full snapshot with metadata. Fields: `state`, `aggregateId`, `tenantId`, `ownerId`, `version`, `eventId`, `firstEventTime`, `eventTime`, `snapshotTime`, `firstOperator`, `operator`, `tags`, `deleted`.
+Full snapshot with metadata. Fields: `state`, `contextName`, `aggregateName`, `aggregateId`, `tenantId`, `ownerId`, `spaceId`, `version`, `eventId`, `firstEventTime`, `eventTime`, `snapshotTime`, `firstOperator`, `operator`, `tags`, `deleted`. `MediumMaterializedSnapshot` and `SmallMaterializedSnapshot` mirror Wow's Kotlin models and have no `contextName`/`aggregateName` (the server never sends them); Small keeps only `state`, `version` and `firstEventTime`.
 
 ### PagedList<T>
 
@@ -1126,8 +1297,8 @@ const { result, loading, error, setQuery } = usePagedQuery<CartState>({
     filter: filter.eq('state.status', 'PAID'),
     pagination: { index: 1, size: 20 },
   }),
-  execute: (query, attributes, abortController) =>
-    snapshotClient.pagedState(query, attributes, abortController),
+  execute: (query, attributes, controller) =>
+    snapshotClient.pagedState(query, attributes, controller), // abort: controller or its signal
 });
 ```
 
@@ -1140,10 +1311,12 @@ import { Fetcher, HttpMethod } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
   CommandClient,
-  SnapshotQueryClient,
-  CommandHeaders,
   CommandStage,
+  ErrorCodes,
+  SnapshotQueryClient,
   filter,
+  toWowError,
+  waitStrategy,
 } from '@ahoo-wang/wow-client';
 
 const fetcher = new Fetcher({ baseURL: 'http://localhost:8080/' });
@@ -1159,22 +1332,34 @@ const snapshotClient = new SnapshotQueryClient({
 });
 
 // Send command
-const result = await commandClient.send({
-  path: 'add_cart_item',
-  method: HttpMethod.POST,
-  headers: { [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT },
-  body: { productId: 'prod-123', quantity: 2 },
-});
+const result = await commandClient
+  .send<{ productId: string; quantity: number }>({
+    path: 'add_cart_item',
+    method: HttpMethod.POST,
+    urlParams: { path: { ownerId: 'owner-123' } },
+    headers: waitStrategy({ stage: CommandStage.SNAPSHOT }),
+    body: { productId: 'prod-123', quantity: 2 },
+  })
+  .catch(async error => {
+    throw (await toWowError(error)) ?? error; // refused: WowError with errorCode
+  });
+if (result.errorCode !== ErrorCodes.SUCCEEDED) {
+  throw new Error(`${result.errorCode}: ${result.errorMsg}`);
+}
 
 // Query updated state
-const cart = await snapshotClient.getStateById(result.aggregateId);
+const cart = await snapshotClient.getStateById(
+  result.aggregateId,
+  undefined,
+  AbortSignal.timeout(5_000),
+);
 
-// Stream real-time updates
+// Stream the current state; a failure midway throws a WowError here
 const stream = await snapshotClient.listStateStream({
-  filter: filter.eq('aggregateId', result.aggregateId),
+  filter: filter.aggregateId(result.aggregateId),
 });
 for await (const event of stream) {
-  console.log('Cart updated:', event.data);
+  console.log('Cart:', event.data);
 }
 ```
 
@@ -1187,6 +1372,3 @@ for await (const event of stream) {
 - `@ahoo-wang/fetcher-decorator` - ApiMetadata type, decorators for auto-implemented methods
 - `@ahoo-wang/wow-client` - Wow CQRS/DDD types and clients
 - `@ahoo-wang/wow-react` - React Wow query hooks (optional; needs `@ahoo-wang/fetcher-react` 5.1.3 or later)
-
-`getPropertyValue` accepts only complete non-negative integer array indices;
-segments such as `1oops` and `1.5` return the supplied default value.

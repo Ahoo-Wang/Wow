@@ -13,7 +13,7 @@ Use these types when constructing an aggregate identity or an attribution path. 
 | `AggregateId`                                 | Flat `{aggregateId, tenantId, contextName, aggregateName}`. Match all four when correlating results; an ID string alone is not the full identity. |
 | `AggregateIdCapable.aggregateId`              | Nests that **whole object**. Do not confuse this with the string field of `AggregateId`.                                                          |
 | `NamedBoundedContext` / `AliasBoundedContext` | `contextName` is the model name; `contextAlias` is the routing alias. Named/AliasAggregate additionally require `aggregateName`.                  |
-| `OwnerId`, `TenantId`, `SpaceIdCapable`       | Explicit string attribution fields. `DEFAULT_OWNER_ID` is `''`.                                          |
+| `OwnerId`, `TenantId`, `SpaceIdCapable`       | Explicit string attribution fields.                                          |
 | `UrlPathParams`                               | Optional tenant/owner/id plus custom string path slots. Supply the slots required by the chosen template.                                         |
 | `ResourceAttributionPathSpec`                 | Empty, tenant, owner and tenant+owner route prefixes; templates do not establish authorization.                                                   |
 | `AbacTags` / `AbacTaggable.tags`              | Map each tag key to a string array; empty tags `{}`, wildcard values `['*']`. The server defines how they affect policy.                          |
@@ -188,14 +188,6 @@ export interface AggregateIdCapable {
 
 [typescript/wow-client/src/types/modeling.ts:109](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts#L109)
 
-### DEFAULT_OWNER_ID {#api-DEFAULT_OWNER_ID}
-
-```ts
-declare const DEFAULT_OWNER_ID: '';
-```
-
-[typescript/wow-client/src/types/modeling.ts:129](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts#L129)
-
 ### OwnerId {#api-OwnerId}
 
 ```ts
@@ -204,7 +196,7 @@ export interface OwnerId {
 }
 ```
 
-[typescript/wow-client/src/types/modeling.ts:134](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts#L134)
+[typescript/wow-client/src/types/modeling.ts:132](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts#L132)
 
 ### SpaceIdCapable {#api-SpaceIdCapable}
 
@@ -214,7 +206,7 @@ export interface SpaceIdCapable {
 }
 ```
 
-[typescript/wow-client/src/types/modeling.ts:141](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts#L141)
+[typescript/wow-client/src/types/modeling.ts:139](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts#L139)
 
 ### TenantId {#api-TenantId}
 
@@ -224,7 +216,7 @@ export interface TenantId {
 }
 ```
 
-[typescript/wow-client/src/types/modeling.ts:158](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts#L158)
+[typescript/wow-client/src/types/modeling.ts:156](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts#L156)
 
 ### NamedBoundedContext {#api-NamedBoundedContext}
 

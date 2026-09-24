@@ -17,7 +17,7 @@ Wow Hook 为同一个查询执行器限定请求/结果类型，不替你创建�
 
 查询类型默认为 `FilterSingleQuery`、`FilterListQuery`、`FilterPagedQuery` 或 `FilterExpression`。每个 Hook 另有一个重载接受从 `@ahoo-wang/wow-client/legacy` 导入的已弃用 `Condition` 查询，供 Wow 8.10 服务端使用，该重载在 v10 移除。下文签名中的 `SingleQueryRequest`、`ListQueryRequest`、`PagedQueryRequest` 是两类查询的联合类型，同样由 `/legacy` 导出。`FIELDS` 仅在编译期约束字段名，泛型不校验服务端 JSON。对应 `Use…Options`、`Use…Return` 继承 [查询状态](https://fetcher.ahoo.me/zh/reference/react/promise-and-query-state)，Fetcher 变体还继承 [Fetcher 选项](https://fetcher.ahoo.me/zh/reference/react/fetcher-hooks)。默认 autoExecute true、propagateError false，没有传入就没有初始查询。Fetcher 变体 POST 查询，默认 JSON 提取；流版本在展开 options 后强制设置 `JsonEventStreamResultExtractor`。
 
-把 controller 传给服务客户端才能停止被替代请求的 I/O。流的 success 表示已取得 ReadableStream，不代表已完整消费。Hook 不累积消息、不关闭 reader，也不重试失败流。请求提取完成后，当前执行器可能已经不再持有对应 controller；消费者必须在替换/卸载时取消 reader 或 stream。生命周期见 [EventStream 消费](https://fetcher.ahoo.me/zh/reference/eventstream/consumption-and-cancellation)。
+把 controller 传给服务客户端才能停止被替代请求的 I/O：wow-client 每个查询方法的最后一个参数 `abort` 接受 `AbortController` 或其 `signal`。查询失败时 `error` 是 fetcher 的错误，用 `@ahoo-wang/wow-client` 的 `await toWowError(error)` 可读出服务端错误码；中途失败的流在读取时以 `WowError` 出错。流的 success 表示已取得 ReadableStream，不代表已完整消费。Hook 不累积消息、不关闭 reader，也不重试失败流。请求提取完成后，当前执行器可能已经不再持有对应 controller；消费者必须在替换/卸载时取消 reader 或 stream。生命周期见 [EventStream 消费](https://fetcher.ahoo.me/zh/reference/eventstream/consumption-and-cancellation)。
 
 ## 安装
 

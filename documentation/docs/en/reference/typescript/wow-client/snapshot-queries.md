@@ -5,7 +5,7 @@ description: 'Snapshot queries — @ahoo-wang/wow-client'
 
 # Snapshot queries
 
-`SnapshotQueryClient<S,FIELDS>(apiMetadata?)` queries materialized snapshots. Every query method is POST. The final optional controller allows cancellation; attributes are execution metadata, not JSON body fields. Request projection can make a result partial: the generic T must honestly describe selected fields rather than asserting missing fields exist.
+`SnapshotQueryClient<S,FIELDS>(apiMetadata?)` queries materialized snapshots. Every query method is POST. The final optional `abort` cancels the request: an `AbortController`, or an `AbortSignal` such as `AbortSignal.timeout(ms)` or the `signal` a data library passes; attributes are execution metadata, not JSON body fields. Request projection can make a result partial: the generic T must honestly describe selected fields rather than asserting missing fields exist.
 
 | Method                       | Relative endpoint                      | Promise result                                         |
 | ---------------------------- | -------------------------------------- | ------------------------------------------------------ |
@@ -17,11 +17,11 @@ description: 'Snapshot queries — @ahoo-wang/wow-client'
 | cursor / cursorState         | snapshot/cursor, snapshot/cursor/state | CursorPage with list/nextCursor                        |
 | aggregate / aggregateStream  | snapshot/aggregation                   | DynamicDocument[] or JSON SSE rows                     |
 
-Each concrete method takes `(query, attributes?, abortController?)`; the query is a Filter* query, or a deprecated Condition query from `@ahoo-wang/wow-client/legacy` (the `*QueryRequest` unions); getById/getStateById take an id instead of a query, send `filter.aggregateId(id)` through single/singleState, and so need Wow 8.11 or later; against Wow 8.10 call single/singleState with a `/legacy` query built from `aggregateId(id)`. getByIds/getStateByIds take string[], use the new aggregateIds filter and limit equal to input length. Empty IDs return Promise.resolve([]) without a request. Do not assume the server preserves input ID order.
+Each concrete method takes `(query, attributes?, abort?)`; the query is a Filter* query, or a deprecated Condition query from `@ahoo-wang/wow-client/legacy` (the `*QueryRequest` unions); getById/getStateById take an id instead of a query, send `filter.aggregateId(id)` through single/singleState, and so need Wow 8.11 or later; against Wow 8.10 call single/singleState with a `/legacy` query built from `aggregateId(id)`. getByIds/getStateByIds take string[], use the new aggregateIds filter and limit equal to input length. Empty IDs return Promise.resolve([]) without a request. Do not assume the server preserves input ID order.
 
-MaterializedSnapshot combines state S with context/aggregate/tenant/owner/space identity, version, event/time/operator data, tags and deleted. MediumMaterializedSnapshot omits some full snapshot fields; SmallMaterializedSnapshot retains state, named aggregate, version and firstEventTime. They are structural models, not converters. SnapshotMetadataFields provides exact logical metadata names; state paths typically live below `state`.
+MaterializedSnapshot combines state S with context/aggregate/tenant/owner/space identity, version, event/time/operator data, tags and deleted. MediumMaterializedSnapshot and SmallMaterializedSnapshot mirror Wow's Kotlin models and carry no context/aggregate names, which the server never sends: Medium keeps state, tenant/owner/space, version, event/time/operator data and tags; Small keeps state, version and firstEventTime. They are structural models, not converters. No client method covers `GET {id}/snapshot`; call it through a Fetcher directly. SnapshotMetadataFields provides exact logical metadata names; state paths typically live below `state`.
 
-No result cache or consistency wait is added by these clients. Read-after-command visibility depends on the server projection and requested wait stage. A missing single result is still typed Promise&lt;T&gt;; this package does not normalize absence into T | null. Handle the actual endpoint's HTTP/result contract and Fetcher errors. Stream consumption/reader cleanup belongs to the caller. See [query options](./query-options), [cursor](./cursor-queries), [aggregation](./aggregations).
+No result cache or consistency wait is added by these clients. Read-after-command visibility depends on the server projection and requested wait stage. A missing single result is still typed Promise&lt;T&gt;; this package does not normalize absence into T | null. A missing aggregate is a rejected call: `await toWowError(error)` gives `errorCode` `ErrorCodes.NOT_FOUND` (see [errors](./errors-and-utilities)). Stream consumption/reader cleanup belongs to the caller; `listStream`, `listStateStream` and `aggregateStream` error with a `WowError` when the server fails midway, so a `for await` throws. See [query options](./query-options), [cursor](./cursor-queries), [aggregation](./aggregations).
 
 ## Complete example
 
@@ -37,7 +37,7 @@ interface User {
   name: string;
 }
 const client = new SnapshotQueryClient<User>({ basePath: '/users' });
-export async function firstPage(controller = new AbortController()) {
+export async function firstPage(signal = AbortSignal.timeout(10_000)) {
   return client.pagedState(
     pagedQuery({
       filter: filter.eq('state.active', true),
@@ -45,7 +45,7 @@ export async function firstPage(controller = new AbortController()) {
       sort: [asc('state.name')],
     }),
     undefined,
-    controller,
+    signal,
   );
 }
 ```
@@ -65,43 +65,48 @@ export interface QueryApi<R, FIELDS extends string = string> {
   cursor<T extends Partial<R> = R>(
     query: CursorQuery<FIELDS>,
     attributes?: Record<string, unknown>,
-    abortController?: AbortController,
+    abort?: AbortController | AbortSignal,
   ): Promise<CursorPage<T>>;
   aggregate<
     Row extends DynamicDocument = DynamicDocument,
     AGGREGATION_FIELDS extends string = string,
   >(
     query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>,
-    attributes?: Record<string, any>,
-    abortController?: AbortController,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
   ): Promise<Row[]>;
   aggregateStream<
     Row extends DynamicDocument = DynamicDocument,
     AGGREGATION_FIELDS extends string = string,
   >(
     query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>,
-    attributes?: Record<string, any>,
-    abortController?: AbortController,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
   ): Promise<ReadableStream<JsonServerSentEvent<Row>>>;
   single<T extends Partial<R> = R>(
     singleQuery: SingleQueryRequest<FIELDS>,
-    attributes?: Record<string, any>,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
   ): Promise<T>;
   list<T extends Partial<R> = R>(
     listQuery: ListQueryRequest<FIELDS>,
-    attributes?: Record<string, any>,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
   ): Promise<T[]>;
   listStream<T extends Partial<R> = R>(
     listQuery: ListQueryRequest<FIELDS>,
-    attributes?: Record<string, any>,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
   ): Promise<ReadableStream<JsonServerSentEvent<T>>>;
   paged<T extends Partial<R> = R>(
     pagedQuery: PagedQueryRequest<FIELDS>,
-    attributes?: Record<string, any>,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
   ): Promise<PagedList<T>>;
   count(
     filter: FilterExpression<FIELDS> | Condition<FIELDS>,
-    attributes?: Record<string, any>,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
   ): Promise<number>;
 }
 ```
@@ -131,7 +136,7 @@ export interface MaterializedSnapshot<S>
     DeletedCapable {}
 ```
 
-[typescript/wow-client/src/query/snapshot/snapshot.ts:35](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshot.ts#L35)
+[typescript/wow-client/src/query/snapshot/snapshot.ts:34](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshot.ts#L34)
 
 ### MediumMaterializedSnapshot {#api-MediumMaterializedSnapshot}
 
@@ -139,7 +144,6 @@ export interface MaterializedSnapshot<S>
 export interface MediumMaterializedSnapshot<S>
   extends
     StateCapable<S>,
-    NamedAggregate,
     TenantId,
     OwnerId,
     SpaceIdCapable,
@@ -152,16 +156,16 @@ export interface MediumMaterializedSnapshot<S>
     AbacTaggable {}
 ```
 
-[typescript/wow-client/src/query/snapshot/snapshot.ts:60](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshot.ts#L60)
+[typescript/wow-client/src/query/snapshot/snapshot.ts:62](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshot.ts#L62)
 
 ### SmallMaterializedSnapshot {#api-SmallMaterializedSnapshot}
 
 ```ts
 export interface SmallMaterializedSnapshot<S>
-  extends StateCapable<S>, NamedAggregate, Version, FirstEventTimeCapable {}
+  extends StateCapable<S>, Version, FirstEventTimeCapable {}
 ```
 
-[typescript/wow-client/src/query/snapshot/snapshot.ts:80](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshot.ts#L80)
+[typescript/wow-client/src/query/snapshot/snapshot.ts:84](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshot.ts#L84)
 
 ### SnapshotMetadataFields {#api-SnapshotMetadataFields}
 
@@ -183,7 +187,7 @@ export class SnapshotMetadataFields {
 }
 ```
 
-[typescript/wow-client/src/query/snapshot/snapshot.ts:89](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshot.ts#L89)
+[typescript/wow-client/src/query/snapshot/snapshot.ts:93](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshot.ts#L93)
 
 ### SnapshotQueryApi {#api-SnapshotQueryApi}
 
@@ -197,27 +201,27 @@ export interface SnapshotQueryApi<
   cursorState<T extends Partial<S> = S>(
     query: CursorQuery<FIELDS>,
     attributes?: Record<string, unknown>,
-    abortController?: AbortController,
+    abort?: AbortController | AbortSignal,
   ): Promise<CursorPage<T>>;
   singleState<T extends Partial<S> = S>(
     singleQuery: SingleQueryRequest<FIELDS>,
-    attributes?: Record<string, any>,
-    abortController?: AbortController,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
   ): Promise<T>;
   listState<T extends Partial<S> = S>(
     listQuery: ListQueryRequest<FIELDS>,
-    attributes?: Record<string, any>,
-    abortController?: AbortController,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
   ): Promise<T[]>;
   listStateStream<T extends Partial<S> = S>(
     listQuery: ListQueryRequest<FIELDS>,
-    attributes?: Record<string, any>,
-    abortController?: AbortController,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
   ): Promise<ReadableStream<JsonServerSentEvent<T>>>;
   pagedState<T extends Partial<S> = S>(
     pagedQuery: PagedQueryRequest<FIELDS>,
-    attributes?: Record<string, any>,
-    abortController?: AbortController,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
   ): Promise<PagedList<T>>;
 }
 ```
@@ -226,26 +230,6 @@ export interface SnapshotQueryApi<
 
 [typescript/wow-client/src/query/snapshot/snapshotQueryApi.ts:32](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshotQueryApi.ts#L32)
 
-### SnapshotQueryEndpointPaths {#api-SnapshotQueryEndpointPaths}
-
-```ts
-export class SnapshotQueryEndpointPaths {
-  static readonly SNAPSHOT_RESOURCE_NAME = 'snapshot';
-  static readonly AGGREGATION = `${SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME}/aggregation`;
-  static readonly COUNT = `${SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME}/count`;
-  static readonly LIST = `${SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME}/list`;
-  static readonly LIST_STATE = `${SnapshotQueryEndpointPaths.LIST}/state`;
-  static readonly PAGED = `${SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME}/paged`;
-  static readonly PAGED_STATE = `${SnapshotQueryEndpointPaths.PAGED}/state`;
-  static readonly CURSOR = `${SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME}/cursor`;
-  static readonly CURSOR_STATE = `${SnapshotQueryEndpointPaths.CURSOR}/state`;
-  static readonly SINGLE = `${SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME}/single`;
-  static readonly SINGLE_STATE = `${SnapshotQueryEndpointPaths.SINGLE}/state`;
-}
-```
-
-[typescript/wow-client/src/query/snapshot/snapshotQueryApi.ts:119](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshotQueryApi.ts#L119)
-
 ### SnapshotQueryClient {#api-SnapshotQueryClient}
 
 ::: details Expand all fields and members
@@ -253,29 +237,29 @@ export class SnapshotQueryEndpointPaths {
 ```ts
 export class SnapshotQueryClient<S, FIELDS extends string = string> implements SnapshotQueryApi<S, FIELDS>, ApiMetadataCapable {
     constructor(public readonly apiMetadata?: ApiMetadata);
-    aggregate<Row extends DynamicDocument = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, any>, abortController?: AbortController): Promise<Row[]>;
-    aggregateStream<Row extends DynamicDocument = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<ReadableStream<JsonServerSentEvent<Row>>>;
-    cursor<T extends Partial<MaterializedSnapshot<S>> = MaterializedSnapshot<S>>(query: CursorQuery<FIELDS>, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<CursorPage<T>>;
-    cursorState<T extends Partial<S> = S>(query: CursorQuery<FIELDS>, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<CursorPage<T>>;
-    count(filter: FilterExpression<FIELDS> | Condition<FIELDS>, attributes?: Record<string, any>, abortController?: AbortController): Promise<number>;
-    list<T extends Partial<MaterializedSnapshot<S>> = MaterializedSnapshot<S>>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, any>, abortController?: AbortController): Promise<T[]>;
-    listStream<T extends Partial<MaterializedSnapshot<S>> = MaterializedSnapshot<S>>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, any>, abortController?: AbortController): Promise<ReadableStream<JsonServerSentEvent<T>>>;
-    listState<T extends Partial<S> = S>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, any>, abortController?: AbortController): Promise<T[]>;
-    listStateStream<T extends Partial<S> = S>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, any>, abortController?: AbortController): Promise<ReadableStream<JsonServerSentEvent<T>>>;
-    paged<T extends Partial<MaterializedSnapshot<S>> = MaterializedSnapshot<S>>(pagedQuery: PagedQueryRequest<FIELDS>, attributes?: Record<string, any>, abortController?: AbortController): Promise<PagedList<T>>;
-    pagedState<T extends Partial<S> = S>(pagedQuery: PagedQueryRequest<FIELDS>, attributes?: Record<string, any>, abortController?: AbortController): Promise<PagedList<T>>;
-    single<T extends Partial<MaterializedSnapshot<S>> = MaterializedSnapshot<S>>(singleQuery: SingleQueryRequest<FIELDS>, attributes?: Record<string, any>, abortController?: AbortController): Promise<T>;
-    singleState<T extends Partial<S> = S>(singleQuery: SingleQueryRequest<FIELDS>, attributes?: Record<string, any>, abortController?: AbortController): Promise<T>;
-    getById(id: string, attributes?: Record<string, any>, abortController?: AbortController): Promise<MaterializedSnapshot<S>>;
-    getStateById(id: string, attributes?: Record<string, any>, abortController?: AbortController): Promise<S>;
-    getByIds(ids: string[], attributes?: Record<string, any>, abortController?: AbortController): Promise<MaterializedSnapshot<S>[]>;
-    getStateByIds(ids: string[], attributes?: Record<string, any>, abortController?: AbortController): Promise<S[]>;
+    aggregate<Row extends DynamicDocument = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<Row[]>;
+    aggregateStream<Row extends DynamicDocument = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<Row>>>;
+    cursor<T extends Partial<MaterializedSnapshot<S>> = MaterializedSnapshot<S>>(query: CursorQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<CursorPage<T>>;
+    cursorState<T extends Partial<S> = S>(query: CursorQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<CursorPage<T>>;
+    count(filter: FilterExpression<FIELDS> | Condition<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<number>;
+    list<T extends Partial<MaterializedSnapshot<S>> = MaterializedSnapshot<S>>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;
+    listStream<T extends Partial<MaterializedSnapshot<S>> = MaterializedSnapshot<S>>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<T>>>;
+    listState<T extends Partial<S> = S>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;
+    listStateStream<T extends Partial<S> = S>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<T>>>;
+    paged<T extends Partial<MaterializedSnapshot<S>> = MaterializedSnapshot<S>>(pagedQuery: PagedQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<PagedList<T>>;
+    pagedState<T extends Partial<S> = S>(pagedQuery: PagedQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<PagedList<T>>;
+    single<T extends Partial<MaterializedSnapshot<S>> = MaterializedSnapshot<S>>(singleQuery: SingleQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T>;
+    singleState<T extends Partial<S> = S>(singleQuery: SingleQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T>;
+    getById(id: string, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<MaterializedSnapshot<S>>;
+    getStateById(id: string, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
+    getByIds(ids: string[], attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<MaterializedSnapshot<S>[]>;
+    getStateByIds(ids: string[], attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S[]>;
 }
 ```
 
 :::
 
-[typescript/wow-client/src/query/snapshot/snapshotQueryClient.ts:121](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshotQueryClient.ts#L121)
+[typescript/wow-client/src/query/snapshot/snapshotQueryClient.ts:117](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshotQueryClient.ts#L117)
 
 ## Related topics
 

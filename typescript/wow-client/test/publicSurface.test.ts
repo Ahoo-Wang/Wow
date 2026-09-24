@@ -39,6 +39,7 @@ import {
 /** Where each entry's list lives, beside this suite. */
 const LISTS: Record<Entry, string> = {
   '@ahoo-wang/wow-client': 'surface/root.txt',
+  '@ahoo-wang/wow-client/dsl': 'surface/dsl.txt',
   '@ahoo-wang/wow-client/legacy': 'surface/legacy.txt',
 };
 
@@ -73,5 +74,13 @@ describe('the public surface of each entry', () => {
       'pagedQuery',
       'singleQuery',
     ]);
+  });
+
+  it('keeps the DSL entry a part of the root entry', () => {
+    const root = entryExports('@ahoo-wang/wow-client');
+    const dsl = entryExports('@ahoo-wang/wow-client/dsl');
+    expect([...dsl.keys()].filter(name => !root.has(name))).toEqual([]);
+    for (const client of ['SnapshotQueryClient', 'CommandClient', 'WowError'])
+      expect(dsl.has(client)).toBe(false);
   });
 });

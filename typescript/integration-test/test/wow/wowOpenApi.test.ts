@@ -22,9 +22,9 @@ import {
   ComparisonOperator,
   DeletionState,
   DerivedExpressionType,
+  filter,
   FilterOperator,
   HavingExpressionType,
-  requireElementScopedFilter,
   SearchMode,
   SortDirection,
   StringComparison,
@@ -151,20 +151,17 @@ describe('Wow OpenAPI document', () => {
   });
 
   // ELEMENT_MATCH takes a subset of the filters, listed as `elementPredicate`;
-  // requireElementScopedFilter must refuse the rest and nothing more.
+  // filter.elementMatch must refuse the rest and nothing more.
   it.each(Object.values(FilterOperator))(
     'ELEMENT_MATCH takes %s exactly when Wow does',
     op => {
       const scoped = discriminators(filters().elementPredicate.oneOf, 'op');
       const check = () =>
-        requireElementScopedFilter(
-          {
-            op,
-            operands: [{ op: FilterOperator.MATCH_ALL }],
-            predicate: { op: FilterOperator.MATCH_ALL },
-          } as never,
-          'ELEMENT_MATCH predicate',
-        );
+        filter.elementMatch('items', {
+          op,
+          operands: [{ op: FilterOperator.MATCH_ALL }],
+          predicate: { op: FilterOperator.MATCH_ALL },
+        } as never);
       if (scoped.includes(op)) expect(check).not.toThrow();
       else expect(check).toThrow('cannot contain root filters');
     },

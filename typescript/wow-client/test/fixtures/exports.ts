@@ -24,6 +24,7 @@ export const PACKAGE_ROOT = join(import.meta.dirname, '../..');
  */
 export const ENTRIES = {
   '@ahoo-wang/wow-client': 'src/index.ts',
+  '@ahoo-wang/wow-client/dsl': 'src/dsl.ts',
   '@ahoo-wang/wow-client/legacy': 'src/legacy/index.ts',
 } as const;
 

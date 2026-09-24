@@ -249,7 +249,7 @@ export function nor<FIELDS extends string = string>(
  *
  * @param value - The ID value to match
  * @returns A condition with ID operator
- * @deprecated Use filter.eq with the logical ID field instead. Removed in v10.
+ * @deprecated Use filter.id instead. Removed in v10.
  */
 export function id<FIELDS extends string = string>(
   value: string,
@@ -262,8 +262,7 @@ export function id<FIELDS extends string = string>(
  *
  * @param value - The ID values to match
  * @returns A condition with IDS operator
- * @deprecated Use filter.isIn with the logical ID field instead.
- * Removed in v10.
+ * @deprecated Use filter.ids instead. Removed in v10.
  */
 export function ids<FIELDS extends string = string>(
   value: string[],
@@ -276,8 +275,7 @@ export function ids<FIELDS extends string = string>(
  *
  * @param value - The aggregate ID value to match
  * @returns A condition with AGGREGATE_ID operator
- * @deprecated Use filter.eq with the aggregate ID field instead.
- * Removed in v10.
+ * @deprecated Use filter.aggregateId instead. Removed in v10.
  */
 export function aggregateId<FIELDS extends string = string>(
   value: string,
@@ -290,8 +288,7 @@ export function aggregateId<FIELDS extends string = string>(
  *
  * @param value - The aggregate ID values to match
  * @returns A condition with AGGREGATE_IDS operator
- * @deprecated Use filter.isIn with the aggregate ID field instead.
- * Removed in v10.
+ * @deprecated Use filter.aggregateIds instead. Removed in v10.
  */
 export function aggregateIds<FIELDS extends string = string>(
   value: string[],
@@ -304,7 +301,7 @@ export function aggregateIds<FIELDS extends string = string>(
  *
  * @param value - The tenant ID value to match
  * @returns A condition with TENANT_ID operator
- * @deprecated Use filter.eq with the tenant ID field instead. Removed in v10.
+ * @deprecated Use filter.tenantId instead. Removed in v10.
  */
 export function tenantId<FIELDS extends string = string>(
   value: string,
@@ -317,7 +314,7 @@ export function tenantId<FIELDS extends string = string>(
  *
  * @param value - The owner ID value to match
  * @returns A condition with OWNER_ID operator
- * @deprecated Use filter.eq with the owner ID field instead. Removed in v10.
+ * @deprecated Use filter.ownerId instead. Removed in v10.
  */
 export function ownerId<FIELDS extends string = string>(
   value: string,
@@ -325,7 +322,13 @@ export function ownerId<FIELDS extends string = string>(
   return { operator: Operator.OWNER_ID, value: value };
 }
 
-/** @deprecated Use filter.eq with the space ID field instead. Removed in v10. */
+/**
+ * Creates a SPACE_ID condition with the specified value.
+ *
+ * @param value - The space ID value to match
+ * @returns A condition with SPACE_ID operator
+ * @deprecated Use filter.spaceId instead. Removed in v10.
+ */
 export function spaceId<FIELDS extends string = string>(
   value: string,
 ): Condition<FIELDS> {
@@ -865,8 +868,6 @@ export function earlierDays<FIELDS extends string = string>(
  *
  * @param raw - The raw condition value
  * @returns A condition with RAW operator
- */
-/**
  * @deprecated RAW has no FilterExpression replacement, and current Wow refuses
  * it: the operator was removed in Wow #2999. It is kept for servers older than
  * that, which the Condition API exists to reach and which still accept it.

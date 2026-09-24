@@ -19,12 +19,13 @@ description: 配置应用聚合路由、检查命令结果，并查询或流式�
 import { Fetcher, HttpMethod } from '@ahoo-wang/fetcher';
 import {
   CommandClient,
-  CommandHeaders,
   CommandStage,
   SnapshotQueryClient,
+  commandHeaders,
   filter,
   pagedQuery,
   listQuery,
+  waitStrategy,
 } from '@ahoo-wang/wow-client';
 
 interface AddCartItem {
@@ -42,43 +43,73 @@ export function createCartClients(baseURL: string, ownerId: string) {
     basePath: 'owner/{ownerId}/cart',
     urlParams: { path: { ownerId } },
   };
-  const commands = new CommandClient<AddCartItem>(metadata);
+  const commands = new CommandClient(metadata);
   const snapshots = new SnapshotQueryClient<CartState>(metadata);
   const active = filter.and([
     filter.ownerId(ownerId),
     filter.eq('state.status', 'ACTIVE'),
   ]);
   return {
-    addItem: (body: AddCartItem) =>
-      commands.send({
+    addItem: (body: AddCartItem, requestId: string) =>
+      commands.send<AddCartItem>({
         path: 'add_cart_item',
         method: HttpMethod.POST,
         body,
-        headers: { [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT },
+        headers: {
+          ...commandHeaders({ requestId }),
+          ...waitStrategy({ stage: CommandStage.SNAPSHOT, timeoutMs: 10_000 }),
+        },
       }),
-    loadPage: (controller: AbortController) =>
+    loadPage: (signal: AbortSignal) =>
       snapshots.pagedState(
         pagedQuery({ filter: active, pagination: { index: 1, size: 20 } }),
         undefined,
-        controller,
+        signal,
       ),
-    streamStates: (controller: AbortController) =>
+    streamStates: (signal: AbortSignal) =>
       snapshots.listStateStream(
         listQuery({ filter: active, limit: 50 }),
         undefined,
-        controller,
+        signal,
       ),
   };
 }
 ```
 
-`createCartClients(apiOrigin, ownerId)` 返回添加条目、读取第一页、流式读取最多 50 个状态的函数。pagedState 返回包含 list、total 的 `PagedList<CartState>`；state 方法解开快照外壳，但过滤字段仍针对存储的快照，因此使用 `state.status`。
+`createCartClients(apiOrigin, ownerId)` 返回添加商品、读取第一页和流式读取最多 50 个状态的函数。`CommandClient` 不是泛型类：命令体类型按每次 `send<C>` 调用选择。`commandHeaders()` 与 `waitStrategy()` 构造带类型的命令头，输入非法时抛出 `TypeError`。`pagedState` 返回含 list 与 total 的 `PagedList<CartState>`；state 方法会拆开快照信封，但过滤字段名仍指向存储的快照，因此写作 `state.status`。
 
 ## 3. 发送一次并检查结果
 
-等待 `clients.addItem({ productId: 'book-1', quantity: 2 })`，按服务端命令契约检查返回的 stage、errorCode 和 errorMsg。HTTP 成功本身不等于业务成功。`WAIT_STAGE: SNAPSHOT` 请求等待该阶段，不保证所有投影已经可查询，也不会消除失败。重试结果不确定的命令时，遵循服务端的 request-ID 策略。
+命令可能以两种方式失败，两者都要让应用看见：
 
-决定如何处理命令结果后，再通过 `clients.loadPage(controller)` 加载页面。区分传输失败和返回的命令失败。每个独立所有者的查询使用新 AbortController，并在 UI/任务结束时调用 abort。
+- 服务端拒绝请求（验证失败、版本冲突、请求 ID 重复）：`send` 拒绝。`await toWowError(error)` 把 fetcher 的错误转成带服务端 `errorCode`、`errorMsg`、`bindingErrors` 与 HTTP `status` 的 `WowError`；Wow 根本没有应答（网络失败、中止）时返回 `undefined`。
+- 命令已被接受但处理失败：`send` 正常完成，结果的 `errorCode` 不是 `ErrorCodes.SUCCEEDED`。
+
+```ts
+import { ErrorCodes, toWowError } from '@ahoo-wang/wow-client';
+import type { createCartClients } from './cart';
+
+export async function addBook(clients: ReturnType<typeof createCartClients>) {
+  try {
+    const result = await clients.addItem(
+      { productId: 'book-1', quantity: 2 },
+      crypto.randomUUID(),
+    );
+    if (result.errorCode !== ErrorCodes.SUCCEEDED) {
+      return { failed: result.errorCode, message: result.errorMsg };
+    }
+    return { stage: result.stage };
+  } catch (error) {
+    const wowError = await toWowError(error);
+    if (!wowError) throw error; // 网络失败、中止、代理错误页
+    return { failed: wowError.errorCode, message: wowError.errorMsg };
+  }
+}
+```
+
+`waitStrategy({ stage: CommandStage.SNAPSHOT })` 请求等待该阶段，不保证所有投影已经可查询，也不会消除失败。重试结果不确定的命令时复用同一个请求 ID，服务端才能拒绝重复命令（`ErrorCodes.DUPLICATE_REQUEST_ID`）。
+
+决定如何处理命令结果后，再通过 `clients.loadPage(signal)` 加载页面。每个查询方法的最后一个参数是 `abort`：`AbortController`，或 `AbortSignal`——`AbortSignal.timeout(ms)`，或 TanStack Query 等数据请求库传给查询函数的 `signal`。每个独立所有者的查询使用自己的 signal，并在 UI/任务结束时中止。
 
 ## 4. 消费有界查询流
 
@@ -88,10 +119,7 @@ export function createCartClients(baseURL: string, ownerId: string) {
 import { Fetcher } from '@ahoo-wang/fetcher';
 import { SnapshotQueryClient, filter, listQuery } from '@ahoo-wang/wow-client';
 
-export async function printActiveStates(
-  baseURL: string,
-  controller: AbortController,
-) {
+export async function printActiveStates(baseURL: string, signal: AbortSignal) {
   const snapshots = new SnapshotQueryClient<{ status: string }>({
     fetcher: new Fetcher({ baseURL }),
     basePath: 'cart',
@@ -99,7 +127,7 @@ export async function printActiveStates(
   const stream = await snapshots.listStateStream(
     listQuery({ filter: filter.eq('state.status', 'ACTIVE'), limit: 50 }),
     undefined,
-    controller,
+    signal,
   );
   const reader = stream.getReader();
   let finished = false;
@@ -122,16 +150,16 @@ export async function printActiveStates(
 }
 ```
 
-方法第三个参数为 AbortController，第二个参数为可选 attributes。取消传入的控制器可以停止等待中的请求或活动流。发起请求和后续读取都可能拒绝，因此应由所有者捕获函数返回的 Promise。渲染或处理某行时抛错也会执行 reader 清理。
+方法第三个参数为 `abort`（AbortController 或 AbortSignal），第二个参数为可选 attributes。中止它可以停止等待中的请求或活动流。发起请求和后续读取都可能拒绝：服务端在流中途失败时仍已应答 HTTP 200，错误以错误事件到达，`reader.read()`（或 `for await` 循环）会抛出 `WowError`。应由所有者捕获函数返回的 Promise。渲染或处理某行时抛错也会执行 reader 清理。
 
 ## 5. 验证边界
 
-模拟 fetch，断言命令路径/请求体/WAIT_STAGE、查询 JSON、从 1 开始的分页，以及 SSE 请求的 Accept。分别返回符合契约的命令结果夹具和 `{list: [], total: 0}` 页面夹具。不要从 mock 推断一致性；在真实服务集成测试中确认命令阶段和快照可见性。
+模拟 fetch，断言命令路径/请求体/`Command-Wait-Stage`、查询 JSON、从 1 开始的分页，以及 SSE 请求的 Accept。分别返回符合契约的命令结果夹具和 `{list: [], total: 0}` 页面夹具。不要从 mock 推断一致性；在真实服务集成测试中确认命令阶段和快照可见性。
 
 数组优先的过滤构造器要求单个非空数组，空数组在执行前抛错。需要无过滤查询时显式使用 `filter.matchAll()`。大结果集可以选择[游标查询](../../reference/typescript/wow-client/cursor-queries)，服务端计算可以使用[聚合](../../reference/typescript/wow-client/aggregations)，读取第一页不需要它们。
 
 参见[命令](../../reference/typescript/wow-client/commands)、[快照查询](../../reference/typescript/wow-client/snapshot-queries)、[过滤器](../../reference/typescript/wow-client/filters)及[分页、投影和排序](../../reference/typescript/wow-client/query-options)。
 
-[snapshotQueryClient.ts:326](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshotQueryClient.ts#L326) 定义流方法参数。
+[snapshotQueryClient.ts:335](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshotQueryClient.ts#L335) 定义流方法参数。
 
 [评估集成边界](https://fetcher.ahoo.me/zh/architecture/integration-decisions)；[返回本组任务](./index.md)。

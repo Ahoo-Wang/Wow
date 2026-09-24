@@ -847,3 +847,20 @@ describe('filter', () => {
     expect(create).toThrow();
   });
 });
+
+describe('element scope', () => {
+  it('refuses an empty or null operand list inside an element predicate', () => {
+    expect(() =>
+      filter.elementMatch('items', {
+        op: FilterOperator.AND,
+        operands: [],
+      } as never),
+    ).toThrow('AND operands cannot be empty.');
+    expect(() =>
+      filter.elementMatch('items', {
+        op: FilterOperator.OR,
+        operands: [null],
+      } as never),
+    ).toThrow('OR operands cannot contain null.');
+  });
+});

@@ -7,13 +7,13 @@ description: 从 fetcher-wow、fetcher-generator 以及 fetcher-react 的 Wow Ho
 
 本页回答：**使用 `@ahoo-wang/fetcher-wow`、`@ahoo-wang/fetcher-generator` 或 `@ahoo-wang/fetcher-react` 中 Wow Hook 的应用需要改什么？**
 
-Wow 的 TypeScript 包已从 [Fetcher 仓库](https://github.com/Ahoo-Wang/fetcher)迁入 Wow 仓库，这样 Kotlin 契约、TypeScript 客户端和生成器可以在一个 PR 里改完、一起发布。导出的 API 没有变化，只是已弃用的 `Condition` API 挪到了 `@ahoo-wang/wow-client/legacy` 子路径；变化的是包名、命令名、peer 依赖范围、版本线和这个子路径。
+Wow 的 TypeScript 包已从 [Fetcher 仓库](https://github.com/Ahoo-Wang/fetcher)迁入 Wow 仓库，这样 Kotlin 契约、TypeScript 客户端和生成器可以在一个 PR 里改完、一起发布。变化的是包名、命令名、peer 依赖范围和版本线；已弃用的 `Condition` API 挪到了 `@ahoo-wang/wow-client/legacy` 子路径；`wow-client` 的首个版本还改动了一组 API——错误、命令头、取消参数、聚合构造器——列在[首个版本的 API 变化](#首个版本的-api-变化)中。
 
 ## 变化一览
 
 | 原来 | 现在 | 说明 |
 |---|---|---|
-| `@ahoo-wang/fetcher-wow` | `@ahoo-wang/wow-client` | 导出不变，但已弃用的 `Condition` API（`Condition` 构造器、`Operator`、基于 `Condition` 的查询类型与工厂函数）和 `en_US` / `zh_CN` 操作符文案挪到了 `@ahoo-wang/wow-client/legacy`；`/query/locale/en_US` 和 `/query/locale/zh_CN` 子路径已不存在 |
+| `@ahoo-wang/fetcher-wow` | `@ahoo-wang/wow-client` | 见[API 变化](#首个版本的-api-变化)；另外已弃用的 `Condition` API（`Condition` 构造器、`Operator`、基于 `Condition` 的查询类型与工厂函数）和 `en_US` / `zh_CN` 操作符文案挪到了 `@ahoo-wang/wow-client/legacy`；`/query/locale/en_US` 和 `/query/locale/zh_CN` 子路径已不存在 |
 | `@ahoo-wang/fetcher-generator` | `@ahoo-wang/wow-generator` | 命令改名为 `wow-generator`；`fetcher-generator` 作为别名保留到 v10 |
 | `@ahoo-wang/fetcher-react` 中的 Wow Hook | `@ahoo-wang/wow-react` | `useSingleQuery`、`useListQuery`、`usePagedQuery`、`useCountQuery`、`useListStreamQuery` 及对应的 `useFetcher*` 版本 |
 | Fetcher 5.x 版本线 | Wow 版本线 | `wow-client` 9.x.y 与 Wow 9.x.y 一起发布 |
@@ -55,7 +55,7 @@ pnpm add @ahoo-wang/wow-react
 
 ### 2. 改写导入
 
-替换模块名即可，符号名不变。已弃用的 `Condition` API 和操作符文案从 `@ahoo-wang/wow-client/legacy` 导入，其余一切从根入口导入。
+先替换模块名，再按下文的[API 变化](#首个版本的-api-变化)修改调用。已弃用的 `Condition` API 和操作符文案从 `@ahoo-wang/wow-client/legacy` 导入，其余一切从根入口导入。
 
 ```ts
 // 迁移前
@@ -73,6 +73,31 @@ import { useFetcher } from '@ahoo-wang/fetcher-react';
 只有五个 Wow 查询 Hook 及其 `useFetcher*` 版本迁到了 `wow-react`。`useFetcher`、`useQuery`、`useFetcherQuery` 等其余 Hook 仍在 `@ahoo-wang/fetcher-react`。搜索 `fetcher-wow` 和这十个 Hook 名，就能找到所有要改的行。
 
 `Condition` API 挪到 `/legacy` 之后，根入口的 `singleQuery`、`listQuery`、`pagedQuery` 构造的内容也变了：它们接收 `filter` 而不是 `condition`，`filter` 默认为 `filter.matchAll()`。传了 `condition` 的调用，要改用 `/legacy` 里的同名工厂函数，或者用 `filter.*` 改写。
+
+#### 首个版本的 API 变化
+
+`@ahoo-wang/wow-client` 的首个版本也借机修正了 `fetcher-wow` 无法修改的 API。下表除最后一行的流行为外，都能由类型检查找出所有调用点。
+
+| `@ahoo-wang/fetcher-wow` | `@ahoo-wang/wow-client` |
+|---|---|
+| `ErrorCodes.isSucceeded(code)` / `ErrorCodes.isError(code)` | 已删除：改为比较 `code === ErrorCodes.SUCCEEDED`。`ErrorCodes` 由类改为冻结的 `as const` 对象，并补充了查询 schema 与批处理错误码；`SUCCEEDED_MESSAGE`、`NOT_FOUND_MESSAGE` 已删除。`ErrorInfo.errorCode` 的类型是 `ErrorCode`（Wow 的错误码或任意其他字符串）。 |
+| 手工读取失败请求的错误响应体 | `await toWowError(error)` 返回 `WowError`（`errorCode`、`errorMsg`、`bindingErrors`、`status`），Wow 没有应答时返回 `undefined`；`isErrorInfo(value)` 是类型守卫。参见[错误](../../reference/typescript/wow-client/errors-and-utilities.md)。 |
+| `CommandHeaders` / `WowHeaders` 类 | 冻结的 `as const` 对象；`CommandHeaders.WAIT_STAGE` 等成员写法不变，但每个值现在是字面量类型。 |
+| 所有头都必填且为 `string` 的 `CommandRequestHeaders` | 所有头可选并带类型：等待阶段是 `CommandStage` 名称，`Command-Aggregate-Version` 与 `Command-Wait-Timeout` 是整数字符串，`Command-Local-First` 是 `'true'` 或 `'false'`。用 `commandHeaders({ … })` 与 `waitStrategy({ … })` 构造，后者也支持等待链（`tail`）。 |
+| `new CommandClient<C>(metadata)` | `new CommandClient(metadata)`；命令体类型移到调用处：`send<C>(request)`、`sendAndWaitStream<C>(request)`。 |
+| 查询方法最后一个参数 `abortController?: AbortController` | 所有查询与加载方法改为 `abort?: AbortController \| AbortSignal`，可传入 `AbortSignal.timeout(ms)` 或数据请求库的 `signal`。传控制器的调用仍能编译；实现 `QueryApi` 或 `SnapshotQueryApi` 的类需要更新签名。`attributes` 的类型为 `Record<string, unknown>`。 |
+| `terms(field, alias, missingKey?)` | `terms(field, alias, { missingKey })` |
+| `histogram(field, { interval, alias })` | `histogram(field, alias, { interval })` |
+| `dateHistogram(field, { unit, alias, timeZone?, dense? })` | `dateHistogram(field, alias, { unit, timeZone?, dense? })` |
+| `count(alias, predicate?)`、`any(field, alias, predicate?)`、`sum`/`avg`/`min`/`max`/`stddev`/`variance`/`distinctCount(expression, alias, predicate?)` | 指标过滤移入选项对象：`count(alias, { filter })`、`sum(expression, alias, { filter })`…… |
+| `percentile(expression, percentile, alias, predicate?)` | `percentile(expression, alias, { percentile, filter? })` |
+| `QueryClientFactory#createOwnerLoadStateAggregateClient` | `createLoadOwnerStateAggregateClient` |
+| `createQueryApiMetadata`、`SnapshotQueryEndpointPaths`、`EventStreamQueryEndpointPaths`、`LoadStateAggregateEndpointPaths`、`LoadOwnerStateAggregateEndpointPaths` | 不再公开：通过 `QueryClientFactory` 创建客户端并调用其方法。 |
+| `getPropertyValue`、`requireElementScopedFilter`、`effectiveSort`、`DEFAULT_OWNER_ID` | 已删除。读取嵌套值请用自己的工具函数或工具库；空所有者 ID 直接用 `''`。 |
+| 带 `contextName`、`aggregateName` 的 `MediumMaterializedSnapshot` / `SmallMaterializedSnapshot` | 这两个字段已删除，服务端从未发送过它们。 |
+| 服务端中途失败时，错误作为又一个数据事件出现在流中 | `listStream`、`listStateStream`、`aggregateStream`、`sendAndWaitStream` 以 `WowError` 使流出错，`for await` 会抛出。原先检查 `event.event` 是否为错误名的代码应改为捕获异常。 |
+
+新增且不破坏兼容：`@ahoo-wang/wow-client/dsl` 入口（不含 HTTP 代码的查询 DSL）、按版本范围读取的 `EventStreamQueryClient.load` / `loadStream`、`WowMetadataClient`，以及 `aggregation.query()` 与 `AGGREGATION_LIMITS`。
 
 #### Wow 8.10 服务端
 
@@ -149,6 +174,7 @@ pnpm test
 |---|---|
 | 依赖 | `package.json` 中已没有 `fetcher-wow` 和 `fetcher-generator`，用到 `fetcher-react` 的地方版本不低于 5.1.3 |
 | 导入 | 没有源文件导入 `@ahoo-wang/fetcher-wow`，`Condition` API 和操作符文案从 `@ahoo-wang/wow-client/legacy` 导入，Wow 查询 Hook 从 `@ahoo-wang/wow-react` 导入 |
+| 变化的 API | 不再调用 `ErrorCodes.isSucceeded`/`isError`、`getPropertyValue`、`createQueryApiMetadata`、`*EndpointPaths` 常量或 `createOwnerLoadStateAggregateClient`；聚合构造器按 `(目标, 别名, 选项)` 调用；命令头用 `commandHeaders()`/`waitStrategy()` 构造；失败调用用 `toWowError` 读取，流消费者捕获 `WowError` |
 | 生成代码 | 已用 `wow-generator` 重新生成，生成文件导入的是 `@ahoo-wang/wow-client` |
 | 版本 | `wow-client`、`wow-generator`、`wow-react` 处于同一个小版本，并与 Wow 服务端一致 |
 | 验证 | 类型检查以及针对真实 Wow 服务端的集成测试通过 |

@@ -39,7 +39,7 @@ export interface QueryApi<R, FIELDS extends string = string> {
   cursor<T extends Partial<R> = R>(
     query: CursorQuery<FIELDS>,
     attributes?: Record<string, unknown>,
-    abortController?: AbortController,
+    abort?: AbortController | AbortSignal,
   ): Promise<CursorPage<T>>;
 
   /** Runs an aggregation and returns all result rows. */
@@ -48,8 +48,8 @@ export interface QueryApi<R, FIELDS extends string = string> {
     AGGREGATION_FIELDS extends string = string,
   >(
     query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>,
-    attributes?: Record<string, any>,
-    abortController?: AbortController,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
   ): Promise<Row[]>;
 
   /** Runs an aggregation and streams result rows as SSE. */
@@ -58,8 +58,8 @@ export interface QueryApi<R, FIELDS extends string = string> {
     AGGREGATION_FIELDS extends string = string,
   >(
     query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>,
-    attributes?: Record<string, any>,
-    abortController?: AbortController,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
   ): Promise<ReadableStream<JsonServerSentEvent<Row>>>;
 
   /**
@@ -72,8 +72,8 @@ export interface QueryApi<R, FIELDS extends string = string> {
    */
   single<T extends Partial<R> = R>(
     singleQuery: SingleQueryRequest<FIELDS>,
-    attributes?: Record<string, any>,
-    abortController?: AbortController,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
   ): Promise<T>;
 
   /**
@@ -86,8 +86,8 @@ export interface QueryApi<R, FIELDS extends string = string> {
    */
   list<T extends Partial<R> = R>(
     listQuery: ListQueryRequest<FIELDS>,
-    attributes?: Record<string, any>,
-    abortController?: AbortController,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
   ): Promise<T[]>;
 
   /**
@@ -100,8 +100,8 @@ export interface QueryApi<R, FIELDS extends string = string> {
    */
   listStream<T extends Partial<R> = R>(
     listQuery: ListQueryRequest<FIELDS>,
-    attributes?: Record<string, any>,
-    abortController?: AbortController,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
   ): Promise<ReadableStream<JsonServerSentEvent<T>>>;
 
   /**
@@ -114,8 +114,8 @@ export interface QueryApi<R, FIELDS extends string = string> {
    */
   paged<T extends Partial<R> = R>(
     pagedQuery: PagedQueryRequest<FIELDS>,
-    attributes?: Record<string, any>,
-    abortController?: AbortController,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
   ): Promise<PagedList<T>>;
 
   /**
@@ -129,7 +129,7 @@ export interface QueryApi<R, FIELDS extends string = string> {
   count(
     // compat(wow<9): accepts the deprecated Condition, which Wow < 8.11 needs; narrow to FilterExpression in v10.
     filter: FilterExpression<FIELDS> | Condition<FIELDS>,
-    attributes?: Record<string, any>,
-    abortController?: AbortController,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
   ): Promise<number>;
 }

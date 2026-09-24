@@ -5,7 +5,7 @@ description: '投影、排序与分页 — @ahoo-wang/wow-client'
 
 # 投影、排序与分页
 
-查询构造器返回可序列化普通对象，不执行 HTTP。根入口的 `singleQuery`、`listQuery`、`pagedQuery` 构造 filter 查询。构造已弃用 `Condition` 查询的同名构造器（供 Wow 8.10 服务端使用）来自 `@ahoo-wang/wow-client/legacy`，其默认值见下文各签名。
+查询构造器返回可序列化普通对象，不执行 HTTP。根入口的 `singleQuery`、`listQuery`、`pagedQuery` 构造 filter 查询。构造已弃用 `Condition` 查询的同名构造器（供 Wow 8.10 服务端使用）来自 `@ahoo-wang/wow-client/legacy`，其默认值见下文各签名。本页所有内容也由 `@ahoo-wang/wow-client/dsl` 导出，该入口不加载任何 HTTP 代码，参见[入口](./#entries)。
 
 | 构造器 / 模型                       | 默认值与优先级                                                                     |
 | ----------------------------------- | ---------------------------------------------------------------------------------- |

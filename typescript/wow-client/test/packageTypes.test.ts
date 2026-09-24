@@ -22,6 +22,13 @@ it('preserves public Wow types under NodeNext without skipping declaration check
   const source = `
     import { aggregation, type AggregationQuery, type QueryApi } from '@ahoo-wang/wow-client';
     import { zh_CN, en_US, all, listQuery } from '@ahoo-wang/wow-client/legacy';
+    import { type CommandRequestHeaders, CommandStage, WowError } from '@ahoo-wang/wow-client';
+    import { filter, type FilterExpression } from '@ahoo-wang/wow-client/dsl';
+    const stage: CommandRequestHeaders = { 'Command-Wait-Stage': CommandStage.SNAPSHOT };
+    // @ts-expect-error The declarations keep the typed command headers.
+    const typo: CommandRequestHeaders = { 'Command-Wait-Stage': 'PROCESSSED' };
+    const expression: FilterExpression = filter.eq('state.status', 'PAID');
+    const code: string = new WowError({ errorCode: 'NotFound', errorMsg: '' }).errorCode;
     const valid: AggregationQuery = { metrics: [aggregation.count('orders')] };
     // @ts-expect-error Aggregation must retain its nonempty metrics contract.
     const empty: AggregationQuery = { metrics: [] };
@@ -29,7 +36,7 @@ it('preserves public Wow types under NodeNext without skipping declaration check
     const invalidApi: QueryApi = {};
     // The root query clients take the legacy entry's Condition queries.
     const legacyList = (api: QueryApi<unknown>) => api.list(listQuery({ condition: all() }));
-    void [valid, empty, invalidApi, zh_CN, en_US, legacyList];
+    void [valid, empty, invalidApi, zh_CN, en_US, legacyList, stage, typo, expression, code];
   `;
   const options: ts.CompilerOptions = {
     noEmit: true,

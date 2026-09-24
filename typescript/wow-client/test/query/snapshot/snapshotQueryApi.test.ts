@@ -14,9 +14,9 @@
 import { NamedFetcher } from '@ahoo-wang/fetcher';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
+import { SnapshotQueryEndpointPaths } from '../../../src/query/snapshot/endpointPaths';
 import type { SnapshotQueryApi } from '../../../src';
 import {
-  SnapshotQueryEndpointPaths,
   aggregation,
   HavingExpressionType,
   ComparisonOperator,
@@ -38,14 +38,16 @@ describe('SnapshotQueryEndpointPaths', () => {
   };
   const query: AggregationQuery<RootFields, ItemFields> = {
     filter: filter.eq('state.status', 'PAID'),
-    groupBy: [aggregation.terms('productId', 'product', 'Unknown')],
+    groupBy: [
+      aggregation.terms('productId', 'product', { missingKey: 'Unknown' }),
+    ],
     metrics: [
-      aggregation.sum(
-        aggregation.field('amount'),
-        'total',
-        filter.gt('amount', 0),
-      ),
-      aggregation.percentile(aggregation.field('amount'), 95, 'p95'),
+      aggregation.sum(aggregation.field('amount'), 'total', {
+        filter: filter.gt('amount', 0),
+      }),
+      aggregation.percentile(aggregation.field('amount'), 'p95', {
+        percentile: 95,
+      }),
     ],
     having: {
       type: HavingExpressionType.CONDITION,

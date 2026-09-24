@@ -244,7 +244,7 @@ declare const filter: {
 
 :::
 
-[typescript/wow-client/src/query/filter.ts:585](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L585)
+[typescript/wow-client/src/query/filter.ts:710](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L710)
 
 ### FilterExpression {#api-FilterExpression}
 
@@ -267,7 +267,7 @@ export type FilterExpression<FIELDS extends string = string> =
   | DaysFilter<FIELDS>;
 ```
 
-[typescript/wow-client/src/query/filter.ts:486](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L486)
+[typescript/wow-client/src/query/filter.ts:634](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L634)
 
 ### DeletionState {#api-DeletionState}
 
@@ -287,7 +287,7 @@ export enum DeletionState {
 export type QueryField<FIELDS extends string = string> = FIELDS;
 ```
 
-[typescript/wow-client/src/query/filter.ts:17](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L17)
+[typescript/wow-client/src/query/filter.ts:24](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L24)
 
 ### LogicalField {#api-LogicalField}
 
@@ -295,7 +295,7 @@ export type QueryField<FIELDS extends string = string> = FIELDS;
 export type LogicalField<FIELDS extends string = string> = QueryField<FIELDS>;
 ```
 
-[typescript/wow-client/src/query/filter.ts:19](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L19)
+[typescript/wow-client/src/query/filter.ts:26](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L26)
 
 ### FilterLiteral {#api-FilterLiteral}
 
@@ -303,7 +303,7 @@ export type LogicalField<FIELDS extends string = string> = QueryField<FIELDS>;
 export type FilterLiteral = null | string | number | boolean;
 ```
 
-[typescript/wow-client/src/query/filter.ts:20](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L20)
+[typescript/wow-client/src/query/filter.ts:30](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L30)
 
 ### EqualityFilterValue {#api-EqualityFilterValue}
 
@@ -311,7 +311,7 @@ export type FilterLiteral = null | string | number | boolean;
 export type EqualityFilterValue = FilterLiteral;
 ```
 
-[typescript/wow-client/src/query/filter.ts:21](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L21)
+[typescript/wow-client/src/query/filter.ts:34](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L34)
 
 ### ComparableFilterLiteral {#api-ComparableFilterLiteral}
 
@@ -319,7 +319,7 @@ export type EqualityFilterValue = FilterLiteral;
 export type ComparableFilterLiteral = Exclude<FilterLiteral, null>;
 ```
 
-[typescript/wow-client/src/query/filter.ts:22](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L22)
+[typescript/wow-client/src/query/filter.ts:38](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L38)
 
 ### FilterOperator {#api-FilterOperator}
 
@@ -382,7 +382,7 @@ export enum FilterOperator {
 
 :::
 
-[typescript/wow-client/src/query/filter.ts:24](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L24)
+[typescript/wow-client/src/query/filter.ts:44](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L44)
 
 ### StringComparison {#api-StringComparison}
 
@@ -393,7 +393,7 @@ export enum StringComparison {
 }
 ```
 
-[typescript/wow-client/src/query/filter.ts:77](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L77)
+[typescript/wow-client/src/query/filter.ts:100](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L100)
 
 ### SearchMode {#api-SearchMode}
 
@@ -404,7 +404,7 @@ export enum SearchMode {
 }
 ```
 
-[typescript/wow-client/src/query/filter.ts:82](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L82)
+[typescript/wow-client/src/query/filter.ts:114](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L114)
 
 ### TimeUnit {#api-TimeUnit}
 
@@ -420,7 +420,7 @@ export enum TimeUnit {
 }
 ```
 
-[typescript/wow-client/src/query/filter.ts:87](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L87)
+[typescript/wow-client/src/query/filter.ts:130](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L130)
 
 ### MatchFilter {#api-MatchFilter}
 
@@ -430,7 +430,7 @@ export type MatchFilter = {
 };
 ```
 
-[typescript/wow-client/src/query/filter.ts:326](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L326)
+[typescript/wow-client/src/query/filter.ts:373](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L373)
 
 ### MetadataValueFilter {#api-MetadataValueFilter}
 
@@ -446,7 +446,7 @@ export type MetadataValueFilter = {
 };
 ```
 
-[typescript/wow-client/src/query/filter.ts:330](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L330)
+[typescript/wow-client/src/query/filter.ts:381](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L381)
 
 ### MetadataValuesFilter {#api-MetadataValuesFilter}
 
@@ -457,7 +457,7 @@ export type MetadataValuesFilter = {
 };
 ```
 
-[typescript/wow-client/src/query/filter.ts:340](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L340)
+[typescript/wow-client/src/query/filter.ts:394](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L394)
 
 ### MetadataFilter {#api-MetadataFilter}
 
@@ -465,7 +465,7 @@ export type MetadataValuesFilter = {
 export type MetadataFilter = MetadataValueFilter | MetadataValuesFilter;
 ```
 
-[typescript/wow-client/src/query/filter.ts:345](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L345)
+[typescript/wow-client/src/query/filter.ts:402](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L402)
 
 ### LogicalFilter {#api-LogicalFilter}
 
@@ -476,7 +476,7 @@ export type LogicalFilter<FIELDS extends string = string> = {
 };
 ```
 
-[typescript/wow-client/src/query/filter.ts:347](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L347)
+[typescript/wow-client/src/query/filter.ts:407](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L407)
 
 ### ElementLogicalFilter {#api-ElementLogicalFilter}
 
@@ -487,7 +487,7 @@ export type ElementLogicalFilter<FIELDS extends string = string> = {
 };
 ```
 
-[typescript/wow-client/src/query/filter.ts:352](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L352)
+[typescript/wow-client/src/query/filter.ts:416](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L416)
 
 ### EqualityFilter {#api-EqualityFilter}
 
@@ -499,7 +499,7 @@ export type EqualityFilter<FIELDS extends string = string> = {
 };
 ```
 
-[typescript/wow-client/src/query/filter.ts:357](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L357)
+[typescript/wow-client/src/query/filter.ts:425](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L425)
 
 ### ComparisonFilter {#api-ComparisonFilter}
 
@@ -515,7 +515,7 @@ export type ComparisonFilter<FIELDS extends string = string> = {
 };
 ```
 
-[typescript/wow-client/src/query/filter.ts:363](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L363)
+[typescript/wow-client/src/query/filter.ts:434](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L434)
 
 ### StringFilter {#api-StringFilter}
 
@@ -531,7 +531,7 @@ export type StringFilter<FIELDS extends string = string> = {
 };
 ```
 
-[typescript/wow-client/src/query/filter.ts:373](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L373)
+[typescript/wow-client/src/query/filter.ts:448](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L448)
 
 ### CollectionFilter {#api-CollectionFilter}
 
@@ -543,7 +543,7 @@ export type CollectionFilter<FIELDS extends string = string> = {
 };
 ```
 
-[typescript/wow-client/src/query/filter.ts:383](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L383)
+[typescript/wow-client/src/query/filter.ts:462](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L462)
 
 ### BetweenFilter {#api-BetweenFilter}
 
@@ -556,7 +556,7 @@ export type BetweenFilter<FIELDS extends string = string> = {
 };
 ```
 
-[typescript/wow-client/src/query/filter.ts:389](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L389)
+[typescript/wow-client/src/query/filter.ts:471](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L471)
 
 ### FieldPresenceFilter {#api-FieldPresenceFilter}
 
@@ -574,7 +574,7 @@ export type FieldPresenceFilter<FIELDS extends string = string> = {
 };
 ```
 
-[typescript/wow-client/src/query/filter.ts:396](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L396)
+[typescript/wow-client/src/query/filter.ts:482](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L482)
 
 ### DeletionFilter {#api-DeletionFilter}
 
@@ -585,7 +585,7 @@ export type DeletionFilter = {
 };
 ```
 
-[typescript/wow-client/src/query/filter.ts:408](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L408)
+[typescript/wow-client/src/query/filter.ts:497](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L497)
 
 ### ElementMatchFilter {#api-ElementMatchFilter}
 
@@ -600,7 +600,7 @@ export type ElementMatchFilter<
 };
 ```
 
-[typescript/wow-client/src/query/filter.ts:413](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L413)
+[typescript/wow-client/src/query/filter.ts:506](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L506)
 
 ### SearchFilter {#api-SearchFilter}
 
@@ -613,7 +613,7 @@ export type SearchFilter<FIELDS extends string = string> = {
 };
 ```
 
-[typescript/wow-client/src/query/filter.ts:422](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L422)
+[typescript/wow-client/src/query/filter.ts:519](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L519)
 
 ### SearchFilterOptions {#api-SearchFilterOptions}
 
@@ -624,7 +624,7 @@ export interface SearchFilterOptions<FIELDS extends string = string> {
 }
 ```
 
-[typescript/wow-client/src/query/filter.ts:429](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L429)
+[typescript/wow-client/src/query/filter.ts:532](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L532)
 
 ### RelativeTimeFilterOptions {#api-RelativeTimeFilterOptions}
 
@@ -636,7 +636,7 @@ export interface RelativeTimeFilterOptions {
 }
 ```
 
-[typescript/wow-client/src/query/filter.ts:434](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L434)
+[typescript/wow-client/src/query/filter.ts:547](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L547)
 
 ### CalendarFilter {#api-CalendarFilter}
 
@@ -660,7 +660,7 @@ export type CalendarFilter<FIELDS extends string = string> =
   };
 ```
 
-[typescript/wow-client/src/query/filter.ts:440](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L440)
+[typescript/wow-client/src/query/filter.ts:573](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L573)
 
 ### BeforeTodayFilter {#api-BeforeTodayFilter}
 
@@ -673,7 +673,7 @@ export type BeforeTodayFilter<FIELDS extends string = string> =
   };
 ```
 
-[typescript/wow-client/src/query/filter.ts:458](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L458)
+[typescript/wow-client/src/query/filter.ts:594](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L594)
 
 ### DaysFilter {#api-DaysFilter}
 
@@ -686,7 +686,7 @@ export type DaysFilter<FIELDS extends string = string> =
   };
 ```
 
-[typescript/wow-client/src/query/filter.ts:465](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L465)
+[typescript/wow-client/src/query/filter.ts:605](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L605)
 
 ### ElementFilterExpression {#api-ElementFilterExpression}
 
@@ -706,7 +706,7 @@ export type ElementFilterExpression<FIELDS extends string = string> =
   | DaysFilter<FIELDS>;
 ```
 
-[typescript/wow-client/src/query/filter.ts:472](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L472)
+[typescript/wow-client/src/query/filter.ts:616](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L616)
 
 ### FilterCapable {#api-FilterCapable}
 
@@ -716,7 +716,7 @@ export interface FilterCapable<FIELDS extends string = string> {
 }
 ```
 
-[typescript/wow-client/src/query/filter.ts:503](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L503)
+[typescript/wow-client/src/query/filter.ts:654](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/filter.ts#L654)
 
 ## Legacy Condition builders and types {#condition-contracts}
 
@@ -801,7 +801,7 @@ export function ids<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:268](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L268)
+[typescript/wow-client/src/legacy/condition.ts:267](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L267)
 
 ### aggregateId {#api-aggregateId}
 
@@ -811,7 +811,7 @@ export function aggregateId<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:282](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L282)
+[typescript/wow-client/src/legacy/condition.ts:280](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L280)
 
 ### aggregateIds {#api-aggregateIds}
 
@@ -821,7 +821,7 @@ export function aggregateIds<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:296](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L296)
+[typescript/wow-client/src/legacy/condition.ts:293](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L293)
 
 ### tenantId {#api-tenantId}
 
@@ -831,7 +831,7 @@ export function tenantId<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:309](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L309)
+[typescript/wow-client/src/legacy/condition.ts:306](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L306)
 
 ### ownerId {#api-ownerId}
 
@@ -841,7 +841,7 @@ export function ownerId<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:322](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L322)
+[typescript/wow-client/src/legacy/condition.ts:319](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L319)
 
 ### spaceId {#api-spaceId}
 
@@ -851,7 +851,7 @@ export function spaceId<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:329](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L329)
+[typescript/wow-client/src/legacy/condition.ts:332](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L332)
 
 ### deleted {#api-deleted}
 
@@ -861,7 +861,7 @@ export function deleted<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:342](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L342)
+[typescript/wow-client/src/legacy/condition.ts:345](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L345)
 
 ### active {#api-active}
 
@@ -869,7 +869,7 @@ export function deleted<FIELDS extends string = string>(
 export function active<FIELDS extends string = string>(): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:355](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L355)
+[typescript/wow-client/src/legacy/condition.ts:358](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L358)
 
 ### all {#api-all}
 
@@ -877,7 +877,7 @@ export function active<FIELDS extends string = string>(): Condition<FIELDS>;
 export function all<FIELDS extends string = string>(): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:365](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L365)
+[typescript/wow-client/src/legacy/condition.ts:368](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L368)
 
 ### eq {#api-eq}
 
@@ -888,7 +888,7 @@ export function eq<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:379](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L379)
+[typescript/wow-client/src/legacy/condition.ts:382](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L382)
 
 ### ne {#api-ne}
 
@@ -899,7 +899,7 @@ export function ne<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:394](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L394)
+[typescript/wow-client/src/legacy/condition.ts:397](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L397)
 
 ### gt {#api-gt}
 
@@ -910,7 +910,7 @@ export function gt<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:409](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L409)
+[typescript/wow-client/src/legacy/condition.ts:412](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L412)
 
 ### lt {#api-lt}
 
@@ -921,7 +921,7 @@ export function lt<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:424](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L424)
+[typescript/wow-client/src/legacy/condition.ts:427](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L427)
 
 ### gte {#api-gte}
 
@@ -932,7 +932,7 @@ export function gte<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:439](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L439)
+[typescript/wow-client/src/legacy/condition.ts:442](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L442)
 
 ### lte {#api-lte}
 
@@ -943,7 +943,7 @@ export function lte<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:454](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L454)
+[typescript/wow-client/src/legacy/condition.ts:457](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L457)
 
 ### contains {#api-contains}
 
@@ -955,7 +955,7 @@ export function contains<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:470](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L470)
+[typescript/wow-client/src/legacy/condition.ts:473](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L473)
 
 ### isIn {#api-isIn}
 
@@ -966,7 +966,7 @@ export function isIn<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:488](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L488)
+[typescript/wow-client/src/legacy/condition.ts:491](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L491)
 
 ### notIn {#api-notIn}
 
@@ -977,7 +977,7 @@ export function notIn<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:503](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L503)
+[typescript/wow-client/src/legacy/condition.ts:506](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L506)
 
 ### between {#api-between}
 
@@ -989,7 +989,7 @@ export function between<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:519](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L519)
+[typescript/wow-client/src/legacy/condition.ts:522](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L522)
 
 ### allIn {#api-allIn}
 
@@ -1000,7 +1000,7 @@ export function allIn<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:535](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L535)
+[typescript/wow-client/src/legacy/condition.ts:538](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L538)
 
 ### startsWith {#api-startsWith}
 
@@ -1012,7 +1012,7 @@ export function startsWith<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:551](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L551)
+[typescript/wow-client/src/legacy/condition.ts:554](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L554)
 
 ### match {#api-match}
 
@@ -1023,7 +1023,7 @@ export function match<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:569](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L569)
+[typescript/wow-client/src/legacy/condition.ts:572](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L572)
 
 ### endsWith {#api-endsWith}
 
@@ -1035,7 +1035,7 @@ export function endsWith<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:585](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L585)
+[typescript/wow-client/src/legacy/condition.ts:588](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L588)
 
 ### elemMatch {#api-elemMatch}
 
@@ -1046,7 +1046,7 @@ export function elemMatch<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:603](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L603)
+[typescript/wow-client/src/legacy/condition.ts:606](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L606)
 
 ### isNull {#api-isNull}
 
@@ -1056,7 +1056,7 @@ export function isNull<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:617](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L617)
+[typescript/wow-client/src/legacy/condition.ts:620](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L620)
 
 ### notNull {#api-notNull}
 
@@ -1066,7 +1066,7 @@ export function notNull<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:630](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L630)
+[typescript/wow-client/src/legacy/condition.ts:633](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L633)
 
 ### isTrue {#api-isTrue}
 
@@ -1076,7 +1076,7 @@ export function isTrue<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:643](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L643)
+[typescript/wow-client/src/legacy/condition.ts:646](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L646)
 
 ### isFalse {#api-isFalse}
 
@@ -1086,7 +1086,7 @@ export function isFalse<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:656](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L656)
+[typescript/wow-client/src/legacy/condition.ts:659](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L659)
 
 ### exists {#api-exists}
 
@@ -1099,7 +1099,7 @@ export function exists<FIELDS extends string = string>(
 
 Implementation defaults: `exists = true`.
 
-[typescript/wow-client/src/legacy/condition.ts:670](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L670)
+[typescript/wow-client/src/legacy/condition.ts:673](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L673)
 
 ### today {#api-today}
 
@@ -1111,7 +1111,7 @@ export function today<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:686](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L686)
+[typescript/wow-client/src/legacy/condition.ts:689](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L689)
 
 ### beforeToday {#api-beforeToday}
 
@@ -1124,7 +1124,7 @@ export function beforeToday<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:705](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L705)
+[typescript/wow-client/src/legacy/condition.ts:708](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L708)
 
 ### tomorrow {#api-tomorrow}
 
@@ -1136,7 +1136,7 @@ export function tomorrow<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:724](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L724)
+[typescript/wow-client/src/legacy/condition.ts:727](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L727)
 
 ### thisWeek {#api-thisWeek}
 
@@ -1148,7 +1148,7 @@ export function thisWeek<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:742](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L742)
+[typescript/wow-client/src/legacy/condition.ts:745](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L745)
 
 ### nextWeek {#api-nextWeek}
 
@@ -1160,7 +1160,7 @@ export function nextWeek<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:760](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L760)
+[typescript/wow-client/src/legacy/condition.ts:763](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L763)
 
 ### lastWeek {#api-lastWeek}
 
@@ -1172,7 +1172,7 @@ export function lastWeek<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:778](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L778)
+[typescript/wow-client/src/legacy/condition.ts:781](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L781)
 
 ### thisMonth {#api-thisMonth}
 
@@ -1184,7 +1184,7 @@ export function thisMonth<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:796](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L796)
+[typescript/wow-client/src/legacy/condition.ts:799](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L799)
 
 ### lastMonth {#api-lastMonth}
 
@@ -1196,7 +1196,7 @@ export function lastMonth<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:814](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L814)
+[typescript/wow-client/src/legacy/condition.ts:817](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L817)
 
 ### recentDays {#api-recentDays}
 
@@ -1209,7 +1209,7 @@ export function recentDays<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:833](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L833)
+[typescript/wow-client/src/legacy/condition.ts:836](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L836)
 
 ### earlierDays {#api-earlierDays}
 
@@ -1222,7 +1222,7 @@ export function earlierDays<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:853](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L853)
+[typescript/wow-client/src/legacy/condition.ts:856](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L856)
 
 ### raw {#api-raw}
 
@@ -1232,7 +1232,7 @@ export function raw<FIELDS extends string = string>(
 ): Condition<FIELDS>;
 ```
 
-[typescript/wow-client/src/legacy/condition.ts:876](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L876)
+[typescript/wow-client/src/legacy/condition.ts:877](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/condition.ts#L877)
 
 ### ConditionOptionKey {#api-ConditionOptionKey}
 

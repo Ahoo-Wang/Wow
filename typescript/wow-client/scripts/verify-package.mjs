@@ -23,7 +23,7 @@
 //    from the source by `test/publicSurface.test.ts`; this holds the bundle
 //    to them, so a build that drops or adds a binding fails here.
 import assert from 'node:assert/strict';
-import { readFileSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 const packageRoot = new URL('../', import.meta.url);
@@ -35,6 +35,7 @@ const require = createRequire(new URL('package.json', packageRoot));
 
 const SURFACE_LISTS = {
   '.': 'test/surface/root.txt',
+  './dsl': 'test/surface/dsl.txt',
   './legacy': 'test/surface/legacy.txt',
 };
 
@@ -96,6 +97,41 @@ for (const [subpath, conditions] of entries) {
   checked += values.length;
 }
 
+// 4. The DSL entry loads no HTTP code: none of its modules, followed through
+//    the chunks it imports, imports a fetcher package or reflect-metadata.
+const HTTP_PACKAGES =
+  /from\s*["'](@ahoo-wang\/fetcher[^"']*|reflect-metadata)["']|require\(["'](@ahoo-wang\/fetcher[^"']*|reflect-metadata)["']\)/;
+for (const path of [
+  manifest.exports['./dsl'].import.default,
+  manifest.exports['./dsl'].require.default,
+]) {
+  const seen = new Set();
+  const pending = [new URL(path, packageRoot)];
+  while (pending.length > 0) {
+    const url = pending.pop();
+    if (seen.has(url.href)) continue;
+    seen.add(url.href);
+    const code = readFileSync(url, 'utf8');
+    const http = HTTP_PACKAGES.exec(code);
+    assert.equal(
+      http,
+      null,
+      `${path} reaches ${http?.[1] ?? http?.[2]} through ${url.pathname}`,
+    );
+    for (const [, relative] of code.matchAll(
+      /(?:from\s*|require\()["'](\.\.?\/[^"']+)["']/g,
+    ))
+      pending.push(new URL(relative, url));
+  }
+}
+
+// 5. No declaration map ships: the package holds no `src`, so a map would
+//    send "go to definition" to files that are not there.
+const declarationMaps = readdirSync(new URL('dist/', packageRoot), {
+  recursive: true,
+}).filter(file => /\.d\.c?ts\.map$/.test(String(file)));
+assert.deepEqual(declarationMaps, [], 'dist holds declaration maps');
+
 console.log(
-  `${entries.length} entries resolve under import and require, and export at run time exactly the ${checked} values their surface lists name.`,
+  `${entries.length} entries resolve under import and require, and export at run time exactly the ${checked} values their surface lists name, the DSL entry loads no HTTP code, and no declaration map ships.`,
 );
