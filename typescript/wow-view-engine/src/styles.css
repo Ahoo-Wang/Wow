@@ -859,6 +859,54 @@
 }
 
 /*
+ * An embed that fills its container (`size="fill"`, D22).
+ *
+ * An embed on a card sizes to its content, and the parts under it keep their
+ * own caps — a record table stops at `--fve-record-table-max-h` and scrolls
+ * inside. A whole-page embed — a wall screen, a page that is one view — is
+ * handed a height instead, and the result takes what the rows above it
+ * leave, as a workbench's result does when it fills the screen: the root is
+ * a definite-height flex column, the table or the analysis takes the rest
+ * and scrolls itself. A board has no one part to hand the height to, so the
+ * root is its scrollport. The container must have a height to give; with
+ * none, `100%` is nothing and the embed reads as `content`.
+ */
+.fve-root[data-embed-size='fill'] {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.fve-root[data-embed-size='fill'] > [data-slot='record-table'][data-scrolls] {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+}
+
+.fve-root[data-embed-size='fill'] > [data-slot='record-cards'] {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  grid-auto-rows: max-content;
+  align-content: start;
+}
+
+.fve-root[data-embed-size='fill'] > [data-slot='analysis-result'] {
+  flex: 1 1 0;
+  min-height: 12rem;
+}
+
+.fve-root[data-embed-size='fill'] > [data-slot='analysis-result'] > * {
+  flex: 1 1 auto;
+  min-height: 0;
+  aspect-ratio: auto;
+}
+
+.fve-root[data-embed-size='fill']:has([data-slot='dashboard-grid']) {
+  overflow-y: auto;
+}
+
+/*
  * A view filling the screen, pinned where it already stands.
  *
  * Unlayered on purpose: it has to outrank whatever utility gave the surface

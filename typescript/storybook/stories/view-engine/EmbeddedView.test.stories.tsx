@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 import type { StoryObj } from '@storybook/react-vite';
-import { expect, userEvent, waitFor, within } from 'storybook/test';
+import { expect, screen, userEvent, waitFor, within } from 'storybook/test';
 import { zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 import displayMeta, {
   AnalysisEmbed as DisplayAnalysisEmbed,
@@ -23,15 +23,10 @@ import displayMeta, {
   ScopeRefusedOnOpen as DisplayScopeRefusedOnOpen,
   ScopedByHost as DisplayScopedByHost,
   TotalCoversThisPageOnly as DisplayTotalCoversThisPageOnly,
-  DashboardWithAPanelOut as DisplayDashboardWithAPanelOut,
+  Interactive as DisplayInteractive,
+  AnalysisInteractive as DisplayAnalysisInteractive,
 } from './EmbeddedView.stories.js';
-import {
-  amountOf,
-  findDataTable,
-  readColumn,
-  readPage,
-  readTotal,
-} from './readTable.js';
+import { amountOf, readColumn, readPage, readTotal } from './readTable.js';
 import { drawnMarks } from './chartDom.js';
 
 const meta = {
@@ -103,6 +98,10 @@ export const Default: Story = {
       '[data-slot="applied-bar"]',
     )!;
     await expect(within(applied).queryAllByRole('button')).toHaveLength(0);
+
+    // The read-only tier (D22): the headers are read, not pressed.
+    for (const head of within(table).getAllByRole('columnheader'))
+      await expect(within(head).queryByRole('button')).toBeNull();
 
     // No expand control of its own: the only one on screen is the host's.
     await expect(
@@ -406,36 +405,94 @@ function onViewport(element: HTMLElement): boolean {
 }
 
 /**
- * One panel of an embedded dashboard is out: the grid still draws, the other
- * panels run, and the one that is out says why in its own frame (R3). The
- * embed used to take that panel's error for the dashboard's own and draw a
- * red strip in place of the whole board.
+ * The interactive tier end to end (D22): a header orders the rows, the
+ * search narrows them within the page's own narrowing, the export is in the
+ * first row, and 在工作台中打开 hands the host's route the saved view under
+ * the page's condition.
  */
-export const DashboardWithAPanelOut: Story = {
-  ...DisplayDashboardWithAPanelOut,
+export const Interactive: Story = {
+  ...DisplayInteractive,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    // The healthy panels draw: the table, the chart, the runbook.
-    await findDataTable(canvasElement);
-    await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(4));
+    const table = await canvas.findByRole('table');
+    // The page narrows to the east warehouse: one pending order.
+    await waitFor(() =>
+      expect(readColumn(table, '订单号')).toEqual(['SO-1001']),
+    );
+    // Sorted by a header, and paged.
+    await userEvent.click(
+      within(table).getByRole('button', { name: /按订单号升序排序/ }),
+    );
+    await waitFor(() =>
+      expect(
+        within(table).getByRole('columnheader', { name: /订单号/ }),
+      ).toHaveAttribute('aria-sort', 'ascending'),
+    );
     await expect(
-      canvas.getByRole('link', { name: /出库异常处理/ }),
+      canvasElement.querySelector('[data-slot="record-pagination"]'),
+    ).not.toBeNull();
+
+    // The search sits at the applied band's end, and narrows within the
+    // page's scope: nothing in the east warehouse matches 1003.
+    const box = canvas.getByRole('searchbox', { name: '搜索订单' });
+    await userEvent.type(box, '1003{Enter}');
+    await waitFor(() =>
+      expect(canvas.getByText(zhCN['label.record.empty'])).toBeVisible(),
+    );
+    await userEvent.clear(box);
+    await userEvent.type(box, '1001{Enter}');
+    await waitFor(async () =>
+      expect(readColumn(await canvas.findByRole('table'), '订单号')).toEqual([
+        'SO-1001',
+      ]),
+    );
+
+    // The export, in the first row.
+    await expect(
+      canvas.getByRole('button', { name: zhCN['label.export.title'] }),
     ).toBeVisible();
-    // The refused one says why, in its own frame, and who can fix it.
-    const out = await waitFor(() => {
+
+    // 在工作台中打开: the saved view under the page's narrowing.
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.panel.open'] }),
+    );
+    const route = canvasElement.querySelector('[data-host-route]')!;
+    await expect(route).toHaveTextContent('orders-pending');
+    await expect(route).toHaveTextContent('CN-EAST');
+  },
+};
+
+/**
+ * An analysis embed, interactive: the table｜chart switch is the reader's,
+ * and a group's follow-up opens through the host's route.
+ */
+export const AnalysisInteractive: Story = {
+  ...DisplayAnalysisInteractive,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(4));
+    const layout = canvas.getByRole('group', {
+      name: zhCN['label.analysis.layout'],
+    });
+    await userEvent.click(
+      within(layout).getByRole('button', { name: zhCN['label.layout.table'] }),
+    );
+    const table = await waitFor(() => {
       const found = canvasElement.querySelector<HTMLElement>(
-        '[data-slot="panel-unavailable"]',
+        '[data-slot="analysis-table"] table',
       );
       expect(found).not.toBeNull();
       return found!;
     });
-    await expect(out).toHaveTextContent(zhCN['label.panel.out.missing']);
-    await expect(out).toHaveTextContent(zhCN['label.panel.way-out.share']);
-    // No strip above the grid takes the board's place.
-    await expect(
-      canvasElement.querySelector(
-        '[data-slot="status-strip"][data-tone="error"]',
-      ),
-    ).toBeNull();
+    const row = await within(table).findByRole('row', { name: /华东/ });
+    await expect(row).toHaveAttribute('aria-haspopup', 'menu');
+    await userEvent.click(row);
+    await userEvent.click(
+      await screen.findByRole('menuitem', {
+        name: new RegExp(zhCN['label.drill.records']),
+      }),
+    );
+    const route = canvasElement.querySelector('[data-host-route]')!;
+    await waitFor(() => expect(route).toHaveTextContent('CN-EAST'));
   },
 };

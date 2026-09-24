@@ -11,25 +11,23 @@
  * limitations under the License.
  */
 
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
-import type { FieldOption, RecordData } from '../../model/index.js';
-import { serializeCsv, type RecordRow } from '../../record/index.js';
+import { useMemo, useState, type ReactNode } from 'react';
+import type { FieldOption } from '../../model/index.js';
+import type { RecordRow } from '../../record/index.js';
 import type { RecordViewRuntime, ViewEngine } from '../../runtime/index.js';
 import {
-  useRecordExport,
   useRecordDetail,
   useRecordTable,
   useSearchBox,
   type BulkCommand,
   type RecordActionSlots,
-  type RecordExportScope,
   type WorkbenchController,
 } from '../../react/index.js';
 import { useAnnouncer } from '../Announcer.js';
 import { Button } from '../components/button.js';
 import { ColumnSettings } from '../ColumnSettings.js';
-import { csvCellText, isoDay, type DisplayContext } from '../display.js';
-import { downloadFile, fileName } from '../download.js';
+import type { DisplayContext } from '../display.js';
+import { useExportOffer, type ExportedFile } from '../record/exportOffer.js';
 import { useQueryAnnouncement } from '../record/queryAnnouncement.js';
 import { FilterPanel } from '../FilterPanel.js';
 import { FilterModes } from '../filter/FilterModes.js';
@@ -113,13 +111,7 @@ export interface RecordViewProps {
   onExported?(file: ExportedFile): void;
 }
 
-/** One file an export produced, as it was handed over. */
-export interface ExportedFile {
-  name: string;
-  text: string;
-  scope: RecordExportScope;
-  rows: number;
-}
+export type { ExportedFile } from '../record/exportOffer.js';
 
 export interface RecordPartsProps extends RecordViewProps {
   engine: ViewEngine;
@@ -138,9 +130,6 @@ export interface RecordPartsProps extends RecordViewProps {
   features?: WorkbenchFeatures;
   children: RenderParts;
 }
-
-/** What a CSV is served as; the charset is what makes the BOM readable. */
-const CSV_TYPE = 'text/csv;charset=utf-8';
 
 /**
  * What this kind puts inside the result frame, and how the frame dresses
@@ -245,37 +234,17 @@ export function RecordParts({
     }),
     [locale, timeZone],
   );
-  const title = state?.title ?? '';
-  const columns = table.columns;
-  const now = engine.environment.now;
-  /**
-   * The rows as a file the browser takes.
-   *
-   * The columns are the ones the table is drawing, in the order it draws
-   * them, and every value goes through the same reading the cell above it
-   * does — an export that said `1789723315014` where the screen said a date
-   * would be a second, quieter view of the data.
-   */
-  // Named before it exists, because the export window says what the file
-  // will be called before there is a file (D14). The clock is read when the
-  // window asks — once, as it opens — rather than on every render and again
-  // at delivery: a name holds a day in it, and an export that ran across
-  // midnight used to be handed over under a name nobody was shown.
-  const nameFile = useCallback(
-    () => fileName(title, isoDay(now(), display), 'csv'),
-    [display, now, title],
-  );
-  const deliver = useCallback(
-    (rows: readonly RecordData[], scope: RecordExportScope, name: string) => {
-      const text = serializeCsv(rows, columns, (value, column) =>
-        csvCellText(value, column, messages, display),
-      );
-      downloadFile({ name, text, type: CSV_TYPE });
-      onExported?.({ name, text, scope, rows: rows.length });
-    },
-    [columns, display, messages, onExported],
-  );
-  const exportControl = useRecordExport(record, table, { deliver });
+  // The rows as a file the browser takes (`useExportOffer`).
+  const exporter = useExportOffer({
+    runtime: record,
+    table,
+    filter,
+    title: state?.title ?? '',
+    messages,
+    display,
+    now: engine.environment.now,
+    onExported,
+  });
   const searchBox = useSearchBox(record);
 
   if (!record) return children(NO_PARTS);
@@ -337,21 +306,7 @@ export function RecordParts({
         released={table.layout === 'table' ? released : NO_RELEASE}
         bulkActions={actions?.bulk}
         features={features}
-        exporter={
-          shown.export
-            ? {
-                control: exportControl,
-                // The host's scope narrows the export exactly as it narrows
-                // the rows, so the window names both kinds of condition.
-                conditions: [
-                  ...filter.applied,
-                  ...filter.scoped,
-                  ...filter.implied,
-                ],
-                nameFile,
-              }
-            : undefined
-        }
+        exporter={shown.export ? exporter : undefined}
         runtime={record}
       />
     ),

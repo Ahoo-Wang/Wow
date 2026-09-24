@@ -119,9 +119,22 @@ export interface DashboardRuntime
   setGroupingUnit(unit: AnalysisDateUnit): void;
   /**
    * Clears every filter (「清空」): the required ones go back to their
-   * defaults, the time grouping to its default unit.
+   * defaults, the time grouping to its default unit — but for what the host
+   * holds (`holdFilters`), which stays.
    */
   clearFilters(): void;
+  /**
+   * The filters a host holds — an embed's locked and hidden ones (D22) —
+   * and what they hold (`HeldFilters`): the values go in at once, and the
+   * reader's commands leave them as they are — `setFilterValue` refuses one
+   * (`dashboard.filter.held`), `clearFilters` and `setGroupingUnit` pass it
+   * by, and a panel whose click sets one opens the follow-up menu instead
+   * (`DashboardPanelState.click`). Each call replaces the last; a filter let
+   * go keeps its value and is the reader's again. The values a text filter
+   * offers are counted under what the host holds. Answers what the board
+   * refused of the values, left out — every time it is asked.
+   */
+  holdFilters(held: HeldFilters | null): Issue[];
   /**
    * Puts every filter at once, as a host's address has them: what the
    * board does not take is left out, and said in the answer.
@@ -162,12 +175,23 @@ export interface DashboardRuntime
 }
 
 /**
+ * What a host holds of a board's filters (`DashboardRuntime.holdFilters`):
+ * each filter named, at the value given — `null` for its default — and,
+ * with `unit` present, the time grouping at that unit (`null` for its
+ * default).
+ */
+export interface HeldFilters {
+  values: Readonly<Record<string, FilterValue | null>>;
+  unit?: AnalysisDateUnit | null;
+}
+
+/**
  * Where a way off the board goes, handed to the host's route (D22 D, H, I):
  * the package never touches the address, so a view opened in the workbench,
  * a follow-up on a group and a panel's custom destination are all the
  * host's to take.
  */
-export type DashboardNavigation =
+export type ViewNavigation =
   /**
    * A saved record or analysis view, under `filter` in its own field names:
    * the board's filters as they reach the panel (在工作台中打开), or the

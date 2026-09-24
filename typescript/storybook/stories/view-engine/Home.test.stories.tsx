@@ -11,7 +11,8 @@
  * limitations under the License.
  */
 import type { StoryObj } from '@storybook/react-vite';
-import { expect, waitFor, within } from 'storybook/test';
+import { expect, screen, userEvent, waitFor, within } from 'storybook/test';
+import { zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 import displayMeta, { Fixture as DisplayFixture } from './Home.stories.js';
 import { findDataTable, readColumn } from './readTable.js';
 import { drawnMarks, valueLabels } from './chartDom.js';
@@ -177,5 +178,77 @@ export const Fixture: Story = {
     await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(
       document.documentElement.clientWidth,
     );
+  },
+};
+
+/** The panel titles on the board, top to bottom and left to right. */
+function titles(canvasElement: HTMLElement): string[] {
+  return [...canvasElement.querySelectorAll<HTMLElement>('.react-grid-item')]
+    .map(item => ({
+      box: item.getBoundingClientRect(),
+      title: item.querySelector('[data-slot="panel-title"]')?.textContent ?? '',
+    }))
+    .sort((a, b) => a.box.top - b.box.top || a.box.left - b.box.left)
+    .map(item => item.title);
+}
+
+/**
+ * The editable tier end to end (D22): the team's home board is built where
+ * it is read. 「编辑」 brings up the edit bar; a heading added is named in
+ * place; 「完成」 asks before it updates the board everyone reads, saves it,
+ * and hands the keyboard back to 「编辑」.
+ */
+export const Editing: Story = {
+  ...DisplayFixture,
+  name: '编辑首页',
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() =>
+      expect(titles(canvasElement)).toEqual(expect.arrayContaining(PANELS)),
+    );
+
+    await userEvent.click(
+      await canvas.findByRole('button', { name: zhCN['label.dashboard.edit'] }),
+    );
+    await expect(
+      await canvas.findByRole('region', {
+        name: zhCN['label.dashboard.editing'],
+      }),
+    ).toBeVisible();
+
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.dashboard.add'] }),
+    );
+    await userEvent.click(
+      await screen.findByRole('menuitem', {
+        name: zhCN['label.dashboard.add.heading'],
+      }),
+    );
+    const heading = await canvas.findByRole('textbox', {
+      name: zhCN['label.panel.heading-input'],
+    });
+    await userEvent.clear(heading);
+    await userEvent.type(heading, '本周重点{Enter}');
+    await waitFor(() => expect(titles(canvasElement)).toContain('本周重点'));
+
+    // The board is the team's: 完成 asks before it updates it for everyone.
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.dashboard.done'] }),
+    );
+    await userEvent.click(
+      await screen.findByRole('button', {
+        name: zhCN['label.save.shared-confirm'],
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        canvas.queryByRole('region', { name: zhCN['label.dashboard.editing'] }),
+      ).toBeNull(),
+    );
+    await expect(titles(canvasElement)).toContain('本周重点');
+    const edit = canvas.getByRole('button', {
+      name: zhCN['label.dashboard.edit'],
+    });
+    await waitFor(() => expect(edit).toHaveFocus());
   },
 };

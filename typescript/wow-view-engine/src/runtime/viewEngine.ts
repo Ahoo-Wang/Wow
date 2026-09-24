@@ -285,7 +285,7 @@ export class ViewEngine {
     // on the tab and under the filters it opens with, noted before that.
     if (runtime instanceof DashboardViewRuntime)
       try {
-        runtime.opensOn(tab, options.filters);
+        runtime.opensOn(tab, options.filters, options.held);
         await runtime.ready();
       } catch (error) {
         // `attach` already registered it, and a dashboard may have children

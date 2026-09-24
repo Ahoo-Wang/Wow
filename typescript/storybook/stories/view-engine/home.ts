@@ -47,14 +47,10 @@ export const homeDefinition: DashboardDefinition = {
   id: 'home',
   title: '首页',
   kind: 'dashboard',
-  // The home page is the host's, shipped with its code rather than saved by
-  // someone: a system view is exactly that — everyone sees it, nobody
-  // overwrites it, anyone may save a copy.
-  views: [{ id: 'operations', title: '运营概览', config: homeDashboard() }],
 };
 
 /** What the home page embeds. */
-export const HOME_DASHBOARD = systemInstanceId('home', 'operations');
+export const HOME_DASHBOARD = 'home-operations';
 
 const ACTIVE_ONLY: FilterNode = {
   field: 'state.status',
@@ -86,6 +82,17 @@ function countCard(filter: FilterNode[]): AnalysisViewConfig {
  * is the console's system view as it is.
  */
 export const homeViews: ViewInstance[] = [
+  // The board itself is the operations team's, saved and shared rather than
+  // shipped with the code: the home page embeds it in the editable tier
+  // (D22), so whoever may save it rearranges the team's home page in place.
+  {
+    id: HOME_DASHBOARD,
+    definitionId: 'home',
+    title: '运营概览',
+    scope: 'shared',
+    revision: '1',
+    config: homeDashboard(),
+  },
   shared('home-active', '活动失败', countCard([ACTIVE_ONLY])),
   shared(
     'home-unrecoverable',

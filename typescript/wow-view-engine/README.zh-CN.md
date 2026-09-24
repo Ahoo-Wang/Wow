@@ -28,14 +28,14 @@
 
 ## 场景
 
-| 场景                       | 视图         | 用户做什么                                                                     |
-| -------------------------- | ------------ | ------------------------------------------------------------------------------ |
-| 仓管每天找待出库订单       | Record       | 筛选状态为待出库，按创建时间排序，只显示需要的列，保存为"今日待出库"           |
-| 主管比较各仓库积压         | Analysis     | 按仓库分组、计数并合计金额，切换为柱状图                                       |
-| 运营周会看整体情况         | Dashboard    | 把上面两个视图放进一个面板页，用全局时间范围同时约束两者                       |
-| 业务页面里嵌一块数据       | EmbeddedView | 开发者把已保存视图嵌入订单详情页，只读展示，不带工作台                         |
-| 运维为新业务对象配基础视图 | 系统视图     | 在定义中声明"全部""待处理""本周新增"三个视图，用户打开即有可用视角，再按需另存 |
-| 客户在租户内自定义报表     | 全部         | 客户保存并共享自己的视图，供应商无需为此发版                                   |
+| 场景                       | 视图                            | 用户做什么                                                                             |
+| -------------------------- | ------------------------------- | -------------------------------------------------------------------------------------- |
+| 仓管每天找待出库订单       | Record                          | 筛选状态为待出库，按创建时间排序，只显示需要的列，保存为"今日待出库"                   |
+| 主管比较各仓库积压         | Analysis                        | 按仓库分组、计数并合计金额，切换为柱状图                                               |
+| 运营周会看整体情况         | Dashboard                       | 把上面两个视图放进一个面板页，用全局时间范围同时约束两者                               |
+| 业务页面里嵌一块数据       | EmbeddedView、EmbeddedDashboard | 开发者把已保存视图嵌入订单详情页，或把一块仪表盘锁定在这位客户上嵌进客户页，不带工作台 |
+| 运维为新业务对象配基础视图 | 系统视图                        | 在定义中声明"全部""待处理""本周新增"三个视图，用户打开即有可用视角，再按需另存         |
+| 客户在租户内自定义报表     | 全部                            | 客户保存并共享自己的视图，供应商无需为此发版                                           |
 
 ## 不是什么
 
@@ -202,7 +202,73 @@ export function OrdersPage() {
 <DataWorkbench engine={engine} definitionId="orders" unsaved={fromRoute} />
 ```
 
-`DashboardWorkbench` 与 `EmbeddedView` 收同一个属性。
+`DashboardWorkbench`、`EmbeddedDashboard` 与 `EmbeddedView` 收同一个属性。
+
+#### 嵌入一个视图或一块仪表盘
+
+业务页面要摆出别人已经定好的观察，就嵌入它：只有结果——没有视图列表、没有条件编辑器、没有保存。入口按资源分两个，与工作台的拆法一样：记录或分析视图用 `EmbeddedView`，仪表盘用 `EmbeddedDashboard`。各自只画自己那一种，给错了会直说。
+
+```tsx
+import {
+  EmbeddedDashboard,
+  EmbeddedView,
+} from '@ahoo-wang/fetcher-view-engine/ui';
+
+// 订单页：这位客户最近的运单，照存下的样子读。
+<EmbeddedView
+  engine={engine}
+  instanceId="orders-pending"
+  scopeFilter={{
+    op: 'and',
+    children: [{ field: 'customer', operator: 'IN', value: [customerId] }],
+  }}
+/>
+
+// 客户页：客户的那块板，锁定在这位客户上；时间归读者。
+<EmbeddedDashboard
+  engine={engine}
+  instanceId="customer-board"
+  interaction="interactive"
+  filterModes={{ customer: 'locked' }}
+  pageValues={{
+    values: { customer: { items: [{ id: customerId, label: customerName }] } },
+  }}
+  initialFilters={readFromAddress()}
+  onFiltersChange={writeToAddress}
+  onNavigate={to => router.push(routeFor(to))}
+/>
+```
+
+**读者能走多远是明确的一档**：`interaction`，缺省 `read-only`：
+
+| 档            | `EmbeddedView`（记录、分析）                                         | `EmbeddedDashboard`                                       |
+| ------------- | -------------------------------------------------------------------- | --------------------------------------------------------- |
+| `read-only`   | 结果与它是在什么条件下取来的；表头不能排序、没有分页、哪儿也去不了   | 面板照画、什么都不回应：没有追问菜单、没有联动、没有「⋯」 |
+| `interactive` | 表头排序、翻页；分析的表格｜图表切换、按一组追问；「在工作台中打开」 | 追问菜单、交叉筛选、自定义目的地、「在工作台中打开」      |
+| `editable`    | —                                                                    | 「编辑」，给能保存这块板的人：就地搭板子，「完成」保存    |
+
+离开嵌入的每一条路都经宿主的**一个**路由 `onNavigate(to)`——与仪表盘工作台交出的同一个 `ViewNavigation`；不给就一条也没有。
+
+**开关**——关掉就是不存在，不是置灰：
+
+| 属性                        | 缺省      | 做什么                                                                                                      |
+| --------------------------- | --------- | ----------------------------------------------------------------------------------------------------------- |
+| `withTitle`                 | 关        | 画出视图或仪表盘的标题                                                                                      |
+| `headingLevel`              | `2`       | 嵌入所标的标题级别：自己的标题在这一级，仪表盘的面板在它下一级（没有标题时就在这一级）。`h1` 归宿主页面     |
+| `withPanelTitles`（仪表盘） | 开        | 关掉时面板标题只留给读屏                                                                                    |
+| `withSearch`（记录）        | 关        | 视图的搜索框，定义声明了搜索字段才有                                                                        |
+| `withExport`（记录）        | 关        | 导出按钮与窗口；有了它行可以勾选                                                                            |
+| `autoRefresh`               | 开        | 按作者存的间隔自己刷新；关掉就从不自己刷新                                                                  |
+| `openInWorkbench`           | 开        | 可交互、可编辑两档里给不给「在工作台中打开」                                                                |
+| `size`                      | `content` | `content` 按内容定高、有上限（记录表格在 `--fve-record-table-max-h` 里滚）；`fill` 填满容器——整页嵌入、大屏 |
+
+**仪表盘的筛选逐个三态**（`filterModes` 按筛选名，时间粒度用 `groupingMode`）：`editable`——在筛选条上、归读者，与工作台一样，也是缺省；`locked`——在筛选条上读作它的值，带一把锁、没有控件；`hidden`——不在筛选条上，照样收窄接上的面板。锁定与隐藏由 runtime 持有，读者做什么——改值、「清空」、点一组交叉筛选——都改不了它们。它们的值是页面自己的 `pageValues`（没写就是默认值）：从第一次查询起就在，并**跟着这个属性变**——客户页换到下一位客户，板子跟着换。读者的筛选是宿主地址里的那一份：`initialFilters` 与 `onFiltersChange`，读法、报法与 `DashboardWorkbench` 相同。**锁定与隐藏的值从不走地址**：`initialFilters` 里写到它们的条目不算，`onFiltersChange` 只报读者能设的筛选——否则读者改一下地址就换了客户，与「锁定」正相反。原来 `scopeFilter` 对仪表盘做的事，现在是一个锁定的筛选：在板上声明那个筛选，再锁定它。
+
+**锁定不是安全边界。** 页面锁定的条件是在浏览器里拼进查询的，只保证读者在界面上改不了、在这里看不到别的。改一下页面脚本、直接调接口，就能问到别的客户。租户、归属与权限必须由 Wow 后端强制——对外的页面尤其如此。本包是宿主进程里的库，不照搬 Metabase 的 iframe、签名令牌或 SSO：身份与权限属于宿主与后端。
+
+铺满屏幕仍是宿主的事（嵌入不长自己的开关）：传一个 `ref`，在自己的 chrome 里用 `useViewExpansion` 指向它。
+
+**从单一的 `EmbeddedView` 迁过来。** 它原来什么视图都收、按种类分派，只有一种读法。现在：仪表盘用 `EmbeddedDashboard`——给 `EmbeddedView` 一块板，它会说这种视图显示不了；缺省一档是 `read-only`，原来能按表头排序的，要 `interaction="interactive"`；行只在 `withExport` 时可勾选；收窄一块板是锁定它的一个筛选（`filterModes` 加 `pageValues`），不再用 `scopeFilter`。路由类型 `DashboardNavigation` 改名为 `ViewNavigation`。`headingLevel` 是两个入口的正式开关。没有兼容层：换组件名、补属性即可。
 
 #### 定制主题
 
@@ -277,7 +343,7 @@ export function OrdersPage() {
 
 |                           | `.fve-root`                                       | `.fve-tokens`                                                    |
 | ------------------------- | ------------------------------------------------- | ---------------------------------------------------------------- |
-| 谁渲染                    | `ViewSurface`，以及各工作台与 `EmbeddedView`      | 你自己的 DOM                                                     |
+| 谁渲染                    | `ViewSurface`，以及各工作台与嵌入                 | 你自己的 DOM                                                     |
 | token、utility、preflight | 有                                                | 有                                                               |
 | 涂底色与文字色            | 涂                                                | **不涂**——想要本包那张底，自己写 `bg-background text-foreground` |
 | 明暗                      | 祖先上的 `.dark`，或 `theme` 用 `data-theme` 钉住 | 只认祖先上的 `.dark`                                             |
@@ -413,12 +479,12 @@ const view = projectRecord(orders, config, page);
 
 ## 入口
 
-| 入口                             | 导出                                                                                                                                                                                                                                                                                                                                                           |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@ahoo-wang/fetcher-view-engine` | 模型类型、纯内核（`validate*` / `compile*` / `project*`）、运行时、`ViewStore`、`MemoryViewStore`                                                                                                                                                                                                                                                              |
-| `/react`                         | `useViewEngine`、`useOpenView`、`useViewRuntime`、`useViewList`、`useViewManager`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useDashboard`、`useSaveCommands`、`RecordActionSlots`                                                                                                                                                            |
-| `/ui`                            | `DataWorkbench`、`DashboardWorkbench`、`ViewHeader`、`SaveActions`、`ViewManager`、`useLeaveGuard`、`EditorBand`、`FilterPanel`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisEditor`、`AnalysisChart`、`DashboardGrid`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`EmbeddedView` |
-| `/styles.css`                    | 主题。显式导入；任何 JS 入口都不会引入 CSS，产物也不会在 `.fve-root`／`.fve-tokens` 两个样式边界之外绘制任何东西（preflight 与工具类在构建时收进边界内），`scripts/verify-package.mjs` 在每次构建时核对这两点。                                                                                                                                                |
+| 入口                             | 导出                                                                                                                                                                                                                                                                                                                                                                                |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@ahoo-wang/fetcher-view-engine` | 模型类型、纯内核（`validate*` / `compile*` / `project*`）、运行时、`ViewStore`、`MemoryViewStore`                                                                                                                                                                                                                                                                                   |
+| `/react`                         | `useViewEngine`、`useOpenView`、`useViewRuntime`、`useViewList`、`useViewManager`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useDashboard`、`useSaveCommands`、`RecordActionSlots`                                                                                                                                                                                 |
+| `/ui`                            | `DataWorkbench`、`DashboardWorkbench`、`ViewHeader`、`SaveActions`、`ViewManager`、`useLeaveGuard`、`EditorBand`、`FilterPanel`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisEditor`、`AnalysisChart`、`DashboardGrid`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`EmbeddedView`、`EmbeddedDashboard` |
+| `/styles.css`                    | 主题。显式导入；任何 JS 入口都不会引入 CSS，产物也不会在 `.fve-root`／`.fve-tokens` 两个样式边界之外绘制任何东西（preflight 与工具类在构建时收进边界内），`scripts/verify-package.mjs` 在每次构建时核对这两点。                                                                                                                                                                     |
 
 ## 持久化
 

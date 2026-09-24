@@ -34,7 +34,7 @@ import {
   DashboardViewRuntime,
   MemoryViewStore,
   ViewEngine,
-  type DashboardNavigation,
+  type ViewNavigation,
   type DashboardPanel,
   type DashboardViewConfig,
   type DashboardViewPanel,
@@ -114,7 +114,7 @@ function board(chart: Partial<DashboardPanel> = {}): DashboardViewConfig {
 
 function setup(
   config: DashboardViewConfig = board(),
-  onNavigate?: (to: DashboardNavigation) => void,
+  onNavigate?: (to: ViewNavigation) => void,
 ) {
   const source = testSource({
     aggregate: vi.fn(() =>
@@ -199,7 +199,7 @@ describe('the follow-up menu on a panel (D22 H)', () => {
       within(menu).getByRole('menuitem', { name: /See these records/ }),
     );
     expect(onNavigate).toHaveBeenCalledTimes(1);
-    const [to] = onNavigate.mock.calls[0] as [DashboardNavigation];
+    const [to] = onNavigate.mock.calls[0] as [ViewNavigation];
     expect(to.kind).toBe('unsaved');
     if (to.kind !== 'unsaved') return;
     expect(to.definitionId).toBe('orders');
@@ -216,7 +216,7 @@ describe('the follow-up menu on a panel (D22 H)', () => {
     await user.click(
       await screen.findByRole('menuitem', { name: /Only this group/ }),
     );
-    const [to] = onNavigate.mock.calls[0] as [DashboardNavigation];
+    const [to] = onNavigate.mock.calls[0] as [ViewNavigation];
     expect(to.kind === 'unsaved' && to.config.kind).toBe('analysis');
     expect(JSON.stringify(to.kind === 'unsaved' && to.config.filter)).toContain(
       '"EU"',
@@ -415,7 +415,7 @@ describe('在工作台中打开 an analysis the board owns', () => {
     await user.click(
       await screen.findByRole('menuitem', { name: 'Open in the workbench' }),
     );
-    const [to] = onNavigate.mock.calls[0] as [DashboardNavigation];
+    const [to] = onNavigate.mock.calls[0] as [ViewNavigation];
     expect(to).toMatchObject({
       kind: 'unsaved',
       definitionId: 'orders',

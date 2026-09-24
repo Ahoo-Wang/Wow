@@ -25,6 +25,7 @@ import {
   type OptionSource,
   type RecordData,
   type RecordViewConfig,
+  type RuntimeEnvironment,
   type RuntimeLimits,
   type ViewInstance,
   type ViewSource,
@@ -795,6 +796,11 @@ export interface StoryEngineOptions {
    * unknown result or a refusal (`outcomesStore.ts`).
    */
   store?: ViewStore;
+  /**
+   * The clock and zone the engine reads, for a story whose relative dates
+   * — 「本月」 — must mean the same whenever it runs.
+   */
+  environment?: RuntimeEnvironment;
 }
 
 /**
@@ -815,6 +821,7 @@ export function createStoryEngine(
     ...(options.limits
       ? { limits: { ...DEFAULT_RUNTIME_LIMITS, ...options.limits } }
       : {}),
+    ...(options.environment ? { environment: options.environment } : {}),
   });
 }
 

@@ -21,6 +21,7 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
   revert(): void; // draft 回到 saved.config，重算 issues／dirty；与 applied 不同且无 error 时再 apply；未保存过为空操作
   refresh(): void; // 重跑 applied
   setEditing(active: boolean): void; // 编辑器获得／失去输入焦点时调用，暂停自动刷新
+  setAutoRefresh(on: boolean): void; // 宿主不要它自己刷新时关掉（嵌入的 autoRefresh）：计时器一直停着，间隔原样、不进草稿，手动刷新照跑
   setAutoApply(on: boolean): void; // 改了就跑：问题变了就自己 apply，见下；哪些成员是「问题」由模型按种类声明（`autoRunMembers`），记录与仪表盘没声明任何一个，所以那里只记偏好、不上弦
   setScopeFilter(tree: FilterTree | null): Issue[]; // 外层注入的附加条件，AND 到已应用筛选；不改 draft／saved；返回被拒的那几条，生效时为空
   readonly refusedScope: Issue[]; // 当前要求的那个注入条件因何被拒；生效时为空。被拒不阻塞视图，见下「被拒的是条件，不是视图」
@@ -240,6 +241,7 @@ export class ViewWriteError extends Error {
 - **展示覆盖**（D22 D）：子 runtime 拿到的配置是「视图自己的配置 + 面板的 `presentation`」（`runtime/dashboard/presentation.ts` 的 `presentedConfig`）：记录视图只认 `layout`，分析认 `layout`／`chart`／`table`。覆盖不再合身——成员这种视图没有，或者分析内核判这张图画不了这个结果——就整份丢掉、面板照视图原样显示，带一条 warning `dashboard.panel.presentation-dropped`，不是 error；视图本身已判不过时说的是视图的问题。覆盖只改怎么看，所以同一个子 runtime，不重建。**只改了画法的那一种只重画不重跑**（D20：展示从不问数据源；批 B3 收口）：新旧配置只在 `presentationMembers(kind)`——分析的 `layout`／`chart`、记录的 `layout`——上不同时，`PanelChildren.sync` 只把它 `edit` 进子 runtime 的草稿、不 `apply`，面板由草稿在手上的行上重画（`ui/dashboard/PanelBodies.tsx` 的 `AnalysisPanel` 走 `useAnalysisResult`，与工作台同一条路）；表格合计行是一次自己的查询，改它照旧 `edit` + `apply`，旧结果留到新结果到。覆盖永远不写回被引用的视图。（见 test/dashboardEditing.test.ts「a panel's override of how it looks」的「changes in the same child, redrawn and never asked again」「runs again for a totals row, which is a query of its own」）
 - **只跑屏幕上的那一页**（D22 E，批 B3 收口）：`state.tab` 是屏幕上的标签页——`showTab(tabId)` 要的那一页、板子有它时；否则第一页；没有标签页为 `null`。它是读者的，不进配置，切换不让板子变脏。`sync` 只把这一页的面板与子 runtime 对齐：别的页上**已有**子 runtime 的面板原样留着（`PanelChildren.hold`：行、作用域都不动，只更新问题的地址），**从没看过**的页上的数据面板没有子 runtime、标 `waiting`（没问过、也没坏）。切过去时 `sync` 对齐那一页：新面板建子 runtime 并跑；看过的面板只有问的东西变了（全局筛选、视图、覆盖）才重跑，否则直接画留着的行。整板刷新（计时器与按钮）只刷新屏幕上那一页，别的页上的子 runtime 记下 `missed`，切回去时补刷一次（这一趟本来就要因作用域变了而重跑的，就不另刷）。`removeTab` 删掉屏幕上那一页时落到第一页。打开时先定页：`ViewEngine.open` 在第一次 `sync` 之前 `showTab`（宿主给的 `OpenOptions.tab`，板子有它时；否则读者的 `ViewPreferences.lastTabs`），于是记住的那一页直接开始跑，而不是先跑第一页再切过去。（见 test/dashboardTabs.test.ts「only the tab on screen runs」「where a board opens」）
 - **筛选此刻的值是读者的**（D22 F，批 C1；`runtime/dashboard/filterValues.ts`）：`state.filters: DashboardFilters`——每个筛选的值与时间粒度的单位——和 `state.tab` 一样不进配置，设它从不让板子变脏，保存也不写它。它从默认值开始（`defaultFilters`），或从宿主地址里读回来的那一份开始（`OpenOptions.filters`，`ViewEngine.open` 在第一次 `sync` 之前交给 runtime，于是第一次查询就带着它，不先按默认值跑一遍）。进来的每一份都先经 `admitFilters` 按**屏幕上的板子**准入：板子没有的筛选、它的种类读不了的值、单值筛选给了多个、时间粒度不提供的单位——都不收并如实答出（`setFilterValue`／`setFilters` 的返回值），收下的才生效；**必填筛选永远有值**：清空（`setFilterValue(名, null)`）、「清空」（`clearFilters`）、宿主地址里没写，都回到它的默认值，所以板子从不在必填筛选为空时跑。改了板子（删筛选、换类型、改默认值）之后再按新板子重读一遍：删掉的不再有值，换了类型的旧值作废；**设默认值时它此刻的值也跟过去**（`setFilterDefault`：作者设了默认值就看到板子按它跑）。（见 test/dashboardFilterRuntime.test.ts「what the filters hold」）
+- **宿主持有的筛选**（D22 嵌入一半；`holdFilters(held: HeldFilters | null)`）：嵌入页面锁定与隐藏的筛选是宿主的。`HeldFilters` 点名每个持有的筛选与它的值（`null` 是它的默认值），带 `unit` 时连时间粒度一起持有；值随即按屏幕上的板子准入、生效，被拒的不收并如实答出——每问一次答一次，同样的问题同样的答案；能收的照收。持有之后读者的命令都碰不到它们：`setFilterValue` 拒绝（`dashboard.filter.held`），`clearFilters` 与 `setGroupingUnit` 绕过它们，设它的交叉筛选点击被放到一边（`clickInForce` 读作没有点击，于是追问菜单；`PanelPresses` 也不设它）。每次调用取代上一次，放手的筛选留着值、重归读者。别的文本筛选的候选值在持有的值下计数。`OpenOptions.held` 让它们从第一次查询起就在。`setAutoRefresh(false)` 让整板那一个计时器一直停着，与数据视图同一个开关。（见 test/embedRuntime.test.ts「is in force from the first query when the board opens under it」「follows the page, puts a default back for null, and lets go」「answers what the board refuses of the page, every time it is asked, and takes the rest」「sets aside a click that sets a filter the page holds: a press does what a panel without one does」「holds a board’s one timer too」）
 - **改了就跑**（与分析视图的「自动运行」同一个意思，D22 F）：筛选条上没有「应用」。一个值变了，屏幕上的筛选立刻是新的，面板在最后一次改动之后 `AUTO_APPLY_DELAY_MS`（300 毫秒）自己重跑——连打几个字是一次查询，不是每个字一次（`RefreshTimer`，与自动刷新那只各是各的）；第一次 `sync` 之前只记下值。一个面板跑的条件是「整板常驻条件（含宿主作用域）经它的接线映射」AND「接上它的每个有值的筛选」（`panelFilterTree`，`runtime/dashboard/panelRun.ts` 的 `panelRun`），**没接上的筛选到不了这个面板**。（见 test/dashboardFilterRuntime.test.ts「runs a change a moment later on its own, only where the filter is wired, and never makes the board dirty」）
 - **时间粒度**（D22 F）：每个分析面板的日期直方图维度在子 runtime 拿到配置之前换成板子此刻的单位（`regrouped`，`runtime/dashboard/grouping.ts`）——**只在视图的定义允许那个字段按那个粒度分组时**（问的是分析内核的 `analysisScope`，不是另一份清单）；允许不了的面板保留自己的粒度，并在面板上带一条 note `dashboard.grouping.kept`（它说的是这个面板仍按它自己的粒度看，界面随头部标记说出来）。换粒度是一次问题的改变，子 runtime 照同一条路 `edit` + `apply`，不重建。每个面板的状态带 `grouping`：`taken`／`kept`／`null`（没有时间维度或板子没有时间粒度）。（见 test/dashboardFilterRuntime.test.ts「the time grouping」）
 - **每个面板带着它受哪些筛选影响**：`DashboardPanelState.reach`（`filterReach`：接上了经哪个字段、是否自动；没接上是没有可接的字段还是没人接），读进来的视图才知道字段，没读进来的只答接上的；内容面板是空的。界面据此在面板头上说「不受『〈筛选〉』影响」，并用 `filtersOnTab` 把在当前标签页上什么也没影响的筛选淡一档。（见 test/dashboardFilterRuntime.test.ts「what reaches a panel」）
@@ -261,8 +263,13 @@ export interface ViewEngine {
 
   open(
     instanceId: string,
-    options?: { scopeFilter?: FilterTree | null; tab?: string | null },
-  ): Promise<AnyViewRuntime>; // store.get → validate → runtime；按 runtime.kind 收窄；scopeFilter 从首次查询起生效并与配置一起准入，被拒则不生效、记在 refusedScope 上；tab 是仪表盘从哪一页开（板子没有它就读 lastTabs）
+    options?: {
+      scopeFilter?: FilterTree | null;
+      tab?: string | null;
+      filters?: DashboardFilters | null;
+      held?: HeldFilters | null;
+    },
+  ): Promise<AnyViewRuntime>; // store.get → validate → runtime；按 runtime.kind 收窄；scopeFilter 从首次查询起生效并与配置一起准入，被拒则不生效、记在 refusedScope 上；tab 是仪表盘从哪一页开（板子没有它就读 lastTabs）；filters 是它的筛选从哪开始，held 是宿主持有的那几个（holdFilters），都在第一次 sync 之前交给 runtime
   create<C extends ViewConfig>(
     definitionId: string,
     input: {

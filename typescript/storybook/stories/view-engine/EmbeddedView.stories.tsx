@@ -13,13 +13,15 @@
 import { useRef, useState, type CSSProperties } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type {
+  ViewNavigation,
+  DataViewDefinition,
   FilterTree,
   ViewEngine,
-  ViewInstance,
 } from '@ahoo-wang/fetcher-view-engine';
 import {
   EmbeddedView,
   useViewExpansion,
+  type EmbeddedViewProps,
 } from '@ahoo-wang/fetcher-view-engine/ui';
 // View Engine's own primitives, so the mock host page is composed rather than
 // hand-styled. They paint inside either of the theme's two style boundaries,
@@ -40,8 +42,8 @@ import { AppShell } from '../shared/AppShell.js';
 import {
   HOST_LANGUAGE,
   createStoryEngine,
-  dashboardConfig,
-  savedDashboard,
+  ordersDefinition,
+  overviewDefinition,
   savedViews,
   type SourceBehaviour,
 } from './fixtures.js';
@@ -71,6 +73,23 @@ const CUSTOMER_FACTS: [string, string][] = [
   ['信用额度', '¥ 200,000'],
   ['结算方式', '月结 30 天'],
 ];
+
+/**
+ * 同一份订单，外加一个搜索字段——搜订单号与备注。只有嵌入视图的故事用它：别
+ * 的故事正数着筛选面板里有几个字段。
+ */
+const searchableOrders: DataViewDefinition = {
+  ...ordersDefinition,
+  fields: [
+    ...ordersDefinition.fields,
+    {
+      name: 'q',
+      label: '搜索订单',
+      kind: 'search',
+      searchFields: ['id', 'note'],
+    },
+  ],
+};
 
 /** 宿主替这张页面挑的范围。 */
 export type ScopeChoice = 'none' | 'east' | 'unknown';
@@ -106,6 +125,8 @@ interface HostPageProps {
   /** 给了就画一组范围开关——这是宿主自己的控件，不是视图的。 */
   scopeChoice?: ScopeChoice;
   onScope?(choice: ScopeChoice): void;
+  /** 宿主替这一块打开的开关与交互档位（D22）。 */
+  embed?: Partial<EmbeddedViewProps>;
 }
 
 /**
@@ -134,8 +155,12 @@ function HostPage({
   caption,
   scopeChoice,
   onScope,
+  embed,
 }: HostPageProps) {
   const surface = useRef<HTMLDivElement>(null);
+  // Where the host's route last went: 在工作台中打开 and a group's
+  // follow-ups come here, and the page says so under the card.
+  const [route, setRoute] = useState<ViewNavigation | null>(null);
   const toggle = useRef<HTMLButtonElement>(null);
   const expansion = useViewExpansion(surface, toggle);
   return (
@@ -222,6 +247,8 @@ function HostPage({
               scopeFilter={scopeFilter}
               messages={HOST_LANGUAGE.messages}
               locale={HOST_LANGUAGE.locale}
+              onNavigate={setRoute}
+              {...embed}
             />
           </CardContent>
         </Card>
@@ -230,6 +257,21 @@ function HostPage({
       <p className="text-muted-foreground text-xs">
         数据来自运单中心 · 每 5 分钟同步一次
       </p>
+      {route && (
+        <p
+          data-host-route
+          className="text-muted-foreground font-mono text-xs break-all"
+        >
+          宿主路由：
+          {route.kind === 'view'
+            ? `打开视图 ${route.instanceId} · ${JSON.stringify(route.filter)}`
+            : route.kind === 'unsaved'
+              ? `打开「${route.title}」 · ${JSON.stringify(route.config.filter)}`
+              : route.kind === 'dashboard'
+                ? `打开仪表盘 ${route.instanceId}`
+                : route.url}
+        </p>
+      )}
     </div>
   );
 }
@@ -252,37 +294,13 @@ const SCOPE_FILTERS: Record<ScopeChoice, FilterTree | null> = {
   unknown: UNKNOWN_SCOPE,
 };
 
-/**
- * 一块**共享**的仪表盘，其中一个面板指向的视图已经删了（或读者够不着）——这一个
- * 面板出不来，其余面板照常。嵌入原来把这条面板级的发现当成整块仪表盘的，整张栅
- * 格一格都不画（R3）。原来这里用的是「共享板引用个人视图」，D22 B 之后那是允许
- * 的（作者看得到、面板头上说明），不再是出不来的面板。
- */
-const BOARD_WITH_A_PANEL_OUT: ViewInstance = {
-  ...savedDashboard,
-  id: 'overview-shared',
-  scope: 'shared',
-  config: dashboardConfig({
-    panels: [
-      ...dashboardConfig().panels,
-      {
-        id: 'mine',
-        kind: 'view',
-        title: '我盯的大额单',
-        instanceId: 'orders-deleted',
-        bindings: [],
-        layout: { x: 8, y: 4, w: 16, h: 2 },
-      },
-    ],
-  }),
-};
-
 function EmbeddedViewDemo({
   behaviour = 'data',
   instanceId,
   scope = 'none',
   scopePicker = false,
   caption = '这份共享视图筛的是待出库的单，按金额倒序。',
+  embed,
 }: {
   behaviour?: SourceBehaviour;
   instanceId?: string;
@@ -291,6 +309,7 @@ function EmbeddedViewDemo({
   /** 把范围做成宿主自己的一排按钮，可以当场换。 */
   scopePicker?: boolean;
   caption?: string;
+  embed?: Partial<EmbeddedViewProps>;
 }) {
   const [picked, setPicked] = useState<ScopeChoice>(scope);
   const choice = scopePicker ? picked : scope;
@@ -299,7 +318,7 @@ function EmbeddedViewDemo({
       create={() =>
         createStoryEngine({
           behaviour,
-          instances: [...savedViews, BOARD_WITH_A_PANEL_OUT],
+          definitions: [searchableOrders, overviewDefinition],
         })
       }
     >
@@ -309,6 +328,7 @@ function EmbeddedViewDemo({
           instanceId={instanceId ?? savedViews[0].id}
           scopeFilter={SCOPE_FILTERS[choice]}
           caption={caption}
+          embed={embed}
           {...(scopePicker ? { scopeChoice: picked, onScope: setPicked } : {})}
         />
       )}
@@ -361,6 +381,7 @@ const meta = {
     scope: { table: { disable: true } },
     scopePicker: { table: { disable: true } },
     caption: { table: { disable: true } },
+    embed: { table: { disable: true } },
   },
 } satisfies Meta<typeof EmbeddedViewDemo>;
 
@@ -463,8 +484,8 @@ export const FillTheScreen: Story = {
 /**
  * 同一个壳，嵌的是一个分析视图：一张图，外加它是在什么条件下算出来的。
  *
- * 按 kind 分派是 `EmbeddedView` 自己做的事，宿主只给了一个 `instanceId`——它
- * 不需要知道那个视图存的是明细还是汇总。
+ * 明细还是汇总由 `EmbeddedView` 自己分，宿主只给了一个 `instanceId`；仪表盘
+ * 按资源分开，是 `EmbeddedDashboard` 的。
  */
 export const AnalysisEmbed: Story = {
   name: '嵌一个分析视图',
@@ -486,17 +507,30 @@ export const TotalCoversThisPageOnly: Story = {
 };
 
 /**
- * 嵌一块仪表盘，其中一个面板出不来。
+ * 可交互一档（D22）：读者可以按表头排序、翻页、搜索、导出，也可以「在工作台中
+ * 打开」——经宿主的路由，带着页面的收窄。没有保存、没有条件编辑器：改的都是这一
+ * 次看的样子。
  *
- * 这块共享仪表盘里有一个面板指向的视图已经删了，于是只有这一个面板出不来。
- * 栅格照常画：其余面板各自跑，出不来的那一个在自己的框里说为什么、找谁——
- * 和工作台里一样。原来这一条面板级的发现被当成整块仪表盘的，卡片里只剩一条
- * 红条（R3）。
+ * 默认一档是只读：上面那几条故事里表头按不动、没有分页。
  */
-export const DashboardWithAPanelOut: Story = {
-  name: '嵌一块有面板出不来的仪表盘',
+export const Interactive: Story = {
+  name: '可交互',
   args: {
-    instanceId: BOARD_WITH_A_PANEL_OUT.id,
-    caption: '一块共享仪表盘，其中一个面板指向的视图已经删了。',
+    scope: 'east',
+    caption: '可交互：排序、翻页、搜索、导出、在工作台中打开。',
+    embed: { interaction: 'interactive', withSearch: true, withExport: true },
+  },
+};
+
+/**
+ * 分析视图，可交互一档：表格｜图表切换，按一组弹出追问菜单，每一项经宿主的路由
+ * 在工作台打开。
+ */
+export const AnalysisInteractive: Story = {
+  name: '分析视图（可交互）',
+  args: {
+    instanceId: savedViews[1].id,
+    caption: '可交互：表格｜图表切换、按一组追问。',
+    embed: { interaction: 'interactive' },
   },
 };

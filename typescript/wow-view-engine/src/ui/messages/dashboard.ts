@@ -201,6 +201,8 @@ export const dashboardMessages = {
     'The filter {field} always has a value, so it needs a default to start at.',
   'dashboard.fields.too-many': 'A dashboard holds at most {max} filters.',
   'dashboard.filter.unknown': 'This dashboard has no filter {field}.',
+  'dashboard.filter.held':
+    'The page holds the filter {field}; it cannot be changed here.',
   'dashboard.grouping.kept':
     'This panel keeps its own time grouping: its data cannot be grouped the way the dashboard is.',
   'dashboard.grouping.unit-duplicate': 'The time grouping offers {unit} twice.',

@@ -12,13 +12,15 @@
  */
 
 import type { ReactNode } from 'react';
-import { InfoIcon, RotateCcwIcon, XIcon } from 'lucide-react';
+import { InfoIcon, LockIcon, RotateCcwIcon, XIcon } from 'lucide-react';
 import {
+  filterCondition,
   filterControlValue,
   filterEditor,
   filterStoredValue,
   filtersOnTab,
 } from '../../dashboard/index.js';
+import { describeFilter } from '../../filter/index.js';
 import type {
   AnalysisDateUnit,
   DashboardField,
@@ -33,6 +35,14 @@ import { FilterValueEditor } from '../FilterValueEditor.js';
 import { IconButton, IconTooltip } from '../IconButton.js';
 import { panelNames } from '../DashboardPanel.js';
 import { useViewMessages } from '../MessagesProvider.js';
+import { summaryText } from '../summary.js';
+import { useSurfaceDisplay } from '../ViewSurface.js';
+import {
+  filterModeOf,
+  holdsGrouping,
+  sameValue,
+  type BoardFilterModes,
+} from './filterModes.js';
 
 export interface FilterBarProps {
   dashboard: DashboardController;
@@ -45,6 +55,12 @@ export interface FilterBarProps {
   onRemoveGrouping?(): void;
   /** Where 「筛选 ＋」 stands while the board is built. */
   add?: ReactNode;
+  /**
+   * How an embedding page offers each filter (`DashboardFilterMode`): a
+   * locked one is drawn as what it holds, without a control; a hidden one
+   * not at all. Every filter is editable when left out.
+   */
+  modes?: BoardFilterModes;
 }
 
 /**
@@ -62,17 +78,27 @@ export function FilterBar({
   settings,
   onRemoveGrouping,
   add,
+  modes,
 }: FilterBarProps) {
   const messages = useViewMessages();
-  const fields = dashboard.filterFields;
-  const grouping = dashboard.timeGrouping;
+  // What the page hid is not on the bar; what it locked is, as a reading.
+  const fields = dashboard.filterFields.filter(
+    field => filterModeOf(modes, field.name) !== 'hidden',
+  );
+  const groupingMode = modes?.grouping ?? 'editable';
+  const grouping = groupingMode === 'hidden' ? null : dashboard.timeGrouping;
   if (fields.length === 0 && grouping === null && !add) return null;
 
   const onTab = dashboard.panels.filter(panel => panel.tab === dashboard.tab);
   const reaching = filtersOnTab(onTab, dashboard.tab);
   const grouped = onTab.some(panel => panel.grouping === 'taken');
   const { filters } = dashboard;
-  const cleared = same(filters, startOf(dashboard));
+  const cleared = sameValue(filters, startOf(dashboard, modes));
+  // 「清空」 is for what the reader holds: a bar of locked filters alone has
+  // nothing it could clear.
+  const clearable =
+    fields.some(field => filterModeOf(modes, field.name) === 'editable') ||
+    (grouping !== null && groupingMode === 'editable');
   // The panel a value was pressed on, by the name the board calls it
   // (D22 I, 「来自「北区订单」」).
   const names = panelNames(dashboard.panels, messages);
@@ -86,17 +112,35 @@ export function FilterBar({
       // wraps where there is room.
       className="flex flex-wrap items-center gap-2 max-md:flex-nowrap max-md:overflow-x-auto"
     >
-      {fields.map(field => (
-        <FilterChip
-          key={field.name}
-          field={field}
-          dashboard={dashboard}
-          idle={!reaching.has(field.name)}
-          pressedOn={names.get(filters.from?.[field.name] ?? '')}
-          settings={settings?.(field)}
+      {fields.map(field =>
+        filterModeOf(modes, field.name) === 'locked' ? (
+          <LockedChip
+            key={field.name}
+            field={field}
+            dashboard={dashboard}
+            settings={settings?.(field)}
+          />
+        ) : (
+          <FilterChip
+            key={field.name}
+            field={field}
+            dashboard={dashboard}
+            idle={!reaching.has(field.name)}
+            pressedOn={names.get(filters.from?.[field.name] ?? '')}
+            settings={settings?.(field)}
+          />
+        ),
+      )}
+      {grouping && groupingMode === 'locked' && (
+        <LockedReading
+          slot="dashboard-grouping"
+          label={messages.label('label.filters.grouping')}
+          reading={messages.label(
+            `label.date-unit.${filters.unit ?? grouping.default}`,
+          )}
         />
-      ))}
-      {grouping && (
+      )}
+      {grouping && groupingMode === 'editable' && (
         <GroupingControl
           units={grouping.units}
           unit={filters.unit ?? grouping.default}
@@ -106,7 +150,7 @@ export function FilterBar({
         />
       )}
       {add}
-      {(fields.length > 0 || grouping) && (
+      {clearable && (
         <Button
           data-slot="dashboard-filters-clear"
           variant="ghost"
@@ -124,32 +168,32 @@ export function FilterBar({
 
 /**
  * What 「清空」 comes back to (`DashboardRuntime.clearFilters`): every
- * required filter at its default, the time grouping at its own.
+ * required filter at its default, the time grouping at its own — and what
+ * the page holds as it stands.
  */
-function startOf(dashboard: DashboardController): DashboardFilters {
+function startOf(
+  dashboard: DashboardController,
+  modes: BoardFilterModes | undefined,
+): DashboardFilters {
+  const { filters } = dashboard;
   const values: Record<string, FilterValue> = {};
-  for (const field of dashboard.filterFields)
-    if (field.required && field.default !== undefined)
-      values[field.name] = field.default;
-  return dashboard.timeGrouping
-    ? { values, unit: dashboard.timeGrouping.default }
-    : { values };
-}
-
-/** Whether two plain JSON values say the same. */
-function same(a: unknown, b: unknown): boolean {
-  return JSON.stringify(sorted(a)) === JSON.stringify(sorted(b));
-}
-
-/** A JSON value with its object keys in one order, for `same`. */
-function sorted(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(sorted);
-  if (value === null || typeof value !== 'object') return value;
-  return Object.fromEntries(
-    Object.entries(value)
-      .sort(([a], [b]) => (a < b ? -1 : 1))
-      .map(([key, entry]) => [key, sorted(entry)]),
-  );
+  for (const field of dashboard.filterFields) {
+    const held = filterModeOf(modes, field.name) !== 'editable';
+    const start = held
+      ? filters.values[field.name]
+      : field.required
+        ? field.default
+        : undefined;
+    if (start !== undefined) values[field.name] = start;
+  }
+  const grouping = dashboard.timeGrouping;
+  if (!grouping) return { values };
+  return {
+    values,
+    unit: holdsGrouping(modes)
+      ? (filters.unit ?? grouping.default)
+      : grouping.default,
+  };
 }
 
 /** One filter: its name, its value, and the way back to nothing. */
@@ -171,7 +215,7 @@ function FilterChip({
   const kinds = dashboard.kinds;
   const value = dashboard.filters.values[field.name];
   const set = value !== undefined;
-  const atDefault = field.required === true && same(value, field.default);
+  const atDefault = field.required === true && sameValue(value, field.default);
   return (
     <div
       data-slot="dashboard-filter"
@@ -259,6 +303,96 @@ function FilterChip({
           {field.required ? <RotateCcwIcon /> : <XIcon />}
         </IconButton>
       )}
+      {settings}
+    </div>
+  );
+}
+
+/**
+ * A filter the page locked (`DashboardFilterMode`): what it holds, said as
+ * the applied band says a condition — 「客户 是 明远商贸」 — with a lock,
+ * and no control: the page fixed it, and the reader reads it. Its settings
+ * still stand beside it while the board is built.
+ */
+function LockedChip({
+  field,
+  dashboard,
+  settings,
+}: {
+  field: DashboardField;
+  dashboard: DashboardController;
+  settings?: ReactNode;
+}) {
+  const messages = useViewMessages();
+  const display = useSurfaceDisplay();
+  const kinds = dashboard.kinds;
+  const leaf =
+    kinds &&
+    filterCondition(field, dashboard.filters.values[field.name], kinds);
+  const [item] =
+    leaf && kinds
+      ? describeFilter([field], { op: 'and', children: [leaf] }, kinds)
+      : [];
+  const reading = item
+    ? summaryText({ ...item, label: undefined }, messages, display)
+    : messages.label('label.embed.any');
+  return (
+    <LockedReading
+      slot="dashboard-filter"
+      name={field.name}
+      label={field.label}
+      reading={reading}
+      settings={settings}
+    />
+  );
+}
+
+/** One reading the page fixed: its name, what it holds, and the lock. */
+function LockedReading({
+  slot,
+  name,
+  label,
+  reading,
+  settings,
+}: {
+  slot: string;
+  name?: string;
+  label: string;
+  reading: string;
+  settings?: ReactNode;
+}) {
+  const messages = useViewMessages();
+  const locked = messages.label('label.embed.locked');
+  return (
+    <div
+      data-slot={slot}
+      data-filter={name}
+      data-locked=""
+      role="group"
+      // 「客户（由页面设定）」: the lock is said, not only drawn.
+      aria-label={messages.label('label.embed.locked-name', {
+        filter: label,
+      })}
+      className="bg-muted/40 flex min-w-0 shrink-0 items-center gap-1 rounded-md border py-0.5 pr-0.5 pl-2 text-sm"
+    >
+      <span className="text-muted-foreground shrink-0 whitespace-nowrap">
+        {label}
+      </span>
+      <span data-slot="filter-reading" className="min-w-0 truncate">
+        {reading}
+      </span>
+      <IconTooltip
+        label={locked}
+        render={
+          <Button
+            data-slot="dashboard-filter-locked"
+            variant="ghost"
+            size="icon-xs"
+          />
+        }
+      >
+        <LockIcon />
+      </IconTooltip>
       {settings}
     </div>
   );

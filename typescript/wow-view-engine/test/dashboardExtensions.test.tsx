@@ -45,7 +45,7 @@ import { useDashboard } from '../src/react/index.js';
 import {
   DashboardTabs,
   DashboardWorkbench,
-  EmbeddedView,
+  EmbeddedDashboard,
 } from '../src/ui/index.js';
 import {
   analysisConfig,
@@ -357,7 +357,7 @@ describe('the tab bar', () => {
   it('switches tabs in an embed too, and remembers nothing there', async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     const { engine, store } = setup();
-    render(<EmbeddedView engine={engine} instanceId="board" />);
+    render(<EmbeddedDashboard engine={engine} instanceId="board" />);
     await user.click(await screen.findByRole('tab', { name: 'Detail' }));
     await waitFor(() =>
       expect(screen.getByText('Detail by warehouse')).toBeTruthy(),

@@ -92,9 +92,10 @@ export type SnapshotOf<R> = R extends { getSnapshot(): infer S } ? S : never;
 
 /**
  * What a dashboard opens with, as a host's address has it: the tab on screen
- * and what the filters hold (D22 E, F). Read as the view opens.
+ * and what the filters hold (D22 E, F), and what an embedding page holds of
+ * them (`held`). Read as the view opens.
  */
-export type DashboardOpening = Pick<OpenOptions, 'tab' | 'filters'>;
+export type DashboardOpening = Pick<OpenOptions, 'tab' | 'filters' | 'held'>;
 
 export interface OpenViewState {
   runtime: AnyViewRuntime | null;

@@ -263,7 +263,7 @@ src/
     useBulkCommand.ts         — A host's command for one record run over a selection: a few at a time, progress, stop, each refusal's reason, the unfinished rows left selected
     useSearchBox.ts           — The view's search kept on hand: the definition's search field, the draft's and the applied text, set / submit / clear
     useDashboard.ts           — Dashboard panels, geometry and state; the board's edit commands, its tabs, `preload` for a view about to be added, and a press on a panel's group (`crossFilter`, `pressed`, `destination`, `destinationBoard`)
-    usePanelFollowUps.ts      — The follow-up menu on a dashboard panel (D22 H): `useAnalysisResult`'s workbench half routed to the host (`DashboardNavigation` of kind `unsaved`, the board's filters folded into the view's own), and `ownedNavigation` for a board's own analysis
+    usePanelFollowUps.ts      — The follow-up menu on a dashboard panel (D22 H): `useAnalysisResult`'s workbench half routed to the host (`ViewNavigation` of kind `unsaved`, the board's filters folded into the view's own), and `ownedNavigation` for a board's own analysis
     useFilterEditor.ts        — Filter tree editor controller
     useRecordExport.ts        — The export run: scope, progress, the ceiling, delivery
     useRecordDetail.ts        — One record's detail: open, read whole (`fetchRecord`) and read again when the view's result lands; the page's row until then
@@ -307,7 +307,8 @@ src/
     DeleteDialog.tsx          — What a delete costs, said before it happens
     DragHandle.tsx            — The handle a sortable row is carried by, and the arrow keys that move it; the three lists share it
     EditorBand.tsx            — The fold a view's editor lives in
-    EmbeddedView.tsx          — An outer condition ANDed onto the view's own, in the view's field names
+    EmbeddedDashboard.tsx     — A saved board on a business page (D22): a tier (read-only, interactive, editable), each filter editable, locked or hidden (`filterModes`) — the locked and hidden values the page's own and followed (`pageValues`), the reader's the host's address (`initialFilters`/`onFiltersChange`, never a held one) — the title and panel-title switches
+    EmbeddedView.tsx          — A saved record or analysis view on a business page (D22): a tier (read-only, interactive), the page's narrowing ANDed onto the view's own (`scopeFilter`), and the title, search, export, auto-refresh and 在工作台中打开 switches; a dashboard is `EmbeddedDashboard`'s
     ExportDialog.tsx          — The export window: scope, name, progress and outcome in one journey (D14)
     FieldMenu.tsx             — A picker's entries by catalogue group; shared by the field pickers
     FilterPanel.tsx           — Condition builder root: mode, focus boundary, actions row
@@ -420,6 +421,12 @@ src/
       motion.ts               — Whether a chart animates its marks: not when the reader asked for less motion (`useChartMotion`, read live)
       palette.ts              — The eight slot colours, the grey of a pie's "Other", and the spec's overrides
       reading.ts              — A chart as text: its name and the numbers it draws
+    embed/                    — What the two embeds share, and the data view's bodies (D22)
+      options.ts              — The tiers (`EmbedInteraction`, `DashboardEmbedInteraction`), `EmbedSize`, and `EmbedBaseProps` — what both embeds take
+      EmbedFrame.tsx          — The surface both embeds draw on (`data-embed-size`), what can go wrong opening one — unopenable, another kind, a refused narrowing — the auto-refresh switch, and one render boundary
+      EmbedHead.tsx           — An embed's first row, only when it has something in it: the title at the host's heading level and the controls on the right; `OpenInWorkbench`
+      EmbeddedRecord.tsx      — A record view embedded: the rows, the read-only applied band and the search at its end, the export in the head; header sort and pages in the interactive tier
+      EmbeddedAnalysis.tsx    — An analysis view embedded: its chart or table as saved; in the interactive tier the table｜chart switch, the header sort and the follow-up menu through the host's route
     dashboard/                — What building a dashboard is made of (D22 A–E)
       BoardFilters.tsx        — `useBoardFilters`: the board's filters as it draws them — the bar, 「筛选 ＋」, each filter's settings, wiring and the toast that undoes auto-connect
       ClickSettings.tsx       — 「点击时…」 (D22 I): the follow-up menu, a board filter a press sets, or another view, board or page, one `RadioGroup`; a view picked with the `ViewPicker`, a URL checked at the field
@@ -430,7 +437,8 @@ src/
       commands.ts             — `panelCommands`: what one panel's menu offers — 「看」 always, 「改」 while the board is built (「恢复为视图的样子」 only over a look of its own), renaming and removing alone in the one-column reading — and the builder the grid reaches through context
       ContentEditor.tsx       — The small form a note, a picture or a list of links is written in, what the kernel would refuse said at the field
       DashboardTabs.tsx       — The tab bar over the grid, two tabs or more: switch; while building, add, rename in place, carry by handle or arrows, delete (asked first when it holds panels); `tabTitle`
-      FilterBar.tsx           — The filter bar (D22 F): a chip a filter with the condition editor's value controls, required ones starred and never empty, 按日｜周｜月, 「清空」, a filter reaching nothing on the tab drawn quieter and saying why, 「来自「〈面板〉」」 on a value a press set
+      filterModes.ts          — How an embedding page offers each filter (`DashboardFilterMode`: editable, locked, hidden) and the time grouping; what the page holds (`heldOf`) and what is the reader's (`readersOf`); `sameValue`
+      FilterBar.tsx           — The filter bar (D22 F): a chip a filter with the condition editor's value controls, required ones starred and never empty, 按日｜周｜月, 「清空」, a filter reaching nothing on the tab drawn quieter and saying why, 「来自「〈面板〉」」 on a value a press set; on an embedding page a locked filter read as what it holds, with a lock, and a hidden one not at all
       FilterSettings.tsx      — 「筛选 ＋」 (`AddFilterMenu`) and one filter's settings popover: type, name, default, several values, required, where its values come from, 接线 and 移除
       FilterWiring.tsx        — Wiring a filter (D22 G): the context the grid reads, each panel's strip (same-type fields, 「没有可接的字段」, 「手动」), the wiring bar, the toasts in the board's own root
       EditBar.tsx             — The bar a board is built under: 正在编辑, 添加 and 筛选 ＋ beside it, 取消 (put back the saved board, asked first) and 完成 (the save, a shared board asked first, a new one named)
@@ -481,6 +489,7 @@ src/
       config.ts               — shared config — the part every view kind stores, so every kind reports it
       dashboard.ts            — the dashboard grid, its panels, and the dashboard kernel behind them
       definition.ts           — definition admission, worded for whoever wrote the release
+      embed.ts                — an embedded view or dashboard: a filter the page locked
       filters.ts              — a board's filters, batch C2: the filter bar, a panel a filter does not reach, a filter's settings and wiring
       en.ts                   — the English catalogue: the files below, spread
       export.ts               — the export window
@@ -500,6 +509,7 @@ src/
       CardSummaries.tsx       — The summary lines under the cards, both scopes (D18 V)
       ColumnResizer.tsx       — The handle a column is dragged wider by, and its keyboard
       EmptyResult.tsx         — A query that matched nothing, with one way out
+      exportOffer.ts          — `useExportOffer`: what the export window is handed for one record view — the CSV of the columns drawn, read as the cells read, and the conditions the rows came back under; the workbench's toolbar and an embed's head alike
       emptyWayOut.ts          — Which way out an empty result offers: back to a saved view's conditions, change them, clear them, or add one; `wayOutOf`, the press that takes it, shared with the analysis
       Filler.tsx              — The aria-hidden last cell that lets rows fill the frame while columns keep their width (P-11)
       SkeletonCards.tsx       — The cards of a first query still on its way

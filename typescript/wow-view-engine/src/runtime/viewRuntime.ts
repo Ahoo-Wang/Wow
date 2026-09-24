@@ -106,6 +106,8 @@ export class DataViewRuntime<
   private readonly runner: RequestRunner;
   private readonly resolveOptions: ((key: string) => OptionSource) | undefined;
   private readonly autoRefresh: boolean;
+  /** Whether a host lets the view refresh itself (`setAutoRefresh`). */
+  private refreshing = true;
   /** The one timer behind 「改了就跑」, stopped whenever nothing is due. */
   private readonly autoTimer: RefreshTimer;
   private readonly candidates: ValueCandidateSources;
@@ -189,6 +191,7 @@ export class DataViewRuntime<
       // flight, and for whatever reason of its own the kind has (`holds`).
       holding: () =>
         !this.autoRefresh ||
+        !this.refreshing ||
         this.state.query.status === 'loading' ||
         this.holds(),
       release: () => this.runner.cancel(this.id),
@@ -328,6 +331,12 @@ export class DataViewRuntime<
   setEditing(active: boolean): void {
     if (this.disposed || this.state.editing === active) return;
     this.store.setState({ editing: active });
+  }
+
+  setAutoRefresh(on: boolean): void {
+    if (this.disposed || this.refreshing === on) return;
+    this.refreshing = on;
+    this.store.retime();
   }
 
   setScopeFilter(tree: FilterTree | null): Issue[] {

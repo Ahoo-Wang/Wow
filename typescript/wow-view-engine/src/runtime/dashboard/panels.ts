@@ -34,6 +34,7 @@ import {
   panelTab,
   type FilterReach,
 } from '../../dashboard/index.js';
+import { issue } from '../../filter/index.js';
 import type { PanelGrouping } from './grouping.js';
 import type { PanelChild } from './children.js';
 import { resultIssues } from '../source.js';
@@ -78,16 +79,20 @@ export interface DashboardPanelState {
 /**
  * A panel's click, unless admission said something about it: a click that
  * cannot do what it says is set aside and a press opens the follow-up menu,
- * as the warning on the panel says.
+ * as the warning on the panel says. So is one that sets a filter the host
+ * holds (`DashboardRuntime.holdFilters`): a press cannot change what the
+ * page fixed, so it does what a press does on a panel with no click.
  */
 export function clickInForce(
   panel: DashboardPanel,
   issues: readonly Issue[],
+  held: (filter: string) => boolean = () => false,
 ): PanelClick | null {
   const said = issues.some(
     found => found.path[0] === 'panels' && found.path[2] === 'click',
   );
-  return said ? null : clickOf(panel);
+  const click = said ? null : clickOf(panel);
+  return click?.kind === 'filter' && held(click.filter) ? null : click;
 }
 
 /**
@@ -246,7 +251,10 @@ export function samePanels(
         panel.waiting === other.waiting &&
         panel.grouping === other.grouping &&
         dequal(panel.reach, other.reach) &&
-        dequal(panel.issues, other.issues)
+        dequal(panel.issues, other.issues) &&
+        // A click set aside for a filter the host holds changes nothing
+        // else about the panel.
+        dequal(panel.click, other.click)
       );
     })
   );
@@ -271,4 +279,16 @@ export function migrated(instance: ViewInstance | null): ViewInstance | null {
   if (instance === null) return null;
   const config = migrateDashboardConfig(instance.config as DashboardViewConfig);
   return config === instance.config ? instance : { ...instance, config };
+}
+
+/** A panel whose reference could not be put to work, as its finding. */
+export function panelFailure(
+  index: number,
+  instanceId: string,
+  reason: string,
+): Issue {
+  return issue('dashboard.panel.failed', ['panels', index, 'instanceId'], {
+    instance: instanceId,
+    reason,
+  });
 }

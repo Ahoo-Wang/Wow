@@ -32,7 +32,7 @@ import type {
   DashboardController,
   DashboardPanelView,
 } from '../react/index.js';
-import type { DashboardNavigation } from '../runtime/index.js';
+import type { ViewNavigation } from '../runtime/index.js';
 import { PanelGridItem, PanelResizeHandle } from './DashboardArrange.js';
 import {
   DashboardPanel,
@@ -48,6 +48,10 @@ import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import type { MessageKey } from './messages.js';
 import { PanelWiring, useFilterWiring } from './dashboard/FilterWiring.js';
 import { panelPress } from './dashboard/press.js';
+import {
+  filterModeOf,
+  type BoardFilterModes,
+} from './dashboard/filterModes.js';
 import {
   Empty,
   EmptyContent,
@@ -88,11 +92,32 @@ export interface DashboardGridProps {
    */
   emptyActions?: ReactNode;
   /**
-   * The host's route (`DashboardNavigation`): 在工作台中打开 in a panel's
+   * The host's route (`ViewNavigation`): 在工作台中打开 in a panel's
    * menu, the follow-up menu on a group, a panel's custom destination. No
    * route, none of them — a panel that cross-filters still does.
    */
-  onNavigate?(to: DashboardNavigation): void;
+  onNavigate?(to: ViewNavigation): void;
+  /**
+   * Whether the board is only read (off by default): nothing on it answers
+   * — no press on a group (no follow-up menu, no cross-filtering, no
+   * destination), no 「⋯」 on a panel, no retry on one that failed; the
+   * board re-runs on its own timer. An embed's read-only tier (D22), a
+   * wall screen.
+   */
+  readOnly?: boolean;
+  /**
+   * Whether a panel's 「⋯」 offers 在工作台中打开 — the view behind it — when
+   * there is a route (on by default).
+   */
+  openInWorkbench?: boolean;
+  /** Whether panel titles are drawn (on by default; `DashboardPanel.titled`). */
+  panelTitles?: boolean;
+  /**
+   * How an embedding page offers each filter: a panel says nothing of a
+   * filter the page hid (「不受…影响」 would name what the reader cannot
+   * see).
+   */
+  filterModes?: BoardFilterModes;
   className?: string;
 }
 
@@ -124,6 +149,10 @@ export function DashboardGrid({
   header,
   emptyActions,
   onNavigate,
+  readOnly = false,
+  openInWorkbench = true,
+  panelTitles = true,
+  filterModes,
 }: DashboardGridProps) {
   // The grid needs a pixel width and the container only knows it once it is
   // on screen, so the measuring is the library's own hook rather than a
@@ -305,24 +334,39 @@ export function DashboardGrid({
                   panel={panel}
                   name={names.get(panel.id)}
                   headingLevel={headingLevel}
+                  titled={panelTitles}
                   editable={arranging}
                   available={step => available(panel.id, step)}
                   onArrange={step => arrange(panel.id, step)}
-                  onRetry={() => dashboard.refreshPanel(panel.id)}
-                  press={panelPress(panel, dashboard, onNavigate, say)}
-                  pressesFilter={pressedFilter(panel, dashboard)}
-                  commands={panelCommands({
-                    panel,
-                    name: names.get(panel.id) ?? '',
-                    dashboard,
-                    building,
-                    editing: editable,
-                    narrow,
-                    extensions,
-                    onNavigate,
-                    messages,
-                  })}
-                  unreached={unreachedBy(panel, dashboard)}
+                  onRetry={
+                    readOnly
+                      ? undefined
+                      : () => dashboard.refreshPanel(panel.id)
+                  }
+                  press={
+                    readOnly
+                      ? undefined
+                      : panelPress(panel, dashboard, onNavigate, say)
+                  }
+                  pressesFilter={
+                    readOnly ? undefined : pressedFilter(panel, dashboard)
+                  }
+                  commands={
+                    readOnly
+                      ? undefined
+                      : panelCommands({
+                          panel,
+                          name: names.get(panel.id) ?? '',
+                          dashboard,
+                          building,
+                          editing: editable,
+                          narrow,
+                          extensions,
+                          onNavigate: openInWorkbench ? onNavigate : undefined,
+                          messages,
+                        })
+                  }
+                  unreached={unreachedBy(panel, dashboard, filterModes)}
                   footer={
                     wiring &&
                     editable && (
@@ -419,10 +463,12 @@ function DashboardEmpty({
 function unreachedBy(
   panel: DashboardPanelView,
   dashboard: DashboardController,
+  modes: BoardFilterModes | undefined,
 ): string[] {
   if (panel.panel.kind !== 'view' || panel.broken) return [];
   return dashboard.filterFields.flatMap(field =>
     dashboard.filters.values[field.name] !== undefined &&
+    filterModeOf(modes, field.name) !== 'hidden' &&
     panel.reach[field.name]?.wired === false
       ? [field.label]
       : [],

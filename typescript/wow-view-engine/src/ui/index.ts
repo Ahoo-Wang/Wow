@@ -74,6 +74,7 @@ export {
 } from './display.js';
 export * from './download.js';
 export * from './EditorBand.js';
+export * from './EmbeddedDashboard.js';
 export * from './EmbeddedView.js';
 export * from './ExportDialog.js';
 export * from './FilterPanel.js';
@@ -100,7 +101,7 @@ export * from './SaveActions.js';
 export * from './SaveAsDialog.js';
 export * from './SortSettings.js';
 export * from './StatusStrip.js';
-// The hook ships beside the toggle: `EmbeddedView` has no title bar to put a
+// The hook ships beside the toggle: an embed has no title bar to put a
 // button in, so a host that wants its embed to fill the screen owns the
 // control and points this at the surface it got a ref to.
 export * from './ViewExpansion.js';

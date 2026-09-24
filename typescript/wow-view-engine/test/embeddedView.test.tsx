@@ -19,6 +19,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
@@ -38,6 +39,7 @@ import {
   ordersDefinition,
   overviewDefinition,
   recordConfig,
+  testEnvironment,
   testSource,
 } from './fixtures.js';
 import { mine, mixed, setup } from './fixtures/ui.js';
@@ -90,6 +92,7 @@ describe('EmbeddedView', () => {
       <EmbeddedView
         engine={setup().engine}
         instanceId="orders-1"
+        withExport
         messages={{ 'label.record.select-all': '全选' }}
       />,
     );
@@ -181,134 +184,32 @@ describe('EmbeddedView', () => {
     expect(document.querySelector('[data-slot="editor-toggle"]')).toBeNull();
   });
 
-  it('shows a dashboard as its grid of panels', async () => {
-    const panelled: ViewInstance = {
-      id: 'overview-1',
-      definitionId: 'overview',
-      title: 'Overview',
-      scope: 'personal',
-      revision: '1',
-      config: dashboardConfig({
-        panels: [
-          {
-            id: 'rows',
-            kind: 'markdown',
-            title: 'Note',
-            content: '# Weekly review',
-            layout: { x: 0, y: 0, w: 6, h: 2 },
-          },
-        ],
-      }),
-    };
-    const engine = new ViewEngine({
-      definitions: [ordersDefinition(), overviewDefinition()],
-      store: new MemoryViewStore({ instances: [panelled] }),
-      resolveSource: () => testSource(),
-    });
-
-    render(<EmbeddedView engine={engine} instanceId="overview-1" />);
-
-    await waitFor(() =>
-      expect(
-        screen.getByRole('heading', { name: 'Weekly review' }),
-      ).toBeTruthy(),
-    );
-  });
-
-  /**
-   * One panel's error stops that panel and nothing else — the runtime runs
-   * the rest — but the embed read it as the dashboard's own and drew an
-   * error strip where the whole grid should have been (R3). The workbench
-   * always drew the grid; so does this, with the one panel saying why.
-   */
-  it('draws the grid around a panel that is out', async () => {
-    const board: ViewInstance = {
-      id: 'overview-1',
-      definitionId: 'overview',
-      title: 'Overview',
-      // One panel wired to a filter the board does not have: refused with an
-      // error of its own.
-      scope: 'shared',
-      revision: '1',
-      config: dashboardConfig({
-        panels: [
-          {
-            id: 'private',
-            kind: 'view',
-            title: 'Mine only',
-            instanceId: 'orders-1',
-            bindings: [{ globalField: 'ghost', panelField: 'status' }],
-            layout: { x: 0, y: 0, w: 6, h: 4 },
-          },
-          {
-            id: 'note',
-            kind: 'markdown',
-            title: 'Note',
-            content: '# Weekly review',
-            layout: { x: 6, y: 0, w: 6, h: 2 },
-          },
-        ],
-      }),
-    };
+  it('names a dashboard as a view it cannot show: that is EmbeddedDashboard', async () => {
     const engine = new ViewEngine({
       definitions: [ordersDefinition(), overviewDefinition()],
       store: new MemoryViewStore({
-        instances: [board, mine],
+        instances: [
+          {
+            id: 'overview-1',
+            definitionId: 'overview',
+            title: 'Overview',
+            scope: 'personal',
+            revision: '1',
+            config: dashboardConfig(),
+          },
+        ],
       }),
       resolveSource: () => testSource(),
     });
 
     render(<EmbeddedView engine={engine} instanceId="overview-1" />);
 
-    // The healthy panel draws; the refused one says why in its own frame.
     expect(
-      await screen.findByRole('heading', { name: 'Weekly review' }),
-    ).toBeTruthy();
-    const out = document.querySelector('[data-slot="panel-unavailable"]');
-    expect(out?.textContent).toContain(
-      "The dashboard's filters do not fit this panel",
-    );
-    // And nothing above the grid takes the board's place.
-    expect(screen.queryByRole('alert')).toBeNull();
-    // An embed has no title of its own, so its panels sit one under the
-    // host page's `h1` unless the host says otherwise.
-    expect(
-      screen.getByRole('heading', { level: 2, name: 'Note' }),
-    ).toBeTruthy();
-  });
-
-  it('puts the panel titles where the host outline wants them', async () => {
-    const board: ViewInstance = {
-      id: 'overview-1',
-      definitionId: 'overview',
-      title: 'Overview',
-      scope: 'personal',
-      revision: '1',
-      config: dashboardConfig({
-        panels: [
-          {
-            id: 'note',
-            kind: 'markdown',
-            title: 'Note',
-            content: 'hello',
-            layout: { x: 0, y: 0, w: 6, h: 2 },
-          },
-        ],
-      }),
-    };
-    const engine = new ViewEngine({
-      definitions: [ordersDefinition(), overviewDefinition()],
-      store: new MemoryViewStore({ instances: [board] }),
-      resolveSource: () => testSource(),
-    });
-
-    render(
-      <EmbeddedView engine={engine} instanceId="overview-1" headingLevel={4} />,
-    );
-
-    expect(
-      await screen.findByRole('heading', { level: 4, name: 'Note' }),
-    ).toBeTruthy();
+      await screen.findByText(
+        'This view is of another kind (dashboard), so this page cannot show it.',
+      ),
+    ).toBeDefined();
+    expect(document.querySelector('[data-slot="dashboard-grid"]')).toBeNull();
   });
 
   it('reports a failed query inside the embed', async () => {
@@ -690,5 +591,259 @@ describe('EmbeddedView', () => {
     );
     expect(screen.queryByRole('button', { name: '1 more' })).toBeNull();
     expect(screen.getAllByRole('row')).toHaveLength(3);
+  });
+});
+
+/**
+ * The tier and the switches (D22): a record or analysis view on a business
+ * page is read-only unless the host says interactive, and shows what else
+ * the host switched on — its title, its search, its export, 在工作台中打开 —
+ * and nothing it did not.
+ */
+describe('EmbeddedView tiers and switches', () => {
+  function engineOf(config: ViewInstance['config'], fields = true) {
+    const base = ordersDefinition();
+    return new ViewEngine({
+      definitions: [
+        fields
+          ? ordersDefinition({
+              fields: [
+                ...base.fields,
+                { name: 'q', label: 'Search orders', kind: 'search' },
+              ],
+            })
+          : base,
+      ],
+      store: new MemoryViewStore({ instances: [{ ...mine, config }] }),
+      resolveSource: () => testSource(),
+    });
+  }
+
+  it('reads, and does nothing else, in the read-only tier', async () => {
+    render(
+      <EmbeddedView engine={engineOf(recordConfig())} instanceId="orders-1" />,
+    );
+
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+    // No header sorts, no width handle, no pages, no picking.
+    for (const head of screen.getAllByRole('columnheader'))
+      expect(within(head).queryByRole('button')).toBeNull();
+    expect(document.querySelector('[data-slot="column-resizer"]')).toBeNull();
+    expect(
+      document.querySelector('[data-slot="record-pagination"]'),
+    ).toBeNull();
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    // Nothing the host did not switch on, and no first row to hold it.
+    expect(document.querySelector('[data-slot="embed-head"]')).toBeNull();
+    expect(screen.queryByRole('searchbox')).toBeNull();
+    expect(
+      document.querySelector('[data-embed-size="content"]'),
+    ).not.toBeNull();
+  });
+
+  it('sorts by a header and pages in the interactive tier', async () => {
+    const engine = engineOf(recordConfig());
+    render(
+      <EmbeddedView
+        engine={engine}
+        instanceId="orders-1"
+        interaction="interactive"
+      />,
+    );
+
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+    await userEvent.click(
+      screen.getByRole('button', { name: /Sort by Amount, ascending/ }),
+    );
+    await waitFor(() =>
+      expect(engine.openRuntimes()[0].getSnapshot().applied).toMatchObject({
+        sort: [{ field: 'amount', direction: 'ASC' }],
+      }),
+    );
+    expect(
+      document.querySelector('[data-slot="record-pagination"]'),
+    ).not.toBeNull();
+  });
+
+  it('titles itself at the level the host outline calls for, when asked', async () => {
+    render(
+      <EmbeddedView
+        engine={engineOf(recordConfig())}
+        instanceId="orders-1"
+        withTitle
+        headingLevel={3}
+      />,
+    );
+
+    expect(
+      await screen.findByRole('heading', { level: 3, name: mine.title }),
+    ).toBeDefined();
+  });
+
+  it('offers the search box and the export where the host switched them on', async () => {
+    const { rerender } = render(
+      <EmbeddedView
+        engine={engineOf(recordConfig())}
+        instanceId="orders-1"
+        withSearch
+        withExport
+      />,
+    );
+
+    expect(
+      await screen.findByRole('searchbox', { name: 'Search orders' }),
+    ).toBeDefined();
+    expect(await screen.findByRole('button', { name: /Export/ })).toBeDefined();
+    // Rows can be picked, for the export's "selected" scope.
+    expect(screen.getAllByRole('checkbox').length).toBeGreaterThan(0);
+
+    // A definition without a search field has no box to show.
+    rerender(
+      <EmbeddedView
+        engine={engineOf(recordConfig(), false)}
+        instanceId="orders-1"
+        withSearch
+      />,
+    );
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+    expect(screen.queryByRole('searchbox')).toBeNull();
+  });
+
+  it('opens the view in the workbench through the host route, under the page narrowing — interactive only', async () => {
+    const onNavigate = vi.fn();
+    const scope: FilterTree = {
+      op: 'and',
+      children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+    };
+    const engine = engineOf(recordConfig());
+    const { rerender } = render(
+      <EmbeddedView
+        engine={engine}
+        instanceId="orders-1"
+        scopeFilter={scope}
+        onNavigate={onNavigate}
+      />,
+    );
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+    expect(
+      screen.queryByRole('button', { name: 'Open in the workbench' }),
+    ).toBeNull();
+
+    rerender(
+      <EmbeddedView
+        engine={engine}
+        instanceId="orders-1"
+        scopeFilter={scope}
+        onNavigate={onNavigate}
+        interaction="interactive"
+      />,
+    );
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Open in the workbench' }),
+    );
+    expect(onNavigate).toHaveBeenCalledWith({
+      kind: 'view',
+      instanceId: 'orders-1',
+      filter: scope,
+    });
+
+    // Switched off, it is not there, route or not.
+    rerender(
+      <EmbeddedView
+        engine={engine}
+        instanceId="orders-1"
+        onNavigate={onNavigate}
+        interaction="interactive"
+        openInWorkbench={false}
+      />,
+    );
+    expect(
+      screen.queryByRole('button', { name: 'Open in the workbench' }),
+    ).toBeNull();
+  });
+
+  it('switches an analysis between table and chart in the interactive tier, and not in the read-only one', async () => {
+    const engine = engineOf(analysisConfig({ layout: 'table' }));
+    const { rerender } = render(
+      <EmbeddedView engine={engine} instanceId="orders-1" />,
+    );
+    await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
+    expect(screen.queryByRole('group', { name: 'Show result as' })).toBeNull();
+    // Nothing on it opens a menu: the follow-ups are the interactive tier's.
+    const group = await screen.findByRole('row', { name: /CN/ });
+    expect(group.getAttribute('aria-haspopup')).toBeNull();
+
+    rerender(
+      <EmbeddedView
+        engine={engine}
+        instanceId="orders-1"
+        interaction="interactive"
+      />,
+    );
+    const layout = await screen.findByRole('group', { name: 'Show result as' });
+    await userEvent.click(
+      within(layout).getByRole('button', { name: 'Chart' }),
+    );
+    await waitFor(() =>
+      expect(document.querySelector('[data-slot="chart"]')).not.toBeNull(),
+    );
+    // Nothing of it is saved.
+    expect(engine.openRuntimes()[0].getSnapshot().saved?.config).toMatchObject({
+      layout: 'table',
+    });
+  });
+
+  it('opens the follow-up menu on a group, through the host route, in the interactive tier', async () => {
+    const onNavigate = vi.fn();
+    const engine = engineOf(analysisConfig({ layout: 'table' }));
+    render(
+      <EmbeddedView
+        engine={engine}
+        instanceId="orders-1"
+        interaction="interactive"
+        onNavigate={onNavigate}
+      />,
+    );
+    const table = await screen.findByRole('table');
+    const row = await within(table).findByRole('row', { name: /CN/ });
+    expect(row.getAttribute('aria-haspopup')).toBe('menu');
+    await userEvent.click(row);
+    await userEvent.click(
+      await screen.findByRole('menuitem', { name: /See these records/ }),
+    );
+    expect(onNavigate).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'unsaved', definitionId: 'orders' }),
+    );
+  });
+
+  it('fills its container when asked, and never refreshes itself when told not to', async () => {
+    const clock = testEnvironment();
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store: new MemoryViewStore({
+        instances: [
+          { ...mine, config: recordConfig({ refresh: { interval: 30 } }) },
+        ],
+      }),
+      resolveSource: () => testSource(),
+      environment: clock.environment,
+    });
+    const { rerender } = render(
+      <EmbeddedView
+        engine={engine}
+        instanceId="orders-1"
+        size="fill"
+        autoRefresh={false}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+    expect(document.querySelector('[data-embed-size="fill"]')).not.toBeNull();
+    await waitFor(() => expect(clock.timers).toBe(0));
+
+    rerender(
+      <EmbeddedView engine={engine} instanceId="orders-1" size="fill" />,
+    );
+    await waitFor(() => expect(clock.timers).toBe(1));
   });
 });

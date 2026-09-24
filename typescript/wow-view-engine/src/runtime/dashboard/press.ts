@@ -58,7 +58,7 @@ import {
   type PanelReference,
 } from '../../dashboard/index.js';
 import type { DataViewRuntime } from '../viewRuntime.js';
-import type { DashboardNavigation } from './contract.js';
+import type { ViewNavigation } from './contract.js';
 import { panelsOf } from './panels.js';
 
 /** What a press that sets a filter did (D22 I). */
@@ -77,7 +77,7 @@ export type CrossFilterOutcome =
 
 /** Where a press on a custom destination goes, or why it goes nowhere. */
 export type PressDestination =
-  | { to: DashboardNavigation }
+  | { to: ViewNavigation }
   | { refused: Issue }
   /**
    * The click cannot do what it says — a board it opens is gone, or a
@@ -100,6 +100,8 @@ export interface PressHost {
   child(panelId: string): DataViewRuntime | null;
   /** Sets a filter by a press (`FilterValues.press`). */
   press(name: string, value: FilterValue | null, panelId: string): Issue[];
+  /** Whether the host holds a filter, which no press then sets. */
+  holds(name: string): boolean;
   /** A saved view, loaded: what a destination carries its group into. */
   reference(instanceId: string): Promise<PanelReference | null>;
 }
@@ -303,7 +305,8 @@ export class PanelPresses {
   ): { filter: DashboardField; field: string } | null {
     const panel = this.panelOf(panelId)?.panel;
     const click = panel && clickOf(panel);
-    if (!panel || click?.kind !== 'filter') return null;
+    if (!panel || click?.kind !== 'filter' || this.host.holds(click.filter))
+      return null;
     const filter = filtersOf(this.host.applied()).find(
       field => field.name === click.filter,
     );

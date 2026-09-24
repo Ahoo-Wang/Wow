@@ -59,7 +59,7 @@ export interface DataWorkbenchProps {
   onInstanceChange?(id: string | null): void;
   /**
    * A view nobody saved, to open here: what a dashboard handed the host's
-   * route (`DashboardNavigation` of kind `unsaved` — a follow-up on a
+   * route (`ViewNavigation` of kind `unsaved` — a follow-up on a
    * panel's group, or a board's own analysis). Each new object opens once,
    * through the leave guard, unsaved until its first save
    * (`WorkbenchOptions.unsaved`).

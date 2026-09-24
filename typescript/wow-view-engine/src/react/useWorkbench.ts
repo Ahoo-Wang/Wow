@@ -116,7 +116,7 @@ export interface WorkbenchOptions {
   /**
    * A view nobody saved, to open here (D22 H): what a dashboard handed the
    * host's route — a follow-up on a panel's group, or an analysis the board
-   * owns (`DashboardNavigation`'s `unsaved`). Each new object opens once,
+   * owns (`ViewNavigation`'s `unsaved`). Each new object opens once,
    * through the leave guard, as a view made from nothing (`UnsavedView`).
    */
   unsaved?: UnsavedView | null;

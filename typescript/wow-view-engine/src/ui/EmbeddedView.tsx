@@ -11,374 +11,202 @@
  * limitations under the License.
  */
 
-import type { Ref, ReactNode } from 'react';
-import type { FilterTree } from '../model/index.js';
+import type { ReactNode } from 'react';
+import type { FilterTree, ViewKind } from '../model/index.js';
 import type { RecordRow } from '../record/index.js';
 import {
-  hasAsked,
-  hasResult,
+  isRecordRuntime,
   resultIssues,
-  type DashboardNavigation,
-  type DashboardRuntime,
-  type ViewEngine,
+  type AnyViewRuntime,
+  type DataViewRuntime,
 } from '../runtime/index.js';
 import {
   useAnalysisEditor,
-  useDashboard,
-  useFilterEditor,
   useOpenView,
-  useRecordTable,
   useViewRuntime,
 } from '../react/index.js';
-import { Alert, AlertDescription, AlertTitle } from './components/alert.js';
-import { Skeleton } from './components/skeleton.js';
-import { AnalysisChart } from './AnalysisChart.js';
-import { AnalysisTable } from './AnalysisTable.js';
-import { AppliedBar } from './AppliedBar.js';
 import { analysisIssueNamer } from './analysis/issueNames.js';
-import { DashboardGrid, type PanelHeadingLevel } from './DashboardGrid.js';
-import { DashboardTabs } from './dashboard/DashboardTabs.js';
-import { RecordCards } from './RecordCards.js';
-import { RecordTable } from './RecordTable.js';
-import { ErrorStrip, QueryStrip, WarningStrip } from './StatusStrip.js';
+import { EmbedFrame } from './embed/EmbedFrame.js';
+import { EmbedHead, OpenInWorkbench } from './embed/EmbedHead.js';
+import { EmbeddedAnalysis } from './embed/EmbeddedAnalysis.js';
+import { EmbeddedRecord } from './embed/EmbeddedRecord.js';
+import type { EmbedBaseProps, EmbedInteraction } from './embed/options.js';
 import { useViewMessages } from './MessagesProvider.js';
-import { RenderBoundary, type RenderFailureHandler } from './RenderBoundary.js';
-import type { ViewMessages } from './messages.js';
-import { ViewSurface } from './ViewSurface.js';
+import { ErrorStrip, WarningStrip } from './StatusStrip.js';
 
-export interface EmbeddedViewProps {
-  engine: ViewEngine;
-  /** The saved view to show; a code-declared system view works too. */
-  instanceId: string;
+export type {
+  DashboardEmbedInteraction,
+  EmbedBaseProps,
+  EmbedInteraction,
+  EmbedSize,
+} from './embed/options.js';
+
+export interface EmbeddedViewProps extends EmbedBaseProps {
   /**
-   * An outer condition ANDed onto the view's own, in the view's field names.
-   * It is admitted like a user's own filter, so a host cannot widen a view
-   * past what its definition allows, and it never reaches the saved config.
+   * An outer condition ANDed onto the view's own, in the view's field names:
+   * the page's narrowing, locked — the reader sees it in the applied band
+   * and cannot take it off. It is admitted like a user's own filter, so a
+   * host cannot widen a view past what its definition allows, and it never
+   * reaches the saved config. It is not a security boundary: see the
+   * README's embedding section.
    */
   scopeFilter?: FilterTree | null;
-  /** Follows the host page when left out. */
-  theme?: 'light' | 'dark';
-  /** Wording, merged over what is already in force: where a host translates. */
-  messages?: ViewMessages;
+  /** How far the reader may go (`EmbedInteraction`); `read-only` by default. */
+  interaction?: EmbedInteraction;
   /**
-   * The language dates and times show in; the runtime's when left out. It is
-   * the same choice as `messages`, made for values rather than words.
+   * The view's search box, at the end of the applied band, where its
+   * definition declares a search field (off by default). Record views only.
    */
-  locale?: string;
-  className?: string;
+  withSearch?: boolean;
   /**
-   * The surface this draws on, handed back.
-   *
-   * An embed is the result and nothing else — no title bar, no toolbar, no
-   * save — so it grows no control of its own for filling the screen: a
-   * button floating over somebody's order page is chrome that page did not
-   * ask for and cannot place. What it owes a host that wants one is the
-   * means, which is this: put the control where your own chrome is, and
-   * point `useViewExpansion` at the element you get here.
+   * The export button and window (D14), in the embed's first row (off by
+   * default). Record views only; with it, rows can be picked, since the
+   * window offers to take the picked ones.
    */
-  ref?: Ref<HTMLDivElement>;
+  withExport?: boolean;
   /**
-   * What the host offers on one row of a record view. An embed has no
-   * toolbar and no save, but the rows it shows are still records somebody
-   * may want to act on; the slot takes the row alone, because there is no
-   * view to command here.
+   * What the host offers on one row of a record view. The slot takes the row
+   * alone, because there is no view to command here.
    */
   rowActions?(row: RecordRow): ReactNode;
-  /**
-   * Told when the embed fails to draw — a row action of the host's that
-   * throws, for one. The embed shows a recoverable error state in place.
-   */
-  onRenderFailure?: RenderFailureHandler;
-  /**
-   * The heading level of a dashboard's panel titles. An embed has no title
-   * of its own, so its panels sit one under whatever the host's page calls
-   * the section it put them in — `2`, under a page's `h1`, unless the host
-   * says otherwise. Only the host knows its outline.
-   */
-  headingLevel?: PanelHeadingLevel;
-  /**
-   * The host's route from an embedded dashboard (`DashboardNavigation`):
-   * 在工作台中打开 in a panel's menu, the follow-up menu on a group, a
-   * panel's custom destination. Without it none of them exist.
-   */
-  onNavigate?(to: DashboardNavigation): void;
 }
 
+/** The kinds this entry draws; a dashboard is `EmbeddedDashboard`'s. */
+const DATA_KINDS: readonly ViewKind[] = ['record', 'analysis'];
+
 /**
- * One saved view inside a business page: the result, and nothing else.
+ * One saved record or analysis view inside a business page: the result, and
+ * what the host switched on around it (D22).
  *
- * The workbench exists to let a user *change* how they observe; this exists to
- * let a page *show* what someone already decided. So there is no view list, no
- * condition editor and no save action — an order detail page embedding "recent
+ * The workbench exists to let a user *change* how they observe; this exists
+ * to let a page *show* what someone already decided. So there is no view
+ * list, no condition editor and no save — an order page embedding "recent
  * shipments for this customer" wants the rows, not a second application.
+ * How far a reader may go is one explicit tier (`interaction`); the rest
+ * are switches: the title, the search, the export, auto-refresh, 在工作台中
+ * 打开. A dashboard is `EmbeddedDashboard`, split by resource as the
+ * workbenches are; this one names it as a view it cannot show.
  *
  * Everything it drops is chrome. Admission, paging, auto-refresh and the
- * request budget are the runtime's, identical to the workbench's, because both
- * are compositions over the same controllers.
+ * request budget are the runtime's, identical to the workbench's, because
+ * both are compositions over the same controllers.
  */
-export function EmbeddedView({
-  engine,
-  instanceId,
-  scopeFilter = null,
-  theme,
-  messages: wording,
-  locale,
-  className,
-  ref,
-  rowActions,
-  onRenderFailure,
-  headingLevel = 2,
-  onNavigate,
-}: EmbeddedViewProps) {
+export function EmbeddedView(props: EmbeddedViewProps) {
+  const { engine, instanceId, scopeFilter = null } = props;
   // The condition goes in with the config, not after it: `useOpenView` hands
   // it to `engine.open`, so the opening query is already scoped rather than
   // going out wide and being narrowed a moment later. One the definition
-  // refuses is reported as a refusal instead of being quietly dropped — and
-  // instead of being read as a defect of the view, which is what it used to
-  // be when it entered the first admission as part of the config.
+  // refuses is reported as a refusal instead of being quietly dropped.
   const opened = useOpenView(engine, instanceId, scopeFilter);
-  const messages = useViewMessages(wording, locale);
-  const runtime = opened.runtime;
-
   return (
-    <ViewSurface
-      ref={ref}
-      theme={theme}
-      messages={wording}
-      locale={locale}
-      timeZone={engine.environment.timeZone}
-      className={className}
+    <EmbedFrame
+      engine={engine}
+      opened={opened}
+      kinds={DATA_KINDS}
+      props={props}
     >
-      {opened.error && (
-        <Alert variant="destructive">
-          <AlertTitle>{messages.label('label.view.unopenable')}</AlertTitle>
-          <AlertDescription>{messages.issue(opened.error)}</AlertDescription>
-        </Alert>
-      )}
-      {/*
-        A refused narrowing leaves the wider result running, which is the one
-        outcome this must never show in silence: the page asked for one
-        customer's shipments and would otherwise quietly list everyone's. It
-        reads the same on the first open as on any later one — what was
-        refused is the page's own condition, and the page is who can change
-        it; the view below is whatever its author saved, and still worth
-        showing (D17-5).
-      */}
-      {opened.scopeIssues.length > 0 && (
-        <Alert variant="destructive">
-          <AlertTitle>{messages.label('label.scope.refused')}</AlertTitle>
-          <AlertDescription>
-            {messages.issues(opened.scopeIssues)}
-          </AlertDescription>
-        </Alert>
-      )}
-      {opened.loading && <Skeleton className="h-24 w-full" />}
-      {runtime && (
-        <RenderBoundary
-          name="result"
-          resetKeys={[runtime.id]}
-          onFailure={onRenderFailure}
-        >
-          <EmbeddedBody
-            runtime={runtime}
-            rowActions={rowActions}
-            headingLevel={headingLevel}
-            onNavigate={onNavigate}
-          />
-        </RenderBoundary>
-      )}
-    </ViewSurface>
+      {runtime => <EmbeddedData runtime={runtime} props={props} />}
+    </EmbedFrame>
   );
 }
 
-type OpenedRuntime = NonNullable<ReturnType<typeof useOpenView>['runtime']>;
-
 /**
- * Dispatch by kind. It is a component rather than a branch inside the one
- * above because each kind's controller is a hook, and a hook cannot be called
- * conditionally.
+ * What the view says about itself, then the kind's own body. A component
+ * rather than a branch above because each kind's controller is a hook, and
+ * a hook cannot be called conditionally.
  */
-function EmbeddedBody({
+function EmbeddedData({
   runtime,
-  rowActions,
-  headingLevel,
-  onNavigate,
+  props,
 }: {
-  runtime: OpenedRuntime;
-  rowActions?(row: RecordRow): ReactNode;
-  headingLevel: PanelHeadingLevel;
-  onNavigate?(to: DashboardNavigation): void;
+  runtime: AnyViewRuntime;
+  props: EmbeddedViewProps;
 }) {
-  const state = useViewRuntime(runtime);
+  const {
+    engine,
+    instanceId,
+    scopeFilter = null,
+    interaction = 'read-only',
+    withTitle = false,
+    headingLevel = 2,
+    withSearch = false,
+    withExport = false,
+    openInWorkbench = true,
+    onNavigate,
+    rowActions,
+  } = props;
+  const data = runtime as DataViewRuntime;
+  const state = useViewRuntime(data);
   const messages = useViewMessages();
+  const interactive = interaction === 'interactive';
   // A finding names its dimensions, metrics and fields as the screen does —
-  // columns as they are headed (`analysisIssueNamer`); over a view of another
-  // kind the editor is empty and names nothing.
-  const nameIssue = analysisIssueNamer(useAnalysisEditor(runtime), messages);
+  // columns as they are headed (`analysisIssueNamer`); over a record view
+  // the editor is empty and names nothing.
+  const nameIssue = analysisIssueNamer(useAnalysisEditor(data), messages);
 
   // A config the definition no longer admits opens but never executes, so
   // without this a record sits at an empty frame and an analysis at a
-  // skeleton that never resolves: a view waiting to be fixed, dressed up as
-  // one with nothing to show. The workbenches say so; so does this.
-  // A dashboard's panel-scoped findings are the panels' to show, each in its
-  // own frame — its errors as much as its warnings. One panel's error stops
-  // that panel and nothing else (the runtime runs the rest), so taking it
-  // for the dashboard's own drew no grid at all around a board where every
-  // other panel was fine (R3). The workbench has always drawn the grid.
-  // "Too many panels" sits at `['panels']` itself and is no one panel's:
-  // it stops the whole board, and stays the dashboard's to say.
-  const issues = (state?.issues ?? [])
-    .filter(
-      found =>
-        runtime.kind !== 'dashboard' ||
-        found.path[0] !== 'panels' ||
-        typeof found.path[1] !== 'number',
-    )
-    .map(nameIssue);
+  // skeleton that never resolves. The workbenches say so; so does this.
+  const issues = (state?.issues ?? []).map(nameIssue);
   const errors = issues.filter(found => found.severity === 'error');
   // A warning blocks nothing, so the result still shows, with the warning
   // above it: an embed hides the editor, and this is the one place a reader
   // learns the view is not quite what its author saved. What the result
   // says about itself is said here too, and for a stronger reason than in a
-  // workbench: there is no editor, no toolbar and no scope bar, so a page
-  // total wearing the word "total" or a pie drawn from a truncated grouping
-  // would have nothing at all to correct it.
+  // workbench: there is nothing else on screen to correct a page total that
+  // wears the word "total", or a pie drawn from a truncated grouping.
   const warnings = [...issues, ...resultIssues(state?.result?.data)];
+
+  const title = withTitle ? state?.title : undefined;
+  // 在工作台中打开: the saved view under the page's narrowing — interactive
+  // only, and only with a route to go by.
+  const open = interactive && openInWorkbench && onNavigate && (
+    <OpenInWorkbench
+      to={{ kind: 'view', instanceId, filter: scopeFilter }}
+      onNavigate={onNavigate}
+    />
+  );
+  const head = (actions: ReactNode) => (
+    <EmbedHead title={title} headingLevel={headingLevel}>
+      {open || actions ? (
+        <>
+          {open}
+          {actions}
+        </>
+      ) : null}
+    </EmbedHead>
+  );
+
   // An error takes the result's place; it does not take the warnings' — a
-  // config can carry both, and the workbench says both. There is no
-  // condition editor here, so no finding is marked anywhere else.
+  // config can carry both. There is no condition editor here, so no finding
+  // is marked anywhere else.
   if (errors.length > 0)
     return (
       <>
+        {head(null)}
         <ErrorStrip issues={errors} />
         <WarningStrip issues={warnings} />
       </>
     );
-
-  return (
-    <>
-      <WarningStrip issues={warnings} />
-      {runtime.kind === 'record' ? (
-        <EmbeddedRecord runtime={runtime} rowActions={rowActions} />
-      ) : runtime.kind === 'analysis' ? (
-        <EmbeddedAnalysis runtime={runtime} />
-      ) : (
-        <EmbeddedDashboard
-          runtime={runtime}
-          headingLevel={headingLevel}
-          onNavigate={onNavigate}
-        />
-      )}
-    </>
-  );
-}
-
-/**
- * What the rows were fetched under. An embed shows it for the same reason it
- * shows warnings: nothing else here says what the view is asking, and a
- * scope the host narrowed it by is part of that question.
- *
- * Read-only, unlike the workbench's: there is no editor here, and the view's
- * own conditions are what its author saved. A ✕ would let a reader drop a
- * saved condition — on a page that embedded this view to show one customer's
- * shipments, that is the page quietly listing everyone's.
- */
-function Applied({ runtime }: { runtime: OpenedRuntime }) {
-  const state = useViewRuntime(runtime);
-  const filter = useFilterEditor(runtime);
-  return <AppliedBar filter={filter} asked={hasAsked(state)} readOnly />;
-}
-
-function Failed({ runtime }: { runtime: OpenedRuntime }) {
-  const state = useViewRuntime(runtime);
-  // No toolbar, so no retry: the embed re-runs on its own schedule, and a
-  // button that is the page's only control would make it look like one.
-  return (
-    <QueryStrip
-      error={state?.query.status === 'error' ? state.query.error : null}
-      stale={hasResult(state)}
+  const notices = <WarningStrip issues={warnings} />;
+  return isRecordRuntime(data) ? (
+    <EmbeddedRecord
+      engine={engine}
+      runtime={data}
+      interactive={interactive}
+      withSearch={withSearch}
+      withExport={withExport}
+      rowActions={rowActions}
+      head={head}
+      notices={notices}
     />
-  );
-}
-
-function EmbeddedRecord({
-  runtime,
-  rowActions,
-}: {
-  runtime: Extract<OpenedRuntime, { kind: 'record' }>;
-  rowActions?(row: RecordRow): ReactNode;
-}) {
-  const table = useRecordTable(runtime);
-
-  // A refresh that failed over rows that are still good says so *above* them
-  // rather than instead of them, the way the workbenches do: the strip itself
-  // promises "the last successful result", and taking the table away would
-  // make that line describe an empty frame. Only a failure with nothing
-  // behind it replaces the content.
-  if (table.status === 'error' && !table.hasResult)
-    return <Failed runtime={runtime} />;
-  if (table.loading && table.rows.length === 0)
-    return <Skeleton className="h-24 w-full" />;
-  return (
-    <>
-      <Failed runtime={runtime} />
-      <Applied runtime={runtime} />
-      {table.layout === 'card' ? (
-        <RecordCards table={table} rowActions={rowActions} />
-      ) : (
-        <RecordTable table={table} rowActions={rowActions} />
-      )}
-    </>
-  );
-}
-
-function EmbeddedAnalysis({ runtime }: { runtime: OpenedRuntime }) {
-  const state = useViewRuntime(runtime);
-  const analysis = useAnalysisEditor(runtime);
-  const data = state?.result?.data;
-  const view = data?.kind === 'analysis' ? data.view : null;
-
-  // As in the record embed: the chart stays while the strip reports the
-  // refresh that failed over it.
-  if (state?.query.status === 'error' && !view)
-    return <Failed runtime={runtime} />;
-  if (!view) return <Skeleton className="h-24 w-full" />;
-  return (
-    <>
-      <Failed runtime={runtime} />
-      <Applied runtime={runtime} />
-      {view.chart ? (
-        <AnalysisChart
-          data={view.chart}
-          spec={analysis.chart}
-          columns={view.schema ?? view.columns}
-          cutShort={view.truncated || view.atLimit !== undefined}
-        />
-      ) : (
-        <AnalysisTable view={view} />
-      )}
-    </>
-  );
-}
-
-function EmbeddedDashboard({
-  runtime,
-  headingLevel,
-  onNavigate,
-}: {
-  runtime: DashboardRuntime;
-  headingLevel: PanelHeadingLevel;
-  onNavigate?(to: DashboardNavigation): void;
-}) {
-  const dashboard = useDashboard(runtime);
-  // A board with tabs switches between them here too (D22 E); where a
-  // reader was is the workbench's to remember, not an embed's.
-  return (
-    <DashboardGrid
-      dashboard={dashboard}
-      headingLevel={headingLevel}
+  ) : (
+    <EmbeddedAnalysis
+      runtime={data}
+      interactive={interactive}
       onNavigate={onNavigate}
-      header={() => <DashboardTabs dashboard={dashboard} />}
+      head={head}
+      notices={notices}
     />
   );
 }

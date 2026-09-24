@@ -46,7 +46,8 @@ export type ScenePage =
   | 'embedded'
   | 'filters'
   | 'analysis'
-  | 'dashboard';
+  | 'dashboard'
+  | 'embedded-dashboard';
 
 interface NavItem {
   page: ScenePage;
@@ -191,6 +192,12 @@ const GROUPS: readonly { title?: string; items: readonly NavItem[] }[] = [
         title: '仪表盘',
         story: 'view-engine-仪表盘视图-dashboard--all-panels',
         icon: LayoutDashboardIcon,
+      },
+      {
+        page: 'embedded-dashboard',
+        title: '嵌入仪表盘',
+        story: 'view-engine-仪表盘视图-embeddeddashboard--customer-detail',
+        icon: PanelsTopLeftIcon,
       },
     ],
   },

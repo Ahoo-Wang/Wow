@@ -18,7 +18,7 @@ import type {
 } from '../../react/index.js';
 import type {
   CrossFilterOutcome,
-  DashboardNavigation,
+  ViewNavigation,
   DataViewRuntime,
   PressDestination,
 } from '../../runtime/index.js';
@@ -35,7 +35,7 @@ import { summaryText } from '../summary.js';
 export interface PanelPress {
   click: PanelClick | null;
   /** The host's route; the follow-up menu and a destination need it. */
-  navigate?(to: DashboardNavigation): void;
+  navigate?(to: ViewNavigation): void;
   crossFilter(row: RecordData): CrossFilterOutcome;
   pressed(row: RecordData): boolean;
   destination(row: RecordData): Promise<PressDestination | null>;
@@ -47,7 +47,7 @@ export interface PanelPress {
 export function panelPress(
   panel: DashboardPanelView,
   dashboard: DashboardController,
-  navigate: ((to: DashboardNavigation) => void) | undefined,
+  navigate: ((to: ViewNavigation) => void) | undefined,
   say: (text: string) => void,
 ): PanelPress {
   return {

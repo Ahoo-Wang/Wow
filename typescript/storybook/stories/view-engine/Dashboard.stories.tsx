@@ -22,7 +22,7 @@ import {
 } from '@ahoo-wang/fetcher-wow';
 import type {
   DashboardFilters,
-  DashboardNavigation,
+  ViewNavigation,
   DashboardViewConfig,
   DataViewDefinition,
   ViewEngine,
@@ -97,7 +97,7 @@ function DashboardDemo({
   /** Told what the board's filters hold, as a host's address would be. */
   onFiltersChange?(filters: DashboardFilters): void;
   /** Told where a way off the board goes, as a host's router would be. */
-  onNavigate?(to: DashboardNavigation): void;
+  onNavigate?(to: ViewNavigation): void;
 }) {
   return (
     <StoryEngine
@@ -167,9 +167,9 @@ function RoutedHost({
 }: {
   engine: ViewEngine;
   onFiltersChange?(filters: DashboardFilters): void;
-  onNavigate?(to: DashboardNavigation): void;
+  onNavigate?(to: ViewNavigation): void;
 }) {
-  const [away, setAway] = useState<DashboardNavigation | null>(null);
+  const [away, setAway] = useState<ViewNavigation | null>(null);
   const [filters, setFilters] = useState<DashboardFilters | undefined>();
   if (away === null)
     return (

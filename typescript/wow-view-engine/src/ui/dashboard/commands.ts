@@ -24,7 +24,7 @@ import {
   type DashboardController,
   type DashboardPanelView,
 } from '../../react/index.js';
-import type { DashboardNavigation } from '../../runtime/index.js';
+import type { ViewNavigation } from '../../runtime/index.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
 import type { DashboardEditExtensions } from './extensions.js';
 
@@ -121,8 +121,8 @@ export interface PanelCommandInput {
    */
   narrow: boolean;
   extensions: DashboardEditExtensions;
-  /** The host's route (`DashboardNavigation`); no route, no 在工作台中打开. */
-  onNavigate?(to: DashboardNavigation): void;
+  /** The host's route (`ViewNavigation`); no route, no 在工作台中打开. */
+  onNavigate?(to: ViewNavigation): void;
   messages: MessageFormatters;
 }
 

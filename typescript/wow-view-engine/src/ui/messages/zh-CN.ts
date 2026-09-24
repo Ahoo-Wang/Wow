@@ -1061,6 +1061,10 @@ export const zhCN: ViewMessages = {
   'label.filters.grouping-remove': '移除时间粒度',
   'label.filters.not-reached': '不受{filters}影响',
   'label.filters.name-quoted': '「{name}」',
+  // 嵌入（D22 嵌入一半）：页面锁定的筛选。
+  'label.embed.locked': '由页面设定',
+  'label.embed.locked-name': '{filter}（由页面设定）',
+  'label.embed.any': '不限',
   'label.filters.add': '筛选',
   'label.filters.add-menu': '添加筛选',
   'label.filters.add-grouping': '时间粒度',
@@ -1261,6 +1265,7 @@ export const zhCN: ViewMessages = {
     '筛选 {field} 是必填的，永远要有值，所以需要一个默认值。',
   'dashboard.fields.too-many': '一个仪表盘最多放 {max} 个筛选。',
   'dashboard.filter.unknown': '这个仪表盘没有筛选 {field}。',
+  'dashboard.filter.held': '筛选 {field} 由页面设定，这里改不了。',
   'dashboard.grouping.kept':
     '这个面板保留自己的时间粒度：它的数据不能按整板选的粒度分组。',
   'dashboard.grouping.unit-duplicate': '时间粒度里 {unit} 出现了两次。',

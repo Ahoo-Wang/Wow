@@ -34,6 +34,7 @@ import type {
 } from '../src/index.js';
 import {
   defaultMessages,
+  EmbeddedDashboard,
   EmbeddedView,
   DataWorkbench,
 } from '../src/ui/index.js';
@@ -536,7 +537,7 @@ describe('DataWorkbench', () => {
       resolveSource: () => testSource(),
     });
 
-    render(<EmbeddedView engine={engine} instanceId="overview-1" />);
+    render(<EmbeddedDashboard engine={engine} instanceId="overview-1" />);
 
     await waitFor(() =>
       expect(

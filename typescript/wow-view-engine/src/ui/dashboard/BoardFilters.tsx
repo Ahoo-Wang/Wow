@@ -17,6 +17,7 @@ import type { DashboardController } from '../../react/index.js';
 import { createToastManager, ToastProvider } from '../components/toast.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { FilterBar } from './FilterBar.js';
+import type { BoardFilterModes } from './filterModes.js';
 import { AddFilterMenu, FilterSettings } from './FilterSettings.js';
 import {
   BoardToasts,
@@ -48,11 +49,14 @@ export function useBoardFilters({
   dashboard,
   editing,
   say,
+  modes,
 }: {
   dashboard: DashboardController;
   editing: boolean;
   /** What the board's live region says. */
   say(words: string): void;
+  /** How an embedding page offers each filter (`FilterBar.modes`). */
+  modes?: BoardFilterModes | undefined;
 }): BoardFilterParts {
   const messages = useViewMessages();
   const [settingsOf, setSettingsOf] = useState<string | null>(null);
@@ -113,6 +117,7 @@ export function useBoardFilters({
         onRemoveGrouping={
           building ? () => edit.setTimeGrouping(null) : undefined
         }
+        modes={modes}
       />
     ),
     add: building && (

@@ -31,7 +31,7 @@ import {
   MemoryViewStore,
   ViewEngine,
   type DashboardDefinition,
-  type DashboardNavigation,
+  type ViewNavigation,
   type DashboardRuntime,
   type DashboardPanel,
   type DashboardViewConfig,
@@ -81,7 +81,7 @@ interface Setup {
   canSave?: boolean;
   definition?: DashboardDefinition;
   extensions?: DashboardEditExtensions;
-  onNavigate?: (to: DashboardNavigation) => void;
+  onNavigate?: (to: ViewNavigation) => void;
   instanceId?: string;
 }
 

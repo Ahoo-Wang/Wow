@@ -142,6 +142,13 @@ export interface RecordTableProps {
    * send anybody to, and a button that leads nowhere is worse than no button.
    */
   onEmptyAction?(): void;
+  /**
+   * Whether the headers are only read (off by default): no sort button and
+   * no width handle, each column still a stop for the arrow keys. An
+   * embed's read-only tier (D22), where the rows are what the page shows
+   * and nothing on it reorders or reshapes them.
+   */
+  readOnly?: boolean;
 }
 
 export interface RecordCell {
@@ -201,6 +208,7 @@ export function RecordTable({
   emptyWayOut = 'add',
   onEmptyAction,
   onReleasedPins,
+  readOnly = false,
 }: RecordTableProps) {
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
@@ -342,10 +350,14 @@ export function RecordTable({
               {columns.map(column => (
                 <SortableHeader
                   key={column.field}
-                  column={column}
+                  column={
+                    readOnly && column.sortable
+                      ? { ...column, sortable: false }
+                      : column
+                  }
                   sort={table.ranSort}
                   onToggle={table.toggleSort}
-                  onResize={table.setColumnWidth}
+                  {...(readOnly ? {} : { onResize: table.setColumnWidth })}
                   pin={pins.columns.get(column.field)}
                   additiveId={additiveId}
                 />

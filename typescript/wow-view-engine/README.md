@@ -28,14 +28,14 @@ The data did not change; only the way of observing it did. The problem is that t
 
 ## Scenarios
 
-| Scenario                                       | View         | What the user does                                                                                                           |
-| ---------------------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| Warehouse staff find today's pending orders    | Record       | Filter status = pending, sort by creation time, keep only the needed columns, save as "Pending today"                        |
-| A manager compares backlog across warehouses   | Analysis     | Group by warehouse, count and sum amounts, switch to a bar chart                                                             |
-| Operations review the week                     | Dashboard    | Place both views on one panel page and constrain them with a global time range                                               |
-| A slice of data inside a business page         | EmbeddedView | A developer embeds a saved view into the order detail page, read-only, without the workbench                                 |
-| Operators seed baseline views for a new object | System views | Declare "All", "Pending" and "New this week" in the definition; users open a usable view at once and save variants as needed |
-| Customers build their own reports              | All          | Customers save and share views within their tenant; the vendor ships no release for it                                       |
+| Scenario                                       | View                            | What the user does                                                                                                                           |
+| ---------------------------------------------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Warehouse staff find today's pending orders    | Record                          | Filter status = pending, sort by creation time, keep only the needed columns, save as "Pending today"                                        |
+| A manager compares backlog across warehouses   | Analysis                        | Group by warehouse, count and sum amounts, switch to a bar chart                                                                             |
+| Operations review the week                     | Dashboard                       | Place both views on one panel page and constrain them with a global time range                                                               |
+| A slice of data inside a business page         | EmbeddedView, EmbeddedDashboard | A developer embeds a saved view into the order detail page, or a board into the customer page locked to that customer, without the workbench |
+| Operators seed baseline views for a new object | System views                    | Declare "All", "Pending" and "New this week" in the definition; users open a usable view at once and save variants as needed                 |
+| Customers build their own reports              | All                             | Customers save and share views within their tenant; the vendor ships no release for it                                                       |
 
 ## What it is not
 
@@ -205,7 +205,73 @@ Every way off the board goes through one route of yours, `onNavigate(to)` — th
 <DataWorkbench engine={engine} definitionId="orders" unsaved={fromRoute} />
 ```
 
-`DashboardWorkbench` and `EmbeddedView` take the same prop.
+`DashboardWorkbench`, `EmbeddedDashboard` and `EmbeddedView` take the same prop.
+
+#### Embedding a view or a dashboard
+
+A business page that shows what somebody already decided embeds it: the result and nothing else, no view list, no condition editor, no save. There are two entries, split by resource as the workbenches are — `EmbeddedView` for a record or analysis view, `EmbeddedDashboard` for a board. Each draws only its own kind, and says so if handed the other.
+
+```tsx
+import {
+  EmbeddedDashboard,
+  EmbeddedView,
+} from '@ahoo-wang/fetcher-view-engine/ui';
+
+// An order page: this customer's recent shipments, read as saved.
+<EmbeddedView
+  engine={engine}
+  instanceId="orders-pending"
+  scopeFilter={{
+    op: 'and',
+    children: [{ field: 'customer', operator: 'IN', value: [customerId] }],
+  }}
+/>
+
+// A customer page: the customer's board, locked to them; the time is the reader's.
+<EmbeddedDashboard
+  engine={engine}
+  instanceId="customer-board"
+  interaction="interactive"
+  filterModes={{ customer: 'locked' }}
+  pageValues={{
+    values: { customer: { items: [{ id: customerId, label: customerName }] } },
+  }}
+  initialFilters={readFromAddress()}
+  onFiltersChange={writeToAddress}
+  onNavigate={to => router.push(routeFor(to))}
+/>
+```
+
+**How far a reader may go is one explicit tier**, `interaction`, `read-only` by default:
+
+| Tier          | `EmbeddedView` (record, analysis)                                                                                     | `EmbeddedDashboard`                                                                |
+| ------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `read-only`   | The result and what it was fetched under. Headers do not sort, there are no pages, nothing leads anywhere             | The panels, answering nothing: no follow-up menu, no cross-filtering, no **⋯**     |
+| `interactive` | Header sort and pages; an analysis's table｜chart switch and the follow-up menu on a group; **Open in the workbench** | The follow-up menu, cross-filtering, destinations, **Open in the workbench**       |
+| `editable`    | —                                                                                                                     | **Edit**, for whoever may save the board: it is built in place, and **Done** saves |
+
+Every way off the embed goes through your one route, `onNavigate(to)` — the same `ViewNavigation` the dashboard workbench hands over; without it, none of those ways exist.
+
+**The switches** — each absent, not greyed, when off:
+
+| Prop                          | Default   | What it does                                                                                                                                                            |
+| ----------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `withTitle`                   | off       | Draws the view's or board's title                                                                                                                                       |
+| `headingLevel`                | `2`       | The heading level the embed titles at: its own title, and a board's panels one level under it (or at it, with no title). Your page owns its `h1`                        |
+| `withPanelTitles` (dashboard) | on        | Off, each panel's title is kept for screen readers only                                                                                                                 |
+| `withSearch` (record)         | off       | The view's search box, where its definition declares a search field                                                                                                     |
+| `withExport` (record)         | off       | The export button and window; with it, rows can be picked                                                                                                               |
+| `autoRefresh`                 | on        | Refreshes on the interval its author saved; off, never on its own                                                                                                       |
+| `openInWorkbench`             | on        | Whether **Open in the workbench** is offered in the interactive and editable tiers                                                                                      |
+| `size`                        | `content` | `content` sizes to what it shows, with a cap (a record table scrolls inside `--fve-record-table-max-h`); `fill` fills its container — a whole-page embed, a wall screen |
+
+**A board's filters, each in one of three modes** (`filterModes`, by filter name; `groupingMode` for the time grouping): `editable` — on the bar, the reader's, as in the workbench, and the default; `locked` — on the bar as what it holds, with a lock and no control; `hidden` — not on the bar, still narrowing the panels wired to it. Locked and hidden filters are held by the runtime, so nothing the reader does — a value, **Clear**, a press that cross-filters — changes them. Their values are the page's own, `pageValues` (their default where it names none): in force from the first query, and followed as the prop changes — a customer page moving to the next customer takes the board with it. The reader's filters are your address's, `initialFilters` and `onFiltersChange`, read and reported exactly as `DashboardWorkbench` does. **A locked or hidden value never travels through the address**: an entry for one in `initialFilters` is ignored, and `onFiltersChange` reports only the filters the reader can set — otherwise a reader who edits the address changes the customer, the opposite of locking it. What `scopeFilter` used to do for a board is now a locked filter: declare the filter on the board, and lock it.
+
+**Locking is not a security boundary.** The condition a page locks is put together in the browser and sent with the query; it only keeps the reader from changing it on screen, or seeing anything else there. Anyone who edits the page's script or calls the API directly can ask for another customer. Tenancy, ownership and permission must be enforced by the Wow backend — above all on a page outside your organisation. This package is a library in your host's process: it does not do what Metabase does with iframes, signed tokens or SSO, because identity and permission belong to your host and your backend.
+
+Filling the screen stays yours (an embed grows no control of its own): pass a `ref` and point `useViewExpansion` at it from your own chrome.
+
+**Moving from the single `EmbeddedView`.** It used to take any view and dispatch on its kind, and had one reading. Now a dashboard is `EmbeddedDashboard` — handed a board, `EmbeddedView` says it cannot show that kind; the default tier is `read-only`, so headers that used to sort need `interaction="interactive"`; rows are pickable only with `withExport`; and a board is narrowed by locking one of its filters (`filterModes` + `pageValues`) rather than by `scopeFilter`. The route type `DashboardNavigation` is now `ViewNavigation`. `headingLevel` is a formal switch of both entries. There is no compatibility layer: rename the component and add the props.
 
 #### Customising the theme
 
@@ -280,7 +346,7 @@ Every rule of the stylesheet is scoped at build time, so the theme's tokens and 
 
 |                                       | `.fve-root`                                                  | `.fve-tokens`                                                            |
 | ------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------ |
-| Rendered by                           | `ViewSurface`, and every workbench and `EmbeddedView`        | your own markup                                                          |
+| Rendered by                           | `ViewSurface`, and every workbench and embed                 | your own markup                                                          |
 | Tokens, utilities, preflight          | yes                                                          | yes                                                                      |
 | Paints a background and a text colour | yes                                                          | **no** — write `bg-background text-foreground` yourself if you want ours |
 | Light or dark                         | a `.dark` ancestor, or `theme` pinning one with `data-theme` | a `.dark` ancestor, and nothing else                                     |
@@ -421,12 +487,12 @@ Details in [docs/design/management.md](docs/design/management.md).
 
 ## Entries
 
-| Entry                            | Exports                                                                                                                                                                                                                                                                                                                                                        |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@ahoo-wang/fetcher-view-engine` | Model types, pure kernels (`validate*` / `compile*` / `project*`), runtime, `ViewStore`, `MemoryViewStore`                                                                                                                                                                                                                                                     |
-| `/react`                         | `useViewEngine`, `useOpenView`, `useViewRuntime`, `useViewList`, `useViewManager`, `useFilterEditor`, `useRecordTable`, `useAnalysisEditor`, `useDashboard`, `useSaveCommands`, `RecordActionSlots`                                                                                                                                                            |
-| `/ui`                            | `DataWorkbench`, `DashboardWorkbench`, `ViewHeader`, `SaveActions`, `ViewManager`, `useLeaveGuard`, `EditorBand`, `FilterPanel`, `StatusStrip`, `AppliedBar`, `ResultToolbar`, `RowActions`, `RecordTable`, `RecordCards`, `RecordPagination`, `AnalysisEditor`, `AnalysisChart`, `DashboardGrid`, `MarkdownPanel`, `ImagePanel`, `LinksPanel`, `EmbeddedView` |
-| `/styles.css`                    | The theme. Import it explicitly; no JavaScript entry imports CSS, and nothing in it paints outside the two style boundaries `.fve-root` and `.fve-tokens` (preflight and utilities are scoped at build time), both checked by `scripts/verify-package.mjs` on every build.                                                                                     |
+| Entry                            | Exports                                                                                                                                                                                                                                                                                                                                                                             |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@ahoo-wang/fetcher-view-engine` | Model types, pure kernels (`validate*` / `compile*` / `project*`), runtime, `ViewStore`, `MemoryViewStore`                                                                                                                                                                                                                                                                          |
+| `/react`                         | `useViewEngine`, `useOpenView`, `useViewRuntime`, `useViewList`, `useViewManager`, `useFilterEditor`, `useRecordTable`, `useAnalysisEditor`, `useDashboard`, `useSaveCommands`, `RecordActionSlots`                                                                                                                                                                                 |
+| `/ui`                            | `DataWorkbench`, `DashboardWorkbench`, `ViewHeader`, `SaveActions`, `ViewManager`, `useLeaveGuard`, `EditorBand`, `FilterPanel`, `StatusStrip`, `AppliedBar`, `ResultToolbar`, `RowActions`, `RecordTable`, `RecordCards`, `RecordPagination`, `AnalysisEditor`, `AnalysisChart`, `DashboardGrid`, `MarkdownPanel`, `ImagePanel`, `LinksPanel`, `EmbeddedView`, `EmbeddedDashboard` |
+| `/styles.css`                    | The theme. Import it explicitly; no JavaScript entry imports CSS, and nothing in it paints outside the two style boundaries `.fve-root` and `.fve-tokens` (preflight and utilities are scoped at build time), both checked by `scripts/verify-package.mjs` on every build.                                                                                                          |
 
 ## Persistence
 

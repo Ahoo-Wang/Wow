@@ -135,6 +135,13 @@ export interface DashboardPanelProps {
   name?: string;
   /** The title's heading level; `3`, under a workbench's `h2`, by default. */
   headingLevel?: PanelHeadingLevel;
+  /**
+   * Whether the title is drawn (on by default). Off — an embed whose page
+   * says what each panel is (`withPanelTitles`) — the heading stays for a
+   * screen reader and the header row goes when nothing else is in it. A
+   * heading panel is its title, so it is drawn either way.
+   */
+  titled?: boolean;
   /** One arrange command, when the layout may be edited. */
   onArrange?: (step: ArrangeStep) => void;
   /**
@@ -188,6 +195,7 @@ export function DashboardPanel({
   available,
   name: given,
   headingLevel = 3,
+  titled = true,
   onArrange,
   onRetry,
   commands,
@@ -237,6 +245,19 @@ export function DashboardPanel({
     editContent: commands.editContent,
     remove: () => setRemoving(true),
   };
+  // A title turned off is read, not seen; the row it stood in goes with it
+  // when nothing else stands there.
+  const untitled = !titled && !heading;
+  const bare =
+    untitled &&
+    !warned &&
+    notes.length === 0 &&
+    !(editable && onArrange) &&
+    !commands?.renaming &&
+    !(unreached && unreached.length > 0) &&
+    pressesFilter === undefined &&
+    !look &&
+    !menu;
   return (
     <Card
       data-slot="dashboard-panel"
@@ -247,7 +268,10 @@ export function DashboardPanel({
         heading && 'justify-center',
       )}
     >
-      <CardHeader className="px-3">
+      <CardHeader
+        data-untitled={untitled || undefined}
+        className={cn('px-3', bare && 'sr-only')}
+      >
         <CardTitle
           className={cn(
             'flex min-w-0 items-center gap-1',
@@ -313,7 +337,10 @@ export function DashboardPanel({
               returnTo={menuTrigger}
             />
           ) : (
-            <Title data-slot="panel-title" className="min-w-0 truncate">
+            <Title
+              data-slot="panel-title"
+              className={cn('min-w-0 truncate', untitled && 'sr-only')}
+            >
               {name}
             </Title>
           )}

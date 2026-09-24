@@ -27,7 +27,7 @@ import {
   type FieldOption,
   type Issue,
 } from '../model/index.js';
-import type { DashboardNavigation, ViewEngine } from '../runtime/index.js';
+import type { ViewNavigation, ViewEngine } from '../runtime/index.js';
 import { useDashboard, useWorkbench } from '../react/index.js';
 import { Button } from './components/button.js';
 import { panelName, panelNames } from './DashboardPanel.js';
@@ -100,7 +100,7 @@ export interface DashboardWorkbenchProps {
    * touches the address. Without it none of these exist: a press on a group
    * does nothing unless the panel cross-filters.
    */
-  onNavigate?(to: DashboardNavigation): void;
+  onNavigate?(to: ViewNavigation): void;
   /**
    * What a new dashboard starts from: an empty one when left out. It opens
    * unsaved, and the first save asks for its name and audience.

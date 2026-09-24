@@ -19,8 +19,8 @@ import {
 } from '../../dashboard/index.js';
 import type { ViewInstance } from '../../model/index.js';
 import type { DashboardController, SaveCommands } from '../../react/index.js';
-import type { DashboardNavigation, ViewEngine } from '../../runtime/index.js';
-import { DashboardGrid } from '../DashboardGrid.js';
+import type { ViewNavigation, ViewEngine } from '../../runtime/index.js';
+import { DashboardGrid, type DashboardGridProps } from '../DashboardGrid.js';
 import { panelNames } from '../DashboardPanel.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import type { RenderFailureHandler } from '../RenderBoundary.js';
@@ -55,9 +55,26 @@ export interface DashboardBoardProps {
   editing: boolean;
   onEditingChange(editing: boolean): void;
   onSaved?(instance: ViewInstance): void;
-  onNavigate?(to: DashboardNavigation): void;
+  onNavigate?(to: ViewNavigation): void;
   onRenderFailure?: RenderFailureHandler;
+  /**
+   * How a page that embeds the board reads it (D22): the grid's switches —
+   * the panels' heading level and titles, whether the board is only read,
+   * whether 在工作台中打开 is offered — and each filter's mode. The
+   * workbench's reading when left out.
+   */
+  reading?: BoardReading;
 }
+
+/** How a page that embeds a board reads it; see `DashboardBoardProps.reading`. */
+export type BoardReading = Pick<
+  DashboardGridProps,
+  | 'headingLevel'
+  | 'panelTitles'
+  | 'readOnly'
+  | 'openInWorkbench'
+  | 'filterModes'
+>;
 
 /**
  * The board and its building (D22 A, B, D): the edit bar over the grid while
@@ -78,6 +95,7 @@ export function DashboardBoard({
   onSaved,
   onNavigate,
   onRenderFailure,
+  reading,
 }: DashboardBoardProps) {
   const messages = useViewMessages();
   const extensions = useDashboardEditExtensions();
@@ -106,7 +124,12 @@ export function DashboardBoard({
       landingRef.current?.focus();
   }, [editing]);
 
-  const filters = useBoardFilters({ dashboard, editing, say: setSaid });
+  const filters = useBoardFilters({
+    dashboard,
+    editing,
+    say: setSaid,
+    modes: reading?.filterModes,
+  });
   const names = panelNames(dashboard.panels, messages);
   const onBoard = useMemo(
     () =>
@@ -203,6 +226,7 @@ export function DashboardBoard({
     <BoardBuildingContext.Provider value={building}>
       <div ref={gridRef} className="flex flex-col gap-3">
         <DashboardGrid
+          {...reading}
           dashboard={dashboard}
           editable={editing}
           rowHeight={ROW_HEIGHT}

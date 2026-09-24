@@ -39,6 +39,7 @@ import type { ExportRowsOptions, ExportedRows } from './exportRows.js';
 import type { ValueCandidateSource } from './valueCandidates.js';
 import type { WriteState } from './write.js';
 import type { DashboardRuntime } from './dashboardRuntime.js';
+import type { HeldFilters } from './dashboard/contract.js';
 
 /**
  * One open view. A small store with `subscribe` and `getSnapshot`, so React
@@ -114,6 +115,14 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
   refresh(): void;
   /** Called when an editor takes or loses focus; pauses auto-refresh. */
   setEditing(active: boolean): void;
+  /**
+   * Whether the view refreshes itself on the interval it applied (on when
+   * opened). Off, the timer is held for good — the interval stays what it
+   * was, and saving writes it unchanged — until it is on again: an embed
+   * whose host asked for no auto-refresh (`EmbeddedView`'s `autoRefresh`).
+   * A refresh asked for still runs.
+   */
+  setAutoRefresh(on: boolean): void;
   /**
    * Whether the draft runs on its own a moment after its question changes
    * (`autoApply.ts`); which members are the question is declared per kind
@@ -399,4 +408,10 @@ export interface OpenOptions {
    * not take is left out. Nothing else reads it.
    */
   filters?: DashboardFilters | null;
+  /**
+   * The filters a host holds as the dashboard opens (`holdFilters`): in
+   * force from the first query, over `filters` or the defaults. Nothing
+   * else reads it.
+   */
+  held?: HeldFilters | null;
 }

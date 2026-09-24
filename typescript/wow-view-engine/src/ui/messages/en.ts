@@ -18,6 +18,7 @@ import { clicksMessages } from './clicks.js';
 import { configMessages } from './config.js';
 import { dashboardMessages } from './dashboard.js';
 import { definitionMessages } from './definition.js';
+import { embedMessages } from './embed.js';
 import { exportMessages } from './export.js';
 import { filterMessages } from './filter.js';
 import { filtersMessages } from './filters.js';
@@ -60,6 +61,7 @@ export const en = {
   ...buildingMessages,
   ...filtersMessages,
   ...clicksMessages,
+  ...embedMessages,
   ...statusMessages,
   ...definitionMessages,
   ...workbenchMessages,

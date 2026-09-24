@@ -19,6 +19,7 @@
 | [ui/record.md](ui/record.md)       | Record 的结果区组件                                                                             |
 | [ui/analysis.md](ui/analysis.md)   | Analysis 的编辑器、表格与图表                                                                   |
 | [ui/dashboard.md](ui/dashboard.md) | Dashboard 的栅格、面板 chrome 与面板级告警                                                      |
+| [ui/embed.md](ui/embed.md)         | 嵌入：两个入口、交互档、开关、仪表盘筛选三态、高度                                              |
 | [extension.md](extension.md)       | 扩展点（`FieldKind`、数据源、持久化、动作槽位、外观）与 Wow 协议的对应                          |
 | [decisions.md](decisions.md)       | 界面已经体现的产品决定，以及搁置待议的问题                                                      |
 | [todo.md](todo.md)                 | 已决定但尚未做的事；完成即删                                                                    |
@@ -122,6 +123,6 @@ src/
 ## 后续方向
 
 - **定义生成。** `fetcher-generator` 从 Wow 聚合元数据生成 `ViewDefinition`，业务方零成本获得记录、分析与概览。这是"配置代替页面"相对于手写 React 页面的决定性杠杆，也是定义作为代码的直接结果。
-- **共享与嵌入。** `scope: 'shared'`、服务端配置的 `scope: 'system'` 与 `EmbeddedView` 在业务应用的 `ViewStore` 落地后由业务服务授权。
+- **共享与嵌入。** `scope: 'shared'`、服务端配置的 `scope: 'system'` 与嵌入（`EmbeddedView`、`EmbeddedDashboard`）在业务应用的 `ViewStore` 落地后由业务服务授权；嵌入页面锁定的条件不是安全边界（[ui/embed.md](ui/embed.md#锁定不是安全边界)）。
 - **服务端实现。** 若需要官方后端，另立设计文档随后端代码放置；[management.md](management.md) 的 `ViewStore` 合同是它的输入。
 - **更多图型。** 图表按族扩展，新增一族只增加一个子对象、一个 `type` 字面量、一条校验分支、一段投影与一个渲染器，不改既有类型。候选：帕累托（combo 加投影层累计占比，依赖结果集完整）、矩形树图、箱线图（百分位指标已能支撑）。

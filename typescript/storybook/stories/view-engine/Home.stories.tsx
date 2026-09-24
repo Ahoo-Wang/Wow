@@ -13,7 +13,7 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { ViewEngine } from '@ahoo-wang/fetcher-view-engine';
-import { EmbeddedView } from '@ahoo-wang/fetcher-view-engine/ui';
+import { EmbeddedDashboard } from '@ahoo-wang/fetcher-view-engine/ui';
 import { AppShell } from '../shared/AppShell.js';
 import {
   DEFAULT_COMPENSATION_HOST,
@@ -40,9 +40,10 @@ import '@ahoo-wang/fetcher-view-engine/styles.css';
  * dashboard's to query and to keep in step with its panels, so they are
  * metric panels on it rather than a second set of queries in the host.
  *
- * The dashboard is `EmbeddedView` on a code-declared system view
- * (`home.ts`): no title bar, no editor, no save — a page that shows what
- * someone already decided, as any embed is.
+ * The dashboard is `EmbeddedDashboard` on the operations team's shared
+ * board (`home.ts`), in the editable tier (D22): it is read like any embed —
+ * no title bar, no view list — and whoever may save the board has 「编辑」
+ * beside it, which builds it in place and saves it for the team.
  */
 function HomePage({ engine }: { engine: ViewEngine }) {
   const { timeZone } = engine.environment;
@@ -67,10 +68,11 @@ function HomePage({ engine }: { engine: ViewEngine }) {
           补偿服务里执行失败的现状：还在等人处理的、今天新开的，以及这个月每天的走势。
         </p>
       </div>
-      <EmbeddedView
+      <EmbeddedDashboard
         className="host-home"
         engine={engine}
         instanceId={HOME_DASHBOARD}
+        interaction="editable"
         {...HOST_LANGUAGE}
       />
     </div>
@@ -115,8 +117,8 @@ const description = `**首页**
 宿主应用打开时的那一页：一块嵌入的仪表盘，说清补偿服务里执行失败的现状。
 
 - **数据源**：「示例数据」是 ${FIXTURE}，时钟钉在 2026-09-22 上午 10 点（Asia/Shanghai），「今日」「本月」每次都一样；「真实后端」连 \`host\` 指向的 Wow 补偿服务，与两个控制台同一个地址，只读。
-- **准备**：每次挂载都新建引擎与存储。仪表盘是首页定义在代码里的系统视图，面板引用的是运营组共享的视图——其中「按状态分布」就是快照控制台自己的系统视图。
-- **操作**：打开任一场景。页面放在宿主应用里——顶栏、左侧导航、日期与「运营概览」标题是宿主的，下面那一整块是视图引擎的 \`EmbeddedView\`。
+- **准备**：每次挂载都新建引擎与存储。仪表盘是运营组共享的一块板，面板引用的也是运营组共享的视图——其中「按状态分布」就是快照控制台自己的系统视图。
+- **操作**：打开任一场景。页面放在宿主应用里——顶栏、左侧导航、日期与「运营概览」标题是宿主的，下面那一整块是视图引擎的 \`EmbeddedDashboard\`，可编辑一档：右上角「编辑」就地搭这块板，「完成」替整个运营组保存。
 - **观察**：三个数字、本月每天新开的失败、状态分布、最近的活动失败与失败最多的处理器；每个面板各自加载、各自出错。宿主不另画数字卡片——那些数字是同一份数据上的计数，归仪表盘去查。`;
 
 const meta = {

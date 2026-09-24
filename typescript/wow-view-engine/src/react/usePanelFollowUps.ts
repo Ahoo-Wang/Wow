@@ -23,7 +23,7 @@ import { drillFilter } from '../analysis/index.js';
 import { isSimpleTree } from '../filter/index.js';
 import { defaultRecordConfig } from '../record/index.js';
 import type {
-  DashboardNavigation,
+  ViewNavigation,
   DataViewRuntime,
   ViewRuntimeState,
 } from '../runtime/index.js';
@@ -54,7 +54,7 @@ export type FollowUpHost = Pick<
  */
 export function usePanelFollowUps(
   runtime: DataViewRuntime | null,
-  navigate: ((to: DashboardNavigation) => void) | undefined,
+  navigate: ((to: ViewNavigation) => void) | undefined,
 ): FollowUpHost {
   const state = useViewRuntime(runtime) as ViewRuntimeState<ViewConfig> | null;
   return useMemo(() => {
@@ -103,7 +103,7 @@ export function usePanelFollowUps(
 export function ownedNavigation(
   runtime: DataViewRuntime,
   title: string,
-): DashboardNavigation | null {
+): ViewNavigation | null {
   const config = runtime.getSnapshot().applied;
   if (config.kind !== 'analysis') return null;
   return {

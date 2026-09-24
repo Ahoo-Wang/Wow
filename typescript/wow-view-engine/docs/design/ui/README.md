@@ -7,10 +7,11 @@
 | [record.md](record.md)       | Record 的结果区组件                        |
 | [analysis.md](analysis.md)   | Analysis 的编辑器、表格与图表              |
 | [dashboard.md](dashboard.md) | Dashboard 的栅格、面板 chrome 与面板级告警 |
+| [embed.md](embed.md)         | 嵌入视图与嵌入仪表盘                       |
 
 ## 措辞与 MessagesProvider
 
-- 措辞在 `ui/`：`model` 只带 `code` 与 `params`，`ui/messages.ts` 给出英文句子。`ViewSurface` 与三个入口（`DataWorkbench`、`DashboardWorkbench`、`EmbeddedView`）的 `messages` 属性按 key 覆盖，这也是本地化的入口；每层 `MessagesProvider` 合并在上一层之上，应用在外层设一次即可。
+- 措辞在 `ui/`：`model` 只带 `code` 与 `params`，`ui/messages.ts` 给出英文句子。`ViewSurface` 与四个入口（`DataWorkbench`、`DashboardWorkbench`、`EmbeddedView`、`EmbeddedDashboard`）的 `messages` 属性按 key 覆盖，这也是本地化的入口；每层 `MessagesProvider` 合并在上一层之上，应用在外层设一次即可。
 - 目录按前缀分文件放在 `ui/messages/`（`save`、`header`、`record`、`filter`、`config`、`scope`、`view`、`manage`、`analysis`、`dashboard`、`status`、`definition`），每个文件 `as const satisfies Record<string, string>`，`messages/en.ts` 铺成英文目录。组件只 import `ui/messages.ts`，它导出 `ViewMessages`、`defaultMessages`、三个格式化函数与前缀回退。
 - **key 是类型**：`MessageKey = keyof typeof en`，`MessageFormatters.label(key, params?, fallback?)` 只收它，删键或拼错是编译错误；全包没有 `MessageKey` 断言。运行时拼出的 key 走闭合联合（`ViewKind`、`ViewAudience`、`RecordLayout`、`DateShape`）。界面上能选的闭合枚举整套命名——`label.operator.*` 覆盖 `FilterOperator` 全部成员（`operatorKey()` 只拼一次），`label.chart.type.*`、`label.group.type.*`、`label.metric.function.*`、`label.relative.unit.*`、`label.relative.preset.*` 同理——只命名一半的集合没法翻译。派生拼写只兜底宿主给出的未知成员，`test/messages.test.tsx` 逐个核对。
 - **屏幕上的名字用字段标题，不用 id**：`ConditionPill` 的四个无障碍名（`condition-of`、`operator-of`、`value-of`、`remove-of`）都拿 `field.label`（取不到才退回 `leaf.field`）。（见 test/filterPanel.test.tsx「names every control on a row after the field, not its id」）
@@ -26,7 +27,7 @@
 - 多于一条时只显示概述与「{count} more」（`label.status.more`），展开后改说收起（`label.status.less`）。
 - `error` 阻塞。条件级的 error 就地标在 pill 上并禁用 Apply，所以工作台的 error 条只报条件以外的那些，即编辑器控制器交出的 `filter.unmarked`（`filter/marks.ts` 的 `unmarkedErrors`：code 以 `filter.` 开头且路径解析到一条被渲染的条件才归编辑器；畸形子节点与分组本身没有 pill，照样报在状态条里，否则它们禁用 Apply 却无处可看）。标题 `label.view.needs-fixing`／`label.dashboard.needs-fixing`。
 - `EmbeddedView` 没有编辑器，全部报出并取代结果；查询失败例外：上一次结果还在时失败条与结果并排（`label.query.stale`）。`warning` 不阻塞但要被看见：用主题的 `warning` token（`text-warning`／`border-warning`，宿主以 `--fve-warning`／`--fve-dark-warning` 定制）；一条时那句话就是标题，多条时标题是 `label.view.warnings-count`。
-- **宿主的收窄被拒，说的是收窄而不是视图**：`EmbeddedView` 的 `scopeFilter` 不被定义接受时，是一条 destructive `Alert`（标题 `label.scope.refused`，正文列出理由），而不是 `label.view.needs-fixing`——宿主改不了别人存的视图。首次打开被拒与后来被拒同理（[decisions.md](../decisions.md) D17-5）：收窄不生效，视图照原样跑，结果留在屏幕上、告警压在上面。（见 test/embeddedView.test.tsx 与回归 story「ScopeRefused」「ScopeRefusedOnOpen」）
+- **宿主的收窄被拒，说的是收窄而不是视图**：`EmbeddedView` 的 `scopeFilter`（`EmbeddedDashboard` 锁定或隐藏的筛选值同理，见 [embed.md](embed.md)）不被定义接受时，是一条 destructive `Alert`（标题 `label.scope.refused`，正文列出理由），而不是 `label.view.needs-fixing`——宿主改不了别人存的视图。首次打开被拒与后来被拒同理（[decisions.md](../decisions.md) D17-5）：收窄不生效，视图照原样跑，结果留在屏幕上、告警压在上面。（见 test/embeddedView.test.tsx 与回归 story「ScopeRefused」「ScopeRefusedOnOpen」）
 - 同 code 同 params 的 warning 只说一句（`dedupeIssues`）。查询失败是一条 error 状态条：标题是失败那句，右端 Retry；上一次结果还在时同一行接着说「· 显示的是上一次成功的结果」（`label.query.stale`）——读者最需要的一句不折叠。失败从不清空结果。（见 test/statusStrip.test.tsx「StatusStrip」「dedupeIssues」「WarningStrip」「ErrorStrip」「QueryStrip」）
 - **结果自己的 warning 与配置的 warning 并排，note 在其下**（`NoteStrip`，info 语气；仪表盘面板头是一枚灰色 info 图标，不染面板边）：汇总行退回本页口径（`runtime.summary.page-only`）、还有没列出的组（`analysis.result.more-groups`／`analysis.result.at-limit`）这类发现随结果走（`ProjectedView.issues`，见 [../runtime.md#规则](../runtime.md#规则)）——`state.issues` 每次 `edit` 都重算，放进去就会在下一次按键时消失，而数字还在屏幕上。`RecordWorkbench` 与 `AnalysisWorkbench` 把两者拼给 `WorkbenchShell` 的 `warnings`，`EmbeddedView` 并进自己那条。
 
@@ -66,7 +67,7 @@
 
 ### 组件清单
 
-组件清单：`FilterPanel`、`RecordTable`、`RecordCards`、分析托盘 `Tray`、`AnalysisChart`（bar／line／area／combo／pie／scatter 由 ECharts 画，D21）、`Heatmap`、`Funnel`、`MetricCard`（都由 ECharts 画）、`DashboardGrid`（react-grid-layout 适配）、内容面板 `MarkdownPanel`（react-markdown，不启用原始 HTML）、`ImagePanel`（加载失败显示占位）、`LinksPanel`（外链带 `rel="noopener"`）、三个工作台（侧栏列表 + 标题栏 + 编辑带 + 状态条 + 已应用条件条 + 结果 + 分页）、`ViewHeader`、`SaveActions`、`ViewManager`、`EditorBand`、`ViewExpandToggle`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordPagination`、`EmbeddedView`。每个默认组件只消费对应控制器，不直接调用 runtime 以外的对象。独立筛选器与值编辑器不需要 Engine。
+组件清单：`FilterPanel`、`RecordTable`、`RecordCards`、分析托盘 `Tray`、`AnalysisChart`（bar／line／area／combo／pie／scatter 由 ECharts 画，D21）、`Heatmap`、`Funnel`、`MetricCard`（都由 ECharts 画）、`DashboardGrid`（react-grid-layout 适配）、内容面板 `MarkdownPanel`（react-markdown，不启用原始 HTML）、`ImagePanel`（加载失败显示占位）、`LinksPanel`（外链带 `rel="noopener"`）、三个工作台（侧栏列表 + 标题栏 + 编辑带 + 状态条 + 已应用条件条 + 结果 + 分页）、`ViewHeader`、`SaveActions`、`ViewManager`、`EditorBand`、`ViewExpandToggle`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordPagination`、`EmbeddedView`、`EmbeddedDashboard`。每个默认组件只消费对应控制器，不直接调用 runtime 以外的对象。独立筛选器与值编辑器不需要 Engine。
 
 ## 主题、弹层与明暗
 
@@ -140,7 +141,7 @@
   - **控件没了，铺满就结束**：`enabled` 转 false 时在渲染里清掉状态（不进 effect，免得先画出一个没有出口的面）；`enabled` 为 false 时 `toggle` 不做事。工作台传 `expandable && (open || opened.loading)`：切换视图的加载中不结束（铺满是工作区的姿态，Q7），切到的视图打不开才结束。
   - **目标晚到或中途没了都算数**：`target` 是 `RefObject`，React 填、清都不出声，所以铺着时用 `MutationObserver` 盯 document，解析出的节点变了才重跑。
   - **高度给结果**：铺满时成为定高弹性列——根 `overflow: hidden`，侧栏与主列 `min-height: 0` + `overflow-y: auto`，结果块与 `RecordTable` 的滚动容器 `flex: 1 1 auto; min-height: 0`（后者 `max-height: none`），只作用于自己在滚的那一个（`data-scrolls`；`scrolls={false}` 的不吃）。编辑带与条件块封顶 `max-height: 50%` 并自己滚——这一条不论铺不铺满都生效（2026-09-23 审查，托盘曾把图表挤到约 230px，见 [analysis.md](analysis.md#托盘范围--维度--指标--结果一个应用)）。表格的粘性两种状态都成立（见 [record.md#表格-chrome层次与冻结列](record.md#表格-chrome层次与冻结列)，故事 `FillTheScreen`／`FillTheScreenInTransformedHost`）。嵌入视图没有 `main`，`:not(:has(> main))` 的根拿 `overflow-y: auto`。
-  - **`EmbeddedView` 不长自己的开关**：它是结果本身，不为一个按钮造一行 chrome；宿主拿 `ref` 与从 `/ui` 导出的 `useViewExpansion` 放在自己的 chrome 里。开关不在面里时，面自己露出一个出口 `data-slot="view-exit"`（`label.workbench.collapse-view`，平时 `hidden`；点击由持有铺满的面接），占根的 flex 列一行（`order: -1`）并 `position: sticky; top: 0`——触屏上没有 Esc，出口不能被盖住或滚走。（见 test/viewExpansion.test.tsx 与回归 story「FillTheScreen」「FillTheScreenInTransformedHost」）
+  - **嵌入不长自己的开关**（`EmbeddedView`、`EmbeddedDashboard`）：它是结果本身，不为一个按钮造一行 chrome；宿主拿 `ref` 与从 `/ui` 导出的 `useViewExpansion` 放在自己的 chrome 里。开关不在面里时，面自己露出一个出口 `data-slot="view-exit"`（`label.workbench.collapse-view`，平时 `hidden`；点击由持有铺满的面接），占根的 flex 列一行（`order: -1`）并 `position: sticky; top: 0`——触屏上没有 Esc，出口不能被盖住或滚走。（见 test/viewExpansion.test.tsx 与回归 story「FillTheScreen」「FillTheScreenInTransformedHost」）
 - 留给扩展的缝：`ViewHeader.leading`／`ViewHeader.trailing`、`data-slot="view-sidebar"`、`defaultSidebarOpen`／`expandable`。
 
 ## 刷新是一个拆分按钮
@@ -198,7 +199,7 @@
 ## 渲染边界
 
 - **宿主交进来的 React 各有一道边界**：没有边界时，一个抛错的行动作会把标题栏、编辑带和未保存的草稿一起卸掉。`WorkbenchShell` 给全局动作槽、编辑带与结果块各一道 `RenderBoundary`（`ui/RenderBoundary.tsx`，`react-error-boundary`），`DashboardPanel` 给每个面板的正文一道，`EmbeddedView` 给自己的正文一道。落到边界的那一块换成可复原的错误态（`label.render.failed`、错误原话、「重试」，`role="alert"`）；全局动作槽的那道是单行的（`compact`，`bare` frame）。
-- **错误不被吞掉**：每次都以 `RenderFailure { boundary, panelId?, error, componentStack? }` 交给宿主的 `onRenderFailure`（三个工作台、`DashboardGrid` 与 `EmbeddedView` 都收）。重试只是再画一次。
+- **错误不被吞掉**：每次都以 `RenderFailure { boundary, panelId?, error, componentStack? }` 交给宿主的 `onRenderFailure`（三个工作台、`DashboardGrid`、`EmbeddedView` 与 `EmbeddedDashboard` 都收）。重试只是再画一次。
 - **失败属于那一次打开**：边界以 `runtime.id`（面板以子 runtime 的 id）为 reset key。（见 test/renderBoundary.test.tsx「RenderBoundary」「the workbench boundaries」「the dashboard panel boundaries」；故事「Record 工作台/回归」的 `RenderFailure`）
 
 ## FilterPanel 的布局

@@ -24,11 +24,7 @@ import {
   type ViewInstance,
   type ViewScope,
 } from '../model/index.js';
-import {
-  isPlainObject,
-  issue,
-  type FieldKindRegistry,
-} from '../filter/index.js';
+import { isPlainObject, type FieldKindRegistry } from '../filter/index.js';
 import {
   NO_REFUSAL,
   scopeRefusal,
@@ -65,6 +61,7 @@ import {
 import {
   blocksBoard,
   clickInForce,
+  panelFailure,
   panelOf,
   reissued,
   panelsOf,
@@ -88,7 +85,8 @@ export type {
 } from './dashboard/editing.js';
 export type { PanelGrouping } from './dashboard/grouping.js';
 export type {
-  DashboardNavigation,
+  ViewNavigation,
+  HeldFilters,
   DashboardRuntime,
   DashboardRuntimeOptions,
   DashboardRuntimeState,
@@ -198,6 +196,7 @@ export class DashboardViewRuntime
       filters: () => this.state.filters,
       child: panelId => this.panelRuntime(panelId),
       press: (name, value, panelId) => this.values.press(name, value, panelId),
+      holds: name => this.values.holds(name),
       reference: async id => {
         await this.references.fetch(id);
         return this.references.get(id) ?? null;
@@ -251,7 +250,7 @@ export class DashboardViewRuntime
       apply: () => this.apply(),
       refresh: () => this.refresh(),
       // One clock for the whole board, so a request in flight is any panel's.
-      holding: () => this.children.loading(),
+      holding: () => !this.autoRefresh || this.children.loading(),
       // And one moment a card on the tab shown moves on, the soonest.
       expiresAt: () => this.children.rolloverAt(this.onTab()),
       release: () => {
@@ -447,6 +446,14 @@ export class DashboardViewRuntime
     this.store.setState({ editing: active });
   }
 
+  protected retime(): void {
+    this.store.retime();
+  }
+
+  protected reread(): void {
+    if (this.synced) this.sync();
+  }
+
   /**
    * An outer condition, in the dashboard's own field names. It is admitted
    * exactly like a user's own: the merged global filter must still map onto
@@ -636,7 +643,7 @@ export class DashboardViewRuntime
         issues: reported,
         tab: on,
         waiting: runs && !shown && runtime === null && !hasError(own),
-        click: clickInForce(panel, reported),
+        click: clickInForce(panel, reported, name => this.values.holds(name)),
         ...panelReach(applied, panel, view, filters),
       });
     });
@@ -674,13 +681,7 @@ export class DashboardViewRuntime
     if (failure !== undefined)
       return {
         runtime: null,
-        issues: [
-          ...own,
-          issue('dashboard.panel.failed', ['panels', index, 'instanceId'], {
-            instance: instanceId,
-            reason: failure,
-          }),
-        ],
+        issues: [...own, panelFailure(index, instanceId, failure)],
       };
 
     const view = this.viewOf(panel);
