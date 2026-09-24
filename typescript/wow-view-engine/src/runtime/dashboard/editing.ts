@@ -48,6 +48,7 @@ import {
   movePanelToTab,
   moveTab,
   referToSaved,
+  removeFixedScope,
   removePanel,
   removeTab,
   renamePanel,
@@ -192,6 +193,12 @@ export interface DashboardFilterEditing {
   unbindPanels(name: string, panelIds: readonly string[]): void;
   /** Sets the board's time grouping, or takes it off with `null`. */
   setTimeGrouping(grouping: DashboardTimeGrouping | null): void;
+  /**
+   * Takes the board's fixed scope out whole (D23 Q16): `fixed` becomes the
+   * empty tree, on the draft and on screen, and is saved with the board. The
+   * author's alone — a reader never builds, so never takes it.
+   */
+  removeFixedScope(): void;
 }
 
 /** What the edits need of the runtime that holds the board. */
@@ -470,5 +477,7 @@ export function boardEditing(host: EditingHost): BoardEdits {
       edit('setTimeGrouping', null, config =>
         setTimeGrouping(config, grouping),
       ),
+    removeFixedScope: () =>
+      edit('removeFixedScope', null, config => removeFixedScope(config)),
   };
 }

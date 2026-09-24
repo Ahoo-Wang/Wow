@@ -359,6 +359,9 @@ export abstract class BoardCommands
   setTimeGrouping(grouping: DashboardTimeGrouping | null): void {
     this.edits.setTimeGrouping(grouping);
   }
+  removeFixedScope(): void {
+    this.edits.removeFixedScope();
+  }
   place(panelId: string, layout: PanelLayout): void {
     this.edits.place(panelId, layout);
   }

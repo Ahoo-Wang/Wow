@@ -59,6 +59,7 @@ import {
   boardOf,
   chipOf,
   chipsOf,
+  undoOf,
   useLanding,
   valueOf,
 } from './landing.js';
@@ -72,6 +73,11 @@ export interface FilterBarProps {
   settings?(field: DashboardField): ReactNode;
   /** While the board is built: taking the time grouping off. */
   onRemoveGrouping?(): void;
+  /**
+   * While the board is built: taking the board's fixed scope out whole
+   * (D23 Q16); left out, it is read with a lock.
+   */
+  onRemoveFixed?(): void;
   /** Where 「添加筛选」 stands while the board is built. */
   add?: ReactNode;
   /**
@@ -86,8 +92,9 @@ export interface FilterBarProps {
    */
   order?: FilterOrder;
   /**
-   * The board's fixed scope in force (D26 Q31): read-only at the head of
-   * the row, as 「固定范围」, with nothing to take it out by (D27).
+   * The board's fixed scope in force (D26 Q31): at the head of the row, as
+   * 「固定范围」 — read-only to a reader (D27), removable whole while the
+   * board is built (`onRemoveFixed`).
    */
   fixed?: readonly FilterSummaryItem[] | undefined;
   /**
@@ -112,6 +119,7 @@ export function FilterBar({
   dashboard,
   settings,
   onRemoveGrouping,
+  onRemoveFixed,
   add,
   modes,
   order,
@@ -148,7 +156,24 @@ export function FilterBar({
   // (D22 I, 「来自「北区订单」」).
   const names = panelNames(dashboard.panels, messages);
 
-  const scope = fixed.length > 0 && <FixedScope items={fixed} />;
+  const scope = fixed.length > 0 && (
+    <FixedScope
+      items={fixed}
+      onRemove={
+        onRemoveFixed &&
+        (from => {
+          // The chip goes with its ✕: on to 「撤销」, which brings it back,
+          // as a panel removed lands there.
+          const board = boardOf(from);
+          onRemoveFixed();
+          land(
+            () =>
+              undoOf(board) ?? valueOf(chipsOf(board)[0]) ?? addFilterOf(board),
+          );
+        })
+      }
+    />
+  );
   const items = (
     <>
       {sortable.wrap(
