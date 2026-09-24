@@ -184,6 +184,7 @@ GitHub Actions run module-level checks from `.github/workflows/`:
 - `codecov.yml` publishes coverage.
 - `documentation-deploy.yml`, `example-deploy.yml`, and `compensation-deploy.yml` deploy docs and sample apps.
 - `typescript.yml` runs on every pull request; its scope job decides which TypeScript jobs run, and `typescript-gate` is the merge signal for JavaScript changes. `dashboard-test.yml` checks the compensation dashboard.
+- `typescript-contract.yml` runs the TypeScript client, generator and integration tests against an example server built from the same commit, and type-checks code generated from the 8.10.8 and 8.11.5 server images; the shared scope script decides which part runs, and `typescript-contract-gate` is its merge signal.
 - `package-deploy.yml` publishes to GitHub Packages and Maven Central when a GitHub Release is created or the workflow is manually dispatched.
 
 Before changing release or publish behavior, inspect the workflow and Gradle publishing configuration together.
