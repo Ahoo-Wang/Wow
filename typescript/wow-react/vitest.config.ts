@@ -26,6 +26,17 @@ export default mergeConfig(
       coverage: {
         include: ['src/**/*.ts'],
         exclude: [...configDefaults.exclude],
+        // Held below what the suite measured on 2026-09-24 (statements 97.29,
+        // branches 85.71, functions 94.11, lines 100). The package is small,
+        // so each gap leaves room for about one more uncovered statement,
+        // branch or function: a coverage drop fails CI, a behaviour-preserving
+        // refactor does not. Raise them as coverage rises, but never to 100.
+        thresholds: {
+          statements: 95,
+          branches: 83,
+          functions: 92,
+          lines: 98,
+        },
       },
     },
   }),

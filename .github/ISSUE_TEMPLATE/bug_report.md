@@ -8,6 +8,8 @@ assignees: ''
 
 ## Bug Report
 
+For the TypeScript npm packages (`@ahoo-wang/wow-client`, `wow-react`, `wow-generator`, `wow-view-engine`), use the TypeScript Package Bug Report template instead.
+
 Before reporting a bug, make sure you have:
 
 - Searched the open and closed [GitHub issues](https://github.com/Ahoo-Wang/Wow/issues).
