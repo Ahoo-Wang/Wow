@@ -14,10 +14,12 @@
 package me.ahoo.wow.compensation.server.webhook.weixin.client
 
 import me.ahoo.coapi.api.CoApi
+import me.ahoo.wow.compensation.server.webhook.weixin.ConditionalOnWeiXinWebHookEnabled
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.service.annotation.PostExchange
 import reactor.core.publisher.Mono
 
+@ConditionalOnWeiXinWebHookEnabled
 @CoApi(baseUrl = "\${wow.compensation.webhook.weixin.url}")
 interface WeiXinBotApi {
 
