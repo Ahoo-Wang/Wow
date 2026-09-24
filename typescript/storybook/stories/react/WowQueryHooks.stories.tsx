@@ -20,17 +20,17 @@ import {
   useListStreamQuery,
   usePagedQuery,
   useSingleQuery,
-} from '@ahoo-wang/fetcher-react';
+} from '@ahoo-wang/wow-react';
 import {
   filter,
   listQuery,
   pagedQuery,
   singleQuery,
   SnapshotQueryClient,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import { useEffect, useMemo, useState } from 'react';
 import { installFetchFixture } from '../fixtures/http';
-import type { FixtureViewerUser } from '../fixtures/viewer';
+import type { FixtureUser } from '../fixtures/users';
 
 type Scenario = 'single' | 'list' | 'paged' | 'count' | 'stream';
 
@@ -42,7 +42,7 @@ function WowQueryDemo({ scenario }: { scenario: Scenario }) {
   );
   const client = useMemo(
     () =>
-      new SnapshotQueryClient<FixtureViewerUser>({
+      new SnapshotQueryClient<FixtureUser>({
         fetcher,
         basePath: '/users',
       }),
@@ -50,23 +50,23 @@ function WowQueryDemo({ scenario }: { scenario: Scenario }) {
   );
   const streamClient = useMemo(
     () =>
-      new SnapshotQueryClient<FixtureViewerUser[]>({
+      new SnapshotQueryClient<FixtureUser[]>({
         fetcher,
         basePath: '/users',
       }),
     [fetcher],
   );
-  const single = useSingleQuery<FixtureViewerUser>({
+  const single = useSingleQuery<FixtureUser>({
     initialQuery: singleQuery({ filter: activeFilter }),
     autoExecute: false,
     execute: query => client.singleState(query),
   });
-  const list = useListQuery<FixtureViewerUser>({
+  const list = useListQuery<FixtureUser>({
     initialQuery: listQuery({ filter: activeFilter, limit: 20 }),
     autoExecute: false,
     execute: query => client.listState(query),
   });
-  const paged = usePagedQuery<FixtureViewerUser>({
+  const paged = usePagedQuery<FixtureUser>({
     initialQuery: pagedQuery({
       filter: activeFilter,
       pagination: { index: 1, size: 10 },
@@ -79,7 +79,7 @@ function WowQueryDemo({ scenario }: { scenario: Scenario }) {
     autoExecute: false,
     execute: query => client.count(query),
   });
-  const stream = useListStreamQuery<FixtureViewerUser[]>({
+  const stream = useListStreamQuery<FixtureUser[]>({
     initialQuery: listQuery({ filter: activeFilter, limit: 0 }),
     autoExecute: false,
     execute: query => streamClient.listStateStream(query),
