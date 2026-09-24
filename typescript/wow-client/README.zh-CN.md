@@ -18,7 +18,7 @@ pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
   @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
 ```
 
-版本号跟随 Wow，次版本可能带有破坏性改动：用 `save-prefix=~` 或 `--save-exact` 让 Wow 包停在同一个次版本上，TypeScript npm 包的做法与支持期见[版本范围与支持期](https://wow.ahoo.me/zh/guide/typescript/compatibility#版本范围)。
+版本号跟随 Wow，次版本可能带有破坏性改动：用 `save-prefix=~` 或 `--save-exact` 让 Wow 包停在同一个次版本上，见[版本范围](https://wow.ahoo.me/zh/guide/typescript/compatibility#版本范围)。
 
 Peer 依赖：`fetcher`、`fetcher-decorator` 和 `fetcher-eventstream`。
 

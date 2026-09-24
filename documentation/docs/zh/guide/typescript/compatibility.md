@@ -45,13 +45,7 @@ pnpm add -D --save-exact @ahoo-wang/wow-generator
 
 ### 支持期
 
-适用于 TypeScript 的 npm 包（`@ahoo-wang/wow-client`、`@ahoo-wang/wow-generator`、`@ahoo-wang/wow-react`）：
-
-- **最新的次版本**（dist-tag `latest`）获得全部修复，包括缺陷修复和安全修复，以补丁版本发布。
-- **上一个次版本**在下一个次版本发布后的 **3 个月**内获得安全修复，以补丁版本发布在 dist-tag `release-<主版本>.<次版本>`（例如 `release-9.2`）下，不会让 `latest` 回退。
-- 更早的次版本不再修复，请升级到仍受支持的版本。
-
-报告漏洞的方式见[安全策略](https://github.com/Ahoo-Wang/Wow/blob/main/SECURITY.md)。
+TypeScript 的 npm 包与 Wow 的其余部分采用同一个支持策略，写在[安全策略](https://github.com/Ahoo-Wang/Wow/blob/main/SECURITY.md)里：修复发布在最新的稳定版本线上，旧版本线是否修复逐案评估。用 `~` 或精确版本停在一个次版本上可以维持一段时间，要获得修复就得计划升级到最新的次版本。
 
 ## Wow 服务端
 

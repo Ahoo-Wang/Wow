@@ -45,13 +45,7 @@ Move to the next minor on purpose, all Wow packages together, after reading the 
 
 ### Support window
 
-For the TypeScript npm packages (`@ahoo-wang/wow-client`, `@ahoo-wang/wow-generator`, `@ahoo-wang/wow-react`):
-
-- **The latest minor** (the `latest` dist-tag) gets every fix, bug and security alike, as patch releases.
-- **The previous minor** gets security fixes for **3 months** after the next minor is released, as patch releases under the dist-tag `release-<major>.<minor>` (for example `release-9.2`), so `latest` never moves back.
-- Older minors get no fixes; upgrade to a supported one.
-
-How to report a vulnerability is in the [security policy](https://github.com/Ahoo-Wang/Wow/blob/main/SECURITY.md).
+The TypeScript npm packages follow the same support policy as the rest of Wow, stated in the [security policy](https://github.com/Ahoo-Wang/Wow/blob/main/SECURITY.md): fixes land on the latest stable release line, and fixes for older lines are decided case by case. Staying on one minor with `~` or an exact version is safe for a while; plan to move to the latest minor to receive fixes.
 
 ## Wow servers
 

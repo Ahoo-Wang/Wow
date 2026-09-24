@@ -15,7 +15,7 @@ pnpm exec wow-generator generate \
   --ts-config-file-path ./tsconfig.json
 ```
 
-The version follows Wow, so a minor release may contain breaking changes: keep the Wow packages on one minor with `save-prefix=~` or `--save-exact`, as [version ranges and the support window](https://wow.ahoo.me/guide/typescript/compatibility#version-ranges) explains for the TypeScript npm packages.
+The version follows Wow, so a minor release may contain breaking changes: keep the Wow packages on one minor with `save-prefix=~` or `--save-exact`, as [version ranges](https://wow.ahoo.me/guide/typescript/compatibility#version-ranges) explains.
 
 The first line installs what the generated code imports at run time, the
 second the generator and its peer `@ahoo-wang/fetcher-openapi`. The generator's

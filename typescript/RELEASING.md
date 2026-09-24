@@ -45,7 +45,7 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 - [x] `require` 条件有自己的 `.d.cts`；generator 的声明文件相对导入带扩展名；wow-react 只出 ESM 并有 `default` 条件（R3-09、R3-10、R3-11）。
 - [x] 元数据与文案：generator 的 description 改成纯文本，三个包的 keywords 都带 `wow`，`homepage` 指向文档站各包的参考页（`https://wow.ahoo.me/reference/typescript/<包>/`），wow-react 有中文 README，wow-client 的 tarball 也带上两份 README；`repository.directory`、`bugs`、`license`、`author` 三个包一致（R3-25）。
 - [x] 公开面逐名快照（D29）：wow-client、wow-react、wow-generator 都有 `test/surface/` 与 `test/publicSurface.test.ts`，构建时 `scripts/verify-package.mjs` 让产物与清单一致，不带 declaration map。
-- [x] 版本范围与支持期（用户 2026-09-24 定）：兼容性页「版本范围」（中英文）是唯一写建议的地方——安装前在项目 `.npmrc` 加 `save-prefix=~`，或者 `--save-exact`，因为次版本可以带破坏性改动；各包 README 与快速开始只用一句话链接过去，安装命令不写版本号，发版时不用改。「支持期」只针对 TypeScript 的 npm 包：最新的次版本获得全部修复，上一个次版本在下一个次版本发布后 3 个月内获得安全修复，其余不修。`SECURITY.md` 不在这里改（治理 PR 另加 npm 包一节，Kotlin/Maven 的「逐案评估」保持不变）。
+- [x] 版本范围（用户 2026-09-24 定）：兼容性页「版本范围」（中英文）是唯一写建议的地方——安装前在项目 `.npmrc` 加 `save-prefix=~`，或者 `--save-exact`，因为次版本可以带破坏性改动；各包 README 与快速开始只用一句话链接过去，安装命令不写版本号。「支持期」一节指向 `SECURITY.md`。
 - [ ] fetcher peer 下限：fetcher 5.1.4 发到 npm 以后、发 9.2.0 之前，把 `pnpm-workspace.yaml` 里 `catalog:peers` 和默认 catalog 的 fetcher 下限抬到 `^5.1.4`（fetcher-react 同样），并让 `.github/scripts/package-check.mjs` 在 fetcher 自身声明的类型诊断（现在只作为 `upstream` 打印）上也失败。5.1.4 发布前不动。
 - [x] 文档（R4）：兼容性矩阵、快速开始、错误处理、认证、SSR/Node、CI 重新生成、排障；包 README 写「随 Wow 9.2.0 发布」，站点与 README 的 TypeScript 样例由 `documentation/test/typescript-samples.test.mjs` 对构建产物做类型检查。
 - [ ] 发版 PR `chore(release): prepare 9.2.0-rc.0`：`pnpm set-version 9.2.0-rc.0`，按根 `AGENTS.md` 更新 README 版本表、文档和 openapi 快照，`pnpm check:versions`。
@@ -263,7 +263,9 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 
 维护线 `release-x.y` 没有 push 触发，不影响发版：准入在 tag 上触发完整运行。给老版本线发补丁时，dist-tag 自动是 `release-x.y`，不会动 `latest`。
 
-支持期（用户 2026-09-24 定，只针对 TypeScript 的 npm 包，对外写在兼容性页「支持期」）：最新的次版本获得全部修复；上一个次版本在下一个次版本发布后 3 个月内只获得安全修复，从 `release-x.y` 分支发补丁；更早的次版本不再发布。
+支持期（用户 2026-09-24 定）：全项目一个策略，就是 `SECURITY.md` 现有的写法，npm 包也适用——修复发在最新的稳定版本线上，旧版本线逐案评估。曾提议的「上一个次版本 3 个月安全修复」已撤回：Wow 几天就发一个次版本（8.11→8.16 用了六天），这个窗口意味着同时往很多条线回移修复。
+
+发布说明：每个带 TypeScript 包破坏性改动的次版本，发布说明的「Breaking」一节逐条列出这些改动和迁移步骤。这与文档建议用户用 `~` 锁在一个次版本上配套：用户是读了这一节才升级的。
 
 ## 出错时
 
