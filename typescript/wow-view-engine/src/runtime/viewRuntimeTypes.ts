@@ -405,7 +405,8 @@ export interface OpenOptions {
   /**
    * What a dashboard's filters hold as it opens (D22 F) — a host's address
    * keeps them. Left out, every filter at its default; what the board does
-   * not take is left out. Nothing else reads it.
+   * not take is left out, the rest taken (`DashboardRuntime.refusedFilters`
+   * says what was left out). Nothing else reads it.
    */
   filters?: DashboardFilters | null;
   /**

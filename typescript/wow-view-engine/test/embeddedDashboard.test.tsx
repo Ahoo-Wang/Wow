@@ -516,6 +516,29 @@ describe('EmbeddedDashboard', () => {
     ).toContain('CN');
   });
 
+  it('opens on what it takes of an address gone partly stale: one stale name or bad value costs only itself', async () => {
+    const onFiltersChange = vi.fn();
+    const { runtime } = embed({
+      // A filter renamed since the address was written, and two values on a
+      // filter that takes one — beside a region the board still has.
+      initialFilters: {
+        values: { region: ['EU'], gone: ['x'], status: ['A', 'B'] },
+      },
+      onFiltersChange,
+    });
+
+    await waitFor(() =>
+      expect(onFiltersChange).toHaveBeenLastCalledWith({
+        values: { region: ['EU'] },
+      }),
+    );
+    expect(runtime().getSnapshot().filters.values).toEqual({ region: ['EU'] });
+    expect(runtime().refusedFilters.map(found => found.code)).toEqual([
+      'dashboard.filter.unknown',
+      'dashboard.field.not-multiple',
+    ]);
+  });
+
   it('builds in place in the editable tier, for whoever may save the board', async () => {
     const { rerender } = embed({ interaction: 'editable', withTitle: true });
 

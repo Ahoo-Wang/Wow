@@ -46,7 +46,8 @@ momentMetrics(metrics, fields): Set<string>              // 哪些指标是时�
 emptyDashboardConfig(): DashboardViewConfig                     // 无面板、无全局字段的完整初始配置
 validateDashboard(cfg: DashboardViewConfig, scope: ViewInstance['scope'], refs: Map<string, PanelReference>, kinds: FieldKindRegistry): Issue[]   // 含 bindings 的字段 kind 兼容性与引用实例的可见范围；PanelReference = { instance; definition; fields }，fields 就是被引用定义自己的字段，由 Engine 解析引用时给出：面板的 filter 是查询根，全局筛选也只能映射到根字段上，分析视图即便展开了 elements 也一样（元素里的事从根上只能由 elementMatch 条件去问，而那是一个根字段）
 mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboard 的整板常驻条件经 bindings 映射后 AND 合并到面板已应用筛选
-filterOperatorOf(field, kinds): FilterOperatorName              // 筛选的条件用哪个操作符：日期 BETWEEN、是否 EQ、文本／ID／数字 IN（单值也是一项的列表）；五类之外按种类的缺省操作符
+FILTER_TYPE_OPERATOR: Record<DashboardFilterType, FilterOperatorName>   // 五种筛选各用哪个操作符：日期 BETWEEN、是否 EQ、文本／ID／数字 IN（单值也是一项的列表）；迁移旧的整板条件读的也是这一张表
+filterOperatorOf(field, kinds): FilterOperatorName              // 筛选的条件用哪个操作符：五类读 FILTER_TYPE_OPERATOR；五类之外按种类的缺省操作符
 filterCondition(field, value, kinds): FilterLeaf | null         // 一个值就是一条条件（在筛选自己的名字上）；空值为 null
 admitFilters(config, wanted, kinds): { filters, refused }      // 此刻的值按板子准入：不认识的、值读不了的、单值给多个的不收并说出来；必填没值取默认值；单位不在 units 里取默认
 panelFilterTree(config, filters, bindings, kinds): FilterTree | null   // 一个面板跑的筛选条件：接上它的、有值的筛选，映射到面板字段后 AND；没接上的不在其中

@@ -356,11 +356,68 @@ describe('what the filters hold', () => {
     });
     // The very first query carries them: no run under the defaults first.
     expect(JSON.stringify(scope('c'))).toContain('"EU"');
+    expect(runtime.refusedFilters).toEqual([]);
     expect(runtime.setFilters({ values: {}, unit: 'DAY' })).toEqual([]);
     expect(runtime.getSnapshot().filters).toEqual({
       values: { created: LAST_WEEK },
       unit: 'DAY',
     });
+  });
+
+  it('opens on what it takes of an address gone partly stale, and says what it left out', async () => {
+    const { runtime, scope } = await harness(board(), {
+      values: {
+        region: ['EU'],
+        // A filter renamed since the address was written, and a value the
+        // required date filter cannot read.
+        gone: ['x'],
+        created: 'yesterday',
+      },
+      unit: 'MONTH',
+    });
+
+    expect(runtime.getSnapshot().filters).toEqual({
+      values: { region: ['EU'], created: LAST_WEEK },
+      unit: 'MONTH',
+    });
+    // The very first query carries what was taken.
+    expect(JSON.stringify(scope('c'))).toContain('"EU"');
+    expect(runtime.refusedFilters.map(found => found.code)).toEqual([
+      'dashboard.filter.unknown',
+      'filter.value.expected-date',
+    ]);
+    // Said as the board opened, and not again.
+    runtime.setFilterValue('region', ['CN']);
+    expect(runtime.refusedFilters).toHaveLength(2);
+  });
+
+  it('takes what it can of every filter put at once, answers the rest, and runs on it', async () => {
+    const { runtime, clock, scope } = await harness();
+
+    const refused = runtime.setFilters({
+      values: { region: ['CN'], gone: ['y'], created: 'yesterday' },
+      unit: 'DAY',
+    });
+    expect(refused.map(found => found.code)).toEqual([
+      'dashboard.filter.unknown',
+      'filter.value.expected-date',
+    ]);
+    expect(refused[0].path).toEqual(['filters', 'gone']);
+    // A required filter refused holds its default rather than nothing.
+    expect(runtime.getSnapshot().filters).toEqual({
+      values: { region: ['CN'], created: LAST_WEEK },
+      unit: 'DAY',
+    });
+    clock.advance(AUTO_APPLY_DELAY_MS);
+    expect(JSON.stringify(scope('c'))).toContain('"CN"');
+    // Said again, it answers the same, and nothing moves.
+    const before = runtime.getSnapshot().filters;
+    expect(
+      runtime
+        .setFilters({ values: { region: ['CN'], gone: ['y'] }, unit: 'DAY' })
+        .map(found => found.code),
+    ).toEqual(['dashboard.filter.unknown']);
+    expect(runtime.getSnapshot().filters).toBe(before);
   });
 
   it('does nothing once disposed', async () => {
@@ -648,6 +705,85 @@ describe('what a text filter offers', () => {
     await runtime.valueCandidates('region')?.search('');
     expect(asked()).toHaveLength(2);
     expect(JSON.stringify(asked()[1][0])).toContain('warehouse');
+  });
+
+  it('counts under the condition the panel runs under: the board’s fixed scope, never the reader’s values', async () => {
+    const { runtime, sources, scope } = await harness(
+      dashboardConfig({
+        fields: [
+          { name: 'region', label: 'Region', kind: 'string' },
+          // Its own default: the board's condition on it stays the board's
+          // fixed scope rather than moving into it (`migrateDashboardConfig`).
+          {
+            name: 'phase',
+            label: 'Phase',
+            kind: 'string',
+            default: ['SHIPPED'],
+          },
+        ],
+        filter: {
+          op: 'and',
+          children: [{ field: 'phase', operator: 'IN', value: ['PENDING'] }],
+        },
+        panels: [
+          view('a', 'orders-trend', [
+            { globalField: 'region', panelField: 'warehouse' },
+            { globalField: 'phase', panelField: 'status' },
+          ]),
+        ],
+      }),
+    );
+    const asked = () =>
+      vi
+        .mocked(sources.orders.aggregate)
+        .mock.calls.filter(([query]) => query.groupBy?.[0]?.alias === 'value');
+
+    // The panel runs under the fixed scope and the reader's values …
+    expect(JSON.stringify(scope('a'))).toContain('"PENDING"');
+    expect(JSON.stringify(scope('a'))).toContain('"SHIPPED"');
+    runtime.setFilterValue('region', ['CN']);
+    await runtime.valueCandidates('region')?.search('');
+    // … and a filter's values are counted under the fixed scope alone: the
+    // reader's picks aside, or a list narrowed to what is picked would offer
+    // nothing else.
+    const query = JSON.stringify(asked()[0][0]);
+    expect(query).toContain('"PENDING"');
+    expect(query).not.toContain('"SHIPPED"');
+    expect(query).not.toContain('"CN"');
+  });
+
+  it('counts again once what the panel runs under moves, a held value included', async () => {
+    const { runtime, sources } = await harness(
+      dashboardConfig({
+        fields: [
+          { name: 'region', label: 'Region', kind: 'string' },
+          { name: 'phase', label: 'Phase', kind: 'string' },
+        ],
+        panels: [
+          view('a', 'orders-trend', [
+            { globalField: 'region', panelField: 'warehouse' },
+            { globalField: 'phase', panelField: 'status' },
+          ]),
+        ],
+      }),
+    );
+    const asked = () =>
+      vi
+        .mocked(sources.orders.aggregate)
+        .mock.calls.filter(([query]) => query.groupBy?.[0]?.alias === 'value')
+        .map(([query]) => JSON.stringify(query));
+
+    runtime.holdFilters({ values: { phase: ['PENDING'] } });
+    await runtime.valueCandidates('region')?.search('');
+    await runtime.valueCandidates('region')?.search('');
+    expect(asked()).toHaveLength(1);
+    expect(asked()[0]).toContain('"PENDING"');
+    // The page holds the same filter at another value: nobody said the
+    // scope moved, and the values are counted again all the same.
+    runtime.holdFilters({ values: { phase: ['SHIPPED'] } });
+    await runtime.valueCandidates('region')?.search('');
+    expect(asked()).toHaveLength(2);
+    expect(asked()[1]).toContain('"SHIPPED"');
   });
 });
 

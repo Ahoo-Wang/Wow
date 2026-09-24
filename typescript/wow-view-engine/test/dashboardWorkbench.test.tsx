@@ -167,6 +167,51 @@ describe('DashboardWorkbench', () => {
     );
   });
 
+  it('opens under what it takes of a stale address, the rest left out and said (D22 F)', async () => {
+    const onFiltersChange = vi.fn();
+    const { engine, source } = setup({
+      ...overview,
+      config: dashboardConfig({
+        fields: [
+          { name: 'region', label: 'Region', kind: 'string' },
+          { name: 'created', label: 'Created', kind: 'date' },
+        ],
+        panels:
+          overview.config.kind === 'dashboard' ? overview.config.panels : [],
+      }),
+    });
+
+    render(
+      <DashboardWorkbench
+        engine={engine}
+        definitionId="overview"
+        instanceId="overview-1"
+        // A filter taken off the board since, and a date it cannot read.
+        initialFilters={{
+          values: { region: ['EU'], gone: ['x'], created: 'yesterday' },
+        }}
+        onFiltersChange={onFiltersChange}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(onFiltersChange).toHaveBeenCalledWith({
+        values: { region: ['EU'] },
+      }),
+    );
+    await waitFor(() => expect(source.paged).toHaveBeenCalled());
+    expect(JSON.stringify(vi.mocked(source.paged).mock.calls[0])).toContain(
+      '"EU"',
+    );
+    const runtime = engine
+      .openRuntimes()
+      .find(opened => opened.kind === 'dashboard') as DashboardRuntime;
+    expect(runtime.refusedFilters.map(found => found.path)).toEqual([
+      ['filters', 'gone'],
+      ['filters', 'created'],
+    ]);
+  });
+
   /**
    * Nothing reloads a pin: once the manager deletes the pinned view, the
    * engine disposes the runtime and reopening the id answers "no such view"

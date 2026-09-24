@@ -47,6 +47,8 @@ import type {
   PressDestination,
 } from './press.js';
 
+const NO_REFUSAL: Issue[] = [];
+
 /**
  * The board's commands that are one call on one of its parts — its edits
  * (`boardEditing`) and what its filters hold (`FilterValues`) — as methods
@@ -67,6 +69,8 @@ export abstract class BoardCommands
   protected abstract retime(): void;
   /** Whether the board refreshes itself on its interval (`setAutoRefresh`). */
   protected autoRefresh = true;
+  /** What the board refused of the filters it opened on (`opensOn`). */
+  private openingRefusal: Issue[] = NO_REFUSAL;
 
   setAutoRefresh(on: boolean): void {
     if (this.disposed || this.autoRefresh === on) return;
@@ -190,7 +194,7 @@ export abstract class BoardCommands
     if (!this.disposed) this.values.clear();
   }
   setFilters(filters: DashboardFilters): Issue[] {
-    return this.disposed ? [] : this.values.put(filters);
+    return this.disposed ? [] : this.values.take(filters);
   }
   holdFilters(held: HeldFilters | null): Issue[] {
     if (this.disposed) return [];
@@ -233,7 +237,14 @@ export abstract class BoardCommands
     held?: HeldFilters | null,
   ): void {
     if (tab !== null) this.showTab(tab);
-    if (filters) this.setFilters(filters);
-    if (held) this.holdFilters(held);
+    const refused = [
+      ...(filters ? this.setFilters(filters) : []),
+      ...(held ? this.holdFilters(held) : []),
+    ];
+    if (refused.length > 0) this.openingRefusal = refused;
+  }
+  /** See `DashboardRuntime.refusedFilters`. */
+  get refusedFilters(): Issue[] {
+    return this.openingRefusal;
   }
 }

@@ -145,9 +145,18 @@ export interface DashboardRuntime
   holdFilters(held: HeldFilters | null): Issue[];
   /**
    * Puts every filter at once, as a host's address has them: what the
-   * board does not take is left out, and said in the answer.
+   * board takes goes in, and what it does not — a filter it no longer has,
+   * a value its filter refuses — is left out and said in the answer, so one
+   * stale entry never costs the rest. `setFilterValue` is all or nothing.
    */
   setFilters(filters: DashboardFilters): Issue[];
+  /**
+   * What the board refused of the filters it opened on (`OpenOptions.filters`
+   * and `OpenOptions.held`) — left out, the rest in force from the first
+   * query — so a host can say its address went partly stale; `[]` when it
+   * took them all. Written as the board opens, never after.
+   */
+  readonly refusedFilters: Issue[];
   /**
    * The list a filter without one of its own picks from: the options the
    * fields it is wired to declare, merged, labels shown and codes stored

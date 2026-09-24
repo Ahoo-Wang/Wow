@@ -29,14 +29,11 @@ import {
   defaultFilters,
   filtersOf,
   isViewPanel,
-  mapGlobalFilter,
-  panelFilterTree,
   wiredOptions,
 } from '../../dashboard/index.js';
 import {
   isEmptyFilter,
   issue,
-  mergeFilters,
   type FieldKindRegistry,
 } from '../../filter/index.js';
 import { AUTO_APPLY_DELAY_MS } from '../autoApply.js';
@@ -49,6 +46,7 @@ import {
   FilterCandidates,
   type CandidateSourceFactory,
 } from './filterCandidates.js';
+import { panelScope } from './panelRun.js';
 import { panelsOf } from './panels.js';
 
 /** What the filter values need of the runtime that holds the board. */
@@ -201,8 +199,11 @@ export class FilterValues {
     this.put({ ...this.host.current(), unit });
   }
 
-  /** Every filter as asked. */
-  put(wanted: DashboardFilters): Issue[] {
+  /**
+   * Every filter as asked, all or nothing: a reader's one change (`set`,
+   * `press`, a unit) is refused whole, and nothing moves.
+   */
+  private put(wanted: DashboardFilters): Issue[] {
     const { filters, refused } = admitFilters(
       this.host.applied(),
       wanted,
@@ -211,6 +212,23 @@ export class FilterValues {
     if (refused.length > 0) return refused;
     if (!dequal(filters, this.host.current())) this.commit(filters);
     return [];
+  }
+
+  /**
+   * Every filter at once, as a host's address has them (`setFilters`, and
+   * what a board opens on): what the board takes goes in, and what it
+   * refuses — a filter renamed or taken off since the address was written,
+   * a value its kind cannot read — is left out and answered, so one stale
+   * name never costs the reader the rest of the address.
+   */
+  take(wanted: DashboardFilters): Issue[] {
+    const { filters, refused } = admitFilters(
+      this.host.applied(),
+      wanted,
+      this.host.kinds,
+    );
+    if (!dequal(filters, this.host.current())) this.commit(filters);
+    return refused;
   }
 
   /** Shows what the filters hold at once, and runs it a moment later. */
@@ -254,15 +272,24 @@ export class FilterValues {
       );
       const view = binding && this.host.viewOf(panel);
       if (!binding || !view) return [];
-      // Counted under the host's condition and the filters the host holds,
-      // so a page locked to one customer offers that customer's values and
-      // no one else's.
+      // Counted under the condition the panel runs under (`panelScope`) —
+      // the board's fixed scope, the host's condition and the filters the
+      // host holds, never the reader's own values — so a board fixed to one
+      // region, or a page locked to one customer, offers that one's values
+      // and no one else's. Read as it is asked: the source outlives this
+      // call, and the board may have changed by then.
       const scope = () => {
-        const outer = this.host.scope();
-        const tree = mergeFilters(
-          outer && mapGlobalFilter(outer, bindingsOf(panel)),
-          this.heldTree(applied, panel),
-        );
+        const board = this.host.applied();
+        const now =
+          panelsOf(board)
+            .filter(isViewPanel)
+            .find(entry => entry.id === panel.id) ?? panel;
+        const tree = panelScope(now, {
+          applied: board,
+          filters: { values: this.heldValues() },
+          injected: this.host.scope(),
+          kinds: this.host.kinds,
+        });
         return isEmptyFilter(tree) ? null : tree;
       };
       return [
@@ -292,21 +319,11 @@ export class FilterValues {
     );
   }
 
-  /** The filters the host holds, as one panel's condition. */
-  private heldTree(
-    applied: DashboardViewConfig,
-    panel: DashboardViewPanel,
-  ): FilterTree | null {
-    if (this.held.size === 0) return null;
+  /** What the filters the host holds hold now. */
+  private heldValues(): Record<string, FilterValue> {
     const { values } = this.host.current();
-    const held = Object.fromEntries(
+    return Object.fromEntries(
       Object.entries(values).filter(([name]) => this.held.has(name)),
-    );
-    return panelFilterTree(
-      applied,
-      { values: held },
-      bindingsOf(panel),
-      this.host.kinds,
     );
   }
 

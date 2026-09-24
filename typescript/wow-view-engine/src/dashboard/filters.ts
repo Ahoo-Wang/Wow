@@ -21,6 +21,7 @@
 import {
   filterTypeOf,
   type DashboardField,
+  type DashboardFilterType,
   type DashboardFilters,
   type DashboardViewConfig,
   type FieldDefinition,
@@ -46,21 +47,32 @@ import {
 import { clicksFilter, isViewPanel } from './panels.js';
 
 /**
- * The operator a filter's condition is asked with, from its type alone: a
- * date filter a window (`BETWEEN`, which reads a relative window, a range, a
- * day or a named period alike), a yes-or-no `EQ`, text, ids and numbers `IN`
- * — one value or several, so the same condition reaches a `string`, an
- * `enum` and a `reference` field without being translated on the way. A
- * filter of a kind outside the five asks the way its kind does by default.
+ * The operator a filter of each of the five types is asked with: a date
+ * filter a window (`BETWEEN`, which reads a relative window, a range, a day
+ * or a named period alike), a yes-or-no `EQ`, text, ids and numbers `IN` —
+ * one value or several, so the same condition reaches a `string`, an `enum`
+ * and a `reference` field without being translated on the way. A pre-C board
+ * condition is read into defaults by the same table (`migrateDashboardConfig`).
+ */
+export const FILTER_TYPE_OPERATOR = {
+  date: 'BETWEEN',
+  text: 'IN',
+  id: 'IN',
+  number: 'IN',
+  boolean: 'EQ',
+} as const satisfies Record<DashboardFilterType, FilterOperatorName>;
+
+/**
+ * The operator a filter's condition is asked with: its type's
+ * (`FILTER_TYPE_OPERATOR`), or — for a kind outside the five — the way its
+ * kind asks by default.
  */
 export function filterOperatorOf(
   field: Pick<DashboardField, 'kind'>,
   kinds: FieldKindRegistry,
 ): FilterOperatorName {
   const type = filterTypeOf(field.kind);
-  if (type === 'date') return 'BETWEEN';
-  if (type === 'boolean') return 'EQ';
-  if (type !== null) return 'IN';
+  if (type !== null) return FILTER_TYPE_OPERATOR[type];
   return kinds.get(field.kind)?.defaultOperator ?? 'EQ';
 }
 

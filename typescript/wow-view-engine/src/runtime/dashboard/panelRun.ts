@@ -74,20 +74,44 @@ export function panelRun(
     'panels',
     index,
   ]);
-  // A filter whose value was pressed on this very panel does not narrow it
-  // (D22 I): the panel keeps every group, and marks the one pressed.
-  const wired = bindingsOf(panel).filter(
-    binding => filters.from?.[binding.globalField] !== panel.id,
-  );
-  const scope = mergeFilters(
-    mapGlobalFilter(mergeFilters(applied.filter, injected), panel.bindings),
-    panelFilterTree(applied, filters, wired, kinds),
-  );
   return {
     view: { ...view, config: grouped.config },
-    scope,
+    scope: panelScope(panel, { applied, filters, injected, kinds }),
     issues: [...presented.issues, ...grouped.issues],
   };
+}
+
+/**
+ * The one condition a data panel runs under, in its own field names: the
+ * board's fixed scope (`config.filter`) and the host's condition, mapped
+ * through the panel's bindings, ANDed with every filter wired to it that
+ * holds a value in `filters` (`panelFilterTree`) — but one whose value was
+ * pressed on this panel (`DashboardFilters.from`). The panel runs under it
+ * with every value in force (`panelRun`); what a text filter offers is
+ * counted under it with only the values the host holds
+ * (`FilterValues.candidatesOf`), so the two never tell apart what scope a
+ * panel is in.
+ */
+export function panelScope(
+  panel: DashboardViewPanel,
+  board: {
+    applied: DashboardViewConfig;
+    filters: DashboardFilters;
+    injected: FilterTree | null;
+    kinds: FieldKindRegistry;
+  },
+): FilterTree {
+  const { applied, filters, injected, kinds } = board;
+  const bindings = bindingsOf(panel);
+  // A filter whose value was pressed on this very panel does not narrow it
+  // (D22 I): the panel keeps every group, and marks the one pressed.
+  const wired = bindings.filter(
+    binding => filters.from?.[binding.globalField] !== panel.id,
+  );
+  return mergeFilters(
+    mapGlobalFilter(mergeFilters(applied.filter, injected), bindings),
+    panelFilterTree(applied, filters, wired, kinds),
+  );
 }
 
 /**

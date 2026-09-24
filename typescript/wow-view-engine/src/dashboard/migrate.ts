@@ -21,6 +21,7 @@ import {
   type FilterValue,
 } from '../model/index.js';
 import { isPlainObject } from '../filter/index.js';
+import { FILTER_TYPE_OPERATOR } from './filters.js';
 
 const SCALE = DASHBOARD_GRID_COLUMNS / LEGACY_GRID_COLUMNS;
 
@@ -63,15 +64,6 @@ function onTheWideGrid(config: DashboardViewConfig): DashboardViewConfig {
       : panels) as DashboardViewConfig['panels'],
   };
 }
-
-/** The operator a filter of each type asks its fields with (`filterOperatorOf`). */
-const FILTER_OPERATOR = {
-  date: 'BETWEEN',
-  text: 'IN',
-  id: 'IN',
-  number: 'IN',
-  boolean: 'EQ',
-} as const;
 
 /**
  * A board condition written before batch C, read as the filters' defaults
@@ -152,10 +144,12 @@ function asDefault(
   const type = filterTypeOf(field.kind);
   if (type === null) return undefined;
   const value = leaf.value as FilterValue;
-  if (leaf.operator === FILTER_OPERATOR[type]) {
+  // What the filter's own condition asks with (`filterOperatorOf`).
+  const operator = FILTER_TYPE_OPERATOR[type];
+  if (leaf.operator === operator) {
     // A filter that takes one value holds a list of one.
     if (
-      FILTER_OPERATOR[type] === 'IN' &&
+      operator === 'IN' &&
       Array.isArray(value) &&
       value.length > 1 &&
       field.multiple !== true

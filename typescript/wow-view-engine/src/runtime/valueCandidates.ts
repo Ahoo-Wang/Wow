@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { dequal } from 'dequal';
 import type {
   AnalysisViewConfig,
   FieldDefinition,
@@ -67,6 +68,8 @@ export class ValueCandidateSources {
   private readonly sources = new Map<string, ValueCandidateSource | null>();
   private readonly answers = new Map<string, ValueCandidates>();
   private generation = 0;
+  /** The scope the answers in hand were asked under (`scoped`). */
+  private askedUnder: FilterTree | null = null;
 
   constructor(
     private readonly context: KernelContext,
@@ -103,23 +106,40 @@ export class ValueCandidateSources {
     signal?: AbortSignal,
   ): Promise<ValueCandidates> {
     const { kinds } = this.context;
+    const scope = this.scoped();
     const text = query.trim();
-    if (!text) return this.ask(field, '', signal);
+    if (!text) return this.ask(field, '', scope, signal);
     const whole = this.answers.get(keyOf(field.name, ''));
     const narrowable = valueCandidateNarrowing(field, kinds) !== null;
     if (whole?.complete || !narrowable) {
-      const all = whole ?? (await this.ask(field, '', signal));
+      const all = whole ?? (await this.ask(field, '', scope, signal));
       return {
         values: narrowValueCandidates(all.values, field, kinds, text),
         complete: all.complete,
       };
     }
-    return this.ask(field, text, signal);
+    return this.ask(field, text, scope, signal);
+  }
+
+  /**
+   * The scope in force now. Answers asked under another are forgotten, so
+   * whatever moved it — a host's condition, a board's fixed scope, a value
+   * the host holds — the values are counted again rather than read from
+   * before, whether or not anyone called `reset`.
+   */
+  private scoped(): FilterTree | null {
+    const scope = this.scope();
+    if (!dequal(scope, this.askedUnder)) {
+      this.reset();
+      this.askedUnder = scope;
+    }
+    return scope;
   }
 
   private async ask(
     field: FieldDefinition,
     text: string,
+    scope: FilterTree | null,
     signal?: AbortSignal,
   ): Promise<ValueCandidates> {
     const key = keyOf(field.name, text);
@@ -128,7 +148,7 @@ export class ValueCandidateSources {
     const { definition, kinds, limits, environment, source } = this.context;
     const config = withScopeFilter<AnalysisViewConfig>(
       valueCandidatesConfig(definition, field, kinds, text, limits),
-      this.scope(),
+      scope,
     );
     // Admitted like any analysis, so a definition that cannot take the
     // question — a ceiling below one row, a scope its fields refuse — is told
