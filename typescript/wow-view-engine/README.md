@@ -394,6 +394,34 @@ The dark `primary` of both is blue-400 rather than shadcn's blue-800: `primary` 
 
 A host may write a preset of its own the same way — `:where([data-fve-preset='acme']) { --fve-primary: …; }` — and select it with the same attribute or prop.
 
+#### A host with a shadcn theme: `shadcn-bridge.css`
+
+A host that already has a shadcn/ui theme — `--background`, `--primary`, `--radius` and the rest on its `:root`, with its dark values under `.dark` — needs neither a preset nor a copy of its colours. One more optional entry points every `--fve-*` / `--fve-dark-*` variable at the shadcn token of the same name:
+
+```ts
+import '@ahoo-wang/wow-view-engine/styles.css';
+import '@ahoo-wang/wow-view-engine/shadcn-bridge.css';
+```
+
+- **Four kinds are not bridged**, and keep this package's values: `input` and `ring` (a shadcn theme's usual `--input: var(--border)` and `--ring: var(--primary)` owe nothing of the 3:1 a control's edge and a focus mark need), the status colours `destructive`, `success` and `warning` (text measured to 4.5:1; shadcn has no `success` or `warning`), and the eight chart colours. Set any of them yourself, one by one, if you want yours — and measure what you set.
+- **The mode is the host's.** The bridge is resolved on `<html>`, so it reads whatever your `:root` says in the mode `<html>` is in: keep your `.dark` on `<html>`, as shadcn does, and let the views follow it. A view pinned to the other mode with `theme` would get your current values in both halves; pin a mode only where it matches your page.
+- **Your own `--fve-*` still win**, and a surface pinned with `preset` wears that preset instead. The bridge and a preset on `<html>` both weigh nothing, so use one or the other there.
+- **The words are your theme's.** Text tokens are bridged as they are; if your `--muted-foreground` misses 4.5:1 on your `--background`, so do the views' quiet words.
+
+The Storybook regression `ShadcnBridge.test.stories.tsx` hangs the compensation console's theme on a workbench with the bridge and measures its control edges and focus at ≥3:1 in both modes.
+
+#### What an override owes
+
+Every built-in preset holds these lines in both modes, measured on every token pair in a real browser by the Storybook **contrast matrix** (View Engine / 主题 / 预设 / 对比度矩阵), which also measures variables you paste into it:
+
+| Line   | Tokens                                                                                                                                                                                                                               |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| ≥4.5:1 | every `*-foreground` on its ground; `muted-foreground` on `background`, `card` and `popover`; `foreground` on `muted` and `row-hover`; `quiet-foreground`; `destructive`, `success` and `warning` as text on `background` and `card` |
+| ≥3:1   | `input` and `ring` on `background`, `card` and `popover` (and on a dark control's own `input/30` wash)                                                                                                                               |
+| none   | `border` and `sidebar-border` (dividers), `radius`, `text-ui`                                                                                                                                                                        |
+
+A host that sets one of these owes its theme the same line. The eight chart colours owe their own: colour-vision distance between slots and a legible ink on every mark, which a preset never touches for that reason. The full guide is [Theming the view engine](https://wow.ahoo.me/guide/typescript/view-engine-theming).
+
 #### The host's own chrome: `fve-tokens`
 
 Every rule of the stylesheet is scoped at build time, so the theme's tokens and even the layout utilities (`grid`, `gap-4`, `bg-background`) paint inside a style boundary and nowhere else. There are two boundaries, and only one of them is a surface:
@@ -548,6 +576,7 @@ Details in [docs/design/management.md](docs/design/management.md).
 | `/ui`                        | Default components, views and workbenches with their props: `DataWorkbench`, `DashboardWorkbench`, `DashboardEditExtensions`, `useDashboardExtensions`, `EmbeddedView`, `EmbeddedDashboard`, `ViewHeader`, `SaveActions`, `ViewManager`, `LeaveDialog`, `EditorBand`, `FilterPanel`, `StatusStrip`, `AppliedBar`, `ResultToolbar`, `RowActions`, `RecordTable`, `RecordCards`, `RecordPagination`, `AnalysisTable`, `AnalysisChart`, `DashboardGrid`, `HeadingPanel`, `MarkdownPanel`, `ImagePanel`, `LinksPanel`, `MessagesProvider`; the catalogues `defaultMessages` and `zhCN`; the reading of a value, `cellValue`, `cellText` and `displayValue` |
 | `/styles.css`                | The theme. Import it explicitly; no JavaScript entry imports CSS, and nothing in it paints outside the two style boundaries `.fve-root` and `.fve-tokens` (preflight and utilities are scoped at build time), both checked by `scripts/verify-package.mjs` on every build.                                                                                                                                                                                                                                                                                                                                                                             |
 | `/themes.css`                | The presets, optional: only `--fve-*` assignments keyed by `data-fve-preset` ([Presets](#presets)), checked by the same script.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `/shadcn-bridge.css`         | Optional: a host's shadcn tokens read into the `--fve-*` variables, bar `input`, `ring`, the status and the chart colours ([the bridge](#a-host-with-a-shadcn-theme-shadcn-bridgecss)), checked by the same script.                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 
 That is the public surface, and it is kept name by name. Each code entry's complete list — every name, and whether it is a type or a value — is in `test/surface/` (`root.txt`, `react.txt`, `ui.txt`): `test/publicSurface.test.ts` fails when an entry exports a name its list does not hold or stops exporting one it does, and `scripts/verify-package.mjs` holds each built JavaScript entry to the same list. A name added to a list or taken off one is a change to the public surface and is reviewed as one.
 

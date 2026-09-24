@@ -1,0 +1,92 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * The shadcn bridge, an optional entry of its own
+ * (`@ahoo-wang/wow-view-engine/shadcn-bridge.css`, phase 5, D30 Q46).
+ *
+ * A host that already has a shadcn/ui theme — `--background`, `--primary`,
+ * `--radius` and the rest declared on its `:root`, with `.dark` on `<html>`
+ * for its dark values — imports this beside `styles.css`, and every view
+ * wears the host's theme: each host variable of this package is pointed at
+ * the shadcn token of the same name. The value is resolved where it is
+ * declared, on `<html>`, so it is whatever the host's `:root` says in the
+ * mode `<html>` is in; both halves read the same token for that reason.
+ *
+ * Four kinds of token are not bridged (Q46), and keep this package's values
+ * unless the host sets them one by one:
+ *
+ * - `input` and `ring`. A shadcn brand theme commonly writes
+ *   `--input: var(--border)` and `--ring: var(--primary)`: a divider grey
+ *   and a brand colour, neither of which owes the 3:1 that WCAG 1.4.11 asks
+ *   of a control's edge and of a focus mark. Here both are tuned to it.
+ * - The status colours — `destructive` (with its ink), `success`, `warning`.
+ *   They are text on the page as well as fills, measured to 4.5:1 in both
+ *   modes; shadcn has no `success` or `warning` at all.
+ * - The eight chart colours. A shadcn palette has five and often starts on
+ *   red; these are eight, measured for colour-vision distance in both modes.
+ * - What is derived rather than set: `row-hover` and `quiet-foreground` follow
+ *   `muted`, `background` and `foreground`, which are bridged.
+ *
+ * Like the presets, the block is `:where()`, weighing nothing: a `--fve-*` the
+ * host sets on its own `:root` wins over the bridge, and a surface pinned to a
+ * preset (`preset="neutral"`) replaces what the bridge gave it. A shadcn token
+ * the host does not declare leaves its variable unset, so the token falls back
+ * to the built-in value. `scripts/verify-package.mjs` checks the built file:
+ * one `:where(:root)` rule, every declaration `--fve-[dark-]<token>:
+ * var(--<token>)`, and exactly the variables the theme reads bar the ones
+ * above.
+ */
+:where(:root) {
+  --fve-background: var(--background);
+  --fve-foreground: var(--foreground);
+  --fve-card: var(--card);
+  --fve-card-foreground: var(--card-foreground);
+  --fve-popover: var(--popover);
+  --fve-popover-foreground: var(--popover-foreground);
+  --fve-primary: var(--primary);
+  --fve-primary-foreground: var(--primary-foreground);
+  --fve-secondary: var(--secondary);
+  --fve-secondary-foreground: var(--secondary-foreground);
+  --fve-muted: var(--muted);
+  --fve-muted-foreground: var(--muted-foreground);
+  --fve-accent: var(--accent);
+  --fve-accent-foreground: var(--accent-foreground);
+  --fve-sidebar: var(--sidebar);
+  --fve-sidebar-foreground: var(--sidebar-foreground);
+  --fve-sidebar-accent: var(--sidebar-accent);
+  --fve-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --fve-sidebar-border: var(--sidebar-border);
+  --fve-border: var(--border);
+  --fve-radius: var(--radius);
+  --fve-dark-background: var(--background);
+  --fve-dark-foreground: var(--foreground);
+  --fve-dark-card: var(--card);
+  --fve-dark-card-foreground: var(--card-foreground);
+  --fve-dark-popover: var(--popover);
+  --fve-dark-popover-foreground: var(--popover-foreground);
+  --fve-dark-primary: var(--primary);
+  --fve-dark-primary-foreground: var(--primary-foreground);
+  --fve-dark-secondary: var(--secondary);
+  --fve-dark-secondary-foreground: var(--secondary-foreground);
+  --fve-dark-muted: var(--muted);
+  --fve-dark-muted-foreground: var(--muted-foreground);
+  --fve-dark-accent: var(--accent);
+  --fve-dark-accent-foreground: var(--accent-foreground);
+  --fve-dark-sidebar: var(--sidebar);
+  --fve-dark-sidebar-foreground: var(--sidebar-foreground);
+  --fve-dark-sidebar-accent: var(--sidebar-accent);
+  --fve-dark-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --fve-dark-sidebar-border: var(--sidebar-border);
+  --fve-dark-border: var(--border);
+}

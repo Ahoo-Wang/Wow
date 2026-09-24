@@ -30,10 +30,10 @@
 
 ## 阶段 5：内置多主题
 
-- **四批按方案做**（[phase5-themes.md](phase5-themes.md) 第 4 节，裁定 [D30](decisions.md#d30-阶段-5-内置多主题的十条裁定2026-09-24)）；每批的完成标准以方案为准，这里只列线索：
-  - 为什么：宿主要能引一个文件、挂一个属性就换上常见主题，而每一套预设、每一种明暗都守住本包的对比度承诺；图表换主题时要跟着重画。
-  - 5D 宿主与展示——判据：`shadcn-bridge.css` 让视图穿上补偿控制台的主题且控件边、焦点仍 ≥3:1；Storybook 有预设工具栏、「主题一览」与对比度矩阵；中英 README、[extension.md](extension.md)、[ui/README.md](ui/README.md) 同步。
-  - 落点：[phase5-themes.md](phase5-themes.md)；做完一批删一行，四批做完连同方案页一起并入 [ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)。
+- **四批（5A～5D）都已合并，剩阶段审查与收尾**（[phase5-themes.md](phase5-themes.md) 第 4 节，裁定 [D30](decisions.md#d30-阶段-5-内置多主题的十条裁定2026-09-24)）：
+  - 为什么：批次的判据各自由测试守住了（对比度矩阵、`test/presetContrast.test.ts`、`verify-package` 的预设与桥接检查），但方案页还单独立着，阶段的五维审查也还没做。
+  - 判据：按惯例先把架构、代码质量、UI、视觉、UX 五个维度的审查清单给用户看，处置完后把 [phase5-themes.md](phase5-themes.md) 并入 [ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)，删掉方案页与这一条，并重写 [progress.md](progress.md)。
+  - 落点：[phase5-themes.md](phase5-themes.md)、[ui/README.md](ui/README.md)、[progress.md](progress.md)。
 
 ## 阶段 2 留下的线索（不做，或待产品口径）
 

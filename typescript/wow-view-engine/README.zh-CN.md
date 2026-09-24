@@ -391,6 +391,34 @@ import '@ahoo-wang/wow-view-engine/themes.css';
 
 宿主也可以照同样的写法定义自己的预设——`:where([data-fve-preset='acme']) { --fve-primary: …; }`——用同一个属性或 prop 选中。
 
+#### 已有 shadcn 主题的宿主：`shadcn-bridge.css`
+
+宿主已经有一套 shadcn/ui 主题——`:root` 上声明了 `--background`、`--primary`、`--radius` 等，暗色值写在 `.dark` 下——就既不需要预设，也不必把颜色抄一遍。再引一个可选入口，它把每个 `--fve-*`／`--fve-dark-*` 变量指向同名的 shadcn token：
+
+```ts
+import '@ahoo-wang/wow-view-engine/styles.css';
+import '@ahoo-wang/wow-view-engine/shadcn-bridge.css';
+```
+
+- **有四类不桥接**，保持本包自己的值：`input` 与 `ring`（shadcn 主题常写的 `--input: var(--border)`、`--ring: var(--primary)` 不欠控件边与焦点要的 3:1）、状态色 `destructive`、`success`、`warning`（按 4.5:1 量过的文字色；shadcn 没有 `success` 与 `warning`），以及图表八色。想用自己的，就逐个自己设——并量一量设出来的值。
+- **明暗归宿主。** 桥接在 `<html>` 上解析，读到的是 `<html>` 当前模式下 `:root` 的值：像 shadcn 那样把 `.dark` 挂在 `<html>` 上，让视图跟着它。用 `theme` 钉成相反模式的视图，亮暗两半拿到的都是宿主当前的值；只在与页面一致的地方钉模式。
+- **宿主自己的 `--fve-*` 仍然优先**，用 `preset` 钉住预设的面穿那套预设。桥接与挂在 `<html>` 上的预设都不占特异性，那里二者选一。
+- **文字颜色是宿主主题的。** 文字 token 原样桥接；宿主的 `--muted-foreground` 在它的 `--background` 上不到 4.5:1，视图里的弱字也就不到。
+
+Storybook 的回归用例 `ShadcnBridge.test.stories.tsx` 把补偿控制台的主题连同桥接挂到一个工作台上，量出两种明暗下控件边与焦点都 ≥3:1。
+
+#### 覆盖变量要守的线
+
+每一套内置预设在两种明暗下都守住这些线，由 Storybook 的**对比度矩阵**（View Engine / 主题 / 预设 / 对比度矩阵）在真浏览器里逐对 token 量出；粘贴进去的变量也一起量：
+
+| 线     | token                                                                                                                                                                                                                         |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ≥4.5:1 | 每个 `*-foreground` 在它的底上；`muted-foreground` 在 `background`、`card`、`popover` 上；`foreground` 在 `muted`、`row-hover` 上；`quiet-foreground`；`destructive`、`success`、`warning` 作为文字在 `background`、`card` 上 |
+| ≥3:1   | `input` 与 `ring` 在 `background`、`card`、`popover` 上（以及暗色控件自己的 `input/30` 底上）                                                                                                                                 |
+| 无     | `border` 与 `sidebar-border`（分隔线）、`radius`、`text-ui`                                                                                                                                                                   |
+
+宿主设了其中哪一个，就欠自己的主题同一条线。图表八色另有自己的线：色位之间的色觉缺陷间距、每个标记上的字都读得清——预设正因如此从不动它们。完整的说明见[视图引擎的主题](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming)。
+
 #### 宿主自己的 chrome：`fve-tokens`
 
 样式表的每一条规则都在构建时被收进样式边界，所以主题的 token，连 `grid`、`gap-4`、`bg-background` 这样的 utility，都只在边界里才画得出来。边界有两个，其中只有一个是 surface：
@@ -540,6 +568,7 @@ const view = projectRecord(orders, config, page);
 | `/ui`                        | 默认组件、视图与工作台，连同它们的 props：`DataWorkbench`、`DashboardWorkbench`、`DashboardEditExtensions`、`useDashboardExtensions`、`EmbeddedView`、`EmbeddedDashboard`、`ViewHeader`、`SaveActions`、`ViewManager`、`LeaveDialog`、`EditorBand`、`FilterPanel`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisTable`、`AnalysisChart`、`DashboardGrid`、`HeadingPanel`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`MessagesProvider`；措辞目录 `defaultMessages` 与 `zhCN`；一个值的读法 `cellValue`、`cellText`、`displayValue` |
 | `/styles.css`                | 主题。显式导入；任何 JS 入口都不会引入 CSS，产物也不会在 `.fve-root`／`.fve-tokens` 两个样式边界之外绘制任何东西（preflight 与工具类在构建时收进边界内），`scripts/verify-package.mjs` 在每次构建时核对这两点。                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `/themes.css`                | 预设，可选：只有按 `data-fve-preset` 选中的 `--fve-*` 赋值（[预设](#预设)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `/shadcn-bridge.css`         | 可选：把宿主的 shadcn token 读进 `--fve-*` 变量，`input`、`ring`、状态色与图表色除外（[桥接](#已有-shadcn-主题的宿主shadcn-bridgecss)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
 这就是公开面，而且逐个名字守着。每个代码入口的完整清单——每一个名字，以及它是类型还是值——在 `test/surface/`（`root.txt`、`react.txt`、`ui.txt`）：入口多导出了清单上没有的名字、或不再导出清单上有的名字，`test/publicSurface.test.ts` 就失败；`scripts/verify-package.mjs` 再拿同一份清单核对构建出的每个 JS 入口。往清单里加一个名字或拿掉一个，就是改公开面，按改公开面来审。
 

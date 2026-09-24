@@ -23,6 +23,7 @@ const typescriptEn: DefaultTheme.SidebarItem[] = [
             {text: 'Commands and Queries', link: 'commands-and-queries'},
             {text: 'Generate a Client', link: 'generated-client'},
             {text: 'View Engine (Unreleased)', link: 'view-engine'},
+            {text: 'Theming the View Engine', link: 'view-engine-theming'},
             {text: 'Migrate from Fetcher Packages', link: 'migration'},
         ],
     },
