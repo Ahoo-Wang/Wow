@@ -21,7 +21,6 @@ import {
   emptyDashboardConfig,
   FIELD_CELL_IDS,
   FIELD_TONES,
-  isUsableDefinition,
   isViewCommandError,
   MemoryViewStore,
   validateDefinition,
@@ -31,6 +30,7 @@ import {
   type Issue,
   type ViewDefinition,
 } from '../src/index.js';
+import { isUsableDefinition } from '../src/runtime/validateDefinition.js';
 import {
   analysisConfig,
   ordersDefinition,

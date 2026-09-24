@@ -13,7 +13,6 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  comparePending,
   fitChartSlots,
   isPercentStacked,
   offersPercentStack,
@@ -27,6 +26,7 @@ import {
   type CartesianSpec,
   type ChartSpec,
 } from '../src/index.js';
+import { comparePending } from '../src/runtime/pending.js';
 import {
   cartesianOption,
   type CartesianContext,

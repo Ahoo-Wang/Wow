@@ -271,6 +271,16 @@
   - 联合审查 R3 的界面一半里**不改行为的重构**（工作台与嵌入共用搭建外壳 A-14／Q-06，拆分与去重 Q-05、Q-07～Q-13，A-15）挪到迁移之后在 Wow 仓做；fetcher 只留用户看得到的修复（R3b：编辑条吸顶、`place` 纳入非搭建态拒绝、A-11、两处界面读 `dashboard.issues`）。代价：迁过去的代码带着已知的重复，清单在 [todo.md](todo.md) 检查点一节。
   - 迁移开工前「`gh pr list` 为空」放宽为「**没有碰迁移路径的开着的 PR**」：与 view-engine 无关的 PR（依赖升级、cosec、retry 等）留着，由用户自己处理。
 
+## D29 公开面逐名守着，运行时只导出宿主要握的（2026-09-24）
+
+- **来由**：审查 A-16。根入口一层层 `export *`，连运行时的内部件（`RuntimeStore`、`RequestRunner`、`listenerSet` 等）一起导出；首发之后每一个多余的导出都是兼容负担，而 README 的入口表只守「列出的名字真从那个入口导出」，不守入口多导出了什么。
+- **裁定**（首发前，按 [README.md「Entries」](../../README.md#entries) 与本目录各页定）：
+  - **每个代码入口的导出逐名记成清单**（`test/surface/root.txt`、`react.txt`、`ui.txt`，每行一个名字、注明类型还是值），`test/publicSurface.test.ts` 从源码入口读出来比对，`scripts/verify-package.mjs` 再拿它核对构建出的 JS 入口。改清单就是改公开面，在评审里单独看得见；用 `vitest -u` 有意更新。
+  - **运行时逐名导出，只导出宿主要握的**：`ViewEngine` 与它的选项、运行时合同（`ViewRuntime`、`RecordViewRuntime`、`DashboardRuntime`、`AnyViewRuntime` 与它们签名里出现的每一个类型）、`hasResult`／`hasAsked`／`isRecordRuntime` 三个读法、写入错误与 `ExportCancelled`、`RuntimeEnvironment` 与 `ViewSource`／`OptionSource` 两个端口、`validateDefinition`。其余 60 个名字不出包：调度器（`RequestRunner` 一族）、`RuntimeStore`、计时器、`listenerSet`、运行时的类与 `dataViewRuntime`、`ManagedViewRuntime`／`ViewRuntimeOptions` 这类只给引擎的合同，以及 `/react`、`/ui` 共用的读法（`comparePending`、`boardFindings`、`sourceReason` 等）——这两层从各自的文件取，不经入口。
+  - **运行时只经引擎打开或新建，不手搭**：`dataViewRuntime` 与 `RequestRunner` 一并收回，公开签名里原本写着类 `DataViewRuntime` 的地方（`DashboardRuntime.panelRuntime`、`DashboardPanelState.runtime`、`/react` 的 `DashboardPanelView.runtime`、`usePanelFollowUps`）改成合同 `ViewRuntime<DataViewConfig>`，`isRecordRuntime` 收窄到 `RecordViewRuntime`。条件编辑器对未注册类型的只读防护照旧由单元测试直接搭 runtime 验；故事改为引擎可达的那一条——注册了却要一个引擎没有的编辑器（`FilterPanel.stories.tsx`「UnknownEditor」）。
+  - 内核与模型仍整层导出：它们是纯函数与类型，「只用内核，不用 React」就是它们的用法；清单让它们的增减同样看得见。
+- **落点**：`src/runtime/index.ts`、`test/publicSurface.test.ts`、`test/surface/`、`scripts/verify-package.mjs`、[README.md「Entries」](../../README.md#entries)、[README.md](README.md)「包入口」。
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。

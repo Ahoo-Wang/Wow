@@ -29,8 +29,6 @@ import {
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  AUTO_APPLY_DELAY_MS,
-  DashboardViewRuntime,
   MemoryViewStore,
   ViewEngine,
   type AnalysisViewConfig,
@@ -41,6 +39,8 @@ import {
   type ViewInstance,
   type ViewSource,
 } from '../src/index.js';
+import { AUTO_APPLY_DELAY_MS } from '../src/runtime/autoApply.js';
+import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import { useDashboard } from '../src/react/index.js';
 import {
   analysisConfig,

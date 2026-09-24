@@ -22,11 +22,8 @@ import {
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PagedList } from '@ahoo-wang/wow-client';
-import {
-  MemoryViewStore,
-  ViewEngine,
-  conditionsDrifted,
-} from '../src/index.js';
+import { MemoryViewStore, ViewEngine } from '../src/index.js';
+import { conditionsDrifted } from '../src/runtime/savedConditions.js';
 import type {
   FilterNode,
   FilterTree,

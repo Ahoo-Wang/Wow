@@ -35,7 +35,6 @@ import {
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
-  DashboardViewRuntime,
   MemoryViewStore,
   ViewEngine,
   type DashboardField,
@@ -44,6 +43,7 @@ import {
   type DataViewDefinition,
   type ViewInstance,
 } from '../src/index.js';
+import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import { useDashboard, useFilterEditor } from '../src/react/index.js';
 import { DashboardWorkbench } from '../src/ui/index.js';
 import { FilterBar } from '../src/ui/dashboard/FilterBar.js';

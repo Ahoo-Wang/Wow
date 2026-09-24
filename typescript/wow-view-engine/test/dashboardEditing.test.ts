@@ -23,12 +23,10 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  DashboardViewRuntime,
   MemoryViewStore,
   ViewEngine,
   ViewStoreError,
   isViewCommandError,
-  stopsSave,
   type DashboardPanel,
   type DashboardViewConfig,
   type FilterTree,
@@ -36,6 +34,8 @@ import {
   type ViewInstance,
   type ViewScope,
 } from '../src/index.js';
+import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
+import { stopsSave } from '../src/runtime/dashboard/panels.js';
 import { useSaveCommands } from '../src/react/index.js';
 import {
   analysisConfig,

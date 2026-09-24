@@ -20,7 +20,6 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  DashboardViewRuntime,
   MemoryViewStore,
   ViewEngine,
   type DashboardPanel,
@@ -28,6 +27,7 @@ import {
   type FilterTree,
   type ViewInstance,
 } from '../src/index.js';
+import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import {
   dashboardConfig,
   nextTask,

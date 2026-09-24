@@ -19,7 +19,7 @@ import displayMeta, {
   NumberList as DisplayNumberList,
   Reference as DisplayReference,
   Simple as DisplaySimple,
-  UnregisteredKind as DisplayUnregisteredKind,
+  UnknownEditor as DisplayUnknownEditor,
   WithTime as DisplayWithTime,
 } from './FilterPanel.stories.js';
 import { amountOf, readColumn, readTotal } from './readTable.js';
@@ -692,12 +692,13 @@ export const TheCalendarSpeaksTheSurfaceLanguage: Story = {
 };
 
 /**
- * A condition on a field whose kind no registry knows (F-06): drawn
- * read-only with the stored value and the reason, its ✕ still working; the
- * condition beside it stays editable; Apply is refused with the count.
+ * A condition on a field whose kind asks for an editor the engine does not
+ * have (F-06): drawn read-only with the stored value and the reason, its ✕
+ * still working; the condition beside it stays editable; Apply is refused
+ * with the count.
  */
-export const UnregisteredKind: Story = {
-  ...DisplayUnregisteredKind,
+export const UnknownEditor: Story = {
+  ...DisplayUnknownEditor,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const unsupported = await waitFor(() => {

@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-import type { PanelClick, RecordData } from '../../model/index.js';
+import type {
+  DataViewConfig,
+  PanelClick,
+  RecordData,
+} from '../../model/index.js';
 import type {
   DashboardController,
   DashboardPanelView,
@@ -20,8 +24,8 @@ import type {
   CrossFilterOutcome,
   HandOver,
   ViewNavigation,
-  DataViewRuntime,
   PressDestination,
+  ViewRuntime,
 } from '../../runtime/index.js';
 import { describeFilter } from '../../filter/index.js';
 import type { DisplayContext } from '../display.js';
@@ -85,7 +89,7 @@ export function pressMode(press: PanelPress | undefined): PressMode | null {
  * (D22 H, 「仓库 是 华南 · 本月」); `undefined` when none reaches it.
  */
 export function boardContext(
-  runtime: DataViewRuntime,
+  runtime: ViewRuntime<DataViewConfig>,
   messages: MessageFormatters,
   display: DisplayContext,
 ): string | undefined {

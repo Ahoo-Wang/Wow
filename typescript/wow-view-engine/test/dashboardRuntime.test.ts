@@ -15,11 +15,8 @@ import { FilterOperator, type FilterPagedQuery } from '@ahoo-wang/wow-client';
 import { describe, expect, it, vi } from 'vitest';
 import {
   builtinFieldKinds,
-  DashboardViewRuntime,
-  dataViewRuntime,
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
-  RequestRunner,
   ViewEngine,
   emptyDashboardConfig,
   withFieldKinds,
@@ -36,6 +33,9 @@ import {
   type ViewScope,
   type ViewSource,
 } from '../src/index.js';
+import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
+import { dataViewRuntime } from '../src/runtime/recordRuntime.js';
+import { RequestRunner } from '../src/runtime/requestRunner.js';
 import {
   analysisConfig,
   dashboardConfig,

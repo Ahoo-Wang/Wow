@@ -30,7 +30,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
-  resultIssues,
   type AnalysisViewConfig,
   type DataViewConfig,
   type ProjectedView,
@@ -38,6 +37,7 @@ import {
   type ViewInstance,
   type ViewSource,
 } from '../src/index.js';
+import { resultIssues } from '../src/runtime/source.js';
 import {
   DataWorkbench,
   EmbeddedView,

@@ -36,6 +36,10 @@ export default defineConfig(({ mode }) => ({
     // The browser APIs jsdom lacks and `@dnd-kit/dom` reaches for as it is
     // imported; see `test/setup.ts`.
     setupFiles: ['test/setup.ts'],
+    // Whole-flow UI tests drive a board through user-event on jsdom: ~2 s
+    // locally, past vitest's 5 s default on a loaded CI runner. A test that
+    // really hangs still fails, at 15 s.
+    testTimeout: 15_000,
     clearMocks: true,
     restoreMocks: true,
     coverage: {

@@ -21,7 +21,6 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import {
-  DashboardViewRuntime,
   MemoryViewStore,
   ViewEngine,
   ViewStoreError,
@@ -29,6 +28,7 @@ import {
   type DashboardViewConfig,
   type ViewInstance,
 } from '../src/index.js';
+import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import {
   analysisConfig,
   dashboardConfig,

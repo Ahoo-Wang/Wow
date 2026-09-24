@@ -18,11 +18,9 @@ import type {
   FieldOption,
   RecordData,
 } from '../../model/index.js';
-import {
-  CUT_SHORT_CODES,
-  resultIssues,
-  type ViewRuntime,
-} from '../../runtime/index.js';
+import type { ViewRuntime } from '../../runtime/index.js';
+import { CUT_SHORT_CODES } from '../../runtime/execute.js';
+import { resultIssues } from '../../runtime/source.js';
 import {
   useAnalysisEditor,
   useSearchBox,

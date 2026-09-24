@@ -12,10 +12,10 @@
  */
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
-import ts from 'typescript';
+import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { EDITOR_INPUTS } from '@/filter/index.js';
+import { entryExports, type Entry } from './fixtures/exports.js';
 
 const ROOT = join(import.meta.dirname, '..');
 const STORIES = join(ROOT, '../storybook/stories/view-engine');
@@ -142,68 +142,6 @@ describe('the stories the design pages cite', () => {
   });
 });
 
-/** The file a relative module specifier names, `.js` read as its source. */
-function moduleFile(from: string, specifier: string): string | null {
-  const base = resolve(dirname(from), specifier.replace(/\.js$/, ''));
-  return (
-    [`${base}.ts`, `${base}.tsx`, join(base, 'index.ts')].find(existsSync) ??
-    null
-  );
-}
-
-/**
- * Every name a module exports, following `export *` and `export { … } from`
- * through the source tree — values and types alike, since a README's table
- * names both. Read off the syntax, one file at a time: no program, no
- * checker, so this suite stays as quick as the rest of `test:docs`.
- */
-function exportedNames(file: string, seen = new Set<string>()): Set<string> {
-  const names = new Set<string>();
-  if (seen.has(file)) return names;
-  seen.add(file);
-  const source = ts.createSourceFile(
-    file,
-    readFileSync(file, 'utf8'),
-    ts.ScriptTarget.Latest,
-    false,
-    file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
-  );
-  for (const statement of source.statements) {
-    if (ts.isExportDeclaration(statement)) {
-      const clause = statement.exportClause;
-      const specifier = statement.moduleSpecifier;
-      if (clause && ts.isNamedExports(clause))
-        for (const element of clause.elements) names.add(element.name.text);
-      else if (clause) names.add(clause.name.text);
-      else if (specifier && ts.isStringLiteral(specifier)) {
-        const target = moduleFile(file, specifier.text);
-        if (target)
-          for (const name of exportedNames(target, seen)) names.add(name);
-      }
-      continue;
-    }
-    const exported =
-      ts.canHaveModifiers(statement) &&
-      ts
-        .getModifiers(statement)
-        ?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword);
-    if (!exported) continue;
-    if (ts.isVariableStatement(statement)) {
-      for (const declaration of statement.declarationList.declarations)
-        if (ts.isIdentifier(declaration.name)) names.add(declaration.name.text);
-    } else if (
-      (ts.isFunctionDeclaration(statement) ||
-        ts.isClassDeclaration(statement) ||
-        ts.isInterfaceDeclaration(statement) ||
-        ts.isTypeAliasDeclaration(statement) ||
-        ts.isEnumDeclaration(statement)) &&
-      statement.name
-    )
-      names.add(statement.name.text);
-  }
-  return names;
-}
-
 /**
  * The README's entry table is where a host looks up which import a name
  * comes from, and it once sent them to `/ui` for a hook that lives in
@@ -211,16 +149,14 @@ function exportedNames(file: string, seen = new Set<string>()): Set<string> {
  * a row lists has to be one that entry exports.
  */
 describe('the entries the READMEs list', () => {
-  const ENTRIES: Record<string, string> = {
-    '@ahoo-wang/wow-view-engine': 'src/index.ts',
-    '/react': 'src/react/index.ts',
-    '/ui': 'src/ui/index.ts',
+  /** The entries by the name a README row spells them under. */
+  const ENTRIES: Record<string, Entry> = {
+    '@ahoo-wang/wow-view-engine': '@ahoo-wang/wow-view-engine',
+    '/react': '@ahoo-wang/wow-view-engine/react',
+    '/ui': '@ahoo-wang/wow-view-engine/ui',
   };
   const exports = new Map(
-    Object.entries(ENTRIES).map(([entry, file]) => [
-      entry,
-      exportedNames(join(ROOT, file)),
-    ]),
+    Object.entries(ENTRIES).map(([row, entry]) => [row, entryExports(entry)]),
   );
   const rows = sources
     .filter(({ at }) => READMES.includes(at))

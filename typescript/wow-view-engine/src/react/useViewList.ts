@@ -18,7 +18,8 @@ import type {
   ViewKind,
   ViewPreferences,
 } from '../model/index.js';
-import { orderSummaries, type ViewEngine } from '../runtime/index.js';
+import type { ViewEngine } from '../runtime/index.js';
+import { orderSummaries } from '../runtime/preferences.js';
 import type { ViewPermissions } from '../store/ViewStore.js';
 import { toIssue } from './issues.js';
 
