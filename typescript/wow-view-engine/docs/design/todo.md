@@ -19,14 +19,10 @@
   - 落点：`src/filter/describe.ts`（同一字段的 `GTE`＋`LT` 合读成一段，像 `period` 那样交出）、`src/ui/summary.ts`。
 
 - **R3 的界面重构——到 Wow 仓做**（[D28](decisions.md#d28-r3-的界面重构到-wow-做迁移前提放宽2026-09-24)）：阶段 3＋4 联合审查里不改行为的界面重构，迁移后在 Wow 做。
-  - A-14／Q-06：工作台与嵌入共用一份搭建外壳（编辑按钮、完成／取消后焦点回「编辑」、离开守卫、`onTabChange`／`onFiltersChange` 两个上报）。
   - Q-05 界面：`DashboardPanel`（圈复杂度 50）标题行的六种标记抽成一个组件；`ClickForm`（49）的九个状态收拢、`wanted()` 下沉为内核纯函数；`panelCommands` 按「看」「改」拆开；`DashboardTabs.tsx`、`ExportDialog.tsx` 贴近 500 行。
-  - Q-07 界面：`ui/dashboard/commands.ts` 的 `hasOwnLook`、`PresentationDialog.tsx` 的 `hasLook`、`PanelBodies.tsx` 的 `presentationMark` 改用内核的 `presentationMembersOf`。
-  - Q-08 界面：`filterModes.ts` 与 `PresentationDialog.tsx` 两份语义不同的 `sameValue` 收成一份。
-  - Q-09 可视化面板的两层与焦点跟随在 `PresentationDialog` 与 `AnalysisParts` 各写一份，`ignore`／`NO_ROWS` 也各一份；Q-10 三份原地改名输入框（面板菜单、标签栏、视图管理行）行为各异，收成一个；Q-11 六份拖拽可达性插件样板收成一个共用的插件工厂。
-  - Q-12 界面：`ui/dashboard/history.ts` 的 `usable` 改成类型守卫（去掉 `node!`），`PresentationDialog.tsx` 的 `as unknown as Record<string, unknown>`。
+  - Q-08 界面的余项：两份 `sameValue` 已收成 `filterModes.ts` 那一份（`PresentationDialog.tsx` 引它）；还差改成说出语义的名字（如 `sameJson`）并挪出 `filterModes.ts`，要连带改 `FilterBar.tsx` 的引用，等那边的并行工作合并后做。
+  - Q-10 三份原地改名输入框（面板菜单、标签栏、视图管理行）行为各异，收成一个；Q-11 六份拖拽可达性插件样板收成一个共用的插件工厂。
   - Q-13：`useExportOffer` 自己取 `messages`／`display` 并交回 `columns`／`max`，`PanelExport`、`EmbeddedRecord`、`RecordParts` 只传 `runtime, table, filter, title`。
-  - A-15：`ui/index.ts` 开头「只读控制器」的承诺改成「纯内核读法可以直接用，有状态的判断走控制器」，或把有状态的判断上移到 `/react`。
   - 判据：行为不变的重构由现有测试守住；`max-lines` 豁免表仍为空。落点：`src/ui/`。
 
 - **分析面板与分析工作台的「导出数据…」**（[D25](decisions.md#d25-阶段-3-收尾的四条细化2026-09-24) Q28）——**到 Wow 仓做（阶段 5 起）**：检查点之后这里不开新工作。
@@ -42,6 +38,16 @@
   - 为什么：迁走之后它们只剩 decisions 里的半句话，排下一个阶段时看不到（审查 X-11）。
   - 判据：排进某个阶段时各自成为一条带判据的 TODO，或进 [decisions.md#搁置待议](decisions.md#搁置待议)；那时删掉这一条。
   - 落点：本页。
+
+## 阶段 5：内置多主题
+
+- **四批按方案做**（[phase5-themes.md](phase5-themes.md) 第 4 节，裁定 [D30](decisions.md#d30-阶段-5-内置多主题的十条裁定2026-09-24)）；每批的完成标准以方案为准，这里只列线索：
+  - 为什么：宿主要能引一个文件、挂一个属性就换上常见主题，而每一套预设、每一种明暗都守住本包的对比度承诺；图表换主题时要跟着重画。
+  - 5A 地基——判据：换 token 后图表重读（有单测），`FALLBACK` 与 `styles.css` 对齐，`--quiet-foreground` 推导，`--info` 删掉，行与卡片的焦点量出 ≥3:1；neutral 外观不变（焦点修复除外）。
+  - 5B 预设机制——判据：`/themes.css` 只声明 `--fve-*`（`verify-package` 断言），`data-fve-preset` 与面上的钉住属性、弹层照抄，`theme="system"` 跟随 `matchMedia`，都有测试。
+  - 5C 三套预设与暗色状态色——判据：`neutral`／`blue`／`slate` 在每套 × 每种明暗下对比度矩阵全绿，暗色状态色降饱和后字 ≥4.5:1。
+  - 5D 宿主与展示——判据：`shadcn-bridge.css` 让视图穿上补偿控制台的主题且控件边、焦点仍 ≥3:1；Storybook 有预设工具栏、「主题一览」与对比度矩阵；中英 README、[extension.md](extension.md)、[ui/README.md](ui/README.md) 同步。
+  - 落点：[phase5-themes.md](phase5-themes.md)；做完一批删一行，四批做完连同方案页一起并入 [ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)。
 
 ## 阶段 2 留下的线索（不做，或待产品口径）
 

@@ -11,14 +11,7 @@
  * limitations under the License.
  */
 
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-} from 'react';
-import { PencilIcon } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   audienceOf,
   type DashboardFilters,
@@ -36,17 +29,16 @@ import { blocksBoard } from '../runtime/dashboard/panels.js';
 import {
   useDashboard,
   useFilterEditor,
-  useLeaveGuard,
   useOpenView,
   useSaveCommands,
   useViewRuntime,
 } from '../react/index.js';
 import { Alert, AlertDescription, AlertTitle } from './components/alert.js';
-import { Button } from './components/button.js';
 import type { PanelHeadingLevel } from './DashboardPanel.js';
 import { SurfaceAnnouncer, useAnnouncer } from './Announcer.js';
 import { DashboardBoard, type BoardReading } from './dashboard/Board.js';
 import { useDashboardExtensions } from './dashboard/building.js';
+import { useBuildShell } from './dashboard/buildShell.js';
 import { DashboardTabs } from './dashboard/DashboardTabs.js';
 import { boardFindingNamer } from './dashboard/findings.js';
 import { DashboardEditExtensionsContext } from './dashboard/extensions.js';
@@ -276,39 +268,28 @@ function EmbeddedBoard({
       filtersNow,
     );
   }, [filtersNow, heldNames]);
-  useEffect(() => {
-    onFiltersChange?.(readerValues);
-  }, [readerValues, onFiltersChange]);
-  const shownTab = dashboard.tab;
-  useEffect(() => {
-    onTabChange?.(shownTab);
-  }, [shownTab, onTabChange]);
 
   // Building (D22 A), in the editable tier and for whoever may save the
   // board: 「编辑」 in the embed's first row, the edit bar over the board,
   // 「保存」 saving through the same commands the workbench's title bar has.
   // The state is the runtime's, so the board's timer waits on it (D26 Q39).
+  // The shell is the workbench's: 「编辑」, the keyboard going back to it,
+  // the host told of the tab and the reader's filters — and, as the embed's
+  // frame guards nothing, the leave guard over a board being built.
   const { building, setBuilding } = dashboard;
   const canEdit = interaction === 'editable' && commands.can.save;
   const editing = canEdit && building;
-  const editButton = useRef<HTMLButtonElement>(null);
-  const wasEditing = useRef(editing);
-  // The keyboard that pressed 保存 or 取消 goes back to 「编辑」, which comes
-  // back as the bar goes — only when it was lost with the bar.
-  useLayoutEffect(() => {
-    const ended = wasEditing.current && !editing;
-    wasEditing.current = editing;
-    if (!ended) return;
-    const active = document.activeElement;
-    if (active === null || active === document.body)
-      editButton.current?.focus();
-  }, [editing]);
-  // A board being built holds a draft nothing else keeps: closing the tab
-  // on it is asked about, as in the workbench. The host's own navigation
-  // does not come through here — it unmounts the embed.
-  useLeaveGuard(
-    editing && state ? { dirty: state.dirty, write: state.write } : null,
-  );
+  const { editButton } = useBuildShell({
+    dashboard,
+    messages,
+    canEdit,
+    editing,
+    guard: state ? { dirty: state.dirty, write: state.write } : null,
+    tab: dashboard.tab,
+    onTabChange,
+    filters: readerValues,
+    onFiltersChange,
+  });
 
   // The building's extensions — the new analysis, a panel's own look,
   // 另存为视图 and the tab bar — are the workbench's; only the tab bar is
@@ -367,18 +348,7 @@ function EmbeddedBoard({
         title={withTitle ? title : undefined}
         headingLevel={headingLevel}
       >
-        {canEdit && !editing && (
-          <Button
-            ref={editButton}
-            data-slot="dashboard-edit"
-            variant="outline"
-            size="sm"
-            onClick={() => setBuilding(true)}
-          >
-            <PencilIcon data-icon="inline-start" />
-            {messages.label('label.dashboard.edit')}
-          </Button>
-        )}
+        {editButton}
       </EmbedHead>
       {refused.length > 0 && (
         <Alert variant="destructive">

@@ -7,7 +7,7 @@ import tseslint from "typescript-eslint";
 import { globalIgnores } from "eslint/config";
 
 export default tseslint.config([
-  globalIgnores(["dist", "coverage", "src/generated/**"]),
+  globalIgnores(["dist", "coverage"]),
   {
     files: ["src/**/*.{ts,tsx}"],
     extends: [
@@ -38,6 +38,14 @@ export default tseslint.config([
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
+    },
+  },
+  {
+    // wow-generator maps free-form OpenAPI schemas (`{}`, `type: object`) and
+    // the decorator `attributes` parameter to `any`; every other rule applies.
+    files: ["src/generated/**/*.ts"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
     },
   },
 ]);

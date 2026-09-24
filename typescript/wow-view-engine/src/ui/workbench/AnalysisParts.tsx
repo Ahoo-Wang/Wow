@@ -16,7 +16,6 @@ import type {
   AnalysisSort,
   AnalysisViewConfig,
   FieldOption,
-  RecordData,
 } from '../../model/index.js';
 import type { ViewRuntime } from '../../runtime/index.js';
 import { CUT_SHORT_CODES } from '../../runtime/execute.js';
@@ -30,9 +29,12 @@ import {
 import { AnalysisChart } from '../AnalysisChart.js';
 import { AnalysisTable } from '../AnalysisTable.js';
 import { AnalysisToolbar } from '../analysis/AnalysisToolbar.js';
-import { ChartOptions } from '../analysis/ChartOptions.js';
-import { ChartPicker } from '../analysis/ChartPicker.js';
 import { Tray } from '../analysis/Tray.js';
+import {
+  useVisualizationFocus,
+  type VisualizationLevel,
+  visualizationPanel,
+} from '../analysis/VisualizationPanel.js';
 import { analysisIssueNamer } from '../analysis/issueNames.js';
 import { Button } from '../components/button.js';
 import { DrillMenu, type Pick as Pressed } from '../analysis/DrillMenu.js';
@@ -135,7 +137,7 @@ export function AnalysisParts({
   const nameIssue = analysisIssueNamer(analysis, messages);
 
   const result = useAnalysisResult(runtime, analysis, workbench);
-  const { view, question, chart, chartData, fits, picked } = result;
+  const { view, question, chart, chartData } = result;
   const layout = analysis.layout;
   // The headers order the groups by the column pressed, and run (the
   // record table's header does the same). A sort needs a dimension — Wow
@@ -146,50 +148,20 @@ export function AnalysisParts({
   // The visualization panel (D20 屏 I／J): open from the result's toolbar,
   // it takes the sidebar column, first as the chart types, then as the
   // chosen type's options; both fit the shape that ran.
-  const [panel, setPanel] = useState<'picker' | 'options' | null>(null);
+  const [panel, setPanel] = useState<VisualizationLevel | null>(null);
   // A host that switched the panel off has no panel, whatever this state
   // says: the one way in is the toolbar's button, which is gone with it, and
   // an absent feature is absent rather than merely unreachable.
   const level = shown.visualization ? panel : null;
-  /**
-   * The keyboard follows the level (A1).
-   *
-   * The panel takes the sidebar's column and replaces its own contents as
-   * the level changes, so every one of those changes used to leave the
-   * focus on an element that is no longer on the page — the press that
-   * opened it, the options button, the way back — and a focus with nothing
-   * under it falls to `<body>`. Each level therefore takes the keyboard to
-   * its own heading, except coming back from the options, which lands on the
-   * options button the user left by; closing the panel hands it back to the
-   * button that opened it. Both are where the user was.
-   *
-   * It is an effect keyed on the level rather than anything done inside the
-   * press: the heading does not exist until React has drawn the level, and
-   * a timer waiting for that would be a guess.
-   */
-  const heading = useRef<HTMLHeadingElement | null>(null);
-  const optionsButton = useRef<HTMLButtonElement | null>(null);
-  const visualizeRef = useRef<HTMLButtonElement | null>(null);
-  // Once anything was asked the button is there to go back to: the toolbar
+  // The keyboard follows the level (A1, `useVisualizationFocus`). Once
+  // anything was asked the button is there to go back to: the toolbar
   // stands from the moment a question is sent — an empty result and a
-  // failed one keep it. It used to go with the rows, so this effect kept a
+  // failed one keep it. It used to go with the rows, so the focus kept a
   // second landing (the result block) for a result that came back empty
   // under an open panel; that state no longer exists. The one other way in,
   // the status line's chart options over a chart refused before it ran, has
   // no result block to land on either: nothing was asked.
-  const was = useRef(level);
-  useEffect(() => {
-    const before = was.current;
-    if (before === level) return;
-    was.current = level;
-    if (level !== null) {
-      if (before === 'options' && level === 'picker' && optionsButton.current)
-        optionsButton.current.focus();
-      else heading.current?.focus();
-      return;
-    }
-    if (before !== null) visualizeRef.current?.focus();
-  }, [level]);
+  const focus = useVisualizationFocus(level);
   // The group the user pressed, on the chart or in the table, and the menu
   // over it (D20 追问). What the menu offers is the controller's; which row
   // was pressed, and where, is the screen's.
@@ -341,7 +313,7 @@ export function AnalysisParts({
         analysis={analysis}
         columns={result.columns}
         visualizing={level !== null}
-        visualizeRef={visualizeRef}
+        visualizeRef={focus.visualizeRef}
         {...(shown.visualization
           ? {
               onVisualize: (open: boolean) => setPanel(open ? 'picker' : null),
@@ -349,41 +321,22 @@ export function AnalysisParts({
           : {})}
       />
     ),
-    panel:
-      level === 'picker' ? (
-        <ChartPicker
-          headingRef={heading}
-          optionsRef={optionsButton}
-          fits={fits}
-          picked={picked}
-          onPick={result.choose}
-          onOptions={() => setPanel('options')}
-          onBack={() => setPanel(null)}
-          {...(visualizationBack === undefined
-            ? {}
-            : { backLabel: visualizationBack })}
-        />
-      ) : level === 'options' && question ? (
-        // Over the question, so the options work before the first answer
-        // and after it failed: the slots name its columns, and what reads
-        // rows — a funnel's stages in the order they came — has none yet.
-        <ChartOptions
-          headingRef={heading}
-          picked={picked}
-          chart={chart}
-          groups={question.groups}
-          metrics={question.metrics}
-          columns={result.columns}
-          rows={view?.rows ?? NO_ROWS}
-          totals={analysis.totals}
-          onTotals={on => {
-            analysis.setTotals(on);
-            analysis.submit();
-          }}
-          onChange={next => analysis.updateChart(next)}
-          onBack={() => setPanel('picker')}
-        />
-      ) : null,
+    panel: visualizationPanel({
+      level,
+      focus,
+      result,
+      totals: analysis.totals,
+      onTotals: on => {
+        analysis.setTotals(on);
+        analysis.submit();
+      },
+      onChange: next => analysis.updateChart(next),
+      onLevel: setPanel,
+      onBack: () => setPanel(null),
+      ...(visualizationBack === undefined
+        ? {}
+        : { backLabel: visualizationBack }),
+    }),
     // Dismissed as a drawer on a narrow screen: the panel's own way back.
     onPanelClose: () => setPanel(null),
     result: question && (
@@ -479,9 +432,6 @@ export function AnalysisParts({
     ),
   });
 }
-
-/** Stable identity for "no rows yet", so the options' memos stay quiet. */
-const NO_ROWS: readonly RecordData[] = [];
 
 /** What the analysis result hands the frame to dress (`ResultBlock.slots`). */
 const RESULT_SLOTS = resultSlots('caption');

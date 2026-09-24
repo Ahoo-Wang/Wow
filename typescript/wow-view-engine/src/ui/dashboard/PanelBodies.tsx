@@ -20,13 +20,13 @@
 
 import { useState } from 'react';
 import { UnplugIcon } from 'lucide-react';
-import {
-  PANEL_PRESENTATION_MEMBERS,
-  type AnalysisViewConfig,
-  type DataViewConfig,
-  type Issue,
-  type RecordData,
+import type {
+  AnalysisViewConfig,
+  DataViewConfig,
+  Issue,
+  RecordData,
 } from '../../model/index.js';
+import { presentationMembersOf } from '../../dashboard/index.js';
 import {
   useAnalysisEditor,
   useAnalysisResult,
@@ -258,12 +258,7 @@ export function presentationMark(
   panel: DashboardPanelView,
   messages: MessageFormatters,
 ): string | null {
-  if (panel.panel.kind !== 'view') return null;
-  const look: unknown = panel.panel.presentation;
-  if (typeof look !== 'object' || look === null) return null;
-  const set = Object.keys(look).filter(key =>
-    (PANEL_PRESENTATION_MEMBERS as readonly string[]).includes(key),
-  );
+  const set = presentationMembersOf(panel.panel);
   if (set.length === 0) return null;
   if (
     panel.issues.some(
