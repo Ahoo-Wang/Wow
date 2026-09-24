@@ -136,6 +136,9 @@ Optionality that the document genuinely means is carried where it belongs:
   document's `required`, so a caller may still omit what the API says is
   optional - `AddCartItemCommand = CommandBody<PartialBy<AddCartItem,
 'quantity'>>`. Requiring the model never narrows what a client may send.
+- **API client bodies** are wrapped the same way: a JSON request body is
+  `PartialBy<Model, 'field' | ...>` for the properties its schema leaves out of
+  `required`.
 
 One consequence is worth knowing: a non-nullable property that references its
 own schema has no finite literal, since every level needs the next. A recursive
@@ -145,7 +148,8 @@ constructs fine.
 ## Core capabilities
 
 - Local JSON/YAML and HTTP(S) OpenAPI input.
-- TypeScript models and decorator API clients grouped by tag.
+- TypeScript models and decorator API clients grouped by tag, with typed path,
+  query and header parameters and request bodies, required ones first.
 - Wow bounded-context, command, snapshot, event, and query discovery.
 - Recursive `index.ts` generation and ts-morph formatting.
 - Programmatic `CodeGenerator` API with injectable logging, returning the files

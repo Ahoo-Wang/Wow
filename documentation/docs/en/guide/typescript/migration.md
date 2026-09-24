@@ -123,6 +123,7 @@ Review the diff. Besides the import specifier, the 9.x generator changes generat
 - Command clients merge the `apiMetadata` passed to the constructor over their defaults, so `new CartCommandClient({ fetcher })` keeps the bounded-context base path. Code that reached a service directly without that prefix passes `basePath: ''` now.
 - A query client factory's `aggregateName` is the aggregate's route segment, and its fields type is `` `${CartAggregatedFields}` ``. A query annotated as `ListQuery` or `FilterListQuery` names the fields: `` ListQuery<`${CartAggregatedFields}`> ``.
 - In a document that is not from Wow, API clients keep `tenantId` and `ownerId` path parameters; only Wow documents leave them to the interceptor by default.
+- API client methods take query and header parameters and the request body as typed positional parameters before `httpRequest`, required ones first. A call that passed them in `httpRequest` (`urlParams.query`, `headers`, `body`) passes them as arguments now; `httpRequest` stays for anything else.
 
 Treat any other difference as a generator change and review it like a contract change. Regenerate instead of rewriting the imports inside generated files by hand: generation owns those files, see [generated output and regeneration](../../reference/typescript/wow-generator/generated-output.md).
 

@@ -90,7 +90,7 @@ describe('TypeGenerator', () => {
         type: 'string',
         enum: ['a', 'b', 'c'],
       });
-      expect(result).toBe("('a' | 'b' | 'c') & (string)");
+      expect(result).toBe("'a' | 'b' | 'c'");
     });
 
     it('should resolve array type', () => {

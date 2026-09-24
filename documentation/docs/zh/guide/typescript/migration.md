@@ -123,6 +123,7 @@ pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated -t ./tscon
 - 命令客户端把构造器收到的 `apiMetadata` 合并到默认值之上，所以 `new CartCommandClient({ fetcher })` 保留限界上下文的基础路径。原先不带这个前缀直接访问服务的代码，现在需要传 `basePath: ''`。
 - 查询客户端工厂的 `aggregateName` 是聚合的路由段，字段类型为 `` `${CartAggregatedFields}` ``。标注为 `ListQuery` 或 `FilterListQuery` 的查询需要写明字段类型：`` ListQuery<`${CartAggregatedFields}`> ``。
 - 不是来自 Wow 的文档，其 API 客户端保留 `tenantId` 和 `ownerId` 路径参数；只有 Wow 文档默认把它们交给拦截器。
+- API 客户端方法把 query、header 参数和请求体作为带类型的位置参数，放在 `httpRequest` 之前，必填的在前。原先通过 `httpRequest`（`urlParams.query`、`headers`、`body`）传入它们的调用，现在改为按参数传入；`httpRequest` 仍用于其他内容。
 
 其他差异都属于生成器的变化，要像审查契约变更一样审查。请重新生成，不要手工改生成文件里的导入：这些文件归生成器所有，见[生成输出与重新生成](../../reference/typescript/wow-generator/generated-output.md)。
 

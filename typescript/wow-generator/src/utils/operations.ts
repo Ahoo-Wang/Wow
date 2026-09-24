@@ -172,6 +172,26 @@ export function extractOperationOkResponseJsonSchema(
 }
 
 /**
+ * Extracts the parameters of an operation, references resolved, in document
+ * order.
+ * @param operation - The OpenAPI operation
+ * @param components - The OpenAPI components object used to resolve references
+ * @returns The parameters
+ */
+export function extractParameters(
+  operation: Operation,
+  components: Components,
+): Parameter[] {
+  return (operation.parameters ?? [])
+    .map(parameter =>
+      isReference(parameter)
+        ? extractParameter(parameter, components)
+        : parameter,
+    )
+    .filter((parameter): parameter is Parameter => parameter !== undefined);
+}
+
+/**
  * Extracts path parameters from an operation.
  * @param operation - The OpenAPI operation to extract path parameters from
  * @param components - The OpenAPI components object used to resolve references
