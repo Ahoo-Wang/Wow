@@ -1,0 +1,123 @@
+{
+  "name": "@ahoo-wang/wow-view-engine",
+  "version": "9.1.5",
+  "description": "Configurable data view engine for Wow-based business applications: definitions in code, view configs as data, records, analyses and dashboards.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "author": "Ahoo-Wang",
+  "homepage": "https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ahoo-Wang/Wow.git",
+    "directory": "typescript/wow-view-engine"
+  },
+  "bugs": {
+    "url": "https://github.com/Ahoo-Wang/Wow/issues"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "import": "./dist/react.js"
+    },
+    "./ui": {
+      "types": "./dist/ui/index.d.ts",
+      "import": "./dist/ui.js"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "files": [
+    "dist",
+    "docs/design",
+    "README.md",
+    "README.zh-CN.md",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "scripts": {
+    "build": "vite build && pnpm test:package",
+    "test": "vitest run --coverage && pnpm test:type",
+    "test:no-coverage": "vitest run --coverage.enabled=false && pnpm test:type",
+    "test:docs": "vitest run --coverage.enabled=false test/docsReferences.test.ts test/agentsStructure.test.ts test/quickstart.test.ts",
+    "test:type": "tsc --noEmit -p tsconfig.json && tsc -p tsconfig.headless.json && tsc -p tsconfig.test.json",
+    "test:package": "node scripts/verify-package.mjs",
+    "lint": "eslint . --fix",
+    "lint:check": "eslint . --max-warnings 0",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@base-ui/react": "catalog:",
+    "@dnd-kit/dom": "catalog:",
+    "@dnd-kit/react": "catalog:",
+    "class-variance-authority": "catalog:",
+    "cn": "catalog:",
+    "culori": "catalog:",
+    "dayjs": "catalog:",
+    "dequal": "catalog:",
+    "echarts": "catalog:",
+    "lucide-react": "catalog:",
+    "react-day-picker": "catalog:",
+    "react-error-boundary": "catalog:",
+    "react-grid-layout": "catalog:",
+    "react-markdown": "catalog:"
+  },
+  "peerDependencies": {
+    "@ahoo-wang/wow-client": "workspace:~",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@ahoo-wang/fetcher": "catalog:",
+    "@ahoo-wang/fetcher-decorator": "catalog:",
+    "@ahoo-wang/fetcher-eventstream": "catalog:",
+    "@ahoo-wang/wow-client": "workspace:~",
+    "@eslint/js": "catalog:",
+    "@rolldown/plugin-babel": "catalog:",
+    "@tailwindcss/vite": "catalog:",
+    "@testing-library/react": "catalog:",
+    "@testing-library/user-event": "catalog:",
+    "@types/culori": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "axe-core": "catalog:",
+    "babel-plugin-react-compiler": "catalog:",
+    "eslint": "catalog:",
+    "eslint-plugin-react-hooks": "catalog:",
+    "globals": "catalog:",
+    "jsdom": "catalog:",
+    "postcss": "catalog:",
+    "postcss-prefix-selector": "catalog:",
+    "prettier": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "shadcn": "catalog:",
+    "tailwindcss": "catalog:",
+    "tw-animate-css": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "unplugin-dts": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

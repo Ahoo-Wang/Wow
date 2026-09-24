@@ -8,12 +8,14 @@ The packages that move here from [fetcher](https://github.com/Ahoo-Wang/fetcher)
 
 ## Packages
 
-| Directory           | Package                                                                               | Published | Moved from fetcher                        |
-| ------------------- | ------------------------------------------------------------------------------------- | --------- | ----------------------------------------- |
-| `wow-client/`       | `@ahoo-wang/wow-client`                                                               | yes       | `@ahoo-wang/fetcher-wow`                  |
-| `wow-react/`        | `@ahoo-wang/wow-react`                                                                | yes       | Wow hooks of `@ahoo-wang/fetcher-react`   |
-| `wow-generator/`    | `@ahoo-wang/wow-generator` (CLI `wow-generator`, alias `fetcher-generator` until v10) | yes       | `@ahoo-wang/fetcher-generator`            |
-| `integration-test/` | `wow-integration-test`                                                                | never     | wow cases of fetcher's `integration-test` |
+| Directory           | Package                                                                               | Published                                  | Moved from fetcher                                                       |
+| ------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------ |
+| `wow-client/`       | `@ahoo-wang/wow-client`                                                               | yes                                        | `@ahoo-wang/fetcher-wow`                                                 |
+| `wow-react/`        | `@ahoo-wang/wow-react`                                                                | yes                                        | Wow hooks of `@ahoo-wang/fetcher-react`                                  |
+| `wow-generator/`    | `@ahoo-wang/wow-generator` (CLI `wow-generator`, alias `fetcher-generator` until v10) | yes                                        | `@ahoo-wang/fetcher-generator`                                           |
+| `wow-view-engine/`  | `@ahoo-wang/wow-view-engine`                                                          | not yet (`HELD_BACK` in `publish-npm.mjs`) | `@ahoo-wang/fetcher-view-engine`                                         |
+| `storybook/`        | `wow-storybook`                                                                       | never                                      | fetcher's `.storybook` and the view-engine, shared and Wow query stories |
+| `integration-test/` | `wow-integration-test`                                                                | never                                      | wow cases of fetcher's `integration-test`                                |
 
 Each package keeps its own `AGENTS.md` with package-specific rules. Generated code imports `@ahoo-wang/wow-client`.
 
