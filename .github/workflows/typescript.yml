@@ -67,6 +67,12 @@ jobs:
           cache: pnpm
       - name: Check CI scripts
         run: pnpm test:ci-scripts
+      # gradle.properties is the one version source; every package.json follows it.
+      - name: Check package versions
+        run: node .github/scripts/project-version.mjs check
+      # Compatibility markers in typescript/*/src and docs/compat-debt.md agree.
+      - name: Check compatibility-debt ledger
+        run: node .github/scripts/compat-debt.mjs
       - run: pnpm install --frozen-lockfile
       - name: Check changed-file formatting
         env:
@@ -87,6 +93,10 @@ jobs:
     if: needs.scope.outputs.typescript == 'true'
     timeout-minutes: 30
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Codecov upload through OIDC.
+      id-token: write
     strategy:
       fail-fast: false
       matrix:
@@ -108,6 +118,16 @@ jobs:
         run: pnpm build:typescript
       - name: Test packages
         run: pnpm test
+      - name: Upload TypeScript coverage
+        if: matrix.node-version == 24
+        uses: codecov/codecov-action@v7
+        with:
+          use_oidc: true
+          flags: typescript
+          name: typescript-unit
+          fail_ci_if_error: true
+          disable_search: true
+          files: ./typescript/wow-client/coverage/coverage-final.json,./typescript/wow-react/coverage/coverage-final.json,./typescript/wow-generator/coverage/coverage-final.json
 
   docs:
     name: Documentation
