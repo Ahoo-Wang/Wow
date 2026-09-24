@@ -241,10 +241,11 @@ Wow 文档站（wow.ahoo.me，VitePress）已经这样挂了一份 dokka：放�
 
 ### 已完成
 
-| 步骤         | 内容                                                                                                 | PR                |
-| ------------ | ---------------------------------------------------------------------------------------------------- | ----------------- |
-| P0           | fetcher 的项目记忆复制进 Wow 的项目记忆（见记忆 `fetcher-memories-imported`）                        | —（fetcher 会话） |
-| W1 = 第 1 步 | 根目录工作区、工具链、CI 骨架，dashboard 与 documentation 并入，shadcn skill，`typescript/AGENTS.md` | Wow #3281         |
+| 步骤         | 内容                                                                                                                                                                                                             | PR                     |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| P0           | fetcher 的项目记忆复制进 Wow 的项目记忆（见记忆 `fetcher-memories-imported`）                                                                                                                                    | —（fetcher 会话）      |
+| F1 = 第 0 步 | fetcher 发布 5.1.3（fetcher-react 新增 `/fetcher` 子路径、fetcher-wow 改为可选 peer），tag `wow-migration-base` → `b80bb102107faafa24a1cc370e43459e02a53c87`，`5.x` 从同一提交拉出；fetcher 里要迁的路径从此冻结 | Ahoo-Wang/fetcher#1899 |
+| W1 = 第 1 步 | 根目录工作区、工具链、CI 骨架，dashboard 与 documentation 并入，shadcn skill，`typescript/AGENTS.md`                                                                                                             | Wow #3281              |
 
 W1 的具体做法（W2 起沿用）：
 
@@ -258,11 +259,18 @@ W1 的具体做法（W2 起沿用）：
 
 ### 在飞
 
-- F1 = 第 0 步（fetcher 会话）：Ahoo-Wang/fetcher#1899（发 5.1.3：fetcher-wow 可选 peer、`/fetcher` 子路径、5.x 流水线），合并后打 tag `wow-migration-base` 并推 `5.x`。
-- Wow 侧暂无在飞 PR。
+- **W2a 导入历史**（Wow 会话，分支 `typescript/w2-import`，**用 merge commit 合并**）：
+  - `git filter-repo` 在临时克隆里运行，只保留 `packages/wow`、`packages/generator`、`packages/react/{src,test}/wow`、`integration-test`，把它们改名到 `typescript/…`；提交信息里所有 `#编号` 改写成 `Ahoo-Wang/fetcher#编号`（比方案写的 `(#1234)` 更宽，正文里的编号也要指回 fetcher）；临时克隆的 tag 全部删除，不带进 Wow。导入后树与 tag 逐文件一致（265 个文件，938 个提交）。
+  - 收尾提交：integration-test 删掉 decorator/fetcher/openai/cosec 的核心用例；包名改为 `@ahoo-wang/wow-client`、`@ahoo-wang/wow-react`、`@ahoo-wang/wow-generator`、`wow-integration-test`，版本 `9.1.5`；对 fetcher 的依赖都改成 peer + catalog（`^5.1.0 || ^6.0.0`，fetcher-react 为 `^5.1.3 || ^6.0.0`），内部 `workspace:~`；wow-react 新建为独立包，只从 fetcher-react 的 `/core`、`/fetcher` 导入；生成器命令改名 `wow-generator`（保留 `fetcher-generator` 别名），生成代码改为导入 `@ahoo-wang/wow-client`，e2e 快照随之更新；各包 tsconfig 继承 `tsconfig.base.json`；`typescript.yml` 的 unit 与 quality 先 `pnpm build:typescript` 再测；`pnpm lint` 改为在各包内各跑 eslint（从根目录一次跑会因多个 tsconfig 根报错；导入代码有 77 条既有 warning，与 fetcher CI 一样不拦）。
+  - 生成器的配置文件名 `fetcher-generator.config.json` 和生成清单 `.fetcher-generator.json` **暂不改名**：改了会让已有项目读不到配置、清不掉旧文件。W2c 记进兼容债务清单，v10 前改为新名并兼容读取旧名。
+- **并行的子代理**（从 main 开 worktree，PR 等 W2a 合并后再合）：
+  - skills：`fetcher-wow-cqrs` → `skills/wow-client`、`fetcher-openapi-generator` → `skills/wow-generator`，并入 `ahoo-wow-skills` 插件，扩展 `scripts/validate_wow_skills.py`（用户 2026-09-24 定）。
+  - W4：fetcher wiki 里 wow、generator、view-engine、wow-react 的章节中英文并入 `documentation/`，另加一页从 fetcher-* 迁移到 wow-* 的指南。
 
 ### 下一步
 
-1. **W2 等 fetcher 上出现 tag**：`git ls-remote --tags https://github.com/Ahoo-Wang/fetcher.git wow-migration-base` 有输出才开始（fetcher 会话会在 #1899 合并、5.1.3 发布、打 tag 并推 `5.x` 后通知）。开工前先把步骤和会碰到的仓库操作列给用户确认。
-2. W2 要点（除「时机与步骤」表里的内容外）：wow-react 只从 `@ahoo-wang/fetcher-react/core` 与 `@ahoo-wang/fetcher-react/fetcher` 导入，迁入时改掉 `../core/index.js`、`../../fetcher/index.js` 这类相对引用，对 fetcher-react 的 peer 范围写 `^5.1.3 || ^6`；在 `ci-scope.mjs` 里为新目录（契约测试涉及的 `schema/`、`example/`、`gradle.properties` 版本校验等）重新分类并补测试。
-3. #1899 合并到 fetcher main 后，与 main 上的方案原文核对一次，有差异就同步进本文。
+1. W2a 合并（merge commit，需用户点头）后：并行做 W2b（`typescript-contract.yml`：同源契约 + 8.10.8/8.11.5 旧服务端矩阵）与 W2c（`package-deploy.yml` 的 `npm-deploy` job、升版本脚本与版本一致性检查、`docs/compat-debt.md` 与标记检查、发版准入、`incubatingProjects`、TS 覆盖率上传 codecov）。
+2. dashboard 改用 `workspace:` 依赖（`@ahoo-wang/wow-client`，并把 `src/generated` 的导入改成新包），单独一个小 PR。
+3. npm 可信发布需要用户在 npmjs.com 为三个包绑定 GitHub workflow；若 npm 要求包先存在，首发由用户用 token 手动发一次。
+4. W3（view-engine 与 storybook）在 W2 合并后开始；fetcher 的 view-engine `docs/design/todo.md` 检查点一节列了要在 Wow 做的清单。
+5. W2、W3 合并后通知 fetcher 会话做第 3′ 步。

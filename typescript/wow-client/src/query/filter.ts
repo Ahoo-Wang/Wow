@@ -1,0 +1,1015 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { DeletionState } from './condition.js';
+import { queryField } from './queryField.js';
+
+export type QueryField<FIELDS extends string = string> = FIELDS;
+/** @deprecated Use QueryField instead. */
+export type LogicalField<FIELDS extends string = string> = QueryField<FIELDS>;
+export type FilterLiteral = null | string | number | boolean;
+export type EqualityFilterValue = FilterLiteral;
+export type ComparableFilterLiteral = Exclude<FilterLiteral, null>;
+
+export enum FilterOperator {
+  MATCH_ALL = 'MATCH_ALL',
+  MATCH_NONE = 'MATCH_NONE',
+  ID = 'ID',
+  IDS = 'IDS',
+  AGGREGATE_ID = 'AGGREGATE_ID',
+  AGGREGATE_IDS = 'AGGREGATE_IDS',
+  TENANT_ID = 'TENANT_ID',
+  OWNER_ID = 'OWNER_ID',
+  SPACE_ID = 'SPACE_ID',
+  AND = 'AND',
+  OR = 'OR',
+  NOR = 'NOR',
+  EQ = 'EQ',
+  NE = 'NE',
+  GT = 'GT',
+  GTE = 'GTE',
+  LT = 'LT',
+  LTE = 'LTE',
+  CONTAINS = 'CONTAINS',
+  STARTS_WITH = 'STARTS_WITH',
+  ENDS_WITH = 'ENDS_WITH',
+  IN = 'IN',
+  NOT_IN = 'NOT_IN',
+  BETWEEN = 'BETWEEN',
+  CONTAINS_ALL = 'CONTAINS_ALL',
+  IS_EMPTY = 'IS_EMPTY',
+  IS_EMPTY_STRING = 'IS_EMPTY_STRING',
+  IS_NOT_EMPTY_STRING = 'IS_NOT_EMPTY_STRING',
+  IS_NULL = 'IS_NULL',
+  IS_NOT_NULL = 'IS_NOT_NULL',
+  EXISTS = 'EXISTS',
+  NOT_EXISTS = 'NOT_EXISTS',
+  DELETION = 'DELETION',
+  ELEMENT_MATCH = 'ELEMENT_MATCH',
+  SEARCH = 'SEARCH',
+  TODAY = 'TODAY',
+  BEFORE_TODAY = 'BEFORE_TODAY',
+  TOMORROW = 'TOMORROW',
+  THIS_WEEK = 'THIS_WEEK',
+  NEXT_WEEK = 'NEXT_WEEK',
+  LAST_WEEK = 'LAST_WEEK',
+  THIS_MONTH = 'THIS_MONTH',
+  LAST_MONTH = 'LAST_MONTH',
+  YESTERDAY = 'YESTERDAY',
+  NEXT_MONTH = 'NEXT_MONTH',
+  LAST_YEAR = 'LAST_YEAR',
+  THIS_YEAR = 'THIS_YEAR',
+  NEXT_YEAR = 'NEXT_YEAR',
+  RECENT_DAYS = 'RECENT_DAYS',
+  EARLIER_DAYS = 'EARLIER_DAYS',
+}
+
+export enum StringComparison {
+  CASE_SENSITIVE = 'CASE_SENSITIVE',
+  CASE_INSENSITIVE = 'CASE_INSENSITIVE',
+}
+
+export enum SearchMode {
+  TERMS = 'TERMS',
+  PHRASE = 'PHRASE',
+}
+
+export enum TimeUnit {
+  NANOSECONDS = 'NANOSECONDS',
+  MICROSECONDS = 'MICROSECONDS',
+  MILLISECONDS = 'MILLISECONDS',
+  SECONDS = 'SECONDS',
+  MINUTES = 'MINUTES',
+  HOURS = 'HOURS',
+  DAYS = 'DAYS',
+}
+
+const LOCAL_TIME_PATTERN =
+  /^([01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9](?:\.[0-9]{1,9})?)?$/;
+const OFFSET_ZONE_PATTERN =
+  /^(?:UTC|GMT|UT)?[+-](\d{1,2}|\d{4}|\d{6}|\d{2}:\d{2}|\d{2}:\d{2}:\d{2})$/;
+const OFFSET_ZONE_CANDIDATE_PATTERN = /^(?:UTC|GMT|UT)?[+-]/;
+const DATE_PATTERN_COUNTS: Readonly<
+  Record<string, number | readonly number[]>
+> = {
+  G: 5,
+  u: 19,
+  y: 19,
+  Q: 5,
+  q: 5,
+  M: 5,
+  L: 5,
+  D: 3,
+  d: 2,
+  F: 1,
+  E: 5,
+  e: 5,
+  c: [1, 3, 4, 5],
+  a: 1,
+  B: [1, 4, 5],
+  h: 2,
+  H: 2,
+  k: 2,
+  K: 2,
+  m: 2,
+  s: 2,
+  S: 9,
+  A: 19,
+  n: 19,
+  N: 19,
+  V: [2],
+  v: [1, 4],
+  z: 4,
+  O: [1, 4],
+  X: 5,
+  x: 5,
+  Z: 5,
+  W: 1,
+  w: 2,
+  Y: Number.POSITIVE_INFINITY,
+  g: 19,
+};
+
+function filterLiteral<T extends FilterLiteral>(
+  value: T,
+  nullable: boolean,
+): T {
+  const valid =
+    value === null
+      ? nullable
+      : typeof value === 'string' ||
+        typeof value === 'boolean' ||
+        (typeof value === 'number' && Number.isFinite(value));
+  if (!valid) {
+    throw new TypeError('Filter value must be a JSON scalar.');
+  }
+  return value;
+}
+
+function requiredString(name: string, value: string): string {
+  if (typeof value !== 'string') {
+    throw new TypeError(`${name} must be a string.`);
+  }
+  return value;
+}
+
+function validateStringComparison(comparison: StringComparison): void {
+  if (
+    comparison !== StringComparison.CASE_SENSITIVE &&
+    comparison !== StringComparison.CASE_INSENSITIVE
+  ) {
+    throw new TypeError(
+      `String comparison is invalid: [${String(comparison)}].`,
+    );
+  }
+}
+
+function requireNonEmpty(name: string, values: readonly unknown[]): void {
+  if (values.length === 0) {
+    throw new TypeError(`${name} cannot be empty.`);
+  }
+  if (values.some(value => value === null || value === undefined)) {
+    throw new TypeError(`${name} cannot contain null.`);
+  }
+}
+
+function isValidOffsetZone(zoneId: string): boolean {
+  const match = OFFSET_ZONE_PATTERN.exec(zoneId);
+  if (!match) return false;
+  const offset = match[1];
+  const parts = offset.includes(':')
+    ? offset.split(':')
+    : offset.length <= 2
+      ? [offset]
+      : [offset.slice(0, 2), offset.slice(2, 4), offset.slice(4, 6)];
+  const [hours, minutes = 0, seconds = 0] = parts.map(Number);
+  return (
+    minutes <= 59 &&
+    seconds <= 59 &&
+    (hours < 18 || (hours === 18 && minutes === 0 && seconds === 0))
+  );
+}
+
+function validateRelativeTimeOptions({
+  zoneId,
+  datePattern,
+  timeUnit = TimeUnit.MILLISECONDS,
+}: RelativeTimeFilterOptions): RelativeTimeFilterOptions & {
+  timeUnit: TimeUnit;
+} {
+  if (zoneId !== undefined) {
+    if (typeof zoneId !== 'string' || !zoneId.trim()) {
+      throw new TypeError('zoneId cannot be blank.');
+    }
+    if (
+      OFFSET_ZONE_CANDIDATE_PATTERN.test(zoneId) &&
+      !isValidOffsetZone(zoneId)
+    ) {
+      throw new TypeError(`zoneId is invalid: [${zoneId}].`);
+    }
+  }
+  if (datePattern !== undefined) {
+    validateDatePattern(datePattern);
+  }
+  if (!Object.values(TimeUnit).includes(timeUnit)) {
+    throw new TypeError(`timeUnit is invalid: [${String(timeUnit)}].`);
+  }
+  return {
+    ...(zoneId === undefined ? {} : { zoneId }),
+    ...(datePattern === undefined ? {} : { datePattern }),
+    timeUnit,
+  };
+}
+
+function validateDatePatternLetter(
+  pattern: string,
+  letter: string,
+  count: number,
+): void {
+  const allowed = DATE_PATTERN_COUNTS[letter];
+  const valid =
+    typeof allowed === 'number'
+      ? count <= allowed
+      : allowed?.includes(count) === true;
+  if (!valid) {
+    throw new TypeError(`datePattern is invalid: [${pattern}].`);
+  }
+}
+
+function isNumericDatePatternLetter(
+  letter: string | undefined,
+  count: number,
+): boolean {
+  return (
+    letter !== undefined &&
+    ('uyDFdhHkKmsSgAnNWwY'.includes(letter) ||
+      (letter === 'c' && count === 1) ||
+      ('eMLQq'.includes(letter) && count <= 2))
+  );
+}
+
+function validateDatePattern(pattern: string): void {
+  if (typeof pattern !== 'string' || !pattern.trim()) {
+    throw new TypeError('datePattern cannot be blank.');
+  }
+  let quoted = false;
+  let optionalDepth = 0;
+  for (let index = 0; index < pattern.length; index++) {
+    const character = pattern[index];
+    if (character === "'") {
+      if (pattern[index + 1] === "'") {
+        index++;
+      } else {
+        quoted = !quoted;
+      }
+      continue;
+    }
+    if (quoted) continue;
+    if (/[A-Za-z]/.test(character)) {
+      let letter = character;
+      let end = index + 1;
+      while (pattern[end] === letter) end++;
+      let count = end - index;
+      let padded = false;
+      if (letter === 'p') {
+        padded = true;
+        letter = pattern[end];
+        if (!letter || !/[A-Za-z]/.test(letter) || letter === 'p') {
+          throw new TypeError(`datePattern is invalid: [${pattern}].`);
+        }
+        const fieldStart = end++;
+        while (pattern[end] === letter) end++;
+        count = end - fieldStart;
+      }
+      validateDatePatternLetter(pattern, letter, count);
+      if (padded && isNumericDatePatternLetter(letter, count)) {
+        const nextLetter = pattern[end];
+        let nextEnd = end;
+        while (nextEnd < pattern.length && pattern[nextEnd] === nextLetter)
+          nextEnd++;
+        if (isNumericDatePatternLetter(nextLetter, nextEnd - end)) {
+          throw new TypeError(`datePattern is invalid: [${pattern}].`);
+        }
+      }
+      index = end - 1;
+    } else if (character === '[') {
+      optionalDepth++;
+    } else if (character === ']') {
+      if (optionalDepth === 0)
+        throw new TypeError(`datePattern is invalid: [${pattern}].`);
+      optionalDepth--;
+    } else if ('{}#'.includes(character)) {
+      throw new TypeError(`datePattern is invalid: [${pattern}].`);
+    }
+  }
+  if (quoted) {
+    throw new TypeError(`datePattern is invalid: [${pattern}].`);
+  }
+}
+
+function validateDays(operator: FilterOperator, days: number): void {
+  if (!Number.isInteger(days) || days < 1 || days > 2_147_483_647) {
+    throw new TypeError(`${operator} days must be a positive JVM Int.`);
+  }
+}
+
+export type MatchFilter = {
+  op: FilterOperator.MATCH_ALL | FilterOperator.MATCH_NONE;
+};
+
+export type MetadataValueFilter = {
+  op:
+    | FilterOperator.ID
+    | FilterOperator.AGGREGATE_ID
+    | FilterOperator.TENANT_ID
+    | FilterOperator.OWNER_ID
+    | FilterOperator.SPACE_ID;
+  value: string;
+};
+
+export type MetadataValuesFilter = {
+  op: FilterOperator.IDS | FilterOperator.AGGREGATE_IDS;
+  values: string[];
+};
+
+export type MetadataFilter = MetadataValueFilter | MetadataValuesFilter;
+
+export type LogicalFilter<FIELDS extends string = string> = {
+  op: FilterOperator.AND | FilterOperator.OR | FilterOperator.NOR;
+  operands: FilterExpression<FIELDS>[];
+};
+
+export type ElementLogicalFilter<FIELDS extends string = string> = {
+  op: FilterOperator.AND | FilterOperator.OR | FilterOperator.NOR;
+  operands: ElementFilterExpression<FIELDS>[];
+};
+
+export type EqualityFilter<FIELDS extends string = string> = {
+  op: FilterOperator.EQ | FilterOperator.NE;
+  field: QueryField<FIELDS>;
+  value: EqualityFilterValue;
+};
+
+export type ComparisonFilter<FIELDS extends string = string> = {
+  op:
+    | FilterOperator.GT
+    | FilterOperator.GTE
+    | FilterOperator.LT
+    | FilterOperator.LTE;
+  field: QueryField<FIELDS>;
+  value: ComparableFilterLiteral;
+};
+
+export type StringFilter<FIELDS extends string = string> = {
+  op:
+    | FilterOperator.CONTAINS
+    | FilterOperator.STARTS_WITH
+    | FilterOperator.ENDS_WITH;
+  field: QueryField<FIELDS>;
+  value: string;
+  stringComparison?: StringComparison;
+};
+
+export type CollectionFilter<FIELDS extends string = string> = {
+  op: FilterOperator.IN | FilterOperator.NOT_IN | FilterOperator.CONTAINS_ALL;
+  field: QueryField<FIELDS>;
+  values: ComparableFilterLiteral[];
+};
+
+export type BetweenFilter<FIELDS extends string = string> = {
+  op: FilterOperator.BETWEEN;
+  field: QueryField<FIELDS>;
+  lowerBound: ComparableFilterLiteral;
+  upperBound: ComparableFilterLiteral;
+};
+
+export type FieldPresenceFilter<FIELDS extends string = string> = {
+  op:
+    | FilterOperator.IS_EMPTY
+    | FilterOperator.IS_EMPTY_STRING
+    | FilterOperator.IS_NOT_EMPTY_STRING
+    | FilterOperator.IS_NULL
+    | FilterOperator.IS_NOT_NULL
+    | FilterOperator.EXISTS
+    | FilterOperator.NOT_EXISTS;
+  field: QueryField<FIELDS>;
+};
+
+export type DeletionFilter = {
+  op: FilterOperator.DELETION;
+  state: DeletionState;
+};
+
+export type ElementMatchFilter<
+  FIELDS extends string = string,
+  ELEMENT_FIELDS extends string = string,
+> = {
+  op: FilterOperator.ELEMENT_MATCH;
+  field: QueryField<FIELDS>;
+  predicate: ElementFilterExpression<ELEMENT_FIELDS>;
+};
+
+export type SearchFilter<FIELDS extends string = string> = {
+  op: FilterOperator.SEARCH;
+  query: string;
+  fields?: QueryField<FIELDS>[];
+  mode?: SearchMode;
+};
+
+export interface SearchFilterOptions<FIELDS extends string = string> {
+  fields?: readonly QueryField<FIELDS>[];
+  mode?: SearchMode;
+}
+
+export interface RelativeTimeFilterOptions {
+  zoneId?: string;
+  datePattern?: string;
+  timeUnit?: TimeUnit;
+}
+
+export type CalendarFilter<FIELDS extends string = string> =
+  RelativeTimeFilterOptions & {
+    op:
+      | FilterOperator.TODAY
+      | FilterOperator.TOMORROW
+      | FilterOperator.THIS_WEEK
+      | FilterOperator.NEXT_WEEK
+      | FilterOperator.LAST_WEEK
+      | FilterOperator.THIS_MONTH
+      | FilterOperator.LAST_MONTH
+      | FilterOperator.YESTERDAY
+      | FilterOperator.NEXT_MONTH
+      | FilterOperator.LAST_YEAR
+      | FilterOperator.THIS_YEAR
+      | FilterOperator.NEXT_YEAR;
+    field: QueryField<FIELDS>;
+  };
+
+export type BeforeTodayFilter<FIELDS extends string = string> =
+  RelativeTimeFilterOptions & {
+    op: FilterOperator.BEFORE_TODAY;
+    field: QueryField<FIELDS>;
+    time: string;
+  };
+
+export type DaysFilter<FIELDS extends string = string> =
+  RelativeTimeFilterOptions & {
+    op: FilterOperator.RECENT_DAYS | FilterOperator.EARLIER_DAYS;
+    field: QueryField<FIELDS>;
+    days: number;
+  };
+
+export type ElementFilterExpression<FIELDS extends string = string> =
+  | MatchFilter
+  | ElementLogicalFilter<FIELDS>
+  | EqualityFilter<FIELDS>
+  | ComparisonFilter<FIELDS>
+  | StringFilter<FIELDS>
+  | CollectionFilter<FIELDS>
+  | BetweenFilter<FIELDS>
+  | FieldPresenceFilter<FIELDS>
+  | ElementMatchFilter<FIELDS>
+  | CalendarFilter<FIELDS>
+  | BeforeTodayFilter<FIELDS>
+  | DaysFilter<FIELDS>;
+
+export type FilterExpression<FIELDS extends string = string> =
+  | MatchFilter
+  | MetadataFilter
+  | LogicalFilter<FIELDS>
+  | EqualityFilter<FIELDS>
+  | ComparisonFilter<FIELDS>
+  | StringFilter<FIELDS>
+  | CollectionFilter<FIELDS>
+  | BetweenFilter<FIELDS>
+  | FieldPresenceFilter<FIELDS>
+  | DeletionFilter
+  | ElementMatchFilter<FIELDS>
+  | SearchFilter<FIELDS>
+  | CalendarFilter<FIELDS>
+  | BeforeTodayFilter<FIELDS>
+  | DaysFilter<FIELDS>;
+
+export interface FilterCapable<FIELDS extends string = string> {
+  filter: FilterExpression<FIELDS>;
+}
+
+/**
+ * Refuses the filters that only a whole record can answer.
+ *
+ * The metadata filters, `DELETION` and `SEARCH` ask about the record — its id,
+ * its owner, whether it is deleted, its text — and an element is not a record.
+ * Wow calls them root filters and refuses them in both places a filter is
+ * scoped to an element: an `ELEMENT_MATCH` predicate and an aggregation
+ * element's own filter. `subject` names which one, so the complaint points at
+ * the call that made it.
+ */
+export function requireElementScopedFilter(
+  expression: FilterExpression,
+  subject: string,
+): void {
+  switch (expression.op) {
+    case FilterOperator.ID:
+    case FilterOperator.IDS:
+    case FilterOperator.AGGREGATE_ID:
+    case FilterOperator.AGGREGATE_IDS:
+    case FilterOperator.TENANT_ID:
+    case FilterOperator.OWNER_ID:
+    case FilterOperator.SPACE_ID:
+    case FilterOperator.DELETION:
+    case FilterOperator.SEARCH:
+      throw new TypeError(`${subject} cannot contain root filters.`);
+    case FilterOperator.AND:
+    case FilterOperator.OR:
+    case FilterOperator.NOR:
+      requireNonEmpty(`${expression.op} operands`, expression.operands);
+      expression.operands.forEach(operand =>
+        requireElementScopedFilter(operand, subject),
+      );
+      break;
+    case FilterOperator.ELEMENT_MATCH:
+      requireElementScopedFilter(expression.predicate, subject);
+      break;
+  }
+}
+
+function andFilter<FIELDS extends string>(
+  operands: readonly ElementFilterExpression<FIELDS>[],
+): ElementLogicalFilter<FIELDS>;
+function andFilter<FIELDS extends string>(
+  operands: readonly FilterExpression<FIELDS>[],
+): LogicalFilter<FIELDS>;
+function andFilter<FIELDS extends string>(
+  operands: readonly FilterExpression<FIELDS>[],
+): LogicalFilter<FIELDS> {
+  requireNonEmpty('AND operands', operands);
+  return { op: FilterOperator.AND, operands: [...operands] };
+}
+
+function orFilter<FIELDS extends string>(
+  operands: readonly ElementFilterExpression<FIELDS>[],
+): ElementLogicalFilter<FIELDS>;
+function orFilter<FIELDS extends string>(
+  operands: readonly FilterExpression<FIELDS>[],
+): LogicalFilter<FIELDS>;
+function orFilter<FIELDS extends string>(
+  operands: readonly FilterExpression<FIELDS>[],
+): LogicalFilter<FIELDS> {
+  requireNonEmpty('OR operands', operands);
+  return { op: FilterOperator.OR, operands: [...operands] };
+}
+
+function norFilter<FIELDS extends string>(
+  operands: readonly ElementFilterExpression<FIELDS>[],
+): ElementLogicalFilter<FIELDS>;
+function norFilter<FIELDS extends string>(
+  operands: readonly FilterExpression<FIELDS>[],
+): LogicalFilter<FIELDS>;
+function norFilter<FIELDS extends string>(
+  operands: readonly FilterExpression<FIELDS>[],
+): LogicalFilter<FIELDS> {
+  requireNonEmpty('NOR operands', operands);
+  return { op: FilterOperator.NOR, operands: [...operands] };
+}
+
+export const filter = {
+  matchAll(): MatchFilter {
+    return { op: FilterOperator.MATCH_ALL };
+  },
+  matchNone(): MatchFilter {
+    return { op: FilterOperator.MATCH_NONE };
+  },
+  id(value: string): MetadataValueFilter {
+    return { op: FilterOperator.ID, value: requiredString('ID value', value) };
+  },
+  ids(values: readonly string[]): MetadataValuesFilter {
+    requireNonEmpty('IDS values', values);
+    values.forEach(value => requiredString('IDS value', value));
+    return { op: FilterOperator.IDS, values: [...values] };
+  },
+  aggregateId(value: string): MetadataValueFilter {
+    return {
+      op: FilterOperator.AGGREGATE_ID,
+      value: requiredString('AGGREGATE_ID value', value),
+    };
+  },
+  aggregateIds(values: readonly string[]): MetadataValuesFilter {
+    requireNonEmpty('AGGREGATE_IDS values', values);
+    values.forEach(value => requiredString('AGGREGATE_IDS value', value));
+    return { op: FilterOperator.AGGREGATE_IDS, values: [...values] };
+  },
+  tenantId(value: string): MetadataValueFilter {
+    return {
+      op: FilterOperator.TENANT_ID,
+      value: requiredString('TENANT_ID value', value),
+    };
+  },
+  ownerId(value: string): MetadataValueFilter {
+    return {
+      op: FilterOperator.OWNER_ID,
+      value: requiredString('OWNER_ID value', value),
+    };
+  },
+  spaceId(value: string): MetadataValueFilter {
+    return {
+      op: FilterOperator.SPACE_ID,
+      value: requiredString('SPACE_ID value', value),
+    };
+  },
+  and: andFilter,
+  or: orFilter,
+  nor: norFilter,
+  eq<FIELDS extends string>(
+    field: FIELDS,
+    value: EqualityFilterValue,
+  ): EqualityFilter<FIELDS> {
+    return {
+      op: FilterOperator.EQ,
+      field: queryField(field),
+      value: filterLiteral(value, true),
+    };
+  },
+  ne<FIELDS extends string>(
+    field: FIELDS,
+    value: EqualityFilterValue,
+  ): EqualityFilter<FIELDS> {
+    return {
+      op: FilterOperator.NE,
+      field: queryField(field),
+      value: filterLiteral(value, true),
+    };
+  },
+  gt<FIELDS extends string>(
+    field: FIELDS,
+    value: ComparableFilterLiteral,
+  ): ComparisonFilter<FIELDS> {
+    return {
+      op: FilterOperator.GT,
+      field: queryField(field),
+      value: filterLiteral(value, false),
+    };
+  },
+  gte<FIELDS extends string>(
+    field: FIELDS,
+    value: ComparableFilterLiteral,
+  ): ComparisonFilter<FIELDS> {
+    return {
+      op: FilterOperator.GTE,
+      field: queryField(field),
+      value: filterLiteral(value, false),
+    };
+  },
+  lt<FIELDS extends string>(
+    field: FIELDS,
+    value: ComparableFilterLiteral,
+  ): ComparisonFilter<FIELDS> {
+    return {
+      op: FilterOperator.LT,
+      field: queryField(field),
+      value: filterLiteral(value, false),
+    };
+  },
+  lte<FIELDS extends string>(
+    field: FIELDS,
+    value: ComparableFilterLiteral,
+  ): ComparisonFilter<FIELDS> {
+    return {
+      op: FilterOperator.LTE,
+      field: queryField(field),
+      value: filterLiteral(value, false),
+    };
+  },
+  contains<FIELDS extends string>(
+    field: FIELDS,
+    value: string,
+    stringComparison = StringComparison.CASE_SENSITIVE,
+  ): StringFilter<FIELDS> {
+    validateStringComparison(stringComparison);
+    return {
+      op: FilterOperator.CONTAINS,
+      field: queryField(field),
+      value: requiredString('CONTAINS value', value),
+      stringComparison,
+    };
+  },
+  startsWith<FIELDS extends string>(
+    field: FIELDS,
+    value: string,
+    stringComparison = StringComparison.CASE_SENSITIVE,
+  ): StringFilter<FIELDS> {
+    validateStringComparison(stringComparison);
+    return {
+      op: FilterOperator.STARTS_WITH,
+      field: queryField(field),
+      value: requiredString('STARTS_WITH value', value),
+      stringComparison,
+    };
+  },
+  endsWith<FIELDS extends string>(
+    field: FIELDS,
+    value: string,
+    stringComparison = StringComparison.CASE_SENSITIVE,
+  ): StringFilter<FIELDS> {
+    validateStringComparison(stringComparison);
+    return {
+      op: FilterOperator.ENDS_WITH,
+      field: queryField(field),
+      value: requiredString('ENDS_WITH value', value),
+      stringComparison,
+    };
+  },
+  isIn<FIELDS extends string>(
+    field: FIELDS,
+    values: readonly ComparableFilterLiteral[],
+  ): CollectionFilter<FIELDS> {
+    requireNonEmpty('IN values', values);
+    values.forEach(value => filterLiteral(value, false));
+    return {
+      op: FilterOperator.IN,
+      field: queryField(field),
+      values: [...values],
+    };
+  },
+  notIn<FIELDS extends string>(
+    field: FIELDS,
+    values: readonly ComparableFilterLiteral[],
+  ): CollectionFilter<FIELDS> {
+    requireNonEmpty('NOT_IN values', values);
+    values.forEach(value => filterLiteral(value, false));
+    return {
+      op: FilterOperator.NOT_IN,
+      field: queryField(field),
+      values: [...values],
+    };
+  },
+  containsAll<FIELDS extends string>(
+    field: FIELDS,
+    values: readonly ComparableFilterLiteral[],
+  ): CollectionFilter<FIELDS> {
+    requireNonEmpty('CONTAINS_ALL values', values);
+    values.forEach(value => filterLiteral(value, false));
+    return {
+      op: FilterOperator.CONTAINS_ALL,
+      field: queryField(field),
+      values: [...values],
+    };
+  },
+  between<FIELDS extends string>(
+    field: FIELDS,
+    lowerBound: ComparableFilterLiteral,
+    upperBound: ComparableFilterLiteral,
+  ): BetweenFilter<FIELDS> {
+    return {
+      op: FilterOperator.BETWEEN,
+      field: queryField(field),
+      lowerBound: filterLiteral(lowerBound, false),
+      upperBound: filterLiteral(upperBound, false),
+    };
+  },
+  isEmpty<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS> {
+    return { op: FilterOperator.IS_EMPTY, field: queryField(field) };
+  },
+  isEmptyString<FIELDS extends string>(
+    field: FIELDS,
+  ): FieldPresenceFilter<FIELDS> {
+    return { op: FilterOperator.IS_EMPTY_STRING, field: queryField(field) };
+  },
+  isNotEmptyString<FIELDS extends string>(
+    field: FIELDS,
+  ): FieldPresenceFilter<FIELDS> {
+    return {
+      op: FilterOperator.IS_NOT_EMPTY_STRING,
+      field: queryField(field),
+    };
+  },
+  isNull<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS> {
+    return { op: FilterOperator.IS_NULL, field: queryField(field) };
+  },
+  isNotNull<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS> {
+    return { op: FilterOperator.IS_NOT_NULL, field: queryField(field) };
+  },
+  exists<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS> {
+    return { op: FilterOperator.EXISTS, field: queryField(field) };
+  },
+  notExists<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS> {
+    return { op: FilterOperator.NOT_EXISTS, field: queryField(field) };
+  },
+  deletion(state: DeletionState): DeletionFilter {
+    if (
+      state !== DeletionState.ACTIVE &&
+      state !== DeletionState.DELETED &&
+      state !== DeletionState.ALL
+    ) {
+      throw new TypeError(`Deletion state is invalid: [${String(state)}].`);
+    }
+    return { op: FilterOperator.DELETION, state };
+  },
+  elementMatch<FIELDS extends string, ELEMENT_FIELDS extends string>(
+    field: FIELDS,
+    predicate: ElementFilterExpression<ELEMENT_FIELDS>,
+  ): ElementMatchFilter<FIELDS, ELEMENT_FIELDS> {
+    requireElementScopedFilter(predicate, 'ELEMENT_MATCH predicate');
+    return {
+      op: FilterOperator.ELEMENT_MATCH,
+      field: queryField(field),
+      predicate,
+    };
+  },
+  search<FIELDS extends string>(
+    query: string,
+    options?: SearchFilterOptions<FIELDS>,
+  ): SearchFilter<FIELDS> {
+    if (typeof query !== 'string' || !query.trim()) {
+      throw new TypeError('SEARCH query cannot be blank.');
+    }
+    if (
+      options !== undefined &&
+      (options === null ||
+        typeof options !== 'object' ||
+        Array.isArray(options))
+    ) {
+      throw new TypeError('SEARCH options must be a non-null object.');
+    }
+    const { fields = [], mode = SearchMode.TERMS } = options ?? {};
+    if (!Object.values(SearchMode).includes(mode)) {
+      throw new TypeError(`SEARCH mode is invalid: [${String(mode)}].`);
+    }
+    return {
+      op: FilterOperator.SEARCH,
+      query,
+      mode,
+      fields: fields.map(queryField),
+    };
+  },
+  today<FIELDS extends string>(
+    field: FIELDS,
+    options: RelativeTimeFilterOptions = {},
+  ): CalendarFilter<FIELDS> {
+    return {
+      ...validateRelativeTimeOptions(options),
+      op: FilterOperator.TODAY,
+      field: queryField(field),
+    };
+  },
+  beforeToday<FIELDS extends string>(
+    field: FIELDS,
+    time: string,
+    options: RelativeTimeFilterOptions = {},
+  ): BeforeTodayFilter<FIELDS> {
+    if (typeof time !== 'string' || !LOCAL_TIME_PATTERN.test(time)) {
+      throw new TypeError('BEFORE_TODAY time is invalid.');
+    }
+    return {
+      ...validateRelativeTimeOptions(options),
+      op: FilterOperator.BEFORE_TODAY,
+      field: queryField(field),
+      time,
+    };
+  },
+  tomorrow<FIELDS extends string>(
+    field: FIELDS,
+    options: RelativeTimeFilterOptions = {},
+  ): CalendarFilter<FIELDS> {
+    return {
+      ...validateRelativeTimeOptions(options),
+      op: FilterOperator.TOMORROW,
+      field: queryField(field),
+    };
+  },
+  thisWeek<FIELDS extends string>(
+    field: FIELDS,
+    options: RelativeTimeFilterOptions = {},
+  ): CalendarFilter<FIELDS> {
+    return {
+      ...validateRelativeTimeOptions(options),
+      op: FilterOperator.THIS_WEEK,
+      field: queryField(field),
+    };
+  },
+  nextWeek<FIELDS extends string>(
+    field: FIELDS,
+    options: RelativeTimeFilterOptions = {},
+  ): CalendarFilter<FIELDS> {
+    return {
+      ...validateRelativeTimeOptions(options),
+      op: FilterOperator.NEXT_WEEK,
+      field: queryField(field),
+    };
+  },
+  lastWeek<FIELDS extends string>(
+    field: FIELDS,
+    options: RelativeTimeFilterOptions = {},
+  ): CalendarFilter<FIELDS> {
+    return {
+      ...validateRelativeTimeOptions(options),
+      op: FilterOperator.LAST_WEEK,
+      field: queryField(field),
+    };
+  },
+  thisMonth<FIELDS extends string>(
+    field: FIELDS,
+    options: RelativeTimeFilterOptions = {},
+  ): CalendarFilter<FIELDS> {
+    return {
+      ...validateRelativeTimeOptions(options),
+      op: FilterOperator.THIS_MONTH,
+      field: queryField(field),
+    };
+  },
+  lastMonth<FIELDS extends string>(
+    field: FIELDS,
+    options: RelativeTimeFilterOptions = {},
+  ): CalendarFilter<FIELDS> {
+    return {
+      ...validateRelativeTimeOptions(options),
+      op: FilterOperator.LAST_MONTH,
+      field: queryField(field),
+    };
+  },
+  yesterday<FIELDS extends string>(
+    field: FIELDS,
+    options: RelativeTimeFilterOptions = {},
+  ): CalendarFilter<FIELDS> {
+    return {
+      ...validateRelativeTimeOptions(options),
+      op: FilterOperator.YESTERDAY,
+      field: queryField(field),
+    };
+  },
+  nextMonth<FIELDS extends string>(
+    field: FIELDS,
+    options: RelativeTimeFilterOptions = {},
+  ): CalendarFilter<FIELDS> {
+    return {
+      ...validateRelativeTimeOptions(options),
+      op: FilterOperator.NEXT_MONTH,
+      field: queryField(field),
+    };
+  },
+  lastYear<FIELDS extends string>(
+    field: FIELDS,
+    options: RelativeTimeFilterOptions = {},
+  ): CalendarFilter<FIELDS> {
+    return {
+      ...validateRelativeTimeOptions(options),
+      op: FilterOperator.LAST_YEAR,
+      field: queryField(field),
+    };
+  },
+  thisYear<FIELDS extends string>(
+    field: FIELDS,
+    options: RelativeTimeFilterOptions = {},
+  ): CalendarFilter<FIELDS> {
+    return {
+      ...validateRelativeTimeOptions(options),
+      op: FilterOperator.THIS_YEAR,
+      field: queryField(field),
+    };
+  },
+  nextYear<FIELDS extends string>(
+    field: FIELDS,
+    options: RelativeTimeFilterOptions = {},
+  ): CalendarFilter<FIELDS> {
+    return {
+      ...validateRelativeTimeOptions(options),
+      op: FilterOperator.NEXT_YEAR,
+      field: queryField(field),
+    };
+  },
+  recentDays<FIELDS extends string>(
+    field: FIELDS,
+    days: number,
+    options: RelativeTimeFilterOptions = {},
+  ): DaysFilter<FIELDS> {
+    validateDays(FilterOperator.RECENT_DAYS, days);
+    return {
+      ...validateRelativeTimeOptions(options),
+      op: FilterOperator.RECENT_DAYS,
+      field: queryField(field),
+      days,
+    };
+  },
+  earlierDays<FIELDS extends string>(
+    field: FIELDS,
+    days: number,
+    options: RelativeTimeFilterOptions = {},
+  ): DaysFilter<FIELDS> {
+    validateDays(FilterOperator.EARLIER_DAYS, days);
+    return {
+      ...validateRelativeTimeOptions(options),
+      op: FilterOperator.EARLIER_DAYS,
+      field: queryField(field),
+      days,
+    };
+  },
+};

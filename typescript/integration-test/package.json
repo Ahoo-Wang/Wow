@@ -1,0 +1,65 @@
+{
+  "name": "wow-integration-test",
+  "version": "9.1.5",
+  "private": true,
+  "description": "Integration tests of the Wow TypeScript client and generated code against a Wow example server",
+  "keywords": [
+    "wow",
+    "integration-test"
+  ],
+  "author": "Ahoo-Wang",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/Ahoo-Wang/Wow/tree/main/typescript/integration-test",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ahoo-Wang/Wow.git",
+    "directory": "typescript/integration-test"
+  },
+  "bugs": {
+    "url": "https://github.com/Ahoo-Wang/Wow/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.umd.js",
+  "module": "./dist/index.es.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.es.js",
+      "require": "./dist/index.umd.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "vite build",
+    "test": "vitest run --coverage",
+    "lint": "eslint . --fix",
+    "clean": "rm -rf dist",
+    "generate": "node ../wow-generator/dist/cli.js generate -i http://localhost:8080/v3/api-docs"
+  },
+  "dependencies": {
+    "@ahoo-wang/fetcher": "catalog:",
+    "@ahoo-wang/fetcher-cosec": "catalog:",
+    "@ahoo-wang/fetcher-decorator": "catalog:",
+    "@ahoo-wang/fetcher-eventstream": "catalog:",
+    "@ahoo-wang/wow-client": "workspace:*"
+  },
+  "devDependencies": {
+    "@ahoo-wang/wow-generator": "workspace:*",
+    "@eslint/js": "catalog:",
+    "@types/node": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "@vitest/ui": "catalog:",
+    "eslint": "catalog:",
+    "globals": "catalog:",
+    "prettier": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "unplugin-dts": "catalog:",
+    "vite": "catalog:",
+    "vite-bundle-analyzer": "catalog:",
+    "vitest": "catalog:"
+  }
+}

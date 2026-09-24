@@ -13,42 +13,17 @@
 
 import js from '@eslint/js';
 import globals from 'globals';
-import tseslint from 'typescript-eslint';
 
-// Root config for the TypeScript toolchain. The compensation dashboard keeps its
-// own eslint.config.js, which ESLint resolves from the linted file's directory.
-export default tseslint.config(
-  {
-    ignores: [
-      '**/node_modules/**',
-      '**/dist/**',
-      '**/coverage/**',
-      'compensation/**',
-      'documentation/**',
-      '.claude/**',
-    ],
-  },
-  {
-    files: ['typescript/**/*.{ts,tsx}'],
-    extends: [js.configs.recommended, ...tseslint.configs.recommended],
-    languageOptions: {
-      ecmaVersion: 2022,
-      globals: globals.browser,
-    },
-    rules: {
-      '@typescript-eslint/consistent-type-imports': [
-        'error',
-        { prefer: 'type-imports' },
-      ],
-    },
-  },
+// Root config for the workspace's own scripts. Each package under typescript/
+// has its own eslint.config.js, and `pnpm lint` runs ESLint inside each package.
+export default [
   {
     files: ['eslint.config.js', '.github/scripts/**/*.mjs'],
-    extends: [js.configs.recommended],
+    ...js.configs.recommended,
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',
       globals: globals.node,
     },
   },
-);
+];

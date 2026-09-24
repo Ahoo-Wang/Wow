@@ -1,0 +1,130 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import type { QueryApi } from '../queryApi.js';
+import type { MaterializedSnapshot } from './snapshot.js';
+import type {
+  ListQueryRequest,
+  PagedList,
+  PagedQueryRequest,
+  SingleQueryRequest,
+} from '../queryable.js';
+import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
+import type { CursorPage, CursorQuery } from '../cursorQuery.js';
+
+/**
+ * Interface for snapshot query API operations.
+ * Extends the base QueryApi interface for MaterializedSnapshot and adds methods
+ * for querying snapshot states directly without the full MaterializedSnapshot wrapper.
+ * @template S - The type of the snapshot state
+ */
+export interface SnapshotQueryApi<
+  S,
+  FIELDS extends string = string,
+> extends QueryApi<MaterializedSnapshot<S>, FIELDS> {
+  /** Retrieves the next cursor page of snapshot states. */
+  cursorState<T extends Partial<S> = S>(
+    query: CursorQuery<FIELDS>,
+    attributes?: Record<string, unknown>,
+    abortController?: AbortController,
+  ): Promise<CursorPage<T>>;
+
+  /**
+   * Retrieves a single snapshot state based on the provided query parameters.
+   * @param singleQuery - The query parameters for retrieving a single snapshot state
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
+   * @param abortController - Optional AbortController for cancelling the request.
+   *                          When provided, allows the request to be cancelled mid-flight,
+   *                          which is useful for preventing race conditions and improving UX.
+   * @returns A promise that resolves to a partial snapshot state
+   */
+  singleState<T extends Partial<S> = S>(
+    singleQuery: SingleQueryRequest<FIELDS>,
+    attributes?: Record<string, any>,
+    abortController?: AbortController,
+  ): Promise<T>;
+
+  /**
+   * Retrieves a list of snapshot states based on the provided query parameters.
+   * @param listQuery - The query parameters for listing snapshot states
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
+   * @param abortController - Optional AbortController for cancelling the request.
+   *                          When provided, allows the request to be cancelled mid-flight,
+   *                          which is useful for preventing race conditions and improving UX.
+   * @returns A promise that resolves to an array of partial snapshot states
+   */
+  listState<T extends Partial<S> = S>(
+    listQuery: ListQueryRequest<FIELDS>,
+    attributes?: Record<string, any>,
+    abortController?: AbortController,
+  ): Promise<T[]>;
+
+  /**
+   * Retrieves a stream of snapshot states based on the provided query parameters.
+   * @param listQuery - The query parameters for listing snapshot states
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
+   * @param abortController - Optional AbortController for cancelling the request.
+   *                          When provided, allows the request to be cancelled mid-flight,
+   *                          which is useful for preventing race conditions and improving UX.
+   * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial snapshot states
+   */
+  listStateStream<T extends Partial<S> = S>(
+    listQuery: ListQueryRequest<FIELDS>,
+    attributes?: Record<string, any>,
+    abortController?: AbortController,
+  ): Promise<ReadableStream<JsonServerSentEvent<T>>>;
+
+  /**
+   * Retrieves a paged list of snapshot states based on the provided query parameters.
+   * @param pagedQuery - The query parameters for paging snapshot states
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
+   * @param abortController - Optional AbortController for cancelling the request.
+   *                          When provided, allows the request to be cancelled mid-flight,
+   *                          which is useful for preventing race conditions and improving UX.
+   * @returns A promise that resolves to a paged list of partial snapshot states
+   */
+  pagedState<T extends Partial<S> = S>(
+    pagedQuery: PagedQueryRequest<FIELDS>,
+    attributes?: Record<string, any>,
+    abortController?: AbortController,
+  ): Promise<PagedList<T>>;
+}
+
+/**
+ * Provides endpoint paths for snapshot query operations.
+ *
+ * This class contains static readonly properties that define the endpoint paths used for various snapshot query operations.
+ * These paths are used when making API calls to retrieve snapshot data in different formats such as counts, lists, paged results, and single items.
+ * The paths are constructed based on a base resource name and extended with specific operation identifiers.
+ */
+export class SnapshotQueryEndpointPaths {
+  static readonly SNAPSHOT_RESOURCE_NAME = 'snapshot';
+  static readonly AGGREGATION = `${SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME}/aggregation`;
+  static readonly COUNT = `${SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME}/count`;
+  static readonly LIST = `${SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME}/list`;
+  static readonly LIST_STATE = `${SnapshotQueryEndpointPaths.LIST}/state`;
+  static readonly PAGED = `${SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME}/paged`;
+  static readonly PAGED_STATE = `${SnapshotQueryEndpointPaths.PAGED}/state`;
+  static readonly CURSOR = `${SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME}/cursor`;
+  static readonly CURSOR_STATE = `${SnapshotQueryEndpointPaths.CURSOR}/state`;
+  static readonly SINGLE = `${SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME}/single`;
+  static readonly SINGLE_STATE = `${SnapshotQueryEndpointPaths.SINGLE}/state`;
+}

@@ -1,0 +1,312 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import type {
+  OpenAPI,
+  Operation,
+  Reference,
+  RequestBody,
+  Schema,
+} from '@ahoo-wang/fetcher-openapi';
+import type {
+  AggregateDefinition,
+  BoundedContextAggregates,
+  CommandDefinition,
+  EventDefinition,
+} from './aggregate';
+
+import type { PartialBy } from '@ahoo-wang/fetcher';
+import { ContentTypeValues } from '@ahoo-wang/fetcher';
+import type { MethodOperation } from '../utils';
+import {
+  extractOkResponse,
+  extractOperationEndpoints,
+  extractOperationOkResponseJsonSchema,
+  extractPathParameters,
+  extractRequestBody,
+  extractSchema,
+  isReference,
+  keySchema,
+} from '../utils';
+import { COMPONENTS_RESPONSES_REF } from '../utils/components';
+import type { EventStreamSchema } from './types';
+import { operationIdToCommandName, tagsToAggregates } from './utils';
+
+const CommandOkResponseRef = '#/components/responses/wow.CommandOk';
+
+/**
+ * Resolves aggregate definitions from OpenAPI specifications.
+ * Parses operations to extract commands, events, and state information for each aggregate.
+ */
+export class AggregateResolver {
+  private readonly aggregates: Map<
+    string,
+    PartialBy<AggregateDefinition, 'state' | 'fields'>
+  >;
+
+  /**
+   * Creates a new AggregateResolver instance.
+   * @param openAPI - The OpenAPI specification to resolve aggregates from
+   */
+  constructor(private readonly openAPI: OpenAPI) {
+    this.aggregates = tagsToAggregates(openAPI.tags);
+    this.build();
+  }
+
+  /**
+   * Builds the aggregate definitions by processing all operations in the OpenAPI spec.
+   * @private
+   */
+  private build() {
+    const endpoints = extractOperationEndpoints(
+      this.openAPI.paths,
+      this.openAPI.components,
+    );
+    for (const endpoint of endpoints) {
+      this.commands(endpoint.path, endpoint);
+      this.state(endpoint.operation);
+      this.events(endpoint.operation);
+      this.fields(endpoint.operation);
+    }
+  }
+
+  /**
+   * Returns the resolved aggregate definitions.
+   * @returns Map of aggregate definitions keyed by context alias
+   */
+  resolve(): BoundedContextAggregates {
+    const resolvedContextAggregates = new Map<
+      string,
+      Set<AggregateDefinition>
+    >();
+    for (const aggregate of this.aggregates.values()) {
+      if (!aggregate.state || !aggregate.fields) {
+        continue;
+      }
+      const contextAlias = aggregate.aggregate.contextAlias;
+      let aggregates = resolvedContextAggregates.get(contextAlias);
+      if (!aggregates) {
+        aggregates = new Set<AggregateDefinition>();
+        resolvedContextAggregates.set(contextAlias, aggregates);
+      }
+      aggregates.add(aggregate as AggregateDefinition);
+    }
+    return resolvedContextAggregates;
+  }
+
+  /**
+   * Processes command operations and adds them to the appropriate aggregates.
+   * @param path - The API path
+   * @param methodOperation - The HTTP method and operation details
+   */
+  commands(path: string, methodOperation: MethodOperation) {
+    const operation = methodOperation.operation;
+    if (operation.operationId === 'wow.command.send') {
+      return;
+    }
+    const commandName = operationIdToCommandName(operation.operationId);
+    if (!commandName) {
+      return;
+    }
+    let okResponse = extractOkResponse(operation);
+    const visited = new Set<string>();
+    while (
+      okResponse &&
+      isReference(okResponse) &&
+      okResponse.$ref !== CommandOkResponseRef
+    ) {
+      if (!okResponse.$ref.startsWith(COMPONENTS_RESPONSES_REF)) return;
+      if (visited.has(okResponse.$ref)) {
+        throw new TypeError(`Cyclic component reference: ${okResponse.$ref}`);
+      }
+      visited.add(okResponse.$ref);
+      okResponse =
+        this.openAPI.components?.responses?.[
+          okResponse.$ref.slice(COMPONENTS_RESPONSES_REF.length)
+        ];
+    }
+    if (
+      !okResponse ||
+      !isReference(okResponse) ||
+      okResponse.$ref !== CommandOkResponseRef
+    ) {
+      return;
+    }
+    if (!operation.requestBody) {
+      return;
+    }
+
+    const pathParameters = extractPathParameters(
+      operation,
+      this.openAPI.components ?? {},
+    );
+    const requestBody = isReference(operation.requestBody)
+      ? extractRequestBody(operation.requestBody, this.openAPI.components ?? {})
+      : operation.requestBody;
+    const commandRefSchema =
+      requestBody?.content?.[ContentTypeValues.APPLICATION_JSON]?.schema;
+    if (!isReference(commandRefSchema)) return;
+    const commandKeyedSchema = keySchema(
+      commandRefSchema,
+      this.openAPI.components ?? {},
+    );
+    if (!commandKeyedSchema.schema) return;
+    commandKeyedSchema.schema.title =
+      commandKeyedSchema.schema.title || operation.summary;
+    commandKeyedSchema.schema.description =
+      commandKeyedSchema.schema.description || operation.description;
+    const commandDefinition: CommandDefinition = {
+      name: commandName,
+      method: methodOperation.method,
+      path,
+      pathParameters,
+      summary: operation.summary,
+      description: operation.description,
+      schema: commandKeyedSchema,
+      operation: operation,
+    };
+    operation.tags?.forEach(tag => {
+      const aggregate = this.aggregates.get(tag);
+      if (!aggregate) {
+        return;
+      }
+      aggregate.commands.set(commandName, commandDefinition);
+    });
+  }
+
+  /**
+   * Processes state snapshot operations and associates them with aggregates.
+   * @param operation - The OpenAPI operation
+   */
+  state(operation: Operation) {
+    if (!operation.operationId?.endsWith('.snapshot_state.single')) {
+      return;
+    }
+    const stateRefSchema = extractOperationOkResponseJsonSchema(
+      operation,
+      this.openAPI.components,
+    );
+    if (!isReference(stateRefSchema)) {
+      return;
+    }
+    const stateKeyedSchema = keySchema(
+      stateRefSchema,
+      this.openAPI.components!,
+    );
+    operation.tags?.forEach(tag => {
+      const aggregate = this.aggregates.get(tag);
+      if (!aggregate) {
+        return;
+      }
+      aggregate.state = stateKeyedSchema;
+    });
+  }
+
+  /**
+   * Processes event stream operations and extracts domain events for aggregates.
+   * @param operation - The OpenAPI operation
+   */
+  events(operation: Operation) {
+    if (!this.openAPI.components) {
+      return;
+    }
+    if (!operation.operationId?.endsWith('.event.list_query')) {
+      return;
+    }
+    const eventStreamArraySchema = extractOperationOkResponseJsonSchema(
+      operation,
+      this.openAPI.components,
+    );
+    if (isReference(eventStreamArraySchema)) {
+      return;
+    }
+    const eventStreamRefSchema = eventStreamArraySchema?.items;
+    if (!isReference(eventStreamRefSchema)) {
+      return;
+    }
+    const eventStreamSchema = extractSchema(
+      eventStreamRefSchema,
+      this.openAPI.components,
+    ) as EventStreamSchema;
+
+    const events: EventDefinition[] =
+      eventStreamSchema.properties.body.items.anyOf.map(domainEventSchema => {
+        const eventTitle = domainEventSchema.title;
+        const eventName = domainEventSchema.properties.name.const;
+        const eventBodySchema = domainEventSchema.properties.body;
+        const eventBodyKeyedSchema = keySchema(
+          eventBodySchema,
+          this.openAPI.components!,
+        );
+        eventBodyKeyedSchema.schema.title =
+          eventBodyKeyedSchema.schema.title || domainEventSchema.title;
+        return {
+          title: eventTitle,
+          name: eventName,
+          schema: eventBodyKeyedSchema,
+        };
+      });
+
+    operation.tags?.forEach(tag => {
+      const aggregate = this.aggregates.get(tag);
+      if (!aggregate) {
+        return;
+      }
+      events.forEach(event => {
+        aggregate.events.set(event.name, event);
+      });
+    });
+  }
+
+  /**
+   * Processes field query operations and associates field schemas with aggregates.
+   * @param operation - The OpenAPI operation
+   */
+  fields(operation: Operation): void {
+    if (!this.openAPI.components) {
+      return;
+    }
+    if (!operation.operationId?.endsWith('.snapshot.count')) {
+      return;
+    }
+    const requestBody = extractRequestBody(
+      operation.requestBody as Reference,
+      this.openAPI.components,
+    ) as RequestBody;
+    const queryFields = requestBody['x-wow-query-fields'];
+    let fieldRefSchema: Reference;
+    if (queryFields !== undefined) {
+      if (!isReference(queryFields)) {
+        throw new TypeError('x-wow-query-fields must be a schema reference');
+      }
+      fieldRefSchema = queryFields;
+    } else {
+      const conditionRefSchema = requestBody.content[
+        ContentTypeValues.APPLICATION_JSON
+      ].schema as Reference;
+      const conditionSchema = extractSchema(
+        conditionRefSchema,
+        this.openAPI.components,
+      ) as Schema;
+      fieldRefSchema = conditionSchema.properties?.field as Reference;
+    }
+    const fieldKeyedSchema = keySchema(fieldRefSchema, this.openAPI.components);
+    operation.tags?.forEach(tag => {
+      const aggregate = this.aggregates.get(tag);
+      if (!aggregate) {
+        return;
+      }
+      aggregate.fields = fieldKeyedSchema;
+    });
+  }
+}

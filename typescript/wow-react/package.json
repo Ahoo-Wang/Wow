@@ -1,0 +1,81 @@
+{
+  "name": "@ahoo-wang/wow-react",
+  "version": "9.1.5",
+  "description": "React hooks for Wow (https://github.com/Ahoo-Wang/Wow) queries: single, list, paged, count and list-stream, built on fetcher-react.",
+  "keywords": [
+    "wow",
+    "react",
+    "hooks",
+    "cqrs",
+    "query",
+    "typescript"
+  ],
+  "author": "Ahoo-Wang",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-react",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ahoo-Wang/Wow.git",
+    "directory": "typescript/wow-react"
+  },
+  "bugs": {
+    "url": "https://github.com/Ahoo-Wang/Wow/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=18.20.8"
+  },
+  "module": "./dist/index.es.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.es.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "vite build",
+    "test": "vitest run --coverage && pnpm test:type",
+    "test:type": "tsc --noEmit -p test/tsconfig.types.json",
+    "lint": "eslint . --fix",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": {
+    "@ahoo-wang/fetcher": "catalog:",
+    "@ahoo-wang/fetcher-eventstream": "catalog:",
+    "@ahoo-wang/fetcher-react": "catalog:",
+    "react": "catalog:",
+    "@ahoo-wang/wow-client": "workspace:~"
+  },
+  "devDependencies": {
+    "@ahoo-wang/fetcher": "catalog:",
+    "@ahoo-wang/fetcher-eventstream": "catalog:",
+    "@ahoo-wang/fetcher-react": "catalog:",
+    "@ahoo-wang/wow-client": "workspace:~",
+    "@eslint/js": "catalog:",
+    "@rolldown/plugin-babel": "catalog:",
+    "@testing-library/react": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "babel-plugin-react-compiler": "catalog:",
+    "eslint": "catalog:",
+    "eslint-plugin-react-compiler": "catalog:",
+    "eslint-plugin-react-hooks": "catalog:",
+    "globals": "catalog:",
+    "jsdom": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "unplugin-dts": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

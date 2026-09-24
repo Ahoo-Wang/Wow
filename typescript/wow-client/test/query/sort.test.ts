@@ -1,0 +1,56 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { describe, expect, it } from 'vitest';
+import { asc, desc, SortDirection } from '../../src';
+
+describe('sort', () => {
+  it('should create a sort object with ascending direction', () => {
+    const field = 'testField';
+    const result = asc(field);
+
+    expect(result).toEqual({
+      field,
+      direction: SortDirection.ASC,
+    });
+  });
+
+  it('should create a sort object with descending direction', () => {
+    const field = 'testField';
+    const result = desc(field);
+
+    expect(result).toEqual({
+      field,
+      direction: SortDirection.DESC,
+    });
+  });
+});
+
+describe('field paths', () => {
+  // Kotlin holds a sort field as `QueryField`, which refuses a path its
+  // pattern rejects. A query built from one is answered with a 400.
+  it.each(['9 not a path', 'has space', 'trailing.', ''])(
+    'refuses %s',
+    field => {
+      expect(() => asc(field)).toThrow('Query field is invalid');
+      expect(() => desc(field)).toThrow('Query field is invalid');
+    },
+  );
+
+  it.each(['name', 'state.status', '@ownerId', 'items.0.sku'])(
+    'admits %s',
+    field => {
+      expect(asc(field).field).toBe(field);
+    },
+  );
+});
