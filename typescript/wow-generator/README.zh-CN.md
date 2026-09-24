@@ -7,13 +7,49 @@
 
 ```bash
 pnpm add -D @ahoo-wang/wow-generator
-pnpm exec fetcher-generator generate \
+pnpm exec wow-generator generate \
   --input ./openapi.yaml \
   --output ./src/generated \
   --ts-config-file-path ./tsconfig.json
 ```
 
-生成客户端会导入对应 Fetcher 运行时包。请把生成结果实际使用的 peer 包加入应用依赖。
+命令原名 `fetcher-generator`，这个名字作为别名保留到 v10。需要 Node 22.12 或更高版本。
+
+生成客户端会导入对应 Fetcher 运行时包。请把生成结果实际使用的 peer 包加入应用依赖。生成的是
+装饰器类，编译它们的项目需要在 `tsconfig.json` 中设置 `"experimentalDecorators": true`。
+
+生成成功时先输出警告（如有），最后输出一行摘要：
+
+```text
+Generated 12 files into src/generated with /work/app/wow-generator.config.json, 1 warning
+```
+
+## 选项与退出码
+
+| 选项                               | 含义                                                         |
+| ---------------------------------- | ------------------------------------------------------------ |
+| `-i, --input <file>`               | OpenAPI 3.x 文档：文件路径或 http(s) URL（必填）             |
+| `-o, --output <path>`              | 输出目录，默认 `src/generated`                               |
+| `-c, --config <file>`              | 配置文件，默认 `./wow-generator.config.json`                 |
+| `-t, --ts-config-file-path <file>` | 项目的 `tsconfig.json`                                       |
+| `-H, --header <header>`            | 读取 http(s) 输入或配置时发送的 `Name: value` 请求头，可重复 |
+| `--timeout <ms>`                   | http(s) 请求超过这个毫秒数即放弃，默认 30000                 |
+| `--strict`                         | 本次运行有警告时以退出码 4 结束                              |
+| `--verbose`                        | 输出每一步（带时间戳），失败时输出堆栈                       |
+| `--quiet`                          | 只输出警告和错误                                             |
+
+http(s) 输入的响应不是 2xx 或超时都会失败。Swagger 2.0 文档会被拒绝，请先转换为 OpenAPI 3。
+
+| 退出码 | 含义                                                       |
+| ------ | ---------------------------------------------------------- |
+| 0      | 生成成功                                                   |
+| 1      | 内部错误；加 `--verbose` 重跑可看到堆栈                    |
+| 2      | 输入：读不到、取不到、不是 OpenAPI 3.x，或选项值无效       |
+| 3      | 配置：读不到、解析不了或校验不通过                         |
+| 4      | 规范：文档无法生成代码，或开启 `--strict` 且本次运行有警告 |
+| 130    | 被中断（Ctrl-C）                                           |
+
+失败时只输出一行，说明哪里失败；`--verbose` 会附上原因。
 
 ## 配置
 
@@ -27,18 +63,23 @@ pnpm exec fetcher-generator generate \
 }
 ```
 
-默认配置路径为 `./fetcher-generator.config.json`，相对 CLI 的运行目录解析。只有这个默认
-路径是可选的：该位置没有文件时，CLI 会明确说明并按默认值生成。`--config` 指定的路径必须
+默认配置路径为 `./wow-generator.config.json`，相对 CLI 的运行目录解析。只有这个默认路径是
+可选的：该位置没有文件时，CLI 按默认值生成。新文件名不存在时，仍会读取旧名
+`./fetcher-generator.config.json` 并给出弃用警告；请改名，v10 起不再读取旧名。`--config` 指定的路径必须
 存在；配置读不到、解析不了，或某个选项的形态不对，都会让本次生成失败，而不是退回默认值。
 生成器不认识的选项——例如拼错的 `apiClient`——会被逐个点名警告并忽略。
 
-日志会写出实际读取的绝对路径与解析出的设置，一次运行就能回答"我的配置生效了吗"：
+摘要行会写出实际读取的配置的绝对路径，一次运行就能回答"我的配置生效了吗"；`--verbose` 还会
+写出解析出的设置：
 
 ```text
-ℹ️  Configuration loaded from /work/app/fetcher-generator.config.json: apiClients=Catalog
+[10:42:07] Configuration loaded from /work/app/wow-generator.config.json: apiClients=Catalog
 ```
 
-如果这一行不存在，说明配置文件根本没送到生成器——请检查 CLI 的运行目录。
+如果摘要里没有配置路径，说明配置文件根本没送到生成器——请检查 CLI 的运行目录。
+
+生成器把写出的文件记录在输出目录根下的 `.wow-generator.json` 中，之后的运行据此删除不再生成的
+文件。请把它和输出一起提交。旧版本留下的 `.fetcher-generator.json` 会被读取一次并替换。
 
 ## 属性可选性
 
@@ -63,13 +104,13 @@ schema 声明的每个属性都生成为必填。强类型后端根本没有"缺
 - 按 tag 分组的 TypeScript 模型与 Decorator API 客户端。
 - Wow bounded-context、命令、快照、事件与查询发现。
 - 递归生成 `index.ts`，并通过 ts-morph 格式化。
-- 支持注入日志的编程式 `CodeGenerator` API。
+- 支持注入日志的编程式 `CodeGenerator` API，返回写出的文件与警告数。
 
 每次契约变更后重新生成，并在发布前编译结果。
 
 ## 文档
 
-- [OpenAPI 生成实战](https://fetcher.ahoo.me/zh/guides/services/generated-client)
-- [Generator 参考](https://fetcher.ahoo.me/zh/reference/generator)
+- [生成客户端](https://wow.ahoo.me/zh/guide/typescript/generated-client)
+- [wow-generator 参考](https://wow.ahoo.me/zh/reference/typescript/wow-generator/)
 
 [English](./README.md) · [许可证](../../LICENSE)

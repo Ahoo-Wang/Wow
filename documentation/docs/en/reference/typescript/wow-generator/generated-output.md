@@ -17,7 +17,7 @@ Generation produces TypeScript source, not a standalone HTTP implementation. Com
 | `queryClient.ts`          | Aggregate QueryClientFactory, state/field types, domain-event union (`never` when empty) and event title enum                            |
 | `boundedContext.ts`       | Context-alias constant for resolved contexts                                                                                             |
 | `index.ts`                | Recursive exports for .ts files and nonempty subdirectories                                                                              |
-| `.fetcher-generator.json` | Version 1 ownership manifest with SHA-256 hashes of generated .ts files                                                                  |
+| `.wow-generator.json`     | Version 1 ownership manifest with SHA-256 hashes of generated .ts files; an older `.fetcher-generator.json` is read once and replaced    |
 
 Ordinary methods expose positional path arguments, a ParameterRequest (FormData for multipart; referenced JSON model when available), and optional attributes. Query/header/cookie data are carried in that request rather than expanded into one positional argument each. Path-level parameters are inherited; operation parameters override matching in/name. Missing operationId or no usable tags excludes an operation.
 

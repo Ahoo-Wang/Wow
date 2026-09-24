@@ -21,7 +21,7 @@ description: '生成器配置 — @ahoo-wang/wow-generator'
 | 设置                                   | 查找与默认值                          | 效果                                      |
 | -------------------------------------- | ------------------------------------- | ----------------------------------------- |
 | `apiClients`                           | 缺失时没有按 tag 覆盖                 | 键为 OpenAPI tag 的精确名称               |
-| `apiClients[tag].ignorePathParameters` | 缺失/null → `['tenantId', 'ownerId']` | 普通 API 客户端按精确名称省略位置路径参数 |
+| `apiClients[tag].ignorePathParameters` | 缺失 → `['tenantId', 'ownerId']`      | 普通 API 客户端按精确名称省略位置路径参数 |
 | 空数组                                 | 显式覆盖                              | 保留普通 API 的全部路径参数               |
 | 命令客户端路径参数                     | 始终使用 `['tenantId', 'ownerId']`    | 按 tag 的 API 配置不影响命令客户端        |
 
@@ -29,16 +29,27 @@ description: '生成器配置 — @ahoo-wang/wow-generator'
 
 ## 解析与失败
 
-`options.configPath ?? DEFAULT_CONFIG_PATH` 选择配置文件，`DEFAULT_CONFIG_PATH` 为 `./fetcher-generator.config.json`。路径相对 process.cwd()，不是输入文档所在目录。JSON/YAML 根据内容识别。读取/解析失败会记录日志并吞掉错误，恢复 `{}`；解析后的形状没有验证，因此结构错误可能在生成阶段失败。没有环境变量合并或自动多文件配置层级。
+`options.configPath`（CLI 的 `-c`）选择配置文件，也可以是 HTTP/HTTPS URL，获取时使用与输入相同的请求头和超时。未指定时读取 `DEFAULT_CONFIG_PATH`，即 `./wow-generator.config.json`；它不存在时再读取 Wow 之前的旧名 `./fetcher-generator.config.json`，并给出弃用警告，v10 起不再读取旧名。路径相对 process.cwd()，不是输入文档所在目录。JSON/YAML 根据内容识别。
 
-内部接口 GeneratorOptions、Logger、GeneratorConfiguration、ApiClientConfiguration 描述这些形状，但不是包根命名导出。请按[程序化 API](./programmatic-api)示例推导公开构造器参数类型。
+| 情形                                                            | 结果                                                  |
+| --------------------------------------------------------------- | ----------------------------------------------------- |
+| 默认路径（及旧名）都没有文件                                    | 按默认值生成                                          |
+| 文件为空                                                        | 按默认值生成，并给出警告                              |
+| `configPath`/`-c` 指定的文件不存在                              | 失败：`GeneratorError` `configuration`，退出码 3      |
+| 文件读不到，或既不是 JSON 也不是 YAML                           | 失败，退出码 3                                        |
+| 块或选项形状错误（`apiClients` 不是对象、`ignorePathParameters` 不是字符串数组） | 失败，退出码 3                       |
+| 未知键，例如拼错的 `apiClient`                                  | 警告并点名该键，然后忽略                              |
+
+CLI 的摘要行会写出读取的配置，`--verbose` 还会记录解析出的设置（`apiClients=Items, Orders`）。没有环境变量合并或自动多文件配置层级。
+
+`GeneratorConfiguration` 与 `ApiClientConfiguration` 作为类型从包根导出，脚本可以用它们给自己构造的配置加类型，见[程序化 API](./programmatic-api)。
 
 ## 完整使用
 
-把上述 JSON 保存为 `fetcher-generator.config.json`，确保规范中使用 `Items` 或 `Orders` 操作 tag，再运行：
+把上述 JSON 保存为 `wow-generator.config.json`，确保规范中使用 `Items` 或 `Orders` 操作 tag，再运行：
 
 ```bash
-pnpm exec wow-generator generate -i ./openapi.json -c ./fetcher-generator.config.json -o ./src/generated -t ./tsconfig.json
+pnpm exec wow-generator generate -i ./openapi.json -c ./wow-generator.config.json -o ./src/generated -t ./tsconfig.json
 ```
 
 检查生成方法签名：Items 保留 tenantId/ownerId；Orders 省略 tenantId 但保留 ownerId。命令不执行生成的方法，也不连接其 API 服务。

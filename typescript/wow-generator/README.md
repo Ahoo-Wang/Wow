@@ -7,14 +7,53 @@ local or remote OpenAPI document.
 
 ```bash
 pnpm add -D @ahoo-wang/wow-generator
-pnpm exec fetcher-generator generate \
+pnpm exec wow-generator generate \
   --input ./openapi.yaml \
   --output ./src/generated \
   --ts-config-file-path ./tsconfig.json
 ```
 
+The command used to be `fetcher-generator`; that name stays as an alias until
+v10. Node 22.12 or later is required.
+
 Generated clients import the matching Fetcher runtime packages. Add the peer
-packages used by the generated output to application dependencies.
+packages used by the generated output to application dependencies. They are
+decorator classes, so the project that compiles them needs
+`"experimentalDecorators": true` in its `tsconfig.json`.
+
+A successful run prints its warnings, if any, and one summary line:
+
+```text
+Generated 12 files into src/generated with /work/app/wow-generator.config.json, 1 warning
+```
+
+## Options and exit codes
+
+| Option                             | Meaning                                                                 |
+| ---------------------------------- | ----------------------------------------------------------------------- |
+| `-i, --input <file>`               | OpenAPI 3.x document: a file path or an http(s) URL (required)          |
+| `-o, --output <path>`              | Output directory, `src/generated` by default                            |
+| `-c, --config <file>`              | Configuration file, `./wow-generator.config.json` by default            |
+| `-t, --ts-config-file-path <file>` | The project's `tsconfig.json`                                           |
+| `-H, --header <header>`            | `Name: value` header for an http(s) input or configuration; repeatable  |
+| `--timeout <ms>`                   | Abandon an http(s) fetch after this many milliseconds, 30000 by default |
+| `--strict`                         | Exit with code 4 when the run logged a warning                          |
+| `--verbose`                        | Log every step with timestamps, and the stack trace of a failure        |
+| `--quiet`                          | Log only warnings and errors                                            |
+
+An http(s) input fails on a response outside 2xx or when the timeout expires.
+Swagger 2.0 documents are refused; convert them to OpenAPI 3 first.
+
+| Exit code | Meaning                                                                                 |
+| --------- | --------------------------------------------------------------------------------------- |
+| 0         | Generated                                                                               |
+| 1         | Internal error; rerun with `--verbose` for the stack trace                              |
+| 2         | Input: unreadable, unfetchable, not OpenAPI 3.x, or an invalid option value             |
+| 3         | Configuration: cannot be read, parsed or validated                                      |
+| 4         | Specification: the document cannot be generated, or `--strict` and the run had warnings |
+| 130       | Interrupted (Ctrl-C)                                                                    |
+
+A failure prints one line naming what failed; `--verbose` adds the cause.
 
 ## Configuration
 
@@ -28,23 +67,32 @@ packages used by the generated output to application dependencies.
 }
 ```
 
-The default config path is `./fetcher-generator.config.json`, resolved against
+The default config path is `./wow-generator.config.json`, resolved against
 the working directory the CLI runs in. Only that default path is optional: when
-no file is there the CLI says so and generates with defaults. A path passed to
+no file is there the CLI generates with defaults. A
+`./fetcher-generator.config.json`, the name the file had before, is still read
+when the new name is absent, with a deprecation warning; rename it, as v10 no
+longer reads it. A path passed to
 `--config` has to exist, and a configuration that cannot be read, cannot be
 parsed, or declares an option with the wrong shape fails the run rather than
 degrading to defaults. Options the generator does not read - a misspelled
 `apiClient`, say - are warned about by name and ignored.
 
-The log names the absolute path it read and the settings it resolved to, so a
-run answers "did my configuration take effect?" on its own:
+The summary line names the absolute path of the configuration it read, so a
+run answers "did my configuration take effect?" on its own. `--verbose` also
+prints the settings it resolved to:
 
 ```text
-ℹ️  Configuration loaded from /work/app/fetcher-generator.config.json: apiClients=Catalog
+[10:42:07] Configuration loaded from /work/app/wow-generator.config.json: apiClients=Catalog
 ```
 
-If that line is missing, the file never reached the generator - check which
-directory the CLI ran in.
+If the summary names no configuration, the file never reached the generator -
+check which directory the CLI ran in.
+
+The generator records the files it wrote in `.wow-generator.json` at the root
+of the output directory, so a later run removes the files it no longer
+generates. Commit it with the output. A `.fetcher-generator.json` left by an
+older version is read once and replaced.
 
 ## Property optionality
 
@@ -75,13 +123,14 @@ constructs fine.
 - TypeScript models and decorator API clients grouped by tag.
 - Wow bounded-context, command, snapshot, event, and query discovery.
 - Recursive `index.ts` generation and ts-morph formatting.
-- Programmatic `CodeGenerator` API with injectable logging.
+- Programmatic `CodeGenerator` API with injectable logging, returning the files
+  written and the warning count.
 
 Regenerate after every contract change and compile the result before publishing.
 
 ## Documentation
 
-- [OpenAPI generation recipe](https://fetcher.ahoo.me/guides/services/generated-client)
-- [Generator reference](https://fetcher.ahoo.me/reference/generator)
+- [Generate a client](https://wow.ahoo.me/guide/typescript/generated-client)
+- [wow-generator reference](https://wow.ahoo.me/reference/typescript/wow-generator/)
 
 [中文](./README.zh-CN.md) · [License](../../LICENSE)

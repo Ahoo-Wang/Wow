@@ -42,7 +42,7 @@ pnpm --filter wow-integration-test test
 `src/generated`. Inspect generated changes before committing them.
 
 `src/generated` holds the generator's output byte for byte, with its manifest
-`.fetcher-generator.json`. ESLint checks it like the rest of the package;
+`.wow-generator.json`. ESLint checks it like the rest of the package;
 Prettier skips it. Never edit or reformat it by hand.
 
 ## CI

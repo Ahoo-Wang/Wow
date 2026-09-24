@@ -17,7 +17,7 @@ description: '生成产物与重新生成 — @ahoo-wang/wow-generator'
 | `queryClient.ts`          | 聚合 QueryClientFactory、状态/字段类型、领域事件联合（空集为 never）及事件标题枚举                     |
 | `boundedContext.ts`       | 已解析上下文的别名常量                                                                                 |
 | `index.ts`                | .ts 文件及非空子目录的递归导出                                                                         |
-| `.fetcher-generator.json` | 版本 1 所有权清单，记录生成 .ts 文件的 SHA-256                                                         |
+| `.wow-generator.json`     | 版本 1 所有权清单，记录生成 .ts 文件的 SHA-256；旧的 `.fetcher-generator.json` 会被读取一次并替换      |
 
 普通方法暴露位置路径参数、ParameterRequest（multipart 为 FormData；JSON 引用可用时使用对应模型）及可选 attributes。query/header/cookie 数据放在 request 中，不会逐项展开为位置参数。路径级参数会继承，操作级参数按 in/name 覆盖。缺少 operationId 或没有可用 tag 的操作不生成。
 

@@ -9,16 +9,38 @@ description: '生成器 CLI — @ahoo-wang/wow-generator'
 
 ## 选项
 
-| 选项                               | 必填/默认值                       | 含义                                           |
-| ---------------------------------- | --------------------------------- | ---------------------------------------------- |
-| `-i, --input <file>`               | 必填                              | 本地路径或 HTTP/HTTPS URL                      |
-| `-o, --output <path>`              | `src/generated`                   | 输出根目录，相对当前工作目录解析               |
-| `-c, --config <file>`              | `./fetcher-generator.config.json` | 可选生成器配置；读取/解析失败会记录日志并忽略  |
-| `-t, --ts-config-file-path <file>` | 不指定                            | ts-morph 项目配置；应提供启用装饰器的 tsconfig |
-| `-v, --version`                    | 根命令                            | 输出包版本                                     |
-| `-h, --help`                       | 根命令/子命令                     | Commander 帮助                                 |
+| 选项                               | 必填/默认值                   | 含义                                                                        |
+| ---------------------------------- | ----------------------------- | --------------------------------------------------------------------------- |
+| `-i, --input <file>`               | 必填                          | OpenAPI 3.x 文档的本地路径或 HTTP/HTTPS URL                                 |
+| `-o, --output <path>`              | `src/generated`               | 输出根目录，相对当前工作目录解析                                            |
+| `-c, --config <file>`              | `./wow-generator.config.json` | 生成器配置，见[配置](./configuration)；显式指定的文件必须存在               |
+| `-t, --ts-config-file-path <file>` | 不指定                        | ts-morph 项目配置；应提供启用装饰器的 tsconfig                              |
+| `-H, --header <header>`            | 无；可重复                    | 输入或配置为 HTTP/HTTPS URL 时发送的 `Name: value` 请求头                   |
+| `--timeout <ms>`                   | `30000`                       | 获取 HTTP/HTTPS 输入或配置的超时毫秒数，超时即放弃                          |
+| `--strict`                         | 关闭                          | 本次运行有警告时以退出码 4 结束                                             |
+| `--verbose`                        | 关闭                          | 输出每一步（带时间戳），失败时输出原因和堆栈                                |
+| `--quiet`                          | 关闭                          | 只输出警告和错误                                                            |
+| `-v, --version`                    | 根命令                        | 输出包版本                                                                  |
+| `-h, --help`                       | 根命令/子命令                 | Commander 帮助                                                              |
 
 没有实现 watch、dry-run、framework、client-name 或 model-only 开关。
+
+需要令牌的文档可以通过请求头获取，例如从环境变量读取令牌：
+
+```bash
+pnpm exec wow-generator generate -i https://api.example.com/v3/api-docs \
+  -H "Authorization: Bearer $API_TOKEN" --timeout 60000 -o ./src/generated -t ./tsconfig.json
+```
+
+## 输出
+
+默认只输出警告、错误和一行摘要，摘要包含文件数、输出目录、读取的配置和警告数：
+
+```text
+Generated 3 files into ./src/generated with /work/app/wow-generator.config.json, 1 warning
+```
+
+`--verbose` 输出每一步并带时间戳；`--quiet` 不输出摘要。只有在终端（TTY）且未设置 `NO_COLOR` 时才带符号，CI 日志和管道保持纯文本。
 
 ## 完整本地运行
 
@@ -112,11 +134,22 @@ pnpm exec tsc --noEmit -p ./tsconfig.json
 node dist/cli.js generate -i "$PWD/test/demo.spec.json" -o /tmp/wow-demo-generated -t tsconfig.json
 ```
 
-## 失败与生命周期
+## 失败与退出码
 
-输入预检查拒绝值时 CLI 退出码为 2，生成错误为 1，SIGINT 为 130。缺少必填输入也会被 Commander 拒绝。格式根据内容识别，不依赖扩展名。输入缺失、JSON/YAML 无效、组件引用无法解析、tsconfig 无效或写入失败都会使生成失败。
+| 退出码 | 类别 | 触发条件                                                                               |
+| ------ | ---- | -------------------------------------------------------------------------------------- |
+| 0      | 成功 | 文件已写出                                                                             |
+| 1      | 内部 | 意外错误，例如写入失败或 tsconfig 无效；加 `--verbose` 重跑可看到堆栈                  |
+| 2      | 输入 | 输入读不到或取不到、既不是 JSON 也不是 YAML、不是 OpenAPI 3.x 文档，或选项值无效       |
+| 3      | 配置 | 配置读不到、解析不了或校验不通过                                                       |
+| 4      | 规范 | 文档描述的代码无法生成，或开启了 `--strict` 且本次运行有警告                           |
+| 130    | 中断 | SIGINT（Ctrl-C）                                                                       |
 
-HTTP 加载使用 fetch 后读取 text，不检查 response.ok；HTTP 错误正文可能在后续作为文档解析时失败。CLI 没有 timeout/abort 选项。输入预检查阻止部分私有 IP 字面量，但允许回环地址，且不检查 DNS/重定向；它不是不可信 URL 的沙箱。程序化构造不会执行该 CLI 预检查。配置读取/解析错误例外：生成继续使用 `{}`。依赖进程成功退出前，应检查日志及[输出所有权](./generated-output)。
+失败时只输出一行，写明文件或 URL 以及出错原因；`--verbose` 会附上原因和堆栈。缺少必填输入也会被 Commander 拒绝。格式根据内容识别，不依赖扩展名。
+
+HTTP 加载在响应不是 2xx（如 `HTTP 401 Unauthorized`）、网络错误或 `--timeout` 超时时失败，不会把错误页当作文档解析。任何 `http:` 或 `https:` URL 都被接受，包括内网地址：CLI 不过滤主机，只传入可信的 URL。Swagger 2.0 文档会被拒绝，并提示先转换（例如用 swagger2openapi）；OpenAPI 3.1 文档可以没有 `paths`。
+
+只有默认配置文件不存在时不报错。`-c` 指定的配置不存在，或任何配置读不到、解析不了、校验不通过，都以退出码 3 失败，见[配置](./configuration)。依赖进程成功退出前，应检查警告及[输出所有权](./generated-output)；CI 可用 `--strict` 把警告变为失败。
 
 ## 实现源码
 

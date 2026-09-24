@@ -21,7 +21,7 @@ The generator has two separate inputs: constructor/CLI execution options and an 
 | Setting                                | Lookup and default                       | Effect                                                              |
 | -------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------- |
 | `apiClients`                           | Missing → no per-tag overrides           | Keys are exact OpenAPI tag names                                    |
-| `apiClients[tag].ignorePathParameters` | Missing/null → `['tenantId', 'ownerId']` | Ordinary API client positional path arguments omitted by exact name |
+| `apiClients[tag].ignorePathParameters` | Missing → `['tenantId', 'ownerId']`      | Ordinary API client positional path arguments omitted by exact name |
 | Empty array                            | Explicit override                        | Keep every ordinary API path argument                               |
 | Command-client path arguments          | Always `['tenantId', 'ownerId']`         | Per-tag API configuration does not change command clients           |
 
@@ -29,16 +29,27 @@ The array replaces the default; it does not append. Ignoring a parameter does no
 
 ## Resolution and failures
 
-`options.configPath ?? DEFAULT_CONFIG_PATH` selects the file; `DEFAULT_CONFIG_PATH` is `./fetcher-generator.config.json`. Paths are relative to process.cwd(), not to the input document. JSON/YAML format is inferred from content. Read/parse failure is logged and swallowed, restoring `{}`; the parsed shape is not validated, so structurally wrong content can fail later during generation. There is no environment-variable merging or automatic multi-file configuration hierarchy.
+`options.configPath` (CLI `-c`) selects the file, which may also be an HTTP/HTTPS URL fetched with the same headers and timeout as the input. Without it the generator reads `DEFAULT_CONFIG_PATH`, `./wow-generator.config.json`, and when that is absent the pre-Wow name `./fetcher-generator.config.json` with a deprecation warning; v10 no longer reads the old name. Paths are relative to process.cwd(), not to the input document. JSON/YAML format is inferred from content.
 
-The internal interfaces named GeneratorOptions, Logger, GeneratorConfiguration and ApiClientConfiguration describe these shapes but are not root named exports. Infer the public constructor argument type as shown in [programmatic API](./programmatic-api).
+| Situation                                                       | Result                                                |
+| --------------------------------------------------------------- | ----------------------------------------------------- |
+| No file at the default path (nor at the old name)               | Generates with defaults                               |
+| Empty file                                                      | Generates with defaults, with a warning               |
+| A file named with `configPath`/`-c` does not exist              | Fails: `GeneratorError` `configuration`, exit code 3  |
+| The file cannot be read, is neither JSON nor YAML               | Fails, exit code 3                                    |
+| A block or option has the wrong shape (`apiClients` not an object, `ignorePathParameters` not an array of strings) | Fails, exit code 3 |
+| An unknown key, such as a misspelt `apiClient`                  | Warning naming the key; the key is ignored            |
+
+The CLI summary names the configuration it read, and `--verbose` logs the settings it resolved to (`apiClients=Items, Orders`). There is no environment-variable merging or automatic multi-file configuration hierarchy.
+
+`GeneratorConfiguration` and `ApiClientConfiguration` are exported from the package root as types, so a script can type a configuration it builds; see [programmatic API](./programmatic-api).
 
 ## Complete application
 
-Save the JSON above as `fetcher-generator.config.json`, ensure the spec uses the `Items` or `Orders` operation tags, then run:
+Save the JSON above as `wow-generator.config.json`, ensure the spec uses the `Items` or `Orders` operation tags, then run:
 
 ```bash
-pnpm exec wow-generator generate -i ./openapi.json -c ./fetcher-generator.config.json -o ./src/generated -t ./tsconfig.json
+pnpm exec wow-generator generate -i ./openapi.json -c ./wow-generator.config.json -o ./src/generated -t ./tsconfig.json
 ```
 
 Inspect generated method signatures: Items retains tenantId/ownerId; Orders omits tenantId but keeps ownerId. The command does not run generated methods or connect to their API service.
