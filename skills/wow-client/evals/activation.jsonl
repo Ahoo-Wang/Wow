@@ -4,3 +4,5 @@
 {"id":"A89-client-rename","prompt":"Replace @ahoo-wang/fetcher-wow with the Wow-owned client package in this Vite app and keep every command and query call working.","expectedSkills":["wow-client"],"tags":["positive","migration","package-rename"]}
 {"id":"A90-client-vs-develop","prompt":"为下游 Wow 服务的 Kotlin 订单聚合增加 CancelOrder 命令和事件，并补齐 aggregate 测试。","expectedSkills":["wow-develop"],"tags":["boundary","server-side","conflict"]}
 {"id":"A91-none-client-plain-fetch","prompt":"用 @ahoo-wang/fetcher 给一个普通 REST 用户接口加重试拦截器，这个后端不是 Wow 服务。","expectedSkills":[],"tags":["negative","non-wow-project"]}
+{"id":"A92-none-view-engine","prompt":"在 @ahoo-wang/wow-view-engine 的分析视图工作台里给订单加一个按仓库的维度和金额合计指标。","expectedSkills":[],"tags":["negative","view-engine"]}
+{"id":"A93-client-auth","prompt":"Wow 前端用生成的 CartCommandClient 调用接口，一直报 Missing required path parameter: ownerId，怎么让它从登录用户带上？","expectedSkills":["wow-client"],"tags":["positive","auth"]}

@@ -39,19 +39,35 @@ const FULL = { [PACKAGE_DOCS]: TYPESCRIPT, [VIEW_ENGINE_DOCS]: VIEW_ENGINE };
 // empty list means no TypeScript workflow needs it. Unknown paths turn on
 // every scope, so only known paths narrow a run.
 const RULES = [
+  // Package READMEs whose code samples the site's tests compile
+  // (documentation/test/typescript-samples.mjs).
+  [
+    /^typescript\/wow-view-engine\/README(?:\.zh-CN)?\.md$/,
+    [PACKAGE_DOCS, VIEW_ENGINE_DOCS, DOCS],
+  ],
+  [
+    /^typescript\/wow-(?:client|generator)\/README(?:\.zh-CN)?\.md$/,
+    [PACKAGE_DOCS, DOCS],
+  ],
   // Prose inside a package. No build, story or site reads it; view-engine
   // tests its own (docs references, AGENTS.md structure, the quickstart).
   [/^typescript\/wow-view-engine\/.+\.md$/, [PACKAGE_DOCS, VIEW_ENGINE_DOCS]],
   // The migration plan, AGENTS.md and the other packages' READMEs and plans.
   [/^typescript\/.+\.md$/, [PACKAGE_DOCS]],
-  // View-engine and the stories build on the client and the React hooks.
+  // View-engine and the stories build on the client and the React hooks; the
+  // site compiles its samples against the client and the generator.
   [
     /^typescript\/wow-client\//,
-    [TYPESCRIPT, SDK, VIEW_ENGINE, STORYBOOK, CONTRACT, LEGACY_CONTRACT],
+    [TYPESCRIPT, SDK, DOCS, VIEW_ENGINE, STORYBOOK, CONTRACT, LEGACY_CONTRACT],
   ],
   [
     /^typescript\/wow-generator\//,
-    [TYPESCRIPT, SDK, CONTRACT, LEGACY_CONTRACT],
+    [TYPESCRIPT, SDK, DOCS, CONTRACT, LEGACY_CONTRACT],
+  ],
+  // The site's samples compile against the committed generated clients.
+  [
+    /^typescript\/integration-test\/src\/generated\//,
+    [TYPESCRIPT, DOCS, CONTRACT, LEGACY_CONTRACT],
   ],
   // The contracts run the integration tests; the unit job leaves them out.
   [/^typescript\/integration-test\//, [TYPESCRIPT, CONTRACT, LEGACY_CONTRACT]],

@@ -304,6 +304,8 @@ Tags named `wow`, `Actuator`, or naming an aggregate that exposes Wow routes are
 
 ### Command Clients
 
+Excerpt of real output for the example service (the HTTP method of each command comes from the document):
+
 ```typescript
 // Regular command client
 export class CartCommandClient<
@@ -314,7 +316,7 @@ export class CartCommandClient<
   constructor(apiMetadata?: ApiMetadata) {
     this.apiMetadata = { ...DEFAULT_COMMAND_CLIENT_OPTIONS, ...apiMetadata };
   }
-  @put(CartCommandEndpointPaths.ADD_CART_ITEM)
+  @post(CartCommandEndpointPaths.ADD_CART_ITEM)
   addCartItem(
     @request() commandRequest: CommandRequest<AddCartItemCommand>,
     @attribute() attributes?: Record<string, unknown>,
@@ -326,7 +328,7 @@ export class CartCommandClient<
 export class CartStreamCommandClient extends CartCommandClient<CommandResultEventStream> {}
 ```
 
-Command types use `CommandBody<T>` wrapper; an empty command body is `Record<string, never>`. `CommandEndpointPaths` enum maps command names to paths. `DEFAULT_COMMAND_CLIENT_OPTIONS` is `{ basePath: EXAMPLE_BOUNDED_CONTEXT_ALIAS }`, so `new CartCommandClient({ fetcher })` sends to `/example/...`; pass `basePath: ''` to reach the service directly without a gateway. The stream client inherits the constructor.
+Command types use `CommandBody<T>` wrapper; an empty command body is `Record<string, never>`. `CommandEndpointPaths` enum maps command names to paths. `DEFAULT_COMMAND_CLIENT_OPTIONS` is `{ basePath: EXAMPLE_BOUNDED_CONTEXT_ALIAS }`, so `new CartCommandClient({ fetcher })` sends under the `example` prefix; pass `basePath: ''` to reach the service directly without a gateway. The stream client inherits the constructor.
 
 ### Query Clients
 
@@ -372,16 +374,20 @@ The return type comes from the first success response (`200`, else the lowest ot
 
 ```typescript
 import { Fetcher } from '@ahoo-wang/fetcher';
-import { cartQueryClientFactory } from './generated/example/cart/queryClient';
-import { CartCommandClient } from './generated/example/cart/commandClient';
+import {
+  CartCommandClient,
+  cartQueryClientFactory,
+} from './generated/index.js';
 
 const fetcher = new Fetcher({ baseURL: 'https://api.example.com' });
 const snapshotClient = cartQueryClientFactory.createSnapshotQueryClient({
   fetcher,
 });
-// Keeps the bounded-context base path (/example/...); add basePath: '' to bypass it
+// Keeps the bounded-context base path (the example prefix); add basePath: '' to bypass it
 const commandClient = new CartCommandClient({ fetcher });
 ```
+
+Calls reject on any failure the server reports (validation, a failed command handler, 404, 408 wait timeout): read them with `toWowError(error)` from `@ahoo-wang/wow-client`. Owner- and tenant-scoped paths need `{ownerId}`/`{tenantId}`: apply `@ahoo-wang/fetcher-cosec` to the Fetcher, or pass `urlParams: { path: { ownerId } }`. Generated `…StreamCommandClient` classes use Fetcher's plain event-stream extractor, so a server error that ends the stream arrives as an event named after the error code; check `event.event` against `CommandStage`.
 
 ## Package Reference
 

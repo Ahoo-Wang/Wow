@@ -7,6 +7,8 @@ description: '生成产物与重新生成 — @ahoo-wang/wow-generator'
 
 生成的是 TypeScript 源码，不是独立 HTTP 实现。装饰器类需启用 `experimentalDecorators: true` 编译；安装实际输出 import 的包。
 
+
+<!-- typecheck-generated: typescript/integration-test/src/generated -->
 ## 产物类型
 
 | 产物                      | 生成规则                                                                                               |
@@ -44,6 +46,8 @@ description: '生成产物与重新生成 — @ahoo-wang/wow-generator'
 方法名只取决于操作本身，所以新增操作不会让已有方法改名。同一客户端的两个操作得到相同方法名时，本次运行以退出码 4 失败，并点名这两个操作；用 `methodNames` 或 `x-fetcher-method` 给其中一个命名即可。
 
 普通方法把每个 path、query、header 参数都生成为带类型的位置参数，以参数名命名（`item-id` → `itemId`），请求体则是单独的 `@body()` 参数。必填的在前，按文档顺序排列——path、query、header，然后是请求体——可选的在后，调用方不必为了传必填参数而先传 `undefined`。最后是 `httpRequest?: ParameterRequest`（用于请求可设置的其他内容：额外请求头、超时、signal）和 `attributes?: Record<string, unknown>`：
+
+<!-- typecheck: skip — 一个带参数装饰器的生成方法，不是完整模块 -->
 
 ```ts
 search(@path('item-id') itemId: string, @query('q') q: string,
@@ -91,6 +95,10 @@ pnpm exec tsc --noEmit -p ./tsconfig.json
 命令客户端，以及文档带 `x-wow-context-alias` 时的 API 客户端，会把构造器收到的 `apiMetadata` 合并到默认值之上，所以 `new CartCommandClient({ fetcher })` 保留限界上下文的基础路径，请求发往 `/example/...`。流式命令客户端继承同一个构造器。不经按上下文别名路由的网关、直接访问服务时，传 `basePath: ''`；查询客户端工厂对应传 `contextAlias: ''`：
 
 ```ts
+import { Fetcher } from '@ahoo-wang/fetcher';
+import { CartCommandClient, cartQueryClientFactory } from './generated/index.js';
+
+const fetcher = new Fetcher({ baseURL: 'http://localhost:8080' });
 const commands = new CartCommandClient({ fetcher, basePath: '' });
 const snapshots = cartQueryClientFactory.createSnapshotQueryClient({
   fetcher,
@@ -108,10 +116,10 @@ const snapshots = cartQueryClientFactory.createSnapshotQueryClient({
 
 ## 实现源码
 
-[typescript/wow-generator/src/utils/sourceFiles.ts:33](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/utils/sourceFiles.ts#L33)
+[typescript/wow-generator/src/utils/sourceFiles.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/utils/sourceFiles.ts)
 
-[typescript/wow-generator/src/client/apiClientGenerator.ts:73](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/client/apiClientGenerator.ts#L73)
+[typescript/wow-generator/src/client/apiClientGenerator.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/client/apiClientGenerator.ts)
 
-[typescript/wow-generator/src/client/queryClientGenerator.ts:35](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/client/queryClientGenerator.ts#L35)
+[typescript/wow-generator/src/client/queryClientGenerator.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/client/queryClientGenerator.ts)
 
-[typescript/wow-generator/src/model/modelGenerator.ts:33](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/model/modelGenerator.ts#L33)
+[typescript/wow-generator/src/model/modelGenerator.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/model/modelGenerator.ts)

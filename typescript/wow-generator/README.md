@@ -6,20 +6,25 @@ local or remote OpenAPI document.
 ## Install and run
 
 ```bash
-pnpm add -D @ahoo-wang/wow-generator
+pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
+  @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
+pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher-openapi typescript
 pnpm exec wow-generator generate \
   --input ./openapi.yaml \
   --output ./src/generated \
   --ts-config-file-path ./tsconfig.json
 ```
 
-The command used to be `fetcher-generator`; that name stays as an alias until
-v10. Node 22.12 or later is required.
+The first line installs what the generated code imports at run time, the
+second the generator and its peer `@ahoo-wang/fetcher-openapi`. The generator's
+other peers (`fetcher`, `fetcher-decorator`, `fetcher-eventstream`,
+`wow-client`) are the runtime packages of the first line; `wow-client` has to be
+on the generator's minor version. Node 22.12 or later is required. The command
+used to be `fetcher-generator`; that name stays as an alias until v10.
 
-Generated clients import the matching Fetcher runtime packages. Add the peer
-packages used by the generated output to application dependencies. They are
-decorator classes, so the project that compiles them needs
-`"experimentalDecorators": true` in its `tsconfig.json`.
+Generated clients are decorator classes, so the project that compiles them
+needs `"experimentalDecorators": true` in its `tsconfig.json`. Released with
+Wow 9.2.0, from the same tag and with the same version.
 
 A successful run prints its warnings, if any, and one summary line:
 
@@ -159,7 +164,10 @@ Regenerate after every contract change and compile the result before publishing.
 
 ## Documentation
 
-- [Generate a client](https://wow.ahoo.me/guide/typescript/generated-client)
+- [Quick start: generate a client from a Wow service and call it](https://wow.ahoo.me/guide/typescript/quick-start)
+- [Regenerate in CI](https://wow.ahoo.me/guide/typescript/regenerate-in-ci)
+- [Generate a client from any OpenAPI document](https://wow.ahoo.me/guide/typescript/generated-client)
 - [wow-generator reference](https://wow.ahoo.me/reference/typescript/wow-generator/)
+- [Compatibility and versions](https://wow.ahoo.me/guide/typescript/compatibility)
 
-[中文](./README.zh-CN.md) · [License](../../LICENSE)
+[中文](./README.zh-CN.md) · [License](https://github.com/Ahoo-Wang/Wow/blob/main/LICENSE)
