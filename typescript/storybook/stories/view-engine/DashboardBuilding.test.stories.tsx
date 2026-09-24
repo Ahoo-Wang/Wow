@@ -300,6 +300,75 @@ export const SystemDashboardHasNoEdit: Story = {
   },
 };
 
+/** The title bar's 另存为, the one save command a board read offers. */
+const saveAsOf = (canvasElement: HTMLElement) =>
+  within(
+    canvasElement.querySelector<HTMLElement>('[data-slot="save-actions"]')!,
+  ).getByRole('button', { name: zhCN['label.save.save-as'] });
+
+/**
+ * One primary a state, last on its line (D32, the user's 2026-09-24
+ * walk-through: 「编辑作为主按钮，放到最右侧」). Read, 「编辑」 is filled and
+ * ends the title bar — to the right of every other control on it — and the
+ * save commands beside the name are 另存为 alone. Built, the edit bar's
+ * 「保存」 is the filled one, at that bar's end; 取消 hands the keyboard back
+ * to 「编辑」.
+ */
+export const EditIsThePrimaryAtTheEnd: Story = {
+  ...DisplayAllPanels,
+  decorators: [DESK],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('heading', { level: 3, name: '待出库明细' });
+    const header = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="view-header"]',
+    )!;
+    const edit = canvas.getByRole('button', {
+      name: zhCN['label.dashboard.edit'],
+    });
+    const fill = (element: Element) =>
+      getComputedStyle(element).backgroundColor;
+    const buttons = [...header.querySelectorAll('button')];
+    const right = edit.getBoundingClientRect().right;
+    for (const button of buttons)
+      await expect(button.getBoundingClientRect().right).toBeLessThanOrEqual(
+        right,
+      );
+    // Filled, and nothing else on the line is filled the same.
+    const primary = fill(edit);
+    await expect(fill(saveAsOf(canvasElement))).not.toBe(primary);
+    await expect(buttons.filter(button => fill(button) === primary)).toEqual([
+      edit,
+    ]);
+    const saves = within(
+      canvasElement.querySelector<HTMLElement>('[data-slot="save-actions"]')!,
+    ).getAllByRole('button');
+    await expect(saves).toEqual([saveAsOf(canvasElement)]);
+
+    await userEvent.click(edit);
+    const bar = await canvas.findByRole('region', {
+      name: zhCN['label.dashboard.editing'],
+    });
+    const save = within(bar).getByRole('button', {
+      name: zhCN['label.dashboard.save'],
+    });
+    await expect(within(bar).getAllByRole('button').at(-1)).toBe(save);
+    await expect(fill(save)).toBe(primary);
+    await expect(
+      canvasElement.querySelector('[data-slot="dashboard-edit"]'),
+    ).toBeNull();
+
+    await userEvent.click(
+      within(bar).getByRole('button', { name: zhCN['label.dialog.cancel'] }),
+    );
+    await waitFor(() =>
+      expect(
+        canvasElement.ownerDocument.activeElement?.getAttribute('data-slot'),
+      ).toBe('dashboard-edit'),
+    );
+  },
+};
+
 /**
  * A board being read moves under nothing (D22 A): no grip, no corner, no
  * arrange menu, and the panel's 「⋯」 holds 「看」 alone — until 编辑.

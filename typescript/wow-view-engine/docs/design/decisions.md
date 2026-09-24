@@ -312,6 +312,15 @@
 - **顺带**：栅格在第一次绘制之前量自己的宽度（`useGridWidth`）：react-grid-layout 的 `useContainerWidth` 从 1280px 起、在被动 effect 里才量，栅格因此先拿到一份 1280px、24 栏的布局——手机上也是——库在挂载前按百分比画它，直到那个 effect 跑完；提交所在的任务跑得久（大板子、慢手机）时，浏览器可能在两者之间画出这一帧。现在在 layout effect 里量、量到之前不画面板；切换宽度时同样先量再画。
 - **落点**：`src/model/dashboard.ts`、`src/dashboard/{edit,validate,defaults}.ts`、`src/runtime/dashboard/{editing,history,commands}.ts`、`src/react/useDashboard.ts`、`src/ui/DashboardGrid.tsx`、`src/ui/layout.ts`、`src/ui/dashboard/{BoardWidth.tsx,EditBar.tsx,Board.tsx}`、[model.md#dashboard-配置](model.md#dashboard-配置)、[ui/dashboard.md](ui/dashboard.md)。
 
+## D32 仪表盘读的时候「编辑」是主按钮，在行尾（2026-09-24）
+
+- **来由**：用户 2026-09-24 在 Storybook 走查：「编辑作为主按钮，放到最右侧。」此前「编辑」是 `outline`，在名字旁拆分的「保存 ▾」右边（D22 A），读一块板时整屏没有 primary；[D17](#d17-阶段一收尾的七条裁定) 第 3 条写的是「一屏只有一个 primary，它是跑查询的那一个」，仪表盘读的时候没有要手动跑的查询（D27：筛选改了就跑）。
+- **裁定**：
+  - **一个状态一颗 primary，站在同一处（行尾）**：仪表盘读的时候是「编辑」（`default` 变体），在标题栏整行最后——框架功能与宿主的全局动作之后；嵌入里是首行右侧那组的最后一颗。搭的时候「编辑」离开，编辑条的「保存」是唯一的 primary，也在那一条的最后。记录与分析视图不变：primary 是编辑带或托盘底部的 Apply（D17 第 3 条），标题栏没有 primary。D17 第 3 条的措辞据此放宽为「一屏一个 primary，是接下来要做的那一件」。
+  - **读的时候名字旁只给「另存为」**：板子的改动只在搭的时候发生、由编辑条的「保存」存下（D26 Q37），读的时候就地保存永远是灰的；灰的「保存」加一个只收着另存为的 ▾ 是两颗假控件，挤在唯一的 primary 旁边。另存为本身仍要（复制一块板）。读的时候真有未保存的改动时，拆分的「保存 ▾」照旧出现（仍是 `outline`）。
+  - **宿主的全局动作不再「永远排最后」**：它们仍在框架功能之后、一根竖线之后；视图自己的 primary 收尾整行。理由：primary 的位置跟着状态走而不跟着宿主走——宿主加没加按钮，「编辑」与编辑条的「保存」都在行尾。
+- **落点**：`src/ui/dashboard/buildShell.tsx`、`src/ui/ViewHeader.tsx`、`src/ui/SaveActions.tsx`（`copyWhenClean`）、`src/ui/dashboard/EditBar.tsx`、[ui/dashboard.md](ui/dashboard.md)、[ui/README.md](ui/README.md#版式三块一套间距一种选项控件)。
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。

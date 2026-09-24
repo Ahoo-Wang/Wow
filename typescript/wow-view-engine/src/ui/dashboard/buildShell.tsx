@@ -48,7 +48,10 @@ export interface BuildShellOptions {
 }
 
 export interface BuildShell {
-  /** 「编辑」, where the surface draws its controls; `null` when not offered or while building. */
+  /**
+   * 「编辑」, the primary button, for the surface to draw last among its
+   * controls; nothing when not offered or while building.
+   */
   editButton: ReactNode;
 }
 
@@ -102,11 +105,15 @@ export function useBuildShell({
 
   const { setBuilding } = dashboard;
   return {
+    // The one primary of a board being read (D32): nothing on it runs a
+    // query by hand — the filters run as they change — so the thing to do
+    // next is to build it, and the surface draws it last on its line, where
+    // the edit bar's 「保存」 stands once it is pressed.
     editButton: canEdit && !editing && (
       <Button
         ref={editButton}
         data-slot="dashboard-edit"
-        variant="outline"
+        data-emphasis="primary"
         size="sm"
         onClick={() => setBuilding(true)}
       >

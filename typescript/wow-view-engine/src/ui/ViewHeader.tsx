@@ -78,12 +78,15 @@ export interface ViewHeaderProps extends ViewWriteCallbacks {
   /**
    * The view-level controls of the right-hand group — the editor's fold,
    * and in time whatever else governs how this view is being looked at.
-   * They come before the host's own actions, which always end the line.
+   * They come before the host's own actions, which end the controls.
    */
   trailing?: ReactNode;
   /**
-   * The way into building the view, beside its save commands — a
-   * dashboard's 「编辑」 (D22 A). Absent where the view is not built here.
+   * The way into building the view — a dashboard's 「编辑」 (D22 A), the
+   * primary button of the view being read — drawn last on the line, after
+   * the host's actions (D32). Where it is offered, a save in place belongs
+   * to the building, so while nothing is unsaved the save commands offer a
+   * copy alone. Absent where the view is not built here.
    */
   build?: ReactNode;
   /**
@@ -190,6 +193,9 @@ export function ViewHeader({
   const system = isSystemScope(state.scope);
   const scopeKey = system ? 'system' : audience;
   const Audience = system ? SYSTEM_ICON : AUDIENCE_ICON[audience];
+  // Whether the way into building is on this bar: `useBuildShell` hands
+  // `false` when it is not offered.
+  const builds = build != null && build !== false;
 
   return (
     // The bar is a query container named `header`, and it is the *only*
@@ -374,9 +380,11 @@ export function ViewHeader({
               title={state.title}
               onSaved={onSaved}
               onCreated={onCreated}
+              // Where the view is built on another state, what is saved in
+              // place is saved there (D32): read, the bar offers a copy.
+              copyWhenClean={builds}
             />
           )}
-          {build}
         </div>
 
         {/* How it is being looked at. The host's own actions end the line:
@@ -401,6 +409,11 @@ export function ViewHeader({
               and why it is what it is now are recorded there. */}
           {trailing && actions && <SectionDivider />}
           {actions}
+          {/* The view's one primary, when it has one here, ends the line —
+              the place the edit bar's 「保存」 takes once it is pressed, so
+              the thing to do next stands in one place whichever state the
+              view is in (D32). */}
+          {build}
         </div>
       </div>
 

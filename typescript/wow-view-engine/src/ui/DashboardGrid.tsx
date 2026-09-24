@@ -37,6 +37,7 @@ import type { DashboardWidth } from '../model/index.js';
 import type { ViewNavigation } from '../runtime/index.js';
 import { useSurfaceAnnouncer } from './Announcer.js';
 import { PanelGridItem, PanelResizeHandle } from './DashboardArrange.js';
+import { gridLines } from './dashboard/gridLines.js';
 import {
   DashboardPanel,
   panelNames,
@@ -292,6 +293,12 @@ export function DashboardGrid({
   // A fixed-width board (D31) is held to one width and centred: its filters,
   // its edit bar and its tabs with its panels, since they are one board.
   const fixed = dashboard.width === 'fixed';
+  // The cells, drawn while the board is built and only where a panel can be
+  // placed on them: not in the one-column reading, not over an empty tab.
+  const lines =
+    arranging && measured && panels.length > 0
+      ? gridLines({ width: drawnWidth, cols: dashboard.columns, rowHeight })
+      : undefined;
 
   return (
     <div
@@ -313,6 +320,10 @@ export function DashboardGrid({
           shows. Being built, the bar is a list to arrange and this a grid. */}
       <div
         data-slot="dashboard-tab-panel"
+        // It holds the grid alone, at the grid's width and height, so the
+        // cells are its background (`styles.css`, `[data-grid-lines]`).
+        data-grid-lines={lines ? '' : undefined}
+        style={lines}
         className="flex min-w-0 flex-col"
         {...(shownTab === null
           ? {}

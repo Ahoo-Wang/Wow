@@ -181,3 +181,111 @@ export const SwitchWhileBuilding: Story = {
     await waitFor(() => expect(placement(grid).width).toBe(1200));
   },
 };
+
+/** The grid's cell sizes as the board wrote them, in pixels. */
+function cellsOf(lines: HTMLElement) {
+  const read = (name: string) =>
+    Number.parseFloat(getComputedStyle(lines).getPropertyValue(name));
+  return {
+    width: read('--grid-cell-w'),
+    height: read('--grid-cell-h'),
+    gapX: read('--grid-gap-x'),
+    gapY: read('--grid-gap-y'),
+    offsetX: read('--grid-offset-x'),
+    offsetY: read('--grid-offset-y'),
+  };
+}
+
+/**
+ * How far `at` is from the nearest line of a run of cells: a cell's first
+ * edge sits at `offset + n * step`, its last at that plus the cell.
+ */
+function offLine(at: number, offset: number, cell: number, gap: number) {
+  const step = cell + gap;
+  const from = (edge: number) => {
+    const rest = (((at - edge) % step) + step) % step;
+    return Math.min(rest, step - rest);
+  };
+  return Math.min(from(offset), from(offset + cell));
+}
+
+/** Every panel's four edges on the lines the board draws. */
+function panelsOnTheLines(grid: HTMLElement, lines: HTMLElement) {
+  const box = lines.getBoundingClientRect();
+  const cells = cellsOf(lines);
+  const items = [...grid.querySelectorAll('.react-grid-item')];
+  expect(items.length).toBeGreaterThan(0);
+  for (const item of items) {
+    const panel = item.getBoundingClientRect();
+    for (const x of [panel.left - box.left, panel.right - box.left])
+      expect(offLine(x, cells.offsetX, cells.width, cells.gapX)).toBeLessThan(
+        1.5,
+      );
+    for (const y of [panel.top - box.top, panel.bottom - box.top])
+      expect(offLine(y, cells.offsetY, cells.height, cells.gapY)).toBeLessThan(
+        1.5,
+      );
+  }
+}
+
+/**
+ * Building shows the cells (the user's 2026-09-24 walk-through:
+ * 「仪表盘编辑模式下，显示网格线」): nothing while the board is read; once
+ * 编辑 is pressed a faint line on each cell's edges, sized off the width the
+ * grid is drawn at — the fixed 1200px, then the full 1920px — with every
+ * panel's edge on a line.
+ */
+export const GridLinesWhileBuilding: Story = {
+  ...DisplayFixedWidth,
+  decorators: [WIDE],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const grid = await drawn(canvasElement);
+    const lines = grid.querySelector<HTMLElement>(
+      '[data-slot="dashboard-tab-panel"]',
+    )!;
+    await expect(lines).not.toHaveAttribute('data-grid-lines');
+    await expect(getComputedStyle(lines).backgroundImage).toBe('none');
+
+    await userEvent.click(
+      await canvas.findByRole('button', { name: zhCN['label.dashboard.edit'] }),
+    );
+    await waitFor(() => expect(lines).toHaveAttribute('data-grid-lines'));
+    await expect(getComputedStyle(lines).backgroundImage).toContain(
+      'linear-gradient',
+    );
+    const fixedCell = cellsOf(lines).width;
+    await expect(fixedCell).toBeCloseTo((1200 - 20 - 230) / 24, 1);
+    await waitFor(() => panelsOnTheLines(grid, lines));
+
+    await userEvent.click(
+      within(
+        await canvas.findByRole('group', {
+          name: zhCN['label.dashboard.width'],
+        }),
+      ).getByRole('button', { name: zhCN['label.dashboard.width-full'] }),
+    );
+    await waitFor(() =>
+      expect(cellsOf(lines).width).toBeGreaterThan(fixedCell + 1),
+    );
+    await waitFor(() => panelsOnTheLines(grid, lines));
+  },
+};
+
+/** A phone's one column has no cell to land on, so building draws none. */
+export const NoGridLinesInOneColumn: Story = {
+  ...DisplayFixedWidth,
+  decorators: [PHONE],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const grid = await drawn(canvasElement);
+    await userEvent.click(
+      await canvas.findByRole('button', { name: zhCN['label.dashboard.edit'] }),
+    );
+    await canvas.findByRole('region', {
+      name: zhCN['label.dashboard.editing'],
+    });
+    await expect(grid).toHaveAttribute('data-narrow');
+    await expect(grid.querySelector('[data-grid-lines]')).toBeNull();
+  },
+};
