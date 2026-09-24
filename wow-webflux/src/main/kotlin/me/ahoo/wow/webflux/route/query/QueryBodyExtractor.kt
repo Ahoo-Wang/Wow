@@ -27,9 +27,14 @@ import org.springframework.web.reactive.function.BodyExtractors
 import reactor.core.publisher.Mono
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.DeserializationFeature
+import tools.jackson.databind.ObjectReader
 import tools.jackson.databind.node.ObjectNode
 
-class QueryBodyExtractor<Q : Any>(private val queryType: Class<Q>) : BodyExtractor<Mono<Q>, ReactiveHttpInputMessage> {
+class QueryBodyExtractor<Q : Any>(queryType: Class<Q>) : BodyExtractor<Mono<Q>, ReactiveHttpInputMessage> {
+    /** Immutable and thread-safe, so one strict reader per query type is shared by every request. */
+    private val reader: ObjectReader = JsonSerializer.readerFor(queryType)
+        .with(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+
     companion object {
         val FILTER_EXPRESSION_EXTRACTOR = QueryBodyExtractor(FilterExpression::class.java)
         val AGGREGATION_QUERY_EXTRACTOR = QueryBodyExtractor(AggregationQuery::class.java)
@@ -50,10 +55,7 @@ class QueryBodyExtractor<Q : Any>(private val queryType: Class<Q>) : BodyExtract
     }
 
     private fun strictDecode(objectNode: ObjectNode): Q = try {
-        val decoded: Q = JsonSerializer.readerFor(queryType)
-            .with(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-            .readValue(objectNode)
-        decoded
+        reader.readValue(objectNode)
     } catch (error: JacksonException) {
         throw IllegalArgumentException("Invalid filter request body.", error)
     }
