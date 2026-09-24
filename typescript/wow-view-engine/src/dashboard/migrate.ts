@@ -13,15 +13,21 @@
 
 import {
   DASHBOARD_GRID_COLUMNS,
+  filterTypeOf,
   LEGACY_GRID_COLUMNS,
+  type DashboardField,
   type DashboardViewConfig,
+  type FilterNode,
+  type FilterValue,
 } from '../model/index.js';
 import { isPlainObject } from '../filter/index.js';
 
 const SCALE = DASHBOARD_GRID_COLUMNS / LEGACY_GRID_COLUMNS;
 
 /**
- * A stored config read into the form this engine writes (D22 E).
+ * A stored config read into the form this engine writes: onto the 24-column
+ * grid (D22 E), and a pre-C board condition into its filters' defaults where
+ * it can be (D23 Q16, `intoDefaults` below).
  *
  * A config that does not say which grid it is in (`columns`) was written for
  * the twelve-column grid: every `x` and `w` is doubled and every `y` and `h`
@@ -41,6 +47,10 @@ const SCALE = DASHBOARD_GRID_COLUMNS / LEGACY_GRID_COLUMNS;
 export function migrateDashboardConfig(
   config: DashboardViewConfig,
 ): DashboardViewConfig {
+  return intoDefaults(onTheWideGrid(config));
+}
+
+function onTheWideGrid(config: DashboardViewConfig): DashboardViewConfig {
   const stored: unknown = config;
   if (!isPlainObject(stored) || 'columns' in stored) return config;
   const panels: unknown = stored.panels;
@@ -52,6 +62,115 @@ export function migrateDashboardConfig(
       ? panels.map(widened)
       : panels) as DashboardViewConfig['panels'],
   };
+}
+
+/** The operator a filter of each type asks its fields with (`filterOperatorOf`). */
+const FILTER_OPERATOR = {
+  date: 'BETWEEN',
+  text: 'IN',
+  id: 'IN',
+  number: 'IN',
+  boolean: 'EQ',
+} as const;
+
+/**
+ * A board condition written before batch C, read as the filters' defaults
+ * where it says what a filter would (D23 Q16; AGENTS.md's stored-data
+ * exception).
+ *
+ * Before C a board's global filter was one condition tree over its global
+ * fields (`config.filter`); from C a filter is a named field with a default
+ * a reader can change. A leaf of that tree's top-level AND that one filter
+ * could hold — on a global field of one of the five filter types, asked with
+ * that type's operator (an `EQ` of one text or number value is the one-entry
+ * list the filter stores), on a filter with no default of its own and only
+ * one such leaf — becomes that filter's default and leaves the tree. The
+ * rest stays in `config.filter` as the board's fixed scope, which the filter
+ * bar says and an author can remove.
+ *
+ * The config marks itself: a leaf that moved is no longer in the tree, so a
+ * second read moves nothing, and a save writes the new form. A tree that is
+ * not a plain AND of leaves is not taken apart — it moves nothing. A config
+ * with nothing to move comes back as the same object.
+ */
+function intoDefaults(config: DashboardViewConfig): DashboardViewConfig {
+  const stored: unknown = config;
+  if (!isPlainObject(stored)) return config;
+  const tree: unknown = config.filter;
+  const fields: unknown = config.fields;
+  if (
+    !isPlainObject(tree) ||
+    tree.op !== 'and' ||
+    !Array.isArray(tree.children) ||
+    !Array.isArray(fields)
+  )
+    return config;
+  const byName = new Map<string, DashboardField>();
+  for (const field of fields)
+    if (isPlainObject(field) && typeof field.name === 'string')
+      byName.set(field.name, field as unknown as DashboardField);
+
+  const defaults = new Map<string, FilterValue>();
+  const kept: FilterNode[] = [];
+  for (const child of tree.children as unknown[]) {
+    const field = isPlainObject(child) ? leafField(child, byName) : undefined;
+    const value =
+      field && !defaults.has(field.name) && field.default === undefined
+        ? asDefault(field, child as Record<string, unknown>)
+        : undefined;
+    if (field && value !== undefined) defaults.set(field.name, value);
+    else kept.push(child as FilterNode);
+  }
+  if (defaults.size === 0) return config;
+  return {
+    ...config,
+    filter: { ...config.filter, children: kept },
+    fields: (fields as DashboardField[]).map(field =>
+      isPlainObject(field) && defaults.has(field.name)
+        ? { ...field, default: defaults.get(field.name) }
+        : field,
+    ),
+  };
+}
+
+/** The global field a plain leaf is on, if it is one. */
+function leafField(
+  node: Record<string, unknown>,
+  byName: ReadonlyMap<string, DashboardField>,
+): DashboardField | undefined {
+  const keys = Object.keys(node).sort().join(',');
+  if (keys !== 'field,operator,value' || typeof node.field !== 'string')
+    return undefined;
+  return byName.get(node.field);
+}
+
+/** The leaf's value as the filter's default, or nothing it could hold. */
+function asDefault(
+  field: DashboardField,
+  leaf: Record<string, unknown>,
+): FilterValue | undefined {
+  const type = filterTypeOf(field.kind);
+  if (type === null) return undefined;
+  const value = leaf.value as FilterValue;
+  if (leaf.operator === FILTER_OPERATOR[type]) {
+    // A filter that takes one value holds a list of one.
+    if (
+      FILTER_OPERATOR[type] === 'IN' &&
+      Array.isArray(value) &&
+      value.length > 1 &&
+      field.multiple !== true
+    )
+      return undefined;
+    return value;
+  }
+  if (
+    leaf.operator === 'EQ' &&
+    (type === 'text' || type === 'number') &&
+    value !== null &&
+    typeof value !== 'object'
+  )
+    return [value];
+  return undefined;
 }
 
 function widened(panel: unknown): unknown {

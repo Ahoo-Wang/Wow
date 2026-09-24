@@ -239,7 +239,7 @@ describe('DashboardWorkbench', () => {
         fields: [{ name: 'region', label: 'Region', kind: 'string' }],
         filter: {
           op: 'and',
-          children: [{ field: 'region', operator: 'EQ', value: 'north' }],
+          children: [{ field: 'region', operator: 'NE', value: 'north' }],
         },
         panels: [
           panel({
@@ -271,7 +271,7 @@ describe('DashboardWorkbench', () => {
         ...overview.config,
         filter: {
           op: 'and',
-          children: [{ field: 'region', operator: 'EQ', value: 'CN' }],
+          children: [{ field: 'region', operator: 'NE', value: 'CN' }],
         },
       } as typeof overview.config,
     });

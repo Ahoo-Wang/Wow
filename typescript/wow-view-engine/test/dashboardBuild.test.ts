@@ -53,6 +53,8 @@ import {
   validateDashboard,
   type DashboardPanel,
   type DashboardViewConfig,
+  type FilterLeaf,
+  type FilterNode,
   type Issue,
   type PanelDefinition,
 } from '../src/index.js';
@@ -153,6 +155,116 @@ describe('the 24-column grid and the boards stored before it', () => {
     expect(migrateDashboardConfig(current)).toBe(current);
     // Named, so taken at its word: admission refuses it rather than a guess.
     expect(migrateDashboardConfig(other)).toBe(other);
+  });
+
+  /**
+   * D23 Q16: a board condition written before batch C becomes its filters'
+   * defaults where a filter could hold it; the rest stays as the board's
+   * fixed scope. A second read moves nothing.
+   */
+  describe('a pre-C board condition', () => {
+    const region = { name: 'region', label: '仓库', kind: 'string' } as const;
+    const created = {
+      name: 'created',
+      label: '创建时间',
+      kind: 'datetime',
+    } as const;
+    const amount = { name: 'amount', label: '金额', kind: 'number' } as const;
+    const window = { type: 'relative', unit: 'day', amount: 30 };
+
+    it('moves a leaf a filter could hold into that filter’s default', () => {
+      const board = dashboardConfig({
+        fields: [region, created, amount],
+        filter: {
+          op: 'and',
+          children: [
+            { field: 'region', operator: 'IN', value: ['CN'] },
+            { field: 'created', operator: 'BETWEEN', value: window },
+            // An EQ of one number is the one-entry list the filter keeps.
+            { field: 'amount', operator: 'EQ', value: 100 },
+          ],
+        },
+      });
+
+      const read = migrateDashboardConfig(board);
+
+      expect(read.filter).toEqual({ op: 'and', children: [] });
+      expect(read.fields).toEqual([
+        { ...region, default: ['CN'] },
+        { ...created, default: window },
+        { ...amount, default: [100] },
+      ]);
+      // It marks itself: nothing is left to move.
+      expect(migrateDashboardConfig(read)).toBe(read);
+    });
+
+    it('keeps what no filter could hold as the fixed scope', () => {
+      const kept: FilterNode[] = [
+        // Another operator than the filter asks with.
+        { field: 'amount', operator: 'GT', value: 100 },
+        // Two values for a filter that takes one.
+        { field: 'region', operator: 'IN', value: ['CN', 'JP'] },
+        // A field that is no filter of this board.
+        { field: 'status', operator: 'IN', value: ['PAID'] },
+        // A group is not taken apart.
+        {
+          op: 'or',
+          children: [{ field: 'region', operator: 'IN', value: ['US'] }],
+        },
+      ];
+      const board = dashboardConfig({
+        fields: [region, amount, { ...created, default: window }],
+        filter: {
+          op: 'and',
+          children: [
+            ...kept,
+            // A filter with a default of its own keeps it.
+            {
+              field: 'created',
+              operator: 'BETWEEN',
+              value: { type: 'relative', unit: 'day', amount: 7 },
+            },
+          ],
+        },
+      });
+
+      expect(migrateDashboardConfig(board)).toBe(board);
+    });
+
+    it('moves one leaf per filter and keeps the second', () => {
+      const second: FilterLeaf = {
+        field: 'region',
+        operator: 'IN',
+        value: ['JP'],
+      };
+      const board = dashboardConfig({
+        fields: [region],
+        filter: {
+          op: 'and',
+          children: [
+            { field: 'region', operator: 'IN', value: ['CN'] },
+            second,
+          ],
+        },
+      });
+
+      const read = migrateDashboardConfig(board);
+
+      expect(read.fields).toEqual([{ ...region, default: ['CN'] }]);
+      expect(read.filter.children).toEqual([second]);
+    });
+
+    it('takes no tree apart that is not a plain AND', () => {
+      const board = dashboardConfig({
+        fields: [region],
+        filter: {
+          op: 'or',
+          children: [{ field: 'region', operator: 'IN', value: ['CN'] }],
+        },
+      });
+
+      expect(migrateDashboardConfig(board)).toBe(board);
+    });
   });
 
   it('carries what is no panel, or has no numbers, over untouched', () => {

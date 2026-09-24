@@ -231,7 +231,9 @@ const staleDashboard: ViewInstance = {
     filter: {
       op: 'and',
       children: [
-        { field: 'region', operator: 'IN', value: ['CN-EAST'] },
+        // 「不是」不是筛选装得下的问法，所以它留在整板条件里，而不是在
+        // 打开时迁成「仓库」筛选的默认值（D23 Q16）。
+        { field: 'region', operator: 'NE', value: 'CN-EAST' },
         { field: 'tone', operator: 'EQ', value: '#ff8800' },
       ],
     },
@@ -240,8 +242,8 @@ const staleDashboard: ViewInstance = {
 
 /**
  * 那条只读条件，连同旁边一条照常可编辑的条件，在独立的条件编辑器里：仪表盘
- * 自己的界面自批 C 起是筛选条，这棵批 C 之前存下的整板条件（Q16）只有条件
- * 编辑器还能打开——它不需要工作台，只要一个 runtime。
+ * 自己的界面自批 C 起是筛选条，这棵批 C 之前存下、又迁不成筛选默认值的整板
+ * 条件（D23 Q16）只有条件编辑器还能打开——它不需要工作台，只要一个 runtime。
  */
 function UnregisteredKindDemo() {
   return (

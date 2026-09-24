@@ -578,7 +578,7 @@ describe("a panel's menu (D22 D)", () => {
         fields: [{ name: 'region', label: 'Region', kind: 'string' }],
         filter: {
           op: 'and',
-          children: [{ field: 'region', operator: 'EQ', value: 'north' }],
+          children: [{ field: 'region', operator: 'NE', value: 'north' }],
         },
       },
       panels: [
@@ -598,7 +598,7 @@ describe("a panel's menu (D22 D)", () => {
       instanceId: 'pending',
       filter: {
         op: 'and',
-        children: [{ field: 'warehouse', operator: 'EQ', value: 'north' }],
+        children: [{ field: 'warehouse', operator: 'NE', value: 'north' }],
       },
     });
   });

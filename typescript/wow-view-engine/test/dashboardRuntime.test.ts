@@ -54,9 +54,15 @@ function flush(): Promise<void> {
 
 const REGION_FIELD = { name: 'region', label: 'Region', kind: 'string' };
 
+/**
+ * The board's standing condition, as a board stored before batch C kept it.
+ * `NE` is no filter's operator, so it stays the board's fixed scope rather
+ * than becoming a filter's default on open (D23 Q16) — which is the path
+ * these tests are about.
+ */
 const REGION_FILTER: FilterTree = {
   op: 'and',
-  children: [{ field: 'region', operator: 'EQ', value: 'CN' }],
+  children: [{ field: 'region', operator: 'NE', value: 'CN' }],
 };
 
 function pending(overrides: Partial<ViewInstance> = {}): ViewInstance {
@@ -235,7 +241,7 @@ describe('DashboardViewRuntime panels', () => {
 
     expect(query.filter).toMatchObject({
       field: 'warehouse',
-      op: FilterOperator.EQ,
+      op: FilterOperator.NE,
       value: 'CN',
     });
   });
@@ -255,7 +261,7 @@ describe('DashboardViewRuntime panels', () => {
       children: [
         {
           op: 'and',
-          children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+          children: [{ field: 'warehouse', operator: 'NE', value: 'CN' }],
         },
       ],
     });
@@ -321,7 +327,7 @@ describe('DashboardViewRuntime unavailable references', () => {
             filterMode: 'simple',
             filter: {
               op: 'or',
-              children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+              children: [{ field: 'warehouse', operator: 'NE', value: 'CN' }],
             },
           }),
         }),
@@ -425,7 +431,7 @@ describe('DashboardViewRuntime unavailable references', () => {
       filterMode: 'simple',
       filter: {
         op: 'or',
-        children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+        children: [{ field: 'warehouse', operator: 'NE', value: 'CN' }],
       },
     });
 
@@ -604,7 +610,7 @@ describe('DashboardViewRuntime editing', () => {
 
     const next: FilterTree = {
       op: 'and',
-      children: [{ field: 'region', operator: 'EQ', value: 'EU' }],
+      children: [{ field: 'region', operator: 'NE', value: 'EU' }],
     };
     runtime.edit({ filter: next });
     expect(runtime.getSnapshot().dirty).toBe(true);
@@ -708,7 +714,7 @@ describe('DashboardViewRuntime scope filter', () => {
 
     const issues = runtime.setScopeFilter({
       op: 'and',
-      children: [{ field: 'region', operator: 'EQ', value: 'EU' }],
+      children: [{ field: 'region', operator: 'NE', value: 'EU' }],
     });
     await flush();
 
@@ -742,7 +748,7 @@ describe('DashboardViewRuntime scope filter', () => {
     const runtime = await board.open();
     const tree: FilterTree = {
       op: 'and',
-      children: [{ field: 'region', operator: 'EQ', value: 'EU' }],
+      children: [{ field: 'region', operator: 'NE', value: 'EU' }],
     };
 
     runtime.setScopeFilter(tree);
@@ -937,7 +943,7 @@ describe('DashboardViewRuntime child refusal', () => {
 
   const stateFilter: FilterTree = {
     op: 'and',
-    children: [{ field: 'state', operator: 'EQ', value: 'PAID' }],
+    children: [{ field: 'state', operator: 'NE', value: 'PAID' }],
   };
 
   it('reports a refused scope on the panel and does not run it', async () => {
@@ -1263,7 +1269,7 @@ describe('DashboardViewRuntime saving', () => {
 
 const EU_FILTER: FilterTree = {
   op: 'and',
-  children: [{ field: 'region', operator: 'EQ', value: 'EU' }],
+  children: [{ field: 'region', operator: 'NE', value: 'EU' }],
 };
 
 /**

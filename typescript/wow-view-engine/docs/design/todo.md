@@ -30,9 +30,9 @@ ECharts 迁移（D21）与两份「数据分析师视角」审查的 P0 已全�
   - **去另一块仪表盘，筛选显式映射**（[D23](decisions.md#d23-搁置待议的六条拍板2026-09-23) Q17）：「点击时…」里逐个列出目的板的筛选，作者为每个选「这一组的哪一维」或「不带」，存进 `click.values`；不按名字猜。
     - 判据：点一组打开另一块板，它的筛选按映射设好；映射指向的维度或筛选不在了，内核给 warning、点击退回追问菜单；有故事守着。
     - 落点：`PanelClick`、`src/dashboard/click*.ts`、「点击时…」对话框、[ui/dashboard.md](ui/dashboard.md)「点击」。
-- **批 C 之前的整板条件**（[D23](decisions.md#d23-搁置待议的六条拍板2026-09-23) Q16）：能拆成「每个全局字段一个条件、彼此 AND」的，读取时迁成对应筛选的默认值（配置自己标记，照 AGENTS.md 的存量数据例外）；拆不开的保留为只读的「固定范围」，在筛选条旁注明，编辑模式里可以整体删掉。
-  - 判据：旧板打开时筛选条上是迁过来的默认值，查询与迁移前一致；拆不开的那棵条件在筛选条旁读得到、编辑中删得掉；有测试与故事。
-  - 落点：`migrateDashboardConfig`、`src/ui/dashboard/FilterBar.tsx`、[model.md#dashboard-配置](model.md#dashboard-配置)、AGENTS.md 的例外一节。
+- **批 C 之前的整板条件——固定范围的界面**（[D23](decisions.md#d23-搁置待议的六条拍板2026-09-23) Q16）：迁成默认值的那一半已做（`migrateDashboardConfig` 的 `intoDefaults`，[model.md#dashboard-配置](model.md#dashboard-配置)）。拆不开、留在 `config.filter` 里的，今天出现在「正在显示」条上、✕ 能拿掉，但没有叫它「固定范围」，也不在筛选条旁；要在筛选条旁注明为只读的「固定范围」，编辑模式里可以整体删掉。等阶段 4（筛选三态动 `FilterBar`）合并后做。
+  - 判据：拆不开的那棵条件在筛选条旁读得到、编辑中删得掉；有测试与故事。
+  - 落点：`src/ui/dashboard/FilterBar.tsx`、[ui/dashboard.md](ui/dashboard.md)「筛选」。
 
 ## 阶段 4：嵌入视图（设计已定为 [D22](decisions.md#d22-仪表盘与嵌入视图参照-metabase2026-09-23)）
 
