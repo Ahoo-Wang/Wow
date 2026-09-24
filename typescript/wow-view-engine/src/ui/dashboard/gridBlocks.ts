@@ -51,7 +51,7 @@ function positionParams(
 }
 
 /**
- * How tall a block is (D33): the row, a fixed height whatever the width,
+ * How tall a block is (D34): the row, a fixed height whatever the width,
  * cut into the number of blocks — one gap between each — that comes nearest
  * a square as wide as a column. One block at 1920px (70×80), two at 1200px
  * (40×35), three at 776px (22×20). The row's own edges are always a block's

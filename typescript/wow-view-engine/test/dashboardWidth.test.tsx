@@ -349,13 +349,13 @@ describe('the first frame (measured before the first paint)', () => {
 
 /**
  * The blocks while a board is built (the user's 2026-09-24 walk-throughs;
- * D33). The pixels are the browser story's to measure
+ * D34). The pixels are the browser story's to measure
  * (`GridBlocksWhileBuilding`); here is what jsdom can witness — the row the
  * grid is laid out at, whether the blocks are asked for, and the one row of
  * them the layer is masked with, which is the library's own sums over the
  * width the grid is drawn at.
  */
-describe('the grid blocks while a board is built (D33)', () => {
+describe('the grid blocks while a board is built (D34)', () => {
   const layer = () => slot('dashboard-grid-blocks');
   /** The one row of blocks the layer is masked with, as SVG rectangles. */
   const blocksOf = (element: HTMLElement) => {
@@ -455,7 +455,7 @@ describe('the grid blocks while a board is built (D33)', () => {
     expect(layer()).toBeNull();
   });
 
-  it('draws the block sizes of the table in D33', () => {
+  it('draws the block sizes of the table in D34', () => {
     const size = (width: number) => {
       const rects = drawn(width);
       return {

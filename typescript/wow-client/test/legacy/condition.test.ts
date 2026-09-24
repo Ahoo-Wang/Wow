@@ -12,14 +12,14 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { DeletionState } from '../../src';
 import {
   ConditionOptionKey,
   dateOptions,
-  DeletionState,
   ignoreCaseOptions,
   Operator,
   raw,
-} from '../../src';
+} from '../../src/legacy';
 
 // Operator-condition tests split by category:
 //   ./condition/logical.test.ts      — AND/OR/NOR, ID, Tenant/Owner, Deletion

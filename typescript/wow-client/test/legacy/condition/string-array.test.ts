@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { Condition } from '../../../src';
+import type { Condition } from '../../../src/legacy';
 import {
   allIn,
   between,
@@ -24,7 +24,7 @@ import {
   notIn,
   Operator,
   startsWith,
-} from '../../../src';
+} from '../../../src/legacy';
 
 describe('Condition — String Matching Conditions', () => {
   it('should create CONTAINS condition without ignoreCase', () => {

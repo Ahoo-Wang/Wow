@@ -786,7 +786,7 @@
 
 /*
  * The board's cells while it is built (the user's 2026-09-24 walk-throughs:
- * 「仪表盘编辑模式下，显示网格线」, then 「参考 metabase，用正方形方块」; D33).
+ * 「仪表盘编辑模式下，显示网格线」, then 「参考 metabase，用正方形方块」; D34).
  *
  * A soft block, filled and a little rounded, in each column of each row: the
  * 80px row cut into the number of blocks that comes nearest a square, so a

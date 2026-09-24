@@ -214,7 +214,7 @@ function blocksOf(layer: HTMLElement) {
 
 /**
  * The blocks of one column of one row: as wide as the column, and as many
- * down the 80px row as come nearest a square (D33) — one, two or three.
+ * down the 80px row as come nearest a square (D34) — one, two or three.
  */
 function blockSize(layer: HTMLElement) {
   const { rects } = blocksOf(layer);
@@ -263,7 +263,7 @@ function panelsOnTheBlocks(grid: HTMLElement, layer: HTMLElement) {
 
 /**
  * Building shows the cells as blocks (the user's 2026-09-24 walk-throughs:
- * 「仪表盘编辑模式下，显示网格线」, then 「参考 metabase，用正方形方块」; D33):
+ * 「仪表盘编辑模式下，显示网格线」, then 「参考 metabase，用正方形方块」; D34):
  * nothing while the board is read; once 编辑 is pressed a soft filled block
  * in each column of each row, the 80px row cut into the blocks nearest a
  * square — at the fixed 1200px two 40×35 — then at full width wider ones,
@@ -283,7 +283,7 @@ export const GridBlocksWhileBuilding: Story = {
       [...grid.querySelectorAll('.react-grid-item')].map(
         item => item.getBoundingClientRect().height,
       );
-    // What the panels were before D33: a row 80px, a gap 10px, so a panel
+    // What the panels were before D34: a row 80px, a gap 10px, so a panel
     // h rows tall is 90h - 10 — the story's board holds h 4, 4 and 2.
     const read = heights();
     await expect(read).toEqual([350, 350, 170]);

@@ -11,11 +11,9 @@
  * limitations under the License.
  */
 
-import type {
-  FilterListQuery,
-  ListQuery,
-  ListQueryRequest,
-} from '@ahoo-wang/wow-client';
+import type { FilterListQuery } from '@ahoo-wang/wow-client';
+// compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
+import type { ListQuery, ListQueryRequest } from '@ahoo-wang/wow-client/legacy';
 import type { FetcherError } from '@ahoo-wang/fetcher';
 import type { UseQueryReturn } from '@ahoo-wang/fetcher-react/core';
 import type { UseFetcherQueryOptions } from '@ahoo-wang/fetcher-react/fetcher';
@@ -37,7 +35,7 @@ export interface UseFetcherListStreamQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends ListQueryRequest<FIELDS> = ListQuery<FIELDS>,
+  Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
 > extends UseFetcherQueryOptions<
   Q,
   ReadableStream<JsonServerSentEvent<R>>,
@@ -58,13 +56,13 @@ export interface UseFetcherListStreamQueryReturn<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends ListQueryRequest<FIELDS> = ListQuery<FIELDS>,
+  Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
 > extends UseQueryReturn<Q, ReadableStream<JsonServerSentEvent<R>>, E> {}
 
 /**
  * A React hook for performing list stream queries using the Fetcher library with server-sent events.
  *
- * This hook is designed for scenarios where you need to retrieve a stream of data that matches a list query condition.
+ * This hook is designed for scenarios where you need to retrieve a stream of data that matches a list query filter.
  * It returns a ReadableStream of JSON server-sent events, allowing for real-time data streaming.
  * The hook automatically configures the JsonEventStreamResultExtractor for proper stream handling.
  *
@@ -80,7 +78,7 @@ export interface UseFetcherListStreamQueryReturn<
  * @example
  * ```typescript
  * import { useFetcherListStreamQuery } from '@ahoo-wang/wow-react';
- * import { listQuery, contains } from '@ahoo-wang/wow-client';
+ * import { listQuery, filter } from '@ahoo-wang/wow-client';
  * import { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
  * import { useEffect, useRef } from 'react';
  *
@@ -93,7 +91,7 @@ export interface UseFetcherListStreamQueryReturn<
  *   const { data: stream, loading, error, execute } = useFetcherListStreamQuery<User, 'id' | 'name'>({
  *     url: '/api/users/stream',
  *     initialQuery: listQuery({
- *       condition: contains('name', 'John'),
+ *       filter: filter.contains('name', 'John'),
  *       limit: 10,
  *     }),
  *     autoExecute: true,
@@ -142,13 +140,6 @@ export function useFetcherListStreamQuery<
   FIELDS extends string = string,
   E = FetcherError,
 >(
-  options: UseFetcherListStreamQueryOptions<R, FIELDS, E, ListQuery<FIELDS>>,
-): UseFetcherListStreamQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
-export function useFetcherListStreamQuery<
-  R,
-  FIELDS extends string = string,
-  E = FetcherError,
->(
   options: UseFetcherListStreamQueryOptions<
     R,
     FIELDS,
@@ -160,7 +151,14 @@ export function useFetcherListStreamQuery<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends ListQueryRequest<FIELDS> = ListQuery<FIELDS>,
+>(
+  options: UseFetcherListStreamQueryOptions<R, FIELDS, E, ListQuery<FIELDS>>,
+): UseFetcherListStreamQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
+export function useFetcherListStreamQuery<
+  R,
+  FIELDS extends string = string,
+  E = FetcherError,
+  Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
 >(
   options: UseFetcherListStreamQueryOptions<R, FIELDS, E, Q>,
 ): UseFetcherListStreamQueryReturn<R, FIELDS, E, Q>;
