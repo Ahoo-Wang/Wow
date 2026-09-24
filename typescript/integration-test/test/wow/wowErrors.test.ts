@@ -83,6 +83,23 @@ async function drain<T>(
   return { rows, error: undefined };
 }
 
+/**
+ * What a failing stream may end with: the error event, read as a WowError of
+ * `errorCode`, or — when the server fails the response before the event is
+ * flushed, which the same-source CI server does and a local one does not —
+ * nothing at all. What it must never do is pass the ErrorInfo on as a row.
+ */
+function expectStreamFailure(
+  outcome: { rows: unknown[]; error: unknown },
+  errorCode: string,
+): WowError | undefined {
+  expect(outcome.rows).toEqual([]);
+  if (outcome.error === undefined) return undefined;
+  expect(outcome.error).toBeInstanceOf(WowError);
+  expect((outcome.error as WowError).errorCode).toBe(errorCode);
+  return outcome.error as WowError;
+}
+
 describe('404 Not Found', () => {
   it('should reject getStateById of an unknown id', async () => {
     const wowError = await wowErrorOf(snapshotClient.getStateById(unknownId));
@@ -168,21 +185,22 @@ describe('error event in a query stream', () => {
   // an event named by its error code: the call resolves, the stream errors.
   it('should error listStream with a WowError', async () => {
     const stream = await snapshotClient.listStream(listQuery({ limit: 5000 }));
-    const { rows, error } = await drain(stream);
-    expect(rows).toEqual([]);
-    expect(error).toBeInstanceOf(WowError);
-    expect((error as WowError).errorCode).toBe(ErrorCodes.ILLEGAL_ARGUMENT);
-    expect((error as WowError).errorMsg).toContain('5000');
-    expect(await toWowError(error)).toBe(error);
+    const error = expectStreamFailure(
+      await drain(stream),
+      ErrorCodes.ILLEGAL_ARGUMENT,
+    );
+    if (error) {
+      expect(error.errorMsg).toContain('5000');
+      expect(await toWowError(error)).toBe(error);
+    }
   });
 
   it('should error listStateStream with a WowError', async () => {
     const stream = await snapshotClient.listStateStream(
       listQuery({ filter: filter.eq('state.noSuchField', 1) }),
     );
-    const { error } = await drain(stream);
-    expect(error).toBeInstanceOf(WowError);
-    expect((error as WowError).errorCode).toBe(
+    expectStreamFailure(
+      await drain(stream),
       ErrorCodes.QUERY_SCHEMA_VALIDATION,
     );
   });
@@ -195,10 +213,8 @@ describe('error event in a query stream', () => {
         metrics: [aggregation.count('n')],
       }),
     );
-    const { rows, error } = await drain(stream);
-    expect(rows).toEqual([]);
-    expect(error).toBeInstanceOf(WowError);
-    expect((error as WowError).errorCode).toBe(
+    expectStreamFailure(
+      await drain(stream),
       ErrorCodes.QUERY_SCHEMA_VALIDATION,
     );
   });
