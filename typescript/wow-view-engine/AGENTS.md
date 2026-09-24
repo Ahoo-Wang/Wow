@@ -55,7 +55,7 @@ pnpm --filter @ahoo-wang/wow-view-engine lint:check
 - **A jsdom suite asserts what a class _means_, not how it is spelled** (A-09). A `className` assertion proves nothing about the screen — jsdom loads no stylesheet and lays nothing out — and it turns red wholesale the moment a colour or a recipe moves into a `cva`. So state is said **on the element** and read back from there: `data-pin` / `data-pin-edge` / `data-pin-index` / `data-sticky` / `data-overflowing` for the table's sticky chrome, `data-tone` for a toned badge, alert or destructive answer, `aria-current`, `aria-pressed`, `data-default`, `data-released`, `data-scrolls`, `data-invalid`, a role, an accessible name, a `title`, or an inline style jsdom really computes. Where a component writes no such attribute and the class is the only witness, **add the attribute** rather than keep the assertion. Three files are the deliberate homes of the remaining class assertions, because in each the class string _is_ the contract: `test/pinnedColumns.test.tsx` ("the sticky chrome recipe") for `ui/record/sticky.ts`, `test/variants.test.tsx` for the cva wrappers of D16-8, and `test/popups.test.tsx` for our copy of each popup's registry markup. Elsewhere a surviving assertion is marked **surviving class assertion** with its reason — a pure declaration with no state behind it (a length, a grid template, a border model, `sr-only`, a `:hover` fill), whose pixels a browser story measures instead
 - `test/architecture.test.ts` enforces the dependency rules below on the TypeScript AST, so multi-line, type-only, re-exported and **statically resolvable** dynamic imports are all seen — an `import()` whose argument is a string literal or a substitution-free template. One built from a variable is not recorded, and would slip past these assertions. It reads the wow **sources** off disk, so it is the one suite that runs without any build — every test that imports `@ahoo-wang/wow-client` needs the dependency chain built first
 - `tsconfig.headless.json` type-checks the headless layers **without the DOM lib**, which is what keeps them free of browser globals
-- `scripts/verify-package.mjs` checks the built artifact: every entry resolves and imports and exports at run time exactly the values its surface list names, the root entry's types need no DOM lib, and no JavaScript entry pulls in the stylesheet, and the built stylesheet paints nothing outside `.fve-root` — no rule sits outside the root, Tailwind's `:root` theme variables included — and the built `themes.css` holds only preset blocks (`:where([data-fve-preset='…'])`), each assigning the same full set of `--fve-*` variables the token blocks read, bar the chart colours, `pin-shadow` and `text-ui`, with `neutral` all `initial`. `scripts/scope-utilities.mjs` (`postcss-prefix-selector`) makes that true at build time by pinning every rule, preflight and utilities included, to `:where(.fve-root, .fve-root *)`; Storybook runs the same plugin on the theme file
+- `scripts/verify-package.mjs` checks the built artifact: every entry resolves and imports and exports at run time exactly the values its surface list names, the root entry's types need no DOM lib, and no JavaScript entry pulls in the stylesheet, and the built stylesheet paints nothing outside `.fve-root` — no rule sits outside the root, Tailwind's `:root` theme variables included — and the built `themes.css` holds only preset blocks (`:where([data-fve-preset='…'])`), each assigning the same full set of `--fve-*` variables the token blocks read, bar the chart colours, `pin-shadow` and `text-ui`, with `neutral` all `initial`, and the built `shadcn-bridge.css` is one `:where(:root)` rule pointing each of those variables at the shadcn token of its name (`--fve-dark-primary: var(--primary)`), bar `input`, `ring`, the status colours and the derived `row-hover` / `quiet-foreground` (D30 Q46). `scripts/scope-utilities.mjs` (`postcss-prefix-selector`) makes that true at build time by pinning every rule, preflight and utilities included, to `:where(.fve-root, .fve-root *)`; Storybook runs the same plugin on the theme file
 
 ## Architecture — the six dependency rules
 
@@ -78,13 +78,14 @@ Beyond the six:
 
 Package entries:
 
-| Entry                        | Contents                                                                                    |
-| ---------------------------- | ------------------------------------------------------------------------------------------- |
-| `@ahoo-wang/wow-view-engine` | `model`, the four kernels, `runtime`'s public face, the `ViewStore` port, `MemoryViewStore` |
-| `/react`                     | Hooks and headless controllers                                                              |
-| `/ui`                        | Default components, views and workbenches                                                   |
-| `/styles.css`                | Theme, imported explicitly, customised through `--fve-*` / `--fve-dark-*` on the host       |
-| `/themes.css`                | Presets, optional: only `--fve-*` assignments on `:where([data-fve-preset='…'])`            |
+| Entry                        | Contents                                                                                     |
+| ---------------------------- | -------------------------------------------------------------------------------------------- |
+| `@ahoo-wang/wow-view-engine` | `model`, the four kernels, `runtime`'s public face, the `ViewStore` port, `MemoryViewStore`  |
+| `/react`                     | Hooks and headless controllers                                                               |
+| `/ui`                        | Default components, views and workbenches                                                    |
+| `/styles.css`                | Theme, imported explicitly, customised through `--fve-*` / `--fve-dark-*` on the host        |
+| `/themes.css`                | Presets, optional: only `--fve-*` assignments on `:where([data-fve-preset='…'])`             |
+| `/shadcn-bridge.css`         | Optional: a host's shadcn tokens read into `--fve-*` on `:where(:root)`, four kinds kept out |
 
 ## Project Structure
 
@@ -96,6 +97,7 @@ src/
   styles.ts                   — Build entry that carries styles.css into dist
   styles.css                  — Theme; consumers import it explicitly
   themes.css                  — The presets: `--fve-*` values keyed by `data-fve-preset`, an optional entry copied into `dist` as written
+  shadcn-bridge.css           — A host's shadcn tokens as the `--fve-*` values (`input`, `ring`, status and chart colours excepted), an optional entry copied into `dist` as written
   model/                      — Types and constants only; imports nothing
     analysis.ts               — Wow aggregation enums as stored literals, the date units coarsest first (`ANALYSIS_DATE_UNITS`); which metric types measure one field (`FIELD_METRIC_TYPES`)
     chart.ts                  — ChartSpec — one sub-object per chart family, every reference a group or metric alias; `CHART_TYPES`, `CHART_FAMILY`, `CHART_COLOR_SLOTS` (the palette's size, which a pie folds at)

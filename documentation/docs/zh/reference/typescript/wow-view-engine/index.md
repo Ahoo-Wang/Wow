@@ -19,6 +19,8 @@ description: '尚未发布的 @ahoo-wang/wow-view-engine 包的入口、概念�
 | `/react` | `useViewEngine`、`useOpenView`、`useViewRuntime`、`useViewList`、`useViewManager`、`useWorkbench`、`useLeaveGuard`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useAnalysisResult`、`useDashboard`、`useSaveCommands`、`RecordActionSlots` |
 | `/ui` | 工作台（`DataWorkbench`、`DashboardWorkbench`）、嵌入（`EmbeddedView`、`EmbeddedDashboard`）、视图管理（`ViewHeader`、`SaveActions`、`ViewManager`、`LeaveDialog`）、编辑与结果（`FilterPanel`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisTable`、`AnalysisChart`、`DashboardGrid`）、内容面板以及 `MessagesProvider` |
 | `/styles.css` | 主题。需要显式导入；任何 JavaScript 入口都不导入 CSS |
+| `/themes.css` | 可选的预设，由 `data-fve-preset` 选中 |
+| `/shadcn-bridge.css` | 可选：把宿主的 shadcn token 读进视图的变量，`input`、`ring`、状态色与图表色除外 |
 
 根入口不依赖 React 或 DOM。`react` 和 `react-dom` 是 peer 依赖，只有 `/react` 和 `/ui` 需要。
 
@@ -88,7 +90,7 @@ flowchart LR
 | 数据源 | `resolveSource(key)` 返回一个 `wow-client` 查询客户端 |
 | 持久化 | 实现 `ViewStore` |
 | 操作 | 向工作台传入 `global`、`bulk`、`row` 三类操作的渲染函数；它们是代码，从不保存 |
-| 外观 | CSS 变量与主题文件；通过组合 `/react` Hook 替换组件 |
+| 外观 | CSS 变量、预设与 shadcn 桥接（见[视图引擎的主题](../../../guide/typescript/view-engine-theming.md)）；通过组合 `/react` Hook 替换组件 |
 | 文案 | `defaultMessages`（英文）与 `zhCN` 两套文案，通过 `messages` 属性或 `MessagesProvider` 合并 |
 
 ## 源码

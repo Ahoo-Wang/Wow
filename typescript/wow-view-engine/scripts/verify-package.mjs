@@ -31,6 +31,9 @@
 //    customise the theme from `:root` without reaching inside the root.
 // 9. The presets (`/themes.css`) only assign those host variables, each
 //    preset all of the same ones, none of them a chart colour.
+// 10. The shadcn bridge (`/shadcn-bridge.css`) only points those host
+//    variables at a host's shadcn tokens, bar input, ring and the status
+//    colours.
 import assert from 'node:assert/strict';
 import {
   readdirSync,
@@ -358,6 +361,65 @@ assert.deepEqual(
   "The neutral preset is the theme's own values, so it sets every variable to initial",
 );
 
+// 10. The shadcn bridge reads a host's shadcn tokens into the host variables,
+// and only that (D30 Q46).
+//
+// `/shadcn-bridge.css` sits on the host's `<html>` like a preset, so it may
+// say as little: one `:where(:root)` rule, weighing nothing, so a host's own
+// `--fve-*` win; no at-rule; and every declaration points one host variable
+// at the shadcn token of the same name — `--fve-<token>` and
+// `--fve-dark-<token>` alike at `var(--<token>)`, since the host's `.dark`
+// on `<html>` is what makes that token its dark value. It assigns exactly
+// the variables a preset owns except four kinds kept out on purpose: `input`
+// and `ring` (a shadcn theme's `var(--border)` and `var(--primary)` owe no
+// 3:1), the status colours (text measured to 4.5:1; shadcn has no `success`
+// or `warning`) and what is derived rather than set. The chart colours are
+// not a preset's to begin with.
+const NOT_BRIDGED =
+  /^--fve-(dark-)?(input|ring|destructive|destructive-foreground|success|warning|row-hover|quiet-foreground)$/;
+const bridgePath = manifest.exports['./shadcn-bridge.css'];
+assert.equal(
+  typeof bridgePath,
+  'string',
+  './shadcn-bridge.css must be a single target',
+);
+const bridge = postcss.parse(
+  readFileSync(new URL(bridgePath, packageRoot), 'utf8'),
+);
+const bridgeAtRules = [];
+bridge.walkAtRules(rule => {
+  bridgeAtRules.push(`@${rule.name}`);
+});
+assert.deepEqual(bridgeAtRules, [], 'shadcn-bridge.css may hold no at-rule');
+const bridgeRules = [];
+bridge.walkRules(rule => {
+  bridgeRules.push(rule);
+});
+assert.deepEqual(
+  bridgeRules.map(({ selector }) => selector),
+  [':where(:root)'],
+  'shadcn-bridge.css must be one :where(:root) rule',
+);
+const bridged = new Map();
+bridgeRules[0].walkDecls(decl => {
+  const token = /^--fve-(?:dark-)?([\w-]+)$/.exec(decl.prop)?.[1];
+  assert.ok(
+    token,
+    `shadcn-bridge.css sets ${decl.prop}; the bridge only assigns --fve-* variables`,
+  );
+  assert.equal(
+    decl.value,
+    `var(--${token})`,
+    `shadcn-bridge.css must point ${decl.prop} at the shadcn token of the same name`,
+  );
+  bridged.set(decl.prop, decl.value);
+});
+assert.deepEqual(
+  [...bridged.keys()].sort(),
+  presetOwned.filter(variable => !NOT_BRIDGED.test(variable)),
+  'shadcn-bridge.css must assign every variable a preset owns bar input, ring, the status colours and the derived ones',
+);
+
 /** A selector list split on its top-level commas, each part trimmed. */
 function selectorList(selectors) {
   const parts = [];
@@ -563,5 +625,5 @@ assert.match(
 probe.dispose();
 
 console.log(
-  `${targets.size} entries resolve and import, the code entries export at run time exactly the values their surface lists name, the root entry's types need no DOM lib, ${visited.size} runtime modules import no CSS, the chart chunk draws, the stylesheet holds no rule outside ${BOUNDARIES.join(' / ')} and no :root selector at all, ${fullyScoped.length} of its rules carry the scope naming both boundaries and none names only one, its dark: utilities turn on the same ${tokenSelectors.length} roots as its dark tokens, its ${lightTokens.tokens.length} light and ${darkTokens.tokens.length} dark tokens all defer to --fve-* host variables, and themes.css holds ${presets.size} preset(s) (${[...presets.keys()].join(', ')}), each assigning the same ${presetOwned.length} --fve-* variables and nothing else.`,
+  `${targets.size} entries resolve and import, the code entries export at run time exactly the values their surface lists name, the root entry's types need no DOM lib, ${visited.size} runtime modules import no CSS, the chart chunk draws, the stylesheet holds no rule outside ${BOUNDARIES.join(' / ')} and no :root selector at all, ${fullyScoped.length} of its rules carry the scope naming both boundaries and none names only one, its dark: utilities turn on the same ${tokenSelectors.length} roots as its dark tokens, its ${lightTokens.tokens.length} light and ${darkTokens.tokens.length} dark tokens all defer to --fve-* host variables, and themes.css holds ${presets.size} preset(s) (${[...presets.keys()].join(', ')}), each assigning the same ${presetOwned.length} --fve-* variables and nothing else, and shadcn-bridge.css points ${bridged.size} of them at the host's shadcn tokens.`,
 );
