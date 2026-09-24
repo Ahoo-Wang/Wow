@@ -13,9 +13,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  derivedGap,
   fitChartSlots,
-  movingWindow,
   projectAnalysis,
   shapeChart,
   validateChart,
@@ -26,7 +24,11 @@ import {
   type CartesianSpec,
   type RecordData,
 } from '../src/index.js';
-import { derivedValues } from '../src/analysis/derived.js';
+import {
+  derivedGap,
+  derivedValues,
+  movingWindow,
+} from '../src/analysis/derived.js';
 import { ordersDefinition } from './fixtures.js';
 import {
   placeLines,

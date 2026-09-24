@@ -50,8 +50,9 @@ export { periodRollover } from './metricCard.js';
 export type { WaterfallData, WaterfallStep } from './waterfall.js';
 export type { TreemapData, TreemapTile } from './treemap.js';
 export type { CartesianData } from './cartesian.js';
+// Named because `CartesianData` names them; the helpers that compute them
+// stay inside the package (`/ui` imports `derived.ts` itself).
 export type { CartesianGap, DerivedGap, DerivedLine } from './derived.js';
-export { derivedGap, derivedKey, movingWindow } from './derived.js';
 export type { PlacedLine, SeriesExtremes } from './references.js';
 export type { FunnelData, FunnelStage } from './funnel.js';
 export { groupKeyText } from './chartRows.js';

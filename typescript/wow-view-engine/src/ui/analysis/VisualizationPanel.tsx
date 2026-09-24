@@ -12,7 +12,7 @@
  */
 
 import { useEffect, useRef, type ReactElement, type RefObject } from 'react';
-import { derivedGap, movingWindow } from '../../analysis/index.js';
+import { derivedGap, movingWindow } from '../../analysis/derived.js';
 import type { ChartSpec, RecordData } from '../../model/index.js';
 import type { AnalysisResultController } from '../../react/index.js';
 import { ChartOptions } from './ChartOptions.js';

@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 748 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 745 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -458,8 +458,6 @@ value defaultPanelSize
 value defaultRecordConfig
 value defaultRuntimeEnvironment
 value deletionFieldKind
-value derivedGap
-value derivedKey
 value derivedMetric
 value derivedText
 value describeFilter
@@ -594,7 +592,6 @@ value momentMetrics
 value moveFilter
 value movePanelToTab
 value moveTab
-value movingWindow
 value narrowValueCandidates
 value narrowsTo
 value nearestPageSize
