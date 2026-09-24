@@ -1,8 +1,8 @@
-import type { QueryClientOptions } from '@ahoo-wang/fetcher-wow';
+import type { QueryClientOptions } from '@ahoo-wang/wow-client';
 import {
   QueryClientFactory,
   ResourceAttributionPathSpec,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import type {
   CartAggregatedFields,
   CartItemAdded,
@@ -25,9 +25,7 @@ export enum CartDomainEventTypeMapTitle {
 }
 
 export type CartDomainEventType =
-  | CartItemAdded
-  | CartItemRemoved
-  | CartQuantityChanged;
+  CartItemAdded | CartItemRemoved | CartQuantityChanged;
 
 export const cartQueryClientFactory = new QueryClientFactory<
   CartState,

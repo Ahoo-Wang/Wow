@@ -25,7 +25,7 @@ import {
   MaterializedSnapshot,
   PagedQuery,
   SingleQuery,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 import {
   AddCartItemCommand,

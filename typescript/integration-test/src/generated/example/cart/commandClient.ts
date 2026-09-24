@@ -20,7 +20,7 @@ import type {
   CommandResultEventStream,
   DeleteAggregateCommand,
   RecoverAggregateCommand,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import type {
   AddCartItem,
   ChangeQuantity,

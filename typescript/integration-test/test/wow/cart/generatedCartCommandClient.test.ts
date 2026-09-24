@@ -21,7 +21,7 @@ import {
   CommandHeaders,
   CommandStage,
   ErrorCodes,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import {
   CartCommandClient,
   CartStreamCommandClient,

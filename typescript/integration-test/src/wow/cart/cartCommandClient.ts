@@ -11,8 +11,8 @@
  * limitations under the License.
  */
 
-import type { CommandRequest } from '@ahoo-wang/fetcher-wow';
-import { CommandClient } from '@ahoo-wang/fetcher-wow';
+import type { CommandRequest } from '@ahoo-wang/wow-client';
+import { CommandClient } from '@ahoo-wang/wow-client';
 import { cartClientOptions } from './cartClientOptions';
 import type { AddCartItem } from '../../generated';
 

@@ -1,8 +1,8 @@
-import type { QueryClientOptions } from '@ahoo-wang/fetcher-wow';
+import type { QueryClientOptions } from '@ahoo-wang/wow-client';
 import {
   QueryClientFactory,
   ResourceAttributionPathSpec,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import type {
   AddressChanged,
   OrderAggregatedFields,
@@ -29,11 +29,7 @@ export enum OrderDomainEventTypeMapTitle {
 }
 
 export type OrderDomainEventType =
-  | AddressChanged
-  | OrderCreated
-  | OrderPaid
-  | OrderReceived
-  | OrderShipped;
+  AddressChanged | OrderCreated | OrderPaid | OrderReceived | OrderShipped;
 
 export const orderQueryClientFactory = new QueryClientFactory<
   WowExampleOrderState,

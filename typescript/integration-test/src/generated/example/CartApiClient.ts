@@ -14,7 +14,7 @@ import {
   JsonEventStreamResultExtractor,
   type JsonServerSentEventStream,
 } from '@ahoo-wang/fetcher-eventstream';
-import type { CommandResult } from '@ahoo-wang/fetcher-wow';
+import type { CommandResult } from '@ahoo-wang/wow-client';
 import type { CartData } from './cart/types';
 import { ContentTypeValues } from '@ahoo-wang/fetcher';
 import { EXAMPLE_BOUNDED_CONTEXT_ALIAS } from './boundedContext';

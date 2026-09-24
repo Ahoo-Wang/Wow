@@ -29,7 +29,7 @@ import {
   SortDirection,
   StringComparison,
   TimeUnit,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import { exampleFetcher } from '../../src/wow';
 
 /**
