@@ -104,6 +104,9 @@ export default tseslint.config(
       '@typescript-eslint/unbound-method': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
       '@typescript-eslint/no-unsafe-assignment': 'off',
+      // A library does not write to its host's console; report through errors,
+      // state or callbacks instead. Tests, dev/ and examples/ may log.
+      'no-console': 'error',
     },
   },
   {

@@ -1,0 +1,25 @@
+# Code owners are requested for review on pull requests that touch their paths.
+# The last matching pattern takes precedence, so specific paths come after the
+# default. Syntax: https://docs.github.com/articles/about-code-owners
+
+# Default for the whole repository.
+*                                        @Ahoo-Wang
+
+# TypeScript packages, the shared pnpm workspace and its tooling.
+/typescript/                             @Ahoo-Wang
+/package.json                            @Ahoo-Wang
+/pnpm-workspace.yaml                     @Ahoo-Wang
+/pnpm-lock.yaml                          @Ahoo-Wang
+
+# Workflows, CI and release scripts, templates and repository settings.
+/.github/                                @Ahoo-Wang
+
+# Release and publish path: version source, publish and admission scripts,
+# the publish workflow and the maintainer runbook.
+/gradle.properties                       @Ahoo-Wang
+/.github/workflows/package-deploy.yml    @Ahoo-Wang
+/.github/scripts/release-admission.mjs   @Ahoo-Wang
+/.github/scripts/publish-npm.mjs         @Ahoo-Wang
+/.github/scripts/package-check.mjs       @Ahoo-Wang
+/.github/scripts/project-version.mjs     @Ahoo-Wang
+/typescript/RELEASING.md                 @Ahoo-Wang
