@@ -321,6 +321,21 @@
   - **宿主的全局动作不再「永远排最后」**：它们仍在框架功能之后、一根竖线之后；视图自己的 primary 收尾整行。理由：primary 的位置跟着状态走而不跟着宿主走——宿主加没加按钮，「编辑」与编辑条的「保存」都在行尾。
 - **落点**：`src/ui/dashboard/buildShell.tsx`、`src/ui/ViewHeader.tsx`、`src/ui/SaveActions.tsx`（`copyWhenClean`）、`src/ui/dashboard/EditBar.tsx`、[ui/dashboard.md](ui/dashboard.md)、[ui/README.md](ui/README.md#版式三块一套间距一种选项控件)。
 
+## D33 搭板子时的格子是正方形方块，行高随栏宽（2026-09-24）
+
+- **来由**：用户 2026-09-24 看暗色主题下搭板子的截图：「网格线优化：参考 metabase，用正方形方块。」#3325 画的是每个格子四边一根细线，24 栏、行高固定 80px，1200px 宽时一格约 40×80——竖长的描边长方形。
+- **Metabase 怎么画**（读的是 metabase/metabase 主干源码）：`dashboard_grid.ts` 定 `GRID_WIDTH = 24`、`GRID_ASPECT_RATIO = 10 / 9`、`MIN_ROW_HEIGHT = 40`；`DashboardGrid.tsx` 的 `getRowHeight()` 是 `max(width / 24 / (10/9), 40)` 取整——**行高由宽度推出来**，缝 6px、无内边距，所以一格大约是正方形（固定宽度 1048px 时约 38×39），窄到 40px 以下就不再正方。编辑时 `GridLayout.tsx` 把 `generateGridBackground` 生成的 SVG 当栅格背景：一行 24 个 `<rect stroke=… stroke-width=1 fill=none>`（描边、不填充、无圆角），颜色取主题的 `border-neutral`（SVG 在 data URI 里读不到 CSS 变量，所以在 JS 里取色），整行一张图纵向重复；栅格高度在编辑时还多加一屏的空行，好往下拖。读的时候没有背景。
+- **裁定**：
+  - **一行是两块正方形**：行高 = 2 × 栏宽（取整到整像素）＋ 一道缝，所以格子画成**每栏每行上下两块正方形**，块与块之间都是同一道 10px 的缝，面板的四条边永远落在块的边上。行高随栅格实际画的宽度变（`ui/dashboard/gridBlocks.ts` 的 `boardRowHeight`），读和搭同一个行高——按「编辑」不会让面板跳。
+  - **行高不低于 80px**（`MIN_ROW_HEIGHT`）：栏宽不到 35.5px（栅格窄于约 1100px，笔记本上工作台的主栏、窄于 `md` 的一列读法）时行高停在今天的 80px，这一行切成最接近正方形的块数（`blockSide`）——约 885px 以上两块（1000px 时约 31×35）、以下三块（800px 时约 23×20），块只是近似正方形；但面板不比存下时矮（D31「不让存下的布局悄悄变窄」的同一条原则，竖向也一样），一行高的指标卡仍放得下（[ui/analysis.md](ui/analysis.md)）。
+  - **画法照 Metabase 的「一整行一张 SVG、纵向重复」，但块是软的实心**：用户要的是「方块」，不是描边；实心、3px 小圆角、`--border` 调到 45%（亮色约等于 `--muted` 那一层浅灰，暗色约等于卡片色），读作垫在面板下的一把尺，不是第二套卡片。SVG 只当遮罩（`mask-image`），颜色在样式表里、是 token，所以跟着亮暗与预设走——避开了 Metabase 在 JS 里取色的那一步。
+- **比较过的做法**：
+  - **(a) 照搬 Metabase，一行一块正方形**（行高 = 栏宽）：一行的高度砍掉一半多，存下的每块面板都会矮一半——除非把存下的 `h`、`y` 乘 2 迁移，这是又一次存储数据迁移（AGENTS.md 只列了用户批过的几种），而且键盘一步、「N 行」的播报、`defaultPanelSize` 全要跟着改。今天不做；要让拖动的竖向一步也是一块，就是这一条，要用户拍板。
+  - **(b) 行高仍是 80px，只把块画成非正方形**：不是用户要的正方形。
+  - **(c) 只让固定宽度的板子行高随宽**：固定宽度最宽 1200px，行高在 80～90px 之间，几乎不变；但全宽的板子（D31 之前存的都是）在宽屏上格子仍是扁的（1920px 时约 70×35），正是最常看到网格的地方不成方块。
+- **代价**（用户看得出来的）：**竖向一步是两块**——拖、缩放、方向键的竖向一步仍是一行，也就是两块（窄栅格上三块）；块是尺子，比能落的位置细一倍。**全宽的板子在宽屏上变高**：1920px 时一行 150px（原 80px），面板保持它在窄处的形状，一张 12×4 的图不再被拉成扁条，但长板要多滚；固定宽度的板子在 1200px 时一行 90px，高了 12.5%。不会有一块面板比今天矮。
+- **落点**：`src/ui/dashboard/gridBlocks.ts`（`boardRowHeight`、`gridBlocks`）、`src/ui/DashboardGrid.tsx`（`rowHeight` 属性删去，行高由宽度推出）、`src/ui/dashboard/Board.tsx`（新面板落在屏上第一行，按同一个行高算）、`src/styles.css`（`dashboard-grid-blocks`）、[ui/dashboard.md](ui/dashboard.md)。
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。

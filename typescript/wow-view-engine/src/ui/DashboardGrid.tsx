@@ -37,7 +37,7 @@ import type { DashboardWidth } from '../model/index.js';
 import type { ViewNavigation } from '../runtime/index.js';
 import { useSurfaceAnnouncer } from './Announcer.js';
 import { PanelGridItem, PanelResizeHandle } from './DashboardArrange.js';
-import { gridLines } from './dashboard/gridLines.js';
+import { boardRowHeight, gridBlocks } from './dashboard/gridBlocks.js';
 import {
   DashboardPanel,
   panelNames,
@@ -78,8 +78,6 @@ export interface DashboardGridProps {
    * Read-only by default — nothing on a board being read moves it.
    */
   editable?: boolean;
-  /** Pixel height of one grid row. */
-  rowHeight?: number;
   /** Told when one panel's body fails to draw; the others keep drawing. */
   onRenderFailure?: RenderFailureHandler;
   /**
@@ -159,7 +157,6 @@ export type { PanelHeadingLevel } from './DashboardPanel.js';
 export function DashboardGrid({
   dashboard,
   editable = false,
-  rowHeight = 80,
   className,
   onRenderFailure,
   headingLevel = 3,
@@ -197,6 +194,10 @@ export function DashboardGrid({
   // it could be written back, so neither the gestures nor the keyboard
   // commands are on offer there.
   const arranging = editable && !narrow;
+  // A row is two squares as wide as a column (D33), read and built alike, so
+  // pressing 编辑 moves nothing; at a width too narrow for that, and in the
+  // one column, the 80px it always was.
+  const rowHeight = boardRowHeight(drawnWidth, dashboard.columns);
   const placement = useGridPlacement(dashboard.place);
   const building = useBoardBuilding();
   const extensions = useDashboardEditExtensions();
@@ -295,9 +296,9 @@ export function DashboardGrid({
   const fixed = dashboard.width === 'fixed';
   // The cells, drawn while the board is built and only where a panel can be
   // placed on them: not in the one-column reading, not over an empty tab.
-  const lines =
+  const blocks =
     arranging && measured && panels.length > 0
-      ? gridLines({ width: drawnWidth, cols: dashboard.columns, rowHeight })
+      ? gridBlocks({ width: drawnWidth, cols: dashboard.columns, rowHeight })
       : undefined;
 
   return (
@@ -321,14 +322,21 @@ export function DashboardGrid({
       <div
         data-slot="dashboard-tab-panel"
         // It holds the grid alone, at the grid's width and height, so the
-        // cells are its background (`styles.css`, `[data-grid-lines]`).
-        data-grid-lines={lines ? '' : undefined}
-        style={lines}
-        className="flex min-w-0 flex-col"
+        // blocks are one layer inside it, under the panels.
+        className={cn('flex min-w-0 flex-col', blocks && 'relative isolate')}
         {...(shownTab === null
           ? {}
           : { role: 'tabpanel', 'aria-label': shownTab })}
       >
+        {blocks && (
+          // One drawing of every cell (`styles.css`,
+          // `dashboard-grid-blocks`): never pressed, never read out.
+          <div
+            data-slot="dashboard-grid-blocks"
+            aria-hidden="true"
+            style={blocks}
+          />
+        )}
         {!measured ? null : panels.length === 0 ? (
           // A tab with nothing on it, on a board with panels elsewhere, says
           // so of the tab: 「这个仪表盘还没有面板」 would be untrue one tab away.
