@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 718 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 723 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -79,6 +79,7 @@ value DASHBOARD_FILTER_KINDS
 value DASHBOARD_FILTER_TYPES
 value DASHBOARD_GRID_COLUMNS
 value DASHBOARD_PRESENTATION_MEMBERS
+value DASHBOARD_WIDTHS
 value DATE_AGGREGATION_FUNCTIONS
 value DATE_SUMMARY_FUNCTIONS
 value DATE_TIME_PRESETS
@@ -108,6 +109,7 @@ type  DashboardTarget
 type  DashboardTimeGrouping
 type  DashboardViewConfig
 type  DashboardViewPanel
+type  DashboardWidth
 type  DataPanelSource
 type  DataViewConfig
 type  DataViewConfigBase
@@ -393,6 +395,7 @@ value boardCondition
 value boardFilterChoices
 value boardValueChoices
 value boardValueSources
+value boardWidth
 value booleanFieldKind
 value bottomOf
 value bucketRange
@@ -637,12 +640,14 @@ value rootSearch
 value sameFilterNode
 value sameFilterTree
 value sameFilterType
+value sameJson
 value sameLayout
 value scopePrefix
 value searchFieldKind
 value searchFieldOf
 value serializeCsv
 value seriesMark
+value setBoardWidth
 value setFilterDefault
 value setFilterMultiple
 value setFilterOptions

@@ -903,6 +903,36 @@ describe('DashboardGrid', () => {
     });
 
     /**
+     * react-resizable's `DraggableCore` clones the corner with the pointer
+     * handlers that drive a resize drag. The corner must hand them to its
+     * button: dropping them left panels resizable by keyboard only.
+     */
+    it('hands the drag handlers the library gives it to its button', () => {
+      const onMouseDown = vi.fn();
+      const onMouseUp = vi.fn();
+      const onTouchEnd = vi.fn();
+      render(
+        <PanelResizeHandle
+          axis="se"
+          ref={null}
+          onStep={vi.fn()}
+          onMouseDown={onMouseDown}
+          onMouseUp={onMouseUp}
+          onTouchEnd={onTouchEnd}
+        />,
+      );
+      const corner = screen.getByLabelText('Resize this panel');
+
+      fireEvent.mouseDown(corner);
+      fireEvent.mouseUp(corner);
+      fireEvent.touchEnd(corner);
+
+      expect(onMouseDown).toHaveBeenCalledOnce();
+      expect(onMouseUp).toHaveBeenCalledOnce();
+      expect(onTouchEnd).toHaveBeenCalledOnce();
+    });
+
+    /**
      * Sideways and in size one step is one cell, and the bounds are the
      * kernel's, so no command can produce a layout `validateDashboard`
      * would refuse. Up and down are what a board that floats panels up
@@ -1022,6 +1052,39 @@ describe('DashboardGrid', () => {
       const moved = controller().panels[0].layout;
       expect(moved).toMatchObject({ y: 0, w: 6, h: 4 });
       expect(moved.x).toBeGreaterThanOrEqual(3);
+    });
+
+    it('resizes a panel by dragging its corner', async () => {
+      // The same jsdom stand-ins as the move above: a parent to measure
+      // against, and the 1280px the grid's columns are counted from.
+      vi.spyOn(HTMLElement.prototype, 'offsetParent', 'get').mockImplementation(
+        function (this: HTMLElement) {
+          return this.parentElement;
+        },
+      );
+      vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(
+        1280,
+      );
+      const { controller, runtime } = await openBuilding(gapped);
+      render(<DashboardGrid dashboard={controller()} editable />);
+      await settle();
+      const before = controller().panels[0].layout;
+      const corner = document.querySelector(
+        '[data-slot="panel-resize"]',
+      ) as HTMLElement;
+
+      // Down on the corner, movement on the document, up: 160px right is
+      // three columns of ~53px, 160px down two rows of 80px.
+      fireEvent.mouseDown(corner, { clientX: 10, clientY: 10, button: 0 });
+      fireEvent.mouseMove(document, { clientX: 90, clientY: 90 });
+      fireEvent.mouseMove(document, { clientX: 170, clientY: 170 });
+      fireEvent.mouseUp(document, { clientX: 170, clientY: 170 });
+      await settle();
+
+      expect(runtime.getSnapshot().dirty).toBe(true);
+      const resized = controller().panels[0].layout;
+      expect(resized.w).toBeGreaterThan(before.w);
+      expect(resized.h).toBeGreaterThan(before.h);
     });
   });
 

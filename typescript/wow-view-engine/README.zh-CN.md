@@ -289,43 +289,43 @@ import {
 }
 ```
 
-| Token                       | 用途                       | 亮色默认值                      | 暗色默认值                      |
-| --------------------------- | -------------------------- | ------------------------------- | ------------------------------- |
-| `background`                | 整体底色                   | `oklch(1 0 0deg)`               | `oklch(0.145 0 0deg)`           |
-| `foreground`                | 默认文字                   | `oklch(0.145 0 0deg)`           | `oklch(0.985 0 0deg)`           |
-| `card`                      | 卡片与面板底色             | `oklch(1 0 0deg)`               | `oklch(0.205 0 0deg)`           |
-| `card-foreground`           | 卡片上的文字               | `oklch(0.145 0 0deg)`           | `oklch(0.985 0 0deg)`           |
-| `popover`                   | 弹层底色                   | `oklch(1 0 0deg)`               | `oklch(0.205 0 0deg)`           |
-| `popover-foreground`        | 弹层内文字                 | `oklch(0.145 0 0deg)`           | `oklch(0.985 0 0deg)`           |
-| `primary`                   | 主操作填充                 | `oklch(0.205 0 0deg)`           | `oklch(0.922 0 0deg)`           |
-| `primary-foreground`        | 主操作上的文字             | `oklch(0.985 0 0deg)`           | `oklch(0.205 0 0deg)`           |
-| `secondary`                 | 次操作填充                 | `oklch(0.97 0 0deg)`            | `oklch(0.269 0 0deg)`           |
-| `secondary-foreground`      | 次操作上的文字             | `oklch(0.205 0 0deg)`           | `oklch(0.985 0 0deg)`           |
-| `muted`                     | 弱化底色                   | `oklch(0.97 0 0deg)`            | `oklch(0.269 0 0deg)`           |
-| `muted-foreground`          | 次要文字                   | `oklch(0.556 0 0deg)`           | `oklch(0.708 0 0deg)`           |
-| `accent`                    | 悬停与选中填充             | `oklch(0.97 0 0deg)`            | `oklch(0.269 0 0deg)`           |
-| `accent-foreground`         | 强调态上的文字             | `oklch(0.205 0 0deg)`           | `oklch(0.985 0 0deg)`           |
-| `sidebar`                   | 导航列底色                 | `oklch(0.97 0 0deg)`            | `oklch(0.205 0 0deg)`           |
-| `sidebar-foreground`        | 导航列上的文字             | `oklch(0.145 0 0deg)`           | `oklch(0.985 0 0deg)`           |
-| `sidebar-accent`            | 导航列的悬停项             | `oklch(0.922 0 0deg)`           | `oklch(0.279 0 0deg)`           |
-| `sidebar-accent-foreground` | 悬停项上的文字             | `oklch(0.205 0 0deg)`           | `oklch(0.985 0 0deg)`           |
-| `sidebar-border`            | 导航列的边                 | `oklch(0.898 0 0deg)`           | `oklch(1 0 0deg / 20%)`         |
-| `destructive`               | 危险与删除                 | `oklch(0.505 0.213 27.518deg)`  | `oklch(0.704 0.191 22.216deg)`  |
-| `success`                   | 成功                       | `oklch(0.448 0.119 151.328deg)` | `oklch(0.792 0.209 151.711deg)` |
-| `warning`                   | 需要注意、不阻塞           | `oklch(0.473 0.137 46.201deg)`  | `oklch(0.828 0.189 84.429deg)`  |
-| `border`                    | 边框与分隔线               | `oklch(0.922 0 0deg)`           | `oklch(1 0 0deg / 20%)`         |
-| `input`                     | 输入与控件边框             | `oklch(0.62 0 0deg)`            | `oklch(1 0 0deg / 40%)`         |
-| `ring`                      | 焦点环                     | `oklch(0.62 0 0deg)`            | `oklch(0.66 0 0deg)`            |
-| `chart-1`                   | 图表第 1 槽，蓝            | `#2675d3`                       | `#3987e5`                       |
-| `chart-2`                   | 图表第 2 槽，橙            | `#eb6834`                       | `#d95926`                       |
-| `chart-3`                   | 图表第 3 槽，青            | `#1baf7a`                       | `#199e70`                       |
-| `chart-4`                   | 图表第 4 槽，黄            | `#eda100`                       | `#c98500`                       |
-| `chart-5`                   | 图表第 5 槽，品红          | `#e87ba4`                       | `#d55181`                       |
-| `chart-6`                   | 图表第 6 槽，绿            | `#008300`                       | `#008300`                       |
-| `chart-7`                   | 图表第 7 槽，紫            | `#4a3aa7`                       | `#9085e9`                       |
-| `chart-8`                   | 图表第 8 槽，红            | `#e34948`                       | `#e66767`                       |
-| `radius`                    | 圆角基准，其余档位由它换算 | `0.625rem`                      | —                               |
-| `text-ui`                   | 正文之下唯一的那一档字号   | `0.8125rem`                     | —                               |
+| Token                       | 用途                       | 亮色默认值                      | 暗色默认值                     |
+| --------------------------- | -------------------------- | ------------------------------- | ------------------------------ |
+| `background`                | 整体底色                   | `oklch(1 0 0deg)`               | `oklch(0.145 0 0deg)`          |
+| `foreground`                | 默认文字                   | `oklch(0.145 0 0deg)`           | `oklch(0.985 0 0deg)`          |
+| `card`                      | 卡片与面板底色             | `oklch(1 0 0deg)`               | `oklch(0.205 0 0deg)`          |
+| `card-foreground`           | 卡片上的文字               | `oklch(0.145 0 0deg)`           | `oklch(0.985 0 0deg)`          |
+| `popover`                   | 弹层底色                   | `oklch(1 0 0deg)`               | `oklch(0.205 0 0deg)`          |
+| `popover-foreground`        | 弹层内文字                 | `oklch(0.145 0 0deg)`           | `oklch(0.985 0 0deg)`          |
+| `primary`                   | 主操作填充                 | `oklch(0.205 0 0deg)`           | `oklch(0.922 0 0deg)`          |
+| `primary-foreground`        | 主操作上的文字             | `oklch(0.985 0 0deg)`           | `oklch(0.205 0 0deg)`          |
+| `secondary`                 | 次操作填充                 | `oklch(0.97 0 0deg)`            | `oklch(0.269 0 0deg)`          |
+| `secondary-foreground`      | 次操作上的文字             | `oklch(0.205 0 0deg)`           | `oklch(0.985 0 0deg)`          |
+| `muted`                     | 弱化底色                   | `oklch(0.97 0 0deg)`            | `oklch(0.269 0 0deg)`          |
+| `muted-foreground`          | 次要文字                   | `oklch(0.556 0 0deg)`           | `oklch(0.708 0 0deg)`          |
+| `accent`                    | 悬停与选中填充             | `oklch(0.97 0 0deg)`            | `oklch(0.269 0 0deg)`          |
+| `accent-foreground`         | 强调态上的文字             | `oklch(0.205 0 0deg)`           | `oklch(0.985 0 0deg)`          |
+| `sidebar`                   | 导航列底色                 | `oklch(0.97 0 0deg)`            | `oklch(0.205 0 0deg)`          |
+| `sidebar-foreground`        | 导航列上的文字             | `oklch(0.145 0 0deg)`           | `oklch(0.985 0 0deg)`          |
+| `sidebar-accent`            | 导航列的悬停项             | `oklch(0.922 0 0deg)`           | `oklch(0.279 0 0deg)`          |
+| `sidebar-accent-foreground` | 悬停项上的文字             | `oklch(0.205 0 0deg)`           | `oklch(0.985 0 0deg)`          |
+| `sidebar-border`            | 导航列的边                 | `oklch(0.898 0 0deg)`           | `oklch(1 0 0deg / 20%)`        |
+| `destructive`               | 危险与删除                 | `oklch(0.505 0.213 27.518deg)`  | `oklch(0.76 0.15 22.216deg)`   |
+| `success`                   | 成功                       | `oklch(0.448 0.119 151.328deg)` | `oklch(0.792 0.15 151.711deg)` |
+| `warning`                   | 需要注意、不阻塞           | `oklch(0.473 0.137 46.201deg)`  | `oklch(0.828 0.15 84.429deg)`  |
+| `border`                    | 边框与分隔线               | `oklch(0.922 0 0deg)`           | `oklch(1 0 0deg / 20%)`        |
+| `input`                     | 输入与控件边框             | `oklch(0.62 0 0deg)`            | `oklch(1 0 0deg / 40%)`        |
+| `ring`                      | 焦点环                     | `oklch(0.62 0 0deg)`            | `oklch(0.66 0 0deg)`           |
+| `chart-1`                   | 图表第 1 槽，蓝            | `#2675d3`                       | `#3987e5`                      |
+| `chart-2`                   | 图表第 2 槽，橙            | `#eb6834`                       | `#d95926`                      |
+| `chart-3`                   | 图表第 3 槽，青            | `#1baf7a`                       | `#199e70`                      |
+| `chart-4`                   | 图表第 4 槽，黄            | `#eda100`                       | `#c98500`                      |
+| `chart-5`                   | 图表第 5 槽，品红          | `#e87ba4`                       | `#d55181`                      |
+| `chart-6`                   | 图表第 6 槽，绿            | `#008300`                       | `#008300`                      |
+| `chart-7`                   | 图表第 7 槽，紫            | `#4a3aa7`                       | `#9085e9`                      |
+| `chart-8`                   | 图表第 8 槽，红            | `#e34948`                       | `#e66767`                      |
+| `radius`                    | 圆角基准，其余档位由它换算 | `0.625rem`                      | —                              |
+| `text-ui`                   | 正文之下唯一的那一档字号   | `0.8125rem`                     | —                              |
 
 五个 `sidebar*` 用的是 shadcn 自己的命名，指的是工作台放视图列表的那条导航列——已经在给 shadcn 侧栏配主题的宿主，用同一组词就能配这一条。只声明这条列真正画到的那五个。列里当前打开的那一项是 `background` 叠在 `sidebar` 上，悬停是 `sidebar-accent`，三者因此必须互相分得开：其中两个解析成同一档灰，这份列表就没有「你在这里」了。
 
@@ -365,8 +365,29 @@ import '@ahoo-wang/wow-view-engine/themes.css';
 - **预设与明暗互不相干。** 预设只提供亮暗两半的值；亮还是暗仍由上文的 `.dark` 或 `theme` 决定。
 - **宿主自己的变量优先。** 每套预设写成 `:where([data-fve-preset='…'])`，不占特异性，所以你在 `:root` 上设的 `--fve-*` 总是赢过你选的预设，不管哪份样式表先加载——想改预设里的某一个颜色，不必把其余的重写一遍。
 - **预设从不改的**：图表八色（同一系列在各套预设下保持同一种颜色，它们按两种明暗量过色觉缺陷间距）、`pin-shadow`（由明暗决定）与 `text-ui`（宿主的排版）。宿主自己设 `--fve-chart-*` 的，要替自己的色板补上这些测量。
-- **`neutral`** 就是主题本身的样子：它把每个变量放回未设，所以在别的预设页面里钉成 `neutral` 的视图，与没有任何预设时一模一样。`blue` 与 `slate` 随后的版本提供。
+- **内置三套。** `neutral` 就是主题本身的样子：它把每个变量放回未设，所以在别的预设页面里钉成 `neutral` 的视图，与没有任何预设时一模一样。`blue` 是 neutral 的灰配蓝色主色（shadcn 的 `blue` 主题）；`slate` 是冷灰配蓝色主色（补偿控制台的样子）。两套都不把 `input`、`ring` 换成品牌色（`slate` 只把它们的灰换成冷灰），也不动状态色与图表八色；每套预设在两种明暗下，字、控件边、焦点的每一对都过 4.5:1／3:1（`test/presetContrast.test.ts`）。它们设的值见下表。
 - `themes.css` 里只有这些变量赋值；`scripts/verify-package.mjs` 在每次构建时核对：每条规则都是一个预设块，每条声明都是 `--fve-` 变量，每套预设赋值的变量集合相同且完整，一套钉在另一套里时整套替换。
+
+`blue` 与 `slate` 设的值——没列的变量保留上面 token 表里的 neutral 值：
+
+| 变量                                                                        | `blue` 亮                       | `blue` 暗                       | `slate` 亮                      | `slate` 暗                      |
+| --------------------------------------------------------------------------- | ------------------------------- | ------------------------------- | ------------------------------- | ------------------------------- |
+| `primary`                                                                   | `oklch(0.488 0.243 264.376deg)` | `oklch(0.707 0.165 254.624deg)` | `oklch(0.546 0.245 262.881deg)` | `oklch(0.707 0.165 254.624deg)` |
+| `primary-foreground`                                                        | `oklch(0.97 0.014 254.604deg)`  | —                               | `oklch(0.984 0.003 247.858deg)` | `oklch(0.208 0.042 265.755deg)` |
+| `background`                                                                | —                               | —                               | —                               | `oklch(0.129 0.042 264.695deg)` |
+| `foreground`、`card-foreground`、`popover-foreground`、`sidebar-foreground` | —                               | —                               | `oklch(0.129 0.042 264.695deg)` | `oklch(0.984 0.003 247.858deg)` |
+| `card`、`popover`                                                           | —                               | —                               | —                               | `oklch(0.208 0.042 265.755deg)` |
+| `secondary`、`muted`、`accent`                                              | —                               | —                               | `oklch(0.968 0.007 247.896deg)` | `oklch(0.279 0.041 260.031deg)` |
+| `secondary-foreground`、`accent-foreground`、`sidebar-accent-foreground`    | —                               | —                               | `oklch(0.208 0.042 265.755deg)` | `oklch(0.984 0.003 247.858deg)` |
+| `muted-foreground`                                                          | —                               | —                               | `oklch(0.554 0.046 257.417deg)` | `oklch(0.704 0.04 256.788deg)`  |
+| `sidebar`                                                                   | —                               | —                               | `oklch(0.968 0.007 247.896deg)` | `oklch(0.208 0.042 265.755deg)` |
+| `sidebar-accent`                                                            | —                               | —                               | `oklch(0.929 0.013 255.508deg)` | `oklch(0.279 0.041 260.031deg)` |
+| `sidebar-border`                                                            | —                               | —                               | `oklch(0.898 0.018 254deg)`     | —                               |
+| `border`                                                                    | —                               | —                               | `oklch(0.929 0.013 255.508deg)` | —                               |
+| `input`                                                                     | —                               | —                               | `oklch(0.62 0.043 257deg)`      | —                               |
+| `ring`                                                                      | —                               | —                               | `oklch(0.62 0.043 257deg)`      | `oklch(0.66 0.042 257deg)`      |
+
+两套的暗色 `primary` 都取 blue-400，而不是 shadcn 的 blue-800：`primary` 也是界面写字的颜色（单元格里的链接）和表示状态的填充（勾上的复选框），blue-800 在暗色卡片上只有约 2:1。
 
 宿主也可以照同样的写法定义自己的预设——`:where([data-fve-preset='acme']) { --fve-primary: …; }`——用同一个属性或 prop 选中。
 

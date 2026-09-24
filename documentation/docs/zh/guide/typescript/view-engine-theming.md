@@ -32,7 +32,7 @@ import '@ahoo-wang/wow-view-engine/themes.css';
 <html data-fve-preset="neutral">
 ```
 
-`neutral` 就是主题本身的样子，也是不设预设时的缺省。`blue`（中性灰配蓝色主色）与 `slate`（冷灰配蓝）在随后的版本加入，每套都有亮暗两半。属性挂在 `<html>` 上，所有视图与弹层都换上这套预设。
+`neutral` 就是主题本身的样子，也是不设预设时的缺省。`blue` 是中性灰配蓝色主色；`slate` 是冷灰配蓝，即补偿控制台的样子。每套都有亮暗两半，都不把 `input`、`ring` 换成品牌色。每套设了哪些值，见[包的 README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.zh-CN.md#预设)。属性挂在 `<html>` 上，所有视图与弹层都换上这套预设。
 
 - **预设与明暗互不相干。** 预设提供亮暗两半的值；亮还是暗仍按下文「亮、暗与跟随系统」决定。
 - **预设从不改图表八色**、`pin-shadow` 与 `text-ui`，见[图表颜色](#图表颜色)。

@@ -32,7 +32,7 @@ import '@ahoo-wang/wow-view-engine/themes.css';
 <html data-fve-preset="neutral">
 ```
 
-`neutral` is the theme's own look and the default when no preset is set. `blue` (neutral greys with a blue primary) and `slate` (cool greys with blue) are added in a coming release; each gives both a light and a dark half. The attribute on `<html>` reaches every view and every popup.
+`neutral` is the theme's own look and the default when no preset is set. `blue` is the neutral greys with a blue primary; `slate` is cool greys with blue, the look of the compensation console. Each gives both a light and a dark half, and neither turns `input` or `ring` into the brand colour. The values each one sets are listed in the [package README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.md#presets). The attribute on `<html>` reaches every view and every popup.
 
 - **A preset and the mode are independent.** The preset supplies both halves of the values; light or dark is still decided as described under [Light, dark and system](#light-dark-and-system).
 - **A preset never changes the chart colours**, `pin-shadow` or `text-ui`. See [Chart colours](#chart-colours).

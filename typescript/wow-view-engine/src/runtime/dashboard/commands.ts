@@ -17,6 +17,7 @@ import type {
   DashboardFilterType,
   DashboardTimeGrouping,
   DashboardViewConfig,
+  DashboardWidth,
   FieldOption,
   FilterValue,
   Issue,
@@ -367,6 +368,9 @@ export abstract class BoardCommands
   }
   reorderPanel(panelId: string, step: OrderStep): void {
     this.edits.reorderPanel(panelId, step);
+  }
+  setWidth(width: DashboardWidth): void {
+    this.edits.setWidth(width);
   }
 
   // What the filters hold (D22 F): see `FilterValues`.

@@ -249,7 +249,7 @@ Alternatively, CoSec's resource-attribution interceptor can fill `{tenantId}`/`{
 
 ### Space Attribution
 
-For space-scoped aggregates, `CommandHeaders.SPACE_ID` (`Command-Space-Id`) attributes a command to a space, and the `spaceId(value)` condition filters queries by space. Snapshots expose `spaceId` via `MaterializedSnapshot`.
+For space-scoped aggregates, `CommandHeaders.SPACE_ID` (`Wow-Space-Id`, the same value as `WowHeaders.SPACE_ID`) attributes a command to a space, and the `spaceId(value)` condition filters queries by space. Snapshots expose `spaceId` via `MaterializedSnapshot`.
 
 ---
 
@@ -319,6 +319,7 @@ for await (const event of stream) {
 
 - `CommandHeaders.TENANT_ID` - Tenant context (`Command-Tenant-Id`)
 - `CommandHeaders.OWNER_ID` - Owner context (`Command-Owner-Id`)
+- `CommandHeaders.SPACE_ID` - Space (`Wow-Space-Id`; shared with queries, so it has the `Wow-` prefix like `WowHeaders.SPACE_ID`)
 - `CommandHeaders.AGGREGATE_ID` - Aggregate root ID (`Command-Aggregate-Id`)
 - `CommandHeaders.AGGREGATE_VERSION` - Expected version (`Command-Aggregate-Version`)
 - `CommandHeaders.WAIT_STAGE` - Wait stage (`Command-Wait-Stage`)

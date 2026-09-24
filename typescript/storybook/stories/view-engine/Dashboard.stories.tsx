@@ -49,6 +49,7 @@ import '@ahoo-wang/wow-view-engine/styles.css';
 /** Which saved dashboard a story opens, and which views it can reach. */
 type Variant =
   | 'panels'
+  | 'fixed'
   | 'filtered'
   | 'unavailable'
   | 'empty'
@@ -317,6 +318,7 @@ function handedConfig(): DashboardViewConfig {
 }
 
 function savedConfig(variant: Variant) {
+  if (variant === 'fixed') return dashboardConfig({ width: 'fixed' });
   if (variant === 'filters') return filtersConfig();
   if (variant === 'cross')
     return dashboardConfig({
@@ -699,6 +701,18 @@ type Story = StoryObj<typeof meta>;
 
 /** Two data panels and one content panel, under one filter. */
 export const AllPanels: Story = { args: { variant: 'panels' } };
+
+/**
+ * The same board at the fixed width (D31): its filters, its panels and,
+ * while it is built, its edit bar held to 1200px and centred — a metric card
+ * a quarter of a readable width rather than of a wide monitor. A new board
+ * starts here; one saved before a board could say stays full width. Press
+ * 「编辑」 and switch 固定宽度／全宽 on the edit bar; 撤销 takes it back.
+ */
+export const FixedWidth: Story = {
+  name: '固定宽度',
+  args: { variant: 'fixed' },
+};
 
 /**
  * The filter bar's 仓库 set to 华南: each panel answers for that warehouse

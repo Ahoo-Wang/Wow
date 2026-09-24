@@ -13,14 +13,7 @@
 
 import { useState, type RefObject } from 'react';
 import { useSortable } from '@dnd-kit/react/sortable';
-import { OptimisticSortingPlugin } from '@dnd-kit/dom/sortable';
-import {
-  CheckIcon,
-  PencilIcon,
-  StarIcon,
-  TrashIcon,
-  XIcon,
-} from 'lucide-react';
+import { PencilIcon, StarIcon, TrashIcon } from 'lucide-react';
 import {
   isSystemScope,
   toSummary,
@@ -30,14 +23,9 @@ import type { ViewInstance, ViewPreferences } from '../model/index.js';
 import type { WriteState } from '../runtime/index.js';
 import type { ViewListState, ViewManagerController } from '../react/index.js';
 import { DragHandle } from './DragHandle.js';
-import { IconButton, IconTooltip } from './IconButton.js';
+import { withoutOptimisticSorting } from './dragPlugins.js';
+import { IconButton } from './IconButton.js';
 import { ButtonGroup } from './components/button-group.js';
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupInput,
-} from './components/input-group.js';
 import {
   ItemActions,
   ItemContent,
@@ -51,6 +39,7 @@ import { KIND_ICON, useKindWord } from './kinds.js';
 import { SystemMark } from './SystemMark.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { OutcomeActions } from './OutcomeActions.js';
+import { RenameInput } from './RenameInput.js';
 
 /**
  * How many action cells every row lays out, whatever it carries.
@@ -114,23 +103,13 @@ export function ViewManagerRow({
 }: ViewManagerRowProps) {
   const messages = useViewMessages();
   const word = useKindWord();
-  const [renaming, setRenaming] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const Kind = KIND_ICON[item.kind];
   const can = manager.can.instance(item.id);
   const outcome = manager.outcomes.get(item.id);
   const busy = manager.pending !== null;
   const isDefault = list.preferences?.defaultInstanceId === item.id;
-
-  // The one rename path, so the key and the button cannot drift apart: the
-  // same trim, the same refusal of an empty name, the same write.
-  const named = renaming === null ? '' : renaming.trim();
-  const blocked = busy || named.length === 0;
-  const confirmRename = () => {
-    if (blocked) return;
-    void manager.rename(item.id, named);
-    setRenaming(null);
-  };
 
   return (
     <>
@@ -167,7 +146,7 @@ export function ViewManagerRow({
               // in flight or this row's title is being edited, the row is
               // busy with something else and comes back as soon as it is
               // done.
-              disabled={busy || renaming !== null}
+              disabled={busy || renaming}
               onMove={onMove}
             />
           )}
@@ -175,74 +154,37 @@ export function ViewManagerRow({
         </ItemMedia>
 
         <ItemContent className="min-w-0">
-          {renaming === null ? (
-            <ItemTitle className="max-w-full">{item.title}</ItemTitle>
-          ) : (
-            // The two answers to the field sit **in** the field
-            // (`InputGroup`, the registry's own part for it), not in the
+          {renaming ? (
+            // The two answers to the field sit **in** the field, not in the
             // action cells at the end of the row: they are this input's ✓
             // and ✕, not two more of the row's actions, and the grid they
             // used to borrow a cell from exists to keep "Rename" above
             // "Rename" down the column — which is a promise about a row
-            // that is not being renamed.
-            <InputGroup className="h-7 w-full min-w-0">
-              <InputGroupInput
-                // Named after the view it renames, not "Title": a manager
-                // is a list of these, and every row's field answered with
-                // the same word — a reader tabbing down it was told "Title"
-                // as many times as there are views and never which one is
-                // under the cursor. The title being edited is the one thing
-                // that tells them apart.
-                aria-label={messages.label('label.manage.rename-of', {
-                  title: item.title,
-                })}
-                value={renaming}
-                autoFocus
-                onChange={event => setRenaming(event.target.value)}
-                // A field with one obvious answer takes Enter for it — the ✓
-                // beside it is the same call, not a different one — and Escape
-                // for "never mind". Escape is stopped here rather than allowed
-                // to bubble: the manager is a dialog, `useDismiss` listens for
-                // the key on `document`, and an Escape that got that far closed
-                // the whole manager and took the rename with it. React's
-                // `stopPropagation` stops the native event too, so the key ends
-                // at this input, where it was aimed.
-                onKeyDown={event => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault();
-                    confirmRename();
-                  } else if (event.key === 'Escape') {
-                    event.stopPropagation();
-                    setRenaming(null);
-                  }
-                }}
-              />
-              <InputGroupAddon align="inline-end">
-                <IconTooltip
-                  label={messages.label('label.manage.rename-confirm')}
-                  render={
-                    <InputGroupButton
-                      size="icon-xs"
-                      disabled={blocked}
-                      onClick={confirmRename}
-                    />
-                  }
-                >
-                  <CheckIcon />
-                </IconTooltip>
-                <IconTooltip
-                  label={messages.label('label.manage.rename-cancel')}
-                  render={
-                    <InputGroupButton
-                      size="icon-xs"
-                      onClick={() => setRenaming(null)}
-                    />
-                  }
-                >
-                  <XIcon />
-                </IconTooltip>
-              </InputGroupAddon>
-            </InputGroup>
+            // that is not being renamed. The field is named after the view
+            // it renames, not "Title": a manager is a list of these, and the
+            // title being edited is the one thing that tells them apart.
+            // Its Escape stops at it — the manager is a dialog whose dismiss
+            // listens on `document` (`RenameInput`).
+            <RenameInput
+              initial={item.title}
+              label={messages.label('label.manage.rename-of', {
+                title: item.title,
+              })}
+              required
+              held={busy}
+              answers={{
+                confirm: messages.label('label.manage.rename-confirm'),
+                cancel: messages.label('label.manage.rename-cancel'),
+              }}
+              onCommit={title => {
+                void manager.rename(item.id, title);
+                setRenaming(false);
+              }}
+              onCancel={() => setRenaming(false)}
+              className="h-7 w-full min-w-0"
+            />
+          ) : (
+            <ItemTitle className="max-w-full">{item.title}</ItemTitle>
           )}
         </ItemContent>
 
@@ -270,7 +212,7 @@ export function ViewManagerRow({
             between for `SPACE.GROUPS` to be. While the title is being
             renamed there is nothing here at all: the ✓ and the ✕ belong to
             the field and are drawn inside it. */}
-        {renaming === null && (
+        {!renaming && (
           <ItemActions data-slot="view-manager-actions">
             {(manager.can.setDefault || can.rename || can.delete) && (
               <ButtonGroup
@@ -312,7 +254,7 @@ export function ViewManagerRow({
                     variant="ghost"
                     size="icon-sm"
                     disabled={busy}
-                    onClick={() => setRenaming(item.title)}
+                    onClick={() => setRenaming(true)}
                   >
                     <PencilIcon />
                   </IconButton>
@@ -391,8 +333,7 @@ export function SortableViewManagerRow(
     id: rest.item.id,
     index,
     group,
-    plugins: defaults =>
-      defaults.filter(plugin => plugin !== OptimisticSortingPlugin),
+    plugins: withoutOptimisticSorting,
   });
 
   return (

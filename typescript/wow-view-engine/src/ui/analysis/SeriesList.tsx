@@ -13,8 +13,6 @@
 
 import { DragDropProvider } from '@dnd-kit/react';
 import { useSortable } from '@dnd-kit/react/sortable';
-import { Accessibility } from '@dnd-kit/dom';
-import { OptimisticSortingPlugin } from '@dnd-kit/dom/sortable';
 import { PlusIcon, XIcon } from 'lucide-react';
 import { comboAxis, comboMark, withMovedTo } from '../../analysis/index.js';
 import type {
@@ -42,6 +40,7 @@ import { useViewMessages } from '../MessagesProvider.js';
 import { DropdownMenuContent } from '../popups.js';
 import { RowItem } from '../RowItem.js';
 import { CompactSelect } from './CompactSelect.js';
+import { announcedPlugins, withoutOptimisticSorting } from '../dragPlugins.js';
 import { seriesDragAccessibility, seriesDrop } from './drag.js';
 import { useListFocus, type ListFocus } from './listFocus.js';
 import { OptionsSection, type Choice } from './optionControls.js';
@@ -134,15 +133,7 @@ export function SeriesList({
       title={messages.label('label.chart.slot.series')}
     >
       <DragDropProvider
-        plugins={defaults =>
-          defaults.map(plugin =>
-            plugin === Accessibility
-              ? Accessibility.configure(
-                  seriesDragAccessibility(messages, nameOf),
-                )
-              : plugin,
-          )
-        }
+        plugins={announcedPlugins(seriesDragAccessibility(messages, nameOf))}
         onDragEnd={({ operation, canceled }) => {
           const drop = seriesDrop(spec.series, operation, canceled);
           if (drop) moveTo(drop.from, drop.to);
@@ -268,8 +259,7 @@ function SeriesRow({
   const { ref, handleRef, isDragging } = useSortable({
     id: series.metric,
     index,
-    plugins: defaults =>
-      defaults.filter(plugin => plugin !== OptimisticSortingPlugin),
+    plugins: withoutOptimisticSorting,
   });
   return (
     <RowItem

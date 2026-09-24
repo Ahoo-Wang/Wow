@@ -437,10 +437,15 @@ describe('a preset reaches the surface and its popups', () => {
       rule.walkDecls(decl => {
         expect(decl.prop).toMatch(/^--fve-/);
         expect(decl.prop).not.toMatch(/chart/);
-        expect(decl.value).toBe('initial');
+        if (rule.selector.includes("'neutral'"))
+          expect(decl.value).toBe('initial');
       });
     });
-    expect(selectors).toEqual([":where([data-fve-preset='neutral'])"]);
+    expect(selectors).toEqual([
+      ":where([data-fve-preset='neutral'])",
+      ":where([data-fve-preset='blue'])",
+      ":where([data-fve-preset='slate'])",
+    ]);
     let atRules = 0;
     presets.walkAtRules(() => {
       atRules += 1;
