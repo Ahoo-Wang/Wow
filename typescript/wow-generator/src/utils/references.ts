@@ -43,12 +43,15 @@ export function resolveLocalPointer(document: unknown, ref: string): unknown {
 }
 
 /**
- * Finds every local `$ref` in a document that points at nothing.
+ * Finds every reference to a component (`#/components/...`) that points at
+ * nothing.
  *
  * A dangling schema reference would otherwise generate a type that names an
  * undeclared model, and a dangling parameter reference would silently drop
- * the parameter. References to other documents are left to the code that
- * reads them, which asks for the document to be bundled.
+ * the parameter. Other references are left alone: a reference to another
+ * document is refused where it is read, with a request to bundle it, and a
+ * schema may carry JSON Schema `definitions` it references relative to
+ * itself (`#/definitions/...`), as Wow 8.11 writes its filter schema.
  *
  * @param document - The parsed OpenAPI document
  * @returns Each dangling reference with the JSON path of the object holding it
@@ -68,7 +71,7 @@ export function findDanglingReferences(
     const ref = (value as Record<string, unknown>).$ref;
     if (
       typeof ref === 'string' &&
-      ref.startsWith('#') &&
+      ref.startsWith('#/components/') &&
       resolveLocalPointer(document, ref) === undefined
     ) {
       dangling.push({ ref, location: location || '/' });
