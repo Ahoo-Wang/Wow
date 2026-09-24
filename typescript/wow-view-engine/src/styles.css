@@ -194,9 +194,19 @@
    * under the bar without touching anything that looks like a contrast
    * decision. One step down the same palette measures **7.09 / 7.13 /
    * 6.42** (`ToneBadgeInk*`, measured in the browser), and it is still the
-   * palette's own step rather than a colour picked here. Dark is untouched:
-   * the 400 steps measure 11.15 / 11.53 / 6.84 against the dark page, and
-   * dark saturation is a phase-5 question.
+   * palette's own step rather than a colour picked here.
+   *
+   * **Dark is quiet** (phase 5, Q44; settles D18 item 12). It took the 400
+   * steps, whose chroma of 0.19–0.21 glared on a dark ground — a soft badge
+   * read louder than the row it sat in. The three keep their hues at a
+   * chroma of 0.15: success and warning at the 400 steps' own lightness,
+   * `destructive` lifted from 0.704 to 0.76, which is what lets a danger
+   * badge write in the token itself on a selected row. It measured 3.92:1
+   * there under the registry's 20% wash and needed a mix toward the
+   * foreground in `ui/variants.tsx`; plain, on its 10% wash over the band,
+   * it now reads 5.48:1 on the neutral dark ground (5.37:1 on slate's, the
+   * tightest of every preset's), and the mix is gone. `test/presetContrast.test.ts` holds every
+   * status pair of every preset to 4.5:1 and the chroma to 0.14–0.16.
    *
    * **A fill and its ink are a pair.** What is filled with a status colour
    * writes in that fill's own `-foreground`, defaulting to the surface
@@ -500,13 +510,13 @@
     oklch(0.985 0 0deg)
   );
   --sidebar-border: var(--fve-dark-sidebar-border, oklch(1 0 0deg / 20%));
-  --destructive: var(--fve-dark-destructive, oklch(0.704 0.191 22.216deg));
+  --destructive: var(--fve-dark-destructive, oklch(0.76 0.15 22.216deg));
   --destructive-foreground: var(
     --fve-dark-destructive-foreground,
     var(--background)
   );
-  --success: var(--fve-dark-success, oklch(0.792 0.209 151.711deg));
-  --warning: var(--fve-dark-warning, oklch(0.828 0.189 84.429deg));
+  --success: var(--fve-dark-success, oklch(0.792 0.15 151.711deg));
+  --warning: var(--fve-dark-warning, oklch(0.828 0.15 84.429deg));
   --row-hover: var(
     --fve-dark-row-hover,
     color-mix(in oklab, var(--muted) 50%, var(--background))
