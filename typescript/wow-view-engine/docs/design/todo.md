@@ -32,6 +32,13 @@ ECharts 迁移（D21）与两份「数据分析师视角」审查的 P0 已全�
   - 判据：拆不开的那棵条件在筛选条旁读得到、编辑中删得掉；有测试与故事。
   - 落点：`src/ui/dashboard/FilterBar.tsx`、[ui/dashboard.md](ui/dashboard.md)「筛选」。
 
+## 检查点：迁往 Wow 仓（阶段 3 收口之后、阶段 4 之前）
+
+- **到这里先停。** 阶段 3 收口以后（上面批 B、批 C 剩下的几项，加上阶段审查和审查后的重构都已合并），不要开始阶段 4，先告诉用户：下一步是迁移窗口。阶段 4 起在 Wow 仓的 `typescript/wow-view-engine` 里做；上面的「固定范围的界面」（Q16）本来就排在阶段 4 之后，也到 Wow 里做。
+  - 为什么：迁移方案定的时机是阶段边界。这时 PR 链是空的，冻结不会打断任何在做的工作；阶段 6 的存储后端也要和引擎放在同一个仓库。
+  - 判据：远端一出现 tag `wow-migration-base`（用 `git ls-remote --tags origin wow-migration-base` 查），本包就冻结，这里一律不再改；迁移第 3′ 步把本包从 fetcher 删掉时，这一条随之删除。
+  - 落点：[迁移方案](../../../../docs/superpowers/specs/2026-09-23-wow-packages-migration-design.md)，根目录 `AGENTS.md` 的「Migration Checkpoint」一节。
+
 ## 阶段 4：嵌入视图（设计已定为 [D22](decisions.md#d22-仪表盘与嵌入视图参照-metabase2026-09-23)）
 
 - **拆入口与交互层级**：`EmbeddedView`（记录／分析）与 `EmbeddedDashboard`；只读／可交互（仪表盘另有可编辑）；仪表盘筛选三态（可编辑、隐藏、锁定）与初值、变更回调；标题、面板标题、导出、自动刷新、能否点进背后视图等开关；记录嵌入可选搜索框；卡片里按内容定高、整页填满。
