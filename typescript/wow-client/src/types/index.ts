@@ -15,6 +15,7 @@ export * from './abac.js';
 export * from './common.js';
 export * from './endpoints.js';
 export * from './error.js';
+export * from './wowError.js';
 export * from './function.js';
 export * from './headers.js';
 export * from './messaging.js';

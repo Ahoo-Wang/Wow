@@ -224,17 +224,18 @@ const RULES: ConformanceRule[] = [
   {
     wow: 'percentile must be finite and within (0, 100).',
     source: 'wow-api AggregationQuery.kt AggregationMetric.Percentile.init',
-    violate: () => aggregation.percentile(aggregation.constant(1), 100, 'p'),
+    violate: () =>
+      aggregation.percentile(aggregation.constant(1), 'p', { percentile: 100 }),
   },
   {
     wow: 'histogram interval must be finite and greater than 0.',
     source: 'wow-api AggregationQuery.kt AggregationGroup.Histogram.init',
-    violate: () => aggregation.histogram('a', { interval: 0, alias: 'h' }),
+    violate: () => aggregation.histogram('a', 'h', { interval: 0 }),
   },
   {
     wow: 'terms missingKey must not be blank.',
     source: 'wow-api AggregationQuery.kt AggregationGroup.Terms.init',
-    violate: () => aggregation.terms('a', 'g', '  '),
+    violate: () => aggregation.terms('a', 'g', { missingKey: '  ' }),
   },
   {
     wow: 'Aggregation element filter cannot contain root filters.',
@@ -357,9 +358,8 @@ const RULES: ConformanceRule[] = [
     violate: () =>
       aggregation.query({
         groupBy: [
-          aggregation.dateHistogram('t', {
+          aggregation.dateHistogram('t', 'd', {
             unit: 'DAY' as never,
-            alias: 'd',
             dense: true,
           }),
           aggregation.terms('a', 'g'),
@@ -708,7 +708,9 @@ const RULES: ConformanceRule[] = [
     violate: () =>
       aggregation.query({
         metrics: anyMetrics(
-          aggregation.count('m', filter.search('x') as FilterExpression),
+          aggregation.count('m', {
+            filter: filter.search('x') as FilterExpression,
+          }),
         ),
       }),
   },
@@ -718,10 +720,12 @@ const RULES: ConformanceRule[] = [
     violate: () =>
       aggregation.query({
         metrics: anyMetrics(
-          aggregation.count(
-            'm',
-            filter.elementMatch('i', filter.eq('a', 1)) as FilterExpression,
-          ),
+          aggregation.count('m', {
+            filter: filter.elementMatch(
+              'i',
+              filter.eq('a', 1),
+            ) as FilterExpression,
+          }),
         ),
       }),
   },

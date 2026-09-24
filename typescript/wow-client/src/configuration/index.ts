@@ -12,3 +12,4 @@
  */
 
 export * from './wowMetadata.js';
+export * from './wowMetadataClient.js';

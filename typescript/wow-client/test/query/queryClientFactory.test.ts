@@ -18,7 +18,7 @@ import { QueryClientFactory, ResourceAttributionPathSpec } from '../../src';
 it.each([
   'createSnapshotQueryClient',
   'createLoadStateAggregateClient',
-  'createOwnerLoadStateAggregateClient',
+  'createLoadOwnerStateAggregateClient',
   'createEventStreamQueryClient',
 ] as const)('preserves basePath precedence in %s', method => {
   const cases: {

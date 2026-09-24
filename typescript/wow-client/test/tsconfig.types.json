@@ -12,6 +12,11 @@
     "./query/aggregation.test.ts",
     "./query/event/eventStreamQueryApi.test.ts",
     "./query/filter.test.ts",
-    "./query/snapshot/snapshotQueryApi.test.ts"
+    "./query/snapshot/snapshotQueryApi.test.ts",
+    "./command/commandRequest.test.ts",
+    "./eventStreams.test.ts",
+    "./query/queryable.test.ts",
+    "./legacy/queryable.test.ts",
+    "./types/errorCode.test.ts"
   ]
 }

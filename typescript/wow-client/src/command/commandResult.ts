@@ -79,7 +79,6 @@ export interface CommandResult
     NamedBoundedContext,
     AggregateNameCapable,
     AggregateId,
-    ErrorInfo,
     CommandId,
     RequestId,
     ErrorInfo,

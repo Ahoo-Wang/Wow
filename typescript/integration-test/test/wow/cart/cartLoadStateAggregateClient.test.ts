@@ -47,7 +47,7 @@ function expectCartState(cartState: Partial<CartState> | undefined) {
 }
 
 const cartLoadStateAggregateClient =
-  cartQueryClientFactory.createOwnerLoadStateAggregateClient({
+  cartQueryClientFactory.createLoadOwnerStateAggregateClient({
     contextAlias: '',
     fetcher: exampleFetcher,
   });

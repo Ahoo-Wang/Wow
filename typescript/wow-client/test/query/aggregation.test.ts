@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { effectiveSort } from '../../src/query/aggregationSort';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import {
   AggregationDateUnit,
@@ -28,7 +29,6 @@ import {
   SortDirection,
   aggregation,
   AGGREGATION_LIMITS,
-  effectiveSort,
   type AggregationExpression,
   type AggregationQuery,
   type FilterExpression,
@@ -77,16 +77,19 @@ describe('AggregationQuery', () => {
     const predicate = filter.eq('status', 'PAID');
     const expression = aggregation.field('amount');
     const metrics = [
-      aggregation.count('rows', predicate),
-      aggregation.any('productName', 'name', predicate),
-      aggregation.sum(expression, 'sum', predicate),
-      aggregation.avg(expression, 'avg', predicate),
-      aggregation.min(expression, 'min', predicate),
-      aggregation.max(expression, 'max', predicate),
-      aggregation.stddev(expression, 'stddev', predicate),
-      aggregation.variance(expression, 'variance', predicate),
-      aggregation.distinctCount(expression, 'distinct', predicate),
-      aggregation.percentile(expression, 95, 'p95', predicate),
+      aggregation.count('rows', { filter: predicate }),
+      aggregation.any('productName', 'name', { filter: predicate }),
+      aggregation.sum(expression, 'sum', { filter: predicate }),
+      aggregation.avg(expression, 'avg', { filter: predicate }),
+      aggregation.min(expression, 'min', { filter: predicate }),
+      aggregation.max(expression, 'max', { filter: predicate }),
+      aggregation.stddev(expression, 'stddev', { filter: predicate }),
+      aggregation.variance(expression, 'variance', { filter: predicate }),
+      aggregation.distinctCount(expression, 'distinct', { filter: predicate }),
+      aggregation.percentile(expression, 'p95', {
+        percentile: 95,
+        filter: predicate,
+      }),
     ];
     expect(metrics.map(metric => metric.filter)).toEqual(
       metrics.map(() => predicate),
@@ -123,22 +126,23 @@ describe('AggregationQuery', () => {
     expect(
       aggregation.distinctCount(expression, 'distinct'),
     ).not.toHaveProperty('filter');
-    expect(aggregation.percentile(expression, 50, 'p50')).not.toHaveProperty(
-      'filter',
-    );
+    expect(
+      aggregation.percentile(expression, 'p50', { percentile: 50 }),
+    ).not.toHaveProperty('filter');
   });
 
   it('supports missing terms and dense date groups explicitly', () => {
-    expect(aggregation.terms('productName', 'name', 'Unknown')).toEqual({
+    expect(
+      aggregation.terms('productName', 'name', { missingKey: 'Unknown' }),
+    ).toEqual({
       type: 'TERMS',
       field: 'productName',
       alias: 'name',
       missingKey: 'Unknown',
     });
     expect(
-      aggregation.dateHistogram('createdAt', {
+      aggregation.dateHistogram('createdAt', 'day', {
         unit: AggregationDateUnit.DAY,
-        alias: 'day',
         dense: true,
       }),
     ).toEqual({
@@ -155,22 +159,34 @@ describe('AggregationQuery', () => {
     'rejects invalid percentile %s',
     p => {
       expect(() =>
-        aggregation.percentile(aggregation.field('amount'), p, 'p'),
+        aggregation.percentile(aggregation.field('amount'), 'p', {
+          percentile: p,
+        }),
       ).toThrow(TypeError);
     },
   );
 
   it('rejects blank missing keys and non-boolean dense options', () => {
-    expect(() => aggregation.terms('productName', 'name', '  ')).toThrow(
-      TypeError,
-    );
     expect(() =>
-      aggregation.dateHistogram('createdAt', {
+      aggregation.terms('productName', 'name', { missingKey: '  ' }),
+    ).toThrow(TypeError);
+    expect(() =>
+      aggregation.dateHistogram('createdAt', 'day', {
         unit: AggregationDateUnit.DAY,
-        alias: 'day',
         dense: 'true' as never,
       }),
     ).toThrow(TypeError);
+    expect(() =>
+      aggregation.dateHistogram('createdAt', 'day', {
+        unit: 'FORTNIGHT' as never,
+      }),
+    ).toThrow('date histogram unit is invalid.');
+    expect(() =>
+      aggregation.dateHistogram('createdAt', 'day', {
+        unit: AggregationDateUnit.DAY,
+        timeZone: ' ',
+      }),
+    ).toThrow('date histogram timeZone cannot be blank.');
   });
 
   it('builds derived metrics and typed HAVING trees using metric aliases', () => {
@@ -267,13 +283,9 @@ describe('AggregationQuery', () => {
   it('builds aggregation groups', () => {
     expect([
       aggregation.terms('productId', 'product'),
-      aggregation.histogram('amount', {
-        interval: 10,
-        alias: 'amountBand',
-      }),
-      aggregation.dateHistogram('createdAt', {
+      aggregation.histogram('amount', 'amountBand', { interval: 10 }),
+      aggregation.dateHistogram('createdAt', 'month', {
         unit: AggregationDateUnit.MONTH,
-        alias: 'month',
       }),
     ]).toStrictEqual([
       { type: 'TERMS', field: 'productId', alias: 'product' },
@@ -396,7 +408,7 @@ describe('AggregationQuery', () => {
     ['non-finite constant', () => aggregation.constant(Number.NaN)],
     [
       'zero histogram interval',
-      () => aggregation.histogram('amount', { interval: 0, alias: 'band' }),
+      () => aggregation.histogram('amount', 'band', { interval: 0 }),
     ],
     ['multi-segment alias', () => aggregation.terms('status', 'group.status')],
     ['reserved alias', () => aggregation.count('__wow_count')],
@@ -412,9 +424,8 @@ describe('AggregationQuery', () => {
     [
       'blank time zone',
       () =>
-        aggregation.dateHistogram('createdAt', {
+        aggregation.dateHistogram('createdAt', 'day', {
           unit: AggregationDateUnit.DAY,
-          alias: 'day',
           timeZone: ' ',
         }),
     ],
@@ -497,12 +508,16 @@ describe('AggregationQuery', () => {
       ],
     };
     const filtered: AggregationQuery<RootFields, ItemFields> = {
-      metrics: [aggregation.count('paid', filter.eq('status', 'PAID'))],
+      metrics: [
+        aggregation.count('paid', { filter: filter.eq('status', 'PAID') }),
+      ],
     };
     const invalidMetricFilter: AggregationQuery<RootFields, ItemFields> = {
       metrics: [
         // @ts-expect-error metric filters use the aggregation scope, not the root scope.
-        aggregation.count('paid', filter.eq('state.status', 'PAID')),
+        aggregation.count('paid', {
+          filter: filter.eq('state.status', 'PAID'),
+        }),
       ],
     };
     const invalidDistinct: AggregationQuery<RootFields, ItemFields> = {
@@ -514,7 +529,9 @@ describe('AggregationQuery', () => {
     const invalidPercentile: AggregationQuery<RootFields, ItemFields> = {
       metrics: [
         // @ts-expect-error unknown is not an ItemFields member.
-        aggregation.percentile(aggregation.field('unknown'), 95, 'p95'),
+        aggregation.percentile(aggregation.field('unknown'), 'p95', {
+          percentile: 95,
+        }),
       ],
     };
     const invalidDerived: DerivedExpression = {
@@ -552,7 +569,7 @@ describe('AggregationQuery', () => {
  */
 describe('aggregation.query', () => {
   const count = (alias: string, predicate?: FilterExpression) =>
-    aggregation.count(alias, predicate);
+    aggregation.count(alias, { filter: predicate });
   const chain = (depth: number): AggregationExpression =>
     depth <= 1
       ? aggregation.constant(1)
@@ -745,9 +762,8 @@ describe('aggregation.query', () => {
     expect(() =>
       aggregation.query({
         groupBy: [
-          aggregation.dateHistogram('createdAt', {
+          aggregation.dateHistogram('createdAt', 'day', {
             unit: AggregationDateUnit.DAY,
-            alias: 'day',
             dense: true,
           }),
           aggregation.terms('state.status', 'status'),

@@ -41,6 +41,16 @@
         "default": "./dist/index.cjs"
       }
     },
+    "./dsl": {
+      "import": {
+        "types": "./dist/dsl.d.ts",
+        "default": "./dist/dsl.es.js"
+      },
+      "require": {
+        "types": "./dist/dsl.d.cts",
+        "default": "./dist/dsl.cjs"
+      }
+    },
     "./legacy": {
       "import": {
         "types": "./dist/legacy/index.d.ts",

@@ -15,4 +15,4 @@ export * from './command/index.js';
 export * from './configuration/index.js';
 export * from './query/index.js';
 export * from './types/index.js';
-export * from './getPropertyValue.js';
+export * from './eventStreams.js';

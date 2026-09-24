@@ -11,115 +11,203 @@
  * limitations under the License.
  */
 
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { ErrorCodes, RecoverableType } from '../../src';
+import {
+  ErrorCodes,
+  type ErrorInfo,
+  isErrorInfo,
+  RecoverableType,
+  toWowError,
+  WowError,
+  WowHeaders,
+} from '../../src';
+
+const KOTLIN = '../../../../';
+
+/** The string `const val`s of a Kotlin file, `${NAME}` references resolved. */
+function kotlinConstants(relativePath: string): Record<string, string> {
+  const source = readFileSync(
+    new URL(KOTLIN + relativePath, import.meta.url),
+    'utf8',
+  );
+  const constants: Record<string, string> = {};
+  for (const [, name, value] of source.matchAll(
+    /const val (\w+) = (?:"([^"]*)"|ErrorInfo\.(\w+))/g,
+  ))
+    constants[name] = value ?? '';
+  return constants;
+}
 
 describe('ErrorCodes', () => {
-  it('should have correct SUCCEEDED code and message', () => {
-    expect(ErrorCodes.SUCCEEDED).toBe('Ok');
-    expect(ErrorCodes.SUCCEEDED_MESSAGE).toBe('');
-  });
-
-  it('should have correct NOT_FOUND code and message', () => {
-    expect(ErrorCodes.NOT_FOUND).toBe('NotFound');
-    expect(ErrorCodes.NOT_FOUND_MESSAGE).toBe('Not found resource!');
-  });
-
-  it('should have correct BAD_REQUEST code', () => {
-    expect(ErrorCodes.BAD_REQUEST).toBe('BadRequest');
-  });
-
-  it('should have correct ILLEGAL_ARGUMENT code', () => {
-    expect(ErrorCodes.ILLEGAL_ARGUMENT).toBe('IllegalArgument');
-  });
-
-  it('should have correct ILLEGAL_STATE code', () => {
-    expect(ErrorCodes.ILLEGAL_STATE).toBe('IllegalState');
-  });
-
-  it('should have correct REQUEST_TIMEOUT code', () => {
-    expect(ErrorCodes.REQUEST_TIMEOUT).toBe('RequestTimeout');
-  });
-
-  it('should have correct TOO_MANY_REQUESTS code', () => {
-    expect(ErrorCodes.TOO_MANY_REQUESTS).toBe('TooManyRequests');
-  });
-
-  it('should have correct DUPLICATE_REQUEST_ID code', () => {
-    expect(ErrorCodes.DUPLICATE_REQUEST_ID).toBe('DuplicateRequestId');
-  });
-
-  it('should have correct COMMAND_VALIDATION code', () => {
-    expect(ErrorCodes.COMMAND_VALIDATION).toBe('CommandValidation');
-  });
-
-  it('should have correct REWRITE_NO_COMMAND code', () => {
-    expect(ErrorCodes.REWRITE_NO_COMMAND).toBe('RewriteNoCommand');
-  });
-
-  it('should have correct EVENT_VERSION_CONFLICT code', () => {
-    expect(ErrorCodes.EVENT_VERSION_CONFLICT).toBe('EventVersionConflict');
-  });
-
-  it('should have correct DUPLICATE_AGGREGATE_ID code', () => {
-    expect(ErrorCodes.DUPLICATE_AGGREGATE_ID).toBe('DuplicateAggregateId');
-  });
-
-  it('should have correct COMMAND_EXPECT_VERSION_CONFLICT code', () => {
-    expect(ErrorCodes.COMMAND_EXPECT_VERSION_CONFLICT).toBe(
-      'CommandExpectVersionConflict',
+  it('mirrors the codes of the Kotlin ErrorCodes', () => {
+    const kotlin = kotlinConstants(
+      'wow-core/src/main/kotlin/me/ahoo/wow/exception/ErrorCodes.kt',
     );
-  });
-
-  it('should have correct SOURCING_VERSION_CONFLICT code', () => {
-    expect(ErrorCodes.SOURCING_VERSION_CONFLICT).toBe(
-      'SourcingVersionConflict',
+    const codes = Object.fromEntries(
+      Object.entries(kotlin).filter(([name]) => !name.endsWith('_MESSAGE')),
     );
+    // SUCCEEDED is ErrorInfo.SUCCEEDED on the Kotlin side.
+    codes.SUCCEEDED = 'Ok';
+    expect(ErrorCodes).toMatchObject(codes);
   });
 
-  it('should have correct ILLEGAL_ACCESS_DELETED_AGGREGATE code', () => {
-    expect(ErrorCodes.ILLEGAL_ACCESS_DELETED_AGGREGATE).toBe(
-      'IllegalAccessDeletedAggregate',
-    );
-  });
-
-  it('should have correct ILLEGAL_ACCESS_OWNER_AGGREGATE code', () => {
-    expect(ErrorCodes.ILLEGAL_ACCESS_OWNER_AGGREGATE).toBe(
-      'IllegalAccessOwnerAggregate',
-    );
-  });
-
-  it('should have correct INTERNAL_SERVER_ERROR code', () => {
-    expect(ErrorCodes.INTERNAL_SERVER_ERROR).toBe('InternalServerError');
-  });
-
-  it('should return true for isSucceeded when errorCode is SUCCEEDED', () => {
-    expect(ErrorCodes.isSucceeded(ErrorCodes.SUCCEEDED)).toBe(true);
-  });
-
-  it('should return false for isSucceeded when errorCode is not SUCCEEDED', () => {
-    expect(ErrorCodes.isSucceeded(ErrorCodes.NOT_FOUND)).toBe(false);
-  });
-
-  it('should return false for isError when errorCode is SUCCEEDED', () => {
-    expect(ErrorCodes.isError(ErrorCodes.SUCCEEDED)).toBe(false);
-  });
-
-  it('should return true for isError when errorCode is not SUCCEEDED', () => {
-    expect(ErrorCodes.isError(ErrorCodes.NOT_FOUND)).toBe(true);
+  it('mirrors the query schema and batch codes the server registers', () => {
+    // Each exception class of the file declares its own ERROR_CODE.
+    const schema = [
+      ...readFileSync(
+        new URL(
+          KOTLIN +
+            'wow-query/src/main/kotlin/me/ahoo/wow/query/schema/QuerySchemaExceptions.kt',
+          import.meta.url,
+        ),
+        'utf8',
+      ).matchAll(/const val ERROR_CODE = "([^"]+)"/g),
+    ].map(([, code]) => code);
+    expect(schema).toHaveLength(3);
+    expect(
+      [
+        ErrorCodes.QUERY_SCHEMA_VALIDATION,
+        ErrorCodes.QUERY_SCHEMA_CONFLICT,
+        ErrorCodes.QUERY_SCHEMA_UNAVAILABLE,
+      ].sort(),
+    ).toEqual(schema.sort());
+    expect(
+      kotlinConstants(
+        'wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/exception/BatchTaskException.kt',
+      ).ERROR_CODE,
+    ).toBe(ErrorCodes.BATCH_TASK_ERROR);
   });
 });
 
 describe('RecoverableType', () => {
-  it('should have correct RECOVERABLE value', () => {
-    expect(RecoverableType.RECOVERABLE).toBe('RECOVERABLE');
+  it('uses the Wow wire values', () => {
+    expect(Object.values(RecoverableType)).toEqual([
+      'RECOVERABLE',
+      'UNKNOWN',
+      'UNRECOVERABLE',
+    ]);
+  });
+});
+
+describe('isErrorInfo', () => {
+  it('accepts the server error body', () => {
+    expect(isErrorInfo({ errorCode: 'NotFound', errorMsg: 'gone' })).toBe(true);
+    expect(isErrorInfo({ errorCode: 'NotFound' })).toBe(true);
   });
 
-  it('should have correct UNKNOWN value', () => {
-    expect(RecoverableType.UNKNOWN).toBe('UNKNOWN');
+  it('refuses what is not one', () => {
+    for (const value of [
+      null,
+      undefined,
+      'NotFound',
+      {},
+      { errorCode: 404 },
+      { errorCode: 'NotFound', errorMsg: 1 },
+    ])
+      expect(isErrorInfo(value), JSON.stringify(value)).toBe(false);
+  });
+});
+
+describe('WowError', () => {
+  const info: ErrorInfo = {
+    errorCode: ErrorCodes.COMMAND_VALIDATION,
+    errorMsg: 'quantity must be positive',
+    bindingErrors: [{ name: 'quantity', msg: 'must be positive' }],
+  };
+
+  it('carries the ErrorInfo, the status and the cause', () => {
+    const cause = new Error('fetcher');
+    const error = new WowError(info, { status: 400, cause });
+    expect(error).toBeInstanceOf(Error);
+    expect(error).toBeInstanceOf(WowError);
+    expect(error).toMatchObject({
+      name: 'WowError',
+      errorCode: 'CommandValidation',
+      errorMsg: 'quantity must be positive',
+      bindingErrors: info.bindingErrors,
+      status: 400,
+      cause,
+      message: '[CommandValidation] quantity must be positive',
+    });
   });
 
-  it('should have correct UNRECOVERABLE value', () => {
-    expect(RecoverableType.UNRECOVERABLE).toBe('UNRECOVERABLE');
+  it('defaults what the body left out', () => {
+    const error = new WowError({ errorCode: 'NotFound' } as ErrorInfo);
+    expect(error.message).toBe('NotFound');
+    expect(error.errorMsg).toBe('');
+    expect(error.bindingErrors).toEqual([]);
+    expect(error.status).toBeUndefined();
+    expect(error.cause).toBeUndefined();
+  });
+});
+
+/** What a fetcher `ExchangeError` exposes, around a real response. */
+function exchangeError(response: Response): Error {
+  return Object.assign(new Error('Request failed'), { exchange: { response } });
+}
+
+describe('toWowError', () => {
+  it('reads the ErrorInfo body of a failed response', async () => {
+    const response = new Response(
+      JSON.stringify({ errorCode: 'NotFound', errorMsg: 'no such cart' }),
+      {
+        status: 404,
+        headers: {
+          'Content-Type': 'application/json',
+          [WowHeaders.ERROR_CODE]: 'NotFound',
+        },
+      },
+    );
+    const thrown = exchangeError(response);
+    const error = await toWowError(thrown);
+    expect(error).toBeInstanceOf(WowError);
+    expect(error).toMatchObject({
+      errorCode: ErrorCodes.NOT_FOUND,
+      errorMsg: 'no such cart',
+      status: 404,
+      cause: thrown,
+    });
+    // The body is read from a clone, so the response is still readable.
+    await expect(response.json()).resolves.toMatchObject({
+      errorCode: 'NotFound',
+    });
+  });
+
+  it('falls back to the Wow-Error-Code header when the body is not one', async () => {
+    const response = new Response('<html>Bad gateway</html>', {
+      status: 409,
+      statusText: 'Conflict',
+      headers: { [WowHeaders.ERROR_CODE]: 'EventVersionConflict' },
+    });
+    await expect(toWowError(exchangeError(response))).resolves.toMatchObject({
+      errorCode: ErrorCodes.EVENT_VERSION_CONFLICT,
+      errorMsg: 'Conflict',
+      status: 409,
+    });
+  });
+
+  it('answers undefined for a failure the Wow server did not answer', async () => {
+    const proxy = new Response('<html>Bad gateway</html>', { status: 502 });
+    const used = new Response('{}', { status: 500 });
+    await used.text();
+    for (const error of [
+      exchangeError(proxy),
+      exchangeError(used),
+      exchangeError(new Response('{}', { status: 200 })),
+      new TypeError('Failed to fetch'),
+      new DOMException('aborted', 'AbortError'),
+      'NotFound',
+      null,
+    ])
+      await expect(toWowError(error)).resolves.toBeUndefined();
+  });
+
+  it('hands back a WowError it is given, or one that is the cause', async () => {
+    const error = new WowError({ errorCode: 'NotFound', errorMsg: '' });
+    await expect(toWowError(error)).resolves.toBe(error);
+    await expect(
+      toWowError(Object.assign(new Error('wrapped'), { cause: error })),
+    ).resolves.toBe(error);
   });
 });

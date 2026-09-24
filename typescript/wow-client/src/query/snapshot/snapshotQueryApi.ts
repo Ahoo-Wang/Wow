@@ -37,7 +37,7 @@ export interface SnapshotQueryApi<
   cursorState<T extends Partial<S> = S>(
     query: CursorQuery<FIELDS>,
     attributes?: Record<string, unknown>,
-    abortController?: AbortController,
+    abort?: AbortController | AbortSignal,
   ): Promise<CursorPage<T>>;
 
   /**
@@ -46,15 +46,13 @@ export interface SnapshotQueryApi<
    * @param attributes - Optional shared attributes that can be accessed by interceptors
    *                     throughout the request lifecycle. These attributes allow passing
    *                     custom data between different interceptors.
-   * @param abortController - Optional AbortController for cancelling the request.
-   *                          When provided, allows the request to be cancelled mid-flight,
-   *                          which is useful for preventing race conditions and improving UX.
+   * @param abort - Cancels the request: an `AbortController`, or an `AbortSignal` such as `AbortSignal.timeout(ms)` or the `signal` a data-fetching library passes.
    * @returns A promise that resolves to a partial snapshot state
    */
   singleState<T extends Partial<S> = S>(
     singleQuery: SingleQueryRequest<FIELDS>,
-    attributes?: Record<string, any>,
-    abortController?: AbortController,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
   ): Promise<T>;
 
   /**
@@ -63,15 +61,13 @@ export interface SnapshotQueryApi<
    * @param attributes - Optional shared attributes that can be accessed by interceptors
    *                     throughout the request lifecycle. These attributes allow passing
    *                     custom data between different interceptors.
-   * @param abortController - Optional AbortController for cancelling the request.
-   *                          When provided, allows the request to be cancelled mid-flight,
-   *                          which is useful for preventing race conditions and improving UX.
+   * @param abort - Cancels the request: an `AbortController`, or an `AbortSignal` such as `AbortSignal.timeout(ms)` or the `signal` a data-fetching library passes.
    * @returns A promise that resolves to an array of partial snapshot states
    */
   listState<T extends Partial<S> = S>(
     listQuery: ListQueryRequest<FIELDS>,
-    attributes?: Record<string, any>,
-    abortController?: AbortController,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
   ): Promise<T[]>;
 
   /**
@@ -80,15 +76,13 @@ export interface SnapshotQueryApi<
    * @param attributes - Optional shared attributes that can be accessed by interceptors
    *                     throughout the request lifecycle. These attributes allow passing
    *                     custom data between different interceptors.
-   * @param abortController - Optional AbortController for cancelling the request.
-   *                          When provided, allows the request to be cancelled mid-flight,
-   *                          which is useful for preventing race conditions and improving UX.
+   * @param abort - Cancels the request: an `AbortController`, or an `AbortSignal` such as `AbortSignal.timeout(ms)` or the `signal` a data-fetching library passes.
    * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial snapshot states
    */
   listStateStream<T extends Partial<S> = S>(
     listQuery: ListQueryRequest<FIELDS>,
-    attributes?: Record<string, any>,
-    abortController?: AbortController,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
   ): Promise<ReadableStream<JsonServerSentEvent<T>>>;
 
   /**
@@ -97,35 +91,12 @@ export interface SnapshotQueryApi<
    * @param attributes - Optional shared attributes that can be accessed by interceptors
    *                     throughout the request lifecycle. These attributes allow passing
    *                     custom data between different interceptors.
-   * @param abortController - Optional AbortController for cancelling the request.
-   *                          When provided, allows the request to be cancelled mid-flight,
-   *                          which is useful for preventing race conditions and improving UX.
+   * @param abort - Cancels the request: an `AbortController`, or an `AbortSignal` such as `AbortSignal.timeout(ms)` or the `signal` a data-fetching library passes.
    * @returns A promise that resolves to a paged list of partial snapshot states
    */
   pagedState<T extends Partial<S> = S>(
     pagedQuery: PagedQueryRequest<FIELDS>,
-    attributes?: Record<string, any>,
-    abortController?: AbortController,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
   ): Promise<PagedList<T>>;
-}
-
-/**
- * Provides endpoint paths for snapshot query operations.
- *
- * This class contains static readonly properties that define the endpoint paths used for various snapshot query operations.
- * These paths are used when making API calls to retrieve snapshot data in different formats such as counts, lists, paged results, and single items.
- * The paths are constructed based on a base resource name and extended with specific operation identifiers.
- */
-export class SnapshotQueryEndpointPaths {
-  static readonly SNAPSHOT_RESOURCE_NAME = 'snapshot';
-  static readonly AGGREGATION = `${SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME}/aggregation`;
-  static readonly COUNT = `${SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME}/count`;
-  static readonly LIST = `${SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME}/list`;
-  static readonly LIST_STATE = `${SnapshotQueryEndpointPaths.LIST}/state`;
-  static readonly PAGED = `${SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME}/paged`;
-  static readonly PAGED_STATE = `${SnapshotQueryEndpointPaths.PAGED}/state`;
-  static readonly CURSOR = `${SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME}/cursor`;
-  static readonly CURSOR_STATE = `${SnapshotQueryEndpointPaths.CURSOR}/state`;
-  static readonly SINGLE = `${SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME}/single`;
-  static readonly SINGLE_STATE = `${SnapshotQueryEndpointPaths.SINGLE}/state`;
 }

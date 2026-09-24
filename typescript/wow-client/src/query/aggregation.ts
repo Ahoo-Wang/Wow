@@ -11,15 +11,16 @@
  * limitations under the License.
  */
 
+import { requireElementScopedFilter } from './elementScope.js';
 import {
-  filter,
   FilterOperator,
-  requireElementScopedFilter,
   type ElementFilterExpression,
   type FilterExpression,
   type QueryField,
 } from './filter.js';
-import { asc, type FieldSort } from './sort.js';
+import { queryField } from './queryField.js';
+import { effectiveSort } from './aggregationSort.js';
+import { type FieldSort } from './sort.js';
 
 export enum AggregationGroupType {
   TERMS = 'TERMS',
@@ -257,20 +258,49 @@ export interface AggregationQuery<
   having?: HavingExpression;
 }
 
-export interface HistogramAggregationOptions {
-  interval: number;
-  alias: string;
+/**
+ * The options every metric builder takes after its target and alias.
+ */
+export interface AggregationMetricOptions<FIELDS extends string = string> {
+  /** Counts only the rows that match; sent as the metric's `filter`. */
+  filter?: FilterExpression<FIELDS>;
 }
 
+/** The options of {@link aggregation.terms}. */
+export interface TermsAggregationOptions {
+  /** The key rows without a value are grouped under; must not be blank. */
+  missingKey?: string;
+}
+
+/** The options of {@link aggregation.histogram}. */
+export interface HistogramAggregationOptions {
+  /** The width of each bucket: finite and greater than 0. */
+  interval: number;
+}
+
+/** The options of {@link aggregation.dateHistogram}. */
 export interface DateHistogramAggregationOptions {
+  /** The calendar unit of each bucket. */
   unit: AggregationDateUnit;
-  alias: string;
+  /** The zone the buckets are cut in, an IANA id. Defaults to `UTC`. */
   timeZone?: string;
+  /**
+   * Whether the server fills in the empty buckets of the range. Only when
+   * this is the only group.
+   */
   dense?: boolean;
 }
 
+/** The options of {@link aggregation.percentile}. */
+export interface PercentileAggregationOptions<
+  FIELDS extends string = string,
+> extends AggregationMetricOptions<FIELDS> {
+  /** Which percentile: finite and within (0, 100). */
+  percentile: number;
+}
+
 function aggregationField<FIELDS extends string>(field: FIELDS): FIELDS {
-  return filter.exists(field).field;
+  return queryField(field);
 }
 
 function aggregationAlias(alias: string): string {
@@ -298,7 +328,7 @@ function numeric<FIELDS extends string>(
   fn: AggregationFunction,
   expression: AggregationExpression<FIELDS>,
   alias: string,
-  predicate?: FilterExpression<FIELDS>,
+  { filter: predicate }: AggregationMetricOptions<FIELDS> = {},
 ): NumericAggregationMetric<FIELDS> {
   return {
     type: AggregationMetricType.NUMERIC,
@@ -602,24 +632,6 @@ function validateHaving(
   }
 }
 
-/**
- * The sort Wow actually applies: what the query asked for, then each remaining
- * group ascending, so a page of grouped rows has one stable order.
- */
-export function effectiveSort<FIELDS extends string = string>(
-  query: Pick<AggregationQuery<string, FIELDS>, 'groupBy' | 'sort'>,
-): FieldSort[] {
-  const sort = [...(query.sort ?? [])];
-  const sorted = new Set(sort.map(entry => entry.field));
-  return [
-    ...sort,
-    ...(query.groupBy ?? [])
-      .map(group => group.alias)
-      .filter(alias => !sorted.has(alias))
-      .map(asc),
-  ];
-}
-
 function validateSort(
   sort: readonly FieldSort[],
   groupBy: readonly AggregationGroup[],
@@ -644,7 +656,30 @@ function validateSort(
   );
 }
 
+/**
+ * Builders of an `AggregationQuery`: its elements, groups, metrics and the
+ * arithmetic expressions metrics compute over. Each builder checks its own
+ * part and throws a `TypeError` naming what is wrong; {@link aggregation.query}
+ * checks the parts against each other.
+ *
+ * Every group and metric takes its target first, its alias second, and any
+ * further options as a trailing object.
+ */
 export const aggregation = {
+  /**
+   * Aggregates over the elements of an array field instead of the root
+   * documents. `{ path, filter? }`.
+   *
+   * @param path - The array field, a query field path.
+   * @param predicate - Keeps only the elements that match; may not contain
+   *   root filters (id, owner, tenant, space, deletion, search).
+   * @throws TypeError when `path` is not a valid field path or `predicate`
+   *   contains a root filter.
+   * @example
+   * ```typescript
+   * aggregation.element('items', filter.gt('quantity', 0));
+   * ```
+   */
   element(
     path: string,
     predicate?: ElementFilterExpression,
@@ -654,6 +689,15 @@ export const aggregation = {
     requireElementScopedFilter(predicate, 'Aggregation element filter');
     return { path: validPath, filter: predicate };
   },
+  /**
+   * The value of a field, as an operand. `{ type: 'FIELD', field }`.
+   *
+   * @throws TypeError when `field` is not a valid field path.
+   * @example
+   * ```typescript
+   * aggregation.sum(aggregation.field('state.amount'), 'amount');
+   * ```
+   */
   field<FIELDS extends string>(
     field: FIELDS,
   ): FieldAggregationExpression<FIELDS> {
@@ -662,32 +706,59 @@ export const aggregation = {
       field: aggregationField(field),
     };
   },
+  /**
+   * A number, as an operand. `{ type: 'CONSTANT', value }`.
+   *
+   * @throws TypeError when `value` is not finite.
+   * @example
+   * ```typescript
+   * aggregation.multiply(aggregation.field('price'), aggregation.constant(100));
+   * ```
+   */
   constant(value: number): ConstantAggregationExpression {
     if (!Number.isFinite(value)) {
       throw new TypeError('aggregation constant must be finite.');
     }
     return { type: AggregationExpressionType.CONSTANT, value };
   },
+  /** `left + right`. `{ type: 'BINARY', operator: 'ADD', left, right }`. */
   add: <FIELDS extends string>(
     left: AggregationExpression<FIELDS>,
     right: AggregationExpression<FIELDS>,
   ) => binary(AggregationExpressionOperator.ADD, left, right),
+  /** `left - right`. `{ type: 'BINARY', operator: 'SUBTRACT', left, right }`. */
   subtract: <FIELDS extends string>(
     left: AggregationExpression<FIELDS>,
     right: AggregationExpression<FIELDS>,
   ) => binary(AggregationExpressionOperator.SUBTRACT, left, right),
+  /** `left * right`. `{ type: 'BINARY', operator: 'MULTIPLY', left, right }`. */
   multiply: <FIELDS extends string>(
     left: AggregationExpression<FIELDS>,
     right: AggregationExpression<FIELDS>,
   ) => binary(AggregationExpressionOperator.MULTIPLY, left, right),
+  /** `left / right`. `{ type: 'BINARY', operator: 'DIVIDE', left, right }`. */
   divide: <FIELDS extends string>(
     left: AggregationExpression<FIELDS>,
     right: AggregationExpression<FIELDS>,
   ) => binary(AggregationExpressionOperator.DIVIDE, left, right),
+  /**
+   * Groups by each distinct value of a field.
+   * `{ type: 'TERMS', field, alias, missingKey? }`.
+   *
+   * @param field - The field to group by.
+   * @param alias - The name of the group column in the result rows.
+   * @param options.missingKey - The key of the rows without a value.
+   * @throws TypeError when `field` or `alias` is invalid, or `missingKey` is
+   *   blank.
+   * @example
+   * ```typescript
+   * aggregation.terms('state.status', 'status', { missingKey: 'NONE' });
+   * ```
+   */
   terms<FIELDS extends string>(
     field: FIELDS,
     alias: string,
-    missingKey?: string,
+    { missingKey }: TermsAggregationOptions = {},
   ): TermsAggregationGroup<FIELDS> {
     if (
       missingKey !== undefined &&
@@ -702,9 +773,24 @@ export const aggregation = {
       alias: aggregationAlias(alias),
     };
   },
+  /**
+   * Groups a number field into buckets of equal width.
+   * `{ type: 'HISTOGRAM', field, interval, alias }`.
+   *
+   * @param field - The number field to bucket.
+   * @param alias - The name of the bucket column in the result rows.
+   * @param options.interval - The bucket width.
+   * @throws TypeError when `interval` is not finite and greater than 0, or
+   *   `field` or `alias` is invalid.
+   * @example
+   * ```typescript
+   * aggregation.histogram('state.amount', 'amountBand', { interval: 100 });
+   * ```
+   */
   histogram<FIELDS extends string>(
     field: FIELDS,
-    { interval, alias }: HistogramAggregationOptions,
+    alias: string,
+    { interval }: HistogramAggregationOptions,
   ): HistogramAggregationGroup<FIELDS> {
     if (!Number.isFinite(interval) || interval <= 0) {
       throw new TypeError(
@@ -718,9 +804,31 @@ export const aggregation = {
       alias: aggregationAlias(alias),
     };
   },
+  /**
+   * Groups a time field into calendar buckets.
+   * `{ type: 'DATE_HISTOGRAM', field, unit, alias, timeZone, dense? }`.
+   *
+   * @param field - The time field (epoch milliseconds) to bucket.
+   * @param alias - The name of the bucket column in the result rows.
+   * @param options.unit - The calendar unit of a bucket.
+   * @param options.timeZone - The zone buckets are cut in. Defaults to `UTC`.
+   * @param options.dense - Whether the empty buckets of the range are filled
+   *   in.
+   * @throws TypeError when `unit` is not an `AggregationDateUnit`,
+   *   `timeZone` is blank, `dense` is not a boolean, or `field` or `alias` is
+   *   invalid.
+   * @example
+   * ```typescript
+   * aggregation.dateHistogram('createTime', 'day', {
+   *   unit: AggregationDateUnit.DAY,
+   *   timeZone: 'Asia/Shanghai',
+   * });
+   * ```
+   */
   dateHistogram<FIELDS extends string>(
     field: FIELDS,
-    { unit, alias, timeZone = 'UTC', dense }: DateHistogramAggregationOptions,
+    alias: string,
+    { unit, timeZone = 'UTC', dense }: DateHistogramAggregationOptions,
   ): DateHistogramAggregationGroup<FIELDS> {
     if (dense !== undefined && typeof dense !== 'boolean') {
       throw new TypeError('date histogram dense must be boolean.');
@@ -740,10 +848,20 @@ export const aggregation = {
       timeZone,
     };
   },
+  /**
+   * Any one value of a field within each group, of any type.
+   * `{ type: 'ANY', field, alias, filter? }`.
+   *
+   * @throws TypeError when `field` or `alias` is invalid.
+   * @example
+   * ```typescript
+   * aggregation.any('state.customerName', 'customer');
+   * ```
+   */
   any<FIELDS extends string>(
     field: FIELDS,
     alias: string,
-    predicate?: FilterExpression<FIELDS>,
+    { filter: predicate }: AggregationMetricOptions<FIELDS> = {},
   ): AnyAggregationMetric<FIELDS> {
     return {
       type: AggregationMetricType.ANY,
@@ -752,9 +870,20 @@ export const aggregation = {
       alias: aggregationAlias(alias),
     };
   },
+  /**
+   * The number of rows in each group. `{ type: 'COUNT', alias, filter? }`.
+   *
+   * @param alias - The name of the metric column in the result rows.
+   * @param options.filter - Counts only the rows that match.
+   * @throws TypeError when `alias` is invalid.
+   * @example
+   * ```typescript
+   * aggregation.count('paid', { filter: filter.eq('state.status', 'PAID') });
+   * ```
+   */
   count<FIELDS extends string = string>(
     alias: string,
-    predicate?: FilterExpression<FIELDS>,
+    { filter: predicate }: AggregationMetricOptions<FIELDS> = {},
   ): CountAggregationMetric<FIELDS> {
     return {
       type: AggregationMetricType.COUNT,
@@ -762,40 +891,63 @@ export const aggregation = {
       alias: aggregationAlias(alias),
     };
   },
+  /**
+   * The sum of an expression. `{ type: 'NUMERIC', function: 'SUM',
+   * expression, alias, filter? }`.
+   *
+   * @example
+   * ```typescript
+   * aggregation.sum(aggregation.field('state.amount'), 'revenue');
+   * ```
+   */
   sum: <FIELDS extends string>(
     expression: AggregationExpression<FIELDS>,
     alias: string,
-    predicate?: FilterExpression<FIELDS>,
-  ) => numeric(AggregationFunction.SUM, expression, alias, predicate),
+    options?: AggregationMetricOptions<FIELDS>,
+  ) => numeric(AggregationFunction.SUM, expression, alias, options),
+  /** The average of an expression; see {@link aggregation.sum}. */
   avg: <FIELDS extends string>(
     expression: AggregationExpression<FIELDS>,
     alias: string,
-    predicate?: FilterExpression<FIELDS>,
-  ) => numeric(AggregationFunction.AVG, expression, alias, predicate),
+    options?: AggregationMetricOptions<FIELDS>,
+  ) => numeric(AggregationFunction.AVG, expression, alias, options),
+  /** The least value of an expression; see {@link aggregation.sum}. */
   min: <FIELDS extends string>(
     expression: AggregationExpression<FIELDS>,
     alias: string,
-    predicate?: FilterExpression<FIELDS>,
-  ) => numeric(AggregationFunction.MIN, expression, alias, predicate),
+    options?: AggregationMetricOptions<FIELDS>,
+  ) => numeric(AggregationFunction.MIN, expression, alias, options),
+  /** The greatest value of an expression; see {@link aggregation.sum}. */
   max: <FIELDS extends string>(
     expression: AggregationExpression<FIELDS>,
     alias: string,
-    predicate?: FilterExpression<FIELDS>,
-  ) => numeric(AggregationFunction.MAX, expression, alias, predicate),
+    options?: AggregationMetricOptions<FIELDS>,
+  ) => numeric(AggregationFunction.MAX, expression, alias, options),
+  /** The standard deviation of an expression; see {@link aggregation.sum}. */
   stddev: <FIELDS extends string>(
     expression: AggregationExpression<FIELDS>,
     alias: string,
-    predicate?: FilterExpression<FIELDS>,
-  ) => numeric(AggregationFunction.STDDEV, expression, alias, predicate),
+    options?: AggregationMetricOptions<FIELDS>,
+  ) => numeric(AggregationFunction.STDDEV, expression, alias, options),
+  /** The variance of an expression; see {@link aggregation.sum}. */
   variance: <FIELDS extends string>(
     expression: AggregationExpression<FIELDS>,
     alias: string,
-    predicate?: FilterExpression<FIELDS>,
-  ) => numeric(AggregationFunction.VARIANCE, expression, alias, predicate),
+    options?: AggregationMetricOptions<FIELDS>,
+  ) => numeric(AggregationFunction.VARIANCE, expression, alias, options),
+  /**
+   * The number of distinct values of an expression.
+   * `{ type: 'DISTINCT_COUNT', expression, alias, filter? }`.
+   *
+   * @example
+   * ```typescript
+   * aggregation.distinctCount(aggregation.field('ownerId'), 'customers');
+   * ```
+   */
   distinctCount<FIELDS extends string>(
     expression: AggregationExpression<FIELDS>,
     alias: string,
-    predicate?: FilterExpression<FIELDS>,
+    { filter: predicate }: AggregationMetricOptions<FIELDS> = {},
   ): DistinctCountAggregationMetric<FIELDS> {
     return {
       type: AggregationMetricType.DISTINCT_COUNT,
@@ -804,11 +956,22 @@ export const aggregation = {
       ...(predicate === undefined ? {} : { filter: predicate }),
     };
   },
+  /**
+   * A percentile of an expression.
+   * `{ type: 'PERCENTILE', expression, percentile, alias, filter? }`.
+   *
+   * @param options.percentile - Which percentile, within (0, 100).
+   * @throws TypeError when `percentile` is not finite and within (0, 100), or
+   *   `alias` is invalid.
+   * @example
+   * ```typescript
+   * aggregation.percentile(aggregation.field('latency'), 'p95', { percentile: 95 });
+   * ```
+   */
   percentile<FIELDS extends string>(
     expression: AggregationExpression<FIELDS>,
-    percentile: number,
     alias: string,
-    predicate?: FilterExpression<FIELDS>,
+    { percentile, filter: predicate }: PercentileAggregationOptions<FIELDS>,
   ): PercentileAggregationMetric<FIELDS> {
     if (!Number.isFinite(percentile) || percentile <= 0 || percentile >= 100) {
       throw new TypeError('percentile must be finite and within (0, 100).');
@@ -821,6 +984,24 @@ export const aggregation = {
       ...(predicate === undefined ? {} : { filter: predicate }),
     };
   },
+  /**
+   * A metric computed from other metrics of the same row, by their aliases.
+   * `{ type: 'DERIVED', expression, alias }`. `aggregation.query()` checks
+   * that it refers only to metrics declared before it.
+   *
+   * @example
+   * ```typescript
+   * aggregation.derived(
+   *   {
+   *     type: DerivedExpressionType.BINARY,
+   *     operator: AggregationExpressionOperator.DIVIDE,
+   *     left: { type: DerivedExpressionType.METRIC_REF, metric: 'revenue' },
+   *     right: { type: DerivedExpressionType.METRIC_REF, metric: 'orders' },
+   *   },
+   *   'averageOrder',
+   * );
+   * ```
+   */
   derived(
     expression: DerivedExpression,
     alias: string,

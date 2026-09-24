@@ -17,7 +17,8 @@
  * Mirrors `CommonComponent.Header` in
  * `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/CommonComponent.kt`.
  * These headers carry the `Wow-` prefix, not the `Command-` prefix of
- * {@link CommandHeaders}.
+ * {@link CommandHeaders}. Each value is a string literal type, so a header
+ * object keyed by it is checked like one keyed by the literal.
  *
  * @example
  * ```typescript
@@ -29,11 +30,11 @@
  * });
  * ```
  */
-export class WowHeaders {
+export const WowHeaders = Object.freeze({
   /**
    * Prefix of the headers shared across commands and queries
    */
-  static readonly WOW_HEADERS_PREFIX = 'Wow-';
+  WOW_HEADERS_PREFIX: 'Wow-',
 
   /**
    * Space identifier request header.
@@ -42,10 +43,11 @@ export class WowHeaders {
    * a space filter. It is routing data, not proof that the caller may use
    * that space. The server ignores a blank value.
    */
-  static readonly SPACE_ID = `${WowHeaders.WOW_HEADERS_PREFIX}Space-Id`;
+  SPACE_ID: 'Wow-Space-Id',
 
   /**
-   * Error code response header, `Ok` when the request succeeded
+   * Error code response header, `Ok` when the request succeeded. A failed
+   * request carries the `errorCode` of its `ErrorInfo` body here too.
    */
-  static readonly ERROR_CODE = `${WowHeaders.WOW_HEADERS_PREFIX}Error-Code`;
-}
+  ERROR_CODE: 'Wow-Error-Code',
+} as const);

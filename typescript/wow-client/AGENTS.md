@@ -51,50 +51,63 @@ deprecated Condition API's, is left out: the document describes only
 
 ## Project Structure
 
+Files a folder's `index.ts` does not re-export are internal; they are marked
+"(internal)" below.
+
 ```
 src/
-  index.ts                    — Barrel export
-  getPropertyValue.ts         — Dynamic nested property access by path
+  index.ts                    — Root entry `@ahoo-wang/wow-client`
+  dsl.ts                      — `/dsl` entry: the query DSL without HTTP code
+  eventStreams.ts             — Stream result extractors that end a stream with a WowError at a server error event
   configuration/
     wowMetadata.ts            — Wow metadata types (WowMetadata, BoundedContext, Aggregate)
+    wowMetadataClient.ts      — WowMetadataClient: GET /wow/metadata
     index.ts
   command/
     commandClient.ts          — Command client for sending CQRS commands
-    commandHeaders.ts         — Command-specific HTTP headers
-    commandRequest.ts         — Command request builder
-    commandResult.ts          — Command result handling (wait strategies)
+    commandHeaders.ts         — CommandHeaders: the command header names, as literal types
+    commandRequest.ts         — CommandRequest, typed CommandRequestHeaders, commandHeaders() and waitStrategy()
+    commandResult.ts          — Command result and wait signal types
     types.ts                  — Command types (CommandStage, CommandId, BatchResult)
     index.ts
   query/
     filter.ts                 — CURRENT filter API (FilterExpression + filter.* builders)
+    elementScope.ts           — (internal) the root-filter check element predicates share
     aggregation.ts            — Aggregation query API (AggregationQuery + aggregation.*)
+    aggregationSort.ts        — (internal) effectiveSort: the order Wow applies to grouped rows
     queryApi.ts               — Generic QueryApi (list, paged, cursor, aggregate, count)
-    queryClients.ts           — QueryClientFactory + createQueryApiMetadata helpers
-    queryable.ts              — Query request shapes (Filter*Query, PagedList)
+    queryClients.ts           — QueryClientFactory
+    queryable.ts              — Query request shapes (Filter*Query, PagedList) and their factories
     deletionState.ts          — DeletionState, which filter.deletion() takes
     cursorQuery.ts            — Forward-only cursor query and CursorPage
     pagination.ts             — Pagination support
     sort.ts                   — Sort specifications
     projection.ts             — Field projection
-    queryField.ts             — Internal QueryField path check for filter, sort and projection (not exported)
+    queryField.ts             — (internal) QueryField path check for filter, sort and projection
     types.ts                  — DynamicDocument type aliases
     index.ts
     event/
       domainEventStream.ts          — Domain event stream types
       eventStreamQueryApi.ts        — Event stream query API (no single)
-      eventStreamQueryClient.ts     — Event stream query client
+      eventStreamQueryClient.ts     — Event stream query client, plus load(id, head, tail)
+      endpointPaths.ts              — (internal) its endpoint paths
       index.ts
     snapshot/
       snapshot.ts                   — Materialized snapshot types
       snapshotQueryApi.ts           — Snapshot query API (+ *State variants)
       snapshotQueryClient.ts        — Snapshot query client
+      endpointPaths.ts              — (internal) its endpoint paths
       index.ts
     state/
       loadStateAggregateClient.ts         — Load state aggregate client
       loadOwnerStateAggregateClient.ts    — Load by owner state client
+      endpointPaths.ts                    — (internal) their endpoint paths
       index.ts
   types/
-    abac.ts, common.ts, endpoints.ts, error.ts, function.ts,
+    error.ts                  — ErrorInfo, ErrorCodes, ErrorCode, RecoverableType
+    wowError.ts               — WowError, isErrorInfo(), toWowError()
+    headers.ts                — WowHeaders: Wow-Space-Id, Wow-Error-Code
+    abac.ts, common.ts, endpoints.ts, function.ts,
     messaging.ts, modeling.ts, naming.ts, bi.ts, index.ts
   legacy/                     — DEPRECATED `@ahoo-wang/wow-client/legacy` entry, removed in v10
     index.ts                  — The entry
@@ -103,21 +116,42 @@ src/
     queryable.ts              — Condition queries, their factories, and the *QueryRequest unions
     locale/                   — i18n for the Operator enum (en_US, zh_CN)
 scripts/
-  verify-package.mjs          — Run by the build: entries resolve and export what test/surface/ lists
+  verify-package.mjs          — Run by the build: entries resolve, export what test/surface/ lists, /dsl loads no HTTP code, no declaration maps
 test/
   surface/                    — The public surface of each entry, one name a line
   publicSurface.test.ts       — Holds the source entries to those lists (-u to accept a change)
+  clients/                    — Every client method against a stubbed fetch
 ```
+
+## Errors
+
+A server error reaches an application as a `WowError` (`errorCode`,
+`errorMsg`, `bindingErrors`, `status`):
+
+- A non-2xx response rejects with the fetcher's `ExchangeError`; the
+  application calls `toWowError(error)`, which reads the `ErrorInfo` body (or
+  the `Wow-Error-Code` header) from a clone of the response. It returns
+  `undefined` for failures the Wow server did not answer. There is no
+  interceptor that rewrites the fetcher's error: the clients share the
+  application's Fetcher, and the fetcher wraps whatever an error interceptor
+  leaves in an `ExchangeError` anyway.
+- A server-sent event stream answers HTTP 200 and, on failure, sends one last
+  event named by the error code. The stream extractors in `src/eventStreams.ts`
+  error the stream with a `WowError` there, so a `for await` throws instead of
+  reading the `ErrorInfo` as a row. Every built-in stream method uses them; a
+  new one must too.
 
 ## Public surface
 
-The root entry (`src/index.ts`) and `/legacy` (`src/legacy/index.ts`) are the
-only entries. Their exports are listed name by name under `test/surface/`; a
+The root entry (`src/index.ts`), `/dsl` (`src/dsl.ts`) and `/legacy`
+(`src/legacy/index.ts`) are the only entries. Their exports are listed name by name under `test/surface/`; a
 new export, or a removed one, changes a list, and the change is made on
 purpose with `pnpm exec vitest run test/publicSurface.test.ts -u`. The build
 runs `scripts/verify-package.mjs`, which holds the built ES module and
 CommonJS entries to the same lists. Nothing Condition-based is exported from
-the root entry.
+the root entry, and `/dsl` must import nothing that reaches a fetcher package or
+`reflect-metadata` (the build checks this). An internal helper goes in a file
+its folder's `index.ts` does not list.
 
 ### Key Concepts
 

@@ -30,17 +30,17 @@ export enum RecoverableType {
    */
   RECOVERABLE = 'RECOVERABLE',
   /**
+   * Represents an unknown type of recoverability for an error or operation.
+   * This is used when the recoverability of an error cannot be determined or is not specified.
+   */
+  UNKNOWN = 'UNKNOWN',
+
+  /**
    * Represents an error type that indicates the operation or error cannot be retried.
    *
    * This enum value is used to classify errors in a way that signifies the error condition is permanent and retrying the operation will not resolve the issue. It is particularly
    *  useful for handling errors where the underlying problem is fundamental and cannot be resolved by simply retrying, such as invalid input, resource exhaustion, or other non-transient
    *  issues.
-   */
-  UNKNOWN = 'UNKNOWN',
-
-  /**
-   * Represents an unknown type of recoverability for an error or operation.
-   * This is used when the recoverability of an error cannot be determined or is not specified.
    */
   UNRECOVERABLE = 'UNRECOVERABLE',
 }
@@ -68,7 +68,7 @@ export interface ErrorInfo {
    * Represents the error code associated with an error. This value is used to identify the type of error that has occurred,
    * which can be useful for debugging, logging, and handling errors in a standardized way.
    */
-  errorCode: string;
+  errorCode: ErrorCode;
   /**
    * Represents the message associated with an error. This message provides a human-readable description of the error, which can be used for logging, debugging, or displaying to the user
    * .
@@ -82,121 +82,68 @@ export interface ErrorInfo {
   bindingErrors?: BindingError[];
 }
 
-export class ErrorCodes {
-  /**
-   * A constant representing a successful operation or status.
-   * This value is typically used in the context of error handling and response descriptions to indicate that an operation has been completed successfully.
-   */
-  static readonly SUCCEEDED = 'Ok';
-  static readonly SUCCEEDED_MESSAGE = '';
+/**
+ * The error codes Wow itself answers with, as `ErrorInfo.errorCode`, as the
+ * `Wow-Error-Code` response header, and as the event name of an error in a
+ * server-sent event stream.
+ *
+ * Mirrors `ErrorCodes` in `wow-core/src/main/kotlin/me/ahoo/wow/exception/ErrorCodes.kt`
+ * and the query schema and batch codes the server registers beside it.
+ * Applications add their own codes; {@link ErrorCode} admits those too.
+ */
+export const ErrorCodes = Object.freeze({
+  /** The request succeeded. */
+  SUCCEEDED: 'Ok',
+  /** The requested resource does not exist (HTTP 404). */
+  NOT_FOUND: 'NotFound',
+  /** The request is malformed (HTTP 400). */
+  BAD_REQUEST: 'BadRequest',
+  /** An argument is invalid (HTTP 400). */
+  ILLEGAL_ARGUMENT: 'IllegalArgument',
+  /** The aggregate is in a state that refuses the command (HTTP 400). */
+  ILLEGAL_STATE: 'IllegalState',
+  /** The wait timed out (HTTP 408). */
+  REQUEST_TIMEOUT: 'RequestTimeout',
+  /** The server is rate limiting (HTTP 429). */
+  TOO_MANY_REQUESTS: 'TooManyRequests',
+  /** The command's request id was used before (HTTP 400). */
+  DUPLICATE_REQUEST_ID: 'DuplicateRequestId',
+  /** The command failed validation (HTTP 400); see `bindingErrors`. */
+  COMMAND_VALIDATION: 'CommandValidation',
+  /** A command rewriter produced no command. */
+  REWRITE_NO_COMMAND: 'RewriteNoCommand',
+  /** Another command changed the aggregate first (HTTP 409). */
+  EVENT_VERSION_CONFLICT: 'EventVersionConflict',
+  /** The aggregate id already exists (HTTP 400). */
+  DUPLICATE_AGGREGATE_ID: 'DuplicateAggregateId',
+  /** The aggregate is not at the version the command expected (HTTP 409). */
+  COMMAND_EXPECT_VERSION_CONFLICT: 'CommandExpectVersionConflict',
+  /** The event stream is not at the version sourcing expected (HTTP 409). */
+  SOURCING_VERSION_CONFLICT: 'SourcingVersionConflict',
+  /** The aggregate is deleted (HTTP 410). */
+  ILLEGAL_ACCESS_DELETED_AGGREGATE: 'IllegalAccessDeletedAggregate',
+  /** The aggregate belongs to another owner (HTTP 403). */
+  ILLEGAL_ACCESS_OWNER_AGGREGATE: 'IllegalAccessOwnerAggregate',
+  /** The aggregate belongs to another space. */
+  ILLEGAL_ACCESS_SPACE_AGGREGATE: 'IllegalAccessSpaceAggregate',
+  /** An unexpected server failure (HTTP 500). */
+  INTERNAL_SERVER_ERROR: 'InternalServerError',
+  /** A query does not fit the aggregate's query schema (HTTP 400). */
+  QUERY_SCHEMA_VALIDATION: 'QuerySchemaValidation',
+  /** The query schema conflicts with the stored one (HTTP 500). */
+  QUERY_SCHEMA_CONFLICT: 'QuerySchemaConflict',
+  /** The query schema is not available yet (HTTP 503). */
+  QUERY_SCHEMA_UNAVAILABLE: 'QuerySchemaUnavailable',
+  /** A batch task failed. */
+  BATCH_TASK_ERROR: 'BatchTaskError',
+} as const);
 
-  /**
-   * Error code for when a requested resource is not found.
-   */
-  static readonly NOT_FOUND = 'NotFound';
+/** One of the error codes Wow itself defines; see {@link ErrorCodes}. */
+export type WowErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
 
-  /**
-   * Default message for NOT_FOUND error code.
-   */
-  static readonly NOT_FOUND_MESSAGE = 'Not found resource!';
-
-  /**
-   * Error code for bad request errors.
-   */
-  static readonly BAD_REQUEST = 'BadRequest';
-
-  /**
-   * Error code for illegal argument errors.
-   */
-  static readonly ILLEGAL_ARGUMENT = 'IllegalArgument';
-
-  /**
-   * Error code for illegal state errors.
-   */
-  static readonly ILLEGAL_STATE = 'IllegalState';
-
-  /**
-   * Error code for request timeout errors.
-   */
-  static readonly REQUEST_TIMEOUT = 'RequestTimeout';
-
-  /**
-   * Error code for too many requests errors (rate limiting).
-   */
-  static readonly TOO_MANY_REQUESTS = 'TooManyRequests';
-
-  /**
-   * Error code for duplicate request ID errors.
-   */
-  static readonly DUPLICATE_REQUEST_ID = 'DuplicateRequestId';
-
-  /**
-   * Error code for command validation errors.
-   */
-  static readonly COMMAND_VALIDATION = 'CommandValidation';
-
-  /**
-   * Error code for when no command is found to rewrite.
-   */
-  static readonly REWRITE_NO_COMMAND = 'RewriteNoCommand';
-
-  /**
-   * Error code for event version conflicts.
-   */
-  static readonly EVENT_VERSION_CONFLICT = 'EventVersionConflict';
-
-  /**
-   * Error code for duplicate aggregate ID errors.
-   */
-  static readonly DUPLICATE_AGGREGATE_ID = 'DuplicateAggregateId';
-
-  /**
-   * Error code for command expected version conflicts.
-   */
-  static readonly COMMAND_EXPECT_VERSION_CONFLICT =
-    'CommandExpectVersionConflict';
-
-  /**
-   * Error code for sourcing version conflicts.
-   */
-  static readonly SOURCING_VERSION_CONFLICT = 'SourcingVersionConflict';
-
-  /**
-   * Error code for illegal access to deleted aggregate errors.
-   */
-  static readonly ILLEGAL_ACCESS_DELETED_AGGREGATE =
-    'IllegalAccessDeletedAggregate';
-
-  /**
-   * Error code for illegal access to owner aggregate errors.
-   */
-  static readonly ILLEGAL_ACCESS_OWNER_AGGREGATE =
-    'IllegalAccessOwnerAggregate';
-
-  static readonly ILLEGAL_ACCESS_SPACE_AGGREGATE =
-    'IllegalAccessSpaceAggregate';
-  /**
-   * Error code for internal server errors.
-   */
-  static readonly INTERNAL_SERVER_ERROR = 'InternalServerError';
-
-  /**
-   * Checks if the provided error code represents a successful operation.
-   *
-   * @param errorCode The error code to check
-   * @returns true if the error code is 'Ok', false otherwise
-   */
-  static isSucceeded(errorCode: string): boolean {
-    return errorCode === ErrorCodes.SUCCEEDED;
-  }
-
-  /**
-   * Checks if the provided error code represents an error condition.
-   *
-   * @param errorCode The error code to check
-   * @returns true if the error code is not 'Ok', false otherwise
-   */
-  static isError(errorCode: string): boolean {
-    return !ErrorCodes.isSucceeded(errorCode);
-  }
-}
+/**
+ * An error code: one of Wow's own, which editors complete, or any other an
+ * application defines.
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type ErrorCode = WowErrorCode | (string & {});

@@ -15,8 +15,15 @@ import type { FilterExpression } from './filter.js';
 import type { Projection } from './projection.js';
 import type { FieldSort } from './sort.js';
 
+/** The page size `cursorQuery()` uses when none is given. */
 export const DEFAULT_CURSOR_SIZE = 10;
+/**
+ * The largest page size the cursor model admits (`CursorQuery` in Wow).
+ * Over HTTP the server enforces a smaller, configurable page limit — 100 by
+ * default — and answers a larger size with a 400.
+ */
 export const MAX_CURSOR_SIZE = 2_147_483_646;
+/** The most sort fields a cursor query may name. */
 export const MAX_CURSOR_SORT_FIELDS = 32;
 
 /** Wow V9 forward-only cursor query request. */

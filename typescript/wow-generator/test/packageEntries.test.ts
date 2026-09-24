@@ -36,7 +36,7 @@ describe('review regressions', () => {
           const decorator = await load('@ahoo-wang/fetcher-decorator');
           assert.equal(typeof decorator.api, 'function');
           const wow = await load('@ahoo-wang/wow-client');
-          assert.equal(wow.getPropertyValue({ nested: { value: 42 } }, ['nested', 'value']), 42);
+          assert.equal(wow.filter.matchAll().op, 'MATCH_ALL');
           const legacy = await load('@ahoo-wang/wow-client/legacy');
           for (const locale of ['en_US', 'zh_CN']) {
             assert.equal(typeof legacy[locale].EQ, 'string');
