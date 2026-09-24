@@ -151,7 +151,7 @@ renovate 把 `@ahoo-wang/fetcher*` 归成一组来升级。
 | view-engine 单测拆成 3 片并行                       | 已完成（#3293）。Node 24 三片各 2.4～3.9 分钟，合并覆盖率与 `test:type` 的 `view-engine` job 1.0～1.1 分钟                                                                                                                                                                                 |
 | 只在 Node 24 上收集覆盖率                           | 已完成（#3293）。Node 22 不收覆盖率，拆 2 片，各 3.0～4.5 分钟，不比 Node 24 最慢的一片晚多少                                                                                                                                                                                              |
 | Storybook 交互测试拆成 2 片，缓存 Playwright 浏览器 | 已完成（#3293）。两片各 3.2～4.0 分钟（缓存命中 `playwright-Linux-1.63.0-chromium`），构建 1.1～1.3 分钟；`TypeScript Storybook` 整条 4.4～5.5 分钟                                                                                                                                        |
-| 修 scope 漏洞：包里的 Markdown 不算纯文档           | 已完成（本 PR）。`typescript/` 下只改 Markdown 时只跑轻量的 `package-docs`：检查改动文件的格式；改到 view-engine 的 Markdown 时再构建依赖、跑 `test:docs`（本地 3 个文件 20 个用例 1.5 秒）。同时拆出 `sdk` scope：只改 view-engine 时不再跑其他包的 `unit`（Node 22/24 各 2.0～3.3 分钟） |
+| 修 scope 漏洞：包里的 Markdown 不算纯文档           | 已完成（#3307）。`typescript/` 下只改 Markdown 时只跑轻量的 `package-docs`：检查改动文件的格式；改到 view-engine 的 Markdown 时再构建依赖、跑 `test:docs`（本地 3 个文件 20 个用例 1.5 秒）。同时拆出 `sdk` scope：只改 view-engine 时不再跑其他包的 `unit`（Node 22/24 各 2.0～3.3 分钟） |
 
 实测（#3293 的 `6d57221a`、#3294 的 `c5518742`，两次的 scope 都打开了全部 job）：`TypeScript` 整条 6.7～7.4 分钟，`TypeScript Storybook` 4.4～5.5 分钟，`TypeScript Contract` 2.8～4.6 分钟，三条并行，墙钟约 7 分钟。`quality` 约 2 分钟，文档站约 1 分钟。现在的最长路径是 view-engine 最慢的一片加上合并 job（约 5 分钟），其余时间是排队。
 
