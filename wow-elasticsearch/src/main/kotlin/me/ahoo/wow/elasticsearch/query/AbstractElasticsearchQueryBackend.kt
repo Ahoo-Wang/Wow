@@ -54,6 +54,15 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
     protected open val queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE
     protected open val queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE
 
+    // Stateless collaborators, created once per backend: subclasses supply their configuration through overrides.
+    private val queryPager by lazy {
+        ElasticsearchQueryPager(elasticsearchClient, indexName, queryBatchSize, queryKeepAlive)
+    }
+    private val aggregationPager by lazy {
+        ElasticsearchAggregationPager(elasticsearchClient, indexName, queryBatchSize, queryKeepAlive)
+    }
+    private val aggregationCompiler by lazy { ElasticsearchAggregationCompiler(filterCompiler) }
+
     override fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode> =
         listResolved(
             ListQuery(
@@ -73,7 +82,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
     private fun listResolved(listQuery: IListQuery, schema: QueryModelSchema): Flux<ObjectNode> {
         val compiled = compile(listQuery.filter, listQuery.sort, schema)
         if (listQuery.limit == 0 || listQuery.limit > queryBatchSize) {
-            return ElasticsearchQueryPager(elasticsearchClient, indexName, queryBatchSize, queryKeepAlive).search(
+            return queryPager.search(
                 limit = listQuery.limit,
                 query = compiled.query,
                 sourceFilter = listQuery.sourceFilter(schema),
@@ -215,14 +224,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
     }.flatMap(elasticsearchClient::count).map { it.requireComplete().count() }
 
     override fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode> =
-        ElasticsearchAggregationPager(
-            elasticsearchClient,
-            indexName,
-            queryBatchSize,
-            queryKeepAlive,
-        ).execute(
-            ElasticsearchAggregationCompiler(filterCompiler).compile(query, schema),
-        )
+        aggregationPager.execute(aggregationCompiler.compile(query, schema))
 
     private fun compile(
         filter: FilterExpression,

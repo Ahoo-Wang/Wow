@@ -116,17 +116,25 @@ private class QueryValidator(private val schema: QueryModelSchema) {
         name: QueryField,
         capability: QueryCapability,
         parent: QueryField? = null,
-    ): QueryFieldSchema = field(name, setOf(capability), capability.toString(), parent)
+    ): QueryFieldSchema = field(name, parent, { capability.toString() }) { it.binding(capability) != null }
 
     private fun field(
         name: QueryField,
         capabilities: Set<QueryCapability>,
-        label: String,
         parent: QueryField?,
+    ): QueryFieldSchema = field(name, parent, { capabilities.joinToString(" or ") }) { field ->
+        capabilities.any { field.binding(it) != null }
+    }
+
+    private inline fun field(
+        name: QueryField,
+        parent: QueryField?,
+        label: () -> String,
+        supports: (QueryFieldSchema) -> Boolean,
     ): QueryFieldSchema {
         val logical = absoluteLogicalField(name, parent)
         val field = schema.field(logical) ?: throw QuerySchemaValidationException("Unknown logical field [$logical].")
-        requireSchema(capabilities.any { field.binding(it) != null }) { "Field [$logical] does not support [$label]." }
+        requireSchema(supports(field)) { "Field [$logical] does not support [${label()}]." }
         requireSchema(
             field.elementAncestors != null && field.elementAncestors == schema.requiredElementAncestors(parent)
         ) {
@@ -346,7 +354,7 @@ private class QueryValidator(private val schema: QueryModelSchema) {
         capabilities: Set<QueryCapability>,
         parent: QueryField?,
     ): QueryFieldSchema {
-        val field = field(name, capabilities, capabilities.joinToString(" or "), parent)
+        val field = field(name, capabilities, parent)
         requireSchema(!isFieldProtected(schema, field.logicalField, field)) {
             "Protected field [${field.logicalField}] cannot be aggregated."
         }
