@@ -52,7 +52,10 @@ pnpm --filter <package> exec vitest run --maxWorkers=3 <file>
 ## Versions And Releases
 
 - The single version source is `version` in the root `gradle.properties`. Maven and npm release together under the same tag.
-- Breaking changes ship only in an `x.Y.0` release, for Kotlin and TypeScript alike. Mark them with `!` in the conventional commit.
+- Breaking changes ship only in an `x.Y.0` release, for Kotlin and TypeScript alike. Mark them with `!` in the conventional commit. Release admission (`.github/scripts/release-admission.mjs`) enforces this.
+- `pnpm set-version <version>` rewrites `gradle.properties` and every workspace `package.json`; `pnpm check:versions` (run by `quality`) fails when they disagree.
+- Compatibility kept until v10 is listed in `docs/compat-debt.md`. Mark it with `@deprecated … Removed in v10.` or `// compat(wow<9): <reason>` / `// compat(fetcher): <reason>`; the ledger check in `quality` pairs markers with entries.
+- A new public package must be added to `PUBLISHED` or `HELD_BACK` in `.github/scripts/publish-npm.mjs`; view-engine and view-store start in `HELD_BACK`.
 
 ## Code
 
