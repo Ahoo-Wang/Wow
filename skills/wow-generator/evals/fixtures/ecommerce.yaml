@@ -1,0 +1,217 @@
+# Wow CQRS fixture: aggregates require root-level `{contextAlias}.{aggregateName}` tags,
+# a `.snapshot_state.single` state op, a `.snapshot.count` fields op, and commands with
+# `responses['200'] -> #/components/responses/wow.CommandOk` plus a requestBody.
+openapi: 3.0.3
+info:
+  title: E-commerce API
+  version: 1.0.0
+tags:
+  - name: ecommerce.cart
+    description: Cart aggregate
+paths:
+  /owner/{ownerId}/cart/items:
+    post:
+      tags:
+        - ecommerce.cart
+      summary: Add item to cart
+      operationId: ecommerce.cart.add_cart_item
+      parameters:
+        - name: ownerId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: Add item to cart
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ecommerce.cart.AddCartItem'
+      responses:
+        '200':
+          $ref: '#/components/responses/wow.CommandOk'
+  /owner/{ownerId}/cart:
+    delete:
+      tags:
+        - ecommerce.cart
+      summary: Delete cart
+      operationId: ecommerce.cart.default_delete_aggregate
+      parameters:
+        - name: ownerId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: Delete cart
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ecommerce.cart.DeleteCart'
+      responses:
+        '200':
+          $ref: '#/components/responses/wow.CommandOk'
+  /owner/{ownerId}/cart/snapshot/single/state:
+    post:
+      tags:
+        - ecommerce.cart
+      summary: Single snapshot state
+      operationId: ecommerce.cart.snapshot_state.single
+      parameters:
+        - name: ownerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Cart state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ecommerce.cart.CartState'
+  /owner/{ownerId}/cart/snapshot/count:
+    post:
+      tags:
+        - ecommerce.cart
+      summary: Count snapshot
+      operationId: ecommerce.cart.snapshot.count
+      parameters:
+        - name: ownerId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        $ref: '#/components/requestBodies/ecommerce.cart.CountQuery'
+      responses:
+        '200':
+          $ref: '#/components/responses/wow.CountQuery'
+  /owner/{ownerId}/cart/event/list:
+    post:
+      tags:
+        - ecommerce.cart
+      summary: List query event stream
+      operationId: ecommerce.cart.event.list_query
+      parameters:
+        - name: ownerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Domain event stream
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ecommerce.cart.CartDomainEventStream'
+components:
+  responses:
+    wow.CommandOk:
+      description: Command executed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/wow.command.CommandResult'
+    wow.CountQuery:
+      description: Count result
+      content:
+        application/json:
+          schema:
+            type: integer
+            format: int64
+  requestBodies:
+    ecommerce.cart.CountQuery:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ecommerce.cart.CartAggregatedCondition'
+  schemas:
+    ecommerce.cart.CartState:
+      type: object
+      properties:
+        ownerId:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ecommerce.cart.CartItem'
+        total:
+          type: number
+    ecommerce.cart.CartItem:
+      type: object
+      properties:
+        productId:
+          type: string
+        quantity:
+          type: integer
+        price:
+          type: number
+    ecommerce.cart.AddCartItem:
+      type: object
+      required:
+        - productId
+        - quantity
+      properties:
+        productId:
+          type: string
+        quantity:
+          type: integer
+    ecommerce.cart.DeleteCart:
+      type: object
+      properties: {}
+    ecommerce.cart.CartAggregatedFields:
+      type: string
+      enum:
+        - productId
+        - quantity
+        - total
+    ecommerce.cart.CartAggregatedCondition:
+      type: object
+      properties:
+        field:
+          $ref: '#/components/schemas/ecommerce.cart.CartAggregatedFields'
+        operator:
+          type: string
+          default: ALL
+    ecommerce.cart.CartDomainEventStream:
+      type: object
+      properties:
+        id:
+          type: string
+        aggregateId:
+          type: string
+        body:
+          type: array
+          items:
+            anyOf:
+              - title: Cart item added
+                type: object
+                required:
+                  - name
+                  - body
+                properties:
+                  name:
+                    type: string
+                    const: cart_item_added
+                  body:
+                    $ref: '#/components/schemas/ecommerce.cart.CartItemAdded'
+    ecommerce.cart.CartItemAdded:
+      type: object
+      properties:
+        productId:
+          type: string
+        quantity:
+          type: integer
+    wow.command.CommandResult:
+      type: object
+      properties:
+        id:
+          type: string
+        stage:
+          type: string
+        aggregateId:
+          type: string

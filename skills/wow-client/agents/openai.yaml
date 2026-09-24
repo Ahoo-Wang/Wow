@@ -1,0 +1,4 @@
+interface:
+  display_name: "Wow Client"
+  short_description: "TypeScript command and query clients for Wow"
+  default_prompt: "Use $wow-client to build typed Wow command and query clients with @ahoo-wang/wow-client."

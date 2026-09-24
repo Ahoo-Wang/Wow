@@ -1,0 +1,6 @@
+{"id":"A86-client-command","prompt":"在 TypeScript 前端里用 @ahoo-wang/wow-client 给购物车发送 add_cart_item 命令，并等到 SNAPSHOT 阶段再刷新列表。","expectedSkills":["wow-client"],"tags":["positive","command"]}
+{"id":"A87-client-filter","prompt":"Build a snapshot query with @ahoo-wang/wow-client that pages PAID orders created yesterday in Asia/Shanghai, sorted by createdAt descending.","expectedSkills":["wow-client"],"tags":["positive","query-dsl"]}
+{"id":"A88-client-react-hooks","prompt":"React 页面要用 Wow 的分页查询 hook 展示订单快照，之前从 @ahoo-wang/fetcher-react 根入口导入 usePagedQuery，现在要换到新包。","expectedSkills":["wow-client"],"tags":["positive","react","package-rename"]}
+{"id":"A89-client-rename","prompt":"Replace @ahoo-wang/fetcher-wow with the Wow-owned client package in this Vite app and keep every command and query call working.","expectedSkills":["wow-client"],"tags":["positive","migration","package-rename"]}
+{"id":"A90-client-vs-develop","prompt":"为下游 Wow 服务的 Kotlin 订单聚合增加 CancelOrder 命令和事件，并补齐 aggregate 测试。","expectedSkills":["wow-develop"],"tags":["boundary","server-side","conflict"]}
+{"id":"A91-none-client-plain-fetch","prompt":"用 @ahoo-wang/fetcher 给一个普通 REST 用户接口加重试拦截器，这个后端不是 Wow 服务。","expectedSkills":[],"tags":["negative","non-wow-project"]}
