@@ -118,7 +118,7 @@ describe('the README only names symbols that exist', () => {
     };
 
     const imports = readme.matchAll(
-      /import (?:type )?\{([^}]+)\} from '(@ahoo-wang\/fetcher-view-engine[^']*)'/g,
+      /import (?:type )?\{([^}]+)\} from '(@ahoo-wang\/wow-view-engine[^']*)'/g,
     );
 
     let checked = 0;

@@ -29,7 +29,8 @@ for (const file of storyFiles) {
   ))
     targets.add(decodeURIComponent(match[1]));
 }
-assert.ok(targets.size > 0, 'Stories must link to executable examples');
+// fetcher's landing and docs stories linked to examples; Wow's stories need
+// not link anywhere, but every link they do make must resolve.
 for (const id of targets)
   assert.ok(index.entries[id], `Missing navigation target: ${id}`);
 const stories = Object.values(index.entries).filter(

@@ -98,7 +98,7 @@ const HEADLESS: readonly Location[] = [
 
 const WOW = '@ahoo-wang/wow-client';
 const src = resolve(dirname(fileURLToPath(import.meta.url)), '../src');
-const wowSrc = resolve(src, '../../wow/src');
+const wowSrc = resolve(src, '../../wow-client/src');
 
 /**
  * Dependencies that may be imported outside `ui`. Every other runtime or peer
@@ -128,8 +128,9 @@ const THIRD_PARTY: Record<string, readonly Location[]> = Object.fromEntries([
   ...Object.keys(manifest.dependencies ?? {}).map(
     name => [name, HEADLESS_DEPENDENCIES[name] ?? ['ui']] as const,
   ),
+  // wow-client is a peer too; the headless list above still decides it.
   ...Object.keys(manifest.peerDependencies ?? {}).map(
-    name => [name, ['react', 'ui']] as const,
+    name => [name, HEADLESS_DEPENDENCIES[name] ?? ['react', 'ui']] as const,
   ),
 ]);
 

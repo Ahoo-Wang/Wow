@@ -18,7 +18,7 @@ import { describe, expect, it } from 'vitest';
 import { EDITOR_INPUTS } from '@/filter/index.js';
 
 const ROOT = join(import.meta.dirname, '..');
-const STORIES = join(ROOT, '../../stories/view-engine');
+const STORIES = join(ROOT, '../storybook/stories/view-engine');
 
 /** Every design page, plus the file an agent reads before them. */
 function pages(dir: string): string[] {
@@ -298,7 +298,7 @@ const CODE_TREES = [
   join(ROOT, 'src'),
   join(ROOT, 'test'),
   STORIES,
-  join(ROOT, '../wow/src'),
+  join(ROOT, '../wow-client/src'),
 ];
 
 /**
