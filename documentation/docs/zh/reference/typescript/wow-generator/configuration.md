@@ -64,8 +64,8 @@ pnpm exec wow-generator generate -i ./openapi.json -c ./wow-generator.config.jso
 
 ## 实现源码
 
-[typescript/wow-generator/src/generateContext.ts:24](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/generateContext.ts#L24)
+[typescript/wow-generator/src/generateContext.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/generateContext.ts)
 
-[typescript/wow-generator/src/types.ts:21](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/types.ts#L21)
+[typescript/wow-generator/src/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/types.ts)
 
-[typescript/wow-generator/src/index.ts:35](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/index.ts#L35)
+[typescript/wow-generator/src/index.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/index.ts)

@@ -1,28 +1,28 @@
-# Fetcher View Engine
+# Wow View Engine
 
 > **状态：开发中，不承诺兼容。** Record、Analysis、Dashboard 三种视图与它们的嵌入，以及下文的 `/react` 控制器与 `/ui` 组件均已在包内。任何导出都还可能改形，改动不带兼容层；[docs/design/](docs/design/) 是唯一的依据，本页只说现在的 API。
 
-**Fetcher View Engine 是面向 Wow 业务应用的数据视图引擎。** 业务应用用代码声明一份数据"能被怎样观察"：字段、类型、操作符、可用的分组与指标。用户在界面上决定"这一次怎样观察"：筛选、列、排序、分组、图表、面板组合。引擎把这种观察方式编译成 Wow 查询、执行、渲染，并把有价值的观察方式保存下来供下次直接打开。
+**Wow View Engine 是面向 Wow 业务应用的数据视图引擎。** 业务应用用代码声明一份数据"能被怎样观察"：字段、类型、操作符、可用的维度与指标。用户在界面上决定"这一次怎样观察"：筛选、列、排序、维度与指标、图表、面板组合。引擎把这种观察方式编译成 Wow 查询、执行、渲染，并把有价值的观察方式保存下来供下次直接打开。
 
 它是 `@ahoo-wang/wow-client` 之上的展示层，也是 `@ahoo-wang/fetcher-viewer` 的继任者。
 
 ## 解决什么问题
 
-业务系统里的大多数页面是同一种页面：一张列表，带筛选、排序、分页，偶尔加一张统计图。每个业务对象（订单、库存、客户、工单）都要写一套。运营每提一次"再加一个筛选条件""按仓库分组看一下""把这几张表放到一个概览页"，都要改代码、排期、发版。
+业务系统里的大多数页面是同一种页面：一张列表，带筛选、排序、分页，偶尔加一张统计图。每个业务对象（订单、库存、客户、工单）都要写一套。运营每提一次"再加一个筛选条件""按仓库拆开看一下""把这几张表放到一个概览页"，都要改代码、排期、发版。
 
 数据没有变，变的只是观察方式。问题在于观察方式被写死在页面代码里：用户不能自己调整，研发被重复劳动占满，产品把展示层的每次调整都当成需求。
 
 ## 目标
 
 - **用户目标。** 在已声明的能力范围内自己调整数据范围、组织方式与呈现方式，把常用的观察方式保存下来，下次一键重开。
-- **研发目标。** 一个业务对象接入一次，即一份定义加一个查询客户端，之后明细、分析、概览三类视图不再需要写页面；筛选编辑、查询协调、结果呈现、保存恢复与冲突处理由引擎统一提供。
+- **研发目标。** 一个业务对象接入一次，即一份定义加一个查询客户端，之后记录视图、分析视图、仪表盘三类视图不再需要写页面；筛选编辑、查询协调、结果呈现、保存恢复与冲突处理由引擎统一提供。
 - **演进目标。** 新增业务对象只增加定义，不在引擎里加业务分支；自定义布局通过无样式钩子复用同一套行为，不复制一份逻辑。
 
 ## 价值
 
 | 对象     | 得到什么                                                                                                                       |
 | -------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| 业务用户 | 不等排期就能得到需要的视图；常用视图保存后直接打开；同一份数据既能看明细，也能看分组统计与概览                                 |
+| 业务用户 | 不等排期就能得到需要的视图；常用视图保存后直接打开；同一份数据既能看记录，也能按维度看指标，还能看概览                         |
 | 研发     | 列表类页面从"每个对象一套"变为"每个对象一份定义"；筛选、分页、排序、保存、冲突只实现一次；定义可由 generator 从 Wow 元数据生成 |
 | 产品     | 支持范围内的展示调整不再是需求而是配置；"保存与共享视图"可以作为产品能力交付给客户                                             |
 
@@ -62,6 +62,8 @@ pnpm add @ahoo-wang/wow-view-engine @ahoo-wang/wow-client
 ## 快速开始
 
 ### 1. 声明定义
+
+<!-- typecheck: file=orders.ts -->
 
 ```ts
 import type { ViewDefinition } from '@ahoo-wang/wow-view-engine';
@@ -128,6 +130,12 @@ export const orders: ViewDefinition = {
 
 ### 2. 创建引擎
 
+<!-- typecheck-context
+import { orders } from './orders';
+import type { QueryApi } from '@ahoo-wang/wow-client';
+declare const queryClients: Record<string, Pick<QueryApi<any>, 'paged' | 'cursor' | 'aggregate'>>;
+-->
+
 ```ts
 import { MemoryViewStore, ViewEngine } from '@ahoo-wang/wow-view-engine';
 
@@ -140,6 +148,11 @@ const engine = new ViewEngine({
 ```
 
 ### 3a. 渲染默认工作台
+
+<!-- typecheck-context
+import { ViewEngine } from '@ahoo-wang/wow-view-engine';
+declare const engine: ViewEngine;
+-->
 
 ```tsx
 import '@ahoo-wang/wow-view-engine/styles.css';
@@ -157,6 +170,13 @@ export function OrdersPage() {
 一个数据定义同时装着它的记录视图与分析视图，`DataWorkbench` 把它们列在一张列表里：用户在一张订单表与一张订单图之间切换，就像在任意两个视图之间切换一样，「新建视图」会先问要建哪一种。宿主要一页只有一种，就收窄——`kinds={['record']}`——另一种在这一页既不列出也打不开。
 
 一个人打开的视图，就是他可以发出去的一条链接。两个工作台因此都收 `instanceId` 与 `onInstanceChange`——进出你的路由的两个方向，`DataWorkbench` 与 `DashboardWorkbench` 契约完全一致。
+
+<!-- typecheck-context
+import { ViewEngine } from '@ahoo-wang/wow-view-engine';
+declare const engine: ViewEngine;
+import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
+declare function useSearchParam(key: string): [string | null, (value: string | null) => void];
+-->
 
 ```tsx
 export function OrdersPage() {
@@ -193,6 +213,8 @@ export function OrdersPage() {
 - **「点击时…」**（编辑中）：面板也可以改为用点中的一组设置仪表盘筛选（交叉筛选——不需要路由；其余接线的面板跟着筛，被点的面板只标出这一组，再点一次撤销），或者去另一个已保存的视图（`{ kind: 'view' }`，交法同上，这一组在它自己的条件里）、另一块仪表盘，或你的一个页面（`{ kind: 'url', url }`，`{{字段}}` 换成点中的值并编码）。
 - **另一块仪表盘**：作者逐个列出目的板的筛选，每个映射到这块面板的一个维度、这块板上一个同类型的筛选，或者不带——不按名字猜。点一组时交给你 `{ kind: 'dashboard', definitionId, instanceId, filters }`：`filters` 就是那块板的 `DashboardFilters`，映射了的筛选是这一组的值或这块板那个筛选点的那一刻的值，其余是它们的默认值。把它交给 `DashboardWorkbench` 的 `initialFilters`（或 `ViewEngine.open` 的 `filters`）——它是读者的，不写进任何一块板的配置。映射失效（筛选或维度被删、那块板被删）时面板上挂 warning，点一组改为打开追问菜单。
 
+<!-- typecheck: skip — 并列的两个 JSX 元素，各自是一个示例 -->
+
 ```tsx
 <DashboardWorkbench
   engine={engine}
@@ -213,6 +235,8 @@ export function OrdersPage() {
 #### 嵌入一个视图或一块仪表盘
 
 业务页面要摆出别人已经定好的观察，就嵌入它：只有结果——没有视图列表、没有条件编辑器、没有保存。入口按资源分两个，与工作台的拆法一样：记录或分析视图用 `EmbeddedView`，仪表盘用 `EmbeddedDashboard`。各自只画自己那一种，给错了会直说。
+
+<!-- typecheck: skip — 并列的两个 JSX 元素，各自是一个示例 -->
 
 ```tsx
 import {
@@ -434,6 +458,13 @@ Storybook 的回归用例 `ShadcnBridge.test.stories.tsx` 把补偿控制台的�
 
 **`fve-tokens` 许诺的是 token 与 utility，不是组件。** 本包渲染所用的 shadcn 原语是 vendored 的，靠 `shadcn add --diff` 升级，不属于公开 API——所以请用你自己的组件、或你自己那份 shadcn/ui 搭 chrome，由这道边界把本主题的配色与间距交给它们：
 
+<!-- typecheck-context
+import { ViewEngine } from '@ahoo-wang/wow-view-engine';
+declare const engine: ViewEngine;
+import { EmbeddedView } from '@ahoo-wang/wow-view-engine/ui';
+declare const id: string;
+-->
+
 ```tsx
 <div className="fve-tokens flex flex-col gap-4">
   <header className="flex items-center gap-2 rounded-lg border bg-card p-4 text-card-foreground">
@@ -451,6 +482,12 @@ preflight 同样在边界里生效：这片区域内你自己的标题、列表�
 
 `/ui` 不把自己的 chrome 组件交出去，但它把**读一个值的那套东西**交出去了——改一个单元格，因此不必赔上整个工作台。`renderCell` 只盖住你在意的那一列，其余的交给 `cellValue`，照默认那样画：枚举取定义里的 option 标签、时间走这块面的时区与语言、数字按字段的 `numberFormat`：
 
+<!-- typecheck-context
+import { ViewEngine } from '@ahoo-wang/wow-view-engine';
+declare const engine: ViewEngine;
+declare function OrderStatusLamp(props: { status: string }): React.ReactNode;
+-->
+
 ```tsx
 import {
   DataWorkbench,
@@ -465,7 +502,7 @@ function OrderCell({ cell }: { cell: RecordCell }) {
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
   if (cell.column.field !== 'status') {
-    return cellValue(cell.value, cell.column, messages, display);
+    return cellValue(cell.value, cell.column, messages, display, 'table');
   }
   return <OrderStatusLamp status={String(cell.value)} />;
 }
@@ -489,7 +526,17 @@ function OrderCell({ cell }: { cell: RecordCell }) {
 
 ### 3b. 或者自行组合 UI
 
+<!-- typecheck-context
+import { ViewEngine } from '@ahoo-wang/wow-view-engine';
+declare const engine: ViewEngine;
+declare function Spinner(): React.ReactNode;
+declare function NotFound(): React.ReactNode;
+declare function OrdersLayout(props: Record<string, unknown>): React.ReactNode;
+-->
+
 ```tsx
+import { isRecordRuntime } from '@ahoo-wang/wow-view-engine';
+import type { RecordViewRuntime } from '@ahoo-wang/wow-view-engine';
 import {
   useOpenView,
   useViewRuntime,
@@ -500,18 +547,30 @@ import {
 export function OrdersPage({ instanceId }: { instanceId: string }) {
   const { runtime, loading } = useOpenView(engine, instanceId);
   if (!runtime) return loading ? <Spinner /> : <NotFound />;
+  // 这个 id 也可能是分析视图或仪表盘；本页只画记录。
+  if (runtime.kind !== 'record' || !isRecordRuntime(runtime))
+    return <NotFound />;
   return <OrdersView runtime={runtime} />;
 }
 
-function OrdersView({ runtime }: { runtime: ViewRuntime }) {
+function OrdersView({ runtime }: { runtime: RecordViewRuntime }) {
   const state = useViewRuntime(runtime); // draft、applied、result、issues、dirty
   const filter = useFilterEditor(runtime); // 节点增删改、提交
   const table = useRecordTable(runtime); // 列、排序、选择、分页
   // 用这些控制器渲染任意布局，无需触及引擎内部。
+  return <OrdersLayout state={state} filter={filter} table={table} />;
 }
 ```
 
 ### 只用内核，不用 React
+
+<!-- typecheck-context
+import { orders } from './orders';
+import type { QueryApi } from '@ahoo-wang/wow-client';
+import type { RecordViewConfig } from '@ahoo-wang/wow-view-engine';
+declare const config: RecordViewConfig;
+declare const source: QueryApi<any>;
+-->
 
 ```ts
 import {
@@ -521,6 +580,8 @@ import {
   validateRecord,
 } from '@ahoo-wang/wow-view-engine';
 
+// 内核只接受数据定义；`orders` 就是一个。
+if (orders.kind !== 'data') throw new Error('orders is a data definition');
 const issues = validateRecord(orders, config, builtinFieldKinds);
 if (issues.some(i => i.severity === 'error')) throw new Error('配置无效');
 
@@ -628,6 +689,11 @@ interface ViewStore {
 模型只带 `code` 与 `params`，措辞归 `/ui`。`defaultMessages`（即 `en`）给每个 issue 一句英文，`ViewSurface` 与每个工作台的 `messages` 按 key 合并在已生效的措辞之上——改写与本地化是同一个入口；在应用外层放一个 `MessagesProvider`，就能对其中所有视图一次设定。包里另带一份逐键对应的简体中文 `zhCN`：整份交给 `messages` 即可，要改其中几句就铺开再覆盖（`{ ...zhCN, 'label.filter.apply': '确定' }`）。
 
 值按字段显示：枚举显示选项的标签，`datetime`／`date` 经 `Intl.DateTimeFormat` 格式化，日期直方图的键显示为它起始的年、季度、月或日。`locale` 决定这些值用什么语言显示，缺省为运行环境的语言；它和 `messages` 是同一个选择，一个管文字，一个管值：
+
+<!-- typecheck-context
+import { ViewEngine } from '@ahoo-wang/wow-view-engine';
+declare const engine: ViewEngine;
+-->
 
 ```tsx
 import { DataWorkbench, zhCN } from '@ahoo-wang/wow-view-engine/ui';

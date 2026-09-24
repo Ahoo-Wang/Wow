@@ -14,7 +14,7 @@ import { en_US } from '@ahoo-wang/wow-client/legacy';
 console.log(en_US.EQ); // Equals
 ```
 
-[typescript/wow-client/src/legacy/locale/en_US.ts:17](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/locale/en_US.ts#L17)
+[typescript/wow-client/src/legacy/locale/en_US.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/locale/en_US.ts)
 
 ## zh_CN {#api-zh_CN}
 
@@ -23,7 +23,7 @@ import { zh_CN } from '@ahoo-wang/wow-client/legacy';
 console.log(zh_CN.EQ);
 ```
 
-[typescript/wow-client/src/legacy/locale/zh_CN.ts:17](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/locale/zh_CN.ts#L17)
+[typescript/wow-client/src/legacy/locale/zh_CN.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/locale/zh_CN.ts)
 
 [字典类型 OperatorLocale](./filters#api-OperatorLocale) · [条件构建器](./filters)
 

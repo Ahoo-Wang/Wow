@@ -1,14 +1,14 @@
-# Fetcher View Engine
+# Wow View Engine
 
 > **Status: in active development, with no compatibility promise.** Record, Analysis and Dashboard views, their embeds, the `/react` controllers and the `/ui` components below are all in the package. Any export may still change shape, and no change carries a compatibility layer; [docs/design/](docs/design/) is the source of truth, and this page describes the API as it is now.
 
-**Fetcher View Engine is a data view engine for Wow-based business applications.** The application declares in code _how a dataset can be observed_: fields, kinds, operators, available groupings and metrics. Users decide in the UI _how to observe it this time_: filters, columns, sorting, groupings, charts, panel composition. The engine compiles that way of observing into Wow queries, runs them, renders the result, and saves the ways worth keeping so they can be reopened with one click.
+**Wow View Engine is a data view engine for Wow-based business applications.** The application declares in code _how a dataset can be observed_: fields, kinds, operators, available dimensions and metrics. Users decide in the UI _how to observe it this time_: filters, columns, sorting, dimensions and metrics, charts, panel composition. The engine compiles that way of observing into Wow queries, runs them, renders the result, and saves the ways worth keeping so they can be reopened with one click.
 
 It is the presentation layer on top of `@ahoo-wang/wow-client` and the successor of `@ahoo-wang/fetcher-viewer`.
 
 ## The problem
 
-Most pages in a business system are the same page: a list with filters, sorting and paging, sometimes with a chart. Every business object (orders, inventory, customers, tickets) gets its own copy. Every request from operations, "add one more filter", "group this by warehouse", "put these tables on one overview page", means a code change, a sprint slot and a release.
+Most pages in a business system are the same page: a list with filters, sorting and paging, sometimes with a chart. Every business object (orders, inventory, customers, tickets) gets its own copy. Every request from operations, "add one more filter", "break this down by warehouse", "put these tables on one overview page", means a code change, a sprint slot and a release.
 
 The data did not change; only the way of observing it did. The problem is that the way of observing is hard-coded in page code: users cannot adjust it themselves, developers are consumed by repetition, and product treats every presentation tweak as a feature request.
 
@@ -22,7 +22,7 @@ The data did not change; only the way of observing it did. The problem is that t
 
 | For            | What they get                                                                                                                                                                             |
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Business users | The view they need without waiting for a sprint; saved views open instantly; the same data as details, grouped statistics or an overview                                                  |
+| Business users | The view they need without waiting for a sprint; saved views open instantly; the same data as records, as metrics by dimension, or as an overview                                         |
 | Developers     | List pages go from "one per object" to "one definition per object"; filtering, paging, sorting, saving and conflicts are implemented once; definitions can be generated from Wow metadata |
 | Product        | Presentation changes within the supported range become configuration, not requirements; "save and share views" ships as a product capability                                              |
 
@@ -62,6 +62,8 @@ Peer dependencies `react` and `react-dom` are required only for the `/react` and
 ## Quick start
 
 ### 1. Declare a definition
+
+<!-- typecheck: file=orders.ts -->
 
 ```ts
 import type { ViewDefinition } from '@ahoo-wang/wow-view-engine';
@@ -131,6 +133,12 @@ export const orders: ViewDefinition = {
 
 ### 2. Create an engine
 
+<!-- typecheck-context
+import { orders } from './orders';
+import type { QueryApi } from '@ahoo-wang/wow-client';
+declare const queryClients: Record<string, Pick<QueryApi<any>, 'paged' | 'cursor' | 'aggregate'>>;
+-->
+
 ```ts
 import { MemoryViewStore, ViewEngine } from '@ahoo-wang/wow-view-engine';
 
@@ -143,6 +151,11 @@ const engine = new ViewEngine({
 ```
 
 ### 3a. Render the default workbench
+
+<!-- typecheck-context
+import { ViewEngine } from '@ahoo-wang/wow-view-engine';
+declare const engine: ViewEngine;
+-->
 
 ```tsx
 import '@ahoo-wang/wow-view-engine/styles.css';
@@ -160,6 +173,13 @@ The theme follows the host through a `.dark` class on any ancestor; pass `theme=
 One data definition holds its record views and its analysis views, and `DataWorkbench` lists them together: the user switches between a table of orders and a chart of them as between any two views, and the "new view" button asks which kind to make. A host that wants a page of one kind narrows it — `kinds={['record']}` — and the other kind is neither listed nor openable there.
 
 A view somebody opened is a link they can send, so both workbenches take `instanceId` and `onInstanceChange` — the two directions in and out of your router. `DataWorkbench` and `DashboardWorkbench` share the contract exactly.
+
+<!-- typecheck-context
+import { ViewEngine } from '@ahoo-wang/wow-view-engine';
+declare const engine: ViewEngine;
+import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
+declare function useSearchParam(key: string): [string | null, (value: string | null) => void];
+-->
 
 ```tsx
 export function OrdersPage() {
@@ -196,6 +216,8 @@ Every way off the board goes through one route of yours, `onNavigate(to)` — th
 - **When clicked…** (while building): a panel can instead set a board filter from the group pressed (cross-filtering — no route needed; the other wired panels follow, the panel pressed marks the group, a second press clears it), or go to another saved view (`{ kind: 'view' }`, handed over as above, the group among its own conditions), another dashboard, or a page of yours (`{ kind: 'url', url }`, `{{field}}` filled with the group, encoded).
 - **Another dashboard**: the author lists the target board's filters and maps each one to a dimension of the panel, to one of this board's filters of the same type, or leaves it out — nothing is matched by name. A press hands you `{ kind: 'dashboard', definitionId, instanceId, filters }`: `filters` is that board's `DashboardFilters`, each mapped filter holding the group's value or what this board's filter holds at the press, and every other one its default. Pass it to `DashboardWorkbench`'s `initialFilters` (or `ViewEngine.open`'s `filters`) — it is the reader's, never written into either board. A mapping gone stale (a filter or a dimension removed, the board deleted) warns on the panel, and a press opens the follow-up menu instead.
 
+<!-- typecheck: skip — two JSX elements side by side, each an example on its own -->
+
 ```tsx
 <DashboardWorkbench
   engine={engine}
@@ -216,6 +238,8 @@ Every way off the board goes through one route of yours, `onNavigate(to)` — th
 #### Embedding a view or a dashboard
 
 A business page that shows what somebody already decided embeds it: the result and nothing else, no view list, no condition editor, no save. There are two entries, split by resource as the workbenches are — `EmbeddedView` for a record or analysis view, `EmbeddedDashboard` for a board. Each draws only its own kind, and says so if handed the other.
+
+<!-- typecheck: skip — two JSX elements side by side, each an example on its own -->
 
 ```tsx
 import {
@@ -437,6 +461,13 @@ Every rule of the stylesheet is scoped at build time, so the theme's tokens and 
 
 **What `fve-tokens` promises is the tokens and the utilities, not components.** The shadcn primitives this package renders with are vendored, updated with `shadcn add --diff`, and not part of its public surface — so build your chrome from your own components, or from your own copy of shadcn/ui, and let the boundary give them this theme's colours and spacing:
 
+<!-- typecheck-context
+import { ViewEngine } from '@ahoo-wang/wow-view-engine';
+declare const engine: ViewEngine;
+import { EmbeddedView } from '@ahoo-wang/wow-view-engine/ui';
+declare const id: string;
+-->
+
 ```tsx
 <div className="fve-tokens flex flex-col gap-4">
   <header className="flex items-center gap-2 rounded-lg border bg-card p-4 text-card-foreground">
@@ -454,6 +485,12 @@ Preflight applies inside the boundary too: your own headings, lists and buttons 
 
 `/ui` exports no components of its own to build chrome from, but it does export what it reads a value _with_, so customising one cell never costs the whole workbench. `renderCell` overrides the column you care about and `cellValue` draws the rest exactly as the default does — enum labels from the definition's options, times on the surface's clock, numbers in the field's `numberFormat`:
 
+<!-- typecheck-context
+import { ViewEngine } from '@ahoo-wang/wow-view-engine';
+declare const engine: ViewEngine;
+declare function OrderStatusLamp(props: { status: string }): React.ReactNode;
+-->
+
 ```tsx
 import {
   DataWorkbench,
@@ -469,7 +506,7 @@ function OrderCell({ cell }: { cell: RecordCell }) {
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
   if (cell.column.field !== 'status') {
-    return cellValue(cell.value, cell.column, messages, display);
+    return cellValue(cell.value, cell.column, messages, display, 'table');
   }
   return <OrderStatusLamp status={String(cell.value)} />;
 }
@@ -497,7 +534,17 @@ function OrderCell({ cell }: { cell: RecordCell }) {
 
 ### 3b. Or compose your own UI
 
+<!-- typecheck-context
+import { ViewEngine } from '@ahoo-wang/wow-view-engine';
+declare const engine: ViewEngine;
+declare function Spinner(): React.ReactNode;
+declare function NotFound(): React.ReactNode;
+declare function OrdersLayout(props: Record<string, unknown>): React.ReactNode;
+-->
+
 ```tsx
+import { isRecordRuntime } from '@ahoo-wang/wow-view-engine';
+import type { RecordViewRuntime } from '@ahoo-wang/wow-view-engine';
 import {
   useOpenView,
   useViewRuntime,
@@ -508,18 +555,30 @@ import {
 export function OrdersPage({ instanceId }: { instanceId: string }) {
   const { runtime, loading } = useOpenView(engine, instanceId);
   if (!runtime) return loading ? <Spinner /> : <NotFound />;
+  // The id may name an analysis view or a dashboard; this page draws records.
+  if (runtime.kind !== 'record' || !isRecordRuntime(runtime))
+    return <NotFound />;
   return <OrdersView runtime={runtime} />;
 }
 
-function OrdersView({ runtime }: { runtime: ViewRuntime }) {
+function OrdersView({ runtime }: { runtime: RecordViewRuntime }) {
   const state = useViewRuntime(runtime); // draft, applied, result, issues, dirty
   const filter = useFilterEditor(runtime); // nodes, add/remove/edit, apply
   const table = useRecordTable(runtime); // columns, sort, selection, paging
   // Render any layout from these controllers. No engine internals required.
+  return <OrdersLayout state={state} filter={filter} table={table} />;
 }
 ```
 
 ### Core only, no React
+
+<!-- typecheck-context
+import { orders } from './orders';
+import type { QueryApi } from '@ahoo-wang/wow-client';
+import type { RecordViewConfig } from '@ahoo-wang/wow-view-engine';
+declare const config: RecordViewConfig;
+declare const source: QueryApi<any>;
+-->
 
 ```ts
 import {
@@ -529,6 +588,8 @@ import {
   validateRecord,
 } from '@ahoo-wang/wow-view-engine';
 
+// The kernels take a data definition; `orders` is one.
+if (orders.kind !== 'data') throw new Error('orders is a data definition');
 const issues = validateRecord(orders, config, builtinFieldKinds);
 if (issues.some(i => i.severity === 'error')) throw new Error('invalid config');
 
@@ -636,6 +697,11 @@ The package ships `MemoryViewStore` for tests, examples and query-only use. Busi
 The model carries `code` and `params` and no copy, so `/ui` owns the words. `defaultMessages` (`en`) gives every issue an English sentence, and `messages` — on `ViewSurface` and on every workbench — is merged over the wording already in force, the same seam for rewording and translation. A `MessagesProvider` around the application sets it once for every view inside. `zhCN` is a second catalogue, key for key: hand it over whole, or spread it and change what you like (`{ ...zhCN, 'label.filter.apply': '确定' }`).
 
 Values show as their fields say: an enum by its option's label, a `datetime` or a `date` through `Intl.DateTimeFormat`, a date-histogram key as the year, quarter, month or day it starts. `locale` is the language they show in, the runtime's when left out; it is the same choice as `messages`, made for values rather than words:
+
+<!-- typecheck-context
+import { ViewEngine } from '@ahoo-wang/wow-view-engine';
+declare const engine: ViewEngine;
+-->
 
 ```tsx
 import { DataWorkbench, zhCN } from '@ahoo-wang/wow-view-engine/ui';

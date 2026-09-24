@@ -217,7 +217,7 @@ import {
 } from '@ahoo-wang/wow-client/legacy';
 ```
 
-The `/legacy` entry also has `listQuery`, `pagedQuery` and `singleQuery`, which build `Condition` queries; import them under another name if a file needs both.
+The `@ahoo-wang/wow-client/legacy` entry also has `listQuery`, `pagedQuery` and `singleQuery`, which build `Condition` queries; import them under another name if a file needs both.
 
 ### Entry Points
 
@@ -313,7 +313,7 @@ const commandClient = new CommandClient({
 
 ### send<C>(commandRequest, attributes?)
 
-Sends a command and resolves to the `CommandResult` of the stage it waited for (`PROCESSED` unless the headers say otherwise). A command whose processing failed resolves too, with the failure in `result.errorCode`; a request the server refuses rejects — read it with `toWowError` (see [Errors](#errors)).
+Sends a command and resolves to the `CommandResult` of the stage it waited for (`PROCESSED` unless the headers say otherwise). A command the server refuses or fails to process rejects: Wow answers the failed `CommandResult`, an `ErrorInfo`, with the HTTP status its `errorCode` maps to (400 `IllegalArgument` for a handler that throws, 400 `CommandValidation`, 409 for version conflicts, 408 `RequestTimeout` when the wait stage does not arrive). Read it with `toWowError` (see [Errors](#errors)); a resolved result always has `errorCode` `'Ok'`.
 
 ```typescript
 interface AddCartItem {
@@ -334,9 +334,6 @@ const result: CommandResult = await commandClient.send<AddCartItem>({
     quantity: 2,
   },
 });
-if (result.errorCode !== ErrorCodes.SUCCEEDED) {
-  throw new Error(`${result.errorCode}: ${result.errorMsg}`);
-}
 ```
 
 ### sendAndWaitStream<C>(commandRequest, attributes?)
@@ -435,7 +432,7 @@ Key fields: `id`, `waitCommandId`, `stage`, `contextName`, `aggregateName`, `agg
 
 A Wow call fails in one of three ways:
 
-- **The server refuses the request** (HTTP 4xx/5xx): the Promise rejects with the fetcher's error. `await toWowError(error)` returns a `WowError` read from the response's `ErrorInfo` body (through a clone), or from its `Wow-Error-Code` header.
+- **The server refuses the request** (HTTP 4xx/5xx), including a command whose handler failed: the Promise rejects with the fetcher's error (`ExchangeError`), never resolves with a failure. `await toWowError(error)` returns a `WowError` read from the response's `ErrorInfo` body (through a clone), or from its `Wow-Error-Code` header.
 - **A server-sent event stream fails midway**: Wow answers HTTP 200 and sends a last event named after the error code with an `ErrorInfo` body. Every built-in stream (`listStream`, `listStateStream`, `aggregateStream`, event `loadStream`, `sendAndWaitStream`) then errors with a `WowError`, so `for await` throws.
 - **Wow never answered** (network failure, timeout, abort, a proxy's error page): `toWowError` returns `undefined`; handle the original error.
 
@@ -1245,7 +1242,7 @@ import { cartQueryClientFactory } from './generated/example/cart/queryClient';
 
 const fetcher = new Fetcher({ baseURL: 'http://localhost:8080/' });
 // The constructor merges { fetcher } over the generated defaults, so the
-// clients keep the bounded-context base path (/example/...).
+// clients keep the bounded-context base path (the `example` prefix).
 const cartCommandClient = new CartCommandClient({ fetcher });
 const cartStreamCommandClient = new CartStreamCommandClient({ fetcher });
 // Reaching the service directly, without a gateway that routes by context alias:
@@ -1341,11 +1338,9 @@ const result = await commandClient
     body: { productId: 'prod-123', quantity: 2 },
   })
   .catch(async error => {
-    throw (await toWowError(error)) ?? error; // refused: WowError with errorCode
+    // refused or failed: WowError with errorCode, status and bindingErrors
+    throw (await toWowError(error)) ?? error;
   });
-if (result.errorCode !== ErrorCodes.SUCCEEDED) {
-  throw new Error(`${result.errorCode}: ${result.errorMsg}`);
-}
 
 // Query updated state
 const cart = await snapshotClient.getStateById(

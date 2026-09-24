@@ -28,7 +28,7 @@ description: '尚未发布的 @ahoo-wang/wow-view-engine 包的入口、概念�
 
 | 类型 | 作用 | 所在 |
 |---|---|---|
-| `ViewDefinition` | 字段、类型、操作符，以及明细与分析能力。声明或生成，运行时从不编辑 | 代码 |
+| `ViewDefinition` | 字段、类型、操作符，以及记录视图与分析视图的能力。声明或生成，运行时从不编辑 | 代码 |
 | `ViewConfig` | `RecordViewConfig`、`AnalysisViewConfig` 或 `DashboardViewConfig`。共享的 `FilterTree` 描述范围，保存的是“最近 7 天”这类意图而不是编译后的值 | 数据 |
 | `ViewInstance` | 已保存的 `ViewConfig`，加上 id、标题、范围（`system`、`shared` 或 `personal`）和不透明的 `revision` | 存储 |
 | `ViewRuntime` | 一个打开的视图：草稿、已应用的配置、结果、状态与选择，通过 `subscribe` 和 `getSnapshot` 暴露 | 内存 |

@@ -66,6 +66,13 @@ import '@ahoo-wang/wow-view-engine/themes.css';
 
 在 `ViewSurface`、工作台或嵌入组件上写 `preset="blue"`，这个视图就钉在这套预设上，不管 `<html>` 上是什么。挂在其他祖先上的 `data-fve-preset` 也有效：面会找到最近的那一个。
 
+<!-- typecheck-context
+import type { ViewEngine } from '@ahoo-wang/wow-view-engine';
+import { EmbeddedView } from '@ahoo-wang/wow-view-engine/ui';
+declare const engine: ViewEngine;
+declare const id: string;
+-->
+
 ```tsx
 <EmbeddedView engine={engine} instanceId={id} theme="dark" preset="slate" />
 ```

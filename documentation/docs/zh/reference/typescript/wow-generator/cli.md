@@ -154,10 +154,10 @@ HTTP 加载在响应不是 2xx（如 `HTTP 401 Unauthorized`）、网络错误�
 
 ## 实现源码
 
-[typescript/wow-generator/src/cli.ts:17](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/cli.ts#L17)
+[typescript/wow-generator/src/cli.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/cli.ts)
 
-[typescript/wow-generator/src/utils/clis.ts:90](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/utils/clis.ts#L90)
+[typescript/wow-generator/src/utils/clis.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/utils/clis.ts)
 
-[typescript/wow-generator/src/utils/parsers.ts:25](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/utils/parsers.ts#L25)
+[typescript/wow-generator/src/utils/parsers.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/utils/parsers.ts)
 
-[typescript/wow-generator/src/utils/resources.ts:16](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/utils/resources.ts#L16)
+[typescript/wow-generator/src/utils/resources.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/utils/resources.ts)

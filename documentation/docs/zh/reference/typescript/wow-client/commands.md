@@ -40,7 +40,7 @@ CommandRequest 扩展 ParameterRequest；body 为命令可写字段 `CommandBody
 ## 失败
 
 - 服务端拒绝的请求（验证失败、版本冲突、请求 ID 重复等）会拒绝 Promise；`await toWowError(error)` 把服务端的 `ErrorInfo` 读成 `WowError`，参见[错误](./errors-and-utilities)。
-- 处理失败的命令同样会完成，失败写在结果的 `errorCode` 中：确认写入完成前应与 `ErrorCodes.SUCCEEDED`（`'Ok'`）比较。
+- 处理失败的命令也以同样方式被拒绝：服务端把失败的 `CommandResult`（它是 `ErrorInfo`）按其 `errorCode` 映射的 HTTP 状态应答（例如 400 `IllegalArgument`），所以 `send` 只会以 `errorCode` 为 `'Ok'` 的结果完成。
 - 服务端中途失败时（例如等待超时），`sendAndWaitStream` 以 `WowError` 使流出错，`for await` 会抛出。自身 `errorCode` 不是 `Ok` 的结果仍作为结果传出。提前退出必须取消并释放 reader。
 
 DeleteAggregate/RecoverAggregate 是空命令体契约，资源标签命令带 tags；它们在服务端执行端点前不产生删除/恢复效果。
@@ -89,9 +89,6 @@ export async function rename(id: string, name: string, version: number) {
       },
       body: { name },
     });
-    if (result.errorCode !== ErrorCodes.SUCCEEDED) {
-      throw new Error(`${result.errorCode}: ${result.errorMsg}`);
-    }
     return result;
   } catch (error) {
     const wowError = await toWowError(error);
@@ -132,7 +129,7 @@ export class CommandClient implements ApiMetadataCapable {
 }
 ```
 
-[typescript/wow-client/src/command/commandClient.ts:59](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandClient.ts#L59)
+[typescript/wow-client/src/command/commandClient.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandClient.ts)
 
 ### CommandHeaders {#api-CommandHeaders}
 
@@ -168,7 +165,7 @@ export const CommandHeaders = Object.freeze({
 
 :::
 
-[typescript/wow-client/src/command/commandHeaders.ts:35](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandHeaders.ts#L35)
+[typescript/wow-client/src/command/commandHeaders.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandHeaders.ts)
 
 ### WowHeaders {#api-WowHeaders}
 
@@ -184,7 +181,7 @@ export const WowHeaders = Object.freeze({
 
 :::
 
-[typescript/wow-client/src/types/headers.ts:33](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/headers.ts#L33)
+[typescript/wow-client/src/types/headers.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/headers.ts)
 
 ### CommandStageName {#api-CommandStageName}
 
@@ -192,7 +189,7 @@ export const WowHeaders = Object.freeze({
 export type CommandStageName = CommandStage | `${CommandStage}`;
 ```
 
-[typescript/wow-client/src/command/commandRequest.ts:21](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L21)
+[typescript/wow-client/src/command/commandRequest.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts)
 
 ### CommandRequestHeaders {#api-CommandRequestHeaders}
 
@@ -224,7 +221,7 @@ export interface CommandRequestHeaders extends RequestHeaders {
 
 :::
 
-[typescript/wow-client/src/command/commandRequest.ts:40](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L40)
+[typescript/wow-client/src/command/commandRequest.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts)
 
 ### CommandHeaderOptions {#api-CommandHeaderOptions}
 
@@ -240,7 +237,7 @@ export interface CommandHeaderOptions {
 }
 ```
 
-[typescript/wow-client/src/command/commandRequest.ts:82](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L82)
+[typescript/wow-client/src/command/commandRequest.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts)
 
 ### WaitFunction {#api-WaitFunction}
 
@@ -252,7 +249,7 @@ export interface WaitFunction {
 }
 ```
 
-[typescript/wow-client/src/command/commandRequest.ts:95](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L95)
+[typescript/wow-client/src/command/commandRequest.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts)
 
 ### WaitStageOptions {#api-WaitStageOptions}
 
@@ -264,7 +261,7 @@ export interface WaitStageOptions extends WaitFunction {
 }
 ```
 
-[typescript/wow-client/src/command/commandRequest.ts:102](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L102)
+[typescript/wow-client/src/command/commandRequest.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts)
 
 ### WaitChainOptions {#api-WaitChainOptions}
 
@@ -276,7 +273,7 @@ export interface WaitChainOptions extends WaitFunction {
 }
 ```
 
-[typescript/wow-client/src/command/commandRequest.ts:114](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L114)
+[typescript/wow-client/src/command/commandRequest.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts)
 
 ### WaitStrategyOptions {#api-WaitStrategyOptions}
 
@@ -284,7 +281,7 @@ export interface WaitChainOptions extends WaitFunction {
 export type WaitStrategyOptions = WaitStageOptions | WaitChainOptions;
 ```
 
-[typescript/wow-client/src/command/commandRequest.ts:122](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L122)
+[typescript/wow-client/src/command/commandRequest.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts)
 
 ### commandHeaders {#api-commandHeaders}
 
@@ -294,7 +291,7 @@ export function commandHeaders(
 ): CommandRequestHeaders;
 ```
 
-[typescript/wow-client/src/command/commandRequest.ts:168](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L168)
+[typescript/wow-client/src/command/commandRequest.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts)
 
 ### waitStrategy {#api-waitStrategy}
 
@@ -304,7 +301,7 @@ export function waitStrategy(
 ): CommandRequestHeaders;
 ```
 
-[typescript/wow-client/src/command/commandRequest.ts:213](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L213)
+[typescript/wow-client/src/command/commandRequest.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts)
 
 ### CommandUrlParams {#api-CommandUrlParams}
 
@@ -314,7 +311,7 @@ export interface CommandUrlParams extends Omit<UrlParams, 'path' | 'query'> {
 }
 ```
 
-[typescript/wow-client/src/command/commandRequest.ts:245](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L245)
+[typescript/wow-client/src/command/commandRequest.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts)
 
 ### CommandRequest {#api-CommandRequest}
 
@@ -328,7 +325,7 @@ export interface CommandRequest<
 }
 ```
 
-[typescript/wow-client/src/command/commandRequest.ts:253](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L253)
+[typescript/wow-client/src/command/commandRequest.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts)
 
 ### WaitSignal {#api-WaitSignal}
 
@@ -346,7 +343,7 @@ export interface WaitSignal
     FunctionInfoCapable {}
 ```
 
-[typescript/wow-client/src/command/commandResult.ts:52](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandResult.ts#L52)
+[typescript/wow-client/src/command/commandResult.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandResult.ts)
 
 ### CommandResult {#api-CommandResult}
 
@@ -368,7 +365,7 @@ export interface CommandResult
     NullableAggregateVersionCapable {}
 ```
 
-[typescript/wow-client/src/command/commandResult.ts:74](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandResult.ts#L74)
+[typescript/wow-client/src/command/commandResult.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandResult.ts)
 
 ### CommandResultArray {#api-CommandResultArray}
 
@@ -376,7 +373,7 @@ export interface CommandResult
 export type CommandResultArray = CommandResult[];
 ```
 
-[typescript/wow-client/src/command/commandResult.ts:90](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandResult.ts#L90)
+[typescript/wow-client/src/command/commandResult.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandResult.ts)
 
 ### CommandResultEventStream {#api-CommandResultEventStream}
 
@@ -386,7 +383,7 @@ export type CommandResultEventStream = ReadableStream<
 >;
 ```
 
-[typescript/wow-client/src/command/commandResult.ts:107](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandResult.ts#L107)
+[typescript/wow-client/src/command/commandResult.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandResult.ts)
 
 ### CommandId {#api-CommandId}
 
@@ -396,7 +393,7 @@ export interface CommandId {
 }
 ```
 
-[typescript/wow-client/src/command/types.ts:27](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts#L27)
+[typescript/wow-client/src/command/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts)
 
 ### WaitCommandIdCapable {#api-WaitCommandIdCapable}
 
@@ -406,7 +403,7 @@ export interface WaitCommandIdCapable {
 }
 ```
 
-[typescript/wow-client/src/command/types.ts:36](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts#L36)
+[typescript/wow-client/src/command/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts)
 
 ### RequestId {#api-RequestId}
 
@@ -416,7 +413,7 @@ export interface RequestId {
 }
 ```
 
-[typescript/wow-client/src/command/types.ts:45](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts#L45)
+[typescript/wow-client/src/command/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts)
 
 ### CommandStage {#api-CommandStage}
 
@@ -431,7 +428,7 @@ export enum CommandStage {
 }
 ```
 
-[typescript/wow-client/src/command/types.ts:54](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts#L54)
+[typescript/wow-client/src/command/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts)
 
 ### CommandStageCapable {#api-CommandStageCapable}
 
@@ -441,7 +438,7 @@ export interface CommandStageCapable {
 }
 ```
 
-[typescript/wow-client/src/command/types.ts:91](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts#L91)
+[typescript/wow-client/src/command/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts)
 
 ### CommandResultCapable {#api-CommandResultCapable}
 
@@ -451,7 +448,7 @@ export interface CommandResultCapable {
 }
 ```
 
-[typescript/wow-client/src/command/types.ts:100](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts#L100)
+[typescript/wow-client/src/command/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts)
 
 ### SignalTimeCapable {#api-SignalTimeCapable}
 
@@ -461,7 +458,7 @@ export interface SignalTimeCapable {
 }
 ```
 
-[typescript/wow-client/src/command/types.ts:109](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts#L109)
+[typescript/wow-client/src/command/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts)
 
 ### NullableAggregateVersionCapable {#api-NullableAggregateVersionCapable}
 
@@ -471,7 +468,7 @@ export interface NullableAggregateVersionCapable {
 }
 ```
 
-[typescript/wow-client/src/command/types.ts:118](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts#L118)
+[typescript/wow-client/src/command/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts)
 
 ### CompensationTarget {#api-CompensationTarget}
 
@@ -480,7 +477,7 @@ export interface CompensationTarget
   extends PartialBy<Identifier, 'id'>, FunctionInfoCapable {}
 ```
 
-[typescript/wow-client/src/command/types.ts:135](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts#L135)
+[typescript/wow-client/src/command/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts)
 
 ### DeleteAggregate {#api-DeleteAggregate}
 
@@ -488,7 +485,7 @@ export interface CompensationTarget
 export interface DeleteAggregate {}
 ```
 
-[typescript/wow-client/src/command/types.ts:146](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts#L146)
+[typescript/wow-client/src/command/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts)
 
 ### CommandBody {#api-CommandBody}
 
@@ -496,7 +493,7 @@ export interface DeleteAggregate {}
 export type CommandBody<C> = RemoveReadonlyFields<C>;
 ```
 
-[typescript/wow-client/src/command/types.ts:148](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts#L148)
+[typescript/wow-client/src/command/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts)
 
 ### DeleteAggregateCommand {#api-DeleteAggregateCommand}
 
@@ -504,7 +501,7 @@ export type CommandBody<C> = RemoveReadonlyFields<C>;
 export type DeleteAggregateCommand = CommandBody<DeleteAggregate>;
 ```
 
-[typescript/wow-client/src/command/types.ts:150](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts#L150)
+[typescript/wow-client/src/command/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts)
 
 ### RecoverAggregate {#api-RecoverAggregate}
 
@@ -512,7 +509,7 @@ export type DeleteAggregateCommand = CommandBody<DeleteAggregate>;
 export interface RecoverAggregate {}
 ```
 
-[typescript/wow-client/src/command/types.ts:160](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts#L160)
+[typescript/wow-client/src/command/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts)
 
 ### RecoverAggregateCommand {#api-RecoverAggregateCommand}
 
@@ -520,7 +517,7 @@ export interface RecoverAggregate {}
 export type RecoverAggregateCommand = CommandBody<RecoverAggregate>;
 ```
 
-[typescript/wow-client/src/command/types.ts:162](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts#L162)
+[typescript/wow-client/src/command/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts)
 
 ### ApplyResourceTags {#api-ApplyResourceTags}
 
@@ -528,7 +525,7 @@ export type RecoverAggregateCommand = CommandBody<RecoverAggregate>;
 export interface ApplyResourceTags extends ApplyAbacTags {}
 ```
 
-[typescript/wow-client/src/command/types.ts:165](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts#L165)
+[typescript/wow-client/src/command/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts)
 
 ### ApplyResourceTagsCommand {#api-ApplyResourceTagsCommand}
 
@@ -536,7 +533,7 @@ export interface ApplyResourceTags extends ApplyAbacTags {}
 export type ApplyResourceTagsCommand = CommandBody<ApplyResourceTags>;
 ```
 
-[typescript/wow-client/src/command/types.ts:167](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts#L167)
+[typescript/wow-client/src/command/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts)
 
 ### BatchResult {#api-BatchResult}
 
@@ -547,7 +544,7 @@ export interface BatchResult extends ErrorInfo {
 }
 ```
 
-[typescript/wow-client/src/command/types.ts:175](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts#L175)
+[typescript/wow-client/src/command/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/types.ts)
 
 ## 相关专题
 

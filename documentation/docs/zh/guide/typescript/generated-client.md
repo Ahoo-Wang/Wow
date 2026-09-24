@@ -1,11 +1,13 @@
 ---
-title: 生成并使用 OpenAPI 客户端
-description: 从完整最小 Schema 生成真实 ItemsApiClient 并检查调用方类型。
+title: 从任意 OpenAPI 文档生成客户端
+description: 从一份不来自 Wow 的最小 OpenAPI 文档生成类型化的 ItemsApiClient，并检查调用方类型。
 ---
 
-# 生成并使用 OpenAPI 客户端
+# 从任意 OpenAPI 文档生成客户端
 
-从纳入版本管理的文档开始，生成到独立目录，再编译调用方。本例产出确定的类和方法，不猜测生成名称。
+`wow-generator` 也能为不来自 Wow 的 OpenAPI 文档生成客户端。要调用 Wow 服务——命令客户端、查询客户端、聚合状态——请从[快速开始](./quick-start.md)开始，那是主路径。本页讲普通情况：从纳入版本管理的文档开始，生成到独立目录，再编译调用方。本例产出确定的类和方法，不猜测生成名称。
+
+<!-- typecheck-generate: openapi.json -->
 
 ## 1. 准备使用方项目
 
@@ -35,6 +37,8 @@ pnpm add -D @ahoo-wang/wow-generator typescript@6.0.3
 ## 2. 保存接口契约
 
 将下列完整文档保存为 `openapi.json`。根标签、操作标签、operationId 和 200 响应 Schema 为生成普通类型化 API 客户端提供了必要信息。
+
+<!-- typecheck: file=openapi.json -->
 
 ```json
 {
@@ -111,7 +115,7 @@ pnpm exec tsc --noEmit -p ./tsconfig.json
 
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';
-import { ItemsApiClient, type Item } from './generated';
+import { ItemsApiClient, type Item } from './generated/index.js';
 
 export async function loadItem(baseURL: string): Promise<Item> {
   const client = new ItemsApiClient({ fetcher: new Fetcher({ baseURL }) });
@@ -131,6 +135,6 @@ export async function loadItem(baseURL: string): Promise<Item> {
 
 参见 [CLI 选项](../../reference/typescript/wow-generator/cli)、[输出与重新生成](../../reference/typescript/wow-generator/generated-output)、[OpenAPI 文档](https://fetcher.ahoo.me/zh/reference/openapi/documents-and-operations)，以及独立的 [Wow 识别规则](../../reference/typescript/wow-generator/wow-discovery)。
 
-[apiClientGenerator.ts:73](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/client/apiClientGenerator.ts#L73) 实现普通客户端生成。
+[apiClientGenerator.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/client/apiClientGenerator.ts) 实现普通客户端生成。
 
 [评估集成边界](https://fetcher.ahoo.me/zh/architecture/integration-decisions)；[返回本组任务](./index.md)。

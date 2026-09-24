@@ -61,7 +61,7 @@ export interface DomainEvent<BODY>
 }
 ```
 
-[typescript/wow-client/src/query/event/domainEventStream.ts:41](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/domainEventStream.ts#L41)
+[typescript/wow-client/src/query/event/domainEventStream.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/domainEventStream.ts)
 
 ### DomainEventStreamHeader {#api-DomainEventStreamHeader}
 
@@ -78,7 +78,7 @@ export interface DomainEventStreamHeader {
 }
 ```
 
-[typescript/wow-client/src/query/event/domainEventStream.ts:58](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/domainEventStream.ts#L58)
+[typescript/wow-client/src/query/event/domainEventStream.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/domainEventStream.ts)
 
 ### DomainEventStream {#api-DomainEventStream}
 
@@ -98,7 +98,7 @@ export interface DomainEventStream<DomainEventBody = any>
 }
 ```
 
-[typescript/wow-client/src/query/event/domainEventStream.ts:99](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/domainEventStream.ts#L99)
+[typescript/wow-client/src/query/event/domainEventStream.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/domainEventStream.ts)
 
 ### StateEvent {#api-StateEvent}
 
@@ -112,7 +112,7 @@ export interface StateEvent<DomainEventBody = any, S = any>
     DeletedCapable {}
 ```
 
-[typescript/wow-client/src/query/event/domainEventStream.ts:116](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/domainEventStream.ts#L116)
+[typescript/wow-client/src/query/event/domainEventStream.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/domainEventStream.ts)
 
 ### DomainEventStreamMetadataFields {#api-DomainEventStreamMetadataFields}
 
@@ -137,7 +137,7 @@ export class DomainEventStreamMetadataFields {
 }
 ```
 
-[typescript/wow-client/src/query/event/domainEventStream.ts:131](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/domainEventStream.ts#L131)
+[typescript/wow-client/src/query/event/domainEventStream.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/domainEventStream.ts)
 
 ### ReadableDomainEventStream {#api-ReadableDomainEventStream}
 
@@ -147,7 +147,7 @@ export type ReadableDomainEventStream = ReadableStream<
 >;
 ```
 
-[typescript/wow-client/src/query/event/domainEventStream.ts:156](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/domainEventStream.ts#L156)
+[typescript/wow-client/src/query/event/domainEventStream.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/domainEventStream.ts)
 
 ### EventStreamQueryApi {#api-EventStreamQueryApi}
 
@@ -161,7 +161,7 @@ export interface EventStreamQueryApi<
 > {}
 ```
 
-[typescript/wow-client/src/query/event/eventStreamQueryApi.ts:24](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/eventStreamQueryApi.ts#L24)
+[typescript/wow-client/src/query/event/eventStreamQueryApi.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/eventStreamQueryApi.ts)
 
 ### EventStreamQueryClient {#api-EventStreamQueryClient}
 
@@ -180,7 +180,7 @@ export class EventStreamQueryClient<DomainEventBody = any, FIELDS extends string
 }
 ```
 
-[typescript/wow-client/src/query/event/eventStreamQueryClient.ts:86](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/eventStreamQueryClient.ts#L86)
+[typescript/wow-client/src/query/event/eventStreamQueryClient.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/eventStreamQueryClient.ts)
 
 ### LoadStateAggregateClient {#api-LoadStateAggregateClient}
 
@@ -193,7 +193,7 @@ export class LoadStateAggregateClient<S> implements ApiMetadataCapable {
 }
 ```
 
-[typescript/wow-client/src/query/state/loadStateAggregateClient.ts:27](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/state/loadStateAggregateClient.ts#L27)
+[typescript/wow-client/src/query/state/loadStateAggregateClient.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/state/loadStateAggregateClient.ts)
 
 ### LoadOwnerStateAggregateClient {#api-LoadOwnerStateAggregateClient}
 
@@ -206,7 +206,7 @@ export class LoadOwnerStateAggregateClient<S> implements ApiMetadataCapable {
 }
 ```
 
-[typescript/wow-client/src/query/state/loadOwnerStateAggregateClient.ts:27](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/state/loadOwnerStateAggregateClient.ts#L27)
+[typescript/wow-client/src/query/state/loadOwnerStateAggregateClient.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/state/loadOwnerStateAggregateClient.ts)
 
 ## 相关专题
 

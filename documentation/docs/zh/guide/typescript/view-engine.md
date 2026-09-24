@@ -9,13 +9,13 @@ description: 尚未发布的 wow-view-engine 包做什么、它的设计立足�
 `@ahoo-wang/wow-view-engine` 还没有发布到 npm。它仍在积极开发中，不承诺兼容：任何导出都可能改变形态，改动也不附带兼容层。本页描述目标用法，供你评估；暂时不要在生产环境依赖它。
 :::
 
-视图引擎是面向 Wow 业务应用的数据视图引擎。应用在代码中声明“这份数据能怎样观察”：字段、类型、操作符、可用的分组与指标。用户在界面上决定“这次怎样观察”：筛选、列、排序、分组、图表和面板组合。引擎把这次选择编译成 Wow 查询，通过 `@ahoo-wang/wow-client` 执行，渲染结果，并把值得保留的观察方式保存下来，一键重新打开。
+视图引擎是面向 Wow 业务应用的数据视图引擎。应用在代码中声明“这份数据能怎样观察”：字段、类型、操作符、可用的维度与指标。用户在界面上决定“这次怎样观察”：筛选、列、排序、维度与指标、图表和面板组合。引擎把这次选择编译成 Wow 查询，通过 `@ahoo-wang/wow-client` 执行，渲染结果，并把值得保留的观察方式保存下来，一键重新打开。
 
 它是 `@ahoo-wang/fetcher-viewer` 的后继者；`fetcher-viewer` 留在 Fetcher 5.x，本站不再介绍。
 
 ## 要解决的问题
 
-业务系统里的大多数页面其实是同一种页面：一个带筛选、排序和分页的列表，有时再加一张图。每个业务对象都复制一份；“再加一个筛选条件”“按仓库分组看看”这样的需求，每次都要改代码、排期、发版。数据没有变，变的只是观察方式。
+业务系统里的大多数页面其实是同一种页面：一个带筛选、排序和分页的列表，有时再加一张图。每个业务对象都复制一份；“再加一个筛选条件”“按仓库拆开看看”这样的需求，每次都要改代码、排期、发版。数据没有变，变的只是观察方式。
 
 | 面向 | 得到什么 |
 |---|---|
@@ -49,8 +49,8 @@ flowchart LR
 
 | 视图 | 用户做什么 |
 |---|---|
-| 明细 | 筛选状态为待处理，按创建时间排序，只保留需要的列，保存为“今日待处理” |
-| 分析 | 按仓库分组，统计订单数并对金额求和，切换成柱状图 |
+| 记录视图 | 筛选状态为待处理，按创建时间排序，只保留需要的列，保存为“今日待处理” |
+| 分析视图 | 以仓库为维度，以订单数和金额合计为指标，切换成柱状图 |
 | 仪表盘 | 把几个视图放在同一页，用全局时间范围统一约束 |
 | 嵌入视图或仪表盘 | 在业务页面里展示一个已保存的视图，例如某个客户的订单，不需要工作台 |
 | 系统视图 | 在定义里声明“全部”“待处理”“本周新增”，用户一打开就有可用的视图 |
@@ -66,6 +66,8 @@ pnpm add @ahoo-wang/wow-view-engine @ahoo-wang/wow-client
 只有 `/react` 和 `/ui` 入口需要 `react` 与 `react-dom`；根入口可以在 Node 中运行。
 
 ### 1. 声明定义
+
+<!-- typecheck: file=orders.ts -->
 
 ```ts
 import type { ViewDefinition } from '@ahoo-wang/wow-view-engine';
@@ -90,12 +92,18 @@ export const orders: ViewDefinition = {
     { name: 'amount', label: 'Amount', kind: 'number', summary: ['SUM', 'AVG'] },
     { name: 'createdAt', label: 'Created', kind: 'datetime', sortable: true },
   ],
-  // 行键必须可排序：每个明细查询的排序最后都以它收尾。
+  // 行键必须可排序：每个记录视图查询的排序最后都以它收尾。
   record: { rowKey: 'id', paging: 'paged', layouts: ['table', 'card'] },
 };
 ```
 
 ### 2. 创建引擎
+
+<!-- typecheck-context
+import type { ViewSource } from '@ahoo-wang/wow-view-engine';
+import { orders } from './orders';
+declare const queryClients: Record<string, ViewSource>;
+-->
 
 ```ts
 import { MemoryViewStore, ViewEngine } from '@ahoo-wang/wow-view-engine';
@@ -112,6 +120,11 @@ const engine = new ViewEngine({
 
 ### 3. 渲染工作台，或组合自己的界面
 
+<!-- typecheck-context
+import type { ViewEngine } from '@ahoo-wang/wow-view-engine';
+declare const engine: ViewEngine;
+-->
+
 ```tsx
 import '@ahoo-wang/wow-view-engine/styles.css';
 import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
@@ -125,7 +138,7 @@ export function OrdersPage() {
 
 自定义布局使用 `/react` 入口的无头 Hook，例如 `useOpenView`、`useViewRuntime`、`useFilterEditor` 和 `useRecordTable`，用它们渲染任意标记，不需要接触引擎内部。
 
-第一个完整示例围绕明细工作台展开：筛选待处理订单，调整列和排序，保存个人视图，再重新打开。它会随包一起发布。
+第一个完整示例围绕记录视图工作台展开：筛选待处理订单，调整列和排序，保存个人视图，再重新打开。它会随包一起发布。
 
 ## 在 Storybook 中试用
 
@@ -133,8 +146,8 @@ export function OrdersPage() {
 
 | 视图 | Storybook |
 |---|---|
-| 明细 | [明细工作台](/storybook/?path=/docs/view-engine-数据视图-record-工作台--docs)及其[筛选编辑器](/storybook/?path=/docs/view-engine-数据视图-筛选编辑器--docs) |
-| 分析 | [分析工作台](/storybook/?path=/docs/view-engine-分析视图-分析工作台--docs) |
+| 记录视图 | [记录视图工作台](/storybook/?path=/docs/view-engine-数据视图-record-工作台--docs)及其[筛选编辑器](/storybook/?path=/docs/view-engine-数据视图-筛选编辑器--docs) |
+| 分析视图 | [分析工作台](/storybook/?path=/docs/view-engine-分析视图-分析工作台--docs) |
 | 仪表盘 | [仪表盘](/storybook/?path=/docs/view-engine-仪表盘视图-dashboard--docs) |
 | 嵌入视图或仪表盘 | [EmbeddedView](/storybook/?path=/docs/view-engine-数据视图-embeddedview--docs) 和 [EmbeddedDashboard](/storybook/?path=/docs/view-engine-仪表盘视图-embeddeddashboard--docs) |
 | 主题 | [主题一览与对比度矩阵](/storybook/?path=/docs/view-engine-主题-预设--docs) |

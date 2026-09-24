@@ -6,17 +6,22 @@
 ## 安装与运行
 
 ```bash
-pnpm add -D @ahoo-wang/wow-generator
+pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
+  @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
+pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher-openapi typescript
 pnpm exec wow-generator generate \
   --input ./openapi.yaml \
   --output ./src/generated \
   --ts-config-file-path ./tsconfig.json
 ```
 
-命令原名 `fetcher-generator`，这个名字作为别名保留到 v10。需要 Node 22.12 或更高版本。
+第一行安装生成代码运行时导入的包，第二行安装生成器及其 peer `@ahoo-wang/fetcher-openapi`。
+生成器的其余 peer（`fetcher`、`fetcher-decorator`、`fetcher-eventstream`、`wow-client`）就是
+第一行的运行时包；`wow-client` 须与生成器的次版本一致。需要 Node 22.12 或更高版本。命令原名
+`fetcher-generator`，这个名字作为别名保留到 v10。
 
-生成客户端会导入对应 Fetcher 运行时包。请把生成结果实际使用的 peer 包加入应用依赖。生成的是
-装饰器类，编译它们的项目需要在 `tsconfig.json` 中设置 `"experimentalDecorators": true`。
+生成的客户端是装饰器类，编译它们的项目需要在 `tsconfig.json` 中设置
+`"experimentalDecorators": true`。随 Wow 9.2.0 发布，与 Wow 同一个 tag、同一个版本号。
 
 生成成功时先输出警告（如有），最后输出一行摘要：
 
@@ -131,7 +136,10 @@ schema 声明的每个属性都生成为必填。强类型后端根本没有"缺
 
 ## 文档
 
-- [生成客户端](https://wow.ahoo.me/zh/guide/typescript/generated-client)
+- [快速开始：从 Wow 服务生成客户端并调用](https://wow.ahoo.me/zh/guide/typescript/quick-start)
+- [在 CI 中重新生成](https://wow.ahoo.me/zh/guide/typescript/regenerate-in-ci)
+- [从任意 OpenAPI 文档生成客户端](https://wow.ahoo.me/zh/guide/typescript/generated-client)
 - [wow-generator 参考](https://wow.ahoo.me/zh/reference/typescript/wow-generator/)
+- [兼容性与版本](https://wow.ahoo.me/zh/guide/typescript/compatibility)
 
-[English](./README.md) · [许可证](../../LICENSE)
+[English](./README.md) · [许可证](https://github.com/Ahoo-Wang/Wow/blob/main/LICENSE)
