@@ -35,7 +35,6 @@ import {
   admitFilters,
   filtersOf,
   isViewPanel,
-  migrateDashboardConfig,
   panelTab,
   referencedInstance,
   validateDashboard,
@@ -63,7 +62,6 @@ import {
   reissued,
   panelsOf,
   samePanels,
-  migrated,
   shownTab,
   type DashboardPanelState,
 } from './dashboard/panels.js';
@@ -202,11 +200,11 @@ export class DashboardViewRuntime
       },
     });
 
-    // Everything that comes in is read into the form this engine writes —
-    // the config and the baseline alike, so a board stored in the old grid
-    // opens clean rather than dirty with its own migration (D22 E).
-    const saved = migrated(options.saved ?? null);
-    const config = migrateDashboardConfig(options.config);
+    // A stored board was read into the form this engine writes on its way
+    // out of the store (`readStored`), the baseline with the config, so it
+    // opens clean rather than dirty with its own migration (D22 E, D26 Q31).
+    const saved = options.saved ?? null;
+    const config = options.config;
     // The injected condition is judged with the config from the start, as a
     // data view does, so a scope the panels cannot carry is never pushed onto
     // them. What this board's own fields refuse is the host's condition and
@@ -241,6 +239,8 @@ export class DashboardViewRuntime
         tab: shownTab(config, null),
         filters: admitFilters(config, null, options.kinds).filters,
         history: NO_HISTORY,
+        building: false,
+        readerRefresh: null,
       },
       environment: options.environment,
       refusedScope,
@@ -249,8 +249,10 @@ export class DashboardViewRuntime
       blocking: blocksBoard,
       apply: () => this.apply(),
       refresh: () => this.refresh(),
-      // One clock for the whole board, so a request in flight is any panel's.
-      holding: () => !this.autoRefresh || this.children.loading(),
+      // One clock for the whole board, so a request in flight is any panel's;
+      // and it keeps the reader's own interval over the board's (D26 Q35).
+      holding: () => this.holdsTimer() || this.children.loading(),
+      interval: () => this.intervalInForce(),
       // And one moment a card on the tab shown moves on, the soonest.
       expiresAt: () => this.children.rolloverAt(this.onTab()),
       release: () => {
@@ -435,19 +437,8 @@ export class DashboardViewRuntime
     this.children.runtimeOf(panelId)?.refresh();
   }
 
-  /**
-   * The preference is the user's and is kept like any other; what it may run
-   * is the model's to say, and it declares no dashboard member that runs on
-   * its own (`autoRunMembers`), so the switch arms nothing here.
-   */
-  setAutoApply(on: boolean): void {
-    if (this.disposed || this.state.autoApply === on) return;
-    this.store.setState({ autoApply: on });
-  }
-
-  setEditing(active: boolean): void {
-    if (this.disposed || this.state.editing === active) return;
-    this.store.setState({ editing: active });
+  protected patch(state: Partial<DashboardRuntimeState>): void {
+    this.store.setState(state);
   }
 
   protected retime(): void {
@@ -504,9 +495,8 @@ export class DashboardViewRuntime
     this.store.setState({ write: null, history: this.edits.forget() });
   }
 
-  moveBaseline(stored: ViewInstance): void {
+  moveBaseline(instance: ViewInstance): void {
     if (this.disposed) return;
-    const instance = migrated(stored) as ViewInstance;
     this.store.setState({
       saved: instance,
       title: instance.title,
@@ -515,9 +505,8 @@ export class DashboardViewRuntime
     });
   }
 
-  adoptSaved(stored: ViewInstance): void {
+  adoptSaved(instance: ViewInstance): void {
     if (this.disposed) return;
-    const instance = migrated(stored) as ViewInstance;
     const draft = instance.config as DashboardViewConfig;
     this.store.setState({
       saved: instance,

@@ -104,6 +104,14 @@ export interface DashboardController {
   /** Re-runs one panel: the retry on a panel whose query failed. */
   refreshPanel(panelId: string): void;
   /**
+   * Whether the board is being built — 「编辑」 pressed, not yet 「完成」 or
+   * 「取消」 (`DashboardRuntimeState.building`). The runtime's, so its auto
+   * refresh waits for it (D26 Q39) and every surface reads the same one.
+   */
+  building: boolean;
+  /** Starts or ends building the board (`DashboardRuntime.setBuilding`). */
+  setBuilding(active: boolean): void;
+  /**
    * Building the board (D22 A–E): the runtime's own commands, each written
    * into the draft and onto the screen at once; `null` while no board is
    * open. Whether they are on offer is the UI's to say, by permission.
@@ -240,6 +248,11 @@ export function useDashboard(
     refresh: useCallback(() => runtime?.refresh(), [runtime]),
     refreshPanel: useCallback(
       (panelId: string) => runtime?.refreshPanel(panelId),
+      [runtime],
+    ),
+    building: state?.building ?? false,
+    setBuilding: useCallback(
+      (active: boolean) => runtime?.setBuilding(active),
       [runtime],
     ),
     edit: runtime,

@@ -135,7 +135,9 @@ export class MomentTimer {
  * reported; every state change still passes through here on the way to the
  * timer, and must not throw before the user can fix it.
  */
-export function refreshIntervalOf(config: ViewConfig): number | null {
+export function refreshIntervalOf(
+  config: Pick<ViewConfig, 'refresh'>,
+): number | null {
   const interval = (config.refresh as { interval?: unknown } | undefined)
     ?.interval;
   return typeof interval === 'number' && Number.isFinite(interval)

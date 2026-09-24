@@ -9,7 +9,7 @@ Configurable data view engine for Wow-based applications: definitions in code, v
 This package is being rebuilt from an empty tree against `docs/design/`, and it **does not owe anyone backward compatibility**. Treat every export as changeable.
 
 - **Change the shape; do not add a compatibility layer.** No shims, no `*V2` names, no aliases re-exported "just in case", no `@deprecated` markers, no migration guides. The wow package carries a deprecated Condition API for external reasons — this package must never grow one.
-  - **One exception, for stored data rather than API**: dashboard configs saved in older forms are migrated on read, because they are users' saved work, not code anyone can update — both in `migrateDashboardConfig` in the kernel, both approved by the user on 2026-09-23: the 12-column grid onto the 24-column one (D22; marked by `columns: 24`), and a board condition written before batch C into its filters' defaults where a filter could hold it (D23 Q16; marked by the moved leaf no longer being in `config.filter`). Keep such migrations in the kernel, marked by the config itself, never by guessing.
+  - **One exception, for stored data rather than API**: dashboard configs saved in older forms are migrated on read, because they are users' saved work, not code anyone can update — approved by the user on 2026-09-23: the 12-column grid onto the 24-column one (D22; marked by `columns: 24`), and a board condition written before batch C into its filters' defaults where a filter could hold it, the rest into the board's fixed scope (D23 Q16, D26 Q31; marked by the `fixed` member being there at all, so an author's later change to the filters never migrates again). The steps live in `migrateDashboardConfig` in the kernel and run at one read boundary, `readStored` in `runtime/storedViews.ts`, which every view out of the store passes; nothing past it migrates, and a board declared in code is code. Keep such migrations there, marked by the config itself, never by guessing.
 - **Renaming, narrowing or deleting an export is a normal change.** Update the callers in this repo and move on. The only consumers that matter are in this monorepo.
 - **When a design gets clearer, rewrite the old shape out of existence** rather than layering onto it. A clean architecture outranks a stable surface here.
 - **`docs/design/` is the source of truth** for the model, boundaries and contracts, and it is written before the code. It is one page per layer — start at `docs/design/README.md`, which indexes the rest. When behaviour it describes changes, change the page in the same PR. Where this file and the design doc disagree, the design doc wins.
@@ -97,7 +97,7 @@ src/
     analysis.ts               — Wow aggregation enums as stored literals, the date units coarsest first (`ANALYSIS_DATE_UNITS`); which metric types measure one field (`FIELD_METRIC_TYPES`)
     chart.ts                  — ChartSpec — one sub-object per chart family, every reference a group or metric alias; `CHART_TYPES`, `CHART_FAMILY`, `CHART_COLOR_SLOTS` (the palette's size, which a pie folds at)
     config.ts                 — ViewConfig — what each view kind stores, and which of its members only draw the result (`presentationMembers`)
-    dashboard.ts              — Dashboard config: the 24-column grid it says it is in, tabs, the filters (five types, `filterTypeOf`; default, required, multiple, a list) and the time grouping, what they hold (`DashboardFilters`, never saved), bindings (auto or by hand), panels on a saved view or one the board owns (`OwnedView`), how a panel looks at its view (`PanelPresentation`) and what a press on one of its groups does (`PanelClick`), content panels heading included
+    dashboard.ts              — Dashboard config: the 24-column grid it says it is in, its fixed scope (`fixed`), tabs, the filters (five types, `filterTypeOf`; default, required, multiple, a list) and the time grouping, what they hold (`DashboardFilters`, never saved), bindings (auto or by hand), panels on a saved view or one the board owns (`OwnedView`), how a panel looks at its view (`PanelPresentation`) and what a press on one of its groups does (`PanelClick`), content panels heading included
     definition.ts             — ViewDefinition, FieldDefinition, capabilities
     field.ts                  — FieldKindId; what a cell reads as, which fields hold one string, and how a time field is stored (`temporalOf`, epoch milliseconds unless declared)
     filter.ts                 — FilterOperator as stored in a config; the three group operators and the reading of one
@@ -188,8 +188,8 @@ src/
     filterEdit.ts             — Setting up the board's filters as pure edits (D22 G): add, rename, retype, remove, default, required, multiple, a list of its own, move; the time grouping
     filters.ts                — A filter's value (D22 F): the one condition it stands for (`FILTER_TYPE_OPERATOR`, `filterOperatorOf`, `filterCondition`), what the filters start at (`defaultFilters`) and take (`admitFilters`: required never blank, the panel a value was pressed on kept while its click sets it), the condition one panel runs under (`panelFilterTree`, unwired filters left out), the control that edits it and its value's two shapes (`filterEditor`, `filterControlValue`, `filterStoredValue`)
     layout.ts                 — Where panels may go on the 24-column grid: `fitsGrid`, `placePanel` (covered panels make way, then the tab floats up — only a hand compacts), `compactLayout`, `arrangePanel` (one keyboard command on a compacted board), `freeSpot`, `readingOrder` and `stackedLayout` (the one-column reading a narrow screen shows), `reorderPanel`／`reorderPanelIn` (a step along that column written back onto the grid)
-    merge.ts                  — mergeGlobalFilter onto one panel's fields
-    migrate.ts                — `migrateDashboardConfig`: a board stored without `columns` read from 12 columns into 24, every `x` and `w` doubled; a pre-C board condition read into its filters' defaults where one could hold it (`intoDefaults`, by `FILTER_TYPE_OPERATOR`)
+    merge.ts                  — mergeGlobalFilter onto one panel's fields; `boardCondition`, the fixed scope ANDed with `filter`
+    migrate.ts                — `migrateDashboardConfig`: a board stored without `columns` read from 12 columns into 24, every `x` and `w` doubled; a pre-C board condition read into its filters' defaults where one could hold it and the rest into `fixed`, the mark that it was read (`intoDefaults`, by `FILTER_TYPE_OPERATOR`)
     panels.ts                 — Which panel a stored one is: `isViewPanel`, `isContentPanel`, `isOwnedPanel`, `referencedInstance`, `panelTab`, `freshId`, `clickOf` / `clicksFilter` (a panel's click read as untrusted), and `isSafeContentUrl` for what a content panel points at
     tabs.ts                   — A board's tabs: `validateTabs`, and add (the first time, two), rename, reorder, remove with their panels
     validate.ts               — validateDashboard — grid, tabs, panels (saved or owned views, overrides of how they look), bindings, content
@@ -197,7 +197,7 @@ src/
     wiring.ts                 — Which field of which panel a filter narrows (D22 G): `wireableFields`, `bindPanel` (by hand, then auto-connect: same name, same type, any tab, any data), `unbindPanels`, `autoBindings` for a panel being added, the list the wired fields declare (`wiredOptions`), and what reaches a panel (`filterReach`) or a tab (`filtersOnTab`)
     index.ts                  — The dashboard kernel: admission, panel binding resolution and the global filter merge
   runtime/                    — Stateful layer; never imports react or ui
-    dashboardRuntime.ts       — `DashboardViewRuntime`: N child runtimes and one global filter, on one clock, over one `RuntimeStore`; every config it takes in read into the 24-column form; building the board (`DashboardEditing`) into the draft and the screen at once; only the tab on screen runs (`showTab`)
+    dashboardRuntime.ts       — `DashboardViewRuntime`: N child runtimes and one global filter, on one clock, over one `RuntimeStore`; building the board (`DashboardEditing`) into the draft and the screen at once; only the tab on screen runs (`showTab`)
     definitions.ts            — The definition registry: judged once, refused at the point of use
     environment.ts            — `RuntimeEnvironment` and the `VisibilitySource` port; `ALWAYS_VISIBLE`, `defaultRuntimeEnvironment`
     execute.ts                — The two execution kinds a runtime drives
@@ -221,6 +221,7 @@ src/
     savedConditions.ts        — `conditionsDrifted`: whether the conditions in force are other than the ones the view was saved with
     scope.ts                  — What an injected scope does to admission: the merge, and what it alone is refused for
     source.ts                 — resolveSource — three QueryApi methods
+    storedViews.ts            — The one read boundary for stored views: `readingStore` wraps the host's store so every view it hands back, a conflict's included, passes `readStored` (a dashboard through `migrateDashboardConfig`) once on its way in
     tabMemory.ts              — `TabMemory`: where each reader last read each dashboard (`ViewPreferences.lastTabs`), the tab a board opens on, and a burst of switches written as its last, never rejecting
     summaries.ts              — The instance-summary cache: noted on listing and on a confirmed write, dropped on delete, read before the store
     validateDefinition.ts     — Definition admission; needs all three kernels
@@ -233,8 +234,8 @@ src/
     writeLedger.ts            — The write ledger: outcomes by requestId, retry, conflicts
     index.ts                  — Transient state: what is open, what is in flight, what came back
     dashboard/                — What the dashboard runtime is made of
-      contract.ts             — `DashboardRuntime`, its state (the tab on screen and what the filters hold among it) and its options: what the dashboard runtime is to the rest of the package
-      commands.ts             — `BoardCommands`: the runtime's commands that are one call on one of its parts — the edits, what the filters hold, where a board opens
+      contract.ts             — `DashboardRuntime`, its state (the tab on screen, what the filters hold, whether it is being built and the reader's own refresh interval among it) and its options: what the dashboard runtime is to the rest of the package
+      commands.ts             — `BoardCommands`: the runtime's commands that are one call on one of its parts — the edits, what the filters hold, where a board opens — or one patch of its snapshot: building (`setBuilding`, which holds the timer) and whose refresh interval is in force (`setRefreshInterval`)
       filterCandidates.ts     — `FilterCandidates`: what a text filter offers, the values of every field it is wired to counted across the board (`ValueCandidateSources`)
       filterValues.ts         — `FilterValues`: what the filters hold — admitted (one reader's change all or nothing, a host's address partly), shown at once, run a moment later (「改了就跑」)
       grouping.ts             — `regrouped`: the board's time grouping on one panel's time dimension, where its definition allows the unit (`PanelGrouping`)
@@ -242,7 +243,7 @@ src/
       children.ts             — PanelChildren: one child runtime per data panel — a saved view or one the board owns (`PanelView`, `panelView`); a new config for the same view is an edit and a run, not a new child — an edit alone when only how it is drawn changed; a panel on a tab not shown is held as it is, and one that missed a refresh runs when its tab is shown
       editing.ts              — `DashboardEditing`, `DashboardFilterEditing` and `boardEditing`: building the board and its filters, each edit a kernel function applied to the draft and the screen alike and one step of the history (`undo`, `redo`); a data panel added comes wired (`autoBindings`)
       history.ts              — `EditHistory`: one step per edit command, the members it changed before and after on the draft and the screen, a burst of one naming or setting on one thing one step; `rewound`
-      panels.ts               — Panel helpers: reading, addressing, comparing; `blocksBoard`, the errors that stop the whole board; `stopsSave`, what stops a save of each kind; `shownTab`, the tab on screen; `migrated`, a stored board read into the 24-column form
+      panels.ts               — Panel helpers: reading, addressing, comparing; `blocksBoard`, the errors that stop the whole board; `stopsSave`, what stops a save of each kind; `shownTab`, the tab on screen
       presentation.ts         — `presentedConfig`: a panel's override of how it looks laid over its view's config, dropped with a note when it no longer fits
       press.ts                — `PanelPresses`: a press on a panel's group worked out (D22 H, I) — the group's value in a board filter's shape set from the panel (`crossFilter`, a second press clears), whether a group is the one pressed (`pressed`), and where a custom destination goes carrying it (`destination`: a filled URL, a saved view under the group's conditions on the fields its data has too, or another board with its mapped filters set and the rest at their defaults — a mapping gone stale falls back to the follow-up menu); `board`, another board read only when asked
       references.ts           — PanelReferences: loading what panels point at
@@ -294,7 +295,7 @@ src/
     AnalysisChart.tsx         — Dispatches by chart family; nothing else
     AnalysisTable.tsx         — The aggregation as a table: groups first, then metrics, with the totals row from its own ungrouped query rather than from summing what is on screen, and its scope said under 「合计」; read with the record table's recipes — numbers on the right, ids in monospace, `SortableHeader`, held widths and the filler
     Announcer.tsx             — `useAnnouncer`: one live region per surface, handed back rather than rendered by the caller
-    AppliedBar.tsx            — The conditions the rows on screen were fetched under
+    AppliedBar.tsx            — The conditions the rows on screen were fetched under; a page's scope and a dashboard's fixed scope worn read-only
     BulkStatus.tsx            — `BulkStatus`: a host's bulk command as one line above the rows — how far it has come with a Stop, then what it came to and why
     CardSettings.tsx          — The card layout's settings behind the column settings' button (D18 VI)
     ColumnSettings.tsx        — Which columns show, in which order, pinned or not, summarised how — one sortable group per area (D19)

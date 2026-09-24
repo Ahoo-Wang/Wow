@@ -11,13 +11,7 @@
  * limitations under the License.
  */
 
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { PencilIcon } from 'lucide-react';
 import {
   audienceOf,
@@ -239,12 +233,11 @@ export function DashboardWorkbench({
   // Reading and building are two states (D22 A): nothing on a board being
   // read moves, and 「编辑」 is the way in — only for whoever may save the
   // board, so a system board (read-only, D4) offers 「另存为」 and nothing
-  // else. The state is this opening's: another view opens read.
-  const [buildingId, setBuildingId] = useState<string | null>(null);
-  const editing = board !== null && buildingId === board.id;
+  // else. The state is the runtime's, so this opening's — another view
+  // opens read — and the board's timer waits on it (D26 Q39).
+  const editing = board !== null && dashboard.building;
   const canEdit = board !== null && workbench.commands.can.save;
-  const setEditing = (on: boolean) =>
-    setBuildingId(on && board ? board.id : null);
+  const setEditing = dashboard.setBuilding;
   // 「编辑」 leaves the bar as the building starts and comes back as it
   // ends; the keyboard that pressed 完成 or 取消 goes back to it rather than
   // to the page — only as the building ends, and only when the focus was
@@ -326,10 +319,12 @@ export function DashboardWorkbench({
   // One panel that has answered, or that is asking, is an answer: the global
   // condition it went out under is exactly what the bar says.
   // The board's filters are its own bar (D22 F). The band of applied
-  // conditions stays for what that bar does not hold — a standing condition
-  // saved before the bar, or a host's scope (Q16) — and only then.
+  // conditions stays for what that bar does not hold — the fixed scope of a
+  // board saved before the bar (Q16, D26 Q31), or a host's scope — and only
+  // then.
   const standing =
     filter.applied.length > 0 ||
+    filter.fixed.length > 0 ||
     filter.scoped.length > 0 ||
     filter.implied.length > 0;
   const hasResult = dashboard.panels.some(panel => {

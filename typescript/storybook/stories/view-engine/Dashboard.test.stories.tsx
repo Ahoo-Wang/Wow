@@ -21,6 +21,7 @@ import displayMeta, {
   GlobalFilter as DisplayGlobalFilter,
   LegacyLayout as DisplayLegacyLayout,
   PanelUnavailable as DisplayPanelUnavailable,
+  PreBatchCCondition as DisplayPreBatchCCondition,
   QueryFailed as DisplayQueryFailed,
 } from './Dashboard.stories.js';
 import { amountOf, findDataTable, readColumn, readTotal } from './readTable.js';
@@ -448,5 +449,43 @@ export const LegacyLayoutDrawsTheSame: Story = {
     await expect(
       within(canvasElement).queryByText(zhCN['label.header.unsaved']),
     ).toBeNull();
+  },
+};
+
+/**
+ * A board stored before batch C (D26 Q31): the leaf a filter could hold is
+ * that filter's default on the filter bar, the reader's to change; the rest
+ * is the board's fixed scope, said on the 「正在显示」 band as the board's,
+ * with nothing to remove it by. Both reach the panels, and opening it
+ * changes nothing to save.
+ */
+export const PreBatchCFixedScope: Story = {
+  ...DisplayPreBatchCCondition,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await findDataTable(canvasElement);
+
+    const bar = await canvas.findByRole('region', {
+      name: zhCN['label.filters.bar'],
+    });
+    await expect(
+      within(bar).getByRole('combobox', { name: '仓库' }),
+    ).toHaveTextContent('华南');
+
+    const band = await canvas.findByRole('region', {
+      name: zhCN['label.applied.title'],
+    });
+    const fixed = band.querySelector('[data-fixed]') as HTMLElement;
+    await expect(fixed).not.toBeNull();
+    await expect(fixed).toHaveTextContent('仓库');
+    await expect(fixed).toHaveTextContent('西南');
+    await expect(fixed).toHaveTextContent(zhCN['label.applied.fixed']);
+    await expect(within(band).queryAllByRole('button')).toHaveLength(0);
+
+    // 华南 and not 西南: the list answers for 华南 alone.
+    await waitFor(() =>
+      expect(readColumn(table, '订单号')).toEqual(['SO-1005']),
+    );
+    await expect(canvas.queryByText(zhCN['label.header.unsaved'])).toBeNull();
   },
 };

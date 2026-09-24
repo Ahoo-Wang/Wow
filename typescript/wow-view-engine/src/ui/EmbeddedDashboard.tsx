@@ -17,7 +17,6 @@ import {
   useLayoutEffect,
   useMemo,
   useRef,
-  useState,
 } from 'react';
 import { PencilIcon } from 'lucide-react';
 import {
@@ -270,7 +269,8 @@ function EmbeddedBoard({
   // Building (D22 A), in the editable tier and for whoever may save the
   // board: 「编辑」 in the embed's first row, the edit bar over the board,
   // 「完成」 saving through the same commands the workbench's title bar has.
-  const [building, setBuilding] = useState(false);
+  // The state is the runtime's, so the board's timer waits on it (D26 Q39).
+  const { building, setBuilding } = dashboard;
   const canEdit = interaction === 'editable' && commands.can.save;
   const editing = canEdit && building;
   const editButton = useRef<HTMLButtonElement>(null);

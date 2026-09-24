@@ -61,6 +61,7 @@ function stub(
 ): FilterEditorController {
   return {
     applied,
+    fixed: [],
     scoped: [],
     implied: [],
     clearValue: vi.fn(),

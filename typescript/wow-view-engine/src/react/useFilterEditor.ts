@@ -102,6 +102,15 @@ export interface FilterEditorController extends FilterTreeController {
    */
   scoped: FilterSummaryItem[];
   /**
+   * A dashboard's fixed scope (「固定范围」, `DashboardViewConfig.fixed`, D26
+   * Q31): the board's own condition every panel runs under, in force beside
+   * its filters and no reader's to change — so, like `scoped`, a bar shows it
+   * with no remove, and no path here addresses it. Read off `applied`, as a
+   * dashboard's `applied` is. Empty for any other view, and on a board built
+   * since batch C.
+   */
+  fixed: FilterSummaryItem[];
+  /**
    * Readings in force that nobody wrote: a declared deletion dimension the
    * view's own conditions and the host's scope both leave unanswered reads
    * as "not deleted" (D17-2), and a bar that kept quiet about it would be
@@ -228,6 +237,16 @@ function askedFilter(
   return hasAsked(state) ? state.applied.filter : undefined;
 }
 
+/** A dashboard's fixed scope in force, when it holds a condition at all. */
+function fixedScope(
+  runtime: ViewRuntime | null,
+  state: ViewRuntimeState<ViewConfig> | null,
+): FilterTree | undefined {
+  if (runtime?.kind !== 'dashboard' || !state) return undefined;
+  const fixed: unknown = (state.applied as { fixed?: unknown }).fixed;
+  return isFilterGroup(fixed) ? fixed : undefined;
+}
+
 /**
  * Editing of the draft filter tree, addressed by path.
  *
@@ -352,13 +371,22 @@ export function useFilterEditor(
       // eslint-disable-next-line react-hooks/exhaustive-deps -- `scopeFilter` is a getter the runtime notifies through
       [runtime, state, fields, kinds],
     ),
-    // Against the same trees the two lists above describe: what ran, and
-    // what the host holds in force beside it.
+    // The board's own, which the reader sees in force and cannot take out.
+    fixed: useMemo(() => {
+      const fixed = fixedScope(runtime, state);
+      return !fixed || !kinds ? [] : describeFilter(fields, fixed, kinds);
+    }, [runtime, state, fields, kinds]),
+    // Against the same trees the lists above describe: what ran, and what
+    // the host and the board hold in force beside it.
     implied: useMemo(() => {
       const ran = askedFilter(runtime, state);
       return !ran || !kinds
         ? []
-        : impliedDeletion(fields, [ran, runtime?.scopeFilter], kinds);
+        : impliedDeletion(
+            fields,
+            [ran, runtime?.scopeFilter, fixedScope(runtime, state)],
+            kinds,
+          );
     }, [runtime, state, fields, kinds]),
     count: countLeaves(tree),
     simple: isSimpleTree(tree),

@@ -40,6 +40,7 @@ import {
   dashboardConfig,
   ordersDefinition,
   overviewDefinition,
+  preCDashboardConfig,
   recordConfig,
   testEnvironment,
   testSource,
@@ -137,7 +138,7 @@ const views: ViewInstance[] = [
     title: 'Regional (old)',
     scope: 'shared',
     revision: 'r1',
-    config: dashboardConfig({
+    config: preCDashboardConfig({
       fields: [
         { name: 'area', label: 'Area', kind: 'string' },
         { name: 'stage', label: 'Stage', kind: 'string' },

@@ -359,6 +359,7 @@ export const zhCN: ViewMessages = {
   'label.applied.title': '正在显示',
   'label.applied.all': '全部记录',
   'label.applied.scoped': '由页面设定',
+  'label.applied.fixed': '仪表盘的固定范围',
   'label.applied.implied': '缺省口径',
   'label.date.absolute': '指定日期',
   'label.date.relative': '相对',

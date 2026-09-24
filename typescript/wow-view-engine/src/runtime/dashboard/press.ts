@@ -51,7 +51,6 @@ import {
   filterValueIssues,
   filtersOf,
   isViewPanel,
-  migrateDashboardConfig,
   takesGroup,
   validateBoardClick,
   type BoardClick,
@@ -88,7 +87,7 @@ export type PressDestination =
    */
   | { fallback: Issue };
 
-/** Another board as a click reads it: the instance, its config migrated. */
+/** Another board as a click reads it: the instance, its config a board's. */
 export type DestinationBoard = ViewInstance & { config: DashboardViewConfig };
 
 /** What the presses need of the runtime that holds the board. */
@@ -223,7 +222,7 @@ export class PanelPresses {
     const reference = await this.host.reference(instanceId);
     const config = reference?.instance.config;
     return reference && config?.kind === 'dashboard'
-      ? { ...reference.instance, config: migrateDashboardConfig(config) }
+      ? { ...reference.instance, config }
       : null;
   }
 
@@ -254,11 +253,9 @@ export class PanelPresses {
         target: reference,
       },
     );
-    const stored = reference?.instance.config;
-    if (found.length > 0 || !reference || stored?.kind !== 'dashboard')
+    const config = reference?.instance.config;
+    if (found.length > 0 || !reference || config?.kind !== 'dashboard')
       return { fallback: found[0] ?? issue('dashboard.click.board-gone', at) };
-    // Read as the board opens: a pre-C condition is its filters' defaults.
-    const config = migrateDashboardConfig(stored);
     const filters = defaultFilters(config);
     const byName = new Map(filtersOf(config).map(field => [field.name, field]));
     const held = this.host.filters().values;

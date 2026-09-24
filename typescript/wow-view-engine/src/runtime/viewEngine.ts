@@ -71,6 +71,7 @@ import { OpenRuntimes } from './openRuntimes.js';
 import { SummaryCache } from './summaries.js';
 import { TabMemory } from './tabMemory.js';
 import { RuntimeFactory, type RuntimeIdentity } from './runtimeFactory.js';
+import { readingStore } from './storedViews.js';
 
 export interface ViewEngineOptions {
   definitions: readonly ViewDefinition[];
@@ -140,6 +141,11 @@ export interface CreateInput<C extends ViewConfig> {
  * child runtime for it.
  */
 export class ViewEngine {
+  /**
+   * The host's store as the engine reads it: every view it hands back is
+   * read into the form this engine writes on its way in (`readingStore`,
+   * AGENTS.md's stored-data exception), and nothing past it migrates.
+   */
   readonly store: ViewStore;
   readonly environment: RuntimeEnvironment;
   readonly definitions: ReadonlyMap<string, ViewDefinition>;
@@ -170,7 +176,7 @@ export class ViewEngine {
 
   constructor(options: ViewEngineOptions) {
     this.options = options;
-    this.store = options.store;
+    this.store = readingStore(options.store);
     this.kinds = options.kinds ?? builtinFieldKinds;
     this.limits = options.limits ?? DEFAULT_RUNTIME_LIMITS;
     this.environment = options.environment ?? defaultRuntimeEnvironment();

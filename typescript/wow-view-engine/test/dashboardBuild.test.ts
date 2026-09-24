@@ -63,6 +63,7 @@ import {
   dashboardConfig,
   ordersDefinition,
   panelReference,
+  preCDashboardConfig,
   recordConfig,
 } from './fixtures.js';
 
@@ -132,6 +133,7 @@ describe('the 24-column grid and the boards stored before it', () => {
   } as unknown as DashboardViewConfig;
   delete (legacy as Partial<DashboardViewConfig>).columns;
   delete (legacy as Partial<DashboardViewConfig>).tabs;
+  delete (legacy as Partial<DashboardViewConfig>).fixed;
 
   it('reads a board that does not say its grid as 12 columns, doubling x and w', () => {
     const read = migrateDashboardConfig(legacy);
@@ -158,9 +160,10 @@ describe('the 24-column grid and the boards stored before it', () => {
   });
 
   /**
-   * D23 Q16: a board condition written before batch C becomes its filters'
-   * defaults where a filter could hold it; the rest stays as the board's
-   * fixed scope. A second read moves nothing.
+   * D23 Q16, D26 Q31: a board condition written before batch C becomes its
+   * filters' defaults where a filter could hold it; the rest becomes the
+   * board's fixed scope (`fixed`), which is also the mark that the board
+   * was read — a second read, or a read after any edit, moves nothing.
    */
   describe('a pre-C board condition', () => {
     const region = { name: 'region', label: '仓库', kind: 'string' } as const;
@@ -171,9 +174,10 @@ describe('the 24-column grid and the boards stored before it', () => {
     } as const;
     const amount = { name: 'amount', label: '金额', kind: 'number' } as const;
     const window = { type: 'relative', unit: 'day', amount: 30 };
+    const EMPTY = { op: 'and', children: [] };
 
     it('moves a leaf a filter could hold into that filter’s default', () => {
-      const board = dashboardConfig({
+      const board = preCDashboardConfig({
         fields: [region, created, amount],
         filter: {
           op: 'and',
@@ -188,7 +192,8 @@ describe('the 24-column grid and the boards stored before it', () => {
 
       const read = migrateDashboardConfig(board);
 
-      expect(read.filter).toEqual({ op: 'and', children: [] });
+      expect(read.filter).toEqual(EMPTY);
+      expect(read.fixed).toEqual(EMPTY);
       expect(read.fields).toEqual([
         { ...region, default: ['CN'] },
         { ...created, default: window },
@@ -211,24 +216,24 @@ describe('the 24-column grid and the boards stored before it', () => {
           op: 'or',
           children: [{ field: 'region', operator: 'IN', value: ['US'] }],
         },
-      ];
-      const board = dashboardConfig({
-        fields: [region, amount, { ...created, default: window }],
-        filter: {
-          op: 'and',
-          children: [
-            ...kept,
-            // A filter with a default of its own keeps it.
-            {
-              field: 'created',
-              operator: 'BETWEEN',
-              value: { type: 'relative', unit: 'day', amount: 7 },
-            },
-          ],
+        // A filter with a default of its own keeps it.
+        {
+          field: 'created',
+          operator: 'BETWEEN',
+          value: { type: 'relative', unit: 'day', amount: 7 },
         },
+      ];
+      const board = preCDashboardConfig({
+        fields: [region, amount, { ...created, default: window }],
+        filter: { op: 'and', children: kept },
       });
 
-      expect(migrateDashboardConfig(board)).toBe(board);
+      const read = migrateDashboardConfig(board);
+
+      expect(read.fixed).toEqual({ op: 'and', children: kept });
+      expect(read.filter).toEqual(EMPTY);
+      expect(read.fields).toBe(board.fields);
+      expect(migrateDashboardConfig(read)).toBe(read);
     });
 
     it('moves one leaf per filter and keeps the second', () => {
@@ -237,7 +242,7 @@ describe('the 24-column grid and the boards stored before it', () => {
         operator: 'IN',
         value: ['JP'],
       };
-      const board = dashboardConfig({
+      const board = preCDashboardConfig({
         fields: [region],
         filter: {
           op: 'and',
@@ -251,19 +256,122 @@ describe('the 24-column grid and the boards stored before it', () => {
       const read = migrateDashboardConfig(board);
 
       expect(read.fields).toEqual([{ ...region, default: ['CN'] }]);
-      expect(read.filter.children).toEqual([second]);
+      expect(read.fixed.children).toEqual([second]);
+      expect(read.filter).toEqual(EMPTY);
     });
 
-    it('takes no tree apart that is not a plain AND', () => {
+    /**
+     * A-02: the leaf a single-value filter could not hold stays fixed once
+     * the board was read, whatever the author changes of that filter after
+     * — turning on 「可多选」 must not make the next read move it into a
+     * default a reader can clear.
+     */
+    it('never moves again once read, whatever the author changes of a filter', () => {
+      const leaf: FilterLeaf = {
+        field: 'region',
+        operator: 'IN',
+        value: ['EU', 'CN'],
+      };
+      const board = preCDashboardConfig({
+        fields: [region],
+        filter: { op: 'and', children: [leaf] },
+      });
+
+      const read = migrateDashboardConfig(board);
+      const edited = {
+        ...read,
+        fields: read.fields.map(field => ({
+          ...field,
+          multiple: true as const,
+        })),
+      };
+      const again = migrateDashboardConfig(edited);
+
+      expect(again).toBe(edited);
+      expect(again.fixed.children).toEqual([leaf]);
+      expect(again.fields[0].default).toBeUndefined();
+    });
+
+    it('takes no tree apart that is not a plain AND, and fixes it whole', () => {
+      const tree = {
+        op: 'or' as const,
+        children: [{ field: 'region', operator: 'IN' as const, value: ['CN'] }],
+      };
+      const board = preCDashboardConfig({ fields: [region], filter: tree });
+
+      const read = migrateDashboardConfig(board);
+
+      expect(read.fixed).toBe(tree);
+      expect(read.filter).toEqual(EMPTY);
+      expect(read.fields).toBe(board.fields);
+    });
+
+    it('leaves a board that has a fixed scope alone, whatever its filter says', () => {
       const board = dashboardConfig({
         fields: [region],
         filter: {
-          op: 'or',
+          op: 'and',
           children: [{ field: 'region', operator: 'IN', value: ['CN'] }],
         },
       });
 
       expect(migrateDashboardConfig(board)).toBe(board);
+    });
+
+    it('marks a board whose filter is no tree, and leaves the filter for admission', () => {
+      const board = preCDashboardConfig({ filter: 'nope' as never });
+
+      const read = migrateDashboardConfig(board);
+
+      expect(read.fixed).toEqual(EMPTY);
+      expect(read.filter).toBe('nope');
+      expect(codes(validate(read))).toContain('config.filter.invalid');
+    });
+  });
+
+  /**
+   * The fixed scope is judged as `filter` was (D26 Q31): over the board's
+   * own fields, at its own path, and every panel must carry all of it.
+   */
+  describe('admission of the fixed scope', () => {
+    const region = { name: 'region', label: '仓库', kind: 'string' } as const;
+
+    it('refuses one that is missing or no tree', () => {
+      const without: Partial<DashboardViewConfig> = dashboardConfig();
+      delete without.fixed;
+      expect(validate(without as DashboardViewConfig)).toEqual([
+        expect.objectContaining({
+          code: 'config.filter.invalid',
+          path: ['fixed'],
+        }),
+      ]);
+    });
+
+    it('judges its leaves against the board’s fields, at its path', () => {
+      const board = dashboardConfig({
+        fields: [region],
+        fixed: {
+          op: 'and',
+          children: [{ field: 'nowhere', operator: 'IN', value: ['CN'] }],
+        },
+      });
+
+      expect(
+        validate(board).find(found => found.path[0] === 'fixed')?.path,
+      ).toEqual(['fixed', 'children', 0]);
+    });
+
+    it('asks every data panel to carry every field it names', () => {
+      const board = dashboardConfig({
+        fields: [region],
+        fixed: {
+          op: 'and',
+          children: [{ field: 'region', operator: 'IN', value: ['CN'] }],
+        },
+        panels: [saved('a', { x: 0, y: 0, w: 12, h: 4 })],
+      });
+
+      expect(codes(validate(board))).toContain('dashboard.binding.missing');
     });
   });
 

@@ -16,6 +16,7 @@ import type {
   DashboardFilters,
   DashboardFilterType,
   DashboardTimeGrouping,
+  DashboardViewConfig,
   FieldOption,
   FilterValue,
   Issue,
@@ -23,8 +24,10 @@ import type {
   PanelLayout,
   PanelPresentation,
   RecordData,
+  RuntimeLimits,
   ViewInstance,
 } from '../../model/index.js';
+import { refreshIntervalOf } from '../refreshTimer.js';
 import type {
   NewContentPanel,
   NewFilter,
@@ -33,7 +36,7 @@ import type {
   OrderStep,
 } from '../../dashboard/index.js';
 import type { EditStep } from './history.js';
-import type { HeldFilters } from './contract.js';
+import type { DashboardRuntimeState, HeldFilters } from './contract.js';
 import type {
   BoardEdits,
   DashboardEditing,
@@ -51,9 +54,9 @@ const NO_REFUSAL: Issue[] = [];
 
 /**
  * The board's commands that are one call on one of its parts — its edits
- * (`boardEditing`) and what its filters hold (`FilterValues`) — as methods
- * of the runtime that holds it, so the forwarding lives beside the parts
- * rather than in the runtime.
+ * (`boardEditing`) and what its filters hold (`FilterValues`) — or one
+ * patch of its snapshot, as methods of the runtime that holds it, so the
+ * forwarding lives beside the parts rather than in the runtime.
  */
 export abstract class BoardCommands
   implements DashboardEditing, DashboardFilterEditing
@@ -61,14 +64,20 @@ export abstract class BoardCommands
   protected abstract readonly edits: BoardEdits;
   protected abstract readonly values: FilterValues;
   protected abstract readonly presses: PanelPresses;
+  abstract readonly limits: RuntimeLimits;
   abstract get disposed(): boolean;
+  abstract getSnapshot(): DashboardRuntimeState;
+  abstract edit(patch: Partial<DashboardViewConfig>): void;
+  abstract apply(): void;
   abstract showTab(tabId: string | null): void;
+  /** Patches the snapshot and re-times the board (`RuntimeStore.setState`). */
+  protected abstract patch(state: Partial<DashboardRuntimeState>): void;
   /** Reads the panels again — their clicks among them — once they were read. */
   protected abstract reread(): void;
   /** Arms or holds the board's one timer again (`RuntimeStore.retime`). */
   protected abstract retime(): void;
   /** Whether the board refreshes itself on its interval (`setAutoRefresh`). */
-  protected autoRefresh = true;
+  private autoRefresh = true;
   /** What the board refused of the filters it opened on (`opensOn`). */
   private openingRefusal: Issue[] = NO_REFUSAL;
 
@@ -76,6 +85,71 @@ export abstract class BoardCommands
     if (this.disposed || this.autoRefresh === on) return;
     this.autoRefresh = on;
     this.retime();
+  }
+
+  /**
+   * The preference is the user's and is kept like any other; what it may run
+   * is the model's to say, and it declares no dashboard member that runs on
+   * its own (`autoRunMembers`), so the switch arms nothing here.
+   */
+  setAutoApply(on: boolean): void {
+    if (this.disposed || this.getSnapshot().autoApply === on) return;
+    this.patch({ autoApply: on });
+  }
+
+  setEditing(active: boolean): void {
+    if (this.disposed || this.getSnapshot().editing === active) return;
+    this.patch({ editing: active });
+  }
+
+  /**
+   * Building holds the timer (D26 Q39: the author's panels are not re-run
+   * under them) and lets go of the reader's own interval — what is chosen
+   * while building is the board's (Q35). Ending it arms the timer again.
+   */
+  setBuilding(active: boolean): void {
+    if (this.disposed || this.getSnapshot().building === active) return;
+    this.patch(
+      active ? { building: true, readerRefresh: null } : { building: false },
+    );
+  }
+
+  /**
+   * The board's own interval while it is built — edited and applied, as
+   * any view's is, so the timer reads it and a save writes it — and the
+   * reader's for this opening while it is read, beside the draft (D26 Q35).
+   */
+  setRefreshInterval(interval: number | null): void {
+    if (this.disposed) return;
+    if (this.getSnapshot().building) {
+      this.edit({ refresh: { interval } });
+      this.apply();
+      return;
+    }
+    const { minRefreshInterval: min, maxRefreshInterval: max } = this.limits;
+    if (
+      interval !== null &&
+      !(Number.isInteger(interval) && interval >= min && interval <= max)
+    )
+      return;
+    this.patch({ readerRefresh: { interval } });
+  }
+
+  /**
+   * Whether the board's timer waits for a reason of the board's own: the
+   * host turned it off, or the board is being built. A panel's request in
+   * flight is the runtime's to add.
+   */
+  protected holdsTimer(): boolean {
+    return !this.autoRefresh || this.getSnapshot().building;
+  }
+
+  /** The interval the timer keeps: the reader's own over the board's. */
+  protected intervalInForce(): number | null {
+    const { readerRefresh, applied } = this.getSnapshot();
+    return refreshIntervalOf(
+      readerRefresh ? { refresh: readerRefresh } : applied,
+    );
   }
 
   addPanel(panel: NewPanel, placement?: NewPanelPlacement): string | null {

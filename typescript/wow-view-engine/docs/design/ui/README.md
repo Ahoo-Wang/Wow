@@ -164,7 +164,7 @@
 - AppliedBar 保留树的逻辑：根下每个直接子节点一个 badge，分组合成一个。文字由 `ui/summary.ts` 的 `summaryText` 拼（不用内核的英文兜底 `FilterSummaryItem.text`）：字段名来自定义，操作符走 `label.operator.<OP>`——只有一个值的条件例外，`EQ`／一个候选的 `IN` 说「是」、`NE`／一个候选的 `NOT_IN` 说「不是」（`label.relation.is`／`is-not`；从前同一条上「状态 属于 待出库」与「仓库 等于 华东」读成两种关系，2026-09-23 审查 P2-2），值按[值按字段显示](#值按字段显示)的规则（`cell`、`kind`、`numberFormat` 跟着摘要项走）。相对值区间用 `label.relative.window.<direction>`、边界用 `label.relative.instant.<direction>`，命名时段用 `label.relative.preset.*`；分隔符 `label.filter.join`。
 - 分组以操作符词起头（`label.filter.all-of`／`any-of`／`none-of`），嵌套加括号；只有一条时 `all-of`／`any-of` 省略，`none-of` 是否定、总要说。谓词条件（`ELEMENT_MATCH`）同样读出它的条件，空谓词说 `label.filter.any-entry`。值读不出只说字段名（`blank`），字段消失的连操作符一起说。✕ 的可访问名用同一段文字。
 - 每个 badge 的 ✕ 把对应条件的值设回未填写并重新应用（`clearValue(path)` + `submit()`），字段行留在编辑器里。
-- 没有条件而问过了时显示 `label.applied.all`，什么都还没问时整条不渲染（`AppliedBar` 的 `asked`，外壳传 `hasAsked(state)`，`EmbeddedView` 同）。宿主的作用域条件（`scoped`，`variant="outline"` + `data-scoped`，`label.applied.scoped`）另成一组、不带 ✕——它不在 draft 里。再往后是**没人写下却在生效的口径**（`implied`，`data-implied`，读屏附 `label.applied.implied`）：定义声明了 `deletion` 一维而无人作答时，条上说「仅未删除」（D17-2），改口径要把字段加进条件。`EmbeddedView` 整条只读（`readOnly`）。（见 test/appliedBar.test.tsx「AppliedBar」）
+- 没有条件而问过了时显示 `label.applied.all`，什么都还没问时整条不渲染（`AppliedBar` 的 `asked`，外壳传 `hasAsked(state)`，`EmbeddedView` 同）。仪表盘的固定范围（`fixed`，`variant="outline"` + `data-fixed`，读屏附 `label.applied.fixed`「仪表盘的固定范围」，D26 Q31）与宿主的作用域条件（`scoped`，`variant="outline"` + `data-scoped`，`label.applied.scoped`）各成一组、不带 ✕——读者拿不掉，也不在 draft 的路径上。再往后是**没人写下却在生效的口径**（`implied`，`data-implied`，读屏附 `label.applied.implied`）：定义声明了 `deletion` 一维而无人作答时，条上说「仅未删除」（D17-2），改口径要把字段加进条件。`EmbeddedView` 整条只读（`readOnly`）。（见 test/appliedBar.test.tsx「AppliedBar」）
 
 ## 保存与视图管理
 

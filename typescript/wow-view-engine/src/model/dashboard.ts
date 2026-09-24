@@ -12,7 +12,7 @@
  */
 
 import type { FieldKindId, FieldOption } from './field.js';
-import type { FilterValue } from './filter.js';
+import type { FilterTree, FilterValue } from './filter.js';
 import type { ViewConfigBase } from './config.js';
 import type {
   AnalysisDateUnit,
@@ -360,6 +360,21 @@ export interface DashboardViewConfig extends ViewConfigBase {
   kind: 'dashboard';
   /** The grid the layouts are written in; see `DASHBOARD_GRID_COLUMNS`. */
   columns: typeof DASHBOARD_GRID_COLUMNS;
+  /**
+   * The board's fixed scope (「固定范围」, D23 Q16, D26 Q31): a condition in
+   * the board's own field names that every data panel runs under, mapped
+   * through its bindings like the rest — and that no reader changes, unlike
+   * a filter's value. It is what was left of a board condition written
+   * before batch C (`config.filter`) once the leaves a filter could hold
+   * became those filters' defaults; a board built since has an empty one.
+   *
+   * Its own member rather than `filter`, because it is also the mark that
+   * a config was read into this form (`migrateDashboardConfig`): a config
+   * that has it is never taken apart again, whatever an author changes of
+   * its filters after — which `filter`, a tree every kind's editor writes,
+   * could not say.
+   */
+  fixed: FilterTree;
   /** In the order the tab bar shows them; see `DashboardTab`. */
   tabs: DashboardTab[];
   /** The board's filters, in the order the filter bar shows them. */

@@ -54,6 +54,7 @@ useFilterEditor(runtime): FilterController
 - `discard()` 不是 `commands.revert`。revert 管的是**存下来的配置**：它丢掉这个视图一切未保存的编辑，把库里那份重新变成草稿。`discard()` 只丢掉**没应用的那些条件**，既不碰存下来的配置，也不碰列、排序与分页；
 - Enter 提交排除 IME、修饰键、内部弹层与本身就吃 Enter 的控件，由 UI 层处理（[ui/README.md#filterpanel-的布局](ui/README.md#filterpanel-的布局)）；
 - applied 读 result.own.filter（描述产出当前结果的、视图自有的那部分条件，无结果为空；路径因此仍指向 draft，badge 的删除即 clearValue(path)），Dashboard 例外：它自己没有结果（查询在各面板里），改读 state.applied.filter，即面板被要求执行时的全局条件；
+- 仪表盘的固定范围（`DashboardViewConfig.fixed`，D26 Q31）由 `fixed` 读 `state.applied` 单独描述、不可删除：它是板子的，不是读者的，也没有路径指向它；其他视图为空；
 - 宿主注入的作用域由 scoped 读 runtime.scopeFilter 单独描述、不可删除——读 result.config.filter 会把作用域混进同一串 badge，且 or／nor 的 draft 被包成第一个子节点后路径整体下移一层，删除会落到别的叶子上；
 - 草稿超预算不清空 applied：产出结果的那份配置是先过准入才跑的，本就在预算内，摘要要一直描述它身旁的数据；
 - pending／pendingCount／isPending(path) 以 state.applied 为基准（叶子比字段＋操作符＋值，分组只比 op，不比子节点）；
@@ -208,6 +209,7 @@ useDashboard(runtime): DashboardController
 - **展开链**（D20 屏 G）：`elements` 是在跑的链，`expansible` 说能力声明了链没有（槽在不在），`expandable` 是声明出来的下一步（`{ path, label }` 或 `null`），`unit` 是现在数的是什么——最内层那一层的显示名，没展开就是定义自己的标题。`elementLabel(i)` 与 `elementFields(i)` 是第 i 层的名字与它的门认得的字段；`expand(path)` 与 `collapse(i)` 都走内核的 `withElements` 重新划范围，所以它们跟加减一个维度一样过 `reshape`，图表、排序与表列一起跟上；`setElementFilter(i, tree | undefined)` 与指标那一个同形，`undefined` 把这一层的 `filter` 键删掉、留下光秃秃的 `{ path }`；
 - **写出来的指标与「只保留」也是能力说了算**（D20 屏 B）：`expressionsAllowed` 与 `havingAllowed` 直接读能力的 `expressions` 与 `having`，控件据此存在或不存在（D4）。`addFormula()` 在这个作用域**能度量的头两个字段**上造一条公式（只有一个字段就用它两次——一张填不满的卡片不该被端出来），`addDerived()` 在**已有的头两条非 `ANY`、非时间点的指标**上造一条派生指标，公式的头两个字段也跳过日期；两者都走 `reshape`，所以新别名的列、槽与排序一起跟上。`having` 不是配置里那棵表达式而是 `havingRows` 读出来的那几行——**读不出来就是 `null`**，界面据此把「说不出口」与「什么都没写」分开（`[]`）；`setHaving(expression | undefined)` 走的是 `edit`，`undefined` 删键而不是留一个 `undefined`。`ranHaving` 是另一回事：**结果跑的那份配置**上的 having 原样（取自 `state.result.config`，没跑过或没有就是 `undefined`），给结果第一行的读法说「只保留……」用——读法说的是屏幕上那些数，所以不读草稿（2026-09-23 审查 P0-2，见 [ui/analysis.md](ui/analysis.md#结果第一行读法与看法)）。规则都在 `react/analysisEditing.ts`，钩子只剩接线；
 - **`stale`**（「改了就跑」，D20）：屏幕上这些行答的是上一个问题，而草稿马上就要自己跑了——它就是 runtime 那一条 `autoApplyDue(state)`，控制器不另算一份。开关关着、草稿有 error、改的是范围，三种情况下它都是 false（那几条同时也是"不会自己跑"的理由，见 [runtime.md#改了就跑](runtime.md#改了就跑)），所以它说的始终是「有一次运行在路上」而不是「有改动没应用」——后者是 `pending`，那是应用按钮上那颗点的事。结果据此画淡而不是清空（[ui/analysis.md#托盘范围--维度--指标--结果一个应用](ui/analysis.md#托盘范围--维度--指标--结果一个应用)）。（见 test/autoRun.test.tsx「改了就跑: an analysis runs as it is edited」）
+- **正在搭是 runtime 的**（D26 Q39）：`building` 读 `DashboardRuntimeState.building`，`setBuilding` 转交 `DashboardRuntime.setBuilding`——两种界面读同一份，整板的计时器在搭板子期间据此停表。
 - **搭板子交给界面的三样**（批 B2）：`edit` 就是 runtime 自己的 `DashboardEditing` 命令（没有打开的板子时为 `null`）——控制器不另包一层，能不能搭是界面按保存权限给不给入口；`tabs` 是屏幕上那份配置里形状完好的标签页（坏的由准入报，菜单与标签栏不做第二个发现者）；`preload(instanceId)` 转交 `DashboardRuntime.preload`，「添加」先等它，面板才按它显示的东西定大小。（见 test/dashboardBuilding.test.tsx「reading and building a dashboard (D22 A)」）
 - `DashboardController.loading` 是「任一面板的查询在途」，由控制器自己订阅各个子 runtime 得来：仪表盘不跑自己的查询（`state.query` 恒为 `idle`），而子 runtime 的查询变化**不会**通知仪表盘的订阅者——那是有意的，否则每个面板每次请求都要让整张栅格重渲染——所以栅格之外还要知道这件事的控件（刷新按钮）只能由这里代为订阅。它与 `DashboardViewRuntime` 自己的计时器开火前问的是同一件事。
 - **标签页**（D22 E，批 B3）：`tabs` 见上一条，`tab` 是屏幕上那一页（`state.tab`，没有标签页为 `null`），`showTab(id)` 就是 `runtime.showTab`；`panels` 仍是**整块板子**的面板（每个带 `tab`），栅格自己只画 `tab` 那一页——状态条要按名字说别的页上的面板，名字的编号也按整块板子数。一块还没被看过的标签页上的数据面板没有子 runtime，但它不是坏了（`waiting`），所以不算 `broken`。搭不搭是界面的状态（`DashboardWorkbench` 里「编辑」到「完成」／「取消」那一个），控制器不另存一份。（见 test/dashboardExtensions.test.tsx「the tab bar」）
@@ -239,6 +241,7 @@ useRefreshCountdown(refresh): number | null   // 每秒重画的剩余整秒
 ```
 
 - 两个数，一个成员的两个时刻，不是两份状态。`interval` 是 **`applied`** 的 `refresh.interval`——**正在生效**的那一档，计时器读的就是它，所以凭据只能说它（与 `AppliedBar` 读 `result.own` 同一条理由）；`chosen` 是 **草稿** 的那一档——「这个视图被设成什么」「`Save` 会写下什么」，菜单勾的是它，与布局、每页条数读草稿一致；
+- 仪表盘例外（D26 Q35）：选中走 `DashboardRuntime.setRefreshInterval`——板子被读时是读者这次打开的（`state.readerRefresh`），`interval` 与 `chosen` 都读它、草稿不动，板子不变「已修改」；搭板子时才是板子自己的，与下一条一样；
 - 选中即 `edit` 加 `apply`，所以两者通常相等；**只有草稿被准入拒绝、`apply` 落不下去时**才分开，此时 `applied` 那一档仍然是真的（把刷新关掉也一样：什么都没关掉）。合成一个数就会让按钮挂着一个没有东西在跑的节奏。控制器里**没有**与配置并行的第二份状态：那会让配置、计时器与屏幕各说一个数；
 - `intervals` 是裁剪后的档位（升序）：梯子 ∩「内核会跑的数」——**整数**且落在 `[minRefreshInterval, maxRefreshInterval]` 内，因为 `validateRefresh` 拒绝小数与越界是同一件事——再并进 `chosen`（同样要跑得起来，否则菜单里没有一项勾得上）。不允许的档位不出现而不是禁用（D4）；`interval` 也照这条读：`applied` 里一个跑不起来的数报 `null`，不冒充节奏。梯子本身只有**三档：30 秒、1 分钟、5 分钟**——半分钟是屏幕不在手底下乱跳的前提下还读得出「实时」的最短一档，五分钟是再长就说不上「自己保持最新」的那一档；一刻钟与一小时没人选、人人要读过去，一个一年问两次的问题不值得摆七个答案。已经保存成别的数的视图照旧并进自己那一档（上一条），所以收窄梯子不会把谁钉住；
 - `unsound` 是「准入对这个成员有话说」（`issues` 里路径以 `refresh` 开头的任意一条：缺失、不是对象、小数、越界）。它存在只为一件事——控件据此知道自己**还有事可做**：「关闭」写下的 `{ interval: null }` 是这几种拒绝的通用修法，梯子空时若连菜单都收起来，用户就被钉在一份 Apply 与 Save 都过不去、却没有控件能修的配置上。判断读 `issues` 而不在这里重算，免得控件与内核对同一份配置给出两种结论；

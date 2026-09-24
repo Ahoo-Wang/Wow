@@ -55,10 +55,10 @@ function flush(): Promise<void> {
 const REGION_FIELD = { name: 'region', label: 'Region', kind: 'string' };
 
 /**
- * The board's standing condition, as a board stored before batch C kept it.
- * `NE` is no filter's operator, so it stays the board's fixed scope rather
- * than becoming a filter's default on open (D23 Q16) — which is the path
- * these tests are about.
+ * A standing board condition in `filter`, which every panel runs under
+ * beside the fixed scope (`boardCondition`) and carries through its
+ * bindings — the path these tests are about. The config has its `fixed`
+ * member, so nothing reads it as a pre-C board (D26 Q31).
  */
 const REGION_FILTER: FilterTree = {
   op: 'and',

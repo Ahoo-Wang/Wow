@@ -34,7 +34,11 @@ import type {
   ViewInstance,
   ViewSource,
 } from '../src/index.js';
-import type { RecordViewRuntime, ViewRuntime } from '../src/runtime/index.js';
+import type {
+  DashboardRuntime,
+  RecordViewRuntime,
+  ViewRuntime,
+} from '../src/runtime/index.js';
 import { useAutoRefresh, type RefreshController } from '../src/react/index.js';
 import {
   DataWorkbench,
@@ -908,11 +912,17 @@ describe('every workbench offers the interval', () => {
       within(menu).getByRole('menuitemradio', { name: every(300) }),
     );
 
+    // A reader's pick is how they look this time (D26 Q35): in force at
+    // once, never in the draft, so the board does not turn 「已修改」.
     await waitFor(() =>
-      expect(engine.openRuntimes()[0].getSnapshot().draft.refresh).toEqual({
-        interval: 300,
-      }),
+      expect(
+        (engine.openRuntimes()[0] as DashboardRuntime).getSnapshot()
+          .readerRefresh,
+      ).toEqual({ interval: 300 }),
     );
+    const state = engine.openRuntimes()[0].getSnapshot();
+    expect(state.draft.refresh).toEqual({ interval: null });
+    expect(state.dirty).toBe(false);
     // And it counts down to the board's own timer, which is armed once every
     // panel has answered: the same control, reading the one runtime that
     // times this screen. (A second may pass while the panels land, so the
@@ -920,6 +930,62 @@ describe('every workbench offers the interval', () => {
     await waitFor(() =>
       expect([left(300), left(299)]).toContain(reading(container)),
     );
+    // The menu marks the pick: it is the interval in force.
+    const again = await openIntervals(user);
+    expect(
+      within(again)
+        .getByRole('menuitemradio', { name: every(300) })
+        .getAttribute('aria-checked'),
+    ).toBe('true');
+  });
+
+  /**
+   * D26 Q35: only an interval chosen while the board is built is the
+   * board's — into the draft, saved with it; the menu marks it, and the
+   * reader's own pick before 「编辑」 is let go of.
+   */
+  it('the dashboard title bar while the board is built, the board’s own', async () => {
+    const board: ViewInstance = {
+      id: 'board-1',
+      definitionId: 'overview',
+      title: 'Overview',
+      scope: 'shared',
+      revision: '1',
+      config: dashboardConfig(),
+    };
+    const engine = engineWith({ instances: [board] });
+    const user = userEvent.setup();
+    render(
+      <ViewSurface>
+        <DashboardWorkbench
+          engine={engine}
+          definitionId="overview"
+          instanceId="board-1"
+        />
+      </ViewSurface>,
+    );
+    await screen.findByRole('button', { name: AUTO });
+    const runtime = () => engine.openRuntimes()[0] as DashboardRuntime;
+    await user.click(
+      within(await openIntervals(user)).getByRole('menuitemradio', {
+        name: every(300),
+      }),
+    );
+    await waitFor(() =>
+      expect(runtime().getSnapshot().readerRefresh).toEqual({ interval: 300 }),
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    expect(runtime().getSnapshot().readerRefresh).toBeNull();
+    const menu = await openIntervals(user);
+    await user.click(
+      within(menu).getByRole('menuitemradio', { name: every(60) }),
+    );
+
+    await waitFor(() =>
+      expect(runtime().getSnapshot().draft.refresh).toEqual({ interval: 60 }),
+    );
+    expect(runtime().getSnapshot().dirty).toBe(true);
   });
 
   /**

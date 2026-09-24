@@ -32,6 +32,7 @@ import type {
   Issue,
   RecordData,
   RecordViewConfig,
+  RefreshConfig,
   RuntimeLimits,
   ViewInstance,
   ViewScope,
@@ -81,6 +82,21 @@ export interface DashboardRuntimeState extends ViewRuntimeState<DashboardViewCon
    * a save and a board read anew.
    */
   history: EditHistoryState;
+  /**
+   * Whether the board is being built (D22 A, 「编辑」 to 「完成」 or
+   * 「取消」; `setBuilding`). This opening's, like the tab: another opening
+   * of the board starts read. While it is on, the board's auto refresh
+   * waits (D26 Q39) and an interval chosen is the board's own (Q35).
+   */
+  building: boolean;
+  /**
+   * The auto-refresh interval this reader chose for this opening
+   * (`setRefreshInterval` while the board is read, D26 Q35), in force over
+   * the board's own; `null` while the board's own is. The reader's, like
+   * the filters' values: never in the config, so choosing one never makes
+   * the board dirty. Building the board lets it go.
+   */
+  readerRefresh: RefreshConfig | null;
 }
 
 /**
@@ -100,6 +116,24 @@ export interface DashboardRuntime
   panelRuntime(panelId: string): DataViewRuntime | null;
   /** Re-runs one panel on what it has applied — a retry after it failed. */
   refreshPanel(panelId: string): void;
+  /**
+   * Starts or ends building the board (`DashboardRuntimeState.building`):
+   * on as 「编辑」 is pressed, off as 「完成」 saves or 「取消」 reverts. While
+   * it is on the board's auto refresh waits — the author's panels are not
+   * re-run under them — and it resumes as it goes off (D26 Q39). Starting
+   * lets go of the reader's own interval.
+   */
+  setBuilding(active: boolean): void;
+  /**
+   * Sets how often the board refreshes itself — `null` for never. While the
+   * board is built it is the board's own interval, into the draft and saved
+   * with it; while it is read it is this reader's for this opening
+   * (`readerRefresh`), in force at once and never in the draft, so the
+   * board does not turn 「已修改」 (D26 Q35). An interval the limits refuse
+   * is ignored while reading; the draft's admission reports one while
+   * building.
+   */
+  setRefreshInterval(interval: number | null): void;
   /**
    * Loads a saved view a panel is about to show, and resolves once it has
    * settled — read or found unreadable, never rejecting. `addPanel` sizes a

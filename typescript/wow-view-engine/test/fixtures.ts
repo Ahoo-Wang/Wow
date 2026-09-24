@@ -234,11 +234,25 @@ export function dashboardConfig(
     refresh: { interval: null },
     kind: 'dashboard',
     columns: 24,
+    fixed: { op: 'and', children: [] },
     tabs: [],
     fields: [],
     panels: [],
     ...overrides,
   };
+}
+
+/**
+ * A board as a store kept it before batch C: its condition in `filter`, and
+ * no `fixed` scope yet — what the engine's read boundary migrates
+ * (`migrateDashboardConfig`, D23 Q16, D26 Q31).
+ */
+export function preCDashboardConfig(
+  overrides: Partial<DashboardViewConfig> = {},
+): DashboardViewConfig {
+  const board: Partial<DashboardViewConfig> = dashboardConfig(overrides);
+  delete board.fixed;
+  return board as DashboardViewConfig;
 }
 
 /** A saved record instance, the usual target of a dashboard panel. */

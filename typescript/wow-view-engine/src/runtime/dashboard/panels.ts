@@ -25,15 +25,9 @@ import type {
   DashboardViewConfig,
   Issue,
   PanelClick,
-  ViewInstance,
   ViewKind,
 } from '../../model/index.js';
-import {
-  clickOf,
-  migrateDashboardConfig,
-  panelTab,
-  type FilterReach,
-} from '../../dashboard/index.js';
+import { clickOf, panelTab, type FilterReach } from '../../dashboard/index.js';
 import { issue } from '../../filter/index.js';
 import type { PanelGrouping } from './grouping.js';
 import type { PanelChild } from './children.js';
@@ -269,16 +263,6 @@ export function shownTab(
   requested: string | null,
 ): string | null {
   return panelTab(config, requested === null ? {} : { tab: requested });
-}
-
-/**
- * A stored board read into the form this engine writes
- * (`migrateDashboardConfig`); the same instance when it already is.
- */
-export function migrated(instance: ViewInstance | null): ViewInstance | null {
-  if (instance === null) return null;
-  const config = migrateDashboardConfig(instance.config as DashboardViewConfig);
-  return config === instance.config ? instance : { ...instance, config };
 }
 
 /** A panel whose reference could not be put to work, as its finding. */

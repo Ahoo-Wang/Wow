@@ -57,6 +57,12 @@ export interface RuntimeStoreHost<S extends ViewRuntimeState<ViewConfig>> {
    * so a panel runs no clock of its own.
    */
   holding(): boolean;
+  /**
+   * The interval the timer keeps, where it is not `applied`'s: a
+   * dashboard's reader may keep one of their own for the opening, beside
+   * the draft (D26 Q35). Left out, `applied`'s.
+   */
+  interval?(): number | null;
   /** Whatever the runtime holds besides the store, let go of on `dispose`. */
   release(): void;
   /**
@@ -287,11 +293,10 @@ export class RuntimeStore<S extends ViewRuntimeState<ViewConfig>> {
       this.blocking(this.current.issues) ||
       !this.environment.visibility.isVisible() ||
       this.host.holding();
-    this.setDueAt(
-      this.timer.sync(
-        refreshDelayOf(refreshIntervalOf(this.current.applied), held),
-      ),
-    );
+    const interval = this.host.interval
+      ? this.host.interval()
+      : refreshIntervalOf(this.current.applied);
+    this.setDueAt(this.timer.sync(refreshDelayOf(interval, held)));
     // The period's end is not a cadence the reader chose, so an editor in
     // focus does not put it off — the question asked again is the one on
     // screen — but a hidden page does, and a broken draft. A request in

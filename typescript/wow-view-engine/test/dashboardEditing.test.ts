@@ -26,10 +26,12 @@ import {
   DashboardViewRuntime,
   MemoryViewStore,
   ViewEngine,
+  ViewStoreError,
   isViewCommandError,
   stopsSave,
   type DashboardPanel,
   type DashboardViewConfig,
+  type FilterTree,
   type Issue,
   type ViewInstance,
   type ViewScope,
@@ -40,6 +42,7 @@ import {
   dashboardConfig,
   ordersDefinition,
   overviewDefinition,
+  preCDashboardConfig,
   recordConfig,
   testEnvironment,
   testSource,
@@ -159,17 +162,80 @@ describe('a board stored in the 12-column grid', () => {
   });
 
   it('is read the same way when a write brings it back', async () => {
+    // The store's answers pass the engine's read boundary (`readStored`):
+    // a save it answers in the old form, and the view a conflict carries,
+    // which 「重新加载」 takes as the draft.
     const board = harness();
-    const runtime = await board.open(dashboardConfig());
+    const runtime = await board.open(legacy);
     const stored = runtime.getSnapshot().saved!;
 
-    runtime.adoptSaved({ ...stored, config: legacy });
-    expect(runtime.getSnapshot().draft.panels[1].layout.x).toBe(14);
-    expect(runtime.getSnapshot().dirty).toBe(false);
-
-    runtime.moveBaseline({ ...stored, revision: 'r9', config: legacy });
+    vi.spyOn(board.store, 'save').mockResolvedValueOnce({
+      ...stored,
+      revision: 'r9',
+      config: legacy,
+    });
+    await board.engine.save(runtime);
     expect(runtime.getSnapshot().saved?.config).toMatchObject({ columns: 24 });
     expect(runtime.getSnapshot().dirty).toBe(false);
+
+    runtime.renamePanel('a', 'Pending');
+    vi.spyOn(board.store, 'save').mockRejectedValueOnce(
+      new ViewStoreError('CONFLICT', 'moved on', {
+        instance: { ...stored, revision: 'r10', config: legacy },
+      }),
+    );
+    await board.engine.save(runtime).catch(() => undefined);
+    expect(runtime.getSnapshot().write?.kind).toBe('conflict');
+
+    await board.engine.resolveConflict(runtime, 'reload');
+    expect(runtime.getSnapshot().draft.panels[1].layout.x).toBe(14);
+    expect(runtime.getSnapshot().dirty).toBe(false);
+  });
+});
+
+/**
+ * A-02 end to end (D26 Q31): a board stored before batch C is read once, at
+ * the engine's read boundary, and saved with its fixed scope; an author who
+ * then changes a filter's settings — here 「可多选」, which would let that
+ * filter hold the leaf — does not have it read again on the next opening.
+ */
+describe('a pre-C board read once, through save and reopen', () => {
+  const region = { name: 'region', label: 'Region', kind: 'string' } as const;
+  const leaf = { field: 'region', operator: 'IN', value: ['EU', 'CN'] };
+
+  it('keeps its fixed scope fixed after the author changes a filter', async () => {
+    const board = harness();
+    const runtime = await board.open(
+      preCDashboardConfig({
+        fields: [region],
+        filter: { op: 'and', children: [leaf] } as FilterTree,
+        panels: [saved('a')],
+      }),
+    );
+    expect(runtime.getSnapshot().draft.fixed.children).toEqual([leaf]);
+    expect(runtime.getSnapshot().dirty).toBe(false);
+
+    runtime.setBuilding(true);
+    runtime.setFilterMultiple('region', true);
+    const written = await board.engine.save(runtime);
+    runtime.setBuilding(false);
+    expect(written.config).toMatchObject({
+      fixed: { op: 'and', children: [leaf] },
+      filter: { op: 'and', children: [] },
+    });
+
+    // A new page over the same store: the board is read as it was saved.
+    const reopened = await new ViewEngine({
+      definitions: [ordersDefinition(), overviewDefinition()],
+      store: board.store,
+      resolveSource: () => board.source,
+      environment: testEnvironment().environment,
+    }).open(written.id);
+    await flush();
+    const draft = reopened.getSnapshot().draft as DashboardViewConfig;
+    expect(draft.fixed.children).toEqual([leaf]);
+    expect(draft.fields).toEqual([{ ...region, multiple: true }]);
+    expect(reopened.getSnapshot().dirty).toBe(false);
   });
 });
 

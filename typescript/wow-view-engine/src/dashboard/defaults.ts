@@ -32,6 +32,7 @@ export function emptyDashboardConfig(): DashboardViewConfig {
     refresh: { interval: null },
     kind: 'dashboard',
     columns: DASHBOARD_GRID_COLUMNS,
+    fixed: emptyFilter(),
     tabs: [],
     fields: [],
     panels: [],

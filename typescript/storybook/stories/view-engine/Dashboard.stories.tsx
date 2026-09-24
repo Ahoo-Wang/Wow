@@ -54,6 +54,7 @@ type Variant =
   | 'empty-shared'
   | 'personal'
   | 'legacy'
+  | 'pre-c'
   | 'system'
   | 'owned'
   | 'tabs'
@@ -264,6 +265,7 @@ function savedConfig(variant: Variant) {
   if (variant === 'empty' || variant === 'empty-shared')
     return emptyDashboard();
   if (variant === 'legacy') return legacyDashboardConfig();
+  if (variant === 'pre-c') return preBatchCConfig();
   if (variant === 'personal') return personalPanelConfig();
   if (variant === 'filtered')
     return dashboardConfig({
@@ -273,6 +275,27 @@ function savedConfig(variant: Variant) {
       },
     });
   return dashboardConfig();
+}
+
+/**
+ * The outbound overview as a store kept it before batch C (D23 Q16, D26
+ * Q31): one board condition in `filter`, and no `fixed`. 「仓库 属于 华南」
+ * is what the 仓库 filter asks, so it is read as that filter's default;
+ * 「仓库 不是 西南」 asks with another operator, so no filter can hold it and
+ * it is read as the board's fixed scope.
+ */
+function preBatchCConfig(): DashboardViewConfig {
+  const stored: Partial<DashboardViewConfig> = dashboardConfig({
+    filter: {
+      op: 'and',
+      children: [
+        { field: 'region', operator: 'IN', value: ['CN-SOUTH'] },
+        { field: 'region', operator: 'NOT_IN', value: ['CN-WEST'] },
+      ],
+    },
+  });
+  delete stored.fixed;
+  return stored as DashboardViewConfig;
 }
 
 /**
@@ -720,6 +743,17 @@ export const ToAnotherBoardStale: Story = {
 export const ToAnotherBoardWithOwnFilter: Story = {
   name: '点击：去另一块仪表盘（带这块板的筛选）',
   args: { variant: 'to-board-own' },
+};
+
+/**
+ * 批 C 之前存下的整板条件（D23 Q16、D26 Q31）：筛选收得下的「仓库 属于 华南」
+ * 读成仓库筛选的默认值，筛选条上就是华南、读者能改；收不下的「仓库 不是 西南」
+ * 读成板子的固定范围，在「正在显示」一行只读地说出来，没有 ✕。打开不变脏，存回
+ * 才写新形式（`fixed`），之后作者怎么改筛选设置都不再迁。
+ */
+export const PreBatchCCondition: Story = {
+  name: '批 C 之前的整板条件',
+  args: { variant: 'pre-c' },
 };
 
 /** A dashboard with nothing on it yet. */

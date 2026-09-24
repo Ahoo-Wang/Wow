@@ -23,6 +23,7 @@ import type {
 import { mergeFilters, type FieldKindRegistry } from '../../filter/index.js';
 import {
   bindingsOf,
+  boardCondition,
   filterReach,
   mapGlobalFilter,
   panelFilterTree,
@@ -83,7 +84,8 @@ export function panelRun(
 
 /**
  * The one condition a data panel runs under, in its own field names: the
- * board's fixed scope (`config.filter`) and the host's condition, mapped
+ * board's fixed scope (`boardCondition`: `fixed`, D26 Q31) and the host's
+ * condition, mapped
  * through the panel's bindings, ANDed with every filter wired to it that
  * holds a value in `filters` (`panelFilterTree`) — but one whose value was
  * pressed on this panel (`DashboardFilters.from`). The panel runs under it
@@ -109,7 +111,7 @@ export function panelScope(
     binding => filters.from?.[binding.globalField] !== panel.id,
   );
   return mergeFilters(
-    mapGlobalFilter(mergeFilters(applied.filter, injected), bindings),
+    mapGlobalFilter(mergeFilters(boardCondition(applied), injected), bindings),
     panelFilterTree(applied, filters, wired, kinds),
   );
 }

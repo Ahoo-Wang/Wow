@@ -25,18 +25,14 @@ ECharts 迁移（D21）与两份「数据分析师视角」审查的 P0 已全�
   - 判据：从空仪表盘开始只用界面就能搭出首页那块运营看板；真浏览器逐控件走查。
   - 落点：`src/ui/dashboard/`、`src/ui/DashboardWorkbench.tsx`、[ui/dashboard.md](ui/dashboard.md)。
 - **批 C 全局筛选**：已做完（C1 #1843 模型与运行时，C2 界面），见 [ui/dashboard.md](ui/dashboard.md)「筛选」。
-- **批 C 之前的整板条件——固定范围的界面**（[D23](decisions.md#d23-搁置待议的六条拍板2026-09-23) Q16）：迁成默认值的那一半已做（`migrateDashboardConfig` 的 `intoDefaults`，[model.md#dashboard-配置](model.md#dashboard-配置)）。拆不开、留在 `config.filter` 里的，今天出现在「正在显示」条上、✕ 能拿掉，但没有叫它「固定范围」，也不在筛选条旁；要在筛选条旁注明为只读的「固定范围」，编辑模式里可以整体删掉。等阶段 4（筛选三态动 `FilterBar`）合并后做。
+- **批 C 之前的整板条件——固定范围的界面**（[D23](decisions.md#d23-搁置待议的六条拍板2026-09-23) Q16）：迁成默认值的那一半已做（`migrateDashboardConfig` 的 `intoDefaults`，[model.md#dashboard-配置](model.md#dashboard-配置)）。拆不开的存成独立成员 `fixed`（D26 Q31），今天在「正在显示」条上只读、注明是仪表盘的固定范围，读者拿不掉；但不在筛选条旁，也删不掉——要在筛选条旁注明为只读的「固定范围」，编辑模式里可以整体删掉。等阶段 4（筛选三态动 `FilterBar`）合并后做。
   - 判据：拆不开的那棵条件在筛选条旁读得到、编辑中删得掉；有测试与故事。
   - 落点：`src/ui/dashboard/FilterBar.tsx`、[ui/dashboard.md](ui/dashboard.md)「筛选」。
 
 ## 阶段 3＋4 联合审查的处置（2026-09-24）
 
-四路只读审查（架构 A-、代码质量 Q-、UI 与可达性 U-、UX 与文档 X-）加主会话的视觉走查（V-）共 69 条，原报告在主会话 scratchpad `review-p34/`（不在仓库里，要点记在这里）。要拍板的 11 条已定为 [D26](decisions.md#d26-阶段-34-联合审查的十一条拍板2026-09-24)（Q30～Q40，2026-09-24 按推荐），落在下面的 R1b、R6、R7；R2～R5 不需要产品判断。批次按文件分开、可并行。每批：先在最新 main 上复现，修掉并补测试，文档按现状改，本地门禁全绿即合并，最后一批等完整 CI。
+四路只读审查（架构 A-、代码质量 Q-、UI 与可达性 U-、UX 与文档 X-）加主会话的视觉走查（V-）共 69 条，原报告在主会话 scratchpad `review-p34/`（不在仓库里，要点记在这里）。要拍板的 11 条已定为 [D26](decisions.md#d26-阶段-34-联合审查的十一条拍板2026-09-24)（Q30～Q40，2026-09-24 按推荐），Q31、Q35、Q39 已做完（R1b），其余落在下面的 R6、R7；R2～R5 不需要产品判断。批次按文件分开、可并行。每批：先在最新 main 上复现，修掉并补测试，文档按现状改，本地门禁全绿即合并，最后一批等完整 CI。
 
-- **R1 运行时正确性（余下）**：A-02／A-06 随 Q31 进 R1b。
-  - 落点：`src/dashboard/migrate.ts`、`src/runtime/`、[model.md#dashboard-配置](model.md#dashboard-配置)。
-- **R1b 运行时的三条拍板**：Q31 旧整板条件存成独立的「固定范围」成员并作迁移标记（含 A-02／A-06：迁移收到一个读取边界）；Q35 读者改自动刷新间隔不进草稿、不变「已修改」；Q39 搭板期间暂停整板自动刷新。
-  - 判据：作者之后改筛选设置不会再迁一次（测试复现 A-02 的情形）；读者改间隔后板子不「已修改」；搭板中不重跑、完成后恢复。落点：`src/dashboard/migrate.ts`、`src/model/dashboard.ts`、`src/runtime/dashboard*`、[model.md](model.md)、[runtime.md](runtime.md)。
 - **R6 离开板子的导航**：Q30 四个入口一种交法（页面持有的锁定、读者的可删），`ViewNavigation` 视图目标带 `definitionId`，`DataWorkbench` 接住；Q33 包画「返回〈仪表盘〉」；Q32 去掉仪表盘的 `scopeFilter`；A-12 把 `ViewNavigation`／`GroupNaming` 移出仪表盘合同文件。
   - 判据：板上筛成华南后「在工作台中打开」看到的是华南（X-01 的复现反过来）；页面锁定的在工作台拿不掉、读者的能拿掉；工作台里有回板子的一行。落点：`src/react/usePanelFollowUps.ts`、`src/ui/DataWorkbench.tsx`、`src/ui/workbench/OriginBar.tsx`、`src/ui/EmbeddedDashboard.tsx`、[ui/dashboard.md](ui/dashboard.md)、[ui/embed.md](ui/embed.md)、README。
 - **R7 界面的四条拍板**（R2 合并后）：Q34 仪表盘工作台说「仪表盘」；Q36 只读嵌入导出不出勾选；Q37「完成」改「保存」；Q38 手机上筛选条收成按钮与底部 `Sheet`；Q40 只有一页时只留「全部」一行汇总。可与 R5 措辞一起做。

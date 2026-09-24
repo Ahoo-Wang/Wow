@@ -18,11 +18,17 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react';
-import type { RuntimeLimits, ViewConfig } from '../model/index.js';
+import type {
+  RefreshConfig,
+  RuntimeLimits,
+  ViewConfig,
+} from '../model/index.js';
 import {
   listenerSet,
   refreshIntervalOf,
+  type DashboardRuntime,
   type ViewRuntime,
+  type ViewRuntimeState,
 } from '../runtime/index.js';
 import { useViewRuntime } from './useViewEngine.js';
 
@@ -162,11 +168,19 @@ export function useAutoRefresh(
   runtime: ViewRuntime<ViewConfig> | null,
 ): RefreshController {
   const state = useViewRuntime(runtime);
+  // A dashboard's reader may keep an interval of their own for this opening
+  // (D26 Q35): it is the one in force and the one the menu marks, and the
+  // board's own stays in its draft, untouched.
+  const own = readerRefresh(runtime, state);
   // Both read through the runtime's own reading of the member: a config
   // arrives from a store, and neither "what the timer uses" nor "what a save
   // would write" may throw on the way to the screen.
-  const applied = state ? refreshIntervalOf(state.applied) : null;
-  const chosen = state ? refreshIntervalOf(state.draft) : null;
+  const applied = state
+    ? refreshIntervalOf(own ? { refresh: own } : state.applied)
+    : null;
+  const chosen = state
+    ? refreshIntervalOf(own ? { refresh: own } : state.draft)
+    : null;
   const limits = runtime?.limits;
 
   return {
@@ -195,6 +209,12 @@ export function useAutoRefresh(
     setInterval: useCallback(
       (next: number | null) => {
         if (!runtime) return;
+        // A dashboard says whose interval it is: the board's while it is
+        // built, this reader's while it is read (D26 Q35).
+        if (runtime.kind === 'dashboard') {
+          (runtime as unknown as DashboardRuntime).setRefreshInterval(next);
+          return;
+        }
         runtime.edit({ refresh: { interval: next } });
         runtime.apply();
       },
@@ -215,6 +235,17 @@ export function useAutoRefresh(
       return Math.max(0, Math.ceil(left / 1000));
     }, [runtime]),
   };
+}
+
+/** The interval a dashboard's reader chose for this opening, if any. */
+function readerRefresh(
+  runtime: ViewRuntime<ViewConfig> | null,
+  state: ViewRuntimeState<ViewConfig> | null,
+): RefreshConfig | null {
+  if (runtime?.kind !== 'dashboard' || !state) return null;
+  return (
+    (state as { readerRefresh?: RefreshConfig | null }).readerRefresh ?? null
+  );
 }
 
 /**

@@ -36,6 +36,7 @@ import {
 } from '../model/index.js';
 import {
   filterFields,
+  isFilterGroup,
   issue,
   mergeFilters,
   validateFilter,
@@ -45,7 +46,7 @@ import {
 } from '../filter/index.js';
 import { validatePanelClick } from './click.js';
 import { defaultFilters, panelFilterTree } from './filters.js';
-import { mergeGlobalFilter } from './merge.js';
+import { boardCondition, mergeGlobalFilter } from './merge.js';
 import {
   validateFilterFields,
   validateTimeGrouping,
@@ -115,6 +116,7 @@ export function validateDashboard(
   const fields = config.fields as readonly FieldDefinition[];
   const issues = validateViewConfigBase(fields, config, kinds, limits);
 
+  issues.push(...validateFixed(config, fields, kinds, limits));
   issues.push(...validateFilterFields(config, kinds, limits));
   issues.push(...validateTimeGrouping(config));
 
@@ -185,6 +187,26 @@ function validateSkeleton(config: DashboardViewConfig): Issue[] {
     });
   if (!Array.isArray(config.panels)) issues.push(shape(['panels'], 'array'));
   return issues;
+}
+
+/**
+ * The board's fixed scope (D26 Q31): a tree over the board's own fields,
+ * judged as `filter` is, at its own path. One that is missing or no tree
+ * is refused as `filter` would be — a config reaches admission read into
+ * this form (`migrateDashboardConfig`), so one without it was not.
+ */
+function validateFixed(
+  config: DashboardViewConfig,
+  fields: readonly FieldDefinition[],
+  kinds: FieldKindRegistry,
+  limits: RuntimeLimits,
+): Issue[] {
+  if (!isFilterGroup(config.fixed))
+    return [issue('config.filter.invalid', ['fixed'])];
+  return validateFilter(fields, config.fixed, kinds, { limits }).map(found => ({
+    ...found,
+    path: ['fixed', ...found.path],
+  }));
 }
 
 function shape(
@@ -371,11 +393,16 @@ function validateViewPanel(
   // The view is judged against what it can reach, not the root fields alone:
   // an analysis standing on an element field opens fine on its own and must
   // not be refused the moment it is placed on a dashboard.
-  // What the panel starts under: the board's standing condition, and each
-  // wired filter at its default — a default the panel's field cannot take
-  // is said here, while the board is built, rather than when it runs.
+  // What the panel starts under: the board's standing condition — its fixed
+  // scope and a host's condition (`boardCondition`) — and each wired filter
+  // at its default — a default the panel's field cannot take is said here,
+  // while the board is built, rather than when it runs.
   const merged = mergeFilters(
-    mergeGlobalFilter(view.config.filter, config.filter, panel.bindings),
+    mergeGlobalFilter(
+      view.config.filter,
+      boardCondition(config),
+      panel.bindings,
+    ),
     panelFilterTree(config, defaultFilters(config), panel.bindings, kinds),
   );
   issues.push(
@@ -452,7 +479,7 @@ function validateBindings(
 
   // Partial mapping cannot preserve the tree's boolean meaning, so a panel
   // either carries the whole global filter or is reported as unbound.
-  for (const field of filterFields(config.filter))
+  for (const field of filterFields(boardCondition(config)))
     if (!bound.has(field))
       issues.push(
         issue('dashboard.binding.missing', [...path, 'bindings'], { field }),

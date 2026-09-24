@@ -44,6 +44,7 @@ import {
   namedOrdersDefinition,
   ordersDefinition,
   overviewDefinition,
+  preCDashboardConfig,
   recordConfig,
   testSource,
 } from './fixtures.js';
@@ -333,6 +334,68 @@ describe('DashboardWorkbench', () => {
     expect(
       screen.getByRole('region', { name: 'Showing' }).textContent,
     ).toContain('Region');
+  });
+
+  /**
+   * D26 Q31: a board stored before batch C opens with what no filter could
+   * hold as its fixed scope. The band says it, worn as the board's and with
+   * no ✕ — no reader takes it out — while the leaf a filter could hold is
+   * that filter's default, the reader's to change as any filter's value.
+   */
+  it('shows a pre-C board’s fixed scope read-only, beside the reader’s own filters', async () => {
+    const { engine, source } = setup({
+      ...overview,
+      config: preCDashboardConfig({
+        fields: [{ name: 'region', label: 'Region', kind: 'string' }],
+        filter: {
+          op: 'and',
+          children: [
+            { field: 'region', operator: 'IN', value: ['CN'] },
+            { field: 'region', operator: 'NE', value: 'north' },
+          ],
+        },
+        panels:
+          overview.config.kind === 'dashboard' ? overview.config.panels : [],
+      }),
+    });
+
+    render(
+      <DashboardWorkbench
+        engine={engine}
+        definitionId="overview"
+        instanceId="overview-1"
+      />,
+    );
+    await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
+
+    const band = screen.getByRole('region', { name: 'Showing' });
+    const badges = [...band.querySelectorAll('[data-slot="badge"]')];
+    expect(badges.map(badge => badge.textContent?.trim())).toEqual([
+      'Region is not north Fixed by the dashboard',
+    ]);
+    expect(badges[0].hasAttribute('data-fixed')).toBe(true);
+    expect(within(band).queryAllByRole('button')).toEqual([]);
+    // Both halves reach the panel: the fixed scope, and the filter's value.
+    const asked = JSON.stringify(vi.mocked(source.paged).mock.lastCall);
+    expect(asked).toContain('"north"');
+    expect(asked).toContain('"CN"');
+
+    // The reader's own filter is theirs: changing it leaves the fixed scope
+    // in force and on the band, and the board unmodified.
+    const runtime = engine
+      .openRuntimes()
+      .find(opened => opened.kind === 'dashboard') as DashboardRuntime;
+    vi.mocked(source.paged).mockClear();
+    act(() => runtime.setFilterValue('region', ['EU']));
+    await waitFor(() => expect(source.paged).toHaveBeenCalled());
+    const again = JSON.stringify(vi.mocked(source.paged).mock.lastCall);
+    expect(again).toContain('"EU"');
+    expect(again).toContain('"north"');
+    expect(again).not.toContain('"CN"');
+    expect(
+      screen.getByRole('region', { name: 'Showing' }).textContent,
+    ).toContain('north');
+    expect(runtime.getSnapshot().dirty).toBe(false);
   });
 
   it('draws no applied band over a board its bar says everything about', async () => {
