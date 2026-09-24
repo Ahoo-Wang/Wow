@@ -314,8 +314,15 @@
    * host tuning a slot reads its lightness beside the lightness of
    * everything around it instead of translating. The values round-trip to
    * the same sRGB bytes — these are the colours that were validated.
+   *
+   * The first blue is a step darker than it was picked (0.5753 → 0.565,
+   * user's call 2026-09-23): a number written inside a bar takes whichever
+   * of the page's two inks stands off the segment more (`inkOn`), and on
+   * the old blue neither reached 4.5:1 (dark 4.48, white 4.41). White now
+   * reads at 4.61; every other slot, light and dark, already had an ink
+   * over 4.5.
    */
-  --chart-1: var(--fve-chart-1, oklch(0.5753 0.1626 255.532deg));
+  --chart-1: var(--fve-chart-1, oklch(0.565 0.1626 255.532deg));
   --chart-2: var(--fve-chart-2, oklch(0.6708 0.175 40.642deg));
   --chart-3: var(--fve-chart-3, oklch(0.669 0.1408 162.111deg));
   --chart-4: var(--fve-chart-4, oklch(0.7644 0.1612 75.116deg));
