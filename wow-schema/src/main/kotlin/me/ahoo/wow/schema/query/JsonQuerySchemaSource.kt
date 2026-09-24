@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.schema.query
 
-import com.fasterxml.jackson.annotation.JsonGetter
-import com.fasterxml.jackson.annotation.JsonProperty
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomPropertyDefinition
 import com.github.victools.jsonschema.generator.FieldScope
@@ -52,6 +50,7 @@ import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
 import tools.jackson.databind.ValueSerializer
 import tools.jackson.databind.annotation.JsonSerialize
+import tools.jackson.databind.introspect.AnnotatedMethod
 import tools.jackson.databind.node.ObjectNode
 import tools.jackson.databind.ser.bean.BeanSerializerBase
 import tools.jackson.databind.ser.impl.UnknownSerializer
@@ -59,7 +58,6 @@ import tools.jackson.databind.ser.std.ReferenceTypeSerializer
 import tools.jackson.databind.ser.std.StdContainerSerializer
 import tools.jackson.databind.util.Converter
 import java.lang.reflect.InvocationTargetException
-import java.lang.reflect.Method
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.jvm.kotlinFunction
 import kotlin.reflect.jvm.kotlinProperty
@@ -165,15 +163,10 @@ class JsonQuerySchemaSource(
                     .withCustomDefinitionProvider { scope, context -> scope.customSerializerDefinition(context) }
                     .withInstanceAttributeOverride(TemporalAttributeOverride<FieldScope>())
                     .withInstanceAttributeOverride(MaskAttributeOverride(maskRuleCatalog))
+                val serializedGetters = SerializedGetters()
                 config.forMethods()
-                    .withPropertyNameOverrideResolver { scope ->
-                        scope.rawMember.explicitJacksonPropertyName()
-                    }
-                    .withIgnoreCheck { scope ->
-                        scope.findGetterField() == null &&
-                            !scope.rawMember.isComputedGetter() &&
-                            !scope.rawMember.isExplicitJacksonProperty()
-                    }
+                    .withPropertyNameOverrideResolver(serializedGetters::propertyName)
+                    .withIgnoreCheck { scope -> serializedGetters.propertyName(scope) == null }
                     .withCustomDefinitionProvider { scope, context -> scope.customSerializerDefinition(context) }
                     .withInstanceAttributeOverride(TemporalAttributeOverride<MethodScope>())
                     .withInstanceAttributeOverride(MaskAttributeOverride(maskRuleCatalog))
@@ -184,30 +177,36 @@ class JsonQuerySchemaSource(
     }
 }
 
-private fun Method.isComputedGetter(): Boolean = parameterCount == 0 &&
-    when {
-        name == "getClass" -> false
-        name.startsWith("get") -> name.length > 3
-        name.startsWith("is") ->
-            name.length > 2 &&
-                (returnType == Boolean::class.java || returnType == Boolean::class.javaObjectType)
-        else -> false
+/**
+ * Maps argument-free methods to the Jackson property they serialize.
+ *
+ * Snapshot documents hold what [JsonSerializer] writes, so a method is a query field only when it is the
+ * serialization accessor of a Jackson property, and it takes Jackson's external name rather than a
+ * JavaBeans-derived one: a Kotlin `isRetryable` stays `isRetryable`, while `@JsonIgnore` getters and
+ * methods such as `isEmpty()` that Jackson does not serialize are left out.
+ */
+private class SerializedGetters {
+    private val propertyNames = ConcurrentHashMap<Class<*>, Map<String, String>>()
+
+    fun propertyName(scope: MethodScope): String? {
+        if (scope.argumentCount > 0) {
+            return null
+        }
+        val targetType = scope.declaringTypeMembers.allTypesAndOverrides().first().type.erasedType
+        return propertyNames.computeIfAbsent(targetType, ::serializedGetterNames)[scope.rawMember.name]
     }
 
-private fun Method.explicitJacksonProperty(): Annotation? = inheritedAnnotations().firstOrNull {
-    it is JsonProperty || it is JsonGetter
-}
-
-private fun Method.isExplicitJacksonProperty(): Boolean = explicitJacksonProperty() != null
-
-private fun Method.explicitJacksonPropertyName(): String? {
-    val annotation = explicitJacksonProperty() ?: return null
-    val explicitName = when (annotation) {
-        is JsonProperty -> annotation.value
-        is JsonGetter -> annotation.value
-        else -> error("Unsupported Jackson property annotation: [$annotation].")
+    private fun serializedGetterNames(type: Class<*>): Map<String, String> {
+        val serializationConfig = JsonSerializer.serializationConfig()
+        val classIntrospector = serializationConfig.classIntrospectorInstance()
+        val javaType = JsonSerializer.typeFactory.constructType(type)
+        return classIntrospector
+            .introspectForSerialization(javaType, classIntrospector.introspectClassAnnotations(javaType))
+            .findProperties()
+            .mapNotNull { property ->
+                (property.accessor as? AnnotatedMethod)?.let { it.name to property.name }
+            }.toMap()
     }
-    return explicitName.takeIf(String::isNotEmpty) ?: name.takeIf { !isComputedGetter() }
 }
 
 private class MaskRuleCatalog {

@@ -37,6 +37,7 @@ import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.query.schema.DeclarationValue
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaContext
+import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.SystemQuerySchemaSource
 import me.ahoo.wow.schema.query.JsonQuerySchemaSource
 import me.ahoo.wow.schema.typed.AggregatedDomainEventStream
@@ -45,12 +46,13 @@ private val staticQuerySchemaSource = JsonQuerySchemaSource()
 
 internal fun OpenAPIComponentContext.aggregatedFieldsSchema(
     aggregateMetadata: AggregateMetadata<*, *>,
+    querySchemaSource: QuerySchemaSource = staticQuerySchemaSource,
 ): io.swagger.v3.oas.models.media.Schema<*> {
     val context = QuerySchemaContext(
         namedAggregate = aggregateMetadata.namedAggregate,
         model = QueryModel.SNAPSHOT,
     )
-    val inferred = checkNotNull(staticQuerySchemaSource.load(context).blockFirst())
+    val inferred = checkNotNull(querySchemaSource.load(context).blockFirst())
     val fields = buildSet {
         fun addFields(field: QueryField, declaration: QueryFieldDeclaration) {
             add(field)

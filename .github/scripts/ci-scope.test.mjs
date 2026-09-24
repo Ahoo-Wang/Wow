@@ -26,7 +26,6 @@ test('workspace configuration, CI scripts and unknown paths run every gate', () 
     'pnpm-workspace.yaml',
     'tsconfig.base.json',
     '.github/scripts/ci-scope.mjs',
-    '.github/workflows/typescript-storybook.yml',
     'view-store/wow-view-store-api/build.gradle.kts',
     'new-directory/index.ts',
   ])
@@ -34,13 +33,20 @@ test('workspace configuration, CI scripts and unknown paths run every gate', () 
 });
 
 test('lint and format rules run only the static checks and the site build', () => {
-  for (const path of [
-    'eslint.config.js',
-    '.prettierrc',
-    '.prettierignore',
-    '.github/workflows/typescript.yml',
-  ])
+  for (const path of ['eslint.config.js', '.prettierrc', '.prettierignore'])
     assert.deepEqual(on([path]), ['typescript', 'docs'], path);
+});
+
+test('each TypeScript workflow file runs the jobs it defines and the static checks', () => {
+  assert.deepEqual(on(['.github/workflows/typescript.yml']), [
+    'typescript',
+    'docs',
+    'viewEngine',
+  ]);
+  assert.deepEqual(on(['.github/workflows/typescript-storybook.yml']), [
+    'typescript',
+    'storybook',
+  ]);
 });
 
 test('example server sources and the Gradle build run only the same-source contract', () => {
@@ -69,8 +75,14 @@ test('the version source and the compat-debt ledger run the static checks', () =
 });
 
 test('the client, generator, integration tests and contract workflow run both contracts', () => {
+  assert.deepEqual(on(['typescript/wow-client/src/index.ts']), [
+    'typescript',
+    'viewEngine',
+    'storybook',
+    'contract',
+    'legacyContract',
+  ]);
   for (const path of [
-    'typescript/wow-client/src/index.ts',
     'typescript/wow-generator/src/cli.ts',
     'typescript/integration-test/src/generated/index.ts',
     '.github/workflows/typescript-contract.yml',
@@ -82,13 +94,43 @@ test('the client, generator, integration tests and contract workflow run both co
     );
 });
 
+test('view-engine and what it builds on run its suite, the stories and the site', () => {
+  for (const path of [
+    'typescript/wow-react/src/index.ts',
+    'typescript/wow-view-engine/src/index.ts',
+    'typescript/wow-view-engine/test/setup.ts',
+    'typescript/wow-view-engine/docs/design/progress.md',
+    'typescript/wow-view-engine/package.json',
+  ])
+    assert.deepEqual(
+      on([path]),
+      ['typescript', 'docs', 'viewEngine', 'storybook'],
+      path,
+    );
+});
+
+test('the stories run Storybook, the static checks and the site', () => {
+  for (const path of [
+    'typescript/storybook/stories/view-engine/Home.stories.tsx',
+    'typescript/storybook/.storybook/main.ts',
+    'typescript/storybook/package.json',
+    'typescript/storybook/README.md',
+  ])
+    assert.deepEqual(on([path]), ['typescript', 'docs', 'storybook'], path);
+});
+
 test('Storybook and the packages it renders also build the site', () => {
   for (const path of [
     'typescript/storybook/stories/react/WowQueryHooks.stories.tsx',
     'typescript/wow-view-engine/src/index.ts',
     'typescript/wow-react/src/index.ts',
   ])
-    assert.deepEqual(on([path]), ['typescript', 'docs'], path);
+    assert.ok(scopes([path]).docs, path);
+  for (const path of [
+    'typescript/wow-generator/src/cli.ts',
+    'typescript/integration-test/src/generated/index.ts',
+  ])
+    assert.ok(!scopes([path]).docs, path);
 });
 
 test('Kotlin, Gradle, dashboard and prose changes skip the TypeScript workflows', () => {
@@ -122,7 +164,11 @@ test('isolated changes retain their relevant validation', () => {
   );
   assert.deepEqual(
     on(['typescript/wow-react/src/index.ts', 'example/README.md']),
-    ['typescript', 'docs', 'contract'],
+    ['typescript', 'docs', 'viewEngine', 'storybook', 'contract'],
+  );
+  assert.deepEqual(
+    on(['typescript/wow-generator/src/cli.ts', 'typescript/storybook/a.ts']),
+    ['typescript', 'docs', 'storybook', 'contract', 'legacyContract'],
   );
   assert.ok(all(['README.md', 'pnpm-lock.yaml']));
   assert.ok(all(['wow-core/src/main/kotlin/A.kt', 'new-directory/index.ts']));
@@ -154,7 +200,14 @@ test('the command reads the diff and runs everything without a base', () => {
     const head = git('rev-parse', 'HEAD');
 
     const output = value =>
-      ['typescript', 'docs', 'contract', 'legacyContract']
+      [
+        'typescript',
+        'docs',
+        'viewEngine',
+        'storybook',
+        'contract',
+        'legacyContract',
+      ]
         .map(key => `${key}=${value}\n`)
         .join('');
     assert.equal(run({ BASE_SHA: base, HEAD_SHA: head }), output(false));

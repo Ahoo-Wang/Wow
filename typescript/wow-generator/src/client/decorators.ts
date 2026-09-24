@@ -32,9 +32,9 @@ export const DECORATOR_MODULE_SPECIFIER = '@ahoo-wang/fetcher-decorator';
  * Named imports from the fetcher-decorator package.
  */
 export const DECORATOR_NAMED_IMPORTS = [
-  'type ApiMetadata',
-  'type ApiMetadataCapable',
-  'type ParameterRequest',
+  'ApiMetadata',
+  'ApiMetadataCapable',
+  'ParameterRequest',
   'api',
   'get',
   'post',
@@ -161,6 +161,6 @@ export const EVENTSTREAM_MODULE_SPECIFIER = '@ahoo-wang/fetcher-eventstream';
 export function addImportEventStream(sourceFile: SourceFile) {
   addImport(sourceFile, EVENTSTREAM_MODULE_SPECIFIER, [
     'JsonEventStreamResultExtractor',
-    'type JsonServerSentEventStream',
+    'JsonServerSentEventStream',
   ]);
 }

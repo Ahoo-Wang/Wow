@@ -35,9 +35,9 @@ describe('decorators', () => {
 
     it('should have correct DECORATOR_NAMED_IMPORTS', () => {
       expect(DECORATOR_NAMED_IMPORTS).toEqual([
-        'type ApiMetadata',
-        'type ApiMetadataCapable',
-        'type ParameterRequest',
+        'ApiMetadata',
+        'ApiMetadataCapable',
+        'ParameterRequest',
         'api',
         'get',
         'post',
