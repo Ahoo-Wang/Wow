@@ -7,32 +7,75 @@ import { execFileSync } from 'node:child_process';
 import { appendFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
-// Paths the TypeScript workflow never needs: the Gradle build, its sources,
-// other workflows, the dashboard (dashboard-test.yml) and prose.
-const UNRELATED = [
-  /^(?:wow-[^/]+|test|example|build-logic|gradle|config|schema|deploy|document|docs|skills|scripts)\//,
-  /^compensation\//,
-  /^\.claude\/skills\//,
-  /^\.github\/(?!scripts\/[^/]+\.mjs$|workflows\/typescript[^/]*\.yml$)/,
-  /^[^/]+\.(?:kts|md|properties)$/,
-  /^(?:gradlew|gradlew\.bat|LICENSE|codecov\.yml|renovate\.json|\.editorconfig|\.gitattributes|\.gitignore)$/,
+// typescript.yml: TypeScript packages and the workspace toolchain.
+const TYPESCRIPT = 'typescript';
+// typescript.yml: the VitePress documentation site.
+const DOCS = 'docs';
+// typescript-contract.yml: the client, generator and integration tests
+// against an example server built from this repository.
+const CONTRACT = 'contract';
+// typescript-contract.yml: generated code against the published 8.x servers.
+const LEGACY_CONTRACT = 'legacyContract';
+
+// The first rule that matches a path decides which scopes it turns on; an
+// empty list means no TypeScript workflow needs it. Unknown paths turn on
+// every scope, so only known paths narrow a run.
+const RULES = [
+  [
+    /^typescript\/(?:wow-client|wow-generator|integration-test)\//,
+    [TYPESCRIPT, CONTRACT, LEGACY_CONTRACT],
+  ],
   // Prose next to the TypeScript packages (the migration plan, AGENTS.md).
-  /^typescript\/[^/]+\.md$/,
+  [/^typescript\/[^/]+\.md$/, []],
+  [/^typescript\//, [TYPESCRIPT]],
+  [/^documentation\//, [DOCS]],
+  // Sources and build of the example server the same-source contract runs:
+  // every project on its runtime classpath, plus the Gradle build.
+  [
+    /^(?:wow-[^/]+|schema|example|build-logic|gradle|test\/wow-mock|compensation\/wow-compensation-(?:api|core))\//,
+    [CONTRACT],
+  ],
+  [
+    /^(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$/,
+    [CONTRACT],
+  ],
+  // Lint and format rules only the static checks read.
+  [
+    /^(?:eslint\.config\.js|\.prettierrc|\.prettierignore)$/,
+    [TYPESCRIPT, DOCS],
+  ],
+  [/^\.github\/workflows\/typescript\.yml$/, [TYPESCRIPT, DOCS]],
+  // Prettier checks the workflow file, so the static checks run too.
+  [
+    /^\.github\/workflows\/typescript-contract\.yml$/,
+    [TYPESCRIPT, CONTRACT, LEGACY_CONTRACT],
+  ],
+  // Other Gradle modules, other workflows, the dashboard (dashboard-test.yml)
+  // and prose.
+  [
+    /^(?:test|config|deploy|document|docs|skills|scripts|compensation|\.claude\/skills)\//,
+    [],
+  ],
+  [/^\.github\/(?!scripts\/[^/]+\.mjs$|workflows\/typescript[^/]*\.yml$)/, []],
+  [/^[^/]+\.(?:kts|md|properties)$/, []],
+  [
+    /^(?:gradlew\.bat|LICENSE|codecov\.yml|renovate\.json|\.editorconfig|\.gitattributes|\.gitignore)$/,
+    [],
+  ],
 ];
 
-// Unknown paths run every gate; only known paths narrow the run.
 export function scopes(paths) {
   const result = {
-    // TypeScript packages and the workspace toolchain: quality and unit.
-    typescript: false,
-    // The VitePress documentation site.
-    docs: false,
+    [TYPESCRIPT]: false,
+    [DOCS]: false,
+    [CONTRACT]: false,
+    [LEGACY_CONTRACT]: false,
   };
   for (const path of paths) {
-    if (UNRELATED.some(pattern => pattern.test(path))) continue;
-    else if (path.startsWith('typescript/')) result.typescript = true;
-    else if (path.startsWith('documentation/')) result.docs = true;
-    else return Object.fromEntries(Object.keys(result).map(key => [key, true]));
+    const rule = RULES.find(([pattern]) => pattern.test(path));
+    if (!rule)
+      return Object.fromEntries(Object.keys(result).map(key => [key, true]));
+    for (const key of rule[1]) result[key] = true;
   }
   return result;
 }

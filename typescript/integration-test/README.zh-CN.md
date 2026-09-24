@@ -36,6 +36,16 @@ pnpm --filter wow-integration-test test
 
 `generate` 读取 `http://localhost:8080/v3/api-docs` 并替换 `src/generated`。提交前先检查生成结果的改动。
 
+`src/generated` 逐字节保存生成器的输出，连同它的清单 `.fetcher-generator.json`；ESLint 和
+Prettier 都跳过这个目录。不要手改，也不要重新格式化。
+
+## CI
+
+`.github/workflows/typescript-contract.yml` 在 Kotlin 源码、示例、Gradle 构建或这几个包有改动时，
+对着同一提交构建出来的示例服务端跑上面这些步骤。重新生成后 `src/generated` 有任何变化就失败，
+任一步失败都会上传服务端日志。改到 `wow-client`、`wow-generator` 或本包时，还会从
+`wow-example-server` 镜像 8.10.8 和 8.11.5 生成代码并做类型检查。
+
 ## 排查失败
 
 1. 先构建；工作区导入解析不到，通常是包的产物过期或缺失。
