@@ -1089,6 +1089,10 @@ describe('columnTitle', () => {
       'runtime.summary.page-only',
       // The exported file's last row is that totals row (D25 Q28).
       'label.export.and-totals',
+      // A waterfall's closing bar is `label.chart.total`, the chart's own
+      // 「合计」 of the groups drawn, as a donut's centre is (D33 Q55).
+      'label.chart.waterfall.total',
+      'label.chart.waterfall.total-basis',
     ]);
     const others = Object.entries(zhCN)
       .filter(([key, text]) => text.includes('合计') && !totalsKeys.has(key))

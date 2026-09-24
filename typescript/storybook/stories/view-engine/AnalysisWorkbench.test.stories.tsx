@@ -2727,7 +2727,8 @@ export const VisualizePanel: Story = {
     await expect(panel.getBoundingClientRect().width).toBeCloseTo(listWidth, 0);
     await expect(main.getBoundingClientRect().left).toBeCloseTo(mainLeft, 0);
 
-    // Every type the definition declares is a tile, and the table is one too.
+    // Every type is a tile, and the table is one too: what draws this
+    // result first, the table last among it, then 「其他图型」 (D33 Q54).
     await expect(
       [...panel.querySelectorAll('[data-slot="chart-tile"]')].map(tile =>
         tile.getAttribute('data-chart-type'),
@@ -2737,12 +2738,14 @@ export const VisualizePanel: Story = {
       'line',
       'area',
       'combo',
+      'waterfall',
       'pie',
-      'heatmap',
+      'treemap',
       'scatter',
       'funnel',
-      'metric',
       'table',
+      'heatmap',
+      'metric',
     ]);
 
     // One dimension that is not a date reads best as bars, and the mark says

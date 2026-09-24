@@ -31,6 +31,8 @@ import { MetricCard } from './charts/MetricCard.js';
 import { PieSlices } from './charts/PieSlices.js';
 import { readChart } from './charts/reading.js';
 import { ScatterPoints } from './charts/ScatterPoints.js';
+import { Treemap } from './charts/Treemap.js';
+import { Waterfall } from './charts/Waterfall.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 
@@ -141,5 +143,9 @@ function family(
       return <Funnel data={data} {...props} />;
     case 'metric':
       return <MetricCard data={data} {...props} />;
+    case 'waterfall':
+      return <Waterfall data={data} {...props} />;
+    case 'treemap':
+      return <Treemap data={data} {...props} />;
   }
 }
