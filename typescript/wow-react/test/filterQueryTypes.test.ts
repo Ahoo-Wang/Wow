@@ -17,7 +17,9 @@ import type {
   FilterListQuery,
   FilterPagedQuery,
   FilterSingleQuery,
+  WowError,
 } from '@ahoo-wang/wow-client';
+import type { FetcherError } from '@ahoo-wang/fetcher';
 import type {
   Condition,
   ListQuery,
