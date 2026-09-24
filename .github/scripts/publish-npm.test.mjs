@@ -14,6 +14,8 @@ import {
   PUBLISHED,
   publishArgs,
   publishPlan,
+  publishRefusal,
+  tarballName,
 } from './publish-npm.mjs';
 
 function workspace(packages) {
@@ -186,5 +188,39 @@ test('CI publishes with provenance; a dry run neither signs nor uploads', () => 
   assert.deepEqual(
     publishArgs('/t/a.tgz', 'latest', { dryRun: false, provenance: false }),
     ['publish', '/t/a.tgz', '--access', 'public', '--tag', 'latest'],
+  );
+});
+
+test('tarballs are found by the name pnpm pack gives them', () => {
+  assert.equal(
+    tarballName('@ahoo-wang/wow-client', '9.2.0-rc.0'),
+    'ahoo-wang-wow-client-9.2.0-rc.0.tgz',
+  );
+  assert.equal(tarballName('plain', '1.0.0'), 'plain-1.0.0.tgz');
+});
+
+test('a real publish ships only a clean checkout of the release tag', () => {
+  const clean = {
+    status: '',
+    head: 'a'.repeat(40),
+    tagCommit: 'a'.repeat(40),
+    version: '9.2.0',
+  };
+  assert.equal(publishRefusal(clean), undefined);
+  assert.match(
+    publishRefusal({ ...clean, status: ' M typescript/wow-client/src/a.ts\n' }),
+    /not clean.*\n M typescript\/wow-client\/src\/a\.ts$/s,
+  );
+  assert.match(
+    publishRefusal({ ...clean, status: '?? stray.txt\n' }),
+    /not clean/,
+  );
+  assert.match(
+    publishRefusal({ ...clean, tagCommit: undefined }),
+    /tag v9\.2\.0 does not exist/,
+  );
+  assert.match(
+    publishRefusal({ ...clean, head: 'b'.repeat(40) }),
+    /HEAD bbbbbbbbb is not the commit of v9\.2\.0 \(aaaaaaaaa\)/,
   );
 });

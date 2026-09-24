@@ -39,13 +39,16 @@ concurrency:
 env:
   CI: GITHUB_ACTIONS
 
+permissions:
+  contents: read
+
 jobs:
   compensation-core-test:
     name: Compensation Core Test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@master
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
@@ -65,7 +68,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@master
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5

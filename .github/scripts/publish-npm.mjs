@@ -4,9 +4,16 @@
  * you may obtain a copy at http://www.apache.org/licenses/LICENSE-2.0
  */
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, readdirSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
   ROOT,
@@ -19,7 +26,13 @@ import {
 // `pnpm build:typescript`:
 //
 //   node .github/scripts/publish-npm.mjs [--dry-run] [--no-provenance]
+//                                        [--pack <dir> | --tarballs <dir>]
 //
+// - A real publish refuses a dirty working tree and a HEAD that is not the
+//   commit of `v<version>`: what goes out is exactly the tagged commit.
+// - `--pack <dir>` packs the packages and stops; `--tarballs <dir>` publishes
+//   tarballs packed earlier, so the release workflow packs, checks and
+//   publishes the same files.
 // - Only PUBLISHED packages go out; private packages never do.
 // - A package whose version is already on npm is skipped, so a failed run can
 //   be re-run after Maven succeeded.
@@ -135,18 +148,73 @@ export function publishArgs(tarball, tag, { dryRun, provenance }) {
   ];
 }
 
-/** Packs with pnpm, which rewrites `workspace:` and `catalog:` ranges. */
-function pack(root, dir) {
-  const destination = mkdtempSync(join(tmpdir(), 'wow-npm-'));
+/** The file name `pnpm pack` gives a package: `@scope/name` → `scope-name-<version>.tgz`. */
+export function tarballName(name, version) {
+  return `${name.replace(/^@/, '').replace('/', '-')}-${version}.tgz`;
+}
+
+/**
+ * Packs a package with pnpm, which rewrites `workspace:` and `catalog:` ranges,
+ * into `destination` and returns the tarball's path.
+ */
+export function pack(root, dir, destination) {
   execFileSync('pnpm', ['pack', '--pack-destination', destination], {
     cwd: join(root, dir),
     stdio: ['ignore', 'ignore', 'inherit'],
   });
-  const [tarball] = readdirSync(destination).filter(file =>
-    file.endsWith('.tgz'),
+  const { name, version } = JSON.parse(
+    readFileSync(join(root, dir, 'package.json'), 'utf8'),
   );
-  if (!tarball) throw new Error(`${dir}: pnpm pack produced no tarball`);
-  return join(destination, tarball);
+  const tarball = join(destination, tarballName(name, version));
+  if (!existsSync(tarball))
+    throw new Error(
+      `${dir}: pnpm pack produced no ${tarballName(name, version)}`,
+    );
+  return tarball;
+}
+
+/**
+ * Why a real publish must not run from this checkout, or undefined. A publish
+ * cannot be taken back, so it ships exactly the tagged commit: the working
+ * tree is clean and HEAD is the commit of `v<version>`.
+ */
+export function publishRefusal({ status, head, tagCommit, version }) {
+  if (status.trim() !== '')
+    return `the working tree is not clean; publish from a fresh clone of v${version}:\n${status.trimEnd()}`;
+  if (!tagCommit) return `tag v${version} does not exist in this clone`;
+  if (head !== tagCommit)
+    return `HEAD ${head.slice(0, 9)} is not the commit of v${version} (${tagCommit.slice(0, 9)}); run: git checkout --detach v${version}`;
+  return undefined;
+}
+
+function git(args) {
+  return execFileSync('git', args, {
+    cwd: ROOT,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+}
+
+function tagCommit(version) {
+  try {
+    return git([
+      'rev-parse',
+      '--verify',
+      '--quiet',
+      `v${version}^{commit}`,
+    ]).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function option(args, name) {
+  const index = args.indexOf(name);
+  if (index === -1) return undefined;
+  const value = args[index + 1];
+  if (!value || value.startsWith('--'))
+    throw new Error(`${name} needs a directory`);
+  return resolve(value);
 }
 
 if (
@@ -156,16 +224,29 @@ if (
   const args = process.argv.slice(2);
   const dryRun = args.includes('--dry-run');
   const provenance = !args.includes('--no-provenance');
+  // --pack <dir>: only pack the packages into <dir>, for the package check and
+  // the publish job. --tarballs <dir>: publish those tarballs, not fresh packs.
+  const packInto = option(args, '--pack');
+  const tarballs = option(args, '--tarballs');
   const version = readProjectVersion();
   const plan = publishPlan(ROOT, version);
-  const tags = execFileSync('git', ['tag', '--list', 'v*'], {
-    cwd: ROOT,
-    encoding: 'utf8',
-  })
-    .split('\n')
-    .filter(Boolean);
+
+  if (packInto) {
+    mkdirSync(packInto, { recursive: true });
+    for (const { dir } of plan) console.log(pack(ROOT, dir, packInto));
+    process.exit(0);
+  }
+
+  const tags = git(['tag', '--list', 'v*']).split('\n').filter(Boolean);
   const tag = distTag(version, tags);
   if (!dryRun) {
+    const refusal = publishRefusal({
+      status: git(['status', '--porcelain']),
+      head: git(['rev-parse', 'HEAD']).trim(),
+      tagCommit: tagCommit(version),
+      version,
+    });
+    if (refusal) throw new Error(`refusing to publish: ${refusal}`);
     const current = npm(['--version']).trim();
     if (compareVersions(parseVersion(current), parseVersion(MIN_NPM)) < 0)
       throw new Error(
@@ -175,17 +256,24 @@ if (
   console.log(
     `${dryRun ? 'Dry run: ' : ''}publishing ${version} with dist-tag ${tag}`,
   );
-  for (const { dir, name } of plan) {
-    if (isPublished(name, version)) {
-      console.log(`${name}@${version} is already on npm; skipped`);
-      continue;
+  const scratch = tarballs
+    ? undefined
+    : mkdtempSync(join(tmpdir(), 'wow-npm-'));
+  try {
+    for (const { dir, name } of plan) {
+      if (isPublished(name, version)) {
+        console.log(`${name}@${version} is already on npm; skipped`);
+        continue;
+      }
+      const tarball = tarballs
+        ? join(tarballs, tarballName(name, version))
+        : pack(ROOT, dir, scratch);
+      if (!existsSync(tarball)) throw new Error(`${tarball} does not exist`);
+      const publish = publishArgs(tarball, tag, { dryRun, provenance });
+      console.log(`npm ${publish.join(' ')}`);
+      execFileSync('npm', publish, { stdio: 'inherit' });
     }
-    const tarball = pack(ROOT, dir);
-    console.log(
-      `npm ${publishArgs(tarball, tag, { dryRun, provenance }).join(' ')}`,
-    );
-    execFileSync('npm', publishArgs(tarball, tag, { dryRun, provenance }), {
-      stdio: 'inherit',
-    });
+  } finally {
+    if (scratch) rmSync(scratch, { recursive: true, force: true });
   }
 }

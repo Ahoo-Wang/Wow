@@ -58,6 +58,9 @@ pnpm --filter <package> exec vitest run --maxWorkers=3 <file>
 - `pnpm set-version <version>` rewrites `gradle.properties` and every workspace `package.json`; `pnpm check:versions` (run by `quality`) fails when they disagree.
 - Compatibility kept until v10 is listed in `docs/compat-debt.md`. Mark it with `@deprecated … Removed in v10.` or `// compat(wow<9): <reason>` / `// compat(fetcher): <reason>`; the ledger check in `quality` pairs markers with entries.
 - A new public package must be added to `PUBLISHED` or `HELD_BACK` in `.github/scripts/publish-npm.mjs`; view-engine and view-store start in `HELD_BACK`.
+- Public packages declare `engines.node` equal to the root's (`>=22.12.0`) and take every external peer range from the named catalog `catalog:peers`, never the default catalog: peer ranges are a published contract that Renovate only widens. Raise a lower bound by hand, and only in an `x.Y.0` release.
+- `node .github/scripts/package-check.mjs` (the `package` job, and the release preflight) checks the packed tarballs: publint, types under node16, nodenext and bundler resolution, and a fresh npm project that imports, requires and runs them. Run it after `pnpm build:typescript` when you change a `package.json`, an entry point or the build.
+- Releasing, including the first npm release, follows [RELEASING.md](RELEASING.md).
 
 ## Code
 
@@ -66,4 +69,4 @@ pnpm --filter <package> exec vitest run --maxWorkers=3 <file>
 
 ## CI
 
-`.github/workflows/typescript.yml` runs on every pull request. Its `scope` job (`.github/scripts/ci-scope.mjs`) decides which jobs run: Kotlin, Gradle, dashboard and prose paths skip it, and unknown paths run everything. `typescript-gate` is the merge signal. When you add a directory, classify it in `ci-scope.mjs` and cover it in `ci-scope.test.mjs`. The compensation dashboard keeps its own `dashboard-test.yml`.
+`.github/workflows/typescript.yml` runs on every pull request. Its `scope` job (`.github/scripts/ci-scope.mjs`) decides which jobs run: Kotlin, Gradle, dashboard and prose paths skip it, and unknown paths run everything. `typescript-gate` is the merge signal; it also covers `workflow-lint`, which runs actionlint whenever any workflow changes. When you add a directory, classify it in `ci-scope.mjs` and cover it in `ci-scope.test.mjs`. The compensation dashboard keeps its own `dashboard-test.yml`.

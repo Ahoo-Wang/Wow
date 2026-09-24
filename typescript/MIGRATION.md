@@ -47,6 +47,7 @@ Wow/
 ├── typescript/
 │   ├── AGENTS.md           # TS 的规则，就近生效；根目录的 AGENTS.md 管 Kotlin
 │   ├── MIGRATION.md        # 本文：迁移方案与进度
+│   ├── RELEASING.md        # 发布手册：发布流水线、首发清单、日常发版
 │   ├── wow-client/  wow-react/  wow-view-engine/  wow-generator/
 │   ├── wow-view-store/     # 阶段 6：ViewStore 端口的 Wow 实现
 │   ├── storybook/          # 私有
@@ -80,13 +81,11 @@ Wow/
 
 - **版本号只在一个地方定义**：`gradle.properties`。升版本的脚本同时改写各个可发布包的 `package.json`，quality 检查校验两边一致。
 - **破坏性改动只能放在 `x.Y.0` 发布**，Kotlin 和 TS 同一条规则。由**发版准入检查**把关：上一个 tag 以来如果有带 `!` 的提交，这次发布就必须是 `x.Y.0`。PR 上不拦，因为 Wow 只在 main 上开发。release notes 里单独列出"Breaking"一节，每一条都写明迁移方法。对照：Wow v9.1.1 里有 `refactor!: unify storage batching and harden shutdown (#3248)`，这正是这条规则要纠正的做法。
-- **流程**：创建 release（`v*`）后先跑 preflight：
-  - 校验 tag 版本 = gradle 版本 = 各包 `package.json` 的版本；
-  - `./gradlew build allIntegrationTest`；
-  - `pnpm -r build`；
-  - 移植 `release-admission.mjs`，要求这个提交上的 `typescript-gate` 是绿的。
+- **流程**（2026-09-24 加固后，细节与操作见 [RELEASING.md](RELEASING.md)）：创建 release（`v*`）或在 `v*` tag 上手动运行后：
+  - `admission`：校验 tag 版本 = gradle 版本 = 各包 `package.json` 的版本；提交在 main 或 `release-x.y` 上；`typescript.yml`、`typescript-contract.yml`、`typescript-storybook.yml` 在这个提交上的**手动触发完整运行**与各自的 gate 通过（缺了就自动触发并等待）；破坏性提交只进 `x.Y.0`；
+  - `preflight`：`pnpm build:typescript`，打出 tarball 并做包检查（publint、node16/nodenext/bundler 类型、干净项目安装导入），`./gradlew build allIntegrationTest`。
 
-  通过后三路并行发布：GitHub Packages、Maven Central、npm。
+  通过后三路并行发布：GitHub Packages、Maven Central、npm（npm 这一路在 environment `npm-publish` 里等审批，只发布 preflight 检查过的 tarball）。
 
 - **npm 这一路**：
   - 走 OIDC 可信发布并带上 `--provenance`，不用长期有效的 token；
@@ -131,7 +130,7 @@ Wow/
 | 契约测试的每夜任务（可选）                              | 定时                                                                                                                                                                          | 拿 npm 上已发布的 wow-client 和 generator，对着 main 最新构建的服务端跑                                                                                                                                                                                                                                                                                                  |
 | `dashboard-test.yml`、`compensation-deploy.yml`（调整） | 原有触发条件，再加上 wow-client、wow-react                                                                                                                                    | 在仓根目录安装、用根目录的锁文件做缓存；构建改成 `pnpm --filter <dashboard>... build`                                                                                                                                                                                                                                                                                    |
 | `documentation-deploy.yml`（调整）                      | 原有触发条件，再加上 `typescript/**`                                                                                                                                          | 见「文档站与 Storybook」                                                                                                                                                                                                                                                                                                                                                 |
-| `package-deploy.yml`（扩展）                            | 创建 release 时                                                                                                                                                               | 加一个 `npm-deploy` job，见「发布策略」                                                                                                                                                                                                                                                                                                                                  |
+| `package-deploy.yml`（扩展）                            | 创建 release 时，或手动在 `v*` tag 上                                                                                                                                         | `admission`、`preflight`，再加一个 `npm-deploy` job，见「发布策略」与 [RELEASING.md](RELEASING.md)                                                                                                                                                                                                                                                                       |
 
 renovate 把 `@ahoo-wang/fetcher*` 归成一组来升级。
 
@@ -291,7 +290,7 @@ W2a、W2b 的具体做法与决定：
 ### 下一步
 
 1. 里程碑收尾：本地全量门禁（空目录重装，全部包、Storybook、dashboard 浏览器测试、文档站）。
-2. **npm 首发（用户操作）**：npm 只能给已存在的包绑定可信发布，三个包都是新名字，所以首个版本由用户在发版提交上手动发一次：`npm login` 后执行 `pnpm install --frozen-lockfile && pnpm build:typescript && node .github/scripts/publish-npm.mjs --no-provenance`。之后在 npmjs.com 为每个包设置 Trusted Publisher（GitHub Actions，组织 `Ahoo-Wang`，仓库 `Wow`，工作流 `package-deploy.yml`）。
+2. **npm 首发（用户操作）**：照 [RELEASING.md](RELEASING.md)「首发清单」做。2026-09-24 用户定：首个版本是 **9.2.0**（`v9.1.5` 以来有 `!` 提交，9.1.6 过不了准入）；先在全新 clone 的 `v9.2.0-rc.0` tag 上手工发 `9.2.0-rc.0`（dist-tag `next`），配好 Trusted Publisher（environment `npm-publish`）后由 CI 带 provenance 发 `9.2.0`；三个包 `engines.node` 为 `>=22.12.0`；wow-react 只出 ESM；三个 gate 设为必需检查。
 3. 第 4a 步：Wow 首个稳定版 → `wow-project-template/client` 切到新包 → fetcher 6.0，并对 fetcher-wow、fetcher-generator 执行 `npm deprecate`（对外操作，先问用户）。
 4. 阶段 5 的产品口径待用户拍板：分析「导出数据…」、仪表盘固定宽度／全宽的缺省。
 

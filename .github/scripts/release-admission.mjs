@@ -12,36 +12,63 @@ import {
   readProjectVersion,
 } from './project-version.mjs';
 
-// Admits a release of the commit checked out at HEAD. Ported from fetcher's
-// release-admission.mjs, keeping only what Wow needs:
+// Admits a release of the commit checked out at HEAD, the commit of a v* tag:
 //
-// 1. The commit has a successful TypeScript workflow run (push or manual
-//    dispatch, never a pull request run), and `typescript-gate` passed in it.
-// 2. Breaking changes ship only in x.Y.0: when any commit since the previous
+// 1. The commit is on main or on a maintenance branch (release-x.y), so a tag
+//    cannot ship a commit that no pull request brought in.
+// 2. Every workflow in REQUIRED has a successful full run on exactly this
+//    commit, and its gate job passed in it. Only manual dispatch runs count:
+//    a dispatch run has no base to diff against, so its scope job turns every
+//    job on, whereas a push run tests only what that push changed. When the
+//    commit has no dispatch run yet, admission dispatches one on the release
+//    tag and waits for it.
+// 3. Breaking changes ship only in x.Y.0: when any commit since the previous
 //    v* tag is a breaking conventional commit, the release must be x.Y.0.
+//
+// The Gradle workflows are not in REQUIRED: the release workflow's preflight
+// runs `./gradlew build allIntegrationTest` (unit, contract and integration
+// tests) on this very commit before anything is published.
 
-export const WORKFLOW = 'typescript.yml';
-export const GATE_JOB = 'typescript-gate';
+/** Workflows that must pass in full on the release commit, with their gate job. */
+export const REQUIRED = [
+  { workflow: 'typescript.yml', gate: 'typescript-gate' },
+  { workflow: 'typescript-contract.yml', gate: 'typescript-contract-gate' },
+  { workflow: 'typescript-storybook.yml', gate: 'typescript-storybook-gate' },
+];
 
-/** The newest push or dispatch run of the workflow for exactly this commit. */
-export function latestRun(runs, sha) {
-  return runs
-    .filter(
-      run =>
-        run.head_sha === sha &&
-        ['push', 'workflow_dispatch'].includes(run.event),
-    )
-    .sort((a, b) => b.id - a.id)[0];
-}
+/** Remote branches a release commit may come from. */
+const RELEASE_BRANCH = /^origin\/(?:main|release-\d+\.\d+)$/;
 
-export function requireSuccessfulRun(run, sha, workflow = WORKFLOW) {
+/** Some remote branch containing the commit is main or a release-x.y line. */
+export function requireReleaseBranch(branches, sha) {
   assert.ok(
-    run && run.status === 'completed' && run.conclusion === 'success',
-    `${workflow}: latest push or workflow_dispatch run for ${sha} must complete successfully`,
+    branches.some(branch => RELEASE_BRANCH.test(branch.trim())),
+    `${sha} is on neither main nor a release-x.y branch (found: ${branches.join(', ') || 'none'})`,
   );
 }
 
-export function requireSuccessfulJob(jobs, name = GATE_JOB) {
+/** The newest manual dispatch run of a workflow for exactly this commit. */
+export function latestRun(runs, sha) {
+  return runs
+    .filter(run => run.head_sha === sha && run.event === 'workflow_dispatch')
+    .sort((a, b) => b.id - a.id)[0];
+}
+
+export function requireSuccessfulRun(
+  run,
+  sha,
+  workflow = REQUIRED[0].workflow,
+) {
+  assert.ok(
+    run && run.status === 'completed' && run.conclusion === 'success',
+    `${workflow}: the latest workflow_dispatch run for ${sha} must complete successfully` +
+      (run
+        ? ` (run ${run.html_url ?? run.id} is ${run.conclusion ?? run.status}; re-run its failed jobs, then re-run this release)`
+        : ''),
+  );
+}
+
+export function requireSuccessfulJob(jobs, name = REQUIRED[0].gate) {
   const latest = jobs
     .filter(job => job.name === name)
     .sort((a, b) => b.id - a.id)[0];
@@ -122,8 +149,30 @@ if (
     encoding: 'utf8',
   }).trim();
   const repo = process.env.GITHUB_REPOSITORY;
+  // The ref a missing run is dispatched on: the release tag.
+  const ref = process.env.ADMISSION_REF;
   assert.match(sha, /^[a-f0-9]{40}$/);
   assert.match(repo ?? '', /^[\w.-]+\/[\w.-]+$/);
+  assert.match(ref ?? '', /^refs\/tags\/v/, 'ADMISSION_REF must be a v* tag');
+
+  requireReleaseBranch(
+    execFileSync(
+      'git',
+      [
+        'branch',
+        '--remotes',
+        '--contains',
+        'HEAD',
+        '--format=%(refname:short)',
+      ],
+      { encoding: 'utf8' },
+    )
+      .split('\n')
+      .filter(Boolean),
+    sha,
+  );
+  console.log(`${sha} is on main or a release-x.y branch`);
+
   const pages = path =>
     JSON.parse(
       execFileSync('gh', ['api', '--paginate', '--slurp', path], {
@@ -131,32 +180,65 @@ if (
         maxBuffer: 20 * 1024 * 1024,
       }),
     );
-
-  // A release is often created right after its commit lands, while the push
-  // run is still queued or running: wait for it instead of failing the release.
-  const waitSeconds = Number(process.env.ADMISSION_WAIT_SECONDS ?? 2400);
-  const deadline = Date.now() + waitSeconds * 1000;
-  let run;
-  for (;;) {
-    run = latestRun(
+  const runOf = workflow =>
+    latestRun(
       pages(
-        `repos/${repo}/actions/workflows/${WORKFLOW}/runs?head_sha=${sha}&per_page=100`,
+        `repos/${repo}/actions/workflows/${workflow}/runs?head_sha=${sha}&event=workflow_dispatch&per_page=100`,
       ).flatMap(page => page.workflow_runs),
       sha,
     );
-    if (run?.status === 'completed' || Date.now() >= deadline) break;
+
+  // Dispatch the full runs this commit lacks; a run that exists (a maintainer
+  // dispatched it before tagging, or an earlier attempt of this release did)
+  // is reused, whatever its state.
+  for (const { workflow } of REQUIRED) {
+    if (runOf(workflow)) continue;
+    execFileSync(
+      'gh',
+      [
+        'api',
+        '--method',
+        'POST',
+        `repos/${repo}/actions/workflows/${workflow}/dispatches`,
+        '-f',
+        `ref=${ref}`,
+      ],
+      { stdio: 'inherit' },
+    );
+    console.log(`${workflow}: dispatched a full run on ${ref}`);
+  }
+
+  // A full contract and Storybook run takes a while: wait for all of them.
+  const waitSeconds = Number(process.env.ADMISSION_WAIT_SECONDS ?? 5400);
+  const deadline = Date.now() + waitSeconds * 1000;
+  const runs = new Map();
+  for (;;) {
+    for (const { workflow } of REQUIRED) runs.set(workflow, runOf(workflow));
+    const pending = REQUIRED.filter(
+      ({ workflow }) => runs.get(workflow)?.status !== 'completed',
+    );
+    if (pending.length === 0 || Date.now() >= deadline) break;
     console.log(
-      `${WORKFLOW}: ${run ? `run ${run.id} is ${run.status}` : 'no run yet'} for ${sha}; waiting`,
+      pending
+        .map(({ workflow }) => {
+          const run = runs.get(workflow);
+          return `${workflow}: ${run ? `run ${run.id} is ${run.status}` : 'no run yet'}`;
+        })
+        .join('; ') + `; waiting for ${sha}`,
     );
     await new Promise(resolve => setTimeout(resolve, 30_000));
   }
-  requireSuccessfulRun(run, sha);
-  requireSuccessfulJob(
-    pages(`repos/${repo}/actions/runs/${run.id}/jobs?per_page=100`).flatMap(
-      page => page.jobs,
-    ),
-  );
-  console.log(`${WORKFLOW}: run ${run.id} and ${GATE_JOB} passed for ${sha}`);
+  for (const { workflow, gate } of REQUIRED) {
+    const run = runs.get(workflow);
+    requireSuccessfulRun(run, sha, workflow);
+    requireSuccessfulJob(
+      pages(`repos/${repo}/actions/runs/${run.id}/jobs?per_page=100`).flatMap(
+        page => page.jobs,
+      ),
+      gate,
+    );
+    console.log(`${workflow}: run ${run.id} and ${gate} passed for ${sha}`);
+  }
 
   const version = readProjectVersion();
   const tags = execFileSync(

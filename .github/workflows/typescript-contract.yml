@@ -101,8 +101,6 @@ jobs:
           nohup bin/example-server > "$SERVER_LOG" 2>&1 &
           echo "SERVER_PID=$!" >> "$GITHUB_ENV"
       - uses: pnpm/action-setup@v6
-        with:
-          version: 10.34.5
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -198,8 +196,6 @@ jobs:
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@v6
-        with:
-          version: 10.34.5
       - uses: actions/setup-node@v6
         with:
           node-version: 24
