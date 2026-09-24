@@ -1,0 +1,136 @@
+---
+title: Generate and Use an OpenAPI Client
+description: Generate a real ItemsApiClient from a complete minimal schema and type-check its consumer.
+---
+
+# Generate and Use an OpenAPI Client
+
+Start with a checked-in document, generate into a dedicated directory, and compile a caller. This example produces a known class and method rather than assuming generated names.
+
+## 1. Prepare a consumer project
+
+```bash
+pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
+  @ahoo-wang/fetcher-eventstream @ahoo-wang/fetcher-openapi \
+  @ahoo-wang/wow-client
+pnpm add -D @ahoo-wang/wow-generator typescript@6.0.3
+```
+
+Save this as `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "experimentalDecorators": true,
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts"]
+}
+```
+
+## 2. Save the contract
+
+Save the complete document below as `openapi.json`. The root tag, operation tag, operationId and 200 response schema give the generator enough information to create a typed ordinary API client.
+
+```json
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Items",
+    "version": "1.0.0"
+  },
+  "tags": [
+    {
+      "name": "Items"
+    }
+  ],
+  "paths": {
+    "/items/{id}": {
+      "get": {
+        "operationId": "getItem",
+        "tags": ["Items"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Item"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Item": {
+        "type": "object",
+        "required": ["id"],
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+## 3. Generate and compile
+
+```bash
+pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated -t ./tsconfig.json
+pnpm exec tsc --noEmit -p ./tsconfig.json
+```
+
+For this exact document the output includes `ItemsApiClient.ts`, `types.ts` and `index.ts`. The client exposes `getItem(id: string, httpRequest?: ParameterRequest, attributes?: Record<string, any>): Promise<Item>`, and `Item` has a required string `id`. The generator also writes `.fetcher-generator.json` to record output ownership.
+
+If optional `fetcher-generator.config.json` is absent, the CLI logs a configuration read error and continues. Add a config only when you need an override; see [configuration precedence](../../reference/typescript/wow-generator/configuration).
+
+## 4. Write the caller outside generated files
+
+Save this as `src/loadItem.ts`, then repeat the TypeScript check:
+
+```ts
+import { Fetcher } from '@ahoo-wang/fetcher';
+import { ItemsApiClient, type Item } from './generated';
+
+export async function loadItem(baseURL: string): Promise<Item> {
+  const client = new ItemsApiClient({ fetcher: new Fetcher({ baseURL }) });
+  return client.getItem('42');
+}
+```
+
+Calling `loadItem(yourApiOrigin)` requires an application server implementing `GET /items/42`, JSON `{"id":"42"}`, and any required authentication/CORS configuration. Generation and type checking do not make that remote request. Catch the returned promise at the application boundary.
+
+For a local runtime check, mock fetch with `Response.json({ id: '42' })`, call the function, assert the final URL and returned ID, and restore fetch in `finally`.
+
+## 5. Regenerate and review
+
+Edit the source document and rerun the same command. Review changed models, method signatures and the ownership manifest before accepting the diff. Do not put application code into `src/generated`: files generated again at the same path are overwritten. Unchanged stale owned files can be deleted; modified stale files are preserved. Generation is not an atomic directory transaction, so inspect partial output after a failure.
+
+Missing methods usually require checking tags and operation IDs; missing return types require checking the 200 response. A schema compiler is not a server validator. No runtime resource is allocated by this caller until it is invoked; the JSON response is consumed on success.
+
+See [CLI options](../../reference/typescript/wow-generator/cli), [output and regeneration](../../reference/typescript/wow-generator/generated-output), [OpenAPI documents](https://fetcher.ahoo.me/reference/openapi/documents-and-operations), and the distinct [Wow discovery rules](../../reference/typescript/wow-generator/wow-discovery).
+
+[apiClientGenerator.ts:73](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/client/apiClientGenerator.ts#L73) implements ordinary client generation.
+
+[Review integration boundaries](https://fetcher.ahoo.me/architecture/integration-decisions); [return to this task group](./index.md).

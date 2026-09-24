@@ -25,6 +25,7 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 | 精确 Wow v6 tag | [Wow v6 迁移到 v8](./migration/v6-to-v8.md) | 比较固定平台/API/存储契约，并在需要时执行数据硬切换 |
 | Wow v8 上有自定义 dispatcher/message-bus/Spring 生命周期 owner | [运行时编排迁移](./migration/runtime-orchestration.md) | 把生命周期源码迁移到统一 `WowRuntime`；它不自动等于数据迁移 |
 | Wow v8.16.x 使用旧查询 API 或 `SnapshotRepository` | [V9 查询迁移](./query/v9-query-migration.md) | 迁移 Gateway/Backend、Filter、Mask、SnapshotStore 与 Spring Bean 名 |
+| TypeScript 客户端使用 `fetcher-wow`、`fetcher-generator` 或 `fetcher-react` 的 Wow Hook | [从 Fetcher 包迁移](./typescript/migration.md) | 换用 `wow-client`、`wow-generator` 和 `wow-react`，并重新生成客户端代码 |
 
 不要把首次采用 Wow 与 v6→v8 升级混成一次无法区分的发布。每个变更窗口都应选择一个 bounded context
 及精确 source/target version。
@@ -145,6 +146,7 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 | [Wow v6 迁移到 v8](./migration/v6-to-v8.md) | 既有 Wow 平台/存储升级 |
 | [运行时编排迁移](./migration/runtime-orchestration.md) | 统一生命周期源码迁移 |
 | [V9 查询迁移](./query/v9-query-migration.md) | V8.16.x 到 V9 的查询与 SnapshotStore 源码迁移 |
+| [从 Fetcher 包迁移](./typescript/migration.md) | TypeScript 包改名与重新生成客户端 |
 | [运行时生命周期](./advanced/runtime-lifecycle.md) | 迁移后的稳定运行模型 |
 | [故障排查](./troubleshooting.md) | 门禁失败时的证据化诊断 |
 
