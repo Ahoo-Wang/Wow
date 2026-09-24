@@ -1,0 +1,83 @@
+{
+  "name": "@ahoo-wang/fetcher-wow",
+  "version": "5.1.3",
+  "description": "Support for Wow(https://github.com/Ahoo-Wang/Wow) in Fetcher",
+  "keywords": [
+    "fetch",
+    "http",
+    "client",
+    "wow",
+    "cqrs",
+    "ddd",
+    "microservice",
+    "event-sourcing"
+  ],
+  "author": "Ahoo-Wang",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/Ahoo-Wang/fetcher/tree/master/packages/wow",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ahoo-Wang/fetcher.git",
+    "directory": "packages/wow"
+  },
+  "bugs": {
+    "url": "https://github.com/Ahoo-Wang/fetcher/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=18.20.8"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.es.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.es.js",
+      "require": "./dist/index.cjs"
+    },
+    "./query/locale/zh_CN": {
+      "types": "./dist/query/locale/zh_CN.d.ts",
+      "import": "./dist/query/locale/zh_CN.es.js",
+      "require": "./dist/query/locale/zh_CN.cjs"
+    },
+    "./query/locale/en_US": {
+      "types": "./dist/query/locale/en_US.d.ts",
+      "import": "./dist/query/locale/en_US.es.js",
+      "require": "./dist/query/locale/en_US.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "vite build",
+    "test:ui": "vitest --ui",
+    "test": "vitest run --coverage && pnpm test:type",
+    "test:type": "tsc --noEmit -p test/tsconfig.types.json",
+    "lint": "eslint . --fix",
+    "clean": "rm -rf dist",
+    "analyze": "npx vite-bundle-analyzer -p auto",
+    "test:no-coverage": "vitest run --coverage.enabled=false && pnpm test:type"
+  },
+  "peerDependencies": {
+    "@ahoo-wang/fetcher": "workspace:^5.0.0",
+    "@ahoo-wang/fetcher-eventstream": "workspace:^5.0.0",
+    "@ahoo-wang/fetcher-decorator": "workspace:^5.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "@vitest/ui": "catalog:",
+    "eslint": "catalog:",
+    "globals": "catalog:",
+    "prettier": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "unplugin-dts": "catalog:",
+    "vite": "catalog:",
+    "vite-bundle-analyzer": "catalog:",
+    "vitest": "catalog:"
+  }
+}
