@@ -1,0 +1,4 @@
+interface:
+  display_name: "Wow Generator"
+  short_description: "Generate TypeScript clients from Wow OpenAPI"
+  default_prompt: "Use $wow-generator to generate typed TypeScript clients from this OpenAPI spec with the wow-generator CLI."

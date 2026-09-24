@@ -56,6 +56,7 @@ Use [Configuration Reference](../reference/config/core.md), [Examples](../refere
 | Choose messaging and storage | [Module Dependencies](./advanced/module-dependencies.md) | [Extensions](./extensions/spring-boot-starter.md) | Only the required backends and starter capabilities are included |
 | Prepare for production | [Production Best Practices](./best-practices.md) | [Backup, Restore, and Replay](./recovery.md) | Idempotency, recovery, capacity, alerts, and rollback have evidence |
 | Diagnose a failure or hang | [Troubleshooting](./troubleshooting.md) | The relevant core or extension page | The failed stage is known instead of merely having a larger timeout |
+| Call Wow from a TypeScript frontend | [TypeScript Client](./typescript/) | [Generate a Client](./typescript/generated-client.md) | Commands and queries go through typed clients generated from the server's OpenAPI document |
 | Migrate a system or version | [Migration Guide](./migration.md) | The selected migration path | Inventory, reconciliation, cutover, and rollback gates are complete |
 
 ## Use Each Documentation Type for Its Job

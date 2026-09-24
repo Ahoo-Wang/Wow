@@ -43,6 +43,31 @@ export const navbarEn: DefaultTheme.NavItem[] = [
             },
         ],
     },
+    {
+        text: 'TypeScript',
+        activeMatch: '/(guide|reference)/typescript/',
+        items: [
+            {
+                text: 'Guide',
+                items: [
+                    {text: 'Overview', link: '/guide/typescript/'},
+                    {text: 'Commands and Queries', link: '/guide/typescript/commands-and-queries'},
+                    {text: 'Generate a Client', link: '/guide/typescript/generated-client'},
+                    {text: 'View Engine (Unreleased)', link: '/guide/typescript/view-engine'},
+                    {text: 'Migrate from Fetcher Packages', link: '/guide/typescript/migration'},
+                ],
+            },
+            {
+                text: 'Reference',
+                items: [
+                    {text: 'wow-client', link: '/reference/typescript/wow-client/'},
+                    {text: 'wow-generator', link: '/reference/typescript/wow-generator/'},
+                    {text: 'wow-react', link: '/reference/typescript/wow-react/'},
+                    {text: 'wow-view-engine (Unreleased)', link: '/reference/typescript/wow-view-engine/'},
+                ],
+            },
+        ],
+    },
     {text: 'API', link: '/dokka/index.html', target: '_blank'},
     {
         text: 'Resources',

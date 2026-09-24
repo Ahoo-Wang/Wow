@@ -1,0 +1,136 @@
+---
+title: 生成并使用 OpenAPI 客户端
+description: 从完整最小 Schema 生成真实 ItemsApiClient 并检查调用方类型。
+---
+
+# 生成并使用 OpenAPI 客户端
+
+从纳入版本管理的文档开始，生成到独立目录，再编译调用方。本例产出确定的类和方法，不猜测生成名称。
+
+## 1. 准备使用方项目
+
+```bash
+pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
+  @ahoo-wang/fetcher-eventstream @ahoo-wang/fetcher-openapi \
+  @ahoo-wang/wow-client
+pnpm add -D @ahoo-wang/wow-generator typescript@6.0.3
+```
+
+保存以下内容为 `tsconfig.json`：
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "experimentalDecorators": true,
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts"]
+}
+```
+
+## 2. 保存接口契约
+
+将下列完整文档保存为 `openapi.json`。根标签、操作标签、operationId 和 200 响应 Schema 为生成普通类型化 API 客户端提供了必要信息。
+
+```json
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Items",
+    "version": "1.0.0"
+  },
+  "tags": [
+    {
+      "name": "Items"
+    }
+  ],
+  "paths": {
+    "/items/{id}": {
+      "get": {
+        "operationId": "getItem",
+        "tags": ["Items"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Item"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Item": {
+        "type": "object",
+        "required": ["id"],
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+## 3. 生成并编译
+
+```bash
+pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated -t ./tsconfig.json
+pnpm exec tsc --noEmit -p ./tsconfig.json
+```
+
+对于这份文档，输出包含 `ItemsApiClient.ts`、`types.ts` 和 `index.ts`。客户端公开 `getItem(id: string, httpRequest?: ParameterRequest, attributes?: Record<string, any>): Promise<Item>`，`Item` 包含必填字符串 id。生成器还会写入 `.fetcher-generator.json`，记录输出文件所有权。
+
+缺少可选的 `fetcher-generator.config.json` 时，CLI 会记录配置读取错误并继续执行。只有需要覆盖默认行为时再添加配置，参见[配置优先级](../../reference/typescript/wow-generator/configuration)。
+
+## 4. 在生成目录外编写调用方
+
+保存为 `src/loadItem.ts`，然后再次执行 TypeScript 检查：
+
+```ts
+import { Fetcher } from '@ahoo-wang/fetcher';
+import { ItemsApiClient, type Item } from './generated';
+
+export async function loadItem(baseURL: string): Promise<Item> {
+  const client = new ItemsApiClient({ fetcher: new Fetcher({ baseURL }) });
+  return client.getItem('42');
+}
+```
+
+调用 `loadItem(yourApiOrigin)` 需要应用服务实现 `GET /items/42`、返回 JSON `{"id":"42"}`，并满足认证/CORS 配置。生成和类型检查不会发起这次远端请求。在应用入口捕获返回的 Promise。
+
+本地运行验证可以模拟 fetch 返回 `Response.json({ id: '42' })`，调用函数后断言最终 URL 和返回 ID，并在 `finally` 中恢复 fetch。
+
+## 5. 重新生成并审阅
+
+修改源文档后重跑同一命令，检查模型、方法签名和所有权清单的变化后再接受差异。不要把应用代码放入 `src/generated`：在相同路径再次生成的文件会被覆盖。未修改的过时受管文件可能被删除，已经修改的过时文件会保留。生成不是目录级原子事务，失败后应检查部分输出。
+
+缺少方法时通常应检查标签和 operationId；缺少返回类型时检查 200 响应。Schema 编译器不是服务端验证器。此调用方在执行前不分配运行时资源，成功时会完整消费 JSON 响应。
+
+参见 [CLI 选项](../../reference/typescript/wow-generator/cli)、[输出与重新生成](../../reference/typescript/wow-generator/generated-output)、[OpenAPI 文档](https://fetcher.ahoo.me/zh/reference/openapi/documents-and-operations)，以及独立的 [Wow 识别规则](../../reference/typescript/wow-generator/wow-discovery)。
+
+[apiClientGenerator.ts:73](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/client/apiClientGenerator.ts#L73) 实现普通客户端生成。
+
+[评估集成边界](https://fetcher.ahoo.me/zh/architecture/integration-decisions)；[返回本组任务](./index.md)。

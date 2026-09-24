@@ -41,6 +41,19 @@ pnpm --filter wow-integration-test test
 `generate` reads `http://localhost:8080/v3/api-docs` and replaces
 `src/generated`. Inspect generated changes before committing them.
 
+`src/generated` holds the generator's output byte for byte, with its manifest
+`.fetcher-generator.json`; ESLint and Prettier skip it. Never edit or reformat
+it by hand.
+
+## CI
+
+`.github/workflows/typescript-contract.yml` runs these steps against an example
+server built from the same commit, whenever the Kotlin sources, the example, the
+Gradle build or these packages change. It fails when regenerating changes
+`src/generated`, and uploads the server log when a step fails. For changes to
+`wow-client`, `wow-generator` or this package it also generates code from the
+`wow-example-server` images 8.10.8 and 8.11.5 and type-checks it.
+
 ## Failure diagnosis
 
 1. Build first; unresolved workspace imports usually mean stale or missing

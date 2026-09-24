@@ -1,0 +1,243 @@
+#
+# Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#      http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# Contract tests of the Wow TypeScript client and generator against the Wow
+# example server. Every pull request triggers this workflow; the scope job
+# decides which jobs run, and `typescript-contract-gate` is the merge signal.
+name: TypeScript Contract
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  scope:
+    name: Scope
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    outputs:
+      contract: ${{ steps.scope.outputs.contract }}
+      legacy-contract: ${{ steps.scope.outputs.legacyContract }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: scope
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: node .github/scripts/ci-scope.mjs
+
+  # The client, the generator and the committed generated code against an
+  # example server built from this commit.
+  contract:
+    name: Same-source contract
+    needs: scope
+    if: needs.scope.outputs.contract == 'true'
+    timeout-minutes: 40
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:8.3.11
+        ports:
+          - 27017:27017
+        env:
+          MONGO_INITDB_ROOT_USERNAME: root
+          MONGO_INITDB_ROOT_PASSWORD: root
+          MONGO_INITDB_DATABASE: wow_example_db
+        options: >-
+          --health-cmd="mongosh -u root -p root --authenticationDatabase admin --eval 'db.adminCommand(\"ping\")'"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      SERVER_HOME: example/example-server/build/install/example-server
+      SERVER_LOG: ${{ github.workspace }}/example-server.log
+      GENERATED: typescript/integration-test/src/generated
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Build the example server
+        run: ./gradlew :example-server:installDist --stacktrace
+      # bin/example-server reads ./config/application.yaml, so it starts from
+      # its install directory. That file keeps the in-memory stores and
+      # excludes the Mongo auto-configuration; SPRING_AUTOCONFIGURE_EXCLUDE
+      # replaces the whole exclusion list, so only Elasticsearch stays off.
+      - name: Start the example server
+        working-directory: ${{ env.SERVER_HOME }}
+        env:
+          SPRING_AUTOCONFIGURE_EXCLUDE: org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchClientAutoConfiguration,org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchRestClientAutoConfiguration
+          SPRING_MONGODB_URI: mongodb://root:root@localhost:27017/wow_example_db?authSource=admin&maxIdleTimeMS=60000
+          WOW_EVENTSOURCING_STORE_STORAGE: mongo
+          WOW_EVENTSOURCING_SNAPSHOT_STORAGE: mongo
+        run: |
+          mkdir -p logs data
+          nohup bin/example-server > "$SERVER_LOG" 2>&1 &
+          echo "SERVER_PID=$!" >> "$GITHUB_ENV"
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.34.5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build packages
+        run: pnpm --filter wow-integration-test... build
+      - name: Wait for the example server
+        run: |
+          for _ in $(seq 1 60); do
+            if curl -sf http://localhost:8080/actuator/health > /dev/null; then
+              exit 0
+            fi
+            if ! kill -0 "$SERVER_PID" 2> /dev/null; then
+              echo "::error::The example server exited during startup."
+              tail -n 100 "$SERVER_LOG"
+              exit 1
+            fi
+            sleep 5
+          done
+          echo "::error::The example server was not healthy after 5 minutes."
+          tail -n 100 "$SERVER_LOG"
+          exit 1
+      - name: Generate clients from the server
+        run: pnpm --filter wow-integration-test generate
+      - name: Check generated types
+        run: pnpm --filter wow-integration-test exec tsc --noEmit
+      # The committed clients are the generator's byte-for-byte output; any
+      # difference, including an added or deleted file, is a contract change.
+      - name: Require the committed clients to match
+        run: |
+          if [ -n "$(git status --porcelain --untracked-files=all -- "$GENERATED")" ]; then
+            git add --intent-to-add -- "$GENERATED"
+            git --no-pager diff --stat -- "$GENERATED"
+            git --no-pager diff -- "$GENERATED"
+            echo "::error::$GENERATED differs from what the generator produces against this server. Run the generator (typescript/integration-test/README.md) and commit the result."
+            exit 1
+          fi
+      - name: Test against the server
+        run: pnpm --filter wow-integration-test test
+      - name: Upload the server log
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: example-server-log
+          path: ${{ env.SERVER_LOG }}
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # Code generated from the published 8.x servers still type-checks against
+  # the current client.
+  legacy-contract:
+    name: Legacy contract / Wow ${{ matrix.wow-version }}
+    needs: scope
+    if: needs.scope.outputs.legacy-contract == 'true'
+    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        wow-version: ['8.10.8', '8.11.5']
+    services:
+      mongo:
+        image: mongo:8.3.11
+        ports:
+          - 27017:27017
+        env:
+          MONGO_INITDB_ROOT_USERNAME: root
+          MONGO_INITDB_ROOT_PASSWORD: root
+          MONGO_INITDB_DATABASE: wow_example_db
+        options: >-
+          --health-cmd="mongosh -u root -p root --authenticationDatabase admin --eval 'db.adminCommand(\"ping\")'"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+      wow:
+        image: ghcr.io/ahoo-wang/wow-example-server:${{ matrix.wow-version }}
+        ports:
+          - 8080:8080
+        env:
+          SPRING_AUTOCONFIGURE_EXCLUDE: org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchClientAutoConfiguration,org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchRestClientAutoConfiguration
+          SPRING_MONGODB_URI: mongodb://root:root@mongo:27017/wow_example_db?authSource=admin&maxIdleTimeMS=60000
+          WOW_EVENTSOURCING_STORE_STORAGE: mongo
+          WOW_EVENTSOURCING_SNAPSHOT_STORAGE: mongo
+        options: >-
+          --health-cmd "curl -f http://localhost:8080/actuator/health"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.34.5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build the client and the generator
+        run: pnpm --filter @ahoo-wang/wow-client... --filter @ahoo-wang/wow-generator... build
+      # test-output/ is ignored scratch space inside integration-test, so the
+      # generated imports resolve from that package's node_modules.
+      - name: Generate clients from Wow ${{ matrix.wow-version }}
+        working-directory: typescript/integration-test
+        run: node ../wow-generator/dist/cli.js generate -i http://localhost:8080/v3/api-docs -o test-output/generated
+      - name: Check generated types
+        working-directory: typescript/integration-test
+        run: |
+          cat > test-output/tsconfig.json << 'EOF'
+          {
+            "extends": "../tsconfig.json",
+            "compilerOptions": { "noEmit": true, "rootDir": "." },
+            "include": ["generated/**/*.ts"]
+          }
+          EOF
+          pnpm exec tsc -p test-output/tsconfig.json
+
+  typescript-contract-gate:
+    name: typescript-contract-gate
+    needs: [scope, contract, legacy-contract]
+    if: always()
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every scoped job to pass or be skipped
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Job results: $RESULTS"
+          for result in $RESULTS; do
+            case "$result" in
+              success | skipped) ;;
+              *) exit 1 ;;
+            esac
+          done

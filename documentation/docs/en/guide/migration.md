@@ -25,6 +25,7 @@ A green local build can close the source gate. It does not close the other four.
 | Exact Wow v6 tag | [Migrate Wow v6 to v8](./migration/v6-to-v8.md) | Diff pinned platform/API/storage contracts and perform a hard data cutover where required |
 | Wow v8 with custom dispatcher/message-bus/Spring lifecycle ownership | [Runtime Orchestration Migration](./migration/runtime-orchestration.md) | Move lifecycle source code to the unified `WowRuntime`; this is not automatically a data migration |
 | Wow v8.16.x using old query APIs or `SnapshotRepository` | [V9 Query Migration](./query/v9-query-migration.md) | Migrate Gateway/Backend, filters, masking, SnapshotStore, and Spring bean names |
+| TypeScript client on `fetcher-wow`, `fetcher-generator`, or the Wow hooks of `fetcher-react` | [Migrate from Fetcher Packages](./typescript/migration.md) | Switch to `wow-client`, `wow-generator`, and `wow-react`, then regenerate generated clients |
 
 Do not combine first adoption and a v6→v8 upgrade into one undifferentiated release. Select a bounded context and an
 exact source/target version for each change window.
@@ -152,6 +153,7 @@ See [v6 → v8: Mongo Ownership Guard](./migration/v6-to-v8.md#mongo-ownership-g
 | [Migrate Wow v6 to v8](./migration/v6-to-v8.md) | Existing Wow platform/storage upgrade |
 | [Runtime Orchestration Migration](./migration/runtime-orchestration.md) | Unified lifecycle source migration |
 | [V9 Query Migration](./query/v9-query-migration.md) | V8.16.x to V9 query and SnapshotStore source migration |
+| [Migrate from Fetcher Packages](./typescript/migration.md) | TypeScript package renames and client regeneration |
 | [Runtime Lifecycle](./advanced/runtime-lifecycle.md) | Stable runtime model after migration |
 | [Troubleshooting](./troubleshooting.md) | Evidence-first diagnosis when a gate fails |
 

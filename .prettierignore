@@ -25,4 +25,7 @@ coverage/
 # Byte-for-byte generator snapshots, compared against ts-morph's own output by
 # the e2e test; reformatting them would fail every regeneration.
 typescript/wow-generator/expected/
+# Generator output committed byte for byte; typescript-contract.yml regenerates it
+# against the example server and fails on any difference.
+typescript/integration-test/src/generated/
 test-output/

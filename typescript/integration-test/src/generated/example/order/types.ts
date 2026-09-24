@@ -1,6 +1,100 @@
 /**
+ * - key: example.order.OrderItem
+ * - schema: 
+ * ```json
+ * {
+ *   "type": "object",
+ *   "properties": {
+ *     "id": {
+ *       "type": "string"
+ *     },
+ *     "price": {
+ *       "type": "number"
+ *     },
+ *     "productId": {
+ *       "type": "string"
+ *     },
+ *     "quantity": {
+ *       "type": "integer",
+ *       "format": "int32"
+ *     },
+ *     "totalPrice": {
+ *       "type": "number",
+ *       "readOnly": true
+ *     }
+ *   },
+ *   "required": [
+ *     "id",
+ *     "price",
+ *     "productId",
+ *     "quantity"
+ *   ]
+ * }
+ * ```
+ */
+export interface OrderItem {
+    id: string;
+    price: number;
+    productId: string;
+    /** - format: int32 */
+    quantity: number;
+    readonly totalPrice: number;
+}
+
+/**
+ * - key: example.order.ShippingAddress
+ * - schema: 
+ * ```json
+ * {
+ *   "type": "object",
+ *   "properties": {
+ *     "city": {
+ *       "type": "string"
+ *     },
+ *     "country": {
+ *       "type": "string",
+ *       "minLength": 1
+ *     },
+ *     "detail": {
+ *       "type": "string"
+ *     },
+ *     "district": {
+ *       "type": "string"
+ *     },
+ *     "province": {
+ *       "type": "string",
+ *       "minLength": 1
+ *     }
+ *   },
+ *   "required": [
+ *     "city",
+ *     "country",
+ *     "detail",
+ *     "district",
+ *     "province"
+ *   ]
+ * }
+ * ```
+ */
+export interface ShippingAddress {
+    city: string;
+    /**
+     * - String Constraints
+     *   - minLength: 1
+     */
+    country: string;
+    detail: string;
+    district: string;
+    /**
+     * - String Constraints
+     *   - minLength: 1
+     */
+    province: string;
+}
+
+/**
  * - key: example.order.WowExampleOrderState
- * - schema:
+ * - schema: 
  * ```json
  * {
  *   "type": "object",
@@ -41,19 +135,19 @@
  * ```
  */
 export interface WowExampleOrderState {
-  readonly address: ShippingAddress;
-  id: string;
-  readonly items: OrderItem[];
-  paidAmount: number;
-  status: OrderStatus;
-  totalAmount: number;
-  readonly payable: number;
+    readonly address: ShippingAddress;
+    id: string;
+    readonly items: OrderItem[];
+    paidAmount: number;
+    status: OrderStatus;
+    totalAmount: number;
+    readonly payable: number;
 }
 
 /**
  * 收货地址已修改
  * - key: example.order.AddressChanged
- * - schema:
+ * - schema: 
  * ```json
  * {
  *   "type": "object",
@@ -70,13 +164,13 @@ export interface WowExampleOrderState {
  * ```
  */
 export interface AddressChanged {
-  shippingAddress: ShippingAddress;
+    shippingAddress: ShippingAddress;
 }
 
 /**
  * 修改收货地址
  * - key: example.order.ChangeAddress
- * - schema:
+ * - schema: 
  * ```json
  * {
  *   "type": "object",
@@ -94,13 +188,13 @@ export interface AddressChanged {
  * ```
  */
 export interface ChangeAddress {
-  shippingAddress: ShippingAddress;
+    shippingAddress: ShippingAddress;
 }
 
 /**
  * 下单
  * - key: example.order.CreateOrder
- * - schema:
+ * - schema: 
  * ```json
  * {
  *   "type": "object",
@@ -130,18 +224,18 @@ export interface ChangeAddress {
  * ```
  */
 export interface CreateOrder {
-  address: ShippingAddress;
-  fromCart: boolean;
-  /**
-   * - Array Constraints
-   *   - minItems: 1
-   */
-  items: CreateOrderItem[];
+    address: ShippingAddress;
+    fromCart: boolean;
+    /**
+     * - Array Constraints
+     *   - minItems: 1
+     */
+    items: CreateOrderItem[];
 }
 
 /**
  * - key: example.order.CreateOrder.Item
- * - schema:
+ * - schema: 
  * ```json
  * {
  *   "type": "object",
@@ -169,99 +263,28 @@ export interface CreateOrder {
  * ```
  */
 export interface CreateOrderItem {
-  /**
-   * - Numeric Constraints
-   *   - exclusiveMinimum: 0
-   */
-  price: number;
-  /**
-   * - String Constraints
-   *   - minLength: 1
-   */
-  productId: string;
-  /**
-   * - format: int32
-   * - Numeric Constraints
-   *   - exclusiveMinimum: 0
-   */
-  quantity: number;
-}
-
-/**
- * - key: example.order.OrderAggregatedFields
- * - schema:
- * ```json
- * {
- *   "type": "string",
- *   "enum": [
- *     "",
- *     "aggregateId",
- *     "tenantId",
- *     "ownerId",
- *     "version",
- *     "eventId",
- *     "firstOperator",
- *     "operator",
- *     "firstEventTime",
- *     "eventTime",
- *     "deleted",
- *     "state",
- *     "state.address",
- *     "state.address.city",
- *     "state.address.country",
- *     "state.address.detail",
- *     "state.address.district",
- *     "state.address.province",
- *     "state.id",
- *     "state.items",
- *     "state.items.id",
- *     "state.items.price",
- *     "state.items.productId",
- *     "state.items.quantity",
- *     "state.items.totalPrice",
- *     "state.paidAmount",
- *     "state.payable",
- *     "state.status",
- *     "state.totalAmount"
- *   ]
- * }
- * ```
- */
-export enum OrderAggregatedFields {
-  AGGREGATE_ID = `aggregateId`,
-  TENANT_ID = `tenantId`,
-  OWNER_ID = `ownerId`,
-  VERSION = `version`,
-  EVENT_ID = `eventId`,
-  FIRST_OPERATOR = `firstOperator`,
-  OPERATOR = `operator`,
-  FIRST_EVENT_TIME = `firstEventTime`,
-  EVENT_TIME = `eventTime`,
-  DELETED = `deleted`,
-  STATE = `state`,
-  STATE_ADDRESS = `state.address`,
-  STATE_ADDRESS_CITY = `state.address.city`,
-  STATE_ADDRESS_COUNTRY = `state.address.country`,
-  STATE_ADDRESS_DETAIL = `state.address.detail`,
-  STATE_ADDRESS_DISTRICT = `state.address.district`,
-  STATE_ADDRESS_PROVINCE = `state.address.province`,
-  STATE_ID = `state.id`,
-  STATE_ITEMS = `state.items`,
-  STATE_ITEMS_ID = `state.items.id`,
-  STATE_ITEMS_PRICE = `state.items.price`,
-  STATE_ITEMS_PRODUCT_ID = `state.items.productId`,
-  STATE_ITEMS_QUANTITY = `state.items.quantity`,
-  STATE_ITEMS_TOTAL_PRICE = `state.items.totalPrice`,
-  STATE_PAID_AMOUNT = `state.paidAmount`,
-  STATE_PAYABLE = `state.payable`,
-  STATE_STATUS = `state.status`,
-  STATE_TOTAL_AMOUNT = `state.totalAmount`,
+    /**
+     * - Numeric Constraints
+     *   - exclusiveMinimum: 0
+     */
+    price: number;
+    /**
+     * - String Constraints
+     *   - minLength: 1
+     */
+    productId: string;
+    /**
+     * - format: int32
+     * - Numeric Constraints
+     *   - exclusiveMinimum: 0
+     */
+    quantity: number;
 }
 
 /**
  * order_created
  * - key: example.order.OrderCreated
- * - schema:
+ * - schema: 
  * ```json
  * {
  *   "type": "object",
@@ -293,59 +316,16 @@ export enum OrderAggregatedFields {
  * ```
  */
 export interface OrderCreated {
-  address: ShippingAddress;
-  fromCart: boolean;
-  items: OrderItem[];
-  orderId: string;
-}
-
-/**
- * - key: example.order.OrderItem
- * - schema:
- * ```json
- * {
- *   "type": "object",
- *   "properties": {
- *     "id": {
- *       "type": "string"
- *     },
- *     "price": {
- *       "type": "number"
- *     },
- *     "productId": {
- *       "type": "string"
- *     },
- *     "quantity": {
- *       "type": "integer",
- *       "format": "int32"
- *     },
- *     "totalPrice": {
- *       "type": "number",
- *       "readOnly": true
- *     }
- *   },
- *   "required": [
- *     "id",
- *     "price",
- *     "productId",
- *     "quantity"
- *   ]
- * }
- * ```
- */
-export interface OrderItem {
-  id: string;
-  price: number;
-  productId: string;
-  /** - format: int32 */
-  quantity: number;
-  readonly totalPrice: number;
+    address: ShippingAddress;
+    fromCart: boolean;
+    items: OrderItem[];
+    orderId: string;
 }
 
 /**
  * order_paid
  * - key: example.order.OrderPaid
- * - schema:
+ * - schema: 
  * ```json
  * {
  *   "type": "object",
@@ -366,14 +346,14 @@ export interface OrderItem {
  * ```
  */
 export interface OrderPaid {
-  amount: number;
-  paid: boolean;
+    amount: number;
+    paid: boolean;
 }
 
 /**
  * order_received
  * - key: example.order.OrderReceived
- * - schema:
+ * - schema: 
  * ```json
  * {
  *   "type": "object",
@@ -381,11 +361,11 @@ export interface OrderPaid {
  * }
  * ```
  */
-export type OrderReceived = Record<string, any>;
+export type OrderReceived = globalThis.Record<string, any>;
 /**
  * order_shipped
  * - key: example.order.OrderShipped
- * - schema:
+ * - schema: 
  * ```json
  * {
  *   "type": "object",
@@ -393,11 +373,18 @@ export type OrderReceived = Record<string, any>;
  * }
  * ```
  */
-export type OrderShipped = Record<string, any>;
+export type OrderShipped = globalThis.Record<string, any>;
+
+export enum OrderStatusEnumText {
+    CREATED = '已创建',
+    PAID = '已支付',
+    SHIPPED = '已发货',
+    RECEIVED = '已收货'
+}
 
 /**
  * - key: example.order.OrderStatus
- * - schema:
+ * - schema: 
  * ```json
  * {
  *   "type": "string",
@@ -406,21 +393,27 @@ export type OrderShipped = Record<string, any>;
  *     "PAID",
  *     "SHIPPED",
  *     "RECEIVED"
- *   ]
+ *   ],
+ *   "x-enum-text": {
+ *     "CREATED": "已创建",
+ *     "PAID": "已支付",
+ *     "SHIPPED": "已发货",
+ *     "RECEIVED": "已收货"
+ *   }
  * }
  * ```
  */
 export enum OrderStatus {
-  CREATED = `CREATED`,
-  PAID = `PAID`,
-  SHIPPED = `SHIPPED`,
-  RECEIVED = `RECEIVED`,
+    CREATED = 'CREATED',
+    PAID = 'PAID',
+    SHIPPED = 'SHIPPED',
+    RECEIVED = 'RECEIVED'
 }
 
 /**
  * pay_order
  * - key: example.order.PayOrder
- * - schema:
+ * - schema: 
  * ```json
  * {
  *   "type": "object",
@@ -444,22 +437,22 @@ export enum OrderStatus {
  * ```
  */
 export interface PayOrder {
-  /**
-   * - Numeric Constraints
-   *   - exclusiveMinimum: 0
-   */
-  amount: number;
-  /**
-   * - String Constraints
-   *   - minLength: 1
-   */
-  paymentId: string;
+    /**
+     * - Numeric Constraints
+     *   - exclusiveMinimum: 0
+     */
+    amount: number;
+    /**
+     * - String Constraints
+     *   - minLength: 1
+     */
+    paymentId: string;
 }
 
 /**
  * 收货
  * - key: example.order.ReceiptOrder
- * - schema:
+ * - schema: 
  * ```json
  * {
  *   "type": "object",
@@ -468,11 +461,11 @@ export interface PayOrder {
  * }
  * ```
  */
-export type ReceiptOrder = Record<string, any>;
+export type ReceiptOrder = globalThis.Record<string, any>;
 /**
  * 发货
  * - key: example.order.ShipOrder
- * - schema:
+ * - schema: 
  * ```json
  * {
  *   "type": "object",
@@ -481,55 +474,120 @@ export type ReceiptOrder = Record<string, any>;
  * }
  * ```
  */
-export type ShipOrder = Record<string, any>;
+export type ShipOrder = globalThis.Record<string, any>;
 
 /**
- * - key: example.order.ShippingAddress
- * - schema:
+ * - key: example.order.WowExampleOrderStateCursorPage
+ * - schema: 
  * ```json
  * {
  *   "type": "object",
  *   "properties": {
- *     "city": {
- *       "type": "string"
+ *     "list": {
+ *       "type": "array",
+ *       "items": {
+ *         "$ref": "#/components/schemas/example.order.WowExampleOrderState"
+ *       }
  *     },
- *     "country": {
- *       "type": "string",
- *       "minLength": 1
- *     },
- *     "detail": {
- *       "type": "string"
- *     },
- *     "district": {
- *       "type": "string"
- *     },
- *     "province": {
- *       "type": "string",
- *       "minLength": 1
+ *     "nextCursor": {
+ *       "anyOf": [
+ *         {
+ *           "type": "null"
+ *         },
+ *         {
+ *           "type": "string"
+ *         }
+ *       ]
  *     }
  *   },
  *   "required": [
- *     "city",
- *     "country",
- *     "detail",
- *     "district",
- *     "province"
+ *     "list",
+ *     "nextCursor"
  *   ]
  * }
  * ```
  */
-export interface ShippingAddress {
-  city: string;
-  /**
-   * - String Constraints
-   *   - minLength: 1
-   */
-  country: string;
-  detail: string;
-  district: string;
-  /**
-   * - String Constraints
-   *   - minLength: 1
-   */
-  province: string;
+export interface WowExampleOrderStateCursorPage {
+    list: WowExampleOrderState[];
+    nextCursor: (null | string);
+}
+
+/**
+ * - key: example.order.OrderAggregatedFields
+ * - schema: 
+ * ```json
+ * {
+ *   "type": "string",
+ *   "enum": [
+ *     "aggregateId",
+ *     "aggregateName",
+ *     "contextName",
+ *     "deleted",
+ *     "eventId",
+ *     "eventTime",
+ *     "firstEventTime",
+ *     "firstOperator",
+ *     "operator",
+ *     "ownerId",
+ *     "snapshotTime",
+ *     "spaceId",
+ *     "state",
+ *     "state.address",
+ *     "state.address.city",
+ *     "state.address.country",
+ *     "state.address.detail",
+ *     "state.address.district",
+ *     "state.address.province",
+ *     "state.id",
+ *     "state.items",
+ *     "state.items.id",
+ *     "state.items.price",
+ *     "state.items.productId",
+ *     "state.items.quantity",
+ *     "state.items.totalPrice",
+ *     "state.paidAmount",
+ *     "state.payable",
+ *     "state.status",
+ *     "state.totalAmount",
+ *     "tags",
+ *     "tenantId",
+ *     "version"
+ *   ]
+ * }
+ * ```
+ */
+export enum OrderAggregatedFields {
+    AGGREGATE_ID = 'aggregateId',
+    AGGREGATE_NAME = 'aggregateName',
+    CONTEXT_NAME = 'contextName',
+    DELETED = 'deleted',
+    EVENT_ID = 'eventId',
+    EVENT_TIME = 'eventTime',
+    FIRST_EVENT_TIME = 'firstEventTime',
+    FIRST_OPERATOR = 'firstOperator',
+    OPERATOR = 'operator',
+    OWNER_ID = 'ownerId',
+    SNAPSHOT_TIME = 'snapshotTime',
+    SPACE_ID = 'spaceId',
+    STATE = 'state',
+    STATE_ADDRESS = 'state.address',
+    STATE_ADDRESS_CITY = 'state.address.city',
+    STATE_ADDRESS_COUNTRY = 'state.address.country',
+    STATE_ADDRESS_DETAIL = 'state.address.detail',
+    STATE_ADDRESS_DISTRICT = 'state.address.district',
+    STATE_ADDRESS_PROVINCE = 'state.address.province',
+    STATE_ID = 'state.id',
+    STATE_ITEMS = 'state.items',
+    STATE_ITEMS_ID = 'state.items.id',
+    STATE_ITEMS_PRICE = 'state.items.price',
+    STATE_ITEMS_PRODUCT_ID = 'state.items.productId',
+    STATE_ITEMS_QUANTITY = 'state.items.quantity',
+    STATE_ITEMS_TOTAL_PRICE = 'state.items.totalPrice',
+    STATE_PAID_AMOUNT = 'state.paidAmount',
+    STATE_PAYABLE = 'state.payable',
+    STATE_STATUS = 'state.status',
+    STATE_TOTAL_AMOUNT = 'state.totalAmount',
+    TAGS = 'tags',
+    TENANT_ID = 'tenantId',
+    VERSION = 'version'
 }

@@ -1,6 +1,6 @@
 /**
  * - key: example.cart.CartData
- * - schema:
+ * - schema: 
  * ```json
  * {
  *   "type": "object",
@@ -14,29 +14,52 @@
  *     "size": {
  *       "type": "integer",
  *       "format": "int32",
- *       "description": "购物车数量",
- *       "readOnly": true
+ *       "description": "购物车数量"
  *     }
- *   },
- *   "required": [
- *     "items"
- *   ]
+ *   }
  * }
  * ```
  */
 export interface CartData {
-  items: CartItem[];
-  /**
-   * 购物车数量
-   * - format: int32
-   */
-  readonly size: number;
+    items: CartItem[];
+    /**
+     * 购物车数量
+     * - format: int32
+     */
+    size: number;
+}
+
+/**
+ * - key: example.cart.CartItem
+ * - schema: 
+ * ```json
+ * {
+ *   "type": "object",
+ *   "properties": {
+ *     "productId": {
+ *       "type": "string"
+ *     },
+ *     "quantity": {
+ *       "type": "integer",
+ *       "format": "int32"
+ *     }
+ *   },
+ *   "required": [
+ *     "productId"
+ *   ]
+ * }
+ * ```
+ */
+export interface CartItem {
+    productId: string;
+    /** - format: int32 */
+    quantity: number;
 }
 
 /**
  * 加入购物车
  * - key: example.cart.AddCartItem
- * - schema:
+ * - schema: 
  * ```json
  * {
  *   "type": "object",
@@ -60,97 +83,23 @@ export interface CartData {
  * ```
  */
 export interface AddCartItem {
-  /**
-   * - String Constraints
-   *   - minLength: 1
-   */
-  productId: string;
-  /**
-   * - format: int32
-   * - Numeric Constraints
-   *   - exclusiveMinimum: 0
-   */
-  quantity: number;
-}
-
-/**
- * - key: example.cart.CartAggregatedFields
- * - schema:
- * ```json
- * {
- *   "type": "string",
- *   "enum": [
- *     "",
- *     "aggregateId",
- *     "tenantId",
- *     "ownerId",
- *     "version",
- *     "eventId",
- *     "firstOperator",
- *     "operator",
- *     "firstEventTime",
- *     "eventTime",
- *     "deleted",
- *     "state",
- *     "state.id",
- *     "state.items",
- *     "state.items.productId",
- *     "state.items.quantity",
- *     "state.size"
- *   ]
- * }
- * ```
- */
-export enum CartAggregatedFields {
-  AGGREGATE_ID = `aggregateId`,
-  TENANT_ID = `tenantId`,
-  OWNER_ID = `ownerId`,
-  VERSION = `version`,
-  EVENT_ID = `eventId`,
-  FIRST_OPERATOR = `firstOperator`,
-  OPERATOR = `operator`,
-  FIRST_EVENT_TIME = `firstEventTime`,
-  EVENT_TIME = `eventTime`,
-  DELETED = `deleted`,
-  STATE = `state`,
-  STATE_ID = `state.id`,
-  STATE_ITEMS = `state.items`,
-  STATE_ITEMS_PRODUCT_ID = `state.items.productId`,
-  STATE_ITEMS_QUANTITY = `state.items.quantity`,
-  STATE_SIZE = `state.size`,
-}
-
-/**
- * - key: example.cart.CartItem
- * - schema:
- * ```json
- * {
- *   "type": "object",
- *   "properties": {
- *     "productId": {
- *       "type": "string"
- *     },
- *     "quantity": {
- *       "type": "integer",
- *       "format": "int32"
- *     }
- *   },
- *   "required": [
- *     "productId"
- *   ]
- * }
- * ```
- */
-export interface CartItem {
-  productId: string;
-  /** - format: int32 */
-  quantity: number;
+    /**
+     * - String Constraints
+     *   - minLength: 1
+     */
+    productId: string;
+    /**
+     * - format: int32
+     * - Numeric Constraints
+     *   - exclusiveMinimum: 0
+     */
+    quantity: number;
 }
 
 /**
  * 商品已加入购物车
  * - key: example.cart.CartItemAdded
- * - schema:
+ * - schema: 
  * ```json
  * {
  *   "type": "object",
@@ -167,13 +116,13 @@ export interface CartItem {
  * ```
  */
 export interface CartItemAdded {
-  added: CartItem;
+    added: CartItem;
 }
 
 /**
  * cart_item_removed
  * - key: example.cart.CartItemRemoved
- * - schema:
+ * - schema: 
  * ```json
  * {
  *   "type": "object",
@@ -193,13 +142,13 @@ export interface CartItemAdded {
  * ```
  */
 export interface CartItemRemoved {
-  productIds: string[];
+    productIds: string[];
 }
 
 /**
  * cart_quantity_changed
  * - key: example.cart.CartQuantityChanged
- * - schema:
+ * - schema: 
  * ```json
  * {
  *   "type": "object",
@@ -216,12 +165,12 @@ export interface CartItemRemoved {
  * ```
  */
 export interface CartQuantityChanged {
-  changed: CartItem;
+    changed: CartItem;
 }
 
 /**
  * - key: example.cart.CartState
- * - schema:
+ * - schema: 
  * ```json
  * {
  *   "type": "object",
@@ -249,19 +198,55 @@ export interface CartQuantityChanged {
  * ```
  */
 export interface CartState {
-  id: string;
-  items: CartItem[];
-  /**
-   * 购物车数量
-   * - format: int32
-   */
-  readonly size: number;
+    id: string;
+    items: CartItem[];
+    /**
+     * 购物车数量
+     * - format: int32
+     */
+    readonly size: number;
+}
+
+/**
+ * - key: example.cart.CartStateCursorPage
+ * - schema: 
+ * ```json
+ * {
+ *   "type": "object",
+ *   "properties": {
+ *     "list": {
+ *       "type": "array",
+ *       "items": {
+ *         "$ref": "#/components/schemas/example.cart.CartState"
+ *       }
+ *     },
+ *     "nextCursor": {
+ *       "anyOf": [
+ *         {
+ *           "type": "null"
+ *         },
+ *         {
+ *           "type": "string"
+ *         }
+ *       ]
+ *     }
+ *   },
+ *   "required": [
+ *     "list",
+ *     "nextCursor"
+ *   ]
+ * }
+ * ```
+ */
+export interface CartStateCursorPage {
+    list: CartState[];
+    nextCursor: (null | string);
 }
 
 /**
  * 变更购买数量
  * - key: example.cart.ChangeQuantity
- * - schema:
+ * - schema: 
  * ```json
  * {
  *   "type": "object",
@@ -286,23 +271,23 @@ export interface CartState {
  * ```
  */
 export interface ChangeQuantity {
-  /**
-   * - String Constraints
-   *   - minLength: 1
-   */
-  productId: string;
-  /**
-   * - format: int32
-   * - Numeric Constraints
-   *   - exclusiveMinimum: 0
-   */
-  quantity: number;
+    /**
+     * - String Constraints
+     *   - minLength: 1
+     */
+    productId: string;
+    /**
+     * - format: int32
+     * - Numeric Constraints
+     *   - exclusiveMinimum: 0
+     */
+    quantity: number;
 }
 
 /**
  * mock_variable_command
  * - key: example.cart.MockVariableCommand
- * - schema:
+ * - schema: 
  * ```json
  * {
  *   "type": "object",
@@ -311,11 +296,11 @@ export interface ChangeQuantity {
  * }
  * ```
  */
-export type MockVariableCommand = Record<string, any>;
+export type MockVariableCommand = globalThis.Record<string, any>;
 
 /**
  * - key: example.cart.MockVariableCommand.MockEnum
- * - schema:
+ * - schema: 
  * ```json
  * {
  *   "type": "string",
@@ -328,15 +313,15 @@ export type MockVariableCommand = Record<string, any>;
  * ```
  */
 export enum MockVariableCommandMockEnum {
-  FIRST = `First`,
-  SECOND = `Second`,
-  THIRD = `Third`,
+    FIRST = 'First',
+    SECOND = 'Second',
+    THIRD = 'Third'
 }
 
 /**
  * 挂载的命令
  * - key: example.cart.MountedCommand
- * - schema:
+ * - schema: 
  * ```json
  * {
  *   "type": "object",
@@ -345,12 +330,12 @@ export enum MockVariableCommandMockEnum {
  * }
  * ```
  */
-export type MountedCommand = Record<string, any>;
+export type MountedCommand = globalThis.Record<string, any>;
 
 /**
  * 删除商品
  * - key: example.cart.RemoveCartItem
- * - schema:
+ * - schema: 
  * ```json
  * {
  *   "type": "object",
@@ -372,17 +357,17 @@ export type MountedCommand = Record<string, any>;
  * ```
  */
 export interface RemoveCartItem {
-  /**
-   * - Array Constraints
-   *   - minItems: 1
-   */
-  productIds: string[];
+    /**
+     * - Array Constraints
+     *   - minItems: 1
+     */
+    productIds: string[];
 }
 
 /**
  * view_cart
  * - key: example.cart.ViewCart
- * - schema:
+ * - schema: 
  * ```json
  * {
  *   "type": "object",
@@ -391,4 +376,60 @@ export interface RemoveCartItem {
  * }
  * ```
  */
-export type ViewCart = Record<string, any>;
+export type ViewCart = globalThis.Record<string, any>;
+
+/**
+ * - key: example.cart.CartAggregatedFields
+ * - schema: 
+ * ```json
+ * {
+ *   "type": "string",
+ *   "enum": [
+ *     "aggregateId",
+ *     "aggregateName",
+ *     "contextName",
+ *     "deleted",
+ *     "eventId",
+ *     "eventTime",
+ *     "firstEventTime",
+ *     "firstOperator",
+ *     "operator",
+ *     "ownerId",
+ *     "snapshotTime",
+ *     "spaceId",
+ *     "state",
+ *     "state.id",
+ *     "state.items",
+ *     "state.items.productId",
+ *     "state.items.quantity",
+ *     "state.size",
+ *     "tags",
+ *     "tenantId",
+ *     "version"
+ *   ]
+ * }
+ * ```
+ */
+export enum CartAggregatedFields {
+    AGGREGATE_ID = 'aggregateId',
+    AGGREGATE_NAME = 'aggregateName',
+    CONTEXT_NAME = 'contextName',
+    DELETED = 'deleted',
+    EVENT_ID = 'eventId',
+    EVENT_TIME = 'eventTime',
+    FIRST_EVENT_TIME = 'firstEventTime',
+    FIRST_OPERATOR = 'firstOperator',
+    OPERATOR = 'operator',
+    OWNER_ID = 'ownerId',
+    SNAPSHOT_TIME = 'snapshotTime',
+    SPACE_ID = 'spaceId',
+    STATE = 'state',
+    STATE_ID = 'state.id',
+    STATE_ITEMS = 'state.items',
+    STATE_ITEMS_PRODUCT_ID = 'state.items.productId',
+    STATE_ITEMS_QUANTITY = 'state.items.quantity',
+    STATE_SIZE = 'state.size',
+    TAGS = 'tags',
+    TENANT_ID = 'tenantId',
+    VERSION = 'version'
+}

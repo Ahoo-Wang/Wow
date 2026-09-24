@@ -14,6 +14,10 @@ import { scopes } from './ci-scope.mjs';
 const script = new URL('./ci-scope.mjs', import.meta.url).pathname;
 const all = paths => Object.values(scopes(paths)).every(Boolean);
 const none = paths => Object.values(scopes(paths)).every(value => !value);
+const on = paths =>
+  Object.entries(scopes(paths))
+    .filter(([, value]) => value)
+    .map(([key]) => key);
 
 test('workspace configuration, CI scripts and unknown paths run every gate', () => {
   for (const path of [
@@ -21,34 +25,74 @@ test('workspace configuration, CI scripts and unknown paths run every gate', () 
     'pnpm-lock.yaml',
     'pnpm-workspace.yaml',
     'tsconfig.base.json',
-    'eslint.config.js',
-    '.prettierrc',
-    '.prettierignore',
     '.github/scripts/ci-scope.mjs',
-    '.github/workflows/typescript.yml',
+    '.github/workflows/typescript-storybook.yml',
     'view-store/wow-view-store-api/build.gradle.kts',
     'new-directory/index.ts',
   ])
     assert.ok(all([path]), path);
 });
 
-test('Kotlin, Gradle, dashboard and prose changes skip the TypeScript workflow', () => {
+test('lint and format rules run only the static checks and the site build', () => {
+  for (const path of [
+    'eslint.config.js',
+    '.prettierrc',
+    '.prettierignore',
+    '.github/workflows/typescript.yml',
+  ])
+    assert.deepEqual(on([path]), ['typescript', 'docs'], path);
+});
+
+test('example server sources and the Gradle build run only the same-source contract', () => {
   for (const path of [
     'wow-core/src/main/kotlin/me/ahoo/wow/Wow.kt',
+    'wow-openapi/src/main/kotlin/Router.kt',
     'wow-benchmarks/build.gradle.kts',
-    'test/wow-tck/src/main/kotlin/Spec.kt',
     'example/example-server/build.gradle.kts',
-    'compensation/wow-compensation-domain/build.gradle.kts',
-    'compensation/dashboard/src/App.tsx',
+    'example/example-server/src/dist/config/application.yaml',
+    'schema/wow-schema.json',
+    'test/wow-mock/src/main/kotlin/Mock.kt',
+    'compensation/wow-compensation-api/src/main/kotlin/Api.kt',
+    'compensation/wow-compensation-core/build.gradle.kts',
+    'build-logic/build.gradle.kts',
     'build.gradle.kts',
+    'settings.gradle.kts',
     'gradle.properties',
     'gradle/libs.versions.toml',
     'gradlew',
-    'schema/wow-schema.json',
+  ])
+    assert.deepEqual(on([path]), ['contract'], path);
+});
+
+test('the client, generator, integration tests and contract workflow run both contracts', () => {
+  for (const path of [
+    'typescript/wow-client/src/index.ts',
+    'typescript/wow-generator/src/cli.ts',
+    'typescript/integration-test/src/generated/index.ts',
+    '.github/workflows/typescript-contract.yml',
+  ])
+    assert.deepEqual(
+      on([path]),
+      ['typescript', 'contract', 'legacyContract'],
+      path,
+    );
+  assert.deepEqual(on(['typescript/wow-react/src/index.ts']), ['typescript']);
+});
+
+test('Kotlin, Gradle, dashboard and prose changes skip the TypeScript workflows', () => {
+  for (const path of [
+    'test/wow-tck/src/main/kotlin/Spec.kt',
+    'test/wow-it/build.gradle.kts',
+    'compensation/wow-compensation-domain/build.gradle.kts',
+    'compensation/wow-compensation-server/build.gradle.kts',
+    'compensation/dashboard/src/App.tsx',
+    'config/detekt/detekt.yml',
+    'gradlew.bat',
     'docs/superpowers/specs/a.md',
     'skills/wow-develop/SKILL.md',
     '.claude/skills/shadcn/SKILL.md',
     '.github/workflows/local-test.yml',
+    '.github/workflows/package-deploy.yml',
     '.github/scripts/pr-safety.sh',
     'README.md',
     'AGENTS.md',
@@ -59,19 +103,17 @@ test('Kotlin, Gradle, dashboard and prose changes skip the TypeScript workflow',
 });
 
 test('isolated changes retain their relevant validation', () => {
-  assert.deepEqual(scopes(['documentation/docs/index.md']), {
-    typescript: false,
-    docs: true,
-  });
-  assert.deepEqual(scopes(['typescript/wow-client/src/index.ts']), {
-    typescript: true,
-    docs: false,
-  });
+  assert.deepEqual(on(['documentation/docs/index.md']), ['docs']);
   assert.deepEqual(
-    scopes(['wow-core/src/main/kotlin/A.kt', 'documentation/package.json']),
-    { typescript: false, docs: true },
+    on(['wow-core/src/main/kotlin/A.kt', 'documentation/package.json']),
+    ['docs', 'contract'],
+  );
+  assert.deepEqual(
+    on(['typescript/wow-react/src/index.ts', 'example/README.md']),
+    ['typescript', 'contract'],
   );
   assert.ok(all(['README.md', 'pnpm-lock.yaml']));
+  assert.ok(all(['wow-core/src/main/kotlin/A.kt', 'new-directory/index.ts']));
 });
 
 test('the command reads the diff and runs everything without a base', () => {
@@ -99,15 +141,16 @@ test('the command reads the diff and runs everything without a base', () => {
     git('commit', '-qam', 'prose');
     const head = git('rev-parse', 'HEAD');
 
-    assert.equal(
-      run({ BASE_SHA: base, HEAD_SHA: head }),
-      'typescript=false\ndocs=false\n',
-    );
+    const output = value =>
+      ['typescript', 'docs', 'contract', 'legacyContract']
+        .map(key => `${key}=${value}\n`)
+        .join('');
+    assert.equal(run({ BASE_SHA: base, HEAD_SHA: head }), output(false));
     assert.equal(
       run({ BASE_SHA: '0'.repeat(40), HEAD_SHA: head }),
-      'typescript=true\ndocs=true\n',
+      output(true),
     );
-    assert.equal(run({}), 'typescript=true\ndocs=true\n');
+    assert.equal(run({}), output(true));
     assert.throws(() => run({ BASE_SHA: 'missing-revision', HEAD_SHA: head }));
   } finally {
     rmSync(directory, { recursive: true, force: true });

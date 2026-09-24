@@ -23,6 +23,9 @@ export default tseslint.config(
       '**/node_modules/**',
       '**/expected/**',
       '**/test-output/**',
+      // wow-generator output, committed byte for byte; the contract workflow
+      // fails when it drifts from what the generator produces.
+      'src/generated/**',
     ],
   },
   {

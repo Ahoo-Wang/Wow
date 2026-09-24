@@ -152,7 +152,7 @@ class WowSkillsValidatorTest(unittest.TestCase):
             agents.symlink_to(outside, target_is_directory=True)
             self.assert_error("agents and openai.yaml must stay inside the Skill")
 
-    def test_plugin_include_must_match_the_four_skill_directories(self) -> None:
+    def test_plugin_include_must_match_the_skill_directories(self) -> None:
         path = self.root / "skills" / "plugins.json"
         original = path.read_text(encoding="utf-8")
         with self.subTest(boundary="include-mismatch"):

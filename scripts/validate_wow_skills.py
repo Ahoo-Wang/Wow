@@ -11,8 +11,10 @@ from typing import Any
 
 
 EXPECTED_SKILLS = {
+    "wow-client",
     "wow-debug",
     "wow-develop",
+    "wow-generator",
     "wow-migrate",
     "wow-review",
 }
@@ -549,7 +551,10 @@ def main(argv: list[str] | None = None) -> int:
         for error in errors:
             print(f"ERROR: {error}", file=sys.stderr)
         return 1
-    print("Wow Skills validation passed: 4 Skills; activation and behavior eval data are valid.")
+    print(
+        f"Wow Skills validation passed: {len(EXPECTED_SKILLS)} Skills; "
+        "activation and behavior eval data are valid."
+    )
     return 0
 
 

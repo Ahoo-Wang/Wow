@@ -21,7 +21,7 @@ description: 核对 Wow 与外部项目的所有权、仓库内集成边界和�
 | CoApi | `wow-apiclient` 使用 `coapi-api`；示例服务使用 CoApi Starter 物化客户端 | Wow 定义通用客户端契约；服务发现、base URL、认证与重试由下游配置 | [CoApi](https://github.com/Ahoo-Wang/CoApi) |
 | Simba | 补偿服务器使用 Redis 版 Simba 承担调度互斥 | 普通 Wow 应用不因使用 Saga 或补偿 API 就需要直接安装 Simba | [Simba](https://github.com/Ahoo-Wang/Simba) |
 | FluentAssert | `wow-test` 测试栈使用 FluentAssert `.assert()` 约定 | 应用通过 `wow-test` 获得 Wow 测试 DSL；完整断言 API 由 FluentAssert 文档维护 | [FluentAssert](https://github.com/Ahoo-Wang/FluentAssert) |
-| Fetcher | 补偿 Dashboard 使用 Fetcher 包及生成客户端 | 这是 Dashboard/TypeScript 客户端边界，不是 JVM 运行时必需依赖；生成文件应从 OpenAPI/生成器输入更新 | [Fetcher](https://github.com/Ahoo-Wang/Fetcher) |
+| Fetcher | Wow 的 TypeScript 包（`wow-client`、`wow-generator`、`wow-react`）和补偿 Dashboard 都建立在 Fetcher 包之上 | Fetcher 是 [TypeScript 客户端](../guide/typescript/)的 peer 依赖，不是 JVM 运行时依赖；Fetcher 的核心 HTTP 包及其文档由 Fetcher 维护 | [Fetcher](https://github.com/Ahoo-Wang/Fetcher) |
 
 当前依赖版本与 BOM 以 [`gradle/libs.versions.toml`](https://github.com/Ahoo-Wang/Wow/blob/main/gradle/libs.versions.toml) 和 [`wow-dependencies`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-dependencies/build.gradle.kts) 为准。模块是否存在以 [`settings.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts) 为准。
 
