@@ -12,11 +12,13 @@
  */
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import { EDITOR_INPUTS } from '@/filter/index.js';
 
 const ROOT = join(import.meta.dirname, '..');
+const STORIES = join(ROOT, '../../stories/view-engine');
 
 /** Every design page, plus the file an agent reads before them. */
 function pages(dir: string): string[] {
@@ -27,12 +29,16 @@ function pages(dir: string): string[] {
   });
 }
 
+/** What a host reads first, in its two languages (X-07, X-16). */
+const READMES = ['README.md', 'README.zh-CN.md'];
+
 const documents = [
   ...pages(join(ROOT, 'docs/design')),
   join(ROOT, 'AGENTS.md'),
+  ...READMES.map(readme => join(ROOT, readme)),
 ];
 
-/** Read once: three suites below walk the same text. */
+/** Read once: the suites below walk the same text. */
 const sources = documents.map(document => ({
   at: relative(ROOT, document),
   text: readFileSync(document, 'utf8'),
@@ -88,6 +94,169 @@ describe('the test suites the design pages cite', () => {
 });
 
 /**
+ * A page that says a browser checks something points at the story that does
+ * — `Dashboard.test.stories.tsx`「OnAPhone」 — and the pointer has to resolve
+ * as a suite citation does (X-16): the file must be under
+ * `stories/view-engine/`, and every 「name」 quoted straight after it a story
+ * that file exports, so a story renamed or folded into another takes the
+ * pages that cite it along.
+ */
+describe('the stories the design pages cite', () => {
+  const citations = sources.flatMap(({ at: where, text }) =>
+    text.split('\n').flatMap((line, index) =>
+      [
+        ...line.matchAll(
+          /(?:stories\/view-engine\/)?([A-Za-z0-9]+(?:\.test)?\.stories\.tsx)`?((?:\s*「[^」]*」)*)/g,
+        ),
+      ].map(([, file, quoted]) => ({
+        at: `${where}:${index + 1}`,
+        file,
+        names: [...quoted.matchAll(/「([^」]*)」/g)].map(([, name]) => name),
+      })),
+    ),
+  );
+
+  it('cites stories by name at all', () => {
+    expect(
+      citations.filter(({ names }) => names.length > 0).length,
+    ).toBeGreaterThan(20);
+  });
+
+  it('names only story files that exist', () => {
+    const missing = citations
+      .filter(({ file }) => !existsSync(join(STORIES, file)))
+      .map(({ at, file }) => `${at} → ${file}`);
+    expect(missing).toEqual([]);
+  });
+
+  it('quotes only stories those files export', () => {
+    const missing = citations.flatMap(({ at, file, names }) => {
+      const path = join(STORIES, file);
+      if (!existsSync(path)) return [];
+      const source = readFileSync(path, 'utf8');
+      return names
+        .filter(name => !new RegExp(`export const ${name}\\b`).test(source))
+        .map(name => `${at} → ${file}「${name}」`);
+    });
+    expect(missing).toEqual([]);
+  });
+});
+
+/** The file a relative module specifier names, `.js` read as its source. */
+function moduleFile(from: string, specifier: string): string | null {
+  const base = resolve(dirname(from), specifier.replace(/\.js$/, ''));
+  return (
+    [`${base}.ts`, `${base}.tsx`, join(base, 'index.ts')].find(existsSync) ??
+    null
+  );
+}
+
+/**
+ * Every name a module exports, following `export *` and `export { … } from`
+ * through the source tree — values and types alike, since a README's table
+ * names both. Read off the syntax, one file at a time: no program, no
+ * checker, so this suite stays as quick as the rest of `test:docs`.
+ */
+function exportedNames(file: string, seen = new Set<string>()): Set<string> {
+  const names = new Set<string>();
+  if (seen.has(file)) return names;
+  seen.add(file);
+  const source = ts.createSourceFile(
+    file,
+    readFileSync(file, 'utf8'),
+    ts.ScriptTarget.Latest,
+    false,
+    file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  );
+  for (const statement of source.statements) {
+    if (ts.isExportDeclaration(statement)) {
+      const clause = statement.exportClause;
+      const specifier = statement.moduleSpecifier;
+      if (clause && ts.isNamedExports(clause))
+        for (const element of clause.elements) names.add(element.name.text);
+      else if (clause) names.add(clause.name.text);
+      else if (specifier && ts.isStringLiteral(specifier)) {
+        const target = moduleFile(file, specifier.text);
+        if (target)
+          for (const name of exportedNames(target, seen)) names.add(name);
+      }
+      continue;
+    }
+    const exported =
+      ts.canHaveModifiers(statement) &&
+      ts
+        .getModifiers(statement)
+        ?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword);
+    if (!exported) continue;
+    if (ts.isVariableStatement(statement)) {
+      for (const declaration of statement.declarationList.declarations)
+        if (ts.isIdentifier(declaration.name)) names.add(declaration.name.text);
+    } else if (
+      (ts.isFunctionDeclaration(statement) ||
+        ts.isClassDeclaration(statement) ||
+        ts.isInterfaceDeclaration(statement) ||
+        ts.isTypeAliasDeclaration(statement) ||
+        ts.isEnumDeclaration(statement)) &&
+      statement.name
+    )
+      names.add(statement.name.text);
+  }
+  return names;
+}
+
+/**
+ * The README's entry table is where a host looks up which import a name
+ * comes from, and it once sent them to `/ui` for a hook that lives in
+ * `/react` and for a component that was never written (X-07). So every name
+ * a row lists has to be one that entry exports.
+ */
+describe('the entries the READMEs list', () => {
+  const ENTRIES: Record<string, string> = {
+    '@ahoo-wang/fetcher-view-engine': 'src/index.ts',
+    '/react': 'src/react/index.ts',
+    '/ui': 'src/ui/index.ts',
+  };
+  const exports = new Map(
+    Object.entries(ENTRIES).map(([entry, file]) => [
+      entry,
+      exportedNames(join(ROOT, file)),
+    ]),
+  );
+  const rows = sources
+    .filter(({ at }) => READMES.includes(at))
+    .flatMap(({ at, text }) =>
+      text.split('\n').flatMap((line, index) => {
+        const cells = /^\|\s*`([^`]+)`\s*\|(.*)\|\s*$/.exec(line);
+        if (!cells || !(cells[1] in ENTRIES)) return [];
+        return [
+          {
+            at: `${at}:${index + 1}`,
+            entry: cells[1],
+            names: [...cells[2].matchAll(/`([A-Za-z_$][\w$]*)`/g)].map(
+              ([, name]) => name,
+            ),
+          },
+        ];
+      }),
+    );
+
+  it('lists the three code entries in both languages', () => {
+    expect(rows.map(({ entry }) => entry).sort()).toEqual(
+      [...Object.keys(ENTRIES), ...Object.keys(ENTRIES)].sort(),
+    );
+  });
+
+  it('names only what each entry exports', () => {
+    const missing = rows.flatMap(({ at, entry, names }) =>
+      names
+        .filter(name => !exports.get(entry)?.has(name))
+        .map(name => `${at} → ${entry} ${name}`),
+    );
+    expect(missing).toEqual([]);
+  });
+});
+
+/**
  * `extension.md` is where an application author reads what a custom
  * `FieldKind` may ask for, and `EditorDescriptor.input` is the closed union
  * it has to choose from. The page once listed seven members, two of them
@@ -111,23 +280,24 @@ function pageAt(at: string): string {
 }
 
 /**
- * The pages that say what the code is today. `decisions.md` and `todo.md` are
- * left out on purpose: a decision entry names the shape it declined or
- * deleted, and a todo names work not written yet, so both properly speak of
- * names that are not in the tree.
+ * The pages that say what the code is today, the READMEs among them.
+ * `decisions.md` and `todo.md` are left out on purpose: a decision entry
+ * names the shape it declined or deleted, and a todo names work not written
+ * yet, so both properly speak of names that are not in the tree.
  */
 const descriptions = sources.filter(
   ({ at }) =>
-    at.startsWith('docs/design/') &&
-    at !== 'docs/design/decisions.md' &&
-    at !== 'docs/design/todo.md',
+    READMES.includes(at) ||
+    (at.startsWith('docs/design/') &&
+      at !== 'docs/design/decisions.md' &&
+      at !== 'docs/design/todo.md'),
 );
 
 /** Where a name may be answered: this package, its stories, and Wow's own. */
 const CODE_TREES = [
   join(ROOT, 'src'),
   join(ROOT, 'test'),
-  join(ROOT, '../../stories/view-engine'),
+  STORIES,
   join(ROOT, '../wow/src'),
 ];
 

@@ -14,11 +14,10 @@
 /**
  * Root entry of `@ahoo-wang/fetcher-view-engine`.
  *
- * The package is being rebuilt from an empty tree following `docs/design/`.
- * This entry grows layer by layer in the order fixed there: `model`, `filter`,
- * `record` / `analysis` / `dashboard`, `runtime`, `store`. The `/react` and `/ui`
- * entries are added by their own delivery steps. Dependency rules between the
- * layers are enforced by `test/architecture.test.ts` from the first commit.
+ * The headless layers, in the order `docs/design/` fixes: `model`, `filter`,
+ * `record` / `analysis` / `dashboard`, `runtime`, `store`. React lives in
+ * the `/react` and `/ui` entries of its own. Dependency rules between the
+ * layers are enforced by `test/architecture.test.ts`.
  */
 export * from './model/index.js';
 export * from './filter/index.js';

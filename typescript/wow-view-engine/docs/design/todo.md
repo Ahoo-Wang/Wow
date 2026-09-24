@@ -43,10 +43,9 @@ ECharts 迁移（D21）与两份「数据分析师视角」审查的 P0 已全�
   - Q-02 界面：`Board.tsx` 的 preload 续体里再读一次当前的 `dashboard.edit`，补一条界面测试（preload 挂起、先按取消再放行，板上不多面板）；`place` 也纳入非搭建态拒绝——先让 test/dashboardUi.test.tsx 的「places a panel and applies the placement」「placed by keyboard」「writes the geometry back once a drag ends」与 test/dashboardPlacement.test.tsx 的「placing a panel」在摆放前开始搭建，再删掉 `runtime/dashboard/editing.ts` 里 `draftFor` 对 `place` 的例外。
   - A-11（审查原文是 `PanelPresses` 自己判断点击生不生效、不读面板状态的 `click`）：口径不变——准入报过 warning 的点击按下去回到追问菜单并说为什么（[model.md](model.md) 的「点击」、D22 H）；改的是做法：面板状态同时带点击与它的准入结论，`PanelPresses` 只读状态、不再自己判（2026-09-24 主会话定，技术取舍、不涉产品口径）。test/dashboardPress.test.ts「warns of a filter this board no longer has, and a press falls back to the menu」照旧成立。
   - 搭板时编辑条一直可见（2026-09-24 R4b 走查发现）：嵌入可编辑档里添加一块面板，卡片内部滚到新面板，编辑条（保存／取消）随之滚出视野，要滚回去才能结束；工作台同理。编辑条在滚动口里吸顶（Metabase 的编辑条也固定在顶上），随共用外壳一起做，故事断言添加后编辑条仍在视野内。
-  - AGENTS.md 结构树的描述按 R3a 改：`json.ts`（`overlaid`）、内核 `panels.ts`（`panelsOf`、`tabsOf`、`presentationMembersOf`）、`wiring.ts`（`DataPanelSource`）、runtime 的 `commands.ts`（`BoardRules` 与只转一手的 `BoardCommands`）、`history.ts`（`outsideHistory`）、`panelRun.ts`（`boardPanels`、`boardHandOver`）、`panels.ts`（`boardFindings`）。
-  - 判据：各条有测试或故事断言；`max-lines` 豁免表仍为空。落点：`src/ui/`、`AGENTS.md`。
-- **R5 措辞与文档**：X-03 仪表盘筛选发现说程序键（`filter-1`）；X-08 一词多义（「筛选 ▾」→「添加筛选」、「分节标题」「笔记」统一、「板／仪表盘」）；X-09 两个「撤销」；X-06 本页与 [ui/dashboard.md](ui/dashboard.md) 的过期项与顺序行；X-07 README 入口表与迁移段落；X-11 D22 的「固定宽度／全宽」等补进 todo；X-12、X-13、X-16、Q-16、A-19 文档漂移与守护缺口；A-16 公开面快照（首发前必做，可在 Wow 做）。
-  - 落点：`docs/design/`、`README*.md`、`AGENTS.md`、`test/docsReferences.test.ts`。
+  - 判据：各条有测试或故事断言；`max-lines` 豁免表仍为空。落点：`src/ui/`。
+- **R5 措辞与文档**：X-03 仪表盘筛选发现说程序键（`filter-1`）；X-08 一词多义（「筛选 ▾」→「添加筛选」、「分节标题」「笔记」统一、「板／仪表盘」）；X-09 两个「撤销」；X-06 本页与 [ui/dashboard.md](ui/dashboard.md) 的过期项与顺序行，连同 X-12 留在那一页的一处（「搭板子」「扩展」末句说宿主自拼 `DashboardBoard`——它不从 `/ui` 导出，宿主能拼的是 `DashboardGrid`）。
+  - 落点：`src/ui/messages/`（X-03、X-08）、`src/ui/dashboard/BoardFilters.tsx` 与 `src/runtime/dashboard/editing.ts`（X-09）、`docs/design/`（X-06、X-12）。
 
 ## 检查点：迁往 Wow 仓（阶段 3、4 收口之后）
 
@@ -70,6 +69,19 @@ ECharts 迁移（D21）与两份「数据分析师视角」审查的 P0 已全�
   - 为什么：记录面板能导出、分析面板不能；只在面板上给又会让面板做到分析视图本身做不到的事，所以两处一起加（与 Metabase 每张卡片都能下载结果一致）。
   - 判据：分析工作台的结果工具栏与分析面板的「⋯」都有「导出数据…」；文件是表格读法下的行（分组列在前、指标在后，列标题与格子读法同表格，「前 N 组」之内，合计行显示时作为最后一行，不含图上补出或并出的东西），与此刻画的是表还是图无关；窗口复用 D14 的壳、没有「所有／选中」；有测试与故事。
   - 落点：`src/ui/ExportDialog.tsx`、`src/ui/workbench/AnalysisParts.tsx`、`src/ui/dashboard/PanelExport.tsx`、[ui/analysis.md](ui/analysis.md)、[ui/dashboard.md](ui/dashboard.md) 面板菜单。
+
+- **仪表盘可切固定宽度／全宽**（[D22](decisions.md#d22-仪表盘与嵌入视图参照-metabase2026-09-23)「怎么搭」）——**到 Wow 仓做**：检查点之后这里不开新工作。
+  - 为什么：D22 定了、一直没做，也没进这一页（审查 X-11）；24 栏在宽屏上拉满时，一块指标卡能宽到半屏，作者要能让板子按固定宽度居中排。Metabase 的「固定宽度／全宽」是仪表盘自己的设置。
+  - 判据：仪表盘配置里有一个宽度成员，校验、编辑模式里切换、读的状态按它排，工作台与嵌入一致；缺省是哪一种动手前先问用户（Metabase 新建的板缺省固定宽度）；有测试与故事。
+  - 落点：[model.md#dashboard-配置](model.md#dashboard-配置)、`src/model/dashboard.ts`、`src/dashboard/validate.ts`、`src/ui/DashboardGrid.tsx`、[ui/dashboard.md](ui/dashboard.md)。
+- **公开面快照**（审查 A-16）——**首次发布前必做，到 Wow 仓做**。
+  - 为什么：根入口一层层 `export *`，连 runtime 的内部件（`RuntimeStore`、`RequestRunner`、`listenerSet` 等）一起导出；迁移方案按带 `!` 的提交判断破坏性改动，首发之后每一个多余的导出都是兼容负担。README 的入口表今天只守「列出的名字真从那个入口导出」（test/docsReferences.test.ts），不守入口多导出了什么。
+  - 判据：一条导出名清单的快照测试（读构建出的入口，或 api-extractor）；runtime 的内部件改为按名导出或不导出；[README.md](README.md) 写明各入口的公开面。
+  - 落点：`src/index.ts`、`src/runtime/index.ts`、`test/`、[README.md](README.md)。
+- **D22 标了「以后」的几项**——线索，到 Wow 仓排阶段时再定：联动筛选、卡片内筛选（「全局筛选」）；按列的点击行为（「点击」）；整板 PDF（「运维」）；订阅、版本历史、验证、缓存要服务端，归阶段 6。
+  - 为什么：迁走之后它们只剩 decisions 里的半句话，排下一个阶段时看不到（审查 X-11）。
+  - 判据：排进某个阶段时各自成为一条带判据的 TODO，或进 [decisions.md#搁置待议](decisions.md#搁置待议)；那时删掉这一条。
+  - 落点：本页。
 
 ## 阶段 2 留下的线索（不做，或待产品口径）
 

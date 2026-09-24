@@ -12,11 +12,12 @@
  */
 
 /**
- * What a dashboard runtime knows about its panels without holding any: how
- * a stored config's panels are read, which panel an issue belongs to, how a
- * child's findings are addressed from the dashboard, and when two panel
- * arrays say the same thing. Nothing here has state, so nothing here needs
- * the runtime.
+ * What a dashboard runtime knows about its panels without holding any:
+ * which panel an issue belongs to, what the board says above its panels, how
+ * a child's findings are addressed from the dashboard, and when two panel
+ * arrays say the same thing. How a stored config's panels are read is the
+ * kernel's (`panelsOf`). Nothing here has state, so nothing here needs the
+ * runtime.
  */
 
 import { dequal } from 'dequal';

@@ -1,6 +1,6 @@
 # Fetcher View Engine
 
-> **状态：[docs/design/](docs/design/) 定义的重写已交付**，第九步即最后一步已完成。Record、Analysis、Dashboard 三种视图，以及下文的 `/react` 控制器与 `/ui` 组件均已在包内。旧实现以 git tag `view-engine-legacy`（`a064fc1a`）冻结，仅作参考。
+> **状态：开发中，不承诺兼容。** Record、Analysis、Dashboard 三种视图与它们的嵌入，以及下文的 `/react` 控制器与 `/ui` 组件均已在包内。任何导出都还可能改形，改动不带兼容层；[docs/design/](docs/design/) 是唯一的依据，本页只说现在的 API。
 
 **Fetcher View Engine 是面向 Wow 业务应用的数据视图引擎。** 业务应用用代码声明一份数据"能被怎样观察"：字段、类型、操作符、可用的分组与指标。用户在界面上决定"这一次怎样观察"：筛选、列、排序、分组、图表、面板组合。引擎把这种观察方式编译成 Wow 查询、执行、渲染，并把有价值的观察方式保存下来供下次直接打开。
 
@@ -183,7 +183,7 @@ export function OrdersPage() {
 
 #### 搭仪表盘，以及打开面板背后的视图
 
-仪表盘平时是读的：能保存它的人按「编辑」之前，板上什么都不动。编辑中顶上一条编辑条，有「添加」（已保存的视图、标题、文字、图片、链接）、「取消」与「完成」——面板随改随跑，只有「完成」才保存，走的就是标题栏那次保存。系统仪表盘只读，只有「另存为」。
+仪表盘平时是读的：能保存它的人按「编辑」之前，板上什么都不动。编辑中顶上一条编辑条，有「撤销」「重做」、「添加」（数据：已保存的视图，或只属于这块板的新分析；内容：标题、文字、图片、链接）、「筛选」（加一个整板筛选，再接到面板上）、「取消」与「完成」，其下的标签栏可以加、改名、排序、删除标签页——面板随改随跑，只有「完成」才保存，走的就是标题栏那次保存。系统仪表盘只读，只有「另存为」。
 
 离开这块板的每一条路都经过你给的一个路由 `onNavigate(to)`——包本身从不碰地址。不给，就一条都没有：
 
@@ -459,15 +459,15 @@ const view = projectRecord(orders, config, page);
 
 ## 概念
 
-| 类型             | 职责                                                                                                                                                                                                                                                                                         | 所在   |
-| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| `ViewDefinition` | 字段、类型、操作符、记录与分析能力。由代码声明或生成，运行时不可编辑。                                                                                                                                                                                                                       | 代码   |
-| `ViewConfig`     | `RecordViewConfig` / `AnalysisViewConfig` / `DashboardViewConfig` 判别联合，共享的 `FilterTree` 描述数据范围。它是意图模型：保存"最近 7 天"这样的语义而不是编译结果，也不含任何 UI 组件名。Analysis 覆盖 Wow 聚合协议全部能力；Dashboard 面板分数据面板与 Markdown、图片、链接三种内容面板。 | 数据   |
-| `ViewInstance`   | 一份保存的 `ViewConfig`，加 id、标题、范围与不透明 `revision`。范围为系统、共享或个人。                                                                                                                                                                                                      | 存储   |
-| `ViewRuntime`    | 一个打开的视图：草稿、已应用配置、结果、状态、选择。提供 `subscribe` / `getSnapshot`。                                                                                                                                                                                                       | 内存   |
-| `ViewEngine`     | 定义、存储与已打开运行时的注册表；打开、保存、列表等命令的入口。                                                                                                                                                                                                                             | 内存   |
-| `ViewStore`      | 八个方法的持久化端口。业务应用为自己的后端实现它。                                                                                                                                                                                                                                           | 应用   |
-| `FieldKind`      | 一种字段类型的操作符、校验、编译与编辑器描述。                                                                                                                                                                                                                                               | 注册表 |
+| 类型             | 职责                                                                                                                                                                                                                                                                                                                                         | 所在   |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| `ViewDefinition` | 字段、类型、操作符、记录与分析能力。由代码声明或生成，运行时不可编辑。                                                                                                                                                                                                                                                                       | 代码   |
+| `ViewConfig`     | `RecordViewConfig` / `AnalysisViewConfig` / `DashboardViewConfig` 判别联合，共享的 `FilterTree` 描述数据范围。它是意图模型：保存"最近 7 天"这样的语义而不是编译结果，也不含任何 UI 组件名。Analysis 覆盖 Wow 聚合协议全部能力；Dashboard 面板分数据面板（引用已保存的视图，或板子自己的分析）与标题、Markdown 文字、图片、链接四种内容面板。 | 数据   |
+| `ViewInstance`   | 一份保存的 `ViewConfig`，加 id、标题、范围与不透明 `revision`。范围为系统、共享或个人。                                                                                                                                                                                                                                                      | 存储   |
+| `ViewRuntime`    | 一个打开的视图：草稿、已应用配置、结果、状态、选择。提供 `subscribe` / `getSnapshot`。                                                                                                                                                                                                                                                       | 内存   |
+| `ViewEngine`     | 定义、存储与已打开运行时的注册表；打开、保存、列表等命令的入口。                                                                                                                                                                                                                                                                             | 内存   |
+| `ViewStore`      | 八个方法的持久化端口。业务应用为自己的后端实现它。                                                                                                                                                                                                                                                                                           | 应用   |
+| `FieldKind`      | 一种字段类型的操作符、校验、编译与编辑器描述。                                                                                                                                                                                                                                                                                               | 注册表 |
 
 ## 视图管理
 
@@ -484,12 +484,12 @@ const view = projectRecord(orders, config, page);
 
 ## 入口
 
-| 入口                             | 导出                                                                                                                                                                                                                                                                                                                                                                                |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@ahoo-wang/fetcher-view-engine` | 模型类型、纯内核（`validate*` / `compile*` / `project*`）、运行时、`ViewStore`、`MemoryViewStore`                                                                                                                                                                                                                                                                                   |
-| `/react`                         | `useViewEngine`、`useOpenView`、`useViewRuntime`、`useViewList`、`useViewManager`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useDashboard`、`useSaveCommands`、`RecordActionSlots`                                                                                                                                                                                 |
-| `/ui`                            | `DataWorkbench`、`DashboardWorkbench`、`ViewHeader`、`SaveActions`、`ViewManager`、`useLeaveGuard`、`EditorBand`、`FilterPanel`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisEditor`、`AnalysisChart`、`DashboardGrid`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`EmbeddedView`、`EmbeddedDashboard` |
-| `/styles.css`                    | 主题。显式导入；任何 JS 入口都不会引入 CSS，产物也不会在 `.fve-root`／`.fve-tokens` 两个样式边界之外绘制任何东西（preflight 与工具类在构建时收进边界内），`scripts/verify-package.mjs` 在每次构建时核对这两点。                                                                                                                                                                     |
+| 入口                             | 导出                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@ahoo-wang/fetcher-view-engine` | 模型类型、纯内核（`validate*` / `compile*` / `project*`）、运行时、`ViewStore`、`MemoryViewStore`                                                                                                                                                                                                                                                                                                                                                                         |
+| `/react`                         | `useViewEngine`、`useOpenView`、`useViewRuntime`、`useViewList`、`useViewManager`、`useWorkbench`、`useLeaveGuard`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useAnalysisResult`、`useDashboard`、`useSaveCommands`、`RecordActionSlots`                                                                                                                                                                                                                 |
+| `/ui`                            | `DataWorkbench`、`DashboardWorkbench`、`DashboardEditExtensions`、`useDashboardExtensions`、`EmbeddedView`、`EmbeddedDashboard`、`ViewHeader`、`SaveActions`、`ViewManager`、`LeaveDialog`、`EditorBand`、`FilterPanel`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisTable`、`AnalysisChart`、`DashboardGrid`、`HeadingPanel`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`MessagesProvider` |
+| `/styles.css`                    | 主题。显式导入；任何 JS 入口都不会引入 CSS，产物也不会在 `.fve-root`／`.fve-tokens` 两个样式边界之外绘制任何东西（preflight 与工具类在构建时收进边界内），`scripts/verify-package.mjs` 在每次构建时核对这两点。                                                                                                                                                                                                                                                           |
 
 ## 持久化
 
@@ -562,15 +562,15 @@ import { DataWorkbench, zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 
 ## 扩展点
 
-| 变化轴   | 机制                                                                                                                                                                               |
-| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 字段类型 | 注册 `FieldKind`（操作符、校验、编译到 `FilterExpression`、编辑器描述），并在 `/ui` 以同一 id 注册对应的编辑器与单元格                                                             |
-| 数据来源 | `resolveSource(key)` 返回 Wow 查询客户端                                                                                                                                           |
-| 持久化   | 实现 `ViewStore`                                                                                                                                                                   |
-| 动作     | 向工作台传 `actions`：`global`、`bulk`、`row` 三个渲染函数。动作是代码，由宿主交出来，不进配置、不入库。一页只取视图显示的字段，动作要读的其他字段写在定义的 `record.rowFields` 里 |
-| 外观     | CSS 变量与主题文件；通过组合 `/react` 钩子替换组件                                                                                                                                 |
+| 变化轴   | 机制                                                                                                                                                                                    |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 字段类型 | 注册 `FieldKind`（操作符、校验、编译到 `FilterExpression`、编辑器描述）。编辑器从 `/ui` 已有的值控件里选一种（`EDITOR_INPUTS`）：没有渲染器注册表，要别的控件的类型会被拒绝而不是猜着画 |
+| 数据来源 | `resolveSource(key)` 返回 Wow 查询客户端                                                                                                                                                |
+| 持久化   | 实现 `ViewStore`                                                                                                                                                                        |
+| 动作     | 向工作台传 `actions`：`global`、`bulk`、`row` 三个渲染函数。动作是代码，由宿主交出来，不进配置、不入库。一页只取视图显示的字段，动作要读的其他字段写在定义的 `record.rowFields` 里      |
+| 外观     | CSS 变量与主题文件；通过组合 `/react` 钩子替换组件                                                                                                                                      |
 
-内置字段类型：`string`、`number`、`boolean`、`date`、`datetime`、`enum`、`reference`。
+内置字段类型：`string`、`number`、`boolean`、`date`、`datetime`、`enum`、`reference`、`array`、`elementMatch`、`search`，以及由 Wow 元数据筛选支撑的 `documentId`、`aggregateId`、`tenantId`、`ownerId`、`spaceId`、`deletion`。
 
 ## 分层
 

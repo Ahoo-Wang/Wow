@@ -94,7 +94,7 @@ export interface DashboardController {
    * A dashboard runs nothing of its own — `state.query` never leaves `idle`
    * — so "is something running here" is only answerable by asking the
    * panels, which is what the dashboard's own timer does before it fires
-   * (`DashboardViewRuntime.loading`). A control that read the dashboard's
+   * (`PanelChildren.loading`). A control that read the dashboard's
    * query state instead would call a board of twelve loading panels idle.
    */
   loading: boolean;

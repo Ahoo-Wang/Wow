@@ -4,7 +4,7 @@
 
 ## 两个入口，按资源分
 
-- **`EmbeddedView`（记录／分析）与 `EmbeddedDashboard`**，与工作台拆成 `DataWorkbench`／`DashboardWorkbench` 同一条线；不再是一个入口按种类分派。给错了种类是一条「无法打开这个视图」（`view.open.wrong-kind`，与工作台同一句），不画任何东西。（见 test/embeddedView.test.tsx「names a dashboard as a view it cannot show: that is EmbeddedDashboard」，test/embeddedDashboard.test.tsx「names a record view as one it cannot show: that is EmbeddedView」）
+- **`EmbeddedView`（记录／分析）与 `EmbeddedDashboard`**，与工作台拆成 `DataWorkbench`／`DashboardWorkbench` 同一条线；一个入口只画自己那几种。给错了种类不画任何东西，只有一条提示：标题「无法打开这个视图」，说明「这个视图是另一种类型（〈种类〉），这个页面无法显示。」（`view.open.wrong-kind`，与工作台同一句）。（见 test/embeddedView.test.tsx「names a dashboard as a view it cannot show: that is EmbeddedDashboard」，test/embeddedDashboard.test.tsx「names a record view as one it cannot show: that is EmbeddedView」）
 - 两者共用的都在 `ui/embed/`：`EmbedFrame` 是面（主题、措辞、语言、时区、`data-embed-size`）、打开时的三种失败（打不开、种类不对、页面的收窄被拒，D17-5）与一道渲染边界；**正在打开时说出来**（U-13）：视图还在读的那一刻画骨架，同时 `aria-busy="true"`、一句只给读屏的 `role="status"`「正在打开视图」（`embed-opening`，与工作台打开时同一句），原来嵌入的第一刻对读屏一声不响（见 test/embeddedView.test.tsx「says it is opening while the view is read」）；`EmbedHead` 是第一行——有标题或有控件时才有，否则一行 chrome 也不加（D10）；`EmbedBaseProps`（`ui/embed/options.ts`）是两者都收的属性。
 
 ## 交互是明确的一档
@@ -35,7 +35,7 @@
 | `openInWorkbench`           | 开        | 可交互、可编辑两档里给不给「在工作台中打开」（仍要有路由）；只读档从来没有                                                                                                                                                                                                                                                                                 |
 | `size`                      | `content` | 见下文「高度」                                                                                                                                                                                                                                                                                                                                             |
 
-没有的开关就是不存在，不是置灰（D4）；导出与搜索是开关、不看档位，只读一档也能开（D24 Q24）——仪表盘也一样：只读一档的面板本来没有「⋯」，开了导出，记录面板就有一颗只装着「导出数据…」的「⋯」（Metabase 静态嵌入的下载也是卡片菜单里的一项）；分析面板没有导出（[decisions.md](../decisions.md#搁置待议) Q28）。（见 test/embeddedDashboard.test.tsx「offers a record panel’s export where the host switched it on, in any tier」；浏览器里 stories/view-engine/EmbeddedDashboard.test.stories.tsx「CustomerOrdersExport」； test/embeddedView.test.tsx「titles itself at the level the host outline calls for, when asked」「offers the search box and the export where the host switched them on」，test/embeddedDashboard.test.tsx「puts the titles where the host outline wants them: the board’s, and its panels one under」「keeps a panel’s title for a screen reader alone when the host turns titles off」）
+没有的开关就是不存在，不是置灰（D4）；导出与搜索是开关、不看档位，只读一档也能开（D24 Q24）——仪表盘也一样：只读一档的面板本来没有「⋯」，开了导出，记录面板就有一颗只装着「导出数据…」的「⋯」（Metabase 静态嵌入的下载也是卡片菜单里的一项）；分析面板的导出已定、没做（[D25](../decisions.md#d25-阶段-3-收尾的四条细化2026-09-24) Q28：与分析工作台的导出一起，到 Wow 仓做，见 [todo.md](../todo.md) 的检查点）。（见 test/embeddedDashboard.test.tsx「offers a record panel’s export where the host switched it on, in any tier」；浏览器里 stories/view-engine/EmbeddedDashboard.test.stories.tsx「CustomerOrdersExport」； test/embeddedView.test.tsx「titles itself at the level the host outline calls for, when asked」「offers the search box and the export where the host switched them on」，test/embeddedDashboard.test.tsx「puts the titles where the host outline wants them: the board’s, and its panels one under」「keeps a panel’s title for a screen reader alone when the host turns titles off」）
 
 ## 仪表盘的筛选：逐个三态
 
@@ -72,7 +72,3 @@
 - **大屏**（「WallScreenReadOnly」，全只读）：暗色、铺满、标题画出来，仓库锁定在华东仓；没有「⋯」、没有可按的组、没有「编辑」、没有「清空」。
 
 记录与分析的两档在 `EmbeddedView.stories.tsx`：缺省是只读，「Interactive」「AnalysisInteractive」跑可交互一档。
-
-## 从单一入口迁过来
-
-`EmbeddedView` 原来按种类分派，仪表盘也走它。现在：嵌仪表盘用 `EmbeddedDashboard`（`EmbeddedView` 给一块板会说「这个视图是另一种类型」）；记录与分析的缺省一档是只读——原来表头能按排序，现在要 `interaction="interactive"`；原来总有勾选框，现在只在可交互一档开了 `withExport` 时有。README 中英文都有一段迁移说明，只说变了什么，没有兼容层（AGENTS.md）。
