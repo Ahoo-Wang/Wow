@@ -7,41 +7,20 @@
 - 做完就**删掉**这一条，不打勾、不留归档。历史在 git 里。
 - 改行为之前先看这里有没有对应项；有就接着做，别另起一条。
 
-## 分析视图：审查剩余（2026-09-23 迁移会话交接；顺序在仪表盘批 A 之后）
+## 检查点：迁往 Wow 仓（阶段 3、4 收口之后）
 
-ECharts 迁移（D21）与两份「数据分析师视角」审查的 P0 已全部合并：#1800、#1817～#1829；交接的 P1 也已合并：#1834（指标卡最后一期＋环比、引擎时区）、#1835（组合图右轴、缺值、百分比堆叠）、#1836（托盘与分析表 13 条）、#1837（记录视图表头排序等应用）、#1838（表格永远跑得起来、图表提示说列标题）。下面是已定、未做的，按批次排；动手前先在最新 main 上复现，已顺带修掉的删掉。审查原文的要点都在这里，原报告不在仓库里。
+- **迁移窗口已开（2026-09-24）。** 阶段 3、4 与它们的联合审查处置全部合并（最后一批 R3b #1902），用户确认了迁移步骤：这里不再开新工作，本包之后在 Wow 仓的 `typescript/wow-view-engine` 里做（Wow 那份方案是 `typescript/MIGRATION.md`）。下面几条都到 Wow 做。
+  - 为什么：迁移方案定的时机是阶段边界；阶段 6 的存储后端也要和引擎放在同一个仓库。
+  - 判据：远端一出现 tag `wow-migration-base`（用 `git ls-remote --tags origin wow-migration-base` 查），本包就冻结，这里一律不再改；迁移第 3′ 步把本包从 fetcher 删掉时，这一页随之删除。
+  - 落点：[迁移方案](../../../../docs/superpowers/specs/2026-09-23-wow-packages-migration-design.md)，根目录 `AGENTS.md` 的「Migration Checkpoint」一节。
 
 - **P2：数值区间的一段，已应用条与菜单两种说法**（2026-09-23 审查 P2 的余项；日期桶那一半已做，见 [ui/analysis.md](ui/analysis.md) 的追问一节）：一段的条件是同一字段的 `GTE` 与 `LT`，已应用条上是两个 chip，菜单与从它开出去的视图的名字却说「单价 在 ¥0～500」。
   - 判据：从一段开出去的视图，「正在显示」与标题说同一句；有测试。
   - 落点：`src/filter/describe.ts`（同一字段的 `GTE`＋`LT` 合读成一段，像 `period` 那样交出）、`src/ui/summary.ts`。
 
-## 阶段 3：仪表盘（设计已定为 [D22](decisions.md#d22-仪表盘与嵌入视图参照-metabase2026-09-23)，交互见 [ui/dashboard.md](ui/dashboard.md) 的定稿一节）
-
-**顺序**（用户 2026-09-23 定）：批 A（缺陷）先收完 → 上面的「分析视图：审查剩余」→ 批 B→C→D → 阶段 4。批 A 已收完（#1831 运行时一路；界面一路：R3、空态、不可用面板的原因与出路、手柄命名、文案、窄于 md 单列），见 [ui/dashboard.md](ui/dashboard.md)。
-
-批次按顺序；每批都做到可生产交付、真浏览器走过。起点的缺陷清单在会话记忆 `view-engine-dashboard-walk-2026-09-22`（U1～U11、R1～R18、G1～G10）。
-
-- **批 B 怎么搭**（交互稿 A～E 屏）：**已做完**——B1 模型、校验、迁移与运行时（[model.md#dashboard-配置](model.md#dashboard-配置)、[runtime.md#dashboard](runtime.md#dashboard)）；B2 编辑模式、编辑条、添加、面板菜单、空板子的第一步、不可用面板的真按钮、面板图表提示说列标题；B3 在仪表盘里新建分析、「另存为视图…」、展示覆盖（「改这里的展示…」、面板头「此处改为〈图型〉」、「恢复为视图的样子」）、标签栏（只跑当前标签页、加／改名／排序／删除带确认、记住每人上次的标签、当前标签经 `onTabChange`／`initialTab` 交给宿主进地址），以及 B1 留下的两处运行时收口（只改画法的展示覆盖只重画不重跑；只跑当前标签页）。一份扩展接口 `DashboardEditExtensions`，见 [ui/dashboard.md](ui/dashboard.md)「搭板子」「扩展」。B2 留下的最后几件也已做完：面板菜单的「导出数据…」与「复制为共享视图并替换…」（#1872），窄屏调顺序与编辑中的撤销／重做（#1873）；整批的真浏览器走查并入阶段 3＋4 的联合审查。
-  - 判据：从空仪表盘开始只用界面就能搭出首页那块运营看板；真浏览器逐控件走查。
-  - 落点：`src/ui/dashboard/`、`src/ui/DashboardWorkbench.tsx`、[ui/dashboard.md](ui/dashboard.md)。
-- **批 C 全局筛选**：已做完（C1 #1843 模型与运行时，C2 界面），见 [ui/dashboard.md](ui/dashboard.md)「筛选」。
 - **批 C 之前的整板条件——固定范围的界面**（[D23](decisions.md#d23-搁置待议的六条拍板2026-09-23) Q16）：迁成默认值的那一半已做（`migrateDashboardConfig` 的 `intoDefaults`，[model.md#dashboard-配置](model.md#dashboard-配置)）。拆不开的存成独立成员 `fixed`（D26 Q31），在筛选条那一行只读地写作「固定范围」、读者拿不掉（[D27](decisions.md#d27-仪表盘不画正在显示条2026-09-24)，R7b 已做，见 [ui/dashboard.md](ui/dashboard.md)「筛选」）。剩下编辑模式里整体删掉——到 Wow 做。
   - 判据：编辑中那一枚删得掉（删掉即 `fixed` 为空树，随板子保存）；有测试与故事。
   - 落点：`src/ui/dashboard/FilterBar.tsx`、[ui/dashboard.md](ui/dashboard.md)「筛选」。
-
-## 阶段 3＋4 联合审查的处置（2026-09-24）
-
-四路只读审查（架构 A-、代码质量 Q-、UI 与可达性 U-、UX 与文档 X-）加主会话的视觉走查（V-）共 69 条，原报告在主会话 scratchpad `review-p34/`（不在仓库里，要点记在这里）。要拍板的 11 条已定为 [D26](decisions.md#d26-阶段-34-联合审查的十一条拍板2026-09-24)（Q30～Q40，2026-09-24 按推荐），Q31、Q35、Q39 已做完（R1b），R6、R7 已做完；R2～R5 不需要产品判断。批次按文件分开、可并行。每批：先在最新 main 上复现，修掉并补测试，文档按现状改，本地门禁全绿即合并，最后一批等完整 CI。
-
-- **R5 措辞与文档**：X-06 本页与 [ui/dashboard.md](ui/dashboard.md) 的过期项与顺序行，连同 X-12 留在那一页的一处（「搭板子」「扩展」末句说宿主自拼 `DashboardBoard`——它不从 `/ui` 导出，宿主能拼的是 `DashboardGrid`）。
-  - 落点：`docs/design/`（X-06、X-12）。X-03、X-08、X-09 已在 R7b 做完（见 [ui/README.md](ui/README.md) 的「一词一义」）。
-
-## 检查点：迁往 Wow 仓（阶段 3、4 收口之后）
-
-- **到这里先停。** 阶段 4（嵌入视图）已经在这里合并（#1863，它在这个检查点写下之前就做完了），用户 2026-09-23 把停点挪到阶段 4 之后：上面批 B、批 C 剩下的几项合并，再把**阶段 3 与阶段 4 一起**审查、审查后的重构合并——这时不要再开始新的阶段或新的工作，先告诉用户：下一步是迁移窗口。阶段 5 起在 Wow 仓的 `typescript/wow-view-engine` 里做；上面的「固定范围的界面」（Q16）也到 Wow 里做。
-  - 为什么：迁移方案定的时机是阶段边界。这时 PR 链是空的，冻结不会打断任何在做的工作；阶段 6 的存储后端也要和引擎放在同一个仓库。
-  - 判据：远端一出现 tag `wow-migration-base`（用 `git ls-remote --tags origin wow-migration-base` 查），本包就冻结，这里一律不再改；迁移第 3′ 步把本包从 fetcher 删掉时，这一条随之删除。
-  - 落点：[迁移方案](../../../../docs/superpowers/specs/2026-09-23-wow-packages-migration-design.md)，根目录 `AGENTS.md` 的「Migration Checkpoint」一节。
 
 - **R3 的界面重构——到 Wow 仓做**（[D28](decisions.md#d28-r3-的界面重构到-wow-做迁移前提放宽2026-09-24)）：阶段 3＋4 联合审查里不改行为的界面重构，迁移后在 Wow 做。
   - A-14／Q-06：工作台与嵌入共用一份搭建外壳（编辑按钮、完成／取消后焦点回「编辑」、离开守卫、`onTabChange`／`onFiltersChange` 两个上报）。
