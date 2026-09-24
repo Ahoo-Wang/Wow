@@ -16,6 +16,15 @@ import type { Project } from 'ts-morph';
 import type { BoundedContextAggregates } from './aggregate';
 
 /**
+ * How much of each schema a generated model's doc comment carries.
+ *
+ * - `summary`: title, description, schema key, format, default, example and
+ *   constraints.
+ * - `full`: the summary plus the complete JSON schema.
+ */
+export type SchemaDocs = 'summary' | 'full';
+
+/**
  * Options of a {@link CodeGenerator} run.
  */
 export interface GeneratorOptions {
@@ -39,6 +48,8 @@ export interface GeneratorOptions {
   readonly headers?: Record<string, string>;
   /** Milliseconds before fetching an http(s) document is abandoned. Defaults to 30000. */
   readonly timeoutMs?: number;
+  /** How much of each schema the model doc comments carry. Defaults to `summary`. */
+  readonly schemaDocs?: SchemaDocs;
 }
 
 /**
@@ -104,6 +115,13 @@ export interface GenerateContextInit {
   /** Optional logger for friendly output */
   logger: Logger;
   config?: GeneratorConfiguration;
+  /**
+   * Tags of Wow aggregates, resolved or not; their operations do not go to API
+   * clients. Defaults to the tags of `contextAggregates`.
+   */
+  aggregateTags?: ReadonlySet<string>;
+  /** How much of each schema the model doc comments carry. Defaults to `summary`. */
+  schemaDocs?: SchemaDocs;
 }
 
 export interface GeneratorConfiguration {
@@ -115,9 +133,17 @@ export interface GeneratorConfiguration {
 
 export interface ApiClientConfiguration {
   /**
-   * The path parameters to ignore
+   * The path parameters the client leaves out, because an interceptor fills
+   * them.
    *
-   * default: ['tenantId','ownerId']
+   * Default: `['tenantId', 'ownerId']` for a Wow document (one with
+   * `x-wow-context-alias` or aggregates), whose CoSec interceptor fills them;
+   * none for any other document.
    */
   ignorePathParameters?: string[];
+  /**
+   * Method names by operationId, overriding the name derived from it. Use it
+   * when two operations of one tag derive the same name.
+   */
+  methodNames?: Record<string, string>;
 }

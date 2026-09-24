@@ -5,7 +5,7 @@ description: 'Generator CLI — @ahoo-wang/wow-generator'
 
 # Generator CLI
 
-`wow-generator generate` reads JSON/YAML and writes TypeScript models and decorator clients. Run it from a directory where your TypeScript configuration and installed Fetcher packages resolve.
+`wow-generator generate` reads JSON/YAML and writes TypeScript models and decorator clients. The output does not depend on the packages installed where it runs, but the project that compiles it needs them; see [generated output](./generated-output).
 
 ## Options
 
@@ -17,6 +17,7 @@ description: 'Generator CLI — @ahoo-wang/wow-generator'
 | `-t, --ts-config-file-path <file>` | Omitted                       | ts-morph project configuration; supply your decorator-enabled tsconfig                                   |
 | `-H, --header <header>`            | None; repeatable              | `Name: value` request header sent when the input or the configuration is an HTTP/HTTPS URL               |
 | `--timeout <ms>`                   | `30000`                       | Milliseconds before fetching an HTTP/HTTPS input or configuration is abandoned                           |
+| `--schema-docs <mode>`             | `summary`                     | What model doc comments carry: `summary` (title, description, constraints) or `full` (also the JSON schema) |
 | `--strict`                         | Off                           | Exit with code 4 when the run logged a warning                                                           |
 | `--verbose`                        | Off                           | Log every step with a timestamp, and the cause and stack trace of a failure                              |
 | `--quiet`                          | Off                           | Log only warnings and errors                                                                             |
@@ -142,7 +143,7 @@ node dist/cli.js generate -i "$PWD/test/demo.spec.json" -o /tmp/wow-demo-generat
 | 1         | Internal      | An unexpected error, such as a write failure or an invalid tsconfig; rerun with `--verbose` for the stack trace                      |
 | 2         | Input         | The input cannot be read or fetched, is neither JSON nor YAML, is not an OpenAPI 3.x document, or an option value is invalid         |
 | 3         | Configuration | The configuration cannot be read, parsed or validated                                                                                 |
-| 4         | Specification | The document describes code the generator cannot produce, or `--strict` is set and the run logged a warning                           |
+| 4         | Specification | The document describes code the generator cannot produce: a dangling `$ref`, two schemas that generate the same model, two operations that generate the same method, malformed Wow metadata; or `--strict` is set and the run logged a warning |
 | 130       | Interrupted   | SIGINT (Ctrl-C)                                                                                                                       |
 
 A failure prints one line that names the file or URL and what went wrong; `--verbose` adds the cause and the stack trace. Commander also rejects a missing required input. Parsing reads content rather than trusting the extension.

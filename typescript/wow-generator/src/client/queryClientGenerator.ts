@@ -21,7 +21,14 @@ import {
   resolveContextDeclarationName,
   resolveModelInfo,
 } from '../model';
-import { addImportRefModel, camelCase } from '../utils';
+import {
+  addImport,
+  addImportBoundedContext,
+  addImportRefModel,
+  camelCase,
+  quoteStringLiteral,
+  resolvePropertyName,
+} from '../utils';
 import {
   createClientFilePath,
   inferPathSpecType,
@@ -102,14 +109,20 @@ export class QueryClientGenerator implements Generator {
     this.context.logger.info(
       `Adding imports from ${IMPORT_WOW_PATH}: QueryClientFactory, QueryClientOptions, ResourceAttributionPathSpec`,
     );
-    queryClientFile.addImportDeclaration({
-      moduleSpecifier: IMPORT_WOW_PATH,
-      namedImports: [
-        'QueryClientFactory',
-        'QueryClientOptions',
-        'ResourceAttributionPathSpec',
-      ],
-    });
+    addImport(queryClientFile, IMPORT_WOW_PATH, [
+      'QueryClientFactory',
+      'QueryClientOptions',
+      'ResourceAttributionPathSpec',
+    ]);
+    const contextDeclarationName = resolveContextDeclarationName(
+      aggregate.aggregate.contextAlias,
+    );
+    addImportBoundedContext(
+      queryClientFile,
+      this.context.outputDir,
+      aggregate.aggregate.contextAlias,
+      contextDeclarationName,
+    );
 
     const defaultClientOptionsName = 'DEFAULT_QUERY_CLIENT_OPTIONS';
     this.context.logger.info(
@@ -121,9 +134,11 @@ export class QueryClientGenerator implements Generator {
         {
           name: defaultClientOptionsName,
           type: 'QueryClientOptions',
+          // aggregateName is the route segment the query paths use, which
+          // the aggregate's resource name can make differ from its name.
           initializer: `{
-        contextAlias: ${resolveContextDeclarationName(aggregate.aggregate.contextAlias)},
-        aggregateName: '${aggregate.aggregate.aggregateName}',
+        contextAlias: ${contextDeclarationName},
+        aggregateName: ${quoteStringLiteral(aggregate.resourceName)},
         resourceAttribution: ${inferPathSpecType(aggregate)},
       }`,
         },
@@ -136,7 +151,8 @@ export class QueryClientGenerator implements Generator {
       queryClientFile,
     );
 
-    const clientFactoryName = `${camelCase(aggregate.aggregate.aggregateName)}QueryClientFactory`;
+    const factoryPrefix = camelCase(aggregate.aggregate.aggregateName) || '_';
+    const clientFactoryName = `${/^\p{N}/u.test(factoryPrefix) ? '_' : ''}${factoryPrefix}QueryClientFactory`;
     const stateModelInfo = resolveModelInfo(aggregate.state.key);
     const fieldsModelInfo = resolveModelInfo(aggregate.fields.key);
 
@@ -157,7 +173,10 @@ export class QueryClientGenerator implements Generator {
       declarations: [
         {
           name: clientFactoryName,
-          initializer: `new QueryClientFactory<${stateModelInfo.name}, ${fieldsModelInfo.name} | string, ${aggregateDomainEventType}>(${defaultClientOptionsName})`,
+          // `${Fields}` is the union of the field enum's values: a field
+          // is named by its enum member or by its string, and a misspelt
+          // one does not compile.
+          initializer: `new QueryClientFactory<${stateModelInfo.name}, \`\${${fieldsModelInfo.name}}\`, ${aggregateDomainEventType}>(${defaultClientOptionsName})`,
         },
       ],
       isExported: true,
@@ -219,8 +238,8 @@ export class QueryClientGenerator implements Generator {
     });
     for (const event of aggregate.events.values()) {
       enumDeclaration.addMember({
-        name: event.name,
-        initializer: `'${event.title}'`,
+        name: resolvePropertyName(event.name),
+        initializer: quoteStringLiteral(event.title),
       });
     }
   }

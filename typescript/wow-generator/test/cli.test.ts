@@ -99,6 +99,11 @@ describe('CLI setup', () => {
       'Milliseconds before fetching an http(s) input is abandoned (default: 30000)',
     );
     expect(result.option).toHaveBeenCalledWith(
+      '--schema-docs <mode>',
+      'What model doc comments carry: "summary" (title, description, constraints) or "full" (also the JSON schema)',
+      'summary',
+    );
+    expect(result.option).toHaveBeenCalledWith(
       '--strict',
       'Exit with code 4 when the run logs a warning',
     );

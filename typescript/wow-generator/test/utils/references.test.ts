@@ -12,7 +12,11 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { isReference } from '../../src/utils';
+import {
+  findDanglingReferences,
+  isReference,
+  resolveLocalPointer,
+} from '../../src/utils';
 import { Reference } from '@ahoo-wang/fetcher-openapi';
 
 describe('references', () => {
@@ -39,6 +43,66 @@ describe('references', () => {
       expect(isReference('string')).toBe(false);
       expect(isReference(42)).toBe(false);
       expect(isReference(true)).toBe(false);
+    });
+  });
+
+  describe('findDanglingReferences', () => {
+    it('reports a component reference that points at nothing, with where it is', () => {
+      expect(
+        findDanglingReferences({
+          paths: {
+            '/a': {
+              get: {
+                parameters: [{ $ref: '#/components/parameters/Missing' }],
+              },
+            },
+          },
+          components: {
+            parameters: {},
+            schemas: {
+              A: { $ref: '#/components/schemas/B' },
+              B: { properties: { c: { $ref: '#/components/schemas/C~1D' } } },
+              'C/D': { type: 'string' },
+            },
+          },
+        }),
+      ).toEqual([
+        {
+          ref: '#/components/parameters/Missing',
+          location: '/paths/~1a/get/parameters/0',
+        },
+      ]);
+    });
+
+    // Wow 8.11 writes its filter schema with JSON Schema definitions that it
+    // references relative to the schema itself.
+    it('leaves references that are not to components alone', () => {
+      expect(
+        findDanglingReferences({
+          components: {
+            schemas: {
+              Filter: {
+                $ref: '#/definitions/filter',
+                definitions: { filter: { type: 'object' } },
+              },
+              Remote: { $ref: 'common.yaml#/components/schemas/Remote' },
+            },
+          },
+        }),
+      ).toEqual([]);
+    });
+  });
+
+  describe('resolveLocalPointer', () => {
+    it('decodes escaped and percent-encoded tokens', () => {
+      const document = { a: { 'b/c': { 'd~e': 1, 'f g': 2 } } };
+      expect(resolveLocalPointer(document, '#/a/b~1c/d~0e')).toBe(1);
+      expect(resolveLocalPointer(document, '#/a/b~1c/f%20g')).toBe(2);
+      expect(resolveLocalPointer(document, '#')).toBe(document);
+      expect(resolveLocalPointer(document, '#/a/missing')).toBeUndefined();
+      expect(resolveLocalPointer(document, '#/a/b~1c/d~0e/deeper')).toBe(
+        undefined,
+      );
     });
   });
 });

@@ -26,6 +26,7 @@ The package root exports `CodeGenerator`, `DEFAULT_CONFIG_PATH`, the loggers `Co
 | `logger`                 | `new ConsoleLogger()`            | Receives progress, warnings and errors                                         |
 | `headers`                | None                             | Request headers used when `inputPath` or `configPath` is an HTTP/HTTPS URL     |
 | `timeoutMs`              | `30000`                          | Milliseconds before fetching an HTTP/HTTPS document is abandoned               |
+| `schemaDocs`             | `'summary'`                      | `'full'` also embeds each model's JSON schema in its doc comment               |
 
 `GeneratorOptions` no longer extends ts-morph's `ProjectOptions`; only `tsConfigFilePath` is passed to the project.
 

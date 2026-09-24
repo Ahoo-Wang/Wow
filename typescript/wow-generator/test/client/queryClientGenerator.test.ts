@@ -24,6 +24,8 @@ vi.mock('../../src/utils');
 vi.mock('../../src/model');
 vi.mock('../../src/client/utils');
 
+import { addImport } from '../../src/utils';
+
 describe('QueryClientGenerator', () => {
   const mockOpenAPI = {
     openapi: '3.0.0',
@@ -147,7 +149,15 @@ describe('QueryClientGenerator', () => {
     generator.processQueryClient(aggregate);
 
     // Verify that the source file methods were called
-    expect(mockSourceFile.addImportDeclaration).toHaveBeenCalled();
+    expect(vi.mocked(addImport)).toHaveBeenCalledWith(
+      mockSourceFile,
+      '@ahoo-wang/wow-client',
+      [
+        'QueryClientFactory',
+        'QueryClientOptions',
+        'ResourceAttributionPathSpec',
+      ],
+    );
     expect(mockSourceFile.addVariableStatement).toHaveBeenCalled();
     expect(mockSourceFile.addTypeAlias).toHaveBeenCalled();
   });

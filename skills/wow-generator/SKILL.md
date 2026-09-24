@@ -24,7 +24,9 @@ description: "Generate type-safe TypeScript clients from OpenAPI 3.x documents w
 ## Key Practices
 
 - Treat generated code as an output boundary; adjust generator config rather than hand-editing generated clients.
-- Remember aggregates need root-level tags plus both `.snapshot_state.single` and `.snapshot.count` operations; otherwise only plain API clients are emitted.
+- Remember aggregates need a `{context}.{aggregate}` tag plus both `.snapshot_state.single` and `.snapshot.count` operations; an aggregate missing either is skipped with a warning, not turned into a plain API client.
+- Generated command clients merge the constructor's `apiMetadata` over their defaults, so `new CartCommandClient({ fetcher })` keeps the bounded-context base path; pass `basePath: ''` (query factories: `contextAlias: ''`) to reach a service directly.
+- Method names come from `apiClients[tag].methodNames`, `x-fetcher-method`, or the last segment of the operationId; resolve a name clash (exit 4) through `methodNames`.
 - Keep API client tag exclusion and CQRS generation rules aligned so duplicate clients are not emitted.
 - Confirm generator behavior against the installed version, or the Wow repository sources under `typescript/wow-generator/src` at the matching release, before promising an output shape.
 

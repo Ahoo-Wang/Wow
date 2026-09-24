@@ -15,6 +15,7 @@ import { isAbsolute, resolve } from 'path';
 import { errorMessage, GeneratorError } from '../errors';
 import type { GeneratorConfiguration, Logger } from '../types';
 import { warn } from './logger';
+import { isIdentifier } from './naming';
 import { parseContent } from './parsers';
 import type { LoadResourceOptions } from './resources';
 import { isHttpLocation, loadResource } from './resources';
@@ -88,7 +89,7 @@ export async function resolveConfiguration(
 /** Top-level keys a generator configuration may declare. */
 const CONFIGURATION_KEYS = ['apiClients'];
 /** Keys an `apiClients` entry may declare. */
-const API_CLIENT_KEYS = ['ignorePathParameters'];
+const API_CLIENT_KEYS = ['ignorePathParameters', 'methodNames'];
 
 /**
  * Where a configuration is read from, and whether the caller chose that place.
@@ -306,6 +307,22 @@ function validateApiClients(
         'configuration',
         `apiClients["${tag}"].ignorePathParameters in ${origin} must be an array of strings, found ${typeOf(ignorePathParameters)}`,
       );
+    }
+    const { methodNames } = apiClient;
+    if (methodNames === undefined) continue;
+    if (!isRecord(methodNames)) {
+      throw new GeneratorError(
+        'configuration',
+        `apiClients["${tag}"].methodNames in ${origin} must be an object mapping operationIds to method names, found ${typeOf(methodNames)}`,
+      );
+    }
+    for (const [operationId, methodName] of Object.entries(methodNames)) {
+      if (typeof methodName !== 'string' || !isIdentifier(methodName)) {
+        throw new GeneratorError(
+          'configuration',
+          `apiClients["${tag}"].methodNames["${operationId}"] in ${origin} must be a valid method name, found ${JSON.stringify(methodName)}`,
+        );
+      }
     }
   }
 }

@@ -14,11 +14,13 @@
 import { ResourceAttributionPathSpec } from '@ahoo-wang/wow-client';
 import type { Project, SourceFile } from 'ts-morph';
 import type { AggregateDefinition, TagAliasAggregate } from '../aggregate';
+import { GeneratorError } from '../errors';
 import {
   camelCase,
   getOrCreateSourceFile,
-  pascalCase,
-  splitName,
+  isIdentifier,
+  toIdentifier,
+  toTypeIdentifier,
 } from '../utils';
 import type { Operation } from '@ahoo-wang/fetcher-openapi';
 
@@ -105,7 +107,7 @@ export function resolveClassName(
   aggregate: TagAliasAggregate,
   suffix: string,
 ): string {
-  return `${pascalCase(aggregate.aggregateName)}${suffix}`;
+  return `${toTypeIdentifier(aggregate.aggregateName)}${suffix}`;
 }
 
 /**
@@ -131,56 +133,75 @@ export function methodToDecorator(method: string): string {
   return method;
 }
 
-const OPERATION_METHOD_NAME_KEY = 'x-fetcher-method';
+/** Operation extension naming the method an operation generates. */
+export const OPERATION_METHOD_NAME_KEY = 'x-fetcher-method';
 
 /**
- * Resolves a unique method name for an OpenAPI operation.
+ * Names the method an operation generates.
  *
- * This function attempts to generate a unique method name for an operation by:
- * 1. Using the custom 'x-fetcher-method' extension if present
- * 2. Deriving from the operationId by trying progressively shorter suffixes
- * 3. Falling back to the full camelCase operationId if no unique name is found
+ * The name depends on the operation alone, so adding an operation never
+ * renames an existing method:
  *
- * The function splits the operationId by common separators and tries to find the shortest
- * unique method name by checking from the end of the name parts.
+ * 1. a name configured for the operationId (`apiClients[tag].methodNames`);
+ * 2. else the operation's `x-fetcher-method` extension;
+ * 3. else the last dot-separated segment of the operationId, camel-cased:
+ *    `getUserById` → `getUserById`, `delete_user_by_id` → `deleteUserById`,
+ *    `getUser_1` → `getUser1`, `users.list` → `list`,
+ *    `example.cart.add_cart_item` → `addCartItem`; a name starting with a
+ *    digit is prefixed with `_`.
  *
- * @param operation - The OpenAPI operation object containing operationId and other metadata
- * @param isExists - A function that checks if a method name already exists in the target class
- * @returns A unique method name string, or undefined if the operation has no operationId
+ * Two operations of one client that arrive at the same name are an error the
+ * caller reports; the first two sources resolve it.
  *
- * @throws Will not throw, but returns undefined for operations without operationId
- *
- * @example
- * ```typescript
- * const operation = { operationId: 'user.getProfile' };
- * const isExists = (name) => name === 'getProfile'; // Assume getProfile exists
- * const methodName = resolveMethodName(operation, isExists);
- * // Returns: 'user.getProfile' (fallback since getProfile exists)
- *
- * const operation2 = { operationId: 'user.create' };
- * const methodName2 = resolveMethodName(operation2, isExists);
- * // Returns: 'create' (unique method name found)
- * ```
+ * @param operation - The OpenAPI operation
+ * @param configured - The name configured for its operationId, if any
+ * @returns The method name, or undefined for an operation without an operationId
+ * @throws GeneratorError when a configured or extension name is not a valid method name
  */
 export function resolveMethodName(
   operation: Operation,
-  isExists: (methodName: string) => boolean,
+  configured?: string,
 ): string | undefined {
-  const methodName = operation[OPERATION_METHOD_NAME_KEY];
-  if (methodName) {
-    return methodName;
+  const explicit = configured ?? operation[OPERATION_METHOD_NAME_KEY];
+  if (explicit !== undefined) {
+    if (typeof explicit !== 'string' || !isMethodName(explicit)) {
+      throw new GeneratorError(
+        'specification',
+        `${OPERATION_METHOD_NAME_KEY} of ${operation.operationId ?? 'an operation'} is ${JSON.stringify(explicit)}, which is not a valid method name.`,
+      );
+    }
+    return explicit;
   }
   if (!operation.operationId) {
     return undefined;
   }
+  const lastSegment = operation.operationId.split('.').pop()!;
+  const name = camelCase(lastSegment) || '_';
+  return /^\p{N}/u.test(name) ? `_${name}` : name;
+}
 
-  const nameParts = splitName(operation.operationId);
-  for (let i = nameParts.length - 1; i >= 0; i--) {
-    const operationName = camelCase(nameParts.slice(i));
-    if (isExists(operationName)) {
-      continue;
-    }
-    return operationName;
+/**
+ * Tells whether a name can name a method. Unlike a variable, a method may be
+ * named by a reserved word: `delete()` is fine.
+ */
+function isMethodName(name: string): boolean {
+  return isIdentifier(name) || /^[a-z]+$/.test(name);
+}
+
+/**
+ * Turns a parameter name from the document into a unique parameter
+ * identifier: `item-id` → `itemId`, and `id` twice → `id`, `id2`.
+ *
+ * @param name - The name the document uses
+ * @param used - The identifiers the method already uses; updated
+ * @returns The identifier
+ */
+export function uniqueParameterName(name: string, used: Set<string>): string {
+  const identifier = toIdentifier(name);
+  let unique = identifier;
+  for (let suffix = 2; used.has(unique); suffix++) {
+    unique = `${identifier}${suffix}`;
   }
-  return camelCase(nameParts);
+  used.add(unique);
+  return unique;
 }

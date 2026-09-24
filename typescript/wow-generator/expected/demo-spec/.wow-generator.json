@@ -1,19 +1,19 @@
 {
   "version": 1,
   "files": {
-    "example/CartApiClient.ts": "36fca14eeaa9c668e99b1929fc1d211c0d428c79c3d37b383473910576a6e2ee",
-    "example/OrderApiClient.ts": "60022a5a1d022c8c73f9f8444e766683f2040d869cae16117f4d3db0343db1cd",
-    "example/boundedContext.ts": "c0ee8a415fb0edfd13151bac02cdb821faa644b62bb8ecaf5f01777f23ca4fb9",
-    "example/cart/commandClient.ts": "69926054f8ff29e05c497e90462a178d3c506eab5d91d885ea888e9c74340483",
-    "example/cart/index.ts": "bd180919586fd2d243b06ff644f6f51ed8919242c58f155e284a2833be3229c6",
-    "example/cart/queryClient.ts": "f78f3d2d7cf146e9859618e0fc3a18a82038f3de499eefb713f84a75844c83b8",
-    "example/cart/types.ts": "a6e2ee132da829d72122c02fa2d59482062792f48eb5f099f5c3ab81b81d7b36",
-    "example/index.ts": "958816b9ed6d0ed9e6700f94bd414bdf17e60b4983c885ed6e87cca8f3085e5b",
-    "example/order/commandClient.ts": "43095b7e96587e7d26c68c9313021f8ee4c1eb0def31287d3fc08419c68b0b85",
-    "example/order/index.ts": "bd180919586fd2d243b06ff644f6f51ed8919242c58f155e284a2833be3229c6",
-    "example/order/queryClient.ts": "030649368c6d2757f5a160f66d47f2a66a718b955534138f6ba9ee8497d85124",
-    "example/order/types.ts": "21222ef03c7475c7d5594b410f8b0a2a63a9b9083aacdf13adc927aed0dc1515",
-    "example/types.ts": "ddff256748253c02ba9fced0478ea58635c70c31953d1a1163c2cf81ac568382",
-    "index.ts": "15abd9254fef79efb01578428672cc77b7b8640c0cad2006411af396681e32a0"
+    "example/CartApiClient.ts": "62fe12245d1e8b0895558b35a8472bc2c3aceabc741d63e7eb5e8a94032df7c6",
+    "example/OrderApiClient.ts": "470576de400c0f53a29e12de3a1ef96e63fe302e4f90e7dd183e0ea233534c87",
+    "example/boundedContext.ts": "6726c54024f84b3c91525188f80e41b02214d009713e2735967000fb71d06583",
+    "example/cart/commandClient.ts": "d876c61abb8f38bb697b1526a24a19e5358f21cd25b7ba950c55068a5cf725bd",
+    "example/cart/index.ts": "a6374d67005954a1295108bb7dd5b9a54884ee8b59277d0deb30ce35d2136d9e",
+    "example/cart/queryClient.ts": "2c44fa21381eff68d1865991fe3bb423cf44bdb5c8058f3523239265401cd70f",
+    "example/cart/types.ts": "e8e66500f7ed21293534a3e01c93c8c78322a7b6279954dfda90be996f24604e",
+    "example/index.ts": "9b8348aa3468c7ad1fe2624d616835ef81737549cafbd0a82bfde90f6d17c171",
+    "example/order/commandClient.ts": "54d1000426cc01d6a5071dfe92f69547045949802d5fc0e5c00754bc21d6e72d",
+    "example/order/index.ts": "a6374d67005954a1295108bb7dd5b9a54884ee8b59277d0deb30ce35d2136d9e",
+    "example/order/queryClient.ts": "4bd12d48ae1773fd15e797ca8c7a13e38779a4567bad87d7a93c936d597e8295",
+    "example/order/types.ts": "b4aab91c4b8b82af3f5ba8cf521680297069577192fb2c69bb8055e934920c61",
+    "example/types.ts": "89a74fdc7b92f9798ca25063cb8aff3f860d464500edd6da125f5ea8182fbd7e",
+    "index.ts": "a038f2638a1400632f624de0a6409f14e75a36544496f7b7ad39bcf350bc9204"
   }
 }

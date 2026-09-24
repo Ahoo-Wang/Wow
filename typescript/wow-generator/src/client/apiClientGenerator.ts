@@ -12,29 +12,25 @@
  */
 
 import { combineURLs } from '@ahoo-wang/fetcher';
-import type {
-  Operation,
-  Reference,
-  RequestBody,
-  Schema,
-  Tag,
-} from '@ahoo-wang/fetcher-openapi';
+import type { Operation, RequestBody, Tag } from '@ahoo-wang/fetcher-openapi';
 import type {
   ClassDeclaration,
   OptionalKind,
   ParameterDeclarationStructure,
   SourceFile,
 } from 'ts-morph';
+import { GeneratorError } from '../errors';
 import type { GenerateContext, Generator } from '../generateContext';
 import type { ModelInfo } from '../model';
 import {
   resolveContextDeclarationName,
   resolveModelInfo,
   resolveReferenceModelInfo,
+  TypeGenerator,
 } from '../model';
 import type { OperationEndpoint } from '../utils';
 import {
-  addImportRefModel,
+  addImportBoundedContext,
   addJSDoc,
   extractOkResponse,
   extractOperationEndpoints,
@@ -45,13 +41,12 @@ import {
   extractResponseJsonSchema,
   extractResponseWildcardSchema,
   extractSchema,
+  hasTextResponse,
   isArray,
-  isMap,
-  isPrimitive,
   isReference,
+  quoteStringLiteral,
   resolvePathParameterType,
-  resolvePrimitiveType,
-  toArrayType,
+  warn,
 } from '../utils';
 import type { MethodReturnType } from './decorators';
 import {
@@ -61,10 +56,17 @@ import {
   addImportFetcher,
   createDecoratorClass,
   DEFAULT_RETURN_TYPE,
-  STRING_RETURN_TYPE,
   STREAM_RESULT_EXTRACTOR_METADATA,
+  STRING_RETURN_TYPE,
 } from './decorators';
-import { methodToDecorator, resolveMethodName } from './utils';
+import {
+  methodToDecorator,
+  resolveMethodName,
+  uniqueParameterName,
+} from './utils';
+
+/** Parameter names every generated method uses itself. */
+const RESERVED_PARAMETER_NAMES = ['httpRequest', 'attributes'];
 
 /**
  * Generator for creating TypeScript API client classes from OpenAPI specifications.
@@ -74,17 +76,11 @@ export class ApiClientGenerator implements Generator {
   private defaultParameterRequestType = 'ParameterRequest';
   private defaultReturnType = DEFAULT_RETURN_TYPE;
 
-  private readonly apiMetadataCtorInitializer: string | undefined;
-
   /**
    * Creates a new ApiClientGenerator instance.
    * @param context - The generation context containing OpenAPI spec and configuration
    */
-  constructor(public readonly context: GenerateContext) {
-    this.apiMetadataCtorInitializer = this.context.currentContextAlias
-      ? `{basePath:${resolveContextDeclarationName(this.context.currentContextAlias)}}`
-      : undefined;
-  }
+  constructor(public readonly context: GenerateContext) {}
 
   /**
    * Generates API client classes for all valid tags in the OpenAPI specification.
@@ -108,6 +104,11 @@ export class ApiClientGenerator implements Generator {
 
   /**
    * Generates API client classes for each tag group.
+   *
+   * Two tags can name the same class once normalised - `user-controller` and
+   * `UserController`. The tag sorting first keeps the name, the others get a
+   * numbered one, with a warning.
+   *
    * @param apiClientTags - Map of valid API client tags
    * @param groupOperations - Map of operations grouped by tag
    */
@@ -118,17 +119,33 @@ export class ApiClientGenerator implements Generator {
     this.context.logger.info(
       `Generating ${groupOperations.size} API client classes`,
     );
-    let clientCount = 0;
-    for (const [tagName, operations] of groupOperations) {
-      clientCount++;
+    const claimed = new Map<string, string>();
+    const tagNames = [...groupOperations.keys()].sort();
+    tagNames.forEach((tagName, index) => {
       this.context.logger.progressWithCount(
-        clientCount,
-        groupOperations.size,
+        index + 1,
+        tagNames.length,
         `Generating API client for tag: ${tagName}`,
       );
       const tag = apiClientTags.get(tagName)!;
-      this.generateApiClient(tag, operations);
-    }
+      const modelInfo = resolveModelInfo(tagName);
+      let clientInfo = modelInfo;
+      for (let suffix = 2; claimed.has(this.clientKey(clientInfo)); suffix++) {
+        clientInfo = { ...modelInfo, name: `${modelInfo.name}${suffix}` };
+      }
+      if (clientInfo !== modelInfo) {
+        warn(
+          this.context.logger,
+          `Tags ${claimed.get(this.clientKey(modelInfo))} and ${tagName} both name the API client ${modelInfo.name}ApiClient; ${tagName} generates ${clientInfo.name}ApiClient.`,
+        );
+      }
+      claimed.set(this.clientKey(clientInfo), tagName);
+      this.generateApiClient(tag, clientInfo, groupOperations.get(tagName)!);
+    });
+  }
+
+  private clientKey(modelInfo: ModelInfo): string {
+    return `${modelInfo.path}/${modelInfo.name}`.toLowerCase();
   }
 
   /**
@@ -149,76 +166,98 @@ export class ApiClientGenerator implements Generator {
   /**
    * Generates a single API client class for the given tag and operations.
    * @param tag - The OpenAPI tag for the client
+   * @param modelInfo - The client's name and path
    * @param operations - Set of operations for this client
    */
-  private generateApiClient(tag: Tag, operations: Set<OperationEndpoint>) {
-    const modelInfo = resolveModelInfo(tag.name);
+  private generateApiClient(
+    tag: Tag,
+    modelInfo: ModelInfo,
+    operations: Set<OperationEndpoint>,
+  ) {
+    const className = `${modelInfo.name}ApiClient`;
     this.context.logger.info(
-      `Generating API client class: ${modelInfo.name}ApiClient with ${operations.size} operations`,
+      `Generating API client class: ${className} with ${operations.size} operations`,
     );
     const apiClientFile = this.createApiClientFile(modelInfo);
     addImportFetcher(apiClientFile);
     addImportDecorator(apiClientFile);
     addImportEventStream(apiClientFile);
-    const apiClientClass = createDecoratorClass(
-      modelInfo.name + 'ApiClient',
-      apiClientFile,
-    );
+    const apiClientClass = createDecoratorClass(className, apiClientFile);
     addJSDoc(apiClientClass, [tag.description]);
-    addApiMetadataCtor(apiClientClass, this.apiMetadataCtorInitializer);
-    this.context.logger.info(
-      `Processing ${operations.size} operations for ${modelInfo.name}ApiClient`,
+    addApiMetadataCtor(apiClientClass, this.apiMetadataDefaults(apiClientFile));
+    const types = new TypeGenerator(
+      { name: className, path: '\0client' },
+      apiClientFile,
+      { key: '', schema: {} },
+      this.context.outputDir,
+      this.context.openAPI.components,
     );
-    operations.forEach(operation => {
-      this.processOperation(tag, apiClientFile, apiClientClass, operation);
-    });
-    this.context.logger.info(
-      `Completed API client: ${modelInfo.name}ApiClient`,
-    );
+    const methods = new Map<string, string>();
+    for (const operation of operations) {
+      this.processOperation(tag, apiClientClass, types, operation, methods);
+    }
+    this.context.logger.info(`Completed API client: ${className}`);
   }
 
   /**
-   * Generates a unique method name for the operation.
-   * @param apiClientClass - The client class to check for existing methods
-   * @param operation - The operation to generate a name for
-   * @returns A unique camelCase method name
+   * The defaults the client's constructor merges `apiMetadata` over: the
+   * bounded context's base path, when the document names its context.
+   */
+  private apiMetadataDefaults(sourceFile: SourceFile): string | undefined {
+    const contextAlias = this.context.currentContextAlias;
+    if (!contextAlias) return undefined;
+    const declarationName = resolveContextDeclarationName(contextAlias);
+    addImportBoundedContext(
+      sourceFile,
+      this.context.outputDir,
+      contextAlias,
+      declarationName,
+    );
+    return `basePath: ${declarationName}`;
+  }
+
+  /**
+   * Names the method an operation generates, failing when another operation
+   * of the client already took the name: renaming either one to make room
+   * would rename an existing method when an operation is added.
    */
   private getMethodName(
-    apiClientClass: ClassDeclaration,
-    operation: Operation,
+    tag: Tag,
+    className: string,
+    operation: OperationEndpoint,
+    methods: Map<string, string>,
   ): string {
-    const methodName = resolveMethodName(operation, name => {
-      return apiClientClass.getMethod(name) !== undefined;
-    });
-    if (!methodName) {
-      throw new Error(
-        `Unable to resolve method name for apiClientClass:${apiClientClass.getName()}.`,
+    const operationId = operation.operation.operationId!;
+    const methodName = resolveMethodName(
+      operation.operation,
+      this.context.config.apiClients?.[tag.name]?.methodNames?.[operationId],
+    )!;
+    const taken = methods.get(methodName);
+    if (taken !== undefined) {
+      throw new GeneratorError(
+        'specification',
+        `Operations ${taken} and ${operationId} of tag ${tag.name} both generate the method ${className}.${methodName}(). Name one of them with apiClients["${tag.name}"].methodNames in the generator configuration, or with the ${'x-fetcher-method'} extension.`,
       );
     }
+    methods.set(methodName, operationId);
     return methodName;
   }
 
   /**
    * Resolves the request type for an operation based on its request body.
-   * @param sourceFile - The source file to add imports to
+   * @param types - Resolves schemas to types, importing the models they use
    * @param operation - The operation to resolve the request type for
    * @returns The resolved request type string
    */
   private resolveRequestType(
-    sourceFile: SourceFile,
+    types: TypeGenerator,
     operation: Operation,
   ): string {
     if (!operation.requestBody) {
-      this.context.logger.info(
-        `No request body found for operation ${operation.operationId}, using default: ${this.defaultParameterRequestType}`,
-      );
       return this.defaultParameterRequestType;
     }
     let requestBody: RequestBody | undefined;
     if (isReference(operation.requestBody)) {
-      this.context.logger.info(
-        `Extracting request body from reference for operation: ${operation.operationId}`,
-      );
       requestBody = extractRequestBody(
         operation.requestBody,
         this.context.openAPI.components!,
@@ -227,51 +266,30 @@ export class ApiClientGenerator implements Generator {
       requestBody = operation.requestBody;
     }
     if (!requestBody) {
-      this.context.logger.info(
-        `Request body extraction failed for operation ${operation.operationId}, using default: ${this.defaultParameterRequestType}`,
-      );
       return this.defaultParameterRequestType;
     }
     if (requestBody.content['multipart/form-data']) {
-      this.context.logger.info(
-        `Detected multipart/form-data content for operation ${operation.operationId}, using ParameterRequest<FormData>`,
-      );
       return 'ParameterRequest<FormData>';
     }
     if (requestBody.content['application/json']) {
       const requestBodySchema = requestBody.content['application/json'].schema;
       if (isReference(requestBodySchema)) {
-        const modelInfo = resolveReferenceModelInfo(
-          requestBodySchema,
-          this.context.openAPI.components,
-        );
-        this.context.logger.info(
-          `Adding import for request body model: ${modelInfo.name} from ${modelInfo.path}`,
-        );
-        addImportRefModel(sourceFile, this.context.outputDir, modelInfo);
-        const requestType = `ParameterRequest<${modelInfo.name}>`;
-        this.context.logger.info(
-          `Resolved request type for operation ${operation.operationId}: ${requestType}`,
-        );
-        return requestType;
+        return `ParameterRequest<${types.resolveType(requestBodySchema)}>`;
       }
     }
-    this.context.logger.info(
-      `Using default request type for operation ${operation.operationId}: ${this.defaultParameterRequestType}`,
-    );
     return this.defaultParameterRequestType;
   }
 
   /**
    * Resolves method parameters for an operation.
    * @param tag - The tag for parameter filtering
-   * @param sourceFile - The source file to add imports to
+   * @param types - Resolves schemas to types, importing the models they use
    * @param operation - The operation to resolve parameters for
    * @returns Array of parameter declarations
    */
   private resolveParameters(
     tag: Tag,
-    sourceFile: SourceFile,
+    types: TypeGenerator,
     operation: Operation,
   ): OptionalKind<ParameterDeclarationStructure>[] {
     const pathParameters = extractPathParameters(
@@ -283,28 +301,17 @@ export class ApiClientGenerator implements Generator {
         parameter.name,
       );
     });
-    this.context.logger.info(
-      `Found ${pathParameters.length} path parameters for operation ${operation.operationId}`,
-    );
-    const parameters = pathParameters.map(parameter => {
-      const parameterType = resolvePathParameterType(parameter);
-      this.context.logger.info(
-        `Adding path parameter: ${parameter.name} (type: ${parameterType})`,
-      );
-      return {
-        name: parameter.name,
-        type: parameterType,
+    const used = new Set(RESERVED_PARAMETER_NAMES);
+    const parameters: OptionalKind<ParameterDeclarationStructure>[] =
+      pathParameters.map(parameter => ({
+        name: uniqueParameterName(parameter.name, used),
+        type: resolvePathParameterType(parameter),
         hasQuestionToken: false,
         decorators: [
-          {
-            name: 'path',
-            arguments: [`'${parameter.name}'`],
-          },
+          { name: 'path', arguments: [quoteStringLiteral(parameter.name)] },
         ],
-      };
-    });
-    const requestType = this.resolveRequestType(sourceFile, operation);
-    this.context.logger.info(`Adding httpRequest parameter: ${requestType}`);
+      }));
+    const requestType = this.resolveRequestType(types, operation);
     parameters.push({
       name: 'httpRequest',
       hasQuestionToken: requestType === this.defaultParameterRequestType,
@@ -316,13 +323,10 @@ export class ApiClientGenerator implements Generator {
         },
       ],
     });
-    this.context.logger.info(
-      `Adding attributes parameter: Record<string, any>`,
-    );
     parameters.push({
       name: 'attributes',
       hasQuestionToken: true,
-      type: 'Record<string, any>',
+      type: 'Record<string, unknown>',
       decorators: [
         {
           name: 'attribute',
@@ -333,58 +337,22 @@ export class ApiClientGenerator implements Generator {
     return parameters;
   }
 
-  private resolveType(
-    sourceFile: SourceFile,
-    schema: Schema | Reference,
-  ): string {
-    if (isReference(schema)) {
-      const modelInfo = resolveReferenceModelInfo(
-        schema,
-        this.context.openAPI.components,
-      );
-      addImportRefModel(sourceFile, this.context.outputDir, modelInfo);
-      return modelInfo.name;
-    }
-    if (isArray(schema)) {
-      const itemType = this.resolveType(sourceFile, schema.items);
-      return toArrayType(itemType);
-    }
-    if (isMap(schema)) {
-      const additionalProperties = schema.additionalProperties;
-      if (typeof additionalProperties === 'boolean') {
-        return 'Record<string, any>';
-      }
-      const valueType = this.resolveType(sourceFile, additionalProperties);
-      return `Record<string, ${valueType}>`;
-    }
-    if (schema.type && isPrimitive(schema.type)) {
-      return resolvePrimitiveType(schema.type);
-    }
-
-    return 'any';
-  }
-
   /**
-   * Resolves the return type for a schema.
-   * @param sourceFile - The source file to add imports to
-   * @param schema - The schema to resolve the return type for
-   * @returns The resolved return type string
-   */
-  private resolveSchemaReturnType(
-    sourceFile: SourceFile,
-    schema: Schema | Reference,
-  ): string {
-    return `Promise<${this.resolveType(sourceFile, schema)}>`;
-  }
-
-  /**
-   * Resolves the return type for an operation based on its responses.
-   * @param sourceFile - The source file to add imports to
+   * Resolves the return type for an operation based on its success response:
+   * `200`, else the lowest other 2xx.
+   *
+   * - JSON (`application/json`, `+json`, with or without parameters) → the
+   *   schema's type;
+   * - `text/*`, or a string schema under `*` + `/*` → `Promise<string>`;
+   * - `text/event-stream` → a JSON server-sent event stream;
+   * - anything else → the raw `Response`.
+   *
+   * @param types - Resolves schemas to types, importing the models they use
    * @param operation - The operation to resolve the return type for
    * @returns Object containing type and optional stream flag
    */
   private resolveReturnType(
-    sourceFile: SourceFile,
+    types: TypeGenerator,
     operation: Operation,
   ): MethodReturnType {
     const okResponse = extractOkResponse(
@@ -392,22 +360,16 @@ export class ApiClientGenerator implements Generator {
       this.context.openAPI.components,
     );
     if (!okResponse) {
-      this.context.logger.info(
-        `No OK response found for operation ${operation.operationId}, using default return type: ${this.defaultReturnType.type}`,
-      );
       return this.defaultReturnType;
     }
     const responseJsonSchema = extractResponseJsonSchema(okResponse);
     const jsonSchema =
       responseJsonSchema || extractResponseWildcardSchema(okResponse);
     if (jsonSchema) {
-      const returnType = this.resolveSchemaReturnType(sourceFile, jsonSchema);
-      this.context.logger.info(
-        `Resolved JSON/wildcard response return type for operation ${operation.operationId}: ${returnType}`,
-      );
-      return !responseJsonSchema && returnType === STRING_RETURN_TYPE.type
+      const type = types.resolveType(jsonSchema);
+      return !responseJsonSchema && type === 'string'
         ? STRING_RETURN_TYPE
-        : { type: returnType };
+        : { type: `Promise<${type}>` };
     }
     const eventStreamSchema = extractResponseEventStreamSchema(okResponse);
     if (eventStreamSchema) {
@@ -421,71 +383,58 @@ export class ApiClientGenerator implements Generator {
             schema.items,
             this.context.openAPI.components,
           );
-          this.context.logger.info(
-            `Adding import for event stream model: ${modelInfo.name} from ${modelInfo.path}`,
-          );
-          addImportRefModel(sourceFile, this.context.outputDir, modelInfo);
+          const typeName = types.resolveType(schema.items);
           const dataType = modelInfo.name.includes('ServerSentEvent')
-            ? `${modelInfo.name}['data']`
-            : modelInfo.name;
-          const returnType = `Promise<JsonServerSentEventStream<${dataType}>>`;
-          this.context.logger.info(
-            `Resolved event stream return type for operation ${operation.operationId}: ${returnType}`,
-          );
+            ? `${typeName}['data']`
+            : typeName;
           return {
-            type: returnType,
+            type: `Promise<JsonServerSentEventStream<${dataType}>>`,
             metadata: STREAM_RESULT_EXTRACTOR_METADATA,
           };
         }
       }
-      const returnType = `Promise<JsonServerSentEventStream<any>>`;
-      this.context.logger.info(
-        `Resolved generic event stream return type for operation ${operation.operationId}: ${returnType}`,
-      );
-      return { type: returnType, metadata: STREAM_RESULT_EXTRACTOR_METADATA };
+      return {
+        type: `Promise<JsonServerSentEventStream<any>>`,
+        metadata: STREAM_RESULT_EXTRACTOR_METADATA,
+      };
     }
-    this.context.logger.info(
-      `Using default return type for operation ${operation.operationId}: ${this.defaultReturnType.type}`,
-    );
+    if (hasTextResponse(okResponse)) {
+      return STRING_RETURN_TYPE;
+    }
     return this.defaultReturnType;
   }
 
   /**
    * Processes a single operation and adds it as a method to the client class.
    * @param tag - The tag for parameter filtering
-   * @param sourceFile - The source file containing the client
    * @param apiClientClass - The client class to add the method to
+   * @param types - Resolves schemas to types, importing the models they use
    * @param operation - The operation to process
+   * @param methods - Operation ids by the method names already taken
    */
   private processOperation(
     tag: Tag,
-    sourceFile: SourceFile,
     apiClientClass: ClassDeclaration,
+    types: TypeGenerator,
     operation: OperationEndpoint,
+    methods: Map<string, string>,
   ) {
     this.context.logger.info(
       `Processing operation: ${operation.operation.operationId} (${operation.method} ${operation.path})`,
     );
-    const methodName = this.getMethodName(apiClientClass, operation.operation);
-    this.context.logger.info(`Generated method name: ${methodName}`);
-    const parameters = this.resolveParameters(
+    const methodName = this.getMethodName(
       tag,
-      sourceFile,
-      operation.operation,
+      apiClientClass.getName()!,
+      operation,
+      methods,
     );
-    const returnType = this.resolveReturnType(sourceFile, operation.operation);
-    const methodDecorator = returnType.metadata
-      ? {
-          name: methodToDecorator(operation.method),
-          arguments: [`'${operation.path}'`, returnType.metadata],
-        }
-      : {
-          name: methodToDecorator(operation.method),
-          arguments: [`'${operation.path}'`],
-        };
-    this.context.logger.info(
-      `Creating method with ${parameters.length} parameters, return type: ${returnType.type}`,
-    );
+    const parameters = this.resolveParameters(tag, types, operation.operation);
+    const returnType = this.resolveReturnType(types, operation.operation);
+    const path = quoteStringLiteral(operation.path);
+    const methodDecorator = {
+      name: methodToDecorator(operation.method),
+      arguments: returnType.metadata ? [path, returnType.metadata] : [path],
+    };
     const methodDeclaration = apiClientClass.addMethod({
       name: methodName,
       decorators: [methodDecorator],
@@ -506,42 +455,59 @@ export class ApiClientGenerator implements Generator {
 
   /**
    * Groups operations by their tags for client generation.
+   *
+   * An operation needs an operationId, which names its method, and a tag,
+   * which names its client; one without either is skipped with a warning.
+   *
    * @param apiClientTags - Map of valid API client tags
    * @returns Map of operations grouped by tag name
    */
   private groupOperations(
     apiClientTags: Map<string, Tag>,
   ): Map<string, Set<OperationEndpoint>> {
-    this.context.logger.info('Grouping operations by API client tags');
     const operations: Map<string, Set<OperationEndpoint>> = new Map();
-    const availableEndpoints = extractOperationEndpoints(
+    const endpoints = extractOperationEndpoints(
       this.context.openAPI.paths,
       this.context.openAPI.components,
-    ).filter(endpoint => {
+    );
+    for (const endpoint of endpoints) {
+      const label = `${endpoint.method.toUpperCase()} ${endpoint.path}`;
+      const operationTags = endpoint.operation.tags ?? [];
+      if (operationTags.length === 0) {
+        warn(
+          this.context.logger,
+          `Skipping ${label}: it has no tag, and the tag names its API client.`,
+        );
+        continue;
+      }
+      const clientTags = operationTags.filter(tagName =>
+        apiClientTags.has(tagName),
+      );
+      if (clientTags.length === 0) {
+        continue;
+      }
+      if (clientTags.length < operationTags.length) {
+        // Wow tags an aggregate's routes with the aggregate and with its
+        // own tags; they belong to the command and query clients.
+        this.context.logger.info(
+          `Skipping ${label}: its tags ${operationTags.join(', ')} include a Wow aggregate or system tag.`,
+        );
+        continue;
+      }
       if (!endpoint.operation.operationId) {
-        return false;
+        warn(
+          this.context.logger,
+          `Skipping ${label}: it has no operationId, and the operationId names its method.`,
+        );
+        continue;
       }
-      const operationTags = endpoint.operation.tags;
-      if (!operationTags || operationTags.length == 0) {
-        return false;
-      }
-      return operationTags.every(tagName => {
-        return apiClientTags.has(tagName);
-      });
-    });
-    let totalOperations = 0;
-    for (const endpoint of availableEndpoints) {
-      endpoint.operation.tags!.forEach(tagName => {
+      for (const tagName of clientTags) {
         if (!operations.has(tagName)) {
           operations.set(tagName, new Set());
         }
         operations.get(tagName)!.add(endpoint);
-        totalOperations++;
-      });
+      }
     }
-    this.context.logger.info(
-      `Grouped ${totalOperations} operations into ${operations.size} tag groups`,
-    );
     return operations;
   }
 
@@ -549,7 +515,7 @@ export class ApiClientGenerator implements Generator {
     return (
       tagName === 'wow' ||
       tagName === 'Actuator' ||
-      this.isAggregateTag(tagName)
+      this.context.aggregateTags.has(tagName)
     );
   }
 
@@ -559,11 +525,7 @@ export class ApiClientGenerator implements Generator {
    * @returns Map of valid API client tags
    */
   private resolveApiTags(): Map<string, Tag> {
-    this.context.logger.info(
-      'Resolving API client tags from OpenAPI specification',
-    );
     const apiClientTags: Map<string, Tag> = new Map<string, Tag>();
-    const totalTags = this.context.openAPI.tags?.length || 0;
     for (const pathItem of Object.values(this.context.openAPI.paths)) {
       extractOperations(pathItem).forEach(methodOperation => {
         methodOperation.operation.tags?.forEach(tagName => {
@@ -576,32 +538,15 @@ export class ApiClientGenerator implements Generator {
         });
       });
     }
-    let filteredTags = 0;
     this.context.openAPI.tags?.forEach(tag => {
       if (!this.shouldIgnoreTag(tag.name)) {
         apiClientTags.set(tag.name, tag);
-        filteredTags++;
-        this.context.logger.info(`Included API client tag: ${tag.name}`);
       } else {
         this.context.logger.info(
           `Excluded tag: ${tag.name} (wow/Actuator/aggregate)`,
         );
       }
     });
-    this.context.logger.info(
-      `Resolved ${filteredTags} API client tags from ${totalTags} total tags`,
-    );
     return apiClientTags;
-  }
-
-  private isAggregateTag(tagName: string): boolean {
-    for (const aggregates of this.context.contextAggregates.values()) {
-      for (const aggregate of aggregates) {
-        if (aggregate.aggregate.tag.name === tagName) {
-          return true;
-        }
-      }
-    }
-    return false;
   }
 }
