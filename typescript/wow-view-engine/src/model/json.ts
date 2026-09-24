@@ -53,3 +53,24 @@ export function overlaid<T extends object>(value: T, patch: Partial<T>): T {
     if (patch[key] === undefined) delete next[key];
   return next;
 }
+
+/**
+ * Whether two plain JSON values say the same, whatever order their object
+ * keys came in — a member that is `undefined` reads as one not there, as
+ * JSON reads it. What a board's filters hold, one filter's value, a panel's
+ * look against its view's.
+ */
+export function sameJson(a: unknown, b: unknown): boolean {
+  return JSON.stringify(keysInOrder(a)) === JSON.stringify(keysInOrder(b));
+}
+
+/** A JSON value with its object keys in one order, for `sameJson`. */
+function keysInOrder(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(keysInOrder);
+  if (value === null || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .map(([key, entry]) => [key, keysInOrder(entry)]),
+  );
+}

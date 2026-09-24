@@ -820,6 +820,30 @@ export const TabsBuilt: Story = {
           ),
       ).toEqual(['出库', '异常', '状态']),
     );
+
+    // Renamed from its menu, by keyboard: the menu closing leaves the
+    // keyboard in the name's field, where the edit goes on until Enter
+    // (Q-10).
+    canvas
+      .getByRole('button', {
+        name: label('label.tabs.actions', { title: '异常' }),
+      })
+      .focus();
+    await userEvent.keyboard('{Enter}');
+    const item = await screen.findByRole('menuitem', {
+      name: zhCN['label.tabs.rename'],
+    });
+    await waitFor(() => expect(item).toHaveFocus());
+    await userEvent.keyboard('{Enter}');
+    const renamed = await canvas.findByRole('textbox', {
+      name: '标签页「异常」的名字',
+    });
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
+    await expect(renamed).toHaveFocus();
+    await userEvent.keyboard('告警{Enter}');
+    await waitFor(() =>
+      expect(canvas.getByRole('button', { name: '告警' })).toHaveFocus(),
+    );
   },
 };
 

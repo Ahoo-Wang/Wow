@@ -13,7 +13,6 @@
 
 import { useRef } from 'react';
 import { DragDropProvider } from '@dnd-kit/react';
-import { Accessibility } from '@dnd-kit/dom';
 import {
   audienceOf,
   VIEW_AUDIENCES,
@@ -31,6 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from './components/dialog.js';
+import { announcedPlugins } from './dragPlugins.js';
 import { manageDragAccessibility, managerDrop } from './manage/drag.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { useAnnouncer } from './Announcer.js';
@@ -220,15 +220,9 @@ export function ViewManager({
         {manager.can.reorder ? (
           <>
             <DragDropProvider
-              plugins={defaults =>
-                defaults.map(plugin =>
-                  plugin === Accessibility
-                    ? Accessibility.configure(
-                        manageDragAccessibility(messages, titleOf, word),
-                      )
-                    : plugin,
-                )
-              }
+              plugins={announcedPlugins(
+                manageDragAccessibility(messages, titleOf, word),
+              )}
               onDragEnd={({ operation, canceled }) => {
                 // The library holds a drag inside its own group; `managerDrop`
                 // says the same thing where the order is decided, so a drop

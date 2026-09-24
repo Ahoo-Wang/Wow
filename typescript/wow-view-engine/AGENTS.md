@@ -106,7 +106,7 @@ src/
     filter.ts                 — FilterOperator as stored in a config; the three group operators and the reading of one
     instance.ts               — ViewInstance: authorship, scope, permissions
     issue.ts                  — Issue — how every kernel reports a problem
-    json.ts                   — JsonValue — configs are plain JSON; `LiteralEnums`, a Wow type with its enums as the strings stored; `without` and `overlaid`, a member unset by taking it out, never by leaving `undefined` behind
+    json.ts                   — JsonValue — configs are plain JSON; `LiteralEnums`, a Wow type with its enums as the strings stored; `without` and `overlaid`, a member unset by taking it out, never by leaving `undefined` behind; `sameJson`, two JSON values equal whatever their key order
     limits.ts                 — RuntimeLimits: admission and scheduling budgets
     record.ts                 — RecordData, RecordColumn, and how an untrusted `pinned` / `hidden` reads
     storeError.ts             — ViewStoreError
@@ -333,6 +333,7 @@ src/
     RecordPagination.tsx      — How many rows there are and how to reach the next of them
     RecordTable.tsx           — The record view as a table: the columns and rows of the result that ran, never of the draft; its rows are `TableDataRow`s and a value reads as a table reads it, one line each
     RefreshControl.tsx        — Refresh now, and the auto-refresh cadence menu, as one split button
+    RenameInput.tsx           — A name typed in place — a panel's title, a tab's, a view's in the manager (Q-10): focused and selected; Enter or leaving keeps, Escape puts back; trimmed, an unchanged name no rename, a blank one refused where asked; ✓ and ✕ in the field where asked
     RenderBoundary.tsx        — The boundary each part of a view renders behind, so one failing leaves the rest standing
     ResultToolbar.tsx         — Selection, bulk slot, layout, columns, refresh
     RowActions.tsx            — The wrapper a host's per-row actions land in
@@ -359,6 +360,7 @@ src/
     dragAnnounce.ts           — What a screen reader hears while a row is dragged, in the shape the drag library takes; the four sortable lists share it
     dragWording.ts            — `dragWording`: one list's three drag sentences read out of the catalogue under that list's keys; each `drag.ts` names only its keys
     dragDrop.ts               — `dropped()`: what makes a finished drag a drop at all, before any list adds its own rule
+    dragPlugins.ts            — The drag library's plugins, set once (Q-11): `announcedPlugins`, a sortable list's provider with the `Accessibility` plugin worded by the list; `withoutOptimisticSorting`, a sortable row's
     features.ts               — `WorkbenchFeatures`: which of the workbench's own controls exist (D18 XI)
     gridPlacement.ts          — `useGridPlacement`: a pointer drag or resize placed by the kernel's `placePanel`, preview and drop alike
     kinds.ts                  — The icon each kind and audience wears, shared by list and header; `SurfaceKind`, the one kind a surface has open, `kindWord`／`useKindWord`: a dashboard's chrome says 仪表盘 where another says 视图 (D26 Q34), and `kindIssue`／`useKindIssue`, the same for what the engine reports about the thing open, by the entry its code reads
@@ -451,7 +453,7 @@ src/
       ContentEditor.tsx       — The small form a note, a picture or a list of links is written in, what the kernel would refuse said at the field
       DashboardTabs.tsx       — The tab bar over the grid, two tabs or more: switch; while building, the edits — add, rename in place, move, delete (asked first when it holds panels) — and where the keyboard lands after each, drawn by `EditableTabs`; `tabTitle`
       EditableTabs.tsx        — The tab bar while the board is built (`EditableTabBar`): each tab carried by a handle or arrows, shown, renamed in place, moved or deleted from its menu, 「添加」 after them; `TabRemovalDialog`, the question a tab holding panels is asked first
-      filterModes.ts          — How an embedding page offers each filter (`DashboardFilterMode`: editable, locked, hidden) and the time grouping; what the page holds (`heldOf`) and what is the reader's (`readersOf`); `sameValue`, two JSON values equal whatever their key order — the look dialog's comparison too
+      filterModes.ts          — How an embedding page offers each filter (`DashboardFilterMode`: editable, locked, hidden) and the time grouping; what the page holds (`heldOf`) and what is the reader's (`readersOf`)
       FilterBar.tsx           — The filter bar (D22 F): a chip a filter with the condition editor's value controls, required ones starred and never empty, 按日｜周｜月, 「清空」, a filter reaching nothing on the tab drawn quieter and saying why, 「来自「〈面板〉」」 on a value a press set; on an embedding page a locked filter read as what it holds, with a lock, and a hidden one not at all; the board's fixed scope at the head of the row, read-only (D27) and removed whole while the board is built (D23 Q16)
       FilterReadings.tsx      — What the bar holds that the reader reads and does not change: the board's fixed scope (`FixedScope`, 「固定范围」, its author's ✕ while built), a filter the page locked (`LockedChip`, `LockedReading`), and the chip's own layout (`CHIP`)
       FilterSheet.tsx         — The filter bar below `md` (D26 Q38): one button, 「筛选（已设 n 个）」, opening every filter in a sheet from the bottom edge; the fixed scope and the locked filters read beside it
@@ -465,7 +467,7 @@ src/
       extensions.ts           — `DashboardEditExtensions`: the parts of building that live elsewhere (a new owned analysis, the presentation editor and its reset, 另存为视图, 复制为共享视图并替换 with whether it is offered, the tab bar), each entry there only while provided
       NewAnalysisDialog.tsx   — A new analysis made inside the dashboard: the data first, then `AnalysisParts` in a dialog (tray, result, visualization panel, 改了就跑), a title following the reading, 「放进仪表盘」
       PanelBodies.tsx         — What a data panel draws: the record table, the analysis drawn from its child's draft over the rows on hand (`useAnalysisResult`), a press on its groups (`PanelPress`: the follow-up menu through the host's route, the board's filter set with the group marked, a destination), a first answer on its way said busy, a failed query with its retry, and 「此处改为〈图型〉」 (`presentationMark`)
-      PanelMenu.tsx           — 「⋯」 on a panel (从仪表盘移除 at once, 撤销 brings it back), and its title renamed in place
+      PanelMenu.tsx           — 「⋯」 on a panel (从仪表盘移除 at once, 撤销 brings it back), and its title renamed in place (`RenameInput`)
       PanelMarks.tsx          — `PanelMarks`: what a panel's title row says besides its name (`panelMarks`) — the warning and the note before the title, and on a line under it 「不受『〈筛选〉』影响」, 「点击筛选「〈筛选〉」」 and a look of its own
       PanelExport.tsx         — 「导出数据…」: the export window over a record panel's child view, delivered by `useExportOffer`, named after the panel
       PresentationDialog.tsx  — 「改这里的展示」: the chart picker and options writing one panel's look, beside the panel as it will look; Cancel puts back the look it opened with

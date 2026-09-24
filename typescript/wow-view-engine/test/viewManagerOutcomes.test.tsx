@@ -42,6 +42,19 @@ import { landed } from './fixtures/writes.js';
 
 afterEach(cleanup);
 
+/**
+ * Types a new title into the rename field that is open on 'Mine' and
+ * presses ✓. A new one: an unchanged title is no rename and writes nothing.
+ */
+function renameTo(title: string) {
+  fireEvent.change(within(row('Mine')).getByLabelText(/^Rename /), {
+    target: { value: title },
+  });
+  fireEvent.click(
+    within(row(title)).getByRole('button', { name: 'Save the title' }),
+  );
+}
+
 describe('ViewManager outcomes', () => {
   it('offers a way out of a conflict under the row that caused it', async () => {
     const { engine, store } = setup();
@@ -198,9 +211,7 @@ describe('ViewManager outcomes', () => {
     fireEvent.click(
       within(row('Mine')).getByRole('button', { name: 'Rename' }),
     );
-    fireEvent.click(
-      within(row('Mine')).getByRole('button', { name: 'Save the title' }),
-    );
+    renameTo('Renamed');
 
     await screen.findByText('The result never came back');
     fireEvent.click(screen.getByRole('button', { name: 'Abandon' }));
@@ -226,9 +237,7 @@ describe('ViewManager outcomes', () => {
     fireEvent.click(
       within(row('Mine')).getByRole('button', { name: 'Rename' }),
     );
-    fireEvent.click(
-      within(row('Mine')).getByRole('button', { name: 'Save the title' }),
-    );
+    renameTo('Renamed');
     await screen.findByText(/You may not write to this view/);
     expect(engine.pendingWrites().size).toBe(1);
 
@@ -256,9 +265,7 @@ describe('ViewManager outcomes', () => {
     fireEvent.click(
       within(row('Mine')).getByRole('button', { name: 'Rename' }),
     );
-    fireEvent.click(
-      within(row('Mine')).getByRole('button', { name: 'Save the title' }),
-    );
+    renameTo('Renamed');
     await screen.findByText('The result never came back');
 
     const held = deferred<ViewInstance>();
