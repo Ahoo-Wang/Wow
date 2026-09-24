@@ -14,14 +14,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useFetcherPagedQuery } from '../../src/fetcher/useFetcherPagedQuery';
+import { SortDirection, pagination } from '@ahoo-wang/wow-client';
 import {
   PagedQuery,
-  SortDirection,
   Operator,
   eq,
   contains,
-  pagination,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/legacy';
 
 // Mock the useFetcherQuery hook
 vi.mock('@ahoo-wang/fetcher-react/fetcher', () => ({

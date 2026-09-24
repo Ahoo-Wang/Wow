@@ -7,13 +7,13 @@ description: 从 fetcher-wow、fetcher-generator 以及 fetcher-react 的 Wow Ho
 
 本页回答：**使用 `@ahoo-wang/fetcher-wow`、`@ahoo-wang/fetcher-generator` 或 `@ahoo-wang/fetcher-react` 中 Wow Hook 的应用需要改什么？**
 
-Wow 的 TypeScript 包已从 [Fetcher 仓库](https://github.com/Ahoo-Wang/fetcher)迁入 Wow 仓库，这样 Kotlin 契约、TypeScript 客户端和生成器可以在一个 PR 里改完、一起发布。导出的 API 没有变化，变化的是包名、命令名、peer 依赖范围和版本线。
+Wow 的 TypeScript 包已从 [Fetcher 仓库](https://github.com/Ahoo-Wang/fetcher)迁入 Wow 仓库，这样 Kotlin 契约、TypeScript 客户端和生成器可以在一个 PR 里改完、一起发布。导出的 API 没有变化，只是已弃用的 `Condition` API 挪到了 `@ahoo-wang/wow-client/legacy` 子路径；变化的是包名、命令名、peer 依赖范围、版本线和这个子路径。
 
 ## 变化一览
 
 | 原来 | 现在 | 说明 |
 |---|---|---|
-| `@ahoo-wang/fetcher-wow` | `@ahoo-wang/wow-client` | 导出不变，包括 `/query/locale/en_US` 和 `/query/locale/zh_CN` 子路径 |
+| `@ahoo-wang/fetcher-wow` | `@ahoo-wang/wow-client` | 导出不变，但已弃用的 `Condition` API（`Condition` 构造器、`Operator`、基于 `Condition` 的查询类型与工厂函数）和 `en_US` / `zh_CN` 操作符文案挪到了 `@ahoo-wang/wow-client/legacy`；`/query/locale/en_US` 和 `/query/locale/zh_CN` 子路径已不存在 |
 | `@ahoo-wang/fetcher-generator` | `@ahoo-wang/wow-generator` | 命令改名为 `wow-generator`；`fetcher-generator` 作为别名保留到 v10 |
 | `@ahoo-wang/fetcher-react` 中的 Wow Hook | `@ahoo-wang/wow-react` | `useSingleQuery`、`useListQuery`、`usePagedQuery`、`useCountQuery`、`useListStreamQuery` 及对应的 `useFetcher*` 版本 |
 | Fetcher 5.x 版本线 | Wow 版本线 | `wow-client` 9.x.y 与 Wow 9.x.y 一起发布 |
@@ -55,7 +55,7 @@ pnpm add @ahoo-wang/wow-react
 
 ### 2. 改写导入
 
-替换模块名即可，符号名不变。
+替换模块名即可，符号名不变。已弃用的 `Condition` API 和操作符文案从 `@ahoo-wang/wow-client/legacy` 导入，其余一切从根入口导入。
 
 ```ts
 // 迁移前
@@ -65,12 +65,31 @@ import { usePagedQuery, useFetcher } from '@ahoo-wang/fetcher-react';
 
 // 迁移后
 import { CommandClient, filter, pagedQuery } from '@ahoo-wang/wow-client';
-import { zh_CN } from '@ahoo-wang/wow-client/query/locale/zh_CN';
+import { zh_CN } from '@ahoo-wang/wow-client/legacy';
 import { usePagedQuery } from '@ahoo-wang/wow-react';
 import { useFetcher } from '@ahoo-wang/fetcher-react';
 ```
 
 只有五个 Wow 查询 Hook 及其 `useFetcher*` 版本迁到了 `wow-react`。`useFetcher`、`useQuery`、`useFetcherQuery` 等其余 Hook 仍在 `@ahoo-wang/fetcher-react`。搜索 `fetcher-wow` 和这十个 Hook 名，就能找到所有要改的行。
+
+`Condition` API 挪到 `/legacy` 之后，根入口的 `singleQuery`、`listQuery`、`pagedQuery` 构造的内容也变了：它们接收 `filter` 而不是 `condition`，`filter` 默认为 `filter.matchAll()`。传了 `condition` 的调用，要改用 `/legacy` 里的同名工厂函数，或者用 `filter.*` 改写。
+
+#### Wow 8.10 服务端
+
+Wow 8.11 及以后的服务端支持 `FilterExpression`。Wow 8.10 服务端只认 `Condition` 模型，所以连接它的应用用 `@ahoo-wang/wow-client/legacy` 构造查询，其余一切从根入口导入；查询客户端两种查询都接受：
+
+```ts
+import type { SnapshotQueryClient } from '@ahoo-wang/wow-client';
+import { and, eq, listQuery, ownerId } from '@ahoo-wang/wow-client/legacy';
+
+declare const snapshots: SnapshotQueryClient<unknown>;
+
+const carts = await snapshots.listState(
+  listQuery({ condition: and(ownerId('u-42'), eq('state.status', 'ACTIVE')) }),
+);
+```
+
+`SnapshotQueryClient.getById` 和 `getStateById` 发送的是 `FilterExpression`，需要 Wow 8.11 或更高版本；连接 8.10 时，改用 `single` 或 `singleState`，传入用 `/legacy` 的 `aggregateId(id)` 构造的查询。
 
 ### 3. 脚本改用新命令
 
@@ -96,7 +115,7 @@ v10 之前 `fetcher-generator` 命令仍作为 `wow-generator` 的别名可用�
 pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated -t ./tsconfig.json
 ```
 
-检查 diff。导入模块名的变化是预期内的；其他差异都属于生成器的变化，要像审查契约变更一样审查。请重新生成，不要手工改生成文件里的导入：这些文件归生成器所有，见[生成输出与重新生成](../../reference/typescript/wow-generator/generated-output.md)。
+检查 diff。预期内的变化有两类：导入模块名，以及查询类型。带 `filter` 属性的 `ListQuery`、`PagedQuery` schema（Wow 8.11 及以后）现在映射为 `@ahoo-wang/wow-client` 的 `FilterListQuery`、`FilterPagedQuery`；`Condition`、`ConditionOptions`、`Operator` schema 以及 Wow 8.10 的 `ListQuery`、`PagedQuery` schema 映射为从 `@ahoo-wang/wow-client/legacy` 导入的类型。其他差异都属于生成器的变化，要像审查契约变更一样审查。请重新生成，不要手工改生成文件里的导入：这些文件归生成器所有，见[生成输出与重新生成](../../reference/typescript/wow-generator/generated-output.md)。
 
 ### 5. 类型检查与测试
 
@@ -111,7 +130,7 @@ pnpm test
 
 - Wow 的 TypeScript 包跟随 Wow 发版。选择与 Wow 服务端一致的版本，并同时升级 `wow-client`、`wow-generator` 和 `wow-react`；它们之间以 `~x.y.z` 互相声明。
 - 破坏性改动只在 `x.Y.0` 版本发布，发布说明逐条列出并写明迁移方法。
-- 在 Wow 9.x 期间，客户端和生成器仍能连接 Wow 8.x 服务端，`fetcher-generator` 别名和 `fetcher-generator.config.json` 回退读取可用，已弃用的 `Condition` API 也可用。它们都在 v10 移除；在此之前请改用 `FilterExpression` 和 `filter.*` 构造器，见[过滤器](../../reference/typescript/wow-client/filters.md)。
+- 在 Wow 9.x 期间，客户端和生成器仍能连接 Wow 8.x 服务端（8.11 及以后用 `FilterExpression`，8.10 通过 `@ahoo-wang/wow-client/legacy`），`fetcher-generator` 别名和 `fetcher-generator.config.json` 回退读取可用，已弃用的 `Condition` API 也可以从 `/legacy` 导入。它们都在 v10 移除；在此之前请改用 `FilterExpression` 和 `filter.*` 构造器，见[过滤器](../../reference/typescript/wow-client/filters.md)。
 - 新功能只进 Wow 的包。Fetcher 保留 5.x 分支只做修复，计划在 Fetcher 6.0 发布时对 `fetcher-wow` 和 `fetcher-generator` 执行 npm deprecate。
 
 ## 检查清单
@@ -119,7 +138,7 @@ pnpm test
 | 检查项 | 完成标准 |
 |---|---|
 | 依赖 | `package.json` 中已没有 `fetcher-wow` 和 `fetcher-generator`，用到 `fetcher-react` 的地方版本不低于 5.1.3 |
-| 导入 | 没有源文件导入 `@ahoo-wang/fetcher-wow`，Wow 查询 Hook 从 `@ahoo-wang/wow-react` 导入 |
+| 导入 | 没有源文件导入 `@ahoo-wang/fetcher-wow`，`Condition` API 和操作符文案从 `@ahoo-wang/wow-client/legacy` 导入，Wow 查询 Hook 从 `@ahoo-wang/wow-react` 导入 |
 | 生成代码 | 已用 `wow-generator` 重新生成，生成文件导入的是 `@ahoo-wang/wow-client` |
 | 版本 | `wow-client`、`wow-generator`、`wow-react` 处于同一个小版本，并与 Wow 服务端一致 |
 | 验证 | 类型检查以及针对真实 Wow 服务端的集成测试通过 |

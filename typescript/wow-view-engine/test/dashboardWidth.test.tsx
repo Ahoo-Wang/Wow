@@ -60,6 +60,7 @@ import {
   testSource,
 } from './fixtures.js';
 import { panel, pending } from './fixtures/dashboard.js';
+import { gridLines } from '../src/ui/dashboard/gridLines.js';
 
 /**
  * Every grid the library is handed, as it was handed it: the width it is
@@ -336,5 +337,68 @@ describe('the first frame (measured before the first paint)', () => {
     // A hidden container, or a DOM without layout: drawn, as before.
     await waitFor(() => expect(slot('panel-title')).not.toBeNull());
     expect(grids[0]).toEqual({ width: 1280, cols: 24 });
+  });
+});
+
+/**
+ * The cells while a board is built (the user's 2026-09-24 walk-through). The
+ * pixels are the browser story's to measure (`GridLinesWhileBuilding`); here
+ * is what jsdom can witness — whether the lines are asked for, and the sizes
+ * they are asked at, which are the library's own sums over the width the
+ * grid is drawn at.
+ */
+describe('the grid lines while a board is built', () => {
+  const lines = () => slot('dashboard-tab-panel')!;
+  const cellWidth = () =>
+    Number.parseFloat(lines().style.getPropertyValue('--grid-cell-w'));
+
+  it('draws the cells while built and nothing while read', async () => {
+    const controller = await openGrid(
+      dashboardConfig({ panels: [panel({ title: 'Pending' })] }),
+    );
+    measure(1280);
+    const view = render(<DashboardGrid dashboard={controller()} />);
+    expect(lines().hasAttribute('data-grid-lines')).toBe(false);
+    expect(lines().style.getPropertyValue('--grid-cell-w')).toBe('');
+
+    view.rerender(<DashboardGrid dashboard={controller()} editable />);
+    expect(lines().hasAttribute('data-grid-lines')).toBe(true);
+    // 1280px, less the 10px padding on each side and 23 gaps of 10px, over
+    // 24 columns; the row is the grid's, the gap and the padding the
+    // library's.
+    expect(cellWidth()).toBeCloseTo((1280 - 20 - 230) / 24);
+    const style = lines().style;
+    expect(style.getPropertyValue('--grid-cell-h')).toBe('80px');
+    expect(style.getPropertyValue('--grid-gap-x')).toBe('10px');
+    expect(style.getPropertyValue('--grid-gap-y')).toBe('10px');
+    expect(style.getPropertyValue('--grid-offset-x')).toBe('10px');
+    expect(style.getPropertyValue('--grid-offset-y')).toBe('10px');
+  });
+
+  it('follows the width the grid is drawn at, and draws none in one column', async () => {
+    const controller = await openGrid(
+      dashboardConfig({ panels: [panel({ title: 'Pending' })] }),
+    );
+    measure(1920);
+    render(<DashboardGrid dashboard={controller()} editable />);
+    expect(cellWidth()).toBeCloseTo((1920 - 20 - 230) / 24);
+    cleanup();
+
+    measure(375);
+    render(<DashboardGrid dashboard={controller()} editable />);
+    expect(slot('dashboard-grid')!.dataset.narrow).toBe('true');
+    expect(lines().hasAttribute('data-grid-lines')).toBe(false);
+  });
+
+  it('draws none over a board with no panel on it', async () => {
+    const controller = await openGrid(dashboardConfig({ panels: [] }));
+    measure(1280);
+    render(<DashboardGrid dashboard={controller()} editable />);
+    expect(lines().hasAttribute('data-grid-lines')).toBe(false);
+  });
+
+  it('asks for nothing before the grid is measured', () => {
+    expect(gridLines({ width: 0, cols: 24, rowHeight: 80 })).toBeUndefined();
+    expect(gridLines({ width: 800, cols: 0, rowHeight: 80 })).toBeUndefined();
   });
 });

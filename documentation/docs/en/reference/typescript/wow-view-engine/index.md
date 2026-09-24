@@ -19,6 +19,8 @@ For what the engine does and a walkthrough of the target usage, read the [View E
 | `/react` | `useViewEngine`, `useOpenView`, `useViewRuntime`, `useViewList`, `useViewManager`, `useWorkbench`, `useLeaveGuard`, `useFilterEditor`, `useRecordTable`, `useAnalysisEditor`, `useAnalysisResult`, `useDashboard`, `useSaveCommands`, `RecordActionSlots` |
 | `/ui` | Workbenches (`DataWorkbench`, `DashboardWorkbench`), embeds (`EmbeddedView`, `EmbeddedDashboard`), view management (`ViewHeader`, `SaveActions`, `ViewManager`, `LeaveDialog`), editing and results (`FilterPanel`, `RecordTable`, `RecordCards`, `RecordPagination`, `AnalysisTable`, `AnalysisChart`, `DashboardGrid`), content panels, and `MessagesProvider` |
 | `/styles.css` | The theme. Import it explicitly; no JavaScript entry imports CSS |
+| `/themes.css` | Optional presets, selected by `data-fve-preset` |
+| `/shadcn-bridge.css` | Optional: a host's shadcn tokens read into the view's variables, except `input`, `ring`, the status and the chart colours |
 
 The root entry has no React or DOM dependency. `react` and `react-dom` are peer dependencies needed only by `/react` and `/ui`.
 
@@ -88,7 +90,7 @@ Architecture tests enforce the dependency rules: `model` imports nothing; `filte
 | Data source | `resolveSource(key)` returns a `wow-client` query client |
 | Persistence | Implement `ViewStore` |
 | Actions | Pass `global`, `bulk`, and `row` action render functions to a workbench; they are code and are never saved |
-| Appearance | CSS variables and theme files; replace components by composing the `/react` hooks |
+| Appearance | CSS variables, presets and the shadcn bridge (see [Theming the View Engine](../../../guide/typescript/view-engine-theming.md)); replace components by composing the `/react` hooks |
 | Wording | `defaultMessages` (English) and `zhCN` catalogues, merged through the `messages` prop or `MessagesProvider` |
 
 ## Source

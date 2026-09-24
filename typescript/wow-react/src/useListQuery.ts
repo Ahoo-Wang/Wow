@@ -11,11 +11,9 @@
  * limitations under the License.
  */
 
-import type {
-  FilterListQuery,
-  ListQuery,
-  ListQueryRequest,
-} from '@ahoo-wang/wow-client';
+import type { FilterListQuery } from '@ahoo-wang/wow-client';
+// compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
+import type { ListQuery, ListQueryRequest } from '@ahoo-wang/wow-client/legacy';
 import type { FetcherError } from '@ahoo-wang/fetcher';
 import type {
   UseQueryOptions,
@@ -35,7 +33,7 @@ export interface UseListQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends ListQueryRequest<FIELDS> = ListQuery<FIELDS>,
+  Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
 > extends UseQueryOptions<Q, R[], E> {}
 
 /**
@@ -50,11 +48,11 @@ export interface UseListQueryReturn<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends ListQueryRequest<FIELDS> = ListQuery<FIELDS>,
+  Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
 > extends UseQueryReturn<Q, R[], E> {}
 
 /**
- * Hook for querying list data with conditions, projection, and sorting.
+ * Hook for querying list data with a filter, projection, and sorting.
  * Wraps useQuery to provide type-safe list queries.
  *
  * @template R - The type of the result items in the list
@@ -67,7 +65,7 @@ export interface UseListQueryReturn<
  * ```typescript
  * const { data, isLoading } = useListQuery<{ id: number; name: string }, 'id' | 'name'>({
  *   initialQuery: {
- *     condition: all(),
+ *     filter: filter.matchAll(),
  *     projection: { include: ['id', 'name'] },
  *     sort: [{ field: 'id', direction: SortDirection.ASC }],
  *   },
@@ -80,20 +78,20 @@ export function useListQuery<
   FIELDS extends string = string,
   E = FetcherError,
 >(
-  options: UseListQueryOptions<R, FIELDS, E, ListQuery<FIELDS>>,
-): UseListQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
-export function useListQuery<
-  R,
-  FIELDS extends string = string,
-  E = FetcherError,
->(
   options: UseListQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>,
 ): UseListQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
 export function useListQuery<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends ListQueryRequest<FIELDS> = ListQuery<FIELDS>,
+>(
+  options: UseListQueryOptions<R, FIELDS, E, ListQuery<FIELDS>>,
+): UseListQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
+export function useListQuery<
+  R,
+  FIELDS extends string = string,
+  E = FetcherError,
+  Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
 >(
   options: UseListQueryOptions<R, FIELDS, E, Q>,
 ): UseListQueryReturn<R, FIELDS, E, Q>;

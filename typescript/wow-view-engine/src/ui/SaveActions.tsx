@@ -68,6 +68,14 @@ export interface SaveActionsProps extends Pick<
 > {
   commands: SaveCommands;
   title: string;
+  /**
+   * Whether a save in place is offered only while something is unsaved: a
+   * view whose edits are made and saved in a building state of its own — a
+   * dashboard, whose edit bar holds 「保存」 (D32). Read with nothing to
+   * save, such a view's save in place could only ever be a disabled button
+   * beside its primary 「编辑」, so the group is the copy alone.
+   */
+  copyWhenClean?: boolean;
 }
 
 /**
@@ -89,6 +97,7 @@ export function SaveActions({
   title,
   onSaved,
   onCreated,
+  copyWhenClean = false,
 }: SaveActionsProps) {
   const messages = useViewMessages();
   const word = useKindWord();
@@ -148,13 +157,25 @@ export function SaveActions({
   // which the header draws whether or not a save is on offer.
   if (!can.save && !can.saveAs) return null;
 
+  // A view saved from its building state, read with nothing unsaved: a save
+  // in place here could never be pressed, so the button copies (D32). The
+  // word that a save from the edit bar landed stays — the header comes back
+  // as the building ends, and says so.
+  const idle = copyWhenClean && !first && !state.dirty;
+  const announce = saved && (
+    <span role="status" className="sr-only">
+      {messages.label(word('label.save.saved-announce'))}
+    </span>
+  );
+  if (idle && !can.saveAs) return announce || null;
+
   // Not for a first save: saving *is* creating, and a second way to create
   // the same view would be the same question asked twice.
-  const menuSaveAs = can.save && can.saveAs && !first;
+  const menuSaveAs = can.save && can.saveAs && !first && !idle;
   // What the primary button does. A first save asks its two questions
-  // first; a save in place writes; and without a save permission at all
-  // it copies.
-  const saves = can.save && !first;
+  // first; a save in place writes; and without a save permission at all —
+  // or with nothing a building left unsaved — it copies.
+  const saves = can.save && !first && !idle;
   // Spelled out rather than taken from `blocked`, because the outcomes are
   // not one thing. A write in flight stops everything. An unknown outcome
   // must be settled first — the engine refuses the next write anyway. A
@@ -170,7 +191,7 @@ export function SaveActions({
   // there — a shared dashboard naming a personal view is the standard case.
   // So the dialog judges its own target, and this button does not judge it
   // for it.
-  const blockedDraft = can.save && state.hasErrors;
+  const blockedDraft = can.save && !idle && state.hasErrors;
   // A save in place over a shared view is everyone's view changing under
   // them, one click and no way back but the next save (2026-09-23 audit).
   // So that one asks first, naming the view; a personal view is the
@@ -187,7 +208,13 @@ export function SaveActions({
           // A save with nothing to save is the one disabled button here: the
           // permission is held, so the button belongs on screen, and the
           // reason it does nothing is the state the user can see.
-          disabled={stopped || blockedDraft || (saves && !state.dirty)}
+          // While it says a save from the edit bar landed, the copy waits.
+          disabled={
+            stopped ||
+            blockedDraft ||
+            (saves && !state.dirty) ||
+            (idle && saved)
+          }
           onClick={() => {
             if (!saves) setCopying(true);
             else if (state.audience === 'shared') setConfirming(true);
@@ -240,11 +267,7 @@ export function SaveActions({
 
       {/* Announced rather than only shown: the word appears on the control
           the user just pressed, which a screen reader does not re-read. */}
-      {saved && (
-        <span role="status" className="sr-only">
-          {messages.label(word('label.save.saved-announce'))}
-        </span>
-      )}
+      {announce}
 
       {copy}
       <SharedSaveConfirm

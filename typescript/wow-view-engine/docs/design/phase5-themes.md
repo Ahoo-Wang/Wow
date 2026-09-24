@@ -152,6 +152,8 @@ shadcn 把一套主题拆成几个维度：中性灰（baseColor：neutral、sto
 - 挂在子树上的 `data-fve-preset` 也送得到弹层：面往上找最近的预设交给弹层照抄。3.2 与第 5 节记的那条限制因此只剩「只改元素上的 `--fve-*`、不设属性」一种。
 - 预设块写成 `:where([data-fve-preset='…'])`，不占特异性：宿主在 `:root` 上自己写的变量总赢过它选的预设。每套预设赋同一整套变量（图表八色、`pin-shadow`、`text-ui` 除外），`neutral` 全写 `initial`，由 `verify-package` 断言；`blue`／`slate` 的值留给 5C，5B 用 story 里的一套 `story-probe` 验机制。
 
+**5C 落地时的细节取舍**（写进了 [ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)）：`blue`／`slate` 与 neutral 相同的值写 `initial`，不抄 neutral 的值；两套的暗色 `primary` 取 blue-400 而不是 shadcn 的 blue-800（主色也写字、也表示状态，blue-800 在暗色卡片上约 2:1）；`input`／`ring` 不换成品牌色（shadcn 主题本身也不动它们）；对比度由单测 test/presetContrast.test.ts 按两份样式表解析出的值逐对量，浏览器里的矩阵归 5D。
+
 ### 裁定
 
 用户 2026-09-24 全部按推荐拍板，结论与理由记在 [D30](decisions.md#d30-阶段-5-内置多主题的十条裁定2026-09-24)：

@@ -11,11 +11,9 @@
  * limitations under the License.
  */
 
-import type {
-  FilterListQuery,
-  ListQuery,
-  ListQueryRequest,
-} from '@ahoo-wang/wow-client';
+import type { FilterListQuery } from '@ahoo-wang/wow-client';
+// compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
+import type { ListQuery, ListQueryRequest } from '@ahoo-wang/wow-client/legacy';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import type { FetcherError } from '@ahoo-wang/fetcher';
 import type {
@@ -36,7 +34,7 @@ export interface UseListStreamQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends ListQueryRequest<FIELDS> = ListQuery<FIELDS>,
+  Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
 > extends UseQueryOptions<Q, ReadableStream<JsonServerSentEvent<R>>, E> {}
 
 /**
@@ -51,11 +49,11 @@ export interface UseListStreamQueryReturn<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends ListQueryRequest<FIELDS> = ListQuery<FIELDS>,
+  Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
 > extends UseQueryReturn<Q, ReadableStream<JsonServerSentEvent<R>>, E> {}
 
 /**
- * Hook for querying streaming list data with conditions, projection, and sorting.
+ * Hook for querying streaming list data with a filter, projection, and sorting.
  * Wraps useQuery to provide type-safe streaming list queries.
  *
  * @template R - The type of the result items in the stream events
@@ -68,7 +66,7 @@ export interface UseListStreamQueryReturn<
  * ```typescript
  * const { data, isLoading } = useListStreamQuery<{ id: number; name: string }, 'id' | 'name'>({
  *   initialQuery: {
- *     condition: all(),
+ *     filter: filter.matchAll(),
  *     projection: { include: ['id', 'name'] },
  *     sort: [{ field: 'id', direction: SortDirection.ASC }],
  *   },
@@ -81,20 +79,20 @@ export function useListStreamQuery<
   FIELDS extends string = string,
   E = FetcherError,
 >(
-  options: UseListStreamQueryOptions<R, FIELDS, E, ListQuery<FIELDS>>,
-): UseListStreamQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
-export function useListStreamQuery<
-  R,
-  FIELDS extends string = string,
-  E = FetcherError,
->(
   options: UseListStreamQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>,
 ): UseListStreamQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
 export function useListStreamQuery<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends ListQueryRequest<FIELDS> = ListQuery<FIELDS>,
+>(
+  options: UseListStreamQueryOptions<R, FIELDS, E, ListQuery<FIELDS>>,
+): UseListStreamQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
+export function useListStreamQuery<
+  R,
+  FIELDS extends string = string,
+  E = FetcherError,
+  Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
 >(
   options: UseListStreamQueryOptions<R, FIELDS, E, Q>,
 ): UseListStreamQueryReturn<R, FIELDS, E, Q>;

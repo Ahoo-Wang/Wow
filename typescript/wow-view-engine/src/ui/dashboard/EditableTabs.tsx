@@ -18,17 +18,15 @@
  * the question a tab that carries panels is asked before it goes.
  */
 
-import { useEffect, useRef } from 'react';
 import { DragDropProvider } from '@dnd-kit/react';
 import { useSortable } from '@dnd-kit/react/sortable';
-import { Accessibility } from '@dnd-kit/dom';
-import { OptimisticSortingPlugin } from '@dnd-kit/dom/sortable';
 import { EllipsisIcon, PlusIcon } from 'lucide-react';
 import type { DashboardTab } from '../../model/index.js';
 import { DragHandle } from '../DragHandle.js';
 import { IconButton } from '../IconButton.js';
 import { dragAccessibility } from '../dragAnnounce.js';
 import { dropped } from '../dragDrop.js';
+import { announcedPlugins, withoutOptimisticSorting } from '../dragPlugins.js';
 import { dragWording } from '../dragWording.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import {
@@ -48,8 +46,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../components/dropdown-menu.js';
-import { Input } from '../components/input.js';
 import { AlertDialogContent, DropdownMenuContent } from '../popups.js';
+import { RenameInput } from '../RenameInput.js';
 
 /**
  * The bar being built: a list whose rows carry a handle, the press that
@@ -89,21 +87,12 @@ export function EditableTabBar({
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-1 border-b pb-1">
       <DragDropProvider
-        plugins={defaults =>
-          defaults.map(plugin =>
-            plugin === Accessibility
-              ? Accessibility.configure(
-                  dragAccessibility(
-                    dragWording(messages, TAB_DRAG_WORDING),
-                    id => {
-                      const at = tabs.findIndex(tab => tab.id === id);
-                      return at < 0 ? id : titleOf(tabs[at], at);
-                    },
-                  ),
-                )
-              : plugin,
-          )
-        }
+        plugins={announcedPlugins(
+          dragAccessibility(dragWording(messages, TAB_DRAG_WORDING), id => {
+            const at = tabs.findIndex(tab => tab.id === id);
+            return at < 0 ? id : titleOf(tabs[at], at);
+          }),
+        )}
         onDragEnd={({ operation, canceled }) => {
           const drop = dropped(operation, canceled);
           if (!drop) return;
@@ -231,8 +220,7 @@ function EditableTab({
   const { ref, handleRef, isDragging } = useSortable({
     id: tab.id,
     index,
-    plugins: defaults =>
-      defaults.filter(plugin => plugin !== OptimisticSortingPlugin),
+    plugins: withoutOptimisticSorting,
   });
   return (
     <li
@@ -249,11 +237,15 @@ function EditableTab({
         onMove={step => onMove(index + step)}
       />
       {renaming ? (
-        <TabNameField
-          title={tab.title}
+        // A tab is never left without a name to be called by.
+        <RenameInput
+          data-slot="dashboard-tab-name"
+          initial={tab.title}
           label={messages.label('label.tabs.rename-field', { title })}
-          onDone={onRenamed}
+          required
+          onCommit={onRenamed}
           onCancel={onRenameCancel}
+          className="h-7 w-36"
         />
       ) : (
         <Button
@@ -310,62 +302,6 @@ function EditableTab({
         </DropdownMenuContent>
       </DropdownMenu>
     </li>
-  );
-}
-
-/**
- * A tab's name, typed in place: Enter or leaving the field keeps it, Escape
- * puts the old one back. A blank name keeps the old one too — the kernel
- * refuses it, and a tab is never left without a name to be called by.
- */
-function TabNameField({
-  title,
-  label,
-  onDone,
-  onCancel,
-}: {
-  title: string;
-  label: string;
-  onDone(title: string): void;
-  onCancel(): void;
-}) {
-  const input = useRef<HTMLInputElement | null>(null);
-  const done = useRef(false);
-  // Taken once the menu that asked for it has let the keyboard go: the
-  // menu hands focus back to its trigger as it closes, which is after the
-  // press that opened this field.
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => {
-      input.current?.focus();
-      input.current?.select();
-    });
-    return () => cancelAnimationFrame(frame);
-  }, []);
-  const finish = (keep: boolean) => {
-    if (done.current) return;
-    done.current = true;
-    if (keep) onDone(input.current?.value ?? title);
-    else onCancel();
-  };
-  return (
-    <Input
-      ref={input}
-      data-slot="dashboard-tab-name"
-      aria-label={label}
-      defaultValue={title}
-      className="h-7 w-36"
-      onBlur={() => finish(true)}
-      onKeyDown={event => {
-        if (event.key === 'Enter') {
-          event.preventDefault();
-          finish(true);
-        } else if (event.key === 'Escape') {
-          event.preventDefault();
-          event.stopPropagation();
-          finish(false);
-        }
-      }}
-    />
   );
 }
 

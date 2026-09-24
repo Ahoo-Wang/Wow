@@ -25,6 +25,7 @@
     "eslint": "catalog:",
     "globals": "catalog:",
     "prettier": "catalog:",
+    "publint": "catalog:",
     "typescript": "catalog:"
   }
 }

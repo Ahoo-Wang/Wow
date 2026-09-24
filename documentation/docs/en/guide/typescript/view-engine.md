@@ -121,6 +121,8 @@ export function OrdersPage() {
 }
 ```
 
+Views follow your page's light or dark mode and take their colours from CSS variables; presets, `theme="system"`, pinning and the shadcn bridge are in [Theming the View Engine](./view-engine-theming.md).
+
 A custom layout uses the headless hooks of the `/react` entry, such as `useOpenView`, `useViewRuntime`, `useFilterEditor`, and `useRecordTable`, and renders any markup from them without reaching into engine internals.
 
 The first complete example walks through the Record workbench: filter pending orders, adjust columns and sorting, save a personal view, and reopen it. It is published together with the package.
@@ -135,9 +137,11 @@ Each view runs in [Storybook](/storybook/) against in-memory fixtures, inside a 
 | Analysis | [Analysis workbench](/storybook/?path=/docs/view-engine-分析视图-分析工作台--docs) |
 | Dashboard | [Dashboard](/storybook/?path=/docs/view-engine-仪表盘视图-dashboard--docs) |
 | Embedded view or dashboard | [EmbeddedView](/storybook/?path=/docs/view-engine-数据视图-embeddedview--docs) and [EmbeddedDashboard](/storybook/?path=/docs/view-engine-仪表盘视图-embeddeddashboard--docs) |
+| Themes | [Theme gallery and contrast matrix](/storybook/?path=/docs/view-engine-主题-预设--docs) |
 
 ## Where to read more
 
 - [wow-view-engine reference](../../reference/typescript/wow-view-engine/): entries, concepts, persistence port, and extension points.
+- [Theming the View Engine](./view-engine-theming.md): presets, host variables, light, dark and system mode, the shadcn bridge, and the contrast an override owes.
 - [Design documents](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design): the source of truth while the package is unreleased.
 - [Package README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.md): the API as it stands today.

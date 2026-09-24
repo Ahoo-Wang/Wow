@@ -11,10 +11,67 @@
  * limitations under the License.
  */
 
-import type { Preview } from '@storybook/react-vite';
-import { withThemeByClassName } from '@storybook/addon-themes';
+import type { Decorator, Preview } from '@storybook/react-vite';
+import { DecoratorHelpers } from '@storybook/addon-themes';
+import { useEffect } from 'storybook/preview-api';
+import '@ahoo-wang/wow-view-engine/themes.css';
 import './preview.css';
 import { DocsPage } from './DocsPage.js';
+import {
+  DEFAULT_PRESET,
+  MODES,
+  PRESETS,
+} from '../stories/view-engine/presets.js';
+
+const { initializeThemeState, pluckThemeFromContext } = DecoratorHelpers;
+
+/**
+ * The mode, on the addon's own toolbar switch: light, dark, or the reader's
+ * system (phase 5, 5D). The stories draw their surfaces the way a host's
+ * page does — following a `.dark` class on `<html>` rather than pinning a
+ * `theme` — so this is what the switch sets, and `system` sets it from
+ * `prefers-color-scheme`, following a change while the story is open, the
+ * way a host with no toggle of its own would. The global keeps the addon's
+ * name, `theme`, so a story's `globals: { theme: 'dark' }` still pins it.
+ */
+initializeThemeState([...MODES], 'light');
+const withMode: Decorator = (storyFn, context) => {
+  const { themeOverride } = (context.parameters.themes ?? {}) as {
+    themeOverride?: string;
+  };
+  const mode = themeOverride || pluckThemeFromContext(context) || 'light';
+  useEffect(() => {
+    const html = document.documentElement;
+    if (mode !== 'system') {
+      html.classList.toggle('dark', mode === 'dark');
+      return;
+    }
+    const query = matchMedia('(prefers-color-scheme: dark)');
+    const follow = () => html.classList.toggle('dark', query.matches);
+    follow();
+    query.addEventListener('change', follow);
+    return () => query.removeEventListener('change', follow);
+  }, [mode]);
+  return storyFn();
+};
+
+/**
+ * The preset, on a toolbar switch of its own (phase 5, 5D): the presets
+ * `themes.css` declares, put on `<html>` as `data-fve-preset` — where a host
+ * puts it, so every surface and every popup portalled to `<body>` takes it.
+ * The default preset is the theme itself, so it is no attribute at all: a
+ * story that sets one of its own finds the page as a host with no preset
+ * leaves it.
+ */
+const withPreset: Decorator = (storyFn, context) => {
+  const preset = String(context.globals.fvePreset ?? DEFAULT_PRESET);
+  useEffect(() => {
+    const html = document.documentElement;
+    if (preset === DEFAULT_PRESET) html.removeAttribute('data-fve-preset');
+    else html.setAttribute('data-fve-preset', preset);
+  }, [preset]);
+  return storyFn();
+};
 
 const preview: Preview = {
   parameters: {
@@ -55,22 +112,29 @@ const preview: Preview = {
           // The rewrite (typescript/wow-view-engine/docs/design/) delivers one
           // surface per step; this list grows with them rather than reserving
           // names for stories that do not exist yet.
-          ['首页', '数据视图', '分析视图', '仪表盘视图', '真实后端'],
+          ['首页', '数据视图', '分析视图', '仪表盘视图', '主题', '真实后端'],
           'Viewer',
           '开发验证',
         ],
       },
     },
   },
+  globalTypes: {
+    fvePreset: {
+      description: 'View Engine preset (data-fve-preset on <html>)',
+      toolbar: {
+        title: 'Preset',
+        icon: 'paintbrush',
+        items: PRESETS.map(preset => ({ value: preset, title: preset })),
+        dynamicTitle: true,
+      },
+    },
+  },
+  initialGlobals: { fvePreset: DEFAULT_PRESET },
   // View Engine's dark theme wakes up when `.dark` sits on an ancestor of
-  // `.fve-root`; the addon puts it on `<html>`, so the toolbar switch reaches
-  // every story the same way a host application would.
-  decorators: [
-    withThemeByClassName({
-      themes: { light: '', dark: 'dark' },
-      defaultTheme: 'light',
-    }),
-  ],
+  // `.fve-root`, and a preset when `data-fve-preset` does; both go on
+  // `<html>`, so the toolbar reaches every story the way a host would.
+  decorators: [withMode, withPreset],
   tags: ['autodocs', 'test'],
 };
 

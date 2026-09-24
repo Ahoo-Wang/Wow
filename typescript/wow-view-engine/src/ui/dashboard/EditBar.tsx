@@ -195,6 +195,9 @@ export function EditBar({
         )}
         <Button
           data-slot="dashboard-save"
+          // The board's one primary while it is built, last on the bar as
+          // 「编辑」 is last on the header while it is read (D32).
+          data-emphasis="primary"
           size="sm"
           // A board whose draft cannot be saved says why in the status line
           // above; 保存 waits for it, and 取消 is still there.
