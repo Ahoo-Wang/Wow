@@ -12,8 +12,8 @@
  */
 
 import type { ExchangeError } from "@ahoo-wang/fetcher";
-import { useExecutePromise } from "@ahoo-wang/fetcher-react";
-import type { CommandResult, StateCapable } from "@ahoo-wang/fetcher-wow";
+import { useExecutePromise } from "@ahoo-wang/fetcher-react/core";
+import type { CommandResult, StateCapable } from "@ahoo-wang/wow-client";
 import {
   CircleCheck,
   Clipboard,

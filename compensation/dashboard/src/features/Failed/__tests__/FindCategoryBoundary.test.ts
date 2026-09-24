@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@ahoo-wang/fetcher-wow", () => {
+vi.mock("@ahoo-wang/wow-client", () => {
   throw new Error("FindCategory must not load the query runtime");
 });
 

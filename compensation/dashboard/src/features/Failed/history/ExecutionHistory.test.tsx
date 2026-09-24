@@ -21,7 +21,7 @@ import {
 import {
   RecoverableType,
   type DomainEventStream,
-} from "@ahoo-wang/fetcher-wow";
+} from "@ahoo-wang/wow-client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExecutionFailedDomainEventType } from "../../../generated";
 import { ExecutionHistory } from "./ExecutionHistory.tsx";

@@ -18,13 +18,13 @@ import {
   desc,
   DomainEventStreamMetadataFields,
   filter,
-} from "@ahoo-wang/fetcher-wow";
+} from "@ahoo-wang/wow-client";
 import type {
   AggregationQuery,
   CountAggregationMetric,
   FilterExpression,
   RecoverableType,
-} from "@ahoo-wang/fetcher-wow";
+} from "@ahoo-wang/wow-client";
 import {
   ExecutionFailedAggregatedFields,
   ExecutionFailedStatus,

@@ -12,7 +12,7 @@
  */
 
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { AggregationDateUnit } from "@ahoo-wang/fetcher-wow";
+import { AggregationDateUnit } from "@ahoo-wang/wow-client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PressureClusterRow, TrendWindow } from "./analyticsQueries.ts";
 import { useSnapshotAnalytics } from "./useSnapshotAnalytics.ts";

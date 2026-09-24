@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
-import { AggregationDateUnit, RecoverableType } from "@ahoo-wang/fetcher-wow";
+import { AggregationDateUnit, RecoverableType } from "@ahoo-wang/wow-client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrendPoint } from "./analyticsQueries.ts";
 import type {

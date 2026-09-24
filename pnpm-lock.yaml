@@ -18,17 +18,11 @@ catalogs:
     '@ahoo-wang/fetcher-eventstream':
       specifier: ^5.1.0 || ^6.0.0
       version: 5.1.2
-    '@ahoo-wang/fetcher-generator':
-      specifier: ^5.1.3
-      version: 5.1.3
     '@ahoo-wang/fetcher-openapi':
       specifier: ^5.1.0 || ^6.0.0
       version: 5.1.3
     '@ahoo-wang/fetcher-react':
       specifier: ^5.1.3 || ^6.0.0
-      version: 5.1.3
-    '@ahoo-wang/fetcher-wow':
-      specifier: ^5.1.3
       version: 5.1.3
     '@babel/core':
       specifier: 7.29.7
@@ -332,9 +326,12 @@ importers:
       '@ahoo-wang/fetcher-react':
         specifier: 'catalog:'
         version: 5.1.3(@ahoo-wang/fetcher-cosec@5.1.2(@ahoo-wang/fetcher-eventbus@5.0.0(@ahoo-wang/fetcher@5.1.2))(@ahoo-wang/fetcher-storage@5.0.0(@ahoo-wang/fetcher-eventbus@5.0.0(@ahoo-wang/fetcher@5.1.2)))(@ahoo-wang/fetcher@5.1.2))(@ahoo-wang/fetcher-eventbus@5.0.0(@ahoo-wang/fetcher@5.1.2))(@ahoo-wang/fetcher-eventstream@5.1.2(@ahoo-wang/fetcher@5.1.2))(@ahoo-wang/fetcher-storage@5.0.0(@ahoo-wang/fetcher-eventbus@5.0.0(@ahoo-wang/fetcher@5.1.2)))(@ahoo-wang/fetcher-wow@5.1.3(@ahoo-wang/fetcher-decorator@5.1.2(@ahoo-wang/fetcher@5.1.2))(@ahoo-wang/fetcher-eventstream@5.1.2(@ahoo-wang/fetcher@5.1.2))(@ahoo-wang/fetcher@5.1.2))(@ahoo-wang/fetcher@5.1.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      '@ahoo-wang/fetcher-wow':
-        specifier: 'catalog:'
-        version: 5.1.3(@ahoo-wang/fetcher-decorator@5.1.2(@ahoo-wang/fetcher@5.1.2))(@ahoo-wang/fetcher-eventstream@5.1.2(@ahoo-wang/fetcher@5.1.2))(@ahoo-wang/fetcher@5.1.2)
+      '@ahoo-wang/wow-client':
+        specifier: workspace:*
+        version: link:../../typescript/wow-client
+      '@ahoo-wang/wow-react':
+        specifier: workspace:*
+        version: link:../../typescript/wow-react
       '@base-ui/react':
         specifier: 'catalog:'
         version: 1.8.0(@date-fns/tz@1.5.0)(@types/react@19.3.0)(date-fns@4.4.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -390,9 +387,9 @@ importers:
         specifier: 'catalog:'
         version: 1.4.0
     devDependencies:
-      '@ahoo-wang/fetcher-generator':
-        specifier: 'catalog:'
-        version: 5.1.3(@ahoo-wang/fetcher-decorator@5.1.2(@ahoo-wang/fetcher@5.1.2))(@ahoo-wang/fetcher-eventstream@5.1.2(@ahoo-wang/fetcher@5.1.2))(@ahoo-wang/fetcher-openapi@5.1.3)(@ahoo-wang/fetcher-wow@5.1.3(@ahoo-wang/fetcher-decorator@5.1.2(@ahoo-wang/fetcher@5.1.2))(@ahoo-wang/fetcher-eventstream@5.1.2(@ahoo-wang/fetcher@5.1.2))(@ahoo-wang/fetcher@5.1.2))(@ahoo-wang/fetcher@5.1.2)
+      '@ahoo-wang/wow-generator':
+        specifier: workspace:*
+        version: link:../../typescript/wow-generator
       '@babel/core':
         specifier: 'catalog:'
         version: 7.29.7
@@ -1059,17 +1056,6 @@ packages:
     engines: {node: '>=18.20.8'}
     peerDependencies:
       '@ahoo-wang/fetcher': ^5.0.0
-
-  '@ahoo-wang/fetcher-generator@5.1.3':
-    resolution: {integrity: sha512-ed3mIxU3ya7qSAI/qtb678UJn6mJLjMKhffwA2TlxBnA4/P8SH3ZintJ5/PHTbRFrcNQirV1hlbLLxY/etcALw==}
-    engines: {node: '>=18.20.8'}
-    hasBin: true
-    peerDependencies:
-      '@ahoo-wang/fetcher': ^5.0.0
-      '@ahoo-wang/fetcher-decorator': ^5.0.0
-      '@ahoo-wang/fetcher-eventstream': ^5.0.0
-      '@ahoo-wang/fetcher-openapi': ^5.0.0
-      '@ahoo-wang/fetcher-wow': ^5.0.0
 
   '@ahoo-wang/fetcher-openapi@5.1.3':
     resolution: {integrity: sha512-7dMJ0OnDZbtCWJ1GfXtyQbkavxaIRfD62dlPdG8roDCFD3+vqRafYfW5oCyfMr7NLzWeqHai911IYccQis3a3g==}
@@ -6549,17 +6535,6 @@ snapshots:
     dependencies:
       '@ahoo-wang/fetcher': 5.1.2
 
-  '@ahoo-wang/fetcher-generator@5.1.3(@ahoo-wang/fetcher-decorator@5.1.2(@ahoo-wang/fetcher@5.1.2))(@ahoo-wang/fetcher-eventstream@5.1.2(@ahoo-wang/fetcher@5.1.2))(@ahoo-wang/fetcher-openapi@5.1.3)(@ahoo-wang/fetcher-wow@5.1.3(@ahoo-wang/fetcher-decorator@5.1.2(@ahoo-wang/fetcher@5.1.2))(@ahoo-wang/fetcher-eventstream@5.1.2(@ahoo-wang/fetcher@5.1.2))(@ahoo-wang/fetcher@5.1.2))(@ahoo-wang/fetcher@5.1.2)':
-    dependencies:
-      '@ahoo-wang/fetcher': 5.1.2
-      '@ahoo-wang/fetcher-decorator': 5.1.2(@ahoo-wang/fetcher@5.1.2)
-      '@ahoo-wang/fetcher-eventstream': 5.1.2(@ahoo-wang/fetcher@5.1.2)
-      '@ahoo-wang/fetcher-openapi': 5.1.3
-      '@ahoo-wang/fetcher-wow': 5.1.3(@ahoo-wang/fetcher-decorator@5.1.2(@ahoo-wang/fetcher@5.1.2))(@ahoo-wang/fetcher-eventstream@5.1.2(@ahoo-wang/fetcher@5.1.2))(@ahoo-wang/fetcher@5.1.2)
-      commander: 14.0.3
-      ts-morph: 28.0.0
-      yaml: 2.9.1
-
   '@ahoo-wang/fetcher-openapi@5.1.3': {}
 
   '@ahoo-wang/fetcher-react@5.1.3(@ahoo-wang/fetcher-cosec@5.1.2(@ahoo-wang/fetcher-eventbus@5.0.0(@ahoo-wang/fetcher@5.1.2))(@ahoo-wang/fetcher-storage@5.0.0(@ahoo-wang/fetcher-eventbus@5.0.0(@ahoo-wang/fetcher@5.1.2)))(@ahoo-wang/fetcher@5.1.2))(@ahoo-wang/fetcher-eventbus@5.0.0(@ahoo-wang/fetcher@5.1.2))(@ahoo-wang/fetcher-eventstream@5.1.2(@ahoo-wang/fetcher@5.1.2))(@ahoo-wang/fetcher-storage@5.0.0(@ahoo-wang/fetcher-eventbus@5.0.0(@ahoo-wang/fetcher@5.1.2)))(@ahoo-wang/fetcher-wow@5.1.3(@ahoo-wang/fetcher-decorator@5.1.2(@ahoo-wang/fetcher@5.1.2))(@ahoo-wang/fetcher-eventstream@5.1.2(@ahoo-wang/fetcher@5.1.2))(@ahoo-wang/fetcher@5.1.2))(@ahoo-wang/fetcher@5.1.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
@@ -6585,6 +6560,7 @@ snapshots:
       '@ahoo-wang/fetcher': 5.1.2
       '@ahoo-wang/fetcher-decorator': 5.1.2(@ahoo-wang/fetcher@5.1.2)
       '@ahoo-wang/fetcher-eventstream': 5.1.2(@ahoo-wang/fetcher@5.1.2)
+    optional: true
 
   '@ahoo-wang/fetcher@5.1.2': {}
 

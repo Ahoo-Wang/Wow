@@ -12,7 +12,7 @@
  */
 
 import { fireEvent, render, screen } from "@testing-library/react";
-import { AggregationDateUnit } from "@ahoo-wang/fetcher-wow";
+import { AggregationDateUnit } from "@ahoo-wang/wow-client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import DashboardView from "./DashboardView.tsx";
 

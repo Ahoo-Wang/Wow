@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { PagedList } from "@ahoo-wang/fetcher-wow";
+import type { PagedList } from "@ahoo-wang/wow-client";
 import {
   createColumnHelper,
   flexRender,

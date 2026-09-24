@@ -32,7 +32,7 @@ export interface Link {
  * }
  * ```
  */
-export type StringLinkMap = Record<string, Link>;
+export type StringLinkMap = globalThis.Record<string, Link>;
 /**
  * - key: compensation.JsonNode
  * - schema: 
@@ -50,7 +50,7 @@ export type JsonNode = any;
  * }
  * ```
  */
-export type StringObjectMap = Record<string, any>;
+export type StringObjectMap = globalThis.Record<string, any>;
 /**
  * - key: compensation.StringStringListMap
  * - schema: 
@@ -66,7 +66,7 @@ export type StringObjectMap = Record<string, any>;
  * }
  * ```
  */
-export type StringStringListMap = Record<string, string[]>;
+export type StringStringListMap = globalThis.Record<string, string[]>;
 
 /**
  * - key: compensation.TimeUnit
@@ -87,11 +87,11 @@ export type StringStringListMap = Record<string, string[]>;
  * ```
  */
 export enum TimeUnit {
-    NANOSECONDS = `NANOSECONDS`,
-    MICROSECONDS = `MICROSECONDS`,
-    MILLISECONDS = `MILLISECONDS`,
-    SECONDS = `SECONDS`,
-    MINUTES = `MINUTES`,
-    HOURS = `HOURS`,
-    DAYS = `DAYS`
+    NANOSECONDS = 'NANOSECONDS',
+    MICROSECONDS = 'MICROSECONDS',
+    MILLISECONDS = 'MILLISECONDS',
+    SECONDS = 'SECONDS',
+    MINUTES = 'MINUTES',
+    HOURS = 'HOURS',
+    DAYS = 'DAYS'
 }

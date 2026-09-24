@@ -1,4 +1,4 @@
-import { filter, RecoverableType } from "@ahoo-wang/fetcher-wow";
+import { filter, RecoverableType } from "@ahoo-wang/wow-client";
 import { describe, expect, it } from "vitest";
 import {
   ExecutionFailedAggregatedFields,
