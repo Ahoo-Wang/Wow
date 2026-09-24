@@ -69,7 +69,7 @@
 
 ### 组件清单
 
-组件清单：`FilterPanel`、`RecordTable`、`RecordCards`、分析托盘 `Tray`、`AnalysisChart`（bar／line／area／combo／pie／scatter 由 ECharts 画，D21）、`Heatmap`、`Funnel`、`MetricCard`（都由 ECharts 画）、`DashboardGrid`（react-grid-layout 适配）、内容面板 `MarkdownPanel`（react-markdown，不启用原始 HTML）、`ImagePanel`（加载失败显示占位）、`LinksPanel`（外链带 `rel="noopener"`）、三个工作台（侧栏列表 + 标题栏 + 编辑带 + 状态条 + 已应用条件条 + 结果 + 分页）、`ViewHeader`、`SaveActions`、`ViewManager`、`EditorBand`、`ViewExpandToggle`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordPagination`、`EmbeddedView`、`EmbeddedDashboard`。每个默认组件只消费对应控制器，不直接调用 runtime 以外的对象。独立筛选器与值编辑器不需要 Engine。
+组件清单：`FilterPanel`、`RecordTable`、`RecordCards`、分析托盘 `Tray`、`AnalysisChart`（bar／line／area／combo／pie／scatter 由 ECharts 画，D21）、`Heatmap`、`Funnel`、`MetricCard`（都由 ECharts 画）、`DashboardGrid`（react-grid-layout 适配）、内容面板 `MarkdownPanel`（react-markdown，不启用原始 HTML）、`ImagePanel`（加载失败显示占位）、`LinksPanel`（外链带 `rel="noopener"`）、三个工作台（侧栏列表 + 标题栏 + 编辑带 + 状态条 + 已应用条件条 + 结果 + 分页）、`ViewHeader`、`SaveActions`、`ViewManager`、`EditorBand`、`ViewExpandToggle`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordPagination`、`EmbeddedView`、`EmbeddedDashboard`。默认组件读两样东西（A-15）：**纯内核读法可以直接用**——`filter`、`record`、`analysis`、`dashboard` 的函数只吃定义与配置、从根入口公开，换一套组件照样调得到；**有状态的判断走控制器**——凡是要读打开着的 runtime、在飞的写入或命令结局的，从 `/react` 的控制器拿，不在组件里自己拼。独立筛选器与值编辑器不需要 Engine。
 
 ## 主题、弹层与明暗
 
