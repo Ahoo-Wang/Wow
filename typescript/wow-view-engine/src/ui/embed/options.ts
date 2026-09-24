@@ -19,26 +19,22 @@ import type { RenderFailureHandler } from '../RenderBoundary.js';
 import type { ViewTheme } from '../ViewSurface.js';
 
 /**
- * How far a reader may go with an embedded record or analysis view (D22):
+ * How far a reader may go with an embed (D22, D36). Either way nothing is
+ * written: an embed never saves a view, a board or a preference — defining
+ * views, building boards and saving them are the workbenches' (D36).
  *
- * - `read-only` — what the page shows, as its author saved it: the rows or
- *   the chart and what they were fetched under; nothing on it reorders,
- *   pages, redraws or leads anywhere. The default, since a business page
- *   shows what someone already decided.
- * - `interactive` — the reader may look closer: sort by a header, page,
- *   switch an analysis between table and chart, open the follow-up menu on
- *   one of its groups, and open the view in the workbench. None of it is
- *   saved; the last two go through the host's route (`onNavigate`).
+ * - `static` — what the page shows, as its author saved it: the rows, the
+ *   chart or the board and what they were fetched under; nothing on it
+ *   filters, sorts, pages, redraws or leads anywhere. The default, since a
+ *   business page shows what someone else set up (D24 Q21).
+ * - `interactive` — the reader may look closer, for this viewing only:
+ *   change a board's filters, sort by a header, page, switch an analysis
+ *   between table and chart, press a group (the follow-up menu, a board's
+ *   cross-filter), fill the screen where the host offers it (`expandable`)
+ *   and open the view in the workbench. None of it is saved; the ways off
+ *   the page go through the host's route (`onNavigate`).
  */
-export type EmbedInteraction = 'read-only' | 'interactive';
-
-/**
- * How far a reader may go with an embedded dashboard (D22): the two a data
- * view has — interactive meaning the follow-up menu, cross-filtering and
- * opening the view behind a panel — and `editable`, where whoever may save
- * the board builds it in place (「编辑」, the edit bar, 「完成」 saves).
- */
-export type DashboardEmbedInteraction = EmbedInteraction | 'editable';
+export type EmbedInteraction = 'static' | 'interactive';
 
 /**
  * How tall an embed is.
@@ -80,8 +76,8 @@ export interface EmbedBaseProps {
   autoRefresh?: boolean;
   /**
    * Whether 在工作台中打开 is offered — the view itself, or the view behind
-   * a panel — in the interactive and editable tiers, with a route to go by
-   * (on by default). The read-only tier never offers it.
+   * a panel — in the interactive tier, with a route to go by (on by
+   * default). The static tier never offers it.
    */
   openInWorkbench?: boolean;
   /**
@@ -103,13 +99,20 @@ export interface EmbedBaseProps {
   locale?: string;
   className?: string;
   /**
+   * 「铺满屏幕」 in the embed's first row, in the interactive tier (off by
+   * default): the surface fills the screen in place, as a workbench's does
+   * (`ViewExpandToggle`), and Escape or the same button puts it back. Off,
+   * the embed grows no such control (D10); the static tier never offers it.
+   */
+  expandable?: boolean;
+  /**
    * The surface this draws on, handed back.
    *
-   * An embed grows no control of its own for filling the screen: a button
-   * floating over somebody's order page is chrome that page did not ask for
-   * and cannot place (D10). What it owes a host that wants one is the means,
-   * which is this: put the control where your own chrome is, and point
-   * `useViewExpansion` at the element you get here.
+   * Without `expandable` an embed grows no control of its own for filling
+   * the screen: a button floating over somebody's order page is chrome that
+   * page did not ask for (D10). A host that wants the control in its own
+   * chrome instead — or on a static embed — points `useViewExpansion` at
+   * the element it gets here.
    */
   ref?: Ref<HTMLDivElement>;
   /**

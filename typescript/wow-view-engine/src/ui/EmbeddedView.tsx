@@ -27,7 +27,7 @@ import {
 } from '../react/index.js';
 import { analysisIssueNamer } from './analysis/issueNames.js';
 import { EmbedFrame } from './embed/EmbedFrame.js';
-import { EmbedHead, OpenInWorkbench } from './embed/EmbedHead.js';
+import { EmbedExpand, EmbedHead, OpenInWorkbench } from './embed/EmbedHead.js';
 import { EmbeddedAnalysis } from './embed/EmbeddedAnalysis.js';
 import { EmbeddedRecord } from './embed/EmbeddedRecord.js';
 import type { EmbedBaseProps, EmbedInteraction } from './embed/options.js';
@@ -35,7 +35,6 @@ import { useViewMessages } from './MessagesProvider.js';
 import { ErrorStrip, WarningStrip } from './StatusStrip.js';
 
 export type {
-  DashboardEmbedInteraction,
   EmbedBaseProps,
   EmbedInteraction,
   EmbedSize,
@@ -51,7 +50,7 @@ export interface EmbeddedViewProps extends EmbedBaseProps {
    * README's embedding section.
    */
   scopeFilter?: FilterTree | null;
-  /** How far the reader may go (`EmbedInteraction`); `read-only` by default. */
+  /** How far the reader may go (`EmbedInteraction`); `static` by default. */
   interaction?: EmbedInteraction;
   /**
    * The view's search box, at the end of the applied band, where its
@@ -61,7 +60,7 @@ export interface EmbeddedViewProps extends EmbedBaseProps {
   /**
    * The export button and window (D14), in the embed's first row (off by
    * default). Record views only. In the interactive tier rows can be picked
-   * with it, since the window offers to take the picked ones; the read-only
+   * with it, since the window offers to take the picked ones; the static
    * tier keeps no row checks and exports the whole result (D26 Q36).
    */
   withExport?: boolean;
@@ -81,11 +80,12 @@ const DATA_KINDS: readonly ViewKind[] = ['record', 'analysis'];
  *
  * The workbench exists to let a user *change* how they observe; this exists
  * to let a page *show* what someone already decided. So there is no view
- * list, no condition editor and no save — an order page embedding "recent
- * shipments for this customer" wants the rows, not a second application.
- * How far a reader may go is one explicit tier (`interaction`); the rest
- * are switches: the title, the search, the export, auto-refresh, 在工作台中
- * 打开. A dashboard is `EmbeddedDashboard`, split by resource as the
+ * list, no condition editor and no save — nothing it does is written
+ * anywhere (D36) — an order page embedding "recent shipments for this
+ * customer" wants the rows, not a second application. How far a reader may
+ * go is one explicit tier (`interaction`); the rest are switches: the
+ * title, the search, the export, auto-refresh, filling the screen, 在工作台
+ * 中打开. A dashboard is `EmbeddedDashboard`, split by resource as the
  * workbenches are; this one names it as a view it cannot show.
  *
  * Everything it drops is chrome. Admission, paging, auto-refresh and the
@@ -125,12 +125,13 @@ function EmbeddedData({
 }) {
   const {
     instanceId,
-    interaction = 'read-only',
+    interaction = 'static',
     withTitle = false,
     headingLevel = 2,
     withSearch = false,
     withExport = false,
     openInWorkbench = true,
+    expandable = false,
     onNavigate,
     rowActions,
   } = props;
@@ -172,12 +173,16 @@ function EmbeddedData({
       onNavigate={onNavigate}
     />
   );
+  // 「铺满屏幕」 last on the row, as it is the last of a workbench's view
+  // controls: interactive only, where the host asked for it.
+  const expand = interactive && expandable && <EmbedExpand />;
   const head = (actions: ReactNode) => (
     <EmbedHead title={title} headingLevel={headingLevel}>
-      {open || actions ? (
+      {open || actions || expand ? (
         <>
           {open}
           {actions}
+          {expand}
         </>
       ) : null}
     </EmbedHead>

@@ -243,50 +243,37 @@ describe('a board drawn at its width', () => {
     expect(slot('dashboard-grid')!.style.maxWidth).toBe('');
   });
 
-  it('switches from the edit bar, in the workbench and in an embed alike, and 撤销 takes it back', async () => {
-    const surfaces = [
-      (engine: ViewEngine) => (
-        <DashboardWorkbench
-          engine={engine}
-          definitionId="overview"
-          instanceId="board"
-        />
-      ),
-      (engine: ViewEngine) => (
-        <EmbeddedDashboard
-          engine={engine}
-          instanceId="board"
-          interaction="editable"
-        />
-      ),
-    ];
-    for (const surface of surfaces) {
-      render(surface(engineWith(boardOf())));
-      const user = userEvent.setup({ pointerEventsCheck: 0 });
-      await user.click(await screen.findByRole('button', { name: /^Edit$/ }));
-      const width = await screen.findByRole('group', {
-        name: 'Dashboard width',
-      });
-      const full = screen.getByRole('button', { name: 'Full width' });
-      const fixed = screen.getByRole('button', { name: 'Fixed width' });
-      expect(width.contains(full)).toBe(true);
-      expect(full.getAttribute('aria-pressed')).toBe('true');
+  it('switches from the edit bar, and 撤销 takes it back', async () => {
+    render(
+      <DashboardWorkbench
+        engine={engineWith(boardOf())}
+        definitionId="overview"
+        instanceId="board"
+      />,
+    );
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    await user.click(await screen.findByRole('button', { name: /^Edit$/ }));
+    const width = await screen.findByRole('group', {
+      name: 'Dashboard width',
+    });
+    const full = screen.getByRole('button', { name: 'Full width' });
+    const fixed = screen.getByRole('button', { name: 'Fixed width' });
+    expect(width.contains(full)).toBe(true);
+    expect(full.getAttribute('aria-pressed')).toBe('true');
 
-      await user.click(fixed);
-      expect(slot('dashboard-grid')!.dataset.width).toBe('fixed');
-      expect(fixed.getAttribute('aria-pressed')).toBe('true');
-      // Pressing the one in force leaves it in force.
-      await user.click(fixed);
-      expect(slot('dashboard-grid')!.dataset.width).toBe('fixed');
+    await user.click(fixed);
+    expect(slot('dashboard-grid')!.dataset.width).toBe('fixed');
+    expect(fixed.getAttribute('aria-pressed')).toBe('true');
+    // Pressing the one in force leaves it in force.
+    await user.click(fixed);
+    expect(slot('dashboard-grid')!.dataset.width).toBe('fixed');
 
-      await user.click(
-        screen.getByRole('button', {
-          name: 'Undo the change to the dashboard width',
-        }),
-      );
-      expect(slot('dashboard-grid')!.dataset.width).toBe('full');
-      cleanup();
-    }
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Undo the change to the dashboard width',
+      }),
+    );
+    expect(slot('dashboard-grid')!.dataset.width).toBe('full');
   });
 });
 

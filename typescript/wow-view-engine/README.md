@@ -239,7 +239,7 @@ Every way off the board goes through one route of yours, `onNavigate(to)` — th
 
 #### Embedding a view or a dashboard
 
-A business page that shows what somebody already decided embeds it: the result and nothing else, no view list, no condition editor, no save. There are two entries, split by resource as the workbenches are — `EmbeddedView` for a record or analysis view, `EmbeddedDashboard` for a board. Each draws only its own kind, and says so if handed the other.
+A business page that shows what somebody already decided embeds it: the result and nothing else, no view list, no condition editor, no save. **An embed never writes**: not a view, not a board, not a preference — what a reader does on it lasts for that viewing. Defining views, building boards and saving them happen in the workbenches; a page whose readers should build boards embeds `DashboardWorkbench` instead. There are two entries, split by resource as the workbenches are — `EmbeddedView` for a record or analysis view, `EmbeddedDashboard` for a board. Each draws only its own kind, and says so if handed the other.
 
 <!-- typecheck: skip — two JSX elements side by side, each an example on its own -->
 
@@ -274,13 +274,12 @@ import {
 />
 ```
 
-**How far a reader may go is one explicit tier**, `interaction`, `read-only` by default:
+**How far a reader may go is one explicit tier**, `interaction`, `static` by default. Neither tier saves anything:
 
-| Tier          | `EmbeddedView` (record, analysis)                                                                                     | `EmbeddedDashboard`                                                                |
-| ------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `read-only`   | The result and what it was fetched under. Headers do not sort, there are no pages, nothing leads anywhere             | The panels, answering nothing: no follow-up menu, no cross-filtering, no **⋯**     |
-| `interactive` | Header sort and pages; an analysis's table｜chart switch and the follow-up menu on a group; **Open in the workbench** | The follow-up menu, cross-filtering, destinations, **Open in the workbench**       |
-| `editable`    | —                                                                                                                     | **Edit**, for whoever may save the board: it is built in place, and **Save** saves |
+| Tier          | `EmbeddedView` (record, analysis)                                                                                                                                                  | `EmbeddedDashboard`                                                                                                                                       |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `static`      | The result and what it was fetched under. Headers do not sort or resize, there are no pages, nothing leads anywhere                                                                | The panels, answering nothing: no follow-up menu, no cross-filtering, no **⋯**; every filter reads as what it holds, with no control                      |
+| `interactive` | Header sort, column widths and pages; an analysis's table｜chart switch and the follow-up menu on a group; **Open in the workbench**; **Fill the screen** where `expandable` is on | Filters (a search filter too), the follow-up menu, cross-filtering, destinations, **Open in the workbench**; **Fill the screen** where `expandable` is on |
 
 Every way off the embed goes through your one route, `onNavigate(to)` — the same `ViewNavigation` the dashboard workbench hands over; without it, none of those ways exist.
 
@@ -292,17 +291,18 @@ Every way off the embed goes through your one route, `onNavigate(to)` — the sa
 | `headingLevel`                | `2`       | The heading level the embed titles at: its own title, and a board's panels one level under it (or at it, with no title). Your page owns its `h1`                        |
 | `withPanelTitles` (dashboard) | on        | Off, each panel's title is kept for screen readers only                                                                                                                 |
 | `withSearch` (record)         | off       | The view's search box, where its definition declares a search field                                                                                                     |
-| `withExport` (record)         | off       | The export button and window; with it, rows can be picked in the interactive tier, while the read-only tier keeps no row checks and exports the whole result            |
-| `withExport` (dashboard)      | off       | **Export data…** in a record panel's "⋯" menu, the same export window; in the read-only tier that menu holds it alone                                                   |
+| `withExport` (record)         | off       | The export button and window; with it, rows can be picked in the interactive tier, while the static tier keeps no row checks and exports the whole result               |
+| `withExport` (dashboard)      | off       | **Export data…** in a record panel's "⋯" menu, the same export window; in the static tier that menu holds it alone                                                      |
 | `autoRefresh`                 | on        | Refreshes on the interval its author saved; off, never on its own                                                                                                       |
-| `openInWorkbench`             | on        | Whether **Open in the workbench** is offered in the interactive and editable tiers                                                                                      |
+| `openInWorkbench`             | on        | Whether **Open in the workbench** is offered in the interactive tier                                                                                                    |
+| `expandable`                  | off       | **Fill the screen** at the end of the embed's first row, in the interactive tier: the surface fills the screen in place, as a workbench's does; Escape puts it back     |
 | `size`                        | `content` | `content` sizes to what it shows, with a cap (a record table scrolls inside `--fve-record-table-max-h`); `fill` fills its container — a whole-page embed, a wall screen |
 
 **A board's filters, each in one of three modes** (`filterModes`, by filter name; `groupingMode` for the time grouping): `editable` — on the bar, the reader's, as in the workbench, and the default; `locked` — on the bar as what it holds, with a lock and no control; `hidden` — not on the bar, still narrowing the panels wired to it. Locked and hidden filters are held by the runtime, so nothing the reader does — a value, **Clear**, a press that cross-filters — changes them. Their values are the page's own, `pageValues` (their default where it names none): in force from the first query, and followed as the prop changes — a customer page moving to the next customer takes the board with it. The reader's filters are your address's, `initialFilters` and `onFiltersChange`, read and reported exactly as `DashboardWorkbench` does. **A locked or hidden value never travels through the address**: an entry for one in `initialFilters` is ignored, and `onFiltersChange` reports only the filters the reader can set — otherwise a reader who edits the address changes the customer, the opposite of locking it. A board takes no condition tree (`EmbeddedDashboard` has no `scopeFilter`): to narrow it, declare the filter on the board and lock or hide it.
 
 **Locking is not a security boundary.** The condition a page locks is put together in the browser and sent with the query; it only keeps the reader from changing it on screen, or seeing anything else there. Anyone who edits the page's script or calls the API directly can ask for another customer. Tenancy, ownership and permission must be enforced by the Wow backend — above all on a page outside your organisation. This package is a library in your host's process: it does not do what Metabase does with iframes, signed tokens or SSO, because identity and permission belong to your host and your backend.
 
-Filling the screen stays yours (an embed grows no control of its own): pass a `ref` and point `useViewExpansion` at it from your own chrome.
+Filling the screen: with `expandable` on, an interactive embed draws the control itself. To put it in your own chrome instead — or to fill the screen with a static wall screen — pass a `ref` and point `useViewExpansion` at it.
 
 #### Customising the theme
 

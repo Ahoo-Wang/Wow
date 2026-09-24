@@ -667,7 +667,7 @@ describe('EmbeddedView', () => {
 
 /**
  * The tier and the switches (D22): a record or analysis view on a business
- * page is read-only unless the host says interactive, and shows what else
+ * page is static unless the host says interactive, and shows what else
  * the host switched on — its title, its search, its export, 在工作台中打开 —
  * and nothing it did not.
  */
@@ -690,7 +690,7 @@ describe('EmbeddedView tiers and switches', () => {
     });
   }
 
-  it('reads, and does nothing else, in the read-only tier', async () => {
+  it('reads, and does nothing else, in the static tier', async () => {
     render(
       <EmbeddedView engine={engineOf(recordConfig())} instanceId="orders-1" />,
     );
@@ -736,6 +736,42 @@ describe('EmbeddedView tiers and switches', () => {
     ).not.toBeNull();
   });
 
+  /**
+   * 「铺满屏幕」 where the host asked (D36): last in the first row, in the
+   * interactive tier only — the static one never grows the control.
+   */
+  it('fills the screen from its first row when the host asks, in the interactive tier alone', async () => {
+    const engine = engineOf(recordConfig());
+    const { rerender } = render(
+      <EmbeddedView engine={engine} instanceId="orders-1" expandable />,
+    );
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+    expect(document.querySelector('[data-slot="view-expand"]')).toBeNull();
+
+    rerender(
+      <EmbeddedView
+        engine={engine}
+        instanceId="orders-1"
+        interaction="interactive"
+        withExport
+        expandable
+      />,
+    );
+    const expand = await screen.findByRole('button', {
+      name: 'Fill the screen',
+    });
+    expect(
+      document.querySelector('[data-slot="embed-actions"]')!.lastElementChild,
+    ).toBe(expand);
+    const surface = expand.closest<HTMLElement>('.fve-root')!;
+    await userEvent.click(expand);
+    expect(surface.getAttribute('data-view-expanded')).toBe('true');
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Leave full screen' }),
+    );
+    expect(surface.hasAttribute('data-view-expanded')).toBe(false);
+  });
+
   it('titles itself at the level the host outline calls for, when asked', async () => {
     render(
       <EmbeddedView
@@ -765,7 +801,7 @@ describe('EmbeddedView tiers and switches', () => {
       await screen.findByRole('searchbox', { name: 'Search orders' }),
     ).toBeDefined();
     expect(await screen.findByRole('button', { name: /Export/ })).toBeDefined();
-    // The read-only tier keeps no row checks even with the export on; the
+    // The static tier keeps no row checks even with the export on; the
     // export takes the whole result (D26 Q36, test/embeddedExport.test.tsx).
     expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
 
@@ -838,7 +874,7 @@ describe('EmbeddedView tiers and switches', () => {
     ).toBeNull();
   });
 
-  it('switches an analysis between table and chart in the interactive tier, and not in the read-only one', async () => {
+  it('switches an analysis between table and chart in the interactive tier, and not in the static one', async () => {
     const engine = engineOf(analysisConfig({ layout: 'table' }));
     const { rerender } = render(
       <EmbeddedView engine={engine} instanceId="orders-1" />,

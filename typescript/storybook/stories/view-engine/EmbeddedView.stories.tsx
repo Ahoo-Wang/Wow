@@ -513,26 +513,31 @@ export const TotalCoversThisPageOnly: Story = {
  * 打开」——经宿主的路由，带着页面的收窄。没有保存、没有条件编辑器：改的都是这一
  * 次看的样子。
  *
- * 默认一档是只读：上面那几条故事里表头按不动、没有分页。
+ * 默认一档是 `static`：上面那几条故事里表头按不动、没有分页。页面还开了 `expandable`：首行最后一颗「铺满屏幕」。两档都不存任何东西（D36）。
  */
 export const Interactive: Story = {
   name: '可交互',
   args: {
     scope: 'east',
-    caption: '可交互：排序、翻页、搜索、导出、在工作台中打开。',
-    embed: { interaction: 'interactive', withSearch: true, withExport: true },
+    caption: '可交互：排序、翻页、搜索、导出、铺满屏幕、在工作台中打开。',
+    embed: {
+      interaction: 'interactive',
+      withSearch: true,
+      withExport: true,
+      expandable: true,
+    },
   },
 };
 
 /**
- * 只读一档开了导出（D26 Q36）：导出是开关、不改档位，只读仍然「没有勾选」——
+ * `static` 一档开了导出（D26 Q36）：导出是开关、不改档位，`static` 仍然「没有勾选」——
  * 行前没有复选框，导出窗口不问「所有／选中」，导出整份结果，与仪表盘面板的
  * 「导出数据…」一样。
  */
-export const ReadOnlyExport: Story = {
-  name: '只读，开了导出',
+export const StaticExport: Story = {
+  name: 'static，开了导出',
   args: {
-    caption: '只读一档开了导出：没有行勾选，导出整份结果。',
+    caption: 'static 一档开了导出：没有行勾选，导出整份结果。',
     embed: { withExport: true },
   },
 };

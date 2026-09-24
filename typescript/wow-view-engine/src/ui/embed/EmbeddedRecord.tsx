@@ -77,10 +77,10 @@ export function EmbeddedRecord({
   const search = withSearch && searchBox && <SearchBox search={searchBox} />;
   const failed = table.status === 'error';
   // A retry is a control, and only the interactive tier has controls on the
-  // rows; the read-only one re-runs on its own schedule.
+  // rows; the static one re-runs on its own schedule.
   const retry = interactive ? () => runtime.refresh() : undefined;
   // Rows are picked only where the export can take a pick and the tier has
-  // controls on the rows at all. The read-only tier keeps its promise of no
+  // controls on the rows at all. The static tier keeps its promise of no
   // row checks even with the export on: its export takes the whole result,
   // as a dashboard panel's does, and the window then has the one scope to
   // say (D26 Q36).

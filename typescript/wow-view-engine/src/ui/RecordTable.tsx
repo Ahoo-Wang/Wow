@@ -145,7 +145,7 @@ export interface RecordTableProps {
   /**
    * Whether the headers are only read (off by default): no sort button and
    * no width handle, each column still a stop for the arrow keys. An
-   * embed's read-only tier (D22), where the rows are what the page shows
+   * embed's static tier (D22, D36), where the rows are what the page shows
    * and nothing on it reorders or reshapes them.
    */
   readOnly?: boolean;

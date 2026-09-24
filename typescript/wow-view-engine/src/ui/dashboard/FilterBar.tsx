@@ -88,7 +88,9 @@ export interface FilterBarProps {
   modes?: BoardFilterModes;
   /**
    * While the board is built: the filters put in another order, by a handle
-   * on each chip (`useFilterOrder`); left out, the order is read.
+   * on each chip (`useFilterOrder`); left out, the order is read. Never with
+   * `modes`: a board is built in the workbench alone, whose bar holds every
+   * filter (D36).
    */
   order?: FilterOrder;
   /**
@@ -131,7 +133,7 @@ export function FilterBar({
   const fields = dashboard.filterFields.filter(
     field => filterModeOf(modes, field.name) !== 'hidden',
   );
-  const sortable = useFilterOrder(fields, dashboard.filterFields, order);
+  const sortable = useFilterOrder(fields, order);
   // A press that takes its own control away lands the keyboard on the next
   // sensible one (U-02); the board is read as the press happens, since the
   // bar itself may be gone by the time the keyboard lands.
@@ -184,8 +186,6 @@ export function FilterBar({
                 key={field.name}
                 field={field}
                 dashboard={dashboard}
-                settings={settings?.(field)}
-                carry={carry}
               />
             ) : (
               <FilterChip

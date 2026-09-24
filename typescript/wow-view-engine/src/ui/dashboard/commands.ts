@@ -178,7 +178,7 @@ function exportable(
 }
 
 /**
- * The menu of a board that is only read (an embed's read-only tier): 导出数据…
+ * The menu of a board that is only read (an embed's static tier): 导出数据…
  * where the page switched exports on, and nothing else — a read-only board
  * answers no press and opens nothing (D24 Q24: an export is a switch, not a
  * tier). `undefined`, and no menu, otherwise.

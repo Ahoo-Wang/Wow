@@ -24,7 +24,6 @@ value ContentPanel
 type  ContentPanelProps
 type  DashboardEditExtensions
 value DashboardEditExtensionsContext
-type  DashboardEmbedInteraction
 type  DashboardExtensionsOptions
 type  DashboardFilterMode
 value DashboardGrid

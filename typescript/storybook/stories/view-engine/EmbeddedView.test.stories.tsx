@@ -24,7 +24,7 @@ import displayMeta, {
   ScopedByHost as DisplayScopedByHost,
   TotalCoversThisPageOnly as DisplayTotalCoversThisPageOnly,
   Interactive as DisplayInteractive,
-  ReadOnlyExport as DisplayReadOnlyExport,
+  StaticExport as DisplayStaticExport,
   AnalysisInteractive as DisplayAnalysisInteractive,
 } from './EmbeddedView.stories.js';
 import { amountOf, readColumn, readPage, readTotal } from './readTable.js';
@@ -100,7 +100,7 @@ export const Default: Story = {
     )!;
     await expect(within(applied).queryAllByRole('button')).toHaveLength(0);
 
-    // The read-only tier (D22): the headers are read, not pressed.
+    // The static tier (D22): the headers are read, not pressed.
     for (const head of within(table).getAllByRole('columnheader'))
       await expect(within(head).queryByRole('button')).toBeNull();
 
@@ -464,13 +464,13 @@ export const Interactive: Story = {
 };
 
 /**
- * The read-only tier with the export switched on (D26 Q36): the export is a
+ * The static tier with the export switched on (D26 Q36): the export is a
  * switch and does not change the tier, so the rows carry no checkboxes, and
  * the window has one scope to offer — every row the conditions match, as a
  * dashboard panel's 「导出数据…」 does.
  */
-export const ReadOnlyExport: Story = {
-  ...DisplayReadOnlyExport,
+export const StaticExport: Story = {
+  ...DisplayStaticExport,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const table = await canvas.findByRole('table');

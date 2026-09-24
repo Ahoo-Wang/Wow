@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 import type { StoryObj } from '@storybook/react-vite';
-import { expect, screen, userEvent, waitFor, within } from 'storybook/test';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import displayMeta, { Fixture as DisplayFixture } from './Home.stories.js';
 import { findDataTable, readColumn } from './readTable.js';
@@ -193,62 +193,47 @@ function titles(canvasElement: HTMLElement): string[] {
 }
 
 /**
- * The editable tier end to end (D22): the team's home board is built where
- * it is read. 「编辑」 brings up the edit bar; a heading added is named in
- * place; 「保存」 asks before it updates the board everyone reads, saves it,
- * and hands the keyboard back to 「编辑」.
+ * The home page is a report (D36): the interactive tier, read and never
+ * built — no 「编辑」, no save and no save-as anywhere on it — while
+ * 「铺满屏幕」 fills the screen with the board in place, and Escape puts it
+ * back.
  */
-export const Editing: Story = {
+export const ReadOnlyReport: Story = {
   ...DisplayFixture,
-  name: '编辑首页',
+  name: '只读报告',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await waitFor(() =>
       expect(titles(canvasElement)).toEqual(expect.arrayContaining(PANELS)),
     );
-
-    await userEvent.click(
-      await canvas.findByRole('button', { name: zhCN['label.dashboard.edit'] }),
-    );
+    for (const name of [
+      zhCN['label.dashboard.edit'],
+      zhCN['label.save.save'],
+      zhCN['label.save.save-as'],
+    ])
+      await expect(canvas.queryByRole('button', { name })).toBeNull();
     await expect(
-      await canvas.findByRole('region', {
-        name: zhCN['label.dashboard.editing'],
-      }),
-    ).toBeVisible();
+      canvasElement.querySelector('[data-slot="dashboard-edit"]'),
+    ).toBeNull();
 
-    await userEvent.click(
-      canvas.getByRole('button', { name: zhCN['label.dashboard.add'] }),
-    );
-    await userEvent.click(
-      await screen.findByRole('menuitem', {
-        name: zhCN['label.dashboard.add.heading'],
-      }),
-    );
-    const heading = await canvas.findByRole('textbox', {
-      name: zhCN['label.panel.heading-input'],
+    const expand = canvas.getByRole('button', {
+      name: zhCN['label.workbench.expand-view'],
     });
-    await userEvent.clear(heading);
-    await userEvent.type(heading, '本周重点{Enter}');
-    await waitFor(() => expect(titles(canvasElement)).toContain('本周重点'));
-
-    // The board is the team's: 保存 asks before it updates it for everyone.
-    await userEvent.click(
-      canvas.getByRole('button', { name: zhCN['label.dashboard.save'] }),
-    );
-    await userEvent.click(
-      await screen.findByRole('button', {
-        name: zhCN['label.save.shared-confirm'],
-      }),
-    );
-    await waitFor(() =>
-      expect(
-        canvas.queryByRole('region', { name: zhCN['label.dashboard.editing'] }),
-      ).toBeNull(),
-    );
-    await expect(titles(canvasElement)).toContain('本周重点');
-    const edit = canvas.getByRole('button', {
-      name: zhCN['label.dashboard.edit'],
+    const surface = expand.closest<HTMLElement>('.fve-root')!;
+    await userEvent.click(expand);
+    await expect(surface).toHaveAttribute('data-view-expanded', 'true');
+    // It covers the viewport, the host's bar and navigation under it.
+    await waitFor(() => {
+      const box = surface.getBoundingClientRect();
+      expect(Math.abs(box.width - window.innerWidth)).toBeLessThan(1);
+      expect(Math.abs(box.height - window.innerHeight)).toBeLessThan(1);
     });
-    await waitFor(() => expect(edit).toHaveFocus());
+    await userEvent.keyboard('{Escape}');
+    await expect(surface).not.toHaveAttribute('data-view-expanded');
+    await expect(
+      canvas.getByRole('button', {
+        name: zhCN['label.workbench.expand-view'],
+      }),
+    ).toHaveFocus();
   },
 };

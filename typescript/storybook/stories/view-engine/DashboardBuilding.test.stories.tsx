@@ -285,6 +285,98 @@ export const CancelReverts: Story = {
   },
 };
 
+/**
+ * A desk shorter than the board: the workbench's main area scrolls it, as
+ * a host page with a fixed header would.
+ */
+const SHORT_DESK = (Story: ComponentType) => (
+  <div style={{ width: 1280, height: 520, display: 'flex' }}>
+    <Story />
+  </div>
+);
+
+/** The nearest ancestor that scrolls an element. */
+function scrollerOf(element: HTMLElement): HTMLElement {
+  for (let at = element.parentElement; at; at = at.parentElement) {
+    const { overflowY } = getComputedStyle(at);
+    if (
+      (overflowY === 'auto' || overflowY === 'scroll') &&
+      at.scrollHeight > at.clientHeight
+    )
+      return at;
+  }
+  return document.scrollingElement as HTMLElement;
+}
+
+/**
+ * Whether an element is inside the window and drawn over everything else
+ * at its middle — in view, and not under a panel scrolled over it.
+ */
+function onTop(element: HTMLElement): boolean {
+  const box = element.getBoundingClientRect();
+  if (
+    box.top < 0 ||
+    box.left < 0 ||
+    box.bottom > window.innerHeight ||
+    box.right > window.innerWidth
+  )
+    return false;
+  const hit = document.elementFromPoint(
+    box.left + box.width / 2,
+    box.top + box.height / 2,
+  );
+  return hit !== null && element.contains(hit);
+}
+
+/**
+ * The edit bar stays in view while the board is built (R3b): scrolled past
+ * where it sat, it sticks to the top of what scrolls the board, over the
+ * panels, so 「取消」 and 「保存」 never scroll away with the building. It
+ * was an embed's story until embeds stopped building (D36); the board is
+ * built in the workbench alone.
+ */
+export const EditBarStaysInView: Story = {
+  ...DisplayBuilding,
+  decorators: [SHORT_DESK],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      await canvas.findByRole('button', { name: zhCN['label.dashboard.edit'] }),
+    );
+    const bar = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="dashboard-edit-bar"]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    const scroller = scrollerOf(bar);
+    const sat = bar.getBoundingClientRect().top;
+    const last = [
+      ...canvasElement.querySelectorAll<HTMLElement>('.react-grid-item'),
+    ].at(-1)!;
+    last.scrollIntoView({ block: 'end' });
+    await waitFor(() =>
+      expect(scroller.scrollTop).toBeGreaterThan(
+        sat - scroller.getBoundingClientRect().top,
+      ),
+    );
+    // At the top of the box, both ways out drawn over the panels beneath.
+    await waitFor(() =>
+      expect(
+        Math.abs(
+          bar.getBoundingClientRect().top -
+            Math.max(scroller.getBoundingClientRect().top, 0),
+        ),
+      ).toBeLessThan(20),
+    );
+    for (const way of ['label.dialog.cancel', 'label.dashboard.save'] as const)
+      await expect(
+        onTop(within(bar).getByRole('button', { name: zhCN[way] })),
+      ).toBe(true);
+  },
+};
+
 /** The board the definition ships is read-only: 另存为, and no 编辑 (D4). */
 export const SystemDashboardHasNoEdit: Story = {
   ...DisplaySystemDashboard,

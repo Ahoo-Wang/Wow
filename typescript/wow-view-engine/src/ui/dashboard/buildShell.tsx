@@ -14,11 +14,7 @@
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { PencilIcon } from 'lucide-react';
 import type { DashboardFilters } from '../../model/index.js';
-import {
-  useLeaveGuard,
-  type DashboardController,
-  type LeaveGuardState,
-} from '../../react/index.js';
+import type { DashboardController } from '../../react/index.js';
 import { Button } from '../components/button.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
 
@@ -29,13 +25,6 @@ export interface BuildShellOptions {
   canEdit: boolean;
   /** Whether the board is being built on this surface right now. */
   editing: boolean;
-  /**
-   * What the leave guard reads while the board is built, on a surface whose
-   * own frame guards nothing — an embed. A workbench passes `null`: its
-   * shell's guard (`useWorkbench`) already asks about the whole draft,
-   * building or not.
-   */
-  guard: LeaveGuardState | null;
   /** The tab on screen as the host is told it; `undefined` while no board is open. */
   tab: string | null | undefined;
   onTabChange?(tabId: string | null): void;
@@ -56,15 +45,15 @@ export interface BuildShell {
 }
 
 /**
- * The part of building a board every surface that shows one shares
- * (A-14/Q-06): the workbench's title bar and an embed's first row alike.
+ * The shell of building a board around `DashboardWorkbench`'s title bar —
+ * the one surface a board is built on (D36; an embed reads a board and
+ * never builds it):
  *
  * - 「编辑」, only for whoever may save the board and only while it is read;
  * - the keyboard that pressed 保存 or 取消 goes back to it as it comes back
  *   — only as the building ends, and only when the focus was lost with the
- *   edit bar: an opening view never takes it;
- * - the leave guard over a draft being built, where the surface's frame has
- *   none of its own;
+ *   edit bar: an opening view never takes it (the leave guard is
+ *   `useWorkbench`'s, over the whole draft);
  * - the tab on screen and what the filters hold, told to the host as they
  *   change — the board opening included — for its address. The package never
  *   touches the address itself.
@@ -74,7 +63,6 @@ export function useBuildShell({
   messages,
   canEdit,
   editing,
-  guard,
   tab,
   onTabChange,
   filters,
@@ -98,10 +86,6 @@ export function useBuildShell({
     if (active === null || active === document.body)
       editButton.current?.focus();
   }, [editing]);
-
-  // A board being built holds a draft nothing else keeps: closing the tab on
-  // it is asked about. The host's own navigation does not come through here.
-  useLeaveGuard(editing ? guard : null);
 
   const { setBuilding } = dashboard;
   return {

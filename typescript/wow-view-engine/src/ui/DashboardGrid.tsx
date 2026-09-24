@@ -110,7 +110,7 @@ export interface DashboardGridProps {
    * Whether the board is only read (off by default): nothing on it answers
    * — no press on a group (no follow-up menu, no cross-filtering, no
    * destination), no 「⋯」 on a panel, no retry on one that failed; the
-   * board re-runs on its own timer. An embed's read-only tier (D22), a
+   * board re-runs on its own timer. An embed's static tier (D22, D36), a
    * wall screen.
    */
   readOnly?: boolean;
@@ -122,7 +122,7 @@ export interface DashboardGridProps {
   /**
    * Whether a record panel's 「⋯」 offers 导出数据… — the export window over
    * its rows (D14). On by default, and off by default on a board that is
-   * only read, which offers nothing unless told to: an embed's read-only
+   * only read, which offers nothing unless told to: an embed's static
    * tier with its export switched on has a 「⋯」 holding that item alone
    * (D24 Q24).
    */

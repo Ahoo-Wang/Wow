@@ -58,18 +58,13 @@ const FILTER_DRAG_WORDING = {
  * place by ←/→ on the handle, the place it lands said once — 「「仓库」现在是
  * 第 2 个筛选，共 3 个」.
  *
- * **The places are the bar's.** An embedding page may hide a filter
- * (`DashboardFilterMode`); it stays in the board's order, where nobody on
- * this page can see it. A move is one place along what is drawn: past the
- * neighbour on the bar, whatever hidden filters lie between, and it is that
- * neighbour's place in the board's whole list the edit is written to — so a
- * hidden filter keeps its order among the rest, and the count said is the
- * bar's. The time grouping is not a filter in this order: it keeps its
- * place after them.
+ * A board is built in the workbench alone (D36), whose bar holds every
+ * filter, so a place on the bar is the filter's place among the board's.
+ * The time grouping is not a filter in this order: it keeps its place
+ * after them.
  */
 export function useFilterOrder(
   shown: readonly DashboardField[],
-  all: readonly DashboardField[],
   order: FilterOrder | undefined,
 ): {
   /** Around the chips: the drag, while there is an order to change. */
@@ -103,9 +98,9 @@ export function useFilterOrder(
 
   /** Whether it moved: a press past either end is no move. */
   const move = (name: string, to: number): boolean => {
-    const at = barMove(shown, all, name, to);
-    if (at === null) return false;
-    order.move(name, at);
+    const from = shown.findIndex(field => field.name === name);
+    if (from < 0 || to < 0 || to >= shown.length || to === from) return false;
+    order.move(name, to);
     order.say(
       messages.label('label.filters.moved', {
         filter: shown.find(field => field.name === name)?.label ?? name,
@@ -155,26 +150,6 @@ export function useFilterOrder(
       />
     ),
   };
-}
-
-/**
- * Where a filter moved to place `to` on the bar goes among all the board's
- * filters: the place of the one on the bar it moves past — so it lands just
- * after that neighbour going right, just before it going left, and a hidden
- * filter between the two keeps its order among the rest. `null` when that is
- * no move: a filter not on the bar, a place the bar does not have, or the
- * place it already holds.
- */
-export function barMove(
-  shown: readonly DashboardField[],
-  all: readonly DashboardField[],
-  name: string,
-  to: number,
-): number | null {
-  const from = shown.findIndex(field => field.name === name);
-  if (from < 0 || to < 0 || to >= shown.length || to === from) return null;
-  const at = all.findIndex(field => field.name === shown[to].name);
-  return at < 0 ? null : at;
 }
 
 /** One chip the library can carry, and the handle it is carried by. */

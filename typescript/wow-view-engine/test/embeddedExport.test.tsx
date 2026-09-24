@@ -48,14 +48,14 @@ function engine(): ViewEngine {
 }
 
 /**
- * The read-only tier with the export on (D26 Q36).
+ * The static tier with the export on (D26 Q36).
  *
  * Read-only promises no controls on the rows, and a checkbox is one; the
  * export is a switch of its own that does not change the tier (D24 Q24). So
  * the rows stay unpicked and the export takes the whole result — the same
  * as a dashboard panel's 「导出数据…」, whose rows carry no checkboxes either.
  */
-describe('a read-only embed with the export on', () => {
+describe('a static embed with the export on', () => {
   it('draws no row checks, and exports every row', async () => {
     const createObjectURL = stubObjectUrls();
     const user = userEvent.setup();

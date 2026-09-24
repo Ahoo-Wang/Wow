@@ -136,7 +136,7 @@ src/
       enum.ts                 — A closed set of values declared by the definition
       metadata.ts             — The kinds backed by Wow's metadata filters
       number.ts
-      options.ts              — What `enum` and `array` share
+      options.ts              — The tiers (`EmbedInteraction`: static, interactive — neither writes, D36), `EmbedSize`, and `EmbedBaseProps` — what both embeds take, `expandable` among them
       presence.ts             — Operators that ask about presence rather than about a value
       reference.ts            — Points at rows of another dataset
       search.ts               — Full-text search: the box at the top of a list page
@@ -327,8 +327,8 @@ src/
     DeleteDialog.tsx          — What a delete costs, said before it happens — a dashboard's, that the analyses made inside it go with it
     DragHandle.tsx            — The handle a sortable row is carried by, and the arrow keys that move it; the three lists share it
     EditorBand.tsx            — The fold a view's editor lives in
-    EmbeddedDashboard.tsx     — A saved board on a business page (D22): a tier (read-only, interactive, editable), each filter editable, locked or hidden (`filterModes`) — the locked and hidden values the page's own and followed (`pageValues`), the reader's the host's address (`initialFilters`/`onFiltersChange`, never a held one) — the title, panel-title and export switches
-    EmbeddedView.tsx          — A saved record or analysis view on a business page (D22): a tier (read-only, interactive), the page's narrowing ANDed onto the view's own (`scopeFilter`), and the title, search, export, auto-refresh and 在工作台中打开 switches; a dashboard is `EmbeddedDashboard`'s
+    EmbeddedDashboard.tsx     — A saved board on a business page (D22), read and never written (D36): a tier (static, interactive), each filter editable, locked or hidden (`filterModes`) — the locked and hidden values the page's own and followed (`pageValues`), the reader's the host's address (`initialFilters`/`onFiltersChange`, never a held one), every filter read as what it holds in the static tier — the filter bar, tabs and grid (`ReadBoard`), the title, panel-title, export and fill-the-screen switches
+    EmbeddedView.tsx          — A saved record or analysis view on a business page (D22), never written (D36): a tier (static, interactive), the page's narrowing ANDed onto the view's own (`scopeFilter`), and the title, search, export, auto-refresh, fill-the-screen and 在工作台中打开 switches; a dashboard is `EmbeddedDashboard`'s
     ExportDialog.tsx          — The export window: scope, name, progress and outcome in one journey (D14), controlled so a panel's menu can open it, what the file holds said in the surface's own unit where its rows are an analysis's groups (`holds`, D25 Q28); `ExportButton`, the toolbar's own trigger for it
     ExportSteps.tsx           — The export window's steps, one per phase (`phaseOf`, `said`): scope and what the file will hold, progress, the outcome, and the buttons each phase ends in
     FieldMenu.tsx             — A picker's entries by catalogue group; shared by the field pickers
@@ -462,7 +462,7 @@ src/
     embed/                    — What the two embeds share, and the data view's bodies (D22)
       options.ts              — The tiers (`EmbedInteraction`, `DashboardEmbedInteraction`), `EmbedSize`, and `EmbedBaseProps` — what both embeds take
       EmbedFrame.tsx          — The surface both embeds draw on (`data-embed-size`), the moment it opens, said as well as drawn, what can go wrong opening one — unopenable, another kind, a refused narrowing — said by the one kind it draws (`SurfaceKind`), the auto-refresh switch, and one render boundary
-      EmbedHead.tsx           — An embed's first row, only when it has something in it: the title at the host's heading level and the controls on the right; `OpenInWorkbench`
+      EmbedHead.tsx           — An embed's first row, only when it has something in it: the title at the host's heading level and the controls on the right; `OpenInWorkbench`; `EmbedExpand`, 「铺满屏幕」 on the embed's own surface (`useViewExpansion`)
       EmbeddedRecord.tsx      — A record view embedded: the rows, the read-only applied band and the search at its end, the export in the head; header sort and pages in the interactive tier
       EmbeddedAnalysis.tsx    — An analysis view embedded: its chart or table as saved; in the interactive tier the table｜chart switch, the header sort and the follow-up menu through the host's route
     dashboard/                — What building a dashboard is made of (D22 A–E)
@@ -472,14 +472,14 @@ src/
       AddMenu.tsx             — 「＋ 添加 ▾」: 数据 (a saved view, a new analysis where one can be made) and 内容 (heading, text, image, links); the same first steps on an empty board
       BoardWidth.tsx          — `BoardWidthSwitch`: 固定宽度／全宽 on the edit bar (D31), one step of building
       Board.tsx               — `DashboardBoard`: the grid with the edit bar over it, the picker and the content form, every edit one `DashboardEditing` command; where a new panel goes (the first row on screen of the tab on screen) and where the keyboard goes after
-      buildShell.tsx          — `useBuildShell`: what the workbench and an embed share about building a board (A-14) — 「编辑」, the primary of a board read (D32), for whoever may save it, the keyboard back on it after 保存／取消, the leave guard where the surface's frame has none, and the tab and filters told to the host
+      buildShell.tsx          — `useBuildShell`: the shell of building a board around `DashboardWorkbench`'s title bar — 「编辑」, the primary of a board read (D32), for whoever may save it, the keyboard back on it after 保存／取消, and the tab and filters told to the host; an embed never builds (D36)
       gridBlocks.ts           — `gridBlocks`: the board's cells while it is built, soft blocks as near a square as the 80px row allows (`blockHeight`, D34), one row of them as the mask `styles.css`'s `dashboard-grid-blocks` layer is painted through — the library's own sums (`calcGridItemPosition`) at the width the grid is drawn at
       building.tsx            — `useDashboardExtensions`: the default workbench's `DashboardEditExtensions` — a new owned analysis, a panel's own look and its reset, 另存为视图, 复制为共享视图并替换, the tab bar — and the four dialogs they open
       commands.ts             — `panelCommands`: what one panel's menu offers — 「看」 always (`ViewingCommands`) (导出数据… on a record panel with rows or an analysis panel with groups), 「改」 while the board is built (`EditingCommands`; 「恢复为视图的样子」 only over a look of its own, 「复制为共享视图并替换」 only over a personal view on a shared board), renaming and removing alone in the one-column reading, where the panel's 上移／下移 reorder it; `readerCommands`, a read-only board's export alone — and the builder the grid reaches through context
       ContentEditor.tsx       — The small form a note, a picture or a list of links is written in, what the kernel would refuse said at the field
       DashboardTabs.tsx       — The tab bar over the grid, two tabs or more: switch; while building, the edits — add, rename in place, move, delete (asked first when it holds panels) — and where the keyboard lands after each, drawn by `EditableTabs`; `tabTitle`
       EditableTabs.tsx        — The tab bar while the board is built (`EditableTabBar`): each tab carried by a handle or arrows, shown, renamed in place, moved or deleted from its menu, 「添加」 after them; `TabRemovalDialog`, the question a tab holding panels is asked first
-      filterModes.ts          — How an embedding page offers each filter (`DashboardFilterMode`: editable, locked, hidden) and the time grouping; what the page holds (`heldOf`) and what is the reader's (`readersOf`)
+      filterModes.ts          — How an embedding page offers each filter (`DashboardFilterMode`: editable, locked, hidden) and the time grouping; what the page holds (`heldOf`) and what is the reader's (`readersOf`); `staticModes`, the bar a static embed reads — every filter as what it holds
       FilterBar.tsx           — The filter bar (D22 F): a chip a filter with the condition editor's value controls, required ones starred and never empty, 按日｜周｜月, 「清空」, a filter reaching nothing on the tab drawn quieter and saying why, 「来自「〈面板〉」」 on a value a press set; on an embedding page a locked filter read as what it holds, with a lock, and a hidden one not at all; the board's fixed scope at the head of the row, read-only (D27) and removed whole while the board is built (D23 Q16)
       FilterReadings.tsx      — What the bar holds that the reader reads and does not change: the board's fixed scope (`FixedScope`, 「固定范围」, its author's ✕ while built), a filter the page locked (`LockedChip`, `LockedReading`), and the chip's own layout (`CHIP`)
       FilterSheet.tsx         — The filter bar below `md` (D26 Q38): one button, 「筛选（已设 n 个）」, opening every filter in a sheet from the bottom edge; the fixed scope and the locked filters read beside it

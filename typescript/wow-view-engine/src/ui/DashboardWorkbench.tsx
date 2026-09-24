@@ -233,14 +233,13 @@ export function DashboardWorkbench({
   const canEdit = board !== null && workbench.commands.can.save;
   const setEditing = dashboard.setBuilding;
   // 「编辑」, the keyboard going back to it, and the host told of the tab
-  // and the filters: the shell an embed shares. The leave guard is
-  // `useWorkbench`'s, over the whole draft.
+  // and the filters. The leave guard is `useWorkbench`'s, over the whole
+  // draft.
   const { editButton } = useBuildShell({
     dashboard,
     messages,
     canEdit,
     editing,
-    guard: null,
     tab: board ? dashboard.tab : undefined,
     onTabChange,
     filters: board ? dashboard.filters : undefined,
@@ -359,7 +358,7 @@ export function DashboardWorkbench({
                 onRenderFailure={onRenderFailure}
                 refusedFilters={board?.refusedFilters}
                 fixed={filter.fixed}
-                reading={{ panelExport: featuresOf(features).export }}
+                panelExport={featuresOf(features).export}
               />
               {dialogs}
             </SurfaceAnnouncer>

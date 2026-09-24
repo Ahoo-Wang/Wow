@@ -12,14 +12,9 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import {
-  audienceOf,
-  type DashboardFilters,
-  type FieldOption,
-  type Issue,
-  type ViewKind,
-} from '../model/index.js';
+import type { DashboardFilters, Issue, ViewKind } from '../model/index.js';
 import { admitFilters } from '../dashboard/index.js';
+import type { FilterSummaryItem } from '../filter/index.js';
 import type {
   AnyViewRuntime,
   DashboardRuntime,
@@ -29,36 +24,32 @@ import { blocksBoard } from '../runtime/dashboard/panels.js';
 import {
   useDashboard,
   useFilterEditor,
+  type DashboardController,
   useOpenView,
-  useSaveCommands,
   useViewRuntime,
 } from '../react/index.js';
 import { Alert, AlertDescription, AlertTitle } from './components/alert.js';
 import type { PanelHeadingLevel } from './DashboardPanel.js';
 import { SurfaceAnnouncer, useAnnouncer } from './Announcer.js';
-import { DashboardBoard, type BoardReading } from './dashboard/Board.js';
-import { useDashboardExtensions } from './dashboard/building.js';
-import { useBuildShell } from './dashboard/buildShell.js';
+import { DashboardGrid, type DashboardGridProps } from './DashboardGrid.js';
+import { useBoardFilters } from './dashboard/BoardFilters.js';
 import { DashboardTabs } from './dashboard/DashboardTabs.js';
 import { boardFindingNamer } from './dashboard/findings.js';
-import { DashboardEditExtensionsContext } from './dashboard/extensions.js';
 import {
   heldFilters,
   heldOf,
   holdsGrouping,
   readersOf,
+  staticModes,
+  type BoardFilterModes,
   type DashboardFilterMode,
 } from './dashboard/filterModes.js';
 import { EmbedFrame } from './embed/EmbedFrame.js';
-import { EmbedHead } from './embed/EmbedHead.js';
-import type {
-  DashboardEmbedInteraction,
-  EmbedBaseProps,
-} from './embed/options.js';
+import { EmbedExpand, EmbedHead } from './embed/EmbedHead.js';
+import type { EmbedBaseProps, EmbedInteraction } from './embed/options.js';
 import { useKindIssue, useKindWord } from './kinds.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { ErrorStrip, WarningStrip } from './StatusStrip.js';
-import { WriteOutcome } from './WriteOutcome.js';
 
 export type {
   BoardFilterModes,
@@ -67,19 +58,20 @@ export type {
 
 export interface EmbeddedDashboardProps extends EmbedBaseProps {
   /**
-   * How far the reader may go (`DashboardEmbedInteraction`): `read-only`
-   * by default — the board as its author laid it out, nothing on it
-   * answering a press; `interactive` adds the follow-up menu, cross-
-   * filtering and 在工作台中打开; `editable` adds 「编辑」 for whoever may
-   * save the board.
+   * How far the reader may go (`EmbedInteraction`): `static` by default —
+   * the board as its author laid it out, its filters read as what they
+   * hold, nothing on it answering a press; `interactive` lets the reader
+   * change the filters and adds the follow-up menu, cross-filtering and
+   * 在工作台中打开, for this viewing only. Neither builds nor saves the board
+   * (D36): a page whose readers build boards embeds `DashboardWorkbench`.
    */
-  interaction?: DashboardEmbedInteraction;
+  interaction?: EmbedInteraction;
   /** Whether the panels' titles are drawn (on by default). */
   withPanelTitles?: boolean;
   /**
    * 「导出数据…」 in a record panel's 「⋯」 — the export window over its rows
    * (D14), as `EmbeddedView`'s `withExport` is for one view (off by
-   * default). A switch rather than a tier (D24 Q24): on in the read-only
+   * default). A switch rather than a tier (D24 Q24): on in the static
    * tier, the 「⋯」 holds this item alone.
    */
   withExport?: boolean;
@@ -89,8 +81,9 @@ export interface EmbeddedDashboardProps extends EmbedBaseProps {
    * named here; `locked` — on the bar as what it holds, fixed; `hidden` —
    * not on the bar, still narrowing what it is wired to. A locked or hidden
    * filter holds what `pageValues` gives it, or its default, whatever the
-   * reader does. Not a security boundary: see the README's embedding
-   * section.
+   * reader does. In the static tier the reader changes none of them: an
+   * editable one reads as what it holds, as a locked one does. Not a
+   * security boundary: see the README's embedding section.
    */
   filterModes?: Readonly<Record<string, DashboardFilterMode>>;
   /** The time grouping's mode, likewise; `editable` when left out. */
@@ -125,12 +118,10 @@ export interface EmbeddedDashboardProps extends EmbedBaseProps {
   initialTab?: string | null;
   /** Told which tab is on screen whenever that changes, opening included. */
   onTabChange?(tabId: string | null): void;
-  /**
-   * An id filter's or a condition's candidates by the host's source key,
-   * for what the editable tier builds (a new analysis in the board).
-   */
-  optionsFor?(remote: string): FieldOption[] | undefined;
 }
+
+/** Pixel height of one grid row: the workbench's (`DashboardBoard`). */
+const ROW_HEIGHT = 80;
 
 /** Nothing refused, as one object. */
 const NO_ISSUES: Issue[] = [];
@@ -141,10 +132,15 @@ const DASHBOARD: readonly ViewKind[] = ['dashboard'];
 /**
  * One saved dashboard inside a business page (D22): the board, its filter
  * bar with each filter in the mode the page gives it, and what the host
- * switched on — a tier (`interaction`), the title, the panel titles,
- * a record panel's export, auto-refresh, 在工作台中打开. Split from `EmbeddedView` by resource, as
- * the workbenches are: a host that embeds a board says so, and a record
- * view named here is refused as one this entry cannot show.
+ * switched on — a tier (`interaction`), the title, the panel titles, a
+ * panel's export, auto-refresh, filling the screen, 在工作台中打开. Split
+ * from `EmbeddedView` by resource, as the workbenches are: a host that
+ * embeds a board says so, and a record view named here is refused as one
+ * this entry cannot show.
+ *
+ * It reads the board and never writes (D36): no 「编辑」, no save, no
+ * 另存为, no preference — what the reader changes lives in this viewing
+ * alone. Building a board is `DashboardWorkbench`'s.
  */
 export function EmbeddedDashboard(props: EmbeddedDashboardProps) {
   const { engine, instanceId } = props;
@@ -191,13 +187,13 @@ function EmbeddedBoard({
   props: EmbeddedDashboardProps;
 }) {
   const {
-    engine,
-    interaction = 'read-only',
+    interaction = 'static',
     withTitle = false,
     headingLevel = 2,
     withPanelTitles = true,
     withExport = false,
     openInWorkbench = true,
+    expandable = false,
     onNavigate,
     onRenderFailure,
     filterModes,
@@ -205,17 +201,15 @@ function EmbeddedBoard({
     pageValues,
     onFiltersChange,
     onTabChange,
-    optionsFor,
   } = props;
   const runtime = opened as DashboardRuntime;
   const state = useViewRuntime(runtime);
   const dashboard = useDashboard(runtime);
   const messages = useViewMessages();
-  const commands = useSaveCommands(engine, runtime);
   // The board's fixed scope, read-only on the filter bar's row (D27): an
   // embedded board draws no 「正在显示」 band, as the workbench does not.
   const { fixed } = useFilterEditor(runtime);
-  const reads = interaction !== 'read-only';
+  const interactive = interaction === 'interactive';
 
   // What the page holds, handed to the runtime, which keeps every command
   // of the reader's off it — followed as the page changes it (a customer
@@ -254,9 +248,11 @@ function EmbeddedBoard({
   }, [runtime, heldNames]);
 
   // What the filters hold and the tab on screen, told to the host as they
-  // change — the board opening included — for its address.
-  // The reader's alone: what the page holds is its own, and would come back
-  // from the address as the reader's.
+  // change — the board opening included — for its address. The package
+  // never touches the address, and an embed never writes where its reader
+  // was (D36): the tab a workbench remembers is a preference, and an embed
+  // keeps none. The reader's values alone: what the page holds is its own,
+  // and would come back from the address as the reader's.
   const filtersNow = dashboard.filters;
   const readerValues = useMemo(() => {
     const [names, grouping] = JSON.parse(heldNames) as [string[], boolean];
@@ -268,72 +264,38 @@ function EmbeddedBoard({
       filtersNow,
     );
   }, [filtersNow, heldNames]);
+  const tab = dashboard.tab;
+  useEffect(() => {
+    onTabChange?.(tab);
+  }, [tab, onTabChange]);
+  useEffect(() => {
+    onFiltersChange?.(readerValues);
+  }, [readerValues, onFiltersChange]);
 
-  // Building (D22 A), in the editable tier and for whoever may save the
-  // board: 「编辑」 in the embed's first row, the edit bar over the board,
-  // 「保存」 saving through the same commands the workbench's title bar has.
-  // The state is the runtime's, so the board's timer waits on it (D26 Q39).
-  // The shell is the workbench's: 「编辑」, the keyboard going back to it,
-  // the host told of the tab and the reader's filters — and, as the embed's
-  // frame guards nothing, the leave guard over a board being built.
-  const { building, setBuilding } = dashboard;
-  const canEdit = interaction === 'editable' && commands.can.save;
-  const editing = canEdit && building;
-  const { editButton } = useBuildShell({
-    dashboard,
-    messages,
-    canEdit,
-    editing,
-    guard: state ? { dirty: state.dirty, write: state.write } : null,
-    tab: dashboard.tab,
-    onTabChange,
-    filters: readerValues,
-    onFiltersChange,
-  });
-
-  // The building's extensions — the new analysis, a panel's own look,
-  // 另存为视图 and the tab bar — are the workbench's; only the tab bar is
-  // read outside building.
-  const tabBar = (
-    <DashboardTabs dashboard={dashboard} editing={editing ? runtime : null} />
-  );
-  // The board's one live region, for the building's dialogs as for the
-  // rest of the board (Q-03).
-  const voice = useAnnouncer('dashboard-announcement');
-  const { extensions, dialogs } = useDashboardExtensions({
-    engine,
-    board: runtime,
-    dashboard,
-    messages,
-    optionsFor,
-    tabBar,
-    say: voice.say,
-  });
+  // The filter bar as the tier reads it: a static board's reader changes
+  // nothing on it, so every filter the page left editable reads as what it
+  // holds, as a locked one does. The page's own modes are still what the
+  // runtime holds and what the address is told.
+  const barModes = interactive
+    ? modes
+    : staticModes(dashboard.filterFields, {
+        filters: filterModes,
+        grouping: groupingMode,
+      });
 
   const panelLevel = (
     withTitle ? Math.min(headingLevel + 1, 6) : headingLevel
   ) as PanelHeadingLevel;
-  const reading: BoardReading = {
-    headingLevel: panelLevel,
-    panelTitles: withPanelTitles,
-    readOnly: !reads,
-    openInWorkbench,
-    panelExport: withExport,
-    filterModes: modes,
-  };
   const title = state?.title ?? '';
 
   // What the board says above its panels, the one reading the workbench
   // shares (`DashboardController.issues`): a panel's own findings stay in
-  // its frame, its errors as much as its warnings, and a panel's the draft
-  // raised that no panel wears yet is said here after the panel, a filter
-  // by its name on the bar, never its key (X-03). Only an
-  // error of the board's own — "too many panels" among them — stops the
-  // whole board: one panel's error drew no grid around a board where every
-  // other panel was fine (R3).
-  // What the chrome calls the thing open — the frame says `dashboard`
-  // (`SurfaceKind`): its save questions and what the engine reports about
-  // it say 仪表盘 (Q34).
+  // its frame, its errors as much as its warnings, and a filter is said by
+  // its name on the bar, never its key (X-03). Only an error of the board's
+  // own — "too many panels" among them — stops the whole board: one
+  // panel's error drew no grid around a board where every other panel was
+  // fine (R3). What the engine reports about the thing open says 仪表盘, as
+  // the frame names it (`SurfaceKind`, Q34).
   const word = useKindWord();
   const ownWord = useKindIssue();
   const named = boardFindingNamer(dashboard, state?.draft, messages);
@@ -348,7 +310,7 @@ function EmbeddedBoard({
         title={withTitle ? title : undefined}
         headingLevel={headingLevel}
       >
-        {editButton}
+        {interactive && expandable && <EmbedExpand />}
       </EmbedHead>
       {refused.length > 0 && (
         <Alert variant="destructive">
@@ -358,34 +320,82 @@ function EmbeddedBoard({
           </AlertDescription>
         </Alert>
       )}
-      {canEdit && <WriteOutcome commands={commands} title={title} />}
       {errors.length > 0 && <ErrorStrip issues={errors.map(nameIssue)} />}
       <WarningStrip issues={warnings.map(nameIssue)} />
       {!blocked && (
-        <DashboardEditExtensionsContext.Provider
-          value={editing ? extensions : { tabBar }}
-        >
-          <SurfaceAnnouncer say={voice.say}>
-            <DashboardBoard
-              engine={engine}
-              dashboard={dashboard}
-              commands={commands}
-              title={title}
-              shared={state !== null && audienceOf(state.scope) === 'shared'}
-              canEdit={canEdit}
-              editing={editing}
-              onEditingChange={setBuilding}
-              onNavigate={reads ? onNavigate : undefined}
-              onRenderFailure={onRenderFailure}
-              refusedFilters={addressRefused}
-              fixed={fixed}
-              reading={reading}
-            />
-            {canEdit && dialogs}
-          </SurfaceAnnouncer>
-          {voice.region}
-        </DashboardEditExtensionsContext.Provider>
+        <ReadBoard
+          dashboard={dashboard}
+          modes={barModes}
+          refused={addressRefused}
+          fixed={fixed}
+          grid={{
+            headingLevel: panelLevel,
+            panelTitles: withPanelTitles,
+            readOnly: !interactive,
+            openInWorkbench,
+            panelExport: withExport,
+            onRenderFailure,
+            onNavigate: interactive ? onNavigate : undefined,
+          }}
+        />
       )}
     </>
+  );
+}
+
+/**
+ * The board as an embed reads it: the filter bar and the tabs over the
+ * grid, and one voice for all three (Q-03). Nothing here builds — the edit
+ * bar, the pickers and the dialogs are `DashboardBoard`'s, the workbench's.
+ */
+function ReadBoard({
+  dashboard,
+  modes,
+  refused,
+  fixed,
+  grid,
+}: {
+  dashboard: DashboardController;
+  modes: BoardFilterModes;
+  refused: readonly Issue[];
+  fixed: readonly FilterSummaryItem[];
+  grid: Pick<
+    DashboardGridProps,
+    | 'headingLevel'
+    | 'panelTitles'
+    | 'readOnly'
+    | 'openInWorkbench'
+    | 'panelExport'
+    | 'onRenderFailure'
+    | 'onNavigate'
+  >;
+}) {
+  const { say, region } = useAnnouncer('dashboard-announcement');
+  const filters = useBoardFilters({
+    dashboard,
+    editing: false,
+    say,
+    modes,
+    refused,
+    fixed,
+  });
+  return filters.wrap(
+    <SurfaceAnnouncer say={say}>
+      <DashboardGrid
+        {...grid}
+        dashboard={dashboard}
+        rowHeight={ROW_HEIGHT}
+        filterModes={modes}
+        header={({ narrow }) => (
+          <>
+            {/* The filters over everything else: they are what the whole
+              board is read under, every tab alike (D22 E, F). */}
+            {filters.bar(narrow)}
+            <DashboardTabs dashboard={dashboard} />
+          </>
+        )}
+      />
+      {region}
+    </SurfaceAnnouncer>,
   );
 }

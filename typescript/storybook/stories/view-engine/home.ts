@@ -83,8 +83,9 @@ function countCard(filter: FilterNode[]): AnalysisViewConfig {
  */
 export const homeViews: ViewInstance[] = [
   // The board itself is the operations team's, saved and shared rather than
-  // shipped with the code: the home page embeds it in the editable tier
-  // (D22), so whoever may save it rearranges the team's home page in place.
+  // shipped with the code: the home page embeds it in the interactive tier,
+  // a report read and never built there (D36) — the team rearranges it in
+  // `DashboardWorkbench`.
   {
     id: HOME_DASHBOARD,
     definitionId: 'home',

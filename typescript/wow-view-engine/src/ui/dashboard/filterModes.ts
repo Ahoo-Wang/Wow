@@ -107,3 +107,24 @@ export function readersOf(
     ...(unit === undefined ? {} : { unit }),
   };
 }
+
+/**
+ * The modes a static embed's bar reads (D36): the reader changes nothing
+ * there, so every filter the page left editable — and the time grouping —
+ * reads as what it holds, as a locked one does; a hidden one stays off the
+ * bar. The bar's reading alone: what the runtime holds, and what the host's
+ * address is told, are still the page's own modes.
+ */
+export function staticModes(
+  fields: readonly { name: string }[],
+  modes: BoardFilterModes | undefined,
+): BoardFilterModes {
+  const fixed = (mode: DashboardFilterMode): DashboardFilterMode =>
+    mode === 'hidden' ? 'hidden' : 'locked';
+  return {
+    filters: Object.fromEntries(
+      fields.map(({ name }) => [name, fixed(filterModeOf(modes, name))]),
+    ),
+    grouping: fixed(modes?.grouping ?? 'editable'),
+  };
+}
