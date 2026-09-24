@@ -43,6 +43,11 @@ describe('review regressions', () => {
           }
           const generator = await load('@ahoo-wang/wow-generator');
           assert.equal(typeof generator.CodeGenerator, 'function');
+          assert.equal(typeof generator.ConsoleLogger, 'function');
+          assert.equal(typeof generator.SilentLogger, 'function');
+          assert.equal(typeof generator.GeneratorError, 'function');
+          assert.equal(generator.EXIT_CODES.specification, 4);
+          assert.equal(generator.DEFAULT_CONFIG_PATH, './wow-generator.config.json');
           console.log('exports-ok');
         })().catch(error => { console.error(error); process.exitCode = 1; });
       `;

@@ -159,7 +159,7 @@ describe('ApiClientGenerator', () => {
       expect(mockLogger.info).toHaveBeenCalledWith(
         'Starting API client generation',
       );
-      expect(mockLogger.success).toHaveBeenCalledWith(
+      expect(mockLogger.info).toHaveBeenCalledWith(
         'API client generation completed',
       );
     });

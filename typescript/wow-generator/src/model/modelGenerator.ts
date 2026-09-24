@@ -66,7 +66,7 @@ export class ModelGenerator implements Generator {
       );
       this.generateKeyedSchema(keySchema);
     });
-    this.context.logger.success('Model generation completed');
+    this.context.logger.info('Model generation completed');
   }
 
   private filterSchemas(

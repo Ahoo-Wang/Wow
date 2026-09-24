@@ -24,12 +24,14 @@ vi.mock('commander', () => ({
     option: vi.fn().mockReturnThis(),
     action: vi.fn().mockReturnThis(),
     parse: vi.fn(),
+    parseAsync: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
 // Mock generateAction
-vi.mock('../../src/utils', () => ({
+vi.mock('../src/utils', () => ({
   generateAction: vi.fn(),
+  DEFAULT_HTTP_TIMEOUT_MS: 30000,
 }));
 
 // Mock package.json import
@@ -40,6 +42,7 @@ vi.mock('../package.json', () => ({
   },
 }));
 
+import { program } from 'commander';
 import { setupCLI, runCLI } from '../src/cli';
 import { generateAction } from '../src/utils';
 import packageJson from '../package.json';
@@ -80,13 +83,46 @@ describe('CLI setup', () => {
     // -c stays undefined and a named path is treated as required.
     expect(result.option).toHaveBeenCalledWith(
       '-c, --config <file>',
-      'Configuration file path (default: ./fetcher-generator.config.json)',
+      'Configuration file path (default: ./wow-generator.config.json)',
     );
     expect(result.option).toHaveBeenCalledWith(
       '-t, --ts-config-file-path <file>',
       'TypeScript configuration file path',
     );
+    expect(result.option).toHaveBeenCalledWith(
+      '-H, --header <header>',
+      'Request header for an http(s) input or configuration, as "Name: value"; repeatable',
+      expect.any(Function),
+    );
+    expect(result.option).toHaveBeenCalledWith(
+      '--timeout <ms>',
+      'Milliseconds before fetching an http(s) input is abandoned (default: 30000)',
+    );
+    expect(result.option).toHaveBeenCalledWith(
+      '--strict',
+      'Exit with code 4 when the run logs a warning',
+    );
+    expect(result.option).toHaveBeenCalledWith(
+      '--verbose',
+      'Log every step, and the stack trace of a failure',
+    );
+    expect(result.option).toHaveBeenCalledWith(
+      '--quiet',
+      'Log only warnings and errors',
+    );
     expect(result.action).toHaveBeenCalledWith(generateAction);
+  });
+
+  it('collects repeated --header values', () => {
+    setupCLI();
+    const collect = vi
+      .mocked(program.option)
+      .mock.calls.find(([flags]) => flags === '-H, --header <header>')![2] as (
+      value: string,
+      previous?: string[],
+    ) => string[];
+    expect(collect('A: 1', undefined)).toEqual(['A: 1']);
+    expect(collect('B: 2', ['A: 1'])).toEqual(['A: 1', 'B: 2']);
   });
 
   it('should return the configured program instance', () => {

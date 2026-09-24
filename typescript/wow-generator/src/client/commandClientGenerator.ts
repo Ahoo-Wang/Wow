@@ -92,7 +92,7 @@ export class CommandClientGenerator implements Generator {
         this.processAggregate(aggregateDefinition);
       });
     }
-    this.context.logger.success('Command client generation completed');
+    this.context.logger.info('Command client generation completed');
   }
 
   /**
@@ -176,7 +176,7 @@ export class CommandClientGenerator implements Generator {
     this.context.logger.info(`Generating stream command client class`);
     this.processStreamCommandClient(commandClientFile, aggregate);
 
-    this.context.logger.success(
+    this.context.logger.info(
       `Command client generation completed for aggregate: ${aggregate.aggregate.aggregateName}`,
     );
   }
@@ -211,7 +211,7 @@ export class CommandClientGenerator implements Generator {
         initializer: `'${command.path}'`,
       });
     });
-    this.context.logger.success(
+    this.context.logger.info(
       `Command endpoint paths enum created with ${aggregateDefinition.commands.size} entries`,
     );
     return aggregateCommandEndpointPathsName;
@@ -430,7 +430,7 @@ export class CommandClientGenerator implements Generator {
       `- path: \`${definition.path}\``,
     ]);
 
-    this.context.logger.success(
+    this.context.logger.info(
       `Command method generated: ${camelCase(definition.name)}`,
     );
   }

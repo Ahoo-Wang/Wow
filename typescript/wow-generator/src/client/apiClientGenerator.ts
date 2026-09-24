@@ -103,7 +103,7 @@ export class ApiClientGenerator implements Generator {
     );
 
     this.generateApiClients(apiClientTags, groupOperations);
-    this.context.logger.success('API client generation completed');
+    this.context.logger.info('API client generation completed');
   }
 
   /**
@@ -172,7 +172,7 @@ export class ApiClientGenerator implements Generator {
     operations.forEach(operation => {
       this.processOperation(tag, apiClientFile, apiClientClass, operation);
     });
-    this.context.logger.success(
+    this.context.logger.info(
       `Completed API client: ${modelInfo.name}ApiClient`,
     );
   }
@@ -501,7 +501,7 @@ export class ApiClientGenerator implements Generator {
       `- operationId: \`${operation.operation.operationId}\``,
       `- path: \`${operation.path}\``,
     ]);
-    this.context.logger.success(`Operation method generated: ${methodName}`);
+    this.context.logger.info(`Operation method generated: ${methodName}`);
   }
 
   /**

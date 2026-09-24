@@ -13,16 +13,99 @@
 
 import type { OpenAPI } from '@ahoo-wang/fetcher-openapi';
 import { parse } from 'yaml';
+import { errorMessage, GeneratorError } from '../errors';
+import type { LoadResourceOptions } from './resources';
 import { loadResource } from './resources';
 
 /**
- * Parses an OpenAPI specification from a file path.
+ * Loads and parses an OpenAPI 3 document.
  *
- * @param inputPath - The path to the OpenAPI specification file
- * @returns A promise that resolves to the parsed OpenAPI object
+ * Every failure is a {@link GeneratorError} of kind `input` whose message
+ * names the document: it cannot be read or fetched, it is neither JSON nor
+ * YAML, or it is not an OpenAPI 3 document. A Swagger 2.0 document is
+ * refused rather than generated into clients without models.
+ *
+ * @param inputPath - The path or http(s) URL of the document
+ * @param options - Headers and timeout for an http(s) document
+ * @returns The parsed document; `paths` is an empty object when it has none
  */
-export async function parseOpenAPI(inputPath: string): Promise<OpenAPI> {
-  return parseContent<OpenAPI>(await loadResource(inputPath));
+export async function parseOpenAPI(
+  inputPath: string,
+  options?: LoadResourceOptions,
+): Promise<OpenAPI> {
+  let content: string;
+  try {
+    content = await loadResource(inputPath, options);
+  } catch (error) {
+    throw new GeneratorError(
+      'input',
+      `Cannot read the OpenAPI document ${inputPath}: ${errorMessage(error)}`,
+      { cause: error },
+    );
+  }
+  let document: unknown;
+  try {
+    document = parseContent(content);
+  } catch (error) {
+    throw new GeneratorError(
+      'input',
+      `Cannot parse the OpenAPI document ${inputPath}: ${errorMessage(error)}`,
+      { cause: error },
+    );
+  }
+  return validateOpenAPIDocument(document, inputPath);
+}
+
+/**
+ * Checks that a parsed document is an OpenAPI 3 document the generator reads.
+ *
+ * @param document - The parsed document
+ * @param source - Where it came from, for messages
+ * @returns The document, with `paths` defaulted to an empty object
+ * @throws GeneratorError when it is not an OpenAPI 3.x document
+ */
+export function validateOpenAPIDocument(
+  document: unknown,
+  source: string,
+): OpenAPI {
+  if (
+    typeof document !== 'object' ||
+    document === null ||
+    Array.isArray(document)
+  ) {
+    throw new GeneratorError(
+      'input',
+      `${source} is not an OpenAPI document: expected an object at the top level.`,
+    );
+  }
+  const candidate = document as Record<string, unknown>;
+  if (candidate.swagger !== undefined) {
+    throw new GeneratorError(
+      'input',
+      `${source} is a Swagger ${String(candidate.swagger)} document; wow-generator reads OpenAPI 3.x only. Convert it first, for example with swagger2openapi.`,
+    );
+  }
+  if (
+    typeof candidate.openapi !== 'string' ||
+    !/^3\.\d+/.test(candidate.openapi)
+  ) {
+    throw new GeneratorError(
+      'input',
+      `${source} is not an OpenAPI 3.x document: its "openapi" field is ${candidate.openapi === undefined ? 'missing' : JSON.stringify(candidate.openapi)}.`,
+    );
+  }
+  if (
+    typeof candidate.info !== 'object' ||
+    candidate.info === null ||
+    Array.isArray(candidate.info)
+  ) {
+    throw new GeneratorError(
+      'input',
+      `${source} is not a valid OpenAPI document: its "info" object is missing.`,
+    );
+  }
+  // OpenAPI 3.1 allows a document without paths (webhooks or components only).
+  return { ...candidate, paths: candidate.paths ?? {} } as OpenAPI;
 }
 
 /**

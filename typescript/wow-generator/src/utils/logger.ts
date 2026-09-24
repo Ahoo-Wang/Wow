@@ -14,58 +14,75 @@
 import type { Logger } from '../types';
 
 /**
- * Default console-based logger implementation.
- * Provides friendly colored output for different log levels.
+ * How much a {@link ConsoleLogger} prints.
+ *
+ * - `quiet`: warnings and errors only.
+ * - `normal`: also the outcome of each step (`success`).
+ * - `verbose`: also every detail (`info`, `progress`), with timestamps.
+ */
+export type LogLevel = 'quiet' | 'normal' | 'verbose';
+
+export interface ConsoleLoggerOptions {
+  /** Defaults to `normal`. */
+  readonly level?: LogLevel;
+  /**
+   * Prefix lines with symbols. Defaults to true on a TTY unless `NO_COLOR`
+   * is set, so CI logs and pipes stay plain.
+   */
+  readonly decorate?: boolean;
+}
+
+function defaultDecorate(): boolean {
+  return !!process.stdout?.isTTY && !process.env.NO_COLOR;
+}
+
+/**
+ * Console logger for the CLI.
+ *
+ * Details go to `info` and `progress`, which only `verbose` prints; the
+ * default prints outcomes, warnings and errors, so a warning is not lost among
+ * hundreds of progress lines.
  */
 export class ConsoleLogger implements Logger {
-  private getTimestamp(): string {
-    return new Date().toTimeString().slice(0, 8); // HH:MM:SS format
+  private readonly level: LogLevel;
+  private readonly decorate: boolean;
+
+  constructor(options: ConsoleLoggerOptions = {}) {
+    this.level = options.level ?? 'normal';
+    this.decorate = options.decorate ?? defaultDecorate();
+  }
+
+  private format(symbol: string, label: string, message: string): string {
+    const prefix = this.decorate ? `${symbol} ` : label ? `${label}: ` : '';
+    const timestamp =
+      this.level === 'verbose'
+        ? `[${new Date().toTimeString().slice(0, 8)}] `
+        : '';
+    return `${timestamp}${prefix}${message}`;
   }
 
   info(message: string, ...params: any[]): void {
-    const timestamp = this.getTimestamp();
-    if (params.length > 0) {
-      console.log(`[${timestamp}] ℹ️  ${message}`, ...params);
-    } else {
-      console.log(`[${timestamp}] ℹ️  ${message}`);
-    }
+    if (this.level !== 'verbose') return;
+    console.log(this.format('ℹ️ ', '', message), ...params);
   }
 
   warn(message: string, ...params: unknown[]): void {
-    const timestamp = this.getTimestamp();
-    if (params.length > 0) {
-      console.warn(`[${timestamp}] ⚠️  ${message}`, ...params);
-    } else {
-      console.warn(`[${timestamp}] ⚠️  ${message}`);
-    }
+    console.warn(this.format('⚠️ ', 'warning', message), ...params);
   }
 
   success(message: string, ...params: any[]): void {
-    const timestamp = this.getTimestamp();
-    if (params.length > 0) {
-      console.log(`[${timestamp}] ✅ ${message}`, ...params);
-    } else {
-      console.log(`[${timestamp}] ✅ ${message}`);
-    }
+    if (this.level === 'quiet') return;
+    console.log(this.format('✅', '', message), ...params);
   }
 
   error(message: string, ...params: any[]): void {
-    const timestamp = this.getTimestamp();
-    if (params.length > 0) {
-      console.error(`[${timestamp}] ❌ ${message}`, ...params);
-    } else {
-      console.error(`[${timestamp}] ❌ ${message}`);
-    }
+    console.error(this.format('❌', 'error', message), ...params);
   }
 
   progress(message: string, level = 0, ...params: any[]): void {
-    const timestamp = this.getTimestamp();
+    if (this.level !== 'verbose') return;
     const indent = '  '.repeat(level);
-    if (params.length > 0) {
-      console.log(`[${timestamp}] 🔄 ${indent}${message}`, ...params);
-    } else {
-      console.log(`[${timestamp}] 🔄 ${indent}${message}`);
-    }
+    console.log(this.format('🔄', '', `${indent}${message}`), ...params);
   }
 
   progressWithCount(
@@ -75,17 +92,12 @@ export class ConsoleLogger implements Logger {
     level = 0,
     ...params: any[]
   ): void {
-    const timestamp = this.getTimestamp();
+    if (this.level !== 'verbose') return;
     const indent = '  '.repeat(level);
-    const countStr = `[${current}/${total}]`;
-    if (params.length > 0) {
-      console.log(
-        `[${timestamp}] 🔄 ${indent}${countStr} ${message}`,
-        ...params,
-      );
-    } else {
-      console.log(`[${timestamp}] 🔄 ${indent}${countStr} ${message}`);
-    }
+    console.log(
+      this.format('🔄', '', `${indent}[${current}/${total}] ${message}`),
+      ...params,
+    );
   }
 }
 
@@ -141,4 +153,50 @@ export function warn(
     return;
   }
   logger.info(message, ...params);
+}
+
+/**
+ * Forwards to another logger and counts the warnings passed through, so a
+ * run can report them and `--strict` can fail on them.
+ */
+export class WarningCounter implements Logger {
+  private count = 0;
+
+  constructor(private readonly delegate: Logger) {}
+
+  /** How many warnings have been logged. */
+  get warnings(): number {
+    return this.count;
+  }
+
+  info(message: string, ...params: any[]): void {
+    this.delegate.info(message, ...params);
+  }
+
+  warn(message: string, ...params: unknown[]): void {
+    this.count++;
+    warn(this.delegate, message, ...params);
+  }
+
+  success(message: string, ...params: any[]): void {
+    this.delegate.success(message, ...params);
+  }
+
+  error(message: string, ...params: any[]): void {
+    this.delegate.error(message, ...params);
+  }
+
+  progress(message: string, level?: number, ...params: any[]): void {
+    this.delegate.progress(message, level, ...params);
+  }
+
+  progressWithCount(
+    current: number,
+    total: number,
+    message: string,
+    level?: number,
+    ...params: any[]
+  ): void {
+    this.delegate.progressWithCount(current, total, message, level, ...params);
+  }
 }

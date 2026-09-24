@@ -12,10 +12,78 @@
  */
 
 import { isAbsolute, resolve } from 'path';
+import { errorMessage, GeneratorError } from '../errors';
 import type { GeneratorConfiguration, Logger } from '../types';
 import { warn } from './logger';
 import { parseContent } from './parsers';
-import { loadResource } from './resources';
+import type { LoadResourceOptions } from './resources';
+import { isHttpLocation, loadResource } from './resources';
+
+/**
+ * Where the generator looks for its configuration when none is named.
+ */
+export const DEFAULT_CONFIG_PATH = './wow-generator.config.json';
+
+// compat(fetcher): the configuration was named fetcher-generator.config.json before the
+// package moved to Wow; read it, with a deprecation warning, when the new name is absent.
+// Removed in v10.
+export const LEGACY_CONFIG_PATH = './fetcher-generator.config.json';
+
+/**
+ * A configuration and the place it was read from.
+ */
+export interface ResolvedConfiguration {
+  readonly config: GeneratorConfiguration;
+  /** The absolute path or URL read, or undefined when there was none. */
+  readonly origin?: string;
+}
+
+/**
+ * Finds and loads the generator configuration.
+ *
+ * A path the caller names has to exist. Without one the generator reads
+ * {@link DEFAULT_CONFIG_PATH}, then the pre-Wow name
+ * {@link LEGACY_CONFIG_PATH} with a deprecation warning, and generates with
+ * the defaults when neither exists.
+ *
+ * @param configPath - The path or URL the caller named, if any
+ * @param logger - Receives the resolved settings and any warning
+ * @param options - Headers and timeout for a configuration read over http(s)
+ * @returns The configuration and where it came from
+ * @throws GeneratorError of kind `configuration` when it cannot be read,
+ * parsed or understood
+ */
+export async function resolveConfiguration(
+  configPath: string | undefined,
+  logger: Logger,
+  options?: LoadResourceOptions,
+): Promise<ResolvedConfiguration> {
+  if (configPath !== undefined) {
+    const config = await loadConfiguration(
+      { path: configPath, explicit: true },
+      logger,
+      options,
+    );
+    return { config, origin: describeSource(configPath) };
+  }
+  for (const path of [DEFAULT_CONFIG_PATH, LEGACY_CONFIG_PATH]) {
+    const config = await loadConfiguration(
+      { path, explicit: false },
+      logger,
+      options,
+    );
+    if (config === undefined) continue;
+    if (path === LEGACY_CONFIG_PATH) {
+      warn(
+        logger,
+        `${describeSource(path)} uses the deprecated name; rename it to ${DEFAULT_CONFIG_PATH.slice(2)}. The old name is no longer read from v10.`,
+      );
+    }
+    return { config, origin: describeSource(path) };
+  }
+  logger.info('No configuration file found, generating with defaults');
+  return { config: {} };
+}
 
 /** Top-level keys a generator configuration may declare. */
 const CONFIGURATION_KEYS = ['apiClients'];
@@ -47,28 +115,42 @@ export interface ConfigurationSource {
  *
  * @param source - Where to read the configuration from
  * @param logger - Receives the resolved settings, and any warning about them
- * @returns The validated configuration, empty when there is none to read
- * @throws Error when the configuration cannot be read, parsed or understood
+ * @param options - Headers and timeout for a configuration read over http(s)
+ * @returns The validated configuration; undefined when a path the caller did
+ * not name does not exist
+ * @throws GeneratorError of kind `configuration` when the configuration
+ * cannot be read, parsed or understood
  */
+export async function loadConfiguration(
+  source: ConfigurationSource & { explicit: true },
+  logger: Logger,
+  options?: LoadResourceOptions,
+): Promise<GeneratorConfiguration>;
 export async function loadConfiguration(
   source: ConfigurationSource,
   logger: Logger,
-): Promise<GeneratorConfiguration> {
+  options?: LoadResourceOptions,
+): Promise<GeneratorConfiguration | undefined>;
+export async function loadConfiguration(
+  source: ConfigurationSource,
+  logger: Logger,
+  options?: LoadResourceOptions,
+): Promise<GeneratorConfiguration | undefined> {
   const origin = describeSource(source.path);
   logger.info(`Reading configuration: ${origin}`);
   let content: string;
   try {
-    content = await loadResource(source.path);
+    content = await loadResource(source.path, options);
   } catch (error) {
     if (!source.explicit && isFileNotFound(error)) {
-      logger.info(
-        `No configuration file at ${origin}, generating with defaults`,
-      );
-      return {};
+      logger.info(`No configuration file at ${origin}`);
+      return undefined;
     }
-    throw new Error(`Cannot read configuration ${origin}: ${reason(error)}`, {
-      cause: error,
-    });
+    throw new GeneratorError(
+      'configuration',
+      `Cannot read configuration ${origin}: ${errorMessage(error)}`,
+      { cause: error },
+    );
   }
   if (!content.trim()) {
     warn(logger, `Configuration ${origin} is empty, generating with defaults`);
@@ -78,9 +160,11 @@ export async function loadConfiguration(
   try {
     parsed = parseContent(content);
   } catch (error) {
-    throw new Error(`Cannot parse configuration ${origin}: ${reason(error)}`, {
-      cause: error,
-    });
+    throw new GeneratorError(
+      'configuration',
+      `Cannot parse configuration ${origin}: ${errorMessage(error)}`,
+      { cause: error },
+    );
   }
   const config = validateConfiguration(parsed, origin, logger);
   logger.info(`Configuration loaded from ${origin}: ${describe(config)}`);
@@ -96,7 +180,7 @@ export async function loadConfiguration(
  * @returns An absolute path, or the URL unchanged
  */
 function describeSource(path: string): string {
-  if (/^https?:\/\//.test(path) || isAbsolute(path)) {
+  if (isHttpLocation(path) || isAbsolute(path)) {
     return path;
   }
   return resolve(path);
@@ -109,11 +193,6 @@ function isFileNotFound(error: unknown): boolean {
     error !== null &&
     (error as NodeJS.ErrnoException).code === 'ENOENT'
   );
-}
-
-/** Renders an error as the tail of a sentence. */
-function reason(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }
 
 /** Names a value's type the way a configuration author would recognise it. */
@@ -176,7 +255,8 @@ export function validateConfiguration(
   logger: Logger,
 ): GeneratorConfiguration {
   if (!isRecord(parsed)) {
-    throw new Error(
+    throw new GeneratorError(
+      'configuration',
       `Configuration ${origin} must be a JSON or YAML object, found ${typeOf(parsed)}`,
     );
   }
@@ -195,13 +275,15 @@ function validateApiClients(
     return;
   }
   if (!isRecord(apiClients)) {
-    throw new Error(
+    throw new GeneratorError(
+      'configuration',
       `apiClients in ${origin} must be an object keyed by tag name, found ${typeOf(apiClients)}`,
     );
   }
   for (const [tag, apiClient] of Object.entries(apiClients)) {
     if (!isRecord(apiClient)) {
-      throw new Error(
+      throw new GeneratorError(
+        'configuration',
         `apiClients["${tag}"] in ${origin} must be an object, found ${typeOf(apiClient)}`,
       );
     }
@@ -220,7 +302,8 @@ function validateApiClients(
         ignorePathParameters.every(name => typeof name === 'string')
       )
     ) {
-      throw new Error(
+      throw new GeneratorError(
+        'configuration',
         `apiClients["${tag}"].ignorePathParameters in ${origin} must be an array of strings, found ${typeOf(ignorePathParameters)}`,
       );
     }

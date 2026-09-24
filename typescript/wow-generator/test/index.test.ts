@@ -11,367 +11,143 @@
  * limitations under the License.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { CodeGenerator } from '../src';
-import type { GeneratorOptions } from '../src/types';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { Project } from 'ts-morph';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { CodeGenerator, GeneratorError, SilentLogger } from '../src';
 
-// Mock dependencies
-vi.mock('ts-morph', () => ({
-  Project: class Project {
-    getDirectory = vi.fn();
-    getSourceFiles = vi.fn().mockReturnValue([]);
-    getSourceFile = vi.fn();
-    createSourceFile = vi.fn().mockReturnValue({
-      removeText: vi.fn(),
-      addExportDeclaration: vi.fn(),
-      addStatements: vi.fn(),
-    });
-    save = vi.fn();
-    constructor() {}
+const directories: string[] = [];
+afterEach(() =>
+  directories
+    .splice(0)
+    .forEach(dir => rmSync(dir, { recursive: true, force: true })),
+);
+
+function writeSpec(spec: unknown): string {
+  const dir = mkdtempSync(join(tmpdir(), 'wow-generator-index-'));
+  directories.push(dir);
+  const path = join(dir, 'openapi.json');
+  writeFileSync(path, JSON.stringify(spec));
+  return path;
+}
+
+const SPEC = {
+  openapi: '3.0.4',
+  info: { title: 'Catalog', version: '1' },
+  paths: {
+    '/items/{id}': {
+      get: {
+        tags: ['Items'],
+        operationId: 'getItem',
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+          },
+        ],
+        responses: {
+          '200': {
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/catalog.Item' },
+              },
+            },
+          },
+        },
+      },
+    },
   },
-}));
-
-vi.mock('../src/utils', () => ({
-  applyTypeOnlyImports: vi.fn(),
-  beginGeneration: vi.fn(),
-  forgetStaleGeneratedFiles: vi.fn(),
-  getGeneratedFilePaths: vi.fn(),
-  getOrCreateSourceFile: vi.fn().mockReturnValue({
-    removeText: vi.fn(),
-    addExportDeclaration: vi.fn(),
-  }),
-  saveGeneration: vi.fn(),
-  parseOpenAPI: vi.fn(),
-  loadConfiguration: vi.fn(),
-}));
-
-vi.mock('../src/aggregate', () => ({
-  AggregateResolver: class AggregateResolver {
-    resolve = vi.fn().mockReturnValue({ size: 2 });
-    constructor() {}
+  components: {
+    schemas: {
+      'catalog.Item': {
+        type: 'object',
+        properties: { id: { type: 'string' } },
+        required: ['id'],
+      },
+    },
   },
-}));
-
-vi.mock('../src/model', () => ({
-  ModelGenerator: class ModelGenerator {
-    generate = vi.fn();
-    constructor() {}
-  },
-}));
-
-vi.mock('../src/client', () => ({
-  ClientGenerator: class ClientGenerator {
-    generate = vi.fn();
-    constructor() {}
-  },
-}));
-
-// Import after mocking
-import {
-  applyTypeOnlyImports,
-  loadConfiguration,
-  parseOpenAPI,
-} from '../src/utils';
+};
 
 describe('CodeGenerator', () => {
-  let mockProject: any;
-  let mockLogger: any;
-  let mockOpenAPI: any;
-  let options: GeneratorOptions;
+  it('generates models, clients and barrels, and reports what it wrote', async () => {
+    const project = new Project({ useInMemoryFileSystem: true });
+    const generator = new CodeGenerator(
+      {
+        inputPath: writeSpec(SPEC),
+        outputDir: '/out',
+        configPath: undefined,
+        logger: new SilentLogger(),
+      },
+      project,
+    );
 
-  beforeEach(() => {
-    vi.clearAllMocks();
+    const result = await generator.generate();
 
-    mockProject = {
-      getDirectory: vi.fn(),
-      getSourceFiles: vi.fn().mockReturnValue([]),
-      getSourceFile: vi.fn(),
-      createSourceFile: vi.fn(),
-      save: vi.fn().mockResolvedValue(undefined),
-    };
-
-    mockLogger = {
-      info: vi.fn(),
-      success: vi.fn(),
-      error: vi.fn(),
-      progress: vi.fn(),
-    };
-
-    mockOpenAPI = {
-      openapi: '3.0.0',
-      info: { title: 'Test API', version: '1.0.0' },
-      paths: {},
-    };
-
-    (parseOpenAPI as any).mockResolvedValue(mockOpenAPI);
-    (loadConfiguration as any).mockResolvedValue({});
-
-    options = {
-      tsConfigFilePath: undefined,
-      inputPath: '/path/to/openapi.yaml',
-      outputDir: '/output/dir',
-      logger: mockLogger,
-    };
+    expect(result.files).toEqual([
+      '/out/ItemsApiClient.ts',
+      '/out/catalog/index.ts',
+      '/out/catalog/types.ts',
+      '/out/index.ts',
+    ]);
+    expect(result.warnings).toBe(0);
+    expect(result.configPath).toBeUndefined();
+    const fs = project.getFileSystem();
+    expect(fs.readFileSync('/out/catalog/types.ts')).toContain(
+      'export interface Item',
+    );
+    expect(fs.readFileSync('/out/index.ts')).toContain('./catalog');
+    expect(fs.fileExistsSync('/out/.wow-generator.json')).toBe(true);
   });
 
-  describe('constructor', () => {
-    it('should initialize with provided options', () => {
-      const generator = new CodeGenerator(options);
-
-      expect(generator['options']).toBe(options);
-    });
-
-    it('should log initialization message', () => {
-      new CodeGenerator(options);
-
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        'Project instance created with tsConfigFilePath: undefined',
-      );
-    });
-  });
-
-  describe('generate', () => {
-    it('should execute the complete code generation process and produce files', async () => {
-      const generator = new CodeGenerator(options);
-      mockProject.getDirectory.mockReturnValue({
-        getPath: vi.fn().mockReturnValue(options.outputDir),
-        getDirectories: vi.fn().mockReturnValue([]),
-        getSourceFiles: vi.fn().mockReturnValue([]),
-        getDescendantSourceFiles: vi.fn().mockReturnValue([]),
-      } as any);
-
-      generator.generate();
-
-      // The generation must have run to completion and logged its progress —
-      // not just "not thrown". Previously this only asserted .not.toThrow().
-      expect(mockLogger.info).toHaveBeenCalled();
-    });
-
-    it('should log progress throughout the generation process', async () => {
-      const generator = new CodeGenerator(options);
-      mockProject.getDirectory.mockReturnValue({
-        getPath: vi.fn().mockReturnValue(options.outputDir),
-        getDirectories: vi.fn().mockReturnValue([]),
-        getSourceFiles: vi.fn().mockReturnValue([]),
-        getDescendantSourceFiles: vi.fn().mockReturnValue([]),
-      } as any);
-
-      generator.generate();
-
-      // Generation must have logged progress (previously only "not.toThrow").
-      expect(mockLogger.info).toHaveBeenCalled();
-    });
-
-    it('should call generateIndex and optimizeSourceFiles', async () => {
-      const generator = new CodeGenerator(options);
-      mockProject.getDirectory.mockReturnValue({
-        getPath: vi.fn().mockReturnValue(options.outputDir),
-        getDirectories: vi.fn().mockReturnValue([]),
-        getSourceFiles: vi.fn().mockReturnValue([]),
-        getDescendantSourceFiles: vi.fn().mockReturnValue([]),
-      } as any);
-
-      generator.generate();
-
-      // The index/format/save phase runs after generation; verify it logged
-      // completion rather than only asserting .not.toThrow().
-      expect(mockLogger.info).toHaveBeenCalled();
-    });
-  });
-
-  describe('generateIndex', () => {
-    it('should generate index files for the output directory', () => {
-      const generator = new CodeGenerator(options);
-      const mockOutputDir = {
-        getDirectories: vi.fn().mockReturnValue([]),
-        getPath: vi.fn().mockReturnValue(options.outputDir),
-        getSourceFiles: vi.fn().mockReturnValue([]),
-      };
-      mockProject.getDirectory.mockReturnValue(mockOutputDir);
-
-      generator.generateIndex(mockOutputDir as any);
-
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        `Generating index files for output directory: ${options.outputDir}`,
-      );
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        'Index file generation completed',
-      );
-    });
-
-    it('should process subdirectories recursively', () => {
-      const generator = new CodeGenerator(options);
-      const mockSubDir = {
-        getPath: vi.fn().mockReturnValue('/output/dir/sub'),
-        getDirectories: vi.fn().mockReturnValue([]),
-        getSourceFiles: vi.fn().mockReturnValue([]),
-        getBaseName: vi.fn().mockReturnValue('sub'),
-      };
-      const mockOutputDir = {
-        getDirectories: vi.fn().mockReturnValue([mockSubDir]),
-        getPath: vi.fn().mockReturnValue('/output/dir'),
-        getSourceFiles: vi.fn().mockReturnValue([]),
-        getBaseName: vi.fn().mockReturnValue('dir'),
-      };
-      mockProject.getDirectory.mockReturnValue(mockOutputDir);
-      mockProject.getSourceFile.mockReturnValue(null);
-
-      expect(() => {
-        generator.generateIndex(mockOutputDir as any);
-      }).not.toThrow();
-    });
-  });
-
-  describe('generateIndexForDirectory', () => {
-    it('should create index file with exports for TypeScript files', () => {
-      const generator = new CodeGenerator(options);
-      const mockDir = {
-        getPath: vi.fn().mockReturnValue('/test/dir'),
-        getSourceFiles: vi.fn().mockReturnValue([
-          {
-            getBaseName: vi.fn().mockReturnValue('model.ts'),
-            getBaseNameWithoutExtension: vi.fn().mockReturnValue('model'),
-          },
-          {
-            getBaseName: vi.fn().mockReturnValue('service.ts'),
-            getBaseNameWithoutExtension: vi.fn().mockReturnValue('service'),
-          },
-        ]),
-        getDirectories: vi.fn().mockReturnValue([]),
-      };
-
-      mockProject.getSourceFile.mockReturnValue(null);
-
-      expect(() => {
-        (generator as any).generateIndexForDirectory(mockDir);
-      }).not.toThrow();
-    });
-
-    it('should create index file with exports for subdirectories', () => {
-      const generator = new CodeGenerator(options);
-      const mockSubDir = {
-        getBaseName: vi.fn().mockReturnValue('models'),
-      };
-      const mockDir = {
-        getPath: vi.fn().mockReturnValue('/test/dir'),
-        getSourceFiles: vi.fn().mockReturnValue([]),
-        getDirectories: vi.fn().mockReturnValue([mockSubDir]),
-      };
-
-      mockProject.getSourceFile.mockReturnValue(null);
-
-      expect(() => {
-        (generator as any).generateIndexForDirectory(mockDir);
-      }).not.toThrow();
-    });
-
-    it('should skip index generation if no files or subdirectories', () => {
-      const generator = new CodeGenerator(options);
-      const mockDir = {
-        getPath: vi.fn().mockReturnValue('/empty/dir'),
-        getSourceFiles: vi.fn().mockReturnValue([]),
-        getDirectories: vi.fn().mockReturnValue([]),
-      };
-
-      expect(() => {
-        (generator as any).generateIndexForDirectory(mockDir);
-      }).not.toThrow();
-    });
-
-    it('should update existing index file', () => {
-      const generator = new CodeGenerator(options);
-      const mockDir = {
-        getPath: vi.fn().mockReturnValue('/test/dir'),
-        getSourceFiles: vi.fn().mockReturnValue([
-          {
-            getBaseName: vi.fn().mockReturnValue('model.ts'),
-            getBaseNameWithoutExtension: vi.fn().mockReturnValue('model'),
-          },
-        ]),
-        getDirectories: vi.fn().mockReturnValue([]),
-      };
-
-      const mockIndexFile = {
-        removeText: vi.fn(),
-        addExportDeclaration: vi.fn(),
-      };
-
-      mockProject.getSourceFile.mockReturnValue(mockIndexFile);
-
-      expect(() => {
-        (generator as any).generateIndexForDirectory(mockDir);
-      }).not.toThrow();
-    });
-
-    it('should exclude index.ts from exports', () => {
-      const generator = new CodeGenerator(options);
-      const mockDir = {
-        getPath: vi.fn().mockReturnValue('/test/dir'),
-        getSourceFiles: vi.fn().mockReturnValue([
-          {
-            getBaseName: vi.fn().mockReturnValue('model.ts'),
-            getBaseNameWithoutExtension: vi.fn().mockReturnValue('model'),
-          },
-          {
-            getBaseName: vi.fn().mockReturnValue('index.ts'),
-            getBaseNameWithoutExtension: vi.fn().mockReturnValue('index'),
-          },
-        ]),
-        getDirectories: vi.fn().mockReturnValue([]),
-      };
-
-      mockProject.getSourceFile.mockReturnValue(null);
-
-      expect(() => {
-        (generator as any).generateIndexForDirectory(mockDir);
-      }).not.toThrow();
-    });
-  });
-
-  describe('optimizeSourceFiles', () => {
-    it('should optimize all source files in the project', () => {
-      const generator = new CodeGenerator(options);
-      const mockOutputDir = {
-        getPath: vi.fn().mockReturnValue(options.outputDir),
-        getDescendantSourceFiles: vi.fn(),
-      };
-      const mockSourceFiles = [
-        {
-          getFilePath: vi.fn().mockReturnValue('/path/to/file1.ts'),
-          formatText: vi.fn(),
-          organizeImports: vi.fn(),
-          fixMissingImports: vi.fn(),
+  it('counts the warnings of one run, not of the generator instance', async () => {
+    const project = new Project({ useInMemoryFileSystem: true });
+    const warn = vi.fn();
+    const generator = new CodeGenerator(
+      {
+        inputPath: writeSpec(SPEC),
+        outputDir: '/out',
+        logger: {
+          info() {},
+          warn,
+          success() {},
+          error() {},
+          progress() {},
+          progressWithCount() {},
         },
-        {
-          getFilePath: vi.fn().mockReturnValue('/path/to/file2.ts'),
-          formatText: vi.fn(),
-          organizeImports: vi.fn(),
-          fixMissingImports: vi.fn(),
-        },
-      ];
+      },
+      project,
+    );
+    // The logger's warn is called through a counter that the result reads.
+    generator['logger'].warn('before the run');
 
-      mockOutputDir.getDescendantSourceFiles.mockReturnValue(mockSourceFiles);
+    const result = await generator.generate();
 
-      (generator as any).optimizeSourceFiles(mockOutputDir as any);
+    expect(warn).toHaveBeenCalledWith('before the run');
+    expect(result.warnings).toBe(0);
+  });
 
-      expect(mockOutputDir.getDescendantSourceFiles).toHaveBeenCalled();
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        `Optimizing ${mockSourceFiles.length} source files in ${mockOutputDir.getPath()}`,
-      );
+  it('fails with an input error naming the document when it is not OpenAPI 3', async () => {
+    const inputPath = writeSpec({ swagger: '2.0', info: {}, paths: {} });
+    const generator = new CodeGenerator(
+      { inputPath, outputDir: '/out', logger: new SilentLogger() },
+      new Project({ useInMemoryFileSystem: true }),
+    );
 
-      mockSourceFiles.forEach((file, index) => {
-        expect(mockLogger.info).toHaveBeenCalledWith(
-          `Optimizing file [${file.getFilePath()}] - ${index + 1}/${mockSourceFiles.length}`,
-        );
-        expect(file.formatText).toHaveBeenCalled();
-        expect(file.organizeImports).toHaveBeenCalled();
-        expect(file.fixMissingImports).toHaveBeenCalled();
-      });
-      expect(applyTypeOnlyImports).toHaveBeenCalledWith(mockSourceFiles);
+    const error = await generator.generate().catch(e => e);
 
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        'All source files optimized',
-      );
-    });
+    expect(error).toBeInstanceOf(GeneratorError);
+    expect(error.kind).toBe('input');
+    expect(error.message).toContain(`${inputPath} is a Swagger 2.0 document`);
+  });
+
+  it('logs through a console logger when none is given', () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    // The default level prints no details, so construction is silent.
+    new CodeGenerator({ inputPath: 'spec.json', outputDir: '/out' });
+    expect(log).not.toHaveBeenCalled();
   });
 });

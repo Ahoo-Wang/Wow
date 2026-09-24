@@ -78,7 +78,7 @@ When you add compatibility code, add its marker and list the file under an entry
 
 ### fetcher-generator File Names
 
-- **Kept compatible**: the generator still reads its configuration from `fetcher-generator.config.json` by default and records the files it wrote in `.fetcher-generator.json`, so existing projects keep their configuration and a regeneration still removes files an older run wrote.
-- **Markers**: `typescript/wow-generator/src/index.ts`, `typescript/wow-generator/src/utils/sourceFiles.ts`
-- **Replacement**: `wow-generator.config.json` and `.wow-generator.json`. Introducing them is additive when the old names stay readable, so it can ship in any 9.x release: write the new manifest, and read the new name first with the old one as a fallback.
-- **Removal in v10**: stop reading the old names. A project that still has only `fetcher-generator.config.json` must rename it; the migration guide says so.
+- **Kept compatible**: `wow-generator` reads its configuration from `wow-generator.config.json` and records the files it wrote in `.wow-generator.json`. When those are absent it still reads the names it had in fetcher: it falls back to `fetcher-generator.config.json` with a deprecation warning, and reads an existing `.fetcher-generator.json` so a regeneration still removes files an older run wrote; it then writes `.wow-generator.json` and deletes the old manifest.
+- **Markers**: `typescript/wow-generator/src/utils/configuration.ts`, `typescript/wow-generator/src/utils/sourceFiles.ts`
+- **Replacement**: `wow-generator.config.json` and `.wow-generator.json`.
+- **Removal in v10**: delete `LEGACY_CONFIG_PATH`, `LEGACY_GENERATION_MANIFEST` and the fallbacks that read them. A project that still has only `fetcher-generator.config.json` must rename it, and output last generated before 9.x must be regenerated once with 9.x or cleaned by hand; the migration guide says so.
