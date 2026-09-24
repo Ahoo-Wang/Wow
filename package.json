@@ -15,7 +15,10 @@
     "typecheck": "pnpm -r --filter './typescript/*' exec tsc --noEmit --incremental false --composite false",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test:ci-scripts": "node --test .github/scripts/*.test.mjs"
+    "test:ci-scripts": "node --test .github/scripts/*.test.mjs",
+    "set-version": "node .github/scripts/project-version.mjs set",
+    "check:versions": "node .github/scripts/project-version.mjs check",
+    "check:compat-debt": "node .github/scripts/compat-debt.mjs"
   },
   "devDependencies": {
     "@eslint/js": "catalog:",
