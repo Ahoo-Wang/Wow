@@ -273,7 +273,7 @@ W2a、W2b 的具体做法与决定：
 - wow-react 只从 fetcher-react 的 `/core`、`/fetcher` 导入，产物与类型声明都已核对。
 - 生成器：命令 `wow-generator`，`fetcher-generator` 作为 bin 别名保留到 v10；生成代码改为导入 `@ahoo-wang/wow-client`。配置文件名 `fetcher-generator.config.json` 与生成清单 `.fetcher-generator.json` **不改名**（改了已有项目读不到配置、清不掉旧文件），记入兼容债务，v10 前改为新名并兼容读旧名。
 - `pnpm lint` 在各包内各跑 eslint（从根目录一次跑会因多个 tsconfig 根报错）；导入代码带来的 77 条既有 warning 不拦，与 fetcher CI 一致。
-- integration-test 的 `src/generated` 改为逐字节提交生成器原始输出（含清单），不做 eslint/prettier；fetcher 里那份已过期且被格式化过，W2b 重新生成（多了 `defaultApplyResourceTags` 命令等）。CI 检查重新生成的结果与提交一致。
+- integration-test 的 `src/generated` 改为逐字节提交生成器原始输出（含清单），不做 prettier（eslint 起初也排除，生成器产出 `import type` 后恢复检查，见下一步第 4 条）；fetcher 里那份已过期且被格式化过，W2b 重新生成（多了 `defaultApplyResourceTags` 命令等）。CI 检查重新生成的结果与提交一致。
 - 同源契约的触发路径比原表多了 `test/wow-mock/**`、`compensation/wow-compensation-{api,core}/**`、`build-logic/**`（都在 example-server 的构建/运行时 classpath 上）。
 
 ### 下一步
@@ -281,6 +281,6 @@ W2a、W2b 的具体做法与决定：
 1. **W3**（view-engine 与 storybook，导入 PR 用 merge commit）：动手前先把步骤与仓库操作列给用户确认。fetcher 的 view-engine `docs/design/todo.md` 检查点一节列了要在 Wow 做的清单；文档站概览页的「Storybook 稍后上线」换成真实链接；W3 合并后恢复 ruleset 16907411 的 `allowed_merge_methods`（先问用户）；W2、W3 都合并后通知 fetcher 会话做第 3′ 步。
 2. **npm 首发（用户操作）**：npm 只能给已存在的包绑定可信发布，三个包都是新名字，所以首个版本由用户在发版提交上手动发一次：`npm login` 后执行 `pnpm install --frozen-lockfile && pnpm build:typescript && node .github/scripts/publish-npm.mjs --no-provenance`。之后在 npmjs.com 为每个包设置 Trusted Publisher（GitHub Actions，组织 `Ahoo-Wang`，仓库 `Wow`，工作流 `package-deploy.yml`），并把 Publishing access 设为要求双重验证、禁止 token。在此之前，发版时 `npm-deploy` 会失败，Maven 两路不受影响，可以之后重跑补发。
 3. dashboard 改用 `workspace:` 依赖（`@ahoo-wang/wow-client`，重新生成 `src/generated`），单独一个小 PR。
-4. 后续改进（不阻塞迁移）：生成器对纯类型的导入不产出 `import type`，导致 integration-test 的 `src/generated` 只能排除在 eslint 外。
+4. 后续改进（不阻塞迁移，PR #3291）：生成器按用法产出类型导入——全部只作类型用的写 `import type { … }`，值与类型混用的在类型说明符上加内联 `type`；integration-test 的 `src/generated` 随之重新生成并恢复 eslint 检查（prettier 仍排除）。
 
 门禁节奏（2026-09-24 用户确认）：每个 PR 本地只验改到的包，相关汇总检查（`typescript-gate`、`typescript-contract-gate` 及改到的 Gradle/dashboard 工作流）全绿即合并；里程碑收尾（W3 合并后、首次发布前）再跑一次全量本地门禁。

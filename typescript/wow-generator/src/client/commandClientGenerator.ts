@@ -150,7 +150,6 @@ export class CommandClientGenerator implements Generator {
         'DeleteAggregateCommand',
         'RecoverAggregateCommand',
       ],
-      isTypeOnly: true,
     });
 
     this.context.logger.info(
