@@ -81,18 +81,50 @@ function area(path: SVGGraphicsElement): number {
   return box.width * box.height;
 }
 
-/** The numbers written over the marks. */
+/**
+ * The numbers written on the marks themselves — a stacked bar's parts, a
+ * heatmap's cells: text whose middle falls inside a mark. They wear no
+ * halo — the ink that stands off the mark is their contrast — so they are
+ * told apart from the axes' text by where they stand.
+ */
+export function markLabels(root: ParentNode): SVGTextElement[] {
+  const marks = new Set<Element>(painted(root));
+  return [...plots(root)].flatMap(plot =>
+    [...plot.querySelectorAll<SVGTextElement>('svg text:not([stroke])')].filter(
+      text => {
+        // What the browser hits under the text's middle, not a mark's box:
+        // a slice's box covers a donut's hole, and the total written there
+        // is on no mark.
+        const box = text.getBoundingClientRect();
+        return document
+          .elementsFromPoint(
+            (box.left + box.right) / 2,
+            (box.top + box.bottom) / 2,
+          )
+          .some(hit => marks.has(hit));
+      },
+    ),
+  );
+}
+
+/** The numbers written over the marks, and on them. */
 export function valueLabels(root: ParentNode): SVGTextElement[] {
-  return [...plots(root)].flatMap(plot => [
-    ...plot.querySelectorAll<SVGTextElement>('svg text[stroke]'),
-  ]);
+  return [
+    ...[...plots(root)].flatMap(plot => [
+      ...plot.querySelectorAll<SVGTextElement>('svg text[stroke]'),
+    ]),
+    ...markLabels(root),
+  ];
 }
 
 /** The text on the axes: ticks, and the axis titles. */
 export function axisTexts(root: ParentNode): SVGTextElement[] {
-  return [...plots(root)].flatMap(plot => [
-    ...plot.querySelectorAll<SVGTextElement>('svg text:not([stroke])'),
-  ]);
+  const onMarks = new Set(markLabels(root));
+  return [...plots(root)].flatMap(plot =>
+    [...plot.querySelectorAll<SVGTextElement>('svg text:not([stroke])')].filter(
+      text => !onMarks.has(text),
+    ),
+  );
 }
 
 /**

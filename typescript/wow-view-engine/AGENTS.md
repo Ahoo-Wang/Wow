@@ -150,9 +150,9 @@ src/
     budget.ts                 — Depth and node budgets of a walked tree
     capability.ts             — The three scopes the element chain makes: the root's, each element's, the innermost one's; and the renaming a scope implies
     candidates.ts             — A field's values as the data counts them (value candidates): `valueCandidateField` (grouped by `TERMS`, counted, one string, no `options`/`remote`), `valueCandidatesConfig` (an ordinary analysis — the top `valueCandidateLimit` by count, narrowed by `CONTAINS`/`STARTS_WITH` where the field offers one), `readValueCandidates` (whole or not, off the probe row), `narrowValueCandidates`
-    chart.ts                  — Chart-shaped projection for the renderers — a time axis always earliest first and without holes, a split's missing combination 0 where it is known empty and the metric adds, a funnel's stages its own rows' numbers unless asked to accumulate, a pie folded before the palette runs out — and `groupKeyText` — a group value as a colour key, the one spelling every chart family reads
+    chart.ts                  — Chart-shaped projection for the renderers — a time axis always earliest first and without holes, a split's missing combination 0 where it is known empty and the metric adds, a funnel's stages its own rows' numbers unless asked to accumulate, a pie folded before the palette runs out, every value it filled in rather than measured named so (`filled`) — and `groupKeyText` — a group value as a colour key, the one spelling every chart family reads
     chartRows.ts              — What every chart family reads its rows by: `seriesKey` (a group value as a key that keeps apart what the query kept apart), `num`, and `absenceReader` (whether a group the rows lack is known to be empty)
-    metricCard.ts             — The metric card's projection: one row's number, or over a trend its last period (the last bucket over when the question was asked, the one still under way left out and named) with the change from the period right before, or the whole (`MetricTrend.headline`); compare and target read the same span
+    metricCard.ts             — The metric card's projection: one row's number, or over a trend its last period (the last bucket over when the question was asked, the one still under way left out and named) with the change from the period right before, or the whole (`MetricTrend.headline`); compare and target read the same span; `periodRollover`, how long until the period under way ends and the card should be asked again
     timeAxis.ts               — A time axis for the chart projection: `forwardInTime` (earliest first, the missing-value sentinel last), `withoutHoles` (every bucket between the first and the last, stepped by `bucketRange` in the histogram's zone; nothing filled it cannot place) and `bucketSpan` (where a bucket ends, and whether it had by a given moment, on the engine's clock)
     chartSlots.ts             — `fitChartSlots`: the family sub-object of the current chart type, filled from the groups and metrics in force; `switchChartType`: a type switch carries the lead metric (`leadMetric`) into the new family; `comboMark`: a combo draws its first metric as bars, the others as lines; `comboAxis`: one that measures something else than the first goes to the other axis
     compile.ts                — compileAnalysis → AggregationQuery
@@ -210,12 +210,12 @@ src/
     pending.ts                — `comparePending`: what the draft says that the applied config does not (D17-6), presentation members excepted
     permissions.ts            — What a command is allowed to do; `instanceAbilities`, the one reading of "a system view is read-only", which the manager's buttons ask as well
     preferences.ts            — The preference cache, the list order and the default view
-    refreshTimer.ts           — The one auto-refresh timer both runtimes arm; `refreshIntervalOf`, `refreshDelayOf`
+    refreshTimer.ts           — The one auto-refresh timer both runtimes arm; `refreshIntervalOf`, `refreshDelayOf`; `MomentTimer`, one refresh at a moment (a metric card's period ending)
     autoApply.ts              — 「改了就跑」: whether the draft is due to run on its own (`autoApplyDue`) and the delay that merges a burst of edits into one query
     requestRunner.ts          — Scheduling; a newer request supersedes a key
     recordRuntime.ts          — `RecordDataViewRuntime`: the page, the selection, the export and the record read whole — a Record view's alone; `dataViewRuntime` builds the one a config's kind runs on, `isRecordRuntime` tells them apart
     runtimeFactory.ts         — How one runtime is assembled, `open` and `create` alike
-    runtimeStore.ts           — The store both runtimes are made of: the state, its listeners, the refresh timer's bookkeeping, dirty-against-saved; `hasError`
+    runtimeStore.ts           — The store both runtimes are made of: the state, its listeners, the refresh timer's bookkeeping and the rollover's (`expiresAt`), dirty-against-saved; `hasError`
     sourceReason.ts           — What a source said went wrong, in its own words: a Wow error body's `errorMsg`, else the HTTP status, never the URL
     savedConditions.ts        — `conditionsDrifted`: whether the conditions in force are other than the ones the view was saved with
     scope.ts                  — What an injected scope does to admission: the merge, and what it alone is refused for
@@ -390,27 +390,30 @@ src/
       tableColumns.ts         — An analysis column in the record table's terms: its reading (`readingOf`, a plain metric is a number), whether it is an id (`isIdentifier`), a width from the column alone and never from its values (`columnWidthOf`), and the `RecordColumnView` its `SortableHeader` takes
     charts/                   — One file per family, plus what they share
       Cartesian.tsx           — Bar, line, area and combo through `cartesianOption` (D21): the legend, the names fitted to the width, a pressed mark handed back as its group
-      cartesianOption.ts      — `cartesianOption`: a cartesian chart as the library draws it — each series' mark, axes and their titles, short numbers, value labels that hide rather than overlap, stack totals, reference lines, room for the widest value label; `categoryFit`, the category names side by side or at a slant for the width, a time axis flat and thinned
+      cartesianOption.ts      — `cartesianOption`: a cartesian chart as the library draws it — each series' mark, axes on the scales the plan owns and their titles, short numbers, value labels (inside a stacked segment in the ink that stands off it), stack totals, reference lines, emphasis toward the ink, room for the widest value label
+      cartesianPlan.ts        — `cartesianPlan`: what a cartesian chart decides before its theme and size — which way it lies (`drawsHorizontal`: long category names lay bars down unless the analyst said), its series and stacks and their shares (`stackPlan`, the reading table's too), each axis's scale (`sharedScales`), each label's text
+      cartesianFit.ts         — `cartesianFit`: what the plot's size changes — the category names (`categoryFit`: side by side, slanted, a time axis flat and thinned), the value labels flat, upright or none for the whole chart and a segment's only where it fits, an axis title cut to its side
+      scale.ts                — `sharedScales`: one or two value axes on nice steps of their own cut into one count, zero on one line, a whole axis stepped in whole numbers (`niceStep`)
       ChartLegend.tsx         — The legend as text beside the drawing: a dot per series, on top by default, one line with the rest counted (「还有 N 个」)
       ChartReading.tsx        — The chart's numbers as a table, for whoever cannot see the marks
       highlight.ts            — `faded`: every mark but the group pressed drawn faint, over any family's option (D22 I)
-      EChart.tsx              — The thin binding to the library: create once sized, resize, a whole new option per change, dispose; the frame (`data-slot="chart"`), the named image and the theme read off the element
+      EChart.tsx              — The thin binding to the library: create once sized, resize, a whole new option per change, dispose; the frame (`data-slot="chart"`), the named image and the theme read off the element; a plot hugging its legend (`hug`)
       echarts.ts              — The chart chunk: the library's pieces registered on demand, SVG renderer; imported by `load.ts` only
       load.ts                 — `loadCharts`: the chart chunk loaded on first use and kept
       measure.ts              — How wide a line of tick text is: a canvas where there is one, an estimate elsewhere
-      theme.ts                — `readChartTheme`: the stylesheet's tokens read back off the chart's element as concrete colours
+      theme.ts                — `readChartTheme`: the stylesheet's tokens read back off the chart's element as concrete colours; `mixColor`, `emphasized` (a hovered mark a step toward the ink) and `inkOn` (the ink a label on a mark wears, by contrast)
       tooltip.ts              — The tooltip as the registry draws one, in HTML, every data text escaped
       Funnel.tsx              — A funnel through `funnelOption`, the conversion's basis said over it
-      funnelOption.ts         — `funnelOption`: a centred funnel in the order given, each stage's name, value and conversion beside it; `drawnStages`
+      funnelOption.ts         — `funnelOption`: a centred bar a stage in the order given — one length for one number, no trapezoids — each stage's name, value and conversion in one column beside them; `drawnStages`
       Heatmap.tsx             — A heatmap through `heatmapOption`; a pressed cell handed back as its row's and column's group
-      heatmapOption.ts        — `heatmapOption`: cells filling the plot, a `visualMap` colour scale, a log scale shading by the log, values on the cells
+      heatmapOption.ts        — `heatmapOption`: cells filling the plot, a `visualMap` colour scale, a log scale shading by the log, values on the cells in the ink that stands off each; `heatmapLabelsFit`, every cell's number or none
       MetricCard.tsx          — The value under the span it covers (a period, 「范围内全部」), the change from the period before as a toned badge, the comparison signed, the target, and the trend through `sparklineOption`
       sparklineOption.ts      — `sparklineOption`: a metric card's trend as a line and a faint fill, no axes
-      PieSlices.tsx           — A pie or a donut through `pieOption`: the legend beside it, led by the measured column (and, cut short, the share basis), each slice with its share
+      PieSlices.tsx           — A pie or a donut through `pieOption`: the legend beside it and the two centred together (`PIE_HUG`), led by the measured column (and, cut short, the share basis), each slice with its share
       pieOption.ts            — `pieOption`: slices with their shares outside, labels that give way, the remainder grey, a donut's whole in its hole when the measure adds up; `drawnSlices`
       ScatterPoints.tsx       — A scatter through `scatterOption`; a pressed point handed back as its group
       scatterOption.ts        — `scatterOption`: both axes titled by their columns and padded past the extremes, whole ticks where the values are, a third metric as size, a few points named
-      axis.ts                 — Value format, whole axes (`allWhole`), a category name cut for its axis, and which axis a series is on
+      axis.ts                 — Value format, whole axes (`allWhole`), a category name cut for its axis, which axis a series is on, a vertical axis's title (`sideTitle`: Chinese set flat at the axis's head) and what a value axis measures (`measuredTitle`)
       dateTicks.ts            — `useDateTicks`/`shortDateTicks`: a time axis's ticks written short (「9月1日」), the year only on the first and where it changes
       family.ts               — `FamilyProps`, the value labeller and the column titler
       legend.ts               — Where the legend beside the chart goes (`legendAt`), from the spec's `legend` and the family's own default
@@ -527,13 +530,13 @@ src/
       RecordParts.tsx         — What makes a record view a record view: the condition band, the toolbar, the rows and the paging, handed to the shell as slots
       ResultBlock.tsx         — The result and its caption on the one bordered frame (D12); `ShellResult` fills it with the toolbar, the strip and the result, each half behind its own boundary
       parts.ts                — `WorkbenchParts`, the slice of the shell's slots a kind fills, and the render prop it fills them through
-      Sidebar.tsx             — The sidebar in its two forms: `SidebarColumn` (the visualization panel or the view list beside the view) and `FoldedSidebar` (the way back, the definition's name and the switcher in the title bar)
+      Sidebar.tsx             — The sidebar in its two forms: `SidebarColumn` (the visualization panel or the view list beside the view; the panel a drawer from the bottom on a narrow surface) and `FoldedSidebar` (the way back, the definition's name and the switcher in the title bar)
       StatusLine.tsx          — The status line under the title bar: the errors, then the warnings — the view's, its result's, the definition's and failed preferences (D12 Ⅰ′)
       SearchBox.tsx           — The search box at the applied band's end: typing edits the draft, Enter applies (not while an input method composes), ✕ clears and asks again
       TitleBar.tsx            — The title bar's ruled-off block: `ViewHeader` with the host's actions behind a boundary and the view-level controls — the editor's toggle, the refresh, filling the screen
       Unopenable.tsx          — The work area when the chosen view cannot be opened
       useEditorFold.ts        — The editor's fold, per opening; `filled`
-      useSidebarFold.ts       — The sidebar's fold, following the surface's width until the user presses
+      useSidebarFold.ts       — The sidebar's fold, following the surface's width until the user presses; `useNarrowSurface`, whether there is room for a column beside the view at all
       useWorkbenchFolds.ts    — The shell's two folds as one hook: the list beside the view, the view filling the screen, and where a press sends focus
 ```
 

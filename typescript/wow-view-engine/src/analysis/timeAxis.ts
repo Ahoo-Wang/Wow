@@ -147,7 +147,8 @@ export function withoutHoles<T>(
  * the zone `withoutHoles` steps in: a wall-clock key at UTC, where
  * `readInstant` reads it, anything else in the group's zone or the engine's.
  * `ended` says whether it was over at `now`: a wall-clock key names a day
- * and no zone, so it is over once the clock in that zone has passed its end.
+ * and no zone, so it is over once the clock in that zone has passed its end;
+ * `left` is how long it still ran from `now`, where it had not ended.
  * Undefined for a key that names no moment — the missing-value sentinel.
  */
 export function bucketSpan(
@@ -155,7 +156,7 @@ export function bucketSpan(
   key: unknown,
   timeZone: string,
   now?: Date,
-): { from: number; to: number; ended: boolean } | undefined {
+): { from: number; to: number; ended: boolean; left?: number } | undefined {
   const instant = readInstant(key);
   if (!instant) return undefined;
   const zone = group.timeZone ?? timeZone;
@@ -170,7 +171,9 @@ export function bucketSpan(
       : instant.wallClock
         ? wallClockAt(now.getTime(), zone)
         : now.getTime();
-  return { from: instant.ms, to, ended: at === undefined || at >= to };
+  return at === undefined || at >= to
+    ? { from: instant.ms, to, ended: true }
+    : { from: instant.ms, to, ended: false, left: to - at };
 }
 
 /** Epoch milliseconds, written as digits. */

@@ -248,8 +248,10 @@ export const FunnelFromTheRows: Story = {
     );
     for (const bar of stageBars)
       await expect(getComputedStyle(bar).fill).toBe(first);
-    // A funnel, not bars: each stage narrower than the one above it, and
-    // all of them centred on one line.
+    // One bar a stage, all centred on one line, each as long as its number
+    // against the longest — one length for one number. The library's
+    // trapezoids drew each stage from its own width to the next one's, two
+    // numbers in one area (2026-09-23 audit).
     const boxes = stageBars
       .map(bar => bar.getBoundingClientRect())
       .sort((a, b) => a.top - b.top);
@@ -257,6 +259,10 @@ export const FunnelFromTheRows: Story = {
     await expect(
       centres.every(centre => Math.abs(centre - centres[0]!) < 1),
     ).toBe(true);
+    // Rectangles: a path's box is the bar itself, stage under stage.
+    for (const [index, box] of boxes.entries())
+      if (index > 0)
+        await expect(box.top).toBeGreaterThanOrEqual(boxes[index - 1]!.bottom);
 
     await expect(
       funnel.querySelector('[data-slot="funnel-conversion-heading"]'),
@@ -270,6 +276,26 @@ export const FunnelFromTheRows: Story = {
     ).toBeNull();
     const stages = readingOf(canvasElement);
     await expect(stages).toHaveLength(4);
+    // Each bar's length is its stage's number against the longest.
+    const measured = stages.map(([, count]) => Number(count));
+    const widths = boxes.map(box => box.width);
+    const longest = Math.max(...measured);
+    for (const [index, count] of measured.entries())
+      await expect(
+        Math.abs(widths[index]! / Math.max(...widths) - count / longest),
+      ).toBeLessThan(0.02);
+    // The words stand in one column, past the longest bar: every stage's
+    // name starts at one left edge.
+    const names = new Set(stages.map(([name]) => name));
+    const lefts = funnel.querySelectorAll('[data-slot="chart-plot"] svg text');
+    const starts = [...lefts]
+      .filter(text => names.has(text.textContent))
+      .map(text => Math.round(text.getBoundingClientRect().left));
+    await expect(starts).toHaveLength(4);
+    await expect(new Set(starts).size).toBe(1);
+    await expect(starts[0]).toBeGreaterThan(
+      Math.max(...boxes.map(box => box.right)),
+    );
     await userEvent.click(
       within(canvasElement).getByRole('button', {
         name: zhCN['label.layout.table'],
@@ -538,6 +564,13 @@ export const PercentStackReachesTheTop: Story = {
     const ticks = ticksOf(canvasElement, 'y');
     await expect(ticks).toContain('100%');
     await expect(ticks).toContain('0%');
+    // The reading table says each part's share beside its value, as the
+    // tooltip does (audit): a screen reader heard values of stacks the
+    // picture drew as equal heights.
+    const cells = readingOf(canvasElement).flatMap(row => row.slice(1));
+    await expect(
+      cells.filter(cell => /%$/.test(cell ?? '')).length,
+    ).toBeGreaterThan(0);
   },
 };
 

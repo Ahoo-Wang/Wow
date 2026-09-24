@@ -13,6 +13,7 @@
 
 import { without } from '../../model/index.js';
 import type { AxisSpec, CartesianSpec } from '../../model/index.js';
+import { measuredTitle } from '../charts/axis.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { formatChoices } from './DisplayTab.js';
 import {
@@ -30,13 +31,28 @@ import {
  * not drawn. The category axis has nothing to set: it says what the
  * dimension says.
  */
-export function AxesTab({ chart, onChange }: OptionsPageProps) {
+export function AxesTab({ chart, shape, onChange }: OptionsPageProps) {
   const messages = useViewMessages();
   const spec = chart.cartesian;
   if (!spec) return null;
   const sides = spec.series.some(series => series.axis === 'right')
     ? (['left', 'right'] as const)
     : (['left'] as const);
+  // The title the chart draws while the box is empty, said in the box: the
+  // column the axis measures, the several it measures on a chart of two
+  // axes, or — two on the one axis — that the legend names them.
+  const titles = new Map(
+    shape.metrics.map(metric => [metric.value, metric.label]),
+  );
+  const drawnTitle = (side: 'left' | 'right') =>
+    measuredTitle(
+      spec.series
+        .filter(series => (series.axis ?? 'left') === side)
+        .map(series => series.metric),
+      sides.length > 1,
+      alias => (alias === undefined ? undefined : titles.get(alias)),
+      messages.label('label.filter.join'),
+    ) ?? messages.label('label.chart.axis-title.none');
   const update = (side: 'left' | 'right', axis: AxisSpec | undefined) => {
     const yAxis =
       axis === undefined
@@ -67,6 +83,7 @@ export function AxesTab({ chart, onChange }: OptionsPageProps) {
           >
             <TextField
               label={messages.label('label.chart.axis-title')}
+              placeholder={drawnTitle(side)}
               value={axis.label}
               onChange={label => set('label', label)}
             />

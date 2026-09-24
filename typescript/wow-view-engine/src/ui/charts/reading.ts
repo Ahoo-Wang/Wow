@@ -14,8 +14,14 @@
 import type { ChartData } from '../../analysis/index.js';
 import type { ChartSpec, ChartType, ValueFormat } from '../../model/index.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
-import { formatValue } from './axis.js';
-import { conversionHeading, stageName, type ValueLabel } from './family.js';
+import { formatShare, formatValue } from './axis.js';
+import { stackPlan } from './cartesianPlan.js';
+import {
+  conversionHeading,
+  stageName,
+  type FilledNote,
+  type ValueLabel,
+} from './family.js';
 
 /**
  * A chart as text: a name for the drawing and the same numbers it draws,
@@ -46,6 +52,21 @@ export interface ReadingContext {
   column: (alias: string | undefined) => string | undefined;
   /** The surface's language, for a number an axis format prints. */
   locale: string | undefined;
+  /**
+   * A value the chart filled in, as the tooltip says it (`useFilledNote`):
+   * the table says the same 「0（这一天没有记录）」 the tooltip does.
+   */
+  filled?: FilledNote;
+}
+
+/** `text` for a value the kernel filled in on the axis `alias`, said so. */
+function noted(
+  text: string,
+  filled: boolean,
+  ctx: ReadingContext,
+  alias: string | undefined,
+): string {
+  return filled && ctx.filled ? ctx.filled(alias, text) : text;
 }
 
 export function readChart(
@@ -131,6 +152,28 @@ function readCartesian(
       ? cartesian?.yAxis?.right?.format
       : cartesian?.yAxis?.left?.format;
   const category = ctx.column(cartesian?.x);
+  // Stacked to 100% the marks are shares, and the table says both halves,
+  // as the tooltip does: what the part is, and what part of its stack it is
+  // — without the share, a screen reader heard a stack of values that the
+  // picture drew as equal heights (2026-09-23 audit).
+  const { shareAt } = stackPlan(data, spec);
+  const cell = (series: (typeof data.series)[number], index: number) => {
+    const value = noted(
+      number(
+        data.points[index]?.values[series.key],
+        ctx,
+        formatOf(series.metric),
+        series.metric,
+      ),
+      data.points[index]?.filled?.includes(series.key) === true,
+      ctx,
+      cartesian?.x,
+    );
+    const share = shareAt(series.key, index);
+    return share === undefined
+      ? value
+      : `${value} · ${formatShare(share, ctx.locale)}`;
+  };
   return {
     name: nameOf(
       ctx,
@@ -150,16 +193,9 @@ function readCartesian(
           : ctx.label(cartesian?.splitBy, series.value),
       ),
     ],
-    rows: data.points.map(point => [
+    rows: data.points.map((point, index) => [
       ctx.label(cartesian?.x, point.x),
-      ...data.series.map(series =>
-        number(
-          point.values[series.key],
-          ctx,
-          formatOf(series.metric),
-          series.metric,
-        ),
-      ),
+      ...data.series.map(series => cell(series, index)),
     ]),
   };
 }
@@ -323,7 +359,12 @@ function readMetric(
   for (const point of data.trend ?? [])
     rows.push([
       ctx.label(card?.trend?.x, point.x),
-      number(point.value, ctx, card?.format, card?.metric),
+      noted(
+        number(point.value, ctx, card?.format, card?.metric),
+        point.filled === true,
+        ctx,
+        card?.trend?.x,
+      ),
     ]);
   return {
     name: nameOf(ctx, 'metric', [ctx.column(card?.metric)]),

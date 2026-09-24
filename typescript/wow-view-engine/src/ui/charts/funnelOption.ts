@@ -17,7 +17,7 @@ import type { ChartSpec } from '../../model/index.js';
 import { formatValue } from './axis.js';
 import { stageName, type ColumnTitle, type ValueLabel } from './family.js';
 import { color } from './palette.js';
-import type { ChartTheme } from './theme.js';
+import { emphasized, type ChartTheme } from './theme.js';
 import { tooltipFrame, tooltipHtml } from './tooltip.js';
 
 /** What a funnel reads besides its stages. */
@@ -74,12 +74,20 @@ export function drawnStages(
 }
 
 /**
- * A funnel as the library draws it: a centred shape, each stage as wide as
- * its value against the first, in the order the stages were given — never
- * re-sorted, since a funnel's order is the business's. Each stage says its
- * name, its value and its conversion beside it; the heading over the
- * percentages says what they are relative to (`conversionHeading`), drawn
- * above the shape. It wears the palette's first slot, as one series does.
+ * A funnel as the library draws it: one bar a stage, centred on one line,
+ * as long as its value against the longest, in the order the stages were
+ * given — never re-sorted, since a funnel's order is the business's.
+ *
+ * Bars and not the library's funnel of trapezoids: a trapezoid's top edge
+ * is its stage and its bottom edge the next one, so its area — what the eye
+ * reads — was two numbers at once, and a stage bigger than the one before
+ * drew an hourglass (2026-09-23 audit). A bar is one length for one number.
+ * It is centred by an unseen bar before it; another after it carries the
+ * stage's words, so they stand in one column beside the widest stage rather
+ * than along the ragged ends. Each says its name, its value and its
+ * conversion; the heading over the percentages says what they are relative
+ * to (`conversionHeading`), drawn above the bars. It wears the palette's
+ * first slot, as one series does.
  */
 export function funnelOption(
   data: FunnelData,
@@ -90,10 +98,67 @@ export function funnelOption(
   const stages = drawnStages(data, context);
   const horizontal = spec?.funnel?.orientation === 'horizontal';
   const fill = theme.resolve(color(0));
+  const values = stages.map(stage => Math.max(0, stage.value));
+  const longest = Math.max(0, ...values);
+  const room = values.map(value => (longest - value) / 2);
+  const words = ({ dataIndex }: { dataIndex: number }) => {
+    const stage = stages[dataIndex];
+    if (!stage) return '';
+    // Under a funnel lying down each stage has a column's width: the name
+    // over its numbers.
+    return `{name|${stage.name}}${horizontal ? '\n' : '  '}{value|${stage.text}}${
+      stage.conversion === undefined ? '' : `  {rate|${stage.conversion}}`
+    }`;
+  };
+  const unseen = {
+    type: 'bar',
+    stack: 'funnel',
+    silent: true,
+    tooltip: { show: false },
+    itemStyle: { color: 'transparent' },
+    emphasis: { disabled: true },
+    data: room,
+  };
+  // The unseen bar on the far side carries the words: past the longest
+  // stage's end, so every stage's words stand in one column (one row, on a
+  // funnel lying down, under the bars).
+  const labelled = {
+    ...unseen,
+    label: {
+      show: true,
+      position: horizontal ? 'bottom' : 'right',
+      color: theme.foreground,
+      fontSize: 12,
+      formatter: words,
+      rich: {
+        name: { color: theme.muted },
+        value: { color: theme.foreground, fontWeight: 500 },
+        rate: { color: theme.muted },
+      },
+    },
+  };
+  const stageAxis = {
+    type: 'category',
+    data: stages.map(stage => stage.name),
+    // The first stage on top, or on the left, as the business runs.
+    inverse: !horizontal,
+    show: false,
+  };
+  const valueAxis = {
+    type: 'value',
+    min: 0,
+    max: longest > 0 ? longest : 1,
+    show: false,
+  };
   return {
     animation: animate,
     animationDuration: 300,
     textStyle: { fontFamily: theme.fontFamily, fontSize: 12 },
+    grid: horizontal
+      ? { left: '4%', right: '4%', top: 8, bottom: 56 }
+      : { left: '4%', right: '38%', top: 8, bottom: 8 },
+    xAxis: horizontal ? stageAxis : valueAxis,
+    yAxis: horizontal ? valueAxis : stageAxis,
     tooltip: {
       ...tooltipFrame(theme),
       trigger: 'item',
@@ -106,46 +171,19 @@ export function funnelOption(
       },
     },
     series: [
+      horizontal ? labelled : unseen,
       {
-        type: 'funnel',
-        orient: horizontal ? 'horizontal' : 'vertical',
-        sort: 'none',
-        gap: 2,
+        type: 'bar',
+        stack: 'funnel',
+        barCategoryGap: '16%',
         // A stage of nothing keeps a sliver, so it reads as a stage of zero
         // rather than as one that failed to draw.
-        minSize: '4%',
-        maxSize: '100%',
-        ...(horizontal
-          ? { left: '4%', right: '4%', top: 8, bottom: 56 }
-          : { left: '8%', right: '38%', top: 8, bottom: 8 }),
-        data: stages.map(stage => ({
-          name: stage.name,
-          value: Math.max(0, stage.value),
-        })),
-        itemStyle: { color: fill, borderColor: theme.ground, borderWidth: 1 },
-        label: {
-          show: true,
-          position: horizontal ? 'bottom' : 'right',
-          color: theme.foreground,
-          fontSize: 12,
-          formatter: ({ dataIndex }: { dataIndex: number }) => {
-            const stage = stages[dataIndex];
-            if (!stage) return '';
-            return `{name|${stage.name}}  {value|${stage.text}}${
-              stage.conversion === undefined
-                ? ''
-                : `  {rate|${stage.conversion}}`
-            }`;
-          },
-          rich: {
-            name: { color: theme.muted },
-            value: { color: theme.foreground, fontWeight: 500 },
-            rate: { color: theme.muted },
-          },
-        },
-        labelLine: { show: !horizontal, lineStyle: { color: theme.border } },
-        emphasis: { label: { fontSize: 12 } },
+        barMinHeight: 3,
+        data: values,
+        itemStyle: { color: fill, borderRadius: 2 },
+        emphasis: { itemStyle: { color: emphasized(theme, fill) } },
       },
+      horizontal ? unseen : labelled,
     ],
   };
 }

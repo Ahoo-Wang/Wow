@@ -41,12 +41,23 @@ export type ChartData =
   | MetricCardData;
 
 export type { MetricCardData, MetricPeriod } from './metricCard.js';
+export { periodRollover } from './metricCard.js';
 
 export interface CartesianData {
   type: 'cartesian';
   chart: ChartType;
-  /** One entry per x value, already pivoted when `splitBy` is configured. */
-  points: { x: unknown; values: Record<string, number | null> }[];
+  /**
+   * One entry per x value, already pivoted when `splitBy` is configured.
+   * `filled` names the series whose value here the kernel filled in rather
+   * than measured — a day the rows lack, a split combination they lack —
+   * so a drawing can tell a known 0 from a counted one (decisions.md D21,
+   * Q14): it writes no label on it, and says why in the tooltip.
+   */
+  points: {
+    x: unknown;
+    values: Record<string, number | null>;
+    filled?: string[];
+  }[];
   /**
    * One entry per drawn line or bar. `key` is the record key of the points'
    * values and is injective over group values, so it may carry a type tag;
@@ -261,15 +272,25 @@ function cartesian(
       ? 0
       : null;
 
-  let points = [...byX].map(([x, values]) => ({
-    x,
-    values: Object.fromEntries(
-      series.map(entry => [
-        entry.key,
-        owns(values, entry.key) ? values[entry.key] : missing(entry, x),
-      ]),
-    ),
-  }));
+  /** A point at `x`: the values measured, the rest filled and named so. */
+  const pointAt = (
+    x: unknown,
+    values: Record<string, number | null>,
+  ): CartesianData['points'][number] => {
+    const filled: string[] = [];
+    const drawn = Object.fromEntries(
+      series.map(entry => {
+        if (owns(values, entry.key)) return [entry.key, values[entry.key]];
+        const value = missing(entry, x);
+        if (value !== null) filled.push(entry.key);
+        return [entry.key, value];
+      }),
+    );
+    return filled.length > 0
+      ? { x, values: drawn, filled }
+      : { x, values: drawn };
+  };
+  let points = [...byX].map(([x, values]) => pointAt(x, values));
   const axis = timeGroup(config, spec.x);
   if (axis)
     points = withoutHoles(
@@ -277,12 +298,7 @@ function cartesian(
       point => point.x,
       axis,
       timeZone,
-      x => ({
-        x,
-        values: Object.fromEntries(
-          series.map(entry => [entry.key, missing(entry, x)]),
-        ),
-      }),
+      x => pointAt(x, {}),
     );
   // When time is the split rather than the axis, it is the legend that reads
   // as a sequence — and the palette hands its slots out in that order, so

@@ -47,6 +47,7 @@ import { StatusLine } from './workbench/StatusLine.js';
 import { TitleBar } from './workbench/TitleBar.js';
 import { Unopenable } from './workbench/Unopenable.js';
 import { filled, useEditorFold } from './workbench/useEditorFold.js';
+import { useNarrowSurface } from './workbench/useSidebarFold.js';
 import { useWorkbenchFolds } from './workbench/useWorkbenchFolds.js';
 
 export interface WorkbenchShellProps {
@@ -254,6 +255,11 @@ export interface WorkbenchShellProps {
    * open by a `false` would take the list off the screen for good.
    */
   panel?: ReactNode;
+  /**
+   * The panel was dismissed as a drawer — on a surface too narrow for a
+   * column beside the view it is drawn as one (`SidebarColumn`).
+   */
+  onPanelClose?(): void;
   /** Extra classes for the main column. */
   className?: string;
 }
@@ -331,6 +337,7 @@ export function WorkbenchShell({
   resultFramed = true,
   resultSlots,
   panel,
+  onPanelClose,
   className,
 }: WorkbenchShellProps) {
   const titleId = useId();
@@ -406,6 +413,8 @@ export function WorkbenchShell({
     defaultSidebarOpen,
     onSidebarOpenChange,
   });
+  // Too narrow for a column beside the view: the panel is a drawer.
+  const narrow = useNarrowSurface(surfaceRef);
 
   // Where the keyboard lands after a copy is created. The dialog it was made
   // in closes, and there is nothing left of it to return focus to — the
@@ -539,6 +548,8 @@ export function WorkbenchShell({
     >
       <SidebarColumn
         panel={panel}
+        narrow={narrow}
+        onPanelClose={onPanelClose}
         open={sidebarOpen}
         list={list}
         title={title}

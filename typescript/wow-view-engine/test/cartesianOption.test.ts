@@ -16,11 +16,10 @@ import type { CartesianData, ChartSpec } from '../src/index.js';
 import {
   BAR_MAX_WIDTH,
   DOTS_UP_TO,
-  TITLE_GAP_UNDER,
   cartesianOption,
-  categoryFit,
   type CartesianContext,
 } from '../src/ui/charts/cartesianOption.js';
+import { TITLE_GAP_UNDER, categoryFit } from '../src/ui/charts/cartesianFit.js';
 import { measureText } from '../src/ui/charts/measure.js';
 import type { ChartTheme } from '../src/ui/charts/theme.js';
 import { escapeHtml, tooltipHtml } from '../src/ui/charts/tooltip.js';
@@ -114,8 +113,11 @@ describe('cartesianOption: a bar chart', () => {
     expect(left.type).toBe('value');
     // A tick reads as the first series on its axis reads, shortened.
     expect(left.axisLabel.formatter(1200)).toBe('short orders=1200');
-    // A count takes no fractional tick.
-    expect(left.minInterval).toBe(1);
+    // The chart owns its scale (`sharedScales`): a count and a total of
+    // whole numbers step in whole numbers, from zero past the highest bar.
+    expect(left.min).toBe(0);
+    expect(left.max).toBeGreaterThanOrEqual(30);
+    expect(Number.isInteger(left.interval)).toBe(true);
     // Thin rules, and no axis line or tick marks of its own.
     expect(left.splitLine).toEqual({
       show: true,
@@ -133,7 +135,9 @@ describe('cartesianOption: a bar chart', () => {
       context(bar()),
       theme,
     ) as Loose;
-    expect(option.yAxis[0].minInterval).toBeUndefined();
+    // Its step is a nice one of its own, not held to whole numbers.
+    expect(option.yAxis[0].max).toBe(2);
+    expect(option.yAxis[0].interval).toBe(0.5);
   });
 
   it('lays the chart on its side, the first category on top', () => {
@@ -191,7 +195,7 @@ describe('cartesianOption: a bar chart', () => {
     expect(option.series[1].yAxisIndex).toBe(1);
   });
 
-  it('writes the values on the bars, hiding one that would land on another', () => {
+  it('writes the values on the bars, and leaves which fit to the plot’s size', () => {
     // Written unless the analyst turned them off, as Metabase writes them
     // where they fit.
     expect(optionOf({ ...bar(), labels: false }).series[0]).not.toHaveProperty(
@@ -202,7 +206,9 @@ describe('cartesianOption: a bar chart', () => {
     const [orders] = option.series;
     expect(orders.label.show).toBe(true);
     expect(orders.label.position).toBe('top');
-    expect(orders.labelLayout).toEqual({ hideOverlap: true });
+    // No label is dropped for landing on another: whether they fit is the
+    // plot's size's to say (`cartesianFit`), all of them or none.
+    expect(orders).not.toHaveProperty('labelLayout');
     expect(orders.label.formatter({ value: 2 })).toBe('short orders=2');
     expect(orders.label.formatter({ value: null })).toBe('');
     // A halo of what the chart stands on.
@@ -299,19 +305,19 @@ describe('cartesianOption: a bar chart', () => {
     expect(carriers[0].data).toEqual([]);
     expect(carriers[0].markLine.label.formatter({ dataIndex: 0 })).toBe('Goal');
     expect(carriers[1].markLine.label.formatter({ dataIndex: 0 })).toBe('');
-    // A line past the marks stretches the axis to it; one within them leaves
-    // the axis to round its own ends.
-    expect(upright.yAxis[0].max).toBe(50);
-    expect(upright.yAxis[1].max).toBe(3);
-    expect(upright.yAxis[0].min).toBeUndefined();
+    // A line past the marks stretches the axis to it; one within them does
+    // not move the scale the marks set.
+    expect(upright.yAxis[0].max).toBeGreaterThanOrEqual(50);
+    expect(upright.yAxis[1].max).toBeGreaterThanOrEqual(3);
+    expect(upright.yAxis[0].min).toBe(0);
     const within = optionOf(
       bar({ referenceLines: [{ axis: 'left', value: 1 }] }),
     );
-    expect(within.yAxis[0].max).toBeUndefined();
+    expect(within.yAxis[0].max).toBe(optionOf(bar()).yAxis[0].max);
     const below = optionOf(
       bar({ referenceLines: [{ axis: 'left', value: -4 }] }),
     );
-    expect(below.yAxis[0].min).toBe(-4);
+    expect(below.yAxis[0].min).toBeLessThanOrEqual(-4);
     // Stacked, the marks reach the sum of their parts.
     const stacked = optionOf(
       bar({
@@ -322,8 +328,15 @@ describe('cartesianOption: a bar chart', () => {
         referenceLines: [{ axis: 'left', value: 31 }],
       }),
     );
-    expect(stacked.yAxis[0].max).toBeUndefined();
-    // A pinned bound wins over the line.
+    expect(stacked.yAxis[0].max).toBeGreaterThanOrEqual(32);
+    // A pinned bound wins over the line, and hands the scale to the library:
+    // the other axis lines up by its `alignTicks`.
+    const pinned = optionOf(
+      bar({ referenceLines: lines, yAxis: { left: { max: 10 } } }),
+    );
+    expect(pinned.yAxis[0].interval).toBeUndefined();
+    expect(pinned.yAxis[1].alignTicks).toBe(true);
+    expect(pinned.yAxis[1].max).toBe(3);
     expect(
       optionOf(
         bar({
@@ -586,7 +599,7 @@ describe('cartesianOption: lines, areas and a combo', () => {
       undefined,
     ]);
     // The axis reaches the highest value, not the sum of the two.
-    expect(line.yAxis[0].max).toBeUndefined();
+    expect(line.yAxis[0].max).toBeLessThan(32);
     const lined = as('line', {
       ...stackedSpec('line'),
       cartesian: {
@@ -595,7 +608,7 @@ describe('cartesianOption: lines, areas and a combo', () => {
       },
     });
     // 31 is past every point (30 at most) though within their sum (32).
-    expect(lined.yAxis[0].max).toBe(31);
+    expect(lined.yAxis[0].max).toBeGreaterThanOrEqual(31);
 
     // In a stacked combo the bars stack and the line stands on its own.
     const combo = as('combo', {

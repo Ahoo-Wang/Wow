@@ -706,6 +706,12 @@ export function EditorCard({
  * their own contrast: the same call `optionControls.tsx` records for
  * `OptionsSection` — secondary is said by weight and by frame, never by
  * being paler than it can be read.
+ *
+ * **What it holds stands in its middle**, and the tile is at least 64px
+ * tall: a row is as tall as its tallest tile, and the others centre their
+ * icon and name in that height rather than leaving the lower half blank
+ * (2026-09-23 audit); the floor keeps the name clear of the mark hanging
+ * across the bottom edge.
  */
 export function ChartTile({
   className,
@@ -716,7 +722,7 @@ export function ChartTile({
       type="button"
       data-slot="chart-tile"
       className={cn(
-        'bg-background border-border text-foreground relative flex w-full flex-col items-center gap-1 rounded-md border px-1 py-2 text-center',
+        'bg-background border-border text-foreground relative flex min-h-16 w-full flex-col items-center justify-center gap-1 rounded-md border px-1 py-2 text-center',
         'aria-checked:ring-primary aria-checked:border-primary aria-checked:ring-1',
         'aria-disabled:border-dashed aria-disabled:bg-muted/40 aria-disabled:cursor-not-allowed',
         'focus-visible:ring-ring/50 outline-none focus-visible:ring-[3px]',

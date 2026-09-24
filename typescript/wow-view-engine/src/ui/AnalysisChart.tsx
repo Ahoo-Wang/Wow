@@ -19,6 +19,7 @@ import { ChartReadingTable } from './charts/ChartReading.js';
 import { useDateTicks } from './charts/dateTicks.js';
 import {
   useAdds,
+  useFilledNote,
   useColumnTitle,
   useValueLabel,
   type OnPick,
@@ -87,11 +88,12 @@ export function AnalysisChart({
   const label = useValueLabel(columns);
   const column = useColumnTitle(columns);
   const adds = useAdds(columns);
+  const filled = useFilledNote(columns);
   const dateTicks = useDateTicks(columns);
   const { locale } = useSurfaceDisplay();
   const reading = useMemo(
-    () => readChart(data, spec, { messages, label, column, locale }),
-    [data, spec, messages, label, column, locale],
+    () => readChart(data, spec, { messages, label, column, locale, filled }),
+    [data, spec, messages, label, column, locale, filled],
   );
   const props = {
     spec,
@@ -104,6 +106,7 @@ export function AnalysisChart({
     onPick,
     cutShort,
     highlight,
+    filled,
   };
   return (
     <>

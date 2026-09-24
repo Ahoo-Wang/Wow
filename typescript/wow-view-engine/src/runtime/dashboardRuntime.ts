@@ -251,6 +251,8 @@ export class DashboardViewRuntime
       refresh: () => this.refresh(),
       // One clock for the whole board, so a request in flight is any panel's.
       holding: () => this.children.loading(),
+      // And one moment a card on the tab shown moves on, the soonest.
+      expiresAt: () => this.children.rolloverAt(this.onTab()),
       release: () => {
         this.values.stop();
         this.children.disposeAll();
@@ -358,12 +360,13 @@ export class DashboardViewRuntime
    */
   refresh(): void {
     if (this.disposed) return;
-    const shown = new Set(
-      this.state.panels
-        .filter(panel => panel.tab === this.state.tab)
-        .map(panel => panel.id),
-    );
-    this.children.refresh(panelId => shown.has(panelId));
+    this.children.refresh(this.onTab());
+  }
+
+  /** Whether a panel is on the tab shown. */
+  private onTab(): (panelId: string) => boolean {
+    const { panels, tab } = this.state;
+    return id => panels.some(panel => panel.id === id && panel.tab === tab);
   }
 
   showTab(tabId: string | null): void {

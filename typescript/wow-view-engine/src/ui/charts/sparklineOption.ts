@@ -13,7 +13,7 @@
 
 import type { EChartsCoreOption } from 'echarts/core';
 import type { MetricCardData } from '../../analysis/index.js';
-import type { ValueLabel } from './family.js';
+import type { FilledNote, ValueLabel } from './family.js';
 import { color } from './palette.js';
 import type { ChartTheme } from './theme.js';
 import { tooltipFrame, tooltipHtml } from './tooltip.js';
@@ -28,6 +28,8 @@ export interface SparklineContext {
   /** What a point is called in the tooltip: 「趋势」. */
   name: string;
   animate: boolean;
+  /** A filled-in bucket as the tooltip says it (`useFilledNote`). */
+  filled?: FilledNote;
 }
 
 /**
@@ -38,7 +40,7 @@ export interface SparklineContext {
  */
 export function sparklineOption(
   trend: NonNullable<MetricCardData['trend']>,
-  { label, x, metric, name, animate }: SparklineContext,
+  { label, x, metric, name, animate, filled }: SparklineContext,
   theme: ChartTheme,
 ): EChartsCoreOption {
   const stroke = theme.resolve(color(0));
@@ -61,8 +63,14 @@ export function sparklineOption(
         const index = params[0]?.dataIndex ?? -1;
         const point = trend[index];
         if (!point || point.value === null) return '';
+        const value = label(metric, point.value);
         return tooltipHtml(days[index] ?? '', [
-          { color: stroke, name, value: label(metric, point.value) },
+          {
+            color: stroke,
+            name,
+            // A bucket filled in with 0 says so (D23, Q14).
+            value: point.filled && filled ? filled(x, value) : value,
+          },
         ]);
       },
     },

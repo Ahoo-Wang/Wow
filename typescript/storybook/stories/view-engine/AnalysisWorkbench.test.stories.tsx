@@ -324,15 +324,41 @@ export const TitleClearOfTicks: Story = {
 
 /**
  * 同一条规矩，刻度斜排时：九个聚合 ID 在自己那一格里放不下，斜 45°，标题
- * 被推到它们下面，中间仍隔着一段空。
+ * 被推到它们下面，中间仍隔着一段空。长名字的柱子缺省横放（2026-09-23 审查，
+ * `LongNamesLieDown`），所以这里先在显示页把「横向」取消、让它们竖着站。
  */
 export const TitleClearOfSlantedTicks: Story = {
   ...DisplayFailingAggregates,
   play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
     await userEvent.click(
-      await within(canvasElement).findByRole('button', {
+      await canvas.findByRole('button', {
         name: zhCN['label.layout.chart'],
       }),
+    );
+    await chartsDrawn(canvasElement);
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.analysis.visualize'] }),
+    );
+    await userEvent.click(
+      await waitFor(() => {
+        const found = canvasElement.querySelector<HTMLElement>(
+          '[data-slot="chart-options-open"]',
+        );
+        if (!found) throw new Error('没有选项按钮');
+        return found;
+      }),
+    );
+    await userEvent.click(
+      await canvas.findByRole('tab', { name: zhCN['label.chart.tab.display'] }),
+    );
+    await userEvent.click(
+      canvas.getByRole('checkbox', { name: zhCN['label.chart.horizontal'] }),
+    );
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="chart"]'),
+      ).toHaveAttribute('data-orientation', 'vertical'),
     );
     await chartsDrawn(canvasElement);
     await waitFor(() => expect(bars(canvasElement)).toHaveLength(9));
@@ -2454,10 +2480,29 @@ async function expectPickerLayout(
   const tiles = [
     ...panel.querySelectorAll<HTMLElement>('[data-slot="chart-tile"]'),
   ];
-  const heights = tiles.map(tile =>
-    Math.round(tile.getBoundingClientRect().height),
-  );
-  await expect(new Set(heights).size).toBe(1);
+  // One height a row, the row as tall as its tallest tile — not every row as
+  // tall as the one tile writing two lines of reason, which left the tiles
+  // above it half empty (2026-09-23 audit) — and what a tile holds stands in
+  // its middle: the air over the icon is the air under the last word.
+  const rows = new Map<number, HTMLElement[]>();
+  for (const tile of tiles) {
+    const top = Math.round(tile.getBoundingClientRect().top);
+    rows.set(top, [...(rows.get(top) ?? []), tile]);
+  }
+  for (const row of rows.values())
+    await expect(
+      new Set(row.map(tile => Math.round(tile.getBoundingClientRect().height)))
+        .size,
+    ).toBe(1);
+  for (const tile of tiles) {
+    const own = tile.getBoundingClientRect();
+    const held = [...tile.children]
+      .filter(child => child.getAttribute('data-slot') !== 'chart-recommended')
+      .map(child => child.getBoundingClientRect());
+    const over = Math.min(...held.map(box => box.top)) - own.top;
+    const under = own.bottom - Math.max(...held.map(box => box.bottom));
+    await expect(Math.abs(over - under)).toBeLessThanOrEqual(2);
+  }
   for (const tile of tiles)
     await expect(tile.querySelector('button')).toBeNull();
 
@@ -2589,7 +2634,7 @@ export const VisualizePanel: Story = {
 
     // The tiles only pick; the way on to the chosen type's options is one
     // labelled button under them (2026-09-23 review: a 24px gear hanging off
-    // the tile's corner was seen by nobody). Every tile is one height.
+    // the tile's corner was seen by nobody). A row is one height, no tile half empty.
     await expectPickerLayout(panel, 'bar');
     // And the mark keeps clear in English too, the widest word it has: the
     // same tile with "Recommended" written in it, put back afterwards.

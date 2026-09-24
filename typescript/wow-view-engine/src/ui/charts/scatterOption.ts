@@ -14,10 +14,10 @@
 import type { EChartsCoreOption } from 'echarts/core';
 import type { ScatterData } from '../../analysis/index.js';
 import type { ChartSpec } from '../../model/index.js';
-import { allWhole } from './axis.js';
+import { allWhole, sideTitle } from './axis.js';
 import type { ColumnTitle, ValueLabel } from './family.js';
 import { color } from './palette.js';
-import type { ChartTheme } from './theme.js';
+import { emphasized, type ChartTheme } from './theme.js';
 import { tooltipFrame, tooltipHtml } from './tooltip.js';
 
 /** What a scatter reads besides its points. */
@@ -87,13 +87,20 @@ export function scatterOption(
   );
   const axis = (which: 'x' | 'y') => {
     const alias = measured?.[which];
+    const name = column(alias) ?? fallback[which];
+    const style = { color: theme.muted, fontWeight: 500 };
     return {
       type: 'value',
-      name: column(alias) ?? fallback[which],
-      nameLocation: 'middle',
-      nameGap: which === 'x' ? 24 : 16,
-      nameMoveOverlap: true,
-      nameTextStyle: { color: theme.muted, fontWeight: 500 },
+      // The vertical one set flat at its head where it is Chinese.
+      ...(which === 'x'
+        ? {
+            name,
+            nameLocation: 'middle',
+            nameGap: 24,
+            nameMoveOverlap: true,
+            nameTextStyle: style,
+          }
+        : sideTitle(name, 'left', 'end', style, 16)),
       // Room past the extremes — a point is a circle centred on its value —
       // as a share of the span rather than the library's gap, which rounds
       // the ends out to whole ticks: counts from 0 to 2 read -1 … 3. The
@@ -164,6 +171,12 @@ export function scatterOption(
           symbolSize: diameter(point.size),
         })),
         itemStyle: { color: fill, opacity: 0.85 },
+        // The point under the pointer steps toward the ink, as every mark
+        // does, and grows a little; no ring, which read as a second point.
+        emphasis: {
+          scale: 1.2,
+          itemStyle: { color: emphasized(theme, fill), opacity: 1 },
+        },
         ...(named
           ? {
               label: {

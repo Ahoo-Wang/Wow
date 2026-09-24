@@ -20,13 +20,13 @@
  * renderer is a module of its own, so the bundle carries only what a family
  * asks for. SVG rather than canvas: the marks are elements, which a browser
  * story can measure, jsdom can render, and a colour can be read back from.
- * Label layout is what hides a value label that would land on another
- * (`labelLayout.hideOverlap`), the reason the library was chosen
- * (docs/design/decisions.md D21).
+ * Label layout moves a line's value labels apart and keeps a pie's from
+ * landing on each other (docs/design/decisions.md D21); which bar labels are
+ * written is decided by the plot's size (`cartesianFit`). A funnel is bars
+ * (`funnelOption`), so the library's funnel is not registered.
  */
 import {
   BarChart,
-  FunnelChart,
   HeatmapChart,
   LineChart,
   PieChart,
@@ -65,7 +65,6 @@ export function init(
   if (!registered) {
     register([
       BarChart,
-      FunnelChart,
       HeatmapChart,
       LineChart,
       PieChart,

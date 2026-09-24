@@ -244,30 +244,38 @@ export function momentMetrics(
  *   percentile, a deviation and any one value are on the scale of a single
  *   value (`value:`) — a sum and an average of the same amount are both
  *   money, a hundred times apart; a variance is in the square of the unit
- *   (`square:`). The unit is the declared currency, percent or unit, and
- *   `number` when the field declares none — two plain numbers are not told
- *   apart, since nothing says they differ.
+ *   (`square:`). The unit is the declared currency, percent or unit.
+ *
+ * A number with no declared unit is a quantity of its own: `own` — the
+ * field it measures, or a formula's alias — stands in for the unit. Two
+ * plain numbers were once one measure because nothing said they differed,
+ * and the weight in kilograms and the count of parcels shared a scale on
+ * which one of them lay flat along zero (2026-09-23 audit); nothing says
+ * they are alike either, and the one field is the only sameness known —
+ * its sum with and without a condition still share an axis. A derived
+ * metric is likewise its own.
  */
 export function metricMeasure(
   fn: MetricFunction | undefined,
-  format?: NumberFormat,
+  format: NumberFormat | undefined,
+  own: string,
 ): string {
   switch (fn) {
     case 'COUNT':
     case 'DISTINCT_COUNT':
       return 'count';
     case 'DERIVED':
-      return 'derived';
+      return `derived:${own}`;
     default: {
       const scale =
         fn === 'SUM' ? 'total' : fn === 'VARIANCE' ? 'square' : 'value';
-      return `${scale}:${unitOf(format)}`;
+      return `${scale}:${unitOf(format) ?? `own:${own}`}`;
     }
   }
 }
 
-/** The unit a format declares: a currency, percent, a unit, or none. */
-function unitOf(format: NumberFormat | undefined): string {
+/** The unit a format declares: a currency, percent or a unit; none else. */
+function unitOf(format: NumberFormat | undefined): string | undefined {
   switch (format?.style) {
     case 'currency':
       return `currency:${(format.currency ?? '').toUpperCase()}`;
@@ -276,7 +284,7 @@ function unitOf(format: NumberFormat | undefined): string {
     case 'unit':
       return `unit:${format.unit ?? ''}`;
     default:
-      return 'number';
+      return undefined;
   }
 }
 
@@ -295,7 +303,11 @@ export function metricMeasures(
       const field = name === undefined ? undefined : fields.get(name);
       return [
         metric.alias,
-        metricMeasure(metricFunctionOf(metric), metricFormat(metric, field)),
+        metricMeasure(
+          metricFunctionOf(metric),
+          metricFormat(metric, field),
+          name ?? metric.alias,
+        ),
       ];
     }),
   );

@@ -448,7 +448,6 @@ probe.setOption({
     { type: 'line', data: [1, 2] },
     { type: 'pie', data: [{ value: 1 }] },
     { type: 'scatter', data: [[1, 2]] },
-    { type: 'funnel', data: [{ value: 1 }] },
   ],
 });
 assert.match(

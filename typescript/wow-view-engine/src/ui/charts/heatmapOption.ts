@@ -14,10 +14,10 @@
 import type { EChartsCoreOption } from 'echarts/core';
 import { valueLabelsOn, type HeatmapData } from '../../analysis/index.js';
 import type { ChartSpec } from '../../model/index.js';
-import { categoryTick } from './axis.js';
+import { categoryTick, sideTitle } from './axis.js';
 import type { ColumnTitle, ValueLabel } from './family.js';
 import { color } from './palette.js';
-import { mixColor, type ChartTheme } from './theme.js';
+import { inkOn, mixColor, type ChartTheme } from './theme.js';
 import { tooltipFrame, tooltipHtml } from './tooltip.js';
 
 /**
@@ -67,14 +67,34 @@ export function heatmapOption(
   const xs = data.xs.map(x => label(heatmap?.x, x));
   const ys = data.ys.map(y => label(heatmap?.y, y));
   const fill = theme.resolve(color(0));
-  const category = (names: string[], title: string | undefined) => ({
+  const palest = mixColor(theme.ground, fill, PALEST);
+  const bottom = high === low ? shade(low) - 1 : shade(low);
+  const top = shade(high);
+  /** The colour the scale gives a value: the cell the label is written on. */
+  const cellColor = (value: number) =>
+    mixColor(
+      palest,
+      fill,
+      top === bottom ? 1 : (shade(value) - bottom) / (top - bottom),
+    );
+  const titleStyle = { color: theme.muted, fontWeight: 500 };
+  const category = (
+    names: string[],
+    title: string | undefined,
+    upright: boolean,
+  ) => ({
     type: 'category',
     data: names,
-    name: title,
-    nameLocation: 'middle',
-    nameGap: 24,
-    nameMoveOverlap: true,
-    nameTextStyle: { color: theme.muted, fontWeight: 500 },
+    // The rows' title set flat at the head where it is Chinese.
+    ...(upright
+      ? sideTitle(title, 'left', 'start', titleStyle, 24)
+      : {
+          name: title,
+          nameLocation: 'middle',
+          nameGap: 24,
+          nameMoveOverlap: true,
+          nameTextStyle: titleStyle,
+        }),
     axisTick: { show: false },
     axisLine: { show: false },
     axisLabel: {
@@ -96,14 +116,14 @@ export function heatmapOption(
       outerBoundsMode: 'same',
       outerBoundsContain: 'all',
     },
-    xAxis: category(xs, column(heatmap?.x)),
-    yAxis: { ...category(ys, column(heatmap?.y)), inverse: true },
+    xAxis: category(xs, column(heatmap?.x), false),
+    yAxis: { ...category(ys, column(heatmap?.y), true), inverse: true },
     visualMap: {
       type: 'continuous',
       // Every cell alike reads as the scale's deep end, not a wash of its
       // palest: the one value there is is the most there is.
-      min: high === low ? shade(low) - 1 : shade(low),
-      max: shade(high),
+      min: bottom,
+      max: top,
       dimension: 2,
       calculable: false,
       orient: 'horizontal',
@@ -113,7 +133,7 @@ export function heatmapOption(
       itemHeight: 160,
       // Both ends as concrete colours on the actual ground, so the cells
       // and the bar that reads them are the same colours in either mode.
-      inRange: { color: [mixColor(theme.ground, fill, PALEST), fill] },
+      inRange: { color: [palest, fill] },
       text: [
         label(heatmap?.value, high, true),
         label(heatmap?.value, low, true),
@@ -141,8 +161,22 @@ export function heatmapOption(
         data: data.cells.flatMap((row, y) =>
           row.flatMap((cell, x) =>
             // The shade is what the scale reads; the value rides along for
-            // the label and the tooltip.
-            cell === null ? [] : [[x, y, shade(cell), cell]],
+            // the label and the tooltip. The label is in the ink that
+            // stands off this cell's own shade: one ink for all of them
+            // wrote dark digits on the deep end (2026-09-23 audit).
+            cell === null
+              ? []
+              : [
+                  {
+                    value: [x, y, shade(cell), cell],
+                    label: { color: inkOn(theme, cellColor(cell)) },
+                    emphasis: {
+                      label: {
+                        color: inkOn(theme, cellColor(cell)),
+                      },
+                    },
+                  },
+                ],
           ),
         ),
         itemStyle: {
@@ -152,16 +186,50 @@ export function heatmapOption(
         },
         label: {
           show: valueLabelsOn(spec),
-          color: theme.foreground,
           fontSize: 11,
-          textBorderColor: theme.ground,
-          textBorderWidth: 2,
           formatter: ({ value }: { value: Cell }) =>
             label(heatmap?.value, value[3], true),
         },
-        labelLayout: { hideOverlap: true },
+        // The cell under the pointer is ringed in the ink; its own shade
+        // is its value, so it keeps it.
         emphasis: { itemStyle: { borderColor: theme.foreground } },
       },
     ],
   };
+}
+
+/**
+ * Whether the plot's cells are big enough for their numbers: every one of
+ * them, or — where the widest does not fit a cell, or a cell is shorter than
+ * a line — none. The library's `hideOverlap` dropped whichever it met
+ * second, and a cell with no number among cells with one reads as a cell
+ * with none (2026-09-23 audit). Estimated before drawing from the plot's
+ * size less the axes' text; the tooltip always has the number.
+ */
+export function heatmapLabelsFit(
+  data: HeatmapData,
+  { spec, label }: Pick<HeatmapContext, 'spec' | 'label'>,
+  width: number,
+  height: number,
+  measure: (text: string) => number,
+): boolean {
+  const heatmap = spec?.heatmap;
+  const rows = Math.max(
+    0,
+    ...data.ys.map(y => measure(categoryTick(label(heatmap?.y, y)))),
+  );
+  const values = data.cells
+    .flat()
+    .filter((cell): cell is number => cell !== null);
+  const widest = Math.max(
+    0,
+    ...values.map(
+      value => (measure(label(heatmap?.value, value, true)) * 11) / 12,
+    ),
+  );
+  // The row names and their title beside the cells; under them the column
+  // names, their title and the colour scale.
+  const across = (width - 20 - rows - 8) / Math.max(1, data.xs.length);
+  const along = (height - 8 - 44 - 40) / Math.max(1, data.ys.length);
+  return widest + 6 <= across && along >= 16;
 }

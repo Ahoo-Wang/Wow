@@ -37,7 +37,7 @@ import type { ChartType } from '../../model/index.js';
 import { cn } from 'cn';
 import { Button } from '../components/button.js';
 import { IconButton } from '../IconButton.js';
-import { TEXT_UI } from '../layout.js';
+import { LANDING_HEADING, TEXT_UI } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { ChartTile } from '../variants.js';
 
@@ -178,18 +178,21 @@ export function ChartPicker({
             Tab route, but the panel that has just replaced the view list has
             to be where the keyboard is, and a heading is what says which
             level it landed on. */}
-        <h2 ref={headingRef} tabIndex={-1} className="text-base font-semibold">
+        <h2 ref={headingRef} tabIndex={-1} className={LANDING_HEADING}>
           {messages.label('label.chart.picker')}
         </h2>
       </div>
       <div
         role="radiogroup"
         aria-label={messages.label('label.chart.picker')}
-        // Rows of one height (`auto-rows-fr`), so a tile that writes a reason
-        // under itself does not make its row a different shape from the
-        // next. The rows stand a step further apart than the columns: the
-        // 「推荐」 mark hangs across its tile's bottom edge, into that gap.
-        className="grid auto-rows-fr grid-cols-3 gap-x-2 gap-y-3 *:min-w-0"
+        // Each row as tall as its tallest tile, and no taller: one height
+        // for every row (`auto-rows-fr`, as it was) sized them all to the
+        // one tile that writes two lines of reason, and every tile above
+        // stood half empty (2026-09-23 audit). A tile centres what it holds
+        // in the height its row gives it (`ChartTile`). The rows stand a
+        // step further apart than the columns: the 「推荐」 mark hangs across
+        // its tile's bottom edge, into that gap.
+        className="grid grid-cols-3 gap-x-2 gap-y-3 *:min-w-0"
       >
         {tiles.map(({ value, fit }, index) => {
           const Icon = ICON[value];

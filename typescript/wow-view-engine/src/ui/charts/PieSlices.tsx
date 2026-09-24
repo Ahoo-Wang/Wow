@@ -28,6 +28,13 @@ import { drawnSlices, pieCaptions, pieFit, pieOption } from './pieOption.js';
 import type { ChartTheme } from './theme.js';
 
 /**
+ * How wide a pie's plot grows beside its legend, against its height: the
+ * circle and room either side for the shares written outside it. Wider, the
+ * legend stood a hand's width from the slices it names.
+ */
+export const PIE_HUG = 1.3;
+
+/**
  * A pie or a donut, drawn by ECharts from `pieOption` (D21).
  *
  * The legend is the key to the picture, so it is always there unless the
@@ -146,6 +153,7 @@ export function PieSlices({
       option={option}
       adapt={adapt}
       onClick={onClick}
+      hug={PIE_HUG}
       legend={
         at && {
           at,

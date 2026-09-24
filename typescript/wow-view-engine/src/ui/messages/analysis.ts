@@ -315,6 +315,7 @@ export const analysisMessages = {
   'label.chart.format.compact': 'Compact',
   'label.chart.format.percent': 'Percent',
   'label.chart.axis-title': 'Axis title',
+  'label.chart.axis-title.none': 'None — the legend names the series',
   'label.chart.axis-min': 'Minimum',
   'label.chart.axis-max': 'Maximum',
   // `{name}` is the field's display name, never its alias: a control that
@@ -396,6 +397,18 @@ export const analysisMessages = {
   // Series names the chart writes itself, for legends and tooltips.
   'label.chart.other': 'Other',
   'label.chart.share-basis': 'Shares of the groups shown',
+  // A 0 the chart filled in rather than measured (decisions.md D23, Q14):
+  // a bucket or a group the rows lack, said in the tooltip and the reading
+  // table, never written on the mark.
+  'label.chart.filled.YEAR': '{value} (no records this year)',
+  'label.chart.filled.QUARTER': '{value} (no records this quarter)',
+  'label.chart.filled.MONTH': '{value} (no records this month)',
+  'label.chart.filled.WEEK': '{value} (no records this week)',
+  'label.chart.filled.DAY': '{value} (no records this day)',
+  'label.chart.filled.HOUR': '{value} (no records this hour)',
+  'label.chart.filled.MINUTE': '{value} (no records this minute)',
+  'label.chart.filled.SECOND': '{value} (no records this second)',
+  'label.chart.filled.group': '{value} (no records in this group)',
   'label.chart.legend.more': '{count} more',
   'label.chart.legend.less': 'Show less',
   'label.chart.total': 'Total',

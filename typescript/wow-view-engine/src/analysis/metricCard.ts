@@ -37,7 +37,11 @@ export interface MetricCardData {
   value: number | string | null;
   compare?: { value: number | null; delta: number | null };
   target?: number;
-  trend?: { x: unknown; value: number | null }[];
+  /**
+   * The sparkline's points; `filled` where the kernel filled a bucket the
+   * rows lack with 0 rather than measured it (decisions.md D21, Q14).
+   */
+  trend?: { x: unknown; value: number | null; filled?: true }[];
   /**
    * Over a trend read as its last period (`MetricTrend.headline` left out or
    * `last`): which period the headline is, and how it moved from the one
@@ -138,16 +142,24 @@ export function metricCard(
     ...(spec.target === undefined ? {} : { target: spec.target }),
     ...(trend
       ? {
-          trend: buckets.map(bucket => ({
-            x: bucket[trend.x],
-            value: num(bucket, spec.metric),
-          })),
+          trend: buckets.map(bucket => {
+            const value = num(bucket, spec.metric);
+            return FILLED.has(bucket) && value !== null
+              ? { x: bucket[trend.x], value, filled: true as const }
+              : { x: bucket[trend.x], value };
+          }),
         }
       : {}),
     ...(last ? { period: last.period } : {}),
     ...(trend && whole ? { whole: true as const } : {}),
   };
 }
+
+/**
+ * The rows `trendRows` made up for a bucket the result lacks, by identity:
+ * a sparkline point drawn from one is filled, not measured.
+ */
+const FILLED = new WeakSet<RecordData>();
 
 /**
  * The trend's buckets, earliest first and without holes as every time axis
@@ -174,6 +186,7 @@ function trendRows(
     key => {
       const empty = absent({ [x]: key });
       const hole: RecordData = { [x]: key };
+      FILLED.add(hole);
       for (const metric of config.metrics)
         hole[metric.alias] = empty && isAdditiveMetric(metric) ? 0 : null;
       return hole;
@@ -241,6 +254,42 @@ function lastPeriod(
         : {}),
     },
   };
+}
+
+/**
+ * How long after the question was asked a trend card's headline stops
+ * being its last period, in milliseconds — or undefined when it never
+ * will: no trend, a card read as the whole, or no bucket under way.
+ *
+ * The card skips the period still under way when it is asked (`lastPeriod`),
+ * and that is a statement about a moment: at midnight today is over, the
+ * headline should be today and the day under way tomorrow. A page left open
+ * across it went on saying yesterday (2026-09-23 audit) — the rows are the
+ * ones asked for then, today's only partly counted, so the card cannot just
+ * move along them. The runtime asks again when this has run out
+ * (`RuntimeStoreHost.expiresAt`), and the answer is the card of the new day.
+ */
+export function periodRollover(
+  config: AnalysisViewConfig,
+  rows: readonly RecordData[],
+  context: { timeZone: string; now: Date },
+): number | undefined {
+  const spec = config.chart.type === 'metric' ? config.chart.metric : undefined;
+  const trend = spec?.trend;
+  if (!trend || trend.headline === 'whole') return undefined;
+  const axis = timeGroup(config, trend.x);
+  if (!axis) return undefined;
+  const buckets = trendRows(trend.x, axis, config, rows, context.timeZone);
+  for (let index = buckets.length - 1; index >= 0; index -= 1) {
+    const span = bucketSpan(
+      axis,
+      buckets[index][trend.x],
+      context.timeZone,
+      context.now,
+    );
+    if (span) return span.left;
+  }
+  return undefined;
 }
 
 /**

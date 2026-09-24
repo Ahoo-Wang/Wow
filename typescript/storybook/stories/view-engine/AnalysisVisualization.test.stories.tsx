@@ -14,6 +14,7 @@ import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { formatMessage, zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 import displayMeta, {
+  BarChart as DisplayBarChart,
   TwoMetrics as DisplayTwoMetrics,
 } from './AnalysisWorkbench.stories.js';
 import { dragHandleOnto } from './pointerDrag.js';
@@ -52,6 +53,12 @@ const optionsOf = (type: 'bar' | 'pie') =>
 
 const panel = () =>
   document.querySelector<HTMLElement>('[data-slot="chart-options"]');
+
+/** 「金额的总和」: the one column the bar chart measures. */
+const AMOUNT_HEADER = formatMessage(zhCN, 'label.summary.of', {
+  field: '金额',
+  fn: zhCN['label.summary.fn.SUM'],
+});
 
 /**
  * Each slice's path, in the order the pie draws them. A sector drawn from
@@ -325,5 +332,133 @@ export const ChartOptionsPages: Story = {
     await expect(
       document.querySelector('[data-slot="chart-picker"]'),
     ).toBeNull();
+  },
+};
+
+/**
+ * 坐标轴页的「轴标题」框空着时写出图上画的那个标题：一个量的轴是它的列标题
+ * （审查：空框看不出缺省）。
+ */
+export const AxisTitleShowsItsDefault: Story = {
+  ...DisplayBarChart,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(document.body);
+    await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(4));
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.analysis.visualize'] }),
+    );
+    await userEvent.click(body.getByRole('button', { name: optionsOf('bar') }));
+    await waitFor(() => expect(panel()).not.toBeNull());
+    await userEvent.click(
+      within(panel()!).getByRole('tab', { name: zhCN['label.chart.tab.axes'] }),
+    );
+    const box = within(panel()!).getAllByLabelText(
+      zhCN['label.chart.axis-title'],
+    )[0] as HTMLInputElement;
+    await expect(box.value).toBe('');
+    // The same words the axis is drawn with.
+    const drawn = axisTexts(canvasElement).map(text => text.textContent);
+    await expect(drawn).toContain(box.placeholder);
+    await expect(box.placeholder).toBe(AMOUNT_HEADER);
+  },
+};
+
+/**
+ * 选项页的标题聚焦时没有焦点环：键盘从「可视化」进第一层、从「…选项」按钮进
+ * 第二层，都落在那一层的标题上（`tabIndex={-1}`，只接落点），标题不画一圈框
+ * （审查）。
+ */
+export const OptionsHeadingRingless: Story = {
+  ...DisplayBarChart,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(4));
+    canvas
+      .getByRole('button', { name: zhCN['label.analysis.visualize'] })
+      .focus();
+    await userEvent.keyboard('{Enter}');
+    const heading = await waitFor(() => {
+      const found = document.querySelector<HTMLElement>(
+        '[data-slot="chart-picker"] h2',
+      );
+      expect(found).toHaveFocus();
+      return found!;
+    });
+    await expect(getComputedStyle(heading).outlineStyle).toBe('none');
+    document
+      .querySelector<HTMLElement>('[data-slot="chart-options-open"]')!
+      .focus();
+    await userEvent.keyboard('{Enter}');
+    const title = await waitFor(() => {
+      const found = document.querySelector<HTMLElement>(
+        '[data-slot="chart-options"] h2',
+      );
+      expect(found).toHaveFocus();
+      return found!;
+    });
+    // The browser would ring it — it is focused from the keyboard — and it
+    // wears none: a landing, not a control.
+    await expect(title.matches(':focus-visible')).toBe(true);
+    await expect(getComputedStyle(title).outlineStyle).toBe('none');
+  },
+};
+
+/**
+ * 手机宽度（414）上的可视化面板是从底边升起的抽屉，不再是压在结果上方的一块：
+ * 抽屉贴着视口底边、不高过视口的八成；选一个图型，底下的结果就地重画；按 Escape
+ * 收起，键盘回到「可视化」（审查）。
+ */
+export const VisualizeOnAPhone: Story = {
+  ...DisplayBarChart,
+  decorators: [
+    Story => (
+      <div style={{ width: 414 }}>
+        <Story />
+      </div>
+    ),
+  ],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(4));
+    const visualizeButton = canvas.getByRole('button', {
+      name: zhCN['label.analysis.visualize'],
+    });
+    await userEvent.click(visualizeButton);
+    const drawer = await within(document.body).findByRole('dialog', {
+      name: zhCN['label.chart.picker'],
+    });
+    await expect(drawer).toHaveAttribute('data-side', 'bottom');
+    // Not a block in the page: no column in the workbench holds the panel.
+    await expect(
+      canvasElement.querySelector('aside[data-slot="view-panel"]'),
+    ).toBeNull();
+    await waitFor(() => {
+      const box = drawer.getBoundingClientRect();
+      expect(Math.abs(box.bottom - window.innerHeight)).toBeLessThan(2);
+      expect(box.height).toBeLessThanOrEqual(window.innerHeight * 0.8 + 1);
+    });
+    // The keyboard is on the level's heading, as it is beside the view.
+    await waitFor(() =>
+      expect(
+        drawer.querySelector('[data-slot="chart-picker"] h2'),
+      ).toHaveFocus(),
+    );
+    // A pick redraws the result under it.
+    await userEvent.click(
+      drawer.querySelector<HTMLElement>(
+        '[data-slot="chart-tile"][data-chart-type="line"]',
+      )!,
+    );
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="chart"]'),
+      ).toHaveAttribute('data-chart', 'line'),
+    );
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() =>
+      expect(document.querySelector('[data-slot="view-panel"]')).toBeNull(),
+    );
+    await waitFor(() => expect(visualizeButton).toHaveFocus());
   },
 };

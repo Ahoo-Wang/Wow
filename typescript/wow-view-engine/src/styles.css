@@ -803,6 +803,47 @@
   width: auto;
 }
 
+/*
+ * A metric card in the workbench stands in the middle of the result.
+ *
+ * It is a few lines of text — the period, the number, the change — and the
+ * result block is the whole of the work area: laid out from the top left
+ * like a chart, the card sat crammed in the corner over a screen of nothing
+ * (2026-09-23 audit). The number is the answer, so it takes the space, as
+ * Metabase's number and trend cards do: the card is a column no wider than
+ * a reading measure, centred both ways in the result, its figure a size
+ * larger than on a dashboard tile and its trend line taller. Inside a
+ * dashboard panel the tile is the card, and none of this applies.
+ */
+.fve-root
+  > main
+  [data-slot='result-block']
+  > [data-slot='analysis-result']
+  > [data-slot='metric-card'] {
+  flex: 1 1 auto;
+  justify-content: center;
+  align-self: center;
+  width: min(100% - 32px, 40rem);
+  margin: 12px auto;
+}
+
+.fve-root
+  > main
+  [data-slot='analysis-result']
+  > [data-slot='metric-card']
+  [data-slot='metric-value'] {
+  font-size: var(--text-5xl);
+  line-height: 1;
+}
+
+.fve-root
+  > main
+  [data-slot='analysis-result']
+  > [data-slot='metric-card']
+  [data-chart='sparkline'] {
+  height: 6rem;
+}
+
 .fve-root
   > main
   [data-slot='result-block']

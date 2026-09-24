@@ -108,6 +108,8 @@ export interface FamilyProps<D> {
    * (`faded`); left out, every mark as it is.
    */
   highlight?: (row: RecordData) => boolean;
+  /** A filled-in value as the tooltip says it (`useFilledNote`). */
+  filled?: FilledNote;
 }
 
 export function useValueLabel(
@@ -139,6 +141,36 @@ export function useValueLabel(
       );
     };
   }, [columns, display, messages]);
+}
+
+/**
+ * A value the chart filled in rather than measured, as the tooltip and the
+ * reading table say it: 「0（这一天没有记录）」 on a day axis, the unit's own
+ * words on another — 这一周, 这个月 — and 「0（这一组没有记录）」 for a split
+ * combination along categories (decisions.md D23, Q14). `alias` is the axis
+ * the filled point stands on; `value` the number already written.
+ */
+export type FilledNote = (alias: string | undefined, value: string) => string;
+
+export function useFilledNote(
+  columns: readonly AnalysisColumnView[] | undefined,
+): FilledNote {
+  const messages = useViewMessages();
+  return useMemo(() => {
+    const byAlias = new Map(
+      (columns ?? []).map(column => [column.alias, column]),
+    );
+    return (alias, value) => {
+      const unit =
+        alias === undefined ? undefined : byAlias.get(alias)?.dateUnit;
+      return messages.label(
+        unit === undefined
+          ? 'label.chart.filled.group'
+          : `label.chart.filled.${unit}`,
+        { value },
+      );
+    };
+  }, [columns, messages]);
 }
 
 /** Whether a column's numbers add up across groups: a count or a sum. */

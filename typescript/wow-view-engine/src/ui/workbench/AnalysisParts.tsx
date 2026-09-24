@@ -386,6 +386,8 @@ export function AnalysisParts({
           onBack={() => setPanel('picker')}
         />
       ) : null,
+    // Dismissed as a drawer on a narrow screen: the panel's own way back.
+    onPanelClose: () => setPanel(null),
     result: question && (
       <>
         <div

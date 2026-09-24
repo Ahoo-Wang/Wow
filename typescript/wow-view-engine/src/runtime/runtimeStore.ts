@@ -17,6 +17,7 @@ import type { RuntimeEnvironment } from './environment.js';
 import { listenerSet } from './listeners.js';
 import { NO_REFUSAL, sameRefusal } from './scope.js';
 import {
+  MomentTimer,
   RefreshTimer,
   refreshDelayOf,
   refreshIntervalOf,
@@ -73,7 +74,21 @@ export interface RuntimeStoreHost<S extends ViewRuntimeState<ViewConfig>> {
    * rest (`blocksBoard`).
    */
   blocking?(issues: readonly Issue[]): boolean;
+  /**
+   * The moment what is on screen stops being true of its own accord, on the
+   * environment's clock — a metric card's headline, once the period it
+   * skipped as under way has ended (`periodRollover`) — or `null`. The store
+   * refreshes then, whatever the auto-refresh cadence, and held for the
+   * same reasons it is: a hidden page asks once it is shown again.
+   */
+  expiresAt?(): number | null;
 }
+
+/**
+ * How long past the moment a period ends the question is asked again: the
+ * source has had a second to close the bucket that just ended.
+ */
+export const ROLLOVER_GRACE_MS = 1000;
 
 export interface RuntimeStoreOptions<
   S extends ViewRuntimeState<ViewConfig>,
@@ -114,6 +129,7 @@ export class RuntimeStore<S extends ViewRuntimeState<ViewConfig>> {
   private readonly environment: RuntimeEnvironment;
   private readonly host: RuntimeStoreHost<S>;
   private readonly timer: RefreshTimer;
+  private readonly rollover: MomentTimer;
   private readonly unwatchVisibility: () => void;
 
   private current: S;
@@ -126,6 +142,9 @@ export class RuntimeStore<S extends ViewRuntimeState<ViewConfig>> {
     this.host = options;
     this.refusal = options.refusedScope ?? NO_REFUSAL;
     this.timer = new RefreshTimer(options.environment, () =>
+      this.host.refresh(),
+    );
+    this.rollover = new MomentTimer(options.environment, () =>
       this.host.refresh(),
     );
     this.unwatchVisibility = options.environment.visibility.subscribe(() =>
@@ -273,6 +292,20 @@ export class RuntimeStore<S extends ViewRuntimeState<ViewConfig>> {
         refreshDelayOf(refreshIntervalOf(this.current.applied), held),
       ),
     );
+    // The period's end is not a cadence the reader chose, so an editor in
+    // focus does not put it off — the question asked again is the one on
+    // screen — but a hidden page does, and a broken draft. A request in
+    // flight holds it until it lands: its answer is the one to judge.
+    const expires = this.host.expiresAt?.() ?? null;
+    this.rollover.syncAt(
+      this.stopped ||
+        this.blocking(this.current.issues) ||
+        !this.environment.visibility.isVisible() ||
+        this.current.query.status === 'loading' ||
+        expires === null
+        ? null
+        : expires + ROLLOVER_GRACE_MS,
+    );
   }
 
   /** See `RuntimeStoreHost.blocking`; any error, unless the runtime says otherwise. */
@@ -287,6 +320,7 @@ export class RuntimeStore<S extends ViewRuntimeState<ViewConfig>> {
 
   private stopTimer(): void {
     this.timer.stop();
+    this.rollover.stop();
     this.setDueAt(null);
   }
 }

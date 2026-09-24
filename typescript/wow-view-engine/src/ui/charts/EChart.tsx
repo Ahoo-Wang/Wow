@@ -73,6 +73,15 @@ export interface EChartProps {
   };
   /** Said on the frame, for whoever reads the drawing's state back. */
   data?: Record<`data-${string}`, string | number | undefined>;
+  /**
+   * The widest the plot grows beside a legend on its right, as a multiple
+   * of its height; the two are then centred in the frame together. A pie is
+   * a circle: in a wide frame the plot took all the width the legend left,
+   * the pie stood in its middle and the legend at the far edge, a hand's
+   * width from the slices it names (2026-09-23 audit). Left out, the plot
+   * takes all the room there is.
+   */
+  hug?: number;
 }
 
 /**
@@ -101,6 +110,7 @@ export function EChart({
   onClick,
   legend,
   data,
+  hug,
 }: EChartProps) {
   const plot = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLDivElement>(null);
@@ -124,24 +134,27 @@ export function EChart({
   // leaves its side, and measured by the plot the legend would come back.
   const beside = legend?.at === 'right';
   const [narrow, setNarrow] = useState(false);
+  const [tall, setTall] = useState(0);
   useLayoutEffect(() => {
     const element = frame.current;
     if (!beside || !element) return;
-    const measure = (width: number) => {
+    const measure = ({ width, height }: { width: number; height: number }) => {
       // Nothing laid out yet — or jsdom, which lays out nothing — says
       // nothing about the room.
       if (width > 0) setNarrow(width < LEGEND_BESIDE_MIN);
+      if (height > 0) setTall(height);
     };
     // Before the first paint, so a phone never sees the legend move.
-    measure(element.getBoundingClientRect().width);
+    measure(element.getBoundingClientRect());
     const observer = new ResizeObserver(([entry]) =>
-      measure(entry.contentRect.width),
+      measure(entry.contentRect),
     );
     observer.observe(element);
     return () => observer.disconnect();
   }, [beside]);
   const placed: LegendPlace | undefined =
     beside && narrow ? 'bottom' : legend?.at;
+  const hugged = hug !== undefined && placed === 'right' && tall > 0;
   const legendNode =
     legend && placed
       ? typeof legend.node === 'function'
@@ -212,6 +225,7 @@ export function EChart({
       role="img"
       aria-label={name}
       className="relative min-h-0 min-w-0 flex-1"
+      style={hugged ? { maxWidth: Math.round(tall * (hug ?? 1)) } : undefined}
     >
       {/* Positioned inline: the library makes its element `relative` unless
           it already computes as positioned, and a stylesheet that has not
@@ -228,6 +242,7 @@ export function EChart({
       className={cn(
         'flex aspect-video min-h-52 w-full gap-2 text-xs',
         placed === 'right' ? 'flex-row' : 'flex-col',
+        hugged && 'justify-center',
         className,
       )}
     >

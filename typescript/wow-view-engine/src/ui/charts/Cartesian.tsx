@@ -15,12 +15,11 @@ import { useCallback, useMemo } from 'react';
 import { valueLabelsOn, type CartesianData } from '../../analysis/index.js';
 import type { ChartSpec, RecordData } from '../../model/index.js';
 import { pointAnchor } from '../analysis/DrillMenu.js';
+import { useViewMessages } from '../MessagesProvider.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
-import {
-  categoryFit,
-  cartesianOption,
-  drawnSeries,
-} from './cartesianOption.js';
+import { cartesianFit } from './cartesianFit.js';
+import { optionOf } from './cartesianOption.js';
+import { cartesianPlan } from './cartesianPlan.js';
 import { ChartLegend } from './ChartLegend.js';
 import { EChart, type ChartClick } from './EChart.js';
 import { faded, type Lit } from './highlight.js';
@@ -45,9 +44,12 @@ export function Cartesian({
   name,
   onPick,
   highlight,
+  filled,
 }: FamilyProps<CartesianData>) {
   const animate = useChartMotion();
+  const messages = useViewMessages();
   const { locale } = useSurfaceDisplay();
+  const join = messages.label('label.filter.join');
   const pickable = onPick !== undefined;
   // A time axis writes its ticks short — the year only where it changes.
   const ticks = useMemo(
@@ -73,37 +75,34 @@ export function Cartesian({
       );
     };
   }, [highlight, spec, data]);
+  // What the chart decides before it has a theme or a size, once: which
+  // way it lies, its stacks, its scales, what each label writes.
+  const plan = useMemo(
+    () =>
+      cartesianPlan(data, {
+        spec,
+        label,
+        column,
+        locale,
+        animate,
+        pickable,
+        ticks,
+        join,
+        filled,
+      }),
+    [data, spec, label, column, locale, animate, pickable, ticks, join, filled],
+  );
   const option = useCallback(
-    (theme: ChartTheme) =>
-      faded(
-        cartesianOption(
-          data,
-          { spec, label, column, locale, animate, pickable, ticks },
-          theme,
-        ),
-        lit,
-      ),
-    [data, spec, label, column, locale, animate, pickable, ticks, lit],
+    (theme: ChartTheme) => faded(optionOf(plan, theme), lit),
+    [plan, lit],
   );
-  const horizontal = spec?.cartesian?.orientation === 'horizontal';
+  // The names that fit, and the value labels there is room for.
   const adapt = useCallback(
-    (width: number) =>
-      categoryFit(
-        data.points.map(
-          (point, index) =>
-            ticks?.[index] ?? label(spec?.cartesian?.x, point.x),
-        ),
-        width,
-        text => measureText(text),
-        horizontal,
-        ticks !== undefined,
-      ),
-    [data, spec, label, horizontal, ticks],
+    (width: number, height: number) =>
+      cartesianFit(plan, width, height, text => measureText(text)),
+    [plan],
   );
-  const series = useMemo(
-    () => drawnSeries(data, { spec, label, column }),
-    [data, spec, label, column],
-  );
+  const series = plan.series;
   const at = legendAt(spec?.legend, series.length > 1);
   // The group a bar stands for: its category, and the split value when the
   // series is one — named by the aliases the spec put on the axes, which is
@@ -158,6 +157,7 @@ export function Cartesian({
         'data-marks': marks,
         'data-labels': valueLabelsOn(spec) ? 'on' : 'off',
         ...(lit ? { 'data-highlighted': litCount(data, lit) } : {}),
+        'data-orientation': plan.horizontal ? 'horizontal' : 'vertical',
       }}
     />
   );

@@ -71,23 +71,38 @@ const FIELDS = new Map<string, Pick<FieldDefinition, 'numberFormat'>>([
 
 describe('metricMeasure: what a metric is a quantity of', () => {
   it('reads the function and the declared unit, never the values', () => {
-    expect(metricMeasure('COUNT')).toBe('count');
-    expect(metricMeasure('DISTINCT_COUNT')).toBe('count');
-    expect(metricMeasure('DERIVED')).toBe('derived');
-    expect(metricMeasure('SUM', { style: 'currency', currency: 'cny' })).toBe(
-      'total:currency:CNY',
-    );
+    expect(metricMeasure('COUNT', undefined, 'a')).toBe('count');
+    expect(metricMeasure('DISTINCT_COUNT', undefined, 'a')).toBe('count');
+    expect(
+      metricMeasure('SUM', { style: 'currency', currency: 'cny' }, 'a'),
+    ).toBe('total:currency:CNY');
     // An average of money is still money, on the scale of one value.
-    expect(metricMeasure('AVG', { style: 'currency', currency: 'CNY' })).toBe(
-      'value:currency:CNY',
+    expect(
+      metricMeasure('AVG', { style: 'currency', currency: 'CNY' }, 'a'),
+    ).toBe('value:currency:CNY');
+    expect(metricMeasure('MAX', { style: 'percent' }, 'a')).toBe(
+      'value:percent',
     );
-    expect(metricMeasure('MAX', { style: 'percent' })).toBe('value:percent');
-    expect(metricMeasure('VARIANCE', undefined)).toBe('square:number');
-    expect(metricMeasure('SUM', { style: 'unit', unit: 'kilogram' })).toBe(
+    expect(metricMeasure('SUM', { style: 'unit', unit: 'kilogram' }, 'a')).toBe(
       'total:unit:kilogram',
     );
-    expect(metricMeasure('SUM', {})).toBe('total:number');
-    expect(metricMeasure(undefined)).toBe('value:number');
+  });
+
+  it('reads a number with no declared unit as a quantity of its own (audit)', () => {
+    // Two plain numbers were one measure: the parcels counted and the weight
+    // shared a scale. Nothing says they are alike; the field is all that is.
+    expect(metricMeasure('SUM', {}, 'weight')).toBe('total:own:weight');
+    expect(metricMeasure('SUM', {}, 'parcels')).not.toBe(
+      metricMeasure('SUM', {}, 'weight'),
+    );
+    expect(metricMeasure('VARIANCE', undefined, 'weight')).toBe(
+      'square:own:weight',
+    );
+    expect(metricMeasure(undefined, undefined, 'x')).toBe('value:own:x');
+    // Arithmetic over other metrics is its own too.
+    expect(metricMeasure('DERIVED', undefined, 'margin')).toBe(
+      'derived:margin',
+    );
   });
 
   it('reads a metric off its field, and a column off its format', () => {
@@ -101,7 +116,7 @@ describe('metricMeasure: what a metric is a quantity of', () => {
       average: 'value:currency:CNY',
       refunds: 'total:currency:CNY',
       discount: 'value:percent',
-      w: 'total:number',
+      w: 'total:own:items',
     });
     const column = (
       alias: string,
@@ -120,9 +135,15 @@ describe('metricMeasure: what a metric is a quantity of', () => {
           { alias: 'wh', label: 'Warehouse', role: 'group' },
           column('orders', 'COUNT', { maximumFractionDigits: 0 }),
           column('total', 'SUM', { style: 'currency', currency: 'CNY' }),
+          // A column says what it measures when the projection wrote it.
+          { ...column('kg', 'SUM'), measure: 'total:own:weight' },
         ]),
       ),
-    ).toEqual({ orders: 'count', total: 'total:currency:CNY' });
+    ).toEqual({
+      orders: 'count',
+      total: 'total:currency:CNY',
+      kg: 'total:own:weight',
+    });
   });
 });
 
@@ -286,16 +307,20 @@ describe('cartesianOption: two axes', () => {
     expect(right.position).toBe('right');
     expect(left.splitLine.show).toBe(true);
     expect(right.splitLine.show).toBe(false);
-    // The money follows the count's gridlines, a nice step of its own; the
-    // count keeps whole steps (audit P2-4).
-    expect(right.alignTicks).toBe(true);
-    expect(left.alignTicks).toBeUndefined();
-    expect(left.minInterval).toBe(1);
+    // One set of gridlines: as many steps each side, each a nice step of its
+    // own, and the count's whole (audit P2-4; the library's `alignTicks`
+    // stepped a following count in halves).
+    const steps = (axis: Loose) => (axis.max - axis.min) / axis.interval;
+    expect(steps(left)).toBe(steps(right));
+    expect([left.min, right.min]).toEqual([0, 0]);
+    expect(Number.isInteger(left.interval)).toBe(true);
+    expect(left.max).toBeGreaterThanOrEqual(2);
+    expect(right.max).toBeGreaterThanOrEqual(2450.25);
+    expect(right.alignTicks).toBeUndefined();
   });
 
-  it('makes the axis that can take a fractional step the one that follows', () => {
-    // Money led on the left, the count on the right: the count would write
-    // a half step as a second 「1」, so the money follows it instead.
+  it('steps a count in whole numbers on either side', () => {
+    // Money led on the left, the count on the right: still whole steps.
     const moneyFirst: ChartSpec = {
       type: 'combo',
       cartesian: {
@@ -313,9 +338,58 @@ describe('cartesianOption: two axes', () => {
         theme,
       ) as Loose
     ).yAxis;
-    expect(left.alignTicks).toBe(true);
-    expect(right.alignTicks).toBeUndefined();
-    expect(right.minInterval).toBe(1);
+    expect(Number.isInteger(right.interval)).toBe(true);
+    expect((left.max - left.min) / left.interval).toBe(
+      (right.max - right.min) / right.interval,
+    );
+  });
+
+  it('titles each of two axes with all it measures (audit)', () => {
+    // A third metric on the right: the legend no longer says which series
+    // stands on which axis, so the axis names both.
+    const three: ChartSpec = {
+      type: 'combo',
+      cartesian: {
+        x: 'wh',
+        series: [
+          { metric: 'orders', type: 'bar' },
+          { metric: 'total', type: 'line', axis: 'right' },
+          { metric: 'refunds', type: 'line', axis: 'right' },
+        ],
+      },
+    };
+    const option = cartesianOption(
+      {
+        ...data([2, 1], [1920.5, 2450.25]),
+        series: [
+          ...data([], []).series,
+          { key: 'refunds', label: 'refunds', metric: 'refunds' },
+        ],
+      },
+      {
+        ...context(three),
+        column: alias =>
+          ({ orders: 'Orders', total: 'Sum of Amount', refunds: 'Refunds' })[
+            alias ?? ''
+          ],
+        join: '、',
+      },
+      theme,
+    ) as Loose;
+    expect(option.yAxis[1].name).toBe('Sum of Amount、Refunds');
+    // One axis of two metrics is named by the legend.
+    const one = cartesianOption(
+      data([2, 1], [3, 4]),
+      context({
+        type: 'bar',
+        cartesian: {
+          x: 'wh',
+          series: [{ metric: 'orders' }, { metric: 'total' }],
+        },
+      }),
+      theme,
+    ) as Loose;
+    expect(one.yAxis[0].name).toBeUndefined();
   });
 
   it('aligns nothing while there is one axis', () => {

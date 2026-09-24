@@ -31,7 +31,9 @@ import {
   cartesianOption,
   type CartesianContext,
 } from '../src/ui/charts/cartesianOption.js';
+import { readChart } from '../src/ui/charts/reading.js';
 import type { ChartTheme } from '../src/ui/charts/theme.js';
+import { defaultMessages, formatMessage } from '../src/ui/messages.js';
 import { analysisKernelConfig } from './fixtures/analysis.js';
 
 /**
@@ -262,7 +264,10 @@ describe('cartesianOption: a 100% stack', () => {
 
   it('writes shares on the parts, and no total over a stack of 100%', () => {
     const drawn = option(withPercentStack(split, true, 'bar'));
-    expect(drawn.series[0].label.formatter({ value: 0.75 })).toBe('75.0%');
+    expect(drawn.series[0].label.formatter({ dataIndex: 0 })).toBe('75.0%');
+    // A part that is its whole stack still says its share: there is no
+    // total over a stack of 100% to say it instead.
+    expect(drawn.series[0].label.formatter({ dataIndex: 2 })).toBe('100.0%');
     // Two series and nothing more: no carrier of a total.
     expect(drawn.series).toHaveLength(2);
     // Stacked by value, the total is there.
@@ -274,6 +279,38 @@ describe('cartesianOption: a 100% stack', () => {
     const html: string = drawn.tooltip.formatter([{ dataIndex: 0 }]);
     expect(html).toContain('orders=3 · 75.0%');
     expect(html).toContain('orders=1 · 25.0%');
+  });
+
+  it('reads out each part’s share beside its value (audit)', () => {
+    // A screen reader heard the values of stacks the picture drew as equal
+    // heights; the table says what the tooltip says.
+    const messages = {
+      label: (key: string, params?: Record<string, string | number>) =>
+        formatMessage(defaultMessages, key as never, params),
+      issue: () => '',
+      issues: () => '',
+    };
+    const reading = (cartesian: CartesianSpec) =>
+      readChart(data, context(cartesian).spec, {
+        messages,
+        label: (alias, value) => `${alias}=${String(value)}`,
+        column: () => undefined,
+        locale: 'en',
+      });
+    const shared = reading(withPercentStack(split, true, 'bar'));
+    expect(shared.rows[0]).toEqual([
+      'wh=CN',
+      'orders=3 · 75.0%',
+      'orders=1 · 25.0%',
+    ]);
+    // A stack of nothing has no shares to say.
+    expect(shared.rows[1]).toEqual(['wh=US', 'orders=0', 'orders=0']);
+    // Stacked by value, the values alone.
+    expect(reading(withStacked(split, true, 'bar')).rows[0]).toEqual([
+      'wh=CN',
+      'orders=3',
+      'orders=1',
+    ]);
   });
 
   it('draws values where it is not asked, or not stacked, or not bars or areas', () => {

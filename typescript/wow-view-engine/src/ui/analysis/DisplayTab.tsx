@@ -40,6 +40,7 @@ import {
   useViewMessages,
   type MessageFormatters,
 } from '../MessagesProvider.js';
+import { drawsHorizontal } from '../charts/cartesianPlan.js';
 import { EditorCard, PillInput } from '../variants.js';
 import { CompactSelect } from './CompactSelect.js';
 import { useListFocus } from './listFocus.js';
@@ -95,7 +96,13 @@ export function DisplayTab(props: OptionsPageProps) {
   );
 }
 
-function CartesianDisplay({ chart, shape, onChange }: OptionsPageProps) {
+function CartesianDisplay({
+  chart,
+  shape,
+  rows,
+  label,
+  onChange,
+}: OptionsPageProps) {
   const messages = useViewMessages();
   // A line taken out leaves the keyboard on the line under it, or on
   // 「添加参考线」 once the last one goes (`listFocus.ts`).
@@ -165,16 +172,22 @@ function CartesianDisplay({ chart, shape, onChange }: OptionsPageProps) {
           onChange={on => update(withPercentStack(spec, on, chart.type))}
         />
       )}
+      {/*
+        Ticked when the chart is drawn on its side: because the analyst said
+        so, or — said nothing — because its names are too long to stand under
+        their bars (`drawsHorizontal`). A press says it either way, so a
+        chart the rule laid down can be stood back up.
+      */}
       <CheckField
         data-slot="chart-horizontal"
         label={messages.label('label.chart.horizontal')}
-        checked={spec.orientation === 'horizontal'}
+        checked={drawsHorizontal(
+          chart,
+          rows.map(row => label(spec.x, row[spec.x])),
+          shape.dated?.has(spec.x) === true,
+        )}
         onChange={on =>
-          update(
-            on
-              ? { ...spec, orientation: 'horizontal' }
-              : without(spec, 'orientation'),
-          )
+          update({ ...spec, orientation: on ? 'horizontal' : 'vertical' })
         }
       />
       {curved && (

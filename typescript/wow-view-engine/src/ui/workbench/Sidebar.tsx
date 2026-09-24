@@ -11,9 +11,11 @@
  * limitations under the License.
  */
 
-import type { ReactNode, RefObject } from 'react';
+import { useRef, type ReactNode, type RefObject } from 'react';
 import { PanelLeftOpenIcon } from 'lucide-react';
+import { Sheet, SheetTitle } from '../components/sheet.js';
 import { IconButton } from '../IconButton.js';
+import { SheetContent } from '../popups.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { ViewList, type ViewListProps } from '../ViewList.js';
 import { ViewSwitcher, type ViewSwitcherProps } from '../ViewSwitcher.js';
@@ -25,6 +27,14 @@ export interface SidebarColumnProps extends Omit<ViewListProps, 'onRetry'> {
    * not the list is folded.
    */
   panel?: ReactNode;
+  /**
+   * The surface is too narrow for a column beside the view
+   * (`useNarrowSurface`): the panel is drawn in a drawer over the page
+   * rather than as a block on top of the result.
+   */
+  narrow?: boolean;
+  /** The drawer was dismissed — Escape, a press outside, its close button. */
+  onPanelClose?(): void;
   /** Whether the list is beside the view rather than folded away. */
   open: boolean;
 }
@@ -33,13 +43,63 @@ export interface SidebarColumnProps extends Omit<ViewListProps, 'onRetry'> {
  * The column beside the view: the visualization panel while one is given
  * (D20 屏 I), otherwise the view list while the sidebar is open, otherwise
  * nothing — the folded list lives in the title bar as `FoldedSidebar`.
+ *
+ * On a narrow surface there is no column beside anything: the shell stacks,
+ * and the panel stood on top of the result it configures — ten tiles and a
+ * button, a phone's whole first screen, with the chart pushed below it
+ * (2026-09-23 audit). There it is the registry's sheet from the bottom edge
+ * (the drawer position), over the page, the result's top still in view
+ * above it; dismissing it is the panel's own way back.
  */
 export function SidebarColumn({
   panel,
+  narrow = false,
+  onPanelClose,
   open,
   list,
   ...rest
 }: SidebarColumnProps) {
+  const messages = useViewMessages();
+  const landing = useRef<HTMLDivElement>(null);
+  if (panel && narrow)
+    return (
+      <Sheet
+        open
+        onOpenChange={next => {
+          if (!next) onPanelClose?.();
+        }}
+      >
+        <SheetContent
+          side="bottom"
+          data-slot="view-panel"
+          data-drawer=""
+          className="bg-sidebar text-sidebar-foreground gap-0"
+          // The panel's own back arrow is its way out, as it is beside the
+          // view; a close button beside it would be a second saying the same.
+          showCloseButton={false}
+          // Dimmed, not blurred: the result above is what a pick here
+          // redraws, and a reader looks up to see it change.
+          overlayClassName="backdrop-blur-none"
+          // The keyboard lands where the panel's own levels land it: on the
+          // heading it is sent to (`tabIndex={-1}`), which exists only once
+          // the drawer has drawn its content — the panel's own effect runs
+          // before that. Later levels and the way back to the button that
+          // opened it are the panel's (`AnalysisParts`).
+          initialFocus={() =>
+            landing.current?.querySelector<HTMLElement>('[tabindex="-1"]') ??
+            true
+          }
+          finalFocus={false}
+        >
+          <SheetTitle className="sr-only">
+            {messages.label('label.chart.picker')}
+          </SheetTitle>
+          <div ref={landing} className="contents">
+            {panel}
+          </div>
+        </SheetContent>
+      </Sheet>
+    );
   return (
     <>
       {panel && (

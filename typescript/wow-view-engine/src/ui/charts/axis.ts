@@ -104,3 +104,84 @@ export function allWhole(values: Iterable<number | null | undefined>): boolean {
 export function axisId(axis: 'left' | 'right' | undefined): 'left' | 'right' {
   return axis === 'right' ? 'right' : 'left';
 }
+
+/** Han, kana and hangul, full-width forms included: scripts set upright. */
+const CJK = /[\u2e80-\u9fff\uac00-\ud7af\uf900-\ufaff\uff00-\uffef]/;
+
+/** Whether a title is set flat at its axis's head (`sideTitle`). */
+export function titleAtHead(name: string | undefined): boolean {
+  return name !== undefined && CJK.test(name);
+}
+
+/**
+ * The title of an axis that runs up the plot — a value axis of an upright
+ * chart, the category axis of one on its side, a scatter's or a heatmap's
+ * vertical axis.
+ *
+ * Latin text turned a quarter reads bottom to top, as Metabase sets it. A
+ * title in Chinese turned the same way lies on its side, every character
+ * rotated, and no one reads 「金额的总和」 like that (2026-09-23 audit).
+ * Stood upright, one character under the next, it would read — but it
+ * falls apart on the Latin, digits and brackets titles carry (「金额（CNY）」)
+ * and takes the plot's whole height. So it is set flat at the axis's head,
+ * over the tick labels and against the axis line: where Chinese BI charts,
+ * and the library's own default, put it. Decided by the title's own text,
+ * not the page's language — an English page can name a Chinese field.
+ *
+ * `head` is the end of the axis at the top of the plot: `end` for a value
+ * axis, `start` for an inverted one — a category axis listed top down.
+ */
+export function sideTitle(
+  name: string | undefined,
+  side: 'left' | 'right',
+  head: 'start' | 'end',
+  style: Record<string, unknown>,
+  gap: number,
+): Record<string, unknown> {
+  if (!titleAtHead(name))
+    return {
+      name,
+      nameLocation: 'middle',
+      nameGap: gap,
+      nameMoveOverlap: true,
+      nameTextStyle: style,
+    };
+  return {
+    name,
+    nameLocation: head,
+    nameRotate: 0,
+    // Clear of the top tick, which stands centred on the axis's end.
+    nameGap: 16,
+    nameTextStyle: {
+      ...style,
+      // Over the tick labels, which stand on the outer side of the line.
+      align: side === 'left' ? 'right' : 'left',
+      verticalAlign: 'bottom',
+    },
+  };
+}
+
+/**
+ * What a value axis is titled when the analyst typed nothing: what it
+ * measures, when that is one thing — a split draws one metric many times,
+ * which is still one — as Metabase titles its axes. Two metrics on the one
+ * axis are named by the legend. On a chart of two axes the legend no longer
+ * says which series stands on which, so each axis names all it measures
+ * (「记录数、客户数」) rather than leaving a scale nobody can read
+ * (2026-09-23 audit). Undefined where there is nothing to say, or a column
+ * has no title to say it with.
+ */
+export function measuredTitle(
+  measured: readonly string[],
+  twoAxes: boolean,
+  column: (alias: string | undefined) => string | undefined,
+  join: string,
+): string | undefined {
+  const metrics = [...new Set(measured)];
+  if (metrics.length === 1) return column(metrics[0]);
+  if (!twoAxes || metrics.length === 0) return undefined;
+  const titles = metrics.map(metric => column(metric));
+  return titles.every(title => title !== undefined)
+    ? titles.join(join)
+    : undefined;
+}

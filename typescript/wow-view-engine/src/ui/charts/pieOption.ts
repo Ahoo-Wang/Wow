@@ -21,7 +21,7 @@ import type { ChartSpec } from '../../model/index.js';
 import { formatShare } from './axis.js';
 import type { ValueLabel } from './family.js';
 import { OTHER_COLOR, colorOf } from './palette.js';
-import type { ChartTheme } from './theme.js';
+import { emphasized, type ChartTheme } from './theme.js';
 import { tooltipFrame, tooltipHtml } from './tooltip.js';
 
 /** What a pie reads besides its slices. */
@@ -252,16 +252,20 @@ export function pieOption(
         },
         data: slices.map((slice, index) => {
           const text = captions[index] ?? '';
+          const fill = theme.resolve(slice.color);
           return {
             name: slice.name,
             // The library draws no negative wedge; the tooltip still says it.
             value: Math.max(0, slice.value),
             itemStyle: {
-              color: theme.resolve(slice.color),
+              color: fill,
               // A thin seam of the ground between two slices.
               borderColor: theme.ground,
               borderWidth: 1,
             },
+            // The slice under the pointer steps toward the ink rather than
+            // paling, as every mark does (`emphasized`).
+            emphasis: { itemStyle: { color: emphasized(theme, fill) } },
             ...(text === ''
               ? { label: { show: false }, labelLine: { show: false } }
               : { label: { formatter: text } }),

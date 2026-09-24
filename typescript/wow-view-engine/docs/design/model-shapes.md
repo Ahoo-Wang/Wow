@@ -42,7 +42,7 @@ export interface CartesianSpec {
     stack?: string; // 同名系列堆叠
     smooth?: boolean;
   }[];
-  orientation?: 'vertical' | 'horizontal';
+  orientation?: 'vertical' | 'horizontal'; // 不写：柱状图的类目名长时横放（drawsHorizontal），其余竖放；写了照写
   yAxis?: { left?: AxisSpec; right?: AxisSpec };
   referenceLines?: { axis: 'left' | 'right'; value: number; label?: string }[];
   missing?: 'zero' | 'gap'; // 缺的点：不写／zero 按内核规则（确知为空且可加才补 0），gap 一律留空（断开）；只改画法

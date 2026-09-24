@@ -285,10 +285,12 @@ describe('shapeChart', () => {
           { day: day(3), wh: 'BJ', orders: 3 },
         ],
       ) as CartesianData;
+      // Each filled value is named as filled: a known 0, not one the source
+      // counted (D23, Q14) — the combination and the whole missing day.
       expect(data.points).toEqual([
-        { x: day(1), values: { SH: 1, BJ: 0 } },
-        { x: day(2), values: { SH: 0, BJ: 0 } },
-        { x: day(3), values: { SH: 0, BJ: 3 } },
+        { x: day(1), values: { SH: 1, BJ: 0 }, filled: ['BJ'] },
+        { x: day(2), values: { SH: 0, BJ: 0 }, filled: ['SH', 'BJ'] },
+        { x: day(3), values: { SH: 0, BJ: 3 }, filled: ['SH'] },
       ]);
     });
 
@@ -445,11 +447,12 @@ describe('shapeChart', () => {
         ),
         sparse,
       ) as MetricCardData;
+      // The quiet days are filled, and said to be (D23, Q14).
       expect(card.trend).toEqual([
         { x: day(1), value: 1 },
         { x: day(2), value: 2 },
-        { x: day(3), value: 0 },
-        { x: day(4), value: 0 },
+        { x: day(3), value: 0, filled: true },
+        { x: day(4), value: 0, filled: true },
         { x: day(5), value: 5 },
       ]);
       // The last period is the latest day; the one before it, a quiet day, is 0.

@@ -731,8 +731,9 @@ describe('the chart options’ display page', () => {
       expect(draft().chart.cartesian?.series.every(s => s.smooth)).toBe(true),
     );
 
-    // Unchecked again, neither leaves a `false` behind: the spec says what
-    // was asked for and nothing else.
+    // Unchecked again, smoothing leaves no `false` behind; the orientation
+    // says upright, since saying nothing now lets long names lay the bars
+    // down (`drawsHorizontal`) and the analyst has just said otherwise.
     fireEvent.click(
       within(panel()!).getByRole('checkbox', { name: 'Horizontal' }),
     );
@@ -743,6 +744,7 @@ describe('the chart options’ display page', () => {
       expect(draft().chart.cartesian).toEqual({
         x: 'warehouse',
         series: [{ metric: 'orders' }],
+        orientation: 'vertical',
       }),
     );
   });
@@ -1082,15 +1084,16 @@ describe('the chart options of the other families', () => {
     const ran = queries();
     await user.click(within(panel()!).getByRole('tab', { name: 'Display' }));
 
-    // A cell's number is written on it, with the halo every value label
-    // wears.
+    // A cell's number is written on it — in the ink that stands off the
+    // cell, with no halo, so it is told apart from the axes' text only by
+    // being more of it.
     const written = () =>
-      document.querySelectorAll('[data-slot="chart-plot"] svg text[stroke]');
-    expect(written()).toHaveLength(0);
+      document.querySelectorAll('[data-slot="chart-plot"] svg text').length;
+    const before = written();
     fireEvent.click(
       within(panel()!).getByRole('checkbox', { name: 'Value labels' }),
     );
-    await waitFor(() => expect(written().length).toBeGreaterThan(0));
+    await waitFor(() => expect(written()).toBeGreaterThan(before));
 
     fireEvent.click(
       within(panel()!).getByRole('button', { name: 'Logarithmic' }),

@@ -21,6 +21,7 @@ import type {
   ViewInstance,
 } from '../model/index.js';
 import { issue, type FieldKindRegistry } from '../filter/index.js';
+import { periodRollover } from '../analysis/index.js';
 import {
   NO_REFUSAL,
   scopeRefusal,
@@ -191,7 +192,32 @@ export class DataViewRuntime<
         this.state.query.status === 'loading' ||
         this.holds(),
       release: () => this.runner.cancel(this.id),
+      // A panel inside a dashboard is asked again by the board, which reads
+      // this for each panel on screen (`rolloverAt`).
+      expiresAt: () => (this.autoRefresh ? this.rolloverAt() : null),
     });
+  }
+
+  /**
+   * When the answer on screen stops being true of its own accord: a metric
+   * card over a trend skipped the period under way when it was asked, and
+   * that period has ended by then (`periodRollover`). The chart read is the
+   * draft's — how the rows are looked at is the draft's to say (D20) — over
+   * the config that ran them. `null` for anything else.
+   */
+  rolloverAt(): number | null {
+    const result = this.state.result;
+    if (!result || result.data.kind !== 'analysis') return null;
+    const draft = this.state.draft;
+    if (draft.kind !== 'analysis' || result.config.kind !== 'analysis')
+      return null;
+    const askedAt = result.receivedAt - result.elapsedMs;
+    const left = periodRollover(
+      { ...result.config, chart: draft.chart },
+      result.data.view.rows,
+      { timeZone: this.environment.timeZone, now: new Date(askedAt) },
+    );
+    return left === undefined ? null : askedAt + left;
   }
 
   get disposed(): boolean {

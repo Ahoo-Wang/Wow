@@ -49,6 +49,11 @@ export interface OptionsShape {
   additive: ReadonlySet<string>;
   /** What each metric is a quantity of (`metricMeasure`), by alias. */
   measures: ReadonlyMap<string, string>;
+  /**
+   * The dimensions that are date buckets, by alias: an axis of dates never
+   * lies on its side by itself (`drawsHorizontal`).
+   */
+  dated?: ReadonlySet<string>;
 }
 
 /**
@@ -271,10 +276,18 @@ export function NumberField({
 export function TextField({
   label,
   value,
+  placeholder,
   onChange,
 }: {
   label: string;
   value: string | undefined;
+  /**
+   * What stands when nothing is typed — the default the chart draws, not a
+   * hint — so it is toned as `NameField`'s is: quieter than a typed value,
+   * still readable. An empty box that hides its default reads as "nothing",
+   * when the axis is in fact titled (2026-09-23 audit).
+   */
+  placeholder?: string;
   onChange(value: string | undefined): void;
 }) {
   return (
@@ -283,6 +296,8 @@ export function TextField({
       <PillInput
         aria-label={label}
         chrome="box"
+        className="placeholder:text-foreground/70"
+        placeholder={placeholder}
         value={value ?? ''}
         onChange={event =>
           onChange(event.target.value === '' ? undefined : event.target.value)

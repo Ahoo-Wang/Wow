@@ -44,6 +44,7 @@ export type WorkbenchParts = Pick<
   | 'nameIssue'
   | 'resultSlots'
   | 'panel'
+  | 'onPanelClose'
 >;
 
 /**

@@ -17,11 +17,13 @@ import {
   modeHsl,
   modeLab,
   modeLch,
+  modeLrgb,
   modeOklab,
   modeOklch,
   modeP3,
   modeRgb,
   parse,
+  wcagContrast,
   // Registers a colour space with the parser; not a React hook.
   useMode as registerMode,
 } from 'culori/fn';
@@ -31,6 +33,7 @@ registerMode(modeRgb);
 registerMode(modeHsl);
 registerMode(modeLab);
 registerMode(modeLch);
+registerMode(modeLrgb);
 registerMode(modeOklab);
 registerMode(modeOklch);
 registerMode(modeP3);
@@ -119,6 +122,43 @@ export function mixColor(
   const over = parse(color);
   if (!under || !over) return color;
   return formatRgb(interpolate([under, over], 'rgb')(strength));
+}
+
+/**
+ * How far a mark under the pointer moves toward the ink. The library's own
+ * hover lifts a colour toward white, which on a light page makes the one
+ * bar being read the palest thing on the plot — it looked disabled
+ * (2026-09-23 audit). Toward the ink is darker on a light page and lighter
+ * on a dark one: the mark gains contrast against its ground either way.
+ */
+const EMPHASIS = 0.2;
+
+/**
+ * A mark's colour while the pointer is on it: `fill` a step toward the
+ * foreground (`EMPHASIS`), so emphasis reads as more, never as less.
+ */
+export function emphasized(theme: ChartTheme, fill: string): string {
+  return mixColor(fill, theme.foreground, EMPHASIS);
+}
+
+/**
+ * The ink a label written on `fill` wears: the foreground or the ground,
+ * whichever stands further from it (WCAG contrast). A number inside a
+ * stacked bar's segment or on a heatmap's cell sits on the mark rather
+ * than on the page, and one colour for all of them wrote dark digits on
+ * the deep end of the scale, with a halo that only blurred them (2026-09-23
+ * audit). The mark decides, so a label is legible on every shade in either
+ * mode, and needs no halo.
+ */
+export function inkOn(theme: ChartTheme, fill: string): string {
+  const under = parse(fill);
+  if (!under) return theme.foreground;
+  const dark = parse(theme.foreground);
+  const light = parse(theme.ground);
+  if (!dark || !light) return theme.foreground;
+  return wcagContrast(under, dark) >= wcagContrast(under, light)
+    ? theme.foreground
+    : theme.ground;
 }
 
 export function readChartTheme(element: Element): ChartTheme {

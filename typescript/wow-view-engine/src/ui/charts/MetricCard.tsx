@@ -155,6 +155,7 @@ export function MetricCard({
   className,
   label,
   name,
+  filled,
 }: FamilyProps<MetricCardData>) {
   const animate = useChartMotion();
   const messages = useViewMessages();
@@ -172,10 +173,11 @@ export function MetricCard({
           metric: card?.metric,
           name: trendName,
           animate,
+          filled,
         },
         theme,
       ),
-    [trend, label, card, trendName, animate],
+    [trend, label, card, trendName, animate, filled],
   );
   /**
    * The headline number as its own column reads it, so a card of money says

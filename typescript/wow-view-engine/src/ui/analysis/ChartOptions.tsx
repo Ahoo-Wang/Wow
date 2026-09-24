@@ -37,7 +37,7 @@ import {
 } from '../components/tabs.js';
 import { useColumnTitle, useValueLabel } from '../charts/family.js';
 import { IconButton } from '../IconButton.js';
-import { TEXT_UI } from '../layout.js';
+import { LANDING_HEADING, TEXT_UI } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { AxesTab } from './AxesTab.js';
 import { DataTab } from './DataTab.js';
@@ -109,6 +109,11 @@ export function ChartOptions({
         metrics.filter(isAdditiveMetric).map(metric => metric.alias),
       ),
       measures: measureColumns(columns),
+      dated: new Set(
+        columns
+          .filter(column => column.dateUnit !== undefined)
+          .map(column => column.alias),
+      ),
     };
   }, [groups, metrics, columns, column]);
   const page = { chart, shape, rows, label, onChange };
@@ -147,7 +152,7 @@ export function ChartOptions({
         >
           <ArrowLeftIcon />
         </IconButton>
-        <h2 ref={headingRef} tabIndex={-1} className="text-base font-semibold">
+        <h2 ref={headingRef} tabIndex={-1} className={LANDING_HEADING}>
           {messages.label('label.chart.options', { name })}
         </h2>
       </div>

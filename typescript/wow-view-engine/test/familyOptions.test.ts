@@ -101,22 +101,37 @@ describe('funnelOption', () => {
     ]);
   });
 
-  it('draws a centred shape in the order given, one colour, words beside it', () => {
+  it('draws a centred bar a stage, in the order given, one colour, words beside it', () => {
     const option = funnelOption(data, context, theme) as Loose;
-    const [series] = option.series;
-    expect(series.type).toBe('funnel');
-    expect(series.sort).toBe('none');
-    expect(series.orient).toBe('vertical');
-    expect(series.label.position).toBe('right');
-    expect(series.itemStyle.color).toBe('resolved(var(--chart-1))');
-    expect(series.data).toEqual([
-      { name: 'Visited', value: 100 },
-      { name: 'Bought', value: 25 },
+    const [before, stage, after] = option.series;
+    // Bars, not the library's trapezoids: one length for one number
+    // (2026-09-23 audit). The unseen bars either side centre it.
+    expect(option.series.map((series: Loose) => series.type)).toEqual([
+      'bar',
+      'bar',
+      'bar',
     ]);
-    expect(series.label.formatter({ dataIndex: 1 })).toBe(
+    expect(new Set(option.series.map((series: Loose) => series.stack))).toEqual(
+      new Set(['funnel']),
+    );
+    expect(stage.data).toEqual([100, 25]);
+    expect(before.data).toEqual([0, 37.5]);
+    expect(after.data).toEqual([0, 37.5]);
+    expect(before.itemStyle.color).toBe('transparent');
+    expect(before.silent).toBe(true);
+    expect(stage.itemStyle.color).toBe('resolved(var(--chart-1))');
+    // The first stage on top, never re-sorted.
+    expect(option.yAxis.type).toBe('category');
+    expect(option.yAxis.inverse).toBe(true);
+    expect(option.yAxis.data).toEqual(['Visited', 'Bought']);
+    expect(option.xAxis.max).toBe(100);
+    // The words ride the bar past the stage, so they stand in one column.
+    expect(after.label.position).toBe('right');
+    expect(after.label.formatter({ dataIndex: 1 })).toBe(
       '{name|Bought}  {value|buys=25}  {rate|25%}',
     );
-    expect(series.label.formatter({ dataIndex: 7 })).toBe('');
+    expect(after.label.formatter({ dataIndex: 7 })).toBe('');
+    expect(stage).not.toHaveProperty('label');
     expect(option.tooltip.formatter({ dataIndex: 0 })).toContain('visits=100');
     expect(option.tooltip.formatter({ dataIndex: 7 })).toBe('');
   });
@@ -137,13 +152,15 @@ describe('funnelOption', () => {
       },
       theme,
     ) as Loose;
-    const [series] = option.series;
-    expect(series.orient).toBe('horizontal');
-    expect(series.label.position).toBe('bottom');
+    const [under, stage] = option.series;
+    expect(option.xAxis.type).toBe('category');
+    expect(option.xAxis.inverse).toBe(false);
+    // The words ride the unseen bar under the stage, in one row.
+    expect(under.label.position).toBe('bottom');
     // No negative stage is drawn.
-    expect(series.data[0].value).toBe(0);
-    expect(series.label.formatter({ dataIndex: 0 })).toBe(
-      '{name|Visited}  {value|visits=-3}',
+    expect(stage.data).toEqual([0]);
+    expect(under.label.formatter({ dataIndex: 0 })).toBe(
+      '{name|Visited}\n{value|visits=-3}',
     );
   });
 });
@@ -173,7 +190,7 @@ describe('heatmapOption', () => {
 
   it('draws a cell per value, none where nothing fell, the first row on top', () => {
     const option = heatmapOption(data, context(), theme) as Loose;
-    expect(option.series[0].data).toEqual([
+    expect(option.series[0].data.map((cell: Loose) => cell.value)).toEqual([
       [0, 0, 1, 1],
       [1, 0, 100, 100],
       [0, 1, 10, 10],
@@ -227,8 +244,8 @@ describe('heatmapOption', () => {
 
   it('shades by the log on a log scale, and still writes the numbers', () => {
     const option = heatmapOption(data, context('log', true), theme) as Loose;
-    expect(option.series[0].data[1][2]).toBeCloseTo(Math.log1p(99));
-    expect(option.series[0].data[1][3]).toBe(100);
+    expect(option.series[0].data[1].value[2]).toBeCloseTo(Math.log1p(99));
+    expect(option.series[0].data[1].value[3]).toBe(100);
     expect(option.visualMap.max).toBeCloseTo(Math.log1p(99));
     // The scale's ends are read back out of the log.
     expect(
@@ -241,6 +258,27 @@ describe('heatmapOption', () => {
     expect(option.tooltip.formatter({ value: [1, 0, 4.6, 100] })).toContain(
       'region=CN · day=Tue',
     );
+  });
+
+  it('writes each number in the ink that stands off its own cell (audit)', () => {
+    const light: ChartTheme = {
+      ...theme,
+      foreground: 'rgb(10, 10, 10)',
+      ground: 'rgb(255, 255, 255)',
+      resolve: () => 'rgb(30, 60, 160)',
+    };
+    const [palest, deepest] = (
+      heatmapOption(data, context(undefined, true), light) as Loose
+    ).series[0].data;
+    // The palest cell takes the dark ink, the deepest the ground's.
+    expect(palest.label.color).toBe('rgb(10, 10, 10)');
+    expect(deepest.label.color).toBe('rgb(255, 255, 255)');
+    // No halo: the ink is the contrast.
+    const series = (
+      heatmapOption(data, context(undefined, true), light) as Loose
+    ).series[0];
+    expect(series.label).not.toHaveProperty('textBorderWidth');
+    expect(series).not.toHaveProperty('labelLayout');
   });
 
   it('gives an even matrix a scale that still has two ends', () => {

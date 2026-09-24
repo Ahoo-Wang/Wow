@@ -276,6 +276,22 @@ export class PanelChildren {
       else child.missed = true;
   }
 
+  /**
+   * The soonest moment a child on the tab shown stops being true of its own
+   * accord (`DataViewRuntime.rolloverAt`) — a metric card whose period has
+   * ended — or `null`. The board asks again then, as it refreshes: every
+   * panel on screen on one clock.
+   */
+  rolloverAt(shown: (panelId: string) => boolean): number | null {
+    let soonest: number | null = null;
+    for (const [panelId, child] of this.children) {
+      if (!shown(panelId)) continue;
+      const at = child.runtime.rolloverAt();
+      if (at !== null && (soonest === null || at < soonest)) soonest = at;
+    }
+    return soonest;
+  }
+
   /** Whether any child has a query in flight. */
   loading(): boolean {
     for (const child of this.children.values())

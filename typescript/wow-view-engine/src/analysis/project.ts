@@ -104,6 +104,11 @@ export interface AnalysisColumnView {
    * a key reads as the band 「¥0～500」 rather than its lower bound alone.
    */
   interval?: number;
+  /**
+   * For a metric: what its number is a quantity of (`metricMeasure`) — the
+   * one token a combo chart puts two metrics on one axis by.
+   */
+  measure?: string;
 }
 
 export interface AnalysisView {
@@ -203,7 +208,8 @@ export function measureColumns(
       .filter(column => column.role === 'metric')
       .map(column => [
         column.alias,
-        metricMeasure(column.fn, column.numberFormat),
+        column.measure ??
+          metricMeasure(column.fn, column.numberFormat, column.alias),
       ]),
   );
 }
@@ -337,6 +343,20 @@ export function projectAnalysis(
     const metric = byAlias.get(alias);
     const named = (groups.get(alias) ?? metric)?.label;
     const condition = metric && conditionOf(metric);
+    const numberFormat = metric
+      ? metricFormat(
+          metric,
+          field ??
+            (isFormula(metric)
+              ? {
+                  numberFormat: formulaFormat(
+                    metric.expression,
+                    name => byName.get(name)?.numberFormat,
+                  ),
+                }
+              : undefined),
+        )
+      : field?.numberFormat;
     return [
       {
         alias,
@@ -351,22 +371,20 @@ export function projectAnalysis(
         ...(metric ? { fn: metricFunctionOf(metric) } : {}),
         ...(condition ? { condition } : {}),
         width: declaredColumn?.width,
-        numberFormat: metric
-          ? metricFormat(
-              metric,
-              field ??
-                (isFormula(metric)
-                  ? {
-                      numberFormat: formulaFormat(
-                        metric.expression,
-                        name => byName.get(name)?.numberFormat,
-                      ),
-                    }
-                  : undefined),
-            )
-          : field?.numberFormat,
+        numberFormat,
         ...(field && valued.has(alias) ? valueOf(field) : {}),
         ...bucketOf(groups.get(alias)),
+        // What its number is a quantity of: the unit its format declares,
+        // or the field itself where none is (`metricMeasure`).
+        ...(metric
+          ? {
+              measure: metricMeasure(
+                metricFunctionOf(metric),
+                numberFormat,
+                source ?? alias,
+              ),
+            }
+          : {}),
       },
     ];
   };

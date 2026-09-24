@@ -105,3 +105,37 @@ export function useSidebarFold(
     },
   };
 }
+
+/**
+ * Whether the surface is narrower than `NARROW` — the width below which the
+ * shell stacks its column over the work area — followed as it changes, and
+ * never overruled by a press: it is a fact about the room, not a choice.
+ *
+ * What stands in the column (the visualization panel) is a block on top of
+ * the result on such a screen: on a phone the chart types took the whole
+ * first screen and pushed the chart they were for below it (2026-09-23
+ * audit). The shell draws it in a drawer instead (`SidebarColumn`). A width
+ * of 0 says nothing, as in `useSidebarFold`, and reads as wide.
+ */
+export function useNarrowSurface(
+  surface: RefObject<HTMLElement | null>,
+): boolean {
+  const [narrow, setNarrow] = useState(false);
+  // Re-attached on every render, as `useSidebarFold`'s is: the surface can
+  // arrive after the first one, and an observer attached to nothing hears
+  // nothing.
+  useLayoutEffect(() => {
+    const node = surface.current;
+    if (node === null) return () => {};
+    const measure = () => {
+      const width = node.getBoundingClientRect().width;
+      if (width > 0) setNarrow(width < NARROW);
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return () => {};
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  });
+  return narrow;
+}

@@ -73,6 +73,63 @@ export class RefreshTimer {
 }
 
 /**
+ * A one-shot timer for a moment rather than a cadence: the end of the
+ * period a metric card's headline skipped (`periodRollover`). `syncAt` keeps
+ * the timer armed for an unchanged moment, however often the state around
+ * it changes, and re-arms only when the moment moves; `null` stops it. A
+ * moment already past fires at once — a page shown again after midnight
+ * asks straight away.
+ */
+export class MomentTimer {
+  private handle: unknown;
+  private due: number | null = null;
+  /**
+   * The moment it last fired for. The same moment handed back — the refresh
+   * it fired failed, and the answer on screen is still the old one — is not
+   * fired for again: that would ask again at once, and again, for as long
+   * as the source keeps failing. A new answer brings a new moment.
+   */
+  private spent: number | null = null;
+
+  constructor(
+    private readonly environment: RuntimeEnvironment,
+    private readonly fire: () => void,
+  ) {}
+
+  syncAt(due: number | null): void {
+    if (due !== null && due === this.spent) return;
+    if (due === this.due && (due === null || this.handle !== undefined)) return;
+    this.stop();
+    if (due === null) return;
+    this.due = due;
+    // A host's `setTimeout` counts only so far: a moment past it is waited
+    // for in steps, and fired for only once it has come.
+    const delay = Math.min(
+      Math.max(0, due - this.environment.now().getTime()),
+      MAX_TIMER_DELAY_MS,
+    );
+    this.handle = this.environment.setTimeout(() => {
+      this.handle = undefined;
+      if (this.environment.now().getTime() < due) {
+        this.due = null;
+        this.syncAt(due);
+        return;
+      }
+      this.due = null;
+      this.spent = due;
+      this.fire();
+    }, delay);
+  }
+
+  stop(): void {
+    this.due = null;
+    if (this.handle === undefined) return;
+    this.environment.clearTimeout(this.handle);
+    this.handle = undefined;
+  }
+}
+
+/**
  * The interval a config asks for, read as the untrusted thing it is. A
  * stored config with no `refresh` is admission's to report, and it is
  * reported; every state change still passes through here on the way to the

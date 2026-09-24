@@ -215,6 +215,8 @@ describe('projectAnalysis', () => {
         fn: 'COUNT',
         width: undefined,
         numberFormat: { maximumFractionDigits: 0 },
+        // What it is a quantity of, for a combo's axes (`metricMeasure`).
+        measure: 'count',
       },
     ]);
     expect(view.rows).toEqual(rows);

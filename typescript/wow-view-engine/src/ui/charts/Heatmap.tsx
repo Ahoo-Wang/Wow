@@ -14,11 +14,11 @@
 import { useCallback, useMemo } from 'react';
 import { valueLabelsOn, type HeatmapData } from '../../analysis/index.js';
 import { pointAnchor } from '../analysis/DrillMenu.js';
-import { categoryFit } from './cartesianOption.js';
+import { categoryFit } from './cartesianFit.js';
 import { EChart, type ChartClick } from './EChart.js';
 import { faded, type Lit } from './highlight.js';
 import type { FamilyProps } from './family.js';
-import { heatmapOption } from './heatmapOption.js';
+import { heatmapLabelsFit, heatmapOption } from './heatmapOption.js';
 import { measureText } from './measure.js';
 import { useChartMotion } from './motion.js';
 import type { ChartTheme } from './theme.js';
@@ -67,16 +67,39 @@ export function Heatmap({
       ),
     [data, spec, label, column, animate, pickable, lit],
   );
-  // The names along the bottom turn as a bar chart's do.
+  // The names along the bottom turn as a bar chart's do, and the numbers
+  // are written in every cell or in none (`heatmapLabelsFit`).
+  const labelled = valueLabelsOn(spec);
   const adapt = useCallback(
-    (width: number) =>
-      categoryFit(
-        data.xs.map(x => label(spec?.heatmap?.x, x)),
-        width,
-        text => measureText(text),
-        false,
-      ),
-    [data, spec, label],
+    (width: number, height: number) => {
+      const measure = (text: string) => measureText(text);
+      return {
+        ...categoryFit(
+          data.xs.map(x => label(spec?.heatmap?.x, x)),
+          width,
+          measure,
+          false,
+        ),
+        ...(labelled
+          ? {
+              series: [
+                {
+                  label: {
+                    show: heatmapLabelsFit(
+                      data,
+                      { spec, label },
+                      width,
+                      height,
+                      measure,
+                    ),
+                  },
+                },
+              ],
+            }
+          : {}),
+      };
+    },
+    [data, spec, label, labelled],
   );
   const onClick = useMemo(
     () =>

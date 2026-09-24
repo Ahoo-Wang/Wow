@@ -34,6 +34,17 @@
 export const TEXT_UI = 'text-[length:var(--text-ui)] leading-[1.125rem]';
 
 /**
+ * A heading the keyboard is *sent* to when a panel changes level
+ * (`tabIndex={-1}`), and never tabbed to: it is where the reader lands, not a
+ * control. It wears no focus ring — the browser drew one round the panel's
+ * title each time the panel changed, a box around words that cannot be
+ * pressed (2026-09-23 audit). The next Tab goes to the first control after
+ * it, which rings as every control does; a screen reader reads the heading
+ * it landed on either way.
+ */
+export const LANDING_HEADING = 'text-base font-semibold outline-none';
+
+/**
  * The four distances this package puts between things, and the one surface
  * it draws them on.
  *

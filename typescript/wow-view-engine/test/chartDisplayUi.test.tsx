@@ -78,12 +78,16 @@ const ROWS: RecordData[] = [
   { warehouse: 'US', status: 'OPEN', orders: 2, total: 40, average: 20 },
 ];
 
-async function open(chart: ChartSpec, overrides: Partial<AnalysisViewConfig>) {
+async function open(
+  chart: ChartSpec,
+  overrides: Partial<AnalysisViewConfig>,
+  rows: readonly RecordData[] = ROWS,
+) {
   const source: ViewSource = testSource({
     aggregate: vi.fn((query: { groupBy?: unknown[] }) =>
       Promise.resolve(
         (query.groupBy?.length ?? 0) > 0
-          ? ROWS.map(row => ({ ...row }))
+          ? rows.map(row => ({ ...row }))
           : [{ orders: 6, total: 80, average: 13 }],
       ),
     ) as ViewSource['aggregate'],
@@ -317,6 +321,120 @@ describe('a combo’s right axis', () => {
         { metric: 'orders', type: 'bar' },
         { metric: 'total', type: 'line', axis: 'right' },
       ]),
+    );
+  });
+});
+
+describe('the axes page says the title the chart draws', () => {
+  /** The placeholder of each axis's title box, left then right. */
+  async function placeholders(
+    chart: ChartSpec,
+    metrics: AnalysisViewConfig['metrics'] = [ORDERS, TOTAL],
+  ) {
+    await open(chart, { metrics });
+    fireEvent.click(
+      screen.getByRole('button', { name: `${chart.type} options` }),
+    );
+    await waitFor(() => expect(panel()).not.toBeNull());
+    fireEvent.click(within(panel()).getByRole('tab', { name: 'Axes' }));
+    return within(panel())
+      .getAllByLabelText('Axis title')
+      .map(box => (box as HTMLInputElement).placeholder);
+  }
+
+  it('shows the column an axis measures while the box is empty (audit)', async () => {
+    // The box stood empty, and an empty box reads as "no title" when the
+    // axis is in fact titled 「金额的总和」.
+    expect(
+      await placeholders({
+        type: 'bar',
+        cartesian: { x: 'warehouse', series: [{ metric: 'total' }] },
+      }),
+    ).toEqual(['Sum of Amount']);
+  });
+
+  it('says the legend names two metrics on the one axis', async () => {
+    expect(
+      await placeholders({
+        type: 'bar',
+        cartesian: {
+          x: 'warehouse',
+          series: [{ metric: 'orders' }, { metric: 'total' }],
+        },
+      }),
+    ).toEqual(['None — the legend names the series']);
+  });
+
+  it('names every metric on each of two axes', async () => {
+    expect(
+      await placeholders(
+        {
+          type: 'combo',
+          cartesian: {
+            x: 'warehouse',
+            series: [
+              { metric: 'orders', type: 'bar' },
+              { metric: 'total', type: 'line', axis: 'right' },
+              { metric: 'average', type: 'line', axis: 'right' },
+            ],
+          },
+        },
+        [ORDERS, TOTAL, AVERAGE],
+      ),
+    ).toEqual(['Record count', 'Sum of Amount, Average of Amount']);
+  });
+});
+
+describe('a ranking of long names lies on its side (audit)', () => {
+  const LONG: RecordData[] = [
+    { warehouse: 'OrderItemReservedTrackEventProcessor', orders: 9, total: 1 },
+    { warehouse: 'PaymentSettledProjectionHandler', orders: 4, total: 1 },
+  ];
+
+  it('draws horizontal bars until the analyst stands them up', async () => {
+    const { draft } = await open(
+      {
+        type: 'bar',
+        cartesian: { x: 'warehouse', series: [{ metric: 'orders' }] },
+      },
+      {},
+      LONG,
+    );
+    const frame = () =>
+      document.querySelector('[data-slot="chart"][data-chart="bar"]');
+    await waitFor(() =>
+      expect(frame()?.getAttribute('data-orientation')).toBe('horizontal'),
+    );
+    // Nothing was written: the names laid it down.
+    expect(draft().chart.cartesian?.orientation).toBeUndefined();
+
+    await displayPage('bar');
+    const box = within(panel()).getByRole('checkbox', { name: 'Horizontal' });
+    // The box says what is drawn.
+    expect(box.getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(box);
+    await waitFor(() =>
+      expect(draft().chart.cartesian?.orientation).toBe('vertical'),
+    );
+    await waitFor(() =>
+      expect(frame()?.getAttribute('data-orientation')).toBe('vertical'),
+    );
+  });
+
+  it('keeps short names upright', async () => {
+    await open(
+      {
+        type: 'bar',
+        cartesian: { x: 'warehouse', series: [{ metric: 'orders' }] },
+      },
+      {},
+    );
+    await waitFor(() =>
+      expect(
+        document
+          .querySelector('[data-slot="chart"][data-chart="bar"]')
+          ?.getAttribute('data-orientation'),
+      ).toBe('vertical'),
     );
   });
 });
