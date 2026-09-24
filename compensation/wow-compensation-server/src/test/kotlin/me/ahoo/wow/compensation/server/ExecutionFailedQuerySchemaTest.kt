@@ -45,6 +45,31 @@ class ExecutionFailedQuerySchemaTest {
     }
 
     @Test
+    fun `should expose stored state fields once under their stored names`() {
+        val context = QuerySchemaContext(
+            ExecutionFailed::class.java.aggregateMetadata<Any, Any>().namedAggregate,
+            QueryModel.SNAPSHOT,
+        )
+
+        val declaration = JsonQuerySchemaSource().load(context).single().block()!!
+
+        val state = declaration.fields.getValue(QueryField("state"))
+        (state.properties as DeclarationValue.Set).value.keys.assert().containsExactlyInAnyOrder(
+            "id",
+            "error",
+            "eventId",
+            "executeAt",
+            "function",
+            "isBelowRetryThreshold",
+            "isRetryable",
+            "recoverable",
+            "retrySpec",
+            "retryState",
+            "status",
+        )
+    }
+
+    @Test
     fun `should package Elasticsearch snapshot index config under its final index name`() {
         val namedAggregate = ExecutionFailed::class.java.aggregateMetadata<Any, Any>().namedAggregate
         val indexName = namedAggregate.toSnapshotIndexName()

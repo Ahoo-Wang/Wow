@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.schema.query
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
@@ -98,6 +99,30 @@ internal data class JacksonState(
     @get:JsonUnwrapped(prefix = "detail_", suffix = "_value")
     val details: JacksonDetails,
 )
+
+internal interface ComputedGetterContract {
+    val version: Int
+
+    @get:JsonIgnore
+    val initialized: Boolean
+        get() = version > 0
+
+    val isRetryable: Boolean
+        get() = version < 3
+
+    val succeeded: Boolean
+        get() = version == 1
+
+    @JsonIgnore
+    fun isEmpty(): Boolean = version == 0
+
+    fun isEnabled(): Boolean = version > 0
+}
+
+internal data class ComputedGetterState(
+    override val version: Int,
+    val isActive: Boolean,
+) : ComputedGetterContract
 
 internal data class JacksonDetails(
     @field:JsonProperty("nested")

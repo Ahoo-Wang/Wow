@@ -58,6 +58,7 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 import reactor.test.StepVerifier
+import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -384,6 +385,27 @@ class JsonQuerySchemaSourceTest {
         declaration.propertyPaths().any { it.path in setOf("state.display.name", "state.display name", "state.0") }
             .assert().isFalse()
         declaration.propertyPaths().any { it.path.startsWith("state.details") }.assert().isFalse()
+    }
+
+    @Test
+    fun `should name getter fields as Jackson serializes them`() {
+        val serializedNames = JsonSerializer.valueToTree<ObjectNode>(ComputedGetterState(version = 1, isActive = true))
+            .propertyNames().toSet()
+
+        val stateFields = load(ComputedGetterState::class.java).propertyPaths()
+            .map { it.path }
+            .filter { it.startsWith("state.") }
+            .map { it.removePrefix("state.") }
+            .toSet()
+
+        serializedNames.assert().containsExactlyInAnyOrder(
+            "version",
+            "isActive",
+            "isRetryable",
+            "succeeded",
+            "isEnabled"
+        )
+        stateFields.assert().isEqualTo(serializedNames)
     }
 
     @Test
