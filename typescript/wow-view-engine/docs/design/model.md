@@ -340,7 +340,7 @@ Wow 的对应规则在 `requireScalarMetricFilterFields`：形状那半条（`SE
 export interface DashboardViewConfig extends ViewConfigBase {
   kind: 'dashboard';
   columns: 24; // 布局写在几列的栅格上；见下文「24 列与旧布局」
-  fixed: FilterTree; // 板子的固定范围：每块数据面板都在它之下跑，读者改不了；批 C 起新建的板子是空的（D26 Q31）。板子没有自己的 filter 与 filterMode（D27）
+  fixed: FilterTree; // 板子的固定范围：每块数据面板都在它之下跑，读者改不了，作者搭建时可整体删掉（成为空树，D23 Q16）；批 C 起新建的板子是空的（D26 Q31）。板子没有自己的 filter 与 filterMode（D27）
   tabs: DashboardTab[]; // 标签页，按标签栏的顺序；0 或 1 个不画标签栏
   fields: DashboardField[]; // 板子的筛选，按筛选条的顺序；跨定义，因此由配置声明
   timeGrouping?: DashboardTimeGrouping; // 整板的时间粒度；没有就不写

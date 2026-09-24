@@ -453,6 +453,61 @@ describe('the filter bar (D22 F)', () => {
     ]);
     expect(screen.queryByRole('region', { name: 'Showing' })).toBeNull();
   });
+
+  /**
+   * D23 Q16: while the board is built its author takes the fixed scope out
+   * whole — a ✕ where the lock was, one step of the history, saved as the
+   * empty tree; the keyboard lands on 「撤销」, which brings it back.
+   */
+  it('lets its author take the fixed scope out whole while building, undone like any edit', async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    const { runtime, store } = setup({ ...board(), fixed: NOT_NORTH });
+    const scope = () =>
+      within(document.body).queryByRole('group', { name: 'Fixed scope' });
+    await bar();
+    await startBuilding(user);
+
+    const fixed = scope()!;
+    expect(
+      within(fixed)
+        .getAllByRole('button')
+        .map(button => button.getAttribute('aria-label')),
+    ).toEqual(['Remove the fixed scope']);
+    await user.click(
+      within(fixed).getByRole('button', { name: 'Remove the fixed scope' }),
+    );
+
+    expect(scope()).toBeNull();
+    expect(runtime().getSnapshot().draft.fixed).toEqual({
+      op: 'and',
+      children: [],
+    });
+    expect(
+      document.querySelector('[data-slot="dashboard-announcement"]')
+        ?.textContent,
+    ).toBe('Removed the fixed scope');
+    const undo = screen.getByRole('button', {
+      name: 'Undo removing the fixed scope',
+    });
+    await waitFor(() => expect(document.activeElement).toBe(undo));
+
+    await user.click(undo);
+    await within(await bar()).findByText(/Region is not north/);
+    expect(runtime().getSnapshot().draft.fixed).toEqual(NOT_NORTH);
+    await user.click(
+      screen.getByRole('button', { name: 'Redo removing the fixed scope' }),
+    );
+    expect(scope()).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(async () => {
+      const stored = (await store.get('board')).config as DashboardViewConfig;
+      expect(stored.fixed).toEqual({ op: 'and', children: [] });
+    });
+    // Read again, the board has no fixed scope for a reader to see.
+    await screen.findByRole('button', { name: 'Edit' });
+    expect(scope()).toBeNull();
+  });
 });
 
 /** 「仓库 不是 north」, a board's fixed scope. */

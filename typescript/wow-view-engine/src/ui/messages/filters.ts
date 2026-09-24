@@ -27,10 +27,13 @@ export const filtersMessages = {
   'label.filters.grouping': 'Time grouping',
   'label.filters.grouping-remove': 'Remove the time grouping',
   // The board's fixed scope (D26 Q31, D27): in force beside the filters,
-  // read-only, and nobody's to take out while reading.
+  // read-only, and nobody's to take out while reading; its author takes it
+  // out whole while building (D23 Q16).
   'label.filters.fixed': 'Fixed scope',
   'label.filters.fixed-note':
     'The dashboard itself holds every panel to this; it cannot be changed here.',
+  'label.filters.fixed-remove': 'Remove the fixed scope',
+  'label.filters.fixed-removed': 'Removed the fixed scope',
   // Narrower than md the bar is one button and a sheet (D26 Q38).
   'label.filters.sheet-set': 'Filters ({count} set)',
   // A panel a filter holding a value does not reach, named in its header.
