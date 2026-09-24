@@ -32,12 +32,16 @@ describe('resources', () => {
       const url = 'https://example.com/api.json';
       const content = '{ "test": "data" }';
       mockFetch.mockResolvedValue({
+        ok: true,
         text: () => Promise.resolve(content),
       } as Response);
 
       const result = await loadResource(url);
       expect(result).toBe(content);
-      expect(mockFetch).toHaveBeenCalledWith(url);
+      expect(mockFetch).toHaveBeenCalledWith(url, {
+        headers: undefined,
+        signal: expect.any(AbortSignal),
+      });
     });
 
     it('should call loadFile for file paths', async () => {
@@ -63,12 +67,18 @@ describe('resources', () => {
       const url = 'https://example.com/api.json';
       const content = '{ "test": "data" }';
       mockFetch.mockResolvedValue({
+        ok: true,
         text: () => Promise.resolve(content),
       } as Response);
 
-      const result = await loadHttpResource(url);
+      const result = await loadHttpResource(url, {
+        headers: { Authorization: 'Bearer token' },
+      });
       expect(result).toBe(content);
-      expect(mockFetch).toHaveBeenCalledWith(url);
+      expect(mockFetch).toHaveBeenCalledWith(url, {
+        headers: { Authorization: 'Bearer token' },
+        signal: expect.any(AbortSignal),
+      });
     });
 
     it('should throw error if fetch fails', async () => {
@@ -77,6 +87,50 @@ describe('resources', () => {
       mockFetch.mockRejectedValue(error);
 
       await expect(loadHttpResource(url)).rejects.toThrow('Network error');
+    });
+
+    it('names the underlying cause Node hides behind "fetch failed"', async () => {
+      mockFetch.mockRejectedValue(
+        new TypeError('fetch failed', {
+          cause: new Error('getaddrinfo ENOTFOUND nonexistent.invalid'),
+        }),
+      );
+
+      await expect(
+        loadHttpResource('https://nonexistent.invalid/v3/api-docs'),
+      ).rejects.toThrow(
+        'fetch failed (getaddrinfo ENOTFOUND nonexistent.invalid)',
+      );
+    });
+
+    it('fails on a response outside 2xx instead of parsing an error page', async () => {
+      const text = vi.fn();
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        text,
+      } as unknown as Response);
+
+      await expect(
+        loadHttpResource('https://example.com/v3/api-docs'),
+      ).rejects.toThrow('HTTP 401 Unauthorized');
+      expect(text).not.toHaveBeenCalled();
+    });
+
+    it('abandons a request after the timeout', async () => {
+      mockFetch.mockImplementation(
+        (_url: string, init: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            init.signal!.addEventListener('abort', () =>
+              reject(init.signal!.reason),
+            );
+          }),
+      );
+
+      await expect(
+        loadHttpResource('https://example.com/v3/api-docs', { timeoutMs: 10 }),
+      ).rejects.toThrow('no response within 10 ms');
     });
   });
 

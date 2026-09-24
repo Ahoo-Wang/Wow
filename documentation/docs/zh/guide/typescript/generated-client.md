@@ -101,9 +101,9 @@ pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated -t ./tscon
 pnpm exec tsc --noEmit -p ./tsconfig.json
 ```
 
-对于这份文档，输出包含 `ItemsApiClient.ts`、`types.ts` 和 `index.ts`。客户端公开 `getItem(id: string, httpRequest?: ParameterRequest, attributes?: Record<string, any>): Promise<Item>`，`Item` 包含必填字符串 id。生成器还会写入 `.fetcher-generator.json`，记录输出文件所有权。
+对于这份文档，输出包含 `ItemsApiClient.ts`、`types.ts` 和 `index.ts`。客户端公开 `getItem(id: string, httpRequest?: ParameterRequest, attributes?: Record<string, any>): Promise<Item>`，`Item` 包含必填字符串 id。生成器还会写入 `.wow-generator.json`，记录输出文件所有权，并输出一行摘要，例如 `Generated 3 files into ./src/generated`。
 
-缺少可选的 `fetcher-generator.config.json` 时，CLI 会记录配置读取错误并继续执行。只有需要覆盖默认行为时再添加配置，参见[配置优先级](../../reference/typescript/wow-generator/configuration)。
+工作目录下没有 `wow-generator.config.json` 时，CLI 按默认值生成。只有需要覆盖默认行为时再添加配置，参见[配置优先级](../../reference/typescript/wow-generator/configuration)。
 
 ## 4. 在生成目录外编写调用方
 
@@ -127,7 +127,7 @@ export async function loadItem(baseURL: string): Promise<Item> {
 
 修改源文档后重跑同一命令，检查模型、方法签名和所有权清单的变化后再接受差异。不要把应用代码放入 `src/generated`：在相同路径再次生成的文件会被覆盖。未修改的过时受管文件可能被删除，已经修改的过时文件会保留。生成不是目录级原子事务，失败后应检查部分输出。
 
-缺少方法时通常应检查标签和 operationId；缺少返回类型时检查 200 响应。Schema 编译器不是服务端验证器。此调用方在执行前不分配运行时资源，成功时会完整消费 JSON 响应。
+缺少方法时通常应检查标签和 operationId，本次运行的警告会点名被跳过的操作（`--strict` 会让它们失败）；缺少返回类型时检查 200 响应。Schema 编译器不是服务端验证器。此调用方在执行前不分配运行时资源，成功时会完整消费 JSON 响应。
 
 参见 [CLI 选项](../../reference/typescript/wow-generator/cli)、[输出与重新生成](../../reference/typescript/wow-generator/generated-output)、[OpenAPI 文档](https://fetcher.ahoo.me/zh/reference/openapi/documents-and-operations)，以及独立的 [Wow 识别规则](../../reference/typescript/wow-generator/wow-discovery)。
 

@@ -17,7 +17,9 @@ import {
   inferFileFormat,
   parseOpenAPI,
   parseContent,
+  validateOpenAPIDocument,
 } from '../../src/utils';
+import { GeneratorError } from '../../src/errors';
 import { loadResource } from '../../src/utils';
 
 // Mock the loadResource function
@@ -85,8 +87,9 @@ describe('openAPIParser', () => {
       expect(result).toEqual({
         openapi: '3.0.0',
         info: { title: 'Test API' },
+        paths: {},
       });
-      expect(mockLoadResource).toHaveBeenCalledWith('test.json');
+      expect(mockLoadResource).toHaveBeenCalledWith('test.json', undefined);
     });
 
     it('should parse YAML content', async () => {
@@ -97,14 +100,78 @@ describe('openAPIParser', () => {
       expect(result).toEqual({
         openapi: '3.0.0',
         info: { title: 'Test API' },
+        paths: {},
       });
-      expect(mockLoadResource).toHaveBeenCalledWith('test.yaml');
+      expect(mockLoadResource).toHaveBeenCalledWith('test.yaml', undefined);
     });
 
     it('should throw error for invalid YAML content', async () => {
       mockLoadResource.mockResolvedValue('invalid: content: [unbalanced');
 
-      await expect(parseOpenAPI('test.unknown')).rejects.toThrow();
+      await expect(parseOpenAPI('test.unknown')).rejects.toThrow(
+        /^Cannot parse the OpenAPI document test\.unknown: /,
+      );
+    });
+
+    it('names the document when it cannot be read, as an input error', async () => {
+      mockLoadResource.mockRejectedValue(new Error('HTTP 404 Not Found'));
+
+      const error = await parseOpenAPI('http://x/v3/api-docs').catch(e => e);
+      expect(error).toBeInstanceOf(GeneratorError);
+      expect(error.kind).toBe('input');
+      expect(error.message).toBe(
+        'Cannot read the OpenAPI document http://x/v3/api-docs: HTTP 404 Not Found',
+      );
+    });
+
+    it('passes headers and timeout through to the loader', async () => {
+      mockLoadResource.mockResolvedValue('{"openapi":"3.1.0","info":{}}');
+      const options = { headers: { Authorization: 'Bearer t' }, timeoutMs: 5 };
+
+      await parseOpenAPI('http://x/v3/api-docs', options);
+      expect(mockLoadResource).toHaveBeenCalledWith(
+        'http://x/v3/api-docs',
+        options,
+      );
+    });
+  });
+
+  describe('validateOpenAPIDocument', () => {
+    it.each([
+      ['{"foo":1}', /its "openapi" field is missing/],
+      ['[1]', /expected an object at the top level/],
+      ['"x"', /expected an object at the top level/],
+      ['{"openapi":"2.0","info":{}}', /its "openapi" field is "2\.0"/],
+      ['{"openapi":3.1,"info":{}}', /its "openapi" field is 3\.1/],
+      ['{"openapi":"3.0.1"}', /its "info" object is missing/],
+    ])('refuses %s', (content, message) => {
+      const error = (() => {
+        try {
+          validateOpenAPIDocument(JSON.parse(content), 'spec.json');
+        } catch (e) {
+          return e as GeneratorError;
+        }
+      })();
+      expect(error).toBeInstanceOf(GeneratorError);
+      expect(error!.kind).toBe('input');
+      expect(error!.message).toMatch(message);
+    });
+
+    it('refuses Swagger 2.0 with a conversion hint instead of generating without models', () => {
+      expect(() =>
+        validateOpenAPIDocument({ swagger: '2.0', info: {} }, 'spec.json'),
+      ).toThrow(
+        'spec.json is a Swagger 2.0 document; wow-generator reads OpenAPI 3.x only. Convert it first, for example with swagger2openapi.',
+      );
+    });
+
+    it('accepts a 3.1 document without paths', () => {
+      expect(
+        validateOpenAPIDocument(
+          { openapi: '3.1.0', info: {}, components: {} },
+          'spec.json',
+        ),
+      ).toEqual({ openapi: '3.1.0', info: {}, components: {}, paths: {} });
     });
   });
 

@@ -56,6 +56,6 @@ export class ClientGenerator implements Generator {
     this.queryClientGenerator.generate();
     this.commandClientGenerator.generate();
     this.apiClientGenerator.generate();
-    this.context.logger.success('Client generation completed');
+    this.context.logger.info('Client generation completed');
   }
 }

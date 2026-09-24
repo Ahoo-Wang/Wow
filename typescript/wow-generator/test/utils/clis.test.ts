@@ -11,146 +11,256 @@
  * limitations under the License.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { validateInput, generateAction } from '../../src/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { EXIT_CODES, GeneratorError } from '../../src/errors';
+import type {
+  GenerationResult,
+  GeneratorOptions,
+  Logger,
+} from '../../src/types';
+import {
+  generateAction,
+  parseHeaders,
+  runGenerate,
+  validateInput,
+} from '../../src/utils';
 
-// Mock dependencies
-vi.mock('../../src/utils/logger', () => ({
-  ConsoleLogger: class ConsoleLogger {
-    info = vi.fn();
-    success = vi.fn();
-    error = vi.fn();
-    progress = vi.fn();
-    constructor() {}
-  },
-}));
+const generate = vi.fn<() => Promise<GenerationResult>>();
+const constructed: GeneratorOptions[] = [];
 
-vi.mock('../../src', () => ({
+vi.mock('../../src/index', () => ({
   CodeGenerator: class CodeGenerator {
-    generate = vi.fn();
-    constructor() {}
+    constructor(options: GeneratorOptions) {
+      constructed.push(options);
+    }
+    generate = generate;
   },
 }));
 
-vi.mock('ts-morph', () => ({
-  Project: class Project {
-    getDirectory = vi.fn();
-    getSourceFiles = vi.fn().mockReturnValue([]);
-    getSourceFile = vi.fn();
-    createSourceFile = vi.fn();
-    save = vi.fn();
-    constructor() {}
-  },
-}));
-
-// Import after mocking
-import { ConsoleLogger } from '../../src/utils/logger';
-import { CodeGenerator } from '../../src';
-import { Project } from 'ts-morph';
+function testLogger() {
+  return {
+    info: vi.fn(),
+    warn: vi.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
+    progress: vi.fn(),
+    progressWithCount: vi.fn(),
+  } satisfies Logger;
+}
 
 describe('validateInput', () => {
-  it('should return false for empty string', () => {
+  it('rejects an empty input', () => {
     expect(validateInput('')).toBe(false);
   });
 
-  it('should return true for valid HTTP URL', () => {
+  it('accepts http and https URLs', () => {
     expect(validateInput('http://example.com')).toBe(true);
-  });
-
-  it('should return true for valid HTTPS URL', () => {
     expect(validateInput('https://example.com')).toBe(true);
   });
 
-  it('should return false for invalid URL protocol', () => {
+  it('rejects other URL schemes', () => {
     expect(validateInput('ftp://example.com')).toBe(false);
+    expect(validateInput('file:///etc/passwd')).toBe(false);
   });
 
-  it('should return true for malformed URL treated as file path', () => {
+  it('accepts file paths, including Windows drive paths', () => {
     expect(validateInput('not-a-url')).toBe(true);
-  });
-
-  it('should return true for non-empty file path', () => {
     expect(validateInput('/path/to/file')).toBe(true);
     expect(validateInput('relative/path')).toBe(true);
+    expect(validateInput('C:\\specs\\openapi.json')).toBe(true);
   });
 
-  // SSRF prevention: validateInput used to only check the URL protocol, so a
-  // crafted `-i` input could make the generator host probe sensitive internal
-  // endpoints (cloud metadata, RFC1918 ranges). Loopback (localhost /
-  // 127.0.0.0/8 / ::1) is intentionally ALLOWED — pointing a developer-run CLI
-  // at a local mock server is a legitimate workflow (the integration test
-  // itself uses http://localhost:8080).
-  describe('SSRF prevention for remote inputs', () => {
-    it('should reject the AWS/cloud metadata endpoint', () => {
-      expect(validateInput('http://169.254.169.254/latest/meta-data/')).toBe(
-        false,
+  // The generator runs on the developer's machine against a document they
+  // chose; the usual source of /v3/api-docs is an intranet service.
+  it('accepts private, link-local and loopback hosts', () => {
+    for (const url of [
+      'http://10.0.0.5/v3/api-docs',
+      'http://192.168.1.2/v3/api-docs',
+      'http://172.16.0.1/v3/api-docs',
+      'http://169.254.169.254/v3/api-docs',
+      'http://[fd12:3456::1]/v3/api-docs',
+      'http://localhost:8080/v3/api-docs',
+      'http://127.0.0.1:3000/spec.json',
+      'http://compensation-service.dev.svc.cluster.local/v3/api-docs',
+    ]) {
+      expect(validateInput(url), url).toBe(true);
+    }
+  });
+});
+
+describe('parseHeaders', () => {
+  it('parses repeated "Name: value" arguments', () => {
+    expect(
+      parseHeaders(['Authorization: Bearer a:b', 'X-Tenant:  t1 ']),
+    ).toEqual({ Authorization: 'Bearer a:b', 'X-Tenant': 't1' });
+  });
+
+  it('rejects an argument without a name', () => {
+    expect(() => parseHeaders(['Bearer token'])).toThrow(
+      'Invalid --header "Bearer token": expected "Name: value".',
+    );
+    expect(() => parseHeaders([': value'])).toThrow(GeneratorError);
+  });
+});
+
+describe('runGenerate', () => {
+  beforeEach(() => {
+    generate.mockReset();
+    constructed.length = 0;
+  });
+
+  it('prints one summary line and exits 0', async () => {
+    generate.mockResolvedValue({
+      files: ['/out/a.ts', '/out/b.ts'],
+      configPath: `${process.cwd()}/wow-generator.config.json`,
+      warnings: 1,
+    });
+    const logger = testLogger();
+
+    await expect(
+      runGenerate({ input: 'spec.json', output: 'out' }, logger),
+    ).resolves.toBe(EXIT_CODES.success);
+    expect(logger.success).toHaveBeenCalledWith(
+      'Generated 2 files into out with wow-generator.config.json, 1 warning',
+    );
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it('passes headers and the timeout to the generator', async () => {
+    generate.mockResolvedValue({ files: [], warnings: 0 });
+
+    await runGenerate(
+      {
+        input: 'http://10.0.0.5/v3/api-docs',
+        output: 'out',
+        header: ['Authorization: Bearer t'],
+        timeout: '5000',
+      },
+      testLogger(),
+    );
+
+    expect(constructed[0]).toMatchObject({
+      inputPath: 'http://10.0.0.5/v3/api-docs',
+      headers: { Authorization: 'Bearer t' },
+      timeoutMs: 5000,
+    });
+  });
+
+  it('refuses an invalid input with exit code 2', async () => {
+    const logger = testLogger();
+
+    await expect(
+      runGenerate({ input: 'ftp://example.com/spec', output: 'out' }, logger),
+    ).resolves.toBe(EXIT_CODES.input);
+    expect(logger.error).toHaveBeenCalledWith(
+      'Invalid input "ftp://example.com/spec": expected a file path or an http(s) URL.',
+    );
+    expect(constructed).toHaveLength(0);
+  });
+
+  it('refuses an invalid timeout with exit code 2', async () => {
+    await expect(
+      runGenerate(
+        { input: 'spec.json', output: 'out', timeout: 'soon' },
+        testLogger(),
+      ),
+    ).resolves.toBe(EXIT_CODES.input);
+  });
+
+  it.each([
+    ['input', EXIT_CODES.input],
+    ['configuration', EXIT_CODES.configuration],
+    ['specification', EXIT_CODES.specification],
+  ] as const)(
+    'reports a %s error as one line and exits %i',
+    async (kind, exitCode) => {
+      const cause = new Error('root cause');
+      generate.mockRejectedValue(
+        new GeneratorError(kind, 'what went wrong', { cause }),
       );
-    });
+      const logger = testLogger();
 
-    it('should reject RFC1918 private IP ranges', () => {
-      expect(validateInput('http://10.0.0.1/spec.json')).toBe(false);
-      expect(validateInput('http://192.168.1.1/spec.json')).toBe(false);
-      expect(validateInput('http://172.16.0.1/spec.json')).toBe(false);
-    });
+      await expect(
+        runGenerate({ input: 'spec.json', output: 'out' }, logger),
+      ).resolves.toBe(exitCode);
+      expect(logger.error).toHaveBeenCalledTimes(1);
+      expect(logger.error).toHaveBeenCalledWith('what went wrong');
+    },
+  );
 
-    it('should reject 0.0.0.0 ("this host")', () => {
-      expect(validateInput('http://0.0.0.0/spec.json')).toBe(false);
-    });
+  it('adds the cause of a known error with --verbose', async () => {
+    const cause = new Error('root cause');
+    generate.mockRejectedValue(
+      new GeneratorError('input', 'what went wrong', { cause }),
+    );
+    const logger = testLogger();
 
-    it('should reject IPv6 unspecified, link-local and unique-local', () => {
-      expect(validateInput('http://[::]/spec.json')).toBe(false);
-      // fe80::/10 covers fe80::–febf::, not just fe80::.
-      expect(validateInput('http://[fe80::1]/spec.json')).toBe(false);
-      expect(validateInput('http://[fe90::1]/spec.json')).toBe(false);
-      expect(validateInput('http://[febf::1]/spec.json')).toBe(false);
-      expect(validateInput('http://[fc00::1]/spec.json')).toBe(false);
-      expect(validateInput('http://[fd12:3456::1]/spec.json')).toBe(false);
-    });
+    await runGenerate(
+      { input: 'spec.json', output: 'out', verbose: true },
+      logger,
+    );
+    expect(logger.error).toHaveBeenCalledWith('Caused by:', cause);
+  });
 
-    // Regression: loopback must stay ALLOWED. The integration test runs the
-    // generator against a local mock server (http://localhost:8080). Blocking
-    // localhost broke CI.
-    it('should ALLOW localhost and loopback (legitimate local dev workflow)', () => {
-      expect(validateInput('http://localhost:8080/v3/api-docs')).toBe(true);
-      expect(validateInput('http://127.0.0.1:3000/spec.json')).toBe(true);
-      expect(validateInput('http://[::1]:8080/spec.json')).toBe(true);
-    });
+  it('reports an unexpected error without a stack trace and exits 1', async () => {
+    const error = new TypeError('boom');
+    generate.mockRejectedValue(error);
+    const logger = testLogger();
 
-    it('should accept public IPv4 and IPv6 addresses', () => {
-      expect(validateInput('http://8.8.8.8/spec.json')).toBe(true);
-      expect(validateInput('http://[2606:4700:4700::1111]/spec.json')).toBe(
-        true,
-      );
-    });
+    await expect(
+      runGenerate({ input: 'spec.json', output: 'out' }, logger),
+    ).resolves.toBe(EXIT_CODES.internal);
+    expect(logger.error).toHaveBeenCalledWith('Code generation failed: boom');
+    expect(logger.error).not.toHaveBeenCalledWith('', error);
+  });
 
-    it('should accept public hostnames', () => {
-      expect(validateInput('https://api.example.com/openapi.json')).toBe(true);
-    });
+  it('prints the stack trace of an unexpected error with --verbose', async () => {
+    const error = new TypeError('boom');
+    generate.mockRejectedValue(error);
+    const logger = testLogger();
+
+    await runGenerate(
+      { input: 'spec.json', output: 'out', verbose: true },
+      logger,
+    );
+    expect(logger.error).toHaveBeenCalledWith('', error);
+  });
+
+  it('exits 4 with --strict when the run logged a warning', async () => {
+    generate.mockResolvedValue({ files: [], warnings: 2 });
+    const logger = testLogger();
+
+    await expect(
+      runGenerate({ input: 'spec.json', output: 'out', strict: true }, logger),
+    ).resolves.toBe(EXIT_CODES.specification);
+    expect(logger.error).toHaveBeenCalledWith(
+      '--strict: the run logged 2 warnings.',
+    );
+  });
+
+  it('exits 0 with --strict when the run was clean', async () => {
+    generate.mockResolvedValue({ files: [], warnings: 0 });
+
+    await expect(
+      runGenerate(
+        { input: 'spec.json', output: 'out', strict: true },
+        testLogger(),
+      ),
+    ).resolves.toBe(EXIT_CODES.success);
   });
 });
 
 describe('generateAction', () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it('should validate input and exit if invalid', async () => {
-    await expect(
-      generateAction({ input: '', output: '/output' }),
-    ).rejects.toThrow();
-  });
-
-  it('should generate code successfully', async () => {
-    await generateAction({
-      input: 'http://example.com',
-      output: '/tmp/test-output',
-    });
-    expect(true).toBe(true);
-  });
-
-  it('should handle generation error', () => {
-    expect(() => {
-      generateAction({ input: 'http://example.com', output: '/invalid/path' });
-    }).not.toThrow();
+  it('sets the process exit code instead of exiting', async () => {
+    generate.mockRejectedValue(new GeneratorError('input', 'unreadable'));
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const previous = process.exitCode;
+    try {
+      await generateAction({ input: 'spec.json', output: 'out', quiet: true });
+      expect(process.exitCode).toBe(EXIT_CODES.input);
+      expect(error).toHaveBeenCalledWith('error: unreadable');
+    } finally {
+      process.exitCode = previous;
+    }
   });
 });

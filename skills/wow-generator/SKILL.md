@@ -17,8 +17,9 @@ description: "Generate type-safe TypeScript clients from OpenAPI 3.x documents w
 
 - Install `@ahoo-wang/wow-generator` as a dev dependency. Generated code imports `@ahoo-wang/wow-client`, `@ahoo-wang/fetcher`, and `@ahoo-wang/fetcher-decorator`, so the application installs those as runtime dependencies; `@ahoo-wang/fetcher-eventstream` and `@ahoo-wang/fetcher-openapi` keep their names and are peer dependencies.
 - The CLI is `wow-generator generate …`. `fetcher-generator` remains an alias of the same binary until v10; new scripts use `wow-generator`.
-- The configuration file keeps its name, `fetcher-generator.config.json`.
-- Moving from `@ahoo-wang/fetcher-generator`: swap the dev dependency, rename the script command, and regenerate so generated imports switch from `@ahoo-wang/fetcher-wow` to `@ahoo-wang/wow-client`.
+- The configuration file is `wow-generator.config.json`. Until v10 a `fetcher-generator.config.json` is still read, with a deprecation warning, when the new name is absent; rename it. The ownership manifest is `.wow-generator.json`; an old `.fetcher-generator.json` is read once and replaced.
+- The CLI exits 0 on success, 2 for input, 3 for configuration and 4 for specification problems (and with `--strict` when the run logged warnings); use `--strict` in CI.
+- Moving from `@ahoo-wang/fetcher-generator`: swap the dev dependency, rename the script command and the configuration file, and regenerate so generated imports switch from `@ahoo-wang/fetcher-wow` to `@ahoo-wang/wow-client`.
 
 ## Key Practices
 

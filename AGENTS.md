@@ -169,7 +169,7 @@ interface CommandBus :
 }
 ```
 
-Dashboard code uses React, TypeScript, Vite, shadcn/Base UI, Tailwind CSS, React Router, Vitest, and ESLint. Reuse components under `compensation/dashboard/src/components/ui/`; dependency versions live in the `catalog` of the root `pnpm-workspace.yaml`; use `compensation/dashboard/package.json` for the dependency list and `compensation/dashboard/components.json` for shadcn configuration. Wow clients are generated under `compensation/dashboard/src/generated/` by `wow-generator` (`@ahoo-wang/wow-generator`) from the compensation server's `/v3/api-docs`; commit the generator output byte for byte, including `.fetcher-generator.json`. Do not hand-edit generated client files unless the generator input is unavailable and the user accepts that tradeoff.
+Dashboard code uses React, TypeScript, Vite, shadcn/Base UI, Tailwind CSS, React Router, Vitest, and ESLint. Reuse components under `compensation/dashboard/src/components/ui/`; dependency versions live in the `catalog` of the root `pnpm-workspace.yaml`; use `compensation/dashboard/package.json` for the dependency list and `compensation/dashboard/components.json` for shadcn configuration. Wow clients are generated under `compensation/dashboard/src/generated/` by `wow-generator` (`@ahoo-wang/wow-generator`) from the compensation server's `/v3/api-docs`; commit the generator output byte for byte, including `.wow-generator.json`. Do not hand-edit generated client files unless the generator input is unavailable and the user accepts that tradeoff.
 
 ## Version Management
 

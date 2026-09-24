@@ -81,7 +81,7 @@ describe('ModelGenerator', () => {
         'Generating models for 2 schemas',
       );
       expect(mockLogger.progressWithCount).toHaveBeenCalledTimes(2);
-      expect(mockLogger.success).toHaveBeenCalledWith(
+      expect(mockLogger.info).toHaveBeenCalledWith(
         'Model generation completed',
       );
     });

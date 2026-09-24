@@ -23,19 +23,35 @@ const MODEL_FILE_NAME = 'types.ts';
 /** Alias for import paths */
 const IMPORT_ALIAS = '@';
 
-// compat(fetcher): keeps the fetcher-generator manifest name so a regeneration still removes
-// files an older run wrote; rename to .wow-generator.json, reading this name as a fallback.
-const GENERATION_MANIFEST = '.fetcher-generator.json';
+/** The manifest that records the files a generation wrote, and their hashes. */
+export const GENERATION_MANIFEST = '.wow-generator.json';
+// compat(fetcher): generations before the move to Wow recorded their files in
+// .fetcher-generator.json; read it when the new manifest is absent so a regeneration still
+// removes files an older run wrote, and delete it once the new manifest is written.
+// Removed in v10.
+export const LEGACY_GENERATION_MANIFEST = '.fetcher-generator.json';
 const generatedFiles = new WeakMap<
   Project,
-  { written: Set<string>; previous: Map<string, string>; stale: Set<string> }
+  {
+    written: Set<string>;
+    previous: Map<string, string>;
+    stale: Set<string>;
+    legacyManifest?: string;
+  }
 >();
 
 /** Load only explicitly recorded ownership; discard drafts from the last run. */
 export function beginGeneration(project: Project, outputDir: string): void {
   const fs = project.getFileSystem();
   outputDir = resolve(fs.getCurrentDirectory(), outputDir);
-  const manifestPath = join(outputDir, GENERATION_MANIFEST);
+  const legacyManifestPath = join(outputDir, LEGACY_GENERATION_MANIFEST);
+  const legacyManifest = fs.fileExistsSync(legacyManifestPath)
+    ? legacyManifestPath
+    : undefined;
+  let manifestPath = join(outputDir, GENERATION_MANIFEST);
+  if (!fs.fileExistsSync(manifestPath) && legacyManifest) {
+    manifestPath = legacyManifest;
+  }
   const previous = new Map<string, string>();
   if (fs.fileExistsSync(manifestPath)) {
     const manifest = JSON.parse(fs.readFileSync(manifestPath));
@@ -71,6 +87,7 @@ export function beginGeneration(project: Project, outputDir: string): void {
     written: new Set(),
     previous,
     stale: new Set(),
+    legacyManifest,
   });
 }
 
@@ -166,6 +183,9 @@ export async function saveGeneration(
       2,
     ) + '\n',
   );
+  if (run.legacyManifest && fs.fileExistsSync(run.legacyManifest)) {
+    await fs.delete(run.legacyManifest);
+  }
 }
 
 /**

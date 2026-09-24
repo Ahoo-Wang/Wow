@@ -17,25 +17,32 @@ import { AggregateResolver } from './aggregate';
 import { ClientGenerator } from './client';
 import { GenerateContext } from './generateContext';
 import { ModelGenerator } from './model';
-import type { GeneratorOptions } from './types';
+import type { GenerationResult, GeneratorOptions, Logger } from './types';
 import {
   applyTypeOnlyImports,
   beginGeneration,
+  ConsoleLogger,
   forgetStaleGeneratedFiles,
   getGeneratedFilePaths,
   getOrCreateSourceFile,
-  loadConfiguration,
   parseOpenAPI,
+  resolveConfiguration,
   saveGeneration,
+  WarningCounter,
 } from './utils';
 
-// compat(fetcher): keeps the fetcher-generator file name so existing projects still find
-// their config; rename to wow-generator.config.json, reading this name as a fallback.
-/**
- * Default path to the generator configuration file.
- * This path is used when no custom config path is provided in the generator options.
- */
-export const DEFAULT_CONFIG_PATH = './fetcher-generator.config.json';
+export { DEFAULT_CONFIG_PATH } from './utils/configuration';
+export type {
+  ApiClientConfiguration,
+  GenerationResult,
+  GeneratorConfiguration,
+  GeneratorOptions,
+  Logger,
+} from './types';
+export type { ConsoleLoggerOptions, LogLevel } from './utils/logger';
+export { ConsoleLogger, SilentLogger } from './utils/logger';
+export type { GeneratorErrorKind } from './errors';
+export { EXIT_CODES, GeneratorError } from './errors';
 
 /**
  * Main code generator class that orchestrates the generation of TypeScript code from OpenAPI specifications.
@@ -48,23 +55,32 @@ export const DEFAULT_CONFIG_PATH = './fetcher-generator.config.json';
  *   inputPath: './openapi.yaml',
  *   outputDir: './generated',
  *   tsConfigFilePath: './tsconfig.json',
- *   logger: new ConsoleLogger(),
+ *   logger: new ConsoleLogger({ level: 'verbose' }),
  * });
- * await generator.generate();
+ * const { files } = await generator.generate();
  * ```
  */
 export class CodeGenerator {
   private readonly project: Project;
+  private readonly logger: WarningCounter;
 
   /**
    * Creates a new CodeGenerator instance with the specified options.
    *
-   * @param options - Configuration options for the code generation process, including input/output paths, TypeScript config, and logger.
-   * @throws Error if the project initialization fails due to invalid TypeScript configuration or missing files.
+   * @param options - Input, output, configuration and logging of the run.
+   * @param project - Test seam: the ts-morph project to generate into. It is
+   * not part of the public API, because it follows ts-morph's major version.
+   * @throws Error if the TypeScript configuration cannot be read.
    */
-  constructor(private readonly options: GeneratorOptions) {
-    this.project = new Project(options);
-    this.options.logger.info(
+  constructor(
+    private readonly options: GeneratorOptions,
+    /** @internal */
+    project?: Project,
+  ) {
+    this.logger = new WarningCounter(options.logger ?? new ConsoleLogger());
+    this.project =
+      project ?? new Project({ tsConfigFilePath: options.tsConfigFilePath });
+    this.logger.info(
       `Project instance created with tsConfigFilePath: ${this.options.tsConfigFilePath}`,
     );
   }
@@ -80,41 +96,44 @@ export class CodeGenerator {
    * 6. Optimizes and formats the generated source files.
    * 7. Saves the project to disk.
    *
-   * @returns A promise that resolves when code generation is complete.
-   * @throws Error if OpenAPI parsing fails, the configuration cannot be read,
-   * parsed or understood, or file operations fail. A configuration is only
-   * optional at {@link DEFAULT_CONFIG_PATH}; one the caller named has to exist.
+   * @returns The files written, the configuration read and how many warnings
+   * the run logged.
+   * @throws GeneratorError when the document or the configuration cannot be
+   * read or understood, or the document describes code that cannot compile;
+   * Error when writing the output fails. A configuration is only optional at
+   * {@link DEFAULT_CONFIG_PATH}; one the caller named has to exist.
    *
    * @example
    * ```typescript
    * await generator.generate();
    * ```
    */
-  async generate(): Promise<void> {
-    this.options.logger.info(
-      'Starting code generation from OpenAPI specification',
-    );
-    const currentWorkingDir = process.cwd();
-    this.options.logger.info(`Work directory: ${currentWorkingDir}`);
-    this.options.logger.info(`Input path: ${this.options.inputPath}`);
-    this.options.logger.info(`Output directory: ${this.options.outputDir}`);
+  async generate(): Promise<GenerationResult> {
+    const logger: Logger = this.logger;
+    const warningsBefore = this.logger.warnings;
+    logger.info('Starting code generation from OpenAPI specification');
+    logger.info(`Work directory: ${process.cwd()}`);
+    logger.info(`Input path: ${this.options.inputPath}`);
+    logger.info(`Output directory: ${this.options.outputDir}`);
 
-    this.options.logger.info('Parsing OpenAPI specification');
-    const openAPI = await parseOpenAPI(this.options.inputPath);
-    this.options.logger.info('OpenAPI specification parsed successfully');
+    const loadOptions = {
+      headers: this.options.headers,
+      timeoutMs: this.options.timeoutMs,
+    };
+    logger.info('Parsing OpenAPI specification');
+    const openAPI = await parseOpenAPI(this.options.inputPath, loadOptions);
+    logger.info('OpenAPI specification parsed successfully');
 
-    this.options.logger.info('Resolving bounded context aggregates');
+    logger.info('Resolving bounded context aggregates');
     const aggregateResolver = new AggregateResolver(openAPI);
     const boundedContextAggregates = aggregateResolver.resolve();
-    this.options.logger.info(
+    logger.info(
       `Resolved ${boundedContextAggregates.size} bounded context aggregates`,
     );
-    const config = await loadConfiguration(
-      {
-        path: this.options.configPath ?? DEFAULT_CONFIG_PATH,
-        explicit: this.options.configPath !== undefined,
-      },
-      this.options.logger,
+    const { config, origin: configPath } = await resolveConfiguration(
+      this.options.configPath,
+      logger,
+      loadOptions,
     );
 
     beginGeneration(this.project, this.options.outputDir);
@@ -124,37 +143,41 @@ export class CodeGenerator {
       project: this.project,
       outputDir: this.options.outputDir,
       contextAggregates: boundedContextAggregates,
-      logger: this.options.logger,
+      logger,
       config: config,
     });
 
-    this.options.logger.info('Generating models');
+    logger.info('Generating models');
     const modelGenerator = new ModelGenerator(context);
     modelGenerator.generate();
-    this.options.logger.info('Models generated successfully');
+    logger.info('Models generated successfully');
 
-    this.options.logger.info('Generating clients');
+    logger.info('Generating clients');
     const clientGenerator = new ClientGenerator(context);
     clientGenerator.generate();
-    this.options.logger.info('Clients generated successfully');
+    logger.info('Clients generated successfully');
     forgetStaleGeneratedFiles(this.project, this.options.outputDir);
     const outputDir = this.project.getDirectory(this.options.outputDir);
-    if (!outputDir) {
-      this.options.logger.info('Output directory not found.');
-      await saveGeneration(this.project, this.options.outputDir);
-      return;
+    if (outputDir) {
+      logger.info('Generating index files');
+      this.generateIndex(outputDir);
+      logger.info('Index files generated successfully');
+
+      logger.info('Optimizing source files');
+      this.optimizeSourceFiles(outputDir);
+      logger.info('Source files optimized successfully');
+    } else {
+      logger.info('Output directory not found.');
     }
-    this.options.logger.info('Generating index files');
-    this.generateIndex(outputDir);
-    this.options.logger.info('Index files generated successfully');
 
-    this.options.logger.info('Optimizing source files');
-    this.optimizeSourceFiles(outputDir);
-    this.options.logger.info('Source files optimized successfully');
-
-    this.options.logger.info('Saving project to disk');
+    logger.info('Saving project to disk');
     await saveGeneration(this.project, this.options.outputDir);
-    this.options.logger.info('Code generation completed successfully');
+    logger.info('Code generation completed successfully');
+    return {
+      files: [...(getGeneratedFilePaths(this.project) ?? [])].sort(),
+      configPath,
+      warnings: this.logger.warnings - warningsBefore,
+    };
   }
 
   /**
@@ -163,19 +186,13 @@ export class CodeGenerator {
    * creating index.ts files that export all TypeScript files and subdirectories.
    *
    * @param outputDir - The root output directory to generate index files for.
-   *
-   * @example
-   * ```typescript
-   * const outputDir = project.getDirectory('./generated');
-   * generator.generateIndex(outputDir);
-   * ```
    */
-  generateIndex(outputDir: Directory) {
-    this.options.logger.info(
+  private generateIndex(outputDir: Directory) {
+    this.logger.info(
       `Generating index files for output directory: ${this.options.outputDir}`,
     );
     this.processDirectory(outputDir);
-    this.options.logger.info('Index file generation completed');
+    this.logger.info('Index file generation completed');
   }
 
   /**
@@ -186,7 +203,7 @@ export class CodeGenerator {
     const subDirs = dir
       .getDirectories()
       .filter(subDir => this.processDirectory(subDir));
-    this.options.logger.info(`Processing ${subDirs.length} subdirectories`);
+    this.logger.info(`Processing ${subDirs.length} subdirectories`);
     return this.generateIndexForDirectory(dir, subDirs);
   }
 
@@ -202,7 +219,7 @@ export class CodeGenerator {
     subDirs = dir.getDirectories(),
   ): boolean {
     const dirPath = dir.getPath();
-    this.options.logger.info(`Generating index for directory: ${dirPath}`);
+    this.logger.info(`Generating index for directory: ${dirPath}`);
 
     const tsFiles = dir
       .getSourceFiles()
@@ -212,12 +229,12 @@ export class CodeGenerator {
           file.getBaseName() !== 'index.ts',
       );
 
-    this.options.logger.info(
+    this.logger.info(
       `Found ${tsFiles.length} TypeScript files and ${subDirs.length} subdirectories in ${dirPath}`,
     );
 
     if (tsFiles.length === 0 && subDirs.length === 0) {
-      this.options.logger.info(
+      this.logger.info(
         `No files or subdirectories to export in ${dirPath}, skipping index generation`,
       );
       return this.project.getSourceFile(`${dirPath}/index.ts`) !== undefined;
@@ -245,7 +262,7 @@ export class CodeGenerator {
       });
     }
 
-    this.options.logger.info(
+    this.logger.info(
       `Index file generated for ${dirPath} with ${tsFiles.length + subDirs.length} exports`,
     );
     return true;
@@ -257,16 +274,16 @@ export class CodeGenerator {
    *
    * @param outputDir - The root output directory containing source files to optimize.
    */
-  optimizeSourceFiles(outputDir: Directory) {
+  private optimizeSourceFiles(outputDir: Directory) {
     const written = getGeneratedFilePaths(this.project);
     const sourceFiles = outputDir
       .getDescendantSourceFiles()
       .filter(file => !written || written.has(file.getFilePath()));
-    this.options.logger.info(
+    this.logger.info(
       `Optimizing ${sourceFiles.length} source files in ${outputDir.getPath()}`,
     );
     sourceFiles.forEach((sourceFile, index) => {
-      this.options.logger.info(
+      this.logger.info(
         `Optimizing file [${sourceFile.getFilePath()}] - ${index + 1}/${sourceFiles.length}`,
       );
       sourceFile.formatText();
@@ -274,6 +291,6 @@ export class CodeGenerator {
       sourceFile.fixMissingImports();
     });
     applyTypeOnlyImports(sourceFiles);
-    this.options.logger.info('All source files optimized');
+    this.logger.info('All source files optimized');
   }
 }

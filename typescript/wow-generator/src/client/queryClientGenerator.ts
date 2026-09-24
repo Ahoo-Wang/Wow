@@ -65,7 +65,7 @@ export class QueryClientGenerator implements Generator {
         this.processQueryClient(aggregateDefinition);
       });
     }
-    this.context.logger.success('Query client generation completed');
+    this.context.logger.info('Query client generation completed');
   }
 
   /**
@@ -163,7 +163,7 @@ export class QueryClientGenerator implements Generator {
       isExported: true,
     });
 
-    this.context.logger.success(
+    this.context.logger.info(
       `Query client generation completed for aggregate: ${aggregate.aggregate.aggregateName}`,
     );
   }

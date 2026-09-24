@@ -285,7 +285,7 @@ W2a、W2b 的具体做法与决定：
 - `filter-repo` 只保留 `packages/wow`、`packages/generator`、`packages/react/{src,test}/wow`、`integration-test`，改名到 `typescript/…`；提交信息里所有 `#编号` 改写成 `Ahoo-Wang/fetcher#编号`（比原方案的 `(#1234)` 更宽）；临时克隆的 tag 全部删除。导入后树与 tag 逐文件一致。
 - 对 fetcher 的依赖都是 peer + catalog：`^5.1.0 || ^6.0.0`，fetcher-react 为 `^5.1.3 || ^6.0.0`；内部 `workspace:~`，打包后为 `~9.1.5`（`pnpm pack` 已验证）。catalog 顺带把 dashboard 的 fetcher 包升到 5.1.3。
 - wow-react 只从 fetcher-react 的 `/core`、`/fetcher` 导入，产物与类型声明都已核对。
-- 生成器：命令 `wow-generator`，`fetcher-generator` 作为 bin 别名保留到 v10；生成代码改为导入 `@ahoo-wang/wow-client`。配置文件名 `fetcher-generator.config.json` 与生成清单 `.fetcher-generator.json` **不改名**（改了已有项目读不到配置、清不掉旧文件），记入兼容债务，v10 前改为新名并兼容读旧名。
+- 生成器：命令 `wow-generator`，`fetcher-generator` 作为 bin 别名保留到 v10；生成代码改为导入 `@ahoo-wang/wow-client`。配置文件名 `fetcher-generator.config.json` 与生成清单 `.fetcher-generator.json` **不改名**（改了已有项目读不到配置、清不掉旧文件），记入兼容债务，v10 前改为新名并兼容读旧名。（已改：配置默认 `wow-generator.config.json`、清单 `.wow-generator.json`，旧名按兼容债务读取到 v10。）
 - `pnpm lint` 在各包内各跑 eslint（从根目录一次跑会因多个 tsconfig 根报错）；导入代码带来的 77 条既有 warning 不拦，与 fetcher CI 一致。
 - integration-test 的 `src/generated` 改为逐字节提交生成器原始输出（含清单），不做 prettier（eslint 起初也排除，生成器产出 `import type` 后恢复检查，见下一步第 4 条）；fetcher 里那份已过期且被格式化过，W2b 重新生成（多了 `defaultApplyResourceTags` 命令等）。CI 检查重新生成的结果与提交一致。
 - 同源契约的触发路径比原表多了 `test/wow-mock/**`、`compensation/wow-compensation-{api,core}/**`、`build-logic/**`（都在 example-server 的构建/运行时 classpath 上）。

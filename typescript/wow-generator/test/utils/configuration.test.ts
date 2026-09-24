@@ -13,10 +13,18 @@
 
 import { resolve } from 'path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { loadConfiguration, loadResource } from '../../src/utils';
+import {
+  DEFAULT_CONFIG_PATH,
+  LEGACY_CONFIG_PATH,
+  loadConfiguration,
+  loadResource,
+  resolveConfiguration,
+} from '../../src/utils';
+import { GeneratorError } from '../../src/errors';
 import type { Logger } from '../../src/types';
 
-vi.mock('@/utils/resources.ts', () => ({
+vi.mock('@/utils/resources.ts', async importOriginal => ({
+  ...(await importOriginal<typeof import('../../src/utils/resources')>()),
   loadResource: vi.fn(),
 }));
 
@@ -35,14 +43,14 @@ function testLogger() {
 
 function notFound(): NodeJS.ErrnoException {
   const error: NodeJS.ErrnoException = new Error(
-    "ENOENT: no such file or directory, open './fetcher-generator.config.json'",
+    "ENOENT: no such file or directory, open './wow-generator.config.json'",
   );
   error.code = 'ENOENT';
   return error;
 }
 
 const DEFAULT_SOURCE = {
-  path: './fetcher-generator.config.json',
+  path: './wow-generator.config.json',
   explicit: false,
 };
 const EXPLICIT_SOURCE = { path: './custom.config.json', explicit: true };
@@ -76,7 +84,7 @@ describe('loadConfiguration', () => {
     await loadConfiguration(DEFAULT_SOURCE, logger);
 
     expect(logger.info).toHaveBeenCalledWith(
-      expect.stringContaining(resolve('./fetcher-generator.config.json')),
+      expect.stringContaining(resolve('./wow-generator.config.json')),
     );
   });
 
@@ -98,11 +106,11 @@ describe('loadConfiguration', () => {
     mockLoadResource.mockRejectedValue(notFound());
     const logger = testLogger();
 
-    await expect(loadConfiguration(DEFAULT_SOURCE, logger)).resolves.toEqual(
-      {},
-    );
+    await expect(
+      loadConfiguration(DEFAULT_SOURCE, logger),
+    ).resolves.toBeUndefined();
     expect(logger.info).toHaveBeenCalledWith(
-      expect.stringContaining('generating with defaults'),
+      expect.stringContaining('No configuration file at'),
     );
   });
 
@@ -110,9 +118,14 @@ describe('loadConfiguration', () => {
     mockLoadResource.mockRejectedValue(notFound());
     const logger = testLogger();
 
-    await expect(
-      loadConfiguration(EXPLICIT_SOURCE, logger),
-    ).rejects.toThrowError(/Cannot read configuration .*custom\.config\.json/);
+    const error = await loadConfiguration(EXPLICIT_SOURCE, logger).catch(
+      e => e,
+    );
+    expect(error).toBeInstanceOf(GeneratorError);
+    expect(error.kind).toBe('configuration');
+    expect(error.message).toMatch(
+      /Cannot read configuration .*custom\.config\.json/,
+    );
   });
 
   it('fails when the file cannot be read for any other reason', async () => {
@@ -261,5 +274,65 @@ describe('loadConfiguration', () => {
     await expect(loadConfiguration(DEFAULT_SOURCE, logger)).resolves.toEqual({
       apiClients: { Catalog: { ignorePathParameters: ['tenantId'] } },
     });
+  });
+});
+
+describe('resolveConfiguration', () => {
+  beforeEach(() => {
+    mockLoadResource.mockReset();
+  });
+
+  it('reads wow-generator.config.json by default', async () => {
+    mockLoadResource.mockResolvedValue('{ "apiClients": {} }');
+    const logger = testLogger();
+
+    const resolved = await resolveConfiguration(undefined, logger);
+
+    expect(mockLoadResource).toHaveBeenCalledTimes(1);
+    expect(mockLoadResource).toHaveBeenCalledWith(
+      DEFAULT_CONFIG_PATH,
+      undefined,
+    );
+    expect(resolved).toEqual({
+      config: { apiClients: {} },
+      origin: resolve(DEFAULT_CONFIG_PATH),
+    });
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it('falls back to fetcher-generator.config.json with a deprecation warning', async () => {
+    mockLoadResource.mockImplementation(async (path: string) => {
+      if (path === DEFAULT_CONFIG_PATH) throw notFound();
+      return '{ "apiClients": { "Catalog": {} } }';
+    });
+    const logger = testLogger();
+
+    const resolved = await resolveConfiguration(undefined, logger);
+
+    expect(resolved).toEqual({
+      config: { apiClients: { Catalog: {} } },
+      origin: resolve(LEGACY_CONFIG_PATH),
+    });
+    expect(logger.warn).toHaveBeenCalledWith(
+      `${resolve(LEGACY_CONFIG_PATH)} uses the deprecated name; rename it to wow-generator.config.json. The old name is no longer read from v10.`,
+    );
+  });
+
+  it('generates with defaults when neither name exists', async () => {
+    mockLoadResource.mockRejectedValue(notFound());
+
+    await expect(
+      resolveConfiguration(undefined, testLogger()),
+    ).resolves.toEqual({ config: {} });
+    expect(mockLoadResource).toHaveBeenCalledTimes(2);
+  });
+
+  it('never falls back from a path the caller named', async () => {
+    mockLoadResource.mockRejectedValue(notFound());
+
+    await expect(
+      resolveConfiguration('./custom.config.json', testLogger()),
+    ).rejects.toThrowError(/Cannot read configuration/);
+    expect(mockLoadResource).toHaveBeenCalledTimes(1);
   });
 });

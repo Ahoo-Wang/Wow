@@ -13,5 +13,12 @@ description: '完整根入口导出、行为契约及源码位置索引。'
 | --------------------- | -------------------------------------------------- |
 | `CodeGenerator`       | [程序化 API](programmatic-api#codegenerator-api)   |
 | `DEFAULT_CONFIG_PATH` | [程序化 API](programmatic-api#default_config_path) |
+| `ConsoleLogger`、`SilentLogger` | [程序化 API](programmatic-api#consolelogger) |
+| `GeneratorError`、`EXIT_CODES` | [程序化 API](programmatic-api#generatorerror) |
+| `GeneratorOptions`（类型） | [程序化 API](programmatic-api#generatoroptions) |
+| `GenerationResult`（类型） | [程序化 API](programmatic-api#generationresult) |
+| `Logger`、`ConsoleLoggerOptions`、`LogLevel`（类型） | [程序化 API](programmatic-api#logger) |
+| `GeneratorErrorKind`（类型） | [程序化 API](programmatic-api#generatorerror) |
+| `GeneratorConfiguration`、`ApiClientConfiguration`（类型） | [生成器配置](configuration) |
 
-[typescript/wow-generator/src/index.ts:35](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/index.ts#L35)
+[typescript/wow-generator/src/index.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/index.ts)

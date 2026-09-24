@@ -12,20 +12,45 @@
  */
 
 import type { OpenAPI } from '@ahoo-wang/fetcher-openapi';
-import type { Project, ProjectOptions } from 'ts-morph';
+import type { Project } from 'ts-morph';
 import type { BoundedContextAggregates } from './aggregate';
 
 /**
- * Configuration options for the code generator.
+ * Options of a {@link CodeGenerator} run.
  */
-export interface GeneratorOptions extends ProjectOptions {
-  /** Path to the input OpenAPI specification file */
+export interface GeneratorOptions {
+  /** Path or http(s) URL of the OpenAPI 3 document. */
   readonly inputPath: string;
-  /** Output directory for generated files */
+  /** Directory the generated files are written to. */
   readonly outputDir: string;
+  /**
+   * Path or URL of the generator configuration. When omitted, the generator
+   * reads `./wow-generator.config.json` if it exists.
+   */
   readonly configPath?: string;
-  /** Optional logger for friendly output */
-  readonly logger: Logger;
+  /**
+   * The project's `tsconfig.json`. Its compiler options decide how the
+   * generator resolves the modules it imports while it tidies the output.
+   */
+  readonly tsConfigFilePath?: string;
+  /** Receives progress, warnings and errors. Defaults to a `ConsoleLogger` at the `normal` level. */
+  readonly logger?: Logger;
+  /** Request headers used when `inputPath` or `configPath` is an http(s) URL. */
+  readonly headers?: Record<string, string>;
+  /** Milliseconds before fetching an http(s) document is abandoned. Defaults to 30000. */
+  readonly timeoutMs?: number;
+}
+
+/**
+ * What a generation produced.
+ */
+export interface GenerationResult {
+  /** Absolute paths of the files written, sorted. */
+  readonly files: readonly string[];
+  /** The configuration read, or undefined when none was found. */
+  readonly configPath?: string;
+  /** How many warnings the run logged. */
+  readonly warnings: number;
 }
 
 /**

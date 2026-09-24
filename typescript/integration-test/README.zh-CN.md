@@ -36,7 +36,7 @@ pnpm --filter wow-integration-test test
 
 `generate` 读取 `http://localhost:8080/v3/api-docs` 并替换 `src/generated`。提交前先检查生成结果的改动。
 
-`src/generated` 逐字节保存生成器的输出，连同它的清单 `.fetcher-generator.json`；ESLint 和
+`src/generated` 逐字节保存生成器的输出，连同它的清单 `.wow-generator.json`；ESLint 和
 Prettier 都跳过这个目录。不要手改，也不要重新格式化。
 
 ## CI

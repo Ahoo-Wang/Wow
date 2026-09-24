@@ -9,7 +9,7 @@
   - [Key Exports](#key-exports)
 - [Code Generation Pipeline](#code-generation-pipeline)
 - [Generated Output Structure](#generated-output-structure)
-- [Configuration (fetcher-generator.config.json)](#configuration-fetcher-generatorconfigjson)
+- [Configuration (wow-generator.config.json)](#configuration-wow-generatorconfigjson)
   - [Property optionality](#property-optionality)
 - [Wow CQRS Pattern Support](#wow-cqrs-pattern-support)
   - [Aggregate Identification](#aggregate-identification)
@@ -32,7 +32,7 @@ pnpm add @ahoo-wang/wow-client @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @
 
 Generated code imports `@ahoo-wang/wow-client`, `@ahoo-wang/fetcher`, and `@ahoo-wang/fetcher-decorator` at runtime, so the application depends on them directly. `@ahoo-wang/fetcher`, `@ahoo-wang/fetcher-decorator`, `@ahoo-wang/fetcher-eventstream`, and `@ahoo-wang/fetcher-openapi` keep their names, stay in the fetcher project, and are peer dependencies of the generator.
 
-When migrating from `@ahoo-wang/fetcher-generator`, replace the dev dependency, change scripts from `fetcher-generator generate` to `wow-generator generate`, and regenerate so generated imports point at `@ahoo-wang/wow-client` instead of `@ahoo-wang/fetcher-wow`. The `fetcher-generator` command stays as an alias until v10; the configuration file keeps its name `fetcher-generator.config.json`.
+When migrating from `@ahoo-wang/fetcher-generator`, replace the dev dependency, change scripts from `fetcher-generator generate` to `wow-generator generate`, and regenerate so generated imports point at `@ahoo-wang/wow-client` instead of `@ahoo-wang/fetcher-wow`. The `fetcher-generator` command stays as an alias until v10. Rename `fetcher-generator.config.json` to `wow-generator.config.json`: until v10 the old name is still read, with a deprecation warning, when the new one is absent. The manifest `.fetcher-generator.json` is read once by the next run and replaced by `.wow-generator.json`.
 
 ## CLI Usage
 
@@ -41,55 +41,68 @@ When migrating from `@ahoo-wang/fetcher-generator`, replace the dev dependency, 
 npx wow-generator generate -i ./openapi.yaml -o ./src/generated
 
 # With config file
-npx wow-generator generate -i ./openapi.yaml -o ./src/generated -c ./fetcher-generator.config.json
+npx wow-generator generate -i ./openapi.yaml -o ./src/generated -c ./wow-generator.config.json
 
 # From URL
 npx wow-generator generate -i https://api.example.com/openapi.json -o ./src/generated
 
 # With TypeScript config
 npx wow-generator generate -i ./openapi.yaml -o ./src/generated -t ./tsconfig.json
+
+# Protected document, failing on warnings in CI
+npx wow-generator generate -i https://api.example.com/v3/api-docs -H "Authorization: Bearer $TOKEN" --strict -o ./src/generated
 ```
 
 ### CLI Options
 
-| Flag                               | Description                                     | Default                           |
-| ---------------------------------- | ----------------------------------------------- | --------------------------------- |
-| `-i, --input <file>`               | OpenAPI spec file (JSON/YAML) or HTTP/HTTPS URL | **required**                      |
-| `-o, --output <path>`              | Output directory path                           | `src/generated`                   |
-| `-c, --config <file>`              | Configuration file path                         | `./fetcher-generator.config.json` |
-| `-t, --ts-config-file-path <file>` | TypeScript config file path                     | —                                 |
-| `-v, --version`                    | Display version                                 | —                                 |
+| Flag                               | Description                                                             | Default                       |
+| ---------------------------------- | ----------------------------------------------------------------------- | ----------------------------- |
+| `-i, --input <file>`               | OpenAPI 3.x spec file (JSON/YAML) or HTTP/HTTPS URL                     | **required**                  |
+| `-o, --output <path>`              | Output directory path                                                   | `src/generated`               |
+| `-c, --config <file>`              | Configuration file path; a named file has to exist                      | `./wow-generator.config.json` |
+| `-t, --ts-config-file-path <file>` | TypeScript config file path                                             | —                             |
+| `-H, --header <header>`            | `Name: value` header for an HTTP/HTTPS input or config; repeatable      | —                             |
+| `--timeout <ms>`                   | Abandon an HTTP/HTTPS fetch after this many milliseconds                | `30000`                       |
+| `--strict`                         | Exit with code 4 when the run logged a warning                          | off                           |
+| `--verbose`                        | Log every step with timestamps, and the stack trace of a failure        | off                           |
+| `--quiet`                          | Log only warnings and errors                                            | off                           |
+| `-v, --version`                    | Display version                                                         | —                             |
+
+Exit codes: 0 success, 1 internal error, 2 input (unreadable, unfetchable or non-2xx, not OpenAPI 3.x — Swagger 2.0 is refused — or an invalid option value), 3 configuration (cannot be read, parsed or validated), 4 specification (and `--strict` with warnings), 130 SIGINT. A failure prints one line; `--verbose` adds the stack. The default log is the warnings plus one summary line (`Generated N files into DIR with CONFIG, K warnings`). Any http(s) URL is accepted, intranet hosts included.
 
 ## Programmatic API (CodeGenerator)
 
 The published package supports both ESM imports and CommonJS
 `const { CodeGenerator } = require('@ahoo-wang/wow-generator')`.
 
-`logger` is a required option (`Logger` interface: `info`/`success`/`error`/`progress`/`progressWithCount`). The package does not export a logger implementation — provide your own:
+`GeneratorOptions`: `inputPath`, `outputDir`, `configPath?`, `tsConfigFilePath?`, `logger?` (defaults to `new ConsoleLogger()` at the `normal` level), `headers?`, `timeoutMs?`. It no longer extends ts-morph `ProjectOptions`. `generate()` resolves to `{ files, configPath?, warnings }` and rejects with a `GeneratorError` (`kind`: `input` | `configuration` | `specification`, plus `exitCode`) for a bad document or configuration:
 
 ```typescript
-import { CodeGenerator } from '@ahoo-wang/wow-generator';
+import {
+  CodeGenerator,
+  ConsoleLogger,
+  GeneratorError,
+} from '@ahoo-wang/wow-generator';
 
 const generator = new CodeGenerator({
   inputPath: './openapi.yaml',
   outputDir: './src/generated',
   tsConfigFilePath: './tsconfig.json',
-  logger: {
-    info: console.info,
-    success: console.info,
-    error: console.error,
-    progress: console.info,
-    progressWithCount: (current, total, message) =>
-      console.info(`${message} (${current}/${total})`),
-  },
+  logger: new ConsoleLogger({ level: 'quiet' }), // 'quiet' | 'normal' | 'verbose'
 });
-await generator.generate();
+try {
+  const { files, warnings } = await generator.generate();
+} catch (error) {
+  process.exitCode = error instanceof GeneratorError ? error.exitCode : 1;
+}
 ```
+
+A custom `Logger` implements `info`/`success`/`error`/`progress`/`progressWithCount`; `warn` is optional and falls back to `info`.
 
 Re-running generation with the output included in the supplied tsconfig
 rebuilds the generated declarations instead of appending duplicates.
 Each successful run records generated files and their content hashes in a
-`.fetcher-generator.json` manifest at the root of the output directory, including barrel indexes. Later runs remove
+`.wow-generator.json` manifest at the root of the output directory, including barrel indexes (an existing `.fetcher-generator.json` is read once and replaced). Later runs remove
 files no longer generated only when they remain unchanged, then rebuild indexes
 without exports for removed output. This also works across generator instances
 when the output is not included in tsconfig. Handwritten files, modified stale
@@ -101,7 +114,7 @@ save failures can leave partial output; generation is not a directory transactio
 
 ### Key Exports
 
-`CodeGenerator`, `DEFAULT_CONFIG_PATH` (`./fetcher-generator.config.json`) — that is the complete public surface; option and config interfaces (`GeneratorOptions`, `GeneratorConfiguration`) are not re-exported from the package entry.
+`CodeGenerator`, `DEFAULT_CONFIG_PATH` (`./wow-generator.config.json`), `ConsoleLogger`, `SilentLogger`, `GeneratorError`, `EXIT_CODES`, and the types `GeneratorOptions`, `GenerationResult`, `GeneratorConfiguration`, `ApiClientConfiguration`, `Logger`, `ConsoleLoggerOptions`, `LogLevel`, `GeneratorErrorKind`. The index and formatting steps (`generateIndex`, `optimizeSourceFiles`) are private.
 
 ## Code Generation Pipeline
 
@@ -233,7 +246,7 @@ output/
 
 Model files use `types.ts` named by schema path prefix (e.g., schema key `ai.AiMessage.Assistant` maps to `ai/types.ts` with type `AiMessageAssistant`).
 
-## Configuration (fetcher-generator.config.json)
+## Configuration (wow-generator.config.json)
 
 ```json
 {
@@ -248,7 +261,7 @@ Model files use `types.ts` named by schema path prefix (e.g., schema key `ai.AiM
 - `apiClients` - Map of tag name to API client configuration
 - `ignorePathParameters` - Path parameters to exclude from generated **API client** methods (default: `['tenantId', 'ownerId']`). Command clients always ignore `tenantId`/`ownerId` regardless of this setting.
 
-`loadConfiguration` (`typescript/wow-generator/src/utils/configuration.ts`) reads it. The default path is optional and resolved against the working directory; everything else is loud. A `--config` path that does not exist, content that will not parse, and an option with the wrong shape each fail the run, and unknown keys warn by name. The log records the absolute path and the resolved settings (`apiClients=…`), so a silent no-op — wrong working directory, stale binary — is visible in one run instead of looking like a generator that ignores its options.
+`loadConfiguration` (`typescript/wow-generator/src/utils/configuration.ts`) reads it. The default path is optional and resolved against the working directory (falling back to `fetcher-generator.config.json` with a deprecation warning until v10); everything else is loud and exits 3. A `--config` path that does not exist, content that will not parse, and an option with the wrong shape each fail the run, and unknown keys warn by name. The summary line names the absolute path read and `--verbose` logs the resolved settings (`apiClients=…`), so a silent no-op — wrong working directory, stale binary — is visible in one run instead of looking like a generator that ignores its options.
 
 ### Property optionality
 

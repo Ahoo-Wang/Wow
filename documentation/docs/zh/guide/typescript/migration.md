@@ -101,7 +101,11 @@ const carts = await snapshots.listState(
 }
 ```
 
-v10 之前 `fetcher-generator` 命令仍作为 `wow-generator` 的别名可用，所以完成第 1 步后，没改的脚本照样能跑。命令选项不变，可选配置文件 `fetcher-generator.config.json` 和所有权清单 `.fetcher-generator.json` 的文件名也不变，已有的配置和清单继续有效。
+v10 之前 `fetcher-generator` 命令仍作为 `wow-generator` 的别名可用，所以完成第 1 步后，没改的脚本照样能跑。已有的命令选项不变。
+
+把可选配置文件从 `fetcher-generator.config.json` 改名为 `wow-generator.config.json`。v10 之前，新文件名不存在时仍会读取旧名，并给出弃用警告。所有权清单改名为 `.wow-generator.json`：第一次重新生成会读取已有的 `.fetcher-generator.json`，照常清理过时文件，然后用新清单替换它；请提交新清单。
+
+配置读不到、解析不了或选项形状不对时，现在会以退出码 3 失败，而不是被忽略；http(s) 输入返回非 2xx 状态时以退出码 2 失败。检查退出码的脚本能看到这些失败，见 [CLI 退出码](../../reference/typescript/wow-generator/cli.md#失败与退出码)。
 
 ### 4. 重新生成客户端
 
@@ -126,7 +130,7 @@ pnpm test
 
 - Wow 的 TypeScript 包跟随 Wow 发版。选择与 Wow 服务端一致的版本，并同时升级 `wow-client`、`wow-generator` 和 `wow-react`；它们之间以 `~x.y.z` 互相声明。
 - 破坏性改动只在 `x.Y.0` 版本发布，发布说明逐条列出并写明迁移方法。
-- 在 Wow 9.x 期间，客户端和生成器仍能连接 Wow 8.x 服务端（8.11 及以后用 `FilterExpression`，8.10 通过 `@ahoo-wang/wow-client/legacy`），`fetcher-generator` 别名可用，已弃用的 `Condition` API 也可以从 `/legacy` 导入。三者都在 v10 移除；在此之前请改用 `FilterExpression` 和 `filter.*` 构造器，见[过滤器](../../reference/typescript/wow-client/filters.md)。
+- 在 Wow 9.x 期间，客户端和生成器仍能连接 Wow 8.x 服务端（8.11 及以后用 `FilterExpression`，8.10 通过 `@ahoo-wang/wow-client/legacy`），`fetcher-generator` 别名和 `fetcher-generator.config.json` 回退读取可用，已弃用的 `Condition` API 也可以从 `/legacy` 导入。它们都在 v10 移除；在此之前请改用 `FilterExpression` 和 `filter.*` 构造器，见[过滤器](../../reference/typescript/wow-client/filters.md)。
 - 新功能只进 Wow 的包。Fetcher 保留 5.x 分支只做修复，计划在 Fetcher 6.0 发布时对 `fetcher-wow` 和 `fetcher-generator` 执行 npm deprecate。
 
 ## 检查清单

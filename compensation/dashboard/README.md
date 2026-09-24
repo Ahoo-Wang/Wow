@@ -53,7 +53,7 @@ Today / Last 7 days / Last 30 days 快捷项，或点击 Refresh，都会重载�
 
 ## 生成客户端边界
 
-[`src/generated/`](src/generated/) 是 `wow-generator`（工作区包 `@ahoo-wang/wow-generator`）根据补偿服务 OpenAPI 产生的输出，连同生成清单 `.fetcher-generator.json` 逐字节提交，不是手工维护源码：
+[`src/generated/`](src/generated/) 是 `wow-generator`（工作区包 `@ahoo-wang/wow-generator`）根据补偿服务 OpenAPI 产生的输出，连同生成清单 `.wow-generator.json` 逐字节提交，不是手工维护源码：
 
 1. 先在 `wow-compensation-api`/服务端修改公开合同并生成运行时 `/v3/api-docs`；
 2. 构建生成器：`pnpm --filter @ahoo-wang/wow-generator build`；

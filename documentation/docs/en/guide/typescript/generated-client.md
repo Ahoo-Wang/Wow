@@ -101,9 +101,9 @@ pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated -t ./tscon
 pnpm exec tsc --noEmit -p ./tsconfig.json
 ```
 
-For this exact document the output includes `ItemsApiClient.ts`, `types.ts` and `index.ts`. The client exposes `getItem(id: string, httpRequest?: ParameterRequest, attributes?: Record<string, any>): Promise<Item>`, and `Item` has a required string `id`. The generator also writes `.fetcher-generator.json` to record output ownership.
+For this exact document the output includes `ItemsApiClient.ts`, `types.ts` and `index.ts`. The client exposes `getItem(id: string, httpRequest?: ParameterRequest, attributes?: Record<string, any>): Promise<Item>`, and `Item` has a required string `id`. The generator also writes `.wow-generator.json` to record output ownership, and prints one summary line such as `Generated 3 files into ./src/generated`.
 
-If optional `fetcher-generator.config.json` is absent, the CLI logs a configuration read error and continues. Add a config only when you need an override; see [configuration precedence](../../reference/typescript/wow-generator/configuration).
+Without a `wow-generator.config.json` in the working directory the CLI generates with defaults. Add a config only when you need an override; see [configuration precedence](../../reference/typescript/wow-generator/configuration).
 
 ## 4. Write the caller outside generated files
 
@@ -127,7 +127,7 @@ For a local runtime check, mock fetch with `Response.json({ id: '42' })`, call t
 
 Edit the source document and rerun the same command. Review changed models, method signatures and the ownership manifest before accepting the diff. Do not put application code into `src/generated`: files generated again at the same path are overwritten. Unchanged stale owned files can be deleted; modified stale files are preserved. Generation is not an atomic directory transaction, so inspect partial output after a failure.
 
-Missing methods usually require checking tags and operation IDs; missing return types require checking the 200 response. A schema compiler is not a server validator. No runtime resource is allocated by this caller until it is invoked; the JSON response is consumed on success.
+Missing methods usually require checking tags and operation IDs, and the warnings of the run name the operations it skipped (`--strict` fails on them); missing return types require checking the 200 response. A schema compiler is not a server validator. No runtime resource is allocated by this caller until it is invoked; the JSON response is consumed on success.
 
 See [CLI options](../../reference/typescript/wow-generator/cli), [output and regeneration](../../reference/typescript/wow-generator/generated-output), [OpenAPI documents](https://fetcher.ahoo.me/reference/openapi/documents-and-operations), and the distinct [Wow discovery rules](../../reference/typescript/wow-generator/wow-discovery).
 

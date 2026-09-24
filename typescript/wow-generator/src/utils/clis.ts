@@ -11,144 +11,190 @@
  * limitations under the License.
  */
 
-import { CodeGenerator } from '../index';
-import type { GeneratorOptions } from '../types';
-import { ConsoleLogger } from './logger';
+import { relative } from 'path';
 import packageJson from '../../package.json';
+import { EXIT_CODES, GeneratorError } from '../errors';
+import { CodeGenerator } from '../index';
+import type { GeneratorOptions, Logger } from '../types';
+import type { LogLevel } from './logger';
+import { ConsoleLogger } from './logger';
 
 /**
- * IPv4 ranges the generator should refuse to fetch from (SSRF guard). Each
- * entry is [firstOctet, predicate(secondOctet?, ...)] — loopback (127/8) and
- * link-local/private ranges; 127.0.0.0/8 is intentionally EXCLUDED (allowed).
+ * Options of the `generate` command, as commander parses them.
  */
-const BLOCKED_IPV4_RANGES: ReadonlyArray<{
-  first: number;
-  rest?: (b: number, octets: number[]) => boolean;
-}> = [
-  { first: 0 }, // 0.0.0.0/8 "this host"
-  { first: 10 }, // RFC1918
-  { first: 169, rest: b => b === 254 }, // 169.254.0.0/16 link-local (cloud metadata)
-  { first: 172, rest: b => b >= 16 && b <= 31 }, // RFC1918
-  { first: 192, rest: b => b === 168 }, // RFC1918
-];
-
-function isBlockedIpv4(octets: number[]): boolean {
-  const [a, b] = octets;
-  return BLOCKED_IPV4_RANGES.some(
-    range => a === range.first && (!range.rest || range.rest(b, octets)),
-  );
-}
-
-/**
- * Returns true when `hostname` refers to a host the generator should refuse to
- * fetch a remote OpenAPI spec from. Used to block SSRF: a crafted `-i` input
- * could otherwise make the generator host probe sensitive internal endpoints
- * (cloud metadata services, RFC1918 ranges).
- *
- * Loopback (localhost / 127.0.0.0/8 / ::1) is INTENTIONALLY ALLOWED: the
- * generator is a developer-run CLI, and pointing it at a local mock server
- * (`http://localhost:8080/api-docs`) is a legitimate, common workflow. The
- * SSRF threat model here is non-loopback internal services (cloud metadata,
- * private subnets), not the developer's own machine.
- *
- * Note on IPv6: the WHATWG `URL` parser normalizes IPv4-mapped IPv6 addresses
- * (e.g. `[::ffff:169.254.169.254]`) to pure hex form, so the dotted-quad tail
- * is gone by the time we see the hostname. A hex-encoded v4-mapped private
- * address is not caught here — accepting this residual risk in exchange for
- * not rejecting legitimate public IPv6 hosts.
- */
-function isPrivateOrLoopbackHost(hostname: string): boolean {
-  const host = hostname.replace(/^\[|]$/g, '');
-
-  // IPv4 literal checks. (Bare octets >255 yield an invalid URL earlier, so
-  // every octet here is already 0–255.) 127.0.0.0/8 is loopback → allowed.
-  const v4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if (v4) {
-    return isBlockedIpv4(v4.slice(1, 5).map(Number));
-  }
-
-  // IPv6: ::1 loopback → allowed. Block unspecified (::), link-local
-  // fe80::/10 (fe80::–febf::), and ULA fc00::/7 (fc…/fd…).
-  if (host.includes(':')) {
-    const lower6 = host.toLowerCase();
-    return (
-      lower6 === '::' ||
-      /^fe[89ab][0-9a-f]:/.test(lower6) ||
-      lower6.startsWith('fc') ||
-      lower6.startsWith('fd')
-    );
-  }
-
-  return false;
+export interface GenerateCommandOptions {
+  input: string;
+  output: string;
+  config?: string;
+  tsConfigFilePath?: string;
+  /** `Name: value` request headers for an http(s) input or configuration. */
+  header?: string[];
+  /** Milliseconds, as typed on the command line. */
+  timeout?: string;
+  /** Exit with a non-zero code when the run logged a warning. */
+  strict?: boolean;
+  verbose?: boolean;
+  quiet?: boolean;
 }
 
 /**
  * Validates the input path or URL.
+ *
+ * Any file path is accepted here and checked when it is read. A URL must use
+ * http or https; its host is not restricted, because the generator runs on
+ * the developer's own machine against a document they chose, and fetching an
+ * intranet service's `/v3/api-docs` is the common case.
+ *
  * @param input - Input path or URL
  * @returns true if valid
  */
 export function validateInput(input: string): boolean {
   if (!input) return false;
-
-  // Check if it's a URL
+  let url: URL;
   try {
-    const url = new URL(input);
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-      return false;
-    }
-    // SSRF guard: block private/loopback/link-local hosts for remote inputs.
-    if (isPrivateOrLoopbackHost(url.hostname)) {
-      return false;
-    }
-    return true;
+    url = new URL(input);
   } catch {
-    // Not a URL, check if it's a file path
-    // For file paths, we'll let parseOpenAPI handle it
-    return input.length > 0;
+    // Not a URL: a file path, which parseOpenAPI reads.
+    return true;
   }
+  // A Windows path such as C:\spec.json parses as a URL with scheme "c:".
+  if (/^[a-z]:$/i.test(url.protocol)) return true;
+  return url.protocol === 'http:' || url.protocol === 'https:';
 }
 
 /**
- * Action handler for the generate command.
- * @param options - Command options
+ * Parses `Name: value` header arguments.
+ *
+ * @param headers - The raw `--header` values
+ * @returns The headers by name
+ * @throws GeneratorError of kind `input` for a value without a name
  */
-export async function generateAction(options: {
-  input: string;
-  output: string;
-  config?: string;
-  tsConfigFilePath?: string;
-}) {
-  const logger = new ConsoleLogger();
-
-  // Handle signals
-  process.on('SIGINT', () => {
-    logger.error('Generation interrupted by user');
-    process.exit(130);
-  });
-
-  // Validate input
-  if (!validateInput(options.input)) {
-    logger.error('Invalid input: must be a valid file path or HTTP/HTTPS URL');
-    process.exit(2);
+export function parseHeaders(
+  headers: readonly string[] = [],
+): Record<string, string> {
+  const parsed: Record<string, string> = {};
+  for (const header of headers) {
+    const separator = header.indexOf(':');
+    const name = separator > 0 ? header.slice(0, separator).trim() : '';
+    if (!name) {
+      throw new GeneratorError(
+        'input',
+        `Invalid --header "${header}": expected "Name: value".`,
+      );
+    }
+    parsed[name] = header.slice(separator + 1).trim();
   }
+  return parsed;
+}
 
+function parseTimeout(timeout: string | undefined): number | undefined {
+  if (timeout === undefined) return undefined;
+  const value = Number(timeout);
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new GeneratorError(
+      'input',
+      `Invalid --timeout "${timeout}": expected a positive number of milliseconds.`,
+    );
+  }
+  return value;
+}
+
+function logLevel(options: GenerateCommandOptions): LogLevel {
+  if (options.verbose) return 'verbose';
+  if (options.quiet) return 'quiet';
+  return 'normal';
+}
+
+/**
+ * Reports a failure as one actionable line; the stack and the causes only
+ * with `--verbose`.
+ *
+ * @returns The exit code the failure maps to
+ */
+function reportFailure(
+  logger: Logger,
+  error: unknown,
+  verbose: boolean,
+): number {
+  if (error instanceof GeneratorError) {
+    logger.error(error.message);
+    if (verbose && error.cause !== undefined) {
+      logger.error('Caused by:', error.cause);
+    }
+    return error.exitCode;
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  logger.error(`Code generation failed: ${message}`);
+  if (verbose) {
+    logger.error('', error);
+  } else {
+    logger.error(
+      'Rerun with --verbose for the stack trace, and report it at https://github.com/Ahoo-Wang/Wow/issues if the input is valid.',
+    );
+  }
+  return EXIT_CODES.internal;
+}
+
+/**
+ * Runs the `generate` command.
+ *
+ * @param options - The parsed command options
+ * @param logger - Where to report; a console logger at the level the options ask for by default
+ * @returns The exit code: see {@link EXIT_CODES}
+ */
+export async function runGenerate(
+  options: GenerateCommandOptions,
+  logger: Logger = new ConsoleLogger({ level: logLevel(options) }),
+): Promise<number> {
+  if (!validateInput(options.input)) {
+    logger.error(
+      `Invalid input "${options.input}": expected a file path or an http(s) URL.`,
+    );
+    return EXIT_CODES.input;
+  }
   try {
-    logger.info(`Fetcher Generator v${packageJson.version}`);
-    logger.info('Starting code generation...');
+    logger.info(`wow-generator v${packageJson.version}`);
     const generatorOptions: GeneratorOptions = {
       inputPath: options.input,
       outputDir: options.output,
       configPath: options.config,
       tsConfigFilePath: options.tsConfigFilePath,
+      headers: parseHeaders(options.header),
+      timeoutMs: parseTimeout(options.timeout),
       logger,
     };
-    const codeGenerator = new CodeGenerator(generatorOptions);
-    await codeGenerator.generate();
+    const result = await new CodeGenerator(generatorOptions).generate();
+    const warnings = result.warnings
+      ? `, ${result.warnings} warning${result.warnings === 1 ? '' : 's'}`
+      : '';
+    const config = result.configPath
+      ? ` with ${relative(process.cwd(), result.configPath) || result.configPath}`
+      : '';
     logger.success(
-      `Code generation completed successfully! Files generated in: ${options.output}`,
+      `Generated ${result.files.length} files into ${options.output}${config}${warnings}`,
     );
+    if (options.strict && result.warnings > 0) {
+      logger.error(
+        `--strict: the run logged ${result.warnings} warning${result.warnings === 1 ? '' : 's'}.`,
+      );
+      return EXIT_CODES.specification;
+    }
+    return EXIT_CODES.success;
   } catch (error) {
-    logger.error(`Error during code generation: \n`, error);
-    process.exit(1);
+    return reportFailure(logger, error, !!options.verbose);
   }
+}
+
+/**
+ * Action handler for the generate command: runs it and sets the process exit
+ * code.
+ *
+ * @param options - Command options
+ */
+export async function generateAction(options: GenerateCommandOptions) {
+  process.once('SIGINT', () => {
+    console.error('Generation interrupted by user');
+    process.exit(EXIT_CODES.interrupted);
+  });
+  process.exitCode = await runGenerate(options);
 }

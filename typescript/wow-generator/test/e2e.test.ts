@@ -23,7 +23,7 @@ import {
   writeFileSync,
 } from 'fs';
 import * as path from 'path';
-import { generateAction } from '../src/utils';
+import { runGenerate, SilentLogger } from '../src/utils';
 
 const OUT_PUT_DIR = 'test-output';
 const EXPECTED_DIR = 'expected';
@@ -128,12 +128,16 @@ describe('E2E Test', () => {
     rmSync(resolvePackagePath(outputDir), { recursive: true, force: true });
     writeOutputTsconfig(outputDir);
 
-    await generateAction({
-      input: 'test/demo.spec.json',
-      output: outputDir,
-      config: 'test/fetcher-generator.config.json',
-      tsConfigFilePath: `${outputDir}/tsconfig.json`,
-    });
+    const exitCode = await runGenerate(
+      {
+        input: 'test/demo.spec.json',
+        output: outputDir,
+        config: 'test/wow-generator.config.json',
+        tsConfigFilePath: `${outputDir}/tsconfig.json`,
+      },
+      new SilentLogger(),
+    );
+    expect(exitCode).toBe(0);
 
     // Structural smoke checks on key artifacts (the snapshot comparison below
     // is the exact baseline; these guard the semantics that matter most).
@@ -159,10 +163,11 @@ describe('E2E Test', () => {
     const outputDir = `${OUT_PUT_DIR}/compensation`;
     rmSync(resolvePackagePath(outputDir), { recursive: true, force: true });
 
-    await generateAction({
-      input: 'test/compensation.spec.json',
-      output: outputDir,
-    });
+    const exitCode = await runGenerate(
+      { input: 'test/compensation.spec.json', output: outputDir },
+      new SilentLogger(),
+    );
+    expect(exitCode).toBe(0);
 
     const commandClient = readFileSync(
       resolvePackagePath(
