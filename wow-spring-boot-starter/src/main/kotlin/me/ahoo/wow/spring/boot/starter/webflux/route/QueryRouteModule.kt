@@ -14,11 +14,12 @@
 package me.ahoo.wow.spring.boot.starter.webflux.route
 
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
-import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
+import me.ahoo.wow.spring.query.eventStreamQueryGatewayBeanName
+import me.ahoo.wow.spring.query.snapshotQueryGatewayBeanName
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.CountEventStreamHandlerFunctionFactory
@@ -81,13 +82,13 @@ class QueryRouteModule(
     @Suppress("UNCHECKED_CAST")
     private fun snapshotGateway(metadata: AggregateMetadata<*, *>): SnapshotQueryGateway<Any> =
         beanFactory.getBean(
-            "${metadata.namedAggregate.toStringWithAlias()}.SnapshotQueryGateway",
+            metadata.namedAggregate.snapshotQueryGatewayBeanName(),
             SnapshotQueryGateway::class.java,
         ) as SnapshotQueryGateway<Any>
 
     private fun eventStreamGateway(metadata: AggregateMetadata<*, *>): EventStreamQueryGateway =
         beanFactory.getBean(
-            "${metadata.namedAggregate.toStringWithAlias()}.EventStreamQueryGateway",
+            metadata.namedAggregate.eventStreamQueryGatewayBeanName(),
             EventStreamQueryGateway::class.java,
         )
 }

@@ -15,7 +15,6 @@ package me.ahoo.wow.spring.query
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
@@ -38,7 +37,7 @@ class EventStreamQueryGatewayRegistrar : QueryGatewayRegistrar() {
         registry: BeanDefinitionRegistry,
     ) {
         val namedAggregate = entry.key
-        val beanName = "${namedAggregate.toStringWithAlias()}.EventStreamQueryGateway"
+        val beanName = namedAggregate.eventStreamQueryGatewayBeanName()
         log.info {
             "Register EventStreamQueryGateway [$beanName]."
         }
