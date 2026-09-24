@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-/** @deprecated Use FilterOperator instead. */
+/** @deprecated Use FilterOperator instead. Removed in v10. */
 export enum Operator {
   /**
    * Performs logical AND on the provided condition list
@@ -253,14 +253,14 @@ export enum Operator {
   RAW = 'RAW',
 }
 
-/** @deprecated Use FilterOperator and FilterExpression instead. */
+/** @deprecated Use FilterOperator and FilterExpression instead. Removed in v10. */
 export const LOGICAL_OPERATORS = new Set([
   Operator.AND,
   Operator.OR,
   Operator.NOR,
 ]);
 
-/** @deprecated Use FilterOperator and FilterExpression instead. */
+/** @deprecated Use FilterOperator and FilterExpression instead. Removed in v10. */
 export const EMPTY_VALUE_OPERATORS = new Set([
   Operator.NULL,
   Operator.NOT_NULL,

@@ -35,10 +35,11 @@ const RULES = [
     /^(?:wow-[^/]+|schema|example|build-logic|gradle|test\/wow-mock|compensation\/wow-compensation-(?:api|core))\//,
     [CONTRACT],
   ],
-  [
-    /^(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$/,
-    [CONTRACT],
-  ],
+  // The single version source: quality checks every package.json against it.
+  [/^gradle\.properties$/, [TYPESCRIPT, CONTRACT]],
+  [/^(?:build\.gradle\.kts|settings\.gradle\.kts|gradlew)$/, [CONTRACT]],
+  // The compat-debt ledger: quality checks it against the markers.
+  [/^docs\/compat-debt\.md$/, [TYPESCRIPT]],
   // Lint and format rules only the static checks read.
   [
     /^(?:eslint\.config\.js|\.prettierrc|\.prettierignore)$/,

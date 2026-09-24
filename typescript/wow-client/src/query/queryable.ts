@@ -20,7 +20,7 @@ import { type ProjectionCapable } from './projection.js';
 /**
  * Interface for queryable objects that support conditions, projection, and sorting.
  */
-/** @deprecated Use FilterQueryable instead. */
+/** @deprecated Use FilterQueryable instead. Removed in v10. */
 export interface Queryable<FIELDS extends string = string>
   extends
     ConditionCapable<FIELDS>,
@@ -37,7 +37,7 @@ export interface FilterQueryable<FIELDS extends string = string>
 /**
  * Interface for single query objects.
  */
-/** @deprecated Use FilterSingleQuery instead. */
+/** @deprecated Use FilterSingleQuery instead. Removed in v10. */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface SingleQuery<
   FIELDS extends string = string,
@@ -91,7 +91,7 @@ function queryFilter<FIELDS extends string>({
 export function singleQuery<FIELDS extends string = string>(
   options: FilterQueryOptions<FilterSingleQuery<FIELDS>>,
 ): FilterSingleQuery<FIELDS>;
-/** @deprecated Pass filter instead of condition. */
+/** @deprecated Pass filter instead of condition. Removed in v10. */
 export function singleQuery<FIELDS extends string = string>(
   options?: Partial<SingleQuery<FIELDS>>,
 ): SingleQuery<FIELDS>;
@@ -115,7 +115,7 @@ export function singleQuery<FIELDS extends string = string>({
  *
  * Limit the number of results. Default: DEFAULT_PAGINATION.size
  */
-/** @deprecated Use FilterListQuery instead. */
+/** @deprecated Use FilterListQuery instead. Removed in v10. */
 export interface ListQuery<
   FIELDS extends string = string,
 > extends Queryable<FIELDS> {
@@ -149,7 +149,7 @@ export type ListQueryRequest<FIELDS extends string = string> =
 export function listQuery<FIELDS extends string = string>(
   options: FilterQueryOptions<FilterListQuery<FIELDS>>,
 ): FilterListQuery<FIELDS>;
-/** @deprecated Pass filter instead of condition. */
+/** @deprecated Pass filter instead of condition. Removed in v10. */
 export function listQuery<FIELDS extends string = string>(
   options?: Partial<ListQuery<FIELDS>>,
 ): ListQuery<FIELDS>;
@@ -174,7 +174,7 @@ export function listQuery<FIELDS extends string = string>({
 /**
  * Interface for paged query objects.
  */
-/** @deprecated Use FilterPagedQuery instead. */
+/** @deprecated Use FilterPagedQuery instead. Removed in v10. */
 export interface PagedQuery<
   FIELDS extends string = string,
 > extends Queryable<FIELDS> {
@@ -208,7 +208,7 @@ export type PagedQueryRequest<FIELDS extends string = string> =
 export function pagedQuery<FIELDS extends string = string>(
   options: FilterQueryOptions<FilterPagedQuery<FIELDS>>,
 ): FilterPagedQuery<FIELDS>;
-/** @deprecated Pass filter instead of condition. */
+/** @deprecated Pass filter instead of condition. Removed in v10. */
 export function pagedQuery<FIELDS extends string = string>(
   options?: Partial<PagedQuery<FIELDS>>,
 ): PagedQuery<FIELDS>;

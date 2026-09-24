@@ -57,11 +57,15 @@ test('example server sources and the Gradle build run only the same-source contr
     'build-logic/build.gradle.kts',
     'build.gradle.kts',
     'settings.gradle.kts',
-    'gradle.properties',
     'gradle/libs.versions.toml',
     'gradlew',
   ])
     assert.deepEqual(on([path]), ['contract'], path);
+});
+
+test('the version source and the compat-debt ledger run the static checks', () => {
+  assert.deepEqual(on(['gradle.properties']), ['typescript', 'contract']);
+  assert.deepEqual(on(['docs/compat-debt.md']), ['typescript']);
 });
 
 test('the client, generator, integration tests and contract workflow run both contracts', () => {

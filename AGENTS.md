@@ -170,7 +170,15 @@ Dashboard code uses React, TypeScript, Vite, shadcn/Base UI, Tailwind CSS, React
 
 ## Version Management
 
-The project version is the `version` property in `gradle.properties`. Keep dependent documentation, examples, package metadata, and release notes in sync when bumping it. Third-party versions are centralized in `gradle/libs.versions.toml` and the `wow-dependencies` module.
+The project version is the `version` property in `gradle.properties`. Maven and npm release together under that version and one `v<version>` tag. Third-party versions are centralized in `gradle/libs.versions.toml` and the `wow-dependencies` module.
+
+A release is prepared in one pull request (`chore(release): prepare <version>`):
+
+1. `pnpm set-version <version>` writes `gradle.properties` and the version of every `typescript/*/package.json`, `compensation/dashboard/package.json` and `documentation/package.json`. It then lists the tracked files that still mention the old version.
+2. Update the ones that track the release by hand: the version tables in `README.md` and `README.zh-CN.md`, `documentation/docs/{en,zh}/guide/existing-project.md` and `getting-started.md`, and `wow-openapi/src/test/resources/openapi/example-domain-openapi.snapshot.json`.
+3. `pnpm check:versions` confirms every `package.json` matches; the `quality` job of `typescript.yml` runs the same check.
+
+Breaking changes, Kotlin or TypeScript, ship only in an `x.Y.0` release; mark them with `!` in the conventional commit. Release admission enforces this. Compatibility code kept until v10 is listed in `docs/compat-debt.md`; `pnpm check:compat-debt` checks its markers.
 
 ## CI And Release Workflows
 
@@ -185,7 +193,9 @@ GitHub Actions run module-level checks from `.github/workflows/`:
 - `documentation-deploy.yml`, `example-deploy.yml`, and `compensation-deploy.yml` deploy docs and sample apps.
 - `typescript.yml` runs on every pull request; its scope job decides which TypeScript jobs run, and `typescript-gate` is the merge signal for JavaScript changes. `dashboard-test.yml` checks the compensation dashboard.
 - `typescript-contract.yml` runs the TypeScript client, generator and integration tests against an example server built from the same commit, and type-checks code generated from the 8.10.8 and 8.11.5 server images; the shared scope script decides which part runs, and `typescript-contract-gate` is its merge signal.
-- `package-deploy.yml` publishes to GitHub Packages and Maven Central when a GitHub Release is created or the workflow is manually dispatched.
+- `package-deploy.yml` publishes when a GitHub Release is created or the workflow is manually dispatched. Its `preflight` job checks that the tag, `gradle.properties` and every `package.json` agree, runs release admission (`.github/scripts/release-admission.mjs`), builds and dry-runs the npm packages, and runs the Gradle build and integration tests. Then `github-deploy` (GitHub Packages), `central-deploy` (Maven Central) and `npm-deploy` run in parallel.
+- Release admission requires a successful push or `workflow_dispatch` run of `typescript.yml` on the release commit with `typescript-gate` passing, and refuses a patch release when any commit since the previous `v*` tag is breaking (`!` or a `BREAKING CHANGE:` footer). For a commit that has no push run, dispatch `typescript.yml` on it first.
+- `npm-deploy` runs `.github/scripts/publish-npm.mjs`. It publishes `@ahoo-wang/wow-client`, `@ahoo-wang/wow-react` and `@ahoo-wang/wow-generator` with OIDC trusted publishing and provenance, skips a version already on npm (so a failed run can be re-run), and tags a patch to an older line `release-<major>.<minor>` instead of `latest`. Private packages are never published. A new public package must be added to `PUBLISHED` or `HELD_BACK` in that script. Maven modules that are not ready to publish go in `incubatingProjects` in `build.gradle.kts`.
 
 Before changing release or publish behavior, inspect the workflow and Gradle publishing configuration together.
 

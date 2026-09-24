@@ -15,7 +15,7 @@ import { DeletionState } from './condition.js';
 import { queryField } from './queryField.js';
 
 export type QueryField<FIELDS extends string = string> = FIELDS;
-/** @deprecated Use QueryField instead. */
+/** @deprecated Use QueryField instead. Removed in v10. */
 export type LogicalField<FIELDS extends string = string> = QueryField<FIELDS>;
 export type FilterLiteral = null | string | number | boolean;
 export type EqualityFilterValue = FilterLiteral;

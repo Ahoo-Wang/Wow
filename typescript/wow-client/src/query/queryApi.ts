@@ -126,6 +126,7 @@ export interface QueryApi<R, FIELDS extends string = string> {
    * @returns A promise that resolves to the count of matching resources
    */
   count(
+    // compat(wow<9): accepts the deprecated Condition, which Wow < 8.11 needs; narrow to FilterExpression in v10.
     filter: FilterExpression<FIELDS> | Condition<FIELDS>,
     attributes?: Record<string, any>,
     abortController?: AbortController,

@@ -28,6 +28,8 @@ import {
   saveGeneration,
 } from './utils';
 
+// compat(fetcher): keeps the fetcher-generator file name so existing projects still find
+// their config; rename to wow-generator.config.json, reading this name as a fallback.
 /**
  * Default path to the generator configuration file.
  * This path is used when no custom config path is provided in the generator options.

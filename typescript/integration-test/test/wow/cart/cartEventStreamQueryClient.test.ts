@@ -75,6 +75,8 @@ function expectDomainEventStreamToBeDefined(
   }
 }
 
+// compat(wow<9): these cases query through the deprecated Condition API so they also pass
+// against the Wow 8.x servers of the legacy contract matrix; move them to filter.* in v10.
 describe('cartEventStreamQueryClient Integration Test', () => {
   it('should count', async () => {
     const count = await cartEventStreamQueryClient.count(

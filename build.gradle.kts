@@ -50,8 +50,11 @@ val exampleProjects =
 val testProject = project(":wow-test")
 val codeCoverageReportProject = project(":code-coverage-report")
 val benchmarksProject = project(":wow-benchmarks")
-val publishProjects = subprojects - exampleProjects - codeCoverageReportProject - benchmarksProject
-val libraryProjects = publishProjects - bomProjects + exampleLibraries + benchmarksProject
+// Libraries that build and test like the others but are not published until stable (view-store/* in phase 6).
+val incubatingProjects = emptySet<Project>()
+val publishProjects =
+    subprojects - exampleProjects - codeCoverageReportProject - benchmarksProject - incubatingProjects
+val libraryProjects = publishProjects - bomProjects + exampleLibraries + benchmarksProject + incubatingProjects
 val isInCI = !System.getenv("CI").isNullOrEmpty()
 ext.set("libraryProjects", libraryProjects)
 

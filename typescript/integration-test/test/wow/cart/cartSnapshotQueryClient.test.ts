@@ -83,6 +83,8 @@ const cartSnapshotQueryClient =
     fetcher: exampleFetcher,
   });
 
+// compat(wow<9): these cases query through the deprecated Condition API so they also pass
+// against the Wow 8.x servers of the legacy contract matrix; move them to filter.* in v10.
 describe('cartSnapshotQueryClient Integration Test', () => {
   it('should getById', async () => {
     const snapshot = await cartSnapshotQueryClient.getById(

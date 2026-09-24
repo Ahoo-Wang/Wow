@@ -23,6 +23,8 @@ const MODEL_FILE_NAME = 'types.ts';
 /** Alias for import paths */
 const IMPORT_ALIAS = '@';
 
+// compat(fetcher): keeps the fetcher-generator manifest name so a regeneration still removes
+// files an older run wrote; rename to .wow-generator.json, reading this name as a fallback.
 const GENERATION_MANIFEST = '.fetcher-generator.json';
 const generatedFiles = new WeakMap<
   Project,
