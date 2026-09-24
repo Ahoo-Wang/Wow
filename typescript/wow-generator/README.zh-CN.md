@@ -113,6 +113,8 @@ schema 声明的每个属性都生成为必填。强类型后端根本没有"缺
   `PartialBy<Command, 'field' | ...>`，调用方仍可省略 API 允许省略的字段——
   `AddCartItemCommand = CommandBody<PartialBy<AddCartItem, 'quantity'>>`。把模型改成必填
   绝不会收紧客户端能发的内容。
+- **API 客户端请求体**也同样处理：JSON 请求体生成为 `PartialBy<Model, 'field' | ...>`，覆盖 schema
+  未列入 `required` 的属性。
 
 有一点值得知道：引用自身 schema 的非空属性没有有限字面量，因为每一层都还要下一层。能终止
 的递归模型会把这条链声明为可空，生成 `T | null`，构造起来毫无问题。
@@ -120,7 +122,7 @@ schema 声明的每个属性都生成为必填。强类型后端根本没有"缺
 ## 核心能力
 
 - 本地 JSON/YAML 与 HTTP(S) OpenAPI 输入。
-- 按 tag 分组的 TypeScript 模型与 Decorator API 客户端。
+- 按 tag 分组的 TypeScript 模型与 Decorator API 客户端，path、query、header 参数和请求体都带类型，必填的在前。
 - Wow bounded-context、命令、快照、事件与查询发现。
 - 递归生成 `index.ts`，并通过 ts-morph 格式化。
 - 支持注入日志的编程式 `CodeGenerator` API，返回写出的文件与警告数。

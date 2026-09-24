@@ -277,7 +277,7 @@ Optionality the document genuinely means is carried elsewhere:
 | the value may be null          | the property type      | `T \| null` (every spelling of null in 3.0 `nullable` and 3.1 type arrays)                                                                                                                                 |
 | a command field may be omitted | the command type alias | `CommandBody<PartialBy<Command, 'field' \| …>>`, built by `resolveOptionalFields` from the document's `required`, following `allOf` branches and references so an inherited optional field is not demanded |
 
-Requiring model properties therefore does not narrow what a _command_ caller may send: `resolveCommandType` (`typescript/wow-generator/src/client/commandClientGenerator.ts`) still wraps the body in `PartialBy`. An ordinary operation's request body is typed as the model itself, so it is required in full — a deliberate, documented consequence.
+Requiring model properties therefore does not narrow what a _command_ caller may send: `resolveCommandType` (`typescript/wow-generator/src/client/commandClientGenerator.ts`) still wraps the body in `PartialBy`. An ordinary API client's JSON request body is wrapped the same way, `PartialBy<Model, 'field' | …>`, so it does not demand what the schema leaves optional.
 
 `requiresAdditionalPropertiesIntersection` reads only `clashesWithIndexSignature`, since no property carries `undefined` any more. That predicate errs towards the intersection: against a primitive index, an object, an array, a different primitive **and any property whose kind cannot be read off the schema** all clash, because a nullable property, a type array and a typeless enum each generate a union no primitive index accepts (TS2411). An enum is decided by the sibling type it narrows, so `'a' | 'b'` beside a `string` index stays an interface. Undecided cannot be circular (TS2456) either, since the index resolved to a primitive before the property was consulted. Schemas whose `required` names a key with no `properties` entry still gain that key, typed from `additionalProperties`.
 
@@ -353,6 +353,18 @@ Resource attribution inferred from command paths: `ResourceAttributionPathSpec.O
 Generated for non-CQRS endpoints. Parameters `tenantId`/`ownerId` are ignored by default in a Wow document only. When the document has `x-wow-context-alias`, the constructor merges `apiMetadata` over `{ basePath: <context alias> }`, as command clients do.
 
 Method names: `apiClients[tag].methodNames[operationId]`, else `x-fetcher-method`, else the last dot-separated segment of the operationId camel-cased (`delete_user_by_id` → `deleteUserById`, `getUser_1` → `getUser1`, `users.list` → `list`). The name depends on the operation alone, so adding an operation never renames a method; two operations of one client with the same name fail with exit code 4.
+
+Method parameters: every path, query and header parameter is a typed positional parameter named after it (`item-id` → `itemId`, decorated `@path`/`@query`/`@header`), and the request body is its own `@body()` parameter. Required ones come first in document order (path, query, header, then body), optional ones after, then `httpRequest?: ParameterRequest` and `attributes?: Record<string, unknown>`:
+
+```typescript
+search(@path('item-id') itemId: string, @query('q') q: string,
+       @header('X-Tenant') xTenant: string, @query('page') page?: number,
+       @query('status') status?: 'open' | 'closed',
+       @request() httpRequest?: ParameterRequest,
+       @attribute() attributes?: Record<string, unknown>): Promise<Item[]>
+```
+
+The body is required when `requestBody.required` is true. JSON bodies (`application/json`, `+json`) keep properties the schema does not require optional via `PartialBy<Item, 'id'>`; `multipart/form-data` → `FormData`, `application/x-www-form-urlencoded` → `URLSearchParams`, `text/*` → `string`, anything else → `BodyInit`. Cookie parameters are left out with a warning. Parameter descriptions become `@param` tags; a primitive enum is the union of its literals.
 
 The return type comes from the first success response (`200`, else the lowest other 2xx); any JSON media type (`+json`, with a charset) is typed, `text/*` returns `Promise<string>`. Operations without an operationId or tag are skipped with a warning; tags that name the same client get a numbered class with a warning; a name two packages export is left out of their common index with a warning.
 
