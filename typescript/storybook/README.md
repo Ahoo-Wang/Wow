@@ -6,7 +6,7 @@ Storybook 是可运行的接入文档，也承载浏览器交互回归。导航�
 
 - `*.stories.tsx`：展示组件、初始参数、说明和可手动操作的场景。允许初始化读取和无副作用的渲染断言。
 - `*.test.stories.tsx`：导入展示故事，复用参数和演示实现，安装复杂 `play`。使用 `['!dev', '!autodocs', 'test']`，保留测试执行并隐藏默认导航与文档入口。
-- `*.play.ts`：较长交互的具名实现，就近维护。不要求为简单断言单独建文件。
+- `*.play.ts`：较长交互需要单独成文件时的具名实现，就近维护（目前没有这样的文件，`play` 都写在孪生故事里）。不要求为简单断言单独建文件。
 - `shared/`：只有真实复用的场景外壳（View Engine 全部场景的宿主应用外壳 `AppShell`，其余包的文档场景外壳 `ScenarioFrame`）和 Ant Design Provider。模块显式声明装饰器，不通过故事标题选择 Provider。
 
 普通展示不能依赖自动测试来创建初始数据或完成异步请求。打开页面后，筛选、保存、创建和删除均由使用者触发。
@@ -25,10 +25,10 @@ View Engine 的故事在 `view-engine/`，按界面分为数据视图、分析�
 
 View Engine 的每个场景都放在宿主应用里评判：`shared/AppShell.tsx` 画出宿主自己的顶部导航与左侧应用导航（可折成图标），视图引擎只是中间那一块——真实产品里它从来不是一整屏，只对着白底或文档框评判它的观感是对错了地方。外壳是宿主的标记，经 `fve-tokens` 读主题 token（D17-10），明暗两套随之成立。
 
-- **导航**第一项是单独的「首页」（不在任何分组下，宿主打开时就在那一页），其后按目录分组列出其余 View Engine 场景：真实后端（每个服务一组——补偿、客户、交易订单、商品定价——各有快照控制台与事件流分析台）、数据视图（Record 工作台、嵌入视图、筛选编辑器）、分析视图（分析工作台）、仪表盘视图（仪表盘）。每项链接到该场景的第一个故事，当前场景标 `aria-current="page"`；图标与工作台里视图种类的图标一致（`ui/kinds.ts`）。链接写成 `./?path=/story/<id>`（`target="_top"`）：锚点在 `iframe.html` 里，它所在的目录就是 Storybook 的根——本地是 `/`，GitHub Pages 上是 `/storybook/`——写成 `/?path=` 会在 Pages 上跳出 Storybook。
-- **首页**（`view-engine/Home.stories.tsx`，目录里 View Engine 下的第一项）是宿主应用的落地页：宿主只画日期、「运营概览」标题与一句说明，下面整块是 `EmbeddedView` 嵌入的仪表盘——补偿服务执行失败的三个计数、本月每日新增、状态分布、最近的活动失败与失败最多的处理器。仪表盘是 `home` 定义在代码里的系统视图，面板引用运营组共享的视图与快照控制台自己的「按状态分布」（`view-engine/home.ts`）。宿主不另画数字卡片：那些数字是同一份数据上的计数，是仪表盘的指标面板。「示例数据」用 `rowSource` 在内存里应答一组按序号生成的执行，时钟与时区钉在 2026-09-22 10:00 Asia/Shanghai，回归孪生 `Home.test.stories.tsx` 断言每个面板的数字与页面不横向滚动；「真实后端」连 `host`，标 `!test`。
+- **导航**第一项是单独的「首页」（不在任何分组下，宿主打开时就在那一页），其后按目录分组列出其余 View Engine 场景：真实后端（每个服务一组——补偿、客户、交易订单、商品定价——各有快照控制台与事件流分析台）、数据视图（Record 工作台、嵌入视图、筛选编辑器）、分析视图（分析工作台）、仪表盘视图（仪表盘、嵌入仪表盘）。每项链接到该场景的第一个故事，当前场景标 `aria-current="page"`；图标与工作台里视图种类的图标一致（`ui/kinds.ts`）。链接写成 `./?path=/story/<id>`（`target="_top"`）：锚点在 `iframe.html` 里，它所在的目录就是 Storybook 的根——本地是 `/`，GitHub Pages 上是 `/storybook/`——写成 `/?path=` 会在 Pages 上跳出 Storybook。
+- **首页**（`view-engine/Home.stories.tsx`，目录里 View Engine 下的第一项）是宿主应用的落地页：宿主只画日期、「运营概览」标题与一句说明，下面整块是 `EmbeddedDashboard` 嵌入的仪表盘（可编辑一档，右上角「编辑」就地搭板）——补偿服务执行失败的三个计数、本月每日新增、状态分布、最近的活动失败与失败最多的处理器。仪表盘是 `home` 定义在代码里的系统视图，面板引用运营组共享的视图与快照控制台自己的「按状态分布」（`view-engine/home.ts`）。宿主不另画数字卡片：那些数字是同一份数据上的计数，是仪表盘的指标面板。「示例数据」用 `rowSource` 在内存里应答一组按序号生成的执行，时钟与时区钉在 2026-09-22 10:00 Asia/Shanghai，回归孪生 `Home.test.stories.tsx` 断言每个面板的数字与页面不横向滚动；「真实后端」连 `host`，标 `!test`。
 - **「服务」一行与环境标记**说的是场景真实连接的东西：真实后端写 `host` 并标「测试环境」，夹具场景写各自的数据源（如「内存 ViewStore · 六条订单」）并标「示例数据」。不放假条目。
-- **页面区有确定的高度**，像宿主的内容区一样：工作台填满这个高度（包里只有一种高度布局：永远填满容器，容器没高度时停在 36rem 保底），页脚（合计与分页）贴在底边；比页面区高的内容在页面区里滚动，顶栏不随之滚走。首页、嵌入视图（一张客户详情页）和筛选编辑器用 `padded`，得到宿主给页面的留白。
+- **页面区有确定的高度**，像宿主的内容区一样：工作台填满这个高度（包里只有一种高度布局：永远填满容器，容器没高度时停在 36rem 保底），页脚（合计与分页）贴在底边；比页面区高的内容在页面区里滚动，顶栏不随之滚走。首页、嵌入视图、嵌入仪表盘（一张客户详情页）和筛选编辑器用 `padded`，得到宿主给页面的留白。
 - 全部场景 `layout: 'fullscreen'`。场景说明——领域、摘要、数据源、准备、操作、观察——写在文档页（`parameters.docs.description.component`），不再压在画布上方。回归孪生显式写 `parameters: { ...displayMeta.parameters }`：Storybook 会把孪生文件自己的注释写进其 meta 的 `parameters`，只靠展开会被整个替换，全屏布局随之丢失。
 - 专门验证「容器没高度」的回归故事自己把工作台放进按内容定高的外层（`HeldAtItsFloor`：停在保底高度、页脚仍贴底），不借外壳的高度。
 - 其余包（`http/`、`events/`、`react/`、`storage/`）的故事是接入文档，仍用 `ScenarioFrame`：标题、摘要、夹具与 Setup／Action／Observe 三格。
@@ -69,20 +69,71 @@ View Engine 的每个场景都放在宿主应用里评判：`shared/AppShell.tsx
   | 交易订单    | `STORYBOOK_WOW_TRADING_HOST`      | `http://localhost:8088` | `http://trading-service.dev.svc.cluster.local`      |
   | 商品定价    | `STORYBOOK_WOW_PRICING_HOST`      | `http://localhost:8089` | `http://pricing-service.dev.svc.cluster.local`      |
 
+- **在本机跑起来**：先把开发集群的四个服务转发到上表的端口（集群内地址不带端口，即服务的 80 端口；需要能访问 `dev` 命名空间的 kubeconfig），每条一个终端、一直开着：
+
+  ```bash
+  kubectl -n dev port-forward svc/compensation-service 8080:80
+  kubectl -n dev port-forward svc/crm-service 8085:80
+  kubectl -n dev port-forward svc/trading-service 8088:80
+  kubectl -n dev port-forward svc/pricing-service 8089:80
+  ```
+
+  再在仓库根运行 `pnpm storybook`（`http://localhost:6006`），打开导航里「真实后端 · …」的场景。只看其中一个服务，就只转发那一个；服务在别处时，启动前设环境变量（如 `STORYBOOK_WOW_CRM_HOST=http://127.0.0.1:9085 pnpm storybook`），或打开后在 Controls 面板改 `host`。场景连不上时画的是查询失败，不是空结果——先看端口转发是否还活着。
+
 - 补偿快照控制台的写操作会真实写回服务，只连接测试环境；客户、交易订单与商品定价只读，不发命令。
 - 真实数据每次都不同，这些故事标记为 `!test`，不进入回归测试；文档页用 `docs.autoMount: false` 只列出场景链接，不挂载示例，因此打开目录不会调用服务。
 - 变的只是数据；定义、系统视图和读取数据的方式是确定的，View Engine 的规则一变就可能让它们失效。每个场景都有一个回归孪生故事（`*.test.stories.tsx`），指向录制服务：`recordedWowService.ts` 用 `rowSource` 按服务的方式应答一个查询资源的 `paged`／`cursor`／`aggregation`（包括元素展开）。`compensationService.ts` 录了几条快照，并按服务的规则应答三条补偿命令；`eventStreamService.ts` 录了几条事件流。客户、交易订单与商品定价各有自己的录制服务（`customerService.ts`、`tradeOrderService.ts`、`productPricingService.ts`），录了快照与事件流各几条；录制服务按服务的方式计算去重计数（`DISTINCT_COUNT`，由 `rowSource` 应答）。这类失效因此在 CI 里暴露，不必等有人打开目录才发现。
 
-## 检查命令
+## 本地门禁
+
+合并前在本机跑齐下面每一条，**每条单独看退出码**（`命令 > 日志 2>&1; echo "名字 exit $?"`），全部为 0 才算过——`pnpm test` 末尾还有一段 `test:type`，只 grep 测试摘要会漏掉它的失败。View Engine 包自己的约定见 [`packages/view-engine/docs/design/README.md`](../packages/view-engine/docs/design/README.md#本地门禁)。
+
+**0. 先构建依赖（新 worktree 必做一次）。** 各包之间按 `dist/` 互相引用，没构建时 vitest 报 `Failed to resolve import "@ahoo-wang/fetcher-wow"`，`typecheck:stories` 找不到类型声明：
 
 ```bash
-pnpm test:storybook
-pnpm build-storybook
-pnpm lint:stories
-pnpm typecheck:stories
+pnpm install
+pnpm -r --filter './packages/*' build
 ```
 
-`build-storybook` 包含静态索引检查：验证首页地址与回归标签。`typecheck:stories` 按应用看到的方式检查故事：对照各包构建出的类型声明，因此先运行 `pnpm -r --filter './packages/*' build`。
+**1. 改动所在的包**（以 `packages/view-engine` 为例，在包目录里运行）：
+
+```bash
+pnpm lint:check   # eslint，--max-warnings 0
+pnpm test         # vitest + 覆盖率阈值，然后 test:type（三个 tsc 工程）
+pnpm build        # vite build，然后 test:package 检查构建产物
+```
+
+覆盖率阈值写在包的 `vitest.config.ts`，不达标时 `pnpm test` 非零退出，即使每个用例都绿。仓库根的 `pnpm build`（`pnpm -r build`）还会构建 `wiki`，它的 `prebuild` 重写受版本控制的 `wiki/llms-full.txt`；这不是改动的一部分时用 `git checkout -- wiki/llms-full.txt` 还原再提交。
+
+**2. 仓库根的故事门禁：**
+
+```bash
+pnpm lint:stories
+pnpm typecheck:stories   # 对照第 0 步构建出的类型声明
+PLAYWRIGHT_BROWSERS_PATH=$HOME/Library/Caches/ms-playwright-user pnpm test:storybook
+```
+
+`test:storybook` 在无头 Chromium 里跑每个 `*.test.stories.tsx` 的 `play`（`vitest.config.ts` 的 `storybook` 工程，`@vitest/browser-playwright`）。它要的 Chromium 版本跟随 `playwright` 的版本；默认缓存 `~/Library/Caches/ms-playwright` 可能是旧版本，也可能归 root 所有、装不进新版本，此时测试一启动就报找不到浏览器。办法是把 Chromium 装进一个自己拥有的目录，之后每次运行都用同一个 `PLAYWRIGHT_BROWSERS_PATH` 指向它：
+
+```bash
+PLAYWRIGHT_BROWSERS_PATH=$HOME/Library/Caches/ms-playwright-user pnpm exec playwright install chromium
+```
+
+机器同时跑多组测试时给 vitest 限并发，例如 `pnpm test:storybook --maxWorkers=3`（包里的 `pnpm test` 同理拆成 `pnpm exec vitest run --coverage --maxWorkers=3` 加 `pnpm test:type`，两个退出码都要看）；某个故事因超时失败，先单独重跑那一个文件再判断是不是真失败。
+
+**3. 格式：** 对每个改动过的文件跑 `prettier --check`，失败时 `--write` 后再查一遍。仓库根没有 `prettier` 的可执行入口（它是各包的开发依赖，版本在 `pnpm-workspace.yaml` 的 catalog 里），在根目录直接用 pnpm 存储里的那份，路径里的版本号按 catalog 填：
+
+```bash
+git diff --name-only --diff-filter=d origin/main... | xargs node node_modules/.pnpm/prettier@3.9.9/node_modules/prettier/bin/prettier.cjs --check
+```
+
+**4. 静态 Storybook（改了导航、故事 id 或标签时）：**
+
+```bash
+pnpm build-storybook
+```
+
+`build-storybook` 包含静态索引检查：验证首页地址与回归标签。
 
 先运行 `pnpm storybook`，再运行以下真实浏览器检查；使用独立的无头浏览器：
 

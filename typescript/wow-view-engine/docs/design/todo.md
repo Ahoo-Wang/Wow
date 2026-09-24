@@ -43,7 +43,7 @@ ECharts 迁移（D21）与两份「数据分析师视角」审查的 P0 已全�
   - 判据：行为不变的重构由现有测试守住，新缺陷各有测试；`max-lines` 豁免表仍为空。落点：`src/runtime/`、`src/dashboard/`、`src/ui/`。
 - **R4 测试**：Q-04 两个对话框覆盖缺口（`PresentationDialog` 分支 62.7%、`NewAnalysisDialog` 69%）；Q-15 测试卫生（14 份 `flush`、真实等待、过期注释、可编辑档嵌入缺浏览器故事）。
   - 落点：`test/`、`stories/view-engine/`。
-- **R5 措辞与文档**：X-03 仪表盘筛选发现说程序键（`filter-1`）；X-08 一词多义（「筛选 ▾」→「添加筛选」、「分节标题」「笔记」统一、「板／仪表盘」）；X-09 两个「撤销」；X-05 接手者要的门禁全集、Playwright 缓存路径、真实后端运行方法写进仓库（`stories/README.md` 也过期）；X-06 本页与 [ui/dashboard.md](ui/dashboard.md) 的过期项与顺序行；X-07 README 入口表与迁移段落；X-11 D22 的「固定宽度／全宽」等补进 todo；X-12、X-13、X-16、Q-16、A-19 文档漂移与守护缺口；A-16 公开面快照（首发前必做，可在 Wow 做）。
+- **R5 措辞与文档**：X-03 仪表盘筛选发现说程序键（`filter-1`）；X-08 一词多义（「筛选 ▾」→「添加筛选」、「分节标题」「笔记」统一、「板／仪表盘」）；X-09 两个「撤销」；X-06 本页与 [ui/dashboard.md](ui/dashboard.md) 的过期项与顺序行；X-07 README 入口表与迁移段落；X-11 D22 的「固定宽度／全宽」等补进 todo；X-12、X-13、X-16、Q-16、A-19 文档漂移与守护缺口；A-16 公开面快照（首发前必做，可在 Wow 做）。
   - 落点：`docs/design/`、`README*.md`、`AGENTS.md`、`test/docsReferences.test.ts`。
 
 ## 检查点：迁往 Wow 仓（阶段 3、4 收口之后）

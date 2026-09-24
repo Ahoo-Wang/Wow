@@ -100,6 +100,16 @@ src/
 
 不再维护不变量索引。一条规则若值得存在，它是一个测试。
 
+### 本地门禁
+
+合并前在本机跑齐，每条单独看退出码，全部为 0 才算过；命令、顺序与环境的全文在仓库的 [stories/README.md「本地门禁」](../../../../stories/README.md#本地门禁)，真实后端场景怎样在本机连上服务在同一页「真实后端」。这里只记本包的部分：
+
+- 新 worktree 先在仓库根 `pnpm -r --filter './packages/*' build`：本包的测试与构建按 `dist/` 引用 wow 等依赖；
+- 包目录里三条：`pnpm lint:check`、`pnpm test`（vitest 加覆盖率阈值——阈值在本包的 `vitest.config.ts`，不达标即非零退出，哪怕每个用例都绿——然后 `test:type` 的三个 tsc 工程）、`pnpm build`（vite build 后 `test:package` 检查产物）；
+- 仓库根三条：`pnpm lint:stories`、`pnpm typecheck:stories`、`pnpm test:storybook`——最后一条带 `PLAYWRIGHT_BROWSERS_PATH=$HOME/Library/Caches/ms-playwright-user`，Chromium 装在自己拥有的目录里（默认缓存可能是旧版本或归 root 所有，做法见上面那页）；
+- 改动过的每个文件 `prettier --check`；
+- 根目录 `pnpm build` 会经 wiki 的 `prebuild` 重写 `wiki/llms-full.txt`，不是改动的一部分就还原。
+
 ## 交付顺序与搬迁规则
 
 自下而上，每步独立 PR、独立可用：
