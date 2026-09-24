@@ -30,6 +30,9 @@ on:
       - 'config/**'
       - 'wow-*/**'
       - 'compensation/dashboard/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
       - 'compensation/wow-compensation-api/**'
       - 'compensation/wow-compensation-core/**'
       - 'compensation/wow-compensation-domain/**'
@@ -60,15 +63,12 @@ jobs:
         with:
           node-version: 24.21.0
           cache: 'pnpm'
-          cache-dependency-path: compensation/dashboard/pnpm-lock.yaml
 
       - name: Install Packages
-        working-directory: compensation/dashboard
-        run: pnpm install
+        run: pnpm install --frozen-lockfile --filter wow-compensation-dashboard...
 
       - name: Build Dashboard-UI
-        working-directory: compensation/dashboard
-        run: pnpm build
+        run: pnpm --filter wow-compensation-dashboard... build
 
       - name: Test Dashboard-UI
         working-directory: compensation/dashboard

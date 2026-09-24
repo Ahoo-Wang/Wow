@@ -1,0 +1,23 @@
+# Prettier owns the TypeScript toolchain only. Kotlin, Gradle, Markdown and YAML
+# elsewhere in the repository, the compensation dashboard (double quotes) and the
+# documentation site (four-space indent) keep their own styles, so everything is
+# ignored except the paths re-included below.
+/*
+!/typescript/
+!/package.json
+!/pnpm-workspace.yaml
+!/tsconfig.base.json
+!/eslint.config.js
+!/.prettierrc
+!/.github/
+/.github/*
+!/.github/scripts/
+/.github/scripts/*
+!/.github/scripts/*.mjs
+!/.github/workflows/
+/.github/workflows/*
+!/.github/workflows/typescript*.yml
+
+node_modules/
+dist/
+coverage/

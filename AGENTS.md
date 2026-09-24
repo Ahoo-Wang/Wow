@@ -31,11 +31,16 @@ Choose the matching service command:
 ./gradlew :wow-compensation-server:run
 ```
 
+JavaScript projects share one pnpm workspace rooted at the repository root (`package.json`, `pnpm-workspace.yaml`, one `pnpm-lock.yaml`). Install once from the root; TypeScript packages under `typescript/` follow [typescript/AGENTS.md](typescript/AGENTS.md).
+
+```bash
+pnpm install
+```
+
 Compensation dashboard:
 
 ```bash
 cd compensation/dashboard
-pnpm install
 pnpm dev
 pnpm test
 pnpm lint
@@ -47,7 +52,6 @@ Documentation site:
 
 ```bash
 cd documentation
-pnpm install
 pnpm docs:dev
 pnpm docs:build
 pnpm docs:preview
@@ -120,6 +124,7 @@ wow-models/                 Shared model helpers
 wow-bom/, wow-dependencies/ BOM and centralized dependency versions
 test/                       wow-test DSL, TCK, mocks, integration tests, coverage report
 compensation/               Compensation domain, API, core, server, and React dashboard
+typescript/                 TypeScript client packages moving in from fetcher; see typescript/AGENTS.md
 example/                    Kotlin order/cart sample and Java transfer sample
 documentation/              VitePress documentation site
 document/                   Design docs, diagrams, and static assets
@@ -161,7 +166,7 @@ interface CommandBus :
 }
 ```
 
-Dashboard code uses React, TypeScript, Vite, shadcn/Base UI, Tailwind CSS, React Router, Vitest, and ESLint. Reuse components under `compensation/dashboard/src/components/ui/`; use `compensation/dashboard/package.json` for dependency versions and `compensation/dashboard/components.json` for shadcn configuration. Fetcher clients are generated under `compensation/dashboard/src/generated/`. Do not hand-edit generated client files unless the generator input is unavailable and the user accepts that tradeoff.
+Dashboard code uses React, TypeScript, Vite, shadcn/Base UI, Tailwind CSS, React Router, Vitest, and ESLint. Reuse components under `compensation/dashboard/src/components/ui/`; dependency versions live in the `catalog` of the root `pnpm-workspace.yaml`; use `compensation/dashboard/package.json` for the dependency list and `compensation/dashboard/components.json` for shadcn configuration. Fetcher clients are generated under `compensation/dashboard/src/generated/`. Do not hand-edit generated client files unless the generator input is unavailable and the user accepts that tradeoff.
 
 ## Version Management
 
@@ -178,6 +183,7 @@ GitHub Actions run module-level checks from `.github/workflows/`:
 - `example-java-test.yml` builds the Java transfer example modules.
 - `codecov.yml` publishes coverage.
 - `documentation-deploy.yml`, `example-deploy.yml`, and `compensation-deploy.yml` deploy docs and sample apps.
+- `typescript.yml` runs on every pull request; its scope job decides which TypeScript jobs run, and `typescript-gate` is the merge signal for JavaScript changes. `dashboard-test.yml` checks the compensation dashboard.
 - `package-deploy.yml` publishes to GitHub Packages and Maven Central when a GitHub Release is created or the workflow is manually dispatched.
 
 Before changing release or publish behavior, inspect the workflow and Gradle publishing configuration together.
@@ -206,4 +212,4 @@ Before changing release or publish behavior, inspect the workflow and Gradle pub
 - Diagram sources Mermaid cannot express: `documentation/diagrams/`
 - `document/` and tracked `docs/superpowers/` are legacy migration sources; do not add new files there.
 - Prefer Mermaid source (`.mmd` or fenced `mermaid`) for every diagram Mermaid supports; do not commit a generated SVG beside it. Use PlantUML only for unsupported diagram kinds such as use case diagrams.
-- Project-local skills: `skills/`
+- Project-local skills: `skills/`; vendored Claude Code skills (shadcn): `.claude/skills/`
