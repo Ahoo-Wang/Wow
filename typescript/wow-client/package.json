@@ -17,7 +17,7 @@
   "homepage": "https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-client",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Ahoo-Wang/Wow.git",
+    "url": "git+https://github.com/Ahoo-Wang/Wow.git",
     "directory": "typescript/wow-client"
   },
   "bugs": {
@@ -25,27 +25,43 @@
   },
   "type": "module",
   "engines": {
-    "node": ">=18.20.8"
+    "node": ">=22.12.0"
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.es.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.es.js",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.es.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./query/locale/zh_CN": {
-      "types": "./dist/query/locale/zh_CN.d.ts",
-      "import": "./dist/query/locale/zh_CN.es.js",
-      "require": "./dist/query/locale/zh_CN.cjs"
+      "import": {
+        "types": "./dist/query/locale/zh_CN.d.ts",
+        "default": "./dist/query/locale/zh_CN.es.js"
+      },
+      "require": {
+        "types": "./dist/query/locale/zh_CN.d.cts",
+        "default": "./dist/query/locale/zh_CN.cjs"
+      }
     },
     "./query/locale/en_US": {
-      "types": "./dist/query/locale/en_US.d.ts",
-      "import": "./dist/query/locale/en_US.es.js",
-      "require": "./dist/query/locale/en_US.cjs"
-    }
+      "import": {
+        "types": "./dist/query/locale/en_US.d.ts",
+        "default": "./dist/query/locale/en_US.es.js"
+      },
+      "require": {
+        "types": "./dist/query/locale/en_US.d.cts",
+        "default": "./dist/query/locale/en_US.cjs"
+      }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist"
@@ -62,9 +78,9 @@
     "test:no-coverage": "vitest run --coverage.enabled=false && pnpm test:type"
   },
   "peerDependencies": {
-    "@ahoo-wang/fetcher": "catalog:",
-    "@ahoo-wang/fetcher-decorator": "catalog:",
-    "@ahoo-wang/fetcher-eventstream": "catalog:"
+    "@ahoo-wang/fetcher": "catalog:peers",
+    "@ahoo-wang/fetcher-decorator": "catalog:peers",
+    "@ahoo-wang/fetcher-eventstream": "catalog:peers"
   },
   "devDependencies": {
     "@ahoo-wang/fetcher": "catalog:",

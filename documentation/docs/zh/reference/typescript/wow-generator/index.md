@@ -13,7 +13,7 @@ description: 'Generator 参考 — @ahoo-wang/wow-generator'
 pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-openapi @ahoo-wang/wow-client typescript
 ```
 
-包自身声明 Node **>=18.20.8**，但 CLI 依赖 commander 14 要求 Node **>=20**。此工具链使用 Node **>=22.12.0**；仓库开发另固定 pnpm **10.34.5**。命令包含全部递归 peer（wow-generator → wow-client/Decorator/EventStream/OpenAPI → Fetcher）及下文使用的编译器。ts-morph、commander、yaml 作为普通依赖自动安装。这些是生成阶段依赖；消费应用需把生成客户端导入的包作为运行时依赖安装，见[生成产物](./generated-output.md)。
+包要求 Node **>=22.12.0**；仓库开发另固定 pnpm **10.34.5**。命令包含全部递归 peer（wow-generator → wow-client/Decorator/EventStream/OpenAPI → Fetcher）及下文使用的编译器。ts-morph、commander、yaml 作为普通依赖自动安装。这些是生成阶段依赖；消费应用需把生成客户端导入的包作为运行时依赖安装，见[生成产物](./generated-output.md)。
 
 包版本跟随 Wow，`@ahoo-wang/wow-client` 必须处于同一个小版本。从 `@ahoo-wang/fetcher-generator` 迁移过来？命令已改为 `wow-generator`，`fetcher-generator` 作为别名保留到 v10；生成的代码改为导入 `@ahoo-wang/wow-client`，因此需要重新生成已有产物，见[迁移指南](../../../guide/typescript/migration.md)。
 

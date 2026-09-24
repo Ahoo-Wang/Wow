@@ -8,7 +8,7 @@
   "homepage": "https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Ahoo-Wang/Wow.git",
+    "url": "git+https://github.com/Ahoo-Wang/Wow.git",
     "directory": "typescript/wow-view-engine"
   },
   "bugs": {
@@ -74,8 +74,8 @@
   },
   "peerDependencies": {
     "@ahoo-wang/wow-client": "workspace:~",
-    "react": "catalog:",
-    "react-dom": "catalog:"
+    "react": "catalog:peers",
+    "react-dom": "catalog:peers"
   },
   "peerDependenciesMeta": {
     "react": {
