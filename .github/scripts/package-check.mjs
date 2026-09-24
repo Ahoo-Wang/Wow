@@ -15,8 +15,6 @@ import {
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { publint } from 'publint';
-import { formatMessage } from 'publint/utils';
 import { ROOT, readProjectVersion } from './project-version.mjs';
 import {
   HELD_BACK,
@@ -176,6 +174,10 @@ function checkManifests() {
 }
 
 async function checkPublint(tarballs) {
+  // Imported here, not at the top: quality runs the CI script tests, which
+  // import this module, before it installs dependencies.
+  const { publint } = await import('publint');
+  const { formatMessage } = await import('publint/utils');
   const problems = [];
   for (const tarball of tarballs) {
     const { messages, pkg } = await publint({
