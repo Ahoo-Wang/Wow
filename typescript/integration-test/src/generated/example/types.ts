@@ -1,24 +1,6 @@
 /**
- * - key: example.ApiVersion
- * - schema:
- * ```json
- * {
- *   "type": "string",
- *   "enum": [
- *     "V2",
- *     "V3"
- *   ]
- * }
- * ```
- */
-export enum ApiVersion {
-  V2 = `V2`,
-  V3 = `V3`,
-}
-
-/**
  * - key: example.Link
- * - schema:
+ * - schema: 
  * ```json
  * {
  *   "type": "object",
@@ -34,23 +16,13 @@ export enum ApiVersion {
  * ```
  */
 export interface Link {
-  href: string;
-  templated: boolean;
+    href: string;
+    templated: boolean;
 }
 
 /**
- * - key: example.SecurityContext
- * - schema:
- * ```json
- * {
- *   "type": "object"
- * }
- * ```
- */
-export type SecurityContext = Record<string, any>;
-/**
  * - key: example.StringLinkMap
- * - schema:
+ * - schema: 
  * ```json
  * {
  *   "type": "object",
@@ -60,32 +32,66 @@ export type SecurityContext = Record<string, any>;
  * }
  * ```
  */
-export type StringLinkMap = Record<string, Link>;
+export type StringLinkMap = globalThis.Record<string, Link>;
+/**
+ * - key: example.JsonNode
+ * - schema: 
+ * ```json
+ * {}
+ * ```
+ */
+export type JsonNode = any;
 /**
  * - key: example.StringObjectMap
- * - schema:
+ * - schema: 
  * ```json
  * {
  *   "type": "object"
  * }
  * ```
  */
-export type StringObjectMap = Record<string, any>;
-
+export type StringObjectMap = globalThis.Record<string, any>;
 /**
- * - key: example.WebServerNamespace
- * - schema:
+ * - key: example.StringStringListMap
+ * - schema: 
  * ```json
  * {
  *   "type": "object",
- *   "properties": {
- *     "value": {
+ *   "additionalProperties": {
+ *     "type": "array",
+ *     "items": {
  *       "type": "string"
  *     }
  *   }
  * }
  * ```
  */
-export interface WebServerNamespace {
-  value: string;
+export type StringStringListMap = globalThis.Record<string, string[]>;
+
+/**
+ * - key: example.TimeUnit
+ * - schema: 
+ * ```json
+ * {
+ *   "type": "string",
+ *   "enum": [
+ *     "NANOSECONDS",
+ *     "MICROSECONDS",
+ *     "MILLISECONDS",
+ *     "SECONDS",
+ *     "MINUTES",
+ *     "HOURS",
+ *     "DAYS"
+ *   ]
+ * }
+ * ```
+ */
+export enum TimeUnit {
+    NANOSECONDS = 'NANOSECONDS',
+    MICROSECONDS = 'MICROSECONDS',
+    MILLISECONDS = 'MILLISECONDS',
+    SECONDS = 'SECONDS',
+    MINUTES = 'MINUTES',
+    HOURS = 'HOURS',
+    DAYS = 'DAYS'
 }
