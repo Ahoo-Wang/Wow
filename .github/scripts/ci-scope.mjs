@@ -34,12 +34,13 @@ const RULES = [
     /^typescript\/(?:wow-generator|integration-test)\//,
     [TYPESCRIPT, CONTRACT, LEGACY_CONTRACT],
   ],
+  // The documentation site embeds the Storybook these render.
   [
     /^typescript\/(?:wow-react|wow-view-engine)\//,
-    [TYPESCRIPT, VIEW_ENGINE, STORYBOOK],
+    [TYPESCRIPT, VIEW_ENGINE, STORYBOOK, DOCS],
   ],
   // The static checks lint the stories and check their formatting.
-  [/^typescript\/storybook\//, [TYPESCRIPT, STORYBOOK]],
+  [/^typescript\/storybook\//, [TYPESCRIPT, STORYBOOK, DOCS]],
   // Prose next to the TypeScript packages (the migration plan, AGENTS.md).
   [/^typescript\/[^/]+\.md$/, []],
   [/^typescript\//, [TYPESCRIPT]],

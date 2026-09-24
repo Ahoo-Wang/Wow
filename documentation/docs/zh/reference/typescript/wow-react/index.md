@@ -716,4 +716,4 @@ export interface UseSingleQueryReturn<
 
 ## 相关专题
 
-[Fetcher 请求 Hook](https://fetcher.ahoo.me/zh/reference/react/fetcher-hooks) · [Promise 与查询状态](https://fetcher.ahoo.me/zh/reference/react/promise-and-query-state) · [快照查询](../wow-client/snapshot-queries) · [过滤表达式](../wow-client/filters) · [投影、排序与分页](../wow-client/query-options)
+[Fetcher 请求 Hook](https://fetcher.ahoo.me/zh/reference/react/fetcher-hooks) · [Promise 与查询状态](https://fetcher.ahoo.me/zh/reference/react/promise-and-query-state) · [快照查询](../wow-client/snapshot-queries) · [过滤表达式](../wow-client/filters) · [投影、排序与分页](../wow-client/query-options) · [Storybook：Wow 查询 Hook](/storybook/?path=/docs/react-hooks-wow-queries--docs)

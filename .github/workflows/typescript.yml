@@ -273,6 +273,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Build VitePress site
         run: pnpm --filter documentation docs:build
+      # Storybook lands in dist/storybook after VitePress, as on the deployed
+      # site, so the tests below check every story link against its index.json.
+      - name: Build Storybook into the site
+        run: pnpm --filter documentation storybook:build
       - name: Test built site
         run: node --test documentation/test/*.test.mjs
 

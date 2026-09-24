@@ -94,7 +94,7 @@ test('the client, generator, integration tests and contract workflow run both co
     );
 });
 
-test('view-engine and what it builds on run its suite and the stories', () => {
+test('view-engine and what it builds on run its suite, the stories and the site', () => {
   for (const path of [
     'typescript/wow-react/src/index.ts',
     'typescript/wow-view-engine/src/index.ts',
@@ -104,19 +104,33 @@ test('view-engine and what it builds on run its suite and the stories', () => {
   ])
     assert.deepEqual(
       on([path]),
-      ['typescript', 'viewEngine', 'storybook'],
+      ['typescript', 'docs', 'viewEngine', 'storybook'],
       path,
     );
 });
 
-test('the stories run Storybook and the static checks only', () => {
+test('the stories run Storybook, the static checks and the site', () => {
   for (const path of [
     'typescript/storybook/stories/view-engine/Home.stories.tsx',
     'typescript/storybook/.storybook/main.ts',
     'typescript/storybook/package.json',
     'typescript/storybook/README.md',
   ])
-    assert.deepEqual(on([path]), ['typescript', 'storybook'], path);
+    assert.deepEqual(on([path]), ['typescript', 'docs', 'storybook'], path);
+});
+
+test('Storybook and the packages it renders also build the site', () => {
+  for (const path of [
+    'typescript/storybook/stories/react/WowQueryHooks.stories.tsx',
+    'typescript/wow-view-engine/src/index.ts',
+    'typescript/wow-react/src/index.ts',
+  ])
+    assert.ok(scopes([path]).docs, path);
+  for (const path of [
+    'typescript/wow-generator/src/cli.ts',
+    'typescript/integration-test/src/generated/index.ts',
+  ])
+    assert.ok(!scopes([path]).docs, path);
 });
 
 test('Kotlin, Gradle, dashboard and prose changes skip the TypeScript workflows', () => {
@@ -150,11 +164,11 @@ test('isolated changes retain their relevant validation', () => {
   );
   assert.deepEqual(
     on(['typescript/wow-react/src/index.ts', 'example/README.md']),
-    ['typescript', 'viewEngine', 'storybook', 'contract'],
+    ['typescript', 'docs', 'viewEngine', 'storybook', 'contract'],
   );
   assert.deepEqual(
     on(['typescript/wow-generator/src/cli.ts', 'typescript/storybook/a.ts']),
-    ['typescript', 'storybook', 'contract', 'legacyContract'],
+    ['typescript', 'docs', 'storybook', 'contract', 'legacyContract'],
   );
   assert.ok(all(['README.md', 'pnpm-lock.yaml']));
   assert.ok(all(['wow-core/src/main/kotlin/A.kt', 'new-directory/index.ts']));

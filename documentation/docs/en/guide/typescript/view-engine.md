@@ -125,6 +125,17 @@ A custom layout uses the headless hooks of the `/react` entry, such as `useOpenV
 
 The first complete example walks through the Record workbench: filter pending orders, adjust columns and sorting, save a personal view, and reopen it. It is published together with the package.
 
+## Try it in Storybook
+
+Each view runs in [Storybook](/storybook/) against in-memory fixtures, inside a host application shell. Saving, renaming, and deleting write to a fresh in-memory store on every visit. The scenario notes are written in Chinese.
+
+| View | Storybook |
+|---|---|
+| Record | [Record workbench](/storybook/?path=/docs/view-engine-数据视图-record-工作台--docs) and its [filter editor](/storybook/?path=/docs/view-engine-数据视图-筛选编辑器--docs) |
+| Analysis | [Analysis workbench](/storybook/?path=/docs/view-engine-分析视图-分析工作台--docs) |
+| Dashboard | [Dashboard](/storybook/?path=/docs/view-engine-仪表盘视图-dashboard--docs) |
+| Embedded view or dashboard | [EmbeddedView](/storybook/?path=/docs/view-engine-数据视图-embeddedview--docs) and [EmbeddedDashboard](/storybook/?path=/docs/view-engine-仪表盘视图-embeddeddashboard--docs) |
+
 ## Where to read more
 
 - [wow-view-engine reference](../../reference/typescript/wow-view-engine/): entries, concepts, persistence port, and extension points.

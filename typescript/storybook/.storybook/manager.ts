@@ -17,8 +17,9 @@ import { create } from 'storybook/theming';
 addons.setConfig({
   theme: create({
     base: 'dark',
-    brandTitle: 'Fetcher Scenario Lab',
-    brandUrl: './?path=/docs/overview--docs',
+    brandTitle: 'Wow Storybook',
+    // The documentation site serves Storybook at /storybook/; its root is the site.
+    brandUrl: '../',
     brandTarget: '_self',
     colorPrimary: '#6d5dfc',
     colorSecondary: '#0958d9',
