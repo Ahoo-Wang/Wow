@@ -195,6 +195,36 @@ describe('ViewManager rows', () => {
     expect((await store.get('orders-1')).title).toBe('Mine');
   });
 
+  /**
+   * The rename field is the one every in-place rename uses (Q-10): leaving
+   * it keeps what was typed, as the panel's title and the tab's name do,
+   * and a title left as it was is no rename — nothing is written, no
+   * revision is spent.
+   */
+  it('renames when the field is left, and writes nothing for the same title', async () => {
+    const { engine, store } = setup();
+    const rename = vi.spyOn(store, 'rename');
+    await manage(engine);
+
+    fireEvent.click(
+      within(row('Mine')).getByRole('button', { name: 'Rename' }),
+    );
+    fireEvent.keyDown(within(row('Mine')).getByLabelText(/^Rename /), {
+      key: 'Enter',
+    });
+    expect(within(row('Mine')).queryByLabelText(/^Rename /)).toBeNull();
+    expect(rename).not.toHaveBeenCalled();
+
+    fireEvent.click(
+      within(row('Mine')).getByRole('button', { name: 'Rename' }),
+    );
+    const field = within(row('Mine')).getByLabelText(/^Rename /);
+    fireEvent.change(field, { target: { value: 'Left behind' } });
+    fireEvent.blur(field, { relatedTarget: document.body });
+    await landed(store);
+    expect((await store.get('orders-1')).title).toBe('Left behind');
+  });
+
   it('deletes after a confirmation', async () => {
     const { engine, store } = setup();
     await manage(engine);

@@ -11,11 +11,9 @@
  * limitations under the License.
  */
 
-import type {
-  FilterListQuery,
-  ListQuery,
-  ListQueryRequest,
-} from '@ahoo-wang/wow-client';
+import type { FilterListQuery } from '@ahoo-wang/wow-client';
+// compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
+import type { ListQuery, ListQueryRequest } from '@ahoo-wang/wow-client/legacy';
 import type { FetcherError } from '@ahoo-wang/fetcher';
 import type { UseQueryReturn } from '@ahoo-wang/fetcher-react/core';
 import type { UseFetcherQueryOptions } from '@ahoo-wang/fetcher-react/fetcher';
@@ -33,7 +31,7 @@ export interface UseFetcherListQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends ListQueryRequest<FIELDS> = ListQuery<FIELDS>,
+  Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
 > extends UseFetcherQueryOptions<Q, R[], E> {}
 
 /**
@@ -48,7 +46,7 @@ export interface UseFetcherListQueryReturn<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends ListQueryRequest<FIELDS> = ListQuery<FIELDS>,
+  Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
 > extends UseQueryReturn<Q, R[], E> {}
 
 /**
@@ -67,7 +65,7 @@ export interface UseFetcherListQueryReturn<
  * @example
  * ```typescript
  * import { useFetcherListQuery } from '@ahoo-wang/wow-react';
- * import { listQuery, contains, desc } from '@ahoo-wang/wow-client';
+ * import { listQuery, filter, desc } from '@ahoo-wang/wow-client';
  *
  * interface User {
  *   id: string;
@@ -87,7 +85,7 @@ export interface UseFetcherListQueryReturn<
  *   } = useFetcherListQuery<User, keyof User>({
  *     url: '/api/users/list',
  *     initialQuery: listQuery({
- *       condition: contains('name', 'John'),
+ *       filter: filter.contains('name', 'John'),
  *       sort: [desc('createdAt')],
  *       limit: 10,
  *     }),
@@ -130,20 +128,20 @@ export function useFetcherListQuery<
   FIELDS extends string = string,
   E = FetcherError,
 >(
-  options: UseFetcherListQueryOptions<R, FIELDS, E, ListQuery<FIELDS>>,
-): UseFetcherListQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
-export function useFetcherListQuery<
-  R,
-  FIELDS extends string = string,
-  E = FetcherError,
->(
   options: UseFetcherListQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>,
 ): UseFetcherListQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
 export function useFetcherListQuery<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends ListQueryRequest<FIELDS> = ListQuery<FIELDS>,
+>(
+  options: UseFetcherListQueryOptions<R, FIELDS, E, ListQuery<FIELDS>>,
+): UseFetcherListQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
+export function useFetcherListQuery<
+  R,
+  FIELDS extends string = string,
+  E = FetcherError,
+  Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
 >(
   options: UseFetcherListQueryOptions<R, FIELDS, E, Q>,
 ): UseFetcherListQueryReturn<R, FIELDS, E, Q>;

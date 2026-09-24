@@ -11,12 +11,12 @@
  * limitations under the License.
  */
 
+import type { FilterPagedQuery, PagedList } from '@ahoo-wang/wow-client';
+// compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
 import type {
-  FilterPagedQuery,
-  PagedList,
   PagedQuery,
   PagedQueryRequest,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/legacy';
 import type { FetcherError } from '@ahoo-wang/fetcher';
 import type { UseQueryReturn } from '@ahoo-wang/fetcher-react/core';
 import type { UseFetcherQueryOptions } from '@ahoo-wang/fetcher-react/fetcher';
@@ -36,7 +36,7 @@ export interface UseFetcherPagedQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends PagedQueryRequest<FIELDS> = PagedQuery<FIELDS>,
+  Q extends PagedQueryRequest<FIELDS> = FilterPagedQuery<FIELDS>,
 > extends UseFetcherQueryOptions<Q, PagedList<R>, E> {}
 
 /**
@@ -53,13 +53,13 @@ export interface UseFetcherPagedQueryReturn<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends PagedQueryRequest<FIELDS> = PagedQuery<FIELDS>,
+  Q extends PagedQueryRequest<FIELDS> = FilterPagedQuery<FIELDS>,
 > extends UseQueryReturn<Q, PagedList<R>, E> {}
 
 /**
  * A React hook for performing paged queries using the Fetcher library.
  *
- * This hook is designed for scenarios where you need to retrieve paginated data that matches a query condition.
+ * This hook is designed for scenarios where you need to retrieve paginated data that matches a query filter.
  * It returns a PagedList containing the items for the current page along with pagination metadata such as total count and page information.
  *
  * @template R - The type of the resource or entity contained in each item of the paged list.
@@ -74,7 +74,7 @@ export interface UseFetcherPagedQueryReturn<
  * @example
  * ```typescript
  * import { useFetcherPagedQuery } from '@ahoo-wang/wow-react';
- * import { pagedQuery, contains, pagination, desc } from '@ahoo-wang/wow-client';
+ * import { pagedQuery, filter, pagination, desc } from '@ahoo-wang/wow-client';
  *
  * interface User {
  *   id: number;
@@ -93,7 +93,7 @@ export interface UseFetcherPagedQueryReturn<
  *   } = useFetcherPagedQuery<User, keyof User>({
  *     url: '/api/users/paged',
  *     initialQuery: pagedQuery({
- *       condition: contains('name', 'John'),
+ *       filter: filter.contains('name', 'John'),
  *       sort: [desc('createdAt')],
  *       pagination: pagination({ index: 1, size: 10 })
  *     }),
@@ -142,20 +142,20 @@ export function useFetcherPagedQuery<
   FIELDS extends string = string,
   E = FetcherError,
 >(
-  options: UseFetcherPagedQueryOptions<R, FIELDS, E, PagedQuery<FIELDS>>,
-): UseFetcherPagedQueryReturn<R, FIELDS, E, PagedQuery<FIELDS>>;
-export function useFetcherPagedQuery<
-  R,
-  FIELDS extends string = string,
-  E = FetcherError,
->(
   options: UseFetcherPagedQueryOptions<R, FIELDS, E, FilterPagedQuery<FIELDS>>,
 ): UseFetcherPagedQueryReturn<R, FIELDS, E, FilterPagedQuery<FIELDS>>;
 export function useFetcherPagedQuery<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends PagedQueryRequest<FIELDS> = PagedQuery<FIELDS>,
+>(
+  options: UseFetcherPagedQueryOptions<R, FIELDS, E, PagedQuery<FIELDS>>,
+): UseFetcherPagedQueryReturn<R, FIELDS, E, PagedQuery<FIELDS>>;
+export function useFetcherPagedQuery<
+  R,
+  FIELDS extends string = string,
+  E = FetcherError,
+  Q extends PagedQueryRequest<FIELDS> = FilterPagedQuery<FIELDS>,
 >(
   options: UseFetcherPagedQueryOptions<R, FIELDS, E, Q>,
 ): UseFetcherPagedQueryReturn<R, FIELDS, E, Q>;

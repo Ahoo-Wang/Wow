@@ -13,7 +13,7 @@ Wow 客户端适用于实现 Wow 命令与查询协议的服务。构建器在�
 | -------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | 写入并检查执行阶段   | [CommandClient](./commands#api-CommandClient)                                 | URL 身份、命令体与等待策略；HTTP 成功不等于业务成功。          |
 | 读取当前状态或快照   | [QueryClientFactory](./configuration#api-QueryClientFactory)                  | 区分纯状态与完整快照结果并选择路径。                           |
-| 构造查询而不执行 I/O | [filter](./filters#api-filter) + [pagedQuery](./query-options#api-pagedQuery) | 新 filter/旧 condition 形式不同；list 默认 limit 分别为 0/10。 |
+| 构造查询而不执行 I/O | [filter](./filters#api-filter) + [pagedQuery](./query-options#api-pagedQuery) | `filter` 默认为 `filter.matchAll()`；`listQuery()` 不发送 limit，由服务端使用默认列表条数。Condition 查询从 `/legacy` 导入。 |
 | 遍历变化中的结果集   | [游标查询](./cursor-queries)                                                  | 服务端支持的稳定排序与游标规则。                               |
 | 计算分组结果         | [聚合](./aggregations)                                                        | 指标/分组表达式与服务端能力；构建器不计算结果。                |
 | 读取事件流或历史状态 | [事件与历史](./events-and-history)                                            | 事件信封与状态载荷的区别及流清理。                             |
@@ -24,9 +24,11 @@ Wow 客户端适用于实现 Wow 命令与查询协议的服务。构建器在�
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
 ```
 
-包版本跟随 Wow：`@ahoo-wang/wow-client` x.y.z 与 Wow x.y.z 一起发布。Fetcher 各 peer 依赖的范围是 `^5.1 || ^6`。库包声明 Node >=18.20.8；仓库开发要求 Node >=22.12.0、pnpm 10.34.5。命令安装该包声明的全部 peer 依赖；直接运行依赖自动安装。
+包版本跟随 Wow：`@ahoo-wang/wow-client` x.y.z 与 Wow x.y.z 一起发布。Fetcher 各 peer 依赖的范围是 `^5.1 || ^6`。包要求 Node >=22.12.0，与仓库开发一致；仓库开发另固定 pnpm 10.34.5。命令安装该包声明的全部 peer 依赖；直接运行依赖自动安装。
 
-从 `@ahoo-wang/fetcher-wow` 迁移过来？API 没有变化，按[迁移指南](../../../guide/typescript/migration.md)替换导入即可。
+根入口用 `FilterExpression` 查询，Wow 8.11 及以后的服务端都支持。连接 Wow 8.10 服务端时，已弃用的 `Condition` API、它的查询类型与工厂函数以及操作符文案都从 `@ahoo-wang/wow-client/legacy` 导入；查询客户端两种查询都接受。这个子路径在 v10 删除。
+
+从 `@ahoo-wang/fetcher-wow` 迁移过来？除了 `Condition` API 挪到 `/legacy`，API 没有变化，按[迁移指南](../../../guide/typescript/migration.md)替换导入即可。
 
 ## 核心调用
 

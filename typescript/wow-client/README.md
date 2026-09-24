@@ -39,6 +39,24 @@ const carts = await snapshots.listState(
 );
 ```
 
+## Wow 8.10 servers: `@ahoo-wang/wow-client/legacy`
+
+The root entry speaks only `FilterExpression`, which Wow 8.11 and later
+accept. Wow 8.10 and earlier understand only the deprecated Condition model,
+which this package keeps on its own subpath until v10:
+
+```ts
+import { SnapshotQueryClient } from '@ahoo-wang/wow-client';
+import { and, eq, listQuery, ownerId } from '@ahoo-wang/wow-client/legacy';
+
+const carts = await snapshots.listState(
+  listQuery({ condition: and(ownerId('u-42'), eq('state.status', 'ACTIVE')) }),
+);
+```
+
+The query clients accept both kinds of query. Everything else comes from the
+root entry. The subpath is removed in v10.
+
 ## Core capabilities
 
 - Command results and streaming wait stages.

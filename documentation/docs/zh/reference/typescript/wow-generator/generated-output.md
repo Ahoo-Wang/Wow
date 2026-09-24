@@ -76,6 +76,8 @@ search(@path('item-id') itemId: string, @query('q') q: string,
 - `{ nullable: true, allOf: [{ $ref }] }` 允许 `null`。带 discriminator 的 `oneOf` 按判别属性收窄各分支。以自身为值的 map 生成带索引签名的接口。名为 `Record` 或 `Response` 的模型以别名导入，不会遮蔽全局类型。
 - 空的命令或事件体为 `Record<string, never>`。
 
+Wow 查询 schema 映射为 `@ahoo-wang/wow-client` 的类型。带 `filter` 属性的 `wow.api.query.ListQuery`、`PagedQuery` schema（Wow 8.11 及以后）映射为根入口的 `FilterListQuery`、`FilterPagedQuery`；`wow.api.query.Condition`、`ConditionOptions`、`Operator`，以及不带 `filter` 的 `ListQuery`、`PagedQuery` schema（Wow 8.10）映射为 `@ahoo-wang/wow-client/legacy` 中已弃用的类型，该子路径在 v10 删除。
+
 ## 运行时配置
 
 ```bash

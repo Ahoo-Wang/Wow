@@ -76,6 +76,8 @@ The return type comes from the success response: `200`, else the lowest other 2x
 - `{ nullable: true, allOf: [{ $ref }] }` admits `null`. A `oneOf` with a discriminator narrows each branch by the discriminator property. A map of its own type generates an interface with an index signature. Models named `Record` or `Response` are imported under an alias so they do not shadow the globals.
 - An empty command or event body is `Record<string, never>`.
 
+Wow query schemas map to `@ahoo-wang/wow-client` types. A `wow.api.query.ListQuery` or `PagedQuery` schema with a `filter` property (Wow 8.11 and later) maps to `FilterListQuery` or `FilterPagedQuery` from the root entry. `wow.api.query.Condition`, `ConditionOptions`, and `Operator`, and a `ListQuery` or `PagedQuery` schema without `filter` (Wow 8.10), map to the deprecated types of `@ahoo-wang/wow-client/legacy`, which is removed in v10.
+
 ## Runtime setup
 
 ```bash

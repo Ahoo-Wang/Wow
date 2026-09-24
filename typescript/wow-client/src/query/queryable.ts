@@ -11,258 +11,149 @@
  * limitations under the License.
  */
 
-import { all, type Condition, type ConditionCapable } from './condition.js';
-import type { FilterCapable, FilterExpression } from './filter.js';
+import {
+  filter as filters,
+  type FilterCapable,
+  type FilterExpression,
+} from './filter.js';
 import { type SortCapable } from './sort.js';
 import { DEFAULT_PAGINATION, type Pagination } from './pagination.js';
 import { type ProjectionCapable } from './projection.js';
 
-/**
- * Interface for queryable objects that support conditions, projection, and sorting.
- */
-/** @deprecated Use FilterQueryable instead. Removed in v10. */
-export interface Queryable<FIELDS extends string = string>
-  extends
-    ConditionCapable<FIELDS>,
-    ProjectionCapable<FIELDS>,
-    SortCapable<FIELDS> {}
-
-/** Queryable request using Wow's FilterExpression API. */
+/** A query that filters, projects and sorts with Wow's `FilterExpression`. */
 export interface FilterQueryable<FIELDS extends string = string>
   extends
     FilterCapable<FIELDS>,
     ProjectionCapable<FIELDS>,
     SortCapable<FIELDS> {}
 
-/**
- * Interface for single query objects.
- */
-/** @deprecated Use FilterSingleQuery instead. Removed in v10. */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface SingleQuery<
-  FIELDS extends string = string,
-> extends Queryable<FIELDS> {}
-
+/** The body of a `single` query: the first match of the filter, or nothing. */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface FilterSingleQuery<
   FIELDS extends string = string,
 > extends FilterQueryable<FIELDS> {}
 
-export type SingleQueryRequest<FIELDS extends string = string> =
-  SingleQuery<FIELDS> | FilterSingleQuery<FIELDS>;
-
-type QueryFilterOptions<FIELDS extends string> = {
-  condition?: Condition<FIELDS>;
-  filter?: FilterExpression<FIELDS>;
-};
-
-type FilterQueryOptions<Q extends { filter: unknown }> = Pick<Q, 'filter'> &
-  Partial<Omit<Q, 'filter'>>;
-
-function queryFilter<FIELDS extends string>({
-  condition,
-  filter,
-}: QueryFilterOptions<FIELDS>):
-  ConditionCapable<FIELDS> | FilterCapable<FIELDS> {
-  if (filter === null) {
-    throw new TypeError('filter cannot be null.');
-  }
-  if (filter !== undefined) {
-    return { filter };
-  }
-  if (condition === null) {
-    throw new TypeError('condition cannot be null.');
-  }
-  return { condition: condition === undefined ? all() : condition };
-}
-
-/**
- * Creates a SingleQuery object with the provided parameters.
- *
- * This function is a factory for creating SingleQuery objects, which represent
- * queries that return a single result. It provides default values for optional
- * properties while allowing customization of condition, projection, and sort criteria.
- *
- * @param condition - The query condition. Defaults to an 'all' condition that matches everything.
- * @param projection - The field projection specification. Optional.
- * @param sort - The sort criteria. Optional.
- * @returns A SingleQuery object with the specified parameters
- */
-export function singleQuery<FIELDS extends string = string>(
-  options: FilterQueryOptions<FilterSingleQuery<FIELDS>>,
-): FilterSingleQuery<FIELDS>;
-/** @deprecated Pass filter instead of condition. Removed in v10. */
-export function singleQuery<FIELDS extends string = string>(
-  options?: Partial<SingleQuery<FIELDS>>,
-): SingleQuery<FIELDS>;
-export function singleQuery<FIELDS extends string = string>({
-  condition,
-  filter,
-  projection,
-  sort,
-}: QueryFilterOptions<FIELDS> &
-  Partial<ProjectionCapable<FIELDS> & SortCapable<FIELDS>> = {}):
-  SingleQuery<FIELDS> | FilterSingleQuery<FIELDS> {
-  return {
-    ...queryFilter({ condition, filter }),
-    projection,
-    sort,
-  };
-}
-
-/**
- * Interface for list query objects.
- *
- * Limit the number of results. Default: DEFAULT_PAGINATION.size
- */
-/** @deprecated Use FilterListQuery instead. Removed in v10. */
-export interface ListQuery<
-  FIELDS extends string = string,
-> extends Queryable<FIELDS> {
-  limit?: number;
-}
-
+/** The body of a `list` or `listStream` query. */
 export interface FilterListQuery<
   FIELDS extends string = string,
 > extends FilterQueryable<FIELDS> {
-  /** Maximum results. Defaults to 0 (unlimited) for FilterExpression queries. */
+  /**
+   * The most rows to return. Absent or 0 lets the server decide: over HTTP
+   * Wow replaces it with its configured default list size (100 unless the
+   * server configures another) and refuses a value above its maximum list
+   * size (1000 by default).
+   */
   limit?: number;
 }
 
-export type ListQueryRequest<FIELDS extends string = string> =
-  ListQuery<FIELDS> | FilterListQuery<FIELDS>;
-
-/**
- * Creates a ListQuery object with the provided parameters.
- *
- * This function is a factory for creating ListQuery objects, which represent
- * queries that return a list of results. It provides default values for optional
- * properties while allowing customization of condition, projection, sort criteria,
- * and result limit.
- *
- * @param condition - The query condition. Defaults to an 'all' condition that matches everything.
- * @param projection - The field projection specification. Optional.
- * @param sort - The sort criteria. Optional.
- * @param limit - The maximum number of results. Defaults to 0 for filter queries and DEFAULT_PAGINATION.size for legacy condition queries.
- * @returns A ListQuery object with the specified parameters
- */
-export function listQuery<FIELDS extends string = string>(
-  options: FilterQueryOptions<FilterListQuery<FIELDS>>,
-): FilterListQuery<FIELDS>;
-/** @deprecated Pass filter instead of condition. Removed in v10. */
-export function listQuery<FIELDS extends string = string>(
-  options?: Partial<ListQuery<FIELDS>>,
-): ListQuery<FIELDS>;
-export function listQuery<FIELDS extends string = string>({
-  condition,
-  filter,
-  projection,
-  sort,
-  limit,
-}: QueryFilterOptions<FIELDS> &
-  Partial<ProjectionCapable<FIELDS> & SortCapable<FIELDS>> & {
-    limit?: number;
-  } = {}): ListQuery<FIELDS> | FilterListQuery<FIELDS> {
-  return {
-    ...queryFilter({ condition, filter }),
-    projection,
-    sort,
-    limit: limit ?? (filter === undefined ? DEFAULT_PAGINATION.size : 0),
-  };
-}
-
-/**
- * Interface for paged query objects.
- */
-/** @deprecated Use FilterPagedQuery instead. Removed in v10. */
-export interface PagedQuery<
-  FIELDS extends string = string,
-> extends Queryable<FIELDS> {
-  pagination?: Pagination;
-}
-
+/** The body of a `paged` query. */
 export interface FilterPagedQuery<
   FIELDS extends string = string,
 > extends FilterQueryable<FIELDS> {
   pagination?: Pagination;
 }
 
-export type PagedQueryRequest<FIELDS extends string = string> =
-  PagedQuery<FIELDS> | FilterPagedQuery<FIELDS>;
+/** What `singleQuery`, `listQuery` and `pagedQuery` take in common. */
+type QueryOptions<FIELDS extends string = string> = Partial<
+  FilterQueryable<FIELDS>
+>;
 
-/**
- * Creates a PagedQuery object with the provided parameters.
- *
- * This function is a factory for creating PagedQuery objects, which represent
- * queries that return a paged list of results. It provides default values for optional
- * properties while allowing customization of condition, projection, sort criteria,
- * and pagination.
- *
- * @param condition - The query condition. Defaults to an 'all' condition that matches everything.
- * @param projection - The field projection specification. Optional.
- * @param sort - The sort criteria. Optional.
- * @param pagination - The pagination specification. Optional.
- *
- * @returns A PagedQuery object with the specified parameters
- */
-export function pagedQuery<FIELDS extends string = string>(
-  options: FilterQueryOptions<FilterPagedQuery<FIELDS>>,
-): FilterPagedQuery<FIELDS>;
-/** @deprecated Pass filter instead of condition. Removed in v10. */
-export function pagedQuery<FIELDS extends string = string>(
-  options?: Partial<PagedQuery<FIELDS>>,
-): PagedQuery<FIELDS>;
-export function pagedQuery<FIELDS extends string = string>({
-  condition,
-  filter,
-  projection,
-  sort,
-  pagination = DEFAULT_PAGINATION,
-}: QueryFilterOptions<FIELDS> &
-  Partial<ProjectionCapable<FIELDS> & SortCapable<FIELDS>> & {
-    pagination?: Pagination;
-  } = {}): PagedQuery<FIELDS> | FilterPagedQuery<FIELDS> {
-  return {
-    ...queryFilter({ condition, filter }),
-    projection,
-    sort,
-    pagination,
-  };
+function queryFilter<FIELDS extends string>(
+  filter: FilterExpression<FIELDS> | undefined,
+): FilterExpression<FIELDS> {
+  if (filter === null) {
+    throw new TypeError('filter cannot be null.');
+  }
+  return filter ?? filters.matchAll();
 }
 
 /**
- * Interface for paged list results.
+ * Builds the body of a `single` query.
+ *
+ * @param options.filter - What to match. Defaults to `filter.matchAll()`.
+ * @param options.projection - Which fields to return. Optional.
+ * @param options.sort - Which match counts as the first. Optional.
+ * @throws TypeError when `filter` is `null`.
+ *
+ * @example
+ * ```typescript
+ * singleQuery({ filter: filter.eq('status', 'ACTIVE') });
+ * ```
  */
+export function singleQuery<FIELDS extends string = string>({
+  filter,
+  projection,
+  sort,
+}: QueryOptions<FIELDS> = {}): FilterSingleQuery<FIELDS> {
+  return { filter: queryFilter(filter), projection, sort };
+}
+
+/**
+ * Builds the body of a `list` or `listStream` query.
+ *
+ * @param options.filter - What to match. Defaults to `filter.matchAll()`.
+ * @param options.projection - Which fields to return. Optional.
+ * @param options.sort - The order of the rows. Optional.
+ * @param options.limit - The most rows to return. Absent lets the server
+ *   apply its default list size; see {@link FilterListQuery.limit}.
+ * @throws TypeError when `filter` is `null`.
+ *
+ * @example
+ * ```typescript
+ * listQuery({ filter: filter.eq('status', 'ACTIVE'), limit: 20 });
+ * ```
+ */
+export function listQuery<FIELDS extends string = string>({
+  filter,
+  projection,
+  sort,
+  limit,
+}: QueryOptions<FIELDS> & { limit?: number } = {}): FilterListQuery<FIELDS> {
+  return { filter: queryFilter(filter), projection, sort, limit };
+}
+
+/**
+ * Builds the body of a `paged` query.
+ *
+ * @param options.filter - What to match. Defaults to `filter.matchAll()`.
+ * @param options.projection - Which fields to return. Optional.
+ * @param options.sort - The order of the rows. Optional.
+ * @param options.pagination - Which page. Defaults to a copy of
+ *   {@link DEFAULT_PAGINATION}: the first page of ten.
+ * @throws TypeError when `filter` is `null`.
+ *
+ * @example
+ * ```typescript
+ * pagedQuery({ filter: filter.matchAll(), pagination: { index: 2, size: 20 } });
+ * ```
+ */
+export function pagedQuery<FIELDS extends string = string>({
+  filter,
+  projection,
+  sort,
+  pagination = { ...DEFAULT_PAGINATION },
+}: QueryOptions<FIELDS> & {
+  pagination?: Pagination;
+} = {}): FilterPagedQuery<FIELDS> {
+  return { filter: queryFilter(filter), projection, sort, pagination };
+}
+
+/** One page of a `paged` query: its rows, and how many match in total. */
 export interface PagedList<T> {
   total: number;
   list: T[];
 }
 
-export const EMPTY_PAGED_LIST: PagedList<any> = {
-  total: 0,
-  list: [],
-};
-
 /**
- * Creates a PagedList object with the provided parameters.
+ * Builds a `PagedList`, for a placeholder page or a test double.
  *
- * This function is a factory for creating PagedList objects, which represent
- * a page of results with total count information. It provides default values
- * for optional properties while allowing customization of total count and list data.
- *
- * @param total - The total number of items. Defaults to 0.
- * @param list - The array of items in the current page. Defaults to an empty array.
- * @returns A PagedList object with the specified parameters
+ * @param options.total - How many rows match in total. Defaults to the length
+ *   of `list`.
+ * @param options.list - The rows of this page. Defaults to a new empty array.
  */
 export function pagedList<T>({
   total,
   list = [],
-}: Partial<PagedList<T>> = EMPTY_PAGED_LIST): PagedList<T> {
-  if (total === undefined) {
-    total = list.length;
-  }
-  return {
-    total,
-    list,
-  };
+}: Partial<PagedList<T>> = {}): PagedList<T> {
+  return { total: total ?? list.length, list };
 }

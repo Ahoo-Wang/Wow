@@ -5,21 +5,21 @@ description: 'Projection, sorting and pagination — @ahoo-wang/wow-client'
 
 # Projection, sorting and pagination
 
-Query builders return plain serializable objects and do not execute HTTP. The new filter form and legacy condition form have distinct request types and different list defaults. Prefer an explicit limit when migrating.
+Query builders return plain serializable objects and do not execute HTTP. The root entry's `singleQuery`, `listQuery`, and `pagedQuery` build filter queries. Builders of the same names that build deprecated `Condition` queries, for Wow 8.10 servers, come from `@ahoo-wang/wow-client/legacy`; their defaults are listed with each signature below.
 
 | Builder / model                     | Defaults and precedence                                                                                          |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | pagination({ index?, size? }?)      | index 1, size 10; no integer/range validation in this helper.                                                    |
-| projection({ include?, exclude? }?) | Both omitted; DEFAULT_PROJECTION is {}. defaultProjection() returns the shared default object, not a fresh copy. |
+| projection({ include?, exclude? }?) | Both omitted; DEFAULT_PROJECTION is a frozen {}. defaultProjection() returns a new {} on each call.             |
 | asc(field), desc(field)             | `{ field, direction: ASC/DESC }`; no field validation in these helpers.                                          |
-| singleQuery(options?)               | No filter → condition all(); projection/sort remain undefined.                                                   |
-| listQuery(options?)                 | Legacy condition form defaults limit 10; filter form defaults limit 0. Explicit 0 is retained.                   |
-| pagedQuery(options?)                | pagination DEFAULT_PAGINATION `{index:1,size:10}`.                                                               |
-| pagedList({ total?, list? }?)       | list defaults []; total defaults to list.length; returns `{total,list}`.                                         |
+| singleQuery(options?)               | filter defaults to `filter.matchAll()`; projection/sort remain undefined.                                        |
+| listQuery(options?)                 | filter defaults to `filter.matchAll()`; limit is sent only when given, otherwise the server's default list size applies. |
+| pagedQuery(options?)                | pagination defaults to a copy of DEFAULT_PAGINATION `{index:1,size:10}`.                                         |
+| pagedList({ total?, list? }?)       | list defaults to a new []; total defaults to list.length; returns `{total,list}`.                                |
 
-When filter is defined it wins over condition; builders output only one of these fields. Null filter throws. Null condition throws when it is selected. These checks are not full nested-expression validation. Pagination/list limit helpers do not enforce server limits, and limit 0's endpoint semantics must be supported by the server. The filter-form default is the wire value 0, not a client-side promise to fetch all rows.
+A `null` filter throws `TypeError` (a `null` condition does the same in the `/legacy` builders). These checks are not full nested-expression validation. Pagination/list limit helpers do not enforce server limits. An absent or 0 limit lets the server decide: over HTTP Wow applies its configured default list size (100 by default) and refuses a limit above its maximum list size (1000 by default). An absent limit is not a client-side promise to fetch all rows.
 
-`Queryable`/SingleQuery/ListQuery/PagedQuery are the legacy condition family. `FilterQueryable` and the Filter-prefixed forms use required filter. `*QueryRequest` unions accept either. ProjectionCapable and SortCapable are optional mixins. PagedList is total/list, independent of the requested page index. Shared DEFAULT_* and EMPTY_PAGED_LIST constants are mutable objects in JavaScript; treat them as read-only defaults. No network resources need cleanup. For validated cursor-size constraints use [cursorQuery](./cursor-queries).
+`FilterQueryable` and the Filter-prefixed forms use required filter. `Queryable`/SingleQuery/ListQuery/PagedQuery are the deprecated condition family and, with the `*QueryRequest` unions that accept either form, are exported by `@ahoo-wang/wow-client/legacy`; the query clients accept both forms. ProjectionCapable and SortCapable are optional mixins. PagedList is total/list, independent of the requested page index. DEFAULT_PAGINATION and DEFAULT_PROJECTION are frozen; the builders copy them. No network resources need cleanup. For validated cursor-size constraints use [cursorQuery](./cursor-queries).
 
 ## Complete example
 
@@ -38,8 +38,8 @@ const page = pagedQuery({
   projection: projection({ include: ['state.name'] }),
   sort: [desc('state.name')],
 });
-console.assert(listQuery().limit === 10);
-console.assert(listQuery({ filter: filter.matchAll() }).limit === 0);
+console.assert(listQuery().limit === undefined);
+console.assert(listQuery({ limit: 20 }).limit === 20);
 console.assert(pagedList({ list: ['a'] }).total === 1);
 console.log(page);
 ```
@@ -54,7 +54,7 @@ These signatures follow declarations reachable from the current root entry. `?` 
 export function pagination(options?: Partial<Pagination>): Pagination;
 ```
 
-Implementation defaults: `index = DEFAULT_PAGINATION.index`; `size = DEFAULT_PAGINATION.size`; `options = DEFAULT_PAGINATION`.
+Implementation defaults: `index = DEFAULT_PAGINATION.index`; `size = DEFAULT_PAGINATION.size`; `options = {}`.
 
 [typescript/wow-client/src/query/pagination.ts:46](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/pagination.ts#L46)
 
@@ -72,7 +72,7 @@ export interface Pagination {
 ### DEFAULT_PAGINATION {#api-DEFAULT_PAGINATION}
 
 ```ts
-declare const DEFAULT_PAGINATION: Pagination;
+declare const DEFAULT_PAGINATION: Readonly<Pagination>;
 ```
 
 [typescript/wow-client/src/query/pagination.ts:29](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/pagination.ts#L29)
@@ -85,7 +85,7 @@ export function defaultProjection<
 >(): Projection<FIELDS>;
 ```
 
-[typescript/wow-client/src/query/projection.ts:28](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/projection.ts#L28)
+[typescript/wow-client/src/query/projection.ts:32](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/projection.ts#L32)
 
 ### projection {#api-projection}
 
@@ -97,7 +97,7 @@ export function projection<FIELDS extends string = string>(
 
 Implementation defaults: `options = defaultProjection()`.
 
-[typescript/wow-client/src/query/projection.ts:46](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/projection.ts#L46)
+[typescript/wow-client/src/query/projection.ts:50](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/projection.ts#L50)
 
 ### Projection {#api-Projection}
 
@@ -108,15 +108,15 @@ export interface Projection<FIELDS extends string = string> {
 }
 ```
 
-[typescript/wow-client/src/query/projection.ts:17](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/projection.ts#L17)
+[typescript/wow-client/src/query/projection.ts:19](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/projection.ts#L19)
 
 ### DEFAULT_PROJECTION {#api-DEFAULT_PROJECTION}
 
 ```ts
-declare const DEFAULT_PROJECTION: Projection<string>;
+declare const DEFAULT_PROJECTION: Readonly<Projection>;
 ```
 
-[typescript/wow-client/src/query/projection.ts:26](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/projection.ts#L26)
+[typescript/wow-client/src/query/projection.ts:29](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/projection.ts#L29)
 
 ### ProjectionCapable {#api-ProjectionCapable}
 
@@ -126,17 +126,21 @@ export interface ProjectionCapable<FIELDS extends string = string> {
 }
 ```
 
-[typescript/wow-client/src/query/projection.ts:58](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/projection.ts#L58)
+[typescript/wow-client/src/query/projection.ts:66](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/projection.ts#L66)
 
 ### singleQuery {#api-singleQuery}
 
 ```ts
 export function singleQuery<FIELDS extends string = string>(
-  options: FilterQueryOptions<FilterSingleQuery<FIELDS>>,
+  options?: Partial<FilterQueryable<FIELDS>>,
 ): FilterSingleQuery<FIELDS>;
 ```
 
-[typescript/wow-client/src/query/queryable.ts:91](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts#L91)
+Implementation defaults: `filter = filter.matchAll()`; `options = {}`. A `null` filter throws `TypeError`.
+
+[typescript/wow-client/src/query/queryable.ts:83](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts#L83)
+
+Deprecated Condition form, exported by `@ahoo-wang/wow-client/legacy` (removed in v10):
 
 ```ts
 export function singleQuery<FIELDS extends string = string>(
@@ -144,17 +148,23 @@ export function singleQuery<FIELDS extends string = string>(
 ): SingleQuery<FIELDS>;
 ```
 
-[typescript/wow-client/src/query/queryable.ts:95](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts#L95)
+Implementation defaults: `condition = all()`; `options = {}`.
+
+[typescript/wow-client/src/legacy/queryable.ts:99](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/queryable.ts#L99)
 
 ### listQuery {#api-listQuery}
 
 ```ts
 export function listQuery<FIELDS extends string = string>(
-  options: FilterQueryOptions<FilterListQuery<FIELDS>>,
+  options?: Partial<FilterQueryable<FIELDS>> & { limit?: number },
 ): FilterListQuery<FIELDS>;
 ```
 
-[typescript/wow-client/src/query/queryable.ts:149](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts#L149)
+Implementation defaults: `filter = filter.matchAll()`; `limit` stays `undefined`; `options = {}`. A `null` filter throws `TypeError`.
+
+[typescript/wow-client/src/query/queryable.ts:106](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts#L106)
+
+Deprecated Condition form, exported by `@ahoo-wang/wow-client/legacy` (removed in v10):
 
 ```ts
 export function listQuery<FIELDS extends string = string>(
@@ -162,17 +172,23 @@ export function listQuery<FIELDS extends string = string>(
 ): ListQuery<FIELDS>;
 ```
 
-[typescript/wow-client/src/query/queryable.ts:153](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts#L153)
+Implementation defaults: `condition = all()`; `limit = DEFAULT_PAGINATION.size`; `options = {}`.
+
+[typescript/wow-client/src/legacy/queryable.ts:113](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/queryable.ts#L113)
 
 ### pagedQuery {#api-pagedQuery}
 
 ```ts
 export function pagedQuery<FIELDS extends string = string>(
-  options: FilterQueryOptions<FilterPagedQuery<FIELDS>>,
+  options?: Partial<FilterQueryable<FIELDS>> & { pagination?: Pagination },
 ): FilterPagedQuery<FIELDS>;
 ```
 
-[typescript/wow-client/src/query/queryable.ts:208](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts#L208)
+Implementation defaults: `filter = filter.matchAll()`; `pagination = { ...DEFAULT_PAGINATION }`; `options = {}`. A `null` filter throws `TypeError`.
+
+[typescript/wow-client/src/query/queryable.ts:130](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts#L130)
+
+Deprecated Condition form, exported by `@ahoo-wang/wow-client/legacy` (removed in v10):
 
 ```ts
 export function pagedQuery<FIELDS extends string = string>(
@@ -180,7 +196,9 @@ export function pagedQuery<FIELDS extends string = string>(
 ): PagedQuery<FIELDS>;
 ```
 
-[typescript/wow-client/src/query/queryable.ts:212](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts#L212)
+Implementation defaults: `condition = all()`; `pagination = { ...DEFAULT_PAGINATION }`; `options = {}`.
+
+[typescript/wow-client/src/legacy/queryable.ts:128](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/queryable.ts#L128)
 
 ### pagedList {#api-pagedList}
 
@@ -188,9 +206,9 @@ export function pagedQuery<FIELDS extends string = string>(
 export function pagedList<T>(options?: Partial<PagedList<T>>): PagedList<T>;
 ```
 
-Implementation defaults: `list = []`; `options = EMPTY_PAGED_LIST`.
+Implementation defaults: `list = []` (a new array per call); `total = list.length`; `options = {}`.
 
-[typescript/wow-client/src/query/queryable.ts:257](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts#L257)
+[typescript/wow-client/src/query/queryable.ts:154](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts#L154)
 
 ### Queryable {#api-Queryable}
 
@@ -202,7 +220,9 @@ export interface Queryable<FIELDS extends string = string>
     SortCapable<FIELDS> {}
 ```
 
-[typescript/wow-client/src/query/queryable.ts:24](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts#L24)
+Exported by `@ahoo-wang/wow-client/legacy`; deprecated, removed in v10.
+
+[typescript/wow-client/src/legacy/queryable.ts:30](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/queryable.ts#L30)
 
 ### FilterQueryable {#api-FilterQueryable}
 
@@ -214,7 +234,7 @@ export interface FilterQueryable<FIELDS extends string = string>
     SortCapable<FIELDS> {}
 ```
 
-[typescript/wow-client/src/query/queryable.ts:31](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts#L31)
+[typescript/wow-client/src/query/queryable.ts:24](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts#L24)
 
 ### SingleQuery {#api-SingleQuery}
 
@@ -224,7 +244,9 @@ export interface SingleQuery<
 > extends Queryable<FIELDS> {}
 ```
 
-[typescript/wow-client/src/query/queryable.ts:42](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts#L42)
+Exported by `@ahoo-wang/wow-client/legacy`; deprecated, removed in v10.
+
+[typescript/wow-client/src/legacy/queryable.ts:38](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/queryable.ts#L38)
 
 ### FilterSingleQuery {#api-FilterSingleQuery}
 
@@ -234,16 +256,19 @@ export interface FilterSingleQuery<
 > extends FilterQueryable<FIELDS> {}
 ```
 
-[typescript/wow-client/src/query/queryable.ts:47](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts#L47)
+[typescript/wow-client/src/query/queryable.ts:32](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts#L32)
 
 ### SingleQueryRequest {#api-SingleQueryRequest}
 
 ```ts
 export type SingleQueryRequest<FIELDS extends string = string> =
-  SingleQuery<FIELDS> | FilterSingleQuery<FIELDS>;
+  | FilterSingleQuery<FIELDS>
+  | SingleQuery<FIELDS>;
 ```
 
-[typescript/wow-client/src/query/queryable.ts:51](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts#L51)
+Exported by `@ahoo-wang/wow-client/legacy`; deprecated, removed in v10. The query clients accept this union, so either form can be sent.
+
+[typescript/wow-client/src/legacy/queryable.ts:63](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/queryable.ts#L63)
 
 ### ListQuery {#api-ListQuery}
 
@@ -255,7 +280,9 @@ export interface ListQuery<
 }
 ```
 
-[typescript/wow-client/src/query/queryable.ts:119](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts#L119)
+Exported by `@ahoo-wang/wow-client/legacy`; deprecated, removed in v10.
+
+[typescript/wow-client/src/legacy/queryable.ts:43](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/queryable.ts#L43)
 
 ### FilterListQuery {#api-FilterListQuery}
 
@@ -267,16 +294,19 @@ export interface FilterListQuery<
 }
 ```
 
-[typescript/wow-client/src/query/queryable.ts:125](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts#L125)
+[typescript/wow-client/src/query/queryable.ts:37](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts#L37)
 
 ### ListQueryRequest {#api-ListQueryRequest}
 
 ```ts
 export type ListQueryRequest<FIELDS extends string = string> =
-  ListQuery<FIELDS> | FilterListQuery<FIELDS>;
+  | FilterListQuery<FIELDS>
+  | ListQuery<FIELDS>;
 ```
 
-[typescript/wow-client/src/query/queryable.ts:132](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts#L132)
+Exported by `@ahoo-wang/wow-client/legacy`; deprecated, removed in v10. The query clients accept this union, so either form can be sent.
+
+[typescript/wow-client/src/legacy/queryable.ts:72](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/queryable.ts#L72)
 
 ### PagedQuery {#api-PagedQuery}
 
@@ -288,7 +318,9 @@ export interface PagedQuery<
 }
 ```
 
-[typescript/wow-client/src/query/queryable.ts:178](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts#L178)
+Exported by `@ahoo-wang/wow-client/legacy`; deprecated, removed in v10.
+
+[typescript/wow-client/src/legacy/queryable.ts:51](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/queryable.ts#L51)
 
 ### FilterPagedQuery {#api-FilterPagedQuery}
 
@@ -300,16 +332,19 @@ export interface FilterPagedQuery<
 }
 ```
 
-[typescript/wow-client/src/query/queryable.ts:184](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts#L184)
+[typescript/wow-client/src/query/queryable.ts:50](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts#L50)
 
 ### PagedQueryRequest {#api-PagedQueryRequest}
 
 ```ts
 export type PagedQueryRequest<FIELDS extends string = string> =
-  PagedQuery<FIELDS> | FilterPagedQuery<FIELDS>;
+  | FilterPagedQuery<FIELDS>
+  | PagedQuery<FIELDS>;
 ```
 
-[typescript/wow-client/src/query/queryable.ts:190](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts#L190)
+Exported by `@ahoo-wang/wow-client/legacy`; deprecated, removed in v10. The query clients accept this union, so either form can be sent.
+
+[typescript/wow-client/src/legacy/queryable.ts:81](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/legacy/queryable.ts#L81)
 
 ### PagedList {#api-PagedList}
 
@@ -320,15 +355,7 @@ export interface PagedList<T> {
 }
 ```
 
-[typescript/wow-client/src/query/queryable.ts:236](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts#L236)
-
-### EMPTY_PAGED_LIST {#api-EMPTY_PAGED_LIST}
-
-```ts
-declare const EMPTY_PAGED_LIST: PagedList<any>;
-```
-
-[typescript/wow-client/src/query/queryable.ts:241](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts#L241)
+[typescript/wow-client/src/query/queryable.ts:142](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts#L142)
 
 ### asc {#api-asc}
 
@@ -338,7 +365,7 @@ export function asc<FIELDS extends string = string>(
 ): FieldSort<FIELDS>;
 ```
 
-[typescript/wow-client/src/query/sort.ts:36](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/sort.ts#L36)
+[typescript/wow-client/src/query/sort.ts:38](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/sort.ts#L38)
 
 ### desc {#api-desc}
 
@@ -348,7 +375,7 @@ export function desc<FIELDS extends string = string>(
 ): FieldSort<FIELDS>;
 ```
 
-[typescript/wow-client/src/query/sort.ts:50](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/sort.ts#L50)
+[typescript/wow-client/src/query/sort.ts:52](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/sort.ts#L52)
 
 ### SortDirection {#api-SortDirection}
 
@@ -359,7 +386,7 @@ export enum SortDirection {
 }
 ```
 
-[typescript/wow-client/src/query/sort.ts:18](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/sort.ts#L18)
+[typescript/wow-client/src/query/sort.ts:20](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/sort.ts#L20)
 
 ### FieldSort {#api-FieldSort}
 
@@ -370,7 +397,7 @@ export interface FieldSort<FIELDS extends string = string> {
 }
 ```
 
-[typescript/wow-client/src/query/sort.ts:26](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/sort.ts#L26)
+[typescript/wow-client/src/query/sort.ts:28](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/sort.ts#L28)
 
 ### SortCapable {#api-SortCapable}
 
@@ -380,7 +407,7 @@ export interface SortCapable<FIELDS extends string = string> {
 }
 ```
 
-[typescript/wow-client/src/query/sort.ts:62](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/sort.ts#L62)
+[typescript/wow-client/src/query/sort.ts:64](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/sort.ts#L64)
 
 ## Related topics
 

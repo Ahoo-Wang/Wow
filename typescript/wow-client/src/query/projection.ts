@@ -23,14 +23,16 @@ export interface Projection<FIELDS extends string = string> {
 
 /**
  * Default projection configuration.
- * Empty projection object includes all fields.
+ * Empty projection object includes all fields. Frozen: `defaultProjection()`
+ * hands out a copy.
  */
-export const DEFAULT_PROJECTION: Projection = {};
+export const DEFAULT_PROJECTION: Readonly<Projection> = Object.freeze({});
 
+/** A new projection that includes all fields. */
 export function defaultProjection<
   FIELDS extends string = string,
 >(): Projection<FIELDS> {
-  return DEFAULT_PROJECTION as Projection<FIELDS>;
+  return {};
 }
 
 /**

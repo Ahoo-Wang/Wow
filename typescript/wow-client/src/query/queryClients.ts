@@ -100,7 +100,7 @@ export class QueryClientFactory<
    *   aggregateName: 'cart',
    * });
    *
-   * const cartState = await snapshotClient.singleState({ condition: all() });
+   * const cartState = await snapshotClient.singleState(singleQuery());
    * ```
    */
   createSnapshotQueryClient(
@@ -205,7 +205,7 @@ export class QueryClientFactory<
    *   aggregateName: 'cart',
    * });
    *
-   * const events = await eventClient.list({ condition: all() });
+   * const events = await eventClient.list(listQuery());
    * ```
    */
   createEventStreamQueryClient<FIELDS extends string = string>(

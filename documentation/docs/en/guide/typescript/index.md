@@ -59,7 +59,7 @@ flowchart LR
 
 The TypeScript packages share one version with the Kotlin modules: for example, `@ahoo-wang/wow-client` 9.2.3 is released together with Wow 9.2.3, from the same tag. Pick the client version that matches the Wow server you call, and upgrade the Wow packages together. Breaking changes ship only in an `x.Y.0` release and are listed under "Breaking" in the [release notes](https://github.com/Ahoo-Wang/Wow/releases).
 
-Throughout Wow 9.x the client and the generator still work against Wow 8.x servers, and the deprecated `Condition` API stays available; both are removed in v10.
+Throughout Wow 9.x the client and the generator still work against Wow 8.x servers: 8.11 and later with `FilterExpression`, 8.10 through the deprecated `Condition` API, which lives on the `@ahoo-wang/wow-client/legacy` subpath. Both are removed in v10.
 
 ## Install
 

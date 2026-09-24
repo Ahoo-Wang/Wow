@@ -43,7 +43,14 @@
  * `initial`, which leaves the variable unset, so each token falls back to the
  * built-in value `styles.css` writes beside it — the file's one source of the
  * neutral values — and a view pinned to `neutral` inside a page on another
- * preset looks exactly as it would with no preset at all.
+ * preset looks exactly as it would with no preset at all. The other two
+ * write `initial` too wherever their value is the neutral one, so the
+ * neutral values are never copied into this file.
+ *
+ * Every preset, in both modes, holds the lines the stylesheet promises —
+ * text at 4.5:1, a control's edge and the focus indicator at 3:1 — and
+ * `test/presetContrast.test.ts` measures each pair on the values these two
+ * files resolve to.
  */
 :where([data-fve-preset='neutral']) {
   --fve-background: initial;
@@ -103,4 +110,173 @@
   --fve-dark-quiet-foreground: initial;
   --fve-dark-input: initial;
   --fve-dark-ring: initial;
+}
+
+/*
+ * `blue` — the neutral greys with a blue brand colour: shadcn's `blue` theme
+ * over its `neutral` base, which is what this stylesheet already is. So it
+ * sets only what that theme sets and leaves the rest `initial`, the
+ * stylesheet's own neutral values.
+ *
+ * - Light `primary` is the theme's own: Tailwind blue-700 with the blue-50
+ *   ink (6.26:1).
+ * - Dark `primary` is **not** the theme's blue-800. `primary` is also a
+ *   colour this surface writes with — a link in a cell, the default view's
+ *   star — and a fill that carries state (a ticked box, the open view's bar),
+ *   and blue-800 reads about 2:1 on the dark card. It is blue-400, which
+ *   reads 6.79:1 on the card and 5.73:1 on a selected row, with the dark
+ *   neutral ink on it, the way the neutral dark primary is a light fill
+ *   with a dark ink.
+ * - `ring` and `input` stay the grey the stylesheet tuned to 3:1, as the
+ *   shadcn theme leaves them on its base colour — a brand ring
+ *   (`--ring: var(--primary)`) is the one thing a shadcn theme carries that
+ *   would not hold that line on every ground a focus lands on.
+ * - The status colours and the eight chart slots are the stylesheet's
+ *   (Q47): a series and a status mean the same colour in every preset.
+ *
+ * `test/presetContrast.test.ts` measures every pair of every preset.
+ */
+:where([data-fve-preset='blue']) {
+  --fve-background: initial;
+  --fve-foreground: initial;
+  --fve-card: initial;
+  --fve-card-foreground: initial;
+  --fve-popover: initial;
+  --fve-popover-foreground: initial;
+  --fve-primary: oklch(0.488 0.243 264.376deg);
+  --fve-primary-foreground: oklch(0.97 0.014 254.604deg);
+  --fve-secondary: initial;
+  --fve-secondary-foreground: initial;
+  --fve-muted: initial;
+  --fve-muted-foreground: initial;
+  --fve-accent: initial;
+  --fve-accent-foreground: initial;
+  --fve-sidebar: initial;
+  --fve-sidebar-foreground: initial;
+  --fve-sidebar-accent: initial;
+  --fve-sidebar-accent-foreground: initial;
+  --fve-sidebar-border: initial;
+  --fve-destructive: initial;
+  --fve-destructive-foreground: initial;
+  --fve-success: initial;
+  --fve-warning: initial;
+  --fve-border: initial;
+  --fve-row-hover: initial;
+  --fve-quiet-foreground: initial;
+  --fve-input: initial;
+  --fve-ring: initial;
+  --fve-radius: initial;
+  --fve-dark-background: initial;
+  --fve-dark-foreground: initial;
+  --fve-dark-card: initial;
+  --fve-dark-card-foreground: initial;
+  --fve-dark-popover: initial;
+  --fve-dark-popover-foreground: initial;
+  --fve-dark-primary: oklch(0.707 0.165 254.624deg);
+  --fve-dark-primary-foreground: initial;
+  --fve-dark-secondary: initial;
+  --fve-dark-secondary-foreground: initial;
+  --fve-dark-muted: initial;
+  --fve-dark-muted-foreground: initial;
+  --fve-dark-accent: initial;
+  --fve-dark-accent-foreground: initial;
+  --fve-dark-sidebar: initial;
+  --fve-dark-sidebar-foreground: initial;
+  --fve-dark-sidebar-accent: initial;
+  --fve-dark-sidebar-accent-foreground: initial;
+  --fve-dark-sidebar-border: initial;
+  --fve-dark-destructive: initial;
+  --fve-dark-destructive-foreground: initial;
+  --fve-dark-success: initial;
+  --fve-dark-warning: initial;
+  --fve-dark-border: initial;
+  --fve-dark-row-hover: initial;
+  --fve-dark-quiet-foreground: initial;
+  --fve-dark-input: initial;
+  --fve-dark-ring: initial;
+}
+
+/*
+ * `slate` — cool greys with the blue brand colour, the look of the
+ * compensation console (`compensation/dashboard`, shadcn's `slate` base
+ * with a blue primary).
+ *
+ * The greys are the neutral ones moved step for step onto Tailwind's slate
+ * scale, which is how shadcn's `slate` base colour relates to its `neutral`
+ * one: 950 for the ink, 900 for the dark card and the fills' ink, 800 for
+ * the dark muted step, 500 / 400 for the quiet grey, 200 for the hairline,
+ * 100 for the light muted step and the navigation column. Where the
+ * stylesheet tuned a neutral grey of its own, the slate one sits at the
+ * same lightness with the scale's hue and chroma: `input` and `ring` at 0.62
+ * (dark `ring` at 0.66), and the column's edge at 0.898. What is white or
+ * white at an opacity (the light surfaces, the dark hairline and control
+ * edge) stays so — alpha white carries no hue to cool.
+ *
+ * - Light `primary` is the console's own, blue-600, with the slate-50 ink
+ *   (5.02:1).
+ * - Dark `primary` is blue-400 with the slate-900 ink, for the reason
+ *   `blue` gives.
+ * - Like `blue`, the status colours and the chart slots are the
+ *   stylesheet's; unlike the console, `input` and `ring` are not the border
+ *   and the brand colour, which would take the control edge and the focus
+ *   indicator under 3:1 (phase 5, 3.4).
+ */
+:where([data-fve-preset='slate']) {
+  --fve-background: initial;
+  --fve-foreground: oklch(0.129 0.042 264.695deg);
+  --fve-card: initial;
+  --fve-card-foreground: oklch(0.129 0.042 264.695deg);
+  --fve-popover: initial;
+  --fve-popover-foreground: oklch(0.129 0.042 264.695deg);
+  --fve-primary: oklch(0.546 0.245 262.881deg);
+  --fve-primary-foreground: oklch(0.984 0.003 247.858deg);
+  --fve-secondary: oklch(0.968 0.007 247.896deg);
+  --fve-secondary-foreground: oklch(0.208 0.042 265.755deg);
+  --fve-muted: oklch(0.968 0.007 247.896deg);
+  --fve-muted-foreground: oklch(0.554 0.046 257.417deg);
+  --fve-accent: oklch(0.968 0.007 247.896deg);
+  --fve-accent-foreground: oklch(0.208 0.042 265.755deg);
+  --fve-sidebar: oklch(0.968 0.007 247.896deg);
+  --fve-sidebar-foreground: oklch(0.129 0.042 264.695deg);
+  --fve-sidebar-accent: oklch(0.929 0.013 255.508deg);
+  --fve-sidebar-accent-foreground: oklch(0.208 0.042 265.755deg);
+  --fve-sidebar-border: oklch(0.898 0.018 254deg);
+  --fve-destructive: initial;
+  --fve-destructive-foreground: initial;
+  --fve-success: initial;
+  --fve-warning: initial;
+  --fve-border: oklch(0.929 0.013 255.508deg);
+  --fve-row-hover: initial;
+  --fve-quiet-foreground: initial;
+  --fve-input: oklch(0.62 0.043 257deg);
+  --fve-ring: oklch(0.62 0.043 257deg);
+  --fve-radius: initial;
+  --fve-dark-background: oklch(0.129 0.042 264.695deg);
+  --fve-dark-foreground: oklch(0.984 0.003 247.858deg);
+  --fve-dark-card: oklch(0.208 0.042 265.755deg);
+  --fve-dark-card-foreground: oklch(0.984 0.003 247.858deg);
+  --fve-dark-popover: oklch(0.208 0.042 265.755deg);
+  --fve-dark-popover-foreground: oklch(0.984 0.003 247.858deg);
+  --fve-dark-primary: oklch(0.707 0.165 254.624deg);
+  --fve-dark-primary-foreground: oklch(0.208 0.042 265.755deg);
+  --fve-dark-secondary: oklch(0.279 0.041 260.031deg);
+  --fve-dark-secondary-foreground: oklch(0.984 0.003 247.858deg);
+  --fve-dark-muted: oklch(0.279 0.041 260.031deg);
+  --fve-dark-muted-foreground: oklch(0.704 0.04 256.788deg);
+  --fve-dark-accent: oklch(0.279 0.041 260.031deg);
+  --fve-dark-accent-foreground: oklch(0.984 0.003 247.858deg);
+  --fve-dark-sidebar: oklch(0.208 0.042 265.755deg);
+  --fve-dark-sidebar-foreground: oklch(0.984 0.003 247.858deg);
+  --fve-dark-sidebar-accent: oklch(0.279 0.041 260.031deg);
+  --fve-dark-sidebar-accent-foreground: oklch(0.984 0.003 247.858deg);
+  --fve-dark-sidebar-border: initial;
+  --fve-dark-destructive: initial;
+  --fve-dark-destructive-foreground: initial;
+  --fve-dark-success: initial;
+  --fve-dark-warning: initial;
+  --fve-dark-border: initial;
+  --fve-dark-row-hover: initial;
+  --fve-dark-quiet-foreground: initial;
+  --fve-dark-input: initial;
+  --fve-dark-ring: oklch(0.66 0.042 257deg);
 }

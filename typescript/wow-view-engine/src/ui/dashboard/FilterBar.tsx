@@ -26,6 +26,7 @@ import type {
   DashboardFilters,
   FilterValue,
 } from '../../model/index.js';
+import { sameJson } from '../../model/index.js';
 import type { DashboardController } from '../../react/index.js';
 import { Badge } from '../components/badge.js';
 import { Button } from '../components/button.js';
@@ -39,7 +40,6 @@ import { ControlFrame } from '../variants.js';
 import {
   filterModeOf,
   holdsGrouping,
-  sameValue,
   type BoardFilterModes,
 } from './filterModes.js';
 import {
@@ -146,7 +146,7 @@ export function FilterBar({
   const reaching = filtersOnTab(onTab, dashboard.tab);
   const grouped = onTab.some(panel => panel.grouping === 'taken');
   const { filters } = dashboard;
-  const cleared = sameValue(filters, startOf(dashboard, modes));
+  const cleared = sameJson(filters, startOf(dashboard, modes));
   // 「清空」 is for what the reader holds: a bar of locked filters alone has
   // nothing it could clear.
   const clearable =
@@ -367,7 +367,7 @@ function FilterChip({
   const kinds = dashboard.kinds;
   const value = dashboard.filters.values[field.name];
   const set = value !== undefined;
-  const atDefault = field.required === true && sameValue(value, field.default);
+  const atDefault = field.required === true && sameJson(value, field.default);
   return (
     <ControlFrame
       ref={carry?.ref}

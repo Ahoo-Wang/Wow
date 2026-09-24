@@ -15,7 +15,7 @@
   "homepage": "https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-react",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Ahoo-Wang/Wow.git",
+    "url": "git+https://github.com/Ahoo-Wang/Wow.git",
     "directory": "typescript/wow-react"
   },
   "bugs": {
@@ -23,15 +23,17 @@
   },
   "type": "module",
   "engines": {
-    "node": ">=18.20.8"
+    "node": ">=22.12.0"
   },
   "module": "./dist/index.es.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.es.js"
-    }
+      "import": "./dist/index.es.js",
+      "default": "./dist/index.es.js"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",
@@ -46,10 +48,10 @@
     "clean": "rm -rf dist"
   },
   "peerDependencies": {
-    "@ahoo-wang/fetcher": "catalog:",
-    "@ahoo-wang/fetcher-eventstream": "catalog:",
-    "@ahoo-wang/fetcher-react": "catalog:",
-    "react": "catalog:",
+    "@ahoo-wang/fetcher": "catalog:peers",
+    "@ahoo-wang/fetcher-eventstream": "catalog:peers",
+    "@ahoo-wang/fetcher-react": "catalog:peers",
+    "react": "catalog:peers",
     "@ahoo-wang/wow-client": "workspace:~"
   },
   "devDependencies": {

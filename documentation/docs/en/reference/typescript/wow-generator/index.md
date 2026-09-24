@@ -15,7 +15,7 @@ pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher @ahoo-wang/fetcher-event
 
 The package requires Node **>=22.12.0**; repository development additionally pins pnpm **10.34.5**. The command includes all recursive peers (wow-generator → wow-client/Decorator/EventStream/OpenAPI → Fetcher) and the compiler used below. ts-morph, commander and yaml install automatically as regular dependencies. These are generation-time dependencies; generated clients need their imported packages installed as runtime dependencies in the consuming application, as listed under [generated output](./generated-output.md).
 
-The package version follows Wow, and `@ahoo-wang/wow-client` must be on the same minor version. Coming from `@ahoo-wang/fetcher-generator`? The command is now `wow-generator`, with `fetcher-generator` kept as an alias until v10; the configuration file is now `wow-generator.config.json`, with `fetcher-generator.config.json` still read with a deprecation warning until v10; and generated code now imports `@ahoo-wang/wow-client`, so regenerate existing output; see the [migration guide](../../../guide/typescript/migration.md).
+The package version follows Wow, and `@ahoo-wang/wow-client` must be on the same minor version. Coming from `@ahoo-wang/fetcher-generator`? The command is now `wow-generator`, with `fetcher-generator` kept as an alias until v10; the configuration file is now `wow-generator.config.json`, with `fetcher-generator.config.json` still read with a deprecation warning until v10; and generated code now imports `@ahoo-wang/wow-client` (and `@ahoo-wang/wow-client/legacy` for the `Condition` types of Wow 8.10 schemas), so regenerate existing output; see the [migration guide](../../../guide/typescript/migration.md).
 
 ## Minimal example
 

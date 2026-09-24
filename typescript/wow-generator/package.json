@@ -20,7 +20,7 @@
   "homepage": "https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-generator",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Ahoo-Wang/Wow.git",
+    "url": "git+https://github.com/Ahoo-Wang/Wow.git",
     "directory": "typescript/wow-generator"
   },
   "bugs": {
@@ -39,10 +39,16 @@
   },
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
-    }
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",
@@ -61,10 +67,10 @@
     "test:no-coverage": "vitest run --coverage.enabled=false --testTimeout=15000"
   },
   "peerDependencies": {
-    "@ahoo-wang/fetcher": "catalog:",
-    "@ahoo-wang/fetcher-decorator": "catalog:",
-    "@ahoo-wang/fetcher-eventstream": "catalog:",
-    "@ahoo-wang/fetcher-openapi": "catalog:",
+    "@ahoo-wang/fetcher": "catalog:peers",
+    "@ahoo-wang/fetcher-decorator": "catalog:peers",
+    "@ahoo-wang/fetcher-eventstream": "catalog:peers",
+    "@ahoo-wang/fetcher-openapi": "catalog:peers",
     "@ahoo-wang/wow-client": "workspace:~"
   },
   "dependencies": {

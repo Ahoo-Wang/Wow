@@ -14,7 +14,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useFetcherCountQuery } from '../src';
-import { Condition, contains, eq } from '@ahoo-wang/wow-client';
+import { Condition, contains, eq } from '@ahoo-wang/wow-client/legacy';
 
 // Mock the useFetcherQuery hook
 vi.mock('@ahoo-wang/fetcher-react/fetcher', () => ({

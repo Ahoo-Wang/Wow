@@ -89,12 +89,12 @@ const TONE_BASE: Record<FieldTone, 'secondary' | 'destructive'> = {
  * row takes `--muted` and the tint lands on grey:
  *
  * - **The ink clears 4.5:1.** Light: danger 5.33 / 4.90, success 6.07 /
- *   5.59, warning 6.09 / 5.61 (rest / selected). Dark: success and warning
- *   clear 7:1; danger in its own token measured **3.92:1** on a selected row
- *   at the registry's 20% dark wash — the dark `--destructive` is dimmer
- *   than the other two — so in dark it writes in the token mixed a fifth of
- *   the way to `--foreground` (6.76 / 5.65). A mix and not a second colour,
- *   so a host moving `--fve-dark-destructive` still moves it.
+ *   5.59, warning 6.09 / 5.61 (rest / selected). Dark: every tone writes
+ *   in its own token. Danger once measured **3.92:1** on a selected row at
+ *   the registry's 20% dark wash and wore a mix toward `--foreground` in
+ *   the dark alone; since the dark status colours were quietened and
+ *   `--destructive` lifted (phase 5, Q44, `styles.css`) it reads 5.48:1
+ *   there on its own (5.37:1 in `slate`, the tightest preset) (`test/presetContrast.test.ts`).
  * - **The badge is still a badge on the row** (≥1.5:1): a 10% tint alone
  *   lands within 1.16–1.22:1 of the row (P-21), which is why the soft
  *   recipe was turned down once. The 30% edge in the tone's own colour is
@@ -130,7 +130,7 @@ const toneBadgeVariants = cva('', {
       neutral: 'border-input',
       success: `bg-success/10 text-success border-success/30 ${SOFT}`,
       warning: `bg-warning/10 text-warning border-warning/30 ${SOFT}`,
-      danger: `bg-destructive/10 dark:bg-destructive/10 text-destructive dark:text-[color-mix(in_oklab,var(--destructive)_80%,var(--foreground))] border-destructive/30 ${SOFT}`,
+      danger: `bg-destructive/10 dark:bg-destructive/10 text-destructive border-destructive/30 ${SOFT}`,
     } satisfies Record<FieldTone, string>,
     /**
      * `false` where an icon already marks the badge — a metric card's
