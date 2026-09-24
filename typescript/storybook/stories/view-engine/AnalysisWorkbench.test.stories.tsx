@@ -1561,7 +1561,7 @@ export const ExportReadsTheTable: Story = {
       URL.createObjectURL = create;
     }
     const [header = [], ...rows] = (await blobs[0]!.text())
-      .replace(/^﻿/, '')
+      .replace(/^\uFEFF/, '')
       .split('\r\n')
       .filter(line => line !== '')
       .map(csvFields);
