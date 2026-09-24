@@ -55,26 +55,41 @@ export interface UsePagedQueryReturn<
 > extends UseQueryReturn<Q, PagedList<R>, E> {}
 
 /**
- * Hook for querying paged data with a filter, projection, pagination, and sorting.
- * Wraps useQuery to provide type-safe paged queries.
+ * Runs a paged query through your own `execute` function and keeps the page
+ * as state: typically a query client's `paged` or `pagedState`.
  *
- * @template R - The type of the result items in the paged list
- * @template FIELDS - The fields type for the paged query
- * @template E - The error type, defaults to FetcherError
- * @param options - The query options including paged query configuration
- * @returns The query result with paged list data
+ * `execute` receives the query, the `attributes` option and an
+ * `AbortController`; hand the controller on so that a newer query, `abort()`
+ * or an unmount cancels the request. The query runs on mount and whenever
+ * `query` or `setQuery()` changes it — turn pages with `setQuery()`; set
+ * `autoExecute: false` to run it only through `execute()`.
+ *
+ * Returns `result` (`{ total, list }`, or `undefined` before the first
+ * success), `loading`, `error`, `status`, `execute`, `abort`, `reset`,
+ * `getQuery` and `setQuery`.
+ *
+ * @template R - One row of the page
+ * @template FIELDS - The field names the query may use
+ * @template E - The error type, `FetcherError` by default
  *
  * @example
- * ```typescript
- * const { data, isLoading } = usePagedQuery<{ id: number; name: string }, 'id' | 'name'>({
- *   initialQuery: {
- *     filter: filter.matchAll(),
- *     pagination: { index: 1, size: 10 },
- *     projection: { include: ['id', 'name'] },
- *     sort: [{ field: 'id', direction: SortDirection.ASC }],
- *   },
- *   execute: async (query) => fetchPagedData(query),
- * });
+ * ```tsx
+ * import { filter, pagedQuery, type SnapshotQueryClient } from '@ahoo-wang/wow-client';
+ * import { usePagedQuery } from '@ahoo-wang/wow-react';
+ *
+ * function PaidOrders({ client, page }: { client: SnapshotQueryClient<OrderState>; page: number }) {
+ *   const { result, loading, error } = usePagedQuery<OrderState>({
+ *     query: pagedQuery({
+ *       filter: filter.eq('state.status', 'PAID'),
+ *       pagination: { index: page, size: 20 },
+ *     }),
+ *     execute: (query, attributes, abortController) =>
+ *       client.pagedState(query, attributes, abortController),
+ *   });
+ *   if (error) return <p role="alert">{error.message}</p>;
+ *   if (loading || !result) return <p>Loading…</p>;
+ *   return <p>{result.list.length} of {result.total}</p>;
+ * }
  * ```
  */
 export function usePagedQuery<

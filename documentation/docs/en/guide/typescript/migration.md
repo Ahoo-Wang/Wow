@@ -33,14 +33,14 @@ flowchart LR
 
 ### 1. Swap dependencies
 
-Upgrade the Fetcher peers first: `@ahoo-wang/fetcher-react` must be 5.1.3 or later, because `wow-react` imports only its `/core` and `/fetcher` subpaths. Then replace the moved packages:
+Upgrade the peers first: `@ahoo-wang/fetcher-react` must be 5.1.3 or later, because `wow-react` imports only its `/core` and `/fetcher` subpaths, and `wow-react` requires React 19.3 or later (`react` and `react-dom` `^19.3.0`); React 18 is not supported. Then replace the moved packages:
 
 ```sh
 pnpm remove @ahoo-wang/fetcher-wow @ahoo-wang/fetcher-generator
 pnpm add @ahoo-wang/wow-client
 pnpm add -D @ahoo-wang/wow-generator
 # only when the application uses the Wow query hooks
-pnpm add @ahoo-wang/wow-react
+pnpm add react react-dom @ahoo-wang/wow-react
 ```
 
 | Package | Peer | Range |
@@ -49,8 +49,8 @@ pnpm add @ahoo-wang/wow-react
 | `wow-generator` | `fetcher`, `fetcher-decorator`, `fetcher-eventstream`, `fetcher-openapi` | `^5.1 \|\| ^6` |
 | `wow-generator`, `wow-react` | `wow-client` | `~x.y.z`, the same minor version |
 | `wow-react` | `fetcher-react` | `^5.1.3 \|\| ^6` |
-| `wow-react` | `react` | `^19.3.0`; React 18 is not supported |
 | `wow-react` | `fetcher`, `fetcher-eventstream` | `^5.1 \|\| ^6` |
+| `wow-react` | `react` (and `react-dom`, through `fetcher-react`) | `^19.3.0`; React 18 is not supported |
 
 With `fetcher-react` 5.1.3 or later, its peer dependency on `fetcher-wow` is optional, so removing `fetcher-wow` leaves a single copy of the Wow types in the dependency graph. Keep `fetcher-wow` installed only if another dependency still requires it, and do not import Wow types from both packages in one application: the two sets of types are not interchangeable.
 
@@ -74,6 +74,8 @@ import { useFetcher } from '@ahoo-wang/fetcher-react';
 ```
 
 Only the five Wow query hooks and their `useFetcher*` variants move to `wow-react`. Every other hook, such as `useFetcher`, `useQuery`, and `useFetcherQuery`, stays in `@ahoo-wang/fetcher-react`. A search for `fetcher-wow` and for the ten hook names finds every line to change.
+
+The two list-stream hooks changed shape. `useListStreamQuery` and `useFetcherListStreamQuery` no longer put a `ReadableStream` in `result` for the component to read: they read it themselves and return the rows as `items`, with `done` once the stream has ended, and cancel it on a newer query, `abort()`, `reset()` and unmount. Delete the effect that called `getReader()` and render `items`. `useFetcherListStreamQuery` now sends `Accept: text/event-stream`, without which a Wow server answers JSON, and no longer takes `resultExtractor`; an error event in the stream sets `error` to a `WowError`.
 
 Moving the `Condition` API to `/legacy` also changes what the root entry's `singleQuery`, `listQuery`, and `pagedQuery` build: they take `filter` instead of `condition`, and `filter` defaults to `filter.matchAll()`. A call that passes `condition` needs the factory of the same name from `/legacy`, or a rewrite with `filter.*`.
 

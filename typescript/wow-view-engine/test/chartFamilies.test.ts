@@ -281,7 +281,7 @@ describe('chartFamilies', () => {
       Object.entries(CHART_FAMILIES)
         .filter(([, traits]) => traits.labels)
         .map(([family]) => family),
-    ).toEqual(['cartesian', 'pie', 'heatmap']);
+    ).toEqual(['cartesian', 'pie', 'heatmap', 'waterfall']);
     expect(optionTabs('table')).toEqual(['display']);
   });
 });
@@ -294,6 +294,11 @@ describe('valueLabelsOn', () => {
     expect(valueLabelsOn({ type: 'area' })).toBe(false);
     expect(valueLabelsOn({ type: 'pie' })).toBe(false);
     expect(valueLabelsOn({ type: 'heatmap' })).toBe(false);
+    // A waterfall's steps are bars, and write their changes as bars do; a
+    // treemap's tiles carry their names and numbers whatever it says.
+    expect(valueLabelsOn({ type: 'waterfall' })).toBe(true);
+    expect(valueLabelsOn({ type: 'waterfall', labels: false })).toBe(false);
+    expect(valueLabelsOn({ type: 'treemap', labels: true })).toBe(false);
     expect(valueLabelsOn(undefined)).toBe(false);
   });
 

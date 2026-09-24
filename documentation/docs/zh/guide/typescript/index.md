@@ -55,6 +55,7 @@ flowchart LR
 |---|---|
 | `@ahoo-wang/fetcher`、`fetcher-decorator`、`fetcher-eventstream`、`fetcher-openapi` | `^5.1 \|\| ^6` |
 | `@ahoo-wang/fetcher-react`（`wow-react` 需要） | `^5.1.3 \|\| ^6` |
+| `react`、`react-dom`（`wow-react` 需要） | `^19.3.0`，不支持 React 18 |
 | `@ahoo-wang/wow-client`（其他 Wow 包需要） | 同一个小版本，`~x.y.z` |
 
 ## 版本
@@ -70,7 +71,7 @@ pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-even
 pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher-openapi typescript
 ```
 
-使用 React Hook 时再加上 `react`（19.3 或更高）、`@ahoo-wang/fetcher-react` 和 `@ahoo-wang/wow-react`。各包的参考页给出了精确的安装命令。
+使用 React Hook 时再加上 `react`、`react-dom`、`@ahoo-wang/fetcher-react` 和 `@ahoo-wang/wow-react`。`wow-react` 需要 React 19.3 或更高版本：它用 React Compiler 构建，会导入 React 18 没有的 `react/compiler-runtime`。各包的参考页给出了精确的安装命令。
 
 ## 按任务继续
 

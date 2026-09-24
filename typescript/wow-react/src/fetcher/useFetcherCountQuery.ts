@@ -52,41 +52,37 @@ export interface UseFetcherCountQueryReturn<
 > extends UseQueryReturn<Q, number, E> {}
 
 /**
- * A React hook for performing count queries using the Fetcher library.
+ * POSTs a filter to a Wow count endpoint through a Fetcher and keeps the
+ * count as state.
  *
- * This hook is designed for scenarios where you need to retrieve the count of records
- * that match a specific filter. It wraps the useFetcherQuery hook and specializes
- * it for count operations, returning a number representing the count.
+ * `url` is resolved against the Fetcher's `baseURL`; `fetcher` is a Fetcher
+ * or the name of a registered one, the default Fetcher when omitted. The
+ * count runs on mount and whenever `query` or `setQuery()` changes the
+ * filter; set `autoExecute: false` to run it only through `execute()`. A
+ * newer filter aborts the request in flight, so a late response never
+ * overwrites a newer one; an unmount aborts it too.
  *
- * @template FIELDS - A string union type representing the fields that can be used in the filter.
- * @template E - The type of error that may be thrown, defaults to FetcherError.
+ * Returns `result` (the count, or `undefined` before the first success),
+ * `loading`, `error`, `status`, `execute`, `abort`, `reset`, `getQuery` and
+ * `setQuery`. A failed request sets `error` to a `FetcherError`;
+ * `toWowError(error)` from `@ahoo-wang/wow-client` reads the server's
+ * `errorCode` from it.
  *
- * @param options - Configuration options for the count query, including the filter, fetcher instance, and other query settings.
- * @returns An object containing the query result (count as a number), loading state, error state, and utility functions.
- *
- * @throws {E} Throws an error of type E if the query fails, which could be due to network issues, invalid filters, or server errors.
+ * @template FIELDS - The field names the filter may use
+ * @template E - The error type, `FetcherError` by default
  *
  * @example
- * ```typescript
- * import { useFetcherCountQuery } from '@ahoo-wang/wow-react';
+ * ```tsx
  * import { filter } from '@ahoo-wang/wow-client';
+ * import { useFetcherCountQuery } from '@ahoo-wang/wow-react';
  *
- * function UserCountComponent() {
- *   const { data: count, loading, error, execute } = useFetcherCountQuery({
- *     url: '/api/users/count',
- *     initialQuery: filter.matchAll(),
- *     autoExecute: true,
+ * function PaidCount() {
+ *   const { result, error } = useFetcherCountQuery({
+ *     url: 'order/snapshot/count',
+ *     initialQuery: filter.eq('state.status', 'PAID'),
  *   });
- *
- *   if (loading) return <div>Loading...</div>;
- *   if (error) return <div>Error: {error.message}</div>;
- *
- *   return (
- *     <div>
- *       <div>Total active users: {count}</div>
- *       <button onClick={execute}>Refresh Count</button>
- *     </div>
- *   );
+ *   if (error) return <p role="alert">{error.message}</p>;
+ *   return <p>{result ?? '…'} paid orders</p>;
  * }
  * ```
  */

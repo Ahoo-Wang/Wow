@@ -33,6 +33,13 @@ import {
   type IssuePath,
 } from '../model/index.js';
 import { issue } from '../filter/index.js';
+import {
+  consumesAll,
+  group,
+  measure,
+  metric,
+  type ChartContext,
+} from './chartRefs.js';
 
 /**
  * Metrics the projection may add up across rows: a pie's "other" slice and a
@@ -105,15 +112,6 @@ function colors(chart: ChartSpec, path: IssuePath): Issue[] {
     .map(([key]) => issue('chart.colors.invalid', [...path, 'colors', key]));
 }
 
-interface ChartContext {
-  groups: Set<string>;
-  metrics: Map<string, AnalysisMetric>;
-  /** The metrics that are moments (`momentMetrics`): no mark measures one. */
-  moments: ReadonlySet<string>;
-  chart: ChartSpec;
-  path: IssuePath;
-}
-
 /**
  * Charts reference aliases, so their rules are about what the query actually
  * produces. The strictest one is that a chart must consume every group: an
@@ -175,56 +173,11 @@ function byFamily(context: ChartContext, config: AnalysisViewConfig): Issue[] {
       return funnel(context, config);
     case 'metric':
       return metricCard(context, config);
+    case 'waterfall':
+      return waterfall(context);
+    case 'treemap':
+      return treemap(context);
   }
-}
-
-function group(context: ChartContext, alias: string, path: IssuePath): Issue[] {
-  return context.groups.has(alias)
-    ? []
-    : [issue('chart.group.unknown', path, { alias })];
-}
-
-function metric(
-  context: ChartContext,
-  alias: string,
-  path: IssuePath,
-): Issue[] {
-  return context.metrics.has(alias)
-    ? []
-    : [issue('chart.metric.unknown', path, { alias })];
-}
-
-/**
- * A metric a mark measures: one the result has, and a quantity — a bar, a
- * slice, a shade or a point has no reading for the earliest of a date.
- */
-function measure(
-  context: ChartContext,
-  alias: string,
-  path: IssuePath,
-): Issue[] {
-  const unknown = metric(context, alias, path);
-  if (unknown.length > 0) return unknown;
-  return context.moments.has(alias)
-    ? [issue('chart.metric.moment', path, { alias })]
-    : [];
-}
-
-/**
- * Every group alias must appear, or the chart cannot address its own rows.
- * One finding per dimension left out, each naming its own: a reader is told
- * which column it is by its header (`chart.*` findings name an alias, which
- * the surface says as the result names it), and a list joined here could
- * not be taken apart again to name each.
- */
-function consumesAll(
-  context: ChartContext,
-  consumed: readonly string[],
-): Issue[] {
-  const used = new Set(consumed);
-  return [...context.groups]
-    .filter(alias => !used.has(alias))
-    .map(alias => issue('chart.group.unconsumed', context.path, { alias }));
 }
 
 function cartesian(context: ChartContext, config: AnalysisViewConfig): Issue[] {
@@ -379,6 +332,69 @@ function counted(
   return isAdditiveMetric(context.metrics.get(alias))
     ? []
     : [issue('chart.funnel.not-additive', path, { metric: alias })];
+}
+
+/**
+ * A waterfall's steps are added up into its running total, and a treemap's
+ * tiles are parts of a whole: both measure only what adds up, as a funnel
+ * does (`counted`), and say so in a finding of their own.
+ */
+function summed(
+  context: ChartContext,
+  alias: string,
+  path: IssuePath,
+  code: 'chart.waterfall.not-additive' | 'chart.treemap.not-additive',
+): Issue[] {
+  const measured = measure(context, alias, path);
+  if (measured.length > 0) return measured;
+  return isAdditiveMetric(context.metrics.get(alias))
+    ? []
+    : [issue(code, path, { metric: alias })];
+}
+
+function waterfall(context: ChartContext): Issue[] {
+  const spec = context.chart.waterfall;
+  if (!spec) return [];
+  const path: IssuePath = [...context.path, 'waterfall'];
+  return [
+    ...group(context, spec.x, [...path, 'x']),
+    ...summed(
+      context,
+      spec.value,
+      [...path, 'value'],
+      'chart.waterfall.not-additive',
+    ),
+    ...consumesAll(context, [spec.x]),
+  ];
+}
+
+function treemap(context: ChartContext): Issue[] {
+  const spec = context.chart.treemap;
+  if (!spec) return [];
+  const path: IssuePath = [...context.path, 'treemap'];
+  const issues = [
+    ...group(context, spec.category, [...path, 'category']),
+    ...summed(
+      context,
+      spec.value,
+      [...path, 'value'],
+      'chart.treemap.not-additive',
+    ),
+  ];
+  if (spec.parent !== undefined) {
+    issues.push(...group(context, spec.parent, [...path, 'parent']));
+    if (spec.parent === spec.category)
+      issues.push(issue('chart.treemap.same-levels', [...path, 'parent']));
+  }
+  issues.push(
+    ...consumesAll(
+      context,
+      spec.parent === undefined
+        ? [spec.category]
+        : [spec.category, spec.parent],
+    ),
+  );
+  return issues;
 }
 
 function funnel(context: ChartContext, config: AnalysisViewConfig): Issue[] {

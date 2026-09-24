@@ -25,6 +25,8 @@ export interface ChartSpec {
   scatter?: ScatterSpec;
   funnel?: FunnelSpec;
   metric?: MetricCardSpec;
+  waterfall?: WaterfallSpec;
+  treemap?: TreemapSpec;
   legend?: 'auto' | 'top' | 'bottom' | 'right' | 'none';
   /**
    * Whether the values are written on the marks. Left out, the mark
@@ -51,7 +53,9 @@ export type ChartType =
   | 'line'
   | 'area'
   | 'combo'
+  | 'waterfall'
   | 'pie'
+  | 'treemap'
   | 'heatmap'
   | 'scatter'
   | 'funnel'
@@ -62,7 +66,9 @@ export const CHART_TYPES: readonly ChartType[] = [
   'line',
   'area',
   'combo',
+  'waterfall',
   'pie',
+  'treemap',
   'heatmap',
   'scatter',
   'funnel',
@@ -76,7 +82,14 @@ export const CHART_TYPES: readonly ChartType[] = [
  */
 export type ChartFamily = Extract<
   keyof ChartSpec,
-  'cartesian' | 'pie' | 'heatmap' | 'scatter' | 'funnel' | 'metric'
+  | 'cartesian'
+  | 'pie'
+  | 'heatmap'
+  | 'scatter'
+  | 'funnel'
+  | 'metric'
+  | 'waterfall'
+  | 'treemap'
 >;
 
 /**
@@ -106,6 +119,8 @@ export const CHART_FAMILY: Readonly<Record<ChartType, ChartFamily>> =
     scatter: 'scatter',
     funnel: 'funnel',
     metric: 'metric',
+    waterfall: 'waterfall',
+    treemap: 'treemap',
   });
 
 export interface CartesianSeries {
@@ -201,6 +216,41 @@ export interface ScatterSpec {
   x: string;
   y: string;
   size?: string;
+}
+
+/**
+ * A waterfall: how a total is built up step by step. Each value of one
+ * dimension is a step — its row's number the change it brings — drawn as a
+ * bar floating from where the steps before it left the running total, up
+ * for an increase and down for a decrease; the last bar is the total the
+ * steps arrive at, from zero. The steps are added up, so only a metric that
+ * adds (a record count or a sum) has one: a running total of averages is no
+ * total of anything. It is drawn with bars, stacked on an unseen base.
+ */
+export interface WaterfallSpec {
+  /** Group alias: one step per value, in the rows' order (time runs forward). */
+  x: string;
+  /** Metric alias: each step's change. */
+  value: string;
+  /** Whether the closing bar, the steps' total, is drawn. Left out, it is. */
+  total?: boolean;
+}
+
+/**
+ * A treemap: a whole cut into tiles whose areas are the groups' shares of
+ * it — the reading for a composition of more categories than the palette
+ * has colours (D33 Q56), since every tile carries its own name. One
+ * dimension is one level of tiles; a second nests them, the tiles of
+ * `category` inside a block for each value of `parent`. Areas are parts of
+ * a sum, so only a metric that adds up draws one.
+ */
+export interface TreemapSpec {
+  /** Group alias: one tile per value. */
+  category: string;
+  /** Group alias of the outer level, when there are two dimensions. */
+  parent?: string;
+  /** Metric alias: a tile's area. */
+  value: string;
 }
 
 /**

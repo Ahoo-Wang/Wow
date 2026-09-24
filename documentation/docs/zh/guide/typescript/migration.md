@@ -33,14 +33,14 @@ flowchart LR
 
 ### 1. 替换依赖
 
-先升级 Fetcher 的 peer 依赖：`@ahoo-wang/fetcher-react` 必须是 5.1.3 或更高版本，因为 `wow-react` 只从它的 `/core` 和 `/fetcher` 子路径导入。然后替换迁走的包：
+先升级 peer 依赖：`@ahoo-wang/fetcher-react` 必须是 5.1.3 或更高版本，因为 `wow-react` 只从它的 `/core` 和 `/fetcher` 子路径导入；`wow-react` 还需要 React 19.3 或更高版本（`react` 与 `react-dom` 为 `^19.3.0`），不支持 React 18。然后替换迁走的包：
 
 ```sh
 pnpm remove @ahoo-wang/fetcher-wow @ahoo-wang/fetcher-generator
 pnpm add @ahoo-wang/wow-client
 pnpm add -D @ahoo-wang/wow-generator
 # 仅当应用使用 Wow 查询 Hook 时
-pnpm add @ahoo-wang/wow-react
+pnpm add react react-dom @ahoo-wang/wow-react
 ```
 
 | 包 | peer 依赖 | 范围 |
@@ -49,8 +49,8 @@ pnpm add @ahoo-wang/wow-react
 | `wow-generator` | `fetcher`、`fetcher-decorator`、`fetcher-eventstream`、`fetcher-openapi` | `^5.1 \|\| ^6` |
 | `wow-generator`、`wow-react` | `wow-client` | `~x.y.z`，即同一个小版本 |
 | `wow-react` | `fetcher-react` | `^5.1.3 \|\| ^6` |
-| `wow-react` | `react` | `^19.3.0`；不支持 React 18 |
 | `wow-react` | `fetcher`、`fetcher-eventstream` | `^5.1 \|\| ^6` |
+| `wow-react` | `react`（以及经由 `fetcher-react` 的 `react-dom`） | `^19.3.0`，不支持 React 18 |
 
 从 `fetcher-react` 5.1.3 起，它对 `fetcher-wow` 的 peer 依赖是可选的，所以移除 `fetcher-wow` 后依赖图里只剩一份 Wow 类型。只有其他依赖仍然需要 `fetcher-wow` 时才保留它，并且不要在同一个应用里同时从两个包导入 Wow 类型：两套类型不能互换。
 
@@ -74,6 +74,8 @@ import { useFetcher } from '@ahoo-wang/fetcher-react';
 ```
 
 只有五个 Wow 查询 Hook 及其 `useFetcher*` 版本迁到了 `wow-react`。`useFetcher`、`useQuery`、`useFetcherQuery` 等其余 Hook 仍在 `@ahoo-wang/fetcher-react`。搜索 `fetcher-wow` 和这十个 Hook 名，就能找到所有要改的行。
+
+两个列表流 Hook 的形态变了。`useListStreamQuery` 与 `useFetcherListStreamQuery` 不再把 `ReadableStream` 放进 `result` 交给组件读取，而是自己读取，以 `items` 返回已收到的行，流结束后 `done` 为 true；新查询、`abort()`、`reset()` 和组件卸载时都会取消流。删掉调用 `getReader()` 的 effect，直接渲染 `items`。`useFetcherListStreamQuery` 现在会发送 `Accept: text/event-stream`（缺少它时 Wow 服务端返回 JSON），并且不再接受 `resultExtractor`；流中出现错误事件时，`error` 是一个 `WowError`。
 
 `Condition` API 挪到 `/legacy` 之后，根入口的 `singleQuery`、`listQuery`、`pagedQuery` 构造的内容也变了：它们接收 `filter` 而不是 `condition`，`filter` 默认为 `filter.matchAll()`。传了 `condition` 的调用，要改用 `/legacy` 里的同名工厂函数，或者用 `filter.*` 改写。
 

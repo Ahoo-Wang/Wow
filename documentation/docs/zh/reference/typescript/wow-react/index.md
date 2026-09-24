@@ -7,26 +7,48 @@ description: 'Wow 查询 Hook — @ahoo-wang/wow-react'
 
 Wow Hook 为同一个查询执行器限定请求/结果类型，不替你创建客户端或构建条件。服务版本要求 `execute` 函数，Fetcher 版本要求 `url`，可选命名或实例 Fetcher。
 
-| 服务 Hook          | Fetcher Hook              | 请求 → 结果                                                       |
-| ------------------ | ------------------------- | ----------------------------------------------------------------- |
-| useSingleQuery     | useFetcherSingleQuery     | SingleQueryRequest → R                                            |
-| useListQuery       | useFetcherListQuery       | ListQueryRequest → R[]                                            |
-| usePagedQuery      | useFetcherPagedQuery      | PagedQueryRequest → PagedList&lt;R&gt;，含 total/list             |
-| useCountQuery      | useFetcherCountQuery      | Condition 或 FilterExpression → number                            |
-| useListStreamQuery | useFetcherListStreamQuery | ListQueryRequest → JsonServerSentEvent&lt;R&gt; 的 ReadableStream |
+| 服务 Hook          | Fetcher Hook              | 请求 → 结果                                           |
+| ------------------ | ------------------------- | ----------------------------------------------------- |
+| useSingleQuery     | useFetcherSingleQuery     | SingleQueryRequest → R                                |
+| useListQuery       | useFetcherListQuery       | ListQueryRequest → R[]                                |
+| usePagedQuery      | useFetcherPagedQuery      | PagedQueryRequest → PagedList&lt;R&gt;，含 total/list |
+| useCountQuery      | useFetcherCountQuery      | FilterExpression 或旧版 Condition → number            |
+| useListStreamQuery | useFetcherListStreamQuery | ListQueryRequest → 随到随增的 `items: R[]`            |
 
-查询类型默认为 `FilterSingleQuery`、`FilterListQuery`、`FilterPagedQuery` 或 `FilterExpression`。每个 Hook 另有一个重载接受从 `@ahoo-wang/wow-client/legacy` 导入的已弃用 `Condition` 查询，供 Wow 8.10 服务端使用，该重载在 v10 移除。下文签名中的 `SingleQueryRequest`、`ListQueryRequest`、`PagedQueryRequest` 是两类查询的联合类型，同样由 `/legacy` 导出。`FIELDS` 仅在编译期约束字段名，泛型不校验服务端 JSON。对应 `Use…Options`、`Use…Return` 继承 [查询状态](https://fetcher.ahoo.me/zh/reference/react/promise-and-query-state)，Fetcher 变体还继承 [Fetcher 选项](https://fetcher.ahoo.me/zh/reference/react/fetcher-hooks)。默认 autoExecute true、propagateError false，没有传入就没有初始查询。Fetcher 变体 POST 查询，默认 JSON 提取；流版本在展开 options 后强制设置 `JsonEventStreamResultExtractor`。
+查询类型默认为 `FilterSingleQuery`、`FilterListQuery`、`FilterPagedQuery` 或 `FilterExpression`。每个 Hook 另有一个重载接受从 `@ahoo-wang/wow-client/legacy` 导入的已弃用 `Condition` 查询，供 Wow 8.10 服务端使用，该重载在 v10 移除。下文签名中的 `SingleQueryRequest`、`ListQueryRequest`、`PagedQueryRequest` 是两类查询的联合类型，同样由 `/legacy` 导出。`FIELDS` 仅在编译期约束字段名，泛型不校验服务端 JSON。对应 `Use…Options`、`Use…Return` 继承 [查询状态](https://fetcher.ahoo.me/zh/reference/react/promise-and-query-state)，Fetcher 变体还继承 [Fetcher 选项](https://fetcher.ahoo.me/zh/reference/react/fetcher-hooks)。默认 autoExecute true、propagateError false，没有传入就没有初始查询。Fetcher 变体把查询 POST 到 `url` 并按 JSON 提取；流版本发送 `Accept: text/event-stream`，并用 wow-client 的 `QueryEventStreamResultExtractor` 读取响应。
 
-把 controller 传给服务客户端才能停止被替代请求的 I/O：wow-client 每个查询方法的最后一个参数 `abort` 接受 `AbortController` 或其 `signal`。查询失败时 `error` 是 fetcher 的错误，用 `@ahoo-wang/wow-client` 的 `await toWowError(error)` 可读出服务端错误码；中途失败的流在读取时以 `WowError` 出错。流的 success 表示已取得 ReadableStream，不代表已完整消费。Hook 不累积消息、不关闭 reader，也不重试失败流。请求提取完成后，当前执行器可能已经不再持有对应 controller；消费者必须在替换/卸载时取消 reader 或 stream。生命周期见 [EventStream 消费](https://fetcher.ahoo.me/zh/reference/eventstream/consumption-and-cancellation)。
+新的查询会中止进行中的查询，迟到的响应不会覆盖更新的结果；组件卸载时同样会中止。把 controller 传给服务客户端，中止时才能真正停止 I/O：wow-client 每个查询方法的最后一个参数 `abort` 接受 `AbortController` 或其 `signal`。请求失败时 `error` 是 fetcher 的错误（`ExchangeError`），用 `@ahoo-wang/wow-client` 的 `await toWowError(error)` 可从中读出 `errorCode`、`errorMsg` 和 `status`。
+
+### 列表流
+
+`useListStreamQuery` 与 `useFetcherListStreamQuery` 自己持有流：读取流，把每个事件的 `data` 收进 `items`，并在新查询开始、调用 `abort()` 或 `reset()`、组件卸载时取消流。组件只渲染 `items`，从不持有 reader，因此在 StrictMode 下也安全；渲染按网络分块批量进行，而不是每行一次。它们不返回 `result`，而是返回：
+
+| 字段 | 含义 |
+| --- | --- |
+| `items` | 当前查询至今收到的行，按到达顺序排列。新查询从空列表开始，`reset()` 清空它，`abort()` 或出错时保留此前已收到的行。 |
+| `done` | 流正常结束，`items` 已包含全部行；等同于 `status === 'success'`。 |
+| `loading` | 从发出请求到流结束、失败或被中止。 |
+| `error` | 请求失败时为 `FetcherError`；服务端在流中发出错误事件时为带 `errorCode` 的 `WowError`。`E` 默认为 `FetcherError \| WowError`。 |
+| `status`、`execute`、`abort`、`reset`、`getQuery`、`setQuery` | 与其他 Hook 相同；`execute()` 重新执行当前查询并中止进行中的流，`reset()` 停止流并清空 `items`。 |
+
+`onSuccess` 在流结束后收到全部行。`useListStreamQuery` 的 `execute` 选项是 [`ListStreamExecutor`](#api-ListStreamExecutor)：`(query, attributes?, abortController?)`，返回解析为 `ReadableStream<JsonServerSentEvent<R>>` 的 Promise，例如查询客户端的 `listStateStream`。`useFetcherListStreamQuery` 改为接收 `url` 和可选的 `fetcher`，没有 `execute` 或 `resultExtractor` 选项。
+
+### 配合查询客户端
+
+查询客户端的方法（wow-client 的 `SnapshotQueryClient`，或生成的 `…QueryClientFactory` 通过 `createSnapshotQueryClient(...)` 创建的客户端）本身就是 `execute` 所需的 `(query, attributes, abort)` 形状。直接转交即可：`execute: (query, attributes, abortController) => client.pagedState(query, attributes, abortController)`，这样不必手写 URL，中止时也会取消请求。正因如此，没有为每个客户端单独提供 Hook：每个客户端方法配一个 Hook 只会成倍扩大公开 API，而带来的能力 `execute` 选项已经具备。
+
+只有端点 URL 时再用 `useFetcher*Query` Hook。快照端点的形式是 `order/snapshot/paged/state`（不是 `snapshot_state/paged`），过滤状态字段写成 `state.status`（不是 `status`），因为快照查询过滤的是快照文档，聚合状态位于其 `state` 下。
 
 ## 安装
 
+需要 React 19.3 或更高版本（peer `react ^19.3.0`）。本包用 React Compiler 构建，产物导入 `react/compiler-runtime`，只有 React 19 提供它；不支持 React 18。
+
 ```sh
-pnpm add react @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream \
+pnpm add react react-dom @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream \
   @ahoo-wang/fetcher-react @ahoo-wang/wow-client @ahoo-wang/wow-react
 ```
 
-需要 React **19.3** 或更高版本（peer 范围 `^19.3.0`；不支持 React 18，构建产物导入 `react/compiler-runtime`）。需要 `@ahoo-wang/fetcher-react` 5.1.3 或更高版本（peer 范围 `^5.1.3 || ^6`）：这些 Hook 只从 `@ahoo-wang/fetcher-react/core` 和 `@ahoo-wang/fetcher-react/fetcher` 两个子路径导入，因此不会装上 `@ahoo-wang/fetcher-wow`。`@ahoo-wang/wow-client` 必须与 `@ahoo-wang/wow-react` 处于同一个小版本。包声明 Node >=22.12.0。这些 Hook 原来是 `@ahoo-wang/fetcher-react` 里的 Wow Hook，参见[迁移指南](../../../guide/typescript/migration.md)。
+需要 `@ahoo-wang/fetcher-react` 5.1.3 或更高版本（peer 范围 `^5.1.3 || ^6`）：这些 Hook 只从 `@ahoo-wang/fetcher-react/core` 和 `@ahoo-wang/fetcher-react/fetcher` 两个子路径导入，因此不会装上 `@ahoo-wang/fetcher-wow`。`@ahoo-wang/fetcher-react` 自身又把 `react-dom` `^19.3.0`、`@ahoo-wang/fetcher-cosec`、`@ahoo-wang/fetcher-storage` 和 `@ahoo-wang/fetcher-eventbus` 声明为 peer；npm 7+ 与 pnpm 8+ 会自动安装 peer，Yarn 用户需把它们加进安装命令。`@ahoo-wang/wow-client` 必须与 `@ahoo-wang/wow-react` 处于同一个小版本。包声明 Node >=22.12.0。这些 Hook 原来是 `@ahoo-wang/fetcher-react` 里的 Wow Hook，参见[迁移指南](../../../guide/typescript/migration.md)。
 
 ## 完整示例
 
@@ -59,6 +81,48 @@ export function Users() {
   );
 }
 ```
+
+列表流随行到达随时渲染：
+
+```tsx
+import { useListStreamQuery } from '@ahoo-wang/wow-react';
+import {
+  filter,
+  listQuery,
+  type SnapshotQueryClient,
+} from '@ahoo-wang/wow-client';
+interface OrderState {
+  id: string;
+  status: string;
+}
+export function PaidOrders({
+  client,
+}: {
+  client: SnapshotQueryClient<OrderState>;
+}) {
+  const { items, done, loading, error, abort } = useListStreamQuery<OrderState>(
+    {
+      initialQuery: listQuery({ filter: filter.eq('state.status', 'PAID') }),
+      execute: (query, attributes, abortController) =>
+        client.listStateStream(query, attributes, abortController),
+    },
+  );
+  if (error) return <p role="alert">{error.message}</p>;
+  return (
+    <>
+      <ul>
+        {items.map(order => (
+          <li key={order.id}>{order.id}</li>
+        ))}
+      </ul>
+      {loading && <button onClick={abort}>Stop</button>}
+      {done && <p>{items.length} orders</p>}
+    </>
+  );
+}
+```
+
+只有端点 URL 时，`useFetcherListStreamQuery<OrderState>({ url: 'order/snapshot/list/state', initialQuery })` 返回同样的字段。
 
 示例中的服务 URL 需要应用实现；类型检查不代表已经访问外部服务。
 
@@ -94,7 +158,8 @@ export function useFetcherCountQuery<
 export function useFetcherCountQuery<
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends Condition<FIELDS> | FilterExpression<FIELDS> = FilterExpression<FIELDS>,
+  Q extends Condition<FIELDS> | FilterExpression<FIELDS> =
+    FilterExpression<FIELDS>,
 >(
   options: UseFetcherCountQueryOptions<FIELDS, E, Q>,
 ): UseFetcherCountQueryReturn<FIELDS, E, Q>;
@@ -108,7 +173,8 @@ export function useFetcherCountQuery<
 export interface UseFetcherCountQueryOptions<
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends Condition<FIELDS> | FilterExpression<FIELDS> = FilterExpression<FIELDS>,
+  Q extends Condition<FIELDS> | FilterExpression<FIELDS> =
+    FilterExpression<FIELDS>,
 > extends UseFetcherQueryOptions<Q, number, E> {}
 ```
 
@@ -120,7 +186,8 @@ export interface UseFetcherCountQueryOptions<
 export interface UseFetcherCountQueryReturn<
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends Condition<FIELDS> | FilterExpression<FIELDS> = FilterExpression<FIELDS>,
+  Q extends Condition<FIELDS> | FilterExpression<FIELDS> =
+    FilterExpression<FIELDS>,
 > extends UseQueryReturn<Q, number, E> {}
 ```
 
@@ -197,7 +264,7 @@ export interface UseFetcherListQueryReturn<
 export function useFetcherListStreamQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = FetcherError | WowError,
 >(
   options: UseFetcherListStreamQueryOptions<
     R,
@@ -214,7 +281,7 @@ export function useFetcherListStreamQuery<
 export function useFetcherListStreamQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = FetcherError | WowError,
 >(
   options: UseFetcherListStreamQueryOptions<R, FIELDS, E, ListQuery<FIELDS>>,
 ): UseFetcherListStreamQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
@@ -226,7 +293,7 @@ export function useFetcherListStreamQuery<
 export function useFetcherListStreamQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = FetcherError | WowError,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
 >(
   options: UseFetcherListStreamQueryOptions<R, FIELDS, E, Q>,
@@ -241,13 +308,18 @@ export function useFetcherListStreamQuery<
 export interface UseFetcherListStreamQueryOptions<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = FetcherError | WowError,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
-> extends UseFetcherQueryOptions<
-  Q,
-  ReadableStream<JsonServerSentEvent<R>>,
-  E
-> {}
+>
+  extends
+    Omit<UseListStreamQueryOptions<R, FIELDS, E, Q>, 'execute'>,
+    FetcherCapable {
+  /**
+   * The list endpoint, resolved against the Fetcher's `baseURL`: for example
+   * `order/snapshot/list/state` for the states of an `order` aggregate.
+   */
+  url: string;
+}
 ```
 
 [typescript/wow-react/src/fetcher/useFetcherListStreamQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherListStreamQuery.ts)
@@ -258,9 +330,9 @@ export interface UseFetcherListStreamQueryOptions<
 export interface UseFetcherListStreamQueryReturn<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = FetcherError | WowError,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
-> extends UseQueryReturn<Q, ReadableStream<JsonServerSentEvent<R>>, E> {}
+> extends UseListStreamQueryReturn<R, FIELDS, E, Q> {}
 ```
 
 [typescript/wow-react/src/fetcher/useFetcherListStreamQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherListStreamQuery.ts)
@@ -422,7 +494,8 @@ export function useCountQuery<FIELDS extends string = string, E = FetcherError>(
 export function useCountQuery<
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends Condition<FIELDS> | FilterExpression<FIELDS> = FilterExpression<FIELDS>,
+  Q extends Condition<FIELDS> | FilterExpression<FIELDS> =
+    FilterExpression<FIELDS>,
 >(
   options: UseCountQueryOptions<FIELDS, E, Q>,
 ): UseCountQueryReturn<FIELDS, E, Q>;
@@ -436,7 +509,8 @@ export function useCountQuery<
 export interface UseCountQueryOptions<
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends Condition<FIELDS> | FilterExpression<FIELDS> = FilterExpression<FIELDS>,
+  Q extends Condition<FIELDS> | FilterExpression<FIELDS> =
+    FilterExpression<FIELDS>,
 > extends UseQueryOptions<Q, number, E> {}
 ```
 
@@ -448,7 +522,8 @@ export interface UseCountQueryOptions<
 export interface UseCountQueryReturn<
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends Condition<FIELDS> | FilterExpression<FIELDS> = FilterExpression<FIELDS>,
+  Q extends Condition<FIELDS> | FilterExpression<FIELDS> =
+    FilterExpression<FIELDS>,
 > extends UseQueryReturn<Q, number, E> {}
 ```
 
@@ -525,7 +600,7 @@ export interface UseListQueryReturn<
 export function useListStreamQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = FetcherError | WowError,
 >(
   options: UseListStreamQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>,
 ): UseListStreamQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
@@ -537,7 +612,7 @@ export function useListStreamQuery<
 export function useListStreamQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = FetcherError | WowError,
 >(
   options: UseListStreamQueryOptions<R, FIELDS, E, ListQuery<FIELDS>>,
 ): UseListStreamQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
@@ -549,7 +624,7 @@ export function useListStreamQuery<
 export function useListStreamQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = FetcherError | WowError,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
 >(
   options: UseListStreamQueryOptions<R, FIELDS, E, Q>,
@@ -564,9 +639,12 @@ export function useListStreamQuery<
 export interface UseListStreamQueryOptions<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = FetcherError | WowError,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
-> extends UseQueryOptions<Q, ReadableStream<JsonServerSentEvent<R>>, E> {}
+> extends Omit<UseQueryOptions<Q, R[], E>, 'execute'> {
+  /** Opens the stream for a query. */
+  execute: ListStreamExecutor<R, Q>;
+}
 ```
 
 [typescript/wow-react/src/useListStreamQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useListStreamQuery.ts)
@@ -577,9 +655,26 @@ export interface UseListStreamQueryOptions<
 export interface UseListStreamQueryReturn<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = FetcherError | WowError,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
-> extends UseQueryReturn<Q, ReadableStream<JsonServerSentEvent<R>>, E> {}
+> extends Omit<UseQueryReturn<Q, R[], E>, 'result'> {
+  /** The rows of the current query received so far. */
+  items: R[];
+  /** Whether the stream ended normally, so `items` holds every row. */
+  done: boolean;
+}
+```
+
+[typescript/wow-react/src/useListStreamQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useListStreamQuery.ts)
+
+### ListStreamExecutor {#api-ListStreamExecutor}
+
+```ts
+export type ListStreamExecutor<R, Q> = (
+  query: Q,
+  attributes?: Record<string, any>,
+  abortController?: AbortController,
+) => Promise<ReadableStream<JsonServerSentEvent<R>>>;
 ```
 
 [typescript/wow-react/src/useListStreamQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useListStreamQuery.ts)

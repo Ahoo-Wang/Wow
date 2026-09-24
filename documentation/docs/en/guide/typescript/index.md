@@ -55,6 +55,7 @@ flowchart LR
 |---|---|
 | `@ahoo-wang/fetcher`, `fetcher-decorator`, `fetcher-eventstream`, `fetcher-openapi` | `^5.1 \|\| ^6` |
 | `@ahoo-wang/fetcher-react` (for `wow-react`) | `^5.1.3 \|\| ^6` |
+| `react`, `react-dom` (for `wow-react`) | `^19.3.0`; React 18 is not supported |
 | `@ahoo-wang/wow-client` (for the other Wow packages) | Same minor version, `~x.y.z` |
 
 ## Versions
@@ -70,7 +71,7 @@ pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-even
 pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher-openapi typescript
 ```
 
-Add `react` (19.3 or later), `@ahoo-wang/fetcher-react`, and `@ahoo-wang/wow-react` for the React hooks. Each reference page lists the exact install command for its package.
+For the React hooks, add `react`, `react-dom`, `@ahoo-wang/fetcher-react`, and `@ahoo-wang/wow-react`. `wow-react` requires React 19.3 or later: it is built with the React Compiler and imports `react/compiler-runtime`, which React 18 does not have. Each reference page lists the exact install command for its package.
 
 ## Continue by task
 

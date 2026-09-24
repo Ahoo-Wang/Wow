@@ -24,6 +24,7 @@ export default mergeConfig(
       unstubGlobals: true,
       globals: true,
       coverage: {
+        include: ['src/**/*.ts'],
         exclude: [...configDefaults.exclude],
       },
     },

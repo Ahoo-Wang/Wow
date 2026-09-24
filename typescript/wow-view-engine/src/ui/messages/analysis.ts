@@ -187,6 +187,10 @@ export const analysisMessages = {
   'label.chart.picker': 'Visualization',
   'label.chart.picker-back': 'Back to the views',
   'label.chart.recommended': 'Recommended',
+  // The picker's two groups (D33 Q54): the types that can draw the result,
+  // the table among them, and the rest, greyed, each saying what it lacks.
+  'label.chart.group.suits': 'Fits this result',
+  'label.chart.group.others': 'Other charts',
   'chart.fit.needs-dimension': 'Needs a dimension',
   'chart.fit.needs-one-dimension': 'Needs exactly one dimension',
   'chart.fit.needs-two-dimensions': 'Needs two dimensions',
@@ -243,6 +247,12 @@ export const analysisMessages = {
   'label.chart.slot.stages': 'Stages',
   'label.chart.stage-name': 'Name of the stage {name}',
   'label.chart.slot.stage-of': 'Stages are the values of',
+  // A waterfall steps along one dimension; a treemap tiles one, nested in
+  // the blocks of a second when there is one.
+  'label.chart.slot.steps': 'One step per',
+  'label.chart.slot.tiles': 'One tile per',
+  'label.chart.slot.parent': 'Grouped in',
+  'label.chart.waterfall.total': 'Show the total',
   // The two numbers a metric card carries beside its headline. The
   // reading table heads the same two with `label.chart.column.*`; a
   // control is asked for, a heading is read, so each has its own words.
@@ -384,6 +394,8 @@ export const analysisMessages = {
   'label.chart.type.scatter': 'scatter',
   'label.chart.type.funnel': 'funnel',
   'label.chart.type.metric': 'metric',
+  'label.chart.type.waterfall': 'waterfall',
+  'label.chart.type.treemap': 'treemap',
   // A chart the shape leaves no room for, said with its reason where the
   // surface can word both (`chart.as-table`, `analysisIssueNamer`).
   'label.analysis.as-table':
@@ -397,6 +409,13 @@ export const analysisMessages = {
   // Series names the chart writes itself, for legends and tooltips.
   'label.chart.other': 'Other',
   'label.chart.share-basis': 'Shares of the groups shown',
+  // A waterfall's closing bar adds up the steps drawn: over rows cut short,
+  // those are the groups shown and not every group.
+  'label.chart.waterfall.total-basis': 'The total is of the groups shown',
+  'label.chart.waterfall.increase': 'Increase',
+  'label.chart.waterfall.decrease': 'Decrease',
+  // Rows whose number is not above zero have no area a tile could take.
+  'label.chart.treemap.omitted': '{count} groups not above zero are not drawn',
   // A 0 the chart filled in rather than measured (decisions.md D23, Q14):
   // a bucket or a group the rows lack, said in the tooltip and the reading
   // table, never written on the mark.
@@ -434,6 +453,9 @@ export const analysisMessages = {
   'label.chart.column.cumulative': 'Cumulative: reached at least this stage',
   'label.chart.column.compare': 'Compared with',
   'label.chart.column.target': 'Target',
+  'label.chart.column.change': 'Change',
+  'label.chart.column.running': 'Running total',
+  'label.chart.column.share': 'Share',
 
   // The metric card's target bar. The bar is a progressbar, so it says its
   // own name and reads its position as the two numbers behind it rather than
@@ -577,6 +599,11 @@ export const analysisMessages = {
   'chart.group.unknown':
     'The chart uses a dimension this analysis does not have.',
   'chart.heatmap.same-axes': 'A heatmap needs two different axes.',
+  'chart.treemap.not-additive':
+    'A treemap’s tiles are parts of a whole, so it needs a metric that adds up (a record count or a sum), not {metric}.',
+  'chart.treemap.same-levels': 'A treemap needs two different levels.',
+  'chart.waterfall.not-additive':
+    'A waterfall adds up its steps, so it needs a metric that adds up (a record count or a sum), not {metric}.',
   'chart.metric.needs-no-group': 'A metric card can carry no dimension.',
   'chart.metric.trend-alias-mismatch':
     'The trend must use the {alias} dimension.',
