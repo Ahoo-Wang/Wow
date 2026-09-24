@@ -1,4 +1,4 @@
-import { AggregateId, BindingError, FunctionInfo, FunctionKind, RecoverableType } from "@ahoo-wang/fetcher-wow";
+import { AggregateId, BindingError, FunctionInfo, FunctionKind, RecoverableType } from "@ahoo-wang/wow-client";
 
 /**
  * apply_execution_failed

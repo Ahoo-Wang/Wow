@@ -32,7 +32,7 @@ vi.mock('ts-morph', () => ({
 
 // Mock @/model
 vi.mock('../../src/model', () => ({
-  IMPORT_WOW_PATH: '@ahoo-wang/fetcher-wow/types.ts',
+  IMPORT_WOW_PATH: '@ahoo-wang/wow-client/types.ts',
 }));
 
 // NOTE: @ahoo-wang/fetcher is NOT mocked here — the real combineURLs runs so
@@ -312,13 +312,13 @@ describe('sourceFiles', () => {
       const outputDir = '/output';
       const refModelInfo: ModelInfo = {
         name: 'WowType',
-        path: '@ahoo-wang/fetcher-wow/types.ts',
+        path: '@ahoo-wang/wow-client/types.ts',
       };
 
       addImportRefModel(sourceFile, outputDir, refModelInfo);
 
       expect(mockSourceFile.addImportDeclaration).toHaveBeenCalledWith({
-        moduleSpecifier: '@ahoo-wang/fetcher-wow/types.ts',
+        moduleSpecifier: '@ahoo-wang/wow-client/types.ts',
       });
     });
 

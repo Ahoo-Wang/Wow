@@ -23,7 +23,7 @@ export default defineConfig({
         'query/locale/zh_CN': 'src/query/locale/zh_CN.ts',
         'query/locale/en_US': 'src/query/locale/en_US.ts',
       },
-      name: 'FetcherWow',
+      name: 'WowClient',
       fileName: (format, entryName) => {
         return format === 'es'
           ? `${entryName}.es.js`

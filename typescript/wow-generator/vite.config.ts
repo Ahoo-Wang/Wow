@@ -16,7 +16,7 @@ export default defineConfig({
         cli: resolve(__dirname, 'src/cli.ts'),
       },
       formats: ['es', 'cjs'],
-      name: 'FetcherGenerator',
+      name: 'WowGenerator',
     },
     rollupOptions: {
       external: [
@@ -24,7 +24,7 @@ export default defineConfig({
         '@ahoo-wang/fetcher-eventstream',
         '@ahoo-wang/fetcher-decorator',
         '@ahoo-wang/fetcher-openapi',
-        '@ahoo-wang/fetcher-wow',
+        '@ahoo-wang/wow-client',
         'commander',
         'ts-morph',
         'yaml',
@@ -40,7 +40,7 @@ export default defineConfig({
           '@ahoo-wang/fetcher-eventstream': 'FetcherEventStream',
           '@ahoo-wang/fetcher-decorator': 'FetcherDecorator',
           '@ahoo-wang/fetcher-openapi': 'FetcherOpenAPI',
-          '@ahoo-wang/fetcher-wow': 'FetcherWow',
+          '@ahoo-wang/wow-client': 'WowClient',
           commander: 'Commander',
           'ts-morph': 'ts-morph',
           yaml: 'yaml',

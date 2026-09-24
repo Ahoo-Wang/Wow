@@ -37,12 +37,14 @@
 ### Task 1: 定义并导出 AggregationQuery 公共类型
 
 **Files:**
+
 - Create: `packages/wow/src/query/aggregation.ts`
 - Modify: `packages/wow/src/query/index.ts:14-28`
 - Create: `packages/wow/test/query/aggregation.test.ts`
 - Modify: `packages/wow/test/tsconfig.types.json:10`
 
 **Interfaces:**
+
 - Consumes: `LogicalField`, `FilterExpression`, `ElementFilterExpression` from `query/filter.ts`; `FieldSort` from `query/sort.ts`.
 - Produces: `AggregationQuery<FIELDS>`, `AggregationElement`, `AggregationGroup`, `AggregationMetric`, `AggregationExpression` and their public enums/subtypes for Task 2.
 
@@ -304,8 +306,7 @@ export interface HistogramAggregationGroup extends AggregationGroupBase {
   interval: number;
 }
 
-export interface DateHistogramAggregationGroup
-  extends AggregationGroupBase {
+export interface DateHistogramAggregationGroup extends AggregationGroupBase {
   type: AggregationGroupType.DATE_HISTOGRAM;
   unit: AggregationDateUnit;
   timeZone?: string;
@@ -336,8 +337,7 @@ export interface NumericAggregationMetric {
 }
 
 export type AggregationMetric =
-  | CountAggregationMetric
-  | NumericAggregationMetric;
+  CountAggregationMetric | NumericAggregationMetric;
 
 export interface AggregationQuery<FIELDS extends string = string> {
   filter?: FilterExpression<FIELDS>;
@@ -393,12 +393,14 @@ git commit -m "feat(wow): add aggregation query types"
 ### Task 2: 在 SnapshotQueryClient 上提供 JSON 与 SSE 聚合查询
 
 **Files:**
+
 - Modify: `packages/wow/src/query/snapshot/snapshotQueryApi.ts:14-118`
 - Modify: `packages/wow/src/query/snapshot/snapshotQueryClient.ts:14-216`
 - Modify: `packages/wow/test/query/snapshot/snapshotQueryApi.test.ts:14-30`
 - Modify: `packages/wow/test/tsconfig.types.json:10-14`
 
 **Interfaces:**
+
 - Consumes: `AggregationQuery<FIELDS>` from Task 1, `DynamicDocument`, `JsonServerSentEvent`, existing Fetcher decorators and `JsonEventStreamResultExtractor`.
 - Produces: `SnapshotQueryEndpointPaths.AGGREGATION`, optional `SnapshotQueryApi.aggregate<Row>()` and `SnapshotQueryApi.aggregateStream<Row>()`, and required matching `SnapshotQueryClient` methods.
 
@@ -409,10 +411,7 @@ Replace the body of `packages/wow/test/query/snapshot/snapshotQueryApi.test.ts` 
 ```ts
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import { describe, expect, expectTypeOf, it } from 'vitest';
-import type {
-  SnapshotQueryApi,
-  SnapshotQueryClient,
-} from '../../../src';
+import type { SnapshotQueryApi, SnapshotQueryClient } from '../../../src';
 import {
   AggregationMetricType,
   SnapshotQueryEndpointPaths,
@@ -443,22 +442,17 @@ describe('SnapshotQueryEndpointPaths', () => {
     };
     type SnapshotApiHasAggregationKeys =
       'aggregate' extends keyof SnapshotQueryApi<unknown, RootFields>
-        ? 'aggregateStream' extends keyof SnapshotQueryApi<
-            unknown,
-            RootFields
-          >
+        ? 'aggregateStream' extends keyof SnapshotQueryApi<unknown, RootFields>
           ? true
           : false
         : false;
-    type SnapshotApiRequiresAggregation = SnapshotQueryApi<
-      unknown,
-      RootFields
-    > extends {
-      aggregate: unknown;
-      aggregateStream: unknown;
-    }
-      ? true
-      : false;
+    type SnapshotApiRequiresAggregation =
+      SnapshotQueryApi<unknown, RootFields> extends {
+        aggregate: unknown;
+        aggregateStream: unknown;
+      }
+        ? true
+        : false;
 
     const query: AggregationQuery<RootFields> = {
       metrics: [{ type: AggregationMetricType.COUNT, alias: 'total' }],

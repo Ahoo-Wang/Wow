@@ -12,7 +12,7 @@
  */
 
 /** Import path for the WOW framework types */
-export const IMPORT_WOW_PATH = '@ahoo-wang/fetcher-wow';
+export const IMPORT_WOW_PATH = '@ahoo-wang/wow-client';
 
 /** Mapping of OpenAPI schema keys to WOW framework types */
 export const WOW_TYPE_MAPPING = {

@@ -31,7 +31,7 @@ const EXPECTED_DIR = 'expected';
 /**
  * Snapshots under expected/ are the regression baseline for generated code.
  * After an INTENTIONAL generator change, regenerate them with:
- *   UPDATE_SNAPSHOTS=true pnpm --filter @ahoo-wang/fetcher-generator test
+ *   UPDATE_SNAPSHOTS=true pnpm --filter @ahoo-wang/wow-generator test
  * and review the diff before committing. Blindly updating snapshots defeats
  * this safety net.
  */

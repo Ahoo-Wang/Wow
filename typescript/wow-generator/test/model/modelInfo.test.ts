@@ -30,7 +30,7 @@ describe('modelInfo', () => {
       const result = resolveModelInfo(schemaKey);
       expect(result).toEqual({
         name: WOW_TYPE_MAPPING[schemaKey as keyof typeof WOW_TYPE_MAPPING],
-        path: '@ahoo-wang/fetcher-wow',
+        path: '@ahoo-wang/wow-client',
       });
     });
 
@@ -113,13 +113,13 @@ describe('modelInfo', () => {
           resolveReferenceModelInfo(reference, components('condition')),
         ).toEqual({
           name: conditionType,
-          path: '@ahoo-wang/fetcher-wow',
+          path: '@ahoo-wang/wow-client',
         });
         expect(
           resolveReferenceModelInfo(reference, components('filter')),
         ).toEqual({
           name: filterType,
-          path: '@ahoo-wang/fetcher-wow',
+          path: '@ahoo-wang/wow-client',
         });
       },
     );

@@ -13,22 +13,22 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useFetcherListStreamQuery } from '../../../src/wow/fetcher/useFetcherListStreamQuery';
+import { useFetcherListStreamQuery } from '../../src/fetcher/useFetcherListStreamQuery';
 import {
   ListQuery,
   SortDirection,
   Operator,
   eq,
   contains,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import { JsonEventStreamResultExtractor } from '@ahoo-wang/fetcher-eventstream';
 
 // Mock the useFetcherQuery hook
-vi.mock('../../../src/fetcher/useFetcherQuery', () => ({
+vi.mock('@ahoo-wang/fetcher-react/fetcher', () => ({
   useFetcherQuery: vi.fn(),
 }));
 
-import { useFetcherQuery } from '../../../src/fetcher/useFetcherQuery';
+import { useFetcherQuery } from '@ahoo-wang/fetcher-react/fetcher';
 
 describe('useFetcherListStreamQuery', () => {
   const mockListQuery: ListQuery<string> = {

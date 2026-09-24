@@ -12,7 +12,7 @@
  */
 
 import type { Components, Reference, Schema } from '@ahoo-wang/fetcher-openapi';
-import type { Named } from '@ahoo-wang/fetcher-wow';
+import type { Named } from '@ahoo-wang/wow-client';
 import {
   COMPONENTS_SCHEMAS_REF,
   extractComponentKey,

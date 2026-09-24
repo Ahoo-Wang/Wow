@@ -1,4 +1,4 @@
-# `@ahoo-wang/fetcher-wow`
+# `@ahoo-wang/wow-client`
 
 Typed Fetcher clients and contracts for Wow commands, snapshots, domain events,
 filters, pagination, and aggregation. Use it only against Wow HTTP endpoints.
@@ -7,7 +7,7 @@ filters, pagination, and aggregation. Use it only against Wow HTTP endpoints.
 
 ```bash
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
-  @ahoo-wang/fetcher-eventstream @ahoo-wang/fetcher-wow
+  @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
 ```
 
 Peer dependencies: `fetcher`, `fetcher-decorator`, and `fetcher-eventstream`.
@@ -16,7 +16,7 @@ Peer dependencies: `fetcher`, `fetcher-decorator`, and `fetcher-eventstream`.
 
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';
-import { SnapshotQueryClient, filter, listQuery } from '@ahoo-wang/fetcher-wow';
+import { SnapshotQueryClient, filter, listQuery } from '@ahoo-wang/wow-client';
 
 interface CartState {
   status: 'ACTIVE' | 'CHECKED_OUT';

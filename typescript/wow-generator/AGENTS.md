@@ -1,4 +1,4 @@
-# AGENTS.md — fetcher-generator
+# AGENTS.md — @ahoo-wang/wow-generator
 
 <!-- This file provides coding agents with context about this package. -->
 
@@ -6,19 +6,19 @@
 
 ```bash
 # Build this package
-pnpm --filter fetcher-generator build
+pnpm --filter @ahoo-wang/wow-generator build
 
 # Run tests
-pnpm --filter fetcher-generator test
+pnpm --filter @ahoo-wang/wow-generator test
 
 # Run a single test file
-pnpm --filter fetcher-generator exec vitest run test/index.test.ts
+pnpm --filter @ahoo-wang/wow-generator exec vitest run test/index.test.ts
 
 # Lint
-pnpm --filter fetcher-generator lint
+pnpm --filter @ahoo-wang/wow-generator lint
 
 # Clean
-pnpm --filter fetcher-generator clean
+pnpm --filter @ahoo-wang/wow-generator clean
 
 # Run CLI (after build)
 node dist/cli.js generate -i <openapi-spec> -o <output-dir> -t tsconfig.json
@@ -76,7 +76,7 @@ src/
 - **CodeGenerator**: Main class that orchestrates code generation from OpenAPI specs
 - **OpenAPI 3.x**: Reads JSON/YAML/URL specs and generates TypeScript code
 - **ts-morph**: Used for TypeScript AST manipulation and code generation
-- **commander**: CLI framework for the `fetcher-generator` command
+- **commander**: CLI framework for the `wow-generator` command (`fetcher-generator` stays as an alias until v10)
 - **Generation modes**: API client classes, Wow CQRS clients (command/query), model types
 - **Decorator output**: Generates `@api`, `@get`, `@post` etc. decorated classes
 
@@ -86,7 +86,7 @@ src/
 - `@ahoo-wang/fetcher-eventstream` — event stream types
 - `@ahoo-wang/fetcher-decorator` — decorator type references
 - `@ahoo-wang/fetcher-openapi` — OpenAPI type definitions
-- `@ahoo-wang/fetcher-wow` — Wow CQRS types
+- `@ahoo-wang/wow-client` — Wow CQRS types
 - `ts-morph` — TypeScript AST manipulation
 - `commander` — CLI framework
 - `yaml` — YAML parsing
@@ -101,7 +101,7 @@ src/
 ## Git Workflow
 
 - Conventional commits: `feat(generator):`, `fix(generator):`, `test(generator):`
-- Version synced via `pnpm update-version`
+- Version follows `version` in the repository root `gradle.properties`
 
 ## Boundaries
 

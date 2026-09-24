@@ -1,4 +1,4 @@
-# `@ahoo-wang/fetcher-generator`
+# `@ahoo-wang/wow-generator`
 
 从本地或远程 OpenAPI 文档生成 TypeScript 模型、Fetcher Decorator 客户端与 Wow
 客户端。
@@ -6,7 +6,7 @@
 ## 安装与运行
 
 ```bash
-pnpm add -D @ahoo-wang/fetcher-generator
+pnpm add -D @ahoo-wang/wow-generator
 pnpm exec fetcher-generator generate \
   --input ./openapi.yaml \
   --output ./src/generated \

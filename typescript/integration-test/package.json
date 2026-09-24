@@ -1,26 +1,22 @@
 {
-  "name": "@ahoo-wang/fetcher-integration-test",
-  "version": "5.1.3",
+  "name": "wow-integration-test",
+  "version": "9.1.5",
   "private": true,
-  "description": "Integration Test Fetcher",
+  "description": "Integration tests of the Wow TypeScript client and generated code against a Wow example server",
   "keywords": [
-    "fetcher",
-    "http",
-    "client",
-    "examples",
-    "sse",
-    "server-sent-events"
+    "wow",
+    "integration-test"
   ],
   "author": "Ahoo-Wang",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/Ahoo-Wang/fetcher/tree/master/examples",
+  "homepage": "https://github.com/Ahoo-Wang/Wow/tree/main/typescript/integration-test",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Ahoo-Wang/fetcher.git",
-    "directory": "integration-test"
+    "url": "https://github.com/Ahoo-Wang/Wow.git",
+    "directory": "typescript/integration-test"
   },
   "bugs": {
-    "url": "https://github.com/Ahoo-Wang/fetcher/issues"
+    "url": "https://github.com/Ahoo-Wang/Wow/issues"
   },
   "type": "module",
   "main": "./dist/index.umd.js",
@@ -41,18 +37,17 @@
     "test": "vitest run --coverage",
     "lint": "eslint . --fix",
     "clean": "rm -rf dist",
-    "generate": "pnpm exec fetcher-generator generate -i http://localhost:8080/v3/api-docs"
+    "generate": "node ../wow-generator/dist/cli.js generate -i http://localhost:8080/v3/api-docs"
   },
   "dependencies": {
-    "@ahoo-wang/fetcher": "workspace:^",
-    "@ahoo-wang/fetcher-cosec": "workspace:^",
-    "@ahoo-wang/fetcher-decorator": "workspace:^",
-    "@ahoo-wang/fetcher-eventstream": "workspace:^",
-    "@ahoo-wang/fetcher-wow": "workspace:^",
-    "@ahoo-wang/fetcher-openai": "workspace:^"
+    "@ahoo-wang/fetcher": "catalog:",
+    "@ahoo-wang/fetcher-cosec": "catalog:",
+    "@ahoo-wang/fetcher-decorator": "catalog:",
+    "@ahoo-wang/fetcher-eventstream": "catalog:",
+    "@ahoo-wang/wow-client": "workspace:*"
   },
   "devDependencies": {
-    "@ahoo-wang/fetcher-generator": "workspace:^",
+    "@ahoo-wang/wow-generator": "workspace:*",
     "@eslint/js": "catalog:",
     "@types/node": "catalog:",
     "@vitest/coverage-v8": "catalog:",

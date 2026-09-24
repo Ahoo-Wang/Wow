@@ -16,7 +16,7 @@ import { generateAction } from './utils';
  */
 export function setupCLI() {
   program
-    .name('fetcher-generator')
+    .name('wow-generator')
     .description('OpenAPI Specification TypeScript code generator for Wow')
     .version(packageJson.version, '-v, --version');
 

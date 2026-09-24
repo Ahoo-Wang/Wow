@@ -1,4 +1,4 @@
-import { QueryClientFactory, QueryClientOptions, ResourceAttributionPathSpec } from "@ahoo-wang/fetcher-wow";
+import { QueryClientFactory, QueryClientOptions, ResourceAttributionPathSpec } from "@ahoo-wang/wow-client";
 import { CompensationPrepared, ExecutionFailedAggregatedFields, ExecutionFailedApplied, ExecutionFailedCreated, ExecutionFailedState, ExecutionSuccessApplied, FunctionChanged, RecoverableMarked, RetrySpecApplied } from "./types";
 import { COMPENSATION_BOUNDED_CONTEXT_ALIAS } from "../boundedContext";
 

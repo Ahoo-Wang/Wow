@@ -82,9 +82,9 @@ describe('validateInput', () => {
   // itself uses http://localhost:8080).
   describe('SSRF prevention for remote inputs', () => {
     it('should reject the AWS/cloud metadata endpoint', () => {
-      expect(
-        validateInput('http://169.254.169.254/latest/meta-data/'),
-      ).toBe(false);
+      expect(validateInput('http://169.254.169.254/latest/meta-data/')).toBe(
+        false,
+      );
     });
 
     it('should reject RFC1918 private IP ranges', () => {

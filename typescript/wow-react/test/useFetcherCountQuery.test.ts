@@ -13,15 +13,15 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useFetcherCountQuery } from '../../src';
-import { Condition, contains, eq } from '@ahoo-wang/fetcher-wow';
+import { useFetcherCountQuery } from '../src';
+import { Condition, contains, eq } from '@ahoo-wang/wow-client';
 
 // Mock the useFetcherQuery hook
-vi.mock('../../src/fetcher/useFetcherQuery', () => ({
+vi.mock('@ahoo-wang/fetcher-react/fetcher', () => ({
   useFetcherQuery: vi.fn(),
 }));
 
-import { useFetcherQuery } from '../../src';
+import { useFetcherQuery } from '@ahoo-wang/fetcher-react/fetcher';
 
 describe('useFetcherCountQuery', () => {
   const mockCondition = eq('status', 'active');

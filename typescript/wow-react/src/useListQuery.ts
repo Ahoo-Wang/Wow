@@ -15,10 +15,13 @@ import type {
   FilterListQuery,
   ListQuery,
   ListQueryRequest,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import type { FetcherError } from '@ahoo-wang/fetcher';
-import type { UseQueryOptions, UseQueryReturn } from '../core/index.js';
-import { useQuery } from '../core/index.js';
+import type {
+  UseQueryOptions,
+  UseQueryReturn,
+} from '@ahoo-wang/fetcher-react/core';
+import { useQuery } from '@ahoo-wang/fetcher-react/core';
 
 /**
  * Options for the useListQuery hook.

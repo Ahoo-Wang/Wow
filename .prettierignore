@@ -21,3 +21,8 @@
 node_modules/
 dist/
 coverage/
+
+# Byte-for-byte generator snapshots, compared against ts-morph's own output by
+# the e2e test; reformatting them would fail every regeneration.
+typescript/wow-generator/expected/
+test-output/

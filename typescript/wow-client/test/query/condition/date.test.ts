@@ -60,14 +60,14 @@ describe('Condition — Date Conditions', () => {
   });
 
   it('should create BEFORE_TODAY condition', () => {
-    expect(
-      beforeToday('createdAt', '2023-01-01', 'yyyy-MM-dd', 'UTC'),
-    ).toEqual({
-      field: 'createdAt',
-      operator: Operator.BEFORE_TODAY,
-      value: '2023-01-01',
-      options: { datePattern: 'yyyy-MM-dd', zoneId: 'UTC' },
-    });
+    expect(beforeToday('createdAt', '2023-01-01', 'yyyy-MM-dd', 'UTC')).toEqual(
+      {
+        field: 'createdAt',
+        operator: Operator.BEFORE_TODAY,
+        value: '2023-01-01',
+        options: { datePattern: 'yyyy-MM-dd', zoneId: 'UTC' },
+      },
+    );
   });
 
   it('should create TOMORROW condition', () => {

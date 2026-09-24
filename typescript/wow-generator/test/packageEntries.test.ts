@@ -35,13 +35,13 @@ describe('review regressions', () => {
           await reader.cancel();
           const decorator = await load('@ahoo-wang/fetcher-decorator');
           assert.equal(typeof decorator.api, 'function');
-          const wow = await load('@ahoo-wang/fetcher-wow');
+          const wow = await load('@ahoo-wang/wow-client');
           assert.equal(wow.getPropertyValue({ nested: { value: 42 } }, ['nested', 'value']), 42);
           for (const locale of ['en_US', 'zh_CN']) {
-            const loaded = await load('@ahoo-wang/fetcher-wow/query/locale/' + locale);
+            const loaded = await load('@ahoo-wang/wow-client/query/locale/' + locale);
             assert.equal(typeof loaded[locale].EQ, 'string');
           }
-          const generator = await load('@ahoo-wang/fetcher-generator');
+          const generator = await load('@ahoo-wang/wow-generator');
           assert.equal(typeof generator.CodeGenerator, 'function');
           console.log('exports-ok');
         })().catch(error => { console.error(error); process.exitCode = 1; });

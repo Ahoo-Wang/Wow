@@ -1,4 +1,4 @@
-import { QueryClientFactory, QueryClientOptions, ResourceAttributionPathSpec } from "@ahoo-wang/fetcher-wow";
+import { QueryClientFactory, QueryClientOptions, ResourceAttributionPathSpec } from "@ahoo-wang/wow-client";
 import { AddressChanged, OrderAggregatedFields, OrderCreated, OrderPaid, OrderReceived, OrderShipped, WowExampleOrderState } from "./types";
 import { EXAMPLE_BOUNDED_CONTEXT_ALIAS } from "../boundedContext";
 

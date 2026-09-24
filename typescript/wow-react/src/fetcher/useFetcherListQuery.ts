@@ -15,11 +15,11 @@ import type {
   FilterListQuery,
   ListQuery,
   ListQueryRequest,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import type { FetcherError } from '@ahoo-wang/fetcher';
-import type { UseQueryReturn } from '../../core/index.js';
-import type { UseFetcherQueryOptions } from '../../fetcher/index.js';
-import { useFetcherQuery } from '../../fetcher/index.js';
+import type { UseQueryReturn } from '@ahoo-wang/fetcher-react/core';
+import type { UseFetcherQueryOptions } from '@ahoo-wang/fetcher-react/fetcher';
+import { useFetcherQuery } from '@ahoo-wang/fetcher-react/fetcher';
 
 /**
  * Options for the useFetcherListQuery hook.
@@ -66,8 +66,8 @@ export interface UseFetcherListQueryReturn<
  *
  * @example
  * ```typescript
- * import { useFetcherListQuery } from '@ahoo-wang/fetcher-react';
- * import { listQuery, contains, desc } from '@ahoo-wang/fetcher-wow';
+ * import { useFetcherListQuery } from '@ahoo-wang/wow-react';
+ * import { listQuery, contains, desc } from '@ahoo-wang/wow-client';
  *
  * interface User {
  *   id: string;

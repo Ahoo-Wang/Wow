@@ -21,7 +21,7 @@ describe('wowTypeMapping', () => {
     });
 
     it('should have the correct value', () => {
-      expect(IMPORT_WOW_PATH).toBe('@ahoo-wang/fetcher-wow');
+      expect(IMPORT_WOW_PATH).toBe('@ahoo-wang/wow-client');
     });
   });
 

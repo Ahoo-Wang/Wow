@@ -36,7 +36,7 @@ vi.mock('../../src/utils', () => ({
 vi.mock('../package.json', () => ({
   default: {
     version: '2.1.2',
-    name: '@ahoo-wang/fetcher-generator',
+    name: '@ahoo-wang/wow-generator',
   },
 }));
 
@@ -52,7 +52,7 @@ describe('CLI setup', () => {
   it('should setup CLI program with correct configuration', () => {
     const result = setupCLI();
 
-    expect(result.name).toHaveBeenCalledWith('fetcher-generator');
+    expect(result.name).toHaveBeenCalledWith('wow-generator');
     expect(result.description).toHaveBeenNthCalledWith(
       1,
       'OpenAPI Specification TypeScript code generator for Wow',

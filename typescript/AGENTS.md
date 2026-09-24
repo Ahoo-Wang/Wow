@@ -6,6 +6,17 @@ These rules apply under `typescript/` and to the pnpm workspace files at the rep
 
 The packages that move here from [fetcher](https://github.com/Ahoo-Wang/fetcher) (`wow-client`, `wow-react`, `wow-view-engine`, `wow-generator`, `storybook`, `integration-test`) arrive in steps. Read [MIGRATION.md](MIGRATION.md) first: it holds the plan, what has landed, the pull requests in flight and the next step. Update its "进度" section whenever a migration pull request merges.
 
+## Packages
+
+| Directory           | Package                                                                               | Published | Moved from fetcher                        |
+| ------------------- | ------------------------------------------------------------------------------------- | --------- | ----------------------------------------- |
+| `wow-client/`       | `@ahoo-wang/wow-client`                                                               | yes       | `@ahoo-wang/fetcher-wow`                  |
+| `wow-react/`        | `@ahoo-wang/wow-react`                                                                | yes       | Wow hooks of `@ahoo-wang/fetcher-react`   |
+| `wow-generator/`    | `@ahoo-wang/wow-generator` (CLI `wow-generator`, alias `fetcher-generator` until v10) | yes       | `@ahoo-wang/fetcher-generator`            |
+| `integration-test/` | `wow-integration-test`                                                                | never     | wow cases of fetcher's `integration-test` |
+
+Each package keeps its own `AGENTS.md` with package-specific rules. Generated code imports `@ahoo-wang/wow-client`.
+
 ## Workspace
 
 The pnpm workspace root is the repository root:
@@ -20,9 +31,10 @@ The pnpm workspace root is the repository root:
 
 ```bash
 pnpm install
-pnpm lint                 # ESLint over typescript/, .github/scripts and the root config
-pnpm typecheck            # tsc --noEmit in every typescript/* package
-pnpm test                 # Tests of every typescript/* package
+pnpm build:typescript     # Build the packages; they import each other through dist
+pnpm lint                 # Root scripts, then ESLint inside each typescript/* package
+pnpm typecheck            # tsc --noEmit in every typescript/* package (build first)
+pnpm test                 # Unit tests of every package except integration-test (build first)
 pnpm test:ci-scripts      # node --test for .github/scripts
 pnpm --filter <package>... build
 pnpm --filter <package> exec vitest run --maxWorkers=3 <file>

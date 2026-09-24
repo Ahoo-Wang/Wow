@@ -17,7 +17,7 @@ import type {
   Parameter,
   Tag,
 } from '@ahoo-wang/fetcher-openapi';
-import type { AliasAggregate, Named } from '@ahoo-wang/fetcher-wow';
+import type { AliasAggregate, Named } from '@ahoo-wang/wow-client';
 import type { KeySchema } from '../utils';
 
 export interface CommandDefinition extends Named {

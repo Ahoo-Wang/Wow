@@ -21,7 +21,7 @@ import type {
   ListQuery,
   PagedQuery,
   SingleQuery,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import {
   useCountQuery,
   useFetcherCountQuery,
@@ -33,7 +33,7 @@ import {
   useListStreamQuery,
   usePagedQuery,
   useSingleQuery,
-} from '../../src';
+} from '../src';
 import type {
   UseCountQueryOptions,
   UseCountQueryReturn,
@@ -55,7 +55,7 @@ import type {
   UsePagedQueryReturn,
   UseSingleQueryOptions,
   UseSingleQueryReturn,
-} from '../../src';
+} from '../src';
 
 type Fields = 'id' | 'status';
 type Item = { id: string; status: string };

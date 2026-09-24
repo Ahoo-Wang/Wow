@@ -1,4 +1,4 @@
-# `@ahoo-wang/fetcher-wow`
+# `@ahoo-wang/wow-client`
 
 面向 Wow 命令、快照、领域事件、过滤、分页与聚合的类型化 Fetcher 客户端和契约。只在
 对接 Wow HTTP 端点时使用。
@@ -7,7 +7,7 @@
 
 ```bash
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
-  @ahoo-wang/fetcher-eventstream @ahoo-wang/fetcher-wow
+  @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
 ```
 
 Peer 依赖：`fetcher`、`fetcher-decorator` 和 `fetcher-eventstream`。
@@ -16,7 +16,7 @@ Peer 依赖：`fetcher`、`fetcher-decorator` 和 `fetcher-eventstream`。
 
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';
-import { SnapshotQueryClient, filter, listQuery } from '@ahoo-wang/fetcher-wow';
+import { SnapshotQueryClient, filter, listQuery } from '@ahoo-wang/wow-client';
 
 interface CartState {
   status: 'ACTIVE' | 'CHECKED_OUT';

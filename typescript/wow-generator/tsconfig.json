@@ -1,25 +1,14 @@
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
-    "declaration": true,
-    "declarationMap": true,
     "emitDeclarationOnly": true,
     "target": "ES2022",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": ["node"],
-    "jsx": "react-jsx",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
     "composite": true,
-    "incremental": true,
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "incremental": true
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "dist", "**/*.stories.tsx"]
+  "include": ["src/**/*.ts"]
 }

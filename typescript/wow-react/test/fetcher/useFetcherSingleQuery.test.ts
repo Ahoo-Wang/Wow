@@ -13,21 +13,21 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useFetcherSingleQuery } from '../../../src/wow/fetcher/useFetcherSingleQuery';
+import { useFetcherSingleQuery } from '../../src/fetcher/useFetcherSingleQuery';
 import {
   SingleQuery,
   SortDirection,
   Operator,
   eq,
   contains,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 
 // Mock the useFetcherQuery hook
-vi.mock('../../../src/fetcher/useFetcherQuery', () => ({
+vi.mock('@ahoo-wang/fetcher-react/fetcher', () => ({
   useFetcherQuery: vi.fn(),
 }));
 
-import { useFetcherQuery } from '../../../src/fetcher/useFetcherQuery';
+import { useFetcherQuery } from '@ahoo-wang/fetcher-react/fetcher';
 
 describe('useFetcherSingleQuery', () => {
   const mockSingleQuery: SingleQuery<string> = {

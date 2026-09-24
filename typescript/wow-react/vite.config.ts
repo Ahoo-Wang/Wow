@@ -13,31 +13,26 @@
 
 import { defineConfig } from 'vite';
 import dts from 'unplugin-dts/vite';
+import react, { reactCompilerPreset } from '@vitejs/plugin-react';
+import babel from '@rolldown/plugin-babel';
 
 export default defineConfig({
   build: {
     sourcemap: true,
     lib: {
       entry: 'src/index.ts',
-      name: 'FetcherIt',
-      fileName: format => `index.${format}.js`,
+      formats: ['es'],
+      fileName: () => 'index.es.js',
     },
-    rollupOptions: {
+    rolldownOptions: {
+      // Peers stay external, including fetcher-react's /core and /fetcher.
       external: [
-        '@ahoo-wang/fetcher',
-        '@ahoo-wang/fetcher-decorator',
-        '@ahoo-wang/fetcher-eventstream',
-        '@ahoo-wang/fetcher-cosec',
-        '@ahoo-wang/wow-client',
+        /^react(?:-dom)?(?:\/|$)/,
+        'react-compiler-runtime',
+        /^@ahoo-wang\//,
       ],
       output: {
-        globals: {
-          '@ahoo-wang/fetcher': 'Fetcher',
-          '@ahoo-wang/fetcher-decorator': 'FetcherDecorator',
-          '@ahoo-wang/fetcher-eventstream': 'FetcherEventStream',
-          '@ahoo-wang/fetcher-cosec': 'FetcherCoSec',
-          '@ahoo-wang/wow-client': 'WowClient',
-        },
+        keepNames: true,
       },
     },
   },
@@ -45,6 +40,10 @@ export default defineConfig({
     dts({
       outDirs: 'dist',
       tsconfigPath: './tsconfig.json',
+    }),
+    react(),
+    babel({
+      presets: [reactCompilerPreset()],
     }),
   ],
 });

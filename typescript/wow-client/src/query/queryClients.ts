@@ -74,7 +74,7 @@ export class QueryClientFactory<
    *
    * @example
    * ```typescript
-   * import { QueryClientFactory, ResourceAttributionPathSpec } from '@ahoo-wang/fetcher-wow';
+   * import { QueryClientFactory, ResourceAttributionPathSpec } from '@ahoo-wang/wow-client';
    *
    * const factory = new QueryClientFactory({
    *   contextAlias: 'example',

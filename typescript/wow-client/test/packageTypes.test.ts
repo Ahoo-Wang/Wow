@@ -20,9 +20,9 @@ it('preserves public Wow types under NodeNext without skipping declaration check
     new URL('./__package_consumer__.mts', import.meta.url),
   );
   const source = `
-    import { aggregation, type AggregationQuery, type QueryApi } from '@ahoo-wang/fetcher-wow';
-    import { zh_CN } from '@ahoo-wang/fetcher-wow/query/locale/zh_CN';
-    import { en_US } from '@ahoo-wang/fetcher-wow/query/locale/en_US';
+    import { aggregation, type AggregationQuery, type QueryApi } from '@ahoo-wang/wow-client';
+    import { zh_CN } from '@ahoo-wang/wow-client/query/locale/zh_CN';
+    import { en_US } from '@ahoo-wang/wow-client/query/locale/en_US';
     const valid: AggregationQuery = { metrics: [aggregation.count('orders')] };
     // @ts-expect-error Aggregation must retain its nonempty metrics contract.
     const empty: AggregationQuery = { metrics: [] };

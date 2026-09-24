@@ -19,7 +19,7 @@ import {
   methodToDecorator,
   resolveMethodName,
 } from '../../src/client';
-import { ResourceAttributionPathSpec } from '@ahoo-wang/fetcher-wow';
+import { ResourceAttributionPathSpec } from '@ahoo-wang/wow-client';
 
 // Mock the dependencies
 vi.mock('../../src/utils', async importOriginal => {

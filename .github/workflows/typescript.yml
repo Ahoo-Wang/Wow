@@ -73,6 +73,9 @@ jobs:
           BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
         run: node .github/scripts/format-changed.mjs
+      # Packages import each other through their built dist.
+      - name: Build packages for static checks
+        run: pnpm build:typescript
       - name: Lint without rewriting files
         run: pnpm lint
       - name: Check package types
@@ -101,8 +104,9 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Placeholder until the packages move in: matches no project yet.
-      - name: Test TypeScript packages
+      - name: Build packages
+        run: pnpm build:typescript
+      - name: Test packages
         run: pnpm test
 
   docs:

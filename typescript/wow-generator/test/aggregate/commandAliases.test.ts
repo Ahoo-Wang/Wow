@@ -181,7 +181,7 @@ it.each([
       join(outputDir, 'consumer.ts'),
       `
         import { PetCommandClient } from './example/pet/commandClient';
-        import type { CommandResult } from '@ahoo-wang/fetcher-wow';
+        import type { CommandResult } from '@ahoo-wang/wow-client';
         declare const client: PetCommandClient;
         const result: Promise<CommandResult> = client.rename({body: {name: 'renamed'}});
         // @ts-expect-error The generated command body requires a string name.

@@ -1,4 +1,4 @@
-# `@ahoo-wang/fetcher-generator`
+# `@ahoo-wang/wow-generator`
 
 Generate TypeScript models, Fetcher decorator clients, and Wow clients from a
 local or remote OpenAPI document.
@@ -6,7 +6,7 @@ local or remote OpenAPI document.
 ## Install and run
 
 ```bash
-pnpm add -D @ahoo-wang/fetcher-generator
+pnpm add -D @ahoo-wang/wow-generator
 pnpm exec fetcher-generator generate \
   --input ./openapi.yaml \
   --output ./src/generated \

@@ -12,10 +12,10 @@
  */
 
 import type { FetcherError } from '@ahoo-wang/fetcher';
-import type { UseQueryReturn } from '../../core/index.js';
-import type { UseFetcherQueryOptions } from '../../fetcher/index.js';
-import { useFetcherQuery } from '../../fetcher/index.js';
-import type { Condition, FilterExpression } from '@ahoo-wang/fetcher-wow';
+import type { UseQueryReturn } from '@ahoo-wang/fetcher-react/core';
+import type { UseFetcherQueryOptions } from '@ahoo-wang/fetcher-react/fetcher';
+import { useFetcherQuery } from '@ahoo-wang/fetcher-react/fetcher';
+import type { Condition, FilterExpression } from '@ahoo-wang/wow-client';
 
 /**
  * Options for configuring the useFetcherCountQuery hook.
@@ -64,8 +64,8 @@ export interface UseFetcherCountQueryReturn<
  *
  * @example
  * ```typescript
- * import { useFetcherCountQuery } from '@ahoo-wang/fetcher-react';
- * import { all } from '@ahoo-wang/fetcher-wow';
+ * import { useFetcherCountQuery } from '@ahoo-wang/wow-react';
+ * import { all } from '@ahoo-wang/wow-client';
  *
  * function UserCountComponent() {
  *   const { data: count, loading, error, execute } = useFetcherCountQuery({

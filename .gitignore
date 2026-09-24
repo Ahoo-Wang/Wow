@@ -50,3 +50,6 @@ wow-benchmarks/results/jmh/
 # pnpm workspace
 node_modules/
 *.tsbuildinfo
+test-output/
+typescript/*/dist/
+typescript/*/coverage/

@@ -1,7 +1,7 @@
 {
-  "name": "@ahoo-wang/fetcher-wow",
-  "version": "5.1.3",
-  "description": "Support for Wow(https://github.com/Ahoo-Wang/Wow) in Fetcher",
+  "name": "@ahoo-wang/wow-client",
+  "version": "9.1.5",
+  "description": "TypeScript client for Wow (https://github.com/Ahoo-Wang/Wow): commands, snapshot and event-stream queries, and the query DSL, built on Fetcher.",
   "keywords": [
     "fetch",
     "http",
@@ -14,14 +14,14 @@
   ],
   "author": "Ahoo-Wang",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/Ahoo-Wang/fetcher/tree/master/packages/wow",
+  "homepage": "https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-client",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Ahoo-Wang/fetcher.git",
-    "directory": "packages/wow"
+    "url": "https://github.com/Ahoo-Wang/Wow.git",
+    "directory": "typescript/wow-client"
   },
   "bugs": {
-    "url": "https://github.com/Ahoo-Wang/fetcher/issues"
+    "url": "https://github.com/Ahoo-Wang/Wow/issues"
   },
   "type": "module",
   "engines": {
@@ -62,11 +62,14 @@
     "test:no-coverage": "vitest run --coverage.enabled=false && pnpm test:type"
   },
   "peerDependencies": {
-    "@ahoo-wang/fetcher": "workspace:^5.0.0",
-    "@ahoo-wang/fetcher-eventstream": "workspace:^5.0.0",
-    "@ahoo-wang/fetcher-decorator": "workspace:^5.0.0"
+    "@ahoo-wang/fetcher": "catalog:",
+    "@ahoo-wang/fetcher-decorator": "catalog:",
+    "@ahoo-wang/fetcher-eventstream": "catalog:"
   },
   "devDependencies": {
+    "@ahoo-wang/fetcher": "catalog:",
+    "@ahoo-wang/fetcher-decorator": "catalog:",
+    "@ahoo-wang/fetcher-eventstream": "catalog:",
     "@eslint/js": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "@vitest/ui": "catalog:",

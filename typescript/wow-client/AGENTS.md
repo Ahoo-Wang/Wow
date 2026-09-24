@@ -1,4 +1,4 @@
-# AGENTS.md — @ahoo-wang/fetcher-wow
+# AGENTS.md — @ahoo-wang/wow-client
 
 <!-- This file provides coding agents with context about this package. -->
 
@@ -6,19 +6,19 @@
 
 ```bash
 # Build this package
-pnpm --filter @ahoo-wang/fetcher-wow build
+pnpm --filter @ahoo-wang/wow-client build
 
 # Run tests
-pnpm --filter @ahoo-wang/fetcher-wow test
+pnpm --filter @ahoo-wang/wow-client test
 
 # Run a single test file
-pnpm --filter @ahoo-wang/fetcher-wow exec vitest run test/command/commandHttpHeaders.test.ts
+pnpm --filter @ahoo-wang/wow-client exec vitest run test/command/commandHttpHeaders.test.ts
 
 # Lint
-pnpm --filter @ahoo-wang/fetcher-wow lint
+pnpm --filter @ahoo-wang/wow-client lint
 
 # Clean
-pnpm --filter @ahoo-wang/fetcher-wow clean
+pnpm --filter @ahoo-wang/wow-client clean
 ```
 
 ## Wow conformance
@@ -33,7 +33,7 @@ builders, or leaves it to the server (with the reason). Add an entry in the
 same change as any new rule. The server enforces every rule regardless; the
 register is what makes this package's answer to each one explicit and tested.
 
-**Wire values.** `integration-test/test/wow/wowOpenApi.test.ts` holds every
+**Wire values.** `typescript/integration-test/test/wow/wowOpenApi.test.ts` holds every
 enum this package sends — filter operators, aggregation and expression types,
 sort directions — to the OpenAPI document of the Wow example server CI runs.
 The server writes that document from its own types, so it states exactly
@@ -125,16 +125,16 @@ src/
 ## Git Workflow
 
 - Conventional commits: `feat(wow):`, `fix(wow):`, `test(wow):`
-- Version synced via `pnpm update-version`
+- Version follows `version` in the repository root `gradle.properties`
 
 ## Boundaries
 
 - ✅ Adding filter operators or expression types in `filter.ts`
 - ✅ Adding aggregation groups or metrics in `aggregation.ts`
 - ✅ Writing new tests
-- ⚠️ Changing command client API — affects react wow hooks and generator output
+- ⚠️ Changing command client API — affects `wow-react` hooks and `wow-generator` output
 - ⚠️ Changing the `FilterExpression` API — view-engine and react build on it
-- ⚠️ Touching the legacy condition API — viewer still builds on it
+- ⚠️ Touching the legacy condition API — deprecated, kept for compatibility until v10 (generated code still maps `Condition`)
 - 🚫 Breaking command result/wait strategy contract
 - 🚫 Changing the `WowMetadata` shape — generator reads it
 - 🚫 Removing event stream query support

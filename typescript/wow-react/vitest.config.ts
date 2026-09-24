@@ -11,19 +11,21 @@
  * limitations under the License.
  */
 
-import js from '@eslint/js';
-import globals from 'globals';
+import { configDefaults, defineConfig, mergeConfig } from 'vitest/config';
+import viteConfig from './vite.config';
 
-// Root config for the workspace's own scripts. Each package under typescript/
-// has its own eslint.config.js, and `pnpm lint` runs ESLint inside each package.
-export default [
-  {
-    files: ['eslint.config.js', '.github/scripts/**/*.mjs'],
-    ...js.configs.recommended,
-    languageOptions: {
-      ecmaVersion: 2022,
-      sourceType: 'module',
-      globals: globals.node,
+export default mergeConfig(
+  viteConfig,
+  defineConfig({
+    test: {
+      environment: 'jsdom',
+      clearMocks: true,
+      restoreMocks: true,
+      unstubGlobals: true,
+      globals: true,
+      coverage: {
+        exclude: [...configDefaults.exclude],
+      },
     },
-  },
-];
+  }),
+);
