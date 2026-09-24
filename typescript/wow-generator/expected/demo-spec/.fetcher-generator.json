@@ -1,17 +1,17 @@
 {
   "version": 1,
   "files": {
-    "example/CartApiClient.ts": "6d1552dfcebc6408f797d3f3078b9644f2ea32caa4a0730af746bc02763f0da7",
-    "example/OrderApiClient.ts": "07c1917f4fa81f3f30420693d0695051a3debc604ff9bc11ac1668863b51480c",
+    "example/CartApiClient.ts": "36fca14eeaa9c668e99b1929fc1d211c0d428c79c3d37b383473910576a6e2ee",
+    "example/OrderApiClient.ts": "60022a5a1d022c8c73f9f8444e766683f2040d869cae16117f4d3db0343db1cd",
     "example/boundedContext.ts": "c0ee8a415fb0edfd13151bac02cdb821faa644b62bb8ecaf5f01777f23ca4fb9",
-    "example/cart/commandClient.ts": "5b724c792cf839401b27b1b9579d52b44625294b9dd2e2f9cbcf3e259491c173",
+    "example/cart/commandClient.ts": "69926054f8ff29e05c497e90462a178d3c506eab5d91d885ea888e9c74340483",
     "example/cart/index.ts": "bd180919586fd2d243b06ff644f6f51ed8919242c58f155e284a2833be3229c6",
-    "example/cart/queryClient.ts": "b1e2069e6fdfaff229a9ae71d7f0aadb3c0e7b1dccc49cac1d53ad28db2ee322",
+    "example/cart/queryClient.ts": "f78f3d2d7cf146e9859618e0fc3a18a82038f3de499eefb713f84a75844c83b8",
     "example/cart/types.ts": "a6e2ee132da829d72122c02fa2d59482062792f48eb5f099f5c3ab81b81d7b36",
     "example/index.ts": "958816b9ed6d0ed9e6700f94bd414bdf17e60b4983c885ed6e87cca8f3085e5b",
-    "example/order/commandClient.ts": "76ded84b74767e09cb42440aed3218e615d70cfbd7b8d9e1c512a37842a2a18d",
+    "example/order/commandClient.ts": "43095b7e96587e7d26c68c9313021f8ee4c1eb0def31287d3fc08419c68b0b85",
     "example/order/index.ts": "bd180919586fd2d243b06ff644f6f51ed8919242c58f155e284a2833be3229c6",
-    "example/order/queryClient.ts": "b3467c853171a117ec1d170c1dcb6a2a5a4e48c679ce1e0cad582f932016374e",
+    "example/order/queryClient.ts": "030649368c6d2757f5a160f66d47f2a66a718b955534138f6ba9ee8497d85124",
     "example/order/types.ts": "21222ef03c7475c7d5594b410f8b0a2a63a9b9083aacdf13adc927aed0dc1515",
     "example/types.ts": "ddff256748253c02ba9fced0478ea58635c70c31953d1a1163c2cf81ac568382",
     "index.ts": "15abd9254fef79efb01578428672cc77b7b8640c0cad2006411af396681e32a0"

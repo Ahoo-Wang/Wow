@@ -19,6 +19,7 @@ import { GenerateContext } from './generateContext';
 import { ModelGenerator } from './model';
 import type { GeneratorOptions } from './types';
 import {
+  applyTypeOnlyImports,
   beginGeneration,
   forgetStaleGeneratedFiles,
   getGeneratedFilePaths,
@@ -272,6 +273,7 @@ export class CodeGenerator {
       sourceFile.organizeImports();
       sourceFile.fixMissingImports();
     });
+    applyTypeOnlyImports(sourceFiles);
     this.options.logger.info('All source files optimized');
   }
 }

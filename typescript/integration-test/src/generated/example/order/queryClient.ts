@@ -1,5 +1,5 @@
-import { QueryClientFactory, QueryClientOptions, ResourceAttributionPathSpec } from "@ahoo-wang/wow-client";
-import { AddressChanged, OrderAggregatedFields, OrderCreated, OrderPaid, OrderReceived, OrderShipped, WowExampleOrderState } from "./types";
+import { QueryClientFactory, type QueryClientOptions, ResourceAttributionPathSpec } from "@ahoo-wang/wow-client";
+import type { AddressChanged, OrderAggregatedFields, OrderCreated, OrderPaid, OrderReceived, OrderShipped, WowExampleOrderState } from "./types";
 import { EXAMPLE_BOUNDED_CONTEXT_ALIAS } from "../boundedContext";
 
 const DEFAULT_QUERY_CLIENT_OPTIONS: QueryClientOptions = {

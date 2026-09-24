@@ -32,6 +32,7 @@ vi.mock('ts-morph', () => ({
 }));
 
 vi.mock('../src/utils', () => ({
+  applyTypeOnlyImports: vi.fn(),
   beginGeneration: vi.fn(),
   forgetStaleGeneratedFiles: vi.fn(),
   getGeneratedFilePaths: vi.fn(),
@@ -66,7 +67,11 @@ vi.mock('../src/client', () => ({
 }));
 
 // Import after mocking
-import { parseOpenAPI, loadConfiguration } from '../src/utils';
+import {
+  applyTypeOnlyImports,
+  loadConfiguration,
+  parseOpenAPI,
+} from '../src/utils';
 
 describe('CodeGenerator', () => {
   let mockProject: any;
@@ -362,6 +367,7 @@ describe('CodeGenerator', () => {
         expect(file.organizeImports).toHaveBeenCalled();
         expect(file.fixMissingImports).toHaveBeenCalled();
       });
+      expect(applyTypeOnlyImports).toHaveBeenCalledWith(mockSourceFiles);
 
       expect(mockLogger.info).toHaveBeenCalledWith(
         'All source files optimized',
