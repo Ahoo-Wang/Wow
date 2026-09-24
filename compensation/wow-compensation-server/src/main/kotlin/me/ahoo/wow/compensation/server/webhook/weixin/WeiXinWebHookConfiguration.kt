@@ -13,23 +13,13 @@
 
 package me.ahoo.wow.compensation.server.webhook.weixin
 
-import me.ahoo.wow.compensation.server.configuration.CompensationProperties
-import me.ahoo.wow.compensation.server.webhook.weixin.client.WeiXinBotApi
 import org.springframework.boot.context.properties.EnableConfigurationProperties
-import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
+/**
+ * [WeiXinWebHook] is an `@EventProcessor` component, so component scanning registers it.
+ */
 @Configuration
 @ConditionalOnWeiXinWebHookEnabled
 @EnableConfigurationProperties(WeiXinWebHookProperties::class)
-class WeiXinWebHookConfiguration {
-
-    @Bean
-    fun weiXinWebHook(
-        compensationProperties: CompensationProperties,
-        hookProperties: WeiXinWebHookProperties,
-        weiXinBotApi: WeiXinBotApi
-    ): WeiXinWebHook {
-        return WeiXinWebHook(compensationProperties, hookProperties, weiXinBotApi)
-    }
-}
+class WeiXinWebHookConfiguration

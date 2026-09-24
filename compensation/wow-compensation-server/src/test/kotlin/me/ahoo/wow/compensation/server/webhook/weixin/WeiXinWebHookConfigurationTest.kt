@@ -19,27 +19,34 @@ import me.ahoo.wow.compensation.server.CompensationServer
 import me.ahoo.wow.compensation.server.configuration.CompensationProperties
 import me.ahoo.wow.compensation.server.webhook.weixin.client.WeiXinBotApi
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import org.springframework.boot.autoconfigure.AutoConfigurationPackage
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.boot.webclient.autoconfigure.WebClientAutoConfiguration
+import org.springframework.context.annotation.ComponentScan
 
 class WeiXinWebHookConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
-        .withUserConfiguration(CompensationServerPackage::class.java, WeiXinWebHookConfiguration::class.java)
+        .withUserConfiguration(CompensationServerPackage::class.java)
         .withConfiguration(
             AutoConfigurations.of(WebClientAutoConfiguration::class.java, CoApiAutoConfiguration::class.java)
         )
 
     @Test
     fun `should start without weixin webhook url`() {
-        contextRunner.run { context ->
-            context.startupFailure.assert().isNull()
-            context.assert()
-                .doesNotHaveBean(WeiXinBotApi::class.java)
-                .doesNotHaveBean(WeiXinWebHook::class.java)
-        }
+        contextRunner.run(::assertWeiXinWebHookDisabled)
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["", " ", "false", "FALSE"])
+    fun `should start with weixin webhook disabled by url value`(url: String) {
+        contextRunner
+            .withPropertyValues("${WeiXinWebHookProperties.URL_KEY}=$url")
+            .run(::assertWeiXinWebHookDisabled)
     }
 
     @Test
@@ -55,10 +62,19 @@ class WeiXinWebHookConfigurationTest {
             }
     }
 
+    private fun assertWeiXinWebHookDisabled(context: AssertableApplicationContext) {
+        context.startupFailure.assert().isNull()
+        context.assert()
+            .doesNotHaveBean(WeiXinBotApi::class.java)
+            .doesNotHaveBean(WeiXinWebHook::class.java)
+            .doesNotHaveBean(WeiXinWebHookProperties::class.java)
+    }
+
     /**
-     * Scans the same package as [CompensationServer], where CoApi discovers [WeiXinBotApi].
+     * Mirrors [CompensationServer]: CoApi scans its package, and component scanning registers the WeCom beans.
      */
     @AutoConfigurationPackage(basePackageClasses = [CompensationServer::class])
+    @ComponentScan(basePackageClasses = [WeiXinWebHookConfiguration::class])
     @EnableConfigurationProperties(CompensationProperties::class)
     class CompensationServerPackage
 }
