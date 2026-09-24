@@ -507,7 +507,7 @@ describe('AnalysisChart', () => {
     expect(
       container.querySelector('[data-slot="chart-legend-item"]')?.textContent,
     ).toBe(hostile);
-    expect(fills(container)).toContain('rgb(42, 120, 214)');
+    expect(fills(container)).toContain('rgb(38, 117, 211)');
   });
 
   it('writes a pie category as text, never into a stylesheet', () => {
@@ -746,7 +746,7 @@ describe('AnalysisChart', () => {
 
     expect(container.innerHTML).not.toContain(hostile);
     expect(legendColours(container)).toEqual([asStyled('var(--chart-1)')]);
-    expect(fills(container)).toContain('rgb(42, 120, 214)');
+    expect(fills(container)).toContain('rgb(38, 117, 211)');
   });
 
   it('draws a scatter', () => {
@@ -880,7 +880,7 @@ describe('AnalysisChart', () => {
       const centres = [
         ...container.querySelectorAll('[data-slot="chart-plot"] svg path'),
       ]
-        .filter(path => path.getAttribute('fill') === 'rgb(42, 120, 214)')
+        .filter(path => path.getAttribute('fill') === 'rgb(38, 117, 211)')
         .map(point => {
           const matrix = (point.getAttribute('transform') ?? '')
             .match(/-?[\d.]+/g)!
@@ -1010,8 +1010,8 @@ describe('AnalysisChart', () => {
     ).toBeDefined();
     // Both stages in the palette's first slot.
     expect(fills(container)).toEqual([
-      'rgb(42, 120, 214)',
-      'rgb(42, 120, 214)',
+      'rgb(38, 117, 211)',
+      'rgb(38, 117, 211)',
     ]);
     unmount();
 

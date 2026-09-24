@@ -11,8 +11,8 @@
  * limitations under the License.
  */
 
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { readdirSync, readFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { cleanup, render, screen } from '@testing-library/react';
 import postcss, { type Rule } from 'postcss';
@@ -273,5 +273,101 @@ describe('the chart palette the theme declares', () => {
     expect(registered.sort()).toEqual(
       slots.map(slot => `--color-${slot.slice(2)}: var(${slot})`).sort(),
     );
+  });
+});
+
+/**
+ * What the token blocks declare, each token held to a reader and to the line
+ * it owes (phase 5, 5A).
+ */
+describe('the tokens the theme declares', () => {
+  /** One mode's token block, declaration by declaration. */
+  function block(mode: 'light' | 'dark') {
+    const selector = tokenSelector(mode);
+    const rule = rules().find(candidate => candidate.selector === selector)!;
+    const declared = new Map<string, string>();
+    rule.walkDecls(/^--/, decl => {
+      declared.set(decl.prop, decl.value);
+    });
+    return declared;
+  }
+
+  /** Every source file of the package but the stylesheet, as one text. */
+  const SOURCES = readdirSync(
+    resolve(dirname(fileURLToPath(import.meta.url)), '../src'),
+    { recursive: true, withFileTypes: true },
+  )
+    .filter(entry => entry.isFile() && /\.tsx?$/.test(entry.name))
+    .map(entry => readFileSync(join(entry.parentPath, entry.name), 'utf8'))
+    .join('\n');
+
+  /** Every declaration of the stylesheet, as the property and its value. */
+  const DECLARATIONS: [string, string][] = [];
+  postcss.parse(STYLESHEET).walkDecls(decl => {
+    DECLARATIONS.push([decl.prop, decl.value]);
+  });
+
+  /**
+   * Whether anything reads a token: a declaration other than its own and
+   * its registration as a colour, a `var()` in the code, or — registered —
+   * a utility naming it (`bg-row-hover`, `text-quiet-foreground`,
+   * `ring-ring/50`, `**:data-[x]:border-input`).
+   */
+  function isRead(token: string): boolean {
+    const name = token.slice(2);
+    const byVar = new RegExp(`var\\(${token}[,)]`);
+    if (
+      DECLARATIONS.some(
+        ([prop, value]) =>
+          prop !== token && prop !== `--color-${name}` && byVar.test(value),
+      )
+    )
+      return true;
+    if (byVar.test(SOURCES)) return true;
+    return new RegExp(`[a-z]-${name}(?:/\\d+)?(?![\\w-])`).test(SOURCES);
+  }
+
+  it('declares no token nothing reads — `info` is gone (Q45)', () => {
+    for (const mode of ['light', 'dark'] as const) {
+      const unread = [...block(mode).keys()].filter(
+        // The chart slots are read by index (`charts/palette.ts`), and held
+        // to their count by the palette's own suite above.
+        token => !/^--chart-\d+$/.test(token) && !isRead(token),
+      );
+      expect(unread, `${mode} tokens nothing reads`).toEqual([]);
+      expect(block(mode).has('--info')).toBe(false);
+    }
+    expect(DECLARATIONS.some(([prop]) => prop === '--color-info')).toBe(false);
+  });
+
+  it('derives the quiet ink from the foreground, in both modes', () => {
+    // A host that sets `--fve-foreground` moves the summary rows' quiet half
+    // with it; a copy of the value stayed behind (5A).
+    for (const mode of ['light', 'dark'] as const) {
+      const value = block(mode).get('--quiet-foreground') ?? '';
+      expect(value).toMatch(/var\(--foreground\)/);
+      expect(value).not.toMatch(/oklch\(/);
+    }
+  });
+
+  it('keeps the focus ring and the control edge off the brand tokens', () => {
+    // The shadcn habit — `--ring: var(--primary)`, `--input: var(--border)`
+    // — hands the 3:1 a focus mark and a control's edge owe (WCAG 1.4.11) to
+    // a brand colour and a divider grey that owe nothing of the kind. Here
+    // both stay values of their own, so a host restyling `--fve-primary` or
+    // `--fve-border` cannot take them under the line; one that re-points
+    // `--fve-ring` / `--fve-input` owes its theme the measurement itself
+    // (the READMEs' token table; `docs/design/ui/README.md`).
+    for (const mode of ['light', 'dark'] as const) {
+      for (const token of ['--ring', '--input']) {
+        const value = block(mode).get(token) ?? '';
+        expect(value, `${mode} ${token}`).toMatch(
+          /^var\(--fve-[\w-]+, oklch\(/,
+        );
+        expect(value, `${mode} ${token}`).not.toMatch(
+          /var\(--(primary|border|accent|secondary|muted)\b/,
+        );
+      }
+    }
   });
 });

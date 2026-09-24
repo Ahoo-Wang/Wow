@@ -445,20 +445,37 @@ export function PillSelectTrigger({
  * 1px line nobody sees. Each cell takes the hover fill and an inset edge
  * above and below, the first and the last close the sides, and together
  * they read as one ring round the row.
+ *
+ * The edge is the recipe every control wears (`Button`, `FOCUS_INSET`): a
+ * 1px `--ring` line at full strength, which holds the 3:1 WCAG 1.4.11 asks
+ * of a focus indicator, and the half-strength halo inside it as emphasis.
+ * It used to be the halo alone, 2px of `--ring` at 50%, which measured
+ * 1.74:1 on the light page and 2.38:1 on the dark one (`FocusMarks*` in
+ * `stories/view-engine/ThemeTokens.test.stories.tsx`; phase 5, 5A). The
+ * full-strength shadows come first, so they are painted over the halo.
  */
 export const FOCUS_ROW = cn(
   'outline-none',
   'focus-visible:*:bg-row-hover',
-  // The ring's colour at the half strength every focus ring here wears
+  // The ring, then the ring at the half strength every halo here wears
   // (`ring-ring/50`), written out: Tailwind reads class names, not code.
-  'focus-visible:*:shadow-[inset_0_2px_0_color-mix(in_oklab,var(--ring)_50%,transparent),inset_0_-2px_0_color-mix(in_oklab,var(--ring)_50%,transparent)]',
-  'focus-visible:*:first:shadow-[inset_2px_2px_0_color-mix(in_oklab,var(--ring)_50%,transparent),inset_0_-2px_0_color-mix(in_oklab,var(--ring)_50%,transparent)]',
-  'focus-visible:*:last:shadow-[inset_-2px_2px_0_color-mix(in_oklab,var(--ring)_50%,transparent),inset_0_-2px_0_color-mix(in_oklab,var(--ring)_50%,transparent)]',
+  'focus-visible:*:shadow-[inset_0_1px_0_var(--ring),inset_0_-1px_0_var(--ring),inset_0_3px_0_color-mix(in_oklab,var(--ring)_50%,transparent),inset_0_-3px_0_color-mix(in_oklab,var(--ring)_50%,transparent)]',
+  'focus-visible:*:first:shadow-[inset_0_1px_0_var(--ring),inset_0_-1px_0_var(--ring),inset_1px_0_0_var(--ring),inset_0_3px_0_color-mix(in_oklab,var(--ring)_50%,transparent),inset_0_-3px_0_color-mix(in_oklab,var(--ring)_50%,transparent),inset_3px_0_0_color-mix(in_oklab,var(--ring)_50%,transparent)]',
+  'focus-visible:*:last:shadow-[inset_0_1px_0_var(--ring),inset_0_-1px_0_var(--ring),inset_-1px_0_0_var(--ring),inset_0_3px_0_color-mix(in_oklab,var(--ring)_50%,transparent),inset_0_-3px_0_color-mix(in_oklab,var(--ring)_50%,transparent),inset_-3px_0_0_color-mix(in_oklab,var(--ring)_50%,transparent)]',
 );
 
-/** The ring on a card the keyboard is on — the one every control wears. */
-export const FOCUS_CARD =
-  'outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50';
+/**
+ * The mark on a card the keyboard is on — the one every control wears: a
+ * 1px `--ring` edge at full strength, drawn on the card's own edge (the
+ * outline pulled inside it, as `Button`'s border is), and the 3px halo at
+ * half strength outside, which takes the place of the card's own faint
+ * ring while it is focused. The halo alone measured 1.77:1 on the light
+ * page and 2.15:1 on the dark one (phase 5, 5A; `FocusMarks*`).
+ */
+export const FOCUS_CARD = cn(
+  'outline-none focus-visible:outline-solid focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-ring',
+  'focus-visible:ring-[3px] focus-visible:ring-ring/50',
+);
 
 /**
  * The mark on a region that scrolls when the keyboard is on it — a

@@ -11,7 +11,10 @@
  * limitations under the License.
  */
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -21,11 +24,22 @@ import {
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ChartData, ChartSpec, NumberFormat } from '../src/index.js';
 import { AnalysisChart, ViewSurface } from '../src/ui/index.js';
-import { concreteColor, readChartTheme } from '../src/ui/charts/theme.js';
+import {
+  CHART_FALLBACK,
+  CHART_TOKENS,
+  concreteColor,
+  readChartTheme,
+} from '../src/ui/charts/theme.js';
+import { CHART_COLOR_SLOTS } from '../src/model/index.js';
 import { compactFormat, formatNumber } from '../src/ui/display.js';
 import { measureText } from '../src/ui/charts/measure.js';
 import { merged } from '../src/ui/charts/EChart.js';
 import { ChartLegend } from '../src/ui/charts/ChartLegend.js';
+
+const STYLESHEET = readFileSync(
+  join(import.meta.dirname, '..', 'src', 'styles.css'),
+  'utf8',
+);
 
 afterEach(() => {
   cleanup();
@@ -81,6 +95,31 @@ describe('readChartTheme: the stylesheet read back as colours', () => {
     document.body.append(chart);
     expect(readChartTheme(chart).ground).toBe('rgb(255, 255, 255)');
     chart.remove();
+  });
+
+  it('falls back to the stylesheet’s own light tokens, not a copy of its own (5A)', () => {
+    // The fallback is a second spelling of the light token block, so it is
+    // read against that block: a slot retuned in `styles.css` and not here
+    // turns this red instead of drawing jsdom's charts in last year's blue.
+    const start = STYLESHEET.indexOf('\n.fve-root,\n.fve-tokens {');
+    const lightBlock = STYLESHEET.slice(
+      start,
+      STYLESHEET.indexOf('\n}\n', start),
+    );
+    const light = (token: string) => {
+      const found = new RegExp(
+        `\\n  ${token}: var\\(--fve-${token.slice(2)}, (oklch\\([^)]*\\))\\)`,
+      ).exec(lightBlock)?.[1];
+      if (!found) throw new Error(`no light ${token} in styles.css`);
+      return concreteColor(found);
+    };
+    expect(CHART_FALLBACK.palette).toEqual(
+      CHART_TOKENS.slice(0, CHART_COLOR_SLOTS).map(light),
+    );
+    expect(CHART_FALLBACK.foreground).toBe(light('--foreground'));
+    expect(CHART_FALLBACK.muted).toBe(light('--muted-foreground'));
+    expect(CHART_FALLBACK.border).toBe(light('--border'));
+    expect(CHART_FALLBACK.ground).toBe(light('--background'));
   });
 
   it('reads nothing into a colour that is none', () => {
@@ -206,6 +245,62 @@ describe('EChart: the drawing bound to its element', () => {
     expect(container.querySelector('[data-slot="chart-plot"] svg')).toBe(svg);
   });
 
+  it('redraws when the host swaps its tokens and the mode stays (5A)', async () => {
+    // A host's preset, keyed by an attribute on <html>: the tokens move, the
+    // mode does not — the case a chart listening for the mode missed. (jsdom
+    // resolves no `var()` inside a custom property, so the rules name the
+    // token itself where the stylesheet goes through `--fve-*`.)
+    sheet(`
+      .fve-root { --chart-1: rgb(1, 2, 3); }
+      html[data-fve-preset='brand'] .fve-root { --chart-1: rgb(9, 8, 7); }
+      html.brand-by-class .fve-root { --chart-1: rgb(4, 5, 6); }
+    `);
+    const { container } = render(
+      <ViewSurface>
+        <AnalysisChart data={data} spec={spec} />
+      </ViewSurface>,
+    );
+    const svg = container.querySelector('[data-slot="chart-plot"] svg');
+    expect(fills(container)).toContain('rgb(1, 2, 3)');
+    const html = document.documentElement;
+    try {
+      html.dataset.fvePreset = 'brand';
+      await act(async () => {});
+      expect(fills(container)).toContain('rgb(9, 8, 7)');
+      expect(fills(container)).not.toContain('rgb(1, 2, 3)');
+
+      html.classList.add('brand-by-class');
+      delete html.dataset.fvePreset;
+      await act(async () => {});
+      expect(fills(container)).toContain('rgb(4, 5, 6)');
+
+      // Inline, as `style.setProperty('--fve-…')` on the page writes it;
+      // jsdom stands in for the `var()` with a rule keyed on the attribute.
+      sheet(
+        `html[style*='--fve-chart-1'] .fve-root { --chart-1: rgb(7, 7, 7); }`,
+      );
+      html.style.setProperty('--fve-chart-1', 'rgb(7, 7, 7)');
+      await act(async () => {});
+      expect(fills(container)).toContain('rgb(7, 7, 7)');
+      html.style.removeProperty('--fve-chart-1');
+      await act(async () => {});
+      expect(fills(container)).toContain('rgb(4, 5, 6)');
+
+      // A stylesheet swapped with no attribute moving is not observed: the
+      // design says a preset is switched by an attribute (5A).
+      sheet(`html.brand-by-class { --fve-chart-1: rgb(3, 3, 3); }`);
+      await act(async () => {});
+      expect(fills(container)).toContain('rgb(4, 5, 6)');
+      expect(fills(container)).not.toContain('rgb(3, 3, 3)');
+      // The same drawing throughout.
+      expect(container.querySelector('[data-slot="chart-plot"] svg')).toBe(svg);
+    } finally {
+      html.classList.remove('brand-by-class');
+      delete html.dataset.fvePreset;
+      html.style.removeProperty('--fve-chart-1');
+    }
+  });
+
   it('waits for a size, and follows every new one', () => {
     const observed: ResizeObserverCallback[] = [];
     vi.stubGlobal(
@@ -251,7 +346,7 @@ describe('EChart: the drawing bound to its element', () => {
     );
     const bar = [
       ...container.querySelectorAll('[data-slot="chart-plot"] svg path'),
-    ].find(path => path.getAttribute('fill') === 'rgb(42, 120, 214)')!;
+    ].find(path => path.getAttribute('fill') === 'rgb(38, 117, 211)')!;
     // The bar's corners are the points its outline moves and lines to; the
     // rounded ones add arcs, whose numbers are not points.
     const corners = [

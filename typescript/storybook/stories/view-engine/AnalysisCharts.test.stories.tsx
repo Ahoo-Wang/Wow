@@ -681,3 +681,44 @@ export const ThreeDimensionsRunAsTable: Story = {
     ).toBeNull();
   },
 };
+
+/**
+ * 宿主换一套 `--fve-*`，明暗不变，图跟着换色（阶段 5，5A）。
+ *
+ * 图表库拿到的是读回来的具体颜色，不是 `var()`，级联送不到它；从前只在明暗变化时
+ * 重读，宿主按属性换一套变量（预设、品牌色），界面其余部分都换了，图还停在旧色
+ * 上。这里在 `<html>` 上挂 `data-fve-preset`，由一段宿主样式给第一色位换一个颜色：
+ * 同一张图（不重新挂载）换成那个颜色；把属性拿掉，又回到原来的颜色。
+ */
+export const ChartFollowsHostTokens: Story = {
+  ...DisplayBarChart,
+  play: async ({ canvasElement }) => {
+    await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
+    await chartsDrawn(canvasElement);
+    const svg = canvasElement.querySelector('[data-slot="chart-plot"] svg');
+    const fillsNow = () =>
+      bars(canvasElement).map(bar => bar.getAttribute('fill'));
+    const before = fillsNow();
+    const teal = formatRgb(parse('rgb(0, 128, 128)')!);
+    await expect(before).not.toContain(teal);
+
+    const host = document.createElement('style');
+    host.textContent = `html[data-fve-preset='story-brand'] { --fve-chart-1: rgb(0, 128, 128); --fve-dark-chart-1: rgb(0, 128, 128); }`;
+    document.head.append(host);
+    const html = document.documentElement;
+    try {
+      html.dataset.fvePreset = 'story-brand';
+      await waitFor(() => expect(fillsNow()).toEqual(before.map(() => teal)));
+      // Redrawn in place, not remounted.
+      await expect(
+        canvasElement.querySelector('[data-slot="chart-plot"] svg'),
+      ).toBe(svg);
+
+      delete html.dataset.fvePreset;
+      await waitFor(() => expect(fillsNow()).toEqual(before));
+    } finally {
+      delete html.dataset.fvePreset;
+      host.remove();
+    }
+  },
+};

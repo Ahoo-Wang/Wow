@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine/ui — 203 names, from src/ui/index.ts.
+# @ahoo-wang/wow-view-engine/ui — 204 names, from src/ui/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALL_FEATURES
@@ -201,6 +201,7 @@ value useKindWord
 value useMessages
 value useSurfaceDisplay
 value useSurfaceTheme
+value useSurfaceTokens
 value useViewExpansion
 value useViewMessages
 value zhCN
