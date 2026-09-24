@@ -5,30 +5,71 @@ description: 'Business errors and document utilities — @ahoo-wang/wow-client'
 
 # Business errors and document utilities
 
-A successful HTTP response can carry a failed Wow business result. Inspect its errorCode before treating a write as completed. These helpers classify wire data; they do not throw a domain exception or choose a retry policy for you.
+A Wow call can fail in three places, and each reaches your code differently:
 
-| Contract                                           | Meaning, default and boundary                                                                                                                             |
-| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ErrorInfo`                                        | Required errorCode/errorMsg; optional bindingErrors array. Each `BindingError` has name/msg for a field-level validation issue.                           |
-| `ErrorCodes.isSucceeded(code)`                     | Strict equality with `SUCCEEDED`, the string `'Ok'`; success message defaults to the constant empty string. It is not an HTTP status check.               |
-| `ErrorCodes.isError(code)`                         | Negation of isSucceeded; an unknown code is an error. Constants below retain exact server identifiers, including duplicate request and version conflicts. |
-| `RecoverableType`                                  | RECOVERABLE, UNKNOWN or UNRECOVERABLE metadata; even RECOVERABLE does not prove a repeated command is idempotent.                                         |
-| `DynamicDocument` / `DynamicDocumentArray`         | `Record<string, any>` / its array. Use only when the response schema is intentionally unknown; no runtime validation.                                     |
-| `getPropertyValue<T>(object, path, defaultValue?)` | Dotted string or segment array; absent/null final value returns defaultValue (undefined if omitted). Empty path returns the object itself.                |
+| Where it fails                                  | What your code sees                                                                                                                                                              |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The server refuses the request (HTTP 4xx/5xx)   | The Promise rejects with the fetcher's error. `await toWowError(error)` turns it into a `WowError` carrying the server's `ErrorInfo` and the HTTP status.                         |
+| A server-sent event stream fails midway         | Wow still answered HTTP 200; it sends one last event named after the error code with an `ErrorInfo` body. Every built-in stream then errors with a `WowError`, so `for await` throws. |
+| The request never reached Wow, or was cancelled | The fetcher's own error (network, timeout, abort, a proxy's error page). `toWowError` returns `undefined`; handle or rethrow the original error.                                  |
 
-Dotted empty segments are removed, whereas segment arrays preserve them. Numeric segments index arrays; an invalid array index or missing/null intermediate returns the default. Ordinary object access includes inherited properties, and a throwing getter is not caught. Do not treat this helper as a safe authorization filter for untrusted property paths. It allocates no resources needing cleanup.
+A command result whose `errorCode` is not `ErrorCodes.SUCCEEDED` (`'Ok'`) is a failed command even though it arrived as a result: compare `result.errorCode` before treating a write as completed. A `sendAndWaitStream` result with such a code is still passed on as a result, not thrown.
+
+| Contract                                   | Meaning, default and boundary                                                                                                                                                                                  |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `WowError`                                 | `Error` subclass, `name = 'WowError'`. `errorCode`, `errorMsg` (empty when absent), `bindingErrors` (empty array when absent), optional `status` (HTTP status) and `cause` (the fetcher's error). The message is `[errorCode] errorMsg`. |
+| `toWowError(error)`                        | Async. Returns a `WowError` as is (or when it is the `cause`); otherwise reads the failed response of a fetcher error: its JSON `ErrorInfo` body through a clone, failing that its `Wow-Error-Code` header. `undefined` when Wow did not answer. |
+| `isErrorInfo(value)`                       | Type guard: an object with a string `errorCode`, and `errorMsg` a string when present.                                                                                                                         |
+| `ErrorCodes`                               | Frozen `as const` object of the codes Wow itself answers with — Kotlin's `ErrorCodes` plus `QUERY_SCHEMA_VALIDATION`/`CONFLICT`/`UNAVAILABLE` and `BATCH_TASK_ERROR`. Values are literal types.               |
+| `WowErrorCode` / `ErrorCode`               | `WowErrorCode` is the union of `ErrorCodes` values; `ErrorCode` is `WowErrorCode` or any other string (`string & {}`), so your application's own codes type-check while editors still complete Wow's. `ErrorInfo.errorCode` is `ErrorCode`. |
+| `ErrorInfo` / `BindingError`               | Required `errorCode`/`errorMsg`, optional `bindingErrors`; each `BindingError` has `name`/`msg` for a field-level validation issue.                                                                             |
+| `RecoverableType`                          | `RECOVERABLE` (transient, retrying may succeed), `UNRECOVERABLE` (retrying will not help), `UNKNOWN` (cannot be determined). Metadata only: even `RECOVERABLE` does not prove a repeated command is idempotent. |
+| `DynamicDocument` / `DynamicDocumentArray` | `Record<string, any>` / its array. Use only when the response schema is intentionally unknown; no runtime validation.                                                                                          |
+
+`toWowError` is asynchronous because the error body has not been read when the fetcher throws. The response is cloned, so its body stays readable for other handlers. The helpers choose no retry policy and allocate nothing that needs cleanup.
 
 ```ts
-import { ErrorCodes, getPropertyValue } from '@ahoo-wang/wow-client';
-console.assert(ErrorCodes.isSucceeded('Ok'));
-console.assert(ErrorCodes.isError('DuplicateRequestId'));
-console.assert(
-  getPropertyValue({ rows: [{ name: 'Ada' }] }, 'rows.0.name') === 'Ada',
-);
-console.assert(
-  getPropertyValue({ name: null }, 'name', 'unknown') === 'unknown',
-);
+import {
+  ErrorCodes,
+  toWowError,
+  type SnapshotQueryClient,
+} from '@ahoo-wang/wow-client';
+
+export async function findCart<S>(client: SnapshotQueryClient<S>, id: string) {
+  try {
+    return await client.getStateById(id);
+  } catch (error) {
+    const wowError = await toWowError(error);
+    if (wowError?.errorCode === ErrorCodes.NOT_FOUND) return undefined;
+    throw wowError ?? error;
+  }
+}
 ```
+
+A stream that fails midway throws the `WowError` from the loop itself; no conversion is needed:
+
+```ts
+import {
+  WowError,
+  listQuery,
+  type SnapshotQueryClient,
+} from '@ahoo-wang/wow-client';
+
+export async function readAll<S>(client: SnapshotQueryClient<S>) {
+  const rows: S[] = [];
+  try {
+    for await (const event of await client.listStateStream(listQuery())) {
+      rows.push(event.data);
+    }
+  } catch (error) {
+    if (error instanceof WowError) console.warn(error.errorCode, error.errorMsg);
+    throw error;
+  }
+  return rows;
+}
+```
+
+The built-in stream methods — `listStream`, `listStateStream`, `aggregateStream`, the event client's `loadStream` and `CommandClient.sendAndWaitStream` — use the two exported result extractors below. A generated or hand-written command client can pass `CommandResultEventStreamResultExtractor` as its `resultExtractor` to get the same behaviour.
 
 Read [command results](./commands) for the surrounding execution stage and [failure boundaries](https://fetcher.ahoo.me/architecture/failure-model) for transport/JSON errors.
 
@@ -77,7 +118,7 @@ export interface BindingError {
 
 ```ts
 export interface ErrorInfo {
-  errorCode: string;
+  errorCode: ErrorCode;
   errorMsg: string;
   bindingErrors?: BindingError[];
 }
@@ -90,50 +131,117 @@ export interface ErrorInfo {
 ::: details Expand all fields and members
 
 ```ts
-export class ErrorCodes {
-  static readonly SUCCEEDED = 'Ok';
-  static readonly SUCCEEDED_MESSAGE = '';
-  static readonly NOT_FOUND = 'NotFound';
-  static readonly NOT_FOUND_MESSAGE = 'Not found resource!';
-  static readonly BAD_REQUEST = 'BadRequest';
-  static readonly ILLEGAL_ARGUMENT = 'IllegalArgument';
-  static readonly ILLEGAL_STATE = 'IllegalState';
-  static readonly REQUEST_TIMEOUT = 'RequestTimeout';
-  static readonly TOO_MANY_REQUESTS = 'TooManyRequests';
-  static readonly DUPLICATE_REQUEST_ID = 'DuplicateRequestId';
-  static readonly COMMAND_VALIDATION = 'CommandValidation';
-  static readonly REWRITE_NO_COMMAND = 'RewriteNoCommand';
-  static readonly EVENT_VERSION_CONFLICT = 'EventVersionConflict';
-  static readonly DUPLICATE_AGGREGATE_ID = 'DuplicateAggregateId';
-  static readonly COMMAND_EXPECT_VERSION_CONFLICT =
-    'CommandExpectVersionConflict';
-  static readonly SOURCING_VERSION_CONFLICT = 'SourcingVersionConflict';
-  static readonly ILLEGAL_ACCESS_DELETED_AGGREGATE =
-    'IllegalAccessDeletedAggregate';
-  static readonly ILLEGAL_ACCESS_OWNER_AGGREGATE =
-    'IllegalAccessOwnerAggregate';
-  static readonly ILLEGAL_ACCESS_SPACE_AGGREGATE =
-    'IllegalAccessSpaceAggregate';
-  static readonly INTERNAL_SERVER_ERROR = 'InternalServerError';
-  static isSucceeded(errorCode: string): boolean;
-  static isError(errorCode: string): boolean;
-}
+export const ErrorCodes = Object.freeze({
+  SUCCEEDED: 'Ok',
+  NOT_FOUND: 'NotFound',
+  BAD_REQUEST: 'BadRequest',
+  ILLEGAL_ARGUMENT: 'IllegalArgument',
+  ILLEGAL_STATE: 'IllegalState',
+  REQUEST_TIMEOUT: 'RequestTimeout',
+  TOO_MANY_REQUESTS: 'TooManyRequests',
+  DUPLICATE_REQUEST_ID: 'DuplicateRequestId',
+  COMMAND_VALIDATION: 'CommandValidation',
+  REWRITE_NO_COMMAND: 'RewriteNoCommand',
+  EVENT_VERSION_CONFLICT: 'EventVersionConflict',
+  DUPLICATE_AGGREGATE_ID: 'DuplicateAggregateId',
+  COMMAND_EXPECT_VERSION_CONFLICT: 'CommandExpectVersionConflict',
+  SOURCING_VERSION_CONFLICT: 'SourcingVersionConflict',
+  ILLEGAL_ACCESS_DELETED_AGGREGATE: 'IllegalAccessDeletedAggregate',
+  ILLEGAL_ACCESS_OWNER_AGGREGATE: 'IllegalAccessOwnerAggregate',
+  ILLEGAL_ACCESS_SPACE_AGGREGATE: 'IllegalAccessSpaceAggregate',
+  INTERNAL_SERVER_ERROR: 'InternalServerError',
+  QUERY_SCHEMA_VALIDATION: 'QuerySchemaValidation',
+  QUERY_SCHEMA_CONFLICT: 'QuerySchemaConflict',
+  QUERY_SCHEMA_UNAVAILABLE: 'QuerySchemaUnavailable',
+  BATCH_TASK_ERROR: 'BatchTaskError',
+} as const);
 ```
 
 :::
 
-[typescript/wow-client/src/types/error.ts:85](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/error.ts#L85)
+[typescript/wow-client/src/types/error.ts:94](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/error.ts#L94)
 
-### getPropertyValue {#api-getPropertyValue}
+### WowErrorCode {#api-WowErrorCode}
 
 ```ts
-export function getPropertyValue<T = any>(
-  object: any,
-  propertyName: string | string[],
-  defaultValue?: T,
-): T | undefined;
+export type WowErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
 ```
 
-[typescript/wow-client/src/getPropertyValue.ts:50](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/getPropertyValue.ts#L50)
+[typescript/wow-client/src/types/error.ts:142](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/error.ts#L142)
+
+### ErrorCode {#api-ErrorCode}
+
+```ts
+export type ErrorCode = WowErrorCode | (string & {});
+```
+
+[typescript/wow-client/src/types/error.ts:149](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/error.ts#L149)
+
+### WowErrorOptions {#api-WowErrorOptions}
+
+```ts
+export interface WowErrorOptions {
+  status?: number;
+  cause?: unknown;
+}
+```
+
+[typescript/wow-client/src/types/wowError.ts:18](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/wowError.ts#L18)
+
+### WowError {#api-WowError}
+
+```ts
+export class WowError extends Error implements ErrorInfo {
+  override readonly name = 'WowError';
+  readonly errorCode: ErrorCode;
+  readonly errorMsg: string;
+  readonly bindingErrors: BindingError[];
+  readonly status?: number;
+  readonly cause?: unknown;
+  constructor(errorInfo: ErrorInfo, options?: WowErrorOptions);
+}
+```
+
+[typescript/wow-client/src/types/wowError.ts:51](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/wowError.ts#L51)
+
+### isErrorInfo {#api-isErrorInfo}
+
+```ts
+export function isErrorInfo(value: unknown): value is ErrorInfo;
+```
+
+[typescript/wow-client/src/types/wowError.ts:80](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/wowError.ts#L80)
+
+### toWowError {#api-toWowError}
+
+```ts
+export async function toWowError(error: unknown): Promise<WowError | undefined>;
+```
+
+[typescript/wow-client/src/types/wowError.ts:124](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/wowError.ts#L124)
+
+### QueryEventStreamResultExtractor {#api-QueryEventStreamResultExtractor}
+
+```ts
+export const QueryEventStreamResultExtractor: ResultExtractor<
+  ReadableStream<JsonServerSentEvent<any>>
+>;
+```
+
+Parses the response as JSON server-sent events and passes the rows (events without an `event:` field). The first event with any other name errors the stream with a `WowError`.
+
+[typescript/wow-client/src/eventStreams.ts:70](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/eventStreams.ts#L70)
+
+### CommandResultEventStreamResultExtractor {#api-CommandResultEventStreamResultExtractor}
+
+```ts
+export const CommandResultEventStreamResultExtractor: ResultExtractor<
+  ReadableStream<JsonServerSentEvent<CommandResult>>
+>;
+```
+
+Passes the events named after a `CommandStage`, one per stage the command reached; any other event name errors the stream with a `WowError`.
+
+[typescript/wow-client/src/eventStreams.ts:86](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/eventStreams.ts#L86)
 
 [Complete symbol index](./symbols)

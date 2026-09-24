@@ -5,19 +5,24 @@ description: 'Aggregation builders — @ahoo-wang/wow-client'
 
 # Aggregation builders
 
-AggregationQuery describes a server aggregation, not a JavaScript reducer. Supply at least one metric. `aggregate(query, attributes?, controller?)` returns flat rows keyed by your aliases; `aggregateStream` returns JSON SSE rows and needs explicit stream consumption. Generics describe rows but do not validate their contents.
+AggregationQuery describes a server aggregation, not a JavaScript reducer. Supply at least one metric. `aggregate(query, attributes?, abort?)` returns flat rows keyed by your aliases; `aggregateStream` returns JSON SSE rows and needs explicit stream consumption. Generics describe rows but do not validate their contents.
 
-| Builder                                                        | Inputs / result                                                                                                                                  |
-| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| aggregation.element(path, predicate?)                          | Select an array/nested element path, with optional element-relative filter; root metadata/search/deletion filters are rejected inside predicate. |
-| field(field), constant(number)                                 | Field reference or finite numeric constant expression.                                                                                           |
-| add/subtract/multiply/divide(left, right)                      | Binary expression tree; division is evaluated by the backend, not here.                                                                          |
-| terms(field, alias, missingKey?)                               | Terms grouping.                                                                                                                                  |
-| histogram(field, {interval, alias})                            | Finite interval &gt; 0.                                                                                                                          |
-| dateHistogram(field, {unit, alias, timeZone?, dense?})         | AggregationDateUnit from YEAR to SECOND, timeZone defaults UTC; empty zone and invalid enum throw.                                               |
-| count(alias, predicate?)                                       | Count metric; no field argument.                                                                                                                 |
-| any(field, alias, predicate?)                                  | Backend-selected value; do not treat it as a deterministic first row.                                                                            |
-| sum/avg/min/max/stddev/variance(expression, alias, predicate?) | Numeric metric over an expression.                                                                                                               |
+| Builder                                                                   | Inputs / result                                                                                                                                  |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| aggregation.element(path, predicate?)                                     | Select an array/nested element path, with optional element-relative filter; root metadata/search/deletion filters are rejected inside predicate. |
+| field(field), constant(number)                                            | Field reference or finite numeric constant expression.                                                                                           |
+| add/subtract/multiply/divide(left, right)                                 | Binary expression tree; division is evaluated by the backend, not here.                                                                          |
+| terms(field, alias, { missingKey? })                                      | Terms grouping; a `missingKey` must not be blank.                                                                                                |
+| histogram(field, alias, { interval })                                     | Finite interval &gt; 0.                                                                                                                          |
+| dateHistogram(field, alias, { unit, timeZone?, dense? })                  | AggregationDateUnit from YEAR to SECOND, timeZone defaults UTC; empty zone and invalid enum throw.                                               |
+| count(alias, { filter? })                                                 | Count metric; no field argument.                                                                                                                 |
+| any(field, alias, { filter? })                                            | Backend-selected value; do not treat it as a deterministic first row.                                                                            |
+| sum/avg/min/max/stddev/variance/distinctCount(expression, alias, { filter? }) | Numeric metric over an expression.                                                                                                           |
+| percentile(expression, alias, { percentile, filter? })                    | Percentile strictly within (0, 100).                                                                                                             |
+| derived(expression, alias)                                                | Metric computed from earlier metrics by alias.                                                                                                   |
+| query(query)                                                              | Checks the assembled query against the rules Wow enforces (limits, alias collisions, sort and `having` references) and returns a copy.          |
+
+Every group and metric takes its target first, its alias second, and any further options as a trailing object.
 
 Query fields are filter, elements, groupBy, metrics (nonempty tuple), sort, limit, having. Root filter selects source documents; elements describes nested element traversal/filtering, and group/metric fields refer to that aggregation scope. Output stays flat; elements does not mean a nested output response. Sort fields refer to output aliases. Omitted filter/groupBy/sort/limit are left undefined; there is no hidden client limit or grouping.
 
@@ -51,11 +56,11 @@ export const revenue: AggregationQuery = {
 
 Aligned with Wow `main` at `fd1b3cd46`. Existing builder calls keep their JSON shape; optional metric filters, `missingKey`, and `dense` are omitted unless supplied.
 
-- `aggregation.distinctCount(expression, alias, predicate?)` counts distinct non-null contributions; `aggregation.percentile(expression, percentile, alias, predicate?)` accepts finite values strictly between 0 and 100 (use 50 for the median). `stddev` and `variance` compute population statistics. Percentiles are approximate on both backends; Elasticsearch distinct counts may be approximate, while MongoDB counts distinct values exactly.
-- Non-derived metrics accept an optional `FilterExpression` in the current aggregation scope. It affects only that metric. The backend validates scalar fields and rejects unsupported filter operators.
+- `aggregation.distinctCount(expression, alias, { filter? })` counts distinct non-null contributions; `aggregation.percentile(expression, alias, { percentile, filter? })` accepts finite values strictly between 0 and 100 (use 50 for the median). `stddev` and `variance` compute population statistics. Percentiles are approximate on both backends; Elasticsearch distinct counts may be approximate, while MongoDB counts distinct values exactly.
+- Non-derived metrics accept an optional `{ filter }` option, a `FilterExpression` in the current aggregation scope. It affects only that metric. The backend validates scalar fields and rejects unsupported filter operators.
 - `aggregation.derived(expression, alias)` uses a `DerivedExpression` tree (`METRIC_REF`, `CONSTANT`, `BINARY`). References must name earlier metrics and cannot reference `ANY`. Derived metrics have no record filter; filter the referenced metrics instead. Null operands or division by zero produce null.
 - `having?: HavingExpression` supports `CONDITION`, `BETWEEN`, `IN`, `IS_NULL`, `AND`, and `OR`, using metric aliases, not field paths. `ComparisonOperator` contains `EQ`, `NE`, `GT`, `GTE`, `LT`, `LTE`. HAVING requires grouping and cannot reference `ANY`; it runs before sorting and limit. Non-empty sets/operands are enforced by tuple types; finite values, bounds, references and depth are validated by the server.
-- `terms(field, alias, missingKey?)` optionally merges missing/null values into a nonblank string bucket key; the backend validates string field support. `dateHistogram(field, { unit, alias, timeZone?, dense? })` fills interior date gaps when `dense` is true; it requires the only group dimension. No rows means no generated date range.
+- `terms(field, alias, { missingKey })` optionally merges missing/null values into a nonblank string bucket key; the backend validates string field support. `dateHistogram(field, alias, { unit, timeZone?, dense: true })` fills interior date gaps; it requires the only group dimension. No rows means no generated date range.
 
 Backend requirements still apply (MongoDB 5.1+ for dense groups, 7.0+ for percentiles); the client performs no backend capability probing. Raw typed expression objects are not runtime validators.
 
@@ -65,15 +70,24 @@ import {
   AggregationExpressionOperator,
   ComparisonOperator,
   DerivedExpressionType,
+  filter,
   HavingExpressionType,
   type AggregationQuery,
 } from '@ahoo-wang/wow-client';
 
 const query: AggregationQuery = {
-  groupBy: [aggregation.terms('state.status', 'status', 'Unknown')],
+  groupBy: [
+    aggregation.terms('state.status', 'status', { missingKey: 'Unknown' }),
+  ],
   metrics: [
     aggregation.count('orders'),
+    aggregation.count('refunded', {
+      filter: filter.eq('state.refunded', true),
+    }),
     aggregation.sum(aggregation.field('state.amount'), 'revenue'),
+    aggregation.percentile(aggregation.field('state.amount'), 'p95Amount', {
+      percentile: 95,
+    }),
     aggregation.derived(
       {
         type: DerivedExpressionType.BINARY,
@@ -107,7 +121,7 @@ export enum AggregationGroupType {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:22](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L22)
+[typescript/wow-client/src/query/aggregation.ts:25](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L25)
 
 ### AggregationMetricType {#api-AggregationMetricType}
 
@@ -122,7 +136,7 @@ export enum AggregationMetricType {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:28](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L28)
+[typescript/wow-client/src/query/aggregation.ts:31](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L31)
 
 ### AggregationExpressionType {#api-AggregationExpressionType}
 
@@ -134,7 +148,7 @@ export enum AggregationExpressionType {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:37](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L37)
+[typescript/wow-client/src/query/aggregation.ts:40](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L40)
 
 ### AggregationExpressionOperator {#api-AggregationExpressionOperator}
 
@@ -147,7 +161,7 @@ export enum AggregationExpressionOperator {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:43](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L43)
+[typescript/wow-client/src/query/aggregation.ts:46](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L46)
 
 ### AggregationDateUnit {#api-AggregationDateUnit}
 
@@ -164,7 +178,7 @@ export enum AggregationDateUnit {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:50](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L50)
+[typescript/wow-client/src/query/aggregation.ts:53](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L53)
 
 ### AggregationFunction {#api-AggregationFunction}
 
@@ -179,7 +193,7 @@ export enum AggregationFunction {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:61](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L61)
+[typescript/wow-client/src/query/aggregation.ts:64](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L64)
 
 ### AggregationElement {#api-AggregationElement}
 
@@ -190,7 +204,7 @@ export interface AggregationElement {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:70](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L70)
+[typescript/wow-client/src/query/aggregation.ts:73](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L73)
 
 ### TermsAggregationGroup {#api-TermsAggregationGroup}
 
@@ -203,7 +217,7 @@ export interface TermsAggregationGroup<
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:80](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L80)
+[typescript/wow-client/src/query/aggregation.ts:83](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L83)
 
 ### HistogramAggregationGroup {#api-HistogramAggregationGroup}
 
@@ -216,7 +230,7 @@ export interface HistogramAggregationGroup<
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:87](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L87)
+[typescript/wow-client/src/query/aggregation.ts:90](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L90)
 
 ### DateHistogramAggregationGroup {#api-DateHistogramAggregationGroup}
 
@@ -231,7 +245,7 @@ export interface DateHistogramAggregationGroup<
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:94](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L94)
+[typescript/wow-client/src/query/aggregation.ts:97](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L97)
 
 ### AggregationGroup {#api-AggregationGroup}
 
@@ -242,7 +256,7 @@ export type AggregationGroup<FIELDS extends string = string> =
   | DateHistogramAggregationGroup<FIELDS>;
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:103](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L103)
+[typescript/wow-client/src/query/aggregation.ts:106](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L106)
 
 ### FieldAggregationExpression {#api-FieldAggregationExpression}
 
@@ -253,7 +267,7 @@ export interface FieldAggregationExpression<FIELDS extends string = string> {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:108](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L108)
+[typescript/wow-client/src/query/aggregation.ts:111](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L111)
 
 ### ConstantAggregationExpression {#api-ConstantAggregationExpression}
 
@@ -264,7 +278,7 @@ export interface ConstantAggregationExpression {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:113](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L113)
+[typescript/wow-client/src/query/aggregation.ts:116](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L116)
 
 ### BinaryAggregationExpression {#api-BinaryAggregationExpression}
 
@@ -277,7 +291,7 @@ export interface BinaryAggregationExpression<FIELDS extends string = string> {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:118](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L118)
+[typescript/wow-client/src/query/aggregation.ts:121](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L121)
 
 ### AggregationExpression {#api-AggregationExpression}
 
@@ -288,7 +302,7 @@ export type AggregationExpression<FIELDS extends string = string> =
   | BinaryAggregationExpression<FIELDS>;
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:125](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L125)
+[typescript/wow-client/src/query/aggregation.ts:128](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L128)
 
 ### CountAggregationMetric {#api-CountAggregationMetric}
 
@@ -300,7 +314,7 @@ export interface CountAggregationMetric<FIELDS extends string = string> {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:130](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L130)
+[typescript/wow-client/src/query/aggregation.ts:133](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L133)
 
 ### NumericAggregationMetric {#api-NumericAggregationMetric}
 
@@ -314,7 +328,7 @@ export interface NumericAggregationMetric<FIELDS extends string = string> {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:136](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L136)
+[typescript/wow-client/src/query/aggregation.ts:139](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L139)
 
 ### AnyAggregationMetric {#api-AnyAggregationMetric}
 
@@ -327,7 +341,7 @@ export interface AnyAggregationMetric<FIELDS extends string = string> {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:144](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L144)
+[typescript/wow-client/src/query/aggregation.ts:147](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L147)
 
 ### DistinctCountAggregationMetric {#api-DistinctCountAggregationMetric}
 
@@ -342,7 +356,7 @@ export interface DistinctCountAggregationMetric<
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:151](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L151)
+[typescript/wow-client/src/query/aggregation.ts:154](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L154)
 
 ### PercentileAggregationMetric {#api-PercentileAggregationMetric}
 
@@ -356,7 +370,7 @@ export interface PercentileAggregationMetric<FIELDS extends string = string> {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:160](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L160)
+[typescript/wow-client/src/query/aggregation.ts:163](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L163)
 
 ### DerivedExpressionType {#api-DerivedExpressionType}
 
@@ -368,7 +382,7 @@ export enum DerivedExpressionType {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:168](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L168)
+[typescript/wow-client/src/query/aggregation.ts:171](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L171)
 
 ### DerivedExpression {#api-DerivedExpression}
 
@@ -384,7 +398,7 @@ export type DerivedExpression =
     };
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:175](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L175)
+[typescript/wow-client/src/query/aggregation.ts:178](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L178)
 
 ### DerivedAggregationMetric {#api-DerivedAggregationMetric}
 
@@ -396,7 +410,7 @@ export interface DerivedAggregationMetric {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:185](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L185)
+[typescript/wow-client/src/query/aggregation.ts:188](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L188)
 
 ### HavingExpressionType {#api-HavingExpressionType}
 
@@ -411,7 +425,7 @@ export enum HavingExpressionType {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:191](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L191)
+[typescript/wow-client/src/query/aggregation.ts:194](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L194)
 
 ### ComparisonOperator {#api-ComparisonOperator}
 
@@ -426,7 +440,7 @@ export enum ComparisonOperator {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:200](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L200)
+[typescript/wow-client/src/query/aggregation.ts:203](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L203)
 
 ### HavingExpression {#api-HavingExpression}
 
@@ -456,7 +470,7 @@ export type HavingExpression =
     };
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:210](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L210)
+[typescript/wow-client/src/query/aggregation.ts:213](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L213)
 
 ### AggregationMetric {#api-AggregationMetric}
 
@@ -470,7 +484,7 @@ export type AggregationMetric<FIELDS extends string = string> =
   | DerivedAggregationMetric;
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:234](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L234)
+[typescript/wow-client/src/query/aggregation.ts:237](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L237)
 
 ### AggregationQuery {#api-AggregationQuery}
 
@@ -492,31 +506,80 @@ export interface AggregationQuery<
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:242](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L242)
+[typescript/wow-client/src/query/aggregation.ts:245](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L245)
+
+### AggregationMetricOptions {#api-AggregationMetricOptions}
+
+```ts
+export interface AggregationMetricOptions<FIELDS extends string = string> {
+  filter?: FilterExpression<FIELDS>;
+}
+```
+
+[typescript/wow-client/src/query/aggregation.ts:264](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L264)
+
+### TermsAggregationOptions {#api-TermsAggregationOptions}
+
+```ts
+export interface TermsAggregationOptions {
+  missingKey?: string;
+}
+```
+
+[typescript/wow-client/src/query/aggregation.ts:270](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L270)
 
 ### HistogramAggregationOptions {#api-HistogramAggregationOptions}
 
 ```ts
 export interface HistogramAggregationOptions {
   interval: number;
-  alias: string;
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:258](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L258)
+[typescript/wow-client/src/query/aggregation.ts:276](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L276)
 
 ### DateHistogramAggregationOptions {#api-DateHistogramAggregationOptions}
 
 ```ts
 export interface DateHistogramAggregationOptions {
   unit: AggregationDateUnit;
-  alias: string;
   timeZone?: string;
   dense?: boolean;
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:263](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L263)
+[typescript/wow-client/src/query/aggregation.ts:282](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L282)
+
+### PercentileAggregationOptions {#api-PercentileAggregationOptions}
+
+```ts
+export interface PercentileAggregationOptions<
+  FIELDS extends string = string,
+> extends AggregationMetricOptions<FIELDS> {
+  percentile: number;
+}
+```
+
+[typescript/wow-client/src/query/aggregation.ts:295](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L295)
+
+### AGGREGATION_LIMITS {#api-AGGREGATION_LIMITS}
+
+```ts
+export const AGGREGATION_LIMITS = Object.freeze({
+  DEFAULT_LIMIT: 100,
+  MAX_LIMIT: 10_000,
+  MAX_ELEMENTS: 5,
+  MAX_GROUPS: 32,
+  MAX_METRICS: 64,
+  MAX_SORT_FIELDS: 32,
+  MAX_EXPRESSION_DEPTH: 8,
+  MAX_EXPRESSION_NODES: 256,
+});
+```
+
+The sizes Wow's `AggregationQuery` enforces; `aggregation.query()` checks them before sending. `DEFAULT_LIMIT` is the row count the server returns when a query names no limit.
+
+[typescript/wow-client/src/query/aggregation.ts:349](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L349)
 
 ### aggregation {#api-aggregation}
 
@@ -549,71 +612,78 @@ export declare const aggregation: {
   terms<FIELDS extends string>(
     field: FIELDS,
     alias: string,
-    missingKey?: string,
+    options?: TermsAggregationOptions,
   ): TermsAggregationGroup<FIELDS>;
   histogram<FIELDS extends string>(
     field: FIELDS,
-    { interval, alias }: HistogramAggregationOptions,
+    alias: string,
+    options: HistogramAggregationOptions,
   ): HistogramAggregationGroup<FIELDS>;
   dateHistogram<FIELDS extends string>(
     field: FIELDS,
-    { unit, alias, timeZone, dense }: DateHistogramAggregationOptions,
+    alias: string,
+    options: DateHistogramAggregationOptions,
   ): DateHistogramAggregationGroup<FIELDS>;
   any<FIELDS extends string>(
     field: FIELDS,
     alias: string,
-    predicate?: FilterExpression<FIELDS>,
+    options?: AggregationMetricOptions<FIELDS>,
   ): AnyAggregationMetric<FIELDS>;
   count<FIELDS extends string = string>(
     alias: string,
-    predicate?: FilterExpression<FIELDS>,
+    options?: AggregationMetricOptions<FIELDS>,
   ): CountAggregationMetric<FIELDS>;
   sum: <FIELDS extends string>(
     expression: AggregationExpression<FIELDS>,
     alias: string,
-    predicate?: FilterExpression<FIELDS>,
+    options?: AggregationMetricOptions<FIELDS>,
   ) => NumericAggregationMetric<FIELDS>;
   avg: <FIELDS extends string>(
     expression: AggregationExpression<FIELDS>,
     alias: string,
-    predicate?: FilterExpression<FIELDS>,
+    options?: AggregationMetricOptions<FIELDS>,
   ) => NumericAggregationMetric<FIELDS>;
   min: <FIELDS extends string>(
     expression: AggregationExpression<FIELDS>,
     alias: string,
-    predicate?: FilterExpression<FIELDS>,
+    options?: AggregationMetricOptions<FIELDS>,
   ) => NumericAggregationMetric<FIELDS>;
   max: <FIELDS extends string>(
     expression: AggregationExpression<FIELDS>,
     alias: string,
-    predicate?: FilterExpression<FIELDS>,
+    options?: AggregationMetricOptions<FIELDS>,
   ) => NumericAggregationMetric<FIELDS>;
   stddev: <FIELDS extends string>(
     expression: AggregationExpression<FIELDS>,
     alias: string,
-    predicate?: FilterExpression<FIELDS>,
+    options?: AggregationMetricOptions<FIELDS>,
   ) => NumericAggregationMetric<FIELDS>;
   variance: <FIELDS extends string>(
     expression: AggregationExpression<FIELDS>,
     alias: string,
-    predicate?: FilterExpression<FIELDS>,
+    options?: AggregationMetricOptions<FIELDS>,
   ) => NumericAggregationMetric<FIELDS>;
   distinctCount<FIELDS extends string>(
     expression: AggregationExpression<FIELDS>,
     alias: string,
-    predicate?: FilterExpression<FIELDS>,
+    options?: AggregationMetricOptions<FIELDS>,
   ): DistinctCountAggregationMetric<FIELDS>;
   percentile<FIELDS extends string>(
     expression: AggregationExpression<FIELDS>,
-    percentile: number,
     alias: string,
-    predicate?: FilterExpression<FIELDS>,
+    options: PercentileAggregationOptions<FIELDS>,
   ): PercentileAggregationMetric<FIELDS>;
   derived(
     expression: DerivedExpression,
     alias: string,
   ): DerivedAggregationMetric;
+  query<
+    ROOT_FIELDS extends string = string,
+    AGGREGATION_FIELDS extends string = ROOT_FIELDS,
+  >(
+    query: AggregationQuery<ROOT_FIELDS, AGGREGATION_FIELDS>,
+  ): AggregationQuery<ROOT_FIELDS, AGGREGATION_FIELDS>;
 };
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:310](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L310)
+[typescript/wow-client/src/query/aggregation.ts:668](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L668)

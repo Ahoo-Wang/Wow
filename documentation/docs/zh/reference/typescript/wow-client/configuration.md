@@ -14,29 +14,34 @@ description: '客户端配置与元数据 — @ahoo-wang/wow-client'
 | 其他 ApiMetadata 选项                            | 交给装饰器执行，包含 fetcher 和请求选项。            |
 | createSnapshotQueryClient                        | SnapshotQueryClient&lt;S,FIELDS&gt;                  |
 | createLoadStateAggregateClient                   | LoadStateAggregateClient&lt;S&gt;                    |
-| createOwnerLoadStateAggregateClient              | LoadOwnerStateAggregateClient&lt;S&gt;，注意方法拼写 |
-| createEventStreamQueryClient                     | EventStreamQueryClient&lt;DomainEventBody,FIELDS&gt; |
+| createLoadOwnerStateAggregateClient              | LoadOwnerStateAggregateClient&lt;S&gt;               |
+| createEventStreamQueryClient&lt;EVENT_FIELDS&gt; | EventStreamQueryClient&lt;DomainEventBody,EVENT_FIELDS&gt;；事件字段独立于工厂的快照 FIELDS。 |
 
-单次选项浅覆盖构造默认值。`createQueryApiMetadata(options)` 直接暴露相同路由组合逻辑。ResourceAttributionPathSpec 含 `{tenantId}` 或 `{ownerId}` 时，通过请求配置提供真实值。缺失 Fetcher 注册和请求失败属于装饰器/Fetcher 执行阶段；创建包装器不产生 I/O，也无须清理。
+单次选项浅覆盖构造默认值。路由组合逻辑是内部实现；需要时从客户端的 `apiMetadata.basePath` 读取结果。ResourceAttributionPathSpec 含 `{tenantId}` 或 `{ownerId}` 时，通过请求配置提供真实值。缺失 Fetcher 注册和请求失败属于装饰器/Fetcher 执行阶段；创建包装器不产生 I/O，也无须清理。
 
-`WowMetadata` 是带 description 和按名称索引 contexts 的数据模型。BoundedContext 包含 alias、scopes、aggregates；Aggregate 包含 type、tenantId、id、scopes、命令名和事件名。可空元数据显式使用 null。本模块没有导出 `wow()` 装饰器或自动元数据请求器。执行见 [命令](./commands) 和 [快照查询](./snapshot-queries)。
+`WowMetadata` 是带 description 和按名称索引 contexts 的数据模型。BoundedContext 包含 alias、scopes、aggregates；Aggregate 包含 type、tenantId、id、scopes、命令名和事件名。可空元数据显式使用 null。`new WowMetadataClient(apiMetadata?).metadata(attributes?, abort?)` 从 `GET /wow/metadata`（相对 Fetcher 的 baseURL）读取它；不会自动读取，本模块也没有导出 `wow()` 装饰器。执行见 [命令](./commands) 和 [快照查询](./snapshot-queries)。
 
 ## 完整示例
 
 ```ts
-import {
-  QueryClientFactory,
-  createQueryApiMetadata,
-} from '@ahoo-wang/wow-client';
+import { Fetcher } from '@ahoo-wang/fetcher';
+import { QueryClientFactory, WowMetadataClient } from '@ahoo-wang/wow-client';
 interface User {
   id: string;
   name: string;
 }
-const options = { contextAlias: 'accounts', aggregateName: 'user' };
-const factory = new QueryClientFactory<User>(options);
-const snapshots = factory.createSnapshotQueryClient();
+const fetcher = new Fetcher({ baseURL: 'https://api.example.com/' });
+const factory = new QueryClientFactory<User>({
+  fetcher,
+  contextAlias: 'accounts',
+  aggregateName: 'user',
+});
+const snapshots = factory.createSnapshotQueryClient(); // basePath accounts/user
 const history = factory.createLoadStateAggregateClient();
-console.log(createQueryApiMetadata(options).basePath); // accounts/user
+export async function listContexts() {
+  const metadata = await new WowMetadataClient({ fetcher }).metadata();
+  return Object.keys(metadata.contexts);
+}
 export { snapshots, history };
 ```
 
@@ -91,15 +96,16 @@ export interface WowMetadata extends DescriptionCapable {
 
 [typescript/wow-client/src/configuration/wowMetadata.ts:48](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/configuration/wowMetadata.ts#L48)
 
-### createQueryApiMetadata {#api-createQueryApiMetadata}
+### WowMetadataClient {#api-WowMetadataClient}
 
 ```ts
-export function createQueryApiMetadata(
-  options: QueryClientOptions,
-): ApiMetadata;
+export class WowMetadataClient implements ApiMetadataCapable {
+    constructor(public readonly apiMetadata?: ApiMetadata);
+    metadata(attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<WowMetadata>;
+}
 ```
 
-[typescript/wow-client/src/query/queryClients.ts:52](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryClients.ts#L52)
+[typescript/wow-client/src/configuration/wowMetadataClient.ts:38](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/configuration/wowMetadataClient.ts#L38)
 
 ### QueryClientOptions {#api-QueryClientOptions}
 
@@ -123,12 +129,12 @@ export class QueryClientFactory<S, FIELDS extends string = string, DomainEventBo
     constructor(private readonly defaultOptions: QueryClientOptions);
     createSnapshotQueryClient(options?: QueryClientOptions): SnapshotQueryClient<S, FIELDS>;
     createLoadStateAggregateClient(options?: QueryClientOptions): LoadStateAggregateClient<S>;
-    createOwnerLoadStateAggregateClient(options?: QueryClientOptions): LoadOwnerStateAggregateClient<S>;
-    createEventStreamQueryClient<FIELDS extends string = string>(options?: QueryClientOptions): EventStreamQueryClient<DomainEventBody, FIELDS>;
+    createLoadOwnerStateAggregateClient(options?: QueryClientOptions): LoadOwnerStateAggregateClient<S>;
+    createEventStreamQueryClient<EVENT_FIELDS extends string = string>(options?: QueryClientOptions): EventStreamQueryClient<DomainEventBody, EVENT_FIELDS>;
 }
 ```
 
-[typescript/wow-client/src/query/queryClients.ts:65](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryClients.ts#L65)
+[typescript/wow-client/src/query/queryClients.ts:63](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryClients.ts#L63)
 
 ## 相关专题
 

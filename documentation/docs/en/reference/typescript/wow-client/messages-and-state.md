@@ -147,7 +147,7 @@ export interface SnapshotTimeCapable {
 }
 ```
 
-[typescript/wow-client/src/types/modeling.ts:148](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts#L148)
+[typescript/wow-client/src/types/modeling.ts:146](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts#L146)
 
 ### StateCapable {#api-StateCapable}
 
@@ -157,7 +157,7 @@ export interface StateCapable<S> {
 }
 ```
 
-[typescript/wow-client/src/types/modeling.ts:165](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts#L165)
+[typescript/wow-client/src/types/modeling.ts:163](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts#L163)
 
 ### MessageHeaderSqlType {#api-MessageHeaderSqlType}
 

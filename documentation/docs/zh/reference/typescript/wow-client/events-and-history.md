@@ -13,12 +13,14 @@ description: '事件与历史状态 — @ahoo-wang/wow-client'
 | listStream                                  | POST event/list，Accept text/event-stream → JSON SSE 事件流记录              |
 | cursor                                      | POST event/cursor → CursorPage，仅接受新 filter 查询                         |
 | aggregate / aggregateStream                 | POST event/aggregation → 扁平聚合行或 JSON SSE 行                            |
+| load(id, headVersion, tailVersion)          | GET `{id}/event/{headVersion}/{tailVersion}` → 该聚合这些版本的事件流，两端均包含 |
+| loadStream(id, headVersion, tailVersion)    | 同一路由，Accept text/event-stream → JSON SSE 事件流记录                     |
 | LoadStateAggregateClient.load(id)           | GET `{id}/state` → S                                                         |
 | loadVersioned(id, version)                  | GET `{id}/state/{version}` → S                                               |
 | loadTimeBased(id, createTime)               | GET `{id}/state/time/{createTime}` → S                                       |
 | LoadOwnerStateAggregateClient               | 无 id 的对应 load 变体，端点从 state 开始，owner/tenant 归属放在配置路由中。 |
 
-所有具体方法在必填参数后接受可选 attributes 和 AbortController。EventStreamQueryApi 明确省略 single。EndpointPaths 类提供准确相对路径。网络、状态和解析失败会拒绝；加载器不安装本地事件存储，也不校验版本/时间范围。createTime 为直接放入路径的数值时间戳，不转换单位，应使用服务端 epoch 毫秒契约。
+所有具体方法在必填参数后接受可选 attributes 和 `abort`；`abort` 是 `AbortController` 或 `AbortSignal`（`AbortSignal.timeout(ms)`、数据请求库传入的 `signal`）。EventStreamQueryApi 明确省略 single。`load`/`loadStream` 按版本顺序重放单个聚合，适用于审计轨迹或事件溯源视图：`headVersion` 从 1 开始，服务端把该范围视为列表查询，超过其最大列表条数（默认 1000）会被拒绝。该路由默认带租户段、不带所有者段，与加载状态的路由一致。服务端中途失败时，流（`listStream`、`aggregateStream`、`loadStream`）以 `WowError` 出错，`for await` 会抛出，参见[错误](./errors-and-utilities)。`GET {id}/state/tracing` 没有对应的客户端方法，请直接通过 Fetcher 调用。网络、状态和解析失败会拒绝；加载器不安装本地事件存储，也不校验版本/时间范围。createTime 为直接放入路径的数值时间戳，不转换单位，应使用服务端 epoch 毫秒契约。
 
 DomainEvent 含 id/name/body/bodyType/revision；DomainEventStream 含流身份、聚合归属、owner/space、commandId/requestId、createTime/version、header 和 DomainEvent 数组 body。header 支持已知命令/trace 字段以及字符串扩展。StateEvent 增加 state、首操作者/时间和 deleted。MetadataFields 提供准确逻辑路径（含 body.body）。ReadableDomainEventStream 是 JSON SSE 信封的 ReadableStream，不是 Promise，也不会自动遍历。提前退出需取消并释放 reader，取消 HTTP 控制器本身也不表示确认领域事件。
 
@@ -28,26 +30,17 @@ DomainEvent 含 id/name/body/bodyType/revision；DomainEventStream 含流身份�
 import {
   LoadStateAggregateClient,
   EventStreamQueryClient,
-  listQuery,
-  filter,
 } from '@ahoo-wang/wow-client';
 interface Account {
   balance: number;
 }
 const history = new LoadStateAggregateClient<Account>({
-  basePath: '/accounts',
+  basePath: 'account',
 });
-const events = new EventStreamQueryClient({ basePath: '/accounts' });
-export async function audit(id: string, controller = new AbortController()) {
-  const state = await history.loadVersioned(id, 3, undefined, controller);
-  const records = await events.list(
-    listQuery({
-      filter: filter.aggregateId(id),
-      limit: 100,
-    }),
-    undefined,
-    controller,
-  );
+const events = new EventStreamQueryClient({ basePath: 'account' });
+export async function audit(id: string, signal = AbortSignal.timeout(10_000)) {
+  const state = await history.loadVersioned(id, 3, undefined, signal);
+  const records = await events.load(id, 1, 3, undefined, signal);
   return { state, records };
 }
 ```
@@ -68,7 +61,7 @@ export interface DomainEvent<BODY>
 }
 ```
 
-[typescript/wow-client/src/query/event/domainEventStream.ts:37](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/domainEventStream.ts#L37)
+[typescript/wow-client/src/query/event/domainEventStream.ts:41](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/domainEventStream.ts#L41)
 
 ### DomainEventStreamHeader {#api-DomainEventStreamHeader}
 
@@ -85,7 +78,7 @@ export interface DomainEventStreamHeader {
 }
 ```
 
-[typescript/wow-client/src/query/event/domainEventStream.ts:54](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/domainEventStream.ts#L54)
+[typescript/wow-client/src/query/event/domainEventStream.ts:58](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/domainEventStream.ts#L58)
 
 ### DomainEventStream {#api-DomainEventStream}
 
@@ -105,7 +98,7 @@ export interface DomainEventStream<DomainEventBody = any>
 }
 ```
 
-[typescript/wow-client/src/query/event/domainEventStream.ts:95](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/domainEventStream.ts#L95)
+[typescript/wow-client/src/query/event/domainEventStream.ts:99](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/domainEventStream.ts#L99)
 
 ### StateEvent {#api-StateEvent}
 
@@ -119,7 +112,7 @@ export interface StateEvent<DomainEventBody = any, S = any>
     DeletedCapable {}
 ```
 
-[typescript/wow-client/src/query/event/domainEventStream.ts:112](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/domainEventStream.ts#L112)
+[typescript/wow-client/src/query/event/domainEventStream.ts:116](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/domainEventStream.ts#L116)
 
 ### DomainEventStreamMetadataFields {#api-DomainEventStreamMetadataFields}
 
@@ -144,7 +137,7 @@ export class DomainEventStreamMetadataFields {
 }
 ```
 
-[typescript/wow-client/src/query/event/domainEventStream.ts:127](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/domainEventStream.ts#L127)
+[typescript/wow-client/src/query/event/domainEventStream.ts:131](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/domainEventStream.ts#L131)
 
 ### ReadableDomainEventStream {#api-ReadableDomainEventStream}
 
@@ -154,7 +147,7 @@ export type ReadableDomainEventStream = ReadableStream<
 >;
 ```
 
-[typescript/wow-client/src/query/event/domainEventStream.ts:152](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/domainEventStream.ts#L152)
+[typescript/wow-client/src/query/event/domainEventStream.ts:156](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/domainEventStream.ts#L156)
 
 ### EventStreamQueryApi {#api-EventStreamQueryApi}
 
@@ -170,87 +163,50 @@ export interface EventStreamQueryApi<
 
 [typescript/wow-client/src/query/event/eventStreamQueryApi.ts:24](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/eventStreamQueryApi.ts#L24)
 
-### EventStreamQueryEndpointPaths {#api-EventStreamQueryEndpointPaths}
-
-```ts
-export class EventStreamQueryEndpointPaths {
-  static readonly EVENT_STREAM_RESOURCE_NAME = 'event';
-  static readonly AGGREGATION = `${EventStreamQueryEndpointPaths.EVENT_STREAM_RESOURCE_NAME}/aggregation`;
-  static readonly COUNT = `${EventStreamQueryEndpointPaths.EVENT_STREAM_RESOURCE_NAME}/count`;
-  static readonly LIST = `${EventStreamQueryEndpointPaths.EVENT_STREAM_RESOURCE_NAME}/list`;
-  static readonly PAGED = `${EventStreamQueryEndpointPaths.EVENT_STREAM_RESOURCE_NAME}/paged`;
-  static readonly CURSOR = `${EventStreamQueryEndpointPaths.EVENT_STREAM_RESOURCE_NAME}/cursor`;
-}
-```
-
-[typescript/wow-client/src/query/event/eventStreamQueryApi.ts:39](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/eventStreamQueryApi.ts#L39)
-
 ### EventStreamQueryClient {#api-EventStreamQueryClient}
 
 ```ts
 export class EventStreamQueryClient<DomainEventBody = any, FIELDS extends string = string> implements EventStreamQueryApi<DomainEventBody, FIELDS>, ApiMetadataCapable {
     constructor(public readonly apiMetadata?: ApiMetadata);
-    aggregate<Row extends DynamicDocument = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, any>, abortController?: AbortController): Promise<Row[]>;
-    aggregateStream<Row extends DynamicDocument = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, any>, abortController?: AbortController): Promise<ReadableStream<JsonServerSentEvent<Row>>>;
-    cursor<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(query: CursorQuery<FIELDS>, attributes?: Record<string, unknown>, abortController?: AbortController): Promise<CursorPage<T>>;
-    count(filter: FilterExpression<FIELDS> | Condition<FIELDS>, attributes?: Record<string, any>, abortController?: AbortController): Promise<number>;
-    list<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, any>, abortController?: AbortController): Promise<T[]>;
-    listStream<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, any>, abortController?: AbortController): Promise<ReadableStream<JsonServerSentEvent<T>>>;
-    paged<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(pagedQuery: PagedQueryRequest<FIELDS>, attributes?: Record<string, any>, abortController?: AbortController): Promise<PagedList<T>>;
+    aggregate<Row extends DynamicDocument = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<Row[]>;
+    aggregateStream<Row extends DynamicDocument = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<Row>>>;
+    cursor<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(query: CursorQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<CursorPage<T>>;
+    count(filter: FilterExpression<FIELDS> | Condition<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<number>;
+    list<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;
+    listStream<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<T>>>;
+    paged<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(pagedQuery: PagedQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<PagedList<T>>;
+    load<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(id: string, headVersion: number, tailVersion: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;
+    loadStream<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(id: string, headVersion: number, tailVersion: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<T>>>;
 }
 ```
 
-[typescript/wow-client/src/query/event/eventStreamQueryClient.ts:87](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/eventStreamQueryClient.ts#L87)
-
-### LoadStateAggregateEndpointPaths {#api-LoadStateAggregateEndpointPaths}
-
-```ts
-export class LoadStateAggregateEndpointPaths {
-  static readonly LOAD = '{id}/state';
-  static readonly LOAD_VERSIONED = `${LoadStateAggregateEndpointPaths.LOAD}/{version}`;
-  static readonly LOAD_TIME_BASED = `${LoadStateAggregateEndpointPaths.LOAD}/time/{createTime}`;
-}
-```
-
-[typescript/wow-client/src/query/state/loadStateAggregateClient.ts:26](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/state/loadStateAggregateClient.ts#L26)
+[typescript/wow-client/src/query/event/eventStreamQueryClient.ts:86](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/eventStreamQueryClient.ts#L86)
 
 ### LoadStateAggregateClient {#api-LoadStateAggregateClient}
 
 ```ts
 export class LoadStateAggregateClient<S> implements ApiMetadataCapable {
     constructor(public readonly apiMetadata?: ApiMetadata);
-    load(id: string, attributes?: Record<string, any>, abortController?: AbortController): Promise<S>;
-    loadVersioned(id: string, version: number, attributes?: Record<string, any>, abortController?: AbortController): Promise<S>;
-    loadTimeBased(id: string, createTime: number, attributes?: Record<string, any>, abortController?: AbortController): Promise<S>;
+    load(id: string, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
+    loadVersioned(id: string, version: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
+    loadTimeBased(id: string, createTime: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
 }
 ```
 
-[typescript/wow-client/src/query/state/loadStateAggregateClient.ts:32](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/state/loadStateAggregateClient.ts#L32)
-
-### LoadOwnerStateAggregateEndpointPaths {#api-LoadOwnerStateAggregateEndpointPaths}
-
-```ts
-export class LoadOwnerStateAggregateEndpointPaths {
-  static readonly LOAD = 'state';
-  static readonly LOAD_VERSIONED = `${LoadOwnerStateAggregateEndpointPaths.LOAD}/{version}`;
-  static readonly LOAD_TIME_BASED = `${LoadOwnerStateAggregateEndpointPaths.LOAD}/time/{createTime}`;
-}
-```
-
-[typescript/wow-client/src/query/state/loadOwnerStateAggregateClient.ts:26](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/state/loadOwnerStateAggregateClient.ts#L26)
+[typescript/wow-client/src/query/state/loadStateAggregateClient.ts:27](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/state/loadStateAggregateClient.ts#L27)
 
 ### LoadOwnerStateAggregateClient {#api-LoadOwnerStateAggregateClient}
 
 ```ts
 export class LoadOwnerStateAggregateClient<S> implements ApiMetadataCapable {
     constructor(public readonly apiMetadata?: ApiMetadata);
-    load(attributes?: Record<string, any>, abortController?: AbortController): Promise<S>;
-    loadVersioned(version: number, attributes?: Record<string, any>, abortController?: AbortController): Promise<S>;
-    loadTimeBased(createTime: number, attributes?: Record<string, any>, abortController?: AbortController): Promise<S>;
+    load(attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
+    loadVersioned(version: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
+    loadTimeBased(createTime: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
 }
 ```
 
-[typescript/wow-client/src/query/state/loadOwnerStateAggregateClient.ts:32](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/state/loadOwnerStateAggregateClient.ts#L32)
+[typescript/wow-client/src/query/state/loadOwnerStateAggregateClient.ts:27](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/state/loadOwnerStateAggregateClient.ts#L27)
 
 ## 相关专题
 

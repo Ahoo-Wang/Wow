@@ -5,11 +5,26 @@ description: '命令与等待结果 — @ahoo-wang/wow-client'
 
 # 命令与等待结果
 
-`CommandClient<C>` 是由装饰器实现的传输客户端。`send(request, attributes?)` 返回 Promise&lt;CommandResult&gt;；`sendAndWaitStream` 返回 Promise&lt;ReadableStream&lt;JsonServerSentEvent&lt;CommandResult&gt;&gt;&gt;，使用 Accept text/event-stream 和 JSON SSE 提取。必须在 ApiMetadata 和/或 CommandRequest 中提供服务所需端点，不会根据 C 推导通用命令 URL。
+`CommandClient` 是由装饰器实现的传输客户端。它不再是泛型类：命令体类型按每次调用选择，一个客户端即可发送聚合的全部命令。`send<C>(request, attributes?)` 返回所等待阶段的 Promise&lt;CommandResult&gt;；`sendAndWaitStream<C>(request, attributes?)` 返回 Promise&lt;ReadableStream&lt;JsonServerSentEvent&lt;CommandResult&gt;&gt;&gt;——命令每到达一个阶段推送一个结果——并使用 Accept text/event-stream。必须在 ApiMetadata 和/或 CommandRequest 中提供服务所需端点，不会根据 `C` 推导通用命令 URL。
 
 ## 请求与等待阶段
 
-CommandRequest 扩展 ParameterRequest；body 为命令可写字段 `CommandBody<C>`，还可带 `path`（端点路径覆盖，不是 `url`）、`method`、路径参数、头和其他请求数据。`CommandHeaders` 给出准确 HTTP 头名。头值为字符串，覆盖租户/所有者/空间/聚合归属、预期聚合版本、Request-Id、Local-First、命令 context/name/type、等待超时、stage/context/processor/function 及对应链尾选择器。空间头是例外：`CommandHeaders.SPACE_ID` 为 `Wow-Space-Id`（即 `WowHeaders.SPACE_ID`），服务端的命令与查询共用它。`Command-Header-` 是扩展前缀。通用 CommandRequestHeaders 声明把已知头列为必填；常规部分头集合也可通过生成客户端所用的底层请求/元数据选项提供。传输层不会替你生成幂等键或选择等待阶段。
+CommandRequest 扩展 ParameterRequest；body 为命令可写字段 `CommandBody<C>`，还可带 `path`（端点路径覆盖，不是 `url`）、`method`、路径参数、头和其他请求数据。传输层不会替你生成幂等键或选择等待阶段。
+
+`CommandHeaders` 与 `WowHeaders` 是冻结的 `as const` 头名对象，每个值都是字符串字面量类型。`CommandHeaders.SPACE_ID` 为 `Wow-Space-Id`（即 `WowHeaders.SPACE_ID`），服务端的命令与查询共用它；`Command-Header-` 是服务端复制进命令头的自定义头前缀。`CommandRequestHeaders` 按服务端的解析方式为每个已知命令头定型，且全部可选：
+
+| 头                                                           | 值类型                                           |
+| ------------------------------------------------------------ | ------------------------------------------------ |
+| `Command-Wait-Stage`、`Command-Wait-Tail-Stage`               | `CommandStageName`——`CommandStage` 或其名称      |
+| `Command-Aggregate-Version`、`Command-Wait-Timeout`          | `` `${number}` ``，字符串形式的整数               |
+| `Command-Local-First`                                        | `'true'` 或 `'false'`                            |
+| 租户、所有者、空间、聚合 ID、请求 ID、等待 context/processor/function、链尾选择器、`/wow/command/send` 的 context/name/type | `string` |
+
+其他头（`Authorization`、`Command-Header-*` 扩展）仍可作为字符串传入。通用的 `/wow/command/send` 路由没有专门方法：用 `CommandClient` 发送，并带上 `COMMAND_AGGREGATE_CONTEXT`、`COMMAND_AGGREGATE_NAME`、`COMMAND_TYPE` 头。建议用两个构造函数代替手写；二者都省略未提供选项对应的头，输入非法时抛出 `TypeError`：
+
+- `commandHeaders({ tenantId?, ownerId?, spaceId?, aggregateId?, aggregateVersion?, requestId?, localFirst? })` 说明命令的归属。`aggregateVersion` 必须是非负整数；`localFirst` 转为 `'true'`/`'false'`。
+- `waitStrategy({ stage?, context?, processor?, function?, timeoutMs?, tail? })` 说明服务端应答前等待什么，对应 Kotlin 的 `WaitingFor`。stage 必须是 `CommandStage`；`timeoutMs` 必须是正整数。不指定 stage 时，服务端在命令自身限界上下文中等待 `PROCESSED`。
+- 带 `tail` 即为等待链：先等待 Saga 处理完命令产生的事件（`stage: 'SAGA_HANDLED'`，可用 `processor` 收窄），再等待该 Saga 发出的命令到达 `tail.stage`，可用 `tail.context`/`tail.processor`/`tail.function` 限定。其他 stage 搭配 `tail` 是类型错误，运行时也会抛出，因为服务端会忽略它。
 
 | CommandStage  | 表示的信号     |
 | ------------- | -------------- |
@@ -20,9 +35,15 @@ CommandRequest 扩展 ParameterRequest；body 为命令可写字段 `CommandBody
 | EVENT_HANDLED | 事件处理器阶段 |
 | SAGA_HANDLED  | Saga 处理阶段  |
 
-这些是不同服务端等待目标，并不保证所有下游消费者都已追上。客户端未设置数值等待超时默认值。CommandResult 包含身份、聚合归属、stage、command/request/wait ID、signalTime、可选 aggregateVersion、function、result 映射和 errorCode/errorMsg/bindingErrors。HTTP 成功不等于命令成功，应检查 `ErrorCodes.isSucceeded(result.errorCode)`。`WaitSignal` 对应信号模型，其 aggregateId 为嵌套对象。BatchResult 含 after/size 与 ErrorInfo，本身不实现批次遍历。
+这些是不同服务端等待目标，并不保证所有下游消费者都已追上。客户端未设置等待超时默认值。CommandResult 包含身份、聚合归属、stage、command/request/wait ID、signalTime、可选 aggregateVersion、function、result 映射和 errorCode/errorMsg/bindingErrors。`WaitSignal` 对应信号模型，其 aggregateId 为嵌套对象。BatchResult 含 after/size 与 ErrorInfo，本身不实现批次遍历。
 
-传输或提取失败拒绝 Promise；流错误也可能在初始 Promise 完成后的 reader.read 才出现，提前退出必须取消并释放 reader。DeleteAggregate/RecoverAggregate 是空命令体契约，资源标签命令带 tags；它们在服务端执行端点前不产生删除/恢复效果。
+## 失败
+
+- 服务端拒绝的请求（验证失败、版本冲突、请求 ID 重复等）会拒绝 Promise；`await toWowError(error)` 把服务端的 `ErrorInfo` 读成 `WowError`，参见[错误](./errors-and-utilities)。
+- 处理失败的命令同样会完成，失败写在结果的 `errorCode` 中：确认写入完成前应与 `ErrorCodes.SUCCEEDED`（`'Ok'`）比较。
+- 服务端中途失败时（例如等待超时），`sendAndWaitStream` 以 `WowError` 使流出错，`for await` 会抛出。自身 `errorCode` 不是 `Ok` 的结果仍作为结果传出。提前退出必须取消并释放 reader。
+
+DeleteAggregate/RecoverAggregate 是空命令体契约，资源标签命令带 tags；它们在服务端执行端点前不产生删除/恢复效果。
 
 ## 读取命令结果 {#result-fields}
 
@@ -34,7 +55,7 @@ CommandRequest 扩展 ParameterRequest；body 为命令可写字段 `CommandBody
 | `aggregateVersion?`                                       | 服务端报告的可选版本；缺失时不能建立可见性屏障。                     |
 | `signalTime`                                              | 数字信号时间戳，不是客户端超时时长。                                 |
 | `function`                                                | 处理器/函数元数据，参见[消息元数据](./messages-and-state)。          |
-| `result`                                                  | 服务端提供的结果映射，不是泛型命令体 C。                             |
+| `result`                                                  | 服务端提供的结果映射，不是命令体 C。                                 |
 | `errorCode`、`errorMsg`、`bindingErrors?`                 | 业务结果与可选字段错误，参见[错误分类](./errors-and-utilities)。     |
 
 嵌套/平铺身份细节参见[身份与归属](./identity-and-attribution)。结果接口不赋默认值、不验证 JSON。流通过 `event.data` 携带连续 CommandResult 载荷；初始 HTTP 成功不表示所有事件或阶段均已完成。
@@ -42,19 +63,57 @@ CommandRequest 扩展 ParameterRequest；body 为命令可写字段 `CommandBody
 ## 完整示例
 
 ```ts
-import { CommandClient, ErrorCodes } from '@ahoo-wang/wow-client';
-const client = new CommandClient<{ name: string }>({ basePath: '/users' });
-export async function rename() {
-  const result = await client.send({
-    path: '1/rename',
-    method: 'POST',
-    body: { name: 'Ada' },
-  });
-  if (!ErrorCodes.isSucceeded(result.errorCode)) {
-    throw new Error(`${result.errorCode}: ${result.errorMsg}`);
+import {
+  CommandClient,
+  CommandStage,
+  ErrorCodes,
+  commandHeaders,
+  toWowError,
+  waitStrategy,
+} from '@ahoo-wang/wow-client';
+
+const client = new CommandClient({ basePath: 'user' });
+
+export async function rename(id: string, name: string, version: number) {
+  try {
+    const result = await client.send<{ name: string }>({
+      path: '{id}/rename',
+      method: 'POST',
+      urlParams: { path: { id } },
+      headers: {
+        ...commandHeaders({
+          aggregateVersion: version,
+          requestId: crypto.randomUUID(),
+        }),
+        ...waitStrategy({ stage: CommandStage.SNAPSHOT, timeoutMs: 10_000 }),
+      },
+      body: { name },
+    });
+    if (result.errorCode !== ErrorCodes.SUCCEEDED) {
+      throw new Error(`${result.errorCode}: ${result.errorMsg}`);
+    }
+    return result;
+  } catch (error) {
+    const wowError = await toWowError(error);
+    if (wowError?.errorCode === ErrorCodes.COMMAND_EXPECT_VERSION_CONFLICT) {
+      return undefined; // 重新加载聚合，让用户重试
+    }
+    throw wowError ?? error;
   }
-  return result;
 }
+```
+
+等待链——Saga 处理完转账、且它发出的命令已在 `account` 上下文处理后再应答：
+
+```ts
+import { CommandStage, waitStrategy } from '@ahoo-wang/wow-client';
+
+export const transferWait = waitStrategy({
+  stage: CommandStage.SAGA_HANDLED,
+  processor: 'TransferSaga',
+  tail: { stage: CommandStage.PROCESSED, context: 'account' },
+  timeoutMs: 30_000,
+});
 ```
 
 示例中的服务 URL 需要应用实现；类型检查不代表已经访问外部服务。
@@ -66,66 +125,74 @@ export async function rename() {
 ### CommandClient {#api-CommandClient}
 
 ```ts
-export class CommandClient<C extends object = object> implements ApiMetadataCapable {
+export class CommandClient implements ApiMetadataCapable {
     constructor(public readonly apiMetadata?: ApiMetadata);
-    send(commandRequest: CommandRequest<C>, attributes?: Record<string, any>): Promise<CommandResult>;
-    sendAndWaitStream(commandRequest: CommandRequest<C>, attributes?: Record<string, any>): Promise<CommandResultEventStream>;
+    send<C extends object = object>(commandRequest: CommandRequest<C>, attributes?: Record<string, unknown>): Promise<CommandResult>;
+    sendAndWaitStream<C extends object = object>(commandRequest: CommandRequest<C>, attributes?: Record<string, unknown>): Promise<CommandResultEventStream>;
 }
 ```
 
-[typescript/wow-client/src/command/commandClient.ts:76](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandClient.ts#L76)
+[typescript/wow-client/src/command/commandClient.ts:59](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandClient.ts#L59)
 
 ### CommandHeaders {#api-CommandHeaders}
 
 ::: details 展开完整字段与成员
 
 ```ts
-export class CommandHeaders {
-  static readonly COMMAND_HEADERS_PREFIX = 'Command-';
-  static readonly TENANT_ID = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Tenant-Id`;
-  static readonly OWNER_ID = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Owner-Id`;
-  static readonly SPACE_ID = WowHeaders.SPACE_ID;
-  static readonly AGGREGATE_ID = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Aggregate-Id`;
-  static readonly AGGREGATE_VERSION = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Aggregate-Version`;
-  static readonly WAIT_PREFIX = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Wait-`;
-  static readonly WAIT_TIME_OUT = `${CommandHeaders.WAIT_PREFIX}Timeout`;
-  static readonly WAIT_STAGE = `${CommandHeaders.WAIT_PREFIX}Stage`;
-  static readonly WAIT_CONTEXT = `${CommandHeaders.WAIT_PREFIX}Context`;
-  static readonly WAIT_PROCESSOR = `${CommandHeaders.WAIT_PREFIX}Processor`;
-  static readonly WAIT_FUNCTION = `${CommandHeaders.WAIT_PREFIX}Function`;
-  static readonly WAIT_TAIL_PREFIX = `${CommandHeaders.WAIT_PREFIX}Tail-`;
-  static readonly WAIT_TAIL_STAGE = `${CommandHeaders.WAIT_TAIL_PREFIX}Stage`;
-  static readonly WAIT_TAIL_CONTEXT = `${CommandHeaders.WAIT_TAIL_PREFIX}Context`;
-  static readonly WAIT_TAIL_PROCESSOR = `${CommandHeaders.WAIT_TAIL_PREFIX}Processor`;
-  static readonly WAIT_TAIL_FUNCTION = `${CommandHeaders.WAIT_TAIL_PREFIX}Function`;
-  static readonly REQUEST_ID = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Request-Id`;
-  static readonly LOCAL_FIRST = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Local-First`;
-  static readonly COMMAND_AGGREGATE_CONTEXT = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Aggregate-Context`;
-  static readonly COMMAND_AGGREGATE_NAME = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Aggregate-Name`;
-  static readonly COMMAND_TYPE = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Type`;
-  static readonly COMMAND_HEADER_X_PREFIX = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Header-`;
-}
+export const CommandHeaders = Object.freeze({
+  COMMAND_HEADERS_PREFIX: 'Command-',
+  TENANT_ID: 'Command-Tenant-Id',
+  OWNER_ID: 'Command-Owner-Id',
+  SPACE_ID: WowHeaders.SPACE_ID, // 'Wow-Space-Id'
+  AGGREGATE_ID: 'Command-Aggregate-Id',
+  AGGREGATE_VERSION: 'Command-Aggregate-Version',
+  WAIT_PREFIX: 'Command-Wait-',
+  WAIT_TIME_OUT: 'Command-Wait-Timeout',
+  WAIT_STAGE: 'Command-Wait-Stage',
+  WAIT_CONTEXT: 'Command-Wait-Context',
+  WAIT_PROCESSOR: 'Command-Wait-Processor',
+  WAIT_FUNCTION: 'Command-Wait-Function',
+  WAIT_TAIL_PREFIX: 'Command-Wait-Tail-',
+  WAIT_TAIL_STAGE: 'Command-Wait-Tail-Stage',
+  WAIT_TAIL_CONTEXT: 'Command-Wait-Tail-Context',
+  WAIT_TAIL_PROCESSOR: 'Command-Wait-Tail-Processor',
+  WAIT_TAIL_FUNCTION: 'Command-Wait-Tail-Function',
+  REQUEST_ID: 'Command-Request-Id',
+  LOCAL_FIRST: 'Command-Local-First',
+  COMMAND_AGGREGATE_CONTEXT: 'Command-Aggregate-Context',
+  COMMAND_AGGREGATE_NAME: 'Command-Aggregate-Name',
+  COMMAND_TYPE: 'Command-Type',
+  COMMAND_HEADER_X_PREFIX: 'Command-Header-',
+} as const);
 ```
 
 :::
 
-[typescript/wow-client/src/command/commandHeaders.ts:38](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandHeaders.ts#L38)
+[typescript/wow-client/src/command/commandHeaders.ts:35](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandHeaders.ts#L35)
 
 ### WowHeaders {#api-WowHeaders}
 
 ::: details 展开完整字段与成员
 
 ```ts
-export class WowHeaders {
-  static readonly WOW_HEADERS_PREFIX = 'Wow-';
-  static readonly SPACE_ID = `${WowHeaders.WOW_HEADERS_PREFIX}Space-Id`;
-  static readonly ERROR_CODE = `${WowHeaders.WOW_HEADERS_PREFIX}Error-Code`;
-}
+export const WowHeaders = Object.freeze({
+  WOW_HEADERS_PREFIX: 'Wow-',
+  SPACE_ID: 'Wow-Space-Id',
+  ERROR_CODE: 'Wow-Error-Code',
+} as const);
 ```
 
 :::
 
-[typescript/wow-client/src/types/headers.ts:32](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/headers.ts#L32)
+[typescript/wow-client/src/types/headers.ts:33](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/headers.ts#L33)
+
+### CommandStageName {#api-CommandStageName}
+
+```ts
+export type CommandStageName = CommandStage | `${CommandStage}`;
+```
+
+[typescript/wow-client/src/command/commandRequest.ts:21](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L21)
 
 ### CommandRequestHeaders {#api-CommandRequestHeaders}
 
@@ -133,31 +200,111 @@ export class WowHeaders {
 
 ```ts
 export interface CommandRequestHeaders extends RequestHeaders {
-  [CommandHeaders.TENANT_ID]: string;
-  [CommandHeaders.OWNER_ID]: string;
-  [CommandHeaders.SPACE_ID]: string;
-  [CommandHeaders.AGGREGATE_ID]: string;
-  [CommandHeaders.AGGREGATE_VERSION]: string;
-  [CommandHeaders.WAIT_TIME_OUT]: string;
-  [CommandHeaders.WAIT_STAGE]: string;
-  [CommandHeaders.WAIT_CONTEXT]: string;
-  [CommandHeaders.WAIT_PROCESSOR]: string;
-  [CommandHeaders.WAIT_FUNCTION]: string;
-  [CommandHeaders.WAIT_TAIL_STAGE]: string;
-  [CommandHeaders.WAIT_TAIL_CONTEXT]: string;
-  [CommandHeaders.WAIT_TAIL_PROCESSOR]: string;
-  [CommandHeaders.WAIT_TAIL_FUNCTION]: string;
-  [CommandHeaders.REQUEST_ID]: string;
-  [CommandHeaders.LOCAL_FIRST]: string;
-  [CommandHeaders.COMMAND_AGGREGATE_CONTEXT]: string;
-  [CommandHeaders.COMMAND_AGGREGATE_NAME]: string;
-  [CommandHeaders.COMMAND_TYPE]: string;
+  [CommandHeaders.TENANT_ID]?: string;
+  [CommandHeaders.OWNER_ID]?: string;
+  [CommandHeaders.SPACE_ID]?: string;
+  [CommandHeaders.AGGREGATE_ID]?: string;
+  [CommandHeaders.AGGREGATE_VERSION]?: `${number}`;
+  [CommandHeaders.WAIT_TIME_OUT]?: `${number}`;
+  [CommandHeaders.WAIT_STAGE]?: CommandStageName;
+  [CommandHeaders.WAIT_CONTEXT]?: string;
+  [CommandHeaders.WAIT_PROCESSOR]?: string;
+  [CommandHeaders.WAIT_FUNCTION]?: string;
+  [CommandHeaders.WAIT_TAIL_STAGE]?: CommandStageName;
+  [CommandHeaders.WAIT_TAIL_CONTEXT]?: string;
+  [CommandHeaders.WAIT_TAIL_PROCESSOR]?: string;
+  [CommandHeaders.WAIT_TAIL_FUNCTION]?: string;
+  [CommandHeaders.REQUEST_ID]?: string;
+  [CommandHeaders.LOCAL_FIRST]?: 'true' | 'false';
+  [CommandHeaders.COMMAND_AGGREGATE_CONTEXT]?: string;
+  [CommandHeaders.COMMAND_AGGREGATE_NAME]?: string;
+  [CommandHeaders.COMMAND_TYPE]?: string;
 }
 ```
 
 :::
 
-[typescript/wow-client/src/command/commandRequest.ts:36](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L36)
+[typescript/wow-client/src/command/commandRequest.ts:40](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L40)
+
+### CommandHeaderOptions {#api-CommandHeaderOptions}
+
+```ts
+export interface CommandHeaderOptions {
+  tenantId?: string;
+  ownerId?: string;
+  spaceId?: string;
+  aggregateId?: string;
+  aggregateVersion?: number;
+  requestId?: string;
+  localFirst?: boolean;
+}
+```
+
+[typescript/wow-client/src/command/commandRequest.ts:82](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L82)
+
+### WaitFunction {#api-WaitFunction}
+
+```ts
+export interface WaitFunction {
+  context?: string;
+  processor?: string;
+  function?: string;
+}
+```
+
+[typescript/wow-client/src/command/commandRequest.ts:95](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L95)
+
+### WaitStageOptions {#api-WaitStageOptions}
+
+```ts
+export interface WaitStageOptions extends WaitFunction {
+  stage?: CommandStageName;
+  timeoutMs?: number;
+  tail?: never;
+}
+```
+
+[typescript/wow-client/src/command/commandRequest.ts:102](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L102)
+
+### WaitChainOptions {#api-WaitChainOptions}
+
+```ts
+export interface WaitChainOptions extends WaitFunction {
+  stage: CommandStage.SAGA_HANDLED | 'SAGA_HANDLED';
+  tail: WaitFunction & { stage: CommandStageName };
+  timeoutMs?: number;
+}
+```
+
+[typescript/wow-client/src/command/commandRequest.ts:114](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L114)
+
+### WaitStrategyOptions {#api-WaitStrategyOptions}
+
+```ts
+export type WaitStrategyOptions = WaitStageOptions | WaitChainOptions;
+```
+
+[typescript/wow-client/src/command/commandRequest.ts:122](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L122)
+
+### commandHeaders {#api-commandHeaders}
+
+```ts
+export function commandHeaders(
+  options: CommandHeaderOptions,
+): CommandRequestHeaders;
+```
+
+[typescript/wow-client/src/command/commandRequest.ts:168](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L168)
+
+### waitStrategy {#api-waitStrategy}
+
+```ts
+export function waitStrategy(
+  options: WaitStrategyOptions,
+): CommandRequestHeaders;
+```
+
+[typescript/wow-client/src/command/commandRequest.ts:213](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L213)
 
 ### CommandUrlParams {#api-CommandUrlParams}
 
@@ -167,7 +314,7 @@ export interface CommandUrlParams extends Omit<UrlParams, 'path' | 'query'> {
 }
 ```
 
-[typescript/wow-client/src/command/commandRequest.ts:152](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L152)
+[typescript/wow-client/src/command/commandRequest.ts:245](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L245)
 
 ### CommandRequest {#api-CommandRequest}
 
@@ -181,7 +328,7 @@ export interface CommandRequest<
 }
 ```
 
-[typescript/wow-client/src/command/commandRequest.ts:162](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L162)
+[typescript/wow-client/src/command/commandRequest.ts:253](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L253)
 
 ### WaitSignal {#api-WaitSignal}
 
@@ -212,7 +359,6 @@ export interface CommandResult
     NamedBoundedContext,
     AggregateNameCapable,
     AggregateId,
-    ErrorInfo,
     CommandId,
     RequestId,
     ErrorInfo,
@@ -230,7 +376,7 @@ export interface CommandResult
 export type CommandResultArray = CommandResult[];
 ```
 
-[typescript/wow-client/src/command/commandResult.ts:91](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandResult.ts#L91)
+[typescript/wow-client/src/command/commandResult.ts:90](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandResult.ts#L90)
 
 ### CommandResultEventStream {#api-CommandResultEventStream}
 
@@ -240,7 +386,7 @@ export type CommandResultEventStream = ReadableStream<
 >;
 ```
 
-[typescript/wow-client/src/command/commandResult.ts:108](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandResult.ts#L108)
+[typescript/wow-client/src/command/commandResult.ts:107](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandResult.ts#L107)
 
 ### CommandId {#api-CommandId}
 

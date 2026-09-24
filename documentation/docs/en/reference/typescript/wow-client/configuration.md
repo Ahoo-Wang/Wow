@@ -14,29 +14,34 @@ Use `QueryClientFactory<S,FIELDS,DomainEventBody>` when snapshot, event and hist
 | Other ApiMetadata options                        | Forwarded to decorator execution, including fetcher and request options.        |
 | createSnapshotQueryClient                        | SnapshotQueryClient&lt;S,FIELDS&gt;                                             |
 | createLoadStateAggregateClient                   | LoadStateAggregateClient&lt;S&gt;                                               |
-| createOwnerLoadStateAggregateClient              | LoadOwnerStateAggregateClient&lt;S&gt; (note method spelling)                   |
-| createEventStreamQueryClient                     | EventStreamQueryClient&lt;DomainEventBody,FIELDS&gt;                            |
+| createLoadOwnerStateAggregateClient              | LoadOwnerStateAggregateClient&lt;S&gt;                                          |
+| createEventStreamQueryClient&lt;EVENT_FIELDS&gt; | EventStreamQueryClient&lt;DomainEventBody,EVENT_FIELDS&gt;; event fields are separate from the factory's snapshot FIELDS. |
 
-Per-call options shallowly override constructor defaults. `createQueryApiMetadata(options)` exposes the same route construction directly. Supply actual URL path values through the request configuration when a ResourceAttributionPathSpec contains `{tenantId}` or `{ownerId}`. Missing Fetcher registration and request failures belong to decorator/Fetcher execution; no I/O or cleanup occurs when creating these wrappers.
+Per-call options shallowly override constructor defaults. The route composition is internal; read the result from a client's `apiMetadata.basePath` if you need it. Supply actual URL path values through the request configuration when a ResourceAttributionPathSpec contains `{tenantId}` or `{ownerId}`. Missing Fetcher registration and request failures belong to decorator/Fetcher execution; no I/O or cleanup occurs when creating these wrappers.
 
-`WowMetadata` is a data model with description and contexts keyed by name. Each BoundedContext has alias, scopes and aggregates; an Aggregate has type, tenantId, id, scopes, command names and event names. Nullable metadata values are explicit nulls. This module exports no `wow()` decorator or automatic metadata fetcher. Read [commands](./commands) and [snapshot queries](./snapshot-queries) for execution.
+`WowMetadata` is a data model with description and contexts keyed by name. Each BoundedContext has alias, scopes and aggregates; an Aggregate has type, tenantId, id, scopes, command names and event names. Nullable metadata values are explicit nulls. `new WowMetadataClient(apiMetadata?).metadata(attributes?, abort?)` reads it from `GET /wow/metadata`, relative to the Fetcher's base URL; nothing reads it automatically, and this module exports no `wow()` decorator. Read [commands](./commands) and [snapshot queries](./snapshot-queries) for execution.
 
 ## Complete example
 
 ```ts
-import {
-  QueryClientFactory,
-  createQueryApiMetadata,
-} from '@ahoo-wang/wow-client';
+import { Fetcher } from '@ahoo-wang/fetcher';
+import { QueryClientFactory, WowMetadataClient } from '@ahoo-wang/wow-client';
 interface User {
   id: string;
   name: string;
 }
-const options = { contextAlias: 'accounts', aggregateName: 'user' };
-const factory = new QueryClientFactory<User>(options);
-const snapshots = factory.createSnapshotQueryClient();
+const fetcher = new Fetcher({ baseURL: 'https://api.example.com/' });
+const factory = new QueryClientFactory<User>({
+  fetcher,
+  contextAlias: 'accounts',
+  aggregateName: 'user',
+});
+const snapshots = factory.createSnapshotQueryClient(); // basePath accounts/user
 const history = factory.createLoadStateAggregateClient();
-console.log(createQueryApiMetadata(options).basePath); // accounts/user
+export async function listContexts() {
+  const metadata = await new WowMetadataClient({ fetcher }).metadata();
+  return Object.keys(metadata.contexts);
+}
 export { snapshots, history };
 ```
 
@@ -91,15 +96,16 @@ export interface WowMetadata extends DescriptionCapable {
 
 [typescript/wow-client/src/configuration/wowMetadata.ts:48](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/configuration/wowMetadata.ts#L48)
 
-### createQueryApiMetadata {#api-createQueryApiMetadata}
+### WowMetadataClient {#api-WowMetadataClient}
 
 ```ts
-export function createQueryApiMetadata(
-  options: QueryClientOptions,
-): ApiMetadata;
+export class WowMetadataClient implements ApiMetadataCapable {
+    constructor(public readonly apiMetadata?: ApiMetadata);
+    metadata(attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<WowMetadata>;
+}
 ```
 
-[typescript/wow-client/src/query/queryClients.ts:52](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryClients.ts#L52)
+[typescript/wow-client/src/configuration/wowMetadataClient.ts:38](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/configuration/wowMetadataClient.ts#L38)
 
 ### QueryClientOptions {#api-QueryClientOptions}
 
@@ -123,12 +129,12 @@ export class QueryClientFactory<S, FIELDS extends string = string, DomainEventBo
     constructor(private readonly defaultOptions: QueryClientOptions);
     createSnapshotQueryClient(options?: QueryClientOptions): SnapshotQueryClient<S, FIELDS>;
     createLoadStateAggregateClient(options?: QueryClientOptions): LoadStateAggregateClient<S>;
-    createOwnerLoadStateAggregateClient(options?: QueryClientOptions): LoadOwnerStateAggregateClient<S>;
-    createEventStreamQueryClient<FIELDS extends string = string>(options?: QueryClientOptions): EventStreamQueryClient<DomainEventBody, FIELDS>;
+    createLoadOwnerStateAggregateClient(options?: QueryClientOptions): LoadOwnerStateAggregateClient<S>;
+    createEventStreamQueryClient<EVENT_FIELDS extends string = string>(options?: QueryClientOptions): EventStreamQueryClient<DomainEventBody, EVENT_FIELDS>;
 }
 ```
 
-[typescript/wow-client/src/query/queryClients.ts:65](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryClients.ts#L65)
+[typescript/wow-client/src/query/queryClients.ts:63](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryClients.ts#L63)
 
 ## Related topics
 
