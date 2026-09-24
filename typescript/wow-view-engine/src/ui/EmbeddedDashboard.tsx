@@ -63,7 +63,7 @@ import type {
   DashboardEmbedInteraction,
   EmbedBaseProps,
 } from './embed/options.js';
-import { SurfaceKind } from './kinds.js';
+import { useKindIssue, useKindWord } from './kinds.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { ErrorStrip, WarningStrip } from './StatusStrip.js';
 import { WriteOutcome } from './WriteOutcome.js';
@@ -350,15 +350,19 @@ function EmbeddedBoard({
   // error of the board's own — "too many panels" among them — stops the
   // whole board: one panel's error drew no grid around a board where every
   // other panel was fine (R3).
-  const nameIssue = boardFindingNamer(dashboard, state?.draft, messages);
+  // What the chrome calls the thing open — the frame says `dashboard`
+  // (`SurfaceKind`): its save questions and what the engine reports about
+  // it say 仪表盘 (Q34).
+  const word = useKindWord();
+  const ownWord = useKindIssue();
+  const named = boardFindingNamer(dashboard, state?.draft, messages);
+  const nameIssue = (found: Issue) => ownWord(named(found));
   const errors = dashboard.issues.filter(found => found.severity === 'error');
   const warnings = dashboard.issues.filter(found => found.severity !== 'error');
   const blocked = blocksBoard(errors);
 
   return (
-    // What the chrome calls the thing open: the editable tier's save
-    // questions say 仪表盘 (Q34).
-    <SurfaceKind.Provider value="dashboard">
+    <>
       <EmbedHead
         title={withTitle ? title : undefined}
         headingLevel={headingLevel}
@@ -378,7 +382,7 @@ function EmbeddedBoard({
       </EmbedHead>
       {refused.length > 0 && (
         <Alert variant="destructive">
-          <AlertTitle>{messages.label('label.scope.refused')}</AlertTitle>
+          <AlertTitle>{messages.label(word('label.scope.refused'))}</AlertTitle>
           <AlertDescription>
             {messages.issues(refused.map(nameIssue))}
           </AlertDescription>
@@ -412,6 +416,6 @@ function EmbeddedBoard({
           {voice.region}
         </DashboardEditExtensionsContext.Provider>
       )}
-    </SurfaceKind.Provider>
+    </>
   );
 }

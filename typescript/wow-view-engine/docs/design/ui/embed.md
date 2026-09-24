@@ -4,7 +4,7 @@
 
 ## 两个入口，按资源分
 
-- **`EmbeddedView`（记录／分析）与 `EmbeddedDashboard`**，与工作台拆成 `DataWorkbench`／`DashboardWorkbench` 同一条线；一个入口只画自己那几种。给错了种类不画任何东西，只有一条提示：标题「无法打开这个视图」，说明「这个视图是另一种类型（〈种类〉），这个页面无法显示。」（`view.open.wrong-kind`，与工作台同一句）。（见 test/embeddedView.test.tsx「names a dashboard as a view it cannot show: that is EmbeddedDashboard」，test/embeddedDashboard.test.tsx「names a record view as one it cannot show: that is EmbeddedView」）
+- **`EmbeddedView`（记录／分析）与 `EmbeddedDashboard`**，与工作台拆成 `DataWorkbench`／`DashboardWorkbench` 同一条线；一个入口只画自己那几种。给错了种类不画任何东西，只有一条提示：标题「无法打开这个视图」，说明「这个视图是另一种类型（〈种类〉），这个页面无法显示。」（`view.open.wrong-kind`，与工作台同一句）；`EmbeddedDashboard` 只画一种，按种类词说（D26 Q34，`EmbedFrame` 把 `SurfaceKind` 设成它那一种）：「无法打开这个仪表盘」「这不是仪表盘（〈种类〉），这个页面无法显示。」，打开中、打不开、被拒的收窄与板上的报错同理。（见 test/embeddedView.test.tsx「names a dashboard as a view it cannot show: that is EmbeddedDashboard」，test/embeddedDashboard.test.tsx「names a record view as one it cannot show: that is EmbeddedView」）
 - 两者共用的都在 `ui/embed/`：`EmbedFrame` 是面（主题、措辞、语言、时区、`data-embed-size`）、打开时的三种失败（打不开、种类不对、页面的收窄被拒，D17-5）与一道渲染边界；**正在打开时说出来**（U-13）：视图还在读的那一刻画骨架，同时 `aria-busy="true"`、一句只给读屏的 `role="status"`「正在打开视图」（`embed-opening`，与工作台打开时同一句），原来嵌入的第一刻对读屏一声不响（见 test/embeddedView.test.tsx「says it is opening while the view is read」）；`EmbedHead` 是第一行——有标题或有控件时才有，否则一行 chrome 也不加（D10）；`EmbedBaseProps`（`ui/embed/options.ts`）是两者都收的属性。
 
 ## 交互是明确的一档

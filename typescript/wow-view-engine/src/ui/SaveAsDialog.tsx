@@ -12,7 +12,7 @@
  */
 
 import { useId, useState } from 'react';
-import type { ViewAudience, ViewInstance } from '../model/index.js';
+import type { Issue, ViewAudience, ViewInstance } from '../model/index.js';
 import type {
   SaveAbilities,
   SaveCommands,
@@ -39,7 +39,7 @@ import {
 import { Input } from './components/input.js';
 import { RadioGroup, RadioGroupItem } from './components/radio-group.js';
 import { Spinner } from './components/spinner.js';
-import { useKindWord } from './kinds.js';
+import { useKindIssue, useKindWord } from './kinds.js';
 import type { MessageKey } from './messages.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { DialogContent } from './popups.js';
@@ -210,7 +210,11 @@ function SaveAsForm({
   );
   const first = intent !== 'copy';
   // A copy and a first save name the thing open — on a board, 仪表盘 (Q34).
+  // A promoted or shared panel view is a view, and its refusal says so.
   const word = useKindWord();
+  const ownWord = useKindIssue();
+  const refusal = (found: Issue) =>
+    intent === 'copy' || intent === 'first' ? ownWord(found) : found;
   const words = WORDS[intent];
   const [next, setNext] = useState(() =>
     first ? title : messages.label('label.save-as.copy-title', { title }),
@@ -318,7 +322,9 @@ function SaveAsForm({
         {/* The vendored component already carries `role="alert"`, so the
             refusal is still announced where it appears, and it renders
             nothing at all when there is nothing to say. */}
-        {state.error && <FieldError>{messages.issue(state.error)}</FieldError>}
+        {state.error && (
+          <FieldError>{messages.issue(refusal(state.error))}</FieldError>
+        )}
       </FieldGroup>
 
       <DialogFooter>

@@ -16,6 +16,7 @@ import { cn } from 'cn';
 import type { Issue, ViewKind } from '../../model/index.js';
 import type { WorkbenchController } from '../../react/index.js';
 import { resultIssues } from '../../runtime/source.js';
+import { useKindIssue } from '../kinds.js';
 import { SPACE } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { ErrorStrip, NoteStrip, WarningStrip } from '../StatusStrip.js';
@@ -50,9 +51,12 @@ export function StatusLine({
   warnings,
   errorAction,
   besideResult,
-  nameIssue = sayAsIs,
+  nameIssue: named = sayAsIs,
 }: StatusLineProps) {
   const messages = useViewMessages();
+  // Said of the thing open as its kind says it: on a board, 仪表盘 (Q34).
+  const ownWord = useKindIssue();
+  const nameIssue = (found: Issue) => ownWord(named(found));
   const { filter, list } = workbench;
   // What the result says about itself, less what the kind says beside it.
   const said = resultIssues(state.result?.data).filter(
@@ -69,7 +73,7 @@ export function StatusLine({
         // nobody on screen (F-05).
         issues={[
           ...filter.unmarked.map(nameIssue),
-          ...workbench.definitionIssues,
+          ...workbench.definitionIssues.map(ownWord),
         ]}
         title={
           kind === 'dashboard'
@@ -85,11 +89,11 @@ export function StatusLine({
       <WarningStrip
         issues={[
           ...(warnings ?? [...state.issues, ...said]).map(nameIssue),
-          ...workbench.definitionIssues,
+          ...workbench.definitionIssues.map(ownWord),
           ...(list.preferencesError
             ? [
                 {
-                  ...list.preferencesError,
+                  ...ownWord(list.preferencesError),
                   severity: 'warning' as const,
                 },
               ]

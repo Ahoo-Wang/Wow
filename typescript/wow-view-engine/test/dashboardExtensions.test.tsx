@@ -578,6 +578,43 @@ describe('a new analysis made in the dashboard', () => {
       instanceId: saved?.id,
     });
   });
+  /**
+   * D26 Q34 names the board 仪表盘 wherever the chrome reports on it; what
+   * this dialog makes is a view, so its refusal still says view.
+   */
+  it('says a refused save of it as a view’s: a view is what it makes', async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    const { engine } = setup(
+      dashboardConfig({
+        panels: [
+          {
+            id: 'mine',
+            kind: 'view',
+            title: 'Mine',
+            owned: { definitionId: 'orders', config: analysisConfig() },
+            bindings: [],
+            layout: { x: 0, y: 0, w: 12, h: 4 },
+          } as DashboardPanel,
+        ],
+      }),
+    );
+    vi.spyOn(engine, 'saveOwnedView').mockRejectedValue(new Error('down'));
+    render(
+      <DashboardWorkbench
+        engine={engine}
+        definitionId="overview"
+        instanceId="board"
+      />,
+    );
+    await startBuilding(user);
+    await panelMenu(user, 'Mine', 'Save as a view…');
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Save view' }));
+
+    expect(
+      await within(dialog).findByText('This view could not be saved.'),
+    ).toBeTruthy();
+  });
 });
 
 describe('a panel’s own look', () => {

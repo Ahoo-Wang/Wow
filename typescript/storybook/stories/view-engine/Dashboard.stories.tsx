@@ -65,7 +65,8 @@ type Variant =
   | 'to-board'
   | 'to-board-stale'
   | 'to-board-own'
-  | 'handed';
+  | 'handed'
+  | 'deleted';
 
 /** The variants whose host has a route off the board (D22 H, I). */
 const ROUTED: readonly Variant[] = [
@@ -150,7 +151,12 @@ function DashboardDemo({
             engine={engine}
             definitionId="overview"
             instanceId={
-              variant === 'system' ? 'system:overview:ops' : savedDashboard.id
+              variant === 'system'
+                ? 'system:overview:ops'
+                : // A board the store no longer holds.
+                  variant === 'deleted'
+                  ? 'deleted'
+                  : savedDashboard.id
             }
             // The 'filtered' board opens with 仓库 set to 华南 on its filter
             // bar, as a host's address would hand it over (D27): the
@@ -849,6 +855,13 @@ export const OpenInWorkbench: Story = {
 
 /** A dashboard with nothing on it yet. */
 export const EmptyDashboard: Story = { args: { variant: 'empty' } };
+
+/**
+ * 地址里的仪表盘已经不在了：工作区说「无法打开这个仪表盘」「这个仪表盘已不存在。」
+ * 与「回到默认仪表盘」——引擎报的是各种视图共用的代码，这一页说的是仪表盘
+ * （D26 Q34）。
+ */
+export const CannotOpen: Story = { args: { variant: 'deleted' } };
 
 /**
  * 一块在栅格还是 12 列时存下的仪表盘（没有 `columns`）：打开时按 24 列读，

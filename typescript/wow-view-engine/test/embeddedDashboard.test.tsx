@@ -43,6 +43,7 @@ import {
 import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import {
   EmbeddedDashboard,
+  zhCN,
   type EmbeddedDashboardProps,
 } from '../src/ui/index.js';
 import {
@@ -275,11 +276,30 @@ describe('EmbeddedDashboard', () => {
   it('names a record view as one it cannot show: that is EmbeddedView', async () => {
     render(<EmbeddedDashboard engine={engineOf()} instanceId="orders-1" />);
 
+    // What this page opens is a dashboard (Q34): what it was handed is not.
     expect(
       await screen.findByText(
-        'This view is of another kind (record), so this page cannot show it.',
+        'This is not a dashboard (record), so this page cannot show it.',
       ),
     ).toBeDefined();
+    expect(
+      screen.getByText('This dashboard could not be opened'),
+    ).toBeDefined();
+  });
+
+  it('says a board it cannot open is a dashboard, in the host’s language (Q34)', async () => {
+    render(
+      <EmbeddedDashboard
+        engine={engineOf()}
+        instanceId="missing"
+        messages={zhCN}
+      />,
+    );
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('无法打开这个仪表盘');
+    expect(alert.textContent).toContain('这个仪表盘已不存在。');
+    expect(alert.textContent).not.toContain('视图');
   });
 
   it('answers no press and offers no way off the board in the read-only tier', async () => {
@@ -519,7 +539,9 @@ describe('EmbeddedDashboard', () => {
     });
 
     const alert = await screen.findByRole('alert');
-    expect(alert.textContent).toContain('This page could not narrow this view');
+    expect(alert.textContent).toContain(
+      'This page could not narrow this dashboard',
+    );
     expect(alert.textContent).toContain('This dashboard has no filter ghost.');
     // What it could take, it took.
     expect(

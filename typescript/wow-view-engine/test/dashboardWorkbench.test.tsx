@@ -27,6 +27,7 @@ import {
   MemoryViewStore,
   ViewCommandError,
   ViewEngine,
+  ViewStoreError,
   defaultRuntimeEnvironment,
   issue,
   withFieldKinds,
@@ -587,9 +588,10 @@ describe('DashboardWorkbench', () => {
         within(dialog).getByRole('button', { name: 'Create dashboard' }),
       );
 
+      // The refusal is about the board being copied, and says so (Q34).
       expect(
         await within(dialog).findByText(
-          'Fix what this view reports before saving it.',
+          'Fix what this dashboard reports before saving it.',
         ),
       ).toBeDefined();
       // Said where the user is still looking, with the answer still theirs.
@@ -877,9 +879,51 @@ describe('DashboardWorkbench', () => {
 
     await waitFor(() =>
       expect(screen.getByRole('alert').textContent).toContain(
-        'This view no longer exists.',
+        'This dashboard no longer exists.',
       ),
     );
+  });
+
+  /**
+   * D26 Q34: what the engine reports about the board — a write refused, the
+   * list that would not load, the board gone — is said of a board. The
+   * engine raises one code for every kind; the surface picks the word.
+   */
+  it('says what the engine reports about the board as a board’s (Q34)', async () => {
+    const { engine, store } = setup();
+    vi.spyOn(store, 'list').mockRejectedValueOnce(
+      new ViewStoreError('UNAVAILABLE', 'gateway down'),
+    );
+    vi.spyOn(store, 'save').mockRejectedValueOnce(
+      new ViewStoreError('FORBIDDEN', 'not yours'),
+    );
+
+    render(
+      <DashboardWorkbench
+        engine={engine}
+        definitionId="overview"
+        instanceId="overview-1"
+        messages={zhCN}
+      />,
+    );
+    await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
+
+    expect(
+      (await screen.findByText('仪表盘列表加载失败：无法连接服务端。'))
+        .textContent,
+    ).not.toContain('视图');
+    const runtime = engine
+      .openRuntimes()
+      .find(opened => opened.kind === 'dashboard') as DashboardRuntime;
+    act(() => runtime.edit({ refresh: { interval: 300 } }));
+    fireEvent.click(await screen.findByRole('button', { name: '保存' }));
+
+    // The store's refusal, said of the board, with its own words after.
+    const refused = await screen.findByText(/^你不能写这个仪表盘。/);
+    expect(refused.textContent).toContain('not yours');
+    // Nothing the status lines say calls the board a view.
+    for (const line of screen.queryAllByRole('alert'))
+      expect(line.textContent).not.toContain('视图');
   });
 
   /**
