@@ -38,21 +38,13 @@ ECharts 迁移（D21）与两份「数据分析师视角」审查的 P0 已全�
 - **追问菜单与图表提示框叠在一起**（2026-09-24 R6 走查发现，main 上可复现：仪表盘「点击」故事点一根柱）：点柱后追问菜单打开，ECharts 的提示框（「华北 / 金额的总和 ¥2,450.00」）仍留在原处，压在菜单项上。
   - 判据：菜单打开时提示框收起（或菜单盖在提示框之上且不透出），分析工作台与仪表盘面板一致；有故事断言。
   - 落点：`src/ui/analysis/DrillMenu.tsx` 与图表组件（随 R7 做）。
-- **R3 运行时与界面去重（界面一半）**：运行时一半已在 R3a 做完——`boardFindings` 一种读法、控制器的 `issues` 就是它；非搭建态拒绝编辑命令；`edit` 碰不到历史管的成员；跨部件规则收进 `BoardRules`，`dashboardRuntime.ts` 降到约 450 行；`panelsOf`／`tabsOf`／`presentationMembersOf` 进内核，`overlaid` 进 `model/json.ts`；`PanelFields` 收窄到 `DataPanelSource`、`RuntimeFor` 对联合给出 `AnyViewRuntime`，去掉了四处强转。剩下的都要动 `src/ui/` 或它的测试：
+- **R3b 界面的几处修复**（R3 的界面一半只留用户看得到的；不改行为的重构按 [D28](decisions.md#d28-r3-的界面重构到-wow-做迁移前提放宽2026-09-24) 挪到 Wow，见下面检查点一节）：运行时一半已在 R3a（#1892）做完。R7b 合并后做。
   - Q-01／A-07 接上：`DashboardWorkbench` 的 `carried`／`sameIssue` 与 `EmbeddedDashboard` 自己拆 `state.issues` 的那段都改读 `dashboard.issues`（按 severity 分 error 与 warning）；`namePanel`（栅格上方给面板发现起名）两处共用；可编辑档嵌入补一条测试：草稿里只在 `['panels', 0, …]` 的 warning 要显示。
   - Q-02 界面：`Board.tsx` 的 preload 续体里再读一次当前的 `dashboard.edit`，补一条界面测试（preload 挂起、先按取消再放行，板上不多面板）；`place` 也纳入非搭建态拒绝——先让 test/dashboardUi.test.tsx 的「places a panel and applies the placement」「placed by keyboard」「writes the geometry back once a drag ends」与 test/dashboardPlacement.test.tsx 的「placing a panel」在摆放前开始搭建，再删掉 `runtime/dashboard/editing.ts` 里 `draftFor` 对 `place` 的例外。
   - A-11（审查原文是 `PanelPresses` 自己判断点击生不生效、不读面板状态的 `click`）：口径不变——准入报过 warning 的点击按下去回到追问菜单并说为什么（[model.md](model.md) 的「点击」、D22 H）；改的是做法：面板状态同时带点击与它的准入结论，`PanelPresses` 只读状态、不再自己判（2026-09-24 主会话定，技术取舍、不涉产品口径）。test/dashboardPress.test.ts「warns of a filter this board no longer has, and a press falls back to the menu」照旧成立。
-  - A-14／Q-06：工作台与嵌入共用一份搭建外壳（编辑按钮、完成／取消后焦点回「编辑」、离开守卫、`onTabChange`／`onFiltersChange` 两个上报）。
   - 搭板时编辑条一直可见（2026-09-24 R4b 走查发现）：嵌入可编辑档里添加一块面板，卡片内部滚到新面板，编辑条（保存／取消）随之滚出视野，要滚回去才能结束；工作台同理。编辑条在滚动口里吸顶（Metabase 的编辑条也固定在顶上），随共用外壳一起做，故事断言添加后编辑条仍在视野内。
-  - Q-05 界面：`DashboardPanel`（圈复杂度 50）标题行的六种标记抽成一个组件；`ClickForm`（49）的九个状态收拢、`wanted()` 下沉为内核纯函数；`panelCommands` 按「看」「改」拆开；`DashboardTabs.tsx`、`ExportDialog.tsx` 贴近 500 行。
-  - Q-07 界面：`ui/dashboard/commands.ts` 的 `hasOwnLook`、`PresentationDialog.tsx` 的 `hasLook`、`PanelBodies.tsx` 的 `presentationMark` 改用内核的 `presentationMembersOf`。
-  - Q-08 界面：`filterModes.ts` 与 `PresentationDialog.tsx` 两份语义不同的 `sameValue` 收成一份。
-  - Q-09 可视化面板的两层与焦点跟随在 `PresentationDialog` 与 `AnalysisParts` 各写一份，`ignore`／`NO_ROWS` 也各一份；Q-10 三份原地改名输入框（面板菜单、标签栏、视图管理行）行为各异，收成一个；Q-11 六份拖拽可达性插件样板收成一个共用的插件工厂。
-  - Q-12 界面：`ui/dashboard/history.ts` 的 `usable` 改成类型守卫（去掉 `node!`），`PresentationDialog.tsx` 的 `as unknown as Record<string, unknown>`。
-  - Q-13：`useExportOffer` 自己取 `messages`／`display` 并交回 `columns`／`max`，`PanelExport`、`EmbeddedRecord`、`RecordParts` 只传 `runtime, table, filter, title`。
-  - A-15：`ui/index.ts` 开头「只读控制器」的承诺改成「纯内核读法可以直接用，有状态的判断走控制器」，或把有状态的判断上移到 `/react`。
   - AGENTS.md 结构树的描述按 R3a 改：`json.ts`（`overlaid`）、内核 `panels.ts`（`panelsOf`、`tabsOf`、`presentationMembersOf`）、`wiring.ts`（`DataPanelSource`）、runtime 的 `commands.ts`（`BoardRules` 与只转一手的 `BoardCommands`）、`history.ts`（`outsideHistory`）、`panelRun.ts`（`boardPanels`、`boardHandOver`）、`panels.ts`（`boardFindings`）。
-  - 判据：行为不变的重构由现有测试守住，新缺陷各有测试；`max-lines` 豁免表仍为空。落点：`src/ui/`、`AGENTS.md`。
+  - 判据：各条有测试或故事断言；`max-lines` 豁免表仍为空。落点：`src/ui/`、`AGENTS.md`。
 - **R5 措辞与文档**：X-03 仪表盘筛选发现说程序键（`filter-1`）；X-08 一词多义（「筛选 ▾」→「添加筛选」、「分节标题」「笔记」统一、「板／仪表盘」）；X-09 两个「撤销」；X-06 本页与 [ui/dashboard.md](ui/dashboard.md) 的过期项与顺序行；X-07 README 入口表与迁移段落；X-11 D22 的「固定宽度／全宽」等补进 todo；X-12、X-13、X-16、Q-16、A-19 文档漂移与守护缺口；A-16 公开面快照（首发前必做，可在 Wow 做）。
   - 落点：`docs/design/`、`README*.md`、`AGENTS.md`、`test/docsReferences.test.ts`。
 
@@ -62,6 +54,17 @@ ECharts 迁移（D21）与两份「数据分析师视角」审查的 P0 已全�
   - 为什么：迁移方案定的时机是阶段边界。这时 PR 链是空的，冻结不会打断任何在做的工作；阶段 6 的存储后端也要和引擎放在同一个仓库。
   - 判据：远端一出现 tag `wow-migration-base`（用 `git ls-remote --tags origin wow-migration-base` 查），本包就冻结，这里一律不再改；迁移第 3′ 步把本包从 fetcher 删掉时，这一条随之删除。
   - 落点：[迁移方案](../../../../docs/superpowers/specs/2026-09-23-wow-packages-migration-design.md)，根目录 `AGENTS.md` 的「Migration Checkpoint」一节。
+
+- **R3 的界面重构——到 Wow 仓做**（[D28](decisions.md#d28-r3-的界面重构到-wow-做迁移前提放宽2026-09-24)）：阶段 3＋4 联合审查里不改行为的界面重构，迁移后在 Wow 做。
+  - A-14／Q-06：工作台与嵌入共用一份搭建外壳（编辑按钮、完成／取消后焦点回「编辑」、离开守卫、`onTabChange`／`onFiltersChange` 两个上报）。
+  - Q-05 界面：`DashboardPanel`（圈复杂度 50）标题行的六种标记抽成一个组件；`ClickForm`（49）的九个状态收拢、`wanted()` 下沉为内核纯函数；`panelCommands` 按「看」「改」拆开；`DashboardTabs.tsx`、`ExportDialog.tsx` 贴近 500 行。
+  - Q-07 界面：`ui/dashboard/commands.ts` 的 `hasOwnLook`、`PresentationDialog.tsx` 的 `hasLook`、`PanelBodies.tsx` 的 `presentationMark` 改用内核的 `presentationMembersOf`。
+  - Q-08 界面：`filterModes.ts` 与 `PresentationDialog.tsx` 两份语义不同的 `sameValue` 收成一份。
+  - Q-09 可视化面板的两层与焦点跟随在 `PresentationDialog` 与 `AnalysisParts` 各写一份，`ignore`／`NO_ROWS` 也各一份；Q-10 三份原地改名输入框（面板菜单、标签栏、视图管理行）行为各异，收成一个；Q-11 六份拖拽可达性插件样板收成一个共用的插件工厂。
+  - Q-12 界面：`ui/dashboard/history.ts` 的 `usable` 改成类型守卫（去掉 `node!`），`PresentationDialog.tsx` 的 `as unknown as Record<string, unknown>`。
+  - Q-13：`useExportOffer` 自己取 `messages`／`display` 并交回 `columns`／`max`，`PanelExport`、`EmbeddedRecord`、`RecordParts` 只传 `runtime, table, filter, title`。
+  - A-15：`ui/index.ts` 开头「只读控制器」的承诺改成「纯内核读法可以直接用，有状态的判断走控制器」，或把有状态的判断上移到 `/react`。
+  - 判据：行为不变的重构由现有测试守住；`max-lines` 豁免表仍为空。落点：`src/ui/`。
 
 - **分析面板与分析工作台的「导出数据…」**（[D25](decisions.md#d25-阶段-3-收尾的四条细化2026-09-24) Q28）——**到 Wow 仓做（阶段 5 起）**：检查点之后这里不开新工作。
   - 为什么：记录面板能导出、分析面板不能；只在面板上给又会让面板做到分析视图本身做不到的事，所以两处一起加（与 Metabase 每张卡片都能下载结果一致）。
