@@ -15,7 +15,6 @@ package me.ahoo.wow.webflux.route.query
 
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.query.QueryGateway
-import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.query.QueryBodyExtractor.Companion.LIST_QUERY_EXTRACTOR
 import org.springframework.web.reactive.function.server.HandlerFunction
@@ -36,7 +35,7 @@ class ListQueryHandlerFunction(
     private val support = QueryHandlerSupport(aggregateMetadata, queryRequestScope, exceptionHandler, guard)
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> =
-        support.flux(request, LIST_QUERY_EXTRACTOR, QueryType.LIST, prepare = guard::applyListDefault) {
+        support.flux(request, LIST_QUERY_EXTRACTOR, HttpQueryGuard::check, prepare = guard::applyListDefault) {
             rewriteResult(queryGateway.dynamicList(it))
         }
 }

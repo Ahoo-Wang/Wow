@@ -22,14 +22,12 @@ import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.query.dsl.filter
-import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.command.getAggregateId
 import me.ahoo.wow.webflux.route.command.getOwnerId
 import me.ahoo.wow.webflux.route.command.getTenantIdOrDefault
-import me.ahoo.wow.webflux.route.query.DefaultQueryRequestScope
 import me.ahoo.wow.webflux.route.query.HttpQueryGuard
 import me.ahoo.wow.webflux.route.query.QueryRequestScope
 import me.ahoo.wow.webflux.route.query.withQueryContext
@@ -42,8 +40,8 @@ import reactor.core.publisher.Mono
 class LoadSnapshotHandlerFunction(
     private val aggregateRouteMetadata: AggregateRouteMetadata<*>,
     private val snapshotQueryGateway: SnapshotQueryGateway<Any>,
+    private val queryRequestScope: QueryRequestScope,
     private val exceptionHandler: RequestExceptionHandler,
-    private val queryRequestScope: QueryRequestScope = DefaultQueryRequestScope,
     private val guard: HttpQueryGuard = HttpQueryGuard(),
 ) : HandlerFunction<ServerResponse> {
     private val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
@@ -59,7 +57,10 @@ class LoadSnapshotHandlerFunction(
             }
         }.appendFilter(queryRequestScope.resolve(aggregateMetadata, request))
         val singleQuery = SingleQuery(MatchAllFilter)
-        return guard.mono(QueryType.SINGLE, singleQuery, scope) { snapshotQueryGateway.dynamicSingle(singleQuery) }
+        return guard.mono {
+            guard.check(singleQuery, scope)
+            snapshotQueryGateway.dynamicSingle(singleQuery)
+        }
             .withQueryContext(scope, request)
             .throwNotFoundIfEmpty()
             .toServerResponse(request, exceptionHandler)
@@ -68,8 +69,8 @@ class LoadSnapshotHandlerFunction(
 
 class LoadSnapshotHandlerFunctionFactory(
     private val snapshotQueryGateway: (AggregateMetadata<*, *>) -> SnapshotQueryGateway<Any>,
+    private val queryRequestScope: QueryRequestScope,
     private val exceptionHandler: RequestExceptionHandler,
-    private val queryRequestScope: QueryRequestScope = DefaultQueryRequestScope,
     private val guard: HttpQueryGuard = HttpQueryGuard(),
 ) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Snapshot.LOAD) {
     override fun create(
@@ -83,8 +84,8 @@ class LoadSnapshotHandlerFunctionFactory(
         return LoadSnapshotHandlerFunction(
             aggregateRouteMetadata,
             snapshotQueryGateway(aggregateRouteMetadata.aggregateMetadata),
-            exceptionHandler,
             queryRequestScope,
+            exceptionHandler,
             guard,
         )
     }

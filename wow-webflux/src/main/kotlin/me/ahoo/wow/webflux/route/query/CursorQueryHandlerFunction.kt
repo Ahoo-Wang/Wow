@@ -16,7 +16,6 @@ package me.ahoo.wow.webflux.route.query
 import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.query.QueryGateway
-import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.query.QueryBodyExtractor.Companion.CURSOR_QUERY_EXTRACTOR
 import org.springframework.web.reactive.function.server.HandlerFunction
@@ -36,7 +35,7 @@ class CursorQueryHandlerFunction(
     private val support = QueryHandlerSupport(aggregateMetadata, queryRequestScope, exceptionHandler, guard)
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> =
-        support.mono(request, CURSOR_QUERY_EXTRACTOR, QueryType.CURSOR) {
+        support.mono(request, CURSOR_QUERY_EXTRACTOR, HttpQueryGuard::check) {
             rewriteResult(queryGateway.dynamicCursor(it))
         }
 }

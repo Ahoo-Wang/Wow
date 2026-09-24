@@ -15,7 +15,6 @@ package me.ahoo.wow.webflux.route.query
 
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.query.QueryGateway
-import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.query.QueryBodyExtractor.Companion.AGGREGATION_QUERY_EXTRACTOR
 import org.springframework.web.reactive.function.server.HandlerFunction
@@ -23,10 +22,7 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
-/**
- * Handles an aggregation query body against any aggregate [QueryGateway]; the snapshot and event stream
- * aggregation routes share this implementation.
- */
+/** Handles an aggregation query body against the snapshot or event stream [QueryGateway] of an aggregate. */
 class AggregationQueryHandlerFunction(
     aggregateMetadata: AggregateMetadata<*, *>,
     private val queryGateway: QueryGateway<*>,
@@ -37,5 +33,20 @@ class AggregationQueryHandlerFunction(
     private val support = QueryHandlerSupport(aggregateMetadata, queryRequestScope, exceptionHandler, guard)
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> =
-        support.flux(request, AGGREGATION_QUERY_EXTRACTOR, QueryType.AGGREGATION) { queryGateway.aggregate(it) }
+        support.flux(request, AGGREGATION_QUERY_EXTRACTOR, HttpQueryGuard::check) { queryGateway.aggregate(it) }
 }
+
+/** Creates the aggregation handler of the route identified by [handlerKey], for snapshot and event stream alike. */
+class AggregationQueryHandlerFunctionFactory<G : QueryGateway<*>>(
+    handlerKey: String,
+    queryGateway: (AggregateMetadata<*, *>) -> G,
+    queryRequestScope: QueryRequestScope,
+    exceptionHandler: RequestExceptionHandler,
+    guard: HttpQueryGuard = HttpQueryGuard(),
+) : QueryHandlerFunctionFactorySupport<G>(
+    handlerKey = handlerKey,
+    queryGateway = queryGateway,
+    handlerFunction = { aggregateMetadata, gateway ->
+        AggregationQueryHandlerFunction(aggregateMetadata, gateway, queryRequestScope, exceptionHandler, guard)
+    },
+)

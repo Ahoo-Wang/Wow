@@ -19,7 +19,6 @@ import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.query.QueryGateway
-import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.withQueryScope
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
@@ -45,13 +44,16 @@ internal class QueryHandlerSupport(
     fun <Q : Any, R : Any> mono(
         request: ServerRequest,
         extractor: QueryBodyExtractor<Q>,
-        queryType: QueryType,
+        check: HttpQueryGuard.(Q, FilterExpression) -> Unit,
         notFoundIfEmpty: Boolean = false,
         execute: (Q) -> Mono<R>,
     ): Mono<ServerResponse> = request.body(extractor)
         .flatMap { query ->
             val scope = queryRequestScope.resolve(aggregateMetadata, request)
-            val result = guard.mono(queryType, query, scope) { execute(query) }
+            val result = guard.mono {
+                guard.check(query, scope)
+                execute(query)
+            }
                 .withQueryContext(scope, request)
             if (notFoundIfEmpty) result.throwNotFoundIfEmpty() else result
         }.toServerResponse(request, exceptionHandler)
@@ -59,14 +61,17 @@ internal class QueryHandlerSupport(
     fun <Q : Any, R : Any> flux(
         request: ServerRequest,
         extractor: QueryBodyExtractor<Q>,
-        queryType: QueryType,
+        check: HttpQueryGuard.(Q, FilterExpression) -> Unit,
         prepare: (Q) -> Q = { it },
         execute: (Q) -> Flux<R>,
     ): Mono<ServerResponse> = request.body(extractor)
         .flatMapMany { body ->
             val query = prepare(body)
             val scope = queryRequestScope.resolve(aggregateMetadata, request)
-            guard.flux(queryType, query, request, scope) { execute(query) }
+            guard.flux(request) {
+                guard.check(query, scope)
+                execute(query)
+            }
                 .withQueryContext(scope, request)
         }.toServerResponse(request, exceptionHandler)
 }

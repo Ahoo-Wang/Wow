@@ -23,6 +23,7 @@ import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
 import me.ahoo.wow.webflux.route.getRawRequest
+import me.ahoo.wow.webflux.route.query.AggregationQueryHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.query.DefaultQueryRequestScope
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
@@ -37,7 +38,7 @@ import reactor.kotlin.core.publisher.toMono
 import tools.jackson.databind.node.JsonNodeFactory
 import java.util.concurrent.atomic.AtomicBoolean
 
-class SnapshotAggregationHandlerFunctionTest {
+class SnapshotAggregationRouteTest {
     @Test
     fun `aggregation route should stream handler rows`() {
         val subscribed = AtomicBoolean()
@@ -48,8 +49,9 @@ class SnapshotAggregationHandlerFunctionTest {
                 Flux.just(JsonNodeFactory.instance.objectNode().put("count", 1L))
             }
         }
-        val function = SnapshotAggregationHandlerFunctionFactory(
-            snapshotQueryGateway = { gateway },
+        val function = AggregationQueryHandlerFunctionFactory(
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATION,
+            queryGateway = { gateway },
             queryRequestScope = DefaultQueryRequestScope,
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).create(

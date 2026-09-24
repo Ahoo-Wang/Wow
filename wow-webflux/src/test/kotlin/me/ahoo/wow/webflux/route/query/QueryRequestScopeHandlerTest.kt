@@ -37,8 +37,6 @@ import me.ahoo.wow.query.queryScope
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
-import me.ahoo.wow.webflux.route.event.EventStreamAggregationHandlerFunction
-import me.ahoo.wow.webflux.route.snapshot.SnapshotAggregationHandlerFunction
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
@@ -170,7 +168,7 @@ class QueryRequestScopeHandlerTest {
             filter,
         )
         execute(
-            SnapshotAggregationHandlerFunction(
+            AggregationQueryHandlerFunction(
                 MOCK_AGGREGATE_METADATA,
                 snapshotGateway,
                 requestScope,
@@ -180,7 +178,7 @@ class QueryRequestScopeHandlerTest {
             snapshotAggregation,
         )
         execute(
-            EventStreamAggregationHandlerFunction(
+            AggregationQueryHandlerFunction(
                 MOCK_AGGREGATE_METADATA,
                 eventGateway,
                 requestScope,

@@ -17,16 +17,15 @@ import me.ahoo.wow.api.query.AggregationElement
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CursorPage
-import me.ahoo.wow.api.query.FilterCapable
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
+import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.filter.hasArithmeticExpression
 import me.ahoo.wow.query.filter.isExpensive
 import me.ahoo.wow.query.filter.isMatchAll
@@ -60,16 +59,45 @@ class HttpQueryGuard(
         require(!idleTimeout.isNegative) { "idleTimeout must be greater than or equal to 0." }
     }
 
-    fun <T : Any> mono(
-        queryType: QueryType,
-        query: Any,
-        scope: FilterExpression = MatchAllFilter,
-        result: () -> Mono<T>,
-    ): Mono<T> {
-        val source = Mono.defer {
-            validate(queryType, query, scope)
-            result()
-        }.doOnNext { value ->
+    /** Checks a single query against the HTTP limits before it reaches the gateway. */
+    fun check(query: ISingleQuery, scope: FilterExpression = MatchAllFilter) {
+        checkFilter(query.filter, scope, counting = false)
+    }
+
+    /** Checks a list query against the HTTP limits before it reaches the gateway. */
+    fun check(query: IListQuery, scope: FilterExpression = MatchAllFilter) {
+        validateList(query)
+        checkFilter(query.filter, scope, counting = false)
+    }
+
+    /** Checks a paged query against the HTTP limits before it reaches the gateway. */
+    fun check(query: IPagedQuery, scope: FilterExpression = MatchAllFilter) {
+        validatePage(query)
+        checkFilter(query.filter, scope, counting = true)
+    }
+
+    /** Checks a cursor query against the HTTP limits before it reaches the gateway. */
+    fun check(query: ICursorQuery, scope: FilterExpression = MatchAllFilter) {
+        validateCursor(query)
+        checkFilter(query.filter, scope, counting = false)
+    }
+
+    /** Checks an aggregation query against the HTTP limits before it reaches the gateway. */
+    fun check(query: AggregationQuery, scope: FilterExpression = MatchAllFilter) {
+        validateAggregation(query, scope.asScopeFilters())
+    }
+
+    /** Checks the filter of a count query against the HTTP limits before it reaches the gateway. */
+    fun checkCount(filter: FilterExpression, scope: FilterExpression = MatchAllFilter) {
+        checkFilter(filter, scope, counting = true)
+    }
+
+    /**
+     * Bounds the execution of a single-result query: applies the idle timeout and rejects a page that
+     * exceeds [maxPageSize]. [result] runs on subscription, so checks it performs fail the publisher.
+     */
+    fun <T : Any> mono(result: () -> Mono<T>): Mono<T> {
+        val source = Mono.defer(result).doOnNext { value ->
             val size = when (value) {
                 is PagedList<*> -> value.list.size
                 is CursorPage<*> -> value.list.size
@@ -82,17 +110,13 @@ class HttpQueryGuard(
         return if (idleTimeout.isZero) source else source.timeout(idleTimeout)
     }
 
-    fun <T : Any> flux(
-        queryType: QueryType,
-        query: Any,
-        request: ServerRequest,
-        scope: FilterExpression = MatchAllFilter,
-        result: () -> Flux<T>,
-    ): Flux<T> {
-        val source = Flux.defer {
-            validate(queryType, query, scope)
-            result()
-        }
+    /**
+     * Bounds the execution of a streaming query: applies the idle timeout, rejects more than
+     * [maxListSize] rows, and buffers the rows unless the client accepts an event stream, so a late
+     * failure still produces an error response. [result] runs on subscription.
+     */
+    fun <T : Any> flux(request: ServerRequest, result: () -> Flux<T>): Flux<T> {
+        val source = Flux.defer(result)
         val timed = if (idleTimeout.isZero) source else source.timeout(idleTimeout)
         val bounded = if (maxListSize == 0) {
             timed
@@ -105,42 +129,17 @@ class HttpQueryGuard(
         return if (request.acceptsEventStream()) {
             bounded
         } else {
-            bounded.collectList().flatMapMany {
-                Flux.fromIterable(
-                    it
-                )
-            }
+            bounded.collectList().flatMapMany { Flux.fromIterable(it) }
         }
     }
 
-    private fun validate(queryType: QueryType, query: Any, scope: FilterExpression) {
-        val scopeFilters = if (scope === MatchAllFilter) emptyList() else listOf(scope)
-        when (query) {
-            is AggregationQuery -> validateAggregation(query, scopeFilters)
-            is IListQuery -> {
-                validateList(query)
-                validateFilter(queryType, query.filter, scopeFilters)
-            }
+    private fun FilterExpression.asScopeFilters(): List<FilterExpression> =
+        if (this === MatchAllFilter) emptyList() else listOf(this)
 
-            is ICursorQuery -> {
-                validateCursor(query)
-                validateFilter(queryType, query.filter, scopeFilters)
-            }
-
-            is IPagedQuery -> {
-                validatePage(query)
-                validateFilter(queryType, query.filter, scopeFilters)
-            }
-
-            is FilterCapable<*> -> validateFilter(queryType, query.filter, scopeFilters)
-            is FilterExpression -> validateFilter(queryType, query, scopeFilters)
-        }
-    }
-
-    private fun validateFilter(queryType: QueryType, filter: FilterExpression, scopeFilters: List<FilterExpression>) {
+    private fun checkFilter(filter: FilterExpression, scope: FilterExpression, counting: Boolean) {
         validateFilters(
-            filters = listOf(filter) + scopeFilters,
-            rejectMatchAll = !allowExpensiveOperators && queryType in COUNTING_QUERY_TYPES,
+            filters = listOf(filter) + scope.asScopeFilters(),
+            rejectMatchAll = !allowExpensiveOperators && counting,
         )
     }
 
@@ -259,7 +258,5 @@ class HttpQueryGuard(
     companion object {
         const val DEFAULT_MAX_FILTER_NODES: Int = 128
         const val DEFAULT_LIST_SIZE: Int = 100
-
-        private val COUNTING_QUERY_TYPES = setOf(QueryType.PAGED, QueryType.COUNT)
     }
 }

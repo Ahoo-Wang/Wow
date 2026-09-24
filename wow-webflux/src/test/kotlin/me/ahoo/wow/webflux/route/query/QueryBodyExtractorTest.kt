@@ -37,7 +37,6 @@ import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
 import me.ahoo.wow.webflux.route.getRawRequest
 import me.ahoo.wow.webflux.route.snapshot.CursorQuerySnapshotHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.snapshot.SnapshotAggregationHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
@@ -64,8 +63,9 @@ class QueryBodyExtractorTest {
         val queryGateway = mockk<SnapshotQueryGateway<Any>> {
             every { aggregate(any()) } returns Flux.empty()
         }
-        val handler = SnapshotAggregationHandlerFunctionFactory(
-            snapshotQueryGateway = { queryGateway },
+        val handler = AggregationQueryHandlerFunctionFactory(
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATION,
+            queryGateway = { queryGateway },
             queryRequestScope = DefaultQueryRequestScope,
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).create(

@@ -24,7 +24,6 @@ import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.QueryGateway
-import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.queryScope
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
@@ -59,7 +58,7 @@ class QueryHandlerSupportTest {
         val request = MockServerRequest.builder().body(SingleQuery(IdFilter("id")).toMono())
         var observed: Pair<FilterExpression, ServerRequest?>? = null
 
-        val status = support.mono(request, QueryBodyExtractor.SINGLE_QUERY_EXTRACTOR, QueryType.SINGLE) {
+        val status = support.mono(request, QueryBodyExtractor.SINGLE_QUERY_EXTRACTOR, HttpQueryGuard::check) {
             Mono.deferContextual { context ->
                 observed = context.queryScope() to context.getRawRequest()
                 Mono.just("row")
@@ -77,14 +76,14 @@ class QueryHandlerSupportTest {
         support.mono(
             MockServerRequest.builder().body(SingleQuery(IdFilter("id")).toMono()),
             QueryBodyExtractor.SINGLE_QUERY_EXTRACTOR,
-            QueryType.SINGLE,
+            HttpQueryGuard::check,
             notFoundIfEmpty = true,
         ) { Mono.empty<String>() }.render().assert().isEqualTo(HttpStatus.NOT_FOUND)
 
         support.mono(
             MockServerRequest.builder().body(SingleQuery(IdFilter("id")).toMono()),
             QueryBodyExtractor.SINGLE_QUERY_EXTRACTOR,
-            QueryType.SINGLE,
+            HttpQueryGuard::check,
         ) { Mono.empty<String>() }.test().verifyComplete()
     }
 
@@ -94,7 +93,7 @@ class QueryHandlerSupportTest {
         val status = support.mono(
             MockServerRequest.builder().body(ListQuery(IdFilter("id"), limit = -1).toMono()),
             QueryBodyExtractor.LIST_QUERY_EXTRACTOR,
-            QueryType.LIST,
+            HttpQueryGuard::check,
         ) {
             invoked = true
             Mono.just("row")
@@ -113,7 +112,7 @@ class QueryHandlerSupportTest {
         val status = support.flux(
             request,
             QueryBodyExtractor.LIST_QUERY_EXTRACTOR,
-            QueryType.LIST,
+            HttpQueryGuard::check,
             prepare = { it.copy(limit = 7) },
         ) { query ->
             executed = query

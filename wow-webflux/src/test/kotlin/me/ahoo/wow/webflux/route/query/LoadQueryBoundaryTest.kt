@@ -184,8 +184,8 @@ class LoadQueryBoundaryTest {
             val handler = LoadSnapshotHandlerFunction(
                 RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
                 gateway,
+                QueryRequestScope { _, _ -> SpaceIdFilter("trusted-space") },
                 WebFluxRequestExceptionHandler(),
-                queryRequestScope = QueryRequestScope { _, _ -> SpaceIdFilter("trusted-space") },
             )
             val request = MockServerRequest.builder().pathVariable("id", "specific-record")
                 .pathVariable("ownerId", "trusted-owner").pathVariable("tenantId", tenant).build()
@@ -226,8 +226,8 @@ class LoadQueryBoundaryTest {
         val handler = LoadEventStreamHandlerFunction(
             MOCK_AGGREGATE_METADATA,
             gateway,
+            QueryRequestScope { _, _ -> SpaceIdFilter("trusted-space") },
             WebFluxRequestExceptionHandler(),
-            queryRequestScope = QueryRequestScope { _, _ -> SpaceIdFilter("trusted-space") },
         )
         val request = MockServerRequest.builder().pathVariable("id", "specific-record")
             .pathVariable("tenantId", "trusted-tenant").pathVariable("ownerId", "trusted-owner")
@@ -279,7 +279,12 @@ class LoadQueryBoundaryTest {
 
     private fun eventHandler(result: Flux<ObjectNode>): HandlerFunction<ServerResponse> {
         val gateway = mockk<EventStreamQueryGateway> { every { dynamicList(any()) } returns result }
-        return LoadEventStreamHandlerFunction(MOCK_AGGREGATE_METADATA, gateway, WebFluxRequestExceptionHandler())
+        return LoadEventStreamHandlerFunction(
+            MOCK_AGGREGATE_METADATA,
+            gateway,
+            DefaultQueryRequestScope,
+            WebFluxRequestExceptionHandler(),
+        )
     }
 
     private fun snapshotHandler(result: Mono<ObjectNode>): HandlerFunction<ServerResponse> {
@@ -287,7 +292,8 @@ class LoadQueryBoundaryTest {
         return LoadSnapshotHandlerFunction(
             RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
             gateway,
-            WebFluxRequestExceptionHandler()
+            DefaultQueryRequestScope,
+            WebFluxRequestExceptionHandler(),
         )
     }
 
