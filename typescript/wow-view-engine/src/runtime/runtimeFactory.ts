@@ -87,9 +87,13 @@ export class RuntimeFactory {
     identity: RuntimeIdentity,
     scopeFilter: FilterTree | null = null,
   ): ManagedViewRuntime {
-    return config.kind === 'dashboard'
-      ? this.buildDashboard(definition, config, identity, scopeFilter)
-      : this.buildData(definition, config, identity, scopeFilter);
+    if (config.kind !== 'dashboard')
+      return this.buildData(definition, config, identity, scopeFilter);
+    // A board takes no outer condition (D26 Q32): one asked for is refused
+    // as a later one would be, and `refusedScope` says so from the start.
+    const board = this.buildDashboard(definition, config, identity);
+    board.setScopeFilter(scopeFilter);
+    return board;
   }
 
   private buildData(
@@ -127,7 +131,6 @@ export class RuntimeFactory {
     definition: ViewDefinition,
     config: DashboardViewConfig,
     identity: RuntimeIdentity,
-    scopeFilter: FilterTree | null,
   ): DashboardViewRuntime {
     // A dashboard config belongs to a dashboard definition: the catalogue
     // entry it is listed under, which declares no fields of its own.
@@ -153,7 +156,6 @@ export class RuntimeFactory {
       definitions: this.panelDefinition,
       createPanelRuntime: this.createPanelRuntime,
       resolveOptions: this.host.resolveOptions,
-      scopeFilter,
       candidateSources: (panelDefinition, scope) =>
         new ValueCandidateSources(
           {

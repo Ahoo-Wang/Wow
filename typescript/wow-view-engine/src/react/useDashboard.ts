@@ -37,6 +37,7 @@ import type {
   DataViewRuntime,
   DestinationBoard,
   EditHistoryState,
+  HandOver,
   OptionSource,
   PanelGrouping,
   PressDestination,
@@ -180,6 +181,12 @@ export interface DashboardController {
    * (`DashboardRuntime.destinationBoard`); `null` for one gone or unreadable.
    */
   destinationBoard(instanceId: string): Promise<DestinationBoard | null>;
+  /**
+   * What one data panel's view takes off the board as it stands
+   * (`DashboardRuntime.handOver`, D26 Q30): every way off it — 「在工作台中
+   * 打开」, the follow-ups, a view destination — hands this over.
+   */
+  handOver(panelId: string): HandOver | null;
 }
 
 const EMPTY_PANELS: DashboardPanelState[] = [];
@@ -314,6 +321,10 @@ export function useDashboard(
     destinationBoard: useCallback(
       async (instanceId: string) =>
         runtime ? runtime.destinationBoard(instanceId) : null,
+      [runtime],
+    ),
+    handOver: useCallback(
+      (panelId: string) => runtime?.handOver(panelId) ?? null,
       [runtime],
     ),
   };

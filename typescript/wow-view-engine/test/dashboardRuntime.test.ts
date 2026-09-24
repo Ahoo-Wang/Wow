@@ -707,59 +707,6 @@ describe('DashboardViewRuntime editing', () => {
   });
 });
 
-describe('DashboardViewRuntime scope filter', () => {
-  it('admits an outer condition and pushes it onto the panels', async () => {
-    const board = await harness();
-    const runtime = await board.open();
-
-    const issues = runtime.setScopeFilter({
-      op: 'and',
-      children: [{ field: 'region', operator: 'NE', value: 'EU' }],
-    });
-    await flush();
-
-    expect(issues).toEqual([]);
-    const [, second] = pagedQueries(board.source);
-    // Both the dashboard's own condition and the injected one arrive mapped.
-    expect(second.filter).toMatchObject({
-      op: FilterOperator.AND,
-      operands: [
-        { field: 'warehouse', value: 'CN' },
-        { field: 'warehouse', value: 'EU' },
-      ],
-    });
-  });
-
-  it('refuses one the panels cannot carry, and changes nothing', async () => {
-    const board = await harness();
-    const runtime = await board.open();
-
-    const issues = runtime.setScopeFilter({
-      op: 'and',
-      children: [{ field: 'unbound', operator: 'EQ', value: 'x' }],
-    });
-
-    expect(codes(issues)).toContain('filter.field.unknown');
-    expect(pagedQueries(board.source)).toHaveLength(1);
-  });
-
-  it('ignores a re-injection of the same condition', async () => {
-    const board = await harness();
-    const runtime = await board.open();
-    const tree: FilterTree = {
-      op: 'and',
-      children: [{ field: 'region', operator: 'NE', value: 'EU' }],
-    };
-
-    runtime.setScopeFilter(tree);
-    await flush();
-    runtime.setScopeFilter({ ...tree, children: [...tree.children] });
-    await flush();
-
-    expect(pagedQueries(board.source)).toHaveLength(2);
-  });
-});
-
 describe('DashboardViewRuntime admission', () => {
   it('stops every panel when the dashboard holds too many', async () => {
     const board = await harness({ limits: { maxDashboardPanels: 1 } });
@@ -837,49 +784,6 @@ describe('DashboardViewRuntime admission', () => {
     // The entry has no id to stand under; the panel beside it still runs.
     expect(runtime.getSnapshot().panels).toHaveLength(1);
     expect(runtime.getSnapshot().panels[0].runtime).not.toBeNull();
-    expect(board.source.paged).toHaveBeenCalledTimes(1);
-  });
-
-  /**
-   * A condition this board's own fields cannot take is the host's to fix and
-   * not the board's (D17-5): it is left out, said out loud, and the panels
-   * run on what their author saved rather than on nothing at all.
-   */
-  it('leaves out an injected condition it refuses, and runs without it', async () => {
-    const board = await harness();
-    const runtime = await board.open(boundConfig(), {
-      op: 'and',
-      children: [{ field: 'unbound', operator: 'EQ', value: 'x' }],
-    });
-
-    expect(codes(runtime.getSnapshot().issues)).not.toContain(
-      'filter.field.unknown',
-    );
-    expect(codes(runtime.refusedScope)).toContain('filter.field.unknown');
-    expect(runtime.scopeFilter).toBeNull();
-    expect(board.source.paged).toHaveBeenCalledTimes(1);
-  });
-
-  it('keeps judging the draft with the injected condition after an edit', async () => {
-    const board = await harness();
-    // The board's own filter is empty, so what reaches the panels is the
-    // injected condition alone — and it is admitted, because `region` is
-    // bound.
-    const runtime = await board.open(
-      boundConfig({ filter: { op: 'and', children: [] } }),
-      REGION_FILTER,
-    );
-    expect(runtime.scopeFilter).toEqual(REGION_FILTER);
-
-    // The binding it rides on is taken away. Only a judgement that still
-    // holds the scope sees that the panel can no longer carry it.
-    runtime.edit({ panels: [panel({ bindings: [] })] });
-    runtime.apply();
-    await flush();
-
-    expect(codes(runtime.getSnapshot().issues)).toContain(
-      'dashboard.binding.missing',
-    );
     expect(board.source.paged).toHaveBeenCalledTimes(1);
   });
 });

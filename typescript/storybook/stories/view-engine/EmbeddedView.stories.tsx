@@ -263,10 +263,12 @@ function HostPage({
           className="text-muted-foreground font-mono text-xs break-all"
         >
           宿主路由：
+          {/* The page's narrowing goes as the scope (D26 Q30): locked in
+              the workbench as it is here. */}
           {route.kind === 'view'
-            ? `打开视图 ${route.instanceId} · ${JSON.stringify(route.filter)}`
+            ? `打开视图 ${route.instanceId} · 作用域 ${JSON.stringify(route.scopeFilter)}`
             : route.kind === 'unsaved'
-              ? `打开「${route.title}」 · ${JSON.stringify(route.config.filter)}`
+              ? `打开「${route.title}」 · 作用域 ${JSON.stringify(route.scopeFilter)} · 条件 ${JSON.stringify(route.config.filter)}`
               : route.kind === 'dashboard'
                 ? `打开仪表盘 ${route.instanceId}`
                 : route.url}

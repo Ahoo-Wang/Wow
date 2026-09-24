@@ -19,7 +19,6 @@ import {
   type DashboardViewConfig,
   type DashboardViewPanel,
   type FieldOption,
-  type FilterTree,
   type FilterValue,
   type Issue,
 } from '../../model/index.js';
@@ -66,8 +65,6 @@ export interface FilterValuesHost {
   run(): void;
   /** The view a data panel shows, once known. */
   viewOf(panel: DashboardViewPanel): PanelView | null;
-  /** The host's condition, in the board's names. */
-  scope(): FilterTree | null;
 }
 
 /**
@@ -273,8 +270,8 @@ export class FilterValues {
       const view = binding && this.host.viewOf(panel);
       if (!binding || !view) return [];
       // Counted under the condition the panel runs under (`panelScope`) —
-      // the board's fixed scope, the host's condition and the filters the
-      // host holds, never the reader's own values — so a board fixed to one
+      // the board's fixed scope and the filters the host holds, never the
+      // reader's own values — so a board fixed to one
       // region, or a page locked to one customer, offers that one's values
       // and no one else's. Read as it is asked: the source outlives this
       // call, and the board may have changed by then.
@@ -287,7 +284,6 @@ export class FilterValues {
         const tree = panelScope(now, {
           applied: board,
           filters: { values: this.heldValues() },
-          injected: this.host.scope(),
           kinds: this.host.kinds,
         });
         return isEmptyFilter(tree) ? null : tree;
@@ -325,11 +321,6 @@ export class FilterValues {
     return Object.fromEntries(
       Object.entries(values).filter(([name]) => this.held.has(name)),
     );
-  }
-
-  /** The host's condition changed: what was counted under it is forgotten. */
-  rescoped(): void {
-    this.candidates.reset();
   }
 
   stop(): void {

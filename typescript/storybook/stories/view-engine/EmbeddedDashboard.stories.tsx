@@ -81,11 +81,13 @@ function addressOf(filters: DashboardFilters): string {
 function routeOf(to: ViewNavigation | null): string {
   if (!to) return '（还没去过哪里）';
   if (to.kind === 'url') return to.url;
+  // What the page holds goes as the scope, what the reader set as the
+  // view's own conditions (D26 Q30).
   if (to.kind === 'view')
-    return `打开视图 ${to.instanceId} · ${JSON.stringify(to.filter)}`;
+    return `打开视图 ${to.instanceId} · 作用域 ${JSON.stringify(to.scopeFilter)} · 条件 ${JSON.stringify(to.filter)}`;
   if (to.kind === 'dashboard')
     return `打开仪表盘 ${to.instanceId} · ${JSON.stringify(to.filters.values)}`;
-  return `打开「${to.title}」 · ${JSON.stringify(to.config.filter)}`;
+  return `打开「${to.title}」 · 作用域 ${JSON.stringify(to.scopeFilter)} · 条件 ${JSON.stringify(to.config.filter)}`;
 }
 
 /**

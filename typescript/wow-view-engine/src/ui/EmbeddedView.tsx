@@ -125,7 +125,6 @@ function EmbeddedData({
   const {
     engine,
     instanceId,
-    scopeFilter = null,
     interaction = 'read-only',
     withTitle = false,
     headingLevel = 2,
@@ -158,11 +157,18 @@ function EmbeddedData({
   const warnings = [...issues, ...resultIssues(state?.result?.data)];
 
   const title = withTitle ? state?.title : undefined;
-  // 在工作台中打开: the saved view under the page's narrowing — interactive
+  // 在工作台中打开: the saved view under the page's narrowing, in force
+  // there as here — locked, nobody's to take off (D26 Q30) — interactive
   // only, and only with a route to go by.
   const open = interactive && openInWorkbench && onNavigate && (
     <OpenInWorkbench
-      to={{ kind: 'view', instanceId, filter: scopeFilter }}
+      to={{
+        kind: 'view',
+        definitionId: data.definition.id,
+        instanceId,
+        scopeFilter: data.scopeFilter,
+        filter: null,
+      }}
       onNavigate={onNavigate}
     />
   );

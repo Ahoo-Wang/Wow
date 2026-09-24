@@ -12,7 +12,6 @@
  */
 
 import { ArrowLeftIcon } from 'lucide-react';
-import type { ViewOrigin } from '../../react/index.js';
 import { Button } from '../components/button.js';
 import { TEXT_UI } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
@@ -26,12 +25,18 @@ import { useViewMessages } from '../MessagesProvider.js';
  * says what its rows were fetched under, and the view's own name says which
  * group it is. It is the workbench's fact rather than the view's, so the
  * shell draws it from `workbench.held` and no kind's parts know it exists.
+ *
+ * A view handed over from a dashboard has the same line (D26 Q33,
+ * 「返回〈仪表盘〉」): the board is where it came from, and going back is
+ * the host's route (`workbench.board`) — `from` says which it is.
  */
 export function OriginBar({
-  origin,
+  title,
+  from,
   onBack,
 }: {
-  origin: ViewOrigin;
+  title: string;
+  from: 'view' | 'dashboard';
   onBack(): void;
 }) {
   const messages = useViewMessages();
@@ -39,12 +44,17 @@ export function OriginBar({
     <div
       data-slot="origin-bar"
       role="region"
-      aria-label={messages.label('label.origin.region')}
+      data-from={from}
+      aria-label={messages.label(
+        from === 'dashboard'
+          ? 'label.origin.board-region'
+          : 'label.origin.region',
+      )}
       className={`flex flex-wrap items-center gap-2 ${TEXT_UI}`}
     >
       <Button variant="outline" size="xs" onClick={onBack}>
-        <ArrowLeftIcon />
-        {messages.label('label.origin.back', { title: origin.title })}
+        <ArrowLeftIcon data-icon="inline-start" />
+        {messages.label('label.origin.back', { title })}
       </Button>
     </div>
   );

@@ -11,7 +11,6 @@
  * limitations under the License.
  */
 
-import { dequal } from 'dequal';
 import {
   type DashboardDefinition,
   type DashboardFilters,
@@ -24,13 +23,11 @@ import {
   type ViewInstance,
   type ViewScope,
 } from '../model/index.js';
-import { isPlainObject, type FieldKindRegistry } from '../filter/index.js';
 import {
-  NO_REFUSAL,
-  scopeRefusal,
-  withScopeFilter,
-  withoutScopeModeWarning,
-} from './scope.js';
+  isPlainObject,
+  issue,
+  type FieldKindRegistry,
+} from '../filter/index.js';
 import {
   admitFilters,
   filtersOf,
@@ -39,7 +36,7 @@ import {
   referencedInstance,
   validateDashboard,
 } from '../dashboard/index.js';
-import { panelReach, panelRun } from './dashboard/panelRun.js';
+import { panelHandOver, panelReach, panelRun } from './dashboard/panelRun.js';
 import { FilterValues } from './dashboard/filterValues.js';
 import { PanelPresses } from './dashboard/press.js';
 import { boardEditing, type BoardEdits } from './dashboard/editing.js';
@@ -69,6 +66,7 @@ import { PanelReferences } from './dashboard/references.js';
 import type { WriteState } from './write.js';
 import type { DataViewRuntime } from './viewRuntime.js';
 import type { ManagedViewRuntime, ViewQueryState } from './viewRuntimeTypes.js';
+import type { HandOver } from './navigation.js';
 
 export type { PanelResolver } from './dashboard/references.js';
 export type { PanelRuntimeFactory, PanelView } from './dashboard/children.js';
@@ -80,8 +78,6 @@ export type {
 } from './dashboard/editing.js';
 export type { PanelGrouping } from './dashboard/grouping.js';
 export type {
-  ViewNavigation,
-  GroupNaming,
   HeldFilters,
   DashboardRuntime,
   DashboardRuntimeOptions,
@@ -103,7 +99,7 @@ const IDLE: ViewQueryState = { status: 'idle' };
  * The runtime of a dashboard: N child runtimes and one global filter.
  *
  * What it adds over a data view is composition, and its rules follow from
- * that. The global filter reaches a panel as an injected scope, so the
+ * that. The board's filters reach a panel as an injected scope, so the
  * referenced view never becomes dirty and a dashboard's condition is never
  * saved back into it. Every panel keeps its own loading, error and result,
  * because one slow or broken panel must not decide what the others show. And
@@ -138,7 +134,6 @@ export class DashboardViewRuntime
   /** A press on a panel's group; see `PanelPresses`. */
   protected readonly presses: PanelPresses;
 
-  private injectedScope: FilterTree | null;
   /** The tab the reader asked for; see `DashboardRuntimeState.tab`. */
   private requestedTab: string | null = null;
   /** Whether the panels were brought in line once: until then a tab is only noted. */
@@ -152,7 +147,6 @@ export class DashboardViewRuntime
     this.kinds = options.kinds;
     this.limits = options.limits;
     this.environment = options.environment;
-    this.injectedScope = null;
     // Both talk back only through the runtime's own re-sync: a reference
     // settling re-judges the draft, and a child notifying re-times the board
     // and rebuilds its panel's issues.
@@ -185,7 +179,6 @@ export class DashboardViewRuntime
       started: () => this.synced,
       run: () => this.sync(),
       viewOf: panel => this.viewOf(panel),
-      scope: () => this.injectedScope,
     });
     this.presses = new PanelPresses({
       kinds: options.kinds,
@@ -194,6 +187,7 @@ export class DashboardViewRuntime
       child: panelId => this.panelRuntime(panelId),
       press: (name, value, panelId) => this.values.press(name, value, panelId),
       holds: name => this.values.holds(name),
+      handOver: panelId => this.handOver(panelId),
       reference: async id => {
         await this.references.fetch(id);
         return this.references.get(id) ?? null;
@@ -205,19 +199,6 @@ export class DashboardViewRuntime
     // opens clean rather than dirty with its own migration (D22 E, D26 Q31).
     const saved = options.saved ?? null;
     const config = options.config;
-    // The injected condition is judged with the config from the start, as a
-    // data view does, so a scope the panels cannot carry is never pushed onto
-    // them. What this board's own fields refuse is the host's condition and
-    // not the board's defect (D17-5): it is left out rather than written into
-    // the issues, the panels run un-narrowed, and `refusedScope` says which
-    // condition did not take.
-    const wanted = options.scopeFilter ?? null;
-    const own = this.admit(config, options.scope, null);
-    const merged =
-      wanted === null ? own : this.admit(config, options.scope, wanted);
-    const refusedScope = scopeRefusal(own, merged);
-    const refused = refusedScope.length > 0;
-    if (!refused) this.injectedScope = wanted;
     this.store = new RuntimeStore<DashboardRuntimeState>({
       state: {
         saved,
@@ -225,7 +206,7 @@ export class DashboardViewRuntime
         scope: options.scope,
         draft: config,
         applied: config,
-        issues: refused ? own : merged,
+        issues: this.admit(config, options.scope),
         dirty: saved === null,
         query: IDLE,
         result: null,
@@ -243,7 +224,6 @@ export class DashboardViewRuntime
         readerRefresh: null,
       },
       environment: options.environment,
-      refusedScope,
       admit: draft => this.admit(draft, this.state.scope),
       // A panel's own error stops that panel, not the board's timer.
       blocking: blocksBoard,
@@ -290,9 +270,12 @@ export class DashboardViewRuntime
     return filtersOf(this.state.draft);
   }
 
-  /** The injected condition in force; see `ViewRuntime.scopeFilter`. */
+  /**
+   * Always `null`: a board takes no outer condition (D26 Q32). A host
+   * narrows one filter by filter, through what it holds (`holdFilters`).
+   */
   get scopeFilter(): FilterTree | null {
-    return this.injectedScope;
+    return null;
   }
 
   getSnapshot(): DashboardRuntimeState {
@@ -450,28 +433,46 @@ export class DashboardViewRuntime
   }
 
   /**
-   * An outer condition, in the dashboard's own field names. It is admitted
-   * exactly like a user's own: the merged global filter must still map onto
-   * every panel, so an embedding host cannot quietly break one.
+   * Refuses any condition (D26 Q32): a board is narrowed filter by filter,
+   * through what the host holds (`holdFilters`), never by a tree it would
+   * have to map onto every panel. `null` is what it has, and is taken.
    */
   setScopeFilter(tree: FilterTree | null): Issue[] {
     if (this.disposed) return this.refusedScope;
-    if (dequal(tree ?? null, this.injectedScope))
-      return this.store.refuse(NO_REFUSAL);
-    const applied = this.state.applied;
-    const own = this.admit(applied, this.state.scope, null);
-    const merged = this.admit(applied, this.state.scope, tree);
-    // Only what the condition alone breaks keeps it out; a board already
-    // waiting to be fixed is not fixed by refusing the host's condition too.
-    if (this.store.refuse(scopeRefusal(own, merged)).length > 0)
-      return this.refusedScope;
+    return this.store.refuse(
+      tree ? [issue('dashboard.scope.unsupported', [])] : [],
+    );
+  }
 
-    this.injectedScope = tree ?? null;
-    // The values a filter offers were counted under the old scope.
-    this.values.rescoped();
-    // The draft is judged with the scope too, so its issues move with it.
-    this.sync({ issues: this.admit(this.state.draft, this.state.scope) });
-    return this.refusedScope;
+  /** See `DashboardRuntime.handOver`. */
+  handOver(panelId: string): HandOver | null {
+    if (this.disposed) return null;
+    const { applied, filters, saved, title, tab } = this.state;
+    const panel = panelsOf(applied).find(
+      (entry): entry is DashboardViewPanel =>
+        isPlainObject(entry) && isViewPanel(entry) && entry.id === panelId,
+    );
+    if (!panel) return null;
+    const parts = panelHandOver(panel, {
+      applied,
+      filters,
+      held: name => this.values.holds(name),
+      kinds: this.kinds,
+    });
+    if (!saved) return parts;
+    return {
+      ...parts,
+      from: {
+        title,
+        back: {
+          kind: 'dashboard',
+          definitionId: this.definition.id,
+          instanceId: saved.id,
+          filters,
+          tab,
+        },
+      },
+    };
   }
 
   /**
@@ -535,25 +536,12 @@ export class DashboardViewRuntime
     return this.children.runtimeOf(panelId);
   }
 
-  /**
-   * Admission of a config together with the scope filter it would run under,
-   * which is what every panel receives. One rule for the draft, the applied
-   * config and an injected condition, as in a data view.
-   */
-  private admit(
-    config: DashboardViewConfig,
-    scope: ViewScope,
-    scopeFilter: FilterTree | null = this.injectedScope,
-  ): Issue[] {
-    const merged = withScopeFilter(config, scopeFilter);
-    return withoutScopeModeWarning(
-      validateDashboard(merged, scope, this.references.known, this.kinds, {
-        limits: this.options.limits,
-        definitions: this.options.definitions,
-      }),
-      config,
-      scopeFilter,
-    );
+  /** Admission of a config at a scope, against the references known. */
+  private admit(config: DashboardViewConfig, scope: ViewScope): Issue[] {
+    return validateDashboard(config, scope, this.references.known, this.kinds, {
+      limits: this.options.limits,
+      definitions: this.options.definitions,
+    });
   }
 
   /**
@@ -569,25 +557,10 @@ export class DashboardViewRuntime
   /** A reference settled — loaded, unreadable or failed — so the draft is re-judged. */
   private settled(): void {
     if (this.disposed) return;
-    // A reference arriving is where a global field first meets the panel
-    // field it binds to, so it is also where an injected condition can turn
-    // out to be one this board cannot carry. It is refused here on the same
-    // terms as on the way in, rather than becoming an error of the board's.
-    this.dropRefusedScope();
     this.sync({
       issues: this.admit(this.state.draft, this.state.scope),
       resolving: this.references.resolving,
     });
-  }
-
-  /** Lets go of an injected condition the references have now refused. */
-  private dropRefusedScope(): void {
-    if (this.injectedScope === null) return;
-    const applied = this.state.applied;
-    const own = this.admit(applied, this.state.scope, null);
-    const merged = this.admit(applied, this.state.scope);
-    if (this.store.refuse(scopeRefusal(own, merged)).length > 0)
-      this.injectedScope = null;
   }
 
   /**
@@ -689,7 +662,6 @@ export class DashboardViewRuntime
     const run = panelRun(panel, index, view, {
       applied,
       filters,
-      injected: this.injectedScope,
       kinds: this.kinds,
       limits: this.limits,
     });

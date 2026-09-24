@@ -17,6 +17,7 @@ import { zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 import displayMeta, {
   Clicks as DisplayClicks,
   CrossFilter as DisplayCrossFilter,
+  OpenInWorkbench as DisplayOpenInWorkbench,
   ToAnotherBoard as DisplayToAnotherBoard,
   ToAnotherBoardStale as DisplayToAnotherBoardStale,
   ToAnotherBoardWithOwnFilter as DisplayToAnotherBoardWithOwnFilter,
@@ -125,10 +126,146 @@ export const BarOpensFollowUps: Story = {
     await expect(
       canvasElement.querySelector('[data-slot="editor-band"]'),
     ).toBeNull();
+    // The way back is the workbench's own row (D26 Q33), routed by the host.
     await userEvent.click(
-      within(canvasElement).getByRole('button', { name: /回到出库概览/ }),
+      within(
+        canvasElement.querySelector<HTMLElement>('[data-slot="origin-bar"]')!,
+      ).getByRole('button', {
+        name: label('label.origin.back', { title: '出库概览' }),
+      }),
     );
     await panelNamed(canvasElement, '按仓库汇总');
+  },
+};
+
+/**
+ * D26 Q30, the P0 of the joint review reversed: the page holds 状态 (locked)
+ * and the reader sets 仓库 to 华南. 「在工作台中打开」 on 「待出库明细」 opens
+ * 「待出库订单」 「已修改」, 仓库 是 华南 among its own conditions — with a ✕
+ * — and the page's 状态 as its scope, with none. The row under the title
+ * bar goes back to the board, still on 华南, asking nothing (Q33). Opened
+ * again, 华南 taken off with its ✕ leaves the saved view, not 「已修改」.
+ */
+export const OpenInWorkbenchKeepsBoardFilters: Story = {
+  ...DisplayOpenInWorkbench,
+  decorators: [DESK],
+  args: { ...DisplayOpenInWorkbench.args, onNavigate: fn() },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await panelNamed(canvasElement, '待出库明细');
+    const filters = await canvas.findByRole('region', {
+      name: zhCN['label.filters.bar'],
+    });
+    await userEvent.click(
+      within(filters).getByRole('combobox', { name: '仓库' }),
+    );
+    await userEvent.click(await screen.findByRole('option', { name: '华南' }));
+    // The panel runs under it before it is taken anywhere.
+    const list = await panelNamed(canvasElement, '待出库明细');
+    await waitFor(() => {
+      const cells = readColumn(list.querySelector('table')!, '仓库');
+      expect(cells.length).toBeGreaterThan(0);
+      expect(cells.every(cell => cell === '华南')).toBe(true);
+    });
+
+    await userEvent.click(
+      within(list).getByRole('button', {
+        name: label('label.panel.menu', { title: '待出库明细' }),
+      }),
+    );
+    await userEvent.click(
+      await screen.findByRole('menuitem', { name: zhCN['label.panel.open'] }),
+    );
+    // The page's hold as the scope, the reader's value as the view's own.
+    await expect(args.onNavigate).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        kind: 'view',
+        definitionId: 'orders',
+        instanceId: 'orders-pending',
+        scopeFilter: {
+          op: 'and',
+          children: [
+            expect.objectContaining({
+              field: 'status',
+              value: ['PENDING', 'SHIPPED'],
+            }),
+          ],
+        },
+        filter: {
+          op: 'and',
+          children: [
+            expect.objectContaining({
+              field: 'warehouse',
+              value: ['CN-SOUTH'],
+            }),
+          ],
+        },
+      }),
+    );
+
+    await canvas.findByRole('heading', { level: 2, name: '待出库订单' });
+    // What the board added is a change to the view as saved.
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="view-unsaved"]'),
+      ).not.toBeNull(),
+    );
+    const applied = await canvas.findByRole('region', {
+      name: zhCN['label.applied.title'],
+    });
+    // The reader's 华南: the view's own, removable.
+    await within(applied).findByRole('button', { name: /^清空 仓库 是 华南/ });
+    // The page's 状态: the scope, set by the page, with no ✕.
+    const scoped = [...applied.querySelectorAll<HTMLElement>('[data-scoped]')];
+    await expect(scoped).toHaveLength(1);
+    await expect(scoped[0]!.textContent).toMatch(/^状态 .*已发运/);
+    await expect(scoped[0]!.querySelector('button')).toBeNull();
+
+    // The way back, drawn by the workbench and routed by the host.
+    const back = await canvas.findByRole('region', {
+      name: zhCN['label.origin.board-region'],
+    });
+    await userEvent.click(
+      within(back).getByRole('button', {
+        name: label('label.origin.back', { title: '出库概览' }),
+      }),
+    );
+    // Untouched since it was handed over: nothing is asked.
+    await expect(screen.queryByRole('alertdialog')).toBeNull();
+    await panelNamed(canvasElement, '待出库明细');
+    const again = await canvas.findByRole('region', {
+      name: zhCN['label.filters.bar'],
+    });
+    const region = within(again).getByRole('combobox', { name: '仓库' });
+    await waitFor(() => expect(chosen(region)).toBe('华南'));
+
+    // Once more, and this time 华南 comes off in the workbench: taken off
+    // whole, the view is the saved one again — no 「已修改」.
+    const reopened = await panelNamed(canvasElement, '待出库明细');
+    await userEvent.click(
+      within(reopened).getByRole('button', {
+        name: label('label.panel.menu', { title: '待出库明细' }),
+      }),
+    );
+    await userEvent.click(
+      await screen.findByRole('menuitem', { name: zhCN['label.panel.open'] }),
+    );
+    await canvas.findByRole('heading', { level: 2, name: '待出库订单' });
+    const shown = await canvas.findByRole('region', {
+      name: zhCN['label.applied.title'],
+    });
+    await userEvent.click(
+      await within(shown).findByRole('button', { name: /^清空 仓库 是 华南/ }),
+    );
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="view-unsaved"]'),
+      ).toBeNull(),
+    );
+    await expect(
+      within(shown).queryByRole('button', { name: /^清空 仓库/ }),
+    ).toBeNull();
+    await expect(shown.querySelectorAll('[data-scoped]')).toHaveLength(1);
   },
 };
 

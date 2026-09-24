@@ -16,11 +16,17 @@ import type {
   DashboardPanel,
   DashboardViewConfig,
   DashboardViewPanel,
+  FilterNode,
   FilterTree,
   Issue,
   RuntimeLimits,
 } from '../../model/index.js';
-import { mergeFilters, type FieldKindRegistry } from '../../filter/index.js';
+import {
+  emptyFilter,
+  isEmptyFilter,
+  mergeFilters,
+  type FieldKindRegistry,
+} from '../../filter/index.js';
 import {
   bindingsOf,
   boardCondition,
@@ -47,8 +53,8 @@ export interface PanelRun {
  * What one data panel runs on this board: the view's own config with the
  * panel's override of how it looks laid over it (`presentedConfig`), its
  * time dimension at the board's unit where its definition allows that
- * (`regrouped`, D22 F), and under the board's standing condition, the
- * host's, and every filter wired to it that holds a value — each in the
+ * (`regrouped`, D22 F), and under the board's standing condition and
+ * every filter wired to it that holds a value — each in the
  * panel's own field names (`panelFilterTree`) — but one whose value was
  * pressed on this panel (`DashboardFilters.from`).
  */
@@ -59,12 +65,11 @@ export function panelRun(
   board: {
     applied: DashboardViewConfig;
     filters: DashboardFilters;
-    injected: FilterTree | null;
     kinds: FieldKindRegistry;
     limits: RuntimeLimits;
   },
 ): PanelRun {
-  const { applied, filters, injected, kinds, limits } = board;
+  const { applied, filters, kinds, limits } = board;
   const presented = presentedConfig(
     view.config,
     panel.presentation,
@@ -77,20 +82,19 @@ export function panelRun(
   ]);
   return {
     view: { ...view, config: grouped.config },
-    scope: panelScope(panel, { applied, filters, injected, kinds }),
+    scope: panelScope(panel, { applied, filters, kinds }),
     issues: [...presented.issues, ...grouped.issues],
   };
 }
 
 /**
  * The one condition a data panel runs under, in its own field names: the
- * board's fixed scope (`boardCondition`: `fixed`, D26 Q31) and the host's
- * condition, mapped
- * through the panel's bindings, ANDed with every filter wired to it that
- * holds a value in `filters` (`panelFilterTree`) — but one whose value was
- * pressed on this panel (`DashboardFilters.from`). The panel runs under it
- * with every value in force (`panelRun`); what a text filter offers is
- * counted under it with only the values the host holds
+ * board's fixed scope (`boardCondition`: `fixed`, D26 Q31), mapped through
+ * the panel's bindings, ANDed with every filter wired to it that holds a
+ * value in `filters` (`panelFilterTree`) — but one whose value was pressed
+ * on this panel (`DashboardFilters.from`). The panel runs under it with
+ * every value in force (`panelRun`); what a text filter offers is counted
+ * under it with only the values the host holds
  * (`FilterValues.candidatesOf`), so the two never tell apart what scope a
  * panel is in.
  */
@@ -99,20 +103,82 @@ export function panelScope(
   board: {
     applied: DashboardViewConfig;
     filters: DashboardFilters;
-    injected: FilterTree | null;
     kinds: FieldKindRegistry;
   },
 ): FilterTree {
-  const { applied, filters, injected, kinds } = board;
+  const { applied, filters, kinds } = board;
   const bindings = bindingsOf(panel);
-  // A filter whose value was pressed on this very panel does not narrow it
-  // (D22 I): the panel keeps every group, and marks the one pressed.
-  const wired = bindings.filter(
-    binding => filters.from?.[binding.globalField] !== panel.id,
-  );
   return mergeFilters(
-    mapGlobalFilter(mergeFilters(boardCondition(applied), injected), bindings),
-    panelFilterTree(applied, filters, wired, kinds),
+    mapGlobalFilter(boardCondition(applied), bindings),
+    panelFilterTree(applied, filters, wiredOn(panel, filters), kinds),
+  );
+}
+
+/**
+ * The same condition as `panelScope`, in the two parts a view takes off
+ * the board (D26 Q30): what is not the reader's — the board's fixed scope
+ * (`fixed`, D26 Q31) and what the page holds (`held`) — is the scope the
+ * opened view runs under, which nobody there takes off; the rest — the
+ * board's standing `filter` and the reader's values — becomes the view's
+ * own conditions. `null` for a part that holds nothing.
+ */
+export function panelHandOver(
+  panel: DashboardViewPanel,
+  board: {
+    applied: DashboardViewConfig;
+    filters: DashboardFilters;
+    held(name: string): boolean;
+    kinds: FieldKindRegistry;
+  },
+): { scopeFilter: FilterTree | null; filter: FilterTree | null } {
+  const { applied, filters, held, kinds } = board;
+  const wired = wiredOn(panel, filters);
+  const part = (page: boolean) => ({
+    values: Object.fromEntries(
+      Object.entries(filters.values).filter(([name]) => held(name) === page),
+    ),
+  });
+  const bindings = bindingsOf(panel);
+  // Each one flat "all of", the board's own conditions first: the
+  // conditions a reader then sees one by one.
+  const scope = [
+    ...conjuncts(mapGlobalFilter(fixedOf(applied), bindings)),
+    ...conjuncts(panelFilterTree(applied, part(true), wired, kinds)),
+  ];
+  const own = [
+    ...conjuncts(mapGlobalFilter(standingOf(applied), bindings)),
+    ...conjuncts(panelFilterTree(applied, part(false), wired, kinds)),
+  ];
+  return {
+    scopeFilter: scope.length > 0 ? { op: 'and', children: scope } : null,
+    filter: own.length > 0 ? { op: 'and', children: own } : null,
+  };
+}
+
+/** The conditions a tree ANDs, one by one; none for an empty or no tree. */
+function conjuncts(tree: FilterTree | null): FilterNode[] {
+  if (!tree || isEmptyFilter(tree)) return [];
+  return tree.op === 'and' ? tree.children : [tree];
+}
+
+/** The board's fixed scope alone (`boardCondition` without `filter`). */
+function fixedOf(config: DashboardViewConfig): FilterTree {
+  return boardCondition({ ...config, filter: emptyFilter() });
+}
+
+/** The board's standing `filter` alone (`boardCondition` without `fixed`). */
+function standingOf(config: DashboardViewConfig): FilterTree {
+  return boardCondition({ ...config, fixed: emptyFilter() });
+}
+
+/**
+ * The panel's bindings but the ones whose value was pressed on this very
+ * panel, which do not narrow it (D22 I): the panel keeps every group, and
+ * marks the one pressed.
+ */
+function wiredOn(panel: DashboardViewPanel, filters: DashboardFilters) {
+  return bindingsOf(panel).filter(
+    binding => filters.from?.[binding.globalField] !== panel.id,
   );
 }
 

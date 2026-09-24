@@ -678,35 +678,6 @@ describe('what a text filter offers', () => {
     );
   });
 
-  it("counts under the host's condition, and asks again when it changes", async () => {
-    const { runtime, sources } = await harness(
-      dashboardConfig({
-        fields: [{ name: 'region', label: 'Region', kind: 'string' }],
-        panels: [
-          view('a', 'orders-trend', [
-            { globalField: 'region', panelField: 'warehouse' },
-          ]),
-        ],
-      }),
-    );
-    const asked = () =>
-      vi
-        .mocked(sources.orders.aggregate)
-        .mock.calls.filter(([query]) => query.groupBy?.[0]?.alias === 'value');
-
-    await runtime.valueCandidates('region')?.search('');
-    await runtime.valueCandidates('region')?.search('');
-    expect(asked()).toHaveLength(1);
-
-    runtime.setScopeFilter({
-      op: 'and',
-      children: [{ field: 'region', operator: 'IN', value: ['CN'] }],
-    });
-    await runtime.valueCandidates('region')?.search('');
-    expect(asked()).toHaveLength(2);
-    expect(JSON.stringify(asked()[1][0])).toContain('warehouse');
-  });
-
   it('counts under the condition the panel runs under: the board’s fixed scope, never the reader’s values', async () => {
     const { runtime, sources, scope } = await harness(
       dashboardConfig({

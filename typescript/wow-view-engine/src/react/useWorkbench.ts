@@ -23,12 +23,17 @@ import type {
 } from '../model/index.js';
 import { drillFilter, narrowsTo } from '../analysis/index.js';
 import { defaultRecordConfig } from '../record/index.js';
-import type {
-  AnyViewRuntime,
-  GroupNaming,
-  ViewEngine,
-  ViewRuntimeState,
-  WriteAction,
+import {
+  untouchedSince,
+  type AnyViewRuntime,
+  type BoardOrigin,
+  type GroupNaming,
+  type SavedViewTarget,
+  type ViewEngine,
+  type ViewHandOver,
+  type ViewNavigation,
+  type ViewRuntimeState,
+  type WriteAction,
 } from '../runtime/index.js';
 import { kindMismatch } from './issues.js';
 import { useAutoRefresh, type RefreshController } from './useAutoRefresh.js';
@@ -52,7 +57,11 @@ import { useInstanceSync } from './workbench/instanceSync.js';
 import { useLeaveGuard, type LeaveGuard } from './workbench/leaveGuard.js';
 import { blankView, type NewViewOptions } from './workbench/newView.js';
 import { useReleaseDeleted } from './workbench/releaseDeleted.js';
-import { useUnsavedView, type UnsavedView } from './workbench/unsavedView.js';
+import {
+  useHandedConditions,
+  useHandedRemoval,
+  useHandOver,
+} from './workbench/handOver.js';
 
 export interface WorkbenchOptions {
   /**
@@ -115,12 +124,20 @@ export interface WorkbenchOptions {
    */
   opening?(instanceId: string): DashboardOpening | undefined;
   /**
-   * A view nobody saved, to open here (D22 H): what a dashboard handed the
-   * host's route — a follow-up on a panel's group, or an analysis the board
-   * owns (`ViewNavigation`'s `unsaved`). Each new object opens once,
-   * through the leave guard, as a view made from nothing (`UnsavedView`).
+   * A view a dashboard or an embed handed the host's route, to open here
+   * (D22 H, D26 Q30): a saved one (`view`), opened by its id with what the
+   * reader set on the board among its own conditions, or one nobody saved
+   * (`unsaved`) — a follow-up on a group, a board's own analysis — opened as
+   * a view made from nothing. Either runs under what the page holds as its
+   * scope. Each new object opens once, through the leave guard
+   * (`useHandOver`).
    */
-  unsaved?: UnsavedView | null;
+  handOver?: ViewHandOver | null;
+  /**
+   * The host's route, which the way back to the board a view was handed
+   * from goes by (`board`, D26 Q33). Without it there is no way back drawn.
+   */
+  onNavigate?(to: ViewNavigation): void;
 }
 
 /**
@@ -181,6 +198,8 @@ export interface HeldView {
    * opened with, so the shell opens it with its editor folded.
    */
   handed?: true;
+  /** The board it was handed from, for the way back (`WorkbenchController.board`). */
+  board?: BoardOrigin;
 }
 
 /**
@@ -283,6 +302,15 @@ export interface WorkbenchController {
    * is asked about. Does nothing while nothing held has an origin.
    */
   back(): void;
+  /**
+   * The board the open view was handed from (D26 Q33), while it is the view
+   * on screen and a route goes back: the shell draws 「返回〈仪表盘〉」 from
+   * it. `null` under a view opened out of another here, whose own way back
+   * (`back`) is the one on screen.
+   */
+  board: BoardOrigin | null;
+  /** Goes back to `board` through the host's route, past the leave guard. */
+  toBoard(): void;
   opened: OpenViewState;
   /** Null while the view is unopenable or still loading. */
   runtime: AnyViewRuntime | null;
@@ -369,6 +397,7 @@ export function useWorkbench(
     newView,
     onDrilldown,
     opening,
+    onNavigate,
   } = options;
   // Held by what they say: a host writes the array inline, so the object is
   // new every render while the kinds in it are not.
@@ -416,12 +445,22 @@ export function useWorkbench(
     [engine],
   );
 
+  // A saved view a board handed over (D26 Q30): the page's hold is its
+  // scope for as long as it is the view opened by id, and goes when the
+  // reader picks another.
+  const [handed, setHanded] = useState<SavedViewTarget | null>(null);
+  const handedHere =
+    handed &&
+    handed.instanceId === openId &&
+    handed.definitionId === definitionId
+      ? handed
+      : null;
   // A view made from nothing releases the one opened by id; a drilled view
   // keeps it, because it is the origin.
   const byId = useOpenView(
     engine,
     held && !held.origin ? null : openId,
-    null,
+    handedHere?.scopeFilter ?? null,
     opening,
   );
   const opened: OpenViewState = held
@@ -430,6 +469,10 @@ export function useWorkbench(
   const wrongKind = held ? null : kindMismatch(byId.runtime, kinds);
   const runtime = held ? held.runtime : wrongKind ? null : byId.runtime;
   const current = useViewRuntime(runtime);
+  const handedDraft = useHandedConditions(
+    handedHere,
+    wrongKind ? null : byId.runtime,
+  );
   const state = useMemo(() => namedState(current, held), [current, held]);
   const autoRun = list.preferences?.autoRun ?? true;
   // The preference reaches every runtime alike; which members run on their
@@ -438,7 +481,13 @@ export function useWorkbench(
   useEffect(() => {
     runtime?.setAutoApply(autoRun);
   }, [runtime, autoRun]);
-  const filter = useFilterEditor(runtime);
+  // A handed saved view's ✕ takes a board's condition off (D26 Q30); a
+  // view held here is another runtime, and clears as any view does.
+  const filter = useHandedRemoval(
+    useFilterEditor(runtime),
+    held ? null : handedHere,
+    runtime,
+  );
   const refresh = useAutoRefresh(runtime);
   const commands = useSaveCommands(engine, runtime);
   const manager = useViewManager(engine, definitionId, list);
@@ -448,7 +497,12 @@ export function useWorkbench(
           // A held view counts as dirty from the start — losing it loses
           // everything — but one nobody has touched yet holds nothing worth
           // a question: the draft is the config it opened with.
-          dirty: held ? state.draft !== held.draft : state.dirty,
+          // A saved view handed over is the same: what the board added is
+          // its only change until the reader makes another, and the way
+          // back puts that on the board again (D26 Q33).
+          dirty: held
+            ? state.draft !== held.draft
+            : state.dirty && !untouchedSince(state.draft, handedDraft),
           write: state.write,
         }
       : null,
@@ -467,16 +521,26 @@ export function useWorkbench(
     (id: string | null) =>
       request(() => {
         hold(null);
+        setHanded(null);
         setChosen(id);
       }),
     [request, hold],
   );
-  useUnsavedView(options.unsaved, {
+  const openHanded = useCallback(
+    (target: SavedViewTarget) => {
+      hold(null);
+      setHanded(target);
+      setChosen(target.instanceId);
+    },
+    [hold],
+  );
+  useHandOver(options.handOver, {
     engine,
     definitionId,
     kinds,
     request,
     hold,
+    open: openHanded,
   });
   // Which view is open is the one piece of workbench state a host may also
   // hold — a route, a link somebody shares — so the two are kept in
@@ -620,6 +684,18 @@ export function useWorkbench(
     // with the result it kept.
     request(() => hold(current.from));
   }, [request, hold]);
+  // The board a view was handed from, while that view is on screen: a view
+  // opened out of it here shows its own way back instead.
+  const board = !onNavigate
+    ? null
+    : held
+      ? held.origin
+        ? null
+        : (held.board ?? null)
+      : (handedHere?.from ?? null);
+  const toBoard = useCallback(() => {
+    if (board) request(() => onNavigate?.(board.back));
+  }, [board, request, onNavigate]);
 
   const reload = list.reload;
   const open = useCallback(
@@ -655,6 +731,8 @@ export function useWorkbench(
     drill,
     follow: holdFrom,
     back,
+    board,
+    toBoard,
     opened,
     runtime,
     state,

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useState, type ReactNode } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import type { AnalysisSort, AnalysisViewConfig } from '../../model/index.js';
 import {
   hasAsked,
@@ -43,9 +43,9 @@ const NO_SORT: readonly AnalysisSort[] = [];
  * author saved it, and what it was asked under. In the interactive tier the
  * reader may also switch between table and chart, order the table by a
  * header, and press a group for the analysis view's own follow-up menu —
- * each item opened through the host's route as a view nobody saved, the
- * page's narrowing among its conditions (`usePanelFollowUps`, the same
- * route a dashboard panel's menu takes). Nothing of it is saved.
+ * each item opened through the host's route as a view nobody saved, under
+ * the page's narrowing as its scope (`usePanelFollowUps`, the same route a
+ * dashboard panel's menu takes). Nothing of it is saved.
  */
 export function EmbeddedAnalysis({
   runtime,
@@ -65,9 +65,16 @@ export function EmbeddedAnalysis({
   const filter = useFilterEditor(runtime);
   // The follow-ups exist in the interactive tier, and only with a route to
   // open them by: a menu whose items go nowhere is not offered.
+  // What they open runs under the page's narrowing as this view does:
+  // locked there too, the reader's own conditions none (D26 Q30).
+  const pageScope = useCallback(
+    () => ({ scopeFilter: runtime.scopeFilter, filter: null }),
+    [runtime],
+  );
   const followUps = usePanelFollowUps(
     runtime,
     interactive ? onNavigate : undefined,
+    pageScope,
   );
   const result = useAnalysisResult(
     runtime as ViewRuntime<AnalysisViewConfig>,

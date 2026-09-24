@@ -26,7 +26,12 @@ import {
   ViewEngine,
   defaultRuntimeEnvironment,
 } from '../src/index.js';
-import type { FilterTree, RecordData, ViewInstance } from '../src/index.js';
+import type {
+  FilterTree,
+  RecordData,
+  ViewInstance,
+  ViewNavigation,
+} from '../src/index.js';
 import { EmbeddedView } from '../src/ui/index.js';
 import {
   INSTANT,
@@ -741,10 +746,14 @@ describe('EmbeddedView tiers and switches', () => {
     await userEvent.click(
       screen.getByRole('button', { name: 'Open in the workbench' }),
     );
+    // The page's narrowing stays the page's there: its scope, locked, and
+    // nothing of the reader's to carry (D26 Q30).
     expect(onNavigate).toHaveBeenCalledWith({
       kind: 'view',
+      definitionId: 'orders',
       instanceId: 'orders-1',
-      filter: scope,
+      scopeFilter: scope,
+      filter: null,
     });
 
     // Switched off, it is not there, route or not.
@@ -793,13 +802,18 @@ describe('EmbeddedView tiers and switches', () => {
     });
   });
 
-  it('opens the follow-up menu on a group, through the host route, in the interactive tier', async () => {
+  it('opens the follow-up menu on a group, through the host route, in the interactive tier — the page’s narrowing its locked scope', async () => {
     const onNavigate = vi.fn();
     const engine = engineOf(analysisConfig({ layout: 'table' }));
+    const scope: FilterTree = {
+      op: 'and',
+      children: [{ field: 'status', operator: 'EQ', value: 'PENDING' }],
+    };
     render(
       <EmbeddedView
         engine={engine}
         instanceId="orders-1"
+        scopeFilter={scope}
         interaction="interactive"
         onNavigate={onNavigate}
       />,
@@ -812,8 +826,18 @@ describe('EmbeddedView tiers and switches', () => {
       await screen.findByRole('menuitem', { name: /See these records/ }),
     );
     expect(onNavigate).toHaveBeenCalledWith(
-      expect.objectContaining({ kind: 'unsaved', definitionId: 'orders' }),
+      expect.objectContaining({
+        kind: 'unsaved',
+        definitionId: 'orders',
+        scopeFilter: scope,
+      }),
     );
+    // Not among the view's own conditions, where the reader could take it
+    // off (D26 Q30, H4).
+    const [to] = onNavigate.mock.calls[0] as [ViewNavigation];
+    expect(
+      JSON.stringify(to.kind === 'unsaved' && to.config.filter),
+    ).not.toContain('PENDING');
   });
 
   it('fills its container when asked, and never refreshes itself when told not to', async () => {

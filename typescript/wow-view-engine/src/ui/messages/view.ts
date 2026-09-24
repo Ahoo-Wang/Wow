@@ -41,6 +41,7 @@ export const viewMessages = {
   // applied bar's to show, not this line's.
   'label.origin.back': 'Back to {title}',
   'label.origin.region': 'Opened from another view',
+  'label.origin.board-region': 'Opened from a dashboard',
   // The follow-up menu on one group of an analysis result (D20 追问): the
   // records behind it, the same question by another dimension, or the
   // question asked of the group alone.

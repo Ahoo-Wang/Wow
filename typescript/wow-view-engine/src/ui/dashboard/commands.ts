@@ -218,21 +218,27 @@ export function panelCommands({
   const content = isContentPanel(stored);
   const owned = isOwnedPanel(stored);
   const commands: PanelCommands = {};
-  // The view it shows opens where views are worked on, under the board's
-  // condition as this panel carries it — mapped onto the view's own fields,
-  // which is the only form another view can read it in. An analysis the
-  // board owns has no saved view to open, so it goes unsaved, the board's
-  // conditions its own (「打开源视图」, batch D).
+  // The view it shows opens where views are worked on, taking what this
+  // panel takes off the board (D26 Q30) — mapped onto the view's own
+  // fields, which is the only form another view can read it in: what the
+  // page holds as its scope, the reader's values as its own conditions. An
+  // analysis the board owns has no saved view to open, so it goes unsaved
+  // (「在工作台中打开」, batch D).
   if (onNavigate && shown !== undefined && child)
-    commands.open = () =>
+    commands.open = () => {
+      const handed = dashboard.handOver(id);
       onNavigate({
         kind: 'view',
+        definitionId: child.definition.id,
         instanceId: shown,
-        filter: child.scopeFilter,
+        scopeFilter: handed?.scopeFilter ?? null,
+        filter: handed?.filter ?? null,
+        ...(handed?.from ? { from: handed.from } : {}),
       });
+    };
   else if (onNavigate && owned && child?.kind === 'analysis')
     commands.open = () => {
-      const to = ownedNavigation(child, name);
+      const to = ownedNavigation(child, name, dashboard.handOver(id));
       if (to) onNavigate(to);
     };
   if (child) commands.refresh = () => dashboard.refreshPanel(id);

@@ -18,6 +18,7 @@ import type {
 } from '../../react/index.js';
 import type {
   CrossFilterOutcome,
+  HandOver,
   ViewNavigation,
   DataViewRuntime,
   PressDestination,
@@ -39,6 +40,8 @@ export interface PanelPress {
   crossFilter(row: RecordData): CrossFilterOutcome;
   pressed(row: RecordData): boolean;
   destination(row: RecordData): Promise<PressDestination | null>;
+  /** What the panel's view takes off the board (D26 Q30), read at the press. */
+  handOver(): HandOver | null;
   /** Says one line to whoever cannot see what a press changed. */
   say(text: string): void;
 }
@@ -56,6 +59,7 @@ export function panelPress(
     crossFilter: row => dashboard.crossFilter(panel.id, row),
     pressed: row => dashboard.pressed(panel.id, row),
     destination: row => dashboard.destination(panel.id, row),
+    handOver: () => dashboard.handOver(panel.id),
     say,
   };
 }

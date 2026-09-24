@@ -643,14 +643,24 @@ export function WorkbenchShell({
               />
 
               {/* Where this view came from, when it was opened out of another
-                (D20): the way back, naming the origin, under the title bar
-                and before anything the view says about itself. The
-                workbench holds it; no kind's parts know it exists. */}
-              {workbench.held?.origin && (
+                (D20) or handed over from a dashboard (D26 Q33): the way
+                back, naming the origin, under the title bar and before
+                anything the view says about itself. The workbench holds
+                it; no kind's parts know it exists. */}
+              {workbench.held?.origin ? (
                 <OriginBar
-                  origin={workbench.held.origin}
+                  title={workbench.held.origin.title}
+                  from="view"
                   onBack={workbench.back}
                 />
+              ) : (
+                workbench.board && (
+                  <OriginBar
+                    title={workbench.board.title}
+                    from="dashboard"
+                    onBack={workbench.toBoard}
+                  />
+                )
               )}
 
               <StatusLine

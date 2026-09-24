@@ -20,18 +20,15 @@
 import type { EditHistoryState } from './history.js';
 import type {
   AnalysisDateUnit,
-  AnalysisViewConfig,
   DashboardDefinition,
   DashboardFilters,
   DashboardViewConfig,
   DataViewDefinition,
   FieldOption,
-  FilterNode,
   FilterTree,
   FilterValue,
   Issue,
   RecordData,
-  RecordViewConfig,
   RefreshConfig,
   RuntimeLimits,
   ViewInstance,
@@ -40,6 +37,7 @@ import type {
 import type { FieldKindRegistry } from '../../filter/index.js';
 import type { PanelDefinition } from '../../dashboard/index.js';
 import type { RuntimeEnvironment } from '../environment.js';
+import type { HandOver } from '../navigation.js';
 import type { OptionSource } from '../source.js';
 import type { DataViewRuntime } from '../viewRuntime.js';
 import type { ViewRuntime, ViewRuntimeState } from '../viewRuntimeTypes.js';
@@ -223,6 +221,15 @@ export interface DashboardRuntime
    * when this board opens. `null` for one gone, unreadable or not a board.
    */
   destinationBoard(instanceId: string): Promise<DestinationBoard | null>;
+  /**
+   * What one data panel's view takes with it off the board (D26 Q30), in
+   * its own field names: the filters the page holds (`holdFilters`) as
+   * `scopeFilter`, the board's standing condition and the reader's values
+   * as `filter`, a value pressed on this very panel left out as the panel
+   * leaves it out — and, for a saved board, the way back to it as it stands
+   * (`from`, Q33). `null` for a panel that is no data panel.
+   */
+  handOver(panelId: string): HandOver | null;
 }
 
 /**
@@ -235,68 +242,6 @@ export interface HeldFilters {
   values: Readonly<Record<string, FilterValue | null>>;
   unit?: AnalysisDateUnit | null;
 }
-
-/**
- * What a name 「{subject} · {group}」 claims (D20 追问): the conditions that
- * select the group, and what the view is without them. While every one of
- * `conditions` still narrows the view (`narrowsTo`) the name stands; once
- * one is taken off, edited or negated, the view goes by `subject` — a name
- * that still said the group would say what the view no longer shows.
- */
-export interface GroupNaming {
-  /**
-   * What the view is, the group aside: the definition's name for its
-   * records, or the name of the question it was opened from.
-   */
-  subject: string;
-  /** The group's own conditions, as the view opened with them. */
-  conditions: readonly FilterNode[];
-}
-
-/**
- * Where a way off the board goes, handed to the host's route (D22 D, H, I):
- * the package never touches the address, so a view opened in the workbench,
- * a follow-up on a group and a panel's custom destination are all the
- * host's to take.
- */
-export type ViewNavigation =
-  /**
-   * A saved record or analysis view, under `filter` in its own field names:
-   * the board's filters as they reach the panel (在工作台中打开), or the
-   * group pressed (a custom destination). A host hands it to the view as
-   * its scope.
-   */
-  | { kind: 'view'; instanceId: string; filter: FilterTree | null }
-  /**
-   * A view nobody saved: a follow-up on a group — its records, the same
-   * question split by another dimension or of the group alone (D22 H) — or
-   * an analysis the board owns, opened in the workbench. Its conditions,
-   * the board's filters among them, are its own, as a view drilled out of
-   * another's are; a host opens it as `DataWorkbench`'s `unsaved`.
-   */
-  | {
-      kind: 'unsaved';
-      definitionId: string;
-      title: string;
-      config: RecordViewConfig | AnalysisViewConfig;
-      /** What `title` says of a group pressed, when it names one. */
-      named?: GroupNaming;
-    }
-  /**
-   * Another dashboard (D23 Q17, a panel's 「另一块仪表盘」), to open with
-   * `filters` as its reader's values — the host hands them to
-   * `DashboardWorkbench`'s `initialFilters` (or `OpenOptions.filters`), never
-   * into the board's config: each filter the author mapped holds the group's
-   * value on its dimension, every other one its default.
-   */
-  | {
-      kind: 'dashboard';
-      definitionId: string;
-      instanceId: string;
-      filters: DashboardFilters;
-    }
-  /** A page of the host's: a panel's URL filled with the group pressed. */
-  | { kind: 'url'; url: string };
 
 export interface DashboardRuntimeOptions {
   id: string;
@@ -317,8 +262,6 @@ export interface DashboardRuntimeOptions {
   createPanelRuntime: PanelRuntimeFactory;
   /** See `ViewRuntime.optionSource`. */
   resolveOptions?(key: string): OptionSource;
-  /** An outer condition in force from the first execution, as for a data view. */
-  scopeFilter?: FilterTree | null;
   /**
    * The values a definition's fields hold, counted, asked under `scope`
    * (`ValueCandidateSources`) — what a text filter offers from the fields it

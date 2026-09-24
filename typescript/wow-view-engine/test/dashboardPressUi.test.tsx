@@ -443,12 +443,19 @@ describe('a view nobody saved, opened in the workbench', () => {
       store,
       resolveSource: () => testSource(),
     });
-    const unsaved = {
+    const unsaved: ViewNavigation = {
+      kind: 'unsaved',
+      definitionId: 'orders',
       title: 'Orders · Warehouse is CN',
       config: recordConfig(),
+      scopeFilter: null,
     };
     const { rerender } = render(
-      <DataWorkbench engine={engine} definitionId="orders" unsaved={unsaved} />,
+      <DataWorkbench
+        engine={engine}
+        definitionId="orders"
+        handOver={unsaved}
+      />,
     );
     await screen.findByRole('heading', {
       level: 2,
@@ -459,7 +466,11 @@ describe('a view nobody saved, opened in the workbench', () => {
     expect(folded()).toBe(true);
     const held = engine.openRuntimes().length;
     rerender(
-      <DataWorkbench engine={engine} definitionId="orders" unsaved={unsaved} />,
+      <DataWorkbench
+        engine={engine}
+        definitionId="orders"
+        handOver={unsaved}
+      />,
     );
     expect(engine.openRuntimes().length).toBe(held);
   });
@@ -478,7 +489,10 @@ describe('a view nobody saved, opened in the workbench', () => {
       <DataWorkbench
         engine={engine}
         definitionId="orders"
-        unsaved={{
+        handOver={{
+          kind: 'unsaved',
+          definitionId: 'orders',
+          scopeFilter: null,
           title: 'Orders · Warehouse is CN',
           config: { ...recordConfig(), filter: { op: 'and', children: group } },
           named: { subject: 'Orders', conditions: group },
@@ -506,7 +520,13 @@ describe('a view nobody saved, opened in the workbench', () => {
       <DataWorkbench
         engine={engine}
         definitionId="orders"
-        unsaved={{ title: 'By warehouse · CN', config: analysisConfig() }}
+        handOver={{
+          kind: 'unsaved',
+          definitionId: 'orders',
+          scopeFilter: null,
+          title: 'By warehouse · CN',
+          config: analysisConfig(),
+        }}
       />,
     );
     await screen.findByRole('heading', { level: 2, name: /By warehouse · CN/ });

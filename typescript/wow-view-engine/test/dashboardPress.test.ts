@@ -349,11 +349,53 @@ describe('a custom destination (D22 I)', () => {
     expect(await runtime.destination('chart', { warehouse: 'CN' })).toEqual({
       to: {
         kind: 'view',
+        definitionId: 'orders',
         instanceId: 'list',
+        scopeFilter: null,
         filter: {
           op: 'and',
           children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
         },
+        from: expect.objectContaining({ title: 'Board' }),
+      },
+    });
+  });
+
+  it('takes what the panel takes off the board (D26 Q30): the page’s hold as the scope, the reader’s value among its own', async () => {
+    const { runtime, clock } = await harness(
+      board(
+        view('chart', 'by-warehouse', {
+          click: { kind: 'view', instanceId: 'list' },
+        }),
+      ),
+    );
+    runtime.holdFilters({ values: { region: ['CN'] } });
+    const held = await runtime.destination('chart', { warehouse: 'CN' });
+    expect(held && 'to' in held && held.to).toMatchObject({
+      kind: 'view',
+      scopeFilter: {
+        op: 'and',
+        children: [{ field: 'warehouse', operator: 'IN', value: ['CN'] }],
+      },
+      filter: {
+        op: 'and',
+        children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+      },
+    });
+
+    runtime.holdFilters(null);
+    runtime.setFilterValue('region', ['EU']);
+    clock.advance(AUTO_APPLY_DELAY_MS);
+    const own = await runtime.destination('chart', { warehouse: 'EU' });
+    expect(own && 'to' in own && own.to).toMatchObject({
+      kind: 'view',
+      scopeFilter: null,
+      filter: {
+        op: 'and',
+        children: [
+          { field: 'warehouse', operator: 'IN', value: ['EU'] },
+          { field: 'warehouse', operator: 'EQ', value: 'EU' },
+        ],
       },
     });
   });

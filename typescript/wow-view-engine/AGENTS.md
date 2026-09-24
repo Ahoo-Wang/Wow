@@ -206,6 +206,7 @@ src/
     fetchRecord.ts            — One record, whole, by its row key within the injected scope — not the page's conditions, no projection
     issues.ts                 — `toIssue`: one Issue for whatever a command threw
     listeners.ts              — `listenerSet`: the subscribe / notify half every store in this package has
+    navigation.ts             — `ViewNavigation`: where a way off a board or an embed goes, for the host's route; `HandOver`, the two parts a view takes off a board (what the page holds as its scope, the reader's values as its own conditions) and the board to go back to (`BoardOrigin`); `GroupNaming`; `withHandedFilter`
     openRuntimes.ts           — The views one engine has open, and who holds an instance
     panelViews.ts             — `PanelViews`: a dashboard panel's view saved as a view of its own and the panel pointed at it — the analysis it owns (`saveOwnedView`) or the saved view it shows, copied for another audience (`copyPanelView`)
     pending.ts                — `comparePending`: what the draft says that the applied config does not (D17-6), presentation members excepted
@@ -234,18 +235,18 @@ src/
     writeLedger.ts            — The write ledger: outcomes by requestId, retry, conflicts
     index.ts                  — Transient state: what is open, what is in flight, what came back
     dashboard/                — What the dashboard runtime is made of
-      contract.ts             — `DashboardRuntime`, its state (the tab on screen, what the filters hold, whether it is being built and the reader's own refresh interval among it) and its options: what the dashboard runtime is to the rest of the package
+      contract.ts             — `DashboardRuntime`, its state (the tab on screen, what the filters hold, whether it is being built and the reader's own refresh interval among it) and its options: what the dashboard runtime is to the rest of the package; `handOver`, what a panel's view takes off the board
       commands.ts             — `BoardCommands`: the runtime's commands that are one call on one of its parts — the edits, what the filters hold, where a board opens — or one patch of its snapshot: building (`setBuilding`, which holds the timer) and whose refresh interval is in force (`setRefreshInterval`)
       filterCandidates.ts     — `FilterCandidates`: what a text filter offers, the values of every field it is wired to counted across the board (`ValueCandidateSources`)
       filterValues.ts         — `FilterValues`: what the filters hold — admitted (one reader's change all or nothing, a host's address partly), shown at once, run a moment later (「改了就跑」)
       grouping.ts             — `regrouped`: the board's time grouping on one panel's time dimension, where its definition allows the unit (`PanelGrouping`)
-      panelRun.ts             — `panelRun`: what one data panel runs on the board — its look, its time grouping, the conditions that reach it (`panelScope`, which a text filter's values are counted under too); `panelReach`
+      panelRun.ts             — `panelRun`: what one data panel runs on the board — its look, its time grouping, the conditions that reach it (`panelScope`, which a text filter's values are counted under too), and the same in the two parts a view takes off the board (`panelHandOver`); `panelReach`
       children.ts             — PanelChildren: one child runtime per data panel — a saved view or one the board owns (`PanelView`, `panelView`); a new config for the same view is an edit and a run, not a new child — an edit alone when only how it is drawn changed; a panel on a tab not shown is held as it is, and one that missed a refresh runs when its tab is shown
       editing.ts              — `DashboardEditing`, `DashboardFilterEditing` and `boardEditing`: building the board and its filters, each edit a kernel function applied to the draft and the screen alike and one step of the history (`undo`, `redo`); a data panel added comes wired (`autoBindings`)
       history.ts              — `EditHistory`: one step per edit command, the members it changed before and after on the draft and the screen, a burst of one naming or setting on one thing one step; `rewound`
       panels.ts               — Panel helpers: reading, addressing, comparing; `blocksBoard`, the errors that stop the whole board; `stopsSave`, what stops a save of each kind; `shownTab`, the tab on screen
       presentation.ts         — `presentedConfig`: a panel's override of how it looks laid over its view's config, dropped with a note when it no longer fits
-      press.ts                — `PanelPresses`: a press on a panel's group worked out (D22 H, I) — the group's value in a board filter's shape set from the panel (`crossFilter`, a second press clears), whether a group is the one pressed (`pressed`), and where a custom destination goes carrying it (`destination`: a filled URL, a saved view under the group's conditions on the fields its data has too, or another board with its mapped filters set and the rest at their defaults — a mapping gone stale falls back to the follow-up menu); `board`, another board read only when asked
+      press.ts                — `PanelPresses`: a press on a panel's group worked out (D22 H, I) — the group's value in a board filter's shape set from the panel (`crossFilter`, a second press clears), whether a group is the one pressed (`pressed`), and where a custom destination goes carrying it (`destination`: a filled URL, a saved view taking what the panel takes off the board (`handOver`) and the group's conditions, on the fields its data has too, or another board with its mapped filters set and the rest at their defaults — a mapping gone stale falls back to the follow-up menu); `board`, another board read only when asked
       references.ts           — PanelReferences: loading what panels point at
   store/                      — Persistence port — imports model only
     MemoryViewStore.ts        — In-memory implementation for examples and tests
@@ -290,7 +291,7 @@ src/
       leaveGuard.ts           — Headless leave protection; `/ui` draws `LeaveDialog` from it
       newView.ts              — What `create` makes: the kind's default config and the audience it goes to
       releaseDeleted.ts       — Lets a workbench's pinned id go once the view is deleted
-      unsavedView.ts          — `useUnsavedView`: a view nobody saved a host hands the workbench (a dashboard's follow-up), opened once per object through the leave guard, held as `handed` so the shell opens it folded
+      handOver.ts             — `useHandOver`: a view a host hands the workbench (D26 Q30) — a saved one opened by its id, one nobody saved held as `handed` so the shell opens it folded — once per object through the leave guard, under what the page holds as its scope; `useHandedConditions`, the reader's board values put onto a handed saved view's own conditions
   ui/                         — Default look; may import every layer
     AnalysisChart.tsx         — Dispatches by chart family; nothing else
     AnalysisTable.tsx         — The aggregation as a table: groups first, then metrics, with the totals row from its own ungrouped query rather than from summing what is on screen, and its scope said under 「合计」; read with the record table's recipes — numbers on the right, ids in monospace, `SortableHeader`, held widths and the filler

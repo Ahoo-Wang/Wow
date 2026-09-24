@@ -15,6 +15,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import {
   DashboardWorkbench,
   DataWorkbench,
+  EmbeddedDashboard,
 } from '@ahoo-wang/fetcher-view-engine/ui';
 import {
   AggregationDateUnit,
@@ -63,10 +64,12 @@ type Variant =
   | 'cross'
   | 'to-board'
   | 'to-board-stale'
-  | 'to-board-own';
+  | 'to-board-own'
+  | 'handed';
 
 /** The variants whose host has a route off the board (D22 H, I). */
 const ROUTED: readonly Variant[] = [
+  'handed',
   'clicks',
   'cross',
   'to-board',
@@ -138,6 +141,7 @@ function DashboardDemo({
         ROUTED.includes(variant) ? (
           <RoutedHost
             engine={engine}
+            holdsState={variant === 'handed'}
             onFiltersChange={onFiltersChange}
             onNavigate={onNavigate}
           />
@@ -159,37 +163,76 @@ function DashboardDemo({
 
 /**
  * A host with a route (D22 H, I): the board, and where a way off it goes —
- * the workbench, opened on a saved view under the board's filters or on a
- * view nobody saved (a follow-up), or a page of its own. The filters are
- * kept as a host's address keeps them, so coming back finds the board as
- * it was left.
+ * the workbench, opened on what the board handed over (a saved view, or a
+ * view nobody saved: a follow-up), another board, or a page of its own.
+ * The workbench draws its own way back to the board (D26 Q33), which comes
+ * here as one more route: the board, under the filters it was left on — as
+ * a host's address would keep them. Another board and a page of the
+ * host's are the host's to leave, so those two keep a back button of its
+ * own.
+ *
+ * `holdsState` puts the board on a page that holds one filter — 状态 locked
+ * to what is still in play — as an embed's page does (D24).
  */
 function RoutedHost({
   engine,
+  holdsState = false,
   onFiltersChange,
   onNavigate,
 }: {
   engine: ViewEngine;
+  holdsState?: boolean;
   onFiltersChange?(filters: DashboardFilters): void;
   onNavigate?(to: ViewNavigation): void;
 }) {
   const [away, setAway] = useState<ViewNavigation | null>(null);
   const [filters, setFilters] = useState<DashboardFilters | undefined>();
+  const [tab, setTab] = useState<string | null | undefined>();
+  const route = (to: ViewNavigation) => {
+    onNavigate?.(to);
+    if (to.kind === 'dashboard' && to.instanceId === savedDashboard.id) {
+      // The way back: this board, as it was left.
+      setFilters(to.filters);
+      setTab(to.tab);
+      setAway(null);
+    } else setAway(to);
+  };
+  const reader = {
+    initialFilters: filters,
+    onFiltersChange: (next: DashboardFilters) => {
+      setFilters(next);
+      onFiltersChange?.(next);
+    },
+    onNavigate: route,
+    ...HOST_LANGUAGE,
+  };
   if (away === null)
-    return (
+    return holdsState ? (
+      <EmbeddedDashboard
+        engine={engine}
+        instanceId={savedDashboard.id}
+        interaction="interactive"
+        withTitle
+        filterModes={{ state: 'locked' }}
+        pageValues={{ values: { state: IN_PLAY } }}
+        {...reader}
+      />
+    ) : (
       <DashboardWorkbench
         engine={engine}
         definitionId="overview"
         instanceId={savedDashboard.id}
-        initialFilters={filters}
-        onFiltersChange={next => {
-          setFilters(next);
-          onFiltersChange?.(next);
-        }}
-        onNavigate={to => {
-          onNavigate?.(to);
-          setAway(to);
-        }}
+        initialTab={tab}
+        {...reader}
+      />
+    );
+  if (away.kind === 'view' || away.kind === 'unsaved')
+    return (
+      <DataWorkbench
+        engine={engine}
+        definitionId={away.definitionId}
+        handOver={away}
+        onNavigate={route}
         {...HOST_LANGUAGE}
       />
     );
@@ -205,7 +248,7 @@ function RoutedHost({
       </button>
       {away.kind === 'url' ? (
         <p data-slot="host-page">宿主页面：{away.url}</p>
-      ) : away.kind === 'dashboard' ? (
+      ) : (
         // Another board, opened with the values the press carried as its
         // reader's — the host's address would hold them the same way.
         <DashboardWorkbench
@@ -216,18 +259,48 @@ function RoutedHost({
           initialFilters={away.filters}
           {...HOST_LANGUAGE}
         />
-      ) : (
-        <DataWorkbench
-          engine={engine}
-          definitionId="orders"
-          {...(away.kind === 'unsaved'
-            ? { unsaved: away }
-            : { instanceId: away.instanceId })}
-          {...HOST_LANGUAGE}
-        />
       )}
     </div>
   );
+}
+
+/** What the page of the 'handed' board holds 状态 to: the orders in play. */
+const IN_PLAY = ['PENDING', 'SHIPPED'];
+
+/**
+ * The outbound overview with a second filter, 状态, wired to both data
+ * panels — the one the page of the 'handed' variant locks.
+ */
+function handedConfig(): DashboardViewConfig {
+  const base = dashboardConfig();
+  return {
+    ...base,
+    fields: [
+      ...base.fields,
+      {
+        name: 'state',
+        label: '状态',
+        kind: 'enum',
+        multiple: true,
+        options: [
+          { value: 'PENDING', label: '待出库' },
+          { value: 'SHIPPED', label: '已发运' },
+          { value: 'CANCELLED', label: '已取消' },
+        ],
+      },
+    ],
+    panels: base.panels.map(panel =>
+      panel.kind === 'view'
+        ? {
+            ...panel,
+            bindings: [
+              ...(panel.bindings ?? []),
+              { globalField: 'state', panelField: 'status' },
+            ],
+          }
+        : panel,
+    ),
+  };
 }
 
 function savedConfig(variant: Variant) {
@@ -260,6 +333,7 @@ function savedConfig(variant: Variant) {
       ),
     });
   if (variant === 'to-board-own') return ownFilterConfig();
+  if (variant === 'handed') return handedConfig();
   if (variant === 'tabs') return tabbedConfig();
   if (variant === 'owned') return ownedConfig();
   if (variant === 'empty' || variant === 'empty-shared')
@@ -754,6 +828,19 @@ export const ToAnotherBoardWithOwnFilter: Story = {
 export const PreBatchCCondition: Story = {
   name: '批 C 之前的整板条件',
   args: { variant: 'pre-c' },
+};
+
+/**
+ * Leaving the board (D26 Q30, Q33): the page holds 状态 to the orders still
+ * in play (locked); set 仓库 to 华南 and 「⋯ → 在工作台中打开」 「待出库明细」.
+ * The workbench opens 「待出库订单」 「已修改」: 仓库 是 华南 is its own
+ * condition, with a ✕, while the page's 状态 is its scope, with none. The
+ * row under the title bar, 「返回 出库概览」, goes back to the board under
+ * 华南.
+ */
+export const OpenInWorkbench: Story = {
+  name: '在工作台中打开：带着板上的筛选',
+  args: { variant: 'handed' },
 };
 
 /** A dashboard with nothing on it yet. */

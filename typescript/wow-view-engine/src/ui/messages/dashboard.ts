@@ -222,6 +222,8 @@ export const dashboardMessages = {
   'dashboard.filter.unknown': 'This dashboard has no filter {field}.',
   'dashboard.filter.held':
     'The page holds the filter {field}; it cannot be changed here.',
+  'dashboard.scope.unsupported':
+    'A dashboard takes no outer condition: lock or hide its filters instead.',
   'dashboard.grouping.kept':
     'This panel keeps its own time grouping: its data cannot be grouped the way the dashboard is.',
   'dashboard.grouping.unit-duplicate': 'The time grouping offers {unit} twice.',

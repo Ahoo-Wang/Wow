@@ -30,13 +30,17 @@ import {
   type DashboardViewConfig,
   type ViewInstance,
   type DashboardViewPanel,
+  type FieldDefinition,
   type FilterLeaf,
+  type FilterNode,
+  type FilterTree,
   type FilterValue,
   type Issue,
   type IssuePath,
   type RecordData,
 } from '../../model/index.js';
 import {
+  filterFields,
   isReferenceFilterValue,
   issue,
   readInstant,
@@ -57,7 +61,7 @@ import {
   type PanelReference,
 } from '../../dashboard/index.js';
 import type { DataViewRuntime } from '../viewRuntime.js';
-import type { ViewNavigation } from './contract.js';
+import type { HandOver, ViewNavigation } from '../navigation.js';
 import { panelsOf } from './panels.js';
 
 /** What a press that sets a filter did (D22 I). */
@@ -103,6 +107,8 @@ export interface PressHost {
   holds(name: string): boolean;
   /** A saved view, loaded: what a destination carries its group into. */
   reference(instanceId: string): Promise<PanelReference | null>;
+  /** What the panel's view would take off the board (`handOver`). */
+  handOver(panelId: string): HandOver | null;
 }
 
 /** The panel, the child and the config its rows ran on. */
@@ -162,10 +168,12 @@ export class PanelPresses {
 
   /**
    * Where a press on a panel with a custom destination goes: a page of the
-   * host's, its URL filled with the group; or another saved view, under the
-   * group's conditions on the fields its data has too — by name and by type,
-   * the rule auto-connect wires by (D22 G). A view that is gone, or is a
-   * dashboard, is refused and said.
+   * host's, its URL filled with the group; or another saved view, taking
+   * what the panel's view would take off the board (D26 Q30) — what the
+   * page holds as its scope, the reader's values and the group's
+   * conditions as its own — each condition on fields its data has too, by
+   * name and by type, the rule auto-connect wires by (D22 G). A view that
+   * is gone, or is a dashboard, is refused and said.
    */
   async destination(
     panelId: string,
@@ -191,23 +199,23 @@ export class PanelPresses {
       return {
         refused: issue('dashboard.click.destination-unsupported', at),
       };
-    const byName = new Map(reference.fields.map(field => [field.name, field]));
-    const child = this.host.child(panelId);
-    const conditions: FilterLeaf[] = pressed.groups.flatMap(drilled => {
-      const source = child?.fields.find(
-        field => field.name === drilled.group.field,
-      );
-      const target = byName.get(drilled.group.field);
-      return source && target && sameFilterType(source.kind, target.kind)
-        ? drilled.conditions
-        : [];
-    });
+    const carries = carriedOnto(
+      this.host.child(panelId)?.fields ?? [],
+      reference.fields,
+    );
+    const conditions: FilterLeaf[] = pressed.groups.flatMap(drilled =>
+      carries(drilled.group.field) ? drilled.conditions : [],
+    );
+    const handed = this.host.handOver(panelId);
+    const own = kept(handed?.filter ?? null, carries);
     return {
       to: {
         kind: 'view',
+        definitionId: reference.instance.definitionId,
         instanceId: click.instanceId,
-        filter:
-          conditions.length > 0 ? { op: 'and', children: conditions } : null,
+        scopeFilter: tree(kept(handed?.scopeFilter ?? null, carries)),
+        filter: tree([...own, ...conditions]),
+        ...(handed?.from ? { from: handed.from } : {}),
       },
     };
   }
@@ -384,6 +392,43 @@ function filterValueOf(
         ? [value]
         : null;
   }
+}
+
+/**
+ * Whether a condition on a field of the panel's view can be carried onto
+ * another view: it has a field of that name and of the same filter type.
+ */
+function carriedOnto(
+  source: readonly FieldDefinition[],
+  target: readonly FieldDefinition[],
+): (field: string) => boolean {
+  const byName = new Map(target.map(field => [field.name, field]));
+  return name => {
+    const from = source.find(field => field.name === name);
+    const to = byName.get(name);
+    return !!from && !!to && sameFilterType(from.kind, to.kind);
+  };
+}
+
+/**
+ * The conjuncts of a tree another view can carry: each one whose every
+ * field it has (`carries`); one that names a field it lacks is left out
+ * whole rather than cut down to a question it never asked.
+ */
+function kept(
+  tree: FilterTree | null,
+  carries: (field: string) => boolean,
+): FilterNode[] {
+  if (!tree) return [];
+  const conjuncts = tree.op === 'and' ? tree.children : [tree];
+  return conjuncts.filter(node =>
+    filterFields({ op: 'and', children: [node] }).every(carries),
+  );
+}
+
+/** Conditions as one "all of" tree, or `null` for none. */
+function tree(children: FilterNode[]): FilterTree | null {
+  return children.length > 0 ? { op: 'and', children } : null;
 }
 
 /**

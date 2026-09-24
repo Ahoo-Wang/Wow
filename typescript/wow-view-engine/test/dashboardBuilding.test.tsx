@@ -571,7 +571,7 @@ describe("a panel's menu (D22 D)", () => {
     ]);
   });
 
-  it('opens the view in the workbench only where the host has a route, under the board’s condition', async () => {
+  it('opens the view in the workbench only where the host has a route, the board’s condition its own', async () => {
     const onNavigate = vi.fn();
     const { user } = open({
       onNavigate,
@@ -594,14 +594,20 @@ describe("a panel's menu (D22 D)", () => {
     await user.click(
       within(menu).getByRole('menuitem', { name: 'Open in the workbench' }),
     );
-    expect(onNavigate).toHaveBeenCalledWith({
-      kind: 'view',
-      instanceId: 'pending',
-      filter: {
-        op: 'and',
-        children: [{ field: 'warehouse', operator: 'NE', value: 'north' }],
-      },
-    });
+    // The board's standing condition is not the page's: it goes as the
+    // view's own, removable there (D26 Q30).
+    expect(onNavigate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'view',
+        definitionId: 'orders',
+        instanceId: 'pending',
+        scopeFilter: null,
+        filter: {
+          op: 'and',
+          children: [{ field: 'warehouse', operator: 'NE', value: 'north' }],
+        },
+      }),
+    );
   });
 
   it('removes a panel at once, says so, and puts the keyboard on 撤销, which brings it back', async () => {

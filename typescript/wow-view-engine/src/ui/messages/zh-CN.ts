@@ -543,6 +543,7 @@ export const zhCN: ViewMessages = {
   'label.view.none': '还没有视图',
   'label.origin.back': '返回 {title}',
   'label.origin.region': '从另一个视图打开',
+  'label.origin.board-region': '从仪表盘打开',
   'label.drill.menu': '这一组',
   'label.drill.records': '查看这些记录',
   'label.drill.split': '按其他维度细分…',
@@ -1301,6 +1302,8 @@ export const zhCN: ViewMessages = {
   'dashboard.fields.too-many': '一个仪表盘最多放 {max} 个筛选。',
   'dashboard.filter.unknown': '这个仪表盘没有筛选 {field}。',
   'dashboard.filter.held': '筛选 {field} 由页面设定，这里改不了。',
+  'dashboard.scope.unsupported':
+    '仪表盘不接受外部条件：请改为锁定或隐藏它的筛选。',
   'dashboard.grouping.kept':
     '这个面板保留自己的时间粒度：它的数据不能按整板选的粒度分组。',
   'dashboard.grouping.unit-duplicate': '时间粒度里 {unit} 出现了两次。',

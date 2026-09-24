@@ -11,22 +11,25 @@
  * limitations under the License.
  */
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import type {
   AnalysisViewConfig,
   FilterNode,
-  FilterTree,
   RecordViewConfig,
   ViewConfig,
 } from '../model/index.js';
 import { drillFilter } from '../analysis/index.js';
-import { isSimpleTree } from '../filter/index.js';
 import { defaultRecordConfig } from '../record/index.js';
-import type {
-  GroupNaming,
-  ViewNavigation,
-  DataViewRuntime,
-  ViewRuntimeState,
+import {
+  handedConditions,
+  withFilterMode,
+  withHandedFilter,
+  type BoardOrigin,
+  type GroupNaming,
+  type HandOver,
+  type ViewNavigation,
+  type DataViewRuntime,
+  type ViewRuntimeState,
 } from '../runtime/index.js';
 import { useViewRuntime } from './useViewEngine.js';
 import type { WorkbenchController } from './useWorkbench.js';
@@ -40,6 +43,9 @@ export type FollowUpHost = Pick<
   'state' | 'canDrill' | 'drill' | 'follow'
 >;
 
+/** A view that takes nothing off the page it leaves. */
+const NOTHING_HANDED: HandOver = { scopeFilter: null, filter: null };
+
 /**
  * The follow-ups on a dashboard panel's groups (D22 H): the analysis view's
  * own menu — the records behind a group, the question split by another
@@ -48,16 +54,25 @@ export type FollowUpHost = Pick<
  * panel: a board has no "beside". Without a route there is nothing to open,
  * and the menu is not offered at all.
  *
- * What opens carries the board: the filters as they reach the panel — the
- * child's injected scope, in its own field names — join the view's own
- * conditions and the group's, so the workbench shows what the panel showed
- * and the reader can take any of them off there.
+ * What opens takes what the panel's view takes off the page (`handOver`,
+ * read at the press, D26 Q30): what the page holds as its scope, which
+ * nobody in the workbench takes off; the reader's values as conditions of
+ * its own beside the view's and the group's, which they can — so the
+ * workbench shows what the panel showed. And the board it came from, for
+ * the way back (Q33).
  */
 export function usePanelFollowUps(
   runtime: DataViewRuntime | null,
   navigate: ((to: ViewNavigation) => void) | undefined,
+  handOver: () => HandOver | null,
 ): FollowUpHost {
   const state = useViewRuntime(runtime) as ViewRuntimeState<ViewConfig> | null;
+  // Read at the press rather than on render: the board's filters move
+  // without this panel's view changing.
+  const latest = useRef(handOver);
+  useEffect(() => {
+    latest.current = handOver;
+  }, [handOver]);
   return useMemo(() => {
     const definition = runtime?.definition;
     const canDrill =
@@ -65,7 +80,7 @@ export function usePanelFollowUps(
       runtime?.kind === 'analysis' &&
       definition?.kind === 'data' &&
       definition.record !== undefined;
-    const board = boardConditions(runtime?.scopeFilter ?? null);
+    const handed = () => latest.current() ?? NOTHING_HANDED;
     return {
       state,
       canDrill,
@@ -76,16 +91,22 @@ export function usePanelFollowUps(
       ) {
         if (!canDrill || !runtime || !state || definition?.kind !== 'data')
           return;
+        const away = handed();
         const config: RecordViewConfig = {
           ...defaultRecordConfig(definition, runtime.limits),
-          filter: drillFilter(state.applied.filter, [...board, ...conditions]),
+          filter: drillFilter(state.applied.filter, [
+            ...handedConditions(away.filter),
+            ...conditions,
+          ]),
         };
         navigate?.({
           kind: 'unsaved',
           definitionId: definition.id,
           title,
-          config: withMode(config),
+          config: withFilterMode(config),
+          scopeFilter: away.scopeFilter,
           ...naming(subject, conditions),
+          ...origin(away.from),
         });
       },
       follow(
@@ -95,13 +116,9 @@ export function usePanelFollowUps(
         subject?: string,
       ) {
         if (!navigate || !runtime || config.kind !== 'analysis') return;
-        navigate({
-          kind: 'unsaved',
-          definitionId: runtime.definition.id,
-          title,
-          config: underBoard(config, board),
-          ...naming(subject, conditions),
-        });
+        navigate(
+          unsaved(runtime, config, title, handed(), subject, conditions),
+        );
       },
     };
   }, [runtime, state, navigate]);
@@ -109,20 +126,36 @@ export function usePanelFollowUps(
 
 /**
  * An analysis the board owns, opened in the workbench (「在工作台中打开」): it
- * has no saved view to open, so it goes as a view nobody saved, under the
- * board's filters as they reach its panel.
+ * has no saved view to open, so it goes as a view nobody saved, taking what
+ * its panel takes off the board (`handOver`).
  */
 export function ownedNavigation(
   runtime: DataViewRuntime,
   title: string,
+  handOver: HandOver | null,
 ): ViewNavigation | null {
   const config = runtime.getSnapshot().applied;
   if (config.kind !== 'analysis') return null;
+  return unsaved(runtime, config, title, handOver ?? NOTHING_HANDED);
+}
+
+/** An analysis nobody saved, under what it takes off the page. */
+function unsaved(
+  runtime: DataViewRuntime,
+  config: AnalysisViewConfig,
+  title: string,
+  away: HandOver,
+  subject?: string,
+  conditions: readonly FilterNode[] = [],
+): ViewNavigation {
   return {
     kind: 'unsaved',
     definitionId: runtime.definition.id,
     title,
-    config: underBoard(config, boardConditions(runtime.scopeFilter)),
+    config: withHandedFilter(config, away.filter),
+    scopeFilter: away.scopeFilter,
+    ...naming(subject, conditions),
+    ...origin(away.from),
   };
 }
 
@@ -138,28 +171,7 @@ function naming(
   return subject === undefined ? {} : { named: { subject, conditions } };
 }
 
-/** The board's conditions as nodes to AND onto a view's own. */
-function boardConditions(scope: FilterTree | null): FilterNode[] {
-  if (!scope) return [];
-  return isSimpleTree(scope) ? scope.children : [scope];
-}
-
-function underBoard(
-  config: AnalysisViewConfig,
-  board: readonly FilterNode[],
-): AnalysisViewConfig {
-  if (board.length === 0) return config;
-  return withMode({ ...config, filter: drillFilter(config.filter, board) });
-}
-
-/**
- * A condition tree that no longer flattens into one "all of" group is an
- * advanced one, which is how the editor has to open it.
- */
-function withMode<C extends RecordViewConfig | AnalysisViewConfig>(
-  config: C,
-): C {
-  return isSimpleTree(config.filter)
-    ? config
-    : { ...config, filterMode: 'advanced' };
+/** The board a view leaves, when it has one to go back to. */
+function origin(from: BoardOrigin | undefined): { from?: BoardOrigin } {
+  return from ? { from } : {};
 }

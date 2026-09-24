@@ -187,9 +187,10 @@ export function OrdersPage() {
 
 离开这块板的每一条路都经过你给的一个路由 `onNavigate(to)`——包本身从不碰地址。不给，就一条都没有：
 
-- 面板「⋯」里的「在工作台中打开」：`{ kind: 'view', instanceId, filter }`，面板显示的已保存视图，以及面板此刻带着的仪表盘筛选——已经换成那个视图自己的字段名，可以直接当作用域传下去。板内自建的分析交的是 `{ kind: 'unsaved', … }`。
-- **点一组**（柱、扇区、表格的一行）打开分析视图的追问菜单（查看这些记录、按其他维度细分、只看这一组）。每一项都是一个没保存的视图：`{ kind: 'unsaved', definitionId, title, config, named }`，仪表盘筛选与这一组已经在它的条件里；`named` 是标题里那一组，读者把它拿掉后工作台的名字就不再带它。交给 `DataWorkbench` 的 `unsaved` 属性，每个新对象打开一次。
-- **「点击时…」**（编辑中）：面板也可以改为用点中的一组设置仪表盘筛选（交叉筛选——不需要路由；其余接线的面板跟着筛，被点的面板只标出这一组，再点一次撤销），或者去另一个已保存的视图（`{ kind: 'view' }`，带上这一组）、另一块仪表盘，或你的一个页面（`{ kind: 'url', url }`，`{{字段}}` 换成点中的值并编码）。
+- 面板「⋯」里的「在工作台中打开」：`{ kind: 'view', definitionId, instanceId, scopeFilter, filter, from }`，面板显示的已保存视图，已经换成那个视图自己的字段名。不归读者的——板子的固定范围，以及页面持有的锁定或隐藏的筛选——是 `scopeFilter`：视图在它之下跑，是作用域，到了工作台谁也拿不掉。读者在板上设的是 `filter`：成为视图自己的条件，于是视图开着就是「已修改」，每一条都能拿掉——全拿掉就回到保存时的样子，不再「已修改」——「还原」一次全拿掉。板内自建的分析交的是 `{ kind: 'unsaved', … }`，读者的值在它的条件里，页面持有的是它的 `scopeFilter`。
+- **点一组**（柱、扇区、表格的一行）打开分析视图的追问菜单（查看这些记录、按其他维度细分、只看这一组）。每一项都是一个没保存的视图：`{ kind: 'unsaved', definitionId, title, config, scopeFilter, named, from }`，读者的值与这一组已经在它的条件里，页面持有的是作用域；`named` 是标题里那一组，读者把它拿掉后工作台的名字就不再带它。
+- 每一条路交法相同，`from` 是回去的路：把目标交给 `DataWorkbench` 的 `handOver` 属性（每个新对象打开一次），再给同一个 `onNavigate`，工作台就在标题栏下画「返回〈仪表盘〉」，按下交出 `{ kind: 'dashboard', definitionId, instanceId, filters, tab }`——离开时的那块板；只有读者在板子交来的之外又改过，才先问一句。宿主不必自己画返回键。
+- **「点击时…」**（编辑中）：面板也可以改为用点中的一组设置仪表盘筛选（交叉筛选——不需要路由；其余接线的面板跟着筛，被点的面板只标出这一组，再点一次撤销），或者去另一个已保存的视图（`{ kind: 'view' }`，交法同上，这一组在它自己的条件里）、另一块仪表盘，或你的一个页面（`{ kind: 'url', url }`，`{{字段}}` 换成点中的值并编码）。
 - **另一块仪表盘**：作者逐个列出目的板的筛选，每个映射到这块面板的一个维度、这块板上一个同类型的筛选，或者不带——不按名字猜。点一组时交给你 `{ kind: 'dashboard', definitionId, instanceId, filters }`：`filters` 就是那块板的 `DashboardFilters`，映射了的筛选是这一组的值或这块板那个筛选点的那一刻的值，其余是它们的默认值。把它交给 `DashboardWorkbench` 的 `initialFilters`（或 `ViewEngine.open` 的 `filters`）——它是读者的，不写进任何一块板的配置。映射失效（筛选或维度被删、那块板被删）时面板上挂 warning，点一组改为打开追问菜单。
 
 ```tsx
@@ -199,7 +200,12 @@ export function OrdersPage() {
   onNavigate={to => router.push(routeFor(to))}
 />
 
-<DataWorkbench engine={engine} definitionId="orders" unsaved={fromRoute} />
+<DataWorkbench
+  engine={engine}
+  definitionId={fromRoute.definitionId}
+  handOver={fromRoute}
+  onNavigate={to => router.push(routeFor(to))}
+/>
 ```
 
 `DashboardWorkbench`、`EmbeddedDashboard` 与 `EmbeddedView` 收同一个属性。
@@ -263,13 +269,11 @@ import {
 | `openInWorkbench`           | 开        | 可交互、可编辑两档里给不给「在工作台中打开」                                                                |
 | `size`                      | `content` | `content` 按内容定高、有上限（记录表格在 `--fve-record-table-max-h` 里滚）；`fill` 填满容器——整页嵌入、大屏 |
 
-**仪表盘的筛选逐个三态**（`filterModes` 按筛选名，时间粒度用 `groupingMode`）：`editable`——在筛选条上、归读者，与工作台一样，也是缺省；`locked`——在筛选条上读作它的值，带一把锁、没有控件；`hidden`——不在筛选条上，照样收窄接上的面板。锁定与隐藏由 runtime 持有，读者做什么——改值、「清空」、点一组交叉筛选——都改不了它们。它们的值是页面自己的 `pageValues`（没写就是默认值）：从第一次查询起就在，并**跟着这个属性变**——客户页换到下一位客户，板子跟着换。读者的筛选是宿主地址里的那一份：`initialFilters` 与 `onFiltersChange`，读法、报法与 `DashboardWorkbench` 相同。**锁定与隐藏的值从不走地址**：`initialFilters` 里写到它们的条目不算，`onFiltersChange` 只报读者能设的筛选——否则读者改一下地址就换了客户，与「锁定」正相反。原来 `scopeFilter` 对仪表盘做的事，现在是一个锁定的筛选：在板上声明那个筛选，再锁定它。
+**仪表盘的筛选逐个三态**（`filterModes` 按筛选名，时间粒度用 `groupingMode`）：`editable`——在筛选条上、归读者，与工作台一样，也是缺省；`locked`——在筛选条上读作它的值，带一把锁、没有控件；`hidden`——不在筛选条上，照样收窄接上的面板。锁定与隐藏由 runtime 持有，读者做什么——改值、「清空」、点一组交叉筛选——都改不了它们。它们的值是页面自己的 `pageValues`（没写就是默认值）：从第一次查询起就在，并**跟着这个属性变**——客户页换到下一位客户，板子跟着换。读者的筛选是宿主地址里的那一份：`initialFilters` 与 `onFiltersChange`，读法、报法与 `DashboardWorkbench` 相同。**锁定与隐藏的值从不走地址**：`initialFilters` 里写到它们的条目不算，`onFiltersChange` 只报读者能设的筛选——否则读者改一下地址就换了客户，与「锁定」正相反。板子不收条件树（`EmbeddedDashboard` 没有 `scopeFilter`）：要收窄它，在板上声明那个筛选，再锁定或隐藏它。
 
 **锁定不是安全边界。** 页面锁定的条件是在浏览器里拼进查询的，只保证读者在界面上改不了、在这里看不到别的。改一下页面脚本、直接调接口，就能问到别的客户。租户、归属与权限必须由 Wow 后端强制——对外的页面尤其如此。本包是宿主进程里的库，不照搬 Metabase 的 iframe、签名令牌或 SSO：身份与权限属于宿主与后端。
 
 铺满屏幕仍是宿主的事（嵌入不长自己的开关）：传一个 `ref`，在自己的 chrome 里用 `useViewExpansion` 指向它。
-
-**从单一的 `EmbeddedView` 迁过来。** 它原来什么视图都收、按种类分派，只有一种读法。现在：仪表盘用 `EmbeddedDashboard`——给 `EmbeddedView` 一块板，它会说这种视图显示不了；缺省一档是 `read-only`，原来能按表头排序的，要 `interaction="interactive"`；行只在 `withExport` 时可勾选；收窄一块板是锁定它的一个筛选（`filterModes` 加 `pageValues`），不再用 `scopeFilter`。路由类型 `DashboardNavigation` 改名为 `ViewNavigation`。`headingLevel` 是两个入口的正式开关。没有兼容层：换组件名、补属性即可。
 
 #### 定制主题
 

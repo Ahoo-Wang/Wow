@@ -16,8 +16,12 @@ import type {
   FieldOption,
   RecordViewConfig,
 } from '../model/index.js';
-import type { ViewEngine } from '../runtime/index.js';
-import { useWorkbench, type UnsavedView } from '../react/index.js';
+import type {
+  ViewEngine,
+  ViewHandOver,
+  ViewNavigation,
+} from '../runtime/index.js';
+import { useWorkbench } from '../react/index.js';
 import { useViewMessages } from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
 import { featuresOf, type WorkbenchFeatures } from './features.js';
@@ -58,13 +62,22 @@ export interface DataWorkbenchProps {
    */
   onInstanceChange?(id: string | null): void;
   /**
-   * A view nobody saved, to open here: what a dashboard handed the host's
-   * route (`ViewNavigation` of kind `unsaved` — a follow-up on a
-   * panel's group, or a board's own analysis). Each new object opens once,
-   * through the leave guard, unsaved until its first save
-   * (`WorkbenchOptions.unsaved`).
+   * A view a dashboard or an embed handed the host's route, to open here as
+   * it came (`ViewNavigation` of kind `view` or `unsaved`, D26 Q30): the
+   * saved view with what the reader set on the board among its own
+   * conditions — 「已修改」, each removable, 「还原」 takes them off — or a
+   * view nobody saved (a follow-up on a group, a board's own analysis).
+   * What the page holds is its scope, which nobody here takes off. Each new
+   * object opens once, through the leave guard
+   * (`WorkbenchOptions.handOver`).
    */
-  unsaved?: UnsavedView | null;
+  handOver?: ViewHandOver | null;
+  /**
+   * The host's route, for the way back to the board a view was handed from:
+   * with it, the workbench draws 「返回〈仪表盘〉」 under the title bar and
+   * hands the board's own target here when it is pressed (D26 Q33).
+   */
+  onNavigate?(to: ViewNavigation): void;
   /**
    * What a new view of each kind starts from, for a host with a better first
    * view than the definition's default: `defaultRecordConfig` and
@@ -144,7 +157,8 @@ export function DataWorkbench({
   kinds = DATA_KINDS,
   instanceId,
   onInstanceChange,
-  unsaved,
+  handOver,
+  onNavigate,
   templates,
   theme,
   messages: wording,
@@ -166,7 +180,8 @@ export function DataWorkbench({
     kinds,
     instanceId,
     onInstanceChange,
-    unsaved,
+    handOver,
+    onNavigate,
     newView: {
       title: messages.label('label.view.new-title'),
       ...(templates ? { templates } : {}),

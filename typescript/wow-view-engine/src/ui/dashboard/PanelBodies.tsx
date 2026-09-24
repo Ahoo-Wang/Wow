@@ -122,6 +122,9 @@ export function RecordPanel({
  * to the group, this panel marking it rather than narrowing; or a custom
  * destination. Without a press nothing on it is pressable.
  */
+/** A panel without a press takes nothing off the board. */
+const nothingHanded = () => null;
+
 export function AnalysisPanel({
   runtime,
   onRetry,
@@ -137,7 +140,11 @@ export function AnalysisPanel({
   const display = useSurfaceDisplay();
   const child = runtime as DataViewRuntime;
   // The workbench the follow-ups drive is the host's, reached by its route.
-  const followUps = usePanelFollowUps(child, press?.navigate);
+  const followUps = usePanelFollowUps(
+    child,
+    press?.navigate,
+    press?.handOver ?? nothingHanded,
+  );
   // Drawn as the workbench draws it (`useAnalysisResult`): the rows that
   // ran, looked at as the child's draft says. A panel's own look is laid
   // onto that draft without a run (D20: presentation never asks the

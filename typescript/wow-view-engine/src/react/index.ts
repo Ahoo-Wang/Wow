@@ -48,4 +48,4 @@ export * from './workbench/instanceSync.js';
 export * from './workbench/leaveGuard.js';
 export * from './workbench/newView.js';
 export * from './workbench/releaseDeleted.js';
-export * from './workbench/unsavedView.js';
+export * from './workbench/handOver.js';
