@@ -15,6 +15,7 @@ import type {
   DashboardFilterType,
   DashboardTimeGrouping,
   DashboardViewConfig,
+  DashboardWidth,
   FieldOption,
   FilterValue,
   PanelClick,
@@ -52,6 +53,7 @@ import {
   removePanel,
   removeTab,
   renamePanel,
+  setBoardWidth,
   renameTab,
   replacePanelView,
   setPanelClick,
@@ -150,6 +152,11 @@ export interface DashboardEditing {
    * (`reorderPanel`). Nothing at either end.
    */
   reorderPanel(panelId: string, step: OrderStep): void;
+  /**
+   * Lays the board out at another width (D31, `setBoardWidth`): its 24
+   * columns centred at the fixed width, or across whatever holds it.
+   */
+  setWidth(width: DashboardWidth): void;
   /**
    * Takes the last edit back — the members of the board it changed, on the
    * draft and on screen alike — and returns the step taken back; `null`
@@ -401,6 +408,8 @@ export function boardEditing(host: EditingHost): BoardEdits {
       edit('reorderPanel', panelId, config =>
         reorderPanelIn(config, panelId, step),
       ),
+    setWidth: width =>
+      edit('setWidth', null, config => setBoardWidth(config, width)),
     undo: () => rewind('undo'),
     redo: () => rewind('redo'),
     forget() {

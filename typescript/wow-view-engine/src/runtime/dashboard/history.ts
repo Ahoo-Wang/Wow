@@ -47,12 +47,13 @@ export type EditCommand =
   | 'bindPanel'
   | 'unbindPanels'
   | 'setTimeGrouping'
-  | 'removeFixedScope';
+  | 'removeFixedScope'
+  | 'setWidth';
 
 /**
  * One step of the board's history: the command, and what it was about — a
- * panel's id, a tab's id or a filter's name; `null` for the time grouping
- * and the fixed scope.
+ * panel's id, a tab's id or a filter's name; `null` for the time grouping,
+ * the fixed scope and the board's width.
  * A screen names the step by it (「撤销：移除「北区订单」」).
  */
 export interface EditStep {
@@ -111,6 +112,7 @@ const BUILT_MEMBERS = [
   'tabs',
   'fields',
   'timeGrouping',
+  'width',
 ] as const satisfies readonly (keyof DashboardViewConfig)[];
 
 /**

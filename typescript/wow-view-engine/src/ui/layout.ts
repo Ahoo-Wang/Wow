@@ -69,6 +69,23 @@ export const SPACE = {
 } as const;
 
 /**
+ * The width a fixed-width dashboard is held to, centred (D31): 1200px.
+ *
+ * Chosen from the grid rather than the screen. The board is 24 columns with
+ * a 10px gap, so at 1200px one column is about 40px and the sizes a panel
+ * starts at (`defaultPanelSize`) come out at widths each reads well at: a
+ * metric card, six columns, about 290px — its number and its trend line
+ * with room, not a quarter of a wall screen; a chart, twelve, about 585px —
+ * a month of daily bars, labelled; a note, twelve, a line of text short
+ * enough to read across. It is wider than `md` (768px), so a fixed board
+ * never falls into the one-column reading any earlier than a full one; and
+ * it is about what a workbench's main column is on a laptop, so the two
+ * widths differ only where a full board would stretch — a wide monitor, a
+ * wall screen — which is where a fixed one is asked for.
+ */
+export const FIXED_BOARD_WIDTH = 1200;
+
+/**
  * The filter tray (decisions.md D12): a wash of the muted colour and no
  * border. The conditions inside it are the bordered things; a border around
  * a row of bordered pills was the box-in-box the layout was rebuilt to lose.

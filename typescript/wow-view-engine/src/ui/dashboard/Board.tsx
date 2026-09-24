@@ -27,6 +27,7 @@ import { panelNames } from '../DashboardPanel.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import type { RenderFailureHandler } from '../RenderBoundary.js';
 import { EmptyBoardActions, type AddChoice } from './AddMenu.js';
+import { BoardWidthSwitch } from './BoardWidth.js';
 import { ClickSettings } from './ClickSettings.js';
 import { BoardBuildingContext, type BoardBuilding } from './commands.js';
 import {
@@ -302,6 +303,7 @@ export function DashboardBoard({
                     add={add}
                     canCreate={canCreate}
                     addFilter={filters.add}
+                    width={<BoardWidthSwitch dashboard={dashboard} />}
                     history={history}
                     undoRef={undoRef}
                     redoRef={redoRef}

@@ -193,6 +193,28 @@ export const MAX_PANEL_LINKS = 50;
 /** Tabs one dashboard may hold. */
 export const MAX_DASHBOARD_TABS = 20;
 
+/**
+ * How wide a board is laid out (D31): its 24 columns spread across whatever
+ * holds it (`full`), or held to a fixed width and centred (`fixed`), as
+ * Metabase's 「固定宽度／全宽」 is the dashboard's own setting. A board is
+ * built for one of them — a metric card a quarter of a readable width, not
+ * a quarter of a wall screen — so it is the config's, saved with it.
+ */
+export type DashboardWidth = 'fixed' | 'full';
+
+/** The widths a board may be laid out at, in the order they are offered. */
+export const DASHBOARD_WIDTHS: readonly DashboardWidth[] = ['fixed', 'full'];
+
+/**
+ * The width a config lays its board out at. A board saved before it could
+ * say (no `width`) keeps the full width it was built at, so a saved layout
+ * never narrows on its own (D31); a value this release does not know is
+ * read the same way, and admission says so (`dashboard.width.unknown`).
+ */
+export function boardWidth(config: { width?: unknown }): DashboardWidth {
+  return config.width === 'fixed' ? 'fixed' : 'full';
+}
+
 /** Grid geometry; coordinates are non-negative and sizes positive integers. */
 export interface PanelLayout {
   x: number;
@@ -375,6 +397,12 @@ export interface DashboardViewConfig extends ViewConfigBase {
    * again, whatever an author changes of its filters after.
    */
   fixed: FilterTree;
+  /**
+   * How wide the board is laid out (D31): a new board is `fixed`; one
+   * without it was saved before a board could say, and is read as `full`
+   * (`boardWidth`).
+   */
+  width?: DashboardWidth;
   /** In the order the tab bar shows them; see `DashboardTab`. */
   tabs: DashboardTab[];
   /** The board's filters, in the order the filter bar shows them. */
@@ -387,7 +415,11 @@ export interface DashboardViewConfig extends ViewConfigBase {
 /**
  * A dashboard config has no presentation-only member of its own: every one
  * of `fields` and `panels` reaches the panels' queries or what they draw
- * from them (`PRESENTATION_MEMBERS` in `config.ts`).
+ * from them (`PRESENTATION_MEMBERS` in `config.ts`). `width` reaches no
+ * query, but it is how the board is laid out, as the panels' `layout` is:
+ * an edit of building, which lands on the draft and the screen at once and
+ * never waits for an apply, and a change the title bar calls a change of
+ * the board rather than 「只改了展示」.
  */
 export const DASHBOARD_PRESENTATION_MEMBERS =
   [] as const satisfies readonly (keyof DashboardViewConfig)[];
