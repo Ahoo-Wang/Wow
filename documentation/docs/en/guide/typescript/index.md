@@ -67,8 +67,8 @@ Supported servers are Wow 8.11 and later through the `filter` API, and Wow 8.10 
 ## Install
 
 ```sh
-pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client@~9.2.0
-pnpm add -D @ahoo-wang/wow-generator@~9.2.0 @ahoo-wang/fetcher-openapi typescript
+pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
+pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher-openapi typescript
 ```
 
 For the React hooks, add `react`, `react-dom`, `@ahoo-wang/fetcher-react`, and `@ahoo-wang/wow-react`. `wow-react` requires React 19.3 or later: it is built with the React Compiler and imports `react/compiler-runtime`, which React 18 does not have. Each reference page lists the exact install command for its package.

@@ -28,26 +28,30 @@ The TypeScript packages share one version with the Kotlin modules and are releas
 
 ### Version ranges
 
-The version follows Wow, not semver: a minor release (`x.Y.0`) may break the TypeScript API, and only patch releases (`x.y.Z`) are guaranteed compatible. A plain `pnpm add` writes a caret range (`^9.2.0`), which lets a later install pick up 9.3.0 without anyone deciding to upgrade. Install the Wow packages with a tilde range, which accepts patches of one minor only, or with an exact version:
+The version follows Wow, not semver: a minor release (`x.Y.0`) may break the TypeScript API, and only patch releases (`x.y.Z`) are guaranteed compatible. By default `pnpm add` and `npm install` save a caret range (`^x.y.z`), which lets a later install pick up the next minor without anyone deciding to upgrade. Save a tilde range instead, which accepts patches of one minor only, by adding this line to the project's `.npmrc` before installing the Wow packages; pnpm and npm both honour it:
 
-```bash
-pnpm add @ahoo-wang/wow-client@~9.2.0
-pnpm add -D @ahoo-wang/wow-generator@~9.2.0
-pnpm add @ahoo-wang/wow-react@~9.2.0
-
-# or pin exactly
-pnpm add --save-exact @ahoo-wang/wow-client@9.2.0
+```ini
+save-prefix=~
 ```
 
-npm takes the same `@~9.2.0` form and `--save-exact`; Yarn takes `@~9.2.0` and `--exact`. Move to the next minor on purpose, all Wow packages together, after reading the "Breaking" section of its release notes. The Fetcher peers follow semver and keep their caret ranges.
+Or pin exact versions:
+
+```bash
+pnpm add --save-exact @ahoo-wang/wow-client
+pnpm add -D --save-exact @ahoo-wang/wow-generator
+```
+
+Move to the next minor on purpose, all Wow packages together, after reading the "Breaking" section of its release notes. The Fetcher peers follow semver; a caret range suits them.
 
 ### Support window
+
+For the TypeScript npm packages (`@ahoo-wang/wow-client`, `@ahoo-wang/wow-generator`, `@ahoo-wang/wow-react`):
 
 - **The latest minor** (the `latest` dist-tag) gets every fix, bug and security alike, as patch releases.
 - **The previous minor** gets security fixes for **3 months** after the next minor is released, as patch releases under the dist-tag `release-<major>.<minor>` (for example `release-9.2`), so `latest` never moves back.
 - Older minors get no fixes; upgrade to a supported one.
 
-The window applies to the whole Wow release line, Kotlin and TypeScript alike; see the [security policy](https://github.com/Ahoo-Wang/Wow/blob/main/SECURITY.md) for how to report a vulnerability.
+How to report a vulnerability is in the [security policy](https://github.com/Ahoo-Wang/Wow/blob/main/SECURITY.md).
 
 ## Wow servers
 

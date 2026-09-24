@@ -45,7 +45,7 @@ React 19.3 or later is required (peer `react ^19.3.0`). The package is built wit
 
 ```sh
 pnpm add react react-dom @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream \
-  @ahoo-wang/fetcher-react @ahoo-wang/wow-client@~9.2.0 @ahoo-wang/wow-react@~9.2.0
+  @ahoo-wang/fetcher-react @ahoo-wang/wow-client @ahoo-wang/wow-react
 ```
 
 `@ahoo-wang/fetcher-react` 5.1.3 or later is required (peer range `^5.1.3 || ^6`): the hooks import only its `@ahoo-wang/fetcher-react/core` and `@ahoo-wang/fetcher-react/fetcher` subpaths, so `@ahoo-wang/fetcher-wow` is not installed. `@ahoo-wang/fetcher-react` in turn declares `react-dom` `^19.3.0`, `@ahoo-wang/fetcher-cosec`, `@ahoo-wang/fetcher-storage`, and `@ahoo-wang/fetcher-eventbus` as peers; npm 7+ and pnpm 8+ install peers automatically, and Yarn users add them to the command. `@ahoo-wang/wow-client` must be on the same minor version as `@ahoo-wang/wow-react`. The package declares Node >=22.12.0. These hooks were the Wow hooks of `@ahoo-wang/fetcher-react`; see the [migration guide](../../../guide/typescript/migration.md).

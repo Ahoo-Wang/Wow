@@ -33,11 +33,11 @@ Wow 的 TypeScript 包随 Wow **9.2.0** 发布。在此之前，下面的安装�
 
 ```bash
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
-  @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client@~9.2.0
-pnpm add -D @ahoo-wang/wow-generator@~9.2.0 @ahoo-wang/fetcher-openapi typescript
+  @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
+pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher-openapi typescript
 ```
 
-Wow 包用波浪号范围 `~9.2.0` 安装，而不是 `pnpm add` 默认写入的插入符范围：它们的版本号跟随 Wow，9.3.0 这样的次版本可能带有破坏性改动。想锁定一个版本，就加 `--save-exact`（配合 `@9.2.0`）。见[版本范围](./compatibility.md#版本范围)。
+Wow 包的次版本可能带有破坏性改动，要让它们停在同一个次版本上：安装前先看[版本范围](./compatibility.md#版本范围)。
 
 生成的客户端是装饰器类，编译它们的项目需要 `experimentalDecorators`。直接用 Node 运行编译产物的项目可以用下面的 `tsconfig.json`，并在 `package.json` 中设置 `"type": "module"`；使用打包器的项目保留自己的设置，只加这一个选项：
 

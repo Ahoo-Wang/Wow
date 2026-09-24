@@ -45,7 +45,7 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 - [x] `require` 条件有自己的 `.d.cts`；generator 的声明文件相对导入带扩展名；wow-react 只出 ESM 并有 `default` 条件（R3-09、R3-10、R3-11）。
 - [x] 元数据与文案：generator 的 description 改成纯文本，三个包的 keywords 都带 `wow`，`homepage` 指向文档站各包的参考页（`https://wow.ahoo.me/reference/typescript/<包>/`），wow-react 有中文 README，wow-client 的 tarball 也带上两份 README；`repository.directory`、`bugs`、`license`、`author` 三个包一致（R3-25）。
 - [x] 公开面逐名快照（D29）：wow-client、wow-react、wow-generator 都有 `test/surface/` 与 `test/publicSurface.test.ts`，构建时 `scripts/verify-package.mjs` 让产物与清单一致，不带 declaration map。
-- [x] 版本范围与支持期（用户 2026-09-24 定）：文档、各包 README 和快速开始都建议 `~9.2.0` 或 `--save-exact`，因为次版本可以带破坏性改动；最新的次版本获得全部修复，上一个次版本在下一个次版本发布后 3 个月内获得安全修复，其余不修。写在兼容性页「版本范围」「支持期」和根目录 `SECURITY.md`。
+- [x] 版本范围与支持期（用户 2026-09-24 定）：兼容性页「版本范围」（中英文）是唯一写建议的地方——安装前在项目 `.npmrc` 加 `save-prefix=~`，或者 `--save-exact`，因为次版本可以带破坏性改动；各包 README 与快速开始只用一句话链接过去，安装命令不写版本号，发版时不用改。「支持期」只针对 TypeScript 的 npm 包：最新的次版本获得全部修复，上一个次版本在下一个次版本发布后 3 个月内获得安全修复，其余不修。`SECURITY.md` 不在这里改（治理 PR 另加 npm 包一节，Kotlin/Maven 的「逐案评估」保持不变）。
 - [ ] fetcher peer 下限：fetcher 5.1.4 发到 npm 以后、发 9.2.0 之前，把 `pnpm-workspace.yaml` 里 `catalog:peers` 和默认 catalog 的 fetcher 下限抬到 `^5.1.4`（fetcher-react 同样），并让 `.github/scripts/package-check.mjs` 在 fetcher 自身声明的类型诊断（现在只作为 `upstream` 打印）上也失败。5.1.4 发布前不动。
 - [x] 文档（R4）：兼容性矩阵、快速开始、错误处理、认证、SSR/Node、CI 重新生成、排障；包 README 写「随 Wow 9.2.0 发布」，站点与 README 的 TypeScript 样例由 `documentation/test/typescript-samples.test.mjs` 对构建产物做类型检查。
 - [ ] 发版 PR `chore(release): prepare 9.2.0-rc.0`：`pnpm set-version 9.2.0-rc.0`，按根 `AGENTS.md` 更新 README 版本表、文档和 openapi 快照，`pnpm check:versions`。
@@ -178,7 +178,7 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 
 `9.2.0-rc.0` 发到 npm 以后，在 wow-project-template 的一个分支上装 rc 包，端到端跑通：生成、构建、对着服务端调用客户端。**这一步不通过，不发 9.2.0。** 它取代了原来「首个稳定版发布以后模板才切换」的顺序（[MIGRATION.md](MIGRATION.md) 第 4a 步判据③）。
 
-1. 分支与服务端。按模板 README 准备好服务端的配置与中间件，另开一个终端启动它，监听 `http://localhost:8080`：
+1. 分支与服务端。按模板 README 准备好服务端的配置与中间件，另开一个终端启动它，监听 `http://localhost:8080`。启动命令是按 server 模块的 `application` 插件推断的，**首次执行时核对**：
 
    ```bash
    git clone https://github.com/Ahoo-Wang/wow-project-template.git && cd wow-project-template
@@ -186,7 +186,7 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
    ./gradlew server:run
    ```
 
-2. 换成 rc 包。模板的 client 现在用 fetcher 3.x 和 `fetcher-wow`／`fetcher-generator`，一起换掉：
+2. 换成 rc 包。模板的 client 目前还在 fetcher 3.x 上，用的是 `@ahoo-wang/fetcher-wow` 和 `fetcher-generator`；rc 分支必须把它切到 `@ahoo-wang/wow-client`（和 `wow-generator`），fetcher 同时升到 5.x：
 
    ```bash
    cd client
@@ -263,7 +263,7 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 
 维护线 `release-x.y` 没有 push 触发，不影响发版：准入在 tag 上触发完整运行。给老版本线发补丁时，dist-tag 自动是 `release-x.y`，不会动 `latest`。
 
-支持期（用户 2026-09-24 定，对外写在兼容性页和 `SECURITY.md`）：最新的次版本获得全部修复；上一个次版本在下一个次版本发布后 3 个月内只获得安全修复，从 `release-x.y` 分支发补丁；更早的次版本不再发布。
+支持期（用户 2026-09-24 定，只针对 TypeScript 的 npm 包，对外写在兼容性页「支持期」）：最新的次版本获得全部修复；上一个次版本在下一个次版本发布后 3 个月内只获得安全修复，从 `release-x.y` 分支发补丁；更早的次版本不再发布。
 
 ## 出错时
 

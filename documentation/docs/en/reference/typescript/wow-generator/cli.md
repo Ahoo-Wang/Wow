@@ -124,7 +124,7 @@ Save the following as `tsconfig.json`. Install the [runtime dependencies](./gene
 ```
 
 ```bash
-pnpm add -D @ahoo-wang/wow-generator@~9.2.0 @ahoo-wang/fetcher-openapi typescript
+pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher-openapi typescript
 pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated -t ./tsconfig.json
 pnpm exec tsc --noEmit -p ./tsconfig.json
 ```

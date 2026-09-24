@@ -91,7 +91,7 @@ Wow/
   - 走 OIDC 可信发布并带上 `--provenance`，不用长期有效的 token；
   - 要能重复执行：先用 `npm view <name>@<ver>` 查，已经发过的版本直接跳过，所以 Maven 成功、npm 失败时可以重跑补发；
   - 给老版本线发补丁时，加对应的 dist-tag（比如 `--tag release-9.0`；npm 拒收能解析成 semver 范围的 tag，`v9.0` 就是），避免覆盖 `latest`。
-- **版本范围与支持期**（2026-09-24 用户定）：版本号跟随 Wow 而不是 semver，次版本可以带破坏性改动，所以文档和 README 建议用户装 `~x.y.z` 或精确版本，而不是 `pnpm add` 默认的 `^`。最新的次版本获得全部修复；上一个次版本在下一个次版本发布后 3 个月内获得安全修复（`release-x.y` 分支、同名 dist-tag）；更早的不再修复。对外写在兼容性页和 `SECURITY.md`。
+- **版本范围与支持期**（2026-09-24 用户定）：版本号跟随 Wow 而不是 semver，次版本可以带破坏性改动，所以兼容性页「版本范围」建议用户在 `.npmrc` 设 `save-prefix=~` 或用 `--save-exact`，而不是 `pnpm add` 默认的 `^`；安装命令本身不写版本号。TypeScript npm 包的支持期：最新的次版本获得全部修复；上一个次版本在下一个次版本发布后 3 个月内获得安全修复（`release-x.y` 分支、同名 dist-tag）；更早的不再修复。
 - **哪些包发布**：
   - 发布：`wow-client`、`wow-react`、`wow-generator`；
   - view-engine 稳定之前不发布：`wow-view-engine`、`wow-view-store`；

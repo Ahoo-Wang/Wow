@@ -67,8 +67,8 @@ TypeScript 包与 Kotlin 模块共用一个版本号，从同一个 tag 发布�
 ## 安装
 
 ```sh
-pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client@~9.2.0
-pnpm add -D @ahoo-wang/wow-generator@~9.2.0 @ahoo-wang/fetcher-openapi typescript
+pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
+pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher-openapi typescript
 ```
 
 使用 React Hook 时再加上 `react`、`react-dom`、`@ahoo-wang/fetcher-react` 和 `@ahoo-wang/wow-react`。`wow-react` 需要 React 19.3 或更高版本：它用 React Compiler 构建，会导入 React 18 没有的 `react/compiler-runtime`。各包的参考页给出了精确的安装命令。

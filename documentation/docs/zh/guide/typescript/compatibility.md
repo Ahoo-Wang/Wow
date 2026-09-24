@@ -28,26 +28,30 @@ TypeScript 包与 Kotlin 模块共用一个版本号，从同一个 tag 发布�
 
 ### 版本范围
 
-版本号跟随 Wow，不遵循 semver：次版本（`x.Y.0`）可能带来 TypeScript API 的破坏性改动，只有补丁版本（`x.y.Z`）保证兼容。直接 `pnpm add` 会写入插入符范围（`^9.2.0`），之后的某次安装就可能在没人决定升级的情况下装上 9.3.0。安装 Wow 包时用波浪号范围（只接受同一个次版本的补丁），或者锁定精确版本：
+版本号跟随 Wow，不遵循 semver：次版本（`x.Y.0`）可能带来 TypeScript API 的破坏性改动，只有补丁版本（`x.y.Z`）保证兼容。`pnpm add` 和 `npm install` 默认保存插入符范围（`^x.y.z`），之后的某次安装就可能在没人决定升级的情况下装上下一个次版本。安装 Wow 包之前，在项目的 `.npmrc` 里加上这一行，改为保存只接受同一次版本补丁的波浪号范围；pnpm 和 npm 都认这个设置：
 
-```bash
-pnpm add @ahoo-wang/wow-client@~9.2.0
-pnpm add -D @ahoo-wang/wow-generator@~9.2.0
-pnpm add @ahoo-wang/wow-react@~9.2.0
-
-# 或者锁定精确版本
-pnpm add --save-exact @ahoo-wang/wow-client@9.2.0
+```ini
+save-prefix=~
 ```
 
-npm 同样接受 `@~9.2.0` 和 `--save-exact`；Yarn 接受 `@~9.2.0` 和 `--exact`。升到下一个次版本要有意为之：先读它发布说明里的 “Breaking” 一节，再把所有 Wow 包一起升级。Fetcher 的 peer 遵循 semver，保留插入符范围即可。
+或者锁定精确版本：
+
+```bash
+pnpm add --save-exact @ahoo-wang/wow-client
+pnpm add -D --save-exact @ahoo-wang/wow-generator
+```
+
+升到下一个次版本要有意为之：先读它发布说明里的 “Breaking” 一节，再把所有 Wow 包一起升级。Fetcher 的 peer 遵循 semver，用插入符范围即可。
 
 ### 支持期
+
+适用于 TypeScript 的 npm 包（`@ahoo-wang/wow-client`、`@ahoo-wang/wow-generator`、`@ahoo-wang/wow-react`）：
 
 - **最新的次版本**（dist-tag `latest`）获得全部修复，包括缺陷修复和安全修复，以补丁版本发布。
 - **上一个次版本**在下一个次版本发布后的 **3 个月**内获得安全修复，以补丁版本发布在 dist-tag `release-<主版本>.<次版本>`（例如 `release-9.2`）下，不会让 `latest` 回退。
 - 更早的次版本不再修复，请升级到仍受支持的版本。
 
-支持期适用于整条 Wow 发布线，Kotlin 与 TypeScript 相同；报告漏洞的方式见[安全策略](https://github.com/Ahoo-Wang/Wow/blob/main/SECURITY.md)。
+报告漏洞的方式见[安全策略](https://github.com/Ahoo-Wang/Wow/blob/main/SECURITY.md)。
 
 ## Wow 服务端
 

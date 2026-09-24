@@ -14,8 +14,8 @@ description: Generate a typed ItemsApiClient from a minimal OpenAPI document tha
 ```bash
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
   @ahoo-wang/fetcher-eventstream @ahoo-wang/fetcher-openapi \
-  @ahoo-wang/wow-client@~9.2.0
-pnpm add -D @ahoo-wang/wow-generator@~9.2.0 typescript@6.0.3
+  @ahoo-wang/wow-client
+pnpm add -D @ahoo-wang/wow-generator typescript@6.0.3
 ```
 
 Save this as `tsconfig.json`:

@@ -15,10 +15,10 @@ Node `>=22.12.0` 或现代浏览器。详见
 
 ```bash
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
-  @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client@~9.2.0
+  @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
 ```
 
-Wow 包请用波浪号范围（如上面的 `@~9.2.0`）或精确版本（`pnpm add --save-exact @ahoo-wang/wow-client@9.2.0`）安装，不要用 `pnpm add` 默认写入的插入符范围：版本号跟随 Wow，9.3.0 这样的次版本可能带有破坏性改动。最新的次版本获得全部修复，上一个次版本获得 3 个月的安全修复；见[版本范围与支持期](https://wow.ahoo.me/zh/guide/typescript/compatibility#版本范围)。
+版本号跟随 Wow，次版本可能带有破坏性改动：用 `save-prefix=~` 或 `--save-exact` 让 Wow 包停在同一个次版本上，TypeScript npm 包的做法与支持期见[版本范围与支持期](https://wow.ahoo.me/zh/guide/typescript/compatibility#版本范围)。
 
 Peer 依赖：`fetcher`、`fetcher-decorator` 和 `fetcher-eventstream`。
 

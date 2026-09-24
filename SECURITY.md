@@ -2,15 +2,7 @@
 
 ## Supported Versions
 
-Maven and npm artifacts share one version and one release line. Breaking changes ship only in a minor release (`x.Y.0`), so fixes are given per minor:
-
-| Minor | Fixes |
-| --- | --- |
-| The latest minor | Every fix, bug and security alike, as patch releases |
-| The previous minor | Security fixes for 3 months after the next minor is released, as patch releases from a `release-x.y` branch (npm dist-tag `release-x.y`) |
-| Older minors | None; upgrade to a supported minor |
-
-The latest stable version is published on the [GitHub Releases](https://github.com/Ahoo-Wang/Wow/releases) page.
+Security fixes target the current stable release line. Fixes for older release lines are evaluated case by case based on severity, affected users, and compatibility risk. The latest stable version is published on the [GitHub Releases](https://github.com/Ahoo-Wang/Wow/releases) page.
 
 ## Reporting a Vulnerability
 

@@ -7,15 +7,15 @@ local or remote OpenAPI document.
 
 ```bash
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
-  @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client@~9.2.0
-pnpm add -D @ahoo-wang/wow-generator@~9.2.0 @ahoo-wang/fetcher-openapi typescript
+  @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
+pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher-openapi typescript
 pnpm exec wow-generator generate \
   --input ./openapi.yaml \
   --output ./src/generated \
   --ts-config-file-path ./tsconfig.json
 ```
 
-Install the Wow packages with a tilde range (`@~9.2.0`, as above) or an exact version (`pnpm add -D --save-exact @ahoo-wang/wow-generator@9.2.0`), not the caret range `pnpm add` writes by default: the version follows Wow, so a minor release such as 9.3.0 may contain breaking changes. The latest minor gets every fix and the previous one security fixes for 3 months; see [version ranges and the support window](https://wow.ahoo.me/guide/typescript/compatibility#version-ranges).
+The version follows Wow, so a minor release may contain breaking changes: keep the Wow packages on one minor with `save-prefix=~` or `--save-exact`, as [version ranges and the support window](https://wow.ahoo.me/guide/typescript/compatibility#version-ranges) explains for the TypeScript npm packages.
 
 The first line installs what the generated code imports at run time, the
 second the generator and its peer `@ahoo-wang/fetcher-openapi`. The generator's

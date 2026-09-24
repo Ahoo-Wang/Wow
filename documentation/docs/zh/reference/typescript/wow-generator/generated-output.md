@@ -85,7 +85,7 @@ Wow 查询 schema 映射为 `@ahoo-wang/wow-client` 的类型。带 `filter` 属
 ## 运行时配置
 
 ```bash
-pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client@~9.2.0
+pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
 pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated -t ./tsconfig.json
 pnpm exec tsc --noEmit -p ./tsconfig.json
 ```

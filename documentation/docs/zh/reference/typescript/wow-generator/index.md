@@ -10,7 +10,7 @@ description: 'Generator 参考 — @ahoo-wang/wow-generator'
 ## 安装
 
 ```bash
-pnpm add -D @ahoo-wang/wow-generator@~9.2.0 @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-openapi @ahoo-wang/wow-client@~9.2.0 typescript
+pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-openapi @ahoo-wang/wow-client typescript
 ```
 
 包要求 Node **>=22.12.0**；仓库开发另固定 pnpm **10.34.5**。命令包含全部递归 peer（wow-generator → wow-client/Decorator/EventStream/OpenAPI → Fetcher）及下文使用的编译器。ts-morph、commander、yaml 作为普通依赖自动安装。这些是生成阶段依赖；消费应用需把生成客户端导入的包作为运行时依赖安装，见[生成产物](./generated-output.md)。
