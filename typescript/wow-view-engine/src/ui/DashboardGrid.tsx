@@ -28,11 +28,11 @@ import {
   type ArrangeStep,
   type PlacedPanel,
 } from '../dashboard/index.js';
-import type { FilterTree } from '../model/index.js';
 import type {
   DashboardController,
   DashboardPanelView,
 } from '../react/index.js';
+import type { DashboardNavigation } from '../runtime/index.js';
 import { PanelGridItem, PanelResizeHandle } from './DashboardArrange.js';
 import {
   DashboardPanel,
@@ -47,6 +47,7 @@ import type { RenderFailureHandler } from './RenderBoundary.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import type { MessageKey } from './messages.js';
 import { PanelWiring, useFilterWiring } from './dashboard/FilterWiring.js';
+import { panelPress } from './dashboard/press.js';
 import {
   Empty,
   EmptyContent,
@@ -87,11 +88,11 @@ export interface DashboardGridProps {
    */
   emptyActions?: ReactNode;
   /**
-   * The host's route to the workbench: 在工作台中打开 in a panel's menu opens
-   * the view it shows under the board's condition, as the panel carries it —
-   * already in that view's own field names. No route, no item.
+   * The host's route (`DashboardNavigation`): 在工作台中打开 in a panel's
+   * menu, the follow-up menu on a group, a panel's custom destination. No
+   * route, none of them — a panel that cross-filters still does.
    */
-  onOpenView?(instanceId: string, filter: FilterTree | null): void;
+  onNavigate?(to: DashboardNavigation): void;
   className?: string;
 }
 
@@ -122,7 +123,7 @@ export function DashboardGrid({
   headingLevel = 3,
   header,
   emptyActions,
-  onOpenView,
+  onNavigate,
 }: DashboardGridProps) {
   // The grid needs a pixel width and the container only knows it once it is
   // on screen, so the measuring is the library's own hook rather than a
@@ -133,9 +134,11 @@ export function DashboardGrid({
   const messages = useViewMessages();
   // What the last keyboard command did, said once. A pointer sees the panel
   // move under it; a keyboard has only the layout, which is not on screen,
-  // so the new place is read out. It starts empty, so opening a dashboard
+  // so the new place is read out. A press on a panel's group says what it
+  // did here too — the board's filter set or cleared, a destination that
+  // cannot be opened (D22 I). It starts empty, so opening a dashboard
   // announces nothing.
-  const [arranged, setArranged] = useState('');
+  const [said, say] = useState('');
   // The last width the container could be drawn at. A hidden container
   // measures 0, and that is not a phone: the grid keeps the panels at their
   // last width then, and the breakpoint stays where it was with them.
@@ -197,7 +200,7 @@ export function DashboardGrid({
       placePanel(placed, panelId, target, dashboard.columns)?.find(
         box => box.id === panelId,
       ) ?? target;
-    setArranged(
+    say(
       messages.label('label.panel.placed', {
         title: names.get(panelId) ?? '',
         // Said as a reader counts them, from one.
@@ -306,6 +309,8 @@ export function DashboardGrid({
                   available={step => available(panel.id, step)}
                   onArrange={step => arrange(panel.id, step)}
                   onRetry={() => dashboard.refreshPanel(panel.id)}
+                  press={panelPress(panel, dashboard, onNavigate, say)}
+                  pressesFilter={pressedFilter(panel, dashboard)}
                   commands={panelCommands({
                     panel,
                     name: names.get(panel.id) ?? '',
@@ -314,7 +319,7 @@ export function DashboardGrid({
                     editing: editable,
                     narrow,
                     extensions,
-                    onOpenView,
+                    onNavigate,
                     messages,
                   })}
                   unreached={unreachedBy(panel, dashboard)}
@@ -339,7 +344,7 @@ export function DashboardGrid({
           panel is ever being placed, and the rest would be a dozen empty
           regions for a reader to walk past. */}
       <span aria-live="polite" className="sr-only">
-        {arranged}
+        {said}
       </span>
     </div>
   );
@@ -422,4 +427,18 @@ function unreachedBy(
       ? [field.label]
       : [],
   );
+}
+
+/**
+ * The name of the filter a press on this panel sets (D22 I, 「点击筛选「仓库」」),
+ * or `undefined` for a panel whose press does something else.
+ */
+function pressedFilter(
+  panel: DashboardPanelView,
+  dashboard: DashboardController,
+): string | undefined {
+  const click = panel.click;
+  if (click?.kind !== 'filter') return undefined;
+  return dashboard.filterFields.find(field => field.name === click.filter)
+    ?.label;
 }

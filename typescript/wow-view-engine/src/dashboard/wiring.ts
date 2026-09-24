@@ -29,9 +29,10 @@ import {
   type FieldDefinition,
   type FieldOption,
   type PanelBinding,
+  without,
 } from '../model/index.js';
 import { filtersOf } from './filters.js';
-import { bindingsOf, isViewPanel } from './panels.js';
+import { bindingsOf, clicksFilter, isViewPanel } from './panels.js';
 
 /**
  * The fields of the view a data panel shows, once it is known; `null` for a
@@ -181,8 +182,13 @@ export function unbindPanels(
     if (!isViewPanel(panel) || !panelIds.includes(panel.id)) return panel;
     if (!wiredTo(panel, name)) return panel;
     changed = true;
+    // A press that set this filter has no value for it any more (D22 I):
+    // the panel goes back to the follow-up menu.
+    const rest = clicksFilter(panel, name)
+      ? (without(panel, 'click') as DashboardViewPanel)
+      : panel;
     return {
-      ...panel,
+      ...rest,
       bindings: bindingsOf(panel).filter(entry => entry.globalField !== name),
     };
   });

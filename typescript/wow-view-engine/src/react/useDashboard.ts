@@ -23,10 +23,13 @@ import {
   type FieldOption,
   type FilterValue,
   type Issue,
+  type PanelClick,
   type PanelLayout,
+  type RecordData,
 } from '../model/index.js';
 import { filtersOf, type FilterReach } from '../dashboard/index.js';
 import type {
+  CrossFilterOutcome,
   DashboardEditing,
   DashboardFilterEditing,
   DashboardPanelState,
@@ -34,6 +37,7 @@ import type {
   DataViewRuntime,
   OptionSource,
   PanelGrouping,
+  PressDestination,
   ValueCandidateSource,
 } from '../runtime/index.js';
 import type { FieldKindRegistry } from '../filter/index.js';
@@ -56,6 +60,11 @@ export interface DashboardPanelView {
   reach: Readonly<Record<string, FilterReach>>;
   /** What the time grouping does to it (`PanelGrouping`). */
   grouping: PanelGrouping;
+  /**
+   * What a press on one of its groups does (D22 I), or `null` for the
+   * follow-up menu (`DashboardPanelState.click`).
+   */
+  click: PanelClick | null;
 }
 
 export interface DashboardController {
@@ -138,6 +147,19 @@ export interface DashboardController {
    * the size of what it shows (`DashboardRuntime.preload`); never rejects.
    */
   preload(instanceId: string): Promise<void>;
+  /**
+   * A press on one group of a panel whose click sets a filter (D22 I,
+   * `DashboardRuntime.crossFilter`): set from it, or cleared on a second
+   * press of the same group.
+   */
+  crossFilter(panelId: string, row: RecordData): CrossFilterOutcome;
+  /** Whether a group is the one its panel's press set a filter to. */
+  pressed(panelId: string, row: RecordData): boolean;
+  /** Where a press on a panel with a custom destination goes. */
+  destination(
+    panelId: string,
+    row: RecordData,
+  ): Promise<PressDestination | null>;
 }
 
 const EMPTY_PANELS: DashboardPanelState[] = [];
@@ -186,6 +208,7 @@ export function useDashboard(
     [children],
   );
   const loading = useSyncExternalStore(watch, anyLoading, anyLoading);
+  const filtersNow = state?.filters ?? null;
 
   return {
     panels: useMemo(() => panels.map(toView), [panels]),
@@ -242,6 +265,25 @@ export function useDashboard(
       },
       [runtime],
     ),
+    crossFilter: useCallback(
+      (panelId: string, row: RecordData): CrossFilterOutcome =>
+        runtime?.crossFilter(panelId, row) ?? { kind: 'none' },
+      [runtime],
+    ),
+    // Read against what the filters hold now, so a new value marks another
+    // group: the callback is a new one whenever they change.
+    pressed: useCallback(
+      (panelId: string, row: RecordData) =>
+        runtime !== null && filtersNow !== null
+          ? runtime.pressed(panelId, row)
+          : false,
+      [runtime, filtersNow],
+    ),
+    destination: useCallback(
+      async (panelId: string, row: RecordData) =>
+        runtime ? runtime.destination(panelId, row) : null,
+      [runtime],
+    ),
   };
 }
 
@@ -271,6 +313,7 @@ function toView(panel: DashboardPanelState): DashboardPanelView {
     tab: panel.tab,
     reach: panel.reach,
     grouping: panel.grouping,
+    click: panel.click,
     // A data panel with no runtime cannot query, and any panel carrying an
     // error was refused by `validateDashboard` — a content panel included,
     // whose markdown, image or link the grid would otherwise render as

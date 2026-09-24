@@ -13,6 +13,7 @@
 
 import { useCallback, useMemo } from 'react';
 import { valueLabelsOn, type CartesianData } from '../../analysis/index.js';
+import type { ChartSpec, RecordData } from '../../model/index.js';
 import { pointAnchor } from '../analysis/DrillMenu.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
 import {
@@ -22,6 +23,7 @@ import {
 } from './cartesianOption.js';
 import { ChartLegend } from './ChartLegend.js';
 import { EChart, type ChartClick } from './EChart.js';
+import { faded, type Lit } from './highlight.js';
 import type { FamilyProps } from './family.js';
 import { legendAt } from './legend.js';
 import { measureText } from './measure.js';
@@ -42,6 +44,7 @@ export function Cartesian({
   dateTicks,
   name,
   onPick,
+  highlight,
 }: FamilyProps<CartesianData>) {
   const animate = useChartMotion();
   const { locale } = useSurfaceDisplay();
@@ -55,14 +58,32 @@ export function Cartesian({
       ),
     [dateTicks, spec, data],
   );
+  // The group pressed, when a press set the board's filter: every other
+  // mark drawn faint (D22 I).
+  const lit = useMemo<Lit | undefined>(() => {
+    const cartesian = spec?.cartesian;
+    if (!highlight || !cartesian) return undefined;
+    return (series, at) => {
+      const entry = data.series[series];
+      const point = data.points[at];
+      return (
+        entry !== undefined &&
+        point !== undefined &&
+        highlight(groupOf(cartesian, point.x, entry.value))
+      );
+    };
+  }, [highlight, spec, data]);
   const option = useCallback(
     (theme: ChartTheme) =>
-      cartesianOption(
-        data,
-        { spec, label, column, locale, animate, pickable, ticks },
-        theme,
+      faded(
+        cartesianOption(
+          data,
+          { spec, label, column, locale, animate, pickable, ticks },
+          theme,
+        ),
+        lit,
       ),
-    [data, spec, label, column, locale, animate, pickable, ticks],
+    [data, spec, label, column, locale, animate, pickable, ticks, lit],
   );
   const horizontal = spec?.cartesian?.orientation === 'horizontal';
   const adapt = useCallback(
@@ -97,12 +118,7 @@ export function Cartesian({
         if (click.componentType !== 'series' || !entry || !point || !cartesian)
           return;
         onPick(
-          {
-            [cartesian.x]: point.x,
-            ...(cartesian.splitBy === undefined
-              ? {}
-              : { [cartesian.splitBy]: entry.value }),
-          },
+          groupOf(cartesian, point.x, entry.value),
           pointAnchor(click.event?.event ?? { clientX: 0, clientY: 0 }),
         );
       }),
@@ -141,7 +157,36 @@ export function Cartesian({
         'data-chart': data.chart,
         'data-marks': marks,
         'data-labels': valueLabelsOn(spec) ? 'on' : 'off',
+        ...(lit ? { 'data-highlighted': litCount(data, lit) } : {}),
       }}
     />
   );
+}
+
+/**
+ * The group a mark stands for: its category, and the split value when the
+ * series is one — named by the aliases the spec put on the axes, which is
+ * what the kernel reads a row by.
+ */
+function groupOf(
+  cartesian: NonNullable<ChartSpec['cartesian']>,
+  x: unknown,
+  split: unknown,
+): RecordData {
+  return {
+    [cartesian.x]: x,
+    ...(cartesian.splitBy === undefined ? {} : { [cartesian.splitBy]: split }),
+  };
+}
+
+/** How many drawn marks stand for the group pressed. */
+function litCount(data: CartesianData, lit: Lit): number {
+  let count = 0;
+  data.series.forEach((entry, series) =>
+    data.points.forEach((point, at) => {
+      if (typeof point.values[entry.key] === 'number' && lit(series, at))
+        count += 1;
+    }),
+  );
+  return count;
 }

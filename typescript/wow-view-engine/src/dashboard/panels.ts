@@ -18,6 +18,7 @@ import type {
   DashboardViewPanel,
   OwnedView,
   PanelBinding,
+  PanelClick,
 } from '../model/index.js';
 import { isPlainObject } from '../filter/index.js';
 
@@ -57,6 +58,39 @@ export function bindingsOf(panel: DashboardViewPanel): PanelBinding[] {
           typeof entry.panelField === 'string',
       )
     : [];
+}
+
+/**
+ * A panel's click as stored, or `null` for the follow-up menu: none set, or
+ * one this reading cannot make out — admission says which
+ * (`validatePanelClick`), and a press falls back to the menu meanwhile.
+ */
+export function clickOf(panel: unknown): PanelClick | null {
+  if (!isViewPanel(panel)) return null;
+  const click: unknown = panel.click;
+  if (!isPlainObject(click)) return null;
+  switch (click.kind) {
+    case 'filter':
+      return typeof click.filter === 'string'
+        ? { kind: 'filter', filter: click.filter }
+        : null;
+    case 'view':
+      return typeof click.instanceId === 'string' && click.instanceId.length > 0
+        ? { kind: 'view', instanceId: click.instanceId }
+        : null;
+    case 'url':
+      return typeof click.url === 'string'
+        ? { kind: 'url', url: click.url }
+        : null;
+    default:
+      return null;
+  }
+}
+
+/** Whether a click sets this filter: what unwiring the filter takes with it. */
+export function clicksFilter(panel: unknown, name: string): boolean {
+  const click = clickOf(panel);
+  return click?.kind === 'filter' && click.filter === name;
 }
 
 /**

@@ -18,14 +18,13 @@ import {
   panelTab,
   referencedInstance,
 } from '../../dashboard/index.js';
+import { PANEL_PRESENTATION_MEMBERS } from '../../model/index.js';
 import {
-  PANEL_PRESENTATION_MEMBERS,
-  type FilterTree,
-} from '../../model/index.js';
-import type {
-  DashboardController,
-  DashboardPanelView,
+  ownedNavigation,
+  type DashboardController,
+  type DashboardPanelView,
 } from '../../react/index.js';
+import type { DashboardNavigation } from '../../runtime/index.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
 import type { DashboardEditExtensions } from './extensions.js';
 
@@ -52,6 +51,8 @@ export interface BoardBuilding {
   duplicated(name: string): void;
   /** A panel went to another tab, called this on the bar. */
   moved(name: string, tab: string): void;
+  /** Opens 「点击时…」 for an analysis panel (D22 I). */
+  click(panelId: string): void;
 }
 
 export const BoardBuildingContext = createContext<BoardBuilding | null>(null);
@@ -75,7 +76,10 @@ export function useBoardBuilding(): BoardBuilding | null {
  * (D4): 「看」 always, 「改」 while the board is being built.
  */
 export interface PanelCommands {
-  /** 在工作台中打开: the view it shows, under the board's filter mapped onto it. */
+  /**
+   * 在工作台中打开: the view it shows, under the board's filters mapped onto
+   * it — or, for an analysis the board owns, that analysis unsaved.
+   */
   open?(): void;
   /** 刷新这个面板. */
   refresh?(): void;
@@ -84,6 +88,8 @@ export interface PanelCommands {
   /** While the title is being edited in place: take or drop the new one. */
   renaming?: { commit(title: string): void; cancel(): void };
   editPresentation?(): void;
+  /** 点击时…: what a press on one of its groups does (D22 I). */
+  click?(): void;
   /** 恢复为视图的样子: only on a panel that wears a look of its own. */
   resetPresentation?(): void;
   editContent?(): void;
@@ -115,7 +121,8 @@ export interface PanelCommandInput {
    */
   narrow: boolean;
   extensions: DashboardEditExtensions;
-  onOpenView?(instanceId: string, filter: FilterTree | null): void;
+  /** The host's route (`DashboardNavigation`); no route, no 在工作台中打开. */
+  onNavigate?(to: DashboardNavigation): void;
   messages: MessageFormatters;
 }
 
@@ -141,7 +148,7 @@ export function panelCommands({
   editing,
   narrow,
   extensions,
-  onOpenView,
+  onNavigate,
   messages,
 }: PanelCommandInput): PanelCommands {
   const id = panel.id;
@@ -155,9 +162,21 @@ export function panelCommands({
   };
   // The view it shows opens where views are worked on, under the board's
   // condition as this panel carries it — mapped onto the view's own fields,
-  // which is the only form another view can read it in.
-  if (onOpenView && shown !== undefined && child)
-    commands.open = () => onOpenView(shown, child.scopeFilter);
+  // which is the only form another view can read it in. An analysis the
+  // board owns has no saved view to open, so it goes unsaved, the board's
+  // conditions its own (「打开源视图」, batch D).
+  if (onNavigate && shown !== undefined && child)
+    commands.open = () =>
+      onNavigate({
+        kind: 'view',
+        instanceId: shown,
+        filter: child.scopeFilter,
+      });
+  else if (onNavigate && owned && child?.kind === 'analysis')
+    commands.open = () => {
+      const to = ownedNavigation(child, name);
+      if (to) onNavigate(to);
+    };
   if (child) commands.refresh = () => dashboard.refreshPanel(id);
 
   const edit = dashboard.edit;
@@ -191,6 +210,9 @@ export function panelCommands({
       const present = extensions.onEditPresentation;
       commands.editPresentation = () => present(id);
     }
+    // What a press does is an analysis's to set: a record view has rows,
+    // not groups (D22 I).
+    if (child?.kind === 'analysis') commands.click = () => building.click(id);
     if (extensions.onResetPresentation && hasOwnLook(stored)) {
       const reset = extensions.onResetPresentation;
       commands.resetPresentation = () => reset(id);

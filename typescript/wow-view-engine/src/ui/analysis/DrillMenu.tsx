@@ -11,7 +11,12 @@
  * limitations under the License.
  */
 
-import { CrosshairIcon, ListTreeIcon, TableIcon } from 'lucide-react';
+import {
+  ArrowUpRightIcon,
+  CrosshairIcon,
+  ListTreeIcon,
+  TableIcon,
+} from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import type { RecordData } from '../../model/index.js';
 import type { FollowUp, FollowUpGroup } from '../../react/index.js';
@@ -55,6 +60,16 @@ export interface DrillMenuProps {
    * conditions and the follow-ups, in order. Null while nothing is pressed.
    */
   followUp: FollowUp | null;
+  /**
+   * What else the group is read under, said under it: a dashboard panel's
+   * board filters as they reach it (D22 H, 「仓库 是 华南 · 本月」).
+   */
+  context?: string;
+  /**
+   * Whether every follow-up opens away from here — a dashboard's go to the
+   * workbench through the host's route — which each item says with ↗.
+   */
+  away?: boolean;
 }
 
 /**
@@ -68,7 +83,13 @@ export interface DrillMenuProps {
  * hands over what to anchor to, so one menu serves every layout and every
  * chart family.
  */
-export function DrillMenu({ pick, onClose, followUp }: DrillMenuProps) {
+export function DrillMenu({
+  pick,
+  onClose,
+  followUp,
+  context,
+  away = false,
+}: DrillMenuProps) {
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
   // What the keyboard gets back when the menu closes: the row that opened
@@ -121,7 +142,17 @@ export function DrillMenu({ pick, onClose, followUp }: DrillMenuProps) {
               what it labels, every item under it being about this one group,
               and a reader entering the group hears the conditions rather than
               nothing. Outside it Base UI has no group to label and throws. */}
-          <DropdownMenuLabel data-slot="drill-group">{group}</DropdownMenuLabel>
+          <DropdownMenuLabel data-slot="drill-group">
+            {group}
+            {context && (
+              <span
+                data-slot="drill-context"
+                className="text-muted-foreground block font-normal"
+              >
+                {context}
+              </span>
+            )}
+          </DropdownMenuLabel>
           {followUp?.actions.map(action => {
             // Every follow-up is run, then the menu goes: it is about a
             // group of a result that the action is about to replace.
@@ -140,6 +171,7 @@ export function DrillMenu({ pick, onClose, followUp }: DrillMenuProps) {
                   >
                     <TableIcon />
                     {messages.label('label.drill.records')}
+                    {away && <Away />}
                   </DropdownMenuItem>
                 );
               case 'split':
@@ -158,6 +190,7 @@ export function DrillMenu({ pick, onClose, followUp }: DrillMenuProps) {
                           )}
                         >
                           {option.label}
+                          {away && <Away />}
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuSubContent>
@@ -171,6 +204,7 @@ export function DrillMenu({ pick, onClose, followUp }: DrillMenuProps) {
                   >
                     <CrosshairIcon />
                     {messages.label('label.drill.focus')}
+                    {away && <Away />}
                   </DropdownMenuItem>
                 );
             }
@@ -178,6 +212,20 @@ export function DrillMenu({ pick, onClose, followUp }: DrillMenuProps) {
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+/**
+ * ↗ at an item's end, and the words for whoever does not see it: the item
+ * opens in the workbench rather than here (D22 H).
+ */
+function Away() {
+  const messages = useViewMessages();
+  return (
+    <>
+      <ArrowUpRightIcon data-slot="drill-away" className="ml-auto" />
+      <span className="sr-only">{messages.label('label.drill.away')}</span>
+    </>
   );
 }
 

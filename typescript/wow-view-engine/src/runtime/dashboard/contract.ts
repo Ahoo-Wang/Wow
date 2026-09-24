@@ -19,6 +19,7 @@
 
 import type {
   AnalysisDateUnit,
+  AnalysisViewConfig,
   DashboardDefinition,
   DashboardFilters,
   DashboardViewConfig,
@@ -27,6 +28,8 @@ import type {
   FilterTree,
   FilterValue,
   Issue,
+  RecordData,
+  RecordViewConfig,
   RuntimeLimits,
   ViewInstance,
   ViewScope,
@@ -40,6 +43,7 @@ import type { ViewRuntime, ViewRuntimeState } from '../viewRuntimeTypes.js';
 import type { PanelRuntimeFactory } from './children.js';
 import type { DashboardEditing, DashboardFilterEditing } from './editing.js';
 import type { DashboardPanelState } from './panels.js';
+import type { CrossFilterOutcome, PressDestination } from './press.js';
 import type { PanelResolver } from './references.js';
 import type { ValueCandidateSources } from '../valueCandidates.js';
 
@@ -125,7 +129,56 @@ export interface DashboardRuntime
    * (`wiredOptions`); `null` when none declares one.
    */
   wiredOptions(name: string): FieldOption[] | null;
+  /**
+   * A press on one group of a panel whose click sets a filter (D22 I,
+   * cross-filtering): the filter takes the group's value — every other
+   * panel wired to it runs under it, this one does not and marks the group
+   * — and the same group pressed again clears it. `row` is the group as
+   * the chart or the table hands it back, keyed by alias.
+   */
+  crossFilter(panelId: string, row: RecordData): CrossFilterOutcome;
+  /** Whether this group is the one the panel's press set its filter to. */
+  pressed(panelId: string, row: RecordData): boolean;
+  /**
+   * Where a press on one group of a panel with a custom destination goes
+   * (D22 I, 「去另一个视图或页面」), for the host's route; `null` for a
+   * panel whose press goes nowhere of the kind.
+   */
+  destination(
+    panelId: string,
+    row: RecordData,
+  ): Promise<PressDestination | null>;
 }
+
+/**
+ * Where a way off the board goes, handed to the host's route (D22 D, H, I):
+ * the package never touches the address, so a view opened in the workbench,
+ * a follow-up on a group and a panel's custom destination are all the
+ * host's to take.
+ */
+export type DashboardNavigation =
+  /**
+   * A saved record or analysis view, under `filter` in its own field names:
+   * the board's filters as they reach the panel (在工作台中打开), or the
+   * group pressed (a custom destination). A host hands it to the view as
+   * its scope.
+   */
+  | { kind: 'view'; instanceId: string; filter: FilterTree | null }
+  /**
+   * A view nobody saved: a follow-up on a group — its records, the same
+   * question split by another dimension or of the group alone (D22 H) — or
+   * an analysis the board owns, opened in the workbench. Its conditions,
+   * the board's filters among them, are its own, as a view drilled out of
+   * another's are; a host opens it as `DataWorkbench`'s `unsaved`.
+   */
+  | {
+      kind: 'unsaved';
+      definitionId: string;
+      title: string;
+      config: RecordViewConfig | AnalysisViewConfig;
+    }
+  /** A page of the host's: a panel's URL filled with the group pressed. */
+  | { kind: 'url'; url: string };
 
 export interface DashboardRuntimeOptions {
   id: string;

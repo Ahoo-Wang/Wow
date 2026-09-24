@@ -18,6 +18,7 @@ import {
   ExternalLinkIcon,
   FolderInputIcon,
   MoreHorizontalIcon,
+  MousePointerClickIcon,
   PaletteIcon,
   PencilIcon,
   RefreshCwIcon,
@@ -172,6 +173,18 @@ export function PanelMenu({
               >
                 <PaletteIcon />
                 {messages.label('label.panel.edit-presentation')}
+              </DropdownMenuItem>
+            )}
+            {commands.click && (
+              <DropdownMenuItem
+                data-slot="panel-click"
+                onClick={() => {
+                  handedOff.current = true;
+                  commands.click?.();
+                }}
+              >
+                <MousePointerClickIcon />
+                {messages.label('label.click.menu-item')}
               </DropdownMenuItem>
             )}
             {commands.resetPresentation && (

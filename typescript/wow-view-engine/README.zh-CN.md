@@ -185,15 +185,23 @@ export function OrdersPage() {
 
 仪表盘平时是读的：能保存它的人按「编辑」之前，板上什么都不动。编辑中顶上一条编辑条，有「添加」（已保存的视图、标题、文字、图片、链接）、「取消」与「完成」——面板随改随跑，只有「完成」才保存，走的就是标题栏那次保存。系统仪表盘只读，只有「另存为」。
 
-每块面板的「⋯」里，「在工作台中打开」只在你给了仪表盘一条路由时才有。`onOpenView(instanceId, filter)` 交给你面板显示的那个已保存视图，以及面板此刻带着的全局条件——已经换成那个视图自己的字段名，可以直接当作用域传下去。`DashboardWorkbench` 与 `EmbeddedView` 收同一个属性。
+离开这块板的每一条路都经过你给的一个路由 `onNavigate(to)`——包本身从不碰地址。不给，就一条都没有：
+
+- 面板「⋯」里的「在工作台中打开」：`{ kind: 'view', instanceId, filter }`，面板显示的已保存视图，以及面板此刻带着的仪表盘筛选——已经换成那个视图自己的字段名，可以直接当作用域传下去。板内自建的分析交的是 `{ kind: 'unsaved', … }`。
+- **点一组**（柱、扇区、表格的一行）打开分析视图的追问菜单（查看这些记录、按其他维度细分、只看这一组）。每一项都是一个没保存的视图：`{ kind: 'unsaved', definitionId, title, config }`，仪表盘筛选与这一组已经在它的条件里。交给 `DataWorkbench` 的 `unsaved` 属性，每个新对象打开一次。
+- **「点击时…」**（编辑中）：面板也可以改为用点中的一组设置仪表盘筛选（交叉筛选——不需要路由；其余接线的面板跟着筛，被点的面板只标出这一组，再点一次撤销），或者去另一个已保存的视图（`{ kind: 'view' }`，带上这一组）或你的一个页面（`{ kind: 'url', url }`，`{{字段}}` 换成点中的值并编码）。
 
 ```tsx
 <DashboardWorkbench
   engine={engine}
   definitionId="overview"
-  onOpenView={(instanceId, filter) => openInWorkbench(instanceId, filter)}
+  onNavigate={to => router.push(routeFor(to))}
 />
+
+<DataWorkbench engine={engine} definitionId="orders" unsaved={fromRoute} />
 ```
+
+`DashboardWorkbench` 与 `EmbeddedView` 收同一个属性。
 
 #### 定制主题
 

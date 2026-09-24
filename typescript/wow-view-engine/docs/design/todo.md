@@ -26,9 +26,7 @@ ECharts 迁移（D21）与两份「数据分析师视角」审查的 P0 已全�
   - 判据：从空仪表盘开始只用界面就能搭出首页那块运营看板；真浏览器逐控件走查。
   - 落点：`src/ui/dashboard/`、`src/ui/DashboardWorkbench.tsx`、[ui/dashboard.md](ui/dashboard.md)。
 - **批 C 全局筛选**：已做完（C1 #1843 模型与运行时，C2 界面），见 [ui/dashboard.md](ui/dashboard.md)「筛选」。剩一件：**筛选条上的排序**——内核与 runtime 有 `moveFilter`，界面上还没有拖动或键盘调顺序；判据：编辑中筛选可按把手或方向键调顺序（同标签栏的 `DragHandle`），有测试；落点：`src/ui/dashboard/FilterBar.tsx`。
-- **批 D 点击**（交互稿 H、I 屏；迁移会话的审查也报了「面板点柱子没反应、打不开源视图」）：默认下钻（复用分析视图追问，经宿主路由钩子到工作台并带全局筛选）；按面板开启交叉筛选；自定义目的地。
-  - 判据：点柱子弹出追问；开了交叉筛选的面板点一个值，其余接线面板跟着筛、它自己不变；有故事守着。
-  - 落点：面板配置、`src/ui/DashboardGrid.tsx`、`src/react/useAnalysisResult.ts` 的追问复用、宿主钩子的类型。
+- **批 D 点击**：已做完（追问菜单经宿主路由、交叉筛选、自定义目的地、「点击时…」），见 [ui/dashboard.md](ui/dashboard.md)「点击」。去另一块仪表盘的目的地尚未定口径，在 [decisions.md#搁置待议](decisions.md#搁置待议) Q17。
 
 ## 阶段 4：嵌入视图（设计已定为 [D22](decisions.md#d22-仪表盘与嵌入视图参照-metabase2026-09-23)）
 

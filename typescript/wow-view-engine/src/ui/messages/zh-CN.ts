@@ -1398,4 +1398,62 @@ export const zhCN: ViewMessages = {
   'label.bulk.stop': '停止',
   'label.bulk.stopping': '正在停止…',
   'label.bulk.dismiss': '知道了',
+
+  // 点一个面板（批 D，D22 H、I）：追问菜单上的仪表盘筛选、交叉筛选、「点击时…」，
+  // 以及内核与运行时关于它的发现。独立站在屏幕上的名字用「」。
+  'label.drill.board': '仪表盘筛选：{conditions}',
+  'label.drill.away': '（在工作台中打开）',
+  'label.click.badge': '点击筛选「{filter}」',
+  'label.click.badge-note':
+    '点这个面板的一组，就用它设置整板的「{filter}」；再点一次撤销。',
+  'label.click.from': '来自「{panel}」',
+  'label.click.filtered': '「{filter}」已按点中的一组筛选',
+  'label.click.cleared': '「{filter}」不再按点中的一组筛选',
+  'label.click.no-value': '这一组没有「{filter}」能用的值',
+  'label.click.menu-item': '点击时…',
+  'label.click.title': '点击「{panel}」时',
+  'label.click.description':
+    '读者点这个面板的一组（柱、扇区、表格的一行）时做什么。',
+  'label.click.choice': '点一组',
+  'label.click.menu': '打开追问菜单',
+  'label.click.menu-hint':
+    '查看这些记录、按其他维度细分、只看这一组，都在工作台中打开。',
+  'label.click.menu-no-route': '这个页面没有接工作台，点一组什么也不做。',
+  'label.click.filter': '更新仪表盘筛选',
+  'label.click.filter-hint':
+    '其余接线的面板按点中的值筛选；这个面板保留所有组，只标出点中的那一组。再点一次撤销。',
+  'label.click.filter-none': '先把一个筛选接到这个面板按来分组的字段上。',
+  'label.click.filter-pick': '筛选',
+  'label.click.go': '去另一个视图或页面',
+  'label.click.go-hint': '带上点中的值。',
+  'label.click.go-kind': '去哪',
+  'label.click.go-view': '视图',
+  'label.click.go-url': '网址',
+  'label.click.view-pick': '选择视图…',
+  'label.click.view-change': '换一个…',
+  'label.click.view-missing': '选一个点击后打开的视图。',
+  'label.click.view-heading': '点「{panel}」去哪个视图',
+  'label.click.url': '地址',
+  'label.click.url-hint': '在要放点中值的地方写上其中一个：{fields}',
+  'label.click.url-hint-none': '这个面板没有可以带过去的维度。',
+  'label.click.url-invalid': '只能是 http、https、mailto 或本应用内的地址。',
+  'label.click.save': '完成',
+  'dashboard.click.invalid':
+    '这个面板的「点击时」设置读不出来，点一组会打开追问菜单。',
+  'dashboard.click.unpressable':
+    '这个面板没有可点的组（记录视图，或展开了明细项的分析），「点击时」的设置不生效。',
+  'dashboard.click.filter-unknown':
+    '这个面板点击时要设置的筛选已经不在板上，点一组会打开追问菜单。',
+  'dashboard.click.filter-unwired':
+    '「{filter}」没有接到这个面板，点一组设置不了它，会打开追问菜单。',
+  'dashboard.click.filter-ungrouped':
+    '「{filter}」接的是 {field}，这个面板不按它分组，点一组拿不到它的值，会打开追问菜单。',
+  'dashboard.click.url-unsafe':
+    '点击时去的地址不是 http、https、mailto 或本应用内的地址，点一组会打开追问菜单。',
+  'dashboard.click.url-unknown-field':
+    '点击时去的地址用到了 {field}，这个面板不按它分组，点一组会打开追问菜单。',
+  'dashboard.click.destination-unavailable':
+    '点击时要去的视图已被删除，或你没有权限打开它。',
+  'dashboard.click.destination-unsupported':
+    '点击时只能去记录视图或分析视图，不能去仪表盘。',
 } satisfies Record<MessageKey, string>;

@@ -97,7 +97,7 @@ src/
     analysis.ts               — Wow aggregation enums as stored literals, the date units coarsest first (`ANALYSIS_DATE_UNITS`); which metric types measure one field (`FIELD_METRIC_TYPES`)
     chart.ts                  — ChartSpec — one sub-object per chart family, every reference a group or metric alias; `CHART_TYPES`, `CHART_FAMILY`, `CHART_COLOR_SLOTS` (the palette's size, which a pie folds at)
     config.ts                 — ViewConfig — what each view kind stores, and which of its members only draw the result (`presentationMembers`)
-    dashboard.ts              — Dashboard config: the 24-column grid it says it is in, tabs, the filters (five types, `filterTypeOf`; default, required, multiple, a list) and the time grouping, what they hold (`DashboardFilters`, never saved), bindings (auto or by hand), panels on a saved view or one the board owns (`OwnedView`), how a panel looks at its view (`PanelPresentation`), content panels heading included
+    dashboard.ts              — Dashboard config: the 24-column grid it says it is in, tabs, the filters (five types, `filterTypeOf`; default, required, multiple, a list) and the time grouping, what they hold (`DashboardFilters`, never saved), bindings (auto or by hand), panels on a saved view or one the board owns (`OwnedView`), how a panel looks at its view (`PanelPresentation`) and what a press on one of its groups does (`PanelClick`), content panels heading included
     definition.ts             — ViewDefinition, FieldDefinition, capabilities
     field.ts                  — FieldKindId; what a cell reads as, which fields hold one string, and how a time field is stored (`temporalOf`, epoch milliseconds unless declared)
     filter.ts                 — FilterOperator as stored in a config; the three group operators and the reading of one
@@ -184,12 +184,13 @@ src/
   dashboard/                  — Dashboard kernel — imports model and filter
     defaults.ts               — emptyDashboardConfig
     edit.ts                   — Building a board as pure edits (D22 A–E): `addPanel` (at `freeSpot`, sized by `defaultPanelSize`), remove, duplicate, rename, replace the view, `referToSaved`, `setPresentation`, `editContent`, `movePanelToTab`, `compactTab`
+    click.ts                  — What a press on a panel's group does (D22 H, I), as configs say it: `urlPlaceholders`, `fillUrl` (each `{{field}}` encoded, only a URL a board may open), `takesGroup` and `crossFilterChoices` (the filters a press can set: wired through a field the panel groups by), `pressableGroups`, `validatePanelClick` (warnings only — a click that cannot do what it says falls back to the follow-up menu), `setPanelClick`
     filterEdit.ts             — Setting up the board's filters as pure edits (D22 G): add, rename, retype, remove, default, required, multiple, a list of its own, move; the time grouping
-    filters.ts                — A filter's value (D22 F): the one condition it stands for (`filterOperatorOf`, `filterCondition`), what the filters start at (`defaultFilters`) and take (`admitFilters`: required never blank), the condition one panel runs under (`panelFilterTree`, unwired filters left out), the control that edits it and its value's two shapes (`filterEditor`, `filterControlValue`, `filterStoredValue`)
+    filters.ts                — A filter's value (D22 F): the one condition it stands for (`filterOperatorOf`, `filterCondition`), what the filters start at (`defaultFilters`) and take (`admitFilters`: required never blank, the panel a value was pressed on kept while its click sets it), the condition one panel runs under (`panelFilterTree`, unwired filters left out), the control that edits it and its value's two shapes (`filterEditor`, `filterControlValue`, `filterStoredValue`)
     layout.ts                 — Where panels may go on the 24-column grid: `fitsGrid`, `placePanel` (covered panels make way, then the tab floats up — only a hand compacts), `compactLayout`, `arrangePanel` (one keyboard command on a compacted board), `freeSpot`, `readingOrder` and `stackedLayout` (the one-column reading a narrow screen shows)
     merge.ts                  — mergeGlobalFilter onto one panel's fields
     migrate.ts                — `migrateDashboardConfig`: a board stored without `columns` read from 12 columns into 24, every `x` and `w` doubled
-    panels.ts                 — Which panel a stored one is: `isViewPanel`, `isContentPanel`, `isOwnedPanel`, `referencedInstance`, `panelTab`, `freshId`, and `isSafeContentUrl` for what a content panel points at
+    panels.ts                 — Which panel a stored one is: `isViewPanel`, `isContentPanel`, `isOwnedPanel`, `referencedInstance`, `panelTab`, `freshId`, `clickOf` / `clicksFilter` (a panel's click read as untrusted), and `isSafeContentUrl` for what a content panel points at
     tabs.ts                   — A board's tabs: `validateTabs`, and add (the first time, two), rename, reorder, remove with their panels
     validate.ts               — validateDashboard — grid, tabs, panels (saved or owned views, overrides of how they look), bindings, content
     validateFilters.ts        — The board's filters as declared (type, default, required, multiple, a list) and its time grouping
@@ -241,6 +242,7 @@ src/
       editing.ts              — `DashboardEditing`, `DashboardFilterEditing` and `boardEditing`: building the board and its filters, each edit a kernel function applied to the draft and the screen alike; a data panel added comes wired (`autoBindings`)
       panels.ts               — Panel helpers: reading, addressing, comparing; `blocksBoard`, the errors that stop the whole board; `stopsSave`, what stops a save of each kind; `shownTab`, the tab on screen; `migrated`, a stored board read into the 24-column form
       presentation.ts         — `presentedConfig`: a panel's override of how it looks laid over its view's config, dropped with a note when it no longer fits
+      press.ts                — `PanelPresses`: a press on a panel's group worked out (D22 H, I) — the group's value in a board filter's shape set from the panel (`crossFilter`, a second press clears), whether a group is the one pressed (`pressed`), and where a custom destination goes carrying it (`destination`: a filled URL, or a saved view under the group's conditions on the fields its data has too)
       references.ts           — PanelReferences: loading what panels point at
   store/                      — Persistence port — imports model only
     MemoryViewStore.ts        — In-memory implementation for examples and tests
@@ -260,7 +262,8 @@ src/
     useAutoRefresh.ts         — `RefreshController`: refresh now, the cadence ladder cut to the limits, the countdown
     useBulkCommand.ts         — A host's command for one record run over a selection: a few at a time, progress, stop, each refusal's reason, the unfinished rows left selected
     useSearchBox.ts           — The view's search kept on hand: the definition's search field, the draft's and the applied text, set / submit / clear
-    useDashboard.ts           — Dashboard panels, geometry and state; the board's edit commands, its tabs, and `preload` for a view about to be added
+    useDashboard.ts           — Dashboard panels, geometry and state; the board's edit commands, its tabs, `preload` for a view about to be added, and a press on a panel's group (`crossFilter`, `pressed`, `destination`)
+    usePanelFollowUps.ts      — The follow-up menu on a dashboard panel (D22 H): `useAnalysisResult`'s workbench half routed to the host (`DashboardNavigation` of kind `unsaved`, the board's filters folded into the view's own), and `ownedNavigation` for a board's own analysis
     useFilterEditor.ts        — Filter tree editor controller
     useRecordExport.ts        — The export run: scope, progress, the ceiling, delivery
     useRecordDetail.ts        — One record's detail: open, read whole (`fetchRecord`) and read again when the view's result lands; the page's row until then
@@ -270,7 +273,7 @@ src/
     useViewEngine.ts          — Creates and disposes one engine
     useViewList.ts            — View summaries in the user's order
     useViewManager.ts         — Rename, delete, reorder, default; outcomes per row
-    useWorkbench.ts           — One workbench's shell: list, open, leave, the header's outcomes
+    useWorkbench.ts           — One workbench's shell: list, open, leave, the header's outcomes, a view nobody saved a host hands it (`unsaved`)
     writes.ts                 — One write-outcome vocabulary, shared by the save commands and the manager
     index.ts                  — The `/react` entry: hooks and headless controllers over the runtime
     manager/                  — What `useViewManager` composes
@@ -284,6 +287,7 @@ src/
       leaveGuard.ts           — Headless leave protection; `/ui` draws `LeaveDialog` from it
       newView.ts              — What `create` makes: the kind's default config and the audience it goes to
       releaseDeleted.ts       — Lets a workbench's pinned id go once the view is deleted
+      unsavedView.ts          — `useUnsavedView`: a view nobody saved a host hands the workbench (a dashboard's follow-up), opened once per object through the leave guard, held as `handed` so the shell opens it folded
   ui/                         — Default look; may import every layer
     AnalysisChart.tsx         — Dispatches by chart family; nothing else
     AnalysisTable.tsx         — The aggregation as a table: groups first, then metrics, with the totals row from its own ungrouped query rather than from summing what is on screen, and its scope said under 「合计」; read with the record table's recipes — numbers on the right, ids in monospace, `SortableHeader`, held widths and the filler
@@ -295,8 +299,8 @@ src/
     ConflictConfirm.tsx       — The same choice, put once more with both configs on the table
     CopyButton.tsx            — A value's own copy button: the clipboard, the tick, and the two words a press comes back with
     DashboardArrange.tsx      — Placing a panel without a pointer: the two handles named after their panel (`PanelGridItem` tells the corner which), and the menu
-    DashboardGrid.tsx         — The panels, placed — in reading order, one column below `md`, the tab on screen alone when a tab bar says which; the edit bar over them and the first things to add on an empty board, where the board is built; each panel's commands (`panelCommands`)
-    DashboardPanel.tsx        — One framed panel: its title (a heading panel is that and nothing else), 「不受『〈筛选〉』影响」, its 「⋯」 menu, the wiring strip under it, the arrange handles while the board is built, the body; what a panel is called (`panelName`, and `panelNames` numbering the names the board makes up); chart findings named by column
+    DashboardGrid.tsx         — The panels, placed — in reading order, one column below `md`, the tab on screen alone when a tab bar says which; the edit bar over them and the first things to add on an empty board, where the board is built; each panel's commands (`panelCommands`) and its press (`panelPress`)
+    DashboardPanel.tsx        — One framed panel: its title (a heading panel is that and nothing else), 「不受『〈筛选〉』影响」, 「点击筛选「〈筛选〉」」, its 「⋯」 menu, the wiring strip under it, the arrange handles while the board is built, the body; what a panel is called (`panelName`, and `panelNames` numbering the names the board makes up); chart findings named by column
     DashboardPanels.tsx       — The static panels: a heading, a note, a picture, a list of links
     DashboardWorkbench.tsx    — Default Dashboard workbench
     DataWorkbench.tsx         — The data workbench: one list of record and analysis views; `useWorkbench` + both parts + `WorkbenchShell`, joined (D18-1, D20)
@@ -370,7 +374,7 @@ src/
       ElementsSlot.tsx        — The expansion slot (D20 屏 G): the chain of arrays counted inside, one card a level with its own gate, 「展开：…」 along the declared chain, and the counting unit
       FormulaCard.tsx         — The controls of a formula metric and of a derived metric (D20 屏 B): two operands picked or typed, the operation between, the summary for a formula
       HavingRows.tsx          — 「只保留」: the groups kept, as rows of one comparison each under the result slot's first label; a stored having of another shape is shown and clearable
-      DrillMenu.tsx           — The follow-up menu on one group of a result: the records behind it, split by another dimension, only this group (D20 追问); headed by the group as the result reads it (`groupText`: a date bucket as its column prints it), naming what it opens 「{what} · {group}」; as wide as its words, hung from the mark, point or cell pressed, the keyboard handed back to the row
+      DrillMenu.tsx           — The follow-up menu on one group of a result: the records behind it, split by another dimension, only this group (D20 追问); headed by the group as the result reads it (`groupText`: a date bucket as its column prints it), naming what it opens 「{what} · {group}」; as wide as its words, hung from the mark, point or cell pressed, the keyboard handed back to the row; on a dashboard panel the board's filters under its heading (`context`) and ↗ on each item (`away`)
       EmptyResult.tsx         — An aggregation that matched no group, one sentence for both layouts, and in the workbench the record view's one way out (`wayOutOf`) — none with no condition in force
       SkeletonResult.tsx      — The first answer on its way, in its shape: bars for the table's rows or one chart area, and the caption's bar (`CaptionSkeleton`)
       MetricCard.tsx          — The metrics slot and its cards: field and summary (the six ways Wow measures a field as one list), a percentile's number, the record count
@@ -389,6 +393,7 @@ src/
       cartesianOption.ts      — `cartesianOption`: a cartesian chart as the library draws it — each series' mark, axes and their titles, short numbers, value labels that hide rather than overlap, stack totals, reference lines, room for the widest value label; `categoryFit`, the category names side by side or at a slant for the width, a time axis flat and thinned
       ChartLegend.tsx         — The legend as text beside the drawing: a dot per series, on top by default, one line with the rest counted (「还有 N 个」)
       ChartReading.tsx        — The chart's numbers as a table, for whoever cannot see the marks
+      highlight.ts            — `faded`: every mark but the group pressed drawn faint, over any family's option (D22 I)
       EChart.tsx              — The thin binding to the library: create once sized, resize, a whole new option per change, dispose; the frame (`data-slot="chart"`), the named image and the theme read off the element
       echarts.ts              — The chart chunk: the library's pieces registered on demand, SVG renderer; imported by `load.ts` only
       load.ts                 — `loadCharts`: the chart chunk loaded on first use and kept
@@ -414,21 +419,23 @@ src/
       reading.ts              — A chart as text: its name and the numbers it draws
     dashboard/                — What building a dashboard is made of (D22 A–E)
       BoardFilters.tsx        — `useBoardFilters`: the board's filters as it draws them — the bar, 「筛选 ＋」, each filter's settings, wiring and the toast that undoes auto-connect
+      ClickSettings.tsx       — 「点击时…」 (D22 I): the follow-up menu, a board filter a press sets, or another view or a page, one `RadioGroup`; a view picked with the `ViewPicker`, a URL checked at the field
       AddMenu.tsx             — 「＋ 添加 ▾」: 数据 (a saved view, a new analysis where one can be made) and 内容 (heading, text, image, links); the same first steps on an empty board
       Board.tsx               — `DashboardBoard`: the grid with the edit bar over it, the picker and the content form, every edit one `DashboardEditing` command; where a new panel goes (the first row on screen of the tab on screen) and where the keyboard goes after
       building.tsx            — `useDashboardExtensions`: the default workbench's `DashboardEditExtensions` — a new owned analysis, a panel's own look and its reset, 另存为视图, the tab bar — and the three dialogs they open
       commands.ts             — `panelCommands`: what one panel's menu offers — 「看」 always, 「改」 while the board is built (「恢复为视图的样子」 only over a look of its own), renaming and removing alone in the one-column reading — and the builder the grid reaches through context
       ContentEditor.tsx       — The small form a note, a picture or a list of links is written in, what the kernel would refuse said at the field
       DashboardTabs.tsx       — The tab bar over the grid, two tabs or more: switch; while building, add, rename in place, carry by handle or arrows, delete (asked first when it holds panels); `tabTitle`
-      FilterBar.tsx           — The filter bar (D22 F): a chip a filter with the condition editor's value controls, required ones starred and never empty, 按日｜周｜月, 「清空」, a filter reaching nothing on the tab drawn quieter and saying why
+      FilterBar.tsx           — The filter bar (D22 F): a chip a filter with the condition editor's value controls, required ones starred and never empty, 按日｜周｜月, 「清空」, a filter reaching nothing on the tab drawn quieter and saying why, 「来自「〈面板〉」」 on a value a press set
       FilterSettings.tsx      — 「筛选 ＋」 (`AddFilterMenu`) and one filter's settings popover: type, name, default, several values, required, where its values come from, 接线 and 移除
       FilterWiring.tsx        — Wiring a filter (D22 G): the context the grid reads, each panel's strip (same-type fields, 「没有可接的字段」, 「手动」), the wiring bar, the toasts in the board's own root
       EditBar.tsx             — The bar a board is built under: 正在编辑, 添加 and 筛选 ＋ beside it, 取消 (put back the saved board, asked first) and 完成 (the save, a shared board asked first, a new one named)
       extensions.ts           — `DashboardEditExtensions`: the parts of building that live elsewhere (a new owned analysis, the presentation editor and its reset, 另存为视图, the tab bar), each entry there only while provided
       NewAnalysisDialog.tsx   — A new analysis made inside the dashboard: the data first, then `AnalysisParts` in a dialog (tray, result, visualization panel, 改了就跑), a title following the reading, 「放进仪表盘」
-      PanelBodies.tsx         — What a data panel draws: the record table, the analysis drawn from its child's draft over the rows on hand (`useAnalysisResult`), a failed query with its retry, and 「此处改为〈图型〉」 (`presentationMark`)
+      PanelBodies.tsx         — What a data panel draws: the record table, the analysis drawn from its child's draft over the rows on hand (`useAnalysisResult`), a press on its groups (`PanelPress`: the follow-up menu through the host's route, the board's filter set with the group marked, a destination), a failed query with its retry, and 「此处改为〈图型〉」 (`presentationMark`)
       PanelMenu.tsx           — 「⋯」 on a panel, the question before it is removed, and its title renamed in place
       PresentationDialog.tsx  — 「改这里的展示」: the chart picker and options writing one panel's look, beside the panel as it will look; Cancel puts back the look it opened with
+      press.ts                — `PanelPress`: what the grid hands a panel for a press on its groups, `pressMode` (the menu and a destination only with a route), the board line the follow-up menu says, and what a cross-filter press says
       ViewPicker.tsx          — Choosing a saved view: grouped as the switcher groups them, searched, narrowed by kind and data, 「已在板上」 and 「只有你看得到」 said on the row
     columns/
       ColumnRow.tsx           — One row of the column settings: checkbox, two-state pin toggle, summary, handle
@@ -466,6 +473,7 @@ src/
       analysis.ts             — the analysis editor and its charts, with the two kernels behind them
       building.ts             — building a board, batch B3: tabs, a new analysis in a dashboard, saving it as a view, a panel's own look
       bulk.ts                 — bulk outcome wording
+      clicks.ts               — a press on a dashboard panel, batch D: the follow-up menu's board line, cross-filtering, 「点击时…」, and the click findings
       config.ts               — shared config — the part every view kind stores, so every kind reports it
       dashboard.ts            — the dashboard grid, its panels, and the dashboard kernel behind them
       definition.ts           — definition admission, worded for whoever wrote the release

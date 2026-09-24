@@ -142,6 +142,13 @@ export interface DashboardFilters {
   values: Record<string, FilterValue>;
   /** The time grouping's unit, on a board that has one. */
   unit?: AnalysisDateUnit;
+  /**
+   * The panel each filter's value was pressed on, by filter name (D22 I,
+   * cross-filtering): that panel is not narrowed by the value it set, and
+   * marks the group instead. Set by a press, gone the moment the value is
+   * set any other way or cleared — it says where this value came from.
+   */
+  from?: Record<string, string>;
 }
 
 export interface DashboardPanelBase {
@@ -236,7 +243,38 @@ interface DashboardViewPanelBase extends DashboardPanelBase {
   kind: 'view';
   bindings: PanelBinding[];
   presentation?: PanelPresentation;
+  /**
+   * What a press on one group of the panel does (D22 H, I): left out, the
+   * analysis view's own follow-up menu, whose destinations open in the
+   * host's workbench. Only an analysis panel has groups to press.
+   */
+  click?: PanelClick;
 }
+
+/**
+ * What a press on one group of an analysis panel does, set by the board's
+ * author (D22 I, 「点击时…」). The default — no `click` — is the follow-up
+ * menu (D22 H), which is not a choice stored here.
+ */
+export type PanelClick =
+  /**
+   * Cross-filtering: the board filter named takes the group's value on the
+   * dimension it is wired to on this panel, and every other panel wired to
+   * it runs under that value. The panel pressed is not narrowed by it — it
+   * marks the group — and the same group pressed again clears it.
+   */
+  | { kind: 'filter'; filter: string }
+  /**
+   * Another saved record or analysis view, opened through the host's route
+   * under the group pressed: each of its conditions on a field the view's
+   * data has too, by name and type.
+   */
+  | { kind: 'view'; instanceId: string }
+  /**
+   * A page of the host's: `url` with every `{{field}}` in it replaced by the
+   * group's value on the dimension over that field, encoded.
+   */
+  | { kind: 'url'; url: string };
 
 /**
  * Data panel: shows a record or analysis view and is filtered by the board.

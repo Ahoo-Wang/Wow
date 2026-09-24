@@ -16,6 +16,7 @@ import { valueLabelsOn, type HeatmapData } from '../../analysis/index.js';
 import { pointAnchor } from '../analysis/DrillMenu.js';
 import { categoryFit } from './cartesianOption.js';
 import { EChart, type ChartClick } from './EChart.js';
+import { faded, type Lit } from './highlight.js';
 import type { FamilyProps } from './family.js';
 import { heatmapOption } from './heatmapOption.js';
 import { measureText } from './measure.js';
@@ -35,13 +36,36 @@ export function Heatmap({
   column,
   name,
   onPick,
+  highlight,
 }: FamilyProps<HeatmapData>) {
   const animate = useChartMotion();
   const pickable = onPick !== undefined;
+  // The cell pressed, when a press set the board's filter (D22 I): the
+  // cells are drawn in the order the option lists them, empty ones left out.
+  const heatmap = spec?.heatmap;
+  const lit = useMemo<Lit | undefined>(() => {
+    if (!highlight || !heatmap) return undefined;
+    const drawn = data.cells.flatMap((row, y) =>
+      row.flatMap((cell, x) => (cell === null ? [] : [{ x, y }])),
+    );
+    return (_series, at) => {
+      const cell = drawn[at];
+      return (
+        cell !== undefined &&
+        highlight({
+          [heatmap.x]: data.xs[cell.x],
+          [heatmap.y]: data.ys[cell.y],
+        })
+      );
+    };
+  }, [highlight, heatmap, data]);
   const option = useCallback(
     (theme: ChartTheme) =>
-      heatmapOption(data, { spec, label, column, animate, pickable }, theme),
-    [data, spec, label, column, animate, pickable],
+      faded(
+        heatmapOption(data, { spec, label, column, animate, pickable }, theme),
+        lit,
+      ),
+    [data, spec, label, column, animate, pickable, lit],
   );
   // The names along the bottom turn as a bar chart's do.
   const adapt = useCallback(
@@ -82,6 +106,14 @@ export function Heatmap({
         'data-chart': 'heatmap',
         'data-marks': data.cells.flat().filter(cell => cell !== null).length,
         'data-labels': valueLabelsOn(spec) ? 'on' : 'off',
+        ...(lit
+          ? {
+              'data-highlighted': data.cells
+                .flat()
+                .filter(cell => cell !== null)
+                .filter((_cell, at) => lit(0, at)).length,
+            }
+          : {}),
       }}
     />
   );

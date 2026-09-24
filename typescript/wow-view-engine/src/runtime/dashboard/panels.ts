@@ -24,10 +24,12 @@ import type {
   DashboardPanel,
   DashboardViewConfig,
   Issue,
+  PanelClick,
   ViewInstance,
   ViewKind,
 } from '../../model/index.js';
 import {
+  clickOf,
   migrateDashboardConfig,
   panelTab,
   type FilterReach,
@@ -65,6 +67,27 @@ export interface DashboardPanelState {
   reach: Readonly<Record<string, FilterReach>>;
   /** What the board's time grouping does to it; see `PanelGrouping`. */
   grouping: PanelGrouping;
+  /**
+   * What a press on one of its groups does (D22 H, I): its click as set, or
+   * `null` for the follow-up menu — none set, or one admission found
+   * something wrong with, which the panel's warning says (`clickInForce`).
+   */
+  click: PanelClick | null;
+}
+
+/**
+ * A panel's click, unless admission said something about it: a click that
+ * cannot do what it says is set aside and a press opens the follow-up menu,
+ * as the warning on the panel says.
+ */
+export function clickInForce(
+  panel: DashboardPanel,
+  issues: readonly Issue[],
+): PanelClick | null {
+  const said = issues.some(
+    found => found.path[0] === 'panels' && found.path[2] === 'click',
+  );
+  return said ? null : clickOf(panel);
 }
 
 /**

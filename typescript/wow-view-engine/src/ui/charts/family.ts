@@ -102,6 +102,12 @@ export interface FamilyProps<D> {
    * of the groups shown.
    */
   cutShort?: boolean;
+  /**
+   * The group a press set the board's filter to (D22 I): a family that can
+   * say which of its marks stands for a group draws the others faint
+   * (`faded`); left out, every mark as it is.
+   */
+  highlight?: (row: RecordData) => boolean;
 }
 
 export function useValueLabel(

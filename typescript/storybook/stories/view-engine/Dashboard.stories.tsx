@@ -10,16 +10,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { DashboardWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
+import {
+  DashboardWorkbench,
+  DataWorkbench,
+} from '@ahoo-wang/fetcher-view-engine/ui';
 import {
   AggregationDateUnit,
   AggregationGroupType,
 } from '@ahoo-wang/fetcher-wow';
 import type {
   DashboardFilters,
+  DashboardNavigation,
   DashboardViewConfig,
   DataViewDefinition,
+  ViewEngine,
   ViewInstance,
 } from '@ahoo-wang/fetcher-view-engine';
 import { AppShell } from '../shared/AppShell.js';
@@ -50,7 +56,9 @@ type Variant =
   | 'system'
   | 'owned'
   | 'tabs'
-  | 'filters';
+  | 'filters'
+  | 'clicks'
+  | 'cross';
 
 /**
  * The board that ships with the definition: read-only to everyone (D4), so
@@ -70,11 +78,14 @@ function DashboardDemo({
   behaviour = 'data',
   variant = 'panels',
   onFiltersChange,
+  onNavigate,
 }: {
   behaviour?: SourceBehaviour;
   variant?: Variant;
   /** Told what the board's filters hold, as a host's address would be. */
   onFiltersChange?(filters: DashboardFilters): void;
+  /** Told where a way off the board goes, as a host's router would be. */
+  onNavigate?(to: DashboardNavigation): void;
 }) {
   return (
     <StoryEngine
@@ -105,23 +116,101 @@ function DashboardDemo({
         })
       }
     >
-      {engine => (
-        <DashboardWorkbench
+      {engine =>
+        variant === 'clicks' || variant === 'cross' ? (
+          <RoutedHost
+            engine={engine}
+            onFiltersChange={onFiltersChange}
+            onNavigate={onNavigate}
+          />
+        ) : (
+          <DashboardWorkbench
+            engine={engine}
+            definitionId="overview"
+            instanceId={
+              variant === 'system' ? 'system:overview:ops' : savedDashboard.id
+            }
+            onFiltersChange={onFiltersChange}
+            {...HOST_LANGUAGE}
+          />
+        )
+      }
+    </StoryEngine>
+  );
+}
+
+/**
+ * A host with a route (D22 H, I): the board, and where a way off it goes —
+ * the workbench, opened on a saved view under the board's filters or on a
+ * view nobody saved (a follow-up), or a page of its own. The filters are
+ * kept as a host's address keeps them, so coming back finds the board as
+ * it was left.
+ */
+function RoutedHost({
+  engine,
+  onFiltersChange,
+  onNavigate,
+}: {
+  engine: ViewEngine;
+  onFiltersChange?(filters: DashboardFilters): void;
+  onNavigate?(to: DashboardNavigation): void;
+}) {
+  const [away, setAway] = useState<DashboardNavigation | null>(null);
+  const [filters, setFilters] = useState<DashboardFilters | undefined>();
+  if (away === null)
+    return (
+      <DashboardWorkbench
+        engine={engine}
+        definitionId="overview"
+        instanceId={savedDashboard.id}
+        initialFilters={filters}
+        onFiltersChange={next => {
+          setFilters(next);
+          onFiltersChange?.(next);
+        }}
+        onNavigate={to => {
+          onNavigate?.(to);
+          setAway(to);
+        }}
+        {...HOST_LANGUAGE}
+      />
+    );
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <button
+        type="button"
+        data-slot="host-back"
+        style={{ alignSelf: 'flex-start' }}
+        onClick={() => setAway(null)}
+      >
+        ← 回到出库概览
+      </button>
+      {away.kind === 'url' ? (
+        <p data-slot="host-page">宿主页面：{away.url}</p>
+      ) : (
+        <DataWorkbench
           engine={engine}
-          definitionId="overview"
-          instanceId={
-            variant === 'system' ? 'system:overview:ops' : savedDashboard.id
-          }
-          onFiltersChange={onFiltersChange}
+          definitionId="orders"
+          {...(away.kind === 'unsaved'
+            ? { unsaved: { title: away.title, config: away.config } }
+            : { instanceId: away.instanceId })}
           {...HOST_LANGUAGE}
         />
       )}
-    </StoryEngine>
+    </div>
   );
 }
 
 function savedConfig(variant: Variant) {
   if (variant === 'filters') return filtersConfig();
+  if (variant === 'cross')
+    return dashboardConfig({
+      panels: dashboardConfig().panels.map(panel =>
+        panel.id === 'by-warehouse'
+          ? { ...panel, click: { kind: 'filter', filter: 'region' } }
+          : panel,
+      ),
+    });
   if (variant === 'tabs') return tabbedConfig();
   if (variant === 'owned') return ownedConfig();
   if (variant === 'empty' || variant === 'empty-shared')
@@ -423,6 +512,29 @@ export const QueryFailed: Story = { args: { behaviour: 'failing' } };
  * built, 「筛选 ＋」 adds one, and 「接线」 wires it (D22 G).
  */
 export const Filters: Story = { name: '筛选条', args: { variant: 'filters' } };
+
+/**
+ * Pressing a group (D22 H): a bar of 「按仓库汇总」 or a row of its table
+ * opens the analysis view's follow-up menu, headed by the group and the
+ * board's filters over it; each item opens in the workbench (↗) through the
+ * host's route — here the page swaps the board for a `DataWorkbench` on the
+ * view nobody saved, with a way back.
+ */
+export const Clicks: Story = {
+  name: '点击：追问菜单',
+  args: { variant: 'clicks' },
+};
+
+/**
+ * Cross-filtering (D22 I): 「按仓库汇总」 is set to update 「仓库」 on a
+ * press. A bar pressed sets the filter bar (「来自「按仓库汇总」」) and the
+ * list runs under it; the chart keeps every bar and marks the one pressed;
+ * the same bar again clears it.
+ */
+export const CrossFilter: Story = {
+  name: '点击：交叉筛选',
+  args: { variant: 'cross' },
+};
 
 /** A dashboard with nothing on it yet. */
 export const EmptyDashboard: Story = { args: { variant: 'empty' } };

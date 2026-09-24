@@ -38,7 +38,7 @@ import { stickyBand } from './record/sticky.js';
 import { onlyWhereText } from './summary.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 import type { AnalysisView } from '../analysis/index.js';
-import type { RecordSort } from '../model/index.js';
+import type { RecordData, RecordSort } from '../model/index.js';
 import { AnalysisEmpty } from './analysis/EmptyResult.js';
 import type { HeaderSorting } from './analysis/headerSort.js';
 import {
@@ -71,6 +71,17 @@ export interface AnalysisTableProps {
    * embedded view — the headers name their columns and nothing more.
    */
   sorting?: HeaderSorting;
+  /**
+   * Whether a press opens a menu (`aria-haspopup`): the follow-up menu, as
+   * it does unless said otherwise. A dashboard panel whose press sets the
+   * board's filter or goes elsewhere opens none (D22 I).
+   */
+  opensMenu?: boolean;
+  /**
+   * The group a press set the board's filter to, marked rather than
+   * narrowed to (D22 I): its row wears `data-pressed` and `aria-current`.
+   */
+  highlight?: (row: RecordData) => boolean;
 }
 
 /** What marks a row as a member of the result's one Tab stop. */
@@ -91,7 +102,13 @@ const NO_SORT: readonly RecordSort[] = [];
  * rows (`analysis/tableColumns.ts`), so a question asked again with other
  * answers leaves every column where it was.
  */
-export function AnalysisTable({ view, onPick, sorting }: AnalysisTableProps) {
+export function AnalysisTable({
+  view,
+  onPick,
+  sorting,
+  opensMenu = true,
+  highlight,
+}: AnalysisTableProps) {
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
   // `aria-description` is a draft attribute Chromium alone implements, so
@@ -285,56 +302,65 @@ export function AnalysisTable({ view, onPick, sorting }: AnalysisTableProps) {
           </TableRow>
         </TableHeader>
         <TableBody ref={body}>
-          {view.rows.map((row, index) => (
-            <TableRow
-              key={index}
-              data-pickable={onPick ? '' : undefined}
-              aria-haspopup={onPick ? 'menu' : undefined}
-              className={cn(onPick && 'cursor-pointer', FOCUS_ROW)}
-              // The menu hangs from the cell pressed, or from the row's first
-              // cell for a key, never from the row: a menu anchored to a row
-              // takes the row's width, and an analysis row is the width of
-              // the whole table (the popup's recipe is `--anchor-width`). The
-              // row stays where the keyboard goes back to.
-              onClick={
-                onPick
-                  ? event =>
-                      onPick(
-                        row,
-                        cellOf(event.target, event.currentTarget),
-                        event.currentTarget,
-                      )
-                  : undefined
-              }
-              // The stop follows the keyboard: a row focused is the row the
-              // group's one stop is on, however focus got there — an arrow,
-              // a press, or the menu handing it back when it closes.
-              onFocus={
-                onPick
-                  ? event => takeStop(event.currentTarget, rows())
-                  : undefined
-              }
-              onKeyDown={
-                onPick
-                  ? event => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
+          {view.rows.map((row, index) => {
+            const pressed = highlight?.(row) === true;
+            return (
+              <TableRow
+                key={index}
+                data-pickable={onPick ? '' : undefined}
+                data-pressed={pressed ? '' : undefined}
+                aria-current={pressed ? 'true' : undefined}
+                aria-haspopup={onPick && opensMenu ? 'menu' : undefined}
+                className={cn(
+                  onPick && 'cursor-pointer',
+                  FOCUS_ROW,
+                  'data-[pressed]:bg-muted',
+                )}
+                // The menu hangs from the cell pressed, or from the row's first
+                // cell for a key, never from the row: a menu anchored to a row
+                // takes the row's width, and an analysis row is the width of
+                // the whole table (the popup's recipe is `--anchor-width`). The
+                // row stays where the keyboard goes back to.
+                onClick={
+                  onPick
+                    ? event =>
                         onPick(
                           row,
-                          event.currentTarget.cells[0] ?? event.currentTarget,
+                          cellOf(event.target, event.currentTarget),
                           event.currentTarget,
-                        );
-                        return;
+                        )
+                    : undefined
+                }
+                // The stop follows the keyboard: a row focused is the row the
+                // group's one stop is on, however focus got there — an arrow,
+                // a press, or the menu handing it back when it closes.
+                onFocus={
+                  onPick
+                    ? event => takeStop(event.currentTarget, rows())
+                    : undefined
+                }
+                onKeyDown={
+                  onPick
+                    ? event => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          onPick(
+                            row,
+                            event.currentTarget.cells[0] ?? event.currentTarget,
+                            event.currentTarget,
+                          );
+                          return;
+                        }
+                        moveStop(event, rows(), 'column');
                       }
-                      moveStop(event, rows(), 'column');
-                    }
-                  : undefined
-              }
-            >
-              {columns.map(entry => cell(row[entry.column.alias], entry))}
-              <FillerCell />
-            </TableRow>
-          ))}
+                    : undefined
+                }
+              >
+                {columns.map(entry => cell(row[entry.column.alias], entry))}
+                <FillerCell />
+              </TableRow>
+            );
+          })}
         </TableBody>
         {room > 0 && (
           <tbody data-slot="row-room" aria-hidden>

@@ -19,6 +19,7 @@ import { useSurfaceDisplay } from '../ViewSurface.js';
 import { formatShare } from './axis.js';
 import { ChartLegend } from './ChartLegend.js';
 import { EChart, type ChartClick } from './EChart.js';
+import { faded, type Lit } from './highlight.js';
 import type { FamilyProps } from './family.js';
 import { legendAt } from './legend.js';
 import { measureText } from './measure.js';
@@ -49,6 +50,7 @@ export function PieSlices({
   name,
   onPick,
   cutShort,
+  highlight,
 }: FamilyProps<PieData>) {
   const animate = useChartMotion();
   const messages = useViewMessages();
@@ -58,23 +60,43 @@ export function PieSlices({
   const measured = spec?.pie?.value;
   const additive = adds?.(measured) ?? false;
   const pickable = onPick !== undefined;
+  // The slice pressed, when a press set the board's filter: every other
+  // drawn faint (D22 I); the merged remainder stands for no one group.
+  const category = spec?.pie?.category;
+  const lit = useMemo<Lit | undefined>(
+    () =>
+      highlight && category !== undefined
+        ? (_series, at) => {
+            const slice = data.slices[at];
+            return (
+              slice !== undefined &&
+              slice.other !== true &&
+              highlight({ [category]: slice.category })
+            );
+          }
+        : undefined,
+    [highlight, category, data],
+  );
   const option = useCallback(
     (theme: ChartTheme) =>
-      pieOption(
-        data,
-        {
-          spec,
-          label,
-          locale,
-          other,
-          total,
-          adds: additive,
-          animate,
-          pickable,
-        },
-        theme,
+      faded(
+        pieOption(
+          data,
+          {
+            spec,
+            label,
+            locale,
+            other,
+            total,
+            adds: additive,
+            animate,
+            pickable,
+          },
+          theme,
+        ),
+        lit,
       ),
-    [data, spec, label, locale, other, total, additive, animate, pickable],
+    [data, spec, label, locale, other, total, additive, animate, pickable, lit],
   );
   const slices = useMemo(
     () => drawnSlices(data, { spec, label, other }),
@@ -158,6 +180,12 @@ export function PieSlices({
         'data-chart': spec?.pie?.donut === true ? 'donut' : 'pie',
         'data-marks': data.slices.length,
         'data-labels': valueLabelsOn(spec) ? 'on' : 'off',
+        ...(lit
+          ? {
+              'data-highlighted': data.slices.filter((_slice, at) => lit(0, at))
+                .length,
+            }
+          : {}),
       }}
     />
   );

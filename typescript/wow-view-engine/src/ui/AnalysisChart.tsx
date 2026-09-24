@@ -13,7 +13,7 @@
 
 import { useMemo } from 'react';
 import type { AnalysisColumnView, ChartData } from '../analysis/index.js';
-import type { ChartSpec } from '../model/index.js';
+import type { ChartSpec, RecordData } from '../model/index.js';
 import { Cartesian } from './charts/Cartesian.js';
 import { ChartReadingTable } from './charts/ChartReading.js';
 import { useDateTicks } from './charts/dateTicks.js';
@@ -54,6 +54,11 @@ export interface AnalysisChartProps {
    * chart; a pie also says its shares are of the groups shown.
    */
   cutShort?: boolean;
+  /**
+   * The group a dashboard panel's press set the board's filter to (D22 I):
+   * a bar, a line's point or a slice stands out, the rest drawn faint.
+   */
+  highlight?: (row: RecordData) => boolean;
 }
 
 /**
@@ -76,6 +81,7 @@ export function AnalysisChart({
   columns,
   onPick,
   cutShort,
+  highlight,
 }: AnalysisChartProps) {
   const messages = useViewMessages();
   const label = useValueLabel(columns);
@@ -97,6 +103,7 @@ export function AnalysisChart({
     name: reading.name,
     onPick,
     cutShort,
+    highlight,
   };
   return (
     <>

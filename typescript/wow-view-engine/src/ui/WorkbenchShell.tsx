@@ -439,11 +439,15 @@ export function WorkbenchShell({
   const editorIsOpen = useEditorFold({
     controlled: editorOpen,
     // A new view opens with its editor out, since there is nothing in it yet
-    // — but not one opened from another's group: its conditions are what it
-    // was opened with, the applied bar says them, and an editor unfolded
-    // over them says them twice more (2026-09-23 audit).
+    // — but not one opened from another's group, nor one a host handed over
+    // (a dashboard's follow-up, D22 H): its conditions are what it was
+    // opened with, the applied bar says them, and an editor unfolded over
+    // them says them twice more (2026-09-23 audit).
     fallback:
-      defaultEditorOpen ?? (state?.saved === null && !workbench.held?.origin),
+      defaultEditorOpen ??
+      (state?.saved === null &&
+        !workbench.held?.origin &&
+        !workbench.held?.handed),
     runtimeId: runtime?.id ?? null,
     onChange: onEditorOpenChange,
   });

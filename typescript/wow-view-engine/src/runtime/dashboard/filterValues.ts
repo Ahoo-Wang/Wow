@@ -80,13 +80,36 @@ export class FilterValues {
     this.candidates = new FilterCandidates(host.candidateSources);
   }
 
-  /** One filter set; `null` clears it — a required one to its default. */
+  /**
+   * One filter set; `null` clears it — a required one to its default. A
+   * value set this way is nobody's press, so where the last one came from
+   * goes with it (`DashboardFilters.from`).
+   */
   set(name: string, value: FilterValue | null): Issue[] {
+    return this.put(this.with(name, value, null));
+  }
+
+  /**
+   * One filter set by a press on a group of `panelId` (D22 I): that panel is
+   * then left unnarrowed by it. `null` clears it, and where it came from.
+   */
+  press(name: string, value: FilterValue | null, panelId: string): Issue[] {
+    return this.put(this.with(name, value, value === null ? null : panelId));
+  }
+
+  private with(
+    name: string,
+    value: FilterValue | null,
+    panelId: string | null,
+  ): DashboardFilters {
     const current = this.host.current();
     const values = { ...current.values };
+    const from = { ...current.from };
     if (value === null) delete values[name];
     else values[name] = value;
-    return this.put({ ...current, values });
+    if (panelId === null) delete from[name];
+    else from[name] = panelId;
+    return { ...current, values, from };
   }
 
   /** The time grouping's unit; one the board does not offer is ignored. */

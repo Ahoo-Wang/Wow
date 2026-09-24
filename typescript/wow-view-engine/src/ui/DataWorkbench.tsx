@@ -17,7 +17,7 @@ import type {
   RecordViewConfig,
 } from '../model/index.js';
 import type { ViewEngine } from '../runtime/index.js';
-import { useWorkbench } from '../react/index.js';
+import { useWorkbench, type UnsavedView } from '../react/index.js';
 import { useViewMessages } from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
 import { featuresOf, type WorkbenchFeatures } from './features.js';
@@ -57,6 +57,14 @@ export interface DataWorkbenchProps {
    * link.
    */
   onInstanceChange?(id: string | null): void;
+  /**
+   * A view nobody saved, to open here: what a dashboard handed the host's
+   * route (`DashboardNavigation` of kind `unsaved` — a follow-up on a
+   * panel's group, or a board's own analysis). Each new object opens once,
+   * through the leave guard, unsaved until its first save
+   * (`WorkbenchOptions.unsaved`).
+   */
+  unsaved?: UnsavedView | null;
   /**
    * What a new view of each kind starts from, for a host with a better first
    * view than the definition's default: `defaultRecordConfig` and
@@ -136,6 +144,7 @@ export function DataWorkbench({
   kinds = DATA_KINDS,
   instanceId,
   onInstanceChange,
+  unsaved,
   templates,
   theme,
   messages: wording,
@@ -157,6 +166,7 @@ export function DataWorkbench({
     kinds,
     instanceId,
     onInstanceChange,
+    unsaved,
     newView: {
       title: messages.label('label.view.new-title'),
       ...(templates ? { templates } : {}),

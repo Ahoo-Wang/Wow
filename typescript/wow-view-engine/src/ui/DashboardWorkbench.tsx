@@ -25,10 +25,9 @@ import {
   type DashboardPanel,
   type DashboardViewConfig,
   type FieldOption,
-  type FilterTree,
   type Issue,
 } from '../model/index.js';
-import type { ViewEngine } from '../runtime/index.js';
+import type { DashboardNavigation, ViewEngine } from '../runtime/index.js';
 import { useDashboard, useWorkbench } from '../react/index.js';
 import { Button } from './components/button.js';
 import { panelName, panelNames } from './DashboardPanel.js';
@@ -93,12 +92,15 @@ export interface DashboardWorkbenchProps {
    */
   onFiltersChange?(filters: DashboardFilters): void;
   /**
-   * The host's route to the workbench, for 在工作台中打开 in a panel's menu
-   * (D22 D): the saved view a panel shows, and the board's condition as the
-   * panel carries it — already in that view's own field names, ready to be
-   * handed to it as its scope. Without it the item does not exist.
+   * The host's route (D22 D, H, I): every way off the board goes through it
+   * — 在工作台中打开 on a panel (the saved view under the board's filters, in
+   * its own field names; or a board's own analysis, unsaved), the follow-up
+   * menu on a group (a view nobody saved, the board's filters and the group
+   * its conditions), and a panel's custom destination. The package never
+   * touches the address. Without it none of these exist: a press on a group
+   * does nothing unless the panel cross-filters.
    */
-  onOpenView?(instanceId: string, filter: FilterTree | null): void;
+  onNavigate?(to: DashboardNavigation): void;
   /**
    * What a new dashboard starts from: an empty one when left out. It opens
    * unsaved, and the first save asks for its name and audience.
@@ -159,7 +161,7 @@ export function DashboardWorkbench({
   definitionId,
   instanceId,
   onInstanceChange,
-  onOpenView,
+  onNavigate,
   theme,
   messages: wording,
   locale,
@@ -407,7 +409,7 @@ export function DashboardWorkbench({
               editing={editing}
               onEditingChange={setEditing}
               onSaved={workbench.onSaved}
-              onOpenView={onOpenView}
+              onNavigate={onNavigate}
               onRenderFailure={onRenderFailure}
             />
             {dialogs}

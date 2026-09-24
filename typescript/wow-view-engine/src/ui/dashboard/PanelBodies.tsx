@@ -18,20 +18,35 @@
  * look is its own.
  */
 
+import { useState } from 'react';
 import { UnplugIcon } from 'lucide-react';
 import {
   PANEL_PRESENTATION_MEMBERS,
   type AnalysisViewConfig,
   type Issue,
+  type RecordData,
 } from '../../model/index.js';
 import {
   useAnalysisEditor,
   useAnalysisResult,
+  usePanelFollowUps,
   useRecordTable,
   useViewRuntime,
   type DashboardPanelView,
 } from '../../react/index.js';
-import type { RecordViewRuntime, ViewRuntime } from '../../runtime/index.js';
+import type {
+  DataViewRuntime,
+  RecordViewRuntime,
+  ViewRuntime,
+} from '../../runtime/index.js';
+import { DrillMenu, type Pick as Pressed } from '../analysis/DrillMenu.js';
+import { useSurfaceDisplay } from '../ViewSurface.js';
+import {
+  boardContext,
+  crossFilterSaid,
+  pressMode,
+  type PanelPress,
+} from './press.js';
 import { AnalysisChart } from '../AnalysisChart.js';
 import { AnalysisTable } from '../AnalysisTable.js';
 import { RecordTable } from '../RecordTable.js';
@@ -99,16 +114,30 @@ export function RecordPanel({
   );
 }
 
-/** The chart or the table an analysis panel shows; stale as a record panel is. */
+/**
+ * The chart or the table an analysis panel shows; stale as a record panel
+ * is. A press on one of its groups does what the panel's click says
+ * (`press`, D22 H, I): the analysis view's own follow-up menu, each item
+ * opening in the workbench through the host's route; the board's filter set
+ * to the group, this panel marking it rather than narrowing; or a custom
+ * destination. Without a press nothing on it is pressable.
+ */
 export function AnalysisPanel({
   runtime,
   onRetry,
+  press,
 }: {
   runtime: ViewRuntime;
   onRetry?: () => void;
+  press?: PanelPress;
 }) {
   const state = useViewRuntime(runtime);
   const analysis = useAnalysisEditor(runtime);
+  const messages = useViewMessages();
+  const display = useSurfaceDisplay();
+  const child = runtime as DataViewRuntime;
+  // The workbench the follow-ups drive is the host's, reached by its route.
+  const followUps = usePanelFollowUps(child, press?.navigate);
   // Drawn as the workbench draws it (`useAnalysisResult`): the rows that
   // ran, looked at as the child's draft says. A panel's own look is laid
   // onto that draft without a run (D20: presentation never asks the
@@ -116,10 +145,35 @@ export function AnalysisPanel({
   const result = useAnalysisResult(
     runtime as ViewRuntime<AnalysisViewConfig>,
     analysis,
-    { state, canDrill: false, drill: ignore, follow: ignore },
+    followUps,
   );
   const { view, chart, chartData } = result;
   const failed = state?.query.status === 'error';
+  // Which group was pressed, and where, while the menu over it is open.
+  const [pick, setPick] = useState<Pressed | null>(null);
+  const mode = result.pickable ? pressMode(press) : null;
+  const onPick =
+    mode === null || !press
+      ? undefined
+      : (row: RecordData, anchor: Pressed['anchor'], origin?: HTMLElement) => {
+          if (mode === 'menu') {
+            setPick({ row, anchor, ...(origin ? { origin } : {}) });
+            return;
+          }
+          if (mode === 'filter') {
+            const said = crossFilterSaid(press.crossFilter(row), messages);
+            if (said) press.say(said);
+            return;
+          }
+          void press.destination(row).then(where => {
+            if (!where) return;
+            if ('to' in where) press.navigate?.(where.to);
+            else press.say(messages.issue(where.refused));
+          });
+        };
+  // The group a press set the board's filter to is marked, not narrowed to.
+  const highlight = mode === 'filter' ? press?.pressed : undefined;
+  const followUp = pick ? result.followUp(pick.row) : null;
 
   if (failed && !view)
     return <PanelFailed error={state.query.error} onRetry={onRetry} />;
@@ -133,21 +187,41 @@ export function AnalysisPanel({
         // Under the stale line the chart takes what is left of the panel.
         className={failed ? 'min-h-0 flex-1' : 'h-full'}
         cutShort={view.truncated || view.atLimit !== undefined}
+        onPick={onPick}
+        highlight={highlight}
       />
     ) : (
-      <AnalysisTable view={view} />
+      <AnalysisTable
+        view={view}
+        onPick={onPick}
+        opensMenu={mode === 'menu'}
+        highlight={highlight}
+      />
     );
-  if (!failed) return body;
+  const menu = mode === 'menu' && (
+    <DrillMenu
+      pick={followUp ? pick : null}
+      onClose={() => setPick(null)}
+      followUp={followUp}
+      context={boardContext(child, messages, display)}
+      away
+    />
+  );
+  if (!failed)
+    return (
+      <>
+        {body}
+        {menu}
+      </>
+    );
   return (
     <div className="flex h-full flex-col gap-2">
       <QueryStrip error={state.query.error} stale onRetry={onRetry} />
       {body}
+      {menu}
     </div>
   );
 }
-
-/** A follow-up a panel does not offer yet (batch D): nothing to open. */
-function ignore(): void {}
 
 /**
  * What a panel whose look is its own says about it (D22 D): 「此处改为饼图」

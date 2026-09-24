@@ -14,6 +14,7 @@
 import { analysisMessages } from './analysis.js';
 import { buildingMessages } from './building.js';
 import { bulkMessages } from './bulk.js';
+import { clicksMessages } from './clicks.js';
 import { configMessages } from './config.js';
 import { dashboardMessages } from './dashboard.js';
 import { definitionMessages } from './definition.js';
@@ -58,6 +59,7 @@ export const en = {
   ...dashboardMessages,
   ...buildingMessages,
   ...filtersMessages,
+  ...clicksMessages,
   ...statusMessages,
   ...definitionMessages,
   ...workbenchMessages,

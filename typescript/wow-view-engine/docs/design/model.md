@@ -368,6 +368,7 @@ export interface DashboardTimeGrouping {
 export interface DashboardFilters {
   values: Record<string, FilterValue>; // 按筛选名；不在这里的筛选没有值
   unit?: AnalysisDateUnit; // 有时间粒度的板子才有
+  from?: Record<string, string>; // 按筛选名：这个值是在哪块面板上点出来的（交叉筛选，D22 I）
 }
 
 export type DashboardPanel = DashboardViewPanel | DashboardContentPanel;
@@ -384,10 +385,17 @@ export type DashboardViewPanel = DashboardPanelBase & {
   kind: 'view';
   bindings: { globalField: string; panelField: string; auto?: true }[]; // 哪个筛选经哪个字段筛这个面板；auto 是自动连接接上的
   presentation?: PanelPresentation; // 只改怎么看（D22 D）
+  click?: PanelClick; // 点一组时做什么（D22 I）；不写就是追问菜单（D22 H）
 } & (
     | { instanceId: string } // 引用一个已保存的视图
     | { owned: { definitionId: string; config: AnalysisViewConfig } } // 板内分析（D22 C）
   );
+
+/** 点一组时做什么（「点击时…」）；缺省的追问菜单不存。 */
+export type PanelClick =
+  | { kind: 'filter'; filter: string } // 交叉筛选：用这一组设这个筛选
+  | { kind: 'view'; instanceId: string } // 去另一个已保存的记录／分析视图，带上这一组
+  | { kind: 'url'; url: string }; // 去宿主的页面，{{字段}} 换成这一组的值
 
 /** 面板对「怎么看」的覆盖：只有展示成员，从不碰问题。 */
 export interface PanelPresentation {
@@ -428,6 +436,7 @@ export type DashboardContentPanel = DashboardPanelBase &
 - **不受影响**（D22 F「说清作用范围」）：`filterReach(config, panel, fields)` 逐筛选回答一个面板：接上了（经哪个字段、是不是自动接的），或没接上与为什么——它的视图没有这个类型的字段（`no-field`，界面说「没有可接的字段」）、有但没人接（`unwired`）；视图还没读进来时只答接上的那些。`filtersOnTab(panels, tab)` 答一个标签页上有没有面板受某个筛选影响——筛选条据此把什么也没影响的筛选淡一档。（见 test/dashboardWiring.test.ts「what reaches a panel and a tab」）
 - **时间粒度**（D22 F，整板 按日／周／月）：`timeGrouping: { units, default }`，`units` 至少一个、都是 Wow 的日期粒度（`ANALYSIS_DATE_UNITS`）且不重复，`default` 在其中（`dashboard.grouping.units-empty`／`unit-unknown`／`unit-duplicate`）。它的值同筛选一样是读者的（`DashboardFilters.unit`）。它作用在每个分析面板的日期直方图维度上——视图的定义允许那个粒度时换成它，不允许的面板**保留自己的并说出来**（[runtime.md#dashboard](runtime.md#dashboard)）。（见 test/dashboardFilters.test.ts「admission of the time grouping」）
 - **设置筛选是草稿里的编辑**（`src/dashboard/filterEdit.ts`，与其余搭板子的编辑同一手法）：`addFilter`（末尾，名字是第一个没用过的 `filter-n`，新的一枚单值、不必填、谁也没接）、`renameFilter`（空白不改）、`retypeFilter`（换了类型，默认值、列表、来源与所有接线都作废——它们说的是旧类型；可多选在新类型能多选时保留）、`removeFilter`（连同所有接线）、`setFilterDefault`、`setFilterRequired`、`setFilterMultiple`（关掉时默认值只留第一个，免得筛选拒绝自己的起点）、`setFilterOptions`（`null` 回到从接上的字段取值）、`moveFilter`、`setTimeGrouping`。（见 test/dashboardWiring.test.ts「setting up the filters」）
+- **点击**（D22 H、I，批 D，`src/dashboard/click.ts`）：数据面板的 `click` 说读者点一组（柱、扇区、表格的一行）时做什么；**不写就是追问菜单**（D22 H），那是缺省而不是一个存下的选择。三种：`filter`——交叉筛选，用点中的一组设板子的这个筛选；`view`——去另一个已保存的记录或分析视图，带上这一组；`url`——去宿主的一个页面，`{{字段}}` 换成这一组在那个字段上的值（`fillUrl`：每个值编码成一个组件，永远加不出路径、查询或协议；填好之后仍须是 http、https、mailto 或站内路径，`isSafeContentUrl`）。**点得出值的维度**（`takesGroup`）：日期筛选收日期分桶（桶就是一段时间窗），文本、ID、数字、是否收 `TERMS` 的一个值；数值区间是两个界而不是一个值，不收；类型之外的筛选不收。于是一个筛选**能被这块面板点出来**（`crossFilterChoices`），当且仅当它接在这块面板上、接的那个字段正是面板按来分组的、分法又是它收的。准入（`validatePanelClick`）**只有 warning**：读不出（`dashboard.click.invalid`）、面板没有可点的组（记录视图或展开了明细项的分析，`unpressable`）、筛选不在板上／没接这块面板／面板不按它接的字段分组（`filter-unknown`／`-unwired`／`-ungrouped`）、地址不安全或用到了面板不分组的字段（`url-unsafe`／`url-unknown-field`）。有 warning 的点击**不生效、点一组回到追问菜单**，板子照跑照存——一个设错的点击不该让面板消失。去的视图删了或读不到只在点的那一刻才知道（运行时说 `dashboard.click.destination-unavailable`；是仪表盘说 `destination-unsupported`）。**解开接线连同点击一起走**：`unbindPanels`（以及经它的 `retypeFilter`、`removeFilter`）把设这个筛选的点击从被解开的面板上拿掉，面板回到追问菜单。**点出来的值记着来处**（`DashboardFilters.from`）：读者的状态，同值一起进宿主的地址；`admitFilters` 只留下值在、面板在、面板的点击仍设这个筛选的那几条，旧的一声不响地放掉而不是拒绝——它只说「哪块面板别筛自己」。（见 test/dashboardClick.test.ts）
 - **新面板放哪、多大**（D22 A）：`addPanel` 放进目标标签页从 `fromRow`（读者屏幕上的第一行）起、按阅读顺序的第一个**放得下且托得住**的空位（`freeSpot`：下一次压紧不会把它抬走），到底都没有就放到最下面；默认大小按显示的东西（`defaultPanelSize`，24 列计）：指标卡 6×2、图 12×4、表格 24（分析表 ×4、记录 ×5）、标题 24×1、笔记 12×3、图片 8×4、链接 8×3。新 id 是第一个没被占用的 `panel-n`（纯函数，同一份配置同一个答案）。复制放在原面板那一行起的第一个空位（旁边有位就在旁边），板内分析随面板复制成各自独立的一份。
 
 ## 时间字段怎样存

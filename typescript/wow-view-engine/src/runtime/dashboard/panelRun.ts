@@ -48,7 +48,8 @@ export interface PanelRun {
  * time dimension at the board's unit where its definition allows that
  * (`regrouped`, D22 F), and under the board's standing condition, the
  * host's, and every filter wired to it that holds a value — each in the
- * panel's own field names (`panelFilterTree`).
+ * panel's own field names (`panelFilterTree`) — but one whose value was
+ * pressed on this panel (`DashboardFilters.from`).
  */
 export function panelRun(
   panel: DashboardViewPanel,
@@ -73,9 +74,14 @@ export function panelRun(
     'panels',
     index,
   ]);
+  // A filter whose value was pressed on this very panel does not narrow it
+  // (D22 I): the panel keeps every group, and marks the one pressed.
+  const wired = bindingsOf(panel).filter(
+    binding => filters.from?.[binding.globalField] !== panel.id,
+  );
   const scope = mergeFilters(
     mapGlobalFilter(mergeFilters(applied.filter, injected), panel.bindings),
-    panelFilterTree(applied, filters, bindingsOf(panel), kinds),
+    panelFilterTree(applied, filters, wired, kinds),
   );
   return {
     view: { ...view, config: grouped.config },

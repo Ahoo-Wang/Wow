@@ -31,6 +31,7 @@ import {
   MemoryViewStore,
   ViewEngine,
   type DashboardDefinition,
+  type DashboardNavigation,
   type DashboardRuntime,
   type DashboardPanel,
   type DashboardViewConfig,
@@ -80,7 +81,7 @@ interface Setup {
   canSave?: boolean;
   definition?: DashboardDefinition;
   extensions?: DashboardEditExtensions;
-  onOpenView?: (instanceId: string, filter: unknown) => void;
+  onNavigate?: (to: DashboardNavigation) => void;
   instanceId?: string;
 }
 
@@ -91,7 +92,7 @@ function open({
   canSave = true,
   definition = overviewDefinition(),
   extensions,
-  onOpenView,
+  onNavigate,
   instanceId = 'overview-1',
 }: Setup = {}) {
   const board: ViewInstance = {
@@ -137,7 +138,7 @@ function open({
         engine={engine}
         definitionId="overview"
         instanceId={instanceId}
-        onOpenView={onOpenView}
+        onNavigate={onNavigate}
       />,
     ),
   );
@@ -570,9 +571,9 @@ describe("a panel's menu (D22 D)", () => {
   });
 
   it('opens the view in the workbench only where the host has a route, under the board’s condition', async () => {
-    const onOpenView = vi.fn();
+    const onNavigate = vi.fn();
     const { user } = open({
-      onOpenView,
+      onNavigate,
       config: {
         fields: [{ name: 'region', label: 'Region', kind: 'string' }],
         filter: {
@@ -592,9 +593,13 @@ describe("a panel's menu (D22 D)", () => {
     await user.click(
       within(menu).getByRole('menuitem', { name: 'Open in the workbench' }),
     );
-    expect(onOpenView).toHaveBeenCalledWith('pending', {
-      op: 'and',
-      children: [{ field: 'warehouse', operator: 'EQ', value: 'north' }],
+    expect(onNavigate).toHaveBeenCalledWith({
+      kind: 'view',
+      instanceId: 'pending',
+      filter: {
+        op: 'and',
+        children: [{ field: 'warehouse', operator: 'EQ', value: 'north' }],
+      },
     });
   });
 

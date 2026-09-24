@@ -19,8 +19,10 @@ import type {
   FieldOption,
   FilterValue,
   Issue,
+  PanelClick,
   PanelLayout,
   PanelPresentation,
+  RecordData,
   ViewInstance,
 } from '../../model/index.js';
 import type {
@@ -31,6 +33,11 @@ import type {
 } from '../../dashboard/index.js';
 import type { DashboardEditing, DashboardFilterEditing } from './editing.js';
 import type { FilterValues } from './filterValues.js';
+import type {
+  CrossFilterOutcome,
+  PanelPresses,
+  PressDestination,
+} from './press.js';
 
 /**
  * The board's commands that are one call on one of its parts — its edits
@@ -43,6 +50,7 @@ export abstract class BoardCommands
 {
   protected abstract readonly edits: DashboardEditing & DashboardFilterEditing;
   protected abstract readonly values: FilterValues;
+  protected abstract readonly presses: PanelPresses;
   abstract get disposed(): boolean;
   abstract showTab(tabId: string | null): void;
 
@@ -72,6 +80,9 @@ export abstract class BoardCommands
   }
   referToSaved(panelId: string, instance: ViewInstance): void {
     this.edits.referToSaved(panelId, instance);
+  }
+  setPanelClick(panelId: string, click: PanelClick | null): void {
+    this.edits.setPanelClick(panelId, click);
   }
   addTab(title: string, firstTitle: string): string | null {
     return this.edits.addTab(title, firstTitle);
@@ -145,6 +156,22 @@ export abstract class BoardCommands
   }
   wiredOptions(name: string): FieldOption[] | null {
     return this.values.optionsOf(name);
+  }
+
+  // A press on a panel's group (D22 I): see `PanelPresses`.
+  crossFilter(panelId: string, row: RecordData): CrossFilterOutcome {
+    return this.disposed
+      ? { kind: 'none' }
+      : this.presses.crossFilter(panelId, row);
+  }
+  pressed(panelId: string, row: RecordData): boolean {
+    return this.presses.pressed(panelId, row);
+  }
+  destination(
+    panelId: string,
+    row: RecordData,
+  ): Promise<PressDestination | null> {
+    return this.presses.destination(panelId, row);
   }
 
   /**

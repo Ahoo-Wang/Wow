@@ -26,10 +26,12 @@ import type {
   FilterValue,
 } from '../../model/index.js';
 import type { DashboardController } from '../../react/index.js';
+import { Badge } from '../components/badge.js';
 import { Button } from '../components/button.js';
 import { ToggleGroup, ToggleGroupItem } from '../components/toggle-group.js';
 import { FilterValueEditor } from '../FilterValueEditor.js';
 import { IconButton, IconTooltip } from '../IconButton.js';
+import { panelNames } from '../DashboardPanel.js';
 import { useViewMessages } from '../MessagesProvider.js';
 
 export interface FilterBarProps {
@@ -71,6 +73,9 @@ export function FilterBar({
   const grouped = onTab.some(panel => panel.grouping === 'taken');
   const { filters } = dashboard;
   const cleared = same(filters, startOf(dashboard));
+  // The panel a value was pressed on, by the name the board calls it
+  // (D22 I, 「来自「北区订单」」).
+  const names = panelNames(dashboard.panels, messages);
 
   return (
     <div
@@ -87,6 +92,7 @@ export function FilterBar({
           field={field}
           dashboard={dashboard}
           idle={!reaching.has(field.name)}
+          pressedOn={names.get(filters.from?.[field.name] ?? '')}
           settings={settings?.(field)}
         />
       ))}
@@ -151,11 +157,14 @@ function FilterChip({
   field,
   dashboard,
   idle,
+  pressedOn,
   settings,
 }: {
   field: DashboardField;
   dashboard: DashboardController;
   idle: boolean;
+  /** The panel whose press set the value, by its name on the board. */
+  pressedOn?: string;
   settings?: ReactNode;
 }) {
   const messages = useViewMessages();
@@ -210,6 +219,15 @@ function FilterChip({
             candidates={dashboard.filterCandidates(field.name)}
           />
         </div>
+      )}
+      {pressedOn !== undefined && (
+        <Badge
+          data-slot="dashboard-filter-from"
+          variant="secondary"
+          className="shrink-0"
+        >
+          {messages.label('label.click.from', { panel: pressedOn })}
+        </Badge>
       )}
       {idle && (
         <IconTooltip

@@ -16,6 +16,7 @@ import type { ScatterData } from '../../analysis/index.js';
 import { pointAnchor } from '../analysis/DrillMenu.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { EChart, type ChartClick } from './EChart.js';
+import { faded, type Lit } from './highlight.js';
 import type { FamilyProps } from './family.js';
 import { useChartMotion } from './motion.js';
 import { scatterOption } from './scatterOption.js';
@@ -30,20 +31,38 @@ export function ScatterPoints({
   column,
   name,
   onPick,
+  highlight,
 }: FamilyProps<ScatterData>) {
   const animate = useChartMotion();
   const messages = useViewMessages();
   const x = messages.label('label.chart.column.x');
   const y = messages.label('label.chart.column.y');
   const pickable = onPick !== undefined;
+  // The point pressed, when a press set the board's filter (D22 I).
+  const category = spec?.scatter?.category;
+  const lit = useMemo<Lit | undefined>(
+    () =>
+      highlight && category !== undefined
+        ? (_series, at) => {
+            const point = data.points[at];
+            return (
+              point !== undefined && highlight({ [category]: point.category })
+            );
+          }
+        : undefined,
+    [highlight, category, data],
+  );
   const option = useCallback(
     (theme: ChartTheme) =>
-      scatterOption(
-        data,
-        { spec, label, column, fallback: { x, y }, animate, pickable },
-        theme,
+      faded(
+        scatterOption(
+          data,
+          { spec, label, column, fallback: { x, y }, animate, pickable },
+          theme,
+        ),
+        lit,
       ),
-    [data, spec, label, column, x, y, animate, pickable],
+    [data, spec, label, column, x, y, animate, pickable, lit],
   );
   const onClick = useMemo(
     () =>
@@ -70,7 +89,16 @@ export function ScatterPoints({
       className={className}
       option={option}
       onClick={onClick}
-      data={{ 'data-chart': 'scatter', 'data-marks': data.points.length }}
+      data={{
+        'data-chart': 'scatter',
+        'data-marks': data.points.length,
+        ...(lit
+          ? {
+              'data-highlighted': data.points.filter((_point, at) => lit(0, at))
+                .length,
+            }
+          : {}),
+      }}
     />
   );
 }

@@ -43,6 +43,7 @@ import {
   type FieldKindRegistry,
   isPlainObject,
 } from '../filter/index.js';
+import { validatePanelClick } from './click.js';
 import { defaultFilters, panelFilterTree } from './filters.js';
 import { mergeGlobalFilter } from './merge.js';
 import {
@@ -325,6 +326,7 @@ function validateViewPanel(
 ): Issue[] {
   const { view, issues } = panelView(panel, path, refs, lookup);
   issues.push(...validatePresentation(panel, path));
+  issues.push(...validatePanelClick(panel, path, config, view));
   if (!view) return issues;
 
   const { definition, fields } = view;

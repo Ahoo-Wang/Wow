@@ -18,6 +18,7 @@ import {
   hasAsked,
   hasResult,
   resultIssues,
+  type DashboardNavigation,
   type DashboardRuntime,
   type ViewEngine,
 } from '../runtime/index.js';
@@ -96,12 +97,11 @@ export interface EmbeddedViewProps {
    */
   headingLevel?: PanelHeadingLevel;
   /**
-   * The host's route to the workbench, for 在工作台中打开 in a dashboard
-   * panel's menu: the saved view the panel shows, and the board's condition
-   * as the panel carries it, in that view's own field names. Without it the
-   * item does not exist.
+   * The host's route from an embedded dashboard (`DashboardNavigation`):
+   * 在工作台中打开 in a panel's menu, the follow-up menu on a group, a
+   * panel's custom destination. Without it none of them exist.
    */
-  onOpenView?(instanceId: string, filter: FilterTree | null): void;
+  onNavigate?(to: DashboardNavigation): void;
 }
 
 /**
@@ -128,7 +128,7 @@ export function EmbeddedView({
   rowActions,
   onRenderFailure,
   headingLevel = 2,
-  onOpenView,
+  onNavigate,
 }: EmbeddedViewProps) {
   // The condition goes in with the config, not after it: `useOpenView` hands
   // it to `engine.open`, so the opening query is already scoped rather than
@@ -183,7 +183,7 @@ export function EmbeddedView({
             runtime={runtime}
             rowActions={rowActions}
             headingLevel={headingLevel}
-            onOpenView={onOpenView}
+            onNavigate={onNavigate}
           />
         </RenderBoundary>
       )}
@@ -202,12 +202,12 @@ function EmbeddedBody({
   runtime,
   rowActions,
   headingLevel,
-  onOpenView,
+  onNavigate,
 }: {
   runtime: OpenedRuntime;
   rowActions?(row: RecordRow): ReactNode;
   headingLevel: PanelHeadingLevel;
-  onOpenView?(instanceId: string, filter: FilterTree | null): void;
+  onNavigate?(to: DashboardNavigation): void;
 }) {
   const state = useViewRuntime(runtime);
   const messages = useViewMessages();
@@ -266,7 +266,7 @@ function EmbeddedBody({
         <EmbeddedDashboard
           runtime={runtime}
           headingLevel={headingLevel}
-          onOpenView={onOpenView}
+          onNavigate={onNavigate}
         />
       )}
     </>
@@ -364,11 +364,11 @@ function EmbeddedAnalysis({ runtime }: { runtime: OpenedRuntime }) {
 function EmbeddedDashboard({
   runtime,
   headingLevel,
-  onOpenView,
+  onNavigate,
 }: {
   runtime: DashboardRuntime;
   headingLevel: PanelHeadingLevel;
-  onOpenView?(instanceId: string, filter: FilterTree | null): void;
+  onNavigate?(to: DashboardNavigation): void;
 }) {
   const dashboard = useDashboard(runtime);
   // A board with tabs switches between them here too (D22 E); where a
@@ -377,7 +377,7 @@ function EmbeddedDashboard({
     <DashboardGrid
       dashboard={dashboard}
       headingLevel={headingLevel}
-      onOpenView={onOpenView}
+      onNavigate={onNavigate}
       header={() => <DashboardTabs dashboard={dashboard} />}
     />
   );

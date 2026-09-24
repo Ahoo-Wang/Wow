@@ -17,14 +17,15 @@ import {
   referencedInstance,
   type NewContentPanel,
 } from '../../dashboard/index.js';
-import type { FilterTree, ViewInstance } from '../../model/index.js';
+import type { ViewInstance } from '../../model/index.js';
 import type { DashboardController, SaveCommands } from '../../react/index.js';
-import type { ViewEngine } from '../../runtime/index.js';
+import type { DashboardNavigation, ViewEngine } from '../../runtime/index.js';
 import { DashboardGrid } from '../DashboardGrid.js';
 import { panelNames } from '../DashboardPanel.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import type { RenderFailureHandler } from '../RenderBoundary.js';
 import { EmptyBoardActions, type AddChoice } from './AddMenu.js';
+import { ClickSettings } from './ClickSettings.js';
 import { BoardBuildingContext, type BoardBuilding } from './commands.js';
 import {
   ContentEditor,
@@ -54,7 +55,7 @@ export interface DashboardBoardProps {
   editing: boolean;
   onEditingChange(editing: boolean): void;
   onSaved?(instance: ViewInstance): void;
-  onOpenView?(instanceId: string, filter: FilterTree | null): void;
+  onNavigate?(to: DashboardNavigation): void;
   onRenderFailure?: RenderFailureHandler;
 }
 
@@ -75,7 +76,7 @@ export function DashboardBoard({
   editing,
   onEditingChange,
   onSaved,
-  onOpenView,
+  onNavigate,
   onRenderFailure,
 }: DashboardBoardProps) {
   const messages = useViewMessages();
@@ -86,6 +87,7 @@ export function DashboardBoard({
   const [picker, setPicker] = useState<Opened<PickerIntent> | null>(null);
   const [content, setContent] = useState<Opened<ContentTarget> | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
+  const [clicking, setClicking] = useState<Opened<string> | null>(null);
   // What the last edit did, said once: a panel that appears or goes is seen
   // by a pointer and heard by nobody else.
   const [said, setSaid] = useState('');
@@ -194,6 +196,7 @@ export function DashboardBoard({
       setSaid(messages.label('label.dashboard.duplicated', { title: name })),
     moved: (name, tab) =>
       setSaid(messages.label('label.panel.moved-to-tab', { title: name, tab })),
+    click: panelId => setClicking({ what: panelId, open: true }),
   };
 
   return filters.wrap(
@@ -204,7 +207,7 @@ export function DashboardBoard({
           editable={editing}
           rowHeight={ROW_HEIGHT}
           onRenderFailure={onRenderFailure}
-          onOpenView={onOpenView}
+          onNavigate={onNavigate}
           header={({ narrow }) => (
             <>
               {/* The filters over everything else: they are what the whole
@@ -270,6 +273,18 @@ export function DashboardBoard({
             );
           });
         }}
+      />
+      <ClickSettings
+        engine={engine}
+        dashboard={dashboard}
+        panel={
+          dashboard.panels.find(panel => panel.id === clicking?.what) ?? null
+        }
+        name={names.get(clicking?.what ?? '') ?? ''}
+        open={clicking?.open ?? false}
+        onClose={() => setClicking(closing)}
+        finalFocus={() => returnTo(clicking?.what ?? null)}
+        routed={onNavigate !== undefined}
       />
       <ContentEditor
         target={content?.what ?? null}

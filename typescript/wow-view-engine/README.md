@@ -188,15 +188,23 @@ It converges rather than renders. A view holds an unsaved draft, so a pushed val
 
 A dashboard is read until someone who may save it presses **Edit**: nothing on a board being read moves. Editing brings up a bar with **Add** (a saved view, a heading, text, an image, links), **Cancel** and **Done** — panels re-run as the board changes, and only **Done** saves it, through the same save the title bar has. A system dashboard is read-only and offers **Save as**.
 
-Each panel's **⋯** menu offers **Open in the workbench** only when you give the dashboard a route for it. `onOpenView(instanceId, filter)` hands you the saved view the panel shows and the dashboard's condition as the panel carries it — already in that view's own field names, ready to pass on as its scope. `DashboardWorkbench` and `EmbeddedView` take the same prop.
+Every way off the board goes through one route of yours, `onNavigate(to)` — the package never touches the address. Without it none of them exist:
+
+- **Open in the workbench** in a panel's **⋯**: `{ kind: 'view', instanceId, filter }`, the saved view under the board's filters as the panel carries them — already in that view's own field names, ready to pass on as its scope. A board's own analysis goes as `{ kind: 'unsaved', … }`.
+- **Pressing a group** — a bar, a slice, a row — opens the analysis view's follow-up menu (see these records, split the group, only this group). Each item is a view nobody saved: `{ kind: 'unsaved', definitionId, title, config }`, the board's filters and the group already among its conditions. Hand it to `DataWorkbench`'s `unsaved` prop, which opens each new object once.
+- **When clicked…** (while building): a panel can instead set a board filter from the group pressed (cross-filtering — no route needed; the other wired panels follow, the panel pressed marks the group, a second press clears it), or go to another saved view (`{ kind: 'view' }` under the group) or a page of yours (`{ kind: 'url', url }`, `{{field}}` filled with the group, encoded).
 
 ```tsx
 <DashboardWorkbench
   engine={engine}
   definitionId="overview"
-  onOpenView={(instanceId, filter) => openInWorkbench(instanceId, filter)}
+  onNavigate={to => router.push(routeFor(to))}
 />
+
+<DataWorkbench engine={engine} definitionId="orders" unsaved={fromRoute} />
 ```
+
+`DashboardWorkbench` and `EmbeddedView` take the same prop.
 
 #### Customising the theme
 

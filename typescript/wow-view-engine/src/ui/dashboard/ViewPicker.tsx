@@ -62,7 +62,10 @@ import { SystemMark } from '../SystemMark.js';
 
 /** What the picker is for: a new panel, or another view for one panel. */
 export type PickerIntent =
-  { mode: 'add' } | { mode: 'replace'; panelId: string; title: string };
+  | { mode: 'add' }
+  | { mode: 'replace'; panelId: string; title: string }
+  /** Where a press on a panel goes (D22 I, 「去另一个视图」). */
+  | { mode: 'destination'; title: string };
 
 export interface ViewPickerProps {
   engine: ViewEngine;
@@ -115,7 +118,11 @@ export function ViewPicker({
               ? messages.label('label.picker.replace-heading', {
                   title: intent.title,
                 })
-              : messages.label('label.picker.add-heading')}
+              : intent?.mode === 'destination'
+                ? messages.label('label.click.view-heading', {
+                    panel: intent.title,
+                  })
+                : messages.label('label.picker.add-heading')}
           </DialogTitle>
           <DialogDescription>
             {messages.label('label.picker.description')}
@@ -150,13 +157,13 @@ function groupOf(view: ViewInstanceSummary): Group {
 type KindFilter = 'all' | 'record' | 'analysis';
 
 /** Every data definition's record and analysis views, as the engine lists them. */
-interface Listing {
+export interface Listing {
   views: ViewInstanceSummary[];
   failed: Issue[];
   loading: boolean;
 }
 
-function useCatalogue(engine: ViewEngine): Listing {
+export function useCatalogue(engine: ViewEngine): Listing {
   const [listing, setListing] = useState<Listing>({
     views: [],
     failed: [],

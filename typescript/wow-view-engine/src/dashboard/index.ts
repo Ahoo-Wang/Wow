@@ -20,6 +20,7 @@
  * the references exist, they are visible where the dashboard is, and the
  * global filter maps onto every one of them without losing its meaning.
  */
+export * from './click.js';
 export * from './defaults.js';
 export * from './edit.js';
 export * from './filterEdit.js';

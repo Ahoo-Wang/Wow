@@ -13,7 +13,11 @@
 
 import { useRef, useState, type ReactNode } from 'react';
 import { cn } from 'cn';
-import { InfoIcon, TriangleAlertIcon } from 'lucide-react';
+import {
+  InfoIcon,
+  MousePointerClickIcon,
+  TriangleAlertIcon,
+} from 'lucide-react';
 import { readingOrder, type ArrangeStep } from '../dashboard/index.js';
 import type { Issue } from '../model/index.js';
 import type { DashboardPanelView } from '../react/index.js';
@@ -28,6 +32,7 @@ import { analysisIssueNamer } from './analysis/issueNames.js';
 import { PanelArrangeMenu, PanelGrip } from './DashboardArrange.js';
 import { ContentPanel } from './DashboardPanels.js';
 import type { PanelCommands } from './dashboard/commands.js';
+import type { PanelPress } from './dashboard/press.js';
 import {
   hasMenu,
   PanelMenu,
@@ -150,6 +155,17 @@ export interface DashboardPanelProps {
   unreached?: readonly string[];
   /** Under the body: the wiring strip while a filter is wired (D22 G). */
   footer?: ReactNode;
+  /**
+   * What a press on one of the panel's groups does (D22 H, I); nothing on
+   * it is pressable without it.
+   */
+  press?: PanelPress;
+  /**
+   * The filter a press on this panel sets, by its name on the bar: said in
+   * the header (「点击筛选「仓库」」), so a reader knows a press filters the
+   * board rather than opening a menu.
+   */
+  pressesFilter?: string;
   onRenderFailure?: RenderFailureHandler;
 }
 
@@ -177,6 +193,8 @@ export function DashboardPanel({
   commands,
   unreached,
   footer,
+  press,
+  pressesFilter,
   onRenderFailure,
 }: DashboardPanelProps) {
   const messages = useViewMessages();
@@ -317,6 +335,19 @@ export function DashboardPanel({
               })}
             </ToneBadge>
           )}
+          {pressesFilter !== undefined && (
+            <Badge
+              data-slot="panel-click-filter"
+              variant="outline"
+              className="shrink-0"
+              title={messages.label('label.click.badge-note', {
+                filter: pressesFilter,
+              })}
+            >
+              <MousePointerClickIcon data-icon="inline-start" />
+              {messages.label('label.click.badge', { filter: pressesFilter })}
+            </Badge>
+          )}
           {look && (
             <Badge
               data-slot="panel-presentation"
@@ -363,7 +394,12 @@ export function DashboardPanel({
             resetKeys={[panel.runtime?.id ?? null]}
             onFailure={onRenderFailure}
           >
-            <PanelBody panel={panel} onRetry={onRetry} wayOut={wayOut} />
+            <PanelBody
+              panel={panel}
+              onRetry={onRetry}
+              wayOut={wayOut}
+              press={press}
+            />
           </RenderBoundary>
         </CardContent>
       )}
@@ -393,10 +429,12 @@ function PanelBody({
   panel,
   onRetry,
   wayOut,
+  press,
 }: {
   panel: DashboardPanelView;
   onRetry?: () => void;
   wayOut?: WayOut | false;
+  press?: PanelPress;
 }) {
   // A panel the dashboard could not open, or one admission refused, says so
   // and leaves the rest alone. Content panels come through here too: a link
@@ -410,7 +448,7 @@ function PanelBody({
   return isRecordRuntime(panel.runtime) ? (
     <RecordPanel runtime={panel.runtime} onRetry={onRetry} />
   ) : (
-    <AnalysisPanel runtime={panel.runtime} onRetry={onRetry} />
+    <AnalysisPanel runtime={panel.runtime} onRetry={onRetry} press={press} />
   );
 }
 

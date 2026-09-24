@@ -46,6 +46,7 @@ import {
 } from '../dashboard/index.js';
 import { panelReach, panelRun } from './dashboard/panelRun.js';
 import { FilterValues } from './dashboard/filterValues.js';
+import { PanelPresses } from './dashboard/press.js';
 import {
   boardEditing,
   type DashboardEditing,
@@ -63,6 +64,7 @@ import {
 } from './dashboard/children.js';
 import {
   blocksBoard,
+  clickInForce,
   panelOf,
   reissued,
   panelsOf,
@@ -86,10 +88,15 @@ export type {
 } from './dashboard/editing.js';
 export type { PanelGrouping } from './dashboard/grouping.js';
 export type {
+  DashboardNavigation,
   DashboardRuntime,
   DashboardRuntimeOptions,
   DashboardRuntimeState,
 } from './dashboard/contract.js';
+export type {
+  CrossFilterOutcome,
+  PressDestination,
+} from './dashboard/press.js';
 import type {
   DashboardRuntimeOptions,
   DashboardRuntimeState,
@@ -133,6 +140,8 @@ export class DashboardViewRuntime
   protected readonly edits: DashboardEditing & DashboardFilterEditing;
   /** What the board's filters hold; see `FilterValues`. */
   protected readonly values: FilterValues;
+  /** A press on a panel's group; see `PanelPresses`. */
+  protected readonly presses: PanelPresses;
 
   private injectedScope: FilterTree | null;
   /** The tab the reader asked for; see `DashboardRuntimeState.tab`. */
@@ -181,6 +190,17 @@ export class DashboardViewRuntime
       run: () => this.sync(),
       viewOf: panel => this.viewOf(panel),
       scope: () => this.injectedScope,
+    });
+    this.presses = new PanelPresses({
+      kinds: options.kinds,
+      applied: () => this.state.applied,
+      filters: () => this.state.filters,
+      child: panelId => this.panelRuntime(panelId),
+      press: (name, value, panelId) => this.values.press(name, value, panelId),
+      reference: async id => {
+        await this.references.fetch(id);
+        return this.references.get(id) ?? null;
+      },
     });
 
     // Everything that comes in is read into the form this engine writes —
@@ -612,6 +632,7 @@ export class DashboardViewRuntime
         issues: reported,
         tab: on,
         waiting: runs && !shown && runtime === null && !hasError(own),
+        click: clickInForce(panel, reported),
         ...panelReach(applied, panel, view, filters),
       });
     });

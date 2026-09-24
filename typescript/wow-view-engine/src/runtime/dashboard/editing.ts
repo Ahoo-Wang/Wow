@@ -18,6 +18,7 @@ import type {
   DashboardViewPanel,
   FieldOption,
   FilterValue,
+  PanelClick,
   PanelLayout,
   PanelPresentation,
   ViewConfig,
@@ -52,6 +53,7 @@ import {
   renamePanel,
   renameTab,
   replacePanelView,
+  setPanelClick,
   setPresentation,
   placePanelIn,
   type NewContentPanel,
@@ -96,6 +98,11 @@ export interface DashboardEditing {
    * (`ViewEngine.saveOwnedView`); the override stays.
    */
   referToSaved(panelId: string, instance: ViewInstance): void;
+  /**
+   * What a press on one group of a data panel does (D22 I, 「点击时…」),
+   * or `null` for the follow-up menu.
+   */
+  setPanelClick(panelId: string, click: PanelClick | null): void;
   /**
    * Adds a tab, last, and returns its id; on a board without tabs the panels
    * go onto a first tab called `firstTitle`. `null` for a blank title or a
@@ -253,6 +260,8 @@ export function boardEditing(
       edit(config => movePanelToTab(config, panelId, tabId)),
     setPresentation: (panelId, presentation) =>
       edit(config => setPresentation(config, panelId, presentation)),
+    setPanelClick: (panelId, click) =>
+      edit(config => setPanelClick(config, panelId, click)),
     referToSaved(panelId, instance) {
       if (!host.draft()) return;
       host.seed(instance);
