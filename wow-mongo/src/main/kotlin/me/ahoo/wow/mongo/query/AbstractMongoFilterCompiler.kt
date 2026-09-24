@@ -258,13 +258,8 @@ abstract class AbstractMongoFilterCompiler {
     ): QueryField {
         val parent = scope.physicalParent
         val physicalField = schema.scopedPhysicalField(this, capability, scope.logicalParent, parent)
-        return if (parent != null && scope.relativeToParent) {
-            checkNotNull(
-                physicalField.relativeTo(parent)
-            )
-        } else {
-            physicalField
-        }
+        val relative = if (parent != null && scope.relativeToParent) physicalField.relativeTo(parent) else null
+        return relative ?: physicalField
     }
 
     private val StringComparison.ignoreCase: Boolean

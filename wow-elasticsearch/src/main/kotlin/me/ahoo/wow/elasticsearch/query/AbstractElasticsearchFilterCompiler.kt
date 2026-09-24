@@ -33,9 +33,6 @@ import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.wildcard
 import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType
 import co.elastic.clients.json.JsonData
 import me.ahoo.wow.api.query.*
-import me.ahoo.wow.api.query.IsEmptyStringFilter
-import me.ahoo.wow.api.query.IsNotEmptyStringFilter
-import me.ahoo.wow.api.query.RelativeTimeFilter
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.query.FilterNormalizer
 import me.ahoo.wow.query.schema.QueryModelSchema
