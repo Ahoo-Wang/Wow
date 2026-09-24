@@ -25,10 +25,6 @@
   - 判据：分析工作台的结果工具栏与分析面板的「⋯」都有「导出数据…」；文件是表格读法下的行（分组列在前、指标在后，列标题与格子读法同表格，「前 N 组」之内，合计行显示时作为最后一行，不含图上补出或并出的东西），与此刻画的是表还是图无关；窗口复用 D14 的壳、没有「所有／选中」；有测试与故事。
   - 落点：`src/ui/ExportDialog.tsx`、`src/ui/workbench/AnalysisParts.tsx`、`src/ui/dashboard/PanelExport.tsx`、[ui/analysis.md](ui/analysis.md)、[ui/dashboard.md](ui/dashboard.md) 面板菜单。
 
-- **仪表盘可切固定宽度／全宽**（[D22](decisions.md#d22-仪表盘与嵌入视图参照-metabase2026-09-23)「怎么搭」）——**到 Wow 仓做**：检查点之后这里不开新工作。
-  - 为什么：D22 定了、一直没做，也没进这一页（审查 X-11）；24 栏在宽屏上拉满时，一块指标卡能宽到半屏，作者要能让板子按固定宽度居中排。Metabase 的「固定宽度／全宽」是仪表盘自己的设置。
-  - 判据：仪表盘配置里有一个宽度成员，校验、编辑模式里切换、读的状态按它排，工作台与嵌入一致；缺省是哪一种动手前先问用户（Metabase 新建的板缺省固定宽度）；有测试与故事。
-  - 落点：[model.md#dashboard-配置](model.md#dashboard-配置)、`src/model/dashboard.ts`、`src/dashboard/validate.ts`、`src/ui/DashboardGrid.tsx`、[ui/dashboard.md](ui/dashboard.md)。
 - **D22 标了「以后」的几项**——线索，到 Wow 仓排阶段时再定：联动筛选、卡片内筛选（「全局筛选」）；按列的点击行为（「点击」）；整板 PDF（「运维」）；订阅、版本历史、验证、缓存要服务端，归阶段 6。
   - 为什么：迁走之后它们只剩 decisions 里的半句话，排下一个阶段时看不到（审查 X-11）。
   - 判据：排进某个阶段时各自成为一条带判据的 TODO，或进 [decisions.md#搁置待议](decisions.md#搁置待议)；那时删掉这一条。

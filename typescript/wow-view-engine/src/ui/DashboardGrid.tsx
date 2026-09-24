@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useState, type ReactNode, type Ref } from 'react';
+import { useLayoutEffect, useState, type ReactNode, type Ref } from 'react';
 import { cn } from 'cn';
 import GridLayout, {
   getBreakpointFromWidth,
@@ -33,6 +33,7 @@ import type {
   DashboardController,
   DashboardPanelView,
 } from '../react/index.js';
+import type { DashboardWidth } from '../model/index.js';
 import type { ViewNavigation } from '../runtime/index.js';
 import { useSurfaceAnnouncer } from './Announcer.js';
 import { PanelGridItem, PanelResizeHandle } from './DashboardArrange.js';
@@ -49,6 +50,7 @@ import {
 import { useDashboardEditExtensions } from './dashboard/extensions.js';
 import { tabTitle } from './dashboard/DashboardTabs.js';
 import { useGridPlacement } from './gridPlacement.js';
+import { FIXED_BOARD_WIDTH } from './layout.js';
 import type { RenderFailureHandler } from './RenderBoundary.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import type { MessageKey } from './messages.js';
@@ -170,11 +172,8 @@ export function DashboardGrid({
   filterModes,
 }: DashboardGridProps) {
   // The grid needs a pixel width and the container only knows it once it is
-  // on screen, so the measuring is the library's own hook rather than a
-  // second `ResizeObserver` written here: it is the same observer the grid
-  // would have used, it survives an environment without `ResizeObserver`,
-  // and it coalesces a burst of resizes into one frame.
-  const { containerRef, width } = useContainerWidth();
+  // on screen; `useGridWidth` measures it before the first paint.
+  const { containerRef, width, measured } = useGridWidth(dashboard.width);
   const messages = useViewMessages();
   // What the last keyboard command did, said once. A pointer sees the panel
   // move under it; a keyboard has only the layout, which is not on screen,
@@ -290,13 +289,23 @@ export function DashboardGrid({
     ({ id, ...box }) => ({ i: id, ...box }),
   );
 
+  // A fixed-width board (D31) is held to one width and centred: its filters,
+  // its edit bar and its tabs with its panels, since they are one board.
+  const fixed = dashboard.width === 'fixed';
+
   return (
     <div
       ref={containerRef}
       data-slot="dashboard-grid"
       data-narrow={narrow || undefined}
       data-editing={editable || undefined}
-      className={cn('flex w-full flex-col gap-3', className)}
+      data-width={dashboard.width}
+      className={cn(
+        'flex w-full flex-col gap-3',
+        fixed && 'mx-auto',
+        className,
+      )}
+      style={fixed ? { maxWidth: FIXED_BOARD_WIDTH } : undefined}
     >
       {header?.({ narrow })}
       {/* The tab on screen's panel, while a tab bar is read above it: the
@@ -309,7 +318,7 @@ export function DashboardGrid({
           ? {}
           : { role: 'tabpanel', 'aria-label': shownTab })}
       >
-        {panels.length === 0 ? (
+        {!measured ? null : panels.length === 0 ? (
           // A tab with nothing on it, on a board with panels elsewhere, says
           // so of the tab: 「这个仪表盘还没有面板」 would be untrue one tab away.
           <DashboardEmpty tab={dashboard.panels.length > 0}>
@@ -322,7 +331,9 @@ export function DashboardGrid({
             // later, so for one frame it drew the wide layout's six-column panels
             // in a one-column grid — six times the width of the screen.
             key={narrow ? 'narrow' : 'wide'}
-            width={width}
+            // The last width it could be drawn at: a container measured 0
+            // before it was ever drawn is laid out at the starting width.
+            width={drawnWidth}
             layout={layout}
             gridConfig={{ cols: narrow ? 1 : dashboard.columns, rowHeight }}
             // Dragging by the header alone leaves the panel body clickable.
@@ -443,6 +454,41 @@ export function DashboardGrid({
       {region}
     </div>
   );
+}
+
+/**
+ * The grid's width, known before the first paint.
+ *
+ * The measuring is `react-grid-layout`'s own `useContainerWidth` rather than
+ * a second `ResizeObserver` written here: it is the same observer the grid
+ * would have used, it survives an environment without `ResizeObserver`, and
+ * it coalesces a burst of resizes into one frame. But it starts at 1280px
+ * and first measures in a passive effect, so the grid was first handed the
+ * wide 24-column layout at 1280px — on a phone too — and the library drew it
+ * (in percentages, until it has mounted) until that effect ran. React runs
+ * passive effects after the commit, and the browser may paint in between
+ * when the commit's task ran long, as a big board's does on a slow phone.
+ *
+ * So the grid is measured in a layout effect, whose update React applies
+ * before it paints, and the panels are not drawn until it has been: no
+ * layout is ever handed to the library at a width it does not have, and
+ * the first frame is the right one whatever the scheduling. On the server,
+ * where no effect runs, the panels are left out rather than drawn at a
+ * guessed width (the client's first render matches, so hydration does
+ * too); where the container measures 0 — hidden, or a DOM without layout —
+ * the library's starting width stands, as it always did.
+ *
+ * The same goes for the board's own width switched (D31, `boardWidth`): the
+ * container is narrower or wider at once, and is measured before that paints
+ * rather than a frame after, with the panels spilling out of it meanwhile.
+ */
+function useGridWidth(boardWidth: DashboardWidth) {
+  // `mounted` is the library's word for "measured at least once".
+  const { containerRef, width, mounted, measureWidth } = useContainerWidth({
+    measureBeforeMount: true,
+  });
+  useLayoutEffect(() => measureWidth(), [measureWidth, boardWidth]);
+  return { containerRef, width, measured: mounted };
 }
 
 /**
