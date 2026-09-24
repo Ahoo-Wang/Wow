@@ -14,7 +14,24 @@
 package me.ahoo.wow.compensation.server.webhook.weixin
 
 import me.ahoo.wow.compensation.server.webhook.weixin.WeiXinWebHookProperties.Companion.URL_KEY
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.boot.autoconfigure.condition.ConditionOutcome
+import org.springframework.boot.autoconfigure.condition.SpringBootCondition
+import org.springframework.context.annotation.ConditionContext
+import org.springframework.context.annotation.Conditional
+import org.springframework.core.type.AnnotatedTypeMetadata
 
-@ConditionalOnProperty(URL_KEY, havingValue = "", matchIfMissing = false)
+/**
+ * Matches when [URL_KEY] is set to a non-blank value other than `false`.
+ */
+@Conditional(OnWeiXinWebHookEnabledCondition::class)
 annotation class ConditionalOnWeiXinWebHookEnabled
+
+class OnWeiXinWebHookEnabledCondition : SpringBootCondition() {
+    override fun getMatchOutcome(context: ConditionContext, metadata: AnnotatedTypeMetadata): ConditionOutcome {
+        val url = context.environment.getProperty(URL_KEY)
+        if (url.isNullOrBlank() || url.equals("false", ignoreCase = true)) {
+            return ConditionOutcome.noMatch("$URL_KEY is absent, blank or false.")
+        }
+        return ConditionOutcome.match("$URL_KEY is set.")
+    }
+}

@@ -14,10 +14,17 @@
 package me.ahoo.wow.compensation.server.webhook.weixin.client
 
 import me.ahoo.coapi.api.CoApi
+import me.ahoo.wow.compensation.server.webhook.weixin.ConditionalOnWeiXinWebHookEnabled
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.service.annotation.PostExchange
 import reactor.core.publisher.Mono
 
+/**
+ * CoApi's auto-configuration scans the server package and resolves the base URL of every client it finds.
+ * The scan honors [ConditionalOnWeiXinWebHookEnabled], so the client is skipped when WeCom is disabled.
+ * Do not register it through `@EnableCoApi`: that path skips conditions and fails when the URL is absent.
+ */
+@ConditionalOnWeiXinWebHookEnabled
 @CoApi(baseUrl = "\${wow.compensation.webhook.weixin.url}")
 interface WeiXinBotApi {
 
