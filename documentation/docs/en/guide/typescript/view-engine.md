@@ -9,13 +9,13 @@ description: What the unreleased wow-view-engine package does, the facts its des
 `@ahoo-wang/wow-view-engine` has not been published to npm. It is in active development with no compatibility promise: any export may still change shape, and no change carries a compatibility layer. This page describes the target usage so you can evaluate it; do not depend on it in production yet.
 :::
 
-The view engine is a data view engine for Wow-based business applications. The application declares in code _how a dataset can be observed_: fields, kinds, operators, available groupings, and metrics. Users decide in the UI _how to observe it this time_: filters, columns, sorting, groupings, charts, and panel composition. The engine compiles that choice into Wow queries, runs them through `@ahoo-wang/wow-client`, renders the result, and saves the views worth keeping so they reopen with one click.
+The view engine is a data view engine for Wow-based business applications. The application declares in code _how a dataset can be observed_: fields, kinds, operators, available dimensions, and metrics. Users decide in the UI _how to observe it this time_: filters, columns, sorting, dimensions and metrics, charts, and panel composition. The engine compiles that choice into Wow queries, runs them through `@ahoo-wang/wow-client`, renders the result, and saves the views worth keeping so they reopen with one click.
 
 It succeeds `@ahoo-wang/fetcher-viewer`, which stays on Fetcher 5.x and is not documented here.
 
 ## The problem it solves
 
-Most pages in a business system are the same page: a list with filters, sorting, and paging, sometimes with a chart. Each business object gets its own copy, and each request such as "add one more filter" or "group this by warehouse" becomes a code change and a release. The data did not change; only the way of observing it did.
+Most pages in a business system are the same page: a list with filters, sorting, and paging, sometimes with a chart. Each business object gets its own copy, and each request such as "add one more filter" or "break this down by warehouse" becomes a code change and a release. The data did not change; only the way of observing it did.
 
 | For | What they get |
 |---|---|
@@ -49,8 +49,8 @@ flowchart LR
 
 | View | What the user does |
 |---|---|
-| Record | Filter status = pending, sort by creation time, keep only the needed columns, save as "Pending today" |
-| Analysis | Group by warehouse, count orders and sum amounts, switch to a bar chart |
+| Record view | Filter status = pending, sort by creation time, keep only the needed columns, save as "Pending today" |
+| Analysis view | Take warehouse as the dimension, count orders and sum amounts as metrics, switch to a bar chart |
 | Dashboard | Place several views on one page and constrain them with a global time range |
 | Embedded view or dashboard | Show a saved view inside a business page, for example a customer's orders, without the workbench |
 | System views | Declare "All", "Pending", and "New this week" in the definition so users open a usable view at once |
@@ -66,6 +66,8 @@ pnpm add @ahoo-wang/wow-view-engine @ahoo-wang/wow-client
 `react` and `react-dom` are needed only for the `/react` and `/ui` entries; the root entry runs in Node.
 
 ### 1. Declare a definition
+
+<!-- typecheck: file=orders.ts -->
 
 ```ts
 import type { ViewDefinition } from '@ahoo-wang/wow-view-engine';
@@ -97,6 +99,12 @@ export const orders: ViewDefinition = {
 
 ### 2. Create an engine
 
+<!-- typecheck-context
+import type { ViewSource } from '@ahoo-wang/wow-view-engine';
+import { orders } from './orders';
+declare const queryClients: Record<string, ViewSource>;
+-->
+
 ```ts
 import { MemoryViewStore, ViewEngine } from '@ahoo-wang/wow-view-engine';
 
@@ -112,6 +120,11 @@ const engine = new ViewEngine({
 
 ### 3. Render the workbench, or compose your own UI
 
+<!-- typecheck-context
+import type { ViewEngine } from '@ahoo-wang/wow-view-engine';
+declare const engine: ViewEngine;
+-->
+
 ```tsx
 import '@ahoo-wang/wow-view-engine/styles.css';
 import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
@@ -125,16 +138,16 @@ Views follow your page's light or dark mode and take their colours from CSS vari
 
 A custom layout uses the headless hooks of the `/react` entry, such as `useOpenView`, `useViewRuntime`, `useFilterEditor`, and `useRecordTable`, and renders any markup from them without reaching into engine internals.
 
-The first complete example walks through the Record workbench: filter pending orders, adjust columns and sorting, save a personal view, and reopen it. It is published together with the package.
+The first complete example walks through the record view workbench: filter pending orders, adjust columns and sorting, save a personal view, and reopen it. It is published together with the package.
 
 ## Try it in Storybook
 
-Each view runs in [Storybook](/storybook/) against in-memory fixtures, inside a host application shell. Saving, renaming, and deleting write to a fresh in-memory store on every visit. The scenario notes are written in Chinese.
+Each view runs in [Storybook](/storybook/) against in-memory fixtures, inside a host application shell. Saving, renaming, and deleting write to a fresh in-memory store on every visit. The Storybook is written in Chinese only.
 
 | View | Storybook |
 |---|---|
-| Record | [Record workbench](/storybook/?path=/docs/view-engine-数据视图-record-工作台--docs) and its [filter editor](/storybook/?path=/docs/view-engine-数据视图-筛选编辑器--docs) |
-| Analysis | [Analysis workbench](/storybook/?path=/docs/view-engine-分析视图-分析工作台--docs) |
+| Record view | [Record workbench](/storybook/?path=/docs/view-engine-数据视图-record-工作台--docs) and its [filter editor](/storybook/?path=/docs/view-engine-数据视图-筛选编辑器--docs) |
+| Analysis view | [Analysis workbench](/storybook/?path=/docs/view-engine-分析视图-分析工作台--docs) |
 | Dashboard | [Dashboard](/storybook/?path=/docs/view-engine-仪表盘视图-dashboard--docs) |
 | Embedded view or dashboard | [EmbeddedView](/storybook/?path=/docs/view-engine-数据视图-embeddedview--docs) and [EmbeddedDashboard](/storybook/?path=/docs/view-engine-仪表盘视图-embeddeddashboard--docs) |
 | Themes | [Theme gallery and contrast matrix](/storybook/?path=/docs/view-engine-主题-预设--docs) |

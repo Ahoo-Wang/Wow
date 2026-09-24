@@ -1,11 +1,13 @@
 ---
-title: Generate and Use an OpenAPI Client
-description: Generate a real ItemsApiClient from a complete minimal schema and type-check its consumer.
+title: Generate a Client from Any OpenAPI Document
+description: Generate a typed ItemsApiClient from a minimal OpenAPI document that is not from Wow, and type-check its caller.
 ---
 
-# Generate and Use an OpenAPI Client
+# Generate a Client from Any OpenAPI Document
 
-Start with a checked-in document, generate into a dedicated directory, and compile a caller. This example produces a known class and method rather than assuming generated names.
+`wow-generator` also generates clients for OpenAPI documents that do not come from Wow. To call a Wow service — command clients, query clients, aggregate state — start with the [Quick Start](./quick-start.md) instead: it is the main path. This page covers the ordinary case: start with a checked-in document, generate into a dedicated directory, and compile a caller. The example produces a known class and method rather than assuming generated names.
+
+<!-- typecheck-generate: openapi.json -->
 
 ## 1. Prepare a consumer project
 
@@ -35,6 +37,8 @@ Save this as `tsconfig.json`:
 ## 2. Save the contract
 
 Save the complete document below as `openapi.json`. The root tag, operation tag, operationId and 200 response schema give the generator enough information to create a typed ordinary API client.
+
+<!-- typecheck: file=openapi.json -->
 
 ```json
 {
@@ -111,7 +115,7 @@ Save this as `src/loadItem.ts`, then repeat the TypeScript check:
 
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';
-import { ItemsApiClient, type Item } from './generated';
+import { ItemsApiClient, type Item } from './generated/index.js';
 
 export async function loadItem(baseURL: string): Promise<Item> {
   const client = new ItemsApiClient({ fetcher: new Fetcher({ baseURL }) });
@@ -131,6 +135,6 @@ Missing methods usually require checking tags and operation IDs, and the warning
 
 See [CLI options](../../reference/typescript/wow-generator/cli), [output and regeneration](../../reference/typescript/wow-generator/generated-output), [OpenAPI documents](https://fetcher.ahoo.me/reference/openapi/documents-and-operations), and the distinct [Wow discovery rules](../../reference/typescript/wow-generator/wow-discovery).
 
-[apiClientGenerator.ts:73](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/client/apiClientGenerator.ts#L73) implements ordinary client generation.
+[apiClientGenerator.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/client/apiClientGenerator.ts) implements ordinary client generation.
 
 [Review integration boundaries](https://fetcher.ahoo.me/architecture/integration-decisions); [return to this task group](./index.md).

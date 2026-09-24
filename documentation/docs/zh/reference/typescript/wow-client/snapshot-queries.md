@@ -113,7 +113,7 @@ export interface QueryApi<R, FIELDS extends string = string> {
 
 :::
 
-[typescript/wow-client/src/query/queryApi.ts:37](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryApi.ts#L37)
+[typescript/wow-client/src/query/queryApi.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryApi.ts)
 
 ### MaterializedSnapshot {#api-MaterializedSnapshot}
 
@@ -136,7 +136,7 @@ export interface MaterializedSnapshot<S>
     DeletedCapable {}
 ```
 
-[typescript/wow-client/src/query/snapshot/snapshot.ts:34](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshot.ts#L34)
+[typescript/wow-client/src/query/snapshot/snapshot.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshot.ts)
 
 ### MediumMaterializedSnapshot {#api-MediumMaterializedSnapshot}
 
@@ -156,7 +156,7 @@ export interface MediumMaterializedSnapshot<S>
     AbacTaggable {}
 ```
 
-[typescript/wow-client/src/query/snapshot/snapshot.ts:62](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshot.ts#L62)
+[typescript/wow-client/src/query/snapshot/snapshot.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshot.ts)
 
 ### SmallMaterializedSnapshot {#api-SmallMaterializedSnapshot}
 
@@ -165,7 +165,7 @@ export interface SmallMaterializedSnapshot<S>
   extends StateCapable<S>, Version, FirstEventTimeCapable {}
 ```
 
-[typescript/wow-client/src/query/snapshot/snapshot.ts:84](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshot.ts#L84)
+[typescript/wow-client/src/query/snapshot/snapshot.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshot.ts)
 
 ### SnapshotMetadataFields {#api-SnapshotMetadataFields}
 
@@ -187,7 +187,7 @@ export class SnapshotMetadataFields {
 }
 ```
 
-[typescript/wow-client/src/query/snapshot/snapshot.ts:93](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshot.ts#L93)
+[typescript/wow-client/src/query/snapshot/snapshot.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshot.ts)
 
 ### SnapshotQueryApi {#api-SnapshotQueryApi}
 
@@ -228,7 +228,7 @@ export interface SnapshotQueryApi<
 
 :::
 
-[typescript/wow-client/src/query/snapshot/snapshotQueryApi.ts:32](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshotQueryApi.ts#L32)
+[typescript/wow-client/src/query/snapshot/snapshotQueryApi.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshotQueryApi.ts)
 
 ### SnapshotQueryClient {#api-SnapshotQueryClient}
 
@@ -259,7 +259,7 @@ export class SnapshotQueryClient<S, FIELDS extends string = string> implements S
 
 :::
 
-[typescript/wow-client/src/query/snapshot/snapshotQueryClient.ts:117](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshotQueryClient.ts#L117)
+[typescript/wow-client/src/query/snapshot/snapshotQueryClient.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshotQueryClient.ts)
 
 ## 相关专题
 

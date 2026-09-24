@@ -30,7 +30,7 @@ description: '身份与资源归属 — @ahoo-wang/wow-client'
 export type AbacTagKey = string;
 ```
 
-[typescript/wow-client/src/types/abac.ts:13](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/abac.ts#L13)
+[typescript/wow-client/src/types/abac.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/abac.ts)
 
 ### AbacTagValue {#api-AbacTagValue}
 
@@ -38,7 +38,7 @@ export type AbacTagKey = string;
 export type AbacTagValue = string[];
 ```
 
-[typescript/wow-client/src/types/abac.ts:14](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/abac.ts#L14)
+[typescript/wow-client/src/types/abac.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/abac.ts)
 
 ### AbacTags {#api-AbacTags}
 
@@ -46,7 +46,7 @@ export type AbacTagValue = string[];
 export type AbacTags = Record<AbacTagKey, AbacTagValue>;
 ```
 
-[typescript/wow-client/src/types/abac.ts:15](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/abac.ts#L15)
+[typescript/wow-client/src/types/abac.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/abac.ts)
 
 ### EMPTY_ABAC_TAGS {#api-EMPTY_ABAC_TAGS}
 
@@ -56,7 +56,7 @@ declare const EMPTY_ABAC_TAGS: Readonly<AbacTags>;
 
 已冻结：添加标签前先复制。
 
-[typescript/wow-client/src/types/abac.ts:17](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/abac.ts#L17)
+[typescript/wow-client/src/types/abac.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/abac.ts)
 
 ### WILDCARD_ABAC_TAG_VALUES {#api-WILDCARD_ABAC_TAG_VALUES}
 
@@ -66,7 +66,7 @@ declare const WILDCARD_ABAC_TAG_VALUES: readonly string[];
 
 已冻结：修改前先复制。
 
-[typescript/wow-client/src/types/abac.ts:19](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/abac.ts#L19)
+[typescript/wow-client/src/types/abac.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/abac.ts)
 
 ### AbacTaggable {#api-AbacTaggable}
 
@@ -76,7 +76,7 @@ export interface AbacTaggable {
 }
 ```
 
-[typescript/wow-client/src/types/abac.ts:21](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/abac.ts#L21)
+[typescript/wow-client/src/types/abac.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/abac.ts)
 
 ### ApplyAbacTags {#api-ApplyAbacTags}
 
@@ -84,7 +84,7 @@ export interface AbacTaggable {
 export interface ApplyAbacTags extends AbacTaggable {}
 ```
 
-[typescript/wow-client/src/types/abac.ts:26](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/abac.ts#L26)
+[typescript/wow-client/src/types/abac.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/abac.ts)
 
 ### AbacTagsApplied {#api-AbacTagsApplied}
 
@@ -92,7 +92,7 @@ export interface ApplyAbacTags extends AbacTaggable {}
 export interface AbacTagsApplied extends AbacTaggable {}
 ```
 
-[typescript/wow-client/src/types/abac.ts:29](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/abac.ts#L29)
+[typescript/wow-client/src/types/abac.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/abac.ts)
 
 ### Identifier {#api-Identifier}
 
@@ -102,7 +102,7 @@ export interface Identifier {
 }
 ```
 
-[typescript/wow-client/src/types/common.ts:17](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/common.ts#L17)
+[typescript/wow-client/src/types/common.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/common.ts)
 
 ### Version {#api-Version}
 
@@ -112,7 +112,7 @@ export interface Version {
 }
 ```
 
-[typescript/wow-client/src/types/common.ts:31](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/common.ts#L31)
+[typescript/wow-client/src/types/common.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/common.ts)
 
 ### UrlPathParams {#api-UrlPathParams}
 
@@ -125,7 +125,7 @@ export interface UrlPathParams {
 }
 ```
 
-[typescript/wow-client/src/types/endpoints.ts:19](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/endpoints.ts#L19)
+[typescript/wow-client/src/types/endpoints.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/endpoints.ts)
 
 ### ResourceAttributionPathSpec {#api-ResourceAttributionPathSpec}
 
@@ -138,7 +138,7 @@ export enum ResourceAttributionPathSpec {
 }
 ```
 
-[typescript/wow-client/src/types/endpoints.ts:57](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/endpoints.ts#L57)
+[typescript/wow-client/src/types/endpoints.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/endpoints.ts)
 
 ### AggregateNameCapable {#api-AggregateNameCapable}
 
@@ -148,7 +148,7 @@ export interface AggregateNameCapable {
 }
 ```
 
-[typescript/wow-client/src/types/modeling.ts:79](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts#L79)
+[typescript/wow-client/src/types/modeling.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts)
 
 ### NamedAggregate {#api-NamedAggregate}
 
@@ -157,7 +157,7 @@ export interface NamedAggregate
   extends NamedBoundedContext, AggregateNameCapable {}
 ```
 
-[typescript/wow-client/src/types/modeling.ts:89](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts#L89)
+[typescript/wow-client/src/types/modeling.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts)
 
 ### AliasAggregate {#api-AliasAggregate}
 
@@ -166,7 +166,7 @@ export interface AliasAggregate
   extends AliasBoundedContext, AggregateNameCapable {}
 ```
 
-[typescript/wow-client/src/types/modeling.ts:92](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts#L92)
+[typescript/wow-client/src/types/modeling.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts)
 
 ### AggregateId {#api-AggregateId}
 
@@ -176,7 +176,7 @@ export interface AggregateId extends TenantId, NamedAggregate {
 }
 ```
 
-[typescript/wow-client/src/types/modeling.ts:98](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts#L98)
+[typescript/wow-client/src/types/modeling.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts)
 
 ### AggregateIdCapable {#api-AggregateIdCapable}
 
@@ -186,7 +186,7 @@ export interface AggregateIdCapable {
 }
 ```
 
-[typescript/wow-client/src/types/modeling.ts:109](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts#L109)
+[typescript/wow-client/src/types/modeling.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts)
 
 ### OwnerId {#api-OwnerId}
 
@@ -196,7 +196,7 @@ export interface OwnerId {
 }
 ```
 
-[typescript/wow-client/src/types/modeling.ts:132](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts#L132)
+[typescript/wow-client/src/types/modeling.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts)
 
 ### SpaceIdCapable {#api-SpaceIdCapable}
 
@@ -206,7 +206,7 @@ export interface SpaceIdCapable {
 }
 ```
 
-[typescript/wow-client/src/types/modeling.ts:139](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts#L139)
+[typescript/wow-client/src/types/modeling.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts)
 
 ### TenantId {#api-TenantId}
 
@@ -216,7 +216,7 @@ export interface TenantId {
 }
 ```
 
-[typescript/wow-client/src/types/modeling.ts:156](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts#L156)
+[typescript/wow-client/src/types/modeling.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts)
 
 ### NamedBoundedContext {#api-NamedBoundedContext}
 
@@ -226,7 +226,7 @@ export interface NamedBoundedContext {
 }
 ```
 
-[typescript/wow-client/src/types/naming.ts:17](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/naming.ts#L17)
+[typescript/wow-client/src/types/naming.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/naming.ts)
 
 ### AliasBoundedContext {#api-AliasBoundedContext}
 
@@ -236,7 +236,7 @@ export interface AliasBoundedContext {
 }
 ```
 
-[typescript/wow-client/src/types/naming.ts:21](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/naming.ts#L21)
+[typescript/wow-client/src/types/naming.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/naming.ts)
 
 ### Named {#api-Named}
 
@@ -246,7 +246,7 @@ export interface Named {
 }
 ```
 
-[typescript/wow-client/src/types/naming.ts:28](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/naming.ts#L28)
+[typescript/wow-client/src/types/naming.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/naming.ts)
 
 ### DescriptionCapable {#api-DescriptionCapable}
 
@@ -256,6 +256,6 @@ export interface DescriptionCapable {
 }
 ```
 
-[typescript/wow-client/src/types/naming.ts:39](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/naming.ts#L39)
+[typescript/wow-client/src/types/naming.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/naming.ts)
 
 [完整符号索引](./symbols)

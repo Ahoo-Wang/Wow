@@ -49,13 +49,16 @@ pnpm add @ahoo-wang/wow-react
 | `wow-generator` | `fetcher`、`fetcher-decorator`、`fetcher-eventstream`、`fetcher-openapi` | `^5.1 \|\| ^6` |
 | `wow-generator`、`wow-react` | `wow-client` | `~x.y.z`，即同一个小版本 |
 | `wow-react` | `fetcher-react` | `^5.1.3 \|\| ^6` |
-| `wow-react` | `fetcher`、`fetcher-eventstream`、`react` | 以包声明为准 |
+| `wow-react` | `react` | `^19.3.0`；不支持 React 18 |
+| `wow-react` | `fetcher`、`fetcher-eventstream` | `^5.1 \|\| ^6` |
 
 从 `fetcher-react` 5.1.3 起，它对 `fetcher-wow` 的 peer 依赖是可选的，所以移除 `fetcher-wow` 后依赖图里只剩一份 Wow 类型。只有其他依赖仍然需要 `fetcher-wow` 时才保留它，并且不要在同一个应用里同时从两个包导入 Wow 类型：两套类型不能互换。
 
 ### 2. 改写导入
 
 先替换模块名，再按下文的[API 变化](#首个版本的-api-变化)修改调用。已弃用的 `Condition` API 和操作符文案从 `@ahoo-wang/wow-client/legacy` 导入，其余一切从根入口导入。
+
+<!-- typecheck: skip — 迁移前后对照；“迁移前”一半导入已移除的 fetcher-wow -->
 
 ```ts
 // 迁移前
@@ -165,7 +168,8 @@ pnpm test
 
 - Wow 的 TypeScript 包跟随 Wow 发版。选择与 Wow 服务端一致的版本，并同时升级 `wow-client`、`wow-generator` 和 `wow-react`；它们之间以 `~x.y.z` 互相声明。
 - 破坏性改动只在 `x.Y.0` 版本发布，发布说明逐条列出并写明迁移方法。
-- 在 Wow 9.x 期间，客户端和生成器仍能连接 Wow 8.x 服务端（8.11 及以后用 `FilterExpression`，8.10 通过 `@ahoo-wang/wow-client/legacy`），`fetcher-generator` 别名和 `fetcher-generator.config.json` 回退读取可用，已弃用的 `Condition` API 也可以从 `/legacy` 导入。它们都在 v10 移除；在此之前请改用 `FilterExpression` 和 `filter.*` 构造器，见[过滤器](../../reference/typescript/wow-client/filters.md)。
+- Wow 包的首个版本是 9.2.0；发布之前它们尚未上 npm，应用继续使用 5.x 的 `fetcher-wow` 和 `fetcher-generator`。
+- 在 Wow 9.x 期间，客户端和生成器仍能连接 Wow 8.x 服务端（8.11 及以后用 `FilterExpression`，8.10 通过 `@ahoo-wang/wow-client/legacy`；CI 对各版本验证了什么，见[兼容性矩阵](./compatibility.md)），`fetcher-generator` 别名和 `fetcher-generator.config.json` 回退读取可用，已弃用的 `Condition` API 也可以从 `/legacy` 导入。它们都在 v10 移除；在此之前请改用 `FilterExpression` 和 `filter.*` 构造器，见[过滤器](../../reference/typescript/wow-client/filters.md)。
 - 新功能只进 Wow 的包。Fetcher 保留 5.x 分支只做修复，计划在 Fetcher 6.0 发布时对 `fetcher-wow` 和 `fetcher-generator` 执行 npm deprecate。
 
 ## 检查清单

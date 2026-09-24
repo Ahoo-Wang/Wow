@@ -62,9 +62,9 @@ export class CommandClient implements ApiMetadataCapable {
 
   /**
    * Sends a command and resolves to the result of the stage it waited for
-   * (`PROCESSED` unless the headers say otherwise). A command whose
-   * processing failed resolves too, with the failure in the result's
-   * `errorCode`; a request the server refuses rejects, see `toWowError`.
+   * (`PROCESSED` unless the headers say otherwise). A command the server
+   * refuses or fails to process rejects: Wow answers the failed result with
+   * the HTTP status its `errorCode` maps to. Read it with `toWowError`.
    *
    * @param commandRequest - The route path, headers and body of the command
    * @param attributes - Optional shared attributes for the interceptors

@@ -11,9 +11,11 @@ Installation must also resolve every declared peer dependency; see the [package 
 
 ## 1. Confirm aggregate endpoints
 
-Install `@ahoo-wang/fetcher` and `@ahoo-wang/wow-client`. This example assumes the application exposes an owner-scoped cart at `owner/{ownerId}/cart`, an `add_cart_item` POST command, and Wow snapshot endpoints below that path. Confirm these paths in the server's OpenAPI document and configure authentication separately. The route names and state model are application examples.
+Install `@ahoo-wang/fetcher` and `@ahoo-wang/wow-client`. This example assumes the application exposes an owner-scoped cart at `owner/{ownerId}/cart`, an `add_cart_item` POST command, and Wow snapshot endpoints below that path. Confirm these paths in the server's OpenAPI document, and configure authentication as in [Authentication and Interceptors](./authentication.md). Clients generated from the document already know these paths; see the [Quick Start](./quick-start.md). The route names and state model are application examples.
 
 ## 2. Create the command and query clients
+
+<!-- typecheck: file=cart.ts -->
 
 ```ts
 import { Fetcher, HttpMethod } from '@ahoo-wang/fetcher';
@@ -80,13 +82,10 @@ export function createCartClients(baseURL: string, ownerId: string) {
 
 ## 3. Send once and inspect the result
 
-A command can fail in two ways, and both must stay visible:
-
-- The server refuses the request (validation, a version conflict, a repeated request id): `send` rejects. `await toWowError(error)` turns the fetcher's error into a `WowError` with the server's `errorCode`, `errorMsg`, `bindingErrors` and HTTP `status`; it returns `undefined` when Wow did not answer at all (network failure, abort).
-- The command was accepted but its processing failed: `send` resolves, and the result's `errorCode` is not `ErrorCodes.SUCCEEDED`.
+Wow answers a command it cannot carry out — invalid input, a command handler that throws, a version conflict, a repeated request id — with an HTTP error status, so `send` rejects; it resolves only when the command reached the stage it waited for. `await toWowError(error)` turns the fetcher's error into a `WowError` with the server's `errorCode`, `errorMsg`, `bindingErrors` and HTTP `status`, and returns `undefined` when Wow did not answer at all (network failure, abort). [Error Handling](./error-handling.md) lists every case.
 
 ```ts
-import { ErrorCodes, toWowError } from '@ahoo-wang/wow-client';
+import { toWowError } from '@ahoo-wang/wow-client';
 import type { createCartClients } from './cart';
 
 export async function addBook(clients: ReturnType<typeof createCartClients>) {
@@ -95,10 +94,7 @@ export async function addBook(clients: ReturnType<typeof createCartClients>) {
       { productId: 'book-1', quantity: 2 },
       crypto.randomUUID(),
     );
-    if (result.errorCode !== ErrorCodes.SUCCEEDED) {
-      return { failed: result.errorCode, message: result.errorMsg };
-    }
-    return { stage: result.stage };
+    return { stage: result.stage, version: result.aggregateVersion };
   } catch (error) {
     const wowError = await toWowError(error);
     if (!wowError) throw error; // network failure, abort, proxy error page
@@ -107,7 +103,7 @@ export async function addBook(clients: ReturnType<typeof createCartClients>) {
 }
 ```
 
-`waitStrategy({ stage: CommandStage.SNAPSHOT })` requests that stage; it does not guarantee every projection is already queryable or that failures disappear. Reuse the same request id when retrying a command whose outcome is uncertain, so the server can refuse the duplicate (`ErrorCodes.DUPLICATE_REQUEST_ID`).
+`waitStrategy({ stage: CommandStage.SNAPSHOT })` requests that stage; it does not guarantee that every projection is already queryable. Reuse the same request id when retrying a command whose outcome is uncertain, so the server can refuse the duplicate (`ErrorCodes.DUPLICATE_REQUEST_ID`).
 
 Only after deciding how to handle the command result, load the page with `clients.loadPage(signal)`. Each query method takes `abort` as its last argument: an `AbortController`, or an `AbortSignal` — `AbortSignal.timeout(ms)`, or the `signal` a data library such as TanStack Query passes to its query function. Give each independently owned query its own signal and abort it when its UI/task ends.
 
@@ -160,6 +156,6 @@ Array-first filter builders require one nonempty array; empty input throws befor
 
 See [commands](../../reference/typescript/wow-client/commands), [snapshot queries](../../reference/typescript/wow-client/snapshot-queries), [filters](../../reference/typescript/wow-client/filters), and [pagination/projection/sort](../../reference/typescript/wow-client/query-options).
 
-[snapshotQueryClient.ts:335](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshotQueryClient.ts#L335) defines the stream arguments.
+[snapshotQueryClient.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshotQueryClient.ts) defines the stream arguments.
 
 [Review integration boundaries](https://fetcher.ahoo.me/architecture/integration-decisions); [return to this task group](./index.md).
