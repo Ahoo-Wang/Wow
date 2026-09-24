@@ -241,24 +241,28 @@ Wow 文档站（wow.ahoo.me，VitePress）已经这样挂了一份 dokka：放�
 
 ### 已完成
 
-| 步骤 | 内容                                                                          | PR                |
-| ---- | ----------------------------------------------------------------------------- | ----------------- |
-| P0   | fetcher 的项目记忆复制进 Wow 的项目记忆（见记忆 `fetcher-memories-imported`） | —（fetcher 会话） |
+| 步骤         | 内容                                                                                                 | PR                |
+| ------------ | ---------------------------------------------------------------------------------------------------- | ----------------- |
+| P0           | fetcher 的项目记忆复制进 Wow 的项目记忆（见记忆 `fetcher-memories-imported`）                        | —（fetcher 会话） |
+| W1 = 第 1 步 | 根目录工作区、工具链、CI 骨架，dashboard 与 documentation 并入，shadcn skill，`typescript/AGENTS.md` | Wow #3281         |
+
+W1 的具体做法（W2 起沿用）：
+
+- 根目录私有工作区：`package.json`（只放脚本与开发工具）、`pnpm-workspace.yaml`（成员 `typescript/*`、`compensation/dashboard`、`documentation`；catalog 收纳两者全部依赖，版本不变；并入 documentation 原有的 `allowBuilds`）、唯一的 `pnpm-lock.yaml`（以 dashboard 原锁文件为底，直接依赖的解析版本不变）、`tsconfig.base.json`、`eslint.config.js`、`.prettierrc`；
+- `.prettierignore` 用白名单：prettier 只管 `typescript/`、根目录 JS 配置、`.github/scripts/*.mjs`、`typescript*.yml`，dashboard（双引号）、documentation（4 空格）和全仓 Markdown/YAML 保留各自风格；
+- 删除 dashboard 与 documentation 各自的锁文件和 `documentation/pnpm-workspace.yaml`；documentation 标 `private`；
+- `typescript.yml`：`scope`（`.github/scripts/ci-scope.mjs`，Kotlin/Gradle/dashboard/文案路径跳过，识别不了的全跑；push 到 main 用 `before..sha`）→ `quality`（CI 脚本测试、改动文件格式、eslint、`tsc`）→ `unit`（Node 22/24，占位，包迁入后自动生效）→ `docs`（改到 documentation 时构建 VitePress）→ `typescript-gate`；
+- `dashboard-test.yml`、`compensation-deploy.yml`、`documentation-deploy.yml` 改为在根目录安装、用根锁文件缓存；去掉 `--shamefully-hoist`；
+- `.claude/skills/shadcn` 从 fetcher 复制（`.gitignore` 放行 `/.claude/skills/`）；`typescript/AGENTS.md`；根 `AGENTS.md` 补工作区与 CI 说明。
+- 已知遗留：`documentation/test/markdown-pages.test.mjs` 在 main 上就失败（vitepress-plugin-llms 1.14 只给首页注入提示），与迁移无关，已另开任务；修好后再把 `node --test` 加进 `docs` job。
 
 ### 在飞
 
-- **W1 = 第 1 步**（Wow 会话，分支 `typescript/w1-workspace`）：
-  - 根目录私有工作区：`package.json`（只放脚本与开发工具）、`pnpm-workspace.yaml`（成员 `typescript/*`、`compensation/dashboard`、`documentation`；catalog 收纳两者全部依赖，版本不变；并入 documentation 原有的 `allowBuilds`）、唯一的 `pnpm-lock.yaml`（以 dashboard 原锁文件为底，直接依赖的解析版本不变）、`tsconfig.base.json`、`eslint.config.js`、`.prettierrc`；
-  - `.prettierignore` 用白名单：prettier 只管 `typescript/`、根目录 JS 配置、`.github/scripts/*.mjs`、`typescript*.yml`，dashboard（双引号）、documentation（4 空格）和全仓 Markdown/YAML 保留各自风格；
-  - 删除 dashboard 与 documentation 各自的锁文件和 `documentation/pnpm-workspace.yaml`；documentation 标 `private`；
-  - `typescript.yml`：`scope`（`.github/scripts/ci-scope.mjs`，Kotlin/Gradle/dashboard/文案路径跳过，识别不了的全跑；push 到 main 用 `before..sha`）→ `quality`（CI 脚本测试、改动文件格式、eslint、`tsc`）→ `unit`（Node 22/24，占位，包迁入后自动生效）→ `docs`（改到 documentation 时构建 VitePress）→ `typescript-gate`；
-  - `dashboard-test.yml`、`compensation-deploy.yml`、`documentation-deploy.yml` 改为在根目录安装、用根锁文件缓存；去掉 `--shamefully-hoist`；
-  - `.claude/skills/shadcn` 从 fetcher 复制（`.gitignore` 放行 `/.claude/skills/`）；`typescript/AGENTS.md`；根 `AGENTS.md` 补工作区与 CI 说明。
-  - 已知遗留：`documentation/test/markdown-pages.test.mjs` 在 main 上就失败（vitepress-plugin-llms 1.14 只给首页注入提示），与迁移无关，已另开任务；修好后再把 `node --test` 加进 `docs` job。
+- F1 = 第 0 步（fetcher 会话）：Ahoo-Wang/fetcher#1899（发 5.1.3：fetcher-wow 可选 peer、`/fetcher` 子路径、5.x 流水线），合并后打 tag `wow-migration-base` 并推 `5.x`。
+- Wow 侧暂无在飞 PR。
 
 ### 下一步
 
-1. W1 合并后，把本节的 W1 移到「已完成」并填 PR 号。
-2. **W2 等 fetcher 上出现 tag**：`git ls-remote --tags https://github.com/Ahoo-Wang/fetcher.git wow-migration-base` 有输出才开始（fetcher 会话会在 #1899 合并、5.1.3 发布、打 tag 并推 `5.x` 后通知）。开工前先把步骤和会碰到的仓库操作列给用户确认。
-3. W2 要点（除「时机与步骤」表里的内容外）：wow-react 只从 `@ahoo-wang/fetcher-react/core` 与 `@ahoo-wang/fetcher-react/fetcher` 导入，迁入时改掉 `../core/index.js`、`../../fetcher/index.js` 这类相对引用，对 fetcher-react 的 peer 范围写 `^5.1.3 || ^6`；在 `ci-scope.mjs` 里为新目录（契约测试涉及的 `schema/`、`example/`、`gradle.properties` 版本校验等）重新分类并补测试。
-4. #1899 合并到 fetcher main 后，与 main 上的方案原文核对一次，有差异就同步进本文。
+1. **W2 等 fetcher 上出现 tag**：`git ls-remote --tags https://github.com/Ahoo-Wang/fetcher.git wow-migration-base` 有输出才开始（fetcher 会话会在 #1899 合并、5.1.3 发布、打 tag 并推 `5.x` 后通知）。开工前先把步骤和会碰到的仓库操作列给用户确认。
+2. W2 要点（除「时机与步骤」表里的内容外）：wow-react 只从 `@ahoo-wang/fetcher-react/core` 与 `@ahoo-wang/fetcher-react/fetcher` 导入，迁入时改掉 `../core/index.js`、`../../fetcher/index.js` 这类相对引用，对 fetcher-react 的 peer 范围写 `^5.1.3 || ^6`；在 `ci-scope.mjs` 里为新目录（契约测试涉及的 `schema/`、`example/`、`gradle.properties` 版本校验等）重新分类并补测试。
+3. #1899 合并到 fetcher main 后，与 main 上的方案原文核对一次，有差异就同步进本文。
