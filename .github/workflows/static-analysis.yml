@@ -26,6 +26,8 @@ on:
       - 'test/**'
       - 'example/**'
       - 'compensation/**'
+      # The dashboard is TypeScript; dashboard-test.yml checks it.
+      - '!compensation/dashboard/**'
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
