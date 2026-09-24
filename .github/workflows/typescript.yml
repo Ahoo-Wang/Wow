@@ -35,8 +35,11 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       typescript: ${{ steps.scope.outputs.typescript }}
+      sdk: ${{ steps.scope.outputs.sdk }}
       docs: ${{ steps.scope.outputs.docs }}
       view-engine: ${{ steps.scope.outputs.viewEngine }}
+      package-docs: ${{ steps.scope.outputs.packageDocs }}
+      view-engine-docs: ${{ steps.scope.outputs.viewEngineDocs }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -99,7 +102,7 @@ jobs:
   unit:
     name: Unit / Node ${{ matrix.node-version }}
     needs: scope
-    if: needs.scope.outputs.typescript == 'true'
+    if: needs.scope.outputs.sdk == 'true'
     timeout-minutes: 30
     runs-on: ubuntu-latest
     permissions:
@@ -253,6 +256,41 @@ jobs:
         working-directory: typescript/wow-view-engine
         run: pnpm exec vitest run --coverage.enabled=false --shard=${{ matrix.shard }}/2
 
+  # Markdown alone under typescript/: check its formatting (quality does when
+  # it runs) and, for view-engine, run the tests that read it instead of the
+  # sharded suite (which runs them when it runs).
+  package-docs:
+    name: Package docs
+    needs: scope
+    if: needs.scope.outputs.package-docs == 'true' || needs.scope.outputs.view-engine-docs == 'true'
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.34.5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Check changed-file formatting
+        if: needs.scope.outputs.package-docs == 'true'
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: node .github/scripts/format-changed.mjs
+      - name: Build view-engine dependencies
+        if: needs.scope.outputs.view-engine-docs == 'true'
+        run: pnpm --filter '@ahoo-wang/wow-view-engine^...' build
+      - name: Test view-engine docs
+        if: needs.scope.outputs.view-engine-docs == 'true'
+        run: pnpm --filter @ahoo-wang/wow-view-engine test:docs
+
   docs:
     name: Documentation
     needs: scope
@@ -290,6 +328,7 @@ jobs:
         view-engine-shard,
         view-engine,
         view-engine-node22,
+        package-docs,
         docs,
       ]
     if: always()
