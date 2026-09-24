@@ -43,12 +43,9 @@ import {
 import { panelReach, panelRun } from './dashboard/panelRun.js';
 import { FilterValues } from './dashboard/filterValues.js';
 import { PanelPresses } from './dashboard/press.js';
-import {
-  boardEditing,
-  type DashboardEditing,
-  type DashboardFilterEditing,
-} from './dashboard/editing.js';
+import { boardEditing, type BoardEdits } from './dashboard/editing.js';
 import { BoardCommands } from './dashboard/commands.js';
+import { NO_HISTORY, type EditHistoryState } from './dashboard/history.js';
 import type { ValueCandidateSource } from './valueCandidates.js';
 import type { RuntimeEnvironment } from './environment.js';
 import { hasError, RuntimeStore } from './runtimeStore.js';
@@ -137,7 +134,7 @@ export class DashboardViewRuntime
   /** The child runtime of each data panel that runs; see `PanelChildren`. */
   private readonly children: PanelChildren;
   /** Building the board; see `runtime/dashboard/editing.ts`. */
-  protected readonly edits: DashboardEditing & DashboardFilterEditing;
+  protected readonly edits: BoardEdits;
   /** What the board's filters hold; see `FilterValues`. */
   protected readonly values: FilterValues;
   /** A press on a panel's group; see `PanelPresses`. */
@@ -177,7 +174,8 @@ export class DashboardViewRuntime
         if (found) this.references.seed({ ...found, instance });
       },
       fieldsOf: panel => this.viewOf(panel)?.definition.fields ?? null,
-      restructure: change => this.restructure(change),
+      applied: () => (this.disposed ? null : this.state.applied),
+      commit: (draft, applied, history) => this.commit(draft, applied, history),
     });
     this.values = new FilterValues({
       kinds: options.kinds,
@@ -242,6 +240,7 @@ export class DashboardViewRuntime
         resolving: false,
         tab: shownTab(config, null),
         filters: admitFilters(config, null, options.kinds).filters,
+        history: NO_HISTORY,
       },
       environment: options.environment,
       refusedScope,
@@ -348,9 +347,14 @@ export class DashboardViewRuntime
     this.sync({ applied: this.state.draft });
   }
 
-  /** Discards the edits and re-runs what was saved; see `RuntimeStore.revert`. */
+  /**
+   * Discards the edits and re-runs what was saved; see `RuntimeStore.revert`.
+   * The history goes with them: there is nothing left to undo.
+   */
   revert(): void {
+    if (this.disposed) return;
     this.store.revert();
+    this.store.setState({ history: this.edits.forget() });
   }
 
   /**
@@ -384,11 +388,12 @@ export class DashboardViewRuntime
   }
 
   /**
-   * One edit to the board, applied as a placement is: into the draft and
-   * into what is on screen alike, and nothing else of either moves — a
-   * global filter still being composed stays pending (D22 A: the panels run
-   * on the draft as it is built; saving writes it, `revert` undoes it). A
-   * panel the edit adds is loaded like any the draft names.
+   * One edit to the board, or one step of its history taken back or made
+   * again, applied as a placement is: into the draft and into what is on
+   * screen alike, and nothing else of either moves — a global filter still
+   * being composed stays pending (D22 A: the panels run on the draft as it
+   * is built; saving writes it, `revert` undoes it). A panel the edit adds
+   * is loaded like any the draft names.
    *
    * A placement is a gesture that lands at once, like sorting a table, but
    * it is not an apply of the whole draft: going through `edit` + `apply`
@@ -397,21 +402,19 @@ export class DashboardViewRuntime
    * written into both the draft and the applied config, the panels it
    * pushes with it, and nothing else in either moves.
    */
-  private restructure(
-    change: (config: DashboardViewConfig) => DashboardViewConfig,
+  private commit(
+    draft: DashboardViewConfig,
+    applied: DashboardViewConfig,
+    history: EditHistoryState,
   ): void {
-    if (this.disposed) return;
-    const { draft, applied } = this.state;
-    const nextDraft = change(draft);
-    const nextApplied = change(applied);
-    if (nextDraft === draft && nextApplied === applied) return;
     this.sync({
-      draft: nextDraft,
-      applied: nextApplied,
-      issues: this.admit(nextDraft, this.state.scope),
-      dirty: this.store.isDirty(nextDraft, this.state.saved),
+      draft,
+      applied,
+      issues: this.admit(draft, this.state.scope),
+      dirty: this.store.isDirty(draft, this.state.saved),
+      history,
     });
-    this.load(nextDraft);
+    this.load(draft);
   }
 
   async preload(instanceId: string): Promise<void> {
@@ -491,10 +494,14 @@ export class DashboardViewRuntime
       : this.admit(this.state.draft, scope);
   }
 
+  /**
+   * A save is where the history starts again: the board is left as saved
+   * (「完成」), and the next building begins from it.
+   */
   markSaved(instance: ViewInstance): void {
     if (this.disposed) return;
     this.moveBaseline(instance);
-    this.store.setState({ write: null });
+    this.store.setState({ write: null, history: this.edits.forget() });
   }
 
   moveBaseline(stored: ViewInstance): void {
@@ -520,6 +527,7 @@ export class DashboardViewRuntime
       issues: this.admit(draft, instance.scope),
       dirty: false,
       write: null,
+      history: this.edits.forget(),
     });
     this.load(draft);
   }

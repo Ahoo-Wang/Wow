@@ -25,7 +25,8 @@ import {
   GripVerticalIcon,
   MoveIcon,
 } from 'lucide-react';
-import type { ArrangeStep } from '../dashboard/index.js';
+import type { ArrangeStep, OrderStep } from '../dashboard/index.js';
+import { useListFocus } from './analysis/listFocus.js';
 import { IconButton, IconTooltip } from './IconButton.js';
 import type { MessageKey } from './messages.js';
 import { useViewMessages } from './MessagesProvider.js';
@@ -306,5 +307,59 @@ export function PanelArrangeMenu({
         {group('label.panel.arrange-size', SIZE_COMMANDS)}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+export interface PanelOrderProps {
+  /** What the panel is called, so each button says which one it moves. */
+  title: string;
+  /** Where the panel stands in the column, from 0, and how many there are. */
+  index: number;
+  total: number;
+  onMove(step: OrderStep): void;
+}
+
+/**
+ * 「上移」／「下移」 on a panel in the one-column reading (D22 J), where the
+ * grip and the corner are not: a step along the column, which the runtime
+ * writes back onto the grid as the layout that reads that way
+ * (`reorderPanel`). The column is the order a reader goes down, so the
+ * buttons are the tray's own pattern — named after the panel, disabled at
+ * either end, and the keyboard kept on the button that moved it at the
+ * place the panel landed, or on the other one once that way has run out
+ * (`useListFocus`).
+ */
+export function PanelOrder({ title, index, total, onMove }: PanelOrderProps) {
+  const messages = useViewMessages();
+  const focus = useListFocus({
+    list: '[data-slot="dashboard-tab-panel"]',
+    item: '[data-slot="dashboard-panel"]',
+  });
+  const button = (step: OrderStep, Icon: React.FC, disabled: boolean) => (
+    <IconButton
+      type="button"
+      data-slot="panel-order"
+      data-move={step}
+      label={messages.label(
+        step === 'up' ? 'label.panel.order-up' : 'label.panel.order-down',
+        { title },
+      )}
+      variant="ghost"
+      size="icon-sm"
+      className="shrink-0"
+      disabled={disabled}
+      onClick={(event: React.MouseEvent<HTMLElement>) => {
+        focus.moved(event, step === 'up' ? index - 1 : index + 1, step);
+        onMove(step);
+      }}
+    >
+      <Icon />
+    </IconButton>
+  );
+  return (
+    <>
+      {button('up', ArrowUpIcon, index === 0)}
+      {button('down', ArrowDownIcon, index >= total - 1)}
+    </>
   );
 }

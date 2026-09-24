@@ -21,6 +21,8 @@ import {
   placePanel,
   placePanelIn,
   readingOrder,
+  reorderPanel,
+  reorderPanelIn,
   stackedLayout,
   withLayouts,
   type DashboardPanel,
@@ -435,5 +437,151 @@ describe('stackedLayout', () => {
     ]);
     // Derived, not placed: the stored boxes are untouched.
     expect(stored[0]).toEqual(box('right', 12, 0, 12, 4));
+  });
+});
+
+/**
+ * 「上移」／「下移」 in the one-column reading (D22 J): one step along the
+ * reading order, written back onto the wide grid it is a reading of.
+ */
+describe('reordering the one-column reading', () => {
+  /** The ids in reading order. */
+  const read = (boxes: readonly PlacedPanel[] | null) =>
+    readingOrder(
+      (boxes ?? []).map(entry => ({ id: entry.id, layout: entry })),
+    ).map(entry => entry.id);
+
+  it('trades two panels of one size side by side, and nothing else moves', () => {
+    const board = [
+      box('left', 0, 0, 12, 4),
+      box('right', 12, 0, 12, 4),
+      box('below', 0, 4, 24, 2),
+    ];
+
+    const moved = reorderPanel(board, 'right', 'up');
+
+    expect(byId(moved)).toEqual({
+      left: { x: 12, y: 0, w: 12, h: 4 },
+      right: { x: 0, y: 0, w: 12, h: 4 },
+      below: { x: 0, y: 4, w: 24, h: 2 },
+    });
+    expect(read(moved)).toEqual(['right', 'left', 'below']);
+  });
+
+  it('moves a panel down past the one under it, each keeping its size', () => {
+    const board = [box('tall', 0, 0, 24, 4), box('short', 0, 4, 24, 2)];
+
+    expect(byId(reorderPanel(board, 'tall', 'down'))).toEqual({
+      tall: { x: 0, y: 2, w: 24, h: 4 },
+      short: { x: 0, y: 0, w: 24, h: 2 },
+    });
+  });
+
+  it('takes a full-width panel past half of a row by moving the other half under it', () => {
+    const board = [
+      box('head', 0, 0, 24, 2),
+      box('a', 0, 2, 12, 4),
+      box('b', 12, 2, 12, 4),
+      box('wide', 0, 6, 24, 3),
+    ];
+
+    const moved = reorderPanel(board, 'wide', 'up');
+
+    expect(read(moved)).toEqual(['head', 'a', 'wide', 'b']);
+    // What is read before the two stays exactly where it was, and the board
+    // is at rest: a later placement lifts nothing.
+    expect(byId(moved).head).toEqual(byId([board[0]]).head);
+    expect(byId(moved).a).toEqual({ x: 0, y: 2, w: 12, h: 4 });
+    expect(compactLayout(moved!)).toEqual(moved);
+  });
+
+  it('lands the panel one place along on any board, at rest and on the grid', () => {
+    // A board whose columns do not line up: every panel, both ways.
+    const board = [
+      box('p0', 0, 2, 16, 5),
+      box('p1', 16, 4, 6, 4),
+      box('p2', 13, 0, 6, 2),
+      box('p3', 20, 0, 4, 4),
+      box('p4', 0, 7, 12, 4),
+      box('p5', 18, 8, 4, 5),
+      box('p6', 16, 13, 8, 3),
+    ];
+    const order = read(board);
+    for (const [at, id] of order.entries())
+      for (const step of ['up', 'down'] as const) {
+        const moved = reorderPanel(board, id, step);
+        const to = step === 'up' ? at - 1 : at + 1;
+        if (to < 0 || to >= order.length) {
+          expect(moved).toBeNull();
+          continue;
+        }
+        expect(read(moved)[to]).toBe(id);
+        expect(compactLayout(moved!)).toEqual(moved);
+        for (const entry of moved!) expect(fitsGrid(entry)).toBe(true);
+        moved!.forEach((one, index) =>
+          moved!
+            .slice(index + 1)
+            .forEach(two => expect(overlaps(one, two)).toBe(false)),
+        );
+      }
+  });
+
+  it('stacks the board down one column where no placement reads right', () => {
+    // Four columns: 「narrow」 comes before 「tall」 only with 「tall」 and
+    // 「side」 both moving, which no single placement does.
+    const board = [
+      box('top', 0, 0, 2, 3),
+      box('tall', 3, 0, 1, 3),
+      box('narrow', 0, 3, 3, 1),
+      box('side', 3, 3, 1, 3),
+      box('last', 3, 6, 1, 3),
+    ];
+
+    const moved = reorderPanel(board, 'narrow', 'up', 4);
+
+    expect(read(moved)).toEqual(['top', 'narrow', 'tall', 'side', 'last']);
+    expect(byId(moved)).toEqual({
+      top: { x: 0, y: 0, w: 2, h: 3 },
+      narrow: { x: 0, y: 3, w: 3, h: 1 },
+      tall: { x: 0, y: 4, w: 1, h: 3 },
+      side: { x: 0, y: 7, w: 1, h: 3 },
+      last: { x: 0, y: 10, w: 1, h: 3 },
+    });
+  });
+
+  it('has nowhere to go past either end, or for a panel it does not hold', () => {
+    const board = [box('a', 0, 0, 24, 2), box('b', 0, 2, 24, 2)];
+
+    expect(reorderPanel(board, 'a', 'up')).toBeNull();
+    expect(reorderPanel(board, 'b', 'down')).toBeNull();
+    expect(reorderPanel(board, 'ghost', 'up')).toBeNull();
+  });
+
+  it('writes the panels of its own tab into the config, and nothing else', () => {
+    const note = (id: string, tab: string, y: number) =>
+      ({
+        id,
+        kind: 'markdown',
+        content: '',
+        tab,
+        layout: { x: 0, y, w: 24, h: 2 },
+      }) as DashboardPanel;
+    const config = dashboardConfig({
+      tabs: [
+        { id: 'one', title: 'One' },
+        { id: 'two', title: 'Two' },
+      ],
+      panels: [note('a', 'one', 0), note('b', 'one', 2), note('c', 'two', 0)],
+    });
+
+    const moved = reorderPanelIn(config, 'b', 'up');
+
+    expect(moved.panels.map(panel => [panel.id, panel.layout.y])).toEqual([
+      ['a', 2],
+      ['b', 0],
+      ['c', 0],
+    ]);
+    expect(reorderPanelIn(config, 'c', 'up')).toBe(config);
+    expect(reorderPanelIn(config, 'ghost', 'down')).toBe(config);
   });
 });

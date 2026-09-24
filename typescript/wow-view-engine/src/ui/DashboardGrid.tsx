@@ -26,6 +26,7 @@ import {
   readingOrder,
   stackedLayout,
   type ArrangeStep,
+  type OrderStep,
   type PlacedPanel,
 } from '../dashboard/index.js';
 import type {
@@ -86,7 +87,7 @@ export interface DashboardGridProps {
   /**
    * Above the panels, inside the grid's own column: the edit bar while the
    * board is built. Told whether the board is in its one-column reading,
-   * where building is renaming and removing alone (D22 J).
+   * where building is renaming, removing and reordering alone (D22 J).
    */
   header?(board: { narrow: boolean }): ReactNode;
   /**
@@ -254,6 +255,25 @@ export function DashboardGrid({
     );
   };
 
+  /**
+   * One step along the one-column reading (D22 J), written back onto the
+   * grid by the runtime (`reorderPanel`), and where the panel came to said:
+   * the column is the order, so its place in it is the whole answer.
+   */
+  const reorder = (panelId: string, step: OrderStep) => {
+    const at = panels.findIndex(panel => panel.id === panelId);
+    const to = step === 'up' ? at - 1 : at + 1;
+    if (!editable || !narrow || at < 0 || to < 0 || to >= panels.length) return;
+    dashboard.edit?.reorderPanel(panelId, step);
+    say(
+      messages.label('label.panel.reordered', {
+        title: names.get(panelId) ?? '',
+        index: to + 1,
+        total: panels.length,
+      }),
+    );
+  };
+
   // Below `md`, the kernel's one-column reading of the stored layout; the
   // stored layout itself everywhere else.
   const boxes = panels.map(panel => ({ id: panel.id, ...panel.layout }));
@@ -351,6 +371,15 @@ export function DashboardGrid({
                   editable={arranging}
                   available={step => available(panel.id, step)}
                   onArrange={step => arrange(panel.id, step)}
+                  order={
+                    editable && narrow && panels.length > 1
+                      ? {
+                          index: panels.indexOf(panel),
+                          total: panels.length,
+                          onMove: step => reorder(panel.id, step),
+                        }
+                      : undefined
+                  }
                   onRetry={
                     readOnly
                       ? undefined

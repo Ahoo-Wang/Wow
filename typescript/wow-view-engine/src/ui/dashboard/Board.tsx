@@ -33,6 +33,7 @@ import {
   type EditedKind,
 } from './ContentEditor.js';
 import { EditBar } from './EditBar.js';
+import { useBoardHistory } from './history.js';
 import { useDashboardEditExtensions } from './extensions.js';
 import { useBoardFilters } from './BoardFilters.js';
 import { ViewPicker, type PickerIntent } from './ViewPicker.js';
@@ -113,6 +114,8 @@ export function DashboardBoard({
   const gridRef = useRef<HTMLDivElement>(null);
   const landingRef = useRef<HTMLParagraphElement>(null);
   const addRef = useRef<HTMLButtonElement>(null);
+  const undoRef = useRef<HTMLButtonElement>(null);
+  const redoRef = useRef<HTMLButtonElement>(null);
 
   // 「编辑」 goes from the title bar as the building starts, and the keyboard
   // that pressed it with it: the bar that took its place is where it lands.
@@ -132,6 +135,17 @@ export function DashboardBoard({
     modes: reading?.filterModes,
   });
   const names = panelNames(dashboard.panels, messages);
+  const history = useBoardHistory({
+    dashboard,
+    names,
+    messages,
+    editing,
+    say: setSaid,
+    board: gridRef,
+    undoRef,
+    redoRef,
+    landing: landingRef,
+  });
   const onBoard = useMemo(
     () =>
       new Set(
@@ -212,9 +226,11 @@ export function DashboardBoard({
       if (panel && isContentPanel(panel) && panel.kind !== 'heading')
         setContent({ what: { mode: 'edit', panelId, panel }, open: true });
     },
+    // Gone at once, and 「撤销」 brings it back: the keyboard, whose control
+    // went with the panel, lands there.
     removed: name => {
       setSaid(messages.label('label.dashboard.removed', { title: name }));
-      landingRef.current?.focus();
+      history.land();
     },
     duplicated: name =>
       setSaid(messages.label('label.dashboard.duplicated', { title: name })),
@@ -225,7 +241,13 @@ export function DashboardBoard({
 
   return filters.wrap(
     <BoardBuildingContext.Provider value={building}>
-      <div ref={gridRef} className="flex flex-col gap-3">
+      {/* The board's own undo keys: a key press inside a dialog the board
+          opened bubbles here through React, but is not on the board. */}
+      <div
+        ref={gridRef}
+        className="flex flex-col gap-3"
+        onKeyDown={history.onKeyDown}
+      >
         <DashboardGrid
           {...reading}
           dashboard={dashboard}
@@ -253,6 +275,9 @@ export function DashboardBoard({
                   add={add}
                   canCreate={canCreate}
                   addFilter={filters.add}
+                  history={history}
+                  undoRef={undoRef}
+                  redoRef={redoRef}
                 />
               )}
               {filters.wiring}
@@ -332,9 +357,12 @@ export function DashboardBoard({
             );
             return;
           }
+          // One edit, title and all: one step for 「撤销」 to take back.
           const { title: renamed, ...held } = next;
-          edit.editPanelContent(target.panelId, changed(target.panel, held));
-          edit.renamePanel(target.panelId, renamed ?? '');
+          edit.editPanelContent(target.panelId, {
+            ...changed(target.panel, held),
+            title: renamed ?? '',
+          });
         }}
       />
     </BoardBuildingContext.Provider>,

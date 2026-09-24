@@ -19,6 +19,11 @@
  * pure and the React layer above it only subscribes.
  */
 export * from './dashboardRuntime.js';
+export type {
+  EditCommand,
+  EditHistoryState,
+  EditStep,
+} from './dashboard/history.js';
 export * from './environment.js';
 export * from './execute.js';
 export * from './issues.js';

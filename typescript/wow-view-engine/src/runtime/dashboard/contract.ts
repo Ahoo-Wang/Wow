@@ -17,6 +17,7 @@
  * class behind it.
  */
 
+import type { EditHistoryState } from './history.js';
 import type {
   AnalysisDateUnit,
   AnalysisViewConfig,
@@ -74,6 +75,12 @@ export interface DashboardRuntimeState extends ViewRuntimeState<DashboardViewCon
    * in its address (`OpenOptions.filters`).
    */
   filters: DashboardFilters;
+  /**
+   * What building the board can take back and make again (`undo`, `redo`):
+   * the step each would, or `null`. Starts empty, and empties on a revert,
+   * a save and a board read anew.
+   */
+  history: EditHistoryState;
 }
 
 /**

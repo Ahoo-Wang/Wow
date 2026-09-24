@@ -28,6 +28,7 @@ import { isPlainObject } from '../../filter/index.js';
 import {
   addFilter,
   addPanel,
+  filtersOf,
   addTab,
   autoBindings,
   bindPanel,
@@ -56,10 +57,19 @@ import {
   setPanelClick,
   setPresentation,
   placePanelIn,
+  reorderPanelIn,
+  type OrderStep,
   type NewContentPanel,
   type NewPanel,
   type NewPanelPlacement,
 } from '../../dashboard/index.js';
+import {
+  EditHistory,
+  rewound,
+  type EditCommand,
+  type EditHistoryState,
+  type EditStep,
+} from './history.js';
 
 /**
  * Building the board (D22 A–E, batch B1). Every edit goes into the draft and
@@ -125,6 +135,22 @@ export interface DashboardEditing {
    * reference and its scope are unchanged, and neither is.
    */
   place(panelId: string, layout: PanelLayout): void;
+  /**
+   * Moves a panel one place along its tab's reading order — the one-column
+   * reading's 「上移」／「下移」 (D22 J) — written back onto the grid as the
+   * layout that reads that way and disturbs the rest least
+   * (`reorderPanel`). Nothing at either end.
+   */
+  reorderPanel(panelId: string, step: OrderStep): void;
+  /**
+   * Takes the last edit back — the members of the board it changed, on the
+   * draft and on screen alike — and returns the step taken back; `null`
+   * when there is none. Every command here and in `DashboardFilterEditing`
+   * is one step; a burst of one naming or setting on one thing is one.
+   */
+  undo(): EditStep | null;
+  /** Makes the last step taken back again, until the next edit; `null` when there is none. */
+  redo(): EditStep | null;
 }
 
 /**
@@ -176,13 +202,26 @@ export interface EditingHost {
    * auto-connect match a filter against.
    */
   fieldsOf: PanelFields;
+  /** What is on screen, which every edit changes with the draft; `null` once disposed. */
+  applied(): DashboardViewConfig | null;
   /**
-   * One edit, applied to the draft and to what is on screen alike, and
-   * nothing else of either moved (`DashboardViewRuntime.restructure`).
+   * The draft and the screen as one edit (or one step taken back) left
+   * them, nothing else of either moved, and the history after it
+   * (`DashboardViewRuntime.commit`).
    */
-  restructure(
-    change: (config: DashboardViewConfig) => DashboardViewConfig,
+  commit(
+    draft: DashboardViewConfig,
+    applied: DashboardViewConfig,
+    history: EditHistoryState,
   ): void;
+}
+
+/** The board's edits, and the history they keep. */
+export interface BoardEdits extends DashboardEditing, DashboardFilterEditing {
+  /** Starts the history again — a revert, a save, a board read anew — and says it is empty. */
+  forget(): EditHistoryState;
+  /** What a filter starts at in the draft now; `null` for none. */
+  defaultOf(name: string): FilterValue | null;
 }
 
 /**
@@ -191,13 +230,42 @@ export interface EditingHost {
  * adds works its id and place out once, on the draft, and the screen gets
  * that very panel or tab rather than working both out again.
  */
-export function boardEditing(
-  host: EditingHost,
-): DashboardEditing & DashboardFilterEditing {
-  const edit = (change: (config: DashboardViewConfig) => DashboardViewConfig) =>
-    host.restructure(change);
+export function boardEditing(host: EditingHost): BoardEdits {
+  const history = new EditHistory();
+  /** One edit, on the draft and the screen alike, noted as one step of `command` about `subject`. */
+  const edit = (
+    command: EditCommand,
+    subject: string | null,
+    change: (config: DashboardViewConfig) => DashboardViewConfig,
+  ) => {
+    const draft = host.draft();
+    const applied = host.applied();
+    if (!draft || !applied) return;
+    const next = [change(draft), change(applied)] as const;
+    if (next[0] === draft && next[1] === applied) return;
+    history.record({ command, subject }, [draft, next[0]], [applied, next[1]]);
+    host.commit(...next, history.state);
+  };
+  /**
+   * One step taken back or made again: the members it changed laid over the
+   * draft and the screen, the same way an edit goes, and nothing else moved.
+   */
+  const rewind = (way: 'undo' | 'redo'): EditStep | null => {
+    const draft = host.draft();
+    const applied = host.applied();
+    if (!draft || !applied) return null;
+    const step = way === 'undo' ? history.undo() : history.redo();
+    if (!step) return null;
+    host.commit(
+      rewound(draft, step.draft),
+      rewound(applied, step.applied),
+      history.state,
+    );
+    return step.step;
+  };
   /** An edit that added one panel to the draft, carried onto the screen. */
   const added = (
+    command: EditCommand,
     from: DashboardViewConfig,
     result: { config: DashboardViewConfig; id: string } | null,
   ): string | null => {
@@ -205,7 +273,7 @@ export function boardEditing(
     const panel = result.config.panels.find(
       entry => isPlainObject(entry) && entry.id === result.id,
     );
-    edit(config =>
+    edit(command, result.id, config =>
       config === from
         ? result.config
         : panel
@@ -237,6 +305,7 @@ export function boardEditing(
             }
           : panel;
       return added(
+        'addPanel',
         draft,
         addPanel(draft, wired, {
           max: host.maxPanels,
@@ -245,35 +314,54 @@ export function boardEditing(
         }),
       );
     },
-    removePanel: panelId => edit(config => removePanel(config, panelId)),
+    removePanel: panelId =>
+      edit('removePanel', panelId, config => removePanel(config, panelId)),
     duplicatePanel(panelId) {
       const draft = host.draft();
       return draft
-        ? added(draft, duplicatePanel(draft, panelId, host.maxPanels))
+        ? added(
+            'duplicatePanel',
+            draft,
+            duplicatePanel(draft, panelId, host.maxPanels),
+          )
         : null;
     },
     renamePanel: (panelId, title) =>
-      edit(config => renamePanel(config, panelId, title)),
+      edit('renamePanel', panelId, config =>
+        renamePanel(config, panelId, title),
+      ),
     replacePanelView: (panelId, instanceId) =>
-      edit(config => replacePanelView(config, panelId, instanceId)),
+      edit('replacePanelView', panelId, config =>
+        replacePanelView(config, panelId, instanceId),
+      ),
     editPanelContent: (panelId, patch) =>
-      edit(config => editContent(config, panelId, patch)),
+      edit('editPanelContent', panelId, config =>
+        editContent(config, panelId, patch),
+      ),
     movePanelToTab: (panelId, tabId) =>
-      edit(config => movePanelToTab(config, panelId, tabId)),
+      edit('movePanelToTab', panelId, config =>
+        movePanelToTab(config, panelId, tabId),
+      ),
     setPresentation: (panelId, presentation) =>
-      edit(config => setPresentation(config, panelId, presentation)),
+      edit('setPresentation', panelId, config =>
+        setPresentation(config, panelId, presentation),
+      ),
     setPanelClick: (panelId, click) =>
-      edit(config => setPanelClick(config, panelId, click)),
+      edit('setPanelClick', panelId, config =>
+        setPanelClick(config, panelId, click),
+      ),
     referToSaved(panelId, instance) {
       if (!host.draft()) return;
       host.seed(instance);
-      edit(config => referToSaved(config, panelId, instance.id));
+      edit('referToSaved', panelId, config =>
+        referToSaved(config, panelId, instance.id),
+      );
     },
     addTab(title, firstTitle) {
       const draft = host.draft();
       const result = draft && addTab(draft, title, firstTitle);
       if (!draft || !result) return null;
-      edit(config =>
+      edit('addTab', result.id, config =>
         config === draft
           ? result.config
           : (addTab(config, title, firstTitle)?.config ?? config),
@@ -281,17 +369,37 @@ export function boardEditing(
       return result.id;
     },
     renameTab: (tabId, title) =>
-      edit(config => renameTab(config, tabId, title)),
-    moveTab: (tabId, index) => edit(config => moveTab(config, tabId, index)),
-    removeTab: tabId => edit(config => removeTab(config, tabId)),
+      edit('renameTab', tabId, config => renameTab(config, tabId, title)),
+    moveTab: (tabId, index) =>
+      edit('moveTab', tabId, config => moveTab(config, tabId, index)),
+    removeTab: tabId =>
+      edit('removeTab', tabId, config => removeTab(config, tabId)),
     place: (panelId, layout) =>
-      edit(config => placePanelIn(config, panelId, layout)),
+      edit('place', panelId, config => placePanelIn(config, panelId, layout)),
+    reorderPanel: (panelId, step) =>
+      edit('reorderPanel', panelId, config =>
+        reorderPanelIn(config, panelId, step),
+      ),
+    undo: () => rewind('undo'),
+    redo: () => rewind('redo'),
+    forget() {
+      history.clear();
+      return history.state;
+    },
+    defaultOf(name) {
+      const draft = host.draft();
+      return (
+        (draft &&
+          filtersOf(draft).find(field => field.name === name)?.default) ??
+        null
+      );
+    },
 
     addFilter(filter) {
       const draft = host.draft();
       const result = draft && addFilter(draft, filter);
       if (!draft || !result) return null;
-      edit(config =>
+      edit('addFilter', result.name, config =>
         config === draft
           ? result.config
           : (addFilter(config, filter)?.config ?? config),
@@ -299,20 +407,29 @@ export function boardEditing(
       return result.name;
     },
     renameFilter: (name, label) =>
-      edit(config => renameFilter(config, name, label)),
+      edit('renameFilter', name, config => renameFilter(config, name, label)),
     retypeFilter: (name, type) =>
-      edit(config => retypeFilter(config, name, type)),
-    removeFilter: name => edit(config => removeFilter(config, name)),
+      edit('retypeFilter', name, config => retypeFilter(config, name, type)),
+    removeFilter: name =>
+      edit('removeFilter', name, config => removeFilter(config, name)),
     setFilterDefault: (name, value) =>
-      edit(config => setFilterDefault(config, name, value)),
+      edit('setFilterDefault', name, config =>
+        setFilterDefault(config, name, value),
+      ),
     setFilterRequired: (name, required) =>
-      edit(config => setFilterRequired(config, name, required)),
+      edit('setFilterRequired', name, config =>
+        setFilterRequired(config, name, required),
+      ),
     setFilterMultiple: (name, multiple) =>
-      edit(config => setFilterMultiple(config, name, multiple)),
+      edit('setFilterMultiple', name, config =>
+        setFilterMultiple(config, name, multiple),
+      ),
     setFilterOptions: (name, options) =>
-      edit(config => setFilterOptions(config, name, options)),
+      edit('setFilterOptions', name, config =>
+        setFilterOptions(config, name, options),
+      ),
     moveFilter: (name, index) =>
-      edit(config => moveFilter(config, name, index)),
+      edit('moveFilter', name, config => moveFilter(config, name, index)),
     bindPanel(name, panelId, panelField) {
       const draft = host.draft();
       if (!draft) return [];
@@ -324,14 +441,20 @@ export function boardEditing(
         host.fieldsOf,
       );
       edit(
+        'bindPanel',
+        name,
         config =>
           bindPanel(config, name, panelId, panelField, host.fieldsOf).config,
       );
       return connected;
     },
     unbindPanels: (name, panelIds) =>
-      edit(config => unbindPanels(config, name, panelIds)),
+      edit('unbindPanels', name, config =>
+        unbindPanels(config, name, panelIds),
+      ),
     setTimeGrouping: grouping =>
-      edit(config => setTimeGrouping(config, grouping)),
+      edit('setTimeGrouping', null, config =>
+        setTimeGrouping(config, grouping),
+      ),
   };
 }

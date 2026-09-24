@@ -261,19 +261,33 @@ export function setPresentation(
 /**
  * A content panel with what it holds changed — a note's text, a picture, a
  * list of links. Its kind stays: a note does not become a picture by an
- * edit, and a data panel is not a content panel to edit this way.
+ * edit, and a data panel is not a content panel to edit this way. A member
+ * the patch sets to `undefined` is taken off, and a `title` is read as
+ * `renamePanel` reads one — blank takes it off — so the form a panel is
+ * written in is one edit, title and all.
  */
 export function editContent(
   config: DashboardViewConfig,
   id: string,
   patch: Partial<NewContentPanel>,
 ): DashboardViewConfig {
-  return mapPanel(config, id, panel =>
-    panel.kind === 'view' ||
-    (patch.kind !== undefined && patch.kind !== panel.kind)
-      ? panel
-      : ({ ...panel, ...patch } as DashboardPanel),
-  );
+  const edited = mapPanel(config, id, panel => {
+    if (
+      panel.kind === 'view' ||
+      (patch.kind !== undefined && patch.kind !== panel.kind)
+    )
+      return panel;
+    const next: Record<string, unknown> = { ...panel };
+    for (const [key, value] of Object.entries(patch))
+      if (key === 'title') continue;
+      else if (value === undefined) delete next[key];
+      else next[key] = value;
+    return next as unknown as DashboardPanel;
+  });
+  const panel = find(edited, id);
+  return 'title' in patch && panel && panel.kind !== 'view'
+    ? renamePanel(edited, id, patch.title ?? '')
+    : edited;
 }
 
 /**

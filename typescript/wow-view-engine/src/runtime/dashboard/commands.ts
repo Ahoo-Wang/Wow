@@ -30,9 +30,15 @@ import type {
   NewFilter,
   NewPanel,
   NewPanelPlacement,
+  OrderStep,
 } from '../../dashboard/index.js';
+import type { EditStep } from './history.js';
 import type { HeldFilters } from './contract.js';
-import type { DashboardEditing, DashboardFilterEditing } from './editing.js';
+import type {
+  BoardEdits,
+  DashboardEditing,
+  DashboardFilterEditing,
+} from './editing.js';
 import type { FilterValues } from './filterValues.js';
 import type {
   CrossFilterOutcome,
@@ -50,7 +56,7 @@ import type {
 export abstract class BoardCommands
   implements DashboardEditing, DashboardFilterEditing
 {
-  protected abstract readonly edits: DashboardEditing & DashboardFilterEditing;
+  protected abstract readonly edits: BoardEdits;
   protected abstract readonly values: FilterValues;
   protected abstract readonly presses: PanelPresses;
   abstract get disposed(): boolean;
@@ -153,6 +159,24 @@ export abstract class BoardCommands
   }
   place(panelId: string, layout: PanelLayout): void {
     this.edits.place(panelId, layout);
+  }
+  reorderPanel(panelId: string, step: OrderStep): void {
+    this.edits.reorderPanel(panelId, step);
+  }
+  undo(): EditStep | null {
+    return this.followed(this.edits.undo());
+  }
+  redo(): EditStep | null {
+    return this.followed(this.edits.redo());
+  }
+  /**
+   * A default taken back or made again is what its filter holds from then
+   * on, as setting it was (D22 G).
+   */
+  private followed(step: EditStep | null): EditStep | null {
+    if (step?.command === 'setFilterDefault' && step.subject !== null)
+      this.setFilterValue(step.subject, this.edits.defaultOf(step.subject));
+    return step;
   }
 
   // What the filters hold (D22 F): see `FilterValues`.

@@ -118,10 +118,11 @@ export interface PanelCommands {
     move(tabId: string): void;
   };
   saveAsView?(): void;
-  /** 从仪表盘移除, which the panel asks about first. */
+  /**
+   * 从仪表盘移除, at once: 「撤销」 on the edit bar brings it back, so it is
+   * not asked about first.
+   */
   remove?(): void;
-  /** What removing it costs, for the question asked before it goes. */
-  removes: 'view' | 'owned' | 'content';
 }
 
 export interface PanelCommandInput {
@@ -133,8 +134,9 @@ export interface PanelCommandInput {
   editing: boolean;
   /**
    * The one-column reading of a narrow screen: there the board is built by
-   * renaming and removing alone (D22 J) — nothing placed in a derived
-   * column could be written back, and a copy or a new tab is a placement.
+   * renaming, removing and reordering alone (D22 J) — a copy or a new tab is
+   * a placement, and a place in a derived column means nothing on the grid;
+   * the order is the grid's own (「上移」／「下移」 on the panel).
    */
   narrow: boolean;
   extensions: DashboardEditExtensions;
@@ -173,7 +175,7 @@ export function readerCommands(
   exports: boolean | undefined,
 ): PanelCommands | undefined {
   const rows = exportable(panel, exports);
-  return rows ? { removes: 'view', exportRows: rows } : undefined;
+  return rows ? { exportRows: rows } : undefined;
 }
 
 /** Whether a panel carries the finding 「复制为共享视图并替换」 answers. */
@@ -215,9 +217,7 @@ export function panelCommands({
   const child = panel.runtime;
   const content = isContentPanel(stored);
   const owned = isOwnedPanel(stored);
-  const commands: PanelCommands = {
-    removes: content ? 'content' : owned ? 'owned' : 'view',
-  };
+  const commands: PanelCommands = {};
   // The view it shows opens where views are worked on, under the board's
   // condition as this panel carries it — mapped onto the view's own fields,
   // which is the only form another view can read it in. An analysis the

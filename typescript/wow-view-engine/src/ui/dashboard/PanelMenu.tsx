@@ -31,14 +31,6 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/button.js';
 import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '../components/alert-dialog.js';
-import {
   DropdownMenu,
   DropdownMenuGroup,
   DropdownMenuItem,
@@ -51,12 +43,7 @@ import {
 import { Input } from '../components/input.js';
 import { IconTooltip } from '../IconButton.js';
 import { useViewMessages } from '../MessagesProvider.js';
-import {
-  AlertDialogContent,
-  DropdownMenuContent,
-  DropdownMenuSubContent,
-} from '../popups.js';
-import { DestructiveAction } from '../variants.js';
+import { DropdownMenuContent, DropdownMenuSubContent } from '../popups.js';
 import type { PanelCommands } from './commands.js';
 
 /** Whether a panel has anything to put in its menu at all. */
@@ -78,8 +65,6 @@ export interface PanelMenuProps {
   commands: PanelCommands;
   /** The trigger, for whatever hands the keyboard back to the panel. */
   triggerRef: RefObject<HTMLButtonElement | null>;
-  /** 从仪表盘移除 was chosen: the panel asks before it goes. */
-  onRemove(): void;
   /** 导出数据… was chosen: the panel opens the export window. */
   onExport?(): void;
 }
@@ -95,7 +80,6 @@ export function PanelMenu({
   name,
   commands,
   triggerRef,
-  onRemove,
   onExport,
 }: PanelMenuProps) {
   const messages = useViewMessages();
@@ -291,7 +275,12 @@ export function PanelMenu({
               <DropdownMenuItem
                 data-slot="panel-remove"
                 variant="destructive"
-                onClick={onRemove}
+                // Gone at once, and back with 「撤销」: the builder says so and
+                // puts the keyboard on it (`BoardBuilding.removed`).
+                onClick={() => {
+                  handedOff.current = true;
+                  commands.remove?.();
+                }}
               >
                 <Trash2Icon />
                 {messages.label('label.panel.remove')}
@@ -301,81 +290,6 @@ export function PanelMenu({
         )}
       </DropdownMenuContent>
     </DropdownMenu>
-  );
-}
-
-/** What going costs, said under the question: the view stays, owned things go. */
-const REMOVES = {
-  view: 'label.panel.remove-view',
-  owned: 'label.panel.remove-owned',
-  content: 'label.panel.remove-content',
-} as const;
-
-export interface RemovePanelDialogProps {
-  open: boolean;
-  onOpenChange(open: boolean): void;
-  name: string;
-  removes: PanelCommands['removes'];
-  /** Where the keyboard goes when the panel stays: back to what asked. */
-  returnTo: RefObject<HTMLElement | null>;
-  onConfirm(): void;
-}
-
-/**
- * The question before a panel leaves the board. Asked rather than undone:
- * the runtime has no single-edit undo, and 「取消」 on the edit bar would
- * take back every other change with it. It says what goes and what stays,
- * and that the edit bar's 取消 still brings it back until 完成.
- */
-export function RemovePanelDialog({
-  open,
-  onOpenChange,
-  name,
-  removes,
-  returnTo,
-  onConfirm,
-}: RemovePanelDialogProps) {
-  const messages = useViewMessages();
-  // The panel goes with its answer, and focus with it; the builder puts it
-  // on the edit bar instead (`BoardBuilding.removed`).
-  const took = useRef(false);
-  return (
-    <AlertDialog
-      open={open}
-      onOpenChange={next => {
-        if (next) took.current = false;
-        onOpenChange(next);
-      }}
-    >
-      <AlertDialogContent
-        data-slot="panel-remove-confirm"
-        finalFocus={() => (took.current ? false : (returnTo.current ?? true))}
-      >
-        <AlertDialogHeader>
-          <AlertDialogTitle>
-            {messages.label('label.panel.remove-heading', { title: name })}
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            {messages.label(REMOVES[removes])}{' '}
-            {messages.label('label.panel.remove-undo')}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>
-            {messages.label('label.panel.keep')}
-          </AlertDialogCancel>
-          <DestructiveAction
-            onClick={() => {
-              took.current = true;
-              onOpenChange(false);
-              onConfirm();
-            }}
-          >
-            {messages.label('label.panel.remove')}
-          </DestructiveAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
   );
 }
 

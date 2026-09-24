@@ -39,9 +39,9 @@ export const buildingMessages = {
   'label.tabs.removed': 'The tab “{title}” was deleted',
   'label.tabs.remove-heading': 'Delete the tab “{title}”?',
   'label.tabs.remove-description':
-    'Its {count} panels are deleted with it. Nothing is saved until you finish editing; cancelling the edit brings them back.',
+    'Its {count} panels are deleted with it. Nothing is saved until you finish editing; Undo brings them back.',
   'label.tabs.remove-description-one':
-    'Its one panel is deleted with it. Nothing is saved until you finish editing; cancelling the edit brings it back.',
+    'Its one panel is deleted with it. Nothing is saved until you finish editing; Undo brings it back.',
   'label.tabs.remove-confirm': 'Delete tab and panels',
   // A tab with nothing on it, as the empty board says the same of a board.
   'label.tabs.empty': 'This tab has no panels yet',

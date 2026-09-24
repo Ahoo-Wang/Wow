@@ -41,7 +41,8 @@ type Story = StoryObj<typeof displayMeta>;
 
 /**
  * A desk: the test browser is a phone's width, and below `md` the board is
- * one derived column in which building is renaming and removing alone.
+ * one derived column in which building is renaming, removing and reordering
+ * alone.
  */
 const DESK = (Story: ComponentType) => (
   <div style={{ width: 1280 }}>
@@ -195,17 +196,13 @@ export const BuildFromEmpty: Story = {
     await userEvent.clear(title);
     await userEvent.type(title, '仓库分布{Enter}');
 
+    // Removed at once — 「撤销」 is the way back, and the keyboard is on it.
     await fromPanelMenu(
       canvasElement,
       '我盯的大额单',
       zhCN['label.panel.remove'],
     );
-    const question = await screen.findByRole('alertdialog');
-    await userEvent.click(
-      within(question).getByRole('button', {
-        name: zhCN['label.panel.remove'],
-      }),
-    );
+    await expect(screen.queryByRole('alertdialog')).toBeNull();
     await waitFor(() =>
       expect([...titles(canvasElement)].sort()).toEqual(
         ['仓库分布', '出库', '待出库订单'].sort(),
@@ -331,6 +328,166 @@ export const NoGripsUntilBuilding: Story = {
       expect(
         canvasElement.querySelectorAll('[data-slot="panel-grip"]').length,
       ).toBe(3),
+    );
+  },
+};
+
+/** 「撤销」 as the edit bar names it for one step (「撤销移除「按仓库汇总」」). */
+function undoOf(what: string): string {
+  return label('label.history.undo-step', { what });
+}
+
+/**
+ * A panel removed at once, nothing asked, and brought back (D22 D, batch
+ * B2): the keyboard lands on 「撤销」, which is named after the step it takes
+ * back; Enter brings the panel back drawing again, and the keys the board
+ * answers — ⇧⌘Z／Ctrl+Shift+Z, ⌘Z／Ctrl+Z — take the same step again and
+ * back while the focus is on a panel.
+ */
+export const RemoveThenUndo: Story = {
+  ...DisplayAllPanels,
+  decorators: [DESK],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('heading', { level: 3, name: '按仓库汇总' });
+    await startBuilding(canvasElement);
+    const removal = label('label.history.remove-panel', {
+      title: '按仓库汇总',
+    });
+
+    await fromPanelMenu(
+      canvasElement,
+      '按仓库汇总',
+      zhCN['label.panel.remove'],
+    );
+    await expect(screen.queryByRole('alertdialog')).toBeNull();
+    await waitFor(() =>
+      expect(titles(canvasElement)).toEqual(['待出库明细', '值班手册']),
+    );
+    const undo = canvas.getByRole('button', { name: undoOf(removal) });
+    await waitFor(() => expect(undo).toHaveFocus());
+    await expect(
+      canvas.getByText(
+        label('label.dashboard.removed', { title: '按仓库汇总' }),
+      ),
+    ).toBeInTheDocument();
+
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() =>
+      expect(titles(canvasElement)).toEqual([
+        '待出库明细',
+        '按仓库汇总',
+        '值班手册',
+      ]),
+    );
+    await chartsDrawn(canvasElement);
+    await expect(
+      canvas.getByText(label('label.history.undone', { what: removal })),
+    ).toBeInTheDocument();
+    // Nothing left to undo: the keyboard is on 「重做」 rather than nowhere.
+    await expect(
+      canvas.getByRole('button', {
+        name: label('label.history.redo-step', { what: removal }),
+      }),
+    ).toHaveFocus();
+
+    // The board's keys, from a panel.
+    canvas
+      .getByRole('button', {
+        name: label('label.panel.menu', { title: '待出库明细' }),
+      })
+      .focus();
+    await userEvent.keyboard('{Control>}{Shift>}z{/Shift}{/Control}');
+    await waitFor(() =>
+      expect(titles(canvasElement)).toEqual(['待出库明细', '值班手册']),
+    );
+    await userEvent.keyboard('{Control>}z{/Control}');
+    await waitFor(() => expect(titles(canvasElement)).toHaveLength(3));
+  },
+};
+
+/**
+ * The one-column reading built by keyboard (D22 J): a phone's width, where
+ * a panel has 「上移」／「下移」 and nothing that places. Each press moves it
+ * one place down the column and says where it came to; at the end of the
+ * column the keyboard moves on to 「上移」; and 「撤销」 takes the moves back.
+ */
+export const NarrowReorderByKeyboard: Story = {
+  ...DisplayAllPanels,
+  decorators: [
+    Story => (
+      <div style={{ width: 414 }}>
+        <Story />
+      </div>
+    ),
+  ],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="dashboard-grid"]'),
+      ).toHaveAttribute('data-narrow'),
+    );
+    await startBuilding(canvasElement);
+    await expect(
+      canvasElement.querySelector('[data-slot="panel-grip"]'),
+    ).toBeNull();
+    const down = canvas.getByRole('button', {
+      name: label('label.panel.order-down', { title: '待出库明细' }),
+    });
+    await expect(
+      canvas.getByRole('button', {
+        name: label('label.panel.order-up', { title: '待出库明细' }),
+      }),
+    ).toBeDisabled();
+
+    down.focus();
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() =>
+      expect(titles(canvasElement)).toEqual([
+        '按仓库汇总',
+        '待出库明细',
+        '值班手册',
+      ]),
+    );
+    await expect(
+      canvas.getByText(
+        label('label.panel.reordered', {
+          title: '待出库明细',
+          index: '2',
+          total: '3',
+        }),
+      ),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(down).toHaveFocus());
+
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() =>
+      expect(titles(canvasElement)).toEqual([
+        '按仓库汇总',
+        '值班手册',
+        '待出库明细',
+      ]),
+    );
+    // The end of the column: 下移 has run out, the keyboard is on 上移.
+    await waitFor(() =>
+      expect(
+        canvas.getByRole('button', {
+          name: label('label.panel.order-up', { title: '待出库明细' }),
+        }),
+      ).toHaveFocus(),
+    );
+    await expect(down).toBeDisabled();
+
+    const moving = label('label.history.move-panel', { title: '待出库明细' });
+    await userEvent.click(canvas.getByRole('button', { name: undoOf(moving) }));
+    await userEvent.click(canvas.getByRole('button', { name: undoOf(moving) }));
+    await waitFor(() =>
+      expect(titles(canvasElement)).toEqual([
+        '待出库明细',
+        '按仓库汇总',
+        '值班手册',
+      ]),
     );
   },
 };

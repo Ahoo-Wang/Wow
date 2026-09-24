@@ -36,6 +36,7 @@ import type {
   DashboardRuntime,
   DataViewRuntime,
   DestinationBoard,
+  EditHistoryState,
   OptionSource,
   PanelGrouping,
   PressDestination,
@@ -109,6 +110,11 @@ export interface DashboardController {
    */
   edit: (DashboardEditing & DashboardFilterEditing) | null;
   /**
+   * What building the board can take back and make again — the step
+   * `edit.undo()` and `edit.redo()` would, or `null` (`DashboardRuntimeState.history`).
+   */
+  history: EditHistoryState;
+  /**
    * The board's filters as on screen, in the bar's order (D22 F); the same
    * list the draft and the applied config hold, since every edit writes
    * both.
@@ -171,6 +177,7 @@ export interface DashboardController {
 const EMPTY_PANELS: DashboardPanelState[] = [];
 const NO_TABS: readonly DashboardTab[] = [];
 const NO_FILTERS: DashboardFilters = { values: {} };
+const NO_HISTORY: EditHistoryState = { undo: null, redo: null };
 
 /**
  * A dashboard as a grid of panels.
@@ -236,6 +243,7 @@ export function useDashboard(
       [runtime],
     ),
     edit: runtime,
+    history: state?.history ?? NO_HISTORY,
     filterFields: useMemo(() => (applied ? filtersOf(applied) : []), [applied]),
     timeGrouping: applied?.timeGrouping ?? null,
     filters: state?.filters ?? NO_FILTERS,

@@ -12,10 +12,12 @@
  */
 
 import { useId, useRef, useState, type ReactNode, type RefObject } from 'react';
-import { CheckIcon, PencilRulerIcon } from 'lucide-react';
+import { CheckIcon, PencilRulerIcon, Redo2Icon, Undo2Icon } from 'lucide-react';
 import type { ViewInstance } from '../../model/index.js';
 import { unsettled, type SaveCommands } from '../../react/index.js';
 import { Button } from '../components/button.js';
+import { ButtonGroup } from '../components/button-group.js';
+import { IconButton } from '../IconButton.js';
 import { Spinner } from '../components/spinner.js';
 import { TEXT_UI } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
@@ -23,29 +25,34 @@ import { SaveAsDialog } from '../SaveAsDialog.js';
 import { SharedSaveConfirm } from '../SaveActions.js';
 import { RevertDialog } from '../ViewHeader.js';
 import { AddMenu, type AddCommands } from './AddMenu.js';
+import { REDO_KEYS, UNDO_KEYS, type BoardHistory } from './history.js';
 import { cn } from 'cn';
 
 export interface EditBarProps extends AddCommands {
   commands: SaveCommands;
   /** The board's title, which the shared-save question names. */
   title: string;
-  /** The one-column reading: building there is renaming and removing (D22 J). */
+  /** The one-column reading: building there is renaming, removing and reordering (D22 J). */
   narrow: boolean;
   /** Leaves the building state; the board is then read as saved. */
   onLeave(): void;
   /** Told of the instance a 完成 wrote, as a save from the title bar tells. */
   onSaved?(instance: ViewInstance): void;
-  /** The bar's own name, where the keyboard lands when a panel goes. */
+  /** The bar's own name, where the keyboard lands when nothing else on the bar can take it. */
   landingRef: RefObject<HTMLParagraphElement | null>;
   /** 「＋ 添加」, where the keyboard returns after an add from a dialog. */
   addRef: RefObject<HTMLButtonElement | null>;
   /** 「筛选 ＋」 beside 「＋ 添加」 (D22 G); a placement it is not, so narrow too. */
   addFilter?: ReactNode;
+  /** 撤销 and 重做 (`useBoardHistory`), narrow too: every edit there is one. */
+  history: BoardHistory;
+  undoRef: RefObject<HTMLButtonElement | null>;
+  redoRef: RefObject<HTMLButtonElement | null>;
 }
 
 /**
  * The bar a board is built under (D22 A): 「正在编辑」 and what that means,
- * 「＋ 添加 ▾」, and the two ways out — 取消 puts back the saved board, 完成
+ * 撤销／重做 (one step of building each), 「＋ 添加 ▾」, and the two ways out — 取消 puts back the saved board, 完成
  * saves it the way the title bar's Save does and leaves.
  *
  * 完成 is that save, not a second one: a shared board asks first, as Save
@@ -69,6 +76,9 @@ export function EditBar({
   add,
   canCreate,
   addFilter,
+  history,
+  undoRef,
+  redoRef,
 }: EditBarProps) {
   const messages = useViewMessages();
   const labelId = useId();
@@ -108,7 +118,7 @@ export function EditBar({
       <p
         ref={landingRef}
         id={labelId}
-        // Focus is sent here when a panel leaves the board, and never by Tab.
+        // Focus is sent here when 撤销 and 重做 cannot take it, never by Tab.
         tabIndex={-1}
         className="flex items-center gap-1.5 text-sm font-medium"
       >
@@ -118,7 +128,35 @@ export function EditBar({
       <p className={cn('text-muted-foreground min-w-0 grow', TEXT_UI)}>
         {messages.label('label.dashboard.editing-hint')}
       </p>
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex flex-wrap items-center gap-2">
+        {/* One step at a time, each named after what it takes back; the
+            same keys as anywhere else while the focus is on the board. */}
+        <ButtonGroup data-slot="dashboard-history">
+          <IconButton
+            ref={undoRef}
+            data-slot="dashboard-undo"
+            label={history.undoLabel}
+            aria-keyshortcuts={UNDO_KEYS}
+            variant="outline"
+            size="icon-sm"
+            disabled={busy || !history.canUndo}
+            onClick={history.undo}
+          >
+            <Undo2Icon />
+          </IconButton>
+          <IconButton
+            ref={redoRef}
+            data-slot="dashboard-redo"
+            label={history.redoLabel}
+            aria-keyshortcuts={REDO_KEYS}
+            variant="outline"
+            size="icon-sm"
+            disabled={busy || !history.canRedo}
+            onClick={history.redo}
+          >
+            <Redo2Icon />
+          </IconButton>
+        </ButtonGroup>
         {!narrow && (
           <AddMenu add={add} canCreate={canCreate} triggerRef={addRef} />
         )}

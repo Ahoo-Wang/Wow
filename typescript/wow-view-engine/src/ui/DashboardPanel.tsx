@@ -18,7 +18,11 @@ import {
   MousePointerClickIcon,
   TriangleAlertIcon,
 } from 'lucide-react';
-import { readingOrder, type ArrangeStep } from '../dashboard/index.js';
+import {
+  readingOrder,
+  type ArrangeStep,
+  type OrderStep,
+} from '../dashboard/index.js';
 import type { Issue } from '../model/index.js';
 import type { DashboardPanelView } from '../react/index.js';
 import { useAnalysisEditor } from '../react/index.js';
@@ -29,16 +33,11 @@ import {
   presentationMark,
 } from './dashboard/PanelBodies.js';
 import { analysisIssueNamer } from './analysis/issueNames.js';
-import { PanelArrangeMenu, PanelGrip } from './DashboardArrange.js';
+import { PanelArrangeMenu, PanelGrip, PanelOrder } from './DashboardArrange.js';
 import { ContentPanel } from './DashboardPanels.js';
 import type { PanelCommands } from './dashboard/commands.js';
 import type { PanelPress } from './dashboard/press.js';
-import {
-  hasMenu,
-  PanelMenu,
-  PanelTitleInput,
-  RemovePanelDialog,
-} from './dashboard/PanelMenu.js';
+import { hasMenu, PanelMenu, PanelTitleInput } from './dashboard/PanelMenu.js';
 import { PanelExport } from './dashboard/PanelExport.js';
 import { PanelUnavailable } from './PanelUnavailable.js';
 import { RenderBoundary, type RenderFailureHandler } from './RenderBoundary.js';
@@ -146,6 +145,12 @@ export interface DashboardPanelProps {
   /** One arrange command, when the layout may be edited. */
   onArrange?: (step: ArrangeStep) => void;
   /**
+   * 「上移」／「下移」 in the one-column reading while the board is built
+   * (D22 J): where the panel stands in the column, how many there are, and
+   * the step. Left out everywhere else.
+   */
+  order?: { index: number; total: number; onMove(step: OrderStep): void };
+  /**
    * Re-runs this panel alone. Given, a panel whose query failed offers it
    * as its retry (`DashboardController.refreshPanel`).
    */
@@ -198,6 +203,7 @@ export function DashboardPanel({
   headingLevel = 3,
   titled = true,
   onArrange,
+  order,
   onRetry,
   commands,
   unreached,
@@ -211,7 +217,6 @@ export function DashboardPanel({
   const Title: `h${PanelHeadingLevel}` = `h${headingLevel}`;
   const heading = panel.panel.kind === 'heading';
   const menuTrigger = useRef<HTMLButtonElement>(null);
-  const [removing, setRemoving] = useState(false);
   // The export window, mounted the first time it opens — a panel nobody
   // exports from runs no export hooks — and kept while it closes.
   const [exporting, setExporting] = useState<boolean | null>(null);
@@ -247,7 +252,7 @@ export function DashboardPanel({
   const wayOut = commands?.remove && {
     replace: commands.replace,
     editContent: commands.editContent,
-    remove: () => setRemoving(true),
+    remove: commands.remove,
   };
   // A title turned off is read, not seen; the row it stood in goes with it
   // when nothing else stands there.
@@ -257,6 +262,7 @@ export function DashboardPanel({
     !warned &&
     notes.length === 0 &&
     !(editable && onArrange) &&
+    !order &&
     !commands?.renaming &&
     !(unreached && unreached.length > 0) &&
     pressesFilter === undefined &&
@@ -329,6 +335,14 @@ export function DashboardPanel({
               />
             </>
           )}
+          {order && (
+            <PanelOrder
+              title={name}
+              index={order.index}
+              total={order.total}
+              onMove={order.onMove}
+            />
+          )}
           {commands?.renaming ? (
             <PanelTitleInput
               initial={
@@ -398,7 +412,6 @@ export function DashboardPanel({
                 name={name}
                 commands={menu}
                 triggerRef={menuTrigger}
-                onRemove={() => setRemoving(true)}
                 onExport={() => setExporting(true)}
               />
             </span>
@@ -444,16 +457,6 @@ export function DashboardPanel({
           open={exporting}
           onOpenChange={setExporting}
           returnTo={menuTrigger}
-        />
-      )}
-      {commands?.remove && (
-        <RemovePanelDialog
-          open={removing}
-          onOpenChange={setRemoving}
-          name={name}
-          removes={commands.removes}
-          returnTo={menuTrigger}
-          onConfirm={commands.remove}
         />
       )}
     </Card>

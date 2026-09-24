@@ -21,8 +21,7 @@ ECharts 迁移（D21）与两份「数据分析师视角」审查的 P0 已全�
 
 批次按顺序；每批都做到可生产交付、真浏览器走过。起点的缺陷清单在会话记忆 `view-engine-dashboard-walk-2026-09-22`（U1～U11、R1～R18、G1～G10）。
 
-- **批 B 怎么搭**（交互稿 A～E 屏）：**已做完**——B1 模型、校验、迁移与运行时（[model.md#dashboard-配置](model.md#dashboard-配置)、[runtime.md#dashboard](runtime.md#dashboard)）；B2 编辑模式、编辑条、添加、面板菜单、空板子的第一步、不可用面板的真按钮、面板图表提示说列标题；B3 在仪表盘里新建分析、「另存为视图…」、展示覆盖（「改这里的展示…」、面板头「此处改为〈图型〉」、「恢复为视图的样子」）、标签栏（只跑当前标签页、加／改名／排序／删除带确认、记住每人上次的标签、当前标签经 `onTabChange`／`initialTab` 交给宿主进地址），以及 B1 留下的两处运行时收口（只改画法的展示覆盖只重画不重跑；只跑当前标签页）。一份扩展接口 `DashboardEditExtensions`，见 [ui/dashboard.md](ui/dashboard.md)「搭板子」「扩展」。下面是批 B 剩下的：
-  - B2 留下的两件：**窄屏调顺序**（D22 J，窄屏编辑只改标题、移除、调顺序，后者未做：一列里的上下移要映射回宽布局的阅读顺序）；**编辑中的全局「撤销」**——移除今天先确认，因为 runtime 没有单步撤销、「取消」会连别的改动一起撤掉。
+- **批 B 怎么搭**（交互稿 A～E 屏）：**已做完**——B1 模型、校验、迁移与运行时（[model.md#dashboard-配置](model.md#dashboard-配置)、[runtime.md#dashboard](runtime.md#dashboard)）；B2 编辑模式、编辑条、添加、面板菜单、空板子的第一步、不可用面板的真按钮、面板图表提示说列标题；B3 在仪表盘里新建分析、「另存为视图…」、展示覆盖（「改这里的展示…」、面板头「此处改为〈图型〉」、「恢复为视图的样子」）、标签栏（只跑当前标签页、加／改名／排序／删除带确认、记住每人上次的标签、当前标签经 `onTabChange`／`initialTab` 交给宿主进地址），以及 B1 留下的两处运行时收口（只改画法的展示覆盖只重画不重跑；只跑当前标签页）。一份扩展接口 `DashboardEditExtensions`，见 [ui/dashboard.md](ui/dashboard.md)「搭板子」「扩展」。B2 留下的最后几件也已做完：面板菜单的「导出数据…」与「复制为共享视图并替换…」（#1872），窄屏调顺序与编辑中的撤销／重做（#1873）；整批的真浏览器走查并入阶段 3＋4 的联合审查。
   - 判据：从空仪表盘开始只用界面就能搭出首页那块运营看板；真浏览器逐控件走查。
   - 落点：`src/ui/dashboard/`、`src/ui/DashboardWorkbench.tsx`、[ui/dashboard.md](ui/dashboard.md)。
 - **批 C 全局筛选**：已做完（C1 #1843 模型与运行时，C2 界面），见 [ui/dashboard.md](ui/dashboard.md)「筛选」。
@@ -36,6 +35,11 @@ ECharts 迁移（D21）与两份「数据分析师视角」审查的 P0 已全�
   - 为什么：迁移方案定的时机是阶段边界。这时 PR 链是空的，冻结不会打断任何在做的工作；阶段 6 的存储后端也要和引擎放在同一个仓库。
   - 判据：远端一出现 tag `wow-migration-base`（用 `git ls-remote --tags origin wow-migration-base` 查），本包就冻结，这里一律不再改；迁移第 3′ 步把本包从 fetcher 删掉时，这一条随之删除。
   - 落点：[迁移方案](../../../../docs/superpowers/specs/2026-09-23-wow-packages-migration-design.md)，根目录 `AGENTS.md` 的「Migration Checkpoint」一节。
+
+- **分析面板与分析工作台的「导出数据…」**（[D25](decisions.md#d25-阶段-3-收尾的四条细化2026-09-24) Q28）——**到 Wow 仓做（阶段 5 起）**：检查点之后这里不开新工作。
+  - 为什么：记录面板能导出、分析面板不能；只在面板上给又会让面板做到分析视图本身做不到的事，所以两处一起加（与 Metabase 每张卡片都能下载结果一致）。
+  - 判据：分析工作台的结果工具栏与分析面板的「⋯」都有「导出数据…」；文件是表格读法下的行（分组列在前、指标在后，列标题与格子读法同表格，「前 N 组」之内，合计行显示时作为最后一行，不含图上补出或并出的东西），与此刻画的是表还是图无关；窗口复用 D14 的壳、没有「所有／选中」；有测试与故事。
+  - 落点：`src/ui/ExportDialog.tsx`、`src/ui/workbench/AnalysisParts.tsx`、`src/ui/dashboard/PanelExport.tsx`、[ui/analysis.md](ui/analysis.md)、[ui/dashboard.md](ui/dashboard.md) 面板菜单。
 
 ## 阶段 2 留下的线索（不做，或待产品口径）
 

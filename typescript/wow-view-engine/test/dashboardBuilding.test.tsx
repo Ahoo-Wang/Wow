@@ -604,7 +604,7 @@ describe("a panel's menu (D22 D)", () => {
     });
   });
 
-  it('removes a panel after asking, says so, and keeps the keyboard on the bar', async () => {
+  it('removes a panel at once, says so, and puts the keyboard on 撤销, which brings it back', async () => {
     const { user } = open({
       panels: [
         panel({ title: 'Pending' }),
@@ -621,31 +621,92 @@ describe("a panel's menu (D22 D)", () => {
     await user.click(
       within(menu).getByRole('menuitem', { name: 'Remove from dashboard' }),
     );
-    const question = await screen.findByRole('alertdialog');
-    expect(question.textContent).toContain('The view it shows is not deleted.');
-    await user.click(
-      within(question).getByRole('button', { name: 'Remove from dashboard' }),
-    );
+    // Nothing asked: 「撤销」 is the way back.
     await waitFor(() => expect(titles()).toEqual(['Pending']));
-    expect(screen.getByText('Removed “Chart”')).toBeTruthy();
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(
+      screen.getByText('Removed “Chart”. Undo brings it back.'),
+    ).toBeTruthy();
+    const undo = screen.getByRole('button', { name: 'Undo removing “Chart”' });
+    await waitFor(() => expect(document.activeElement).toBe(undo));
+
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(titles()).toEqual(['Pending', 'Chart']));
+    expect(screen.getByText('Undone: removing “Chart”')).toBeTruthy();
+    // Nothing left to undo: the keyboard went on to 重做 rather than nowhere.
+    const redo = screen.getByRole('button', { name: 'Redo removing “Chart”' });
+    await waitFor(() => expect(document.activeElement).toBe(redo));
+    expect(undo.hasAttribute('disabled')).toBe(true);
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(titles()).toEqual(['Pending']));
     await waitFor(() =>
-      expect(document.activeElement?.textContent).toBe('Editing'),
+      expect(document.activeElement?.getAttribute('data-slot')).toBe(
+        'dashboard-undo',
+      ),
     );
   });
 
-  it('keeps the panel when the question is answered no', async () => {
-    const { user } = open();
+  it('takes steps back and forth by ⌘Z and Ctrl+Shift+Z on the board, never inside a field', async () => {
+    const { engine, user } = open();
     await enter(user);
     const menu = await panelMenu(user, 'Pending');
+    await user.click(within(menu).getByRole('menuitem', { name: 'Duplicate' }));
+    await waitFor(() => expect(titles()).toEqual(['Pending', 'Pending']));
+
+    // In the title's own box the keys are the box's undo.
     await user.click(
-      within(menu).getByRole('menuitem', { name: 'Remove from dashboard' }),
+      screen.getAllByRole('button', { name: 'Actions for “Pending”' })[0],
     );
     await user.click(
-      within(await screen.findByRole('alertdialog')).getByRole('button', {
-        name: 'Keep it',
+      within(await screen.findByRole('menu')).getByRole('menuitem', {
+        name: 'Rename',
       }),
     );
-    expect(titles()).toEqual(['Pending']);
+    const input = screen.getByRole('textbox', { name: 'Panel title' });
+    await waitFor(() => expect(document.activeElement).toBe(input));
+    await user.keyboard('{Control>}z{/Control}');
+    expect(boardOf(engine).getSnapshot().draft.panels).toHaveLength(2);
+    await user.keyboard('{Escape}');
+
+    // On the board they are the board's.
+    const trigger = screen.getAllByRole('button', {
+      name: 'Actions for “Pending”',
+    })[0];
+    trigger.focus();
+    await user.keyboard('{Meta>}z{/Meta}');
+    await waitFor(() => expect(titles()).toEqual(['Pending']));
+    expect(screen.getByText('Undone: adding “Pending”')).toBeTruthy();
+    await user.keyboard('{Control>}{Shift>}z{/Shift}{/Control}');
+    await waitFor(() => expect(titles()).toEqual(['Pending', 'Pending']));
+    expect(screen.getByText('Redone: adding “Pending”')).toBeTruthy();
+    await user.keyboard('{Control>}z{/Control}');
+    await user.keyboard('{Control>}y{/Control}');
+    await waitFor(() => expect(titles()).toEqual(['Pending', 'Pending']));
+  });
+
+  it('offers no step to undo outside building, and forgets them on 取消', async () => {
+    const { engine, user } = open();
+    await screen.findByText('Pending', { selector: 'h3' });
+    expect(slot('dashboard-undo')).toBeNull();
+
+    await enter(user);
+    expect(
+      screen.getByRole('button', { name: 'Undo' }).hasAttribute('disabled'),
+    ).toBe(true);
+    const menu = await panelMenu(user, 'Pending');
+    await user.click(within(menu).getByRole('menuitem', { name: 'Duplicate' }));
+    await screen.findByRole('button', { name: 'Undo adding “Pending”' });
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Revert',
+      }),
+    );
+    await waitFor(() => expect(slot('dashboard-edit-bar')).toBeNull());
+    expect(boardOf(engine).getSnapshot().history).toEqual({
+      undo: null,
+      redo: null,
+    });
   });
 
   it('duplicates a panel, and replaces the view one shows', async () => {
@@ -871,5 +932,89 @@ describe('a chart finding in a panel names columns', () => {
     );
     for (const alias of ['g_wh', 'g_st', 'g_day', 'm_n'])
       expect(said).not.toContain(alias);
+  });
+});
+
+/** Enough of `ResizeObserver` for the grid's width to be set by hand. */
+class GridWidth {
+  static grid: GridWidth | null = null;
+  constructor(private readonly callback: ResizeObserverCallback) {}
+  observe(node?: Element): void {
+    if (node?.matches('[data-slot="dashboard-grid"]')) GridWidth.grid = this;
+  }
+  disconnect(): void {}
+  unobserve(): void {}
+  resize(width: number): void {
+    this.callback(
+      [{ contentRect: { width } } as ResizeObserverEntry],
+      this as unknown as ResizeObserver,
+    );
+  }
+}
+
+describe('building the one-column reading (D22 J)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    GridWidth.grid = null;
+  });
+
+  it('moves a panel along the column by keyboard, says where it came to, and writes the grid back', async () => {
+    vi.stubGlobal('ResizeObserver', GridWidth);
+    const { engine, user } = open({
+      panels: [
+        panel({ id: 'a', title: 'Left', layout: { x: 0, y: 0, w: 6, h: 3 } }),
+        panel({ id: 'b', title: 'Right', layout: { x: 6, y: 0, w: 6, h: 4 } }),
+      ],
+    });
+    await screen.findByText('Left', { selector: 'h3' });
+    act(() => GridWidth.grid!.resize(414));
+    await waitFor(() =>
+      expect(slot('dashboard-grid')?.hasAttribute('data-narrow')).toBe(true),
+    );
+    // Read, the column has nothing to move a panel with.
+    expect(slot('panel-order')).toBeNull();
+    await enter(user);
+    // Built, it has 上移／下移 and nothing that places: no grip, no 添加.
+    expect(slot('panel-grip')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Add' })).toBeNull();
+    expect(
+      screen
+        .getByRole('button', { name: 'Move “Left” up' })
+        .hasAttribute('disabled'),
+    ).toBe(true);
+
+    screen.getByRole('button', { name: 'Move “Left” down' }).focus();
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(titles()).toEqual(['Right', 'Left']));
+    expect(screen.getByText('“Left” is now panel 2 of 2')).toBeTruthy();
+    // At the end of the column 下移 has run out: the keyboard is on 上移.
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole('button', { name: 'Move “Left” up' }),
+      ),
+    );
+    // The wide grid reads that way too: the two traded places.
+    expect(
+      boardOf(engine)
+        .getSnapshot()
+        .draft.panels.map(found => [found.id, found.layout.x, found.layout.y]),
+    ).toEqual([
+      ['a', 6, 0],
+      ['b', 0, 0],
+    ]);
+
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(titles()).toEqual(['Left', 'Right']));
+    expect(screen.getByText('“Left” is now panel 1 of 2')).toBeTruthy();
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole('button', { name: 'Move “Left” down' }),
+      ),
+    );
+    // One step each, 撤销 takes them back.
+    await user.click(
+      screen.getByRole('button', { name: 'Undo moving “Left”' }),
+    );
+    await waitFor(() => expect(titles()).toEqual(['Right', 'Left']));
   });
 });
