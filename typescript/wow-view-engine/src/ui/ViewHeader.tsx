@@ -26,7 +26,10 @@ import {
   type ViewKind,
 } from '../model/index.js';
 import { cn } from 'cn';
-import type { ViewRuntimeState } from '../runtime/index.js';
+import {
+  presentationOnlyEdits,
+  type ViewRuntimeState,
+} from '../runtime/index.js';
 import type { SaveCommands } from '../react/index.js';
 import { Badge } from './components/badge.js';
 import {
@@ -53,7 +56,7 @@ import { TEXT_UI } from './layout.js';
  */
 export type ViewHeaderState = Pick<
   ViewRuntimeState<ViewConfig>,
-  'title' | 'scope' | 'saved' | 'dirty'
+  'title' | 'scope' | 'saved' | 'dirty' | 'draft'
 >;
 
 /**
@@ -162,6 +165,9 @@ export function ViewHeader({
   // costs is decided where the view is, next to the leave guard that asks
   // the same thing about the same draft.
   const [asking, setAsking] = useState(false);
+  const lookOnly =
+    state?.saved != null &&
+    presentationOnlyEdits(state.draft, state.saved.config);
   // Where focus lands once the draft is gone: ↺ is inside the "edited" mark,
   // and reverting takes the mark off the bar, so the button the dialog would
   // return to no longer exists and focus would fall to `<body>`. The view's
@@ -342,11 +348,26 @@ export function ViewHeader({
             // shape; a dialog would be friction over an action that could
             // be taken back, and this one cannot.
             state.dirty &&
-            !commitElsewhere && (
+            !commitElsewhere &&
+            (lookOnly ? (
+              // Only the layout or the chart changed (D23 Q15): the mark
+              // says so, and ↺ puts the saved look back at once — what it
+              // loses is a way of looking, nothing a question would guard.
+              <UnsavedMark
+                lookOnly
+                commands={{
+                  ...commands,
+                  revert: () => {
+                    commands.revert();
+                    heading.current?.focus();
+                  },
+                }}
+              />
+            ) : (
               <UnsavedMark
                 commands={{ ...commands, revert: () => setAsking(true) }}
               />
-            )
+            ))
           )}
 
           {!commitElsewhere && (

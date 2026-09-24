@@ -77,6 +77,7 @@ export const zhCN: ViewMessages = {
   // 标题栏与它下面的编辑带。
   'label.header.new-view': '尚未保存',
   'label.header.unsaved': '已修改',
+  'label.header.unsaved-look': '只改了展示',
   'label.header.more': '更多视图操作',
   'label.editor.pending': '{count} 项未应用',
 

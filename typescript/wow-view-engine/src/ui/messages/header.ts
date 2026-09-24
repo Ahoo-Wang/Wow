@@ -20,6 +20,8 @@
 export const headerMessages = {
   'label.header.new-view': 'Not saved yet',
   'label.header.unsaved': 'Edited',
+  // Only the layout or the chart differs from what was saved (D23 Q15).
+  'label.header.unsaved-look': 'Only the look changed',
   'label.header.more': 'More view actions',
   'label.editor.pending': '{count} not applied',
 } as const satisfies Record<string, string>;

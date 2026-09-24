@@ -375,18 +375,33 @@ function PrimaryFace({
  * never-saved view has nothing to go back to and shows the word alone
  * (`ViewHeader` draws that one). The Save menu keeps only Save as.
  */
-export function UnsavedMark({ commands }: { commands: SaveCommands }) {
+export function UnsavedMark({
+  commands,
+  lookOnly = false,
+}: {
+  commands: SaveCommands;
+  /**
+   * Whether only how the result is drawn differs from what was saved
+   * (`presentationOnlyEdits`, D23 Q15): the mark says 「只改了展示」, since
+   * switching 表格｜图表 is a reader changing how they look, and a bare
+   * 「已修改」 read as a question edited.
+   */
+  lookOnly?: boolean;
+}) {
   const messages = useViewMessages();
   const revert = messages.label('label.save.revert');
   return (
     <Badge
       variant="outline"
       data-slot="view-unsaved"
+      data-look-only={lookOnly || undefined}
       // The word keeps its own padding; the button after it sits in the
       // badge's right padding so the pill does not grow a second box.
       className={cn('shrink-0', commands.can.revert && 'gap-0.5 pr-0.5')}
     >
-      {messages.label('label.header.unsaved')}
+      {messages.label(
+        lookOnly ? 'label.header.unsaved-look' : 'label.header.unsaved',
+      )}
       {commands.can.revert && (
         <IconButton
           type="button"

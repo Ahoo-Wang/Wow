@@ -146,6 +146,30 @@ export function pendingBesides<C extends ViewConfig>(
 }
 
 /**
+ * Whether the draft differs from what was saved **only** in how the result
+ * is drawn — the layout, the chart (`presentationMembers`) — and in at least
+ * one of those (D23 Q15). The title bar then says 「只改了展示」 rather than
+ * a bare 「已修改」, and takes the edits back without asking: what would be
+ * lost is a way of looking, not a question, and putting the saved one back
+ * runs nothing (a presentation edit never reached `applied`).
+ */
+export function presentationOnlyEdits(
+  draft: ViewConfig,
+  saved: ViewConfig,
+): boolean {
+  const was: Record<string, unknown> = { ...saved };
+  const now: Record<string, unknown> = { ...draft };
+  const presentation = presentationMembers(draft.kind);
+  let drawn = false;
+  for (const key of new Set([...Object.keys(now), ...Object.keys(was)])) {
+    if (dequal(now[key], was[key])) continue;
+    if (!presentation.includes(key)) return false;
+    drawn = true;
+  }
+  return drawn;
+}
+
+/**
  * The nodes of `tree` that say something other than `inForce` at the same
  * path, and the nodes only `inForce` has. A condition taken out of the draft
  * is still an edit not applied: the rows on screen were fetched under it.

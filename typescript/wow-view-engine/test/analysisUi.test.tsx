@@ -689,6 +689,35 @@ describe('DataWorkbench', () => {
     await waitFor(() => expect(screen.getByRole('table')).toBeDefined());
   });
 
+  /**
+   * D23 Q15: switching 表格｜图表 still edits the view — the author's chart
+   * is part of it (D20) — but the mark says only the look changed, and ↺
+   * puts the saved look back at once, with no question and no query.
+   */
+  it('says only the look changed, and takes it back in one press', async () => {
+    const user = userEvent.setup();
+    const { source } = await open();
+    const asked = vi.mocked(source.aggregate).mock.calls.length;
+
+    await user.click(screen.getByRole('button', { name: 'Chart' }));
+    const mark = await waitFor(() => {
+      const found = document.querySelector<HTMLElement>(
+        '[data-slot="view-unsaved"]',
+      );
+      if (!found) throw new Error('no mark');
+      return found;
+    });
+    expect(mark.textContent).toContain('Only the look changed');
+    expect(mark.hasAttribute('data-look-only')).toBe(true);
+
+    await user.click(screen.getByRole('button', { name: 'Revert' }));
+
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    await waitFor(() => expect(screen.getByRole('table')).toBeDefined());
+    expect(document.querySelector('[data-slot="view-unsaved"]')).toBeNull();
+    expect(vi.mocked(source.aggregate).mock.calls.length).toBe(asked);
+  });
+
   it('reports a failed aggregation', async () => {
     await open(
       testSource({
