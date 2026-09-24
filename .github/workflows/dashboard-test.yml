@@ -17,6 +17,9 @@ on:
     paths:
       - '.github/workflows/dashboard-test.yml'
       - 'compensation/dashboard/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -44,19 +47,16 @@ jobs:
         with:
           node-version: 24.21.0
           cache: 'pnpm'
-          cache-dependency-path: compensation/dashboard/pnpm-lock.yaml
 
       - name: Install Packages
-        working-directory: compensation/dashboard
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --filter wow-compensation-dashboard...
 
       - name: Lint Dashboard
         working-directory: compensation/dashboard
         run: pnpm exec eslint .
 
       - name: Build Dashboard
-        working-directory: compensation/dashboard
-        run: pnpm build
+        run: pnpm --filter wow-compensation-dashboard... build
 
       - name: Test Dashboard
         working-directory: compensation/dashboard

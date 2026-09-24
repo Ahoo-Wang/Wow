@@ -1,6 +1,7 @@
 {
   "name": "documentation",
   "version": "9.1.5",
+  "private": true,
   "description": "领域模型即服务 | Modern Reactive CQRS Architecture Microservice development framework based on DDD and EventSourcing.",
   "main": "index.js",
   "scripts": {
@@ -21,15 +22,15 @@
   "author": "ahoo-wang",
   "license": "Apache-2.0",
   "devDependencies": {
-    "@types/canvas-confetti": "^1.9.0",
-    "mermaid": "^11.17.2",
-    "vitepress": "^1.6.4",
-    "vitepress-plugin-llms": "^1.14.0",
-    "vitepress-plugin-mermaid": "^2.0.17"
+    "@types/canvas-confetti": "catalog:",
+    "mermaid": "catalog:",
+    "vitepress": "catalog:",
+    "vitepress-plugin-llms": "catalog:",
+    "vitepress-plugin-mermaid": "catalog:"
   },
   "dependencies": {
-    "canvas-confetti": "^1.9.4",
-    "medium-zoom": "^1.1.0",
-    "svg-pan-zoom": "^3.6.2"
+    "canvas-confetti": "catalog:",
+    "medium-zoom": "catalog:",
+    "svg-pan-zoom": "catalog:"
   }
 }

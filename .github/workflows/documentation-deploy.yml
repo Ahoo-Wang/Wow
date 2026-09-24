@@ -21,6 +21,9 @@ on:
     paths:
       - '.github/workflows/documentation-deploy.yml'
       - 'documentation/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
   workflow_dispatch:
 
 permissions:
@@ -71,12 +74,13 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 24.21.0
-          cache-dependency-path: documentation/pnpm-lock.yaml
           cache: 'pnpm'
 
+      - name: Install Packages
+        run: pnpm install --frozen-lockfile
+
       - name: Build VitePress site
-        working-directory: documentation
-        run: pnpm install --shamefully-hoist && pnpm run docs:build
+        run: pnpm --filter documentation docs:build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5

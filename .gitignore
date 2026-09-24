@@ -31,8 +31,9 @@ __pycache__/
 /.idea/
 /.vscode/
 
-# Local agent configuration
-/.claude/
+# Local agent configuration; repository skills are shared
+/.claude/*
+!/.claude/skills/
 /.worktrees/
 /.zcode/
 
@@ -45,3 +46,7 @@ docs/superpowers/
 
 # Benchmark generated outputs
 wow-benchmarks/results/jmh/
+
+# pnpm workspace
+node_modules/
+*.tsbuildinfo
