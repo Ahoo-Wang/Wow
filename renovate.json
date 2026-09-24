@@ -25,6 +25,18 @@
     "commitMessageTopic": "lock files",
     "minimumReleaseAge": null
   },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Tool versions pinned in workflows next to a `# renovate: datasource=… depName=…` comment, such as the npm CLI that publishes to npm.",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/[^/]+\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+[A-Z_]+: (?<currentValue>\\S+)"
+      ]
+    }
+  ],
   "packageRules": [
     {
       "description": "Require manual approval for major version updates.",
@@ -51,7 +63,7 @@
       "minimumReleaseAge": "24 hours"
     },
     {
-      "description": "Group GitHub Actions updates.",
+      "description": "Group GitHub Actions updates. Actions pinned by commit SHA with a `# vX.Y.Z` comment get the SHA and the comment updated together.",
       "matchManagers": [
         "github-actions"
       ],
@@ -172,6 +184,16 @@
       ],
       "groupName": "vitepress",
       "commitMessageTopic": "VitePress documentation"
+    },
+    {
+      "description": "Peer ranges of the published npm packages (the `peers` catalog in pnpm-workspace.yaml) are a published contract. Only widen them, never raise a lower bound, and only after dashboard approval; the default catalog keeps the versions CI tests against current.",
+      "matchDepTypes": [
+        "pnpm.catalog.peers"
+      ],
+      "rangeStrategy": "widen",
+      "dependencyDashboardApproval": true,
+      "groupName": "npm peer ranges",
+      "commitMessageTopic": "npm peer ranges"
     }
   ]
 }

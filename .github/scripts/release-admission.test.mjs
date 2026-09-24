@@ -7,9 +7,11 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   isBreaking,
+  REQUIRED,
   latestRun,
   previousReleaseTag,
   requireBreakingChangesInMinor,
+  requireReleaseBranch,
   requireSuccessfulJob,
   requireSuccessfulRun,
 } from './release-admission.mjs';
@@ -17,24 +19,21 @@ import {
 const run = {
   id: 1,
   head_sha: 'target',
-  event: 'push',
+  event: 'workflow_dispatch',
   status: 'completed',
   conclusion: 'success',
 };
 
-test('the release commit needs its own latest push or dispatch run to succeed', () => {
+test('the release commit needs its own latest full (dispatch) run to succeed', () => {
   assert.doesNotThrow(() =>
     requireSuccessfulRun(latestRun([run], 'target'), 'target'),
-  );
-  assert.doesNotThrow(() =>
-    requireSuccessfulRun(
-      latestRun([{ ...run, event: 'workflow_dispatch' }], 'target'),
-      'target',
-    ),
   );
   for (const runs of [
     [],
     [{ ...run, head_sha: 'old' }],
+    // Push runs test only what the push changed; pull request runs are not
+    // the release commit.
+    [{ ...run, event: 'push' }],
     [{ ...run, event: 'pull_request' }],
     [run, { ...run, id: 2, conclusion: 'failure' }],
     [run, { ...run, id: 2, status: 'in_progress' }],
@@ -43,14 +42,38 @@ test('the release commit needs its own latest push or dispatch run to succeed', 
     assert.throws(() =>
       requireSuccessfulRun(latestRun(runs, 'target'), 'target'),
     );
-  // A pull request run for the same commit does not shadow the push run.
+  // Newer push or pull request runs for the same commit do not shadow it.
   assert.equal(
-    latestRun([run, { ...run, id: 2, event: 'pull_request' }], 'target'),
+    latestRun(
+      [
+        run,
+        { ...run, id: 2, event: 'pull_request', conclusion: 'failure' },
+        { ...run, id: 3, event: 'push', conclusion: 'failure' },
+      ],
+      'target',
+    ),
     run,
+  );
+  assert.throws(
+    () =>
+      requireSuccessfulRun(
+        { ...run, conclusion: 'failure', html_url: 'https://x/runs/1' },
+        'target',
+        'typescript-contract.yml',
+      ),
+    /typescript-contract.yml: .*run https:\/\/x\/runs\/1 is failure; re-run its failed jobs/,
   );
 });
 
-test('typescript-gate must have passed in that run', () => {
+test('TypeScript, contract and Storybook gates are all required', () => {
+  assert.deepEqual(REQUIRED, [
+    { workflow: 'typescript.yml', gate: 'typescript-gate' },
+    { workflow: 'typescript-contract.yml', gate: 'typescript-contract-gate' },
+    { workflow: 'typescript-storybook.yml', gate: 'typescript-storybook-gate' },
+  ]);
+});
+
+test('each gate must have passed in its run', () => {
   const gate = {
     id: 1,
     name: 'typescript-gate',
@@ -60,6 +83,12 @@ test('typescript-gate must have passed in that run', () => {
   assert.doesNotThrow(() =>
     requireSuccessfulJob([{ ...gate, id: 0, name: 'Quality' }, gate]),
   );
+  assert.doesNotThrow(() =>
+    requireSuccessfulJob(
+      [{ ...gate, name: 'typescript-storybook-gate' }],
+      'typescript-storybook-gate',
+    ),
+  );
   for (const jobs of [
     [],
     [{ ...gate, name: 'Quality' }],
@@ -68,6 +97,27 @@ test('typescript-gate must have passed in that run', () => {
     [gate, { ...gate, id: 2, status: 'in_progress' }],
   ])
     assert.throws(() => requireSuccessfulJob(jobs));
+  assert.throws(() => requireSuccessfulJob([gate], 'typescript-contract-gate'));
+});
+
+test('a release commit comes from main or a release-x.y branch', () => {
+  for (const branches of [
+    ['origin/main'],
+    ['origin/feature', 'origin/release-9.1'],
+    ['  origin/main'],
+  ])
+    assert.doesNotThrow(() => requireReleaseBranch(branches, 'target'));
+  for (const branches of [
+    [],
+    ['origin/feature'],
+    ['origin/main-copy'],
+    ['origin/release-9'],
+    ['fork/main'],
+  ])
+    assert.throws(
+      () => requireReleaseBranch(branches, 'target'),
+      /target is on neither main nor a release-x.y branch/,
+    );
 });
 
 test('breaking commits are marked with ! or a BREAKING CHANGE footer', () => {

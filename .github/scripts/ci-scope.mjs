@@ -28,6 +28,8 @@ const STORYBOOK = 'storybook';
 const CONTRACT = 'contract';
 // typescript-contract.yml: generated code against the published 8.x servers.
 const LEGACY_CONTRACT = 'legacyContract';
+// typescript.yml: actionlint over every workflow, the release workflow included.
+const WORKFLOWS = 'workflows';
 
 // A light scope stands in for a full one when only Markdown changed, so it
 // turns off again once any path turns the full scope on.
@@ -82,15 +84,28 @@ const RULES = [
   // The workflow runs every job it defines, the light ones included.
   [
     /^\.github\/workflows\/typescript\.yml$/,
-    [TYPESCRIPT, SDK, DOCS, VIEW_ENGINE, PACKAGE_DOCS, VIEW_ENGINE_DOCS],
+    [
+      TYPESCRIPT,
+      SDK,
+      DOCS,
+      VIEW_ENGINE,
+      PACKAGE_DOCS,
+      VIEW_ENGINE_DOCS,
+      WORKFLOWS,
+    ],
   ],
   // Prettier checks the workflow file, so the static checks run too.
   [
     /^\.github\/workflows\/typescript-contract\.yml$/,
-    [TYPESCRIPT, CONTRACT, LEGACY_CONTRACT],
+    [TYPESCRIPT, CONTRACT, LEGACY_CONTRACT, WORKFLOWS],
   ],
-  [/^\.github\/workflows\/typescript-storybook\.yml$/, [TYPESCRIPT, STORYBOOK]],
-  // Other Gradle modules, other workflows, the dashboard (dashboard-test.yml)
+  [
+    /^\.github\/workflows\/typescript-storybook\.yml$/,
+    [TYPESCRIPT, STORYBOOK, WORKFLOWS],
+  ],
+  // Every other workflow, the release and deploy workflows included: lint it.
+  [/^\.github\/workflows\/[^/]+\.ya?ml$/, [WORKFLOWS]],
+  // Other Gradle modules, the dashboard (dashboard-test.yml)
   // and prose.
   [
     /^(?:test|config|deploy|document|docs|skills|scripts|compensation|\.claude\/skills)\//,
@@ -115,6 +130,7 @@ export function scopes(paths) {
     STORYBOOK,
     CONTRACT,
     LEGACY_CONTRACT,
+    WORKFLOWS,
   ];
   const result = Object.fromEntries(keys.map(key => [key, false]));
   // Light scopes a path asks for alongside their full scope (the workflow
