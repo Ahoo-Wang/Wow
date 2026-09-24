@@ -55,8 +55,12 @@ const RULES = [
   ],
   // The contracts run the integration tests; the unit job leaves them out.
   [/^typescript\/integration-test\//, [TYPESCRIPT, CONTRACT, LEGACY_CONTRACT]],
-  // The documentation site embeds the Storybook these render.
-  [/^typescript\/wow-react\//, [TYPESCRIPT, SDK, VIEW_ENGINE, STORYBOOK, DOCS]],
+  // The documentation site embeds the Storybook these render, and the
+  // same-source contract runs the hooks against the example server.
+  [
+    /^typescript\/wow-react\//,
+    [TYPESCRIPT, SDK, VIEW_ENGINE, STORYBOOK, DOCS, CONTRACT],
+  ],
   [
     /^typescript\/wow-view-engine\//,
     [TYPESCRIPT, VIEW_ENGINE, STORYBOOK, DOCS],

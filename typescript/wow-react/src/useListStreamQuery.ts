@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { FilterListQuery } from '@ahoo-wang/wow-client';
+import type { FilterListQuery, WowError } from '@ahoo-wang/wow-client';
 // compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
 import type { ListQuery, ListQueryRequest } from '@ahoo-wang/wow-client/legacy';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
@@ -20,78 +20,128 @@ import type {
   UseQueryOptions,
   UseQueryReturn,
 } from '@ahoo-wang/fetcher-react/core';
-import { useQuery } from '@ahoo-wang/fetcher-react/core';
+import { PromiseStatus, useQuery } from '@ahoo-wang/fetcher-react/core';
+import { useState } from 'react';
+import { readStreamRows } from './readStreamRows.js';
 
 /**
- * Options for the useListStreamQuery hook.
- * Extends UseQueryOptions with ListQuery as query key and stream of events as data type.
+ * Opens the event stream of one query: a query client's `listStream` or
+ * `listStateStream`, or any function that resolves to a stream of JSON
+ * server-sent events. Hand `abortController` on to the request, so that a
+ * newer query, `abort()` or an unmount cancels it.
+ */
+export type ListStreamExecutor<R, Q> = (
+  query: Q,
+  attributes?: Record<string, unknown>,
+  abortController?: AbortController,
+) => Promise<ReadableStream<JsonServerSentEvent<R>>>;
+
+/**
+ * Options of {@link useListStreamQuery}: those of every query hook, with an
+ * `execute` that opens the stream.
  *
- * @template R - The type of the result items in the stream events
- * @template FIELDS - The fields type for the list stream query
- * @template E - The error type, defaults to FetcherError
+ * `onSuccess` receives every row once the stream has ended.
+ *
+ * @template R - One row of the stream: the `data` of each event
+ * @template FIELDS - The field names the query may use
+ * @template E - The error type; a failed request rejects with a
+ *   `FetcherError`, an error event in the stream with a `WowError`
+ * @template Q - The query type: `FilterListQuery` by default
  */
 export interface UseListStreamQueryOptions<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = FetcherError | WowError,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
-> extends UseQueryOptions<Q, ReadableStream<JsonServerSentEvent<R>>, E> {}
+> extends Omit<UseQueryOptions<Q, R[], E>, 'execute'> {
+  /** Opens the stream for a query. */
+  execute: ListStreamExecutor<R, Q>;
+}
 
 /**
- * Return type for the useListStreamQuery hook.
- * Extends UseQueryReturn with ListQuery as query key and stream of events as data type.
+ * What {@link useListStreamQuery} and `useFetcherListStreamQuery` return: the
+ * rows as they arrive, and whether the stream has ended.
  *
- * @template R - The type of the result items in the stream events
- * @template FIELDS - The fields type for the list stream query
- * @template E - The error type, defaults to FetcherError
+ * - `items` — the rows of the current query received so far, in order. A new
+ *   query starts from an empty list; `reset()` empties it; `abort()` and an
+ *   error keep the rows received before them.
+ * - `done` — the stream ended normally and `items` holds every row.
+ * - `loading` — from the request until the stream ends, fails or is aborted.
+ * - `error` — the request failed (`FetcherError`), or the server sent an error
+ *   event in the stream (`WowError`, with its `errorCode`).
+ * - `status` — `idle`, `loading`, `success` (the same as `done`) or `error`.
+ * - `execute()` runs the current query again and aborts the stream in flight;
+ *   `abort()` stops the stream; `reset()` stops it and empties `items`.
  */
 export interface UseListStreamQueryReturn<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = FetcherError | WowError,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
-> extends UseQueryReturn<Q, ReadableStream<JsonServerSentEvent<R>>, E> {}
+> extends Omit<UseQueryReturn<Q, R[], E>, 'result'> {
+  /** The rows of the current query received so far. */
+  items: R[];
+  /** Whether the stream ended normally, so `items` holds every row. */
+  done: boolean;
+}
 
 /**
- * Hook for querying streaming list data with a filter, projection, and sorting.
- * Wraps useQuery to provide type-safe streaming list queries.
+ * Streams the rows of a list query as server-sent events and keeps them as
+ * state.
  *
- * @template R - The type of the result items in the stream events
- * @template FIELDS - The fields type for the list stream query
- * @template E - The error type, defaults to FetcherError
- * @param options - The query options including list stream query configuration
- * @returns The query result with streaming data
+ * The hook owns the stream: it reads it, collects the rows into `items`, and
+ * cancels it when a newer query starts, on `abort()` or `reset()`, and on
+ * unmount. Components render `items` and never hold a reader, so the hook is
+ * safe under StrictMode. `autoExecute` defaults to `true`.
+ *
+ * Pass a query client method as `execute` — it sends
+ * `Accept: text/event-stream` and turns error events into a `WowError` — or
+ * use `useFetcherListStreamQuery` with a URL.
+ *
+ * @template R - One row of the stream: the `data` of each event
+ * @template FIELDS - The field names the query may use
+ * @template E - The error type
  *
  * @example
- * ```typescript
- * const { data, isLoading } = useListStreamQuery<{ id: number; name: string }, 'id' | 'name'>({
- *   initialQuery: {
- *     filter: filter.matchAll(),
- *     projection: { include: ['id', 'name'] },
- *     sort: [{ field: 'id', direction: SortDirection.ASC }],
- *   },
- *   execute: async (query) => fetchStreamData(query),
- * });
+ * ```tsx
+ * import { filter, listQuery, type SnapshotQueryClient } from '@ahoo-wang/wow-client';
+ * import { useListStreamQuery } from '@ahoo-wang/wow-react';
+ *
+ * function PaidOrders({ client }: { client: SnapshotQueryClient<OrderState> }) {
+ *   const { items, done, loading, error, abort } = useListStreamQuery<OrderState>({
+ *     initialQuery: listQuery({ filter: filter.eq('state.status', 'PAID') }),
+ *     execute: (query, attributes, abortController) =>
+ *       client.listStateStream(query, attributes, abortController),
+ *   });
+ *   if (error) return <p role="alert">{error.message}</p>;
+ *   return (
+ *     <>
+ *       <ul>{items.map(order => <li key={order.id}>{order.id}</li>)}</ul>
+ *       {loading && <button onClick={abort}>Stop</button>}
+ *       {done && <p>{items.length} orders</p>}
+ *     </>
+ *   );
+ * }
  * ```
  */
 export function useListStreamQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = FetcherError | WowError,
 >(
   options: UseListStreamQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>,
 ): UseListStreamQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
 export function useListStreamQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = FetcherError | WowError,
 >(
   options: UseListStreamQueryOptions<R, FIELDS, E, ListQuery<FIELDS>>,
 ): UseListStreamQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
 export function useListStreamQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = FetcherError | WowError,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
 >(
   options: UseListStreamQueryOptions<R, FIELDS, E, Q>,
@@ -104,5 +154,36 @@ export function useListStreamQuery<
 >(
   options: UseListStreamQueryOptions<R, FIELDS, E, Q>,
 ): UseListStreamQueryReturn<R, FIELDS, E, Q> {
-  return useQuery<Q, ReadableStream<JsonServerSentEvent<R>>, E>(options);
+  const [items, setItems] = useState<R[]>(() => []);
+  const openStream = options.execute;
+  const { loading, error, status, execute, abort, getQuery, setQuery } =
+    useQuery<Q, R[], E>({
+      ...options,
+      // useExecutePromise calls this only for the latest query while the
+      // component is mounted, and aborts `abortController` once a newer query
+      // starts or the component unmounts; readStreamRows stops publishing
+      // from then on, so a stale stream never overwrites newer rows.
+      execute: async (query, attributes, abortController) => {
+        const controller = abortController ?? new AbortController();
+        setItems([]);
+        const stream = await openStream(query, attributes, controller);
+        return readStreamRows(stream, controller.signal, setItems);
+      },
+    });
+  const reset = () => {
+    abort();
+    setItems([]);
+  };
+  return {
+    items,
+    done: status === PromiseStatus.SUCCESS,
+    loading,
+    error,
+    status,
+    execute,
+    abort,
+    reset,
+    getQuery,
+    setQuery,
+  };
 }

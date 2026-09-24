@@ -59,9 +59,12 @@ export function installFetchFixture(): () => void {
     }
     if (pathname === '/users/snapshot/list/state') {
       if (request.headers.get('Accept')?.includes('text/event-stream')) {
-        return eventStreamResponse([
-          `data: ${JSON.stringify(fixturePagedUsers.list)}\n\n`,
-        ]);
+        // One row per event, as Wow streams a list.
+        return eventStreamResponse(
+          fixturePagedUsers.list.map(
+            user => `data: ${JSON.stringify(user)}\n\n`,
+          ),
+        );
       }
       return jsonResponse(fixturePagedUsers.list);
     }

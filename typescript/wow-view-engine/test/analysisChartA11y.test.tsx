@@ -78,6 +78,17 @@ function valuesOf(data: ChartData): string[] {
         ...said(data.target),
         ...(data.trend ?? []).flatMap(point => said(point.value)),
       ];
+    case 'waterfall':
+      return [
+        ...data.steps.flatMap(step => [...said(step.value), ...said(step.end)]),
+        ...said(data.total),
+      ];
+    case 'treemap':
+      return data.tiles.flatMap(tile =>
+        tile.tiles
+          ? tile.tiles.flatMap(inner => said(inner.value))
+          : said(tile.value),
+      );
   }
 }
 
@@ -262,6 +273,44 @@ describe('every data value in the result appears in the readable text', () => {
         ],
       },
       undefined,
+    ],
+    [
+      'a waterfall that rises, falls and totals',
+      {
+        type: 'waterfall',
+        steps: [
+          { x: 'EAST', value: 4318, start: 0, end: 4318 },
+          { x: 'NORTH', value: -1764, start: 4318, end: 2554 },
+        ],
+        total: 2554,
+      },
+      { type: 'waterfall', waterfall: { x: 'warehouse', value: 'orders' } },
+    ],
+    [
+      'a treemap nested two levels',
+      {
+        type: 'treemap',
+        tiles: [
+          {
+            group: 'EAST',
+            value: 5000,
+            tiles: [
+              { group: 'EAST', value: 3120 },
+              { group: 'NORTH', value: 1880 },
+            ],
+          },
+        ],
+        nested: true,
+        omitted: 0,
+      },
+      {
+        type: 'treemap',
+        treemap: {
+          category: 'warehouse',
+          parent: 'warehouse',
+          value: 'orders',
+        },
+      },
     ],
   ];
 

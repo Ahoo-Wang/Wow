@@ -11,126 +11,85 @@
  * limitations under the License.
  */
 
-import type { FilterListQuery } from '@ahoo-wang/wow-client';
+import type { FilterListQuery, WowError } from '@ahoo-wang/wow-client';
+import { QueryEventStreamResultExtractor } from '@ahoo-wang/wow-client';
 // compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
 import type { ListQuery, ListQueryRequest } from '@ahoo-wang/wow-client/legacy';
-import type { FetcherError } from '@ahoo-wang/fetcher';
-import type { UseQueryReturn } from '@ahoo-wang/fetcher-react/core';
-import type { UseFetcherQueryOptions } from '@ahoo-wang/fetcher-react/fetcher';
-import { useFetcherQuery } from '@ahoo-wang/fetcher-react/fetcher';
+import type { FetcherCapable, FetcherError } from '@ahoo-wang/fetcher';
+import { ContentTypeValues, getFetcher } from '@ahoo-wang/fetcher';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
-import { JsonEventStreamResultExtractor } from '@ahoo-wang/fetcher-eventstream';
+import {
+  useListStreamQuery,
+  type UseListStreamQueryOptions,
+  type UseListStreamQueryReturn,
+} from '../useListStreamQuery.js';
 
 /**
- * Options for configuring the useFetcherListStreamQuery hook.
+ * Options of {@link useFetcherListStreamQuery}: those of `useListStreamQuery`,
+ * with the endpoint and the Fetcher in place of `execute`.
  *
- * This interface extends UseFetcherQueryOptions and is specifically tailored for list stream queries
- * that use a ListQuery to filter results and return a ReadableStream of JSON server-sent events.
- *
- * @template R - The type of the resource or entity contained in each event in the stream.
- * @template FIELDS - A string union type representing the fields that can be used in the list query.
- * @template E - The type of error that may be thrown, defaults to FetcherError.
+ * @template R - One row of the stream: the `data` of each event
+ * @template FIELDS - The field names the query may use
+ * @template E - The error type; a failed request rejects with a
+ *   `FetcherError`, an error event in the stream with a `WowError`
+ * @template Q - The query type: `FilterListQuery` by default
  */
 export interface UseFetcherListStreamQueryOptions<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = FetcherError | WowError,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
-> extends UseFetcherQueryOptions<
-  Q,
-  ReadableStream<JsonServerSentEvent<R>>,
-  E
-> {}
+>
+  extends
+    Omit<UseListStreamQueryOptions<R, FIELDS, E, Q>, 'execute'>,
+    FetcherCapable {
+  /**
+   * The list endpoint, resolved against the Fetcher's `baseURL`: for example
+   * `order/snapshot/list/state` for the states of an `order` aggregate.
+   */
+  url: string;
+}
 
 /**
- * Return type for the useFetcherListStreamQuery hook.
- *
- * This interface extends UseQueryReturn and provides the structure for the hook's return value,
- * including data (a ReadableStream of JSON server-sent events), loading state, error state, and other query-related properties.
- *
- * @template R - The type of the resource or entity contained in each event in the stream.
- * @template FIELDS - A string union type representing the fields that can be used in the list query.
- * @template E - The type of error that may be thrown, defaults to FetcherError.
+ * What {@link useFetcherListStreamQuery} returns; see
+ * {@link UseListStreamQueryReturn}.
  */
 export interface UseFetcherListStreamQueryReturn<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = FetcherError | WowError,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
-> extends UseQueryReturn<Q, ReadableStream<JsonServerSentEvent<R>>, E> {}
+> extends UseListStreamQueryReturn<R, FIELDS, E, Q> {}
 
 /**
- * A React hook for performing list stream queries using the Fetcher library with server-sent events.
+ * Streams the rows of a list query from a Wow list endpoint and keeps them as
+ * state; see `useListStreamQuery` for the state it returns.
  *
- * This hook is designed for scenarios where you need to retrieve a stream of data that matches a list query filter.
- * It returns a ReadableStream of JSON server-sent events, allowing for real-time data streaming.
- * The hook automatically configures the JsonEventStreamResultExtractor for proper stream handling.
+ * It POSTs the query to `url` through `fetcher` (the default Fetcher when
+ * omitted) with `Accept: text/event-stream`, the header a Wow server needs to
+ * answer with an event stream rather than JSON. An error event in the stream
+ * ends it with a `WowError` in `error`.
  *
- * @template R - The type of the resource or entity contained in each event in the stream.
- * @template FIELDS - A string union type representing the fields that can be used in the list query.
- * @template E - The type of error that may be thrown, defaults to FetcherError.
- *
- * @param options - Configuration options for the list stream query, including the list query, fetcher instance, and other query settings.
- * @returns An object containing the query result (a ReadableStream of JSON server-sent events), loading state, error state, and utility functions.
- *
- * @throws {E} Throws an error of type E if the query fails, which could be due to network issues, invalid queries, or server errors.
+ * @template R - One row of the stream: the `data` of each event
+ * @template FIELDS - The field names the query may use
+ * @template E - The error type
  *
  * @example
- * ```typescript
+ * ```tsx
+ * import { filter, listQuery } from '@ahoo-wang/wow-client';
  * import { useFetcherListStreamQuery } from '@ahoo-wang/wow-react';
- * import { listQuery, filter } from '@ahoo-wang/wow-client';
- * import { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
- * import { useEffect, useRef } from 'react';
  *
- * interface User {
- *   id: number;
- *   name: string;
- * }
- *
- * function UserStreamComponent() {
- *   const { data: stream, loading, error, execute } = useFetcherListStreamQuery<User, 'id' | 'name'>({
- *     url: '/api/users/stream',
- *     initialQuery: listQuery({
- *       filter: filter.contains('name', 'John'),
- *       limit: 10,
- *     }),
- *     autoExecute: true,
+ * function PaidOrders() {
+ *   const { items, done, loading, error } = useFetcherListStreamQuery<OrderState>({
+ *     url: 'order/snapshot/list/state',
+ *     initialQuery: listQuery({ filter: filter.eq('state.status', 'PAID') }),
  *   });
- *
- *   const messagesRef = useRef<HTMLDivElement>(null);
- *
- *   useEffect(() => {
- *     if (stream) {
- *       const reader = stream.getReader();
- *       const readStream = async () => {
- *         try {
- *           while (true) {
- *             const { done, value } = await reader.read();
- *             if (done) break;
- *             // Process the JsonServerSentEvent<User>
- *             const newUser = value.data;
- *             if (messagesRef.current) {
- *               const div = document.createElement('div');
- *               div.textContent = `New user: ${newUser.name}`;
- *               messagesRef.current.appendChild(div);
- *             }
- *           }
- *         } catch (err) {
- *           console.error('Stream error:', err);
- *         }
- *       };
- *       readStream();
- *     }
- *   }, [stream]);
- *
- *   if (loading) return <div>Loading stream...</div>;
- *   if (error) return <div>Error: {error.message}</div>;
- *
+ *   if (error) return <p role="alert">{error.message}</p>;
  *   return (
- *     <div>
- *       <div ref={messagesRef}></div>
- *       <button onClick={execute}>Restart Stream</button>
- *     </div>
+ *     <>
+ *       <ul>{items.map(order => <li key={order.id}>{order.id}</li>)}</ul>
+ *       {loading ? <p>Loading…</p> : done && <p>{items.length} orders</p>}
+ *     </>
  *   );
  * }
  * ```
@@ -138,7 +97,7 @@ export interface UseFetcherListStreamQueryReturn<
 export function useFetcherListStreamQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = FetcherError | WowError,
 >(
   options: UseFetcherListStreamQueryOptions<
     R,
@@ -150,14 +109,14 @@ export function useFetcherListStreamQuery<
 export function useFetcherListStreamQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = FetcherError | WowError,
 >(
   options: UseFetcherListStreamQueryOptions<R, FIELDS, E, ListQuery<FIELDS>>,
 ): UseFetcherListStreamQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
 export function useFetcherListStreamQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = FetcherError | WowError,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
 >(
   options: UseFetcherListStreamQueryOptions<R, FIELDS, E, Q>,
@@ -170,11 +129,18 @@ export function useFetcherListStreamQuery<
 >(
   options: UseFetcherListStreamQueryOptions<R, FIELDS, E, Q>,
 ): UseFetcherListStreamQueryReturn<R, FIELDS, E, Q> {
-  const streamOptions = {
+  const { url, fetcher } = options;
+  return useListStreamQuery<R, FIELDS, E, Q>({
     ...options,
-    resultExtractor: JsonEventStreamResultExtractor,
-  };
-  return useFetcherQuery<Q, ReadableStream<JsonServerSentEvent<R>>, E>(
-    streamOptions,
-  );
+    execute: (query, attributes, abortController) =>
+      getFetcher(fetcher).post<ReadableStream<JsonServerSentEvent<R>>>(
+        url,
+        {
+          body: query,
+          headers: { Accept: ContentTypeValues.TEXT_EVENT_STREAM },
+          abortController,
+        },
+        { attributes, resultExtractor: QueryEventStreamResultExtractor },
+      ),
+  });
 }

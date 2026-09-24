@@ -198,11 +198,29 @@ describe('the visualization panel', () => {
       tile('scatter').querySelector('[data-slot="chart-reason"]'),
     ).toBeNull();
 
-    // The table is a tile too, and it is the last of them.
-    const tiles = [
-      ...document.querySelectorAll('[data-slot="chart-tile"]'),
-    ].map(found => found.getAttribute('data-chart-type'));
-    expect(tiles[tiles.length - 1]).toBe('table');
+    // Two groups (D33 Q54): what draws this result, the table a tile too
+    // and the last of them, then every greyed type under 「其他图型」 — each
+    // group named by its heading, and one radiogroup over both.
+    const group = (name: string) =>
+      screen.getByRole('group', { name: label(name as never) });
+    const typesIn = (element: HTMLElement) =>
+      [...element.querySelectorAll('[data-slot="chart-tile"]')].map(found =>
+        found.getAttribute('data-chart-type'),
+      );
+    const suits = typesIn(group('label.chart.group.suits'));
+    expect(suits[suits.length - 1]).toBe('table');
+    expect(suits).toContain('waterfall');
+    expect(suits).toContain('treemap');
+    expect(typesIn(group('label.chart.group.others'))).toEqual([
+      'heatmap',
+      'funnel',
+      'metric',
+    ]);
+    expect(
+      screen
+        .getByRole('radiogroup', { name: label('label.chart.picker') })
+        .contains(group('label.chart.group.others')),
+    ).toBe(true);
   });
 
   it('redraws the rows that ran, without asking the source again', async () => {
@@ -290,23 +308,36 @@ describe('the visualization panel', () => {
     expect(tile('line').getAttribute('aria-checked')).toBe('true');
     expect(document.activeElement).toBe(tile('line'));
 
-    // From area the next available tile is combo, and the one after it is
-    // pie: the greyed heatmap and metric are stepped over, never chosen.
-    fireEvent.keyDown(tile('line'), { key: 'ArrowRight' });
-    fireEvent.keyDown(tile('area'), { key: 'ArrowRight' });
-    fireEvent.keyDown(tile('combo'), { key: 'ArrowRight' });
-    expect(tile('pie').getAttribute('aria-checked')).toBe('true');
-    fireEvent.keyDown(tile('pie'), { key: 'ArrowRight' });
+    // On through 「适合这个结果」 in its order — the new waterfall and
+    // treemap among them — and past its end the table, then round to the
+    // first: the greyed heatmap, funnel and metric under 「其他图型」 are stepped
+    // over, never chosen.
+    const order = ['area', 'combo', 'waterfall', 'pie', 'treemap', 'scatter'];
+    let at = 'line';
+    for (const next of order) {
+      fireEvent.keyDown(tile(at), { key: 'ArrowRight' });
+      expect(tile(next).getAttribute('aria-checked')).toBe('true');
+      expect(document.activeElement).toBe(tile(next));
+      at = next;
+    }
+    fireEvent.keyDown(tile('scatter'), { key: 'ArrowRight' });
+    expect(tile('table').getAttribute('aria-checked')).toBe('true');
+    fireEvent.keyDown(tile('table'), { key: 'ArrowRight' });
     expect(tile('heatmap').getAttribute('aria-checked')).toBe('false');
-    expect(tile('scatter').getAttribute('aria-checked')).toBe('true');
-    expect(document.activeElement).toBe(tile('scatter'));
+    expect(tile('funnel').getAttribute('aria-checked')).toBe('false');
+    expect(tile('metric').getAttribute('aria-checked')).toBe('false');
+    expect(tile('bar').getAttribute('aria-checked')).toBe('true');
+    expect(document.activeElement).toBe(tile('bar'));
 
     // Backwards the same way, and Space chooses where the keys stopped.
+    fireEvent.keyDown(tile('bar'), { key: 'ArrowLeft' });
+    expect(tile('table').getAttribute('aria-checked')).toBe('true');
+    fireEvent.keyDown(tile('table'), { key: 'ArrowLeft' });
     fireEvent.keyDown(tile('scatter'), { key: 'ArrowLeft' });
-    expect(tile('pie').getAttribute('aria-checked')).toBe('true');
-    fireEvent.keyDown(tile('pie'), { key: ' ' });
-    expect(tile('pie').getAttribute('aria-checked')).toBe('true');
-    await screen.findByRole('img', { name: /^pie:/ });
+    expect(tile('treemap').getAttribute('aria-checked')).toBe('true');
+    fireEvent.keyDown(tile('treemap'), { key: ' ' });
+    expect(tile('treemap').getAttribute('aria-checked')).toBe('true');
+    await screen.findByRole('img', { name: /^treemap:/ });
   });
 
   /**

@@ -9,17 +9,21 @@
 - `src/generated/` 下的生成代码：用 `tsc` 检查，并由 `generatedCartCommandClient.test.ts` 调用。
 - `test/wow/wowOpenApi.test.ts`：`wow-client` 发给服务端的每个枚举值都要出现在服务端的
   OpenAPI 文档里。
+- `@ahoo-wang/wow-react` 的 hook（`test/wow/react/`，在 jsdom 下运行）：按快照 URL
+  查询的 hook、列表流 hook 的事件流及其 `WowError`，以及把生成的查询客户端作为
+  `execute` 的 hook。
 
 ## 前置条件
 
-8080 端口上有一个连着 MongoDB 的 Wow 示例服务端。可以从本仓构建：
+8080 端口上有一个连着 MongoDB 的 Wow 示例服务端。换地址时由 `WOW_EXAMPLE_SERVER_URL`
+指定（例如 `WOW_EXAMPLE_SERVER_URL=http://localhost:18080/`）。可以从本仓构建服务端：
 
 ```bash
 ./gradlew :example-server:installDist
 ```
 
 也可以运行已发布的镜像 `ghcr.io/ahoo-wang/wow-example-server:<version>`。用
-`SPRING_MONGODB_URI` 指向 MongoDB，并设置
+`SPRING_MONGODB_URI` 指向 MongoDB，用 `SERVER_PORT` 指定端口，并设置
 `WOW_EVENTSOURCING_STORE_STORAGE=mongo`、`WOW_EVENTSOURCING_SNAPSHOT_STORAGE=mongo`。
 
 ## 生成与测试

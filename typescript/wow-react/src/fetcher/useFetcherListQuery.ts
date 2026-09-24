@@ -50,78 +50,50 @@ export interface UseFetcherListQueryReturn<
 > extends UseQueryReturn<Q, R[], E> {}
 
 /**
- * A React hook for executing list queries using the fetcher library within the wow framework.
+ * POSTs a list query to a Wow endpoint through a Fetcher and keeps the rows
+ * as state.
  *
- * This hook is designed for fetching lists of items with support for filtering, sorting, and pagination
- * through the ListQuery type. It returns an array of results and integrates seamlessly with the fetcher
- * library for HTTP requests.
+ * `url` is resolved against the Fetcher's `baseURL`; `fetcher` is a Fetcher
+ * or the name of a registered one, the default Fetcher when omitted. The
+ * query runs on mount and whenever `query` or `setQuery()` changes it; set
+ * `autoExecute: false` to run it only through `execute()`. A newer query
+ * aborts the request in flight, so a late response never overwrites a newer
+ * one; an unmount aborts it too.
  *
- * @template R - The type of individual items in the result array (e.g., User, Product).
- * @template FIELDS - The fields available for filtering, sorting, and pagination (e.g., 'name', 'createdAt').
- * @template E - The error type, defaults to FetcherError.
- * @param options - Configuration options including URL, initial list query parameters, and execution settings.
- * @returns An object containing loading state, result array, error state, and query management functions.
+ * Returns `result` (the rows, or `undefined` before the first success),
+ * `loading`, `error`, `status`, `execute`, `abort`, `reset`, `getQuery` and
+ * `setQuery`. A failed request sets `error` to a `FetcherError`;
+ * `toWowError(error)` from `@ahoo-wang/wow-client` reads the server's
+ * `errorCode` from it.
+ *
+ * @template R - One row of the list
+ * @template FIELDS - The field names the query may use
+ * @template E - The error type, `FetcherError` by default
  *
  * @example
- * ```typescript
+ * ```tsx
+ * import { desc, filter, listQuery } from '@ahoo-wang/wow-client';
  * import { useFetcherListQuery } from '@ahoo-wang/wow-react';
- * import { listQuery, filter, desc } from '@ahoo-wang/wow-client';
  *
- * interface User {
- *   id: string;
- *   name: string;
- *   email: string;
- *   createdAt: string;
- * }
- *
- * function UserListComponent() {
- *   const {
- *     loading,
- *     result: users,
- *     error,
- *     execute,
- *     setQuery,
- *     getQuery,
- *   } = useFetcherListQuery<User, keyof User>({
- *     url: '/api/users/list',
+ * function LatestOrders() {
+ *   const { result, loading, error, execute } = useFetcherListQuery<OrderState>({
+ *     url: 'order/snapshot/list/state',
  *     initialQuery: listQuery({
- *       filter: filter.contains('name', 'John'),
- *       sort: [desc('createdAt')],
- *       limit: 10,
+ *       filter: filter.eq('state.status', 'PAID'),
+ *       sort: [desc('createTime')],
+ *       limit: 20,
  *     }),
- *     autoExecute: true,
  *   });
- *
- *   const loadMore = () => {
- *     const currentQuery = getQuery();
- *     setQuery({
- *       ...currentQuery,
- *       limit: (currentQuery.limit || 10) + 10,
- *     });
- *   };
- *
- *   if (loading) return <div>Loading users...</div>;
- *   if (error) return <div>Error: {error.message}</div>;
- *
+ *   if (error) return <p role="alert">{error.message}</p>;
+ *   if (loading || !result) return <p>Loading…</p>;
  *   return (
- *     <div>
- *       <h2>Users ({users?.length || 0})</h2>
- *       <ul>
- *         {users?.map(user => (
- *           <li key={user.id}>
- *             {user.name} - {user.email}
- *           </li>
- *         ))}
- *       </ul>
- *       <button onClick={loadMore}>Load More</button>
- *       <button onClick={execute}>Refresh list</button>
- *     </div>
+ *     <>
+ *       <ul>{result.map(order => <li key={order.id}>{order.id}</li>)}</ul>
+ *       <button onClick={execute}>Refresh</button>
+ *     </>
  *   );
  * }
  * ```
- *
- * @throws {FetcherError} When the HTTP request fails due to network issues, invalid responses, or server errors.
- * @throws {Error} When invalid options are provided, such as malformed URLs or unsupported query parameters.
  */
 export function useFetcherListQuery<
   R,

@@ -7,5 +7,7 @@
     "rootDir": "..",
     "types": ["vitest/globals", "react", "react-dom"]
   },
-  "include": ["../src/**/*", "./filterQueryTypes.test.ts"]
+  "include": ["../src/**/*", "./**/*.ts", "./**/*.tsx"],
+  // Node-only helpers of the surface suite; vitest runs them.
+  "exclude": ["./fixtures/exports.ts", "./publicSurface.test.ts"]
 }
