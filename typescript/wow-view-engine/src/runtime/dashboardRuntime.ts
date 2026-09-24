@@ -95,6 +95,7 @@ export type {
 } from './dashboard/contract.js';
 export type {
   CrossFilterOutcome,
+  DestinationBoard,
   PressDestination,
 } from './dashboard/press.js';
 import type {

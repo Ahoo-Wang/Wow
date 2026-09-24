@@ -326,7 +326,7 @@ function validateViewPanel(
 ): Issue[] {
   const { view, issues } = panelView(panel, path, refs, lookup);
   issues.push(...validatePresentation(panel, path));
-  issues.push(...validatePanelClick(panel, path, config, view));
+  issues.push(...validatePanelClick(panel, path, config, view, refs));
   if (!view) return issues;
 
   const { definition, fields } = view;

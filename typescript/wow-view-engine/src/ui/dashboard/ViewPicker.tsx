@@ -65,7 +65,9 @@ export type PickerIntent =
   | { mode: 'add' }
   | { mode: 'replace'; panelId: string; title: string }
   /** Where a press on a panel goes (D22 I, 「去另一个视图」). */
-  | { mode: 'destination'; title: string };
+  | { mode: 'destination'; title: string }
+  /** The board a press on a panel opens (D23 Q17, 「另一块仪表盘」). */
+  | { mode: 'board'; title: string };
 
 export interface ViewPickerProps {
   engine: ViewEngine;
@@ -105,6 +107,7 @@ export function ViewPicker({
   onPick,
 }: ViewPickerProps) {
   const messages = useViewMessages();
+  const boards = intent?.mode === 'board';
   return (
     <Dialog open={open} onOpenChange={next => !next && onClose()}>
       <DialogContent
@@ -122,10 +125,18 @@ export function ViewPicker({
                 ? messages.label('label.click.view-heading', {
                     panel: intent.title,
                   })
-                : messages.label('label.picker.add-heading')}
+                : intent?.mode === 'board'
+                  ? messages.label('label.click.board-heading', {
+                      panel: intent.title,
+                    })
+                  : messages.label('label.picker.add-heading')}
           </DialogTitle>
           <DialogDescription>
-            {messages.label('label.picker.description')}
+            {messages.label(
+              boards
+                ? 'label.click.board-description'
+                : 'label.picker.description',
+            )}
           </DialogDescription>
         </DialogHeader>
         {/* Read afresh at every opening: a view saved a moment ago in
@@ -133,6 +144,7 @@ export function ViewPicker({
         {open && (
           <Catalogue
             engine={engine}
+            boards={boards}
             onBoard={onBoard}
             shared={shared}
             onPick={view => {
@@ -156,14 +168,17 @@ function groupOf(view: ViewInstanceSummary): Group {
 
 type KindFilter = 'all' | 'record' | 'analysis';
 
-/** Every data definition's record and analysis views, as the engine lists them. */
+/**
+ * Every data definition's record and analysis views, as the engine lists
+ * them — or, for `boards`, every dashboard definition's boards.
+ */
 export interface Listing {
   views: ViewInstanceSummary[];
   failed: Issue[];
   loading: boolean;
 }
 
-export function useCatalogue(engine: ViewEngine): Listing {
+export function useCatalogue(engine: ViewEngine, boards = false): Listing {
   const [listing, setListing] = useState<Listing>({
     views: [],
     failed: [],
@@ -171,15 +186,15 @@ export function useCatalogue(engine: ViewEngine): Listing {
   });
   useEffect(() => {
     let live = true;
-    const data = [...engine.definitions.values()].filter(
-      definition => definition.kind === 'data',
+    const data = [...engine.definitions.values()].filter(definition =>
+      boards ? definition.kind === 'dashboard' : definition.kind === 'data',
     );
     void Promise.all(data.map(definition => engine.list(definition.id))).then(
       listings => {
         if (!live) return;
         setListing({
           views: listings.flatMap(({ items }) =>
-            items.filter(item => item.kind !== 'dashboard'),
+            items.filter(item => (item.kind === 'dashboard') === boards),
           ),
           failed: listings.flatMap(({ failed }) => failed ?? []),
           loading: false,
@@ -189,26 +204,28 @@ export function useCatalogue(engine: ViewEngine): Listing {
     return () => {
       live = false;
     };
-  }, [engine]);
+  }, [engine, boards]);
   return listing;
 }
 
 function Catalogue({
   engine,
+  boards,
   onBoard,
   shared,
   onPick,
-}: Pick<ViewPickerProps, 'engine' | 'onBoard' | 'shared' | 'onPick'>) {
+}: Pick<ViewPickerProps, 'engine' | 'onBoard' | 'shared' | 'onPick'> & {
+  /** Boards rather than data views: one kind, so no kind to narrow by. */
+  boards: boolean;
+}) {
   const messages = useViewMessages();
   const ids = useId();
-  const { views, failed, loading } = useCatalogue(engine);
+  const { views, failed, loading } = useCatalogue(engine, boards);
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState<KindFilter>('all');
   const [data, setData] = useState('');
-  const definitions = [...engine.definitions.values()].filter(
-    definition =>
-      definition.kind === 'data' &&
-      views.some(view => view.definitionId === definition.id),
+  const definitions = [...engine.definitions.values()].filter(definition =>
+    views.some(view => view.definitionId === definition.id),
   );
   const titleOf = (id: string) => engine.definitions.get(id)?.title ?? id;
   const wanted = query.trim().toLocaleLowerCase();
@@ -243,32 +260,34 @@ function Catalogue({
           />
         </InputGroup>
         <div className="flex flex-wrap items-end gap-3">
-          <Field className="w-auto">
-            <FieldLabel id={`${ids}-kind`}>
-              {messages.label('label.picker.kind')}
-            </FieldLabel>
-            <ToggleGroup
-              value={[kind]}
-              onValueChange={value => {
-                const next = KINDS.find(choice => choice === value[0]);
-                if (next) setKind(next);
-              }}
-              variant="outline"
-              size="sm"
-              spacing={0}
-              aria-labelledby={`${ids}-kind`}
-            >
-              {KINDS.map(choice => (
-                <ToggleGroupItem
-                  key={choice}
-                  value={choice}
-                  data-slot={`picker-kind-${choice}`}
-                >
-                  {messages.label(`label.picker.kind.${choice}`)}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          </Field>
+          {!boards && (
+            <Field className="w-auto">
+              <FieldLabel id={`${ids}-kind`}>
+                {messages.label('label.picker.kind')}
+              </FieldLabel>
+              <ToggleGroup
+                value={[kind]}
+                onValueChange={value => {
+                  const next = KINDS.find(choice => choice === value[0]);
+                  if (next) setKind(next);
+                }}
+                variant="outline"
+                size="sm"
+                spacing={0}
+                aria-labelledby={`${ids}-kind`}
+              >
+                {KINDS.map(choice => (
+                  <ToggleGroupItem
+                    key={choice}
+                    value={choice}
+                    data-slot={`picker-kind-${choice}`}
+                  >
+                    {messages.label(`label.picker.kind.${choice}`)}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            </Field>
+          )}
           {definitions.length > 1 && (
             <Field className="w-auto min-w-40">
               <FieldLabel id={`${ids}-data`}>
@@ -312,7 +331,11 @@ function Catalogue({
         {loading ? (
           <div
             role="status"
-            aria-label={messages.label('label.picker.loading')}
+            aria-label={messages.label(
+              boards
+                ? 'label.click.board-list-loading'
+                : 'label.picker.loading',
+            )}
             className="flex flex-col gap-2"
           >
             <Skeleton className="h-10 w-full" />
@@ -322,7 +345,13 @@ function Catalogue({
         ) : shown.length === 0 ? (
           <p role="status" className={cn('text-muted-foreground', TEXT_UI)}>
             {messages.label(
-              views.length === 0 ? 'label.picker.empty' : 'label.picker.none',
+              views.length === 0
+                ? boards
+                  ? 'label.click.board-list-empty'
+                  : 'label.picker.empty'
+                : boards
+                  ? 'label.click.board-list-none'
+                  : 'label.picker.none',
             )}
           </p>
         ) : (

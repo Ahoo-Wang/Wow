@@ -31,10 +31,12 @@ import {
   type DashboardFilterType,
   type DashboardViewConfig,
   type DashboardViewPanel,
+  type FieldDefinition,
   type Issue,
   type IssuePath,
   type PanelClick,
   type ViewConfig,
+  sameFilterType,
 } from '../model/index.js';
 import { isPlainObject, issue } from '../filter/index.js';
 import { filtersOf } from './filters.js';
@@ -44,6 +46,7 @@ import {
   isSafeContentUrl,
   isViewPanel,
 } from './panels.js';
+import type { PanelReferences } from './validate.js';
 
 /** `{{ name }}`, spaces inside the braces allowed; the name has none. */
 const PLACEHOLDER = /\{\{\s*([^{}\s]+)\s*\}\}/g;
@@ -158,7 +161,8 @@ export function validatePanelClick(
   panel: DashboardViewPanel,
   path: IssuePath,
   config: DashboardViewConfig,
-  view: { config: ViewConfig } | null,
+  view: { config: ViewConfig; fields?: readonly FieldDefinition[] } | null,
+  refs: PanelReferences = new Map(),
 ): Issue[] {
   const stored: unknown = panel.click;
   if (stored === undefined) return [];
@@ -218,7 +222,104 @@ export function validatePanelClick(
     }
     case 'view':
       return [];
+    case 'dashboard':
+      return validateBoardClick(click, at, read?.groups ?? null, {
+        fields: view?.fields ?? null,
+        target: refs.get(click.instanceId),
+      });
   }
+}
+
+/** A click that opens another board (D23 Q17). */
+export type BoardClick = Extract<PanelClick, { kind: 'dashboard' }>;
+
+/**
+ * What a click that opens another board says (D23 Q17), each finding a
+ * warning: a mapped dimension this panel no longer groups by, and — once
+ * the target board has been read — a target gone, not a board, or a mapped
+ * filter it no longer has or that cannot take that dimension's value.
+ *
+ * `target` is the board as the references hold it: `undefined` while
+ * unread, since it is read only when 「点击时…」 opens on it or a reader
+ * presses — never when this board opens — and `null` once found gone.
+ * `groups` and `fields` are the panel's once its view is known.
+ */
+export function validateBoardClick(
+  click: BoardClick,
+  at: IssuePath,
+  groups: readonly PressableGroup[] | null,
+  {
+    fields,
+    target,
+  }: {
+    fields: readonly FieldDefinition[] | null;
+    target: { instance: { config: ViewConfig } } | null | undefined;
+  },
+): Issue[] {
+  const warn = (code: string, params: Record<string, string> = {}) =>
+    issue(code, at, params, 'warning');
+  const issues: Issue[] = [];
+  const mapped = Object.entries(click.values);
+  if (groups) {
+    const grouped = new Set(groups.map(group => group.field));
+    for (const [, field] of mapped)
+      if (!grouped.has(field))
+        issues.push(warn('dashboard.click.board-dimension-unknown', { field }));
+  }
+  if (target === undefined) return issues;
+  if (target === null) return [...issues, warn('dashboard.click.board-gone')];
+  const board = target.instance.config;
+  if (board.kind !== 'dashboard')
+    return [...issues, warn('dashboard.click.board-not-a-board')];
+  const byName = new Map(filtersOf(board).map(field => [field.name, field]));
+  for (const [name, field] of mapped) {
+    const filter = byName.get(name);
+    if (!filter) {
+      issues.push(
+        warn('dashboard.click.board-filter-unknown', { filter: name }),
+      );
+      continue;
+    }
+    const known = groups?.some(group => group.field === field) ?? false;
+    if (
+      known &&
+      boardValueChoices(filter, groups ?? [], fields).every(
+        group => group.field !== field,
+      )
+    )
+      issues.push(
+        warn('dashboard.click.board-filter-mismatch', {
+          filter: filter.label,
+          field,
+        }),
+      );
+  }
+  return issues;
+}
+
+/**
+ * The dimensions of a panel another board's filter can take its value from
+ * (「这一组的〈维度〉」, D23 Q17): each one bucketed in a way the filter takes
+ * (`takesGroup`) over a field of the filter's type (`sameFilterType`), once
+ * per field. Without the panel's fields — its view not known yet — the
+ * bucketing alone is asked. Never matched by name: this is the list the
+ * author picks from, not a guess.
+ */
+export function boardValueChoices(
+  filter: DashboardField,
+  groups: readonly PressableGroup[],
+  fields: readonly FieldDefinition[] | null,
+): PressableGroup[] {
+  const type = filterTypeOf(filter.kind);
+  const seen = new Set<string>();
+  return groups.filter(group => {
+    if (seen.has(group.field) || !takesGroup(type, group.type)) return false;
+    const field = fields?.find(entry => entry.name === group.field);
+    if (fields && !(field && sameFilterType(filter.kind, field.kind)))
+      return false;
+    seen.add(group.field);
+    return true;
+  });
 }
 
 /**

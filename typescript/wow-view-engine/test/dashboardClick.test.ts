@@ -31,13 +31,17 @@ import {
   takesGroup,
   unbindPanels,
   urlPlaceholders,
+  boardValueChoices,
+  validateBoardClick,
   validatePanelClick,
+  type PanelReference,
 } from '../src/dashboard/index.js';
 import {
   builtinFieldKinds,
   type DashboardField,
   type DashboardViewConfig,
   type DashboardViewPanel,
+  type FieldDefinition,
   type PanelClick,
 } from '../src/index.js';
 import { analysisConfig, dashboardConfig, recordConfig } from './fixtures.js';
@@ -74,7 +78,7 @@ function board(...panels: DashboardViewPanel[]): DashboardViewConfig {
 const byWarehouse = { config: analysisConfig() };
 
 describe('a panel’s click, read (D22 I)', () => {
-  it('reads the three kinds and nothing else', () => {
+  it('reads the four kinds and nothing else', () => {
     expect(clickOf(panel({ kind: 'filter', filter: 'region' }))).toEqual({
       kind: 'filter',
       filter: 'region',
@@ -87,6 +91,19 @@ describe('a panel’s click, read (D22 I)', () => {
       kind: 'url',
       url: '/o/{{warehouse}}',
     });
+    expect(
+      clickOf(
+        panel({
+          kind: 'dashboard',
+          instanceId: 'regional',
+          values: { area: 'warehouse' },
+        }),
+      ),
+    ).toEqual({
+      kind: 'dashboard',
+      instanceId: 'regional',
+      values: { area: 'warehouse' },
+    });
     for (const odd of [
       undefined,
       'filter',
@@ -94,6 +111,9 @@ describe('a panel’s click, read (D22 I)', () => {
       { kind: 'view', instanceId: '' },
       { kind: 'url', url: 3 },
       { kind: 'dashboard', instanceId: 'x' },
+      { kind: 'dashboard', instanceId: '', values: {} },
+      { kind: 'dashboard', instanceId: 'x', values: { area: 3 } },
+      { kind: 'boards', instanceId: 'x', values: {} },
     ])
       expect(clickOf(panel(odd))).toBeNull();
     expect(clickOf({ kind: 'heading', content: 'x' })).toBeNull();
@@ -279,5 +299,126 @@ describe('where a pressed value came from (DashboardFilters.from)', () => {
         builtinFieldKinds,
       ).filters,
     ).toEqual({ values: {} });
+  });
+});
+
+describe('a click that opens another board (D23 Q17)', () => {
+  /** The board a press opens: an area and a period, and a text one. */
+  const regional = (fields: DashboardField[]): PanelReference => ({
+    definition: { id: 'overview', title: 'Overview', kind: 'dashboard' },
+    fields: [],
+    instance: {
+      id: 'regional',
+      definitionId: 'overview',
+      title: 'Regional',
+      scope: 'shared',
+      revision: '1',
+      config: dashboardConfig({ fields }),
+    },
+  });
+  const area: DashboardField = { name: 'area', label: 'Area', kind: 'string' };
+  const period: DashboardField = {
+    name: 'period',
+    label: 'Period',
+    kind: 'datetime',
+  };
+  const groups = [
+    { field: 'warehouse', type: 'TERMS' as const },
+    { field: 'createdAt', type: 'DATE_HISTOGRAM' as const },
+  ];
+  const fields: FieldDefinition[] = [
+    { name: 'warehouse', label: 'Warehouse', kind: 'string' },
+    { name: 'createdAt', label: 'Created', kind: 'datetime' },
+  ];
+  const click = (values: Record<string, string>) => ({
+    kind: 'dashboard' as const,
+    instanceId: 'regional',
+    values,
+  });
+  const judged = (
+    values: Record<string, string>,
+    target: PanelReference | null | undefined,
+    known: typeof groups | null = groups,
+  ) =>
+    validateBoardClick(click(values), ['panels', 0, 'click'], known, {
+      fields,
+      target,
+    }).map(found => `${found.code}:${found.severity}`);
+
+  it('offers each filter the dimensions whose field and bucketing it takes, never by name', () => {
+    expect(boardValueChoices(area, groups, fields)).toEqual([groups[0]]);
+    expect(boardValueChoices(period, groups, fields)).toEqual([groups[1]]);
+    // A number filter takes neither a text value nor a date bucket.
+    expect(
+      boardValueChoices(
+        { name: 'n', label: 'N', kind: 'number' },
+        groups,
+        fields,
+      ),
+    ).toEqual([]);
+    // Without the panel's fields, the bucketing alone is asked.
+    expect(boardValueChoices(area, groups, null)).toEqual([groups[0]]);
+    // A text dimension over a field of another type is no choice.
+    expect(
+      boardValueChoices(
+        area,
+        [{ field: 'amount', type: 'TERMS' }],
+        [{ name: 'amount', label: 'Amount', kind: 'number' }],
+      ),
+    ).toEqual([]);
+  });
+
+  it('says nothing of a mapping that holds, and judges only the panel before the board is read', () => {
+    const target = regional([area, period]);
+    expect(judged({ area: 'warehouse', period: 'createdAt' }, target)).toEqual(
+      [],
+    );
+    expect(judged({}, target)).toEqual([]);
+    expect(judged({ area: 'warehouse' }, undefined)).toEqual([]);
+    expect(judged({ area: 'status' }, undefined)).toEqual([
+      'dashboard.click.board-dimension-unknown:warning',
+    ]);
+  });
+
+  it('warns of a filter the board no longer has, a dimension that cannot fill it, or a board gone', () => {
+    expect(judged({ gone: 'warehouse' }, regional([area]))).toEqual([
+      'dashboard.click.board-filter-unknown:warning',
+    ]);
+    expect(judged({ period: 'warehouse' }, regional([period]))).toEqual([
+      'dashboard.click.board-filter-mismatch:warning',
+    ]);
+    expect(judged({ area: 'warehouse' }, null)).toEqual([
+      'dashboard.click.board-gone:warning',
+    ]);
+    const list = regional([area]);
+    expect(
+      judged(
+        { area: 'warehouse' },
+        { ...list, instance: { ...list.instance, config: recordConfig() } },
+      ),
+    ).toEqual(['dashboard.click.board-not-a-board:warning']);
+  });
+
+  it('is judged in admission against the board once the references hold it', () => {
+    const target = panel(click({ area: 'status' }));
+    const refs = new Map([['regional', regional([])]]);
+    expect(
+      validatePanelClick(
+        target,
+        ['panels', 0],
+        board(target),
+        byWarehouse,
+        refs,
+      ).map(found => found.code),
+    ).toEqual([
+      'dashboard.click.board-dimension-unknown',
+      'dashboard.click.board-filter-unknown',
+    ]);
+    // Unread, only the panel's side is judged.
+    expect(
+      validatePanelClick(target, ['panels', 0], board(target), byWarehouse).map(
+        found => found.code,
+      ),
+    ).toEqual(['dashboard.click.board-dimension-unknown']);
   });
 });

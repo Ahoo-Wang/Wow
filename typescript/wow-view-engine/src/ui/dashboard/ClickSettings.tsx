@@ -51,6 +51,11 @@ import { ToggleGroup, ToggleGroupItem } from '../components/toggle-group.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { DialogContent } from '../popups.js';
 import type { FinalFocus } from './commands.js';
+import {
+  BoardDestination,
+  mappedValues,
+  useDestinationBoard,
+} from './BoardDestination.js';
 import { useCatalogue, ViewPicker } from './ViewPicker.js';
 
 export interface ClickSettingsProps {
@@ -73,9 +78,10 @@ export interface ClickSettingsProps {
  * 「点击时…」 (D22 I): what pressing one group of an analysis panel does —
  * the follow-up menu (the default, D22 H), setting a board filter the panel
  * is wired to through a field it groups by (cross-filtering), or going to
- * another saved view or a page of the host's, the group carried along.
- * One choice among three, so a `RadioGroup`; what each choice needs sits
- * under it. 「完成」 writes it into the draft (`setPanelClick`), as every
+ * another saved view, another board (its filters mapped one by one, D23
+ * Q17: `BoardDestination`) or a page of the host's, the group carried
+ * along. One choice among three, so a `RadioGroup`; what each choice needs
+ * sits under it. 「完成」 writes it into the draft (`setPanelClick`), as every
  * edit of a board is; the board's own 「完成」 saves it.
  */
 export function ClickSettings({
@@ -112,7 +118,8 @@ export function ClickSettings({
 }
 
 type Choice = 'menu' | 'filter' | 'go';
-type GoKind = 'view' | 'url';
+type GoKind = 'view' | 'dashboard' | 'url';
+const GO_KINDS: readonly GoKind[] = ['view', 'dashboard', 'url'];
 
 function ClickForm({
   engine,
@@ -151,13 +158,31 @@ function ClickForm({
       : (choices[0]?.filter.name ?? ''),
   );
   const [goKind, setGoKind] = useState<GoKind>(
-    stored?.kind === 'url' ? 'url' : 'view',
+    stored?.kind === 'url' || stored?.kind === 'dashboard'
+      ? stored.kind
+      : 'view',
   );
   const [view, setView] = useState(
     stored?.kind === 'view' ? stored.instanceId : '',
   );
   const [url, setUrl] = useState(stored?.kind === 'url' ? stored.url : '');
+  // The board a press opens and what each of its filters takes (D23 Q17).
+  const [board, setBoard] = useState(
+    stored?.kind === 'dashboard' ? stored.instanceId : '',
+  );
+  const [values, setValues] = useState<Record<string, string>>(
+    stored?.kind === 'dashboard' ? stored.values : {},
+  );
+  const read = useDestinationBoard(dashboard, board);
+  // Which picker is open; what it was for is kept while it closes.
   const [picking, setPicking] = useState(false);
+  const [pickFor, setPickFor] = useState<'destination' | 'board'>(
+    'destination',
+  );
+  const pick = (what: 'destination' | 'board') => {
+    setPickFor(what);
+    setPicking(true);
+  };
   const [tried, setTried] = useState(false);
   const { views } = useCatalogue(engine);
   const viewTitle = views.find(entry => entry.id === view)?.title;
@@ -173,6 +198,19 @@ function ClickForm({
       return filter ? { kind: 'filter', filter } : undefined;
     if (goKind === 'view')
       return view ? { kind: 'view', instanceId: view } : undefined;
+    if (goKind === 'dashboard')
+      return read.status === 'ready'
+        ? {
+            kind: 'dashboard',
+            instanceId: board,
+            values: mappedValues(
+              read.board,
+              values,
+              groups,
+              panel.runtime?.fields ?? null,
+            ).kept,
+          }
+        : undefined;
     return urlValid ? { kind: 'url', url: url.trim() } : undefined;
   };
   const submit = (event: FormEvent) => {
@@ -187,6 +225,8 @@ function ClickForm({
   };
   const viewMissing = tried && choice === 'go' && goKind === 'view' && !view;
   const urlInvalid = tried && choice === 'go' && goKind === 'url' && !urlValid;
+  const boardMissing =
+    tried && choice === 'go' && goKind === 'dashboard' && !board;
 
   return (
     <>
@@ -261,8 +301,8 @@ function ClickForm({
                 aria-labelledby={`${ids}-go-kind`}
                 value={[goKind]}
                 onValueChange={next => {
-                  const [picked] = next;
-                  if (picked === 'view' || picked === 'url') setGoKind(picked);
+                  const picked = GO_KINDS.find(kind => kind === next[0]);
+                  if (picked) setGoKind(picked);
                 }}
                 variant="outline"
                 size="sm"
@@ -270,12 +310,26 @@ function ClickForm({
                 <ToggleGroupItem value="view">
                   {messages.label('label.click.go-view')}
                 </ToggleGroupItem>
+                <ToggleGroupItem value="dashboard">
+                  {messages.label('label.click.go-board')}
+                </ToggleGroupItem>
                 <ToggleGroupItem value="url">
                   {messages.label('label.click.go-url')}
                 </ToggleGroupItem>
               </ToggleGroup>
             </Field>
-            {goKind === 'view' ? (
+            {goKind === 'dashboard' ? (
+              <BoardDestination
+                panel={panel}
+                groups={groups}
+                read={read}
+                values={values}
+                onValues={setValues}
+                missing={boardMissing}
+                onPick={() => pick('board')}
+                ids={ids}
+              />
+            ) : goKind === 'view' ? (
               <Field data-invalid={viewMissing || undefined}>
                 {view && (
                   <span data-slot="click-view" className="text-sm">
@@ -288,7 +342,7 @@ function ClickForm({
                   size="sm"
                   className="self-start"
                   aria-invalid={viewMissing || undefined}
-                  onClick={() => setPicking(true)}
+                  onClick={() => pick('destination')}
                 >
                   {messages.label(
                     view ? 'label.click.view-change' : 'label.click.view-pick',
@@ -341,13 +395,19 @@ function ClickForm({
           destination, and the keyboard comes back to the button. */}
       <ViewPicker
         engine={engine}
-        intent={{ mode: 'destination', title: name }}
+        intent={{ mode: pickFor, title: name }}
         open={picking}
         onClose={() => setPicking(false)}
         finalFocus={() => true}
         onBoard={NO_VIEWS}
         shared={false}
-        onPick={picked => setView(picked.id)}
+        onPick={picked => {
+          if (pickFor === 'board') {
+            // Another board, other filters: nothing carries over by name.
+            if (picked.id !== board) setValues({});
+            setBoard(picked.id);
+          } else setView(picked.id);
+        }}
       />
     </>
   );

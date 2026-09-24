@@ -111,6 +111,43 @@ const views: ViewInstance[] = [
     revision: 'r1',
     config: recordConfig(),
   },
+  // The board a press opens (D23 Q17): an area, a period, and a stage
+  // that starts at its default.
+  {
+    id: 'regional',
+    definitionId: 'overview',
+    title: 'Regional',
+    scope: 'shared',
+    revision: 'r1',
+    config: dashboardConfig({
+      fields: [
+        { name: 'area', label: 'Area', kind: 'string' },
+        { name: 'period', label: 'Period', kind: 'datetime' },
+        { name: 'stage', label: 'Stage', kind: 'string', default: ['OPEN'] },
+      ],
+      panels: [],
+    }),
+  },
+  // The same board saved before batch C: its stage is a board condition,
+  // which reading it makes the filter's default (D23 Q16).
+  {
+    id: 'regional-old',
+    definitionId: 'overview',
+    title: 'Regional (old)',
+    scope: 'shared',
+    revision: 'r1',
+    config: dashboardConfig({
+      fields: [
+        { name: 'area', label: 'Area', kind: 'string' },
+        { name: 'stage', label: 'Stage', kind: 'string' },
+      ],
+      filter: {
+        op: 'and',
+        children: [{ field: 'stage', operator: 'IN', value: ['OPEN'] }],
+      },
+      panels: [],
+    }),
+  },
 ];
 
 function view(
@@ -189,6 +226,7 @@ async function harness(config: DashboardViewConfig = board()) {
   return {
     runtime,
     clock,
+    store,
     boardId: saved.id,
     panel,
     scope: (id: string) =>
@@ -348,5 +386,143 @@ describe('a custom destination (D22 I)', () => {
       'dashboard.click.destination-unsupported',
     );
     expect(await runtime.destination('nope', { warehouse: 'CN' })).toBeNull();
+  });
+});
+
+describe('a press that opens another board (D23 Q17)', () => {
+  const toRegional = (
+    values: Record<string, string>,
+  ): Partial<DashboardPanel> => ({
+    click: { kind: 'dashboard', instanceId: 'regional', values },
+  });
+
+  it('opens it with each mapped filter set from the group, the rest at their defaults', async () => {
+    const { runtime } = await harness(
+      board(
+        view('chart', 'by-warehouse', toRegional({ area: 'warehouse' })),
+        view('trend', 'by-day', toRegional({ period: 'createdAt' }), 8),
+      ),
+    );
+    expect(await runtime.destination('chart', { warehouse: 'CN' })).toEqual({
+      to: {
+        kind: 'dashboard',
+        definitionId: 'overview',
+        instanceId: 'regional',
+        filters: { values: { stage: ['OPEN'], area: ['CN'] } },
+      },
+    });
+    const trend = await runtime.destination('trend', { createdAt: DAY });
+    expect(trend && 'to' in trend && trend.to).toMatchObject({
+      kind: 'dashboard',
+      filters: {
+        values: {
+          period: { type: 'absolute', from: new Date(DAY).toISOString() },
+        },
+      },
+    });
+    // The records without a value leave the filter at its default.
+    expect(await runtime.destination('chart', { warehouse: null })).toEqual({
+      to: expect.objectContaining({
+        filters: { values: { stage: ['OPEN'] } },
+      }),
+    });
+    // Nothing of it is written into this board.
+    expect(runtime.getSnapshot().dirty).toBe(false);
+  });
+
+  it('opens a board saved before batch C at the defaults its condition became', async () => {
+    const { runtime } = await harness(
+      board(
+        view('chart', 'by-warehouse', {
+          click: {
+            kind: 'dashboard',
+            instanceId: 'regional-old',
+            values: { area: 'warehouse' },
+          },
+        }),
+      ),
+    );
+    const went = await runtime.destination('chart', { warehouse: 'CN' });
+    expect(went && 'to' in went && went.to).toMatchObject({
+      kind: 'dashboard',
+      filters: { values: { area: ['CN'], stage: ['OPEN'] } },
+    });
+  });
+
+  it('reads the board only when pressed or asked for, never as this board opens', async () => {
+    const store = new MemoryViewStore({ instances: views });
+    const get = vi.spyOn(store, 'get');
+    const engine = new ViewEngine({
+      definitions: [orders(), overviewDefinition()],
+      store,
+      resolveSource: () => testSource(),
+    });
+    const saved = await store.create(
+      {
+        definitionId: 'overview',
+        title: 'Board',
+        scope: 'shared',
+        config: board(
+          view('chart', 'by-warehouse', toRegional({ area: 'warehouse' })),
+        ),
+      },
+      { requestId: 'board' },
+    );
+    const runtime = await engine.open(saved.id);
+    await flush();
+    if (!(runtime instanceof DashboardViewRuntime))
+      throw new Error('expected a dashboard');
+    expect(get.mock.calls.map(([id]) => id)).not.toContain('regional');
+
+    const read = await runtime.destinationBoard('regional');
+    expect(read?.title).toBe('Regional');
+    expect(read?.config.columns).toBe(24);
+    expect(get.mock.calls.filter(([id]) => id === 'regional')).toHaveLength(1);
+    // Neither a view nor a board that is gone is a board to open.
+    expect(await runtime.destinationBoard('list')).toBeNull();
+    expect(await runtime.destinationBoard('nope')).toBeNull();
+  });
+
+  it('falls back to the follow-up menu on a mapping gone stale, and warns from then on', async () => {
+    const { runtime, panel } = await harness(
+      board(view('chart', 'by-warehouse', toRegional({ zone: 'warehouse' }))),
+    );
+    expect(panel('chart').click).toMatchObject({ kind: 'dashboard' });
+    const fell = await runtime.destination('chart', { warehouse: 'CN' });
+    expect(fell && 'fallback' in fell && fell.fallback.code).toBe(
+      'dashboard.click.board-filter-unknown',
+    );
+    await flush();
+    expect(panel('chart').click).toBeNull();
+    expect(panel('chart').issues.map(found => found.code)).toContain(
+      'dashboard.click.board-filter-unknown',
+    );
+  });
+
+  it('falls back when the board is gone, or the dimension is', async () => {
+    const gone = await harness(
+      board(
+        view('chart', 'by-warehouse', {
+          click: {
+            kind: 'dashboard',
+            instanceId: 'nope',
+            values: { area: 'warehouse' },
+          },
+        }),
+      ),
+    );
+    const fell = await gone.runtime.destination('chart', { warehouse: 'CN' });
+    expect(fell && 'fallback' in fell && fell.fallback.code).toBe(
+      'dashboard.click.board-gone',
+    );
+
+    // A dimension the panel no longer groups by is known without the board.
+    const { panel } = await harness(
+      board(view('chart', 'by-warehouse', toRegional({ area: 'status' }))),
+    );
+    expect(panel('chart').click).toBeNull();
+    expect(panel('chart').issues.map(found => found.code)).toContain(
+      'dashboard.click.board-dimension-unknown',
+    );
   });
 });

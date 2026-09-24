@@ -82,6 +82,19 @@ export function clickOf(panel: unknown): PanelClick | null {
       return typeof click.url === 'string'
         ? { kind: 'url', url: click.url }
         : null;
+    case 'dashboard': {
+      const values: unknown = click.values;
+      return typeof click.instanceId === 'string' &&
+        click.instanceId.length > 0 &&
+        isPlainObject(values) &&
+        Object.values(values).every(field => typeof field === 'string')
+        ? {
+            kind: 'dashboard',
+            instanceId: click.instanceId,
+            values: { ...(values as Record<string, string>) },
+          }
+        : null;
+    }
     default:
       return null;
   }

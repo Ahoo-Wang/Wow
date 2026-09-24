@@ -184,7 +184,7 @@ src/
   dashboard/                  — Dashboard kernel — imports model and filter
     defaults.ts               — emptyDashboardConfig
     edit.ts                   — Building a board as pure edits (D22 A–E): `addPanel` (at `freeSpot`, sized by `defaultPanelSize`), remove, duplicate, rename, replace the view, `referToSaved`, `setPresentation`, `editContent`, `movePanelToTab`, `compactTab`
-    click.ts                  — What a press on a panel's group does (D22 H, I), as configs say it: `urlPlaceholders`, `fillUrl` (each `{{field}}` encoded, only a URL a board may open), `takesGroup` and `crossFilterChoices` (the filters a press can set: wired through a field the panel groups by), `pressableGroups`, `validatePanelClick` (warnings only — a click that cannot do what it says falls back to the follow-up menu), `setPanelClick`
+    click.ts                  — What a press on a panel's group does (D22 H, I), as configs say it: `urlPlaceholders`, `fillUrl` (each `{{field}}` encoded, only a URL a board may open), `takesGroup` and `crossFilterChoices` (the filters a press can set: wired through a field the panel groups by), `pressableGroups`, `validatePanelClick` (warnings only — a click that cannot do what it says falls back to the follow-up menu), `validateBoardClick` and `boardValueChoices` (another board's filters, each mapped by hand to a dimension that fits it, judged against the board once read — D23 Q17), `setPanelClick`
     filterEdit.ts             — Setting up the board's filters as pure edits (D22 G): add, rename, retype, remove, default, required, multiple, a list of its own, move; the time grouping
     filters.ts                — A filter's value (D22 F): the one condition it stands for (`filterOperatorOf`, `filterCondition`), what the filters start at (`defaultFilters`) and take (`admitFilters`: required never blank, the panel a value was pressed on kept while its click sets it), the condition one panel runs under (`panelFilterTree`, unwired filters left out), the control that edits it and its value's two shapes (`filterEditor`, `filterControlValue`, `filterStoredValue`)
     layout.ts                 — Where panels may go on the 24-column grid: `fitsGrid`, `placePanel` (covered panels make way, then the tab floats up — only a hand compacts), `compactLayout`, `arrangePanel` (one keyboard command on a compacted board), `freeSpot`, `readingOrder` and `stackedLayout` (the one-column reading a narrow screen shows)
@@ -242,7 +242,7 @@ src/
       editing.ts              — `DashboardEditing`, `DashboardFilterEditing` and `boardEditing`: building the board and its filters, each edit a kernel function applied to the draft and the screen alike; a data panel added comes wired (`autoBindings`)
       panels.ts               — Panel helpers: reading, addressing, comparing; `blocksBoard`, the errors that stop the whole board; `stopsSave`, what stops a save of each kind; `shownTab`, the tab on screen; `migrated`, a stored board read into the 24-column form
       presentation.ts         — `presentedConfig`: a panel's override of how it looks laid over its view's config, dropped with a note when it no longer fits
-      press.ts                — `PanelPresses`: a press on a panel's group worked out (D22 H, I) — the group's value in a board filter's shape set from the panel (`crossFilter`, a second press clears), whether a group is the one pressed (`pressed`), and where a custom destination goes carrying it (`destination`: a filled URL, or a saved view under the group's conditions on the fields its data has too)
+      press.ts                — `PanelPresses`: a press on a panel's group worked out (D22 H, I) — the group's value in a board filter's shape set from the panel (`crossFilter`, a second press clears), whether a group is the one pressed (`pressed`), and where a custom destination goes carrying it (`destination`: a filled URL, a saved view under the group's conditions on the fields its data has too, or another board with its mapped filters set and the rest at their defaults — a mapping gone stale falls back to the follow-up menu); `board`, another board read only when asked
       references.ts           — PanelReferences: loading what panels point at
   store/                      — Persistence port — imports model only
     MemoryViewStore.ts        — In-memory implementation for examples and tests
@@ -262,7 +262,7 @@ src/
     useAutoRefresh.ts         — `RefreshController`: refresh now, the cadence ladder cut to the limits, the countdown
     useBulkCommand.ts         — A host's command for one record run over a selection: a few at a time, progress, stop, each refusal's reason, the unfinished rows left selected
     useSearchBox.ts           — The view's search kept on hand: the definition's search field, the draft's and the applied text, set / submit / clear
-    useDashboard.ts           — Dashboard panels, geometry and state; the board's edit commands, its tabs, `preload` for a view about to be added, and a press on a panel's group (`crossFilter`, `pressed`, `destination`)
+    useDashboard.ts           — Dashboard panels, geometry and state; the board's edit commands, its tabs, `preload` for a view about to be added, and a press on a panel's group (`crossFilter`, `pressed`, `destination`, `destinationBoard`)
     usePanelFollowUps.ts      — The follow-up menu on a dashboard panel (D22 H): `useAnalysisResult`'s workbench half routed to the host (`DashboardNavigation` of kind `unsaved`, the board's filters folded into the view's own), and `ownedNavigation` for a board's own analysis
     useFilterEditor.ts        — Filter tree editor controller
     useRecordExport.ts        — The export run: scope, progress, the ceiling, delivery
@@ -422,7 +422,8 @@ src/
       reading.ts              — A chart as text: its name and the numbers it draws
     dashboard/                — What building a dashboard is made of (D22 A–E)
       BoardFilters.tsx        — `useBoardFilters`: the board's filters as it draws them — the bar, 「筛选 ＋」, each filter's settings, wiring and the toast that undoes auto-connect
-      ClickSettings.tsx       — 「点击时…」 (D22 I): the follow-up menu, a board filter a press sets, or another view or a page, one `RadioGroup`; a view picked with the `ViewPicker`, a URL checked at the field
+      ClickSettings.tsx       — 「点击时…」 (D22 I): the follow-up menu, a board filter a press sets, or another view, board or page, one `RadioGroup`; a view picked with the `ViewPicker`, a URL checked at the field
+      BoardDestination.tsx    — 「另一块仪表盘」 in 「点击时…」 (D23 Q17): the board picked and read (`useDestinationBoard`), its filters one row each — 「这一组的〈维度〉」 or 「不带」 — and what no longer holds said and dropped (`mappedValues`)
       AddMenu.tsx             — 「＋ 添加 ▾」: 数据 (a saved view, a new analysis where one can be made) and 内容 (heading, text, image, links); the same first steps on an empty board
       Board.tsx               — `DashboardBoard`: the grid with the edit bar over it, the picker and the content form, every edit one `DashboardEditing` command; where a new panel goes (the first row on screen of the tab on screen) and where the keyboard goes after
       building.tsx            — `useDashboardExtensions`: the default workbench's `DashboardEditExtensions` — a new owned analysis, a panel's own look and its reset, 另存为视图, the tab bar — and the three dialogs they open
@@ -439,7 +440,7 @@ src/
       PanelMenu.tsx           — 「⋯」 on a panel, the question before it is removed, and its title renamed in place
       PresentationDialog.tsx  — 「改这里的展示」: the chart picker and options writing one panel's look, beside the panel as it will look; Cancel puts back the look it opened with
       press.ts                — `PanelPress`: what the grid hands a panel for a press on its groups, `pressMode` (the menu and a destination only with a route), the board line the follow-up menu says, and what a cross-filter press says
-      ViewPicker.tsx          — Choosing a saved view: grouped as the switcher groups them, searched, narrowed by kind and data, 「已在板上」 and 「只有你看得到」 said on the row
+      ViewPicker.tsx          — Choosing a saved view: grouped as the switcher groups them, searched, narrowed by kind and data, 「已在板上」 and 「只有你看得到」 said on the row; or, for a click, another board
     columns/
       ColumnRow.tsx           — One row of the column settings: checkbox, two-state pin toggle, summary, handle
       drag.ts                 — What the settings make of a drag: `columnDrop` refuses one across the areas, plus what a reader hears

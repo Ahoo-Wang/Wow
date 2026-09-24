@@ -1435,7 +1435,7 @@ export const zhCN: ViewMessages = {
     '其余接线的面板按点中的值筛选；这个面板保留所有组，只标出点中的那一组。再点一次撤销。',
   'label.click.filter-none': '先把一个筛选接到这个面板按来分组的字段上。',
   'label.click.filter-pick': '筛选',
-  'label.click.go': '去另一个视图或页面',
+  'label.click.go': '去另一个视图、仪表盘或页面',
   'label.click.go-hint': '带上点中的值。',
   'label.click.go-kind': '去哪',
   'label.click.go-view': '视图',
@@ -1448,6 +1448,27 @@ export const zhCN: ViewMessages = {
   'label.click.url-hint': '在要放点中值的地方写上其中一个：{fields}',
   'label.click.url-hint-none': '这个面板没有可以带过去的维度。',
   'label.click.url-invalid': '只能是 http、https、mailto 或本应用内的地址。',
+  'label.click.go-board': '仪表盘',
+  'label.click.board-pick': '选择仪表盘…',
+  'label.click.board-change': '换一块…',
+  'label.click.board-missing': '选一块点击后打开的仪表盘。',
+  'label.click.board-heading': '点「{panel}」打开哪块仪表盘',
+  'label.click.board-description': '接下来逐个列出它的筛选，由你说每个带什么。',
+  'label.click.board-list-loading': '正在读取仪表盘…',
+  'label.click.board-list-empty': '还没有已保存的仪表盘。',
+  'label.click.board-list-none': '没有符合条件的仪表盘。',
+  'label.click.board-values': '它的筛选',
+  'label.click.board-values-hint':
+    '每个筛选带点中那一组的一个维度的值，或者不带；不带的从它的默认值开始。',
+  'label.click.board-value': '这一组的{dimension}',
+  'label.click.board-skip': '不带',
+  'label.click.board-no-dimension': '这个面板没有它能收的维度。',
+  'label.click.board-no-filters': '那块仪表盘没有筛选，点一组就原样打开它。',
+  'label.click.board-loading': '正在读取它的筛选…',
+  'label.click.board-unreadable': '那块仪表盘已被删除，或你没有权限打开它。',
+  'label.click.board-stale':
+    '带给{filters}的值已失效（那个筛选或这个面板的维度不在了），完成时会去掉。',
+  'label.click.board-stale-name': '「{filter}」',
   'label.click.save': '完成',
   'dashboard.click.invalid':
     '这个面板的「点击时」设置读不出来，点一组会打开追问菜单。',
@@ -1466,5 +1487,15 @@ export const zhCN: ViewMessages = {
   'dashboard.click.destination-unavailable':
     '点击时要去的视图已被删除，或你没有权限打开它。',
   'dashboard.click.destination-unsupported':
-    '点击时只能去记录视图或分析视图，不能去仪表盘。',
+    '去视图时只能选记录视图或分析视图；要去仪表盘，选「仪表盘」。',
+  'dashboard.click.board-dimension-unknown':
+    '点击要把 {field} 带到另一块仪表盘，这个面板已不按它分组，点一组会打开追问菜单。',
+  'dashboard.click.board-gone':
+    '点击时要打开的仪表盘已被删除，或你没有权限打开它，点一组会打开追问菜单。',
+  'dashboard.click.board-not-a-board':
+    '点击时要打开的不是一块仪表盘，点一组会打开追问菜单。',
+  'dashboard.click.board-filter-unknown':
+    '点击时要打开的仪表盘上已没有筛选「{filter}」，点一组会打开追问菜单。',
+  'dashboard.click.board-filter-mismatch':
+    '点击时要打开的仪表盘上的「{filter}」收不了 {field} 的值，点一组会打开追问菜单。',
 } satisfies Record<MessageKey, string>;

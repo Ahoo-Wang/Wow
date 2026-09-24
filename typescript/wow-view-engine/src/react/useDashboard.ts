@@ -35,6 +35,7 @@ import type {
   DashboardPanelState,
   DashboardRuntime,
   DataViewRuntime,
+  DestinationBoard,
   OptionSource,
   PanelGrouping,
   PressDestination,
@@ -160,6 +161,11 @@ export interface DashboardController {
     panelId: string,
     row: RecordData,
   ): Promise<PressDestination | null>;
+  /**
+   * Another board a click opens, read for 「点击时…」 to list its filters
+   * (`DashboardRuntime.destinationBoard`); `null` for one gone or unreadable.
+   */
+  destinationBoard(instanceId: string): Promise<DestinationBoard | null>;
 }
 
 const EMPTY_PANELS: DashboardPanelState[] = [];
@@ -282,6 +288,11 @@ export function useDashboard(
     destination: useCallback(
       async (panelId: string, row: RecordData) =>
         runtime ? runtime.destination(panelId, row) : null,
+      [runtime],
+    ),
+    destinationBoard: useCallback(
+      async (instanceId: string) =>
+        runtime ? runtime.destinationBoard(instanceId) : null,
       [runtime],
     ),
   };

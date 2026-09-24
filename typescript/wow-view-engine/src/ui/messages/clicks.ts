@@ -45,7 +45,7 @@ export const clicksMessages = {
   'label.click.filter-none':
     'Wire a filter to a field this panel groups by first.',
   'label.click.filter-pick': 'Filter',
-  'label.click.go': 'Go to another view or page',
+  'label.click.go': 'Go to another view, dashboard or page',
   'label.click.go-hint': 'The value pressed goes along.',
   'label.click.go-kind': 'Destination',
   'label.click.go-view': 'View',
@@ -60,6 +60,31 @@ export const clicksMessages = {
   'label.click.url-hint-none': 'This panel has no dimension to pass on.',
   'label.click.url-invalid':
     'Only http, https, mailto or an address inside this application.',
+  'label.click.go-board': 'Dashboard',
+  'label.click.board-pick': 'Choose a dashboard…',
+  'label.click.board-change': 'Choose another…',
+  'label.click.board-missing': 'Choose the dashboard a press opens.',
+  'label.click.board-heading': 'Which dashboard a press on “{panel}” opens',
+  'label.click.board-description':
+    'Its filters are listed next, for you to say what each one takes.',
+  'label.click.board-list-loading': 'Loading dashboards…',
+  'label.click.board-list-empty': 'There is no saved dashboard yet.',
+  'label.click.board-list-none': 'No dashboard matches.',
+  'label.click.board-values': 'Its filters',
+  'label.click.board-values-hint':
+    'For each, the value of one dimension of the group pressed, or nothing; one not carried starts at its default.',
+  'label.click.board-value': 'This group’s {dimension}',
+  'label.click.board-skip': 'Not carried',
+  'label.click.board-no-dimension':
+    'This panel has no dimension this filter can take.',
+  'label.click.board-no-filters':
+    'That dashboard has no filters: a press opens it as it is.',
+  'label.click.board-loading': 'Reading its filters…',
+  'label.click.board-unreadable':
+    'That dashboard was deleted, or you may not open it.',
+  'label.click.board-stale':
+    'What went to {filters} no longer applies — that filter or this panel’s dimension is gone — and is dropped on Done.',
+  'label.click.board-stale-name': '“{filter}”',
   'label.click.save': 'Done',
   // Kernel and runtime findings.
   'dashboard.click.invalid':
@@ -79,5 +104,15 @@ export const clicksMessages = {
   'dashboard.click.destination-unavailable':
     'The view a press goes to was deleted, or you may not open it.',
   'dashboard.click.destination-unsupported':
-    'A press can go to a record or an analysis view, not to a dashboard.',
+    'A view destination is a record or an analysis view; for a dashboard, choose “Dashboard”.',
+  'dashboard.click.board-dimension-unknown':
+    'The click carries {field} to another dashboard, which this panel no longer groups by; pressing it opens the follow-up menu.',
+  'dashboard.click.board-gone':
+    'The dashboard a press opens was deleted, or you may not open it; pressing it opens the follow-up menu.',
+  'dashboard.click.board-not-a-board':
+    'What the click opens is not a dashboard; pressing it opens the follow-up menu.',
+  'dashboard.click.board-filter-unknown':
+    'The dashboard a press opens no longer has the filter “{filter}”; pressing it opens the follow-up menu.',
+  'dashboard.click.board-filter-mismatch':
+    '“{filter}” on the dashboard a press opens cannot take {field}; pressing it opens the follow-up menu.',
 } as const satisfies Record<string, string>;

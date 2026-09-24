@@ -28,10 +28,12 @@ import {
   type DashboardField,
   type DashboardFilters,
   type DashboardViewConfig,
+  type ViewInstance,
   type DashboardViewPanel,
   type FilterLeaf,
   type FilterValue,
   type Issue,
+  type IssuePath,
   type RecordData,
 } from '../../model/index.js';
 import {
@@ -44,10 +46,14 @@ import { drillGroups, type DrilledGroup } from '../../analysis/index.js';
 import {
   bindingsOf,
   clickOf,
+  defaultFilters,
   fillUrl,
   filtersOf,
   isViewPanel,
+  migrateDashboardConfig,
   takesGroup,
+  validateBoardClick,
+  type BoardClick,
   type PanelReference,
 } from '../../dashboard/index.js';
 import type { DataViewRuntime } from '../viewRuntime.js';
@@ -69,7 +75,20 @@ export type CrossFilterOutcome =
   | { kind: 'none' };
 
 /** Where a press on a custom destination goes, or why it goes nowhere. */
-export type PressDestination = { to: DashboardNavigation } | { refused: Issue };
+export type PressDestination =
+  | { to: DashboardNavigation }
+  | { refused: Issue }
+  /**
+   * The click cannot do what it says — a board it opens is gone, or a
+   * filter or a dimension it maps is (D23 Q17): the follow-up menu opens on
+   * the group instead, as it does for a click admission warned of, and
+   * `issue` says why. The board read by the press re-judges the panel, so
+   * the warning stays on it and the next press opens the menu directly.
+   */
+  | { fallback: Issue };
+
+/** Another board as a click reads it: the instance, its config migrated. */
+export type DestinationBoard = ViewInstance & { config: DashboardViewConfig };
 
 /** What the presses need of the runtime that holds the board. */
 export interface PressHost {
@@ -160,6 +179,7 @@ export class PanelPresses {
         ? { refused: issue('dashboard.click.url-unsafe', at) }
         : { to: { kind: 'url', url } };
     }
+    if (click.kind === 'dashboard') return this.toBoard(click, pressed, at);
     const reference = await this.host.reference(click.instanceId);
     if (!reference)
       return {
@@ -186,6 +206,70 @@ export class PanelPresses {
         instanceId: click.instanceId,
         filter:
           conditions.length > 0 ? { op: 'and', children: conditions } : null,
+      },
+    };
+  }
+
+  /**
+   * Another board a click opens, read for 「点击时…」 or a press — never
+   * when this board opens — through the references the panels load, so
+   * the read re-judges the click (`validateBoardClick`); `null` for one
+   * gone, unreadable or not a board.
+   */
+  async board(instanceId: string): Promise<DestinationBoard | null> {
+    const reference = await this.host.reference(instanceId);
+    const config = reference?.instance.config;
+    return reference && config?.kind === 'dashboard'
+      ? { ...reference.instance, config: migrateDashboardConfig(config) }
+      : null;
+  }
+
+  /**
+   * A press that opens another board (D23 Q17): the board read, the
+   * mapping judged against it and the panel, then each filter mapped set
+   * from the group's value on its dimension, in the filter's shape — the
+   * rest at the target's defaults, as a board opened without a value for
+   * them would start. A group without a value for a filter (the records
+   * without one) leaves that filter at its default too.
+   */
+  private async toBoard(
+    click: BoardClick,
+    pressed: Pressed,
+    at: IssuePath,
+  ): Promise<PressDestination> {
+    const reference = await this.host.reference(click.instanceId);
+    const found = validateBoardClick(
+      click,
+      at,
+      pressed.groups.map(drilled => drilled.group),
+      {
+        fields: this.host.child(pressed.panel.id)?.fields ?? null,
+        target: reference,
+      },
+    );
+    const stored = reference?.instance.config;
+    if (found.length > 0 || !reference || stored?.kind !== 'dashboard')
+      return { fallback: found[0] ?? issue('dashboard.click.board-gone', at) };
+    // Read as the board opens: a pre-C condition is its filters' defaults.
+    const config = migrateDashboardConfig(stored);
+    const filters = defaultFilters(config);
+    const byName = new Map(filtersOf(config).map(field => [field.name, field]));
+    for (const [name, field] of Object.entries(click.values)) {
+      const filter = byName.get(name);
+      const type = filterTypeOf(filter?.kind);
+      const drilled = pressed.groups.find(
+        entry =>
+          entry.group.field === field && takesGroup(type, entry.group.type),
+      );
+      const value = drilled ? filterValueOf(type, drilled) : null;
+      if (value !== null) filters.values[name] = value;
+    }
+    return {
+      to: {
+        kind: 'dashboard',
+        definitionId: reference.instance.definitionId,
+        instanceId: click.instanceId,
+        filters,
       },
     };
   }

@@ -43,7 +43,11 @@ import type { ViewRuntime, ViewRuntimeState } from '../viewRuntimeTypes.js';
 import type { PanelRuntimeFactory } from './children.js';
 import type { DashboardEditing, DashboardFilterEditing } from './editing.js';
 import type { DashboardPanelState } from './panels.js';
-import type { CrossFilterOutcome, PressDestination } from './press.js';
+import type {
+  CrossFilterOutcome,
+  DestinationBoard,
+  PressDestination,
+} from './press.js';
 import type { PanelResolver } from './references.js';
 import type { ValueCandidateSources } from '../valueCandidates.js';
 
@@ -148,6 +152,13 @@ export interface DashboardRuntime
     panelId: string,
     row: RecordData,
   ): Promise<PressDestination | null>;
+  /**
+   * Another board a panel's click opens, read (D23 Q17): for 「点击时…」 to
+   * list its filters, and — the same read — to judge the click against it,
+   * so a mapping gone stale warns on the panel from then on. Never read
+   * when this board opens. `null` for one gone, unreadable or not a board.
+   */
+  destinationBoard(instanceId: string): Promise<DestinationBoard | null>;
 }
 
 /**
@@ -176,6 +187,19 @@ export type DashboardNavigation =
       definitionId: string;
       title: string;
       config: RecordViewConfig | AnalysisViewConfig;
+    }
+  /**
+   * Another dashboard (D23 Q17, a panel's 「另一块仪表盘」), to open with
+   * `filters` as its reader's values — the host hands them to
+   * `DashboardWorkbench`'s `initialFilters` (or `OpenOptions.filters`), never
+   * into the board's config: each filter the author mapped holds the group's
+   * value on its dimension, every other one its default.
+   */
+  | {
+      kind: 'dashboard';
+      definitionId: string;
+      instanceId: string;
+      filters: DashboardFilters;
     }
   /** A page of the host's: a panel's URL filled with the group pressed. */
   | { kind: 'url'; url: string };

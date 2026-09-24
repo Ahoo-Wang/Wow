@@ -69,6 +69,21 @@ const views: ViewInstance[] = [
     revision: 'r1',
     config: recordConfig(),
   },
+  // Another board a press can open (D23 Q17).
+  {
+    id: 'regional',
+    definitionId: 'overview',
+    title: 'Regional',
+    scope: 'shared',
+    revision: 'r1',
+    config: dashboardConfig({
+      fields: [
+        { name: 'area', label: 'Area', kind: 'string' },
+        { name: 'period', label: 'Period', kind: 'datetime' },
+      ],
+      panels: [],
+    }),
+  },
 ];
 
 function view(
@@ -347,7 +362,9 @@ describe('「点击时…」 (D22 I)', () => {
     );
     const dialog = await screen.findByRole('dialog');
     await user.click(
-      within(dialog).getByRole('radio', { name: 'Go to another view or page' }),
+      within(dialog).getByRole('radio', {
+        name: 'Go to another view, dashboard or page',
+      }),
     );
     await user.click(within(dialog).getByRole('button', { name: 'Done' }));
     await within(dialog).findByText('Choose the view a press opens.');
@@ -474,3 +491,141 @@ function folded(): boolean {
   if (!toggle) throw new Error('no editor toggle');
   return toggle.querySelector('[aria-expanded="true"]') === null;
 }
+
+describe('a press that opens another board (D23 Q17)', () => {
+  /** The item a select shows, not its chevron. */
+  const chosen = (select: HTMLElement) =>
+    select.querySelector('[data-slot="select-value"]')?.textContent;
+  /** 「点击时…」 on 「By warehouse」, while the board is built. */
+  async function clickSettings(user: ReturnType<typeof userEvent.setup>) {
+    await rowOf('By warehouse', 'CN');
+    await user.click(await screen.findByRole('button', { name: 'Edit' }));
+    await user.click(
+      await screen.findByRole('button', { name: 'Actions for “By warehouse”' }),
+    );
+    await user.click(
+      await screen.findByRole('menuitem', { name: 'When clicked…' }),
+    );
+    return screen.findByRole('dialog', {
+      name: 'When “By warehouse” is clicked',
+    });
+  }
+
+  it('lists the board’s filters for the author to map, one per row, none guessed', async () => {
+    const { user, runtime } = setup(board(), vi.fn());
+    const dialog = await clickSettings(user);
+    await user.click(
+      within(dialog).getByRole('radio', {
+        name: 'Go to another view, dashboard or page',
+      }),
+    );
+    await user.click(within(dialog).getByRole('button', { name: 'Dashboard' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Done' }));
+    await within(dialog).findByText('Choose the dashboard a press opens.');
+
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Choose a dashboard…' }),
+    );
+    const picker = await screen.findByRole('dialog', {
+      name: 'Which dashboard a press on “By warehouse” opens',
+    });
+    // Boards only: no kind to narrow by, and no record or analysis view.
+    expect(within(picker).queryByRole('group', { name: 'Kind' })).toBeNull();
+    expect(within(picker).queryByText('Order list')).toBeNull();
+    await user.click(await within(picker).findByText('Regional'));
+
+    const rows = await within(dialog).findByRole('group', {
+      name: 'Its filters',
+    });
+    const area = within(rows).getByRole('combobox', { name: 'Area' });
+    const period = within(rows).getByRole('combobox', { name: 'Period' });
+    // Nothing is carried until the author says so — not even Area, which
+    // a name could have matched.
+    expect(chosen(area)).toBe('Not carried');
+    expect(chosen(period)).toBe('Not carried');
+    // A date filter takes no text dimension: nothing to pick, and it says so.
+    expect(period.hasAttribute('data-disabled')).toBe(true);
+    within(rows).getByText('This panel has no dimension this filter can take.');
+    await user.click(area);
+    await user.click(
+      await screen.findByRole('option', { name: 'This group’s Warehouse' }),
+    );
+    await user.click(within(dialog).getByRole('button', { name: 'Done' }));
+    const chart = runtime()
+      .getSnapshot()
+      .draft.panels.find(entry => entry.id === 'chart') as DashboardViewPanel;
+    expect(chart.click).toEqual({
+      kind: 'dashboard',
+      instanceId: 'regional',
+      values: { area: 'warehouse' },
+    });
+  });
+
+  it('reads a stored mapping back, and says what no longer holds', async () => {
+    const { user } = setup(
+      board({
+        click: {
+          kind: 'dashboard',
+          instanceId: 'regional',
+          values: { area: 'warehouse', zone: 'warehouse' },
+        },
+      }),
+      vi.fn(),
+    );
+    const dialog = await clickSettings(user);
+    const rows = await within(dialog).findByRole('group', {
+      name: 'Its filters',
+    });
+    expect(chosen(within(rows).getByRole('combobox', { name: 'Area' }))).toBe(
+      'This group’s Warehouse',
+    );
+    within(dialog).getByText(/What went to “zone” no longer applies/);
+    expect(
+      within(dialog).getByText('Regional').closest('[data-slot="click-board"]'),
+    ).not.toBeNull();
+  });
+
+  it('hands the host the board with its filters set from the group pressed', async () => {
+    const onNavigate = vi.fn();
+    const { user } = setup(
+      board({
+        click: {
+          kind: 'dashboard',
+          instanceId: 'regional',
+          values: { area: 'warehouse' },
+        },
+      }),
+      onNavigate,
+    );
+    await user.click(await rowOf('By warehouse', 'CN'));
+    await waitFor(() =>
+      expect(onNavigate).toHaveBeenCalledWith({
+        kind: 'dashboard',
+        definitionId: 'overview',
+        instanceId: 'regional',
+        filters: { values: { area: ['CN'] } },
+      }),
+    );
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('opens the follow-up menu instead when the mapping went stale, and says why', async () => {
+    const onNavigate = vi.fn();
+    const { user } = setup(
+      board({
+        click: {
+          kind: 'dashboard',
+          instanceId: 'regional',
+          values: { zone: 'warehouse' },
+        },
+      }),
+      onNavigate,
+    );
+    await user.click(await rowOf('By warehouse', 'CN'));
+    await screen.findByRole('menu');
+    await screen.findByText(
+      'The dashboard a press opens no longer has the filter “zone”; pressing it opens the follow-up menu.',
+    );
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+});

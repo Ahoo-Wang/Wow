@@ -58,7 +58,17 @@ type Variant =
   | 'tabs'
   | 'filters'
   | 'clicks'
-  | 'cross';
+  | 'cross'
+  | 'to-board'
+  | 'to-board-stale';
+
+/** The variants whose host has a route off the board (D22 H, I). */
+const ROUTED: readonly Variant[] = [
+  'clicks',
+  'cross',
+  'to-board',
+  'to-board-stale',
+];
 
 /**
  * The board that ships with the definition: read-only to everyone (D4), so
@@ -112,12 +122,14 @@ function DashboardDemo({
             // A second board beside the tabbed one, so the list has another
             // to open and the tabbed one can be opened again from it.
             ...(variant === 'tabs' ? [otherBoard] : []),
+            // The board a press can open (D23 Q17).
+            ...(ROUTED.includes(variant) ? [regionalBoard] : []),
           ],
         })
       }
     >
       {engine =>
-        variant === 'clicks' || variant === 'cross' ? (
+        ROUTED.includes(variant) ? (
           <RoutedHost
             engine={engine}
             onFiltersChange={onFiltersChange}
@@ -187,6 +199,17 @@ function RoutedHost({
       </button>
       {away.kind === 'url' ? (
         <p data-slot="host-page">宿主页面：{away.url}</p>
+      ) : away.kind === 'dashboard' ? (
+        // Another board, opened with the values the press carried as its
+        // reader's — the host's address would hold them the same way.
+        <DashboardWorkbench
+          key={away.instanceId}
+          engine={engine}
+          definitionId={away.definitionId}
+          instanceId={away.instanceId}
+          initialFilters={away.filters}
+          {...HOST_LANGUAGE}
+        />
       ) : (
         <DataWorkbench
           engine={engine}
@@ -208,6 +231,25 @@ function savedConfig(variant: Variant) {
       panels: dashboardConfig().panels.map(panel =>
         panel.id === 'by-warehouse'
           ? { ...panel, click: { kind: 'filter', filter: 'region' } }
+          : panel,
+      ),
+    });
+  if (variant === 'to-board' || variant === 'to-board-stale')
+    return dashboardConfig({
+      panels: dashboardConfig().panels.map(panel =>
+        panel.id === 'by-warehouse'
+          ? {
+              ...panel,
+              click: {
+                kind: 'dashboard',
+                instanceId: regionalBoard.id,
+                // The stale one maps a filter the board no longer has.
+                values:
+                  variant === 'to-board'
+                    ? { region: 'warehouse' }
+                    : { zone: 'warehouse' },
+              },
+            }
           : panel,
       ),
     });
@@ -403,6 +445,35 @@ const otherBoard = {
   config: dashboardConfig(),
 };
 
+/**
+ * The board a press on 「按仓库汇总」 can open (D23 Q17): the same panels,
+ * its 仓库 and a 状态 of its own — which no dimension of that panel can
+ * fill, so its row offers only 「不带」.
+ */
+const regionalBoard: ViewInstance = {
+  ...savedDashboard,
+  id: 'overview-regional',
+  title: '区域明细',
+  scope: 'shared',
+  config: dashboardConfig({
+    fields: [
+      ...dashboardConfig().fields,
+      { name: 'placed', label: '下单时间', kind: 'datetime' },
+    ],
+    panels: dashboardConfig().panels.map(panel =>
+      panel.kind === 'view'
+        ? {
+            ...panel,
+            bindings: [
+              ...panel.bindings,
+              { globalField: 'placed', panelField: 'createdAt' },
+            ],
+          }
+        : panel,
+    ),
+  }),
+};
+
 /** What the scenes answer from, said in the host's service line and below. */
 const FIXTURE = '内存 ViewStore · 两个被引用的共享视图 · 一个内容面板';
 
@@ -534,6 +605,27 @@ export const Clicks: Story = {
 export const CrossFilter: Story = {
   name: '点击：交叉筛选',
   args: { variant: 'cross' },
+};
+
+/**
+ * Another board (D23 Q17): 「按仓库汇总」 is set to open 「区域明细」 with
+ * its 仓库 taken from the bar pressed. The host opens that board with the
+ * value as its reader's — the filter bar shows it, its list runs under it —
+ * and nothing is written into either board.
+ */
+export const ToAnotherBoard: Story = {
+  name: '点击：去另一块仪表盘',
+  args: { variant: 'to-board' },
+};
+
+/**
+ * The same click, mapped to a filter 「区域明细」 no longer has: a press
+ * says so and opens the follow-up menu instead, and the panel warns from
+ * then on.
+ */
+export const ToAnotherBoardStale: Story = {
+  name: '点击：去另一块仪表盘（映射失效）',
+  args: { variant: 'to-board-stale' },
 };
 
 /** A dashboard with nothing on it yet. */

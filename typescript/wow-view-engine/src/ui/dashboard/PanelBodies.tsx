@@ -168,7 +168,14 @@ export function AnalysisPanel({
           void press.destination(row).then(where => {
             if (!where) return;
             if ('to' in where) press.navigate?.(where.to);
-            else press.say(messages.issue(where.refused));
+            else if ('refused' in where)
+              press.say(messages.issue(where.refused));
+            else {
+              // A click gone stale (D23 Q17): said, and the follow-up menu
+              // opens on the group pressed instead — batch D's rule.
+              press.say(messages.issue(where.fallback));
+              setPick({ row, anchor, ...(origin ? { origin } : {}) });
+            }
           });
         };
   // The group a press set the board's filter to is marked, not narrowed to.
@@ -198,7 +205,8 @@ export function AnalysisPanel({
         highlight={highlight}
       />
     );
-  const menu = mode === 'menu' && (
+  // A destination opens the menu too, on a press whose click fell back.
+  const menu = (mode === 'menu' || mode === 'go') && (
     <DrillMenu
       pick={followUp ? pick : null}
       onClose={() => setPick(null)}

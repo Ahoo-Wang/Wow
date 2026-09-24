@@ -35,6 +35,7 @@ import type { DashboardEditing, DashboardFilterEditing } from './editing.js';
 import type { FilterValues } from './filterValues.js';
 import type {
   CrossFilterOutcome,
+  DestinationBoard,
   PanelPresses,
   PressDestination,
 } from './press.js';
@@ -172,6 +173,9 @@ export abstract class BoardCommands
     row: RecordData,
   ): Promise<PressDestination | null> {
     return this.presses.destination(panelId, row);
+  }
+  destinationBoard(instanceId: string): Promise<DestinationBoard | null> {
+    return this.presses.board(instanceId);
   }
 
   /**

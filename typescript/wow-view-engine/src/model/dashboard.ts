@@ -271,6 +271,16 @@ export type PanelClick =
    */
   | { kind: 'view'; instanceId: string }
   /**
+   * Another dashboard, opened through the host's route with its filters set
+   * as the author mapped them (D23 Q17, 「另一块仪表盘」): `values` is keyed
+   * like the `DashboardFilters.values` it becomes — each of the target's
+   * filters the press sets, by name — and names the field of this panel's
+   * dimension whose value it takes. A filter not named is not carried and
+   * starts at its default. Never matched by name: only what the author
+   * mapped goes along.
+   */
+  | { kind: 'dashboard'; instanceId: string; values: Record<string, string> }
+  /**
    * A page of the host's: `url` with every `{{field}}` in it replaced by the
    * group's value on the dimension over that field, encoded.
    */

@@ -17,6 +17,8 @@ import { zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 import displayMeta, {
   Clicks as DisplayClicks,
   CrossFilter as DisplayCrossFilter,
+  ToAnotherBoard as DisplayToAnotherBoard,
+  ToAnotherBoardStale as DisplayToAnotherBoardStale,
 } from './Dashboard.stories.js';
 import { chartsDrawn, drawnMarks, pressMark } from './chartDom.js';
 import { readColumn } from './readTable.js';
@@ -239,5 +241,239 @@ export const SetsCrossFilterWhenClicked: Story = {
         }),
       ),
     );
+  },
+};
+
+/** The item a select shows, not its chevron. */
+const chosen = (select: HTMLElement) =>
+  select.querySelector('[data-slot="select-value"]')?.textContent?.trim();
+
+/**
+ * The board a press opened, read off the host's page: its 仓库 on the
+ * filter bar, and the list under it all of that warehouse.
+ */
+async function openedWithRegion(canvasElement: HTMLElement): Promise<void> {
+  const canvas = within(canvasElement);
+  await canvas.findByRole('button', { name: /回到出库概览/ });
+  const bar = await canvas.findByRole('region', {
+    name: zhCN['label.filters.bar'],
+  });
+  const chip = within(bar).getByRole('group', { name: '仓库' });
+  const picked = within(chip).getByRole('combobox', { name: '仓库' });
+  await waitFor(() => expect(chosen(picked)).toBeTruthy());
+  const region = chosen(picked) ?? '';
+  // Nobody pressed anything on this board: the value is the reader's.
+  await expect(
+    within(bar).queryByText(label('label.click.from', { panel: '按仓库汇总' })),
+  ).toBeNull();
+  const list = await panelNamed(canvasElement, '待出库明细');
+  await waitFor(() => {
+    const table = list.querySelector<HTMLElement>('table');
+    expect(table).not.toBeNull();
+    const cells = readColumn(table!, '仓库');
+    expect(cells.length).toBeGreaterThan(0);
+    expect(cells.every(cell => cell === region)).toBe(true);
+  });
+}
+
+/**
+ * D23 Q17: 「按仓库汇总」 opens 「区域明细」 with its 仓库 mapped from the
+ * bar. The host is handed the board and the value, and opens it with the
+ * value as its reader's — on the filter bar, the list under it.
+ */
+export const PressOpensAnotherBoard: Story = {
+  ...DisplayToAnotherBoard,
+  decorators: [DESK],
+  args: { ...DisplayToAnotherBoard.args, onNavigate: fn() },
+  play: async ({ canvasElement, args }) => {
+    const [bar] = await bars(canvasElement);
+    pressMark(bar!);
+    await waitFor(() => expect(args.onNavigate).toHaveBeenCalledTimes(1));
+    await expect(args.onNavigate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'dashboard',
+        instanceId: 'overview-regional',
+        filters: { values: { region: [expect.any(String)] } },
+      }),
+    );
+    await expect(screen.queryByRole('menu')).toBeNull();
+    await openedWithRegion(canvasElement);
+  },
+};
+
+/**
+ * The same click mapped to a filter 「区域明细」 no longer has: the press
+ * opens the follow-up menu instead, nothing is handed to the host, and the
+ * panel warns from then on.
+ */
+export const StaleMappingFallsBack: Story = {
+  ...DisplayToAnotherBoardStale,
+  decorators: [DESK],
+  args: { ...DisplayToAnotherBoardStale.args, onNavigate: fn() },
+  play: async ({ canvasElement, args }) => {
+    const [bar] = await bars(canvasElement);
+    pressMark(bar!);
+    const menu = await screen.findByRole('menu');
+    await expect(
+      menu.querySelector('[data-slot="drill-group"]')?.textContent,
+    ).toMatch(/^仓库 是 /);
+    await expect(args.onNavigate).not.toHaveBeenCalled();
+    await userEvent.keyboard('{Escape}');
+    // The panel warns from then on, in the words of the finding.
+    const chart = await panelNamed(canvasElement, '按仓库汇总');
+    const warning = await waitFor(() => {
+      const found = chart.querySelector<HTMLElement>(
+        '[data-slot="panel-warning"]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    await expect(warning.getAttribute('aria-label') ?? '').toContain(
+      label('dashboard.click.board-filter-unknown', { filter: 'zone' }),
+    );
+  },
+};
+
+/**
+ * 「点击时…」 → 「另一块仪表盘」, by keyboard where it counts: the board
+ * picked, its filters listed one per row — 仓库 mapped to 「这一组的仓库」
+ * with the arrow keys, 下单时间 offering nothing this panel can give — then
+ * the board saved, and a bar pressed opens 「区域明细」 under that value.
+ */
+export const SetsAnotherBoardWhenClicked: Story = {
+  ...DisplayClicks,
+  decorators: [DESK],
+  args: { ...DisplayClicks.args, onNavigate: fn() },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await panelNamed(canvasElement, '按仓库汇总');
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.dashboard.edit'] }),
+    );
+    await userEvent.click(
+      await canvas.findByRole('button', {
+        name: label('label.panel.menu', { title: '按仓库汇总' }),
+      }),
+    );
+    await userEvent.click(
+      await screen.findByRole('menuitem', {
+        name: zhCN['label.click.menu-item'],
+      }),
+    );
+    const dialog = await screen.findByRole('dialog', {
+      name: label('label.click.title', { panel: '按仓库汇总' }),
+    });
+    await userEvent.click(
+      within(dialog).getByRole('radio', { name: zhCN['label.click.go'] }),
+    );
+    await userEvent.click(
+      within(dialog).getByRole('button', {
+        name: zhCN['label.click.go-board'],
+      }),
+    );
+    await userEvent.click(
+      within(dialog).getByRole('button', {
+        name: zhCN['label.click.board-pick'],
+      }),
+    );
+    const picker = await screen.findByRole('dialog', {
+      name: label('label.click.board-heading', { panel: '按仓库汇总' }),
+    });
+    await userEvent.click(await within(picker).findByText('区域明细'));
+
+    const rows = await within(dialog).findByRole('group', {
+      name: zhCN['label.click.board-values'],
+    });
+    const region = within(rows).getByRole('combobox', { name: '仓库' });
+    await expect(chosen(region)).toBe(zhCN['label.click.board-skip']);
+    const placed = within(rows).getByRole('combobox', { name: '下单时间' });
+    await expect(placed).toHaveAttribute('data-disabled');
+    await expect(
+      within(rows).getByText(zhCN['label.click.board-no-dimension']),
+    ).toBeVisible();
+    // The keyboard reaches the row and picks from it.
+    region.focus();
+    await userEvent.keyboard('{Enter}');
+    const option = await screen.findByRole('option', {
+      name: label('label.click.board-value', { dimension: '仓库' }),
+    });
+    await userEvent.click(option);
+    await waitFor(() =>
+      expect(chosen(region)).toBe(
+        label('label.click.board-value', { dimension: '仓库' }),
+      ),
+    );
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: zhCN['label.click.save'] }),
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.dashboard.done'] }),
+    );
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="dashboard-edit-bar"]'),
+      ).toBeNull(),
+    );
+
+    const [bar] = await bars(canvasElement);
+    pressMark(bar!);
+    await waitFor(() =>
+      expect(args.onNavigate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          kind: 'dashboard',
+          instanceId: 'overview-regional',
+        }),
+      ),
+    );
+    await openedWithRegion(canvasElement);
+  },
+};
+
+/**
+ * A stored mapping read back in 「点击时…」, left open so axe judges the
+ * rows: 仪表盘 chosen, 「区域明细」 named, 仓库 on 「这一组的仓库」, and
+ * the keyboard going from 「换一块…」 straight to that row.
+ */
+export const MappingRowsReadBack: Story = {
+  ...DisplayToAnotherBoard,
+  decorators: [DESK],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await panelNamed(canvasElement, '按仓库汇总');
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.dashboard.edit'] }),
+    );
+    await userEvent.click(
+      await canvas.findByRole('button', {
+        name: label('label.panel.menu', { title: '按仓库汇总' }),
+      }),
+    );
+    await userEvent.click(
+      await screen.findByRole('menuitem', {
+        name: zhCN['label.click.menu-item'],
+      }),
+    );
+    const dialog = await screen.findByRole('dialog', {
+      name: label('label.click.title', { panel: '按仓库汇总' }),
+    });
+    await expect(
+      within(dialog).getByRole('button', {
+        name: zhCN['label.click.go-board'],
+      }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    await within(dialog).findByText('区域明细');
+    const rows = await within(dialog).findByRole('group', {
+      name: zhCN['label.click.board-values'],
+    });
+    const region = within(rows).getByRole('combobox', { name: '仓库' });
+    await expect(chosen(region)).toBe(
+      label('label.click.board-value', { dimension: '仓库' }),
+    );
+    within(dialog)
+      .getByRole('button', { name: zhCN['label.click.board-change'] })
+      .focus();
+    await userEvent.tab();
+    await expect(region).toHaveFocus();
   },
 };
