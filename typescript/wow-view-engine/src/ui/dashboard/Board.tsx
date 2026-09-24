@@ -36,11 +36,14 @@ import {
   type EditedKind,
 } from './ContentEditor.js';
 import { EditBar } from './EditBar.js';
-import { boardRowHeight, ROW_GAP } from './gridBlocks.js';
 import { useBoardHistory } from './history.js';
 import { useDashboardEditExtensions } from './extensions.js';
 import { useBoardFilters } from './BoardFilters.js';
 import { ViewPicker, type PickerIntent } from './ViewPicker.js';
+
+/** Pixel height of one grid row, and the gap the grid keeps between rows. */
+const ROW_HEIGHT = 80;
+const ROW_GAP = 10;
 
 export interface DashboardBoardProps {
   engine: ViewEngine;
@@ -186,7 +189,7 @@ export function DashboardBoard({
    * happens, since the page scrolls in between.
    */
   const spot = () => ({
-    fromRow: firstVisibleRow(gridRef.current, dashboard.columns),
+    fromRow: firstVisibleRow(gridRef.current),
     ...(dashboard.tab === null ? {} : { tab: dashboard.tab }),
   });
   const added = (id: string | null, fallback: string) => {
@@ -277,6 +280,7 @@ export function DashboardBoard({
             {...reading}
             dashboard={dashboard}
             editable={editing}
+            rowHeight={ROW_HEIGHT}
             onRenderFailure={onRenderFailure}
             onNavigate={onNavigate}
             header={({ narrow }) => (
@@ -434,13 +438,11 @@ function changed(
  * above the viewport, in rows. Zero while the grid starts on screen, and
  * wherever the grid cannot be measured.
  */
-function firstVisibleRow(board: HTMLElement | null, columns: number): number {
+function firstVisibleRow(board: HTMLElement | null): number {
   const grid = board?.querySelector(
     '[data-slot="dashboard-grid"] .react-grid-layout',
   );
   if (!grid) return 0;
-  const box = grid.getBoundingClientRect();
-  // The row the grid is laid out with at this width (D33), and its gap.
-  const pitch = boardRowHeight(box.width, columns) + ROW_GAP;
-  return -box.top > 0 ? Math.floor(-box.top / pitch) : 0;
+  const above = -grid.getBoundingClientRect().top;
+  return above > 0 ? Math.floor(above / (ROW_HEIGHT + ROW_GAP)) : 0;
 }

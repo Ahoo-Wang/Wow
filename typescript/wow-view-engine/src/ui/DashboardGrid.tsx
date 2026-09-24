@@ -37,7 +37,7 @@ import type { DashboardWidth } from '../model/index.js';
 import type { ViewNavigation } from '../runtime/index.js';
 import { useSurfaceAnnouncer } from './Announcer.js';
 import { PanelGridItem, PanelResizeHandle } from './DashboardArrange.js';
-import { boardRowHeight, gridBlocks } from './dashboard/gridBlocks.js';
+import { gridBlocks } from './dashboard/gridBlocks.js';
 import {
   DashboardPanel,
   panelNames,
@@ -78,6 +78,8 @@ export interface DashboardGridProps {
    * Read-only by default — nothing on a board being read moves it.
    */
   editable?: boolean;
+  /** Pixel height of one grid row. */
+  rowHeight?: number;
   /** Told when one panel's body fails to draw; the others keep drawing. */
   onRenderFailure?: RenderFailureHandler;
   /**
@@ -157,6 +159,7 @@ export type { PanelHeadingLevel } from './DashboardPanel.js';
 export function DashboardGrid({
   dashboard,
   editable = false,
+  rowHeight = 80,
   className,
   onRenderFailure,
   headingLevel = 3,
@@ -194,10 +197,6 @@ export function DashboardGrid({
   // it could be written back, so neither the gestures nor the keyboard
   // commands are on offer there.
   const arranging = editable && !narrow;
-  // A row is two squares as wide as a column (D33), read and built alike, so
-  // pressing 编辑 moves nothing; at a width too narrow for that, and in the
-  // one column, the 80px it always was.
-  const rowHeight = boardRowHeight(drawnWidth, dashboard.columns);
   const placement = useGridPlacement(dashboard.place);
   const building = useBoardBuilding();
   const extensions = useDashboardEditExtensions();

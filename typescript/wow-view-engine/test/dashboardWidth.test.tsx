@@ -60,11 +60,7 @@ import {
   testSource,
 } from './fixtures.js';
 import { panel, pending } from './fixtures/dashboard.js';
-import {
-  boardRowHeight,
-  gridBlocks,
-  MIN_ROW_HEIGHT,
-} from '../src/ui/dashboard/gridBlocks.js';
+import { blockHeight, gridBlocks } from '../src/ui/dashboard/gridBlocks.js';
 
 /**
  * Every grid the library is handed, as it was handed it: the width it is
@@ -336,7 +332,7 @@ describe('the first frame (measured before the first paint)', () => {
     measure(1920);
     render(<DashboardGrid dashboard={controller()} />);
 
-    expect(grids[0]).toEqual({ width: 1920, cols: 24, rowHeight: 150 });
+    expect(grids[0]).toEqual({ width: 1920, cols: 24, rowHeight: 80 });
     expect(grids.some(grid => grid.width === 1280)).toBe(false);
   });
 
@@ -347,7 +343,7 @@ describe('the first frame (measured before the first paint)', () => {
     render(<DashboardGrid dashboard={controller()} />);
     // A hidden container, or a DOM without layout: drawn, as before.
     await waitFor(() => expect(slot('panel-title')).not.toBeNull());
-    expect(grids[0]).toEqual({ width: 1280, cols: 24, rowHeight: 96 });
+    expect(grids[0]).toEqual({ width: 1280, cols: 24, rowHeight: 80 });
   });
 });
 
@@ -377,32 +373,40 @@ describe('the grid blocks while a board is built (D33)', () => {
         ) as Record<'x' | 'y' | 'width' | 'height' | 'rx', number>,
     );
   };
+  /** The row of blocks drawn for a grid `width` wide, 24 columns, 80px rows. */
+  const drawn = (width: number) => {
+    const holder = document.createElement('div');
+    const style = gridBlocks({ width, cols: 24, rowHeight: 80 })!;
+    for (const [name, value] of Object.entries(style))
+      holder.style.setProperty(name, String(value));
+    return blocksOf(holder);
+  };
+  /** A column's width at `width`: the padding and 23 gaps taken off. */
+  const column = (width: number) => (width - 250) / 24;
 
-  it('lays a row out as two squares a column wide, never under 80px', () => {
-    // 1200px: (1200 - 20 - 230) / 24 = 39.6, a 40px square; two and the gap.
-    expect(boardRowHeight(1200, 24)).toBe(90);
-    expect(boardRowHeight(1920, 24)).toBe(2 * 70 + 10);
-    // 1000px: a 31px column; the row stays the 80px it always was.
-    expect(boardRowHeight(1000, 24)).toBe(MIN_ROW_HEIGHT);
-    expect(boardRowHeight(375, 24)).toBe(MIN_ROW_HEIGHT);
-    expect(boardRowHeight(0, 24)).toBe(MIN_ROW_HEIGHT);
+  it('cuts the 80px row into the blocks nearest a square', () => {
+    // 1920px: a 70px column; one 80px block is nearer square than two 35px.
+    expect(blockHeight(80, column(1920))).toBe(80);
+    // 1200px: a 40px column; two 35px blocks.
+    expect(blockHeight(80, column(1200))).toBe(35);
+    // 776px: a 22px column; three 20px blocks.
+    expect(blockHeight(80, column(776))).toBe(20);
+    // However narrow, never a block of no height.
+    expect(blockHeight(80, 1)).toBeGreaterThan(0);
   });
 
-  it('lays the grid out at that row, read and built alike', async () => {
+  it('lays the grid out at 80px rows at every width, read and built alike', async () => {
     const controller = await openGrid(
       dashboardConfig({ panels: [panel({ title: 'Pending' })] }),
     );
-    measure(1920);
-    const view = render(<DashboardGrid dashboard={controller()} />);
-    expect(grids[grids.length - 1]).toMatchObject({
-      width: 1920,
-      rowHeight: 150,
-    });
-    view.rerender(<DashboardGrid dashboard={controller()} editable />);
-    expect(grids[grids.length - 1]).toMatchObject({
-      width: 1920,
-      rowHeight: 150,
-    });
+    for (const width of [776, 1200, 1280, 1920]) {
+      measure(width);
+      const view = render(<DashboardGrid dashboard={controller()} />);
+      expect(grids[grids.length - 1]).toMatchObject({ width, rowHeight: 80 });
+      view.rerender(<DashboardGrid dashboard={controller()} editable />);
+      expect(grids[grids.length - 1]).toMatchObject({ width, rowHeight: 80 });
+      cleanup();
+    }
   });
 
   it('draws the blocks while built and nothing while read', async () => {
@@ -418,20 +422,18 @@ describe('the grid blocks while a board is built (D33)', () => {
     // Under the panels, never pressed and never read out.
     expect(blocks.getAttribute('aria-hidden')).toBe('true');
     expect(blocks.parentElement).toBe(slot('dashboard-tab-panel'));
-    // One row of the grid: two 40px squares in each of the 24 columns, a
-    // column's left edge and width the library's, the second square one gap
-    // under the first; repeated down from the grid's padding.
+    // One row of the grid: two 40×35 blocks in each of the 24 columns, a
+    // column's left edge and width the library's, the second one gap under
+    // the first and ending on the row's bottom edge; repeated down from the
+    // grid's padding, a row and a gap apart.
     const rects = blocksOf(blocks);
     expect(rects).toHaveLength(48);
-    expect(rects[0]).toMatchObject({ x: 10, y: 0, height: 40 });
-    expect(rects[1]).toMatchObject({ x: 10, y: 50, height: 40 });
-    expect(rects[2].x).toBe(Math.round(10 + (1200 - 250) / 24 + 10));
-    for (const rect of rects) {
-      expect(Math.abs(rect.width - rect.height)).toBeLessThanOrEqual(1);
-      expect(rect.rx).toBeGreaterThan(0);
-    }
+    expect(rects[0]).toMatchObject({ x: 10, y: 0, width: 40, height: 35 });
+    expect(rects[1]).toMatchObject({ x: 10, y: 45, height: 35 });
+    expect(rects[2].x).toBe(Math.round(10 + column(1200) + 10));
+    for (const rect of rects) expect(rect.rx).toBeGreaterThan(0);
     expect(blocks.style.getPropertyValue('--grid-blocks-size')).toBe(
-      '1200px 100px',
+      '1200px 90px',
     );
     expect(blocks.style.getPropertyValue('--grid-blocks-top')).toBe('10px');
   });
@@ -442,9 +444,9 @@ describe('the grid blocks while a board is built (D33)', () => {
     );
     measure(1920);
     render(<DashboardGrid dashboard={controller()} editable />);
-    const [first] = blocksOf(layer()!);
-    expect(first).toMatchObject({ height: 70 });
-    expect(first.width).toBe(Math.round((1920 - 250) / 24));
+    const rects = blocksOf(layer()!);
+    expect(rects).toHaveLength(24);
+    expect(rects[0]).toMatchObject({ y: 0, width: 70, height: 80 });
     cleanup();
 
     measure(375);
@@ -453,25 +455,26 @@ describe('the grid blocks while a board is built (D33)', () => {
     expect(layer()).toBeNull();
   });
 
-  it('cuts a row held at 80px into three where two would be tall', () => {
-    // 800px: a 22.9px column, an 80px row; two blocks would be 35px tall,
-    // three are 20px with a gap between each.
-    const drawn = (width: number) => {
-      const holder = document.createElement('div');
-      const style = gridBlocks({ width, cols: 24, rowHeight: 80 })!;
-      for (const [name, value] of Object.entries(style))
-        holder.style.setProperty(name, String(value));
-      return blocksOf(holder);
+  it('draws the block sizes of the table in D33', () => {
+    const size = (width: number) => {
+      const rects = drawn(width);
+      return {
+        across: rects[0].width,
+        down: rects[0].height,
+        count: rects.length / 24,
+      };
     };
-    const rects = drawn(800);
-    expect(rects).toHaveLength(72);
-    expect(rects.slice(0, 3).map(rect => [rect.y, rect.height])).toEqual([
-      [0, 20],
-      [30, 20],
-      [60, 20],
-    ]);
-    // 1000px: a 31px column; two 35px blocks are nearer square than three.
-    expect(drawn(1000)).toHaveLength(48);
+    expect(size(1920)).toEqual({ across: 70, down: 80, count: 1 });
+    expect(size(1401)).toEqual({ across: 48, down: 35, count: 2 });
+    expect(size(1200)).toEqual({ across: 40, down: 35, count: 2 });
+    expect(size(1000)).toEqual({ across: 31, down: 35, count: 2 });
+    expect(size(776)).toEqual({ across: 22, down: 20, count: 3 });
+    // Three blocks a row end on the row's bottom edge too.
+    expect(
+      drawn(776)
+        .slice(0, 3)
+        .map(rect => rect.y),
+    ).toEqual([0, 30, 60]);
   });
 
   it('draws none over a board with no panel on it', async () => {

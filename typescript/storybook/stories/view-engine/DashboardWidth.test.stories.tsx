@@ -212,13 +212,22 @@ function blocksOf(layer: HTMLElement) {
   return { rects, pitch, top };
 }
 
-/** Every block a square, give or take the pixel a column's width rounds by. */
-function blocksAreSquare(layer: HTMLElement) {
+/**
+ * The blocks of one column of one row: as wide as the column, and as many
+ * down the 80px row as come nearest a square (D33) — one, two or three.
+ */
+function blockSize(layer: HTMLElement) {
   const { rects } = blocksOf(layer);
-  expect(rects.length).toBe(48);
-  for (const rect of rects)
-    expect(Math.abs(rect.width - rect.height)).toBeLessThanOrEqual(1);
-  return rects[0].height;
+  const column = rects.filter(rect => rect.x === rects[0].x);
+  expect(rects.length).toBe(24 * column.length);
+  const { width, height } = column[0];
+  const ratio = (side: number) => Math.abs(Math.log(side / width));
+  // No other count of blocks down an 80px row would be nearer a square.
+  for (let count = 1; count <= 4; count++)
+    expect(ratio(height)).toBeLessThanOrEqual(
+      ratio((80 - (count - 1) * 10) / count) + 1e-9,
+    );
+  return { width, height, count: column.length };
 }
 
 /** How far `at` is from the nearest of `edges`, repeated every `pitch`. */
@@ -237,7 +246,7 @@ function panelsOnTheBlocks(grid: HTMLElement, layer: HTMLElement) {
   const { rects, pitch, top } = blocksOf(layer);
   const across = rects.flatMap(rect => [rect.x, rect.x + rect.width]);
   const down = rects
-    .slice(0, 2)
+    .filter(rect => rect.x === rects[0].x)
     .flatMap(rect => [top + rect.y, top + rect.y + rect.height]);
   const items = [...grid.querySelectorAll('.react-grid-item')];
   expect(items.length).toBeGreaterThan(0);
@@ -253,12 +262,13 @@ function panelsOnTheBlocks(grid: HTMLElement, layer: HTMLElement) {
 }
 
 /**
- * Building shows the cells as square blocks (the user's 2026-09-24
- * walk-throughs: 「仪表盘编辑模式下，显示网格线」, then 「参考 metabase，用正方形
- * 方块」; D33): nothing while the board is read; once 编辑 is pressed a soft
- * filled block, two to a row, sized off the width the grid is drawn at — the
- * fixed 1200px, then the full 1920px — every block a square, every panel's
- * edge on a block's edge, and no panel moved by the press.
+ * Building shows the cells as blocks (the user's 2026-09-24 walk-throughs:
+ * 「仪表盘编辑模式下，显示网格线」, then 「参考 metabase，用正方形方块」; D33):
+ * nothing while the board is read; once 编辑 is pressed a soft filled block
+ * in each column of each row, the 80px row cut into the blocks nearest a
+ * square — at the fixed 1200px two 40×35 — then at full width wider ones,
+ * every panel's edge on a block's edge, and no panel a pixel taller or
+ * shorter than it was read, at either width.
  */
 export const GridBlocksWhileBuilding: Story = {
   ...DisplayFixedWidth,
@@ -269,9 +279,14 @@ export const GridBlocksWhileBuilding: Story = {
     const layer = () =>
       grid.querySelector<HTMLElement>('[data-slot="dashboard-grid-blocks"]');
     await expect(layer()).toBeNull();
-    const first = () =>
-      grid.querySelector('.react-grid-item')!.getBoundingClientRect();
-    const read = first();
+    const heights = () =>
+      [...grid.querySelectorAll('.react-grid-item')].map(
+        item => item.getBoundingClientRect().height,
+      );
+    // What the panels were before D33: a row 80px, a gap 10px, so a panel
+    // h rows tall is 90h - 10 — the story's board holds h 4, 4 and 2.
+    const read = heights();
+    await expect(read).toEqual([350, 350, 170]);
 
     await userEvent.click(
       await canvas.findByRole('button', { name: zhCN['label.dashboard.edit'] }),
@@ -283,10 +298,13 @@ export const GridBlocksWhileBuilding: Story = {
     await expect(style.pointerEvents).toBe('none');
     await expect(style.maskImage).toContain('url(');
     await expect(style.backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
-    // Pressing 编辑 lays nothing out anew: a row is the same read and built.
-    await expect(first().height).toBe(read.height);
-    // 1200px: a 40px square, (1200 - 20 - 230) / 24 wide.
-    await expect(blocksAreSquare(blocks)).toBe(40);
+    await expect(heights()).toEqual(read);
+    // 1200px: a 40px column, two 35px blocks down each 80px row.
+    await expect(blockSize(blocks)).toEqual({
+      width: 40,
+      height: 35,
+      count: 2,
+    });
     await waitFor(() => panelsOnTheBlocks(grid, blocks));
 
     await userEvent.click(
@@ -296,8 +314,9 @@ export const GridBlocksWhileBuilding: Story = {
         }),
       ).getByRole('button', { name: zhCN['label.dashboard.width-full'] }),
     );
-    await waitFor(() => expect(blocksAreSquare(layer()!)).toBeGreaterThan(40));
+    await waitFor(() => expect(blockSize(layer()!).width).toBeGreaterThan(40));
     await waitFor(() => panelsOnTheBlocks(grid, layer()!));
+    await expect(heights()).toEqual(read);
   },
 };
 

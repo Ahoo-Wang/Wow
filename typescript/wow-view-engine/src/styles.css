@@ -788,9 +788,9 @@
  * The board's cells while it is built (the user's 2026-09-24 walk-throughs:
  * 「仪表盘编辑模式下，显示网格线」, then 「参考 metabase，用正方形方块」; D33).
  *
- * A soft square block, filled and a little rounded, on each place a panel's
- * edge can come to rest — two to a row, since a row is two squares tall (three where a narrow grid holds the row at 80px).
- * The shape is the grid's own, measured and written onto the element as
+ * A soft block, filled and a little rounded, in each column of each row: the
+ * 80px row cut into the number of blocks that comes nearest a square, so a
+ * panel's edges always land on a block's (`blockHeight`). The shape is the grid's own, measured and written onto the element as
  * variables (`gridBlocks`, `ui/dashboard/gridBlocks.ts`): one row of blocks
  * as an SVG mask, repeated down from the grid's padding. The colour is here,
  * a token, so it follows the mode and the preset (an SVG in a data URI
