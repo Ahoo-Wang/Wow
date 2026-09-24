@@ -217,9 +217,9 @@ jobs:
           files: ./typescript/wow-view-engine/coverage/coverage-final.json
 
   # Node 22 formats dates and numbers with its own ICU; the same assertions,
-  # without coverage.
+  # without coverage, in two shards that still finish before Node 24's slowest.
   view-engine-node22:
-    name: View engine / Node 22 (${{ matrix.shard }}/3)
+    name: View engine / Node 22 (${{ matrix.shard }}/2)
     needs: scope
     if: needs.scope.outputs.view-engine == 'true'
     timeout-minutes: 20
@@ -227,7 +227,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -244,7 +244,7 @@ jobs:
         run: pnpm --filter '@ahoo-wang/wow-view-engine^...' build
       - name: Test shard
         working-directory: typescript/wow-view-engine
-        run: pnpm exec vitest run --coverage.enabled=false --shard=${{ matrix.shard }}/3
+        run: pnpm exec vitest run --coverage.enabled=false --shard=${{ matrix.shard }}/2
 
   docs:
     name: Documentation
