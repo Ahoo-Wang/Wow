@@ -10,12 +10,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import type { ComponentType } from 'react';
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, screen, userEvent, waitFor, within } from 'storybook/test';
 import { zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 import displayMeta, {
   CustomerDetail as DisplayCustomerDetail,
   DashboardWithAPanelOut as DisplayDashboardWithAPanelOut,
+  EditableBoard as DisplayEditableBoard,
   WallScreenReadOnly as DisplayWallScreen,
 } from './EmbeddedDashboard.stories.js';
 import { findDataTable, readColumn } from './readTable.js';
@@ -288,5 +290,153 @@ export const DashboardWithAPanelOut: Story = {
         '[data-slot="status-strip"][data-tone="error"]',
       ),
     ).toBeNull();
+  },
+};
+
+/**
+ * A desk: the test browser is a phone's width, and below `md` the board is
+ * one derived column in which building is renaming, removing and reordering
+ * alone — no 「添加」.
+ */
+const DESK = (Story: ComponentType) => (
+  <div style={{ width: 1280 }}>
+    <Story />
+  </div>
+);
+
+/** The panel titles on the board, in the order the grid draws them. */
+function panelTitles(canvasElement: HTMLElement): string[] {
+  return [
+    ...canvasElement.querySelectorAll<HTMLElement>(
+      '.react-grid-item [data-slot="panel-title"]',
+    ),
+  ].map(title => title.textContent ?? '');
+}
+
+/**
+ * The team page, the editable tier end to end (D22 A): 「编辑」 builds the
+ * board where it sits; a text added from 「添加」 is on the board at once
+ * and in the store only once 「完成」 has asked and saved — the host's
+ * footer reads the store, not the screen. 「取消」 then puts back what was
+ * saved and writes nothing, and each time the keyboard is back on 「编辑」.
+ */
+export const EditableBoard: Story = {
+  ...DisplayEditableBoard,
+  decorators: [DESK],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const stored = canvasElement.querySelector('[data-host-stored]')!;
+    await expect(
+      await canvas.findByRole('heading', { level: 2, name: '班组看板' }),
+    ).toBeVisible();
+    await findDataTable(await panelBody(canvasElement, '待出库明细'));
+    await expect(stored).toHaveTextContent('还没保存过');
+
+    const edit = canvas.getByRole('button', {
+      name: zhCN['label.dashboard.edit'],
+    });
+    await userEvent.click(edit);
+    await expect(
+      await canvas.findByRole('region', {
+        name: new RegExp(zhCN['label.dashboard.editing']),
+      }),
+    ).toBeVisible();
+
+    // 「添加」 → 「文字…」: the window, the words and a title of its own.
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.dashboard.add'] }),
+    );
+    await userEvent.click(
+      await screen.findByRole('menuitem', {
+        name: zhCN['label.dashboard.add.markdown'],
+      }),
+    );
+    const dialog = await screen.findByRole('dialog', {
+      name: zhCN['label.content.markdown.add'],
+    });
+    await userEvent.type(
+      within(dialog).getByRole('textbox', {
+        name: zhCN['label.content.markdown.field'],
+      }),
+      '夜班交接前清点**华东仓**的待出库单。',
+    );
+    await userEvent.type(
+      within(dialog).getByRole('textbox', {
+        name: zhCN['label.content.title'],
+      }),
+      '交接说明',
+    );
+    await userEvent.click(
+      within(dialog).getByRole('button', {
+        name: zhCN['label.content.submit-add'],
+      }),
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() =>
+      expect(panelTitles(canvasElement)).toContain('交接说明'),
+    );
+    const note = await panelBody(canvasElement, '交接说明');
+    await expect(note).toHaveTextContent('夜班交接前清点华东仓的待出库单。');
+    // On the board, not yet in the store.
+    await expect(stored).toHaveTextContent('还没保存过');
+
+    // 「完成」 over a shared board asks, as Save does, and saves.
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.dashboard.done'] }),
+    );
+    const confirm = await screen.findByRole('alertdialog');
+    await userEvent.click(
+      within(confirm).getByRole('button', {
+        name: zhCN['label.save.shared-confirm'],
+      }),
+    );
+    await waitFor(() => expect(stored).toHaveTextContent('修订 2 · 4 个面板'));
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="dashboard-edit-bar"]'),
+      ).toBeNull(),
+    );
+    await expect(
+      canvas.getByRole('button', { name: zhCN['label.dashboard.edit'] }),
+    ).toHaveFocus();
+    await expect(panelTitles(canvasElement)).toContain('交接说明');
+
+    // 「取消」 asks, puts back the board as saved, and writes nothing.
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.dashboard.edit'] }),
+    );
+    await userEvent.click(
+      await canvas.findByRole('button', { name: zhCN['label.dashboard.add'] }),
+    );
+    await userEvent.click(
+      await screen.findByRole('menuitem', {
+        name: zhCN['label.dashboard.add.heading'],
+      }),
+    );
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() =>
+      expect(panelTitles(canvasElement)).toContain(
+        zhCN['label.dashboard.new-heading'],
+      ),
+    );
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.dialog.cancel'] }),
+    );
+    const question = await screen.findByRole('alertdialog');
+    await userEvent.click(
+      within(question).getByRole('button', { name: zhCN['label.save.revert'] }),
+    );
+    await waitFor(() =>
+      expect(panelTitles(canvasElement)).not.toContain(
+        zhCN['label.dashboard.new-heading'],
+      ),
+    );
+    await expect(panelTitles(canvasElement)).toContain('交接说明');
+    await expect(stored).toHaveTextContent('修订 2 · 4 个面板');
+    await waitFor(() =>
+      expect(
+        canvas.getByRole('button', { name: zhCN['label.dashboard.edit'] }),
+      ).toHaveFocus(),
+    );
   },
 };

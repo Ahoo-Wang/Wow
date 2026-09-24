@@ -30,16 +30,13 @@ import {
 } from '../src/index.js';
 import {
   dashboardConfig,
+  nextTask,
   ordersDefinition,
   overviewDefinition,
   recordConfig,
   testEnvironment,
   testSource,
 } from './fixtures.js';
-
-function flush(): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, 0));
-}
 
 function view(id: string, title: string): ViewInstance {
   return {
@@ -91,7 +88,7 @@ async function open(config: DashboardViewConfig) {
     { requestId: 'r' },
   );
   const runtime = await engine.open(instance.id);
-  await flush();
+  await nextTask();
   if (!(runtime instanceof DashboardViewRuntime))
     throw new Error('expected a dashboard');
   return { runtime, store };

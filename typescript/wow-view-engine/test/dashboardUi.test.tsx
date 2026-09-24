@@ -50,6 +50,7 @@ import {
 } from './fixtures.js';
 import { tracked } from './fixtures/writes.js';
 import { panel, pending } from './fixtures/dashboard.js';
+import { settle } from './fixtures/ui.js';
 
 afterEach(cleanup);
 
@@ -165,9 +166,7 @@ describe('useDashboard', () => {
     const before = child?.getSnapshot().result;
 
     act(() => controller().refresh());
-    await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
+    await settle();
 
     expect(child?.getSnapshot().result).not.toBe(before);
   });
@@ -939,12 +938,6 @@ describe('DashboardGrid', () => {
       panels: [panel({ layout: { x: 0, y: 3, w: 6, h: 4 } })],
     });
 
-    async function settle() {
-      await act(async () => {
-        await new Promise(resolve => setTimeout(resolve, 0));
-      });
-    }
-
     it('leaves a read-only dashboard clean and its panels unrun again', async () => {
       const source = testSource();
       const { controller, runtime } = await openDashboard(
@@ -1127,17 +1120,23 @@ describe('DashboardGrid', () => {
     // dropped the zero before it reached the grid, the library's passes it
     // on and the grid declines it — the panels are the same either way.
     act(() => grid!.resize(0));
-    await act(() => new Promise(resolve => setTimeout(resolve, 20)));
+    // The frame the library coalesces into: a frame callback asked for now
+    // runs after every one asked for before it.
+    await act(
+      () =>
+        new Promise<void>(resolve => requestAnimationFrame(() => resolve())),
+    );
 
     expect(item.style.width).toBe(measured);
     vi.unstubAllGlobals();
   });
 
   /**
-   * There is no way to add a panel yet (D22's batch B), so the empty state
-   * says what a dashboard is and that this one is empty — and offers
-   * nothing to press. It used to invite the reader to "add a saved view"
-   * through a door that was not there (U1).
+   * The empty state says what a dashboard is and that this one is empty.
+   * The first things to add are offered under it only to whoever may build
+   * the board (D22 A); this grid is given no way to build it, so it offers
+   * nothing to press — an entry the reader cannot use would be a door that
+   * is not there (U1).
    */
   it('says what an empty dashboard is, and promises nothing', async () => {
     const { controller } = await openDashboard(dashboardConfig());

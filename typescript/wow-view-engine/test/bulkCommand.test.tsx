@@ -27,6 +27,7 @@ import {
   type BulkSelection,
 } from '../src/react/index.js';
 import { BulkStatus } from '../src/ui/index.js';
+import { nextTask } from './fixtures.js';
 
 afterEach(cleanup);
 
@@ -56,7 +57,7 @@ function gated() {
       if (error === undefined) gate.resolve();
       else gate.reject(error);
       // The worker reads the reason, reports, and takes the next record.
-      for (let turn = 0; turn < 6; turn++) await Promise.resolve();
+      await nextTask();
     });
   return { started, each, settle, command: { title: 'Retry', each } };
 }

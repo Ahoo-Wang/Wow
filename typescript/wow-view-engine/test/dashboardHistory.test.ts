@@ -35,16 +35,13 @@ import {
 } from '../src/runtime/dashboard/history.js';
 import {
   dashboardConfig,
+  nextTask,
   ordersDefinition,
   overviewDefinition,
   recordConfig,
   testEnvironment,
   testSource,
 } from './fixtures.js';
-
-function flush(): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, 0));
-}
 
 const pending: ViewInstance = {
   id: 'pending',
@@ -91,7 +88,7 @@ function harness(scope: 'personal' | 'shared' = 'personal') {
         { requestId: 'r' },
       );
       const runtime = await engine.open(instance.id);
-      await flush();
+      await nextTask();
       if (!(runtime instanceof DashboardViewRuntime))
         throw new Error('expected a dashboard');
       // Every board here is opened to be built: an edit is refused while
@@ -179,7 +176,7 @@ describe('the history of building a board', () => {
     runtime.removePanel('b');
     expect(runtime.getSnapshot().panels.map(panel => panel.id)).toEqual(['a']);
     runtime.undo();
-    await flush();
+    await nextTask();
     const back = runtime.getSnapshot().panels.find(panel => panel.id === 'b');
     expect(back?.runtime?.getSnapshot().query.status).toBe('success');
     expect(runtime.getSnapshot().dirty).toBe(false);

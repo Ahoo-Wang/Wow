@@ -34,6 +34,7 @@ import {
   type ViewSource,
 } from '../src/index.js';
 import {
+  nextTask,
   ordersDefinition,
   recordConfig,
   testEnvironment,
@@ -218,11 +219,6 @@ function open(source: ViewSource): RecordViewRuntime<'paged'> {
   }) as unknown as RecordViewRuntime<'paged'>;
 }
 
-/** Lets every queued microtask run, which is when a query has landed. */
-function flush(): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, 0));
-}
-
 function keysOnScreen(runtime: RecordViewRuntime): unknown[] {
   const data = runtime.getSnapshot().result?.data as
     ProjectedRecord | undefined;
@@ -257,11 +253,11 @@ describe('a sort that ties, paged by index', () => {
     const seen: unknown[] = [];
 
     runtime.apply();
-    await flush();
+    await nextTask();
     seen.push(...keysOnScreen(runtime));
     for (let index = 2; index <= PAGES; index += 1) {
       runtime.page({ index });
-      await flush();
+      await nextTask();
       seen.push(...keysOnScreen(runtime));
     }
 

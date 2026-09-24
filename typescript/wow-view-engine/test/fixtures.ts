@@ -381,6 +381,17 @@ export function deferred<T>(): {
 }
 
 /**
+ * One turn of the event loop: resolves from a `setTimeout(0)`, so every
+ * promise continuation queued before it — however many hops deep — and every
+ * zero-delay timer set before it have run by then. What a headless suite
+ * awaits when a gesture's consequence is a chain of promises rather than one
+ * it holds; a suite rendering React awaits `settle` (`fixtures/ui.tsx`).
+ */
+export function nextTask(): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, 0));
+}
+
+/**
  * Queries that see only what is drawn.
  *
  * Every chart renders an `sr-only` table of the same numbers beside it, so a

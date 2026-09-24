@@ -10,10 +10,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type {
   DashboardFilters,
+  DashboardViewConfig,
+  ViewInstance,
   ViewNavigation,
   ViewEngine,
 } from '@ahoo-wang/fetcher-view-engine';
@@ -35,9 +37,11 @@ import {
   CUSTOMER,
   CUSTOMER_PAGE,
   EMBED_ENVIRONMENT,
+  WatchedViewStore,
   boardWithAPanelOut,
   customerBoard,
   customerViews,
+  teamBoard,
   wallBoard,
 } from './embeddedBoards.js';
 import { HOST_LANGUAGE, createStoryEngine, savedViews } from './fixtures.js';
@@ -231,9 +235,92 @@ function PanelOutPage({ engine }: { engine: ViewEngine }) {
   );
 }
 
-type Scene = 'customer' | 'wall' | 'panel-out';
+/** What the store last took of the team's board, as the host page says it. */
+function storedOf(saved: ViewInstance | null): string {
+  if (!saved) return '（还没保存过）';
+  const panels = (saved.config as DashboardViewConfig).panels;
+  return `修订 ${saved.revision} · ${panels.length} 个面板`;
+}
+
+/**
+ * 班组首页：嵌一块共享的「班组看板」，可编辑一档。能保存这块板的人在页面上
+ * 就地搭建——「编辑」、加一段文字、「完成」存回去；页脚是宿主从存储那边看到
+ * 的最后一次保存，「取消」不会动它。
+ */
+function TeamPage({
+  engine,
+  store,
+}: {
+  engine: ViewEngine;
+  store: WatchedViewStore;
+}) {
+  const [saved, setSaved] = useState<ViewInstance | null>(null);
+  useEffect(() => store.watch(setSaved), [store]);
+  return (
+    <div
+      data-host-page
+      className="fve-tokens bg-background text-foreground flex min-h-0 flex-col gap-4"
+    >
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <p className="text-muted-foreground text-xs">仓储运营 / 华东仓</p>
+        <h1 className="truncate text-base font-semibold">班组首页</h1>
+      </div>
+      <Separator />
+      <Card className="min-w-0" style={ON_CARD}>
+        <CardHeader>
+          <CardTitle>本班看板</CardTitle>
+          <CardDescription>
+            班组长可以直接在这里调整看板；改完按「完成」对全班生效。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex min-w-0 flex-col gap-3">
+          <EmbeddedDashboard
+            className="host-embed"
+            engine={engine}
+            instanceId={teamBoard.id}
+            interaction="editable"
+            withTitle
+            headingLevel={2}
+            {...HOST_LANGUAGE}
+          />
+        </CardContent>
+      </Card>
+      <Separator />
+      <dl className="text-muted-foreground grid gap-1 text-xs">
+        <div className="flex gap-2">
+          <dt>存储里的这块板</dt>
+          <dd data-host-stored className="min-w-0 font-mono break-all">
+            {storedOf(saved)}
+          </dd>
+        </div>
+      </dl>
+    </div>
+  );
+}
+
+/** The team page with a store of its own, so its footer can watch the saves. */
+function TeamScene() {
+  const [store] = useState(
+    () =>
+      new WatchedViewStore({
+        instances: [...savedViews, teamBoard],
+      }),
+  );
+  return (
+    <StoryEngine
+      create={() =>
+        createStoryEngine({ store, environment: EMBED_ENVIRONMENT })
+      }
+    >
+      {engine => <TeamPage engine={engine} store={store} />}
+    </StoryEngine>
+  );
+}
+
+type Scene = 'customer' | 'wall' | 'panel-out' | 'editable';
 
 function EmbeddedDashboardDemo({ scene }: { scene: Scene }) {
+  if (scene === 'editable') return <TeamScene />;
   return (
     <StoryEngine
       create={() =>
@@ -262,7 +349,7 @@ function EmbeddedDashboardDemo({ scene }: { scene: Scene }) {
   );
 }
 
-const FIXTURE = '内存 ViewStore · 六条订单 · 三块共享仪表盘';
+const FIXTURE = '内存 ViewStore · 六条订单 · 四块共享仪表盘';
 
 const description = `**仪表盘视图 · 嵌入仪表盘**
 
@@ -270,8 +357,8 @@ const description = `**仪表盘视图 · 嵌入仪表盘**
 
 - **数据源**：${FIXTURE}；时钟钉在 2026-09-18 上午（Asia/Shanghai），「本月」每次都一样。
 - **准备**：每次挂载都新建引擎与存储。
-- **操作**：客户详情页可交互——客户锁定、下单时间可改、点一组经宿主路由追问；大屏全只读、铺满；第三个场景里一个面板出不来。
-- **观察**：锁定的筛选读作它的值、没有控件；读者的筛选值在页脚的「宿主地址」里来回，锁定的客户不在里面；锁定不是安全边界——租户、归属与权限归 Wow 后端。`;
+- **操作**：客户详情页可交互——客户锁定、下单时间可改、点一组经宿主路由追问；大屏全只读、铺满；第三个场景里一个面板出不来；班组首页可编辑——「编辑」、添加一段文字、「完成」。
+- **观察**：锁定的筛选读作它的值、没有控件；读者的筛选值在页脚的「宿主地址」里来回，锁定的客户不在里面；班组首页的页脚只在「完成」之后才看到新的修订，「取消」什么都不写；锁定不是安全边界——租户、归属与权限归 Wow 后端。`;
 
 const meta = {
   title: 'View Engine/仪表盘视图/EmbeddedDashboard',
@@ -330,4 +417,14 @@ export const WallScreenReadOnly: Story = {
 export const DashboardWithAPanelOut: Story = {
   name: '有面板出不来',
   args: { scene: 'panel-out' },
+};
+
+/**
+ * 班组首页，可编辑一档（D22 A）：能保存这块板的人看到「编辑」，在页面上就地
+ * 搭建——编辑条、「添加」、面板的「⋯」都和工作台里一样；「完成」问过「更新所
+ * 有人看到的视图？」后存回去，页脚随即读到新的修订；「取消」放回存着的那一份。
+ */
+export const EditableBoard: Story = {
+  name: '班组首页（可编辑）',
+  args: { scene: 'editable' },
 };

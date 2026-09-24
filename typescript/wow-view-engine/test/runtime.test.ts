@@ -33,6 +33,7 @@ import {
 import {
   analysisConfig,
   deferred,
+  nextTask,
   ordersDefinition,
   recordConfig,
   requireRecordConfig,
@@ -42,11 +43,6 @@ import {
   testSource,
   type TestEnvironment,
 } from './fixtures.js';
-
-/** Lets every queued microtask run, which is when a query has landed. */
-function flush(): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, 0));
-}
 
 interface Harness {
   // Record API on hand; the analysis cases in this file never call it.
@@ -176,10 +172,10 @@ describe('DataViewRuntime execution', () => {
     const { runtime, clock } = harness({ source });
 
     runtime.apply();
-    await flush();
+    await nextTask();
     clock.advance(400);
     answer({ total: 0, list: [] });
-    await flush();
+    await nextTask();
 
     expect(runtime.getSnapshot().result?.elapsedMs).toBe(400);
   });
@@ -189,7 +185,7 @@ describe('DataViewRuntime execution', () => {
 
     runtime.apply();
     expect(runtime.getSnapshot().query.status).toBe('loading');
-    await flush();
+    await nextTask();
 
     const state = runtime.getSnapshot();
     expect(state.query.status).toBe('success');
@@ -210,7 +206,7 @@ describe('DataViewRuntime execution', () => {
     const { runtime, source } = harness({ definition });
 
     runtime.apply();
-    await flush();
+    await nextTask();
 
     expect(source.cursor).toHaveBeenCalledWith(
       expect.objectContaining({ cursor: null }),
@@ -230,7 +226,7 @@ describe('DataViewRuntime execution', () => {
     });
 
     runtime.apply();
-    await flush();
+    await nextTask();
 
     expect(source.aggregate).toHaveBeenCalledTimes(1);
     expect(recordData(runtime).summaries).toMatchObject({
@@ -249,7 +245,7 @@ describe('DataViewRuntime execution', () => {
     });
 
     runtime.apply();
-    await flush();
+    await nextTask();
 
     expect(runtime.getSnapshot().query.status).toBe('success');
     expect(recordData(runtime).summaries).toMatchObject({
@@ -261,7 +257,7 @@ describe('DataViewRuntime execution', () => {
   it('leaves summaries out when the config asks for none', async () => {
     const { runtime, source } = harness();
     runtime.apply();
-    await flush();
+    await nextTask();
 
     expect(source.aggregate).not.toHaveBeenCalled();
     expect(recordData(runtime).summaries).toBeNull();
@@ -275,7 +271,7 @@ describe('DataViewRuntime execution', () => {
     });
 
     runtime.apply();
-    await flush();
+    await nextTask();
 
     expect(source.aggregate).toHaveBeenCalledTimes(2);
     const data = runtime.getSnapshot().result?.data;
@@ -293,7 +289,7 @@ describe('DataViewRuntime execution', () => {
     });
 
     runtime.apply();
-    await flush();
+    await nextTask();
 
     expect(runtime.getSnapshot().query.status).toBe('success');
   });
@@ -306,7 +302,7 @@ describe('DataViewRuntime execution', () => {
     });
 
     runtime.apply();
-    await flush();
+    await nextTask();
 
     const state = runtime.getSnapshot();
     expect(state.query.status).toBe('error');
@@ -336,7 +332,7 @@ describe('DataViewRuntime execution', () => {
     });
 
     runtime.apply();
-    await flush();
+    await nextTask();
 
     expect(runtime.getSnapshot().query.error).toMatchObject({
       code: 'runtime.query.failed',
@@ -353,7 +349,7 @@ describe('DataViewRuntime execution', () => {
     });
 
     runtime.apply();
-    await flush();
+    await nextTask();
 
     expect(runtime.getSnapshot().query.error).toMatchObject({
       code: 'runtime.query.queue-full',
@@ -366,7 +362,7 @@ describe('DataViewRuntime execution', () => {
     });
 
     runtime.apply();
-    await flush();
+    await nextTask();
 
     expect(runtime.getSnapshot().query.error).toMatchObject({
       params: { reason: 'offline' },
@@ -391,7 +387,7 @@ describe('DataViewRuntime execution', () => {
     runtime.apply();
     runtime.refresh();
     first.resolve({ total: 2, list: [...ROWS] });
-    await flush();
+    await nextTask();
 
     expect(runtime.getSnapshot().query.status).toBe('success');
     expect(recordData(runtime).view.rows).toHaveLength(1);
@@ -402,11 +398,11 @@ describe('DataViewRuntime paging and selection', () => {
   it('reads the page it is asked for and clears the selection', async () => {
     const { runtime, source } = harness();
     runtime.apply();
-    await flush();
+    await nextTask();
     runtime.select(['o-1']);
 
     runtime.page({ index: 3 });
-    await flush();
+    await nextTask();
 
     expect(source.paged).toHaveBeenLastCalledWith(
       expect.objectContaining({ pagination: { index: 3, size: 20 } }),
@@ -425,7 +421,7 @@ describe('DataViewRuntime paging and selection', () => {
   it('keeps only keys present in the current result', async () => {
     const { runtime } = harness();
     runtime.apply();
-    await flush();
+    await nextTask();
 
     runtime.select(['o-1', 'missing']);
 
@@ -449,11 +445,11 @@ describe('DataViewRuntime paging and selection', () => {
     const { runtime } = harness({ source: testSource({ paged }) });
 
     runtime.apply();
-    await flush();
+    await nextTask();
     runtime.page({ index: 3 });
-    await flush();
+    await nextTask();
     runtime.refresh();
-    await flush();
+    await nextTask();
 
     expect(paged).toHaveBeenLastCalledWith(
       expect.objectContaining({ pagination: { index: 3, size: 20 } }),
@@ -473,11 +469,11 @@ describe('DataViewRuntime paging and selection', () => {
     const { runtime } = harness({ source: testSource({ paged }) });
 
     runtime.apply();
-    await flush();
+    await nextTask();
     runtime.page({ index: 3 });
-    await flush();
+    await nextTask();
     runtime.refresh();
-    await flush();
+    await nextTask();
 
     expect(paged).toHaveBeenLastCalledWith(
       expect.objectContaining({ pagination: { index: 2, size: 20 } }),
@@ -499,10 +495,10 @@ describe('DataViewRuntime paging and selection', () => {
     const { runtime } = harness({ source: testSource({ paged }) });
 
     runtime.apply();
-    await flush();
+    await nextTask();
     runtime.select(['o-1', 'o-2']);
     runtime.refresh();
-    await flush();
+    await nextTask();
 
     expect(runtime.getSnapshot().selection).toEqual(['o-2']);
   });
@@ -510,12 +506,12 @@ describe('DataViewRuntime paging and selection', () => {
   it('clears the selection when a new condition is applied', async () => {
     const { runtime } = harness();
     runtime.apply();
-    await flush();
+    await nextTask();
     runtime.select(['o-1']);
 
     runtime.edit({ pageSize: 10 });
     runtime.apply();
-    await flush();
+    await nextTask();
 
     expect(runtime.getSnapshot().selection).toEqual([]);
   });
@@ -537,7 +533,7 @@ describe('DataViewRuntime scope filter', () => {
     const { runtime } = harness({ saved: savedInstance });
 
     const issues = runtime.setScopeFilter(scope);
-    await flush();
+    await nextTask();
 
     const state = runtime.getSnapshot();
     expect(issues).toEqual([]);
@@ -568,10 +564,10 @@ describe('DataViewRuntime scope filter', () => {
   it('drops the condition again when it is cleared', async () => {
     const { runtime } = harness();
     runtime.setScopeFilter(scope);
-    await flush();
+    await nextTask();
 
     runtime.setScopeFilter(null);
-    await flush();
+    await nextTask();
 
     expect(runtime.getSnapshot().result?.config.filter.children).toEqual([]);
   });
@@ -602,7 +598,7 @@ describe('DataViewRuntime admission', () => {
     runtime.apply();
     runtime.refresh();
     runtime.page({ index: 2 });
-    await flush();
+    await nextTask();
 
     expect(runtime.getSnapshot().issues.map(found => found.code)).toContain(
       'record.pageSize.too-large',
@@ -627,7 +623,7 @@ describe('DataViewRuntime admission', () => {
     expect(() => runtime.edit({ pageSize: 10 })).not.toThrow();
     runtime.edit({ refresh: { interval: null } });
     runtime.apply();
-    await flush();
+    await nextTask();
 
     expect(source.paged).toHaveBeenCalledTimes(1);
   });
@@ -640,9 +636,9 @@ describe('DataViewRuntime admission', () => {
 
     runtime.edit({ pageSize: 20 });
     runtime.apply();
-    await flush();
+    await nextTask();
     runtime.refresh();
-    await flush();
+    await nextTask();
 
     expect(source.paged).toHaveBeenCalledTimes(2);
   });
@@ -670,7 +666,7 @@ describe('DataViewRuntime admission', () => {
       },
     });
     runtime.apply();
-    await flush();
+    await nextTask();
 
     // Three nodes of its own is within the budget; the two the scope adds
     // are not, and they are in force whether the editor shows them or not.
@@ -695,7 +691,7 @@ describe('DataViewRuntime admission', () => {
     ]);
 
     runtime.apply();
-    await flush();
+    await nextTask();
 
     expect(source.paged).toHaveBeenCalledTimes(1);
     expect(JSON.stringify(runtime.getSnapshot().result?.config)).not.toContain(
@@ -732,7 +728,7 @@ describe('DataViewRuntime admission', () => {
     });
 
     expect(runtime.setScopeFilter(warehouseCN)).toEqual([]);
-    await flush();
+    await nextTask();
 
     expect(runtime.scopeFilter).toEqual(warehouseCN);
     expect(source.paged).not.toHaveBeenCalled();
@@ -782,7 +778,7 @@ describe('DataViewRuntime admission', () => {
     });
 
     runtime.apply();
-    await flush();
+    await nextTask();
 
     // The malformed entry is neither dropped by the merge nor run around.
     expect(runtime.getSnapshot().issues).toContainEqual(
@@ -868,12 +864,12 @@ describe('DataViewRuntime admission', () => {
 
     // Clearing it takes the refusal with it: what is asked for is in force.
     expect(runtime.setScopeFilter(null)).toEqual([]);
-    await flush();
+    await nextTask();
 
     expect(runtime.refusedScope).toEqual([]);
     expect(runtime.getSnapshot().issues).toEqual([]);
     runtime.apply();
-    await flush();
+    await nextTask();
     expect(source.paged).toHaveBeenCalledTimes(1);
   });
 
@@ -902,7 +898,7 @@ describe('DataViewRuntime revert', () => {
     runtime.edit({ pageSize: 10 });
 
     runtime.revert();
-    await flush();
+    await nextTask();
 
     // There is no baseline to go back to, so the edits are all there is.
     expect(requireRecordConfig(runtime.getSnapshot().draft).pageSize).toBe(10);
@@ -913,13 +909,13 @@ describe('DataViewRuntime revert', () => {
   it('restores the saved config and puts it back in force', async () => {
     const { runtime, source } = harness({ saved: savedInstance });
     runtime.apply();
-    await flush();
+    await nextTask();
     runtime.edit({ pageSize: 10 });
     runtime.apply();
-    await flush();
+    await nextTask();
 
     runtime.revert();
-    await flush();
+    await nextTask();
 
     const state = runtime.getSnapshot();
     expect(state.draft).toEqual(savedInstance.config);
@@ -933,11 +929,11 @@ describe('DataViewRuntime revert', () => {
   it('runs nothing when the edits were never applied', async () => {
     const { runtime, source } = harness({ saved: savedInstance });
     runtime.apply();
-    await flush();
+    await nextTask();
     runtime.edit({ pageSize: 10 });
 
     runtime.revert();
-    await flush();
+    await nextTask();
 
     expect(requireRecordConfig(runtime.getSnapshot().draft).pageSize).toBe(20);
     expect(runtime.getSnapshot().dirty).toBe(false);
@@ -955,10 +951,10 @@ describe('DataViewRuntime revert', () => {
     });
     runtime.edit({ pageSize: 20 });
     runtime.apply();
-    await flush();
+    await nextTask();
 
     runtime.revert();
-    await flush();
+    await nextTask();
 
     // Refusing to revert would strand the user on edits they asked to be
     // rid of; the draft goes back and waits to be fixed.
@@ -988,10 +984,10 @@ describe('DataViewRuntime auto refresh', () => {
   it('re-runs the applied config when the interval elapses', async () => {
     const { runtime, source, clock } = harness({ config: refreshing });
     runtime.apply();
-    await flush();
+    await nextTask();
 
     clock.advance(30_000);
-    await flush();
+    await nextTask();
 
     expect(source.paged).toHaveBeenCalledTimes(2);
   });
@@ -999,33 +995,33 @@ describe('DataViewRuntime auto refresh', () => {
   it('holds the timer while an editor has focus', async () => {
     const { runtime, source, clock } = harness({ config: refreshing });
     runtime.apply();
-    await flush();
+    await nextTask();
 
     runtime.setEditing(true);
     clock.advance(30_000);
-    await flush();
+    await nextTask();
     expect(source.paged).toHaveBeenCalledTimes(1);
 
     runtime.setEditing(false);
     clock.advance(30_000);
-    await flush();
+    await nextTask();
     expect(source.paged).toHaveBeenCalledTimes(2);
   });
 
   it('holds the timer while the page is hidden', async () => {
     const { runtime, source, clock } = harness({ config: refreshing });
     runtime.apply();
-    await flush();
+    await nextTask();
 
     clock.setVisible(false);
     expect(clock.timers).toBe(0);
     clock.advance(30_000);
-    await flush();
+    await nextTask();
     expect(source.paged).toHaveBeenCalledTimes(1);
 
     clock.setVisible(true);
     clock.advance(30_000);
-    await flush();
+    await nextTask();
     expect(source.paged).toHaveBeenCalledTimes(2);
   });
 
@@ -1044,7 +1040,7 @@ describe('DataViewRuntime auto refresh', () => {
   it('holds the timer while the draft has an error', async () => {
     const { runtime, clock } = harness({ config: refreshing });
     runtime.apply();
-    await flush();
+    await nextTask();
     expect(clock.timers).toBe(1);
 
     runtime.edit({ pageSize: 0 });
@@ -1055,7 +1051,7 @@ describe('DataViewRuntime auto refresh', () => {
   it('keeps one timer however many times the state changes', async () => {
     const { runtime, clock } = harness({ config: refreshing });
     runtime.apply();
-    await flush();
+    await nextTask();
 
     runtime.select(['o-1']);
     runtime.select([]);
@@ -1071,7 +1067,7 @@ describe('DataViewRuntime auto refresh', () => {
   it('holds the timer while rows are selected', async () => {
     const { runtime } = harness({ config: refreshing });
     runtime.apply();
-    await flush();
+    await nextTask();
     expect(runtime.getSnapshot().nextRefreshAt).not.toBeNull();
 
     runtime.select(['o-1']);
@@ -1084,7 +1080,7 @@ describe('DataViewRuntime auto refresh', () => {
   it('runs no timer when the config asks for none', async () => {
     const { runtime, clock } = harness();
     runtime.apply();
-    await flush();
+    await nextTask();
     expect(clock.timers).toBe(0);
   });
 
@@ -1099,14 +1095,14 @@ describe('DataViewRuntime auto refresh', () => {
     expect(runtime.getSnapshot().nextRefreshAt).toBeNull();
 
     runtime.apply();
-    await flush();
+    await nextTask();
 
     expect(runtime.getSnapshot().nextRefreshAt).toBe(NOW.getTime() + 30_000);
 
     // And it moves with the timer: the refresh fires, the next one is armed
     // from where the answer landed.
     clock.advance(30_000);
-    await flush();
+    await nextTask();
     expect(runtime.getSnapshot().nextRefreshAt).toBe(
       NOW.getTime() + 30_000 + 30_000,
     );
@@ -1130,7 +1126,7 @@ describe('DataViewRuntime auto refresh', () => {
     expect(runtime.getSnapshot().nextRefreshAt).toBeNull();
 
     gate.resolve({ total: ROWS.length, list: ROWS });
-    await flush();
+    await nextTask();
     expect(runtime.getSnapshot().nextRefreshAt).toBe(NOW.getTime() + 30_000);
 
     // The other three hold it the same way, and each one clears the due time
@@ -1156,7 +1152,7 @@ describe('DataViewRuntime auto refresh', () => {
   it('notifies when visibility moves the due time', async () => {
     const { runtime, clock } = harness({ config: refreshing });
     runtime.apply();
-    await flush();
+    await nextTask();
     const listener = vi.fn();
     runtime.subscribe(listener);
 
@@ -1176,11 +1172,11 @@ describe('DataViewRuntime auto refresh', () => {
   it('restarts the wait after a refresh the user asked for', async () => {
     const { runtime, clock } = harness({ config: refreshing });
     runtime.apply();
-    await flush();
+    await nextTask();
 
     clock.advance(20_000);
     runtime.refresh();
-    await flush();
+    await nextTask();
 
     expect(runtime.getSnapshot().nextRefreshAt).toBe(
       NOW.getTime() + 20_000 + 30_000,
@@ -1243,7 +1239,7 @@ describe('DataViewRuntime lifecycle', () => {
     const listener = vi.fn();
     runtime.subscribe(listener);
     runtime.apply();
-    await flush();
+    await nextTask();
     listener.mockClear();
 
     runtime.dispose();
@@ -1258,7 +1254,7 @@ describe('DataViewRuntime lifecycle', () => {
     runtime.adoptSaved(savedInstance);
     runtime.setWrite(null);
     clock.advance(60_000);
-    await flush();
+    await nextTask();
 
     expect(clock.timers).toBe(0);
     // Disposal is the last notification, so a subscriber reading `disposed`
@@ -1334,7 +1330,9 @@ describe('defaultRuntimeEnvironment', () => {
     const callback = vi.fn();
 
     environment.clearTimeout(environment.setTimeout(callback, 0));
-    await new Promise(resolve => setTimeout(resolve, 1));
+    // Timers of equal delay fire in the order they were set, so the cleared
+    // one would have fired before this turn ends.
+    await nextTask();
 
     expect(callback).not.toHaveBeenCalled();
   });

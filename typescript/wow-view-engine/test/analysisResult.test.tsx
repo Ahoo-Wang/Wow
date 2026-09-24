@@ -15,9 +15,10 @@ import {
   AggregationFunction,
   AggregationGroupType,
 } from '@ahoo-wang/fetcher-wow';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import {
+  AUTO_APPLY_DELAY_MS,
   MemoryViewStore,
   ViewEngine,
   type AnalysisViewConfig,
@@ -34,8 +35,10 @@ import {
   analysisConfig,
   namedOrdersDefinition,
   ordersDefinition,
+  testEnvironment,
   testSource,
 } from './fixtures.js';
+import { settle } from './fixtures/ui.js';
 
 const analysisView: ViewInstance = {
   id: 'orders-1',
@@ -317,11 +320,19 @@ describe('useAnalysisResult', () => {
         },
       }),
     };
+    const clock = testEnvironment();
     const engine = new ViewEngine({
       definitions: [namedOrdersDefinition()],
       store: new MemoryViewStore({ instances: [monthly] }),
       resolveSource: () => source,
+      environment: clock.environment,
     });
+    // Nothing more is on its way: past the debounce an edit would run
+    // after, and past the effects and promises a run would start from.
+    const quiet = async () => {
+      act(() => clock.advance(AUTO_APPLY_DELAY_MS));
+      await settle();
+    };
     const { result } = renderHook(() => {
       const open = useOpenView(engine, 'orders-monthly');
       const runtime = open.runtime as ViewRuntime<AnalysisViewConfig> | null;
@@ -353,7 +364,7 @@ describe('useAnalysisResult', () => {
       }),
     );
     expect(result.current.result.chartData).not.toHaveProperty('whole');
-    await new Promise(resolve => setTimeout(resolve, 50));
+    await quiet();
     expect(vi.mocked(source.aggregate).mock.calls.length).toBe(grouped);
 
     // Switched to the whole in the options, it runs once for it.
@@ -375,7 +386,7 @@ describe('useAnalysisResult', () => {
     // Asked once: the config that ran asked for the whole, so nothing runs
     // again on its own.
     const settled = vi.mocked(source.aggregate).mock.calls.length;
-    await new Promise(resolve => setTimeout(resolve, 50));
+    await quiet();
     expect(vi.mocked(source.aggregate).mock.calls.length).toBe(settled);
   });
 

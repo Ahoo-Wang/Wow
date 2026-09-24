@@ -550,8 +550,8 @@ function popupOf(slot: string): HTMLElement {
  * registry's `isolate z-50` on it matches nothing: left alone it computes to
  * `z-index: auto` and the popup paints at level 0, in front of the page only
  * because its portal is last in the body. That is what buries a popup under
- * anything a host raises. `FillTheScreenOverRaisedHostChrome` in
- * `stories/view-engine/DataWorkbench.test.stories.tsx` is the same claim
+ * anything a host raises. `PopupsOverRaisedHostLayer` in
+ * `stories/view-engine/RecordWorkbench.test.stories.tsx` is the same claim
  * measured in a browser, where the layers actually exist.
  */
 describe('every popup opens on the popup layer', () => {

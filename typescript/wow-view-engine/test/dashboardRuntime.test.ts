@@ -39,6 +39,7 @@ import {
 import {
   analysisConfig,
   dashboardConfig,
+  nextTask,
   NOW,
   ordersDefinition,
   overviewDefinition,
@@ -47,10 +48,6 @@ import {
   testSource,
   type TestEnvironment,
 } from './fixtures.js';
-
-function flush(): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, 0));
-}
 
 const REGION_FIELD = { name: 'region', label: 'Region', kind: 'string' };
 
@@ -155,7 +152,7 @@ function harness(
         { requestId: 'r' },
       );
       const runtime = await engine.open(instance.id, { scopeFilter });
-      await flush();
+      await nextTask();
       // `open` narrows to the `DashboardRuntime` contract; the tests below
       // also drive the write commands the engine calls on the class.
       if (!(runtime instanceof DashboardViewRuntime))
@@ -346,7 +343,7 @@ describe('DashboardViewRuntime unavailable references', () => {
     ]);
 
     runtime.place('orders', { x: 1, y: 0, w: 6, h: 4 });
-    await flush();
+    await nextTask();
 
     expect(first().runtime).not.toBeNull();
     expect(codes(first().issues)).toEqual(['config.filterMode.not-simple']);
@@ -480,7 +477,7 @@ describe('DashboardViewRuntime unavailable references', () => {
 
     runtime.setBuilding(true);
     runtime.addPanel({ kind: 'view', instanceId: 'broken-1' });
-    await flush();
+    await nextTask();
     const state = runtime.getSnapshot();
 
     // Nothing awaits a load an edit starts, so the failure is reported here
@@ -555,7 +552,7 @@ describe('DashboardViewRuntime child results', () => {
       }),
     });
     const runtime = await board.open(dashboardConfig({ panels: [panel()] }));
-    await flush();
+    await nextTask();
 
     const first = runtime.getSnapshot().panels[0];
     expect(first.runtime?.getSnapshot().query.status).toBe('success');
@@ -583,7 +580,7 @@ describe('DashboardViewRuntime child results', () => {
       }),
     });
     const runtime = await board.open(dashboardConfig({ panels: [panel()] }));
-    await flush();
+    await nextTask();
 
     const first = runtime.getSnapshot().panels[0];
     expect(codes(first.issues)).toEqual(['analysis.result.more-groups']);
@@ -605,7 +602,7 @@ describe('DashboardViewRuntime editing', () => {
     runtime.edit({ filter: next });
     expect(runtime.getSnapshot().dirty).toBe(true);
     runtime.apply();
-    await flush();
+    await nextTask();
 
     // The promotion commits with the panels it produced.
     expect(runtime.getSnapshot().applied.filter).toEqual(next);
@@ -624,7 +621,7 @@ describe('DashboardViewRuntime editing', () => {
     const before = runtime.getSnapshot().panels[0].runtime;
 
     runtime.place('orders', { x: 6, y: 0, w: 6, h: 4 });
-    await flush();
+    await nextTask();
 
     expect(pagedQueries(board.source)).toHaveLength(1);
     // The same child keeps running, with its data, under the new geometry.
@@ -654,7 +651,7 @@ describe('DashboardViewRuntime editing', () => {
     runtime.setBuilding(true);
     runtime.replacePanelView('orders', 'shipped');
     await runtime.ready();
-    await flush();
+    await nextTask();
 
     const second = runtime.getSnapshot().panels[0].runtime;
     expect(first?.disposed).toBe(true);
@@ -669,7 +666,7 @@ describe('DashboardViewRuntime editing', () => {
     runtime.setBuilding(true);
     runtime.addPanel({ kind: 'view', instanceId: 'pending' });
     await runtime.ready();
-    await flush();
+    await nextTask();
 
     expect(runtime.getSnapshot().panels[0].runtime).not.toBeNull();
   });
@@ -838,7 +835,7 @@ describe('DashboardViewRuntime child refusal', () => {
     );
     await runtime.ready();
     runtime.apply();
-    await flush();
+    await nextTask();
 
     const [state] = runtime.getSnapshot().panels;
     expect(state.runtime).toBeNull();
@@ -861,14 +858,14 @@ describe('DashboardViewRuntime child refusal', () => {
     );
     await runtime.ready();
     runtime.apply();
-    await flush();
+    await nextTask();
     const child = runtime.panelRuntime('orders');
     expect(child).not.toBeNull();
     expect(source.paged).toHaveBeenCalledTimes(1);
 
     runtime.edit({ filter: stateFilter });
     runtime.apply();
-    await flush();
+    await nextTask();
 
     expect(child?.disposed).toBe(true);
     expect(runtime.panelRuntime('orders')).toBeNull();
@@ -887,7 +884,7 @@ describe('DashboardViewRuntime refreshing', () => {
     // One timer for the dashboard, and none in the panel below it.
     expect(board.clock.timers).toBe(1);
     board.clock.advance(60_000);
-    await flush();
+    await nextTask();
 
     expect(pagedQueries(board.source)).toHaveLength(2);
   });
@@ -939,7 +936,7 @@ describe('DashboardViewRuntime refreshing', () => {
     expect(runtime.getSnapshot().nextRefreshAt).toBe(NOW.getTime() + 60_000);
 
     board.clock.advance(60_000);
-    await flush();
+    await nextTask();
     expect(runtime.getSnapshot().nextRefreshAt).toBe(
       NOW.getTime() + 60_000 + 60_000,
     );
@@ -960,7 +957,7 @@ describe('DashboardViewRuntime refreshing', () => {
     runtime.subscribe(listener);
 
     board.clock.advance(60_000);
-    await flush();
+    await nextTask();
 
     // Out and back: nothing due while the panels query, due again once they
     // have all answered.
@@ -975,7 +972,7 @@ describe('DashboardViewRuntime refreshing', () => {
     const runtime = await board.open();
 
     runtime.refresh();
-    await flush();
+    await nextTask();
 
     expect(pagedQueries(board.source)).toHaveLength(2);
   });
@@ -1084,7 +1081,7 @@ describe('DashboardViewRuntime saving', () => {
     expect(runtime.getSnapshot().dirty).toBe(true);
 
     runtime.revert();
-    await flush();
+    await nextTask();
 
     const state = runtime.getSnapshot();
     expect(state.dirty).toBe(false);
@@ -1193,7 +1190,7 @@ describe('DashboardViewRuntime a panel in error', () => {
 
     runtime.edit({ filter: EU_FILTER });
     runtime.apply();
-    await flush();
+    await nextTask();
     const state = runtime.getSnapshot();
 
     expect(state.applied.filter).toEqual(EU_FILTER);
@@ -1223,7 +1220,7 @@ describe('DashboardViewRuntime a panel in error', () => {
 
     expect(board.clock.timers).toBe(1);
     board.clock.advance(60_000);
-    await flush();
+    await nextTask();
 
     expect(pagedQueries(board.source)).toHaveLength(2);
   });
@@ -1235,7 +1232,7 @@ describe('DashboardViewRuntime a panel in error', () => {
     runtime.apply();
 
     runtime.revert();
-    await flush();
+    await nextTask();
 
     expect(runtime.getSnapshot().applied.filter).toEqual(REGION_FILTER);
   });
@@ -1253,7 +1250,7 @@ describe('DashboardViewRuntime placing', () => {
 
     runtime.edit({ filter: EU_FILTER });
     runtime.place('orders', { x: 6, y: 0, w: 6, h: 4 });
-    await flush();
+    await nextTask();
     const state = runtime.getSnapshot();
 
     expect(state.applied.panels[0].layout).toEqual({ x: 6, y: 0, w: 6, h: 4 });
@@ -1269,7 +1266,7 @@ describe('DashboardViewRuntime placing', () => {
 
     // The filter still applies when asked, under the new geometry.
     runtime.apply();
-    await flush();
+    await nextTask();
     expect(lastQuery(board.source).filter).toMatchObject({
       value: 'EU',
     });
@@ -1355,7 +1352,7 @@ describe('DashboardViewRuntime refreshing one panel', () => {
     expect(pagedQueries(board.source)).toHaveLength(2);
 
     runtime.refreshPanel('first');
-    await flush();
+    await nextTask();
 
     expect(pagedQueries(board.source)).toHaveLength(3);
     expect(runtime.panelRuntime('second')?.getSnapshot().result).toBe(second);
@@ -1369,7 +1366,7 @@ describe('DashboardViewRuntime refreshing one panel', () => {
 
     runtime.refreshPanel('orders');
     runtime.refreshPanel('ghost');
-    await flush();
+    await nextTask();
 
     expect(board.source.paged).not.toHaveBeenCalled();
   });

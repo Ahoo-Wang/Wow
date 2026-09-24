@@ -32,15 +32,12 @@ import {
 import {
   analysisConfig,
   dashboardConfig,
+  nextTask,
   ordersDefinition,
   overviewDefinition,
   testEnvironment,
   testSource,
 } from './fixtures.js';
-
-function flush(): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, 0));
-}
 
 const byWarehouse: ViewInstance = {
   id: 'by-warehouse',
@@ -103,7 +100,7 @@ function harness(store = new MemoryViewStore({ instances: [byWarehouse] })) {
         board.id,
         tab === undefined ? {} : { tab },
       );
-      await flush();
+      await nextTask();
       if (!(runtime instanceof DashboardViewRuntime))
         throw new Error('expected a dashboard');
       return runtime;
@@ -144,7 +141,7 @@ describe('only the tab on screen runs', () => {
     const first = byId(runtime, 'a').runtime;
 
     runtime.showTab('detail');
-    await flush();
+    await nextTask();
     expect(runtime.getSnapshot().tab).toBe('detail');
     expect(byId(runtime, 'c').runtime).not.toBeNull();
     expect(byId(runtime, 'c').waiting).toBe(false);
@@ -152,7 +149,7 @@ describe('only the tab on screen runs', () => {
 
     // Back: the same child with the same rows, nothing asked again.
     runtime.showTab('overview');
-    await flush();
+    await nextTask();
     expect(byId(runtime, 'a').runtime).toBe(first);
     expect(first?.getSnapshot().result).not.toBeNull();
     expect(board.asked()).toBe(3);
@@ -163,21 +160,21 @@ describe('only the tab on screen runs', () => {
     const board = harness();
     const runtime = await board.open();
     runtime.showTab('detail');
-    await flush();
+    await nextTask();
     const before = board.asked();
 
     runtime.refresh();
-    await flush();
+    await nextTask();
     // Only panel c, on the tab shown.
     expect(board.asked()).toBe(before + 1);
 
     runtime.showTab('overview');
-    await flush();
+    await nextTask();
     // Both panels of the tab that missed the refresh, once each.
     expect(board.asked()).toBe(before + 3);
 
     runtime.showTab('detail');
-    await flush();
+    await nextTask();
     expect(board.asked()).toBe(before + 3);
   });
 
@@ -191,7 +188,7 @@ describe('only the tab on screen runs', () => {
     runtime.showTab('detail');
     runtime.setBuilding(true);
     runtime.removeTab('detail');
-    await flush();
+    await nextTask();
     expect(runtime.getSnapshot().tab).toBe('overview');
     expect(runtime.getSnapshot().panels.map(entry => entry.id)).toEqual([
       'a',
@@ -206,12 +203,12 @@ describe('only the tab on screen runs', () => {
     runtime.setBuilding(true);
 
     runtime.movePanelToTab('a', 'detail');
-    await flush();
+    await nextTask();
     expect(byId(runtime, 'a')).toMatchObject({ tab: 'detail', runtime: moved });
     const asked = board.asked();
 
     runtime.showTab('detail');
-    await flush();
+    await nextTask();
     // c runs for the first time; a asks nothing again.
     expect(board.asked()).toBe(asked + 1);
     expect(byId(runtime, 'a').runtime).toBe(moved);

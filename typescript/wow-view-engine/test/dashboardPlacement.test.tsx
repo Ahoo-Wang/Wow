@@ -42,6 +42,7 @@ import {
   testSource,
 } from './fixtures.js';
 import { panel, pending } from './fixtures/dashboard.js';
+import { settle } from './fixtures/ui.js';
 
 afterEach(() => {
   cleanup();
@@ -54,12 +55,6 @@ const EU: FilterTree = {
   op: 'and',
   children: [{ field: 'region', operator: 'EQ', value: 'EU' }],
 };
-
-async function settle() {
-  await act(async () => {
-    await new Promise(resolve => setTimeout(resolve, 0));
-  });
-}
 
 async function openDashboard(
   config: DashboardViewConfig,

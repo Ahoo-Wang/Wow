@@ -32,6 +32,7 @@ import {
   analysisConfig,
   dailyOrdersDefinition,
   dashboardConfig,
+  nextTask,
   NOW,
   overviewDefinition,
   testEnvironment,
@@ -76,9 +77,6 @@ function card(
     },
   });
 }
-
-/** Until the queued microtasks have run, which is when a query has landed. */
-const flush = () => new Promise<void>(resolve => setTimeout(resolve, 0));
 
 /** What is left of the 16th at `NOW` (10:30 UTC). */
 const LEFT = day(17) - NOW.getTime();
@@ -137,14 +135,14 @@ describe('a card asked again when its period ends', () => {
   it('asks the question again a moment after midnight', async () => {
     const { runtime, clock, aggregate } = openCard();
     runtime.apply();
-    await flush();
+    await nextTask();
     expect(aggregate).toHaveBeenCalledTimes(1);
     expect(runtime.rolloverAt()).toBe(day(17));
 
     clock.advance(LEFT);
     expect(aggregate).toHaveBeenCalledTimes(1);
     clock.advance(ROLLOVER_GRACE_MS);
-    await flush();
+    await nextTask();
     expect(aggregate).toHaveBeenCalledTimes(2);
     runtime.dispose();
   });
@@ -152,15 +150,15 @@ describe('a card asked again when its period ends', () => {
   it('waits while the page is hidden, and asks once it is shown', async () => {
     const { runtime, clock, aggregate } = openCard();
     runtime.apply();
-    await flush();
+    await nextTask();
     clock.setVisible(false);
     clock.advance(LEFT + ROLLOVER_GRACE_MS);
-    await flush();
+    await nextTask();
     expect(aggregate).toHaveBeenCalledTimes(1);
 
     clock.setVisible(true);
     clock.advance(0);
-    await flush();
+    await nextTask();
     expect(aggregate).toHaveBeenCalledTimes(2);
     runtime.dispose();
   });
@@ -168,16 +166,16 @@ describe('a card asked again when its period ends', () => {
   it('asks once for a moment, however often the answer fails to come', async () => {
     const { runtime, clock, aggregate } = openCard();
     runtime.apply();
-    await flush();
+    await nextTask();
     aggregate.mockRejectedValue(new Error('offline'));
     clock.advance(LEFT + ROLLOVER_GRACE_MS);
-    await flush();
+    await nextTask();
     expect(aggregate).toHaveBeenCalledTimes(2);
     expect(runtime.getSnapshot().query.status).toBe('error');
     // The old answer is still on screen, with its old moment: not asked
     // again and again.
     clock.advance(60_000);
-    await flush();
+    await nextTask();
     expect(aggregate).toHaveBeenCalledTimes(2);
     runtime.dispose();
   });
@@ -186,11 +184,11 @@ describe('a card asked again when its period ends', () => {
     for (const config of [card({ headline: 'whole' }), analysisConfig()]) {
       const { runtime, clock, aggregate } = openCard(config);
       runtime.apply();
-      await flush();
+      await nextTask();
       const asked = aggregate.mock.calls.length;
       expect(runtime.rolloverAt()).toBeNull();
       clock.advance(LEFT + ROLLOVER_GRACE_MS);
-      await flush();
+      await nextTask();
       expect(aggregate).toHaveBeenCalledTimes(asked);
       runtime.dispose();
     }
@@ -202,7 +200,7 @@ describe('a card asked again when its period ends', () => {
       chart: { type: 'bar', cartesian: { x: 'day', series: [] } },
     });
     runtime.apply();
-    await flush();
+    await nextTask();
     expect(runtime.rolloverAt()).toBeNull();
     runtime.edit({ chart: card().chart });
     expect(runtime.rolloverAt()).toBe(day(17));
@@ -256,14 +254,14 @@ describe('a dashboard’s cards asked again when their period ends', () => {
       { requestId: 'r' },
     );
     const runtime = await engine.open(board.id);
-    await flush();
+    await nextTask();
     if (!(runtime instanceof DashboardViewRuntime))
       throw new Error('expected a dashboard');
     const asked = aggregate.mock.calls.length;
     expect(asked).toBeGreaterThan(0);
 
     clock.advance(LEFT + ROLLOVER_GRACE_MS);
-    await flush();
+    await nextTask();
     expect(aggregate.mock.calls.length).toBeGreaterThan(asked);
     runtime.dispose();
   });

@@ -32,7 +32,7 @@ import {
   recordConfig,
   testSource,
 } from './fixtures.js';
-import { mine } from './fixtures/ui.js';
+import { mine, settle } from './fixtures/ui.js';
 
 afterEach(cleanup);
 
@@ -80,7 +80,8 @@ describe('useValueCandidates', () => {
       ({ query, active }) => useValueCandidates(source, query, active),
       { initialProps: { query: '', active: false } },
     );
-    await new Promise(resolve => setTimeout(resolve, 20));
+    // The whole list is asked at no delay, so it would be asked by now.
+    await settle();
     expect(calls).toEqual([]);
     expect(result.current.status).toBe('idle');
 

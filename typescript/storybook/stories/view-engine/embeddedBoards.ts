@@ -12,8 +12,11 @@
  */
 import {
   defaultRuntimeEnvironment,
+  MemoryViewStore,
   type DashboardFilters,
+  type ViewConfig,
   type ViewInstance,
+  type WriteContext,
 } from '@ahoo-wang/fetcher-view-engine';
 import {
   analysisConfig,
@@ -154,3 +157,40 @@ export const boardWithAPanelOut: ViewInstance = {
     ],
   }),
 };
+
+/**
+ * The team's own board, shared, on the team's page in the editable tier:
+ * whoever may save it builds it where it sits.
+ */
+export const teamBoard: ViewInstance = {
+  ...savedDashboard,
+  id: 'team-board',
+  title: '班组看板',
+  scope: 'shared',
+  config: dashboardConfig(),
+};
+
+/**
+ * A memory store that tells the host page what it last took — the page's
+ * witness that 「完成」 wrote the board through, and that 「取消」 did not.
+ */
+export class WatchedViewStore extends MemoryViewStore {
+  private readonly listeners = new Set<(saved: ViewInstance) => void>();
+
+  /** Told every instance a save wrote; returns the way to stop. */
+  watch(listener: (saved: ViewInstance) => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  override async save(
+    id: string,
+    config: ViewConfig,
+    revision: string,
+    context: WriteContext,
+  ): Promise<ViewInstance> {
+    const saved = await super.save(id, config, revision, context);
+    for (const listener of [...this.listeners]) listener(saved);
+    return saved;
+  }
+}

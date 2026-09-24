@@ -241,7 +241,7 @@ describe('DataWorkbench', () => {
    *
    * What a class is worth in pixels is a stylesheet's answer and jsdom has
    * none, so the 16px itself is measured in the browser project
-   * (`stories/view-engine/DataWorkbench.test.stories.tsx`, `BlockSpacing`).
+   * (`stories/view-engine/RecordWorkbench.test.stories.tsx`, `BlockSpacing`).
    * What is pinned here is the class that decides it.
    */
   it('leaves the block spacing to the shell', async () => {

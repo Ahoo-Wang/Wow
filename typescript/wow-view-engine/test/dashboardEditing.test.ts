@@ -40,6 +40,7 @@ import { useSaveCommands } from '../src/react/index.js';
 import {
   analysisConfig,
   dashboardConfig,
+  nextTask,
   ordersDefinition,
   overviewDefinition,
   preCDashboardConfig,
@@ -47,10 +48,6 @@ import {
   testEnvironment,
   testSource,
 } from './fixtures.js';
-
-function flush(): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, 0));
-}
 
 function codes(issues: readonly Issue[]): string[] {
   return issues.map(found => found.code);
@@ -124,7 +121,7 @@ function harness(scope: ViewScope = 'personal') {
         { requestId: 'r' },
       );
       const runtime = await engine.open(instance.id);
-      await flush();
+      await nextTask();
       if (!(runtime instanceof DashboardViewRuntime))
         throw new Error('expected a dashboard');
       // Every board here is opened to be built: an edit is refused while
@@ -245,7 +242,7 @@ describe('a pre-C board read once, through save and reopen', () => {
       resolveSource: () => board.source,
       environment: testEnvironment().environment,
     }).open(written.id);
-    await flush();
+    await nextTask();
     const draft = reopened.getSnapshot().draft as DashboardViewConfig;
     expect(draft.fixed.children).toEqual([leaf]);
     expect(draft.fields).toEqual([{ ...region, multiple: true }]);
@@ -259,7 +256,7 @@ describe('editing a board', () => {
     const runtime = await board.open(dashboardConfig({ panels: [saved('a')] }));
 
     const id = runtime.addPanel({ kind: 'view', instanceId: 'by-warehouse' });
-    await flush();
+    await nextTask();
     const state = runtime.getSnapshot();
 
     expect(id).toBe('panel-1');
@@ -318,7 +315,7 @@ describe('editing a board', () => {
     runtime.addPanel({ kind: 'markdown', content: 'Read me' });
     runtime.renamePanel('a', 'Pending');
     runtime.revert();
-    await flush();
+    await nextTask();
     expect(runtime.getSnapshot().applied.panels).toEqual([saved('a')]);
     expect(runtime.getSnapshot().dirty).toBe(false);
 
@@ -347,7 +344,7 @@ describe('editing a board', () => {
     runtime.renamePanel('a', 'Pending');
     runtime.replacePanelView('panel-1', 'by-warehouse');
     runtime.editPanelContent('n', { content: 'Hello' });
-    await flush();
+    await nextTask();
     let state = runtime.getSnapshot();
     expect(state.draft.panels.map(panel => [panel.id, panel.title])).toEqual([
       ['a', 'Pending'],
@@ -483,7 +480,7 @@ describe('a view the board owns', () => {
     // Another writer's change read back is how a question the board owns
     // changes under it (`adoptSaved`).
     adopt(runtime, [owned('own', analysisConfig({ limit: 5 }))]);
-    await flush();
+    await nextTask();
 
     expect(runtime.getSnapshot().panels[0].runtime).toBe(child);
     expect(child?.getSnapshot().applied).toMatchObject({ limit: 5 });
@@ -528,7 +525,7 @@ describe('a view the board owns', () => {
       title: 'Orders by warehouse',
       scope: 'personal',
     });
-    await flush();
+    await nextTask();
     const state = runtime.getSnapshot();
 
     expect(instance.config).toEqual(analysisConfig());
@@ -583,7 +580,7 @@ describe('a view the board owns', () => {
     const runtime = await board.open(
       dashboardConfig({ panels: [owned('own'), saved('a')] }),
     );
-    await flush();
+    await nextTask();
 
     for (const panelId of ['own', 'ghost']) {
       const refused = await board.engine
@@ -654,7 +651,7 @@ describe("a panel's override of how it looks", () => {
     const asked = vi.mocked(board.source.aggregate).mock.calls.length;
 
     runtime.setPresentation('p', chart);
-    await flush();
+    await nextTask();
     expect(runtime.getSnapshot().panels[0].runtime).toBe(child);
     // Presentation never asks the source (D20): the child's draft carries
     // the new look, the panel draws it over the rows it has.
@@ -663,7 +660,7 @@ describe("a panel's override of how it looks", () => {
     expect(board.source.aggregate).toHaveBeenCalledTimes(asked);
 
     runtime.setPresentation('p', null);
-    await flush();
+    await nextTask();
     expect(child?.getSnapshot().draft.layout).toBe('table');
     expect(board.source.aggregate).toHaveBeenCalledTimes(asked);
     expect(runtime.getSnapshot().draft.panels[0]).not.toHaveProperty(
@@ -680,7 +677,7 @@ describe("a panel's override of how it looks", () => {
     const asked = vi.mocked(board.source.aggregate).mock.calls.length;
 
     runtime.setPresentation('p', { table: { columns: [], totals: true } });
-    await flush();
+    await nextTask();
     expect(runtime.getSnapshot().panels[0].runtime).toBe(child);
     expect(child?.getSnapshot().applied).toMatchObject({
       table: { totals: true },

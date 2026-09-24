@@ -38,6 +38,7 @@ import {
 import {
   analysisConfig,
   dashboardConfig,
+  nextTask,
   ordersDefinition,
   overviewDefinition,
   preCDashboardConfig,
@@ -45,10 +46,6 @@ import {
   testEnvironment,
   testSource,
 } from './fixtures.js';
-
-function flush(): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, 0));
-}
 
 const DAY = Date.UTC(2026, 8, 22);
 
@@ -217,7 +214,7 @@ async function harness(config: DashboardViewConfig = board()) {
     { requestId: 'board' },
   );
   const runtime = await engine.open(saved.id);
-  await flush();
+  await nextTask();
   if (!(runtime instanceof DashboardViewRuntime))
     throw new Error('expected a dashboard');
   const panel = (id: string) => {
@@ -425,7 +422,7 @@ describe('a custom destination (D22 I)', () => {
     runtime.setBuilding(true);
     runtime.setPanelClick('chart', { kind: 'view', instanceId: boardId });
     runtime.apply();
-    await flush();
+    await nextTask();
     const board2 = await runtime.destination('chart', { warehouse: 'CN' });
     expect(board2 && 'refused' in board2 && board2.refused.code).toBe(
       'dashboard.click.destination-unsupported',
@@ -527,7 +524,7 @@ describe('a press that opens another board (D23 Q17)', () => {
       { requestId: 'board' },
     );
     const runtime = await engine.open(saved.id);
-    await flush();
+    await nextTask();
     if (!(runtime instanceof DashboardViewRuntime))
       throw new Error('expected a dashboard');
     expect(get.mock.calls.map(([id]) => id)).not.toContain('regional');
@@ -556,7 +553,7 @@ describe('a press that opens another board (D23 Q17)', () => {
     expect(fell && 'fallback' in fell && fell.fallback.code).toBe(
       'dashboard.click.board-filter-unknown',
     );
-    await flush();
+    await nextTask();
     expect(panel('chart').click).toBeNull();
     expect(panel('chart').issues.map(found => found.code)).toContain(
       'dashboard.click.board-filter-unknown',

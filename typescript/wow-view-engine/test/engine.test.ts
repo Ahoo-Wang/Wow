@@ -32,6 +32,7 @@ import {
 } from '../src/index.js';
 import {
   analysisConfig,
+  nextTask,
   ordersDefinition,
   overviewDefinition,
   recordConfig,
@@ -39,10 +40,6 @@ import {
   testEnvironment,
   testSource,
 } from './fixtures.js';
-
-function flush(): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, 0));
-}
 
 const mine: ViewInstance = {
   id: 'orders-1',
@@ -214,7 +211,7 @@ describe('ViewEngine opening', () => {
     const get = vi.spyOn(store, 'get');
 
     const runtime = await engine.open('system:orders:all');
-    await flush();
+    await nextTask();
 
     expect(get).not.toHaveBeenCalled();
     expect(runtime.getSnapshot().saved).toMatchObject({
@@ -228,7 +225,7 @@ describe('ViewEngine opening', () => {
     const { engine } = harness();
 
     const runtime = await engine.open('orders-1');
-    await flush();
+    await nextTask();
 
     expect(runtime.getSnapshot().dirty).toBe(false);
     expect(runtime.getSnapshot().query.status).toBe('success');
@@ -335,7 +332,7 @@ describe('ViewEngine creating and saving', () => {
       scope: 'personal',
       config: recordConfig(),
     });
-    await flush();
+    await nextTask();
 
     const state = runtime.getSnapshot();
     expect(state.saved).toBeNull();

@@ -31,16 +31,13 @@ import {
 } from '../src/index.js';
 import {
   dashboardConfig,
+  nextTask,
   ordersDefinition,
   overviewDefinition,
   recordConfig,
   testEnvironment,
   testSource,
 } from './fixtures.js';
-
-function flush(): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, 0));
-}
 
 const pending: ViewInstance = {
   id: 'pending',
@@ -78,7 +75,7 @@ async function openBoard(interval: number | null = 60) {
     { requestId: 'r' },
   );
   const runtime = await engine.open(instance.id);
-  await flush();
+  await nextTask();
   if (!(runtime instanceof DashboardViewRuntime))
     throw new Error('expected a dashboard');
   /** How many pages the panel has asked for so far. */
@@ -101,7 +98,7 @@ describe('a reader’s refresh interval (D26 Q35)', () => {
     // The timer keeps the reader's interval, not the board's.
     const first = asked();
     clock.advance(30_000);
-    await flush();
+    await nextTask();
     expect(asked()).toBe(first + 1);
   });
 
@@ -147,7 +144,7 @@ describe('building a board holds its auto refresh (D26 Q39)', () => {
     expect(clock.timers).toBe(0);
     expect(runtime.getSnapshot().nextRefreshAt).toBeNull();
     clock.advance(180_000);
-    await flush();
+    await nextTask();
     expect(asked()).toBe(first);
 
     runtime.renamePanel('orders', 'Orders');
@@ -156,7 +153,7 @@ describe('building a board holds its auto refresh (D26 Q39)', () => {
 
     expect(clock.timers).toBe(1);
     clock.advance(60_000);
-    await flush();
+    await nextTask();
     expect(asked()).toBe(first + 1);
   });
 
@@ -167,13 +164,13 @@ describe('building a board holds its auto refresh (D26 Q39)', () => {
     runtime.renamePanel('orders', 'Orders');
     runtime.revert();
     runtime.setBuilding(false);
-    await flush();
+    await nextTask();
     const first = asked();
 
     expect(runtime.getSnapshot().building).toBe(false);
     expect(runtime.getSnapshot().dirty).toBe(false);
     clock.advance(60_000);
-    await flush();
+    await nextTask();
     expect(asked()).toBe(first + 1);
   });
 

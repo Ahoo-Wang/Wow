@@ -45,16 +45,13 @@ import { useDashboard } from '../src/react/index.js';
 import {
   analysisConfig,
   dashboardConfig,
+  nextTask,
   ordersDefinition,
   overviewDefinition,
   recordConfig,
   testEnvironment,
   testSource,
 } from './fixtures.js';
-
-function flush(): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, 0));
-}
 
 const LAST_WEEK = { type: 'relative', amount: 7, unit: 'day' };
 const LAST_MONTH = { type: 'relative', amount: 1, unit: 'month' };
@@ -256,7 +253,7 @@ async function harness(
     { requestId: 'board' },
   );
   const runtime = await engine.open(saved.id, filters ? { filters } : {});
-  await flush();
+  await nextTask();
   if (!(runtime instanceof DashboardViewRuntime))
     throw new Error('expected a dashboard');
   const panel = (id: string) => {

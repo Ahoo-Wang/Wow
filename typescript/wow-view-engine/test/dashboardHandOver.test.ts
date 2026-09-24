@@ -32,16 +32,13 @@ import {
 } from '../src/index.js';
 import {
   dashboardConfig,
+  nextTask,
   ordersDefinition,
   overviewDefinition,
   recordConfig,
   testEnvironment,
   testSource,
 } from './fixtures.js';
-
-function flush(): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, 0));
-}
 
 const REGION_FIELD = { name: 'region', label: 'Region', kind: 'string' };
 
@@ -112,7 +109,7 @@ function harness() {
         { requestId: 'r' },
       );
       const runtime = await engine.open(instance.id, { scopeFilter });
-      await flush();
+      await nextTask();
       if (!(runtime instanceof DashboardViewRuntime))
         throw new Error(`expected a dashboard, got ${runtime.kind}`);
       return runtime;
@@ -148,7 +145,7 @@ describe('DashboardViewRuntime takes no outer condition (D26 Q32)', () => {
       'dashboard.scope.unsupported',
     ]);
     expect(runtime.scopeFilter).toBeNull();
-    await flush();
+    await nextTask();
     expect(pagedQueries(board.source)).toHaveLength(1);
     // What it has is taken, and the refusal goes with it.
     expect(runtime.setScopeFilter(null)).toEqual([]);

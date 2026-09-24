@@ -32,16 +32,13 @@ import {
 import {
   analysisConfig,
   dashboardConfig,
+  nextTask,
   ordersDefinition,
   overviewDefinition,
   recordConfig,
   testEnvironment,
   testSource,
 } from './fixtures.js';
-
-function flush(): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, 0));
-}
 
 const views: ViewInstance[] = [
   {
@@ -145,7 +142,7 @@ async function harness(filters?: DashboardFilters) {
     { requestId: 'board' },
   );
   const runtime = await engine.open(saved.id, filters ? { filters } : {});
-  await flush();
+  await nextTask();
   if (!(runtime instanceof DashboardViewRuntime))
     throw new Error('expected a dashboard');
   const panel = (id: string) => {
@@ -167,26 +164,26 @@ describe('setAutoRefresh', () => {
   it('holds a view’s timer for as long as the host says so, the interval kept', async () => {
     const { engine, clock, source } = await engineWith();
     const runtime = await engine.open('list');
-    await flush();
+    await nextTask();
     expect(clock.timers).toBe(1);
 
     runtime.setAutoRefresh(false);
     expect(clock.timers).toBe(0);
     expect(runtime.getSnapshot().nextRefreshAt).toBeNull();
     clock.advance(60_000);
-    await flush();
+    await nextTask();
     expect(source.paged).toHaveBeenCalledTimes(1);
     // The interval is the view's still: nothing was edited.
     expect(runtime.getSnapshot().draft.refresh).toEqual({ interval: 30 });
     expect(runtime.getSnapshot().dirty).toBe(false);
     // A refresh asked for still runs.
     runtime.refresh();
-    await flush();
+    await nextTask();
     expect(source.paged).toHaveBeenCalledTimes(2);
 
     runtime.setAutoRefresh(true);
     clock.advance(30_000);
-    await flush();
+    await nextTask();
     expect(source.paged).toHaveBeenCalledTimes(3);
   });
 
@@ -247,7 +244,7 @@ describe('holdFilters', () => {
       { requestId: 'board' },
     );
     await engine.open(saved.id, { held: { values: { region: ['EU'] } } });
-    await flush();
+    await nextTask();
 
     const asked = vi.mocked(source.paged).mock.calls;
     expect(asked.length).toBeGreaterThan(0);

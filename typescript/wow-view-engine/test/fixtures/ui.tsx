@@ -17,7 +17,7 @@
  * answer with.
  */
 
-import { screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import { MemoryViewStore, ViewEngine } from '../../src/index.js';
 import { ACTIONS_COLUMN } from '../../src/ui/record/columns.js';
 import type { ViewInstance, ViewSource } from '../../src/index.js';
@@ -27,6 +27,7 @@ import type {
 } from '../../src/react/index.js';
 import {
   mine,
+  nextTask,
   ordersDefinition,
   recordConfig,
   testSource,
@@ -35,6 +36,14 @@ import { tracked } from './writes.js';
 import { pagedPaging } from '../../src/record/index.js';
 
 export { mine };
+
+/**
+ * `nextTask` inside `act`: the promises and zero-delay timers queued before
+ * it have run, and the renders and effects they caused are committed.
+ */
+export async function settle(): Promise<void> {
+  await act(nextTask);
+}
 
 /**
  * What a reader hears after an element's name: the text of everything its
