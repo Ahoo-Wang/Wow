@@ -1,6 +1,6 @@
 # wow-react 首发前架构审查与重构方案（2026-09）
 
-**状态**：审查结论与重构计划，尚未动代码。第一轮审查（R1～R4，#3320～#3333）已修掉正确性与 DX 问题；本轮只看架构与代码质量，目标是得到一个愿意在 9.x 冻结的公开面。
+**状态**：已定稿（2026-09-24，第 6 节的问题全部按建议定），按第 5 节分批实施。
 **基线**：`origin/main` `c48625e14`；运行时依赖 `@ahoo-wang/fetcher-react` 5.1.3（下文 `fr` 指它构建产物 `dist/core-BfDqql2S.js`、`dist/fetcher.es.js` 的行号）。
 **范围**：`typescript/wow-react` 的 `src`、`test`、`scripts`，以及直接消费它的 dashboard、integration-test、storybook 与文档站参考页。
 
@@ -240,6 +240,8 @@ export interface QueryHookReturn<Q, R, E> {
 dashboard 跟随：B3 合并后可删 `FetchingFailedDetails.tsx` 的 `lastSuccessfulState` 兜底（另起 PR，不在本包批次内）。
 
 ## 6. 待拍板
+
+**已定（2026-09-24）**：用户「按你推荐」，Q1～Q3 全部按下面的建议执行。原则是首发前重构到生产就绪，不留兼容债。批次按第 5 节推进，每做完一批就在第 5 节标上 PR 号；全部做完后，本页并入包的设计文档。
 
 **Q1 请求状态机归谁？**
 
