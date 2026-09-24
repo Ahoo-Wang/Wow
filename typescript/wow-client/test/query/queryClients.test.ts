@@ -13,7 +13,11 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import type { QueryClientOptions } from '../../src';
-import { QueryClientFactory, createQueryApiMetadata } from '../../src';
+import { QueryClientFactory } from '../../src';
+
+/** The metadata the factory gives its clients, the path it resolves. */
+const createQueryApiMetadata = (options: QueryClientOptions) =>
+  new QueryClientFactory(options).createSnapshotQueryClient().apiMetadata!;
 import {
   LoadStateAggregateClient,
   LoadOwnerStateAggregateClient,
@@ -173,14 +177,14 @@ describe('queryClients', () => {
       });
     });
 
-    describe('createOwnerLoadStateAggregateClient', () => {
+    describe('createLoadOwnerStateAggregateClient', () => {
       it('should create a LoadOwnerStateAggregateClient with merged options', () => {
         const factory = new QueryClientFactory(defaultOptions);
         const options: QueryClientOptions = {
           aggregateName: 'testAggregate',
         };
 
-        const client = factory.createOwnerLoadStateAggregateClient(options);
+        const client = factory.createLoadOwnerStateAggregateClient(options);
 
         expect(client).toBeInstanceOf(LoadOwnerStateAggregateClient);
       });
@@ -197,7 +201,7 @@ describe('queryClients', () => {
           // contextAlias should come from defaults
         };
 
-        const client = factory.createOwnerLoadStateAggregateClient(options);
+        const client = factory.createLoadOwnerStateAggregateClient(options);
 
         expect(client).toBeInstanceOf(LoadOwnerStateAggregateClient);
       });

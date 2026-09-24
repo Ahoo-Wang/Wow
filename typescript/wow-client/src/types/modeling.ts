@@ -126,8 +126,6 @@ export interface OperatorCapable {
   operator: string;
 }
 
-export const DEFAULT_OWNER_ID = '';
-
 /**
  * Interface for identifying resource owners.
  */

@@ -12,15 +12,35 @@
  */
 
 import { DeletionState } from './deletionState.js';
+import { requireElementScopedFilter } from './elementScope.js';
 import { queryField } from './queryField.js';
 
+/**
+ * Dot-separated logical field path. The first segment is a name; later
+ * segments are names or decimal array indexes. A name may start with `@`,
+ * begins with an ASCII letter or `_`, and continues with ASCII letters,
+ * digits, `_` or `-`. Builders throw `TypeError` for any other string.
+ */
 export type QueryField<FIELDS extends string = string> = FIELDS;
 /** @deprecated Use QueryField instead. Removed in v10. */
 export type LogicalField<FIELDS extends string = string> = QueryField<FIELDS>;
+/**
+ * JSON scalar accepted as a filter value. Numbers must be finite.
+ */
 export type FilterLiteral = null | string | number | boolean;
+/**
+ * Value accepted by `EQ` and `NE`, including `null`.
+ */
 export type EqualityFilterValue = FilterLiteral;
+/**
+ * Non-null JSON scalar accepted by comparison, range and collection filters.
+ */
 export type ComparableFilterLiteral = Exclude<FilterLiteral, null>;
 
+/**
+ * Discriminator sent as the `op` property of every filter expression. The
+ * values match the server-side `FilterOperator` enum.
+ */
 export enum FilterOperator {
   MATCH_ALL = 'MATCH_ALL',
   MATCH_NONE = 'MATCH_NONE',
@@ -74,16 +94,39 @@ export enum FilterOperator {
   EARLIER_DAYS = 'EARLIER_DAYS',
 }
 
+/**
+ * Case handling for `CONTAINS`, `STARTS_WITH` and `ENDS_WITH`.
+ */
 export enum StringComparison {
+  /**
+   * Characters must match exactly. The default.
+   */
   CASE_SENSITIVE = 'CASE_SENSITIVE',
+  /**
+   * Ignores case. Backends may execute this more expensively.
+   */
   CASE_INSENSITIVE = 'CASE_INSENSITIVE',
 }
 
+/**
+ * Matching mode of a full-text `SEARCH` filter.
+ */
 export enum SearchMode {
+  /**
+   * Analyzed terms match independently; they need not appear together. The
+   * default.
+   */
   TERMS = 'TERMS',
+  /**
+   * Analyzed terms must appear in order and at adjacent positions.
+   */
   PHRASE = 'PHRASE',
 }
 
+/**
+ * Unit of a numeric epoch time field targeted by a relative time filter.
+ * Ignored when `datePattern` is set.
+ */
 export enum TimeUnit {
   NANOSECONDS = 'NANOSECONDS',
   MICROSECONDS = 'MICROSECONDS',
@@ -323,10 +366,18 @@ function validateDays(operator: FilterOperator, days: number): void {
   }
 }
 
+/**
+ * Constant filter: `MATCH_ALL` matches everything in the query scope,
+ * `MATCH_NONE` matches nothing.
+ */
 export type MatchFilter = {
   op: FilterOperator.MATCH_ALL | FilterOperator.MATCH_NONE;
 };
 
+/**
+ * Root-only filter on one system identifier: record ID, aggregate ID,
+ * tenant, owner or space.
+ */
 export type MetadataValueFilter = {
   op:
     | FilterOperator.ID
@@ -337,29 +388,49 @@ export type MetadataValueFilter = {
   value: string;
 };
 
+/**
+ * Root-only filter on a non-empty set of record IDs or aggregate IDs.
+ */
 export type MetadataValuesFilter = {
   op: FilterOperator.IDS | FilterOperator.AGGREGATE_IDS;
   values: string[];
 };
 
+/**
+ * Any root-only system identifier filter.
+ */
 export type MetadataFilter = MetadataValueFilter | MetadataValuesFilter;
 
+/**
+ * `AND`, `OR` or `NOR` over a non-empty list of filter expressions.
+ */
 export type LogicalFilter<FIELDS extends string = string> = {
   op: FilterOperator.AND | FilterOperator.OR | FilterOperator.NOR;
   operands: FilterExpression<FIELDS>[];
 };
 
+/**
+ * `AND`, `OR` or `NOR` whose operands are all valid inside an
+ * `ELEMENT_MATCH` predicate.
+ */
 export type ElementLogicalFilter<FIELDS extends string = string> = {
   op: FilterOperator.AND | FilterOperator.OR | FilterOperator.NOR;
   operands: ElementFilterExpression<FIELDS>[];
 };
 
+/**
+ * `EQ` or `NE` on a field. The server rewrites a `null` value to `IS_NULL`
+ * or `IS_NOT_NULL`.
+ */
 export type EqualityFilter<FIELDS extends string = string> = {
   op: FilterOperator.EQ | FilterOperator.NE;
   field: QueryField<FIELDS>;
   value: EqualityFilterValue;
 };
 
+/**
+ * `GT`, `GTE`, `LT` or `LTE` on a field against a non-null scalar.
+ */
 export type ComparisonFilter<FIELDS extends string = string> = {
   op:
     | FilterOperator.GT
@@ -370,6 +441,10 @@ export type ComparisonFilter<FIELDS extends string = string> = {
   value: ComparableFilterLiteral;
 };
 
+/**
+ * Literal substring, prefix or suffix match on a string field. No full-text
+ * analyzer is applied. `stringComparison` defaults to `CASE_SENSITIVE`.
+ */
 export type StringFilter<FIELDS extends string = string> = {
   op:
     | FilterOperator.CONTAINS
@@ -380,12 +455,19 @@ export type StringFilter<FIELDS extends string = string> = {
   stringComparison?: StringComparison;
 };
 
+/**
+ * `IN`, `NOT_IN` or `CONTAINS_ALL` on a field against a non-empty list of
+ * non-null scalars.
+ */
 export type CollectionFilter<FIELDS extends string = string> = {
   op: FilterOperator.IN | FilterOperator.NOT_IN | FilterOperator.CONTAINS_ALL;
   field: QueryField<FIELDS>;
   values: ComparableFilterLiteral[];
 };
 
+/**
+ * Inclusive range on a field: `lowerBound <= field <= upperBound`.
+ */
 export type BetweenFilter<FIELDS extends string = string> = {
   op: FilterOperator.BETWEEN;
   field: QueryField<FIELDS>;
@@ -393,6 +475,10 @@ export type BetweenFilter<FIELDS extends string = string> = {
   upperBound: ComparableFilterLiteral;
 };
 
+/**
+ * Operand-free check of a field's null, existence, empty-collection or
+ * empty-string state.
+ */
 export type FieldPresenceFilter<FIELDS extends string = string> = {
   op:
     | FilterOperator.IS_EMPTY
@@ -405,11 +491,18 @@ export type FieldPresenceFilter<FIELDS extends string = string> = {
   field: QueryField<FIELDS>;
 };
 
+/**
+ * Root-only filter on the deletion state of snapshots.
+ */
 export type DeletionFilter = {
   op: FilterOperator.DELETION;
   state: DeletionState;
 };
 
+/**
+ * Matches when a single element of the array `field` satisfies `predicate`.
+ * Predicate fields are relative to the element.
+ */
 export type ElementMatchFilter<
   FIELDS extends string = string,
   ELEMENT_FIELDS extends string = string,
@@ -419,24 +512,64 @@ export type ElementMatchFilter<
   predicate: ElementFilterExpression<ELEMENT_FIELDS>;
 };
 
+/**
+ * Root-only full-text search. Matching depends on the backend's index and
+ * analyzer. Empty `fields` means the backend's default search fields.
+ */
 export type SearchFilter<FIELDS extends string = string> = {
   op: FilterOperator.SEARCH;
   query: string;
   fields?: QueryField<FIELDS>[];
+  /**
+   * Matching mode. Defaults to `SearchMode.TERMS`.
+   */
   mode?: SearchMode;
 };
 
+/**
+ * Options for {@link filter.search}.
+ */
 export interface SearchFilterOptions<FIELDS extends string = string> {
+  /**
+   * Fields to search. Defaults to `[]`, the backend's default search fields.
+   */
   fields?: readonly QueryField<FIELDS>[];
+  /**
+   * Matching mode. Defaults to `SearchMode.TERMS`.
+   */
   mode?: SearchMode;
 }
 
+/**
+ * Options shared by relative time filters. Unset options are omitted from
+ * the payload, except `timeUnit`, which the builders always send.
+ */
 export interface RelativeTimeFilterOptions {
+  /**
+   * Time zone that defines calendar days, e.g. `Asia/Shanghai` or `+08:00`.
+   * Defaults to the server process time zone. Must not be blank. A value
+   * that starts with an optional `UTC`, `GMT` or `UT` prefix followed by `+`
+   * or `-` must be a valid offset within +/-18:00; region IDs are checked by
+   * the server only.
+   */
   zoneId?: string;
+  /**
+   * `java.time.format.DateTimeFormatter` pattern for fields stored as
+   * formatted strings, e.g. `yyyy-MM-dd`. Must equal the pattern declared by
+   * the query schema. Must not be blank.
+   */
   datePattern?: string;
+  /**
+   * Unit of a numeric epoch field. Defaults to `TimeUnit.MILLISECONDS`.
+   * Ignored when `datePattern` is set.
+   */
   timeUnit?: TimeUnit;
 }
 
+/**
+ * Matches times in a calendar window relative to now: `[start, end)` in the
+ * configured time zone. Weeks start on Monday.
+ */
 export type CalendarFilter<FIELDS extends string = string> =
   RelativeTimeFilterOptions & {
     op:
@@ -455,6 +588,9 @@ export type CalendarFilter<FIELDS extends string = string> =
     field: QueryField<FIELDS>;
   };
 
+/**
+ * Matches times earlier than today at the local time `time`.
+ */
 export type BeforeTodayFilter<FIELDS extends string = string> =
   RelativeTimeFilterOptions & {
     op: FilterOperator.BEFORE_TODAY;
@@ -462,6 +598,10 @@ export type BeforeTodayFilter<FIELDS extends string = string> =
     time: string;
   };
 
+/**
+ * `RECENT_DAYS` matches today and the `days - 1` previous calendar days;
+ * `EARLIER_DAYS` matches times before that window.
+ */
 export type DaysFilter<FIELDS extends string = string> =
   RelativeTimeFilterOptions & {
     op: FilterOperator.RECENT_DAYS | FilterOperator.EARLIER_DAYS;
@@ -469,6 +609,10 @@ export type DaysFilter<FIELDS extends string = string> =
     days: number;
   };
 
+/**
+ * Filter expression allowed inside an `ELEMENT_MATCH` predicate. Excludes
+ * root-only filters: system identifiers, `DELETION` and `SEARCH`.
+ */
 export type ElementFilterExpression<FIELDS extends string = string> =
   | MatchFilter
   | ElementLogicalFilter<FIELDS>
@@ -483,6 +627,10 @@ export type ElementFilterExpression<FIELDS extends string = string> =
   | BeforeTodayFilter<FIELDS>
   | DaysFilter<FIELDS>;
 
+/**
+ * Filter expression sent to the query API. Build values with
+ * {@link filter}.
+ */
 export type FilterExpression<FIELDS extends string = string> =
   | MatchFilter
   | MetadataFilter
@@ -500,47 +648,11 @@ export type FilterExpression<FIELDS extends string = string> =
   | BeforeTodayFilter<FIELDS>
   | DaysFilter<FIELDS>;
 
+/**
+ * Query that carries a filter expression.
+ */
 export interface FilterCapable<FIELDS extends string = string> {
   filter: FilterExpression<FIELDS>;
-}
-
-/**
- * Refuses the filters that only a whole record can answer.
- *
- * The metadata filters, `DELETION` and `SEARCH` ask about the record — its id,
- * its owner, whether it is deleted, its text — and an element is not a record.
- * Wow calls them root filters and refuses them in both places a filter is
- * scoped to an element: an `ELEMENT_MATCH` predicate and an aggregation
- * element's own filter. `subject` names which one, so the complaint points at
- * the call that made it.
- */
-export function requireElementScopedFilter(
-  expression: FilterExpression,
-  subject: string,
-): void {
-  switch (expression.op) {
-    case FilterOperator.ID:
-    case FilterOperator.IDS:
-    case FilterOperator.AGGREGATE_ID:
-    case FilterOperator.AGGREGATE_IDS:
-    case FilterOperator.TENANT_ID:
-    case FilterOperator.OWNER_ID:
-    case FilterOperator.SPACE_ID:
-    case FilterOperator.DELETION:
-    case FilterOperator.SEARCH:
-      throw new TypeError(`${subject} cannot contain root filters.`);
-    case FilterOperator.AND:
-    case FilterOperator.OR:
-    case FilterOperator.NOR:
-      requireNonEmpty(`${expression.op} operands`, expression.operands);
-      expression.operands.forEach(operand =>
-        requireElementScopedFilter(operand, subject),
-      );
-      break;
-    case FilterOperator.ELEMENT_MATCH:
-      requireElementScopedFilter(expression.predicate, subject);
-      break;
-  }
 }
 
 function andFilter<FIELDS extends string>(
@@ -582,53 +694,235 @@ function norFilter<FIELDS extends string>(
   return { op: FilterOperator.NOR, operands: [...operands] };
 }
 
+/**
+ * Builders for {@link FilterExpression} values. Each builder validates its
+ * arguments, throws `TypeError` on invalid input, and returns a plain JSON
+ * object in the server wire shape.
+ *
+ * @example
+ * ```typescript
+ * const paid = filter.and([
+ *   filter.eq('state.status', 'PAID'),
+ *   filter.gte('state.total', 100),
+ * ]);
+ * ```
+ */
 export const filter = {
+  /**
+   * Matches every record in the query scope.
+   *
+   * @returns `{ op: 'MATCH_ALL' }`.
+   * @example
+   * ```typescript
+   * filter.matchAll();
+   * ```
+   */
   matchAll(): MatchFilter {
     return { op: FilterOperator.MATCH_ALL };
   },
+  /**
+   * Matches no record.
+   *
+   * @returns `{ op: 'MATCH_NONE' }`.
+   * @example
+   * ```typescript
+   * filter.matchNone();
+   * ```
+   */
   matchNone(): MatchFilter {
     return { op: FilterOperator.MATCH_NONE };
   },
+  /**
+   * Matches the record whose record ID equals `value`. Root-only: not allowed
+   * inside `elementMatch`.
+   *
+   * @param value - The record ID.
+   * @returns `{ op: 'ID', value }`.
+   * @throws TypeError If `value` is not a string.
+   * @example
+   * ```typescript
+   * filter.id('order-1');
+   * ```
+   */
   id(value: string): MetadataValueFilter {
     return { op: FilterOperator.ID, value: requiredString('ID value', value) };
   },
+  /**
+   * Matches records whose record ID is one of `values`. Root-only: not
+   * allowed inside `elementMatch`.
+   *
+   * @param values - Non-empty list of record IDs.
+   * @returns `{ op: 'IDS', values }` with a copy of `values`.
+   * @throws TypeError If `values` is empty, contains `null` or `undefined`,
+   *   or contains a non-string.
+   * @example
+   * ```typescript
+   * filter.ids(['order-1', 'order-2']);
+   * ```
+   */
   ids(values: readonly string[]): MetadataValuesFilter {
     requireNonEmpty('IDS values', values);
     values.forEach(value => requiredString('IDS value', value));
     return { op: FilterOperator.IDS, values: [...values] };
   },
+  /**
+   * Matches the record whose aggregate ID equals `value`. Root-only: not allowed
+   * inside `elementMatch`.
+   *
+   * @param value - The aggregate ID.
+   * @returns `{ op: 'AGGREGATE_ID', value }`.
+   * @throws TypeError If `value` is not a string.
+   * @example
+   * ```typescript
+   * filter.aggregateId('order-1');
+   * ```
+   */
   aggregateId(value: string): MetadataValueFilter {
     return {
       op: FilterOperator.AGGREGATE_ID,
       value: requiredString('AGGREGATE_ID value', value),
     };
   },
+  /**
+   * Matches records whose aggregate ID is one of `values`. Root-only: not
+   * allowed inside `elementMatch`.
+   *
+   * @param values - Non-empty list of aggregate IDs.
+   * @returns `{ op: 'AGGREGATE_IDS', values }` with a copy of `values`.
+   * @throws TypeError If `values` is empty, contains `null` or `undefined`,
+   *   or contains a non-string.
+   * @example
+   * ```typescript
+   * filter.aggregateIds(['order-1', 'order-2']);
+   * ```
+   */
   aggregateIds(values: readonly string[]): MetadataValuesFilter {
     requireNonEmpty('AGGREGATE_IDS values', values);
     values.forEach(value => requiredString('AGGREGATE_IDS value', value));
     return { op: FilterOperator.AGGREGATE_IDS, values: [...values] };
   },
+  /**
+   * Matches the record whose tenant ID equals `value`. Root-only: not allowed
+   * inside `elementMatch`.
+   *
+   * @param value - The tenant ID.
+   * @returns `{ op: 'TENANT_ID', value }`.
+   * @throws TypeError If `value` is not a string.
+   * @example
+   * ```typescript
+   * filter.tenantId('tenant-a');
+   * ```
+   */
   tenantId(value: string): MetadataValueFilter {
     return {
       op: FilterOperator.TENANT_ID,
       value: requiredString('TENANT_ID value', value),
     };
   },
+  /**
+   * Matches the record whose owner ID equals `value`. Root-only: not allowed
+   * inside `elementMatch`.
+   *
+   * @param value - The owner ID.
+   * @returns `{ op: 'OWNER_ID', value }`.
+   * @throws TypeError If `value` is not a string.
+   * @example
+   * ```typescript
+   * filter.ownerId('user-1');
+   * ```
+   */
   ownerId(value: string): MetadataValueFilter {
     return {
       op: FilterOperator.OWNER_ID,
       value: requiredString('OWNER_ID value', value),
     };
   },
+  /**
+   * Matches the record whose space ID equals `value`. Root-only: not allowed
+   * inside `elementMatch`.
+   *
+   * @param value - The space ID.
+   * @returns `{ op: 'SPACE_ID', value }`.
+   * @throws TypeError If `value` is not a string.
+   * @example
+   * ```typescript
+   * filter.spaceId('space-1');
+   * ```
+   */
   spaceId(value: string): MetadataValueFilter {
     return {
       op: FilterOperator.SPACE_ID,
       value: requiredString('SPACE_ID value', value),
     };
   },
+  /**
+   * Matches when all of `operands` match. Returns an element-scoped
+   * filter when every operand is element-scoped, so the result can be used
+   * inside `elementMatch`.
+   *
+   * @param operands - Non-empty list of filter expressions.
+   * @returns `{ op: 'AND', operands }` with a copy of `operands`.
+   * @throws TypeError If `operands` is empty or contains `null` or
+   *   `undefined`.
+   * @example
+   * ```typescript
+   * filter.and([
+   *   filter.eq('state.status', 'PAID'),
+   *   filter.eq('state.status', 'SHIPPED'),
+   * ]);
+   * ```
+   */
   and: andFilter,
+  /**
+   * Matches when at least one of `operands` match. Returns an element-scoped
+   * filter when every operand is element-scoped, so the result can be used
+   * inside `elementMatch`.
+   *
+   * @param operands - Non-empty list of filter expressions.
+   * @returns `{ op: 'OR', operands }` with a copy of `operands`.
+   * @throws TypeError If `operands` is empty or contains `null` or
+   *   `undefined`.
+   * @example
+   * ```typescript
+   * filter.or([
+   *   filter.eq('state.status', 'PAID'),
+   *   filter.eq('state.status', 'SHIPPED'),
+   * ]);
+   * ```
+   */
   or: orFilter,
+  /**
+   * Matches when none of `operands` match. Returns an element-scoped
+   * filter when every operand is element-scoped, so the result can be used
+   * inside `elementMatch`.
+   *
+   * @param operands - Non-empty list of filter expressions.
+   * @returns `{ op: 'NOR', operands }` with a copy of `operands`.
+   * @throws TypeError If `operands` is empty or contains `null` or
+   *   `undefined`.
+   * @example
+   * ```typescript
+   * filter.nor([
+   *   filter.eq('state.status', 'PAID'),
+   *   filter.eq('state.status', 'SHIPPED'),
+   * ]);
+   * ```
+   */
   nor: norFilter,
+  /**
+   * Matches records whose `field` equals `value`.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @param value - JSON scalar. `null` is sent as is; the server rewrites it
+   *   to `IS_NULL`.
+   * @returns `{ op: 'EQ', field, value }`.
+   * @throws TypeError If `field` is not a valid query field path, or `value` is not
+   *   `null`, a string, a boolean or a finite number.
+   * @example
+   * ```typescript
+   * filter.eq('state.status', 'PAID');
+   * ```
+   */
   eq<FIELDS extends string>(
     field: FIELDS,
     value: EqualityFilterValue,
@@ -639,6 +933,20 @@ export const filter = {
       value: filterLiteral(value, true),
     };
   },
+  /**
+   * Matches records whose `field` does not equal `value`.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @param value - JSON scalar. `null` is sent as is; the server rewrites it
+   *   to `IS_NOT_NULL`.
+   * @returns `{ op: 'NE', field, value }`.
+   * @throws TypeError If `field` is not a valid query field path, or `value` is not
+   *   `null`, a string, a boolean or a finite number.
+   * @example
+   * ```typescript
+   * filter.ne('state.status', 'CANCELLED');
+   * ```
+   */
   ne<FIELDS extends string>(
     field: FIELDS,
     value: EqualityFilterValue,
@@ -649,6 +957,20 @@ export const filter = {
       value: filterLiteral(value, true),
     };
   },
+  /**
+   * Matches records whose `field` is greater than `value` (`field > value`).
+   * Numbers compare at the backend's stored precision.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @param value - Non-null JSON scalar.
+   * @returns `{ op: 'GT', field, value }`.
+   * @throws TypeError If `field` is not a valid query field path, or `value` is not a
+   *   string, a boolean or a finite number.
+   * @example
+   * ```typescript
+   * filter.gt('state.total', 100);
+   * ```
+   */
   gt<FIELDS extends string>(
     field: FIELDS,
     value: ComparableFilterLiteral,
@@ -659,6 +981,20 @@ export const filter = {
       value: filterLiteral(value, false),
     };
   },
+  /**
+   * Matches records whose `field` is greater than or equal to `value` (`field >= value`).
+   * Numbers compare at the backend's stored precision.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @param value - Non-null JSON scalar.
+   * @returns `{ op: 'GTE', field, value }`.
+   * @throws TypeError If `field` is not a valid query field path, or `value` is not a
+   *   string, a boolean or a finite number.
+   * @example
+   * ```typescript
+   * filter.gte('state.total', 100);
+   * ```
+   */
   gte<FIELDS extends string>(
     field: FIELDS,
     value: ComparableFilterLiteral,
@@ -669,6 +1005,20 @@ export const filter = {
       value: filterLiteral(value, false),
     };
   },
+  /**
+   * Matches records whose `field` is less than `value` (`field < value`).
+   * Numbers compare at the backend's stored precision.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @param value - Non-null JSON scalar.
+   * @returns `{ op: 'LT', field, value }`.
+   * @throws TypeError If `field` is not a valid query field path, or `value` is not a
+   *   string, a boolean or a finite number.
+   * @example
+   * ```typescript
+   * filter.lt('state.total', 100);
+   * ```
+   */
   lt<FIELDS extends string>(
     field: FIELDS,
     value: ComparableFilterLiteral,
@@ -679,6 +1029,20 @@ export const filter = {
       value: filterLiteral(value, false),
     };
   },
+  /**
+   * Matches records whose `field` is less than or equal to `value` (`field <= value`).
+   * Numbers compare at the backend's stored precision.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @param value - Non-null JSON scalar.
+   * @returns `{ op: 'LTE', field, value }`.
+   * @throws TypeError If `field` is not a valid query field path, or `value` is not a
+   *   string, a boolean or a finite number.
+   * @example
+   * ```typescript
+   * filter.lte('state.total', 100);
+   * ```
+   */
   lte<FIELDS extends string>(
     field: FIELDS,
     value: ComparableFilterLiteral,
@@ -689,6 +1053,22 @@ export const filter = {
       value: filterLiteral(value, false),
     };
   },
+  /**
+   * Matches records whose string `field` contains `value` literally. No
+   * full-text analyzer is applied.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @param value - Literal text.
+   * @param stringComparison - Case handling. Defaults to
+   *   `StringComparison.CASE_SENSITIVE`.
+   * @returns `{ op: 'CONTAINS', field, value, stringComparison }`.
+   * @throws TypeError If `stringComparison` is not a {@link StringComparison}
+   *   member, `field` is not a valid query field path, or `value` is not a string.
+   * @example
+   * ```typescript
+   * filter.contains('state.note', 'vip', StringComparison.CASE_INSENSITIVE);
+   * ```
+   */
   contains<FIELDS extends string>(
     field: FIELDS,
     value: string,
@@ -702,6 +1082,22 @@ export const filter = {
       stringComparison,
     };
   },
+  /**
+   * Matches records whose string `field` starts with `value` literally. No
+   * full-text analyzer is applied.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @param value - Literal text.
+   * @param stringComparison - Case handling. Defaults to
+   *   `StringComparison.CASE_SENSITIVE`.
+   * @returns `{ op: 'STARTS_WITH', field, value, stringComparison }`.
+   * @throws TypeError If `stringComparison` is not a {@link StringComparison}
+   *   member, `field` is not a valid query field path, or `value` is not a string.
+   * @example
+   * ```typescript
+   * filter.startsWith('state.note', 'VIP-', StringComparison.CASE_INSENSITIVE);
+   * ```
+   */
   startsWith<FIELDS extends string>(
     field: FIELDS,
     value: string,
@@ -715,6 +1111,22 @@ export const filter = {
       stringComparison,
     };
   },
+  /**
+   * Matches records whose string `field` ends with `value` literally. No
+   * full-text analyzer is applied.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @param value - Literal text.
+   * @param stringComparison - Case handling. Defaults to
+   *   `StringComparison.CASE_SENSITIVE`.
+   * @returns `{ op: 'ENDS_WITH', field, value, stringComparison }`.
+   * @throws TypeError If `stringComparison` is not a {@link StringComparison}
+   *   member, `field` is not a valid query field path, or `value` is not a string.
+   * @example
+   * ```typescript
+   * filter.endsWith('state.note', '.pdf', StringComparison.CASE_INSENSITIVE);
+   * ```
+   */
   endsWith<FIELDS extends string>(
     field: FIELDS,
     value: string,
@@ -728,6 +1140,20 @@ export const filter = {
       stringComparison,
     };
   },
+  /**
+   * Matches records whose `field` equals one of `values`.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @param values - Non-empty list of non-null JSON scalars.
+   * @returns `{ op: 'IN', field, values }` with a copy of `values`.
+   * @throws TypeError If `values` is empty, contains `null` or `undefined`,
+   *   or contains a value that is not a string, a boolean or a finite
+   *   number, or if `field` is not a valid query field path.
+   * @example
+   * ```typescript
+   * filter.isIn('state.status', ['PAID', 'SHIPPED']);
+   * ```
+   */
   isIn<FIELDS extends string>(
     field: FIELDS,
     values: readonly ComparableFilterLiteral[],
@@ -740,6 +1166,20 @@ export const filter = {
       values: [...values],
     };
   },
+  /**
+   * Matches records whose `field` equals none of `values`.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @param values - Non-empty list of non-null JSON scalars.
+   * @returns `{ op: 'NOT_IN', field, values }` with a copy of `values`.
+   * @throws TypeError If `values` is empty, contains `null` or `undefined`,
+   *   or contains a value that is not a string, a boolean or a finite
+   *   number, or if `field` is not a valid query field path.
+   * @example
+   * ```typescript
+   * filter.notIn('state.status', ['CANCELLED', 'REFUNDED']);
+   * ```
+   */
   notIn<FIELDS extends string>(
     field: FIELDS,
     values: readonly ComparableFilterLiteral[],
@@ -752,6 +1192,20 @@ export const filter = {
       values: [...values],
     };
   },
+  /**
+   * Matches records whose array `field` contains every value in `values`.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @param values - Non-empty list of non-null JSON scalars.
+   * @returns `{ op: 'CONTAINS_ALL', field, values }` with a copy of `values`.
+   * @throws TypeError If `values` is empty, contains `null` or `undefined`,
+   *   or contains a value that is not a string, a boolean or a finite
+   *   number, or if `field` is not a valid query field path.
+   * @example
+   * ```typescript
+   * filter.containsAll('state.tags', ['vip', 'new']);
+   * ```
+   */
   containsAll<FIELDS extends string>(
     field: FIELDS,
     values: readonly ComparableFilterLiteral[],
@@ -764,6 +1218,21 @@ export const filter = {
       values: [...values],
     };
   },
+  /**
+   * Matches records whose `field` lies in the inclusive range
+   * `lowerBound <= field <= upperBound`.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @param lowerBound - Inclusive lower bound; non-null JSON scalar.
+   * @param upperBound - Inclusive upper bound; non-null JSON scalar.
+   * @returns `{ op: 'BETWEEN', field, lowerBound, upperBound }`.
+   * @throws TypeError If `field` is not a valid query field path, or either bound is not a
+   *   string, a boolean or a finite number.
+   * @example
+   * ```typescript
+   * filter.between('state.total', 100, 200);
+   * ```
+   */
   between<FIELDS extends string>(
     field: FIELDS,
     lowerBound: ComparableFilterLiteral,
@@ -776,14 +1245,50 @@ export const filter = {
       upperBound: filterLiteral(upperBound, false),
     };
   },
+  /**
+   * Matches records whose array `field` is empty. On Elasticsearch it may also
+   * match a missing or `null` field.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @returns `{ op: 'IS_EMPTY', field }`.
+   * @throws TypeError If `field` is not a valid query field path.
+   * @example
+   * ```typescript
+   * filter.isEmpty('state.items');
+   * ```
+   */
   isEmpty<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS> {
     return { op: FilterOperator.IS_EMPTY, field: queryField(field) };
   },
+  /**
+   * Matches records whose string `field` equals `""`. Whitespace-only
+   * strings do not match.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @returns `{ op: 'IS_EMPTY_STRING', field }`.
+   * @throws TypeError If `field` is not a valid query field path.
+   * @example
+   * ```typescript
+   * filter.isEmptyString('state.note');
+   * ```
+   */
   isEmptyString<FIELDS extends string>(
     field: FIELDS,
   ): FieldPresenceFilter<FIELDS> {
     return { op: FilterOperator.IS_EMPTY_STRING, field: queryField(field) };
   },
+  /**
+   * Matches records whose string `field` exists, is not `null` and is not
+   * `""`.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @returns `{ op: 'IS_NOT_EMPTY_STRING', field }`.
+   * @throws TypeError If `field` is not a valid query field path.
+   * @example
+   * ```typescript
+   * filter.isNotEmptyString('state.note');
+   * ```
+   */
   isNotEmptyString<FIELDS extends string>(
     field: FIELDS,
   ): FieldPresenceFilter<FIELDS> {
@@ -792,18 +1297,78 @@ export const filter = {
       field: queryField(field),
     };
   },
+  /**
+   * Matches records whose `field` is `null` or missing, following the
+   * backend's null semantics.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @returns `{ op: 'IS_NULL', field }`.
+   * @throws TypeError If `field` is not a valid query field path.
+   * @example
+   * ```typescript
+   * filter.isNull('state.note');
+   * ```
+   */
   isNull<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS> {
     return { op: FilterOperator.IS_NULL, field: queryField(field) };
   },
+  /**
+   * Matches records whose `field` exists and is not `null`, following the
+   * backend's null semantics.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @returns `{ op: 'IS_NOT_NULL', field }`.
+   * @throws TypeError If `field` is not a valid query field path.
+   * @example
+   * ```typescript
+   * filter.isNotNull('state.note');
+   * ```
+   */
   isNotNull<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS> {
     return { op: FilterOperator.IS_NOT_NULL, field: queryField(field) };
   },
+  /**
+   * Matches records where `field` exists. On MongoDB this includes a `null`
+   * value.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @returns `{ op: 'EXISTS', field }`.
+   * @throws TypeError If `field` is not a valid query field path.
+   * @example
+   * ```typescript
+   * filter.exists('state.note');
+   * ```
+   */
   exists<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS> {
     return { op: FilterOperator.EXISTS, field: queryField(field) };
   },
+  /**
+   * Matches records where `field` is missing.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @returns `{ op: 'NOT_EXISTS', field }`.
+   * @throws TypeError If `field` is not a valid query field path.
+   * @example
+   * ```typescript
+   * filter.notExists('state.note');
+   * ```
+   */
   notExists<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS> {
     return { op: FilterOperator.NOT_EXISTS, field: queryField(field) };
   },
+  /**
+   * Matches snapshots by deletion state. An explicit `DELETION` at the root or
+   * in a root `AND` replaces the gateway's default `ACTIVE` scope. Root-only:
+   * not allowed inside `elementMatch`.
+   *
+   * @param state - `ACTIVE`, `DELETED` or `ALL`.
+   * @returns `{ op: 'DELETION', state }`.
+   * @throws TypeError If `state` is not a {@link DeletionState} member.
+   * @example
+   * ```typescript
+   * filter.deletion(DeletionState.ALL);
+   * ```
+   */
   deletion(state: DeletionState): DeletionFilter {
     if (
       state !== DeletionState.ACTIVE &&
@@ -814,6 +1379,22 @@ export const filter = {
     }
     return { op: FilterOperator.DELETION, state };
   },
+  /**
+   * Matches records where a single element of the array `field` satisfies
+   * `predicate`. Fields in `predicate` are relative to the element.
+   *
+   * @param field - Query field path of the array, e.g. `state.items`.
+   * @param predicate - Element-scoped filter expression.
+   * @returns `{ op: 'ELEMENT_MATCH', field, predicate }`.
+   * @throws TypeError If `predicate` contains, at any depth, a root-only filter
+   *   (`ID`, `IDS`, `AGGREGATE_ID`, `AGGREGATE_IDS`, `TENANT_ID`, `OWNER_ID`,
+   *   `SPACE_ID`, `DELETION` or `SEARCH`) or an `AND`, `OR` or `NOR` whose
+   *   operands are empty or contain `null`, or if `field` is not a valid query field path.
+   * @example
+   * ```typescript
+   * filter.elementMatch('state.items', filter.gt('quantity', 1));
+   * ```
+   */
   elementMatch<FIELDS extends string, ELEMENT_FIELDS extends string>(
     field: FIELDS,
     predicate: ElementFilterExpression<ELEMENT_FIELDS>,
@@ -825,6 +1406,26 @@ export const filter = {
       predicate,
     };
   },
+  /**
+   * Matches records by full-text search. Tokenization and matching depend on
+   * the backend's analyzer. Root-only: not allowed inside `elementMatch`.
+   *
+   * @param query - Search text.
+   * @param options - Optional `fields` (defaults to `[]`, the backend's default
+   *   search fields) and `mode` (defaults to `SearchMode.TERMS`).
+   * @returns `{ op: 'SEARCH', query, mode, fields }`.
+   * @throws TypeError If `query` is not a string or is blank, `options` is
+   *   given but is `null`, an array or not an object, `mode` is not a
+   *   {@link SearchMode} member, or any of `fields` is not a valid query field
+   *   path.
+   * @example
+   * ```typescript
+   * filter.search('event sourcing', {
+   *   fields: ['state.description'],
+   *   mode: SearchMode.PHRASE,
+   * });
+   * ```
+   */
   search<FIELDS extends string>(
     query: string,
     options?: SearchFilterOptions<FIELDS>,
@@ -851,6 +1452,24 @@ export const filter = {
       fields: fields.map(queryField),
     };
   },
+  /**
+   * Matches times within today, as the half-open range `[start, end)` in the
+   * configured time zone.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
+   *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
+   *   `TimeUnit.MILLISECONDS`.
+   * @returns `{ op: 'TODAY', field, timeUnit }`, plus `zoneId` and
+   *   `datePattern` when set.
+   * @throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an
+   *   invalid UTC offset, `datePattern` is blank or not a valid
+   *   `java.time` pattern, or `timeUnit` is not a {@link TimeUnit} member.
+   * @example
+   * ```typescript
+   * filter.today('state.createTime', { zoneId: 'Asia/Shanghai' });
+   * ```
+   */
   today<FIELDS extends string>(
     field: FIELDS,
     options: RelativeTimeFilterOptions = {},
@@ -861,6 +1480,27 @@ export const filter = {
       field: queryField(field),
     };
   },
+  /**
+   * Matches times earlier than today at the local time `time`
+   * (`field < today at time`) in the configured time zone.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @param time - 24-hour local time: `HH:mm`, `HH:mm:ss` or `HH:mm:ss.S` with
+   *   1 to 9 fraction digits.
+   * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
+   *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
+   *   `TimeUnit.MILLISECONDS`.
+   * @returns `{ op: 'BEFORE_TODAY', field, time, timeUnit }`, plus `zoneId`
+   *   and `datePattern` when set.
+   * @throws TypeError If `time` is not a string in one of the formats above,
+   *   `field` is not a valid query field path, `zoneId` is blank or an invalid UTC offset,
+   *   `datePattern` is blank or not a valid `java.time` pattern, or
+   *   `timeUnit` is not a {@link TimeUnit} member.
+   * @example
+   * ```typescript
+   * filter.beforeToday('state.createTime', '12:00');
+   * ```
+   */
   beforeToday<FIELDS extends string>(
     field: FIELDS,
     time: string,
@@ -876,6 +1516,24 @@ export const filter = {
       time,
     };
   },
+  /**
+   * Matches times within tomorrow, as the half-open range `[start, end)` in the
+   * configured time zone.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
+   *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
+   *   `TimeUnit.MILLISECONDS`.
+   * @returns `{ op: 'TOMORROW', field, timeUnit }`, plus `zoneId` and
+   *   `datePattern` when set.
+   * @throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an
+   *   invalid UTC offset, `datePattern` is blank or not a valid
+   *   `java.time` pattern, or `timeUnit` is not a {@link TimeUnit} member.
+   * @example
+   * ```typescript
+   * filter.tomorrow('state.createTime');
+   * ```
+   */
   tomorrow<FIELDS extends string>(
     field: FIELDS,
     options: RelativeTimeFilterOptions = {},
@@ -886,6 +1544,24 @@ export const filter = {
       field: queryField(field),
     };
   },
+  /**
+   * Matches times within the current Monday-start week, as the half-open range `[start, end)` in the
+   * configured time zone.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
+   *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
+   *   `TimeUnit.MILLISECONDS`.
+   * @returns `{ op: 'THIS_WEEK', field, timeUnit }`, plus `zoneId` and
+   *   `datePattern` when set.
+   * @throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an
+   *   invalid UTC offset, `datePattern` is blank or not a valid
+   *   `java.time` pattern, or `timeUnit` is not a {@link TimeUnit} member.
+   * @example
+   * ```typescript
+   * filter.thisWeek('state.createTime');
+   * ```
+   */
   thisWeek<FIELDS extends string>(
     field: FIELDS,
     options: RelativeTimeFilterOptions = {},
@@ -896,6 +1572,24 @@ export const filter = {
       field: queryField(field),
     };
   },
+  /**
+   * Matches times within the next Monday-start week, as the half-open range `[start, end)` in the
+   * configured time zone.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
+   *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
+   *   `TimeUnit.MILLISECONDS`.
+   * @returns `{ op: 'NEXT_WEEK', field, timeUnit }`, plus `zoneId` and
+   *   `datePattern` when set.
+   * @throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an
+   *   invalid UTC offset, `datePattern` is blank or not a valid
+   *   `java.time` pattern, or `timeUnit` is not a {@link TimeUnit} member.
+   * @example
+   * ```typescript
+   * filter.nextWeek('state.createTime');
+   * ```
+   */
   nextWeek<FIELDS extends string>(
     field: FIELDS,
     options: RelativeTimeFilterOptions = {},
@@ -906,6 +1600,24 @@ export const filter = {
       field: queryField(field),
     };
   },
+  /**
+   * Matches times within the previous Monday-start week, as the half-open range `[start, end)` in the
+   * configured time zone.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
+   *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
+   *   `TimeUnit.MILLISECONDS`.
+   * @returns `{ op: 'LAST_WEEK', field, timeUnit }`, plus `zoneId` and
+   *   `datePattern` when set.
+   * @throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an
+   *   invalid UTC offset, `datePattern` is blank or not a valid
+   *   `java.time` pattern, or `timeUnit` is not a {@link TimeUnit} member.
+   * @example
+   * ```typescript
+   * filter.lastWeek('state.createTime');
+   * ```
+   */
   lastWeek<FIELDS extends string>(
     field: FIELDS,
     options: RelativeTimeFilterOptions = {},
@@ -916,6 +1628,24 @@ export const filter = {
       field: queryField(field),
     };
   },
+  /**
+   * Matches times within the current calendar month, as the half-open range `[start, end)` in the
+   * configured time zone.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
+   *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
+   *   `TimeUnit.MILLISECONDS`.
+   * @returns `{ op: 'THIS_MONTH', field, timeUnit }`, plus `zoneId` and
+   *   `datePattern` when set.
+   * @throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an
+   *   invalid UTC offset, `datePattern` is blank or not a valid
+   *   `java.time` pattern, or `timeUnit` is not a {@link TimeUnit} member.
+   * @example
+   * ```typescript
+   * filter.thisMonth('state.createTime');
+   * ```
+   */
   thisMonth<FIELDS extends string>(
     field: FIELDS,
     options: RelativeTimeFilterOptions = {},
@@ -926,6 +1656,24 @@ export const filter = {
       field: queryField(field),
     };
   },
+  /**
+   * Matches times within the previous calendar month, as the half-open range `[start, end)` in the
+   * configured time zone.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
+   *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
+   *   `TimeUnit.MILLISECONDS`.
+   * @returns `{ op: 'LAST_MONTH', field, timeUnit }`, plus `zoneId` and
+   *   `datePattern` when set.
+   * @throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an
+   *   invalid UTC offset, `datePattern` is blank or not a valid
+   *   `java.time` pattern, or `timeUnit` is not a {@link TimeUnit} member.
+   * @example
+   * ```typescript
+   * filter.lastMonth('state.createTime');
+   * ```
+   */
   lastMonth<FIELDS extends string>(
     field: FIELDS,
     options: RelativeTimeFilterOptions = {},
@@ -936,6 +1684,24 @@ export const filter = {
       field: queryField(field),
     };
   },
+  /**
+   * Matches times within yesterday, as the half-open range `[start, end)` in the
+   * configured time zone.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
+   *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
+   *   `TimeUnit.MILLISECONDS`.
+   * @returns `{ op: 'YESTERDAY', field, timeUnit }`, plus `zoneId` and
+   *   `datePattern` when set.
+   * @throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an
+   *   invalid UTC offset, `datePattern` is blank or not a valid
+   *   `java.time` pattern, or `timeUnit` is not a {@link TimeUnit} member.
+   * @example
+   * ```typescript
+   * filter.yesterday('state.createTime');
+   * ```
+   */
   yesterday<FIELDS extends string>(
     field: FIELDS,
     options: RelativeTimeFilterOptions = {},
@@ -946,6 +1712,24 @@ export const filter = {
       field: queryField(field),
     };
   },
+  /**
+   * Matches times within the next calendar month, as the half-open range `[start, end)` in the
+   * configured time zone.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
+   *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
+   *   `TimeUnit.MILLISECONDS`.
+   * @returns `{ op: 'NEXT_MONTH', field, timeUnit }`, plus `zoneId` and
+   *   `datePattern` when set.
+   * @throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an
+   *   invalid UTC offset, `datePattern` is blank or not a valid
+   *   `java.time` pattern, or `timeUnit` is not a {@link TimeUnit} member.
+   * @example
+   * ```typescript
+   * filter.nextMonth('state.createTime');
+   * ```
+   */
   nextMonth<FIELDS extends string>(
     field: FIELDS,
     options: RelativeTimeFilterOptions = {},
@@ -956,6 +1740,24 @@ export const filter = {
       field: queryField(field),
     };
   },
+  /**
+   * Matches times within the previous calendar year, as the half-open range `[start, end)` in the
+   * configured time zone.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
+   *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
+   *   `TimeUnit.MILLISECONDS`.
+   * @returns `{ op: 'LAST_YEAR', field, timeUnit }`, plus `zoneId` and
+   *   `datePattern` when set.
+   * @throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an
+   *   invalid UTC offset, `datePattern` is blank or not a valid
+   *   `java.time` pattern, or `timeUnit` is not a {@link TimeUnit} member.
+   * @example
+   * ```typescript
+   * filter.lastYear('state.createTime');
+   * ```
+   */
   lastYear<FIELDS extends string>(
     field: FIELDS,
     options: RelativeTimeFilterOptions = {},
@@ -966,6 +1768,24 @@ export const filter = {
       field: queryField(field),
     };
   },
+  /**
+   * Matches times within the current calendar year, as the half-open range `[start, end)` in the
+   * configured time zone.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
+   *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
+   *   `TimeUnit.MILLISECONDS`.
+   * @returns `{ op: 'THIS_YEAR', field, timeUnit }`, plus `zoneId` and
+   *   `datePattern` when set.
+   * @throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an
+   *   invalid UTC offset, `datePattern` is blank or not a valid
+   *   `java.time` pattern, or `timeUnit` is not a {@link TimeUnit} member.
+   * @example
+   * ```typescript
+   * filter.thisYear('state.createTime', { timeUnit: TimeUnit.SECONDS });
+   * ```
+   */
   thisYear<FIELDS extends string>(
     field: FIELDS,
     options: RelativeTimeFilterOptions = {},
@@ -976,6 +1796,24 @@ export const filter = {
       field: queryField(field),
     };
   },
+  /**
+   * Matches times within the next calendar year, as the half-open range `[start, end)` in the
+   * configured time zone.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
+   *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
+   *   `TimeUnit.MILLISECONDS`.
+   * @returns `{ op: 'NEXT_YEAR', field, timeUnit }`, plus `zoneId` and
+   *   `datePattern` when set.
+   * @throws TypeError If `field` is not a valid query field path, `zoneId` is blank or an
+   *   invalid UTC offset, `datePattern` is blank or not a valid
+   *   `java.time` pattern, or `timeUnit` is not a {@link TimeUnit} member.
+   * @example
+   * ```typescript
+   * filter.nextYear('state.createTime');
+   * ```
+   */
   nextYear<FIELDS extends string>(
     field: FIELDS,
     options: RelativeTimeFilterOptions = {},
@@ -986,6 +1824,27 @@ export const filter = {
       field: queryField(field),
     };
   },
+  /**
+   * Matches times from the start of the day `days - 1` days ago until the end
+   * of today. `recentDays(field, 7)` covers today and the six previous days.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @param days - Number of calendar days, including today; an integer from
+   *   1 to 2147483647.
+   * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
+   *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
+   *   `TimeUnit.MILLISECONDS`.
+   * @returns `{ op: 'RECENT_DAYS', field, days, timeUnit }`, plus `zoneId` and
+   *   `datePattern` when set.
+   * @throws TypeError If `days` is not an integer from 1 to 2147483647,
+   *   `field` is not a valid query field path, `zoneId` is blank or an invalid UTC offset,
+   *   `datePattern` is blank or not a valid `java.time` pattern, or
+   *   `timeUnit` is not a {@link TimeUnit} member.
+   * @example
+   * ```typescript
+   * filter.recentDays('state.createTime', 7);
+   * ```
+   */
   recentDays<FIELDS extends string>(
     field: FIELDS,
     days: number,
@@ -999,6 +1858,27 @@ export const filter = {
       days,
     };
   },
+  /**
+   * Matches times before the start of the day `days - 1` days ago, that is,
+   * before the window that `recentDays` covers with the same `days`.
+   *
+   * @param field - Query field path, e.g. `state.status`.
+   * @param days - Number of calendar days, including today; an integer from
+   *   1 to 2147483647.
+   * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
+   *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
+   *   `TimeUnit.MILLISECONDS`.
+   * @returns `{ op: 'EARLIER_DAYS', field, days, timeUnit }`, plus `zoneId` and
+   *   `datePattern` when set.
+   * @throws TypeError If `days` is not an integer from 1 to 2147483647,
+   *   `field` is not a valid query field path, `zoneId` is blank or an invalid UTC offset,
+   *   `datePattern` is blank or not a valid `java.time` pattern, or
+   *   `timeUnit` is not a {@link TimeUnit} member.
+   * @example
+   * ```typescript
+   * filter.earlierDays('state.createTime', 7);
+   * ```
+   */
   earlierDays<FIELDS extends string>(
     field: FIELDS,
     days: number,

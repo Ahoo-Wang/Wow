@@ -5,7 +5,7 @@ description: 'Projection, sorting and pagination — @ahoo-wang/wow-client'
 
 # Projection, sorting and pagination
 
-Query builders return plain serializable objects and do not execute HTTP. The root entry's `singleQuery`, `listQuery`, and `pagedQuery` build filter queries. Builders of the same names that build deprecated `Condition` queries, for Wow 8.10 servers, come from `@ahoo-wang/wow-client/legacy`; their defaults are listed with each signature below.
+Query builders return plain serializable objects and do not execute HTTP. The root entry's `singleQuery`, `listQuery`, and `pagedQuery` build filter queries. Builders of the same names that build deprecated `Condition` queries, for Wow 8.10 servers, come from `@ahoo-wang/wow-client/legacy`; their defaults are listed with each signature below. Everything on this page is also exported by `@ahoo-wang/wow-client/dsl`, which loads no HTTP code — see [entry points](./#entries).
 
 | Builder / model                     | Defaults and precedence                                                                                          |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------- |

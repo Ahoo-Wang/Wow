@@ -158,6 +158,21 @@ describe('runGenerate', () => {
     expect(constructed).toHaveLength(0);
   });
 
+  it('passes the schema doc mode, and refuses an unknown one', async () => {
+    generate.mockResolvedValue({ files: [], warnings: 0 });
+    await runGenerate(
+      { input: 'spec.json', output: 'out', schemaDocs: 'full' },
+      testLogger(),
+    );
+    expect(constructed[0].schemaDocs).toBe('full');
+    await expect(
+      runGenerate(
+        { input: 'spec.json', output: 'out', schemaDocs: 'all' },
+        testLogger(),
+      ),
+    ).resolves.toBe(EXIT_CODES.input);
+  });
+
   it('refuses an invalid timeout with exit code 2', async () => {
     await expect(
       runGenerate(

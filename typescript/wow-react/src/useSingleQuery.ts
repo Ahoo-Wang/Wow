@@ -55,25 +55,38 @@ export interface UseSingleQueryReturn<
 > extends UseQueryReturn<Q, R, E> {}
 
 /**
- * Hook for querying a single item with a filter, projection, and sorting.
- * Wraps useQuery to provide type-safe single item queries.
+ * Runs a single query through your own `execute` function and keeps the
+ * result as state: typically a query client's `single` or `singleState`.
  *
- * @template R - The result type of the query
- * @template FIELDS - The fields type for the single query
- * @template E - The error type, defaults to FetcherError
- * @param options - The query options including single query configuration
- * @returns The query result with single item data
+ * `execute` receives the query, the `attributes` option and an
+ * `AbortController`; hand the controller on so that a newer query, `abort()`
+ * or an unmount cancels the request. The query runs on mount and whenever
+ * `query` or `setQuery()` changes it; set `autoExecute: false` to run it only
+ * through `execute()`.
+ *
+ * Returns `result` (the item, or `undefined` before the first success),
+ * `loading`, `error`, `status`, `execute`, `abort`, `reset`, `getQuery` and
+ * `setQuery`.
+ *
+ * @template R - The item the query returns
+ * @template FIELDS - The field names the query may use
+ * @template E - The error type, `FetcherError` by default
  *
  * @example
- * ```typescript
- * const { data, isLoading } = useSingleQuery<{ id: number; name: string }, 'id' | 'name'>({
- *   initialQuery: {
- *     filter: filter.matchAll(),
- *     projection: { include: ['id', 'name'] },
- *     sort: [{ field: 'id', direction: SortDirection.ASC }],
- *   },
- *   execute: async (query) => fetchSingleItem(query),
- * });
+ * ```tsx
+ * import { filter, singleQuery, type SnapshotQueryClient } from '@ahoo-wang/wow-client';
+ * import { useSingleQuery } from '@ahoo-wang/wow-react';
+ *
+ * function OrderStatus({ client, id }: { client: SnapshotQueryClient<OrderState>; id: string }) {
+ *   const { result, loading, error } = useSingleQuery<OrderState>({
+ *     query: singleQuery({ filter: filter.id(id) }),
+ *     execute: (query, attributes, abortController) =>
+ *       client.singleState(query, attributes, abortController),
+ *   });
+ *   if (error) return <p role="alert">{error.message}</p>;
+ *   if (loading || !result) return <p>Loading…</p>;
+ *   return <p>{result.status}</p>;
+ * }
  * ```
  */
 export function useSingleQuery<

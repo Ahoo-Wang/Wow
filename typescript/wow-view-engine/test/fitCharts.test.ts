@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { fitCharts } from '../src/analysis/index.js';
+import { chartPickerGroups, fitCharts } from '../src/analysis/index.js';
 import type {
   AnalysisGroup,
   AnalysisMetric,
@@ -187,7 +187,16 @@ describe('fitCharts', () => {
     const byWarehouse = fitCharts({ groups: [warehouse], metrics: [count] });
     expect(recommended(byWarehouse)).toBe('bar');
     expect(available(byWarehouse)).toEqual(
-      ['area', 'bar', 'combo', 'funnel', 'line', 'pie'].sort(),
+      [
+        'area',
+        'bar',
+        'combo',
+        'funnel',
+        'line',
+        'pie',
+        'treemap',
+        'waterfall',
+      ].sort(),
     );
     expect(byWarehouse.scatter.reason).toBe('chart.fit.needs-two-metrics');
     expect(byWarehouse.heatmap.reason).toBe('chart.fit.needs-two-dimensions');
@@ -246,5 +255,89 @@ describe('fitCharts', () => {
         1,
       );
     }
+  });
+});
+
+describe('the two charts that add their numbers up', () => {
+  /**
+   * A waterfall steps along one dimension and adds its steps into a
+   * running total; a treemap tiles one dimension, or nests a second in it,
+   * and its tiles are parts of a whole. Both refuse what does not add up,
+   * saying what they lack, as a funnel does (D33 Q55).
+   */
+  it('opens a waterfall on one dimension and a count or a sum', () => {
+    expect(fitCharts({ groups: [month], metrics: [sum] }).waterfall).toEqual({
+      available: true,
+    });
+    expect(fitCharts({ groups: [], metrics: [count] }).waterfall.reason).toBe(
+      'chart.fit.needs-one-dimension',
+    );
+    expect(
+      fitCharts({ groups: [warehouse, month], metrics: [count] }).waterfall
+        .reason,
+    ).toBe('chart.fit.needs-one-dimension');
+    expect(
+      fitCharts({ groups: [warehouse], metrics: [average] }).waterfall.reason,
+    ).toBe('chart.fit.needs-additive');
+    // An average beside a count: the count is the one it steps by.
+    expect(
+      fitCharts({ groups: [warehouse], metrics: [average, count] }).waterfall
+        .available,
+    ).toBe(true);
+  });
+
+  it('opens a treemap on one or two dimensions and a count or a sum', () => {
+    expect(
+      fitCharts({ groups: [warehouse], metrics: [count] }).treemap,
+    ).toEqual({ available: true });
+    expect(
+      fitCharts({ groups: [warehouse, month], metrics: [sum] }).treemap,
+    ).toEqual({ available: true });
+    expect(fitCharts({ groups: [], metrics: [count] }).treemap.reason).toBe(
+      'chart.fit.needs-dimension',
+    );
+    expect(
+      fitCharts({ groups: [warehouse, month, warehouse], metrics: [count] })
+        .treemap.reason,
+    ).toBe('chart.fit.too-many-dimensions');
+    expect(
+      fitCharts({ groups: [warehouse], metrics: [average] }).treemap.reason,
+    ).toBe('chart.fit.needs-additive');
+  });
+});
+
+describe('chartPickerGroups', () => {
+  /**
+   * The picker's two groups (D33 Q54) are the fit and nothing else: what
+   * draws the result first, the table last among them, and every greyed
+   * type under 「其他图型」 — each group in the picker's order.
+   */
+  it('puts what draws the result first, the table last among it', () => {
+    const groups = chartPickerGroups(
+      fitCharts({ groups: [warehouse], metrics: [count] }),
+    );
+    expect(groups.suits).toEqual([
+      'bar',
+      'line',
+      'area',
+      'combo',
+      'waterfall',
+      'pie',
+      'treemap',
+      'funnel',
+      'table',
+    ]);
+    expect(groups.others).toEqual(['heatmap', 'scatter', 'metric']);
+  });
+
+  it('holds the table alone where no chart draws the result', () => {
+    const none = chartPickerGroups(
+      fitCharts({
+        groups: [warehouse, month, { ...warehouse, alias: 'again' }],
+        metrics: [average],
+      }),
+    );
+    expect(none.suits).toEqual(['table']);
+    expect(none.others).toHaveLength(11);
   });
 });

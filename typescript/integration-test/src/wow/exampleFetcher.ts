@@ -15,8 +15,15 @@ import type { FetchExchange, RequestInterceptor } from '@ahoo-wang/fetcher';
 import { Fetcher, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
+/**
+ * The example server the tests run against: `WOW_EXAMPLE_SERVER_URL`, or
+ * `http://localhost:8080/` as in CI.
+ */
+export const exampleServerURL =
+  process.env.WOW_EXAMPLE_SERVER_URL ?? 'http://localhost:8080/';
+
 export const exampleFetcher = new Fetcher({
-  baseURL: 'http://localhost:8080/',
+  baseURL: exampleServerURL,
 });
 
 export const currentUserId = idGenerator.generateId();

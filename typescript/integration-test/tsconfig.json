@@ -4,7 +4,8 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "sourceMap": true,
-    "noImplicitAny": false
+    "noImplicitAny": false,
+    "types": ["node"]
   },
   "include": ["src/**/*"]
 }

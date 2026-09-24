@@ -14,10 +14,10 @@
 import { NamedFetcher } from '@ahoo-wang/fetcher';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
+import { EventStreamQueryEndpointPaths } from '../../../src/query/event/endpointPaths';
 import type { EventStreamQueryApi, QueryApi } from '../../../src';
 import {
   EventStreamQueryClient,
-  EventStreamQueryEndpointPaths,
   aggregation,
   HavingExpressionType,
   ComparisonOperator,
@@ -39,7 +39,9 @@ describe('EventStreamQueryEndpointPaths', () => {
   const query: AggregationQuery<RootFields, EventFields> = {
     elements: [aggregation.element('body')],
     groupBy: [aggregation.terms('name', 'eventType')],
-    metrics: [aggregation.count('count', filter.eq('name', 'OrderPaid'))],
+    metrics: [
+      aggregation.count('count', { filter: filter.eq('name', 'OrderPaid') }),
+    ],
     having: {
       type: HavingExpressionType.CONDITION,
       metric: 'count',

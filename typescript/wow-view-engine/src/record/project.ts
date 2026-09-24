@@ -11,11 +11,8 @@
  * limitations under the License.
  */
 
-import {
-  getPropertyValue,
-  type CursorPage,
-  type PagedList,
-} from '@ahoo-wang/wow-client';
+import type { CursorPage, PagedList } from '@ahoo-wang/wow-client';
+import { readPath } from './path.js';
 import {
   columnHidden,
   epochUnitOf,
@@ -381,7 +378,7 @@ export function projectRecord(
   );
 
   const rows = page.list.map(data => ({
-    key: getPropertyValue<RecordKey>(data, rowKey) as RecordKey,
+    key: readPath(data, rowKey) as RecordKey,
     data,
   }));
 
@@ -444,7 +441,7 @@ export type SummarySource =
  *
  * A `null` the record holds comes back as `null`; only a path that is not
  * there is `undefined`. A cell renderer may tell the two apart, and
- * `getPropertyValue` would turn the first into the second.
+ * `readPath` would turn the first into the second.
  */
 export function recordValue(data: RecordData, field: string): unknown {
   let value: unknown = data;

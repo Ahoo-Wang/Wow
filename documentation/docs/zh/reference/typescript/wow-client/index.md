@@ -17,6 +17,7 @@ Wow 客户端适用于实现 Wow 命令与查询协议的服务。构建器在�
 | 遍历变化中的结果集   | [游标查询](./cursor-queries)                                                  | 服务端支持的稳定排序与游标规则。                               |
 | 计算分组结果         | [聚合](./aggregations)                                                        | 指标/分组表达式与服务端能力；构建器不计算结果。                |
 | 读取事件流或历史状态 | [事件与历史](./events-and-history)                                            | 事件信封与状态载荷的区别及流清理。                             |
+| 处理失败的调用或流   | [WowError / toWowError](./errors-and-utilities)                               | 请求被拒、流中途的错误事件，或 Wow 没有应答。                  |
 
 ## 完整安装前提
 
@@ -26,9 +27,19 @@ pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-even
 
 包版本跟随 Wow：`@ahoo-wang/wow-client` x.y.z 与 Wow x.y.z 一起发布。Fetcher 各 peer 依赖的范围是 `^5.1 || ^6`。包要求 Node >=22.12.0，与仓库开发一致；仓库开发另固定 pnpm 10.34.5。命令安装该包声明的全部 peer 依赖；直接运行依赖自动安装。
 
+## 入口 {#entries}
+
+| 导入路径                        | 导出内容                                                                                                                                                              |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@ahoo-wang/wow-client`         | 除 `/legacy` API 外的全部：命令与查询客户端、`QueryClientFactory`、`WowMetadataClient`、错误（`WowError`、`toWowError`、`ErrorCodes`）、请求头及其构造函数、流结果提取器，以及完整查询 DSL。 |
+| `@ahoo-wang/wow-client/dsl`     | 仅查询 DSL：`filter`、`aggregation`、排序、投影、分页、`cursorQuery`、查询工厂及其 `Filter*` 类型、`DeletionState`、`DynamicDocument`、`SnapshotMetadataFields`、`DomainEventStreamMetadataFields`。 |
+| `@ahoo-wang/wow-client/legacy`  | 供 Wow 8.10 服务端使用的已弃用 `Condition` API：条件构造函数、`Operator`、基于 `Condition` 的查询类型与工厂、操作符文案。v10 删除。                                    |
+
+`/dsl` 不加载任何 HTTP 代码——没有 Fetcher、装饰器、`reflect-metadata`，也没有 `@ahoo-wang/fetcher-eventstream` 安装的全局流补丁——只构造查询、或通过自有客户端发送查询的应用可以导入它而不引入这些副作用。它导出的对象与根入口相同；peer 依赖仍由包声明。参见 [`/dsl` 符号列表](./symbols#dsl)。
+
 根入口用 `FilterExpression` 查询，Wow 8.11 及以后的服务端都支持。连接 Wow 8.10 服务端时，已弃用的 `Condition` API、它的查询类型与工厂函数以及操作符文案都从 `@ahoo-wang/wow-client/legacy` 导入；查询客户端两种查询都接受。这个子路径在 v10 删除。
 
-从 `@ahoo-wang/fetcher-wow` 迁移过来？除了 `Condition` API 挪到 `/legacy`，API 没有变化，按[迁移指南](../../../guide/typescript/migration.md)替换导入即可。
+从 `@ahoo-wang/fetcher-wow` 迁移过来？`@ahoo-wang/wow-client` 的首个版本重命名并重新定型了若干 API——错误、命令头、取消参数、聚合构造器——并把 `Condition` API 挪到 `/legacy`，请按[迁移指南](../../../guide/typescript/migration.md)迁移。
 
 ## 核心调用
 

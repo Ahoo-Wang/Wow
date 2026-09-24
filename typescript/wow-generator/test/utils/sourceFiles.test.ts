@@ -333,7 +333,7 @@ describe('sourceFiles', () => {
       addImportRefModel(sourceFile, outputDir, refModelInfo);
 
       expect(mockSourceFile.addImportDeclaration).toHaveBeenCalledWith({
-        moduleSpecifier: '../output/models/types',
+        moduleSpecifier: '../output/models/types.js',
       });
     });
 
@@ -387,7 +387,7 @@ describe('sourceFiles', () => {
 
       // This should call addImportRefModel, which calls addImport
       expect(mockSourceFile.addImportDeclaration).toHaveBeenCalledWith({
-        moduleSpecifier: '../output/products/types',
+        moduleSpecifier: '../output/products/types.js',
       });
     });
   });

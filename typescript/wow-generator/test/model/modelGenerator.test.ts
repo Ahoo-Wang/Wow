@@ -24,7 +24,8 @@ vi.mock('../../src/model/typeGenerator', () => ({
     constructor() {}
   },
 }));
-vi.mock('../../src/utils/sourceFiles', () => ({
+vi.mock('../../src/utils/sourceFiles', async importOriginal => ({
+  ...(await importOriginal<typeof import('../../src/utils/sourceFiles')>()),
   getOrCreateSourceFile: vi.fn(),
   getModelFileName: vi.fn().mockReturnValue('TestModel.ts'),
 }));

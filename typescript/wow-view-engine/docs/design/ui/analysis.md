@@ -104,30 +104,35 @@ D20 屏 G。订单里有明细项，明细项里有批次——「按货号看�
 
 ### 一个家族一个文件
 
-- `AnalysisChart.tsx` 只剩按 `data.type` 分派，外加把类目标签器交给家族；六个家族与它们共用的工具各自成文件，改一个家族不必通读另外五个：
+- `AnalysisChart.tsx` 只剩按 `data.type` 分派，外加把类目标签器交给家族；八个家族与它们共用的工具各自成文件，改一个家族不必通读另外七个：
 
-| 文件                                              | 管什么                                                                                                                                           |
-| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ui/AnalysisChart.tsx`                            | 按 family 分派；`AnalysisChartProps` 是对外的那一个                                                                                              |
-| `ui/charts/Cartesian.tsx`                         | bar／line／area／combo，交 `cartesianOption`（ECharts，D21）画；图例、类目名按宽度、按下标记交出这一组                                           |
-| `ui/charts/cartesianOption.ts`                    | 直角坐标图的 option：每条系列的图形（组合图照规格）、数值轴与标题、紧凑刻度、值标签、堆叠合计、参考线、悬停的强调                                |
-| `ui/charts/cartesianPlan.ts`                      | 不看主题与尺寸就能定的：横放与否（`drawsHorizontal`）、系列与堆叠、占比（`stackPlan`）、刻度（`sharedScales`）、每个标签写什么、哪些值是补出来的 |
-| `ui/charts/cartesianFit.ts`                       | 随尺寸定的：类目名平排、斜排还是隔几个写（`categoryFit`），值标签平排、竖排还是不写，段内的数写不写得下，轴标题截断                              |
-| `ui/charts/scale.ts`                              | 一根或两根数值轴的刻度：同样多的段、各自好看的步长、零在一条线上（`sharedScales`、`niceStep`）                                                   |
-| `ui/charts/EChart.tsx`                            | 与库的薄绑定：有尺寸才建、跟尺寸、option 整份替换、随元素销毁；图框、命名的图、主题读取、`data-drawn`                                            |
-| `ui/charts/echarts.ts`／`load.ts`                 | 按需注册的图表块，第一次画图时才加载（`loadCharts`）                                                                                             |
-| `ui/charts/theme.ts`                              | 从图自己的元素读回样式表的令牌，转成具体的 `rgb()`（`readChartTheme`）                                                                           |
-| `ui/charts/ChartLegend.tsx`                       | 图旁边的文字图例：每条系列一个圆点，默认在上方，一行放不下折成「还有 N 个」                                                                      |
-| `ui/charts/tooltip.ts`                            | 提示框：注册表图表提示的那一套样式，数据里来的字一律转义                                                                                         |
-| `ui/charts/PieSlices.tsx`／`pieOption.ts`         | 饼图与环形图（ECharts）：「其他」那一片、片外的占比、环心的合计、图例上的度量、占比口径与每片的占比                                              |
-| `ui/charts/ScatterPoints.tsx`／`scatterOption.ts` | 散点（ECharts）：两轴以列标题为名、点离绘图区边留白、第三维是点的大小、八个点以内点上写组名                                                      |
-| `ui/charts/Heatmap.tsx`／`heatmapOption.ts`       | 热力图（ECharts）：格子铺满绘图区、第一行在上，`visualMap` 色标，对数刻度按对数上色、数照写                                                      |
-| `ui/charts/Funnel.tsx`／`funnelOption.ts`         | 漏斗（ECharts 柱状图画）：一段一根居中的条（色板第一档），名字、值与转化率对齐成一列，图上方标明相对哪一段                                       |
-| `ui/charts/MetricCard.tsx`／`sparklineOption.ts`  | 指标卡：跨度（哪一期／全部）、值、较上一期的变化、比较、目标与迷你趋势（ECharts：一根线、淡淡的填色，无轴无点）                                  |
-| `ui/charts/palette.ts`                            | `--chart-1..8` 取色、「其他」的灰与 `spec.colors` 的覆盖（值交给绘图与图例前再校一次，经 `theme.resolve` 转成具体颜色）                          |
-| `ui/charts/axis.ts`                               | 数值格式、轴域与刻度格式、左右轴归属                                                                                                             |
-| `ui/charts/family.ts`                             | `FamilyProps`（每个家族收到的同一份 props）、值标签器 `useValueLabel` 与列标题 `useColumnTitle`                                                  |
+| 文件                                              | 管什么                                                                                                                                                    |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ui/AnalysisChart.tsx`                            | 按 family 分派；`AnalysisChartProps` 是对外的那一个                                                                                                       |
+| `ui/charts/Cartesian.tsx`                         | bar／line／area／combo，交 `cartesianOption`（ECharts，D21）画；图例、类目名按宽度、按下标记交出这一组                                                    |
+| `ui/charts/cartesianOption.ts`                    | 直角坐标图的 option：每条系列的图形（组合图照规格）、数值轴与标题、紧凑刻度、值标签、堆叠合计、参考线、悬停的强调                                         |
+| `ui/charts/cartesianPlan.ts`                      | 不看主题与尺寸就能定的：横放与否（`drawsHorizontal`）、系列与堆叠、占比（`stackPlan`）、刻度（`sharedScales`）、每个标签写什么、哪些值是补出来的          |
+| `ui/charts/cartesianFit.ts`                       | 随尺寸定的：类目名平排、斜排还是隔几个写（`categoryFit`），值标签平排、竖排还是不写，段内的数写不写得下，轴标题截断                                       |
+| `ui/charts/scale.ts`                              | 一根或两根数值轴的刻度：同样多的段、各自好看的步长、零在一条线上（`sharedScales`、`niceStep`）                                                            |
+| `ui/charts/EChart.tsx`                            | 与库的薄绑定：有尺寸才建、跟尺寸、option 整份替换、随元素销毁；图框、命名的图、主题读取、`data-drawn`                                                     |
+| `ui/charts/echarts.ts`／`load.ts`                 | 按需注册的图表块，第一次画图时才加载（`loadCharts`）                                                                                                      |
+| `ui/charts/theme.ts`                              | 从图自己的元素读回样式表的令牌，转成具体的 `rgb()`（`readChartTheme`）                                                                                    |
+| `ui/charts/ChartLegend.tsx`                       | 图旁边的文字图例：每条系列一个圆点，默认在上方，一行放不下折成「还有 N 个」                                                                               |
+| `ui/charts/tooltip.ts`                            | 提示框：注册表图表提示的那一套样式，数据里来的字一律转义                                                                                                  |
+| `ui/charts/PieSlices.tsx`／`pieOption.ts`         | 饼图与环形图（ECharts）：「其他」那一片、片外的占比、环心的合计、图例上的度量、占比口径与每片的占比                                                       |
+| `ui/charts/ScatterPoints.tsx`／`scatterOption.ts` | 散点（ECharts）：两轴以列标题为名、点离绘图区边留白、第三维是点的大小、八个点以内点上写组名                                                               |
+| `ui/charts/Heatmap.tsx`／`heatmapOption.ts`       | 热力图（ECharts）：格子铺满绘图区、第一行在上，`visualMap` 色标，对数刻度按对数上色、数照写                                                               |
+| `ui/charts/Funnel.tsx`／`funnelOption.ts`         | 漏斗（ECharts 柱状图画）：一段一根居中的条（色板第一档），名字、值与转化率对齐成一列，图上方标明相对哪一段                                                |
+| `ui/charts/Waterfall.tsx`／`waterfallOption.ts`   | 瀑布图（ECharts 柱状图画，不另注册）：每一步浮在累计上，增用成功色、减用危险色、合计用色板第一档，带符号的数写在条外；按下一步交出这一组                  |
+| `ui/charts/Treemap.tsx`／`treemapOption.ts`       | 矩形树图（ECharts treemap）：按面积切块、块上写名字与数，八块以内一块一个色位、多于八块同一色相按大小深浅；两层时内层从外层色向底色混；按下一块交出它的组 |
+| `ui/charts/MetricCard.tsx`／`sparklineOption.ts`  | 指标卡：跨度（哪一期／全部）、值、较上一期的变化、比较、目标与迷你趋势（ECharts：一根线、淡淡的填色，无轴无点）                                           |
+| `ui/charts/palette.ts`                            | `--chart-1..8` 取色、「其他」的灰与 `spec.colors` 的覆盖（值交给绘图与图例前再校一次，经 `theme.resolve` 转成具体颜色）                                   |
+| `ui/charts/axis.ts`                               | 数值格式、轴域与刻度格式、左右轴归属                                                                                                                      |
+| `ui/charts/family.ts`                             | `FamilyProps`（每个家族收到的同一份 props）、值标签器 `useValueLabel` 与列标题 `useColumnTitle`                                                           |
 
+- **瀑布图**（D33 Q55，`WaterfallSpec`，自成一族而不挂在 cartesian 下——拆分、堆叠、百分比、系列列表与组合图的轴对它都没有意义，放进去每一条都要写例外）：一个维度、一个可累加的指标。每个取值是一步，它那一行的数是变化量，从 0 起逐步累加，最后一根「合计」（`label.chart.total`，与环心的合计同一个词，是画出来各步之和）立在 0 上，数据页「显示合计」可关。**增用 `--success`、减用 `--destructive`、合计用色板第一档**，都经 `theme.resolve` 从令牌读回（这两个令牌也进了 `CHART_TOKENS` 与主题键，宿主只改状态色时图照样重画）；数写在条外（增在上、减在下，负的合计在下），用前景墨色，所以不论条是什么颜色、亮暗哪种模式都读得清，不必再量条上的墨色；一步写带符号的紧凑数（「+1.2万」），合计不带符号。提示框写「增加／减少 + 完整的数」和「累计 + 这一步之后的累计」。按下一步弹追问菜单，交出的是这一组，与柱一样；合计不是任何一组，按了什么也不做。读屏表三列：维度、变化、累计，最后一行是合计。行被「前 N 组」截断时图上方写「合计只含显示的组」。由两层叠起的柱画（下面一层透明垫底，`stackStrategy: 'all'`，所以跨过 0 的一步也画得对），不注册新的库模块。
+- **矩形树图**（D33 Q55，`TreemapSpec`）：一到两个维度、一个可累加的指标；它是「类目多于八个的构成」的读法（Q56），因为每一块都写着自己的名字。块按面积切、每层大的在前，块内左上写名字、下一行写紧凑的数，墨色按块自己的填色取（`inkOn`）；提示框写完整的数与占整体的比例。**八块以内一块一个色位**；多于八块时同一个色位按大小从满色向底色混到四成——一个色位发两次就等于说两块是同一个东西。两个维度时外层每块取色位、带一行标题，内层从外层色按大小向底色混。库自带的缩放、平移、点进下一层与面包屑都关掉：按下一块弹追问菜单，交出这一块的组（两层时两个维度都在），外层的标题条不是任何一行，按了不做事。数不大于 0 的组没有面积，不画，图上方写「N 组不是正数，没有画出」；截断时写「占比按显示的组计算」，与饼图同一句。
+- **日历热力图这一批不做**（Q55 可选）：它只对「按日的日期维度、至少跨几个月」这一种形态有用，而批 A 的时间轴缩放已经让一年的日折线读得清每一天；多一个家族就要多一套性质测试、读屏表、追问、换主题与对比度故事，包体再加 3.8KB。留作首发后的线索（[todo.md](../todo.md)）。
 - 家族组件都不导出到包外：`/ui` 的出口只有 `AnalysisChart`，换一种画法是换 `charts/` 下的文件，不是换一个公开 API。（见 test/analysisChart.test.tsx「AnalysisChart」）
 
 ## 图表怎么被读出来
@@ -270,11 +275,12 @@ D20 把可视化定为分析的**最后一步**：结果先是表格，确认完
 
 - **面板占左侧栏，不另开一栏**（`WorkbenchShell` 的 `panel` 槽，`data-slot="view-panel"`，[README.md#工作台骨架](README.md)）。视图列表是导航，配图的时候不需要导航；结果区因此一格不移，用户盯着的那张图不会因为开了个面板就跳一下。列表折起与否都画，**面板自带返回**（`label.chart.picker-back`），不靠列表把自己换回来。**窄屏上是从底边升起的抽屉**（2026-09-23 审查：窄于 `md` 时外壳把这一栏叠在工作区上面，十块磁贴加一颗按钮占满手机的第一屏，要配的那张图被挤到下面）：表面窄于 768px（`useNarrowSurface`，量的是表面而不是视口，与侧栏折叠同一个阈值）时面板画在注册表的 `Sheet` 里、从底边升起（`SheetContent side="bottom"`，至多视口高的八成、在自己里面滚），压在页面上而不是推开它；背景只调暗不模糊——上面露出来的结果就是这里一按要重画的东西。键盘落在那一层的标题上（抽屉画出内容之后才有它，所以由抽屉的 `initialFocus` 找到它），关抽屉（Escape、按背景）就是面板自己的返回，键盘回到「可视化」；抽屉不另画 ✕，面板的 ← 就是出路。宽到放得下一栏时照旧在侧栏里。（test/visualizeDrawer.test.tsx「the visualization panel on a narrow screen」；浏览器故事「可视化面板/回归」的 `VisualizeOnAPhone` 量抽屉贴着视口底边、不高过八成，选图型后底下的图重画，Escape 收起后键盘回到「可视化」）
 - **第一层是图型网格**（`ui/analysis/ChartPicker.tsx`，`role="radiogroup"`），每格一张卡片（`data-slot="chart-tile"`，`data-chart-type`），三种状态各有各的凭据：
-  - **网格列出本包的全部图型**：定义里没有图型声明（`AnalysisCapability` 没有这一项），`ChartPicker` 按 `CHART_PICKER_ORDER` 总是列出全部九种，在不在不由定义决定——形态已经决定灰不灰，研发再声明一遍没有新信息（[D33](../decisions.md#d33-分析视图释放-echarts-能力的九条裁定2026-09-24) Q54；此前这里写的「定义没声明的图型不在网格里」代码从未如此）。图型多起来之后分成「适合这个结果」与「其他图型」两组，见 [analysis-echarts.md](../analysis-echarts.md) 批 D；
+  - **网格列出本包的全部图型**：定义里没有图型声明（`AnalysisCapability` 没有这一项），`ChartPicker` 总是列出全部十一种，在不在不由定义决定——形态已经决定灰不灰，研发再声明一遍没有新信息（[D33](../decisions.md#d33-分析视图释放-echarts-能力的九条裁定2026-09-24) Q54；此前这里写的「定义没声明的图型不在网格里」代码从未如此）；
+  - **分两组**（D33 Q54，`chartPickerGroups`）：「适合这个结果」列出画得出这个结果的图型、表格排在最后，「其他图型」列出灰着的那些，仍是磁贴、仍写缺什么；两组各按 `CHART_PICKER_ORDER`，一种图型因形态变化换组时落在读者预期的位置。分组只看 `fitCharts`，不另立规则。两组在**同一个** `radiogroup` 里，各是一个以可见标题命名的 `role="group"`（标题是 `h3`，`text-foreground/70`，与选项页的提示同一个判断：`muted-foreground` 在侧栏底色上只有 4.34:1）——方向键仍在整个网格里走同一个选择、跳过灰的，读屏在进入一组时听到组名。「其他图型」不折起：Metabase 的图型选择器同样两组都展开，折起来就把「为什么不能选」藏到了一次点击之后；十一张磁贴在 16rem 侧栏里是三列四到五行，加两个组标题仍在一屏之内（手机抽屉至多视口八成、自己滚），合乎方案「不超过一屏半」的判据；
   - **灰不灰由形态决定，而且写明理由**：`fitCharts` 判（按维度分阶段的漏斗还看行，见下「漏斗的阶段顺序从结果行里起头」）（[kernels.md#哪些图型画得了这个形态fitchartsk3](../kernels.md)），画不出来的卡片带 `aria-disabled` 与一行 `data-slot="chart-reason"`，因为"为什么不能选"和"不能选"是两件事，只说后一件等于不说。**这句话要读得见**：卡片原来压一层 `opacity-60`，那行 11px 的灰字于是落到 2.20:1，唯一要说的话反倒最看不清；现在"画不出来"由虚线边与一层 `bg-muted/40` 说——边框与底色透不过文字——理由本身是 12px 的 `text-foreground/70`，与 `optionControls.tsx` 里 `OptionsSection` 那条判断同源：次要靠字重与框说，不靠淡到读不出；
   - **磁贴的名字是卡片上那个词，记号与理由是它的描述**（`aria-labelledby` 指着名字那一格，`aria-describedby` 指着 `chart-recommended` 与 `chart-reason`）。原来整块卡片挂一条 `aria-label`，它把卡片里的内容整个顶掉——于是「推荐」这枚为所有人画的记号，只有看得见的人拿到了。现在读屏听到的是「柱状图，推荐」「热力图，要两个维度」，也就是卡片本来写着的话；
   - **推荐带一个记号**（`data-recommended` 与 `data-slot="chart-recommended"`，文案 `label.chart.recommended`），至多一张卡片有。推荐是记号不是动作：手选之后不再自动换。
-- **表格也是一张卡片**，排在最后。"回到表格"和"换成饼图"于是是同一个手势、同一处控件，而不是一个在工具栏的分段按钮、一个在面板里。
+- **表格也是一张卡片**，排在「适合这个结果」的最后。"回到表格"和"换成饼图"于是是同一个手势、同一处控件，而不是一个在工具栏的分段按钮、一个在面板里。
 - **表格永远是一条出路**（D20，2026-09-23 修复「三个维度的分析跑不起来」）：怎么看是展示，不是问题，所以图表画不画得了这个形态从不拦住查询与保存。
   - **表格布局下图表不参与校验**（`validateAnalysis` 的 `chartFindings`）。三个维度的分析存着托盘装好的柱状图（横轴第一个、拆分第二个），第三个维度它放不下——从前报 `chart.group.unconsumed`，连表格也跑不起来。现在表格照跑、照存，图原样随视图保存，不说一句话：该不该画成图的问题在图型网格里回答，一张好好的表上方挂一句「图画不了」是噪声；
   - **切到图表时图按形态装槽**（`useAnalysisEditor.setLayout('chart')` 过一遍 `fitChartSlots`，还指着东西的槽都留着）。表格布局下存下来的图可能指着旧形态的别名，切过去就按当前形态装好；图型网格照旧按形态判灰、写原因，选中一个就装它的槽；

@@ -16,42 +16,31 @@ import { WowHeaders } from '../types/headers.js';
 /**
  * Command Header Constants
  *
- * Defines standard HTTP header constants used in command processing within the Wow framework.
- * These headers are used to pass metadata and control information between services.
+ * The HTTP headers a Wow command route reads. Each value is a string literal
+ * type, so `CommandRequestHeaders` can type the value of every header by its
+ * name. {@link commandHeaders} and {@link waitStrategy} build them from typed
+ * options.
  *
  * Mirrors `CommandComponent.Header` in
  * `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/aggregate/command/CommandComponent.kt`.
  *
  * @example
  * ```typescript
- * // Using header constants in a request
- * const request = {
- *   headers: {
- *     [CommandHttpHeaders.TENANT_ID]: 'tenant-123',
- *     [CommandHttpHeaders.AGGREGATE_ID]: 'aggregate-456',
- *     [CommandHttpHeaders.REQUEST_ID]: 'request-789'
- *   },
- *   body: command
+ * const headers: CommandRequestHeaders = {
+ *   [CommandHeaders.TENANT_ID]: 'tenant-123',
+ *   [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
  * };
  * ```
  */
-export class CommandHeaders {
-  /**
-   * Prefix for all command-related headers
-   */
-  static readonly COMMAND_HEADERS_PREFIX = 'Command-';
+export const CommandHeaders = Object.freeze({
+  /** Prefix of the command headers */
+  COMMAND_HEADERS_PREFIX: 'Command-',
 
-  /**
-   * Tenant identifier header
-   * Used to identify the tenant context for the command
-   */
-  static readonly TENANT_ID = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Tenant-Id`;
+  /** Tenant of the command, when the route has no tenant path segment */
+  TENANT_ID: 'Command-Tenant-Id',
 
-  /**
-   * Owner identifier header
-   * Used to identify the owner context for the command
-   */
-  static readonly OWNER_ID = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Owner-Id`;
+  /** Owner of the command, when the route has no owner path segment */
+  OWNER_ID: 'Command-Owner-Id',
 
   /**
    * Space identifier header, `Wow-Space-Id`
@@ -60,121 +49,62 @@ export class CommandHeaders {
    * The server shares this header with queries, so it has the `Wow-` prefix
    * rather than `Command-`; it is the same value as {@link WowHeaders.SPACE_ID}.
    */
-  static readonly SPACE_ID = WowHeaders.SPACE_ID;
+  SPACE_ID: WowHeaders.SPACE_ID,
 
-  /**
-   * Aggregate identifier header
-   * Used to identify the aggregate root for the command
-   */
-  static readonly AGGREGATE_ID = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Aggregate-Id`;
+  /** Aggregate the command targets, when the route has no id path segment */
+  AGGREGATE_ID: 'Command-Aggregate-Id',
 
-  /**
-   * Aggregate version header
-   * Used to specify the expected version of the aggregate root
-   */
-  static readonly AGGREGATE_VERSION = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Aggregate-Version`;
+  /** The aggregate version the command expects; a mismatch is a conflict */
+  AGGREGATE_VERSION: 'Command-Aggregate-Version',
 
-  /**
-   * Wait prefix for wait-related headers
-   */
-  static readonly WAIT_PREFIX = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Wait-`;
+  /** Prefix of the wait headers */
+  WAIT_PREFIX: 'Command-Wait-',
 
-  /**
-   * Wait timeout header
-   * Specifies the maximum time to wait for command processing
-   */
-  static readonly WAIT_TIME_OUT = `${CommandHeaders.WAIT_PREFIX}Timeout`;
+  /** How long the server waits for the wait stage, in milliseconds */
+  WAIT_TIME_OUT: 'Command-Wait-Timeout',
 
-  // region Wait Stage
-  /**
-   * Wait stage header
-   * Specifies the processing stage to wait for
-   */
-  static readonly WAIT_STAGE = `${CommandHeaders.WAIT_PREFIX}Stage`;
+  /** The stage to wait for; the server waits for `PROCESSED` when absent */
+  WAIT_STAGE: 'Command-Wait-Stage',
 
-  /**
-   * Wait context header
-   * Specifies the bounded context to wait for
-   */
-  static readonly WAIT_CONTEXT = `${CommandHeaders.WAIT_PREFIX}Context`;
+  /** The bounded context whose processing the wait stage refers to */
+  WAIT_CONTEXT: 'Command-Wait-Context',
 
-  /**
-   * Wait processor header
-   * Specifies the processor to wait for
-   */
-  static readonly WAIT_PROCESSOR = `${CommandHeaders.WAIT_PREFIX}Processor`;
+  /** The processor whose processing the wait stage refers to */
+  WAIT_PROCESSOR: 'Command-Wait-Processor',
 
-  /**
-   * Wait function header
-   * Specifies the function to wait for
-   */
-  static readonly WAIT_FUNCTION = `${CommandHeaders.WAIT_PREFIX}Function`;
-  // endregion
+  /** The function whose processing the wait stage refers to */
+  WAIT_FUNCTION: 'Command-Wait-Function',
 
-  // region Wait Chain Tail
-  /**
-   * Wait tail prefix for wait chain tail-related headers
-   */
-  static readonly WAIT_TAIL_PREFIX = `${CommandHeaders.WAIT_PREFIX}Tail-`;
+  /** Prefix of the wait-chain tail headers */
+  WAIT_TAIL_PREFIX: 'Command-Wait-Tail-',
 
-  /**
-   * Wait tail stage header
-   * Specifies the tail processing stage to wait for
-   */
-  static readonly WAIT_TAIL_STAGE = `${CommandHeaders.WAIT_TAIL_PREFIX}Stage`;
+  /** The stage the command a saga sends must reach; only with `SAGA_HANDLED` */
+  WAIT_TAIL_STAGE: 'Command-Wait-Tail-Stage',
 
-  /**
-   * Wait tail context header
-   * Specifies the tail bounded context to wait for
-   */
-  static readonly WAIT_TAIL_CONTEXT = `${CommandHeaders.WAIT_TAIL_PREFIX}Context`;
+  /** The bounded context of the wait-chain tail */
+  WAIT_TAIL_CONTEXT: 'Command-Wait-Tail-Context',
 
-  /**
-   * Wait tail processor header
-   * Specifies the tail processor to wait for
-   */
-  static readonly WAIT_TAIL_PROCESSOR = `${CommandHeaders.WAIT_TAIL_PREFIX}Processor`;
+  /** The processor of the wait-chain tail */
+  WAIT_TAIL_PROCESSOR: 'Command-Wait-Tail-Processor',
 
-  /**
-   * Wait tail function header
-   * Specifies the tail function to wait for
-   */
-  static readonly WAIT_TAIL_FUNCTION = `${CommandHeaders.WAIT_TAIL_PREFIX}Function`;
-  // endregion
+  /** The function of the wait-chain tail */
+  WAIT_TAIL_FUNCTION: 'Command-Wait-Tail-Function',
 
-  /**
-   * Request identifier header
-   * Used to track the request ID for correlation
-   */
-  static readonly REQUEST_ID = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Request-Id`;
+  /** Idempotency key of the command; a repeated one is refused */
+  REQUEST_ID: 'Command-Request-Id',
 
-  /**
-   * Local first header
-   * Indicates whether to prefer local processing
-   */
-  static readonly LOCAL_FIRST = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Local-First`;
+  /** Whether the server may process the command locally, `true` or `false` */
+  LOCAL_FIRST: 'Command-Local-First',
 
-  /**
-   * Command aggregate context header
-   * Specifies the bounded context of the aggregate
-   */
-  static readonly COMMAND_AGGREGATE_CONTEXT = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Aggregate-Context`;
+  /** Bounded context of the aggregate, for the `/wow/command/send` route */
+  COMMAND_AGGREGATE_CONTEXT: 'Command-Aggregate-Context',
 
-  /**
-   * Command aggregate name header
-   * Specifies the name of the aggregate
-   */
-  static readonly COMMAND_AGGREGATE_NAME = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Aggregate-Name`;
+  /** Name of the aggregate, for the `/wow/command/send` route */
+  COMMAND_AGGREGATE_NAME: 'Command-Aggregate-Name',
 
-  /**
-   * Command type header
-   * Specifies the type of the command
-   */
-  static readonly COMMAND_TYPE = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Type`;
+  /** Fully qualified command type, for the `/wow/command/send` route */
+  COMMAND_TYPE: 'Command-Type',
 
-  /**
-   * Command header prefix for custom headers
-   * Used to prefix custom command headers
-   */
-  static readonly COMMAND_HEADER_X_PREFIX = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Header-`;
-}
+  /** Prefix of the custom headers the server copies into the command header */
+  COMMAND_HEADER_X_PREFIX: 'Command-Header-',
+} as const);

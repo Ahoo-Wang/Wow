@@ -141,12 +141,7 @@ function createEventTrendQuery(
       ),
     ]),
     groupBy: [
-      aggregation.dateHistogram(DomainEventStreamMetadataFields.CREATE_TIME, {
-        unit: window.unit,
-        alias: "bucket",
-        timeZone: window.timeZone,
-        dense: true,
-      }),
+      aggregation.dateHistogram(DomainEventStreamMetadataFields.CREATE_TIME, "bucket", { unit: window.unit, timeZone: window.timeZone, dense: true }),
     ],
     metrics: [aggregation.count("streamCount")],
     limit: window.buckets.length,
@@ -279,18 +274,14 @@ export function createSnapshotSummaryQuery(
   return {
     filter: activeFilter,
     metrics: [
-      aggregation.count(
-        "actionableNow",
-        withSnapshotWindow(
+      aggregation.count("actionableNow", { filter: withSnapshotWindow(
           window,
           RetryConditions.nextRetryCondition(
             now,
           ) as FilterExpression<ExecutionFailedAggregatedFields>,
-        ),
+        ) }
       ),
-      aggregation.count(
-        "timedOut",
-        withSnapshotWindow(
+      aggregation.count("timedOut", { filter: withSnapshotWindow(
           window,
           filter.and([
             filter.eq(
@@ -302,36 +293,30 @@ export function createSnapshotSummaryQuery(
               now,
             ),
           ]),
-        ),
+        ) }
       ),
-      aggregation.count(
-        "unrecoverable",
-        withSnapshotWindow(
+      aggregation.count("unrecoverable", { filter: withSnapshotWindow(
           window,
           RetryConditions.unrecoverableCondition as FilterExpression<ExecutionFailedAggregatedFields>,
-        ),
+        ) }
       ),
-      aggregation.count("activeTotal", activeFilter),
-      aggregation.count("selectedInRange", withSnapshotWindow(window, activeFilter)),
-      aggregation.count(
-        "newerThanRange",
-        filter.and([
+      aggregation.count("activeTotal", { filter: activeFilter }),
+      aggregation.count("selectedInRange", { filter: withSnapshotWindow(window, activeFilter) }),
+      aggregation.count("newerThanRange", { filter: filter.and([
           filter.gte(
             ExecutionFailedAggregatedFields.STATE_EXECUTE_AT,
             window.end,
           ),
           activeFilter,
-        ]),
+        ]) }
       ),
-      aggregation.count(
-        "olderThanRange",
-        filter.and([
+      aggregation.count("olderThanRange", { filter: filter.and([
           filter.lt(
             ExecutionFailedAggregatedFields.STATE_EXECUTE_AT,
             window.start,
           ),
           activeFilter,
-        ]),
+        ]) }
       ),
     ],
   };
@@ -469,10 +454,10 @@ export function createRetryDistributionQuery(
   return {
     filter: withSnapshotWindow(window, activeFilter),
     metrics: [
-      aggregation.count("zero", filter.eq(retries, 0)),
-      aggregation.count("oneToTwo", filter.between(retries, 1, 2)),
-      aggregation.count("threeToFive", filter.between(retries, 3, 5)),
-      aggregation.count("sixPlus", filter.gte(retries, 6)),
+      aggregation.count("zero", { filter: filter.eq(retries, 0) }),
+      aggregation.count("oneToTwo", { filter: filter.between(retries, 1, 2) }),
+      aggregation.count("threeToFive", { filter: filter.between(retries, 3, 5) }),
+      aggregation.count("sixPlus", { filter: filter.gte(retries, 6) }),
     ],
   };
 }

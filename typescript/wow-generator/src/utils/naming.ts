@@ -11,9 +11,114 @@
  * limitations under the License.
  */
 
-import { CodeBlockWriter } from 'ts-morph';
+/**
+ * Anything that is neither a letter, a digit nor `$` separates the words of a
+ * name: `-`, `_`, `.`, spaces, and characters no identifier may hold, such as
+ * the guillemets of a Springfox `Page«User»`.
+ */
+const NAMING_SEPARATORS = /[^\p{L}\p{N}$]+/u;
 
-const NAMING_SEPARATORS = /[-_'\s./?;:,()[\]{}|\\]+/;
+/**
+ * Words JavaScript reserves, in strict mode included, which may not name a
+ * parameter or a variable.
+ */
+const RESERVED_WORDS = new Set([
+  'arguments',
+  'await',
+  'break',
+  'case',
+  'catch',
+  'class',
+  'const',
+  'continue',
+  'debugger',
+  'default',
+  'delete',
+  'do',
+  'else',
+  'enum',
+  'eval',
+  'export',
+  'extends',
+  'false',
+  'finally',
+  'for',
+  'function',
+  'if',
+  'implements',
+  'import',
+  'in',
+  'instanceof',
+  'interface',
+  'let',
+  'new',
+  'null',
+  'package',
+  'private',
+  'protected',
+  'public',
+  'return',
+  'static',
+  'super',
+  'switch',
+  'this',
+  'throw',
+  'true',
+  'try',
+  'typeof',
+  'var',
+  'void',
+  'while',
+  'with',
+  'yield',
+]);
+
+/**
+ * Tells whether a name is a valid identifier as written.
+ *
+ * @param name - The candidate
+ * @returns True when it can name a variable, a parameter or a type
+ */
+export function isIdentifier(name: string): boolean {
+  return (
+    /^[\p{ID_Start}$_][\p{ID_Continue}$\u200C\u200D]*$/u.test(name) &&
+    !RESERVED_WORDS.has(name)
+  );
+}
+
+function prefixLeadingDigit(name: string): string {
+  return /^\p{N}/u.test(name) ? `_${name}` : name;
+}
+
+/**
+ * Turns a name from the document into a value identifier: a parameter, a
+ * method or a variable.
+ *
+ * A valid identifier is kept as written. Anything else is camel-cased on its
+ * separators (`item-id` → `itemId`), prefixed with `_` when it starts with a
+ * digit, and suffixed with `_` when it is a reserved word (`default` →
+ * `default_`).
+ *
+ * @param name - The name the document uses
+ * @returns A valid identifier
+ */
+export function toIdentifier(name: string): string {
+  if (isIdentifier(name)) return name;
+  const identifier = prefixLeadingDigit(camelCase(name) || '_');
+  return RESERVED_WORDS.has(identifier) ? `${identifier}_` : identifier;
+}
+
+/**
+ * Turns a name from the document into a type identifier: a model, an enum or
+ * a class. It is pascal-cased, and prefixed with `_` when it starts with a
+ * digit (`1stThing` → `_1stThing`).
+ *
+ * @param name - A name, or the parts of one
+ * @returns A valid type identifier
+ */
+export function toTypeIdentifier(name: string | string[]): string {
+  return prefixLeadingDigit(pascalCase(name) || '_');
+}
 
 export function splitName(name: string) {
   return name.split(NAMING_SEPARATORS);
@@ -143,14 +248,22 @@ export function resolvePropertyName(name: string): string {
     return name;
   }
 
-  return new CodeBlockWriter({ useSingleQuote: true }).quote(name).toString();
+  return quoteStringLiteral(name);
 }
 
-export function resolveEnumMemberName(name: string): string {
+/**
+ * The member key an enum value prefers, before quoting: its UPPER_SNAKE_CASE
+ * form, `NUM_` and the digits for a number.
+ */
+export function enumMemberKey(name: string): string {
   if (/^\d+$/.test(name)) {
     return `NUM_${name}`;
   }
-  return resolvePropertyName(upperSnakeCase(name) || name);
+  return upperSnakeCase(name) || name;
+}
+
+export function resolveEnumMemberName(name: string): string {
+  return resolvePropertyName(enumMemberKey(name));
 }
 
 /**
@@ -164,5 +277,11 @@ export function resolveEnumMemberName(name: string): string {
  * @returns The escaped string literal, quotes included
  */
 export function quoteStringLiteral(value: string): string {
-  return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+  // JSON escapes backslashes, double quotes, line breaks and control
+  // characters; swap the double-quote escaping for single quotes.
+  const escaped = JSON.stringify(value)
+    .slice(1, -1)
+    .replace(/\\"/g, '"')
+    .replace(/'/g, "\\'");
+  return `'${escaped}'`;
 }

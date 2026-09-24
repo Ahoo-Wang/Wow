@@ -26,7 +26,9 @@ import {
   timeGroup,
   withoutHoles,
 } from './timeAxis.js';
+import { shapeTreemap, type TreemapData } from './treemap.js';
 import { isAdditiveMetric } from './validateChart.js';
+import { shapeWaterfall, type WaterfallData } from './waterfall.js';
 
 /**
  * What a renderer receives. The shaping a chart needs happens here rather than
@@ -39,10 +41,14 @@ export type ChartData =
   | HeatmapData
   | ScatterData
   | FunnelData
-  | MetricCardData;
+  | MetricCardData
+  | WaterfallData
+  | TreemapData;
 
 export type { MetricCardData, MetricPeriod } from './metricCard.js';
 export { periodRollover } from './metricCard.js';
+export type { WaterfallData, WaterfallStep } from './waterfall.js';
+export type { TreemapData, TreemapTile } from './treemap.js';
 
 export interface CartesianData {
   type: 'cartesian';
@@ -215,6 +221,10 @@ export function shapeChart(
           now: context.now,
         })
       );
+    case 'waterfall':
+      return chart.waterfall && shapeWaterfall(chart.waterfall, config, rows);
+    case 'treemap':
+      return chart.treemap && shapeTreemap(chart.treemap, rows);
   }
 }
 

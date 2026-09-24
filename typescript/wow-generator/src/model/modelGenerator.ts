@@ -14,9 +14,17 @@
 import type { Reference, Schema } from '@ahoo-wang/fetcher-openapi';
 import type { SourceFile } from 'ts-morph';
 
+import { GeneratorError } from '../errors';
 import type { GenerateContext, Generator } from '../generateContext';
 import type { KeySchema } from '../utils';
-import { getModelFileName, pascalCase } from '../utils';
+import {
+  addMainSchemaJSDoc,
+  boundedContextFilePath,
+  getModelFileName,
+  isComposition,
+  isReference,
+  quoteStringLiteral,
+} from '../utils';
 import type { ModelInfo } from './modelInfo';
 import { resolveContextDeclarationName, resolveModelInfo } from './modelInfo';
 import { TypeGenerator } from './typeGenerator';
@@ -47,13 +55,14 @@ export class ModelGenerator implements Generator {
    * and generates corresponding TypeScript models for each one.
    */
   generate() {
+    const stateAggregatedTypeNames = this.stateAggregatedTypeNames();
     const schemas = this.context.openAPI.components?.schemas;
     if (!schemas) {
       this.context.logger.info('No schemas found in OpenAPI specification');
       return;
     }
-    const stateAggregatedTypeNames = this.stateAggregatedTypeNames();
     const keySchemas = this.filterSchemas(schemas, stateAggregatedTypeNames);
+    this.assertUniqueModelNames(keySchemas);
     this.context.logger.progress(
       `Generating models for ${keySchemas.length} schemas`,
     );
@@ -78,6 +87,32 @@ export class ModelGenerator implements Generator {
       .filter(
         keySchema => !this.isWowSchema(keySchema.key, aggregatedTypeNames),
       );
+  }
+
+  /**
+   * Fails when two schemas generate the same model in the same file.
+   *
+   * Names are normalised to PascalCase, so `Foo-Bar`, `FooBar` and `foo_bar`
+   * all become `FooBar`; TypeScript would silently merge three interfaces of
+   * that name into one type that matches none of them.
+   *
+   * @throws GeneratorError listing every group of colliding schema keys
+   */
+  private assertUniqueModelNames(keySchemas: KeySchema<Schema | Reference>[]) {
+    const byModel = new Map<string, string[]>();
+    for (const { key } of keySchemas) {
+      const modelInfo = resolveModelInfo(key);
+      const model = `${modelInfo.path === '/' ? '' : modelInfo.path}/${modelInfo.name}`;
+      byModel.set(model, [...(byModel.get(model) ?? []), key]);
+    }
+    const collisions = [...byModel].filter(([, keys]) => keys.length > 1);
+    if (collisions.length === 0) return;
+    throw new GeneratorError(
+      'specification',
+      `Schemas generate the same model: ${collisions
+        .map(([model, keys]) => `${keys.join(', ')} → ${model}`)
+        .join('; ')}. Rename all but one of them in the document.`,
+    );
   }
 
   private isWowSchema(
@@ -131,13 +166,19 @@ export class ModelGenerator implements Generator {
 
   private stateAggregatedTypeNames() {
     const typeNames = new Set<string>();
-    for (const [boundedContext, aggregates] of this.context.contextAggregates) {
-      this.generateBoundedContext(boundedContext);
+    const contextAliases = new Set(this.context.contextAggregates.keys());
+    // API clients import the document's own bounded context alias too.
+    if (this.context.currentContextAlias) {
+      contextAliases.add(this.context.currentContextAlias);
+    }
+    [...contextAliases]
+      .sort()
+      .forEach(contextAlias => this.generateBoundedContext(contextAlias));
+    for (const aggregates of this.context.contextAggregates.values()) {
       for (const aggregate of aggregates) {
+        const modelInfo = resolveModelInfo(aggregate.state.key);
         this.aggregatedSchemaSuffix.forEach(suffix => {
-          const modelInfo = resolveModelInfo(aggregate.state.key);
-          const typeName = pascalCase(modelInfo.name) + suffix;
-          typeNames.add(typeName);
+          typeNames.add(modelInfo.name + suffix);
         });
       }
     }
@@ -159,21 +200,79 @@ export class ModelGenerator implements Generator {
   generateKeyedSchema(keySchema: KeySchema<Schema | Reference>) {
     const modelInfo = resolveModelInfo(keySchema.key);
     const sourceFile = this.getOrCreateSourceFile(modelInfo);
+    if (
+      this.messageBodyKeys().has(keySchema.key) &&
+      isEmptyMessageBody(keySchema.schema)
+    ) {
+      // A command or event without fields - a Kotlin `data object` - is an
+      // empty object, not any object: `{type: object}` alone would otherwise
+      // generate `Record<string, any>`, which every event union absorbs.
+      const alias = sourceFile.addTypeAlias({
+        name: modelInfo.name,
+        type: 'globalThis.Record<string, never>',
+        isExported: true,
+      });
+      addMainSchemaJSDoc(
+        alias,
+        keySchema.schema,
+        keySchema.key,
+        this.context.schemaDocs === 'full',
+      );
+      return;
+    }
     const typeGenerator = new TypeGenerator(
       modelInfo,
       sourceFile,
       keySchema,
       this.context.outputDir,
       this.context.openAPI.components,
+      this.context.schemaDocs,
     );
     typeGenerator.generate();
   }
 
+  private bodyKeys?: Set<string>;
+
+  /** The schema keys of every command and event body of the aggregates. */
+  private messageBodyKeys(): Set<string> {
+    this.bodyKeys ??= new Set(
+      [...this.context.contextAggregates.values()].flatMap(aggregates =>
+        [...aggregates].flatMap(aggregate => [
+          ...[...aggregate.commands.values()].map(
+            command => command.schema.key,
+          ),
+          ...[...aggregate.events.values()].map(event => event.schema.key),
+        ]),
+      ),
+    );
+    return this.bodyKeys;
+  }
+
   generateBoundedContext(contextAlias: string) {
-    const filePath = `${contextAlias}/boundedContext.ts`;
+    const filePath = boundedContextFilePath(contextAlias);
     this.context.logger.info(`Creating bounded context file: ${filePath}`);
     const file = this.context.getOrCreateSourceFile(filePath);
     const contextName = resolveContextDeclarationName(contextAlias);
-    file.addStatements(`export const ${contextName} = '${contextAlias}';`);
+    file.addStatements(
+      `export const ${contextName} = ${quoteStringLiteral(contextAlias)};`,
+    );
   }
+}
+
+/**
+ * Tells whether a schema is an object with nothing declared: no properties,
+ * no additional properties, no composition.
+ */
+function isEmptyMessageBody(schema: Schema | Reference): boolean {
+  if (isReference(schema)) return false;
+  return (
+    schema.type === 'object' &&
+    Object.keys(schema.properties ?? {}).length === 0 &&
+    (schema.additionalProperties === undefined ||
+      schema.additionalProperties === false) &&
+    !schema.required?.length &&
+    !isComposition(schema) &&
+    schema.enum === undefined &&
+    schema.const === undefined
+  );
 }

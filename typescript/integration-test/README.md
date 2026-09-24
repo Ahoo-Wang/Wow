@@ -12,18 +12,24 @@ from the deterministic unit tests of each package.
   by `generatedCartCommandClient.test.ts`.
 - `test/wow/wowOpenApi.test.ts`, which holds every enum `wow-client` sends to the
   server's OpenAPI document.
+- The `@ahoo-wang/wow-react` hooks (`test/wow/react/`, under jsdom): the
+  endpoint hooks with snapshot URLs, the list-stream hook's event stream and
+  its `WowError`, and the `execute` hooks with a generated query client.
 
 ## Prerequisites
 
-A Wow example server on port 8080, backed by MongoDB. Either build it from this
-repository:
+A Wow example server on port 8080, backed by MongoDB. The tests read another
+address from `WOW_EXAMPLE_SERVER_URL` (for example
+`WOW_EXAMPLE_SERVER_URL=http://localhost:18080/`). Either build the server from
+this repository:
 
 ```bash
 ./gradlew :example-server:installDist
 ```
 
 or run the published image `ghcr.io/ahoo-wang/wow-example-server:<version>`.
-Point it at MongoDB with `SPRING_MONGODB_URI`, and set
+Point it at MongoDB with `SPRING_MONGODB_URI`, choose its port with
+`SERVER_PORT`, and set
 `WOW_EVENTSOURCING_STORE_STORAGE=mongo` and `WOW_EVENTSOURCING_SNAPSHOT_STORAGE=mongo`.
 
 ## Generate and test

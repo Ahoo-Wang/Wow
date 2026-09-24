@@ -49,9 +49,7 @@ export interface QueryClientOptions
  * @param options - The query client options containing resource attribution, aggregate name, and optional context alias
  * @returns ApiMetadata object with the constructed base path
  */
-export function createQueryApiMetadata(
-  options: QueryClientOptions,
-): ApiMetadata {
+function createQueryApiMetadata(options: QueryClientOptions): ApiMetadata {
   let basePath = combineURLs(
     options.resourceAttribution ?? '',
     options.aggregateName ?? '',
@@ -164,7 +162,7 @@ export class QueryClientFactory<
    *
    * @example
    * ```typescript
-   * const ownerStateClient = factory.createOwnerLoadStateAggregateClient({
+   * const ownerStateClient = factory.createLoadOwnerStateAggregateClient({
    *   aggregateName: 'cart',
    *   resourceAttribution: ResourceAttributionPathSpec.OWNER,
    * });
@@ -179,7 +177,7 @@ export class QueryClientFactory<
    * const timeBasedState = await ownerStateClient.loadTimeBased(Date.now());
    * ```
    */
-  createOwnerLoadStateAggregateClient(
+  createLoadOwnerStateAggregateClient(
     options?: QueryClientOptions,
   ): LoadOwnerStateAggregateClient<S> {
     const apiMetadata = createQueryApiMetadata({
@@ -208,9 +206,9 @@ export class QueryClientFactory<
    * const events = await eventClient.list(listQuery());
    * ```
    */
-  createEventStreamQueryClient<FIELDS extends string = string>(
+  createEventStreamQueryClient<EVENT_FIELDS extends string = string>(
     options?: QueryClientOptions,
-  ): EventStreamQueryClient<DomainEventBody, FIELDS> {
+  ): EventStreamQueryClient<DomainEventBody, EVENT_FIELDS> {
     const apiMetadata = createQueryApiMetadata({
       ...this.defaultOptions,
       ...options,

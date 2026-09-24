@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 725 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 733 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -61,6 +61,7 @@ type  ChartData
 type  ChartFamily
 type  ChartFamilyTraits
 type  ChartFit
+type  ChartPickerGroups
 type  ChartShape
 type  ChartSpec
 type  ChartType
@@ -324,6 +325,9 @@ type  SystemView
 value TEMPORAL_FIELD_KIND_IDS
 value TEMPORAL_TYPES
 type  TreeVisit
+type  TreemapData
+type  TreemapSpec
+type  TreemapTile
 type  UnsavedViewTarget
 value VALUE_CANDIDATE_LIMIT
 value VALUE_CANDIDATE_OPERATORS
@@ -369,6 +373,9 @@ value ViewStoreError
 type  ViewStoreErrorCode
 value ViewWriteError
 type  VisibilitySource
+type  WaterfallData
+type  WaterfallSpec
+type  WaterfallStep
 type  WriteAction
 type  WriteContext
 type  WriteHandle
@@ -404,6 +411,7 @@ value bucketRange
 value builtinFieldKinds
 value cardField
 value chartMarks
+value chartPickerGroups
 value chartUnfit
 value clampPage
 value clearFilter

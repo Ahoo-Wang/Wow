@@ -26,6 +26,7 @@ description: '程序化 API — @ahoo-wang/wow-generator'
 | `logger`                | `new ConsoleLogger()`          | 接收进度、警告和错误                                         |
 | `headers`               | 无                             | `inputPath` 或 `configPath` 为 HTTP/HTTPS URL 时发送的请求头 |
 | `timeoutMs`             | `30000`                        | 获取 HTTP/HTTPS 文档的超时毫秒数                             |
+| `schemaDocs`            | `'summary'`                    | `'full'` 时在每个模型的文档注释中嵌入其 JSON schema          |
 
 `GeneratorOptions` 不再继承 ts-morph 的 `ProjectOptions`；传给项目的只有 `tsConfigFilePath`。
 

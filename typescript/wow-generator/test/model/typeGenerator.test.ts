@@ -90,7 +90,7 @@ describe('TypeGenerator', () => {
         type: 'string',
         enum: ['a', 'b', 'c'],
       });
-      expect(result).toBe("('a' | 'b' | 'c') & (string)");
+      expect(result).toBe("'a' | 'b' | 'c'");
     });
 
     it('should resolve array type', () => {
@@ -374,7 +374,7 @@ describe('TypeGenerator', () => {
       const result = (generator as any).process();
       expect(mockSourceFile.addTypeAlias).toHaveBeenCalledWith({
         name: 'TestModel',
-        type: 'Array<string>',
+        type: 'string[]',
         isExported: true,
       });
       expect(result).toBeDefined();
@@ -438,9 +438,10 @@ describe('TypeGenerator', () => {
       expect(result).toBeDefined();
     });
 
-    it('should process map schema', () => {
+    it('should process a string-keyed map as an interface with an index signature', () => {
+      const addIndexSignature = vi.fn();
       const mockSourceFile = {
-        addTypeAlias: vi.fn().mockReturnValue({ addJsDoc: vi.fn() }),
+        addInterface: vi.fn().mockReturnValue({ addIndexSignature }),
       };
       const generator = new TypeGenerator(
         modelInfo,
@@ -456,10 +457,14 @@ describe('TypeGenerator', () => {
       );
 
       const result = (generator as any).process();
-      expect(mockSourceFile.addTypeAlias).toHaveBeenCalledWith({
+      expect(mockSourceFile.addInterface).toHaveBeenCalledWith({
         name: 'TestModel',
-        type: 'globalThis.Record<string,string>',
         isExported: true,
+      });
+      expect(addIndexSignature).toHaveBeenCalledWith({
+        keyName: 'key',
+        keyType: 'string',
+        returnType: 'string',
       });
       expect(result).toBeDefined();
     });
@@ -520,6 +525,7 @@ describe('TypeGenerator', () => {
           properties: { id: { type: 'string' } },
         },
         'TestModel',
+        false,
       );
     });
 

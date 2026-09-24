@@ -13,7 +13,7 @@ description: '身份与资源归属 — @ahoo-wang/wow-client'
 | `AggregateId`                                 | 平铺的 `{aggregateId, tenantId, contextName, aggregateName}`。关联结果时应匹配四项，仅 ID 字符串不是完整身份。 |
 | `AggregateIdCapable.aggregateId`              | 嵌套上述**完整对象**，不要与 `AggregateId` 中同名的字符串字段混淆。                                            |
 | `NamedBoundedContext` / `AliasBoundedContext` | `contextName` 是模型名；`contextAlias` 是路由别名。Named/AliasAggregate 还要求 `aggregateName`。               |
-| `OwnerId`、`TenantId`、`SpaceIdCapable`       | 显式字符串归属字段。`DEFAULT_OWNER_ID` 为 `''`。                              |
+| `OwnerId`、`TenantId`、`SpaceIdCapable`       | 显式字符串归属字段。                              |
 | `UrlPathParams`                               | 可选 tenant/owner/id 及自定义字符串路径槽位；必须提供所选模板所需的槽位。                                      |
 | `ResourceAttributionPathSpec`                 | 无归属、租户、所有者及租户+所有者路径前缀；模板不构成授权。                                                    |
 | `AbacTags` / `AbacTaggable.tags`              | 每个标签键对应字符串数组；空标签 `{}`，通配值 `['*']`；策略含义由服务端定义。                                  |
@@ -188,14 +188,6 @@ export interface AggregateIdCapable {
 
 [typescript/wow-client/src/types/modeling.ts:109](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts#L109)
 
-### DEFAULT_OWNER_ID {#api-DEFAULT_OWNER_ID}
-
-```ts
-declare const DEFAULT_OWNER_ID: '';
-```
-
-[typescript/wow-client/src/types/modeling.ts:129](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts#L129)
-
 ### OwnerId {#api-OwnerId}
 
 ```ts
@@ -204,7 +196,7 @@ export interface OwnerId {
 }
 ```
 
-[typescript/wow-client/src/types/modeling.ts:134](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts#L134)
+[typescript/wow-client/src/types/modeling.ts:132](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts#L132)
 
 ### SpaceIdCapable {#api-SpaceIdCapable}
 
@@ -214,7 +206,7 @@ export interface SpaceIdCapable {
 }
 ```
 
-[typescript/wow-client/src/types/modeling.ts:141](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts#L141)
+[typescript/wow-client/src/types/modeling.ts:139](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts#L139)
 
 ### TenantId {#api-TenantId}
 
@@ -224,7 +216,7 @@ export interface TenantId {
 }
 ```
 
-[typescript/wow-client/src/types/modeling.ts:158](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts#L158)
+[typescript/wow-client/src/types/modeling.ts:156](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts#L156)
 
 ### NamedBoundedContext {#api-NamedBoundedContext}
 

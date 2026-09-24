@@ -309,16 +309,65 @@ export function addImportRefModel(
   if (refModelInfo.path.startsWith(IMPORT_ALIAS)) {
     return addImport(sourceFile, refModelInfo.path, [refModelInfo.name]);
   }
-  const sourceDir = sourceFile.getDirectoryPath();
   const targetFilePath = join(outputDir, refModelInfo.path, MODEL_FILE_NAME);
-  let relativePath = relative(sourceDir, targetFilePath);
-  relativePath = relativePath.replace(/\.ts$/, '');
-  // Normalize path separators to forward slashes for cross-platform compatibility
-  relativePath = relativePath.split(sep).join('/');
-  if (!relativePath.startsWith('.')) {
-    relativePath = './' + relativePath;
-  }
-  return addImport(sourceFile, relativePath, [refModelInfo.name]);
+  return addImport(
+    sourceFile,
+    relativeModuleSpecifier(sourceFile, targetFilePath),
+    [refModelInfo.name],
+  );
+}
+
+/**
+ * The specifier a source file imports another generated file by.
+ *
+ * Relative specifiers carry the `.js` extension, which every module
+ * resolution TypeScript offers accepts for a `.ts` file: `NodeNext` and
+ * `Node16` require it, and `bundler` and `node10` map it back to the source.
+ *
+ * @param sourceFile - The importing file
+ * @param targetFilePath - The imported `.ts` file, or a directory holding an `index.ts`
+ * @returns A specifier starting with `./` or `../` and ending with `.js`
+ */
+export function relativeModuleSpecifier(
+  sourceFile: SourceFile,
+  targetFilePath: string,
+): string {
+  let relativePath = relative(sourceFile.getDirectoryPath(), targetFilePath)
+    .split(sep)
+    .join('/');
+  relativePath = relativePath.endsWith('.ts')
+    ? relativePath.replace(/\.ts$/, '.js')
+    : `${relativePath}/index.js`;
+  return relativePath.startsWith('.') ? relativePath : `./${relativePath}`;
+}
+
+/** The file that declares a bounded context's alias constant. */
+export function boundedContextFilePath(contextAlias: string): string {
+  return `${contextAlias}/boundedContext.ts`;
+}
+
+/**
+ * Imports a bounded context's alias constant into a generated file.
+ *
+ * @param sourceFile - The importing file
+ * @param outputDir - The output directory
+ * @param contextAlias - The bounded context alias
+ * @param declarationName - The name of the alias constant
+ */
+export function addImportBoundedContext(
+  sourceFile: SourceFile,
+  outputDir: string,
+  contextAlias: string,
+  declarationName: string,
+) {
+  return addImport(
+    sourceFile,
+    relativeModuleSpecifier(
+      sourceFile,
+      join(outputDir, boundedContextFilePath(contextAlias)),
+    ),
+    [declarationName],
+  );
 }
 
 /**
@@ -351,10 +400,22 @@ export function jsDoc(
   if (!Array.isArray(descriptions)) {
     return undefined;
   }
-  const filtered = descriptions.filter(
-    v => typeof v === 'string' && v.length > 0,
-  );
+  const filtered = descriptions
+    .filter((v): v is string => typeof v === 'string' && v.length > 0)
+    .map(escapeJsDoc);
   return filtered.length > 0 ? filtered.join(separator) : undefined;
+}
+
+/**
+ * Keeps document text from ending the comment it is written into: a
+ * description holding `*` followed by `/` - a cron expression such as
+ * `*` `/5 * * * *`, a glob - would otherwise close the JSDoc early.
+ *
+ * @param text - Text taken from the document
+ * @returns The text with every comment terminator broken up
+ */
+export function escapeJsDoc(text: string): string {
+  return text.replace(/\*\//g, '*\\/');
 }
 
 /**
@@ -380,7 +441,11 @@ export function schemaJSDoc(schema: Schema, key?: string) {
     descriptions.push(`- key: ${key}`);
   }
   if (schema.format) {
-    descriptions.push(`- format: ${schema.format}`);
+    descriptions.push(
+      schema.format === 'int64'
+        ? '- format: int64 (a value beyond Number.MAX_SAFE_INTEGER loses precision)'
+        : `- format: ${schema.format}`,
+    );
   }
 
   addJsonJsDoc(descriptions, schema, 'default');
@@ -406,13 +471,24 @@ export function addSchemaJSDoc(
   addJSDoc(node, descriptions);
 }
 
+/**
+ * Adds the doc comment of a model.
+ *
+ * @param node - The model declaration
+ * @param schema - The schema it is generated from
+ * @param key - The schema's component key
+ * @param includeSchema - Also embed the complete JSON schema
+ */
 export function addMainSchemaJSDoc(
   node: JSDocableNode,
   schema: Schema | Reference,
   key?: string,
+  includeSchema = false,
 ) {
   const descriptions = schemaJSDoc(schema as Schema, key);
-  jsonJsDoc(descriptions, 'schema', schema);
+  if (includeSchema) {
+    jsonJsDoc(descriptions, 'schema', schema);
+  }
   addJSDoc(node, descriptions);
 }
 

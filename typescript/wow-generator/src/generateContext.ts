@@ -18,6 +18,7 @@ import type {
   GenerateContextInit,
   GeneratorConfiguration,
   Logger,
+  SchemaDocs,
 } from './types';
 import { getOrCreateSourceFile } from './utils';
 
@@ -33,8 +34,15 @@ export class GenerateContext implements GenerateContextInit {
   /** Optional logger for generation progress and errors */
   readonly logger: Logger;
   readonly config: GeneratorConfiguration;
-  private readonly defaultIgnorePathParameters = ['tenantId', 'ownerId'];
+  /**
+   * The resource-attribution path parameters Wow's CoSec interceptor fills,
+   * which generated clients therefore leave out.
+   */
+  private readonly wowIgnorePathParameters = ['tenantId', 'ownerId'];
   readonly currentContextAlias: string | undefined;
+  /** Tags of Wow aggregates, whose operations do not go to API clients. */
+  readonly aggregateTags: ReadonlySet<string>;
+  readonly schemaDocs: SchemaDocs;
 
   constructor(context: GenerateContextInit) {
     this.project = context.project;
@@ -44,6 +52,24 @@ export class GenerateContext implements GenerateContextInit {
     this.logger = context.logger;
     this.config = context.config ?? {};
     this.currentContextAlias = this.openAPI.info['x-wow-context-alias'];
+    this.aggregateTags =
+      context.aggregateTags ??
+      new Set(
+        [...this.contextAggregates.values()].flatMap(aggregates =>
+          [...aggregates].map(aggregate => aggregate.aggregate.tag.name),
+        ),
+      );
+    this.schemaDocs = context.schemaDocs ?? 'summary';
+  }
+
+  /**
+   * Tells whether the document comes from a Wow service: it names its bounded
+   * context, or it has aggregates.
+   */
+  get isWowDocument(): boolean {
+    return (
+      this.currentContextAlias !== undefined || this.aggregateTags.size > 0
+    );
   }
 
   getOrCreateSourceFile(filePath: string): SourceFile {
@@ -56,7 +82,7 @@ export class GenerateContext implements GenerateContextInit {
   ): boolean {
     const ignorePathParameters =
       this.config.apiClients?.[tagName]?.ignorePathParameters ??
-      this.defaultIgnorePathParameters;
+      (this.isWowDocument ? this.wowIgnorePathParameters : []);
     return ignorePathParameters.includes(parameterName);
   }
 
@@ -64,7 +90,7 @@ export class GenerateContext implements GenerateContextInit {
     tagName: string,
     parameterName: string,
   ): boolean {
-    return this.defaultIgnorePathParameters.includes(parameterName);
+    return this.wowIgnorePathParameters.includes(parameterName);
   }
 }
 

@@ -18,13 +18,13 @@ import {
   CommandStage,
   ErrorCodes,
   filter,
-  SnapshotQueryClient,
+  ResourceAttributionPathSpec,
 } from '@ahoo-wang/wow-client';
 import { exampleFetcher } from '../../../src/wow';
 import {
   type CreateOrderCommand,
   OrderCommandClient,
-  type WowExampleOrderState,
+  orderQueryClientFactory,
 } from '../../../src/generated';
 
 // The order aggregate is spaced (`@AggregateRoute(spaced = true)`), so the
@@ -41,12 +41,20 @@ const createOrder: CreateOrderCommand = {
   fromCart: false,
 };
 
-const orderCommandClient = new OrderCommandClient({ fetcher: exampleFetcher });
-// exampleFetcher fills `{ownerId}` with the current user, who owns the order.
-const orderSnapshotQueryClient = new SnapshotQueryClient<WowExampleOrderState>({
+// The tests reach the example server directly rather than through a gateway
+// that routes /example to it, so they clear the bounded context prefix.
+const orderCommandClient = new OrderCommandClient({
   fetcher: exampleFetcher,
-  basePath: 'owner/{ownerId}/sales-order',
+  basePath: '',
 });
+// The generated factory queries the order's route segment, sales-order.
+// exampleFetcher fills `{ownerId}` with the current user, who owns the order.
+const orderSnapshotQueryClient =
+  orderQueryClientFactory.createSnapshotQueryClient({
+    fetcher: exampleFetcher,
+    contextAlias: '',
+    resourceAttribution: ResourceAttributionPathSpec.OWNER,
+  });
 
 describe('Space header Integration Test', () => {
   it('should send a command into the space named by CommandHeaders.SPACE_ID', async () => {

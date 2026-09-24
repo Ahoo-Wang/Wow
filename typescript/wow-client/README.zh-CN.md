@@ -3,6 +3,9 @@
 面向 Wow 命令、快照、领域事件、过滤、分页与聚合的类型化 Fetcher 客户端和契约。只在
 对接 Wow HTTP 端点时使用。
 
+支持的服务端：Wow 8.11 及以后通过 `filter` API；Wow 8.10 通过
+[`/legacy`](#wow-810-服务端ahoo-wangwow-clientlegacy)。Node `>=22.12.0` 或现代浏览器。
+
 ## 安装
 
 ```bash
@@ -12,7 +15,7 @@ pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
 
 Peer 依赖：`fetcher`、`fetcher-decorator` 和 `fetcher-eventstream`。
 
-## 示例
+## 查询
 
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';
@@ -39,13 +42,85 @@ const carts = await snapshots.listState(
 );
 ```
 
+`listQuery()`、`pagedQuery()`、`singleQuery()` 不传过滤条件时匹配全部。列表不传
+`limit` 时由服务端取默认列表大小。
+
+## 发送命令
+
+```ts
+import {
+  CommandClient,
+  CommandStage,
+  commandHeaders,
+  waitStrategy,
+} from '@ahoo-wang/wow-client';
+
+const commands = new CommandClient({ fetcher, basePath: 'cart' });
+const result = await commands.send({
+  path: 'add_cart_item',
+  method: 'POST',
+  headers: {
+    ...commandHeaders({ ownerId: 'u-42', requestId: crypto.randomUUID() }),
+    ...waitStrategy({ stage: CommandStage.SNAPSHOT, timeoutMs: 10_000 }),
+  },
+  body: { productId: 'p-1', quantity: 1 },
+});
+```
+
+`CommandRequestHeaders` 按服务端的解析方式给每个命令头定类型：等待阶段必须是
+`CommandStage`，超时是整数毫秒。`waitStrategy()` 也能构建 Wow 的等待链
+（`SAGA_HANDLED` 加 `tail`）。`sendAndWaitStream()` 在命令每到达一个阶段时产出一个
+`CommandResult`。
+
+## 错误
+
+服务端返回的错误是 `WowError`，带着服务端的 `ErrorInfo`（`errorCode`、`errorMsg`、
+`bindingErrors`）和 HTTP 状态码。用 `ErrorCodes` 比较 `errorCode`。
+
+```ts
+import { ErrorCodes, toWowError } from '@ahoo-wang/wow-client';
+
+try {
+  await snapshots.getStateById(cartId);
+} catch (error) {
+  const wowError = await toWowError(error);
+  if (wowError?.errorCode === ErrorCodes.NOT_FOUND) return undefined;
+  throw wowError ?? error;
+}
+```
+
+- 请求失败时抛出的是 fetcher 的错误。`toWowError()` 读取响应体里的 `ErrorInfo`，
+  读不到时读 `Wow-Error-Code` 响应头；不是 Wow 服务端的应答（网络故障、超时、取消、
+  代理自己的错误页）时返回 `undefined`。
+- 流（`listStream`、`aggregateStream`、`sendAndWaitStream` 等）中途失败时，流以
+  `WowError` 结束，`for await` 会抛出它。服务端此时的 HTTP 状态仍是 200，错误作为
+  最后一个事件发出；不这样处理的话，错误会被当成一行数据。
+
+## 取消
+
+每个查询方法的最后一个参数（在拦截器属性之后）接受 `AbortController` 或
+`AbortSignal`：
+
+```ts
+const page = await snapshots.pagedState(
+  query,
+  undefined,
+  AbortSignal.timeout(5_000),
+);
+```
+
+## 不带 HTTP 的查询构建：`@ahoo-wang/wow-client/dsl`
+
+`filter`、`aggregation`、排序、投影、分页、游标查询和查询工厂，不带客户端：不加载
+Fetcher、装饰器、`reflect-metadata`，也不装 `fetcher-eventstream` 的全局流补丁。
+只构建查询的包从这里导入。
+
 ## Wow 8.10 服务端：`@ahoo-wang/wow-client/legacy`
 
 根入口只使用 `FilterExpression`，Wow 8.11 及以后的服务端都支持。Wow 8.10 及更早
 的服务端只认已弃用的 Condition 模型，本包把它放在单独的子路径里，保留到 v10：
 
 ```ts
-import { SnapshotQueryClient } from '@ahoo-wang/wow-client';
 import { and, eq, listQuery, ownerId } from '@ahoo-wang/wow-client/legacy';
 
 const carts = await snapshots.listState(
@@ -58,17 +133,22 @@ const carts = await snapshots.listState(
 ## 核心能力
 
 - 命令结果与流式等待阶段。
-- 快照、领域事件、状态加载与所有者状态客户端。
+- 快照、领域事件、状态加载与所有者状态客户端；按版本区间加载事件流
+  （`EventStreamQueryClient.load`）；服务端元数据（`WowMetadataClient`）。
 - 提前校验的数组优先 `FilterExpression` 构建器。
 - 单条、列表、分页、游标、计数与流查询契约。
 - 投影、排序、嵌套聚合、建模、ABAC 与元数据类型。
 - `aggregation.query()` 按 Wow 服务端同样的规则校验整个聚合查询，
   让错误在构建处暴露，而不是等到请求被拒。
 
+暂时没有客户端的：`GET {id}/snapshot`、`GET {id}/state/tracing`，以及
+`/wow/command/send` 路由（用 `CommandClient` 加上 `COMMAND_AGGREGATE_CONTEXT`、
+`COMMAND_AGGREGATE_NAME`、`COMMAND_TYPE` 三个头发送）。
+
 ## 文档
 
-- [Wow CQRS 实战](https://fetcher.ahoo.me/zh/guides/integrations/wow)
-- [Wow 参考](https://fetcher.ahoo.me/zh/reference/wow)
-- [交互式查询 Story](https://fetcher.ahoo.me/storybook/)
+- [TypeScript 指南](https://wow.ahoo.me/zh/guide/typescript/)
+- [wow-client 参考](https://wow.ahoo.me/zh/reference/typescript/wow-client/)
+- [交互式查询 Story](https://wow.ahoo.me/storybook/)
 
-[English](./README.md) · [许可证](../../LICENSE)
+[English](./README.md) · [许可证](https://github.com/Ahoo-Wang/Wow/blob/main/LICENSE)

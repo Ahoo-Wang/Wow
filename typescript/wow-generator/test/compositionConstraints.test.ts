@@ -158,7 +158,10 @@ it.each([false, true])(
 );
 
 it('does not reuse a cycle-truncated constraint result on a different path', () => {
+  // A sibling constraint keeps the union off the plain-reference path, so the
+  // constraint analysis runs.
   const schema: Schema = {
+    minProperties: 1,
     oneOf: [
       { $ref: '#/components/schemas/A' },
       { $ref: '#/components/schemas/B' },

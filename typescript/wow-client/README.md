@@ -3,6 +3,10 @@
 Typed Fetcher clients and contracts for Wow commands, snapshots, domain events,
 filters, pagination, and aggregation. Use it only against Wow HTTP endpoints.
 
+Supported servers: Wow 8.11 and later through the `filter` API; Wow 8.10
+through [`/legacy`](#wow-810-servers-ahoo-wangwow-clientlegacy). Node
+`>=22.12.0` or a current browser.
+
 ## Install
 
 ```bash
@@ -12,7 +16,7 @@ pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
 
 Peer dependencies: `fetcher`, `fetcher-decorator`, and `fetcher-eventstream`.
 
-## Example
+## Query
 
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';
@@ -39,6 +43,83 @@ const carts = await snapshots.listState(
 );
 ```
 
+`listQuery()`, `pagedQuery()` and `singleQuery()` match everything when no
+filter is given. A list without a `limit` gets the server's default list size.
+
+## Send a command
+
+```ts
+import {
+  CommandClient,
+  CommandStage,
+  commandHeaders,
+  waitStrategy,
+} from '@ahoo-wang/wow-client';
+
+const commands = new CommandClient({ fetcher, basePath: 'cart' });
+const result = await commands.send({
+  path: 'add_cart_item',
+  method: 'POST',
+  headers: {
+    ...commandHeaders({ ownerId: 'u-42', requestId: crypto.randomUUID() }),
+    ...waitStrategy({ stage: CommandStage.SNAPSHOT, timeoutMs: 10_000 }),
+  },
+  body: { productId: 'p-1', quantity: 1 },
+});
+```
+
+`CommandRequestHeaders` types every command header by what the server parses:
+a stage must be a `CommandStage`, a timeout whole milliseconds. `waitStrategy()`
+also builds Wow's wait chain (`SAGA_HANDLED` plus a `tail`).
+`sendAndWaitStream()` yields one `CommandResult` per stage the command reaches.
+
+## Errors
+
+A server error is a `WowError`, carrying the server's `ErrorInfo`
+(`errorCode`, `errorMsg`, `bindingErrors`) and the HTTP status. Match
+`errorCode` against `ErrorCodes`.
+
+```ts
+import { ErrorCodes, toWowError } from '@ahoo-wang/wow-client';
+
+try {
+  await snapshots.getStateById(cartId);
+} catch (error) {
+  const wowError = await toWowError(error);
+  if (wowError?.errorCode === ErrorCodes.NOT_FOUND) return undefined;
+  throw wowError ?? error;
+}
+```
+
+- A failed request rejects with the fetcher's error. `toWowError()` reads the
+  response's `ErrorInfo` body, or failing that its `Wow-Error-Code` header, and
+  returns `undefined` when the Wow server did not answer (network failure,
+  timeout, abort, a proxy's own error page).
+- A stream (`listStream`, `aggregateStream`, `sendAndWaitStream`, …) that
+  fails midway errors with a `WowError`, so `for await` throws it. The server
+  answered HTTP 200 and sends the error as the last event. Without this the
+  error would look like a row.
+
+## Cancel
+
+Every query method takes an `AbortController` or an `AbortSignal` as its last
+argument, after the interceptor attributes:
+
+```ts
+const page = await snapshots.pagedState(
+  query,
+  undefined,
+  AbortSignal.timeout(5_000),
+);
+```
+
+## Build queries without HTTP: `@ahoo-wang/wow-client/dsl`
+
+`filter`, `aggregation`, sort, projection, pagination, cursor queries and the
+query factories, without the clients: no Fetcher, no decorators, no
+`reflect-metadata`, and none of the stream patches `fetcher-eventstream`
+installs. Use it where a bundle only builds queries.
+
 ## Wow 8.10 servers: `@ahoo-wang/wow-client/legacy`
 
 The root entry speaks only `FilterExpression`, which Wow 8.11 and later
@@ -46,7 +127,6 @@ accept. Wow 8.10 and earlier understand only the deprecated Condition model,
 which this package keeps on its own subpath until v10:
 
 ```ts
-import { SnapshotQueryClient } from '@ahoo-wang/wow-client';
 import { and, eq, listQuery, ownerId } from '@ahoo-wang/wow-client/legacy';
 
 const carts = await snapshots.listState(
@@ -60,17 +140,24 @@ root entry. The subpath is removed in v10.
 ## Core capabilities
 
 - Command results and streaming wait stages.
-- Snapshot, domain-event, load-state, and owner-state clients.
+- Snapshot, domain-event, load-state, and owner-state clients; event streams by
+  version range (`EventStreamQueryClient.load`); server metadata
+  (`WowMetadataClient`).
 - Array-first `FilterExpression` builders with early validation.
 - Single, list, paged, cursor, count, and stream query contracts.
 - Projection, sorting, nested aggregation, modeling, ABAC, and metadata types.
 - `aggregation.query()` admits a whole aggregation against the same rules
   Wow enforces on arrival, so a bad query fails where it was built.
 
+Not covered by a client yet: `GET {id}/snapshot`, `GET {id}/state/tracing`
+and the `/wow/command/send` route (send it with `CommandClient` and the
+`COMMAND_AGGREGATE_CONTEXT`, `COMMAND_AGGREGATE_NAME` and `COMMAND_TYPE`
+headers).
+
 ## Documentation
 
-- [Wow CQRS recipe](https://fetcher.ahoo.me/guides/integrations/wow)
-- [Wow reference](https://fetcher.ahoo.me/reference/wow)
-- [Interactive query stories](https://fetcher.ahoo.me/storybook/)
+- [TypeScript guide](https://wow.ahoo.me/guide/typescript/)
+- [wow-client reference](https://wow.ahoo.me/reference/typescript/wow-client/)
+- [Interactive query stories](https://wow.ahoo.me/storybook/)
 
-[中文](./README.zh-CN.md) · [License](../../LICENSE)
+[中文](./README.zh-CN.md) · [License](https://github.com/Ahoo-Wang/Wow/blob/main/LICENSE)

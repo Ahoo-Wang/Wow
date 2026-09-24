@@ -49,20 +49,36 @@ export interface UseCountQueryReturn<
 > extends UseQueryReturn<Q, number, E> {}
 
 /**
- * Hook for querying count data with a filter.
- * Wraps useQuery to provide type-safe count queries.
+ * Counts what a filter matches through your own `execute` function and keeps
+ * the count as state: typically a query client's `count`.
  *
- * @template FIELDS - The fields type for the filter
- * @template E - The error type, defaults to FetcherError
- * @param options - The query options including the filter and other settings
- * @returns The query result with count data
+ * `execute` receives the filter, the `attributes` option and an
+ * `AbortController`; hand the controller on so that a newer query, `abort()`
+ * or an unmount cancels the request. The count runs on mount and whenever
+ * `query` or `setQuery()` changes the filter; set `autoExecute: false` to run
+ * it only through `execute()`.
+ *
+ * Returns `result` (the count, or `undefined` before the first success),
+ * `loading`, `error`, `status`, `execute`, `abort`, `reset`, `getQuery` and
+ * `setQuery`.
+ *
+ * @template FIELDS - The field names the filter may use
+ * @template E - The error type, `FetcherError` by default
  *
  * @example
- * ```typescript
- * const { data, isLoading } = useCountQuery({
- *   initialQuery: filter.eq('status', 'ACTIVE'),
- *   execute: async (filter) => fetchCount(filter),
- * });
+ * ```tsx
+ * import { filter, type SnapshotQueryClient } from '@ahoo-wang/wow-client';
+ * import { useCountQuery } from '@ahoo-wang/wow-react';
+ *
+ * function PaidCount({ client }: { client: SnapshotQueryClient<OrderState> }) {
+ *   const { result, error } = useCountQuery({
+ *     initialQuery: filter.eq('state.status', 'PAID'),
+ *     execute: (query, attributes, abortController) =>
+ *       client.count(query, attributes, abortController),
+ *   });
+ *   if (error) return <p role="alert">{error.message}</p>;
+ *   return <p>{result ?? '…'} paid orders</p>;
+ * }
  * ```
  */
 export function useCountQuery<FIELDS extends string = string, E = FetcherError>(

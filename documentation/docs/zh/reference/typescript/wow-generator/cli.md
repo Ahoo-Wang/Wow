@@ -5,7 +5,7 @@ description: '生成器 CLI — @ahoo-wang/wow-generator'
 
 # 生成器 CLI
 
-`wow-generator generate` 读取 JSON/YAML 并写入 TypeScript 模型和装饰器客户端。请在可解析 TypeScript 配置及已安装 Fetcher 包的目录运行。
+`wow-generator generate` 读取 JSON/YAML 并写入 TypeScript 模型和装饰器客户端。输出不取决于运行目录装了哪些包，但编译输出的项目需要安装它们，见[生成产物](./generated-output)。
 
 ## 选项
 
@@ -17,6 +17,7 @@ description: '生成器 CLI — @ahoo-wang/wow-generator'
 | `-t, --ts-config-file-path <file>` | 不指定                        | ts-morph 项目配置；应提供启用装饰器的 tsconfig                              |
 | `-H, --header <header>`            | 无；可重复                    | 输入或配置为 HTTP/HTTPS URL 时发送的 `Name: value` 请求头                   |
 | `--timeout <ms>`                   | `30000`                       | 获取 HTTP/HTTPS 输入或配置的超时毫秒数，超时即放弃                          |
+| `--schema-docs <mode>`             | `summary`                     | 模型文档注释的内容：`summary`（标题、描述、约束）或 `full`（另含 JSON schema） |
 | `--strict`                         | 关闭                          | 本次运行有警告时以退出码 4 结束                                             |
 | `--verbose`                        | 关闭                          | 输出每一步（带时间戳），失败时输出原因和堆栈                                |
 | `--quiet`                          | 关闭                          | 只输出警告和错误                                                            |
@@ -142,7 +143,7 @@ node dist/cli.js generate -i "$PWD/test/demo.spec.json" -o /tmp/wow-demo-generat
 | 1      | 内部 | 意外错误，例如写入失败或 tsconfig 无效；加 `--verbose` 重跑可看到堆栈                  |
 | 2      | 输入 | 输入读不到或取不到、既不是 JSON 也不是 YAML、不是 OpenAPI 3.x 文档，或选项值无效       |
 | 3      | 配置 | 配置读不到、解析不了或校验不通过                                                       |
-| 4      | 规范 | 文档描述的代码无法生成，或开启了 `--strict` 且本次运行有警告                           |
+| 4      | 规范 | 文档描述的代码无法生成：`$ref` 指向不存在的目标、两个 schema 生成同一个模型、两个操作生成同一个方法、Wow 元数据格式错误；或开启了 `--strict` 且本次运行有警告 |
 | 130    | 中断 | SIGINT（Ctrl-C）                                                                       |
 
 失败时只输出一行，写明文件或 URL 以及出错原因；`--verbose` 会附上原因和堆栈。缺少必填输入也会被 Commander 拒绝。格式根据内容识别，不依赖扩展名。

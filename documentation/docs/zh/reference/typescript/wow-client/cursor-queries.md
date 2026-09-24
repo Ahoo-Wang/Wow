@@ -11,14 +11,14 @@ description: '游标查询 — @ahoo-wang/wow-client'
 | ------------------- | --------------------------------------------------------------------------- |
 | filter              | 必填 FilterExpression，旧 Condition 不能作为 CursorQuery filter。           |
 | projection、sort    | 默认 {} 和 []，续传 token 时保持同一个逻辑查询。                            |
-| size                | 默认 DEFAULT_CURSOR_SIZE = 10；整数范围 1 到 MAX_CURSOR_SIZE = 2147483646。 |
+| size                | 默认 DEFAULT_CURSOR_SIZE = 10；整数范围 1 到 MAX_CURSOR_SIZE = 2147483646，即游标模型的上限。经 HTTP 时服务端另有页大小上限，默认 100，更大的 size 会得到 400。 |
 | sort 数量           | 最多 MAX_CURSOR_SORT_FIELDS = 32。                                          |
 | cursor              | 首次默认 null，后续原样使用 response.nextCursor。                           |
 | CursorPage&lt;T&gt; | `{ list: T[], nextCursor: string \| null }`；null 表示结束。                |
 
 非法大小或排序字段过多会在联网前抛 TypeError。构造器不解析 token、不校验服务端能力、不验证唯一排序键、不冻结数据库快照，也不自动补平局排序键。游标有效性、过期和一致性属于服务端契约，不能编辑或推导 token。用 nextCursor 判断结束，不要用 list 长度；不足一页也可能有非 null 续传 token。
 
-本包没有内置异步迭代器或 cursor-close 方法。下面循环由调用者持有 AbortController，收到取消就停止。退出循环停止后续 HTTP，controller.abort 取消当前支持取消的请求；这不保证关闭服务端 PIT/session，因为本包不暴露释放端点。传输错误或无效/过期游标通过 Fetcher 拒绝，应显式决定是否从 null 重启。
+本包没有内置异步迭代器或 cursor-close 方法。下面循环接收一个 AbortSignal（来自控制器、`AbortSignal.timeout(ms)` 或数据请求库），被中止后即停止。退出循环停止后续 HTTP，中止该 signal 会取消当前请求；这不保证关闭服务端 PIT/session，因为本包不暴露释放端点。传输错误或无效/过期游标通过 Fetcher 拒绝（`toWowError` 可读出服务端错误码），应显式决定是否从 null 重启。
 
 ## 完整示例
 
@@ -35,11 +35,11 @@ interface User {
   name: string;
 }
 const client = new SnapshotQueryClient<User>({ basePath: '/users' });
-export async function readUsers(controller: AbortController) {
+export async function readUsers(signal: AbortSignal) {
   let cursor: string | null = null;
   const users: User[] = [];
   do {
-    controller.signal.throwIfAborted();
+    signal.throwIfAborted();
     const page: CursorPage<User> = await client.cursorState(
       cursorQuery({
         filter: filter.matchAll(),
@@ -48,7 +48,7 @@ export async function readUsers(controller: AbortController) {
         cursor,
       }),
       undefined,
-      controller,
+      signal,
     );
     users.push(...page.list);
     cursor = page.nextCursor;
@@ -73,7 +73,7 @@ export function cursorQuery<FIELDS extends string = string>(
 
 实现默认值: `projection = {}`; `sort = []`; `size = DEFAULT_CURSOR_SIZE`; `cursor = null`.
 
-[typescript/wow-client/src/query/cursorQuery.ts:37](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/cursorQuery.ts#L37)
+[typescript/wow-client/src/query/cursorQuery.ts:44](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/cursorQuery.ts#L44)
 
 ### DEFAULT_CURSOR_SIZE {#api-DEFAULT_CURSOR_SIZE}
 
@@ -81,7 +81,7 @@ export function cursorQuery<FIELDS extends string = string>(
 declare const DEFAULT_CURSOR_SIZE: 10;
 ```
 
-[typescript/wow-client/src/query/cursorQuery.ts:18](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/cursorQuery.ts#L18)
+[typescript/wow-client/src/query/cursorQuery.ts:19](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/cursorQuery.ts#L19)
 
 ### MAX_CURSOR_SIZE {#api-MAX_CURSOR_SIZE}
 
@@ -89,7 +89,7 @@ declare const DEFAULT_CURSOR_SIZE: 10;
 declare const MAX_CURSOR_SIZE: 2147483646;
 ```
 
-[typescript/wow-client/src/query/cursorQuery.ts:19](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/cursorQuery.ts#L19)
+[typescript/wow-client/src/query/cursorQuery.ts:25](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/cursorQuery.ts#L25)
 
 ### MAX_CURSOR_SORT_FIELDS {#api-MAX_CURSOR_SORT_FIELDS}
 
@@ -97,7 +97,7 @@ declare const MAX_CURSOR_SIZE: 2147483646;
 declare const MAX_CURSOR_SORT_FIELDS: 32;
 ```
 
-[typescript/wow-client/src/query/cursorQuery.ts:20](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/cursorQuery.ts#L20)
+[typescript/wow-client/src/query/cursorQuery.ts:27](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/cursorQuery.ts#L27)
 
 ### CursorQuery {#api-CursorQuery}
 
@@ -111,7 +111,7 @@ export interface CursorQuery<FIELDS extends string = string> {
 }
 ```
 
-[typescript/wow-client/src/query/cursorQuery.ts:23](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/cursorQuery.ts#L23)
+[typescript/wow-client/src/query/cursorQuery.ts:30](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/cursorQuery.ts#L30)
 
 ### CursorPage {#api-CursorPage}
 
@@ -122,7 +122,7 @@ export interface CursorPage<T> {
 }
 ```
 
-[typescript/wow-client/src/query/cursorQuery.ts:32](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/cursorQuery.ts#L32)
+[typescript/wow-client/src/query/cursorQuery.ts:39](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/cursorQuery.ts#L39)
 
 ## 相关专题
 

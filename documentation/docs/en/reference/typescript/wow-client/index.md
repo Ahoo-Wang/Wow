@@ -17,6 +17,7 @@ Use Wow clients with a service that implements the Wow command and query protoco
 | Traverse a changing result set           | [Cursor queries](./cursor-queries)                                            | Stable sort and cursor rules accepted by your backend.                              |
 | Compute grouped results                  | [Aggregations](./aggregations)                                                | Metric/group expression and server capability; builders do not compute results.     |
 | Read an event stream or historical state | [Events and history](./events-and-history)                                    | Event envelopes versus state payloads and stream cleanup.                           |
+| Handle a failed call or stream           | [WowError / toWowError](./errors-and-utilities)                               | Refused request, error event midway through a stream, or no answer from Wow.        |
 
 ## Installation prerequisites
 
@@ -26,9 +27,19 @@ pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-even
 
 The package version follows Wow: `@ahoo-wang/wow-client` x.y.z is released together with Wow x.y.z. The Fetcher peers accept `^5.1 || ^6`. The package requires Node >=22.12.0, as does repository development, which also pins pnpm 10.34.5. The command installs every peer the package declares; direct runtime dependencies are installed automatically.
 
+## Entry points {#entries}
+
+| Import                          | Exports                                                                                                                                                                                                        |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@ahoo-wang/wow-client`         | Everything but the `/legacy` API: command and query clients, `QueryClientFactory`, `WowMetadataClient`, errors (`WowError`, `toWowError`, `ErrorCodes`), headers and their builders, the stream result extractors, and the whole query DSL. |
+| `@ahoo-wang/wow-client/dsl`     | The query DSL alone: `filter`, `aggregation`, sort, projection, pagination, `cursorQuery`, the query factories and their `Filter*` types, `DeletionState`, `DynamicDocument`, `SnapshotMetadataFields`, `DomainEventStreamMetadataFields`. |
+| `@ahoo-wang/wow-client/legacy`  | The deprecated `Condition` API for Wow 8.10 servers: condition builders, `Operator`, the `Condition`-based query types and factories, operator locales. Removed in v10.                                          |
+
+`/dsl` loads no HTTP code — no Fetcher, no decorators, no `reflect-metadata`, and none of the global stream patches `@ahoo-wang/fetcher-eventstream` installs — so an application that only builds queries, or sends them through a client of its own, can import it without those side effects. Its exports are the same objects the root entry exports; the peers are still declared by the package. See the [`/dsl` symbol list](./symbols#dsl).
+
 The root entry queries with `FilterExpression`, which Wow 8.11 and later accept. For a Wow 8.10 server, import the deprecated `Condition` API, its query types and factories, and the operator locales from `@ahoo-wang/wow-client/legacy`; the query clients accept both kinds of query. The subpath is removed in v10.
 
-Coming from `@ahoo-wang/fetcher-wow`? The API is unchanged except that the `Condition` API moved to `/legacy`; follow the [migration guide](../../../guide/typescript/migration.md) to switch imports.
+Coming from `@ahoo-wang/fetcher-wow`? The first `@ahoo-wang/wow-client` release renames and retypes several APIs — errors, command headers, the cancellation parameter, aggregation builders — and moves the `Condition` API to `/legacy`; follow the [migration guide](../../../guide/typescript/migration.md).
 
 ## Core request
 
