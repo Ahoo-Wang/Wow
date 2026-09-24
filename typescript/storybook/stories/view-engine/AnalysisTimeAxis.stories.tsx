@@ -118,14 +118,23 @@ export const YearOfDays: Story = { args: { scene: 'year' } };
 /** 同一年画成堆叠的柱：730 根柱仍一根一个元素，缩到一周读得出每一天。 */
 export const YearOfDaysBars: Story = { args: { scene: 'year-bars' } };
 
+/**
+ * A story of ten thousand rows is not judged by axe: its reading table holds
+ * ten thousand of them, and axe walking it outlasts the test. The same table
+ * at a year's length is judged in every other story here.
+ */
+const LONG_RUN = { a11y: { test: 'off' } };
+
 /** 一万天：一条一万个点的线，按绘图区的宽度采样。 */
 export const TenThousandDays: Story = {
   args: { scene: 'ten-thousand-days' },
+  parameters: LONG_RUN,
 };
 
 /** 一万天画成柱：多于一千根，一条路径画完、不写数。 */
 export const TenThousandBars: Story = {
   args: { scene: 'ten-thousand-days', chart: 'bar' },
+  parameters: LONG_RUN,
 };
 
 /** 宿主钉开花纹：每条系列除了颜色还有自己的花纹。 */

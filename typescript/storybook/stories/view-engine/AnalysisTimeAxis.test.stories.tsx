@@ -63,13 +63,6 @@ function wheel(root: HTMLElement, ctrlKey: boolean): boolean {
   return event.defaultPrevented;
 }
 
-/**
- * A story that times ten thousand rows is not also judged by axe: its
- * reading table holds ten thousand of them, and axe walking it outlasts the
- * test. The same table at a year's length is judged in every other story.
- */
-const TIMED = { a11y: { test: 'off' } };
-
 const pause = (ms: number) => new Promise(done => setTimeout(done, ms));
 
 /**
@@ -278,7 +271,6 @@ export const TooltipSaysTheChangeFromTheDayBefore: Story = {
  */
 export const TenThousandDaysDrawInTime: Story = {
   ...DisplayTenThousandDays,
-  parameters: TIMED,
   play: async ({ canvasElement }) => {
     await drawnLong(canvasElement);
     const frame = frameOf(canvasElement);
@@ -308,7 +300,6 @@ export const TenThousandDaysDrawInTime: Story = {
  */
 export const TenThousandBarsDrawAsOnePath: Story = {
   ...DisplayTenThousandBars,
-  parameters: TIMED,
   play: async ({ canvasElement }) => {
     await drawnLong(canvasElement);
     const frame = frameOf(canvasElement);

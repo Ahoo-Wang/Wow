@@ -181,7 +181,7 @@ TypeScript 与 Kotlin 两边是同一套：`typescript/wow-client/src/query/aggr
 
 ## 5 风险
 
-- **包体**：图表块今天 gzip 212.7KB（esbuild 压缩后 619KB，与 D21 的 214KB 一致，只在第一张图时加载）。逐个实测的增量：批 A 的 dataZoom（inside 与 slider）14.3、aria 1.1；批 B 的 markArea 1.4、markPoint 0.6；批 C 的 brush 8.6；批 D 的矩形树图 11.8、日历 3.8；导出若由库画图例与标题，legend 5.4、title 0.7。**首发全部合计约 +47KB，到 260KB 左右（+22%）**。首发后的桑基 9.8、地图含 geo 32；toolbox 15.1 不引。超出预期时可以按家族再切一块（矩形树图、日历只在选中时再注册），第一张图的成本不变。量法：以 `src/ui/charts/echarts.ts` 的注册表为入口，esbuild 打包压缩后取 gzip；每批 PR 写实测数。**批 A 实测**：dataZoom（inside 与 slider）加 aria 后 619.0KB → 656.8KB、gzip 212.4KB → 224.5KB（+12.1KB，估的是 +15.4KB）。
+- **包体**：图表块今天 gzip 212.7KB（esbuild 压缩后 619KB，与 D21 的 214KB 一致，只在第一张图时加载）。逐个实测的增量：批 A 的 dataZoom（inside 与 slider）14.3、aria 1.1；批 B 的 markArea 1.4、markPoint 0.6；批 C 的 brush 8.6；批 D 的矩形树图 11.8、日历 3.8；导出若由库画图例与标题，legend 5.4、title 0.7。**首发全部合计约 +47KB，到 260KB 左右（+22%）**。首发后的桑基 9.8、地图含 geo 32；toolbox 15.1 不引。超出预期时可以按家族再切一块（矩形树图、日历只在选中时再注册），第一张图的成本不变。量法：以 `src/ui/charts/echarts.ts` 的注册表为入口，esbuild 打包压缩后取 gzip；每批 PR 写实测数。**批 A 实测**（与批 D 同一量法，`gzip -c`）：在批 D 之上加 dataZoom（inside 与 slider）与 aria，压缩后 668,957 → 702,880 B，gzip 229,248 → 239,941 B（+10.4KB，估的是 +15.4KB）；批 D 之前的 217,173 B 起算，两批合计 +22.8KB。
 - **公开面与模型**：图型联合扩大，`ChartSpec`、`CartesianSpec`、`AxisSpec`、`ReferenceLine`、`ScatterSpec` 加成员，全部可选；宿主若对图型穷举 switch，会在类型检查时报出来——首发前本包不欠兼容（AGENTS.md），但 `test/surface/` 的名字清单若有新名字要在 PR 里说。交互状态（缩放窗口、藏起的系列、框选）只在 `/ui` 里，不进运行时合同。
 - **存量视图**：只加可选成员、不改名、不改语义，所以**不需要迁移**；AGENTS.md 的读取时迁移例外只给仪表盘配置，本方案不申请新的例外。
 - **主题**：新色只来自已有 token——八色、底色混出的顺序色、成功色与危险色、前景色——都经 `readChartTheme` 读回，换预设与明暗时照样就地重画（D21、[phase5-themes.md](phase5-themes.md) 5A）；花纹从系列色生成，不引入新色。要新量的对比：瀑布增减色上的标签墨色、顺序色最浅一档上的格内数字，沿用 test/paletteInk.test.ts 的做法。
