@@ -29,6 +29,14 @@
   - 判据：按惯例先把架构、代码质量、UI、视觉、UX 五个维度的审查清单给用户看，处置完后把 [phase5-themes.md](phase5-themes.md) 并入 [ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)，删掉方案页与这一条，并重写 [progress.md](progress.md)。
   - 落点：[phase5-themes.md](phase5-themes.md)、[ui/README.md](ui/README.md)、[progress.md](progress.md)。
 
+## 内置主题目录
+
+- **六批按方案做**（[themes.md](themes.md) 第 7 节，裁定 [D35](decisions.md#d35-内置主题目录与三条轴的四条裁定2026-09-24)）；每批的完整判据以方案为准，这里只列线索：
+  - 为什么：用户 2026-09-24 要内置常用、经典风格的主题；宿主研发选，引擎只暴露属性、prop 与 CSS 入口。
+  - T1 机制（等 ECharts 批 B 合并）：可选组与 `verify-package` 改写、字体与阴影变量、`--rise`／`--fall` 与涨跌约定、图表探针解析、桥接只在无预设时生效、色板间距单测。T2 第一批预设：`azure`、`porcelain`、`graphite`，删 `blue`，单套 CSS 与体积断言。T3：`fjord`、`contrast`、`brand`。T4 密度（等批 C 合并）。T5 主题一览三视图矩阵、截图基线、强制颜色、打印（等交易订单夹具改造合并）。T6 阶段审查与收尾。
+  - 判据：每套 × 每种明暗过对比度矩阵与色板门；neutral 在默认密度、默认约定下像素不变；每批 PR 写 CSS gzip 实测数。
+  - 落点：[themes.md](themes.md)；做完一批删一行，全部做完后把方案页并入 [ui/README.md](ui/README.md)，删掉方案页与这一条。
+
 ## 分析视图：释放 ECharts
 
 - **五批按方案做**（[analysis-echarts.md](analysis-echarts.md) 第 3 节，裁定 [D33](decisions.md#d33-分析视图释放-echarts-能力的九条裁定2026-09-24)）；每批的完整判据以方案为准，这里只列线索：
