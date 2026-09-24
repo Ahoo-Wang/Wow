@@ -29,8 +29,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '../components/dropdown-menu.js';
-import { bandText } from '../band.js';
-import { columnTitle, type DisplayContext } from '../display.js';
+import type { DisplayContext } from '../display.js';
 import {
   useViewMessages,
   type MessageFormatters,
@@ -242,25 +241,17 @@ function Away() {
  * is: a dimension's own label (「日期」) is a column heading of this result,
  * and the view opened from it has no such column.
  *
- * A number band is the one reading the bar has no single chip for — its
- * conditions are two comparisons with the bounds in full — so the menu says
- * it as its column prints it, 「单价 在 ¥0～500」 (`bandText`).
+ * A number band's conditions are two comparisons, `GTE` its key and `LT`
+ * the key plus the interval, which the bar reads as the one segment they
+ * bound, written as its column prints the band — 「单价 在 ¥0～500」
+ * (`label.filter.segment`). So every dimension reads through the bar's own
+ * sentence, and the two agree by construction.
  */
 export function groupText(
   entry: FollowUpGroup,
   messages: MessageFormatters,
   display: DisplayContext,
 ): string {
-  const { column } = entry;
-  const band =
-    column === undefined || column.dateUnit !== undefined
-      ? undefined
-      : bandText(entry.value, column, messages, display);
-  if (column !== undefined && band !== undefined)
-    return messages.label('label.drill.bucket', {
-      field: entry.conditions[0]?.label ?? columnTitle(column, messages),
-      bucket: band,
-    });
   return entry.conditions
     .map(item => summaryText(item, messages, display))
     .join(' · ');

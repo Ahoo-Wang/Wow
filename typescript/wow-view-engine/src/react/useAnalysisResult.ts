@@ -90,14 +90,11 @@ export type FollowUpAction =
 /** One dimension of the group pressed, for the menu to name it by. */
 export interface FollowUpGroup {
   /**
-   * The dimension's column in the result — its header and how its values
-   * read, a date bucket's width among them — or undefined where the result
-   * drew none.
+   * The conditions that select it, as the applied bar names them — a date
+   * bucket's range as its period, a number band's two comparisons as the
+   * one segment they bound — so the menu, the name of a view opened from it
+   * and that view's applied bar say one sentence.
    */
-  column: AnalysisColumnView | undefined;
-  /** The row's value in that column: a key, a bucket's start. */
-  value: unknown;
-  /** The conditions that select it, as the applied bar names them. */
   conditions: readonly FilterSummaryItem[];
 }
 
@@ -427,8 +424,6 @@ export function useAnalysisResult(
     });
     return {
       groups: drilled.map(entry => ({
-        column: columns.find(column => column.alias === entry.group.alias),
-        value: entry.value,
         conditions: describeFilter(
           runtime.fields,
           { op: 'and', children: entry.conditions },

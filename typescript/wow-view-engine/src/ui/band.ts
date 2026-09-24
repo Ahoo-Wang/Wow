@@ -57,13 +57,36 @@ export function bandText(
     value + interval,
     Math.max(places(value), places(interval)),
   );
-  const [from, to] = boundTexts(
-    value,
-    upper,
-    column.numberFormat,
+  return segmentText(value, upper, column.numberFormat, messages, context);
+}
+
+/**
+ * The segment `[from, to)` of a number field, written as a band is: what a
+ * condition pair `GTE`＋`LT` reads as on the applied bar, so the bar, the
+ * follow-up menu over the band pressed and the name of the view opened from
+ * it say one sentence. The bounds are what the conditions store, and an
+ * upper bound computed as a key plus an interval can carry binary noise —
+ * 0.2 + 0.1 — so each is read back at fifteen significant digits, which is
+ * all a double holds anyway.
+ */
+export function segmentText(
+  from: number,
+  to: number,
+  format: NumberFormat | undefined,
+  messages: MessageFormatters,
+  context: DisplayContext,
+): string {
+  const [lower, upper] = boundTexts(
+    precise(from),
+    precise(to),
+    format,
     context.locale,
   );
-  return messages.label('label.analysis.band', { from, to });
+  return messages.label('label.analysis.band', { from: lower, to: upper });
+}
+
+function precise(value: number): number {
+  return Number.isFinite(value) ? Number(value.toPrecision(15)) : value;
 }
 
 /**

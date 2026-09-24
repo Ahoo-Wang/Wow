@@ -124,6 +124,38 @@ describe('validateFilter', () => {
     expect(validateFilter(fields, nested, builtinFieldKinds)).toEqual([]);
   });
 
+  /**
+   * A band of a number histogram opens its records under `GTE` its key and
+   * `LT` the next: a half-open segment, which no `BETWEEN` says. The pair is
+   * not a slip under "all of"; a third bound, or the pair under "any of", is.
+   */
+  it('lets a lower and an upper bound of one field stand side by side under "all of"', () => {
+    const lower = { field: 'amount', operator: 'GTE', value: 0 } as const;
+    const upper = { field: 'amount', operator: 'LT', value: 500 } as const;
+    const group = (
+      op: 'and' | 'or',
+      ...children: FilterTree['children']
+    ): FilterTree => ({ op, children });
+    const codes = (filter: FilterTree) =>
+      validateFilter(fields, filter, builtinFieldKinds).map(
+        found => `${found.code}@${found.path.join('.')}`,
+      );
+
+    expect(codes(group('and', lower, upper))).toEqual([]);
+    expect(codes(group('and', upper, { ...lower, operator: 'GT' }))).toEqual(
+      [],
+    );
+    expect(codes(group('and', lower, upper, { ...upper, value: 9 }))).toEqual([
+      'filter.field.duplicate-in-group@children.2',
+    ]);
+    expect(codes(group('and', lower, { ...lower, value: 9 }))).toEqual([
+      'filter.field.duplicate-in-group@children.1',
+    ]);
+    expect(codes(group('or', lower, upper))).toEqual([
+      'filter.field.duplicate-in-group@children.1',
+    ]);
+  });
+
   it('admits an empty tree', () => {
     expect(validateFilter(fields, emptyFilter(), builtinFieldKinds)).toEqual(
       [],

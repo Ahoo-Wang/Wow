@@ -132,16 +132,12 @@ describe('useAnalysisResult', () => {
       'split',
       'focus',
     ]);
-    // Named dimension by dimension: the warehouse's column, the row's value
-    // under it, and its one condition as the applied bar names it.
+    // Named dimension by dimension: the warehouse's one condition, as the
+    // applied bar names it.
     expect(followUp?.groups).toHaveLength(1);
-    expect(followUp?.groups[0]).toMatchObject({
-      column: { alias: 'warehouse', role: 'group' },
-      value: 'CN',
-    });
-    expect(followUp?.groups[0].conditions.map(item => item.text)).toHaveLength(
-      1,
-    );
+    expect(followUp?.groups[0].conditions).toMatchObject([
+      { field: 'warehouse', value: { kind: 'text', value: 'CN' } },
+    ]);
     // What the two views a follow-up opens are of: the definition's records,
     // and this view.
     expect(

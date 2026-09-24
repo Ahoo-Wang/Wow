@@ -113,6 +113,10 @@ export const filterMessages = {
   // week's value is only the day it starts, so it says it is one.
   'label.filter.period': '{field} in {period}',
   'label.filter.period-week': '{field} in the week of {period}',
+  // A field's `GTE` and `LT` side by side, read as the one segment they
+  // bound — what a band of a number histogram opens its records under —
+  // written as the band was (`label.analysis.band`).
+  'label.filter.segment': '{field} in {segment}',
   // A list of values that grows: what is being typed, the popup that offers
   // it back as the one thing to add, and one remove button per value. Every
   // pill on the panel has all three, so the first two are named after their
