@@ -69,6 +69,7 @@ export const navbarZh: DefaultTheme.NavItem[] = [
         ],
     },
     {text: 'API', link: '/dokka/index.html', target: '_blank'},
+    {text: 'Storybook', link: '/storybook/', target: '_blank'},
     {
         text: '资源',
         items: [

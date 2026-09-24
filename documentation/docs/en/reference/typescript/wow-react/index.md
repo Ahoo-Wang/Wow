@@ -716,4 +716,4 @@ export interface UseSingleQueryReturn<
 
 ## Related topics
 
-[Fetcher hooks](https://fetcher.ahoo.me/reference/react/fetcher-hooks) · [Promise and query state](https://fetcher.ahoo.me/reference/react/promise-and-query-state) · [Snapshot queries](../wow-client/snapshot-queries) · [Filter expressions](../wow-client/filters) · [Projection, sorting and pagination](../wow-client/query-options)
+[Fetcher hooks](https://fetcher.ahoo.me/reference/react/fetcher-hooks) · [Promise and query state](https://fetcher.ahoo.me/reference/react/promise-and-query-state) · [Snapshot queries](../wow-client/snapshot-queries) · [Filter expressions](../wow-client/filters) · [Projection, sorting and pagination](../wow-client/query-options) · [Storybook: Wow query hooks](/storybook/?path=/docs/react-hooks-wow-queries--docs)

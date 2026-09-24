@@ -7,12 +7,18 @@ import {sidebarZh} from "./configs/sidebar.zh";
 import {navbarEn} from "./configs/navbar.en";
 import {sidebarEn} from "./configs/sidebar.en";
 import {head} from "./configs/head";
+import {isStorybookLink, storybookLinks} from "./storybook-links.mjs";
 
 // https://vitepress.dev/reference/site-config
 const userConfig = defineConfig({
-    // Local Swagger links are runnable-example targets, not documentation pages.
     // Keep VitePress dead-link validation enabled for every other link.
-    ignoreDeadLinks: 'localhostLinks',
+    ignoreDeadLinks: [
+        // Local Swagger links are runnable-example targets, not documentation pages.
+        (url) => /^(?:[a-z]+:)?\/\/localhost/i.test(url),
+        // Storybook is assembled into dist after VitePress builds;
+        // test/storybook-links.test.mjs checks these links against its index.json.
+        isStorybookLink,
+    ],
     head: head,
     rewrites: (id) => id.startsWith('en/') ? id.slice(3) : id,
     transformHead({page, title, description}) {
@@ -35,6 +41,11 @@ const userConfig = defineConfig({
         transformItems: (items) => {
             items.push({
                 url: 'https://wow.ahoo.me/dokka/index.html',
+                changefreq: 'weekly',
+                priority: 0.8
+            })
+            items.push({
+                url: 'https://wow.ahoo.me/storybook/',
                 changefreq: 'weekly',
                 priority: 0.8
             })
@@ -77,6 +88,7 @@ const userConfig = defineConfig({
         config(md) {
             md.use(copyOrDownloadAsMarkdownButtons)
             md.use(MermaidMarkdown)
+            md.use(storybookLinks)
         }
     },
     locales: {

@@ -82,4 +82,14 @@ Add `react`, `@ahoo-wang/fetcher-react`, and `@ahoo-wang/wow-react` for the Reac
 
 The server side of these contracts is described in [Commands](../command/), [Query](../query.md), and [Open API](../open-api.md). The generic Fetcher topics, including interceptors, cancellation, and server-sent events, stay at [fetcher.ahoo.me](https://fetcher.ahoo.me/).
 
-Interactive Storybook examples for the query hooks and the view engine arrive later with the view engine.
+## Try it in Storybook
+
+The [Storybook](/storybook/) runs the query hooks and the view engine against in-memory fixtures, so every example below works without a server. The view engine's scenario notes are written in Chinese.
+
+| Example | What it shows |
+|---|---|
+| [Wow query hooks](/storybook/?path=/docs/react-hooks-wow-queries--docs) | Single, list, paged, count, and streaming queries through the `wow-react` hooks |
+| [View engine home](/storybook/?path=/docs/view-engine-首页--docs) | A host application's landing page built from an embedded dashboard |
+| [Record workbench](/storybook/?path=/docs/view-engine-数据视图-record-工作台--docs) | Filtering, sorting, columns, paging, and saved record views |
+| [Analysis workbench](/storybook/?path=/docs/view-engine-分析视图-分析工作台--docs) | Groupings, metrics, charts, and tables with totals |
+| [Dashboard](/storybook/?path=/docs/view-engine-仪表盘视图-dashboard--docs) | Panels, global filters, and click-through between boards |
