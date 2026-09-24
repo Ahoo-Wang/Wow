@@ -28,6 +28,11 @@ import {
 } from '../../../src/generated';
 import { expectCommandResultToBeDefined } from './cartCommandClient.test';
 
+// The tests reach the example server directly rather than through a gateway
+// that routes /example to it, so they clear the bounded context prefix the
+// generated clients add by default, as `contextAlias: ''` does for queries.
+const directToServer = { fetcher: exampleFetcher, basePath: '' };
+
 describe('CartCommandClient Integration Test', () => {
   const addCartItemCommand: AddCartItemCommand = {
     headers: {
@@ -40,9 +45,7 @@ describe('CartCommandClient Integration Test', () => {
   };
 
   it('should send command', async () => {
-    const cartCommandClient = new CartCommandClient({
-      fetcher: exampleFetcher,
-    });
+    const cartCommandClient = new CartCommandClient(directToServer);
     const commandResult =
       await cartCommandClient.addCartItem(addCartItemCommand);
     expectCommandResultToBeDefined(commandResult);
@@ -52,9 +55,7 @@ describe('CartCommandClient Integration Test', () => {
   });
 
   it('should send command and wait stream', async () => {
-    const cartCommandClient = new CartStreamCommandClient({
-      fetcher: exampleFetcher,
-    });
+    const cartCommandClient = new CartStreamCommandClient(directToServer);
     const commandResultStream =
       await cartCommandClient.addCartItem(addCartItemCommand);
     expect(commandResultStream).toBeDefined();

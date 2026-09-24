@@ -34,7 +34,14 @@ import {
   currentUserId,
   exampleFetcher,
 } from '../../../src/wow';
-import { cartQueryClientFactory, CartState } from '../../../src/generated';
+import {
+  type CartAggregatedFields,
+  cartQueryClientFactory,
+  type CartState,
+} from '../../../src/generated';
+
+/** The fields a cart query names: the values of the generated field enum. */
+type CartFields = `${CartAggregatedFields}`;
 
 const command: AddCartItemCommand = {
   path: CartCommandEndpoints.addCartItem,
@@ -104,7 +111,7 @@ describe('cartSnapshotQueryClient Integration Test', () => {
   });
 
   it('should list', async () => {
-    const listQuery: ListQuery = {
+    const listQuery: ListQuery<CartFields> = {
       condition: all(),
       limit: DEFAULT_PAGINATION.size,
     };
@@ -115,7 +122,7 @@ describe('cartSnapshotQueryClient Integration Test', () => {
   });
 
   it('should list stream', async () => {
-    const listQuery: ListQuery = {
+    const listQuery: ListQuery<CartFields> = {
       condition: all(),
       limit: DEFAULT_PAGINATION.size,
     };
@@ -126,7 +133,7 @@ describe('cartSnapshotQueryClient Integration Test', () => {
     }
   });
   it('should list state', async () => {
-    const listQuery: ListQuery = {
+    const listQuery: ListQuery<CartFields> = {
       condition: all(),
       limit: DEFAULT_PAGINATION.size,
     };
@@ -137,7 +144,7 @@ describe('cartSnapshotQueryClient Integration Test', () => {
   });
 
   it('should list state stream', async () => {
-    const listQuery: ListQuery = {
+    const listQuery: ListQuery<CartFields> = {
       condition: all(),
       limit: DEFAULT_PAGINATION.size,
     };
@@ -149,7 +156,7 @@ describe('cartSnapshotQueryClient Integration Test', () => {
   });
 
   it('should paged', async () => {
-    const pagedQuery: PagedQuery = {
+    const pagedQuery: PagedQuery<CartFields> = {
       condition: all(),
     };
     const paged = await cartSnapshotQueryClient.paged(pagedQuery);
@@ -161,7 +168,7 @@ describe('cartSnapshotQueryClient Integration Test', () => {
   });
 
   it('should paged state', async () => {
-    const pagedQuery: PagedQuery = {
+    const pagedQuery: PagedQuery<CartFields> = {
       condition: all(),
     };
     const pagedState = await cartSnapshotQueryClient.pagedState(pagedQuery);
@@ -171,7 +178,7 @@ describe('cartSnapshotQueryClient Integration Test', () => {
   });
 
   it('should single', async () => {
-    const singleQuery: SingleQuery = {
+    const singleQuery: SingleQuery<CartFields> = {
       condition: all(),
     };
     const single = await cartSnapshotQueryClient.single(singleQuery);
@@ -179,7 +186,7 @@ describe('cartSnapshotQueryClient Integration Test', () => {
   });
 
   it('should single not found', async () => {
-    const singleQuery: SingleQuery = {
+    const singleQuery: SingleQuery<CartFields> = {
       condition: id(idGenerator.generateId()),
     };
     await expect(cartSnapshotQueryClient.single(singleQuery)).rejects.toThrow(
@@ -188,7 +195,7 @@ describe('cartSnapshotQueryClient Integration Test', () => {
   });
 
   it('should single state', async () => {
-    const singleQuery: SingleQuery = {
+    const singleQuery: SingleQuery<CartFields> = {
       condition: all(),
     };
     const singleState = await cartSnapshotQueryClient.singleState(singleQuery);

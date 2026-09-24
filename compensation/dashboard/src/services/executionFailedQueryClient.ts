@@ -18,14 +18,21 @@ import type {
   FilterPagedQuery,
   FilterSingleQuery,
   QueryClientOptions,
+  SnapshotQueryClient,
 } from "@ahoo-wang/wow-client";
-import type { ExecutionFailedAggregatedFields } from "../generated";
+import type {
+  ExecutionFailedAggregatedFields,
+  ExecutionFailedState,
+} from "../generated";
 
 const executionFailedQueryClientOptions: QueryClientOptions = {
   contextAlias: "",
 };
 
-const executionFailedSnapshotQueryClient =
+// The generated factory types the query fields. The search and sort panels
+// build filters from field names chosen at run time, so the client is
+// widened here to accept any field name.
+const executionFailedSnapshotQueryClient: SnapshotQueryClient<ExecutionFailedState> =
   executionFailedQueryClientFactory.createSnapshotQueryClient(
     executionFailedQueryClientOptions,
   );
