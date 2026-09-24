@@ -992,14 +992,39 @@ describe('a chart finding in a panel names columns', () => {
   });
 });
 
-/** Enough of `ResizeObserver` for the grid's width to be set by hand. */
+/**
+ * Enough of `ResizeObserver` for the grid's width to be set by hand.
+ *
+ * The grid is only watching once `watching` says so. It measures with
+ * `react-grid-layout`'s `useContainerWidth`, which starts its observer from
+ * a passive effect, and the workbench draws the board after a load — a
+ * render outside `act`, whose passive effects React may run a task after
+ * the commit. A panel's title on screen is therefore no sign the grid
+ * watches its width yet; under load the test once drove an observer that
+ * did not exist (`Cannot read properties of null`). Every observer the
+ * product writes itself starts from a layout effect and has no such gap.
+ */
 class GridWidth {
-  static grid: GridWidth | null = null;
+  private static grid: GridWidth | null = null;
+  /** The grid's observer, once it has one. */
+  static watching(): Promise<GridWidth> {
+    return waitFor(() => {
+      if (GridWidth.grid === null)
+        throw new Error('The grid does not watch its width yet.');
+      return GridWidth.grid;
+    });
+  }
+  static forget(): void {
+    GridWidth.grid = null;
+  }
   constructor(private readonly callback: ResizeObserverCallback) {}
   observe(node?: Element): void {
     if (node?.matches('[data-slot="dashboard-grid"]')) GridWidth.grid = this;
   }
-  disconnect(): void {}
+  /** A grid that stopped watching is no grid to drive. */
+  disconnect(): void {
+    if (GridWidth.grid === this) GridWidth.grid = null;
+  }
   unobserve(): void {}
   resize(width: number): void {
     this.callback(
@@ -1012,7 +1037,7 @@ class GridWidth {
 describe('building the one-column reading (D22 J)', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
-    GridWidth.grid = null;
+    GridWidth.forget();
   });
 
   it('moves a panel along the column by keyboard, says where it came to, and writes the grid back', async () => {
@@ -1024,7 +1049,8 @@ describe('building the one-column reading (D22 J)', () => {
       ],
     });
     await screen.findByText('Left', { selector: 'h3' });
-    act(() => GridWidth.grid!.resize(414));
+    const grid = await GridWidth.watching();
+    act(() => grid.resize(414));
     await waitFor(() =>
       expect(slot('dashboard-grid')?.hasAttribute('data-narrow')).toBe(true),
     );
