@@ -14,7 +14,7 @@
 import {
   AGGREGATION_LIMITS,
   AggregationGroupType,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import { describe, expect, it, vi } from 'vitest';
 import {
   builtinFieldKinds,

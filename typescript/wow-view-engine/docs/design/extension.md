@@ -56,7 +56,7 @@ export interface FieldKind {
 
 ## 与 Wow 协议的对应
 
-| 内核输出                              | Wow 类型（`@ahoo-wang/fetcher-wow`）                                                                                                      | 执行入口           |
+| 内核输出                              | Wow 类型（`@ahoo-wang/wow-client`）                                                                                                       | 执行入口           |
 | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
 | `compileFilter`                       | `FilterExpression`（`LogicalFilter`、`EqualityFilter`、`ComparisonFilter`、`StringFilter`、`CollectionFilter`、`BetweenFilter` 等的联合） | 嵌入下方三种查询   |
 | `compileRecord` 分页                  | `FilterPagedQuery { filter; projection; sort; pagination }`                                                                               | `source.paged`     |
@@ -65,7 +65,7 @@ export interface FieldKind {
 
 两种记录查询都带 `projection.include`：一页只向数据源要视图显示的字段与宿主代码要读的字段，不要整份文档（`recordProjection`，规则见 [kernels.md#一页要哪些字段](kernels.md#一页要哪些字段)）。
 
-Wow 已将 `Condition`、`ConditionOptions`、`PagedQuery`、`ListQuery`、`SingleQuery` 等基于 condition 的 API 标记为弃用。本包只使用 `FilterExpression` 与 `Filter*Query` 系列；架构测试禁止从 `@ahoo-wang/fetcher-wow` 导入任何弃用符号，`FilterLeaf` 的编译结果类型固定为 `FilterExpression`。
+Wow 已将 `Condition`、`ConditionOptions`、`PagedQuery`、`ListQuery`、`SingleQuery` 等基于 condition 的 API 标记为弃用。本包只使用 `FilterExpression` 与 `Filter*Query` 系列；架构测试禁止从 `@ahoo-wang/wow-client` 导入任何弃用符号，`FilterLeaf` 的编译结果类型固定为 `FilterExpression`。
 
 `AnalysisViewConfig` 覆盖 `AggregationQuery` 的全部字段：`filter`、`elements`、`groupBy`、六种 `metrics`、`having`、`sort`、`limit`。Wow 端的能力（是否支持 aggregate、支持哪些 group 类型、函数与扩展能力）由 `AnalysisCapability` 在定义中声明；内核只按声明编译，不探测后端。
 

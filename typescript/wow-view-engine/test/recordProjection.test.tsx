@@ -19,7 +19,7 @@
  * nobody had on screen.
  */
 
-import type { CursorQuery, FilterPagedQuery } from '@ahoo-wang/fetcher-wow';
+import type { CursorQuery, FilterPagedQuery } from '@ahoo-wang/wow-client';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {

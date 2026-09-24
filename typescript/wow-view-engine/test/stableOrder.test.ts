@@ -16,7 +16,7 @@ import {
   SortDirection,
   type FieldSort,
   type FilterPagedQuery,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import { describe, expect, it, vi } from 'vitest';
 import {
   builtinFieldKinds,

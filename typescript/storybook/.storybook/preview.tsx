@@ -52,7 +52,7 @@ const preview: Preview = {
           '事件与存储',
           'React Hooks',
           'View Engine',
-          // The rewrite (packages/view-engine/docs/design/) delivers one
+          // The rewrite (typescript/wow-view-engine/docs/design/) delivers one
           // surface per step; this list grows with them rather than reserving
           // names for stories that do not exist yet.
           ['首页', '数据视图', '分析视图', '仪表盘视图', '真实后端'],

@@ -41,7 +41,7 @@ export interface ViewSurfaceProps extends React.ComponentProps<'div'> {
  * The boundary every view renders inside.
  *
  * The package's stylesheet hangs every token and every base rule off this
- * element, so importing `@ahoo-wang/fetcher-view-engine/styles.css` changes
+ * element, so importing `@ahoo-wang/wow-view-engine/styles.css` changes
  * nothing about the page around it, and an embedded view can pin its own
  * theme while the rest of the application follows the host.
  *

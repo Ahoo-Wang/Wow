@@ -13,7 +13,7 @@
 import type { ComponentType } from 'react';
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, fn, screen, userEvent, waitFor, within } from 'storybook/test';
-import { zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
+import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import displayMeta, {
   AllPanels as DisplayAllPanels,
   Filters as DisplayFilters,

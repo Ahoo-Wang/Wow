@@ -31,7 +31,7 @@ import {
   within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AggregationGroupType } from '@ahoo-wang/fetcher-wow';
+import { AggregationGroupType } from '@ahoo-wang/wow-client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,

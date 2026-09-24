@@ -16,7 +16,7 @@ import {
   AggregationFunction,
   AggregationGroupType,
   AggregationMetricType,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import { vi } from 'vitest';
 import type {
   AnalysisViewConfig,

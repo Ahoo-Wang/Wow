@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { SearchMode, StringComparison } from '@ahoo-wang/fetcher-wow';
+import type { SearchMode, StringComparison } from '@ahoo-wang/wow-client';
 import type { FilterOperatorName } from './filter.js';
 
 /**

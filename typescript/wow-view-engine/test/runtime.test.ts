@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { FilterOperator, type QueryApi } from '@ahoo-wang/fetcher-wow';
+import { FilterOperator, type QueryApi } from '@ahoo-wang/wow-client';
 import { describe, expect, it, vi } from 'vitest';
 import type { DataViewRuntime, RecordDataViewRuntime } from '../src/index.js';
 import {

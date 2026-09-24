@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { AGGREGATION_LIMITS } from '@ahoo-wang/fetcher-wow';
+import { AGGREGATION_LIMITS } from '@ahoo-wang/wow-client';
 import type {
   AnalysisViewConfig,
   DataViewDefinition,

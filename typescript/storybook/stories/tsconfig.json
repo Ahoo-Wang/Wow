@@ -1,7 +1,7 @@
 {
   // Stories are consumers of the packages, so they are checked against the
   // packages' built declarations, as an application sees them. Build the
-  // packages first: pnpm -r --filter './packages/*' build
+  // packages first: pnpm build:typescript
   "compilerOptions": {
     // Vite reads the nearest tsconfig when it transforms a story, so the
     // options that change emitted code stay as the root sets them.
@@ -19,7 +19,7 @@
     "paths": {
       // The alias .storybook/main.ts gives the compensation console: View
       // Engine's vendored primitives, which the package does not export.
-      "@/ui/*": ["../packages/view-engine/src/ui/*"]
+      "@/ui/*": ["../../wow-view-engine/src/ui/*"]
     }
   },
   "include": [

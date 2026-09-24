@@ -17,7 +17,7 @@
  * nothing else, so replacing one is a matter of writing different markup
  * against the same contract.
  *
- * Styles ship separately as `@ahoo-wang/fetcher-view-engine/styles.css`.
+ * Styles ship separately as `@ahoo-wang/wow-view-engine/styles.css`.
  */
 // The one callout recipe — the registry's `Alert`, one line high — so a
 // host drawing its own notice above a view can wear the same face.

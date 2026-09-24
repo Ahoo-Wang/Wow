@@ -1,4 +1,4 @@
-# AGENTS.md — @ahoo-wang/fetcher-view-engine
+# AGENTS.md — @ahoo-wang/wow-view-engine
 
 <!-- This file provides coding agents with context about this package. -->
 
@@ -18,30 +18,30 @@ This package is being rebuilt from an empty tree against `docs/design/`, and it 
 
 ## Build & Run Commands
 
-`@ahoo-wang/fetcher-wow` resolves to its `dist/`, so the workspace dependencies must be built first — otherwise vitest fails with `Failed to resolve import "@ahoo-wang/fetcher-wow"`, and even this package's own `build` cannot stand alone, because its `test:package` step imports the built entry. Use the **trailing `...`** filter, which the root `AGENTS.md` documents for exactly this; it selects `fetcher` → `eventstream` + `decorator` → `wow` → `view-engine`. `pnpm build` from the repo root does the same for everything.
+`@ahoo-wang/wow-client` resolves to its `dist/`, so the workspace dependencies must be built first — otherwise vitest fails with `Failed to resolve import "@ahoo-wang/wow-client"`, and even this package's own `build` cannot stand alone, because its `test:package` step imports the built entry. Use the **trailing `...`** filter (`pnpm --filter @ahoo-wang/wow-view-engine... build`); it builds `wow-client` before this package. `pnpm build:typescript` from the repo root does the same for every package. The fetcher packages come from npm and need no build.
 
 ```bash
 # Build, workspace dependencies included (also verifies the built package)
-pnpm --filter @ahoo-wang/fetcher-view-engine... build
+pnpm --filter @ahoo-wang/wow-view-engine... build
 
 # Run tests (coverage + three tsc projects)
-pnpm --filter @ahoo-wang/fetcher-view-engine test
+pnpm --filter @ahoo-wang/wow-view-engine test
 
 # Faster loop, no coverage
-pnpm --filter @ahoo-wang/fetcher-view-engine test:no-coverage
+pnpm --filter @ahoo-wang/wow-view-engine test:no-coverage
 
 # Run a single test file (`exec` — there is no `vitest` script)
-pnpm --filter @ahoo-wang/fetcher-view-engine exec vitest run test/filter.test.ts
+pnpm --filter @ahoo-wang/wow-view-engine exec vitest run test/filter.test.ts
 
 # Type-check only: tsconfig.json, tsconfig.headless.json, tsconfig.test.json
-pnpm --filter @ahoo-wang/fetcher-view-engine test:type
+pnpm --filter @ahoo-wang/wow-view-engine test:type
 
 # Verify the built artifact (needs a build first)
-pnpm --filter @ahoo-wang/fetcher-view-engine test:package
+pnpm --filter @ahoo-wang/wow-view-engine test:package
 
 # Lint (--fix) and the CI gate (--max-warnings 0)
-pnpm --filter @ahoo-wang/fetcher-view-engine lint
-pnpm --filter @ahoo-wang/fetcher-view-engine lint:check
+pnpm --filter @ahoo-wang/wow-view-engine lint
+pnpm --filter @ahoo-wang/wow-view-engine lint:check
 ```
 
 ## Testing
@@ -52,7 +52,7 @@ pnpm --filter @ahoo-wang/fetcher-view-engine lint:check
 - `@` resolves to `src/`
 - **Coverage thresholds are enforced**: statements 95, branches 91, functions 97, lines 96. `src/ui/components/**`, `src/ui/lib/**` and `src/styles.ts` are excluded — they are vendored from the shadcn registry and are upstream's to test
 - **A jsdom suite asserts what a class _means_, not how it is spelled** (A-09). A `className` assertion proves nothing about the screen — jsdom loads no stylesheet and lays nothing out — and it turns red wholesale the moment a colour or a recipe moves into a `cva`. So state is said **on the element** and read back from there: `data-pin` / `data-pin-edge` / `data-pin-index` / `data-sticky` / `data-overflowing` for the table's sticky chrome, `data-tone` for a toned badge, alert or destructive answer, `aria-current`, `aria-pressed`, `data-default`, `data-released`, `data-scrolls`, `data-invalid`, a role, an accessible name, a `title`, or an inline style jsdom really computes. Where a component writes no such attribute and the class is the only witness, **add the attribute** rather than keep the assertion. Three files are the deliberate homes of the remaining class assertions, because in each the class string _is_ the contract: `test/pinnedColumns.test.tsx` ("the sticky chrome recipe") for `ui/record/sticky.ts`, `test/variants.test.tsx` for the cva wrappers of D16-8, and `test/popups.test.tsx` for our copy of each popup's registry markup. Elsewhere a surviving assertion is marked **surviving class assertion** with its reason — a pure declaration with no state behind it (a length, a grid template, a border model, `sr-only`, a `:hover` fill), whose pixels a browser story measures instead
-- `test/architecture.test.ts` enforces the dependency rules below on the TypeScript AST, so multi-line, type-only, re-exported and **statically resolvable** dynamic imports are all seen — an `import()` whose argument is a string literal or a substitution-free template. One built from a variable is not recorded, and would slip past these assertions. It reads the wow **sources** off disk, so it is the one suite that runs without any build — every test that imports `@ahoo-wang/fetcher-wow` needs the dependency chain built first
+- `test/architecture.test.ts` enforces the dependency rules below on the TypeScript AST, so multi-line, type-only, re-exported and **statically resolvable** dynamic imports are all seen — an `import()` whose argument is a string literal or a substitution-free template. One built from a variable is not recorded, and would slip past these assertions. It reads the wow **sources** off disk, so it is the one suite that runs without any build — every test that imports `@ahoo-wang/wow-client` needs the dependency chain built first
 - `tsconfig.headless.json` type-checks the headless layers **without the DOM lib**, which is what keeps them free of browser globals
 - `scripts/verify-package.mjs` checks the built artifact: every entry resolves and imports, the root entry's types need no DOM lib, and no JavaScript entry pulls in the stylesheet, and the built stylesheet paints nothing outside `.fve-root` — no rule sits outside the root, Tailwind's `:root` theme variables included. `scripts/scope-utilities.mjs` (`postcss-prefix-selector`) makes that true at build time by pinning every rule, preflight and utilities included, to `:where(.fve-root, .fve-root *)`; Storybook runs the same plugin on the theme file
 
@@ -71,18 +71,18 @@ Beyond the six:
 
 - `model` through `store` contain no React, DOM, `window` or `document`
 - `runtime` reaches `store` only as a **type-only import of `store/ViewStore`** — the port, never an implementation
-- Third-party landing spots are fixed by `HEADLESS_DEPENDENCIES` in `test/architecture.test.ts`, and a dependency the manifest carries but that list does not name is **UI-only**: `@ahoo-wang/fetcher-wow` only at the root entry and in `model`, `filter`, `record`, `analysis`, `runtime` (not `dashboard`, not `store`); `dayjs` in `filter`, `record`, `analysis`, `runtime`, `ui`; `dequal` in `runtime` alone; `culori` in `analysis` and `ui`. UI-only is therefore all the rest — `@base-ui/react`, `@dnd-kit/dom`, `@dnd-kit/react`, `class-variance-authority`, `cn`, `lucide-react`, `react-day-picker`, `react-error-boundary`, `react-grid-layout`, `react-markdown`, `echarts` — while `react` / `react-dom` are optional peers and reach `react` and `ui`. There is no table library: D16-1 declined `@tanstack/react-table`. A new React dependency cannot reach a headless layer without being listed explicitly in the test
+- Third-party landing spots are fixed by `HEADLESS_DEPENDENCIES` in `test/architecture.test.ts`, and a dependency the manifest carries but that list does not name is **UI-only**: `@ahoo-wang/wow-client` only at the root entry and in `model`, `filter`, `record`, `analysis`, `runtime` (not `dashboard`, not `store`); `dayjs` in `filter`, `record`, `analysis`, `runtime`, `ui`; `dequal` in `runtime` alone; `culori` in `analysis` and `ui`. UI-only is therefore all the rest — `@base-ui/react`, `@dnd-kit/dom`, `@dnd-kit/react`, `class-variance-authority`, `cn`, `lucide-react`, `react-day-picker`, `react-error-boundary`, `react-grid-layout`, `react-markdown`, `echarts` — while `react` / `react-dom` are optional peers and reach `react` and `ui`. There is no table library: D16-1 declined `@tanstack/react-table`. A new React dependency cannot reach a headless layer without being listed explicitly in the test
 - **Deprecated Wow APIs are banned.** The test derives the deprecated export set from the wow sources themselves and fails on any import of it. Use `FilterExpression` and the `Filter*Query` family — never `Condition`, `PagedQuery`, `ListQuery` or `SingleQuery`
 - Wow must be imported from its root entry, by name, so every binding can be checked
 
 Package entries:
 
-| Entry                            | Contents                                                                              |
-| -------------------------------- | ------------------------------------------------------------------------------------- |
-| `@ahoo-wang/fetcher-view-engine` | `model`, the four kernels, `runtime`, the `ViewStore` port, `MemoryViewStore`         |
-| `/react`                         | Hooks and headless controllers                                                        |
-| `/ui`                            | Default components, views and workbenches                                             |
-| `/styles.css`                    | Theme, imported explicitly, customised through `--fve-*` / `--fve-dark-*` on the host |
+| Entry                        | Contents                                                                              |
+| ---------------------------- | ------------------------------------------------------------------------------------- |
+| `@ahoo-wang/wow-view-engine` | `model`, the four kernels, `runtime`, the `ViewStore` port, `MemoryViewStore`         |
+| `/react`                     | Hooks and headless controllers                                                        |
+| `/ui`                        | Default components, views and workbenches                                             |
+| `/styles.css`                | Theme, imported explicitly, customised through `--fve-*` / `--fve-dark-*` on the host |
 
 ## Project Structure
 
@@ -578,7 +578,7 @@ src/
 
 ## Dependencies
 
-- `@ahoo-wang/fetcher-wow` — query protocol (`FilterExpression`, `FilterPagedQuery`, `CursorQuery`, `AggregationQuery`)
+- `@ahoo-wang/wow-client` — query protocol (`FilterExpression`, `FilterPagedQuery`, `CursorQuery`, `AggregationQuery`)
 - `react` / `react-dom` — **optional peer dependencies**; the root entry works without React
 - UI-only: `@base-ui/react`, `@dnd-kit/dom`, `@dnd-kit/react`, `echarts` (every chart, loaded on first use; D21), `react-grid-layout`, `react-markdown`, `react-day-picker`, `react-error-boundary`, `lucide-react`, `class-variance-authority`, `cn`
 - Headless: `dayjs` (time), `dequal` (runtime equality), `culori` (colour syntax: in `analysis` a saved chart colour is validated, in `ui` the theme's colours are converted to `rgb()` for the chart library)
@@ -589,7 +589,7 @@ src/
 - Prettier: single quotes, trailing commas, semicolons, 80 char width
 - ESLint runs `react-hooks` with `exhaustive-deps`, `incompatible-library` and `unsupported-syntax` all set to **error**; CI gates on `lint:check` with `--max-warnings 0`
 - `max-lines` is a tripwire, counting code only (`skipBlankLines`, `skipComments`): **500** for `src/**` (vendored `ui/components` / `ui/lib` and the `ui/messages/` catalogue are out of scope) and **1200** for `test/**` — a file that exceeds it is either split or given a per-file override in `eslint.config.js`, whose ceiling is **the measured code lines × 1.1, rounded up to a multiple of ten**, so a fix may add a few lines but the file cannot grow back meaningfully; **an override requires a matching entry in `docs/design/todo.md`** saying how it comes back under the line, and a round of splitting re-measures and re-tightens the remaining ceilings
-- **Any work under `src/ui/**` starts with the shadcn skill — `Skill(shadcn)` (or `/shadcn`).** That is this repository's copy at `.claude/skills/shadcn` (from `npx skills add shadcn/ui -a claude-code --copy`). **Never install the skill globally as well**: Claude Code resolves a same-named skill to `~/.claude/skills/shadcn` first, the repository copy is then never loaded, and the global preamble runs `shadcn info` from the repository root and fails on a monorepo. The repository copy's preamble passes `-c "$(git rev-parse --show-toplevel)/packages/view-engine"`, which is the one workspace with a `components.json`. Read its `SKILL.md` and `rules/*.md` (styling, composition, forms, icons) before writing or reviewing UI; when running any other CLI command from it, pass the same `-c` (or `cd packages/view-engine` first). Its rules are this package's rules: semantic tokens only; `className` for layout, never a component's colours or typography; existing components before custom markup (`Badge`, `Separator`, `Empty`, `Alert`, `Skeleton`, `Field`/`FieldGroup` for forms, `ToggleGroup` for option sets); icons inside components carry `data-icon` and no size classes; Base UI triggers use `render`; add a missing component with `npx shadcn@latest add <name> -c packages/view-engine`, never by hand. Where a rule is knowingly set aside — a vendored colour overridden to fix a defect, a component declined for a reason — say so at the call site and in `docs/design/ui/`. A subagent brief for UI work repeats this paragraph.
+- **Any work under `src/ui/**` starts with the shadcn skill — `Skill(shadcn)` (or `/shadcn`).** That is this repository's copy at `.claude/skills/shadcn` (from `npx skills add shadcn/ui -a claude-code --copy`). **Never install the skill globally as well**: Claude Code resolves a same-named skill to `~/.claude/skills/shadcn` first, the repository copy is then never loaded, and the global preamble runs `shadcn info` from the repository root and fails on a monorepo. The repository copy's preamble passes `-c "$(git rev-parse --show-toplevel)/typescript/wow-view-engine"`, which is the one workspace with a `components.json`. Read its `SKILL.md` and `rules/*.md` (styling, composition, forms, icons) before writing or reviewing UI; when running any other CLI command from it, pass the same `-c` (or `cd typescript/wow-view-engine` first). Its rules are this package's rules: semantic tokens only; `className` for layout, never a component's colours or typography; existing components before custom markup (`Badge`, `Separator`, `Empty`, `Alert`, `Skeleton`, `Field`/`FieldGroup` for forms, `ToggleGroup` for option sets); icons inside components carry `data-icon` and no size classes; Base UI triggers use `render`; add a missing component with `npx shadcn@latest add <name> -c typescript/wow-view-engine`, never by hand. Where a rule is knowingly set aside — a vendored colour overridden to fix a defect, a component declined for a reason — say so at the call site and in `docs/design/ui/`. A subagent brief for UI work repeats this paragraph.
 - `src/ui/components/**` and `src/ui/lib/**` are vendored from the shadcn registry — update them with `shadcn add --diff` rather than editing by hand; `src/ui/popups.tsx` holds a copy of each popup's Portal/positioner/popup markup, because the theme and the stacking level have to reach elements the vendored wrapper does not expose, so a registry update carries over to it as well — `test/popups.test.tsx` renders both and compares what comes out
 - Bilingual READMEs (`README.md`, `README.zh-CN.md`); `docs/design/` is in Chinese
 

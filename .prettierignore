@@ -29,3 +29,9 @@ typescript/wow-generator/expected/
 # against the example server and fails on any difference.
 typescript/integration-test/src/generated/
 test-output/
+
+# Vendored from the shadcn registry and updated with `shadcn add --diff`;
+# reformatting them turns every future update into a whole-file diff.
+typescript/wow-view-engine/src/ui/components/
+typescript/wow-view-engine/src/ui/lib/
+storybook-static/

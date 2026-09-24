@@ -16,8 +16,8 @@ import {
   defaultMessages,
   formatMessage,
   zhCN,
-} from '@ahoo-wang/fetcher-view-engine/ui';
-import type { RecordViewConfig } from '@ahoo-wang/fetcher-view-engine';
+} from '@ahoo-wang/wow-view-engine/ui';
+import type { RecordViewConfig } from '@ahoo-wang/wow-view-engine';
 import displayMeta, {
   AutoRefresh as DisplayAutoRefresh,
   CannotOpen as DisplayCannotOpen,
@@ -1281,7 +1281,7 @@ export const ShiftSelectsARange: Story = {
  * 一屏只有一个 primary，它是跑查询的那个 Apply——宿主的全局动作不是（D12 Ⅰ）。
  *
  * D12 Ⅰ 原本写的是「宿主的主功能按钮，同屏唯一 primary」，而[动作槽位](
- * packages/view-engine/docs/design/ui/README.md)一直写着相反的规矩：编辑带一
+ * typescript/wow-view-engine/docs/design/ui/README.md)一直写着相反的规矩：编辑带一
  * 展开，屏幕上就有两个 primary。2026-09-21 用户裁定了后者——排在最右说的是
  * 「这是业务的去处」，不是「这是这一屏最该按的东西」。
  *

@@ -20,7 +20,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
-import { FilterOperator } from '@ahoo-wang/fetcher-wow';
+import { FilterOperator } from '@ahoo-wang/wow-client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   builtinFieldKinds,

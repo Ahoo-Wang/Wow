@@ -16,7 +16,7 @@ import {
   defaultMessages,
   formatMessage,
   zhCN,
-} from '@ahoo-wang/fetcher-view-engine/ui';
+} from '@ahoo-wang/wow-view-engine/ui';
 import displayMeta, {
   BarChart as DisplayBarChart,
   CutShort as DisplayCutShort,

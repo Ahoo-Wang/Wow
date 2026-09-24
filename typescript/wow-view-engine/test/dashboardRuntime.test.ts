@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { FilterOperator, type FilterPagedQuery } from '@ahoo-wang/fetcher-wow';
+import { FilterOperator, type FilterPagedQuery } from '@ahoo-wang/wow-client';
 import { describe, expect, it, vi } from 'vitest';
 import {
   builtinFieldKinds,

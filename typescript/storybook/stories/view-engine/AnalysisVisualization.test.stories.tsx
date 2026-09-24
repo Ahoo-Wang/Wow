@@ -12,7 +12,7 @@
  */
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
-import { formatMessage, zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
+import { formatMessage, zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import displayMeta, {
   BarChart as DisplayBarChart,
   TwoMetrics as DisplayTwoMetrics,
@@ -109,7 +109,7 @@ const labelsOver = (root: HTMLElement) => {
  * Which series comes first is a setting — a stack is read from the bottom up
  * and a legend from its first entry — and the whole of what it changes is
  * the order of `cartesian.series`. jsdom can pin the move the arrow keys
- * make (`packages/view-engine/test/chartOptionsUi.test.tsx`), but not the
+ * make (`typescript/wow-view-engine/test/chartOptionsUi.test.tsx`), but not the
  * gesture: `@dnd-kit/dom` picks its drop target by *measuring*, and in jsdom
  * every box is 0×0 at the origin. Here the boxes are real, so this is the
  * one place the pointer path is exercised at all — and the proof is the
@@ -155,7 +155,7 @@ export const SeriesOrder: Story = {
  * by page, and each setting reaches the drawing — the labels over the marks,
  * the reference line across them, the axis title along the axis, and the
  * hole in the middle of a pie. jsdom can pin the spec each control writes
- * (`packages/view-engine/test/chartOptionsUi.test.tsx`); only a browser can
+ * (`typescript/wow-view-engine/test/chartOptionsUi.test.tsx`); only a browser can
  * say the marks changed, which is what this walk is for.
  */
 export const ChartOptionsPages: Story = {

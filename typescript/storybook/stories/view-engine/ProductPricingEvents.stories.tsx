@@ -13,7 +13,7 @@
 
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
-import { DataWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
+import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
 import { AppShell } from '../shared/AppShell.js';
 import { HOST_LANGUAGE } from './fixtures.js';
 import { DEFAULT_PRICING_HOST, pricingFetcher } from './productPricing.js';
@@ -22,7 +22,7 @@ import {
   createProductPricingEventsEngine,
 } from './productPricingEvents.js';
 import { StoryEngine } from './StoryEngine.js';
-import '@ahoo-wang/fetcher-view-engine/styles.css';
+import '@ahoo-wang/wow-view-engine/styles.css';
 
 /**
  * The product pricing event stream console — one workbench over the events

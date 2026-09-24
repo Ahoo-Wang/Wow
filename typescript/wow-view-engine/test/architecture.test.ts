@@ -18,7 +18,7 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 // Type-only, so this suite still runs with nothing built — the whole point
 // of reading the Wow sources off disk below.
-import type { QueryApi } from '@ahoo-wang/fetcher-wow';
+import type { QueryApi } from '@ahoo-wang/wow-client';
 import type { RecordData, ViewSource } from '../src/index.js';
 
 /**
@@ -96,7 +96,7 @@ const HEADLESS: readonly Location[] = [
   'store',
 ];
 
-const WOW = '@ahoo-wang/fetcher-wow';
+const WOW = '@ahoo-wang/wow-client';
 const src = resolve(dirname(fileURLToPath(import.meta.url)), '../src');
 const wowSrc = resolve(src, '../../wow/src');
 
@@ -256,7 +256,7 @@ function importsOf(file: ts.SourceFile): Import[] {
 
 /**
  * Package entries map onto layers, so a self-reference such as
- * `@ahoo-wang/fetcher-view-engine/ui` is resolved like an internal import
+ * `@ahoo-wang/wow-view-engine/ui` is resolved like an internal import
  * instead of passing as an unknown external module.
  */
 const SELF_ENTRIES: Record<string, string> = {

@@ -17,7 +17,7 @@ import {
   type ViewConfig,
   type ViewInstance,
   type WriteContext,
-} from '@ahoo-wang/fetcher-view-engine';
+} from '@ahoo-wang/wow-view-engine';
 import {
   analysisConfig,
   dashboardConfig,

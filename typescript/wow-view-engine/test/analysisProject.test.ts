@@ -17,7 +17,7 @@
  * a metric card shows above its sparkline.
  */
 
-import { AggregationGroupType } from '@ahoo-wang/fetcher-wow';
+import { AggregationGroupType } from '@ahoo-wang/wow-client';
 import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,

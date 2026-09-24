@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { RecordData } from '@ahoo-wang/fetcher-view-engine';
+import type { RecordData } from '@ahoo-wang/wow-view-engine';
 import { PRICING_EVENT } from './productPricingEvents.js';
 import { installRecordedWowService } from './recordedWowService.js';
 

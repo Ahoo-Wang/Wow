@@ -18,7 +18,7 @@
  * reader set, with the way back beside them.
  */
 
-import { type FilterPagedQuery } from '@ahoo-wang/fetcher-wow';
+import { type FilterPagedQuery } from '@ahoo-wang/wow-client';
 import { describe, expect, it, vi } from 'vitest';
 import {
   DashboardViewRuntime,

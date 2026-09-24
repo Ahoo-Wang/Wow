@@ -18,8 +18,8 @@ import type {
   ViewInstance,
   ViewNavigation,
   ViewEngine,
-} from '@ahoo-wang/fetcher-view-engine';
-import { EmbeddedDashboard } from '@ahoo-wang/fetcher-view-engine/ui';
+} from '@ahoo-wang/wow-view-engine';
+import { EmbeddedDashboard } from '@ahoo-wang/wow-view-engine/ui';
 // View Engine's own primitives, so the mock host pages are composed rather
 // than hand-styled; they paint inside the page's `fve-tokens` boundary.
 import { Badge } from '@/ui/components/badge';
@@ -46,7 +46,7 @@ import {
 } from './embeddedBoards.js';
 import { HOST_LANGUAGE, createStoryEngine, savedViews } from './fixtures.js';
 import { StoryEngine } from './StoryEngine.js';
-import '@ahoo-wang/fetcher-view-engine/styles.css';
+import '@ahoo-wang/wow-view-engine/styles.css';
 
 /**
  * 一块已经存好的仪表盘，嵌在宿主自己的业务页面里（D22 嵌入一半）。

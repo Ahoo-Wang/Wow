@@ -15,8 +15,8 @@ import type {
   AggregationQuery,
   CursorQuery,
   FilterPagedQuery,
-} from '@ahoo-wang/fetcher-wow';
-import type { RecordData } from '@ahoo-wang/fetcher-view-engine';
+} from '@ahoo-wang/wow-client';
+import type { RecordData } from '@ahoo-wang/wow-view-engine';
 import { rowSource } from './rowSource.js';
 
 /**

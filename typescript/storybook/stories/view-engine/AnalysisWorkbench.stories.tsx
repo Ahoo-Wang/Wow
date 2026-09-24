@@ -11,13 +11,13 @@
  * limitations under the License.
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { AggregationGroupType, SortDirection } from '@ahoo-wang/fetcher-wow';
+import { AggregationGroupType, SortDirection } from '@ahoo-wang/wow-client';
 import {
   fitChartSlots,
   type AnalysisViewConfig,
   type DataViewDefinition,
-} from '@ahoo-wang/fetcher-view-engine';
-import { DataWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
+} from '@ahoo-wang/wow-view-engine';
+import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
 import { AppShell } from '../shared/AppShell.js';
 import {
   HOST_LANGUAGE,
@@ -36,7 +36,7 @@ import {
   type SourceBehaviour,
 } from './fixtures.js';
 import { StoryEngine } from './StoryEngine.js';
-import '@ahoo-wang/fetcher-view-engine/styles.css';
+import '@ahoo-wang/wow-view-engine/styles.css';
 
 /**
  * Colours a spec pins by name: a category value for a pie's slice, a series

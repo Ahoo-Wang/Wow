@@ -14,7 +14,7 @@
 import {
   AggregationFunction,
   AggregationGroupType,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import {
   cleanup,
   render,

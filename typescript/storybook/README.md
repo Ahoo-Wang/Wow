@@ -86,16 +86,16 @@ View Engine 的每个场景都放在宿主应用里评判：`shared/AppShell.tsx
 
 ## 本地门禁
 
-合并前在本机跑齐下面每一条，**每条单独看退出码**（`命令 > 日志 2>&1; echo "名字 exit $?"`），全部为 0 才算过——`pnpm test` 末尾还有一段 `test:type`，只 grep 测试摘要会漏掉它的失败。View Engine 包自己的约定见 [`packages/view-engine/docs/design/README.md`](../packages/view-engine/docs/design/README.md#本地门禁)。
+合并前在本机跑齐下面每一条，**每条单独看退出码**（`命令 > 日志 2>&1; echo "名字 exit $?"`），全部为 0 才算过——`pnpm test` 末尾还有一段 `test:type`，只 grep 测试摘要会漏掉它的失败。View Engine 包自己的约定见 [`typescript/wow-view-engine/docs/design/README.md`](../typescript/wow-view-engine/docs/design/README.md#本地门禁)。
 
-**0. 先构建依赖（新 worktree 必做一次）。** 各包之间按 `dist/` 互相引用，没构建时 vitest 报 `Failed to resolve import "@ahoo-wang/fetcher-wow"`，`typecheck:stories` 找不到类型声明：
+**0. 先构建依赖（新 worktree 必做一次）。** 各包之间按 `dist/` 互相引用，没构建时 vitest 报 `Failed to resolve import "@ahoo-wang/wow-client"`，`typecheck:stories` 找不到类型声明：
 
 ```bash
 pnpm install
-pnpm -r --filter './packages/*' build
+pnpm build:typescript
 ```
 
-**1. 改动所在的包**（以 `packages/view-engine` 为例，在包目录里运行）：
+**1. 改动所在的包**（以 `typescript/wow-view-engine` 为例，在包目录里运行）：
 
 ```bash
 pnpm lint:check   # eslint，--max-warnings 0

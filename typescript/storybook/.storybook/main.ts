@@ -4,30 +4,16 @@ import { createRequire } from 'module';
 import type { StorybookConfig } from '@storybook/react-vite';
 import { mergeConfig } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
-import { scopeUtilities } from '../packages/view-engine/scripts/scope-utilities.mjs';
+import { scopeUtilities } from '../../wow-view-engine/scripts/scope-utilities.mjs';
 
 const require = createRequire(import.meta.url);
-const projectRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
+// typescript/: the workspace packages the stories render from source.
+const packagesRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+// Wow's own packages resolve to their sources; fetcher's come from npm.
 const workspaceAliases = Object.fromEntries(
-  [
-    'cosec',
-    'decorator',
-    'eventbus',
-    'eventstream',
-    'fetcher',
-    'generator',
-    'openai',
-    'openapi',
-    'react',
-    'storage',
-    'view-engine',
-    'viewer',
-    'wow',
-  ].map(directory => [
-    directory === 'fetcher'
-      ? '@ahoo-wang/fetcher'
-      : `@ahoo-wang/fetcher-${directory}`,
-    join(projectRoot, 'packages', directory, 'src', 'index.ts'),
+  ['wow-client', 'wow-react', 'wow-view-engine'].map(directory => [
+    `@ahoo-wang/${directory}`,
+    join(packagesRoot, directory, 'src', 'index.ts'),
   ]),
 );
 
@@ -68,25 +54,21 @@ const config: StorybookConfig = {
       server: { watch: { ignored: ['**/coverage/**'] } },
       resolve: {
         alias: {
-          '@ahoo-wang/fetcher-react/core': join(
-            projectRoot,
-            'packages/react/src/core/index.ts',
-          ),
           // The vendored shadcn components import each other through the
           // `@/ui/...` alias the registry writes; only View Engine uses it.
-          '@/ui': join(projectRoot, 'packages/view-engine/src/ui'),
+          '@/ui': join(packagesRoot, 'wow-view-engine/src/ui'),
           // Subpath entries resolve to source like the roots above them.
-          '@ahoo-wang/fetcher-view-engine/styles.css': join(
-            projectRoot,
-            'packages/view-engine/src/styles.css',
+          '@ahoo-wang/wow-view-engine/styles.css': join(
+            packagesRoot,
+            'wow-view-engine/src/styles.css',
           ),
-          '@ahoo-wang/fetcher-view-engine/react': join(
-            projectRoot,
-            'packages/view-engine/src/react/index.ts',
+          '@ahoo-wang/wow-view-engine/react': join(
+            packagesRoot,
+            'wow-view-engine/src/react/index.ts',
           ),
-          '@ahoo-wang/fetcher-view-engine/ui': join(
-            projectRoot,
-            'packages/view-engine/src/ui/index.ts',
+          '@ahoo-wang/wow-view-engine/ui': join(
+            packagesRoot,
+            'wow-view-engine/src/ui/index.ts',
           ),
           ...workspaceAliases,
         },

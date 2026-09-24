@@ -17,7 +17,7 @@ import {
   AggregationFunction,
   AggregationGroupType,
   EventStreamQueryClient,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import {
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
@@ -26,7 +26,7 @@ import {
   type DataViewDefinition,
   type FilterNode,
   type RecordViewConfig,
-} from '@ahoo-wang/fetcher-view-engine';
+} from '@ahoo-wang/wow-view-engine';
 
 export const EXECUTION_FAILED_EVENTS = 'execution-failed-events';
 

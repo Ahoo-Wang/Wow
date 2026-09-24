@@ -17,7 +17,7 @@ import {
   AggregationFunction,
   AggregationGroupType,
   SnapshotQueryClient,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import {
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
@@ -28,7 +28,7 @@ import {
   type NumberFormat,
   type RecordViewConfig,
   type ViewSource,
-} from '@ahoo-wang/fetcher-view-engine';
+} from '@ahoo-wang/wow-view-engine';
 
 /**
  * The Wow pricing service the product pricing scenes start on: a local

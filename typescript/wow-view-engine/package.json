@@ -1,14 +1,18 @@
 {
-  "name": "@ahoo-wang/fetcher-view-engine",
-  "version": "5.0.0",
+  "name": "@ahoo-wang/wow-view-engine",
+  "version": "9.1.5",
   "description": "Configurable data view engine for Wow-based business applications: definitions in code, view configs as data, records, analyses and dashboards.",
   "type": "module",
   "license": "Apache-2.0",
   "author": "Ahoo-Wang",
+  "homepage": "https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Ahoo-Wang/fetcher.git",
-    "directory": "packages/view-engine"
+    "url": "https://github.com/Ahoo-Wang/Wow.git",
+    "directory": "typescript/wow-view-engine"
+  },
+  "bugs": {
+    "url": "https://github.com/Ahoo-Wang/Wow/issues"
   },
   "engines": {
     "node": ">=22.12.0"
@@ -52,7 +56,6 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@ahoo-wang/fetcher-wow": "workspace:^",
     "@base-ui/react": "catalog:",
     "@dnd-kit/dom": "catalog:",
     "@dnd-kit/react": "catalog:",
@@ -69,6 +72,7 @@
     "react-markdown": "catalog:"
   },
   "peerDependencies": {
+    "@ahoo-wang/wow-client": "workspace:~",
     "react": "catalog:",
     "react-dom": "catalog:"
   },
@@ -81,7 +85,10 @@
     }
   },
   "devDependencies": {
-    "@ahoo-wang/fetcher": "workspace:^",
+    "@ahoo-wang/fetcher": "catalog:",
+    "@ahoo-wang/fetcher-decorator": "catalog:",
+    "@ahoo-wang/fetcher-eventstream": "catalog:",
+    "@ahoo-wang/wow-client": "workspace:~",
     "@eslint/js": "catalog:",
     "@rolldown/plugin-babel": "catalog:",
     "@tailwindcss/vite": "catalog:",

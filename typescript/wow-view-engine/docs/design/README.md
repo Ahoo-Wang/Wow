@@ -1,7 +1,7 @@
 # View Engine 架构设计
 
 **状态**：重写设计稿，替代 `refactor-spec.md`、`invariants.md`、`first-deliverable.md`。
-**基线**：当前 `packages/view-engine` 以 tag 冻结为只读参考；新树在同一包名下自下而上重建。
+**基线**：当前 `typescript/wow-view-engine` 以 tag 冻结为只读参考；新树在同一包名下自下而上重建。
 **原则**：行为约束以测试存在，本文只写模型、边界、合同与顺序。
 **组织**：本目录一页一层。本页是稳定内核——定位、范围、分层规则、质量守护与交付顺序；模型、内核、运行时、管理、React 与 UI 各有自己的页。
 
@@ -76,16 +76,16 @@ src/
 5. `store` 只 import `model`。
 6. `react` 不 import `ui`；`ui` 可以 import 一切。
 
-`model` 到 `store` 六个目录不出现 React、DOM、`window`、`document`。第三方库落点固定，清单在 `test/architecture.test.ts` 的 `HEADLESS_DEPENDENCIES`，未列出的依赖一律只许在 `ui`：`@ahoo-wang/fetcher-wow` 只在根入口与 `model`、`filter`、`record`、`analysis`、`runtime`（`dashboard`、`store` 都没有），且不导入其弃用的 `Condition` 系符号；`dayjs` 在 `filter`、`record`、`analysis`、`runtime`、`ui`；`dequal` 只在 `runtime`；`culori` 在 `analysis` 与 `ui`（`ui` 用它把主题色转成图表库认的 `rgb()`）。只在 `ui` 的是 `@base-ui/react`、`@dnd-kit/dom`、`@dnd-kit/react`、`class-variance-authority`、`cn`、`lucide-react`、`react-day-picker`、`react-error-boundary`、`react-grid-layout`、`react-markdown`、`echarts`；`react`／`react-dom` 是可选 peer，只在 `react` 与 `ui`。表格库不在其中——D16 裁定 1 否掉了 `@tanstack/react-table`，Record 表格用 registry 的 `Table` 加本包自己的列模型。
+`model` 到 `store` 六个目录不出现 React、DOM、`window`、`document`。第三方库落点固定，清单在 `test/architecture.test.ts` 的 `HEADLESS_DEPENDENCIES`，未列出的依赖一律只许在 `ui`：`@ahoo-wang/wow-client` 只在根入口与 `model`、`filter`、`record`、`analysis`、`runtime`（`dashboard`、`store` 都没有），且不导入其弃用的 `Condition` 系符号；`dayjs` 在 `filter`、`record`、`analysis`、`runtime`、`ui`；`dequal` 只在 `runtime`；`culori` 在 `analysis` 与 `ui`（`ui` 用它把主题色转成图表库认的 `rgb()`）。只在 `ui` 的是 `@base-ui/react`、`@dnd-kit/dom`、`@dnd-kit/react`、`class-variance-authority`、`cn`、`lucide-react`、`react-day-picker`、`react-error-boundary`、`react-grid-layout`、`react-markdown`、`echarts`；`react`／`react-dom` 是可选 peer，只在 `react` 与 `ui`。表格库不在其中——D16 裁定 1 否掉了 `@tanstack/react-table`，Record 表格用 registry 的 `Table` 加本包自己的列模型。
 
 包入口：
 
-| 入口                             | 内容                                                                |
-| -------------------------------- | ------------------------------------------------------------------- |
-| `@ahoo-wang/fetcher-view-engine` | `model`、四个纯内核、`runtime`、`ViewStore` 端口、`MemoryViewStore` |
-| `/react`                         | 钩子与控制器                                                        |
-| `/ui`                            | 默认组件、默认视图、工作台                                          |
-| `/styles.css`                    | 主题；宿主通过 `:root` 上的 `--fve-*`／`--fve-dark-*` 变量定制      |
+| 入口                         | 内容                                                                |
+| ---------------------------- | ------------------------------------------------------------------- |
+| `@ahoo-wang/wow-view-engine` | `model`、四个纯内核、`runtime`、`ViewStore` 端口、`MemoryViewStore` |
+| `/react`                     | 钩子与控制器                                                        |
+| `/ui`                        | 默认组件、默认视图、工作台                                          |
+| `/styles.css`                | 主题；宿主通过 `:root` 上的 `--fve-*`／`--fve-dark-*` 变量定制      |
 
 ## 质量守护
 
@@ -104,7 +104,7 @@ src/
 
 合并前在本机跑齐，每条单独看退出码，全部为 0 才算过；命令、顺序与环境的全文在仓库的 [stories/README.md「本地门禁」](../../../../stories/README.md#本地门禁)，真实后端场景怎样在本机连上服务在同一页「真实后端」。这里只记本包的部分：
 
-- 新 worktree 先在仓库根 `pnpm -r --filter './packages/*' build`：本包的测试与构建按 `dist/` 引用 wow 等依赖；
+- 新 worktree 先在仓库根 `pnpm build:typescript`：本包的测试与构建按 `dist/` 引用 wow 等依赖；
 - 包目录里三条：`pnpm lint:check`、`pnpm test`（vitest 加覆盖率阈值——阈值在本包的 `vitest.config.ts`，不达标即非零退出，哪怕每个用例都绿——然后 `test:type` 的三个 tsc 工程）、`pnpm build`（vite build 后 `test:package` 检查产物）；
 - 仓库根三条：`pnpm lint:stories`、`pnpm typecheck:stories`、`pnpm test:storybook`——最后一条带 `PLAYWRIGHT_BROWSERS_PATH=$HOME/Library/Caches/ms-playwright-user`，Chromium 装在自己拥有的目录里（默认缓存可能是旧版本或归 root 所有，做法见上面那页）；
 - 改动过的每个文件 `prettier --check`；
@@ -132,7 +132,7 @@ src/
 
 ## 后续方向
 
-- **定义生成。** `fetcher-generator` 从 Wow 聚合元数据生成 `ViewDefinition`，业务方零成本获得记录、分析与概览。这是"配置代替页面"相对于手写 React 页面的决定性杠杆，也是定义作为代码的直接结果。
+- **定义生成。** `wow-generator` 从 Wow 聚合元数据生成 `ViewDefinition`，业务方零成本获得记录、分析与概览。这是"配置代替页面"相对于手写 React 页面的决定性杠杆，也是定义作为代码的直接结果。
 - **共享与嵌入。** `scope: 'shared'`、服务端配置的 `scope: 'system'` 与嵌入（`EmbeddedView`、`EmbeddedDashboard`）在业务应用的 `ViewStore` 落地后由业务服务授权；嵌入页面锁定的条件不是安全边界（[ui/embed.md](ui/embed.md#锁定不是安全边界)）。
 - **服务端实现。** 若需要官方后端，另立设计文档随后端代码放置；[management.md](management.md) 的 `ViewStore` 合同是它的输入。
 - **更多图型。** 图表按族扩展，新增一族只增加一个子对象、一个 `type` 字面量、一条校验分支、一段投影与一个渲染器，不改既有类型。候选：帕累托（combo 加投影层累计占比，依赖结果集完整）、矩形树图、箱线图（百分位指标已能支撑）。

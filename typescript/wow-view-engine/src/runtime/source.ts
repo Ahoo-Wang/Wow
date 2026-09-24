@@ -17,7 +17,7 @@ import type {
   CursorQuery,
   FilterPagedQuery,
   PagedList,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import type { FieldOption, Issue, RecordData } from '../model/index.js';
 import type { AnalysisView } from '../analysis/index.js';
 import type { RecordView, SummaryRow } from '../record/index.js';

@@ -12,8 +12,8 @@
  */
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import type { ViewEngine } from '@ahoo-wang/fetcher-view-engine';
-import { EmbeddedDashboard } from '@ahoo-wang/fetcher-view-engine/ui';
+import type { ViewEngine } from '@ahoo-wang/wow-view-engine';
+import { EmbeddedDashboard } from '@ahoo-wang/wow-view-engine/ui';
 import { AppShell } from '../shared/AppShell.js';
 import {
   DEFAULT_COMPENSATION_HOST,
@@ -27,7 +27,7 @@ import {
   createHomeFixtureEngine,
 } from './home.js';
 import { StoryEngine } from './StoryEngine.js';
-import '@ahoo-wang/fetcher-view-engine/styles.css';
+import '@ahoo-wang/wow-view-engine/styles.css';
 
 /**
  * The host application's home page, which embeds a dashboard.

@@ -20,7 +20,7 @@ import {
   type FieldSort,
   type FilterPagedQuery,
   type Projection,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import {
   columnHidden,
   fieldAliasSegment,

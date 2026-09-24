@@ -4,7 +4,7 @@
 
 **Fetcher View Engine is a data view engine for Wow-based business applications.** The application declares in code _how a dataset can be observed_: fields, kinds, operators, available groupings and metrics. Users decide in the UI _how to observe it this time_: filters, columns, sorting, groupings, charts, panel composition. The engine compiles that way of observing into Wow queries, runs them, renders the result, and saves the ways worth keeping so they can be reopened with one click.
 
-It is the presentation layer on top of `@ahoo-wang/fetcher-wow` and the successor of `@ahoo-wang/fetcher-viewer`.
+It is the presentation layer on top of `@ahoo-wang/wow-client` and the successor of `@ahoo-wang/fetcher-viewer`.
 
 ## The problem
 
@@ -43,10 +43,10 @@ Not a database or compute backend, not a permission system, not a general low-co
 
 ## Install
 
-The package has not had its first public registry release; the stable release scripts skip it on purpose. Until then, consume it from this workspace (`"@ahoo-wang/fetcher-view-engine": "workspace:^"`) or from a local `pnpm pack` archive. Once published, installation will be:
+The package has not had its first public registry release; the stable release scripts skip it on purpose. Until then, consume it from this workspace (`"@ahoo-wang/wow-view-engine": "workspace:^"`) or from a local `pnpm pack` archive. Once published, installation will be:
 
 ```bash
-pnpm add @ahoo-wang/fetcher-view-engine @ahoo-wang/fetcher-wow
+pnpm add @ahoo-wang/wow-view-engine @ahoo-wang/wow-client
 ```
 
 Peer dependencies `react` and `react-dom` are required only for the `/react` and `/ui` entries. The root entry runs in Node.
@@ -64,7 +64,7 @@ Peer dependencies `react` and `react-dom` are required only for the `/react` and
 ### 1. Declare a definition
 
 ```ts
-import type { ViewDefinition } from '@ahoo-wang/fetcher-view-engine';
+import type { ViewDefinition } from '@ahoo-wang/wow-view-engine';
 
 export const orders: ViewDefinition = {
   id: 'orders',
@@ -132,12 +132,12 @@ export const orders: ViewDefinition = {
 ### 2. Create an engine
 
 ```ts
-import { MemoryViewStore, ViewEngine } from '@ahoo-wang/fetcher-view-engine';
+import { MemoryViewStore, ViewEngine } from '@ahoo-wang/wow-view-engine';
 
 const engine = new ViewEngine({
   definitions: [orders],
   store: new MemoryViewStore(),
-  // Pick<QueryApi, 'paged' | 'cursor' | 'aggregate'> from @ahoo-wang/fetcher-wow
+  // Pick<QueryApi, 'paged' | 'cursor' | 'aggregate'> from @ahoo-wang/wow-client
   resolveSource: key => queryClients[key],
 });
 ```
@@ -145,8 +145,8 @@ const engine = new ViewEngine({
 ### 3a. Render the default workbench
 
 ```tsx
-import '@ahoo-wang/fetcher-view-engine/styles.css';
-import { DataWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
+import '@ahoo-wang/wow-view-engine/styles.css';
+import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
 
 export function OrdersPage() {
   return <DataWorkbench engine={engine} definitionId="orders" />;
@@ -221,7 +221,7 @@ A business page that shows what somebody already decided embeds it: the result a
 import {
   EmbeddedDashboard,
   EmbeddedView,
-} from '@ahoo-wang/fetcher-view-engine/ui';
+} from '@ahoo-wang/wow-view-engine/ui';
 
 // An order page: this customer's recent shipments, read as saved.
 <EmbeddedView
@@ -382,8 +382,8 @@ import {
   cellValue,
   useSurfaceDisplay,
   useViewMessages,
-} from '@ahoo-wang/fetcher-view-engine/ui';
-import type { RecordCell } from '@ahoo-wang/fetcher-view-engine/ui';
+} from '@ahoo-wang/wow-view-engine/ui';
+import type { RecordCell } from '@ahoo-wang/wow-view-engine/ui';
 
 function OrderCell({ cell }: { cell: RecordCell }) {
   // Read off the surface the cell is inside: the wording in force, and the
@@ -425,7 +425,7 @@ import {
   useViewRuntime,
   useFilterEditor,
   useRecordTable,
-} from '@ahoo-wang/fetcher-view-engine/react';
+} from '@ahoo-wang/wow-view-engine/react';
 
 export function OrdersPage({ instanceId }: { instanceId: string }) {
   const { runtime, loading } = useOpenView(engine, instanceId);
@@ -449,7 +449,7 @@ import {
   compileRecord,
   projectRecord,
   validateRecord,
-} from '@ahoo-wang/fetcher-view-engine';
+} from '@ahoo-wang/wow-view-engine';
 
 const issues = validateRecord(orders, config, builtinFieldKinds);
 if (issues.some(i => i.severity === 'error')) throw new Error('invalid config');
@@ -492,12 +492,12 @@ Details in [docs/design/management.md](docs/design/management.md).
 
 ## Entries
 
-| Entry                            | Exports                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@ahoo-wang/fetcher-view-engine` | Model types, pure kernels (`validate*` / `compile*` / `project*`), runtime, `ViewStore`, `MemoryViewStore`                                                                                                                                                                                                                                                                                                                                                                |
-| `/react`                         | `useViewEngine`, `useOpenView`, `useViewRuntime`, `useViewList`, `useViewManager`, `useWorkbench`, `useLeaveGuard`, `useFilterEditor`, `useRecordTable`, `useAnalysisEditor`, `useAnalysisResult`, `useDashboard`, `useSaveCommands`, `RecordActionSlots`                                                                                                                                                                                                                 |
-| `/ui`                            | `DataWorkbench`, `DashboardWorkbench`, `DashboardEditExtensions`, `useDashboardExtensions`, `EmbeddedView`, `EmbeddedDashboard`, `ViewHeader`, `SaveActions`, `ViewManager`, `LeaveDialog`, `EditorBand`, `FilterPanel`, `StatusStrip`, `AppliedBar`, `ResultToolbar`, `RowActions`, `RecordTable`, `RecordCards`, `RecordPagination`, `AnalysisTable`, `AnalysisChart`, `DashboardGrid`, `HeadingPanel`, `MarkdownPanel`, `ImagePanel`, `LinksPanel`, `MessagesProvider` |
-| `/styles.css`                    | The theme. Import it explicitly; no JavaScript entry imports CSS, and nothing in it paints outside the two style boundaries `.fve-root` and `.fve-tokens` (preflight and utilities are scoped at build time), both checked by `scripts/verify-package.mjs` on every build.                                                                                                                                                                                                |
+| Entry                        | Exports                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@ahoo-wang/wow-view-engine` | Model types, pure kernels (`validate*` / `compile*` / `project*`), runtime, `ViewStore`, `MemoryViewStore`                                                                                                                                                                                                                                                                                                                                                                |
+| `/react`                     | `useViewEngine`, `useOpenView`, `useViewRuntime`, `useViewList`, `useViewManager`, `useWorkbench`, `useLeaveGuard`, `useFilterEditor`, `useRecordTable`, `useAnalysisEditor`, `useAnalysisResult`, `useDashboard`, `useSaveCommands`, `RecordActionSlots`                                                                                                                                                                                                                 |
+| `/ui`                        | `DataWorkbench`, `DashboardWorkbench`, `DashboardEditExtensions`, `useDashboardExtensions`, `EmbeddedView`, `EmbeddedDashboard`, `ViewHeader`, `SaveActions`, `ViewManager`, `LeaveDialog`, `EditorBand`, `FilterPanel`, `StatusStrip`, `AppliedBar`, `ResultToolbar`, `RowActions`, `RecordTable`, `RecordCards`, `RecordPagination`, `AnalysisTable`, `AnalysisChart`, `DashboardGrid`, `HeadingPanel`, `MarkdownPanel`, `ImagePanel`, `LinksPanel`, `MessagesProvider` |
+| `/styles.css`                | The theme. Import it explicitly; no JavaScript entry imports CSS, and nothing in it paints outside the two style boundaries `.fve-root` and `.fve-tokens` (preflight and utilities are scoped at build time), both checked by `scripts/verify-package.mjs` on every build.                                                                                                                                                                                                |
 
 ## Persistence
 
@@ -554,7 +554,7 @@ The model carries `code` and `params` and no copy, so `/ui` owns the words. `def
 Values show as their fields say: an enum by its option's label, a `datetime` or a `date` through `Intl.DateTimeFormat`, a date-histogram key as the year, quarter, month or day it starts. `locale` is the language they show in, the runtime's when left out; it is the same choice as `messages`, made for values rather than words:
 
 ```tsx
-import { DataWorkbench, zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
+import { DataWorkbench, zhCN } from '@ahoo-wang/wow-view-engine/ui';
 
 <DataWorkbench
   engine={engine}
@@ -598,9 +598,9 @@ View-kind plugins, a definition CRUD backend, write-receipt reconciliation or re
 ## Development
 
 ```bash
-pnpm --filter @ahoo-wang/fetcher-view-engine test          # unit tests, coverage and three tsc projects
-pnpm --filter @ahoo-wang/fetcher-view-engine build         # build, then verify the published entries
-pnpm --filter @ahoo-wang/fetcher-view-engine test:package  # entries, DOM-free types, no CSS from JS
+pnpm --filter @ahoo-wang/wow-view-engine test          # unit tests, coverage and three tsc projects
+pnpm --filter @ahoo-wang/wow-view-engine build         # build, then verify the published entries
+pnpm --filter @ahoo-wang/wow-view-engine test:package  # entries, DOM-free types, no CSS from JS
 pnpm storybook                                             # every state of every surface, under "View Engine"
 ```
 

@@ -16,7 +16,7 @@ import {
   FilterOperator,
   type CursorQuery,
   type FilterPagedQuery,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import {
   builtinFieldKinds,
   RecordDataViewRuntime,

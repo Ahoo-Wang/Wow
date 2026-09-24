@@ -23,7 +23,7 @@ import userEvent from '@testing-library/user-event';
 import {
   AggregationDateUnit,
   AggregationGroupType,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defaultPanelSize } from '../src/dashboard/index.js';

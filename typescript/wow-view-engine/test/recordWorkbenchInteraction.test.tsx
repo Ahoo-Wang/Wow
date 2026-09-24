@@ -21,7 +21,7 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { PagedList } from '@ahoo-wang/fetcher-wow';
+import type { PagedList } from '@ahoo-wang/wow-client';
 import {
   MemoryViewStore,
   ViewEngine,

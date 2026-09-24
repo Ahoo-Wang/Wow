@@ -19,7 +19,7 @@ import {
   waitFor,
 } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { PagedList } from '@ahoo-wang/fetcher-wow';
+import type { PagedList } from '@ahoo-wang/wow-client';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
 import type { RecordData } from '../src/index.js';
 import { DataWorkbench } from '../src/ui/index.js';

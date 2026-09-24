@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { FilterExpression } from '@ahoo-wang/fetcher-wow';
+import type { FilterExpression } from '@ahoo-wang/wow-client';
 import type {
   FieldDefinition,
   FilterValue,

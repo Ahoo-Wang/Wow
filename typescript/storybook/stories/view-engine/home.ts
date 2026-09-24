@@ -26,7 +26,7 @@ import {
   type RuntimeEnvironment,
   type ViewInstance,
   type ViewSource,
-} from '@ahoo-wang/fetcher-view-engine';
+} from '@ahoo-wang/wow-view-engine';
 import {
   ACTIVE,
   EXECUTION_FAILED,

@@ -19,7 +19,7 @@
  * edited, and what admission says about the filters and the time grouping.
  */
 
-import { AggregationDateUnit } from '@ahoo-wang/fetcher-wow';
+import { AggregationDateUnit } from '@ahoo-wang/wow-client';
 import { describe, expect, it } from 'vitest';
 import {
   ANALYSIS_DATE_UNITS,

@@ -12,7 +12,7 @@
  */
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
-import { formatMessage, zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
+import { formatMessage, zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import displayMeta, {
   DataConsole as DisplayDataConsole,
 } from './DataConsole.stories.js';

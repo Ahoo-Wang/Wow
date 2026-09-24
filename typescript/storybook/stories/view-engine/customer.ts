@@ -17,7 +17,7 @@ import {
   AggregationFunction,
   AggregationGroupType,
   SnapshotQueryClient,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import {
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
@@ -27,7 +27,7 @@ import {
   type FieldOption,
   type FilterNode,
   type RecordViewConfig,
-} from '@ahoo-wang/fetcher-view-engine';
+} from '@ahoo-wang/wow-view-engine';
 
 /**
  * The CRM service the customer scenes start on: a local port-forward of the

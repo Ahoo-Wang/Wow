@@ -24,7 +24,7 @@
 import {
   AggregationDateUnit,
   AggregationGroupType,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import {
   cleanup,
   render,

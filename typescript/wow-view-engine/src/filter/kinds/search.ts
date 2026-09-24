@@ -15,7 +15,7 @@ import {
   filter,
   type FilterExpression,
   type SearchMode,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import { DEFAULT_SEARCH_MODE } from '../../model/index.js';
 import { issue, readValue, type FieldKind } from '../fieldKind.js';
 

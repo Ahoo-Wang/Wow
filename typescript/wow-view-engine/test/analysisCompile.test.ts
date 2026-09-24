@@ -24,7 +24,7 @@ import {
   DerivedExpressionType,
   FilterOperator,
   SortDirection,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,

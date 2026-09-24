@@ -41,8 +41,8 @@ import {
   type FieldSort,
   type FilterExpression,
   type HavingExpression,
-} from '@ahoo-wang/fetcher-wow';
-import type { RecordData, ViewSource } from '@ahoo-wang/fetcher-view-engine';
+} from '@ahoo-wang/wow-client';
+import type { RecordData, ViewSource } from '@ahoo-wang/wow-view-engine';
 
 /**
  * A `ViewSource` over rows held in memory that answers each query the way a

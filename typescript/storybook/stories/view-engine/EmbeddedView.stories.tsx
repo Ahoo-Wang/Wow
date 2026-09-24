@@ -17,12 +17,12 @@ import type {
   DataViewDefinition,
   FilterTree,
   ViewEngine,
-} from '@ahoo-wang/fetcher-view-engine';
+} from '@ahoo-wang/wow-view-engine';
 import {
   EmbeddedView,
   useViewExpansion,
   type EmbeddedViewProps,
-} from '@ahoo-wang/fetcher-view-engine/ui';
+} from '@ahoo-wang/wow-view-engine/ui';
 // View Engine's own primitives, so the mock host page is composed rather than
 // hand-styled. They paint inside either of the theme's two style boundaries,
 // and the page below takes the one that is not a surface — see `HostPage`.
@@ -48,7 +48,7 @@ import {
   type SourceBehaviour,
 } from './fixtures.js';
 import { StoryEngine } from './StoryEngine.js';
-import '@ahoo-wang/fetcher-view-engine/styles.css';
+import '@ahoo-wang/wow-view-engine/styles.css';
 
 /**
  * 一个已经存好的视图，嵌在宿主自己的业务页面里——只有结果，没有别的。

@@ -19,7 +19,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react';
-import type { FilterPagedQuery } from '@ahoo-wang/fetcher-wow';
+import type { FilterPagedQuery } from '@ahoo-wang/wow-client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,

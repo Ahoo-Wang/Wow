@@ -17,7 +17,7 @@
  * that tells "changed but not applied" from "the same condition again".
  */
 
-import { FilterOperator } from '@ahoo-wang/fetcher-wow';
+import { FilterOperator } from '@ahoo-wang/wow-client';
 import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,

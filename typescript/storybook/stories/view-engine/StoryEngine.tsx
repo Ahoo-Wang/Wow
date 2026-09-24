@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 import { useEffect, useState, type ReactNode } from 'react';
-import type { ViewEngine } from '@ahoo-wang/fetcher-view-engine';
+import type { ViewEngine } from '@ahoo-wang/wow-view-engine';
 
 /**
  * One engine for one mount, disposed with it.

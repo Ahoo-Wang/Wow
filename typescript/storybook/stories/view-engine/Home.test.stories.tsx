@@ -12,7 +12,7 @@
  */
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, screen, userEvent, waitFor, within } from 'storybook/test';
-import { zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
+import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import displayMeta, { Fixture as DisplayFixture } from './Home.stories.js';
 import { findDataTable, readColumn } from './readTable.js';
 import { drawnMarks, valueLabels } from './chartDom.js';

@@ -17,7 +17,7 @@ import {
   AggregationFunction,
   AggregationGroupType,
   EventStreamQueryClient,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import {
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
@@ -27,7 +27,7 @@ import {
   type FieldOption,
   type FilterNode,
   type RecordViewConfig,
-} from '@ahoo-wang/fetcher-view-engine';
+} from '@ahoo-wang/wow-view-engine';
 import { CUSTOMER_AGGREGATE } from './customer.js';
 
 export const CUSTOMER_EVENTS = 'customer-events';

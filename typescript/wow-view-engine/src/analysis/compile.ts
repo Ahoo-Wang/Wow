@@ -30,7 +30,7 @@ import {
   type FieldSort,
   type FilterExpression,
   type HavingExpression,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import type {
   AnalysisDerivedExpression,
   AnalysisExpression,

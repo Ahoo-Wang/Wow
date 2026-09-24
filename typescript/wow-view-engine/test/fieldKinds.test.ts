@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { FilterOperator } from '@ahoo-wang/fetcher-wow';
+import { FilterOperator } from '@ahoo-wang/wow-client';
 import { describe, expect, it } from 'vitest';
 import {
   FIELDLESS_FIELD_KIND_IDS,

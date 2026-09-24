@@ -20,7 +20,7 @@ import {
   AggregationFunction,
   AggregationGroupType,
   FilterOperator,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import {
   CHART_TYPES,
   DATE_TIME_PRESETS,
@@ -231,7 +231,7 @@ describe('the Chinese catalogue', () => {
    * The button under an unknown write calls `abandonWrite`: the intent is
    * given up and nobody can retry or overwrite it afterwards, which is not
    * "deal with it later". And `BEFORE_TODAY` is Wow's own operator, whose
-   * word in `packages/wow/src/query/locale/zh_CN.ts` is 今天之前 — the
+   * word in `typescript/wow-client/src/query/locale/zh_CN.ts` is 今天之前 — the
    * bound is the caller's time of day, so naming the hour was an invention.
    */
   it('says what the button and the operator actually do', () => {

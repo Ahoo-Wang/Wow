@@ -15,7 +15,7 @@ import {
   getPropertyValue,
   type CursorPage,
   type PagedList,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import {
   columnHidden,
   epochUnitOf,

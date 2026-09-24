@@ -212,7 +212,7 @@ function exportedNames(file: string, seen = new Set<string>()): Set<string> {
  */
 describe('the entries the READMEs list', () => {
   const ENTRIES: Record<string, string> = {
-    '@ahoo-wang/fetcher-view-engine': 'src/index.ts',
+    '@ahoo-wang/wow-view-engine': 'src/index.ts',
     '/react': 'src/react/index.ts',
     '/ui': 'src/ui/index.ts',
   };

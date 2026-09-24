@@ -17,7 +17,7 @@
  * the hooks and the host — page visibility and a thrown command as an Issue.
  */
 
-import { FilterOperator } from '@ahoo-wang/fetcher-wow';
+import { FilterOperator } from '@ahoo-wang/wow-client';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {

@@ -15,7 +15,7 @@ import {
   filter,
   type ElementFilterExpression,
   type FilterExpression,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import {
   isFieldlessKind,
   type FieldDefinition,

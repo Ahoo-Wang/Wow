@@ -18,7 +18,7 @@ import type {
   AggregationGroupType,
   DerivedExpression,
   HavingExpression,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import type { DataViewConfigBase } from './config.js';
 import type { ChartSpec } from './chart.js';
 import type { FilterTree } from './filter.js';
@@ -28,7 +28,7 @@ import type { SortDirection } from './record.js';
 /**
  * The Wow aggregation enums as the string literals a config stores. Naming
  * them here keeps the protocol in this layer: everything above reaches for
- * these rather than for `@ahoo-wang/fetcher-wow`.
+ * these rather than for `@ahoo-wang/wow-client`.
  */
 export type AnalysisGroupType = `${AggregationGroupType}`;
 export type AnalysisFunction = `${AggregationFunction}`;

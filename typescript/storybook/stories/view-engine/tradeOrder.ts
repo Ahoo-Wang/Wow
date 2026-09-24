@@ -17,7 +17,7 @@ import {
   AggregationFunction,
   AggregationGroupType,
   SnapshotQueryClient,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import {
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
@@ -27,7 +27,7 @@ import {
   type FieldDefinition,
   type FilterNode,
   type RecordViewConfig,
-} from '@ahoo-wang/fetcher-view-engine';
+} from '@ahoo-wang/wow-view-engine';
 
 /**
  * The Wow trading service the trade order stories start on. Each story takes

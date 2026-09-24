@@ -30,13 +30,13 @@ import {
   type ViewInstance,
   type ViewSource,
   type ViewStore,
-} from '@ahoo-wang/fetcher-view-engine';
+} from '@ahoo-wang/wow-view-engine';
 import {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
-} from '@ahoo-wang/fetcher-wow';
-import { zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
+} from '@ahoo-wang/wow-client';
+import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import { rowSource } from './rowSource.js';
 
 // Wow's names for what the analysis side may group and compute by.

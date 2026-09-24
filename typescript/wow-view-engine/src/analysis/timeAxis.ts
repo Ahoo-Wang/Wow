@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { AGGREGATION_LIMITS } from '@ahoo-wang/fetcher-wow';
+import { AGGREGATION_LIMITS } from '@ahoo-wang/wow-client';
 import type { AnalysisGroup, AnalysisViewConfig } from '../model/index.js';
 import { readInstant, type DateInstant } from '../filter/index.js';
 import { bucketRange, wallClockAt } from './drill.js';

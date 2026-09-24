@@ -17,13 +17,13 @@ import {
   MemoryViewStore,
   type RecordKey,
   type ViewInstance,
-} from '@ahoo-wang/fetcher-view-engine';
+} from '@ahoo-wang/wow-view-engine';
 import {
   useBulkCommand,
   type BulkCommand,
   type RecordActionSlots,
-} from '@ahoo-wang/fetcher-view-engine/react';
-import { DataWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
+} from '@ahoo-wang/wow-view-engine/react';
+import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
 // View Engine's own button, so the host's commands sit in its toolbar rather
 // than beside it — exactly what an application does with the action slots.
 import { Button } from '@/ui/components/button';
@@ -50,7 +50,7 @@ import {
   type StagedOutcome,
 } from './outcomesStore.js';
 import { StoryEngine } from './StoryEngine.js';
-import '@ahoo-wang/fetcher-view-engine/styles.css';
+import '@ahoo-wang/wow-view-engine/styles.css';
 
 /**
  * The Record workbench in one state at a time. Every state below follows from

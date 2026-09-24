@@ -12,6 +12,7 @@
  */
 
 import { Fetcher, HttpMethod } from '@ahoo-wang/fetcher';
+import type { RecoverableType } from '@ahoo-wang/wow-client';
 import {
   AggregationDateUnit,
   AggregationFunction,
@@ -20,9 +21,8 @@ import {
   CommandHeaders,
   CommandStage,
   ErrorCodes,
-  RecoverableType,
   SnapshotQueryClient,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import {
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
@@ -32,7 +32,7 @@ import {
   type FilterNode,
   type RecordViewConfig,
   type ViewSource,
-} from '@ahoo-wang/fetcher-view-engine';
+} from '@ahoo-wang/wow-view-engine';
 
 /**
  * The Wow compensation service the stories start on: a local port-forward of

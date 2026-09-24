@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { MAX_CURSOR_SORT_FIELDS } from '@ahoo-wang/fetcher-wow';
+import { MAX_CURSOR_SORT_FIELDS } from '@ahoo-wang/wow-client';
 import {
   DEFAULT_RUNTIME_LIMITS,
   isFieldlessKind,

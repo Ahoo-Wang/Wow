@@ -22,7 +22,7 @@ import {
   type ViewPreferences,
   type ViewStore,
   type WriteContext,
-} from '@ahoo-wang/fetcher-view-engine';
+} from '@ahoo-wang/wow-view-engine';
 import { recordConfig } from './fixtures.js';
 
 /**

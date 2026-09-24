@@ -28,7 +28,7 @@ const browsers = (process.env.STORYBOOK_BROWSERS ?? 'chromium')
 
 export default defineConfig({
   optimizeDeps: {
-    include: ['@ant-design/icons', 'dayjs', 'immer', 'react/compiler-runtime'],
+    include: ['dayjs', 'react/compiler-runtime'],
   },
   test: {
     projects: [

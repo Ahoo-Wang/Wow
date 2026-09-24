@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-// Run after building: pnpm --filter @ahoo-wang/fetcher-view-engine test:package
+// Run after building: pnpm --filter @ahoo-wang/wow-view-engine test:package
 //
 // Six properties of the built package, which no unit test can see because
 // each one is about the artifact rather than the source (docs/design/README.md):

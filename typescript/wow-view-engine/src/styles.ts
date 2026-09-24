@@ -15,6 +15,6 @@
  * Build entry for the theme. A library build emits CSS only alongside a
  * module, so this one exists to carry `styles.css` into `dist`, which
  * applications then import as
- * `@ahoo-wang/fetcher-view-engine/styles.css`.
+ * `@ahoo-wang/wow-view-engine/styles.css`.
  */
 import './styles.css';

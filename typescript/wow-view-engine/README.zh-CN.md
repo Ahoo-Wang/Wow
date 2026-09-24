@@ -4,7 +4,7 @@
 
 **Fetcher View Engine 是面向 Wow 业务应用的数据视图引擎。** 业务应用用代码声明一份数据"能被怎样观察"：字段、类型、操作符、可用的分组与指标。用户在界面上决定"这一次怎样观察"：筛选、列、排序、分组、图表、面板组合。引擎把这种观察方式编译成 Wow 查询、执行、渲染，并把有价值的观察方式保存下来供下次直接打开。
 
-它是 `@ahoo-wang/fetcher-wow` 之上的展示层，也是 `@ahoo-wang/fetcher-viewer` 的继任者。
+它是 `@ahoo-wang/wow-client` 之上的展示层，也是 `@ahoo-wang/fetcher-viewer` 的继任者。
 
 ## 解决什么问题
 
@@ -43,10 +43,10 @@
 
 ## 安装
 
-该包尚未在公共 registry 首次发布，稳定版发布脚本会刻意跳过它。在此之前请通过本工作区（`"@ahoo-wang/fetcher-view-engine": "workspace:^"`）或本地 `pnpm pack` 产物使用。发布后的安装方式为：
+该包尚未在公共 registry 首次发布，稳定版发布脚本会刻意跳过它。在此之前请通过本工作区（`"@ahoo-wang/wow-view-engine": "workspace:^"`）或本地 `pnpm pack` 产物使用。发布后的安装方式为：
 
 ```bash
-pnpm add @ahoo-wang/fetcher-view-engine @ahoo-wang/fetcher-wow
+pnpm add @ahoo-wang/wow-view-engine @ahoo-wang/wow-client
 ```
 
 `react` 与 `react-dom` 只是 `/react` 和 `/ui` 入口的 peer 依赖。根入口可在 Node 中运行。
@@ -64,7 +64,7 @@ pnpm add @ahoo-wang/fetcher-view-engine @ahoo-wang/fetcher-wow
 ### 1. 声明定义
 
 ```ts
-import type { ViewDefinition } from '@ahoo-wang/fetcher-view-engine';
+import type { ViewDefinition } from '@ahoo-wang/wow-view-engine';
 
 export const orders: ViewDefinition = {
   id: 'orders',
@@ -129,12 +129,12 @@ export const orders: ViewDefinition = {
 ### 2. 创建引擎
 
 ```ts
-import { MemoryViewStore, ViewEngine } from '@ahoo-wang/fetcher-view-engine';
+import { MemoryViewStore, ViewEngine } from '@ahoo-wang/wow-view-engine';
 
 const engine = new ViewEngine({
   definitions: [orders],
   store: new MemoryViewStore(),
-  // 来自 @ahoo-wang/fetcher-wow 的 Pick<QueryApi, 'paged' | 'cursor' | 'aggregate'>
+  // 来自 @ahoo-wang/wow-client 的 Pick<QueryApi, 'paged' | 'cursor' | 'aggregate'>
   resolveSource: key => queryClients[key],
 });
 ```
@@ -142,8 +142,8 @@ const engine = new ViewEngine({
 ### 3a. 渲染默认工作台
 
 ```tsx
-import '@ahoo-wang/fetcher-view-engine/styles.css';
-import { DataWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
+import '@ahoo-wang/wow-view-engine/styles.css';
+import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
 
 export function OrdersPage() {
   return <DataWorkbench engine={engine} definitionId="orders" />;
@@ -218,7 +218,7 @@ export function OrdersPage() {
 import {
   EmbeddedDashboard,
   EmbeddedView,
-} from '@ahoo-wang/fetcher-view-engine/ui';
+} from '@ahoo-wang/wow-view-engine/ui';
 
 // 订单页：这位客户最近的运单，照存下的样子读。
 <EmbeddedView
@@ -379,8 +379,8 @@ import {
   cellValue,
   useSurfaceDisplay,
   useViewMessages,
-} from '@ahoo-wang/fetcher-view-engine/ui';
-import type { RecordCell } from '@ahoo-wang/fetcher-view-engine/ui';
+} from '@ahoo-wang/wow-view-engine/ui';
+import type { RecordCell } from '@ahoo-wang/wow-view-engine/ui';
 
 function OrderCell({ cell }: { cell: RecordCell }) {
   // 从这个单元格所在的那块面上读：正在生效的措辞，以及值所用的语言与时区。
@@ -417,7 +417,7 @@ import {
   useViewRuntime,
   useFilterEditor,
   useRecordTable,
-} from '@ahoo-wang/fetcher-view-engine/react';
+} from '@ahoo-wang/wow-view-engine/react';
 
 export function OrdersPage({ instanceId }: { instanceId: string }) {
   const { runtime, loading } = useOpenView(engine, instanceId);
@@ -441,7 +441,7 @@ import {
   compileRecord,
   projectRecord,
   validateRecord,
-} from '@ahoo-wang/fetcher-view-engine';
+} from '@ahoo-wang/wow-view-engine';
 
 const issues = validateRecord(orders, config, builtinFieldKinds);
 if (issues.some(i => i.severity === 'error')) throw new Error('配置无效');
@@ -484,12 +484,12 @@ const view = projectRecord(orders, config, page);
 
 ## 入口
 
-| 入口                             | 导出                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@ahoo-wang/fetcher-view-engine` | 模型类型、纯内核（`validate*` / `compile*` / `project*`）、运行时、`ViewStore`、`MemoryViewStore`                                                                                                                                                                                                                                                                                                                                                                         |
-| `/react`                         | `useViewEngine`、`useOpenView`、`useViewRuntime`、`useViewList`、`useViewManager`、`useWorkbench`、`useLeaveGuard`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useAnalysisResult`、`useDashboard`、`useSaveCommands`、`RecordActionSlots`                                                                                                                                                                                                                 |
-| `/ui`                            | `DataWorkbench`、`DashboardWorkbench`、`DashboardEditExtensions`、`useDashboardExtensions`、`EmbeddedView`、`EmbeddedDashboard`、`ViewHeader`、`SaveActions`、`ViewManager`、`LeaveDialog`、`EditorBand`、`FilterPanel`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisTable`、`AnalysisChart`、`DashboardGrid`、`HeadingPanel`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`MessagesProvider` |
-| `/styles.css`                    | 主题。显式导入；任何 JS 入口都不会引入 CSS，产物也不会在 `.fve-root`／`.fve-tokens` 两个样式边界之外绘制任何东西（preflight 与工具类在构建时收进边界内），`scripts/verify-package.mjs` 在每次构建时核对这两点。                                                                                                                                                                                                                                                           |
+| 入口                         | 导出                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@ahoo-wang/wow-view-engine` | 模型类型、纯内核（`validate*` / `compile*` / `project*`）、运行时、`ViewStore`、`MemoryViewStore`                                                                                                                                                                                                                                                                                                                                                                         |
+| `/react`                     | `useViewEngine`、`useOpenView`、`useViewRuntime`、`useViewList`、`useViewManager`、`useWorkbench`、`useLeaveGuard`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useAnalysisResult`、`useDashboard`、`useSaveCommands`、`RecordActionSlots`                                                                                                                                                                                                                 |
+| `/ui`                        | `DataWorkbench`、`DashboardWorkbench`、`DashboardEditExtensions`、`useDashboardExtensions`、`EmbeddedView`、`EmbeddedDashboard`、`ViewHeader`、`SaveActions`、`ViewManager`、`LeaveDialog`、`EditorBand`、`FilterPanel`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisTable`、`AnalysisChart`、`DashboardGrid`、`HeadingPanel`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`MessagesProvider` |
+| `/styles.css`                | 主题。显式导入；任何 JS 入口都不会引入 CSS，产物也不会在 `.fve-root`／`.fve-tokens` 两个样式边界之外绘制任何东西（preflight 与工具类在构建时收进边界内），`scripts/verify-package.mjs` 在每次构建时核对这两点。                                                                                                                                                                                                                                                           |
 
 ## 持久化
 
@@ -546,7 +546,7 @@ interface ViewStore {
 值按字段显示：枚举显示选项的标签，`datetime`／`date` 经 `Intl.DateTimeFormat` 格式化，日期直方图的键显示为它起始的年、季度、月或日。`locale` 决定这些值用什么语言显示，缺省为运行环境的语言；它和 `messages` 是同一个选择，一个管文字，一个管值：
 
 ```tsx
-import { DataWorkbench, zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
+import { DataWorkbench, zhCN } from '@ahoo-wang/wow-view-engine/ui';
 
 <DataWorkbench
   engine={engine}
@@ -590,9 +590,9 @@ store → model
 ## 开发
 
 ```bash
-pnpm --filter @ahoo-wang/fetcher-view-engine test          # 单元测试、覆盖率与三个 tsc 工程
-pnpm --filter @ahoo-wang/fetcher-view-engine build         # 构建，并核对发布出去的入口
-pnpm --filter @ahoo-wang/fetcher-view-engine test:package  # 入口可导入、核心入口无 DOM 类型、JS 不引入 CSS
+pnpm --filter @ahoo-wang/wow-view-engine test          # 单元测试、覆盖率与三个 tsc 工程
+pnpm --filter @ahoo-wang/wow-view-engine build         # 构建，并核对发布出去的入口
+pnpm --filter @ahoo-wang/wow-view-engine test:package  # 入口可导入、核心入口无 DOM 类型、JS 不引入 CSS
 pnpm storybook                                             # 每个界面的每种状态，见导航「View Engine」
 ```
 

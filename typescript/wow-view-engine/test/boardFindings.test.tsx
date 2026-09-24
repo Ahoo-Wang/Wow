@@ -20,7 +20,7 @@
  */
 
 import { act, renderHook } from '@testing-library/react';
-import { FilterOperator } from '@ahoo-wang/fetcher-wow';
+import { FilterOperator } from '@ahoo-wang/wow-client';
 import { describe, expect, it } from 'vitest';
 import {
   boardFindings,

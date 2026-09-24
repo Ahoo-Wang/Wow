@@ -12,7 +12,7 @@
  */
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, screen, userEvent, waitFor, within } from 'storybook/test';
-import { formatMessage, zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
+import { formatMessage, zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import displayMeta, {
   LatestPerWarehouse as DisplayLatestPerWarehouse,
   TableWithTotals as DisplayTableWithTotals,
@@ -39,7 +39,7 @@ type Story = StoryObj<typeof displayMeta>;
  * （D20 屏 B）。
  *
  * 这三件事在 jsdom 里钉的是「按下去写了什么」
- * （`packages/view-engine/test/havingRows.test.tsx` 与
+ * （`typescript/wow-view-engine/test/havingRows.test.tsx` 与
  * `test/formulaCard.test.tsx`）；这里钉的是走完一遍之后**屏幕上的那张表
  * 变了**——少了两行、多了一列、行序换了。一份假答案会让前两件事照样通过，
  * 所以故事的数据源真的按查询分组、筛选、排序（`rowSource.ts`）。
@@ -371,7 +371,7 @@ export const TopNField: Story = {
  * 「改了就跑」（D20，todo 批 7）：托盘里改一下问题，没人按应用，表自己重画。
  *
  * jsdom 那边钉的是**什么时候**跑——一次编辑之后那 300 毫秒、一串编辑并成一次
- * 查询、范围改了就一直等着（`packages/view-engine/test/autoRun.test.tsx` 的
+ * 查询、范围改了就一直等着（`typescript/wow-view-engine/test/autoRun.test.tsx` 的
  * 「改了就跑: an analysis runs as it is edited」，走的是测试时钟）。这里钉的是
  * 走完一遍之后**屏幕上真的变了**：多了一列状态，中途那一下结果是**淡着**的而
  * 不是空的，跑完点也没了；把开关关掉，同样一次编辑就停在那儿等应用。

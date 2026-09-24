@@ -12,7 +12,7 @@
  */
 
 /**
- * Root entry of `@ahoo-wang/fetcher-view-engine`.
+ * Root entry of `@ahoo-wang/wow-view-engine`.
  *
  * The headless layers, in the order `docs/design/` fixes: `model`, `filter`,
  * `record` / `analysis` / `dashboard`, `runtime`, `store`. React lives in

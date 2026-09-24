@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { filter, type FilterExpression } from '@ahoo-wang/fetcher-wow';
+import { filter, type FilterExpression } from '@ahoo-wang/wow-client';
 import { issue, readValue, type FieldKind } from '../fieldKind.js';
 import {
   compilePresence,

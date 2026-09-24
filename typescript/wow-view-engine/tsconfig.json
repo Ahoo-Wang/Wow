@@ -1,10 +1,15 @@
 {
-  "extends": "../../tsconfig.json",
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "src",
     "types": ["vite/client"],
-    "paths": { "@/*": ["./src/*"] }
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "sourceMap": true,
+    "composite": true,
+    "incremental": true
   },
   "include": ["src"],
   "exclude": ["**/*.stories.tsx"]

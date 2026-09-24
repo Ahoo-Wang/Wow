@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { CursorQuery, FilterPagedQuery } from '@ahoo-wang/fetcher-wow';
+import type { CursorQuery, FilterPagedQuery } from '@ahoo-wang/wow-client';
 import {
   FIRST_PAGE,
   compileRecord,

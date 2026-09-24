@@ -13,7 +13,7 @@
 
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
-import { DataWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
+import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
 import { AppShell } from '../shared/AppShell.js';
 import {
   DEFAULT_COMPENSATION_HOST,
@@ -25,7 +25,7 @@ import {
 } from './eventStream.js';
 import { HOST_LANGUAGE } from './fixtures.js';
 import { StoryEngine } from './StoryEngine.js';
-import '@ahoo-wang/fetcher-view-engine/styles.css';
+import '@ahoo-wang/wow-view-engine/styles.css';
 
 /**
  * The event stream analysis console — one workbench over the events a real

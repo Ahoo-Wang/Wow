@@ -17,7 +17,7 @@
  * must not swallow, and the tree controller underneath it all.
  */
 
-import { AggregationGroupType, FilterOperator } from '@ahoo-wang/fetcher-wow';
+import { AggregationGroupType, FilterOperator } from '@ahoo-wang/wow-client';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import {

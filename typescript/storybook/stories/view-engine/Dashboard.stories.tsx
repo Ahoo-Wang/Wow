@@ -16,11 +16,11 @@ import {
   DashboardWorkbench,
   DataWorkbench,
   EmbeddedDashboard,
-} from '@ahoo-wang/fetcher-view-engine/ui';
+} from '@ahoo-wang/wow-view-engine/ui';
 import {
   AggregationDateUnit,
   AggregationGroupType,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import type {
   DashboardFilters,
   ViewNavigation,
@@ -28,7 +28,7 @@ import type {
   DataViewDefinition,
   ViewEngine,
   ViewInstance,
-} from '@ahoo-wang/fetcher-view-engine';
+} from '@ahoo-wang/wow-view-engine';
 import { AppShell } from '../shared/AppShell.js';
 import {
   HOST_LANGUAGE,
@@ -44,7 +44,7 @@ import {
   type SourceBehaviour,
 } from './fixtures.js';
 import { StoryEngine } from './StoryEngine.js';
-import '@ahoo-wang/fetcher-view-engine/styles.css';
+import '@ahoo-wang/wow-view-engine/styles.css';
 
 /** Which saved dashboard a story opens, and which views it can reach. */
 type Variant =

@@ -18,19 +18,19 @@ import {
   DEFAULT_RUNTIME_LIMITS,
   defaultRuntimeEnvironment,
   RequestRunner,
-} from '@ahoo-wang/fetcher-view-engine';
+} from '@ahoo-wang/wow-view-engine';
 import type {
   DataViewDefinition,
   DataViewRuntime,
   FilterTree,
   ViewInstance,
-} from '@ahoo-wang/fetcher-view-engine';
-import { useFilterEditor } from '@ahoo-wang/fetcher-view-engine/react';
+} from '@ahoo-wang/wow-view-engine';
+import { useFilterEditor } from '@ahoo-wang/wow-view-engine/react';
 import {
   DataWorkbench,
   FilterPanel,
   ViewSurface,
-} from '@ahoo-wang/fetcher-view-engine/ui';
+} from '@ahoo-wang/wow-view-engine/ui';
 import { AppShell } from '../shared/AppShell.js';
 import {
   HOST_LANGUAGE,
@@ -41,7 +41,7 @@ import {
   storySource,
 } from './fixtures.js';
 import { StoryEngine } from './StoryEngine.js';
-import '@ahoo-wang/fetcher-view-engine/styles.css';
+import '@ahoo-wang/wow-view-engine/styles.css';
 
 /**
  * The orders definition with an array field whose entries can be matched,

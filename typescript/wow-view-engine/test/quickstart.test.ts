@@ -112,9 +112,9 @@ describe('the README only names symbols that exist', () => {
    */
   it('imports only names the entry it names exports', () => {
     const entries: Record<string, string> = {
-      '@ahoo-wang/fetcher-view-engine': '../src/index.ts',
-      '@ahoo-wang/fetcher-view-engine/react': '../src/react/index.ts',
-      '@ahoo-wang/fetcher-view-engine/ui': '../src/ui/index.ts',
+      '@ahoo-wang/wow-view-engine': '../src/index.ts',
+      '@ahoo-wang/wow-view-engine/react': '../src/react/index.ts',
+      '@ahoo-wang/wow-view-engine/ui': '../src/ui/index.ts',
     };
 
     const imports = readme.matchAll(

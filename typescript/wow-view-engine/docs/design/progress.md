@@ -42,7 +42,7 @@
 7. 文档
 8. view-engine skills
 
-**阶段 5 起在 Wow 仓里做**（用户 2026-09-23 定）：本包与 `packages/wow`、`packages/generator` 迁往 Wow 仓的 `typescript/`（[迁移方案](../../../../docs/superpowers/specs/2026-09-23-wow-packages-migration-design.md)）。停点在阶段 3、4 收口之后——见 [todo.md](todo.md) 的检查点与根目录 `AGENTS.md` 的「Migration Checkpoint」；远端出现 tag `wow-migration-base` 时本包冻结。
+**阶段 5 起在 Wow 仓里做**（用户 2026-09-23 定）：本包与 `packages/wow`、`typescript/wow-generator` 迁往 Wow 仓的 `typescript/`（[迁移方案](../../../../docs/superpowers/specs/2026-09-23-wow-packages-migration-design.md)）。停点在阶段 3、4 收口之后——见 [todo.md](todo.md) 的检查点与根目录 `AGENTS.md` 的「Migration Checkpoint」；远端出现 tag `wow-migration-base` 时本包冻结。
 
 每个阶段：进一步打磨 **UI 视觉、UX、功能、架构质量、扩展点**。节奏是——审计清单（先给用户看，再分派）→ 条目进 [todo.md](todo.md) → 做与派 → 合并后真浏览器逐控件复验 → **阶段审查（架构、代码质量、UI、视觉、UX 五个维度）**，防止架构腐化，及时重构 → 重写本页。
 

@@ -15,7 +15,7 @@ import {
   filter,
   type FilterExpression,
   type StringComparison,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import {
   DEFAULT_STRING_COMPARISON,
   type FilterOperatorName,

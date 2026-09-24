@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { FilterOperator, SearchMode } from '@ahoo-wang/fetcher-wow';
+import { FilterOperator, SearchMode } from '@ahoo-wang/wow-client';
 import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,

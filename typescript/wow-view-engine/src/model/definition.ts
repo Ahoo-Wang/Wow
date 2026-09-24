@@ -15,7 +15,7 @@ import type {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
-} from '@ahoo-wang/fetcher-wow';
+} from '@ahoo-wang/wow-client';
 import type { FieldDefinition } from './field.js';
 import type { RecordViewConfig, PagingMode, RecordLayout } from './record.js';
 import type { ViewConfig } from './config.js';

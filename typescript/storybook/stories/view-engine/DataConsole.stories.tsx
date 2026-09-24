@@ -14,20 +14,20 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { EllipsisVerticalIcon } from 'lucide-react';
 import { useState } from 'react';
-import { RecoverableType } from '@ahoo-wang/fetcher-wow';
+import { RecoverableType } from '@ahoo-wang/wow-client';
 import type {
   RecordKey,
   RecordRow,
   ViewEngine,
-} from '@ahoo-wang/fetcher-view-engine';
+} from '@ahoo-wang/wow-view-engine';
 import {
   useBulkCommand,
   type BulkCommand,
   type BulkRun,
   type BulkSelection,
   type RecordActionSlots,
-} from '@ahoo-wang/fetcher-view-engine/react';
-import { DataWorkbench } from '@ahoo-wang/fetcher-view-engine/ui';
+} from '@ahoo-wang/wow-view-engine/react';
+import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
 // View Engine's own primitives, so the added commands look like its own.
 import { Button } from '@/ui/components/button';
 import {
@@ -52,7 +52,7 @@ import {
 } from './compensation.js';
 import { HOST_LANGUAGE } from './fixtures.js';
 import { StoryEngine } from './StoryEngine.js';
-import '@ahoo-wang/fetcher-view-engine/styles.css';
+import '@ahoo-wang/wow-view-engine/styles.css';
 
 /**
  * The compensation console — a data console, one workbench for the records
