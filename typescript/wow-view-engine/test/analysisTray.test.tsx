@@ -418,7 +418,9 @@ describe('the analysis tray', () => {
    * what they did is worse than no count.
    */
   it('wears the pending dot and one count on the toggle while folded away', async () => {
-    await open();
+    // The row limit is part of the question, so with auto-run on it would
+    // apply itself a moment later and take the dot with it.
+    await open({ autoRun: false });
 
     // One member of the config edited, which is one thing not applied.
     fireEvent.change(screen.getByLabelText('Top N groups'), {
