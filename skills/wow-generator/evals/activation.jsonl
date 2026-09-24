@@ -1,0 +1,6 @@
+{"id":"A80-generator-cqrs","prompt":"用 wow-generator 从订单服务的 OpenAPI 文档生成 TypeScript 的 Wow 命令客户端和查询客户端，输出到 src/generated。","expectedSkills":["wow-generator"],"tags":["positive","generation"]}
+{"id":"A81-generator-missing-aggregate","prompt":"Our Wow service's OpenAPI spec only produces plain API clients from @ahoo-wang/wow-generator; the cart aggregate never gets a CartCommandClient. Explain which tags and operations the generator needs.","expectedSkills":["wow-generator"],"tags":["positive","aggregate-discovery"]}
+{"id":"A82-generator-rename","prompt":"把前端项目里的 fetcher-generator generate 脚本和 @ahoo-wang/fetcher-generator 依赖换成 Wow 仓库维护的新生成器。","expectedSkills":["wow-generator"],"tags":["positive","migration","package-rename"]}
+{"id":"A83-generator-vs-client","prompt":"已经生成好了 cartQueryClientFactory，现在要在页面里用它按 state.status 分页查询购物车快照。","expectedSkills":["wow-client"],"tags":["boundary","runtime-client","conflict"]}
+{"id":"A84-none-generator-other-tool","prompt":"用 openapi-typescript 从这个 Petstore 规范生成类型定义，项目没有使用 Wow。","expectedSkills":[],"tags":["negative","non-wow-project"]}
+{"id":"A85-none-generator-framework","prompt":"在 Wow 仓库的 typescript/wow-generator 里为 CodeGenerator 新增一个配置项并补单元测试。","expectedSkills":[],"tags":["negative","wow-framework-repository"]}

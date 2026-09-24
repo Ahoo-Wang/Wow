@@ -1,6 +1,6 @@
 ---
 title: Agent Skills
-description: Select, install, and verify the four Wow Agent Skills for downstream applications.
+description: Select, install, and verify the six Wow Agent Skills for downstream applications.
 ---
 
 # Agent Skills
@@ -21,17 +21,21 @@ Choose once from the user's primary requested outcome, then let that Skill own t
 | `wow-debug` | There is a failure, hang, bad state, or reproducer and the outcome is root cause; fix only after authorization | Proactive development, ordinary diff review, or data cutover |
 | `wow-review` | The outcome is findings, merge readiness, or review-and-fix | Symptom-driven diagnosis, proactive feature work, or a breaking migration review |
 | `wow-develop` | Design, implement, test, refactor, or explain downstream Wow behavior, including first adoption | Existing-diff review, existing-failure diagnosis, or breaking migration |
+| `wow-generator` | Generate TypeScript models and Wow CQRS clients from an OpenAPI document with the `wow-generator` CLI, or move from `@ahoo-wang/fetcher-generator` | Hand-written runtime client code, or Kotlin/Java service work |
+| `wow-client` | Write TypeScript command, query, and React query-hook code with `@ahoo-wang/wow-client` and `@ahoo-wang/wow-react`, or move from `@ahoo-wang/fetcher-wow` | OpenAPI code generation, or Kotlin/Java service work |
 
-Do not activate these Skills for generic Kotlin, Gradle, dashboard, documentation, or DDD/CQRS work without scoped `me.ahoo.wow` imports, `wow-*` dependencies, or an explicit downstream Wow request. The Wow framework repository itself is also outside all four Skills' target scope.
+Do not activate these Skills for generic Kotlin, Gradle, dashboard, documentation, or DDD/CQRS work without scoped `me.ahoo.wow` imports, `wow-*` dependencies, or an explicit downstream Wow request. The Wow framework repository itself, including development of the packages under `typescript/`, is also outside every Skill's target scope.
 
-Source contracts: [`skills/README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/README.md), [`wow-develop`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-develop), [`wow-review`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-review), [`wow-debug`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-debug), and [`wow-migrate`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-migrate).
+The first four Skills cover Kotlin/Java services. `wow-generator` and `wow-client` cover downstream TypeScript applications that call those services: choose `wow-generator` when the outcome is generated code or generator configuration, and `wow-client` for code that uses the clients at runtime.
+
+Source contracts: [`skills/README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/README.md), [`wow-develop`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-develop), [`wow-review`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-review), [`wow-debug`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-debug), [`wow-migrate`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-migrate), [`wow-client`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-client), and [`wow-generator`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-generator).
 
 ## Ownership and installation boundary
 
 | Boundary | Owner | Usage |
 |---|---|---|
 | Skill behavior and references | Wow repository `skills/` | Edit here and run the local validator; do not edit generated copies in the aggregation repository |
-| Distributable plugin manifest | Wow repository [`skills/plugins.json`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/plugins.json) | The current manifest includes only the four Primary Skills; `agents/openai.yaml` supplies client display metadata and default prompts |
+| Distributable plugin manifest | Wow repository [`skills/plugins.json`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/plugins.json) | The current manifest includes only the six Primary Skills; `agents/openai.yaml` supplies client display metadata and default prompts |
 | Aggregation and distribution | [Ahoo-Wang/skills](https://github.com/Ahoo-Wang/skills) | Install or refresh `ahoo-wow-skills` from the aggregate marketplace; do not treat it as the source-content edit point |
 | Current installation instructions | [Ahoo Skills](https://skills.ahoo.me/) | Follow the page for the relevant client; commands and publication state may evolve independently |
 | Generic format | [Agent Skills specification](https://agentskills.io/) | Defines the generic Skill format; it does not prove Wow Skill behavior |

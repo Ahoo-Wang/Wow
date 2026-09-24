@@ -3,14 +3,16 @@
   "plugins": [
     {
       "name": "ahoo-wow-skills",
-      "version": "0.0.6",
-      "description": "Intent-focused Agent Skills for developing, reviewing, debugging, and migrating Wow reactive DDD, Event Sourcing, and CQRS services.",
+      "version": "0.1.0",
+      "description": "Intent-focused Agent Skills for developing, reviewing, debugging, and migrating Wow reactive DDD, Event Sourcing, and CQRS services, plus building TypeScript clients and generating them from OpenAPI.",
       "skills": {
         "include": [
           "wow-develop",
           "wow-review",
           "wow-debug",
-          "wow-migrate"
+          "wow-migrate",
+          "wow-client",
+          "wow-generator"
         ]
       },
       "keywords": [
@@ -24,7 +26,11 @@
         "java",
         "spring-boot",
         "reactor",
-        "migration"
+        "migration",
+        "typescript",
+        "openapi",
+        "code-generation",
+        "client"
       ],
       "category": "development",
       "interface": {
@@ -32,7 +38,7 @@
         "capabilities": [
           "Skills"
         ],
-        "defaultPrompt": "Help me develop, review, debug, or migrate this downstream application that uses Wow, using verifiable evidence."
+        "defaultPrompt": "Help me develop, review, debug, or migrate this downstream application that uses Wow, or build and generate its TypeScript clients, using verifiable evidence."
       },
       "policy": {
         "installation": "AVAILABLE",
