@@ -60,6 +60,6 @@ Today / Last 7 days / Last 30 days 快捷项，或点击 Refresh，都会重载�
 3. 开发集群可访问时执行 `pnpm --dir compensation/dashboard generate`（读取 `package.json` 中的集群 OpenAPI 地址）；否则按[补偿参考案例](../../documentation/docs/zh/reference/example/compensation.md#本地服务启动、健康与路由验证)在本机启动补偿服务，再执行 `pnpm --dir compensation/dashboard exec wow-generator generate -i http://127.0.0.1:18083/v3/api-docs -o src/generated`；
 4. 审查生成 diff，再运行 build、Vitest 和 lint。
 
-业务代码通过 [`src/services/`](src/services/) 包装生成的 command/query client；基地址和 CoSec 策略也在该层组装。不要为规避后端/OpenAPI 缺陷而手改 `src/generated/`。ESLint 和覆盖率统计均明确排除该目录。
+业务代码通过 [`src/services/`](src/services/) 包装生成的 command/query client；基地址和 CoSec 策略也在该层组装。不要为规避后端/OpenAPI 缺陷而手改 `src/generated/`。覆盖率统计排除该目录；ESLint 照常检查它，只关闭 `@typescript-eslint/no-explicit-any`，因为生成器把自由结构的 OpenAPI schema 和装饰器的 `attributes` 参数映射为 `any`。
 
 指标口径、补偿状态、运营权限与部署要求见[补偿控制面](../../documentation/docs/zh/reference/example/compensation.md#补偿控制面)和[事件补偿指南](../../documentation/docs/zh/guide/event/compensation.md)。
