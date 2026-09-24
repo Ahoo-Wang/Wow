@@ -276,6 +276,7 @@ W1 的具体做法（W2 起沿用）：
 
 - view-engine 测试偶发 `Cannot read properties of null (reading 'resize')`（CI，Node 22 分片）：子代理在查根因。
 - W3d（R3 不改行为的界面重构，见 view-engine `docs/design/todo.md`）：上一项合并后派出。
+- 发布加固 #3323（审查 R3 的 P1、P2）：action 锁 SHA、`npm-publish` environment、完整运行准入、包检查、peer catalog、`engines >=22.12.0`、`.d.cts`；首发清单见 [RELEASING.md](RELEASING.md)。仓库设置由用户操作。
 
 W2a、W2b 的具体做法与决定：
 

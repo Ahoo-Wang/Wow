@@ -4,10 +4,10 @@
  * you may obtain a copy at http://www.apache.org/licenses/LICENSE-2.0
  */
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 import {
   distTag,
   isPublished,
@@ -18,8 +18,14 @@ import {
   tarballName,
 } from './publish-npm.mjs';
 
+const roots = [];
+after(() => {
+  for (const root of roots) rmSync(root, { recursive: true, force: true });
+});
+
 function workspace(packages) {
   const root = mkdtempSync(join(tmpdir(), 'publish-npm-'));
+  roots.push(root);
   writeFileSync(join(root, 'gradle.properties'), 'version=9.1.6\n');
   for (const [dir, manifest] of Object.entries(packages)) {
     mkdirSync(join(root, dir), { recursive: true });
