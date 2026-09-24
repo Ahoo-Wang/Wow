@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useRef, useState, type RefObject } from 'react';
+import type { RefObject } from 'react';
 import {
   ArrowRightLeftIcon,
   CopyIcon,
@@ -39,7 +39,6 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '../components/dropdown-menu.js';
-import { Input } from '../components/input.js';
 import {
   DialogMenuItem,
   HandOffMenu,
@@ -48,6 +47,7 @@ import {
 import { IconTooltip } from '../IconButton.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { DropdownMenuSubContent } from '../popups.js';
+import { RenameInput } from '../RenameInput.js';
 import type { PanelCommands } from './commands.js';
 
 /** Whether a panel has anything to put in its menu at all. */
@@ -271,11 +271,9 @@ export interface PanelTitleInputProps {
 }
 
 /**
- * 改标题, in place: the title becomes a box with the name in it, selected.
- * Enter or leaving the box keeps what was typed — a blank one names the
- * panel by what it shows again — and Escape keeps what was there. Only the
- * two keys hand the keyboard back to the panel's menu; leaving by Tab or a
- * press already put it somewhere.
+ * 改标题, in place (`RenameInput`): a blank title names the panel by what it
+ * shows again. Only Enter and Escape hand the keyboard back to the panel's
+ * menu; leaving by Tab or a press already put it somewhere.
  */
 export function PanelTitleInput({
   initial,
@@ -284,36 +282,16 @@ export function PanelTitleInput({
   returnTo,
 }: PanelTitleInputProps) {
   const messages = useViewMessages();
-  const [value, setValue] = useState(initial);
-  // Enter and Escape end the edit before the blur they cause arrives.
-  const ended = useRef(false);
-  const end = (keep: boolean) => {
-    if (ended.current) return;
-    ended.current = true;
-    // Unchanged is not a rename: a panel named after its view would
-    // otherwise take that name as a title of its own.
-    if (keep && value !== initial) renaming.commit(value);
-    else renaming.cancel();
-  };
   return (
-    <Input
+    <RenameInput
       data-slot="panel-title-input"
-      // Focused as it appears: the menu that asked for it hands the
-      // keyboard over rather than taking it back to its trigger.
-      autoFocus
-      onFocus={event => event.currentTarget.select()}
-      aria-label={messages.label(
+      initial={initial}
+      label={messages.label(
         heading ? 'label.panel.heading-input' : 'label.panel.title-input',
       )}
-      value={value}
-      onChange={event => setValue(event.target.value)}
-      onBlur={() => end(true)}
-      onKeyDown={event => {
-        if (event.key !== 'Enter' && event.key !== 'Escape') return;
-        event.preventDefault();
-        end(event.key === 'Enter');
-        returnTo.current?.focus();
-      }}
+      onCommit={renaming.commit}
+      onCancel={renaming.cancel}
+      returnTo={returnTo}
       className="h-7 min-w-0 flex-1"
     />
   );

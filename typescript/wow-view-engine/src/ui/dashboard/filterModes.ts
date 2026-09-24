@@ -62,25 +62,6 @@ export function holdsGrouping(modes: BoardFilterModes | undefined): boolean {
 }
 
 /**
- * Whether two plain JSON values — what the filters hold, one filter's
- * value — say the same, whatever order their keys came in.
- */
-export function sameValue(a: unknown, b: unknown): boolean {
-  return JSON.stringify(sorted(a)) === JSON.stringify(sorted(b));
-}
-
-/** A JSON value with its object keys in one order, for `sameValue`. */
-function sorted(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(sorted);
-  if (value === null || typeof value !== 'object') return value;
-  return Object.fromEntries(
-    Object.entries(value)
-      .sort(([a], [b]) => (a < b ? -1 : 1))
-      .map(([key, entry]) => [key, sorted(entry)]),
-  );
-}
-
-/**
  * What the page holds (`EmbeddedDashboard.pageValues`): each locked or
  * hidden filter at the value the page names — its default where it names
  * none — and, when the time grouping is held, the unit likewise; `null` for

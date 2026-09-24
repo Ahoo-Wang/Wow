@@ -15,8 +15,6 @@
   - 落点：[迁移方案](../../../../docs/superpowers/specs/2026-09-23-wow-packages-migration-design.md)，根目录 `AGENTS.md` 的「Migration Checkpoint」一节。
 
 - **R3 的界面重构——到 Wow 仓做**（[D28](decisions.md#d28-r3-的界面重构到-wow-做迁移前提放宽2026-09-24)）：阶段 3＋4 联合审查里不改行为的界面重构，迁移后在 Wow 做。
-  - Q-08 界面的余项：两份 `sameValue` 已收成 `filterModes.ts` 那一份（`PresentationDialog.tsx` 引它）；还差改成说出语义的名字（如 `sameJson`）并挪出 `filterModes.ts`，要连带改 `FilterBar.tsx` 的引用，等那边的并行工作合并后做。
-  - Q-10 三份原地改名输入框（面板菜单、标签栏、视图管理行）行为各异，收成一个；Q-11 六份拖拽可达性插件样板收成一个共用的插件工厂。
   - Q-13：`useExportOffer` 自己取 `messages`／`display` 并交回 `columns`／`max`，`PanelExport`、`EmbeddedRecord`、`RecordParts` 只传 `runtime, table, filter, title`。
   - 判据：行为不变的重构由现有测试守住；`max-lines` 豁免表仍为空。落点：`src/ui/`。
 
