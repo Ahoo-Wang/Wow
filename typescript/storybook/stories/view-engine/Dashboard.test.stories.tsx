@@ -554,6 +554,49 @@ export const PreBatchCFixedScope: Story = {
   },
 };
 
+/**
+ * The same board being built (D23 Q16): the fixed scope's lock is a ✕ for
+ * its author, which takes it out whole — the chip goes, the keyboard lands
+ * on 「撤销移除固定范围」, and that brings it back, as any edit of the board.
+ */
+export const PreBatchCFixedScopeRemoved: Story = {
+  ...DisplayPreBatchCCondition,
+  decorators: [DESK],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const bar = await canvas.findByRole('region', {
+      name: zhCN['label.filters.bar'],
+    });
+    const fixed = () =>
+      within(bar).queryByRole('group', { name: zhCN['label.filters.fixed'] });
+    await waitFor(() => expect(fixed()).not.toBeNull());
+    await startBuilding(canvasElement);
+
+    const remove = await within(fixed()!).findByRole('button', {
+      name: zhCN['label.filters.fixed-remove'],
+    });
+    await expect(
+      within(fixed()!).queryByRole('button', {
+        name: zhCN['label.filters.fixed-note'],
+      }),
+    ).toBeNull();
+    await userEvent.click(remove);
+
+    await waitFor(() => expect(fixed()).toBeNull());
+    const undo = canvas.getByRole('button', {
+      name: zhCN['label.history.undo-step'].replace(
+        '{what}',
+        zhCN['label.history.remove-fixed'],
+      ),
+    });
+    await waitFor(() => expect(undo).toHaveFocus());
+
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() => expect(fixed()).not.toBeNull());
+    await expect(fixed()).toHaveTextContent('西南');
+  },
+};
+
 /** WCAG 1.4.11: an edge or a focus mark that is the control's own. */
 const NON_TEXT_CONTRAST = 3;
 

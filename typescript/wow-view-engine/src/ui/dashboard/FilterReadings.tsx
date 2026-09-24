@@ -12,13 +12,13 @@
  */
 
 import type { ReactNode } from 'react';
-import { LockIcon } from 'lucide-react';
+import { LockIcon, XIcon } from 'lucide-react';
 import { filterCondition } from '../../dashboard/index.js';
 import { describeFilter, type FilterSummaryItem } from '../../filter/index.js';
 import type { DashboardField } from '../../model/index.js';
 import type { DashboardController } from '../../react/index.js';
 import { Button } from '../components/button.js';
-import { IconTooltip } from '../IconButton.js';
+import { IconButton, IconTooltip } from '../IconButton.js';
 import { cn } from '../lib/utils.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { summaryText } from '../summary.js';
@@ -41,9 +41,17 @@ export const CHIP =
  * The board's fixed scope (D26 Q31, D27): the condition a board saved
  * before its filters could not hold, in force on every panel. Read-only and
  * said as 「固定范围」, the way a locked filter says the page holds it: the
- * board keeps it, and no reader takes it out.
+ * board keeps it, and no reader takes it out. While the board is built its
+ * author takes it out whole (D23 Q16): a ✕ where the lock was.
  */
-export function FixedScope({ items }: { items: readonly FilterSummaryItem[] }) {
+export function FixedScope({
+  items,
+  onRemove,
+}: {
+  items: readonly FilterSummaryItem[];
+  /** While the board is built: taking it out, pressed from `from`. */
+  onRemove?: ((from: HTMLElement) => void) | undefined;
+}) {
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
   const label = messages.label('label.filters.fixed');
@@ -67,18 +75,30 @@ export function FixedScope({ items }: { items: readonly FilterSummaryItem[] }) {
           {summaryText(item, messages, display)}
         </span>
       ))}
-      <IconTooltip
-        label={messages.label('label.filters.fixed-note')}
-        render={
-          <Button
-            data-slot="dashboard-fixed-scope-note"
-            variant="ghost"
-            size="icon-xs"
-          />
-        }
-      >
-        <LockIcon />
-      </IconTooltip>
+      {onRemove ? (
+        <IconButton
+          data-slot="dashboard-fixed-scope-remove"
+          label={messages.label('label.filters.fixed-remove')}
+          variant="ghost"
+          size="icon-xs"
+          onClick={event => onRemove(event.currentTarget)}
+        >
+          <XIcon />
+        </IconButton>
+      ) : (
+        <IconTooltip
+          label={messages.label('label.filters.fixed-note')}
+          render={
+            <Button
+              data-slot="dashboard-fixed-scope-note"
+              variant="ghost"
+              size="icon-xs"
+            />
+          }
+        >
+          <LockIcon />
+        </IconTooltip>
+      )}
     </ControlFrame>
   );
 }

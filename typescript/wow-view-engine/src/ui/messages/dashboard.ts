@@ -212,6 +212,7 @@ export const dashboardMessages = {
   'label.history.remove-filter': 'removing the filter “{title}”',
   'label.history.change-filter': 'the change to the filter “{title}”',
   'label.history.change-grouping': 'the change to the time grouping',
+  'label.history.remove-fixed': 'removing the fixed scope',
   'label.history.change-board': 'the last change',
   'label.dashboard.tab.untitled': 'Tab {index}',
   // The picker a saved view is added or swapped in from (D22 B).

@@ -55,6 +55,7 @@ const PHRASES: Readonly<
   bindPanel: ['label.history.change-filter', 'filter'],
   unbindPanels: ['label.history.change-filter', 'filter'],
   setTimeGrouping: ['label.history.change-grouping', null],
+  removeFixedScope: ['label.history.remove-fixed', null],
 };
 
 /** 撤销 and 重做 as the edit bar draws them. */
@@ -143,12 +144,12 @@ export function useBoardHistory({
     const next = pending.current;
     if (!next) return;
     pending.current = null;
-    const usable = (node: HTMLElement | null) =>
-      node && !node.hasAttribute('disabled') ? node : null;
+    const usable = (node: HTMLElement | null): node is HTMLElement =>
+      node !== null && !node.hasAttribute('disabled');
     const firstOf = (...nodes: (HTMLElement | null)[]) => {
       for (const node of nodes)
         if (usable(node)) {
-          node!.focus();
+          node.focus();
           return;
         }
     };

@@ -11,16 +11,14 @@
  * limitations under the License.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { PaletteIcon } from 'lucide-react';
 import {
   PANEL_PRESENTATION_MEMBERS,
   type AnalysisViewConfig,
-  type ChartSpec,
   type PanelPresentation,
-  type RecordData,
 } from '../../model/index.js';
-import { isOwnedPanel } from '../../dashboard/index.js';
+import { isOwnedPanel, presentationMembersOf } from '../../dashboard/index.js';
 import {
   useAnalysisEditor,
   useAnalysisResult,
@@ -29,8 +27,12 @@ import {
   type DashboardPanelView,
 } from '../../react/index.js';
 import type { DashboardEditing, ViewRuntime } from '../../runtime/index.js';
-import { ChartOptions } from '../analysis/ChartOptions.js';
-import { ChartPicker } from '../analysis/ChartPicker.js';
+import {
+  ignore,
+  useVisualizationFocus,
+  visualizationPanel,
+  type VisualizationLevel,
+} from '../analysis/VisualizationPanel.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { Button } from '../components/button.js';
 import {
@@ -50,6 +52,7 @@ import {
 import { DialogContent } from '../popups.js';
 import { AnalysisPanel } from './PanelBodies.js';
 import type { FinalFocus } from './commands.js';
+import { sameValue } from './filterModes.js';
 
 export interface PresentationDialogProps {
   /** The panel whose look is changed; `null` while the dialog is shut. */
@@ -164,7 +167,7 @@ function PresentationForm({
         <Button
           variant="ghost"
           data-slot="panel-presentation-reset"
-          disabled={!hasLook(panel)}
+          disabled={presentationMembersOf(panel.panel).length === 0}
           onClick={() => editing.setPresentation(panel.id, null)}
         >
           {messages.label('label.panel.presentation.reset')}
@@ -218,16 +221,11 @@ function LookEditor({
     // Read at the moment of writing, so two writes in one press compose.
     const current = runtime.getSnapshot().draft;
     if (current.kind !== 'analysis') return;
-    const next: Record<string, unknown> = {};
+    const next: PanelPresentation = {};
     for (const member of PANEL_PRESENTATION_MEMBERS) {
-      const value =
-        member in patch
-          ? patch[member]
-          : (current as unknown as Record<string, unknown>)[member];
-      const own = base
-        ? (base as unknown as Record<string, unknown>)[member]
-        : undefined;
-      if (value !== undefined && !sameValue(value, own)) next[member] = value;
+      const value = member in patch ? patch[member] : current[member];
+      if (value !== undefined && !sameValue(value, base?.[member]))
+        Object.assign(next, { [member]: value });
     }
     editing.setPresentation(
       panel.id,
@@ -253,21 +251,10 @@ function LookEditor({
     drill: ignore,
     follow: ignore,
   });
-  const [level, setLevel] = useState<'picker' | 'options'>('picker');
-  const heading = useRef<HTMLHeadingElement | null>(null);
-  const optionsButton = useRef<HTMLButtonElement | null>(null);
+  const [level, setLevel] = useState<VisualizationLevel>('picker');
   // The keyboard follows the level, as in the workbench's panel (A1).
-  const was = useRef(level);
-  useEffect(() => {
-    if (was.current === level) return;
-    const before = was.current;
-    was.current = level;
-    if (before === 'options' && optionsButton.current)
-      optionsButton.current.focus();
-    else heading.current?.focus();
-  }, [level]);
+  const focus = useVisualizationFocus(level);
 
-  const question = result.question;
   return (
     <div className="-mx-4 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 sm:flex-row">
       <section
@@ -278,59 +265,17 @@ function LookEditor({
         <AnalysisPanel runtime={runtime} />
       </section>
       <aside className="flex-none sm:w-72">
-        {level === 'options' && question ? (
-          <ChartOptions
-            headingRef={heading}
-            picked={result.picked}
-            chart={result.chart}
-            groups={question.groups}
-            metrics={question.metrics}
-            columns={result.columns}
-            rows={result.view?.rows ?? NO_ROWS}
-            totals={analysis.totals}
-            onTotals={on => analysis.setTotals(on)}
-            onChange={(next: ChartSpec) => write({ chart: next })}
-            onBack={() => setLevel('picker')}
-          />
-        ) : (
-          <ChartPicker
-            headingRef={heading}
-            optionsRef={optionsButton}
-            fits={result.fits}
-            picked={result.picked}
-            onPick={result.choose}
-            onOptions={() => setLevel('options')}
-          />
-        )}
+        {visualizationPanel({
+          // With no question to set options over, the types stay on screen.
+          level: level === 'options' && !result.question ? 'picker' : level,
+          focus,
+          result,
+          totals: analysis.totals,
+          onTotals: on => analysis.setTotals(on),
+          onChange: next => write({ chart: next }),
+          onLevel: setLevel,
+        })}
       </aside>
     </div>
   );
 }
-
-/** Whether a panel wears a look of its own. */
-function hasLook(panel: DashboardPanelView): boolean {
-  if (panel.panel.kind !== 'view') return false;
-  const look: unknown = panel.panel.presentation;
-  return (
-    typeof look === 'object' &&
-    look !== null &&
-    Object.keys(look).some(key =>
-      (PANEL_PRESENTATION_MEMBERS as readonly string[]).includes(key),
-    )
-  );
-}
-
-/** Whether two plain JSON values say the same thing, whatever the key order. */
-function sameValue(a: unknown, b: unknown): boolean {
-  if (a === b) return true;
-  if (typeof a !== 'object' || typeof b !== 'object' || !a || !b) return false;
-  if (Array.isArray(a) !== Array.isArray(b)) return false;
-  const left = a as Record<string, unknown>;
-  const right = b as Record<string, unknown>;
-  const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
-  return [...keys].every(key => sameValue(left[key], right[key]));
-}
-
-const NO_ROWS: readonly RecordData[] = [];
-
-function ignore(): void {}

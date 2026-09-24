@@ -249,6 +249,71 @@ describe('a pre-C board read once, through save and reopen', () => {
     expect(draft.fields).toEqual([{ ...region, multiple: true }]);
     expect(reopened.getSnapshot().dirty).toBe(false);
   });
+
+  /**
+   * D23 Q16: the part no filter could hold is the author's to take out
+   * whole while the board is built — one step of the history, and saved as
+   * the empty tree, so the next opening reads a board with no fixed scope
+   * rather than a pre-C one.
+   */
+  it('has its fixed scope taken out whole by its author, one step, and saved empty', async () => {
+    const board = harness();
+    const runtime = await board.open(
+      preCDashboardConfig({ op: 'and', children: [leaf] } as FilterTree, {
+        fields: [region],
+        panels: [saved('a')],
+      }),
+    );
+    const fixed = { op: 'and', children: [leaf] };
+
+    // A reader never takes it: outside building the command is refused.
+    runtime.setBuilding(false);
+    runtime.removeFixedScope();
+    expect(runtime.getSnapshot().draft.fixed).toEqual(fixed);
+    expect(runtime.getSnapshot().dirty).toBe(false);
+
+    runtime.setBuilding(true);
+    runtime.removeFixedScope();
+    let state = runtime.getSnapshot();
+    expect(state.draft.fixed).toEqual({ op: 'and', children: [] });
+    expect(state.applied.fixed).toEqual({ op: 'and', children: [] });
+    expect(state.dirty).toBe(true);
+    expect(state.history.undo).toEqual({
+      command: 'removeFixedScope',
+      subject: null,
+    });
+
+    // Undone and redone as the board's other edits are, on both configs.
+    expect(runtime.undo()?.command).toBe('removeFixedScope');
+    state = runtime.getSnapshot();
+    expect(state.draft.fixed).toEqual(fixed);
+    expect(state.applied.fixed).toEqual(fixed);
+    expect(state.dirty).toBe(false);
+    runtime.redo();
+    expect(runtime.getSnapshot().applied.fixed.children).toEqual([]);
+
+    // Taking out an empty scope again changes nothing and is no step.
+    const before = runtime.getSnapshot();
+    runtime.removeFixedScope();
+    expect(runtime.getSnapshot()).toBe(before);
+
+    const written = await board.engine.save(runtime);
+    runtime.setBuilding(false);
+    expect(written.config).toMatchObject({
+      fixed: { op: 'and', children: [] },
+    });
+
+    const reopened = await new ViewEngine({
+      definitions: [ordersDefinition(), overviewDefinition()],
+      store: board.store,
+      resolveSource: () => board.source,
+      environment: testEnvironment().environment,
+    }).open(written.id);
+    await nextTask();
+    const draft = reopened.getSnapshot().draft as DashboardViewConfig;
+    expect(draft.fixed).toEqual({ op: 'and', children: [] });
+    expect(reopened.getSnapshot().dirty).toBe(false);
+  });
 });
 
 describe('editing a board', () => {

@@ -40,8 +40,11 @@ test('lint and format rules run only the static checks and the site build', () =
 test('each TypeScript workflow file runs the jobs it defines and the static checks', () => {
   assert.deepEqual(on(['.github/workflows/typescript.yml']), [
     'typescript',
+    'sdk',
     'docs',
     'viewEngine',
+    'packageDocs',
+    'viewEngineDocs',
   ]);
   assert.deepEqual(on(['.github/workflows/typescript-storybook.yml']), [
     'typescript',
@@ -77,13 +80,19 @@ test('the version source and the compat-debt ledger run the static checks', () =
 test('the client, generator, integration tests and contract workflow run both contracts', () => {
   assert.deepEqual(on(['typescript/wow-client/src/index.ts']), [
     'typescript',
+    'sdk',
     'viewEngine',
     'storybook',
     'contract',
     'legacyContract',
   ]);
+  assert.deepEqual(on(['typescript/wow-generator/src/cli.ts']), [
+    'typescript',
+    'sdk',
+    'contract',
+    'legacyContract',
+  ]);
   for (const path of [
-    'typescript/wow-generator/src/cli.ts',
     'typescript/integration-test/src/generated/index.ts',
     '.github/workflows/typescript-contract.yml',
   ])
@@ -95,11 +104,17 @@ test('the client, generator, integration tests and contract workflow run both co
 });
 
 test('view-engine and what it builds on run its suite, the stories and the site', () => {
+  assert.deepEqual(on(['typescript/wow-react/src/index.ts']), [
+    'typescript',
+    'sdk',
+    'docs',
+    'viewEngine',
+    'storybook',
+  ]);
   for (const path of [
-    'typescript/wow-react/src/index.ts',
     'typescript/wow-view-engine/src/index.ts',
     'typescript/wow-view-engine/test/setup.ts',
-    'typescript/wow-view-engine/docs/design/progress.md',
+    'typescript/wow-view-engine/docs/design/ui/layout.svg',
     'typescript/wow-view-engine/package.json',
   ])
     assert.deepEqual(
@@ -109,14 +124,107 @@ test('view-engine and what it builds on run its suite, the stories and the site'
     );
 });
 
+test('the other packages unit-test only when a package outside view-engine changes', () => {
+  for (const path of [
+    'typescript/wow-client/src/index.ts',
+    'typescript/wow-react/src/index.ts',
+    'typescript/wow-generator/src/cli.ts',
+    'typescript/new-package/src/index.ts',
+  ])
+    assert.ok(scopes([path]).sdk, path);
+  for (const path of [
+    'typescript/wow-view-engine/src/index.ts',
+    'typescript/storybook/stories/view-engine/Home.stories.tsx',
+    'typescript/integration-test/src/generated/index.ts',
+    'gradle.properties',
+    'docs/compat-debt.md',
+    'eslint.config.js',
+    '.github/workflows/typescript-storybook.yml',
+  ]) {
+    assert.ok(!scopes([path]).sdk, path);
+  }
+  for (const path of [
+    'typescript/wow-view-engine/src/index.ts',
+    'eslint.config.js',
+  ])
+    assert.ok(scopes([path]).typescript, path);
+});
+
 test('the stories run Storybook, the static checks and the site', () => {
   for (const path of [
     'typescript/storybook/stories/view-engine/Home.stories.tsx',
     'typescript/storybook/.storybook/main.ts',
     'typescript/storybook/package.json',
-    'typescript/storybook/README.md',
   ])
     assert.deepEqual(on([path]), ['typescript', 'docs', 'storybook'], path);
+});
+
+test("view-engine's Markdown alone runs only its format check and the tests that read it", () => {
+  for (const path of [
+    'typescript/wow-view-engine/docs/design/progress.md',
+    'typescript/wow-view-engine/docs/design/ui/layout.md',
+    'typescript/wow-view-engine/README.md',
+    'typescript/wow-view-engine/README.zh-CN.md',
+    'typescript/wow-view-engine/AGENTS.md',
+  ])
+    assert.deepEqual(on([path]), ['packageDocs', 'viewEngineDocs'], path);
+});
+
+test('other Markdown under typescript/ alone runs only its format check', () => {
+  for (const path of [
+    'typescript/MIGRATION.md',
+    'typescript/AGENTS.md',
+    'typescript/wow-client/README.md',
+    'typescript/wow-client/docs/superpowers/plans/a.md',
+    'typescript/wow-react/AGENTS.md',
+    'typescript/wow-generator/README.zh-CN.md',
+    'typescript/integration-test/README.md',
+    'typescript/storybook/README.md',
+  ])
+    assert.deepEqual(on([path]), ['packageDocs'], path);
+});
+
+test('Markdown next to code keeps everything the code runs', () => {
+  const docs = 'typescript/wow-view-engine/docs/design/decisions.md';
+  // The code's own scopes run the Markdown's checks: quality formats every
+  // changed file and the view-engine suite includes test:docs.
+  assert.deepEqual(on([docs, 'typescript/wow-view-engine/src/index.ts']), [
+    'typescript',
+    'docs',
+    'viewEngine',
+    'storybook',
+  ]);
+  assert.deepEqual(on([docs, 'typescript/wow-client/src/index.ts']), [
+    'typescript',
+    'sdk',
+    'viewEngine',
+    'storybook',
+    'contract',
+    'legacyContract',
+  ]);
+  // Code that leaves the view-engine suite off keeps the light docs tests.
+  assert.deepEqual(on([docs, 'typescript/wow-generator/src/cli.ts']), [
+    'typescript',
+    'sdk',
+    'viewEngineDocs',
+    'contract',
+    'legacyContract',
+  ]);
+  assert.deepEqual(on([docs, 'documentation/docs/index.md']), [
+    'docs',
+    'packageDocs',
+    'viewEngineDocs',
+  ]);
+  assert.deepEqual(on(['typescript/MIGRATION.md', 'gradle.properties']), [
+    'typescript',
+    'contract',
+  ]);
+  // The order of paths does not matter.
+  assert.deepEqual(
+    on(['typescript/wow-view-engine/src/index.ts', docs]),
+    on([docs, 'typescript/wow-view-engine/src/index.ts']),
+  );
+  assert.ok(all([docs, 'pnpm-lock.yaml']));
 });
 
 test('Storybook and the packages it renders also build the site', () => {
@@ -150,8 +258,6 @@ test('Kotlin, Gradle, dashboard and prose changes skip the TypeScript workflows'
     '.github/scripts/pr-safety.sh',
     'README.md',
     'AGENTS.md',
-    'typescript/MIGRATION.md',
-    'typescript/AGENTS.md',
   ])
     assert.ok(none([path]), path);
 });
@@ -164,11 +270,11 @@ test('isolated changes retain their relevant validation', () => {
   );
   assert.deepEqual(
     on(['typescript/wow-react/src/index.ts', 'example/README.md']),
-    ['typescript', 'docs', 'viewEngine', 'storybook', 'contract'],
+    ['typescript', 'sdk', 'docs', 'viewEngine', 'storybook', 'contract'],
   );
   assert.deepEqual(
     on(['typescript/wow-generator/src/cli.ts', 'typescript/storybook/a.ts']),
-    ['typescript', 'docs', 'storybook', 'contract', 'legacyContract'],
+    ['typescript', 'sdk', 'docs', 'storybook', 'contract', 'legacyContract'],
   );
   assert.ok(all(['README.md', 'pnpm-lock.yaml']));
   assert.ok(all(['wow-core/src/main/kotlin/A.kt', 'new-directory/index.ts']));
@@ -202,8 +308,11 @@ test('the command reads the diff and runs everything without a base', () => {
     const output = value =>
       [
         'typescript',
+        'sdk',
         'docs',
         'viewEngine',
+        'packageDocs',
+        'viewEngineDocs',
         'storybook',
         'contract',
         'legacyContract',

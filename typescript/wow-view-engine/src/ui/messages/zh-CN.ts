@@ -1136,6 +1136,8 @@ export const zhCN: ViewMessages = {
   'label.filters.fixed': '固定范围',
   'label.filters.fixed-note':
     '仪表盘本身让每个面板都只看这个范围，这里改不了。',
+  'label.filters.fixed-remove': '移除固定范围',
+  'label.filters.fixed-removed': '已移除固定范围',
   'label.filters.sheet-set': '筛选（已设 {count} 个）',
   'label.filters.not-reached': '不受{filters}影响',
   'label.filters.name-quoted': '「{name}」',
@@ -1291,6 +1293,7 @@ export const zhCN: ViewMessages = {
   'label.history.remove-filter': '移除筛选「{title}」',
   'label.history.change-filter': '对筛选「{title}」的修改',
   'label.history.change-grouping': '对时间粒度的修改',
+  'label.history.remove-fixed': '移除固定范围',
   'label.history.change-board': '上一步修改',
   'label.dashboard.tab.untitled': '标签页 {index}',
   'label.picker.add-heading': '添加已保存的视图',

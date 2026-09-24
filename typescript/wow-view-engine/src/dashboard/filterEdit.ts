@@ -15,7 +15,8 @@
  * What setting up a board's filters does to its config (D22 G): add one,
  * name it, give it another type, take it off, say what it starts at, whether
  * it is required, takes several values or picks from a list of its own, put
- * it elsewhere in the bar; and the board's time grouping. Each a pure
+ * it elsewhere in the bar; the board's time grouping; and its fixed scope
+ * taken out whole. Each a pure
  * function from the config to the next, as the other edits of a board are
  * (`edit.ts`), so the runtime applies it to its draft and to what is on
  * screen alike.
@@ -35,7 +36,7 @@ import {
   type FilterValue,
   without,
 } from '../model/index.js';
-import { isPlainObject } from '../filter/index.js';
+import { emptyFilter, isPlainObject } from '../filter/index.js';
 import { filtersOf as fieldsOf } from './filters.js';
 import { freshId, isViewPanel } from './panels.js';
 import { unbindPanels } from './wiring.js';
@@ -211,6 +212,25 @@ export function setTimeGrouping(
       ? config
       : without(config, 'timeGrouping');
   return { ...config, timeGrouping: grouping };
+}
+
+/**
+ * The board without its fixed scope (D23 Q16, D26 Q31): the condition a
+ * board saved before its filters could not hold, taken out whole by its
+ * author — never a reader's to take — and the empty tree left in its place,
+ * so the member stays and the board is never read as pre-C again. A board
+ * whose fixed scope is empty already comes back as it was.
+ */
+export function removeFixedScope(
+  config: DashboardViewConfig,
+): DashboardViewConfig {
+  const { fixed } = config;
+  const empty =
+    isPlainObject(fixed) &&
+    fixed.op === 'and' &&
+    Array.isArray(fixed.children) &&
+    fixed.children.length === 0;
+  return empty ? config : { ...config, fixed: emptyFilter() };
 }
 
 function mapFilter(
