@@ -359,7 +359,6 @@
 - **代价**：块不是严格的正方形（1200px 时 40×35，1920px 时 70×80）；竖向拖动、缩放、方向键的一步仍是一行，也就是一到三块。
 - **落点**：`src/ui/dashboard/gridBlocks.ts`（`blockHeight`、`gridBlocks`）、`src/ui/DashboardGrid.tsx`（图层 `dashboard-grid-blocks`）、`src/styles.css`、[ui/dashboard.md](ui/dashboard.md)。
 
-
 ## 搁置待议
 
 尚无结论，不要当作规则执行。
