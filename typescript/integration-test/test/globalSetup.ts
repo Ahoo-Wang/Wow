@@ -105,7 +105,8 @@ export default async function setup(): Promise<void> {
     'order',
     `tenant/${run}/owner/${run}/sales-order`,
     {
-      items: [{ productId: run, price: 1, quantity: 1 }],
+      // The example prices every product at 10 and refuses another price.
+      items: [{ productId: 'product-1', price: 10, quantity: 1 }],
       address: {
         country: 'China',
         province: 'Shanghai',

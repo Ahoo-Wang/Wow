@@ -40,6 +40,8 @@ pnpm --filter wow-integration-test test
 
 `generate` 读取 `http://localhost:8080/v3/api-docs` 并替换 `src/generated`。提交前先检查生成结果的改动。
 
+`test` 在第一个用例之前等服务端就绪（`test/globalSetup.ts`）：先等 `/actuator/health` 答 `UP`，最多五分钟；再给套件用到的每个聚合各发一条命令，等到快照写入。刚启动的服务端在这里付掉头几条命令的代价，所以没有哪个用例需要为冷启动放宽超时。
+
 `src/generated` 逐字节保存生成器的输出，连同它的清单 `.wow-generator.json`；ESLint 和
 Prettier 都跳过这个目录。不要手改，也不要重新格式化。
 

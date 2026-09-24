@@ -208,9 +208,20 @@ async function open(control: string): Promise<void> {
   await screen.findByRole('dialog');
 }
 
-/** The open popup, dismissed, so the next one is unambiguous. */
+/**
+ * The open popup, dismissed, so the next one is unambiguous.
+ *
+ * The Escape goes to the document, where every open popup listens for it,
+ * not to the focused element. A popup moves focus inside itself a frame
+ * after it opens, and until then focus is still on the control the last
+ * popup gave it back to — the Columns button, whose tooltip that return
+ * opened. A tooltip answers Escape on its trigger by closing itself and
+ * stopping the key there, so on a loaded runner the Sort popover never
+ * heard it. This suite asks about names, not about Escape; which element
+ * the key is pressed on is not its question.
+ */
 async function close(): Promise<void> {
-  fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+  fireEvent.keyDown(document, { key: 'Escape' });
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
 }
 
