@@ -21,11 +21,48 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      # Release admission reads the TypeScript workflow runs of this commit.
+      actions: read
     steps:
       - name: Checkout
         uses: actions/checkout@master
         with:
           persist-credentials: false
+          # Tags and history for the breaking-change rule.
+          fetch-depth: 0
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.34.5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      # gradle.properties, every package.json and the release tag agree.
+      - name: Verify release versions
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'release' && github.ref_name || '' }}
+        run: node .github/scripts/project-version.mjs check
+
+      # TypeScript workflow and typescript-gate passed on this commit;
+      # breaking commits since the previous v* tag ship only in x.Y.0.
+      - name: Admit release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node .github/scripts/release-admission.mjs
+
+      - name: Install JavaScript dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build TypeScript packages
+        run: pnpm build:typescript
+
+      - name: Verify npm packages
+        run: node .github/scripts/publish-npm.mjs --dry-run
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
@@ -37,13 +74,6 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
         with:
           cache-read-only: true
-
-      - name: Verify release tag
-        if: github.event_name == 'release'
-        shell: bash
-        run: |
-          project_version="$(sed -n 's/^version=//p' gradle.properties)"
-          test "${GITHUB_REF_NAME}" = "v${project_version}"
 
       - name: Verify release build
         run: ./gradlew build allIntegrationTest
@@ -154,3 +184,43 @@ jobs:
         env:
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+
+  npm-deploy:
+    needs: preflight
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # npm trusted publishing (OIDC) and provenance; no npm token.
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+        with:
+          persist-credentials: false
+          # All v* tags decide whether this release is the latest line.
+          fetch-depth: 0
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.34.5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      # Trusted publishing needs npm 11.5.1 or later.
+      - name: Set up npm
+        run: npm install --global npm@^11.5.1
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build TypeScript packages
+        run: pnpm build:typescript
+
+      # Publishes wow-client, wow-react and wow-generator; skips versions already on npm.
+      - name: Publish to npm
+        run: node .github/scripts/publish-npm.mjs
