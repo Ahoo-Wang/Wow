@@ -11,10 +11,10 @@
  * limitations under the License.
  */
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { FieldOption } from '../../model/index.js';
 import type { RecordRow } from '../../record/index.js';
-import type { RecordViewRuntime, ViewEngine } from '../../runtime/index.js';
+import type { RecordViewRuntime } from '../../runtime/index.js';
 import {
   useRecordDetail,
   useRecordTable,
@@ -26,7 +26,6 @@ import {
 import { useAnnouncer } from '../Announcer.js';
 import { Button } from '../components/button.js';
 import { ColumnSettings } from '../ColumnSettings.js';
-import type { DisplayContext } from '../display.js';
 import { useExportOffer, type ExportedFile } from '../record/exportOffer.js';
 import { useQueryAnnouncement } from '../record/queryAnnouncement.js';
 import { FilterPanel } from '../FilterPanel.js';
@@ -37,7 +36,7 @@ import { RecordTable, type RecordCell } from '../RecordTable.js';
 import { RecordDetail } from '../record/RecordDetail.js';
 import { wayOutOf } from '../record/emptyWayOut.js';
 import { NO_RELEASE, type ReleasedPins } from '../record/pinCap.js';
-import { ResultToolbar } from '../ResultToolbar.js';
+import { ResultToolbar, type ResultToolbarProps } from '../ResultToolbar.js';
 import { BulkStatus } from '../BulkStatus.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { recordIssueNamer } from '../record/issueNames.js';
@@ -114,7 +113,6 @@ export interface RecordViewProps {
 export type { ExportedFile } from '../record/exportOffer.js';
 
 export interface RecordPartsProps extends RecordViewProps {
-  engine: ViewEngine;
   workbench: WorkbenchController;
   /** The open record view, or null while what is open is not one. */
   runtime: RecordViewRuntime | null;
@@ -150,7 +148,6 @@ const RESULT_SLOTS = resultSlots('caption', 'empty', 'cards', 'bulk');
  * hands back none while no record view is open (`parts.ts`).
  */
 export function RecordParts({
-  engine,
   workbench,
   runtime: record,
   messages: wording,
@@ -222,29 +219,6 @@ export function RecordParts({
   const onEmptyAction =
     hostEmptyAction === null ? undefined : (hostEmptyAction ?? emptyAction);
 
-  // The language and zone values read in. `useSurfaceDisplay` cannot answer
-  // here — the surface is inside the shell, below this component — so the
-  // two halves are taken from where the shell itself takes them, and an
-  // exported time is the time the cell above it showed.
-  const timeZone = engine.environment.timeZone;
-  const display = useMemo<DisplayContext>(
-    () => ({
-      ...(locale === undefined ? {} : { locale }),
-      ...(timeZone === undefined ? {} : { timeZone }),
-    }),
-    [locale, timeZone],
-  );
-  // The rows as a file the browser takes (`useExportOffer`).
-  const exporter = useExportOffer({
-    runtime: record,
-    table,
-    filter,
-    title: state?.title ?? '',
-    messages,
-    display,
-    now: engine.environment.now,
-    onExported,
-  });
   const searchBox = useSearchBox(record);
 
   if (!record) return children(NO_PARTS);
@@ -297,7 +271,7 @@ export function RecordParts({
        short and what went wrong (D14). A cancel says nothing anywhere — it
        is the answer the user gave. */
     toolbar: (
-      <ResultToolbar
+      <RecordToolbar
         table={table}
         fields={fields}
         fieldGroups={table.fieldGroups}
@@ -306,8 +280,11 @@ export function RecordParts({
         released={table.layout === 'table' ? released : NO_RELEASE}
         bulkActions={actions?.bulk}
         features={features}
-        exporter={shown.export ? exporter : undefined}
         runtime={record}
+        exports={shown.export}
+        filter={filter}
+        title={state?.title ?? ''}
+        {...(onExported ? { onExported } : {})}
       />
     ),
     result: (
@@ -373,4 +350,36 @@ function bindRow(
   refresh: () => void,
 ): ((row: RecordRow) => ReactNode) | undefined {
   return row ? item => row({ row: item, runtime, refresh }) : undefined;
+}
+
+/**
+ * The result toolbar with the export offered on it (`useExportOffer`).
+ *
+ * A component of its own rather than a call in `RecordParts`, because the
+ * offer reads the wording, the language and the zone off the surface it is
+ * drawn on, and `RecordParts` is above that surface — the toolbar, handed to
+ * the shell as a slot, is inside it.
+ */
+function RecordToolbar({
+  exports,
+  filter,
+  title,
+  onExported,
+  ...props
+}: Omit<ResultToolbarProps, 'exporter'> & {
+  /** Whether the host offers exports (`WorkbenchFeatures.export`). */
+  exports: boolean;
+  filter: WorkbenchController['filter'];
+  /** The view's title, which names the file. */
+  title: string;
+  onExported?(file: ExportedFile): void;
+}) {
+  const exporter = useExportOffer({
+    runtime: props.runtime,
+    table: props.table,
+    filter,
+    title,
+    ...(onExported ? { onExported } : {}),
+  });
+  return <ResultToolbar {...props} {...(exports ? { exporter } : {})} />;
 }

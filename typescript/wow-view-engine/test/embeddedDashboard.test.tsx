@@ -323,10 +323,10 @@ describe('EmbeddedDashboard', () => {
   /**
    * The export is a switch, not a tier (D24 Q24): switched on, a record
    * panel's 「⋯」 holds 导出数据… — alone on a board that is only read — and
-   * a chart panel has none; switched off (the default), there is no such
-   * item in any tier.
+   * so does an analysis panel's (D25 Q28); switched off (the default), there
+   * is no such item in any tier.
    */
-  it('offers a record panel’s export where the host switched it on, in any tier', async () => {
+  it('offers a panel’s export where the host switched it on, in any tier', async () => {
     const user = userEvent.setup();
     embed({ withExport: true });
 
@@ -344,9 +344,16 @@ describe('EmbeddedDashboard', () => {
     expect(dialog.textContent).toMatch(
       /File: Order list-\d{4}-\d{2}-\d{2}\.csv/,
     );
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await user.click(
+      screen.getByRole('button', { name: 'Actions for “By warehouse”' }),
+    );
     expect(
-      screen.queryByRole('button', { name: 'Actions for “By warehouse”' }),
-    ).toBeNull();
+      within(await screen.findByRole('menu'))
+        .getAllByRole('menuitem')
+        .map(item => item.textContent),
+    ).toEqual(['Export data…']);
     cleanup();
 
     embed({ interaction: 'interactive' });

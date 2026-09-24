@@ -47,7 +47,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 
 ## 导出
 
-工具栏右端的 `ExportButton`：带边的图标按钮（`DownloadIcon`，可及名字 `label.export.title`），**点开是一个模态 shadcn `Dialog`，整件事都在里面**（D14），四步同一个壳。窗口本身是受控的 `ExportDialog`（`open`／`onOpenChange`／`finalFocus`，每次打开重新挂一趟：范围与文件名属于这一趟），所以仪表盘记录面板「⋯」里的「导出数据…」打开的是同一个窗口（[dashboard.md](dashboard.md) 面板菜单）。
+工具栏右端的 `ExportButton`：带边的图标按钮（`DownloadIcon`，可及名字 `label.export.title`），**点开是一个模态 shadcn `Dialog`，整件事都在里面**（D14），四步同一个壳。窗口本身是受控的 `ExportDialog`（`open`／`onOpenChange`／`finalFocus`，每次打开重新挂一趟：范围与文件名属于这一趟），所以仪表盘记录面板「⋯」里的「导出数据…」打开的是同一个窗口（[dashboard.md](dashboard.md) 面板菜单）。交给它的东西由 `useExportOffer`（`ui/record/exportOffer.ts`）一次给齐——运行、条件、文件名、列与上限（`exportPlan`）；调用方只传 `runtime, table, filter, title`，界面语言、时区与措辞由它在视图表面里自己取，所以它挂在表面之内（工作台里是工具栏那一格，`RecordParts` 的 `RecordToolbar`）。分析视图用同一扇窗、不给范围，窗里按组说文件里有什么（`ExportOffer.holds`，见 [analysis.md](analysis.md#导出数据表格读法下的行d25-q28)）。
 
 **按钮只在有结果可导时存在**，判据是 `table.hasResult` 而不是 `status`：首查失败时结果块还在但只会导出空文件；刷新失败留住的行仍可导。缺席而不是置灰；宿主用 `features.export` 关掉时同理（test/resultToolbar.test.tsx「ResultToolbar export」；浏览器故事 `QueryFailed` 与 `WithData`）。
 

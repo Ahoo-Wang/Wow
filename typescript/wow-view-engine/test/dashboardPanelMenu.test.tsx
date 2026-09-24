@@ -37,6 +37,7 @@ import {
   type DashboardViewConfig,
   type ViewInstance,
   type ViewScope,
+  type ViewSource,
 } from '../src/index.js';
 import { DashboardWorkbench } from '../src/ui/index.js';
 import {
@@ -76,6 +77,7 @@ interface Setup {
   createShared?: boolean;
   features?: { export?: boolean };
   store?: (store: MemoryViewStore) => void;
+  source?: ViewSource;
 }
 
 function open({
@@ -85,6 +87,7 @@ function open({
   createShared = true,
   features,
   store: adjust,
+  source = testSource(),
 }: Setup = {}) {
   const store = tracked(
     new MemoryViewStore({
@@ -114,7 +117,7 @@ function open({
   const engine = new ViewEngine({
     definitions: [ordersDefinition(), overviewDefinition()],
     store,
-    resolveSource: () => testSource(),
+    resolveSource: () => source,
   });
   render(
     <DashboardWorkbench
@@ -223,32 +226,69 @@ describe('导出数据… on a record panel (D22 运维)', () => {
     await waitFor(() => expect(document.activeElement).toBe(trigger));
   });
 
-  it('is on no analysis panel, and on no panel where the host turned exports off', async () => {
-    const { user } = open({
-      panels: [
-        panel({ title: 'Pending' }),
-        panel({
-          id: 'chart',
-          title: 'Chart',
-          instanceId: 'by-warehouse',
-          layout: { x: 6, y: 0, w: 6, h: 4 },
-        }),
-      ],
-    });
-    await waitFor(() =>
-      expect(screen.getAllByRole('table').length).toBeGreaterThan(0),
-    );
-    expect(await items(user, 'Chart')).toEqual(['Refresh this panel']);
-    await user.keyboard('{Escape}');
-    expect(await items(user, 'Pending')).toEqual([
-      'Refresh this panel',
-      'Export data…',
-    ]);
-    cleanup();
-
+  it('is on no panel where the host turned exports off', async () => {
     const off = open({ features: { export: false } });
     await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
     expect(await items(off.user, 'Pending')).toEqual(['Refresh this panel']);
+  });
+});
+
+describe('导出数据… on an analysis panel (D25 Q28)', () => {
+  const chart = (drawn: 'table' | 'chart' = 'chart') =>
+    panel({
+      id: 'chart',
+      title: 'Chart',
+      instanceId: 'by-warehouse',
+      layout: { x: 6, y: 0, w: 6, h: 4 },
+      // Drawn as a chart: the file is the table's reading all the same.
+      ...(drawn === 'chart' ? { presentation: { layout: 'chart' } } : {}),
+    } as Partial<DashboardPanel>);
+
+  it('takes the groups as the table reads them, whichever the panel draws', async () => {
+    const createObjectURL = stubObjectUrls();
+    const { user } = open({ panels: [panel({ title: 'Pending' }), chart()] });
+    await waitFor(() =>
+      expect(screen.getAllByRole('table').length).toBeGreaterThan(0),
+    );
+
+    expect(await items(user, 'Chart')).toEqual([
+      'Refresh this panel',
+      'Export data…',
+    ]);
+    const trigger = await menuButton('Chart');
+    await user.click(screen.getByRole('menuitem', { name: 'Export data…' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Export' });
+    expect(within(dialog).queryByRole('radio')).toBeNull();
+    expect(dialog.textContent).toMatch(/1 group(?!s)/);
+    expect(dialog.textContent).toContain('2 columns: Warehouse, Record count');
+    expect(dialog.textContent).toMatch(/File: Chart-\d{4}-\d{2}-\d{2}\.csv/);
+
+    await user.click(within(dialog).getByRole('button', { name: 'Export' }));
+    await waitFor(() => expect(createObjectURL).toHaveBeenCalledTimes(1));
+    expect(await createObjectURL.mock.calls[0][0].text()).toBe(
+      'Warehouse,Record count\r\nCN,2\r\n',
+    );
+    expect(dialog.textContent).toMatch(/Exported: 1 group(?!s)/);
+
+    await user.click(
+      dialog.querySelector<HTMLElement>('[data-slot="export-close"]')!,
+    );
+    // Back on the panel's 「⋯」: the item went with the menu.
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+  });
+
+  it('is not offered over a panel with no group on screen', async () => {
+    const { user } = open({
+      panels: [chart('table')],
+      source: testSource({ aggregate: vi.fn(() => Promise.resolve([])) }),
+    });
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-slot="analysis-empty"]'),
+      ).not.toBeNull(),
+    );
+    expect(await items(user, 'Chart')).toEqual(['Refresh this panel']);
   });
 });
 

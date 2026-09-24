@@ -124,7 +124,6 @@ function EmbeddedData({
   props: EmbeddedViewProps;
 }) {
   const {
-    engine,
     instanceId,
     interaction = 'read-only',
     withTitle = false,
@@ -198,7 +197,6 @@ function EmbeddedData({
   const notices = <WarningStrip issues={warnings} />;
   return isRecordRuntime(data) ? (
     <EmbeddedRecord
-      engine={engine}
       runtime={data}
       interactive={interactive}
       withSearch={withSearch}

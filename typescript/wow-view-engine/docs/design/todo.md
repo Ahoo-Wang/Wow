@@ -15,13 +15,7 @@
   - 落点：[迁移方案](../../../../docs/superpowers/specs/2026-09-23-wow-packages-migration-design.md)，根目录 `AGENTS.md` 的「Migration Checkpoint」一节。
 
 - **R3 的界面重构——到 Wow 仓做**（[D28](decisions.md#d28-r3-的界面重构到-wow-做迁移前提放宽2026-09-24)）：阶段 3＋4 联合审查里不改行为的界面重构，迁移后在 Wow 做。
-  - Q-13：`useExportOffer` 自己取 `messages`／`display` 并交回 `columns`／`max`，`PanelExport`、`EmbeddedRecord`、`RecordParts` 只传 `runtime, table, filter, title`。
   - 判据：行为不变的重构由现有测试守住；`max-lines` 豁免表仍为空。落点：`src/ui/`。
-
-- **分析面板与分析工作台的「导出数据…」**（[D25](decisions.md#d25-阶段-3-收尾的四条细化2026-09-24) Q28）——**到 Wow 仓做（阶段 5 起）**：检查点之后这里不开新工作。
-  - 为什么：记录面板能导出、分析面板不能；只在面板上给又会让面板做到分析视图本身做不到的事，所以两处一起加（与 Metabase 每张卡片都能下载结果一致）。
-  - 判据：分析工作台的结果工具栏与分析面板的「⋯」都有「导出数据…」；文件是表格读法下的行（分组列在前、指标在后，列标题与格子读法同表格，「前 N 组」之内，合计行显示时作为最后一行，不含图上补出或并出的东西），与此刻画的是表还是图无关；窗口复用 D14 的壳、没有「所有／选中」；有测试与故事。
-  - 落点：`src/ui/ExportDialog.tsx`、`src/ui/workbench/AnalysisParts.tsx`、`src/ui/dashboard/PanelExport.tsx`、[ui/analysis.md](ui/analysis.md)、[ui/dashboard.md](ui/dashboard.md) 面板菜单。
 
 - **D22 标了「以后」的几项**——线索，到 Wow 仓排阶段时再定：联动筛选、卡片内筛选（「全局筛选」）；按列的点击行为（「点击」）；整板 PDF（「运维」）；订阅、版本历史、验证、缓存要服务端，归阶段 6。
   - 为什么：迁走之后它们只剩 decisions 里的半句话，排下一个阶段时看不到（审查 X-11）。

@@ -63,6 +63,10 @@ import {
 } from '../workbench/AnalysisParts.js';
 import { ShellResult } from '../workbench/ResultBlock.js';
 import type { FinalFocus } from './commands.js';
+import type { WorkbenchFeatures } from '../features.js';
+
+/** The dialog's analysis offers no export of its own (D25 Q28). */
+const NO_EXPORT: WorkbenchFeatures = { export: false };
 
 /** What 「放进仪表盘」 hands the board: the analysis it owns, and its title. */
 export interface NewAnalysis {
@@ -321,6 +325,9 @@ function NewAnalysisForm({
             runtime={runtime}
             optionsFor={optionsFor}
             followUps={false}
+            // Nothing to take away yet: the draft becomes a panel, and a
+            // panel's 「⋯」 exports what it shows (D25 Q28).
+            features={NO_EXPORT}
             visualizationBack={messages.label(
               'label.panel.new-analysis.close-visualization',
             )}

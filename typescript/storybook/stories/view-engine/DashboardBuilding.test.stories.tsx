@@ -920,9 +920,11 @@ export const TabsBuilt: Story = {
  * 「导出数据…」 from a record panel's 「⋯」, by keyboard alone (D22 运维): the
  * workbench's own export window over the panel's rows — named after the
  * panel, every row, no 「选中」 — and, as it closes, the keyboard back on
- * the 「⋯」 it was asked from. An analysis panel has no such item. Nothing
- * is exported: the file itself is asserted in jsdom
- * (test/dashboardPanelMenu.test.tsx).
+ * the 「⋯」 it was asked from. An analysis panel's 「⋯」 holds the same item
+ * over its groups (D25 Q28): the same window, no scope, what the file holds
+ * said in groups. Nothing is exported: the file itself is asserted in jsdom
+ * (test/dashboardPanelMenu.test.tsx) and in the analysis workbench's
+ * `ExportReadsTheTable`.
  */
 export const PanelExportWindow: Story = {
   ...DisplayPersonalViewOnSharedBoard,
@@ -968,12 +970,21 @@ export const PanelExportWindow: Story = {
         name: label('label.panel.menu', { title: '按仓库汇总' }),
       }),
     );
-    await expect(
-      within(await screen.findByRole('menu')).queryByRole('menuitem', {
+    await userEvent.click(
+      within(await screen.findByRole('menu')).getByRole('menuitem', {
         name: zhCN['label.panel.export'],
       }),
-    ).toBeNull();
+    );
+    const groups = await screen.findByRole('dialog', {
+      name: zhCN['label.export.title'],
+    });
+    await expect(within(groups).queryByRole('radio')).toBeNull();
+    await expect(groups.textContent).toMatch(/\d+ 组/);
+    await expect(groups.textContent).toMatch(
+      /文件：按仓库汇总-\d{4}-\d{2}-\d{2}\.csv/,
+    );
     await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   },
 };
 

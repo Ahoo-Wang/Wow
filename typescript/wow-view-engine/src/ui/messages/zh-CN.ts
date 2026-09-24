@@ -127,6 +127,12 @@ export const zhCN: ViewMessages = {
   'label.export.done-capped': '文件只含前 {max} 条（共 {total} 条匹配）。',
   'label.export.done-capped-unknown': '文件只含前 {max} 条，匹配的还有更多。',
   'label.export.retry': '重试',
+  'label.export.groups': '{count} 组',
+  'label.export.groups-one': '1 组',
+  'label.export.groups-first': '前 {count} 组（后面还有组，不在文件里）',
+  'label.export.whole': '1 行：范围内的全部记录',
+  'label.export.and-totals': '{rows}，末行是合计',
+  'label.export.done-analysis': '已导出：{rows}',
   'export.failed': '导出失败：{reason}',
 
   // 自动刷新：刷新按钮 ▾ 里的间隔菜单，以及开启时按钮上的那处凭据。

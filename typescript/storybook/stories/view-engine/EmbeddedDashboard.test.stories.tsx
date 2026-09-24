@@ -185,7 +185,8 @@ export const CustomerDetail: Story = {
  * 「⋯」 offers 「导出数据…」, whose window is the workbench's — under the
  * customer the page locks and the time the reader picked, named after the
  * panel — and the keyboard is back on the 「⋯」 as it closes. The chart
- * panel has no export. Nothing is exported (test/embeddedDashboard.test.tsx
+ * panel offers the same item over its groups (D25 Q28), the same window
+ * under the same customer. Nothing is exported (test/embeddedDashboard.test.tsx
  * and test/dashboardPanelMenu.test.tsx hold the file).
  */
 export const CustomerOrdersExport: Story = {
@@ -216,12 +217,22 @@ export const CustomerOrdersExport: Story = {
         name: label('label.panel.menu', { title: '按仓库金额' }),
       }),
     );
-    await expect(
-      within(await screen.findByRole('menu')).queryByRole('menuitem', {
+    await userEvent.click(
+      within(await screen.findByRole('menu')).getByRole('menuitem', {
         name: zhCN['label.panel.export'],
       }),
-    ).toBeNull();
+    );
+    const groups = await screen.findByRole('dialog', {
+      name: zhCN['label.export.title'],
+    });
+    await expect(within(groups).queryByRole('radio')).toBeNull();
+    await expect(groups.textContent).toContain('晨光食品');
+    await expect(groups.textContent).toMatch(/\d+ 组/);
+    await expect(groups.textContent).toMatch(
+      /文件：按仓库金额-\d{4}-\d{2}-\d{2}\.csv/,
+    );
     await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   },
 };
 

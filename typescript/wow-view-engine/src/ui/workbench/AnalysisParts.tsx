@@ -314,6 +314,10 @@ export function AnalysisParts({
         columns={result.columns}
         visualizing={level !== null}
         visualizeRef={focus.visualizeRef}
+        // The groups on screen as a file (D25 Q28), named after the view.
+        {...(shown.export
+          ? { exporting: { runtime, title: state?.title ?? '' } }
+          : {})}
         {...(shown.visualization
           ? {
               onVisualize: (open: boolean) => setPanel(open ? 'picker' : null),

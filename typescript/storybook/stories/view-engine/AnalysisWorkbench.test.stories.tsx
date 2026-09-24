@@ -25,6 +25,7 @@ import displayMeta, {
   DailyQuietDays as DisplayDailyQuietDays,
   DailyTrendCard as DisplayDailyTrendCard,
   EmptyResult as DisplayEmptyResult,
+  ExportData as DisplayExportData,
   Expandable as DisplayExpandable,
   FailingAggregates as DisplayFailingAggregates,
   FailingProcessors as DisplayFailingProcessors,
@@ -1512,6 +1513,95 @@ export const CutShortTable: Story = {
     await expect(
       canvasElement.querySelector('[data-slot="analysis-cut-short"]'),
     ).toBeNull();
+  },
+};
+
+/** One CSV record's fields, quotes undone (RFC 4180, no newline inside). */
+function csvFields(line: string): string[] {
+  const fields: string[] = [];
+  let field = '';
+  let quoted = false;
+  for (let at = 0; at < line.length; at += 1) {
+    const char = line[at];
+    if (quoted && char === '"' && line[at + 1] === '"') {
+      field += '"';
+      at += 1;
+    } else if (char === '"') quoted = !quoted;
+    else if (char === ',' && !quoted) {
+      fields.push(field);
+      field = '';
+    } else field += char;
+  }
+  return [...fields, field];
+}
+
+/**
+ * 「导出」 over a pie (D25 Q28): the window says what the file holds and
+ * offers no scope; the file, caught on its way to the browser, is the table's
+ * reading of the same result — checked against the table itself once the
+ * layout is switched to it: groups first, the headers and cells as the table
+ * prints them, the first two groups only, 「合计」 last.
+ */
+export const ExportReadsTheTable: Story = {
+  ...DisplayExportData,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() => expect(slices(canvasElement)).toHaveLength(2));
+    const blobs: Blob[] = [];
+    const create = URL.createObjectURL.bind(URL);
+    URL.createObjectURL = (blob: Blob | MediaSource) => {
+      if (blob instanceof Blob) blobs.push(blob);
+      // A URL that goes nowhere: the file is read here, not downloaded.
+      return create(new Blob([]));
+    };
+    try {
+      await userEvent.click(
+        canvas.getByRole('button', { name: zhCN['label.export.title'] }),
+      );
+      const dialog = await screen.findByRole('dialog', {
+        name: zhCN['label.export.title'],
+      });
+      await expect(within(dialog).queryByRole('radio')).toBeNull();
+      const holds = formatMessage(zhCN, 'label.export.and-totals', {
+        rows: formatMessage(zhCN, 'label.export.groups-first', { count: 2 }),
+      });
+      await expect(dialog).toHaveTextContent(holds);
+      await userEvent.click(
+        within(dialog).getByRole('button', {
+          name: zhCN['label.export.confirm'],
+        }),
+      );
+      await waitFor(() => expect(blobs).toHaveLength(1));
+      await expect(dialog).toHaveTextContent(
+        formatMessage(zhCN, 'label.export.done-analysis', { rows: holds }),
+      );
+      await userEvent.keyboard('{Escape}');
+    } finally {
+      URL.createObjectURL = create;
+    }
+    const [header = [], ...rows] = (await blobs[0]!.text())
+      .replace(/^\uFEFF/, '')
+      .split('\r\n')
+      .filter(line => line !== '')
+      .map(csvFields);
+
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.layout.table'] }),
+    );
+    const table = await canvas.findByRole('table');
+    const headers = readHeaders(table);
+    await expect(header).toEqual([
+      '仓库',
+      ...headers.filter(name => name !== '仓库'),
+    ]);
+    const totals = rows.at(-1) ?? [];
+    await expect(totals[0]).toBe(zhCN['label.summary.total']);
+    for (const [index, name] of header.entries()) {
+      await expect(rows.slice(0, -1).map(row => row[index])).toEqual(
+        readColumn(table, name),
+      );
+      if (index > 0) await expect(totals[index]).toBe(readTotal(table, name));
+    }
   },
 };
 

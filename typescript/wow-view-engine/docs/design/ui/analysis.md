@@ -76,9 +76,20 @@ D20 屏 G。订单里有明细项，明细项里有批次——「按货号看�
 
 ## 结果第一行：读法与看法
 
-- **结果的第一行是 `AnalysisToolbar`**（`data-slot="result-toolbar"`，D12 Ⅳ）。左边一句「按仓库 · 记录数、金额的总和」（`label.analysis.reading`，无维度时 `label.analysis.reading-flat`，`data-slot="analysis-reading"`）——下面这些数是什么，按**产生这个结果的那份配置**（`view.schema ?? view.columns`）读出来，不是按正在编辑的草稿；右边是怎么看它：表格｜图表与「可视化」。**合计行开关不在这一行**（2026-09-23 用户走查）：它从前是只有表格布局才画的复选框，一切到图表整排按钮就挪位；合计行是表格的设置，与表格的其他设置同在「可视化」面板的表格选项里（`TableDisplay`）；
+- **结果的第一行是 `AnalysisToolbar`**（`data-slot="result-toolbar"`，D12 Ⅳ）。左边一句「按仓库 · 记录数、金额的总和」（`label.analysis.reading`，无维度时 `label.analysis.reading-flat`，`data-slot="analysis-reading"`）——下面这些数是什么，按**产生这个结果的那份配置**（`view.schema ?? view.columns`）读出来，不是按正在编辑的草稿；右边是怎么看它：表格｜图表、「可视化」，最右端是「导出」（下一节）。**合计行开关不在这一行**（2026-09-23 用户走查）：它从前是只有表格布局才画的复选框，一切到图表整排按钮就挪位；合计行是表格的设置，与表格的其他设置同在「可视化」面板的表格选项里（`TableDisplay`）；
 - **读法把「只保留」也说出来**（2026-09-23 审查 P0-2）：「按仓库 · 记录数、金额的总和 · 只保留 金额的总和 大于 ¥2,000.00」（`label.analysis.reading-kept`；英文 "By Warehouse · Record count, Sum of Amount · Keep only Sum of Amount more than ¥2,000.00"）。存下来的视图打开时托盘是收着的，从前屏幕上没有一个字说 having：表上两个仓库、合计行却数着全部记录，读的人只能把华东与西南当成没有数据。Metabase 把聚合之后的筛选作为 pill 放在问题标题里，是同一个理由。每一条都**按托盘那一行的说法**说：指标用它的列头（`columnTitle`，`metricReference` 组出来的也是这一句），比较用托盘自己的词（`label.having.op.*`，「大于」「不小于」），几条之间用托盘的「并且」（`label.analysis.having-and`），一条是 `label.analysis.reading-kept-row`；数值按那一列印数的格式（`numberFormat` + 界面语言），于是「大于 ¥2,000.00」与它说的那些格子是同一种写法。行说不出的形状（区间、集合、OR——`havingRows` 返回 `null`）照样说它在，但不假装知道留下了哪些：「只保留符合自定义规则的组」（`label.analysis.reading-kept-custom`）。它读的是**跑过的那份配置**的 having（`AnalysisEditorController.ranHaving`，取自结果的 config），不是草稿——托盘里改了数但还没跑，这一行还说上一次的。这一行**换行而不截断**：having 排在最后，截掉尾巴恰好截掉解释表上少了几组的那一句。合计行下面那句「范围内全部记录」不跟着改：它说的是合计本身的范围，本来就对；两个数为什么对不上，由这一行说；
 - **表格｜图表是重绘，不是重跑**（D20，`ANALYSIS_PRESENTATION_MEMBERS`）：结果的行来自跑过的那份配置，怎么看它来自草稿，所以换布局只是把同一批行画成表或画成图，不发查询、不算待应用；「可视化」在这一行打开左侧栏的图型网格（下一节），托盘里没有它。合计行是一次自己的查询，所以在面板里按下即 `setTotals` + `submit`。（见 test/analysisTray.test.tsx「the analysis result toolbar」「keeps the totals switch off the toolbar in either layout」「reads the result out as dimensions and metrics」「keeps the way into the visualization beside the layout switch, not in the tray」、test/analysisUi.test.tsx「redraws the layout from the rows on hand, without a run」与 test/havingRows.test.tsx「the result's reading says which groups were kept」；浏览器里托盘收着也看得见的是 stories/view-engine 的 `KeepOnlySaved` 与 `KeepOnly`）
+
+## 导出数据：表格读法下的行（D25 Q28）
+
+分析工作台的结果工具栏与分析面板的「⋯」都有「导出数据…」，打开的是记录视图那一扇导出窗口（D14，`ExportDialog`），只是**没有「所有／选中」**：组都在手上，没有范围可选、没有要等的页，窗里只说文件里有什么。「导出」直接到结果。
+
+- **入口**：工具栏右端、「可视化」之后那颗带边的下载图标（`ExportButton`，可及名字 `label.export.title`），与记录视图同一颗按钮——导出是一个看法，与表格｜图表并排；面板上是「⋯」里「看」那一组的「导出数据…」（[dashboard.md](dashboard.md) 面板菜单）。宿主关掉 `features.export` 就没有（D4），与记录视图同一个开关；仪表盘里「新建分析」对话框里的分析不给（`NO_EXPORT`：那份草稿要放进板子，放进去以后从面板导出）。**有组才有**：第一次答案回来之前、失败之后、没有组时都没有这颗按钮（P-17 的规矩：空结果导出的是一个空文件）。
+- **文件是表格读法下的行**（`ui/analysis/exportOffer.ts` 的 `analysisFile`）：分组列在前、指标在后，各自保持表上的顺序（表上指标被拖到了维度前面，文件里仍是维度在前）；列标题是表头那一句（`columnTitle`），格子是表格那一格的读法（`analysisCellText`，表格自己也经它读——枚举用标签、时间桶按界面语言与时区、数值带分组与它的格式：金额带货币、计数带千分位，与记录视图导出里「未声明格式的数字写原数」不同，因为分析的每个指标都有内核定下的格式 `metricFormat`，屏幕上读到的就是那个数）；只有「前 N 组」——为了知道还有没有更多而多要的那一行（探针）不在里面；合计行显示时作为**最后一行**，第一格写「合计」（`label.summary.total`）；图上补出的 0、饼图并出的「其他」都不在里面——它们是画出来的，不是量出来的（D23 Q14）。所以**文件与此刻画的是表还是图无关**：读的是 `AnalysisView`，从不读图的投影。
+- **窗里说的**（`ExportOffer.holds`）：第一行是文件里有多少行，按组说——「12 组」「1 组」，截断时「前 50 组（后面还有组，不在文件里）」，没有维度时「1 行：范围内的全部记录」，合计行显示时再接「，末行是合计」（`label.export.groups`／`groups-one`／`groups-first`／`whole`／`and-totals`）；然后与记录导出同样的条件、列与文件名三行（条件是结果回来时所依的：视图自己的、宿主的范围、面板上板子的筛选落到这个视图上的那一份）。文件名 `<视图名>-<yyyy-MM-dd>.csv`，面板上按面板的名字，窗口打开时定下。导出后「已导出：{同一句}」（`label.export.done-analysis`）；交给浏览器失败时是 `export.failed` 那句话加「重试」。
+- **为什么不单独在面板上给**：只在面板上给，面板就做到了视图本身做不到的事（「一个概念一种样子」），所以两处一起加，与 Metabase 每张卡片都能下载结果一致。
+
+（见 test/analysisExport.test.tsx「is the table’s reading: groups first, the first N, the totals last」「hands over the same file whether the table or the chart is showing」「is not there over no group, nor where the host turned exports off」、test/dashboardPanelMenu.test.tsx「takes the groups as the table reads them, whichever the panel draws」；浏览器里 stories/view-engine 的 `ExportReadsTheTable`（饼图上导出、切到表格逐格对照文件）与 `PanelExportWindow`）
 
 ## AnalysisChart 与 shapeChart
 

@@ -21,7 +21,7 @@
  * the store's `ViewPermissions`, which stays a separate question.
  */
 export interface WorkbenchFeatures {
-  /** The export button and window (D14). Record views only. */
+  /** The export button and window (D14), over records or groups (D25 Q28). */
   export?: boolean;
   /** The table/cards switch. Record views only. */
   layouts?: boolean;
