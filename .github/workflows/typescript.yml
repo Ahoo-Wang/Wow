@@ -125,6 +125,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Build VitePress site
         run: pnpm --filter documentation docs:build
+      - name: Test built site
+        run: node --test documentation/test/*.test.mjs
 
   typescript-gate:
     name: typescript-gate
