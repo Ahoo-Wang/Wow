@@ -46,6 +46,8 @@ import {
 import {
   analysisConfig,
   dashboardConfig,
+  deferred,
+  nextTask,
   ordersDefinition,
   overviewDefinition,
   testSource,
@@ -419,6 +421,43 @@ describe('adding to a board (D22 A, B)', () => {
     await waitFor(() =>
       expect(document.activeElement).toBe(slot('dashboard-add')),
     );
+  });
+
+  /**
+   * Q-02: a view picked is loaded before it is placed, so it starts at the
+   * size of what it shows. 「取消」 pressed while it still loads ends the
+   * building, and the view must not land, once it arrives, on the board
+   * read after it — dirty again, with nobody building it.
+   */
+  it('adds nothing once 取消 ended the building while the view picked still loaded', async () => {
+    const { engine, store, user } = open();
+    const loading = deferred<void>();
+    const get = store.get.bind(store);
+    vi.spyOn(store, 'get').mockImplementation(async id => {
+      if (id === 'by-warehouse') await loading.promise;
+      return get(id);
+    });
+    await enter(user);
+    await add(user, 'Saved view…');
+    const picker = await screen.findByRole('dialog');
+    await user.click(
+      await within(picker).findByRole('button', { name: /By warehouse/ }),
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+    // Nothing was added yet, so 取消 leaves at once.
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(slot('dashboard-edit-bar')).toBeNull());
+    await act(async () => {
+      loading.resolve();
+      await nextTask();
+    });
+
+    expect(titles()).toEqual(['Pending']);
+    const board = boardOf(engine).getSnapshot();
+    expect(board.draft.panels.map(entry => entry.id)).toEqual(['orders']);
+    expect(board.dirty).toBe(false);
+    expect(screen.queryByText('Added “By warehouse”')).toBeNull();
   });
 
   it('adds a heading and names it in place', async () => {

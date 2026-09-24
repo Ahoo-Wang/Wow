@@ -19,6 +19,13 @@
  * `click` says which; the kernel reads it (`dashboard/click.ts`), and this
  * is the half that needs the analysis kernel — a group's conditions
  * (`drillGroups`) — which the dashboard kernel may not import.
+ *
+ * Which click is in force is the panel state's to say, never a press's
+ * (A-11): admission sets a click aside when it warned of it, or when the
+ * host holds the filter it sets, and the state carries the click with the
+ * finding (`DashboardPanelState.click`, `clickFinding`). A press reads
+ * that and falls back to the follow-up menu with the finding, as the
+ * panel's warning says (D22 H).
  */
 
 import { dequal } from 'dequal';
@@ -49,7 +56,6 @@ import {
 import { drillGroups, type DrilledGroup } from '../../analysis/index.js';
 import {
   bindingsOf,
-  clickOf,
   defaultFilters,
   fillUrl,
   filterValueIssues,
@@ -57,11 +63,11 @@ import {
   isViewPanel,
   panelsOf,
   takesGroup,
-  validateBoardClick,
   type BoardClick,
   type PanelReference,
 } from '../../dashboard/index.js';
 import type { DataViewRuntime } from '../viewRuntime.js';
+import type { DashboardPanelState } from './panels.js';
 import type { HandOver, ViewNavigation } from '../navigation.js';
 
 /** What a press that sets a filter did (D22 I). */
@@ -83,9 +89,9 @@ export type PressDestination =
   | { to: ViewNavigation }
   | { refused: Issue }
   /**
-   * The click cannot do what it says — a board it opens is gone, or a
-   * filter or a dimension it maps is (D23 Q17): the follow-up menu opens on
-   * the group instead, as it does for a click admission warned of, and
+   * The click cannot do what it says — admission warned of it, or, read at
+   * the press, a board it opens is gone, or a filter or a dimension it maps
+   * is (D23 Q17): the follow-up menu opens on the group instead, and
    * `issue` says why. The board read by the press re-judges the panel, so
    * the warning stays on it and the next press opens the menu directly.
    */
@@ -103,8 +109,11 @@ export interface PressHost {
   child(panelId: string): DataViewRuntime | null;
   /** Sets a filter by a press (`FilterValues.press`). */
   press(name: string, value: FilterValue | null, panelId: string): Issue[];
-  /** Whether the host holds a filter, which no press then sets. */
-  holds(name: string): boolean;
+  /**
+   * A panel as the board has it now: the click in force and why a click set
+   * is not (`DashboardPanelState`); `null` for no such panel.
+   */
+  panel(panelId: string): DashboardPanelState | null;
   /** A saved view, loaded: what a destination carries its group into. */
   reference(instanceId: string): Promise<PanelReference | null>;
   /** What the panel's view would take off the board (`handOver`). */
@@ -179,9 +188,13 @@ export class PanelPresses {
     panelId: string,
     row: RecordData,
   ): Promise<PressDestination | null> {
+    const state = this.host.panel(panelId);
+    const click = state?.click ?? null;
+    if (!click)
+      return state?.clickFinding ? { fallback: state.clickFinding } : null;
+    if (click.kind === 'filter') return null;
     const pressed = this.pressedOn(panelId, row);
-    const click = pressed && clickOf(pressed.panel);
-    if (!pressed || !click || click.kind === 'filter') return null;
+    if (!pressed) return null;
     const at = ['panels', pressed.index, 'click'];
     if (click.kind === 'url') {
       const url = fillUrl(click.url, groupTexts(pressed.groups));
@@ -223,8 +236,8 @@ export class PanelPresses {
   /**
    * Another board a click opens, read for 「点击时…」 or a press — never
    * when this board opens — through the references the panels load, so
-   * the read re-judges the click (`validateBoardClick`); `null` for one
-   * gone, unreadable or not a board.
+   * the read re-judges the click (a reference settling admits the board
+   * again); `null` for one gone, unreadable or not a board.
    */
   async board(instanceId: string): Promise<DestinationBoard | null> {
     const reference = await this.host.reference(instanceId);
@@ -235,9 +248,10 @@ export class PanelPresses {
   }
 
   /**
-   * A press that opens another board (D23 Q17): the board read, the
-   * mapping judged against it, the panel and this board's filters, then
-   * each filter mapped set from its source — the group's value on a
+   * A press that opens another board (D23 Q17): the board read — which
+   * re-judges the panel's click against it, so the state says whether the
+   * mapping still holds and, if not, why — then each filter mapped set
+   * from its source — the group's value on a
    * dimension, in the filter's shape, or what this board's filter holds at
    * the press (its default until a reader set another) — and the rest at
    * the target's defaults, as a board opened without a value for them would
@@ -251,19 +265,13 @@ export class PanelPresses {
     at: IssuePath,
   ): Promise<PressDestination> {
     const reference = await this.host.reference(click.instanceId);
-    const found = validateBoardClick(
-      click,
-      at,
-      pressed.groups.map(drilled => drilled.group),
-      {
-        fields: this.host.child(pressed.panel.id)?.fields ?? null,
-        own: filtersOf(this.host.applied()),
-        target: reference,
-      },
-    );
+    const state = this.host.panel(pressed.panel.id);
     const config = reference?.instance.config;
-    if (found.length > 0 || !reference || config?.kind !== 'dashboard')
-      return { fallback: found[0] ?? issue('dashboard.click.board-gone', at) };
+    if (!state?.click || !reference || config?.kind !== 'dashboard')
+      return {
+        fallback:
+          state?.clickFinding ?? issue('dashboard.click.board-gone', at),
+      };
     const filters = defaultFilters(config);
     const byName = new Map(filtersOf(config).map(field => [field.name, field]));
     const held = this.host.filters().values;
@@ -309,9 +317,8 @@ export class PanelPresses {
     panelId: string,
   ): { filter: DashboardField; field: string } | null {
     const panel = this.panelOf(panelId)?.panel;
-    const click = panel && clickOf(panel);
-    if (!panel || click?.kind !== 'filter' || this.host.holds(click.filter))
-      return null;
+    const click = this.host.panel(panelId)?.click;
+    if (!panel || click?.kind !== 'filter') return null;
     const filter = filtersOf(this.host.applied()).find(
       field => field.name === click.filter,
     );

@@ -33,12 +33,6 @@ ECharts 迁移（D21）与两份「数据分析师视角」审查的 P0 已全�
 
 四路只读审查（架构 A-、代码质量 Q-、UI 与可达性 U-、UX 与文档 X-）加主会话的视觉走查（V-）共 69 条，原报告在主会话 scratchpad `review-p34/`（不在仓库里，要点记在这里）。要拍板的 11 条已定为 [D26](decisions.md#d26-阶段-34-联合审查的十一条拍板2026-09-24)（Q30～Q40，2026-09-24 按推荐），Q31、Q35、Q39 已做完（R1b），R6、R7 已做完；R2～R5 不需要产品判断。批次按文件分开、可并行。每批：先在最新 main 上复现，修掉并补测试，文档按现状改，本地门禁全绿即合并，最后一批等完整 CI。
 
-- **R3b 界面的几处修复**（R3 的界面一半只留用户看得到的；不改行为的重构按 [D28](decisions.md#d28-r3-的界面重构到-wow-做迁移前提放宽2026-09-24) 挪到 Wow，见下面检查点一节）：运行时一半已在 R3a（#1892）做完。R7b 合并后做。
-  - Q-01／A-07 接上：`DashboardWorkbench` 的 `carried`／`sameIssue` 与 `EmbeddedDashboard` 自己拆 `state.issues` 的那段都改读 `dashboard.issues`（按 severity 分 error 与 warning）；`namePanel`（栅格上方给面板发现起名）两处共用；可编辑档嵌入补一条测试：草稿里只在 `['panels', 0, …]` 的 warning 要显示。
-  - Q-02 界面：`Board.tsx` 的 preload 续体里再读一次当前的 `dashboard.edit`，补一条界面测试（preload 挂起、先按取消再放行，板上不多面板）；`place` 也纳入非搭建态拒绝——先让 test/dashboardUi.test.tsx 的「places a panel and applies the placement」「placed by keyboard」「writes the geometry back once a drag ends」与 test/dashboardPlacement.test.tsx 的「placing a panel」在摆放前开始搭建，再删掉 `runtime/dashboard/editing.ts` 里 `draftFor` 对 `place` 的例外。
-  - A-11（审查原文是 `PanelPresses` 自己判断点击生不生效、不读面板状态的 `click`）：口径不变——准入报过 warning 的点击按下去回到追问菜单并说为什么（[model.md](model.md) 的「点击」、D22 H）；改的是做法：面板状态同时带点击与它的准入结论，`PanelPresses` 只读状态、不再自己判（2026-09-24 主会话定，技术取舍、不涉产品口径）。test/dashboardPress.test.ts「warns of a filter this board no longer has, and a press falls back to the menu」照旧成立。
-  - 搭板时编辑条一直可见（2026-09-24 R4b 走查发现）：嵌入可编辑档里添加一块面板，卡片内部滚到新面板，编辑条（保存／取消）随之滚出视野，要滚回去才能结束；工作台同理。编辑条在滚动口里吸顶（Metabase 的编辑条也固定在顶上），随共用外壳一起做，故事断言添加后编辑条仍在视野内。
-  - 判据：各条有测试或故事断言；`max-lines` 豁免表仍为空。落点：`src/ui/`。
 - **R5 措辞与文档**：X-06 本页与 [ui/dashboard.md](ui/dashboard.md) 的过期项与顺序行，连同 X-12 留在那一页的一处（「搭板子」「扩展」末句说宿主自拼 `DashboardBoard`——它不从 `/ui` 导出，宿主能拼的是 `DashboardGrid`）。
   - 落点：`docs/design/`（X-06、X-12）。X-03、X-08、X-09 已在 R7b 做完（见 [ui/README.md](ui/README.md) 的「一词一义」）。
 

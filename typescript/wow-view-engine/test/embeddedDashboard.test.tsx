@@ -19,6 +19,7 @@
  */
 
 import {
+  act,
   cleanup,
   render,
   screen,
@@ -27,10 +28,14 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { FilterOperator } from '@ahoo-wang/fetcher-wow';
 import {
+  builtinFieldKinds,
   DashboardViewRuntime,
   MemoryViewStore,
   ViewEngine,
+  withFieldKinds,
+  type FieldKind,
   type DashboardFilters,
   type DashboardPanel,
   type DashboardViewConfig,
@@ -576,9 +581,10 @@ describe('EmbeddedDashboard', () => {
     await userEvent.click(
       await screen.findByRole('button', { name: /^Edit$/ }),
     );
-    expect(
-      await screen.findByRole('region', { name: /Editing/ }),
-    ).toBeDefined();
+    const bar = await screen.findByRole('region', { name: /Editing/ });
+    // It stays in view while the board is built (R3b); the pixels are the
+    // browser story's to measure.
+    expect(bar.hasAttribute('data-sticky')).toBe(true);
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     // The keyboard is handed back to 「编辑」, which is back as the bar goes.
     await waitFor(() =>
@@ -590,6 +596,106 @@ describe('EmbeddedDashboard', () => {
     await waitFor(() =>
       expect(screen.queryByRole('button', { name: /^Edit$/ })).toBeNull(),
     );
+  });
+
+  /**
+   * Q-01: the embed says what the board says above its panels, the one
+   * reading the workbench shares — a panel's finding the draft raised and
+   * no panel wears yet among it, named after its panel, since 「这个面板」
+   * points at nothing up there. It used to leave every finding under
+   * `['panels', n]` to the panels, and this one no panel held.
+   */
+  it('says a draft panel warning no panel wears yet while building, after its panel', async () => {
+    // Warns on the panel's field only, so the finding is the panel's and
+    // nowhere else: the board's own reading of its scope says nothing.
+    const rounded: FieldKind = {
+      id: 'rounded',
+      operators: ['EQ'],
+      defaultOperator: 'EQ',
+      emptyValue: () => null,
+      validate: ({ value, field, path }) =>
+        field.name === 'mass' &&
+        typeof value === 'number' &&
+        !Number.isInteger(value)
+          ? [{ code: 'filter.value.rounded', severity: 'warning', path }]
+          : [],
+      compile: ({ leaf, field }) => ({
+        op: FilterOperator.EQ,
+        field: field.name,
+        value: Math.round(leaf.value as number),
+      }),
+      editor: () => ({ input: 'number' }),
+      describe: ({ leaf, field }) => ({
+        text: `${field.label} = ${String(leaf.value)}`,
+        value: { kind: 'text', value: String(leaf.value) },
+      }),
+    };
+    const orders = ordersDefinition();
+    const engine = new ViewEngine({
+      definitions: [
+        {
+          ...orders,
+          fields: [
+            ...orders.fields,
+            { name: 'mass', label: 'Mass', kind: 'rounded' },
+          ],
+        },
+        overviewDefinition(),
+      ],
+      store: new MemoryViewStore({
+        instances: [
+          ...views,
+          {
+            id: 'board',
+            definitionId: 'overview',
+            title: 'Operations',
+            scope: 'shared',
+            revision: 'r1',
+            config: dashboardConfig({
+              fields: [{ name: 'weight', label: 'Weight', kind: 'rounded' }],
+              panels: [
+                panel('list', 'list', 'Order list', {
+                  bindings: [{ globalField: 'weight', panelField: 'mass' }],
+                }),
+              ],
+            }),
+          },
+        ],
+      }),
+      resolveSource: () => testSource(),
+      kinds: withFieldKinds(builtinFieldKinds, [rounded]),
+    });
+    const { runtime } = embed({ engine, interaction: 'editable' });
+    await userEvent.click(
+      await screen.findByRole('button', { name: /^Edit$/ }),
+    );
+    const notice = () =>
+      document.querySelector('[data-slot="status-strip"][data-tone="warning"]');
+    expect(notice()).toBeNull();
+
+    // The board's fixed scope, changed in the draft and not yet applied:
+    // mapped onto the panel's field it warns, and no panel wears that yet.
+    act(() =>
+      runtime().edit({
+        fixed: {
+          op: 'and',
+          children: [{ field: 'weight', operator: 'EQ', value: 2.5 }],
+        },
+      }),
+    );
+
+    await waitFor(() =>
+      expect(notice()?.textContent).toContain(
+        'Order list: filter.value.rounded',
+      ),
+    );
+    expect(
+      runtime()
+        .getSnapshot()
+        .panels.flatMap(entry => entry.issues),
+    ).toEqual([]);
+    // A warning stops nothing: the board is still there to build on.
+    expect(screen.getByRole('region', { name: /Editing/ })).toBeDefined();
   });
 
   it('reorders the filters on the bar while building, the locked one with them and the hidden one kept held', async () => {

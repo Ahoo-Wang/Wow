@@ -65,6 +65,15 @@ export interface EditBarProps extends AddCommands {
  * 取消 asks before it throws edits away, in the words ↺ uses for the same
  * loss; a board never saved has nothing to go back to, so it has no 取消 —
  * 保存 or leaving the view are the ways out.
+ *
+ * It stays in view while the board is built (R3b), as Metabase's does: an
+ * added panel is scrolled to, and the ways out must not scroll away with the
+ * top of the board. So it sticks to the top of whatever scrolls the board —
+ * the page, or a host's scrolling box — over the panels sliding beneath it,
+ * which is why its fill is the muted wash made opaque (`bg-row-hover`, the
+ * same shade the band has at rest) rather than the wash itself, and why it
+ * carries a rem of the surface above it: the workbench scrolls a padded
+ * box, and a sticky edge stops at the padding, not at the box's edge.
  */
 export function EditBar({
   commands,
@@ -112,9 +121,16 @@ export function EditBar({
   return (
     <ModeBar
       data-slot="dashboard-edit-bar"
+      data-sticky
       role="region"
       aria-labelledby={labelId}
-      className="flex flex-wrap items-center gap-2"
+      className={cn(
+        'bg-row-hover sticky top-0 z-10 mt-1 flex flex-wrap items-center gap-2',
+        // The rem above it is the surface too: stuck under a scroller's
+        // padding, the panels sliding up would show through there; at rest
+        // it is the gap over the bar, which is the surface already.
+        'before:bg-background before:absolute before:-inset-x-px before:bottom-full before:h-4',
+      )}
     >
       <p
         ref={landingRef}

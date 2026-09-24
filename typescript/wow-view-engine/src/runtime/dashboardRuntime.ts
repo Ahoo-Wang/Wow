@@ -67,7 +67,7 @@ import type { HandOver } from './navigation.js';
 export type { PanelResolver } from './dashboard/references.js';
 export type { PanelRuntimeFactory, PanelView } from './dashboard/children.js';
 export type { DashboardPanelState } from './dashboard/panels.js';
-export { boardFindings, stopsSave } from './dashboard/panels.js';
+export { blocksBoard, boardFindings, stopsSave } from './dashboard/panels.js';
 export type {
   DashboardEditing,
   DashboardFilterEditing,
@@ -185,7 +185,8 @@ export class DashboardViewRuntime
       filters: () => this.state.filters,
       child: panelId => this.panelRuntime(panelId),
       press: (name, value, panelId) => this.values.press(name, value, panelId),
-      holds: name => this.values.holds(name),
+      panel: panelId =>
+        this.state.panels.find(entry => entry.id === panelId) ?? null,
       handOver: panelId => this.handOver(panelId),
       reference: async id => {
         await this.references.fetch(id);

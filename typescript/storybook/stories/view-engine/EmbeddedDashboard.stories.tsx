@@ -266,7 +266,13 @@ function TeamPage({
         <h1 className="truncate text-base font-semibold">班组首页</h1>
       </div>
       <Separator />
-      <Card className="min-w-0" style={ON_CARD}>
+      {/* As tall as the board, the page scrolling it: a card that shrank to
+          the page and clipped the rest was a box nobody could scroll but
+          the browser, bringing a new panel into view, and one that stays
+          a scroll container would hold the edit bar that sticks while the
+          board is built (R3b) to a box that never scrolls. `clip` cuts
+          what spills over without being one. */}
+      <Card className="min-w-0 shrink-0 overflow-clip" style={ON_CARD}>
         <CardHeader>
           <CardTitle>本班看板</CardTitle>
           <CardDescription>

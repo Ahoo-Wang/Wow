@@ -314,8 +314,13 @@ describe('cross-filtering (D22 I)', () => {
       ),
     );
     expect(panel('chart').click).toEqual({ kind: 'filter', filter: 'region' });
+    expect(panel('chart').clickFinding).toBeNull();
     expect(panel('odd').click).toBeNull();
     expect(panel('odd').issues.map(found => found.code)).toContain(
+      'dashboard.click.filter-unknown',
+    );
+    // The state carries why, with the click it set aside (A-11).
+    expect(panel('odd').clickFinding?.code).toBe(
       'dashboard.click.filter-unknown',
     );
   });
@@ -335,6 +340,33 @@ describe('a custom destination (D22 I)', () => {
     });
     // A press that sets no destination goes nowhere.
     expect(runtime.crossFilter('chart', { warehouse: 'CN' }).kind).toBe('none');
+  });
+
+  /**
+   * A-11: which click is in force is the panel state's to say. A press used
+   * to read the click off the config and judge it again, so a URL admission
+   * had warned of — a field the panel does not group by — still opened,
+   * with the placeholder left empty, while the panel said it would not.
+   */
+  it('falls back to the menu, saying why, on a click the panel state set aside', async () => {
+    const { runtime, panel } = await harness(
+      board(
+        view('chart', 'by-warehouse', {
+          click: { kind: 'url', url: '/customers/{{customer}}' },
+        }),
+      ),
+    );
+    expect(panel('chart').click).toBeNull();
+
+    const fell = await runtime.destination('chart', { warehouse: 'CN' });
+    expect(fell && 'fallback' in fell && fell.fallback.code).toBe(
+      'dashboard.click.url-unknown-field',
+    );
+    // Nor does a press on a panel with no click set go anywhere.
+    const plain = await harness(board(view('chart', 'by-warehouse')));
+    expect(
+      await plain.runtime.destination('chart', { warehouse: 'CN' }),
+    ).toBeNull();
   });
 
   it('opens another view under the group, on the fields its data has too', async () => {

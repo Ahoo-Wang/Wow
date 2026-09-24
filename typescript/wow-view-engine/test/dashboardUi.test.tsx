@@ -100,6 +100,16 @@ async function openDashboard(
   return { controller: () => view.result.current, runtime };
 }
 
+/**
+ * A board being built: a placement is an edit, taken only while the board
+ * is (R3b), as every other one is.
+ */
+async function openBuilding(...args: Parameters<typeof openDashboard>) {
+  const opened = await openDashboard(...args);
+  act(() => opened.runtime.setBuilding(true));
+  return opened;
+}
+
 describe('useDashboard', () => {
   it('reports the applied panels with their geometry', async () => {
     const { controller } = await openDashboard(
@@ -132,7 +142,7 @@ describe('useDashboard', () => {
   });
 
   it('places a panel and applies the placement', async () => {
-    const { controller, runtime } = await openDashboard(
+    const { controller, runtime } = await openBuilding(
       dashboardConfig({ panels: [panel()] }),
     );
 
@@ -146,7 +156,7 @@ describe('useDashboard', () => {
   });
 
   it('ignores a placement that changes nothing', async () => {
-    const { controller, runtime } = await openDashboard(
+    const { controller, runtime } = await openBuilding(
       dashboardConfig({ panels: [panel()] }),
     );
 
@@ -756,7 +766,7 @@ describe('DashboardGrid', () => {
     }
 
     it('arranges a panel from its one handle: Enter, the arrows, Shift and the arrows, then Enter or Escape (V-02)', async () => {
-      const { controller, runtime } = await openDashboard(
+      const { controller, runtime } = await openBuilding(
         dashboardConfig({ panels: [panel()] }),
       );
       render(<LiveGrid runtime={runtime} />);
@@ -816,7 +826,7 @@ describe('DashboardGrid', () => {
     });
 
     it('resizes a panel with the arrows on its corner', async () => {
-      const { controller, runtime } = await openDashboard(
+      const { controller, runtime } = await openBuilding(
         dashboardConfig({ panels: [panel()] }),
       );
       render(<LiveGrid runtime={runtime} />);
@@ -834,7 +844,7 @@ describe('DashboardGrid', () => {
     });
 
     it('says one column and one row as one, not "1 columns"', async () => {
-      const { runtime } = await openDashboard(
+      const { runtime } = await openBuilding(
         dashboardConfig({
           panels: [panel({ layout: { x: 0, y: 0, w: 2, h: 2 } })],
         }),
@@ -857,7 +867,7 @@ describe('DashboardGrid', () => {
      * the grid item the library appended it to.
      */
     it('names each corner after its own panel', async () => {
-      const { runtime } = await openDashboard(
+      const { runtime } = await openBuilding(
         dashboardConfig({
           panels: [
             panel({ title: 'North' }),
@@ -989,7 +999,7 @@ describe('DashboardGrid', () => {
       vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(
         1280,
       );
-      const { controller, runtime } = await openDashboard(gapped);
+      const { controller, runtime } = await openBuilding(gapped);
       render(<DashboardGrid dashboard={controller()} editable />);
       await settle();
       const grip = document.querySelector(

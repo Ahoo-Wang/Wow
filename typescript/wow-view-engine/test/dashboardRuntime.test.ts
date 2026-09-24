@@ -342,6 +342,7 @@ describe('DashboardViewRuntime unavailable references', () => {
       },
     ]);
 
+    runtime.setBuilding(true);
     runtime.place('orders', { x: 1, y: 0, w: 6, h: 4 });
     await nextTask();
 
@@ -620,6 +621,7 @@ describe('DashboardViewRuntime editing', () => {
     const runtime = await board.open();
     const before = runtime.getSnapshot().panels[0].runtime;
 
+    runtime.setBuilding(true);
     runtime.place('orders', { x: 6, y: 0, w: 6, h: 4 });
     await nextTask();
 
@@ -1209,6 +1211,7 @@ describe('DashboardViewRuntime a panel in error', () => {
     const board = await harness();
     const runtime = await board.open(withMisbound());
 
+    runtime.setBuilding(true);
     runtime.place('orders', { x: 6, y: 0, w: 6, h: 4 });
 
     expect(runtime.getSnapshot().applied.panels[0].layout.x).toBe(6);
@@ -1248,6 +1251,7 @@ describe('DashboardViewRuntime placing', () => {
     const runtime = await board.open();
     const child = runtime.getSnapshot().panels[0].runtime;
 
+    runtime.setBuilding(true);
     runtime.edit({ fixed: EU_FILTER });
     runtime.place('orders', { x: 6, y: 0, w: 6, h: 4 });
     await nextTask();
@@ -1286,6 +1290,7 @@ describe('DashboardViewRuntime placing', () => {
       }),
     );
 
+    runtime.setBuilding(true);
     runtime.place('c', { x: 0, y: 2, w: 6, h: 2 });
     const layouts = Object.fromEntries(
       runtime
@@ -1310,6 +1315,7 @@ describe('DashboardViewRuntime placing', () => {
   it('ignores a placement the grid does not admit, and a panel there is none of', async () => {
     const board = await harness();
     const runtime = await board.open();
+    runtime.setBuilding(true);
     const listener = vi.fn();
     runtime.subscribe(listener);
     const before = runtime.getSnapshot();
@@ -1326,6 +1332,7 @@ describe('DashboardViewRuntime placing', () => {
   it('does nothing once disposed', async () => {
     const board = await harness();
     const runtime = await board.open();
+    runtime.setBuilding(true);
     runtime.dispose();
 
     runtime.place('orders', { x: 6, y: 0, w: 6, h: 4 });

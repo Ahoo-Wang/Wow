@@ -78,6 +78,16 @@ async function openDashboard(
   return { controller: () => view.result.current, runtime };
 }
 
+/**
+ * A board being built: a placement is an edit, taken only while the board
+ * is (R3b), as every other one is.
+ */
+async function openBuilding(...args: Parameters<typeof openDashboard>) {
+  const opened = await openDashboard(...args);
+  act(() => opened.runtime.setBuilding(true));
+  return opened;
+}
+
 function LiveGrid({
   runtime,
   editable = true,
@@ -127,7 +137,7 @@ describe('placing a panel', () => {
    * panel was nudged.
    */
   it('applies the placement and leaves a global filter being edited unapplied', async () => {
-    const { controller, runtime } = await openDashboard(
+    const { controller, runtime } = await openBuilding(
       dashboardConfig({
         fields: [REGION],
         panels: [panel({ bindings: BOUND })],
@@ -151,7 +161,7 @@ describe('placing a panel', () => {
    * step up past the panel above trades their places.
    */
   it('trades places with the panel above on a keyboard step up', async () => {
-    const { runtime } = await openDashboard(column);
+    const { runtime } = await openBuilding(column);
     render(<LiveGrid runtime={runtime} />);
 
     await step(screen.getByLabelText('Move or resize “Below”'), 'ArrowUp');
@@ -168,7 +178,7 @@ describe('placing a panel', () => {
   });
 
   it('pushes a neighbour out of the way of a keyboard resize', async () => {
-    const { runtime } = await openDashboard(column);
+    const { runtime } = await openBuilding(column);
     render(<LiveGrid runtime={runtime} />);
     const corner = document.querySelector(
       '[data-panel-id="top"] [data-slot="panel-resize"]',
@@ -199,7 +209,7 @@ describe('placing a panel', () => {
       },
     );
     vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1280);
-    const { runtime } = await openDashboard(
+    const { runtime } = await openBuilding(
       dashboardConfig({
         panels: [
           panel({ id: 'left', title: 'Left' }),
@@ -253,7 +263,7 @@ describe('placing a panel', () => {
    * dragged beside a broken one snapped straight back.
    */
   it('lands beside a panel in error', async () => {
-    const { runtime } = await openDashboard(
+    const { runtime } = await openBuilding(
       dashboardConfig({
         fields: [REGION],
         panels: [

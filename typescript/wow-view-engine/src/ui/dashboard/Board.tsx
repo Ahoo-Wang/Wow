@@ -117,6 +117,13 @@ export function DashboardBoard({
   const messages = useViewMessages();
   const extensions = useDashboardEditExtensions();
   const edit = dashboard.edit;
+  // The board's commands as they stand now, for a gesture that finishes
+  // later than it started — a view picked and still loading (Q-02): 取消
+  // pressed meanwhile ended the building, and another board may be open.
+  const editNow = useRef(editing ? edit : null);
+  useLayoutEffect(() => {
+    editNow.current = editing ? edit : null;
+  }, [editing, edit]);
   // What each dialog was last opened for, kept while it closes so its
   // words and its way back stay put through the closing.
   const [picker, setPicker] = useState<Opened<PickerIntent> | null>(null);
@@ -335,10 +342,13 @@ export function DashboardBoard({
             }
             // Loaded first, so the panel starts at the size of what it shows
             // — a metric card a quarter, a table the full width — and the
-            // place is asked once it is known how big it is.
+            // place is asked once it is known how big it is — of the board
+            // as it is by then, which may no longer be built.
             void dashboard.preload(view.id).then(() => {
+              const current = editNow.current;
+              if (!current) return;
               added(
-                edit.addPanel({ kind: 'view', instanceId: view.id }, spot()),
+                current.addPanel({ kind: 'view', instanceId: view.id }, spot()),
                 view.title,
               );
             });

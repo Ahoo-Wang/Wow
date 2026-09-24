@@ -313,13 +313,38 @@ export const DashboardWithAPanelOut: Story = {
 /**
  * A desk: the test browser is a phone's width, and below `md` the board is
  * one derived column in which building is renaming, removing and reordering
- * alone — no 「添加」.
+ * alone — no 「添加」. Its page is shorter than the board, scrolled in a box
+ * of the host's own, as a business page with a fixed header does, so
+ * building has somewhere to scroll the board to.
  */
 const DESK = (Story: ComponentType) => (
-  <div style={{ width: 1280 }}>
+  <div
+    data-host-scroller
+    style={{ width: 880, height: 560, overflowY: 'auto' }}
+  >
     <Story />
   </div>
 );
+
+/**
+ * Whether an element is inside the window and drawn over everything else
+ * at its middle — in view, and not under a panel scrolled over it.
+ */
+function onTop(element: HTMLElement): boolean {
+  const box = element.getBoundingClientRect();
+  if (
+    box.top < 0 ||
+    box.left < 0 ||
+    box.bottom > window.innerHeight ||
+    box.right > window.innerWidth
+  )
+    return false;
+  const hit = document.elementFromPoint(
+    box.left + box.width / 2,
+    box.top + box.height / 2,
+  );
+  return hit !== null && element.contains(hit);
+}
 
 /** The panel titles on the board, in the order the grid draws them. */
 function panelTitles(canvasElement: HTMLElement): string[] {
@@ -396,6 +421,27 @@ export const EditableBoard: Story = {
     await expect(note).toHaveTextContent('夜班交接前清点华东仓的待出库单。');
     // On the board, not yet in the store.
     await expect(stored).toHaveTextContent('还没保存过');
+    // Scrolled down the page past where it sat, the edit bar stays in view
+    // (R3b): it sticks to the top of what scrolls the board, over the
+    // panels, so the ways out never scroll away with the building.
+    const scroller = canvasElement.querySelector<HTMLElement>(
+      '[data-host-scroller]',
+    )!;
+    const bar = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="dashboard-edit-bar"]',
+    )!;
+    const sat = bar.getBoundingClientRect().top;
+    note.scrollIntoView({ block: 'end' });
+    await waitFor(() => expect(scroller.scrollTop).toBeGreaterThan(sat));
+    // At the top of the box, both ways out drawn over the panels beneath.
+    await expect(bar.getBoundingClientRect().top).toBe(
+      scroller.getBoundingClientRect().top,
+    );
+    for (const way of ['label.dialog.cancel', 'label.dashboard.save'] as const)
+      await expect(
+        onTop(within(bar).getByRole('button', { name: zhCN[way] })),
+      ).toBe(true);
+    scroller.scrollTop = 0;
 
     // 「保存」 over a shared board asks, as Save does, and saves.
     await userEvent.click(

@@ -83,8 +83,8 @@ import {
  * one that answers answers as a refused one does (`null`, no panels wired).
  * An edit is the building's, and a gesture that outlived it — a view picked,
  * then 「取消」 pressed while it still loaded — must not land on the board
- * read after it (Q-02). `place` alone is not held to it yet (see
- * `boardEditing`).
+ * read after it (Q-02). A placement is one of them: a grid that is only
+ * read has no handles to drag.
  */
 export interface DashboardEditing {
   /**
@@ -242,21 +242,17 @@ export interface BoardEdits extends DashboardEditing, DashboardFilterEditing {
 export function boardEditing(host: EditingHost): BoardEdits {
   const history = new EditHistory();
   /**
-   * The draft `command` works on, or `null` when it is refused: outside
-   * building, or once disposed. A placement is still taken outside
-   * building — the grid's own suites place panels, and take them back, on
-   * a board they never started building, and moving it under building
-   * waits on them (todo R3).
+   * The draft an edit works on, or `null` when it is refused: outside
+   * building, or once disposed. A placement is an edit like any other.
    */
-  const draftFor = (command: EditCommand) =>
-    command === 'place' || host.building() ? host.draft() : null;
+  const draftFor = () => (host.building() ? host.draft() : null);
   /** One edit, on the draft and the screen alike, noted as one step of `command` about `subject`. */
   const edit = (
     command: EditCommand,
     subject: string | null,
     change: (config: DashboardViewConfig) => DashboardViewConfig,
   ) => {
-    const draft = draftFor(command);
+    const draft = draftFor();
     const applied = host.applied();
     if (!draft || !applied) return;
     const next = [change(draft), change(applied)] as const;
@@ -268,8 +264,8 @@ export function boardEditing(host: EditingHost): BoardEdits {
    * One step taken back or made again: the members it changed laid over the
    * draft and the screen, the same way an edit goes, and nothing else moved.
    * Not held to building by itself: the history is the building's — every
-   * step but a placement was taken while building, and ending it forgets
-   * them (`BoardRules.setBuilding`).
+   * step was taken while building, and ending it forgets them
+   * (`BoardRules.setBuilding`).
    */
   const rewind = (way: 'undo' | 'redo'): EditStep | null => {
     const draft = host.draft();
@@ -306,7 +302,7 @@ export function boardEditing(host: EditingHost): BoardEdits {
 
   return {
     addPanel(panel, placement = {}) {
-      const draft = draftFor('addPanel');
+      const draft = draftFor();
       if (!draft) return null;
       const instanceId = 'instanceId' in panel ? panel.instanceId : undefined;
       // A data panel comes onto the board wired to every filter it has a
@@ -335,7 +331,7 @@ export function boardEditing(host: EditingHost): BoardEdits {
     removePanel: panelId =>
       edit('removePanel', panelId, config => removePanel(config, panelId)),
     duplicatePanel(panelId) {
-      const draft = draftFor('duplicatePanel');
+      const draft = draftFor();
       return draft
         ? added(
             'duplicatePanel',
@@ -369,14 +365,14 @@ export function boardEditing(host: EditingHost): BoardEdits {
         setPanelClick(config, panelId, click),
       ),
     referToSaved(panelId, instance) {
-      if (!draftFor('referToSaved')) return;
+      if (!draftFor()) return;
       host.seed(instance);
       edit('referToSaved', panelId, config =>
         referToSaved(config, panelId, instance.id),
       );
     },
     addTab(title, firstTitle) {
-      const draft = draftFor('addTab');
+      const draft = draftFor();
       const result = draft && addTab(draft, title, firstTitle);
       if (!draft || !result) return null;
       edit('addTab', result.id, config =>
@@ -414,7 +410,7 @@ export function boardEditing(host: EditingHost): BoardEdits {
     },
 
     addFilter(filter) {
-      const draft = draftFor('addFilter');
+      const draft = draftFor();
       const result = draft && addFilter(draft, filter);
       if (!draft || !result) return null;
       edit('addFilter', result.name, config =>
@@ -449,7 +445,7 @@ export function boardEditing(host: EditingHost): BoardEdits {
     moveFilter: (name, index) =>
       edit('moveFilter', name, config => moveFilter(config, name, index)),
     bindPanel(name, panelId, panelField) {
-      const draft = draftFor('bindPanel');
+      const draft = draftFor();
       if (!draft) return [];
       const { connected } = bindPanel(
         draft,

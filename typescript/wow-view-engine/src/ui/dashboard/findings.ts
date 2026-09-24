@@ -11,7 +11,15 @@
  * limitations under the License.
  */
 
-import type { DashboardField, Issue } from '../../model/index.js';
+import type {
+  DashboardField,
+  DashboardPanel,
+  Issue,
+  ViewConfig,
+} from '../../model/index.js';
+import type { DashboardController } from '../../react/index.js';
+import { panelName, panelNames } from '../DashboardPanel.js';
+import type { MessageFormatters } from '../MessagesProvider.js';
 
 /**
  * The kernel's findings about a board's filters that name one in their
@@ -50,4 +58,58 @@ export function filterNamer(
       ? { ...found, params: { ...found.params, field: label } }
       : found;
   };
+}
+
+/**
+ * How a finding the board says above its panels (`DashboardController.issues`)
+ * is said there — the one reading the workbench's status line and an
+ * embed's strips share (Q-01). A filter by its name on the bar
+ * (`filterNamer`). A panel by its name: the kernel's sentence says
+ * 「这个面板」, plain in a panel's own frame and naming nothing up here. It
+ * is the draft the finding was raised against, so the draft's panel is the
+ * one named — by the name the grid gives it, or, for a panel only the draft
+ * holds, by its own title or kind, counted where the draft has it.
+ */
+export function boardFindingNamer(
+  dashboard: Pick<DashboardController, 'panels' | 'filterFields'>,
+  draft: ViewConfig | undefined,
+  messages: MessageFormatters,
+): (found: Issue) => Issue {
+  const drafted: unknown[] =
+    draft?.kind === 'dashboard' && Array.isArray(draft.panels)
+      ? draft.panels
+      : [];
+  const shown = panelNames(dashboard.panels, messages);
+  const nameFilter = filterNamer(dashboard.filterFields);
+  return said => {
+    const found = nameFilter(said);
+    const at = found.path[0] === 'panels' ? found.path[1] : undefined;
+    const panel = typeof at === 'number' ? drafted[at] : undefined;
+    if (typeof at !== 'number' || !isPlainPanel(panel)) return found;
+    return {
+      ...found,
+      code: 'label.panel.finding',
+      params: {
+        panel:
+          shown.get(panel.id) ??
+          panelName({ title: panel.title, panel, runtime: null }, at, messages),
+        finding: messages.issue(found),
+      },
+    };
+  };
+}
+
+/**
+ * Whether a draft's entry is a panel to name. A draft is data that came
+ * from a store, and admission reports an entry that is no panel at its
+ * index; there is nothing to call that one but its place, which the
+ * finding's own sentence already gives.
+ */
+function isPlainPanel(value: unknown): value is DashboardPanel {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { id?: unknown }).id === 'string' &&
+    typeof (value as { kind?: unknown }).kind === 'string'
+  );
 }

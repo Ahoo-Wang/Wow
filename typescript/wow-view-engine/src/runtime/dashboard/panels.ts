@@ -65,29 +65,42 @@ export interface DashboardPanelState {
   grouping: PanelGrouping;
   /**
    * What a press on one of its groups does (D22 H, I): its click as set, or
-   * `null` for the follow-up menu — none set, or one admission found
-   * something wrong with, which the panel's warning says (`clickInForce`).
+   * `null` for the follow-up menu — none set, or one set aside
+   * (`clickInForce`). A press reads it here and judges nothing itself
+   * (`PanelPresses`, A-11).
    */
   click: PanelClick | null;
+  /**
+   * Why the click set is not the one in force, carried with it: what
+   * admission found wrong with it, which the panel's warning says and a
+   * press falling back to the follow-up menu says again; `null` when
+   * admission said nothing about it.
+   */
+  clickFinding: Issue | null;
 }
 
 /**
  * A panel's click, unless admission said something about it: a click that
  * cannot do what it says is set aside and a press opens the follow-up menu,
- * as the warning on the panel says. So is one that sets a filter the host
- * holds (`DashboardRuntime.holdFilters`): a press cannot change what the
- * page fixed, so it does what a press does on a panel with no click.
+ * carrying the finding that says why. So is one that sets a filter the
+ * host holds (`DashboardRuntime.holdFilters`): a press cannot change what
+ * the page fixed, so it does what a press does on a panel with no click,
+ * and nothing is wrong with it.
  */
 export function clickInForce(
   panel: DashboardPanel,
   issues: readonly Issue[],
   held: (filter: string) => boolean = () => false,
-): PanelClick | null {
-  const said = issues.some(
-    found => found.path[0] === 'panels' && found.path[2] === 'click',
-  );
+): Pick<DashboardPanelState, 'click' | 'clickFinding'> {
+  const said =
+    issues.find(
+      found => found.path[0] === 'panels' && found.path[2] === 'click',
+    ) ?? null;
   const click = said ? null : clickOf(panel);
-  return click?.kind === 'filter' && held(click.filter) ? null : click;
+  return {
+    click: click?.kind === 'filter' && held(click.filter) ? null : click,
+    clickFinding: said,
+  };
 }
 
 /** The panel an issue belongs to, or `null` for one about the dashboard. */
@@ -260,7 +273,8 @@ export function samePanels(
         dequal(panel.issues, other.issues) &&
         // A click set aside for a filter the host holds changes nothing
         // else about the panel.
-        dequal(panel.click, other.click)
+        dequal(panel.click, other.click) &&
+        dequal(panel.clickFinding, other.clickFinding)
       );
     })
   );

@@ -27,10 +27,11 @@ import {
   type ViewKind,
 } from '../model/index.js';
 import { admitFilters } from '../dashboard/index.js';
-import type {
-  AnyViewRuntime,
-  DashboardRuntime,
-  HeldFilters,
+import {
+  blocksBoard,
+  type AnyViewRuntime,
+  type DashboardRuntime,
+  type HeldFilters,
 } from '../runtime/index.js';
 import {
   useDashboard,
@@ -47,7 +48,7 @@ import { SurfaceAnnouncer, useAnnouncer } from './Announcer.js';
 import { DashboardBoard, type BoardReading } from './dashboard/Board.js';
 import { useDashboardExtensions } from './dashboard/building.js';
 import { DashboardTabs } from './dashboard/DashboardTabs.js';
-import { filterNamer } from './dashboard/findings.js';
+import { boardFindingNamer } from './dashboard/findings.js';
 import { DashboardEditExtensionsContext } from './dashboard/extensions.js';
 import {
   heldFilters,
@@ -341,20 +342,18 @@ function EmbeddedBoard({
   };
   const title = state?.title ?? '';
 
-  // A panel's findings are the panel's to say, each in its own frame — its
-  // errors as much as its warnings: one panel's error stops that panel and
-  // nothing else, and taking it for the board's drew no grid around a board
-  // where every other panel was fine (R3). "Too many panels" sits at
-  // `['panels']` itself and is no one panel's: it stops the whole board.
-  // A filter is said by its name on the bar, never its key (X-03).
-  const nameFilter = filterNamer(dashboard.filterFields);
-  const issues = (state?.issues ?? [])
-    .filter(
-      found => found.path[0] !== 'panels' || typeof found.path[1] !== 'number',
-    )
-    .map(nameFilter);
-  const errors = issues.filter(found => found.severity === 'error');
-  const warnings = issues.filter(found => found.severity !== 'error');
+  // What the board says above its panels, the one reading the workbench
+  // shares (`DashboardController.issues`): a panel's own findings stay in
+  // its frame, its errors as much as its warnings, and a panel's the draft
+  // raised that no panel wears yet is said here after the panel, a filter
+  // by its name on the bar, never its key (X-03). Only an
+  // error of the board's own — "too many panels" among them — stops the
+  // whole board: one panel's error drew no grid around a board where every
+  // other panel was fine (R3).
+  const nameIssue = boardFindingNamer(dashboard, state?.draft, messages);
+  const errors = dashboard.issues.filter(found => found.severity === 'error');
+  const warnings = dashboard.issues.filter(found => found.severity !== 'error');
+  const blocked = blocksBoard(errors);
 
   return (
     // What the chrome calls the thing open: the editable tier's save
@@ -381,14 +380,14 @@ function EmbeddedBoard({
         <Alert variant="destructive">
           <AlertTitle>{messages.label('label.scope.refused')}</AlertTitle>
           <AlertDescription>
-            {messages.issues(refused.map(nameFilter))}
+            {messages.issues(refused.map(nameIssue))}
           </AlertDescription>
         </Alert>
       )}
       {canEdit && <WriteOutcome commands={commands} title={title} />}
-      {errors.length > 0 && <ErrorStrip issues={errors} />}
-      <WarningStrip issues={warnings} />
-      {errors.length === 0 && (
+      {errors.length > 0 && <ErrorStrip issues={errors.map(nameIssue)} />}
+      <WarningStrip issues={warnings.map(nameIssue)} />
+      {!blocked && (
         <DashboardEditExtensionsContext.Provider
           value={editing ? extensions : { tabBar }}
         >

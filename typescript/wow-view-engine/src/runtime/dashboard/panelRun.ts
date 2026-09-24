@@ -234,7 +234,7 @@ export function boardPanels(host: BoardPanelsHost): DashboardPanelState[] {
         issues: reported,
         tab: on,
         waiting: runs && !shown && runtime === null && !hasError(own),
-        click: clickInForce(panel, reported, host.held),
+        ...clickInForce(panel, reported, host.held),
         ...panelReach(applied, panel, data && host.viewOf(data), filters),
       },
     ];
