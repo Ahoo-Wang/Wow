@@ -34,8 +34,6 @@
 
 - **四批按方案做**（[phase5-themes.md](phase5-themes.md) 第 4 节，裁定 [D30](decisions.md#d30-阶段-5-内置多主题的十条裁定2026-09-24)）；每批的完成标准以方案为准，这里只列线索：
   - 为什么：宿主要能引一个文件、挂一个属性就换上常见主题，而每一套预设、每一种明暗都守住本包的对比度承诺；图表换主题时要跟着重画。
-  - 5A 地基——判据：换 token 后图表重读（有单测），`FALLBACK` 与 `styles.css` 对齐，`--quiet-foreground` 推导，`--info` 删掉，行与卡片的焦点量出 ≥3:1；neutral 外观不变（焦点修复除外）。
-  - 5C 三套预设与暗色状态色——判据：`neutral`／`blue`／`slate` 在每套 × 每种明暗下对比度矩阵全绿，暗色状态色降饱和后字 ≥4.5:1。`blue`／`slate` 写进 `src/themes.css`，每套都要赋满 `neutral` 那 57 个变量（`verify-package` 断言集合相同，缺一个构建就红）；5B 的 story 预设 `story-probe`（`ThemeTokens.test.stories.tsx`）到时可换成真预设。
   - 5D 宿主与展示——判据：`shadcn-bridge.css` 让视图穿上补偿控制台的主题且控件边、焦点仍 ≥3:1；Storybook 有预设工具栏、「主题一览」与对比度矩阵；中英 README、[extension.md](extension.md)、[ui/README.md](ui/README.md) 同步。
   - 落点：[phase5-themes.md](phase5-themes.md)；做完一批删一行，四批做完连同方案页一起并入 [ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)。
 
