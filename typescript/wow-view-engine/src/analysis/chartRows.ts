@@ -89,3 +89,20 @@ export function absenceReader(
 export function owns(record: object, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(record, key);
 }
+
+/**
+ * A group value as text: the one spelling of a category or a split value
+ * wherever a string has to name it — the key of `ChartSpec.colors` (see its
+ * contract in `model/chart.ts`), a pivot series' legend label, a React key.
+ * Nothing and null print as empty, a number or a boolean as `String` has it,
+ * anything else as JSON. The kernel labels a split series with it and every
+ * chart family looks a pinned colour up by it, so a key written once colours
+ * the same category in a pie and in a split.
+ */
+export function groupKeyText(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean')
+    return String(value);
+  return JSON.stringify(value) ?? '';
+}
