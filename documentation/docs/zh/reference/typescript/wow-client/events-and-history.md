@@ -200,7 +200,7 @@ export class EventStreamQueryClient<DomainEventBody = any, FIELDS extends string
 }
 ```
 
-[typescript/wow-client/src/query/event/eventStreamQueryClient.ts:85](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/eventStreamQueryClient.ts#L85)
+[typescript/wow-client/src/query/event/eventStreamQueryClient.ts:87](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/event/eventStreamQueryClient.ts#L87)
 
 ### LoadStateAggregateEndpointPaths {#api-LoadStateAggregateEndpointPaths}
 

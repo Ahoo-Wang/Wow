@@ -600,9 +600,13 @@ describe('EmbeddedDashboard', () => {
   it('builds in place in the editable tier, for whoever may save the board', async () => {
     const { rerender } = embed({ interaction: 'editable', withTitle: true });
 
-    await userEvent.click(
-      await screen.findByRole('button', { name: /^Edit$/ }),
-    );
+    // The one primary of the board read, last in the embed's first row (D32).
+    const edit = await screen.findByRole('button', { name: /^Edit$/ });
+    expect(edit.getAttribute('data-emphasis')).toBe('primary');
+    expect(
+      document.querySelector('[data-slot="embed-actions"]')!.lastElementChild,
+    ).toBe(edit);
+    await userEvent.click(edit);
     const bar = await screen.findByRole('region', { name: /Editing/ });
     // It stays in view while the board is built (R3b); the pixels are the
     // browser story's to measure.

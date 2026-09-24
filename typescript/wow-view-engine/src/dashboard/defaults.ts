@@ -24,12 +24,16 @@ import { emptyFilter } from '../filter/index.js';
  * It takes no definition: a dashboard owns no data, so there is nothing to
  * read from a capability. An empty dashboard is valid, and the user fills it
  * by adding panels.
+ *
+ * A new board is laid out at the fixed width, centred (D31, as Metabase's
+ * new dashboards are); only a board saved before it could say is full.
  */
 export function emptyDashboardConfig(): DashboardViewConfig {
   return {
     refresh: { interval: null },
     kind: 'dashboard',
     columns: DASHBOARD_GRID_COLUMNS,
+    width: 'fixed',
     fixed: emptyFilter(),
     tabs: [],
     fields: [],

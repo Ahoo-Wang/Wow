@@ -15,17 +15,19 @@ import { describe, expect, it } from 'vitest';
 import { ExchangeError, HttpMethod } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
-  all,
   CommandHeaders,
   CommandStage,
   DEFAULT_PAGINATION,
   ErrorCodes,
+  MaterializedSnapshot,
+} from '@ahoo-wang/wow-client';
+import {
+  all,
   id,
   ListQuery,
-  MaterializedSnapshot,
   PagedQuery,
   SingleQuery,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/legacy';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 import {
   AddCartItemCommand,

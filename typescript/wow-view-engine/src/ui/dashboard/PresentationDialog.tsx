@@ -15,6 +15,7 @@ import { useState } from 'react';
 import { PaletteIcon } from 'lucide-react';
 import {
   PANEL_PRESENTATION_MEMBERS,
+  sameJson,
   type AnalysisViewConfig,
   type PanelPresentation,
 } from '../../model/index.js';
@@ -52,7 +53,6 @@ import {
 import { DialogContent } from '../popups.js';
 import { AnalysisPanel } from './PanelBodies.js';
 import type { FinalFocus } from './commands.js';
-import { sameValue } from './filterModes.js';
 
 export interface PresentationDialogProps {
   /** The panel whose look is changed; `null` while the dialog is shut. */
@@ -224,7 +224,7 @@ function LookEditor({
     const next: PanelPresentation = {};
     for (const member of PANEL_PRESENTATION_MEMBERS) {
       const value = member in patch ? patch[member] : current[member];
-      if (value !== undefined && !sameValue(value, base?.[member]))
+      if (value !== undefined && !sameJson(value, base?.[member]))
         Object.assign(next, { [member]: value });
     }
     editing.setPresentation(

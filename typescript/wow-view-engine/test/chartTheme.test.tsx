@@ -301,6 +301,77 @@ describe('EChart: the drawing bound to its element', () => {
     }
   });
 
+  it('redraws when the preset pinned on its surface changes (5B)', async () => {
+    // jsdom resolves no `var()` inside a custom property, so the rule names
+    // the token where `themes.css` goes through `--fve-*`.
+    sheet(`
+      .fve-root { --chart-1: rgb(1, 2, 3); }
+      .fve-root[data-fve-preset='probe'] { --chart-1: rgb(9, 8, 7); }
+    `);
+    const { container, rerender } = render(
+      <ViewSurface>
+        <AnalysisChart data={data} spec={spec} />
+      </ViewSurface>,
+    );
+    const svg = container.querySelector('[data-slot="chart-plot"] svg');
+    expect(fills(container)).toContain('rgb(1, 2, 3)');
+
+    rerender(
+      <ViewSurface preset="probe">
+        <AnalysisChart data={data} spec={spec} />
+      </ViewSurface>,
+    );
+    await act(async () => {});
+    expect(fills(container)).toContain('rgb(9, 8, 7)');
+    expect(fills(container)).not.toContain('rgb(1, 2, 3)');
+
+    rerender(
+      <ViewSurface>
+        <AnalysisChart data={data} spec={spec} />
+      </ViewSurface>,
+    );
+    await act(async () => {});
+    expect(fills(container)).toContain('rgb(1, 2, 3)');
+    expect(container.querySelector('[data-slot="chart-plot"] svg')).toBe(svg);
+  });
+
+  it('redraws when the system it follows turns dark (5B)', async () => {
+    const listeners = new Set<() => void>();
+    const list = {
+      matches: false,
+      addEventListener: (_: string, listener: () => void) =>
+        listeners.add(listener),
+      removeEventListener: (_: string, listener: () => void) =>
+        listeners.delete(listener),
+    };
+    vi.stubGlobal('matchMedia', (query: string) =>
+      query === '(prefers-color-scheme: dark)'
+        ? list
+        : { matches: true, addEventListener() {}, removeEventListener() {} },
+    );
+    try {
+      sheet(`
+        .fve-root[data-theme='light'] { --chart-1: rgb(1, 2, 3); }
+        .fve-root[data-theme='dark'] { --chart-1: rgb(200, 201, 202); }
+      `);
+      const { container } = render(
+        <ViewSurface theme="system">
+          <AnalysisChart data={data} spec={spec} />
+        </ViewSurface>,
+      );
+      expect(fills(container)).toContain('rgb(1, 2, 3)');
+
+      list.matches = true;
+      await act(async () => {
+        listeners.forEach(listener => listener());
+      });
+      expect(fills(container)).toContain('rgb(200, 201, 202)');
+      expect(fills(container)).not.toContain('rgb(1, 2, 3)');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('waits for a size, and follows every new one', () => {
     const observed: ResizeObserverCallback[] = [];
     vi.stubGlobal(

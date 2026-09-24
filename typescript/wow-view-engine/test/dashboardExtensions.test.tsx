@@ -355,6 +355,43 @@ describe('the tab bar', () => {
     expect(runtime()?.getSnapshot().draft.tabs).toHaveLength(1);
   });
 
+  /**
+   * 改名 on a tab's menu puts the keyboard in the name's field, which takes
+   * it as it appears, as every in-place rename does (Q-10): the menu
+   * closing does not take it back and end the edit. A blank name is no
+   * name for a tab — Enter waits on it.
+   */
+  it('renames a tab from its menu, the keyboard in the field at once', async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    const { engine, runtime } = setup();
+    render(
+      <DashboardWorkbench
+        engine={engine}
+        definitionId="overview"
+        instanceId="board"
+      />,
+    );
+    await startBuilding(user);
+    await user.click(
+      await screen.findByRole('button', { name: 'Tab “Detail”' }),
+    );
+    await user.click(await screen.findByRole('menuitem', { name: 'Rename' }));
+    const field = screen.getByRole('textbox', {
+      name: 'Name of tab “Detail”',
+    });
+    expect(document.activeElement).toBe(field);
+    await user.clear(field);
+    await user.keyboard('{Enter}');
+    expect(document.activeElement).toBe(field);
+    await user.keyboard('  Rows  {Enter}');
+    expect(runtime()?.getSnapshot().draft.tabs[1].title).toBe('Rows');
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole('button', { name: 'Rows' }),
+      ),
+    );
+  });
+
   it('switches tabs in an embed too, and remembers nothing there', async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     const { engine, store } = setup();

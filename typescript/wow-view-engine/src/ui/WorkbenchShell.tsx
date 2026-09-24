@@ -35,7 +35,7 @@ import { QueryStrip } from './StatusStrip.js';
 import type { RenderFailureHandler } from './RenderBoundary.js';
 import type { ViewMessages } from './messages.js';
 import { ViewManager } from './ViewManager.js';
-import { ViewSurface } from './ViewSurface.js';
+import { ViewSurface, type ViewTheme } from './ViewSurface.js';
 import { ConditionBlock } from './workbench/ConditionBlock.js';
 import type { NewViewCommand } from './workbench/NewView.js';
 import { NoViews } from './workbench/NoViews.js';
@@ -55,7 +55,10 @@ export interface WorkbenchShellProps {
   workbench: WorkbenchController;
   /** The definition's title, which names the sidebar and the header. */
   title?: string;
-  theme?: 'light' | 'dark';
+  /** The mode, as `ViewSurface` takes it: follows the host when left out. */
+  theme?: ViewTheme;
+  /** A preset pinned on the surface and its popups (`ViewSurface`). */
+  preset?: string;
   /** Wording, merged over what is already in force: where a host translates. */
   messages?: ViewMessages;
   /**
@@ -305,6 +308,7 @@ export function WorkbenchShell({
   workbench,
   title,
   theme,
+  preset,
   messages: wording,
   locale,
   timeZone,
@@ -540,6 +544,7 @@ export function WorkbenchShell({
       <ViewSurface
         ref={surfaceRef}
         theme={theme}
+        preset={preset}
         messages={wording}
         locale={locale}
         timeZone={timeZone}

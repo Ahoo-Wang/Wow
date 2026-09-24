@@ -11,13 +11,47 @@
  * limitations under the License.
  */
 
+import { readFileSync } from 'node:fs';
 import { fileURLToPath, URL } from 'node:url';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import babel from '@rolldown/plugin-babel';
 import tailwindcss from '@tailwindcss/vite';
 import dts from 'unplugin-dts/vite';
 import { scopeUtilities } from './scripts/scope-utilities.mjs';
+
+/**
+ * The two optional stylesheets, carried into `dist` as they are written:
+ * `themes.css`, the presets on `:where([data-fve-preset])`, and
+ * `shadcn-bridge.css`, a host's shadcn tokens read into the host variables on
+ * `:where(:root)`. Both are only `--fve-*` assignments — nothing for Tailwind
+ * or the boundary scoping to do, and nothing a library build would emit on
+ * its own: an imported stylesheet is merged into `styles.css`, which is
+ * exactly what an optional entry must not be. `scripts/verify-package.mjs`
+ * checks what lands.
+ */
+const OPTIONAL_STYLESHEETS = ['themes.css', 'shadcn-bridge.css'];
+
+function optionalStylesheets(): Plugin {
+  const sources = OPTIONAL_STYLESHEETS.map(fileName => ({
+    fileName,
+    path: fileURLToPath(new URL(`./src/${fileName}`, import.meta.url)),
+  }));
+  return {
+    name: 'fve-optional-stylesheets',
+    buildStart() {
+      for (const { path } of sources) this.addWatchFile(path);
+    },
+    generateBundle() {
+      for (const { fileName, path } of sources)
+        this.emitFile({
+          type: 'asset',
+          fileName,
+          source: readFileSync(path, 'utf8'),
+        });
+    },
+  };
+}
 
 // Rewrite in progress (docs/design/): the root, `/react` and `/ui` entries
 // exist, with the theme shipped as a separate `/styles.css` an application
@@ -29,6 +63,7 @@ export default defineConfig({
     react(),
     babel({ presets: [reactCompilerPreset()] }),
     dts({ tsconfigPath: './tsconfig.json' }),
+    optionalStylesheets(),
   ],
   // Tailwind compiles ahead of PostCSS, so this sees the utilities it emitted
   // and keeps every one of them inside `.fve-root`.

@@ -14,13 +14,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useFetcherSingleQuery } from '../../src/fetcher/useFetcherSingleQuery';
+import { SortDirection } from '@ahoo-wang/wow-client';
 import {
   SingleQuery,
-  SortDirection,
   Operator,
   eq,
   contains,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/legacy';
 
 // Mock the useFetcherQuery hook
 vi.mock('@ahoo-wang/fetcher-react/fetcher', () => ({

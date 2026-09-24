@@ -45,11 +45,29 @@ test('each TypeScript workflow file runs the jobs it defines and the static chec
     'viewEngine',
     'packageDocs',
     'viewEngineDocs',
+    'workflows',
   ]);
   assert.deepEqual(on(['.github/workflows/typescript-storybook.yml']), [
     'typescript',
     'storybook',
+    'workflows',
   ]);
+  assert.deepEqual(on(['.github/workflows/typescript-contract.yml']), [
+    'typescript',
+    'contract',
+    'legacyContract',
+    'workflows',
+  ]);
+});
+
+test('any other workflow, the release workflow included, runs only the workflow lint', () => {
+  for (const path of [
+    '.github/workflows/package-deploy.yml',
+    '.github/workflows/documentation-deploy.yml',
+    '.github/workflows/local-test.yml',
+    '.github/workflows/gitee-sync.yml',
+  ])
+    assert.deepEqual(on([path]), ['workflows'], path);
 });
 
 test('example server sources and the Gradle build run only the same-source contract', () => {
@@ -92,15 +110,11 @@ test('the client, generator, integration tests and contract workflow run both co
     'contract',
     'legacyContract',
   ]);
-  for (const path of [
-    'typescript/integration-test/src/generated/index.ts',
-    '.github/workflows/typescript-contract.yml',
-  ])
-    assert.deepEqual(
-      on([path]),
-      ['typescript', 'contract', 'legacyContract'],
-      path,
-    );
+  assert.deepEqual(on(['typescript/integration-test/src/generated/index.ts']), [
+    'typescript',
+    'contract',
+    'legacyContract',
+  ]);
 });
 
 test('view-engine and what it builds on run its suite, the stories and the site', () => {
@@ -241,7 +255,7 @@ test('Storybook and the packages it renders also build the site', () => {
     assert.ok(!scopes([path]).docs, path);
 });
 
-test('Kotlin, Gradle, dashboard and prose changes skip the TypeScript workflows', () => {
+test('Kotlin, Gradle, dashboard and prose changes skip the TypeScript workflow jobs', () => {
   for (const path of [
     'test/wow-tck/src/main/kotlin/Spec.kt',
     'test/wow-it/build.gradle.kts',
@@ -253,8 +267,6 @@ test('Kotlin, Gradle, dashboard and prose changes skip the TypeScript workflows'
     'docs/superpowers/specs/a.md',
     'skills/wow-develop/SKILL.md',
     '.claude/skills/shadcn/SKILL.md',
-    '.github/workflows/local-test.yml',
-    '.github/workflows/package-deploy.yml',
     '.github/scripts/pr-safety.sh',
     'README.md',
     'AGENTS.md',
@@ -316,6 +328,7 @@ test('the command reads the diff and runs everything without a base', () => {
         'storybook',
         'contract',
         'legacyContract',
+        'workflows',
       ]
         .map(key => `${key}=${value}\n`)
         .join('');

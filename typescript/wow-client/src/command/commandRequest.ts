@@ -46,6 +46,10 @@ export interface CommandRequestHeaders extends RequestHeaders {
    */
   [CommandHeaders.OWNER_ID]: string;
 
+  /**
+   * Space identifier header, `Wow-Space-Id`
+   * Used to send the command into a space
+   */
   [CommandHeaders.SPACE_ID]: string;
 
   /**

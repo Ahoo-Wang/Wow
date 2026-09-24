@@ -1261,6 +1261,9 @@ export const zhCN: ViewMessages = {
   'label.dashboard.editing': '正在编辑',
   'label.dashboard.editing-hint': '面板随改随跑；按「保存」才存下这些改动。',
   'label.dashboard.save': '保存',
+  'label.dashboard.width': '仪表盘宽度',
+  'label.dashboard.width-fixed': '固定宽度',
+  'label.dashboard.width-full': '全宽',
   'label.dashboard.add': '添加',
   'label.dashboard.add.data': '数据',
   'label.dashboard.add.content': '内容',
@@ -1294,6 +1297,7 @@ export const zhCN: ViewMessages = {
   'label.history.change-filter': '对筛选「{title}」的修改',
   'label.history.change-grouping': '对时间粒度的修改',
   'label.history.remove-fixed': '移除固定范围',
+  'label.history.change-width': '对仪表盘宽度的修改',
   'label.history.change-board': '上一步修改',
   'label.dashboard.tab.untitled': '标签页 {index}',
   'label.picker.add-heading': '添加已保存的视图',
@@ -1422,6 +1426,8 @@ export const zhCN: ViewMessages = {
   'dashboard.tabs.too-many': '一个仪表盘最多放 {max} 个标签页。',
   'dashboard.url.unsupported-scheme':
     '只能显示 http、https、mailto 和相对链接。',
+  'dashboard.width.unknown':
+    '这个仪表盘的宽度「{width}」无法识别，先按全宽显示；编辑时可以选固定宽度或全宽。',
 
   // 视图自己要说的话：哪里失败了，屏幕上留着的又是什么，此刻有没有东西在跑。
   'label.status.more': '还有 {count} 项',

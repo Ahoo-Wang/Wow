@@ -40,6 +40,7 @@ jobs:
       view-engine: ${{ steps.scope.outputs.viewEngine }}
       package-docs: ${{ steps.scope.outputs.packageDocs }}
       view-engine-docs: ${{ steps.scope.outputs.viewEngineDocs }}
+      workflows: ${{ steps.scope.outputs.workflows }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -63,8 +64,6 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: pnpm/action-setup@v6
-        with:
-          version: 10.34.5
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -119,8 +118,6 @@ jobs:
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@v6
-        with:
-          version: 10.34.5
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
@@ -141,6 +138,35 @@ jobs:
           disable_search: true
           files: ./typescript/wow-client/coverage/coverage-final.json,./typescript/wow-react/coverage/coverage-final.json,./typescript/wow-generator/coverage/coverage-final.json
 
+  # The npm packages as a consumer gets them: publint on the tarballs, types
+  # under node16, nodenext and bundler resolution, and a fresh npm project that
+  # installs, imports and requires them and runs the bins. Node 22.12.0 is the
+  # floor engines.node promises; the release preflight runs the same check.
+  package:
+    name: Package / Node ${{ matrix.node-version }}
+    needs: scope
+    if: needs.scope.outputs.sdk == 'true'
+    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [22.12.0, 24]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build the published packages
+        run: pnpm --filter @ahoo-wang/wow-client --filter @ahoo-wang/wow-react --filter @ahoo-wang/wow-generator build
+      - name: Check the packages
+        run: node .github/scripts/package-check.mjs
+
   # View-engine's suite (`vitest run --coverage && pnpm test:type`) split in
   # three: each shard collects its third of the coverage as a blob report, and
   # `view-engine` merges them, holding the thresholds once.
@@ -159,8 +185,6 @@ jobs:
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@v6
-        with:
-          version: 10.34.5
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -195,8 +219,6 @@ jobs:
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@v6
-        with:
-          version: 10.34.5
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -243,8 +265,6 @@ jobs:
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@v6
-        with:
-          version: 10.34.5
       - uses: actions/setup-node@v6
         with:
           node-version: 22
@@ -271,8 +291,6 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: pnpm/action-setup@v6
-        with:
-          version: 10.34.5
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -302,8 +320,6 @@ jobs:
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@v6
-        with:
-          version: 10.34.5
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -318,6 +334,32 @@ jobs:
       - name: Test built site
         run: node --test documentation/test/*.test.mjs
 
+  # actionlint (with shellcheck) over every workflow: the static checks read
+  # only the TypeScript ones, and nothing else reads the release and deploy
+  # workflows before they run.
+  workflow-lint:
+    name: Workflow lint
+    needs: scope
+    if: needs.scope.outputs.workflows == 'true'
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    env:
+      ACTIONLINT_VERSION: 1.7.12
+      ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install actionlint
+        run: |
+          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -fsSLo "$RUNNER_TEMP/$archive" "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/$archive"
+          echo "$ACTIONLINT_SHA256  $RUNNER_TEMP/$archive" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" actionlint
+      - name: Lint workflows
+        run: |
+          "$RUNNER_TEMP/actionlint" -color
+
   typescript-gate:
     name: typescript-gate
     needs:
@@ -325,11 +367,13 @@ jobs:
         scope,
         quality,
         unit,
+        package,
         view-engine-shard,
         view-engine,
         view-engine-node22,
         package-docs,
         docs,
+        workflow-lint,
       ]
     if: always()
     timeout-minutes: 5

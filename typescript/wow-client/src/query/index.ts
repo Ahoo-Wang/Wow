@@ -11,11 +11,8 @@
  * limitations under the License.
  */
 
-export * from './condition.js';
 export * from './aggregation.js';
 export * from './filter.js';
-export * from './operator.js';
-export * from './locale/operatorLocale.js';
 export * from './pagination.js';
 export * from './projection.js';
 export * from './queryable.js';
@@ -25,5 +22,6 @@ export * from './event/index.js';
 export * from './snapshot/index.js';
 export * from './state/index.js';
 export * from './cursorQuery.js';
+export * from './deletionState.js';
 export * from './queryClients.js';
 export * from './types.js';

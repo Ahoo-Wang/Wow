@@ -13,8 +13,6 @@
 
 import { DragDropProvider } from '@dnd-kit/react';
 import { useSortable } from '@dnd-kit/react/sortable';
-import { Accessibility } from '@dnd-kit/dom';
-import { OptimisticSortingPlugin } from '@dnd-kit/dom/sortable';
 import {
   ArrowDownIcon,
   ArrowDownUpIcon,
@@ -38,6 +36,7 @@ import {
 } from './components/item.js';
 import { RowItem } from './RowItem.js';
 import { DragHandle } from './DragHandle.js';
+import { announcedPlugins, withoutOptimisticSorting } from './dragPlugins.js';
 import { IconButton } from './IconButton.js';
 import {
   Popover,
@@ -295,15 +294,7 @@ export function SortSettings({
           </Empty>
         ) : (
           <DragDropProvider
-            plugins={defaults =>
-              defaults.map(plugin =>
-                plugin === Accessibility
-                  ? Accessibility.configure(
-                      sortDragAccessibility(messages, named),
-                    )
-                  : plugin,
-              )
-            }
+            plugins={announcedPlugins(sortDragAccessibility(messages, named))}
             onDragEnd={({ operation, canceled }) => {
               const drop = sortDrop(operation, canceled);
               if (drop) moveTo(drop.from, drop.to);
@@ -426,8 +417,7 @@ function SortEntry({
   const { ref, handleRef, isDragging } = useSortable({
     id: sortEntryId(index),
     index,
-    plugins: defaults =>
-      defaults.filter(plugin => plugin !== OptimisticSortingPlugin),
+    plugins: withoutOptimisticSorting,
   });
   return (
     <RowItem

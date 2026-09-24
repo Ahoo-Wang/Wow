@@ -12,7 +12,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { IMPORT_WOW_PATH, WOW_TYPE_MAPPING } from '../../src/model';
+import {
+  IMPORT_WOW_LEGACY_PATH,
+  IMPORT_WOW_PATH,
+  WOW_LEGACY_TYPES,
+  WOW_TYPE_MAPPING,
+} from '../../src/model';
 
 describe('wowTypeMapping', () => {
   describe('IMPORT_WOW_PATH', () => {
@@ -22,6 +27,25 @@ describe('wowTypeMapping', () => {
 
     it('should have the correct value', () => {
       expect(IMPORT_WOW_PATH).toBe('@ahoo-wang/wow-client');
+    });
+  });
+
+  describe('IMPORT_WOW_LEGACY_PATH', () => {
+    it('names the Condition subpath of wow-client', () => {
+      expect(IMPORT_WOW_LEGACY_PATH).toBe('@ahoo-wang/wow-client/legacy');
+    });
+
+    it('covers exactly the mapped Condition API types', () => {
+      expect([...WOW_LEGACY_TYPES].sort()).toEqual([
+        'Condition',
+        'ConditionOptions',
+        'ListQuery',
+        'Operator',
+        'PagedQuery',
+      ]);
+      for (const name of WOW_LEGACY_TYPES) {
+        expect(Object.values(WOW_TYPE_MAPPING)).toContain(name);
+      }
     });
   });
 

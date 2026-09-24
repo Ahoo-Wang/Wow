@@ -16,6 +16,7 @@ export * from './common.js';
 export * from './endpoints.js';
 export * from './error.js';
 export * from './function.js';
+export * from './headers.js';
 export * from './messaging.js';
 export * from './modeling.js';
 export * from './naming.js';

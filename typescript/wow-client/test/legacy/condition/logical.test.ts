@@ -12,7 +12,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { Condition } from '../../../src';
+import { DeletionState } from '../../../src';
+import type { Condition } from '../../../src/legacy';
 import {
   active,
   aggregateId,
@@ -20,7 +21,6 @@ import {
   all,
   and,
   deleted,
-  DeletionState,
   eq,
   gt,
   id,
@@ -32,7 +32,7 @@ import {
   spaceId,
   startsWith,
   tenantId,
-} from '../../../src';
+} from '../../../src/legacy';
 
 describe('Condition — Logical Operators', () => {
   it('should create AND condition', () => {

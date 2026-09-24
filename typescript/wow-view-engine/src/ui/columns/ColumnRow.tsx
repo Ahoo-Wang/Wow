@@ -13,11 +13,11 @@
 
 import { useId } from 'react';
 import { useSortable } from '@dnd-kit/react/sortable';
-import { OptimisticSortingPlugin } from '@dnd-kit/dom/sortable';
 import { CircleSlashIcon, PinIcon } from 'lucide-react';
 import type { SummaryFunction } from '../../model/index.js';
 import { summaryFunctionKey } from '../display.js';
 import { DragHandle } from '../DragHandle.js';
+import { withoutOptimisticSorting } from '../dragPlugins.js';
 import { IconButton } from '../IconButton.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
 import { Checkbox } from '../components/checkbox.js';
@@ -384,8 +384,7 @@ export function SortableColumnRow(
     id: rest.row.field,
     index,
     group,
-    plugins: defaults =>
-      defaults.filter(plugin => plugin !== OptimisticSortingPlugin),
+    plugins: withoutOptimisticSorting,
   });
 
   return (
