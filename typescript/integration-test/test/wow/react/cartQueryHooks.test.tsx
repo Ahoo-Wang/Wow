@@ -76,13 +76,13 @@ async function addCartItem(ownerId: string, productId: string) {
   expect(result.errorCode).toBe(ErrorCodes.SUCCEEDED);
 }
 
-// Cart A holds one item, cart B two. A freshly started server can take a
-// while over its first commands.
+// Cart A holds one item, cart B two. The server is warm by now: the global
+// setup (`test/globalSetup.ts`) paid for its first commands.
 beforeAll(async () => {
   await addCartItem(cartA, `${runId}P1`);
   await addCartItem(cartB, `${runId}P1`);
   await addCartItem(cartB, `${runId}P2`);
-}, 60_000);
+});
 
 const snapshotClient = cartQueryClientFactory.createSnapshotQueryClient({
   contextAlias: '',

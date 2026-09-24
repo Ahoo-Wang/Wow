@@ -586,8 +586,20 @@ export const SetsAnotherBoardWhenClicked: Story = {
     await expect(
       within(rows).getByText(zhCN['label.click.board-no-source']),
     ).toBeVisible();
-    // The keyboard reaches the row and picks from it.
-    region.focus();
+    // The picker gives the keyboard back to 「换一块…」 once it has finished
+    // closing, which can be after the rows are drawn: a row focused before
+    // that loses its focus under the Enter. So the keyboard starts where the
+    // picker leaves it and reaches the row the way a reader's does.
+    await waitFor(() => expect(picker.isConnected).toBe(false));
+    await waitFor(() =>
+      expect(
+        within(dialog).getByRole('button', {
+          name: zhCN['label.click.board-change'],
+        }),
+      ).toHaveFocus(),
+    );
+    await userEvent.tab();
+    await expect(region).toHaveFocus();
     await userEvent.keyboard('{Enter}');
     const option = await screen.findByRole('option', {
       name: label('label.click.board-value', { dimension: '仓库' }),

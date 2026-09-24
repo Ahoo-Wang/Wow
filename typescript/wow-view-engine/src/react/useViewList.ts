@@ -79,6 +79,12 @@ export interface ViewListState {
   error: Issue | null;
   /** Kept apart: without preferences the list still works, in server order. */
   preferencesError: Issue | null;
+  /**
+   * Whether the preferences have answered, read or failed. Until then
+   * `preferences` is null for want of an answer, not because there are none,
+   * so nothing the reader set there can be read off it yet.
+   */
+  preferencesSettled: boolean;
   reload(options?: ViewListReloadOptions): void;
 }
 
@@ -292,6 +298,7 @@ export function useViewList(
     loading: !settled,
     error: current.error,
     preferencesError: currentPreferences.error,
+    preferencesSettled,
     reload,
   };
 }
