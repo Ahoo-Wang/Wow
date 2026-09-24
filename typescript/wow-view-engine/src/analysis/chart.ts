@@ -20,6 +20,7 @@ import {
 import { absenceReader, num, owns, seriesKey } from './chartRows.js';
 import { metricCard, type MetricCardData } from './metricCard.js';
 import {
+  consecutive,
   forwardInTime,
   hostTimeZone,
   timeGroup,
@@ -71,6 +72,14 @@ export interface CartesianData {
    * also keeps the raw split `value`, for a UI to show as its field does.
    */
   series: { key: string; label: string; metric: string; value?: unknown }[];
+  /**
+   * The x is a time axis whose points are its buckets one after another —
+   * earliest first, no bucket skipped (`consecutive`), the missing value's
+   * last — so two points side by side are a bucket and the one before it
+   * (`bucketChange`). Absent where the axis is not time, or where a hole
+   * could not be placed and the points may skip one.
+   */
+  timeline?: true;
 }
 
 export interface PieSlice {
@@ -318,6 +327,9 @@ function cartesian(
     type: 'cartesian',
     chart: type,
     points,
+    ...(axis && consecutive(points, point => point.x, axis, timeZone)
+      ? { timeline: true as const }
+      : {}),
     series: timeGroup(config, spec.splitBy)
       ? forwardInTime(series, entry => entry.value)
       : series,

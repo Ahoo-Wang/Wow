@@ -14,14 +14,7 @@
 import type { EChartsCoreOption } from 'echarts/core';
 import type { CartesianData } from '../../analysis/index.js';
 import type { AxisSpec } from '../../model/index.js';
-import {
-  axisId,
-  categoryTick,
-  formatShare,
-  formatValue,
-  measuredTitle,
-  sideTitle,
-} from './axis.js';
+import { axisId, formatValue, measuredTitle, sideTitle } from './axis.js';
 import {
   cartesianPlan,
   type CartesianContext,
@@ -30,8 +23,9 @@ import {
 } from './cartesianPlan.js';
 import { LABEL_DISTANCE, TITLE_GAP_UNDER } from './cartesianFit.js';
 import { measureText } from './measure.js';
+import { cartesianTooltip } from './cartesianTooltip.js';
+import { LARGE_FROM, SLIDER_ROOM, zoomOption } from './cartesianZoom.js';
 import { emphasized, inkOn, type ChartTheme } from './theme.js';
-import { tooltipFrame, tooltipHtml } from './tooltip.js';
 
 export {
   drawnSeries,
@@ -79,7 +73,7 @@ export function optionOf(
   theme: ChartTheme,
 ): EChartsCoreOption {
   const { data, context, horizontal, series, sides, names } = plan;
-  const { spec, label, column, locale, animate, pickable, ticks } = context;
+  const { spec, label, column, locale, animate, pickable } = context;
   const cartesian = spec?.cartesian;
   const lines = cartesian?.referenceLines ?? [];
   const two = sides.length > 1;
@@ -192,8 +186,10 @@ export function optionOf(
     axisLabel: {
       color: theme.muted,
       hideOverlap: true,
-      formatter: (name: string, index: number) =>
-        ticks?.[index] ?? categoryTick(name),
+      // By the name, not the index the library hands over: zoomed, it
+      // counts from the window's first category, and a year narrowed to its
+      // last week was written as its first.
+      formatter: (name: string) => plan.tickOf(name),
     },
   };
   const values = sides.map(valueAxis);
@@ -201,7 +197,8 @@ export function optionOf(
     horizontal
       ? { xAxisIndex: side === 'right' ? 1 : 0 }
       : { yAxisIndex: side === 'right' ? 1 : 0 };
-  const hasBars = series.some(entry => entry.kind === 'bar');
+  const large = data.points.length > LARGE_FROM;
+  const zoom = zoomOption(plan, theme, context.zoomGestures === true);
 
   /**
    * A value label past a mark's end. A halo of the ground under it keeps it
@@ -256,6 +253,18 @@ export function optionOf(
               plan.insideText(entry, dataIndex),
           }
         : outerLabel(written);
+      // Past `LARGE_FROM` bars, one path draws them all and no bar is
+      // labelled: a thousand numbers a pixel apart are no reading.
+      if (large)
+        return {
+          ...common,
+          type: 'bar',
+          large: true,
+          largeThreshold: LARGE_FROM,
+          progressive: 0,
+          barMaxWidth: BAR_MAX_WIDTH,
+          itemStyle: { color: fill },
+        };
       return {
         ...common,
         type: 'bar',
@@ -286,6 +295,11 @@ export function optionOf(
       symbol: 'circle',
       symbolSize: 6,
       showSymbol: data.points.length <= DOTS_UP_TO,
+      // More points than the plot has pixels across are thinned to the ones
+      // that keep the line's shape (largest-triangle); the tooltip and the
+      // reading table still say every point, and a zoom thins no further
+      // than the window needs. A no-op while every point has a pixel.
+      sampling: 'lttb',
       connectNulls: false,
       lineStyle: { color: fill, width: 2 },
       itemStyle: { color: fill },
@@ -369,7 +383,10 @@ export function optionOf(
   );
 
   return {
-    animation: animate,
+    // A long axis is read, not watched: zoomed, every refit of its names
+    // replayed a line's growing in from the left, and a drag of the slider
+    // flickered the lines empty at each step. It moves at once instead.
+    animation: animate && !zoom,
     animationDuration: 300,
     textStyle: { fontFamily: theme.fontFamily, fontSize: 12 },
     // The labels and the axis titles stay inside the chart's own box: a
@@ -386,60 +403,15 @@ export function optionOf(
         ? Math.max(16, Math.ceil(widestLabel) + LABEL_DISTANCE + 4)
         : 16,
       top: !horizontal && plan.outerTexts.some(text => text !== '') ? 24 : 16,
-      bottom: 4,
+      // Under the plot, room for the zoom's slider where there is one.
+      bottom: zoom ? 4 + SLIDER_ROOM : 4,
       outerBoundsMode: 'same',
       outerBoundsContain: 'all',
     },
     xAxis: horizontal ? values : categoryAxis,
     yAxis: horizontal ? categoryAxis : values,
-    tooltip: {
-      ...tooltipFrame(theme),
-      trigger: 'axis',
-      // A band behind the bars of one category; a rule through the points
-      // of a line, which a band would blur. Behind them, not over them: the
-      // library draws its pointer above the series, and a half-grey band
-      // laid over the one bar being read paled it and its number — the
-      // hovered bar read as the disabled one (2026-09-23 audit).
-      axisPointer: hasBars
-        ? {
-            type: 'shadow',
-            z: 0,
-            shadowStyle: { color: theme.border, opacity: 0.5 },
-          }
-        : { type: 'line', lineStyle: { color: theme.muted, width: 1 } },
-      formatter: (params: { dataIndex: number }[] | { dataIndex: number }) => {
-        const first = Array.isArray(params) ? params[0] : params;
-        const point = data.points[first?.dataIndex ?? -1];
-        if (!point) return '';
-        return tooltipHtml(
-          names[first.dataIndex] ?? '',
-          series
-            .filter(entry => typeof point.values[entry.key] === 'number')
-            .map(entry => {
-              const read = label(entry.metric, point.values[entry.key]);
-              // A filled-in 0 says it is one: no records there, not a
-              // count of none that came back (D23, Q14).
-              const value =
-                plan.filledAt(entry, first.dataIndex) && context.filled
-                  ? context.filled(cartesian?.x, read)
-                  : read;
-              // Stacked to 100%, the mark is a share and the tooltip says
-              // both: what the part is, and what part of its stack.
-              const share = plan.asShares(entry)
-                ? plan.shareAt(entry, first.dataIndex)
-                : undefined;
-              return {
-                color: theme.resolve(entry.color),
-                name: entry.name,
-                value:
-                  share === undefined
-                    ? value
-                    : `${value} · ${formatShare(share, locale)}`,
-              };
-            }),
-        );
-      },
-    },
+    tooltip: cartesianTooltip(plan, theme),
+    ...(zoom ? { dataZoom: zoom } : {}),
     series: [...marks, ...totals, ...references],
   };
 }

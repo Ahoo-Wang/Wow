@@ -19,6 +19,7 @@ import {
 } from '../../analysis/index.js';
 import type { CartesianSeries, ChartSpec } from '../../model/index.js';
 import { allWhole, axisId, categoryTick, formatShare } from './axis.js';
+import { LARGE_FROM } from './cartesianZoom.js';
 import type { ColumnTitle, FilledNote, ValueLabel } from './family.js';
 import { measureText } from './measure.js';
 import { colorOf } from './palette.js';
@@ -41,12 +42,53 @@ export interface CartesianContext {
    */
   ticks?: readonly (string | undefined)[];
   /**
+   * The short ticks of some of the axis's buckets, as `ticks` writes all of
+   * them: where a thinned axis names every few, the year is written where
+   * it changes among the ones named, not among all (`datedFit`).
+   */
+  tickFor?: (values: readonly unknown[]) => (string | undefined)[] | undefined;
+  /**
    * What joins two column titles into one axis title, 「、」 or ", " — an
    * axis of a two-axis chart that measures several metrics names them all.
    */
   join?: string;
   /** A filled-in value as the tooltip says it (`useFilledNote`). */
   filled?: FilledNote;
+  /**
+   * The series the reader switched off in the legend, by key. They keep
+   * their colour and their place in the legend, and are drawn nowhere else:
+   * not as marks, not in a stack's shares or totals, not on a scale, not in
+   * the tooltip — the axis is fitted to what is left (D33 batch A).
+   */
+  hidden?: ReadonlySet<string>;
+  /**
+   * What a change in the tooltip is measured against, 「较上一期」: given,
+   * a time axis's tooltip says how each number moved from the bucket
+   * before (`bucketChange`); left out, it says only the numbers.
+   */
+  against?: string;
+  /**
+   * Whether a long axis also zooms by gesture — a pinch, Ctrl + wheel — as
+   * well as by its slider (`zoomOption`): a workbench's chart, not a
+   * dashboard panel's or a read-only embedding's.
+   */
+  zoomGestures?: boolean;
+}
+
+/**
+ * `data` without the series `hidden` names — what the marks, the scales and
+ * the reading table say once the legend switched them off. The same object
+ * when nothing is hidden.
+ */
+export function withoutHidden(
+  data: CartesianData,
+  hidden: ReadonlySet<string> | undefined,
+): CartesianData {
+  if (!hidden || hidden.size === 0) return data;
+  return {
+    ...data,
+    series: data.series.filter(series => !hidden.has(series.key)),
+  };
 }
 
 /** One series as drawn: the kernel's, and what the spec says about it. */
@@ -221,7 +263,19 @@ export interface CartesianPlan {
   horizontal: boolean;
   /** The category names, as their column reads them. */
   names: string[];
+  /**
+   * A category's tick, by its name — the library hands a tick its name and
+   * an index counted from the zoom's first category, so the name is the
+   * one to go by: short on a time axis (`ticks`), cut for its axis else.
+   */
+  tickOf(name: string): string;
+  /** The series drawn: every one the legend has not switched off. */
   series: DrawnSeries[];
+  /**
+   * Every series, switched off or not, in the colour each keeps either way:
+   * what the legend lists.
+   */
+  legend: DrawnSeries[];
   /** The value axes there are: the left, and the right when anything is on it. */
   sides: Side[];
   stackOf(entry: DrawnSeries): string | undefined;
@@ -284,13 +338,24 @@ export function cartesianPlan(
   const cartesian = spec?.cartesian;
   const names = data.points.map(point => label(cartesian?.x, point.x));
   const horizontal = drawsHorizontal(spec, names, ticks !== undefined);
-  const series = drawnSeries(data, context);
+  // Coloured before any is taken away, so a series keeps its colour when
+  // the one before it is switched off.
+  const legend = drawnSeries(data, context);
+  const hidden = context.hidden;
+  const series =
+    hidden && hidden.size > 0
+      ? legend.filter(entry => !hidden.has(entry.key))
+      : legend;
   const lines = cartesian?.referenceLines ?? [];
   const hasRight =
     series.some(entry => entry.side === 'right') ||
     lines.some(line => axisId(line.axis) === 'right');
   const sides: Side[] = hasRight ? ['left', 'right'] : ['left'];
-  const { stackOf, percent, shareAt: shareOf } = stackPlan(data, spec);
+  const {
+    stackOf,
+    percent,
+    shareAt: shareOf,
+  } = stackPlan(withoutHidden(data, hidden), spec);
   const stacks = new Map<string, DrawnSeries[]>();
   for (const entry of series) {
     const stack = stackOf(entry);
@@ -312,7 +377,10 @@ export function cartesianPlan(
     asShares(entry)
       ? formatShare(value, context.locale)
       : label(entry.metric, value, true);
-  const labelled = (entry: DrawnSeries) => valueLabelsOn(spec, entry.kind);
+  // Bars in large mode (`LARGE_FROM`) are one path, and carry no labels.
+  const labelled = (entry: DrawnSeries) =>
+    valueLabelsOn(spec, entry.kind) &&
+    !(entry.kind === 'bar' && data.points.length > LARGE_FROM);
   const filledAt = (entry: DrawnSeries, index: number) =>
     data.points[index]?.filled?.includes(entry.key) === true;
   const sharesOn = (side: Side) =>
@@ -415,7 +483,7 @@ export function cartesianPlan(
   /** Whether a stack of these members writes a total over itself. */
   function totalsOn(members: readonly DrawnSeries[]) {
     const bars = members.filter(member => member.kind === 'bar');
-    return valueLabelsOn(spec, 'bar') && bars.length > 1 && !asShares(bars[0]);
+    return bars.length > 1 && labelled(bars[0]) && !asShares(bars[0]);
   }
 
   const totals = [...stacks.values()]
@@ -456,12 +524,21 @@ export function cartesianPlan(
     ...totals.flatMap(total => total.texts),
   ];
 
+  const shortTick = new Map<string, string>();
+  names.forEach((name, index) => {
+    const short = ticks?.[index];
+    if (short !== undefined && !shortTick.has(name)) shortTick.set(name, short);
+  });
+  const tickOf = (name: string) => shortTick.get(name) ?? categoryTick(name);
+
   return {
     data,
     context,
     horizontal,
     names,
+    tickOf,
     series,
+    legend,
     sides,
     stackOf,
     stacks,

@@ -14,6 +14,12 @@
 import type { EChartsCoreOption } from 'echarts/core';
 import { categoryTick, measuredTitle, titleAtHead } from './axis.js';
 import type { CartesianPlan, DrawnSeries } from './cartesianPlan.js';
+import {
+  SLIDER_ROOM,
+  visibleCount,
+  zooms,
+  type ZoomWindow,
+} from './cartesianZoom.js';
 
 /**
  * How far below the axis line the title under the plot sits: a line of
@@ -32,6 +38,9 @@ const LABEL_MARGIN = 8;
 
 /** A line of tick text, and so the narrowest band a slanted name fits. */
 const LINE_HEIGHT = 16;
+
+/** How many of a time axis's ticks are measured for the widest (`datedFit`). */
+const TICK_SAMPLE = 200;
 
 /** The longest a slanted name is drawn before it is cut. */
 const SLANT_MAX = 120;
@@ -105,6 +114,73 @@ export function categoryFit(
 }
 
 /**
+ * How a time axis names its buckets: every one where each fits its band,
+ * else every `step`-th, flat — and, where a tick set is at hand (`tickFor`),
+ * each named one written short against the one named before it, `step`
+ * back: the year where it changed since, and on the first one on screen.
+ * Thinned by the library alone, a year of days read 9月24日, 11月25日,
+ * 1月26日 with nothing to say the third was a year later, and ten thousand
+ * days read twenty-seven years as months (the 2026-09-24 walk).
+ *
+ * Which buckets the library names is its own to say — counted from the
+ * zoom's first category, which it rounds its own way — so the formatter
+ * answers for any bucket rather than for a list worked out here. It goes
+ * with every fit, so a fit that names them all again takes the thinned
+ * one's back.
+ */
+function datedFit(
+  plan: CartesianPlan,
+  first: number,
+  shown: number,
+  width: number,
+  measure: (text: string) => number,
+): EChartsCoreOption | undefined {
+  const tickFor = plan.context.tickFor;
+  if (!tickFor) return undefined;
+  const band = Math.max(0, width - 72) / Math.max(1, shown);
+  // The ticks of a time axis are one pattern of one length, give or take a
+  // digit: a sample measures them as well as all ten thousand would, in a
+  // fraction of the time a redraw can spare.
+  const sampled = Math.max(1, Math.floor(shown / TICK_SAMPLE));
+  let widest = 0;
+  for (let index = first; index < first + shown; index += sampled)
+    widest = Math.max(widest, measure(plan.tickOf(plan.names[index])));
+  if (widest + 8 <= band)
+    return {
+      xAxis: {
+        axisLabel: { rotate: 0, interval: 0, formatter: plan.tickOf },
+      },
+    };
+  const step = Math.max(2, Math.ceil((widest + 16) / Math.max(band, 1e-6)));
+  const values = plan.data.points.map(point => point.x);
+  const indexOf = new Map<string, number>();
+  plan.names.forEach((name, index) => {
+    if (!indexOf.has(name)) indexOf.set(name, index);
+  });
+  const formatter = (name: string) => {
+    const index = indexOf.get(name);
+    if (index === undefined) return plan.tickOf(name);
+    const before = index - step;
+    const texts =
+      before < first
+        ? tickFor([values[index]])
+        : tickFor([values[before], values[index]]);
+    return texts?.[texts.length - 1] ?? plan.tickOf(name);
+  };
+  return {
+    xAxis: {
+      axisLabel: {
+        rotate: 0,
+        interval: step - 1,
+        showMinLabel: true,
+        showMaxLabel: false,
+        formatter,
+      },
+    },
+  };
+}
+
+/**
  * How the value labels past the marks' ends are written: flat, turned to
  * run up from the bar's end, or not at all.
  */
@@ -134,30 +210,46 @@ export type LabelFit = 'flat' | 'upright' | 'none';
  *
  * It also cuts an axis title to the room its side has, rather than letting
  * it run off the plot.
+ *
+ * Zoomed (`window`), it fits the categories on screen rather than all of
+ * them: a year of days narrowed to a week names every day and has room for
+ * each day's number again.
  */
 export function cartesianFit(
   plan: CartesianPlan,
   width: number,
   height: number,
   measure: (text: string) => number,
+  window?: ZoomWindow,
 ): EChartsCoreOption {
   const { horizontal, series, data, sides } = plan;
   const dated = plan.context.ticks !== undefined;
-  const names = plan.names.map(
-    (name, index) => plan.context.ticks?.[index] ?? name,
-  );
-  const category = categoryFit(names, width, measure, horizontal, dated);
-  const points = Math.max(1, data.points.length);
+  const shown = visibleCount(data.points.length, window);
+  const first = window
+    ? Math.min(
+        data.points.length - shown,
+        Math.floor((data.points.length * window.start) / 100),
+      )
+    : 0;
+  const names = plan.names
+    .map((name, index) => plan.context.ticks?.[index] ?? name)
+    .slice(first, first + shown);
+  const category =
+    (dated && !horizontal
+      ? datedFit(plan, first, shown, width, measure)
+      : undefined) ?? categoryFit(names, width, measure, horizontal, dated);
+  const points = Math.max(1, shown);
   const labelWidth = (text: string) => (measure(text) * LABEL_SIZE) / 12;
   const widestOuter = Math.max(0, ...plan.outerTexts.map(labelWidth));
 
   // The plot, as near as the axes' text lets it be said before drawing: the
   // value ticks and titles beside it, the category names and title under.
   const valueRoom = sides.length * 56;
-  const underRoom = horizontal
-    ? TITLE_GAP_UNDER + LINE_HEIGHT
-    : ((category.xAxis as { nameGap?: number } | undefined)?.nameGap ??
-        TITLE_GAP_UNDER) + LINE_HEIGHT;
+  const underRoom =
+    (horizontal
+      ? TITLE_GAP_UNDER + LINE_HEIGHT
+      : ((category.xAxis as { nameGap?: number } | undefined)?.nameGap ??
+          TITLE_GAP_UNDER) + LINE_HEIGHT) + (zooms(plan) ? SLIDER_ROOM : 0);
   const headRoom = 24;
   const across = Math.max(
     0,
@@ -199,14 +291,14 @@ export function cartesianFit(
             align: horizontal ? 'left' : 'center',
             verticalAlign: horizontal ? 'middle' : 'bottom',
           };
+  // The numbers on screen, not the ones zoomed out of it.
   const lineFit = (entry: DrawnSeries) => {
-    const widest = Math.max(
-      0,
-      ...data.points.map((_point, index) => {
-        const value = plan.drawnAt(entry, index);
-        return value === null ? 0 : labelWidth(plan.drawnText(entry, value));
-      }),
-    );
+    let widest = 0;
+    for (let index = first; index < first + shown; index += 1) {
+      const value = plan.drawnAt(entry, index);
+      if (value !== null)
+        widest = Math.max(widest, labelWidth(plan.drawnText(entry, value)));
+    }
     return widest + 2 <= band;
   };
   const insideFits = (entry: DrawnSeries, index: number) => {
