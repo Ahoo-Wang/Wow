@@ -11,8 +11,7 @@
  * limitations under the License.
  */
 
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
-import { PencilIcon } from 'lucide-react';
+import { useCallback, useEffect, useRef } from 'react';
 import {
   audienceOf,
   type DashboardFilters,
@@ -21,7 +20,6 @@ import {
 } from '../model/index.js';
 import type { ViewNavigation, ViewEngine } from '../runtime/index.js';
 import { useDashboard, useWorkbench } from '../react/index.js';
-import { Button } from './components/button.js';
 import { SurfaceAnnouncer, useAnnouncer } from './Announcer.js';
 import { DashboardBoard } from './dashboard/Board.js';
 import { RefreshControl } from './RefreshControl.js';
@@ -32,6 +30,7 @@ import { WorkbenchShell } from './WorkbenchShell.js';
 import type { RenderFailureHandler } from './RenderBoundary.js';
 import { DashboardTabs } from './dashboard/DashboardTabs.js';
 import { boardFindingNamer } from './dashboard/findings.js';
+import { useBuildShell } from './dashboard/buildShell.js';
 import { useDashboardExtensions } from './dashboard/building.js';
 import {
   DashboardEditExtensionsContext,
@@ -213,18 +212,9 @@ export function DashboardWorkbench({
   }, [board]);
   const dashboard = useDashboard(board);
 
-  // The tab on screen, told to the host as it changes, and remembered as the
-  // reader's own when they pick one (a preference, never the board's).
-  const shownTab = board ? dashboard.tab : undefined;
-  useEffect(() => {
-    if (shownTab !== undefined) onTabChange?.(shownTab);
-  }, [shownTab, onTabChange]);
-  // What the filters hold, told to the host as it changes, for its address.
-  const heldFilters = board ? dashboard.filters : undefined;
-  useEffect(() => {
-    if (heldFilters !== undefined) onFiltersChange?.(heldFilters);
-  }, [heldFilters, onFiltersChange]);
   const savedId = state?.saved?.id;
+  // The tab on screen is remembered as the reader's own when they pick one
+  // (a preference, never the board's).
   const rememberTab = (tabId: string) => {
     if (savedId) void engine.rememberTab(definitionId, savedId, tabId);
   };
@@ -237,20 +227,20 @@ export function DashboardWorkbench({
   const editing = board !== null && dashboard.building;
   const canEdit = board !== null && workbench.commands.can.save;
   const setEditing = dashboard.setBuilding;
-  // 「编辑」 leaves the bar as the building starts and comes back as it
-  // ends; the keyboard that pressed 保存 or 取消 goes back to it rather than
-  // to the page — only as the building ends, and only when the focus was
-  // lost with the bar: an opening view never takes it.
-  const editButton = useRef<HTMLButtonElement>(null);
-  const wasEditing = useRef(editing);
-  useLayoutEffect(() => {
-    const ended = wasEditing.current && !editing;
-    wasEditing.current = editing;
-    if (!ended) return;
-    const active = document.activeElement;
-    if (active === null || active === document.body)
-      editButton.current?.focus();
-  }, [editing]);
+  // 「编辑」, the keyboard going back to it, and the host told of the tab
+  // and the filters: the shell an embed shares. The leave guard is
+  // `useWorkbench`'s, over the whole draft.
+  const { editButton } = useBuildShell({
+    dashboard,
+    messages,
+    canEdit,
+    editing,
+    guard: null,
+    tab: board ? dashboard.tab : undefined,
+    onTabChange,
+    filters: board ? dashboard.filters : undefined,
+    onFiltersChange,
+  });
 
   // What building a board adds beyond the edit bar and the panel menu (D22
   // C–E), as the one extension contract the board reads: the new-analysis
@@ -310,21 +300,7 @@ export function DashboardWorkbench({
       onSidebarOpenChange={onSidebarOpenChange}
       expandable={expandable}
       manage={featuresOf(features).manage}
-      build={
-        canEdit &&
-        !editing && (
-          <Button
-            ref={editButton}
-            data-slot="dashboard-edit"
-            variant="outline"
-            size="sm"
-            onClick={() => setEditing(true)}
-          >
-            <PencilIcon data-icon="inline-start" />
-            {messages.label('label.dashboard.edit')}
-          </Button>
-        )
-      }
+      build={editButton}
       commitElsewhere={editing}
       onRenderFailure={onRenderFailure}
       // A grid of cards is not framed again.

@@ -13,9 +13,13 @@
 
 /**
  * The `/ui` entry: the default look, built on shadcn/ui with Base UI
- * primitives. Every component here consumes a controller from `/react` and
- * nothing else, so replacing one is a matter of writing different markup
- * against the same contract.
+ * primitives. A component reads what it draws in one of two ways: a pure
+ * kernel reading (`filter`, `record`, `analysis`, `dashboard` — functions of
+ * a definition and a config, public from the root entry) it may call
+ * directly, and a stateful judgement — anything that reads an open runtime,
+ * a write in flight or a command's outcome — it takes from a controller in
+ * `/react`. So replacing one is a matter of writing different markup against
+ * the same controllers and the same kernel functions.
  *
  * Styles ship separately as `@ahoo-wang/wow-view-engine/styles.css`.
  */
