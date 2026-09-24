@@ -44,12 +44,16 @@ export default defineConfig(({ mode }) => ({
       // registry and updated with `shadcn add --diff`, so they are upstream's
       // to test; what this package owns is the composition above them.
       exclude: ['src/ui/components/**', 'src/ui/lib/**', 'src/styles.ts'],
-      thresholds: {
-        statements: 95,
-        branches: 91,
-        functions: 97,
-        lines: 96,
-      },
+      // A shard runs a third of the suite, so its coverage is a third of the
+      // truth; CI holds the thresholds when `--merge-reports` joins the shards.
+      thresholds: process.argv.some(arg => arg.startsWith('--shard'))
+        ? undefined
+        : {
+            statements: 95,
+            branches: 91,
+            functions: 97,
+            lines: 96,
+          },
     },
   },
 }));

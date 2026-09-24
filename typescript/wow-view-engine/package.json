@@ -44,6 +44,7 @@
     "build": "vite build && pnpm test:package",
     "test": "vitest run --coverage && pnpm test:type",
     "test:no-coverage": "vitest run --coverage.enabled=false && pnpm test:type",
+    "test:docs": "vitest run --coverage.enabled=false test/docsReferences.test.ts test/agentsStructure.test.ts test/quickstart.test.ts",
     "test:type": "tsc --noEmit -p tsconfig.json && tsc -p tsconfig.headless.json && tsc -p tsconfig.test.json",
     "test:package": "node scripts/verify-package.mjs",
     "lint": "eslint . --fix",
