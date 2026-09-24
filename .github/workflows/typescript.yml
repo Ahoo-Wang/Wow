@@ -36,6 +36,7 @@ jobs:
     outputs:
       typescript: ${{ steps.scope.outputs.typescript }}
       docs: ${{ steps.scope.outputs.docs }}
+      view-engine: ${{ steps.scope.outputs.viewEngine }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -94,6 +95,7 @@ jobs:
       - name: Check package types
         run: pnpm typecheck
 
+  # Every package but view-engine, whose suite runs sharded below.
   unit:
     name: Unit / Node ${{ matrix.node-version }}
     needs: scope
@@ -122,9 +124,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Build packages
-        run: pnpm build:typescript
+        run: pnpm -r --filter './typescript/*' --filter '!wow-integration-test' --filter '!wow-storybook' --filter '!@ahoo-wang/wow-view-engine' build
       - name: Test packages
-        run: pnpm test
+        run: pnpm -r --filter './typescript/*' --filter '!wow-integration-test' --filter '!wow-storybook' --filter '!@ahoo-wang/wow-view-engine' test
       - name: Upload TypeScript coverage
         if: matrix.node-version == 24
         uses: codecov/codecov-action@v7
@@ -135,6 +137,121 @@ jobs:
           fail_ci_if_error: true
           disable_search: true
           files: ./typescript/wow-client/coverage/coverage-final.json,./typescript/wow-react/coverage/coverage-final.json,./typescript/wow-generator/coverage/coverage-final.json
+
+  # View-engine's suite (`vitest run --coverage && pnpm test:type`) split in
+  # three: each shard collects its third of the coverage as a blob report, and
+  # `view-engine` merges them, holding the thresholds once.
+  view-engine-shard:
+    name: View engine / Node 24 (${{ matrix.shard }}/3)
+    needs: scope
+    if: needs.scope.outputs.view-engine == 'true'
+    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.34.5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build dependencies
+        run: pnpm --filter '@ahoo-wang/wow-view-engine^...' build
+      - name: Test shard
+        working-directory: typescript/wow-view-engine
+        run: pnpm exec vitest run --coverage --shard=${{ matrix.shard }}/3 --reporter=blob --reporter=default
+      - name: Preserve shard report
+        uses: actions/upload-artifact@v7
+        with:
+          name: view-engine-blob-${{ matrix.shard }}
+          path: typescript/wow-view-engine/.vitest-reports/
+          include-hidden-files: true
+          retention-days: 1
+          if-no-files-found: error
+
+  view-engine:
+    name: View engine
+    needs: [scope, view-engine-shard]
+    if: needs.scope.outputs.view-engine == 'true'
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Codecov upload through OIDC.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.34.5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # test:type checks the package against its built dependencies.
+      - name: Build dependencies
+        run: pnpm --filter '@ahoo-wang/wow-view-engine^...' build
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: view-engine-blob-*
+          merge-multiple: true
+          path: typescript/wow-view-engine/.vitest-reports
+      - name: Merge shards and hold coverage thresholds
+        working-directory: typescript/wow-view-engine
+        run: pnpm exec vitest run --merge-reports --coverage
+      - name: Check types
+        working-directory: typescript/wow-view-engine
+        run: pnpm test:type
+      - name: Upload view-engine coverage
+        uses: codecov/codecov-action@v7
+        with:
+          use_oidc: true
+          flags: typescript
+          name: typescript-view-engine
+          fail_ci_if_error: true
+          disable_search: true
+          files: ./typescript/wow-view-engine/coverage/coverage-final.json
+
+  # Node 22 formats dates and numbers with its own ICU; the same assertions,
+  # without coverage, in two shards that still finish before Node 24's slowest.
+  view-engine-node22:
+    name: View engine / Node 22 (${{ matrix.shard }}/2)
+    needs: scope
+    if: needs.scope.outputs.view-engine == 'true'
+    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.34.5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build dependencies
+        run: pnpm --filter '@ahoo-wang/wow-view-engine^...' build
+      - name: Test shard
+        working-directory: typescript/wow-view-engine
+        run: pnpm exec vitest run --coverage.enabled=false --shard=${{ matrix.shard }}/2
 
   docs:
     name: Documentation
@@ -161,7 +278,16 @@ jobs:
 
   typescript-gate:
     name: typescript-gate
-    needs: [scope, quality, unit, docs]
+    needs:
+      [
+        scope,
+        quality,
+        unit,
+        view-engine-shard,
+        view-engine,
+        view-engine-node22,
+        docs,
+      ]
     if: always()
     timeout-minutes: 5
     runs-on: ubuntu-latest
