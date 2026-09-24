@@ -46,8 +46,7 @@ import {
 /** Runtime entry points and a value each must export. */
 const ENTRIES = [
   ['@ahoo-wang/wow-client', 'filter'],
-  ['@ahoo-wang/wow-client/query/locale/zh_CN', 'zh_CN'],
-  ['@ahoo-wang/wow-client/query/locale/en_US', 'en_US'],
+  ['@ahoo-wang/wow-client/legacy', 'zh_CN'],
   ['@ahoo-wang/wow-react', 'useFetcherPagedQuery'],
   ['@ahoo-wang/wow-generator', 'CodeGenerator'],
 ];
@@ -55,7 +54,7 @@ const BINS = ['wow-generator', 'fetcher-generator'];
 
 /** Consumers compiled under each resolution mode. */
 const CLIENT_AND_GENERATOR = `import { filter } from '@ahoo-wang/wow-client';
-import { zh_CN } from '@ahoo-wang/wow-client/query/locale/zh_CN';
+import { zh_CN } from '@ahoo-wang/wow-client/legacy';
 import { CodeGenerator } from '@ahoo-wang/wow-generator';
 
 // A condition is not a number.

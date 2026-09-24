@@ -38,32 +38,40 @@ const SURFACE_LISTS = {
   './legacy': 'test/surface/legacy.txt',
 };
 
+/** The code entries: every `exports` key but `./package.json`. */
+const entries = Object.entries(manifest.exports).filter(
+  ([subpath]) => subpath !== './package.json',
+);
 assert.deepEqual(
-  Object.keys(manifest.exports).sort(),
+  entries.map(([subpath]) => subpath).sort(),
   Object.keys(SURFACE_LISTS).sort(),
   'Every entry in package.json exports needs a surface list, and every list an entry',
 );
 
 let checked = 0;
-for (const [subpath, paths] of Object.entries(manifest.exports)) {
+for (const [subpath, conditions] of entries) {
   const specifier = name + subpath.slice(1);
-  for (const path of Object.values(paths)) {
-    assert.ok(
-      statSync(new URL(path, packageRoot)).size > 0,
-      `${path} is missing or empty; run the build first`,
-    );
+  for (const { types, default: target } of [
+    conditions.import,
+    conditions.require,
+  ]) {
+    for (const path of [types, target])
+      assert.ok(
+        statSync(new URL(path, packageRoot)).size > 0,
+        `${path} is missing or empty; run the build first`,
+      );
   }
 
   const esm = import.meta.resolve(specifier);
   assert.equal(
     esm,
-    new URL(paths.import, packageRoot).href,
+    new URL(conditions.import.default, packageRoot).href,
     `${specifier} does not resolve to its declared import target`,
   );
   const cjs = require.resolve(specifier);
   assert.equal(
     cjs,
-    new URL(paths.require, packageRoot).pathname,
+    new URL(conditions.require.default, packageRoot).pathname,
     `${specifier} does not resolve to its declared require target`,
   );
 
@@ -89,5 +97,5 @@ for (const [subpath, paths] of Object.entries(manifest.exports)) {
 }
 
 console.log(
-  `${Object.keys(manifest.exports).length} entries resolve under import and require, and export at run time exactly the ${checked} values their surface lists name.`,
+  `${entries.length} entries resolve under import and require, and export at run time exactly the ${checked} values their surface lists name.`,
 );
