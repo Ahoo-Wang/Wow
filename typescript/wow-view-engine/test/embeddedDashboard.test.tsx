@@ -498,6 +498,53 @@ describe('EmbeddedDashboard', () => {
     );
   });
 
+  it('reorders the filters on the bar while building, the locked one with them and the hidden one kept held', async () => {
+    const config = board();
+    config.fields = [
+      ...(config.fields ?? []),
+      { name: 'code', label: 'Code', kind: 'string' },
+    ];
+    const { runtime } = embed({
+      engine: engineOf(config),
+      interaction: 'editable',
+      filterModes: { region: 'locked', status: 'hidden' },
+      pageValues: { values: { region: ['CN'], status: ['PENDING'] } },
+    });
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: /^Edit$/ }),
+    );
+    // A locked filter is carried like the rest; a hidden one is not there.
+    expect(
+      screen.getByRole('button', { name: 'Reorder “Region”' }),
+    ).toBeDefined();
+    expect(
+      screen.queryByRole('button', { name: 'Reorder “State”' }),
+    ).toBeNull();
+    screen.getByRole('button', { name: 'Reorder “Code”' }).focus();
+    await userEvent.keyboard('{ArrowLeft}');
+
+    // Past the locked neighbour on the bar; the hidden one keeps its order
+    // among the rest, and what the page holds stays held.
+    expect(
+      runtime()
+        .getSnapshot()
+        .draft.fields.map(f => f.name),
+    ).toEqual(['code', 'region', 'status']);
+    expect(
+      document.querySelector('[data-slot="dashboard-announcement"]')
+        ?.textContent,
+    ).toBe('“Code” is now filter 1 of 2');
+    expect(
+      (await screen.findByRole('group', { name: 'Region (set by this page)' }))
+        .textContent,
+    ).toContain('CN');
+    expect(runtime().getSnapshot().filters.values).toEqual({
+      region: ['CN'],
+      status: ['PENDING'],
+    });
+  });
+
   it('offers no building on a board nobody may save here', async () => {
     const engine = new ViewEngine({
       definitions: [

@@ -38,12 +38,14 @@ import {
   DashboardViewRuntime,
   MemoryViewStore,
   ViewEngine,
+  type DashboardField,
   type DashboardPanel,
   type DashboardViewConfig,
   type DataViewDefinition,
   type ViewInstance,
 } from '../src/index.js';
 import { DashboardWorkbench } from '../src/ui/index.js';
+import { barMove } from '../src/ui/dashboard/FilterOrder.js';
 import {
   analysisConfig,
   dashboardConfig,
@@ -216,7 +218,7 @@ function setup(config: DashboardViewConfig = board()) {
       instanceId="board"
     />,
   );
-  return { engine, source, runtime };
+  return { engine, source, runtime, store };
 }
 
 async function bar() {
@@ -628,5 +630,94 @@ describe('adding and wiring a filter (D22 G)', () => {
     await waitFor(() =>
       expect(runtime().getSnapshot().draft.timeGrouping).toBeUndefined(),
     );
+  });
+});
+
+describe('putting the filters in order (D22 G)', () => {
+  /** The filters on the bar, by name, in the order drawn. */
+  const onBar = () =>
+    [
+      ...document.querySelectorAll<HTMLElement>(
+        '[data-slot="dashboard-filter-bar"] [data-filter]',
+      ),
+    ].map(entry => entry.dataset.filter);
+
+  it('moves a filter by the arrows on its handle, and saves the order with the board', async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    const { runtime, store } = setup();
+    await bar();
+    // Read, the order is read: no handle to carry a filter by.
+    expect(
+      screen.queryByRole('button', { name: 'Reorder “Region”' }),
+    ).toBeNull();
+    await startBuilding(user);
+
+    const handle = screen.getByRole('button', { name: 'Reorder “Region”' });
+    handle.focus();
+    await user.keyboard('{ArrowLeft}');
+    expect(
+      runtime()
+        .getSnapshot()
+        .draft.fields.map(f => f.name),
+    ).toEqual(['region', 'created']);
+    expect(onBar()).toEqual(['region', 'created']);
+    expect(
+      document.querySelector('[data-slot="dashboard-announcement"]')
+        ?.textContent,
+    ).toBe('“Region” is now filter 1 of 2');
+    // The keyboard stays on the handle it moved, and the time grouping
+    // keeps its place after the filters.
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole('button', { name: 'Reorder “Region”' }),
+      ),
+    );
+    const grouping = screen.getByRole('group', { name: 'Time grouping' });
+    expect(
+      chip('Created (required)').compareDocumentPosition(grouping) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // No place past either end, and no arrow up or down on a row.
+    await user.keyboard('{ArrowLeft}{ArrowUp}');
+    expect(onBar()).toEqual(['region', 'created']);
+
+    await user.click(screen.getByRole('button', { name: 'Done' }));
+    await waitFor(async () => {
+      const stored = (await store.get('board')).config as DashboardViewConfig;
+      expect(stored.fields?.map(field => field.name)).toEqual([
+        'region',
+        'created',
+      ]);
+    });
+  });
+});
+
+/**
+ * The places a move names are the bar's: a filter the embedding page hid
+ * is not on it, and a move goes past the neighbour drawn.
+ */
+describe('where a move on the bar lands among all the filters', () => {
+  const field = (name: string): DashboardField => ({
+    name,
+    label: name,
+    kind: 'string',
+  });
+  const all = ['a', 'hidden', 'b', 'c'].map(field);
+  const shown = ['a', 'b', 'c'].map(field);
+
+  it('lands just past the neighbour it moves over, a hidden one between kept in order', () => {
+    // a → after b: [hidden, b, a, c].
+    expect(barMove(shown, all, 'a', 1)).toBe(2);
+    // b → before a: [b, a, hidden, c].
+    expect(barMove(shown, all, 'b', 0)).toBe(0);
+    expect(barMove(shown, all, 'c', 0)).toBe(0);
+  });
+
+  it('is no move off the bar, past its ends, or onto the place it holds', () => {
+    expect(barMove(shown, all, 'hidden', 0)).toBeNull();
+    expect(barMove(shown, all, 'a', -1)).toBeNull();
+    expect(barMove(shown, all, 'c', 3)).toBeNull();
+    expect(barMove(shown, all, 'b', 1)).toBeNull();
+    expect(barMove(shown, shown.slice(1), 'b', 0)).toBeNull();
   });
 });

@@ -34,6 +34,7 @@ import { ToggleGroup, ToggleGroupItem } from '../components/toggle-group.js';
 import { FilterValueEditor } from '../FilterValueEditor.js';
 import { IconButton, IconTooltip } from '../IconButton.js';
 import { panelNames } from '../DashboardPanel.js';
+import { cn } from '../lib/utils.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { summaryText } from '../summary.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
@@ -43,6 +44,11 @@ import {
   sameValue,
   type BoardFilterModes,
 } from './filterModes.js';
+import {
+  useFilterOrder,
+  type FilterCarry,
+  type FilterOrder,
+} from './FilterOrder.js';
 
 export interface FilterBarProps {
   dashboard: DashboardController;
@@ -61,6 +67,11 @@ export interface FilterBarProps {
    * not at all. Every filter is editable when left out.
    */
   modes?: BoardFilterModes;
+  /**
+   * While the board is built: the filters put in another order, by a handle
+   * on each chip (`useFilterOrder`); left out, the order is read.
+   */
+  order?: FilterOrder;
 }
 
 /**
@@ -79,12 +90,14 @@ export function FilterBar({
   onRemoveGrouping,
   add,
   modes,
+  order,
 }: FilterBarProps) {
   const messages = useViewMessages();
   // What the page hid is not on the bar; what it locked is, as a reading.
   const fields = dashboard.filterFields.filter(
     field => filterModeOf(modes, field.name) !== 'hidden',
   );
+  const sortable = useFilterOrder(fields, dashboard.filterFields, order);
   const groupingMode = modes?.grouping ?? 'editable';
   const grouping = groupingMode === 'hidden' ? null : dashboard.timeGrouping;
   if (fields.length === 0 && grouping === null && !add) return null;
@@ -112,23 +125,29 @@ export function FilterBar({
       // wraps where there is room.
       className="flex flex-wrap items-center gap-2 max-md:flex-nowrap max-md:overflow-x-auto"
     >
-      {fields.map(field =>
-        filterModeOf(modes, field.name) === 'locked' ? (
-          <LockedChip
-            key={field.name}
-            field={field}
-            dashboard={dashboard}
-            settings={settings?.(field)}
-          />
-        ) : (
-          <FilterChip
-            key={field.name}
-            field={field}
-            dashboard={dashboard}
-            idle={!reaching.has(field.name)}
-            pressedOn={names.get(filters.from?.[field.name] ?? '')}
-            settings={settings?.(field)}
-          />
+      {sortable.wrap(
+        fields.map((field, index) =>
+          sortable.carry(field, index, carry =>
+            filterModeOf(modes, field.name) === 'locked' ? (
+              <LockedChip
+                key={field.name}
+                field={field}
+                dashboard={dashboard}
+                settings={settings?.(field)}
+                carry={carry}
+              />
+            ) : (
+              <FilterChip
+                key={field.name}
+                field={field}
+                dashboard={dashboard}
+                idle={!reaching.has(field.name)}
+                pressedOn={names.get(filters.from?.[field.name] ?? '')}
+                settings={settings?.(field)}
+                carry={carry}
+              />
+            ),
+          ),
         ),
       )}
       {grouping && groupingMode === 'locked' && (
@@ -203,6 +222,7 @@ function FilterChip({
   idle,
   pressedOn,
   settings,
+  carry,
 }: {
   field: DashboardField;
   dashboard: DashboardController;
@@ -210,6 +230,8 @@ function FilterChip({
   /** The panel whose press set the value, by its name on the board. */
   pressedOn?: string;
   settings?: ReactNode;
+  /** While the board is built: the handle it is carried by. */
+  carry?: FilterCarry;
 }) {
   const messages = useViewMessages();
   const kinds = dashboard.kinds;
@@ -218,10 +240,12 @@ function FilterChip({
   const atDefault = field.required === true && sameValue(value, field.default);
   return (
     <div
+      ref={carry?.ref}
       data-slot="dashboard-filter"
       data-filter={field.name}
       data-idle={idle || undefined}
       data-required={field.required || undefined}
+      data-dragging={carry?.dragging || undefined}
       role="group"
       // The star is drawn, and said as a word: 「创建时间（必填）」.
       aria-label={
@@ -231,8 +255,12 @@ function FilterChip({
       }
       // Quieter, not fainter: a dashed edge on the muted ground, with the
       // words at their own contrast — a faded chip is text axe cannot read.
-      className="bg-muted/40 data-[idle]:bg-background flex min-w-0 shrink-0 items-center gap-1 rounded-md border py-0.5 pr-0.5 pl-2 text-sm data-[idle]:border-dashed"
+      className={cn(
+        'bg-muted/40 data-[idle]:bg-background flex min-w-0 shrink-0 items-center gap-1 rounded-md border py-0.5 pr-0.5 text-sm data-[idle]:border-dashed',
+        carry ? 'pl-0.5' : 'pl-2',
+      )}
     >
+      {carry?.handle}
       <span
         aria-hidden="true"
         className="text-muted-foreground shrink-0 whitespace-nowrap"
@@ -318,10 +346,12 @@ function LockedChip({
   field,
   dashboard,
   settings,
+  carry,
 }: {
   field: DashboardField;
   dashboard: DashboardController;
   settings?: ReactNode;
+  carry?: FilterCarry;
 }) {
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
@@ -343,6 +373,7 @@ function LockedChip({
       label={field.label}
       reading={reading}
       settings={settings}
+      carry={carry}
     />
   );
 }
@@ -354,27 +385,36 @@ function LockedReading({
   label,
   reading,
   settings,
+  carry,
 }: {
   slot: string;
   name?: string;
   label: string;
   reading: string;
   settings?: ReactNode;
+  /** While the board is built, a locked filter is carried like the rest. */
+  carry?: FilterCarry;
 }) {
   const messages = useViewMessages();
   const locked = messages.label('label.embed.locked');
   return (
     <div
+      ref={carry?.ref}
       data-slot={slot}
       data-filter={name}
       data-locked=""
+      data-dragging={carry?.dragging || undefined}
       role="group"
       // 「客户（由页面设定）」: the lock is said, not only drawn.
       aria-label={messages.label('label.embed.locked-name', {
         filter: label,
       })}
-      className="bg-muted/40 flex min-w-0 shrink-0 items-center gap-1 rounded-md border py-0.5 pr-0.5 pl-2 text-sm"
+      className={cn(
+        'bg-muted/40 flex min-w-0 shrink-0 items-center gap-1 rounded-md border py-0.5 pr-0.5 text-sm',
+        carry ? 'pl-0.5' : 'pl-2',
+      )}
     >
+      {carry?.handle}
       <span className="text-muted-foreground shrink-0 whitespace-nowrap">
         {label}
       </span>

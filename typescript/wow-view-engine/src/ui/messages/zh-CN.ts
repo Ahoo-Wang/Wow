@@ -1104,6 +1104,12 @@ export const zhCN: ViewMessages = {
   'label.filters.auto-wired-one': '已自动接上 1 个有「{field}」字段的面板',
   'label.filters.undo': '撤销',
   'label.filters.dismiss': '关闭',
+  'label.filters.reorder': '调整「{filter}」的顺序',
+  'label.filters.instructions':
+    '按空格键拿起这个筛选，用方向键移动，再按空格键放下；按 Esc 放回原处。',
+  'label.filters.picked': '已拿起筛选「{filter}」。',
+  'label.filters.cancelled': '筛选「{filter}」留在原处。',
+  'label.filters.moved': '「{filter}」现在是第 {index} 个筛选，共 {total} 个',
   'label.tabs.name': '标签页',
   'label.tabs.add': '添加标签页',
   'label.tabs.new-title': '标签页 {index}',

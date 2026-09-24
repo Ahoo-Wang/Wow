@@ -267,7 +267,11 @@ export function DashboardBoard({
           }
         />
       </div>
-      <span aria-live="polite" className="sr-only">
+      <span
+        data-slot="dashboard-announcement"
+        aria-live="polite"
+        className="sr-only"
+      >
         {said}
       </span>
       <ViewPicker

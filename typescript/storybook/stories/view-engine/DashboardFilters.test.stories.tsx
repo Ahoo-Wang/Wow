@@ -307,6 +307,65 @@ export const TextOffersCountedValues: Story = {
 };
 
 /**
+ * Screen G, the order: while the board is built each chip wears a handle,
+ * and ← on 订单号's moves it a place along the bar — twice, past 状态 and
+ * 仓库, then → once back — the keyboard staying on the handle, each landing
+ * said, and the time grouping still after the filters.
+ */
+export const FiltersReordered: Story = {
+  ...DisplayFilters,
+  decorators: [DESK],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const bar = await filterBar(canvasElement);
+    const order = () =>
+      [...bar.querySelectorAll<HTMLElement>('[data-filter]')].map(
+        chip => chip.dataset.filter,
+      );
+    await expect(order()).toEqual(['created', 'region', 'phase', 'order']);
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.dashboard.edit'] }),
+    );
+    const handle = await within(bar).findByRole('button', {
+      name: label('label.filters.reorder', { filter: '订单号' }),
+    });
+    handle.focus();
+    await userEvent.keyboard('{ArrowLeft}');
+    await waitFor(() =>
+      expect(order()).toEqual(['created', 'region', 'order', 'phase']),
+    );
+    // Put back in the DOM at its place, the chip keeps the keyboard.
+    await waitFor(() => expect(handle).toHaveFocus());
+    await userEvent.keyboard('{ArrowLeft}');
+    await waitFor(() =>
+      expect(order()).toEqual(['created', 'order', 'region', 'phase']),
+    );
+    await expect(
+      canvasElement.querySelector('[data-slot="dashboard-announcement"]'),
+    ).toHaveTextContent('「订单号」现在是第 2 个筛选，共 4 个');
+    // And back a place: going right is the chip itself put back in the DOM.
+    await waitFor(() => expect(handle).toHaveFocus());
+    await userEvent.keyboard('{ArrowRight}');
+    await waitFor(() =>
+      expect(order()).toEqual(['created', 'region', 'order', 'phase']),
+    );
+    await waitFor(() => expect(handle).toHaveFocus());
+    await expect(
+      canvasElement.querySelector('[data-slot="dashboard-announcement"]'),
+    ).toHaveTextContent('「订单号」现在是第 3 个筛选，共 4 个');
+    // The time grouping is not in this order: it stays after the filters.
+    const grouping = within(bar).getByRole('group', {
+      name: zhCN['label.filters.grouping'],
+    });
+    const last = bar.querySelector('[data-filter="phase"]');
+    await expect(
+      (last?.compareDocumentPosition(grouping) ?? 0) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  },
+};
+
+/**
  * What the filters hold is the host's to keep in its address
  * (`onFiltersChange`): told as the board opens, and again on every pick.
  */

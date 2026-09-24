@@ -27,7 +27,7 @@ ECharts 迁移（D21）与两份「数据分析师视角」审查的 P0 已全�
   - 共享板上个人视图的面板菜单「复制为共享视图并替换」（D22 B）还没有。
   - 判据：从空仪表盘开始只用界面就能搭出首页那块运营看板；真浏览器逐控件走查。
   - 落点：`src/ui/dashboard/`、`src/ui/DashboardWorkbench.tsx`、[ui/dashboard.md](ui/dashboard.md)。
-- **批 C 全局筛选**：已做完（C1 #1843 模型与运行时，C2 界面），见 [ui/dashboard.md](ui/dashboard.md)「筛选」。剩一件：**筛选条上的排序**——内核与 runtime 有 `moveFilter`，界面上还没有拖动或键盘调顺序；判据：编辑中筛选可按把手或方向键调顺序（同标签栏的 `DragHandle`），有测试；落点：`src/ui/dashboard/FilterBar.tsx`。
+- **批 C 全局筛选**：已做完（C1 #1843 模型与运行时，C2 界面），见 [ui/dashboard.md](ui/dashboard.md)「筛选」。
 - **批 C 之前的整板条件——固定范围的界面**（[D23](decisions.md#d23-搁置待议的六条拍板2026-09-23) Q16）：迁成默认值的那一半已做（`migrateDashboardConfig` 的 `intoDefaults`，[model.md#dashboard-配置](model.md#dashboard-配置)）。拆不开、留在 `config.filter` 里的，今天出现在「正在显示」条上、✕ 能拿掉，但没有叫它「固定范围」，也不在筛选条旁；要在筛选条旁注明为只读的「固定范围」，编辑模式里可以整体删掉。等阶段 4（筛选三态动 `FilterBar`）合并后做。
   - 判据：拆不开的那棵条件在筛选条旁读得到、编辑中删得掉；有测试与故事。
   - 落点：`src/ui/dashboard/FilterBar.tsx`、[ui/dashboard.md](ui/dashboard.md)「筛选」。

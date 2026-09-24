@@ -118,6 +118,11 @@ export function useBoardFilters({
           building ? () => edit.setTimeGrouping(null) : undefined
         }
         modes={modes}
+        order={
+          building
+            ? { move: (name, to) => edit.moveFilter(name, to), say }
+            : undefined
+        }
       />
     ),
     add: building && (
