@@ -124,6 +124,7 @@ test('view-engine and what it builds on run its suite, the stories and the site'
     'docs',
     'viewEngine',
     'storybook',
+    'contract',
   ]);
   for (const path of [
     'typescript/wow-view-engine/src/index.ts',

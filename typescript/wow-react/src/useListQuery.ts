@@ -52,25 +52,42 @@ export interface UseListQueryReturn<
 > extends UseQueryReturn<Q, R[], E> {}
 
 /**
- * Hook for querying list data with a filter, projection, and sorting.
- * Wraps useQuery to provide type-safe list queries.
+ * Runs a list query through your own `execute` function and keeps the rows
+ * as state: typically a query client's `list` or `listState`.
  *
- * @template R - The type of the result items in the list
- * @template FIELDS - The fields type for the list query
- * @template E - The error type, defaults to FetcherError
- * @param options - The query options including list query configuration
- * @returns The query result with list data
+ * `execute` receives the query, the `attributes` option and an
+ * `AbortController`; hand the controller on so that a newer query, `abort()`
+ * or an unmount cancels the request. The query runs on mount and whenever
+ * `query` or `setQuery()` changes it; set `autoExecute: false` to run it only
+ * through `execute()`.
+ *
+ * Returns `result` (the rows, or `undefined` before the first success),
+ * `loading`, `error`, `status`, `execute`, `abort`, `reset`, `getQuery` and
+ * `setQuery`.
+ *
+ * @template R - One row of the list
+ * @template FIELDS - The field names the query may use
+ * @template E - The error type, `FetcherError` by default
  *
  * @example
- * ```typescript
- * const { data, isLoading } = useListQuery<{ id: number; name: string }, 'id' | 'name'>({
- *   initialQuery: {
- *     filter: filter.matchAll(),
- *     projection: { include: ['id', 'name'] },
- *     sort: [{ field: 'id', direction: SortDirection.ASC }],
- *   },
- *   execute: async (query) => fetchListData(query),
- * });
+ * ```tsx
+ * import { desc, filter, listQuery, type SnapshotQueryClient } from '@ahoo-wang/wow-client';
+ * import { useListQuery } from '@ahoo-wang/wow-react';
+ *
+ * function LatestOrders({ client }: { client: SnapshotQueryClient<OrderState> }) {
+ *   const { result, loading, error } = useListQuery<OrderState>({
+ *     initialQuery: listQuery({
+ *       filter: filter.eq('state.status', 'PAID'),
+ *       sort: [desc('createTime')],
+ *       limit: 20,
+ *     }),
+ *     execute: (query, attributes, abortController) =>
+ *       client.listState(query, attributes, abortController),
+ *   });
+ *   if (error) return <p role="alert">{error.message}</p>;
+ *   if (loading || !result) return <p>Loading…</p>;
+ *   return <ul>{result.map(order => <li key={order.id}>{order.id}</li>)}</ul>;
+ * }
  * ```
  */
 export function useListQuery<
