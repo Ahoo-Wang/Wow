@@ -24,12 +24,12 @@ export interface Pagination {
 
 /**
  * Default pagination configuration.
- * Page index starts at 1, page size is 10.
+ * Page index starts at 1, page size is 10. Frozen: the factories copy it.
  */
-export const DEFAULT_PAGINATION: Pagination = {
+export const DEFAULT_PAGINATION: Readonly<Pagination> = Object.freeze({
   index: 1,
   size: 10,
-};
+});
 
 /**
  * Creates a Pagination object with the provided parameters.
@@ -46,7 +46,7 @@ export const DEFAULT_PAGINATION: Pagination = {
 export function pagination({
   index = DEFAULT_PAGINATION.index,
   size = DEFAULT_PAGINATION.size,
-}: Partial<Pagination> = DEFAULT_PAGINATION): Pagination {
+}: Partial<Pagination> = {}): Pagination {
   return {
     index,
     size,

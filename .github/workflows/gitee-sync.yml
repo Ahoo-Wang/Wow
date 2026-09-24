@@ -8,12 +8,16 @@ on:
       - gh-pages
 #      - gh-pages-with-site-base
   workflow_dispatch:
+# The mirror authenticates with its own SSH key; the job needs no token.
+permissions: {}
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
+      # A third-party action holding the mirror's SSH key: pinned to a commit.
       - name: Sync to Gitee
-        uses: wearerequired/git-mirror-action@master
+        uses: wearerequired/git-mirror-action@6bbc55f2f0082bca533b72dc711f7d37154d40cc # v1.3.1
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         with:

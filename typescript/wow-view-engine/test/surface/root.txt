@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 722 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 723 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -640,6 +640,7 @@ value rootSearch
 value sameFilterNode
 value sameFilterTree
 value sameFilterType
+value sameJson
 value sameLayout
 value scopePrefix
 value searchFieldKind

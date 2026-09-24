@@ -20,7 +20,12 @@ import {
   toTypeIdentifier,
   upperSnakeCase,
 } from '../utils';
-import { IMPORT_WOW_PATH, WOW_TYPE_MAPPING } from './wowTypeMapping';
+import {
+  IMPORT_WOW_LEGACY_PATH,
+  IMPORT_WOW_PATH,
+  WOW_LEGACY_TYPES,
+  WOW_TYPE_MAPPING,
+} from './wowTypeMapping';
 
 /**
  * Data Model Info
@@ -57,13 +62,18 @@ export function resolveModelInfo(
   let mappedType = WOW_TYPE_MAPPING[schemaKey as keyof typeof WOW_TYPE_MAPPING];
   if (schema?.properties && 'filter' in schema.properties) {
     if (schemaKey === 'wow.api.query.ListQuery') {
-      mappedType = 'ListQueryRequest';
+      mappedType = 'FilterListQuery';
     } else if (schemaKey === 'wow.api.query.PagedQuery') {
-      mappedType = 'PagedQueryRequest';
+      mappedType = 'FilterPagedQuery';
     }
   }
   if (mappedType) {
-    return { name: mappedType, path: IMPORT_WOW_PATH };
+    return {
+      name: mappedType,
+      path: WOW_LEGACY_TYPES.has(mappedType)
+        ? IMPORT_WOW_LEGACY_PATH
+        : IMPORT_WOW_PATH,
+    };
   }
 
   const parts = schemaKey.split('.');

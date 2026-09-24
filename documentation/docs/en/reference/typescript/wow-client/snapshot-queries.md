@@ -13,11 +13,11 @@ description: 'Snapshot queries — @ahoo-wang/wow-client'
 | list / listState             | snapshot/list, snapshot/list/state     | Snapshot[] / S[]                                       |
 | listStream / listStateStream | Same list endpoints, SSE Accept        | ReadableStream of JSON SSE snapshots / states          |
 | paged / pagedState           | snapshot/paged, snapshot/paged/state   | PagedList with total/list                              |
-| count                        | snapshot/count                         | number; body is Condition or FilterExpression directly |
+| count                        | snapshot/count                         | number; body is FilterExpression or Condition directly |
 | cursor / cursorState         | snapshot/cursor, snapshot/cursor/state | CursorPage with list/nextCursor                        |
 | aggregate / aggregateStream  | snapshot/aggregation                   | DynamicDocument[] or JSON SSE rows                     |
 
-Each concrete method takes `(query, attributes?, abortController?)`; getById/getStateById take an id instead of a query, construct a legacy aggregateId condition and use single/singleState. getByIds/getStateByIds take string[], use the new aggregateIds filter and limit equal to input length. Empty IDs return Promise.resolve([]) without a request. Do not assume the server preserves input ID order.
+Each concrete method takes `(query, attributes?, abortController?)`; the query is a Filter* query, or a deprecated Condition query from `@ahoo-wang/wow-client/legacy` (the `*QueryRequest` unions); getById/getStateById take an id instead of a query, send `filter.aggregateId(id)` through single/singleState, and so need Wow 8.11 or later; against Wow 8.10 call single/singleState with a `/legacy` query built from `aggregateId(id)`. getByIds/getStateByIds take string[], use the new aggregateIds filter and limit equal to input length. Empty IDs return Promise.resolve([]) without a request. Do not assume the server preserves input ID order.
 
 MaterializedSnapshot combines state S with context/aggregate/tenant/owner/space identity, version, event/time/operator data, tags and deleted. MediumMaterializedSnapshot omits some full snapshot fields; SmallMaterializedSnapshot retains state, named aggregate, version and firstEventTime. They are structural models, not converters. SnapshotMetadataFields provides exact logical metadata names; state paths typically live below `state`.
 
@@ -108,7 +108,7 @@ export interface QueryApi<R, FIELDS extends string = string> {
 
 :::
 
-[typescript/wow-client/src/query/queryApi.ts:36](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryApi.ts#L36)
+[typescript/wow-client/src/query/queryApi.ts:37](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryApi.ts#L37)
 
 ### MaterializedSnapshot {#api-MaterializedSnapshot}
 
@@ -224,7 +224,7 @@ export interface SnapshotQueryApi<
 
 :::
 
-[typescript/wow-client/src/query/snapshot/snapshotQueryApi.ts:31](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshotQueryApi.ts#L31)
+[typescript/wow-client/src/query/snapshot/snapshotQueryApi.ts:32](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshotQueryApi.ts#L32)
 
 ### SnapshotQueryEndpointPaths {#api-SnapshotQueryEndpointPaths}
 
@@ -244,7 +244,7 @@ export class SnapshotQueryEndpointPaths {
 }
 ```
 
-[typescript/wow-client/src/query/snapshot/snapshotQueryApi.ts:118](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshotQueryApi.ts#L118)
+[typescript/wow-client/src/query/snapshot/snapshotQueryApi.ts:119](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshotQueryApi.ts#L119)
 
 ### SnapshotQueryClient {#api-SnapshotQueryClient}
 

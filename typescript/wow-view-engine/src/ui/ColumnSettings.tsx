@@ -19,7 +19,6 @@ import {
   type ReactElement,
 } from 'react';
 import { DragDropProvider } from '@dnd-kit/react';
-import { Accessibility } from '@dnd-kit/dom';
 import { Columns3Icon, SearchIcon } from 'lucide-react';
 import type {
   FieldDefinition,
@@ -50,6 +49,7 @@ import {
   SortableColumnRow,
 } from './columns/ColumnRow.js';
 import { columnDragAccessibility, columnDrop } from './columns/drag.js';
+import { announcedPlugins } from './dragPlugins.js';
 import {
   columnSettingRows,
   movableIndex,
@@ -337,15 +337,9 @@ export function ColumnSettings({
             </Empty>
           ) : (
             <DragDropProvider
-              plugins={defaults =>
-                defaults.map(plugin =>
-                  plugin === Accessibility
-                    ? Accessibility.configure(
-                        columnDragAccessibility(messages, nameOf),
-                      )
-                    : plugin,
-                )
-              }
+              plugins={announcedPlugins(
+                columnDragAccessibility(messages, nameOf),
+              )}
               onDragEnd={({ operation, canceled }) => {
                 const drop = columnDrop(operation, canceled, field =>
                   regionOf(rows, field),

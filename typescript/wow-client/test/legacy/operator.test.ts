@@ -12,7 +12,11 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { Operator, LOGICAL_OPERATORS, EMPTY_VALUE_OPERATORS } from '../../src';
+import {
+  Operator,
+  LOGICAL_OPERATORS,
+  EMPTY_VALUE_OPERATORS,
+} from '../../src/legacy';
 
 describe('Operator', () => {
   // The Operator enum's value for each key equals the key name itself. Verify

@@ -7,13 +7,13 @@ description: Move from fetcher-wow, fetcher-generator, and the Wow hooks of fetc
 
 This page answers: **what must change in an application that uses `@ahoo-wang/fetcher-wow`, `@ahoo-wang/fetcher-generator`, or the Wow hooks of `@ahoo-wang/fetcher-react`?**
 
-The Wow TypeScript packages moved from the [Fetcher repository](https://github.com/Ahoo-Wang/fetcher) into the Wow repository so that the Kotlin contract, the TypeScript client, and the generator change in one pull request and release together. The exported APIs did not change. What changed is package names, the CLI name, peer ranges, and the version line.
+The Wow TypeScript packages moved from the [Fetcher repository](https://github.com/Ahoo-Wang/fetcher) into the Wow repository so that the Kotlin contract, the TypeScript client, and the generator change in one pull request and release together. The exported APIs did not change, except that the deprecated `Condition` API moved to the `@ahoo-wang/wow-client/legacy` subpath. What changed is package names, the CLI name, peer ranges, the version line, and that subpath.
 
 ## What changed
 
 | Before | After | Notes |
 |---|---|---|
-| `@ahoo-wang/fetcher-wow` | `@ahoo-wang/wow-client` | Same exports, including the `/query/locale/en_US` and `/query/locale/zh_CN` subpaths |
+| `@ahoo-wang/fetcher-wow` | `@ahoo-wang/wow-client` | Same exports, except that the deprecated `Condition` API (the `Condition` builders, `Operator`, the `Condition`-based query types and factories) and the `en_US` / `zh_CN` operator locales moved to `@ahoo-wang/wow-client/legacy`; the `/query/locale/en_US` and `/query/locale/zh_CN` subpaths are gone |
 | `@ahoo-wang/fetcher-generator` | `@ahoo-wang/wow-generator` | CLI renamed to `wow-generator`; `fetcher-generator` stays as an alias until v10 |
 | Wow hooks of `@ahoo-wang/fetcher-react` | `@ahoo-wang/wow-react` | `useSingleQuery`, `useListQuery`, `usePagedQuery`, `useCountQuery`, `useListStreamQuery` and their `useFetcher*` variants |
 | Fetcher 5.x version line | Wow version line | `wow-client` 9.x.y is released with Wow 9.x.y |
@@ -55,7 +55,7 @@ With `fetcher-react` 5.1.3 or later, its peer dependency on `fetcher-wow` is opt
 
 ### 2. Rewrite imports
 
-Replace the module specifiers. Symbol names are unchanged.
+Replace the module specifiers. Symbol names are unchanged. Import the deprecated `Condition` API and the operator locales from `@ahoo-wang/wow-client/legacy`; everything else comes from the root entry.
 
 ```ts
 // Before
@@ -65,12 +65,31 @@ import { usePagedQuery, useFetcher } from '@ahoo-wang/fetcher-react';
 
 // After
 import { CommandClient, filter, pagedQuery } from '@ahoo-wang/wow-client';
-import { zh_CN } from '@ahoo-wang/wow-client/query/locale/zh_CN';
+import { zh_CN } from '@ahoo-wang/wow-client/legacy';
 import { usePagedQuery } from '@ahoo-wang/wow-react';
 import { useFetcher } from '@ahoo-wang/fetcher-react';
 ```
 
 Only the five Wow query hooks and their `useFetcher*` variants move to `wow-react`. Every other hook, such as `useFetcher`, `useQuery`, and `useFetcherQuery`, stays in `@ahoo-wang/fetcher-react`. A search for `fetcher-wow` and for the ten hook names finds every line to change.
+
+Moving the `Condition` API to `/legacy` also changes what the root entry's `singleQuery`, `listQuery`, and `pagedQuery` build: they take `filter` instead of `condition`, and `filter` defaults to `filter.matchAll()`. A call that passes `condition` needs the factory of the same name from `/legacy`, or a rewrite with `filter.*`.
+
+#### Wow 8.10 servers
+
+Wow 8.11 and later accept `FilterExpression`. A Wow 8.10 server understands only the `Condition` model, so an application that calls one builds its queries with `@ahoo-wang/wow-client/legacy` and imports everything else from the root entry; the query clients accept both kinds of query:
+
+```ts
+import type { SnapshotQueryClient } from '@ahoo-wang/wow-client';
+import { and, eq, listQuery, ownerId } from '@ahoo-wang/wow-client/legacy';
+
+declare const snapshots: SnapshotQueryClient<unknown>;
+
+const carts = await snapshots.listState(
+  listQuery({ condition: and(ownerId('u-42'), eq('state.status', 'ACTIVE')) }),
+);
+```
+
+`SnapshotQueryClient.getById` and `getStateById` send a `FilterExpression`, so they need Wow 8.11 or later; against 8.10, call `single` or `singleState` with a `/legacy` query built from `aggregateId(id)`.
 
 ### 3. Rename the CLI in scripts
 
@@ -98,6 +117,7 @@ pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated -t ./tscon
 
 Review the diff. Besides the import specifier, the 9.x generator changes generated code in these expected ways:
 
+- The query types: a `ListQuery` or `PagedQuery` schema that carries `filter` (Wow 8.11 and later) now maps to `FilterListQuery` or `FilterPagedQuery` from `@ahoo-wang/wow-client`, and the `Condition`, `ConditionOptions`, and `Operator` schemas, like the `ListQuery` and `PagedQuery` schemas of Wow 8.10, map to types imported from `@ahoo-wang/wow-client/legacy`.
 - Every file starts with `// Code generated by wow-generator. DO NOT EDIT.`, uses single quotes, and imports relative modules with `.js` extensions.
 - A method is named after the last segment of its operationId (`example.cart.add_cart_item` → `addCartItem`), no longer after the shortest suffix not yet taken. A method whose name changes can keep its old one through `apiClients[tag].methodNames` in the [configuration](../../reference/typescript/wow-generator/configuration.md).
 - Command clients merge the `apiMetadata` passed to the constructor over their defaults, so `new CartCommandClient({ fetcher })` keeps the bounded-context base path. Code that reached a service directly without that prefix passes `basePath: ''` now.
@@ -119,7 +139,7 @@ A remaining `@ahoo-wang/fetcher-wow` import fails type checking once the package
 
 - The Wow TypeScript packages follow Wow releases. Choose the version that matches the Wow server, and upgrade `wow-client`, `wow-generator`, and `wow-react` together; they declare each other with `~x.y.z`.
 - Breaking changes ship only in an `x.Y.0` release, and the release notes list each one with its migration.
-- Throughout Wow 9.x, the client and the generator still work against Wow 8.x servers, the `fetcher-generator` alias and the `fetcher-generator.config.json` fallback work, and the deprecated `Condition` API is available. All of them are removed in v10; switch to `FilterExpression` and the `filter.*` builders before then, see [filters](../../reference/typescript/wow-client/filters.md).
+- Throughout Wow 9.x, the client and the generator still work against Wow 8.x servers (8.11 and later with `FilterExpression`, 8.10 through `@ahoo-wang/wow-client/legacy`), the `fetcher-generator` alias and the `fetcher-generator.config.json` fallback work, and the deprecated `Condition` API is available from `/legacy`. All of them are removed in v10; switch to `FilterExpression` and the `filter.*` builders before then, see [filters](../../reference/typescript/wow-client/filters.md).
 - New features land only in the Wow packages. Fetcher keeps a 5.x branch for fixes, and `fetcher-wow` and `fetcher-generator` are planned to be deprecated on npm when Fetcher 6.0 is released.
 
 ## Checklist
@@ -127,7 +147,7 @@ A remaining `@ahoo-wang/fetcher-wow` import fails type checking once the package
 | Check | Done when |
 |---|---|
 | Dependencies | `fetcher-wow` and `fetcher-generator` are gone from `package.json`, and `fetcher-react` is 5.1.3 or later where it is used |
-| Imports | No source file imports `@ahoo-wang/fetcher-wow`, and the Wow query hooks come from `@ahoo-wang/wow-react` |
+| Imports | No source file imports `@ahoo-wang/fetcher-wow`, the `Condition` API and the operator locales come from `@ahoo-wang/wow-client/legacy`, and the Wow query hooks come from `@ahoo-wang/wow-react` |
 | Generated code | Regenerated with `wow-generator`, and the generated files import `@ahoo-wang/wow-client` |
 | Versions | `wow-client`, `wow-generator`, and `wow-react` share one minor version that matches the Wow server |
 | Verification | Type checking and the integration tests against a real Wow server pass |

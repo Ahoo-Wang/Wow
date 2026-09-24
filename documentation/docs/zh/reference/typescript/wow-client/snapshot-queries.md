@@ -13,11 +13,11 @@ description: '快照查询 — @ahoo-wang/wow-client'
 | list / listState             | snapshot/list、snapshot/list/state     | 快照数组 / S[]                                    |
 | listStream / listStateStream | 同 list 端点，SSE Accept               | JSON SSE 快照/状态的 ReadableStream               |
 | paged / pagedState           | snapshot/paged、snapshot/paged/state   | 带 total/list 的 PagedList                        |
-| count                        | snapshot/count                         | number，body 直接为 Condition 或 FilterExpression |
+| count                        | snapshot/count                         | number，body 直接为 FilterExpression 或 Condition |
 | cursor / cursorState         | snapshot/cursor、snapshot/cursor/state | 带 list/nextCursor 的 CursorPage                  |
 | aggregate / aggregateStream  | snapshot/aggregation                   | DynamicDocument[] 或 JSON SSE 行                  |
 
-具体查询方法接收 `(query, attributes?, abortController?)`；getById/getStateById 接收 id，构造旧 aggregateId condition 后调用 single/singleState。getByIds/getStateByIds 接收 string[]，使用新 aggregateIds filter 和等于输入数量的 limit。空 ID 数组直接 Promise.resolve([])，不发请求；不要假设服务端保持输入 ID 顺序。
+具体查询方法接收 `(query, attributes?, abortController?)`，query 为 Filter* 查询，或来自 `@ahoo-wang/wow-client/legacy` 的已弃用 Condition 查询（即 `*QueryRequest` 联合类型）；getById/getStateById 接收 id，通过 single/singleState 发送 `filter.aggregateId(id)`，因此需要 Wow 8.11 或更高版本；连接 Wow 8.10 时，改用 single/singleState 并传入用 `/legacy` 的 `aggregateId(id)` 构造的查询。getByIds/getStateByIds 接收 string[]，使用新 aggregateIds filter 和等于输入数量的 limit。空 ID 数组直接 Promise.resolve([])，不发请求；不要假设服务端保持输入 ID 顺序。
 
 MaterializedSnapshot 将 state S 与 context/aggregate/tenant/owner/space 身份、version、事件/时间/操作者、tags、deleted 组合。MediumMaterializedSnapshot 省略部分完整快照字段；SmallMaterializedSnapshot 保留 state、命名聚合、version、firstEventTime。它们是结构模型，不是转换器。SnapshotMetadataFields 提供准确逻辑元数据字段名，状态字段通常位于 `state` 下。
 
@@ -108,7 +108,7 @@ export interface QueryApi<R, FIELDS extends string = string> {
 
 :::
 
-[typescript/wow-client/src/query/queryApi.ts:36](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryApi.ts#L36)
+[typescript/wow-client/src/query/queryApi.ts:37](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryApi.ts#L37)
 
 ### MaterializedSnapshot {#api-MaterializedSnapshot}
 
@@ -224,7 +224,7 @@ export interface SnapshotQueryApi<
 
 :::
 
-[typescript/wow-client/src/query/snapshot/snapshotQueryApi.ts:31](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshotQueryApi.ts#L31)
+[typescript/wow-client/src/query/snapshot/snapshotQueryApi.ts:32](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshotQueryApi.ts#L32)
 
 ### SnapshotQueryEndpointPaths {#api-SnapshotQueryEndpointPaths}
 
@@ -244,7 +244,7 @@ export class SnapshotQueryEndpointPaths {
 }
 ```
 
-[typescript/wow-client/src/query/snapshot/snapshotQueryApi.ts:118](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshotQueryApi.ts#L118)
+[typescript/wow-client/src/query/snapshot/snapshotQueryApi.ts:119](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshotQueryApi.ts#L119)
 
 ### SnapshotQueryClient {#api-SnapshotQueryClient}
 

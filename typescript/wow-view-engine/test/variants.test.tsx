@@ -70,11 +70,11 @@ describe('ToneBadge', () => {
     expect(danger.className).toContain(
       'bg-destructive/10 dark:bg-destructive/10',
     );
-    // Dark danger writes a step towards the foreground: its own token
-    // measured 3.92:1 on a selected row.
-    expect(danger.className).toContain(
-      'dark:text-[color-mix(in_oklab,var(--destructive)_80%,var(--foreground))]',
-    );
+    // Danger writes in its own token in both modes: the dark-only mix
+    // toward the foreground went with the quieter dark status colours (Q44),
+    // whose ink `test/presetContrast.test.ts` measures in every preset.
+    expect(danger.className).toContain('text-destructive');
+    expect(danger.className).not.toContain('dark:text-');
     // No tone is no fill at all: the edge is the whole of a neutral badge,
     // because the row under it moves through the registry's `secondary`.
     expect(neutral.className).toContain('border-input');
