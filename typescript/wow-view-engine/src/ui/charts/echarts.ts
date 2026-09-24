@@ -23,7 +23,9 @@
  * Label layout moves a line's value labels apart and keeps a pie's from
  * landing on each other (docs/design/decisions.md D21); which bar labels are
  * written is decided by the plot's size (`cartesianFit`). A funnel is bars
- * (`funnelOption`), so the library's funnel is not registered.
+ * (`funnelOption`), and so is a waterfall (`waterfallOption`), so neither the
+ * library's funnel nor anything more for a waterfall is registered; a
+ * treemap is the library's own (`treemapOption`).
  */
 import {
   BarChart,
@@ -31,6 +33,7 @@ import {
   LineChart,
   PieChart,
   ScatterChart,
+  TreemapChart,
 } from 'echarts/charts';
 import {
   GraphicComponent,
@@ -69,6 +72,7 @@ export function init(
       LineChart,
       PieChart,
       ScatterChart,
+      TreemapChart,
       GraphicComponent,
       VisualMapContinuousComponent,
       GridComponent,

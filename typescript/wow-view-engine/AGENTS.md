@@ -100,7 +100,7 @@ src/
   shadcn-bridge.css           — A host's shadcn tokens as the `--fve-*` values (`input`, `ring`, status and chart colours excepted), an optional entry copied into `dist` as written
   model/                      — Types and constants only; imports nothing
     analysis.ts               — Wow aggregation enums as stored literals, the date units coarsest first (`ANALYSIS_DATE_UNITS`); which metric types measure one field (`FIELD_METRIC_TYPES`)
-    chart.ts                  — ChartSpec — one sub-object per chart family, every reference a group or metric alias; `CHART_TYPES`, `CHART_FAMILY`, `CHART_COLOR_SLOTS` (the palette's size, which a pie folds at)
+    chart.ts                  — ChartSpec — one sub-object per chart family (a waterfall's and a treemap's among them), every reference a group or metric alias; `CHART_TYPES`, `CHART_FAMILY`, `CHART_COLOR_SLOTS` (the palette's size, which a pie folds at)
     config.ts                 — ViewConfig — what each view kind stores, and which of its members only draw the result (`presentationMembers`)
     dashboard.ts              — Dashboard config: the 24-column grid it says it is in, the width it is laid out at (`DashboardWidth`, `boardWidth`: none is full; D31), its fixed scope (`fixed`), tabs, the filters (five types, `filterTypeOf`; default, required, multiple, a list) and the time grouping, what they hold (`DashboardFilters`, never saved), bindings (auto or by hand), panels on a saved view or one the board owns (`OwnedView`), how a panel looks at its view (`PanelPresentation`) and what a press on one of its groups does (`PanelClick`), content panels heading included
     definition.ts             — ViewDefinition, FieldDefinition, capabilities
@@ -157,12 +157,14 @@ src/
     capability.ts             — The three scopes the element chain makes: the root's, each element's, the innermost one's; and the renaming a scope implies
     candidates.ts             — A field's values as the data counts them (value candidates): `valueCandidateField` (grouped by `TERMS`, counted, one string, no `options`/`remote`), `valueCandidatesConfig` (an ordinary analysis — the top `valueCandidateLimit` by count, narrowed by `CONTAINS`/`STARTS_WITH` where the field offers one), `readValueCandidates` (whole or not, off the probe row), `narrowValueCandidates`
     chart.ts                  — Chart-shaped projection for the renderers — a time axis always earliest first and without holes, a split's missing combination 0 where it is known empty and the metric adds, a funnel's stages its own rows' numbers unless asked to accumulate, a pie folded before the palette runs out, every value it filled in rather than measured named so (`filled`) — and `groupKeyText` — a group value as a colour key, the one spelling every chart family reads
+    waterfall.ts              — `shapeWaterfall`: a waterfall's steps in reading order (time forward), each with the running total it starts and ends at, and the closing total unless the spec asks none (`WaterfallData`)
+    treemap.ts                — `shapeTreemap`: a treemap's tiles, largest first, nested in one block per outer value when there are two dimensions; a row with no area (not above zero) counted as `omitted` rather than drawn (`TreemapData`)
     chartRows.ts              — What every chart family reads its rows by: `seriesKey` (a group value as a key that keeps apart what the query kept apart), `num`, and `absenceReader` (whether a group the rows lack is known to be empty)
     metricCard.ts             — The metric card's projection: one row's number, or over a trend its last period (the last bucket over when the question was asked, the one still under way left out and named) with the change from the period right before, or the whole (`MetricTrend.headline`); compare and target read the same span; `periodRollover`, how long until the period under way ends and the card should be asked again
     timeAxis.ts               — A time axis for the chart projection: `forwardInTime` (earliest first, the missing-value sentinel last), `withoutHoles` (every bucket between the first and the last, stepped by `bucketRange` in the histogram's zone; nothing filled it cannot place) and `bucketSpan` (where a bucket ends, and whether it had by a given moment, on the engine's clock)
     chartSlots.ts             — `fitChartSlots`: the family sub-object of the current chart type, filled from the groups and metrics in force; `switchChartType`: a type switch carries the lead metric (`leadMetric`) into the new family; `comboMark`: a combo draws its first metric as bars, the others as lines; `comboAxis`: one that measures something else than the first goes to the other axis
     compile.ts                — compileAnalysis → AggregationQuery
-    fitCharts.ts              — Which chart types can draw a result of this shape and which it reads best as (K3, Q6): the capability says which exist, this says which are greyed and why; `chartUnfit`, why a config's own chart cannot draw its shape — then it is drawn as the table (D20)
+    fitCharts.ts              — Which chart types can draw a result of this shape and which it reads best as (K3, Q6): the capability says which exist, this says which are greyed and why; `chartUnfit`, why a config's own chart cannot draw its shape — then it is drawn as the table (D20); `chartPickerGroups`, the picker's 「适合这个结果」 and 「其他图型」 (D33 Q54)
     formula.ts                — Formulas and derived metrics (D20 屏 B): their first shapes, `expressionText`／`derivedText` as the author would say them, `isFormula`
     chartFamilies.ts          — What a chart family is, one row each: its options pages, legend and value labels, and the shapes it can draw — the forward reading of `validateChart`, held to it by a test over every shape
     chartOptions.ts           — The rules behind the visualization panel's second level: which pages a type has, a slot swap, one-choice stacking (bars and areas only, `stacks`), 100% stacking (`offersPercentStack`) and smoothing, and a funnel's stage order from the rows (D20 屏 J)
@@ -179,6 +181,7 @@ src/
     validate.ts               — validateAnalysis — the one entry every per-rule file below is read through
     validateAliases.ts        — Alias syntax, the reserved prefix, duplicates
     validateChart.ts          — Chart rules; groups must all be consumed
+    chartRefs.ts              — What every family's chart rules read (`ChartContext`) and the checks a slot is made of: a group, a metric, a quantity, every group consumed (internal)
     validateElements.ts       — The expansion chain, walked level by level, and each gate filter
     validateGroups.ts         — Group kinds, date units, dense, missing-value keys
     validateHaving.ts         — Having: declared, grouped, over known metrics
@@ -377,7 +380,8 @@ src/
     index.ts                  — The `/ui` entry: the default look, built on shadcn/ui with Base UI primitives
     analysis/                 — What the analysis view is made of
       AnalysisToolbar.tsx     — The result's first row: the reading (dimensions · metrics) and how the result is looked at — table or chart, the visualization panel, and 「导出」 over the groups on screen (D25 Q28)
-      ChartPicker.tsx         — The visualization panel's first level: the chart types as tiles in the sidebar column, greyed with a reason, the recommended one marked, the table among them (D20 屏 I); under them one labelled button on to the chosen type's options
+      ChartPicker.tsx         — The visualization panel's first level: the chart types as tiles in the sidebar column, in two groups — 「适合这个结果」 with the table last, 「其他图型」 greyed with a reason (D33 Q54) — one radiogroup over both, the recommended one marked (D20 屏 I); under them one labelled button on to the chosen type's options
+      CompositionOptions.tsx  — The options of the two charts that add their numbers up: a waterfall's steps and value and whether its total is drawn, a treemap's tiles, outer level and value (D33 Q55)
       ChartOptions.tsx        — The visualization panel's second level: the chosen type's options on the data, display and axes pages (D20 屏 J)
       VisualizationPanel.tsx  — The visualization panel's two levels as the workbench and a panel's own look both draw them (`visualizationPanel`), the keyboard following the level (`useVisualizationFocus`), and `ignore`, a command a host cannot take
       drag.ts                 — What the series list makes of a drag: `seriesDrop` takes only a drop between two series this chart draws, plus what a reader hears
@@ -421,6 +425,10 @@ src/
       measure.ts              — How wide a line of tick text is: a canvas where there is one, an estimate elsewhere
       theme.ts                — `readChartTheme`: the stylesheet's tokens read back off the chart's element as concrete colours; `mixColor`, `emphasized` (a hovered mark a step toward the ink) and `inkOn` (the ink a label on a mark wears, by contrast)
       tooltip.ts              — The tooltip as the registry draws one, in HTML, every data text escaped
+      Waterfall.tsx           — A waterfall through `waterfallOption`: a pressed step handed back as its group, the total's basis said over rows cut short
+      waterfallOption.ts      — `waterfallOption`: bars stacked on an unseen base so each step floats on the running total, a rise in the success colour and a fall in the destructive one, the total in the first slot, signed values past each bar's end; `drawnBars`
+      Treemap.tsx             — A treemap through `treemapOption`: a pressed tile handed back as its group (both, when nested), the groups with no area and the share basis said over it
+      treemapOption.ts        — `treemapOption`: tiles by area named on themselves, a slot a tile up to eight and one hue shaded by rank past that, inner tiles shaded from their block's colour, no zoom or breadcrumb; `drawnTiles`
       Funnel.tsx              — A funnel through `funnelOption`, the conversion's basis said over it
       funnelOption.ts         — `funnelOption`: a centred bar a stage in the order given — one length for one number, no trapezoids — each stage's name, value and conversion in one column beside them; `drawnStages`
       Heatmap.tsx             — A heatmap through `heatmapOption`; a pressed cell handed back as its row's and column's group

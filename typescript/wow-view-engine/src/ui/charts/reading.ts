@@ -22,6 +22,8 @@ import {
   type FilledNote,
   type ValueLabel,
 } from './family.js';
+import { drawnTiles } from './treemapOption.js';
+import { drawnBars } from './waterfallOption.js';
 
 /**
  * A chart as text: a name for the drawing and the same numbers it draws,
@@ -87,6 +89,10 @@ export function readChart(
       return readFunnel(data, spec, ctx);
     case 'metric':
       return readMetric(data, spec, ctx);
+    case 'waterfall':
+      return readWaterfall(data, spec, ctx);
+    case 'treemap':
+      return readTreemap(data, spec, ctx);
   }
 }
 
@@ -374,5 +380,91 @@ function readMetric(
         ctx.messages.label('label.chart.column.value'),
     ],
     rows,
+  };
+}
+
+/**
+ * A waterfall's steps, each with its change and the running total it
+ * arrives at, and the closing total last — the bars in the order drawn.
+ */
+function readWaterfall(
+  data: Extract<ChartData, { type: 'waterfall' }>,
+  spec: ChartSpec | undefined,
+  ctx: ReadingContext,
+): ChartReading {
+  const waterfall = spec?.waterfall;
+  const category = ctx.column(waterfall?.x);
+  const total = ctx.messages.label('label.chart.total');
+  const bars = drawnBars(data, {
+    spec,
+    label: ctx.label,
+    words: {
+      total,
+      increase: ctx.messages.label('label.chart.waterfall.increase'),
+      decrease: ctx.messages.label('label.chart.waterfall.decrease'),
+      running: ctx.messages.label('label.chart.column.running'),
+    },
+  });
+  return {
+    name: nameOf(ctx, 'waterfall', [ctx.column(waterfall?.value)], category),
+    header: [
+      category ?? ctx.messages.label('label.chart.column.category'),
+      ctx.messages.label('label.chart.column.change'),
+      ctx.messages.label('label.chart.column.running'),
+    ],
+    rows: bars.map(bar => [
+      bar.name,
+      bar.kind === 'total' ? '' : bar.whole,
+      bar.running ?? bar.whole,
+    ]),
+  };
+}
+
+/**
+ * A treemap's tiles, in the order drawn, each with its number and its
+ * share of the whole; a nested one names its outer tile first. A group with
+ * no area is not drawn, and not read here either: the drawing says how
+ * many it left out, and the table layout has every row.
+ */
+function readTreemap(
+  data: Extract<ChartData, { type: 'treemap' }>,
+  spec: ChartSpec | undefined,
+  ctx: ReadingContext,
+): ChartReading {
+  const treemap = spec?.treemap;
+  const parent = data.nested ? treemap?.parent : undefined;
+  const category = ctx.column(treemap?.category);
+  const tiles = drawnTiles(data, {
+    spec,
+    label: ctx.label,
+    locale: ctx.locale,
+  });
+  return {
+    name: nameOf(
+      ctx,
+      'treemap',
+      [ctx.column(treemap?.value)],
+      [ctx.column(parent), category]
+        .filter((axis): axis is string => axis !== undefined)
+        .join(ctx.messages.label('label.filter.join')) || undefined,
+    ),
+    header: [
+      ...(parent === undefined
+        ? []
+        : [
+            ctx.column(parent) ??
+              ctx.messages.label('label.chart.column.category'),
+          ]),
+      category ?? ctx.messages.label('label.chart.column.category'),
+      ctx.column(treemap?.value) ??
+        ctx.messages.label('label.chart.column.value'),
+      ctx.messages.label('label.chart.column.share'),
+    ],
+    rows: tiles.map(tile => [
+      ...(parent === undefined ? [] : [ctx.label(parent, tile.row[parent])]),
+      tile.name,
+      tile.text,
+      tile.share,
+    ]),
   };
 }

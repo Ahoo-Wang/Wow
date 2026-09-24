@@ -16,7 +16,9 @@ export interface ChartSpec {
     | 'line'
     | 'area'
     | 'combo'
+    | 'waterfall'
     | 'pie'
+    | 'treemap'
     | 'heatmap'
     | 'scatter'
     | 'funnel'
@@ -27,6 +29,8 @@ export interface ChartSpec {
   scatter?: ScatterSpec;
   funnel?: FunnelSpec;
   metric?: MetricCardSpec;
+  waterfall?: WaterfallSpec; // D33 Q55，自成一族，由柱画
+  treemap?: TreemapSpec; // D33 Q55
   legend?: 'auto' | 'top' | 'bottom' | 'right' | 'none';
   labels?: boolean; // 数据标签；不写时取家族缺省（直角坐标写，其余不写，`valueLabelsOn`）
   colors?: Record<string, string>; // 系列或分类 → 颜色，键是内核标出的分类值（数字、布尔转文本，null 为空串；是原值而不是显示出来的枚举名或日期，因此换语言、改选项措辞都不影响）或指标别名；未列出的用主题调色板；值须是 CSS 颜色（culori 解析），非对象报 malformed
@@ -75,6 +79,20 @@ export interface ScatterSpec {
   x: string; // 指标别名
   y: string; // 指标别名
   size?: string; // 指标别名
+}
+
+/** 瀑布图：一个维度的每个取值是一步，这一行的数是变化量；从 0 起逐步累加，最后一根是合计。只量可累加的指标（COUNT／SUM）。 */
+export interface WaterfallSpec {
+  x: string; // 分组别名；时间维度按时间升序，其余按结果行的顺序（视图的排序）
+  value: string; // 指标别名，须可加（chart.waterfall.not-additive）
+  total?: boolean; // 画不画最后那根合计，不写为画
+}
+
+/** 矩形树图：面积是这一组在整体里的份额；一个维度一层，第二个维度作外层。只量可累加的指标。 */
+export interface TreemapSpec {
+  category: string; // 分组别名，每个取值一块
+  parent?: string; // 另一分组别名，外层；两个维度时必有，与 category 不同（chart.treemap.same-levels）
+  value: string; // 指标别名，须可加（chart.treemap.not-additive）；不大于 0 的组没有面积、不画并说出个数
 }
 
 /** 漏斗：阶段来自"带筛选的多个指标"或"一个分组的取值加显式顺序"。 */

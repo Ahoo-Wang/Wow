@@ -126,7 +126,10 @@ export interface ChartFamilyTraits {
  * least, counted in the rows when there are rows — or, with none, the
  * metrics themselves, and either way it counts only what adds up (a record
  * count or a sum); a card is one number, or a sparkline over the one
- * date dimension when its headline adds up.
+ * date dimension when its headline adds up. A waterfall steps along one
+ * dimension and a treemap tiles one, or nests a second inside it; both add
+ * their numbers up — into a running total, into a whole — so both count
+ * only what adds up, as a funnel does.
  *
  * Every family but the card measures its metrics as marks — a length, a
  * slice, a shade, a position against zero — so it counts only the metrics
@@ -216,6 +219,28 @@ export const CHART_FAMILIES: Readonly<Record<ChartFamily, ChartFamilyTraits>> =
           ? null
           : 'chart.fit.needs-no-dimension',
     },
+    waterfall: {
+      tabs: ['data', 'display'],
+      legend: false,
+      labels: true,
+      labelsByDefault: ['bar'],
+      unfit: ({ groups, quantities, additive }) =>
+        groups === 1
+          ? (measured(quantities, 1) ?? counted(additive, 1))
+          : 'chart.fit.needs-one-dimension',
+    },
+    treemap: {
+      tabs: ['data'],
+      legend: false,
+      labels: false,
+      labelsByDefault: [],
+      unfit: ({ groups, quantities, additive }) =>
+        groups === 0
+          ? 'chart.fit.needs-dimension'
+          : groups > 2
+            ? 'chart.fit.too-many-dimensions'
+            : (measured(quantities, 1) ?? counted(additive, 1)),
+    },
   });
 
 /**
@@ -227,9 +252,11 @@ function measured(quantities: number, needed: number): ChartUnfit | null {
 }
 
 /**
- * A funnel, asked whether it has enough that adds up: its stages are counts
- * of what entered and what remained, and a conversion of averages, distinct
- * counts, percentiles or extremes means nothing (`chart.funnel.not-additive`).
+ * A family that adds its numbers up, asked whether it has enough that does:
+ * a funnel's stages are counts of what entered and what remained, and a
+ * conversion of averages, distinct counts, percentiles or extremes means
+ * nothing (`chart.funnel.not-additive`); a waterfall's running total and a
+ * treemap's whole are sums, and a sum of averages is no total of anything.
  */
 function counted(additive: number, needed: number): ChartUnfit | null {
   return additive >= needed ? null : 'chart.fit.needs-additive';
@@ -273,10 +300,12 @@ export function seriesMark(
 }
 
 /**
- * The marks a chart draws its series as, once each series: none for a
- * family that has no series.
+ * The marks a chart draws its series as, once each series: a waterfall's
+ * steps are bars; none for any other family that has no series.
  */
 export function chartMarks(chart: ChartSpec): SeriesMark[] {
+  // A waterfall's steps are bars, and write their values as bars do.
+  if (CHART_FAMILY[chart.type] === 'waterfall') return ['bar'];
   if (CHART_FAMILY[chart.type] !== 'cartesian') return [];
   const series = chart.cartesian?.series ?? [];
   return chart.type === 'combo' && series.length > 0

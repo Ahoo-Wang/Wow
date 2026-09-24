@@ -43,6 +43,7 @@ import {
 import { drawsHorizontal } from '../charts/cartesianPlan.js';
 import { EditorCard, PillInput } from '../variants.js';
 import { CompactSelect } from './CompactSelect.js';
+import { WaterfallDisplay } from './CompositionOptions.js';
 import { useListFocus } from './listFocus.js';
 import {
   CheckField,
@@ -92,6 +93,7 @@ export function DisplayTab(props: OptionsPageProps) {
       {family === 'heatmap' && <HeatmapDisplay {...props} />}
       {family === 'funnel' && <FunnelDisplay {...props} />}
       {family === 'metric' && <MetricDisplay {...props} />}
+      {family === 'waterfall' && <WaterfallDisplay {...props} />}
     </>
   );
 }

@@ -82,6 +82,9 @@ export const CHART_TOKENS: readonly string[] = [
   '--foreground',
   '--muted-foreground',
   '--border',
+  // A waterfall's rise and fall, read through `resolve`.
+  '--success',
+  '--destructive',
 ];
 
 /**
@@ -198,7 +201,9 @@ export function readChartTheme(element: Element): ChartTheme {
   const resolved = new Map<string, string>();
   return {
     ...read,
-    key: JSON.stringify(read),
+    // The status colours are read through `resolve` (a waterfall's rise
+    // and fall), so a host restyling only them is a new theme too.
+    key: JSON.stringify([read, token('--success'), token('--destructive')]),
     resolve(color) {
       let found = resolved.get(color);
       if (found === undefined) {

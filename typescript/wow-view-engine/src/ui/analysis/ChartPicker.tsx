@@ -18,17 +18,19 @@ import {
   Settings2Icon,
   ChartAreaIcon,
   ChartColumnIcon,
+  ChartGanttIcon,
   ChartLineIcon,
   ChartNoAxesCombinedIcon,
   ChartPieIcon,
   ChartScatterIcon,
   FunnelIcon,
   Grid3x3Icon,
+  LayoutDashboardIcon,
   SquareSigmaIcon,
   TableIcon,
 } from 'lucide-react';
 import {
-  CHART_PICKER_ORDER,
+  chartPickerGroups,
   optionTabs,
   type ChartFit,
   type Picked,
@@ -46,7 +48,11 @@ const ICON: Record<ChartType | 'table', typeof TableIcon> = {
   line: ChartLineIcon,
   area: ChartAreaIcon,
   combo: ChartNoAxesCombinedIcon,
+  // Bars floating one after another: a waterfall's steps.
+  waterfall: ChartGanttIcon,
   pie: ChartPieIcon,
+  // Blocks of unequal size tiling a square: a treemap's parts.
+  treemap: LayoutDashboardIcon,
   heatmap: Grid3x3Icon,
   scatter: ChartScatterIcon,
   funnel: FunnelIcon,
@@ -95,6 +101,14 @@ export interface ChartPickerProps {
  * the shape reads best as wears a mark. The table is a tile too, so
  * "back to the table" and "as a pie" are one gesture.
  *
+ * **Two groups** (D33 Q54, `chartPickerGroups`): 「适合这个结果」 — every type
+ * that can draw the result, the table last — and 「其他图型」, the greyed
+ * rest, still tiles and still saying what they lack. Both stand inside the
+ * one radiogroup, each a `group` named by its visible heading, so the arrow
+ * keys still walk one choice across the picker, and a reader hears which
+ * group a tile is in. The groups are the fit and nothing more: a definition
+ * declares no chart types, because the shape already says which draw.
+ *
  * It is a radiogroup, with the one tab stop a radiogroup has: the arrow
  * keys move the choice and the focus together over the tiles that can
  * draw, and Space and Enter choose where they stopped. A greyed tile is
@@ -141,10 +155,15 @@ export function ChartPicker({
   // Every type has at least one page today; one without any would have no
   // way on to offer, rather than a button that opens an empty panel.
   const options = optionTabs(picked).length > 0;
+  const fitOf = (value: Picked): ChartFit =>
+    value === 'table' ? { available: true } : fits[value];
+  const groups = chartPickerGroups(fits);
+  // One list for the keys, in the order the two groups draw them: the
+  // arrows walk the tiles that can draw, and those are all in the first.
   const tiles: { value: Picked; fit: ChartFit }[] = [
-    ...CHART_PICKER_ORDER.map(type => ({ value: type, fit: fits[type] })),
-    { value: 'table', fit: { available: true } },
-  ];
+    ...groups.suits,
+    ...groups.others,
+  ].map(value => ({ value, fit: fitOf(value) }));
   // Arrow keys move the choice and the focus together, as a radiogroup's
   // do; a greyed tile is passed over by the keys, though a tab may land on
   // it and hear why.
@@ -185,74 +204,109 @@ export function ChartPicker({
       <div
         role="radiogroup"
         aria-label={messages.label('label.chart.picker')}
-        // Each row as tall as its tallest tile, and no taller: one height
-        // for every row (`auto-rows-fr`, as it was) sized them all to the
-        // one tile that writes two lines of reason, and every tile above
-        // stood half empty (2026-09-23 audit). A tile centres what it holds
-        // in the height its row gives it (`ChartTile`). The rows stand a
-        // step further apart than the columns: the 「推荐」 mark hangs across
-        // its tile's bottom edge, into that gap.
-        className="grid grid-cols-3 gap-x-2 gap-y-3 *:min-w-0"
+        className="flex flex-col gap-3"
       >
-        {tiles.map(({ value, fit }, index) => {
-          const Icon = ICON[value];
-          const name = nameOf(value);
-          const reason = fit.reason && messages.label(fit.reason);
-          const nameId = `${ids}-name-${value}`;
-          const badgeId = `${ids}-recommended-${value}`;
-          const reasonId = `${ids}-reason-${value}`;
-          const describedBy =
-            [fit.recommended && badgeId, reason && reasonId]
-              .filter(Boolean)
-              .join(' ') || undefined;
-          return (
-            <ChartTile
-              key={value}
-              ref={node => {
-                if (node) refs.current.set(value, node);
-                else refs.current.delete(value);
-              }}
-              role="radio"
-              aria-checked={picked === value}
-              aria-disabled={!fit.available || undefined}
-              // The word on the tile, and nothing else: without this the
-              // name is taken from the whole of the content, badge and
-              // reason included, and the description would only say them
-              // twice.
-              aria-labelledby={nameId}
-              aria-describedby={describedBy}
-              data-chart-type={value}
-              data-recommended={fit.recommended || undefined}
-              tabIndex={picked === value ? 0 : -1}
-              onClick={() => {
-                if (fit.available) onPick(value);
-              }}
-              onKeyDown={event => {
-                if (event.key === 'ArrowRight' || event.key === 'ArrowDown')
-                  move(index, 1);
-                else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp')
-                  move(index, -1);
-                else if (event.key === ' ' || event.key === 'Enter') {
-                  event.preventDefault();
-                  if (fit.available) onPick(value);
-                }
-              }}
+        {(
+          [
+            ['suits', groups.suits],
+            ['others', groups.others],
+          ] as const
+        ).map(([group, section]) =>
+          section.length === 0 ? null : (
+            <div
+              key={group}
+              role="group"
+              aria-labelledby={`${ids}-group-${group}`}
+              data-slot="chart-group"
+              data-group={group}
+              className="flex flex-col gap-1.5"
             >
-              <Icon aria-hidden className="size-5" />
-              <span id={nameId}>{name}</span>
-              {fit.recommended && (
-                <span id={badgeId} data-slot="chart-recommended">
-                  {messages.label('label.chart.recommended')}
-                </span>
-              )}
-              {reason && (
-                <span id={reasonId} data-slot="chart-reason">
-                  {reason}
-                </span>
-              )}
-            </ChartTile>
-          );
-        })}
+              <h3
+                id={`${ids}-group-${group}`}
+                className="font-medium text-foreground/70"
+              >
+                {messages.label(`label.chart.group.${group}`)}
+              </h3>
+              {/* Each row as tall as its tallest tile, and no taller: one
+                  height for every row (`auto-rows-fr`, as it was) sized
+                  them all to the one tile that writes two lines of reason,
+                  and every tile above stood half empty (2026-09-23 audit).
+                  A tile centres what it holds in the height its row gives
+                  it (`ChartTile`). The rows stand a step further apart than
+                  the columns: the 「推荐」 mark hangs across its tile's
+                  bottom edge, into that gap. */}
+              <div className="grid grid-cols-3 gap-x-2 gap-y-3 *:min-w-0">
+                {section.map(value => {
+                  const fit = fitOf(value);
+                  const index = tiles.findIndex(tile => tile.value === value);
+                  const Icon = ICON[value];
+                  const name = nameOf(value);
+                  const reason = fit.reason && messages.label(fit.reason);
+                  const nameId = `${ids}-name-${value}`;
+                  const badgeId = `${ids}-recommended-${value}`;
+                  const reasonId = `${ids}-reason-${value}`;
+                  const describedBy =
+                    [fit.recommended && badgeId, reason && reasonId]
+                      .filter(Boolean)
+                      .join(' ') || undefined;
+                  return (
+                    <ChartTile
+                      key={value}
+                      ref={node => {
+                        if (node) refs.current.set(value, node);
+                        else refs.current.delete(value);
+                      }}
+                      role="radio"
+                      aria-checked={picked === value}
+                      aria-disabled={!fit.available || undefined}
+                      // The word on the tile, and nothing else: without this the
+                      // name is taken from the whole of the content, badge and
+                      // reason included, and the description would only say them
+                      // twice.
+                      aria-labelledby={nameId}
+                      aria-describedby={describedBy}
+                      data-chart-type={value}
+                      data-recommended={fit.recommended || undefined}
+                      tabIndex={picked === value ? 0 : -1}
+                      onClick={() => {
+                        if (fit.available) onPick(value);
+                      }}
+                      onKeyDown={event => {
+                        if (
+                          event.key === 'ArrowRight' ||
+                          event.key === 'ArrowDown'
+                        )
+                          move(index, 1);
+                        else if (
+                          event.key === 'ArrowLeft' ||
+                          event.key === 'ArrowUp'
+                        )
+                          move(index, -1);
+                        else if (event.key === ' ' || event.key === 'Enter') {
+                          event.preventDefault();
+                          if (fit.available) onPick(value);
+                        }
+                      }}
+                    >
+                      <Icon aria-hidden className="size-5" />
+                      <span id={nameId}>{name}</span>
+                      {fit.recommended && (
+                        <span id={badgeId} data-slot="chart-recommended">
+                          {messages.label('label.chart.recommended')}
+                        </span>
+                      )}
+                      {reason && (
+                        <span id={reasonId} data-slot="chart-reason">
+                          {reason}
+                        </span>
+                      )}
+                    </ChartTile>
+                  );
+                })}
+              </div>
+            </div>
+          ),
+        )}
       </div>
       {options && (
         <Button

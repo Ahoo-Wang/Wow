@@ -29,6 +29,7 @@ import { IconButton } from '../IconButton.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { EditorCard } from '../variants.js';
 import { useListFocus } from './listFocus.js';
+import { TreemapSlots, WaterfallSlots } from './CompositionOptions.js';
 import { SeriesList } from './SeriesList.js';
 import {
   ChoiceField,
@@ -61,6 +62,10 @@ export function DataTab(props: OptionsPageProps) {
       return <FunnelData {...props} />;
     case 'metric':
       return <MetricData {...props} />;
+    case 'waterfall':
+      return <WaterfallSlots {...props} />;
+    case 'treemap':
+      return <TreemapSlots {...props} />;
     default:
       return null;
   }

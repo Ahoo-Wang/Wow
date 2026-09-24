@@ -25,6 +25,8 @@ import {
   type MetricCardSpec,
   type PieSpec,
   type ScatterSpec,
+  type TreemapSpec,
+  type WaterfallSpec,
 } from '../model/index.js';
 import { isAdditiveMetric } from './validateChart.js';
 
@@ -116,6 +118,10 @@ export function fitChartSlots(
       return { ...chart, funnel: funnel(chart.funnel, shape) };
     case 'metric':
       return { ...chart, metric: metricCard(chart.metric, shape) };
+    case 'waterfall':
+      return { ...chart, waterfall: waterfall(chart.waterfall, shape) };
+    case 'treemap':
+      return { ...chart, treemap: treemap(chart.treemap, shape) };
     default:
       // A stored config may name a type this package does not have; there is
       // no family to fill and `validateChart` reports the type itself.
@@ -469,6 +475,41 @@ function funnel(spec: FunnelSpec | undefined, shape: Shape): FunnelSpec {
 }
 
 /**
+ * The metrics a family that adds its numbers up may measure: the quantities
+ * that add (a record count or a sum), so a lead that does not — an average
+ * carried in from a bar chart — gives way to the first that does.
+ */
+function summed(shape: Shape): string[] {
+  return shape.quantities.filter(alias => shape.additive.has(alias));
+}
+
+/** A waterfall steps along its one dimension and adds up one metric. */
+function waterfall(
+  spec: WaterfallSpec | undefined,
+  shape: Shape,
+): WaterfallSpec {
+  return {
+    x: slot(spec?.x, shape.groups),
+    value: slot(spec?.value, summed(shape)),
+    ...(spec?.total === undefined ? {} : { total: spec.total }),
+  };
+}
+
+/**
+ * A treemap tiles one dimension; a second, when there is one, is the outer
+ * level the tiles nest in (`parent`), and goes when it does.
+ */
+function treemap(spec: TreemapSpec | undefined, shape: Shape): TreemapSpec {
+  const category = slot(spec?.category, shape.groups);
+  const others = shape.groups.filter(alias => alias !== category);
+  return {
+    category,
+    ...(others.length > 0 ? { parent: slot(spec?.parent, others) } : {}),
+    value: slot(spec?.value, summed(shape)),
+  };
+}
+
+/**
  * A card is one number, so it groups by nothing — unless it draws a sparkline,
  * which needs exactly one date grouping and a headline that adds up, since
  * that headline is the buckets summed whenever the totals query did not run.
@@ -508,7 +549,8 @@ function metricCard(
  *
  * A cartesian chart's first series, a pie's or a heatmap's value, a
  * scatter's horizontal measure, a funnel's stage value (or its first stage),
- * a card's headline. Undefined when the family has not been filled yet.
+ * a card's headline, a waterfall's steps, a treemap's areas. Undefined when
+ * the family has not been filled yet.
  */
 export function leadMetric(chart: ChartSpec): string | undefined {
   switch (CHART_FAMILY[chart.type]) {
@@ -526,6 +568,10 @@ export function leadMetric(chart: ChartSpec): string | undefined {
         : chart.funnel?.stages.items[0]?.metric;
     case 'metric':
       return chart.metric?.metric;
+    case 'waterfall':
+      return chart.waterfall?.value;
+    case 'treemap':
+      return chart.treemap?.value;
     default:
       return undefined;
   }
@@ -597,6 +643,16 @@ export function switchChartType(chart: ChartSpec, type: ChartType): ChartSpec {
       return {
         ...next,
         metric: { ...chart.metric, metric: lead },
+      };
+    case 'waterfall':
+      return {
+        ...next,
+        waterfall: { x: '', ...chart.waterfall, value: lead },
+      };
+    case 'treemap':
+      return {
+        ...next,
+        treemap: { category: '', ...chart.treemap, value: lead },
       };
     default:
       return next;

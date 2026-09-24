@@ -74,6 +74,8 @@ describe('model constants', () => {
       'scatter',
       'funnel',
       'metric',
+      'waterfall',
+      'treemap',
     ];
     for (const type of CHART_TYPES) {
       expect(optional).toContain(CHART_FAMILY[type]);
@@ -81,6 +83,8 @@ describe('model constants', () => {
     expect(CHART_FAMILY.bar).toBe('cartesian');
     expect(CHART_FAMILY.combo).toBe('cartesian');
     expect(CHART_FAMILY.funnel).toBe('funnel');
+    expect(CHART_FAMILY.waterfall).toBe('waterfall');
+    expect(CHART_FAMILY.treemap).toBe('treemap');
   });
 
   it('keeps the refresh bounds inside a 32-bit millisecond timer', () => {
