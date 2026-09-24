@@ -26,6 +26,27 @@ The TypeScript packages share one version with the Kotlin modules and are releas
 - **Prefer the version of the service you call.** That combination is the one CI tests end to end.
 - **Regenerate with the generator of the same version** as the `wow-client` the generated code compiles against.
 
+### Version ranges
+
+The version follows Wow, not semver: a minor release (`x.Y.0`) may break the TypeScript API, and only patch releases (`x.y.Z`) are guaranteed compatible. By default `pnpm add` and `npm install` save a caret range (`^x.y.z`), which lets a later install pick up the next minor without anyone deciding to upgrade. Save a tilde range instead, which accepts patches of one minor only, by adding this line to the project's `.npmrc` before installing the Wow packages; pnpm and npm both honour it:
+
+```ini
+save-prefix=~
+```
+
+Or pin exact versions:
+
+```bash
+pnpm add --save-exact @ahoo-wang/wow-client
+pnpm add -D --save-exact @ahoo-wang/wow-generator
+```
+
+Move to the next minor on purpose, all Wow packages together, after reading the "Breaking" section of its release notes. The Fetcher peers follow semver; a caret range suits them.
+
+### Support window
+
+The TypeScript npm packages follow the same support policy as the rest of Wow, stated in the [security policy](https://github.com/Ahoo-Wang/Wow/blob/main/SECURITY.md): fixes land on the latest stable release line, and fixes for older lines are decided case by case. Staying on one minor with `~` or an exact version is safe for a while; plan to move to the latest minor to receive fixes.
+
 ## Wow servers
 
 The root entry of `@ahoo-wang/wow-client` and every default speak the `FilterExpression` query model, which Wow 8.11 introduced. Wow 8.10 understands only the older `Condition` model, which the package keeps on its own subpath, `@ahoo-wang/wow-client/legacy`, until v10.

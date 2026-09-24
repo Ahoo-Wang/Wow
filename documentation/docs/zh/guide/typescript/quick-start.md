@@ -37,6 +37,8 @@ pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
 pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher-openapi typescript
 ```
 
+Wow 包的次版本可能带有破坏性改动，要让它们停在同一个次版本上：安装前先看[版本范围](./compatibility.md#版本范围)。
+
 生成的客户端是装饰器类，编译它们的项目需要 `experimentalDecorators`。直接用 Node 运行编译产物的项目可以用下面的 `tsconfig.json`，并在 `package.json` 中设置 `"type": "module"`；使用打包器的项目保留自己的设置，只加这一个选项：
 
 ```json

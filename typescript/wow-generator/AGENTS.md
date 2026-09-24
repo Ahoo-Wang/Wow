@@ -14,6 +14,9 @@ pnpm --filter @ahoo-wang/wow-generator test
 # Run a single test file
 pnpm --filter @ahoo-wang/wow-generator exec vitest run test/index.test.ts
 
+# Accept a change to the public surface
+pnpm --filter @ahoo-wang/wow-generator exec vitest run test/publicSurface.test.ts -u
+
 # Lint
 pnpm --filter @ahoo-wang/wow-generator lint
 
@@ -30,6 +33,16 @@ node dist/cli.js generate -i <openapi-spec> -o <output-dir> -t tsconfig.json
 - Test files: `*.test.ts` in a `test/` directory at the package root (mirroring `src/`)
 - `--testTimeout=15000` (longer timeout for code generation tests)
 - Test spec fixture: `test/demo.spec.json`
+
+## Public surface
+
+`src/index.ts` is the only code entry: the programmatic API (`CodeGenerator`, its options and result, the
+loggers, `GeneratorError` and `EXIT_CODES`). Its exports are listed name by name in `test/surface/root.txt`,
+which `test/publicSurface.test.ts` writes from the source; a new export, or a removed one, changes the list,
+and the change is made on purpose with `-u` and called out in the PR. The build runs
+`scripts/verify-package.mjs`, which holds the built ES module and CommonJS entries to the same list, checks
+the `bin` files exist, and that no declaration map ships. Anything else under `src/` is internal: do not
+export it from `src/index.ts`.
 
 ## Project Structure
 

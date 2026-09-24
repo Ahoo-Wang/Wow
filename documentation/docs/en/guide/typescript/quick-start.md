@@ -37,6 +37,8 @@ pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
 pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher-openapi typescript
 ```
 
+A minor release of the Wow packages may contain breaking changes, so keep them on one minor: see [version ranges](./compatibility.md#version-ranges) before installing.
+
 The generated clients are decorator classes, so the project that compiles them needs `experimentalDecorators`. A Node project that runs the compiled output directly can use this `tsconfig.json`, with `"type": "module"` in its `package.json`; a bundler project keeps its own settings and adds the one flag:
 
 ```json

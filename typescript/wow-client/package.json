@@ -3,18 +3,20 @@
   "version": "9.1.5",
   "description": "TypeScript client for Wow (https://github.com/Ahoo-Wang/Wow): commands, snapshot and event-stream queries, and the query DSL, built on Fetcher.",
   "keywords": [
-    "fetch",
-    "http",
-    "client",
     "wow",
+    "wow-client",
     "cqrs",
+    "event-sourcing",
     "ddd",
     "microservice",
-    "event-sourcing"
+    "typescript",
+    "fetch",
+    "http",
+    "client"
   ],
   "author": "Ahoo-Wang",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-client",
+  "homepage": "https://wow.ahoo.me/reference/typescript/wow-client/",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Ahoo-Wang/Wow.git",
@@ -64,7 +66,9 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "README.zh-CN.md"
   ],
   "sideEffects": false,
   "scripts": {
