@@ -14,61 +14,38 @@
 package me.ahoo.wow.webflux.route.query
 
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
-import me.ahoo.wow.openapi.contract.HttpRouteContract
-import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.filter.QueryType
-import me.ahoo.wow.query.withQueryScope
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
-import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.query.QueryBodyExtractor.Companion.FILTER_EXPRESSION_EXTRACTOR
-import me.ahoo.wow.webflux.route.toServerResponse
-import me.ahoo.wow.webflux.route.writeRawRequest
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
 class CountQueryHandlerFunction(
-    private val aggregateMetadata: AggregateMetadata<*, *>,
+    aggregateMetadata: AggregateMetadata<*, *>,
     private val queryGateway: QueryGateway<*>,
-    private val queryRequestScope: QueryRequestScope,
-    private val exceptionHandler: RequestExceptionHandler,
-    private val guard: HttpQueryGuard = HttpQueryGuard(),
+    queryRequestScope: QueryRequestScope,
+    exceptionHandler: RequestExceptionHandler,
+    guard: HttpQueryGuard = HttpQueryGuard(),
 ) : HandlerFunction<ServerResponse> {
+    private val support = QueryHandlerSupport(aggregateMetadata, queryRequestScope, exceptionHandler, guard)
 
-    override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        return request.body(FILTER_EXPRESSION_EXTRACTOR)
-            .flatMap { filter ->
-                val scope = queryRequestScope.resolve(aggregateMetadata, request)
-                guard.mono(QueryType.COUNT, filter, scope) { queryGateway.count(filter) }
-                    .contextWrite { it.withQueryScope(scope) }
-                    .writeRawRequest(request)
-            }.toServerResponse(request, exceptionHandler)
-    }
+    override fun handle(request: ServerRequest): Mono<ServerResponse> =
+        support.mono(request, FILTER_EXPRESSION_EXTRACTOR, QueryType.COUNT) { queryGateway.count(it) }
 }
 
 open class CountQueryHandlerFunctionFactory(
     handlerKey: String,
-    private val queryGateway: (AggregateMetadata<*, *>) -> QueryGateway<*>,
-    private val queryRequestScope: QueryRequestScope,
-    private val exceptionHandler: RequestExceptionHandler,
-    private val guard: HttpQueryGuard = HttpQueryGuard(),
-) : AggregateRouteHandlerFunctionFactorySupport(handlerKey) {
-    override fun create(
-        contract: HttpRouteContract,
-        metadata: HttpRouteHandlerMetadata.Aggregate
-    ): HandlerFunction<ServerResponse> {
-        return create(aggregateMetadata(metadata))
-    }
-
-    private fun create(aggregateMetadata: AggregateMetadata<*, *>): HandlerFunction<ServerResponse> {
-        return CountQueryHandlerFunction(
-            aggregateMetadata = aggregateMetadata,
-            queryGateway = queryGateway(aggregateMetadata),
-            queryRequestScope = queryRequestScope,
-            exceptionHandler = exceptionHandler,
-            guard = guard,
-        )
-    }
-}
+    queryGateway: (AggregateMetadata<*, *>) -> QueryGateway<*>,
+    queryRequestScope: QueryRequestScope,
+    exceptionHandler: RequestExceptionHandler,
+    guard: HttpQueryGuard = HttpQueryGuard(),
+) : QueryHandlerFunctionFactorySupport<QueryGateway<*>>(
+    handlerKey = handlerKey,
+    queryGateway = queryGateway,
+    handlerFunction = { aggregateMetadata, gateway ->
+        CountQueryHandlerFunction(aggregateMetadata, gateway, queryRequestScope, exceptionHandler, guard)
+    },
+)

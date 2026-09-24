@@ -15,58 +15,38 @@ package me.ahoo.wow.webflux.route.snapshot
 
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
-import me.ahoo.wow.openapi.contract.HttpRouteContract
-import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
-import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
-import me.ahoo.wow.query.withQueryScope
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
-import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
+import me.ahoo.wow.webflux.route.query.AggregationQueryHandlerFunction
 import me.ahoo.wow.webflux.route.query.HttpQueryGuard
-import me.ahoo.wow.webflux.route.query.QueryBodyExtractor.Companion.AGGREGATION_QUERY_EXTRACTOR
+import me.ahoo.wow.webflux.route.query.QueryHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.query.QueryRequestScope
-import me.ahoo.wow.webflux.route.toServerResponse
-import me.ahoo.wow.webflux.route.writeRawRequest
 import org.springframework.web.reactive.function.server.HandlerFunction
-import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
-import reactor.core.publisher.Mono
 
 class SnapshotAggregationHandlerFunction(
-    private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val queryGateway: SnapshotQueryGateway<Any>,
-    private val queryRequestScope: QueryRequestScope,
-    private val exceptionHandler: RequestExceptionHandler,
-    private val guard: HttpQueryGuard = HttpQueryGuard(),
-) : HandlerFunction<ServerResponse> {
-    override fun handle(request: ServerRequest): Mono<ServerResponse> =
-        request.body(AGGREGATION_QUERY_EXTRACTOR)
-            .flatMapMany { query ->
-                val scope = queryRequestScope.resolve(aggregateMetadata, request)
-                guard.flux(QueryType.AGGREGATION, query, request, scope) { queryGateway.aggregate(query) }
-                    .contextWrite { it.withQueryScope(scope) }
-            }
-            .writeRawRequest(request)
-            .toServerResponse(request, exceptionHandler)
-}
+    aggregateMetadata: AggregateMetadata<*, *>,
+    queryGateway: SnapshotQueryGateway<Any>,
+    queryRequestScope: QueryRequestScope,
+    exceptionHandler: RequestExceptionHandler,
+    guard: HttpQueryGuard = HttpQueryGuard(),
+) : HandlerFunction<ServerResponse> by AggregationQueryHandlerFunction(
+    aggregateMetadata = aggregateMetadata,
+    queryGateway = queryGateway,
+    queryRequestScope = queryRequestScope,
+    exceptionHandler = exceptionHandler,
+    guard = guard,
+)
 
 class SnapshotAggregationHandlerFunctionFactory(
-    private val snapshotQueryGateway: (AggregateMetadata<*, *>) -> SnapshotQueryGateway<Any>,
-    private val queryRequestScope: QueryRequestScope,
-    private val exceptionHandler: RequestExceptionHandler,
-    private val guard: HttpQueryGuard = HttpQueryGuard(),
-) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATION) {
-    override fun create(
-        contract: HttpRouteContract,
-        metadata: HttpRouteHandlerMetadata.Aggregate,
-    ): HandlerFunction<ServerResponse> {
-        val aggregateMetadata = aggregateMetadata(metadata)
-        return SnapshotAggregationHandlerFunction(
-            aggregateMetadata = aggregateMetadata,
-            queryGateway = snapshotQueryGateway(aggregateMetadata),
-            queryRequestScope = queryRequestScope,
-            exceptionHandler = exceptionHandler,
-            guard = guard,
-        )
-    }
-}
+    snapshotQueryGateway: (AggregateMetadata<*, *>) -> SnapshotQueryGateway<Any>,
+    queryRequestScope: QueryRequestScope,
+    exceptionHandler: RequestExceptionHandler,
+    guard: HttpQueryGuard = HttpQueryGuard(),
+) : QueryHandlerFunctionFactorySupport<SnapshotQueryGateway<Any>>(
+    handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATION,
+    queryGateway = snapshotQueryGateway,
+    handlerFunction = { aggregateMetadata, gateway ->
+        SnapshotAggregationHandlerFunction(aggregateMetadata, gateway, queryRequestScope, exceptionHandler, guard)
+    },
+)
