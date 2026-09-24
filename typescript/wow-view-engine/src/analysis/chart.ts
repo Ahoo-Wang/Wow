@@ -50,6 +50,9 @@ export { periodRollover } from './metricCard.js';
 export type { WaterfallData, WaterfallStep } from './waterfall.js';
 export type { TreemapData, TreemapTile } from './treemap.js';
 export type { CartesianData } from './cartesian.js';
+export type { CartesianGap, DerivedGap, DerivedLine } from './derived.js';
+export { derivedGap, derivedKey, movingWindow } from './derived.js';
+export type { PlacedLine, SeriesExtremes } from './references.js';
 export type { FunnelData, FunnelStage } from './funnel.js';
 export { groupKeyText } from './chartRows.js';
 
@@ -101,6 +104,12 @@ export interface ShapeContext {
    * ended by then; left out, every bucket counts as ended.
    */
   now?: Date;
+  /**
+   * The rows are the first groups of more (`AnalysisView.truncated` or
+   * `atLimit`): a line computed across them — a running total, a moving
+   * average — would be wrong, and is not drawn (`derivedGap`).
+   */
+  cutShort?: boolean;
 }
 
 /**
@@ -131,7 +140,14 @@ export function shapeChart(
     case 'combo':
       return (
         chart.cartesian &&
-        shapeCartesian(chart.type, chart.cartesian, config, rows, timeZone)
+        shapeCartesian(
+          chart.type,
+          chart.cartesian,
+          config,
+          rows,
+          timeZone,
+          context.cutShort,
+        )
       );
     case 'pie':
       return chart.pie && pie(chart.pie, config, rows);

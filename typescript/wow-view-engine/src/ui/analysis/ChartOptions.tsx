@@ -42,7 +42,7 @@ import { useViewMessages } from '../MessagesProvider.js';
 import { AxesTab } from './AxesTab.js';
 import { DataTab } from './DataTab.js';
 import { DisplayTab, TableDisplay } from './DisplayTab.js';
-import type { OptionsShape } from './optionControls.js';
+import type { OptionsPageProps, OptionsShape } from './optionControls.js';
 
 export interface ChartOptionsProps {
   picked: Picked;
@@ -62,6 +62,10 @@ export interface ChartOptionsProps {
   onBack(): void;
   /** This level's heading, which the keyboard is put on (A1, `ChartPicker`). */
   headingRef?: RefObject<HTMLHeadingElement | null>;
+  /** Why a derived line cannot be drawn over the rows on screen (Q53). */
+  gapOf?: OptionsPageProps['gapOf'];
+  /** A moving average's window when none is typed. */
+  defaultWindow?: number;
 }
 
 /**
@@ -83,6 +87,8 @@ export function ChartOptions({
   onTotals,
   onBack,
   headingRef,
+  gapOf,
+  defaultWindow,
 }: ChartOptionsProps) {
   const messages = useViewMessages();
   // Every slot's choices are named as the result's columns are titled —
@@ -116,7 +122,7 @@ export function ChartOptions({
       ),
     };
   }, [groups, metrics, columns, column]);
-  const page = { chart, shape, rows, label, onChange };
+  const page = { chart, shape, rows, label, onChange, gapOf, defaultWindow };
   const tabs = optionTabs(picked);
   const [tab, setTab] = useState<OptionsTab>(tabs[0] ?? 'data');
   const current = tabs.includes(tab) ? tab : (tabs[0] ?? 'data');

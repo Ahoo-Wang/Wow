@@ -40,6 +40,7 @@ import {
   metric,
   type ChartContext,
 } from './chartRefs.js';
+import { referenceIssues } from './validateReferences.js';
 
 /**
  * Metrics the projection may add up across rows: a pie's "other" slice and a
@@ -229,18 +230,7 @@ function cartesian(context: ChartContext, config: AnalysisViewConfig): Issue[] {
       );
   }
 
-  const axes = new Set(spec.series.map(series => series.axis ?? 'left'));
-  (spec.referenceLines ?? []).forEach((line, index) => {
-    if (!axes.has(line.axis))
-      issues.push(
-        issue('chart.referenceLine.empty-axis', [
-          ...path,
-          'referenceLines',
-          index,
-          'axis',
-        ]),
-      );
-  });
+  issues.push(...referenceIssues(spec, path));
 
   issues.push(
     ...consumesAll(

@@ -29,6 +29,13 @@ import {
   timeGroup,
   withoutHoles,
 } from './timeAxis.js';
+import { deriveLines, type CartesianGap, type DerivedLine } from './derived.js';
+import {
+  placeLines,
+  seriesExtremes,
+  type PlacedLine,
+  type SeriesExtremes,
+} from './references.js';
 import { isAdditiveMetric } from './validateChart.js';
 
 export interface CartesianData {
@@ -61,6 +68,24 @@ export interface CartesianData {
    * could not be placed and the points may skip one.
    */
   timeline?: true;
+  /**
+   * The spec's reference lines where the kernel placed them — a statistic
+   * at the number it came to over the measured values (`placeLines`).
+   * Absent when the spec has none.
+   */
+  references?: PlacedLine[];
+  /**
+   * The lines computed from a drawn metric over the time axis (D33 batch B):
+   * a trend, a moving average, a running total. Absent when none is drawn.
+   */
+  derived?: DerivedLine[];
+  /** Each series' highest and lowest measured point, when the spec asks. */
+  extremes?: SeriesExtremes;
+  /**
+   * What the spec asked for that the kernel did not draw, each with why —
+   * a running total over rows cut short, an average over a split (Q53).
+   */
+  gaps?: CartesianGap[];
 }
 
 /** Whether the metric `alias` names adds up, so a group of nothing is 0. */
@@ -87,6 +112,7 @@ export function shapeCartesian(
   config: AnalysisViewConfig,
   rows: readonly RecordData[],
   timeZone: string,
+  cutShort = false,
 ): CartesianData {
   const byX = new Map<unknown, Record<string, number | null>>();
   const seriesKeys = new Map<
@@ -165,7 +191,7 @@ export function shapeCartesian(
   // as a sequence — and the palette hands its slots out in that order, so
   // the first day is always the first colour. The axis is then a category
   // and keeps the rows' order, as any category does.
-  return {
+  const data: CartesianData = {
     type: 'cartesian',
     chart: type,
     points,
@@ -175,5 +201,30 @@ export function shapeCartesian(
     series: timeGroup(config, spec.splitBy)
       ? forwardInTime(series, entry => entry.value)
       : series,
+  };
+  return { ...data, ...drawnOver(config, data, cutShort) };
+}
+
+/**
+ * What a chart draws over its marks, from the marks' own numbers: the
+ * reference lines placed, the derived lines computed, the extremes found,
+ * and what could not be. Each member only where the spec asked for it.
+ */
+function drawnOver(
+  config: AnalysisViewConfig,
+  data: CartesianData,
+  cutShort: boolean,
+): Partial<CartesianData> {
+  const spec = config.chart.cartesian;
+  if (!spec) return {};
+  const placed = placeLines(spec, data);
+  const derived = deriveLines(config, data, cutShort);
+  const extremes = spec.extremes === true ? seriesExtremes(data) : {};
+  const gaps = [...placed.gaps, ...derived.gaps];
+  return {
+    ...(placed.lines.length > 0 ? { references: placed.lines } : {}),
+    ...(derived.lines.length > 0 ? { derived: derived.lines } : {}),
+    ...(Object.keys(extremes).length > 0 ? { extremes } : {}),
+    ...(gaps.length > 0 ? { gaps } : {}),
   };
 }

@@ -22,6 +22,7 @@ import {
   type FilledNote,
   type ValueLabel,
 } from './family.js';
+import { derivedName } from './markWords.js';
 import { drawnTiles } from './treemapOption.js';
 import { drawnBars } from './waterfallOption.js';
 
@@ -163,6 +164,7 @@ function readCartesian(
   // — without the share, a screen reader heard a stack of values that the
   // picture drew as equal heights (2026-09-23 audit).
   const { shareAt } = stackPlan(data, spec);
+  const derived = data.derived ?? [];
   const cell = (series: (typeof data.series)[number], index: number) => {
     const value = noted(
       number(
@@ -198,10 +200,23 @@ function readCartesian(
           ? (ctx.column(series.metric) ?? series.label)
           : ctx.label(cartesian?.splitBy, series.value),
       ),
+      // A derived line's column says it was computed, as its tooltip row
+      // does: a screen reader hears 「7 期移动平均（算出的）」, never a
+      // number that reads as one the rows measured (D33 batch B).
+      ...derived.map(line =>
+        derivedName(
+          ctx.messages,
+          line,
+          data.series.length > 1 ? ctx.column(line.metric) : undefined,
+        ),
+      ),
     ],
     rows: data.points.map((point, index) => [
       ctx.label(cartesian?.x, point.x),
       ...data.series.map(series => cell(series, index)),
+      ...derived.map(line =>
+        number(line.values[index], ctx, formatOf(line.metric), line.metric),
+      ),
     ]),
   };
 }

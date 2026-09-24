@@ -29,6 +29,9 @@
  * zooms (`zoomOption`: the slider, and the inside zoom where
  * gestures are allowed); the aria component is registered for its decal
  * patterns alone (`withPatterns`) — its generated description stays off.
+ * Over the marks, reference lines (markLine), target bands (markArea) and
+ * the highest and lowest points (markPoint) — every number the kernel's
+ * (`cartesianMarks`).
  */
 import {
   BarChart,
@@ -45,7 +48,9 @@ import {
   GraphicComponent,
   GridComponent,
   VisualMapContinuousComponent,
+  MarkAreaComponent,
   MarkLineComponent,
+  MarkPointComponent,
   TooltipComponent,
 } from 'echarts/components';
 // `use` registers modules with the library; it is not a React hook.
@@ -85,7 +90,9 @@ export function init(
       GraphicComponent,
       VisualMapContinuousComponent,
       GridComponent,
+      MarkAreaComponent,
       MarkLineComponent,
+      MarkPointComponent,
       TooltipComponent,
       LabelLayout,
       SVGRenderer,

@@ -11,7 +11,6 @@
  * limitations under the License.
  */
 
-import { PlusIcon, XIcon } from 'lucide-react';
 import {
   CHART_FAMILIES,
   isPercentStacked,
@@ -30,26 +29,19 @@ import {
   CHART_COLOR_SLOTS,
   CHART_FAMILY,
   type CartesianSpec,
-  type ReferenceLine,
 } from '../../model/index.js';
 import { without } from '../../model/index.js';
-import { Button } from '../components/button.js';
-import { NumberInput } from '../FilterValueEditor.js';
-import { IconButton } from '../IconButton.js';
 import {
   useViewMessages,
   type MessageFormatters,
 } from '../MessagesProvider.js';
 import { drawsHorizontal } from '../charts/cartesianPlan.js';
-import { EditorCard, PillInput } from '../variants.js';
-import { CompactSelect } from './CompactSelect.js';
 import { WaterfallDisplay } from './CompositionOptions.js';
-import { useListFocus } from './listFocus.js';
+import { ReferenceOptions } from './ReferenceOptions.js';
 import {
   CheckField,
   ChoiceField,
   NumberField,
-  OptionsSection,
   SlotSelect,
   type OptionsPageProps,
 } from './optionControls.js';
@@ -98,42 +90,16 @@ export function DisplayTab(props: OptionsPageProps) {
   );
 }
 
-function CartesianDisplay({
-  chart,
-  shape,
-  rows,
-  label,
-  onChange,
-}: OptionsPageProps) {
+function CartesianDisplay(props: OptionsPageProps) {
+  const { chart, shape, rows, label, onChange } = props;
   const messages = useViewMessages();
-  // A line taken out leaves the keyboard on the line under it, or on
-  // 「添加参考线」 once the last one goes (`listFocus.ts`).
-  const focus = useListFocus({
-    list: '[data-slot="chart-options-reference-lines"]',
-    item: '[data-slot="reference-line-card"]',
-    add: '[data-slot="add-reference-line"]',
-  });
   const spec = chart.cartesian;
   if (!spec) return null;
   const update = (next: CartesianSpec) =>
     onChange({ ...chart, cartesian: next });
-  const lines = spec.referenceLines ?? [];
-  const setLines = (referenceLines: ReferenceLine[]) =>
-    update(
-      referenceLines.length === 0
-        ? without(spec, 'referenceLines')
-        : { ...spec, referenceLines },
-    );
-  const patchLine = (index: number, change: Partial<ReferenceLine>) =>
-    setLines(
-      lines.map((line, at) => (at === index ? { ...line, ...change } : line)),
-    );
   const curved = chart.type !== 'bar';
   // A stored value this package does not know reads as the default.
   const missing = spec.missing === 'gap' ? 'gap' : 'zero';
-  // A right axis exists once a series sits on it; a line hung on an axis
-  // with nothing on it is `chart.referenceLine.empty-axis`.
-  const axes = new Set(spec.series.map(series => series.axis ?? 'left'));
   // Only bars and areas stack (`stacks`): a line chart has no such box, and
   // a combo counts only its bars and areas. One of them stacks against
   // nothing, and a split has not made its series yet — either way the box
@@ -222,87 +188,7 @@ function CartesianDisplay({
           )
         }
       />
-      <OptionsSection
-        name="reference-lines"
-        title={messages.label('label.chart.reference-lines')}
-      >
-        {lines.map((line, index) => (
-          // Axis, value, caption and remove: four controls named after what
-          // they are rather than after which line they belong to, and a
-          // chart may carry several lines. The card is the group that says
-          // which one a reader is standing in.
-          <EditorCard
-            key={index}
-            data-slot="reference-line-card"
-            role="group"
-            aria-label={messages.label('label.chart.reference-row', {
-              index: index + 1,
-            })}
-            className="flex-nowrap"
-          >
-            {axes.has('right') && (
-              <CompactSelect
-                label={messages.label('label.chart.reference-axis')}
-                items={(['left', 'right'] as const).map(axis => ({
-                  value: axis,
-                  label: messages.label(`label.chart.axis.${axis}`),
-                }))}
-                value={line.axis}
-                onChange={axis => patchLine(index, { axis })}
-              />
-            )}
-            <NumberInput
-              label={messages.label('label.chart.reference-value')}
-              chrome="box"
-              className="w-20"
-              value={line.value}
-              onNumber={value => {
-                if (value !== null) patchLine(index, { value });
-              }}
-            />
-            <PillInput
-              aria-label={messages.label('label.chart.reference-label')}
-              placeholder={messages.label('label.chart.reference-label')}
-              chrome="box"
-              className="min-w-0 flex-1"
-              value={line.label ?? ''}
-              onChange={event => {
-                const text = event.target.value;
-                setLines(
-                  lines.map((entry, at) =>
-                    at === index
-                      ? text === ''
-                        ? without(entry, 'label')
-                        : { ...entry, label: text }
-                      : entry,
-                  ),
-                );
-              }}
-            />
-            <IconButton
-              label={messages.label('label.chart.remove-reference-line')}
-              variant="ghost"
-              size="icon-xs"
-              onClick={event => {
-                focus.removing(event, index);
-                setLines(lines.filter((_line, at) => at !== index));
-              }}
-            >
-              <XIcon />
-            </IconButton>
-          </EditorCard>
-        ))}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="self-start"
-          data-slot="add-reference-line"
-          onClick={() => setLines([...lines, { axis: 'left', value: 0 }])}
-        >
-          <PlusIcon data-icon="inline-start" />
-          {messages.label('label.chart.add-reference-line')}
-        </Button>
-      </OptionsSection>
+      <ReferenceOptions {...props} />
     </>
   );
 }

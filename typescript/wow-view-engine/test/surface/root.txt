@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 733 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 748 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -54,6 +54,7 @@ value CLICK_GO_KINDS
 value CODE_REVISION
 value CSV_BOM
 type  CartesianData
+type  CartesianGap
 type  CartesianMissing
 type  CartesianSeries
 type  CartesianSpec
@@ -93,6 +94,7 @@ value DEFAULT_SEARCH_MODE
 value DEFAULT_STRING_COMPARISON
 value DEFAULT_TEMPORAL
 value DELETION_STATES
+value DERIVED_KINDS
 type  DashboardContentPanel
 type  DashboardDefinition
 type  DashboardEditing
@@ -121,6 +123,10 @@ type  DateTemporal
 type  DateTimeFilterValue
 type  DateTimePreset
 type  DefinitionFor
+type  DerivedGap
+type  DerivedKind
+type  DerivedLine
+type  DerivedSeries
 type  DestinationBoard
 type  DetailSection
 type  DrillContext
@@ -206,6 +212,7 @@ value MAX_DASHBOARD_FILTERS
 value MAX_DASHBOARD_TABS
 value MAX_HEADING_LENGTH
 value MAX_MARKDOWN_LENGTH
+value MAX_MOVING_WINDOW
 value MAX_PANEL_LINKS
 value MAX_RELATIVE_DATE_AMOUNT
 value MAX_TIMER_DELAY_MS
@@ -259,6 +266,7 @@ type  Picked
 type  PieData
 type  PieSlice
 type  PieSpec
+type  PlacedLine
 type  PlacedPanel
 type  PresetDateTimeValue
 type  PressDestination
@@ -269,6 +277,7 @@ type  ProjectedRecord
 type  ProjectedView
 type  QueryStatus
 value RECORD_PRESENTATION_MEMBERS
+value REFERENCE_STATISTICS
 value RELATIVE_DATE_DIRECTIONS
 value RELATIVE_DATE_UNITS
 type  RangeEdge
@@ -290,9 +299,11 @@ type  RecordTableSpec
 type  RecordView
 type  RecordViewConfig
 type  RecordViewRuntime
+type  ReferenceBand
 type  ReferenceFilterValue
 type  ReferenceItem
 type  ReferenceLine
+type  ReferenceStatistic
 type  RefreshConfig
 type  RelativeDateDirection
 type  RelativeDateTimeValue
@@ -310,6 +321,7 @@ type  SavedViewTarget
 type  ScatterData
 type  ScatterSpec
 type  SearchModeName
+type  SeriesExtremes
 type  SeriesMark
 type  ShapeContext
 type  ShapeFacts
@@ -446,6 +458,8 @@ value defaultPanelSize
 value defaultRecordConfig
 value defaultRuntimeEnvironment
 value deletionFieldKind
+value derivedGap
+value derivedKey
 value derivedMetric
 value derivedText
 value describeFilter
@@ -580,6 +594,7 @@ value momentMetrics
 value moveFilter
 value movePanelToTab
 value moveTab
+value movingWindow
 value narrowValueCandidates
 value narrowsTo
 value nearestPageSize

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, type ReactNode } from 'react';
 import { valueLabelsOn, type CartesianData } from '../../analysis/index.js';
 import type { ChartSpec, RecordData } from '../../model/index.js';
 import { pointAnchor } from '../analysis/DrillMenu.js';
@@ -26,6 +26,8 @@ import { EChart, type ChartClick } from './EChart.js';
 import { faded, type Lit } from './highlight.js';
 import type { FamilyProps } from './family.js';
 import { legendAt } from './legend.js';
+import { DERIVED_STROKE } from './cartesianMarks.js';
+import { gapNotes, markWords } from './markWords.js';
 import { measureText } from './measure.js';
 import { useChartMotion } from './motion.js';
 import type { ChartTheme } from './theme.js';
@@ -55,6 +57,14 @@ export function Cartesian({
   const { locale } = useSurfaceDisplay();
   const join = messages.label('label.filter.join');
   const against = messages.label('label.chart.change.against');
+  // What the lines and points drawn over the marks are called (batch B).
+  const words = useMemo(() => markWords(messages), [messages]);
+  // What the spec asked to draw over the marks and the rows could not
+  // carry, each said with why above the plot (Q53).
+  const notes = useMemo(
+    () => gapNotes(messages, data, column),
+    [messages, data, column],
+  );
   const pickable = onPick !== undefined;
   // A time axis writes its ticks short — the year only where it changes.
   const ticks = useMemo(
@@ -109,6 +119,7 @@ export function Cartesian({
         hidden,
         against,
         zoomGestures,
+        words,
       }),
     [
       data,
@@ -125,6 +136,7 @@ export function Cartesian({
       hidden,
       against,
       zoomGestures,
+      words,
     ],
   );
   const option = useCallback(
@@ -137,9 +149,26 @@ export function Cartesian({
       cartesianFit(plan, width, height, text => measureText(text), window),
     [plan],
   );
-  // The legend lists every series, the switched-off ones too.
-  const legend = plan.legend;
-  const at = legendAt(spec?.legend, legend.length > 1);
+  // The legend lists every series, the switched-off ones too, and after
+  // them the derived lines, each a dash in the ink it is drawn in.
+  const legend = [
+    ...plan.legend.map(entry => ({
+      key: entry.key,
+      label: entry.name,
+      color: entry.color,
+      hidden: hidden?.has(entry.key) === true,
+    })),
+    ...plan.derivedLegend.map(line => ({
+      key: line.key,
+      label: line.name,
+      color: 'currentColor',
+      dashed: DERIVED_STROKE[line.kind],
+      hidden: hidden?.has(line.key) === true,
+    })),
+  ];
+  const listed = legendAt(spec?.legend, legend.length > 1);
+  // A note has somewhere to stand even with no legend: above the plot.
+  const at = listed ?? (notes.length > 0 ? 'top' : undefined);
   // The group a bar stands for: its category, and the split value when the
   // series is one — named by the aliases the spec put on the axes, which is
   // what the kernel reads a row by.
@@ -178,16 +207,15 @@ export function Cartesian({
         at && {
           at,
           node: placed => (
-            <ChartLegend
-              at={placed}
-              onToggle={onToggleSeries}
-              entries={legend.map(entry => ({
-                key: entry.key,
-                label: entry.name,
-                color: entry.color,
-                hidden: hidden?.has(entry.key) === true,
-              }))}
-            />
+            <ChartNotes notes={notes}>
+              {listed && (
+                <ChartLegend
+                  at={placed}
+                  onToggle={onToggleSeries}
+                  entries={legend}
+                />
+              )}
+            </ChartNotes>
           ),
         }
       }
@@ -205,6 +233,34 @@ export function Cartesian({
           : undefined,
       }}
     />
+  );
+}
+
+/**
+ * What a chart says about what it did not draw, above its legend: one quiet
+ * line a reason (`gapNotes`). Without notes, the legend as it is.
+ */
+function ChartNotes({
+  notes,
+  children,
+}: {
+  notes: readonly string[];
+  children: ReactNode;
+}) {
+  if (notes.length === 0) return children;
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      {notes.map(note => (
+        <p
+          key={note}
+          data-slot="chart-gap-note"
+          className="text-muted-foreground"
+        >
+          {note}
+        </p>
+      ))}
+      {children}
+    </div>
   );
 }
 

@@ -12,10 +12,12 @@
  */
 
 import { useEffect, useRef, type ReactElement, type RefObject } from 'react';
+import { derivedGap, movingWindow } from '../../analysis/index.js';
 import type { ChartSpec, RecordData } from '../../model/index.js';
 import type { AnalysisResultController } from '../../react/index.js';
 import { ChartOptions } from './ChartOptions.js';
 import { ChartPicker } from './ChartPicker.js';
+import type { OptionsPageProps } from './optionControls.js';
 
 /** The visualization panel's two levels: the chart types, then the options. */
 export type VisualizationLevel = 'picker' | 'options';
@@ -74,7 +76,14 @@ export interface VisualizationPanelProps {
   focus: VisualizationFocus;
   result: Pick<
     AnalysisResultController,
-    'fits' | 'picked' | 'choose' | 'chart' | 'columns' | 'view' | 'question'
+    | 'fits'
+    | 'picked'
+    | 'choose'
+    | 'chart'
+    | 'columns'
+    | 'view'
+    | 'question'
+    | 'chartData'
   >;
   /** Whether the totals row is on, and the way it is switched. */
   totals: boolean;
@@ -127,7 +136,22 @@ export function visualizationPanel({
         {...(backLabel === undefined ? {} : { backLabel })}
       />
     );
-  if (level === 'options' && question)
+  if (level === 'options' && question) {
+    // What the rows on screen can carry a derived line over (Q53): judged
+    // against the chart as drafted, over the chart it drew. Before any rows
+    // there is nothing to judge, and every box is open.
+    const drafted = { ...question, chart: result.chart };
+    const data =
+      result.chartData?.type === 'cartesian' ? result.chartData : undefined;
+    const view = result.view;
+    const cutShort =
+      view !== null && (view.truncated || view.atLimit !== undefined);
+    const gapOf: OptionsPageProps['gapOf'] =
+      data &&
+      (derived => {
+        const gap = derivedGap(drafted, data, derived, cutShort);
+        return gap && { gap, limit: drafted.limit };
+      });
     return (
       <ChartOptions
         headingRef={focus.heading}
@@ -141,8 +165,11 @@ export function visualizationPanel({
         onTotals={onTotals}
         onChange={onChange}
         onBack={() => onLevel('picker')}
+        gapOf={gapOf}
+        defaultWindow={movingWindow(drafted, {})}
       />
     );
+  }
   return null;
 }
 
