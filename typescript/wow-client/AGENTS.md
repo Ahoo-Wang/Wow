@@ -71,17 +71,14 @@ src/
     queryApi.ts               — Generic QueryApi (list, paged, cursor, aggregate, count)
     queryClients.ts           — QueryClientFactory + createQueryApiMetadata helpers
     queryable.ts              — Query request shapes (Filter*Query, PagedList)
+    deletionState.ts          — DeletionState, which filter.deletion() takes
     cursorQuery.ts            — Forward-only cursor query and CursorPage
     pagination.ts             — Pagination support
     sort.ts                   — Sort specifications
     projection.ts             — Field projection
     queryField.ts             — Internal QueryField path check for filter, sort and projection (not exported)
     types.ts                  — DynamicDocument type aliases
-    condition.ts              — DEPRECATED legacy conditions; DeletionState still current
-    operator.ts               — DEPRECATED legacy Operator enum — use FilterOperator
     index.ts
-    locale/                   — DEPRECATED i18n for the legacy Operator enum
-      en_US.ts, zh_CN.ts, operatorLocale.ts
     event/
       domainEventStream.ts          — Domain event stream types
       eventStreamQueryApi.ts        — Event stream query API (no single)
@@ -99,7 +96,28 @@ src/
   types/
     abac.ts, common.ts, endpoints.ts, error.ts, function.ts,
     messaging.ts, modeling.ts, naming.ts, bi.ts, index.ts
+  legacy/                     — DEPRECATED `@ahoo-wang/wow-client/legacy` entry, removed in v10
+    index.ts                  — The entry
+    condition.ts              — Condition model and builders
+    operator.ts               — Operator enum — use FilterOperator
+    queryable.ts              — Condition queries, their factories, and the *QueryRequest unions
+    locale/                   — i18n for the Operator enum (en_US, zh_CN)
+scripts/
+  verify-package.mjs          — Run by the build: entries resolve and export what test/surface/ lists
+test/
+  surface/                    — The public surface of each entry, one name a line
+  publicSurface.test.ts       — Holds the source entries to those lists (-u to accept a change)
 ```
+
+## Public surface
+
+The root entry (`src/index.ts`) and `/legacy` (`src/legacy/index.ts`) are the
+only entries. Their exports are listed name by name under `test/surface/`; a
+new export, or a removed one, changes a list, and the change is made on
+purpose with `pnpm exec vitest run test/publicSurface.test.ts -u`. The build
+runs `scripts/verify-package.mjs`, which holds the built ES module and
+CommonJS entries to the same lists. Nothing Condition-based is exported from
+the root entry.
 
 ### Key Concepts
 
@@ -107,7 +125,7 @@ src/
 - **Query Clients**: Type-safe query builders for snapshots, event streams, and state aggregates
 - **Filter Expressions**: `filter.*` builders produce the `FilterExpression` tree the filterable `QueryApi` operations take — the current API. It is optional on `AggregationQuery`, and the load-state clients accept no filter at all
 - **Aggregation**: `aggregation.*` builds groups, metrics and arithmetic expressions, and `aggregation.query()` admits the assembled query against the rules Wow enforces in its constructor. There is no `aggregation.having()` — `HavingExpression` is constructed directly, and `derived()` takes an already-built `DerivedExpression`
-- **Legacy Condition API**: `condition.ts`, `operator.ts`, and `locale/` are deprecated — superseded by `filter.ts`. The exception is `DeletionState`, which is not deprecated and is what `filter.deletion()` takes
+- **Legacy Condition API**: `src/legacy/` is the `@ahoo-wang/wow-client/legacy` entry, for Wow servers before 8.11 — superseded by `filter.ts`. The root entry never exports it; the query clients accept its request shapes through the `*QueryRequest` unions (see `docs/compat-debt.md`)
 - **Wow Metadata**: `WowMetadata` types describing bounded contexts and aggregates (types only, no decorator)
 
 ## Dependencies
@@ -134,7 +152,8 @@ src/
 - ✅ Writing new tests
 - ⚠️ Changing command client API — affects `wow-react` hooks and `wow-generator` output
 - ⚠️ Changing the `FilterExpression` API — view-engine and react build on it
-- ⚠️ Touching the legacy condition API — deprecated, kept for compatibility until v10 (generated code still maps `Condition`)
+- ⚠️ Touching the legacy condition API — deprecated, kept on `/legacy` until v10 (generated code for 8.10 servers imports `Condition` from there)
+- 🚫 Exporting anything Condition-based from the root entry
 - 🚫 Breaking command result/wait strategy contract
 - 🚫 Changing the `WowMetadata` shape — generator reads it
 - 🚫 Removing event stream query support

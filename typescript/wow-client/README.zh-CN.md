@@ -39,6 +39,22 @@ const carts = await snapshots.listState(
 );
 ```
 
+## Wow 8.10 服务端：`@ahoo-wang/wow-client/legacy`
+
+根入口只使用 `FilterExpression`，Wow 8.11 及以后的服务端都支持。Wow 8.10 及更早
+的服务端只认已弃用的 Condition 模型，本包把它放在单独的子路径里，保留到 v10：
+
+```ts
+import { SnapshotQueryClient } from '@ahoo-wang/wow-client';
+import { and, eq, listQuery, ownerId } from '@ahoo-wang/wow-client/legacy';
+
+const carts = await snapshots.listState(
+  listQuery({ condition: and(ownerId('u-42'), eq('state.status', 'ACTIVE')) }),
+);
+```
+
+查询客户端两种查询都接受，其余一切都从根入口导入。这个子路径在 v10 删除。
+
 ## 核心能力
 
 - 命令结果与流式等待阶段。

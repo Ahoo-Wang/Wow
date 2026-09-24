@@ -11,17 +11,24 @@
  * limitations under the License.
  */
 
-export * from './aggregation.js';
-export * from './filter.js';
-export * from './pagination.js';
-export * from './projection.js';
-export * from './queryable.js';
-export * from './queryApi.js';
-export * from './sort.js';
-export * from './event/index.js';
-export * from './snapshot/index.js';
-export * from './state/index.js';
-export * from './cursorQuery.js';
-export * from './deletionState.js';
-export * from './queryClients.js';
-export * from './types.js';
+/**
+ * Deletion state enumeration
+ *
+ * Represents the different states of deletion for entities.
+ */
+export enum DeletionState {
+  /**
+   * Active state - entity is not deleted
+   */
+  ACTIVE = 'ACTIVE',
+
+  /**
+   * Deleted state - entity is deleted
+   */
+  DELETED = 'DELETED',
+
+  /**
+   * All state - includes both active and deleted entities
+   */
+  ALL = 'ALL',
+}

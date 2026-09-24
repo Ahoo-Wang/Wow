@@ -15,313 +15,115 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 import type {
   FieldSort,
   FilterListQuery,
-  ListQuery,
-  PagedQuery,
-  SingleQuery,
+  FilterPagedQuery,
+  FilterSingleQuery,
+  Projection,
 } from '../../src';
-import { all, asc, eq, filter, projection } from '../../src';
-import { singleQuery, listQuery, pagedQuery, pagedList } from '../../src';
-import type { Projection } from '../../src';
-import { DEFAULT_PAGINATION } from '../../src';
+import {
+  asc,
+  DEFAULT_PAGINATION,
+  filter,
+  listQuery,
+  pagedList,
+  pagedQuery,
+  singleQuery,
+} from '../../src';
 
 describe('queryable', () => {
-  it('infers the query protocol from its required discriminator', () => {
-    expectTypeOf(singleQuery({ sort: [] })).toEqualTypeOf<
-      SingleQuery<string>
+  it('builds FilterExpression queries, with or without arguments', () => {
+    expectTypeOf(singleQuery()).toEqualTypeOf<FilterSingleQuery<string>>();
+    expectTypeOf(listQuery({ limit: 10 })).toEqualTypeOf<
+      FilterListQuery<string>
     >();
-    expectTypeOf(listQuery({ limit: 10 })).toEqualTypeOf<ListQuery<string>>();
-    expectTypeOf(pagedQuery({ pagination: DEFAULT_PAGINATION })).toEqualTypeOf<
-      PagedQuery<string>
-    >();
-
-    const expression = filter.eq('state.status', 'PAID');
-    expectTypeOf(listQuery({ filter: expression })).toEqualTypeOf<
-      FilterListQuery<'state.status'>
-    >();
+    expectTypeOf(pagedQuery()).toEqualTypeOf<FilterPagedQuery<string>>();
+    expectTypeOf(
+      listQuery({ filter: filter.eq('state.status', 'PAID') }),
+    ).toEqualTypeOf<FilterListQuery<'state.status'>>();
   });
 
-  it('creates filter expression query requests', () => {
-    const expression = filter.eq('state.status', 'PAID');
+  it('refuses a condition, which only the legacy entry builds', () => {
+    // @ts-expect-error The root factories take a filter, not a Condition.
+    singleQuery({ condition: { operator: 'ALL' } });
+  });
 
-    expect(singleQuery({ filter: expression })).toEqual({
-      filter: expression,
-    });
-    expect(listQuery({ filter: expression })).toEqual({
-      filter: expression,
-      limit: 0,
-    });
-    expect(pagedQuery({ filter: expression })).toEqual({
-      filter: expression,
+  it('matches everything when no filter is given', () => {
+    expect(singleQuery()).toEqual({ filter: filter.matchAll() });
+    expect(listQuery()).toEqual({ filter: filter.matchAll() });
+    expect(pagedQuery()).toEqual({
+      filter: filter.matchAll(),
       pagination: DEFAULT_PAGINATION,
     });
   });
 
-  it('rejects null query discriminators instead of falling back to match-all', () => {
+  it('refuses a null filter instead of falling back to match-all', () => {
     for (const createQuery of [singleQuery, listQuery, pagedQuery]) {
       expect(() => createQuery({ filter: null } as never)).toThrowError(
         'filter cannot be null.',
       );
-      expect(() => createQuery({ condition: null } as never)).toThrowError(
-        'condition cannot be null.',
-      );
     }
   });
 
-  it('prefers an explicit filter over a legacy condition', () => {
-    const expression = filter.matchAll();
-    for (const createQuery of [singleQuery, listQuery, pagedQuery]) {
-      const query = createQuery({
+  it('leaves the list limit to the server unless one is given', () => {
+    const expression = filter.eq('state.status', 'PAID');
+    expect(listQuery({ filter: expression })).not.toHaveProperty(
+      'limit',
+      expect.anything(),
+    );
+    expect(listQuery({ filter: expression, limit: 20 })).toEqual({
+      filter: expression,
+      limit: 20,
+    });
+  });
+
+  it('passes projection and sort through', () => {
+    const queryProjection: Projection = { include: ['field1', 'field2'] };
+    const sort: FieldSort[] = [asc('name')];
+    const expression = filter.eq('name', 'test');
+    expect(
+      singleQuery({ filter: expression, projection: queryProjection, sort }),
+    ).toEqual({ filter: expression, projection: queryProjection, sort });
+    expect(
+      listQuery({ filter: expression, projection: queryProjection, sort }),
+    ).toEqual({ filter: expression, projection: queryProjection, sort });
+    const pagination = { index: 2, size: 20 };
+    expect(
+      pagedQuery({
         filter: expression,
-        condition: null,
-      } as never);
-      expect(query).toHaveProperty('filter', expression);
-      expect(query).not.toHaveProperty('condition');
-    }
-  });
-
-  describe('singleQuery', () => {
-    it('should create a SingleQuery with default condition when no parameters are provided', () => {
-      const result = singleQuery();
-
-      expect(result).toEqual({
-        condition: all(),
-      });
-    });
-
-    it('should create a SingleQuery with provided condition', () => {
-      const condition = eq('name', 'test');
-      const result = singleQuery({ condition });
-
-      expect(result).toEqual({
-        condition,
-      });
-    });
-
-    it('should create a SingleQuery with provided projection', () => {
-      const projection: Projection = { include: ['field1', 'field2'] };
-      const result = singleQuery({ projection });
-
-      expect(result).toEqual({
-        condition: all(),
-        projection,
-      });
-    });
-
-    it('should create a SingleQuery with provided sort', () => {
-      const sort: FieldSort[] = [asc('name')];
-      const result = singleQuery({ sort });
-
-      expect(result).toEqual({
-        condition: all(),
-        sort,
-      });
-    });
-
-    it('should create a SingleQuery with all provided parameters', () => {
-      const condition = eq('name', 'test');
-      const queryProjection: Projection = projection({
-        include: ['field1', 'field2'],
-      });
-      const sort: FieldSort[] = [asc('name')];
-
-      const result = singleQuery({
-        condition,
         projection: queryProjection,
         sort,
-      });
-
-      expect(result).toEqual({
-        condition,
-        projection: queryProjection,
-        sort,
-      });
+        pagination,
+      }),
+    ).toEqual({
+      filter: expression,
+      projection: queryProjection,
+      sort,
+      pagination,
     });
   });
 
-  describe('listQuery', () => {
-    it('should create a ListQuery with default values when no parameters are provided', () => {
-      const result = listQuery();
-
-      expect(result).toEqual({
-        condition: all(),
-        limit: DEFAULT_PAGINATION.size,
-      });
-    });
-
-    it('should create a ListQuery with provided condition', () => {
-      const condition = eq('name', 'test');
-      const result = listQuery({ condition });
-
-      expect(result).toEqual({
-        condition,
-        limit: DEFAULT_PAGINATION.size,
-      });
-    });
-
-    it('should create a ListQuery with provided projection', () => {
-      const projection: Projection = { include: ['field1', 'field2'] };
-      const result = listQuery({ projection });
-
-      expect(result).toEqual({
-        condition: all(),
-        projection,
-        limit: DEFAULT_PAGINATION.size,
-      });
-    });
-
-    it('should create a ListQuery with provided sort', () => {
-      const sort: FieldSort[] = [asc('name')];
-      const result = listQuery({ sort });
-
-      expect(result).toEqual({
-        condition: all(),
-        sort,
-        limit: DEFAULT_PAGINATION.size,
-      });
-    });
-
-    it('should create a ListQuery with provided limit', () => {
-      const limit = 10;
-      const result = listQuery({ limit });
-
-      expect(result).toEqual({
-        condition: all(),
-        limit,
-      });
-    });
-
-    it('should create a ListQuery with all provided parameters', () => {
-      const condition = eq('name', 'test');
-      const projection: Projection = { include: ['field1', 'field2'] };
-      const sort: FieldSort[] = [asc('name')];
-      const limit = 10;
-
-      const result = listQuery({ condition, projection, sort, limit });
-
-      expect(result).toEqual({
-        condition,
-        projection,
-        sort,
-        limit,
-      });
-    });
-  });
-
-  describe('pagedQuery', () => {
-    it('should create a PagedQuery with default values when no parameters are provided', () => {
-      const result = pagedQuery();
-
-      expect(result).toEqual({
-        condition: all(),
-        pagination: DEFAULT_PAGINATION,
-      });
-    });
-
-    it('should create a PagedQuery with provided condition', () => {
-      const condition = eq('name', 'test');
-      const result = pagedQuery({ condition });
-
-      expect(result).toEqual({
-        condition,
-        pagination: DEFAULT_PAGINATION,
-      });
-    });
-
-    it('should create a PagedQuery with provided projection', () => {
-      const projection: Projection = { include: ['field1', 'field2'] };
-      const result = pagedQuery({ projection });
-
-      expect(result).toEqual({
-        condition: all(),
-        projection,
-        pagination: DEFAULT_PAGINATION,
-      });
-    });
-
-    it('should create a PagedQuery with provided sort', () => {
-      const sort: FieldSort[] = [asc('name')];
-      const result = pagedQuery({ sort });
-
-      expect(result).toEqual({
-        condition: all(),
-        sort,
-        pagination: DEFAULT_PAGINATION,
-      });
-    });
-
-    it('should create a PagedQuery with provided pagination', () => {
-      const pagination = { index: 2, size: 20 };
-      const result = pagedQuery({ pagination });
-
-      expect(result).toEqual({
-        condition: all(),
-        pagination,
-      });
-    });
-
-    it('should create a PagedQuery with all provided parameters', () => {
-      const condition = eq('name', 'test');
-      const projection: Projection = { include: ['field1', 'field2'] };
-      const sort: FieldSort[] = [asc('name')];
-      const pagination = { index: 2, size: 20 };
-
-      const result = pagedQuery({ condition, projection, sort, pagination });
-
-      expect(result).toEqual({
-        condition,
-        projection,
-        sort,
-        pagination,
-      });
-    });
+  it('never hands out the shared default pagination', () => {
+    const query = pagedQuery();
+    expect(query.pagination).not.toBe(DEFAULT_PAGINATION);
+    expect(Object.isFrozen(DEFAULT_PAGINATION)).toBe(true);
   });
 
   describe('pagedList', () => {
-    it('should create a PagedList with default values when no parameters are provided', () => {
-      const result = pagedList();
-
-      expect(result).toEqual({
-        total: 0,
-        list: [],
-      });
+    it('defaults to an empty page', () => {
+      expect(pagedList()).toEqual({ total: 0, list: [] });
+      expect(pagedList({})).toEqual({ total: 0, list: [] });
     });
 
-    it('should create a PagedList with provided total', () => {
-      const result = pagedList({ total: 10 });
-
-      expect(result).toEqual({
-        total: 10,
-        list: [],
-      });
+    it('gives every empty page its own list', () => {
+      const first = pagedList<number>();
+      first.list.push(1);
+      expect(pagedList<number>().list).toEqual([]);
     });
 
-    it('should create a PagedList with provided list', () => {
+    it('counts the list when no total is given', () => {
       const list = [{ id: 1, name: 'test' }];
-      const result = pagedList({ list });
-
-      expect(result).toEqual({
-        total: 1,
-        list,
-      });
-    });
-
-    it('should create a PagedList with provided total and list', () => {
-      const list = [{ id: 1, name: 'test' }];
-      const result = pagedList({ total: 10, list });
-
-      expect(result).toEqual({
-        total: 10,
-        list,
-      });
-    });
-
-    it('should create a PagedList with empty parameters object', () => {
-      const result = pagedList({});
-
-      expect(result).toEqual({
-        total: 0,
-        list: [],
-      });
+      expect(pagedList({ list })).toEqual({ total: 1, list });
+      expect(pagedList({ total: 10, list })).toEqual({ total: 10, list });
+      expect(pagedList({ total: 10 })).toEqual({ total: 10, list: [] });
     });
   });
 });

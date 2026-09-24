@@ -14,13 +14,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useFetcherListStreamQuery } from '../../src/fetcher/useFetcherListStreamQuery';
+import { SortDirection } from '@ahoo-wang/wow-client';
 import {
   ListQuery,
-  SortDirection,
   Operator,
   eq,
   contains,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/legacy';
 import { JsonEventStreamResultExtractor } from '@ahoo-wang/fetcher-eventstream';
 
 // Mock the useFetcherQuery hook

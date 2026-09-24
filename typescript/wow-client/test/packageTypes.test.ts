@@ -21,14 +21,15 @@ it('preserves public Wow types under NodeNext without skipping declaration check
   );
   const source = `
     import { aggregation, type AggregationQuery, type QueryApi } from '@ahoo-wang/wow-client';
-    import { zh_CN } from '@ahoo-wang/wow-client/query/locale/zh_CN';
-    import { en_US } from '@ahoo-wang/wow-client/query/locale/en_US';
+    import { zh_CN, en_US, all, listQuery } from '@ahoo-wang/wow-client/legacy';
     const valid: AggregationQuery = { metrics: [aggregation.count('orders')] };
     // @ts-expect-error Aggregation must retain its nonempty metrics contract.
     const empty: AggregationQuery = { metrics: [] };
     // @ts-expect-error QueryApi is a real interface, not an unresolved type.
     const invalidApi: QueryApi = {};
-    void [valid, empty, invalidApi, zh_CN, en_US];
+    // The root query clients take the legacy entry's Condition queries.
+    const legacyList = (api: QueryApi<unknown>) => api.list(listQuery({ condition: all() }));
+    void [valid, empty, invalidApi, zh_CN, en_US, legacyList];
   `;
   const options: ts.CompilerOptions = {
     noEmit: true,

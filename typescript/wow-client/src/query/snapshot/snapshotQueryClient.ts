@@ -15,17 +15,16 @@ import {
   type SnapshotQueryApi,
   SnapshotQueryEndpointPaths,
 } from './snapshotQueryApi.js';
-import { aggregateId, type Condition } from '../condition.js';
+import type { Condition } from '../../legacy/condition.js';
 import type { AggregationQuery } from '../aggregation.js';
 import { filter, type FilterExpression } from '../filter.js';
-import {
-  listQuery,
-  type ListQueryRequest,
-  type PagedList,
-  type PagedQueryRequest,
-  singleQuery,
-  type SingleQueryRequest,
-} from '../queryable.js';
+// compat(wow<9): the request unions admit the Condition-based queries of `/legacy`, which Wow < 8.11 needs; narrow them to the Filter* queries in v10.
+import type {
+  ListQueryRequest,
+  PagedQueryRequest,
+  SingleQueryRequest,
+} from '../../legacy/queryable.js';
+import { listQuery, type PagedList, singleQuery } from '../queryable.js';
 import type { MaterializedSnapshot } from './snapshot.js';
 import type { DynamicDocument } from '../types.js';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
@@ -472,10 +471,7 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
     @attribute() attributes?: Record<string, any>,
     abortController?: AbortController,
   ): Promise<MaterializedSnapshot<S>> {
-    // compat(wow<9): still sends a Condition, which every 8.x and 9.x server accepts; use filter.aggregateId in v10.
-    const query = singleQuery<FIELDS>({
-      condition: aggregateId<FIELDS>(id),
-    });
+    const query = singleQuery<FIELDS>({ filter: filter.aggregateId(id) });
     return this.single(query, attributes, abortController);
   }
 
@@ -500,10 +496,7 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
     @attribute() attributes?: Record<string, any>,
     abortController?: AbortController,
   ): Promise<S> {
-    // compat(wow<9): still sends a Condition, which every 8.x and 9.x server accepts; use filter.aggregateId in v10.
-    const query = singleQuery<FIELDS>({
-      condition: aggregateId<FIELDS>(id),
-    });
+    const query = singleQuery<FIELDS>({ filter: filter.aggregateId(id) });
     return this.singleState(query, attributes, abortController);
   }
 

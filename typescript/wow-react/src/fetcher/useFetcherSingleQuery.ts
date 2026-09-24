@@ -11,11 +11,12 @@
  * limitations under the License.
  */
 
+import type { FilterSingleQuery } from '@ahoo-wang/wow-client';
+// compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
 import type {
-  FilterSingleQuery,
   SingleQuery,
   SingleQueryRequest,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/legacy';
 import type { FetcherError } from '@ahoo-wang/fetcher';
 import type { UseQueryReturn } from '@ahoo-wang/fetcher-react/core';
 import type { UseFetcherQueryOptions } from '@ahoo-wang/fetcher-react/fetcher';
@@ -34,7 +35,7 @@ export interface UseFetcherSingleQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends SingleQueryRequest<FIELDS> = SingleQuery<FIELDS>,
+  Q extends SingleQueryRequest<FIELDS> = FilterSingleQuery<FIELDS>,
 > extends UseFetcherQueryOptions<Q, R, E> {}
 
 /**
@@ -50,7 +51,7 @@ export interface UseFetcherSingleQueryReturn<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends SingleQueryRequest<FIELDS> = SingleQuery<FIELDS>,
+  Q extends SingleQueryRequest<FIELDS> = FilterSingleQuery<FIELDS>,
 > extends UseQueryReturn<Q, R, E> {}
 
 /**
@@ -69,7 +70,7 @@ export interface UseFetcherSingleQueryReturn<
  * @example
  * ```typescript
  * import { useFetcherSingleQuery } from '@ahoo-wang/wow-react';
- * import { singleQuery, eq } from '@ahoo-wang/wow-client';
+ * import { singleQuery, filter } from '@ahoo-wang/wow-client';
  *
  * interface User {
  *   id: string;
@@ -87,7 +88,7 @@ export interface UseFetcherSingleQueryReturn<
  *   } = useFetcherSingleQuery<User, keyof User>({
  *     url: `/api/users/${userId}`,
  *     initialQuery: singleQuery({
- *       condition: eq('id', userId),
+ *       filter: filter.id(userId),
  *     }),
  *     autoExecute: true,
  *   });
@@ -115,13 +116,6 @@ export function useFetcherSingleQuery<
   FIELDS extends string = string,
   E = FetcherError,
 >(
-  options: UseFetcherSingleQueryOptions<R, FIELDS, E, SingleQuery<FIELDS>>,
-): UseFetcherSingleQueryReturn<R, FIELDS, E, SingleQuery<FIELDS>>;
-export function useFetcherSingleQuery<
-  R,
-  FIELDS extends string = string,
-  E = FetcherError,
->(
   options: UseFetcherSingleQueryOptions<
     R,
     FIELDS,
@@ -133,7 +127,14 @@ export function useFetcherSingleQuery<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends SingleQueryRequest<FIELDS> = SingleQuery<FIELDS>,
+>(
+  options: UseFetcherSingleQueryOptions<R, FIELDS, E, SingleQuery<FIELDS>>,
+): UseFetcherSingleQueryReturn<R, FIELDS, E, SingleQuery<FIELDS>>;
+export function useFetcherSingleQuery<
+  R,
+  FIELDS extends string = string,
+  E = FetcherError,
+  Q extends SingleQueryRequest<FIELDS> = FilterSingleQuery<FIELDS>,
 >(
   options: UseFetcherSingleQueryOptions<R, FIELDS, E, Q>,
 ): UseFetcherSingleQueryReturn<R, FIELDS, E, Q>;

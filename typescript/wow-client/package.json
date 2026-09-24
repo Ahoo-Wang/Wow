@@ -41,24 +41,14 @@
         "default": "./dist/index.cjs"
       }
     },
-    "./query/locale/zh_CN": {
+    "./legacy": {
       "import": {
-        "types": "./dist/query/locale/zh_CN.d.ts",
-        "default": "./dist/query/locale/zh_CN.es.js"
+        "types": "./dist/legacy/index.d.ts",
+        "default": "./dist/legacy.es.js"
       },
       "require": {
-        "types": "./dist/query/locale/zh_CN.d.cts",
-        "default": "./dist/query/locale/zh_CN.cjs"
-      }
-    },
-    "./query/locale/en_US": {
-      "import": {
-        "types": "./dist/query/locale/en_US.d.ts",
-        "default": "./dist/query/locale/en_US.es.js"
-      },
-      "require": {
-        "types": "./dist/query/locale/en_US.d.cts",
-        "default": "./dist/query/locale/en_US.cjs"
+        "types": "./dist/legacy/index.d.cts",
+        "default": "./dist/legacy.cjs"
       }
     },
     "./package.json": "./package.json"
@@ -68,7 +58,8 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "vite build",
+    "build": "vite build && pnpm test:package",
+    "test:package": "node scripts/verify-package.mjs",
     "test:ui": "vitest --ui",
     "test": "vitest run --coverage && pnpm test:type",
     "test:type": "tsc --noEmit -p test/tsconfig.types.json",

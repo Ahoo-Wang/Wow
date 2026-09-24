@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { DeletionState } from '../query/deletionState.js';
 import { Operator } from './operator.js';
 
 /**
@@ -164,28 +165,6 @@ export interface Condition<FIELDS extends string = string> {
 export interface ConditionCapable<FIELDS extends string = string> {
   /** @deprecated Use filter instead. Removed in v10. */
   condition: Condition<FIELDS>;
-}
-
-/**
- * Deletion state enumeration
- *
- * Represents the different states of deletion for entities.
- */
-export enum DeletionState {
-  /**
-   * Active state - entity is not deleted
-   */
-  ACTIVE = 'ACTIVE',
-
-  /**
-   * Deleted state - entity is deleted
-   */
-  DELETED = 'DELETED',
-
-  /**
-   * All state - includes both active and deleted entities
-   */
-  ALL = 'ALL',
 }
 
 /**

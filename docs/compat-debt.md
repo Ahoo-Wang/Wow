@@ -20,33 +20,31 @@ When you add compatibility code, add its marker and list the file under an entry
 
 ## Entries
 
-### Deprecated Condition API
+### The `/legacy` Subpath: Deprecated Condition API
 
-- **Kept compatible**: the Condition query model of `@ahoo-wang/wow-client`: `Condition`, `ConditionOptions`, `ConditionCapable` and the builder functions (`and`, `eq`, `aggregateId`, `raw`, …); the `Operator` enum and its operator sets; the `OperatorLocale` type and the `en_US` / `zh_CN` locales (package subpaths `./query/locale/en_US` and `./query/locale/zh_CN`); the Condition-based `Queryable`, `SingleQuery`, `ListQuery` and `PagedQuery` and the `singleQuery` / `listQuery` / `pagedQuery` overloads that take a `condition`. Wow before 8.11.0 understands only this model. `raw()` and `Operator.RAW` reach only servers before Wow #2999 (8.11.0); current servers answer them with 400.
-- **Markers**: `typescript/wow-client/src/query/condition.ts`, `typescript/wow-client/src/query/operator.ts`, `typescript/wow-client/src/query/locale/operatorLocale.ts`, `typescript/wow-client/src/query/locale/en_US.ts`, `typescript/wow-client/src/query/locale/zh_CN.ts`, `typescript/wow-client/src/query/queryable.ts`
-- **Replacement**: `FilterExpression` built with `filter.*` (`filter.and`, `filter.eq`, `filter.aggregateId`, …), `FilterOperator`, and `FilterQueryable`, `FilterSingleQuery`, `FilterListQuery`, `FilterPagedQuery`. `raw()` has no replacement. The locales have none in `wow-client`; applications label `FilterOperator` values themselves.
+- **Kept compatible**: the Condition query model, which Wow before 8.11.0 is the only one to understand. `@ahoo-wang/wow-client` publishes it on its own subpath, `@ahoo-wang/wow-client/legacy`, and never from the root entry: `Condition`, `ConditionOptions`, `ConditionCapable` and the builder functions (`and`, `eq`, `aggregateId`, `raw`, …); the `Operator` enum and its operator sets; the `OperatorLocale` type and the `en_US` / `zh_CN` locales; the Condition-based `Queryable`, `SingleQuery`, `ListQuery` and `PagedQuery`; the request unions `SingleQueryRequest`, `ListQueryRequest` and `PagedQueryRequest` that the query clients accept; and `singleQuery` / `listQuery` / `pagedQuery` factories that build Condition queries (condition defaulting to `all()`, list limit to `DEFAULT_PAGINATION.size`). The root entry and every default use `FilterExpression`. `raw()` and `Operator.RAW` reach only servers before Wow #2999 (8.11.0); current servers answer them with 400.
+- **Markers**: `typescript/wow-client/src/legacy/condition.ts`, `typescript/wow-client/src/legacy/operator.ts`, `typescript/wow-client/src/legacy/queryable.ts`, `typescript/wow-client/src/legacy/locale/operatorLocale.ts`, `typescript/wow-client/src/legacy/locale/en_US.ts`, `typescript/wow-client/src/legacy/locale/zh_CN.ts`
+- **Replacement**: the root entry: `FilterExpression` built with `filter.*` (`filter.and`, `filter.eq`, `filter.aggregateId`, …), `FilterOperator`, `FilterQueryable`, `FilterSingleQuery`, `FilterListQuery`, `FilterPagedQuery`, and its `singleQuery` / `listQuery` / `pagedQuery`, which take a `filter` defaulting to `filter.matchAll()`. `raw()` has no replacement. The locales have none in `wow-client`; applications label `FilterOperator` values themselves.
 - **Removal in v10**:
-  1. Move `DeletionState`, which is not deprecated and which `filter.ts` imports, out of `condition.ts`.
-  2. Delete `condition.ts`, `operator.ts` and `locale/`; remove the two locale subpaths from `package.json` `exports` and from the build entries.
-  3. Delete the Condition-based query types and overloads in `queryable.ts`. `FilterListQuery` defaults `limit` to 0 while `ListQuery` defaulted to `DEFAULT_PAGINATION.size`; say so in the migration guide.
-  4. Do the entries below that use `Condition` in the same release.
+  1. Delete `src/legacy/`. `DeletionState`, which it uses, already lives in `src/query/deletionState.ts`.
+  2. Remove `./legacy` from `package.json` `exports` and from the build entries in `vite.config.ts`; delete `test/surface/legacy.txt` and its entries in `test/publicSurface.test.ts`, `test/fixtures/exports.ts` and `scripts/verify-package.mjs`; delete `test/legacy/`.
+  3. Do the entries below that use `Condition` in the same release. The migration guide tells 8.10 users that `wow-client` 10 no longer reaches their server.
 
 ### Condition In Non-Deprecated Signatures
 
-- **Kept compatible**: APIs that are not deprecated but still accept or send a `Condition`, so that code written against the Condition API keeps compiling and Wow before 8.11 keeps working:
-  - `count()` of `QueryApi`, `SnapshotQueryClient` and `EventStreamQueryClient` takes `FilterExpression | Condition`;
-  - `SnapshotQueryClient.getById()` and `getStateById()` send `condition: aggregateId(id)`;
-  - `useCountQuery` and `useFetcherCountQuery` in `@ahoo-wang/wow-react` default their query type to `Condition` and keep a `Condition` overload.
-- **Markers**: `typescript/wow-client/src/query/queryApi.ts`, `typescript/wow-client/src/query/snapshot/snapshotQueryClient.ts`, `typescript/wow-client/src/query/event/eventStreamQueryClient.ts`, `typescript/wow-react/src/useCountQuery.ts`, `typescript/wow-react/src/fetcher/useFetcherCountQuery.ts`
-- **Replacement**: `FilterExpression` everywhere; `getById()` and `getStateById()` send `filter.aggregateId(id)`, as `getByIds()` already does.
-- **Removal in v10**: narrow the parameters to `FilterExpression`, switch the two `getById` methods to `filter`, make `FilterExpression` the default query type of the two hooks and delete their `Condition` overloads. Code passing a `Condition` stops compiling; the migration guide points to `filter.*`.
+- **Kept compatible**: APIs of the root entry and of `wow-react` that are not deprecated but still accept a Condition query from `/legacy`, so that an application talking to a Wow 8.10 server can use them:
+  - the query methods of `QueryApi`, `SnapshotQueryApi`, `SnapshotQueryClient` and `EventStreamQueryClient` take `SingleQueryRequest`, `ListQueryRequest` and `PagedQueryRequest`, which admit both the `Filter*` queries and the Condition ones; `count()` takes `FilterExpression | Condition`;
+  - the query hooks of `@ahoo-wang/wow-react` default their query type to the `Filter*` query (`FilterExpression` for the count hooks) and keep a second overload for the Condition query.
+- **Markers**: `typescript/wow-client/src/query/queryApi.ts`, `typescript/wow-client/src/query/snapshot/snapshotQueryApi.ts`, `typescript/wow-client/src/query/snapshot/snapshotQueryClient.ts`, `typescript/wow-client/src/query/event/eventStreamQueryClient.ts`, `typescript/wow-react/src/useCountQuery.ts`, `typescript/wow-react/src/useListQuery.ts`, `typescript/wow-react/src/useListStreamQuery.ts`, `typescript/wow-react/src/usePagedQuery.ts`, `typescript/wow-react/src/useSingleQuery.ts`, `typescript/wow-react/src/fetcher/useFetcherCountQuery.ts`, `typescript/wow-react/src/fetcher/useFetcherListQuery.ts`, `typescript/wow-react/src/fetcher/useFetcherListStreamQuery.ts`, `typescript/wow-react/src/fetcher/useFetcherPagedQuery.ts`, `typescript/wow-react/src/fetcher/useFetcherSingleQuery.ts`
+- **Replacement**: `FilterExpression` and the `Filter*` queries everywhere. `getById()` and `getStateById()` already send `filter.aggregateId(id)`.
+- **Removal in v10**: narrow the parameters to `FilterSingleQuery`, `FilterListQuery`, `FilterPagedQuery` and `FilterExpression`, and delete the hooks' Condition overloads and their `/legacy` imports. Code passing a Condition stops compiling; the migration guide points to `filter.*`.
 
 ### Generated Code Uses The Condition API
 
-- **Kept compatible**: `wow-generator` maps the server schemas `wow.api.query.Condition`, `ConditionOptions`, `ListQuery`, `Operator` and `PagedQuery` to the deprecated `wow-client` types of the same names, so code users have already generated uses the deprecated API.
+- **Kept compatible**: `wow-generator` maps the Condition-only server schemas `wow.api.query.Condition`, `ConditionOptions` and `Operator`, and the `ListQuery` and `PagedQuery` schemas of servers before 8.11 (which have no `filter` property), to the `wow-client` types of the same names, imported from `@ahoo-wang/wow-client/legacy` (`WOW_LEGACY_TYPES`, `IMPORT_WOW_LEGACY_PATH`). A `ListQuery` or `PagedQuery` schema that carries `filter` maps to `FilterListQuery` or `FilterPagedQuery` from the root entry.
 - **Markers**: `typescript/wow-generator/src/model/wowTypeMapping.ts`
-- **Replacement**: map the query schemas to `FilterExpression`, `FilterListQuery`, `FilterPagedQuery` and `FilterOperator`, and drop the `Condition` and `ConditionOptions` mappings.
-- **Removal in v10**: change the mapping and the generator's expected snapshots. Users must regenerate their clients with `wow-generator` 10; the migration guide says so first, because code generated by 9.x no longer compiles against `wow-client` 10.
+- **Replacement**: `FilterExpression`, `FilterListQuery`, `FilterPagedQuery` and `FilterOperator`, from the root entry.
+- **Removal in v10**: map `ListQuery` and `PagedQuery` to the `Filter*` queries whatever their properties, drop the `Condition`, `ConditionOptions` and `Operator` mappings, `WOW_LEGACY_TYPES` and `IMPORT_WOW_LEGACY_PATH`, and update the generator's expected snapshots. Code generated from an 8.10 server stops compiling against `wow-client` 10; the migration guide says so first.
 
 ### LogicalField Alias
 
@@ -64,7 +62,7 @@ When you add compatibility code, add its marker and list the file under an entry
 
 ### Wow 8.x Contract Matrix
 
-- **Kept compatible**: the TypeScript contract tests run the client and generated code against published `wow-example-server` images 8.10.8 (Condition only) and 8.11.5 (filters), as fetcher's `generator-test.yml` did. The integration cases that must pass there query through the Condition API. The matrix is the `legacy-contract` job of `.github/workflows/typescript-contract.yml`.
+- **Kept compatible**: the TypeScript contract tests run the client and generated code against published `wow-example-server` images 8.10.8 (Condition only) and 8.11.5 (filters), as fetcher's `generator-test.yml` did. The matrix is the `legacy-contract` job of `.github/workflows/typescript-contract.yml`; against the 8.x images it generates clients and type-checks them, and does not run the integration cases. The Condition integration cases (`cartSnapshotQueryClient.test.ts`, `cartEventStreamQueryClient.test.ts`) run in the same-source contract job, whose server still accepts Condition queries, beside the `filter.*` cases.
 - **Markers**: `.github/workflows/typescript-contract.yml`, `typescript/integration-test/test/wow/cart/cartSnapshotQueryClient.test.ts`, `typescript/integration-test/test/wow/cart/cartEventStreamQueryClient.test.ts`
 - **Replacement**: the same-source contract job, which builds the server from this repository.
 - **Removal in v10**: drop the 8.x images from the matrix and move the integration cases to `filter.*`.

@@ -11,17 +11,18 @@
  * limitations under the License.
  */
 
-export * from './aggregation.js';
-export * from './filter.js';
-export * from './pagination.js';
-export * from './projection.js';
+/**
+ * `@ahoo-wang/wow-client/legacy`: the deprecated Condition query model, for
+ * Wow servers before 8.11, which understand nothing else.
+ *
+ * The query clients of the root entry accept the request shapes built here, so
+ * an application that talks to an 8.10 server imports its queries from this
+ * entry and everything else from the root. The whole entry is removed in v10;
+ * see docs/compat-debt.md.
+ */
+export * from './condition.js';
+export * from './operator.js';
 export * from './queryable.js';
-export * from './queryApi.js';
-export * from './sort.js';
-export * from './event/index.js';
-export * from './snapshot/index.js';
-export * from './state/index.js';
-export * from './cursorQuery.js';
-export * from './deletionState.js';
-export * from './queryClients.js';
-export * from './types.js';
+export * from './locale/operatorLocale.js';
+export * from './locale/en_US.js';
+export * from './locale/zh_CN.js';

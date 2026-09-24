@@ -34,6 +34,8 @@ export default mergeConfig(
           // use integration-test, see integration-test/test/wow/cart/cartEventStreamQueryClient.test.ts
           'src/query/event/eventStreamQueryClient.ts',
           '**/**.stories.tsx',
+          'test/fixtures/**',
+          'scripts/**',
         ],
       },
     },

@@ -14,6 +14,23 @@
 /** Import path for the WOW framework types */
 export const IMPORT_WOW_PATH = '@ahoo-wang/wow-client';
 
+/**
+ * Import path for the deprecated Condition query model, which
+ * `@ahoo-wang/wow-client` keeps on its `/legacy` subpath for Wow 8.10 servers.
+ */
+export const IMPORT_WOW_LEGACY_PATH = '@ahoo-wang/wow-client/legacy';
+
+// compat(wow<9): the schemas of Wow < 8.11 query only through the Condition model, so the
+// types they map to come from `/legacy`; the subpath and this set go in v10, and users regenerate.
+/** The mapped type names that `IMPORT_WOW_LEGACY_PATH` exports. */
+export const WOW_LEGACY_TYPES: ReadonlySet<string> = new Set([
+  'Condition',
+  'ConditionOptions',
+  'ListQuery',
+  'Operator',
+  'PagedQuery',
+]);
+
 /** Mapping of OpenAPI schema keys to WOW framework types */
 export const WOW_TYPE_MAPPING = {
   'wow.command.CommandResult': 'CommandResult',
@@ -28,9 +45,9 @@ export const WOW_TYPE_MAPPING = {
   'wow.api.messaging.FunctionInfoData': 'FunctionInfo',
   'wow.api.messaging.FunctionKind': 'FunctionKind',
   'wow.api.modeling.AggregateId': 'AggregateId',
-  // compat(wow<9): Condition, ConditionOptions, ListQuery, Operator and PagedQuery map to the
-  // deprecated Condition API types; map them to the FilterExpression types in v10, and users
-  // must regenerate.
+  // Condition, ConditionOptions, ListQuery, Operator and PagedQuery name the deprecated
+  // Condition API types of `/legacy` (see WOW_LEGACY_TYPES); a ListQuery or PagedQuery schema
+  // that carries `filter` maps to FilterListQuery or FilterPagedQuery instead (resolveModelInfo).
   'wow.api.query.Condition': 'Condition',
   'wow.api.query.ConditionOptions': 'ConditionOptions',
   'wow.api.query.ListQuery': 'ListQuery',

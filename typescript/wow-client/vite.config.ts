@@ -20,8 +20,7 @@ export default defineConfig({
     lib: {
       entry: {
         index: 'src/index.ts',
-        'query/locale/zh_CN': 'src/query/locale/zh_CN.ts',
-        'query/locale/en_US': 'src/query/locale/en_US.ts',
+        legacy: 'src/legacy/index.ts',
       },
       name: 'WowClient',
       fileName: (format, entryName) => {
