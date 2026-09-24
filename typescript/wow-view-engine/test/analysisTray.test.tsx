@@ -25,6 +25,13 @@ import {
   within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import {
+  ChartLineIcon,
+  ChartPieIcon,
+  Settings2Icon,
+  type LucideIcon,
+} from 'lucide-react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
@@ -41,6 +48,7 @@ import {
   zhCN,
 } from '../src/ui/index.js';
 import type { ViewMessages } from '../src/ui/index.js';
+import { glyphType } from '../src/ui/analysis/chartIcons.js';
 import { SPACE } from '../src/ui/layout.js';
 import { analysisConfig, ordersDefinition, testSource } from './fixtures.js';
 import {
@@ -49,6 +57,17 @@ import {
   openTray,
 } from './fixtures/workbench.js';
 import { tracked } from './fixtures/writes.js';
+
+/** An icon's drawing: the shapes inside its `svg`, not its classes. */
+function glyph(element: Element): string {
+  return element.querySelector('svg')!.innerHTML;
+}
+
+function glyphOf(Icon: LucideIcon): string {
+  const host = document.createElement('div');
+  host.innerHTML = renderToStaticMarkup(<Icon />);
+  return glyph(host);
+}
 
 afterEach(cleanup);
 
@@ -972,6 +991,55 @@ describe('the analysis result toolbar', () => {
       await user.unhover(table);
       cleanup();
     }
+  });
+
+  /**
+   * The chart segment shows what pressing it gets: the glyph the
+   * visualization panel draws for the chart type in force, following the
+   * type as it changes — in the table layout too — and never the glyph of
+   * 「可视化」 beside it, which is the panel's options, not a chart.
+   */
+  it('draws the chart segment as the chart type it will draw', async () => {
+    const user = userEvent.setup();
+    await open({
+      fold: false,
+      config: {
+        layout: 'table',
+        chart: {
+          type: 'line',
+          cartesian: { x: 'warehouse', series: [{ metric: 'orders' }] },
+        },
+      },
+    });
+    const toolbar = () =>
+      document.querySelector<HTMLElement>('[data-slot="result-toolbar"]')!;
+    const chartSegment = () =>
+      within(toolbar()).getByRole('button', {
+        name: defaultMessages['label.layout.chart'],
+      });
+    const visualize = within(toolbar()).getByRole('button', {
+      name: defaultMessages['label.analysis.visualize'],
+    });
+    expect(glyph(chartSegment())).toBe(glyphOf(ChartLineIcon));
+
+    await user.click(visualize);
+    await user.click(
+      await screen.findByRole('radio', {
+        name: defaultMessages['label.chart.type.pie'],
+      }),
+    );
+    await waitFor(() =>
+      expect(glyph(chartSegment())).toBe(glyphOf(ChartPieIcon)),
+    );
+    expect(glyph(visualize)).toBe(glyphOf(Settings2Icon));
+    expect(glyph(visualize)).not.toBe(glyph(chartSegment()));
+  });
+
+  it('falls back to the generic chart glyph for a type it does not draw', () => {
+    expect(glyphType('sankey')).toBe('bar');
+    expect(glyphType('table')).toBe('bar');
+    expect(glyphType(undefined)).toBe('bar');
+    expect(glyphType('pie')).toBe('pie');
   });
 
   it('keeps the way into the visualization beside the layout switch, not in the tray', async () => {

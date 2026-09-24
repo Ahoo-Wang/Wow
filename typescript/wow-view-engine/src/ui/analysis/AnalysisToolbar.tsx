@@ -12,7 +12,7 @@
  */
 
 import type { RefObject } from 'react';
-import { ChartColumnIcon, TableIcon } from 'lucide-react';
+import { Settings2Icon, TableIcon } from 'lucide-react';
 import { havingRows, type AnalysisColumnView } from '../../analysis/index.js';
 import type { AnalysisHavingExpression } from '../../model/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
@@ -29,6 +29,7 @@ import {
 } from '../MessagesProvider.js';
 import { Toolbar } from '../toolbar.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
+import { CHART_ICON, glyphType } from './chartIcons.js';
 import { useAnalysisExportOffer } from './exportOffer.js';
 
 export interface AnalysisToolbarProps {
@@ -95,6 +96,7 @@ export function AnalysisToolbar({
     messages,
     locale,
   );
+  const ChartIcon = CHART_ICON[glyphType(analysis.chart.type)];
   return (
     <Toolbar
       data-slot="result-toolbar"
@@ -126,8 +128,10 @@ export function AnalysisToolbar({
               record view's layout switch is: which segment is pressed says
               which layout is on, so the word adds nothing a glance does not
               have, and the bar keeps its width for the reading on the left.
-              The glyphs are the ones the visualization panel draws for the
-              same two things — its 「表格」 card and its column chart. */}
+              The chart segment draws the type the chart layout will draw —
+              the visualization panel's glyph for it (`CHART_ICON`) — so the
+              switch says what pressing it gets, as Metabase's does; its name
+              stays 「图表」, the layout, which is what the press changes. */}
           <IconTooltip
             label={messages.label('label.layout.table')}
             render={<ToggleGroupItem value="table" />}
@@ -138,7 +142,7 @@ export function AnalysisToolbar({
             label={messages.label('label.layout.chart')}
             render={<ToggleGroupItem value="chart" />}
           >
-            <ChartColumnIcon />
+            <ChartIcon />
           </IconTooltip>
         </ToggleGroup>
         {onVisualize && (
@@ -151,7 +155,10 @@ export function AnalysisToolbar({
             disabled={disabled}
             onClick={() => onVisualize(visualizing !== true)}
           >
-            <ChartColumnIcon data-icon="inline-start" />
+            {/* The panel's options glyph, not a chart: the chart segment
+                beside it already draws the chart, and two identical bars
+                side by side read as one control twice. */}
+            <Settings2Icon data-icon="inline-start" />
             {messages.label('label.analysis.visualize')}
           </Button>
         )}

@@ -12,23 +12,7 @@
  */
 
 import { useId, useRef, type RefObject } from 'react';
-import {
-  ArrowLeftIcon,
-  ChevronRightIcon,
-  Settings2Icon,
-  ChartAreaIcon,
-  ChartColumnIcon,
-  ChartGanttIcon,
-  ChartLineIcon,
-  ChartNoAxesCombinedIcon,
-  ChartPieIcon,
-  ChartScatterIcon,
-  FunnelIcon,
-  Grid3x3Icon,
-  LayoutDashboardIcon,
-  SquareSigmaIcon,
-  TableIcon,
-} from 'lucide-react';
+import { ArrowLeftIcon, ChevronRightIcon, Settings2Icon } from 'lucide-react';
 import {
   chartPickerGroups,
   optionTabs,
@@ -41,24 +25,8 @@ import { Button } from '../components/button.js';
 import { IconButton } from '../IconButton.js';
 import { LANDING_HEADING, TEXT_UI } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
+import { CHART_ICON } from './chartIcons.js';
 import { ChartTile } from '../variants.js';
-
-const ICON: Record<ChartType | 'table', typeof TableIcon> = {
-  bar: ChartColumnIcon,
-  line: ChartLineIcon,
-  area: ChartAreaIcon,
-  combo: ChartNoAxesCombinedIcon,
-  // Bars floating one after another: a waterfall's steps.
-  waterfall: ChartGanttIcon,
-  pie: ChartPieIcon,
-  // Blocks of unequal size tiling a square: a treemap's parts.
-  treemap: LayoutDashboardIcon,
-  heatmap: Grid3x3Icon,
-  scatter: ChartScatterIcon,
-  funnel: FunnelIcon,
-  metric: SquareSigmaIcon,
-  table: TableIcon,
-};
 
 export type { Picked };
 
@@ -239,7 +207,7 @@ export function ChartPicker({
                 {section.map(value => {
                   const fit = fitOf(value);
                   const index = tiles.findIndex(tile => tile.value === value);
-                  const Icon = ICON[value];
+                  const Icon = CHART_ICON[value];
                   const name = nameOf(value);
                   const reason = fit.reason && messages.label(fit.reason);
                   const nameId = `${ids}-name-${value}`;
