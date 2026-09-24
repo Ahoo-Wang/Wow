@@ -33,6 +33,7 @@ import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.query.schema.QueryValueSchema
+import me.ahoo.wow.query.schema.hasArrayBranch
 import me.ahoo.wow.query.schema.operationValues
 import org.bson.Document
 import reactor.core.publisher.Mono
@@ -102,7 +103,7 @@ class MongoQuerySchemaAdapter(
                     logical != null && !logical.containerSupported(storageSchemas.storageAt(ancestor.physicalPath(model)))
                 }
                 if (invalidAncestor) return@associateWith QueryValueBindings()
-                val arrayAncestor = path.segments.any { it == QueryPathSegment.Item } || value.hasArray() ||
+                val arrayAncestor = path.segments.any { it == QueryPathSegment.Item } || value.hasArrayBranch() ||
                     nativeArrays.any { it.isPhysicalAncestorOf(physical) }
                 val native = QueryFieldBindingTemplate(physical, storage?.types?.takeIf { it.isNotEmpty() })
                 QueryValueBindings(
@@ -166,9 +167,6 @@ class MongoQuerySchemaAdapter(
                 left == right || left is QueryPathSegment.Key && (right is QueryPathSegment.Property || right is QueryPathSegment.Key)
             }
         }
-
-        private fun QueryValueSchema.hasArray(): Boolean = kind == QueryValueKind.ARRAY ||
-            kind == QueryValueKind.UNION && alternatives.any { it.hasArray() }
 
         private fun QueryValueSchema.containerSupported(storage: MongoStorageSchema?): Boolean = when {
             storage?.uncertain == true && (kind == QueryValueKind.OBJECT || kind == QueryValueKind.ARRAY) -> false

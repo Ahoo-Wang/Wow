@@ -68,6 +68,7 @@ import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.physicalField
 import me.ahoo.wow.query.schema.requireIdentityField
+import me.ahoo.wow.query.schema.scopedPhysicalField
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import org.bson.conversions.Bson
@@ -272,12 +273,15 @@ abstract class AbstractMongoFilterCompiler {
         capability: QueryCapability,
         scope: FilterScope,
     ): QueryField {
-        val physicalField = schema.physicalField(this, capability, scope.logicalParent)
         val parent = scope.physicalParent
-        if (parent == null) return physicalField
-        val relative = physicalField.relativeTo(parent)
-            ?: throw QuerySchemaValidationException("Physical field [$physicalField] is outside element scope [$parent].")
-        return if (scope.relativeToParent) relative else physicalField
+        val physicalField = schema.scopedPhysicalField(this, capability, scope.logicalParent, parent)
+        return if (parent != null && scope.relativeToParent) {
+            checkNotNull(
+                physicalField.relativeTo(parent)
+            )
+        } else {
+            physicalField
+        }
     }
 
     private val StringComparison.ignoreCase: Boolean

@@ -51,7 +51,6 @@ import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.TenantIdFilter
-import me.ahoo.wow.api.query.schema.QueryValueKind
 
 /**
  * Validates that an aggregation metric filter references scalar fields only.
@@ -113,13 +112,9 @@ fun FilterExpression.requireScalarMetricFilterFields(
 private fun QueryField.requireScalarMetricFilterField(parent: QueryField?, schema: QueryModelSchema) {
     val logical = absoluteLogicalField(this, parent)
     val value = schema.field(logical)?.value ?: return
-    if (value.isArrayValued) {
+    if (value.hasArrayBranch()) {
         throw QuerySchemaValidationException(
             "Aggregation metric filter field [$logical] must be scalar; array fields are not supported in metric filters.",
         )
     }
 }
-
-private val QueryValueSchema.isArrayValued: Boolean
-    get() = kind == QueryValueKind.ARRAY ||
-        (kind == QueryValueKind.UNION && alternatives.any { it.kind == QueryValueKind.ARRAY })

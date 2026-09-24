@@ -26,8 +26,7 @@ import me.ahoo.wow.api.query.DerivedExpression
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QuerySchemaValidationException
-import me.ahoo.wow.query.schema.physicalField
+import me.ahoo.wow.query.schema.scopedPhysicalField
 
 internal fun AggregationMetric.Derived.toDerivedPlan(
     expression: DerivedExpression,
@@ -239,10 +238,4 @@ internal fun QueryField.resolve(
     physicalParent: QueryField?,
     schema: QueryModelSchema,
     capability: QueryCapability,
-): String {
-    val physical = schema.physicalField(this, capability, parent)
-    if (physicalParent != null && physical.relativeTo(physicalParent) == null) {
-        throw QuerySchemaValidationException("Physical field [$physical] is outside its nested scope.")
-    }
-    return physical.path
-}
+): String = schema.scopedPhysicalField(this, capability, parent, physicalParent).path

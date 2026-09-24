@@ -54,7 +54,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
     protected open val queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE
     protected open val queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE
 
-    internal fun executeSingle(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode> =
+    override fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode> =
         listResolved(
             ListQuery(
                 filter = query.filter,
@@ -65,16 +65,9 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
             schema,
         ).next()
 
-    override fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode> =
-        executeSingle(query, schema)
-
     override fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode> {
         require(query.limit >= 0) { "limit must be greater than or equal to 0." }
-        return executeList(query, schema)
-    }
-
-    internal fun executeList(listQuery: IListQuery, schema: QueryModelSchema): Flux<ObjectNode> {
-        return listResolved(listQuery, schema)
+        return listResolved(query, schema)
     }
 
     private fun listResolved(listQuery: IListQuery, schema: QueryModelSchema): Flux<ObjectNode> {
@@ -100,7 +93,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
             .flatMapIterable { it.list }
     }
 
-    internal fun executePaged(query: IPagedQuery, schema: QueryModelSchema): Mono<PagedList<ObjectNode>> =
+    override fun paged(query: IPagedQuery, schema: QueryModelSchema): Mono<PagedList<ObjectNode>> =
         Mono.fromSupplier {
             createSearchRequest(
                 query = query,
@@ -112,10 +105,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
             )
         }.flatMap(::search)
 
-    override fun paged(query: IPagedQuery, schema: QueryModelSchema): Mono<PagedList<ObjectNode>> =
-        executePaged(query, schema)
-
-    internal fun executeCursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>> {
+    override fun cursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>> {
         val compiled = CompiledQuery(
             query = filterCompiler.compile(query.filter, schema),
             sortOptions = ElasticsearchSortCompiler.compileCursor(query.sort, schema),
@@ -124,9 +114,6 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
         return Mono.defer { elasticsearchClient.search(request, ObjectNode::class.java) }
             .map { response -> response.requireComplete().toCursorPage(query) }
     }
-
-    override fun cursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>> =
-        executeCursor(query, schema)
 
     private fun cursorSearchRequest(
         query: ICursorQuery,
@@ -220,16 +207,14 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
             }
     }
 
-    internal fun executeCount(filter: FilterExpression, schema: QueryModelSchema): Mono<Long> = Mono.fromSupplier {
+    override fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long> = Mono.fromSupplier {
         CountRequest.of {
             it.index(indexName)
-                .query(filterCompiler.compile(filter, schema))
+                .query(filterCompiler.compile(query, schema))
         }
     }.flatMap(elasticsearchClient::count).map { it.requireComplete().count() }
 
-    override fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long> = executeCount(query, schema)
-
-    protected fun executeAggregation(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode> =
+    override fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode> =
         ElasticsearchAggregationPager(
             elasticsearchClient,
             indexName,
@@ -238,9 +223,6 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
         ).execute(
             ElasticsearchAggregationCompiler(filterCompiler).compile(query, schema),
         )
-
-    override fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode> =
-        executeAggregation(query, schema)
 
     private fun compile(
         filter: FilterExpression,
